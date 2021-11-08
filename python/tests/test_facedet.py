@@ -44,7 +44,7 @@ class TestLoadFaceDetModel(unittest.TestCase):
             self.target = DefaultHostTarget()
         self.model_dir = model_dir
         self.x_shape = [1, 3, 240, 320]
-        self.target_tensor = 'save_infer_model/scale_0.tmp_1'
+        self.target_tensor = 'relu_17.tmp_0'
         self.input_tensor = 'x0'
 
     def get_paddle_inference_result(self, model_dir, data):
@@ -75,7 +75,7 @@ class TestLoadFaceDetModel(unittest.TestCase):
         for i in range(10):
             self.executor.run()
 
-        repeat = 10
+        repeat = 20
         end4 = time.perf_counter()
         for i in range(repeat):
             self.executor.run()
@@ -94,7 +94,7 @@ class TestLoadFaceDetModel(unittest.TestCase):
         print("result in test_model: \n")
         out = out.reshape(-1)
         target_result = target_result.reshape(-1)
-        for i in range(0, min(out.shape[0], 200)):
+        for i in range(0, out.shape[0]):
             if np.abs(out[i] - target_result[i]) > 1e-3:
                 print("Error! ", i, "-th data has diff with target data:\n",
                       out[i], " vs: ", target_result[i], ". Diff is: ",

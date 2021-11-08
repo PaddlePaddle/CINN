@@ -1217,11 +1217,7 @@ CINN_REGISTER_HELPER(transform_ops) {
 #ifndef CINN_WITH_CUDA
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForTranspose))
 #endif
-#ifdef CINN_WITH_CUDNN
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
-#else
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kInjective)
-#endif
       .set_support_level(4);
 
   CINN_REGISTER_OP(mul)
