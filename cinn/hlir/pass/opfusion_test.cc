@@ -423,5 +423,51 @@ TEST(conv_add_mul, conv_add_mul) {
   runtime_program->Execute();
 }
 
+// conv+add with different out shape
+TEST(fuse_conv_add1, fuse_conv_add1) {
+  Placeholder A(Float(32), {1, 8, 1, 1}, "A");
+  Placeholder B(Float(32), {32, 8, 1, 1}, "B");
+  Placeholder C(Float(32), {1, 32, 112, 112}, "C");
+
+  Program program;
+  absl::flat_hash_map<std::string, Program::attr_t> attrs;
+  attrs["stride"]        = std::vector<int>({1, 1});
+  attrs["dilation"]      = std::vector<int>({1, 1});
+  attrs["padding"]       = std::vector<int>({0, 0});
+  std::string src_layout = "NCHW";
+  attrs["data_format"]   = src_layout;
+
+  auto c = program.conv2d(A, B, attrs);
+  auto d = program.elementwise_add(c, C);
+
+  Target target = GetTarget();
+  program.SetInputs({A, B, C});
+  program.Validate();
+  LOG(INFO) << "Program:\n" << program;
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+
+  hlir::framework::ApplyPass(graph.get(), "InferShape");
+  hlir::framework::ApplyPass(graph.get(), "AlterLayout");
+  hlir::framework::ApplyPass(graph.get(), "OpFusion");
+  auto scope = BuildScope(target, graph);
+  LOG(INFO) << "graph:\n" << graph->Visualize();
+
+  hlir::framework::GraphCompiler gc(target, scope, graph);
+  auto runtime_program = gc.Build();
+
+  scope->Var<hlir::framework::Tensor>("A");
+  scope->Var<hlir::framework::Tensor>("B");
+  scope->Var<hlir::framework::Tensor>("C");
+
+  auto A1 = scope->GetTensor("A");
+  auto B1 = scope->GetTensor("B");
+  auto C1 = scope->GetTensor("C");
+  SetRandData(A1, target);
+  SetRandData(B1, target);
+  SetRandData(C1, target);
+
+  runtime_program->Execute();
+}
+
 }  // namespace frontend
 }  // namespace cinn
