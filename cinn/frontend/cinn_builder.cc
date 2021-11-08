@@ -101,7 +101,7 @@ Variable CinnBuilder::Conv(const Variable& lhs,
                            const std::string& conv_type,
                            const std::string& data_format,
                            const std::string& padding_algorithm,
-                           const std::vector<int>& filter_shape) {
+                           const std::vector<int>& output_shape) {
   Instruction instr("conv2d");
   instr.SetInputs({lhs, rhs});
   instr.SetAttr("stride", strides);
@@ -111,7 +111,7 @@ Variable CinnBuilder::Conv(const Variable& lhs,
   instr.SetAttr("conv_type", conv_type);
   instr.SetAttr("data_format", data_format);
   instr.SetAttr("padding_algorithm", padding_algorithm);
-  instr.SetAttr("filter_shape", filter_shape);
+  instr.SetAttr("output_shape", output_shape);
 
   InferShape(instr);
   AppendInstruction(instr);
