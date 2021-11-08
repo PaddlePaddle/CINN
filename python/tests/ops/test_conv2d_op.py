@@ -21,21 +21,25 @@ import unittest
 
 from cinn.frontend import *
 from cinn.common import *
-from op_test import OpTest, OpTestTool
+from op_test import OpTest, OpTestTool, random
 
 
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
                     "x86 test will be skipped due to timeout.")
 class TestConv2dOp(OpTest):
     def setUp(self):
-        self.init_case()
-
-    def init_case(self):
+        self.config()
         self.inputs = {
-            "x": np.random.random([3, 16, 224, 224]).astype("float32"),
-            "weight": np.random.random([16, 16, 5, 5]).astype("float32"),
-            "dy": np.random.random([3, 16, 220, 220]).astype("float32")
+            "x": random(self.x_shape, self.dtype),
+            "weight": random(self.w_shape, self.dtype),
+            "dy": random(self.dy_shape, self.dtype)
         }
+
+    def config(self):
+        self.dtype = "float32"
+        self.x_shape = [4, 16, 224, 224]
+        self.w_shape = [16, 16, 5, 5]
+        self.dy_shape = [4, 16, 220, 220]
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.inputs["x"], stop_gradient=False)
