@@ -14,18 +14,27 @@
 
 #include "cinn/common/context.h"
 
+#include <isl/cpp.h>
+
+#include <mutex>
+
 #include "cinn/ir/ir.h"
 
 namespace cinn {
 namespace common {
 
+thread_local isl::ctx Context::ctx_ = isl_ctx_alloc();
+thread_local InfoRegistry Context::info_rgt_;
+thread_local DebugManager Context::debug_mgr_;
+
 Context& Context::Global() {
   static Context x;
-  isl_options_set_on_error(x.ctx_.get(), ISL_ON_ERROR_ABORT);
+  isl_options_set_on_error(ctx_.get(), ISL_ON_ERROR_ABORT);
   return x;
 }
 
-const std::string& Context::runtime_include_dir() const {
+const std::string& Context::runtime_include_dir() {
+  std::lock_guard<std::mutex> lock(mutex_);
   if (runtime_include_dir_.empty()) {
     char* env            = std::getenv(kRuntimeIncludeDirEnvironKey);
     runtime_include_dir_ = env ? env : "";  // Leave empty if no env found.
@@ -36,6 +45,7 @@ const std::string& Context::runtime_include_dir() const {
 const char* kRuntimeIncludeDirEnvironKey = "runtime_include_dir";
 
 std::string NameGenerator::New(const std::string& name_hint) {
+  std::lock_guard<std::mutex> lock(mutex_);
   auto it = name_hint_idx_.find(name_hint);
   if (it == name_hint_idx_.end()) {
     name_hint_idx_.emplace(name_hint, -1);

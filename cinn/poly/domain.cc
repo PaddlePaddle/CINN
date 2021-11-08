@@ -51,7 +51,7 @@ std::string Domain::__str__() const {
 
 isl::set Domain::to_isl() const {
   VLOG(3) << "isl::set " << __str__();
-  isl::set x(common::Context::Global().isl_ctx(), __str__());
+  isl::set x(common::Context::isl_ctx(), __str__());
   return x;
 }
 

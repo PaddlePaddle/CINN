@@ -45,10 +45,13 @@ class OpTest(unittest.TestCase):
         self.cinn_outputs = []
         self.cinn_grads = []
 
-    def _init_targets(self):
-        self.target = {"CPU": DefaultHostTarget()}
+    def _init_target(self):
+        self.target = DefaultHostTarget()
         if is_compiled_with_cuda():
-            self.target = {"NVGPU": DefaultNVGPUTarget()}
+            self.target = DefaultNVGPUTarget()
+
+    def _get_device(self):
+        return "NVGPU" if is_compiled_with_cuda() else "CPU"
 
     def build_paddle_program(self):
         raise Exception("Not implemented.")
@@ -90,20 +93,18 @@ class OpTest(unittest.TestCase):
 
     def check_outputs_and_grads(self, max_relative_error=1e-5):
         self.build_paddle_program()
+        self.build_cinn_program(self.target)
 
-        device = self.target.keys()[0]
-        self.build_cinn_program(self.target[device])
         logger.debug("============ Check Outputs ============")
-        self.check_results(device, self.paddle_outputs, self.cinn_outputs,
+        self.check_results(self.paddle_outputs, self.cinn_outputs,
                            max_relative_error)
 
         if len(self.cinn_grads) != 0:
             logger.debug("============ Check Grads ============")
-            self.check_results(device, self.paddle_grads, self.cinn_grads,
+            self.check_results(self.paddle_grads, self.cinn_grads,
                                max_relative_error)
 
-    def check_results(self, device, expect_res, actual_res,
-                      max_relative_error):
+    def check_results(self, expect_res, actual_res, max_relative_error):
         def _compute_max_relative_error(output_id, expect, actual):
             absolute_diff = np.abs(expect - actual).flatten()
             relative_diff = absolute_diff / np.abs(expect).flatten()
@@ -120,9 +121,9 @@ class OpTest(unittest.TestCase):
                     # The following print can be used to debug.
                     # print("i=%d, %e vs %e, relative_diff=%e, absolute_diff=%e" % (i, expect.flatten()[i], actual.flatten()[i], relative_diff[i], absolute_diff[i]))
             error_message = "[%s] The %d-th output: total %d different results, offset=%d, shape=%s, %e vs %e, maximum_relative_diff=%e (absolute_diff=%e)." % (
-                device, output_id, num_diffs, offset, str(expect.shape),
-                expect.flatten()[offset], actual.flatten()[offset], max_diff,
-                absolute_diff[offset])
+                self._get_device(), output_id, num_diffs, offset,
+                str(expect.shape), expect.flatten()[offset],
+                actual.flatten()[offset], max_diff, absolute_diff[offset])
             return error_message
 
         self.assertEqual(len(expect_res), len(actual_res))
