@@ -34,9 +34,6 @@ using framework::NodeData;
 using framework::Operator;
 using framework::OpPatternKind;
 
-auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
-absl::flat_hash_map<std::string, framework::shape_t> shape_dict;
-
 struct DomNode {
   GraphNode* ref_node{nullptr};
   DomNode* parent{nullptr};
@@ -121,6 +118,7 @@ class DomTree {
   }
 
   DomNode* FindLCA(GraphNode* graph_node, OpPatternKind* pattern) {
+    static auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
     CHECK(graph_node);
     CHECK(pattern);
     DomNode* parent = nullptr;
@@ -214,8 +212,11 @@ struct GroupNode {
 class GraphPartition {
  public:
   std::vector<std::vector<Node*>> Partition(const std::vector<GraphNode*>& graph_nodes,
-                                            const std::vector<DomNode*>& dom_nodes) {
+                                            const std::vector<DomNode*>& dom_nodes,
+                                            Graph* graph) {
     CHECK_EQ(graph_nodes.size(), dom_nodes.size());
+    CHECK(graph);
+    graph_ = graph;
     InitGroups(graph_nodes);
     for (int i = 0; i < 2; i++) {
       FuseGroups(graph_nodes, dom_nodes, i);
@@ -231,7 +232,9 @@ class GraphPartition {
   std::vector<GroupNode*> group_nodes_;
   std::vector<std::vector<Node*>> groups_;
   std::unordered_set<GraphNode*> visited_nodes_;
+  Graph* graph_;
   void InitGroups(const std::vector<GraphNode*>& graph_nodes) {
+    static auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
     for (int i = 0; i < graph_nodes.size(); i++) {
       GroupNode* group_node = new GroupNode();
       GraphNode* graph_node = graph_nodes[i];
@@ -265,6 +268,8 @@ class GraphPartition {
     return true;
   }
   std::vector<int> GetOutshape(GraphNode* node) {
+    CHECK(graph_);
+    auto& shape_dict = graph_->GetMutableAttrs<absl::flat_hash_map<std::string, framework::shape_t>>("infershape");
     CHECK(node);
     auto op_node = node->safe_as<Node>();
     std::vector<int> out_shapes;
@@ -330,6 +335,7 @@ class GraphPartition {
   // check all the nodes between source and sink meet the function of fusion.
   template <typename T>
   bool VerifyFuse(GraphNode* source, GraphNode* sink, T fn) {
+    static auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
     auto op_node = source->safe_as<Node>();
     visited_nodes_.clear();
     CHECK(source != sink);
@@ -499,7 +505,6 @@ class GraphPartition {
 };
 
 void OpFusionPass(Graph* graph) {
-  shape_dict       = graph->GetMutableAttrs<absl::flat_hash_map<std::string, framework::shape_t>>("infershape");
   auto store_nodes = std::get<0>(graph->topological_order());
   int node_size    = store_nodes.size();
   // construct postdom tree, reverse topological_order
@@ -507,7 +512,7 @@ void OpFusionPass(Graph* graph) {
   auto& dom_nodes = tree.CreatePostDomTree(store_nodes);
   // graph partition
   GraphPartition partition;
-  graph->groups = partition.Partition(store_nodes, dom_nodes);
+  graph->groups = partition.Partition(store_nodes, dom_nodes, graph);
 }
 
 }  // namespace pass
