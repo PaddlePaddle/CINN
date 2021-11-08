@@ -27,6 +27,7 @@
 #include "cinn/frontend/net_builder.h"
 #include "cinn/frontend/op_mappers/use_op_mappers.h"
 #include "cinn/frontend/paddle_model_to_program.h"
+#include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/tensor.h"
@@ -113,8 +114,21 @@ TEST(OpMapperRegistryTest, conv2d_reverse) {
   ASSERT_NE(op_mapper, nullptr);
   std::cout << op_mapper->name << std::endl;
   op_mapper->Run(*op_desc, op_mapper_ctx);
+
   Program net_program = net_builder.Build();
-  auto net_graph      = std::make_shared<Graph>(net_program, target);
+
+  for (size_t i = 0; i < net_program.size(); ++i) {
+    // OpMapperContext doesn't add output into scope
+    const auto& instr   = net_program[i];
+    const auto& outputs = instr.GetOutputs();
+    for (const auto& var : outputs) {
+      net_scope->Var<Tensor>(var->id);
+      net_scope->GetTensor(var->id);
+    }
+  }
+
+  std::cout << net_program << std::endl;
+  auto net_graph = std::make_shared<Graph>(net_program, target);
   GraphCompiler net_gc(target, net_scope, net_graph);
   auto net_runtime_prog = net_gc.Build();
 
@@ -128,6 +142,7 @@ TEST(OpMapperRegistryTest, conv2d_reverse) {
   SetRandData(filter_tensor, target);
 
   net_runtime_prog->Execute();
+  /*
   std::vector<float> net_data(output_tensor->shape().numel());
   CopyToVector(output_tensor, &net_data);
   for (auto x : net_data) {
