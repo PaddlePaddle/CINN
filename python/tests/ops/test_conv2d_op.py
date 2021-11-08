@@ -20,10 +20,11 @@ import unittest
 
 from cinn.frontend import *
 from cinn.common import *
+from cinn.runtime import *
 from op_test import OpTest, OpTestTool
 
-if is_compiled_with_cudnn():
-    paddle.set_flags({'FLAGS_cudnn_exhaustive_search': 1})
+set_cinn_cudnn_deterministic(True)
+paddle.set_flags({'FLAGS_cudnn_deterministic': 1})
 
 
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
