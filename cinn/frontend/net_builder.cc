@@ -22,9 +22,32 @@
 
 namespace cinn {
 namespace frontend {
+Variable NetBuilder::identity(const Variable& operand) {
+  Instruction instr("identity", {operand});
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
 Variable NetBuilder::add(const Variable& a, const Variable& b) {
   Instruction instr("elementwise_add", {a, b});
   instr.SetAttr("axis", -1);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
+Variable NetBuilder::reshape(const Variable& operand, const std::vector<int>& shape) {
+  Instruction instr("reshape", {operand});
+  instr.SetAttr("shape", shape);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
+Variable NetBuilder::transpose(const Variable& operand, const std::vector<int>& axis) {
+  Instruction instr("transpose", {operand});
+  instr.SetAttr("axis", axis);
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(0);
@@ -161,10 +184,10 @@ Variable NetBuilder::pool2d(const Variable& a,
                             const std::string& padding_algorithm) {
   Instruction instr("pool2d");
   instr.SetInputs({a});
-  instr.SetAttr("pooling_type", pooling_type);
-  instr.SetAttr("ksize", ksize);
-  instr.SetAttr("strides", strides);
-  instr.SetAttr("paddings", paddings);
+  instr.SetAttr("pool_type", pooling_type);
+  instr.SetAttr("kernel_size", ksize);
+  instr.SetAttr("stride_size", strides);
+  instr.SetAttr("padding_size", paddings);
   instr.SetAttr("ceil_mode", ceil_mode);
   instr.SetAttr("exclusive", exclusive);
   instr.SetAttr("global_pooling", global_pooling);

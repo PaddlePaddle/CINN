@@ -255,7 +255,8 @@ std::vector<Tensor> MatmulV2(const Tensor& A,
         return B(indice_b);
       },
       UniqName("packedB"));
-  auto temp_res = Compute(
+
+  auto res = Compute(
       output_shape,
       [=](const std::vector<Expr>& indice) {
         std::vector<Expr> indice_a;
@@ -275,17 +276,14 @@ std::vector<Tensor> MatmulV2(const Tensor& A,
         if (trans_a) {
           std::swap(indice_a.back(), indice_a[indice_a.size() - 2]);
         }
-        return lang::ReduceSum(A(indice_a) * packedB(indice_b), {reduce_k});
+        if (alpha == 1) {
+          return lang::ReduceSum(A(indice_a) * packedB(indice_b), {reduce_k});
+        } else {
+          return lang::ReduceSum(A(indice_a) * packedB(indice_b) * make_const(A->type(), alpha), {reduce_k});
+        }
       },
-      UniqName("temp_matmulV2_out"));
-  if (alpha != 1) {
-    auto res = Compute(
-        output_shape,
-        [=](const std::vector<Expr>& indice) { return temp_res(indice) * make_const(temp_res->type(), alpha); },
-        name);
-    return {res, temp_res, packedB};
-  }
-  return {temp_res, packedB};
+      UniqName("matmulV2_out"));
+  return {res, packedB};
 }
 
 std::vector<Tensor> MatmulMKL(const Tensor& A,

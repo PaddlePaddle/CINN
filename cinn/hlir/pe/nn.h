@@ -154,6 +154,7 @@ std::vector<ir::Tensor> Conv2d_NCHWc(const ir::Tensor &input,
                                      const std::string &output_name = UniqName("T_Conv2d_NCHWc_out"),
                                      const common::Target &target   = common::DefaultHostTarget());
 
+#ifdef CINN_WITH_MKLDNN
 std::vector<ir::Tensor> Conv2d_NCHW_MKLDNN(const ir::Tensor &input,
                                            const ir::Tensor &weights,
                                            int pad_h,
@@ -163,6 +164,7 @@ std::vector<ir::Tensor> Conv2d_NCHW_MKLDNN(const ir::Tensor &input,
                                            int dilation_h,
                                            int dilation_w,
                                            const std::string &output_name = UniqName("T_Conv2d_NCHW_out"));
+#endif
 
 /**
  * @brief Perform a 2-D convolution with an NHWC-layout and support group and depthwise convolution.
@@ -289,9 +291,11 @@ std::vector<ir::Tensor> Softmax(const ir::Tensor &A,
                                 int axis                       = -1,
                                 const std::string &output_name = UniqName("T_softmax_out"));
 
+#ifdef CINN_WITH_MKLDNN
 std::vector<ir::Tensor> SoftmaxMKLDNN(const ir::Tensor &A,
                                       int axis                       = -1,
                                       const std::string &output_name = UniqName("T_softmax_out"));
+#endif
 
 ir::Tensor Slice(const ir::Tensor &A,
                  const std::vector<int> &starts,

@@ -48,7 +48,7 @@ std::vector<cinn_pod_value_t>& Instruction::PreparePodArgs(
   return args_cached_[i];
 }
 
-void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podargs) {
+void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podargs, bool dryrun) {
   if (fn_.size() > 1 && fn_.size() != in_args_.size()) {
     out_args_.back()[0] = out_args_.front()[0];
     out_args_.erase(out_args_.begin());
@@ -111,7 +111,9 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
     for (auto& it_fn : fn_) {
       auto& pod_args = PreparePodArgs(i, name2podargs);
       CHECK(it_fn) << "The LoweredFunc address should be set first by calling SetLoweredFunc method";
-      it_fn(pod_args.data(), pod_args.size());
+      if (!dryrun) {
+        it_fn(pod_args.data(), pod_args.size());
+      }
       i++;
     }
   }
@@ -120,7 +122,9 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
   for (auto& it_fn : fn_) {
     auto& pod_args = PreparePodArgs(i, name2podargs);
     CHECK(it_fn) << "The LoweredFunc address should be set first by calling SetLoweredFunc method";
-    it_fn(pod_args.data(), pod_args.size());
+    if (!dryrun) {
+      it_fn(pod_args.data(), pod_args.size());
+    }
     i++;
   }
 #endif

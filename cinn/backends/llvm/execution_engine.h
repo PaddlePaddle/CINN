@@ -75,6 +75,8 @@ class ExecutionEngine {
   template <typename CodeGenT = CodeGenLLVM>
   void Link(const ir::Module &module);
 
+  void ExportObject(const std::string &path);
+
   bool AddModule(std::unique_ptr<llvm::Module> module, std::unique_ptr<llvm::LLVMContext> context);
 
  protected:
@@ -88,6 +90,7 @@ class ExecutionEngine {
 
  private:
   mutable std::mutex mu_;
+  llvm::SmallString<0> buffer_;
   std::unique_ptr<llvm::orc::LLJIT> jit_;
   std::unique_ptr<NaiveObjectCache> cache_;
 };

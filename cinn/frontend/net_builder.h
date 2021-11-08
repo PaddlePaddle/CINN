@@ -27,10 +27,22 @@ class NetBuilder : public BaseBuilder {
  public:
   using BaseBuilder::BaseBuilder;
 
+  Variable identity(const Variable& a);
+
   /**
    * Add two variables.
    */
   Variable add(const Variable& a, const Variable& b);
+
+  /**
+   * Reshape Variable.
+   */
+  Variable reshape(const Variable& a, const std::vector<int>& shape);
+
+  /**
+   * Transpose matrix.
+   */
+  Variable transpose(const Variable& a, const std::vector<int>& axis);
 
   /**
    * Multiply two matrix.
