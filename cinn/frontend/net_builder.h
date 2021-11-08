@@ -27,6 +27,8 @@ class NetBuilder : public BaseBuilder {
  public:
   using BaseBuilder::BaseBuilder;
 
+  Variable identity(const Variable& a);
+
   /**
    * Add two variables.
    */
