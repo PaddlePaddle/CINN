@@ -123,7 +123,7 @@ void BindSpecialTypes(py::module *m) {
   m->def("nullptr", []() { return VoidPointer(); });
 }
 
-void Set_Cinn_Cudnn_Deterministic(bool state = true) { FLAGS_cinn_cudnn_deterministic = state; }
+void SetCinnCudnnDeterministic(bool state = true) { FLAGS_cinn_cudnn_deterministic = state; }
 
 void BindCinnRuntime(py::module *m) {
   py::enum_<cinn_type_code_t> cinn_type_code(*m, "cinn_type_code_t");
@@ -270,7 +270,7 @@ void BindCinnRuntime(py::module *m) {
       .def("cinn_pod_value_to_void_p", &cinn_pod_value_to_void_p)
       .def("cinn_pod_value_to_buffer_p", &cinn_pod_value_to_buffer_p);
 
-  m->def("set_cinn_cudnn_deterministic", &Set_Cinn_Cudnn_Deterministic, py::arg("state") = true);
+  m->def("set_cinn_cudnn_deterministic", &SetCinnCudnnDeterministic, py::arg("state") = true);
 }
 }  // namespace
 
