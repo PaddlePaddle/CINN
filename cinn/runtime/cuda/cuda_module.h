@@ -13,17 +13,14 @@
 // limitations under the License.
 
 #pragma once
-#ifdef CINN_WITH_CUDA
 
 #include <cuda.h>
 #include <cuda_runtime.h>
-#include <glog/logging.h>
 
 #include <mutex>  // NOLINT
 #include <string>
 #include <vector>
 
-#include "cinn/backends/cuda_util.h"
 #include "cinn/runtime/cuda/cuda_util.h"
 
 namespace cinn {
@@ -40,20 +37,7 @@ class CUDAModule {
     PTX = 0,
   };
 
-  CUDAModule(const std::string& data, Kind kind) : data_(data), kind_(kind) {
-    CHECK(!data.empty());
-
-    cudaGetDeviceCount(&num_devices_);
-    CHECK_GT(num_devices_, 0) << "No available devices";
-
-    // TODO(Superjomn) Determine whether to initialize all the devices.
-    int current_device_id;
-    cudaGetDevice(&current_device_id);
-    cudaSetDevice(current_device_id);
-    cuDeviceGet(&device_, current_device_id);
-    cuCtxGetCurrent(&context_);
-    cuDevicePrimaryCtxRetain(&context_, device_);
-  }
+  CUDAModule(const std::string& data, Kind kind);
 
   void LaunchKernel(int device_id,
                     const std::string& func_name,
@@ -67,27 +51,9 @@ class CUDAModule {
   CUfunction GetFunction(int device_id, const std::string& func_name);
 
   //! Get a global variable.
-  CUdeviceptr GetGlobal(int device_id, const std::string& name, size_t nbytes) {
-    if (!module_per_card_[device_id]) {
-      std::lock_guard<std::mutex> lock(mutex_);
-      CUDA_DRIVER_CALL(cuModuleLoadData(&module_per_card_[device_id], data_.c_str()));
-    }
+  CUdeviceptr GetGlobal(int device_id, const std::string& name, size_t nbytes);
 
-    CUdeviceptr global;
-    size_t _nbytes;
-    CUDA_DRIVER_CALL(cuModuleGetGlobal(&global, &_nbytes, module_per_card_[device_id], name.c_str()));
-    return global;
-  }
-
-  ~CUDAModule() {
-    for (int i = 0; i < module_per_card_.size(); i++) {
-      auto* module = module_per_card_[i];
-      if (module) {
-        CUDA_CALL(cudaSetDevice(i));
-        CUDA_DRIVER_CALL(cuModuleUnload(module));
-      }
-    }
-  }
+  ~CUDAModule();
 
  private:
   //! The input data.
@@ -107,5 +73,3 @@ class CUDAModule {
 }  // namespace cuda
 }  // namespace runtime
 }  // namespace cinn
-
-#endif  // CINN_WITH_CUDA

@@ -52,6 +52,23 @@ void AddAttrs(const absl::flat_hash_map<std::string, AttrType>& attrs_store,
   }
 }
 
+Program::Program(const std::shared_ptr<Scope>& scope, std::vector<std::unique_ptr<Instruction>>&& instrs)
+    : scope_(scope) {
+  for (auto& ins : instrs) {
+    if (ins->pre_run) {
+      prerun_instrs_.push_back(std::move(ins));
+    } else {
+      instrs_.push_back(std::move(ins));
+    }
+  }
+}
+
+void Program::PreRun(const std::map<std::string, cinn_pod_value_t>* name2podargs) {
+  for (auto& ins : prerun_instrs_) {
+    ins->Run(name2podargs);
+  }
+}
+
 void Program::Export(const std::vector<std::string>& persistent_vars, const std::string& filename) {
   auto writeplaceholder = [=](int s, int n, FILE* f) -> int {
     int pos = ftell(f);
@@ -173,6 +190,41 @@ void Program::Export(const std::vector<std::string>& persistent_vars, const std:
   padding(16, 0, f);
   tellplaceholder(instsec, f);
   fclose(f);
+}
+
+void Program::Execute(const std::map<std::string, cinn_pod_value_t>* name2podargs) {
+  for (auto& ins : instrs_) {
+    ins->Run(name2podargs);
+  }
+#ifdef CINN_WITH_CUDA
+  LOG(INFO) << __PRETTY_FUNCTION__ << "---- IN ----";
+  if (instrs_[0]->target_.arch == Target::Arch::NVGPU) {
+    CUDA_CALL(cudaDeviceSynchronize());
+  }
+#endif
+  LOG(INFO) << __PRETTY_FUNCTION__ << "---- OUT ----";
+}
+
+void Program::ExecuteTest(int repeat_) {
+  cinn::utils::Timer timer1;
+  for (int i = 0; i < 100; i++) {
+    for (auto& ins : instrs_) {
+      ins->Run();
+    }
+  }
+  timer1.Start();
+  for (int i = 0; i < repeat_; i++) {
+    for (auto& ins : instrs_) {
+      ins->Run();
+    }
+  }
+#ifdef CINN_WITH_CUDA
+  if (instrs_[0]->target_.arch == Target::Arch::NVGPU) {
+    CUDA_CALL(cudaDeviceSynchronize());
+  }
+#endif
+  double test_op_time = timer1.Stop() / repeat_;
+  LOG(INFO) << "Repeat times: [" << repeat_ << "], average op time: [" << test_op_time << "] ms";
 }
 
 void GraphCompiler::PrintFunc() {
