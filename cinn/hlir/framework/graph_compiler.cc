@@ -197,12 +197,10 @@ void Program::Execute(const std::map<std::string, cinn_pod_value_t>* name2podarg
     ins->Run(name2podargs);
   }
 #ifdef CINN_WITH_CUDA
-  LOG(INFO) << __PRETTY_FUNCTION__ << "---- IN ----";
   if (instrs_[0]->target_.arch == Target::Arch::NVGPU) {
     CUDA_CALL(cudaDeviceSynchronize());
   }
 #endif
-  LOG(INFO) << __PRETTY_FUNCTION__ << "---- OUT ----";
 }
 
 void Program::ExecuteTest(int repeat_) {
