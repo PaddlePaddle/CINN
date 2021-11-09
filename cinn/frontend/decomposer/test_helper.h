@@ -59,10 +59,10 @@ Target GetTarget() {
 }
 
 template <typename T>
-void InitRandomVector(std::vector<T>* vec, size_t numel) {
+void InitRandomVector(std::vector<T>* vec, size_t numel, T low = 0, T high = 1) {
   std::random_device seed;
   std::default_random_engine engine(seed());
-  std::uniform_real_distribution<double> dist(-1.0, 1.0);
+  std::uniform_real_distribution<double> dist(low, high);
 
   vec->resize(numel);
   for (size_t i = 0; i < numel; ++i) {
@@ -176,7 +176,9 @@ void RunAndCheckShape(NetBuilder& builder,
                       const std::vector<std::string>& output_names,
                       const std::vector<std::vector<int>>& output_shapes,
                       std::vector<std::vector<T>>* input_vecs  = nullptr,
-                      std::vector<std::vector<T>>* output_vecs = nullptr) {
+                      std::vector<std::vector<T>>* output_vecs = nullptr,
+                      T low                                    = 0,
+                      T high                                   = 1) {
   auto prog     = builder.Build();
   Target target = GetTarget();
   RunDecomposer(&prog, target);
@@ -193,7 +195,7 @@ void RunAndCheckShape(NetBuilder& builder,
     auto tensor = scope->GetTensor(input_names[i]);
 
     std::vector<T> vec;
-    InitRandomVector<T>(&vec, tensor->shape().numel());
+    InitRandomVector<T>(&vec, tensor->shape().numel(), low, high);
     CopyFromVector<T>(vec, tensor, target);
     input_vecs_ptr->push_back(vec);
   }
@@ -217,10 +219,12 @@ void RunAndCheck(NetBuilder& builder,
                  const std::vector<std::string>& output_names,
                  const std::vector<std::vector<int>>& output_shapes,
                  CPUKernelFunc cpu_kernel_func,
-                 double max_relative_error = 1e-5) {
+                 double max_relative_error = 1e-5,
+                 T low                     = 0,
+                 T high                    = 1) {
   std::vector<std::vector<T>> input_vecs;
   std::vector<std::vector<T>> output_vecs;
-  RunAndCheckShape<T>(builder, input_names, output_names, output_shapes, &input_vecs, &output_vecs);
+  RunAndCheckShape<T>(builder, input_names, output_names, output_shapes, &input_vecs, &output_vecs, low, high);
 
   std::vector<std::vector<T>> output_refs;
   ComputeReferenceCpu<T>(input_vecs, output_vecs, &output_refs, cpu_kernel_func);

@@ -71,6 +71,23 @@ void ElementwiseMulOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperCo
   ctx.AddVarModelToProgram(out_name, out->id);
 }
 
+void SumOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+  CHECK_GE(op_desc.Input("X").size(), 1UL);
+  auto x_names = op_desc.Input("X");
+
+  std::vector<Variable> xs;
+  for (const auto& name : x_names) {
+    xs.emplace_back(ctx.GetVar(name));
+  }
+
+  auto out = ctx.Builder()->sum(xs);
+
+  CHECK_EQ(op_desc.Output("Out").size(), 1UL);
+  auto out_name = op_desc.Output("Out").front();
+  ctx.AddVar(out_name, out);
+  ctx.AddVarModelToProgram(out_name, out->id);
+}
+
 }  // namespace op_mappers
 }  // namespace frontend
 }  // namespace cinn
@@ -79,5 +96,6 @@ CINN_REGISTER_HELPER(elementwise) {
   CINN_REGISTER_OP_MAPPER(add, cinn::frontend::op_mappers::AddOpMapper)
   CINN_REGISTER_OP_MAPPER(elementwise_add, cinn::frontend::op_mappers::ElementwiseAddOpMapper)
   CINN_REGISTER_OP_MAPPER(elementwise_mul, cinn::frontend::op_mappers::ElementwiseMulOpMapper)
+  CINN_REGISTER_OP_MAPPER(sum, cinn::frontend::op_mappers::SumOpMapper)
   return true;
 }

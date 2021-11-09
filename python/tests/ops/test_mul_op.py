@@ -27,6 +27,8 @@ import sys
 enable_cudnn = sys.argv.pop()
 
 
+@OpTestTool.skip_if(not is_compiled_with_cuda(),
+                    "x86 test will be skipped due to timeout.")
 class TestMulOp(OpTest):
     def setUp(self):
         self.init_case()

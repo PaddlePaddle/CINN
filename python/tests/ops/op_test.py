@@ -26,7 +26,7 @@ logging.basicConfig(level=os.environ.get('LOG_LEVEL', 'INFO').upper())
 logger = logging.getLogger()
 
 
-def random(shape, dtype="float32", low=-1.0, high=1.0):
+def random(shape, dtype="float32", low=0.0, high=1.0):
     if dtype == "float32":
         return np.random.uniform(low, high, shape).astype(dtype)
     else:
@@ -36,7 +36,7 @@ def random(shape, dtype="float32", low=-1.0, high=1.0):
 class OpTest(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(OpTest, self).__init__(*args, **kwargs)
-        self._init_targets()
+        self._init_target()
         self._init_results()
 
     def _init_results(self):
@@ -53,7 +53,7 @@ class OpTest(unittest.TestCase):
     def _get_device(self):
         return "NVGPU" if is_compiled_with_cuda() else "CPU"
 
-    def build_paddle_program(self):
+    def build_paddle_program(self, target):
         raise Exception("Not implemented.")
 
     def get_paddle_grads(self, outputs, inputs, grad_outputs):
@@ -92,7 +92,7 @@ class OpTest(unittest.TestCase):
         print_program(prog)
 
     def check_outputs_and_grads(self, max_relative_error=1e-5):
-        self.build_paddle_program()
+        self.build_paddle_program(self.target)
         self.build_cinn_program(self.target)
 
         logger.debug("============ Check Outputs ============")

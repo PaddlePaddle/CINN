@@ -46,7 +46,7 @@ class TestBatchNormOp(OpTest):
         self.param_shape = [32]
         self.data_format = "NCHW"
 
-    def build_paddle_program(self):
+    def build_paddle_program(self, target):
         def _create_parameter(name):
             param = paddle.create_parameter(
                 name=name,

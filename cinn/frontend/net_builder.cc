@@ -22,6 +22,13 @@
 
 namespace cinn {
 namespace frontend {
+Variable NetBuilder::identity(const Variable& operand) {
+  Instruction instr("identity", {operand});
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
 Variable NetBuilder::add(const Variable& a, const Variable& b) {
   Instruction instr("elementwise_add", {a, b});
   instr.SetAttr("axis", -1);

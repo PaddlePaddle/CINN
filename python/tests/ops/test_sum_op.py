@@ -39,7 +39,7 @@ class TestSumOp(OpTest):
         self.dtype = "float32"
         self.x_shape = [32, 64]
 
-    def build_paddle_program(self):
+    def build_paddle_program(self, target):
         x1 = paddle.to_tensor(self.inputs["x1"], stop_gradient=False)
         x2 = paddle.to_tensor(self.inputs["x2"], stop_gradient=False)
         out = paddle.add(x1, x2)

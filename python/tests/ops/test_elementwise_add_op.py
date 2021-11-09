@@ -42,7 +42,7 @@ class TestElementwiseAddOp(OpTest):
         self.dout_shape = [32, 64]
         self.axis = -1
 
-    def build_paddle_program(self):
+    def build_paddle_program(self, target):
         x = paddle.to_tensor(self.inputs["x"], stop_gradient=False)
         y = paddle.to_tensor(self.inputs["y"], stop_gradient=False)
 

@@ -38,7 +38,7 @@ class TestReluOp(OpTest):
         self.dtype = "float32"
         self.x_shape = [32, 64]
 
-    def build_paddle_program(self):
+    def build_paddle_program(self, target):
         x = paddle.to_tensor(self.inputs["x"], stop_gradient=False)
         out = F.relu(x)
 
