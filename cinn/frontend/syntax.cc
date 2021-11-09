@@ -133,6 +133,7 @@ Variable Program::primitive_const_scalar(PrimType value, const std::string& name
   auto out_type = type_of<PrimType>();
   CHECK(out_type.is_float() || out_type.is_int() || out_type.is_bool()) << "no supported type: " << out_type;
   out->type = out_type;
+  out.set_const(true);
   return out;
 }
 
@@ -147,12 +148,12 @@ Variable Program::primitive_broadcast_to(const Variable& a,
   return instr.GetOutput(0);
 }
 
-Variable Program::fused_batchnorm_inference(const Variable& a,
-                                            const Variable& scale,
-                                            const Variable& bias,
-                                            const Variable& mean,
-                                            const Variable& variance,
-                                            const absl::flat_hash_map<std::string, attr_t>& attr_store) {
+Variable Program::fused_meta_batchnorm_inference(const Variable& a,
+                                                 const Variable& scale,
+                                                 const Variable& bias,
+                                                 const Variable& mean,
+                                                 const Variable& variance,
+                                                 const absl::flat_hash_map<std::string, attr_t>& attr_store) {
   float epsilon = 0.00001f;
   if (attr_store.find("epsilon") != attr_store.end()) {
     epsilon = absl::get<float>(attr_store.at("epsilon"));
@@ -171,6 +172,30 @@ Variable Program::fused_batchnorm_inference(const Variable& a,
   auto broadcast_shift_bias = primitive_broadcast_to(shift_bias, a->shape, {1});
   auto temp_out             = multiply(broadcast_new_scale, a);
   auto bn_out               = add(temp_out, broadcast_shift_bias);
+
+  return bn_out;
+}
+
+Variable Program::fused_batchnorm_inference(const Variable& a,
+                                            const Variable& scale,
+                                            const Variable& bias,
+                                            const Variable& mean,
+                                            const Variable& variance,
+                                            const absl::flat_hash_map<std::string, attr_t>& attr_store) {
+  float epsilon = 0.00001f;
+  if (attr_store.find("epsilon") != attr_store.end()) {
+    epsilon = absl::get<float>(attr_store.at("epsilon"));
+  }
+  auto eps_var = primitive_const_scalar<float>(epsilon, common::UniqName("epsilon"));
+  CHECK(!scale->shape.empty()) << "scale's shape is empty.";
+  auto var_add_eps = elementwise_add(variance, eps_var);
+  auto rsrqt_var   = primitive_rsqrt(var_add_eps);
+  auto new_scale   = elementwise_mul(rsrqt_var, scale);
+  auto neg_mean    = primitive_negative(mean);
+  auto new_shift   = elementwise_mul(new_scale, neg_mean);
+  auto shift_bias  = elementwise_add(new_shift, bias);
+  auto temp_out    = elementwise_mul(a, new_scale, 1);
+  auto bn_out      = elementwise_add(temp_out, shift_bias, 1);
 
   return bn_out;
 }
