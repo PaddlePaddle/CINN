@@ -135,13 +135,12 @@ class OpTest(unittest.TestCase):
                 expect = expect_res[i].numpy()
             else:
                 expect = expect_res[i]
+
             actual = actual_res[i]
-            is_allclose = np.allclose(
-                expect, actual, atol=1e-6, rtol=max_relative_error)
-            logger.debug("{} {}".format(
-                is_allclose, _compute_max_relative_error(i, expect, actual)))
-            self.assertTrue(is_allclose,
-                            _compute_max_relative_error(i, expect, actual))
+            absolute_diff = np.abs(expect - actual).flatten()
+            relative_diff = absolute_diff / np.abs(expect).flatten()
+            maximum_relative_diff = np.max(relative_diff)
+            self.assertTrue(maximum_relative_diff < 1e-4)
 
 
 class OpTestTool:
