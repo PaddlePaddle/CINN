@@ -72,7 +72,6 @@ class OpMapperTestUtil {
         GetModelToProgResult(op_desc, input_data, input_types, input_shapes);
 
     ASSERT_EQ(op_map_res.size(), model_to_prog_res.size());
-    ASSERT_EQ(op_map_res, model_to_prog_res);
     // outputs variables have different names, so we have to search for map
     for (const auto& res : op_map_res) {
       bool has_map = false;
@@ -116,6 +115,11 @@ class OpMapperTestUtil {
       const auto& outputs = instr.GetOutputs();
       for (const auto& var : outputs) {
         output_names.insert(var->id);
+        // Some ops such as conv2d has different outputs for different target
+        // in one instruction, but PaddleModelToProgram only adds Output(0)
+        // to build program. We just compare the first output now.
+        // Remove the break after fixing.
+        break;
       }
       const auto& inputs = instr.GetInputs();
       for (const auto& var : inputs) {
@@ -273,15 +277,15 @@ TEST(OpMapperRegistryTest, conv2d_reverse) {
 
   std::unordered_map<std::string, Type> input_types(
       {{"input", ::cinn::common::F32()}, {"filter", ::cinn::common::F32()}});
-  std::unordered_map<std::string, std::vector<int>> input_shapes({{"input", {1, 3, 3, 3}}, {"filter", {1, 3, 3, 3}}});
+  std::unordered_map<std::string, std::vector<int>> input_shapes({{"input", {1, 4, 5, 5}}, {"filter", {1, 4, 3, 3}}});
 
   std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
-  int input_buffer_size = 1 * 3 * 3 * 3;
+  int input_buffer_size = 1 * 4 * 5 * 5;
   float* input_buffer   = new float[input_buffer_size];
   for (int i = 0; i < input_buffer_size; ++i) {
     input_buffer[i] = dist(engine);
   }
-  int filter_buffer_size = 1 * 3 * 3 * 3;
+  int filter_buffer_size = 1 * 4 * 3 * 3;
   float* filter_buffer   = new float[filter_buffer_size];
   for (int i = 0; i < filter_buffer_size; ++i) {
     filter_buffer[i] = dist(engine);
@@ -294,189 +298,6 @@ TEST(OpMapperRegistryTest, conv2d_reverse) {
   delete[] input_buffer;
   delete[] filter_buffer;
 }
-
-void SetRandData(hlir::framework::Tensor tensor, Target target) {
-  auto* data = tensor->mutable_data<float>(target);
-  // std::random_device seed;
-  // std::default_random_engine engine(seed());
-  // std::uniform_real_distribution<float> dist(0.f, 1.f);
-  size_t num_ele = tensor->shape().numel();
-  std::vector<float> random_data(num_ele);
-  for (size_t i = 0; i < num_ele; i++) {
-    random_data[i] = 1;  // dist(engine);  // All random data
-  }
-
-#ifdef CINN_WITH_CUDA
-  cudaMemcpy(data, random_data.data(), num_ele * sizeof(float), cudaMemcpyHostToDevice);
-#else
-  std::copy(random_data.begin(), random_data.end(), data);
-#endif
-}
-
-/*
-TEST(OpMapperRegistryTest, conv2d_reverse_backup) {
-  std::unique_ptr<OpDesc> op_desc = std::make_unique<OpDesc>();
-  op_desc->SetType("conv2d");
-  op_desc->SetInput("Input", {"input"});
-  op_desc->SetInput("Filter", {"filter"});
-  op_desc->SetOutput("Output", {"output"});
-  op_desc->SetAttr<std::vector<int>>("paddings", {0, 0});
-  op_desc->SetAttr<std::vector<int>>("strides", {1, 1});
-  op_desc->SetAttr<std::vector<int>>("dilations", {1, 1});
-  op_desc->SetAttr<int>("groups", 1);
-  op_desc->SetAttr<std::string>("data_format", "AnyLayout");
-  op_desc->SetAttr<std::string>("padding_algorithm", "EXPLICIT");
-
-#ifdef CINN_WITH_CUDA
-  Target target = common::DefaultNVGPUTarget();
-#else
-  Target target = common::DefaultHostTarget();
-#endif
-
-  // Get runtime Program from OpMapper
-  std::shared_ptr<Scope> net_scope = Scope::Create();
-
-  net_scope->Var<Tensor>("input");
-  net_scope->Var<Tensor>("filter");
-  net_scope->Var<Tensor>("output");
-
-  Tensor input_tensor  = net_scope->GetTensor("input");
-  Tensor filter_tensor = net_scope->GetTensor("filter");
-  Tensor output_tensor = net_scope->GetTensor("output");
-
-  input_tensor->Resize(Shape({1, 4, 5, 5}));
-  filter_tensor->Resize(Shape({1, 4, 3, 3}));
-
-  SetRandData(input_tensor, target);
-  SetRandData(filter_tensor, target);
-
-  NetBuilder net_builder("net_builder_name");
-  net_builder.CreateInput(Float(32), {1, 4, 5, 5}, "input");
-  net_builder.CreateInput(Float(32), {1, 4, 3, 3}, "filter");
-  std::unordered_map<std::string, Variable> var_map;
-  std::unordered_map<std::string, std::string> var_model_to_program_map({{"input", "input"}, {"filter", "filter"}});
-
-  OpMapperContext op_mapper_ctx(*net_scope, target, &net_builder, &var_map, &var_model_to_program_map);
-  const OpMapper* op_mapper = OpMapperRegistry::Global()->Find(op_desc->Type());
-  ASSERT_NE(op_mapper, nullptr);
-  op_mapper->Run(*op_desc, op_mapper_ctx);
-
-  Program net_program = net_builder.Build();
-
-  std::unordered_set<std::string> output_names;
-  for (size_t i = 0; i < net_program.size(); ++i) {
-    const auto& instr   = net_program[i];
-    const auto& outputs = instr.GetOutputs();
-    for (const auto& var : outputs) {
-      output_names.insert(var->id);
-    }
-    const auto& inputs = instr.GetInputs();
-    for (const auto& var : inputs) {
-      if (output_names.count(var->id) != 0) {
-        output_names.erase(var->id);
-      }
-    }
-  }
-
-  std::cout << net_program << std::endl;
-  auto net_graph = std::make_shared<Graph>(net_program, target);
-
-  std::shared_ptr<Scope> net_run_scope = BuildScope(target, net_graph);
-  GraphCompiler net_gc(target, net_run_scope, net_graph);
-  auto net_runtime_prog = net_gc.Build();
-
-  input_tensor  = net_run_scope->GetTensor("input");
-  filter_tensor = net_run_scope->GetTensor("filter");
-
-  input_tensor->Resize(Shape({1, 4, 5, 5}));
-  filter_tensor->Resize(Shape({1, 4, 3, 3}));
-
-  SetRandData(input_tensor, target);
-  SetRandData(filter_tensor, target);
-
-  net_runtime_prog->Execute();
-
-  for (const std::string& name : output_names) {
-    output_tensor = net_run_scope->GetTensor(name);
-    if (output_tensor->type() == ::cinn::common::F32()) {
-      std::vector<float> net_data(output_tensor->shape().numel());
-      CopyToVector(output_tensor, &net_data);
-    }
-  }
-
-  // Get runtime Program from PaddleModelToProgram
-  std::shared_ptr<Scope> cinn_scope = Scope::Create();
-  cinn_scope->Var<Tensor>("input");
-  cinn_scope->Var<Tensor>("filter");
-  cinn_scope->Var<Tensor>("output");
-
-  input_tensor  = net_scope->GetTensor("input");
-  filter_tensor = net_scope->GetTensor("filter");
-  output_tensor = net_scope->GetTensor("output");
-
-  input_tensor->Resize(Shape({1, 4, 5, 5}));
-  filter_tensor->Resize(Shape({1, 4, 3, 3}));
-
-  SetRandData(input_tensor, target);
-  SetRandData(filter_tensor, target);
-
-  PaddleModelToProgram model_to_prog(cinn_scope.get(), target);
-  model_to_prog.AddOp(*op_desc);
-
-  std::unique_ptr<Program> cinn_program = model_to_prog.GetProgram();
-  for (Variable& x : (*cinn_program)[0]->inputs) {
-    if (x->id == "input") {
-      x->type  = ::cinn::common::F32();
-      x->shape = {1, 4, 5, 5};
-    } else if (x->id == "filter") {
-      x->type  = ::cinn::common::F32();
-      x->shape = {1, 4, 3, 3};
-    }
-  }
-
-  std::unordered_set<std::string> cinn_output_names;
-  for (size_t i = 0; i < cinn_program->size(); ++i) {
-    const auto& instr   = (*cinn_program)[i];
-    const auto& outputs = instr.GetOutputs();
-    for (const auto& var : outputs) {
-      cinn_output_names.insert(var->id);
-    }
-    const auto& inputs = instr.GetInputs();
-    for (const auto& var : inputs) {
-      if (output_names.count(var->id) != 0) {
-        cinn_output_names.erase(var->id);
-      }
-    }
-  }
-  std::cout << *cinn_program << std::endl;
-  auto cinn_graph = std::make_shared<Graph>(*cinn_program, target);
-  hlir::framework::ApplyPass(cinn_graph.get(), "InferShape");
-  std::shared_ptr<Scope> cinn_run_scope = BuildScope(target, cinn_graph);
-  GraphCompiler cinn_gc(target, cinn_run_scope, cinn_graph);
-  auto cinn_runtime_prog = cinn_gc.Build();
-
-  input_tensor  = cinn_run_scope->GetTensor("input");
-  filter_tensor = cinn_run_scope->GetTensor("filter");
-
-  input_tensor->Resize(Shape({1, 4, 5, 5}));
-  filter_tensor->Resize(Shape({1, 4, 3, 3}));
-
-  SetRandData(input_tensor, target);
-  SetRandData(filter_tensor, target);
-
-  cinn_runtime_prog->Execute();
-  for (const std::string& name : cinn_output_names) {
-    output_tensor = cinn_run_scope->GetTensor(name);
-    if (output_tensor->type() == ::cinn::common::F32()) {
-      std::vector<float> net_data(output_tensor->shape().numel());
-      CopyToVector(output_tensor, &net_data);
-      std::cout << name << std::endl;
-      for (auto x : net_data) {
-        std::cout << x << std::endl;
-      }
-    }
-  }
-}*/
 
 }  // namespace frontend
 }  // namespace cinn
