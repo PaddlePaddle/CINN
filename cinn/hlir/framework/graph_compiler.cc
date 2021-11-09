@@ -363,7 +363,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
       master_out_tensor = out.as_tensor_ref();
     }
     CHECK_GE(C.size(), 2);
-    CHECK_LE(C.size() - 1, node->outlinks_in_order().size());
+    // CHECK_LE(C.size() - 1, node->outlinks_in_order().size());
     for (int i = 0; i < C.size() - 1; i++) {
       temp_var_map[temp_outvars[i]] = C[i];
     }

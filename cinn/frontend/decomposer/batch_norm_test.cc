@@ -225,11 +225,7 @@ TEST(Decomposer, BatchNormTrain) {
     CopyToVector(tensor, &data);
 
     LOG(INFO) << "output[" << iter.first << "], var_name=" << output.first << ", shape=" << tensor->shape().data();
-    if (iter.first == "y") {
-      CheckOutput<float>(data, output.second, 1e-1, true);
-    } else {
-      CheckOutput<float>(data, output.second, 1e-5);
-    }
+    CheckOutput<float>(data, output.second, 1e-4, true);
   }
 }
 
@@ -401,11 +397,7 @@ TEST(Decomposer, BatchNormGrad) {
     CopyToVector(tensor, &data);
 
     LOG(INFO) << "output[" << iter.first << "], var_name=" << output.first << ", shape=" << tensor->shape().data();
-    if (iter.first == "x_grad") {
-      CheckOutput<float>(data, output.second, 1e-1, true);
-    } else {
-      CheckOutput<float>(data, output.second, 1e-5);
-    }
+    CheckOutput<float>(data, output.second, 1e-4, true);
   }
 }
 
