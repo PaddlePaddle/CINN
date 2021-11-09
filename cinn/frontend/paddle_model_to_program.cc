@@ -408,11 +408,6 @@ void PaddleModelToProgram::AddOpMapper_depthwise_conv2d() {
     auto x_name = op_desc.Input("Input").front();
     CHECK_EQ(op_desc.Input("Filter").size(), 1UL);
     auto y_name = op_desc.Input("Filter").front();
-#ifdef CINN_WITH_CUDNN
-    if (target_.arch == Target::Arch::NVGPU) {
-      ReverseHWVar(TransValidVarName(y_name));
-    }
-#endif
     CHECK_EQ(op_desc.Output("Output").size(), 1UL);
     auto out_name = op_desc.Output("Output").front();
 
@@ -451,11 +446,6 @@ void PaddleModelToProgram::AddOpMapper_conv2d() {
     auto x_name = op_desc.Input("Input").front();
     CHECK_EQ(op_desc.Input("Filter").size(), 1UL);
     auto y_name = op_desc.Input("Filter").front();
-#ifdef CINN_WITH_CUDNN
-    if (target_.arch == Target::Arch::NVGPU) {
-      ReverseHWVar(TransValidVarName(y_name));
-    }
-#endif
     CHECK_EQ(op_desc.Output("Output").size(), 1UL);
     auto out_name = op_desc.Output("Output").front();
 

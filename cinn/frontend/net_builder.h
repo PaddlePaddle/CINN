@@ -27,10 +27,22 @@ class NetBuilder : public BaseBuilder {
  public:
   using BaseBuilder::BaseBuilder;
 
+  Variable identity(const Variable& a);
+
   /**
    * Add two variables.
    */
   Variable add(const Variable& a, const Variable& b);
+
+  /**
+   * Reshape Variable.
+   */
+  Variable reshape(const Variable& a, const std::vector<int>& shape);
+
+  /**
+   * Transpose matrix.
+   */
+  Variable transpose(const Variable& a, const std::vector<int>& axis);
 
   /**
    * Multiply two matrix.
@@ -121,25 +133,18 @@ class NetBuilder : public BaseBuilder {
   /**
    * The batchnorm layer can be used as a normalizer function
    * for convolution or fully_connected operations.
+   * is_test(true): batch norm infer (default), output{y}
+   * is_test(false): batch norm training, output{y, moving_mean, moving_variance, save_mean, save_variance}
    */
-  Variable batchnorm(const Variable& a,
-                     const Variable& scale,
-                     const Variable& bias,
-                     const Variable& mean,
-                     const Variable& variance,
-                     float epsilon                  = 1e-5f,
-                     float momentum                 = 0.9f,
-                     const std::string& data_layout = "NCHW");
-
-  // batch norm training, output{y, moving_mean, moving_variance, save_mean, save_variance}
-  std::vector<Variable> batch_norm_train(const Variable& x,
-                                         const Variable& scale,
-                                         const Variable& bias,
-                                         const Variable& moving_mean,
-                                         const Variable& moving_variance,
-                                         const float epsilon            = 1e-5f,
-                                         const float momentum           = 0.9f,
-                                         const std::string& data_layout = "NCHW");
+  std::vector<Variable> batchnorm(const Variable& a,
+                                  const Variable& scale,
+                                  const Variable& bias,
+                                  const Variable& mean,
+                                  const Variable& variance,
+                                  float epsilon                  = 1e-5f,
+                                  float momentum                 = 0.9f,
+                                  const std::string& data_layout = "NCHW",
+                                  bool is_test                   = false);
 
   // batch norm grad, output(grad_x, grad_scale, grad_bias)
   std::vector<Variable> batch_norm_grad(const Variable& dy,

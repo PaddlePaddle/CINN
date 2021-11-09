@@ -52,6 +52,129 @@ void AddAttrs(const absl::flat_hash_map<std::string, AttrType>& attrs_store,
   }
 }
 
+void Program::Export(const std::vector<std::string>& persistent_vars, const std::string& filename) {
+  auto writeplaceholder = [=](int s, int n, FILE* f) -> int {
+    int pos = ftell(f);
+    for (int i = 0; i < s * n; i++) {
+      fwrite("\0", 1, 1, f);
+    }
+    return pos;
+  };
+  auto setplaceholder = [=](int p, void* b, int s, int n, FILE* f) {
+    int cur = ftell(f);
+    fseek(f, p, SEEK_SET);
+    fwrite(b, s, n, f);
+    fseek(f, cur, SEEK_SET);
+  };
+  auto tellplaceholder = [=](int p, FILE* f) {
+    int cur = ftell(f);
+    setplaceholder(p, &cur, 4, 1, f);
+  };
+  auto padding = [=](int alignment, uint8_t value, FILE* f) {
+    int cur     = ftell(f);
+    int padding = (alignment - (cur % alignment)) % alignment;
+    for (int i = 0; i < padding; i++) {
+      fwrite(&value, 1, 1, f);
+    }
+  };
+  auto varnames = scope_->var_names();
+  std::unordered_map<std::string, int> varindex;
+  for (int i = 0; i < varnames.size(); i++) {
+    varindex[(std::string)varnames[i]] = i;
+  }
+
+  FILE* f = fopen(filename.c_str(), "w+");
+
+  fwrite("CINN", 4, 1, f);
+  int major_v = 0;
+  int minor_v = 0;
+  fwrite(&major_v, 4, 1, f);
+  fwrite(&minor_v, 4, 1, f);
+  int unused_v = 0;
+  fwrite(&unused_v, 4, 1, f);
+
+  // varname list
+  int varnamesec = writeplaceholder(4, 1, f);
+  int namesnum   = varnames.size();
+  fwrite(&namesnum, 4, 1, f);
+  int nameoffset = writeplaceholder(4, namesnum, f);
+  for (int i = 0; i < namesnum; i++) {
+    int namelen = varnames[i].size();
+    fwrite(&namelen, 4, 1, f);
+    tellplaceholder(nameoffset + i * 4, f);
+    fwrite(varnames[i].data(), namelen, 1, f);
+    fwrite("\0", 1, 1, f);
+  }
+  padding(16, 0, f);
+  tellplaceholder(varnamesec, f);
+  // pod_values
+  int buffersec = writeplaceholder(4, 1, f);
+  int bufoffset = writeplaceholder(4, 1, f);
+  padding(alignof(cinn_buffer_t), 0, f);
+  tellplaceholder(bufoffset, f);
+  std::vector<std::pair<cinn_buffer_t*, int>> pvars;
+  for (auto& varname : varnames) {
+    std::string name     = (std::string)varname;
+    auto t               = scope_->GetTensor(name);
+    cinn_buffer_t buffer = *t->buffer();
+    buffer.memory        = (uint8_t*)0;
+    if (std::find(persistent_vars.begin(), persistent_vars.end(), name) != persistent_vars.end()) {
+      pvars.emplace_back(t->buffer(), ftell(f) + offsetof(cinn_buffer_t, memory));
+    }
+    fwrite(&buffer, sizeof(cinn_buffer_t), 1, f);
+  }
+  padding(16, 0, f);
+  tellplaceholder(buffersec, f);
+  // persistent_buffers
+  int pbuffer = writeplaceholder(4, 1, f);
+  for (auto& p : pvars) {
+    if (p.first->align) {
+      padding(p.first->align, 0, f);
+    }
+    tellplaceholder(p.second, f);
+    fwrite(p.first->memory, p.first->memory_size, 1, f);
+  }
+  padding(16, 0, f);
+  tellplaceholder(pbuffer, f);
+  // instructions
+  int instsec = writeplaceholder(4, 1, f);
+  int insnum  = 0;
+  for (auto& ins : instrs_) {
+    ins->Run(nullptr, true);
+    insnum += ins->GetFnNames().size();
+  }
+  fwrite(&insnum, 4, 1, f);
+  int instplaceholder = writeplaceholder(4 * 3, insnum, f);
+  int findex          = 0;
+  for (auto& ins : instrs_) {
+    auto in_args  = ins->GetInArgs();
+    auto out_args = ins->GetOutArgs();
+    auto fn_names = ins->GetFnNames();
+    for (int i = 0; i < fn_names.size(); i++, findex++) {
+      std::vector<std::string> all_args(in_args[i].begin(), in_args[i].end());
+      all_args.insert(std::end(all_args), out_args[i].begin(), out_args[i].end());
+      auto fname    = fn_names[i];
+      int fnamesize = fname.size();
+      fwrite(&fnamesize, 4, 1, f);
+      tellplaceholder(instplaceholder + findex * 12, f);
+      fwrite(fname.c_str(), fname.size(), 1, f);
+      fwrite("\0", 1, 1, f);
+      int argsize = all_args.size();
+      setplaceholder(instplaceholder + findex * 12 + 4, &argsize, 4, 1, f);
+      padding(alignof(cinn_pod_value_t), 0, f);
+      tellplaceholder(instplaceholder + findex * 12 + 8, f);
+      for (auto& arg : all_args) {
+        uintptr_t bufindex = varindex[arg];
+        cinn_pod_value_t v((cinn_buffer_t*)bufindex);
+        fwrite(&v, sizeof(cinn_pod_value_t), 1, f);
+      }
+    }
+  }
+  padding(16, 0, f);
+  tellplaceholder(instsec, f);
+  fclose(f);
+}
+
 void GraphCompiler::PrintFunc() {
   auto topo_order = graph_->topological_order();
   auto& nodes     = std::get<0>(topo_order);
@@ -153,8 +276,9 @@ int GetMasterRefNode(const std::vector<Node*>& nodes) {
   int master_index      = 0;
   int master_pattern    = op_pattern_dict[nodes[0]->op()];
   for (int i = 1; i < nodes.size(); i++) {
-    int pattern  = op_pattern_dict[nodes[i]->op()];
-    master_index = pattern >= master_pattern ? i : master_index;
+    int pattern    = op_pattern_dict[nodes[i]->op()];
+    master_index   = pattern >= master_pattern ? i : master_index;
+    master_pattern = std::max(pattern, master_pattern);
   }
   VLOG(3) << "master_index: " << master_index << ", master op: " << nodes[master_index]->op()->name;
   return master_index;
@@ -580,7 +704,7 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
       std::string op_func_name = GenOpFuncName(node);
       auto* fn                 = compiler_->Lookup(op_func_name);
       CHECK(fn);
-      instr->SetLoweredFunc(fn);
+      instr->SetLoweredFunc(fn, op_func_name);
       int i                   = 1;
       std::string new_op_func = op_func_name + "_" + std::to_string(i);
       if (function2input_args_.count(new_op_func) != 0) {
@@ -591,7 +715,7 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
       while (function2input_args_.count(new_op_func) != 0) {
         auto* fn2 = compiler_->Lookup(new_op_func);
         CHECK(fn2);
-        instr->SetLoweredFunc(fn2);
+        instr->SetLoweredFunc(fn2, new_op_func);
         instr->AddInArgs(function2input_args_[new_op_func]);
         instr->AddOutArgs(function2output_args_[new_op_func]);
         i++;
@@ -642,7 +766,7 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
       VLOG(3) << "out_names: " << utils::Join(outputNames, ", ");
       auto* fn = compiler_->Lookup(fuse_name);
       CHECK(fn);
-      instr->SetLoweredFunc(fn);
+      instr->SetLoweredFunc(fn, fuse_name);
       instructions.push_back(std::move(instr));
     }
   }

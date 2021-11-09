@@ -60,6 +60,7 @@ class Program {
       ins->Run(name2podargs);
     }
   }
+  void Export(const std::vector<std::string>& persistent_vars, const std::string& filename);
   /**
    * Execute the program -- that is running all the instructions inside it.
    */
@@ -128,6 +129,7 @@ class GraphCompiler final {
 
   // Compile with a packing option and result, to be extended easily.
   CompilationResult Build(const CompileOptions& options);
+  void ExportObject(const std::string& path) { compiler_->ExportObject(path); }
 
   std::unique_ptr<Program> Build(const std::string& code = "");
 

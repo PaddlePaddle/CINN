@@ -310,6 +310,8 @@ void BindFrontend(pybind11::module *m) {
   py::class_<NetBuilder, BaseBuilder>(*m, "NetBuilder")
       .def(py::init<const std::string &>(), py::arg("name") = "")
       .def("add", &NetBuilder::add, py::arg("a"), py::arg("b"))
+      .def("reshape", &NetBuilder::reshape, py::arg("a"), py::arg("shape"))
+      .def("transpose", &NetBuilder::transpose, py::arg("a"), py::arg("axis"))
       .def("mul",
            &NetBuilder::mul,
            py::arg("a"),
@@ -376,17 +378,8 @@ void BindFrontend(pybind11::module *m) {
            py::arg("variance"),
            py::arg("epsilon")     = 1e-5f,
            py::arg("momentum")    = 0.9f,
-           py::arg("data_layout") = "NCHW")
-      .def("batch_norm_train",
-           &NetBuilder::batch_norm_train,
-           py::arg("x"),
-           py::arg("scale"),
-           py::arg("bias"),
-           py::arg("moving_mean"),
-           py::arg("moving_variance"),
-           py::arg("epsilon")     = 1e-5,
-           py::arg("momentum")    = 0.9f,
-           py::arg("data_layout") = "NCHW")
+           py::arg("data_layout") = "NCHW",
+           py::arg("is_test")     = true)
       .def("batch_norm_grad",
            &NetBuilder::batch_norm_grad,
            py::arg("dy"),
