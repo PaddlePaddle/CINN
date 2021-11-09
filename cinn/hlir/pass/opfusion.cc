@@ -211,12 +211,10 @@ struct GroupNode {
 };
 class GraphPartition {
  public:
+  GraphPartition(const absl::flat_hash_map<std::string, framework::shape_t>& shape_dict) : shape_dict_(shape_dict) {}
   std::vector<std::vector<Node*>> Partition(const std::vector<GraphNode*>& graph_nodes,
-                                            const std::vector<DomNode*>& dom_nodes,
-                                            Graph* graph) {
+                                            const std::vector<DomNode*>& dom_nodes) {
     CHECK_EQ(graph_nodes.size(), dom_nodes.size());
-    CHECK(graph);
-    graph_ = graph;
     InitGroups(graph_nodes);
     for (int i = 0; i < 2; i++) {
       FuseGroups(graph_nodes, dom_nodes, i);
@@ -232,7 +230,7 @@ class GraphPartition {
   std::vector<GroupNode*> group_nodes_;
   std::vector<std::vector<Node*>> groups_;
   std::unordered_set<GraphNode*> visited_nodes_;
-  Graph* graph_;
+  const absl::flat_hash_map<std::string, framework::shape_t>& shape_dict_;
   void InitGroups(const std::vector<GraphNode*>& graph_nodes) {
     static auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
     for (int i = 0; i < graph_nodes.size(); i++) {
@@ -268,8 +266,6 @@ class GraphPartition {
     return true;
   }
   std::vector<int> GetOutshape(GraphNode* node) {
-    CHECK(graph_);
-    auto& shape_dict = graph_->GetMutableAttrs<absl::flat_hash_map<std::string, framework::shape_t>>("infershape");
     CHECK(node);
     auto op_node = node->safe_as<Node>();
     std::vector<int> out_shapes;
@@ -277,11 +273,11 @@ class GraphPartition {
       // first out var shape
       CHECK(!op_node->outlinks_in_order().empty());
       auto out_var = op_node->outlinks_in_order().front()->sink();
-      CHECK(shape_dict.count(out_var->id()));
-      out_shapes = shape_dict[out_var->id()];
+      CHECK(shape_dict_.count(out_var->id()));
+      out_shapes = shape_dict_.at(out_var->id());
     } else {
-      CHECK(shape_dict.count(node->id()));
-      out_shapes = shape_dict[node->id()];
+      CHECK(shape_dict_.count(node->id()));
+      out_shapes = shape_dict_.at(node->id());
     }
     return out_shapes;
   }
@@ -336,7 +332,7 @@ class GraphPartition {
   template <typename T>
   bool VerifyFuse(GraphNode* source, GraphNode* sink, T fn) {
     static auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
-    auto op_node = source->safe_as<Node>();
+    auto op_node                 = source->safe_as<Node>();
     visited_nodes_.clear();
     CHECK(source != sink);
     auto sink_op_node = sink->safe_as<Node>();
@@ -511,8 +507,9 @@ void OpFusionPass(Graph* graph) {
   DomTree tree;
   auto& dom_nodes = tree.CreatePostDomTree(store_nodes);
   // graph partition
-  GraphPartition partition;
-  graph->groups = partition.Partition(store_nodes, dom_nodes, graph);
+  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, framework::shape_t>>("infershape");
+  GraphPartition partition(shape_dict);
+  graph->groups = partition.Partition(store_nodes, dom_nodes);
 }
 
 }  // namespace pass
