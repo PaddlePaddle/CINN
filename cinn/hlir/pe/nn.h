@@ -58,7 +58,7 @@ ir::Tensor Relu6(const ir::Tensor &A,
                  T threshold                    = static_cast<T>(0),
                  const std::string &output_name = UniqName("T_Relu6_out")) {
   return lang::Compute(
-      A->shape, [&](const std::vector<Expr> &indice) { return lang::Relu6(A(indice), threshold); }, output_name);
+      A->shape, [=](const std::vector<Expr> &indice) { return lang::Relu6(A(indice), threshold); }, output_name);
 }
 
 /**
