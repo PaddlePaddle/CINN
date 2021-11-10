@@ -138,10 +138,13 @@ class OpTest(unittest.TestCase):
             actual = actual_res[i]
             is_allclose = np.allclose(
                 expect, actual, atol=1e-6, rtol=max_relative_error)
-            logger.debug("{} {}".format(
-                is_allclose, _compute_max_relative_error(i, expect, actual)))
-            self.assertTrue(is_allclose,
-                            _compute_max_relative_error(i, expect, actual))
+            if not is_allclose:
+                error_message = _compute_max_relative_error(i, expect, actual)
+            else:
+                error_message = "np.allclose(expect, actual, atol=1e-6, rtol={}) checks succeed!".format(
+                    max_relative_error)
+            logger.debug("{} {}".format(is_allclose, error_message))
+            self.assertTrue(is_allclose, error_message)
 
 
 class OpTestTool:
