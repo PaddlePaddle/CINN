@@ -14,11 +14,10 @@
 
 #include "cinn/hlir/framework/graph_compiler.h"
 
-#include <absl/container/flat_hash_map.h>
-
 #include <unordered_set>
 
 #include "cinn/backends/codegen_cuda_dev.h"
+#include "cinn/common/context.h"
 #include "cinn/hlir/framework/instruction.h"
 #include "cinn/hlir/framework/tensor.h"
 #include "cinn/hlir/pe/schedule.h"
@@ -212,6 +211,11 @@ std::string GraphCompiler::GenSourceCode() {
   return compiler_->GetSourceCode(build_module);
 }
 
+const std::string& GraphCompiler::GetFullFuncName(const std::string& prefix) {
+  prefix2full_namemap_.try_emplace(prefix, Context::Global().NewName(prefix));
+  return prefix2full_namemap_.at(prefix);
+}
+
 std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const Node* node) {
   auto& strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
   auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
@@ -261,7 +265,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const Node* node) {
     inputs.push_back(temp.as_tensor_ref());
   }
 
-  auto func = lang::LowerVec(GenOpFuncName(node), stages, inputs, {}, {}, nullptr, this->target_);
+  auto func = lang::LowerVec(GetFullFuncName(GenOpFuncName(node)), stages, inputs, {}, {}, nullptr, this->target_);
   VLOG(3) << "The [" << func.size() << "] functions of node [" << node->attrs.node_name << "] are:\n";
   for (auto& i : func) {
     VLOG(3) << i;
@@ -439,7 +443,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
     }
   }
 
-  auto func = lang::LowerVec(fuse_name, stages, inputs, {}, {}, nullptr, this->target_);
+  auto func = lang::LowerVec(GetFullFuncName(fuse_name), stages, inputs, {}, {}, nullptr, this->target_);
   VLOG(3) << "The [" << func.size() << "] functions are:\n";
   for (auto& i : func) {
     VLOG(3) << "Function [" << i->name << "] is:\n";
@@ -701,7 +705,7 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
           }
         }
       }
-      std::string op_func_name = GenOpFuncName(node);
+      std::string op_func_name = GetFullFuncName(GenOpFuncName(node));
       auto* fn                 = compiler_->Lookup(op_func_name);
       CHECK(fn);
       instr->SetLoweredFunc(fn, op_func_name);
@@ -760,13 +764,14 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
       }
       fuse_name += "fused";
       VLOG(3) << fuse_name;
+      auto fuse_func_name = GetFullFuncName(fuse_name);
       auto instr =
-          std::unique_ptr<Instruction>(new Instruction(target_, scope_.get(), inputNames, outputNames, fuse_name));
+          std::unique_ptr<Instruction>(new Instruction(target_, scope_.get(), inputNames, outputNames, fuse_func_name));
       VLOG(3) << "input_names: " << utils::Join(inputNames, ", ");
       VLOG(3) << "out_names: " << utils::Join(outputNames, ", ");
-      auto* fn = compiler_->Lookup(fuse_name);
+      auto* fn = compiler_->Lookup(fuse_func_name);
       CHECK(fn);
-      instr->SetLoweredFunc(fn, fuse_name);
+      instr->SetLoweredFunc(fn, fuse_func_name);
       instructions.push_back(std::move(instr));
     }
   }
