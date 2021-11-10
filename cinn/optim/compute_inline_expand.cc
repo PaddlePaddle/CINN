@@ -81,12 +81,24 @@ struct TensorInlineExpandMutator : public ir::IRMutator<> {
         } else {
           auto *tensor = node->tensor.as_tensor();
           CHECK(tensor);
-          // fix computeAt case
-          auto shapes = tensor->shape;
-          CHECK_EQ(shapes.size(), node->indices.size());
-          for (int i = 0; i < shapes.size(); i++) {
-            if (common::is_zero(shapes[i] - 1)) {
-              node->indices[i] = Expr(0);
+          // When here is a temp tensor in inline_code, we need to remove the vars within its compute_at level just like
+          // we did in ReplaceVarIndexOfCacheMutator. So we just need to collect all var's name within compute_at level,
+          // and replace them to 0 in the temp tensor's indices.
+          auto axis_names  = stages_[tensor]->axis_names();
+          auto compute_ats = stages_[tensor]->GetComputeAts();
+          // Notice that a tensor cannot compute_at more than one tensor at the same time.
+          CHECK_LE(compute_ats.size(), 1);
+          if (compute_ats.size() == 1) {
+            int level_tmp = -1;
+            for (auto &i : compute_ats) {
+              level_tmp = i.second.level;
+            }
+            for (int i = 0; i < node->indices.size(); i++) {
+              for (int j = 0; j <= level_tmp; j++) {
+                auto temp = optim::IRCopy(node->indices[i]);
+                ReplaceVarWithExpr(&temp, Var(axis_names[j]), Expr(0));
+                node->indices[i] = temp;
+              }
             }
           }
         }
@@ -95,6 +107,8 @@ struct TensorInlineExpandMutator : public ir::IRMutator<> {
                  utils::Endswith(tensor->buffer->name, "_temp_buffer")) {
         auto axis_names  = stages_[tensor]->axis_names();
         auto compute_ats = stages_[tensor]->GetComputeAts();
+        // Notice that a tensor cannot compute_at more than one tensor at the same time.
+        CHECK_LE(compute_ats.size(), 1);
         if (compute_ats.size() == 1) {
           int level_tmp;
           for (auto &i : compute_ats) {

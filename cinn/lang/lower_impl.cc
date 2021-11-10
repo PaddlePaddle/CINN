@@ -200,6 +200,46 @@ Expr LowerGroup(const poly::ScheduleGroup& group,
     auto axis_info = optim::GatherAxisInfoFromStages(stages);
     if (axis_info.valid()) cuda_axis_info->ExtendWith(axis_info);
   }
+#else
+  {
+    optim::forloop_infos_t forloop_infos;
+    std::vector<std::string> traverse_order;
+    std::set<std::string> temp_set;
+    for (auto* stage : stages) {
+      // transform the level identified for infors to iter name identified.
+      auto iters = common::GatherItersToTensorProducer(stage->id(), &e);
+      std::map<std::string, poly::StageForloopInfo> for_infos;
+      for (auto& item : stage->forloop_infos()) {
+        if (item.first < 0) continue;
+        CHECK_LT(item.first, iters.size());
+        for_infos[iters[item.first]] = item.second;
+      }
+      forloop_infos[stage->id()] = for_infos;
+    }
+
+    for (auto* stage : stages) {
+      CHECK_EQ((*global_tensor_map).count(stage->id()), 1) << "Global_Tensor_Map doesn't contain " << stage->id();
+      CHECK_EQ(forloop_infos.count(stage->id()), 1) << "forloop_infos doesn't contain " << stage->id();
+      if (stage->ctrl_depends().size() > 0) {
+        for (auto& i : stage->ctrl_depends()) {
+          CHECK_EQ((*global_tensor_map).count(i->name), 1) << "Global_Tensor_Map doesn't contain " << i->name;
+          if (forloop_infos.count(i->name) == 0) continue;
+          if (temp_set.count(i->name) == 0) {
+            traverse_order.push_back(i->name);
+            temp_set.insert(i->name);
+          }
+        }
+      }
+
+      if (temp_set.count(stage->id()) == 0) {
+        traverse_order.push_back(stage->id());
+        temp_set.insert(stage->id());
+      }
+    }
+    std::reverse(traverse_order.begin(), traverse_order.end());
+
+    optim::TransformComputeatForloops(forloop_infos, traverse_order, global_tensor_map, resized_buffer, &e);
+  }
 #endif  // CINN_WITH_CUDA
   return e;
 }

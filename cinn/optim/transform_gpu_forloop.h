@@ -40,7 +40,7 @@ ir::CudaAxisInfo GatherAxisInfoFromStages(const std::vector<poly::Stage*>& stage
  * For example, input the code
  * \code
  * for (i, 0, 10)
- *   for (j, 0, 20)
+ *   for (j, 0, 10)
  *     A(i,j)
  * \endcode
  *
@@ -48,13 +48,16 @@ ir::CudaAxisInfo GatherAxisInfoFromStages(const std::vector<poly::Stage*>& stage
  *
  * \code
  * for (blockIdx.x, 0, 10)
- *   for (threadIdx.x, 0, 20)
+ *   for (threadIdx.x, 0, 10)
  *     A(blockIdx.x, threadIdx.x)
  * \endcode
  *
- * @param expr The expression to modify.
- * @param global_tensor_map The map mapping a tensor's name to itself.
  * @param forloop_infos A map of forloop to their infomation.
+ * @param traverse_order The order of forloops to be marked.
+ * @param global_tensor_map The map mapping a tensor's name to itself.
+ * @param resized_buffer The set of ID which indicates buffers already been resized. This is used to avoid duplication
+ * when resizing temp buffer's shape.
+ * @param expr The expression to be visited and edited.
  */
 void TransformGpuForloops(const forloop_infos_t& forloop_infos,
                           const std::vector<std::string>& traverse_order,
