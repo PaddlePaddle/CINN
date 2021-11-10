@@ -94,9 +94,9 @@ class TestElementwiseAddOp(OpTest):
 class TestAddCase1(TestElementwiseAddOp):
     def config(self):
         self.dtype = "float32"
-        self.x_shape = [8, 64, 256, 256]
-        self.y_shape = [256, 256]
-        self.dout_shape = [8, 64, 256, 256]
+        self.x_shape = [8, 16, 32, 32]
+        self.y_shape = [32, 32]
+        self.dout_shape = [8, 16, 32, 32]
         self.axis = -1
 
 
@@ -104,8 +104,8 @@ class TestAddCase2(TestElementwiseAddOp):
     def config(self):
         self.dtype = "float32"
         self.x_shape = [8, 1, 32, 32]
-        self.y_shape = [64, 32]
-        self.dout_shape = [8, 64, 32, 32]
+        self.y_shape = [16, 32]
+        self.dout_shape = [8, 16, 32, 32]
         self.axis = 1
 
     def test_check_results(self):
