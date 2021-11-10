@@ -43,7 +43,7 @@ class TestBatchNormOp(OpTest):
     def config(self):
         self.dtype = "float32"
         self.x_shape = [16, 32, 16, 16]
-        self.param_shape = [32]
+        self.param_shape = [self.x_shape[1]]
         self.data_format = "NCHW"
 
     def build_paddle_program(self, target):
