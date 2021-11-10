@@ -138,6 +138,8 @@ class OpTest(unittest.TestCase):
             actual = actual_res[i]
 
             num_diff = 0
+            absolute_diff = np.abs(expect - actual).flatten()
+            relative_diff = absolute_diff / np.abs(expect).flatten()
             for i in range(len(absolute_diff)):
                 if relative_diff[i] > 1e-4 and absolute_diff[i] > 1e-5:
                     num_diff += 1

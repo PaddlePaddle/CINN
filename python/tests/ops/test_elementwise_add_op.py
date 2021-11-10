@@ -90,9 +90,9 @@ class TestElementwiseAddOp(OpTest):
 class TestAddCase1(TestElementwiseAddOp):
     def init_case(self):
         self.inputs = {
-            "x": np.random.random([8, 64, 256, 256]).astype("float32"),
-            "y": np.random.random([256, 256]).astype("float32"),
-            "dout": np.random.random((8, 64, 256, 256)).astype("float32")
+            "x": np.random.random([8, 16, 32, 32]).astype("float32"),
+            "y": np.random.random([32, 32]).astype("float32"),
+            "dout": np.random.random((8, 16, 32, 32)).astype("float32")
         }
         self.axis = -1
 
@@ -101,8 +101,8 @@ class TestAddCase2(TestElementwiseAddOp):
     def init_case(self):
         self.inputs = {
             "x": np.random.random([8, 1, 32, 32]).astype("float32"),
-            "y": np.random.random([64, 32]).astype("float32"),
-            "dout": np.random.random((8, 64, 32, 32)).astype("float32")
+            "y": np.random.random([16, 32]).astype("float32"),
+            "dout": np.random.random((8, 16, 32, 32)).astype("float32")
         }
         self.axis = 1
 
