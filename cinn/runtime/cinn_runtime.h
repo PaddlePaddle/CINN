@@ -385,9 +385,6 @@ struct cinn_pod_value_t {
 
   void* data_addr() const;
 
-  template <typename T>
-  static int type_code();
-
   void set_type_code(int x) { type_code_ = x; }
   void set_value(union cinn_value_t x) { value_ = x; }
 
@@ -397,6 +394,28 @@ struct cinn_pod_value_t {
   int type_code_;
   union cinn_value_t value_;
 };
+
+template <typename T>
+constexpr int type_code();
+
+//! Implement the type_code for all the supported types.
+// @{
+#define __m(T, code__)           \
+  template <>                    \
+  constexpr int type_code<T>() { \
+    return code__;               \
+  }
+__m(int32_t, 0);
+__m(int64_t, 1);
+__m(float, 2);
+__m(double, 3);
+__m(void*, 4);
+__m(char*, 5);
+__m(char const*, 6);
+__m(cinn_buffer_t*, 7);
+__m(int8_t, 8);
+#undef __m
+//@}
 
 typedef struct cinn_pod_value_t cinn_pod_value_t;
 

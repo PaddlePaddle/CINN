@@ -161,69 +161,50 @@ cinn_buffer_t* cinn_buffer_new(cinn_device_kind_t device, cinn_type_t type, cons
   return cinn_buffer_t::new_(device, type, shape, align);
 }
 
-//! Implement the type_code for all the supported types.
-// @{
-#define __m(T, code__)                             \
-  template <>                                      \
-  constexpr int cinn_pod_value_t::type_code<T>() { \
-    return code__;                                 \
-  }
-__m(int32_t, 0);
-__m(int64_t, 1);
-__m(float, 2);
-__m(double, 3);
-__m(void*, 4);
-__m(char*, 5);
-__m(char const*, 6);
-__m(cinn_buffer_t*, 7);
-__m(int8_t, 8);
-#undef __m
-//@}
-
 cinn_pod_value_t::operator double() const {
-  CINN_CHECK_EQ(type_code_, type_code<double>());
+  CINN_CHECK_EQ(type_code_, ::type_code<double>());
   return value_.v_float64;
 }
 cinn_pod_value_t::operator float() const {
-  CINN_CHECK_EQ(type_code_, type_code<float>());
+  CINN_CHECK_EQ(type_code_, ::type_code<float>());
   return value_.v_float64;
 }
 cinn_pod_value_t::operator int8_t() const {
-  CINN_CHECK_EQ(type_code_, type_code<int8_t>());
+  CINN_CHECK_EQ(type_code_, ::type_code<int8_t>());
   return value_.v_int64;
 }
 cinn_pod_value_t::operator int32_t() const {
-  CINN_CHECK_EQ(type_code_, type_code<int32_t>());
+  CINN_CHECK_EQ(type_code_, ::type_code<int32_t>());
   return value_.v_int64;
 }
 cinn_pod_value_t::operator int64_t() const {
-  CINN_CHECK_EQ(type_code_, type_code<int64_t>());
+  CINN_CHECK_EQ(type_code_, ::type_code<int64_t>());
   return value_.v_int64;
 }
 cinn_pod_value_t::operator void*() const {
-  CINN_CHECK_EQ(type_code_, type_code<void*>());
+  CINN_CHECK_EQ(type_code_, ::type_code<void*>());
   return value_.v_handle;
 }
 cinn_pod_value_t::operator cinn_buffer_t*() const {
-  CINN_CHECK_EQ(type_code_, type_code<cinn_buffer_t*>());
+  CINN_CHECK_EQ(type_code_, ::type_code<cinn_buffer_t*>());
   return static_cast<cinn_buffer_t*>(value_.v_handle);
 }
 cinn_pod_value_t::operator char*() const {
-  CINN_CHECK_EQ(type_code_, type_code<char*>());
+  CINN_CHECK_EQ(type_code_, ::type_code<char*>());
   return static_cast<char*>(value_.v_handle);
 }
 
 cinn_pod_value_t::cinn_pod_value_t(cinn_value_t value, int type_code) : value_(value), type_code_(type_code) {}
-cinn_pod_value_t::cinn_pod_value_t(cinn_buffer_t* value) : type_code_(type_code<cinn_buffer_t*>()) {
+cinn_pod_value_t::cinn_pod_value_t(cinn_buffer_t* value) : type_code_(::type_code<cinn_buffer_t*>()) {
   value_.v_handle = value;
 }
-cinn_pod_value_t::cinn_pod_value_t(int8_t value) : type_code_(type_code<int8_t>()) { value_.v_int64 = value; }
-cinn_pod_value_t::cinn_pod_value_t(int32_t value) : type_code_(type_code<int32_t>()) { value_.v_int64 = value; }
-cinn_pod_value_t::cinn_pod_value_t(int64_t value) : type_code_(type_code<int64_t>()) { value_.v_int64 = value; }
-cinn_pod_value_t::cinn_pod_value_t(float value) : type_code_(type_code<float>()) { value_.v_float64 = value; }
-cinn_pod_value_t::cinn_pod_value_t(double value) : type_code_(type_code<double>()) { value_.v_float64 = value; }
-cinn_pod_value_t::cinn_pod_value_t(void* value) : type_code_(type_code<void*>()) { value_.v_handle = value; }
-cinn_pod_value_t::cinn_pod_value_t(const char* value) : type_code_(type_code<char*>()) {
+cinn_pod_value_t::cinn_pod_value_t(int8_t value) : type_code_(::type_code<int8_t>()) { value_.v_int64 = value; }
+cinn_pod_value_t::cinn_pod_value_t(int32_t value) : type_code_(::type_code<int32_t>()) { value_.v_int64 = value; }
+cinn_pod_value_t::cinn_pod_value_t(int64_t value) : type_code_(::type_code<int64_t>()) { value_.v_int64 = value; }
+cinn_pod_value_t::cinn_pod_value_t(float value) : type_code_(::type_code<float>()) { value_.v_float64 = value; }
+cinn_pod_value_t::cinn_pod_value_t(double value) : type_code_(::type_code<double>()) { value_.v_float64 = value; }
+cinn_pod_value_t::cinn_pod_value_t(void* value) : type_code_(::type_code<void*>()) { value_.v_handle = value; }
+cinn_pod_value_t::cinn_pod_value_t(const char* value) : type_code_(::type_code<char*>()) {
   value_.v_handle = const_cast<char*>(value);
 }
 
@@ -258,7 +239,7 @@ void cinn_print_debug_string(const char* s, ...) {
 
 void debug_pod_value(cinn_pod_value_t v, int i) {
   switch (v.type_code()) {
-    case cinn_pod_value_t::type_code<cinn_buffer_t*>(): {
+    case ::type_code<cinn_buffer_t*>(): {
       cinn_buffer_t* node = v;
       if (node->memory) {
         cinn_print_debug_string("arg[%d].memory: %p\n", i, node->memory);
@@ -266,11 +247,11 @@ void debug_pod_value(cinn_pod_value_t v, int i) {
         cinn_print_debug_string("arg[%d].memory: %p\n", i, NULL);
       }
     } break;
-    case cinn_pod_value_t::type_code<int32_t>(): {
+    case ::type_code<int32_t>(): {
       int node = v;
       cinn_print_debug_string("arg[%d] : %d\n", i, node);
     } break;
-    case cinn_pod_value_t::type_code<float>(): {
+    case ::type_code<float>(): {
       float node = v;
       cinn_print_debug_string("arg[%f] : %d\n", i, node);
     } break;
@@ -310,15 +291,15 @@ void cinn_args_construct(cinn_pod_value_t* arr, int count, ...) {
 
 void* cinn_pod_value_t::data_addr() const {
   switch (type_code()) {
-    case cinn_pod_value_t::type_code<int8_t>():
-    case cinn_pod_value_t::type_code<int32_t>():
-    case cinn_pod_value_t::type_code<int64_t>():
+    case ::type_code<int8_t>():
+    case ::type_code<int32_t>():
+    case ::type_code<int64_t>():
       return (void*)&value_.v_int64;  // NOLINT
-    case cinn_pod_value_t::type_code<float>():
+    case ::type_code<float>():
       return (void*)&value_.v_float64;  // NOLINT
-    case cinn_pod_value_t::type_code<void*>():
+    case ::type_code<void*>():
       return (void*)&value_.v_handle;  // NOLINT
-    case cinn_pod_value_t::type_code<cinn_buffer_t*>():
+    case ::type_code<cinn_buffer_t*>():
       return (void*)&value_.v_handle;  // NOLINT
     default:
       cinn_print_debug_string("POD value type [%d] not supported", type_code());

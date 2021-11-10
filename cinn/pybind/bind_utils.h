@@ -25,6 +25,7 @@
 #include "cinn/ir/ir_visitor.h"
 #include "cinn/ir/tensor.h"
 #include "cinn/pybind/bind.h"
+#include "cinn/runtime/cinn_runtime.h"
 
 namespace py = pybind11;
 
@@ -68,11 +69,11 @@ using ValueVar = absl::variant<int32_t, int64_t, float, ir::Var, ir::Expr, std::
 inline ValueVar ConvertToVar(const CINNValue &value) {
   auto type_code = value.type_code();
   ValueVar var;
-  if (type_code == CINNValue::type_code<int32_t>()) {
+  if (type_code == ::type_code<int32_t>()) {
     var = static_cast<int32_t>(value);
-  } else if (type_code == CINNValue::type_code<int64_t>()) {
+  } else if (type_code == ::type_code<int64_t>()) {
     var = static_cast<int64_t>(value);
-  } else if (type_code == CINNValue::type_code<float>()) {
+  } else if (type_code == ::type_code<float>()) {
     var = static_cast<float>(value);
   } else if (type_code == CINNValue::TypeCode<ir::Var>()) {
     var = ir::Var(value);
