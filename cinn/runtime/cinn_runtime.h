@@ -395,15 +395,16 @@ struct cinn_pod_value_t {
   union cinn_value_t value_;
 };
 
+#ifdef __cplusplus
 template <typename T>
-constexpr int type_code();
+constexpr int cinn_type_code();
 
 //! Implement the type_code for all the supported types.
 // @{
-#define __m(T, code__)           \
-  template <>                    \
-  constexpr int type_code<T>() { \
-    return code__;               \
+#define __m(T, code__)                \
+  template <>                         \
+  constexpr int cinn_type_code<T>() { \
+    return code__;                    \
   }
 __m(int32_t, 0);
 __m(int64_t, 1);
@@ -416,6 +417,7 @@ __m(cinn_buffer_t*, 7);
 __m(int8_t, 8);
 #undef __m
 //@}
+#endif  // __cplusplus
 
 typedef struct cinn_pod_value_t cinn_pod_value_t;
 

@@ -117,10 +117,10 @@ class CINNValue : public cinn_pod_value_t {
   CINNValue() : cinn_pod_value_t(cinn_value_t(), kNull) {}
   CINNValue(cinn_value_t value, int type_code) : cinn_pod_value_t(value, type_code) {}
 
-  explicit CINNValue(int32_t value) : cinn_pod_value_t(value) { type_code_ = ::type_code<int32_t>(); }
-  explicit CINNValue(int64_t value) : cinn_pod_value_t(value) { type_code_ = ::type_code<int64_t>(); }
-  explicit CINNValue(float value) : cinn_pod_value_t(value) { type_code_ = ::type_code<float>(); }
-  explicit CINNValue(double value) : cinn_pod_value_t(value) { type_code_ = ::type_code<double>(); }
+  explicit CINNValue(int32_t value) : cinn_pod_value_t(value) { type_code_ = ::cinn_type_code<int32_t>(); }
+  explicit CINNValue(int64_t value) : cinn_pod_value_t(value) { type_code_ = ::cinn_type_code<int64_t>(); }
+  explicit CINNValue(float value) : cinn_pod_value_t(value) { type_code_ = ::cinn_type_code<float>(); }
+  explicit CINNValue(double value) : cinn_pod_value_t(value) { type_code_ = ::cinn_type_code<double>(); }
   explicit CINNValue(char* value);
   explicit CINNValue(cinn_buffer_t* value) : cinn_pod_value_t(value) {}
   explicit CINNValue(void* value) : cinn_pod_value_t(value) {}
