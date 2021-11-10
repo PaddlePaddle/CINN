@@ -228,7 +228,7 @@ void MarkGpuForloop(const std::string &statement,
             VLOG(2) << "After that, expr is : " << *expr;
           } else if (it->second.for_type == ir::ForType::Default) {
             Expr extent = for_ ? for_->extent : poly_for->ExtractExtent();
-            VLOG(2) << "ComputeAt replacing var " << axis_var->name << " to Expr(0) in tensor " << tensor_name;
+            VLOG(2) << "ComputeAt5 replacing var " << axis_var->name << " to Expr(0)";
             optim::CUDAReplaceIndexOfCachePass(
                 expr, axis_var, ir::Expr(0), global_tensor_map, resized_buffer, false, extent, tensor_name);
           } else {

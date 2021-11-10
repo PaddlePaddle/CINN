@@ -482,12 +482,9 @@ void Stage::EditTempTensor(Stage *other, int level) {
     optim::Simplify(&i);
   }
   // Set new shape.
-  VLOG(3) << "In Tensor : " << this->tensor()->name;
-  for (auto &i : this->tensor()->shape) {
-    VLOG(3) << "Temp Buffer's old shape is: " << utils::GetStreamCnt(i);
-  }
+  VLOG(3) << "Tensor is : " << this->tensor()->name;
   for (auto &i : new_shape) {
-    VLOG(3) << "Temp Buffer's new shape is: " << utils::GetStreamCnt(i);
+    VLOG(3) << "In Temp Buffer, shape is: " << utils::GetStreamCnt(i);
   }
   this->tensor()->shape = new_shape;
   CHECK(this->tensor()->buffer.defined());
@@ -654,7 +651,7 @@ void Stage::ComputeAt(Stage *other, int level) {
   CHECK(relation.IsCompatible(this));
   compute_ats_[other->id()] = relation;
   for (int i = 0; i <= level; i++) {
-    AddForloopInfo(i, StageForloopInfo{ir::ForType::Default, DeviceAPI::UNK, 0});
+    AddForloopInfo(i, StageForloopInfo{ir::ForType::Default, DeviceAPI::UNK, i});
   }
 }
 
