@@ -43,6 +43,7 @@ struct _Variable_ : public common::Object {
   std::string id;
   common::Type type;
   std::vector<int> shape;
+  bool is_const = false;
 
   const char* type_info() const override { return __type_info__; }
   static constexpr char* __type_info__ = "cinn_frontend_variable";
@@ -62,6 +63,8 @@ struct Variable : public common::Shared<_Variable_> {
   }
 
   void set_id(const std::string& id) { operator->()->id = id; }
+  void set_const(bool is_const) { operator->()->is_const = is_const; }
+  bool is_const() { return operator->()->is_const; }
 
   _Variable_* operator->() { return get(); }
   const _Variable_* operator->() const { return get(); }
@@ -77,12 +80,16 @@ class Placeholder {
    * @param shape Shape of the fed
    * @param id ID of the fed
    */
-  Placeholder(const common::Type& type, const std::vector<int>& shape, absl::string_view id_hint = "") {
+  Placeholder(const common::Type& type,
+              const std::vector<int>& shape,
+              absl::string_view id_hint = "",
+              bool is_const             = false) {
     if (!id_hint.empty()) CheckVarNameValid(std::string(id_hint));
-    id_         = id_hint.empty() ? common::Context::Global().NewName("placeholder") : (std::string)id_hint;
-    var_        = Variable(id_);
-    var_->shape = shape;
-    var_->type  = type;
+    id_            = id_hint.empty() ? common::Context::Global().NewName("placeholder") : (std::string)id_hint;
+    var_           = Variable(id_);
+    var_->shape    = shape;
+    var_->type     = type;
+    var_->is_const = is_const;
   }
 
   explicit Placeholder(const Variable& var) {
@@ -97,6 +104,8 @@ class Placeholder {
   absl::string_view id() const { return id_; }
 
   operator Variable() const;
+  void set_const(bool is_const) { Variable()->is_const = is_const; }
+  bool is_const() { return Variable().is_const(); }
 
   Program* parent_program() { return parent_program_; }
 
@@ -427,6 +436,13 @@ struct Program {
   /**
    *  batchnorm composed of primitive ops
    */
+  Variable fused_meta_batchnorm_inference(const Variable& a,
+                                          const Variable& scale,
+                                          const Variable& bias,
+                                          const Variable& mean,
+                                          const Variable& variance,
+                                          const absl::flat_hash_map<std::string, attr_t>& attr_store);
+
   Variable fused_batchnorm_inference(const Variable& a,
                                      const Variable& scale,
                                      const Variable& bias,
