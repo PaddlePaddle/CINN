@@ -12,7 +12,6 @@ gather_srcs(cinnapi_src SRCS
     vectorize_loops.cc
     unroll_loops.cc
     transform_polyfor_to_for.cc
-    transform_computeat_forloop.cc
     eliminate_broadcast_in_forloop.cc
     fold_cinn_call_arguments.cc
     call_arg_list_to_pod_value.cc
