@@ -77,6 +77,16 @@ EXTERN_CALL_IMP_NO_VEC(Asinh, asinh);
 EXTERN_CALL_IMP_NO_VEC(Atan, atan);
 EXTERN_CALL_IMP_NO_VEC(Atanh, atanh);
 
+#ifdef CINN_WITH_CUDA
+EXTERN_CALL_IMP(Rsqrt, rsqrt);
+#else
+Expr Rsqrt(Expr e) {
+  // TODO(Xreki): add the rsqrt's intrinsic of X86 and remove the ifdef.
+  auto one = make_const(e->type(), 1);
+  return one / Sqrt(e);
+}
+#endif
+
 Expr min_value(const Type& type) {
   CHECK_EQ(type.lanes(), 1);
 #define FOR_CASE(type__)                                \
