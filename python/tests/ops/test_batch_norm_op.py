@@ -33,8 +33,9 @@ class TestBatchNormOp(OpTest):
             "x": random(self.x_shape, self.dtype),
             "scale": random(self.param_shape, self.dtype),
             "bias": random(self.param_shape, self.dtype),
-            "moving_mean": random(self.param_shape, self.dtype),
-            "moving_variance": random(self.param_shape, self.dtype),
+            "mean": random(self.param_shape, self.dtype),
+            "variance": random(self.param_shape, self.dtype),
+            "y_grad": random(self.x_shape, self.dtype),
         }
         self.epsilon = 1e-05
         self.momentum = 0.9
@@ -42,7 +43,7 @@ class TestBatchNormOp(OpTest):
 
     def config(self):
         self.dtype = "float32"
-        self.x_shape = [16, 32, 16, 16]
+        self.x_shape = [8, 16, 8, 8]
         self.param_shape = [self.x_shape[1]]
         self.data_format = "NCHW"
 
@@ -61,8 +62,8 @@ class TestBatchNormOp(OpTest):
         x = paddle.to_tensor(self.inputs["x"], stop_gradient=False)
         scale = paddle.to_tensor(self.inputs["scale"], stop_gradient=False)
         bias = paddle.to_tensor(self.inputs["bias"], stop_gradient=False)
-        running_mean = _create_parameter("moving_mean")
-        running_variance = _create_parameter("moving_variance")
+        running_mean = _create_parameter("mean")
+        running_variance = _create_parameter("variance")
 
         out = F.batch_norm(
             x=x,
@@ -77,6 +78,8 @@ class TestBatchNormOp(OpTest):
 
         # Cannot get save_mean and save_variance of paddle.
         self.paddle_outputs = [out, None, None, running_mean, running_variance]
+        self.paddle_grads = self.get_paddle_grads([out], [x, scale, bias],
+                                                  [self.inputs["y_grad"]])
 
     def build_cinn_program(self, target):
         builder = NetBuilder("batch_norm")
@@ -86,22 +89,34 @@ class TestBatchNormOp(OpTest):
         bias = builder.create_input(
             Float(32), self.inputs["bias"].shape, "bias")
         mean = builder.create_input(
-            Float(32), self.inputs["moving_mean"].shape, "moving_mean")
+            Float(32), self.inputs["mean"].shape, "mean")
         variance = builder.create_input(
-            Float(32), self.inputs["moving_variance"].shape, "moving_variance")
-        outs = builder.batchnorm(x, scale, bias, mean, variance, self.epsilon,
-                                 self.momentum, self.data_format, self.is_test)
-        prog = builder.build()
-        forward_res = self.get_cinn_output(
-            prog, target, [x, scale, bias, mean, variance], [
-                self.inputs["x"], self.inputs["scale"], self.inputs["bias"],
-                self.inputs["moving_mean"], self.inputs["moving_variance"]
-            ], outs)
+            Float(32), self.inputs["variance"].shape, "variance")
+        y, saved_mean, saved_variance, moving_mean, moving_variance = builder.batchnorm(
+            x, scale, bias, mean, variance, self.epsilon, self.momentum,
+            self.data_format, self.is_test)
 
-        self.cinn_outputs = forward_res
+        y_grad = builder.create_input(
+            Float(32), self.inputs["y_grad"].shape, "y_grad")
+        x_grad, scale_grad, bias_grad = builder.batch_norm_grad(
+            y_grad, x, scale, saved_mean, saved_variance)
+
+        prog = builder.build()
+        outs = self.get_cinn_output(
+            prog, target, [x, scale, bias, mean, variance, y_grad], [
+                self.inputs["x"], self.inputs["scale"], self.inputs["bias"],
+                self.inputs["mean"], self.inputs["variance"],
+                self.inputs["y_grad"]
+            ], [
+                y, saved_mean, saved_variance, moving_mean, moving_variance,
+                x_grad, scale_grad, bias_grad
+            ])
+
+        self.cinn_outputs = [outs[0], outs[1], outs[2], outs[3], outs[4]]
+        self.cinn_grads = [outs[5], outs[6], outs[7]]
 
     def test_check_results(self):
-        self.check_outputs_and_grads(max_relative_error=1e-3)
+        self.check_outputs_and_grads(max_relative_error=1e-4)
 
 
 if __name__ == "__main__":
