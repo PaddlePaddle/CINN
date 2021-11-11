@@ -34,7 +34,7 @@ Graph::Graph(const frontend::Program& prog, const Target& target) {
       if (!graph_node) {
         dtype_dict[input_v->id] = input_v->type;
         shape_dict[input_v->id] = input_v->shape;
-        NodeData* input_data    = new NodeData(nullptr, 0, 0, input_v->id);
+        NodeData* input_data    = new NodeData(nullptr, 0, 0, input_v->id, input_v.is_const());
         input_data->LinkTo(node_tmp);
         this->RegisterNode(input_v->id, input_data);
       } else {

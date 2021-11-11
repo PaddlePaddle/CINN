@@ -223,9 +223,9 @@ void PaddleModelToProgram::AddOpMapper_fill_constant() {
 
     Variable out;
     switch (dtype) {
-#define DO(desc, type)                                                                  \
-  case ::paddle::framework::proto::VarType::Type::VarType_Type_##desc:                  \
-    out = program_->fill_constant<type>(shapes, value, str_value, force_cpu, out_name); \
+#define DO(desc, type)                                                                                     \
+  case ::paddle::framework::proto::VarType::Type::VarType_Type_##desc:                                     \
+    out = program_->fill_constant<type>(shapes, value, str_value, force_cpu, TransValidVarName(out_name)); \
     break;
       DO(BOOL, bool);
       DO(FP32, float);
@@ -537,7 +537,11 @@ void PaddleModelToProgram::AddOpMapper_batchnorm() {
     auto bias        = GetVar(TransValidVarName(bias_name));
     auto mean        = GetVar(TransValidVarName(mean_name));
     auto variance    = GetVar(TransValidVarName(variance_name));
-    auto out         = program_->batchnorm(x, scale, bias, mean, variance, attrs);
+#ifndef CINN_WITH_CUDNN
+    auto out = program_->fused_batchnorm_inference(x, scale, bias, mean, variance, attrs);
+#else
+    auto out = program_->batchnorm(x, scale, bias, mean, variance, attrs);
+#endif
 
     AddVar(TransValidVarName(out_name), out);
     var_model_to_program_map_[out_name] = out->id;
@@ -705,6 +709,7 @@ Variable PaddleModelToProgram::GetVar(const std::string& name) {
     var->shape = tensor->shape().data();
     // TODO(Superjomn) Make this determined by model.
     var->type = Float(32);
+    var.set_const(true);
     AddVar(name, var);
     return var;
   }
