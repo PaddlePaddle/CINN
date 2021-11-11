@@ -24,6 +24,12 @@
 #include "cinn/common/target.h"
 #include "cinn/utils/timer.h"
 
+DEFINE_bool(cinn_cudnn_deterministic,
+            false,
+            "Whether allow using an autotuning algorithm for convolution "
+            "operator. The autotuning algorithm may be non-deterministic. If "
+            "true, the algorithm is deterministic.");
+
 namespace cinn {
 namespace runtime {
 namespace cuda {
@@ -99,7 +105,7 @@ void cinn_call_cuda_kernel(void *kernel_fn,
   void *arr[20];
   CHECK_LT(num_args, 20);
   for (int i = 0; i < num_args; i++) {
-    if (args[i].type_code() == cinn_pod_value_t::type_code<cinn_buffer_t *>()) {
+    if (args[i].type_code() == ::cinn_type_code<cinn_buffer_t *>()) {
       arr[i] = &((cinn_buffer_t *)(args[i]))->memory;  // NOLINT
     } else {
       arr[i] = args[i].data_addr();
@@ -195,6 +201,11 @@ void cinn_gpu_cudnn_conv2d(const absl::flat_hash_map<std::string, int> &attr,
     algo_map[hash_str] = static_cast<int>(algo_perf.algo);
     algo               = algo_perf.algo;
   }
+
+  if (FLAGS_cinn_cudnn_deterministic) {
+    static_cast<cudnnConvolutionFwdAlgo_t>(1);
+  }
+
   size_t ws_size = 0;
   CUDNN_CALL(cudnnGetConvolutionForwardWorkspaceSize(handle, x_desc, w_desc, conv_desc, y_desc, algo, &ws_size));
 
@@ -280,6 +291,10 @@ void cinn_gpu_cudnn_conv2d_backward_data(const absl::flat_hash_map<std::string, 
     algo               = algo_perf.algo;
   }
 
+  if (FLAGS_cinn_cudnn_deterministic) {
+    algo = CUDNN_CONVOLUTION_BWD_DATA_ALGO_1;
+  }
+
   size_t ws_size = 0;
   CUDNN_CALL(cudnnGetConvolutionBackwardDataWorkspaceSize(handle, w_desc, y_desc, conv_desc, x_desc, algo, &ws_size));
 
@@ -363,6 +378,10 @@ void cinn_gpu_cudnn_conv2d_backward_filter(const absl::flat_hash_map<std::string
         cudnnFindConvolutionBackwardFilterAlgorithm(handle, x_desc, y_desc, conv_desc, w_desc, 1, &count, &algo_perf));
     algo_map[hash_str] = static_cast<int>(algo_perf.algo);
     algo               = algo_perf.algo;
+  }
+
+  if (FLAGS_cinn_cudnn_deterministic) {
+    algo = CUDNN_CONVOLUTION_BWD_FILTER_ALGO_1;
   }
 
   size_t ws_size = 0;

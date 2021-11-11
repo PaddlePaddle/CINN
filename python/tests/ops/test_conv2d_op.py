@@ -13,7 +13,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 import cinn
 import numpy as np
 import paddle
@@ -21,7 +20,11 @@ import unittest
 
 from cinn.frontend import *
 from cinn.common import *
+from cinn.runtime import *
 from op_test import OpTest, OpTestTool, random
+
+set_cinn_cudnn_deterministic(True)
+paddle.fluid.set_flags({'FLAGS_cudnn_deterministic': 1})
 
 
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
@@ -37,9 +40,9 @@ class TestConv2dOp(OpTest):
 
     def config(self):
         self.dtype = "float32"
-        self.x_shape = [4, 16, 224, 224]
-        self.w_shape = [16, 16, 5, 5]
-        self.dy_shape = [4, 16, 220, 220]
+        self.x_shape = [3, 16, 32, 32]
+        self.w_shape = [16, 16, 3, 3]
+        self.dy_shape = [3, 16, 30, 30]
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.inputs["x"], stop_gradient=False)
@@ -80,7 +83,7 @@ class TestConv2dOp(OpTest):
             self.cinn_outputs = [res[0]]
 
     def test_check_results(self):
-        self.check_outputs_and_grads()
+        self.check_outputs_and_grads(1e-4)
 
 
 if __name__ == "__main__":

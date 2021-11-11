@@ -284,7 +284,6 @@ void AlterLayoutPass(Graph* graph) {
                                                src_kernel_layout,
                                                dst_kernel_layout,
                                                common::UniqName(node->op()->name + "_weight_layout_tranform"));
-            weight_trans_node->attrs.attr_store["pre_run"] = true;
             UpdateInferInfos(weight_trans_node,
                              {weight_shape},
                              {weight_type},
@@ -401,29 +400,52 @@ void AlterLayoutPass(Graph* graph) {
                     new_shapes.push_back(1);
                   }
                 }
+                // C -> NCHW, insert layout tranfrom
                 auto source               = inlinks[i]->source();
-                std::string src_layout    = "NCHW";
-                shape_dict[source->id()]  = new_shapes;
+                std::string src_layout    = "C";
                 layout_dict[source->id()] = src_layout;
-                reset_axis                = true;
-                // insert layout tranfrom
-                auto input_data = source->safe_as<NodeData>();
+                auto input_data           = source->safe_as<NodeData>();
                 CHECK(input_data);
-                NodeData* output_data;
-                Node* trans_node;
-                VLOG(2) << source->id() << " do layout_tranform from C to NCHWxc";
-                std::tie(trans_node, output_data) =
-                    InsertLayoutTransformNodeAfter(graph,
-                                                   input_data,
-                                                   node,
-                                                   i,
-                                                   src_layout,
-                                                   new_input_layouts[i],
-                                                   common::UniqName(source->id() + "_layout_tranform"));
+                VLOG(3) << source->id() << " do layout_tranform from C to NCHW";
+                std::string op_type = "broadcast_to";
+                auto trans_node =
+                    new Node(Operator::Get(op_type), op_type, common::UniqName(source->id() + "_broadcastto"));
+                trans_node->attrs.attr_store["out_shape"]      = new_shapes;
+                std::vector<int> broadcast_axes                = {1};
+                trans_node->attrs.attr_store["broadcast_axes"] = broadcast_axes;
+                auto output_data = InsertGraphOpNodeAfter(graph, trans_node, input_data, node, i);
                 UpdateInferInfos(trans_node,
-                                 {new_shapes},
+                                 {input_shapes[i]},
                                  {input_types[i]},
                                  {src_layout},
+                                 graph->target_,
+                                 op_infershape,
+                                 op_inferdtype,
+                                 op_inferlayout,
+                                 &shape_dict,
+                                 &type_dict,
+                                 &layout_dict);
+
+                std::string new_src_layout = "NCHW";
+                reset_axis                 = true;
+                // insert layout tranfrom
+                auto new_input_data = output_data->safe_as<NodeData>();
+                CHECK(new_input_data);
+                NodeData* new_output_data;
+                Node* new_trans_node;
+                VLOG(3) << new_input_data->id() << " do layout_tranform from NCHW to NCHWxc";
+                std::tie(new_trans_node, new_output_data) =
+                    InsertLayoutTransformNodeAfter(graph,
+                                                   new_input_data,
+                                                   node,
+                                                   i,
+                                                   new_src_layout,
+                                                   new_input_layouts[i],
+                                                   common::UniqName(new_input_data->id() + "_layout_tranform"));
+                UpdateInferInfos(new_trans_node,
+                                 {shape_dict[new_input_data->id()]},
+                                 {input_types[i]},
+                                 {new_src_layout},
                                  graph->target_,
                                  op_infershape,
                                  op_inferdtype,
@@ -441,7 +463,7 @@ void AlterLayoutPass(Graph* graph) {
                 CHECK(input_data);
                 NodeData* output_data;
                 Node* trans_node;
-                VLOG(2) << source->id() << " do layout_tranform from NCHW to NCHWxc";
+                VLOG(3) << source->id() << " do layout_tranform from NCHW to NCHWxc";
                 std::tie(trans_node, output_data) =
                     InsertLayoutTransformNodeAfter(graph,
                                                    input_data,
@@ -471,7 +493,7 @@ void AlterLayoutPass(Graph* graph) {
                 CHECK(input_data);
                 NodeData* output_data;
                 Node* trans_node;
-                VLOG(2) << source->id() << " do layout_tranform from NCHWxc to NCHW";
+                VLOG(3) << source->id() << " do layout_tranform from NCHWxc to NCHW";
                 std::tie(trans_node, output_data) =
                     InsertLayoutTransformNodeAfter(graph,
                                                    input_data,
