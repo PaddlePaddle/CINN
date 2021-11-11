@@ -211,7 +211,9 @@ std::string GraphCompiler::GenSourceCode() {
   return compiler_->GetSourceCode(build_module);
 }
 
-const std::string& GraphCompiler::GetFullFuncName(const std::string& prefix) {
+const std::string& GraphCompiler::GetOrGenFullFuncName(const std::string& prefix) {
+  // try_emplace only insert once, so the same function
+  // can get a consistent name next time
   prefix2full_namemap_.try_emplace(prefix, Context::Global().NewName(prefix));
   return prefix2full_namemap_.at(prefix);
 }
@@ -265,7 +267,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const Node* node) {
     inputs.push_back(temp.as_tensor_ref());
   }
 
-  auto func = lang::LowerVec(GetFullFuncName(GenOpFuncName(node)), stages, inputs, {}, {}, nullptr, this->target_);
+  auto func = lang::LowerVec(GetOrGenFullFuncName(GenOpFuncName(node)), stages, inputs, {}, {}, nullptr, this->target_);
   VLOG(3) << "The [" << func.size() << "] functions of node [" << node->attrs.node_name << "] are:\n";
   for (auto& i : func) {
     VLOG(3) << i;
@@ -443,7 +445,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
     }
   }
 
-  auto func = lang::LowerVec(GetFullFuncName(fuse_name), stages, inputs, {}, {}, nullptr, this->target_);
+  auto func = lang::LowerVec(GetOrGenFullFuncName(fuse_name), stages, inputs, {}, {}, nullptr, this->target_);
   VLOG(3) << "The [" << func.size() << "] functions are:\n";
   for (auto& i : func) {
     VLOG(3) << "Function [" << i->name << "] is:\n";
@@ -705,7 +707,7 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
           }
         }
       }
-      std::string op_func_name = GetFullFuncName(GenOpFuncName(node));
+      std::string op_func_name = GetOrGenFullFuncName(GenOpFuncName(node));
       auto* fn                 = compiler_->Lookup(op_func_name);
       CHECK(fn);
       instr->SetLoweredFunc(fn, op_func_name);
@@ -764,7 +766,7 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
       }
       fuse_name += "fused";
       VLOG(3) << fuse_name;
-      auto fuse_func_name = GetFullFuncName(fuse_name);
+      auto fuse_func_name = GetOrGenFullFuncName(fuse_name);
       auto instr =
           std::unique_ptr<Instruction>(new Instruction(target_, scope_.get(), inputNames, outputNames, fuse_func_name));
       VLOG(3) << "input_names: " << utils::Join(inputNames, ", ");

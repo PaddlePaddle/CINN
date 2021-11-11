@@ -148,7 +148,9 @@ class GraphCompiler final {
 
   std::string GenOpFuncName(const Node* node) const { return "fn_" + node->id(); }
 
-  const std::string& GetFullFuncName(const std::string& prefix);
+  // append a unique number at the end of the function name to distinguish
+  // different functions from graphs whose structures are same
+  const std::string& GetOrGenFullFuncName(const std::string& prefix);
 
   // TODO(haozech) add implementation
   std::vector<std::string> OpGetInputNames(const Node* node) const;
