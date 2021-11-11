@@ -100,7 +100,7 @@ void cinn_call_cuda_kernel(void *kernel_fn,
   void *arr[20];
   CHECK_LT(num_args, 20);
   for (int i = 0; i < num_args; i++) {
-    if (args[i].type_code() == cinn_pod_value_t::type_code<cinn_buffer_t *>()) {
+    if (args[i].type_code() == ::cinn_type_code<cinn_buffer_t *>()) {
       arr[i] = &((cinn_buffer_t *)(args[i]))->memory;  // NOLINT
     } else {
       arr[i] = args[i].data_addr();

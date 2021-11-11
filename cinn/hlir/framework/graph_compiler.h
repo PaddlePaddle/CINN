@@ -45,57 +45,19 @@ class Program {
    * @param scope The scope containing all the runtime variables.
    * @param instrs The instructions belonging to this program.
    */
-  Program(const std::shared_ptr<Scope>& scope, std::vector<std::unique_ptr<Instruction>>&& instrs) : scope_(scope) {
-    for (auto& ins : instrs) {
-      if (ins->pre_run) {
-        prerun_instrs_.push_back(std::move(ins));
-      } else {
-        instrs_.push_back(std::move(ins));
-      }
-    }
-  }
+  Program(const std::shared_ptr<Scope>& scope, std::vector<std::unique_ptr<Instruction>>&& instrs);
 
-  void PreRun(const std::map<std::string, cinn_pod_value_t>* name2podargs = nullptr) {
-    for (auto& ins : prerun_instrs_) {
-      ins->Run(name2podargs);
-    }
-  }
+  void PreRun(const std::map<std::string, cinn_pod_value_t>* name2podargs = nullptr);
+
   void Export(const std::vector<std::string>& persistent_vars, const std::string& filename);
+
   /**
    * Execute the program -- that is running all the instructions inside it.
    */
-  void Execute(const std::map<std::string, cinn_pod_value_t>* name2podargs = nullptr) {
-    for (auto& ins : instrs_) {
-      ins->Run(name2podargs);
-    }
-#ifdef CINN_WITH_CUDA
-    if (instrs_[0]->target_.arch == Target::Arch::NVGPU) {
-      CUDA_CALL(cudaDeviceSynchronize());
-    }
-#endif
-  }
+  void Execute(const std::map<std::string, cinn_pod_value_t>* name2podargs = nullptr);
 
-  void ExecuteTest(int repeat_) {
-    cinn::utils::Timer timer1;
-    for (int i = 0; i < 100; i++) {
-      for (auto& ins : instrs_) {
-        ins->Run();
-      }
-    }
-    timer1.Start();
-    for (int i = 0; i < repeat_; i++) {
-      for (auto& ins : instrs_) {
-        ins->Run();
-      }
-    }
-#ifdef CINN_WITH_CUDA
-    if (instrs_[0]->target_.arch == Target::Arch::NVGPU) {
-      CUDA_CALL(cudaDeviceSynchronize());
-    }
-#endif
-    double test_op_time = timer1.Stop() / repeat_;
-    LOG(INFO) << "Repeat times: [" << repeat_ << "], average op time: [" << test_op_time << "] ms";
-  }
+  void ExecuteTest(int repeat_);
+
   /**
    * Get the number of instructions.
    */
