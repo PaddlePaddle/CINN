@@ -68,10 +68,8 @@ void ElementwiseAddGradOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapp
 
   auto axis = utils::GetAttrOrDefault<int>(op_desc, "axis", -1);
 
-  auto x = ctx.GetVar(x_name);
-  ctx.Builder()->identity(x);
-  auto y = ctx.GetVar(y_name);
-  ctx.Builder()->identity(y);
+  auto x    = ctx.GetVar(x_name);
+  auto y    = ctx.GetVar(y_name);
   auto dout = ctx.GetVar(dout_name);
   auto outs = ctx.Builder()->elementwise_add_grad(dout, x, y, axis);
   CHECK_EQ(outs.size(), 2) << "elementwise_add_grad should return 2 variables";
