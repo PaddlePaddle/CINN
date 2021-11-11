@@ -14,6 +14,8 @@
 
 #pragma once
 
+#include <absl/container/flat_hash_map.h>
+
 #include <map>
 #include <memory>
 #include <string>
@@ -111,6 +113,10 @@ class GraphCompiler final {
 
   std::string GenOpFuncName(const Node* node) const { return "fn_" + node->id(); }
 
+  // append a unique number at the end of the function name to distinguish
+  // different functions from graphs whose structures are same
+  const std::string& GetOrGenFullFuncName(const std::string& prefix);
+
   // TODO(haozech) add implementation
   std::vector<std::string> OpGetInputNames(const Node* node) const;
   // TODO(haozech) add implementation
@@ -127,6 +133,8 @@ class GraphCompiler final {
   std::map<std::string, std::vector<std::string>> function2input_args_;
   // mapping a function's name to its output artuments' names
   std::map<std::string, std::vector<std::string>> function2output_args_;
+
+  absl::flat_hash_map<std::string, std::string> prefix2full_namemap_;
 
   std::unique_ptr<backends::Compiler> compiler_;
 
