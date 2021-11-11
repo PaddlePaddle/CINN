@@ -35,6 +35,7 @@
 #include "cinn/optim/remove_nested_block.h"
 #include "cinn/optim/replace_call_with_expr.h"
 #include "cinn/optim/tensor_write_tell.h"
+#include "cinn/optim/transform_computeat_forloop.h"
 #include "cinn/optim/transform_gpu_forloop.h"
 #include "cinn/optim/transform_polyfor_to_for.h"
 #include "cinn/poly/ast_gen.h"

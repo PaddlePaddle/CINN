@@ -36,9 +36,15 @@ using CPUKernelFunc = std::function<void(const std::vector<size_t>& lengths, con
 
 template <typename T, typename Alloc = std::allocator<T>>
 std::ostream& operator<<(std::ostream& os, const std::vector<T, Alloc>& vec) {
-  os << "{ ";
+  os << "{";
+  bool is_first = true;
   for (auto e : vec) {
-    os << e << " ";
+    if (is_first) {
+      is_first = false;
+    } else {
+      os << ", ";
+    }
+    os << e;
   }
   os << "}\n";
   return os;
@@ -53,10 +59,10 @@ Target GetTarget() {
 }
 
 template <typename T>
-void InitRandomVector(std::vector<T>* vec, size_t numel) {
+void InitRandomVector(std::vector<T>* vec, size_t numel, T low = 0, T high = 1) {
   std::random_device seed;
   std::default_random_engine engine(seed());
-  std::uniform_real_distribution<float> dist(-1.0, 1.0);
+  std::uniform_real_distribution<double> dist(low, high);
 
   vec->resize(numel);
   for (size_t i = 0; i < numel; ++i) {
@@ -95,23 +101,45 @@ void CopyToVector(const hlir::framework::Tensor tensor, std::vector<T>* vec) {
 }
 
 template <typename T>
-void CheckOutput(const std::vector<T>& results, const std::vector<T>& references) {
+void CheckOutput(const std::vector<T>& results,
+                 const std::vector<T>& references,
+                 double max_relative_error = 1e-5,
+                 bool check_absolute_error = false) {
   CHECK_EQ(results.size(), references.size());
+
+  float max_diff = 0.0f;
+  int offset     = 0;
+  int num_diffs  = 0;
 
   size_t numel = results.size();
   for (size_t i = 0; i < numel; ++i) {
-    EXPECT_NEAR(results[i], references[i], 1.E-05);
+    float absolute_diff = abs((results[i] - references[i]));
+    float relative_diff = abs(absolute_diff / references[i]);
+    if (relative_diff > max_diff) {
+      max_diff = relative_diff;
+      offset   = i;
+    }
+    if ((relative_diff > max_relative_error) || (check_absolute_error && (absolute_diff > 1e-6))) {
+      num_diffs += 1;
+      VLOG(4) << "- i=" << i << ", " << std::setprecision(8) << results[i] << " vs " << std::setprecision(8)
+              << references[i] << ", relative_diff=" << relative_diff << ", absolute_diff=" << absolute_diff;
+    }
   }
+  LOG(INFO) << "- Total " << num_diffs << " different results, offset=" << offset << ", " << results[offset] << " vs "
+            << references[offset] << ", maximum_relative_diff=" << max_diff
+            << " (absolute_diff=" << abs((results[offset] - references[offset])) << ")";
+  ASSERT_EQ(num_diffs, 0);
+  ASSERT_LT(max_diff, max_relative_error);
 }
 
 template <typename T>
-void ComputeAndCheckOutputs(const std::vector<std::vector<T>>& input_vecs,
-                            const std::vector<std::vector<T>>& output_vecs,
-                            CPUKernelFunc cpu_kernel_func) {
-  std::vector<std::vector<T>> output_refs;
-  output_refs.resize(output_vecs.size());
+void ComputeReferenceCpu(const std::vector<std::vector<T>>& input_vecs,
+                         const std::vector<std::vector<T>>& output_vecs,
+                         std::vector<std::vector<T>>* output_refs,
+                         CPUKernelFunc cpu_kernel_func) {
+  output_refs->resize(output_vecs.size());
   for (size_t i = 0; i < output_vecs.size(); ++i) {
-    output_refs[i].resize(output_vecs[i].size());
+    output_refs->at(i).resize(output_vecs[i].size());
   }
 
   // Prepare the arguments for reference.
@@ -120,19 +148,14 @@ void ComputeAndCheckOutputs(const std::vector<std::vector<T>>& input_vecs,
   std::vector<size_t> lengths;
   lengths.push_back(n);
 
-  std::vector<void*> ptrs(input_vecs.size() + output_refs.size());
+  std::vector<void*> ptrs(input_vecs.size() + output_refs->size());
   for (size_t i = 0; i < input_vecs.size(); ++i) {
     ptrs[i] = const_cast<void*>(static_cast<const void*>(input_vecs[i].data()));
   }
-  for (size_t i = 0; i < output_refs.size(); ++i) {
-    ptrs[input_vecs.size() + i] = output_refs[i].data();
+  for (size_t i = 0; i < output_refs->size(); ++i) {
+    ptrs[input_vecs.size() + i] = output_refs->at(i).data();
   }
   cpu_kernel_func(lengths, ptrs);
-
-  for (size_t i = 0; i < output_vecs.size(); ++i) {
-    LOG(INFO) << "Check the " << i << "-th output...";
-    CheckOutput<T>(output_vecs[i], output_refs[i]);
-  }
 }
 
 void RunDecomposer(Program* prog, const Target& target) {
@@ -153,7 +176,9 @@ void RunAndCheckShape(NetBuilder& builder,
                       const std::vector<std::string>& output_names,
                       const std::vector<std::vector<int>>& output_shapes,
                       std::vector<std::vector<T>>* input_vecs  = nullptr,
-                      std::vector<std::vector<T>>* output_vecs = nullptr) {
+                      std::vector<std::vector<T>>* output_vecs = nullptr,
+                      T low                                    = 0,
+                      T high                                   = 1) {
   auto prog     = builder.Build();
   Target target = GetTarget();
   RunDecomposer(&prog, target);
@@ -170,7 +195,7 @@ void RunAndCheckShape(NetBuilder& builder,
     auto tensor = scope->GetTensor(input_names[i]);
 
     std::vector<T> vec;
-    InitRandomVector<T>(&vec, tensor->shape().numel());
+    InitRandomVector<T>(&vec, tensor->shape().numel(), low, high);
     CopyFromVector<T>(vec, tensor, target);
     input_vecs_ptr->push_back(vec);
   }
@@ -193,11 +218,21 @@ void RunAndCheck(NetBuilder& builder,
                  const std::vector<std::string>& input_names,
                  const std::vector<std::string>& output_names,
                  const std::vector<std::vector<int>>& output_shapes,
-                 CPUKernelFunc cpu_kernel_func) {
+                 CPUKernelFunc cpu_kernel_func,
+                 double max_relative_error = 1e-5,
+                 T low                     = 0,
+                 T high                    = 1) {
   std::vector<std::vector<T>> input_vecs;
   std::vector<std::vector<T>> output_vecs;
-  RunAndCheckShape<T>(builder, input_names, output_names, output_shapes, &input_vecs, &output_vecs);
-  ComputeAndCheckOutputs<T>(input_vecs, output_vecs, cpu_kernel_func);
+  RunAndCheckShape<T>(builder, input_names, output_names, output_shapes, &input_vecs, &output_vecs, low, high);
+
+  std::vector<std::vector<T>> output_refs;
+  ComputeReferenceCpu<T>(input_vecs, output_vecs, &output_refs, cpu_kernel_func);
+
+  for (size_t i = 0; i < output_vecs.size(); ++i) {
+    LOG(INFO) << "Check the " << i << "-th output, name=" << output_names[i] << ", shape=" << output_shapes[i];
+    CheckOutput<T>(output_vecs[i], output_refs[i], max_relative_error);
+  }
 }
 
 }  // namespace cinn::frontend

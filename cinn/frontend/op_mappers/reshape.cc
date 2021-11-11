@@ -38,6 +38,31 @@ void ReshapeOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& 
   ctx.AddVarModelToProgram(out_name, out->id);
 }
 
+void ReshapeGradOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+  auto get_input_var = [&op_desc, &ctx](const std::string& op_name) {
+    CHECK_EQ(op_desc.Input(op_name).size(), 1UL);
+    auto var_name = op_desc.Input(op_name).front();
+    return ctx.GetVar(var_name);
+  };
+
+  auto get_output_name = [&op_desc](const std::string& op_name) {
+    CHECK_EQ(op_desc.Output(op_name).size(), 1UL);
+    return op_desc.Output(op_name).front();
+  };
+
+  auto dout = get_input_var(paddle::GradVarName("Out"));
+  VLOG(4) << "dout shape: " << cinn::utils::Join(dout->shape, ",");
+
+  auto x = get_input_var("X");
+  VLOG(4) << "x shape: " << cinn::utils::Join(x->shape, ",");
+
+  auto out = ctx.Builder()->reshape(dout, x->shape);
+
+  auto out_name = get_output_name(paddle::GradVarName("X"));
+  ctx.AddVar(out_name, out);
+  ctx.AddVarModelToProgram(out_name, out->id);
+}
+
 void Reshape2OpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
   auto x_name = op_desc.Input("X").front();
@@ -63,11 +88,37 @@ void Reshape2OpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext&
   CHECK_EQ(op_desc.Output("XShape").size(), 1UL);
   auto xshape_name = op_desc.Output("XShape").front();
 
-  auto xshape = x;
-  xshape.set_id(cinn::utils::TransValidVarName(xshape_name));
+  auto xshape = ctx.Builder()->identity(x);
 
   ctx.AddVar(xshape_name, xshape);
   ctx.AddVarModelToProgram(xshape_name, xshape->id);
+}
+
+void Reshape2GradOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+  auto get_input_var = [&op_desc, &ctx](const std::string& op_name) {
+    CHECK_EQ(op_desc.Input(op_name).size(), 1UL);
+    auto var_name = op_desc.Input(op_name).front();
+    return ctx.GetVar(var_name);
+  };
+
+  auto get_output_name = [&op_desc](const std::string& op_name) {
+    CHECK_EQ(op_desc.Output(op_name).size(), 1UL);
+    return op_desc.Output(op_name).front();
+  };
+
+  auto dout = get_input_var(paddle::GradVarName("Out"));
+  VLOG(4) << "dout shape: " << cinn::utils::Join(dout->shape, ",");
+
+  auto xshape = get_input_var("XShape");
+  VLOG(4) << "x shape: " << cinn::utils::Join(xshape->shape, ",");
+
+  ctx.Builder()->identity(xshape);
+
+  auto out = ctx.Builder()->reshape(dout, xshape->shape);
+
+  auto out_name = get_output_name(paddle::GradVarName("X"));
+  ctx.AddVar(out_name, out);
+  ctx.AddVarModelToProgram(out_name, out->id);
 }
 
 }  // namespace op_mappers
@@ -77,5 +128,8 @@ void Reshape2OpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext&
 CINN_REGISTER_HELPER(reshape) {
   CINN_REGISTER_OP_MAPPER(reshape, cinn::frontend::op_mappers::ReshapeOpMapper)
   CINN_REGISTER_OP_MAPPER(reshape2, cinn::frontend::op_mappers::Reshape2OpMapper)
+
+  CINN_REGISTER_OP_MAPPER(reshape_grad, cinn::frontend::op_mappers::ReshapeGradOpMapper)
+  CINN_REGISTER_OP_MAPPER(reshape2_grad, cinn::frontend::op_mappers::Reshape2GradOpMapper)
   return true;
 }

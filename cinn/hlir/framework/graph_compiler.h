@@ -60,6 +60,7 @@ class Program {
       ins->Run(name2podargs);
     }
   }
+  void Export(const std::vector<std::string>& persistent_vars, const std::string& filename);
   /**
    * Execute the program -- that is running all the instructions inside it.
    */
@@ -100,6 +101,9 @@ class Program {
    */
   size_t size() const { return instrs_.size(); }
 
+  const std::vector<std::unique_ptr<Instruction>>& GetPreRunInstructions() { return prerun_instrs_; }
+  const std::vector<std::unique_ptr<Instruction>>& GetRunInstructions() { return instrs_; }
+
  private:
   // We need to hold scope to assure tensors alive used in instructions.
   std::shared_ptr<Scope> scope_;
@@ -128,6 +132,7 @@ class GraphCompiler final {
 
   // Compile with a packing option and result, to be extended easily.
   CompilationResult Build(const CompileOptions& options);
+  void ExportObject(const std::string& path) { compiler_->ExportObject(path); }
 
   std::unique_ptr<Program> Build(const std::string& code = "");
 
