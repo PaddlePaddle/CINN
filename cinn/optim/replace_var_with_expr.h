@@ -25,7 +25,6 @@ namespace optim {
 
 /**
  * Replace the variable with a expression.
- * @param source The expression to be visited and edited.
  * @param var The variable to replace.
  * @param expr The candidate expression.
  * @param tensor_name Name of the tensor whose indices will be edited. If it is empty, means we will
@@ -58,7 +57,6 @@ void ReplaceVarWithExpr(Expr *source, const Var &var, const Expr &expr, const st
 
 /**
  * Collect the specific tensor's indices.
- * @param source The expression to be visited and edited.
  * @param tensor_name The specific tensor's name.
  * @return Return a vector containing all the indices of the specific tensor appeared in source.
  */
@@ -76,60 +74,12 @@ void ReplaceVarWithExpr(Expr *source, const Var &var, const Expr &expr, const st
 std::vector<std::vector<Expr>> CollectTensorIndex(Expr *source, const std::string &tensor_name);
 
 /**
- * In cuda backend, replace a var to another expr.
- * There are two classic examples:
- * 1.Remove the loop iterators within the compute_at level in temp tensor's indices and resize tensor/buffer's shape
- * correspondingly.
- *
- * If A_write_cache->ComputeAt(A, 1)
- * \code
- * for (i, 0, 10)
- *   for (j, 0, 10)
- *      A_write_cache(i,j) = i * j
- *      A(i,j) = A_write_cache(i,j)
- * \endcode
- *
- * will be replaced to
- *
- * \code
- * for (i, 0, 10)
- *   for (j, 0, 10)
- *      A_write_cache(0) = i * j
- *      A(i,j) = A_write_cache(0)
- * \endcode
- *
- * And the shape will be resized from (10*10) to 1.
- *
- * 2.Erase `blockIdx` and 'threadIDx' in MemoryType::GPULocal; erase `blockIdx` in MemoryType::GPUShared and resize
- * corresponding tensor/buffer's shape.
- *
- * If A_write_cache's memory type is MemoryType::GPULocal:
- * \code
- * for (blockIdx.x, 0, 10)
- *   for (threadIdx.x, 0, 10)
- *      A_write_cache(blockIdx.x,threadIdx.x) = blockIdx.x * threadIdx.x
- * \endcode
- *
- * will be replaced to
- *
- * \code
- * for (blockIdx.x, 0, 10)
- *   for (threadIdx.x, 0, 10)
- *      A_write_cache(0) = blockIdx.x * threadIdx.x
- * \endcode
- *
- * And the shape will be resized from (10*10) to 1.
- *
- * @param source The expression to be visted and edited.
- * @param var The variable to be replaced.
+ * In cuda backend, replace the var binded to 'threadIdx.x'/'blockIdx.x'
+ * of the cache tensor with expr.
+ * @param var The variable to replace.
  * @param expr The candidate expression.
  * @param global_tensor_map The global tensor map.
- * @param resized_buffer The set of ID which indicates buffers already been resized. This is used to avoid duplication
- * when resizing temp buffer's shape.
  * @param blockidx If the var to be replaced is binded to blockIdx.
- * @param extent The variable's extent. This is used to resize tensor's shape.
- * @param tensor_name If this param is not nullptr, we will do the replacement only in this tensor's ir::Load and
- * ir::Store.
  */
 void CUDAReplaceIndexOfCachePass(Expr *source,
                                  const Var &var,
