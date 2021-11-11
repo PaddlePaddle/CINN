@@ -129,10 +129,10 @@ class NodeData : public common::GraphNode {
   using attr_t = AttrType;
 
  public:
-  NodeData(NodePtr node, uint32_t index, uint32_t version, std::string id)
-      : source_node(std::move(node)), output_index(index), version(version), id_(std::move(id)) {}
+  NodeData(NodePtr node, uint32_t index, uint32_t version, std::string id, bool is_const = false)
+      : source_node(std::move(node)), output_index(index), version(version), id_(std::move(id)), is_const_(is_const) {}
 
-  NodeData() : source_node(), output_index(), version(), id_() {}
+  NodeData() : source_node(), output_index(), version(), id_(), is_const_() {}
 
   std::tuple<common::GraphEdge *, common::GraphEdge *> LinkTo(Node *other);
   static std::shared_ptr<NodeData> Create(
@@ -140,9 +140,11 @@ class NodeData : public common::GraphNode {
       std::string node_name,
       std::vector<NodeData> inputs,
       std::string id                                 = nullptr,
-      absl::flat_hash_map<std::string, attr_t> attrs = absl::flat_hash_map<std::string, attr_t>()) {
+      absl::flat_hash_map<std::string, attr_t> attrs = absl::flat_hash_map<std::string, attr_t>(),
+      bool is_const                                  = false) {
     auto res                           = std::make_shared<NodeData>();
     res->id_                           = std::move(id);
+    res->is_const_                     = is_const;
     res->source_node                   = Node::Create();
     res->source_node->attrs.op         = Operator::Get(op_name);
     res->source_node->attrs.node_name  = std::move(node_name);
@@ -155,6 +157,8 @@ class NodeData : public common::GraphNode {
    * \brief Get the unique id of this NodeData.
    */
   std::string id() const override { return id_; }
+  bool is_const() const { return is_const_; }
+  void set_const(bool is_const) { is_const_ = is_const; }
 
   /**
    * \brief Source_node represents the operator this NodeData comes from.
@@ -183,6 +187,7 @@ class NodeData : public common::GraphNode {
    * \brief The unique id of this NodeData.
    */
   std::string id_;
+  bool is_const_ = false;
 };
 
 // insert op_node after input_data

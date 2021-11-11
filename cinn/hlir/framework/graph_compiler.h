@@ -101,6 +101,9 @@ class Program {
    */
   size_t size() const { return instrs_.size(); }
 
+  const std::vector<std::unique_ptr<Instruction>>& GetPreRunInstructions() { return prerun_instrs_; }
+  const std::vector<std::unique_ptr<Instruction>>& GetRunInstructions() { return instrs_; }
+
  private:
   // We need to hold scope to assure tensors alive used in instructions.
   std::shared_ptr<Scope> scope_;
