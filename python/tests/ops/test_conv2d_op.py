@@ -79,25 +79,7 @@ class TestConv2dOp(OpTest):
             self.cinn_outputs = [res[0]]
 
     def test_check_results(self):
-        self.check_outputs_and_grads()
-
-    def check_results(self, expect_res, actual_res, max_relative_error):
-        print("Call Me!")
-        self.assertEqual(len(expect_res), len(actual_res))
-        for i in range(len(expect_res)):
-            if expect_res[i] is None:
-                continue
-
-            if isinstance(expect_res[i], paddle.Tensor):
-                expect = expect_res[i].numpy()
-            else:
-                expect = expect_res[i]
-            actual = actual_res[i]
-            absolute_diff = np.abs(expect - actual).flatten()
-            relative_diff = absolute_diff / np.abs(expect).flatten()
-
-            maximum_relative_diff = np.max(relative_diff)
-            self.assertTrue(maximum_relative_diff < 1e-4)
+        self.check_outputs_and_grads(1e-4)
 
 
 if __name__ == "__main__":
