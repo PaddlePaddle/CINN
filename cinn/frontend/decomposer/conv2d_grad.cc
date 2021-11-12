@@ -34,7 +34,8 @@ void conv2d_grad(const Instruction& instr, const DecomposerContext& context) {
                           instr.GetAttrs<int>("groups"),
                           "backward_data",
                           instr.GetAttrs<std::string>("data_format"),
-                          instr.GetAttrs<std::string>("padding_algorithm"));
+                          instr.GetAttrs<std::string>("padding_algorithm"),
+                          x->shape);
   context.MapOutToOrigin(dx, instr->outputs[0]);
 
   // create backward filter
