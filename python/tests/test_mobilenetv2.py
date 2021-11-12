@@ -72,10 +72,10 @@ class TestLoadResnetModel(unittest.TestCase):
         out = self.executor.get_tensor(self.target_tensor)
         out.from_numpy(np.zeros(out.shape(), dtype='float32'), self.target)
 
-        for i in range(10):
+        for i in range(50):
             self.executor.run()
 
-        repeat = 10
+        repeat = 1000
         end4 = time.perf_counter()
         for i in range(repeat):
             self.executor.run()

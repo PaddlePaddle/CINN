@@ -14,6 +14,8 @@
 
 #include "cinn/backends/compiler.h"
 
+#include <fstream>
+
 #include "cinn/backends/llvm/runtime_symbol_registry.h"
 #ifdef CINN_WITH_CUDA
 #include "cinn/backends/codegen_cuda_dev.h"
@@ -70,10 +72,10 @@ void Compiler::CompileCudaModule(const Module& module, const std::string& code) 
   auto _host_module_device_module_ = SplitCudaAndHostModule(module);  // NOLINT
   auto& host_module                = std::get<0>(_host_module_device_module_);
   auto& device_module              = std::get<1>(_host_module_device_module_);
-  LOG(INFO) << "[CUDA] host module:\n" << host_module;
+  VLOG(1) << "[CUDA] host module:\n" << host_module;
 
   {  // compile cuda device
-    LOG(INFO) << "[CUDA] device module:\n" << device_module;
+    VLOG(1) << "[CUDA] device module:\n" << device_module;
     CodeGenCUDA_Dev codegen(target_);
     auto source_code = codegen.Compile(device_module);
     if (!code.empty()) source_code = code;

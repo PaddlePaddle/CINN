@@ -32,7 +32,18 @@ struct UnrollMutator : public ir::IRMutator<Expr*> {
 
  private:
   void Visit(const ir::For* op, Expr* expr) override {
+    /*     LOG(INFO) << "Check loop var [" << op->loop_var <<"]";
+        auto f_type = op->for_type();
+        LOG(INFO) << "op->ForType is : " << *reinterpret_cast<int*>(&f_type);
+        if (op->is_unrolled()) LOG(INFO)<< "It is unrolled";
+        if (op->is_serial()) LOG(INFO)<< "It is_serial";
+        if (op->is_vectorized()) LOG(INFO)<< "It is_vectorized";
+        if (op->is_parallel()) LOG(INFO)<< "It is_parallel";
+        LOG(INFO) << "Its extent is : [" << op->extent << "]";
+        if (op->is_unrolled() && op->extent.is_constant()) LOG(INFO)<< "Its extent is constant";
+        if (op->is_unrolled() && op->extent.as_int32()) LOG(INFO)<< "Its extent is int32"; */
     if (is_unrollable(op)) {
+      // LOG(INFO) << "Unroll loop var [" << op->loop_var<<"]";
       Unroll(op, expr);
       IRMutator<>::Visit(expr, expr);
     } else {
@@ -65,7 +76,10 @@ struct UnrollMutator : public ir::IRMutator<Expr*> {
 
 }  // namespace
 
-void UnrollLoop(Expr* expr) { UnrollMutator()(expr); }
+void UnrollLoop(Expr* expr) {
+  // LOG(INFO) << "UnrollLoop: " << *expr;
+  UnrollMutator()(expr);
+}
 
 }  // namespace optim
 }  // namespace cinn

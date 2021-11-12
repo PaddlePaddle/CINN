@@ -35,6 +35,7 @@
 #include "cinn/optim/remove_nested_block.h"
 #include "cinn/optim/replace_call_with_expr.h"
 #include "cinn/optim/tensor_write_tell.h"
+#include "cinn/optim/transform_computeat_forloop.h"
 #include "cinn/optim/transform_gpu_forloop.h"
 #include "cinn/optim/transform_polyfor_to_for.h"
 #include "cinn/poly/ast_gen.h"
@@ -219,7 +220,9 @@ struct MarkVectorizeMutator : public ir::IRMutator<Expr*> {
     CHECK(tensor_n);
     auto it = vectorizes.find(tensor_n->name);
     if (it != vectorizes.end()) {
-      CHECK_LT(it->second.level, forloop_stack.size());
+      for (auto i : forloop_stack) LOG(INFO) << "In forloop_stack it has iterator: " << i->iterator;
+      CHECK_LT(it->second.level, forloop_stack.size())
+          << "The tensor " << tensor_n->name << " is vectorized with level " << it->second.level;
       forloop_stack[it->second.level]->set_vectorize_info(it->second);
       CHECK(it->second.valid());
     }
@@ -252,9 +255,12 @@ struct MarkUnrollMutator : public ir::IRMutator<Expr*> {
     auto it = unrolls.find(tensor_n->name);
     if (it != unrolls.end()) {
       for (int level : it->second) {
-        VLOG(1) << "Mark " << level << " Unrolled";
+        VLOG(1) << "Mark " << tensor_n->name << "'s " << level
+                << " loop Unrolled, and the var is : " << stack[level]->iterator;
         CHECK_LT(level, stack.size());
         stack[level]->set_unrolled();
+        auto f_type = stack[level]->for_type();
+        VLOG(1) << "And its op->ForType is : " << *reinterpret_cast<int*>(&f_type);
       }
     }
   }
