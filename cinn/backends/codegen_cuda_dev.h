@@ -70,6 +70,7 @@ class CodeGenCUDA_Dev : public CodeGenC {
   std::string Compile(const ir::Module& module, OutputKind output_kind);
 
  protected:
+  void Visit(const ir::_Var_* op) override;
   void Visit(const ir::_LoweredFunc_* op) override;
   void Visit(const ir::Min* op) override;
   void Visit(const ir::Max* op) override;
