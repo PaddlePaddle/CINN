@@ -411,7 +411,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
   inputs.insert(inputs.end(), outputs.begin(), outputs.end());
 
   ir::Tensor final_out_tensor = outputs.front();
-  if (final_out_tensor->name != master_out_tensor->name) {
+  if (final_out_tensor->name != master_out_tensor->name && !final_out_tensor->is_reduce_tensor()) {
     stages[final_out_tensor]->CopyTransform(stages[master_out_tensor]);
     stages[final_out_tensor]->CopyLoopInfo(stages[master_out_tensor]);
   }
@@ -445,6 +445,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
     VLOG(3) << "Function [" << i->name << "] is:\n";
     VLOG(3) << i;
   }
+
   return func;
 }
 
@@ -767,6 +768,25 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
       auto* fn = compiler_->Lookup(fuse_name);
       CHECK(fn);
       instr->SetLoweredFunc(fn, fuse_name);
+
+      // Add reset kernel
+      int i                   = 1;
+      std::string new_op_func = fuse_name + "_" + std::to_string(i);
+      if (function2input_args_.count(new_op_func) != 0) {
+        CHECK_GT(function2input_args_.count(fuse_name), 0);
+        instr->AddInArgs(function2input_args_[fuse_name]);
+        instr->AddOutArgs(function2output_args_[fuse_name]);
+      }
+      while (function2input_args_.count(new_op_func) != 0) {
+        auto* fn2 = compiler_->Lookup(new_op_func);
+        CHECK(fn2);
+        instr->SetLoweredFunc(fn2, new_op_func);
+        instr->AddInArgs(function2input_args_[new_op_func]);
+        instr->AddOutArgs(function2output_args_[new_op_func]);
+        i++;
+        new_op_func = fuse_name + "_" + std::to_string(i);
+      }
+
       instructions.push_back(std::move(instr));
     }
   }

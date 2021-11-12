@@ -266,17 +266,10 @@ CINN_REGISTER_HELPER(reduce_ops) {
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::op_pattern__) \
       .set_support_level(4);
 
-#ifndef CINN_WITH_CUDA
   CINN_REGISTER_REDUCTION(reduce_sum, ReduceSum, kCommReduce);
   CINN_REGISTER_REDUCTION(reduce_prod, ReduceProd, kCommReduce);
   CINN_REGISTER_REDUCTION(reduce_max, ReduceMax, kCommReduce);
   CINN_REGISTER_REDUCTION(reduce_min, ReduceMin, kCommReduce);
-#else
-  CINN_REGISTER_REDUCTION(reduce_sum, ReduceSum, kOpaque);
-  CINN_REGISTER_REDUCTION(reduce_prod, ReduceProd, kOpaque);
-  CINN_REGISTER_REDUCTION(reduce_max, ReduceMax, kOpaque);
-  CINN_REGISTER_REDUCTION(reduce_min, ReduceMin, kOpaque);
-#endif
 
 #undef CINN_REGISTER_REDUCTION
 
