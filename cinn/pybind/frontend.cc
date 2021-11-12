@@ -336,6 +336,8 @@ void BindFrontend(pybind11::module *m) {
       .def("relu", &NetBuilder::relu, py::arg("a"))
       .def("relu_grad", &NetBuilder::relu_grad, py::arg("dout"), py::arg("out"))
       .def("relu6", &NetBuilder::relu6, py::arg("a"), py::arg("threshold") = 6.0f)
+      .def("reverse", &NetBuilder::reverse, py::arg("x"), py::arg("axis"))
+      .def("reduce_sum", &NetBuilder::reduce_sum, py::arg("x"), py::arg("dim"), py::arg("keep_dim") = false)
       .def("conv2d",
            &NetBuilder::conv2d,
            py::arg("a"),
