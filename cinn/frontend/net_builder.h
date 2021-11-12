@@ -97,6 +97,11 @@ class NetBuilder : public BaseBuilder {
   Variable reverse(const Variable& x, const std::vector<int>& axis);
 
   /**
+   * Compute the sum of Variable x along the given dim.
+   */
+  Variable reduce_sum(const Variable& x, const std::vector<int>& dim, bool keep_dim = false);
+
+  /**
    * The convolution2D layer calculates the output based on the input, filter
    * and strides, paddings, dilations, groups parameters.
    */
@@ -133,8 +138,8 @@ class NetBuilder : public BaseBuilder {
   /**
    * The batchnorm layer can be used as a normalizer function
    * for convolution or fully_connected operations.
-   * is_test(true): batch norm infer (default), output{y}
-   * is_test(false): batch norm training, output{y, moving_mean, moving_variance, save_mean, save_variance}
+   * is_test(true): batch norm infer (default), output={y}
+   * is_test(false): batch norm training, outputs={y, saved_mean, saved_variance, moving_mean, moving_variance}
    */
   std::vector<Variable> batchnorm(const Variable& a,
                                   const Variable& scale,
@@ -146,7 +151,7 @@ class NetBuilder : public BaseBuilder {
                                   const std::string& data_layout = "NCHW",
                                   bool is_test                   = false);
 
-  // batch norm grad, output(grad_x, grad_scale, grad_bias)
+  // batch norm grad, output(x_grad, scale_grad, bias_grad)
   std::vector<Variable> batch_norm_grad(const Variable& dy,
                                         const Variable& x,
                                         const Variable& scale,
