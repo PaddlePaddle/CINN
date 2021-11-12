@@ -443,13 +443,14 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
       out_shape_w =
           (inputs_shape[0][3] - ((inputs_shape[1][3] - 1) * dilation[1] + 1) + 2 * padding[1]) / stride[1] + 1;
     } else if (conv_type == "backward_data") {
-      out_shape_h =
-          (inputs_shape[1][2] - 1) * stride[0] - 2 * padding[0] + ((inputs_shape[0][2] - 1) * dilation[0] + 1);
-      out_shape_w =
-          (inputs_shape[1][3] - 1) * stride[1] - 2 * padding[1] + ((inputs_shape[0][3] - 1) * dilation[1] + 1);
+      CHECK(attrs.find("output_shape") != attrs.end()) << "The shape of filter is not found! Please check.";
+      auto data_shape = absl::get<std::vector<int>>(attrs.at("output_shape"));
+      CHECK_EQ(data_shape.size(), 4) << "The size of filter shape is not 4(oc, ic, fh, fw)!Please check";
+      out_shape_h = data_shape[2];
+      out_shape_w = data_shape[3];
     } else if (conv_type == "backward_filter") {
-      CHECK(attrs.find("filter_shape") != attrs.end()) << "The shape of filter is not found! Please check.";
-      auto filter_shape = absl::get<std::vector<int>>(attrs.at("filter_shape"));
+      CHECK(attrs.find("output_shape") != attrs.end()) << "The shape of filter is not found! Please check.";
+      auto filter_shape = absl::get<std::vector<int>>(attrs.at("output_shape"));
       CHECK_EQ(filter_shape.size(), 4) << "The size of filter shape is not 4(oc, ic, fh, fw)!Please check";
       out_shape_h = filter_shape[2];
       out_shape_w = filter_shape[3];

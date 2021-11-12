@@ -214,7 +214,7 @@ TEST(Instruction, CONV_FORWARD) {
   attrs_map["dilation"]     = std::vector<int>({dila_h, dila_w});
   attrs_map["data_format"]  = std::string("NCHW");
   attrs_map["conv_type"]    = std::string("forward");
-  attrs_map["filter_shape"] = std::vector<int>({fn, fc, fh, fw});
+  attrs_map["output_shape"] = std::vector<int>({fn, fc, fh, fw});
 
   auto infer_shape = infer_shape_func({{in, ic, ih, iw}, {fn, fc, fh, fw}}, attrs_map);
   ASSERT_EQ(infer_shape[0][0], on);
@@ -293,7 +293,7 @@ TEST(Instruction, CONV_BACKWARD_DATA) {
   attrs_map["dilation"]     = std::vector<int>({dila_h, dila_w});
   attrs_map["data_format"]  = std::string("NCHW");
   attrs_map["conv_type"]    = std::string("backward_data");
-  attrs_map["filter_shape"] = std::vector<int>({fn, fc, fh, fw});
+  attrs_map["output_shape"] = std::vector<int>({in, ic, ih, iw});
 
   auto infer_shape = infer_shape_func({{fn, fc, fh, fw}, {on, oc, oh, ow}}, attrs_map);
   ASSERT_EQ(infer_shape[0][0], in);
@@ -372,7 +372,7 @@ TEST(Instruction, CONV_BACKWARD_FILTER) {
   attrs_map["dilation"]     = std::vector<int>({dila_h, dila_w});
   attrs_map["data_format"]  = std::string("NCHW");
   attrs_map["conv_type"]    = std::string("backward_filter");
-  attrs_map["filter_shape"] = std::vector<int>({fn, fc, fh, fw});
+  attrs_map["output_shape"] = std::vector<int>({fn, fc, fh, fw});
 
   auto infer_shape = infer_shape_func({{in, ic, ih, iw}, {on, oc, oh, ow}}, attrs_map);
   ASSERT_EQ(infer_shape[0][0], fn);

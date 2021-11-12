@@ -447,7 +447,7 @@ void BindFrontend(pybind11::module *m) {
            py::arg("conv_type")         = "forward",
            py::arg("data_format")       = "NCHW",
            py::arg("padding_algorithm") = "EXPLICIT",
-           py::arg("filter_shape")      = std::vector<int>{})
+           py::arg("output_shape")      = std::vector<int>{})
       .def("compare", &CinnBuilder::Compare, py::arg("lhs"), py::arg("rhs"), py::arg("kind"))
       .def("reduce",
            &CinnBuilder::Reduce,
