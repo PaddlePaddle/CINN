@@ -15,6 +15,7 @@
 #include "cinn/common/arithmatic.h"
 
 #include <map>
+#include <mutex>
 #include <numeric>
 #include <set>
 #include <string>
@@ -37,6 +38,8 @@ using namespace ir;  // NOLINT
 #ifdef As
 #undef As
 #endif
+
+static std::mutex mutex;
 
 std::string ExprToGinacConverter::Repr(const ir::Expr& expr) {
   auto* load_n      = expr.As<Load>();
@@ -273,6 +276,7 @@ bool MathContainsSymbol(Expr expr, Var symbol) {
 
 // lhs >= rhs.
 std::tuple<Expr, bool /*positive*/> Solve(Expr lhs, Expr rhs, Var var) {
+  std::lock_guard<std::mutex> guard(mutex);
   VLOG(4) << "Solve: " << lhs << "=" << rhs << " in " << var;
   ExprToGinacConverter converter;
   auto lhs_ex = converter(lhs);

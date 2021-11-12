@@ -15,8 +15,10 @@
 #include "cinn/backends/codegen_c.h"
 
 #include <fstream>
+#include <string>
 
 #include "cinn/backends/extern_func_emitter.h"
+#include "cinn/backends/extern_func_emitter_builtin.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_verify.h"
 #include "cinn/ir/lowered_func.h"
@@ -318,11 +320,11 @@ void CodeGenC::Visit(const ir::Call *op) {
     PrintCallArgs(op);
     os() << ")";
   } else if (op->is_extern_call()) {
-    auto *emitter = ExternFunctionEmitterRegistry::Global().Lookup(ExternFuncID{backend_C, op->name.c_str()});
-    if (emitter) {
-      emitter->BindCodeGen(this);
-      CHECK(emitter) << "No extern function emitter for call " << op->name;
-      emitter->Emit(op);
+    const auto &fn_name = ExternFunctionEmitterRegistry::Global().Lookup(ExternFuncID{backend_C, op->name.c_str()});
+    if (fn_name.length()) {
+      ExternFunctionLLVMEmitter emitter(fn_name);
+      emitter.BindCodeGen(this);
+      emitter.Emit(op);
     } else {
       CHECK(!op->read_args.empty() || !op->write_args.empty());
       os() << op->name << "(";

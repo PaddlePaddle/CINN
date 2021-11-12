@@ -15,7 +15,9 @@
 #include "cinn/backends/codegen_cuda_host.h"
 
 #include <algorithm>
+#include <string>
 
+#include "cinn/backends/extern_func_emitter_builtin.h"
 #include "cinn/backends/extern_func_jit_register.h"
 #include "cinn/backends/llvm/llvm_util.h"
 #include "cinn/runtime/intrinsic.h"
@@ -120,11 +122,12 @@ llvm::Value* CodeGenCUDA_Host::LowerGPUKernelLauncher(const ir::_LoweredFunc_* f
                                         ir::FunctionRef(),
                                         0);
 
-    auto emitter_id = ExternFuncID{backend_llvm_host, runtime::intrinsic::call_cuda_kernel};
-    auto* emitter   = ExternFunctionEmitterRegistry::Global().Lookup(emitter_id);
-    CHECK(emitter) << "No extern function emitter called " << emitter_id;
-    emitter->BindCodeGen(this);
-    emitter->Emit(new_call_node.As<ir::Call>());
+    auto emitter_id     = ExternFuncID{backend_llvm_host, runtime::intrinsic::call_cuda_kernel};
+    const auto& fn_name = ExternFunctionEmitterRegistry::Global().Lookup(emitter_id);
+    CHECK(fn_name.length()) << "No extern function emitter called " << emitter_id;
+    ExternFunctionLLVMEmitter emitter(fn_name);
+    emitter.BindCodeGen(this);
+    emitter.Emit(new_call_node.As<ir::Call>());
   }
 
   RetVoid();
