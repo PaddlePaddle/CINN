@@ -54,7 +54,7 @@ void BatchnormOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
     output_names = {"Y"};
     VLOG(4) << "Invoke batch_norm OpMapper with test mode";
   } else {
-    output_names = {"Y", "MeanOut", "VarianceOut", "SavedMean", "SavedVariance"};
+    output_names = {"Y", "SavedMean", "SavedVariance", "MeanOut", "VarianceOut"};
     VLOG(4) << "Invoke batch_norm OpMapper with train mode";
   }
 

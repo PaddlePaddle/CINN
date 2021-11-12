@@ -22,6 +22,23 @@
 
 namespace cinn {
 namespace frontend {
+
+template <typename T, typename Alloc = std::allocator<T>>
+std::ostream& operator<<(std::ostream& os, const std::vector<T, Alloc>& vec) {
+  os << "{";
+  bool is_first = true;
+  for (auto e : vec) {
+    if (is_first) {
+      is_first = false;
+    } else {
+      os << ", ";
+    }
+    os << e;
+  }
+  os << "}";
+  return os;
+}
+
 Variable NetBuilder::identity(const Variable& operand) {
   Instruction instr("identity", {operand});
   InferShape(instr);
@@ -137,6 +154,9 @@ Variable NetBuilder::conv2d(const Variable& a,
                             int groups,
                             const std::string& data_format,
                             const std::string& padding_algorithm) {
+  VLOG(1) << "[conv2d] x.shape=" << a->shape << ", w.shape=" << b->shape << ", strides=" << strides
+          << ", paddings=" << paddings << ", dilations=" << dilations << ", groups=" << groups
+          << ", data_format=" << data_format << ", padding_algorithm=" << padding_algorithm;
   Instruction instr("conv2d");
   instr.SetInputs({a, b});
   instr.SetAttr("stride", strides);
@@ -208,6 +228,9 @@ std::vector<Variable> NetBuilder::batchnorm(const Variable& a,
                                             float momentum,
                                             const std::string& data_layout,
                                             bool is_test) {
+  VLOG(1) << "[batchnorm] x.shape=" << a->shape << ", scale.shape=" << scale->shape << ", bias.shape" << bias->shape
+          << ", mean.shape=" << mean->shape << ", variance.shape" << variance->shape << ", epsilon=" << epsilon
+          << ", momentum=" << momentum << ", data_layout=" << data_layout << ", is_test=" << is_test;
   std::unique_ptr<Instruction> instr;
   if (is_test) {
     instr = std::make_unique<Instruction>("batchnorm");
@@ -231,6 +254,9 @@ std::vector<Variable> NetBuilder::batch_norm_grad(const Variable& dy,
                                                   const Variable& save_variance,
                                                   const float epsilon,
                                                   const std::string& data_layout) {
+  VLOG(1) << "[batch_norm_grad] dy.shape=" << dy->shape << ", x.shape=" << x->shape << ", scale.shape=" << scale->shape
+          << ", save_mean.shape=" << save_mean->shape << ", save_variance.shape=" << save_variance->shape
+          << ", epsilon=" << epsilon << ", data_layout=" << data_layout;
   Instruction instr("batch_norm_grad", {dy, x, scale, save_mean, save_variance});
   instr.SetAttr("epsilon", epsilon);
   instr.SetAttr("data_layout", data_layout);
