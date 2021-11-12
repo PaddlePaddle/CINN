@@ -133,7 +133,7 @@ void BindFrontend(pybind11::module *m) {
               const std::vector<Variable> &tensor_outputs) {
              std::shared_ptr<hlir::framework::Graph> g(new hlir::framework::Graph(self, target));
              hlir::framework::ApplyPass(g.get(), "InferShape");
-             hlir::framework::ApplyPass(g.get(), "OpFusion");
+             // hlir::framework::ApplyPass(g.get(), "OpFusion");
              std::shared_ptr<hlir::framework::Scope> scope = hlir::framework::BuildScope(target, g);
              hlir::framework::GraphCompiler gc(target, scope, g);
              auto program = gc.Build();
@@ -337,6 +337,7 @@ void BindFrontend(pybind11::module *m) {
       .def("relu_grad", &NetBuilder::relu_grad, py::arg("dout"), py::arg("out"))
       .def("relu6", &NetBuilder::relu6, py::arg("a"), py::arg("threshold") = 6.0f)
       .def("reverse", &NetBuilder::reverse, py::arg("x"), py::arg("axis"))
+      .def("reduce_sum", &NetBuilder::reduce_sum, py::arg("x"), py::arg("dim"), py::arg("keep_dim") = false)
       .def("conv2d",
            &NetBuilder::conv2d,
            py::arg("a"),

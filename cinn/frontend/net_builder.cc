@@ -146,6 +146,15 @@ Variable NetBuilder::reverse(const Variable& x, const std::vector<int>& axis) {
   return instr.GetOutput(0);
 }
 
+Variable NetBuilder::reduce_sum(const Variable& x, const std::vector<int>& dim, bool keep_dim) {
+  Instruction instr("reduce_sum", {x});
+  instr.SetAttr("dim", dim);
+  instr.SetAttr("keep_dim", keep_dim);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
 Variable NetBuilder::conv2d(const Variable& a,
                             const Variable& b,
                             const std::vector<int>& strides,

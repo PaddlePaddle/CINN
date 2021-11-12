@@ -63,10 +63,14 @@ struct BatchNormHelper {
     return variance;
   }
 
-  Variable StdVarianceInv(Variable variance, float epsilon) {
-    auto epsilon_1d       = GetTensorFromScalar<float>(epsilon, "epsilon", param_shape);
-    auto std_variance_inv = builder->Rsqrt(builder->Add(variance, epsilon_1d));
-    return std_variance_inv;
+  Variable StdVarianceInv4d(Variable variance, float epsilon) {
+    // auto epsilon_1d          = GetTensorFromScalar<float>(epsilon, "epsilon", param_shape);
+    // auto std_variance_inv    = builder->Rsqrt(builder->Add(variance, epsilon_1d));
+    // auto std_variance_inv_4d = builder->BroadcastTo(std_variance_inv, x_shape, {channel_dim});
+    auto epsilon_4d          = GetTensorFromScalar<float>(epsilon, "epsilon", x_shape);
+    auto variance_4d         = builder->BroadcastTo(variance, x_shape, {channel_dim});
+    auto std_variance_inv_4d = builder->Rsqrt(builder->Add(variance_4d, epsilon_4d));
+    return std_variance_inv_4d;
   }
 
   CinnBuilder* builder{nullptr};
@@ -106,8 +110,7 @@ void batch_norm_train(const Instruction& instr, const DecomposerContext& context
   auto variance = helper.Variance(x, mean, element_count_1d);
 
   // std_variance_inv = rsqrt(variance + epsilon), shape = [c]
-  auto std_variance_inv    = helper.StdVarianceInv(variance, epsilon);
-  auto std_variance_inv_4d = builder->BroadcastTo(std_variance_inv, x->shape, {helper.channel_dim});
+  auto std_variance_inv_4d = helper.StdVarianceInv4d(variance, epsilon);
 
   // y = scale * (x - mean) * std_variance_inv + bias, shape = [n, c, h, w]
   auto scale_4d          = builder->BroadcastTo(scale, x->shape, {helper.channel_dim});

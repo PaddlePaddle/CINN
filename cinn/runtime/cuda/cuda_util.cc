@@ -110,6 +110,7 @@ void cinn_call_cuda_kernel(void *kernel_fn,
     } else {
       arr[i] = args[i].data_addr();
     }
+    VLOG(3) << "args[" << i << "]:" << arr[i];
   }
   CUDA_DRIVER_CALL(cuLaunchKernel(static_cast<CUfunction>(kernel_fn),
                                   grid_x,
