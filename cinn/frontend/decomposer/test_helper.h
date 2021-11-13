@@ -101,35 +101,55 @@ void CopyToVector(const hlir::framework::Tensor tensor, std::vector<T>* vec) {
 }
 
 template <typename T>
-void CheckOutput(const std::vector<T>& results,
-                 const std::vector<T>& references,
-                 double max_relative_error = 1e-5,
-                 bool check_absolute_error = false) {
-  CHECK_EQ(results.size(), references.size());
+void CheckOutput(const std::vector<T>& actual,
+                 const std::vector<T>& expect,
+                 double max_relative_error    = 1e-5,
+                 bool compare_with_max_expect = false) {
+  CHECK_EQ(actual.size(), expect.size());
 
-  float max_diff = 0.0f;
-  int offset     = 0;
-  int num_diffs  = 0;
+  float max_diff     = 0.0f;
+  int offset         = 0;
+  int num_diffs      = 0;
+  int num_diffs_self = 0;
 
-  size_t numel = results.size();
-  for (size_t i = 0; i < numel; ++i) {
-    float absolute_diff = abs((results[i] - references[i]));
-    float relative_diff = abs(absolute_diff / references[i]);
-    if (relative_diff > max_diff) {
-      max_diff = relative_diff;
-      offset   = i;
-    }
-    if ((relative_diff > max_relative_error) || (check_absolute_error && (absolute_diff > 1e-6))) {
-      num_diffs += 1;
-      VLOG(4) << "- i=" << i << ", " << std::setprecision(8) << results[i] << " vs " << std::setprecision(8)
-              << references[i] << ", relative_diff=" << relative_diff << ", absolute_diff=" << absolute_diff;
+  T max_expect = 0.0f;
+  if (compare_with_max_expect) {
+    for (size_t i = 0; i < expect.size(); ++i) {
+      max_expect = abs(expect[i]) > max_expect ? abs(expect[i]) : max_expect;
     }
   }
-  LOG(INFO) << "- Total " << num_diffs << " different results, offset=" << offset << ", " << results[offset] << " vs "
-            << references[offset] << ", maximum_relative_diff=" << max_diff
-            << " (absolute_diff=" << abs((results[offset] - references[offset])) << ")";
+
+  size_t numel = actual.size();
+  for (size_t i = 0; i < numel; ++i) {
+    float absolute_diff      = abs((actual[i] - expect[i]));
+    float relative_diff_self = abs(absolute_diff / expect[i]);
+    float relative_diff      = compare_with_max_expect ? abs(absolute_diff / max_expect) : relative_diff_self;
+    if (relative_diff_self > max_diff) {
+      max_diff = relative_diff_self;
+      offset   = i;
+    }
+    if (relative_diff_self > max_relative_error) {
+      num_diffs_self += 1;
+      VLOG(4) << "- i=" << i << ", " << std::setprecision(8) << actual[i] << " (actual) vs " << std::setprecision(8)
+              << expect[i] << " (expect), relative_diff_self=" << relative_diff_self
+              << ", absolute_diff=" << absolute_diff;
+    }
+    if (compare_with_max_expect && relative_diff > max_relative_error) {
+      num_diffs += 1;
+    }
+  }
+  if (compare_with_max_expect) {
+    LOG(INFO) << "- Use `abs(actual[i] - expect[i] / max(expect))` to compute relative error, abs(max(expect))="
+              << max_expect << ", total " << num_diffs_self
+              << " results's relative error (calculated by `abs((actual[i] - expect[i]) / expect[i])`) greater than "
+              << max_relative_error;
+  } else {
+    num_diffs = num_diffs_self;
+  }
+  LOG(INFO) << "- Total " << num_diffs << " different results, offset=" << offset << ", " << actual[offset]
+            << " (actual) vs " << expect[offset] << " (expect), maximum_relative_diff_self=" << max_diff
+            << " (absolute_diff=" << abs((actual[offset] - expect[offset])) << ")";
   ASSERT_EQ(num_diffs, 0);
-  ASSERT_LT(max_diff, max_relative_error);
 }
 
 template <typename T>

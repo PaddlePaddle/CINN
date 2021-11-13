@@ -226,7 +226,7 @@ TEST(Decomposer, BatchNormTrain) {
 
     LOG(INFO) << "output[" << iter.first << "], var_name=" << output.first << ", shape=" << tensor->shape().data();
     if (iter.first == "y") {
-      CheckOutput<float>(data, output.second, 1e-1, true);
+      CheckOutput<float>(data, output.second, 1e-5, true);
     } else {
       CheckOutput<float>(data, output.second, 1e-5);
     }
@@ -354,7 +354,7 @@ TEST(Decomposer, BatchNormGrad) {
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
   auto scope = BuildScope(target, graph);
   hlir::framework::GraphCompiler gc(target, scope, graph);
-  // hlir::framework::ApplyPass(graph.get(), "OpFusion");
+  hlir::framework::ApplyPass(graph.get(), "OpFusion");
   auto run_program = gc.Build();
 
   // set input
@@ -402,7 +402,7 @@ TEST(Decomposer, BatchNormGrad) {
 
     LOG(INFO) << "output[" << iter.first << "], var_name=" << output.first << ", shape=" << tensor->shape().data();
     if (iter.first == "x_grad") {
-      CheckOutput<float>(data, output.second, 1e-1, true);
+      CheckOutput<float>(data, output.second, 1e-5, true);
     } else {
       CheckOutput<float>(data, output.second, 1e-5);
     }
