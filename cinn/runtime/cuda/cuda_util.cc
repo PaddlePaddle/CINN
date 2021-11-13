@@ -249,20 +249,21 @@ void cinn_gpu_cudnn_conv2d(const absl::flat_hash_map<std::string, int> &attr,
                          "," + std::to_string(output_h) + "," + std::to_string(output_w);
 
   cudnnConvolutionFwdAlgo_t algo = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM;
-  int algo_int                   = CudnnHelper::Instance().GetAlgo(hash_str);
-  if (algo_int >= 0) {
-    algo = cudnnConvolutionFwdAlgo_t(algo_int);
-  } else {
-    int count = 0;
-    cudnnConvolutionFwdAlgoPerf_t algo_perf;
-    CUDNN_CALL(cudnnFindConvolutionForwardAlgorithm(handle, x_desc, w_desc, conv_desc, y_desc, 1, &count, &algo_perf));
-
-    algo = algo_perf.algo;
-    CudnnHelper::Instance().RegisterAlgo(hash_str, static_cast<int>(algo_perf.algo));
-  }
-
   if (FLAGS_cinn_cudnn_deterministic) {
     algo = static_cast<cudnnConvolutionFwdAlgo_t>(1);
+  } else {
+    int algo_int = CudnnHelper::Instance().GetAlgo(hash_str);
+    if (algo_int >= 0) {
+      algo = cudnnConvolutionFwdAlgo_t(algo_int);
+    } else {
+      int count = 0;
+      cudnnConvolutionFwdAlgoPerf_t algo_perf;
+      CUDNN_CALL(
+          cudnnFindConvolutionForwardAlgorithm(handle, x_desc, w_desc, conv_desc, y_desc, 1, &count, &algo_perf));
+
+      algo = algo_perf.algo;
+      CudnnHelper::Instance().RegisterAlgo(hash_str, static_cast<int>(algo_perf.algo));
+    }
   }
 
   size_t ws_size = 0;
@@ -339,21 +340,21 @@ void cinn_gpu_cudnn_conv2d_backward_data(const absl::flat_hash_map<std::string, 
                          "," + std::to_string(output_h) + "," + std::to_string(output_w);
 
   cudnnConvolutionBwdDataAlgo_t algo = CUDNN_CONVOLUTION_BWD_DATA_ALGO_1;
-  int algo_int                       = CudnnHelper::Instance().GetAlgo(hash_str);
-  if (algo_int >= 0) {
-    algo = cudnnConvolutionBwdDataAlgo_t(algo_int);
-  } else {
-    int count = 0;
-    cudnnConvolutionBwdDataAlgoPerf_t algo_perf;
-    CUDNN_CALL(
-        cudnnFindConvolutionBackwardDataAlgorithm(handle, w_desc, y_desc, conv_desc, x_desc, 1, &count, &algo_perf));
-
-    algo = algo_perf.algo;
-    CudnnHelper::Instance().RegisterAlgo(hash_str, static_cast<int>(algo_perf.algo));
-  }
-
   if (FLAGS_cinn_cudnn_deterministic) {
     algo = CUDNN_CONVOLUTION_BWD_DATA_ALGO_1;
+  } else {
+    int algo_int = CudnnHelper::Instance().GetAlgo(hash_str);
+    if (algo_int >= 0) {
+      algo = cudnnConvolutionBwdDataAlgo_t(algo_int);
+    } else {
+      int count = 0;
+      cudnnConvolutionBwdDataAlgoPerf_t algo_perf;
+      CUDNN_CALL(
+          cudnnFindConvolutionBackwardDataAlgorithm(handle, w_desc, y_desc, conv_desc, x_desc, 1, &count, &algo_perf));
+
+      algo = algo_perf.algo;
+      CudnnHelper::Instance().RegisterAlgo(hash_str, static_cast<int>(algo_perf.algo));
+    }
   }
 
   size_t ws_size = 0;
@@ -429,21 +430,21 @@ void cinn_gpu_cudnn_conv2d_backward_filter(const absl::flat_hash_map<std::string
                          "," + std::to_string(output_h) + "," + std::to_string(output_w);
 
   cudnnConvolutionBwdFilterAlgo_t algo = CUDNN_CONVOLUTION_BWD_FILTER_ALGO_1;
-  int algo_int                         = CudnnHelper::Instance().GetAlgo(hash_str);
-  if (algo_int >= 0) {
-    algo = cudnnConvolutionBwdFilterAlgo_t(algo_int);
-  } else {
-    int count = 0;
-    cudnnConvolutionBwdFilterAlgoPerf_t algo_perf;
-    CUDNN_CALL(
-        cudnnFindConvolutionBackwardFilterAlgorithm(handle, x_desc, y_desc, conv_desc, w_desc, 1, &count, &algo_perf));
-
-    algo = algo_perf.algo;
-    CudnnHelper::Instance().RegisterAlgo(hash_str, static_cast<int>(algo_perf.algo));
-  }
-
   if (FLAGS_cinn_cudnn_deterministic) {
     algo = CUDNN_CONVOLUTION_BWD_FILTER_ALGO_1;
+  } else {
+    int algo_int = CudnnHelper::Instance().GetAlgo(hash_str);
+    if (algo_int >= 0) {
+      algo = cudnnConvolutionBwdFilterAlgo_t(algo_int);
+    } else {
+      int count = 0;
+      cudnnConvolutionBwdFilterAlgoPerf_t algo_perf;
+      CUDNN_CALL(cudnnFindConvolutionBackwardFilterAlgorithm(
+          handle, x_desc, y_desc, conv_desc, w_desc, 1, &count, &algo_perf));
+
+      algo = algo_perf.algo;
+      CudnnHelper::Instance().RegisterAlgo(hash_str, static_cast<int>(algo_perf.algo));
+    }
   }
 
   size_t ws_size = 0;
