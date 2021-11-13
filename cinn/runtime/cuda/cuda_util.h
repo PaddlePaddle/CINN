@@ -57,7 +57,7 @@ class SerialData {
 
   const absl::flat_hash_map<std::string, int>& GetMap() { return get_algo; }
 
-  void SetAlgo(const std::string& has_str, int algo) {
+  void AddAlgo(const std::string& has_str, int algo) {
     std::lock_guard<std::mutex> lock(mtx);
     get_algo[has_str] = algo;
   }

@@ -186,27 +186,28 @@ void cinn_gpu_cudnn_conv2d(const absl::flat_hash_map<std::string, int> &attr,
   CUDNN_CALL(
       cudnnSetTensor4dDescriptor(y_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, output_n, output_c, output_h, output_w));
 
-  auto &serial_data    = SerialData::get_instance();
-  const auto &algo_map = serial_data.GetMap();
-  std::string hash_str = "conv2d forward," + std::to_string(input_n) + "," + std::to_string(input_c) + "," +
-                         std::to_string(input_h) + "," + std::to_string(input_w) + "," + std::to_string(weights_n) +
-                         "," + std::to_string(weights_c) + "," + std::to_string(weights_h) + "," +
-                         std::to_string(weights_w) + "," + std::to_string(output_n) + "," + std::to_string(output_c) +
-                         "," + std::to_string(output_h) + "," + std::to_string(output_w);
-
   cudnnConvolutionFwdAlgo_t algo;
-  if (algo_map.count(hash_str) != 0) {
-    algo = cudnnConvolutionFwdAlgo_t(algo_map.at(hash_str));
-  } else {
-    cudnnConvolutionFwdAlgoPerf_t algo_perf;
-    int count = 0;
-    CUDNN_CALL(cudnnFindConvolutionForwardAlgorithm(handle, x_desc, w_desc, conv_desc, y_desc, 1, &count, &algo_perf));
-    serial_data.SetAlgo(hash_str, static_cast<int>(algo_perf.algo));
-    algo = algo_perf.algo;
-  }
-
   if (FLAGS_cinn_cudnn_deterministic) {
     static_cast<cudnnConvolutionFwdAlgo_t>(1);
+  } else {
+    auto &serial_data    = SerialData::get_instance();
+    const auto &algo_map = serial_data.GetMap();
+    std::string hash_str = "conv2d forward," + std::to_string(input_n) + "," + std::to_string(input_c) + "," +
+                           std::to_string(input_h) + "," + std::to_string(input_w) + "," + std::to_string(weights_n) +
+                           "," + std::to_string(weights_c) + "," + std::to_string(weights_h) + "," +
+                           std::to_string(weights_w) + "," + std::to_string(output_n) + "," + std::to_string(output_c) +
+                           "," + std::to_string(output_h) + "," + std::to_string(output_w);
+
+    if (algo_map.count(hash_str) != 0) {
+      algo = cudnnConvolutionFwdAlgo_t(algo_map.at(hash_str));
+    } else {
+      cudnnConvolutionFwdAlgoPerf_t algo_perf;
+      int count = 0;
+      CUDNN_CALL(
+          cudnnFindConvolutionForwardAlgorithm(handle, x_desc, w_desc, conv_desc, y_desc, 1, &count, &algo_perf));
+      serial_data.AddAlgo(hash_str, static_cast<int>(algo_perf.algo));
+      algo = algo_perf.algo;
+    }
   }
 
   size_t ws_size = 0;
@@ -275,28 +276,28 @@ void cinn_gpu_cudnn_conv2d_backward_data(const absl::flat_hash_map<std::string, 
   CUDNN_CALL(
       cudnnSetTensor4dDescriptor(y_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, output_n, output_c, output_h, output_w));
 
-  auto &serial_data    = SerialData::get_instance();
-  const auto &algo_map = serial_data.GetMap();
-  std::string hash_str = "conv2d backward data," + std::to_string(input_n) + "," + std::to_string(input_c) + "," +
-                         std::to_string(input_h) + "," + std::to_string(input_w) + "," + std::to_string(weights_n) +
-                         "," + std::to_string(weights_c) + "," + std::to_string(weights_h) + "," +
-                         std::to_string(weights_w) + "," + std::to_string(output_n) + "," + std::to_string(output_c) +
-                         "," + std::to_string(output_h) + "," + std::to_string(output_w);
-
   cudnnConvolutionBwdDataAlgo_t algo = CUDNN_CONVOLUTION_BWD_DATA_ALGO_0;
-  if (algo_map.count(hash_str) != 0) {
-    algo = cudnnConvolutionBwdDataAlgo_t(algo_map.at(hash_str));
-  } else {
-    int count = 0;
-    cudnnConvolutionBwdDataAlgoPerf_t algo_perf;
-    CUDNN_CALL(
-        cudnnFindConvolutionBackwardDataAlgorithm(handle, w_desc, y_desc, conv_desc, x_desc, 1, &count, &algo_perf));
-    serial_data.SetAlgo(hash_str, static_cast<int>(algo_perf.algo));
-    algo = algo_perf.algo;
-  }
-
   if (FLAGS_cinn_cudnn_deterministic) {
     algo = CUDNN_CONVOLUTION_BWD_DATA_ALGO_1;
+  } else {
+    auto &serial_data    = SerialData::get_instance();
+    const auto &algo_map = serial_data.GetMap();
+    std::string hash_str = "conv2d backward data," + std::to_string(input_n) + "," + std::to_string(input_c) + "," +
+                           std::to_string(input_h) + "," + std::to_string(input_w) + "," + std::to_string(weights_n) +
+                           "," + std::to_string(weights_c) + "," + std::to_string(weights_h) + "," +
+                           std::to_string(weights_w) + "," + std::to_string(output_n) + "," + std::to_string(output_c) +
+                           "," + std::to_string(output_h) + "," + std::to_string(output_w);
+
+    if (algo_map.count(hash_str) != 0) {
+      algo = cudnnConvolutionBwdDataAlgo_t(algo_map.at(hash_str));
+    } else {
+      int count = 0;
+      cudnnConvolutionBwdDataAlgoPerf_t algo_perf;
+      CUDNN_CALL(
+          cudnnFindConvolutionBackwardDataAlgorithm(handle, w_desc, y_desc, conv_desc, x_desc, 1, &count, &algo_perf));
+      serial_data.AddAlgo(hash_str, static_cast<int>(algo_perf.algo));
+      algo = algo_perf.algo;
+    }
   }
 
   size_t ws_size = 0;
@@ -365,28 +366,28 @@ void cinn_gpu_cudnn_conv2d_backward_filter(const absl::flat_hash_map<std::string
   CUDNN_CALL(
       cudnnSetTensor4dDescriptor(y_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, output_n, output_c, output_h, output_w));
 
-  auto &serial_data    = SerialData::get_instance();
-  const auto &algo_map = serial_data.GetMap();
-  std::string hash_str = "conv2d backward filter," + std::to_string(input_n) + "," + std::to_string(input_c) + "," +
-                         std::to_string(input_h) + "," + std::to_string(input_w) + "," + std::to_string(weights_n) +
-                         "," + std::to_string(weights_c) + "," + std::to_string(weights_h) + "," +
-                         std::to_string(weights_w) + "," + std::to_string(output_n) + "," + std::to_string(output_c) +
-                         "," + std::to_string(output_h) + "," + std::to_string(output_w);
-
   cudnnConvolutionBwdFilterAlgo_t algo = CUDNN_CONVOLUTION_BWD_FILTER_ALGO_0;
-  if (algo_map.count(hash_str) != 0) {
-    algo = cudnnConvolutionBwdFilterAlgo_t(algo_map.at(hash_str));
-  } else {
-    int count = 0;
-    cudnnConvolutionBwdFilterAlgoPerf_t algo_perf;
-    CUDNN_CALL(
-        cudnnFindConvolutionBackwardFilterAlgorithm(handle, x_desc, y_desc, conv_desc, w_desc, 1, &count, &algo_perf));
-    serial_data.SetAlgo(hash_str, static_cast<int>(algo_perf.algo));
-    algo = algo_perf.algo;
-  }
-
   if (FLAGS_cinn_cudnn_deterministic) {
     algo = CUDNN_CONVOLUTION_BWD_FILTER_ALGO_1;
+  } else {
+    auto &serial_data    = SerialData::get_instance();
+    const auto &algo_map = serial_data.GetMap();
+    std::string hash_str = "conv2d backward filter," + std::to_string(input_n) + "," + std::to_string(input_c) + "," +
+                           std::to_string(input_h) + "," + std::to_string(input_w) + "," + std::to_string(weights_n) +
+                           "," + std::to_string(weights_c) + "," + std::to_string(weights_h) + "," +
+                           std::to_string(weights_w) + "," + std::to_string(output_n) + "," + std::to_string(output_c) +
+                           "," + std::to_string(output_h) + "," + std::to_string(output_w);
+
+    if (algo_map.count(hash_str) != 0) {
+      algo = cudnnConvolutionBwdFilterAlgo_t(algo_map.at(hash_str));
+    } else {
+      int count = 0;
+      cudnnConvolutionBwdFilterAlgoPerf_t algo_perf;
+      CUDNN_CALL(cudnnFindConvolutionBackwardFilterAlgorithm(
+          handle, x_desc, y_desc, conv_desc, w_desc, 1, &count, &algo_perf));
+      serial_data.AddAlgo(hash_str, static_cast<int>(algo_perf.algo));
+      algo = algo_perf.algo;
+    }
   }
 
   size_t ws_size = 0;
