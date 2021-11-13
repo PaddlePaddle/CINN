@@ -22,6 +22,7 @@
 
 namespace cinn {
 namespace frontend {
+
 Variable NetBuilder::identity(const Variable& operand) {
   Instruction instr("identity", {operand});
   InferShape(instr);
@@ -124,6 +125,15 @@ Variable NetBuilder::relu6(const Variable& a, float threshold) {
 Variable NetBuilder::reverse(const Variable& x, const std::vector<int>& axis) {
   Instruction instr("reverse", {x});
   instr.SetAttr("axis", axis);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
+Variable NetBuilder::reduce_sum(const Variable& x, const std::vector<int>& dim, bool keep_dim) {
+  Instruction instr("reduce_sum", {x});
+  instr.SetAttr("dim", dim);
+  instr.SetAttr("keep_dim", keep_dim);
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(0);

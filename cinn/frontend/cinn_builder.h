@@ -145,7 +145,7 @@ class CinnBuilder : public BaseBuilder {
                 const std::string& conv_type         = "forward",
                 const std::string& data_format       = "NCHW",
                 const std::string& padding_algorithm = "EXPLICIT",
-                const std::vector<int>& filter_shape = {});
+                const std::vector<int>& output_shape = {});
 
   Variable Compare(const Variable& lhs, const Variable& rhs, ComparisonKind kind);
 

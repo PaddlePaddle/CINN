@@ -145,7 +145,7 @@ set(infrt_mlir_incs
         rewrite_inc
         )
 
-cc_library(infrt SRCS ${infrt_src} DEPS glog absl framework_proto ${mlir_libs})
+cc_library(infrt SRCS ${infrt_src} DEPS glog absl paddle_framework_proto ${mlir_libs})
 add_dependencies(infrt ${infrt_mlir_incs})
 
 # --------distribute cinncore lib and include begin--------

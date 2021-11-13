@@ -158,6 +158,11 @@ class DomTree {
         CHECK(op_node);
         auto op_pattern = op_pattern_dict[op_node->op()];
         VLOG(2) << sink->id() << "'s op pattern is " << op_pattern;
+        if (op_node->attrs.attr_store.count("pre_run") && absl::get<bool>(op_node->attrs.attr_store["pre_run"])) {
+          // not fuse pre_run opnode
+          op_pattern = framework::kOpaque;
+          VLOG(3) << op_node->op()->name << " do pre_run and not fuse";
+        }
         *pattern = FusePattern(*pattern, op_pattern);
         count++;
       }
@@ -241,7 +246,12 @@ class GraphPartition {
       group_node->ref_node = graph_node;
       group_node->index    = graph_node->get_index();
       if (op_node) {
-        auto pattern               = op_pattern_dict[op_node->op()];
+        auto pattern = op_pattern_dict[op_node->op()];
+        if (op_node->attrs.attr_store.count("pre_run") && absl::get<bool>(op_node->attrs.attr_store["pre_run"])) {
+          // not fuse pre_run opnode
+          pattern = framework::kOpaque;
+          VLOG(3) << op_node->op()->name << " do pre_run and not fuse";
+        }
         group_node->pattern        = pattern;
         group_node->op_nodes_count = 1;
         if (pattern == framework::kOutEWiseFusable) {

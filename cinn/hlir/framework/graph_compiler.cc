@@ -14,11 +14,10 @@
 
 #include "cinn/hlir/framework/graph_compiler.h"
 
-#include <absl/container/flat_hash_map.h>
-
 #include <unordered_set>
 
 #include "cinn/backends/codegen_cuda_dev.h"
+#include "cinn/common/context.h"
 #include "cinn/hlir/framework/instruction.h"
 #include "cinn/hlir/framework/tensor.h"
 #include "cinn/hlir/pe/schedule.h"
@@ -49,6 +48,23 @@ void AddAttrs(const absl::flat_hash_map<std::string, AttrType>& attrs_store,
     } else {
       LOG(ERROR) << "Param " << attr << " missed! Please check.";
     }
+  }
+}
+
+Program::Program(const std::shared_ptr<Scope>& scope, std::vector<std::unique_ptr<Instruction>>&& instrs)
+    : scope_(scope) {
+  for (auto& ins : instrs) {
+    if (ins->pre_run) {
+      prerun_instrs_.push_back(std::move(ins));
+    } else {
+      instrs_.push_back(std::move(ins));
+    }
+  }
+}
+
+void Program::PreRun(const std::map<std::string, cinn_pod_value_t>* name2podargs) {
+  for (auto& ins : prerun_instrs_) {
+    ins->Run(name2podargs);
   }
 }
 
@@ -175,6 +191,39 @@ void Program::Export(const std::vector<std::string>& persistent_vars, const std:
   fclose(f);
 }
 
+void Program::Execute(const std::map<std::string, cinn_pod_value_t>* name2podargs) {
+  for (auto& ins : instrs_) {
+    ins->Run(name2podargs);
+  }
+#ifdef CINN_WITH_CUDA
+  if (instrs_[0]->target_.arch == Target::Arch::NVGPU) {
+    CUDA_CALL(cudaDeviceSynchronize());
+  }
+#endif
+}
+
+void Program::ExecuteTest(int repeat_) {
+  cinn::utils::Timer timer1;
+  for (int i = 0; i < 100; i++) {
+    for (auto& ins : instrs_) {
+      ins->Run();
+    }
+  }
+  timer1.Start();
+  for (int i = 0; i < repeat_; i++) {
+    for (auto& ins : instrs_) {
+      ins->Run();
+    }
+  }
+#ifdef CINN_WITH_CUDA
+  if (instrs_[0]->target_.arch == Target::Arch::NVGPU) {
+    CUDA_CALL(cudaDeviceSynchronize());
+  }
+#endif
+  double test_op_time = timer1.Stop() / repeat_;
+  LOG(INFO) << "Repeat times: [" << repeat_ << "], average op time: [" << test_op_time << "] ms";
+}
+
 void GraphCompiler::PrintFunc() {
   auto topo_order = graph_->topological_order();
   auto& nodes     = std::get<0>(topo_order);
@@ -210,6 +259,13 @@ std::string GraphCompiler::GenSourceCode() {
   auto build_module = m_builder_.Build();
 
   return compiler_->GetSourceCode(build_module);
+}
+
+const std::string& GraphCompiler::GetOrGenFullFuncName(const std::string& prefix) {
+  // try_emplace only insert once, so the same function
+  // can get a consistent name next time
+  prefix2full_namemap_.try_emplace(prefix, Context::Global().NewName(prefix));
+  return prefix2full_namemap_.at(prefix);
 }
 
 std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const Node* node) {
@@ -261,7 +317,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const Node* node) {
     inputs.push_back(temp.as_tensor_ref());
   }
 
-  auto func = lang::LowerVec(GenOpFuncName(node), stages, inputs, {}, {}, nullptr, this->target_);
+  auto func = lang::LowerVec(GetOrGenFullFuncName(GenOpFuncName(node)), stages, inputs, {}, {}, nullptr, this->target_);
   VLOG(3) << "The [" << func.size() << "] functions of node [" << node->attrs.node_name << "] are:\n";
   for (auto& i : func) {
     VLOG(3) << i;
@@ -439,7 +495,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
     }
   }
 
-  auto func = lang::LowerVec(fuse_name, stages, inputs, {}, {}, nullptr, this->target_);
+  auto func = lang::LowerVec(GetOrGenFullFuncName(fuse_name), stages, inputs, {}, {}, nullptr, this->target_);
   VLOG(3) << "The [" << func.size() << "] functions are:\n";
   for (auto& i : func) {
     VLOG(3) << "Function [" << i->name << "] is:\n";
@@ -702,7 +758,7 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
           }
         }
       }
-      std::string op_func_name = GenOpFuncName(node);
+      std::string op_func_name = GetOrGenFullFuncName(GenOpFuncName(node));
       auto* fn                 = compiler_->Lookup(op_func_name);
       CHECK(fn);
       instr->SetLoweredFunc(fn, op_func_name);
@@ -761,21 +817,22 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
       }
       fuse_name += "fused";
       VLOG(3) << fuse_name;
+      auto fuse_func_name = GetOrGenFullFuncName(fuse_name);
       auto instr =
-          std::unique_ptr<Instruction>(new Instruction(target_, scope_.get(), inputNames, outputNames, fuse_name));
+          std::unique_ptr<Instruction>(new Instruction(target_, scope_.get(), inputNames, outputNames, fuse_func_name));
       VLOG(3) << "input_names: " << utils::Join(inputNames, ", ");
       VLOG(3) << "out_names: " << utils::Join(outputNames, ", ");
-      auto* fn = compiler_->Lookup(fuse_name);
+      auto* fn = compiler_->Lookup(fuse_func_name);
       CHECK(fn);
-      instr->SetLoweredFunc(fn, fuse_name);
+      instr->SetLoweredFunc(fn, fuse_func_name);
 
       // Add reset kernel
       int i                   = 1;
-      std::string new_op_func = fuse_name + "_" + std::to_string(i);
+      std::string new_op_func = fuse_func_name + "_" + std::to_string(i);
       if (function2input_args_.count(new_op_func) != 0) {
-        CHECK_GT(function2input_args_.count(fuse_name), 0);
-        instr->AddInArgs(function2input_args_[fuse_name]);
-        instr->AddOutArgs(function2output_args_[fuse_name]);
+        CHECK_GT(function2input_args_.count(fuse_func_name), 0);
+        instr->AddInArgs(function2input_args_[fuse_func_name]);
+        instr->AddOutArgs(function2output_args_[fuse_func_name]);
       }
       while (function2input_args_.count(new_op_func) != 0) {
         auto* fn2 = compiler_->Lookup(new_op_func);
@@ -784,7 +841,7 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
         instr->AddInArgs(function2input_args_[new_op_func]);
         instr->AddOutArgs(function2output_args_[new_op_func]);
         i++;
-        new_op_func = fuse_name + "_" + std::to_string(i);
+        new_op_func = fuse_func_name + "_" + std::to_string(i);
       }
 
       instructions.push_back(std::move(instr));
