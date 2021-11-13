@@ -18,6 +18,7 @@
 #include <cublas_v2.h>
 #include <cudnn.h>
 
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -37,7 +38,7 @@ class CublasHandle {
     static CublasHandle instance;
     return instance;
   }
-  cublasHandle_t& GetCublasHandle() { return cublas; }
+  const cublasHandle_t& GetCublasHandle() { return cublas; }
 
  private:
   CublasHandle();
@@ -53,11 +54,20 @@ class SerialData {
     static SerialData instance;
     return instance;
   }
-  absl::flat_hash_map<std::string, int>& GetMap() { return get_algo; }
+
+  const absl::flat_hash_map<std::string, int>& GetMap() { return get_algo; }
+
+  int& operator[](const std::string& hash_str) {
+    std::lock_guard<std::mutex> lock(mtx);
+    return get_algo[hash_str];
+  }
+
+  const int operator[](const std::string& hash_str) const { return get_algo.at(hash_str); }
 
  private:
   SerialData();
   absl::flat_hash_map<std::string, int> get_algo;
+  std::mutex mtx;
 };
 
 class CudnnHandle {
@@ -69,7 +79,7 @@ class CudnnHandle {
     static CudnnHandle instance;
     return instance;
   }
-  cudnnHandle_t& GetCudnnHandle() { return cudnn; }
+  const cudnnHandle_t& GetCudnnHandle() { return cudnn; }
   float* GetWorkSpace(size_t size);
 
  private:
@@ -77,6 +87,7 @@ class CudnnHandle {
   cudnnHandle_t cudnn;
   float* work_space;
   size_t size_;
+  std::mutex mtx;
 };
 
 /**
