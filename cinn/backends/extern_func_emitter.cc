@@ -34,20 +34,21 @@ ExternFunctionEmitterRegistry& ExternFunctionEmitterRegistry::Global() {
   return x;
 }
 
-void ExternFunctionEmitterRegistry::Register(const ExternFuncID& name, ExternFunctionEmitter* x) {
+void ExternFunctionEmitterRegistry::Register(const ExternFuncID& name, const std::string& x) {
 #ifdef CINN_WITH_DEBUG
   RAW_LOG_INFO("Register extern function emitter [%s]", utils::GetStreamCnt(name).c_str());
 #endif  // CINN_WITH_DEBUG
-  CHECK(x);
-  data_[name] = std::unique_ptr<ExternFunctionEmitter>(x);
+  CHECK(!x.empty()) << "Extern Function name is empty.";
+  data_[name] = x;
 }
 
-ExternFunctionEmitter* ExternFunctionEmitterRegistry::Lookup(const ExternFuncID& name) const {
-  auto it = data_.find(name);
+const std::string& ExternFunctionEmitterRegistry::Lookup(const ExternFuncID& name) const {
+  static const std::string not_found = "";
+  auto it                            = data_.find(name);
   if (it != data_.end()) {
-    return it->second.get();
+    return it->second;
   }
-  return nullptr;
+  return not_found;
 }
 
 std::ostream& operator<<(std::ostream& os, const ExternFuncID& x) {
