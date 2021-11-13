@@ -51,10 +51,15 @@ class RuntimeSymbolRegistry {
    */
   template <typename T>
   void RegisterVar(const std::string &name, T val) {
-    auto &data = scalar_holder_[name];
-    data.resize(sizeof(T));
-    memcpy(data.data(), &val, sizeof(T));
-    Register(name, reinterpret_cast<void *>(data.data()));
+    void *data_ptr = nullptr;
+    {
+      std::lock_guard<std::mutex> lock(mu_);
+      auto &data = scalar_holder_[name];
+      data.resize(sizeof(T));
+      memcpy(data.data(), &val, sizeof(T));
+      data_ptr = reinterpret_cast<void *>(data.data());
+    }
+    Register(name, data_ptr);
   }
 
   /**

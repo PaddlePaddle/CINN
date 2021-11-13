@@ -119,12 +119,12 @@ class ExternFunctionEmitterRegistry {
  public:
   static ExternFunctionEmitterRegistry& Global();
 
-  void Register(const ExternFuncID& name, ExternFunctionEmitter* x);
+  void Register(const ExternFuncID& name, const std::string& x);
 
-  ExternFunctionEmitter* Lookup(const ExternFuncID& name) const;
+  const std::string& Lookup(const ExternFuncID& name) const;
 
  private:
-  absl::flat_hash_map<ExternFuncID, std::unique_ptr<ExternFunctionEmitter>> data_;
+  absl::flat_hash_map<ExternFuncID, std::string> data_;
 
   ExternFunctionEmitterRegistry();
   CINN_DISALLOW_COPY_AND_ASSIGN(ExternFunctionEmitterRegistry);
