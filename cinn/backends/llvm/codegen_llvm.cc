@@ -639,7 +639,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Call *op) {
   } else if (op->is_extern_call()) {
     auto emitter_id     = ExternFuncID{backend_llvm_host, op->name.c_str()};
     const auto &fn_name = ExternFunctionEmitterRegistry::Global().Lookup(emitter_id);
-    if (fn_name.length()) {
+    if (!fn_name.empty()) {
       ExternFunctionLLVMEmitter emitter(fn_name);
       emitter.BindCodeGen(this);
       emitter.Emit(op);

@@ -38,7 +38,7 @@ void ExternFunctionEmitterRegistry::Register(const ExternFuncID& name, const std
 #ifdef CINN_WITH_DEBUG
   RAW_LOG_INFO("Register extern function emitter [%s]", utils::GetStreamCnt(name).c_str());
 #endif  // CINN_WITH_DEBUG
-  CHECK(x.length()) << "Extern Function name is empty.";
+  CHECK(!x.empty()) << "Extern Function name is empty.";
   data_[name] = x;
 }
 

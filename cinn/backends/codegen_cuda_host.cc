@@ -124,7 +124,7 @@ llvm::Value* CodeGenCUDA_Host::LowerGPUKernelLauncher(const ir::_LoweredFunc_* f
 
     auto emitter_id     = ExternFuncID{backend_llvm_host, runtime::intrinsic::call_cuda_kernel};
     const auto& fn_name = ExternFunctionEmitterRegistry::Global().Lookup(emitter_id);
-    CHECK(fn_name.length()) << "No extern function emitter called " << emitter_id;
+    CHECK(!fn_name.empty()) << "No extern function emitter called " << emitter_id;
     ExternFunctionLLVMEmitter emitter(fn_name);
     emitter.BindCodeGen(this);
     emitter.Emit(new_call_node.As<ir::Call>());

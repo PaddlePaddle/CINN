@@ -321,7 +321,7 @@ void CodeGenC::Visit(const ir::Call *op) {
     os() << ")";
   } else if (op->is_extern_call()) {
     const auto &fn_name = ExternFunctionEmitterRegistry::Global().Lookup(ExternFuncID{backend_C, op->name.c_str()});
-    if (fn_name.length()) {
+    if (!fn_name.empty()) {
       ExternFunctionLLVMEmitter emitter(fn_name);
       emitter.BindCodeGen(this);
       emitter.Emit(op);

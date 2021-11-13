@@ -39,8 +39,6 @@ using namespace ir;  // NOLINT
 #undef As
 #endif
 
-static std::mutex ginac_mutex;
-
 std::string ExprToGinacConverter::Repr(const ir::Expr& expr) {
   auto* load_n      = expr.As<Load>();
   auto* var_n       = expr.As<_Var_>();
@@ -276,6 +274,7 @@ bool MathContainsSymbol(Expr expr, Var symbol) {
 
 // lhs >= rhs.
 std::tuple<Expr, bool /*positive*/> Solve(Expr lhs, Expr rhs, Var var) {
+  static std::mutex ginac_mutex;
   std::lock_guard<std::mutex> guard(ginac_mutex);
   VLOG(4) << "Solve: " << lhs << "=" << rhs << " in " << var;
   ExprToGinacConverter converter;
