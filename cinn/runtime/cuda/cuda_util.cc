@@ -201,8 +201,8 @@ void cinn_gpu_cudnn_conv2d(const absl::flat_hash_map<std::string, int> &attr,
     cudnnConvolutionFwdAlgoPerf_t algo_perf;
     int count = 0;
     CUDNN_CALL(cudnnFindConvolutionForwardAlgorithm(handle, x_desc, w_desc, conv_desc, y_desc, 1, &count, &algo_perf));
-    serial_data[hash_str] = static_cast<int>(algo_perf.algo);
-    algo                  = algo_perf.algo;
+    serial_data.SetAlgo(hash_str, static_cast<int>(algo_perf.algo));
+    algo = algo_perf.algo;
   }
 
   if (FLAGS_cinn_cudnn_deterministic) {
@@ -291,8 +291,8 @@ void cinn_gpu_cudnn_conv2d_backward_data(const absl::flat_hash_map<std::string, 
     cudnnConvolutionBwdDataAlgoPerf_t algo_perf;
     CUDNN_CALL(
         cudnnFindConvolutionBackwardDataAlgorithm(handle, w_desc, y_desc, conv_desc, x_desc, 1, &count, &algo_perf));
-    serial_data[hash_str] = static_cast<int>(algo_perf.algo);
-    algo                  = algo_perf.algo;
+    serial_data.SetAlgo(hash_str, static_cast<int>(algo_perf.algo));
+    algo = algo_perf.algo;
   }
 
   if (FLAGS_cinn_cudnn_deterministic) {
@@ -381,8 +381,8 @@ void cinn_gpu_cudnn_conv2d_backward_filter(const absl::flat_hash_map<std::string
     cudnnConvolutionBwdFilterAlgoPerf_t algo_perf;
     CUDNN_CALL(
         cudnnFindConvolutionBackwardFilterAlgorithm(handle, x_desc, y_desc, conv_desc, w_desc, 1, &count, &algo_perf));
-    serial_data[hash_str] = static_cast<int>(algo_perf.algo);
-    algo                  = algo_perf.algo;
+    serial_data.SetAlgo(hash_str, static_cast<int>(algo_perf.algo));
+    algo = algo_perf.algo;
   }
 
   if (FLAGS_cinn_cudnn_deterministic) {

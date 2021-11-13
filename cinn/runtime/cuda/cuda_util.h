@@ -57,12 +57,10 @@ class SerialData {
 
   const absl::flat_hash_map<std::string, int>& GetMap() { return get_algo; }
 
-  int& operator[](const std::string& hash_str) {
+  void SetAlgo(const std::string& has_str, int algo) {
     std::lock_guard<std::mutex> lock(mtx);
-    return get_algo[hash_str];
+    get_algo[has_str] = algo;
   }
-
-  const int operator[](const std::string& hash_str) const { return get_algo.at(hash_str); }
 
  private:
   SerialData();
