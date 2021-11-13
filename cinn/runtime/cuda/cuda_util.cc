@@ -188,7 +188,7 @@ void cinn_gpu_cudnn_conv2d(const absl::flat_hash_map<std::string, int> &attr,
 
   cudnnConvolutionFwdAlgo_t algo;
   if (FLAGS_cinn_cudnn_deterministic) {
-    static_cast<cudnnConvolutionFwdAlgo_t>(1);
+    algo = static_cast<cudnnConvolutionFwdAlgo_t>(1);
   } else {
     auto &serial_data    = SerialData::get_instance();
     const auto &algo_map = serial_data.GetMap();
