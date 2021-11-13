@@ -66,21 +66,28 @@ class CudnnHelper {
     }
   }
 
-  BufferWrapper GetWorkSpace(size_t size);
+  BufferWrapper GetWorkspace(size_t size);
 
-  void ReleaseWS(void *ptr, size_t size) {
+  void ReleaseWorkspace(void *ptr, size_t size) {
     std::lock_guard<std::mutex> lock(mtx);
-    cudnn_ws_map.push(std::pair<void *, size_t>(ptr, size));
+    cudnn_ws_queue.push(std::pair<void *, size_t>(ptr, size));
   }
 
-  ~CudnnHelper() { CUDNN_CALL(cudnnDestroy(handle_t)); }
+  ~CudnnHelper() {
+    CUDNN_CALL(cudnnDestroy(handle_t));
+    std::lock_guard<std::mutex> lock(mtx);
+    while (!cudnn_ws_queue.empty()) {
+      CUDA_CALL(cudaFree(cudnn_ws_queue.front().first));
+      cudnn_ws_queue.pop();
+    }
+  }
 
  private:
   CudnnHelper() { CUDNN_CALL(cudnnCreate(&handle_t)); }
 
   std::mutex mtx;
   cudnnHandle_t handle_t{nullptr};
-  std::queue<std::pair<void *, size_t>> cudnn_ws_map;
+  std::queue<std::pair<void *, size_t>> cudnn_ws_queue;
   absl::flat_hash_map<std::string, int> cudnn_algo_map;
 };
 
@@ -88,7 +95,7 @@ class BufferWrapper {
  public:
   void *GetData() { return ptr; }
   size_t GetSize() { return size; }
-  ~BufferWrapper() { CudnnHelper::Instance().ReleaseWS(ptr, size); }
+  ~BufferWrapper() { CudnnHelper::Instance().ReleaseWorkspace(ptr, size); }
 
  private:
   friend class CudnnHelper;
@@ -97,11 +104,11 @@ class BufferWrapper {
   size_t size{0};
 };
 
-BufferWrapper CudnnHelper::GetWorkSpace(size_t size) {
+BufferWrapper CudnnHelper::GetWorkspace(size_t size) {
   std::lock_guard<std::mutex> lock(mtx);
-  if (!cudnn_ws_map.empty()) {
-    auto ws = cudnn_ws_map.front();
-    cudnn_ws_map.pop();
+  if (!cudnn_ws_queue.empty()) {
+    auto ws = cudnn_ws_queue.front();
+    cudnn_ws_queue.pop();
     if (ws.second > size) {
       return BufferWrapper(ws.first, ws.second);
     } else {
@@ -260,7 +267,7 @@ void cinn_gpu_cudnn_conv2d(const absl::flat_hash_map<std::string, int> &attr,
   size_t ws_size = 0;
   CUDNN_CALL(cudnnGetConvolutionForwardWorkspaceSize(handle, x_desc, w_desc, conv_desc, y_desc, algo, &ws_size));
 
-  BufferWrapper buffer = CudnnHelper::Instance().GetWorkSpace(ws_size);
+  BufferWrapper buffer = CudnnHelper::Instance().GetWorkspace(ws_size);
 
   float alpha[] = {1.f}, beta[] = {0.f};
 
@@ -350,7 +357,7 @@ void cinn_gpu_cudnn_conv2d_backward_data(const absl::flat_hash_map<std::string, 
   size_t ws_size = 0;
   CUDNN_CALL(cudnnGetConvolutionBackwardDataWorkspaceSize(handle, w_desc, y_desc, conv_desc, x_desc, algo, &ws_size));
 
-  BufferWrapper buffer = CudnnHelper::Instance().GetWorkSpace(ws_size);
+  BufferWrapper buffer = CudnnHelper::Instance().GetWorkspace(ws_size);
 
   float alpha[] = {1.0f}, beta[] = {0.0f};
   CUDNN_CALL(cudnnConvolutionBackwardData(
@@ -439,7 +446,7 @@ void cinn_gpu_cudnn_conv2d_backward_filter(const absl::flat_hash_map<std::string
   size_t ws_size = 0;
   CUDNN_CALL(cudnnGetConvolutionBackwardFilterWorkspaceSize(handle, x_desc, y_desc, conv_desc, w_desc, algo, &ws_size));
 
-  auto buffer = CudnnHelper::Instance().GetWorkSpace(ws_size);
+  auto buffer = CudnnHelper::Instance().GetWorkspace(ws_size);
 
   float alpha[] = {1.0}, beta[] = {0.0};
   CUDNN_CALL(cudnnConvolutionBackwardFilter(
