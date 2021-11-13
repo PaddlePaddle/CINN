@@ -255,7 +255,6 @@ std::vector<Variable> NetBuilder::batchnorm(const Variable& a,
   return instr->GetOutputs();
 }
 
-// batch norm grad, output(grad_x, grad_scale, grad_bias)
 std::vector<Variable> NetBuilder::batch_norm_grad(const Variable& dy,
                                                   const Variable& x,
                                                   const Variable& scale,
@@ -334,7 +333,6 @@ Variable NetBuilder::sum(const std::vector<Variable>& inputs) {
   return instr.GetOutput(0);
 }
 
-// conv2d grad, output(grad_x, grad_w)
 std::vector<Variable> NetBuilder::conv2d_grad(const Variable& dy,
                                               const Variable& x,
                                               const Variable& w,

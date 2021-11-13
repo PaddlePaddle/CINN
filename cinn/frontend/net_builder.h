@@ -96,6 +96,9 @@ class NetBuilder : public BaseBuilder {
    */
   Variable reverse(const Variable& x, const std::vector<int>& axis);
 
+  /**
+   * Compute the sum of Variable x along the given dim.
+   */
   Variable reduce_sum(const Variable& x, const std::vector<int>& dim, bool keep_dim = false);
 
   /**
