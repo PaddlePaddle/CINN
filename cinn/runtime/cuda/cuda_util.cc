@@ -32,8 +32,6 @@ DEFINE_bool(cinn_cudnn_deterministic,
             "operator. The autotuning algorithm may be non-deterministic. If "
             "true, the algorithm is deterministic.");
 
-DEFINE_int32(cinn_cudnn_max_ws, 0, "The limit of cudnn workspace size. 0 means that no limit exist!");
-
 namespace cinn {
 namespace runtime {
 namespace cuda {
