@@ -42,7 +42,6 @@ CublasHandle::CublasHandle() { cublasCreate(&cublas); }
 
 CublasHandle::~CublasHandle() { cublasDestroy(cublas); }
 
-class BufferWrapper;
 class CudnnHelper {
  public:
   static CudnnHelper &Instance() {
@@ -50,79 +49,63 @@ class CudnnHelper {
     return cudnn_helper;
   }
 
-  cudnnHandle_t GetCudnnHandle() { return handle_t; }
+  cudnnHandle_t GetCudnnHandle() { return handle_; }
 
-  void RegisterAlgo(const std::string &key, const int value) {
+  void InsertAlgo(const std::string &key, const int value) {
     static std::mutex local_mtx;
     std::lock_guard<std::mutex> lock(local_mtx);
-    cudnn_algo_map[key] = value;
+    cudnn_algo_map_[key] = value;
   }
 
   int GetAlgo(const std::string &key) {
-    if (cudnn_algo_map.count(key) == 0) {
+    if (cudnn_algo_map_.count(key) == 0) {
       return -1;
     } else {
-      return cudnn_algo_map[key];
+      return cudnn_algo_map_[key];
     }
   }
 
-  BufferWrapper GetWorkspace(size_t size);
-
-  void ReleaseWorkspace(void *ptr, size_t size) {
-    std::lock_guard<std::mutex> lock(mtx);
-    cudnn_ws_queue.push(std::pair<void *, size_t>(ptr, size));
+  int8_t *GetWorkspace(size_t size) {
+    work_space_mtx_.lock();
+    if (size > work_space_size_) {
+      work_space_size_ = size;
+      CUDA_CALL(cudaFree(work_space_ptr_));
+      CUDA_CALL(cudaMalloc(&work_space_ptr_, size));
+    }
+    return work_space_ptr_;
   }
+
+  void ReleaseWorkspace() { work_space_mtx_.unlock(); }
 
   ~CudnnHelper() {
-    CUDNN_CALL(cudnnDestroy(handle_t));
-    std::lock_guard<std::mutex> lock(mtx);
-    while (!cudnn_ws_queue.empty()) {
-      CUDA_CALL(cudaFree(cudnn_ws_queue.front().first));
-      cudnn_ws_queue.pop();
+    CUDNN_CALL(cudnnDestroy(handle_));
+    if (work_space_size_ > 0) {
+      CUDA_CALL(cudaFree(work_space_ptr_));
     }
   }
 
- private:
-  CudnnHelper() { CUDNN_CALL(cudnnCreate(&handle_t)); }
-
-  std::mutex mtx;
-  cudnnHandle_t handle_t{nullptr};
-  std::queue<std::pair<void *, size_t>> cudnn_ws_queue;
-  absl::flat_hash_map<std::string, int> cudnn_algo_map;
-};
-
-class BufferWrapper {
- public:
-  void *GetData() { return ptr; }
-  size_t GetSize() { return size; }
-  ~BufferWrapper() { CudnnHelper::Instance().ReleaseWorkspace(ptr, size); }
-
- private:
-  friend class CudnnHelper;
-  BufferWrapper(void *p, size_t s) : ptr(p), size(s) {}
-  void *ptr{nullptr};
-  size_t size{0};
-};
-
-BufferWrapper CudnnHelper::GetWorkspace(size_t size) {
-  std::lock_guard<std::mutex> lock(mtx);
-  if (!cudnn_ws_queue.empty()) {
-    auto ws = cudnn_ws_queue.front();
-    cudnn_ws_queue.pop();
-    if (ws.second > size) {
-      return BufferWrapper(ws.first, ws.second);
-    } else {
-      CUDA_CALL(cudaFree(ws.first));
-      CUDA_CALL(cudaMalloc(&ws.first, size));
-      return BufferWrapper(ws.first, size);
+  static std::string GetAlgoKey(const std::string &conv_type, const std::vector<int> &shapes) {
+    CHECK_EQ(shapes.size(), 12);
+    std::string key = conv_type;
+    for (auto &value : shapes) {
+      key += "_" + std::to_string(value);
     }
-  } else {
-    void *ws = nullptr;
-    CUDA_CALL(cudaMalloc(&ws, size));
-    return BufferWrapper(ws, size);
+    return key;
   }
-}
+
+ private:
+  CudnnHelper() { CUDNN_CALL(cudnnCreate(&handle_)); }
+
+  cudnnHandle_t handle_{nullptr};
+  absl::flat_hash_map<std::string, int> cudnn_algo_map_;
+
+  int8_t *work_space_ptr_{nullptr};
+  size_t work_space_size_{0};
+  std::mutex work_space_mtx_;
+};
 static CudnnHelper &cudnn_helper_init = CudnnHelper::Instance();
+
+void CUDART_CB ReleaseWorkspace(void *userData) { CudnnHelper::Instance().ReleaseWorkspace(); }
 
 void cinn_gpu_cublas_mul(const std::vector<int> &attrs,
                          cinn_buffer_t *input1,
@@ -242,17 +225,24 @@ void cinn_gpu_cudnn_conv2d(const absl::flat_hash_map<std::string, int> &attr,
   CUDNN_CALL(
       cudnnSetTensor4dDescriptor(y_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, output_n, output_c, output_h, output_w));
 
-  std::string hash_str = "conv2d forward," + std::to_string(input_n) + "," + std::to_string(input_c) + "," +
-                         std::to_string(input_h) + "," + std::to_string(input_w) + "," + std::to_string(weights_n) +
-                         "," + std::to_string(weights_c) + "," + std::to_string(weights_h) + "," +
-                         std::to_string(weights_w) + "," + std::to_string(output_n) + "," + std::to_string(output_c) +
-                         "," + std::to_string(output_h) + "," + std::to_string(output_w);
-
   cudnnConvolutionFwdAlgo_t algo = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM;
   if (FLAGS_cinn_cudnn_deterministic) {
     algo = static_cast<cudnnConvolutionFwdAlgo_t>(1);
   } else {
-    int algo_int = CudnnHelper::Instance().GetAlgo(hash_str);
+    auto algo_key = CudnnHelper::GetAlgoKey("conv2d_forward",
+                                            {input_n,
+                                             input_c,
+                                             input_h,
+                                             input_w,
+                                             weights_n,
+                                             weights_c,
+                                             weights_h,
+                                             weights_w,
+                                             output_n,
+                                             output_c,
+                                             output_h,
+                                             output_w});
+    int algo_int  = CudnnHelper::Instance().GetAlgo(algo_key);
     if (algo_int >= 0) {
       algo = cudnnConvolutionFwdAlgo_t(algo_int);
     } else {
@@ -262,19 +252,24 @@ void cinn_gpu_cudnn_conv2d(const absl::flat_hash_map<std::string, int> &attr,
           cudnnFindConvolutionForwardAlgorithm(handle, x_desc, w_desc, conv_desc, y_desc, 1, &count, &algo_perf));
 
       algo = algo_perf.algo;
-      CudnnHelper::Instance().RegisterAlgo(hash_str, static_cast<int>(algo_perf.algo));
+      CudnnHelper::Instance().InsertAlgo(algo_key, static_cast<int>(algo_perf.algo));
     }
   }
 
   size_t ws_size = 0;
   CUDNN_CALL(cudnnGetConvolutionForwardWorkspaceSize(handle, x_desc, w_desc, conv_desc, y_desc, algo, &ws_size));
 
-  BufferWrapper buffer = CudnnHelper::Instance().GetWorkspace(ws_size);
-
+  int8_t *workspace = nullptr;
+  if (ws_size > 0) {
+    workspace = CudnnHelper::Instance().GetWorkspace(ws_size);
+  }
   float alpha[] = {1.f}, beta[] = {0.f};
 
   CUDNN_CALL(cudnnConvolutionForward(
-      handle, alpha, x_desc, _x, w_desc, _w, conv_desc, algo, buffer.GetData(), ws_size, beta, y_desc, _y));
+      handle, alpha, x_desc, _x, w_desc, _w, conv_desc, algo, workspace, ws_size, beta, y_desc, _y));
+  if (ws_size > 0) {
+    CUDA_CALL(cudaLaunchHostFunc(nullptr, ReleaseWorkspace, nullptr));
+  }
 
   CUDNN_CALL(cudnnDestroyTensorDescriptor(x_desc));
   CUDNN_CALL(cudnnDestroyFilterDescriptor(w_desc));
@@ -333,17 +328,24 @@ void cinn_gpu_cudnn_conv2d_backward_data(const absl::flat_hash_map<std::string, 
   CUDNN_CALL(
       cudnnSetTensor4dDescriptor(y_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, output_n, output_c, output_h, output_w));
 
-  std::string hash_str = "conv2d backward data," + std::to_string(input_n) + "," + std::to_string(input_c) + "," +
-                         std::to_string(input_h) + "," + std::to_string(input_w) + "," + std::to_string(weights_n) +
-                         "," + std::to_string(weights_c) + "," + std::to_string(weights_h) + "," +
-                         std::to_string(weights_w) + "," + std::to_string(output_n) + "," + std::to_string(output_c) +
-                         "," + std::to_string(output_h) + "," + std::to_string(output_w);
-
   cudnnConvolutionBwdDataAlgo_t algo = CUDNN_CONVOLUTION_BWD_DATA_ALGO_1;
   if (FLAGS_cinn_cudnn_deterministic) {
     algo = CUDNN_CONVOLUTION_BWD_DATA_ALGO_1;
   } else {
-    int algo_int = CudnnHelper::Instance().GetAlgo(hash_str);
+    auto algo_key = CudnnHelper::GetAlgoKey("conv2d_backward_data",
+                                            {input_n,
+                                             input_c,
+                                             input_h,
+                                             input_w,
+                                             weights_n,
+                                             weights_c,
+                                             weights_h,
+                                             weights_w,
+                                             output_n,
+                                             output_c,
+                                             output_h,
+                                             output_w});
+    int algo_int  = CudnnHelper::Instance().GetAlgo(algo_key);
     if (algo_int >= 0) {
       algo = cudnnConvolutionBwdDataAlgo_t(algo_int);
     } else {
@@ -353,18 +355,24 @@ void cinn_gpu_cudnn_conv2d_backward_data(const absl::flat_hash_map<std::string, 
           cudnnFindConvolutionBackwardDataAlgorithm(handle, w_desc, y_desc, conv_desc, x_desc, 1, &count, &algo_perf));
 
       algo = algo_perf.algo;
-      CudnnHelper::Instance().RegisterAlgo(hash_str, static_cast<int>(algo_perf.algo));
+      CudnnHelper::Instance().InsertAlgo(algo_key, static_cast<int>(algo_perf.algo));
     }
   }
 
   size_t ws_size = 0;
   CUDNN_CALL(cudnnGetConvolutionBackwardDataWorkspaceSize(handle, w_desc, y_desc, conv_desc, x_desc, algo, &ws_size));
 
-  BufferWrapper buffer = CudnnHelper::Instance().GetWorkspace(ws_size);
+  int8_t *workspace = nullptr;
+  if (ws_size > 0) {
+    workspace = CudnnHelper::Instance().GetWorkspace(ws_size);
+  }
 
   float alpha[] = {1.0f}, beta[] = {0.0f};
   CUDNN_CALL(cudnnConvolutionBackwardData(
-      handle, alpha, w_desc, _w, y_desc, _dy, conv_desc, algo, buffer.GetData(), ws_size, beta, x_desc, _dx));
+      handle, alpha, w_desc, _w, y_desc, _dy, conv_desc, algo, workspace, ws_size, beta, x_desc, _dx));
+  if (ws_size > 0) {
+    CUDA_CALL(cudaLaunchHostFunc(nullptr, ReleaseWorkspace, nullptr));
+  }
 
   CUDNN_CALL(cudnnDestroyTensorDescriptor(x_desc));
   CUDNN_CALL(cudnnDestroyFilterDescriptor(w_desc));
@@ -423,17 +431,24 @@ void cinn_gpu_cudnn_conv2d_backward_filter(const absl::flat_hash_map<std::string
   CUDNN_CALL(
       cudnnSetTensor4dDescriptor(y_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, output_n, output_c, output_h, output_w));
 
-  std::string hash_str = "conv2d backward filter," + std::to_string(input_n) + "," + std::to_string(input_c) + "," +
-                         std::to_string(input_h) + "," + std::to_string(input_w) + "," + std::to_string(weights_n) +
-                         "," + std::to_string(weights_c) + "," + std::to_string(weights_h) + "," +
-                         std::to_string(weights_w) + "," + std::to_string(output_n) + "," + std::to_string(output_c) +
-                         "," + std::to_string(output_h) + "," + std::to_string(output_w);
-
   cudnnConvolutionBwdFilterAlgo_t algo = CUDNN_CONVOLUTION_BWD_FILTER_ALGO_1;
   if (FLAGS_cinn_cudnn_deterministic) {
     algo = CUDNN_CONVOLUTION_BWD_FILTER_ALGO_1;
   } else {
-    int algo_int = CudnnHelper::Instance().GetAlgo(hash_str);
+    auto algo_key = CudnnHelper::GetAlgoKey("conv2d_backward_data",
+                                            {input_n,
+                                             input_c,
+                                             input_h,
+                                             input_w,
+                                             weights_n,
+                                             weights_c,
+                                             weights_h,
+                                             weights_w,
+                                             output_n,
+                                             output_c,
+                                             output_h,
+                                             output_w});
+    int algo_int  = CudnnHelper::Instance().GetAlgo(algo_key);
     if (algo_int >= 0) {
       algo = cudnnConvolutionBwdFilterAlgo_t(algo_int);
     } else {
@@ -443,18 +458,24 @@ void cinn_gpu_cudnn_conv2d_backward_filter(const absl::flat_hash_map<std::string
           handle, x_desc, y_desc, conv_desc, w_desc, 1, &count, &algo_perf));
 
       algo = algo_perf.algo;
-      CudnnHelper::Instance().RegisterAlgo(hash_str, static_cast<int>(algo_perf.algo));
+      CudnnHelper::Instance().InsertAlgo(algo_key, static_cast<int>(algo_perf.algo));
     }
   }
 
   size_t ws_size = 0;
   CUDNN_CALL(cudnnGetConvolutionBackwardFilterWorkspaceSize(handle, x_desc, y_desc, conv_desc, w_desc, algo, &ws_size));
 
-  auto buffer = CudnnHelper::Instance().GetWorkspace(ws_size);
+  int8_t *workspace = nullptr;
+  if (ws_size > 0) {
+    workspace = CudnnHelper::Instance().GetWorkspace(ws_size);
+  }
 
   float alpha[] = {1.0}, beta[] = {0.0};
   CUDNN_CALL(cudnnConvolutionBackwardFilter(
-      handle, alpha, x_desc, _x, y_desc, _dy, conv_desc, algo, buffer.GetData(), ws_size, beta, w_desc, _dw));
+      handle, alpha, x_desc, _x, y_desc, _dy, conv_desc, algo, workspace, ws_size, beta, w_desc, _dw));
+  if (ws_size > 0) {
+    CUDA_CALL(cudaLaunchHostFunc(nullptr, ReleaseWorkspace, nullptr));
+  }
 
   CUDNN_CALL(cudnnDestroyTensorDescriptor(x_desc));
   CUDNN_CALL(cudnnDestroyFilterDescriptor(w_desc));
