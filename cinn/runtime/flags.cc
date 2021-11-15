@@ -32,7 +32,16 @@ void SetCinnCudnnDeterministic(bool state) {
 #ifdef CINN_WITH_CUDNN
   FLAGS_cinn_cudnn_deterministic = state;
 #else
-  LOG(WARNING) << "Compile without CUDNN, this api is invalid!";
+  LOG(WARNING) << "CINN is compiled without cuDNN, this api is invalid!";
+#endif
+}
+
+bool GetCinnCudnnDeterministic() {
+#ifdef CINN_WITH_CUDNN
+  return FLAGS_cinn_cudnn_deterministic;
+#else
+  LOG(FATAL) << "CINN is compiled without cuDNN, this api is invalid!";
+  return false;
 #endif
 }
 

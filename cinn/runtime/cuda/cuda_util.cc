@@ -22,9 +22,8 @@
 #include "cinn/backends/cuda_util.h"
 #include "cinn/backends/extern_func_jit_register.h"
 #include "cinn/common/target.h"
+#include "cinn/runtime/flags.h"
 #include "cinn/utils/timer.h"
-
-DECLARE_bool(cinn_cudnn_deterministic);
 
 namespace cinn {
 namespace runtime {
@@ -200,7 +199,7 @@ void cinn_gpu_cudnn_conv2d(const absl::flat_hash_map<std::string, int> &attr,
     algo               = algo_perf.algo;
   }
 
-  if (FLAGS_cinn_cudnn_deterministic) {
+  if (GetCinnCudnnDeterministic()) {
     algo = static_cast<cudnnConvolutionFwdAlgo_t>(1);
   }
 
@@ -290,7 +289,7 @@ void cinn_gpu_cudnn_conv2d_backward_data(const absl::flat_hash_map<std::string, 
     algo               = algo_perf.algo;
   }
 
-  if (FLAGS_cinn_cudnn_deterministic) {
+  if (GetCinnCudnnDeterministic()) {
     algo = CUDNN_CONVOLUTION_BWD_DATA_ALGO_1;
   }
 
@@ -380,7 +379,7 @@ void cinn_gpu_cudnn_conv2d_backward_filter(const absl::flat_hash_map<std::string
     algo               = algo_perf.algo;
   }
 
-  if (FLAGS_cinn_cudnn_deterministic) {
+  if (GetCinnCudnnDeterministic()) {
     algo = CUDNN_CONVOLUTION_BWD_FILTER_ALGO_1;
   }
 
