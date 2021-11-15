@@ -23,11 +23,7 @@
 
 #include "cinn/pybind/bind.h"
 #include "cinn/runtime/cinn_runtime.h"
-#include "gflags/gflags.h"
-
-#ifdef CINN_WITH_CUDNN
-DECLARE_bool(cinn_cudnn_deterministic);
-#endif
+#include "cinn/runtime/flags.h"
 
 namespace py = pybind11;
 namespace cinn::pybind {
@@ -123,14 +119,6 @@ void BindSpecialTypes(py::module *m) {
 #undef VOID_PTR_SUPPORT_TYPE
 
   m->def("nullptr", []() { return VoidPointer(); });
-}
-
-void SetCinnCudnnDeterministic(bool state = true) {
-#ifdef CINN_WITH_CUDNN
-  FLAGS_cinn_cudnn_deterministic = state;
-#else
-  LOG(WARNING) << "Compile without CUDNN, this api is invalid!";
-#endif
 }
 
 void BindCinnRuntime(py::module *m) {
@@ -278,7 +266,7 @@ void BindCinnRuntime(py::module *m) {
       .def("cinn_pod_value_to_void_p", &cinn_pod_value_to_void_p)
       .def("cinn_pod_value_to_buffer_p", &cinn_pod_value_to_buffer_p);
 
-  m->def("set_cinn_cudnn_deterministic", &SetCinnCudnnDeterministic, py::arg("state") = true);
+  m->def("set_cinn_cudnn_deterministic", &cinn::runtime::SetCinnCudnnDeterministic, py::arg("state") = true);
 }
 }  // namespace
 
