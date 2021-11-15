@@ -15,6 +15,7 @@
 #include "cinn/common/arithmatic.h"
 
 #include <map>
+#include <mutex>
 #include <numeric>
 #include <set>
 #include <string>
@@ -273,6 +274,8 @@ bool MathContainsSymbol(Expr expr, Var symbol) {
 
 // lhs >= rhs.
 std::tuple<Expr, bool /*positive*/> Solve(Expr lhs, Expr rhs, Var var) {
+  static std::mutex ginac_mutex;
+  std::lock_guard<std::mutex> guard(ginac_mutex);
   VLOG(4) << "Solve: " << lhs << "=" << rhs << " in " << var;
   ExprToGinacConverter converter;
   auto lhs_ex = converter(lhs);

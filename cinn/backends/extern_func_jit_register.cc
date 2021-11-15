@@ -14,6 +14,8 @@
 
 #include "cinn/backends/extern_func_jit_register.h"
 
+#include <string>
+
 namespace cinn {
 namespace backends {
 
@@ -24,8 +26,7 @@ void RegisterExternFunctionHelper(const std::string &fn_name,
   ExternFunctionProtoRegistry::Global().Register(fn_name, fn_proto.release());
   CHECK(ExternFunctionProtoRegistry::Global().Lookup(fn_name));
 
-  ExternFunctionEmitterRegistry::Global().Register(ExternFuncID{TargetToBackendRepr(target), fn_name.c_str()},
-                                                   new backends::ExternFunctionLLVMEmitter(fn_name));
+  ExternFunctionEmitterRegistry::Global().Register(ExternFuncID{TargetToBackendRepr(target), fn_name.c_str()}, fn_name);
 
   RuntimeSymbolRegistry::Global().RegisterFn(fn_name, reinterpret_cast<void *>(fn_ptr));
 }
