@@ -91,9 +91,10 @@ class CudnnHelper {
   }
 
   static std::string GenAlgoKey(const std::string &conv_type, const std::vector<std::vector<int>> &shapes) {
-    CHECK_EQ(shapes.size(), 12);
+    CHECK_EQ(shapes.size(), 3);
     std::string key = conv_type;
     for (auto &shape : shapes) {
+      CHECK_EQ(shape.size(), 4);
       for (auto &value : shape) {
         key += "_" + std::to_string(value);
       }
