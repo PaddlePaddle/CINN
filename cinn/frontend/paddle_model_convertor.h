@@ -17,7 +17,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
-#include <vector>
+#include <unordered_set>
 
 #include "cinn/common/target.h"
 #include "cinn/frontend/net_builder.h"
@@ -57,15 +57,15 @@ class PaddleModelConvertor {
   // return the map from the variable name in paddle model to cinn program.
   const auto& var_model_to_program_map() const { return var_model_to_program_map_; }
 
-  // return fetch var names used in CINN
-  std::vector<std::string> GetFetchNames() const;
+  // return fetch var ids used in CINN
+  std::unordered_set<std::string> GetFetchIds() const;
 
  private:
   std::unordered_map<std::string, Variable> var_map_;
   // map from var in Paddle model to var name in program.
   std::unordered_map<std::string, std::string> var_model_to_program_map_;
   // fetch var names used in Paddle
-  std::vector<std::string> fetch_var_names_;
+  std::unordered_set<std::string> fetch_var_names_;
   hlir::framework::Scope* scope_{};
   const common::Target& target_;
 };

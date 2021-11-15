@@ -18,6 +18,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <variant>
 #include <vector>
 
@@ -57,7 +58,7 @@ class OpMapperContext {
                   NetBuilder* builder,
                   std::unordered_map<std::string, Variable>* var_map,
                   std::unordered_map<std::string, std::string>* var_model_to_program_map,
-                  std::vector<std::string>* fetch_var_names)
+                  std::unordered_set<std::string>* fetch_var_names)
       : scope_(scope),
         target_(target),
         builder_(builder),
@@ -105,7 +106,7 @@ class OpMapperContext {
   // map from var in Paddle model to var name in program.
   std::unordered_map<std::string, std::string>* var_model_to_program_map_{nullptr};
   // fetch var names used in Paddle
-  std::vector<std::string>* fetch_var_names_{nullptr};
+  std::unordered_set<std::string>* fetch_var_names_{nullptr};
 
   std::unordered_map<std::string, FeedInfo> feed_info_map_;
 };
