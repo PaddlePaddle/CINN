@@ -32,6 +32,8 @@ void OpMapperContext::AddVarModelToProgram(const std::string& name, const std::s
   VLOG(4) << "Paddle name [" << name << "] map to program id " << id;
 }
 
+void OpMapperContext::AddFetchVarNames(const std::string& name) const { fetch_var_names_->push_back(name); }
+
 Variable OpMapperContext::GetVar(const std::string& origin_name) const {
   const auto& name = cinn::utils::TransValidVarName(origin_name);
   CheckVarNameValid(name);
