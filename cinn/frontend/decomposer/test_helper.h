@@ -59,14 +59,16 @@ Target GetTarget() {
 }
 
 template <typename T>
-void InitRandomVector(std::vector<T>* vec, size_t numel, T low = 0, T high = 1) {
+void InitRandomVector(std::vector<T>* vec, size_t numel, T low = 0, T high = 1, T precision = 1e-5) {
   std::random_device seed;
   std::default_random_engine engine(seed());
   std::uniform_real_distribution<double> dist(low, high);
 
   vec->resize(numel);
   for (size_t i = 0; i < numel; ++i) {
-    vec->at(i) = static_cast<T>(dist(engine));
+    T value    = static_cast<T>(dist(engine));
+    int coeff  = static_cast<int>(value / precision);
+    vec->at(i) = precision * static_cast<T>(coeff);
   }
 }
 
@@ -101,53 +103,31 @@ void CopyToVector(const hlir::framework::Tensor tensor, std::vector<T>* vec) {
 }
 
 template <typename T>
-void CheckOutput(const std::vector<T>& actual,
-                 const std::vector<T>& expect,
-                 double max_relative_error    = 1e-5,
-                 bool compare_with_max_expect = false) {
+void CheckOutput(const std::vector<T>& actual, const std::vector<T>& expect, float atol = 1e-8, float rtol = 1e-5) {
   CHECK_EQ(actual.size(), expect.size());
 
-  float max_diff     = 0.0f;
-  int offset         = 0;
-  int num_diffs      = 0;
-  int num_diffs_self = 0;
+  auto allclose = [](T a, T e, float atol, float rtol) { return abs(a - e) <= (atol + rtol * abs(e)); };
 
-  T max_expect = 0.0f;
-  if (compare_with_max_expect) {
-    for (size_t i = 0; i < expect.size(); ++i) {
-      max_expect = abs(expect[i]) > max_expect ? abs(expect[i]) : max_expect;
-    }
-  }
+  float max_diff = 0.0f;
+  int offset     = 0;
+  int num_diffs  = 0;
 
   size_t numel = actual.size();
   for (size_t i = 0; i < numel; ++i) {
-    float absolute_diff      = abs((actual[i] - expect[i]));
-    float relative_diff_self = abs(absolute_diff / expect[i]);
-    float relative_diff      = compare_with_max_expect ? abs(absolute_diff / max_expect) : relative_diff_self;
-    if (relative_diff_self > max_diff) {
-      max_diff = relative_diff_self;
-      offset   = i;
-    }
-    if (relative_diff_self > max_relative_error) {
-      num_diffs_self += 1;
-      VLOG(4) << "- i=" << i << ", " << std::setprecision(8) << actual[i] << " (actual) vs " << std::setprecision(8)
-              << expect[i] << " (expect), relative_diff_self=" << relative_diff_self
-              << ", absolute_diff=" << absolute_diff;
-    }
-    if (compare_with_max_expect && relative_diff > max_relative_error) {
+    if (!allclose(actual[i], expect[i], atol, rtol)) {
+      float absolute_diff = abs((actual[i] - expect[i]));
+      float relative_diff = abs(absolute_diff / expect[i]);
+      if (relative_diff > max_diff) {
+        max_diff = relative_diff;
+        offset   = i;
+      }
       num_diffs += 1;
+      VLOG(4) << "- i=" << i << ", " << std::setprecision(8) << actual[i] << " (actual) vs " << std::setprecision(8)
+              << expect[i] << " (expect), relative_diff=" << relative_diff << ", absolute_diff=" << absolute_diff;
     }
-  }
-  if (compare_with_max_expect) {
-    LOG(INFO) << "- Use `abs(actual[i] - expect[i] / max(expect))` to compute relative error, abs(max(expect))="
-              << max_expect << ", total " << num_diffs_self
-              << " results's relative error (calculated by `abs((actual[i] - expect[i]) / expect[i])`) greater than "
-              << max_relative_error;
-  } else {
-    num_diffs = num_diffs_self;
   }
   LOG(INFO) << "- Total " << num_diffs << " different results, offset=" << offset << ", " << actual[offset]
-            << " (actual) vs " << expect[offset] << " (expect), maximum_relative_diff_self=" << max_diff
+            << " (actual) vs " << expect[offset] << " (expect), maximum_relative_diff=" << max_diff
             << " (absolute_diff=" << abs((actual[offset] - expect[offset])) << ")";
   ASSERT_EQ(num_diffs, 0);
 }
@@ -239,9 +219,10 @@ void RunAndCheck(NetBuilder& builder,
                  const std::vector<std::string>& output_names,
                  const std::vector<std::vector<int>>& output_shapes,
                  CPUKernelFunc cpu_kernel_func,
-                 double max_relative_error = 1e-5,
-                 T low                     = 0,
-                 T high                    = 1) {
+                 T low      = 0,
+                 T high     = 1,
+                 float atol = 1e-8,
+                 float rtol = 1e-5) {
   std::vector<std::vector<T>> input_vecs;
   std::vector<std::vector<T>> output_vecs;
   RunAndCheckShape<T>(builder, input_names, output_names, output_shapes, &input_vecs, &output_vecs, low, high);
@@ -251,7 +232,7 @@ void RunAndCheck(NetBuilder& builder,
 
   for (size_t i = 0; i < output_vecs.size(); ++i) {
     LOG(INFO) << "Check the " << i << "-th output, name=" << output_names[i] << ", shape=" << output_shapes[i];
-    CheckOutput<T>(output_vecs[i], output_refs[i], max_relative_error);
+    CheckOutput<T>(output_vecs[i], output_refs[i], atol, rtol);
   }
 }
 
