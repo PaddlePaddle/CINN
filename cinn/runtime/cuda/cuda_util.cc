@@ -66,16 +66,18 @@ class CudnnHelper {
   }
 
   int8_t *GetWorkspace(size_t size) {
-    work_space_mtx_.lock();
     if (size > work_space_size_) {
+      absl::WriterMutexLock lock(&work_space_reader_writer_);
       work_space_size_ = size;
       CUDA_CALL(cudaFree(work_space_ptr_));
       CUDA_CALL(cudaMalloc(&work_space_ptr_, size));
     }
+
+    work_space_reader_writer_.ReaderLock();
     return work_space_ptr_;
   }
 
-  void ReleaseWorkspace() { work_space_mtx_.unlock(); }
+  void ReleaseWorkspace() { work_space_reader_writer_.ReaderUnlock(); }
 
   ~CudnnHelper() {
     CUDNN_CALL(cudnnDestroy(handle_));
@@ -101,7 +103,8 @@ class CudnnHelper {
 
   int8_t *work_space_ptr_{nullptr};
   size_t work_space_size_{0};
-  std::mutex work_space_mtx_;
+  // std::mutex work_space_mtx_;
+  absl::Mutex work_space_reader_writer_;
 };
 static CudnnHelper &cudnn_helper_init = CudnnHelper::Instance();
 

@@ -52,6 +52,19 @@ set(ABSL_LIB_NAMES
   bad_optional_access
   bad_variant_access
   raw_hash_set
+  synchronization
+  graphcycles_internal
+  raw_logging_internal
+  spinlock_wait
+  symbolize
+  stacktrace
+  debugging_internal
+  base
+  time
+  malloc_internal
+  time_zone
+  int128
+  demangle_internal
   )
 set(ABSL_LIBS "")
 
