@@ -69,8 +69,11 @@ void PaddleModelToProgram::AddOpMapper_feed() {
 void PaddleModelToProgram::AddOpMapper_fetch() {
   op_mappers_["fetch"] = [&](const paddle::cpp::OpDesc& op_desc) {
     CHECK_EQ(op_desc.Input("X").size(), 1UL);
-    auto output_name = op_desc.Input("X").front();
-    LOG(INFO) << "detect model output: [" << output_name << "]";
+    auto output_names = op_desc.Input("X");
+    for (auto& output_name : output_names) {
+      LOG(INFO) << "fetch model output: [" << output_name << "]";
+      fetch_names_.insert(utils::TransValidVarName(output_name));
+    }
   };
 }
 

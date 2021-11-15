@@ -264,11 +264,12 @@ std::ostream& operator<<(std::ostream& os, const Instruction& instr) {
 
 std::tuple<std::unique_ptr<Program>,
            absl::flat_hash_map<std::string, Variable>,
-           absl::flat_hash_map<std::string, std::string>>
+           absl::flat_hash_map<std::string, std::string>,
+           absl::flat_hash_set<std::string>>
 LoadPaddleProgram(const std::string& model_dir, Scope* scope, bool is_combined, const common::Target& target) {
   LOG(INFO) << "Loading Paddle model from " << model_dir;
   PaddleModelToProgram _(scope, target);
-  return std::make_tuple(_(model_dir, is_combined), _.var_map(), _.var_model_to_program_map());
+  return std::make_tuple(_(model_dir, is_combined), _.var_map(), _.var_model_to_program_map(), _.fetch_names());
 }
 
 void Program::SetInputs(const std::vector<Variable>& xs) {

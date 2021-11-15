@@ -15,6 +15,7 @@
 #pragma once
 
 #include <absl/container/flat_hash_map.h>
+#include <absl/container/flat_hash_set.h>
 #include <absl/types/variant.h>
 #include <glog/logging.h>
 
@@ -104,6 +105,7 @@ class PaddleModelToProgram {
 
   const absl::flat_hash_map<std::string, Variable>& var_map() const { return var_map_; }
   const absl::flat_hash_map<std::string, std::string>& var_model_to_program_map() { return var_model_to_program_map_; }
+  const absl::flat_hash_set<std::string>& fetch_names() { return fetch_names_; }
 
  protected:
   void AddVar(const std::string& name, const Variable& var, bool replace = false);
@@ -118,6 +120,7 @@ class PaddleModelToProgram {
   absl::flat_hash_map<std::string, std::function<void(const paddle::cpp::OpDesc&)>> op_mappers_;
   std::unique_ptr<Program> program_;
   absl::flat_hash_map<std::string, Variable> var_map_;
+  absl::flat_hash_set<std::string> fetch_names_;
   // map from var in Paddle model to var name in program.
   absl::flat_hash_map<std::string, std::string> var_model_to_program_map_;
   hlir::framework::Scope* scope_{};

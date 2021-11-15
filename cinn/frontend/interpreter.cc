@@ -39,6 +39,7 @@ struct Interpreter::Impl {
   friend class Interpreter;
 
   std::vector<std::string> input_names_;
+  absl::flat_hash_set<std::string> fetch_names_;
   std::vector<hlir::framework::shape_t> input_shapes_;
 
   std::shared_ptr<hlir::framework::Scope> scope_;
@@ -58,9 +59,11 @@ void Interpreter::LoadPaddleModel(const std::string& model_dir, const Target& ta
   auto& program                   = std::get<0>(programTuple);
   auto& var_map                   = std::get<1>(programTuple);
   auto& var_map_paddle_to_program = std::get<2>(programTuple);
+  auto& fetch_names               = std::get<3>(programTuple);
   impl_->program_.reset(program.release());
   impl_->var_map_                = var_map;
   impl_->var_map_paddle_to_cinn_ = var_map_paddle_to_program;
+  impl_->fetch_names_            = fetch_names;
 
   impl_->Build(impl_->input_names_, impl_->input_shapes_, target);
 }
@@ -109,7 +112,14 @@ void Interpreter::Impl::Build(const std::vector<std::string>& input_names,
   hlir::framework::ApplyPass(graph.get(), "OpFusion");
   // Target target = common::DefaultHostTarget();
   scope_ = hlir::framework::BuildScope(target, graph, scope_);
-  graph_compiler_.reset(new hlir::framework::GraphCompiler(target, scope_, graph));
+
+  std::unordered_set<std::string> fetch_var_names;
+  for (auto& name : fetch_names_) {
+    CHECK(var_map_.count(name)) << "var_map finds no fetch var " << name;
+    fetch_var_names.insert(var_map_.at(name)->id);
+  }
+
+  graph_compiler_.reset(new hlir::framework::GraphCompiler(target, scope_, graph, fetch_var_names));
   runtime_program_ = graph_compiler_->Build();
   runtime_program_->PreRun();
 }

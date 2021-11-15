@@ -221,7 +221,7 @@ void Program::ExecuteTest(int repeat_) {
   }
 #endif
   double test_op_time = timer1.Stop() / repeat_;
-  LOG(INFO) << "Repeat times: [" << repeat_ << "], average op time: [" << test_op_time << "] ms";
+  VLOG(3) << "Repeat times: [" << repeat_ << "], average op time: [" << test_op_time << "] ms";
 }
 
 void GraphCompiler::PrintFunc() {
@@ -355,6 +355,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
   std::unordered_set<NodeData*> in_vars;
   std::unordered_set<NodeData*> out_vars;
   absl::flat_hash_map<NodeData*, Expr> temp_var_map;
+  absl::flat_hash_set<ir::Tensor> fetch_tensors;
   ir::Tensor master_out_tensor;
   int master_index = GetMasterRefNode(nodes);
   for (auto& node : nodes) {
@@ -368,7 +369,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
       auto source_data = source->as<NodeData>();
       CHECK(source_data);
       if (temp_var_map.count(source_data)) {
-        VLOG(3) << "fuse var: " << source_data->id();
+        VLOG(3) << "duplicate var: " << source_data->id();
         Expr fuse_out = temp_var_map[source_data];
         cinn_inputs.push_back(common::CINNValue(fuse_out));
         temp_inputs.push_back(fuse_out.as_tensor_ref());
@@ -421,7 +422,13 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
     CHECK_GE(C.size(), 2);
     CHECK_LE(C.size() - 1, node->outlinks_in_order().size());
     for (int i = 0; i < C.size() - 1; i++) {
-      temp_var_map[temp_outvars[i]] = C[i];
+      Expr out                      = C[i];
+      temp_var_map[temp_outvars[i]] = out;
+      if (fetch_var_names_.count(temp_outvars[i]->id())) {
+        VLOG(3) << "get fetch output var " << temp_outvars[i]->id();
+        CHECK(out.as_tensor());
+        fetch_tensors.insert(out.as_tensor_ref());
+      }
     }
     poly::StageMap temp_stages = C.back();
 
@@ -431,31 +438,36 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
     }
     for (int i = 0; i < C->size() - 1; i++) {
       ir::Expr temp = C[i];
-      stages->InsertLazily(temp.as_tensor_ref(), temp_stages[temp.as_tensor_ref()]);
-      if (index < fuse_number - 1 && !temp.as_tensor_ref()->is_reduce_tensor()) {
+      CHECK(temp.as_tensor());
+      auto temp_tensor = temp.as_tensor_ref();
+      stages->InsertLazily(temp_tensor, temp_stages[temp_tensor]);
+      if (index < fuse_number - 1 && !temp_tensor->is_reduce_tensor()) {
         // assume that only the first out_var links to other op node which will compute inline
-        if (i == 0) {
-          VLOG(3) << "inline " << temp.as_tensor_ref()->name;
-          stages[temp.as_tensor_ref()]->ComputeInline();
+        if (fetch_tensors.count(temp_tensor)) {
+          VLOG(3) << "add op's fetch out_vars: " << temp_tensor->name;
+          outputs.insert(outputs.begin(), temp_tensor);
+        } else if (i == 0) {
+          VLOG(3) << "inline " << temp_tensor->name;
+          stages[temp_tensor]->ComputeInline();
         } else {
-          VLOG(3) << "add middle op's other out_vars: " << temp.as_tensor_ref()->name;
-          outputs.push_back(temp.as_tensor_ref());
+          VLOG(3) << "add middle op's other out_vars: " << temp_tensor->name;
+          outputs.push_back(temp_tensor);
         }
-      } else if (index < fuse_number - 1 && temp.as_tensor_ref()->is_reduce_tensor()) {
-        VLOG(3) << "temp buffer " << temp.as_tensor_ref()->name;
-        if (target_.arch == Target::Arch::X86) {
-          CHECK_NE(i, 0);
-          outputs.push_back(temp.as_tensor_ref());
+      } else if (index < fuse_number - 1 && temp_tensor->is_reduce_tensor()) {
+        VLOG(3) << "temp buffer " << temp_tensor->name;
+        if (target_.arch == Target::Arch::X86 || fetch_tensors.count(temp_tensor)) {
+          VLOG(3) << "add op's out_vars: " << temp_tensor->name;
+          outputs.push_back(temp_tensor);
         } else {
-          temp.as_tensor_ref()->WithBuffer("local", "_" + temp.as_tensor_ref()->name + "_temp_buffer");
-          stages[temp.as_tensor_ref()]->SetScope(poly::ScopeKind::kLocal);
+          temp_tensor->WithBuffer("local", "_" + temp_tensor->name + "_temp_buffer");
+          stages[temp_tensor]->SetScope(poly::ScopeKind::kLocal);
         }
       } else {
         if (index == fuse_number - 1) {
           // final output tensor
-          outputs.insert(outputs.begin(), temp.as_tensor_ref());
+          outputs.insert(outputs.begin(), temp_tensor);
         } else {
-          outputs.push_back(temp.as_tensor_ref());
+          outputs.push_back(temp_tensor);
         }
       }
     }
@@ -463,7 +475,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
   }
   fuse_name += "fused";
   VLOG(3) << "fuse_name: " << fuse_name;
-  // args order: inputs + final output + other no_fused outputs
+  // args order: inputs + final output + fetch outputs + other no_fused outputs
   inputs.insert(inputs.end(), outputs.begin(), outputs.end());
 
   ir::Tensor final_out_tensor = outputs.front();
@@ -493,6 +505,14 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
         }
       }
     }
+  }
+  // deal with fetch tensors, not compute_inline but do compute_at
+  for (auto& fetch_tensor : fetch_tensors) {
+    if (fetch_tensor->is_reduce_tensor() || fetch_tensor->name == final_out_tensor->name) continue;
+    stages[fetch_tensor]->DisableComputeInline();
+    int level = stages[final_out_tensor]->n_out_dims() - 1;
+    stages[fetch_tensor]->ComputeAt(stages[final_out_tensor], level);
+    VLOG(3) << "no fuse fetch tensor " << fetch_tensor->name << " and recomputeAt in level " << level;
   }
 
   auto func = lang::LowerVec(GetOrGenFullFuncName(fuse_name), stages, inputs, {}, {}, nullptr, this->target_);
@@ -805,9 +825,13 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
           if (!names_set.count(temp_outputnames[j])) {
             names_set.insert(temp_outputnames[j]);
             // assume that the first out_var of the op node is the fused var
-            if (j == 0 && i != group.size() - 1) continue;
+            bool is_fetch = fetch_var_names_.count(temp_outputnames[j]);
+            if (j == 0 && i != group.size() - 1 && !is_fetch) continue;
             if (j == 0 && i == group.size() - 1) {
               outputNames.insert(outputNames.begin(), temp_outputnames[0]);
+            } else if (is_fetch) {
+              VLOG(3) << "fetch var " << temp_outputnames[j];
+              outputNames.insert(outputNames.begin(), temp_outputnames[j]);
             } else {
               outputNames.push_back(temp_outputnames[j]);
             }
