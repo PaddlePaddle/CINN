@@ -49,28 +49,39 @@ struct BatchNormHelper {
     return builder->BroadcastTo(builder->ConstScalar<T>(value, common::UniqName(name)), shape, {0});
   }
 
-  Variable Mean(Variable x, Variable element_count_1d) {
-    auto sum  = builder->Reduce(x, ReduceKind::kSum, reduce_dim);
-    auto mean = builder->Div(sum, element_count_1d);
+  // mean = reduce_sum(x) / nhw
+  Variable Mean(Variable x) {
+    auto element_count_1d = GetTensorFromScalar<float>(element_count, "element_count", param_shape);
+    auto sum              = builder->Reduce(x, ReduceKind::kSum, reduce_dim);
+    auto mean             = builder->Div(sum, element_count_1d);
     return mean;
   }
 
-  Variable Variance(Variable x, Variable mean, Variable element_count_1d) {
-    auto x_square      = builder->Mul(x, builder->Identity(x));
-    auto x_square_sum  = builder->Reduce(x_square, ReduceKind::kSum, reduce_dim);
-    auto x_square_mean = builder->Div(x_square_sum, element_count_1d);
-    auto variance      = builder->Sub(x_square_mean, builder->Mul(mean, builder->Identity(mean)));
+  // variance = reduce_sum(x * x) / nhw - mean * mean
+  Variable Variance(Variable x, Variable mean) {
+    auto element_count_1d = GetTensorFromScalar<float>(element_count, "element_count", param_shape);
+    auto x_square         = builder->Mul(x, builder->Identity(x));
+    auto x_square_sum     = builder->Reduce(x_square, ReduceKind::kSum, reduce_dim);
+    auto x_square_mean    = builder->Div(x_square_sum, element_count_1d);
+    auto variance         = builder->Sub(x_square_mean, builder->Mul(mean, builder->Identity(mean)));
     return variance;
   }
 
+  // std_variance_inv = rsqrt(variance + epsilon)
   Variable StdVarianceInv4d(Variable variance, float epsilon) {
-    // auto epsilon_1d          = GetTensorFromScalar<float>(epsilon, "epsilon", param_shape);
-    // auto std_variance_inv    = builder->Rsqrt(builder->Add(variance, epsilon_1d));
-    // auto std_variance_inv_4d = builder->BroadcastTo(std_variance_inv, x_shape, {channel_dim});
     auto epsilon_4d          = GetTensorFromScalar<float>(epsilon, "epsilon", x_shape);
     auto variance_4d         = builder->BroadcastTo(variance, x_shape, {channel_dim});
     auto std_variance_inv_4d = builder->Rsqrt(builder->Add(variance_4d, epsilon_4d));
     return std_variance_inv_4d;
+  }
+
+  // moving_value = moving_value * momentum + (1.0 - momentum) * saved_value
+  // value maybe mean and variance.
+  Variable UpdateMeanVariance(Variable moving_value, Variable saved_value, float momentum) {
+    auto factor_0         = GetTensorFromScalar<float>(momentum, "factor_0", moving_value->shape);
+    auto factor_1         = GetTensorFromScalar<float>(1.0f - momentum, "factor_1", moving_value->shape);
+    auto new_moving_value = builder->Add(builder->Mul(moving_value, factor_0), builder->Mul(saved_value, factor_1));
+    return new_moving_value;
   }
 
   CinnBuilder* builder{nullptr};
@@ -100,14 +111,12 @@ void batch_norm_train(const Instruction& instr, const DecomposerContext& context
   CinnBuilder* builder = context.builder();
   BatchNormHelper helper(builder, x->shape, scale->shape, layout);
 
-  auto element_count_1d = helper.GetTensorFromScalar<float>(helper.element_count, "element_count", scale->shape);
-
   // mean = reduce_sum(x) / nhw, shape = [c]
-  auto mean    = helper.Mean(x, element_count_1d);
+  auto mean    = helper.Mean(x);
   auto mean_4d = builder->BroadcastTo(mean, x->shape, {helper.channel_dim});
 
   // variance = reduce_sum(x * x) / nhw - mean * mean, shape = [c], simplified by equation: E(x^2) - [E(x)]^2
-  auto variance = helper.Variance(x, mean, element_count_1d);
+  auto variance = helper.Variance(x, mean);
 
   // std_variance_inv = rsqrt(variance + epsilon), shape = [c]
   auto std_variance_inv_4d = helper.StdVarianceInv4d(variance, epsilon);
@@ -119,14 +128,11 @@ void batch_norm_train(const Instruction& instr, const DecomposerContext& context
   auto scaled_normalized = builder->Mul(normalized, scale_4d);
   auto y                 = builder->Add(scaled_normalized, bias_4d);
 
-  auto factor_0 = helper.GetTensorFromScalar<float>(momentum, "factor_0", moving_mean->shape);
-  auto factor_1 = helper.GetTensorFromScalar<float>(1.0f - momentum, "factor_1", moving_mean->shape);
-
   // moving_mean = moving_mean * momentum + (1.0 - momentum) * mean, shape = [c]
-  auto new_moving_mean = builder->Add(builder->Mul(moving_mean, factor_0), builder->Mul(mean, factor_1));
+  auto new_moving_mean = helper.UpdateMeanVariance(moving_mean, mean, momentum);
 
   // moving_variance = moving_variance * momentum + (1.0 - momentum) * variance, shape = [c]
-  auto new_moving_variance = builder->Add(builder->Mul(moving_variance, factor_0), builder->Mul(variance, factor_1));
+  auto new_moving_variance = helper.UpdateMeanVariance(moving_variance, variance, momentum);
 
   context.MapOutToOrigin(y, instr->outputs[0]);
   context.MapOutToOrigin(mean, instr->outputs[1]);
