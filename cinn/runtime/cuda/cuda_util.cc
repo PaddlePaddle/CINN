@@ -59,31 +59,44 @@ class CudnnHelper {
   }
 
   int8_t *GetWorkspace(size_t size) {
-    if (size > work_space_size_) {
-      absl::WriterMutexLock lock(&work_space_reader_writer_);
-      work_space_size_ = size;
-      CUDA_CALL(cudaFree(work_space_ptr_));
-      CUDA_CALL(cudaMalloc(&work_space_ptr_, size));
+    std::lock_guard<std::mutex> lock(workspace_mtx_);
+    if (size > workspace_size_) {
+      if (workspace_ptr_ && reference_[workspace_ptr_] == 0) {
+        reference_.erase(workspace_ptr_);
+        CUDA_CALL(cudaFree(workspace_ptr_));
+      }
+      CUDA_CALL(cudaMalloc(&workspace_ptr_, size));
+      reference_[workspace_ptr_] = 0;
     }
 
-    work_space_reader_writer_.ReaderLock();
-    return work_space_ptr_;
+    reference_[workspace_ptr_] += 1;
+    return workspace_ptr_;
   }
 
-  void ReleaseWorkspace() { work_space_reader_writer_.ReaderUnlock(); }
+  void ReleaseWorkspace(int8_t *ptr) {
+    std::lock_guard<std::mutex> lock(workspace_mtx_);
+
+    reference_[ptr] -= 1;
+    if (ptr != workspace_ptr_ && reference_[ptr] == 0) {
+      reference_.erase(workspace_ptr_);
+      CUDA_CALL(cudaFree(workspace_ptr_));
+    }
+  }
 
   ~CudnnHelper() {
     CUDNN_CALL(cudnnDestroy(handle_));
-    if (work_space_size_ > 0) {
-      CUDA_CALL(cudaFree(work_space_ptr_));
+    if (workspace_ptr_) {
+      CUDA_CALL(cudaFree(workspace_ptr_));
     }
   }
 
-  static std::string GetAlgoKey(const std::string &conv_type, const std::vector<int> &shapes) {
+  static std::string GenAlgoKey(const std::string &conv_type, const std::vector<std::vector<int>> &shapes) {
     CHECK_EQ(shapes.size(), 12);
     std::string key = conv_type;
-    for (auto &value : shapes) {
-      key += "_" + std::to_string(value);
+    for (auto &shape : shapes) {
+      for (auto &value : shape) {
+        key += "_" + std::to_string(value);
+      }
     }
     return key;
   }
@@ -94,11 +107,18 @@ class CudnnHelper {
   cudnnHandle_t handle_{nullptr};
   absl::flat_hash_map<std::string, int> cudnn_algo_map_;
 
-  int8_t *work_space_ptr_{nullptr};
-  size_t work_space_size_{0};
-  absl::Mutex work_space_reader_writer_;
+  size_t workspace_size_{0};
+  int8_t *workspace_ptr_{nullptr};
+
+  std::mutex workspace_mtx_;
+  std::unordered_map<int8_t *, int> reference_;
 };
+
 static CudnnHelper &cudnn_helper_init = CudnnHelper::Instance();
+
+void CUDART_CB ReleaseWorkspace(void *args) {
+  CudnnHelper::Instance().ReleaseWorkspace(reinterpret_cast<int8_t *>(args));
+}
 
 void cinn_gpu_cublas_mul(const std::vector<int> &attrs,
                          cinn_buffer_t *input1,
@@ -222,19 +242,10 @@ void cinn_gpu_cudnn_conv2d(const absl::flat_hash_map<std::string, int> &attr,
   if (GetCinnCudnnDeterministic()) {
     algo = static_cast<cudnnConvolutionFwdAlgo_t>(1);
   } else {
-    auto algo_key = CudnnHelper::GetAlgoKey("conv2d_forward",
-                                            {input_n,
-                                             input_c,
-                                             input_h,
-                                             input_w,
-                                             weights_n,
-                                             weights_c,
-                                             weights_h,
-                                             weights_w,
-                                             output_n,
-                                             output_c,
-                                             output_h,
-                                             output_w});
+    auto algo_key = CudnnHelper::GenAlgoKey("conv2d_forward",
+                                            {{input_n, input_c, input_h, input_w},
+                                             {weights_n, weights_c, weights_h, weights_w},
+                                             {output_n, output_c, output_h, output_w}});
     int algo_int  = CudnnHelper::Instance().GetAlgo(algo_key);
     if (algo_int >= 0) {
       algo = cudnnConvolutionFwdAlgo_t(algo_int);
@@ -261,8 +272,7 @@ void cinn_gpu_cudnn_conv2d(const absl::flat_hash_map<std::string, int> &attr,
   CUDNN_CALL(cudnnConvolutionForward(
       handle, alpha, x_desc, _x, w_desc, _w, conv_desc, algo, workspace, ws_size, beta, y_desc, _y));
   if (ws_size > 0) {
-    CUDA_CALL(cudaStreamSynchronize(nullptr));
-    CudnnHelper::Instance().ReleaseWorkspace();
+    CUDA_CALL(cudaLaunchHostFunc(nullptr, ReleaseWorkspace, workspace));
   }
 
   CUDNN_CALL(cudnnDestroyTensorDescriptor(x_desc));
@@ -326,19 +336,10 @@ void cinn_gpu_cudnn_conv2d_backward_data(const absl::flat_hash_map<std::string, 
   if (GetCinnCudnnDeterministic()) {
     algo = CUDNN_CONVOLUTION_BWD_DATA_ALGO_1;
   } else {
-    auto algo_key = CudnnHelper::GetAlgoKey("conv2d_backward_data",
-                                            {input_n,
-                                             input_c,
-                                             input_h,
-                                             input_w,
-                                             weights_n,
-                                             weights_c,
-                                             weights_h,
-                                             weights_w,
-                                             output_n,
-                                             output_c,
-                                             output_h,
-                                             output_w});
+    auto algo_key = CudnnHelper::GenAlgoKey("conv2d_backward_data",
+                                            {{input_n, input_c, input_h, input_w},
+                                             {weights_n, weights_c, weights_h, weights_w},
+                                             {output_n, output_c, output_h, output_w}});
     int algo_int  = CudnnHelper::Instance().GetAlgo(algo_key);
     if (algo_int >= 0) {
       algo = cudnnConvolutionBwdDataAlgo_t(algo_int);
@@ -365,8 +366,7 @@ void cinn_gpu_cudnn_conv2d_backward_data(const absl::flat_hash_map<std::string, 
   CUDNN_CALL(cudnnConvolutionBackwardData(
       handle, alpha, w_desc, _w, y_desc, _dy, conv_desc, algo, workspace, ws_size, beta, x_desc, _dx));
   if (ws_size > 0) {
-    CUDA_CALL(cudaStreamSynchronize(nullptr));
-    CudnnHelper::Instance().ReleaseWorkspace();
+    CUDA_CALL(cudaLaunchHostFunc(nullptr, ReleaseWorkspace, workspace));
   }
 
   CUDNN_CALL(cudnnDestroyTensorDescriptor(x_desc));
@@ -430,19 +430,10 @@ void cinn_gpu_cudnn_conv2d_backward_filter(const absl::flat_hash_map<std::string
   if (GetCinnCudnnDeterministic()) {
     algo = CUDNN_CONVOLUTION_BWD_FILTER_ALGO_1;
   } else {
-    auto algo_key = CudnnHelper::GetAlgoKey("conv2d_backward_filter",
-                                            {input_n,
-                                             input_c,
-                                             input_h,
-                                             input_w,
-                                             weights_n,
-                                             weights_c,
-                                             weights_h,
-                                             weights_w,
-                                             output_n,
-                                             output_c,
-                                             output_h,
-                                             output_w});
+    auto algo_key = CudnnHelper::GenAlgoKey("conv2d_backward_filter",
+                                            {{input_n, input_c, input_h, input_w},
+                                             {weights_n, weights_c, weights_h, weights_w},
+                                             {output_n, output_c, output_h, output_w}});
     int algo_int  = CudnnHelper::Instance().GetAlgo(algo_key);
     if (algo_int >= 0) {
       algo = cudnnConvolutionBwdFilterAlgo_t(algo_int);
@@ -469,8 +460,7 @@ void cinn_gpu_cudnn_conv2d_backward_filter(const absl::flat_hash_map<std::string
   CUDNN_CALL(cudnnConvolutionBackwardFilter(
       handle, alpha, x_desc, _x, y_desc, _dy, conv_desc, algo, workspace, ws_size, beta, w_desc, _dw));
   if (ws_size > 0) {
-    CUDA_CALL(cudaStreamSynchronize(nullptr));
-    CudnnHelper::Instance().ReleaseWorkspace();
+    CUDA_CALL(cudaLaunchHostFunc(nullptr, ReleaseWorkspace, workspace));
   }
 
   CUDNN_CALL(cudnnDestroyTensorDescriptor(x_desc));
