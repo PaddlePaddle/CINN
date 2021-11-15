@@ -78,8 +78,8 @@ class CudnnHelper {
 
     reference_[ptr] -= 1;
     if (ptr != workspace_ptr_ && reference_[ptr] == 0) {
-      reference_.erase(workspace_ptr_);
-      CUDA_CALL(cudaFree(workspace_ptr_));
+      reference_.erase(ptr);
+      CUDA_CALL(cudaFree(ptr));
     }
   }
 
