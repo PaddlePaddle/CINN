@@ -125,6 +125,14 @@ void CodeGenCUDA_Dev::Visit(const ir::_LoweredFunc_ *op) {
   Print(func_body);
 }
 
+void CodeGenCUDA_Dev::Visit(const ir::_Var_ *op) {
+  if (utils::Startswith(op->name, "threadIdx") || utils::Startswith(op->name, "blockIdx")) {
+    os() << "(int)" + op->name;
+  } else {
+    os() << op->name;
+  }
+}
+
 void CodeGenCUDA_Dev::Visit(const ir::Alloc *op) {
   CHECK(op->destination.as_buffer());
   PrintTempBufferCreation(op->destination.as_buffer_ref());
@@ -148,7 +156,16 @@ void CodeGenCUDA_Dev::Visit(const ir::Max *op) {
 
 void CodeGenCUDA_Dev::PrintFunctionDeclaration(const ir::_LoweredFunc_ *op) {
   // os() << "void " << GenKernelName(op->name) << "(";
-  os() << "void " << op->name << "(";
+  os() << "void ";
+  if (op->cuda_axis_info.valid()) {
+    int thread_num = 1;
+    for (int i = 0; i < 3; i++) {
+      thread_num *= op->cuda_axis_info.block_dim(i);
+    }
+    os() << "__launch_bounds__(" << thread_num << ") ";
+  }
+
+  os() << op->name << "(";
   for (int i = 0; i < op->args.size() - 1; i++) {
     auto &arg = op->args[i];
     PrintFuncArg(arg);

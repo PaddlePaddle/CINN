@@ -739,6 +739,7 @@ void Conv2d_NCHWc_1X1_Schedule_CPU(poly::StageMap stages,
   if (do_padding) {
     CHECK_GE(stages[input_pad]->n_out_dims(), 3U) << "input_pad's out_dims should be more than 3";
     stages[input_pad]->Fuse({0, 1, 2});
+    stages[input_pad]->Vectorize(stages[input_pad]->n_out_dims() - 1, input_pad->shape.back().as_int32());
   } else {
     stages[input_pad]->ComputeInline();
   }
@@ -1065,6 +1066,7 @@ void Conv2d_NCHWc_Schedule_CPU(poly::StageMap stages,
   if (do_padding) {
     CHECK_GE(stages[input_pad]->n_out_dims(), 3U) << "input_pad's out_dims should be more than 3";
     stages[input_pad]->Fuse({0, 1, 2});
+    stages[input_pad]->Vectorize(stages[input_pad]->n_out_dims() - 1, input_pad->shape.back().as_int32());
   } else {
     stages[input_pad]->ComputeInline();
   }
