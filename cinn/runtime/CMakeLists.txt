@@ -1,6 +1,7 @@
 core_gather_headers()
 
 gather_srcs(cinnapi_src SRCS
+  flags.cc
   intrinsic.cc
   cinn_runtime.cc
   intrinsic_types.cc

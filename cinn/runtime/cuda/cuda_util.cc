@@ -24,13 +24,8 @@
 #include "cinn/backends/cuda_util.h"
 #include "cinn/backends/extern_func_jit_register.h"
 #include "cinn/common/target.h"
+#include "cinn/runtime/flags.h"
 #include "cinn/utils/timer.h"
-
-DEFINE_bool(cinn_cudnn_deterministic,
-            false,
-            "Whether allow using an autotuning algorithm for convolution "
-            "operator. The autotuning algorithm may be non-deterministic. If "
-            "true, the algorithm is deterministic.");
 
 namespace cinn {
 namespace runtime {
