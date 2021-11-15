@@ -24,11 +24,7 @@
 #include "cinn/common/target.h"
 #include "cinn/utils/timer.h"
 
-DEFINE_bool(cinn_cudnn_deterministic,
-            false,
-            "Whether allow using an autotuning algorithm for convolution "
-            "operator. The autotuning algorithm may be non-deterministic. If "
-            "true, the algorithm is deterministic.");
+DECLARE_bool(cinn_cudnn_deterministic);
 
 namespace cinn {
 namespace runtime {
