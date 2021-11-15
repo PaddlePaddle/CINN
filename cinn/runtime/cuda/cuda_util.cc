@@ -22,13 +22,8 @@
 #include "cinn/backends/cuda_util.h"
 #include "cinn/backends/extern_func_jit_register.h"
 #include "cinn/common/target.h"
+#include "cinn/runtime/flags.h"
 #include "cinn/utils/timer.h"
-
-DEFINE_bool(cinn_cudnn_deterministic,
-            false,
-            "Whether allow using an autotuning algorithm for convolution "
-            "operator. The autotuning algorithm may be non-deterministic. If "
-            "true, the algorithm is deterministic.");
 
 namespace cinn {
 namespace runtime {
@@ -194,7 +189,7 @@ void cinn_gpu_cudnn_conv2d(const absl::flat_hash_map<std::string, int> &attr,
       cudnnSetTensor4dDescriptor(y_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, output_n, output_c, output_h, output_w));
 
   cudnnConvolutionFwdAlgo_t algo;
-  if (FLAGS_cinn_cudnn_deterministic) {
+  if (GetCinnCudnnDeterministic()) {
     algo = static_cast<cudnnConvolutionFwdAlgo_t>(1);
   } else {
     absl::flat_hash_map<std::string, int> &algo_map = SerialData::get_instance().GetMap();
@@ -218,7 +213,7 @@ void cinn_gpu_cudnn_conv2d(const absl::flat_hash_map<std::string, int> &attr,
 
   size_t ws_size = 0;
   CUDNN_CALL(cudnnGetConvolutionForwardWorkspaceSize(handle, x_desc, w_desc, conv_desc, y_desc, algo, &ws_size));
-  LOG(INFO) << "forward algo: " << algo << ", workspace_size=" << ws_size;
+  LOG(INFO) << "conv forward algo: " << algo << ", workspace_size=" << ws_size;
   float *ws_data = CudnnHandle::get_instance().GetWorkSpace(ws_size);
 
   float alpha[] = {1.f}, beta[] = {0.f};
@@ -283,7 +278,7 @@ void cinn_gpu_cudnn_conv2d_backward_data(const absl::flat_hash_map<std::string, 
       cudnnSetTensor4dDescriptor(y_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, output_n, output_c, output_h, output_w));
 
   cudnnConvolutionBwdDataAlgo_t algo = CUDNN_CONVOLUTION_BWD_DATA_ALGO_0;
-  if (FLAGS_cinn_cudnn_deterministic) {
+  if (GetCinnCudnnDeterministic()) {
     algo = CUDNN_CONVOLUTION_BWD_DATA_ALGO_1;
   } else {
     absl::flat_hash_map<std::string, int> &algo_map = SerialData::get_instance().GetMap();
@@ -307,7 +302,7 @@ void cinn_gpu_cudnn_conv2d_backward_data(const absl::flat_hash_map<std::string, 
 
   size_t ws_size = 0;
   CUDNN_CALL(cudnnGetConvolutionBackwardDataWorkspaceSize(handle, w_desc, y_desc, conv_desc, x_desc, algo, &ws_size));
-
+  LOG(INFO) << "conv backward data algo: " << algo << ", workspace_size=" << ws_size;
   float *ws_data = CudnnHandle::get_instance().GetWorkSpace(ws_size);
 
   float alpha[] = {1.0f}, beta[] = {0.0f};
@@ -373,7 +368,7 @@ void cinn_gpu_cudnn_conv2d_backward_filter(const absl::flat_hash_map<std::string
       cudnnSetTensor4dDescriptor(y_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, output_n, output_c, output_h, output_w));
 
   cudnnConvolutionBwdFilterAlgo_t algo = CUDNN_CONVOLUTION_BWD_FILTER_ALGO_0;
-  if (FLAGS_cinn_cudnn_deterministic) {
+  if (GetCinnCudnnDeterministic()) {
     algo = CUDNN_CONVOLUTION_BWD_FILTER_ALGO_1;
   } else {
     absl::flat_hash_map<std::string, int> &algo_map = SerialData::get_instance().GetMap();
@@ -397,7 +392,7 @@ void cinn_gpu_cudnn_conv2d_backward_filter(const absl::flat_hash_map<std::string
 
   size_t ws_size = 0;
   CUDNN_CALL(cudnnGetConvolutionBackwardFilterWorkspaceSize(handle, x_desc, y_desc, conv_desc, w_desc, algo, &ws_size));
-
+  LOG(INFO) << "conv backward filter algo: " << algo << ", workspace_size=" << ws_size;
   float *ws_data = ws_data = CudnnHandle::get_instance().GetWorkSpace(ws_size);
 
   float alpha[] = {1.0}, beta[] = {0.0};
