@@ -101,12 +101,9 @@ class CudnnHelper {
 
   int8_t *work_space_ptr_{nullptr};
   size_t work_space_size_{0};
-  // std::mutex work_space_mtx_;
   absl::Mutex work_space_reader_writer_;
 };
 static CudnnHelper &cudnn_helper_init = CudnnHelper::Instance();
-
-void CUDART_CB ReleaseWorkspace(void *userData) { CudnnHelper::Instance().ReleaseWorkspace(); }
 
 void cinn_gpu_cublas_mul(const std::vector<int> &attrs,
                          cinn_buffer_t *input1,
@@ -269,7 +266,8 @@ void cinn_gpu_cudnn_conv2d(const absl::flat_hash_map<std::string, int> &attr,
   CUDNN_CALL(cudnnConvolutionForward(
       handle, alpha, x_desc, _x, w_desc, _w, conv_desc, algo, workspace, ws_size, beta, y_desc, _y));
   if (ws_size > 0) {
-    CUDA_CALL(cudaLaunchHostFunc(nullptr, ReleaseWorkspace, nullptr));
+    CUDA_CALL(cudaStreamSynchronize(nullptr));
+    CudnnHelper::Instance().ReleaseWorkspace();
   }
 
   CUDNN_CALL(cudnnDestroyTensorDescriptor(x_desc));
@@ -372,7 +370,8 @@ void cinn_gpu_cudnn_conv2d_backward_data(const absl::flat_hash_map<std::string, 
   CUDNN_CALL(cudnnConvolutionBackwardData(
       handle, alpha, w_desc, _w, y_desc, _dy, conv_desc, algo, workspace, ws_size, beta, x_desc, _dx));
   if (ws_size > 0) {
-    CUDA_CALL(cudaLaunchHostFunc(nullptr, ReleaseWorkspace, nullptr));
+    CUDA_CALL(cudaStreamSynchronize(nullptr));
+    CudnnHelper::Instance().ReleaseWorkspace();
   }
 
   CUDNN_CALL(cudnnDestroyTensorDescriptor(x_desc));
@@ -436,7 +435,7 @@ void cinn_gpu_cudnn_conv2d_backward_filter(const absl::flat_hash_map<std::string
   if (FLAGS_cinn_cudnn_deterministic) {
     algo = CUDNN_CONVOLUTION_BWD_FILTER_ALGO_1;
   } else {
-    auto algo_key = CudnnHelper::GetAlgoKey("conv2d_backward_data",
+    auto algo_key = CudnnHelper::GetAlgoKey("conv2d_backward_filter",
                                             {input_n,
                                              input_c,
                                              input_h,
@@ -475,7 +474,8 @@ void cinn_gpu_cudnn_conv2d_backward_filter(const absl::flat_hash_map<std::string
   CUDNN_CALL(cudnnConvolutionBackwardFilter(
       handle, alpha, x_desc, _x, y_desc, _dy, conv_desc, algo, workspace, ws_size, beta, w_desc, _dw));
   if (ws_size > 0) {
-    CUDA_CALL(cudaLaunchHostFunc(nullptr, ReleaseWorkspace, nullptr));
+    CUDA_CALL(cudaStreamSynchronize(nullptr));
+    CudnnHelper::Instance().ReleaseWorkspace();
   }
 
   CUDNN_CALL(cudnnDestroyTensorDescriptor(x_desc));
