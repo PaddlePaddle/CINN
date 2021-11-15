@@ -219,7 +219,7 @@ void cinn_gpu_cudnn_conv2d(const absl::flat_hash_map<std::string, int> &attr,
       cudnnSetTensor4dDescriptor(y_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, output_n, output_c, output_h, output_w));
 
   cudnnConvolutionFwdAlgo_t algo = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM;
-  if (FLAGS_cinn_cudnn_deterministic) {
+  if (GetCinnCudnnDeterministic()) {
     algo = static_cast<cudnnConvolutionFwdAlgo_t>(1);
   } else {
     auto algo_key = CudnnHelper::GetAlgoKey("conv2d_forward",
@@ -323,7 +323,7 @@ void cinn_gpu_cudnn_conv2d_backward_data(const absl::flat_hash_map<std::string, 
       cudnnSetTensor4dDescriptor(y_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, output_n, output_c, output_h, output_w));
 
   cudnnConvolutionBwdDataAlgo_t algo = CUDNN_CONVOLUTION_BWD_DATA_ALGO_1;
-  if (FLAGS_cinn_cudnn_deterministic) {
+  if (GetCinnCudnnDeterministic()) {
     algo = CUDNN_CONVOLUTION_BWD_DATA_ALGO_1;
   } else {
     auto algo_key = CudnnHelper::GetAlgoKey("conv2d_backward_data",
@@ -427,7 +427,7 @@ void cinn_gpu_cudnn_conv2d_backward_filter(const absl::flat_hash_map<std::string
       cudnnSetTensor4dDescriptor(y_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, output_n, output_c, output_h, output_w));
 
   cudnnConvolutionBwdFilterAlgo_t algo = CUDNN_CONVOLUTION_BWD_FILTER_ALGO_1;
-  if (FLAGS_cinn_cudnn_deterministic) {
+  if (GetCinnCudnnDeterministic()) {
     algo = CUDNN_CONVOLUTION_BWD_FILTER_ALGO_1;
   } else {
     auto algo_key = CudnnHelper::GetAlgoKey("conv2d_backward_filter",
