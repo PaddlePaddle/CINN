@@ -17,6 +17,7 @@
 #include <glog/logging.h>
 
 #include <algorithm>
+#include <functional>
 #include <thread>
 #include <vector>
 
@@ -44,12 +45,12 @@ class CudnnHelper {
   cudnnHandle_t GetCudnnHandle() { return handle_; }
 
   void InsertAlgo(const std::string &key, const int value) {
-    static std::mutex local_mtx;
-    std::lock_guard<std::mutex> lock(local_mtx);
+    std::lock_guard<std::mutex> lock(cudnn_algo_mtx_);
     cudnn_algo_map_[key] = value;
   }
 
   int GetAlgo(const std::string &key) {
+    std::lock_guard<std::mutex> lock(cudnn_algo_mtx_);
     if (cudnn_algo_map_.count(key) == 0) {
       return -1;
     } else {
@@ -57,37 +58,19 @@ class CudnnHelper {
     }
   }
 
-  int8_t *GetWorkspace(size_t size) {
-    std::lock_guard<std::mutex> lock(workspace_mtx_);
+  std::shared_ptr<int8_t> GetWorkspace(size_t size) {
+    static std::mutex workspace_mtx;
+    std::lock_guard<std::mutex> lock(workspace_mtx);
     if (size > workspace_size_) {
-      if (workspace_ptr_ && reference_[workspace_ptr_] == 0) {
-        reference_.erase(workspace_ptr_);
-        CUDA_CALL(cudaFree(workspace_ptr_));
-      }
-      CUDA_CALL(cudaMalloc(&workspace_ptr_, size));
-      reference_[workspace_ptr_] = 0;
+      int8_t *ptr = nullptr;
+      CUDA_CALL(cudaMalloc(&ptr, size));
+      workspace_ptr_ = std::shared_ptr<int8_t>(ptr, [](int8_t *ptr) { CUDA_CALL(cudaFree(ptr)); });
     }
 
-    reference_[workspace_ptr_] += 1;
     return workspace_ptr_;
   }
 
-  void ReleaseWorkspace(int8_t *ptr) {
-    std::lock_guard<std::mutex> lock(workspace_mtx_);
-
-    reference_[ptr] -= 1;
-    if (ptr != workspace_ptr_ && reference_[ptr] == 0) {
-      reference_.erase(ptr);
-      CUDA_CALL(cudaFree(ptr));
-    }
-  }
-
-  ~CudnnHelper() {
-    CUDNN_CALL(cudnnDestroy(handle_));
-    if (workspace_ptr_) {
-      CUDA_CALL(cudaFree(workspace_ptr_));
-    }
-  }
+  ~CudnnHelper() { CUDNN_CALL(cudnnDestroy(handle_)); }
 
   static std::string GenAlgoKey(const std::string &conv_type, const std::vector<std::vector<int>> &shapes) {
     CHECK_EQ(shapes.size(), 3);
@@ -105,19 +88,18 @@ class CudnnHelper {
   CudnnHelper() { CUDNN_CALL(cudnnCreate(&handle_)); }
 
   cudnnHandle_t handle_{nullptr};
+  std::mutex cudnn_algo_mtx_;
   absl::flat_hash_map<std::string, int> cudnn_algo_map_;
 
   size_t workspace_size_{0};
-  int8_t *workspace_ptr_{nullptr};
-
-  std::mutex workspace_mtx_;
-  std::unordered_map<int8_t *, int> reference_;
+  std::shared_ptr<int8_t> workspace_ptr_;
 };
 
 static CudnnHelper &cudnn_helper_init = CudnnHelper::Instance();
 
 void CUDART_CB ReleaseWorkspace(void *args) {
-  CudnnHelper::Instance().ReleaseWorkspace(reinterpret_cast<int8_t *>(args));
+  std::shared_ptr<int8_t> *share_ptr = reinterpret_cast<std::shared_ptr<int8_t> *>(args);
+  delete share_ptr;
 }
 
 void cinn_gpu_cublas_mul(const std::vector<int> &attrs,
@@ -242,15 +224,14 @@ void CallCudnnConv(const std::vector<int> &input,
     }
   }
 
-  size_t ws_size    = get_workspace_size_func(handle, x_desc, w_desc, conv_desc, y_desc, algo);
-  int8_t *workspace = nullptr;
-  if (ws_size > 0) {
-    workspace = CudnnHelper::Instance().GetWorkspace(ws_size);
-  }
-
-  call_conv_func(handle, x_desc, w_desc, conv_desc, y_desc, algo, workspace, ws_size);
-  if (ws_size > 0) {
-    CUDA_CALL(cudaLaunchHostFunc(nullptr, ReleaseWorkspace, workspace));
+  size_t ws_size = get_workspace_size_func(handle, x_desc, w_desc, conv_desc, y_desc, algo);
+  if (ws_size == 0) {
+    call_conv_func(handle, x_desc, w_desc, conv_desc, y_desc, algo, nullptr, 0);
+  } else {
+    auto args = new std::shared_ptr<int8_t>();
+    *args     = CudnnHelper::Instance().GetWorkspace(ws_size);
+    call_conv_func(handle, x_desc, w_desc, conv_desc, y_desc, algo, args->get(), ws_size);
+    CUDA_CALL(cudaLaunchHostFunc(nullptr, ReleaseWorkspace, args));
   }
 
   CUDNN_CALL(cudnnDestroyTensorDescriptor(x_desc));
