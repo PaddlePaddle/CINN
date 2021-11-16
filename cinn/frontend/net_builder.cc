@@ -22,6 +22,7 @@
 
 namespace cinn {
 namespace frontend {
+
 Variable NetBuilder::identity(const Variable& operand) {
   Instruction instr("identity", {operand});
   InferShape(instr);

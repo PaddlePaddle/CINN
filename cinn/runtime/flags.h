@@ -14,13 +14,11 @@
 
 #pragma once
 
-#include "cinn/common/macros.h"
+namespace cinn {
+namespace runtime {
 
-CINN_USE_REGISTER(activation_decomposers)
-CINN_USE_REGISTER(activation_grad_decomposers)
-CINN_USE_REGISTER(elementwise_decomposers)
-CINN_USE_REGISTER(broadcast_decomposers)
-CINN_USE_REGISTER(broadcast_grad_decomposers)
-CINN_USE_REGISTER(batch_norm_train_decomposer)
-CINN_USE_REGISTER(batch_norm_grad_decomposer)
-CINN_USE_REGISTER(conv2d_grad_decomposer)
+void SetCinnCudnnDeterministic(bool state);
+bool GetCinnCudnnDeterministic();
+
+}  // namespace runtime
+}  // namespace cinn

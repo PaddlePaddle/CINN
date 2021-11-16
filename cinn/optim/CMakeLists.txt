@@ -27,6 +27,7 @@ gather_srcs(cinnapi_src SRCS
     lower_intrin.cc
     cast_bool_to_int8.cc
     collect_undefined_vars.cc
+    var_mod_simplify.cc
     )
 
 if (WITH_CUDA)

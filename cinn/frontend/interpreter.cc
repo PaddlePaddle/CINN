@@ -105,7 +105,7 @@ void Interpreter::Impl::Build(const std::vector<std::string>& input_names,
     hlir::framework::ApplyPass(graph.get(), "AlterLayout");
   }
 #endif
-
+  hlir::framework::ApplyPass(graph.get(), "ConstPropagate");
   hlir::framework::ApplyPass(graph.get(), "OpFusion");
   // Target target = common::DefaultHostTarget();
   scope_ = hlir::framework::BuildScope(target, graph, scope_);

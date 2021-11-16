@@ -13,14 +13,20 @@
 // limitations under the License.
 
 #pragma once
+#include "cinn/ir/ir.h"
 
-#include "cinn/common/macros.h"
+/** simplify expressions with vars' div and mod.
+ *
+ * For example, input the code
+ * \code
+ * ((i_j_k_fused / 3) * 144) + (48 * (i_j_k_fused % 3))
+ * \endcode
+ *
+ * with the `i_j_k_fused` set as var will be simplified to i_j_k_fused
+ *
+ */
+namespace cinn::optim {
 
-CINN_USE_REGISTER(activation_decomposers)
-CINN_USE_REGISTER(activation_grad_decomposers)
-CINN_USE_REGISTER(elementwise_decomposers)
-CINN_USE_REGISTER(broadcast_decomposers)
-CINN_USE_REGISTER(broadcast_grad_decomposers)
-CINN_USE_REGISTER(batch_norm_train_decomposer)
-CINN_USE_REGISTER(batch_norm_grad_decomposer)
-CINN_USE_REGISTER(conv2d_grad_decomposer)
+void VarModSimplify(Expr* e);
+
+}  // namespace cinn::optim

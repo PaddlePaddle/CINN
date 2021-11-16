@@ -336,6 +336,7 @@ void BindFrontend(pybind11::module *m) {
       .def("relu", &NetBuilder::relu, py::arg("a"))
       .def("relu_grad", &NetBuilder::relu_grad, py::arg("dout"), py::arg("out"))
       .def("relu6", &NetBuilder::relu6, py::arg("a"), py::arg("threshold") = 6.0f)
+      .def("reverse", &NetBuilder::reverse, py::arg("x"), py::arg("axis"))
       .def("reduce_sum", &NetBuilder::reduce_sum, py::arg("x"), py::arg("dim"), py::arg("keep_dim") = false)
       .def("conv2d",
            &NetBuilder::conv2d,
@@ -447,7 +448,7 @@ void BindFrontend(pybind11::module *m) {
            py::arg("conv_type")         = "forward",
            py::arg("data_format")       = "NCHW",
            py::arg("padding_algorithm") = "EXPLICIT",
-           py::arg("filter_shape")      = std::vector<int>{})
+           py::arg("output_shape")      = std::vector<int>{})
       .def("compare", &CinnBuilder::Compare, py::arg("lhs"), py::arg("rhs"), py::arg("kind"))
       .def("reduce",
            &CinnBuilder::Reduce,

@@ -22,6 +22,7 @@
 #include "cinn/backends/cuda_util.h"
 #include "cinn/backends/extern_func_jit_register.h"
 #include "cinn/common/target.h"
+#include "cinn/runtime/flags.h"
 #include "cinn/utils/timer.h"
 
 namespace cinn {
@@ -100,7 +101,7 @@ void cinn_call_cuda_kernel(void *kernel_fn,
   void *arr[20];
   CHECK_LT(num_args, 20);
   for (int i = 0; i < num_args; i++) {
-    if (args[i].type_code() == cinn_pod_value_t::type_code<cinn_buffer_t *>()) {
+    if (args[i].type_code() == ::cinn_type_code<cinn_buffer_t *>()) {
       arr[i] = &((cinn_buffer_t *)(args[i]))->memory;  // NOLINT
     } else {
       arr[i] = args[i].data_addr();
@@ -173,6 +174,7 @@ void cinn_gpu_cudnn_conv2d(const absl::flat_hash_map<std::string, int> &attr,
   CUDNN_CALL(cudnnSetConvolution2dDescriptor(
       conv_desc, pad_h, pad_w, stride_h, stride_w, dilation_h, dilation_w, CUDNN_CROSS_CORRELATION, CUDNN_DATA_FLOAT));
   CUDNN_CALL(cudnnSetConvolutionGroupCount(conv_desc, groups));
+  CUDNN_CALL(cudnnSetConvolutionMathType(conv_desc, CUDNN_DEFAULT_MATH));
 
   cudnnTensorDescriptor_t y_desc;
   CUDNN_CALL(cudnnCreateTensorDescriptor(&y_desc));
@@ -196,6 +198,11 @@ void cinn_gpu_cudnn_conv2d(const absl::flat_hash_map<std::string, int> &attr,
     algo_map[hash_str] = static_cast<int>(algo_perf.algo);
     algo               = algo_perf.algo;
   }
+
+  if (GetCinnCudnnDeterministic()) {
+    algo = static_cast<cudnnConvolutionFwdAlgo_t>(1);
+  }
+
   size_t ws_size = 0;
   CUDNN_CALL(cudnnGetConvolutionForwardWorkspaceSize(handle, x_desc, w_desc, conv_desc, y_desc, algo, &ws_size));
 
@@ -256,6 +263,7 @@ void cinn_gpu_cudnn_conv2d_backward_data(const absl::flat_hash_map<std::string, 
   CUDNN_CALL(cudnnSetConvolution2dDescriptor(
       conv_desc, pad_h, pad_w, stride_h, stride_w, dilation_h, dilation_w, CUDNN_CROSS_CORRELATION, CUDNN_DATA_FLOAT));
   CUDNN_CALL(cudnnSetConvolutionGroupCount(conv_desc, groups));
+  CUDNN_CALL(cudnnSetConvolutionMathType(conv_desc, CUDNN_DEFAULT_MATH));
 
   cudnnTensorDescriptor_t y_desc;
   CUDNN_CALL(cudnnCreateTensorDescriptor(&y_desc));
@@ -279,6 +287,10 @@ void cinn_gpu_cudnn_conv2d_backward_data(const absl::flat_hash_map<std::string, 
         cudnnFindConvolutionBackwardDataAlgorithm(handle, w_desc, y_desc, conv_desc, x_desc, 1, &count, &algo_perf));
     algo_map[hash_str] = static_cast<int>(algo_perf.algo);
     algo               = algo_perf.algo;
+  }
+
+  if (GetCinnCudnnDeterministic()) {
+    algo = CUDNN_CONVOLUTION_BWD_DATA_ALGO_1;
   }
 
   size_t ws_size = 0;
@@ -341,6 +353,7 @@ void cinn_gpu_cudnn_conv2d_backward_filter(const absl::flat_hash_map<std::string
   CUDNN_CALL(cudnnSetConvolution2dDescriptor(
       conv_desc, pad_h, pad_w, stride_h, stride_w, dilation_h, dilation_w, CUDNN_CROSS_CORRELATION, CUDNN_DATA_FLOAT));
   CUDNN_CALL(cudnnSetConvolutionGroupCount(conv_desc, groups));
+  CUDNN_CALL(cudnnSetConvolutionMathType(conv_desc, CUDNN_DEFAULT_MATH));
 
   cudnnTensorDescriptor_t y_desc;
   CUDNN_CALL(cudnnCreateTensorDescriptor(&y_desc));
@@ -364,6 +377,10 @@ void cinn_gpu_cudnn_conv2d_backward_filter(const absl::flat_hash_map<std::string
         cudnnFindConvolutionBackwardFilterAlgorithm(handle, x_desc, y_desc, conv_desc, w_desc, 1, &count, &algo_perf));
     algo_map[hash_str] = static_cast<int>(algo_perf.algo);
     algo               = algo_perf.algo;
+  }
+
+  if (GetCinnCudnnDeterministic()) {
+    algo = CUDNN_CONVOLUTION_BWD_FILTER_ALGO_1;
   }
 
   size_t ws_size = 0;

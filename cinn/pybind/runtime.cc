@@ -23,9 +23,9 @@
 
 #include "cinn/pybind/bind.h"
 #include "cinn/runtime/cinn_runtime.h"
+#include "cinn/runtime/flags.h"
 
 namespace py = pybind11;
-
 namespace cinn::pybind {
 namespace {
 using py::arg;
@@ -265,6 +265,8 @@ void BindCinnRuntime(py::module *m) {
       .def("cinn_pod_value_to_int8", &cinn_pod_value_to_int8)
       .def("cinn_pod_value_to_void_p", &cinn_pod_value_to_void_p)
       .def("cinn_pod_value_to_buffer_p", &cinn_pod_value_to_buffer_p);
+
+  m->def("set_cinn_cudnn_deterministic", &cinn::runtime::SetCinnCudnnDeterministic, py::arg("state") = true);
 }
 }  // namespace
 
