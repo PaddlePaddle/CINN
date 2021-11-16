@@ -83,15 +83,8 @@ class Program {
  */
 class GraphCompiler final {
  public:
-  GraphCompiler(Target target,
-                const std::shared_ptr<Scope>& scope,
-                const std::shared_ptr<Graph>& graph,
-                const std::unordered_set<std::string>& fetch_var_names = {})
-      : target_(std::move(target)),
-        scope_(scope),
-        graph_(graph),
-        m_builder_(UniqName("module"), target),
-        fetch_var_names_(fetch_var_names) {}
+  GraphCompiler(Target target, const std::shared_ptr<Scope>& scope, const std::shared_ptr<Graph>& graph)
+      : target_(std::move(target)), scope_(scope), graph_(graph), m_builder_(UniqName("module"), target) {}
 
   struct CompilationResult {
     std::unique_ptr<Program> runtime_program;
@@ -100,6 +93,8 @@ class GraphCompiler final {
   struct CompileOptions {
     std::string attached_code       = "";
     bool with_instantiate_variables = false;
+    // fetch var ids in cinn and the corresponding var nodes will not be fused so as to get the result
+    std::unordered_set<std::string> fetch_var_ids = {};
   };
 
   // Compile with a packing option and result, to be extended easily.
@@ -113,10 +108,6 @@ class GraphCompiler final {
   void PrintFunc();
 
   const std::shared_ptr<Scope>& GetScope() const { return scope_; }
-
-  // set/get fetch var names in cinn and the corresponding var nodes will not be fused so as to get the result
-  void SetFetchVarNames(const std::unordered_set<std::string>& fetch_var_names) { fetch_var_names_ = fetch_var_names; }
-  const std::unordered_set<std::string>& GetFetchVarNames() const { return fetch_var_names_; }
 
  private:
   std::vector<ir::LoweredFunc> GetOpFunc(const std::vector<Node*>& nodes);
@@ -136,6 +127,9 @@ class GraphCompiler final {
 
   std::vector<std::unique_ptr<Instruction>> BuildInstructions();
 
+  void SetFetchVarIds(const std::unordered_set<std::string>& fetch_var_ids) { fetch_var_ids_ = fetch_var_ids; }
+  const std::unordered_set<std::string>& GetFetchVarIds() const { return fetch_var_ids_; }
+
  private:
   void ProcessFunction(const std::vector<ir::LoweredFunc>& lowered_func);
   Target target_;
@@ -145,7 +139,8 @@ class GraphCompiler final {
   std::map<std::string, std::vector<std::string>> function2input_args_;
   // mapping a function's name to its output artuments' names
   std::map<std::string, std::vector<std::string>> function2output_args_;
-  std::unordered_set<std::string> fetch_var_names_;
+  // fetch var ids in cinn and the corresponding var nodes will not be fused so as to get the result
+  std::unordered_set<std::string> fetch_var_ids_;
 
   absl::flat_hash_map<std::string, std::string> prefix2full_namemap_;
 

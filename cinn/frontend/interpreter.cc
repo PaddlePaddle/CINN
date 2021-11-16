@@ -113,14 +113,17 @@ void Interpreter::Impl::Build(const std::vector<std::string>& input_names,
   // Target target = common::DefaultHostTarget();
   scope_ = hlir::framework::BuildScope(target, graph, scope_);
 
-  std::unordered_set<std::string> fetch_var_names;
+  std::unordered_set<std::string> fetch_var_ids;
   for (auto& name : fetch_names_) {
     CHECK(var_map_.count(name)) << "var_map finds no fetch var " << name;
-    fetch_var_names.insert(var_map_.at(name)->id);
+    fetch_var_ids.insert(var_map_.at(name)->id);
   }
 
-  graph_compiler_.reset(new hlir::framework::GraphCompiler(target, scope_, graph, fetch_var_names));
-  runtime_program_ = graph_compiler_->Build();
+  graph_compiler_.reset(new hlir::framework::GraphCompiler(target, scope_, graph));
+  hlir::framework::GraphCompiler::CompileOptions options;
+  options.with_instantiate_variables = true;
+  options.fetch_var_ids              = std::move(fetch_var_ids);
+  runtime_program_                   = graph_compiler_->Build(options).runtime_program;
   runtime_program_->PreRun();
 }
 

@@ -424,7 +424,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
     for (int i = 0; i < C.size() - 1; i++) {
       Expr out                      = C[i];
       temp_var_map[temp_outvars[i]] = out;
-      if (fetch_var_names_.count(temp_outvars[i]->id())) {
+      if (fetch_var_ids_.count(temp_outvars[i]->id())) {
         VLOG(3) << "get fetch output var " << temp_outvars[i]->id();
         CHECK(out.as_tensor());
         fetch_tensors.insert(out.as_tensor_ref());
@@ -572,6 +572,7 @@ std::unique_ptr<Program> GraphCompiler::Build(const std::string& code) {
 }
 
 GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::CompileOptions& options) {
+  fetch_var_ids_  = std::move(options.fetch_var_ids);
   auto topo_order = graph_->topological_order();
   auto& nodes     = std::get<0>(topo_order);
   auto& edges     = std::get<1>(topo_order);
@@ -825,7 +826,7 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
           if (!names_set.count(temp_outputnames[j])) {
             names_set.insert(temp_outputnames[j]);
             // assume that the first out_var of the op node is the fused var
-            bool is_fetch = fetch_var_names_.count(temp_outputnames[j]);
+            bool is_fetch = fetch_var_ids_.count(temp_outputnames[j]);
             if (j == 0 && i != group.size() - 1 && !is_fetch) continue;
             if (j == 0 && i == group.size() - 1) {
               outputNames.insert(outputNames.begin(), temp_outputnames[0]);
