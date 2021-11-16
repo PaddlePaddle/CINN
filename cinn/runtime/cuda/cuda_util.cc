@@ -62,7 +62,8 @@ class CudnnHelper {
     static std::mutex workspace_mtx;
     std::lock_guard<std::mutex> lock(workspace_mtx);
     if (size > workspace_size_) {
-      int8_t *ptr = nullptr;
+      int8_t *ptr     = nullptr;
+      workspace_size_ = size;
       CUDA_CALL(cudaMalloc(&ptr, size));
       workspace_ptr_ = std::shared_ptr<int8_t>(ptr, [](int8_t *ptr) { CUDA_CALL(cudaFree(ptr)); });
     }
