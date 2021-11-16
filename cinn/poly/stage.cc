@@ -819,9 +819,9 @@ std::vector<ComputeAtRelation> Stage::compute_ats() const {
 }
 
 void Stage::ShowISL() const {
-  LOG(INFO) << "Tensor " << id() << " domain is: " << isl_set_to_str(domain().get());
-  LOG(INFO) << "transformed_domain is: " << isl_set_to_str(transformed_domain().get());
-  LOG(INFO) << "transform is: " << isl_map_to_str(transform().get());
+  VLOG(1) << "Tensor " << id() << " domain is: " << isl_set_to_str(domain().get());
+  VLOG(1) << "transformed_domain is: " << isl_set_to_str(transformed_domain().get());
+  VLOG(1) << "transform is: " << isl_map_to_str(transform().get());
 }
 
 bool ComputeAtRelation::IsCompatible(Stage *self) {
@@ -865,12 +865,12 @@ void Stage::Vectorize(int level, int factor) {
   CHECK_LT(level, n_out_dims());
   CHECK_GT(factor, 0);
   if (factor == 1) {
-    LOG(INFO) << "Vectorize-factor 1 has no sense, skip it";
+    VLOG(1) << "Vectorize-factor 1 has no sense, skip it";
     return;
   }
   auto transformed_domain = this->transformed_domain();
   if (isl_is_removed_axis(transformed_domain.get(), level)) {
-    LOG(INFO) << "Vectorizing for-1 has no sense, skip it";
+    VLOG(1) << "Vectorizing for-1 has no sense, skip it";
     return;
   }
   int removed_axes_counts = isl_get_precending_removed_axes_counts(transformed_domain.get(), level);
@@ -903,7 +903,7 @@ void Stage::Parallel(int level) {
   auto transformed_domain = this->transformed_domain();
   VLOG(3) << "transformed_domain" << transformed_domain;
   if (isl_is_removed_axis(transformed_domain.get(), level)) {
-    LOG(INFO) << "Paralleling for-1 has no sense, skip it";
+    VLOG(1) << "Paralleling for-1 has no sense, skip it";
     return;
   }
   int removed_axes_counts = isl_get_precending_removed_axes_counts(transformed_domain.get(), level);
@@ -916,7 +916,7 @@ void Stage::Unroll(int level) {
   AssertAxisIsNotLocked(level);
   auto transformed_domain = this->transformed_domain();
   if (isl_is_removed_axis(transformed_domain.get(), level)) {
-    LOG(INFO) << "Unrolling for-1 has no sense, skip it";
+    VLOG(1) << "Unrolling for-1 has no sense, skip it";
     return;
   }
   int removed_axes_counts = isl_get_precending_removed_axes_counts(transformed_domain.get(), level);

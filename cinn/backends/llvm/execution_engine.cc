@@ -98,7 +98,7 @@ std::unique_ptr<llvm::MemoryBuffer> NaiveObjectCache::getObject(const llvm::Modu
     return nullptr;
   }
 
-  LOG(INFO) << "Object for " << m->getModuleIdentifier() << " loaded from cache.";
+  VLOG(1) << "Object for " << m->getModuleIdentifier() << " loaded from cache.";
   return llvm::MemoryBuffer::getMemBuffer(it->second->getMemBufferRef());
 }
 
@@ -178,25 +178,25 @@ void ExecutionEngine::Link(const ir::Module &module) {
 
   decltype(auto) es = jit_->getExecutionSession();
   if (false) {
-    LOG(INFO) << "======= dump jit execution session ======";
+    VLOG(1) << "======= dump jit execution session ======";
     std::string buffer;
     llvm::raw_string_ostream os(buffer);
     es.dump(os);
     os.flush();
-    LOG(INFO) << buffer;
+    VLOG(1) << buffer;
   }
 }
 
 bool ExecutionEngine::AddModule(std::unique_ptr<llvm::Module> module, std::unique_ptr<llvm::LLVMContext> context) {
   module->setDataLayout(jit_->getDataLayout());
   if (false) {
-    LOG(INFO) << "======= dump jit lib ==========";
+    VLOG(1) << "======= dump jit lib ==========";
     std::string buffer;
     llvm::raw_string_ostream os(buffer);
     module->print(os, {});
     // main_jd_->dump(os);
     os.flush();
-    LOG(INFO) << buffer;
+    VLOG(1) << buffer;
   }
   llvm::orc::ThreadSafeContext tsc(std::move(context));
   llvm::orc::ThreadSafeModule tsm(std::move(module), std::move(tsc));

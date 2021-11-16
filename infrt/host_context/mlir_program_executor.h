@@ -36,7 +36,7 @@ class MlirProgramExecutor : public MlirToRuntimeTranslator {
   void BuildFunctions() { EmitFunctions(); }
 
   void EmitFunction(mlir::FuncOp op) override {
-    LOG(INFO) << "Emit function: " << op.getName().str();
+    VLOG(1) << "Emit function: " << op.getName().str();
     function_defs[op.getName().str()] = op;
 
     func_executables_.emplace(op.getName().str(),

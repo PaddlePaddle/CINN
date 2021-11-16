@@ -46,7 +46,7 @@ namespace backends {
 void SimpleJIT::AddModule(std::unique_ptr<llvm::Module> module, bool optimize) {
   /*
   for (auto &fn : module->functions()) {
-    LOG(INFO) << "fn:\n" << DumpToString(fn);
+    VLOG(1) << "fn:\n" << DumpToString(fn);
   }
    */
   CHECK(!llvm::verifyModule(*module, &llvm::errs())) << "Transformation resulted in an invalid module\n\nmodule:\n";
@@ -71,8 +71,8 @@ void SimpleJIT::AddModule(std::unique_ptr<llvm::Module> module, bool optimize) {
     module_pass_manager.run(*module, module_analysis_manager);
   }
 
-  LOG(INFO) << "jit target: " << jit_->getDataLayout().getStringRepresentation();
-  LOG(INFO) << "module target: " << module->getDataLayout().getStringRepresentation();
+  VLOG(1) << "jit target: " << jit_->getDataLayout().getStringRepresentation();
+  VLOG(1) << "module target: " << module->getDataLayout().getStringRepresentation();
 
   llvm::orc::ThreadSafeModule tsm(std::move(module), context_);
   llvm::cantFail(jit_->addIRModule(std::move(tsm)));
@@ -82,7 +82,7 @@ void SimpleJIT::AddModule(std::unique_ptr<llvm::Module> module, bool optimize) {
     llvm::raw_string_ostream os(buffer);
     jit_->getExecutionSession().dump(os);
     os.flush();
-    LOG(INFO) << "compiled jit:\n" << buffer;
+    VLOG(1) << "compiled jit:\n" << buffer;
   }
 }
 

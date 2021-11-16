@@ -225,7 +225,7 @@ void BindFrontend(pybind11::module *m) {
                  CINN_NOT_IMPLEMENTED
                }
              }
-             LOG(INFO) << info;
+             VLOG(1) << info;
              program->ExecuteTest(repeat_);
              auto out = scope->GetTensor(tensor_out->id);
              return out;
@@ -267,7 +267,7 @@ void BindFrontend(pybind11::module *m) {
                  CINN_NOT_IMPLEMENTED
                }
              }
-             LOG(INFO) << info;
+             VLOG(1) << info;
              program->ExecuteTest(repeat_);
              auto out = scope->GetTensor(tensor_out->id);
              return out;

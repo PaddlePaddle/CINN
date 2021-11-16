@@ -68,7 +68,7 @@ template <typename PassManagerT>
 class CustomPassManager : public PassManagerT {
  public:
   template <typename... Ts>
-  explicit CustomPassManager(bool print_passes, Ts &&... ts)
+  explicit CustomPassManager(bool print_passes, Ts &&...ts)
       : PassManagerT(std::forward<Ts>(ts)...), print_passes_(print_passes) {}
 
   void add(llvm::Pass *pass) override {
@@ -141,8 +141,8 @@ void LLVMModuleOptimizer::operator()(llvm::Module *m) {
 
   auto mpm = std::make_unique<CustomModulePassManager>(print_passes_);
   // mpm->add(llvm::createTargetTransformInfoWrapperPass(llvm::TargetIRAnalysis()));
-  // LOG(INFO) << "llvm run pass: target machine: name[" << machine_->getTarget().getName() << "]";
-  // LOG(INFO) << "llvm run pass: target machine: cpu[" << machine_->getTargetCPU().str() << "]";
+  // VLOG(1) << "llvm run pass: target machine: name[" << machine_->getTarget().getName() << "]";
+  // VLOG(1) << "llvm run pass: target machine: cpu[" << machine_->getTargetCPU().str() << "]";
   fpm->add(llvm::createTargetTransformInfoWrapperPass(machine->getTargetIRAnalysis()));
   mpm->add(llvm::createTargetTransformInfoWrapperPass(machine->getTargetIRAnalysis()));
   auto builder           = std::make_unique<llvm::PassManagerBuilder>();

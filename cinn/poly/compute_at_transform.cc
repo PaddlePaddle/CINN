@@ -128,7 +128,7 @@ void ComputeAtTransform::DisplayC(isl_map* pschedule, isl_map* cschedule) {
   auto* build = isl_ast_build_from_context(context.release());
   auto* node  = isl_ast_build_node_from_schedule_map(build, intersect_schedule.release());
 
-  LOG(INFO) << "code:\n\n" << isl_ast_node_to_C_str(node);
+  VLOG(1) << "code:\n\n" << isl_ast_node_to_C_str(node);
 
   isl_ast_node_free(node);
 }

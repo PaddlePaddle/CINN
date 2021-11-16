@@ -23,7 +23,7 @@ namespace op_mappers {
 void FetchOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
   auto output_name = op_desc.Input("X").front();
-  LOG(INFO) << "detect model output: [" << output_name << "]";
+  VLOG(1) << "detect model output: [" << output_name << "]";
 }
 
 void FeedOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {

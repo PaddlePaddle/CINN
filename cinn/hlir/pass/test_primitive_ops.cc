@@ -79,7 +79,7 @@ TEST(batch_norm_meta, batch_norm_meta) {
   Target target = GetTarget();
   program.SetInputs({A});
   program.Validate();
-  LOG(INFO) << "Program:\n" << program;
+  VLOG(1) << "Program:\n" << program;
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
 
   hlir::framework::ApplyPass(graph.get(), "InferShape");
@@ -88,7 +88,7 @@ TEST(batch_norm_meta, batch_norm_meta) {
 #endif
   hlir::framework::ApplyPass(graph.get(), "OpFusion");
   auto scope = BuildScope(target, graph);
-  LOG(INFO) << "graph:\n" << graph->Visualize();
+  VLOG(1) << "graph:\n" << graph->Visualize();
 
   hlir::framework::GraphCompiler gc(target, scope, graph);
   auto runtime_program = gc.Build();
@@ -117,7 +117,7 @@ TEST(reduction, reduce) {
   Target target = GetTarget();
   program.SetInputs({A});
   program.Validate();
-  LOG(INFO) << "Program:\n" << program;
+  VLOG(1) << "Program:\n" << program;
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
 
   hlir::framework::ApplyPass(graph.get(), "InferShape");
@@ -126,7 +126,7 @@ TEST(reduction, reduce) {
 #endif
   hlir::framework::ApplyPass(graph.get(), "OpFusion");
   auto scope = BuildScope(target, graph);
-  LOG(INFO) << "graph:\n" << graph->Visualize();
+  VLOG(1) << "graph:\n" << graph->Visualize();
 
   hlir::framework::GraphCompiler gc(target, scope, graph);
   auto runtime_program = gc.Build();
@@ -149,7 +149,7 @@ TEST(Compare, Compare) {
   Target target = GetTarget();
   program.SetInputs({A, B});
   program.Validate();
-  LOG(INFO) << "Program:\n" << program;
+  VLOG(1) << "Program:\n" << program;
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
 
   hlir::framework::ApplyPass(graph.get(), "InferShape");
@@ -158,7 +158,7 @@ TEST(Compare, Compare) {
 #endif
   hlir::framework::ApplyPass(graph.get(), "OpFusion");
   auto scope = BuildScope(target, graph);
-  LOG(INFO) << "graph:\n" << graph->Visualize();
+  VLOG(1) << "graph:\n" << graph->Visualize();
 
   hlir::framework::GraphCompiler gc(target, scope, graph);
   auto runtime_program = gc.Build();

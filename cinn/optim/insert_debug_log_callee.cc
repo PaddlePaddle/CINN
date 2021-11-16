@@ -95,7 +95,7 @@ struct StoreDebugInfoBuilder : public ir::IRVisitor {
   void Visit(const ir::Store *x) override {
     format_ << x->tensor.as_tensor()->name << "[] = ";
     Visit(&x->value);
-    LOG(INFO) << "store value " << x->value;
+    VLOG(1) << "store value " << x->value;
   }
   void Visit(const ir::Alloc *x) override {}
   void Visit(const ir::Free *x) override {}

@@ -266,7 +266,7 @@ std::tuple<std::unique_ptr<Program>,
            absl::flat_hash_map<std::string, Variable>,
            absl::flat_hash_map<std::string, std::string>>
 LoadPaddleProgram(const std::string& model_dir, Scope* scope, bool is_combined, const common::Target& target) {
-  LOG(INFO) << "Loading Paddle model from " << model_dir;
+  VLOG(1) << "Loading Paddle model from " << model_dir;
   PaddleModelToProgram _(scope, target);
   return std::make_tuple(_(model_dir, is_combined), _.var_map(), _.var_model_to_program_map());
 }

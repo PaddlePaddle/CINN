@@ -221,7 +221,7 @@ void Program::ExecuteTest(int repeat_) {
   }
 #endif
   double test_op_time = timer1.Stop() / repeat_;
-  LOG(INFO) << "Repeat times: [" << repeat_ << "], average op time: [" << test_op_time << "] ms";
+  VLOG(1) << "Repeat times: [" << repeat_ << "], average op time: [" << test_op_time << "] ms";
 }
 
 void GraphCompiler::PrintFunc() {

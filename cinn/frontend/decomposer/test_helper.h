@@ -126,9 +126,9 @@ void CheckOutput(const std::vector<T>& actual, const std::vector<T>& expect, flo
               << expect[i] << " (expect), relative_diff=" << relative_diff << ", absolute_diff=" << absolute_diff;
     }
   }
-  LOG(INFO) << "- Total " << num_diffs << " different results, offset=" << offset << ", " << actual[offset]
-            << " (actual) vs " << expect[offset] << " (expect), maximum_relative_diff=" << max_diff
-            << " (absolute_diff=" << abs((actual[offset] - expect[offset])) << ")";
+  VLOG(1) << "- Total " << num_diffs << " different results, offset=" << offset << ", " << actual[offset]
+          << " (actual) vs " << expect[offset] << " (expect), maximum_relative_diff=" << max_diff
+          << " (absolute_diff=" << abs((actual[offset] - expect[offset])) << ")";
   ASSERT_EQ(num_diffs, 0);
 }
 
@@ -159,14 +159,14 @@ void ComputeReferenceCpu(const std::vector<std::vector<T>>& input_vecs,
 }
 
 void RunDecomposer(Program* prog, const Target& target) {
-  LOG(INFO) << "===================== Before Decomposition =====================";
+  VLOG(1) << "===================== Before Decomposition =====================";
   for (int i = 0; i < prog->size(); i++) {
-    LOG(INFO) << "instruction: " << (*prog)[i];
+    VLOG(1) << "instruction: " << (*prog)[i];
   }
   ProgramPass::Apply(prog, target, {"Decomposer"});
-  LOG(INFO) << "===================== After Decomposition =====================";
+  VLOG(1) << "===================== After Decomposition =====================";
   for (int i = 0; i < prog->size(); i++) {
-    LOG(INFO) << "instruction: " << (*prog)[i];
+    VLOG(1) << "instruction: " << (*prog)[i];
   }
 }
 
@@ -231,7 +231,7 @@ void RunAndCheck(NetBuilder& builder,
   ComputeReferenceCpu<T>(input_vecs, output_vecs, &output_refs, cpu_kernel_func);
 
   for (size_t i = 0; i < output_vecs.size(); ++i) {
-    LOG(INFO) << "Check the " << i << "-th output, name=" << output_names[i] << ", shape=" << output_shapes[i];
+    VLOG(1) << "Check the " << i << "-th output, name=" << output_names[i] << ", shape=" << output_shapes[i];
     CheckOutput<T>(output_vecs[i], output_refs[i], atol, rtol);
   }
 }

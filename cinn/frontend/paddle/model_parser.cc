@@ -96,7 +96,7 @@ void TensorFromStream(std::istream &is, hlir::framework::_Tensor_ *tensor, const
     auto *data = tensor->mutable_data<float>(target);
     tensor->set_type(Float(32));
     std::vector<float> temp(tensor->shape().numel());
-    // LOG(INFO) <<"[CUDA] The tensor's size is "<< tensor->shape().numel();
+    // VLOG(1) <<"[CUDA] The tensor's size is "<< tensor->shape().numel();
     is.read(reinterpret_cast<char *>(temp.data()), size);
     CUDA_CALL(cudaMemcpy(
         reinterpret_cast<void *>(data), temp.data(), tensor->shape().numel() * sizeof(float), cudaMemcpyHostToDevice));
@@ -222,9 +222,9 @@ void LoadModelPb(const std::string &model_dir,
   CHECK(cpp_prog);
   CHECK(scope);
   cpp_prog->ClearBlocks();
-  LOG(INFO) << "model_dir is: " << model_dir;
-  LOG(INFO) << "model_file is: " << model_file;
-  LOG(INFO) << "param_file is: " << param_file;
+  VLOG(1) << "model_dir is: " << model_dir;
+  VLOG(1) << "model_file is: " << model_file;
+  VLOG(1) << "param_file is: " << param_file;
   // Load model
   VLOG(4) << "Start load model program...";
   std::string prog_path       = model_dir + "/__model__";

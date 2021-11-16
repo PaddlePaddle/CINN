@@ -115,7 +115,7 @@ void OpAttrsAnyToCpp(const OpDescType &any_desc, cpp::OpDesc *cpp_desc) {
         cpp_desc->SetAttr<int32_t>(name, i);
         // naive_buffer::BlockDesc* sub_block = any_desc.template
         // GetAttr<naive_buffer::BlockDesc*>(name);
-        // LOG(INFO) << sub_block->OpsSize();
+        // VLOG(1) << sub_block->OpsSize();
         break;
       }
       default:

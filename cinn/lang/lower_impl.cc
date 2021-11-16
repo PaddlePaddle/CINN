@@ -568,10 +568,10 @@ std::vector<ir::LoweredFunc> LowerImpl::operator()() {
         if (arg->buffer.defined()) continue;
         if (arg->body().As<ir::Call>() && arg->body().type().is_void()) continue;  // extern call
         if (tensor_map.find(arg->name) == tensor_map.end()) {
-          LOG(INFO) << "Didn't find arg tensor " << arg->name << "in tensor_map.\n"
-                    << "The function is " << fn_name_ << "\nAnd all the arg tensors are:\n";
+          VLOG(1) << "Didn't find arg tensor " << arg->name << "in tensor_map.\n"
+                  << "The function is " << fn_name_ << "\nAnd all the arg tensors are:\n";
           for (auto& i : tensor_args_) {
-            LOG(INFO) << i->name;
+            VLOG(1) << i->name;
           }
           LOG(FATAL) << "Fatal Error!";
         }

@@ -218,7 +218,7 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
         VLOG(3) << i;
       }
     } else {
-      LOG(INFO) << "extent not defined";
+      VLOG(1) << "extent not defined";
     }
   }
 

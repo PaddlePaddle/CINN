@@ -25,7 +25,7 @@ mlir::OwningModuleRef LoadMlirSource(mlir::MLIRContext* context, absl::string_vi
 
   mlir::ScopedDiagnosticHandler scope_handler(context, [](mlir::Diagnostic& diag) {
     if (diag.getSeverity() != mlir::DiagnosticSeverity::Error) return mlir::success();
-    LOG(INFO) << "diag: " << diag.str();
+    VLOG(1) << "diag: " << diag.str();
     return mlir::failure(true);
   });
 
@@ -41,7 +41,7 @@ mlir::OwningModuleRef LoadMlirFile(absl::string_view file_name, mlir::MLIRContex
 
   mlir::ScopedDiagnosticHandler scope_handler(context, [](mlir::Diagnostic& diag) {
     if (diag.getSeverity() != mlir::DiagnosticSeverity::Error) return mlir::success();
-    LOG(INFO) << "diag: " << diag.str();
+    VLOG(1) << "diag: " << diag.str();
     return mlir::failure(true);
   });
 
@@ -69,7 +69,7 @@ class Translator {
 
  private:
   void BuildSubGraph(const std::string& name, mlir::Region* region) {
-    LOG(INFO) << "building subgraph [" << name << "]";
+    VLOG(1) << "building subgraph [" << name << "]";
     auto& bb = region->front();
 
     for (unsigned i = 0, e = bb.getNumArguments(); i < e; ++i) {
@@ -80,10 +80,10 @@ class Translator {
     for (auto& inst : bb) {
       if (inst.isKnownTerminator()) break;
       for (auto val : inst.getResults()) {
-        LOG(INFO) << "get instruction: " << inst.getName().getStringRef().str();
+        VLOG(1) << "get instruction: " << inst.getName().getStringRef().str();
         for (auto& op : inst.getOpOperands()) {
-          LOG(INFO) << "operand owner: " << op.getOwner()->getName().getStringRef().str();
-          LOG(INFO) << "op " << op.getOperandNumber();
+          VLOG(1) << "operand owner: " << op.getOwner()->getName().getStringRef().str();
+          VLOG(1) << "op " << op.getOperandNumber();
         }
       }
     }

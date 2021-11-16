@@ -80,7 +80,7 @@ void TensorFromStream(std::istream &is, infrt::paddle::_Tensor_ *tensor, const i
     auto *data = tensor->mutable_data<float>(target);
     tensor->set_type(infrt::common::Float(32));
     std::vector<float> temp(tensor->shape().numel());
-    // LOG(INFO) <<"[CUDA] The tensor's size is "<< tensor->shape().numel();
+    // VLOG(1) <<"[CUDA] The tensor's size is "<< tensor->shape().numel();
     is.read(reinterpret_cast<char *>(temp.data()), size);
     CUDA_CALL(cudaMemcpy(
         reinterpret_cast<void *>(data), temp.data(), tensor->shape().numel() * sizeof(float), cudaMemcpyHostToDevice));
