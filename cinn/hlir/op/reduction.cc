@@ -75,11 +75,11 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
     // two step to do reduce: 1.[n,c,h,w] -> [c,w]; 2.[c,w] -> [c]
     if (dim.back() == inputs[0]->shape.size() - 1 && dim.size() > 1 && target == common::DefaultNVGPUTarget()) {
       // do reduce parallel on last dimension
-      std::vector<int> dim0(dim.begin(), --dim.end());
-      auto out0 = pe_func(A, dim0, keep_dim, Expr(), UniqName(op_name + "_out0"));
+      std::vector<int> dims_without_last(dim.begin(), --dim.end());
+      auto out0 = pe_func(A, dims_without_last, keep_dim, Expr(), UniqName(op_name + "_out0"));
       // do reduce on last dimension
-      std::vector<int> dim1(1, out0->shape.size() - 1);
-      auto out1   = pe_func(out0, dim1, keep_dim, Expr(), UniqName(op_name + "_out1"));
+      std::vector<int> dims_last(1, out0->shape.size() - 1);
+      auto out1   = pe_func(out0, dims_last, keep_dim, Expr(), UniqName(op_name + "_out1"));
       auto stages = CreateStages({A, out0, out1});
       *ret        = CINNValuePack{{CINNValue(out0), CINNValue(out1), CINNValue(stages)}};
     } else {
@@ -94,64 +94,25 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
     CINNValuePack arg_pack = args[0];
     CHECK(arg_pack.size() == 2UL || arg_pack.size() == 3UL);
     if (target.arch == Target::Arch::NVGPU) {
-      Expr out0 = arg_pack[0];
-      poly::StageMap stages;
-      if (arg_pack.size() == 2) {
-        stages = arg_pack[1];
-      } else {
-        stages = arg_pack[2];
-      }
+      poly::StageMap stages = arg_pack.size() == 2 ? arg_pack[1] : arg_pack[2];
 
-      int last_axis = out0.as_tensor_ref()->shape.size() - 1;
-      for (int idx = last_axis; idx >= 0; --idx) {
-        if (out0.as_tensor_ref()->shape[idx].as_int32() > 1) {
-          last_axis = idx;
-          break;
-        }
-      }
-
-      int max_axis = 0, max_value = out0.as_tensor_ref()->shape[0].as_int32();
-      for (int idx = 0; idx <= last_axis; ++idx) {
-        if (max_value < out0.as_tensor_ref()->shape[idx].as_int32()) {
-          if (idx < last_axis) {
-            max_value = out0.as_tensor_ref()->shape[idx].as_int32();
-            max_axis  = idx;
-          } else {
-            if (max_value == 1) {
-              max_axis = last_axis;
-            }
-          }
-        }
-      }
-
-      if (max_axis < last_axis) {
-        stages[out0.as_tensor_ref()]->Bind(max_axis, "blockIdx.x");
-      }
-      if (out0.as_tensor_ref()->shape[last_axis].as_int32() > 512) {
-        stages[out0.as_tensor_ref()]->Split(last_axis, 512);
-        if (max_axis == last_axis) {
-          stages[out0.as_tensor_ref()]->Bind(last_axis, "blockIdx.x");
-        }
-        stages[out0.as_tensor_ref()]->Bind(last_axis + 1, "threadIdx.x");
-      } else {
-        stages[out0.as_tensor_ref()]->Bind(last_axis, "threadIdx.x");
-      }
-
-      if (arg_pack.size() == 3) {
-        Expr out1     = arg_pack[1];
-        int last_axis = out1.as_tensor_ref()->shape.size() - 1;
+      auto cuda_schedule = [&stages](ir::Expr &out_expr) {
+        auto out = out_expr.as_tensor_ref();
+        // get the last reduce dimenion(size > 1)
+        int last_axis = out->shape.size() - 1;
         for (int idx = last_axis; idx >= 0; --idx) {
-          if (out1.as_tensor_ref()->shape[idx].as_int32() > 1) {
+          if (out->shape[idx].as_int32() > 1) {
             last_axis = idx;
             break;
           }
         }
 
-        int max_axis = 0, max_value = out1.as_tensor_ref()->shape[0].as_int32();
+        // get the max reduce dimension(size > 1)
+        int max_axis = 0, max_value = out->shape[0].as_int32();
         for (int idx = 0; idx <= last_axis; ++idx) {
-          if (max_value < out1.as_tensor_ref()->shape[idx].as_int32()) {
+          if (max_value < out->shape[idx].as_int32()) {
             if (idx < last_axis) {
-              max_value = out1.as_tensor_ref()->shape[idx].as_int32();
+              max_value = out->shape[idx].as_int32();
               max_axis  = idx;
             } else {
               if (max_value == 1) {
@@ -161,18 +122,28 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
           }
         }
 
+        // bind blockIdx.x
         if (max_axis < last_axis) {
-          stages[out1.as_tensor_ref()]->Bind(max_axis, "blockIdx.x");
+          stages[out]->Bind(max_axis, "blockIdx.x");
         }
-        if (out1.as_tensor_ref()->shape[last_axis].as_int32() > 512) {
-          stages[out1.as_tensor_ref()]->Split(last_axis, 512);
+
+        // bind threadIdx.x
+        if (out->shape[last_axis].as_int32() > 512) {
+          stages[out]->Split(last_axis, 512);
           if (max_axis == last_axis) {
-            stages[out1.as_tensor_ref()]->Bind(last_axis, "blockIdx.x");
+            stages[out]->Bind(last_axis, "blockIdx.x");
           }
-          stages[out1.as_tensor_ref()]->Bind(last_axis + 1, "threadIdx.x");
+          stages[out]->Bind(last_axis + 1, "threadIdx.x");
         } else {
-          stages[out1.as_tensor_ref()]->Bind(last_axis, "threadIdx.x");
+          stages[out]->Bind(last_axis, "threadIdx.x");
         }
+      };
+      Expr out0 = arg_pack[0];
+      cuda_schedule(out0);
+
+      if (arg_pack.size() == 3) {
+        Expr out1 = arg_pack[1];
+        cuda_schedule(out1);
       }
     }
     *ret = arg_pack;
@@ -254,22 +225,22 @@ StrategyForReduction(reduce_min, ReduceMin, PeFunc);
 }  // namespace cinn
 
 CINN_REGISTER_HELPER(reduce_ops) {
-#define CINN_REGISTER_REDUCTION(op__, op_stragegy__, op_pattern__)                                                     \
-  CINN_REGISTER_OP(op__)                                                                                               \
-      .describe(#op__ " function")                                                                                     \
-      .set_num_inputs(1)                                                                                               \
-      .set_num_outputs(1)                                                                                              \
-      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyFor##op_stragegy__)   \
-      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForReduction))                                  \
-      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForReduction))                                  \
-      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForReduction))                                \
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::op_pattern__) \
+#define CINN_REGISTER_REDUCTION(op__, op_stragegy__)                                                                  \
+  CINN_REGISTER_OP(op__)                                                                                              \
+      .describe(#op__ " function")                                                                                    \
+      .set_num_inputs(1)                                                                                              \
+      .set_num_outputs(1)                                                                                             \
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyFor##op_stragegy__)  \
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForReduction))                                 \
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForReduction))                                 \
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForReduction))                               \
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kCommReduce) \
       .set_support_level(4);
 
-  CINN_REGISTER_REDUCTION(reduce_sum, ReduceSum, kCommReduce);
-  CINN_REGISTER_REDUCTION(reduce_prod, ReduceProd, kCommReduce);
-  CINN_REGISTER_REDUCTION(reduce_max, ReduceMax, kCommReduce);
-  CINN_REGISTER_REDUCTION(reduce_min, ReduceMin, kCommReduce);
+  CINN_REGISTER_REDUCTION(reduce_sum, ReduceSum);
+  CINN_REGISTER_REDUCTION(reduce_prod, ReduceProd);
+  CINN_REGISTER_REDUCTION(reduce_max, ReduceMax);
+  CINN_REGISTER_REDUCTION(reduce_min, ReduceMin);
 
 #undef CINN_REGISTER_REDUCTION
 
