@@ -86,7 +86,7 @@ class OpMapperContext {
   // add map from paddle name to cinn name into var_model_to_program_map
   void AddVarModelToProgram(const std::string& name, const std::string& id) const;
 
-  void AddFetchVarNames(const std::string& name) const;
+  void AddFetchVarName(const std::string& name) const;
 
   struct FeedInfo {
     std::vector<int> shape;
