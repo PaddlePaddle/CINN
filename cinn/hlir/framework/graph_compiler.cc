@@ -511,8 +511,8 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
     if (fetch_tensor->is_reduce_tensor() || fetch_tensor->name == final_out_tensor->name) continue;
     stages[fetch_tensor]->DisableComputeInline();
     int level = stages[final_out_tensor]->n_out_dims() - 1;
-    stages[fetch_tensor]->ComputeAt(stages[final_out_tensor], level);
     VLOG(3) << "no fuse fetch tensor " << fetch_tensor->name << " and recomputeAt in level " << level;
+    stages[fetch_tensor]->ComputeAt2(stages[final_out_tensor], level);
   }
 
   auto func = lang::LowerVec(GetOrGenFullFuncName(fuse_name), stages, inputs, {}, {}, nullptr, this->target_);
