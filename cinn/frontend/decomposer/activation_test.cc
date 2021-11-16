@@ -34,7 +34,7 @@ TEST(Decomposer, relu) {
   std::vector<std::string> input_names        = {x.id().data()};
   std::vector<std::string> output_names       = {out->id};
   std::vector<std::vector<int>> output_shapes = {{20, 10}};
-  RunAndCheck<float>(builder, input_names, output_names, output_shapes, relu_cpu, 1e-5, -1, 1);
+  RunAndCheck<float>(builder, input_names, output_names, output_shapes, relu_cpu, -1, 1);
 }
 
 TEST(Decomposer, relu_grad) {
@@ -56,7 +56,7 @@ TEST(Decomposer, relu_grad) {
   std::vector<std::string> input_names        = {dout.id().data(), out.id().data()};
   std::vector<std::string> output_names       = {dx->id};
   std::vector<std::vector<int>> output_shapes = {{20, 10}};
-  RunAndCheck<float>(builder, input_names, output_names, output_shapes, relu_grad_cpu, 1e-5, -1, 1);
+  RunAndCheck<float>(builder, input_names, output_names, output_shapes, relu_grad_cpu, -1, 1);
 }
 
 }  // namespace cinn::frontend

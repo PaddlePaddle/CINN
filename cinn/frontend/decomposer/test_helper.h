@@ -59,14 +59,16 @@ Target GetTarget() {
 }
 
 template <typename T>
-void InitRandomVector(std::vector<T>* vec, size_t numel, T low = 0, T high = 1) {
+void InitRandomVector(std::vector<T>* vec, size_t numel, T low = 0, T high = 1, T precision = 1e-5) {
   std::random_device seed;
   std::default_random_engine engine(seed());
   std::uniform_real_distribution<double> dist(low, high);
 
   vec->resize(numel);
   for (size_t i = 0; i < numel; ++i) {
-    vec->at(i) = static_cast<T>(dist(engine));
+    T value    = static_cast<T>(dist(engine));
+    int coeff  = static_cast<int>(value / precision);
+    vec->at(i) = precision * static_cast<T>(coeff);
   }
 }
 
@@ -101,35 +103,33 @@ void CopyToVector(const hlir::framework::Tensor tensor, std::vector<T>* vec) {
 }
 
 template <typename T>
-void CheckOutput(const std::vector<T>& results,
-                 const std::vector<T>& references,
-                 double max_relative_error = 1e-5,
-                 bool check_absolute_error = false) {
-  CHECK_EQ(results.size(), references.size());
+void CheckOutput(const std::vector<T>& actual, const std::vector<T>& expect, float atol = 1e-8, float rtol = 1e-5) {
+  CHECK_EQ(actual.size(), expect.size());
+
+  auto allclose = [](T a, T e, float atol, float rtol) { return abs(a - e) <= (atol + rtol * abs(e)); };
 
   float max_diff = 0.0f;
   int offset     = 0;
   int num_diffs  = 0;
 
-  size_t numel = results.size();
+  size_t numel = actual.size();
   for (size_t i = 0; i < numel; ++i) {
-    float absolute_diff = abs((results[i] - references[i]));
-    float relative_diff = abs(absolute_diff / references[i]);
-    if (relative_diff > max_diff) {
-      max_diff = relative_diff;
-      offset   = i;
-    }
-    if ((relative_diff > max_relative_error) || (check_absolute_error && (absolute_diff > 1e-6))) {
+    if (!allclose(actual[i], expect[i], atol, rtol)) {
+      float absolute_diff = abs((actual[i] - expect[i]));
+      float relative_diff = abs(absolute_diff / expect[i]);
+      if (relative_diff > max_diff) {
+        max_diff = relative_diff;
+        offset   = i;
+      }
       num_diffs += 1;
-      VLOG(4) << "- i=" << i << ", " << std::setprecision(8) << results[i] << " vs " << std::setprecision(8)
-              << references[i] << ", relative_diff=" << relative_diff << ", absolute_diff=" << absolute_diff;
+      VLOG(4) << "- i=" << i << ", " << std::setprecision(8) << actual[i] << " (actual) vs " << std::setprecision(8)
+              << expect[i] << " (expect), relative_diff=" << relative_diff << ", absolute_diff=" << absolute_diff;
     }
   }
-  LOG(INFO) << "- Total " << num_diffs << " different results, offset=" << offset << ", " << results[offset] << " vs "
-            << references[offset] << ", maximum_relative_diff=" << max_diff
-            << " (absolute_diff=" << abs((results[offset] - references[offset])) << ")";
+  LOG(INFO) << "- Total " << num_diffs << " different results, offset=" << offset << ", " << actual[offset]
+            << " (actual) vs " << expect[offset] << " (expect), maximum_relative_diff=" << max_diff
+            << " (absolute_diff=" << abs((actual[offset] - expect[offset])) << ")";
   ASSERT_EQ(num_diffs, 0);
-  ASSERT_LT(max_diff, max_relative_error);
 }
 
 template <typename T>
@@ -219,9 +219,10 @@ void RunAndCheck(NetBuilder& builder,
                  const std::vector<std::string>& output_names,
                  const std::vector<std::vector<int>>& output_shapes,
                  CPUKernelFunc cpu_kernel_func,
-                 double max_relative_error = 1e-5,
-                 T low                     = 0,
-                 T high                    = 1) {
+                 T low      = 0,
+                 T high     = 1,
+                 float atol = 1e-8,
+                 float rtol = 1e-5) {
   std::vector<std::vector<T>> input_vecs;
   std::vector<std::vector<T>> output_vecs;
   RunAndCheckShape<T>(builder, input_names, output_names, output_shapes, &input_vecs, &output_vecs, low, high);
@@ -231,7 +232,7 @@ void RunAndCheck(NetBuilder& builder,
 
   for (size_t i = 0; i < output_vecs.size(); ++i) {
     LOG(INFO) << "Check the " << i << "-th output, name=" << output_names[i] << ", shape=" << output_shapes[i];
-    CheckOutput<T>(output_vecs[i], output_refs[i], max_relative_error);
+    CheckOutput<T>(output_vecs[i], output_refs[i], atol, rtol);
   }
 }
 
