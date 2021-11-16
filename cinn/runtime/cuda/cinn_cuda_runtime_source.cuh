@@ -26,6 +26,7 @@ __device__ inline float FN(exp)(float x) { return exp(x); }
 __device__ inline float FN(erf)(float x) { return erf(x); }
 __device__ inline float FN(sigmoid)(float x) { return 1. / (1 + exp(-x)); }
 __device__ inline float FN(sqrt)(float x) { return sqrt(x); }
+__device__ inline float FN(rsqrt)(float x) { return rsqrt(x); }
 
 __device__ inline bool FN(isfinite)(float x) { return isfinite(x); }
 __device__ inline bool FN(isinf)(float x) { return isinf(x); }
