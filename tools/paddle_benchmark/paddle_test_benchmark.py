@@ -78,7 +78,7 @@ def set_config(args):
     config.gpu_device_id()
     config.switch_use_feed_fetch_ops(False)
     config.switch_specify_input_names(True)
-    config.switch_ir_optim(False)
+    config.switch_ir_optim(True)
     #To test cpu backend, just uncomment the following 2 lines.
     # config.switch_ir_optim(True)
     # config.disable_gpu()

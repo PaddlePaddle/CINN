@@ -18,6 +18,7 @@ set -ex
 workspace=$PWD
 build_dir_name=${cinn_build:-build}
 build_dir=$workspace/${build_dir_name}
+py_version=${py_version:-3.6}
 
 #export LLVM11_DIR=${workspace}/THIRDS/usr
 
@@ -37,12 +38,12 @@ function mkldnn_off {
 
 
 function gpu_on {
-    cuda_config=ON
-    cudnn_config=ON
+  cuda_config=ON
+  cudnn_config=ON
 }
 
 function cudnn_off {
-    cudnn_config=OFF
+  cudnn_config=OFF
 }
 
 OLD_HTTP_PROXY=$http_proxy
@@ -77,13 +78,13 @@ function prepare_ci {
     apt install -y doxygen
   fi
 
-  if ! command -v python3.6-config &> /dev/null; then
-    apt install -y python3.6-dev
+  if ! command -v python${py_version}-config &> /dev/null; then
+    apt install -y python${py_version}-dev
   fi
 
-  if ! python3.6 -m venv $build_dir/ci-env &> /dev/null; then
-    apt install -y python3.6-venv
-    python3.6 -m venv $build_dir/ci-env
+  if ! python${py_version} -m venv $build_dir/ci-env &> /dev/null; then
+    apt install -y python${py_version}-venv
+    python${py_version} -m venv $build_dir/ci-env
   fi
   proxy_off
   source $build_dir/ci-env/bin/activate
@@ -132,7 +133,7 @@ function cmake_ {
     echo "set(WITH_MKL_CBLAS $mklcblas_config)" >> $build_dir/config.cmake
     echo "set(WITH_MKLDNN $mkldnn_config)" >> $build_dir/config.cmake
     cd $build_dir
-    cmake .. -DPUBLISH_LIBS=ON -DWITH_TESTING=ON -DPY_VERSION=3.6
+    cmake ${workspace} -DPUBLISH_LIBS=ON -DWITH_TESTING=ON -DPY_VERSION=${py_version}
 }
 
 function _download_and_untar {
