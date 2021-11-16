@@ -35,17 +35,19 @@ class TestBatchNormOp(OpTest):
             "bias": random(self.param_shape, self.dtype),
             "mean": random(self.param_shape, self.dtype),
             "variance": random(self.param_shape, self.dtype),
-            "y_grad": random(self.x_shape, self.dtype),
         }
+        if self.backward:
+            self.inputs["y_grad"] = random(self.x_shape, self.dtype)
         self.epsilon = 1e-05
         self.momentum = 0.9
         self.is_test = False
 
     def config(self):
         self.dtype = "float32"
-        self.x_shape = [8, 16, 8, 8]
+        self.x_shape = [16, 32, 16, 16]
         self.param_shape = [self.x_shape[1]]
         self.data_format = "NCHW"
+        self.backward = True
 
     def build_paddle_program(self, target):
         def _create_parameter(name):
@@ -78,8 +80,9 @@ class TestBatchNormOp(OpTest):
 
         # Cannot get save_mean and save_variance of paddle.
         self.paddle_outputs = [out, None, None, running_mean, running_variance]
-        self.paddle_grads = self.get_paddle_grads([out], [x, scale, bias],
-                                                  [self.inputs["y_grad"]])
+        if self.backward:
+            self.paddle_grads = self.get_paddle_grads([out], [x, scale, bias],
+                                                      [self.inputs["y_grad"]])
 
     def build_cinn_program(self, target):
         builder = NetBuilder("batch_norm")
@@ -96,27 +99,31 @@ class TestBatchNormOp(OpTest):
             x, scale, bias, mean, variance, self.epsilon, self.momentum,
             self.data_format, self.is_test)
 
-        y_grad = builder.create_input(
-            Float(32), self.inputs["y_grad"].shape, "y_grad")
-        x_grad, scale_grad, bias_grad = builder.batch_norm_grad(
-            y_grad, x, scale, saved_mean, saved_variance)
+        inputs = [x, scale, bias, mean, variance]
+        feeds = [
+            self.inputs["x"], self.inputs["scale"], self.inputs["bias"],
+            self.inputs["mean"], self.inputs["variance"]
+        ]
+        outputs = [y, saved_mean, saved_variance, moving_mean, moving_variance]
+        if self.backward:
+            y_grad = builder.create_input(
+                Float(32), self.inputs["y_grad"].shape, "y_grad")
+            x_grad, scale_grad, bias_grad = builder.batch_norm_grad(
+                y_grad, x, scale, saved_mean, saved_variance)
+
+            inputs = inputs + [y_grad]
+            feeds = feeds + [self.inputs["y_grad"]]
+            outputs = outputs + [x_grad, scale_grad, bias_grad]
 
         prog = builder.build()
-        outs = self.get_cinn_output(
-            prog, target, [x, scale, bias, mean, variance, y_grad], [
-                self.inputs["x"], self.inputs["scale"], self.inputs["bias"],
-                self.inputs["mean"], self.inputs["variance"],
-                self.inputs["y_grad"]
-            ], [
-                y, saved_mean, saved_variance, moving_mean, moving_variance,
-                x_grad, scale_grad, bias_grad
-            ])
+        outs = self.get_cinn_output(prog, target, inputs, feeds, outputs)
 
         self.cinn_outputs = [outs[0], outs[1], outs[2], outs[3], outs[4]]
-        self.cinn_grads = [outs[5], outs[6], outs[7]]
+        if self.backward:
+            self.cinn_grads = [outs[5], outs[6], outs[7]]
 
     def test_check_results(self):
-        self.check_outputs_and_grads(max_relative_error=1e-4)
+        self.check_outputs_and_grads(max_relative_error=1e-5)
 
 
 if __name__ == "__main__":
