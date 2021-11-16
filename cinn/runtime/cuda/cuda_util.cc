@@ -96,8 +96,6 @@ class CudnnHelper {
   std::shared_ptr<int8_t> workspace_ptr_;
 };
 
-static CudnnHelper &cudnn_helper_init = CudnnHelper::Instance();
-
 void CUDART_CB ReleaseWorkspace(void *args) {
   std::shared_ptr<int8_t> *share_ptr = reinterpret_cast<std::shared_ptr<int8_t> *>(args);
   delete share_ptr;
