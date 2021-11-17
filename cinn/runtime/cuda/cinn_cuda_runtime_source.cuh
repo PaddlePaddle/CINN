@@ -34,4 +34,56 @@ __device__ inline bool FN(isnan)(float x) { return isnan(x); }
 
 __device__ inline float FN(max)(float a, float b) { return max(a, b); }
 __device__ inline float FN(min)(float a, float b) { return min(a, b); }
+
 #undef FN
+
+__device__ inline float cinn_warp_reduce_max(const float *buf, int offset, int extend) {
+  float maxv = -3.402823e+38f;
+  for (int i = threadIdx.x; i < extend; i += 32) {
+    maxv = max(maxv, buf[offset + i]);
+  }
+  unsigned int mask;
+  mask = __activemask();
+  maxv = max(maxv, __shfl_down_sync(mask, maxv, 16, 32));
+  maxv = max(maxv, __shfl_down_sync(mask, maxv, 8, 32));
+  maxv = max(maxv, __shfl_down_sync(mask, maxv, 4, 32));
+  maxv = max(maxv, __shfl_down_sync(mask, maxv, 2, 32));
+  maxv = max(maxv, __shfl_down_sync(mask, maxv, 1, 32));
+  maxv = __shfl_sync(mask, maxv, 0, 32);
+  return maxv;
+}
+
+__device__ inline float cinn_warp_reduce_avg(const float *buf, int offset, int extend) {
+  float sumv = 0;
+  for (int i = threadIdx.x; i < extend; i += 32) {
+    sumv += buf[offset + i] / (float)extend;
+  }
+  unsigned int mask;
+  mask = __activemask();
+  sumv += __shfl_down_sync(mask, sumv, 16, 32);
+  sumv += __shfl_down_sync(mask, sumv, 8, 32);
+  sumv += __shfl_down_sync(mask, sumv, 4, 32);
+  sumv += __shfl_down_sync(mask, sumv, 2, 32);
+  sumv += __shfl_down_sync(mask, sumv, 1, 32);
+  sumv = __shfl_sync(mask, sumv , 0, 32);
+  return sumv;
+}
+
+__device__ inline float cinn_warp_reduce_sum(const float *buf, int offset, int extend) {
+  float sumv = 0;
+  for (int i = threadIdx.x; i < extend; i += 32) {
+    sumv += buf[offset + i];
+  }
+  unsigned int mask;
+  mask = __activemask();
+  sumv += __shfl_down_sync(mask, sumv, 16, 32);
+  sumv += __shfl_down_sync(mask, sumv, 8, 32);
+  sumv += __shfl_down_sync(mask, sumv, 4, 32);
+  sumv += __shfl_down_sync(mask, sumv, 2, 32);
+  sumv += __shfl_down_sync(mask, sumv, 1, 32);
+  sumv = __shfl_sync(mask, sumv , 0, 32);
+  return sumv;
+}
+
+
+

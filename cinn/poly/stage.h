@@ -331,6 +331,8 @@ class Stage : public Object {
   Iterator Fuse(const std::vector<int>& levels);
   Iterator Fuse(const std::string& level0, const std::string& level1);
 
+  void SetBuffer(const std::string& memory_type);
+
   const isl::set& domain() const { return domain_; }
   const isl::map& transform() const { return transform_; }
   isl::set transformed_domain() const;
