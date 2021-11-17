@@ -419,13 +419,13 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
       Expr out          = C[0];
       master_out_tensor = out.as_tensor_ref();
     }
-    CHECK_GE(C.size(), 2);
-    // CHECK_LE(C.size() - 1, node->outlinks_in_order().size());
-    for (int i = 0; i < C.size() - 1; i++) {
-      Expr out                      = C[i];
-      temp_var_map[temp_outvars[i]] = out;
-      if (fetch_var_ids_.count(temp_outvars[i]->id())) {
-        VLOG(3) << "get fetch output var " << temp_outvars[i]->id();
+
+    CHECK_LE(C.size(), 3);
+    Expr out = C.size() == 2 ? C[0] : C[1];
+    for (auto& node_data : temp_outvars) {
+      temp_var_map[node_data] = out;
+      if (fetch_var_ids_.count(node_data->id())) {
+        VLOG(3) << "get fetch output var " << node_data->id();
         CHECK(out.as_tensor());
         fetch_tensors.insert(out.as_tensor_ref());
       }
