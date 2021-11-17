@@ -618,7 +618,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
 
   compiler_->Build(build_module, options.attached_code);
   auto instructions = BuildInstructions();
-  RemoveUnusedVariablesFromScope(instructions);
+  RemoveInvalidVariables(instructions);
 
   if (options.with_instantiate_variables) {
     VLOG(3) << "Initantiate all variables on compile-time";
@@ -859,18 +859,18 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
   return instructions;
 }
 
-void GraphCompiler::RemoveUnusedVariablesFromScope(const std::vector<std::unique_ptr<Instruction>>& instructions) {
-  // mark all variables are unused initially
-  std::unordered_set<std::string> unused_variables;
+void GraphCompiler::RemoveInvalidVariables(const std::vector<std::unique_ptr<Instruction>>& instructions) {
+  // mark all variables are invalid initially
+  std::unordered_set<std::string> invalid_variables;
   auto var_names = scope_->var_names();
-  unused_variables.reserve(var_names.size());
+  invalid_variables.reserve(var_names.size());
   std::transform(var_names.begin(),
                  var_names.end(),
-                 std::inserter(unused_variables, unused_variables.end()),
+                 std::inserter(invalid_variables, invalid_variables.end()),
                  [](const auto& name_view) { return std::string(name_view.data()); });
 
   // erase used variable names
-  auto erase_used_name_fn = [&unused_variables](const std::string& var_name) { unused_variables.erase(var_name); };
+  auto erase_used_name_fn = [&invalid_variables](const std::string& var_name) { invalid_variables.erase(var_name); };
 
   auto exclude_arguments_fn = [&erase_used_name_fn](const std::vector<std::string>& args) {
     std::for_each(args.begin(), args.end(), erase_used_name_fn);
@@ -878,9 +878,9 @@ void GraphCompiler::RemoveUnusedVariablesFromScope(const std::vector<std::unique
 
   // iterate the arguments of each instruction, eliminate the
   // used variables, and remain variables are unused finally
-  auto unused_var_num = unused_variables.size();
-  VLOG(3) << "Before removing unused variables: " << instructions.size() << " instructions, " << unused_variables.size()
-          << " variables";
+  auto unused_var_num = invalid_variables.size();
+  VLOG(3) << "Before removing invalid variables: " << instructions.size() << " instructions, "
+          << invalid_variables.size() << " variables";
   for (auto i = 0; i < instructions.size(); ++i) {
     const auto& instr    = instructions.at(i);
     const auto& in_args  = instr->GetInArgs();
@@ -888,13 +888,13 @@ void GraphCompiler::RemoveUnusedVariablesFromScope(const std::vector<std::unique
     std::for_each(in_args.begin(), in_args.end(), exclude_arguments_fn);
     std::for_each(out_args.begin(), out_args.end(), exclude_arguments_fn);
 
-    VLOG(3) << "Instruction-" << i << " eliminate " << unused_var_num - unused_variables.size() << " used variables";
-    unused_var_num = unused_variables.size();
+    VLOG(3) << "Instruction-" << i << " eliminate " << unused_var_num - invalid_variables.size() << " used variables";
+    unused_var_num = invalid_variables.size();
   }
 
-  VLOG(3) << "There are " << unused_var_num << " unused variables to be removed from scope";
+  VLOG(3) << "There are " << unused_var_num << " invalid variables to be removed from scope";
   std::for_each(
-      unused_variables.begin(), unused_variables.end(), [& scope = this->scope_](const std::string& var_name) {
+      invalid_variables.begin(), invalid_variables.end(), [& scope = this->scope_](const std::string& var_name) {
         scope->EraseVar(var_name);
         VLOG(3) << "Variable(" << var_name << ") is erased";
       });
