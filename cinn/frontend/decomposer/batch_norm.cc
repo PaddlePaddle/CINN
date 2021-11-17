@@ -23,7 +23,8 @@ struct BatchNormHelper {
   BatchNormHelper(CinnBuilder* cinn_builder,
                   const std::vector<int>& arg_x_shape,
                   const std::vector<int>& arg_param_shape,
-                  std::string data_layout) {
+                  std::string data_layout,
+                  std::string bn_op_type) {
     CHECK_EQ(arg_x_shape.size(), 4UL) << "Only 4-D input tensor is supported, but get " << arg_x_shape.size()
                                       << "-D input tensor.";
 
@@ -42,6 +43,13 @@ struct BatchNormHelper {
     } else {
       LOG(FATAL) << data_layout << " setting is not support!";
     }
+
+    num_instructions = builder->size();
+    op_type          = bn_op_type;
+  }
+
+  ~BatchNormHelper() {
+    VLOG(4) << op_type << " is decomposed to " << builder->size() - num_instructions << " instructions.";
   }
 
   template <typename T>
@@ -90,6 +98,8 @@ struct BatchNormHelper {
   std::vector<int> reduce_dim;
   float element_count{0};
   int channel_dim{0};
+  std::string op_type;
+  int num_instructions{0};
 };
 
 void batch_norm_train(const Instruction& instr, const DecomposerContext& context) {
@@ -109,7 +119,7 @@ void batch_norm_train(const Instruction& instr, const DecomposerContext& context
   std::string layout = instr.GetAttrs<std::string>("data_layout");
 
   CinnBuilder* builder = context.builder();
-  BatchNormHelper helper(builder, x->shape, scale->shape, layout);
+  BatchNormHelper helper(builder, x->shape, scale->shape, layout, "batch_norm_train");
 
   // mean = reduce_sum(x) / nhw, shape = [c]
   auto mean    = helper.Mean(x);
@@ -157,7 +167,7 @@ void batch_norm_grad(const Instruction& instr, const DecomposerContext& context)
   auto layout  = instr.GetAttrs<std::string>("data_layout");
 
   CinnBuilder* builder = context.builder();
-  BatchNormHelper helper(builder, x->shape, scale->shape, layout);
+  BatchNormHelper helper(builder, x->shape, scale->shape, layout, "batch_norm_grad");
 
   // bias_grad = reduce_sum(y_grad), shape = [c]
   auto bias_grad = builder->Reduce(y_grad, ReduceKind::kSum, helper.reduce_dim);

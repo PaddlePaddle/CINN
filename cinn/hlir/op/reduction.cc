@@ -58,6 +58,7 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
   bool keep_dim = false;
   if (attrs.attr_store.count("dim")) {
     dim = absl::get<std::vector<int>>(attrs.attr_store.at("dim"));
+    std::sort(dim.begin(), dim.end());
   }
   if (attrs.attr_store.count("keep_dim")) {
     keep_dim = absl::get<bool>(attrs.attr_store.at("keep_dim"));
@@ -69,28 +70,37 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
     Expr A_expr = a[0];
     CHECK(A_expr.as_tensor());
     ir::Tensor A = A_expr.as_tensor_ref();
-    auto out     = pe_func(A, dim, keep_dim, Expr(), UniqName(op_name + "_out"));
-    auto stages  = CreateStages({A, out});
-    *ret         = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
+
+    // if do reduce on last axis and reduce axis size > 1.
+    // two step to do reduce: 1.[n,c,h,w] -> [c,w]; 2.[c,w] -> [c]
+    if (dim.back() == inputs[0]->shape.size() - 1 && dim.size() > 1 && target == common::DefaultNVGPUTarget()) {
+      // reduce without last dimension
+      std::vector<int> dims_without_last(dim.begin(), --dim.end());
+      auto out0 = pe_func(A, dims_without_last, keep_dim, Expr(), UniqName(op_name + "_out0"));
+      // reduce on last dimension
+      std::vector<int> dims_last(1, out0->shape.size() - 1);
+      auto out1   = pe_func(out0, dims_last, keep_dim, Expr(), UniqName(op_name + "_out1"));
+      auto stages = CreateStages({A, out0, out1});
+      *ret        = CINNValuePack{{CINNValue(out1), CINNValue(out0), CINNValue(stages)}};
+    } else {
+      auto out    = pe_func(A, dim, keep_dim, Expr(), UniqName(op_name + "_out"));
+      auto stages = CreateStages({A, out});
+      *ret        = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
+    }
   });
 
   framework::CINNSchedule reduction_schedule([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of " << op_name << " schedule is empty! Please check.";
     CINNValuePack arg_pack = args[0];
-    CHECK_EQ(arg_pack.size(), 2UL);
-    Expr Out              = arg_pack[0];
-    poly::StageMap stages = arg_pack[1];
-    CHECK(Out.as_tensor());
-    auto out = Out.as_tensor_ref();
+    CHECK(arg_pack.size() == 2UL || arg_pack.size() == 3UL);
     if (target.arch == Target::Arch::NVGPU) {
-      if (out->shape.size() > 1) {
-        stages[out]->Split(1, 2);
-        stages[out]->Bind(0, "blockIdx.x");
-        stages[out]->Bind(1, "threadIdx.x");
-      } else {
-        stages[out]->Split(0, 2);
-        stages[out]->Bind(0, "blockIdx.x");
-        stages[out]->Bind(1, "threadIdx.x");
+      poly::StageMap stages = arg_pack.size() == 2 ? arg_pack[1] : arg_pack[2];
+      Expr out0             = arg_pack.size() == 2 ? arg_pack[0] : arg_pack[1];
+      pe::CudaScheduleReduce(stages, out0.as_tensor_ref(), target);
+
+      if (arg_pack.size() == 3) {
+        Expr out1 = arg_pack[0];
+        pe::CudaScheduleReduce(stages, out1.as_tensor_ref(), target);
       }
     }
     *ret = arg_pack;
@@ -110,6 +120,7 @@ std::vector<shape_t> InferShapeForReduction(const std::vector<shape_t> &inputs_s
   if (attrs.find("dim") != attrs.end()) {
     dim = absl::get<std::vector<int>>(attrs.at("dim"));
   }
+
   if (attrs.find("keep_dim") != attrs.end()) {
     keep_dim = absl::get<bool>(attrs.at("keep_dim"));
   }

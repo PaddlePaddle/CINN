@@ -156,6 +156,8 @@ void CudaScheduleMul(poly::StageMap stages,
                      const std::vector<int> &output_shape,
                      const common::Target &target);
 
+void CudaScheduleReduce(poly::StageMap stages, ir::Tensor output, const common::Target &target);
+
 void CudaScheduleDepthwiseConv(poly::StageMap stages, ir::Tensor &output, const common::Target &target);
 
 void CudaScheduleConv(poly::StageMap stages,

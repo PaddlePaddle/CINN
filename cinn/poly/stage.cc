@@ -650,9 +650,7 @@ void Stage::ComputeAt(Stage *other, int level) {
 
   CHECK(relation.IsCompatible(this));
   compute_ats_[other->id()] = relation;
-  for (int i = 0; i <= level; i++) {
-    AddForloopInfo(i, StageForloopInfo{ir::ForType::Default, DeviceAPI::UNK, i});
-  }
+  for (int i = 0; i <= level; i++) AddForloopInfo(i, StageForloopInfo{ir::ForType::Default, DeviceAPI::UNK, 0});
 }
 
 void Stage::ComputeAt2(Stage *other, int level) {
@@ -727,6 +725,82 @@ Iterator Stage::Fuse(const std::vector<int> &levels) {
 
 Iterator Stage::Fuse(const std::string &level0, const std::string &level1) {
   return Fuse(Iterator(level0), Iterator(level1));
+}
+
+Iterator Stage::Fuse(const std::vector<Iterator> &levels) {
+  CHECK_GT(levels.size(), 1);
+  std::vector<int> offsets;
+  std::string new_iter_name;
+  for (auto &level : levels) {
+    int offset = isl_set_find_dim_by_name(transformed_domain().get(), isl_dim_set, level.id.c_str());
+    if (!offsets.empty())
+      CHECK_EQ(offsets.back() + 1, offset)
+          << "level [" << offsets.back() << "] and level [" << offset << "] should be adjancent";
+    AssertAxisIsNotLocked(offset);
+    offsets.push_back(offset);
+    new_iter_name += utils::StringFormat("%s_", level.id.c_str());
+  }
+  new_iter_name += "fused";
+
+  // Aff { s[i,j,k] -> [j] } and get the j's max value
+  // to apply something like { S[i,j] -> S[k]: k = i+j }
+  auto from_dim_names = isl_get_dim_names(transform_, isl_dim_out);
+  auto from_iters     = NamesToIterators(from_dim_names);
+
+  std::vector<int> iterator_max_val;
+  for (auto &level : levels) {
+    Aff aff(domain_.ctx(), id(), from_iters, std::vector<Iterator>({Iterator(level.id)}), {});
+    int level_max_val = transformed_domain().max_val(aff.to_isl()).get_num_si() + 1;
+    iterator_max_val.push_back(level_max_val);
+  }
+
+  // Map { s[i,j,k] -> s[n,k] : n = i * max_val + j }
+  std::vector<Iterator> to_iters;
+  {
+    Iterator new_iter(new_iter_name);
+    for (int i = 0; i < from_iters.size(); i++) {
+      int offset = isl_set_find_dim_by_name(transformed_domain().get(), isl_dim_set, from_iters[i].id.c_str());
+      if (i == offsets.back()) {
+        to_iters.push_back(new_iter);
+      } else if (i >= offsets.front() && i < offsets.back()) {
+      } else {
+        to_iters.push_back(from_iters[i]);
+      }
+    }
+  }
+  auto my_prod = [=](int a, int b) { return a * b; };
+  std::vector<Condition> conds;
+  conds.emplace_back(
+      utils::StringFormat("%s = floor(%s / %d)",
+                          levels.front().id.c_str(),
+                          new_iter_name.c_str(),
+                          (int)std::accumulate(iterator_max_val.begin() + 1, iterator_max_val.end(), 1, my_prod)));
+  conds.emplace_back(
+      utils::StringFormat("%s = %s mod %d", levels.back().id.c_str(), new_iter_name.c_str(), iterator_max_val.back()));
+
+  for (int i = 1; i < levels.size() - 1; i++) {
+    conds.emplace_back(
+        utils::StringFormat("%s = floor(%s / %d) mod %d",
+                            levels[i].id.c_str(),
+                            new_iter_name.c_str(),
+                            (int)std::accumulate(iterator_max_val.begin() + i + 1, iterator_max_val.end(), 1, my_prod),
+                            iterator_max_val[i]));
+  }
+
+  Map trans(domain_.ctx(), id(), from_iters, to_iters, conds, id());
+
+  VLOG(2) << "In Fuse, trans is : " << trans.to_isl();
+  VLOG(2) << "Before Fuse, transform_ is : " << transform_;
+  transform_ = transform_.apply_range(trans.to_isl());
+  {
+    std::vector<std::string> iter_names;
+    for (auto &iter : to_iters) iter_names.push_back(iter.id);
+
+    isl_set_dim_names(&transform_, isl_dim_out, iter_names);
+  }
+  VLOG(2) << "After Fuse, transform_ is : " << transform_;
+
+  return Iterator(new_iter_name);
 }
 
 /*
@@ -916,7 +990,7 @@ void Stage::Unroll(int level) {
   AssertAxisIsNotLocked(level);
   auto transformed_domain = this->transformed_domain();
   if (isl_is_removed_axis(transformed_domain.get(), level)) {
-    LOG(INFO) << "Unrolling for-1 has no sense, skip it";
+    VLOG(1) << "Unrolling for-1 has no sense, skip it";
     return;
   }
   int removed_axes_counts = isl_get_precending_removed_axes_counts(transformed_domain.get(), level);
@@ -1209,6 +1283,11 @@ ir::Tensor Stage::CacheWrite(const std::string &memory_type, StageMap stages, ir
 void Stage::ComputeInline() {
   CHECK(tensor_);
   meta.compute_inline = true;
+}
+
+void Stage::DisableComputeInline() {
+  CHECK(tensor_);
+  meta.compute_inline = false;
 }
 
 void Stage::ShareBufferWith(Stage *other) {
