@@ -58,7 +58,8 @@ void PaddleModelConvertor::RunOp(const paddle::cpp::OpDesc& op_desc, const OpMap
 }
 
 std::unordered_set<std::string> PaddleModelConvertor::GetFetchIds() const {
-  std::unordered_set<std::string> fetch_names(fetch_var_names_.size());
+  std::unordered_set<std::string> fetch_names;
+  fetch_names.reserve(fetch_var_names_.size());
   std::for_each(fetch_var_names_.begin(), fetch_var_names_.end(), [this, &fetch_names](const std::string& name) {
     CHECK_EQ(var_model_to_program_map_.count(name), 1) << "Cannot find [" << name << "] in var_model_to_program_map_";
     fetch_names.insert(var_model_to_program_map_.at(name));
