@@ -47,6 +47,34 @@ using PeFunc = std::function<ir::Tensor(const ir::Tensor &, const std::vector<in
     return StrategyForReduce(attrs, inputs, out_type, output_shapes, target, #op_name__, pe__);     \
   }
 
+int GetThreadBindAxis(const std::vector<ir::Expr> &shape) {
+  int thread_axis = shape.size() - 1;
+  for (int idx = thread_axis; idx >= 0; --idx) {
+    if (shape[idx].as_int32() > 1) {
+      thread_axis = idx;
+      break;
+    }
+  }
+  return thread_axis;
+}
+
+int GetBlockBindAxis(const std::vector<ir::Expr> &shape, const int thread_axis) {
+  int block_axis = 0, max_dim_size = shape[0].as_int32();
+  for (int idx = 0; idx <= thread_axis; ++idx) {
+    if (max_dim_size < shape[idx].as_int32()) {
+      if (idx < thread_axis) {
+        max_dim_size = shape[idx].as_int32();
+        block_axis   = idx;
+      } else {
+        if (max_dim_size == 1) {
+          block_axis = thread_axis;
+        }
+      }
+    }
+  }
+  return block_axis;
+}
+
 std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
                                               const std::vector<ir::Tensor> &inputs,
                                               const std::vector<Type> &out_type,
@@ -74,10 +102,10 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
     // if do reduce on last axis and reduce axis size > 1.
     // two step to do reduce: 1.[n,c,h,w] -> [c,w]; 2.[c,w] -> [c]
     if (dim.back() == inputs[0]->shape.size() - 1 && dim.size() > 1 && target == common::DefaultNVGPUTarget()) {
-      // do reduce parallel on last dimension
+      // reduce without last dimension
       std::vector<int> dims_without_last(dim.begin(), --dim.end());
       auto out0 = pe_func(A, dims_without_last, keep_dim, Expr(), UniqName(op_name + "_out0"));
-      // do reduce on last dimension
+      // reduce on last dimension
       std::vector<int> dims_last(1, out0->shape.size() - 1);
       auto out1   = pe_func(out0, dims_last, keep_dim, Expr(), UniqName(op_name + "_out1"));
       auto stages = CreateStages({A, out0, out1});
@@ -96,54 +124,33 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
     if (target.arch == Target::Arch::NVGPU) {
       poly::StageMap stages = arg_pack.size() == 2 ? arg_pack[1] : arg_pack[2];
 
-      auto cuda_schedule = [&stages](ir::Expr &out_expr) {
+      auto CudaReduceSchdule = [&stages](ir::Expr &out_expr) {
         auto out = out_expr.as_tensor_ref();
-        // get the last reduce dimenion(size > 1)
-        int last_axis = out->shape.size() - 1;
-        for (int idx = last_axis; idx >= 0; --idx) {
-          if (out->shape[idx].as_int32() > 1) {
-            last_axis = idx;
-            break;
-          }
+        // find the dimension to bind threadIdx.x.
+        auto thread_axis = GetThreadBindAxis(out->shape);
+        // use the max dimension to bind blockIdx.x
+        auto block_axis = GetBlockBindAxis(out->shape, thread_axis);
+
+        if (block_axis < thread_axis) {
+          stages[out]->Bind(block_axis, "blockIdx.x");
         }
 
-        // get the max reduce dimension(size > 1)
-        int max_axis = 0, max_value = out->shape[0].as_int32();
-        for (int idx = 0; idx <= last_axis; ++idx) {
-          if (max_value < out->shape[idx].as_int32()) {
-            if (idx < last_axis) {
-              max_value = out->shape[idx].as_int32();
-              max_axis  = idx;
-            } else {
-              if (max_value == 1) {
-                max_axis = last_axis;
-              }
-            }
+        if (out->shape[thread_axis].as_int32() > 512) {
+          stages[out]->Split(thread_axis, 512);
+          if (block_axis == thread_axis) {
+            stages[out]->Bind(thread_axis, "blockIdx.x");
           }
-        }
-
-        // bind blockIdx.x
-        if (max_axis < last_axis) {
-          stages[out]->Bind(max_axis, "blockIdx.x");
-        }
-
-        // bind threadIdx.x
-        if (out->shape[last_axis].as_int32() > 512) {
-          stages[out]->Split(last_axis, 512);
-          if (max_axis == last_axis) {
-            stages[out]->Bind(last_axis, "blockIdx.x");
-          }
-          stages[out]->Bind(last_axis + 1, "threadIdx.x");
+          stages[out]->Bind(thread_axis + 1, "threadIdx.x");
         } else {
-          stages[out]->Bind(last_axis, "threadIdx.x");
+          stages[out]->Bind(thread_axis, "threadIdx.x");
         }
       };
       Expr out0 = arg_pack[0];
-      cuda_schedule(out0);
+      CudaReduceSchdule(out0);
 
       if (arg_pack.size() == 3) {
         Expr out1 = arg_pack[1];
-        cuda_schedule(out1);
+        CudaReduceSchdule(out1);
       }
     }
     *ret = arg_pack;
