@@ -21,9 +21,11 @@
 
 #include "cinn/backends/cuda_util.h"
 #include "cinn/hlir/framework/scope.h"
-#ifdef CINN_WITH_CUDNN
+/* #ifdef CINN_WITH_CUDNN
 #include "cinn/runtime/cuda/cuda_util.h"
-#endif
+#endif */
+#include "cinn/runtime/cuda/cuda_util.h"
+#include "cinn/utils/string.h"
 #include "cinn/utils/timer.h"
 
 namespace cinn {
@@ -67,6 +69,47 @@ class Instruction {
    * Run the Instruction.
    */
   void Run(const std::map<std::string, cinn_pod_value_t>* name2podargs = nullptr, bool dryrun = false);
+
+  void PreRun(const std::map<std::string, cinn_pod_value_t>* name2podargs = nullptr) {
+    if (fn_.size() == 4) {
+      if (fn_.size() > 1 && fn_.size() != in_args_.size()) {
+        out_args_.back()[0] = out_args_.front()[0];
+        out_args_.erase(out_args_.begin());
+        in_args_.erase(in_args_.begin());
+      }
+      if (name2podargs != nullptr) {
+        args_cached_.clear();
+      }
+      CHECK_EQ(fn_.size(), in_args_.size());
+      CHECK_EQ(fn_.size(), out_args_.size());
+      int flag = -1;
+      for (int i = 0; i < 4; i++) {
+        if (utils::Startswith(out_args_[i][0], "kernel_pack")) {
+          LOG(INFO) << "PreRun " << i << "-th function of fn_:" << function_name_;
+          for (auto& arg : in_args_[i]) LOG(INFO) << "in_args is : " << arg;
+          for (auto& arg : out_args_[i]) LOG(INFO) << "out_args_ is : " << arg;
+          flag           = i;
+          auto& pod_args = PreparePodArgs(i, name2podargs);
+          auto it_fn     = fn_[i];
+          CHECK(it_fn) << "The LoweredFunc address should be set first by calling SetLoweredFunc method";
+          it_fn(pod_args.data(), pod_args.size());
+          if (target_.arch == Target::Arch::NVGPU) {
+            CUDA_CALL(cudaDeviceSynchronize());
+          }
+        }
+      }
+      if (flag >= 0) {
+        args_cached_.erase(args_cached_.begin() + flag);
+        in_args_.erase(in_args_.begin() + flag);
+        out_args_.erase(out_args_.begin() + flag);
+        fn_.erase(fn_.begin() + flag);
+      }
+    } else {
+      Run(name2podargs);
+    }
+  }
+
+  int size() { return fn_.size(); }
 
   std::vector<std::vector<std::string>> GetInArgs() { return in_args_; }
   std::vector<std::vector<std::string>> GetOutArgs() { return out_args_; }

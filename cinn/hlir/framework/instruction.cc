@@ -26,7 +26,8 @@ std::vector<cinn_pod_value_t>& Instruction::PreparePodArgs(
   common::ArgsBuilder builder;
   std::vector<std::string> all_args(in_args_[i].begin(), in_args_[i].end());
   all_args.insert(std::end(all_args), out_args_[i].begin(), out_args_[i].end());
-
+  for (auto& arg : all_args)
+    VLOG(3) << "In PreparePodArgs of [" << function_name_ << "] with int = [" << i << "], all_args have: " << arg;
   if (name2podargs != nullptr) {
     for (auto& arg : all_args) {
       CHECK_NE(name2podargs->count(arg), 0) << "Argument [" << arg << "] not found in the name2podargs";
@@ -44,7 +45,7 @@ std::vector<cinn_pod_value_t>& Instruction::PreparePodArgs(
   }
 
   args_cached_.emplace_back(builder.Build());
-  CHECK(args_cached_.size() > i);
+  if (args_cached_.size() <= i) return args_cached_.back();
   return args_cached_[i];
 }
 
@@ -59,7 +60,7 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
     args_cached_.clear();
   }
 
-  VLOG(2) << "Run function " << function_name_;
+  // VLOG(1) << "Run function " << function_name_;
 
 #ifdef CINN_WITH_CUDNN
   auto& pod_args = PreparePodArgs(0, name2podargs);
@@ -118,16 +119,31 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
     }
   }
 #else
-  int i = 0;
-  for (auto& it_fn : fn_) {
-    auto& pod_args = PreparePodArgs(i, name2podargs);
-    CHECK(it_fn) << "The LoweredFunc address should be set first by calling SetLoweredFunc method";
-    if (!dryrun) {
-      it_fn(pod_args.data(), pod_args.size());
+  auto& pod_args = PreparePodArgs(0, name2podargs);
+  if (function_name_ == "pool2d" && target_.arch == Target::Arch::NVGPU) {
+    runtime::cuda::cinn_gpu_cudnn_pool2d(attrs, str_attrs, pod_args[0], pod_args[1]);
+  } else if (function_name_ == "softmax" && target_.arch == Target::Arch::NVGPU) {
+    CHECK_EQ(pod_args.size(), 3);
+    runtime::cuda::cinn_gpu_cudnn_softmax(attrs, pod_args[0], pod_args[1]);
+  } else if (function_name_ == "mul" && target_.arch == Target::Arch::NVGPU) {
+    CHECK_EQ(pod_args.size(), 4);
+    runtime::cuda::cinn_gpu_cublas_mul(attrs, pod_args[0], pod_args[1], pod_args[2]);
+  } else {
+    int i = 0;
+    for (auto& it_fn : fn_) {
+      auto& pod_args = PreparePodArgs(i, name2podargs);
+      CHECK(it_fn) << "The LoweredFunc address should be set first by calling SetLoweredFunc method";
+      if (!dryrun) {
+        it_fn(pod_args.data(), pod_args.size());
+      }
+      i++;
     }
-    i++;
   }
+/*   if (target_.arch == Target::Arch::NVGPU) {
+    CUDA_CALL(cudaDeviceSynchronize());
+  } */
 #endif
+  // LOG(INFO) << "Function [" << function_name_ << "] runt cost time: " << time1.Stop() << "ms. ";
 }
 
 }  // namespace framework

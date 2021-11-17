@@ -182,7 +182,12 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
 
   void ResizeTempMemory(const std::string& tensor_name, int index, Expr* indice, const std::string& var_name) {
     if (extent_.defined()) {
-      std::string buffer_id = (*global_tensor_map_)[tensor_name]->buffer->name + var_->name;
+      // To avoid duplicate resizing of the same buffer, we use a string of buffer name + var name + shape's index as
+      // ID. If an ID already exists, which means we have already edited the buffer's shape, we will just return.
+      VLOG(2) << "ResizeTempMemory tensor_name [" << tensor_name << "], index [" << index << "], indice [" << *indice
+              << "], var_name [" << var_name << "].";
+      std::string buffer_id =
+          (*global_tensor_map_)[tensor_name]->buffer->name + "_" + var_->name + "_" + std::to_string(index);
       if (resized_buffer_.count(buffer_id) != 0) {
         std::vector<Expr> buffer_shape               = IRCopy((*global_tensor_map_)[tensor_name]->buffer->shape);
         (*global_tensor_map_).at(tensor_name)->shape = buffer_shape;
@@ -201,6 +206,15 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
       Simplify(&tensor_shape[index]);
       CHECK(tensor_shape[index].is_constant());
       CHECK(extent_.is_constant());
+      /**
+       * Here we need to calculate the new shape[index] after removing the var.
+       * For example, if tensor A_temp's original shape is [100,100] and its indice is [i_outer * 10 + i_inner, j]. (0 <
+       * i_outer < 10 and 0 < i_inner < 10 and 0 < j < 100) After removing the var i_outer, its new shape[0] should be:
+       * diff = oldshape[0](when i_outer = 9) - oldshape[0](when i_outer = 0)
+       * new_shape[0] = old_shape[0] - diff
+       * In this case, new_shape[0] = 100 - 90 = 10
+       * Thus we get A_temp's new shape: [10, 100] and new indice [i_inner, j]. (0 < i_inner < 10 and 0 < j < 100)
+       */
       int extent_i = extent_.get_constant();
       auto copy1   = IRCopy(*indice);
       auto copy2   = IRCopy(*indice);
@@ -209,6 +223,14 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
       auto res            = copy1 - copy2;
       tensor_shape[index] = tensor_shape[index] - res;
       Simplify(&tensor_shape[index]);
+      VLOG(2) << "tensor_shape[index] - res is : " << tensor_shape[index];
+      if (tensor_shape[index].is_constant() && tensor_shape[index].get_constant() <= 0) {
+        tensor_shape[index] = Expr(1);
+      } else if (!tensor_shape[index].is_constant()) {
+        LOG(INFO) << "Index is not constant: " << tensor_shape[index] << " and it will be replaced to 1";
+        tensor_shape[index] = Expr(1);
+      }
+
       (*global_tensor_map_).at(tensor_name)->shape = tensor_shape;
 
       resized_buffer_.insert(buffer_id);
@@ -226,7 +248,7 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
   void Visit(const ir::_Var_* expr, Expr* op) override {
     if (do_replace_) {
       if (expr->name != utils::GetStreamCnt(var_->name)) return;
-      VLOG(2) << "Do Replace: " << expr->name << " to 0";
+      VLOG(2) << "Do Replace: " << expr->name << " to " << expr_;
       auto copied   = IRCopy(expr_);
       *op           = copied;
       find_replace_ = true;

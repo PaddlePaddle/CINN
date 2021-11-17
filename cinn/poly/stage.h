@@ -216,6 +216,8 @@ class Stage : public Object {
   void Unroll(const std::string& level);
   void Unroll(const Iterator& level);
 
+  bool IsUnrolled(int level);
+
   void Bind(int level, const std::string& axis);
 
   enum ComputeAtKind {
@@ -235,6 +237,19 @@ class Stage : public Object {
   void CtrlDepend(const ir::Tensor& t);
   //! Get the tensors control depend on.
   const std::set<ir::Tensor>& ctrl_depends() const;
+
+  /**
+   * Set the memory type of this stage's tensor.
+   * @param memory_type the memory type of this tensor. For example, memory_type="shared".
+   */
+  void SetBuffer(const std::string& memory_type);
+
+  /**
+   * Given two stages already satisfy ComputeAtRelation.IsCompatible, set compute_ats_ for them.
+   * @param other the other stage to set compute_ats_.
+   * @param level the level of ComputeAtRelation.
+   */
+  void SimpleComputeAt(Stage* other, int level);
 
   /**
    * Create a cache Tensor and load the \p source into this buffer, replace all the reading in the readers with the
@@ -327,6 +342,7 @@ class Stage : public Object {
   Iterator Fuse(const Iterator& level0, const Iterator& level1);
   Iterator Fuse(int level0, int level1);
   Iterator Fuse(const std::vector<int>& levels);
+  Iterator Fuse(const std::vector<Iterator>& levels);
   Iterator Fuse(const std::string& level0, const std::string& level1);
 
   const isl::set& domain() const { return domain_; }
@@ -395,6 +411,7 @@ class Stage : public Object {
   //! Set stage's forloop_infos_
   void SetForloopInfo(std::map<int, StageForloopInfo> forloop_infos) { forloop_infos_ = forloop_infos; }
   void AddForloopInfo(int level, const StageForloopInfo& info);
+  bool HaveForloopInfo(int level);
   bool IfCudaBind() { return cuda_bind_info_; }
 
  private:

@@ -17,6 +17,8 @@
 #include <math.h>
 
 #include <algorithm>
+#include <functional>
+#include <numeric>
 #include <set>
 #include <unordered_set>
 #include <utility>
@@ -147,11 +149,15 @@ std::tuple<Iterator, Iterator> Stage::Split(const Iterator &level, int factor) {
     if (dim == level.id) {
       to_iters.push_back(outer_iter);
       to_iters.push_back(inner_iter);
-
+      /*       Aff aff(domain_.ctx(), id(), from_iters, std::vector<Iterator>({Iterator(level.id)}), {});
+            if (transformed_domain().max_val(aff.to_isl()).is_int()) {
+              int level_max_val = transformed_domain().max_val(aff.to_isl()).get_num_si();
+              LOG(INFO) << "In Split, condition is : " << utils::StringFormat("0<=%s<=%d", level.id.c_str(),
+         level_max_val); conds.emplace_back(utils::StringFormat("0<=%s<=%d", level.id.c_str(), level_max_val));
+            } */
       conds.emplace_back(utils::StringFormat("%s=floor(%s/%d)", outer_iter.id.c_str(), level.id.c_str(), factor));
       VLOG(3) << "outer cond: " << conds.back();
       conds.emplace_back(utils::StringFormat("%s=%s %s %d", inner_iter.id.c_str(), level.id.c_str(), "%", factor));
-
       VLOG(3) << "inner cond: " << conds.back();
     } else {
       to_iters.emplace_back(dim);
@@ -482,9 +488,12 @@ void Stage::EditTempTensor(Stage *other, int level) {
     optim::Simplify(&i);
   }
   // Set new shape.
-  VLOG(3) << "Tensor is : " << this->tensor()->name;
+  VLOG(3) << "In Tensor : " << this->tensor()->name;
+  for (auto &i : this->tensor()->shape) {
+    VLOG(3) << "Temp Buffer's old shape is: " << utils::GetStreamCnt(i);
+  }
   for (auto &i : new_shape) {
-    VLOG(3) << "In Temp Buffer, shape is: " << utils::GetStreamCnt(i);
+    VLOG(3) << "Temp Buffer's new shape is: " << utils::GetStreamCnt(i);
   }
   this->tensor()->shape = new_shape;
   CHECK(this->tensor()->buffer.defined());
@@ -651,7 +660,10 @@ void Stage::ComputeAt(Stage *other, int level) {
   CHECK(relation.IsCompatible(this));
   compute_ats_[other->id()] = relation;
   for (int i = 0; i <= level; i++) {
-    AddForloopInfo(i, StageForloopInfo{ir::ForType::Default, DeviceAPI::UNK, i});
+    if (IsUnrolled(i))
+      AddForloopInfo(i, StageForloopInfo{ir::ForType::Unrolled, DeviceAPI::UNK, 0});
+    else
+      AddForloopInfo(i, StageForloopInfo{ir::ForType::Default, DeviceAPI::UNK, 0});
   }
 }
 
@@ -660,6 +672,24 @@ void Stage::ComputeAt2(Stage *other, int level) {
   this->ChangeDomain(other, level);
   this->CopyTransform(other, level);
   this->ChangeIndex(other);
+  CHECK(tensor_);
+  other->CtrlDepend(ir::Tensor(tensor()));
+  if (this->tensor()->buffer.defined()) {
+    std::string t_name = this->tensor()->buffer->name;
+    if (utils::Endswith(t_name, "_read_cache") || utils::Endswith(t_name, "_write_cache")) {
+      EditTempTensor(other, level);
+    }
+  }
+  ComputeAtRelation relation;
+  relation.stage = other;
+  relation.level = level;
+  other->CtrlDepend(ir::Tensor(tensor()));
+
+  CHECK(relation.IsCompatible(this));
+  compute_ats_[other->id()] = relation;
+}
+
+void Stage::SimpleComputeAt(Stage *other, int level) {
   CHECK(tensor_);
   other->CtrlDepend(ir::Tensor(tensor()));
   if (this->tensor()->buffer.defined()) {
@@ -725,6 +755,95 @@ Iterator Stage::Fuse(const std::vector<int> &levels) {
   return fused_axis;
 }
 
+/* Iterator Stage::Fuse(const std::vector<int> &levels) {
+  auto dims = isl_get_dim_names(transformed_domain());
+  for (auto i : levels) {
+    AssertAxisIsNotLocked(i);
+    CHECK_LT(i, dims.size());
+  }
+  std::vector<Iterator> iterators;
+  for (size_t i = 0; i < levels.size(); i++) {
+    iterators.push_back(Iterator(dims[levels[i]]));
+  }
+  return Fuse(iterators);
+} */
+
+Iterator Stage::Fuse(const std::vector<Iterator> &levels) {
+  CHECK_GT(levels.size(), 1);
+  std::vector<int> offsets;
+  std::string new_iter_name;
+  for (auto &level : levels) {
+    int offset = isl_set_find_dim_by_name(transformed_domain().get(), isl_dim_set, level.id.c_str());
+    if (!offsets.empty())
+      CHECK_EQ(offsets.back() + 1, offset)
+          << "level [" << offsets.back() << "] and level [" << offset << "] should be adjancent";
+    AssertAxisIsNotLocked(offset);
+    offsets.push_back(offset);
+    new_iter_name += utils::StringFormat("%s_", level.id.c_str());
+  }
+  new_iter_name += "fused";
+
+  // Aff { s[i,j,k] -> [j] } and get the j's max value
+  // to apply something like { S[i,j] -> S[k]: k = i+j }
+  auto from_dim_names = isl_get_dim_names(transform_, isl_dim_out);
+  auto from_iters     = NamesToIterators(from_dim_names);
+
+  std::vector<int> iterator_max_val;
+  for (auto &level : levels) {
+    Aff aff(domain_.ctx(), id(), from_iters, std::vector<Iterator>({Iterator(level.id)}), {});
+    int level_max_val = transformed_domain().max_val(aff.to_isl()).get_num_si() + 1;
+    iterator_max_val.push_back(level_max_val);
+  }
+
+  // Map { s[i,j,k] -> s[n,k] : n = i * max_val + j }
+  std::vector<Iterator> to_iters;
+  {
+    Iterator new_iter(new_iter_name);
+    for (int i = 0; i < from_iters.size(); i++) {
+      int offset = isl_set_find_dim_by_name(transformed_domain().get(), isl_dim_set, from_iters[i].id.c_str());
+      if (i == offsets.back()) {
+        to_iters.push_back(new_iter);
+      } else if (i >= offsets.front() && i < offsets.back()) {
+      } else {
+        to_iters.push_back(from_iters[i]);
+      }
+    }
+  }
+  auto my_prod = [=](int a, int b) { return a * b; };
+  std::vector<Condition> conds;
+  conds.emplace_back(
+      utils::StringFormat("%s = floor(%s / %d)",
+                          levels.front().id.c_str(),
+                          new_iter_name.c_str(),
+                          (int)std::accumulate(iterator_max_val.begin() + 1, iterator_max_val.end(), 1, my_prod)));
+  conds.emplace_back(
+      utils::StringFormat("%s = %s mod %d", levels.back().id.c_str(), new_iter_name.c_str(), iterator_max_val.back()));
+
+  for (int i = 1; i < levels.size() - 1; i++) {
+    conds.emplace_back(
+        utils::StringFormat("%s = floor(%s / %d) mod %d",
+                            levels[i].id.c_str(),
+                            new_iter_name.c_str(),
+                            (int)std::accumulate(iterator_max_val.begin() + i + 1, iterator_max_val.end(), 1, my_prod),
+                            iterator_max_val[i]));
+  }
+
+  Map trans(domain_.ctx(), id(), from_iters, to_iters, conds, id());
+
+  VLOG(2) << "In Fuse, trans is : " << trans.to_isl();
+  VLOG(2) << "Before Fuse, transform_ is : " << transform_;
+  transform_ = transform_.apply_range(trans.to_isl());
+  {
+    std::vector<std::string> iter_names;
+    for (auto &iter : to_iters) iter_names.push_back(iter.id);
+
+    isl_set_dim_names(&transform_, isl_dim_out, iter_names);
+  }
+  VLOG(2) << "After Fuse, transform_ is : " << transform_;
+
+  return Iterator(new_iter_name);
+}
+
 Iterator Stage::Fuse(const std::string &level0, const std::string &level1) {
   return Fuse(Iterator(level0), Iterator(level1));
 }
@@ -767,6 +886,11 @@ Iterator Stage::Fuse(const Iterator &level0, const Iterator &level1) {
   std::vector<Condition> conds;
   conds.emplace_back(utils::StringFormat(
       "%s = %s * %d + %s", new_iter_name.c_str(), level0.id.c_str(), level1_max_val, level1.id.c_str()));
+  conds.emplace_back(utils::StringFormat("0<=%s<=%d", level1.id.c_str(), level1_max_val - 1));
+  /*   conds.emplace_back(std::string(level1.id.c_str()) + " = " + std::string(new_iter_name.c_str()) + " mod " +
+                       std::to_string(level1_max_val));
+    conds.emplace_back(std::string(level0.id.c_str()) + " = floor(" + std::string(new_iter_name.c_str()) + " / " +
+                       std::to_string(level1_max_val) + ")"); */
 
   Map trans(domain_.ctx(), id(), from_iters, to_iters, conds, id());
 
@@ -916,12 +1040,31 @@ void Stage::Unroll(int level) {
   AssertAxisIsNotLocked(level);
   auto transformed_domain = this->transformed_domain();
   if (isl_is_removed_axis(transformed_domain.get(), level)) {
-    LOG(INFO) << "Unrolling for-1 has no sense, skip it";
+    VLOG(1) << "Unrolling for-1 has no sense, skip it";
     return;
   }
   int removed_axes_counts = isl_get_precending_removed_axes_counts(transformed_domain.get(), level);
   VLOG(3) << "removed_axes_counts are " << removed_axes_counts << " before axis " << ith_dim_name(level);
+  // LOG(INFO) << "Stage of " << id() << " insert unroll_info with level = " << level << " and level -
+  // removed_axes_counts is " << level - removed_axes_counts;
   unroll_info_.insert(level - removed_axes_counts);
+  if (HaveForloopInfo(level) && forloop_infos_[level - removed_axes_counts].for_type == ir::ForType::Default)
+    AddForloopInfo(level, StageForloopInfo{ir::ForType::Unrolled, DeviceAPI::UNK, 0});
+}
+
+bool Stage::IsUnrolled(int level) {
+  CHECK_GE(level, 0);
+  auto transformed_domain = this->transformed_domain();
+  if (isl_is_removed_axis(transformed_domain.get(), level)) {
+    VLOG(1) << "Unrolling for-1 has no sense, skip it";
+    return false;
+  }
+  int removed_axes_counts = isl_get_precending_removed_axes_counts(transformed_domain.get(), level);
+  VLOG(3) << "removed_axes_counts are " << removed_axes_counts << " before axis " << ith_dim_name(level);
+  // LOG(INFO) << "Stage of " << id() << " insert unroll_info with level = " << level << " and level -
+  // removed_axes_counts is " << level - removed_axes_counts;
+  if (unroll_info_.count(level - removed_axes_counts) > 0) return true;
+  return false;
 }
 
 std::string Stage::ith_dim_name(int level) {
@@ -1131,6 +1274,24 @@ void CacheReadWriteReplace(std::vector<ir::Tensor> &readers, ir::Tensor cache_te
   }
 }
 
+void Stage::SetBuffer(const std::string &memory_type) {
+  tensor_->WithBuffer(memory_type, "_" + this->tensor_->name + "_temp_buffer");
+  if (memory_type == "shared") {
+    this->SetScope(ScopeKind::kShared);
+  } else if (memory_type == "local") {
+    this->SetScope(ScopeKind::kLocal);
+  } else if (memory_type == "global") {
+    this->SetScope(ScopeKind::kGlobal);
+  } else {
+    CINN_NOT_IMPLEMENTED
+  }
+  if (tensor_->buffer.defined()) {
+    VLOG(2) << "Has tensor_->buffer: " << tensor_->buffer->name;
+  } else {
+    VLOG(2) << "No tensor_->buffer";
+  }
+}
+
 /*
  * To create a read cache:
  * 1. create a cache write stage for cache assign.
@@ -1270,6 +1431,20 @@ void Stage::AddForloopInfo(int level, const StageForloopInfo &info) {
   }
   VLOG(3) << "removed_axes_counts are " << removed_axes_counts << " before axis " << ith_dim_name(level);
   forloop_infos_[level - removed_axes_counts] = info;
+}
+
+bool Stage::HaveForloopInfo(int level) {
+  int num_levels = isl_map_dim(transform_.get(), isl_dim_out);
+  CHECK_GE(level, 0);
+  CHECK_LT(level, num_levels);
+  auto transformed_domain = this->transformed_domain();
+  int removed_axes_counts = isl_get_precending_removed_axes_counts(transformed_domain.get(), level);
+
+  if (isl_is_removed_axis(transformed_domain.get(), level)) {
+    return false;
+  }
+  if (forloop_infos_.count(level - removed_axes_counts) > 0) return true;
+  return false;
 }
 
 void Stage::CopyTransform(Stage *other, int level) {

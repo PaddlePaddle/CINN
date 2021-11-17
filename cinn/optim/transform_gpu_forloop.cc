@@ -192,12 +192,16 @@ void MarkGpuForloop(const std::string &statement,
         std::string iterator_name;
         if (it != forloop_infos.end()) {
           if (for_) {
+            auto f_type = for_->for_type();
+            VLOG(1) << "Set " << for_->loop_var << " 's for_type to be " << *reinterpret_cast<int *>(&f_type);
             for_->set_for_type(it->second.for_type);
             for_->device_api = it->second.device;
             iterator_name    = for_->loop_var->name;
             VLOG(2) << "In this for loop, extent is : " << for_->extent;
             VLOG(2) << "In this for loop, body is : " << for_->body;
           } else {
+            auto f_type = poly_for->for_type();
+            VLOG(1) << "Set " << poly_for->iterator << " 's for_type to be " << *reinterpret_cast<int *>(&f_type);
             poly_for->set_for_type(it->second.for_type);
             poly_for->device_api = it->second.device;
             iterator_name        = poly_for->iterator->name;
@@ -226,9 +230,9 @@ void MarkGpuForloop(const std::string &statement,
             optim::CUDAReplaceIndexOfCachePass(
                 expr, var_expr, ir::Expr(0), global_tensor_map, resized_buffer, true, extent);
             VLOG(2) << "After that, expr is : " << *expr;
-          } else if (it->second.for_type == ir::ForType::Default) {
+          } else if (it->second.for_type == ir::ForType::Default || it->second.for_type == ir::ForType::Unrolled) {
             Expr extent = for_ ? for_->extent : poly_for->ExtractExtent();
-            VLOG(2) << "ComputeAt5 replacing var " << axis_var->name << " to Expr(0)";
+            VLOG(2) << "ComputeAt replacing var " << axis_var->name << " to Expr(0) in tensor " << tensor_name;
             optim::CUDAReplaceIndexOfCachePass(
                 expr, axis_var, ir::Expr(0), global_tensor_map, resized_buffer, false, extent, tensor_name);
           } else {
@@ -290,6 +294,8 @@ ir::CudaAxisInfo GatherAxisInfoFromStages(const std::vector<poly::Stage *> &stag
         info.set_block_dim(item.first.second, item.second);
         break;
       case ir::ForType::Default:
+        break;
+      case ir::ForType::Unrolled:
         break;
       default:
         CINN_NOT_IMPLEMENTED

@@ -72,10 +72,9 @@ Expr LowerGroup(const poly::ScheduleGroup& group,
   BindBuffer(stage_map);
   std::vector<poly::Stage*> stages;
   for (auto& node : group.nodes) {
-    VLOG(1) << "In LowerGroup, node id is: " << node->id();
+    VLOG(3) << "In LowerGroup, node id is: " << node->id();
     if (node->stage->has_expression()) {
       stages.push_back(node->stage);
-      VLOG(1) << "stage expr " << node->stage->expr();
     } else {
       VLOG(1) << "stage expression is null: " << node->stage->domain();
     }
@@ -92,7 +91,7 @@ Expr LowerGroup(const poly::ScheduleGroup& group,
   // now we get a workable expression, but the statement are something like `B(((16 * po0) + po1), po2)`, we need to
   // transform this to some realworld statement in CINN.
 
-  VLOG(1) << "ast to expr: \n" << e << std::endl;
+  VLOG(3) << "ast to expr: \n" << e << std::endl;
 
   // replace isl call to the corresponding CINN statement, we need to replace the axis at the same time.
   for (auto& statement : tuple_to_expr) {
@@ -199,6 +198,46 @@ Expr LowerGroup(const poly::ScheduleGroup& group,
     optim::TransformGpuForloops(forloop_infos, traverse_order, global_tensor_map, resized_buffer, &e);
     auto axis_info = optim::GatherAxisInfoFromStages(stages);
     if (axis_info.valid()) cuda_axis_info->ExtendWith(axis_info);
+  }
+#else
+  {
+    optim::forloop_infos_t forloop_infos;
+    std::vector<std::string> traverse_order;
+    std::set<std::string> temp_set;
+    for (auto* stage : stages) {
+      // transform the level identified for infors to iter name identified.
+      auto iters = common::GatherItersToTensorProducer(stage->id(), &e);
+      std::map<std::string, poly::StageForloopInfo> for_infos;
+      for (auto& item : stage->forloop_infos()) {
+        if (item.first < 0) continue;
+        CHECK_LT(item.first, iters.size());
+        for_infos[iters[item.first]] = item.second;
+      }
+      forloop_infos[stage->id()] = for_infos;
+    }
+
+    for (auto* stage : stages) {
+      CHECK_EQ((*global_tensor_map).count(stage->id()), 1) << "Global_Tensor_Map doesn't contain " << stage->id();
+      CHECK_EQ(forloop_infos.count(stage->id()), 1) << "forloop_infos doesn't contain " << stage->id();
+      if (stage->ctrl_depends().size() > 0) {
+        for (auto& i : stage->ctrl_depends()) {
+          CHECK_EQ((*global_tensor_map).count(i->name), 1) << "Global_Tensor_Map doesn't contain " << i->name;
+          if (forloop_infos.count(i->name) == 0) continue;
+          if (temp_set.count(i->name) == 0) {
+            traverse_order.push_back(i->name);
+            temp_set.insert(i->name);
+          }
+        }
+      }
+
+      if (temp_set.count(stage->id()) == 0) {
+        traverse_order.push_back(stage->id());
+        temp_set.insert(stage->id());
+      }
+    }
+    std::reverse(traverse_order.begin(), traverse_order.end());
+
+    optim::TransformComputeatForloops(forloop_infos, traverse_order, global_tensor_map, resized_buffer, &e);
   }
 #endif  // CINN_WITH_CUDA
   return e;
@@ -350,7 +389,7 @@ std::unique_ptr<common::Graph> CreateCompGraph(const std::vector<ir::Tensor>& te
 void LowerImpl::CheckArgsUnique() {
   std::unordered_set<std::string> arg_names;
   for (auto& tensor : tensor_args_) {
-    CHECK(!stages_[tensor]->inlined()) << "Inline tensor cannot be argument of function";
+    CHECK(!stages_[tensor]->inlined()) << "Inline tensor " << tensor->name << " cannot be argument of function";
     CHECK(!arg_names.count(tensor->name))
         << "The argument of the function, tensor [" << tensor->name << "] duplicates in function " << fn_name_;
     arg_names.insert(tensor->name);
@@ -562,13 +601,14 @@ std::vector<ir::LoweredFunc> LowerImpl::operator()() {
     auto tensor_map =
         optim::InitialAssignBuffer(&func_iterator, stages_, all_tensor_map, comp_graph(), temp_tensor_names);
     // copy the tensor(with buffer assigned) back to func's args.
+    // for (auto& i : tensor_map) LOG(INFO) << "In tensor_map, it has " << i.first;
     {
       for (auto& arg : tensor_args_) {
         if (arg->is_placeholder_node()) continue;
         if (arg->buffer.defined()) continue;
         if (arg->body().As<ir::Call>() && arg->body().type().is_void()) continue;  // extern call
         if (tensor_map.find(arg->name) == tensor_map.end()) {
-          LOG(INFO) << "Didn't find arg tensor " << arg->name << "in tensor_map.\n"
+          LOG(INFO) << "Didn't find arg tensor " << arg->name << " in tensor_map.\n"
                     << "The function is " << fn_name_ << "\nAnd all the arg tensors are:\n";
           for (auto& i : tensor_args_) {
             LOG(INFO) << i->name;
