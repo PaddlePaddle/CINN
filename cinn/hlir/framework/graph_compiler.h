@@ -125,6 +125,11 @@ class GraphCompiler final {
 
   std::vector<std::unique_ptr<Instruction>> BuildInstructions();
 
+  // some variables are not used for execution according to
+  // the built instructions, so we can erase them from the scope
+  // to avoid unnecessary buffer allocation
+  void RemoveUnusedVariablesFromScope(const std::vector<std::unique_ptr<Instruction>>& instructions);
+
  private:
   void ProcessFunction(const std::vector<ir::LoweredFunc>& lowered_func);
   Target target_;
