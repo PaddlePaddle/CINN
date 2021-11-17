@@ -16,6 +16,8 @@
 
 #include <glog/logging.h>
 
+#include <algorithm>
+#include <unordered_set>
 #include <utility>
 
 #include "cinn/frontend/op_mappers/use_op_mappers.h"
@@ -55,6 +57,16 @@ void PaddleModelConvertor::RunOp(const paddle::cpp::OpDesc& op_desc, const OpMap
   kernel->Run(op_desc, ctx);
 }
 
+std::unordered_set<std::string> PaddleModelConvertor::GetFetchIds() const {
+  std::unordered_set<std::string> fetch_names;
+  fetch_names.reserve(fetch_var_names_.size());
+  std::for_each(fetch_var_names_.begin(), fetch_var_names_.end(), [this, &fetch_names](const std::string& name) {
+    CHECK_EQ(var_model_to_program_map_.count(name), 1) << "Cannot find [" << name << "] in var_model_to_program_map_";
+    fetch_names.insert(var_model_to_program_map_.at(name));
+  });
+  return fetch_names;
+}
+
 Program PaddleModelConvertor::operator()(const std::string& model_dir, bool is_combined) {
   paddle::cpp::ProgramDesc program_desc;
   paddle::LoadModelPb(model_dir, "__model__", "", scope_, &program_desc, is_combined, false, target_);
@@ -72,7 +84,7 @@ Program PaddleModelConvertor::operator()(const std::string& model_dir, bool is_c
   VLOG(4) << "NetBuilder Name " << builder_name;
 
   NetBuilder builder(builder_name);
-  OpMapperContext ctx(*scope_, target_, &builder, &var_map_, &var_model_to_program_map_);
+  OpMapperContext ctx(*scope_, target_, &builder, &var_map_, &var_model_to_program_map_, &fetch_var_names_);
 
   PrepareRun(*block_desc, &ctx);
   for (int i = 0; i < block_desc->OpsSize(); i++) {
