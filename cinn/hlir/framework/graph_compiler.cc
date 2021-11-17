@@ -571,8 +571,9 @@ std::unique_ptr<Program> GraphCompiler::Build(const std::string& code) {
   return std::move(result.runtime_program);
 }
 
-GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::CompileOptions& options) {
-  fetch_var_ids_  = std::move(options.fetch_var_ids);
+GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::CompileOptions& options,
+                                                      std::unordered_set<std::string>&& fetch_var_ids) {
+  fetch_var_ids_  = std::move(fetch_var_ids);
   auto topo_order = graph_->topological_order();
   auto& nodes     = std::get<0>(topo_order);
   auto& edges     = std::get<1>(topo_order);

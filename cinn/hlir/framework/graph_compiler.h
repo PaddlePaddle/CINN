@@ -93,12 +93,10 @@ class GraphCompiler final {
   struct CompileOptions {
     std::string attached_code       = "";
     bool with_instantiate_variables = false;
-    // fetch var ids in cinn and the corresponding var nodes will not be fused so as to get the result
-    std::unordered_set<std::string> fetch_var_ids = {};
   };
 
   // Compile with a packing option and result, to be extended easily.
-  CompilationResult Build(const CompileOptions& options);
+  CompilationResult Build(const CompileOptions& options, std::unordered_set<std::string>&& fetch_var_ids = {});
   void ExportObject(const std::string& path) { compiler_->ExportObject(path); }
 
   std::unique_ptr<Program> Build(const std::string& code = "");
@@ -126,9 +124,6 @@ class GraphCompiler final {
   std::vector<std::string> OpGetOutputNames(const Node* node) const;
 
   std::vector<std::unique_ptr<Instruction>> BuildInstructions();
-
-  void SetFetchVarIds(const std::unordered_set<std::string>& fetch_var_ids) { fetch_var_ids_ = fetch_var_ids; }
-  const std::unordered_set<std::string>& GetFetchVarIds() const { return fetch_var_ids_; }
 
  private:
   void ProcessFunction(const std::vector<ir::LoweredFunc>& lowered_func);

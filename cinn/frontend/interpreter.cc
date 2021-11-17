@@ -122,8 +122,7 @@ void Interpreter::Impl::Build(const std::vector<std::string>& input_names,
   graph_compiler_.reset(new hlir::framework::GraphCompiler(target, scope_, graph));
   hlir::framework::GraphCompiler::CompileOptions options;
   options.with_instantiate_variables = true;
-  options.fetch_var_ids              = std::move(fetch_var_ids);
-  runtime_program_                   = graph_compiler_->Build(options).runtime_program;
+  runtime_program_                   = graph_compiler_->Build(options, std::move(fetch_var_ids)).runtime_program;
   runtime_program_->PreRun();
 }
 
