@@ -133,6 +133,7 @@ class Stage : public Object {
    * Mark this stage to expand inplace in all the usages.
    */
   void ComputeInline();
+  void DisableComputeInline();
 
   bool inlined() const { return meta.compute_inline; }
 

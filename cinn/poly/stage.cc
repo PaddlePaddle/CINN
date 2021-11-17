@@ -1211,6 +1211,11 @@ void Stage::ComputeInline() {
   meta.compute_inline = true;
 }
 
+void Stage::DisableComputeInline() {
+  CHECK(tensor_);
+  meta.compute_inline = false;
+}
+
 void Stage::ShareBufferWith(Stage *other) {
   CHECK(tensor_);
   CHECK(!other->meta.compute_inline);
