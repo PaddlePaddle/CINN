@@ -41,6 +41,7 @@
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_verify.h"
+#include "cinn/optim/var_mod_simplify.h"
 #include "cinn/runtime/cinn_runtime.h"
 #include "cinn/runtime/intrinsic.h"
 #include "cinn/utils/string.h"
@@ -835,8 +836,9 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Store *op) {
 
       // fit the total_lanes in native_lanes(split into multiple native steps)
       for (int offset = 0; offset < total_lanes; offset += total_lanes) {
-        int lanes   = total_lanes;
-        Expr base   = common::AutoSimplify(ramp->base + offset);
+        int lanes = total_lanes;
+        Expr base = common::AutoSimplify(ramp->base + offset);
+        optim::VarModSimplify(&base);
         auto *ptr   = CreateBufferPtr(op->type().ElementOf(), buffer, Visit(&base));
         auto *vtype = llvm::VectorType::get(CinnTypeToLLVMType(op->type().ElementOf(), m_, true),
                                             llvm::ElementCount(lanes, false /*Scalable*/))
@@ -1133,8 +1135,9 @@ llvm::Value *CodeGenLLVM::DenseVectorLoad(const ir::Load *op) {
   buffer->setName("buffer");
 
   for (int i = 0; i < load_lanes; i += load_lanes) {
-    int slice_lanes   = load_lanes;
-    auto slice_base   = common::AutoSimplify(ramp->base + i);
+    int slice_lanes = load_lanes;
+    auto slice_base = common::AutoSimplify(ramp->base + i);
+    optim::VarModSimplify(&slice_base);
     auto slide_stride = Expr(1);
     auto slide_index  = slice_base;
 

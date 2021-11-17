@@ -739,6 +739,7 @@ void Conv2d_NCHWc_1X1_Schedule_CPU(poly::StageMap stages,
   if (do_padding) {
     CHECK_GE(stages[input_pad]->n_out_dims(), 3U) << "input_pad's out_dims should be more than 3";
     stages[input_pad]->Fuse({0, 1, 2});
+    stages[input_pad]->Vectorize(stages[input_pad]->n_out_dims() - 1, input_pad->shape.back().as_int32());
   } else {
     stages[input_pad]->ComputeInline();
   }
@@ -1065,6 +1066,7 @@ void Conv2d_NCHWc_Schedule_CPU(poly::StageMap stages,
   if (do_padding) {
     CHECK_GE(stages[input_pad]->n_out_dims(), 3U) << "input_pad's out_dims should be more than 3";
     stages[input_pad]->Fuse({0, 1, 2});
+    stages[input_pad]->Vectorize(stages[input_pad]->n_out_dims() - 1, input_pad->shape.back().as_int32());
   } else {
     stages[input_pad]->ComputeInline();
   }
@@ -1236,10 +1238,11 @@ void CudaScheduleMul(poly::StageMap stages,
   stages[output]->Bind(1, "threadIdx.x");
 }
 
-inline void InputCudaParam(
+inline void InputDirectConvCudaParam(
     absl::flat_hash_map<std::string, absl::flat_hash_map<std::string, std::vector<int>>> &model_data,
     const std::string &key,
     const std::vector<std::vector<int>> &int_data) {
+  CHECK_EQ(int_data.size(), 6UL);
   absl::flat_hash_map<std::string, std::vector<int>> schedule_data;
   schedule_data["rc"] = int_data[0];
   schedule_data["ry"] = int_data[1];
@@ -1247,7 +1250,8 @@ inline void InputCudaParam(
   schedule_data["f"]  = int_data[3];
   schedule_data["y"]  = int_data[4];
   schedule_data["x"]  = int_data[5];
-  model_data[key]     = schedule_data;
+  CHECK(model_data.count(key) == 0) << "Key " << key << "in conv cuda param already exists.";
+  model_data[key] = schedule_data;
 }
 
 void CreateCudaSerialData(const std::string &file_name) {
@@ -1255,47 +1259,281 @@ void CreateCudaSerialData(const std::string &file_name) {
   // The format of serial data is:
   // hash_key: string = name of schedule + shape of input_pad + shape of weights + shape of output
   // value: vector of params
-  InputCudaParam(model_data,
-                 "CudaScheduleConv 1 3 230 230 64 3 7 7 1 64 112 112",
-                 {{3, 1}, {7, 1}, {1, 7}, {1, 4, 8, 2}, {112, 1, 1, 1}, {1, 7, 16, 1}});
-  InputCudaParam(model_data,
-                 "CudaScheduleConv 1 64 56 56 64 64 1 1 1 64 56 56",
-                 {{4, 16}, {1, 1}, {1, 1}, {1, 8, 8, 1}, {56, 1, 1, 1}, {1, 2, 28, 1}});
-  InputCudaParam(model_data,
-                 "CudaScheduleConv 1 64 58 58 128 64 3 3 1 128 28 28",
-                 {{32, 2}, {1, 3}, {1, 3}, {4, 2, 16, 1}, {28, 1, 1, 1}, {1, 2, 14, 1}});
-  InputCudaParam(model_data,
-                 "CudaScheduleConv 1 64 56 56 128 64 1 1 1 128 28 28",
-                 {{4, 16}, {1, 1}, {1, 1}, {2, 2, 32, 1}, {28, 1, 1, 1}, {1, 2, 14, 1}});
-  InputCudaParam(model_data,
-                 "CudaScheduleConv 1 128 30 30 256 128 3 3 1 256 14 14",
-                 {{32, 4}, {1, 3}, {1, 3}, {8, 1, 16, 2}, {7, 1, 2, 1}, {1, 1, 7, 2}});
-  InputCudaParam(model_data,
-                 "CudaScheduleConv 1 128 28 28 256 128 1 1 1 256 14 14",
-                 {{16, 8}, {1, 1}, {1, 1}, {8, 1, 16, 2}, {14, 1, 1, 1}, {1, 1, 14, 1}});
-  InputCudaParam(model_data,
-                 "CudaScheduleConv 1 256 16 16 512 256 3 3 1 512 7 7",
-                 {{64, 4}, {1, 3}, {1, 3}, {32, 1, 16, 1}, {7, 1, 1, 1}, {1, 1, 7, 1}});
-  InputCudaParam(model_data,
-                 "CudaScheduleConv 1 256 14 14 512 256 1 1 1 512 7 7",
-                 {{16, 16}, {1, 1}, {1, 1}, {16, 1, 32, 1}, {7, 1, 1, 1}, {1, 1, 7, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 3 230 230 64 3 7 7 1 64 112 112",
+                           {{3, 1}, {7, 1}, {1, 7}, {1, 4, 8, 2}, {112, 1, 1, 1}, {1, 7, 16, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 64 56 56 64 64 1 1 1 64 56 56",
+                           {{4, 16}, {1, 1}, {1, 1}, {1, 8, 8, 1}, {56, 1, 1, 1}, {1, 2, 28, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 64 58 58 128 64 3 3 1 128 28 28",
+                           {{32, 2}, {1, 3}, {1, 3}, {4, 2, 16, 1}, {28, 1, 1, 1}, {1, 2, 14, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 64 56 56 128 64 1 1 1 128 28 28",
+                           {{4, 16}, {1, 1}, {1, 1}, {2, 2, 32, 1}, {28, 1, 1, 1}, {1, 2, 14, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 128 30 30 256 128 3 3 1 256 14 14",
+                           {{32, 4}, {1, 3}, {1, 3}, {8, 1, 16, 2}, {7, 1, 2, 1}, {1, 1, 7, 2}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 128 28 28 256 128 1 1 1 256 14 14",
+                           {{16, 8}, {1, 1}, {1, 1}, {8, 1, 16, 2}, {14, 1, 1, 1}, {1, 1, 14, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 256 16 16 512 256 3 3 1 512 7 7",
+                           {{64, 4}, {1, 3}, {1, 3}, {32, 1, 16, 1}, {7, 1, 1, 1}, {1, 1, 7, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 256 14 14 512 256 1 1 1 512 7 7",
+                           {{16, 16}, {1, 1}, {1, 1}, {16, 1, 32, 1}, {7, 1, 1, 1}, {1, 1, 7, 1}});
 
   // winograd
-  InputCudaParam(model_data,
-                 "CudaScheduleConv 1 64 58 58 64 64 3 3 1 64 56 56",
-                 {{32, 2}, {1, 3}, {1, 3}, {4, 1, 8, 2}, {28, 1, 2, 1}, {1, 2, 7, 4}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 64 58 58 64 64 3 3 1 64 56 56",
+                           {{32, 2}, {1, 3}, {1, 3}, {4, 1, 8, 2}, {28, 1, 2, 1}, {1, 2, 7, 4}});
   // winograd
-  InputCudaParam(model_data,
-                 "CudaScheduleConv 1 512 9 9 512 512 3 3 1 512 7 7",
-                 {{64, 8}, {1, 3}, {1, 3}, {32, 1, 16, 1}, {7, 1, 1, 1}, {1, 1, 7, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 512 9 9 512 512 3 3 1 512 7 7",
+                           {{64, 8}, {1, 3}, {1, 3}, {32, 1, 16, 1}, {7, 1, 1, 1}, {1, 1, 7, 1}});
   // winograd
-  InputCudaParam(model_data,
-                 "CudaScheduleConv 1 256 16 16 256 256 3 3 1 256 14 14",
-                 {{64, 4}, {1, 3}, {1, 3}, {16, 1, 16, 1}, {14, 1, 1, 1}, {1, 1, 14, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 256 16 16 256 256 3 3 1 256 14 14",
+                           {{64, 4}, {1, 3}, {1, 3}, {16, 1, 16, 1}, {14, 1, 1, 1}, {1, 1, 14, 1}});
   // winograd
-  InputCudaParam(model_data,
-                 "CudaScheduleConv 1 128 30 30 128 128 3 3 1 128 28 28",
-                 {{32, 4}, {1, 3}, {1, 3}, {8, 1, 16, 1}, {14, 1, 2, 1}, {1, 1, 7, 4}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 128 30 30 128 128 3 3 1 128 28 28",
+                           {{32, 4}, {1, 3}, {1, 3}, {8, 1, 16, 1}, {14, 1, 2, 1}, {1, 1, 7, 4}});
+
+  // MobileNetV2 schedule params
+  /*   InputDirectConvCudaParam(model_data,
+                             "CudaDirectConvSchedule 1 3 226 226 32 3 3 3 1 32 112 112",
+                             {{3, 1}, {1, 3}, {1, 3}, {-1, 2, 8, 2}, {-1, 1, 1, 7}, {-1, 1, 16, 1}}); */
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 32 112 112 16 32 1 1 1 16 112 112",
+                           {{-1, 4}, {-1, 1}, {-1, 1}, {-1, 2, 2, 4}, {-1, 1, 2, 1}, {-1, 1, 56, 2}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 32 112 112 32 32 1 1 1 32 112 112",
+                           {{-1, 4}, {-1, 1}, {-1, 1}, {-1, 1, 4, 8}, {-1, 1, 2, 1}, {-1, 7, 16, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 16 112 112 96 16 1 1 1 96 112 112",
+                           {{-1, 4}, {-1, 1}, {-1, 1}, {-1, 4, 4, 2}, {-1, 2, 2, 1}, {-1, 1, 16, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 96 56 56 24 96 1 1 1 24 56 56",
+                           {{-1, 4}, {-1, 1}, {-1, 1}, {-1, 3, 4, 2}, {-1, 1, 1, 1}, {-1, 1, 28, 2}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 24 56 56 144 24 1 1 1 144 56 56",
+                           {{-1, 6}, {-1, 1}, {-1, 1}, {-1, 9, 4, 2}, {-1, 2, 1, 1}, {-1, 1, 56, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 144 56 56 24 144 1 1 1 24 56 56",
+                           {{-1, 12}, {-1, 1}, {-1, 1}, {-1, 1, 8, 3}, {-1, 1, 1, 1}, {-1, 2, 14, 2}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 144 28 28 32 144 1 1 1 32 28 28",
+                           {{-1, 8}, {-1, 1}, {-1, 1}, {-1, 4, 8, 1}, {-1, 1, 1, 1}, {-1, 1, 14, 2}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 32 28 28 192 32 1 1 1 192 28 28",
+                           {{-1, 4}, {-1, 1}, {-1, 1}, {-1, 6, 4, 1}, {-1, 2, 1, 2}, {-1, 1, 28, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 192 28 28 32 192 1 1 1 32 28 28",
+                           {{-1, 48}, {-1, 1}, {-1, 1}, {-1, 4, 8, 1}, {-1, 1, 1, 1}, {-1, 1, 28, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 192 14 14 64 192 1 1 1 64 14 14",
+                           {{-1, 12}, {-1, 1}, {-1, 1}, {-1, 1, 8, 2}, {-1, 2, 1, 1}, {-1, 1, 14, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 64 14 14 384 64 1 1 1 384 14 14",
+                           {{-1, 4}, {-1, 1}, {-1, 1}, {-1, 2, 4, 3}, {-1, 1, 7, 1}, {-1, 1, 7, 2}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 384 14 14 64 384 1 1 1 64 14 14",
+                           {{-1, 48}, {-1, 1}, {-1, 1}, {-1, 2, 16, 1}, {-1, 1, 2, 1}, {-1, 1, 7, 2}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 384 14 14 96 384 1 1 1 96 14 14",
+                           {{-1, 12}, {-1, 1}, {-1, 1}, {-1, 2, 6, 1}, {-1, 1, 2, 1}, {-1, 1, 7, 2}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 96 14 14 576 96 1 1 1 576 14 14",
+                           {{-1, 6}, {-1, 1}, {-1, 1}, {-1, 1, 6, 6}, {-1, 1, 7, 1}, {-1, 1, 7, 2}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 576 14 14 96 576 1 1 1 96 14 14",
+                           {{-1, 24}, {-1, 1}, {-1, 1}, {-1, 1, 8, 3}, {-1, 1, 2, 1}, {-1, 1, 7, 2}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 576 7 7 160 576 1 1 1 160 7 7",
+                           {{-1, 36}, {-1, 1}, {-1, 1}, {-1, 2, 2, 2}, {-1, 1, 7, 1}, {-1, 1, 7, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 160 7 7 960 160 1 1 1 960 7 7",
+                           {{-1, 16}, {-1, 1}, {-1, 1}, {-1, 6, 4, 1}, {-1, 1, 7, 1}, {-1, 1, 7, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 960 7 7 160 960 1 1 1 160 7 7",
+                           {{-1, 60}, {-1, 1}, {-1, 1}, {-1, 2, 4, 1}, {-1, 1, 7, 1}, {-1, 1, 7, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 960 7 7 320 960 1 1 1 320 7 7",
+                           {{-1, 20}, {-1, 1}, {-1, 1}, {-1, 2, 2, 2}, {-1, 1, 7, 1}, {-1, 1, 7, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 320 7 7 1280 320 1 1 1 1280 7 7",
+                           {{-1, 16}, {-1, 1}, {-1, 1}, {-1, 2, 16, 1}, {-1, 7, 1, 1}, {-1, 1, 7, 1}});
+
+  // EfficientNet schedule params
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 3 228 228 32 3 3 3 1 32 113 113",
+                           {{-1, 1}, {-1, 1}, {-1, 3}, {-1, 32, 1, 1}, {-1, 1, 1, 1}, {-1, 1, 113, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 32 1 1 8 32 1 1 1 8 1 1",
+                           {{-1, 16}, {-1, 1}, {-1, 1}, {-1, 1, 4, 1}, {-1, 1, 1, 1}, {-1, 1, 1, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 8 1 1 32 8 1 1 1 32 1 1",
+                           {{-1, 8}, {-1, 1}, {-1, 1}, {-1, 1, 8, 4}, {-1, 1, 1, 1}, {-1, 1, 1, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 96 1 1 4 96 1 1 1 4 1 1",
+                           {{-1, 48}, {-1, 1}, {-1, 1}, {-1, 1, 4, 1}, {-1, 1, 1, 1}, {-1, 1, 1, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 4 1 1 96 4 1 1 1 96 1 1",
+                           {{-1, 2}, {-1, 1}, {-1, 1}, {-1, 12, 1, 1}, {-1, 1, 1, 1}, {-1, 1, 1, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 144 1 1 6 144 1 1 1 6 1 1",
+                           {{-1, 48}, {-1, 1}, {-1, 1}, {-1, 1, 6, 1}, {-1, 1, 1, 1}, {-1, 1, 1, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 6 1 1 144 6 1 1 1 144 1 1",
+                           {{-1, 2}, {-1, 1}, {-1, 1}, {-1, 2, 8, 1}, {-1, 1, 1, 1}, {-1, 1, 1, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 144 28 28 40 144 1 1 1 40 28 28",
+                           {{-1, 16}, {-1, 1}, {-1, 1}, {-1, 5, 8, 1}, {-1, 1, 1, 1}, {-1, 1, 28, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 40 28 28 240 40 1 1 1 240 28 28",
+                           {{-1, 8}, {-1, 1}, {-1, 1}, {-1, 2, 8, 3}, {-1, 4, 1, 1}, {-1, 1, 28, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 240 1 1 10 240 1 1 1 10 1 1",
+                           {{-1, 60}, {-1, 1}, {-1, 1}, {-1, 1, 5, 1}, {-1, 1, 1, 1}, {-1, 1, 1, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 10 1 1 240 10 1 1 1 240 1 1",
+                           {{-1, 10}, {-1, 1}, {-1, 1}, {-1, 1, 40, 3}, {-1, 1, 1, 1}, {-1, 1, 1, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 240 28 28 40 240 1 1 1 40 28 28",
+                           {{-1, 16}, {-1, 1}, {-1, 1}, {-1, 1, 8, 5}, {-1, 1, 1, 1}, {-1, 1, 28, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 240 14 14 80 240 1 1 1 80 14 14",
+                           {{-1, 20}, {-1, 1}, {-1, 1}, {-1, 2, 8, 1}, {-1, 1, 2, 1}, {-1, 1, 7, 2}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 80 14 14 480 80 1 1 1 480 14 14",
+                           {{-1, 16}, {-1, 1}, {-1, 1}, {-1, 2, 8, 3}, {-1, 1, 7, 1}, {-1, 1, 7, 2}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 480 1 1 20 480 1 1 1 20 1 1",
+                           {{-1, 60}, {-1, 1}, {-1, 1}, {-1, 1, 4, 1}, {-1, 1, 1, 1}, {-1, 1, 1, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 20 1 1 480 20 1 1 1 480 1 1",
+                           {{-1, 5}, {-1, 1}, {-1, 1}, {-1, 1, 32, 1}, {-1, 1, 1, 1}, {-1, 1, 1, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 480 14 14 80 480 1 1 1 80 14 14",
+                           {{-1, 40}, {-1, 1}, {-1, 1}, {-1, 2, 8, 1}, {-1, 1, 2, 1}, {-1, 1, 14, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 480 14 14 112 480 1 1 1 112 14 14",
+                           {{-1, 20}, {-1, 1}, {-1, 1}, {-1, 1, 8, 2}, {-1, 1, 2, 1}, {-1, 1, 7, 2}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 112 14 14 672 112 1 1 1 672 14 14",
+                           {{-1, 14}, {-1, 1}, {-1, 1}, {-1, 1, 7, 6}, {-1, 1, 7, 1}, {-1, 1, 7, 2}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 672 1 1 28 672 1 1 1 28 1 1",
+                           {{-1, 28}, {-1, 1}, {-1, 1}, {-1, 1, 7, 1}, {-1, 1, 1, 1}, {-1, 1, 1, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 28 1 1 672 28 1 1 1 672 1 1",
+                           {{-1, 28}, {-1, 1}, {-1, 1}, {-1, 1, 16, 1}, {-1, 1, 1, 1}, {-1, 1, 1, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 672 14 14 112 672 1 1 1 112 14 14",
+                           {{-1, 14}, {-1, 1}, {-1, 1}, {-1, 2, 4, 2}, {-1, 1, 2, 1}, {-1, 1, 7, 2}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 672 7 7 192 672 1 1 1 192 7 7",
+                           {{-1, 28}, {-1, 1}, {-1, 1}, {-1, 1, 2, 3}, {-1, 1, 7, 1}, {-1, 1, 7, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 192 7 7 1152 192 1 1 1 1152 7 7",
+                           {{-1, 24}, {-1, 1}, {-1, 1}, {-1, 1, 12, 3}, {-1, 7, 1, 1}, {-1, 1, 7, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 1152 1 1 48 1152 1 1 1 48 1 1",
+                           {{-1, 576}, {-1, 1}, {-1, 1}, {-1, 1, 3, 1}, {-1, 1, 1, 1}, {-1, 1, 1, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 48 1 1 1152 48 1 1 1 1152 1 1",
+                           {{-1, 12}, {-1, 1}, {-1, 1}, {-1, 1, 32, 1}, {-1, 1, 1, 1}, {-1, 1, 1, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 1152 7 7 192 1152 1 1 1 192 7 7",
+                           {{-1, 36}, {-1, 1}, {-1, 1}, {-1, 1, 2, 6}, {-1, 1, 7, 1}, {-1, 1, 7, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 1152 7 7 320 1152 1 1 1 320 7 7",
+                           {{-1, 12}, {-1, 1}, {-1, 1}, {-1, 1, 2, 4}, {-1, 1, 7, 1}, {-1, 1, 7, 1}});
+
+  // FaceDet schedule params
+  /*   InputDirectConvCudaParam(model_data,
+                                 "CudaDirectConvSchedule 1 3 242 322 16 3 3 3 1 16 120 160",
+                                 {{-1, 1}, {-1, 3}, {-1, 3}, {-1, 2, 4, 2}, {-1, 1, 1, 5}, {-1, 1, 32, 1}}); */
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 16 120 160 32 16 1 1 1 32 120 160",
+                           {{-1, 4}, {-1, 1}, {-1, 1}, {-1, 8, 4, 1}, {-1, 1, 1, 1}, {-1, 5, 32, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 32 60 80 32 32 1 1 1 32 60 80",
+                           {{-1, 4}, {-1, 1}, {-1, 1}, {-1, 8, 4, 1}, {-1, 3, 1, 1}, {-1, 1, 40, 1}});
+  /*   InputDirectConvCudaParam(model_data,
+                                 "CudaDirectConvSchedule 1 32 30 40 64 32 1 1 1 64 30 40",
+                                 {{-1, 8}, {-1, 1}, {-1, 1}, {-1, 2, 8, 2}, {-1, 1, 1, 3}, {-1, 1, 20, 1}}); */
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 64 30 40 64 64 1 1 1 64 30 40",
+                           {{-1, 8}, {-1, 1}, {-1, 1}, {-1, 2, 8, 2}, {-1, 1, 2, 1}, {-1, 5, 8, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 64 30 40 8 64 1 1 1 8 30 40",
+                           {{-1, 8}, {-1, 1}, {-1, 1}, {-1, 2, 4, 1}, {-1, 1, 2, 1}, {-1, 1, 8, 1}});
+  /*   InputDirectConvCudaParam(model_data,
+                                 "CudaDirectConvSchedule 1 8 32 42 12 8 3 3 1 12 30 40",
+                                 {{-1, 4}, {-1, 3}, {-1, 3}, {-1, 1, 12, 1}, {-1, 1, 1, 3}, {-1, 1, 10, 1}});
+    InputDirectConvCudaParam(model_data,
+                                 "CudaDirectConvSchedule 1 8 32 42 16 8 3 3 1 16 30 40",
+                                 {{-1, 8}, {-1, 3}, {-1, 3}, {-1, 1, 16, 1}, {-1, 3, 1, 2}, {-1, 1, 4, 2}}); */
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 16 36 46 16 16 3 3 1 16 30 40",
+                           {{-1, 16}, {-1, 1}, {-1, 1}, {-1, 2, 8, 1}, {-1, 1, 2, 1}, {-1, 1, 8, 1}});
+  /*   InputDirectConvCudaParam(model_data,
+                             "CudaDirectConvSchedule 1 16 34 44 16 16 3 3 1 16 30 40",
+                             {{-1, 4}, {-1, 3}, {-1, 3}, {-1, 1, 4, 2}, {-1, 3, 2, 1}, {-1, 1, 20, 1}}); */
+  /*   InputDirectConvCudaParam(model_data,
+                                 "CudaDirectConvSchedule 1 12 32 42 16 12 3 3 1 16 30 40",
+                                 {{-1, 4}, {-1, 3}, {-1, 3}, {-1, 1, 16, 1}, {-1, 1, 2, 3}, {-1, 1, 2, 2}}); */
+  /*   InputDirectConvCudaParam(model_data,
+                             "CudaDirectConvSchedule 1 16 40 50 16 16 3 3 1 16 30 40",
+                             {{-1, 4}, {-1, 1}, {-1, 3}, {-1, 1, 1, 8}, {-1, 1, 3, 1}, {-1, 1, 40, 1}}); */
+  /*   InputDirectConvCudaParam(model_data,
+                               "CudaDirectConvSchedule 1 48 30 40 64 48 1 1 1 64 30 40",
+                               {{-1, 8}, {-1, 1}, {-1, 1}, {-1, 2, 8, 2}, {-1, 1, 1, 3}, {-1, 1, 20, 1}}); */
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 64 30 40 12 64 1 1 1 12 30 40",
+                           {{-1, 8}, {-1, 1}, {-1, 1}, {-1, 1, 4, 3}, {-1, 1, 3, 1}, {-1, 1, 10, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 64 30 40 6 64 1 1 1 6 30 40",
+                           {{-1, 8}, {-1, 1}, {-1, 1}, {-1, 3, 2, 1}, {-1, 1, 3, 1}, {-1, 1, 10, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 64 15 20 128 64 1 1 1 128 15 20",
+                           {{-1, 8}, {-1, 1}, {-1, 1}, {-1, 2, 8, 2}, {-1, 1, 3, 1}, {-1, 1, 10, 2}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 128 15 20 128 128 1 1 1 128 15 20",
+                           {{-1, 8}, {-1, 1}, {-1, 1}, {-1, 4, 8, 1}, {-1, 1, 3, 1}, {-1, 1, 10, 2}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 128 15 20 8 128 1 1 1 8 15 20",
+                           {{-1, 8}, {-1, 1}, {-1, 1}, {-1, 1, 8, 1}, {-1, 1, 1, 1}, {-1, 1, 10, 2}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 128 15 20 4 128 1 1 1 4 15 20",
+                           {{-1, 16}, {-1, 1}, {-1, 1}, {-1, 1, 4, 1}, {-1, 1, 1, 1}, {-1, 1, 20, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 128 8 10 256 128 1 1 1 256 8 10",
+                           {{-1, 16}, {-1, 1}, {-1, 1}, {-1, 1, 16, 2}, {-1, 1, 8, 1}, {-1, 1, 2, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 256 8 10 256 256 1 1 1 256 8 10",
+                           {{-1, 8}, {-1, 1}, {-1, 1}, {-1, 4, 8, 1}, {-1, 1, 8, 1}, {-1, 1, 2, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 256 8 10 64 256 1 1 1 64 8 10",
+                           {{-1, 16}, {-1, 1}, {-1, 1}, {-1, 1, 16, 1}, {-1, 1, 8, 1}, {-1, 2, 1, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 256 8 10 8 256 1 1 1 8 8 10",
+                           {{-1, 32}, {-1, 1}, {-1, 1}, {-1, 1, 8, 1}, {-1, 1, 2, 1}, {-1, 1, 2, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 256 8 10 4 256 1 1 1 4 8 10",
+                           {{-1, 32}, {-1, 1}, {-1, 1}, {-1, 1, 4, 1}, {-1, 1, 4, 1}, {-1, 1, 2, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 64 4 5 256 64 1 1 1 256 4 5",
+                           {{-1, 16}, {-1, 1}, {-1, 1}, {-1, 1, 8, 1}, {-1, 1, 4, 1}, {-1, 1, 5, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 256 6 7 12 256 3 3 1 12 4 5",
+                           {{-1, 32}, {-1, 3}, {-1, 3}, {-1, 1, 4, 1}, {-1, 1, 4, 1}, {-1, 1, 1, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 256 6 7 6 256 3 3 1 6 4 5",
+                           {{-1, 32}, {-1, 3}, {-1, 3}, {-1, 1, 2, 1}, {-1, 1, 4, 1}, {-1, 1, 1, 1}});
 
   SaveSerialData(model_data, file_name);
 }
@@ -1369,6 +1607,8 @@ void CudaScheduleDepthwiseConv(poly::StageMap stages, ir::Tensor &output, const 
   stages[output]->Bind(2, "blockIdx.z");
   stages[output]->Bind(3, "threadIdx.x");
   stages[OL]->ComputeAt(stages[output], 3);
+  stages[OL]->Unroll(4);
+  stages[OL]->Unroll(5);
 }
 
 void CudaScheduleConv(poly::StageMap stages,
@@ -1391,7 +1631,7 @@ void CudaScheduleConv(poly::StageMap stages,
   int rc = input_pad->shape[1].as_int32();
 
   std::string key =
-      "CudaScheduleConv " + std::to_string(input_pad->shape[0].as_int32()) + " " +
+      "CudaDirectConvSchedule " + std::to_string(input_pad->shape[0].as_int32()) + " " +
       std::to_string(input_pad->shape[1].as_int32()) + " " + std::to_string(input_pad->shape[2].as_int32()) + " " +
       std::to_string(input_pad->shape[3].as_int32()) + " " + std::to_string(weights->shape[0].as_int32()) + " " +
       std::to_string(weights->shape[1].as_int32()) + " " + std::to_string(weights->shape[2].as_int32()) + " " +
@@ -1482,6 +1722,9 @@ void CudaScheduleConv2(poly::StageMap stages,
   stages[output]->Bind(7, "threadIdx.z");
   stages[output]->Bind(8, "threadIdx.y");
   stages[output]->Bind(9, "threadIdx.x");
+  stages[output]->Unroll(10);
+  stages[output]->Unroll(11);
+  stages[output]->Unroll(12);
 
   stages[OL]->ComputeAt(stages[output], 9);
 
@@ -1524,13 +1767,44 @@ void CudaScheduleConv2(poly::StageMap stages,
   } else {
     stages[PR]->Split(13, GetMaxSplitter(stages[PR]->GetDimRange(13), thread_z));
     stages[PR]->Bind(14, "threadIdx.z");
+    stages[PR]->Unroll(13);
   }
   if (stages[KR]->GetDimRange(13) <= thread_x) {
     stages[KR]->Bind(13, "threadIdx.x");
   } else {
     stages[KR]->Split(13, GetMaxSplitter(stages[KR]->GetDimRange(13), thread_x));
     stages[KR]->Bind(14, "threadIdx.x");
+    stages[KR]->Unroll(13);
   }
+  stages[output]->Unroll(4);
+  stages[output]->Unroll(5);
+  stages[output]->Unroll(6);
+
+  stages[OL]->Unroll(4);
+  stages[OL]->Unroll(5);
+  stages[OL]->Unroll(6);
+  stages[OL]->Unroll(10);
+  stages[OL]->Unroll(11);
+  stages[OL]->Unroll(12);
+  stages[OL]->Unroll(13);
+  stages[OL]->Unroll(14);
+  stages[OL]->Unroll(15);
+  stages[OL]->Unroll(16);
+  stages[OL]->Unroll(17);
+
+  stages[PR]->Unroll(4);
+  stages[PR]->Unroll(5);
+  stages[PR]->Unroll(6);
+  stages[PR]->Unroll(10);
+  stages[PR]->Unroll(11);
+  stages[PR]->Unroll(12);
+
+  stages[KR]->Unroll(4);
+  stages[KR]->Unroll(5);
+  stages[KR]->Unroll(6);
+  stages[KR]->Unroll(10);
+  stages[KR]->Unroll(11);
+  stages[KR]->Unroll(12);
 }
 
 void CudaScheduleInjective(poly::Stage *stage, const std::vector<int> &output_shape, const common::Target &target) {
