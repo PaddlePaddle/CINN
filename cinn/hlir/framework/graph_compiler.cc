@@ -877,7 +877,7 @@ void GraphCompiler::RemoveInvalidVariables(const std::vector<std::unique_ptr<Ins
   };
 
   // iterate the arguments of each instruction, eliminate the
-  // used variables, and remain variables are unused finally
+  // used variables, and remain variables are invalid finally
   auto unused_var_num = invalid_variables.size();
   VLOG(3) << "Before removing invalid variables: " << instructions.size() << " instructions, "
           << invalid_variables.size() << " variables";
