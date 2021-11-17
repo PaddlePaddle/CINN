@@ -111,6 +111,7 @@ void TestElementwisePE(const std::string &fn_name,
 bool isnan(float e) { return std::isnan(e); }
 bool isfinite(float e) { return std::isfinite(e); }
 bool isinf(float e) { return std::isinf(e); }
+bool rsqrt(float e) { return 1.0f / std::sqrt(e); }
 
 #define TEST_ELEMENTWISE_PE_FP32(test_name__, PE__) \
   TEST(elementwise_pe, test_name__) { TestElementwisePE("PE_Elementwise_" #test_name__ "_fp32", PE__, test_name__); }
@@ -148,6 +149,7 @@ TEST_ELEMENTWISE_PE_FP32(tanh, Tanh)
 TEST_ELEMENTWISE_PE_FP32_BOOL(isnan, IsNan)
 TEST_ELEMENTWISE_PE_FP32_BOOL(isfinite, IsFinite)
 TEST_ELEMENTWISE_PE_FP32_BOOL(isinf, IsInf)
+TEST_ELEMENTWISE_PE_FP32(rsqrt, Rsqrt)
 
 }  // namespace pe
 }  // namespace hlir

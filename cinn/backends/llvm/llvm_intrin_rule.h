@@ -102,6 +102,16 @@ void RegisterCpuIntrinRule() {
     }
   });
 
+  ir::Registry::Register("lower_cpu_intrinsic_rsqrt", true).SetBody([](lang::Args args, lang::RetValue *rv) {
+    CHECK_GE(args.size(), 1U);
+    Expr arg0      = args[0];
+    ir::Call *node = arg0->as<ir::Call>();
+    CHECK(node);
+    CHECK(!node->read_args.empty());
+    Expr arg = node->read_args[0];
+    *rv      = make_const(arg->type(), 1) / lang::Sqrt(arg);
+  });
+
   ir::Registry::Register("lower_cpu_intrinsic_exp10", true).SetBody([](lang::Args args, lang::RetValue *rv) {
     CHECK_GE(args.size(), 1U);
     Expr arg0      = args[0];
