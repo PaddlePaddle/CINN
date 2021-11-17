@@ -57,7 +57,7 @@ TEST(load_cuda_params, load_cuda_params) {
     CreateCudaSerialData();
     LoadSerialData(&res);
   }
-  std::string key = "CudaScheduleConv 1 3 230 230 64 3 7 7 1 64 112 112";
+  std::string key = "CudaDirectConvSchedule 1 3 230 230 64 3 7 7 1 64 112 112";
   ASSERT_EQ(res.count(key), 1);
 }
 
