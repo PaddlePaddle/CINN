@@ -214,7 +214,6 @@ TEST(Operator, Operator_Reduction_Sum0) {
                                                                 {sum1, reinterpret_cast<float*>(buffer_z->memory)}};
   for (auto& res : results) {
     for (int idx = 0; idx < res.first.size(); ++idx) {
-      // ASSERT_FLOAT_EQ(res.first[idx], res.second[idx]);
       ASSERT_LT(abs(res.first[idx] - res.second[idx]) / res.first[idx], 1e-4);
     }
   }
@@ -235,7 +234,6 @@ TEST(Operator, Operator_Reduction_Sum1) {
   void* reduce_sum_test_1_kernel = cuda_module.GetFunction(0, "reduce_sum_test_1");
   CHECK(reduce_sum_test_1_kernel);
 
-  // LOG(INFO) << "kernel : " << reduce_sum_kernel << " " << reduce_sum_1_kernel;
   void* stream = nullptr;
   backends::RuntimeSymbolRegistry::Global().RegisterFn("reduce_sum_test_1_kernel_ptr_",
                                                        reinterpret_cast<void*>(&reduce_sum_test_1_kernel));

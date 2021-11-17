@@ -314,6 +314,55 @@ void MulScheduleCPU(poly::StageMap stages,
   }
 }
 
+int GetThreadBindAxis(const std::vector<ir::Expr> &shape) {
+  int thread_axis = shape.size() - 1;
+  for (int idx = thread_axis; idx >= 0; --idx) {
+    if (shape[idx].as_int32() > 1) {
+      thread_axis = idx;
+      break;
+    }
+  }
+  return thread_axis;
+}
+
+int GetBlockBindAxis(const std::vector<ir::Expr> &shape, const int thread_axis) {
+  int block_axis = 0, max_dim_size = shape[0].as_int32();
+  for (int idx = 0; idx <= thread_axis; ++idx) {
+    if (max_dim_size < shape[idx].as_int32()) {
+      if (idx < thread_axis) {
+        max_dim_size = shape[idx].as_int32();
+        block_axis   = idx;
+      } else {
+        if (max_dim_size == 1) {
+          block_axis = thread_axis;
+        }
+      }
+    }
+  }
+  return block_axis;
+}
+
+void CudaScheduleReduce(poly::StageMap stages, ir::Tensor output, const common::Target &target) {
+  // find the dimension to bind threadIdx.x.
+  auto thread_axis = GetThreadBindAxis(output->shape);
+  // use the max dimension to bind blockIdx.x
+  auto block_axis = GetBlockBindAxis(output->shape, thread_axis);
+
+  if (block_axis < thread_axis) {
+    stages[output]->Bind(block_axis, "blockIdx.x");
+  }
+
+  if (output->shape[thread_axis].as_int32() > 512) {
+    stages[output]->Split(thread_axis, 512);
+    if (block_axis == thread_axis) {
+      stages[output]->Bind(thread_axis, "blockIdx.x");
+    }
+    stages[output]->Bind(thread_axis + 1, "threadIdx.x");
+  } else {
+    stages[output]->Bind(thread_axis, "threadIdx.x");
+  }
+}
+
 void SoftmaxScheduleCPU(poly::StageMap stage, const ir::Tensor &output, const ir::Tensor &temp, int axis) {
   if (axis == -1) {
     axis += output->shape.size();
