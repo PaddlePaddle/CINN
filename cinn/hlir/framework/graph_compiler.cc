@@ -421,12 +421,18 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
     }
 
     CHECK_GE(C.size(), 2);
-    Expr out = C[0];
-    for (auto& node_data : temp_outvars) {
-      temp_var_map[node_data] = out;
-      if (fetch_var_ids_.count(node_data->id())) {
-        VLOG(3) << "get fetch output var " << node_data->id();
-        CHECK(out.as_tensor());
+    Expr out       = C[0];
+    int num_output = C.size() - 1;
+    if (C.size() == 3 && out.as_tensor_ref()->is_reduce_tensor()) {
+      num_output = C.size() - 2;
+    }
+
+    CHECK_LE(num_output, node->outlinks_in_order().size());
+    for (int i = 0; i < num_output; i++) {
+      Expr out                      = C[i];
+      temp_var_map[temp_outvars[i]] = out;
+      if (fetch_var_ids_.count(temp_outvars[i]->id())) {
+        VLOG(3) << "get fetch output var " << temp_outvars[i]->id();
         fetch_tensors.insert(out.as_tensor_ref());
       }
     }
@@ -479,6 +485,9 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
   inputs.insert(inputs.end(), outputs.begin(), outputs.end());
 
   ir::Tensor final_out_tensor = outputs.front();
+  if (final_out_tensor->is_reduce_tensor()) {
+    VLOG(3) << "final_out_tensor is reduce!";
+  }
   if (final_out_tensor->name != master_out_tensor->name && !final_out_tensor->is_reduce_tensor()) {
     stages[final_out_tensor]->CopyTransform(stages[master_out_tensor]);
     stages[final_out_tensor]->CopyLoopInfo(stages[master_out_tensor]);
@@ -633,6 +642,25 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   return result;
 }
 
+void GraphCompiler::GetSubKernel(Instruction* instr, const std::string& func_name) {
+  int i                   = 1;
+  std::string new_op_func = func_name + "_" + std::to_string(i);
+  if (function2input_args_.count(new_op_func) != 0) {
+    CHECK_GT(function2input_args_.count(func_name), 0);
+    instr->AddInArgs(function2input_args_[func_name]);
+    instr->AddOutArgs(function2output_args_[func_name]);
+  }
+  while (function2input_args_.count(new_op_func) != 0) {
+    auto* fn2 = compiler_->Lookup(new_op_func);
+    CHECK(fn2);
+    instr->SetLoweredFunc(fn2, new_op_func);
+    instr->AddInArgs(function2input_args_[new_op_func]);
+    instr->AddOutArgs(function2output_args_[new_op_func]);
+    i++;
+    new_op_func = func_name + "_" + std::to_string(i);
+  }
+}
+
 std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
   std::vector<std::unique_ptr<Instruction>> instructions;
   auto topo_order = graph_->topological_order();
@@ -784,22 +812,9 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
       auto* fn                 = compiler_->Lookup(op_func_name);
       CHECK(fn);
       instr->SetLoweredFunc(fn, op_func_name);
-      int i                   = 1;
-      std::string new_op_func = op_func_name + "_" + std::to_string(i);
-      if (function2input_args_.count(new_op_func) != 0) {
-        CHECK_GT(function2input_args_.count(op_func_name), 0);
-        instr->AddInArgs(function2input_args_[op_func_name]);
-        instr->AddOutArgs(function2output_args_[op_func_name]);
-      }
-      while (function2input_args_.count(new_op_func) != 0) {
-        auto* fn2 = compiler_->Lookup(new_op_func);
-        CHECK(fn2);
-        instr->SetLoweredFunc(fn2, new_op_func);
-        instr->AddInArgs(function2input_args_[new_op_func]);
-        instr->AddOutArgs(function2output_args_[new_op_func]);
-        i++;
-        new_op_func = op_func_name + "_" + std::to_string(i);
-      }
+
+      // get other kernels.
+      GetSubKernel(instr.get(), op_func_name);
       if (node->attrs.attr_store.count("pre_run")) {
         instr->pre_run = absl::get<bool>(node->attrs.attr_store["pre_run"]);
       }
@@ -852,23 +867,9 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
       CHECK(fn);
       instr->SetLoweredFunc(fn, fuse_func_name);
 
-      // Add reset kernel
-      int i                   = 1;
-      std::string new_op_func = fuse_func_name + "_" + std::to_string(i);
-      if (function2input_args_.count(new_op_func) != 0) {
-        CHECK_GT(function2input_args_.count(fuse_func_name), 0);
-        instr->AddInArgs(function2input_args_[fuse_func_name]);
-        instr->AddOutArgs(function2output_args_[fuse_func_name]);
-      }
-      while (function2input_args_.count(new_op_func) != 0) {
-        auto* fn2 = compiler_->Lookup(new_op_func);
-        CHECK(fn2);
-        instr->SetLoweredFunc(fn2, new_op_func);
-        instr->AddInArgs(function2input_args_[new_op_func]);
-        instr->AddOutArgs(function2output_args_[new_op_func]);
-        i++;
-        new_op_func = fuse_func_name + "_" + std::to_string(i);
-      }
+      // As some situation like reduce,will gen more than one kernel.
+      // So try to find the rest kernel, if it exist.
+      GetSubKernel(instr.get(), fuse_func_name);
 
       instructions.push_back(std::move(instr));
     }

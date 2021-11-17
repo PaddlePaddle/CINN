@@ -94,7 +94,7 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
     CINNValuePack arg_pack = args[0];
     CHECK(arg_pack.size() == 2UL || arg_pack.size() == 3UL);
     if (target.arch == Target::Arch::NVGPU) {
-      poly::StageMap stages = arg_pack.size() == 2 ? arg_pack[1] : arg_pack[2];
+      poly::StageMap stages = arg_pack.back();
       Expr out0             = arg_pack.size() == 2 ? arg_pack[0] : arg_pack[1];
       pe::CudaScheduleReduce(stages, out0.as_tensor_ref(), target);
 
