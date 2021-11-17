@@ -420,8 +420,8 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
       master_out_tensor = out.as_tensor_ref();
     }
 
-    CHECK_LE(C.size(), 3);
-    Expr out = C.size() == 2 ? C[0] : C[1];
+    CHECK_GE(C.size(), 2);
+    Expr out = C[0];
     for (auto& node_data : temp_outvars) {
       temp_var_map[node_data] = out;
       if (fetch_var_ids_.count(node_data->id())) {

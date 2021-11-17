@@ -81,7 +81,7 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
       std::vector<int> dims_last(1, out0->shape.size() - 1);
       auto out1   = pe_func(out0, dims_last, keep_dim, Expr(), UniqName(op_name + "_out1"));
       auto stages = CreateStages({A, out0, out1});
-      *ret        = CINNValuePack{{CINNValue(out0), CINNValue(out1), CINNValue(stages)}};
+      *ret        = CINNValuePack{{CINNValue(out1), CINNValue(out0), CINNValue(stages)}};
     } else {
       auto out    = pe_func(A, dim, keep_dim, Expr(), UniqName(op_name + "_out"));
       auto stages = CreateStages({A, out});
@@ -95,11 +95,11 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
     CHECK(arg_pack.size() == 2UL || arg_pack.size() == 3UL);
     if (target.arch == Target::Arch::NVGPU) {
       poly::StageMap stages = arg_pack.size() == 2 ? arg_pack[1] : arg_pack[2];
-      Expr out0             = arg_pack[0];
+      Expr out0             = arg_pack.size() == 2 ? arg_pack[0] : arg_pack[1];
       pe::CudaScheduleReduce(stages, out0.as_tensor_ref(), target);
 
       if (arg_pack.size() == 3) {
-        Expr out1 = arg_pack[1];
+        Expr out1 = arg_pack[0];
         pe::CudaScheduleReduce(stages, out1.as_tensor_ref(), target);
       }
     }
