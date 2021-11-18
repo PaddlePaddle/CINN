@@ -870,10 +870,10 @@ void GraphCompiler::RemoveInvalidVariables(const std::vector<std::unique_ptr<Ins
                  [](const auto& name_view) { return std::string(name_view.data()); });
 
   // erase used variable names
-  auto erase_used_name_fn = [&invalid_variables](const std::string& var_name) { invalid_variables.erase(var_name); };
-
-  auto exclude_arguments_fn = [&erase_used_name_fn](const std::vector<std::string>& args) {
-    std::for_each(args.begin(), args.end(), erase_used_name_fn);
+  auto exclude_arguments_fn = [&invalid_variables](const std::vector<std::string>& args) {
+    std::for_each(args.begin(), args.end(), [&invalid_variables](const std::string& var_name) {
+      invalid_variables.erase(var_name);
+    });
   };
 
   // iterate the arguments of each instruction, eliminate the
@@ -893,11 +893,10 @@ void GraphCompiler::RemoveInvalidVariables(const std::vector<std::unique_ptr<Ins
   }
 
   VLOG(3) << "There are " << unused_var_num << " invalid variables to be removed from scope";
-  std::for_each(
-      invalid_variables.begin(), invalid_variables.end(), [& scope = this->scope_](const std::string& var_name) {
-        scope->EraseVar(var_name);
-        VLOG(3) << "Variable(" << var_name << ") is erased";
-      });
+  std::for_each(invalid_variables.begin(), invalid_variables.end(), [this](const std::string& var_name) {
+    scope_->EraseVar(var_name);
+    VLOG(3) << "Variable(" << var_name << ") is erased";
+  });
 }
 
 std::vector<std::string> GraphCompiler::OpGetInputNames(const Node* node) const {
