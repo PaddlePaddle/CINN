@@ -95,9 +95,8 @@ void cinn_call_cuda_kernel(void *kernel_fn,
                            int block_z,
                            void *stream) {
   // prepare void**
-  VLOG(3) << "In cinn_call_cuda_kernel,\ngrid xyz is : " << grid_x << ", " << grid_y << ", " << grid_z;
-  VLOG(3) << "block xyz is : " << block_x << ", " << block_y << ", " << block_z;
-  VLOG(3) << "num_args is : " << num_args;
+  VLOG(3) << "In cinn_call_cuda_kernel, grid_dim={" << grid_x << ", " << grid_y << ", " << grid_z << "}, block_dim={"
+          << block_x << ", " << block_y << ", " << block_z << "}, num_args=" << num_args << ", stream=" << stream;
   void *arr[20];
   CHECK_LT(num_args, 20);
   for (int i = 0; i < num_args; i++) {

@@ -57,6 +57,7 @@ Expr logic_or(const std::vector<Expr>& conds) {
 EXTERN_CALL_IMP(Exp, exp);
 EXTERN_CALL_IMP_NO_VEC(Erf, erf);
 EXTERN_CALL_IMP(Sqrt, sqrt);
+EXTERN_CALL_IMP(Rsqrt, rsqrt);
 EXTERN_CALL_IMP(Log, log);
 EXTERN_CALL_IMP(Log2, log2);
 EXTERN_CALL_IMP(Log10, log10);
