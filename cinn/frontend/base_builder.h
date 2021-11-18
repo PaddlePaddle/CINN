@@ -37,6 +37,9 @@ class BaseBuilder {
   // name of this builder
   const std::string& name() { return name_; }
 
+  // the number of instructions
+  const size_t size() { return instrs_.size(); }
+
   virtual ~BaseBuilder() {}
 
   void AppendInstruction(const Instruction& instr) { instrs_.push_back(instr); }
