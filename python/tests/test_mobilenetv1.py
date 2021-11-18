@@ -30,8 +30,10 @@ import paddle.fluid as fluid
 import sys
 import time
 
+enable_cudnn = sys.argv.pop()
 enable_gpu = sys.argv.pop()
 model_dir = sys.argv.pop()
+print("enable_cudnn is : ", enable_cudnn)
 print("enable_gpu is : ", enable_gpu)
 print("model_dir is : ", model_dir)
 
@@ -71,16 +73,29 @@ class TestLoadMobilenetV1Model(unittest.TestCase):
         a_t.from_numpy(x_data, self.target)
         out = self.executor.get_tensor(self.target_tensor)
         out.from_numpy(np.zeros(out.shape(), dtype='float32'), self.target)
-        for i in range(10):
+        for i in range(50):
             self.executor.run()
 
-        repeat = 10
+        repeat = 1000
         end4 = time.perf_counter()
         for i in range(repeat):
             self.executor.run()
         end5 = time.perf_counter()
-        print("Repeat %d times, average Executor.run() time is: %.3f ms" %
-              (repeat, (end5 - end4) * 1000 / repeat))
+        cost_time = (end5 - end4) * 1000 / repeat
+        print(
+            "With CUDA = %s, CUDNN = %s, this model repeats %d times, average Executor.run() time is: %.3f ms"
+            % (enable_gpu, enable_cudnn, repeat, cost_time))
+        benchmark = 0.0
+        if enable_gpu == "ON" and enable_cudnn == "ON":
+            benchmark = 2.0
+        elif enable_gpu == "ON" and enable_cudnn == "OFF":
+            benchmark = 4.0
+        else:
+            benchmark = 32
+        self.assertGreater(
+            benchmark, cost_time,
+            "The cost time of MobileNetV1 increases! Please check if there is performance degradation."
+        )
 
         a_t.from_numpy(x_data, self.target)
         out.from_numpy(np.zeros(out.shape(), dtype='float32'), self.target)
