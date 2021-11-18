@@ -19,6 +19,7 @@ namespace runtime {
 
 void SetCinnCudnnDeterministic(bool state);
 bool GetCinnCudnnDeterministic();
+int GetCinnCudnnWorkspaceQueueSize();
 
 }  // namespace runtime
 }  // namespace cinn
