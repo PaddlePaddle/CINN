@@ -76,6 +76,13 @@ struct BatchNormHelper {
   }
 
   // std_variance_inv = rsqrt(variance + epsilon)
+  Variable StdVarianceInv1d(Variable variance, float epsilon) {
+    auto epsilon_1d       = GetTensorFromScalar<float>(epsilon, "epsilon", param_shape);
+    auto std_variance_inv = builder->Rsqrt(builder->Add(variance, epsilon_1d));
+    return std_variance_inv;
+  }
+
+  // std_variance_inv = rsqrt(variance + epsilon)
   Variable StdVarianceInv4d(Variable variance, float epsilon) {
     auto epsilon_4d          = GetTensorFromScalar<float>(epsilon, "epsilon", x_shape);
     auto variance_4d         = builder->BroadcastTo(variance, x_shape, {channel_dim});
@@ -169,74 +176,38 @@ void batch_norm_grad(const Instruction& instr, const DecomposerContext& context)
   CinnBuilder* builder = context.builder();
   BatchNormHelper helper(builder, x->shape, scale->shape, layout, "batch_norm_grad");
 
-  // batch norm grad
-  // std_norm = (x - saved_mean) / std_variance
-  // y = scale * std_norm + bias
-  // ==>
-  // bias_grad = reduce_sum(y_grad)
-  // scale_grad = reduce_sum(y_grad * std_norm)
-  // std_norm_grad = y_grad * scale
-  //
-  // x_mean_diff = x - saved_mean
-  // std_norm = x_mean_diff / std_variance
-  // ==>
-  // x_mean_diff_grad = std_norm_grad / std_variance
-  // std_variance_grad = - std_norm_grad * x_mean_diff / variance
-  //
-  // variance_grad = 0.5 * std_variance_grad / std_variance
-  // mean_grad = variance_grad * -2 * mean - reduce(x_mean_diff_grad)
-  // mean_square_grad = variance_grad
-  // x_mean_diff_grad += mean_grad
-  // x_grad = x_mean_diff_grad + 2 * x * mean_square_grad + mean_grad
-
-  // bias_grad = reduce_sum(dy), shape = [c]
+  // bias_grad = reduce_sum(y_grad), shape = [c]
   auto bias_grad = builder->Reduce(y_grad, ReduceKind::kSum, helper.reduce_dim);
 
-  // std_norm = (x - saved_mean) / std_variance
-  // scale_grad = y_grad * std_norm, shape = [c]
-  auto epsilon_1d      = helper.GetTensorFromScalar<float>(epsilon, "epsilon", scale->shape);
-  auto variance_1d     = builder->Add(save_variance, epsilon_1d);
-  auto variance_4d     = builder->BroadcastTo(variance_1d, x->shape, {helper.channel_dim});
-  auto std_variance_1d = builder->Sqrt(variance_1d);
-  auto std_variance_4d = builder->BroadcastTo(std_variance_1d, x->shape, {helper.channel_dim});
-
+  // scale_grad = reduce_sum(y_grad * (x - mean)) * rsqrt(variance + epsilon), shape = [c]
   auto mean_4d     = builder->BroadcastTo(save_mean, x->shape, {helper.channel_dim});
   auto x_mean_diff = builder->Sub(x, mean_4d);
-  auto scale_grad  = builder->Div(
-      builder->Reduce(builder->Mul(y_grad, x_mean_diff), ReduceKind::kSum, helper.reduce_dim), std_variance_1d);
+  auto sum_of_y_grad_mul_x_mean_diff =
+      builder->Reduce(builder->Mul(y_grad, x_mean_diff), ReduceKind::kSum, helper.reduce_dim);
+  auto scale_grad = builder->Mul(sum_of_y_grad_mul_x_mean_diff, helper.StdVarianceInv1d(save_variance, epsilon));
 
-  // std_norm_grad = y_grad * scale, shape = [n,c,h,w]
-  auto scale_4d      = builder->BroadcastTo(scale, x->shape, {helper.channel_dim});
-  auto std_norm_grad = builder->Mul(y_grad, scale_4d);
+  // x_grad = 1/nhw * scale * rsqrt(variance + epsilon) *
+  //   (nhw * y_grad - reduce_sum(y_grad) - (x - mean) * reduce_sum(y_grad * (x - mean)) / (variance + epsilon))
+  // => x_grad = tmp0 * (tmp1 - tmp2 - tmp3)
+  auto element_count_1d = helper.GetTensorFromScalar<float>(helper.element_count, "element_count_1d", scale->shape);
+  auto scaled_std_variance_inv = builder->Mul(scale, helper.StdVarianceInv1d(save_variance, epsilon));
+  auto tmp0 =
+      builder->BroadcastTo(builder->Div(scaled_std_variance_inv, element_count_1d), x->shape, {helper.channel_dim});
 
-  // x_mean_diff_grad = std_norm_grad / std_variance, shape = [n,c,h,w]
-  auto x_mean_diff_grad = builder->Div(std_norm_grad, std_variance_4d);  // a portion of x_grad
+  auto element_count_4d = helper.GetTensorFromScalar<float>(helper.element_count, "element_count_4d", x->shape);
+  auto tmp1             = builder->Mul(y_grad, element_count_4d);
 
-  // std_variance_grad_1d = - reduce_sum(std_norm_grad * x_mean_diff / variance), shape = [c])
-  auto std_variance_grad_1d = builder->Negative(builder->Reduce(
-      builder->Div(builder->Mul(std_norm_grad, x_mean_diff), variance_4d), ReduceKind::kSum, helper.reduce_dim));
+  auto tmp2 = builder->BroadcastTo(bias_grad, x->shape, {helper.channel_dim});
 
-  // variance = std_variance * std_variance
-  // variance_grad = 1/2 * std_variance_grad / std_variance
-  auto variance_grad_1d_without_mul = builder->Div(std_variance_grad_1d, std_variance_1d);
+  auto sum_of_y_grad_mul_x_mean_diff_4d =
+      builder->BroadcastTo(sum_of_y_grad_mul_x_mean_diff, x->shape, {helper.channel_dim});
+  auto tmp3_0              = builder->Mul(x_mean_diff, sum_of_y_grad_mul_x_mean_diff_4d);
+  auto epsilon_1d          = helper.GetTensorFromScalar<float>(epsilon, "epsilon", scale->shape);
+  auto variance_add_eps    = builder->Add(save_variance, epsilon_1d);
+  auto variance_add_eps_4d = builder->BroadcastTo(variance_add_eps, x->shape, {helper.channel_dim});
+  auto tmp3                = builder->Div(tmp3_0, variance_add_eps_4d);
 
-  // x_grad_0 = (variance_grad_1d_without_mul * 0.5 / element_count) * 2 * x
-  auto element_count_1d = helper.GetTensorFromScalar<float>(helper.element_count, "element_count", scale->shape);
-  auto x_grad_0 =
-      builder->Mul(x,
-                   builder->BroadcastTo(
-                       builder->Div(variance_grad_1d_without_mul, element_count_1d), x->shape, {helper.channel_dim}));
-
-  // -1.0 * mean_grad = ((-1.0 * reduce(x_mean_diff_grad)) + (-1.0 * variance_grad_1d_without_mul * 0.5 * 2 * mean)) /
-  // element_count_1d
-  auto minus_mean_grad =
-      builder->Div(builder->Add(builder->Reduce(x_mean_diff_grad, ReduceKind::kSum, helper.reduce_dim),
-                                builder->Mul(variance_grad_1d_without_mul, save_mean)),
-                   element_count_1d);
-  auto minus_mean_grad_4d = builder->BroadcastTo(minus_mean_grad, x->shape, {helper.channel_dim});
-
-  // x_grad = x_mean_diff_grad + mean_grad + x_grad_0
-  auto x_grad = builder->Sub(builder->Add(x_mean_diff_grad, x_grad_0), minus_mean_grad_4d);
+  auto x_grad = builder->Mul(tmp0, builder->Sub(builder->Sub(tmp1, tmp2), tmp3));
 
   context.MapOutToOrigin(x_grad, instr->outputs[0]);
   context.MapOutToOrigin(scale_grad, instr->outputs[1]);
