@@ -133,6 +133,7 @@ class Stage : public Object {
    * Mark this stage to expand inplace in all the usages.
    */
   void ComputeInline();
+  void DisableComputeInline();
 
   bool inlined() const { return meta.compute_inline; }
 
@@ -325,6 +326,7 @@ class Stage : public Object {
    * @return the new level.
    */
   Iterator Fuse(const Iterator& level0, const Iterator& level1);
+  Iterator Fuse(const std::vector<Iterator>& levels);
   Iterator Fuse(int level0, int level1);
   Iterator Fuse(const std::vector<int>& levels);
   Iterator Fuse(const std::string& level0, const std::string& level1);

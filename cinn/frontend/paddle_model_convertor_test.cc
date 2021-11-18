@@ -36,6 +36,7 @@ TEST(PaddleModelConvertor, basic) {
 
   ASSERT_FALSE(var_map.empty());
   ASSERT_FALSE(var_model_to_program_map.empty());
+  ASSERT_FALSE(model_transform.GetFetchIds().empty());
   ASSERT_GT(program.size(), 0);
 }
 

@@ -33,6 +33,7 @@ Expr logic_or(const std::vector<Expr>& conds);
 EXTERN_CALL_DCL(Exp);
 EXTERN_CALL_DCL(Erf);
 EXTERN_CALL_DCL(Sqrt);
+EXTERN_CALL_DCL(Rsqrt);
 EXTERN_CALL_DCL(Log);
 EXTERN_CALL_DCL(Log2);
 EXTERN_CALL_DCL(Log10);
@@ -68,11 +69,6 @@ inline Expr Sign(Expr e) {
 }
 
 Expr Abs(Expr e);
-
-inline Expr Rsqrt(Expr e) {
-  auto one = make_const(e->type(), 1);
-  return one / Sqrt(e);
-}
 
 inline Expr Negative(Expr e) { return -e; }
 inline Expr Identity(Expr e) { return e; }

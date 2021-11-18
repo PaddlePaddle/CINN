@@ -26,17 +26,19 @@ void conv2d_grad(const Instruction& instr, const DecomposerContext& context) {
 
   CinnBuilder* builder = context.builder();
   // create backward data
-  auto dx = builder->Conv(w,
-                          dy,
-                          instr.GetAttrs<std::vector<int>>("strides"),
-                          instr.GetAttrs<std::vector<int>>("paddings"),
-                          instr.GetAttrs<std::vector<int>>("dilations"),
-                          instr.GetAttrs<int>("groups"),
-                          "backward_data",
-                          instr.GetAttrs<std::string>("data_format"),
-                          instr.GetAttrs<std::string>("padding_algorithm"),
-                          x->shape);
-  context.MapOutToOrigin(dx, instr->outputs[0]);
+  if (!instr->outputs[0].is_const()) {
+    auto dx = builder->Conv(w,
+                            dy,
+                            instr.GetAttrs<std::vector<int>>("strides"),
+                            instr.GetAttrs<std::vector<int>>("paddings"),
+                            instr.GetAttrs<std::vector<int>>("dilations"),
+                            instr.GetAttrs<int>("groups"),
+                            "backward_data",
+                            instr.GetAttrs<std::string>("data_format"),
+                            instr.GetAttrs<std::string>("padding_algorithm"),
+                            x->shape);
+    context.MapOutToOrigin(dx, instr->outputs[0]);
+  }
 
   // create backward filter
   auto dw = builder->Conv(x,
