@@ -57,6 +57,7 @@ Expr logic_or(const std::vector<Expr>& conds) {
 EXTERN_CALL_IMP(Exp, exp);
 EXTERN_CALL_IMP_NO_VEC(Erf, erf);
 EXTERN_CALL_IMP(Sqrt, sqrt);
+EXTERN_CALL_IMP(Rsqrt, rsqrt);
 EXTERN_CALL_IMP(Log, log);
 EXTERN_CALL_IMP(Log2, log2);
 EXTERN_CALL_IMP(Log10, log10);
@@ -76,16 +77,6 @@ EXTERN_CALL_IMP_NO_VEC(Asin, asin);
 EXTERN_CALL_IMP_NO_VEC(Asinh, asinh);
 EXTERN_CALL_IMP_NO_VEC(Atan, atan);
 EXTERN_CALL_IMP_NO_VEC(Atanh, atanh);
-
-#ifdef CINN_WITH_CUDA
-EXTERN_CALL_IMP(Rsqrt, rsqrt);
-#else
-Expr Rsqrt(Expr e) {
-  // TODO(Xreki): add the rsqrt's intrinsic of X86 and remove the ifdef.
-  auto one = make_const(e->type(), 1);
-  return one / Sqrt(e);
-}
-#endif
 
 Expr min_value(const Type& type) {
   CHECK_EQ(type.lanes(), 1);
