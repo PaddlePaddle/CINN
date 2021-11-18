@@ -480,12 +480,13 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
   inputs.insert(inputs.end(), outputs.begin(), outputs.end());
 
   ir::Tensor final_out_tensor = outputs.front();
-  if (final_out_tensor->is_reduce_tensor()) {
-    VLOG(3) << "final_out_tensor is reduce tensor!";
-  }
-  if (final_out_tensor->name != master_out_tensor->name && !final_out_tensor->is_reduce_tensor()) {
-    stages[final_out_tensor]->CopyTransform(stages[master_out_tensor]);
-    stages[final_out_tensor]->CopyLoopInfo(stages[master_out_tensor]);
+  if (final_out_tensor->name != master_out_tensor->name) {
+    if (final_out_tensor->is_reduce_tensor()) {
+      VLOG(3) << "final_out_tensor is reduce tensor!";
+    } else {
+      stages[final_out_tensor]->CopyTransform(stages[master_out_tensor]);
+      stages[final_out_tensor]->CopyLoopInfo(stages[master_out_tensor]);
+    }
   }
 
   for (auto& s : stages) {
