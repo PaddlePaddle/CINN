@@ -31,6 +31,15 @@ TEST(Scope, basic) {
   data[2]    = 2.f;
 }
 
+TEST(ScopeTest, TestEraseVar) {
+  Scope scope;
+  scope.Var<Tensor>("key");
+  ASSERT_NE(scope.FindVar("key"), nullptr);
+  scope.EraseVar("key");
+  EXPECT_EQ(scope.FindVar("key"), nullptr);
+  ASSERT_DEATH(scope.EraseVar("key"), "");
+}
+
 }  // namespace framework
 }  // namespace hlir
 }  // namespace cinn

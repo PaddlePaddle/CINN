@@ -20,6 +20,11 @@ namespace cinn {
 namespace hlir {
 namespace framework {
 
+void Scope::EraseVar(const std::string& name) {
+  CHECK(data_.count(name)) << "Variable(" << name << ") not found";
+  data_.erase(name);
+}
+
 Variable* Scope::FindVar(const std::string& name) const {
   auto it = data_.find(name);
   if (it != data_.end()) return it->second.get();
