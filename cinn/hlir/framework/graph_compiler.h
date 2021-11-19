@@ -132,6 +132,7 @@ class GraphCompiler final {
 
  private:
   void ProcessFunction(const std::vector<ir::LoweredFunc>& lowered_func);
+  void SetSubKernels(Instruction* instr, const std::string& func_name);
   Target target_;
   std::shared_ptr<Graph> graph_;
   std::shared_ptr<Scope> scope_;
