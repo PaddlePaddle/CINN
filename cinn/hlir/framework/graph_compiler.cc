@@ -419,6 +419,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
       Expr out          = C[0];
       master_out_tensor = out.as_tensor_ref();
     }
+
     CHECK_GE(C.size(), 2);
     CHECK_LE(C.size() - 1, node->outlinks_in_order().size());
     for (int i = 0; i < C.size() - 1; i++) {
@@ -480,8 +481,12 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
 
   ir::Tensor final_out_tensor = outputs.front();
   if (final_out_tensor->name != master_out_tensor->name) {
-    stages[final_out_tensor]->CopyTransform(stages[master_out_tensor]);
-    stages[final_out_tensor]->CopyLoopInfo(stages[master_out_tensor]);
+    if (final_out_tensor->is_reduce_tensor()) {
+      VLOG(3) << "final_out_tensor is reduce tensor!";
+    } else {
+      stages[final_out_tensor]->CopyTransform(stages[master_out_tensor]);
+      stages[final_out_tensor]->CopyLoopInfo(stages[master_out_tensor]);
+    }
   }
 
   for (auto& s : stages) {
@@ -521,6 +526,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
     VLOG(3) << "Function [" << i->name << "] is:\n";
     VLOG(3) << i;
   }
+
   return func;
 }
 
@@ -633,6 +639,25 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   GraphCompiler::CompilationResult result;
   result.runtime_program.reset(new Program(scope_, std::move(instructions)));
   return result;
+}
+
+void GraphCompiler::SetSubKernels(Instruction* instr, const std::string& func_name) {
+  int i                   = 1;
+  std::string new_op_func = func_name + "_" + std::to_string(i);
+  if (function2input_args_.count(new_op_func) != 0) {
+    CHECK_GT(function2input_args_.count(func_name), 0);
+    instr->AddInArgs(function2input_args_[func_name]);
+    instr->AddOutArgs(function2output_args_[func_name]);
+  }
+  while (function2input_args_.count(new_op_func) != 0) {
+    auto* fn2 = compiler_->Lookup(new_op_func);
+    CHECK(fn2);
+    instr->SetLoweredFunc(fn2, new_op_func);
+    instr->AddInArgs(function2input_args_[new_op_func]);
+    instr->AddOutArgs(function2output_args_[new_op_func]);
+    i++;
+    new_op_func = func_name + "_" + std::to_string(i);
+  }
 }
 
 std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
@@ -786,22 +811,10 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
       auto* fn                 = compiler_->Lookup(op_func_name);
       CHECK(fn);
       instr->SetLoweredFunc(fn, op_func_name);
-      int i                   = 1;
-      std::string new_op_func = op_func_name + "_" + std::to_string(i);
-      if (function2input_args_.count(new_op_func) != 0) {
-        CHECK_GT(function2input_args_.count(op_func_name), 0);
-        instr->AddInArgs(function2input_args_[op_func_name]);
-        instr->AddOutArgs(function2output_args_[op_func_name]);
-      }
-      while (function2input_args_.count(new_op_func) != 0) {
-        auto* fn2 = compiler_->Lookup(new_op_func);
-        CHECK(fn2);
-        instr->SetLoweredFunc(fn2, new_op_func);
-        instr->AddInArgs(function2input_args_[new_op_func]);
-        instr->AddOutArgs(function2output_args_[new_op_func]);
-        i++;
-        new_op_func = op_func_name + "_" + std::to_string(i);
-      }
+
+      // As some instruction like reduce, will generate more than one kernel.
+      // So try to find the rest kernel, if it exist.
+      SetSubKernels(instr.get(), op_func_name);
       if (node->attrs.attr_store.count("pre_run")) {
         instr->pre_run = absl::get<bool>(node->attrs.attr_store["pre_run"]);
       }
@@ -853,6 +866,11 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
       auto* fn = compiler_->Lookup(fuse_func_name);
       CHECK(fn);
       instr->SetLoweredFunc(fn, fuse_func_name);
+
+      // As some situation like reduce,will generate more than one kernel.
+      // So try to find the rest kernel, if it exist.
+      SetSubKernels(instr.get(), fuse_func_name);
+
       instructions.push_back(std::move(instr));
     }
   }

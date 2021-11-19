@@ -58,6 +58,7 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
   bool keep_dim = false;
   if (attrs.attr_store.count("dim")) {
     dim = absl::get<std::vector<int>>(attrs.attr_store.at("dim"));
+    std::sort(dim.begin(), dim.end());
   }
   if (attrs.attr_store.count("keep_dim")) {
     keep_dim = absl::get<bool>(attrs.attr_store.at("keep_dim"));
@@ -69,28 +70,37 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
     Expr A_expr = a[0];
     CHECK(A_expr.as_tensor());
     ir::Tensor A = A_expr.as_tensor_ref();
-    auto out     = pe_func(A, dim, keep_dim, Expr(), UniqName(op_name + "_out"));
-    auto stages  = CreateStages({A, out});
-    *ret         = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
+
+    // if do reduce on last axis and reduce axis size > 1.
+    // two step to do reduce: 1.[n,c,h,w] -> [c,w]; 2.[c,w] -> [c]
+    if (dim.back() == inputs[0]->shape.size() - 1 && dim.size() > 1 && target == common::DefaultNVGPUTarget()) {
+      // reduce without last dimension
+      std::vector<int> dims_without_last(dim.begin(), --dim.end());
+      auto out0 = pe_func(A, dims_without_last, keep_dim, Expr(), UniqName(op_name + "_out0"));
+      // reduce on last dimension
+      std::vector<int> dims_last(1, out0->shape.size() - 1);
+      auto out1   = pe_func(out0, dims_last, keep_dim, Expr(), UniqName(op_name + "_out1"));
+      auto stages = CreateStages({A, out0, out1});
+      *ret        = CINNValuePack{{CINNValue(out1), CINNValue(out0), CINNValue(stages)}};
+    } else {
+      auto out    = pe_func(A, dim, keep_dim, Expr(), UniqName(op_name + "_out"));
+      auto stages = CreateStages({A, out});
+      *ret        = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
+    }
   });
 
   framework::CINNSchedule reduction_schedule([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of " << op_name << " schedule is empty! Please check.";
     CINNValuePack arg_pack = args[0];
-    CHECK_EQ(arg_pack.size(), 2UL);
-    Expr Out              = arg_pack[0];
-    poly::StageMap stages = arg_pack[1];
-    CHECK(Out.as_tensor());
-    auto out = Out.as_tensor_ref();
+    CHECK(arg_pack.size() == 2UL || arg_pack.size() == 3UL);
     if (target.arch == Target::Arch::NVGPU) {
-      if (out->shape.size() > 1) {
-        stages[out]->Split(1, 2);
-        stages[out]->Bind(0, "blockIdx.x");
-        stages[out]->Bind(1, "threadIdx.x");
-      } else {
-        stages[out]->Split(0, 2);
-        stages[out]->Bind(0, "blockIdx.x");
-        stages[out]->Bind(1, "threadIdx.x");
+      poly::StageMap stages = arg_pack.back();
+      Expr out0             = arg_pack.size() == 2 ? arg_pack[0] : arg_pack[1];
+      pe::CudaScheduleReduce(stages, out0.as_tensor_ref(), target);
+
+      if (arg_pack.size() == 3) {
+        Expr out1 = arg_pack[0];
+        pe::CudaScheduleReduce(stages, out1.as_tensor_ref(), target);
       }
     }
     *ret = arg_pack;
@@ -110,12 +120,13 @@ std::vector<shape_t> InferShapeForReduction(const std::vector<shape_t> &inputs_s
   if (attrs.find("dim") != attrs.end()) {
     dim = absl::get<std::vector<int>>(attrs.at("dim"));
   }
+
   if (attrs.find("keep_dim") != attrs.end()) {
     keep_dim = absl::get<bool>(attrs.at("keep_dim"));
   }
   CHECK(!dim.empty()) << "should have reduce dim, please check!";
   CHECK_LE(dim.size(), inputs_shape[0].size()) << "reduce dim should no more than the input size";
-  std::vector<int> out_shapes;
+  std::vector<int> out_shapes, out_shapes_internal;
   auto ndim = inputs_shape[0].size();
   if (keep_dim) {
     for (size_t i = 0; i < ndim; ++i) {
@@ -125,22 +136,36 @@ std::vector<shape_t> InferShapeForReduction(const std::vector<shape_t> &inputs_s
         out_shapes.push_back(inputs_shape[0][i]);
       }
     }
+
+    if (std::find(dim.begin(), dim.end(), inputs_shape[0].size() - 1) != dim.end()) {
+      out_shapes_internal        = out_shapes;
+      out_shapes_internal.back() = inputs_shape[0].back();
+    }
   } else {
     for (size_t i = 0; i < ndim; ++i) {
       if (std::find(dim.begin(), dim.end(), i) == dim.end()) {
         out_shapes.push_back(inputs_shape[0][i]);
       }
     }
+
+    if (std::find(dim.begin(), dim.end(), inputs_shape[0].size() - 1) != dim.end()) {
+      out_shapes_internal = out_shapes;
+      out_shapes_internal.push_back(inputs_shape[0].back());
+    }
   }
   if (out_shapes.empty()) {
     out_shapes.push_back(1);
   }
-  return {out_shapes};
+
+  if (out_shapes_internal.empty()) {
+    out_shapes_internal.push_back(1);
+  }
+  return {out_shapes, out_shapes_internal};
 }
 
 std::vector<Type> InferDtypeForReduction(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
-  std::vector<Type> res{inputs_type[0]};
+  std::vector<Type> res{inputs_type[0], inputs_type[0]};
   return res;
 }
 
@@ -155,8 +180,9 @@ std::vector<std::vector<std::string>> InferLayoutForReduction(const std::vector<
     new_input_layouts[0] = "NCHW";
     VLOG(3) << "alter input layout from " << input_layouts[0] << " to " << new_input_layouts[0];
   }
+  new_input_layouts.push_back("");
 
-  return {{""}, new_input_layouts};
+  return {{"", ""}, new_input_layouts};
 }
 
 StrategyForReduction(reduce_sum, ReduceSum, PeFunc);
@@ -175,7 +201,7 @@ CINN_REGISTER_HELPER(reduce_ops) {
   CINN_REGISTER_OP(op__)                                                                                              \
       .describe(#op__ " function")                                                                                    \
       .set_num_inputs(1)                                                                                              \
-      .set_num_outputs(1)                                                                                             \
+      .set_num_outputs(2)                                                                                             \
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyFor##op_stragegy__)  \
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForReduction))                                 \
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForReduction))                                 \
