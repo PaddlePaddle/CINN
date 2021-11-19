@@ -6,6 +6,7 @@ gather_srcs(cinnapi_src SRCS
     opfusion.cc
     alterlayout.cc
     const_propagate.cc
+    convert_to_more_fusion.cc
     )
 
 
@@ -15,3 +16,4 @@ if (NOT WITH_CUDA)
 cc_test(test_alterlayout SRCS alterlayout_test.cc DEPS cinncore)
 endif()
 cc_test(test_const_propagate SRCS const_propagate_test.cc DEPS cinncore)
+cc_test(test_convert_to_more_fusion SRCS convert_to_more_fusion_test.cc DEPS cinncore)
