@@ -66,7 +66,9 @@ class Instruction {
   /**
    * Run the Instruction.
    */
-  void Run(const std::map<std::string, cinn_pod_value_t>* name2podargs = nullptr, bool dryrun = false);
+  void Run(const std::map<std::string, cinn_pod_value_t>* name2podargs = nullptr,
+           bool dryrun                                                 = false,
+           const cudaStream_t& stream                                  = nullptr);
 
   std::vector<std::vector<std::string>> GetInArgs() { return in_args_; }
   std::vector<std::vector<std::string>> GetOutArgs() { return out_args_; }
