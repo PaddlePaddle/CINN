@@ -48,7 +48,9 @@ std::vector<cinn_pod_value_t>& Instruction::PreparePodArgs(
   return args_cached_[i];
 }
 
-void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podargs, bool dryrun) {
+void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podargs,
+                      bool dryrun,
+                      const cudaStream_t& stream) {
   if (fn_.size() > 1 && fn_.size() != in_args_.size()) {
     out_args_.back()[0] = out_args_.front()[0];
     out_args_.erase(out_args_.begin());
@@ -74,7 +76,7 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
           {"output_c", attrs[16]},   {"output_h", attrs[17]},   {"output_w", attrs[18]},
       };
       // input weight output
-      runtime::cuda::cinn_gpu_cudnn_conv2d(attrs_map, pod_args[0], pod_args[1], pod_args[2]);
+      runtime::cuda::cinn_gpu_cudnn_conv2d(attrs_map, pod_args[0], pod_args[1], pod_args[2], stream);
     } else if (str_attrs[0] == "backward_data") {
       // w, dy, dx
       absl::flat_hash_map<std::string, int> attrs_map = {
@@ -85,7 +87,7 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
           {"output_c", attrs[5]},    {"output_h", attrs[6]},    {"output_w", attrs[7]},
       };
       // w, dy, dx
-      runtime::cuda::cinn_gpu_cudnn_conv2d_backward_data(attrs_map, pod_args[0], pod_args[1], pod_args[2]);
+      runtime::cuda::cinn_gpu_cudnn_conv2d_backward_data(attrs_map, pod_args[0], pod_args[1], pod_args[2], stream);
     } else {
       // x, dy, w
       absl::flat_hash_map<std::string, int> attrs_map = {
@@ -96,18 +98,19 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
           {"output_c", attrs[5]},    {"output_h", attrs[6]},    {"output_w", attrs[7]},
       };
       // x, dy, w
-      runtime::cuda::cinn_gpu_cudnn_conv2d_backward_filter(attrs_map, pod_args[0], pod_args[1], pod_args[2]);
+      runtime::cuda::cinn_gpu_cudnn_conv2d_backward_filter(attrs_map, pod_args[0], pod_args[1], pod_args[2], stream);
     }
   } else if (function_name_ == "pool2d" && target_.arch == Target::Arch::NVGPU) {
-    runtime::cuda::cinn_gpu_cudnn_pool2d(attrs, str_attrs, pod_args[0], pod_args[1]);
+    runtime::cuda::cinn_gpu_cudnn_pool2d(attrs, str_attrs, pod_args[0], pod_args[1], stream);
   } else if (function_name_ == "softmax" && target_.arch == Target::Arch::NVGPU) {
     CHECK_EQ(pod_args.size(), 3);
-    runtime::cuda::cinn_gpu_cudnn_softmax(attrs, pod_args[0], pod_args[1]);
+    runtime::cuda::cinn_gpu_cudnn_softmax(attrs, pod_args[0], pod_args[1], stream);
   } else if (function_name_ == "mul" && target_.arch == Target::Arch::NVGPU) {
     CHECK_EQ(pod_args.size(), 4);
-    runtime::cuda::cinn_gpu_cublas_mul(attrs, pod_args[0], pod_args[1], pod_args[2]);
+    runtime::cuda::cinn_gpu_cublas_mul(attrs, pod_args[0], pod_args[1], pod_args[2], stream);
   } else {
     int i = 0;
+    VLOG(2) << "Runing extern function " << function_name_;
     for (auto& it_fn : fn_) {
       auto& pod_args = PreparePodArgs(i, name2podargs);
       CHECK(it_fn) << "The LoweredFunc address should be set first by calling SetLoweredFunc method";

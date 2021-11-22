@@ -191,13 +191,13 @@ void Program::Export(const std::vector<std::string>& persistent_vars, const std:
   fclose(f);
 }
 
-void Program::Execute(const std::map<std::string, cinn_pod_value_t>* name2podargs) {
+void Program::Execute(const std::map<std::string, cinn_pod_value_t>* name2podargs, const cudaStream_t& stream) {
   for (auto& ins : instrs_) {
-    ins->Run(name2podargs);
+    ins->Run(name2podargs, false, stream);
   }
 #ifdef CINN_WITH_CUDA
   if (instrs_[0]->target_.arch == Target::Arch::NVGPU) {
-    CUDA_CALL(cudaDeviceSynchronize());
+    // CUDA_CALL(cudaDeviceSynchronize());
   }
 #endif
 }
