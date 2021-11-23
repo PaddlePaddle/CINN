@@ -39,7 +39,7 @@ class Compiler final {
   /**
    * Compile and link to a CINN module.
    */
-  void Build(const ir::Module& module, const std::string& code = "");
+  void Build(const ir::Module& module, const std::string& code = "", void* stream = nullptr);
 
   void ExportObject(const std::string& path);
 
@@ -54,7 +54,7 @@ class Compiler final {
   lower_func_ptr_t Lookup(absl::string_view fn_name);
 
  private:
-  void CompileCudaModule(const ir::Module& module, const std::string& code = "");
+  void CompileCudaModule(const ir::Module& module, const std::string& code = "", void* stream = nullptr);
 
   void CompileX86Module(const ir::Module& module);
 
