@@ -355,7 +355,9 @@ std::vector<ir::Tensor> Pool2d(const ir::Tensor &tensor,
                                const std::string &data_format = "NCHW",
                                bool adaptive                  = false,
                                const std::string &output_name = UniqName("T_Pool2d_out"));
-
+std::vector<ir::Tensor> GlobalPool2d(const ir::Tensor &tensor,
+                                     const std::string &pool_type,
+                                     const std::string &output_name);
 /**
  * @brief Perform pooling on the depth, height and width dimension of the tensor.
  *        Depth, height and width axis is determined by the data_format string in which 'D' means depth, 'H' means

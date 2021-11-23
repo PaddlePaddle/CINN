@@ -52,6 +52,38 @@ CINN_REGISTER_HELPER(cuda_intrinsics) {
   REGISTER_EXTERN_FUNC_1_IN_1_OUT_FLOAT(isfinite);
   REGISTER_EXTERN_FUNC_1_IN_1_OUT_FLOAT(isinf);
 
+  FunctionProto::shape_inference_t inference_shape_globalpool = [](const std::vector<cinn::ir::Expr> &args,
+                                                                   int offset) {
+    auto t = args[0].as_tensor();
+    std::vector<cinn::ir::Expr> shape;
+    shape.push_back(t->shape[0]);
+    shape.push_back(t->shape[1]);
+    shape.push_back(cinn::ir::Expr(1));
+    shape.push_back(cinn::ir::Expr(1));
+    return shape;
+  };
+
+  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_warp_reduce_max, target)
+      .SetRetType<float>()
+      .AddInputType<cinn_buffer_t *>()
+      .AddInputType<int>()
+      .AddInputType<int>()
+      .End();
+
+  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_warp_reduce_sum, target)
+      .SetRetType<float>()
+      .AddInputType<cinn_buffer_t *>()
+      .AddInputType<int>()
+      .AddInputType<int>()
+      .End();
+
+  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_warp_reduce_avg, target)
+      .SetRetType<float>()
+      .AddInputType<cinn_buffer_t *>()
+      .AddInputType<int>()
+      .AddInputType<int>()
+      .End();
+
   return true;
 }
 

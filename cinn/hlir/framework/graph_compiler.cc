@@ -479,9 +479,13 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
   inputs.insert(inputs.end(), outputs.begin(), outputs.end());
 
   ir::Tensor final_out_tensor = outputs.front();
-  if (final_out_tensor->name != master_out_tensor->name && !final_out_tensor->is_reduce_tensor()) {
-    stages[final_out_tensor]->CopyTransform(stages[master_out_tensor]);
-    stages[final_out_tensor]->CopyLoopInfo(stages[master_out_tensor]);
+  if (final_out_tensor->name != master_out_tensor->name) {
+    if (final_out_tensor->is_reduce_tensor()) {
+      VLOG(3) << "final_out_tensor is reduce tensor!";
+    } else {
+      stages[final_out_tensor]->CopyTransform(stages[master_out_tensor]);
+      stages[final_out_tensor]->CopyLoopInfo(stages[master_out_tensor]);
+    }
   }
 
   for (auto& s : stages) {
@@ -619,7 +623,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
 
   compiler_->Build(build_module, options.attached_code);
   auto instructions = BuildInstructions();
-  RemoveUnusedVariablesFromScope(instructions);
+  RemoveInvalidVariables(instructions);
 
   if (options.with_instantiate_variables) {
     VLOG(3) << "Initantiate all variables on compile-time";
@@ -634,6 +638,25 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   GraphCompiler::CompilationResult result;
   result.runtime_program.reset(new Program(scope_, std::move(instructions)));
   return result;
+}
+
+void GraphCompiler::SetSubKernels(Instruction* instr, const std::string& func_name) {
+  int i                   = 1;
+  std::string new_op_func = func_name + "_" + std::to_string(i);
+  if (function2input_args_.count(new_op_func) != 0) {
+    CHECK_GT(function2input_args_.count(func_name), 0);
+    instr->AddInArgs(function2input_args_[func_name]);
+    instr->AddOutArgs(function2output_args_[func_name]);
+  }
+  while (function2input_args_.count(new_op_func) != 0) {
+    auto* fn2 = compiler_->Lookup(new_op_func);
+    CHECK(fn2);
+    instr->SetLoweredFunc(fn2, new_op_func);
+    instr->AddInArgs(function2input_args_[new_op_func]);
+    instr->AddOutArgs(function2output_args_[new_op_func]);
+    i++;
+    new_op_func = func_name + "_" + std::to_string(i);
+  }
 }
 
 std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
@@ -787,22 +810,10 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
       auto* fn                 = compiler_->Lookup(op_func_name);
       CHECK(fn);
       instr->SetLoweredFunc(fn, op_func_name);
-      int i                   = 1;
-      std::string new_op_func = op_func_name + "_" + std::to_string(i);
-      if (function2input_args_.count(new_op_func) != 0) {
-        CHECK_GT(function2input_args_.count(op_func_name), 0);
-        instr->AddInArgs(function2input_args_[op_func_name]);
-        instr->AddOutArgs(function2output_args_[op_func_name]);
-      }
-      while (function2input_args_.count(new_op_func) != 0) {
-        auto* fn2 = compiler_->Lookup(new_op_func);
-        CHECK(fn2);
-        instr->SetLoweredFunc(fn2, new_op_func);
-        instr->AddInArgs(function2input_args_[new_op_func]);
-        instr->AddOutArgs(function2output_args_[new_op_func]);
-        i++;
-        new_op_func = op_func_name + "_" + std::to_string(i);
-      }
+
+      // As some instruction like reduce, will generate more than one kernel.
+      // So try to find the rest kernel, if it exist.
+      SetSubKernels(instr.get(), op_func_name);
       if (node->attrs.attr_store.count("pre_run")) {
         instr->pre_run = absl::get<bool>(node->attrs.attr_store["pre_run"]);
       }
@@ -855,23 +866,9 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
       CHECK(fn);
       instr->SetLoweredFunc(fn, fuse_func_name);
 
-      // Add reset kernel
-      int i                   = 1;
-      std::string new_op_func = fuse_func_name + "_" + std::to_string(i);
-      if (function2input_args_.count(new_op_func) != 0) {
-        CHECK_GT(function2input_args_.count(fuse_func_name), 0);
-        instr->AddInArgs(function2input_args_[fuse_func_name]);
-        instr->AddOutArgs(function2output_args_[fuse_func_name]);
-      }
-      while (function2input_args_.count(new_op_func) != 0) {
-        auto* fn2 = compiler_->Lookup(new_op_func);
-        CHECK(fn2);
-        instr->SetLoweredFunc(fn2, new_op_func);
-        instr->AddInArgs(function2input_args_[new_op_func]);
-        instr->AddOutArgs(function2output_args_[new_op_func]);
-        i++;
-        new_op_func = fuse_func_name + "_" + std::to_string(i);
-      }
+      // As some situation like reduce,will generate more than one kernel.
+      // So try to find the rest kernel, if it exist.
+      SetSubKernels(instr.get(), fuse_func_name);
 
       instructions.push_back(std::move(instr));
     }
@@ -879,28 +876,28 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
   return instructions;
 }
 
-void GraphCompiler::RemoveUnusedVariablesFromScope(const std::vector<std::unique_ptr<Instruction>>& instructions) {
-  // mark all variables are unused initially
-  std::unordered_set<std::string> unused_variables;
+void GraphCompiler::RemoveInvalidVariables(const std::vector<std::unique_ptr<Instruction>>& instructions) {
+  // mark all variables are invalid initially
+  std::unordered_set<std::string> invalid_variables;
   auto var_names = scope_->var_names();
-  unused_variables.reserve(var_names.size());
+  invalid_variables.reserve(var_names.size());
   std::transform(var_names.begin(),
                  var_names.end(),
-                 std::inserter(unused_variables, unused_variables.end()),
+                 std::inserter(invalid_variables, invalid_variables.end()),
                  [](const auto& name_view) { return std::string(name_view.data()); });
 
   // erase used variable names
-  auto erase_used_name_fn = [&unused_variables](const std::string& var_name) { unused_variables.erase(var_name); };
-
-  auto exclude_arguments_fn = [&erase_used_name_fn](const std::vector<std::string>& args) {
-    std::for_each(args.begin(), args.end(), erase_used_name_fn);
+  auto exclude_arguments_fn = [&invalid_variables](const std::vector<std::string>& args) {
+    std::for_each(args.begin(), args.end(), [&invalid_variables](const std::string& var_name) {
+      invalid_variables.erase(var_name);
+    });
   };
 
   // iterate the arguments of each instruction, eliminate the
-  // used variables, and remain variables are unused finally
-  auto unused_var_num = unused_variables.size();
-  VLOG(3) << "Before removing unused variables: " << instructions.size() << " instructions, " << unused_variables.size()
-          << " variables";
+  // used variables, and remain variables are invalid finally
+  auto unused_var_num = invalid_variables.size();
+  VLOG(3) << "Before removing invalid variables: " << instructions.size() << " instructions, "
+          << invalid_variables.size() << " variables";
   for (auto i = 0; i < instructions.size(); ++i) {
     const auto& instr    = instructions.at(i);
     const auto& in_args  = instr->GetInArgs();
@@ -908,16 +905,15 @@ void GraphCompiler::RemoveUnusedVariablesFromScope(const std::vector<std::unique
     std::for_each(in_args.begin(), in_args.end(), exclude_arguments_fn);
     std::for_each(out_args.begin(), out_args.end(), exclude_arguments_fn);
 
-    VLOG(3) << "Instruction-" << i << " eliminate " << unused_var_num - unused_variables.size() << " used variables";
-    unused_var_num = unused_variables.size();
+    VLOG(3) << "Instruction-" << i << " eliminate " << unused_var_num - invalid_variables.size() << " used variables";
+    unused_var_num = invalid_variables.size();
   }
 
-  VLOG(3) << "There are " << unused_var_num << " unused variables to be removed from scope";
-  std::for_each(
-      unused_variables.begin(), unused_variables.end(), [& scope = this->scope_](const std::string& var_name) {
-        scope->EraseVar(var_name);
-        VLOG(3) << "Variable(" << var_name << ") is erased";
-      });
+  VLOG(3) << "There are " << unused_var_num << " invalid variables to be removed from scope";
+  std::for_each(invalid_variables.begin(), invalid_variables.end(), [this](const std::string& var_name) {
+    scope_->EraseVar(var_name);
+    VLOG(3) << "Variable(" << var_name << ") is erased";
+  });
 }
 
 std::vector<std::string> GraphCompiler::OpGetInputNames(const Node* node) const {

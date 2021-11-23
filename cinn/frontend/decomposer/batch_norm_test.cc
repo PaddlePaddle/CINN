@@ -226,7 +226,7 @@ TEST(Decomposer, BatchNormTrain) {
     CopyToVector(tensor, &data);
 
     LOG(INFO) << "output[" << iter.first << "], var_name=" << output.first << ", shape=" << tensor->shape().data();
-    CheckOutput<float>(data, output.second, 1e-7, 1e-4);
+    CheckOutput<float>(data, output.second, 1e-8, 1e-4);
   }
 }
 

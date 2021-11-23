@@ -144,6 +144,7 @@ void RemoveGpuForloopsAxis(Expr *expr) {
 
 void MarkGpuForloop(const std::string &statement,
                     const std::map<std::string, poly::StageForloopInfo> &forloop_infos,
+                    const std::set<std::string> gpu_launch_axis,
                     std::map<std::string, ir::Tensor> *global_tensor_map,
                     std::unordered_set<std::string> &resized_buffer,
                     Expr *expr) {
@@ -151,6 +152,7 @@ void MarkGpuForloop(const std::string &statement,
     const std::string &statement;
     const std::map<std::string, poly::StageForloopInfo> forloop_infos;
     std::map<std::string, ir::Tensor> *global_tensor_map;
+    std::set<std::string> gpu_launch_axis;
     std::unordered_set<std::string> &resized_buffer;
     /**
      * @param statement the tuple name.
@@ -158,10 +160,12 @@ void MarkGpuForloop(const std::string &statement,
      */
     Mutator(const std::string &statement,
             const std::map<std::string, poly::StageForloopInfo> &forloop_infos,
+            std::set<std::string> gpu_launch_axis,
             std::map<std::string, ir::Tensor> *global_tensor_map,
             std::unordered_set<std::string> &resized_buffer)
         : statement(statement),
           forloop_infos(forloop_infos),
+          gpu_launch_axis(gpu_launch_axis),
           global_tensor_map(global_tensor_map),
           resized_buffer(resized_buffer) {}
 
@@ -176,6 +180,78 @@ void MarkGpuForloop(const std::string &statement,
           MarkForloop(tensor->buffer->name);
         } else {
           MarkForloop("not_defined");
+        }
+        // if compute A bind threadIdx.x, and set launch grid param `threadIdx.x` to 32 and
+        // compute B bind threadIdx.y, blockIdx.x and set launch grid param to 32, 16.
+        // assume B has a store operation buf[blockIdx.x * 32 + threadIdx.y] = ...,
+        // if A is computed in B's, then the generated fused kernel has 0 < threadIdx.x < 32,
+        // 0 < threadIdx.y < 32, 0 < blockIdx.x < 16. we should limit the store operation in B
+        // to run only once, simply let the threadIdx.x = 0 thread to run it.
+        // compute_A {
+        //   for (threadIdx.x, 0, 32) {
+        //     buf_A[threadIdx.x] = .....;
+        //   }
+        // }
+        // compute_B {
+        //  for (blockIdx.x, 0, 16} {
+        //    for (threadIdx.y, 0, 32) {
+        //      buf_B[block_Idx.x * 32 + threadIdx.y] = buf_A[threadIdx.y];
+        //    }
+        //  }
+        // }
+        //
+        // compute_A_in_B {
+        //  for (blockIdx.x, 0, 16} {
+        //    for (threadIdx.y, 0, 32) {
+        //      for (threadIdx.x, 0, 32) {
+        //        buf_A[threadIdx.x] = .....;
+        //      }
+        //      // when launched the store operation will run 32 times
+        //      buf_B[block_Idx.x * 32 + threadIdx.y] = buf_A[threadIdx.y];
+        //    }
+        //  }
+        // }
+        //
+        // compute_A_in_B {
+        //  for (blockIdx.x, 0, 16} {
+        //    for (threadIdx.y, 0, 32) {
+        //      for (threadIdx.x, 0, 32) {
+        //        buf_A[threadIdx.x] = .....;
+        //      }
+        //      if (threadIdx.x == 0) {
+        //        // make sure only one thread runs this store operation
+        //        buf_B[block_Idx.x * 32 + threadIdx.y] = buf_A[threadIdx.y];
+        //      }
+        //    }
+        //  }
+        // }
+        std::set<std::string> gpu_axis = {
+            "blockIdx.x", "blockIdx.y", "blockIdx.z", "threadIdx.x", "threadIdx.y", "threadIdx.z"};
+        std::set<std::string> loop_gpu_axis;
+        for (auto *expr : forloop_stack) {
+          auto *for_     = expr->As<ir::For>();
+          auto *poly_for = expr->As<ir::PolyFor>();
+          Var axis_var   = for_ ? for_->loop_var : poly_for->iterator;
+          if (gpu_axis.find(axis_var->name) != gpu_axis.end()) {
+            loop_gpu_axis.insert(axis_var->name);
+          }
+        }
+        Expr condition;
+        auto condition_append = [&](Expr new_cond) {
+          if (condition.defined()) {
+            condition = ir::And::Make(condition, new_cond);
+          } else {
+            condition = new_cond;
+          }
+        };
+        for (auto &axis : gpu_launch_axis) {
+          if (loop_gpu_axis.find(axis) == loop_gpu_axis.end()) {
+            Var cuda_var(axis);
+            condition_append(ir::EQ::Make(Expr(cuda_var), Expr(0)));
+          }
+        }
+        if (condition.defined()) {
+          *expr = ir::IfThenElse::Make(condition, *expr);
         }
       }
     }
@@ -252,7 +328,7 @@ void MarkGpuForloop(const std::string &statement,
     std::vector<Expr *> forloop_stack;
   };
 
-  Mutator mutator(statement, forloop_infos, global_tensor_map, resized_buffer);
+  Mutator mutator(statement, forloop_infos, gpu_launch_axis, global_tensor_map, resized_buffer);
   mutator(expr);
 }
 
@@ -261,8 +337,18 @@ void TransformGpuForloops(const forloop_infos_t &forloop_infos,
                           std::map<std::string, ir::Tensor> *global_tensor_map,
                           std::unordered_set<std::string> &resized_buffer,
                           Expr *expr) {
+  std::set<std::string> gpu_launch_axis;
   for (auto &i : traverse_order) {
-    MarkGpuForloop(i, forloop_infos.at(i), global_tensor_map, resized_buffer, expr);
+    for (auto &f : forloop_infos.at(i)) {
+      if (f.second.for_type == ir::ForType::GPUThread) {
+        gpu_launch_axis.insert(backends::cuda_thread_axis_name(f.second.offset));
+      } else if (f.second.for_type == ir::ForType::GPUBlock) {
+        gpu_launch_axis.insert(backends::cuda_block_axis_name(f.second.offset));
+      }
+    }
+  }
+  for (auto &i : traverse_order) {
+    MarkGpuForloop(i, forloop_infos.at(i), gpu_launch_axis, global_tensor_map, resized_buffer, expr);
   }
 }
 
