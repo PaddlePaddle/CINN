@@ -874,6 +874,11 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
       instructions.push_back(std::move(instr));
     }
   }
+
+  // Finalize instructions
+  for (auto& instr : instructions) {
+    instr->Finalize();
+  }
   return instructions;
 }
 
