@@ -104,31 +104,41 @@ class OpTest(unittest.TestCase):
             self.check_results(self.paddle_grads, self.cinn_grads,
                                max_relative_error)
 
-    def check_results(self, expect_res, actual_res, max_relative_error):
+    def check_results(self,
+                      expect_res,
+                      actual_res,
+                      max_relative_error=1e-5,
+                      compare_max_expect=False):
+        def _print_detail_for_debug(expect, actual, relative_diff,
+                                    absolute_diff):
+            for i in range(len(relative_diff)):
+                if relative_diff[i] > max_relative_error:
+                    print(
+                        "i=%d, %e (expect) vs %e (actual), relative_diff=%e, absolute_diff=%e"
+                        % (i, expect.flatten()[i], actual.flatten()[i],
+                           relative_diff[i], absolute_diff[i]))
+
         def _compute_max_relative_error(output_id, expect, actual):
             absolute_diff = np.abs(expect - actual).flatten()
-            relative_diff = absolute_diff / np.abs(expect).flatten()
-            max_diff = 0
-            min_diff = max_relative_error
-            offset = 0
-            num_diffs = 0
-            for i in range(len(relative_diff)):
-                if relative_diff[i] > max_diff:
-                    max_diff = relative_diff[i]
-                    offset = i
-                if relative_diff[i] > max_relative_error:
-                    num_diffs = num_diffs + 1
-                    # The following print can be used to debug.
-                    # print("i=%d, %e vs %e, relative_diff=%e, absolute_diff=%e" % (i, expect.flatten()[i], actual.flatten()[i], relative_diff[i], absolute_diff[i]))
-            error_message = "[%s] The %d-th output: total %d different results, offset=%d, shape=%s, %e vs %e, maximum_relative_diff=%e (absolute_diff=%e)." % (
+            if compare_max_expect:
+                relative_diff = absolute_diff / np.max(
+                    np.abs(expect).flatten())
+            else:
+                relative_diff = absolute_diff / np.abs(expect).flatten()
+            offset = np.argmax(relative_diff)
+            num_diffs = np.sum(relative_diff > max_relative_error)
+            # The following print can be used to debug.
+            #_print_detail_for_debug(expect, actual, relative_diff, absolute_diff)
+            error_message = "[%s] The %d-th output: total %d different results, offset=%d, shape=%s, %e (expect) vs %e (actual), maximum_relative_diff=%e (absolute_diff=%e)." % (
                 self._get_device(), output_id, num_diffs, offset,
                 str(expect.shape), expect.flatten()[offset],
-                actual.flatten()[offset], max_diff, absolute_diff[offset])
+                actual.flatten()[offset], relative_diff[offset],
+                absolute_diff[offset])
             return error_message
 
         self.assertEqual(len(expect_res), len(actual_res))
         for i in range(len(expect_res)):
-            if expect_res[i] is None:
+            if expect_res[i] is None or actual_res[i] is None:
                 continue
 
             if isinstance(expect_res[i], paddle.Tensor):

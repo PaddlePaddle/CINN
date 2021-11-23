@@ -16,7 +16,7 @@
 
 import unittest
 import numpy as np
-from op_test import OpTest, OpTestTool
+from op_test import OpTest, OpTestTool, random
 import paddle
 import paddle.nn.functional as F
 import cinn
@@ -28,14 +28,18 @@ from cinn.common import *
                     "x86 test will be skipped due to timeout.")
 class TestElementwiseAddOp(OpTest):
     def setUp(self):
-        self.init_case()
-
-    def init_case(self):
+        self.config()
         self.inputs = {
-            "x": np.random.random([32, 64]).astype("float32"),
-            "y": np.random.random([32, 64]).astype("float32"),
-            "dout": np.random.random((32, 64)).astype("float32")
+            "x": random(self.x_shape, self.dtype),
+            "y": random(self.y_shape, self.dtype),
+            "dout": random(self.dout_shape, self.dtype)
         }
+
+    def config(self):
+        self.dtype = "float32"
+        self.x_shape = [32, 64]
+        self.y_shape = [32, 64]
+        self.dout_shape = [32, 64]
         self.axis = -1
 
     def build_paddle_program(self, target):
@@ -88,42 +92,44 @@ class TestElementwiseAddOp(OpTest):
 
 
 class TestAddCase1(TestElementwiseAddOp):
-    def init_case(self):
-        self.inputs = {
-            "x": np.random.random([8, 16, 32, 32]).astype("float32"),
-            "y": np.random.random([32, 32]).astype("float32"),
-            "dout": np.random.random((8, 16, 32, 32)).astype("float32")
-        }
+    def config(self):
+        self.dtype = "float32"
+        self.x_shape = [8, 16, 32, 32]
+        self.y_shape = [32, 32]
+        self.dout_shape = [8, 16, 32, 32]
         self.axis = -1
 
 
 class TestAddCase2(TestElementwiseAddOp):
-    def init_case(self):
-        self.inputs = {
-            "x": np.random.random([8, 1, 32, 32]).astype("float32"),
-            "y": np.random.random([16, 32]).astype("float32"),
-            "dout": np.random.random((8, 16, 32, 32)).astype("float32")
-        }
+    def config(self):
+        self.dtype = "float32"
+        self.x_shape = [8, 1, 32, 32]
+        self.y_shape = [16, 32]
+        self.dout_shape = [8, 16, 32, 32]
         self.axis = 1
+
+    def test_check_results(self):
+        self.check_outputs_and_grads(max_relative_error=1e-3)
 
 
 class TestAddCase3(TestElementwiseAddOp):
-    def init_case(self):
-        self.inputs = {
-            "x": np.random.random([4, 16, 8, 32]).astype("float32"),
-            "y": np.random.random([4, 16]).astype("float32"),
-            "dout": np.random.random((4, 16, 8, 32)).astype("float32")
-        }
+    def config(self):
+        self.dtype = "float32"
+        self.x_shape = [4, 16, 8, 32]
+        self.y_shape = [4, 16]
+        self.dout_shape = [4, 16, 8, 32]
         self.axis = 0
+
+    def test_check_results(self):
+        self.check_outputs_and_grads(max_relative_error=1e-4)
 
 
 class TestAddCase4(TestElementwiseAddOp):
-    def init_case(self):
-        self.inputs = {
-            "x": np.random.random([4, 16, 8, 32]).astype("float32"),
-            "y": np.random.random([1]).astype("float32"),
-            "dout": np.random.random((4, 16, 8, 32)).astype("float32")
-        }
+    def config(self):
+        self.dtype = "float32"
+        self.x_shape = [4, 16, 8, 32]
+        self.y_shape = [1]
+        self.dout_shape = [4, 16, 8, 32]
         self.axis = -1
 
 

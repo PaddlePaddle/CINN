@@ -635,11 +635,14 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Block *op) {
 llvm::Value *CodeGenLLVM::Visit(const ir::PrimitiveNode *) { CINN_NOT_IMPLEMENTED return nullptr; }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::Call *op) {
+  LOG(INFO) << "function name=" << op->name;
   if (op->name == runtime::intrinsic::debug_log_repr) {
     return EmitCall_debug_info(op);
   } else if (op->is_extern_call()) {
+    LOG(INFO) << op->name << " is extern call.";
     auto emitter_id     = ExternFuncID{backend_llvm_host, op->name.c_str()};
     const auto &fn_name = ExternFunctionEmitterRegistry::Global().Lookup(emitter_id);
+    LOG(INFO) << fn_name;
     if (!fn_name.empty()) {
       ExternFunctionLLVMEmitter emitter(fn_name);
       emitter.BindCodeGen(this);

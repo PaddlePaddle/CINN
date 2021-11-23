@@ -21,7 +21,7 @@ import unittest
 from cinn.frontend import *
 from cinn.common import *
 from cinn.runtime import *
-from op_test import OpTest, OpTestTool
+from op_test import OpTest, OpTestTool, random
 
 set_cinn_cudnn_deterministic(True)
 paddle.fluid.set_flags({'FLAGS_cudnn_deterministic': 1})
@@ -31,14 +31,18 @@ paddle.fluid.set_flags({'FLAGS_cudnn_deterministic': 1})
                     "x86 test will be skipped due to timeout.")
 class TestConv2dOp(OpTest):
     def setUp(self):
-        self.init_case()
-
-    def init_case(self):
+        self.config()
         self.inputs = {
-            "x": np.random.random([3, 16, 32, 32]).astype("float32"),
-            "weight": np.random.random([16, 16, 3, 3]).astype("float32"),
-            "dy": np.random.random([3, 16, 30, 30]).astype("float32")
+            "x": random(self.x_shape, self.dtype),
+            "weight": random(self.w_shape, self.dtype),
+            "dy": random(self.dy_shape, self.dtype)
         }
+
+    def config(self):
+        self.dtype = "float32"
+        self.x_shape = [3, 16, 32, 32]
+        self.w_shape = [16, 16, 3, 3]
+        self.dy_shape = [3, 16, 30, 30]
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.inputs["x"], stop_gradient=False)
