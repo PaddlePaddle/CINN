@@ -161,6 +161,33 @@ cinn_buffer_t* cinn_buffer_new(cinn_device_kind_t device, cinn_type_t type, cons
   return cinn_buffer_t::new_(device, type, shape, align);
 }
 
+cinn_buffer_callback_interface* cinn_buffer_callback_interface_new(struct cinn_buffer_t* buffer) {
+  if (buffer->memory == NULL) {
+    fprintf(stderr, "cinn_buffer_t's memory is NULL in callback interface.");
+    return NULL;
+  }
+  cinn_buffer_callback_interface* ret = malloc(sizeof(cinn_buffer_callback_interface));
+  ret->cinn_buffer_                   = buffer;
+  ret->external_malloc_               = NULL;
+  ret->external_free_                 = NULL;
+}
+
+cinn_buffer_callback_interface* cinn_buffer_callback_interface_new(struct cinn_buffer_t* buffer,
+                                                                   int (*external_malloc)(void* context,
+                                                                                          struct cinn_buffer_t* buf),
+                                                                   int (*external_free)(void* context,
+                                                                                        struct cinn_buffer_t* buf)) {
+  if (buffer->memory != NULL) {
+    fprintf(stderr, "cinn_buffer_t's memory is not NULL in callback interface.");
+    return NULL;
+  }
+  cinn_buffer_callback_interface* ret = malloc(sizeof(cinn_buffer_callback_interface));
+  ret->cinn_buffer_                   = buffer;
+  ret->external_malloc_               = external_malloc;
+  ret->external_free_                 = external_free;
+  return ret;
+}
+
 cinn_pod_value_t::operator double() const {
   CINN_CHECK_EQ(type_code_, ::cinn_type_code<double>());
   return value_.v_float64;
