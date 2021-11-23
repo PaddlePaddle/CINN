@@ -99,6 +99,12 @@ struct BatchNormHelper {
     return new_moving_value;
   }
 
+  Variable XMeanDiff(Variable x, Variable save_mean) {
+    auto mean_4d     = builder->BroadcastTo(save_mean, x->shape, {channel_dim});
+    auto x_mean_diff = builder->Sub(x, mean_4d);
+    return x_mean_diff;
+  }
+
   Variable Reduce(Variable x) {
     auto reduce_sum_0 =
         builder->Reduce(x, ReduceKind::kSum, std::vector<int>(reduce_dim.begin(), reduce_dim.begin() + 2));
@@ -188,9 +194,7 @@ void batch_norm_grad(const Instruction& instr, const DecomposerContext& context)
   auto bias_grad = helper.Reduce(y_grad);
 
   // scale_grad = reduce_sum(y_grad * (x - mean)) * rsqrt(variance + epsilon), shape = [c]
-  auto mean_4d                       = builder->BroadcastTo(save_mean, x->shape, {helper.channel_dim});
-  auto x_mean_diff                   = builder->Sub(x, mean_4d);
-  auto sum_of_y_grad_mul_x_mean_diff = helper.Reduce(builder->Mul(y_grad, x_mean_diff));
+  auto sum_of_y_grad_mul_x_mean_diff = helper.Reduce(builder->Mul(y_grad, helper.XMeanDiff(x, save_mean)));
   auto scale_grad = builder->Mul(sum_of_y_grad_mul_x_mean_diff, helper.StdVarianceInv1d(save_variance, epsilon));
 
   // x_grad = 1/nhw * scale * rsqrt(variance + epsilon) *
@@ -208,7 +212,7 @@ void batch_norm_grad(const Instruction& instr, const DecomposerContext& context)
 
   auto sum_of_y_grad_mul_x_mean_diff_4d =
       builder->BroadcastTo(sum_of_y_grad_mul_x_mean_diff, x->shape, {helper.channel_dim});
-  auto tmp3_0              = builder->Mul(x_mean_diff, sum_of_y_grad_mul_x_mean_diff_4d);
+  auto tmp3_0              = builder->Mul(helper.XMeanDiff(x, save_mean), sum_of_y_grad_mul_x_mean_diff_4d);
   auto epsilon_1d          = helper.GetTensorFromScalar<float>(epsilon, "epsilon", scale->shape);
   auto variance_add_eps    = builder->Add(save_variance, epsilon_1d);
   auto variance_add_eps_4d = builder->BroadcastTo(variance_add_eps, x->shape, {helper.channel_dim});

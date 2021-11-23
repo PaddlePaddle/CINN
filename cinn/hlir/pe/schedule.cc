@@ -1873,31 +1873,16 @@ void CudaScheduleInjective(poly::Stage *stage, const std::vector<int> &output_sh
   for (int i = 1; i < dims; i++) {
     stage->Fuse(0, 1);
   }
-  int num_thread        = target.max_num_threads();
-  int num_block         = 256;
-  int vector_width      = 1;
-  int prod_size         = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int>());
-  bool need_block_split = prod_size > num_thread * num_block * vector_width ? true : false;
-  if (need_block_split) {
-    auto x_outer_inner = stage->Split(0, num_thread * num_block);
-    auto &X_outer      = std::get<0>(x_outer_inner);
-    auto &X_inner      = std::get<1>(x_outer_inner);
 
-    auto Block_x_Thread_x = stage->Split(X_inner, num_thread);
-    auto &Block_x         = std::get<0>(Block_x_Thread_x);
-    auto &Thread_x        = std::get<1>(Block_x_Thread_x);
-
-    stage->Reorder({Block_x, Thread_x, X_outer});
+  int vector_width = 1;
+  int num_thread   = 256;
+  int prod_size    = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int>());
+  if (prod_size > 512) {
+    stage->Split(0, num_thread);
     stage->Bind(0, "blockIdx.x");
     stage->Bind(1, "threadIdx.x");
   } else {
-    if (prod_size > num_thread) {
-      stage->Split(0, num_thread);
-      stage->Bind(0, "blockIdx.x");
-      stage->Bind(1, "threadIdx.x");
-    } else {
-      stage->Bind(0, "threadIdx.x");
-    }
+    stage->Bind(0, "threadIdx.x");
   }
 }
 
