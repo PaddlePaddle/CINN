@@ -112,7 +112,7 @@ void Conv2d_NCHWc_Schedule_CPU(poly::StageMap stages,
                                const common::Target &target,
                                const std::string &key,
                                bool do_padding);
-
+void GlobalPoolScheduleGPU(poly::StageMap stages, const std::vector<ir::Tensor> &output, const common::Target &target);
 void PoolScheduleCPU(poly::StageMap stages, const ir::Tensor &output, const common::Target &target);
 void PoolScheduleGPU(poly::StageMap stages, ir::Tensor &output, const common::Target &target);
 

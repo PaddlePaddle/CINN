@@ -934,6 +934,45 @@ std::vector<Tensor> Pool1d(const Tensor &tensor,
                   UniqName(output_name));
 }
 
+std::vector<Tensor> GlobalPool2d(const Tensor &tensor, const std::string &pool_type, const std::string &output_name) {
+  // TODO 1. check warp shuffle is supported!
+  // TODO 2. using `cub` with NVRTC
+  Expr extend = tensor->shape[2] * tensor->shape[3];
+  if (pool_type == "max") {
+    auto temp = Compute(
+        {tensor->shape[0], tensor->shape[1], Expr(32)},
+        [=](Expr n, Expr c, Expr k) -> Expr {
+          Expr offset = common::IndiceToAbsOffset(tensor->shape, {n, c, Expr(0), Expr(0)});
+          return lang::CallExtern("cinn_warp_reduce_max", {tensor, offset, extend});
+        },
+        UniqName(output_name + "_temp"));
+    temp->WithBuffer(tensor->type());
+    auto ret = Compute(
+        {tensor->shape[0], tensor->shape[1]},
+        [=](Expr n, Expr c) -> Expr {
+          return temp({n, c, Expr(0)});
+        },
+        UniqName(output_name));
+    return {ret, temp};
+  } else if (pool_type == "avg") {
+    auto temp = Compute(
+        {tensor->shape[0], tensor->shape[1], Expr(32)},
+        [=](Expr n, Expr c, Expr k) -> Expr {
+          Expr offset = common::IndiceToAbsOffset(tensor->shape, {n, c, Expr(0), Expr(0)});
+          return lang::CallExtern("cinn_warp_reduce_avg", {tensor, offset, extend});
+        },
+        UniqName(output_name + "_temp"));
+    temp->WithBuffer(tensor->type());
+    auto ret = Compute(
+        {tensor->shape[0], tensor->shape[1]},
+        [=](Expr n, Expr c) -> Expr {
+          return temp({n, c, Expr(0)});
+        },
+        UniqName(output_name));
+    return {ret, temp};
+  }
+}
+
 std::vector<Tensor> Pool2d(const Tensor &tensor,
                            const std::vector<int> &kernel_size,
                            const std::vector<int> &stride_size,
