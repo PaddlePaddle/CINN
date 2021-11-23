@@ -15,7 +15,6 @@
 #include "cinn/backends/llvm/execution_engine.h"
 
 #include <absl/strings/string_view.h>
-#include <cuda_runtime.h>
 #include <llvm/ADT/Triple.h>
 #include <llvm/AsmParser/Parser.h>
 #include <llvm/Config/llvm-config.h>
@@ -227,12 +226,6 @@ void ExecutionEngine::RegisterRuntimeSymbols() {
   for (const auto &_name_addr_ : registry.All()) {
     auto &name = std::get<0>(_name_addr_);
     auto &addr = std::get<1>(_name_addr_);
-    if (name.find("stream_ptr_") != std::string::npos) {
-      VLOG(2) << "-- Register [name = " << name << ", stream addr = " << addr
-              << ", stream = " << *static_cast<cudaStream_t *>(addr) << "] to ExecutionEngine";
-    } else {
-      VLOG(2) << "-- Register [name = " << name << ", val = " << addr << "] to ExecutionEngine";
-    }
     llvm::cantFail(jit_->define(llvm::orc::absoluteSymbols(
         {{session->intern(name), {llvm::pointerToJITTargetAddress(addr), llvm::JITSymbolFlags::None}}})));
   }
