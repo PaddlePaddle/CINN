@@ -14,6 +14,7 @@
 
 #include "cinn/hlir/framework/graph_compiler.h"
 
+#include <memory>
 #include <unordered_set>
 
 #include "cinn/backends/codegen_cuda_dev.h"
@@ -625,6 +626,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   compiler_->Build(build_module, options.attached_code);
   auto instructions = BuildInstructions();
   RemoveInvalidVariables(instructions);
+  AddMemoryHandlers(&instructions);
 
   if (options.with_instantiate_variables) {
     VLOG(3) << "Initantiate all variables on compile-time";
@@ -915,6 +917,75 @@ void GraphCompiler::RemoveInvalidVariables(const std::vector<std::unique_ptr<Ins
     scope_->EraseVar(var_name);
     VLOG(3) << "Variable(" << var_name << ") is erased";
   });
+}
+
+static void malloc_cinn_buffer_with_callback(void* args, int num_args) {
+  cinn_pod_value_t* pod_args = reinterpret_cast<cinn_pod_value_t*>(args);
+  for (int i = 0; i < num_args; ++i) {
+    cinn_buffer_t* buffer = static_cast<cinn_buffer_t*>(pod_args[i]);
+    // buffer->external_malloc(nullptr, buffer);
+  }
+}
+
+static void free_cinn_buffer_with_callback(void* args, int num_args) {
+  cinn_pod_value_t* pod_args = reinterpret_cast<cinn_pod_value_t*>(args);
+  for (int i = 0; i < num_args; ++i) {
+    cinn_buffer_t* buffer = static_cast<cinn_buffer_t*>(pod_args[i]);
+    // buffer->external_malloc(nullptr, buffer);
+  }
+}
+
+void GraphCompiler::AddMemoryHandlers(std::vector<std::unique_ptr<Instruction>>* instructions) {
+  absl::flat_hash_map<std::string, int> variable_lastused, variable_firstused;
+  for (auto step = 0; step < instructions->size(); ++step) {
+    const auto& instr = instructions->at(step);
+
+    for (const auto& args : instr->GetInArgs()) {
+      for (const auto& var_name : args) {
+        variable_firstused.try_emplace(var_name, step);
+        variable_lastused[var_name] = step;
+      }
+    }
+    for (const auto& args : instr->GetOutArgs()) {
+      for (const auto& var_name : args) {
+        variable_firstused.try_emplace(var_name, step);
+        variable_lastused[var_name] = step;
+      }
+    }
+  }
+
+  std::unordered_map<int, std::vector<std::string>> step2malloc, step2free;
+  for (const auto& var2last : variable_lastused) {
+    step2free[var2last.second].emplace_back(var2last.first);
+  }
+
+  for (const auto& var2first : variable_firstused) {
+    step2malloc[var2first.second].emplace_back(var2first.first);
+  }
+
+  std::vector<std::unique_ptr<Instruction>> results;
+  for (auto step = 0; step < instructions->size(); ++step) {
+    auto& instr = instructions->at(step);
+    if (step2malloc.count(step)) {
+      const auto& malloc_var_names = step2malloc.at(step);
+      auto function_name           = "malloc_buffer_before_instruction_" + std::to_string(step);
+      auto malloc_instr            = std::make_unique<Instruction>(
+          target_, scope_.get(), malloc_var_names, std::vector<std::string>({}), function_name);
+      malloc_instr->SetLoweredFunc(malloc_cinn_buffer_with_callback);
+      results.emplace_back(std::move(malloc_instr));
+    }
+    results.emplace_back(std::move(instr));
+    if (step2free.count(step)) {
+      const auto& free_var_names = step2free.at(step);
+      auto function_name         = "free_buffer_after_instruction_" + std::to_string(step);
+      auto free_instr            = std::make_unique<Instruction>(
+          target_, scope_.get(), std::vector<std::string>({}), free_var_names, function_name);
+      free_instr->SetLoweredFunc(free_cinn_buffer_with_callback);
+      results.emplace_back(std::move(free_instr));
+    }
+  }
+
+  instructions->swap(results);
 }
 
 std::vector<std::string> GraphCompiler::OpGetInputNames(const Node* node) const {

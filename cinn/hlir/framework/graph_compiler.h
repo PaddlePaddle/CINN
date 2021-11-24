@@ -91,8 +91,9 @@ class GraphCompiler final {
   };
 
   struct CompileOptions {
-    std::string attached_code       = "";
-    bool with_instantiate_variables = false;
+    std::string attached_code          = "";
+    bool with_instantiate_variables    = false;
+    bool add_memory_handle_instruction = false;
   };
 
   // Compile with a packing option and result, to be extended easily.
@@ -129,6 +130,8 @@ class GraphCompiler final {
   // we can filter out them according to arguments of the built instructions,
   // and erase them from the scope to avoid unnecessary buffer allocation
   void RemoveInvalidVariables(const std::vector<std::unique_ptr<Instruction>>& instructions);
+
+  void AddMemoryHandlers(std::vector<std::unique_ptr<Instruction>>* instructions);
 
  private:
   void ProcessFunction(const std::vector<ir::LoweredFunc>& lowered_func);
