@@ -18,7 +18,9 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <variant>
+#include <vector>
 
 #include "cinn/common/common.h"
 #include "cinn/common/macros.h"
@@ -55,12 +57,19 @@ class OpMapperContext {
                   const common::Target& target,
                   NetBuilder* builder,
                   std::unordered_map<std::string, Variable>* var_map,
-                  std::unordered_map<std::string, std::string>* var_model_to_program_map)
+                  std::unordered_map<std::string, std::string>* var_model_to_program_map,
+                  std::unordered_set<std::string>* fetch_var_names)
       : scope_(scope),
         target_(target),
         builder_(builder),
         var_map_(var_map),
-        var_model_to_program_map_(var_model_to_program_map) {}
+        var_model_to_program_map_(var_model_to_program_map),
+        fetch_var_names_(fetch_var_names) {
+    CHECK_NOTNULL(builder_);
+    CHECK_NOTNULL(var_map_);
+    CHECK_NOTNULL(var_model_to_program_map_);
+    CHECK_NOTNULL(fetch_var_names_);
+  }
 
   const auto& Scope() const { return scope_; }
 
@@ -76,6 +85,8 @@ class OpMapperContext {
 
   // add map from paddle name to cinn name into var_model_to_program_map
   void AddVarModelToProgram(const std::string& name, const std::string& id) const;
+
+  void AddFetchVarName(const std::string& name) const;
 
   struct FeedInfo {
     std::vector<int> shape;
@@ -94,6 +105,8 @@ class OpMapperContext {
   std::unordered_map<std::string, Variable>* var_map_{nullptr};
   // map from var in Paddle model to var name in program.
   std::unordered_map<std::string, std::string>* var_model_to_program_map_{nullptr};
+  // fetch var names used in Paddle
+  std::unordered_set<std::string>* fetch_var_names_{nullptr};
 
   std::unordered_map<std::string, FeedInfo> feed_info_map_;
 };

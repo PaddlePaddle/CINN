@@ -19,6 +19,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -95,7 +96,7 @@ class GraphCompiler final {
   };
 
   // Compile with a packing option and result, to be extended easily.
-  CompilationResult Build(const CompileOptions& options);
+  CompilationResult Build(const CompileOptions& options, std::unordered_set<std::string>&& fetch_var_ids = {});
   void ExportObject(const std::string& path) { compiler_->ExportObject(path); }
 
   std::unique_ptr<Program> Build(const std::string& code = "");
@@ -124,8 +125,14 @@ class GraphCompiler final {
 
   std::vector<std::unique_ptr<Instruction>> BuildInstructions();
 
+  // some variables are eliminated by optimized passes(such as OpFusion),
+  // we can filter out them according to arguments of the built instructions,
+  // and erase them from the scope to avoid unnecessary buffer allocation
+  void RemoveInvalidVariables(const std::vector<std::unique_ptr<Instruction>>& instructions);
+
  private:
   void ProcessFunction(const std::vector<ir::LoweredFunc>& lowered_func);
+  void SetSubKernels(Instruction* instr, const std::string& func_name);
   Target target_;
   std::shared_ptr<Graph> graph_;
   std::shared_ptr<Scope> scope_;
@@ -133,6 +140,8 @@ class GraphCompiler final {
   std::map<std::string, std::vector<std::string>> function2input_args_;
   // mapping a function's name to its output artuments' names
   std::map<std::string, std::vector<std::string>> function2output_args_;
+  // fetch var ids in cinn and the corresponding var nodes will not be fused so as to get the result
+  std::unordered_set<std::string> fetch_var_ids_;
 
   absl::flat_hash_map<std::string, std::string> prefix2full_namemap_;
 

@@ -17,6 +17,7 @@
  * \file This file defines some basic elements of CINN frontend syntax.
  */
 #include <absl/container/flat_hash_map.h>
+#include <absl/container/flat_hash_set.h>
 #include <absl/strings/string_view.h>
 #include <glog/logging.h>
 
@@ -493,7 +494,8 @@ struct Program {
  */
 std::tuple<std::unique_ptr<Program>,
            absl::flat_hash_map<std::string, Variable>,
-           absl::flat_hash_map<std::string, std::string>>
+           absl::flat_hash_map<std::string, std::string>,
+           absl::flat_hash_set<std::string>>
 LoadPaddleProgram(const std::string& model_dir,
                   hlir::framework::Scope* scope,
                   bool is_combined,

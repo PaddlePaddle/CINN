@@ -93,10 +93,14 @@ void Conv2dGradOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContex
   CHECK_EQ(op_desc.Input("Filter").size(), 1UL);
   auto w_name = op_desc.Input("Filter").front();
 
-  // get dx,dfilter
-  CHECK_EQ(op_desc.Output(paddle::GradVarName("Input")).size(), 1UL);
-  auto dx_name = op_desc.Output(paddle::GradVarName("Input")).front();
-
+  // get d_x
+  std::string dx_name;
+  bool has_dx = !op_desc.Output(paddle::GradVarName("Input")).empty();
+  if (has_dx) {
+    CHECK_EQ(op_desc.Output(paddle::GradVarName("Input")).size(), 1UL);
+    dx_name = op_desc.Output(paddle::GradVarName("Input")).front();
+  }
+  // get d_filter
   CHECK_EQ(op_desc.Output(paddle::GradVarName("Filter")).size(), 1UL);
   auto dw_name = op_desc.Output(paddle::GradVarName("Filter")).front();
 
@@ -118,8 +122,14 @@ void Conv2dGradOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContex
 
   auto out =
       ctx.Builder()->conv2d_grad(dy, x, weight, strides, paddings, dilations, groups, data_format, padding_algorithm);
-  ctx.AddVar(dx_name, out[0]);
-  ctx.AddVarModelToProgram(dx_name, out[0]->id);
+
+  if (has_dx) {
+    ctx.AddVar(dx_name, out[0]);
+    ctx.AddVarModelToProgram(dx_name, out[0]->id);
+  } else {
+    out[0].set_const(true);
+  }
+
   ctx.AddVar(dw_name, out[1]);
   ctx.AddVarModelToProgram(dw_name, out[1]->id);
 }
