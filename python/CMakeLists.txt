@@ -57,6 +57,13 @@ ADD_TEST(NAME test_cinnbuilder
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
 
+ADD_TEST(NAME test_computation
+    COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
+    python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_computation.py
+    ${CMAKE_BINARY_DIR}/thirds/naive_mul_model
+    "${WITH_CUDA}" WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+)
+
 ADD_TEST(NAME test_cinn_ops_check
     COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
     python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_ops.py "${WITH_CUDA}"
