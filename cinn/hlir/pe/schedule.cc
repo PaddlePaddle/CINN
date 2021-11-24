@@ -376,6 +376,17 @@ void SoftmaxScheduleCPU(poly::StageMap stage, const ir::Tensor &output, const ir
   stage[temp]->ComputeAt(stage[output], 0);
 }
 
+void GlobalPoolScheduleGPU(poly::StageMap stages, const std::vector<ir::Tensor> &output, const common::Target &target) {
+  auto &out    = output[0];
+  auto &reduce = output[1];
+  stages[out]->Fuse(0, 1);
+  stages[out]->Split(0, 32);
+  stages[out]->Bind(0, "blockIdx.x");
+  stages[out]->Bind(1, "threadIdx.y");
+  stages[reduce]->ComputeAt2(stages[out], 1);
+  stages[reduce]->SetBuffer("local");
+  stages[reduce]->Bind(2, "threadIdx.x");
+}
 void PoolScheduleCPU(poly::StageMap stages, const ir::Tensor &output, const common::Target &target) {
   CHECK_GE(stages[output]->n_out_dims(), 2);
   stages[output]->Fuse({0, 1});
