@@ -191,13 +191,14 @@ void Program::Export(const std::vector<std::string>& persistent_vars, const std:
   fclose(f);
 }
 
-void Program::Execute(const std::map<std::string, cinn_pod_value_t>* name2podargs, const cudaStream_t& stream) {
+void Program::Execute(const std::map<std::string, cinn_pod_value_t>* name2podargs, void* stream) {
   for (auto& ins : instrs_) {
     ins->Run(name2podargs, false, stream);
   }
 #ifdef CINN_WITH_CUDA
-  if (instrs_[0]->target_.arch == Target::Arch::NVGPU) {
-    // CUDA_CALL(cudaDeviceSynchronize());
+  VLOG(4) << "-- The value of the used stream: " << stream;
+  if (instrs_[0]->target_.arch == Target::Arch::NVGPU && stream == nullptr) {
+    CUDA_CALL(cudaDeviceSynchronize());
   }
 #endif
 }
@@ -578,7 +579,8 @@ std::unique_ptr<Program> GraphCompiler::Build(const std::string& code) {
 }
 
 GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::CompileOptions& options,
-                                                      std::unordered_set<std::string>&& fetch_var_ids) {
+                                                      std::unordered_set<std::string>&& fetch_var_ids,
+                                                      void* stream) {
   fetch_var_ids_  = std::move(fetch_var_ids);
   auto topo_order = graph_->topological_order();
   auto& nodes     = std::get<0>(topo_order);
@@ -622,7 +624,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
     VLOG(3) << "[X86] C Code is:\n" << out;
   }
 
-  compiler_->Build(build_module, options.attached_code);
+  compiler_->Build(build_module, options.attached_code, stream);
   auto instructions = BuildInstructions();
   RemoveInvalidVariables(instructions);
 
