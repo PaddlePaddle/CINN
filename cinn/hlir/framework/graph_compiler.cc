@@ -66,6 +66,11 @@ void Program::PreRun(const std::map<std::string, cinn_pod_value_t>* name2podargs
   for (auto& ins : prerun_instrs_) {
     ins->Run(name2podargs);
   }
+  for (auto& ins : instrs_) {
+    if (ins->size() == 4) {
+      ins->PreRun(name2podargs);
+    }
+  }
 }
 
 void Program::Export(const std::vector<std::string>& persistent_vars, const std::string& filename) {
@@ -421,7 +426,16 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
     }
 
     CHECK_GE(C.size(), 2);
-    CHECK_LE(C.size() - 1, node->outlinks_in_order().size());
+    std::vector<Expr> temp_C;
+    if (C.size() - 1 > node->outlinks_in_order().size()) {
+      for (int i = 1; i < C.size() - 1; i++) {
+        ir::Expr temp = C[i];
+        VLOG(1) << "C[" << i << "] name is : " << temp.as_tensor_ref()->name;
+        outputs.push_back(temp.as_tensor_ref());
+      }
+      common::CINNValuePack C_temp{{C[0], C.back()}};
+      C = C_temp;
+    }
     for (int i = 0; i < C.size() - 1; i++) {
       Expr out                      = C[i];
       temp_var_map[temp_outvars[i]] = out;
@@ -431,6 +445,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
         fetch_tensors.insert(out.as_tensor_ref());
       }
     }
+    CHECK_LE(C.size() - 1, node->outlinks_in_order().size());
     poly::StageMap temp_stages = C.back();
 
     for (auto& i : temp_stages) {
@@ -492,7 +507,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
   for (auto& s : stages) {
     auto& compute_ats = s.second->GetComputeAts();
     auto tensor       = s.second->tensor();
-    if (tensor->is_reduce_tensor() && !compute_ats.empty()) {
+    if (!compute_ats.empty()) {
       poly::ComputeAtRelation new_relation;
       CHECK_EQ(compute_ats.size(), 1U);
       auto new_stage = stages[final_out_tensor];
@@ -857,20 +872,26 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
         }
       }
       fuse_name += "fused";
-      VLOG(3) << fuse_name;
-      auto fuse_func_name = GetOrGenFullFuncName(fuse_name);
-      auto instr =
-          std::unique_ptr<Instruction>(new Instruction(target_, scope_.get(), inputNames, outputNames, fuse_func_name));
+      VLOG(3) << "In buildInstructions, fuse_name is : " << fuse_name;
       VLOG(3) << "input_names: " << utils::Join(inputNames, ", ");
       VLOG(3) << "out_names: " << utils::Join(outputNames, ", ");
-      auto* fn = compiler_->Lookup(fuse_func_name);
-      CHECK(fn);
-      instr->SetLoweredFunc(fn, fuse_func_name);
+      fuse_name = GetOrGenFullFuncName(fuse_name);
+      auto instr =
+          std::unique_ptr<Instruction>(new Instruction(target_, scope_.get(), inputNames, outputNames, fuse_name));
 
+      auto* fn = compiler_->Lookup(fuse_name);
+      CHECK(fn);
+      instr->SetLoweredFunc(fn, fuse_name);
       // As some situation like reduce,will generate more than one kernel.
       // So try to find the rest kernel, if it exist.
-      SetSubKernels(instr.get(), fuse_func_name);
+      SetSubKernels(instr.get(), fuse_name);
 
+      for (int j = 0; j < group.size(); j++) {
+        auto node = group[j];
+        if (node->attrs.attr_store.count("pre_run") && absl::get<bool>(node->attrs.attr_store["pre_run"]) == true) {
+          instr->pre_run = true;
+        }
+      }
       instructions.push_back(std::move(instr));
     }
   }

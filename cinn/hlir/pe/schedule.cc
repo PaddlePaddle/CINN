@@ -1314,6 +1314,19 @@ inline void InputDirectConvCudaParam(
   model_data[key] = schedule_data;
 }
 
+inline void InputWinogradConvCudaParam(
+    absl::flat_hash_map<std::string, absl::flat_hash_map<std::string, std::vector<int>>> &model_data,
+    const std::string &key,
+    const std::vector<std::vector<int>> &int_data) {
+  CHECK_EQ(int_data.size(), 4UL);
+  absl::flat_hash_map<std::string, std::vector<int>> schedule_data;
+  schedule_data["rc"] = int_data[0];
+  schedule_data["x"]  = int_data[1];
+  schedule_data["y"]  = int_data[2];
+  schedule_data["b"]  = int_data[3];
+  model_data[key]     = schedule_data;
+}
+
 void CreateCudaSerialData(const std::string &file_name) {
   absl::flat_hash_map<std::string, absl::flat_hash_map<std::string, std::vector<int>>> model_data;
   // The format of serial data is:
@@ -1595,6 +1608,24 @@ void CreateCudaSerialData(const std::string &file_name) {
                            "CudaDirectConvSchedule 1 256 6 7 6 256 3 3 1 6 4 5",
                            {{-1, 32}, {-1, 3}, {-1, 3}, {-1, 1, 2, 1}, {-1, 1, 4, 1}, {-1, 1, 1, 1}});
 
+  /*   InputWinogradConvCudaParam(model_data,
+                               "CudaWinogradConvSchedule 1 512 9 9 512 512 3 3 1 512 7 7",
+                               {{32, 16}, {1, 1, 8, 2}, {8, 1, 16, 4}, {16, 1, 1, 1}});
+    InputWinogradConvCudaParam(model_data,
+                               "CudaWinogradConvSchedule 1 256 6 7 12 256 3 3 1 12 4 5",
+                               {{-1, 256}, {-1, 1, 6, 1}, {-1, 1, 6, 1}, {-1, 1, 1, 1}});
+    InputWinogradConvCudaParam(model_data,
+                               "CudaWinogradConvSchedule 1 256 6 7 6 256 3 3 1 12 4 5",
+                               {{-1, 256}, {-1, 1, 6, 1}, {-1, 1, 6, 1}, {-1, 1, 1, 1}});
+    InputWinogradConvCudaParam(model_data,
+                               "CudaWinogradConvSchedule 1 12 32 42 16 12 3 3 1 16 30 40",
+                               {{-1, 12}, {-1, 2, 30, 1}, {-1, 4, 2, 2}, {-1, 1, 1, 1}});
+    InputWinogradConvCudaParam(model_data,
+                               "CudaWinogradConvSchedule 1 8 32 42 12 8 3 3 1 12 30 40",
+                               {{-1, 8}, {-1, 2, 30, 1}, {-1, 1, 2, 6}, {-1, 1, 1, 1}});
+    InputWinogradConvCudaParam(model_data,
+                               "CudaWinogradConvSchedule 1 8 32 42 16 8 3 3 1 16 30 40",
+                               {{-1, 4}, {-1, 2, 30, 1}, {-1, 1, 4, 4}, {-1, 1, 1, 1}}); */
   SaveSerialData(model_data, file_name);
 }
 
@@ -1699,9 +1730,9 @@ void CudaScheduleConv(poly::StageMap stages,
       std::to_string(output->shape[1].as_int32()) + " " + std::to_string(output->shape[2].as_int32()) + " " +
       std::to_string(output->shape[3].as_int32());
   if (res.count(key) == 0) {
-    VLOG(3) << "Didn't find saved param, key is: " << key;
+    LOG(INFO) << "Didn't find saved param, key is: " << key;
   } else {
-    VLOG(3) << "Find saved param! key is: " << key;
+    LOG(INFO) << "Find saved param! key is: " << key;
     CudaScheduleConv2(stages, input_pad, weights, output, target, key);
     return;
   }
@@ -1865,6 +1896,138 @@ void CudaScheduleConv2(poly::StageMap stages,
   stages[KR]->Unroll(10);
   stages[KR]->Unroll(11);
   stages[KR]->Unroll(12);
+}
+
+void CudaScheduleWinogradConv(poly::StageMap wino_stages,
+                              ir::Tensor &wino_weights_dilation,
+                              ir::Tensor &wino_input_pad,
+                              ir::Tensor &wino_A,
+                              ir::Tensor &wino_B,
+                              ir::Tensor &wino_G,
+                              ir::Tensor &kernel_pack,
+                              ir::Tensor &input_tile,
+                              ir::Tensor &data_pack,
+                              ir::Tensor &bgemm,
+                              ir::Tensor &inverse,
+                              ir::Tensor &wino_conv,
+                              const common::Target &target) {
+  auto &res = ScheduleParam::get_cuda_instance().GetParam();
+  if (res.empty()) {
+    CreateCudaSerialData();
+    LoadSerialData(&res);
+  }
+  std::string key =
+      "CudaWinogradConvSchedule " + std::to_string(wino_input_pad->shape[0].as_int32()) + " " +
+      std::to_string(wino_input_pad->shape[1].as_int32()) + " " + std::to_string(wino_input_pad->shape[2].as_int32()) +
+      " " + std::to_string(wino_input_pad->shape[3].as_int32()) + " " +
+      std::to_string(wino_weights_dilation->shape[0].as_int32()) + " " +
+      std::to_string(wino_weights_dilation->shape[1].as_int32()) + " " +
+      std::to_string(wino_weights_dilation->shape[2].as_int32()) + " " +
+      std::to_string(wino_weights_dilation->shape[3].as_int32()) + " " +
+      std::to_string(wino_conv->shape[0].as_int32()) + " " + std::to_string(wino_conv->shape[1].as_int32()) + " " +
+      std::to_string(wino_conv->shape[2].as_int32()) + " " + std::to_string(wino_conv->shape[3].as_int32());
+  VLOG(1) << "Key in CudaScheduleWinogradConv is : " << key;
+  CHECK_GT(res.count(key), 0);
+  auto &rc_param = res[key]["rc"];
+  auto &x_param  = res[key]["x"];
+  auto &y_param  = res[key]["y"];
+  auto &b_param  = res[key]["b"];
+
+  wino_stages[wino_B]->ComputeInline();
+
+  auto data_l = wino_stages[data_pack]->CacheWrite("local", wino_stages, data_pack);
+
+  wino_stages[data_pack]->Split(3, 1);
+  wino_stages[data_pack]->Fuse({2, 3});
+  wino_stages[data_pack]->Split(2, 128);
+  wino_stages[data_pack]->Reorder({2, 3, 4, 0, 1});
+  wino_stages[data_pack]->Bind(0, "blockIdx.x");
+  wino_stages[data_pack]->Bind(1, "threadIdx.x");
+  wino_stages[input_tile]->SetBuffer("local");
+  wino_stages[data_l]->ComputeAt(wino_stages[data_pack], 2);
+  wino_stages[input_tile]->ComputeAt(wino_stages[data_l], 2);
+  wino_stages[wino_input_pad]->ComputeInline();
+
+  wino_stages[wino_G]->ComputeInline();
+
+  wino_stages[kernel_pack]->Fuse({2, 3});
+  wino_stages[kernel_pack]->Split(2, 128);
+  wino_stages[kernel_pack]->Reorder({2, 3, 0, 1});
+
+  wino_stages[kernel_pack]->Bind(0, "blockIdx.x");
+  wino_stages[kernel_pack]->Bind(1, "threadIdx.x");
+
+  wino_stages[wino_weights_dilation]->ComputeInline();
+
+  auto wino_OL = wino_stages[bgemm]->CacheWrite("local", wino_stages, bgemm);
+  std::vector<ir::Tensor> readers{wino_OL};
+  auto AA = wino_stages[kernel_pack]->CacheRead("shared", readers, wino_stages);
+  auto BB = wino_stages[data_pack]->CacheRead("shared", readers, wino_stages);
+
+  wino_stages[bgemm]->Fuse({0, 1});
+
+  wino_stages[bgemm]->SplitOuter(0, 1);
+
+  // x param is :  [1, 1, 8, 2]
+  wino_stages[bgemm]->Split(3, x_param[3]);
+  wino_stages[bgemm]->Split(3, x_param[2]);
+  wino_stages[bgemm]->Split(3, x_param[1]);
+  // y param is :  [8, 1, 16, 4]
+  wino_stages[bgemm]->Split(2, y_param[3]);
+  wino_stages[bgemm]->Split(2, y_param[2]);
+  wino_stages[bgemm]->Split(2, y_param[1]);
+  // b param is :  [16, 1, 1, 1]
+  wino_stages[bgemm]->Split(1, b_param[3]);
+  wino_stages[bgemm]->Split(1, b_param[2]);
+  wino_stages[bgemm]->Split(1, b_param[1]);
+
+  wino_stages[bgemm]->Reorder({0, 1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12});
+
+  wino_stages[bgemm]->Bind(1, "blockIdx.z");
+  wino_stages[bgemm]->Bind(2, "blockIdx.y");
+  wino_stages[bgemm]->Bind(3, "blockIdx.x");
+  wino_stages[bgemm]->Bind(7, "threadIdx.z");
+  wino_stages[bgemm]->Bind(8, "threadIdx.y");
+  wino_stages[bgemm]->Bind(9, "threadIdx.x");
+
+  wino_stages[wino_OL]->ComputeAt(wino_stages[bgemm], 9);
+
+  // rc param is :  [32, 16]
+  wino_stages[wino_OL]->Split(12, rc_param[1]);
+
+  wino_stages[wino_OL]->Reorder({12, 13, 10, 11});
+
+  auto bgemm_init = wino_OL->GetInitTensor(wino_stages, target);
+  wino_stages[AA]->ComputeAt(wino_stages[wino_OL], 10);
+  wino_stages[BB]->ComputeAt(wino_stages[wino_OL], 10);
+
+  wino_stages[AA]->Fuse(11, 12);
+  wino_stages[AA]->SplitOuter(11, x_param[2]);
+  wino_stages[AA]->Bind(11, "threadIdx.x");
+
+  wino_stages[BB]->Fuse(11, 12);
+  wino_stages[BB]->SplitOuter(11, y_param[2]);
+  wino_stages[BB]->Bind(11, "threadIdx.y");
+
+  wino_stages[AA]->SyncThreads(10, {bgemm_init}, wino_stages);
+  wino_stages[BB]->SyncThreads(wino_stages);
+
+  int m = 2;
+
+  wino_stages[wino_conv]->Tile(2, 3, m, m);
+  wino_stages[wino_conv]->Reorder({2, 4, 3, 5});
+  wino_stages[wino_conv]->FuseDirect({0, 1, 2, 3});
+  wino_stages[wino_conv]->Split(0, 128);
+  wino_stages[wino_conv]->Bind(0, "blockIdx.x");
+  wino_stages[wino_conv]->Bind(1, "threadIdx.x");
+  wino_stages[wino_A]->ComputeInline();
+
+  wino_stages[inverse]->SetBuffer("local");
+  wino_stages[inverse]->Fuse(0, 1);
+  wino_stages[inverse]->Split(0, 128);
+  wino_stages[inverse]->Bind(0, "blockIdx.x");
+  wino_stages[inverse]->Bind(1, "threadIdx.x");
+  wino_stages[inverse]->SimpleComputeAt(wino_stages[wino_conv], 1);
 }
 
 void CudaScheduleInjective(poly::Stage *stage, const std::vector<int> &output_shape, const common::Target &target) {
