@@ -20,6 +20,7 @@
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
+#include "cinn/hlir/pe/broadcast.h"
 #include "cinn/hlir/pe/schedule.h"
 #include "cinn/ir/ir_operators.h"
 
@@ -37,6 +38,132 @@ using pe::ReduceMin;
 using pe::ReduceProd;
 using pe::ReduceSum;
 using PeFunc = std::function<ir::Tensor(const ir::Tensor &, const std::vector<int> &, bool, Expr, const std::string &)>;
+
+std::shared_ptr<OpStrategy> StrategyForBNReduceMerge(const framework::NodeAttr &attrs,
+                                                     const std::vector<ir::Tensor> &inputs,
+                                                     const std::vector<Type> &out_type,
+                                                     const std::vector<std::vector<int>> &output_shapes,
+                                                     const Target &target) {
+  framework::CINNCompute bn_reduce_merge_compute([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of bn_reduce_merge compute is empty! Please check.\n";
+    CINNValuePack a = args[0];
+    CHECK(!a.empty()) << "at least one input tensor for bn_reduce_merge compute\n";
+    Expr A = a[0];
+    CHECK(A.as_tensor());
+    auto x        = A.as_tensor_ref();
+    auto x_square = pe::Multiply(x, x, UniqName("bn_reduce_merge_x_square"));
+
+    auto out0 = pe::ReduceSum(x, {0, 2}, false, Expr(0.0f), UniqName("bn_reduce_merge_out0"));
+    auto out1 = pe::ReduceSum(x_square, {0, 2}, false, Expr(0.0f), UniqName("bn_reduce_merge_out1"));
+
+    auto stages = CreateStages({x_square, out0, out1});
+    stages[x_square]->ComputeInline();
+
+    *ret = CINNValuePack{{CINNValue(out0), CINNValue(out1), CINNValue(stages)}};
+  });
+
+  framework::CINNSchedule bn_reduce_merge_schedule([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of bn_reduce_merge schedule is empty! Please check.\n";
+    CINNValuePack arg_pack = args[0];
+    CHECK_EQ(arg_pack.size(), 3UL);
+    if (target.arch == Target::Arch::NVGPU) {
+      Expr out0             = arg_pack[0];
+      Expr out1             = arg_pack[1];
+      poly::StageMap stages = arg_pack.back();
+      CHECK(out0.as_tensor());
+      CHECK(out1.as_tensor());
+      pe::CudaScheduleReduce(stages, out0.as_tensor_ref(), target);
+      pe::CudaScheduleReduce(stages, out1.as_tensor_ref(), target);
+      stages[out0.as_tensor_ref()]->SimpleComputeAt(stages[out1.as_tensor_ref()], 3);
+    } else if (target.arch == Target::Arch::X86) {
+      Expr out              = arg_pack[0];
+      poly::StageMap stages = arg_pack[1];
+      CHECK(out.as_tensor());
+      pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes.front(), target);
+    }
+    *ret = arg_pack;
+  });
+
+  auto strategy = std::make_shared<framework::OpStrategy>();
+  CHECK(out_type.size()) << "Out_type of bn_reduce_merge op is empty! Please check.";
+  if (out_type[0] == Float(32)) {
+    strategy->AddImpl(bn_reduce_merge_compute, bn_reduce_merge_schedule, "strategy.relu.x86", 1);
+  } else {
+    LOG(FATAL) << "bn_reduce_merge op with dtype != float32 is not implemented yet!";
+  }
+  return strategy;
+}
+
+std::shared_ptr<OpStrategy> StrategyForBNGradReduceMerge(const framework::NodeAttr &attrs,
+                                                         const std::vector<ir::Tensor> &inputs,
+                                                         const std::vector<Type> &out_type,
+                                                         const std::vector<std::vector<int>> &output_shapes,
+                                                         const Target &target) {
+  framework::CINNCompute bn_grad_reduce_merge_compute([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of bn_grad_reduce_merge compute is empty! Please check.\n";
+    CINNValuePack a = args[0];
+    CHECK(!a.empty()) << "at least one input tensor for bn_grad_reduce_merge compute\n";
+    Expr A = a[0];
+    CHECK(A.as_tensor());
+    Expr Mean = a[1];
+    CHECK(Mean.as_tensor());
+    Expr Grad = a[2];
+    CHECK(Grad.as_tensor());
+
+    auto x      = A.as_tensor_ref();
+    auto x_mean = Mean.as_tensor_ref();
+    auto y_grad = Grad.as_tensor_ref();
+
+    auto x_mean_diff      = pe::Substract(x, x_mean, UniqName("bn_grad_reduce_merge_mean_diff"), Expr(1));
+    auto grad_x_mean_diff = pe::Multiply(x_mean_diff, y_grad, UniqName("bn_grad_reduce_merge_grad_mean_diff"));
+
+    auto out0 = pe::ReduceSum(y_grad, {0, 2}, false, Expr(0.0f), UniqName("bn_grad_reduce_merge_out0"));
+    auto out1 = pe::ReduceSum(grad_x_mean_diff, {0, 2}, false, Expr(0.0f), UniqName("bn_grad_reduce_merge_out1"));
+
+    auto stages = CreateStages({x_mean_diff, grad_x_mean_diff, out0, out1});
+    stages[x_mean_diff]->ComputeInline();
+    stages[grad_x_mean_diff]->ComputeInline();
+    *ret = CINNValuePack{{CINNValue(out0), CINNValue(out1), CINNValue(stages)}};
+  });
+
+  framework::CINNSchedule bn_grad_reduce_merge_schedule([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of bn_grad_reduce_merge schedule is empty! Please check.\n";
+    CINNValuePack arg_pack = args[0];
+    CHECK_EQ(arg_pack.size(), 3UL);
+    if (target.arch == Target::Arch::NVGPU) {
+      Expr out0             = arg_pack[0];
+      Expr out1             = arg_pack[1];
+      poly::StageMap stages = arg_pack.back();
+      CHECK(out0.as_tensor());
+      CHECK(out1.as_tensor());
+      pe::CudaScheduleReduce(stages, out0.as_tensor_ref(), target);
+      pe::CudaScheduleReduce(stages, out1.as_tensor_ref(), target);
+      stages[out0.as_tensor_ref()]->SimpleComputeAt(stages[out1.as_tensor_ref()], 3);
+    } else if (target.arch == Target::Arch::X86) {
+      Expr out              = arg_pack[0];
+      poly::StageMap stages = arg_pack[1];
+      CHECK(out.as_tensor());
+      pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes.front(), target);
+    }
+    *ret = arg_pack;
+  });
+
+  auto strategy = std::make_shared<framework::OpStrategy>();
+  CHECK(out_type.size()) << "Out_type of bn_grad_reduce_merge op is empty! Please check.";
+  if (out_type[0] == Float(32)) {
+    strategy->AddImpl(bn_grad_reduce_merge_compute, bn_grad_reduce_merge_schedule, "strategy.relu.x86", 1);
+  } else {
+    LOG(FATAL) << "bn_grad_reduce_merge op with dtype != float32 is not implemented yet!";
+  }
+  return strategy;
+}
+
+std::vector<shape_t> InferShapeForBNReduce(const std::vector<shape_t> &inputs_shape,
+                                           const framework::AttrMapType &attrs) {
+  CHECK(inputs_shape.size() == 3UL || inputs_shape.size() == 1UL);
+  std::vector<int> out_shapes{inputs_shape[0][1], inputs_shape[0][3]};
+  return {out_shapes, out_shapes};
+}
 
 #define StrategyForReduction(op_name__, pe__, pe_func__)                                            \
   std::shared_ptr<OpStrategy> StrategyFor##pe__(const framework::NodeAttr &attrs,                   \
@@ -215,6 +342,28 @@ CINN_REGISTER_HELPER(reduce_ops) {
   CINN_REGISTER_REDUCTION(reduce_min, ReduceMin);
 
 #undef CINN_REGISTER_REDUCTION
+
+  CINN_REGISTER_OP(bn_reduce_merge)
+      .describe("This operator implements the optimization of bn reduce")
+      .set_num_inputs(1)
+      .set_num_outputs(2)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForBNReduceMerge)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForBNReduce))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForReduction))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForReduction))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
+      .set_support_level(4);
+
+  CINN_REGISTER_OP(bn_grad_reduce_merge)
+      .describe("This operator implements the optimization of bn grad reduce")
+      .set_num_inputs(3)
+      .set_num_outputs(2)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForBNGradReduceMerge)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForBNReduce))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForReduction))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForReduction))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
+      .set_support_level(4);
 
   return true;
 }
