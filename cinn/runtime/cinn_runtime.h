@@ -29,6 +29,7 @@
 #include <string.h>
 
 #ifdef __cplusplus
+#include <functional>
 #include <vector>
 #endif
 
@@ -253,6 +254,14 @@ typedef struct cinn_buffer_t {
       this->flag &= ~flag;
   }
 
+  // The callback to control memory alloc. It is useful in Paddle-CINN
+  // where the memory is managed out of CINN.
+  std::function<int(void*)> external_malloc;
+
+  // The callback to control memory free. It is useful in Paddle-CINN
+  // where the memory is managed out of CINN.
+  std::function<int(void*)> external_free;
+
 #endif  // __cplusplus
 } cinn_buffer_t;
 
@@ -283,52 +292,6 @@ inline double cinn_buffer_load_float64(struct cinn_buffer_t* buf, uint32_t index
   return ((double*)buf->memory)[index];  // NOLINT
 }
 #endif  // __cplusplus
-
-// The interface for access cinn_buffer_t, or use callback to control memory.
-// It is useful in Paddle-CINN where the memory is allocated out of CINN, that
-// is, Paddle training framework.
-typedef struct cinn_buffer_callback_interface {
-  struct cinn_buffer_t* cinn_buffer_;
-  int (*external_malloc_)(void* context, struct cinn_buffer_t* buf);
-  int (*external_free_)(void* context, struct cinn_buffer_t* buf);
-
-#ifdef __cplusplus
-  struct cinn_buffer_t* get_cinn_buffer(void* context) {
-    if (cinn_buffer_ != NULL && cinn_buffer_->memory == NULL) {
-      (*external_malloc_)(context, cinn_buffer_);
-    }
-    return cinn_buffer_;
-  }
-
-  int free_cinn_buffer(void* context) {
-    if (cinn_buffer_ != NULL && cinn_buffer_->memory != NULL) {
-      int ret = (*external_free_)(context, cinn_buffer_);
-      if (cinn_buffer_ != NULL) {
-        delete cinn_buffer_;
-        cinn_buffer_ = NULL;  // Should we set to NULL or keep as meta info?
-      }
-      return ret;
-    }
-    return -1;
-  }
-#endif  // __cplusplus
-
-} cinn_buffer_callback_interface;
-
-// Creates cinn_buffer_callback_interface, used when external framework malloc
-// cinn_buffer_t from its memory. In this case, the input cinn_buffer_t's
-// memory shouldn't be NULL
-cinn_buffer_callback_interface* cinn_buffer_interface_with_mem(struct cinn_buffer_t* buffer);
-
-// Creates cinn_buffer_callback_interface, used when external framework doesn't
-// malloc cinn_buffer_t, but gives the callbacks to let CINN control malloc and
-// free. This function still needs cinn_buffer_t* as an input because
-// cinn_buffer_t contains shape, device, type information and so on.
-cinn_buffer_callback_interface* cinn_buffer_interface_with_callback(struct cinn_buffer_t* buffer,
-                                                                    int (*external_malloc)(void* context,
-                                                                                           struct cinn_buffer_t* buf),
-                                                                    int (*external_free)(void* context,
-                                                                                         struct cinn_buffer_t* buf));
 
 #ifdef __cplusplus
 extern "C" {
