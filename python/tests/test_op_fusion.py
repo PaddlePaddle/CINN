@@ -90,10 +90,24 @@ class OpFusionTest(unittest.TestCase):
 
         return builder, inputs, feeds, outputs
 
+    def build_reduce_reduce_net(self, backward=True):
+        builder = NetBuilder("reduce_reduce")
+
+        x = builder.create_input(Float(32), [32, 32, 32], "x")
+        y0 = builder.reduce_sum(x, dim=[1])
+        square_x = builder.elementwise_mul(x, builder.identity(x))
+        y1 = builder.reduce_sum(square_x, dim=[1])
+
+        inputs = [x]
+        feeds = [np.random.random([32, 32, 32]).astype("float32")]
+        outputs = [y0, y1]
+
+        return builder, inputs, feeds, outputs
+
     def test_fusion(self):
-        builder, inputs, feeds, outputs = self.build_add_relu_net(
-            backward=False)
-        #builder, inputs, feeds, outputs = self.build_add_add_net(backward=True)
+        func_name = "build_reduce_reduce_net"
+        func = getattr(self, func_name)
+        builder, inputs, feeds, outputs = func(backward=False)
 
         target = self._get_target()
         prog = builder.build()
