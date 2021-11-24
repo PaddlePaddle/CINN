@@ -24,17 +24,18 @@ void FetchOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ct
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
   auto output_name = op_desc.Input("X").front();
   ctx.AddFetchVarName(output_name);
-  VLOG(4) << "detect model output: [" << output_name << "]";
+  VLOG(4) << "Detect model output: [" << output_name << "]";
 }
 
 void FeedOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
   auto feed_name = op_desc.Output("Out").front();
-  VLOG(4) << "Model get feed [" << feed_name << "]";
 
   const auto& feed_info = ctx.GetFeedInfo(feed_name);
-  auto cinn_id          = cinn::utils::TransValidVarName(feed_name);
-  auto input            = ctx.Builder()->CreateInput(feed_info.type, feed_info.shape, cinn_id);
+  VLOG(4) << "Model get feed [" << feed_name << "], type=" << feed_info.type;
+
+  auto cinn_id = cinn::utils::TransValidVarName(feed_name);
+  auto input   = ctx.Builder()->CreateInput(feed_info.type, feed_info.shape, cinn_id);
   ctx.AddVar(feed_name, input);
   ctx.AddVarModelToProgram(feed_name, input.id().data());
 }
