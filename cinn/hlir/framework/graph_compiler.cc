@@ -307,6 +307,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const Node* node) {
     output_shapes.push_back(out_shape);
     out_types.push_back(dtype);
   }
+
   auto impl = OpStrategy::SelectImpl(strategy[node->op()](node->attrs, inputs, out_types, output_shapes, target_));
 
   common::CINNValuePack C = impl->fcompute(common::CINNValuePack{cinn_inputs});
@@ -649,7 +650,15 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
     for (auto& name : scope_->var_names()) {
       auto* var    = scope_->Var<Tensor>(std::string({name.data(), name.size()}));
       auto& tensor = absl::get<Tensor>(*var);
-      tensor->mutable_data<float>(target_);
+      if (reuse_vars_map_.count(name)) {
+        auto src_var_name = reuse_vars_map_.at(name);
+        auto* src_var     = scope_->Var<Tensor>(src_var_name);
+        auto& src_tensor  = absl::get<Tensor>(*src_var);
+        VLOG(3) << name << " shares buffer with " << src_var_name;
+        tensor = Tensor(src_tensor.get());
+      } else {
+        tensor->mutable_data<float>(target_);
+      }
     }
   }
 
@@ -689,6 +698,17 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
       auto node  = group[0];
       auto instr = std::unique_ptr<Instruction>(
           new Instruction(target_, scope_.get(), OpGetInputNames(node), OpGetOutputNames(node), node->op()->name));
+
+      if (node->op()->name == "reshape") {
+        auto& inlinks  = node->inlinks_in_order();
+        auto& outlinks = node->outlinks_in_order();
+        CHECK_EQ(inlinks.size(), 1U);
+        CHECK_EQ(outlinks.size(), 1U);
+        std::string in_id       = inlinks[0]->source()->safe_as<NodeData>()->id();
+        std::string out_id      = outlinks[0]->sink()->safe_as<NodeData>()->id();
+        reuse_vars_map_[out_id] = in_id;
+      }
+
       if (target_.arch == Target::Arch::NVGPU) {
         if (node->op()->name == "conv2d") {
           auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");

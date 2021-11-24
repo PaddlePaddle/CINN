@@ -146,6 +146,8 @@ class GraphCompiler final {
   std::unordered_set<std::string> fetch_var_ids_;
 
   absl::flat_hash_map<std::string, std::string> prefix2full_namemap_;
+  // map dst reuse var to the src var sharing buffer
+  absl::flat_hash_map<std::string, std::string> reuse_vars_map_;
 
   std::unique_ptr<backends::Compiler> compiler_;
 

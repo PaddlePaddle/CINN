@@ -52,6 +52,10 @@ std::vector<cinn_pod_value_t>& Instruction::PreparePodArgs(
 }
 
 void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podargs, bool dryrun, void* stream) {
+  if (function_name_ == "reshape") {
+    VLOG(2) << "skip reshape";
+    return;
+  }
   if (fn_.size() > 1 && fn_.size() != in_args_.size()) {
     out_args_.back()[0] = out_args_.front()[0];
     out_args_.erase(out_args_.begin());
