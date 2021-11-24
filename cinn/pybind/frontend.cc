@@ -333,8 +333,8 @@ void BindFrontend(pybind11::module *m) {
            py::arg("y"),
            py::arg("axis") = -1)
       .def("elementwise_mul", &NetBuilder::elementwise_mul, py::arg("a"), py::arg("b"), py::arg("axis") = -1)
-      .def("relu", &NetBuilder::relu, py::arg("a"))
-      .def("relu_grad", &NetBuilder::relu_grad, py::arg("dout"), py::arg("out"))
+      .def("relu", &NetBuilder::relu, py::arg("a"), py::arg("is_test") = true)
+      .def("relu_grad", &NetBuilder::relu_grad, py::arg("dout"), py::arg("mask"))
       .def("relu6", &NetBuilder::relu6, py::arg("a"), py::arg("threshold") = 6.0f)
       .def("reverse", &NetBuilder::reverse, py::arg("x"), py::arg("axis"))
       .def("reduce_sum", &NetBuilder::reduce_sum, py::arg("x"), py::arg("dim"), py::arg("keep_dim") = false)

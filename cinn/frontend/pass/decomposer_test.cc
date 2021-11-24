@@ -38,7 +38,7 @@ Program CreateAddProgram() {
   auto a       = builder.CreateInput(Float(32), {M, N});
   auto b       = builder.CreateInput(Float(32), {M, N});
   auto c       = builder.relu(a);
-  auto d       = builder.add(b, c);
+  auto d       = builder.add(b, c[0]);
   auto program = builder.Build();
 
   return program;

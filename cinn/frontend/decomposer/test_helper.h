@@ -179,6 +179,8 @@ void RunAndCheckShape(NetBuilder& builder,
                       std::vector<std::vector<T>>* output_vecs = nullptr,
                       T low                                    = 0,
                       T high                                   = 1) {
+  CHECK_EQ(output_names.size(), output_shapes.size());
+
   auto prog     = builder.Build();
   Target target = GetTarget();
   RunDecomposer(&prog, target);
@@ -187,7 +189,13 @@ void RunAndCheckShape(NetBuilder& builder,
   auto scope = BuildScope(target, graph);
   hlir::framework::GraphCompiler gc(target, scope, graph);
 
-  auto runtime_program = gc.Build();
+  hlir::framework::GraphCompiler::CompileOptions options;
+  options.attached_code              = "";
+  options.with_instantiate_variables = true;
+  std::unordered_set<std::string> fetch_var_ids(output_names.begin(), output_names.end());
+  auto result          = gc.Build(options, std::move(fetch_var_ids));
+  auto runtime_program = std::move(result.runtime_program);
+
   std::vector<std::vector<T>> input_vecs_internal;
   std::vector<std::vector<T>>* input_vecs_ptr = input_vecs ? input_vecs : &input_vecs_internal;
   for (size_t i = 0; i < input_names.size(); ++i) {

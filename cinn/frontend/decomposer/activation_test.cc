@@ -18,8 +18,8 @@ namespace cinn::frontend {
 
 TEST(Decomposer, relu) {
   NetBuilder builder("relu");
-  auto x   = builder.CreateInput(Float(32), {20, 10}, "x");
-  auto out = builder.relu(x);
+  auto x    = builder.CreateInput(Float(32), {20, 10}, "x");
+  auto outs = builder.relu(x, false);
 
   auto relu_cpu = [](const std::vector<size_t>& lengths, const std::vector<void*>& ptrs) {
     size_t n   = lengths[0];
@@ -32,16 +32,16 @@ TEST(Decomposer, relu) {
   };
 
   std::vector<std::string> input_names        = {x.id().data()};
-  std::vector<std::string> output_names       = {out->id};
-  std::vector<std::vector<int>> output_shapes = {{20, 10}};
+  std::vector<std::string> output_names       = {outs[0]->id, outs[1]->id};
+  std::vector<std::vector<int>> output_shapes = {{20, 10}, {20, 10}};
   RunAndCheck<float>(builder, input_names, output_names, output_shapes, relu_cpu, -1, 1);
 }
 
 TEST(Decomposer, relu_grad) {
   NetBuilder builder("relu_grad");
   auto dout = builder.CreateInput(Float(32), {20, 10}, "dout");
-  auto out  = builder.CreateInput(Float(32), {20, 10}, "out");
-  auto dx   = builder.relu_grad(dout, out);
+  auto mask = builder.CreateInput(Bool(), {20, 10}, "mask");
+  auto dx   = builder.relu_grad(dout, mask);
 
   auto relu_grad_cpu = [](const std::vector<size_t>& lengths, const std::vector<void*>& ptrs) {
     size_t n    = lengths[0];
@@ -53,7 +53,7 @@ TEST(Decomposer, relu_grad) {
     }
   };
 
-  std::vector<std::string> input_names        = {dout.id().data(), out.id().data()};
+  std::vector<std::string> input_names        = {dout.id().data(), mask.id().data()};
   std::vector<std::string> output_names       = {dx->id};
   std::vector<std::vector<int>> output_shapes = {{20, 10}};
   RunAndCheck<float>(builder, input_names, output_names, output_shapes, relu_grad_cpu, -1, 1);
