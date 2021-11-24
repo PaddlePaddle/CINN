@@ -256,11 +256,11 @@ typedef struct cinn_buffer_t {
 
   // The callback to control memory alloc. It is useful in Paddle-CINN
   // where the memory is managed out of CINN.
-  std::function<int(void*)> external_malloc;
+  std::function<int(void*, struct cinn_buffer_t*)> external_malloc;
 
   // The callback to control memory free. It is useful in Paddle-CINN
   // where the memory is managed out of CINN.
-  std::function<int(void*)> external_free;
+  std::function<int(void*, struct cinn_buffer_t*)> external_free;
 
 #endif  // __cplusplus
 } cinn_buffer_t;
