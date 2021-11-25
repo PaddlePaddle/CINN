@@ -54,8 +54,6 @@ void AddAttrs(const absl::flat_hash_map<std::string, AttrType>& attrs_store,
 Program::Program(const std::shared_ptr<Scope>& scope, std::vector<std::unique_ptr<Instruction>>&& instrs)
     : scope_(scope) {
   for (auto& ins : instrs) {
-    // Finalize the instruction
-    ins->Finalize();
     if (ins->pre_run) {
       prerun_instrs_.push_back(std::move(ins));
     } else {
@@ -898,6 +896,11 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
       }
       instructions.push_back(std::move(instr));
     }
+  }
+
+  // Finalize instruction
+  for (auto& ins : instructions) {
+    ins->Finalize();
   }
   return instructions;
 }
