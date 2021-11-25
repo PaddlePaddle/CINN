@@ -689,6 +689,24 @@ void Stage::ComputeAt3(Stage *other, int level) {
   }
 }
 
+void Stage::SimpleComputeAt(Stage *other, int level) {
+  CHECK(tensor_);
+  other->CtrlDepend(ir::Tensor(tensor()));
+  if (this->tensor()->buffer.defined()) {
+    std::string t_name = this->tensor()->buffer->name;
+    if (utils::Endswith(t_name, "_read_cache") || utils::Endswith(t_name, "_write_cache")) {
+      EditTempTensor(other, level);
+    }
+  }
+  ComputeAtRelation relation;
+  relation.stage = other;
+  relation.level = level;
+  other->CtrlDepend(ir::Tensor(tensor()));
+
+  CHECK(relation.IsCompatible(this));
+  compute_ats_[other->id()] = relation;
+}
+
 std::tuple<Iterator, Iterator> Stage::Skew(const Iterator &i, const Iterator &j, int factor) {
   CINN_NOT_IMPLEMENTED
   Iterator i_new(i.id + "_skew");
@@ -725,6 +743,19 @@ Iterator Stage::Fuse(const std::vector<int> &levels) {
 
 Iterator Stage::Fuse(const std::string &level0, const std::string &level1) {
   return Fuse(Iterator(level0), Iterator(level1));
+}
+
+Iterator Stage::FuseDirect(const std::vector<int> &levels) {
+  auto dims = isl_get_dim_names(transformed_domain());
+  for (auto i : levels) {
+    AssertAxisIsNotLocked(i);
+    CHECK_LT(i, dims.size());
+  }
+  std::vector<Iterator> iterators;
+  for (size_t i = 0; i < levels.size(); i++) {
+    iterators.push_back(Iterator(dims[levels[i]]));
+  }
+  return Fuse(iterators);
 }
 
 Iterator Stage::Fuse(const std::vector<Iterator> &levels) {
