@@ -22,6 +22,7 @@
 #include "cinn/hlir/framework/op_strategy.h"
 #include "cinn/hlir/pe/broadcast.h"
 #include "cinn/hlir/pe/schedule.h"
+#include "cinn/hlir/pe/transform.h"
 #include "cinn/ir/ir_operators.h"
 
 namespace cinn {
@@ -50,13 +51,37 @@ std::shared_ptr<OpStrategy> StrategyForBNReduceMerge(const framework::NodeAttr &
     CHECK(!a.empty()) << "at least one input tensor for bn_reduce_merge compute\n";
     Expr A = a[0];
     CHECK(A.as_tensor());
-    auto x        = A.as_tensor_ref();
-    auto x_square = pe::Multiply(x, x, UniqName("bn_reduce_merge_x_square"));
+    auto x = A.as_tensor_ref();
+    // compute the succesive dimension size
+    auto last_reduce_dim = x->shape[2].as_int32() * x->shape[2].as_int32();
+    // split into last_reduce_dim into {n,k}
+    std::vector<int> new_shape = {x->shape[0].as_int32(), x->shape[1].as_int32()};
+    if (last_reduce_dim <= 128) {
+      new_shape.push_back(last_reduce_dim);
+    } else {
+      for (int idx = 256; idx > 128; --idx) {
+        if (last_reduce_dim % idx == 0) {
+          new_shape.push_back(last_reduce_dim / idx);
+          new_shape.push_back(idx);
+          break;
+        }
+      }
+    }
 
-    auto out0 = pe::ReduceSum(x, {0, 2}, false, Expr(0.0f), UniqName("bn_reduce_merge_out0"));
-    auto out1 = pe::ReduceSum(x_square, {0, 2}, false, Expr(0.0f), UniqName("bn_reduce_merge_out1"));
+    auto stages    = CreateStages({x});
+    auto x_reshape = pe::Reshape(x, new_shape, stages, UniqName("bn_reduce_merge_x_reshape_out"));
+    auto x_square  = pe::Multiply(x_reshape, x_reshape, UniqName("bn_reduce_merge_x_square"));
 
-    auto stages = CreateStages({x_square, out0, out1});
+    auto reduce_dim = new_shape.size() == 3 ? std::vector<int>{0} : std::vector<int>{0, 2};
+    auto out0       = pe::ReduceSum(x_reshape, reduce_dim, false, Expr(0.0f), UniqName("bn_reduce_merge_out0"));
+    auto out1       = pe::ReduceSum(x_square, reduce_dim, false, Expr(0.0f), UniqName("bn_reduce_merge_out1"));
+
+    // auto stages = CreateStages({x_square, out0, out1});
+    stages->InsertLazily(x_reshape);
+    stages->InsertLazily(x_square);
+    stages->InsertLazily(out0);
+    stages->InsertLazily(out1);
+    stages[x_reshape]->ComputeInline();
     stages[x_square]->ComputeInline();
 
     *ret = CINNValuePack{{CINNValue(out0), CINNValue(out1), CINNValue(stages)}};
@@ -114,13 +139,42 @@ std::shared_ptr<OpStrategy> StrategyForBNGradReduceMerge(const framework::NodeAt
     auto x_mean = Mean.as_tensor_ref();
     auto y_grad = Grad.as_tensor_ref();
 
-    auto x_mean_diff      = pe::Substract(x, x_mean, UniqName("bn_grad_reduce_merge_mean_diff"), Expr(1));
-    auto grad_x_mean_diff = pe::Multiply(x_mean_diff, y_grad, UniqName("bn_grad_reduce_merge_grad_mean_diff"));
+    // compute the succesive dimension size
+    auto last_reduce_dim = x->shape[2].as_int32() * x->shape[2].as_int32();
+    // split into last_reduce_dim into {n,k}
+    std::vector<int> new_shape = {x->shape[0].as_int32(), x->shape[1].as_int32()};
+    if (last_reduce_dim <= 128) {
+      new_shape.push_back(last_reduce_dim);
+    } else {
+      for (int idx = 256; idx > 128; --idx) {
+        if (last_reduce_dim % idx == 0) {
+          new_shape.push_back(last_reduce_dim / idx);
+          new_shape.push_back(idx);
+          break;
+        }
+      }
+    }
 
-    auto out0 = pe::ReduceSum(y_grad, {0, 2}, false, Expr(0.0f), UniqName("bn_grad_reduce_merge_out0"));
-    auto out1 = pe::ReduceSum(grad_x_mean_diff, {0, 2}, false, Expr(0.0f), UniqName("bn_grad_reduce_merge_out1"));
+    auto stages         = CreateStages({x, y_grad});
+    auto x_reshape      = pe::Reshape(x, new_shape, stages, UniqName("bn_grad_reduce_merge_x_reshape_out"));
+    auto y_grad_reshape = pe::Reshape(y_grad, new_shape, stages, UniqName("bn_grad_reduce_merge_grad_reshape_out"));
 
-    auto stages = CreateStages({x_mean_diff, grad_x_mean_diff, out0, out1});
+    auto x_mean_diff      = pe::Substract(x_reshape, x_mean, UniqName("bn_grad_reduce_merge_mean_diff"), Expr(1));
+    auto grad_x_mean_diff = pe::Multiply(y_grad_reshape, x_mean_diff, UniqName("bn_grad_reduce_merge_grad_mean_diff"));
+
+    auto reduce_dim = new_shape.size() == 3 ? std::vector<int>{0} : std::vector<int>{0, 2};
+    auto out0 = pe::ReduceSum(y_grad_reshape, reduce_dim, false, Expr(0.0f), UniqName("bn_grad_reduce_merge_out0"));
+    auto out1 = pe::ReduceSum(grad_x_mean_diff, reduce_dim, false, Expr(0.0f), UniqName("bn_grad_reduce_merge_out1"));
+
+    // auto stages = CreateStages({x_mean_diff, grad_x_mean_diff, out0, out1});
+    stages->InsertLazily(x_reshape);
+    stages->InsertLazily(y_grad_reshape);
+    stages->InsertLazily(x_mean_diff);
+    stages->InsertLazily(grad_x_mean_diff);
+    stages->InsertLazily(out0);
+    stages->InsertLazily(out1);
+    stages[x_reshape]->ComputeInline();
+    stages[y_grad_reshape]->ComputeInline();
     stages[x_mean_diff]->ComputeInline();
     stages[grad_x_mean_diff]->ComputeInline();
     *ret = CINNValuePack{{CINNValue(out0), CINNValue(out1), CINNValue(stages)}};
@@ -162,7 +216,21 @@ std::vector<shape_t> InferShapeForBNReduce(const std::vector<shape_t> &inputs_sh
                                            const framework::AttrMapType &attrs) {
   CHECK(inputs_shape.size() == 3UL || inputs_shape.size() == 1UL);
   std::vector<int> out_shapes{inputs_shape[0][1], inputs_shape[0][3]};
-  return {out_shapes, out_shapes};
+  // compute the succesive dimension size
+  auto last_reduce_dim = inputs_shape[0][2] * inputs_shape[0][3];
+  // split into last_reduce_dim into {n,k}
+  std::vector<int> output_shape = {inputs_shape[0][1]};
+  if (last_reduce_dim <= 128) {
+    output_shape.push_back(last_reduce_dim);
+  } else {
+    for (int idx = 256; idx > 128; --idx) {
+      if (last_reduce_dim % idx == 0) {
+        output_shape.push_back(idx);
+        break;
+      }
+    }
+  }
+  return {output_shape, output_shape};
 }
 
 #define StrategyForReduction(op_name__, pe__, pe_func__)                                            \
@@ -209,7 +277,8 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
       auto out1   = pe_func(out0, dims_last, keep_dim, Expr(), UniqName(op_name + "_out1"));
       auto stages = CreateStages({A, out0, out1});
       *ret        = CINNValuePack{{CINNValue(out1), CINNValue(out0), CINNValue(stages)}};
-    } else {
+    } else if (dim.back() == inputs[0]->shape.size() - 1) {
+      // do reduce on last dimension
       auto out    = pe_func(A, dim, keep_dim, Expr(), UniqName(op_name + "_out"));
       auto stages = CreateStages({A, out});
       *ret        = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
