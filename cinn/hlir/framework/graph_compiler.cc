@@ -653,6 +653,10 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
     }
   }
 
+  // Finalize instruction
+  for (auto& ins : instructions) {
+    ins->Finalize();
+  }
   GraphCompiler::CompilationResult result;
   result.runtime_program.reset(new Program(scope_, std::move(instructions)));
   return result;
@@ -898,10 +902,6 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
     }
   }
 
-  // Finalize instruction
-  for (auto& ins : instructions) {
-    ins->Finalize();
-  }
   return instructions;
 }
 
