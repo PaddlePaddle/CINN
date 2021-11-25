@@ -29,6 +29,7 @@
 #include <string.h>
 
 #ifdef __cplusplus
+#include <functional>
 #include <vector>
 #endif
 
@@ -155,6 +156,12 @@ extern int cinn_buffer_malloc(void* context, struct cinn_buffer_t* buf);
 
 //! Free device memory.
 extern int cinn_buffer_free(void* context, struct cinn_buffer_t* buf);
+
+//! Allocate device memory with callback
+extern void cinn_buffer_malloc_with_callback(void* args, int num_args);
+
+//! Free device memory with callbac
+extern void cinn_buffer_free_with_callback(void* args, int num_args);
 
 //! Get the memory address in buffer.
 extern void* cinn_buffer_get_data_handle(struct cinn_buffer_t* buf);

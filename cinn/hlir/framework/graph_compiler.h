@@ -91,9 +91,9 @@ class GraphCompiler final {
   };
 
   struct CompileOptions {
-    std::string attached_code          = "";
-    bool with_instantiate_variables    = false;
-    bool add_memory_handle_instruction = false;
+    std::string attached_code             = "";
+    bool with_instantiate_variables       = false;
+    bool insert_buffer_handle_instruction = false;
   };
 
   // Compile with a packing option and result, to be extended easily.
@@ -131,7 +131,17 @@ class GraphCompiler final {
   // and erase them from the scope to avoid unnecessary buffer allocation
   void RemoveInvalidVariables(const std::vector<std::unique_ptr<Instruction>>& instructions);
 
-  void AddMemoryHandlers(std::vector<std::unique_ptr<Instruction>>* instructions);
+  // find the first and last instruction where a variable used, and mark the
+  // variable should allocate buffer before the first instruction runing and
+  // can release the buffer after the last instruction finished.
+  void AnalysisVariableUsedLife(const std::vector<std::unique_ptr<Instruction>>& instructions,
+                                std::unordered_map<int, std::vector<std::string>>* step2malloc,
+                                std::unordered_map<int, std::vector<std::string>>* step2free);
+
+  // insert a buffer malloc instruction applying on variables before they are
+  // firstly used in the next instruction, and insert a buffer free instruction
+  // applying on variables after no instruction will use them anymore
+  void InsertBufferHandlers(std::vector<std::unique_ptr<Instruction>>* instructions);
 
  private:
   void ProcessFunction(const std::vector<ir::LoweredFunc>& lowered_func);
