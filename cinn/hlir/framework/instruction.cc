@@ -61,7 +61,7 @@ void Instruction::Finalize() {
   finalized_flag = true;
 }
 
-void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podargs, bool dryrun) {
+void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podargs, bool dryrun, void* stream) {
   CHECK(finalized_flag) << "Instruction must be finalized before run";
   if (name2podargs != nullptr) {
     args_cached_.clear();
