@@ -166,6 +166,20 @@ void CudaScheduleConv(poly::StageMap stages,
                       ir::Tensor &output,
                       const common::Target &target);
 
+void CudaScheduleWinogradConv(poly::StageMap wino_stages,
+                              ir::Tensor &wino_weights_dilation,
+                              ir::Tensor &wino_input_pad,
+                              ir::Tensor &wino_A,
+                              ir::Tensor &wino_B,
+                              ir::Tensor &wino_G,
+                              ir::Tensor &kernel_pack,
+                              ir::Tensor &input_tile,
+                              ir::Tensor &data_pack,
+                              ir::Tensor &bgemm,
+                              ir::Tensor &inverse,
+                              ir::Tensor &wino_conv,
+                              const common::Target &target);
+
 void CudaScheduleConv2(poly::StageMap stages,
                        ir::Tensor &input_pad,
                        ir::Tensor &weights,

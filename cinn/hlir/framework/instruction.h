@@ -24,6 +24,7 @@
 #ifdef CINN_WITH_CUDNN
 #include "cinn/runtime/cuda/cuda_util.h"
 #endif
+#include "cinn/utils/string.h"
 #include "cinn/utils/timer.h"
 
 namespace cinn {
@@ -66,7 +67,46 @@ class Instruction {
   /**
    * Run the Instruction.
    */
-  void Run(const std::map<std::string, cinn_pod_value_t>* name2podargs = nullptr, bool dryrun = false);
+  void Run(const std::map<std::string, cinn_pod_value_t>* name2podargs = nullptr,
+           bool dryrun                                                 = false,
+           void* stream                                                = nullptr);
+
+  void PreRun(const std::map<std::string, cinn_pod_value_t>* name2podargs = nullptr) {
+    CHECK_EQ(fn_.size(), 4);
+    if (fn_.size() > 1 && fn_.size() != in_args_.size()) {
+      out_args_.back()[0] = out_args_.front()[0];
+      out_args_.erase(out_args_.begin());
+      in_args_.erase(in_args_.begin());
+    }
+    if (name2podargs != nullptr) {
+      args_cached_.clear();
+    }
+    CHECK_EQ(fn_.size(), in_args_.size());
+    CHECK_EQ(fn_.size(), out_args_.size());
+    int flag = -1;
+    for (int i = 0; i < 4; i++) {
+      if (utils::Startswith(out_args_[i][0], "kernel_pack")) {
+        VLOG(3) << "PreRun " << i << "-th function of fn_:" << fn_names_[i];
+        flag           = i;
+        auto& pod_args = PreparePodArgs(i, name2podargs);
+        auto it_fn     = fn_[i];
+        CHECK(it_fn) << "The LoweredFunc address should be set first by calling SetLoweredFunc method";
+        it_fn(pod_args.data(), pod_args.size());
+#ifdef CINN_WITH_CUDA
+        CUDA_CALL(cudaDeviceSynchronize());
+#endif
+      }
+    }
+    if (flag >= 0) {
+      args_cached_.erase(args_cached_.begin() + flag);
+      in_args_.erase(in_args_.begin() + flag);
+      out_args_.erase(out_args_.begin() + flag);
+      fn_.erase(fn_.begin() + flag);
+      fn_names_.erase(fn_names_.begin() + flag);
+    }
+  }
+
+  int size() { return fn_.size(); }
 
   std::vector<std::vector<std::string>> GetInArgs() { return in_args_; }
   std::vector<std::vector<std::string>> GetOutArgs() { return out_args_; }
