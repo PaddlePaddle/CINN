@@ -104,8 +104,60 @@ class OpFusionTest(unittest.TestCase):
 
         return builder, inputs, feeds, outputs
 
+    def build_relu_add_bn_bn_grad_net(self, backward=True):
+        builder = NetBuilder("relu_add_bn_bn_grad")
+
+        shape = [16, 32, 16, 16]
+
+        relu_dout = builder.create_input(Float(32), shape, "relu_dout")
+        relu_out = builder.create_input(Float(32), shape, "relu_out")
+        relu_dx = builder.relu_grad(relu_dout, relu_out)
+
+        add_x = builder.create_input(Float(32), shape, "add_x")
+        add_y = builder.create_input(Float(32), shape, "add_y")
+        add_out = builder.elementwise_add(add_x, add_y)
+        add_dx, add_dy = builder.elementwise_add_grad(relu_dx, add_x, add_y,
+                                                      -1)
+
+        bn_x_1 = builder.create_input(Float(32), shape, "bn_x_1")
+        bn_scale_1 = builder.create_input(Float(32), [32], "bn_scale_1")
+        bn_mean_1 = builder.create_input(Float(32), [32], "bn_mean_1")
+        bn_var_1 = builder.create_input(Float(32), [32], "bn_var_1")
+        bn_outs_1 = builder.batch_norm_grad(add_dx, bn_x_1, bn_scale_1,
+                                            bn_mean_1, bn_var_1)
+
+        bn_x_2 = builder.create_input(Float(32), shape, "bn_x_2")
+        bn_scale_2 = builder.create_input(Float(32), [32], "bn_scale_2")
+        bn_mean_2 = builder.create_input(Float(32), [32], "bn_mean_2")
+        bn_var_2 = builder.create_input(Float(32), [32], "bn_var_2")
+        bn_outs_2 = builder.batch_norm_grad(add_dy, bn_x_2, bn_scale_2,
+                                            bn_mean_2, bn_var_2)
+
+        inputs = [
+            relu_dout, relu_out, add_x, add_y, bn_x_1, bn_scale_1, bn_mean_1,
+            bn_var_1, bn_x_2, bn_scale_2, bn_mean_2, bn_var_2
+        ]
+        feeds = [
+            np.random.random(shape).astype("float32"),  # relu_dout
+            np.random.random(shape).astype("float32"),  # relu_out
+            np.random.random(shape).astype("float32"),  # add_x
+            np.random.random(shape).astype("float32"),  # add_y
+            np.random.random(shape).astype("float32"),  # bn_x_1
+            np.random.random([32]).astype("float32"),  # bn_scale_1
+            np.random.random([32]).astype("float32"),  # bn_mean_1
+            np.random.random([32]).astype("float32"),  # bn_var_1
+            np.random.random(shape).astype("float32"),  # bn_x_2
+            np.random.random([32]).astype("float32"),  # bn_scale_2
+            np.random.random([32]).astype("float32"),  # bn_mean_2
+            np.random.random([32]).astype("float32"),  # bn_var_2
+        ]
+        outputs = [add_out] + bn_outs_1 + bn_outs_2
+
+        return builder, inputs, feeds, outputs
+
     def test_fusion(self):
-        func_name = "build_reduce_reduce_net"
+        # func_name = "build_reduce_reduce_net"
+        func_name = "build_relu_add_bn_bn_grad_net"
         func = getattr(self, func_name)
         builder, inputs, feeds, outputs = func(backward=False)
 
