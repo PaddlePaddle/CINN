@@ -922,6 +922,22 @@ void GraphCompiler::RemoveInvalidVariables(const std::vector<std::unique_ptr<Ins
   });
 }
 
+static void cinn_buffer_malloc_with_callback(void* args, int num_args) {
+  cinn_pod_value_t* pod_args = reinterpret_cast<cinn_pod_value_t*>(args);
+  for (int i = 0; i < num_args; ++i) {
+    cinn_buffer_t* buffer = static_cast<cinn_buffer_t*>(pod_args[i]);
+    buffer->external_malloc(nullptr, buffer);
+  }
+}
+
+static void cinn_buffer_free_with_callback(void* args, int num_args) {
+  cinn_pod_value_t* pod_args = reinterpret_cast<cinn_pod_value_t*>(args);
+  for (int i = 0; i < num_args; ++i) {
+    cinn_buffer_t* buffer = static_cast<cinn_buffer_t*>(pod_args[i]);
+    buffer->external_free(nullptr, buffer);
+  }
+}
+
 void GraphCompiler::AnalysisVariableUsedLife(const std::vector<std::unique_ptr<Instruction>>& instructions,
                                              std::unordered_map<int, std::vector<std::string>>* step2malloc,
                                              std::unordered_map<int, std::vector<std::string>>* step2free) {

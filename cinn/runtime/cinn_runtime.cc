@@ -36,22 +36,6 @@ int cinn_buffer_free(void* context, struct cinn_buffer_t* buf) {
   return buf->device_interface->impl->free(context, buf);
 }
 
-void cinn_buffer_malloc_with_callback(void* args, int num_args) {
-  cinn_pod_value_t* pod_args = reinterpret_cast<cinn_pod_value_t*>(args);
-  for (int i = 0; i < num_args; ++i) {
-    cinn_buffer_t* buffer = static_cast<cinn_buffer_t*>(pod_args[i]);
-    buffer->external_malloc(nullptr, buffer);
-  }
-}
-
-void cinn_buffer_free_with_callback(void* args, int num_args) {
-  cinn_pod_value_t* pod_args = reinterpret_cast<cinn_pod_value_t*>(args);
-  for (int i = 0; i < num_args; ++i) {
-    cinn_buffer_t* buffer = static_cast<cinn_buffer_t*>(pod_args[i]);
-    buffer->external_free(nullptr, buffer);
-  }
-}
-
 void* cinn_buffer_slice(struct cinn_buffer_t* buf, uint32_t offset) {
   CINN_CHECK(buf);
   uint64_t offset_byte = offset * buf->type.bytes();
