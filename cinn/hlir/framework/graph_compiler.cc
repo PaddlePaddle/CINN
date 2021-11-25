@@ -66,6 +66,11 @@ void Program::PreRun(const std::map<std::string, cinn_pod_value_t>* name2podargs
   for (auto& ins : prerun_instrs_) {
     ins->Run(name2podargs);
   }
+  for (auto& ins : instrs_) {
+    if (ins->size() == 4) {
+      ins->PreRun(name2podargs);
+    }
+  }
 }
 
 void Program::Export(const std::vector<std::string>& persistent_vars, const std::string& filename) {
@@ -191,12 +196,13 @@ void Program::Export(const std::vector<std::string>& persistent_vars, const std:
   fclose(f);
 }
 
-void Program::Execute(const std::map<std::string, cinn_pod_value_t>* name2podargs) {
+void Program::Execute(const std::map<std::string, cinn_pod_value_t>* name2podargs, void* stream) {
   for (auto& ins : instrs_) {
-    ins->Run(name2podargs);
+    ins->Run(name2podargs, false, stream);
   }
 #ifdef CINN_WITH_CUDA
-  if (instrs_[0]->target_.arch == Target::Arch::NVGPU) {
+  VLOG(4) << "-- The value of the used stream: " << stream;
+  if (instrs_[0]->target_.arch == Target::Arch::NVGPU && stream == nullptr) {
     CUDA_CALL(cudaDeviceSynchronize());
   }
 #endif
@@ -421,7 +427,16 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
     }
 
     CHECK_GE(C.size(), 2);
-    CHECK_LE(C.size() - 1, node->outlinks_in_order().size());
+    std::vector<Expr> temp_C;
+    if (C.size() - 1 > node->outlinks_in_order().size()) {
+      for (int i = 1; i < C.size() - 1; i++) {
+        ir::Expr temp = C[i];
+        VLOG(1) << "C[" << i << "] name is : " << temp.as_tensor_ref()->name;
+        outputs.push_back(temp.as_tensor_ref());
+      }
+      common::CINNValuePack C_temp{{C[0], C.back()}};
+      C = C_temp;
+    }
     for (int i = 0; i < C.size() - 1; i++) {
       Expr out                      = C[i];
       temp_var_map[temp_outvars[i]] = out;
@@ -431,6 +446,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
         fetch_tensors.insert(out.as_tensor_ref());
       }
     }
+    CHECK_LE(C.size() - 1, node->outlinks_in_order().size());
     poly::StageMap temp_stages = C.back();
 
     for (auto& i : temp_stages) {
@@ -492,7 +508,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
   for (auto& s : stages) {
     auto& compute_ats = s.second->GetComputeAts();
     auto tensor       = s.second->tensor();
-    if (tensor->is_reduce_tensor() && !compute_ats.empty()) {
+    if (!compute_ats.empty()) {
       poly::ComputeAtRelation new_relation;
       CHECK_EQ(compute_ats.size(), 1U);
       auto new_stage = stages[final_out_tensor];
@@ -557,6 +573,7 @@ void GraphCompiler::ProcessFunction(const std::vector<ir::LoweredFunc>& lowered_
             shape.push_back(static_cast<int>(shape_dim.get_constant()));
           }
           tensor->Resize(Shape{shape});
+          tensor->set_type(j.type());
         }
       }
       function2input_args_[i->name]  = input_args;
@@ -578,7 +595,8 @@ std::unique_ptr<Program> GraphCompiler::Build(const std::string& code) {
 }
 
 GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::CompileOptions& options,
-                                                      std::unordered_set<std::string>&& fetch_var_ids) {
+                                                      std::unordered_set<std::string>&& fetch_var_ids,
+                                                      void* stream) {
   fetch_var_ids_  = std::move(fetch_var_ids);
   auto topo_order = graph_->topological_order();
   auto& nodes     = std::get<0>(topo_order);
@@ -622,7 +640,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
     VLOG(3) << "[X86] C Code is:\n" << out;
   }
 
-  compiler_->Build(build_module, options.attached_code);
+  compiler_->Build(build_module, options.attached_code, stream);
   auto instructions = BuildInstructions();
   RemoveInvalidVariables(instructions);
 
@@ -857,20 +875,26 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
         }
       }
       fuse_name += "fused";
-      VLOG(3) << fuse_name;
-      auto fuse_func_name = GetOrGenFullFuncName(fuse_name);
-      auto instr =
-          std::unique_ptr<Instruction>(new Instruction(target_, scope_.get(), inputNames, outputNames, fuse_func_name));
+      VLOG(3) << "In buildInstructions, fuse_name is : " << fuse_name;
       VLOG(3) << "input_names: " << utils::Join(inputNames, ", ");
       VLOG(3) << "out_names: " << utils::Join(outputNames, ", ");
-      auto* fn = compiler_->Lookup(fuse_func_name);
-      CHECK(fn);
-      instr->SetLoweredFunc(fn, fuse_func_name);
+      fuse_name = GetOrGenFullFuncName(fuse_name);
+      auto instr =
+          std::unique_ptr<Instruction>(new Instruction(target_, scope_.get(), inputNames, outputNames, fuse_name));
 
+      auto* fn = compiler_->Lookup(fuse_name);
+      CHECK(fn);
+      instr->SetLoweredFunc(fn, fuse_name);
       // As some situation like reduce,will generate more than one kernel.
       // So try to find the rest kernel, if it exist.
-      SetSubKernels(instr.get(), fuse_func_name);
+      SetSubKernels(instr.get(), fuse_name);
 
+      for (int j = 0; j < group.size(); j++) {
+        auto node = group[j];
+        if (node->attrs.attr_store.count("pre_run") && absl::get<bool>(node->attrs.attr_store["pre_run"]) == true) {
+          instr->pre_run = true;
+        }
+      }
       instructions.push_back(std::move(instr));
     }
   }
@@ -949,6 +973,7 @@ std::shared_ptr<Scope> BuildScope(Target target, const std::shared_ptr<Graph>& g
     CHECK(dtype_dict.at(iter.first) == Float(32) || dtype_dict.at(iter.first).is_bool() ||
           dtype_dict.at(iter.first) == Int(32))
         << "The dtype of node " << iter.first << " is not float or bool or int! Other dtype is not implemented yet.";
+    tensor->set_type(dtype_dict.at(iter.first));
   }
   return scope;
 }

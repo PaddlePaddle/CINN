@@ -26,6 +26,7 @@
 #include "cinn/common/ir_util.h"
 #include "cinn/hlir/pe/broadcast.h"
 #include "cinn/hlir/pe/elementwise.h"
+#include "cinn/hlir/pe/nn_util.h"
 #include "cinn/hlir/pe/schedule.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/lang/builtin.h"
@@ -56,6 +57,141 @@ Tensor PRelu(const Tensor &A, const Tensor &slope, const int axis, const std::st
       output_name);
 }
 
+std::vector<ir::Tensor> Conv2d_winograd_NCHW(const ir::Tensor &input,
+                                             const ir::Tensor &weights,
+                                             int pad_h,
+                                             int pad_w,
+                                             int stride_h,
+                                             int stride_w,
+                                             int dilation_h,
+                                             int dilation_w,
+                                             const std::string &output_name) {
+  CHECK_EQ(input->shape.size(), 4U) << "Input's dimension of Conv2d_winograd_NCHW op is not 4! Please check.";
+  CHECK_EQ(weights->shape.size(), 4U) << "Weight's dimension of Conv2d_winograd_NCHW op is not 4! Please check.";
+  std::vector<Expr> output_shape;
+  std::vector<Expr> new_weights_shape;
+  std::vector<Expr> input_pad_shape;
+
+  int tile_size = input->shape[2].as_int32() % 8 == 0 ? 4 : 2;
+
+  new_weights_shape = {weights->shape[0],
+                       weights->shape[1],
+                       dilation_h * (weights->shape[2] - 1) + 1,
+                       dilation_w * (weights->shape[3] - 1) + 1};
+
+  auto weights_dilation = Compute(
+      new_weights_shape,
+      [=](Expr nn, Expr cc, Expr yy, Expr xx) {
+        auto cond = lang::logic_and({(yy) % dilation_h == 0, xx % dilation_w == 0});
+        return ir::Select::Make(
+            cond, weights(nn, cc, (yy / dilation_h), (xx / dilation_w)), common::make_const(weights->type(), 0));
+      },
+      UniqName("weights_dilation"));
+
+  CHECK(MathEqual((weights->shape[0] * weights->shape[1]) % input->shape[1], Expr(0)))
+      << "filter's output channel size must be divisible by group\n";
+
+  int alpha = weights_dilation->shape[3].as_int32() + tile_size - 1;
+
+  input_pad_shape = {input->shape[0], input->shape[1], input->shape[2] + 2 * pad_h, input->shape[3] + 2 * pad_w};
+
+  ir::Tensor input_pad;
+  if (pad_h == 0 && pad_w == 0) {
+    input_pad = Compute(
+        input->shape, [=](Expr nn, Expr cc, Expr yy, Expr xx) { return input(nn, cc, yy, xx); }, UniqName("input_pad"));
+  } else {
+    input_pad = Compute(
+        input_pad_shape,
+        [=](Expr nn, Expr cc, Expr yy, Expr xx) {
+          auto cond =
+              lang::logic_and({yy >= pad_h, yy < input->shape[2] + pad_h, xx >= pad_w, xx < input->shape[3] + pad_w});
+          return ir::Select::Make(cond, input(nn, cc, yy - pad_h, xx - pad_w), ir::Zero(input->type()));
+        },
+        UniqName("input_pad"));
+  }
+
+  int r = weights_dilation->shape[3].as_int32();
+  int m = tile_size;
+
+  // # output_shape
+  output_shape = {
+      input->shape[0],    // B
+      weights->shape[0],  // O
+      common::AutoSimplify(
+          (input->shape[2] - ((weights_dilation->shape[2] - 1) * dilation_h + 1) + 2 * pad_h) / stride_h + 1),  // H
+      common::AutoSimplify(
+          (input->shape[3] - ((weights_dilation->shape[3] - 1) * dilation_w + 1) + 2 * pad_w) / stride_w + 1)  // W
+  };
+
+  std::vector<ir::Tensor> winograd_transform = winograd_transform_matrices(m, r);
+  ir::Tensor A                               = winograd_transform[0];
+  ir::Tensor B                               = winograd_transform[1];
+  ir::Tensor G                               = winograd_transform[2];
+
+  int nH = (common::AutoSimplify(output_shape[2]).as_int32() + m - 1) / m;
+  int nW = (common::AutoSimplify(output_shape[3]).as_int32() + m - 1) / m;
+
+  int P = input->shape[0].as_int32() * nH * nW;
+
+  Var r_kh(weights_dilation->shape[2], UniqName("r_kh"));
+  Var r_kw(weights_dilation->shape[3], UniqName("r_kw"));
+  std::vector<Expr> kernel_shape = {Expr(alpha), Expr(alpha), weights_dilation->shape[1], weights_dilation->shape[0]};
+  auto kernel_pack               = Compute(
+      kernel_shape,
+      [=](Expr eps, Expr nu, Expr ci, Expr co) {
+        return lang::ReduceSum(weights_dilation(co, ci, r_kh, r_kw) * G(eps, r_kh) * G(nu, r_kw), {r_kh, r_kw});
+      },
+      UniqName("kernel_pack"));
+
+  // pack input tile
+  std::vector<Expr> input_tile_shape = {weights_dilation->shape[1], Expr(P), Expr(alpha), Expr(alpha)};
+  auto input_tile                    = Compute(
+      input_tile_shape,
+      [=](Expr c, Expr p, Expr eps, Expr nu) {
+        return input_pad((p / (nH * nW)), c, ((p / nW) % nH) * m + eps, (p % nW) * m + nu);
+      },
+      UniqName("input_tile"));
+
+  std::vector<Expr> data_pack_shape = {Expr(alpha), Expr(alpha), weights_dilation->shape[1], Expr(P)};
+  Var r_a(input_tile->shape[2], UniqName("r_a"));
+  Var r_b(input_tile->shape[3], UniqName("r_b"));
+  auto data_pack = Compute(
+      data_pack_shape,
+      [=](Expr eps, Expr nu, Expr ci, Expr p) {
+        return lang::ReduceSum(input_tile(ci, p, r_a, r_b) * B(r_a, eps) * B(r_b, nu), {r_a, r_b});
+      },
+      UniqName("data_pack"));
+
+  // do batch gemm
+  std::vector<Expr> bgemm_shape = {Expr(alpha), Expr(alpha), weights_dilation->shape[0], Expr(P)};
+  Var ci(kernel_pack->shape[2], UniqName("ci"));
+  auto bgemm = Compute(
+      bgemm_shape,
+      [=](Expr eps, Expr nu, Expr co, Expr p) {
+        return lang::ReduceSum(kernel_pack(eps, nu, ci, co) * data_pack(eps, nu, ci, p), {ci});
+      },
+      UniqName("bgemm"));
+
+  // # inverse transform
+  std::vector<Expr> inverse_shape = {weights_dilation->shape[0], Expr(P), Expr(m), Expr(m)};
+  Var r_g_a(bgemm->shape[0], UniqName("r_g_a"));
+  Var r_g_b(bgemm->shape[1], UniqName("r_g_b"));
+  auto inverse = Compute(
+      inverse_shape,
+      [=](Expr co, Expr p, Expr vh, Expr vw) {
+        return lang::ReduceSum(bgemm(r_g_a, r_g_b, co, p) * A(r_g_a, vh) * A(r_g_b, vw), {r_g_a, r_g_b});
+      },
+      UniqName("inverse"));
+  auto res = Compute(
+      output_shape,
+      [=](Expr n, Expr co, Expr h, Expr w) {
+        return inverse(co, n * nH * nW + (h / m) * nW + (w / m), (h % m), (w % m));
+      },
+      output_name);
+
+  return {weights_dilation, input_pad, A, B, G, kernel_pack, input_tile, data_pack, bgemm, inverse, res};
+}
+
 std::vector<ir::Tensor> Conv2d_NCHW(const ir::Tensor &input,
                                     const ir::Tensor &weights,
                                     int pad_h,
@@ -64,24 +200,65 @@ std::vector<ir::Tensor> Conv2d_NCHW(const ir::Tensor &input,
                                     int stride_w,
                                     int dilation_h,
                                     int dilation_w,
-                                    const std::string &output_name) {
+                                    const std::string &output_name,
+                                    bool choose_direct_compute) {
   CHECK_EQ(input->shape.size(), 4U) << "Input's dimension of Conv2d_NCHW op is not 4! Please check.";
   CHECK_EQ(weights->shape.size(), 4U) << "Weight's dimension of Conv2d_NCHW op is not 4! Please check.";
-  std::vector<Expr> output_shape;
-  std::vector<Expr> new_weights_shape;
-  std::vector<Expr> input_pad_shape;
-  output_shape = {
-      input->shape[0],                                                                                  // B
-      weights->shape[0],                                                                                // O
-      Expr((input->shape[2] - ((weights->shape[2] - 1) * dilation_h + 1) + 2 * pad_h) / stride_h + 1),  // H
-      Expr((input->shape[3] - ((weights->shape[3] - 1) * dilation_w + 1) + 2 * pad_w) / stride_w + 1)   // W
+  std::vector<int> output_shape_int;
+  std::vector<int> new_weights_shape_int;
+  std::vector<int> input_pad_shape_int;
+  output_shape_int = {
+      input->shape[0].as_int32(),    // B
+      weights->shape[0].as_int32(),  // O
+      (input->shape[2].as_int32() - ((weights->shape[2].as_int32() - 1) * dilation_h + 1) + 2 * pad_h) / stride_h +
+          1,  // H
+      (input->shape[3].as_int32() - ((weights->shape[3].as_int32() - 1) * dilation_w + 1) + 2 * pad_w) / stride_w +
+          1  // W
   };
-  new_weights_shape = {weights->shape[0],
-                       weights->shape[1],
-                       dilation_h * (weights->shape[2] - 1) + 1,
-                       dilation_w * (weights->shape[3] - 1) + 1};
-  input_pad_shape   = {input->shape[0], input->shape[1], input->shape[2] + 2 * pad_h, input->shape[3] + 2 * pad_w};
-
+  new_weights_shape_int = {weights->shape[0].as_int32(),
+                           weights->shape[1].as_int32(),
+                           dilation_h * (weights->shape[2].as_int32() - 1) + 1,
+                           dilation_w * (weights->shape[3].as_int32() - 1) + 1};
+  input_pad_shape_int   = {input->shape[0].as_int32(),
+                         input->shape[1].as_int32(),
+                         input->shape[2].as_int32() + 2 * pad_h,
+                         input->shape[3].as_int32() + 2 * pad_w};
+  std::vector<Expr> output_shape{
+      Expr(output_shape_int[0]), Expr(output_shape_int[1]), Expr(output_shape_int[2]), Expr(output_shape_int[3])};
+  std::vector<Expr> new_weights_shape{Expr(new_weights_shape_int[0]),
+                                      Expr(new_weights_shape_int[1]),
+                                      Expr(new_weights_shape_int[2]),
+                                      Expr(new_weights_shape_int[3])};
+  std::vector<Expr> input_pad_shape{Expr(input_pad_shape_int[0]),
+                                    Expr(input_pad_shape_int[1]),
+                                    Expr(input_pad_shape_int[2]),
+                                    Expr(input_pad_shape_int[3])};
+  CHECK_EQ(weights->shape.size(), 4);
+  CHECK(weights->shape[2].is_constant());
+  CHECK(weights->shape[3].is_constant());
+  int kh = weights->shape[2].as_int32();
+  int kw = weights->shape[3].as_int32();
+  if (!choose_direct_compute && stride_h == 1 && stride_w == 1 && dilation_h == 1 && dilation_w == 1 && 2 < kh &&
+      kh < 8 && 2 < kw && kw < 8) {
+    auto &res = ScheduleParam::get_cuda_instance().GetParam();
+    if (res.empty()) {
+      CreateCudaSerialData();
+      LoadSerialData(&res);
+    }
+    std::string key = "CudaWinogradConvSchedule " + std::to_string(input_pad_shape_int[0]) + " " +
+                      std::to_string(input_pad_shape_int[1]) + " " + std::to_string(input_pad_shape_int[2]) + " " +
+                      std::to_string(input_pad_shape_int[3]) + " " + std::to_string(new_weights_shape_int[0]) + " " +
+                      std::to_string(new_weights_shape_int[1]) + " " + std::to_string(new_weights_shape_int[2]) + " " +
+                      std::to_string(new_weights_shape_int[3]) + " " + std::to_string(output_shape_int[0]) + " " +
+                      std::to_string(output_shape_int[1]) + " " + std::to_string(output_shape_int[2]) + " " +
+                      std::to_string(output_shape_int[3]);
+    if (res.count(key) > 0) {
+      LOG(INFO) << "Find saved winograd_conv2d schedule param! key is: " << key;
+      return Conv2d_winograd_NCHW(
+          input, weights, pad_h, pad_w, stride_h, stride_w, dilation_h, dilation_w, output_name);
+    }
+    LOG(INFO) << "Didn't find saved winograd_conv2d schedule param! key is: " << key;
+  }
   ir::Tensor input_pad;
   if (pad_h == 0 && pad_w == 0) {
     input_pad = Compute(
