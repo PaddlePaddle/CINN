@@ -597,10 +597,11 @@ std::unique_ptr<Program> GraphCompiler::Build(const std::string& code) {
 GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::CompileOptions& options,
                                                       std::unordered_set<std::string>&& fetch_var_ids,
                                                       void* stream) {
-  fetch_var_ids_  = std::move(fetch_var_ids);
-  auto topo_order = graph_->topological_order();
-  auto& nodes     = std::get<0>(topo_order);
-  auto& edges     = std::get<1>(topo_order);
+  compile_options_ = options;
+  fetch_var_ids_   = std::move(fetch_var_ids);
+  auto topo_order  = graph_->topological_order();
+  auto& nodes      = std::get<0>(topo_order);
+  auto& edges      = std::get<1>(topo_order);
 
   auto& groups = graph_->groups;
 
@@ -655,7 +656,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
         auto* src_var     = scope_->Var<Tensor>(src_var_name);
         auto& src_tensor  = absl::get<Tensor>(*src_var);
         VLOG(3) << name << " shares buffer with " << src_var_name;
-        tensor = Tensor(src_tensor.get());
+        tensor->set_buffer(src_tensor->get_buffer());
       } else {
         tensor->mutable_data<float>(target_);
       }
@@ -695,11 +696,10 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
   auto& groups = graph_->groups;
   for (auto& group : groups) {
     if (group.size() == 1) {
-      auto node  = group[0];
-      auto instr = std::unique_ptr<Instruction>(
-          new Instruction(target_, scope_.get(), OpGetInputNames(node), OpGetOutputNames(node), node->op()->name));
-
-      if (node->op()->name == "reshape") {
+      auto node       = group[0];
+      auto instr_name = node->op()->name;
+      if (node->op()->name == "reshape" && compile_options_.with_instantiate_variables) {
+        // not run instruction and shares buffer only when instantiate_variables
         auto& inlinks  = node->inlinks_in_order();
         auto& outlinks = node->outlinks_in_order();
         CHECK_EQ(inlinks.size(), 1U);
@@ -707,7 +707,10 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
         std::string in_id       = inlinks[0]->source()->safe_as<NodeData>()->id();
         std::string out_id      = outlinks[0]->sink()->safe_as<NodeData>()->id();
         reuse_vars_map_[out_id] = in_id;
+        instr_name              = "no_run";
       }
+      auto instr = std::unique_ptr<Instruction>(
+          new Instruction(target_, scope_.get(), OpGetInputNames(node), OpGetOutputNames(node), instr_name));
 
       if (target_.arch == Target::Arch::NVGPU) {
         if (node->op()->name == "conv2d") {

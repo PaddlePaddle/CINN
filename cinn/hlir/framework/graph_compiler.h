@@ -150,6 +150,7 @@ class GraphCompiler final {
   absl::flat_hash_map<std::string, std::string> reuse_vars_map_;
 
   std::unique_ptr<backends::Compiler> compiler_;
+  CompileOptions compile_options_;
 
   ir::Module::Builder m_builder_;
 
