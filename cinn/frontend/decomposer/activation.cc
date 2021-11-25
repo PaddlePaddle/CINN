@@ -19,7 +19,8 @@ namespace cinn {
 namespace frontend {
 namespace decomposer {
 
-void relu_train(const Instruction& instr, const DecomposerContext& context) {
+template <bool ComputeMask = false>
+void relu(const Instruction& instr, const DecomposerContext& context) {
   CHECK_EQ(instr->inputs.size(), 1UL) << "1 input tensor for " << instr->op_type;
   CHECK_EQ(instr->outputs.size(), 2UL) << "2 output tensor for " << instr->op_type;
 
@@ -29,24 +30,28 @@ void relu_train(const Instruction& instr, const DecomposerContext& context) {
   auto zero_var   = builder->ConstScalar<float>(0.f, common::UniqName("zero"));
   auto bcast_zero = builder->BroadcastTo(zero_var, x->shape, {0});
   auto out        = builder->Max(x, bcast_zero);
-  auto mask       = builder->Compare(out, bcast_zero, ComparisonKind::kGt);
-
-  // map the the output of decomposed operator to the original.
   context.MapOutToOrigin(out, instr->outputs[0]);
-  context.MapOutToOrigin(mask, instr->outputs[1]);
+
+  if (ComputeMask) {
+    auto mask = builder->Compare(out, bcast_zero, ComparisonKind::kGt);
+    context.MapOutToOrigin(mask, instr->outputs[1]);
+  }
 }
 
 void relu_grad(const Instruction& instr, const DecomposerContext& context) {
   CHECK_EQ(instr->inputs.size(), 2UL) << " 2 input tensors for " << instr->op_type;
   CHECK_EQ(instr->outputs.size(), 1UL) << "1 output tensor for " << instr->op_type;
 
-  auto dout     = instr->inputs[0];
-  auto mask     = instr->inputs[1];
-  auto* builder = context.builder();
+  auto dout        = instr->inputs[0];
+  auto out_or_mask = instr->inputs[1];
+  auto* builder    = context.builder();
 
   auto zero_var   = builder->ConstScalar<float>(0.f, common::UniqName("zero"));
-  auto bcast_zero = builder->BroadcastTo(zero_var, mask->shape, {0});
-  auto res        = builder->Select(mask, dout, bcast_zero);
+  auto bcast_zero = builder->BroadcastTo(zero_var, out_or_mask->shape, {0});
+
+  Variable condition = out_or_mask;
+  LOG(INFO) << out_or_mask->type;
+  auto res = builder->Select(condition, dout, bcast_zero);
 
   // map the the output of decomposed operator to the original.
   context.MapOutToOrigin(res, instr->outputs[0]);
@@ -57,7 +62,13 @@ void relu_grad(const Instruction& instr, const DecomposerContext& context) {
 }  // namespace cinn
 
 CINN_REGISTER_HELPER(activation_decomposers) {
-  CINN_DECOMPOSER_REGISTER(relu_train, cinn::frontend::decomposer::relu_train);
+  CINN_DECOMPOSER_REGISTER(relu, cinn::frontend::decomposer::relu<false>);
+
+  return true;
+}
+
+CINN_REGISTER_HELPER(activation_mask_decomposers) {
+  CINN_DECOMPOSER_REGISTER(relu_with_mask, cinn::frontend::decomposer::relu<true>);
 
   return true;
 }

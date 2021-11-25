@@ -28,10 +28,18 @@ void ReluOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
   auto x_name = op_desc.Input("X").front();
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
-  auto x    = ctx.GetVar(x_name);
-  auto outs = ctx.Builder()->relu(x, false);
 
-  std::vector<std::string> output_names = {"Out", "Mask"};
+  bool compute_mask = utils::GetAttrOrDefault<float>(op_desc, "compute_mask", false);
+  auto x            = ctx.GetVar(x_name);
+  auto outs         = ctx.Builder()->relu(x, compute_mask);
+
+  std::vector<std::string> output_names;
+  if (compute_mask) {
+    output_names = {"Out", "Mask"};
+  } else {
+    output_names = {"Out"};
+  }
+
   for (int i = 0; i < outs.size(); i++) {
     auto out_name = get_output_name(output_names[i]);
     ctx.AddVar(out_name, outs[i]);

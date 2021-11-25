@@ -77,7 +77,7 @@ class NetBuilder : public BaseBuilder {
    * Apply Rectified Linear Unit on input Variable.
    * Actually apply: outupt = max(input,0)
    */
-  const std::vector<Variable>& relu(const Variable& a, bool is_test = true);
+  const std::vector<Variable>& relu(const Variable& a, bool compute_mask = false);
 
   /**
    * The gradient of Rectified Linear Unit.

@@ -100,12 +100,12 @@ Variable NetBuilder::elementwise_mul(const Variable& a, const Variable& b, int a
   return instr.GetOutput(0);
 }
 
-const std::vector<Variable>& NetBuilder::relu(const Variable& a, bool is_test) {
+const std::vector<Variable>& NetBuilder::relu(const Variable& a, bool compute_mask) {
   std::unique_ptr<Instruction> instr;
-  if (is_test) {
+  if (!compute_mask) {
     instr = std::make_unique<Instruction>("relu");
   } else {
-    instr = std::make_unique<Instruction>("relu_train");
+    instr = std::make_unique<Instruction>("relu_with_mask");
   }
   instr->SetInputs({a});
   InferShape(*instr);

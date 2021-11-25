@@ -244,4 +244,54 @@ void RunAndCheck(NetBuilder& builder,
   }
 }
 
+class DecomposerTest {
+ public:
+  DecomposerTest() { target_ = GetTarget(); }
+
+  void Execute(NetBuilder& builder,
+               const std::vector<std::string>& input_names,
+               const std::vector<std::string>& output_names) {
+    auto prog = builder.Build();
+    RunDecomposer(&prog, target_);
+    auto graph = std::make_shared<hlir::framework::Graph>(prog, target_);
+    hlir::framework::ApplyPass(graph.get(), "OpFusion");
+
+    scope_ = BuildScope(target_, graph);
+    hlir::framework::GraphCompiler gc(target_, scope_, graph);
+
+    hlir::framework::GraphCompiler::CompileOptions options;
+    options.attached_code              = "";
+    options.with_instantiate_variables = true;
+    std::unordered_set<std::string> fetch_var_ids(output_names.begin(), output_names.end());
+    auto result          = gc.Build(options, std::move(fetch_var_ids));
+    auto runtime_program = std::move(result.runtime_program);
+
+    SetInputs(input_names);
+    runtime_program->Execute();
+    CheckOutputs(output_names);
+  }
+
+  void SetInputs(const std::vector<std::string>& input_names) { LOG(FATAL) << "Need to override!"; }
+
+  void CheckOutputs(const std::vector<std::string>& output_names) { LOG(FATAL) << "Need to override!"; }
+
+  template <typename T>
+  void SetInputTensor(const std::string& name, std::vector<T>* vec, T low = 0, T high = 1) {
+    scope_->Var<hlir::framework::Tensor>(name);
+    auto tensor = scope_->GetTensor(name);
+    InitRandomVector<T>(vec, tensor->shape().numel(), low, high);
+    CopyFromVector<T>(*vec, tensor, target_);
+  }
+
+  template <typename T>
+  void GetOutputTensor(const std::string& name, std::vector<T>* vec) {
+    auto tensor = scope_->GetTensor(name);
+    CopyToVector<T>(tensor, vec);
+  }
+
+ protected:
+  Target target_;
+  std::shared_ptr<hlir::framework::Scope> scope_;
+};
+
 }  // namespace cinn::frontend
