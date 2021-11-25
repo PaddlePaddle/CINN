@@ -21,8 +21,9 @@ namespace decomposer {
 
 template <bool ComputeMask = false>
 void relu(const Instruction& instr, const DecomposerContext& context) {
+  size_t num_outputs = ComputeMask ? 2 : 1;
   CHECK_EQ(instr->inputs.size(), 1UL) << "1 input tensor for " << instr->op_type;
-  CHECK_EQ(instr->outputs.size(), 2UL) << "2 output tensor for " << instr->op_type;
+  CHECK_EQ(instr->outputs.size(), num_outputs) << num_outputs << " output tensors for " << instr->op_type;
 
   auto x        = instr->inputs[0];
   auto* builder = context.builder();
@@ -49,8 +50,12 @@ void relu_grad(const Instruction& instr, const DecomposerContext& context) {
   auto zero_var   = builder->ConstScalar<float>(0.f, common::UniqName("zero"));
   auto bcast_zero = builder->BroadcastTo(zero_var, out_or_mask->shape, {0});
 
-  Variable condition = out_or_mask;
-  LOG(INFO) << out_or_mask->type;
+  Variable condition;
+  if (out_or_mask->type.is_bool()) {
+    condition = out_or_mask;
+  } else {
+    condition = builder->Compare(out_or_mask, bcast_zero, ComparisonKind::kGt);
+  }
   auto res = builder->Select(condition, dout, bcast_zero);
 
   // map the the output of decomposed operator to the original.

@@ -58,6 +58,39 @@ Target GetTarget() {
 #endif
 }
 
+#ifdef CINN_WITH_CUDA
+template <typename T>
+void CopyHtoD(T* dst, const std::vector<T>& vec, size_t numel) {
+  cudaMemcpy(dst, vec.data(), numel * sizeof(T), cudaMemcpyHostToDevice);
+}
+
+template <>
+void CopyHtoD<bool>(bool* dst, const std::vector<bool>& vec, size_t numel) {
+  bool* src = new bool[numel];
+  for (size_t i = 0; i < numel; ++i) {
+    src[i] = vec[i];
+  }
+  cudaMemcpy(dst, src, numel * sizeof(bool), cudaMemcpyHostToDevice);
+  delete[] src;
+}
+
+template <typename T>
+void CopyDtoH(std::vector<T>* vec, const T* src, size_t numel) {
+  cudaMemcpy(vec->data(), src, numel * sizeof(T), cudaMemcpyDeviceToHost);
+}
+
+template <>
+void CopyDtoH<bool>(std::vector<bool>* vec, const bool* src, size_t numel) {
+  LOG(INFO) << "sizeof(bool)=" << sizeof(bool);
+  bool* dst = new bool[numel];
+  cudaMemcpy(dst, src, numel * sizeof(bool), cudaMemcpyDeviceToHost);
+  for (size_t i = 0; i < numel; ++i) {
+    vec->at(i) = dst[i];
+  }
+  delete[] dst;
+}
+#endif
+
 template <typename T>
 void InitRandomVector(std::vector<T>* vec, size_t numel, T low = 0, T high = 1, T precision = 1e-5) {
   std::random_device seed;
@@ -74,27 +107,25 @@ void InitRandomVector(std::vector<T>* vec, size_t numel, T low = 0, T high = 1, 
 
 template <typename T>
 void CopyFromVector(const std::vector<T>& vec, hlir::framework::Tensor tensor, Target target) {
-  auto* data = tensor->mutable_data<T>(target);
-
+  T* dst       = tensor->mutable_data<T>(target);
   size_t numel = tensor->shape().numel();
   EXPECT_EQ(vec.size(), numel);
 
 #ifdef CINN_WITH_CUDA
-  cudaMemcpy(data, vec.data(), numel * sizeof(T), cudaMemcpyHostToDevice);
+  CopyHtoD<T>(dst, vec, numel);
 #else
-  std::copy(vec.begin(), vec.end(), data);
+  std::copy(vec.begin(), vec.end(), dst);
 #endif
 }
 
 template <typename T>
 void CopyToVector(const hlir::framework::Tensor tensor, std::vector<T>* vec) {
-  auto* data = tensor->data<T>();
-
+  const T* src = tensor->data<T>();
   size_t numel = tensor->shape().numel();
   vec->resize(numel);
 
 #ifdef CINN_WITH_CUDA
-  cudaMemcpy(vec->data(), data, numel * sizeof(T), cudaMemcpyDeviceToHost);
+  CopyDtoH(vec, src, numel);
 #else
   for (size_t i = 0; i < numel; ++i) {
     vec->at(i) = data[i];
@@ -129,6 +160,29 @@ void CheckOutput(const std::vector<T>& actual, const std::vector<T>& expect, flo
   LOG(INFO) << "- Total " << num_diffs << " different results, offset=" << offset << ", " << actual[offset]
             << " (actual) vs " << expect[offset] << " (expect), maximum_relative_diff=" << max_diff
             << " (absolute_diff=" << abs((actual[offset] - expect[offset])) << ")";
+  ASSERT_EQ(num_diffs, 0);
+}
+
+template <>
+void CheckOutput<bool>(const std::vector<bool>& actual, const std::vector<bool>& expect, float atol, float rtol) {
+  CHECK_EQ(actual.size(), expect.size());
+
+  int offset    = -1;
+  int num_diffs = 0;
+
+  size_t numel = actual.size();
+  LOG(INFO) << "numel=" << numel;
+  for (size_t i = 0; i < numel; ++i) {
+    if (actual[i] != expect[i]) {
+      if (offset == -1) {
+        offset = i;
+      }
+      num_diffs += 1;
+    }
+  }
+  offset = offset == -1 ? 0 : offset;
+  LOG(INFO) << "- Total " << num_diffs << " different results, offset=" << offset << ", " << actual[offset]
+            << " (actual) vs " << expect[offset] << " (expect)";
   ASSERT_EQ(num_diffs, 0);
 }
 
@@ -250,7 +304,8 @@ class DecomposerTest {
 
   void Execute(NetBuilder& builder,
                const std::vector<std::string>& input_names,
-               const std::vector<std::string>& output_names) {
+               const std::vector<std::string>& output_names,
+               const std::vector<std::vector<int>>& output_shapes) {
     auto prog = builder.Build();
     RunDecomposer(&prog, target_);
     auto graph = std::make_shared<hlir::framework::Graph>(prog, target_);
@@ -268,12 +323,13 @@ class DecomposerTest {
 
     SetInputs(input_names);
     runtime_program->Execute();
-    CheckOutputs(output_names);
+    CheckOutputs(output_names, output_shapes);
   }
 
-  void SetInputs(const std::vector<std::string>& input_names) { LOG(FATAL) << "Need to override!"; }
+  virtual void SetInputs(const std::vector<std::string>& input_names) {}
 
-  void CheckOutputs(const std::vector<std::string>& output_names) { LOG(FATAL) << "Need to override!"; }
+  virtual void CheckOutputs(const std::vector<std::string>& output_names,
+                            const std::vector<std::vector<int>>& output_shapes) {}
 
   template <typename T>
   void SetInputTensor(const std::string& name, std::vector<T>* vec, T low = 0, T high = 1) {
@@ -284,8 +340,9 @@ class DecomposerTest {
   }
 
   template <typename T>
-  void GetOutputTensor(const std::string& name, std::vector<T>* vec) {
+  void GetOutputTensor(const std::string& name, const std::vector<int>& shape, std::vector<T>* vec) {
     auto tensor = scope_->GetTensor(name);
+    CHECK_EQ(tensor->shape().data() == shape, true) << "Output(" << name << ")'s shape is expected to be " << shape;
     CopyToVector<T>(tensor, vec);
   }
 
