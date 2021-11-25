@@ -573,6 +573,7 @@ void GraphCompiler::ProcessFunction(const std::vector<ir::LoweredFunc>& lowered_
             shape.push_back(static_cast<int>(shape_dim.get_constant()));
           }
           tensor->Resize(Shape{shape});
+          tensor->set_type(j.type());
         }
       }
       function2input_args_[i->name]  = input_args;
