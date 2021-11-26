@@ -57,11 +57,13 @@ std::vector<float> test_mul(const std::vector<float>& A, const std::vector<float
   for (int i = 0; i < M; i++) {
     for (int j = 0; j < N; j++) {
       for (int k = 0; k < K; k++) {
-#ifdef CINN_WITH_CUDNN
+        // Todo: @Haoze Temporarily run the mul, pool2d and softmax operators using cudnn
+        /* #ifdef CINN_WITH_CUDNN
+                C_target[i * N + j] += A[i * K + k] * B[k * N + j];
+        #else
+                C_target[i * N + j] += A[i * K + k] * B[j * N + k];
+        #endif */
         C_target[i * N + j] += A[i * K + k] * B[k * N + j];
-#else
-        C_target[i * N + j] += A[i * K + k] * B[j * N + k];
-#endif
       }
     }
   }

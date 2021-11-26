@@ -632,7 +632,8 @@ void PaddleModelToProgram::TransposeVar(const std::string& name) {
 #ifdef CINN_WITH_CUDA
       // To use cublas mul api, there is no need to transpose data.
 #ifndef CINN_WITH_CUDNN
-      std::vector<float> data(tensor->shape().numel());
+// Todo: @Haoze Temporarily run the mul, pool2d and softmax operators using cudnn
+/*       std::vector<float> data(tensor->shape().numel());
       CUDA_CALL(cudaMemcpy(data.data(),
                            reinterpret_cast<void*>(tensor->mutable_data<float>(target_)),
                            tensor->shape().numel() * sizeof(float),
@@ -642,7 +643,7 @@ void PaddleModelToProgram::TransposeVar(const std::string& name) {
       CUDA_CALL(cudaMemcpy(reinterpret_cast<void*>(tensor->mutable_data<float>(target_)),
                            data.data(),
                            tensor->shape().numel() * sizeof(float),
-                           cudaMemcpyHostToDevice));
+                           cudaMemcpyHostToDevice)); */
 #endif
 #else
       LOG(FATAL) << "To use CUDA backends, you need to set WITH_CUDA ON!";

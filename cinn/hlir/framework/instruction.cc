@@ -124,6 +124,28 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
       i++;
     }
   }
+#elif defined(CINN_WITH_CUDA)
+  // Todo: @Haoze Temporarily run the mul, pool2d and softmax operators using cudnn
+  auto& pod_args = PreparePodArgs(0, name2podargs);
+  if (function_name_ == "pool2d" && target_.arch == Target::Arch::NVGPU) {
+    runtime::cuda::cinn_gpu_cudnn_pool2d(attrs, str_attrs, pod_args[0], pod_args[1]);
+  } else if (function_name_ == "softmax" && target_.arch == Target::Arch::NVGPU) {
+    CHECK_EQ(pod_args.size(), 3);
+    runtime::cuda::cinn_gpu_cudnn_softmax(attrs, pod_args[0], pod_args[1]);
+  } else if (function_name_ == "mul" && target_.arch == Target::Arch::NVGPU) {
+    CHECK_EQ(pod_args.size(), 4);
+    runtime::cuda::cinn_gpu_cublas_mul(attrs, pod_args[0], pod_args[1], pod_args[2]);
+  } else {
+    int i = 0;
+    for (auto& it_fn : fn_) {
+      auto& pod_args = PreparePodArgs(i, name2podargs);
+      CHECK(it_fn) << "The LoweredFunc address should be set first by calling SetLoweredFunc method";
+      if (!dryrun) {
+        it_fn(pod_args.data(), pod_args.size());
+      }
+      i++;
+    }
+  }
 #else
   int i = 0;
   CHECK_EQ(fn_names_.size(), fn_.size());

@@ -21,7 +21,7 @@
 
 #include "cinn/backends/cuda_util.h"
 #include "cinn/hlir/framework/scope.h"
-#ifdef CINN_WITH_CUDNN
+#ifdef CINN_WITH_CUDA
 #include "cinn/runtime/cuda/cuda_util.h"
 #endif
 #include "cinn/utils/string.h"

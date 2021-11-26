@@ -50,10 +50,14 @@ class TestMulOp(OpTest):
 
         x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
 
+        # Todo: @Haoze Temporarily run the mul, pool2d and softmax operators using cudnn
+        '''
         if enable_cudnn == "ON":
             tran_y = self.inputs["y"].reshape(-1)
         else:
             tran_y = self.inputs["y"].transpose().reshape(-1)
+        '''
+        tran_y = self.inputs["y"].reshape(-1)
 
         y = builder.create_input(
             Float(32), [self.inputs["y"].shape[1], self.inputs["y"].shape[0]],
