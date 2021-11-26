@@ -204,13 +204,15 @@ typedef struct cinn_buffer_t {
         dimensions(0),
         lazy(true),
         memory_size(0),
-        align(0) {}
+        align(0),
+        external_malloc(NULL),
+        external_free(NULL) {}
 
   static struct cinn_buffer_t* new_(cinn_device_kind_t device,
                                     cinn_type_t type,
                                     const std::vector<int>& shape,
                                     int align = 0);
-  static void delete_(struct cinn_buffer_t* x) { delete x; }
+  static void delete_(struct cinn_buffer_t* x) { free(x); }
 
   ~cinn_buffer_t() {}
 
@@ -256,11 +258,11 @@ typedef struct cinn_buffer_t {
 
   // The callback to control memory alloc. It is useful in Paddle-CINN
   // where the memory is managed out of CINN.
-  std::function<int(void*, struct cinn_buffer_t*)> external_malloc;
+  std::function<int(void*, struct cinn_buffer_t*)>* external_malloc;
 
   // The callback to control memory free. It is useful in Paddle-CINN
   // where the memory is managed out of CINN.
-  std::function<int(void*, struct cinn_buffer_t*)> external_free;
+  std::function<int(void*, struct cinn_buffer_t*)>* external_free;
 
 #endif  // __cplusplus
 } cinn_buffer_t;
