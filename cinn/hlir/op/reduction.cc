@@ -45,6 +45,25 @@ std::shared_ptr<OpStrategy> StrategyForBNReduceMerge(const framework::NodeAttr &
                                                      const std::vector<Type> &out_type,
                                                      const std::vector<std::vector<int>> &output_shapes,
                                                      const Target &target) {
+  CHECK_EQ(inputs.size(), 1) << "bn reduce merge should has 1 input!";
+  auto input = inputs[0];
+  CHECK_EQ(input->shape.size(), 4) << "bn reduce merge input shape should be 4 dimension!";
+  // compute the succesive dimension size
+  auto last_reduce_dim = input->shape[2].as_int32() * input->shape[2].as_int32();
+  // split into last_reduce_dim into {n,k}
+  std::vector<int> new_shape = {input->shape[0].as_int32(), input->shape[1].as_int32()};
+  if (last_reduce_dim <= 128) {
+    new_shape.push_back(last_reduce_dim);
+  } else {
+    for (int idx = 256; idx > 128; --idx) {
+      if (last_reduce_dim % idx == 0) {
+        new_shape.push_back(last_reduce_dim / idx);
+        new_shape.push_back(idx);
+        break;
+      }
+    }
+  }
+
   framework::CINNCompute bn_reduce_merge_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of bn_reduce_merge compute is empty! Please check.\n";
     CINNValuePack a = args[0];
@@ -52,21 +71,6 @@ std::shared_ptr<OpStrategy> StrategyForBNReduceMerge(const framework::NodeAttr &
     Expr A = a[0];
     CHECK(A.as_tensor());
     auto x = A.as_tensor_ref();
-    // compute the succesive dimension size
-    auto last_reduce_dim = x->shape[2].as_int32() * x->shape[2].as_int32();
-    // split into last_reduce_dim into {n,k}
-    std::vector<int> new_shape = {x->shape[0].as_int32(), x->shape[1].as_int32()};
-    if (last_reduce_dim <= 128) {
-      new_shape.push_back(last_reduce_dim);
-    } else {
-      for (int idx = 256; idx > 128; --idx) {
-        if (last_reduce_dim % idx == 0) {
-          new_shape.push_back(last_reduce_dim / idx);
-          new_shape.push_back(idx);
-          break;
-        }
-      }
-    }
 
     auto stages    = CreateStages({x});
     auto x_reshape = pe::Reshape(x, new_shape, stages, UniqName("bn_reduce_merge_x_reshape_out"));
@@ -99,7 +103,11 @@ std::shared_ptr<OpStrategy> StrategyForBNReduceMerge(const framework::NodeAttr &
       CHECK(out1.as_tensor());
       pe::CudaScheduleReduce(stages, out0.as_tensor_ref(), target);
       pe::CudaScheduleReduce(stages, out1.as_tensor_ref(), target);
-      stages[out0.as_tensor_ref()]->SimpleComputeAt(stages[out1.as_tensor_ref()], 3);
+      if (new_shape.size() == 3) {
+        stages[out0.as_tensor_ref()]->SimpleComputeAt(stages[out1.as_tensor_ref()], 2);
+      } else {
+        stages[out0.as_tensor_ref()]->SimpleComputeAt(stages[out1.as_tensor_ref()], 3);
+      }
     } else if (target.arch == Target::Arch::X86) {
       Expr out              = arg_pack[0];
       poly::StageMap stages = arg_pack[1];
@@ -124,6 +132,25 @@ std::shared_ptr<OpStrategy> StrategyForBNGradReduceMerge(const framework::NodeAt
                                                          const std::vector<Type> &out_type,
                                                          const std::vector<std::vector<int>> &output_shapes,
                                                          const Target &target) {
+  CHECK_EQ(inputs.size(), 3) << "bn grad reduce merge should has 3 input!";
+  auto input = inputs[0];
+  CHECK_EQ(input->shape.size(), 4) << "bn grad reduce merge input shape should be 4 dimension!";
+  // compute the succesive dimension size
+  auto last_reduce_dim = input->shape[2].as_int32() * input->shape[2].as_int32();
+  // split into last_reduce_dim into {n,k}
+  std::vector<int> new_shape = {input->shape[0].as_int32(), input->shape[1].as_int32()};
+  if (last_reduce_dim <= 128) {
+    new_shape.push_back(last_reduce_dim);
+  } else {
+    for (int idx = 256; idx > 128; --idx) {
+      if (last_reduce_dim % idx == 0) {
+        new_shape.push_back(last_reduce_dim / idx);
+        new_shape.push_back(idx);
+        break;
+      }
+    }
+  }
+
   framework::CINNCompute bn_grad_reduce_merge_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of bn_grad_reduce_merge compute is empty! Please check.\n";
     CINNValuePack a = args[0];
@@ -139,23 +166,7 @@ std::shared_ptr<OpStrategy> StrategyForBNGradReduceMerge(const framework::NodeAt
     auto x_mean = Mean.as_tensor_ref();
     auto y_grad = Grad.as_tensor_ref();
 
-    // compute the succesive dimension size
-    auto last_reduce_dim = x->shape[2].as_int32() * x->shape[2].as_int32();
-    // split into last_reduce_dim into {n,k}
-    std::vector<int> new_shape = {x->shape[0].as_int32(), x->shape[1].as_int32()};
-    if (last_reduce_dim <= 128) {
-      new_shape.push_back(last_reduce_dim);
-    } else {
-      for (int idx = 256; idx > 128; --idx) {
-        if (last_reduce_dim % idx == 0) {
-          new_shape.push_back(last_reduce_dim / idx);
-          new_shape.push_back(idx);
-          break;
-        }
-      }
-    }
-
-    auto stages         = CreateStages({x, y_grad});
+    auto stages         = CreateStages({x, x_mean, y_grad});
     auto x_reshape      = pe::Reshape(x, new_shape, stages, UniqName("bn_grad_reduce_merge_x_reshape_out"));
     auto y_grad_reshape = pe::Reshape(y_grad, new_shape, stages, UniqName("bn_grad_reduce_merge_grad_reshape_out"));
 
@@ -163,6 +174,7 @@ std::shared_ptr<OpStrategy> StrategyForBNGradReduceMerge(const framework::NodeAt
     auto grad_x_mean_diff = pe::Multiply(y_grad_reshape, x_mean_diff, UniqName("bn_grad_reduce_merge_grad_mean_diff"));
 
     auto reduce_dim = new_shape.size() == 3 ? std::vector<int>{0} : std::vector<int>{0, 2};
+
     auto out0 = pe::ReduceSum(y_grad_reshape, reduce_dim, false, Expr(0.0f), UniqName("bn_grad_reduce_merge_out0"));
     auto out1 = pe::ReduceSum(grad_x_mean_diff, reduce_dim, false, Expr(0.0f), UniqName("bn_grad_reduce_merge_out1"));
 
@@ -192,7 +204,11 @@ std::shared_ptr<OpStrategy> StrategyForBNGradReduceMerge(const framework::NodeAt
       CHECK(out1.as_tensor());
       pe::CudaScheduleReduce(stages, out0.as_tensor_ref(), target);
       pe::CudaScheduleReduce(stages, out1.as_tensor_ref(), target);
-      stages[out0.as_tensor_ref()]->SimpleComputeAt(stages[out1.as_tensor_ref()], 3);
+      if (new_shape.size() == 3) {
+        stages[out0.as_tensor_ref()]->SimpleComputeAt(stages[out1.as_tensor_ref()], 2);
+      } else {
+        stages[out0.as_tensor_ref()]->SimpleComputeAt(stages[out1.as_tensor_ref()], 3);
+      }
     } else if (target.arch == Target::Arch::X86) {
       Expr out              = arg_pack[0];
       poly::StageMap stages = arg_pack[1];
@@ -215,7 +231,7 @@ std::shared_ptr<OpStrategy> StrategyForBNGradReduceMerge(const framework::NodeAt
 std::vector<shape_t> InferShapeForBNReduce(const std::vector<shape_t> &inputs_shape,
                                            const framework::AttrMapType &attrs) {
   CHECK(inputs_shape.size() == 3UL || inputs_shape.size() == 1UL);
-  std::vector<int> out_shapes{inputs_shape[0][1], inputs_shape[0][3]};
+  CHECK_EQ(inputs_shape[0].size(), 4UL);
   // compute the succesive dimension size
   auto last_reduce_dim = inputs_shape[0][2] * inputs_shape[0][3];
   // split into last_reduce_dim into {n,k}
@@ -265,7 +281,6 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
     Expr A_expr = a[0];
     CHECK(A_expr.as_tensor());
     ir::Tensor A = A_expr.as_tensor_ref();
-
     // if do reduce on last axis and reduce axis size > 1.
     // two step to do reduce: 1.[n,c,h,w] -> [c,w]; 2.[c,w] -> [c]
     if (dim.back() == inputs[0]->shape.size() - 1 && dim.size() > 1 && target == common::DefaultNVGPUTarget()) {
@@ -277,7 +292,12 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
       auto out1   = pe_func(out0, dims_last, keep_dim, Expr(), UniqName(op_name + "_out1"));
       auto stages = CreateStages({A, out0, out1});
       *ret        = CINNValuePack{{CINNValue(out1), CINNValue(out0), CINNValue(stages)}};
-    } else if (dim.back() == inputs[0]->shape.size() - 1) {
+    } else if (dim.back() == inputs[0]->shape.size() - 1 && target == common::DefaultNVGPUTarget()) {
+      auto res    = pe::WarpReduceSum(A, dim.size());
+      auto stages = CreateStages(res);
+      pe::CudaScheduleWarpReduce(stages, res[1], res[0], target);
+      *ret = CINNValuePack{{CINNValue(res[0]), CINNValue(stages)}};
+    } else {
       // do reduce on last dimension
       auto out    = pe_func(A, dim, keep_dim, Expr(), UniqName(op_name + "_out"));
       auto stages = CreateStages({A, out});
@@ -289,14 +309,18 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
     CHECK(!args.empty()) << "The input argument of " << op_name << " schedule is empty! Please check.";
     CINNValuePack arg_pack = args[0];
     CHECK(arg_pack.size() == 2UL || arg_pack.size() == 3UL);
-    if (target.arch == Target::Arch::NVGPU) {
-      poly::StageMap stages = arg_pack.back();
-      Expr out0             = arg_pack.size() == 2 ? arg_pack[0] : arg_pack[1];
-      pe::CudaScheduleReduce(stages, out0.as_tensor_ref(), target);
 
-      if (arg_pack.size() == 3) {
-        Expr out1 = arg_pack[0];
-        pe::CudaScheduleReduce(stages, out1.as_tensor_ref(), target);
+    if (target.arch == Target::Arch::NVGPU) {
+      if (dim.size() == 1 && dim.back() == inputs[0]->shape.size() - 1) {
+        LOG(INFO) << "Call Warp Reduce Schedule!";
+      } else {
+        poly::StageMap stages = arg_pack.back();
+        Expr out0             = arg_pack.size() == 2 ? arg_pack[0] : arg_pack[1];
+        pe::CudaScheduleReduce(stages, out0.as_tensor_ref(), target);
+        if (arg_pack.size() == 3) {
+          Expr out1 = arg_pack[0];
+          pe::CudaScheduleReduce(stages, out1.as_tensor_ref(), target);
+        }
       }
     }
     *ret = arg_pack;

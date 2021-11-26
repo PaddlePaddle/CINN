@@ -106,7 +106,11 @@ void elementwise_add_grad(const Instruction& instr, const DecomposerContext& con
 
   Variable dy_t;
   if (dy->shape == dout->shape) {
-    dy_t = builder->Identity(dout);
+    if (dx->shape == dout->shape) {
+      dy_t = dx_t;
+    } else {
+      dy_t = builder->Identity(dout);
+    }
   } else {
     std::vector<int> y_reduce_dims;
     GetReduceDimsForY(dy->shape, dout->shape, axis, &y_reduce_dims);
