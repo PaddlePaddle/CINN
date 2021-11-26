@@ -99,29 +99,37 @@ void cinn_call_cuda_kernel(void* kernel_fn,
 void cinn_gpu_cudnn_conv2d(const absl::flat_hash_map<std::string, int>& attr,
                            cinn_buffer_t* x,
                            cinn_buffer_t* w,
-                           cinn_buffer_t* y);
+                           cinn_buffer_t* y,
+                           const cudaStream_t& stream = nullptr);
 
 void cinn_gpu_cudnn_conv2d_backward_data(const absl::flat_hash_map<std::string, int>& attr,
                                          cinn_buffer_t* w,
                                          cinn_buffer_t* dy,
-                                         cinn_buffer_t* dx);
+                                         cinn_buffer_t* dx,
+                                         const cudaStream_t& stream = nullptr);
 
 void cinn_gpu_cudnn_conv2d_backward_filter(const absl::flat_hash_map<std::string, int>& attr,
                                            cinn_buffer_t* x,
                                            cinn_buffer_t* dy,
-                                           cinn_buffer_t* dw);
+                                           cinn_buffer_t* dw,
+                                           const cudaStream_t& stream = nullptr);
 
 void cinn_gpu_cudnn_pool2d(const std::vector<int>& attrs,
                            const std::vector<std::string>& str_attrs,
                            cinn_buffer_t* input,
-                           cinn_buffer_t* output);
+                           cinn_buffer_t* output,
+                           const cudaStream_t& stream = nullptr);
 
-void cinn_gpu_cudnn_softmax(const std::vector<int>& attrs, cinn_buffer_t* input, cinn_buffer_t* output);
+void cinn_gpu_cudnn_softmax(const std::vector<int>& attrs,
+                            cinn_buffer_t* input,
+                            cinn_buffer_t* output,
+                            const cudaStream_t& stream = nullptr);
 
 void cinn_gpu_cublas_mul(const std::vector<int>& attrs,
                          cinn_buffer_t* input1,
                          cinn_buffer_t* input2,
-                         cinn_buffer_t* output);
+                         cinn_buffer_t* output,
+                         const cudaStream_t& stream = nullptr);
 }  // namespace cuda
 }  // namespace runtime
 }  // namespace cinn

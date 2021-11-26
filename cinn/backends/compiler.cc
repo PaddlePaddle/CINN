@@ -28,9 +28,9 @@ namespace cinn {
 namespace backends {
 using ir::Module;
 
-void Compiler::Build(const Module& module, const std::string& code) {
+void Compiler::Build(const Module& module, const std::string& code, void* stream) {
   if (target_.arch == Target::Arch::NVGPU) {
-    CompileCudaModule(module, code);
+    CompileCudaModule(module, code, stream);
   } else if (target_.arch == Target::Arch::X86) {
     CompileX86Module(module);
   } else {
@@ -65,7 +65,7 @@ void Compiler::BuildDefault(const Module& module) {
   }
 }
 
-void Compiler::CompileCudaModule(const Module& module, const std::string& code) {
+void Compiler::CompileCudaModule(const Module& module, const std::string& code, void* stream) {
 #ifdef CINN_WITH_CUDA
   auto _host_module_device_module_ = SplitCudaAndHostModule(module);  // NOLINT
   auto& host_module                = std::get<0>(_host_module_device_module_);
@@ -95,8 +95,8 @@ void Compiler::CompileCudaModule(const Module& module, const std::string& code) 
 
       backends::RuntimeSymbolRegistry::Global().RegisterVar(kernel_fn_name + "_ptr_",
                                                             reinterpret_cast<void*>(fn_kernel));
-      cudaStream_t stream = nullptr;
-      backends::RuntimeSymbolRegistry::Global().RegisterVar(kernel_fn_name + "_stream_ptr_", stream);
+      backends::RuntimeSymbolRegistry::Global().RegisterVar(kernel_fn_name + "_stream_ptr_",
+                                                            static_cast<cudaStream_t>(stream));
     }
   }
 

@@ -185,7 +185,7 @@ TEST(Decomposer, elementwise_add_grad_same_dims) {
     }
   };
 
-  std::vector<std::string> input_names        = {dout.id().data()};
+  std::vector<std::string> input_names = {dout.id().data()};
   // TODO(Avin0323): `dx` doesn't exist in scope when `dx` and `dy` have same
   // shape with `dout`. We will revert it after using pass in future.
   std::vector<std::string> output_names       = {out_grads[1]->id, out_grads[1]->id};
