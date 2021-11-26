@@ -40,18 +40,10 @@ using pe::ReduceProd;
 using pe::ReduceSum;
 using PeFunc = std::function<ir::Tensor(const ir::Tensor &, const std::vector<int> &, bool, Expr, const std::string &)>;
 
-std::shared_ptr<OpStrategy> StrategyForBNReduceMerge(const framework::NodeAttr &attrs,
-                                                     const std::vector<ir::Tensor> &inputs,
-                                                     const std::vector<Type> &out_type,
-                                                     const std::vector<std::vector<int>> &output_shapes,
-                                                     const Target &target) {
-  CHECK_EQ(inputs.size(), 1) << "bn reduce merge should has 1 input!";
-  auto input = inputs[0];
-  CHECK_EQ(input->shape.size(), 4) << "bn reduce merge input shape should be 4 dimension!";
-  // compute the succesive dimension size
-  auto last_reduce_dim = input->shape[2].as_int32() * input->shape[2].as_int32();
+std::vector<int> GetNewShape(const ir::Tensor &x) {
+  auto last_reduce_dim = x->shape[2].as_int32() * x->shape[2].as_int32();
   // split into last_reduce_dim into {n,k}
-  std::vector<int> new_shape = {input->shape[0].as_int32(), input->shape[1].as_int32()};
+  std::vector<int> new_shape = {x->shape[0].as_int32(), x->shape[1].as_int32()};
   if (last_reduce_dim <= 128) {
     new_shape.push_back(last_reduce_dim);
   } else {
@@ -63,6 +55,20 @@ std::shared_ptr<OpStrategy> StrategyForBNReduceMerge(const framework::NodeAttr &
       }
     }
   }
+
+  return new_shape;
+}
+
+std::shared_ptr<OpStrategy> StrategyForBNReduceMerge(const framework::NodeAttr &attrs,
+                                                     const std::vector<ir::Tensor> &inputs,
+                                                     const std::vector<Type> &out_type,
+                                                     const std::vector<std::vector<int>> &output_shapes,
+                                                     const Target &target) {
+  CHECK_EQ(inputs.size(), 1) << "bn reduce merge should has 1 input!";
+  auto input = inputs[0];
+  CHECK_EQ(input->shape.size(), 4) << "bn reduce merge input shape should be 4 dimension!";
+  // compute the new shape for reduce.
+  auto new_shape = GetNewShape(input);
 
   framework::CINNCompute bn_reduce_merge_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of bn_reduce_merge compute is empty! Please check.\n";
@@ -135,21 +141,8 @@ std::shared_ptr<OpStrategy> StrategyForBNGradReduceMerge(const framework::NodeAt
   CHECK_EQ(inputs.size(), 3) << "bn grad reduce merge should has 3 input!";
   auto input = inputs[0];
   CHECK_EQ(input->shape.size(), 4) << "bn grad reduce merge input shape should be 4 dimension!";
-  // compute the succesive dimension size
-  auto last_reduce_dim = input->shape[2].as_int32() * input->shape[2].as_int32();
-  // split into last_reduce_dim into {n,k}
-  std::vector<int> new_shape = {input->shape[0].as_int32(), input->shape[1].as_int32()};
-  if (last_reduce_dim <= 128) {
-    new_shape.push_back(last_reduce_dim);
-  } else {
-    for (int idx = 256; idx > 128; --idx) {
-      if (last_reduce_dim % idx == 0) {
-        new_shape.push_back(last_reduce_dim / idx);
-        new_shape.push_back(idx);
-        break;
-      }
-    }
-  }
+  // compute the new shape for reduce.
+  auto new_shape = GetNewShape(input);
 
   framework::CINNCompute bn_grad_reduce_merge_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of bn_grad_reduce_merge compute is empty! Please check.\n";
@@ -312,7 +305,7 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
 
     if (target.arch == Target::Arch::NVGPU) {
       if (dim.size() == 1 && dim.back() == inputs[0]->shape.size() - 1) {
-        LOG(INFO) << "Call Warp Reduce Schedule!";
+        VLOG(3) << "Call Warp Reduce Schedule!";
       } else {
         poly::StageMap stages = arg_pack.back();
         Expr out0             = arg_pack.size() == 2 ? arg_pack[0] : arg_pack[1];
