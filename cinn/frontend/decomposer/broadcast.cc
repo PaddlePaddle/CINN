@@ -97,7 +97,6 @@ void elementwise_add_grad(const Instruction& instr, const DecomposerContext& con
   Variable dx_t;
   if (dx->shape == dout->shape) {
     dx_t = builder->Identity(dout);
-    context.MapOutToOrigin(dx, dout);
   } else {
     std::vector<int> x_reduce_dims;
     GetReduceDimsForX(dx->shape, dout->shape, &x_reduce_dims);
@@ -107,8 +106,11 @@ void elementwise_add_grad(const Instruction& instr, const DecomposerContext& con
 
   Variable dy_t;
   if (dy->shape == dout->shape) {
-    dy_t = builder->Identity(dout);
-    context.MapOutToOrigin(dy, dout);
+    if (dx->shape == dout->shape) {
+      dy_t = dx_t;
+    } else {
+      dy_t = builder->Identity(dout);
+    }
   } else {
     std::vector<int> y_reduce_dims;
     GetReduceDimsForY(dy->shape, dout->shape, axis, &y_reduce_dims);
