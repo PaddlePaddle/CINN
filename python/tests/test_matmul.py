@@ -39,21 +39,17 @@ class TestMamul(unittest.TestCase):
         self.engine = cinn.ExecutionEngine()
 
     def test_matmul_basic(self):
-        print("Begin test_matmul_basic")
         a, b, c, c_target, *args = create_data(self.m, self.n, self.k, self.bn)
-        print("Got returned data")
         module = create_matmul_basic(self.target, self.m, self.n, self.k)
 
         self.engine.link(module)
         matmul = self.engine.lookup("matmul")
         matmul(args)
-        print("Before getting numpy")
         cd = c.numpy()
         cd_target = c_target.numpy()
         self.assertTrue(np.allclose(cd, cd_target, atol=1e-4))
-        print("After assert")
 
-    def _test_matmul_tile(self):
+    def test_matmul_tile(self):
         a, b, c, c_target, *args = create_data(self.m, self.n, self.k, self.bn)
         module = create_matmul_tile(self.target, self.m, self.n, self.k)
         print('module:\n', module.get_c_code())
@@ -113,7 +109,6 @@ def create_data(m, n, k, bn):
     # call around to lower the numpy's float precision so that it will not vary too much from C's float precision.
     a_init = np.around(np.random.randn(m, k).astype("float32"), 2)
     b_init = np.around(np.random.randn(k, n).astype("float32"), 2)
-    print("In create_data")
     a = runtime.cinn_buffer_t(a_init, runtime.cinn_x86_device)
     b = runtime.cinn_buffer_t(b_init, runtime.cinn_x86_device)
     c = runtime.cinn_buffer_t(
@@ -122,13 +117,11 @@ def create_data(m, n, k, bn):
                                      runtime.cinn_x86_device)
     packed_b = runtime.cinn_buffer_t(
         np.zeros([n // bn, k, bn]).astype("float32"), runtime.cinn_x86_device)
-    print("construct")
+
     a_arg = runtime.cinn_pod_value_t(a)
-    print("cinn_pod_value_t")
     b_arg = runtime.cinn_pod_value_t(b)
     c_arg = runtime.cinn_pod_value_t(c)
     packed_b_arg = runtime.cinn_pod_value_t(packed_b)
-    print("before return")
     return [a, b, c, c_target, a_arg, b_arg, c_arg]
 
 
