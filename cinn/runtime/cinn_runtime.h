@@ -212,9 +212,16 @@ typedef struct cinn_buffer_t {
                                     cinn_type_t type,
                                     const std::vector<int>& shape,
                                     int align = 0);
-  static void delete_(struct cinn_buffer_t* x) { free(x); }
+  static void delete_(struct cinn_buffer_t* x) { delete x; }
 
-  ~cinn_buffer_t() {}
+  ~cinn_buffer_t() {
+    if (external_malloc != NULL) {
+      delete external_malloc;
+    }
+    if (external_free != NULL) {
+      delete external_free;
+    }
+  }
 
   // NOTE the buffer should be resized first.
   static void alloc(struct cinn_buffer_t*);
