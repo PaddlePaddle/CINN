@@ -78,13 +78,8 @@ void ElementwiseAddGradOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapp
   ctx.AddVar(dx_name, dx);
   ctx.AddVarModelToProgram(dx_name, dx->id);
   auto dy = outs.back();
-  if (dy->shape == dout->shape && dx->shape == dout->shape) {
-    ctx.AddVar(dy_name, dx);
-    ctx.AddVarModelToProgram(dy_name, dx->id);
-  } else {
-    ctx.AddVar(dy_name, dy);
-    ctx.AddVarModelToProgram(dy_name, dy->id);
-  }
+  ctx.AddVar(dy_name, dy);
+  ctx.AddVarModelToProgram(dy_name, dy->id);
 }
 
 void ElementwiseMulOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
