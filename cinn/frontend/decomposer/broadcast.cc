@@ -81,7 +81,6 @@ void elementwise_add(const Instruction& instr, const DecomposerContext& context)
 
   out = builder->Add(bcast_x, bcast_y);
 
-  // map the the output of decomposed operator to the original.
   context.MapOutToOrigin(out, output);
   context.AddStatis("elementwise_add");
 }
@@ -120,7 +119,6 @@ void elementwise_add_grad(const Instruction& instr, const DecomposerContext& con
     dy_t        = builder->Reshape(dy_res, dy->shape);
   }
 
-  // map the the output of decomposed operator to the original.
   context.MapOutToOrigin(dx_t, dx);
   context.MapOutToOrigin(dy_t, dy);
   context.AddStatis("elementwise_add_grad");

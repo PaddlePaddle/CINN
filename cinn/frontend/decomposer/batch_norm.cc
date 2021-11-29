@@ -23,8 +23,7 @@ struct BatchNormHelper {
   BatchNormHelper(CinnBuilder* cinn_builder,
                   const std::vector<int>& arg_x_shape,
                   const std::vector<int>& arg_param_shape,
-                  std::string data_layout,
-                  std::string bn_op_type) {
+                  std::string data_layout) {
     CHECK_EQ(arg_x_shape.size(), 4UL) << "Only 4-D input tensor is supported, but get " << arg_x_shape.size()
                                       << "-D input tensor.";
 
@@ -43,13 +42,6 @@ struct BatchNormHelper {
     } else {
       LOG(FATAL) << data_layout << " setting is not support!";
     }
-
-    num_instructions = builder->size();
-    op_type          = bn_op_type;
-  }
-
-  ~BatchNormHelper() {
-    VLOG(4) << op_type << " is decomposed to " << builder->size() - num_instructions << " instructions.";
   }
 
   template <typename T>
@@ -113,8 +105,6 @@ struct BatchNormHelper {
   std::vector<int> reduce_dim;
   float element_count{0};
   int channel_dim{0};
-  std::string op_type;
-  int num_instructions{0};
 };
 
 void batch_norm_train(const Instruction& instr, const DecomposerContext& context) {
@@ -134,7 +124,7 @@ void batch_norm_train(const Instruction& instr, const DecomposerContext& context
   std::string layout = instr.GetAttrs<std::string>("data_layout");
 
   CinnBuilder* builder = context.builder();
-  BatchNormHelper helper(builder, x->shape, scale->shape, layout, "batch_norm_train");
+  BatchNormHelper helper(builder, x->shape, scale->shape, layout);
 
   // mean = reduce_sum(x) / nhw, shape = [c]
   auto mean    = helper.Mean(x);
@@ -164,6 +154,7 @@ void batch_norm_train(const Instruction& instr, const DecomposerContext& context
   context.MapOutToOrigin(variance, instr->outputs[2]);
   context.MapOutToOrigin(new_moving_mean, instr->outputs[3]);
   context.MapOutToOrigin(new_moving_variance, instr->outputs[4]);
+  context.AddStatis("batch_norm_train");
 }
 
 void batch_norm_grad(const Instruction& instr, const DecomposerContext& context) {
@@ -182,7 +173,7 @@ void batch_norm_grad(const Instruction& instr, const DecomposerContext& context)
   auto layout  = instr.GetAttrs<std::string>("data_layout");
 
   CinnBuilder* builder = context.builder();
-  BatchNormHelper helper(builder, x->shape, scale->shape, layout, "batch_norm_grad");
+  BatchNormHelper helper(builder, x->shape, scale->shape, layout);
 
   // bias_grad = reduce_sum(y_grad), shape = [c]
   auto bias_grad = helper.Reduce(y_grad);
@@ -219,6 +210,7 @@ void batch_norm_grad(const Instruction& instr, const DecomposerContext& context)
   context.MapOutToOrigin(x_grad, instr->outputs[0]);
   context.MapOutToOrigin(scale_grad, instr->outputs[1]);
   context.MapOutToOrigin(bias_grad, instr->outputs[2]);
+  context.AddStatis("batch_norm_grad");
 }
 
 }  // namespace decomposer
