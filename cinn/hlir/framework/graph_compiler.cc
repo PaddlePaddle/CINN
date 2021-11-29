@@ -972,7 +972,8 @@ static void cinn_buffer_malloc_with_callback(void* args, int num_args) {
   cinn_pod_value_t* pod_args = reinterpret_cast<cinn_pod_value_t*>(args);
   for (int i = 0; i < num_args; ++i) {
     cinn_buffer_t* buffer = static_cast<cinn_buffer_t*>(pod_args[i]);
-    buffer->external_malloc(nullptr, buffer);
+    CHECK(buffer->external_malloc) << "external_malloc is nullptr";
+    buffer->external_malloc->operator()(nullptr, buffer);
   }
 }
 
@@ -980,7 +981,8 @@ static void cinn_buffer_free_with_callback(void* args, int num_args) {
   cinn_pod_value_t* pod_args = reinterpret_cast<cinn_pod_value_t*>(args);
   for (int i = 0; i < num_args; ++i) {
     cinn_buffer_t* buffer = static_cast<cinn_buffer_t*>(pod_args[i]);
-    buffer->external_free(nullptr, buffer);
+    CHECK(buffer->external_free) << "external_free is nullptr";
+    buffer->external_free->operator()(nullptr, buffer);
   }
 }
 
