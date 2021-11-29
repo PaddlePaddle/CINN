@@ -28,6 +28,7 @@ std::vector<cinn_pod_value_t>& Instruction::PreparePodArgs(
     PreparePodArgs(i - 1, name2podargs);
   common::ArgsBuilder builder;
   std::vector<std::string> all_args(in_args_[i].begin(), in_args_[i].end());
+
   all_args.insert(std::end(all_args), out_args_[i].begin(), out_args_[i].end());
 
   if (name2podargs != nullptr) {
@@ -62,6 +63,11 @@ void Instruction::Finalize() {
 }
 
 void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podargs, bool dryrun, void* stream) {
+  if (function_name_ == "no_run") {
+    VLOG(2) << "skip instruction";
+    return;
+  }
+
   CHECK(finalized_flag) << "Instruction must be finalized before run";
   if (name2podargs != nullptr) {
     args_cached_.clear();
