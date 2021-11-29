@@ -95,6 +95,10 @@ cinn_buffer_t* cinn_buffer_new_default(int target, uint64_t memory_size, int ali
   buf->memory_size          = memory_size;
   buf->align                = align;
   buf->lazy                 = true;
+#ifdef __cplusplus
+  buf->external_malloc = nullptr;
+  buf->external_free   = nullptr;
+#endif  // __cplusplus
   // NOTE set device_interface for each buffer.
   switch (buf->device) {
     case cinn_x86_device:
@@ -154,6 +158,10 @@ struct cinn_buffer_t* cinn_buffer_t::new_(cinn_device_kind_t device,
 
   buf->dimensions = dimensions;
   buf->align      = align;
+#ifdef __cplusplus
+  buf->external_malloc = nullptr;
+  buf->external_free   = nullptr;
+#endif  // __cplusplus
   return buf;
 }
 
