@@ -34,24 +34,76 @@ TEST(GraphCompilerTest, TestRemoveInvaildVariables) {
   auto a = builder.CreateInput(Float(32), {1, 64, 112, 112}, "A");
   auto b = builder.CreateInput(Float(32), {64}, "B");
 
-  auto c = builder.elementwise_add(a, b, 1);
-  auto d = builder.relu(c);
-
+  auto c      = builder.elementwise_add(a, b, 1);
+  auto d      = builder.relu(c);
   auto target = common::DefaultHostTarget();
   auto graph  = std::make_shared<Graph>(builder.Build(), target);
 
   // OpFusion will fuse add+relu, and the intermediate variable 'c' is eliminated
-  hlir::framework::ApplyPass(graph.get(), "OpFusion");
+  ApplyPass(graph.get(), "OpFusion");
   auto scope = BuildScope(target, graph);
   ASSERT_EQ(scope->var_names().size(), 4);
   EXPECT_NE(scope->FindVar(c->id), nullptr);
 
-  hlir::framework::GraphCompiler gc(target, scope, graph);
+  GraphCompiler gc(target, scope, graph);
   auto runtime_program = gc.Build();
   ASSERT_EQ(scope->var_names().size(), 3);
   EXPECT_EQ(scope->FindVar(c->id), nullptr);
 
   ASSERT_NO_THROW(runtime_program->Execute());
+}
+
+TEST(GraphCompilerTest, TestInsertBufferHandlers) {
+  frontend::NetBuilder builder("test");
+  auto a = builder.CreateInput(Float(32), {1, 64, 112, 112}, "A");
+  auto b = builder.CreateInput(Float(32), {64}, "B");
+
+  auto c      = builder.elementwise_add(a, b, 1);
+  auto d      = builder.relu(c);
+  auto target = common::DefaultHostTarget();
+  auto graph  = std::make_shared<Graph>(builder.Build(), target);
+  ApplyPass(graph.get(), "OpFusion");
+  auto scope = BuildScope(target, graph);
+
+  GraphCompiler gc_disable(target, scope, graph);
+  GraphCompiler::CompileOptions options;
+  // disable insert_buffer_handle_instruction: only 1 instruction
+  auto runtime_program_disable = gc_disable.Build(options).runtime_program;
+  ASSERT_EQ(runtime_program_disable->size(), 1);
+  const auto& computation_instr_disable = runtime_program_disable->GetRunInstructions().front();
+
+  // enable insert_buffer_handle_instruction: 3 instructions, 1st ->
+  // malloc instruction(a, b, d), 2nd -> the real computation
+  // instruction(add + relu)  and 3rd -> free instruction
+  GraphCompiler gc_enable(target, scope, graph);
+  options.insert_buffer_handle_instruction = true;
+  auto runtime_program_enable              = gc_enable.Build(options).runtime_program;
+  const auto& instructions                 = runtime_program_enable->GetRunInstructions();
+  ASSERT_EQ(instructions.size(), 3);
+
+  const auto& malloc_instr = instructions.front();
+  ASSERT_EQ(malloc_instr->size(), 1);
+  auto malloc_variable_names = malloc_instr->GetInArgs().front();
+  auto used_variable_names   = std::unordered_set<std::string>(
+      {static_cast<frontend::Variable>(a)->id, static_cast<frontend::Variable>(b)->id, d->id});
+  EXPECT_EQ(malloc_instr->GetOutArgs().size(), 1);
+  EXPECT_TRUE(malloc_instr->GetOutArgs().front().empty());
+  EXPECT_EQ(malloc_variable_names.size(), 3);
+  EXPECT_EQ(std::unordered_set<std::string>(malloc_variable_names.begin(), malloc_variable_names.end()),
+            used_variable_names);
+
+  const auto& computation_instr_enable = instructions.at(1);
+  ASSERT_EQ(computation_instr_disable->size(), computation_instr_enable->size());
+  EXPECT_EQ(computation_instr_disable->GetInArgs(), computation_instr_enable->GetInArgs());
+  EXPECT_EQ(computation_instr_disable->GetOutArgs(), computation_instr_enable->GetOutArgs());
+
+  const auto& free_instr = instructions.back();
+  ASSERT_EQ(free_instr->size(), 1);
+  EXPECT_EQ(free_instr->GetInArgs().size(), 1);
+  EXPECT_TRUE(free_instr->GetInArgs().front().empty());
+  auto free_variable_names = free_instr->GetOutArgs().front();
+  EXPECT_EQ(std::unordered_set<std::string>(free_variable_names.begin(), free_variable_names.end()),
+            used_variable_names);
 }
 
 }  // namespace framework

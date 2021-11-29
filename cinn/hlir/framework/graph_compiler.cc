@@ -1033,6 +1033,7 @@ void GraphCompiler::InsertBufferHandlers(std::vector<std::unique_ptr<Instruction
       auto malloc_instr            = std::make_unique<Instruction>(
           target_, scope_.get(), malloc_var_names, std::vector<std::string>({}), function_name);
       malloc_instr->SetLoweredFunc(cinn_buffer_malloc_with_callback);
+      // malloc_instr->Finalize();
       results.emplace_back(std::move(malloc_instr));
     }
 
@@ -1047,6 +1048,7 @@ void GraphCompiler::InsertBufferHandlers(std::vector<std::unique_ptr<Instruction
       auto free_instr            = std::make_unique<Instruction>(
           target_, scope_.get(), std::vector<std::string>({}), free_var_names, function_name);
       free_instr->SetLoweredFunc(cinn_buffer_free_with_callback);
+      // free_instr->Finalize();
       results.emplace_back(std::move(free_instr));
     }
   }
