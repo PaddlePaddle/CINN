@@ -641,8 +641,12 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
 
   compiler_->Build(build_module, options.attached_code, stream);
   auto instructions = BuildInstructions();
-  RemoveInvalidVariables(instructions);
+  // Finalize instruction
+  for (auto& ins : instructions) {
+    ins->Finalize();
+  }
 
+  RemoveInvalidVariables(instructions);
   if (options.with_instantiate_variables) {
     VLOG(3) << "Initantiate all variables on compile-time";
     // All variables reside in scope_, so traverse it to instantiate each one
@@ -653,10 +657,6 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
     }
   }
 
-  // Finalize instruction
-  for (auto& ins : instructions) {
-    ins->Finalize();
-  }
   GraphCompiler::CompilationResult result;
   result.runtime_program.reset(new Program(scope_, std::move(instructions)));
   return result;
@@ -901,7 +901,6 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
       instructions.push_back(std::move(instr));
     }
   }
-
   return instructions;
 }
 
