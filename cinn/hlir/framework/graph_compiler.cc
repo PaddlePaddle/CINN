@@ -27,6 +27,27 @@
 namespace cinn {
 namespace hlir {
 namespace framework {
+
+// Return useless fetch var list.
+// For elementwise_add's input x and y, they have a link to
+// elementwise_add_grad op, so we need fetch the two var.
+// But in fact, we do not need their data, in other words,
+// the fetch tensor is useless.
+std::unordered_set<std::string> GetUselessFetchVars(const std::vector<Node*>& nodes,
+                                                    const std::unordered_set<std::string>& fetch_var_ids) {
+  std::unordered_set<std::string> useless_fetch_vars;
+  for (auto* node : nodes) {
+    if (node->id().find("elementwise_add") != std::string::npos) {
+      for (auto in_link : node->inlinks()) {
+        if (fetch_var_ids.count(in_link->source()->id())) {
+          useless_fetch_vars.insert(in_link->source()->id());
+        }
+      }
+    }
+  }
+  return useless_fetch_vars;
+}
+
 // Store params from node to instruction
 void AddAttrs(const absl::flat_hash_map<std::string, AttrType>& attrs_store,
               const std::vector<std::string>& attrs_name,
@@ -365,6 +386,9 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
   absl::flat_hash_set<ir::Tensor> fetch_tensors;
   ir::Tensor master_out_tensor;
   int master_index = GetMasterRefNode(nodes);
+
+  auto useless_fetch_vars = GetUselessFetchVars(nodes, fetch_var_ids_);
+
   for (auto& node : nodes) {
     std::vector<ir::Tensor> temp_inputs;
     std::vector<common::CINNValue> cinn_inputs;
@@ -441,8 +465,9 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
     for (int i = 0; i < C.size() - 1; i++) {
       Expr out                      = C[i];
       temp_var_map[temp_outvars[i]] = out;
-      if (fetch_var_ids_.count(temp_outvars[i]->id())) {
-        VLOG(3) << "get fetch output var " << temp_outvars[i]->id();
+      auto out_id                   = temp_outvars[i]->id();
+      if (fetch_var_ids_.count(out_id) && !useless_fetch_vars.count(out_id)) {
+        VLOG(3) << "get fetch output var " << out_id;
         CHECK(out.as_tensor());
         fetch_tensors.insert(out.as_tensor_ref());
       }
