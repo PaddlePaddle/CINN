@@ -89,9 +89,9 @@ const std::vector<Variable>& NetBuilder::elementwise_add_grad(const Variable& do
   instr.SetAttr("axis", axis);
   InferShape(instr);
   AppendInstruction(instr);
-  auto dx = instr->outputs.front();
-  auto dy = instr->outputs.back();
-  if (dy->shape == dout->shape && dx->shape == dy->shape) {
+  // TODO(Avin0323): Using one identity to high speed, we will add a Pass
+  // in future and revert these codes.
+  if (x->shape == dout->shape && x->shape == y->shape) {
     instr->outputs[1] = instr->outputs[0];
   }
   return instr.GetOutputs();

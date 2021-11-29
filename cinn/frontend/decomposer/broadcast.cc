@@ -106,6 +106,8 @@ void elementwise_add_grad(const Instruction& instr, const DecomposerContext& con
 
   Variable dy_t;
   if (dy->shape == dout->shape) {
+    // TODO(Avin0323): Using one identity to high speed, we will add a Pass
+    // in future and revert these codes.
     if (dx->shape == dout->shape) {
       dy_t = dx_t;
     } else {
