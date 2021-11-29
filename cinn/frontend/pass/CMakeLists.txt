@@ -2,6 +2,7 @@ core_gather_headers()
 
 gather_srcs(cinnapi_src SRCS
     decomposer.cc
+    remove_identity.cc
     )
 
 

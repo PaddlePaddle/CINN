@@ -19,6 +19,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "cinn/frontend/op_mapper_registry.h"
 #include "cinn/frontend/syntax.h"
 #include "cinn/utils/registry.h"
 
@@ -96,6 +97,19 @@ class ProgramPassRegistry : public Registry<ProgramPass> {
 #define CINN_REGISTER_PROGRAM_PASS(PassType, PassClass)         \
   static ::cinn::frontend::ProgramPass* __make_##PassType##__ = \
       ::cinn::frontend::ProgramPassRegistry::Global()->__REGISTER_OR_GET__(#PassType, new PassClass{#PassType})
+
+using ProgramPassFunction = std::function<void(Program*, const std::unordered_set<std::string>&)>;
+
+class ProgramPassFunctionRegistry : public FunctionRegEntryBase<ProgramPassFunctionRegistry, ProgramPassFunction> {
+ public:
+  ProgramPassFunctionRegistry() = default;
+
+ private:
+  CINN_DISALLOW_COPY_AND_ASSIGN(ProgramPassFunctionRegistry);
+};
+
+#define CINN_REGISTER_PROGRAM_PASS_FUNCTION(name) \
+  CINN_REGISTRY_REGISTER(::cinn::frontend::ProgramPassFunctionRegistry, ProgramPassFunctionRegistry, name)
 
 }  // namespace frontend
 }  // namespace cinn
