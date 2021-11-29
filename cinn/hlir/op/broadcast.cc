@@ -241,17 +241,33 @@ std::vector<std::vector<std::string>> InferLayoutForBroadcastTo(const std::vecto
 
 std::vector<Type> InferDtypeForBroadcastGrad(const std::vector<Type> &inputs_type,
                                              const framework::AttrMapType &attrs) {
-  CHECK_EQ(inputs_type.size(), 3UL);
-  std::vector<Type> out_type{inputs_type[1], inputs_type[2]};
-  return out_type;
+  // Some elementwise_xxx_grad ops, like elementwise_add_grad, only has one input tensor.
+  CHECK_GE(inputs_type.size(), 1UL);
+  return {inputs_type[0], inputs_type[0]};
 }
 
 std::vector<shape_t> InferShapeForBroadcastGrad(const std::vector<shape_t> &inputs_shape,
                                                 const framework::AttrMapType &attrs) {
-  CHECK_EQ(inputs_shape.size(), 3UL);
-  std::vector<shape_t> out_shape{inputs_shape[1], inputs_shape[2]};
+  // Some elementwise_xxx_grad ops, like elementwise_add_grad, only has one input tensor.
+  CHECK_GE(inputs_shape.size(), 1UL);
 
-  return out_shape;
+  std::vector<int> dx_shape;
+  if (attrs.count("x_shape")) {
+    dx_shape = absl::get<std::vector<int>>(attrs.at("x_shape"));
+  } else {
+    CHECK_GE(inputs_shape.size(), 2UL);
+    dx_shape = inputs_shape[1];
+  }
+
+  std::vector<int> dy_shape;
+  if (attrs.count("y_shape")) {
+    dy_shape = absl::get<std::vector<int>>(attrs.at("y_shape"));
+  } else {
+    CHECK_GE(inputs_shape.size(), 3UL);
+    dy_shape = inputs_shape[2];
+  }
+
+  return {dx_shape, dy_shape};
 }
 
 std::shared_ptr<OpStrategy> StrategyForBroadcastGrad(const framework::NodeAttr &attrs,
@@ -369,7 +385,7 @@ CINN_REGISTER_HELPER(broadcast_ops) {
 CINN_REGISTER_HELPER(broadcast_grad_ops) {
   CINN_REGISTER_OP(elementwise_add_grad)
       .describe("The gradient of elementwise_add operator.")
-      .set_num_inputs(3)
+      .set_num_inputs(1)
       .set_num_outputs(2)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForBroadcastGrad)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForBroadcastGrad))

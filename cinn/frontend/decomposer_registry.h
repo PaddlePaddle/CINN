@@ -30,7 +30,7 @@ class Decomposer;
 class DecomposerContext {
  public:
   explicit DecomposerContext(CinnBuilder* builder, absl::flat_hash_map<std::string, Variable>* var_map)
-      : builder_(builder), var_map_(var_map) {}
+      : builder_(builder), num_instructions_(builder->size()), var_map_(var_map) {}
 
   CinnBuilder* builder() const { return builder_; };
 
@@ -44,8 +44,14 @@ class DecomposerContext {
     (*var_map_)[new_var->id] = ori_var;
   }
 
+  void AddStatis(std::string op_type) const {
+    VLOG(4) << op_type << " is decomposed to " << builder_->size() - num_instructions_ << " instructions.";
+    num_instructions_ = builder_->size();
+  }
+
  private:
   CinnBuilder* builder_{nullptr};
+  mutable int num_instructions_{0};
   absl::flat_hash_map<std::string, Variable>* var_map_{nullptr};
 };
 

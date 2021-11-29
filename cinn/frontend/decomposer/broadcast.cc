@@ -52,6 +52,7 @@ void GetReduceDimsForY(const std::vector<int>& dy_shape,
 void elementwise_add(const Instruction& instr, const DecomposerContext& context) {
   CHECK_EQ(instr->inputs.size(), 2UL) << " 2 input tensors for " << instr->op_type;
   CHECK_EQ(instr->outputs.size(), 1UL) << "1 output tensor for " << instr->op_type;
+
   auto x        = instr->inputs[0];
   auto y        = instr->inputs[1];
   auto output   = instr->outputs[0];
@@ -82,11 +83,13 @@ void elementwise_add(const Instruction& instr, const DecomposerContext& context)
 
   // map the the output of decomposed operator to the original.
   context.MapOutToOrigin(out, output);
+  context.AddStatis("elementwise_add");
 }
 
 void elementwise_add_grad(const Instruction& instr, const DecomposerContext& context) {
-  CHECK_EQ(instr->inputs.size(), 3UL) << " 3 input tensors for " << instr->op_type;
+  CHECK_GE(instr->inputs.size(), 1UL) << "1 input tensor for " << instr->op_type;
   CHECK_EQ(instr->outputs.size(), 2UL) << "2 output tensors for " << instr->op_type;
+
   auto dout     = instr->inputs[0];
   auto dx       = instr->outputs[0];
   auto dy       = instr->outputs[1];
@@ -120,6 +123,7 @@ void elementwise_add_grad(const Instruction& instr, const DecomposerContext& con
   // map the the output of decomposed operator to the original.
   context.MapOutToOrigin(dx_t, dx);
   context.MapOutToOrigin(dy_t, dy);
+  context.AddStatis("elementwise_add_grad");
 }
 
 }  // namespace decomposer

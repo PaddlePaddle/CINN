@@ -64,8 +64,8 @@ class NetBuilder : public BaseBuilder {
    * The gradient of elementwise_add.
    */
   const std::vector<Variable>& elementwise_add_grad(const Variable& dout,
-                                                    const Variable& x,
-                                                    const Variable& y,
+                                                    const std::vector<int>& x_shape,
+                                                    const std::vector<int>& y_shape,
                                                     int axis = -1);
 
   /**

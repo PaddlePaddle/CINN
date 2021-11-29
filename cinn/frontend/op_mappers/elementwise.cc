@@ -54,13 +54,24 @@ void ElementwiseAddOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperCo
 }
 
 void ElementwiseAddGradOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
-  CHECK_EQ(op_desc.Input("X").size(), 1UL);
-  auto x_name = op_desc.Input("X").front();
-  CHECK_EQ(op_desc.Input("Y").size(), 1UL);
-  auto y_name = op_desc.Input("Y").front();
+  std::vector<int> x_shape = utils::GetAttrOrDefault<int>(op_desc, "x_shape", {});
+  if (x_shape.size() == 0) {
+    CHECK_EQ(op_desc.Input("X").size(), 1UL);
+    auto x_name = op_desc.Input("X").front();
+    auto x      = ctx.GetVar(x_name);
+    x_shape     = x->shape;
+  }
+
+  std::vector<int> y_shape = utils::GetAttrOrDefault<int>(op_desc, "y_shape", {});
+  if (y_shape.size() == 0) {
+    CHECK_EQ(op_desc.Input("Y").size(), 1UL);
+    auto y_name = op_desc.Input("Y").front();
+    auto y      = ctx.GetVar(y_name);
+    y_shape     = y->shape;
+  }
+
   CHECK_EQ(op_desc.Input(paddle::GradVarName("Out")).size(), 1UL);
   auto dout_name = op_desc.Input(paddle::GradVarName("Out")).front();
-
   CHECK_EQ(op_desc.Output(paddle::GradVarName("X")).size(), 1UL);
   auto dx_name = op_desc.Output(paddle::GradVarName("X")).front();
   CHECK_EQ(op_desc.Output(paddle::GradVarName("Y")).size(), 1UL);
@@ -68,10 +79,8 @@ void ElementwiseAddGradOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapp
 
   auto axis = utils::GetAttrOrDefault<int>(op_desc, "axis", -1);
 
-  auto x    = ctx.GetVar(x_name);
-  auto y    = ctx.GetVar(y_name);
   auto dout = ctx.GetVar(dout_name);
-  auto outs = ctx.Builder()->elementwise_add_grad(dout, x, y, axis);
+  auto outs = ctx.Builder()->elementwise_add_grad(dout, x_shape, y_shape, axis);
   CHECK_EQ(outs.size(), 2) << "elementwise_add_grad should return 2 variables";
 
   auto dx = outs.front();
