@@ -89,6 +89,11 @@ const std::vector<Variable>& NetBuilder::elementwise_add_grad(const Variable& do
   instr.SetAttr("axis", axis);
   InferShape(instr);
   AppendInstruction(instr);
+  auto dx = instr->outputs.front();
+  auto dy = instr->outputs.back();
+  if (dy->shape == dout->shape && dx->shape == dy->shape) {
+    instr->outputs[1] = instr->outputs[0];
+  }
   return instr.GetOutputs();
 }
 

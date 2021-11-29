@@ -75,11 +75,6 @@ class TestElementwiseAddOp(OpTest):
             dout, x, y, axis=self.axis)
 
         prog = builder.build()
-        # TODO(Avin0323): `dx` doesn't exist in scope when `dx` and `dy`
-        # have same shape with `dout`. We will revert it after using pass
-        # in future.
-        if x.shape() == y.shape() and dout.shape() == x.shape():
-            x_grad = y_grad
         res = self.get_cinn_output(
             prog, target, [x, y, dout],
             [self.inputs["x"], self.inputs["y"], self.inputs["dout"]],
