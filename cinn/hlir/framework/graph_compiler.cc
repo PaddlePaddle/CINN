@@ -643,12 +643,8 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
 
   compiler_->Build(build_module, options.attached_code, stream);
   auto instructions = BuildInstructions();
-  // Finalize instruction
-  for (auto& ins : instructions) {
-    ins->Finalize();
-  }
-
   RemoveInvalidVariables(instructions);
+
   if (options.with_instantiate_variables) {
     VLOG(3) << "Initantiate all variables on compile-time";
     // All variables reside in scope_, so traverse it to instantiate each one
@@ -862,6 +858,8 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
       if (node->attrs.attr_store.count("pre_run")) {
         instr->pre_run = absl::get<bool>(node->attrs.attr_store["pre_run"]);
       }
+      // explicitly call Finalize of the instruction after all assignments on it were done
+      instr->Finalize();
       instructions.push_back(std::move(instr));
     } else {
       CHECK_GT(group.size(), 1U) << "fuse number should be greater than 1";
@@ -921,6 +919,8 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
           instr->pre_run = true;
         }
       }
+      // explicitly call Finalize of the instruction after all assignments on it were done
+      instr->Finalize();
       instructions.push_back(std::move(instr));
     }
   }
