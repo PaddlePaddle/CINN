@@ -284,6 +284,7 @@ struct Expr : public IrNodeRef {
 
   //! Helper function to construct numeric constants of various types.
   // @{
+  explicit Expr(bool x) : IrNodeRef(new UIntImm(UInt(1), x)) {}
   explicit Expr(int32_t x) : IrNodeRef(new IntImm(Int(32), x)) {}
   explicit Expr(uint32_t x) : IrNodeRef(new UIntImm(UInt(32), x)) {}
   explicit Expr(int64_t x) : IrNodeRef(new IntImm(Int(64), x)) {}

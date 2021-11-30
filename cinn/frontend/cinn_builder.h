@@ -115,7 +115,7 @@ class CinnBuilder : public BaseBuilder {
   Variable ConstScalar(T value, const std::string& name) {
     Instruction instr("const_scalar");
     instr.SetInputs({});
-    instr.SetAttr("value", value);
+    instr.SetAttr<T>("value", value);
     InferShape(instr);
     AppendInstruction(instr);
     auto out = instr.GetOutput(0);
