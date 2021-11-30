@@ -863,6 +863,8 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
       if (node->attrs.attr_store.count("pre_run")) {
         instr->pre_run = absl::get<bool>(node->attrs.attr_store["pre_run"]);
       }
+      // explicitly call Finalize of the instruction after all assignments on it were done
+      instr->Finalize();
       instructions.push_back(std::move(instr));
     } else {
       CHECK_GT(group.size(), 1U) << "fuse number should be greater than 1";
@@ -922,6 +924,8 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
           instr->pre_run = true;
         }
       }
+      // explicitly call Finalize of the instruction after all assignments on it were done
+      instr->Finalize();
       instructions.push_back(std::move(instr));
     }
   }

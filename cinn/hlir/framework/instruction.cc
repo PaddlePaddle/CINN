@@ -52,17 +52,23 @@ std::vector<cinn_pod_value_t>& Instruction::PreparePodArgs(
   return args_cached_[i];
 }
 
-void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podargs, bool dryrun, void* stream) {
-  if (function_name_ == "no_run") {
-    VLOG(2) << "skip instruction";
-    return;
-  }
+void Instruction::Finalize() {
   if (fn_.size() > 1 && fn_.size() != in_args_.size()) {
     out_args_.back()[0] = out_args_.front()[0];
     out_args_.erase(out_args_.begin());
     in_args_.erase(in_args_.begin());
   }
 
+  finalized_flag = true;
+}
+
+void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podargs, bool dryrun, void* stream) {
+  if (function_name_ == "no_run") {
+    VLOG(2) << "skip instruction";
+    return;
+  }
+
+  CHECK(finalized_flag) << "Instruction must be finalized before run";
   if (name2podargs != nullptr) {
     args_cached_.clear();
   }
