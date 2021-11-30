@@ -91,9 +91,9 @@ class GraphCompiler final {
   };
 
   struct CompileOptions {
-    std::string attached_code             = "";
-    bool with_instantiate_variables       = false;
-    bool insert_buffer_handle_instruction = false;
+    std::string attached_code                    = "";
+    bool with_instantiate_variables              = false;
+    bool with_buffer_handle_instruction_inserted = false;
   };
 
   // Compile with a packing option and result, to be extended easily.
@@ -136,9 +136,9 @@ class GraphCompiler final {
   // find the first and last instruction where a variable used, and mark the
   // variable should allocate buffer before the first instruction runing and
   // can release the buffer after the last instruction finished.
-  void AnalysisVariableUsedLife(const std::vector<std::unique_ptr<Instruction>>& instructions,
-                                std::unordered_map<int, std::vector<std::string>>* step2malloc,
-                                std::unordered_map<int, std::vector<std::string>>* step2free);
+  void AnalyzeVariableLifeTime(const std::vector<std::unique_ptr<Instruction>>& instructions,
+                               std::unordered_map<int, std::vector<std::string>>* step2malloc,
+                               std::unordered_map<int, std::vector<std::string>>* step2free);
 
   // insert a buffer malloc instruction applying on variables before they are
   // firstly used in the next instruction, and insert a buffer free instruction

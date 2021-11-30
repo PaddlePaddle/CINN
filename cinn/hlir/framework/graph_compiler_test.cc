@@ -67,18 +67,18 @@ TEST(GraphCompilerTest, TestInsertBufferHandlers) {
 
   GraphCompiler gc_disable(target, scope, graph);
   GraphCompiler::CompileOptions options;
-  // disable insert_buffer_handle_instruction: only 1 instruction
+  // disable with_buffer_handle_instruction_inserted: only 1 instruction
   auto runtime_program_disable = gc_disable.Build(options).runtime_program;
   ASSERT_EQ(runtime_program_disable->size(), 1);
   const auto& computation_instr_disable = runtime_program_disable->GetRunInstructions().front();
 
-  // enable insert_buffer_handle_instruction: 3 instructions, 1st ->
+  // enable with_buffer_handle_instruction_inserted: 3 instructions, 1st ->
   // malloc instruction(a, b, d), 2nd -> the real computation
   // instruction(add + relu)  and 3rd -> free instruction
   GraphCompiler gc_enable(target, scope, graph);
-  options.insert_buffer_handle_instruction = true;
-  auto runtime_program_enable              = gc_enable.Build(options).runtime_program;
-  const auto& instructions                 = runtime_program_enable->GetRunInstructions();
+  options.with_buffer_handle_instruction_inserted = true;
+  auto runtime_program_enable                     = gc_enable.Build(options).runtime_program;
+  const auto& instructions                        = runtime_program_enable->GetRunInstructions();
   ASSERT_EQ(instructions.size(), 3);
 
   const auto& malloc_instr = instructions.front();

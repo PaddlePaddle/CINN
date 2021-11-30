@@ -125,7 +125,7 @@ class Instruction {
   std::vector<cinn_pod_value_t>& PreparePodArgs(int i, const std::map<std::string, cinn_pod_value_t>* name2podargs);
 
  private:
-  bool finalized_flag = false;
+  bool finalized_flag_ = false;
   Scope* scope_{};
   std::string function_name_;
   std::vector<std::vector<std::string>> in_args_;
