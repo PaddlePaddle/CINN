@@ -24,46 +24,26 @@ void RemoveIdentity(Program* program, const std::unordered_set<std::string>& fet
   for (auto& var : program->GetInputs()) {
     builder.CreateInput(var);
   }
-  absl::flat_hash_set<size_t> remove_identity_ids;
-  absl::flat_hash_map<std::string, size_t> identity_out_id_map;
-  for (size_t i = 0; i < program->size(); i++) {
+  absl::flat_hash_set<std::string> inputs;
+  absl::flat_hash_set<int> remove_idxs;
+  for (int i = program->size() - 1; i >= 0; --i) {
     const auto& instr = (*program)[i];
-    if (instr->op_type == "identity") {
-      const auto& out = instr->outputs[0];
-      if (fetch_ids.end() == fetch_ids.find(out->id)) {
-        identity_out_id_map[out->id] = i;
-        remove_identity_ids.insert(i);
-      }
-    } else if (!identity_out_id_map.empty()) {
-      const auto& inputs = instr->inputs;
-      decltype(identity_out_id_map)::const_iterator iter;
-      for (const auto& in : inputs) {
-        iter = identity_out_id_map.find(in->id);
-        if (identity_out_id_map.end() != iter) break;
-      }
-      if (identity_out_id_map.end() != iter) {
-        const auto& identity_instr = (*program)[iter->second];
-        const auto& identity_in    = identity_instr->inputs[0];
-        for (const auto& in : inputs) {
-          if (identity_in->id == in->id) {
-            remove_identity_ids.erase(iter->second);
-            identity_out_id_map.erase(iter);
-            break;
-          }
-        }
+    for (const auto& in : instr->inputs) {
+      inputs.insert(in->id);
+    }
+    if (instr->op_type != "identity") continue;
+    bool can_remove = true;
+    for (const auto& out : instr->outputs) {
+      if (inputs.end() != inputs.find(out->id) || fetch_ids.end() != fetch_ids.find(out->id)) {
+        can_remove = false;
+        continue;
       }
     }
+    if (can_remove) remove_idxs.insert(i);
   }
-  for (size_t i = 0; i < program->size(); i++) {
-    if (remove_identity_ids.end() != remove_identity_ids.find(i)) continue;
-    auto& instr = (*program)[i];
-    for (size_t j = 0; j < instr->inputs.size(); j++) {
-      auto iter = identity_out_id_map.find(instr->inputs[j]->id);
-      if (identity_out_id_map.end() != iter) {
-        instr->inputs[j] = (*program)[iter->second]->inputs[0];
-      }
-    }
-    builder.AppendInstruction(instr);
+  for (int i = 0; i < program->size(); i++) {
+    if (remove_idxs.end() != remove_idxs.find(i)) continue;
+    builder.AppendInstruction((*program)[i]);
   }
   *program = builder.Build();
 }

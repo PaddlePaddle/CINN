@@ -53,8 +53,8 @@ TEST(RemoveIdentity, can_remove) {
   auto x          = builder.CreateInput(Float(32), {32, 16});
   auto identity_1 = builder.identity(x);
   auto identity_2 = builder.identity(x);
-  auto relu_1     = builder.reduce_sum(identity_1, {0, 1});
-  auto relu_2     = builder.reduce_sum(identity_2, {0, 1});
+  auto relu_1     = builder.reduce_sum(x, {0, 1});
+  auto relu_2     = builder.reduce_sum(x, {0, 1});
   auto program    = builder.Build();
 #ifdef CINN_WITH_CUDA
   Target target = common::DefaultNVGPUTarget();
@@ -86,8 +86,8 @@ TEST(RemoveIdentity, cant_remove_by_fetchids) {
   auto x          = builder.CreateInput(Float(32), {32, 16});
   auto identity_1 = builder.identity(x);
   auto identity_2 = builder.identity(x);
-  auto relu_1     = builder.reduce_sum(identity_1, {0, 1});
-  auto relu_2     = builder.reduce_sum(identity_2, {0, 1});
+  auto relu_1     = builder.reduce_sum(x, {0, 1});
+  auto relu_2     = builder.reduce_sum(x, {0, 1});
   auto program    = builder.Build();
 #ifdef CINN_WITH_CUDA
   Target target = common::DefaultNVGPUTarget();
