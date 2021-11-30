@@ -100,6 +100,8 @@ class ProgramPassRegistry : public Registry<ProgramPass> {
 
 using ProgramPassFunction = std::function<void(Program*, const std::unordered_set<std::string>&)>;
 
+void ApplyPass(Program* program, const std::unordered_set<std::string>& fetch_ids, const std::string& pass);
+
 class ProgramPassFunctionRegistry : public FunctionRegEntryBase<ProgramPassFunctionRegistry, ProgramPassFunction> {
  public:
   ProgramPassFunctionRegistry() = default;
