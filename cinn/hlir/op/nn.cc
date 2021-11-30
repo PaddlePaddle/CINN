@@ -352,17 +352,17 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
                                                inverse_t,
                                                wino_conv_t};
         hlir::pe::CudaScheduleWinogradConv(stages, all_tensors, target);
-        arg_pack[0]  = Expr(wino_weights_dilation_t);
-        arg_pack[1]  = Expr(wino_input_pad_t);
-        arg_pack[2]  = Expr(wino_A_t);
-        arg_pack[3]  = Expr(wino_B_t);
-        arg_pack[4]  = Expr(wino_G_t);
-        arg_pack[5]  = Expr(kernel_pack_t);
-        arg_pack[6]  = Expr(input_tile_t);
-        arg_pack[7]  = Expr(data_pack_t);
-        arg_pack[8]  = Expr(bgemm_t);
-        arg_pack[9]  = Expr(inverse_t);
-        arg_pack[10] = Expr(wino_conv_t);
+        arg_pack[0]  = Expr(all_tensors[0]);
+        arg_pack[1]  = Expr(all_tensors[1]);
+        arg_pack[2]  = Expr(all_tensors[2]);
+        arg_pack[3]  = Expr(all_tensors[3]);
+        arg_pack[4]  = Expr(all_tensors[4]);
+        arg_pack[5]  = Expr(all_tensors[5]);
+        arg_pack[6]  = Expr(all_tensors[6]);
+        arg_pack[7]  = Expr(all_tensors[7]);
+        arg_pack[8]  = Expr(all_tensors[8]);
+        arg_pack[9]  = Expr(all_tensors[9]);
+        arg_pack[10] = Expr(all_tensors[10]);
         *ret         = CINNValuePack{{arg_pack[10], arg_pack[5], arg_pack[7], arg_pack[8], CINNValue(stages)}};
         return;
       }
