@@ -973,7 +973,7 @@ void GraphCompiler::RemoveInvalidVariables(const std::vector<std::unique_ptr<Ins
 }
 
 static void BufferMallocWithCallback(void* args, int num_args) {
-  cinn_pod_value_t* pod_args = reinterpret_cast<cinn_pod_value_t*>(args);
+  cinn_pod_value_t* pod_args = static_cast<cinn_pod_value_t*>(args);
   for (int i = 0; i < num_args; ++i) {
     cinn_buffer_t* buffer = static_cast<cinn_buffer_t*>(pod_args[i]);
     CHECK(buffer->external_malloc) << "external_malloc is nullptr";
@@ -982,7 +982,7 @@ static void BufferMallocWithCallback(void* args, int num_args) {
 }
 
 static void BufferFreeWithCallback(void* args, int num_args) {
-  cinn_pod_value_t* pod_args = reinterpret_cast<cinn_pod_value_t*>(args);
+  cinn_pod_value_t* pod_args = static_cast<cinn_pod_value_t*>(args);
   for (int i = 0; i < num_args; ++i) {
     cinn_buffer_t* buffer = static_cast<cinn_buffer_t*>(pod_args[i]);
     CHECK(buffer->external_free) << "external_free is nullptr";
@@ -1037,7 +1037,7 @@ void GraphCompiler::InsertBufferHandlers(std::vector<std::unique_ptr<Instruction
       auto function_name           = "malloc_buffer_instruction_" + std::to_string(step);
       auto malloc_instr            = std::make_unique<Instruction>(
           target_, scope_.get(), malloc_var_names, std::vector<std::string>({}), function_name);
-      malloc_instr->SetLoweredFunc(BufferMallocWithCallback);
+      malloc_instr->SetLoweredFunc(BufferMallocWithCallback, function_name);
       malloc_instr->Finalize();
       results.emplace_back(std::move(malloc_instr));
     }
@@ -1053,7 +1053,7 @@ void GraphCompiler::InsertBufferHandlers(std::vector<std::unique_ptr<Instruction
       auto function_name         = "free_buffer_instruction_" + std::to_string(step);
       auto free_instr            = std::make_unique<Instruction>(
           target_, scope_.get(), std::vector<std::string>({}), free_var_names, function_name);
-      free_instr->SetLoweredFunc(BufferFreeWithCallback);
+      free_instr->SetLoweredFunc(BufferFreeWithCallback, function_name);
       free_instr->Finalize();
       results.emplace_back(std::move(free_instr));
     }

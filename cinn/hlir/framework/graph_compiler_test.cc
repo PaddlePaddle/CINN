@@ -86,6 +86,8 @@ TEST(GraphCompilerTest, TestInsertBufferHandlers) {
   auto malloc_variable_names = malloc_instr->GetInArgs().front();
   auto used_variable_names   = std::unordered_set<std::string>(
       {static_cast<frontend::Variable>(a)->id, static_cast<frontend::Variable>(b)->id, d->id});
+  EXPECT_EQ(malloc_instr->GetFnNames().size(), 1);
+  EXPECT_EQ(malloc_instr->GetFnNames().front(), "malloc_buffer_instruction_0");
   EXPECT_EQ(malloc_instr->GetOutArgs().size(), 1);
   EXPECT_TRUE(malloc_instr->GetOutArgs().front().empty());
   EXPECT_EQ(malloc_variable_names.size(), 3);
@@ -94,11 +96,17 @@ TEST(GraphCompilerTest, TestInsertBufferHandlers) {
 
   const auto& computation_instr_enable = instructions.at(1);
   ASSERT_EQ(computation_instr_disable->size(), computation_instr_enable->size());
+  auto computation_instr_function_names = computation_instr_enable->GetFnNames();
+  ASSERT_EQ(computation_instr_disable->GetFnNames().size(), computation_instr_enable->GetFnNames().size());
+  ASSERT_NE(computation_instr_function_names.front().find("fn_elementwise_add_0_relu_1_fused"), std::string::npos);
+
   EXPECT_EQ(computation_instr_disable->GetInArgs(), computation_instr_enable->GetInArgs());
   EXPECT_EQ(computation_instr_disable->GetOutArgs(), computation_instr_enable->GetOutArgs());
 
   const auto& free_instr = instructions.back();
   ASSERT_EQ(free_instr->size(), 1);
+  EXPECT_EQ(free_instr->GetFnNames().size(), 1);
+  EXPECT_EQ(free_instr->GetFnNames().front(), "free_buffer_instruction_0");
   EXPECT_EQ(free_instr->GetInArgs().size(), 1);
   EXPECT_TRUE(free_instr->GetInArgs().front().empty());
   auto free_variable_names = free_instr->GetOutArgs().front();
