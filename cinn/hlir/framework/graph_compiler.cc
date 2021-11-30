@@ -29,10 +29,12 @@ namespace hlir {
 namespace framework {
 
 // Return useless fetch var list.
-// For elementwise_add's input x and y, they have a link to
-// elementwise_add_grad op, so we need fetch the two var.
-// But in fact, we do not need their data, in other words,
-// the fetch tensor is useless.
+// For elementwise_add's input x and y, the elementwise_add_grad need the var's shape to decide whether
+// the broadcast should be used. In this situation, we do not need the var's tensor data, in other words,
+// we do not need fetch the var from kernel.
+// Can we remove the fetch op from graph? Not currently, the cinn_launch_op will report error and the
+// elementwise_add_grad will not found the vars.
+// TODO(jiangcheng05): remove the temporary solution and perfect it.
 std::unordered_set<std::string> GetUselessFetchVars(const std::vector<Node*>& nodes,
                                                     const std::unordered_set<std::string>& fetch_var_ids) {
   std::unordered_set<std::string> useless_fetch_vars;
