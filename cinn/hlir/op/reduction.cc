@@ -40,7 +40,7 @@ using pe::ReduceProd;
 using pe::ReduceSum;
 using PeFunc = std::function<ir::Tensor(const ir::Tensor &, const std::vector<int> &, bool, Expr, const std::string &)>;
 
-std::vector<int> GetNewShape(const ir::Tensor &x) {
+std::vector<int> GetShape(const ir::Tensor &x) {
   auto last_reduce_dim = x->shape[2].as_int32() * x->shape[2].as_int32();
   // split into last_reduce_dim into {n,k}
   std::vector<int> new_shape = {x->shape[0].as_int32(), x->shape[1].as_int32()};
@@ -59,34 +59,33 @@ std::vector<int> GetNewShape(const ir::Tensor &x) {
   return new_shape;
 }
 
-std::shared_ptr<OpStrategy> StrategyForBNReduceMerge(const framework::NodeAttr &attrs,
-                                                     const std::vector<ir::Tensor> &inputs,
-                                                     const std::vector<Type> &out_type,
-                                                     const std::vector<std::vector<int>> &output_shapes,
-                                                     const Target &target) {
-  CHECK_EQ(inputs.size(), 1) << "bn reduce merge should has 1 input!";
+std::shared_ptr<OpStrategy> StrategyForBnMeanVarianceReduce(const framework::NodeAttr &attrs,
+                                                            const std::vector<ir::Tensor> &inputs,
+                                                            const std::vector<Type> &out_type,
+                                                            const std::vector<std::vector<int>> &output_shapes,
+                                                            const Target &target) {
+  CHECK_EQ(inputs.size(), 1) << "bn_mean_variance should has 1 input!";
   auto input = inputs[0];
-  CHECK_EQ(input->shape.size(), 4) << "bn reduce merge input shape should be 4 dimension!";
+  CHECK_EQ(input->shape.size(), 4) << "bn_mean_variance input shape should be 4 dimension!";
   // compute the new shape for reduce.
-  auto new_shape = GetNewShape(input);
+  auto new_shape = GetShape(input);
 
-  framework::CINNCompute bn_reduce_merge_compute([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input argument of bn_reduce_merge compute is empty! Please check.\n";
+  framework::CINNCompute bn_mean_variance_compute([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of bn_mean_variance compute is empty! Please check.";
     CINNValuePack a = args[0];
-    CHECK(!a.empty()) << "at least one input tensor for bn_reduce_merge compute\n";
+    CHECK(!a.empty()) << "at least one input tensor for bn_mean_variance compute.";
     Expr A = a[0];
     CHECK(A.as_tensor());
     auto x = A.as_tensor_ref();
 
     auto stages    = CreateStages({x});
-    auto x_reshape = pe::Reshape(x, new_shape, stages, UniqName("bn_reduce_merge_x_reshape_out"));
-    auto x_square  = pe::Multiply(x_reshape, x_reshape, UniqName("bn_reduce_merge_x_square"));
+    auto x_reshape = pe::Reshape(x, new_shape, stages, UniqName("bn_mean_variance_x_reshape_out"));
+    auto x_square  = pe::Multiply(x_reshape, x_reshape, UniqName("bn_mean_variance_x_square"));
 
     auto reduce_dim = new_shape.size() == 3 ? std::vector<int>{0} : std::vector<int>{0, 2};
-    auto out0       = pe::ReduceSum(x_reshape, reduce_dim, false, Expr(0.0f), UniqName("bn_reduce_merge_out0"));
-    auto out1       = pe::ReduceSum(x_square, reduce_dim, false, Expr(0.0f), UniqName("bn_reduce_merge_out1"));
+    auto out0       = pe::ReduceSum(x_reshape, reduce_dim, false, Expr(0.0f), UniqName("bn_mean_variance_out0"));
+    auto out1       = pe::ReduceSum(x_square, reduce_dim, false, Expr(0.0f), UniqName("bn_mean_variance_out1"));
 
-    // auto stages = CreateStages({x_square, out0, out1});
     stages->InsertLazily(x_reshape);
     stages->InsertLazily(x_square);
     stages->InsertLazily(out0);
@@ -97,8 +96,8 @@ std::shared_ptr<OpStrategy> StrategyForBNReduceMerge(const framework::NodeAttr &
     *ret = CINNValuePack{{CINNValue(out0), CINNValue(out1), CINNValue(stages)}};
   });
 
-  framework::CINNSchedule bn_reduce_merge_schedule([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input argument of bn_reduce_merge schedule is empty! Please check.\n";
+  framework::CINNSchedule bn_mean_variance_schedule([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of bn_mean_variance schedule is empty! Please check.";
     CINNValuePack arg_pack = args[0];
     CHECK_EQ(arg_pack.size(), 3UL);
     if (target.arch == Target::Arch::NVGPU) {
@@ -124,30 +123,30 @@ std::shared_ptr<OpStrategy> StrategyForBNReduceMerge(const framework::NodeAttr &
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
-  CHECK(out_type.size()) << "Out_type of bn_reduce_merge op is empty! Please check.";
+  CHECK(out_type.size()) << "Out_type of bn_mean_variance op is empty! Please check.";
   if (out_type[0] == Float(32)) {
-    strategy->AddImpl(bn_reduce_merge_compute, bn_reduce_merge_schedule, "strategy.relu.x86", 1);
+    strategy->AddImpl(bn_mean_variance_compute, bn_mean_variance_schedule, "strategy.relu.x86", 1);
   } else {
-    LOG(FATAL) << "bn_reduce_merge op with dtype != float32 is not implemented yet!";
+    LOG(FATAL) << "bn_mean_variance op with dtype != float32 is not implemented yet!";
   }
   return strategy;
 }
 
-std::shared_ptr<OpStrategy> StrategyForBNGradReduceMerge(const framework::NodeAttr &attrs,
-                                                         const std::vector<ir::Tensor> &inputs,
-                                                         const std::vector<Type> &out_type,
-                                                         const std::vector<std::vector<int>> &output_shapes,
-                                                         const Target &target) {
-  CHECK_EQ(inputs.size(), 3) << "bn grad reduce merge should has 3 input!";
+std::shared_ptr<OpStrategy> StrategyForBnGradBiasScaleReduce(const framework::NodeAttr &attrs,
+                                                             const std::vector<ir::Tensor> &inputs,
+                                                             const std::vector<Type> &out_type,
+                                                             const std::vector<std::vector<int>> &output_shapes,
+                                                             const Target &target) {
+  CHECK_EQ(inputs.size(), 3) << "bn_grad_bias_scale should has 3 input!";
   auto input = inputs[0];
-  CHECK_EQ(input->shape.size(), 4) << "bn grad reduce merge input shape should be 4 dimension!";
+  CHECK_EQ(input->shape.size(), 4) << "bn_grad_bias_scale input shape should be 4 dimension!";
   // compute the new shape for reduce.
-  auto new_shape = GetNewShape(input);
+  auto new_shape = GetShape(input);
 
-  framework::CINNCompute bn_grad_reduce_merge_compute([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input argument of bn_grad_reduce_merge compute is empty! Please check.\n";
+  framework::CINNCompute bn_grad_bias_scale_compute([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of bn_grad_bias_scale compute is empty! Please check.";
     CINNValuePack a = args[0];
-    CHECK(!a.empty()) << "at least one input tensor for bn_grad_reduce_merge compute\n";
+    CHECK(!a.empty()) << "at least one input tensor for bn_grad_bias_scale compute.";
     Expr A = a[0];
     CHECK(A.as_tensor());
     Expr Mean = a[1];
@@ -160,16 +159,16 @@ std::shared_ptr<OpStrategy> StrategyForBNGradReduceMerge(const framework::NodeAt
     auto y_grad = Grad.as_tensor_ref();
 
     auto stages         = CreateStages({x, x_mean, y_grad});
-    auto x_reshape      = pe::Reshape(x, new_shape, stages, UniqName("bn_grad_reduce_merge_x_reshape_out"));
-    auto y_grad_reshape = pe::Reshape(y_grad, new_shape, stages, UniqName("bn_grad_reduce_merge_grad_reshape_out"));
+    auto x_reshape      = pe::Reshape(x, new_shape, stages, UniqName("bn_grad_bias_scale_x_reshape_out"));
+    auto y_grad_reshape = pe::Reshape(y_grad, new_shape, stages, UniqName("bn_grad_bias_scale_grad_reshape_out"));
 
-    auto x_mean_diff      = pe::Substract(x_reshape, x_mean, UniqName("bn_grad_reduce_merge_mean_diff"), Expr(1));
-    auto grad_x_mean_diff = pe::Multiply(y_grad_reshape, x_mean_diff, UniqName("bn_grad_reduce_merge_grad_mean_diff"));
+    auto x_mean_diff      = pe::Substract(x_reshape, x_mean, UniqName("bn_grad_bias_scale_mean_diff"), Expr(1));
+    auto grad_x_mean_diff = pe::Multiply(y_grad_reshape, x_mean_diff, UniqName("bn_grad_bias_scale_grad_mean_diff"));
 
     auto reduce_dim = new_shape.size() == 3 ? std::vector<int>{0} : std::vector<int>{0, 2};
 
-    auto out0 = pe::ReduceSum(y_grad_reshape, reduce_dim, false, Expr(0.0f), UniqName("bn_grad_reduce_merge_out0"));
-    auto out1 = pe::ReduceSum(grad_x_mean_diff, reduce_dim, false, Expr(0.0f), UniqName("bn_grad_reduce_merge_out1"));
+    auto out0 = pe::ReduceSum(y_grad_reshape, reduce_dim, false, Expr(0.0f), UniqName("bn_grad_bias_scale_out0"));
+    auto out1 = pe::ReduceSum(grad_x_mean_diff, reduce_dim, false, Expr(0.0f), UniqName("bn_grad_bias_scale_out1"));
 
     // auto stages = CreateStages({x_mean_diff, grad_x_mean_diff, out0, out1});
     stages->InsertLazily(x_reshape);
@@ -185,8 +184,8 @@ std::shared_ptr<OpStrategy> StrategyForBNGradReduceMerge(const framework::NodeAt
     *ret = CINNValuePack{{CINNValue(out0), CINNValue(out1), CINNValue(stages)}};
   });
 
-  framework::CINNSchedule bn_grad_reduce_merge_schedule([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input argument of bn_grad_reduce_merge schedule is empty! Please check.\n";
+  framework::CINNSchedule bn_grad_bias_scale_schedule([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of bn_grad_bias_scale schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
     CHECK_EQ(arg_pack.size(), 3UL);
     if (target.arch == Target::Arch::NVGPU) {
@@ -212,11 +211,11 @@ std::shared_ptr<OpStrategy> StrategyForBNGradReduceMerge(const framework::NodeAt
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
-  CHECK(out_type.size()) << "Out_type of bn_grad_reduce_merge op is empty! Please check.";
+  CHECK(out_type.size()) << "Out_type of bn_grad_bias_scale op is empty! Please check.";
   if (out_type[0] == Float(32)) {
-    strategy->AddImpl(bn_grad_reduce_merge_compute, bn_grad_reduce_merge_schedule, "strategy.relu.x86", 1);
+    strategy->AddImpl(bn_grad_bias_scale_compute, bn_grad_bias_scale_schedule, "strategy.relu.x86", 1);
   } else {
-    LOG(FATAL) << "bn_grad_reduce_merge op with dtype != float32 is not implemented yet!";
+    LOG(FATAL) << "bn_grad_bias_scale op with dtype != float32 is not implemented yet!";
   }
   return strategy;
 }
@@ -288,8 +287,7 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
     } else if (dim.back() == inputs[0]->shape.size() - 1 && target == common::DefaultNVGPUTarget()) {
       auto res    = pe::WarpReduceSum(A, dim.size());
       auto stages = CreateStages(res);
-      pe::CudaScheduleWarpReduce(stages, res[1], res[0], target);
-      *ret = CINNValuePack{{CINNValue(res[0]), CINNValue(stages)}};
+      *ret        = CINNValuePack{{CINNValue(res[0]), CINNValue(res[1]), CINNValue(stages)}};
     } else {
       // do reduce on last dimension
       auto out    = pe_func(A, dim, keep_dim, Expr(), UniqName(op_name + "_out"));
@@ -305,7 +303,10 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
 
     if (target.arch == Target::Arch::NVGPU) {
       if (dim.size() == 1 && dim.back() == inputs[0]->shape.size() - 1) {
-        VLOG(3) << "Call Warp Reduce Schedule!";
+        Expr out              = arg_pack[0];
+        Expr tmp_out          = arg_pack[1];
+        poly::StageMap stages = arg_pack.back();
+        pe::CudaScheduleWarpReduce(stages, tmp_out.as_tensor_ref(), out.as_tensor_ref(), target);
       } else {
         poly::StageMap stages = arg_pack.back();
         Expr out0             = arg_pack.size() == 2 ? arg_pack[0] : arg_pack[1];
@@ -429,22 +430,24 @@ CINN_REGISTER_HELPER(reduce_ops) {
 
 #undef CINN_REGISTER_REDUCTION
 
-  CINN_REGISTER_OP(bn_reduce_merge)
+  CINN_REGISTER_OP(bn_mean_variance_reduce)
       .describe("This operator implements the optimization of bn reduce")
       .set_num_inputs(1)
       .set_num_outputs(2)
-      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForBNReduceMerge)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy",
+                                                         cinn::hlir::op::StrategyForBnMeanVarianceReduce)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForBNReduce))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForReduction))
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForReduction))
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
 
-  CINN_REGISTER_OP(bn_grad_reduce_merge)
+  CINN_REGISTER_OP(bn_grad_bias_scale_reduce)
       .describe("This operator implements the optimization of bn grad reduce")
       .set_num_inputs(3)
       .set_num_outputs(2)
-      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForBNGradReduceMerge)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy",
+                                                         cinn::hlir::op::StrategyForBnGradBiasScaleReduce)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForBNReduce))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForReduction))
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForReduction))

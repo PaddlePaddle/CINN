@@ -179,9 +179,9 @@ class CinnBuilder : public BaseBuilder {
 
   Variable Reverse(const Variable& operand, const std::vector<int>& axis);
 
-  std::vector<Variable> BNReduceMerge(const Variable& x);
+  std::vector<Variable> BnMeanVarianceReduce(const Variable& x);
 
-  std::vector<Variable> BNGradReduceMerge(const Variable& x, const Variable& x_mean, const Variable& y_grad);
+  std::vector<Variable> BnGradBiasScaleReduce(const Variable& x, const Variable& x_mean, const Variable& y_grad);
 
  private:
   Variable UnaryOp(const std::string& op_type, const Variable& operand);

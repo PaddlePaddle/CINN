@@ -202,21 +202,21 @@ Tensor ReduceMin(
 }
 
 std::vector<Tensor> WarpReduce(const ir::Tensor& A,
-                               int last_reduce_dim,
+                               int last_reduce_dim_num,
                                const std::string& reduce_type,
                                const std::string& output_name) {
   Expr lane(1);
-  for (int idx = A->shape.size() - 1; idx >= (A->shape.size() - last_reduce_dim); --idx) {
+  for (int idx = A->shape.size() - 1; idx >= (A->shape.size() - last_reduce_dim_num); --idx) {
     lane = lane * A->shape[idx].as_int32();
   }
 
-  std::vector<Expr> tmp_shape(A->shape.begin(), A->shape.begin() + A->shape.size() - last_reduce_dim);
+  std::vector<Expr> tmp_shape(A->shape.begin(), A->shape.begin() + A->shape.size() - last_reduce_dim_num);
   tmp_shape.push_back(Expr(32));
   auto tmp_out = Compute(
       tmp_shape,
       [=](const std::vector<Expr>& indexs) -> Expr {
         std::vector<Expr> tmp_indexs(indexs.begin(), indexs.begin() + indexs.size() - 1);
-        for (int idx = 0; idx < last_reduce_dim; ++idx) {
+        for (int idx = 0; idx < last_reduce_dim_num; ++idx) {
           tmp_indexs.push_back(Expr(0));
         }
         CHECK_EQ(A->shape.size(), tmp_indexs.size());
@@ -224,9 +224,8 @@ std::vector<Tensor> WarpReduce(const ir::Tensor& A,
         return lang::CallExtern(reduce_type, {A, offset, lane});
       },
       UniqName(output_name + "_" + reduce_type));
-  tmp_out->WithBuffer("local", common::UniqName("warp_reduce_buffer"), A->type());
 
-  std::vector<Expr> out_shape(A->shape.begin(), A->shape.begin() + A->shape.size() - last_reduce_dim);
+  std::vector<Expr> out_shape(A->shape.begin(), A->shape.begin() + A->shape.size() - last_reduce_dim_num);
   auto out = Compute(
       out_shape,
       [=](const std::vector<Expr>& indexs) -> Expr {
@@ -245,8 +244,8 @@ std::vector<Tensor> WarpReduce(const ir::Tensor& A,
  * @param A The input Tensor
  * @param output_name The name of the output Tensor
  */
-std::vector<ir::Tensor> WarpReduceMax(const ir::Tensor& A, int last_reduce_dim, const std::string& output_name) {
-  return WarpReduce(A, last_reduce_dim, "cinn_warp_reduce_max", output_name);
+std::vector<ir::Tensor> WarpReduceMax(const ir::Tensor& A, int last_reduce_dim_num, const std::string& output_name) {
+  return WarpReduce(A, last_reduce_dim_num, "cinn_warp_reduce_max", output_name);
 }
 
 /**
@@ -255,8 +254,8 @@ std::vector<ir::Tensor> WarpReduceMax(const ir::Tensor& A, int last_reduce_dim, 
  * @param A The input Tensor
  * @param output_name The name of the output Tensor
  */
-std::vector<ir::Tensor> WarpReduceSum(const ir::Tensor& A, int last_reduce_dim, const std::string& output_name) {
-  return WarpReduce(A, last_reduce_dim, "cinn_warp_reduce_sum", output_name);
+std::vector<ir::Tensor> WarpReduceSum(const ir::Tensor& A, int last_reduce_dim_num, const std::string& output_name) {
+  return WarpReduce(A, last_reduce_dim_num, "cinn_warp_reduce_sum", output_name);
 }
 
 /**
@@ -265,8 +264,8 @@ std::vector<ir::Tensor> WarpReduceSum(const ir::Tensor& A, int last_reduce_dim, 
  * @param A The input Tensor
  * @param output_name The name of the output Tensor
  */
-std::vector<ir::Tensor> WarpReduceAvg(const ir::Tensor& A, int last_reduce_dim, const std::string& output_name) {
-  return WarpReduce(A, last_reduce_dim, "cinn_warp_reduce_avg", output_name);
+std::vector<ir::Tensor> WarpReduceAvg(const ir::Tensor& A, int last_reduce_dim_num, const std::string& output_name) {
+  return WarpReduce(A, last_reduce_dim_num, "cinn_warp_reduce_avg", output_name);
 }
 
 }  // namespace pe

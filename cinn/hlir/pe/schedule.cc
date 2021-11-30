@@ -365,7 +365,6 @@ void CudaScheduleReduce(poly::StageMap stages, ir::Tensor output, const common::
 
 void CudaScheduleWarpReduce(poly::StageMap stages, ir::Tensor tmp_out, ir::Tensor out, const common::Target &target) {
   int sum_out_dim = 1;
-
   for (int idx = 0; idx < out->shape.size() - 1; ++idx) {
     stages[out]->Fuse(0, 1);
     stages[tmp_out]->Fuse(0, 1);
@@ -2063,8 +2062,10 @@ void CudaScheduleInjective(poly::Stage *stage, const std::vector<int> &output_sh
   for (int i = 1; i < dims; i++) {
     stage->Fuse(0, 1);
   }
-  int prod_size = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int>());
-  if (prod_size > 512) {
+  int numel = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int>());
+  if (numel > 512) {
+    // set block size = 256, the number of block is unlimited.
+    // this can increase the number of threads.
     stage->Split(0, 256);
     stage->Bind(0, "blockIdx.x");
     stage->Bind(1, "threadIdx.x");

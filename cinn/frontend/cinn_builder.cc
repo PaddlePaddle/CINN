@@ -216,17 +216,17 @@ Variable CinnBuilder::Reverse(const Variable& operand, const std::vector<int>& a
   return instr.GetOutput(0);
 }
 
-std::vector<Variable> CinnBuilder::BNReduceMerge(const Variable& x) {
-  Instruction instr("bn_reduce_merge", {x});
+std::vector<Variable> CinnBuilder::BnMeanVarianceReduce(const Variable& x) {
+  Instruction instr("bn_mean_variance_reduce", {x});
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutputs();
 }
 
-std::vector<Variable> CinnBuilder::BNGradReduceMerge(const Variable& x,
-                                                     const Variable& x_mean,
-                                                     const Variable& y_grad) {
-  Instruction instr("bn_grad_reduce_merge", {x, x_mean, y_grad});
+std::vector<Variable> CinnBuilder::BnGradBiasScaleReduce(const Variable& x,
+                                                         const Variable& x_mean,
+                                                         const Variable& y_grad) {
+  Instruction instr("bn_grad_bias_scale_reduce", {x, x_mean, y_grad});
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutputs();

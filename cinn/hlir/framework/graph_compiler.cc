@@ -320,7 +320,10 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const Node* node) {
   C = impl->fschedule(C);
   for (int i = 0; i < C->size() - 1; i++) {
     ir::Expr temp = C[i];
-    inputs.push_back(temp.as_tensor_ref());
+    // checkout whether the tensor is with buffer.
+    if (!temp.as_tensor_ref()->buffer.defined()) {
+      inputs.push_back(temp.as_tensor_ref());
+    }
   }
 
   auto func = lang::LowerVec(GetOrGenFullFuncName(GenOpFuncName(node)), stages, inputs, {}, {}, nullptr, this->target_);
@@ -493,7 +496,12 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
   fuse_name += "fused";
   VLOG(3) << "fuse_name: " << fuse_name;
   // args order: inputs + final output + fetch outputs + other no_fused outputs
-  inputs.insert(inputs.end(), outputs.begin(), outputs.end());
+  for (auto& tensor : outputs) {
+    // checkout the tensor is with buffer.
+    if (!tensor->buffer.defined()) {
+      inputs.push_back(tensor);
+    }
+  }
 
   ir::Tensor final_out_tensor = outputs.front();
   if (final_out_tensor->name != master_out_tensor->name) {
