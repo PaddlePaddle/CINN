@@ -99,6 +99,39 @@ ir::Tensor ReduceMin(const ir::Tensor& A,
                      Expr initial                   = Expr(),
                      const std::string& output_name = "T_Reduce_Min_out");
 
+/**
+ * @brief find the max of array elements over the last dimension
+ *
+ * @param A The input Tensor
+ * @param last_reduce_dim_num the number of last reduce dimension
+ * @param output_name The name of the output Tensor
+ */
+std::vector<ir::Tensor> WarpReduceMax(const ir::Tensor& A,
+                                      int last_reduce_dim_num,
+                                      const std::string& output_name = "T_Warp_Reduce_Max_out");
+
+/**
+ * @brief compute the sum of array elements over the last dimension
+ *
+ * @param A The input Tensor
+ * @param last_reduce_dim_num the number of last reduce dimension
+ * @param output_name The name of the output Tensor
+ */
+std::vector<ir::Tensor> WarpReduceSum(const ir::Tensor& A,
+                                      int last_reduce_dim_num,
+                                      const std::string& output_name = "T_Warp_Reduce_Sum_out");
+
+/**
+ * @brief compute the average of array elements over the last dimension
+ *
+ * @param A The input Tensor
+ * @param last_reduce_dim_num the number of last reduce dimension
+ * @param output_name The name of the output Tensor
+ */
+std::vector<ir::Tensor> WarpReduceAvg(const ir::Tensor& A,
+                                      int last_reduce_dim_num,
+                                      const std::string& output_name = "T_Warp_Reduce_Avg_out");
+
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn

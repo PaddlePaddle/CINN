@@ -57,6 +57,46 @@ struct BatchNormHelper {
     return builder->BroadcastTo(builder->ConstScalar<T>(value, common::UniqName(name)), shape, {0});
   }
 
+  std::vector<Variable> MeanAndVariance(Variable x) {
+#ifdef CINN_WITH_CUDA
+    // To optimize the bn forward by merge the reduce computation of mean and variance,
+    // build a fusion op 'BnMeanVarianceReduce' by hand as the fusion pass is not support now.
+    // When the fusion pass is rebuild, this op is to be removed.
+    auto vars               = builder->BnMeanVarianceReduce(x);
+    auto element_count_1d_0 = GetTensorFromScalar<float>(element_count, "element_count", param_shape);
+    auto element_count_1d_1 = GetTensorFromScalar<float>(element_count, "element_count", param_shape);
+    auto mean = builder->Div(builder->Reduce(vars[0], ReduceKind::kSum, std::vector<int>(1, vars[0]->shape.size() - 1)),
+                             element_count_1d_0);
+    auto mean_squre = builder->Div(
+        builder->Reduce(vars[1], ReduceKind::kSum, std::vector<int>(1, vars[1]->shape.size() - 1)), element_count_1d_1);
+
+    auto variance = builder->Sub(mean_squre, builder->Mul(mean, builder->Identity(mean)));
+#else
+    // mean = reduce_sum(x) / nhw, shape = [c]
+    auto mean = Mean(x);
+    // variance = reduce_sum(x * x) / nhw - mean * mean, shape = [c], simplified by equation: E(x^2) - [E(x)]^2
+    auto variance    = Variance(x, mean);
+#endif
+    return {mean, variance};
+  }
+
+  std::vector<Variable> GradBiasAndScale(Variable x, Variable x_mean, Variable y_grad) {
+#ifdef CINN_WITH_CUDA
+    // Using fusion op "BnGradBiasScaleReduce" as the same reason with "BnMeanVarianceReduce".
+    // It also will be removed.
+    auto vars = builder->BnGradBiasScaleReduce(x, x_mean, y_grad);
+    return {builder->Reduce(vars[0], ReduceKind::kSum, std::vector<int>(1, vars[0]->shape.size() - 1)),
+            builder->Reduce(vars[1], ReduceKind::kSum, std::vector<int>(1, vars[1]->shape.size() - 1))};
+#else
+    auto mean_4d     = builder->BroadcastTo(x_mean, x->shape, {channel_dim});
+    auto x_mean_diff = builder->Sub(x, mean_4d);
+    // bias_grad = reduce_sum(y_grad), shape = [c]
+    auto bias_grad                     = Reduce(y_grad);
+    auto sum_of_y_grad_mul_x_mean_diff = Reduce(builder->Mul(y_grad, x_mean_diff));
+    return {bias_grad, sum_of_y_grad_mul_x_mean_diff};
+#endif
+  }
+
   // mean = reduce_sum(x) / nhw
   Variable Mean(Variable x) {
     auto element_count_1d = GetTensorFromScalar<float>(element_count, "element_count", param_shape);
@@ -136,13 +176,11 @@ void batch_norm_train(const Instruction& instr, const DecomposerContext& context
   CinnBuilder* builder = context.builder();
   BatchNormHelper helper(builder, x->shape, scale->shape, layout, "batch_norm_train");
 
-  // mean = reduce_sum(x) / nhw, shape = [c]
-  auto mean    = helper.Mean(x);
+  auto mean_variance = helper.MeanAndVariance(x);
+  auto mean          = mean_variance[0];
+  auto variance      = mean_variance[1];
+
   auto mean_4d = builder->BroadcastTo(mean, x->shape, {helper.channel_dim});
-
-  // variance = reduce_sum(x * x) / nhw - mean * mean, shape = [c], simplified by equation: E(x^2) - [E(x)]^2
-  auto variance = helper.Variance(x, mean);
-
   // std_variance_inv = rsqrt(variance + epsilon), shape = [c]
   auto std_variance_inv_4d = helper.StdVarianceInv4d(variance, epsilon);
 
@@ -184,13 +222,11 @@ void batch_norm_grad(const Instruction& instr, const DecomposerContext& context)
   CinnBuilder* builder = context.builder();
   BatchNormHelper helper(builder, x->shape, scale->shape, layout, "batch_norm_grad");
 
-  // bias_grad = reduce_sum(y_grad), shape = [c]
-  auto bias_grad = helper.Reduce(y_grad);
+  auto vars                          = helper.GradBiasAndScale(x, save_mean, y_grad);
+  auto bias_grad                     = vars[0];
+  auto sum_of_y_grad_mul_x_mean_diff = vars[1];
 
   // scale_grad = reduce_sum(y_grad * (x - mean)) * rsqrt(variance + epsilon), shape = [c]
-  auto mean_4d                       = builder->BroadcastTo(save_mean, x->shape, {helper.channel_dim});
-  auto x_mean_diff                   = builder->Sub(x, mean_4d);
-  auto sum_of_y_grad_mul_x_mean_diff = helper.Reduce(builder->Mul(y_grad, x_mean_diff));
   auto scale_grad = builder->Mul(sum_of_y_grad_mul_x_mean_diff, helper.StdVarianceInv1d(save_variance, epsilon));
 
   // x_grad = 1/nhw * scale * rsqrt(variance + epsilon) *
@@ -205,6 +241,9 @@ void batch_norm_grad(const Instruction& instr, const DecomposerContext& context)
   auto tmp1             = builder->Mul(y_grad, element_count_4d);
 
   auto tmp2 = builder->BroadcastTo(bias_grad, x->shape, {helper.channel_dim});
+
+  auto mean_4d     = builder->BroadcastTo(save_mean, x->shape, {helper.channel_dim});
+  auto x_mean_diff = builder->Sub(x, mean_4d);
 
   auto sum_of_y_grad_mul_x_mean_diff_4d =
       builder->BroadcastTo(sum_of_y_grad_mul_x_mean_diff, x->shape, {helper.channel_dim});

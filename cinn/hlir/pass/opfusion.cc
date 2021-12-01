@@ -130,7 +130,7 @@ class DomTree {
         auto sink         = out_links[i]->sink();
         bool has_no_links = sink->outlinks().empty();
         if (i) {
-          CHECK(has_no_links) << "only the first out_var of " << node->id() << " links to other op node";
+          // CHECK(has_no_links) << "only the first out_var of " << node->id() << " links to other op node!";
         } else {
           int index = sink->get_index();
           // the first out_var is the parent of the op node

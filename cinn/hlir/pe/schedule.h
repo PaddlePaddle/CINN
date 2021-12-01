@@ -158,6 +158,8 @@ void CudaScheduleMul(poly::StageMap stages,
 
 void CudaScheduleReduce(poly::StageMap stages, ir::Tensor output, const common::Target &target);
 
+void CudaScheduleWarpReduce(poly::StageMap stages, ir::Tensor tmp_out, ir::Tensor out, const common::Target &target);
+
 void CudaScheduleDepthwiseConv(poly::StageMap stages, ir::Tensor &output, const common::Target &target);
 
 void CudaScheduleConv(poly::StageMap stages,

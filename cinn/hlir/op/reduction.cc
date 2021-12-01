@@ -20,7 +20,9 @@
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
+#include "cinn/hlir/pe/broadcast.h"
 #include "cinn/hlir/pe/schedule.h"
+#include "cinn/hlir/pe/transform.h"
 #include "cinn/ir/ir_operators.h"
 
 namespace cinn {
@@ -37,6 +39,207 @@ using pe::ReduceMin;
 using pe::ReduceProd;
 using pe::ReduceSum;
 using PeFunc = std::function<ir::Tensor(const ir::Tensor &, const std::vector<int> &, bool, Expr, const std::string &)>;
+
+std::vector<int> GetShape(const ir::Tensor &x) {
+  auto last_reduce_dim = x->shape[2].as_int32() * x->shape[2].as_int32();
+  // split into last_reduce_dim into {n,k}
+  std::vector<int> new_shape = {x->shape[0].as_int32(), x->shape[1].as_int32()};
+  if (last_reduce_dim <= 128) {
+    new_shape.push_back(last_reduce_dim);
+  } else {
+    for (int idx = 256; idx > 128; --idx) {
+      if (last_reduce_dim % idx == 0) {
+        new_shape.push_back(last_reduce_dim / idx);
+        new_shape.push_back(idx);
+        break;
+      }
+    }
+  }
+
+  return new_shape;
+}
+
+std::shared_ptr<OpStrategy> StrategyForBnMeanVarianceReduce(const framework::NodeAttr &attrs,
+                                                            const std::vector<ir::Tensor> &inputs,
+                                                            const std::vector<Type> &out_type,
+                                                            const std::vector<std::vector<int>> &output_shapes,
+                                                            const Target &target) {
+  CHECK_EQ(inputs.size(), 1) << "bn_mean_variance should has 1 input!";
+  auto input = inputs[0];
+  CHECK_EQ(input->shape.size(), 4) << "bn_mean_variance input shape should be 4 dimension!";
+  // compute the new shape for reduce.
+  auto new_shape = GetShape(input);
+
+  framework::CINNCompute bn_mean_variance_compute([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of bn_mean_variance compute is empty! Please check.";
+    CINNValuePack a = args[0];
+    CHECK(!a.empty()) << "at least one input tensor for bn_mean_variance compute.";
+    Expr A = a[0];
+    CHECK(A.as_tensor());
+    auto x = A.as_tensor_ref();
+
+    auto stages    = CreateStages({x});
+    auto x_reshape = pe::Reshape(x, new_shape, stages, UniqName("bn_mean_variance_x_reshape_out"));
+    auto x_square  = pe::Multiply(x_reshape, x_reshape, UniqName("bn_mean_variance_x_square"));
+
+    auto reduce_dim = new_shape.size() == 3 ? std::vector<int>{0} : std::vector<int>{0, 2};
+    auto out0       = pe::ReduceSum(x_reshape, reduce_dim, false, Expr(0.0f), UniqName("bn_mean_variance_out0"));
+    auto out1       = pe::ReduceSum(x_square, reduce_dim, false, Expr(0.0f), UniqName("bn_mean_variance_out1"));
+
+    stages->InsertLazily(x_reshape);
+    stages->InsertLazily(x_square);
+    stages->InsertLazily(out0);
+    stages->InsertLazily(out1);
+    stages[x_reshape]->ComputeInline();
+    stages[x_square]->ComputeInline();
+
+    *ret = CINNValuePack{{CINNValue(out0), CINNValue(out1), CINNValue(stages)}};
+  });
+
+  framework::CINNSchedule bn_mean_variance_schedule([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of bn_mean_variance schedule is empty! Please check.";
+    CINNValuePack arg_pack = args[0];
+    CHECK_EQ(arg_pack.size(), 3UL);
+    if (target.arch == Target::Arch::NVGPU) {
+      Expr out0             = arg_pack[0];
+      Expr out1             = arg_pack[1];
+      poly::StageMap stages = arg_pack.back();
+      CHECK(out0.as_tensor());
+      CHECK(out1.as_tensor());
+      pe::CudaScheduleReduce(stages, out0.as_tensor_ref(), target);
+      pe::CudaScheduleReduce(stages, out1.as_tensor_ref(), target);
+      if (new_shape.size() == 3) {
+        stages[out0.as_tensor_ref()]->SimpleComputeAt(stages[out1.as_tensor_ref()], 2);
+      } else {
+        stages[out0.as_tensor_ref()]->SimpleComputeAt(stages[out1.as_tensor_ref()], 3);
+      }
+    } else if (target.arch == Target::Arch::X86) {
+      Expr out              = arg_pack[0];
+      poly::StageMap stages = arg_pack[1];
+      CHECK(out.as_tensor());
+      pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes.front(), target);
+    }
+    *ret = arg_pack;
+  });
+
+  auto strategy = std::make_shared<framework::OpStrategy>();
+  CHECK(out_type.size()) << "Out_type of bn_mean_variance op is empty! Please check.";
+  if (out_type[0] == Float(32)) {
+    strategy->AddImpl(bn_mean_variance_compute, bn_mean_variance_schedule, "strategy.relu.x86", 1);
+  } else {
+    LOG(FATAL) << "bn_mean_variance op with dtype != float32 is not implemented yet!";
+  }
+  return strategy;
+}
+
+std::shared_ptr<OpStrategy> StrategyForBnGradBiasScaleReduce(const framework::NodeAttr &attrs,
+                                                             const std::vector<ir::Tensor> &inputs,
+                                                             const std::vector<Type> &out_type,
+                                                             const std::vector<std::vector<int>> &output_shapes,
+                                                             const Target &target) {
+  CHECK_EQ(inputs.size(), 3) << "bn_grad_bias_scale should has 3 input!";
+  auto input = inputs[0];
+  CHECK_EQ(input->shape.size(), 4) << "bn_grad_bias_scale input shape should be 4 dimension!";
+  // compute the new shape for reduce.
+  auto new_shape = GetShape(input);
+
+  framework::CINNCompute bn_grad_bias_scale_compute([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of bn_grad_bias_scale compute is empty! Please check.";
+    CINNValuePack a = args[0];
+    CHECK(!a.empty()) << "at least one input tensor for bn_grad_bias_scale compute.";
+    Expr A = a[0];
+    CHECK(A.as_tensor());
+    Expr Mean = a[1];
+    CHECK(Mean.as_tensor());
+    Expr Grad = a[2];
+    CHECK(Grad.as_tensor());
+
+    auto x      = A.as_tensor_ref();
+    auto x_mean = Mean.as_tensor_ref();
+    auto y_grad = Grad.as_tensor_ref();
+
+    auto stages         = CreateStages({x, x_mean, y_grad});
+    auto x_reshape      = pe::Reshape(x, new_shape, stages, UniqName("bn_grad_bias_scale_x_reshape_out"));
+    auto y_grad_reshape = pe::Reshape(y_grad, new_shape, stages, UniqName("bn_grad_bias_scale_grad_reshape_out"));
+
+    auto x_mean_diff      = pe::Substract(x_reshape, x_mean, UniqName("bn_grad_bias_scale_mean_diff"), Expr(1));
+    auto grad_x_mean_diff = pe::Multiply(y_grad_reshape, x_mean_diff, UniqName("bn_grad_bias_scale_grad_mean_diff"));
+
+    auto reduce_dim = new_shape.size() == 3 ? std::vector<int>{0} : std::vector<int>{0, 2};
+
+    auto out0 = pe::ReduceSum(y_grad_reshape, reduce_dim, false, Expr(0.0f), UniqName("bn_grad_bias_scale_out0"));
+    auto out1 = pe::ReduceSum(grad_x_mean_diff, reduce_dim, false, Expr(0.0f), UniqName("bn_grad_bias_scale_out1"));
+
+    // auto stages = CreateStages({x_mean_diff, grad_x_mean_diff, out0, out1});
+    stages->InsertLazily(x_reshape);
+    stages->InsertLazily(y_grad_reshape);
+    stages->InsertLazily(x_mean_diff);
+    stages->InsertLazily(grad_x_mean_diff);
+    stages->InsertLazily(out0);
+    stages->InsertLazily(out1);
+    stages[x_reshape]->ComputeInline();
+    stages[y_grad_reshape]->ComputeInline();
+    stages[x_mean_diff]->ComputeInline();
+    stages[grad_x_mean_diff]->ComputeInline();
+    *ret = CINNValuePack{{CINNValue(out0), CINNValue(out1), CINNValue(stages)}};
+  });
+
+  framework::CINNSchedule bn_grad_bias_scale_schedule([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of bn_grad_bias_scale schedule is empty! Please check.\n";
+    CINNValuePack arg_pack = args[0];
+    CHECK_EQ(arg_pack.size(), 3UL);
+    if (target.arch == Target::Arch::NVGPU) {
+      Expr out0             = arg_pack[0];
+      Expr out1             = arg_pack[1];
+      poly::StageMap stages = arg_pack.back();
+      CHECK(out0.as_tensor());
+      CHECK(out1.as_tensor());
+      pe::CudaScheduleReduce(stages, out0.as_tensor_ref(), target);
+      pe::CudaScheduleReduce(stages, out1.as_tensor_ref(), target);
+      if (new_shape.size() == 3) {
+        stages[out0.as_tensor_ref()]->SimpleComputeAt(stages[out1.as_tensor_ref()], 2);
+      } else {
+        stages[out0.as_tensor_ref()]->SimpleComputeAt(stages[out1.as_tensor_ref()], 3);
+      }
+    } else if (target.arch == Target::Arch::X86) {
+      Expr out              = arg_pack[0];
+      poly::StageMap stages = arg_pack[1];
+      CHECK(out.as_tensor());
+      pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes.front(), target);
+    }
+    *ret = arg_pack;
+  });
+
+  auto strategy = std::make_shared<framework::OpStrategy>();
+  CHECK(out_type.size()) << "Out_type of bn_grad_bias_scale op is empty! Please check.";
+  if (out_type[0] == Float(32)) {
+    strategy->AddImpl(bn_grad_bias_scale_compute, bn_grad_bias_scale_schedule, "strategy.relu.x86", 1);
+  } else {
+    LOG(FATAL) << "bn_grad_bias_scale op with dtype != float32 is not implemented yet!";
+  }
+  return strategy;
+}
+
+std::vector<shape_t> InferShapeForBNReduce(const std::vector<shape_t> &inputs_shape,
+                                           const framework::AttrMapType &attrs) {
+  CHECK(inputs_shape.size() == 3UL || inputs_shape.size() == 1UL);
+  CHECK_EQ(inputs_shape[0].size(), 4UL);
+  // compute the succesive dimension size
+  auto last_reduce_dim = inputs_shape[0][2] * inputs_shape[0][3];
+  // split into last_reduce_dim into {n,k}
+  std::vector<int> output_shape = {inputs_shape[0][1]};
+  if (last_reduce_dim <= 128) {
+    output_shape.push_back(last_reduce_dim);
+  } else {
+    for (int idx = 256; idx > 128; --idx) {
+      if (last_reduce_dim % idx == 0) {
+        output_shape.push_back(idx);
+        break;
+      }
+    }
+  }
+  return {output_shape, output_shape};
+}
 
 #define StrategyForReduction(op_name__, pe__, pe_func__)                                            \
   std::shared_ptr<OpStrategy> StrategyFor##pe__(const framework::NodeAttr &attrs,                   \
@@ -70,7 +273,6 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
     Expr A_expr = a[0];
     CHECK(A_expr.as_tensor());
     ir::Tensor A = A_expr.as_tensor_ref();
-
     // if do reduce on last axis and reduce axis size > 1.
     // two step to do reduce: 1.[n,c,h,w] -> [c,w]; 2.[c,w] -> [c]
     if (dim.back() == inputs[0]->shape.size() - 1 && dim.size() > 1 && target == common::DefaultNVGPUTarget()) {
@@ -82,7 +284,12 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
       auto out1   = pe_func(out0, dims_last, keep_dim, Expr(), UniqName(op_name + "_out1"));
       auto stages = CreateStages({A, out0, out1});
       *ret        = CINNValuePack{{CINNValue(out1), CINNValue(out0), CINNValue(stages)}};
+    } else if (dim.back() == inputs[0]->shape.size() - 1 && target == common::DefaultNVGPUTarget()) {
+      auto res    = pe::WarpReduceSum(A, dim.size());
+      auto stages = CreateStages(res);
+      *ret        = CINNValuePack{{CINNValue(res[0]), CINNValue(res[1]), CINNValue(stages)}};
     } else {
+      // do reduce on last dimension
       auto out    = pe_func(A, dim, keep_dim, Expr(), UniqName(op_name + "_out"));
       auto stages = CreateStages({A, out});
       *ret        = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
@@ -93,14 +300,21 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
     CHECK(!args.empty()) << "The input argument of " << op_name << " schedule is empty! Please check.";
     CINNValuePack arg_pack = args[0];
     CHECK(arg_pack.size() == 2UL || arg_pack.size() == 3UL);
-    if (target.arch == Target::Arch::NVGPU) {
-      poly::StageMap stages = arg_pack.back();
-      Expr out0             = arg_pack.size() == 2 ? arg_pack[0] : arg_pack[1];
-      pe::CudaScheduleReduce(stages, out0.as_tensor_ref(), target);
 
-      if (arg_pack.size() == 3) {
-        Expr out1 = arg_pack[0];
-        pe::CudaScheduleReduce(stages, out1.as_tensor_ref(), target);
+    if (target.arch == Target::Arch::NVGPU) {
+      if (dim.size() == 1 && dim.back() == inputs[0]->shape.size() - 1) {
+        Expr out              = arg_pack[0];
+        Expr tmp_out          = arg_pack[1];
+        poly::StageMap stages = arg_pack.back();
+        pe::CudaScheduleWarpReduce(stages, tmp_out.as_tensor_ref(), out.as_tensor_ref(), target);
+      } else {
+        poly::StageMap stages = arg_pack.back();
+        Expr out0             = arg_pack.size() == 2 ? arg_pack[0] : arg_pack[1];
+        pe::CudaScheduleReduce(stages, out0.as_tensor_ref(), target);
+        if (arg_pack.size() == 3) {
+          Expr out1 = arg_pack[0];
+          pe::CudaScheduleReduce(stages, out1.as_tensor_ref(), target);
+        }
       }
     }
     *ret = arg_pack;
@@ -215,6 +429,30 @@ CINN_REGISTER_HELPER(reduce_ops) {
   CINN_REGISTER_REDUCTION(reduce_min, ReduceMin);
 
 #undef CINN_REGISTER_REDUCTION
+
+  CINN_REGISTER_OP(bn_mean_variance_reduce)
+      .describe("This operator implements the optimization of bn reduce")
+      .set_num_inputs(1)
+      .set_num_outputs(2)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy",
+                                                         cinn::hlir::op::StrategyForBnMeanVarianceReduce)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForBNReduce))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForReduction))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForReduction))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
+      .set_support_level(4);
+
+  CINN_REGISTER_OP(bn_grad_bias_scale_reduce)
+      .describe("This operator implements the optimization of bn grad reduce")
+      .set_num_inputs(3)
+      .set_num_outputs(2)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy",
+                                                         cinn::hlir::op::StrategyForBnGradBiasScaleReduce)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForBNReduce))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForReduction))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForReduction))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
+      .set_support_level(4);
 
   return true;
 }
