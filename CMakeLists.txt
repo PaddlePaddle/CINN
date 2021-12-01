@@ -29,6 +29,7 @@ if (WITH_DEBUG)
   add_definitions(-DCINN_WITH_DEBUG)
 endif()
 
+include(cmake/version.cmake)
 # include the customized configures
 if (EXISTS ${CMAKE_BINARY_DIR}/config.cmake)
   include(${CMAKE_BINARY_DIR}/config.cmake)
