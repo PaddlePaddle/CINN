@@ -19,6 +19,12 @@ namespace cinn {
 namespace frontend {
 namespace pass {
 
+/*
+ * Program maybe has some unused identity instructions. `RemoveIdentity` will remove
+ * these instructions. The way to find unused instructions is to traverse all identity
+ * instructions to determine whether its output is used by other instructions in the
+ * same subgraph or in the `fetch_ids`.
+ */
 void RemoveIdentity(Program* program, const std::unordered_set<std::string>& fetch_ids) {
   CinnBuilder builder("remove_identity_builder");
   for (auto& var : program->GetInputs()) {
