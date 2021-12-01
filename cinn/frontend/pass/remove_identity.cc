@@ -20,7 +20,7 @@ namespace frontend {
 namespace pass {
 
 void RemoveIdentity(Program* program, const std::unordered_set<std::string>& fetch_ids) {
-  CinnBuilder builder("decomposer_builder");
+  CinnBuilder builder("remove_identity_builder");
   for (auto& var : program->GetInputs()) {
     builder.CreateInput(var);
   }
@@ -36,11 +36,15 @@ void RemoveIdentity(Program* program, const std::unordered_set<std::string>& fet
     for (const auto& out : instr->outputs) {
       if (inputs.end() != inputs.find(out->id) || fetch_ids.end() != fetch_ids.find(out->id)) {
         can_remove = false;
-        continue;
+        break;
       }
     }
-    if (can_remove) remove_idxs.insert(i);
+    if (can_remove) {
+      VLOG(2) << "Remove instruction: " << instr;
+      remove_idxs.insert(i);
+    }
   }
+  VLOG(2) << "Total remove " << remove_idxs.size() << " instructions.";
   for (int i = 0; i < program->size(); i++) {
     if (remove_idxs.end() != remove_idxs.find(i)) continue;
     builder.AppendInstruction((*program)[i]);
