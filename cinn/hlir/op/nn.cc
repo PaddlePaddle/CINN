@@ -549,11 +549,7 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
       // x(batch, C_in, h, w) dy(batch, C_out, h, w) dw (C_out, C_in/group, h, w)
       res_shape = {inputs_shape[1][1], inputs_shape[0][1] / groups, out_shape_h, out_shape_w};
     }
-#ifdef CINN_WITH_CUDA
-    return {res_shape};
-#else
     return {res_shape, packed_out_shape, weights_dilation_shape, input_pad_shape};
-#endif
   } else if (data_format == "NHWC") {
     // A is input: [N, H, W, C], B is filter: [C_out, C_in/group, filter_h, filter_w]
     int out_shape_h =
@@ -569,11 +565,7 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
 
 std::vector<Type> InferDtypeForConv2d(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
-#ifdef CINN_WITH_CUDA
-  std::vector<Type> res{inputs_type[0]};
-#else
   std::vector<Type> res{inputs_type[0], inputs_type[0], inputs_type[0], inputs_type[0]};
-#endif
   return res;
 }
 
@@ -2180,11 +2172,7 @@ CINN_REGISTER_HELPER(nn_ops) {
   CINN_REGISTER_OP(conv2d)
       .describe("Do a 2-D convolution with an NCHW/NHWC layout.")
       .set_num_inputs(2)  // here we consider filter as another input
-#ifdef CINN_WITH_CUDA
-      .set_num_outputs(1)
-#else
       .set_num_outputs(4)
-#endif
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForConv2d)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForConv2d))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForConv2d))
@@ -2216,11 +2204,7 @@ CINN_REGISTER_HELPER(nn_ops) {
   CINN_REGISTER_OP(depthwise_conv2d)
       .describe("Do a 2-D depthwise convolution with an NCHW/NHWC layout.")
       .set_num_inputs(2)  // here we consider filter as another input
-#ifdef CINN_WITH_CUDA
-      .set_num_outputs(1)
-#else
       .set_num_outputs(4)
-#endif
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForDepthwiseConv2d)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForConv2d))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForConv2d))
