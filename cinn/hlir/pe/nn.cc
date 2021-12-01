@@ -243,7 +243,7 @@ std::vector<ir::Tensor> Conv2d_NCHW(const ir::Tensor &input,
     auto &res = ScheduleParam::get_cuda_instance().GetParam();
     if (res.empty()) {
       CreateCudaSerialData();
-      LoadSerialData(&res);
+      // LoadSerialData(&res);
     }
     std::string key = "CudaWinogradConvSchedule " + std::to_string(input_pad_shape_int[0]) + " " +
                       std::to_string(input_pad_shape_int[1]) + " " + std::to_string(input_pad_shape_int[2]) + " " +
