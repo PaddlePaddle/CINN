@@ -1608,24 +1608,27 @@ void CreateCudaSerialData(const std::string &file_name) {
                            "CudaDirectConvSchedule 1 256 6 7 6 256 3 3 1 6 4 5",
                            {{-1, 32}, {-1, 3}, {-1, 3}, {-1, 1, 2, 1}, {-1, 1, 4, 1}, {-1, 1, 1, 1}});
 
-  /*   InputWinogradConvCudaParam(model_data,
-                               "CudaWinogradConvSchedule 1 512 9 9 512 512 3 3 1 512 7 7",
-                               {{32, 16}, {1, 1, 8, 2}, {8, 1, 16, 4}, {16, 1, 1, 1}});
-    InputWinogradConvCudaParam(model_data,
-                               "CudaWinogradConvSchedule 1 256 6 7 12 256 3 3 1 12 4 5",
-                               {{-1, 256}, {-1, 1, 6, 1}, {-1, 1, 6, 1}, {-1, 1, 1, 1}});
-    InputWinogradConvCudaParam(model_data,
-                               "CudaWinogradConvSchedule 1 256 6 7 6 256 3 3 1 12 4 5",
-                               {{-1, 256}, {-1, 1, 6, 1}, {-1, 1, 6, 1}, {-1, 1, 1, 1}});
-    InputWinogradConvCudaParam(model_data,
-                               "CudaWinogradConvSchedule 1 12 32 42 16 12 3 3 1 16 30 40",
-                               {{-1, 12}, {-1, 2, 30, 1}, {-1, 4, 2, 2}, {-1, 1, 1, 1}});
-    InputWinogradConvCudaParam(model_data,
-                               "CudaWinogradConvSchedule 1 8 32 42 12 8 3 3 1 12 30 40",
-                               {{-1, 8}, {-1, 2, 30, 1}, {-1, 1, 2, 6}, {-1, 1, 1, 1}});
-    InputWinogradConvCudaParam(model_data,
-                               "CudaWinogradConvSchedule 1 8 32 42 16 8 3 3 1 16 30 40",
-                               {{-1, 4}, {-1, 2, 30, 1}, {-1, 1, 4, 4}, {-1, 1, 1, 1}}); */
+#ifndef CINN_WITH_CUDNN
+  InputWinogradConvCudaParam(model_data,
+                             "CudaWinogradConvSchedule 1 512 9 9 512 512 3 3 1 512 7 7",
+                             {{32, 16}, {1, 1, 8, 2}, {8, 1, 16, 4}, {16, 1, 1, 1}});
+  InputWinogradConvCudaParam(model_data,
+                             "CudaWinogradConvSchedule 1 256 6 7 12 256 3 3 1 12 4 5",
+                             {{-1, 256}, {-1, 1, 6, 1}, {-1, 1, 6, 1}, {-1, 1, 1, 1}});
+  InputWinogradConvCudaParam(model_data,
+                             "CudaWinogradConvSchedule 1 256 6 7 6 256 3 3 1 12 4 5",
+                             {{-1, 256}, {-1, 1, 6, 1}, {-1, 1, 6, 1}, {-1, 1, 1, 1}});
+  InputWinogradConvCudaParam(model_data,
+                             "CudaWinogradConvSchedule 1 12 32 42 16 12 3 3 1 16 30 40",
+                             {{-1, 12}, {-1, 2, 30, 1}, {-1, 4, 2, 2}, {-1, 1, 1, 1}});
+  InputWinogradConvCudaParam(model_data,
+                             "CudaWinogradConvSchedule 1 8 32 42 12 8 3 3 1 12 30 40",
+                             {{-1, 8}, {-1, 2, 30, 1}, {-1, 1, 2, 6}, {-1, 1, 1, 1}});
+  InputWinogradConvCudaParam(model_data,
+                             "CudaWinogradConvSchedule 1 8 32 42 16 8 3 3 1 16 30 40",
+                             {{-1, 4}, {-1, 2, 30, 1}, {-1, 1, 4, 4}, {-1, 1, 1, 1}});
+#endif
+
   SaveSerialData(model_data, file_name);
 }
 
@@ -1899,23 +1902,24 @@ void CudaScheduleConv2(poly::StageMap stages,
 }
 
 void CudaScheduleWinogradConv(poly::StageMap wino_stages,
-                              ir::Tensor &wino_weights_dilation,
-                              ir::Tensor &wino_input_pad,
-                              ir::Tensor &wino_A,
-                              ir::Tensor &wino_B,
-                              ir::Tensor &wino_G,
-                              ir::Tensor &kernel_pack,
-                              ir::Tensor &input_tile,
-                              ir::Tensor &data_pack,
-                              ir::Tensor &bgemm,
-                              ir::Tensor &inverse,
-                              ir::Tensor &wino_conv,
+                              std::vector<ir::Tensor> &all_tensors,
                               const common::Target &target) {
   auto &res = ScheduleParam::get_cuda_instance().GetParam();
   if (res.empty()) {
     CreateCudaSerialData();
     LoadSerialData(&res);
   }
+  auto &wino_weights_dilation = all_tensors[0];
+  auto &wino_input_pad        = all_tensors[1];
+  auto &wino_A                = all_tensors[2];
+  auto &wino_B                = all_tensors[3];
+  auto &wino_G                = all_tensors[4];
+  auto &kernel_pack           = all_tensors[5];
+  auto &input_tile            = all_tensors[6];
+  auto &data_pack             = all_tensors[7];
+  auto &bgemm                 = all_tensors[8];
+  auto &inverse               = all_tensors[9];
+  auto &wino_conv             = all_tensors[10];
   std::string key =
       "CudaWinogradConvSchedule " + std::to_string(wino_input_pad->shape[0].as_int32()) + " " +
       std::to_string(wino_input_pad->shape[1].as_int32()) + " " + std::to_string(wino_input_pad->shape[2].as_int32()) +

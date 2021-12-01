@@ -1641,8 +1641,18 @@ Expr ConvertCinnToCAS(Expr expr) {
         return;
       }
 
+      if (a.is_constant() && a.get_constant() == 1) {
+        *expr = b;
+        return;
+      }
+
       if (b.is_constant() && b.get_constant() == 0) {
         *expr = make_const(b->type(), 0);
+        return;
+      }
+
+      if (b.is_constant() && b.get_constant() == 1) {
+        *expr = a;
         return;
       }
 
@@ -1681,6 +1691,11 @@ Expr ConvertCinnToCAS(Expr expr) {
 
       if (a.is_constant() && a.get_constant() == 0) {
         *expr = make_const(a->type(), 0);
+        return;
+      }
+
+      if (b.is_constant() && b.get_constant() == 1) {
+        *expr = a;
         return;
       }
 
@@ -2271,23 +2286,23 @@ Expr CasSimplifyMutator::SimplifyCond(Expr u) {
       if (a.is_constant() || b.is_constant()) {
         if (u.As<ir::And>()) {
           // 1 && b is b
-          if (a.As<ir::IntImm>()) {
-            return a.As<ir::IntImm>()->value ? b : Expr(false);
+          if (a.As<ir::UIntImm>()) {
+            return a.As<ir::UIntImm>()->value ? b : Expr(false);
           }
           // a && 1 is a
-          if (b.As<ir::IntImm>()) {
-            return b.As<ir::IntImm>()->value ? a : Expr(false);
+          if (b.As<ir::UIntImm>()) {
+            return b.As<ir::UIntImm>()->value ? a : Expr(false);
           }
           return ir::And::Make(a, b);
         }
         if (u.As<ir::Or>()) {
           // 1 || b is 1
-          if (a.As<ir::IntImm>()) {
-            return a.As<ir::IntImm>()->value ? a : b;
+          if (a.As<ir::UIntImm>()) {
+            return a.As<ir::UIntImm>()->value ? a : b;
           }
           // a || 1 is 1
-          if (b.As<ir::IntImm>()) {
-            return b.As<ir::IntImm>()->value ? b : a;
+          if (b.As<ir::UIntImm>()) {
+            return b.As<ir::UIntImm>()->value ? b : a;
           }
         }
         return ir::Or::Make(a, b);

@@ -14,6 +14,7 @@
 
 #include "cinn/hlir/framework/graph_compiler.h"
 
+#include <memory>
 #include <unordered_set>
 
 #include "cinn/backends/codegen_cuda_dev.h"
@@ -307,6 +308,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const Node* node) {
     output_shapes.push_back(out_shape);
     out_types.push_back(dtype);
   }
+
   auto impl = OpStrategy::SelectImpl(strategy[node->op()](node->attrs, inputs, out_types, output_shapes, target_));
 
   common::CINNValuePack C = impl->fcompute(common::CINNValuePack{cinn_inputs});
@@ -596,10 +598,11 @@ std::unique_ptr<Program> GraphCompiler::Build(const std::string& code) {
 GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::CompileOptions& options,
                                                       std::unordered_set<std::string>&& fetch_var_ids,
                                                       void* stream) {
-  fetch_var_ids_  = std::move(fetch_var_ids);
-  auto topo_order = graph_->topological_order();
-  auto& nodes     = std::get<0>(topo_order);
-  auto& edges     = std::get<1>(topo_order);
+  compile_options_ = options;
+  fetch_var_ids_   = std::move(fetch_var_ids);
+  auto topo_order  = graph_->topological_order();
+  auto& nodes      = std::get<0>(topo_order);
+  auto& edges      = std::get<1>(topo_order);
 
   auto& groups = graph_->groups;
 
@@ -642,6 +645,10 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   compiler_->Build(build_module, options.attached_code, stream);
   auto instructions = BuildInstructions();
   RemoveInvalidVariables(instructions);
+  if (options.with_buffer_handle_instruction_inserted) {
+    VLOG(3) << "option.with_buffer_handle_instruction_inserted enable";
+    InsertBufferHandlers(&instructions);
+  }
 
   if (options.with_instantiate_variables) {
     VLOG(3) << "Initantiate all variables on compile-time";
@@ -649,7 +656,15 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
     for (auto& name : scope_->var_names()) {
       auto* var    = scope_->Var<Tensor>(std::string({name.data(), name.size()}));
       auto& tensor = absl::get<Tensor>(*var);
-      tensor->mutable_data<float>(target_);
+      if (reuse_vars_map_.count(name)) {
+        auto src_var_name = reuse_vars_map_.at(name);
+        auto* src_var     = scope_->Var<Tensor>(src_var_name);
+        auto& src_tensor  = absl::get<Tensor>(*src_var);
+        VLOG(3) << name << " shares buffer with " << src_var_name;
+        tensor->set_buffer(src_tensor->get_buffer());
+      } else {
+        tensor->mutable_data<float>(target_);
+      }
     }
   }
 
@@ -686,9 +701,22 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
   auto& groups = graph_->groups;
   for (auto& group : groups) {
     if (group.size() == 1) {
-      auto node  = group[0];
+      auto node       = group[0];
+      auto instr_name = node->op()->name;
+      if (node->op()->name == "reshape" && compile_options_.with_instantiate_variables) {
+        // not run instruction and shares buffer only when instantiate_variables
+        auto& inlinks  = node->inlinks_in_order();
+        auto& outlinks = node->outlinks_in_order();
+        CHECK_EQ(inlinks.size(), 1U);
+        CHECK_EQ(outlinks.size(), 1U);
+        std::string in_id       = inlinks[0]->source()->safe_as<NodeData>()->id();
+        std::string out_id      = outlinks[0]->sink()->safe_as<NodeData>()->id();
+        reuse_vars_map_[out_id] = in_id;
+        instr_name              = "no_run";
+      }
       auto instr = std::unique_ptr<Instruction>(
-          new Instruction(target_, scope_.get(), OpGetInputNames(node), OpGetOutputNames(node), node->op()->name));
+          new Instruction(target_, scope_.get(), OpGetInputNames(node), OpGetOutputNames(node), instr_name));
+
       if (target_.arch == Target::Arch::NVGPU) {
         if (node->op()->name == "conv2d") {
           auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
@@ -835,6 +863,8 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
       if (node->attrs.attr_store.count("pre_run")) {
         instr->pre_run = absl::get<bool>(node->attrs.attr_store["pre_run"]);
       }
+      // explicitly call Finalize of the instruction after all assignments on it were done
+      instr->Finalize();
       instructions.push_back(std::move(instr));
     } else {
       CHECK_GT(group.size(), 1U) << "fuse number should be greater than 1";
@@ -894,6 +924,8 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
           instr->pre_run = true;
         }
       }
+      // explicitly call Finalize of the instruction after all assignments on it were done
+      instr->Finalize();
       instructions.push_back(std::move(instr));
     }
   }
@@ -938,6 +970,97 @@ void GraphCompiler::RemoveInvalidVariables(const std::vector<std::unique_ptr<Ins
     scope_->EraseVar(var_name);
     VLOG(3) << "Variable(" << var_name << ") is erased";
   });
+}
+
+static void BufferMallocWithCallback(void* args, int num_args) {
+  cinn_pod_value_t* pod_args = static_cast<cinn_pod_value_t*>(args);
+  for (int i = 0; i < num_args; ++i) {
+    cinn_buffer_t* buffer = static_cast<cinn_buffer_t*>(pod_args[i]);
+    CHECK(buffer->external_malloc) << "external_malloc is nullptr";
+    buffer->external_malloc->operator()(nullptr, buffer);
+  }
+}
+
+static void BufferFreeWithCallback(void* args, int num_args) {
+  cinn_pod_value_t* pod_args = static_cast<cinn_pod_value_t*>(args);
+  for (int i = 0; i < num_args; ++i) {
+    cinn_buffer_t* buffer = static_cast<cinn_buffer_t*>(pod_args[i]);
+    CHECK(buffer->external_free) << "external_free is nullptr";
+    buffer->external_free->operator()(nullptr, buffer);
+  }
+}
+
+void GraphCompiler::AnalyzeVariableLifeTime(const std::vector<std::unique_ptr<Instruction>>& instructions,
+                                            std::unordered_map<int, std::vector<std::string>>* step2malloc,
+                                            std::unordered_map<int, std::vector<std::string>>* step2free) {
+  absl::flat_hash_map<std::string, int> variable_last_used, variable_first_used;
+  for (auto step = 0; step < instructions.size(); ++step) {
+    const auto& instr = instructions.at(step);
+
+    for (const auto& args : instr->GetInArgs()) {
+      for (const auto& var_name : args) {
+        // use try_emplace to record the first time a variable appearance
+        variable_first_used.try_emplace(var_name, step);
+        // will update until last time a variable used
+        variable_last_used[var_name] = step;
+      }
+    }
+    for (const auto& args : instr->GetOutArgs()) {
+      for (const auto& var_name : args) {
+        variable_first_used.try_emplace(var_name, step);
+        variable_last_used[var_name] = step;
+      }
+    }
+  }
+
+  for (const auto& var2first : variable_first_used) {
+    (*step2malloc)[var2first.second].emplace_back(var2first.first);
+  }
+  for (const auto& var2last : variable_last_used) {
+    (*step2free)[var2last.second].emplace_back(var2last.first);
+  }
+}
+
+void GraphCompiler::InsertBufferHandlers(std::vector<std::unique_ptr<Instruction>>* instructions) {
+  std::unordered_map<int, std::vector<std::string>> step2malloc, step2free;
+  AnalyzeVariableLifeTime(*instructions, &step2malloc, &step2free);
+
+  std::vector<std::unique_ptr<Instruction>> results;
+  for (auto step = 0; step < instructions->size(); ++step) {
+    auto& instr = instructions->at(step);
+
+    // insert a buffer malloc instruction applying on variables
+    // before they are firstly used in the next instruction
+    auto m_it = step2malloc.find(step);
+    if (m_it != step2malloc.end()) {
+      const auto& malloc_var_names = m_it->second;
+      auto function_name           = "malloc_buffer_instruction_" + std::to_string(step);
+      auto malloc_instr            = std::make_unique<Instruction>(
+          target_, scope_.get(), malloc_var_names, std::vector<std::string>({}), function_name);
+      malloc_instr->SetLoweredFunc(BufferMallocWithCallback, function_name);
+      malloc_instr->Finalize();
+      results.emplace_back(std::move(malloc_instr));
+    }
+
+    // join the real computation instruction
+    results.emplace_back(std::move(instr));
+
+    // insert a buffer free instruction applying on variables
+    // after no instruction will use them anymore
+    auto f_it = step2free.find(step);
+    if (f_it != step2free.end()) {
+      const auto& free_var_names = f_it->second;
+      auto function_name         = "free_buffer_instruction_" + std::to_string(step);
+      auto free_instr            = std::make_unique<Instruction>(
+          target_, scope_.get(), std::vector<std::string>({}), free_var_names, function_name);
+      free_instr->SetLoweredFunc(BufferFreeWithCallback, function_name);
+      free_instr->Finalize();
+      results.emplace_back(std::move(free_instr));
+    }
+  }
+
+  // replace original instructions
+  instructions->swap(results);
 }
 
 std::vector<std::string> GraphCompiler::OpGetInputNames(const Node* node) const {

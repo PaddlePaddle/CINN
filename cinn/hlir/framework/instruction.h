@@ -64,6 +64,9 @@ class Instruction {
     fn_names_.push_back(name);
   }
 
+  // explicitly finalize the instruction, and can't append function again after call it
+  void Finalize();
+
   /**
    * Run the Instruction.
    */
@@ -122,6 +125,7 @@ class Instruction {
   std::vector<cinn_pod_value_t>& PreparePodArgs(int i, const std::map<std::string, cinn_pod_value_t>* name2podargs);
 
  private:
+  bool finalized_flag_ = false;
   Scope* scope_{};
   std::string function_name_;
   std::vector<std::vector<std::string>> in_args_;

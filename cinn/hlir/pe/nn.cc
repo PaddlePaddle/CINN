@@ -405,22 +405,6 @@ std::vector<ir::Tensor> Conv2d_NCHWc(const ir::Tensor &input,
   Expr c_filter_inner = common::AutoSimplify(shape_weights[4]);
   Expr c_out_inner    = common::AutoSimplify(shape_weights[5]);
 
-  ir::Tensor input_pad;
-  if (pad_h == 0 && pad_w == 0) {
-    input_pad = Compute(
-        input->shape,
-        [=](Expr n, Expr icc, Expr yy, Expr xx, Expr icb) { return input(n, icc, yy, xx, icb); },
-        UniqName("input_pad"));
-  } else {
-    input_pad = Compute(
-        {batch, c_in_outer, h_in + 2 * pad_h, w_in + 2 * pad_w, c_in_inner},
-        [=](Expr n, Expr icc, Expr yy, Expr xx, Expr icb) {
-          auto cond = lang::logic_and({yy >= pad_h, yy - pad_h < h_in, xx >= pad_w, xx - pad_w < w_in});
-          return ir::Select::Make(cond, input(n, icc, yy - pad_h, xx - pad_w, icb), ir::Zero(type));
-        },
-        UniqName("input_pad"));
-  }
-
   Expr c_filter = common::AutoSimplify(c_filter_outer * c_filter_inner);
   Expr c_out    = common::AutoSimplify(c_out_outer * c_out_inner);
   Expr c_in     = common::AutoSimplify(c_in_outer * c_in_inner);
@@ -434,14 +418,34 @@ std::vector<ir::Tensor> Conv2d_NCHWc(const ir::Tensor &input,
       common::AutoSimplify((w_in - ((w_f - 1) * dilation_w + 1) + 2 * pad_w) / stride_w + 1),  // W
       c_out_inner};
 
+  ir::Tensor input_pad;
+  if (pad_h == 0 && pad_w == 0) {
+    input_pad = Compute(
+        input->shape,
+        [=](Expr n, Expr icc, Expr yy, Expr xx, Expr icb) { return input(n, icc, yy, xx, icb); },
+        UniqName("input_pad"));
+  } else {
+    auto pad_h_bound = common::AutoSimplify((output_shape[2] - 1) * stride_h + (h_f - 1) * dilation_h + 1);
+    auto pad_w_bound = common::AutoSimplify((output_shape[3] - 1) * stride_w + (w_f - 1) * dilation_w + 1);
+    auto pad_out_h   = std::min(pad_h_bound.as_int32(), common::AutoSimplify(h_in + 2 * pad_h).as_int32());
+    auto pad_out_w   = std::min(pad_w_bound.as_int32(), common::AutoSimplify(w_in + 2 * pad_w).as_int32());
+    input_pad        = Compute(
+        {batch, c_in_outer, Expr(pad_out_h), Expr(pad_out_w), c_in_inner},
+        [=](Expr n, Expr icc, Expr yy, Expr xx, Expr icb) {
+          auto cond = lang::logic_and({yy >= pad_h, yy - pad_h < h_in, xx >= pad_w, xx - pad_w < w_in});
+          return ir::Select::Make(cond, input(n, icc, yy - pad_h, xx - pad_w, icb), ir::Zero(type));
+        },
+        UniqName("input_pad"));
+  }
+
   auto packed_out = Compute(
       output_shape,
       [=](Expr n, Expr oc_chunk, Expr oh, Expr ow, Expr oc_block) {
         Expr c_out_per_group = common::AutoSimplify(c_out * c_filter / c_in);
         Expr ic_outer, ic_inner;
         if (c_in == c_filter) {
-          ic_outer = fc / c_in_inner;
-          ic_inner = fc % c_in_inner;
+          ic_outer = common::AutoSimplify(fc / c_in_inner);
+          ic_inner = common::AutoSimplify(fc % c_in_inner);
         } else {
           ic_outer = common::AutoSimplify(((oc_chunk * c_out_inner + oc_block) / c_out_per_group * c_filter + fc) /
                                           c_in_inner);
