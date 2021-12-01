@@ -1641,8 +1641,18 @@ Expr ConvertCinnToCAS(Expr expr) {
         return;
       }
 
+      if (a.is_constant() && a.get_constant() == 1) {
+        *expr = b;
+        return;
+      }
+
       if (b.is_constant() && b.get_constant() == 0) {
         *expr = make_const(b->type(), 0);
+        return;
+      }
+
+      if (b.is_constant() && b.get_constant() == 1) {
+        *expr = a;
         return;
       }
 
@@ -1681,6 +1691,11 @@ Expr ConvertCinnToCAS(Expr expr) {
 
       if (a.is_constant() && a.get_constant() == 0) {
         *expr = make_const(a->type(), 0);
+        return;
+      }
+
+      if (b.is_constant() && b.get_constant() == 1) {
+        *expr = a;
         return;
       }
 

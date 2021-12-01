@@ -750,7 +750,11 @@ std::vector<shape_t> InferShapeForConv2dNCHWc(const std::vector<shape_t> &inputs
   int oc_bn                         = inputs_shape[1][5];
   int oc_chunk                      = inputs_shape[1][0];
   std::vector<int> packed_out_shape = {batch, oc_chunk, out_shape_h, out_shape_w, oc_bn};
-  std::vector<int> input_pad_shape  = {batch, ic_chunk, h_in + 2 * pad_h, w_in + 2 * pad_w, ic_bn};
+  auto pad_h_bound                  = (out_shape_h - 1) * stride[0] + (h_f - 1) * dilation[0] + 1;
+  auto pad_w_bound                  = (out_shape_w - 1) * stride[1] + (w_f - 1) * dilation[1] + 1;
+  auto input_pad_h                  = std::min(pad_h_bound, h_in + 2 * pad_h);
+  auto input_pad_w                  = std::min(pad_w_bound, w_in + 2 * pad_w);
+  std::vector<int> input_pad_shape  = {batch, ic_chunk, input_pad_h, input_pad_w, ic_bn};
   VLOG(3) << "packed_out_shape: " << utils::Join(packed_out_shape, ", ");
   return {packed_out_shape, packed_out_shape, input_pad_shape};
 }
