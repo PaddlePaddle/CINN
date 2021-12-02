@@ -477,13 +477,8 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
         }
       } else if (index < fuse_number - 1 && temp_tensor->is_reduce_tensor()) {
         VLOG(3) << "temp buffer " << temp_tensor->name;
-        if (target_.arch == Target::Arch::X86 || fetch_tensors.count(temp_tensor)) {
-          VLOG(3) << "add op's out_vars: " << temp_tensor->name;
-          outputs.push_back(temp_tensor);
-        } else {
-          temp_tensor->WithBuffer("local", "_" + temp_tensor->name + "_temp_buffer");
-          stages[temp_tensor]->SetScope(poly::ScopeKind::kLocal);
-        }
+        VLOG(3) << "add op's out_vars: " << temp_tensor->name;
+        outputs.push_back(temp_tensor);
       } else {
         if (index == fuse_number - 1) {
           // final output tensor

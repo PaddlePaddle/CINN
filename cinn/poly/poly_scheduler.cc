@@ -439,7 +439,7 @@ std::vector<Shared<ScheduleGraphNode>> PolyGroupScheduler::Build() {
     auto* node0 = edge->source()->safe_as<ScheduleGraphNode>();
     auto* node1 = edge->sink()->safe_as<ScheduleGraphNode>();
     int level   = edge->as<ScheduleGraphEdge>()->level;
-    if (level > 40 || level < 0) continue;
+    if (level < 0) continue;
     VLOG(2) << "schedule " << node0->id() << " -> " << node1->id() << " level " << level;
     node1->time_schedule.OrderAfter(node0->time_schedule, level);
   }
