@@ -1754,42 +1754,13 @@ TEST(elementwise_add1, share_local_cache) {
   auto* C_target_mem = reinterpret_cast<float*>(C_target_host->memory);
   auto* A_mem        = reinterpret_cast<float*>(A_host->memory);
   auto* B_mem        = reinterpret_cast<float*>(B_host->memory);
-  /**
-   * Here the generated code will randomly be wrong.
-   *
-   * To improve development efficiency, temporarily turn off the accuracy testing.
-   *
-   * ToDo:@Haoze Fix this bug.
-   *
-   * The wrong code:
-   *
-   * __global__
-   * void elementwise_add(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
-   * {
-   *   float _A_read_cache [ 1 ];
-   *   float _A_read_cache_read_cache [ 1 ];
-   *   float* A_read_cache = _A_read_cache;
-   *   float* A_read_cache_read_cache = _A_read_cache_read_cache;
-   *   if ((blockIdx.x < 100)) {
-   *   {
-   *     for (int32_t j = 0; j < 200; j += 1) {
-   *       A_read_cache[0] = A[((200 * blockIdx.x) + j)];
-   *       A_read_cache_read_cache[0] = A_read_cache[0];
-   *     };
-   *     if ((threadIdx.x < 200)) {
-   *       C[((200 * blockIdx.x) + threadIdx.x)] = (A_read_cache_read_cache[0] + B[((200 * blockIdx.x) + threadIdx.x)]);
-   *     };
-   *   }
-   *   };
-   * }
-   */
 
-  /*   for (int i = 0; i < C_target_host->num_elements(); i++) {
-      if ((C_target_mem[i] - A_mem[i] - B_mem[i]) > 0.0001 || (C_target_mem[i] - A_mem[i] - B_mem[i]) < -0.0001) {
-        LOG(INFO) << "The target should be: " << C_target_mem[i] << ", but result is: " << A_mem[i] + B_mem[i];
-      }
-      ASSERT_NEAR(C_target_mem[i], A_mem[i] + B_mem[i], 1e-3);
-    } */
+  for (int i = 0; i < C_target_host->num_elements(); i++) {
+    if ((C_target_mem[i] - A_mem[i] - B_mem[i]) > 0.0001 || (C_target_mem[i] - A_mem[i] - B_mem[i]) < -0.0001) {
+      LOG(INFO) << "The target should be: " << C_target_mem[i] << ", but result is: " << A_mem[i] + B_mem[i];
+    }
+    ASSERT_NEAR(C_target_mem[i], A_mem[i] + B_mem[i], 1e-3);
+  }
 
   cuMemFree(reinterpret_cast<CUdeviceptr>(A_dev));
   cuMemFree(reinterpret_cast<CUdeviceptr>(B_dev));
