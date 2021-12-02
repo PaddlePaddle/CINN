@@ -1781,15 +1781,15 @@ TEST(elementwise_add1, share_local_cache) {
    *     };
    *   }
    *   };
-   * }
+   * }]
    */
 
-  /*   for (int i = 0; i < C_target_host->num_elements(); i++) {
+    for (int i = 0; i < C_target_host->num_elements(); i++) {
       if ((C_target_mem[i] - A_mem[i] - B_mem[i]) > 0.0001 || (C_target_mem[i] - A_mem[i] - B_mem[i]) < -0.0001) {
         LOG(INFO) << "The target should be: " << C_target_mem[i] << ", but result is: " << A_mem[i] + B_mem[i];
       }
       ASSERT_NEAR(C_target_mem[i], A_mem[i] + B_mem[i], 1e-3);
-    } */
+    }
 
   cuMemFree(reinterpret_cast<CUdeviceptr>(A_dev));
   cuMemFree(reinterpret_cast<CUdeviceptr>(B_dev));

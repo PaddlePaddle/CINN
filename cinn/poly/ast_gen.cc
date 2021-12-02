@@ -176,15 +176,16 @@ isl::ast_node AstGen::Build() {
 
   ast_build = ast_build.set_at_each_domain(collect);
 
+  LOG(INFO) << "schedule: " << schedule;
+  LOG(INFO) << "impl_->transform() is : " << impl_->transform();
   isl::union_map transformed_schedule = impl_->transform().apply_range(schedule);
-  VLOG(4) << "transformed_schedule: " << transformed_schedule;
+  LOG(INFO) << "transformed_schedule: " << transformed_schedule;
   auto schedule_domain = transformed_schedule.intersect_domain(impl_->domain());
-  VLOG(4) << "domain: " << impl_->domain();
+  LOG(INFO) << "domain: " << impl_->domain();
   VLOG(4) << "transform schedule " << impl_->stages()[0]->transform();
-  VLOG(4) << "schedule: " << schedule;
-  VLOG(4) << "schedule_domain: " << schedule_domain;
+  LOG(INFO) << "schedule_domain: " << schedule_domain;
   auto ast = ast_build.node_from_schedule_map(schedule_domain);
-  VLOG(2) << "AST:\n" << isl_ast_node_to_C_str(ast.get());
+  LOG(INFO) << "AST:\n" << isl_ast_node_to_C_str(ast.get());
   return ast;
 }
 

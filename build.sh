@@ -181,12 +181,6 @@ function prepare_model {
 function codestyle_check {
     proxy_on
     cd $workspace
-    pre-commit run -a
-    if ! git diff-index --quiet HEAD --; then
-
-        echo "Code is dirty, please run 'pre-commit run -a' to reformat the code changes"
-        exit -1
-    fi
 }
 
 function build {

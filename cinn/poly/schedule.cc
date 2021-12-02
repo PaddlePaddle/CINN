@@ -77,6 +77,9 @@ TimeSchedule::TimeSchedule(const std::string &id, const std::vector<std::string>
     CHECK(!dim.empty());
     time_dims_.emplace_back(dim, 0);
   }
+  LOG(INFO) << "TimeSchedule id is : " << id;
+  for (auto i:dims) LOG(INFO) << "dims is : " << i;
+  LOG(INFO) << "TimeSchedule init : " << __str__();
 }
 
 void TimeSchedule::OrderAfter(const TimeSchedule &other, int level) {
