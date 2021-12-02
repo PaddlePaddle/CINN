@@ -1754,6 +1754,7 @@ TEST(elementwise_add1, share_local_cache) {
   auto* C_target_mem = reinterpret_cast<float*>(C_target_host->memory);
   auto* A_mem        = reinterpret_cast<float*>(A_host->memory);
   auto* B_mem        = reinterpret_cast<float*>(B_host->memory);
+
   /**
    * Here the generated code will randomly be wrong.
    *
