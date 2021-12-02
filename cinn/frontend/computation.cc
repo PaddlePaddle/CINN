@@ -73,7 +73,9 @@ std::shared_ptr<ComputationContext> CompileProgram(const Target &target,
   ctx->graph_compiler.reset(new hlir::framework::GraphCompiler(target, ctx->scope, ctx->graph));
 
   std::unordered_set<std::string> fetch_var_ids;
-  for (auto &out : outputs) fetch_var_ids.insert(out->id);
+  for (auto &out : outputs) {
+    fetch_var_ids.insert(out->id);
+  }
 
   ctx->program = ctx->graph_compiler->Build(options, std::move(fetch_var_ids)).runtime_program;
   if (ctx->compile_options.do_prerun) {
@@ -139,10 +141,10 @@ std::shared_ptr<CinnComputation> CinnComputation::CompilePaddleModel(
     ctx->varmap_paddle2program[v.first] = v.second;
   }
 
-  std::shared_ptr<CinnComputation> compute(new CinnComputation);
-  compute->context_ = std::move(ctx);
+  auto computation      = std::make_shared<CinnComputation>();
+  computation->context_ = std::move(ctx);
 
-  return compute;
+  return computation;
 }
 
 std::shared_ptr<CinnComputation> CinnComputation::BuildAndCompile(const Target &target,
@@ -166,10 +168,10 @@ std::shared_ptr<CinnComputation> CinnComputation::Compile(const Target &target,
 
   std::shared_ptr<ComputationContext> ctx = CompileProgram(target, program, output_vars, nullptr, options, stream);
 
-  std::shared_ptr<CinnComputation> compute(new CinnComputation);
-  compute->context_ = std::move(ctx);
+  auto computation      = std::make_shared<CinnComputation>();
+  computation->context_ = std::move(ctx);
 
-  return compute;
+  return computation;
 }
 
 void CinnComputation::SetTensorData(const std::string &tname, void *data, size_t size) {

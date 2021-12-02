@@ -93,6 +93,7 @@ function prepare_ci {
   pip config set global.trusted-host mirrors.aliyun.com
   pip install pre-commit
   pip install clang-format==9.0
+  pip install wheel
   pip install sphinx==3.3.1 sphinx_gallery==0.8.1 recommonmark==0.6.0 exhale scipy breathe==4.24.0 matplotlib
   pip install paddlepaddle-gpu==2.1.2.post101 -f https://www.paddlepaddle.org.cn/whl/linux/mkl/avx/stable.html
 }

@@ -2,11 +2,21 @@ FILE(GLOB_RECURSE CINN_PY_FILES ${PROJECT_SOURCE_DIR}/cinn/python/cinn/*.py)
 SET(CINN_PYTHON_DIR ${PROJECT_SOURCE_DIR}/python/cinn)
 SET(CINN_PYTHON_TEST_DIR ${PROJECT_SOURCE_DIR}/python/tests)
 SET(CINN_CORE_API ${CMAKE_BINARY_DIR}/python/cinn/core_api.so)
+
+if (WITH_CUDA)
+  set(PACKAGE_NAME "cinn-gpu")
+else()
+  set(PACKAGE_NAME "cinn")
+endif ()
+set(SETUP_LOG_FILE "setup.py.log")
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in ${CMAKE_CURRENT_BINARY_DIR}/setup.py)
+
 ADD_CUSTOM_COMMAND(OUTPUT ${CINN_CORE_API} POST_BUILD
     COMMAND
     COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/cinn/pybind/core_api.so ${CINN_CORE_API}
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${CINN_PYTHON_DIR} ${CMAKE_BINARY_DIR}/python/cinn
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${CINN_PYTHON_TEST_DIR} ${CMAKE_BINARY_DIR}/python/tests
+    COMMAND cd ${CMAKE_CURRENT_BINARY_DIR} && python setup.py bdist_wheel
     DEPENDS core_api ${CINN_PY_FILES})
 
 ADD_CUSTOM_TARGET(COPY_CINN_CORE_API ALL
