@@ -195,7 +195,7 @@ struct ScheduleGraphEdge : public common::GraphEdge {
   ScheduleGraphEdge(common::GraphNode *a, common::GraphNode *b) : common::GraphEdge(a, b) {}
 
   //! Dependency level.
-  int level;
+  int level{-1};
 };
 
 /**
