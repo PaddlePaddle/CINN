@@ -63,8 +63,7 @@ class TestLoadEfficientNetModel(unittest.TestCase):
         self.executor = Interpreter([self.input_tensor], [self.x_shape])
         print("self.mode_dir is:", self.model_dir)
         # True means load combined model
-        self.executor.load_paddle_model(self.model_dir, self.target, True,
-                                        "efficientnet")
+        self.executor.load_paddle_model(self.model_dir, self.target, True)
         end1 = time.time()
         print("load_paddle_model time is: %.3f sec" % (end1 - start))
         a_t = self.executor.get_tensor(self.input_tensor)

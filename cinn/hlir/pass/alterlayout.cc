@@ -221,7 +221,7 @@ void AlterLayoutPass(Graph* graph) {
           } else if (input_shape.size() == 5) {
             ic = input_shape[1] * input_shape[4];
           } else {
-            LOG(FATAL) << "wrong input shape: " << utils::Join(input_shape, ", ");
+            LOG(FATAL) << "conv2d's input shape should be 4D/5D. Wrong input shape: " << utils::Join(input_shape, ", ");
           }
 
           if (weight_shape.size() == 4) {
@@ -231,7 +231,8 @@ void AlterLayoutPass(Graph* graph) {
             oc = weight_shape[0] * weight_shape[5];
             fc = weight_shape[1] * weight_shape[4];
           } else {
-            LOG(FATAL) << "wrong weight shape: " << utils::Join(weight_shape, ", ");
+            LOG(FATAL) << "conv2d's weight shape should be 4D/6D. Wrong weight shape: "
+                       << utils::Join(weight_shape, ", ");
           }
           VLOG(3) << "oc: " << oc;
           VLOG(3) << "ic: " << ic;
