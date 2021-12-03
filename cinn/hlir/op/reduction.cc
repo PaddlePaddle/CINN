@@ -82,18 +82,32 @@ std::shared_ptr<OpStrategy> StrategyForBnMeanVarianceReduce(const framework::Nod
     auto x_reshape = pe::Reshape(x, new_shape, stages, UniqName("bn_mean_variance_x_reshape_out"));
     auto x_square  = pe::Multiply(x_reshape, x_reshape, UniqName("bn_mean_variance_x_square"));
 
-    auto reduce_dim = new_shape.size() == 3 ? std::vector<int>{0} : std::vector<int>{0, 2};
-    auto out0       = pe::ReduceSum(x_reshape, reduce_dim, false, Expr(0.0f), UniqName("bn_mean_variance_out0"));
-    auto out1       = pe::ReduceSum(x_square, reduce_dim, false, Expr(0.0f), UniqName("bn_mean_variance_out1"));
+    auto reduce_dim     = new_shape.size() == 3 ? std::vector<int>{0} : std::vector<int>{0, 2};
+    auto x_sum_0        = pe::ReduceSum(x_reshape, reduce_dim, false, Expr(0.0f), UniqName("bn_mean_variance_out0"));
+    auto x_square_sum_0 = pe::ReduceSum(x_square, reduce_dim, false, Expr(0.0f), UniqName("bn_mean_variance_out1"));
+
+    auto x_sum        = pe::BlockReduceSumInternal(x_sum_0, 1);
+    auto x_square_sum = pe::BlockReduceSumInternal(x_square_sum_0, 1);
 
     stages->InsertLazily(x_reshape);
     stages->InsertLazily(x_square);
-    stages->InsertLazily(out0);
-    stages->InsertLazily(out1);
+    stages->InsertLazily(x_sum_0);
+    stages->InsertLazily(x_square_sum_0);
+    stages->InsertLazily(x_sum[0]);
+    stages->InsertLazily(x_square_sum[0]);
+    stages->InsertLazily(x_sum[1]);
+    stages->InsertLazily(x_square_sum[1]);
+
     stages[x_reshape]->ComputeInline();
     stages[x_square]->ComputeInline();
 
-    *ret = CINNValuePack{{CINNValue(out0), CINNValue(out1), CINNValue(stages)}};
+    *ret = CINNValuePack{{CINNValue(x_sum_0),
+                          CINNValue(x_square_sum_0),
+                          CINNValue(x_sum[0]),
+                          CINNValue(x_square_sum[0]),
+                          CINNValue(x_sum[1]),
+                          CINNValue(x_square_sum[1]),
+                          CINNValue(stages)}};
   });
 
   framework::CINNSchedule bn_mean_variance_schedule([=](lang::Args args, lang::RetValue *ret) {
@@ -101,17 +115,23 @@ std::shared_ptr<OpStrategy> StrategyForBnMeanVarianceReduce(const framework::Nod
     CINNValuePack arg_pack = args[0];
     CHECK_EQ(arg_pack.size(), 3UL);
     if (target.arch == Target::Arch::NVGPU) {
-      Expr out0             = arg_pack[0];
-      Expr out1             = arg_pack[1];
+      Expr x_sum_0          = arg_pack[0];
+      Expr x_square_sum_0   = arg_pack[1];
+      Expr x_sum_tmp        = arg_pack[2];
+      Expr x_square_sum_tmp = arg_pack[3];
+      Expr x_sum            = arg_pack[4];
+      Expr x_square_sum     = arg_pack[5];
       poly::StageMap stages = arg_pack.back();
-      CHECK(out0.as_tensor());
-      CHECK(out1.as_tensor());
-      pe::CudaScheduleReduce(stages, out0.as_tensor_ref(), target);
-      pe::CudaScheduleReduce(stages, out1.as_tensor_ref(), target);
+      CHECK(x_sum_0.as_tensor());
+      CHECK(x_square_sum_0.as_tensor());
+      CHECK(x_sum_tmp.as_tensor());
+      CHECK(x_square_sum_tmp.as_tensor());
+      CHECK(x_sum.as_tensor());
+      CHECK(x_square_sum.as_tensor());
       if (new_shape.size() == 3) {
-        stages[out0.as_tensor_ref()]->SimpleComputeAt(stages[out1.as_tensor_ref()], 2);
+        stages[x_square_sum.as_tensor_ref()]->SimpleComputeAt(stages[x_sum.as_tensor_ref()], 2);
       } else {
-        stages[out0.as_tensor_ref()]->SimpleComputeAt(stages[out1.as_tensor_ref()], 3);
+        stages[x_square_sum.as_tensor_ref()]->SimpleComputeAt(stages[x_sum.as_tensor_ref()], 3);
       }
     } else if (target.arch == Target::Arch::X86) {
       Expr out              = arg_pack[0];
@@ -194,8 +214,8 @@ std::shared_ptr<OpStrategy> StrategyForBnGradBiasScaleReduce(const framework::No
       poly::StageMap stages = arg_pack.back();
       CHECK(out0.as_tensor());
       CHECK(out1.as_tensor());
-      pe::CudaScheduleReduce(stages, out0.as_tensor_ref(), target);
-      pe::CudaScheduleReduce(stages, out1.as_tensor_ref(), target);
+      // pe::CudaScheduleReduce(stages, out0.as_tensor_ref(), target);
+      // pe::CudaScheduleReduce(stages, out1.as_tensor_ref(), target);
       if (new_shape.size() == 3) {
         stages[out0.as_tensor_ref()]->SimpleComputeAt(stages[out1.as_tensor_ref()], 2);
       } else {
@@ -266,32 +286,79 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
   if (attrs.attr_store.count("keep_dim")) {
     keep_dim = absl::get<bool>(attrs.attr_store.at("keep_dim"));
   }
+  // compute reduce args
+  int succesive_dim_idx      = -1;
+  bool reduce_dim_succesive  = true;
+  int last_succesive_dim     = 1;
+  int last_succesive_dim_tmp = 1;
+  std::vector<int> reduce_without_last_diemension;
+  if (dim.back() == inputs[0]->shape.size()) {
+    last_succesive_dim = inputs[0]->shape.back().as_int32();
+    for (int idx = dim.size() - 2; idx >= 0; --idx) {
+      if (dim[idx] != dim[idx + 1] - 1) {
+        succesive_dim_idx    = idx + 1;
+        reduce_dim_succesive = false;
+        last_succesive_dim *= inputs[0]->shape[idx].as_int32();
+        break;
+      }
+    }
+
+    // compute the parallel reduce dimension size
+    last_succesive_dim_tmp = last_succesive_dim;
+    std::vector<int> reduce_without_last_diemension_tmp(dim.begin(), dim.begin() + succesive_dim_idx);
+    for (int idx = succesive_dim_idx; idx < inputs[0]->shape.size(); idx++) {
+      if (last_succesive_dim_tmp > 1024) {
+        last_succesive_dim_tmp /= inputs[0]->shape[idx].as_int32();
+        reduce_without_last_diemension_tmp.push_back(idx);
+      } else {
+        break;
+      }
+    }
+    reduce_without_last_diemension = reduce_without_last_diemension_tmp;
+  }
+
   framework::CINNCompute reduction_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of " << op_name << " compute is empty! Please check.";
     CINNValuePack a = args[0];
     CHECK_EQ(a.size(), 1U) << "1 input tensor for " << op_name << " compute";
-    Expr A_expr = a[0];
-    CHECK(A_expr.as_tensor());
-    ir::Tensor A = A_expr.as_tensor_ref();
-    // if do reduce on last axis and reduce axis size > 1.
-    // two step to do reduce: 1.[n,c,h,w] -> [c,w]; 2.[c,w] -> [c]
-    if (dim.back() == inputs[0]->shape.size() - 1 && dim.size() > 1 && target == common::DefaultNVGPUTarget()) {
-      // reduce without last dimension
-      std::vector<int> dims_without_last(dim.begin(), --dim.end());
-      auto out0 = pe_func(A, dims_without_last, keep_dim, Expr(), UniqName(op_name + "_out0"));
-      // reduce on last dimension
-      std::vector<int> dims_last(1, out0->shape.size() - 1);
-      auto out1   = pe_func(out0, dims_last, keep_dim, Expr(), UniqName(op_name + "_out1"));
-      auto stages = CreateStages({A, out0, out1});
-      *ret        = CINNValuePack{{CINNValue(out1), CINNValue(out0), CINNValue(stages)}};
-    } else if (dim.back() == inputs[0]->shape.size() - 1 && target == common::DefaultNVGPUTarget()) {
-      auto res    = pe::WarpReduceSum(A, dim.size());
-      auto stages = CreateStages(res);
-      *ret        = CINNValuePack{{CINNValue(res[0]), CINNValue(res[1]), CINNValue(stages)}};
+    Expr x_expr = a[0];
+    CHECK(x_expr.as_tensor());
+    ir::Tensor x = x_expr.as_tensor_ref();
+    if (target == common::DefaultNVGPUTarget()) {
+      // if do reduce on last dimension
+      if (dim.back() == inputs[0]->shape.size()) {
+        // the reduce dimension is succesive
+        if (reduce_dim_succesive) {
+          // TODO(sunli) : support keep_dim = true
+          CHECK(!keep_dim) << "not support keep dim now!";
+          if (last_succesive_dim < 256) {
+            // if the succesive reduce dimension size < 256
+            auto res    = pe::WarpReduceSum(x, dim.size());
+            auto stages = CreateStages(res);
+            *ret        = CINNValuePack{{CINNValue(res[0]), CINNValue(res[1]), CINNValue(stages)}};
+          } else {
+            // if the succesive reduce dimension size > 256
+            int block_size = last_succesive_dim > 1024 ? 512 : 128;
+            auto res       = pe::BlockReduceSum(x, dim.size(), block_size);
+            auto stages    = CreateStages(res);
+            *ret           = CINNValuePack{{CINNValue(res[0]), CINNValue(res[1]), CINNValue(stages)}};
+          }
+        } else /* the reduce dimension is not succesive */ {
+          // TODO(sunli) : support last dimension size over 1024
+          CHECK_LE(last_succesive_dim_tmp, 1024) << "last dimension size over 1024";
+          // first: do reduce without last dimension
+          auto out = pe_func(x, reduce_without_last_diemension, keep_dim, Expr(), UniqName(op_name + "_out"));
+          // TODO(sunli) : support keep_dim = true
+          CHECK(!keep_dim) << "not support keep dim now!";
+          // second: do reduce on last dimension
+          auto res    = pe::BlockReduceSumInternal(out, dim.size() - reduce_without_last_diemension.size());
+          auto stages = CreateStages({res[0], res[1], out});
+          *ret        = CINNValuePack{{CINNValue(res[0]), CINNValue(res[1]), CINNValue(out), CINNValue(stages)}};
+        }
+      }
     } else {
-      // do reduce on last dimension
-      auto out    = pe_func(A, dim, keep_dim, Expr(), UniqName(op_name + "_out"));
-      auto stages = CreateStages({A, out});
+      auto out    = pe_func(x, dim, keep_dim, Expr(), UniqName(op_name + "_out"));
+      auto stages = CreateStages({out});
       *ret        = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
     }
   });
@@ -299,22 +366,70 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
   framework::CINNSchedule reduction_schedule([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of " << op_name << " schedule is empty! Please check.";
     CINNValuePack arg_pack = args[0];
-    CHECK(arg_pack.size() == 2UL || arg_pack.size() == 3UL);
-
+    CHECK(arg_pack.size() == 2UL || arg_pack.size() == 3UL || arg_pack.size() == 4UL);
     if (target.arch == Target::Arch::NVGPU) {
-      if (dim.size() == 1 && dim.back() == inputs[0]->shape.size() - 1) {
-        Expr out              = arg_pack[0];
-        Expr tmp_out          = arg_pack[1];
-        poly::StageMap stages = arg_pack.back();
-        pe::CudaScheduleWarpReduce(stages, tmp_out.as_tensor_ref(), out.as_tensor_ref(), target);
-      } else {
-        poly::StageMap stages = arg_pack.back();
-        Expr out0             = arg_pack.size() == 2 ? arg_pack[0] : arg_pack[1];
-        pe::CudaScheduleReduce(stages, out0.as_tensor_ref(), target);
-        if (arg_pack.size() == 3) {
-          Expr out1 = arg_pack[0];
-          pe::CudaScheduleReduce(stages, out1.as_tensor_ref(), target);
+      if (dim.back() == inputs[0]->shape.size()) {
+        if (reduce_dim_succesive) {
+          CHECK_EQ(arg_pack.size(), 3UL);
+          Expr out              = arg_pack[0];
+          Expr tmp_out          = arg_pack[1];
+          poly::StageMap stages = arg_pack.back();
+          if (last_succesive_dim < 256) {
+            pe::CudaScheduleWarpReduce(
+                stages, tmp_out.as_tensor_ref(), out.as_tensor_ref(), common::DefaultNVGPUTarget());
+          } else {
+            pe::CudaScheduleBlockReduceInternal(
+                stages, tmp_out.as_tensor_ref(), out.as_tensor_ref(), common::DefaultNVGPUTarget());
+          }
+        } else {
+          CHECK_EQ(arg_pack.size(), 4UL);
+          Expr out              = arg_pack[0];
+          Expr tmp_out          = arg_pack[1];
+          Expr reduce_tmp_out   = arg_pack[2];
+          poly::StageMap stages = arg_pack.back();
+          /*
+          std::vector<std::vector<int>> succesive_keep_dim_without_reduce;
+          for(int idx = 0, idx_out = 0 ; idx < inputs[0]->shape.size() - 1; ++ idx) {
+            // if idx not int reduce in dim
+            if(std::find(reduce_without_last_diemension.begin(), reduce_without_last_diemension.end(), idx) == std::
+          reduce_without_last_diemension.end()) { succesive_keep_dim_without_reduce.push_back({idx_out++}); } else {
+              if(succesive_keep_dim_without_reduce.back().size() > 0) {
+                succesive_keep_dim_without_reduce.push_back({});
+              }
+              if(keep_dim) {
+                ++ idx_out;
+              }
+            }
+          }
+
+          pe::CudaScheduleBlockReduce(stages,
+                                      reduce_tmp_out.as_tensor_ref(),
+                                      tmp_out.as_tensor_ref(),
+                                      out.as_tensor_ref(),
+                                      last_succesive_dim_tmp,
+                                      succesive_keep_dim_without_reduce,
+                                      common::DefaultNVGPUTarget());
+                                      */
         }
+      } else {
+        CHECK_EQ(arg_pack.size(), 2UL);
+        Expr out              = arg_pack[0];
+        poly::StageMap stages = arg_pack.back();
+        std::vector<std::vector<int>> succesive_keep_dim_without_reduce;
+        for (int idx = 0, idx_out = 0; idx < inputs[0]->shape.size() - 1; ++idx) {
+          // if idx not int reduce in dim
+          if (std::find(dim.begin(), dim.end(), idx) == dim.end()) {
+            succesive_keep_dim_without_reduce.push_back({idx_out++});
+          } else {
+            if (succesive_keep_dim_without_reduce.back().size() > 0) {
+              succesive_keep_dim_without_reduce.push_back({});
+            }
+            if (keep_dim) {
+              ++idx_out;
+            }
+          }
+        }
+        pe::CudaScheduleReduce(stages, out.as_tensor_ref(), succesive_keep_dim_without_reduce, target);
       }
     }
     *ret = arg_pack;
@@ -415,7 +530,7 @@ CINN_REGISTER_HELPER(reduce_ops) {
   CINN_REGISTER_OP(op__)                                                                                              \
       .describe(#op__ " function")                                                                                    \
       .set_num_inputs(1)                                                                                              \
-      .set_num_outputs(2)                                                                                             \
+      .set_num_outputs(1)                                                                                             \
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyFor##op_stragegy__)  \
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForReduction))                                 \
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForReduction))                                 \

@@ -132,6 +132,15 @@ std::vector<ir::Tensor> WarpReduceAvg(const ir::Tensor& A,
                                       int last_reduce_dim_num,
                                       const std::string& output_name = "T_Warp_Reduce_Avg_out");
 
+std::vector<ir::Tensor> BlockReduceSumInternal(const ir::Tensor& A,
+                                               int last_reduce_dim_num,
+                                               const std::string& output_name = "T_Block_Reduce_Sum_Internal_out");
+
+std::vector<ir::Tensor> BlockReduceSum(const ir::Tensor& A,
+                                       const int last_reduce_dim_num,
+                                       const int block_size,
+                                       const std::string& output_name = "T_Block_Reduce_Sum_out");
+
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn
