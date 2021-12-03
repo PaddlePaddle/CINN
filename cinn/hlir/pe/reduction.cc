@@ -268,6 +268,89 @@ std::vector<ir::Tensor> WarpReduceAvg(const ir::Tensor& A, int last_reduce_dim_n
   return WarpReduce(A, last_reduce_dim_num, "cinn_warp_reduce_avg", output_name);
 }
 
+std::vector<ir::Tensor> BlockReduceSumInternal(const ir::Tensor& A,
+                                               int last_reduce_dim_num,
+                                               const std::string& output_name) {
+  Expr width(1);
+  for (int idx = A->shape.size() - 1; idx >= (A->shape.size() - last_reduce_dim_num); --idx) {
+    width = width * A->shape[idx].as_int32();
+  }
+
+  std::vector<Expr> tmp_shape(A->shape.begin(), A->shape.begin() + A->shape.size() - last_reduce_dim_num);
+  tmp_shape.push_back(width);
+
+  std::vector<Expr> last_reduce_stride(last_reduce_dim_num, Expr(1));
+  for (int idx = A->shape.size() - 2, index = last_reduce_stride.size() - 2;
+       idx >= A->shape.size() - last_reduce_dim_num;
+       --idx, --index) {
+    last_reduce_stride[index] = last_reduce_stride[index + 1] * A->shape[idx + 1];
+  }
+
+  auto tmp_out = Compute(
+      tmp_shape,
+      [=](const std::vector<Expr>& indexs) -> Expr {
+        auto last_index = indexs.back();
+        std::vector<Expr> input_indexs(indexs.begin(), indexs.end() - 1);
+        for (int idx = 0; idx < last_reduce_dim_num; ++idx) {
+          input_indexs.push_back(last_index / last_reduce_stride[idx]);
+          last_index = last_index % last_reduce_stride[idx];
+        }
+
+        CHECK_EQ(input_indexs.size(), A->shape.size());
+        return lang::CallExtern("cinn_block_reduce_sum_internal", {A(input_indexs)});
+      },
+      UniqName(output_name + "_tmp"));
+
+  std::vector<Expr> out_shape(A->shape.begin(), A->shape.begin() + A->shape.size() - last_reduce_dim_num);
+  auto out = Compute(
+      out_shape,
+      [=](const std::vector<Expr>& indexs) -> Expr {
+        std::vector<Expr> tmp_indexs(indexs);
+        tmp_indexs.push_back(Expr(0));
+        return tmp_out(tmp_indexs);
+      },
+      UniqName(output_name));
+
+  return {out, tmp_out};
+}
+
+std::vector<ir::Tensor> BlockReduceSum(const ir::Tensor& A,
+                                       const int last_reduce_dim_num,
+                                       const int block_size,
+                                       const std::string& output_name) {
+  Expr lane(1);
+  for (int idx = A->shape.size() - 1; idx >= (A->shape.size() - last_reduce_dim_num); --idx) {
+    lane = lane * A->shape[idx].as_int32();
+  }
+
+  std::vector<Expr> tmp_shape(A->shape.begin(), A->shape.begin() + A->shape.size() - last_reduce_dim_num);
+  tmp_shape.push_back(Expr(block_size));
+  auto tmp_out = Compute(
+      tmp_shape,
+      [=](const std::vector<Expr>& indexs) -> Expr {
+        std::vector<Expr> tmp_indexs(indexs.begin(), indexs.begin() + indexs.size() - 1);
+        for (int idx = 0; idx < last_reduce_dim_num; ++idx) {
+          tmp_indexs.push_back(Expr(0));
+        }
+        CHECK_EQ(A->shape.size(), tmp_indexs.size());
+        Expr offset = common::IndiceToAbsOffset(A->shape, tmp_indexs);
+        return lang::CallExtern("cinn_block_reduce_sum", {A, offset, lane});
+      },
+      UniqName(output_name + "_tmp"));
+
+  std::vector<Expr> out_shape(A->shape.begin(), A->shape.begin() + A->shape.size() - last_reduce_dim_num);
+  auto out = Compute(
+      out_shape,
+      [=](const std::vector<Expr>& indexs) -> Expr {
+        std::vector<Expr> tmp_indexs(indexs);
+        tmp_indexs.push_back(Expr(0));
+        return tmp_out(tmp_indexs);
+      },
+      UniqName(output_name));
+
+  return {out, tmp_out};
+}
+
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn
