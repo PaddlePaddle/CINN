@@ -429,10 +429,18 @@ std::vector<ir::Tensor> Conv2d_NCHWc(const ir::Tensor &input,
     auto pad_w_bound = common::AutoSimplify((output_shape[3] - 1) * stride_w + (w_f - 1) * dilation_w + 1);
     auto pad_out_h   = std::min(pad_h_bound.as_int32(), common::AutoSimplify(h_in + 2 * pad_h).as_int32());
     auto pad_out_w   = std::min(pad_w_bound.as_int32(), common::AutoSimplify(w_in + 2 * pad_w).as_int32());
+    auto h_in_pad    = common::AutoSimplify(h_in + pad_h);
+    auto w_in_pad    = common::AutoSimplify(w_in + pad_w);
     input_pad        = Compute(
         {batch, c_in_outer, Expr(pad_out_h), Expr(pad_out_w), c_in_inner},
         [=](Expr n, Expr icc, Expr yy, Expr xx, Expr icb) {
-          auto cond = lang::logic_and({yy >= pad_h, yy - pad_h < h_in, xx >= pad_w, xx - pad_w < w_in});
+          auto cond = lang::logic_and({yy >= pad_h, xx >= pad_w});
+          if (pad_out_h > h_in_pad.as_int32()) {
+            cond = lang::logic_and({cond, yy < h_in_pad});
+          }
+          if (pad_out_w > w_in_pad.as_int32()) {
+            cond = lang::logic_and({cond, xx < w_in_pad});
+          }
           return ir::Select::Make(cond, input(n, icc, yy - pad_h, xx - pad_w, icb), ir::Zero(type));
         },
         UniqName("input_pad"));

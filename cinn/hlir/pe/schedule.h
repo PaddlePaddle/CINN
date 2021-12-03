@@ -189,13 +189,17 @@ std::string GenerateX86ConvKey(const std::vector<Expr> &input_shape,
                                const std::vector<Expr> &weight_shape,
                                const std::vector<int> &strides,
                                const std::vector<int> &paddings,
-                               const std::vector<int> &dilations);
+                               const std::vector<int> &dilations,
+                               const int &index              = 0,
+                               const std::string &model_name = "");
 
 std::string GenerateX86ConvKey(const std::vector<int> &input_shape,
                                const std::vector<int> &weight_shape,
                                const std::vector<int> &strides,
                                const std::vector<int> &paddings,
-                               const std::vector<int> &dilations);
+                               const std::vector<int> &dilations,
+                               const int &index              = 0,
+                               const std::string &model_name = "");
 void CreateX86SerialData(const std::string &file_name = "default_serial.log");
 
 void LoadSerialData(absl::flat_hash_map<std::string, absl::flat_hash_map<std::string, std::vector<int>>> *params,
@@ -206,6 +210,7 @@ void SaveSerialData(
     const std::string &file_name = "default_serial.log");
 
 int GetMaxSplitter(int a, int b);
+
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn

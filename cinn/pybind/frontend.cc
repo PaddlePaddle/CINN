@@ -290,7 +290,12 @@ void BindFrontend(pybind11::module *m) {
       .def(py::init<const std::vector<std::string> &, const std::vector<hlir::framework::shape_t> &>(),
            py::arg("input_names"),
            py::arg("input_shapes"))  //
-      .def("load_paddle_model", &frontend::Interpreter::LoadPaddleModel)
+      .def("load_paddle_model",
+           &frontend::Interpreter::LoadPaddleModel,
+           py::arg("model_dir"),
+           py::arg("target"),
+           py::arg("params_combined"),
+           py::arg("model_name") = "")
       .def("run", &frontend::Interpreter::Run)
       .def("get_tensor", &frontend::Interpreter::GetTensor)
       .def("scope", &frontend::Interpreter::scope);
