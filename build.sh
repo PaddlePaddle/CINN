@@ -110,7 +110,7 @@ function make_doc {
         wget http://paddle-inference-dist.bj.bcebos.com/CINN/ResNet18.tar.gz
         tar -zxvf ResNet18.tar.gz
     fi
-    if [[ $cuda_config == "ON" ]]; then
+    if [[ $cuda_config == "ON" && ! -d "./is_cuda" ]]; then
         mkdir is_cuda
     fi
 
@@ -119,8 +119,11 @@ function make_doc {
     ln -s $build_dir/cinn/pybind/core_api.so $workspace/python/cinn/
     cd $workspace/docs
     mkdir -p docs/source/cpp
-    cat $workspace/tutorials/matmul.cc | python $workspace/tools/gen_c++_tutorial.py  > $workspace/docs/source/matmul.md
+    cat $workspace/tutorials/matmul.cc | python${py_version} $workspace/tools/gen_c++_tutorial.py  > $workspace/docs/source/matmul.md
     make html
+    if [[ $cuda_config == "ON" && -d "./is_cuda" ]]; then
+        rm -rf $workspace/tutorials/is_cuda
+    fi
 }
 
 function cmake_ {
@@ -244,8 +247,7 @@ function CI {
     run_demo
     prepare_model
     run_test
-    # Temporary shutdown the doc test to speed up development
-    # make_doc
+    make_doc
 }
 
 function CINNRT {
