@@ -25,6 +25,7 @@
 #include <utility>
 
 #include "cinn/common/cas.h"
+#include "cinn/hlir/pe/load_x86_params.h"
 #include "cinn/optim/ir_simplify.h"
 #include "cinn/poly/isl_utils.h"
 
@@ -583,11 +584,16 @@ std::string GenerateX86ConvKey(const std::vector<Expr> &input_shape,
                                const std::vector<Expr> &weight_shape,
                                const std::vector<int> &strides,
                                const std::vector<int> &paddings,
-                               const std::vector<int> &dilations) {
-  // format: schedule_name + input_shape + weight_shape + strides + paddings + dilations
-  // e.g. X86ScheduleConv input 1 3 224 224 weight 64 3 7 7 stride 2 2 padding 3 3 dilation 1 1
-  std::string key = "X86ScheduleConv";
-  key += " input";
+                               const std::vector<int> &dilations,
+                               const int &index,
+                               const std::string &model_name) {
+  // format: (model_name + index +)schedule_name + input_shape + weight_shape + strides + paddings + dilations
+  // e.g. resnet18 0 X86ScheduleConv input 1 3 224 224 weight 64 3 7 7 stride 2 2 padding 3 3 dilation 1 1
+  std::string key;
+  if (model_name != "") {
+    key = model_name + " index " + std::to_string(index) + " ";
+  }
+  key += "X86ScheduleConv input";
   for (auto &shape : input_shape) {
     key += " " + std::to_string(shape.as_int32());
   }
@@ -615,10 +621,15 @@ std::string GenerateX86ConvKey(const std::vector<int> &input_shape,
                                const std::vector<int> &weight_shape,
                                const std::vector<int> &strides,
                                const std::vector<int> &paddings,
-                               const std::vector<int> &dilations) {
-  // format: schedule_name + input_shape + weight_shape + strides + paddings + dilations
-  std::string key = "X86ScheduleConv";
-  key += " input";
+                               const std::vector<int> &dilations,
+                               const int &index,
+                               const std::string &model_name) {
+  // format: (model_name + index +)schedule_name + input_shape + weight_shape + strides + paddings + dilations
+  std::string key;
+  if (model_name != "") {
+    key = model_name + " index " + std::to_string(index) + " ";
+  }
+  key += "X86ScheduleConv input";
   for (auto &shape : input_shape) {
     key += " " + std::to_string(shape);
   }
@@ -642,141 +653,13 @@ std::string GenerateX86ConvKey(const std::vector<int> &input_shape,
   return key;
 }
 
-void InputX86Param(absl::flat_hash_map<std::string, absl::flat_hash_map<std::string, std::vector<int>>> &model_data,
-                   const std::string &key,
-                   const absl::flat_hash_map<std::string, std::vector<int>> &schedule_data) {
-  model_data[key] = schedule_data;
-}
-
 void CreateX86SerialData(const std::string &file_name) {
   absl::flat_hash_map<std::string, absl::flat_hash_map<std::string, std::vector<int>>> model_data;
   /** The format of serial data is:
    * hash_key: schedule_name + shape of input + shape of weights + stride + padding + dilation
    * value: vector of params
    */
-  // resnet 1
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 3 224 224 weight 64 3 7 7 stride 2 2 padding 3 3 dilation 1 1",
-                {{"ic_bn", {1, 3}}, {"oc_bn", {2, 32}}, {"ow_bn", {14, 8}}, {"unroll_kw", {0}}});
-  // resnet 3 4 5 6
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 64 56 56 weight 64 64 3 3 stride 1 1 padding 1 1 dilation 1 1",
-                {{"ic_bn", {1, 64}}, {"oc_bn", {2, 32}}, {"ow_bn", {8, 7}}, {"unroll_kw", {1}}});
-  // resnet 8
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 64 56 56 weight 128 64 3 3 stride 2 2 padding 1 1 dilation 1 1",
-                {{"ic_bn", {2, 32}}, {"oc_bn", {2, 64}}, {"ow_bn", {7, 4}}, {"unroll_kw", {0}}});
-  // resnet 9 10 11
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 128 28 28 weight 128 128 3 3 stride 1 1 padding 1 1 dilation 1 1",
-                {{"ic_bn", {1, 128}}, {"oc_bn", {4, 32}}, {"ow_bn", {4, 7}}, {"unroll_kw", {1}}});
-  // resnet 7
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 64 56 56 weight 128 64 1 1 stride 2 2 padding 0 0 dilation 1 1",
-                {{"ic_bn", {8, 8}}, {"oc_bn", {4, 32}}, {"ow_bn", {7, 4}}, {"oh_bn", {1}}});
-  // resnet 13
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 128 28 28 weight 256 128 3 3 stride 2 2 padding 1 1 dilation 1 1",
-                {{"ic_bn", {16, 8}}, {"oc_bn", {8, 32}}, {"ow_bn", {2, 7}}, {"unroll_kw", {1}}});
-  // resnet 14 15 16
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 256 14 14 weight 256 256 3 3 stride 1 1 padding 1 1 dilation 1 1",
-                {{"ic_bn", {2, 128}}, {"oc_bn", {16, 16}}, {"ow_bn", {1, 14}}, {"unroll_kw", {1}}});
-  // resnet 12
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 128 28 28 weight 256 128 1 1 stride 2 2 padding 0 0 dilation 1 1",
-                {{"ic_bn", {2, 64}}, {"oc_bn", {16, 16}}, {"ow_bn", {1, 14}}, {"oh_bn", {1}}});
-  // resnet 18
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 256 14 14 weight 512 256 3 3 stride 2 2 padding 1 1 dilation 1 1",
-                {{"ic_bn", {32, 8}}, {"oc_bn", {16, 32}}, {"ow_bn", {1, 7}}, {"unroll_kw", {1}}});
-  // resnet 19 20 21
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 512 7 7 weight 512 512 3 3 stride 1 1 padding 1 1 dilation 1 1",
-                {{"ic_bn", {1, 512}}, {"oc_bn", {16, 32}}, {"ow_bn", {1, 7}}, {"unroll_kw", {1}}});
-  // resnet 17
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 256 14 14 weight 512 256 1 1 stride 2 2 padding 0 0 dilation 1 1",
-                {{"ic_bn", {2, 128}}, {"oc_bn", {16, 32}}, {"ow_bn", {1, 7}}, {"oh_bn", {1}}});
-  // resnet 2
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 64 56 56 weight 64 64 1 1 stride 1 1 padding 0 0 dilation 1 1",
-                {{"ic_bn", {4, 16}}, {"oc_bn", {2, 32}}, {"ow_bn", {4, 14}}, {"oh_bn", {1}}});
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 64 56 56 weight 256 64 1 1 stride 1 1 padding 0 0 dilation 1 1",
-                {{"ic_bn", {16, 4}}, {"oc_bn", {8, 32}}, {"ow_bn", {8, 7}}, {"oh_bn", {1}}});
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 256 56 56 weight 64 256 1 1 stride 1 1 padding 0 0 dilation 1 1",
-                {{"ic_bn", {1, 256}}, {"oc_bn", {2, 32}}, {"ow_bn", {8, 7}}, {"oh_bn", {1}}});
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 256 56 56 weight 128 256 1 1 stride 2 2 padding 0 0 dilation 1 1",
-                {{"ic_bn", {1, 256}}, {"oc_bn", {4, 32}}, {"ow_bn", {4, 7}}, {"oh_bn", {1}}});
-  // resnet 50
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 256 56 56 weight 512 256 1 1 stride 2 2 padding 0 0 dilation 1 1",
-                // Todo: tempory fix, enhance alterlayout and test performance
-                {{"ic_bn", {1, 256}}, {"oc_bn", {16, 32}}, {"ow_bn", {7, 4}}, {"oh_bn", {1}}});
-  // {{"ic_bn", {1, 256}}, {"oc_bn", {8, 64}}, {"ow_bn", {7, 4}}, {"oh_bn", {1}}});
-  // resnet50
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 128 28 28 weight 512 128 1 1 stride 1 1 padding 0 0 dilation 1 1",
-                {{"ic_bn", {32, 4}}, {"oc_bn", {16, 32}}, {"ow_bn", {4, 7}}, {"oh_bn", {1}}});
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 512 28 28 weight 128 512 1 1 stride 1 1 padding 0 0 dilation 1 1",
-                {{"ic_bn", {1, 512}}, {"oc_bn", {2, 64}}, {"ow_bn", {7, 4}}, {"oh_bn", {1}}});
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 512 28 28 weight 256 512 1 1 stride 2 2 padding 0 0 dilation 1 1",
-                {{"ic_bn", {8, 64}}, {"oc_bn", {4, 64}}, {"ow_bn", {7, 2}}, {"oh_bn", {2}}});
-  // resnet 50
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 512 28 28 weight 1024 512 1 1 stride 2 2 padding 0 0 dilation 1 1",
-                {{"ic_bn", {1, 512}}, {"oc_bn", {16, 64}}, {"ow_bn", {7, 2}}, {"oh_bn", {2}}});
-  // resnet 50
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 256 14 14 weight 1024 256 1 1 stride 1 1 padding 0 0 dilation 1 1",
-                {{"ic_bn", {1, 256}}, {"oc_bn", {16, 64}}, {"ow_bn", {7, 2}}, {"oh_bn", {2}}});
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 1024 14 14 weight 256 1024 1 1 stride 2 2 padding 0 0 dilation 1 1",
-                {{"ic_bn", {2, 512}}, {"oc_bn", {4, 64}}, {"ow_bn", {7, 2}}, {"oh_bn", {2}}});
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 1024 14 14 weight 512 1024 1 1 stride 2 2 padding 0 0 dilation 1 1",
-                {{"ic_bn", {2, 512}}, {"oc_bn", {16, 32}}, {"ow_bn", {1, 7}}, {"oh_bn", {1}}});
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 1024 14 14 weight 2048 1024 1 1 stride 2 2 padding 0 0 dilation 1 1",
-                {{"ic_bn", {1, 1024}}, {"oc_bn", {64, 32}}, {"ow_bn", {1, 7}}, {"oh_bn", {1}}});
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 512 7 7 weight 2048 512 1 1 stride 1 1 padding 0 0 dilation 1 1",
-                {{"ic_bn", {128, 4}}, {"oc_bn", {64, 32}}, {"ow_bn", {1, 7}}, {"oh_bn", {1}}});
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 2048 7 7 weight 512 2048 1 1 stride 1 1 padding 0 0 dilation 1 1",
-                {{"ic_bn", {512, 4}}, {"oc_bn", {16, 32}}, {"ow_bn", {1, 7}}, {"oh_bn", {1}}});
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 3 224 224 weight 64 3 3 3 stride 1 1 padding 1 1 dilation 1 1",
-                {{"ic_bn", {1, 3}}, {"oc_bn", {2, 32}}, {"ow_bn", {28, 8}}, {"unroll_kw", {0}}});
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 64 224 224 weight 64 64 3 3 stride 1 1 padding 1 1 dilation 1 1",
-                {{"ic_bn", {4, 16}}, {"oc_bn", {2, 32}}, {"ow_bn", {28, 8}}, {"unroll_kw", {1}}});
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 64 112 112 weight 128 64 3 3 stride 1 1 padding 1 1 dilation 1 1",
-                {{"ic_bn", {2, 32}}, {"oc_bn", {2, 64}}, {"ow_bn", {28, 4}}, {"unroll_kw", {1}}});
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 128 112 112 weight 128 128 3 3 stride 1 1 padding 1 1 dilation 1 1",
-                {{"ic_bn", {2, 64}}, {"oc_bn", {2, 64}}, {"ow_bn", {28, 4}}, {"unroll_kw", {1}}});
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 128 56 56 weight 256 128 3 3 stride 1 1 padding 1 1 dilation 1 1",
-                {{"ic_bn", {4, 32}}, {"oc_bn", {8, 32}}, {"ow_bn", {7, 8}}, {"unroll_kw", {1}}});
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 256 56 56 weight 256 256 3 3 stride 1 1 padding 1 1 dilation 1 1",
-                {{"ic_bn", {1, 256}}, {"oc_bn", {8, 32}}, {"ow_bn", {7, 8}}, {"unroll_kw", {1}}});
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 256 28 28 weight 512 256 3 3 stride 1 1 padding 1 1 dilation 1 1",
-                {{"ic_bn", {1, 256}}, {"oc_bn", {16, 32}}, {"ow_bn", {4, 7}}, {"unroll_kw", {1}}});
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 512 28 28 weight 512 512 3 3 stride 1 1 padding 1 1 dilation 1 1",
-                {{"ic_bn", {1, 512}}, {"oc_bn", {32, 16}}, {"ow_bn", {2, 14}}, {"unroll_kw", {1}}});
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 512 14 14 weight 512 512 3 3 stride 1 1 padding 1 1 dilation 1 1",
-                {{"ic_bn", {1, 512}}, {"oc_bn", {32, 16}}, {"ow_bn", {1, 14}}, {"unroll_kw", {1}}});
+  CreateX86Params(&model_data);
   SaveSerialData(model_data, file_name);
 }
 
@@ -1759,9 +1642,9 @@ void CudaScheduleConv(poly::StageMap stages,
       std::to_string(output->shape[1].as_int32()) + " " + std::to_string(output->shape[2].as_int32()) + " " +
       std::to_string(output->shape[3].as_int32());
   if (res.count(key) == 0) {
-    LOG(INFO) << "Didn't find saved param, key is: " << key;
+    VLOG(3) << "Didn't find saved param, key is: " << key;
   } else {
-    LOG(INFO) << "Find saved param! key is: " << key;
+    VLOG(3) << "Find saved param! key is: " << key;
     CudaScheduleConv2(stages, input_pad, weights, output, target, key);
     return;
   }
