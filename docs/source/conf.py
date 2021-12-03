@@ -96,7 +96,6 @@ sphinx_gallery_conf = {
     'backreferences_dir': 'gen_modules/backreferences',
     'doc_module': ('cinn', 'numpy'),
     'reference_url': {
-        'tvm': None,
         'matplotlib': 'http://matplotlib.org',
         'numpy': 'http://docs.scipy.org/doc/numpy-1.9.1'
     },
@@ -104,7 +103,7 @@ sphinx_gallery_conf = {
     'gallery_dirs': gallery_dirs,
     'subsection_order': subsection_order,
     'filename_pattern': '/tutorials',
-    'find_mayavi_figures': False,
+    'image_scrapers': ('matplotlib', ),  # 'mayavi'
     'expected_failing_examples': []
 }
 

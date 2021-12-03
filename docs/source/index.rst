@@ -10,7 +10,7 @@ Welcome to CINN's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-CINN(a Compiler Infrusture for Neural Networks) is a union of several sub-projects:
+CINN(Compiler Infrusture for Neural Networks) is a union of several sub-projects:
 
 - :code:`cinn`, a domain specific language for kernel construction,
 - :code:`cinnrt`, an efficient runtime framework for static graph execution.
