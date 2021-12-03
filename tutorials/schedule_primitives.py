@@ -18,6 +18,8 @@ Schedule Primitives in CINN
 In this tutorial, we will guide you through the examples of using schedule primitives.
 """
 
+# sphinx_gallery_thumbnail_path = '_static/icon.png'
+
 import cinn
 import numpy as np
 
