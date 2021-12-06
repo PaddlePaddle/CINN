@@ -1,4 +1,4 @@
-# CINN INSTAllATION GUIDANCE
+# Install CINN using docker guidance
 
 ### Step 1. Start a docker container
 

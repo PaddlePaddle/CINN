@@ -21,6 +21,7 @@ Install
    :maxdepth: 1
 
    ./install.md
+   ./guide.md
 
 cinn
 ------
