@@ -89,7 +89,7 @@ TEST(CodeGenCUDA, basic) {
 
   CodeGenCUDA_Dev codegen(target);
 
-  auto func = Lower("elementwise_add", stages, {A, B, C});
+  auto func = Lower("elementwise_mul", stages, {A, B, C});
 
   auto compiled = codegen.Compile(func);
 
@@ -115,7 +115,7 @@ TEST(CodeGenCUDA, Module_output) {
 
   CodeGenCUDA_Dev codegen(target);
 
-  auto func = Lower("elementwise_add", stages, {A, B, C});
+  auto func = Lower("elementwise_mul", stages, {A, B, C});
 
   Module::Builder builder("module", target);
   builder.AddFunction(func);
@@ -149,7 +149,7 @@ TEST(CodeGenCUDA2, test_of_cacheread) {
   stages[B_cache]->ComputeAt(stages[C], 1);
   CodeGenCUDA_Dev codegen(target);
 
-  auto func = Lower("elementwise_add", stages, {A, B, C});
+  auto func = Lower("elementwise_mul", stages, {A, B, C});
 
   Module::Builder builder("module", target);
   builder.AddFunction(func);
@@ -181,7 +181,7 @@ TEST(CodeGenCUDA2, test_of_cacheread) {
 
   dim3 grid(10, 1, 1);
   dim3 block(10, 1, 1);
-  cuda_module.LaunchKernel(0, "elementwise_add", grid, block, args);
+  cuda_module.LaunchKernel(0, "elementwise_mul", grid, block, args);
 
   CUDA_CALL(cudaMemcpy(host_data3.data(),
                        reinterpret_cast<void*>(Cd),
@@ -221,7 +221,7 @@ TEST(CodeGenCUDA2, test_of_splitcudakernel) {
 
   CodeGenCUDA_Dev codegen(target);
 
-  auto func = lang::LowerVec("elementwise_add", stages, {A, B, C, D}, {}, {}, nullptr, target);
+  auto func = lang::LowerVec("elementwise_mul_and_add", stages, {A, B, C, D}, {}, {}, nullptr, target);
 
   Module::Builder builder("module", target);
   for (auto& i : func) {
@@ -251,7 +251,7 @@ typedef char int8_t;
 
 
 __global__
-void __launch_bounds__(200) elementwise_add(const float* __restrict__ X, const float* __restrict__ Y, float* __restrict__ C)
+void __launch_bounds__(200) elementwise_mul_and_add(const float* __restrict__ X, const float* __restrict__ Y, float* __restrict__ C)
 {
   if (((int)blockIdx.x < 100)) {
     if (((int)threadIdx.x < 200)) {
@@ -259,7 +259,7 @@ void __launch_bounds__(200) elementwise_add(const float* __restrict__ X, const f
     };
   };
 }__global__
-void __launch_bounds__(200) elementwise_add_1(const float* __restrict__ X, const float* __restrict__ Y, const float* __restrict__ C, float* __restrict__ D)
+void __launch_bounds__(200) elementwise_mul_and_add_1(const float* __restrict__ X, const float* __restrict__ Y, const float* __restrict__ C, float* __restrict__ D)
 {
   if (((int)blockIdx.x < 100)) {
     if (((int)threadIdx.x < 200)) {

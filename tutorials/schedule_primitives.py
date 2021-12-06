@@ -224,3 +224,16 @@ stages = cinn.create_stages([B])
 BCR = stages[B].cache_write("local", stages, B)
 fn = cinn.lower("fn", stages, [A.to_tensor(), B, BCR])
 print(fn)
+
+##################################################################
+#
+# Parallel
+# ------
+# :code:`parallel` will mark one loop to execute in parallel.(Only used in X86 backends)
+A = cinn.Placeholder('float32', 'A', (m, n))
+B = cinn.compute((m, n), lambda v: A(v[0], v[1]) * 2., name='B')
+
+stages = cinn.create_stages([B])
+stages[B].parallel(0)
+fn = cinn.lower("fn", stages, [A.to_tensor(), B])
+print(fn)
