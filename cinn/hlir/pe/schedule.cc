@@ -345,46 +345,31 @@ int GetBlockBindAxis(const std::vector<ir::Expr> &shape, const int thread_axis) 
 
 void CudaScheduleReduce(poly::StageMap stages,
                         ir::Tensor output,
-                        std::vector<std::vector<int>> succesive_keep_dim_without_reduce,
+                        int last_dimension_num,
                         const common::Target &target) {
-  int last_succesive_dim_st = succesive_keep_dim_without_reduce.back().front();
-  int parallel_thread_num   = 1;
-  for (int idx = last_succesive_dim_st; idx < output->shape.size() - 1; ++idx) {
+  int parallel_thread_num = 1;
+  for (int idx = output->shape.size() - 1; idx >= output->shape.size() - last_dimension_num; --idx) {
     parallel_thread_num *= output->shape[idx].as_int32();
-    stages[output]->Fuse(idx, idx + 1);
   }
-  parallel_thread_num *= output->shape.back().as_int32();
 
-  if (parallel_thread_num > 1024) {
-    stages[output]->Split(last_succesive_dim_st, 512);
-    stages[output]->Bind(last_succesive_dim_st + 1, "threadIdx.x");
-    succesive_keep_dim_without_reduce.back() = {stages[output]->GetDimRange(last_succesive_dim_st)};
+  int index = output->shape.size() - last_dimension_num;
+  for (int idx = output->shape.size() - last_dimension_num; idx < output->shape.size() - 1; ++idx) {
+    stages[output]->Fuse(index, index + 1);
+  }
+
+  int max_block_size = 1024;
+  if (parallel_thread_num > max_block_size) {
+    stages[output]->Split(index, max_block_size);
+    stages[output]->Bind(index + 1, "threadIdx.x");
   } else {
-    stages[output]->Bind(last_succesive_dim_st, "threadIdx.x");
-    succesive_keep_dim_without_reduce.back() = {};
+    stages[output]->Bind(index, "threadIdx.x");
   }
 
-  int max_fuse_idx   = -1;
-  int max_fuse_range = 0;
-  for (int idx = 0; idx < succesive_keep_dim_without_reduce.size(); ++idx) {
-    int range = 1;
-    for (auto level : succesive_keep_dim_without_reduce[idx]) {
-      range *= stages[output]->GetDimRange(level);
-    }
-
-    if (range > max_fuse_range) {
-      max_fuse_idx   = idx;
-      max_fuse_range = range;
-    }
+  for (int idx = 0; idx < index - 1; ++idx) {
+    stages[output]->Fuse(0, 1);
   }
 
-  if (max_fuse_idx >= 0) {
-    auto &dim = succesive_keep_dim_without_reduce[max_fuse_idx];
-    for (int idx = 0; idx < dim.size() - 1; idx++) {
-      stages[output]->Fuse(dim[0], dim[0] + 1);
-    }
-    stages[output]->Bind(dim[0], "blockIdx.x");
-  }
+  stages[output]->Bind(0, "blockIdx.x");
 }
 
 void CudaScheduleWarpReduce(poly::StageMap stages, ir::Tensor tmp_out, ir::Tensor out, const common::Target &target) {
@@ -399,7 +384,7 @@ void CudaScheduleWarpReduce(poly::StageMap stages, ir::Tensor tmp_out, ir::Tenso
   if (sum_out_dim < 16) {
     stages[out]->Bind(0, "threadIdx.y");
     stages[tmp_out]->Bind(1, "threadIdx.x");
-    stages[tmp_out]->ComputeAt2(stages[out], 0);
+    stages[tmp_out]->SimpleComputeAt(stages[out], 0);
     stages[tmp_out]->SetBuffer("local");
   } else {
     stages[out]->Split(0, 8);
@@ -408,7 +393,7 @@ void CudaScheduleWarpReduce(poly::StageMap stages, ir::Tensor tmp_out, ir::Tenso
 
     stages[tmp_out]->Split(0, 8);
     stages[tmp_out]->Bind(2, "threadIdx.x");
-    stages[tmp_out]->ComputeAt2(stages[out], 1);
+    stages[tmp_out]->SimpleComputeAt(stages[out], 1);
     stages[tmp_out]->SetBuffer("local");
   }
 }
@@ -417,17 +402,14 @@ void CudaScheduleBlockReduceInternal(poly::StageMap stages,
                                      ir::Tensor tmp_out,
                                      ir::Tensor out,
                                      const common::Target &target) {
-  int sum_out_dim = 1;
   for (int idx = 0; idx < out->shape.size() - 1; ++idx) {
-    stages[out]->Fuse(0, 1);
     stages[tmp_out]->Fuse(0, 1);
-    sum_out_dim *= out->shape[idx].as_int32();
+    stages[out]->Fuse(0, 1);
   }
-  sum_out_dim *= out->shape.back().as_int32();
 
   stages[tmp_out]->Bind(0, "blockIdx.x");
   stages[tmp_out]->Bind(1, "threadIdx.x");
-  stages[tmp_out]->ComputeAt2(stages[out], 0);
+  stages[tmp_out]->SimpleComputeAt(stages[out], 0);
   stages[tmp_out]->SetBuffer("local");
 
   stages[out]->Bind(0, "blockIdx.x");
@@ -437,9 +419,28 @@ void CudaScheduleBlockReduce(poly::StageMap stages,
                              ir::Tensor reduce_tmp_out,
                              ir::Tensor tmp_out,
                              ir::Tensor out,
-                             const int last_reduce_dim,
-                             std::vector<std::vector<int>> succesive_keep_dim_without_reduce,
-                             const common::Target &target) {}
+                             const common::Target &target) {
+  for (int idx = out->shape.size(); idx < reduce_tmp_out->shape.size() - 1; ++idx) {
+    stages[reduce_tmp_out]->Fuse(out->shape.size(), out->shape.size() + 1);
+  }
+  for (int idx = 0; idx < out->shape.size() - 1; ++idx) {
+    stages[out]->Fuse(0, 1);
+    stages[tmp_out]->Fuse(0, 1);
+    stages[reduce_tmp_out]->Fuse(0, 1);
+  }
+
+  stages[reduce_tmp_out]->Bind(0, "blockIdx.x");
+  stages[reduce_tmp_out]->Bind(1, "threadIdx.x");
+  stages[reduce_tmp_out]->SetBuffer("local");
+  stages[reduce_tmp_out]->SimpleComputeAt(stages[tmp_out], 0);
+
+  stages[tmp_out]->Bind(0, "blockIdx.x");
+  stages[tmp_out]->Bind(1, "threadIdx.x");
+  stages[tmp_out]->SetBuffer("local");
+  stages[tmp_out]->SimpleComputeAt(stages[out], 0);
+
+  stages[out]->Bind(0, "blockIdx.x");
+}
 
 void SoftmaxScheduleCPU(poly::StageMap stage, const ir::Tensor &output, const ir::Tensor &temp, int axis) {
   if (axis == -1) {
