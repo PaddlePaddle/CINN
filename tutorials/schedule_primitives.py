@@ -12,13 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
+===============================
 Schedule Primitives in CINN
 ===============================
 
 In this tutorial, we will guide you through the examples of using schedule primitives.
 """
-
-# sphinx_gallery_thumbnail_path = '_static/icon.png'
 
 import cinn
 import numpy as np
@@ -237,3 +236,43 @@ stages = cinn.create_stages([B])
 stages[B].parallel(0)
 fn = cinn.lower("fn", stages, [A.to_tensor(), B])
 print(fn)
+
+##################################################################
+#
+# Vectorize
+# ------
+# :code:`vectorize` will vectorize one loop in param `level`.(Only used in X86 backends)
+A = cinn.Placeholder('float32', 'A', (m, n))
+B = cinn.compute((m, n), lambda v: A(v[0], v[1]) * 2., name='B')
+
+stages = cinn.create_stages([B])
+stages[B].vectorize(0, 10)
+fn = cinn.lower("fn", stages, [A.to_tensor(), B])
+print(fn)
+
+##################################################################
+# --------------------------------------------------------------
+# An example of optimizing performance in cuda backends
+# --------------------------------------------------------------
+#
+# **In this section, we will show you a practical example about optimizing performance using schedule primitives**
+#
+# Optimize an elementwise_add kernel using `fuse`, `split` and `bind`
+#
+A = cinn.Placeholder('float32', 'A', (m, m))
+B = cinn.compute((m, m), lambda v: A([v[0], v[1]]) * 2., name='B')
+
+stages = cinn.create_stages([B])
+fn0 = cinn.lower("fn", stages, [A.to_tensor(), B])
+print("Original kernel before optimizing:\n", fn0)
+stages[B].fuse(0, 1)
+stages[B].split(level=0, factor=256)
+stages[B].bind(0, "blockIdx.x")
+stages[B].bind(1, "threadIdx.x")
+fn1 = cinn.lower("fn", stages, [A.to_tensor(), B])
+print("\n======================================\nThe optimized kernel:\n", fn1)
+
+##################################################################
+#
+# Thus we get an optimized kernel.
+#

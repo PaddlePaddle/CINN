@@ -23,7 +23,7 @@ Install
    ./install.md
    ./guide.md
 
-cinn
+CINN
 ------
 
 Get Started
@@ -35,7 +35,7 @@ Get Started
 
 
 C++ APIs
-~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~
 .. toctree::
    :maxdepth: 1
 
@@ -43,7 +43,7 @@ C++ APIs
    cpp/library_root.rst
 
 
-cinnrt
+CINNRT
 -------
 TBD
 
