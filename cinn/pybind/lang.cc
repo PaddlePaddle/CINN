@@ -41,6 +41,7 @@ using utils::StringFormat;
 namespace {
 void BindBuffer(py::module *);
 void BindLower(py::module *);
+void BindLowerVec(py::module *);
 void BindPlaceholder(py::module *);
 void BindCompute(py::module *);
 void BindModule(py::module *);
@@ -57,6 +58,19 @@ void BindLower(py::module *m) {
   using py::arg;
   m->def("lower",
          &lang::Lower,
+         arg("name"),
+         arg("stages"),
+         arg("tensor_args"),
+         arg("scalar_args")  = std::vector<ir::Var>(),
+         arg("temp_tensors") = std::vector<ir::Tensor>(),
+         arg("b")            = nullptr,
+         arg("target")       = common::DefaultHostTarget());
+}
+
+void BindLowerVec(py::module *m) {
+  using py::arg;
+  m->def("lower_vec",
+         &lang::LowerVec,
          arg("name"),
          arg("stages"),
          arg("tensor_args"),
@@ -218,6 +232,7 @@ void BindBuiltin(py::module *m) {
 void BindLang(py::module *m) {
   BindBuffer(m);
   BindLower(m);
+  BindLowerVec(m);
   BindPlaceholder(m);
   BindCompute(m);
   BindModule(m);
