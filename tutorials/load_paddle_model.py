@@ -16,6 +16,7 @@ Load and Execute Paddle Model
 =====================
 
 In this tutorial, we will show you how to load and execute a paddle model in CINN.
+We offer you four optional models: ResNet18, MobileNetV2, EfficientNet and FaceDet.
 """
 
 import cinn
@@ -27,7 +28,7 @@ import numpy as np
 import os
 
 ##################################################################
-# Prepare to Load Model
+# **Prepare to Load Model**
 # -------------------------
 # Declare the params and prepare to load and execute the paddle model.
 #
@@ -40,6 +41,47 @@ import os
 # - :code:`target_tensor` is the name of output tensor we want.
 #
 # - :code:`x_shape` is the input tensor's shape of the model
+#
+# - When choosing model ResNet18, the params should be ::
+#
+#       model_dir = "./ResNet18"
+#
+#       input_tensor = 'image'
+#
+#       target_tensor = 'save_infer_model/scale_0'
+#
+#       x_shape = [1, 3, 224, 224]
+#
+# - When choosing model MobileNetV2, the params should be ::
+#
+#       model_dir = "./MobileNetV2"
+#
+#       input_tensor = 'image'
+#
+#       target_tensor = 'save_infer_model/scale_0'
+#
+#       x_shape = [1, 3, 224, 224]
+#
+# - When choosing model EfficientNet, the params should be ::
+#
+#       model_dir = "./EfficientNet"
+#
+#       input_tensor = 'image'
+#
+#       target_tensor = 'save_infer_model/scale_0'
+#
+#       x_shape = [1, 3, 224, 224]
+#
+# - When choosing model FaceDet, the params should be ::
+#
+#       model_dir = "./FaceDet"
+#
+#       input_tensor = 'image'
+#
+#       target_tensor = 'save_infer_model/scale_0'
+#
+#       x_shape = [1, 3, 240, 320]
+#
 
 model_dir = "./ResNet18"
 input_tensor = 'image'
@@ -47,7 +89,14 @@ target_tensor = 'save_infer_model/scale_0'
 x_shape = [1, 3, 224, 224]
 
 ##################################################################
-# Set the target backend
+# **Set the target backend**
+# ------------------------------
+# Now CINN only supports two backends: X86 and CUDA.
+#
+# For CUDA backends, set ``target = DefaultNVGPUTarget()``
+#
+# For X86 backends, set ``target = DefaultHostTarget()``
+#
 if os.path.exists("is_cuda"):
     target = DefaultNVGPUTarget()
 else:
@@ -58,7 +107,7 @@ else:
 executor = Interpreter([input_tensor], [x_shape])
 
 ##################################################################
-# Load Model to CINN
+# **Load Model to CINN**
 # -------------------------
 # Load the paddle model and transform it into CINN IR
 #
@@ -68,26 +117,37 @@ executor = Interpreter([input_tensor], [x_shape])
 #
 # * :code:`params_combined` implies whether the params of paddle
 # model is stored in one file.
-
+#
+# * :code:`model_name` is the name of the model. Entering this will
+# enable optimization for each specific model.
+#
+# - The model_name for each model is : ``"resnet18"``, ``"mobilenetv2"``,
+# ``"efficientnet"`` and ``"facedet"``.
+#
+model_name = "resnet18"
 params_combined = True
-executor.load_paddle_model(model_dir, target, params_combined)
+executor.load_paddle_model(model_dir, target, params_combined, model_name)
 
 ##################################################################
-# Get input tensor and set input data
+# **Get input tensor and set input data**
+# -----------------------------------------
+# Here we use random data as input. In practical applications,
+# please replace it with real data according to your needs.
 a_t = executor.get_tensor(input_tensor)
 x_data = np.random.random(x_shape).astype("float32")
 a_t.from_numpy(x_data, target)
 
 ##################################################################
-# Get output tensor and init its data to zero.
+# Set the output tensor's data to zero before running the model
+# -----------------------------------------------------------------
 out = executor.get_tensor(target_tensor)
 out.from_numpy(np.zeros(out.shape(), dtype='float32'), target)
 
 ##################################################################
-# Execute Model
+# **Execute Model**
 # -------------------------
 # Execute the model and get output tensor's data.
-# * :code:`out` is the data of output tensor we want.
+# :code:`out` is the data of output tensor we want.
 
 executor.run()
 out = out.numpy(target)

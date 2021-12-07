@@ -109,18 +109,28 @@ function prepare_ci {
   pip install paddlepaddle-gpu==2.1.2.post101 -f https://www.paddlepaddle.org.cn/whl/linux/mkl/avx/stable.html
 }
 
+function prepare_doc_model_file {
+    proxy_off
+    local tar_file=$1
+    if [[ -f "$tar_file.tar.gz" ]]; then
+        echo "model file $tar_file.tar.gz for tutorials already downloaded."
+    elif [[ -f "$build_dir/thirds/$tar_file.tar.gz" ]]; then
+        rm -rf $workspace/tutorials/$tar_file
+        ln -s $build_dir/thirds/$tar_file $workspace/tutorials/$tar_file
+    else
+        wget https://paddle-inference-dist.bj.bcebos.com/CINN/$tar_file.tar.gz
+        tar -zxvf $tar_file.tar.gz
+    fi
+}
+
 function make_doc {
     proxy_off
     cd $workspace/tutorials
-    if [[ -f "ResNet18.tar.gz" ]]; then
-        echo "model file for tutorials already downloaded."
-    elif [[ -f "$build_dir/thirds/ResNet18.tar.gz" ]]; then
-        rm -rf $workspace/tutorials/ResNet18
-        ln -s $build_dir/thirds/ResNet18 $workspace/tutorials/ResNet18
-    else
-        wget http://paddle-inference-dist.bj.bcebos.com/CINN/ResNet18.tar.gz
-        tar -zxvf ResNet18.tar.gz
-    fi
+    prepare_doc_model_file ResNet18
+    prepare_doc_model_file MobileNetV2
+    prepare_doc_model_file EfficientNet
+    prepare_doc_model_file FaceDet
+
     if [[ $cuda_config == "ON" && ! -d "./is_cuda" ]]; then
         mkdir is_cuda
     fi
@@ -131,6 +141,7 @@ function make_doc {
     cd $workspace/docs
     mkdir -p docs/source/cpp
     cat $workspace/tutorials/matmul.cc | python${py_version} $workspace/tools/gen_c++_tutorial.py  > $workspace/docs/source/matmul.md
+    pip install sphinx_rtd_theme
     make html
     if [[ $cuda_config == "ON" && -d "./is_cuda" ]]; then
         rm -rf $workspace/tutorials/is_cuda
