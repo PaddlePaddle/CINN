@@ -314,11 +314,13 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
         // TODO(sunli) : support keep_dim = true
         CHECK(!keep_dim) << "not support keep dim now!";
         if (last_succesive_dim < 256) {
+          VLOG(3) << "Do WarpReduceSum Compute!";
           // if the succesive reduce dimension size < 256
           auto res    = pe::WarpReduceSum(x, dim.size());
           auto stages = CreateStages(res);
           *ret        = CINNValuePack{{CINNValue(res[0]), CINNValue(res[1]), CINNValue(stages)}};
         } else {
+          VLOG(3) << "Do BlockReduceSum Compute!";
           // if the succesive reduce dimension size > 256
           int block_size = last_succesive_dim > 1024 ? 512 : 128;
           auto res       = pe::BlockReduceSum(x, dim.size(), block_size);
@@ -326,6 +328,7 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
           *ret           = CINNValuePack{{CINNValue(res[0]), CINNValue(res[1]), CINNValue(stages)}};
         }
       } else /* the reduce dimension is not succesive */ {
+        VLOG(3) << "Do ReduceSum And BlockReduceSumInternal Compute!";
         // compute the parallel reduce dimension size
         int last_succesive_dim_tmp = last_succesive_dim;
         std::vector<int> reduce_without_last_diemension(dim.begin(), dim.begin() + succesive_dim_idx);
@@ -349,6 +352,7 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
         *ret        = CINNValuePack{{CINNValue(res[0]), CINNValue(res[1]), CINNValue(out), CINNValue(stages)}};
       }
     } else {
+      VLOG(3) << "Do ReduceSum Compute!";
       auto out    = pe_func(x, dim, keep_dim, Expr(), UniqName(op_name + "_out"));
       auto stages = CreateStages({out});
       *ret        = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
@@ -367,9 +371,11 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
           Expr tmp_out          = arg_pack[1];
           poly::StageMap stages = arg_pack.back();
           if (last_succesive_dim < 256) {
+            VLOG(3) << "Do CudaScheduleWarpReduce Schedule!";
             pe::CudaScheduleWarpReduce(
                 stages, tmp_out.as_tensor_ref(), out.as_tensor_ref(), common::DefaultNVGPUTarget());
           } else {
+            VLOG(3) << "Do CudaScheduleBlockReduceInternal Schedule!";
             pe::CudaScheduleBlockReduceInternal(
                 stages, tmp_out.as_tensor_ref(), out.as_tensor_ref(), common::DefaultNVGPUTarget());
           }
@@ -380,18 +386,18 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
           Expr reduce_tmp_out   = arg_pack[2];
           poly::StageMap stages = arg_pack.back();
 
+          VLOG(3) << "Do CudaScheduleBlockReduce Schedule!";
           pe::CudaScheduleBlockReduce(stages,
                                       reduce_tmp_out.as_tensor_ref(),
                                       tmp_out.as_tensor_ref(),
                                       out.as_tensor_ref(),
                                       common::DefaultNVGPUTarget());
-          //*ret        = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
-          // return;
         }
       } else {
         CHECK_EQ(arg_pack.size(), 2UL);
         Expr out              = arg_pack[0];
         poly::StageMap stages = arg_pack.back();
+        VLOG(3) << "Do CudaScheduleReduce Schedule!";
         pe::CudaScheduleReduce(stages, out.as_tensor_ref(), inputs[0]->shape.size() - dim.back() - 1, target);
       }
     }

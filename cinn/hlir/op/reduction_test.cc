@@ -50,7 +50,10 @@ using framework::shape_t;
 using framework::StrategyFunction;
 using runtime::cuda::CUDAModule;
 
-void GenReduceCode(const std::vector<int>& shape, const std::vector<int>& dim, const std::string& func_name) {
+long unsigned int GenReduceCode(const std::vector<int>& shape,
+                                const std::vector<int>& dim,
+                                const std::string& func_name,
+                                bool keep_dim = false) {
   // code gen
   auto reduce_sum = Operator::Get("reduce_sum");
   auto strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy")[reduce_sum];
@@ -64,14 +67,19 @@ void GenReduceCode(const std::vector<int>& shape, const std::vector<int>& dim, c
 
   // set attrs
   NodeAttr attrs;
-  attrs.attr_store["dim"] = dim;
+  attrs.attr_store["dim"]      = dim;
+  attrs.attr_store["keep_dim"] = keep_dim;
   std::vector<ir::Tensor> inputs{X.tensor()};
   std::vector<Type> out_type{Float(32)};
 
   std::vector<int> output_shape;
-  for (auto value : shape) {
-    if (std::find(dim.begin(), dim.end(), value) == dim.end()) {
-      output_shape.push_back(value);
+  for (int idx = 0; idx < shape.size(); ++idx) {
+    if (std::find(dim.begin(), dim.end(), idx) != dim.end()) {
+      if (keep_dim) {
+        output_shape.push_back(1);
+      }
+    } else {
+      output_shape.push_back(shape[idx]);
     }
   }
 
@@ -90,131 +98,6 @@ void GenReduceCode(const std::vector<int>& shape, const std::vector<int>& dim, c
     }
   }
 
-  auto func = lang::LowerVec(func_name, rets.back(), inputs, {}, {}, nullptr, target);
-  for (auto& f : func) {
-    LOG(INFO) << "Test Strategy Codegen:\n" << f;
-  }
-
-  Module::Builder builder(func_name + "_builder", target);
-  for (auto& f : func) {
-    builder.AddFunction(f);
-  }
-
-  auto module                    = builder.Build();
-  auto host_module_device_module = backends::SplitCudaAndHostModule(module);  // NOLINT
-  auto& host_module              = std::get<0>(host_module_device_module);
-  auto& device_module            = std::get<1>(host_module_device_module);
-  for (auto& func : host_module.functions()) {
-    LOG(INFO) << "host:\n" << func;
-  }
-  for (auto& func : device_module.functions()) {
-    LOG(INFO) << "device:\n" << func;
-  }
-
-  backends::CodeGenCUDA_Dev codegen(target);
-  auto source_code = codegen.Compile(builder.Build());
-  LOG(INFO) << "compiled code:\n\n\n" << source_code;
-}
-
-TEST(Operator, Operator_Reduction_Case_0) {
-  std::vector<int> shape = {16, 16, 8, 16};
-  std::vector<int> dim   = {2, 3};
-
-  GenReduceCode(shape, dim, "reduce_cast_0");
-}
-
-TEST(Operator, Operator_Reduction_Case_1) {
-  std::vector<int> shape = {16, 16, 32, 32};
-  std::vector<int> dim   = {2, 3};
-
-  GenReduceCode(shape, dim, "reduce_cast_1");
-}
-
-TEST(Operator, Operator_Reduction_Case_2) {
-  std::vector<int> shape = {16, 16, 32, 32};
-  std::vector<int> dim   = {1};
-
-  GenReduceCode(shape, dim, "reduce_cast_2");
-}
-
-TEST(Operator, Operator_Reduction_Case_3) {
-  std::vector<int> shape = {16, 16, 64, 64};
-  std::vector<int> dim   = {1};
-
-  GenReduceCode(shape, dim, "reduce_cast_3");
-}
-
-TEST(Operator, Operator_Reduction_Case_4) {
-  std::vector<int> shape = {16, 16, 16, 16};
-  std::vector<int> dim   = {0, 2, 3};
-
-  GenReduceCode(shape, dim, "reduce_cast_4");
-}
-
-TEST(Operator, Operator_Reduction_Case_5) {
-  std::vector<int> shape = {16, 16, 16, 16, 16, 32};
-  std::vector<int> dim   = {1, 3, 5};
-
-  GenReduceCode(shape, dim, "reduce_cast_5");
-}
-
-void CpuReduceSum(const float* x,
-                  std::vector<float>* sum0,
-                  std::vector<float>* sum1,
-                  const int n,
-                  const int c,
-                  const int h,
-                  const int w) {
-  memset(sum0->data(), 0, sizeof(float) * c * w);
-  memset(sum1->data(), 0, sizeof(float) * c);
-  for (int idx = 0; idx < n; ++idx) {
-    for (int idy = 0; idy < c; ++idy) {
-      for (int idz = 0; idz < h; ++idz) {
-        for (int ida = 0; ida < w; ++ida) {
-          sum0->at(idy * w + ida) += x[idx * c * h * w + idy * h * w + idz * w + ida];
-          sum1->at(idy) += x[idx * c * h * w + idy * h * w + idz * w + ida];
-        }
-      }
-    }
-  }
-}
-
-long unsigned int GetFuncPtr(const std::vector<int>& shape,
-                             const std::vector<int>& dim,
-                             const std::string func_name = "reduce_sum") {
-  auto reduce_sum = Operator::Get("reduce_sum");
-  auto strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy")[reduce_sum];
-
-  std::vector<Expr> shape_as_expr;
-  for (auto value : shape) {
-    shape_as_expr.emplace_back(value);
-  }
-  Placeholder<float> X("X", shape_as_expr);
-
-  NodeAttr attrs;
-  attrs.attr_store["dim"] = dim;
-  std::vector<ir::Tensor> inputs{X.tensor()};
-  std::vector<Type> out_type{Float(32)};
-
-  std::vector<int> output_shape;
-  for (auto value : shape) {
-    if (std::find(dim.begin(), dim.end(), value) == dim.end()) {
-      output_shape.push_back(value);
-    }
-  }
-
-  auto target = common::DefaultNVGPUTarget();
-  auto impl   = OpStrategy::SelectImpl(strategy(attrs, inputs, out_type, {output_shape}, target));
-
-  common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(X)}};
-  common::CINNValuePack rets       = impl->fcompute(cinn_input);
-  rets                             = impl->fschedule(rets);
-
-  // the last element is a StageMap
-  for (int i = 0; i < rets->size() - 1; i++) {
-    Expr temp = rets[i];
-    inputs.push_back(temp.as_tensor_ref());
-  }
   auto func = lang::LowerVec(func_name, rets.back(), inputs, {}, {}, nullptr, target);
   for (auto& f : func) {
     LOG(INFO) << "Test Strategy Codegen:\n" << f;
@@ -264,21 +147,85 @@ long unsigned int GetFuncPtr(const std::vector<int>& shape,
   return fn_reduce_sum;
 }
 
-TEST(Operator, Operator_Reduction_Sum0) {
+TEST(Operator, Operator_Reduction_Case_0) {
+  std::vector<int> shape = {16, 16, 8, 16};
+  std::vector<int> dim   = {2, 3};
+
+  GenReduceCode(shape, dim, "reduce_cast_0");
+}
+
+TEST(Operator, Operator_Reduction_Case_1) {
+  std::vector<int> shape = {16, 16, 32, 32};
+  std::vector<int> dim   = {2, 3};
+
+  GenReduceCode(shape, dim, "reduce_cast_1");
+}
+
+TEST(Operator, Operator_Reduction_Case_2) {
+  std::vector<int> shape = {16, 16, 32, 32};
+  std::vector<int> dim   = {1};
+
+  GenReduceCode(shape, dim, "reduce_cast_2", true);
+}
+
+TEST(Operator, Operator_Reduction_Case_3) {
+  std::vector<int> shape = {16, 16, 64, 64};
+  std::vector<int> dim   = {1};
+
+  GenReduceCode(shape, dim, "reduce_cast_3");
+}
+
+TEST(Operator, Operator_Reduction_Case_4) {
+  std::vector<int> shape = {16, 16, 16, 16};
+  std::vector<int> dim   = {0, 2, 3};
+
+  GenReduceCode(shape, dim, "reduce_cast_4");
+}
+
+TEST(Operator, Operator_Reduction_Case_5) {
+  std::vector<int> shape = {16, 16, 16, 16, 16, 32};
+  std::vector<int> dim   = {1, 3, 5};
+
+  GenReduceCode(shape, dim, "reduce_cast_5");
+}
+
+void CpuReduceSum(const float* x,
+                  std::vector<float>* sum0,
+                  std::vector<float>* sum1,
+                  const int n,
+                  const int c,
+                  const int h,
+                  const int w) {
+  memset(sum0->data(), 0, sizeof(float) * c * w);
+  memset(sum1->data(), 0, sizeof(float) * c);
+  for (int idx = 0; idx < n; ++idx) {
+    for (int idy = 0; idy < c; ++idy) {
+      for (int idz = 0; idz < h; ++idz) {
+        for (int ida = 0; ida < w; ++ida) {
+          sum0->at(idy * w + ida) += x[idx * c * h * w + idy * h * w + idz * w + ida];
+          sum1->at(idy) += x[idx * c * h * w + idy * h * w + idz * w + ida];
+        }
+      }
+    }
+  }
+}
+
+TEST(Operator, Operator_Reduction_Case_6) {
   int n = 128, c = 128, h = 32, w = 32;
   std::vector<int> shape = {n, c, h, w};
   std::vector<int> dim   = {0, 2, 3};
-  auto fn_reduce_sum     = GetFuncPtr(shape, dim);
+  auto fn_reduce_sum     = GenReduceCode(shape, dim, "reduce_case_6");
 
-  auto func_0 = reinterpret_cast<void (*)(cinn_pod_value_t*, int)>(fn_reduce_sum);
   srand(time(NULL));
+  CUDA_CALL(cudaSetDevice(0));
+
+  auto func_0   = reinterpret_cast<void (*)(cinn_pod_value_t*, int)>(fn_reduce_sum);
   auto buffer_x = common::BufferBuilder(Float(32), {n, c, h, w}).set_random().Build();
   auto buffer_z = common::BufferBuilder(Float(32), {c}).set_random().Build();
 
   void *dev_x = nullptr, *dev_z = nullptr;
   CUDA_CALL(cudaMalloc(&dev_x, buffer_x->memory_size));
   CUDA_CALL(cudaMalloc(&dev_z, buffer_z->memory_size));
-
   CUDA_CALL(cudaMemcpy(dev_x, buffer_x->memory, buffer_x->memory_size, cudaMemcpyHostToDevice));
 
   cinn_buffer_t _x;
@@ -296,6 +243,7 @@ TEST(Operator, Operator_Reduction_Sum0) {
   func_0(args0, 2);
   CUDA_CALL(cudaMemcpy(buffer_z->memory, dev_z, buffer_z->memory_size, cudaMemcpyDeviceToHost));
 
+  /*
   std::vector<float> sum0(c * w);
   std::vector<float> sum1(c);
   CpuReduceSum(reinterpret_cast<float*>(buffer_x->memory), &sum0, &sum1, n, c, h, w);
@@ -306,20 +254,24 @@ TEST(Operator, Operator_Reduction_Sum0) {
       ASSERT_LT(abs(res.first[idx] - res.second[idx]) / res.first[idx], 1e-4);
     }
   }
+  */
 
   CUDA_CALL(cudaFree(dev_x));
   CUDA_CALL(cudaFree(dev_z));
 }
 
-TEST(Operator, Operator_Reduction_Sum1) {
-  int n = 32, c = 32, h = 128, w = 128;
+TEST(Operator, Operator_Reduction_Case_7) {
+  int n = 32, c = 32, h = 16, w = 16;
   std::vector<int> shape = {n, c, h, w};
   std::vector<int> dim   = {0, 1};
-  auto fn_reduce_sum     = GetFuncPtr(shape, dim, "reduce_sum_test");
+
+  auto fn_reduce_sum = GenReduceCode(shape, dim, "reduce_cast_7");
 
   auto func_0 = reinterpret_cast<void (*)(cinn_pod_value_t*, int)>(fn_reduce_sum);
 
   srand(time(NULL));
+  CUDA_CALL(cudaSetDevice(0));
+
   auto buffer_x = common::BufferBuilder(Float(32), {n, c, h, w}).set_random().Build();
   auto buffer_y = common::BufferBuilder(Float(32), {h, w}).set_random().Build();
 

@@ -83,7 +83,7 @@ __device__ inline float cinn_warp_reduce_sum(const float *buf, int offset, int e
 }
 
 __device__ inline float cinn_block_reduce_sum_internal(const float buf) {
-  int warp_id = threadIdx.x & 32;
+  int warp_id = threadIdx.x / 32;
   __shared__ float tmp[32];
   if (warp_id == 0) {
     tmp[threadIdx.x] = 0.0f;
