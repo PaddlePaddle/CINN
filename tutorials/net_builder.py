@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-Build model by NetBuilder API
+Run model by using NetBuilder API
 =========================================================
 
-In this tutorial, we will introduce the ways to build model by using NetBuilder API.
+In this tutorial, we will introduce the ways to build and run model by using NetBuilder API.
 """
 
 # sphinx_gallery_thumbnail_path = '_static/icon.png'
@@ -23,7 +23,6 @@ In this tutorial, we will introduce the ways to build model by using NetBuilder 
 import cinn
 from cinn import frontend
 from cinn import common
-from cinn import Target
 import numpy as np
 
 ##################################################################
