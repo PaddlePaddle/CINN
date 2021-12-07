@@ -348,7 +348,7 @@ void CudaScheduleReduce(poly::StageMap stages,
                         int last_dimension_num,
                         const common::Target &target) {
   int parallel_thread_num = 1;
-  for (int idx = output->shape.size() - 1; idx >= output->shape.size() - last_dimension_num; --idx) {
+  for (int idx = output->shape.size() - 1; idx >= (int(output->shape.size()) - last_dimension_num); --idx) {
     parallel_thread_num *= output->shape[idx].as_int32();
   }
 
@@ -369,7 +369,9 @@ void CudaScheduleReduce(poly::StageMap stages,
     stages[output]->Fuse(0, 1);
   }
 
-  stages[output]->Bind(0, "blockIdx.x");
+  if (index > 0) {
+    stages[output]->Bind(0, "blockIdx.x");
+  }
 }
 
 void CudaScheduleWarpReduce(poly::StageMap stages, ir::Tensor tmp_out, ir::Tensor out, const common::Target &target) {
