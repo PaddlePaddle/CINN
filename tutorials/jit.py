@@ -18,8 +18,6 @@ JIT in CINN
 In this tutorial, we will introduce the JIT module that execute the DSL on X86 and NV GPU.
 """
 
-# sphinx_gallery_thumbnail_path = '_static/icon.png'
-
 import cinn
 import numpy as np
 from cinn import runtime
