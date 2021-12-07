@@ -42,6 +42,17 @@ function gpu_on {
   cudnn_config=ON
 }
 
+function test_doc {
+    mkdir -p $build_dir
+    cd $build_dir
+    export runtime_include_dir=$workspace/cinn/runtime/cuda
+
+    prepare_ci
+    cmake_
+    build
+    make_doc
+}
+
 function cudnn_off {
   cudnn_config=OFF
 }
@@ -308,6 +319,10 @@ function main {
                 run_test
                 shift
                 ;;
+            test_doc)
+                test_doc
+                shift
+                ;;
             ci)
                 CI
                 shift
@@ -318,10 +333,6 @@ function main {
                 ;;
             prepare_model)
                 prepare_model
-                shift
-                ;;
-            make_doc)
-                make_doc
                 shift
                 ;;
         esac
