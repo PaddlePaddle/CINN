@@ -10,12 +10,13 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(DOWNLOAD_MODEL_DIR "${THIRD_PARTY_PATH}/model")
 
 option(WITH_TESTING         "Compile with Unittests"                OFF)
+option(WITH_INFRT           "Whether to build infrt"                OFF)
 option(WITH_MKL_CBLAS       "Compile MKL with CBLAS support"        ON)
 option(WITH_MKLDNN          "Compile MKLDNN support"                ON)
 option(WITH_CUDA            "Compile with CUDA support"             OFF)
 option(WITH_CUDNN           "Compile with CUDNN support"            OFF)
 option(WITH_DEBUG           "Compile with debug information"        OFF)
-option(PUBLISH_LIBS         "Whether to publish compiled libraries" OFF)
+option(PUBLISH_LIBS         "Whether to publish compiled libraries" ON)
 
 set(PY_VERSION CACHE STRING FORCE)
 if (NOT PY_VERSION)
@@ -87,13 +88,15 @@ set(global_test_args "--cinn_x86_builtin_code_root=${CMAKE_SOURCE_DIR}/cinn/back
 set(core_deps CACHE INTERNAL "" FORCE)
 set(hlir_src CACHE INTERNAL "" FORCE)
 add_subdirectory(cinn)
+if (WITH_INFRT)
 add_subdirectory(infrt)
+endif()
 add_subdirectory(tests)
 add_subdirectory(tutorials)
 
 set(core_src "${cinnapi_src}")
 
-cc_library(cinnapi SHARED SRCS ${cinnapi_src} DEPS glog ${llvm_libs} framework_proto param_proto paddle_framework_proto absl isl ginac)
+cc_library(cinnapi SHARED SRCS ${cinnapi_src} DEPS glog ${llvm_libs} framework_proto param_proto framework_proto absl isl ginac)
 add_dependencies(cinnapi GEN_LLVM_RUNTIME_IR_HEADER ZLIB::ZLIB)
 add_dependencies(cinnapi GEN_LLVM_RUNTIME_IR_HEADER ${core_deps})
 if (WITH_MKL_CBLAS)
@@ -114,7 +117,7 @@ function(gen_cinncore LINKTYPE)
   if (${LINKTYPE} STREQUAL "STATIC")
     set(CINNCORE_TARGET cinncore_static)
   endif()
-  cc_library(${CINNCORE_TARGET} ${LINKTYPE} SRCS ${core_src} DEPS glog ${llvm_libs} framework_proto param_proto paddle_framework_proto absl isl ginac)
+  cc_library(${CINNCORE_TARGET} ${LINKTYPE} SRCS ${core_src} DEPS glog ${llvm_libs} framework_proto param_proto framework_proto absl isl ginac)
   add_dependencies(${CINNCORE_TARGET} GEN_LLVM_RUNTIME_IR_HEADER ZLIB::ZLIB)
   add_dependencies(${CINNCORE_TARGET} GEN_LLVM_RUNTIME_IR_HEADER ${core_deps})
   if (WITH_MKL_CBLAS)
@@ -135,6 +138,7 @@ gen_cinncore(STATIC)
 gen_cinncore(SHARED)
 
 # MLIR td file generations
+if (WITH_INFRT)
 set(infrt_mlir_incs
         ops_inc
         basic_kernels_inc
@@ -148,6 +152,7 @@ set(infrt_mlir_incs
 
 cc_library(infrt SRCS ${infrt_src} DEPS glog absl paddle_framework_proto ${mlir_libs})
 add_dependencies(infrt ${infrt_mlir_incs})
+endif ()
 
 # --------distribute cinncore lib and include begin--------
 if (PUBLISH_LIBS)
