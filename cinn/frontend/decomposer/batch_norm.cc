@@ -65,10 +65,8 @@ struct BatchNormHelper {
     auto vars               = builder->BnMeanVarianceReduce(x);
     auto element_count_1d_0 = GetTensorFromScalar<float>(element_count, "element_count", param_shape);
     auto element_count_1d_1 = GetTensorFromScalar<float>(element_count, "element_count", param_shape);
-    auto mean = builder->Div(builder->Reduce(vars[0], ReduceKind::kSum, std::vector<int>(1, vars[0]->shape.size() - 1)),
-                             element_count_1d_0);
-    auto mean_squre = builder->Div(
-        builder->Reduce(vars[1], ReduceKind::kSum, std::vector<int>(1, vars[1]->shape.size() - 1)), element_count_1d_1);
+    auto mean               = builder->Div(vars[0], element_count_1d_0);
+    auto mean_squre         = builder->Div(vars[1], element_count_1d_1);
 
     auto variance = builder->Sub(mean_squre, builder->Mul(mean, builder->Identity(mean)));
 #else
@@ -84,9 +82,7 @@ struct BatchNormHelper {
 #ifdef CINN_WITH_CUDA
     // Using fusion op "BnGradBiasScaleReduce" as the same reason with "BnMeanVarianceReduce".
     // It also will be removed.
-    auto vars = builder->BnGradBiasScaleReduce(x, x_mean, y_grad);
-    return {builder->Reduce(vars[0], ReduceKind::kSum, std::vector<int>(1, vars[0]->shape.size() - 1)),
-            builder->Reduce(vars[1], ReduceKind::kSum, std::vector<int>(1, vars[1]->shape.size() - 1))};
+    return builder->BnGradBiasScaleReduce(x, x_mean, y_grad);
 #else
     auto mean_4d     = builder->BroadcastTo(x_mean, x->shape, {channel_dim});
     auto x_mean_diff = builder->Sub(x, mean_4d);

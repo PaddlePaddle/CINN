@@ -135,13 +135,6 @@ std::shared_ptr<OpStrategy> StrategyForBnMeanVarianceReduce(const framework::Nod
                                   x_sum.as_tensor_ref(),
                                   common::DefaultNVGPUTarget());
 
-      /*
-      pe::CudaScheduleBlockReduce(stages,
-                                  x_square_sum_0.as_tensor_ref(),
-                                  x_square_sum_tmp.as_tensor_ref(),
-                                  x_square_sum.as_tensor_ref(),
-                                  common::DefaultNVGPUTarget());
-      */
       // set x_square compute at x
       stages[x_square_sum_0.as_tensor_ref()]->SetBuffer("local");
       if (new_shape.size() == 3) {
@@ -206,40 +199,71 @@ std::shared_ptr<OpStrategy> StrategyForBnGradBiasScaleReduce(const framework::No
 
     auto reduce_dim = new_shape.size() == 3 ? std::vector<int>{0} : std::vector<int>{0, 2};
 
-    auto out0 = pe::ReduceSum(y_grad_reshape, reduce_dim, false, Expr(0.0f), UniqName("bn_grad_bias_scale_out0"));
-    auto out1 = pe::ReduceSum(grad_x_mean_diff, reduce_dim, false, Expr(0.0f), UniqName("bn_grad_bias_scale_out1"));
+    auto out_0 = pe::ReduceSum(y_grad_reshape, reduce_dim, false, Expr(0.0f), UniqName("bn_grad_bias_scale_out0"));
+    auto out_1 = pe::ReduceSum(grad_x_mean_diff, reduce_dim, false, Expr(0.0f), UniqName("bn_grad_bias_scale_out1"));
 
-    // auto stages = CreateStages({x_mean_diff, grad_x_mean_diff, out0, out1});
+    auto reduce_sum_0 = pe::BlockReduceSumInternal(out_0, 1);
+    auto reduce_sum_1 = pe::BlockReduceSumInternal(out_1, 1);
+
     stages->InsertLazily(x_reshape);
     stages->InsertLazily(y_grad_reshape);
     stages->InsertLazily(x_mean_diff);
     stages->InsertLazily(grad_x_mean_diff);
-    stages->InsertLazily(out0);
-    stages->InsertLazily(out1);
+    stages->InsertLazily(out_0);
+    stages->InsertLazily(out_1);
+    stages->InsertLazily(reduce_sum_0[1]);
+    stages->InsertLazily(reduce_sum_1[1]);
+    stages->InsertLazily(reduce_sum_0[0]);
+    stages->InsertLazily(reduce_sum_1[0]);
+
     stages[x_reshape]->ComputeInline();
     stages[y_grad_reshape]->ComputeInline();
     stages[x_mean_diff]->ComputeInline();
     stages[grad_x_mean_diff]->ComputeInline();
-    *ret = CINNValuePack{{CINNValue(out0), CINNValue(out1), CINNValue(stages)}};
+    *ret = CINNValuePack{{CINNValue(out_0),
+                          CINNValue(out_1),
+                          CINNValue(reduce_sum_0[1]),
+                          CINNValue(reduce_sum_1[1]),
+                          CINNValue(reduce_sum_0[0]),
+                          CINNValue(reduce_sum_1[0]),
+                          CINNValue(stages)}};
   });
 
   framework::CINNSchedule bn_grad_bias_scale_schedule([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of bn_grad_bias_scale schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
-    CHECK_EQ(arg_pack.size(), 3UL);
+    CHECK_EQ(arg_pack.size(), 7UL);
     if (target.arch == Target::Arch::NVGPU) {
-      Expr out0             = arg_pack[0];
-      Expr out1             = arg_pack[1];
+      Expr out_0            = arg_pack[0];
+      Expr out_1            = arg_pack[1];
+      Expr reduce_sum_0_tmp = arg_pack[2];
+      Expr reduce_sum_1_tmp = arg_pack[3];
+      Expr reduce_sum_0     = arg_pack[4];
+      Expr reduce_sum_1     = arg_pack[5];
+
       poly::StageMap stages = arg_pack.back();
-      CHECK(out0.as_tensor());
-      CHECK(out1.as_tensor());
-      // pe::CudaScheduleReduce(stages, out0.as_tensor_ref(), target);
-      // pe::CudaScheduleReduce(stages, out1.as_tensor_ref(), target);
+      CHECK(out_0.as_tensor());
+      CHECK(out_1.as_tensor());
+      CHECK(reduce_sum_0_tmp.as_tensor());
+      CHECK(reduce_sum_1_tmp.as_tensor());
+      CHECK(reduce_sum_0.as_tensor());
+      CHECK(reduce_sum_1.as_tensor());
+
+      pe::CudaScheduleBlockReduce(stages,
+                                  out_0.as_tensor_ref(),
+                                  reduce_sum_0_tmp.as_tensor_ref(),
+                                  reduce_sum_0.as_tensor_ref(),
+                                  common::DefaultNVGPUTarget());
+
+      stages[out_1.as_tensor_ref()]->SetBuffer("local");
       if (new_shape.size() == 3) {
-        stages[out0.as_tensor_ref()]->SimpleComputeAt(stages[out1.as_tensor_ref()], 2);
+        stages[out_1.as_tensor_ref()]->SimpleComputeAt(stages[out_0.as_tensor_ref()], 2);
       } else {
-        stages[out0.as_tensor_ref()]->SimpleComputeAt(stages[out1.as_tensor_ref()], 3);
+        stages[out_1.as_tensor_ref()]->SimpleComputeAt(stages[out_0.as_tensor_ref()], 3);
       }
+      stages[reduce_sum_1_tmp.as_tensor_ref()]->SetBuffer("local");
+      stages[reduce_sum_1_tmp.as_tensor_ref()]->SimpleComputeAt(stages[reduce_sum_0_tmp.as_tensor_ref()], 1);
+      stages[reduce_sum_1.as_tensor_ref()]->SimpleComputeAt(stages[reduce_sum_0.as_tensor_ref()], 0);
     } else if (target.arch == Target::Arch::X86) {
       Expr out              = arg_pack[0];
       poly::StageMap stages = arg_pack[1];
@@ -410,7 +434,7 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
 
 std::vector<shape_t> InferShapeForReduction(const std::vector<shape_t> &inputs_shape,
                                             const framework::AttrMapType &attrs) {
-  CHECK_EQ(inputs_shape.size(), 1UL);
+  CHECK(inputs_shape.size() == 1UL || inputs_shape.size() == 3UL);
   std::vector<int> dim;
   bool keep_dim = false;
   if (attrs.find("dim") != attrs.end()) {
