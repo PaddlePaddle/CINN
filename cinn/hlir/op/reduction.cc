@@ -44,10 +44,10 @@ std::vector<int> GetShape(const ir::Tensor &x) {
   auto last_reduce_dim = x->shape[2].as_int32() * x->shape[2].as_int32();
   // split into last_reduce_dim into {n,k}
   std::vector<int> new_shape = {x->shape[0].as_int32(), x->shape[1].as_int32()};
-  if (last_reduce_dim <= 128) {
+  if (last_reduce_dim <= 1024) {
     new_shape.push_back(last_reduce_dim);
   } else {
-    for (int idx = 256; idx > 128; --idx) {
+    for (int idx = 1024;; --idx) {
       if (last_reduce_dim % idx == 0) {
         new_shape.push_back(last_reduce_dim / idx);
         new_shape.push_back(idx);
@@ -78,42 +78,42 @@ std::shared_ptr<OpStrategy> StrategyForBnMeanVarianceReduce(const framework::Nod
     CHECK(A.as_tensor());
     auto x = A.as_tensor_ref();
 
-    auto stages    = CreateStages({x});
-    auto x_reshape = pe::Reshape(x, new_shape, stages, UniqName("bn_mean_variance_x_reshape_out"));
-    auto x_square  = pe::Multiply(x_reshape, x_reshape, UniqName("bn_mean_variance_x_square"));
+    auto stages     = CreateStages({x});
+    auto x_reshape  = pe::Reshape(x, new_shape, stages, UniqName("bn_mean_variance_x_reshape_out"));
+    auto x_square   = pe::Multiply(x_reshape, x_reshape, UniqName("bn_mean_variance_x_square"));
+    auto reduce_dim = new_shape.size() == 3 ? std::vector<int>{0} : std::vector<int>{0, 2};
 
-    auto reduce_dim     = new_shape.size() == 3 ? std::vector<int>{0} : std::vector<int>{0, 2};
     auto x_sum_0        = pe::ReduceSum(x_reshape, reduce_dim, false, Expr(0.0f), UniqName("bn_mean_variance_out0"));
     auto x_square_sum_0 = pe::ReduceSum(x_square, reduce_dim, false, Expr(0.0f), UniqName("bn_mean_variance_out1"));
 
-    auto x_sum        = pe::BlockReduceSumInternal(x_sum_0, 1);
-    auto x_square_sum = pe::BlockReduceSumInternal(x_square_sum_0, 1);
+    auto x_sum_out    = pe::BlockReduceSumInternal(x_sum_0, 1);
+    auto x_square_out = pe::BlockReduceSumInternal(x_square_sum_0, 1);
 
     stages->InsertLazily(x_reshape);
     stages->InsertLazily(x_square);
     stages->InsertLazily(x_sum_0);
     stages->InsertLazily(x_square_sum_0);
-    stages->InsertLazily(x_sum[0]);
-    stages->InsertLazily(x_square_sum[0]);
-    stages->InsertLazily(x_sum[1]);
-    stages->InsertLazily(x_square_sum[1]);
+    stages->InsertLazily(x_sum_out[1]);
+    stages->InsertLazily(x_square_out[1]);
+    stages->InsertLazily(x_sum_out[0]);
+    stages->InsertLazily(x_square_out[0]);
 
     stages[x_reshape]->ComputeInline();
     stages[x_square]->ComputeInline();
 
     *ret = CINNValuePack{{CINNValue(x_sum_0),
                           CINNValue(x_square_sum_0),
-                          CINNValue(x_sum[0]),
-                          CINNValue(x_square_sum[0]),
-                          CINNValue(x_sum[1]),
-                          CINNValue(x_square_sum[1]),
+                          CINNValue(x_sum_out[1]),
+                          CINNValue(x_square_out[1]),
+                          CINNValue(x_sum_out[0]),
+                          CINNValue(x_square_out[0]),
                           CINNValue(stages)}};
   });
 
   framework::CINNSchedule bn_mean_variance_schedule([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of bn_mean_variance schedule is empty! Please check.";
     CINNValuePack arg_pack = args[0];
-    CHECK_EQ(arg_pack.size(), 3UL);
+    CHECK_EQ(arg_pack.size(), 7UL);
     if (target.arch == Target::Arch::NVGPU) {
       Expr x_sum_0          = arg_pack[0];
       Expr x_square_sum_0   = arg_pack[1];
@@ -128,11 +128,30 @@ std::shared_ptr<OpStrategy> StrategyForBnMeanVarianceReduce(const framework::Nod
       CHECK(x_square_sum_tmp.as_tensor());
       CHECK(x_sum.as_tensor());
       CHECK(x_square_sum.as_tensor());
+
+      pe::CudaScheduleBlockReduce(stages,
+                                  x_sum_0.as_tensor_ref(),
+                                  x_sum_tmp.as_tensor_ref(),
+                                  x_sum.as_tensor_ref(),
+                                  common::DefaultNVGPUTarget());
+
+      /*
+      pe::CudaScheduleBlockReduce(stages,
+                                  x_square_sum_0.as_tensor_ref(),
+                                  x_square_sum_tmp.as_tensor_ref(),
+                                  x_square_sum.as_tensor_ref(),
+                                  common::DefaultNVGPUTarget());
+      */
+      // set x_square compute at x
+      stages[x_square_sum_0.as_tensor_ref()]->SetBuffer("local");
       if (new_shape.size() == 3) {
-        stages[x_square_sum.as_tensor_ref()]->SimpleComputeAt(stages[x_sum.as_tensor_ref()], 2);
+        stages[x_square_sum_0.as_tensor_ref()]->SimpleComputeAt(stages[x_sum_0.as_tensor_ref()], 2);
       } else {
-        stages[x_square_sum.as_tensor_ref()]->SimpleComputeAt(stages[x_sum.as_tensor_ref()], 3);
+        stages[x_square_sum_0.as_tensor_ref()]->SimpleComputeAt(stages[x_sum_0.as_tensor_ref()], 3);
       }
+      stages[x_square_sum_tmp.as_tensor_ref()]->SetBuffer("local");
+      stages[x_square_sum_tmp.as_tensor_ref()]->SimpleComputeAt(stages[x_sum_tmp.as_tensor_ref()], 1);
+      stages[x_square_sum.as_tensor_ref()]->SimpleComputeAt(stages[x_sum.as_tensor_ref()], 0);
     } else if (target.arch == Target::Arch::X86) {
       Expr out              = arg_pack[0];
       poly::StageMap stages = arg_pack[1];
@@ -238,27 +257,6 @@ std::shared_ptr<OpStrategy> StrategyForBnGradBiasScaleReduce(const framework::No
     LOG(FATAL) << "bn_grad_bias_scale op with dtype != float32 is not implemented yet!";
   }
   return strategy;
-}
-
-std::vector<shape_t> InferShapeForBNReduce(const std::vector<shape_t> &inputs_shape,
-                                           const framework::AttrMapType &attrs) {
-  CHECK(inputs_shape.size() == 3UL || inputs_shape.size() == 1UL);
-  CHECK_EQ(inputs_shape[0].size(), 4UL);
-  // compute the succesive dimension size
-  auto last_reduce_dim = inputs_shape[0][2] * inputs_shape[0][3];
-  // split into last_reduce_dim into {n,k}
-  std::vector<int> output_shape = {inputs_shape[0][1]};
-  if (last_reduce_dim <= 128) {
-    output_shape.push_back(last_reduce_dim);
-  } else {
-    for (int idx = 256; idx > 128; --idx) {
-      if (last_reduce_dim % idx == 0) {
-        output_shape.push_back(idx);
-        break;
-      }
-    }
-  }
-  return {output_shape, output_shape};
 }
 
 #define StrategyForReduction(op_name__, pe__, pe_func__)                                            \
@@ -424,41 +422,23 @@ std::vector<shape_t> InferShapeForReduction(const std::vector<shape_t> &inputs_s
   }
   CHECK(!dim.empty()) << "should have reduce dim, please check!";
   CHECK_LE(dim.size(), inputs_shape[0].size()) << "reduce dim should no more than the input size";
-  std::vector<int> out_shapes, out_shapes_internal;
+  std::vector<int> out_shapes;
   auto ndim = inputs_shape[0].size();
-  if (keep_dim) {
-    for (size_t i = 0; i < ndim; ++i) {
-      if (std::find(dim.begin(), dim.end(), i) != dim.end()) {
+  for (size_t i = 0; i < ndim; ++i) {
+    if (std::find(dim.begin(), dim.end(), i) != dim.end()) {
+      if (keep_dim) {
         out_shapes.push_back(1);
-      } else {
-        out_shapes.push_back(inputs_shape[0][i]);
       }
-    }
-
-    if (std::find(dim.begin(), dim.end(), inputs_shape[0].size() - 1) != dim.end()) {
-      out_shapes_internal        = out_shapes;
-      out_shapes_internal.back() = inputs_shape[0].back();
-    }
-  } else {
-    for (size_t i = 0; i < ndim; ++i) {
-      if (std::find(dim.begin(), dim.end(), i) == dim.end()) {
-        out_shapes.push_back(inputs_shape[0][i]);
-      }
-    }
-
-    if (std::find(dim.begin(), dim.end(), inputs_shape[0].size() - 1) != dim.end()) {
-      out_shapes_internal = out_shapes;
-      out_shapes_internal.push_back(inputs_shape[0].back());
+    } else {
+      out_shapes.push_back(inputs_shape[0][i]);
     }
   }
+
   if (out_shapes.empty()) {
     out_shapes.push_back(1);
   }
 
-  if (out_shapes_internal.empty()) {
-    out_shapes_internal.push_back(1);
-  }
-  return {out_shapes, out_shapes_internal};
+  return {out_shapes, out_shapes};
 }
 
 std::vector<Type> InferDtypeForReduction(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
@@ -520,7 +500,7 @@ CINN_REGISTER_HELPER(reduce_ops) {
       .set_num_outputs(2)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy",
                                                          cinn::hlir::op::StrategyForBnMeanVarianceReduce)
-      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForBNReduce))
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForReduction))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForReduction))
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForReduction))
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
@@ -532,7 +512,7 @@ CINN_REGISTER_HELPER(reduce_ops) {
       .set_num_outputs(2)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy",
                                                          cinn::hlir::op::StrategyForBnGradBiasScaleReduce)
-      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForBNReduce))
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForReduction))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForReduction))
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForReduction))
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)

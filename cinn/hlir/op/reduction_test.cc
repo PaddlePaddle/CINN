@@ -259,7 +259,7 @@ TEST(Operator, Operator_Reduction_Case_7) {
   void* reduce_sum_kernel = cuda_module.GetFunction(0, func_name);
   CHECK(reduce_sum_kernel);
 
-  // register cufunction and strea,
+  // register cufunction and stream
   void* stream = nullptr;
   backends::RuntimeSymbolRegistry::Global().RegisterFn(func_name + "_kernel_ptr_",
                                                        reinterpret_cast<void*>(&reduce_sum_kernel));
