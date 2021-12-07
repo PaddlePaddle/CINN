@@ -218,6 +218,8 @@ Variable CinnBuilder::Reverse(const Variable& operand, const std::vector<int>& a
 
 std::vector<Variable> CinnBuilder::BnMeanVarianceReduce(const Variable& x) {
   Instruction instr("bn_mean_variance_reduce", {x});
+  instr.SetAttr("dim", std::vector<int>{0, 2, 3});
+  instr.SetAttr("keep_dim", false);
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutputs();
@@ -227,6 +229,8 @@ std::vector<Variable> CinnBuilder::BnGradBiasScaleReduce(const Variable& x,
                                                          const Variable& x_mean,
                                                          const Variable& y_grad) {
   Instruction instr("bn_grad_bias_scale_reduce", {x, x_mean, y_grad});
+  instr.SetAttr("dim", std::vector<int>{0, 2, 3});
+  instr.SetAttr("keep_dim", false);
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutputs();
