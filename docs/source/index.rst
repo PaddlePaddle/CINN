@@ -40,6 +40,7 @@ C++ APIs
    :maxdepth: 1
 
    matmul.md
+   load_paddle_model.md
    cpp/library_root.rst
 
 

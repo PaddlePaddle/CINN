@@ -29,7 +29,7 @@ import os
 
 ##################################################################
 # **Prepare to Load Model**
-# -------------------------
+# --------------------------
 # Declare the params and prepare to load and execute the paddle model.
 #
 # - :code:`enable_gpu` implies whether to run CINN on CUDA backends.
@@ -93,9 +93,9 @@ x_shape = [1, 3, 224, 224]
 # ------------------------------
 # Now CINN only supports two backends: X86 and CUDA.
 #
-# For CUDA backends, set ``target = DefaultNVGPUTarget()``
+# - For CUDA backends, set ``target = DefaultNVGPUTarget()``
 #
-# For X86 backends, set ``target = DefaultHostTarget()``
+# - For X86 backends, set ``target = DefaultHostTarget()``
 #
 if os.path.exists("is_cuda"):
     target = DefaultNVGPUTarget()
@@ -104,25 +104,23 @@ else:
 
 ##################################################################
 # Set the input tensor and init interpreter
+# -------------------------------------------
 executor = Interpreter([input_tensor], [x_shape])
 
 ##################################################################
 # **Load Model to CINN**
 # -------------------------
-# Load the paddle model and transform it into CINN IR
+# Load the paddle model and transform it into CINN IR.
 #
 # * :code:`mnodel_dir` is the path where the paddle model is stored.
 #
 # * :code:`target` is the backend to execute model on.
 #
-# * :code:`params_combined` implies whether the params of paddle
-# model is stored in one file.
+# * :code:`params_combined` implies whether the params of paddle model is stored in one file.
 #
-# * :code:`model_name` is the name of the model. Entering this will
-# enable optimization for each specific model.
+# * :code:`model_name` is the name of the model. Entering this will enable optimizations for each specific model.
 #
-# - The model_name for each model is : ``"resnet18"``, ``"mobilenetv2"``,
-# ``"efficientnet"`` and ``"facedet"``.
+# - The model_name for each model is : ``"resnet18"``, ``"mobilenetv2"``, ``"efficientnet"`` and ``"facedet"``.
 #
 model_name = "resnet18"
 params_combined = True
@@ -133,13 +131,13 @@ executor.load_paddle_model(model_dir, target, params_combined, model_name)
 # -----------------------------------------
 # Here we use random data as input. In practical applications,
 # please replace it with real data according to your needs.
+#
 a_t = executor.get_tensor(input_tensor)
 x_data = np.random.random(x_shape).astype("float32")
 a_t.from_numpy(x_data, target)
 
 ##################################################################
-# Set the output tensor's data to zero before running the model
-# -----------------------------------------------------------------
+# Here we set the output tensor's data to zero before running the model.
 out = executor.get_tensor(target_tensor)
 out.from_numpy(np.zeros(out.shape(), dtype='float32'), target)
 

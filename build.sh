@@ -105,7 +105,7 @@ function prepare_ci {
   pip install pre-commit
   pip install clang-format==9.0
   pip install wheel
-  pip install sphinx==3.3.1 sphinx_gallery==0.8.1 recommonmark==0.6.0 exhale scipy breathe==4.24.0 matplotlib
+  pip install sphinx==3.3.1 sphinx_gallery==0.8.1 recommonmark==0.6.0 exhale scipy breathe==4.24.0 matplotlib sphinx_rtd_theme
   pip install paddlepaddle-gpu==2.1.2.post101 -f https://www.paddlepaddle.org.cn/whl/linux/mkl/avx/stable.html
 }
 
@@ -140,8 +140,8 @@ function make_doc {
     ln -s $build_dir/cinn/pybind/core_api.so $workspace/python/cinn/
     cd $workspace/docs
     mkdir -p docs/source/cpp
-    cat $workspace/tutorials/matmul.cc | python${py_version} $workspace/tools/gen_c++_tutorial.py  > $workspace/docs/source/matmul.md
-    pip install sphinx_rtd_theme
+    cat $workspace/tutorials/matmul.cc | python${py_version} $workspace/tools/gen_c++_tutorial.py > $workspace/docs/source/matmul.md
+    cat $workspace/tutorials/load_paddle_model.cc | python${py_version} $workspace/tools/gen_c++_tutorial.py > $workspace/docs/source/load_paddle_model.md
     make html
     if [[ $cuda_config == "ON" && -d "./is_cuda" ]]; then
         rm -rf $workspace/tutorials/is_cuda
