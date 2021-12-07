@@ -34,11 +34,11 @@ sys.path.insert(0, os.path.join(cur_path, '../../python'))
 # -- Project information -----------------------------------------------------
 
 project = 'cinn'
-copyright = '2020, cinn team'
+copyright = '2021, cinn team'
 author = 'cinn Team'
 
 # The full version, including alpha/beta/rc tags
-release = '0.1-alpha'
+release = 'release/v0.1'
 
 # -- General configuration ---------------------------------------------------
 

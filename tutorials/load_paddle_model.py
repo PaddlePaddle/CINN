@@ -18,8 +18,6 @@ Load and Execute Paddle Model
 In this tutorial, we will show you how to load and execute a paddle model in CINN.
 """
 
-# sphinx_gallery_thumbnail_path = '_static/icon.png'
-
 import cinn
 from cinn import *
 from cinn.frontend import *
