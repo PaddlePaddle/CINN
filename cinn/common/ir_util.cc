@@ -125,7 +125,7 @@ Expr RampRelatedMul(Expr a, Expr b) {
     CHECK_EQ(a_broadcast->lanes, b_broadcast->lanes);
     return ir::Broadcast::Make(a_broadcast->value * b_broadcast->value, a_broadcast->lanes);
   } else {
-    LOG(INFO) << "a,b: " << a << " " << b;
+    VLOG(3) << "a,b: " << a << " " << b;
     CINN_NOT_IMPLEMENTED
   }
 }

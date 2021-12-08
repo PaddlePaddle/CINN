@@ -26,7 +26,6 @@ from cinn import ir
 from cinn import lang
 from cinn.common import *
 import numpy as np
-import paddle.fluid as fluid
 import sys
 
 assert len(sys.argv) == 3
