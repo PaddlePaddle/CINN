@@ -202,15 +202,21 @@ Tensor ReduceMin(
 }
 
 std::vector<Tensor> WarpReduce(const ir::Tensor& A,
-                               int last_reduce_dim_num,
+                               const int last_reduce_dim_num,
+                               const bool keep_dim,
                                const std::string& reduce_type,
                                const std::string& output_name) {
-  Expr lane(1);
-  for (int idx = A->shape.size() - 1; idx >= (A->shape.size() - last_reduce_dim_num); --idx) {
-    lane = lane * A->shape[idx].as_int32();
+  // compute shape size without last reduce dimension.
+  int shape_size_without_reduce_dim = A->shape.size() - last_reduce_dim_num;
+
+  // compute reduce dimension size.
+  Expr reduce_width(1);
+  for (int idx = shape_size_without_reduce_dim; idx < A->shape.size(); ++idx) {
+    reduce_width = reduce_width * A->shape[idx].as_int32();
   }
 
-  std::vector<Expr> tmp_shape(A->shape.begin(), A->shape.begin() + A->shape.size() - last_reduce_dim_num);
+  // comput tmp output shape.
+  std::vector<Expr> tmp_shape(A->shape.begin(), A->shape.begin() + shape_size_without_reduce_dim);
   tmp_shape.push_back(Expr(32));
   auto tmp_out = Compute(
       tmp_shape,
@@ -221,15 +227,19 @@ std::vector<Tensor> WarpReduce(const ir::Tensor& A,
         }
         CHECK_EQ(A->shape.size(), tmp_indexs.size());
         Expr offset = common::IndiceToAbsOffset(A->shape, tmp_indexs);
-        return lang::CallExtern(reduce_type, {A, offset, lane});
+        return lang::CallExtern(reduce_type, {A, offset, reduce_width});
       },
       UniqName(output_name + "_" + reduce_type));
 
-  std::vector<Expr> out_shape(A->shape.begin(), A->shape.begin() + A->shape.size() - last_reduce_dim_num);
+  // compute ouput shape.
+  std::vector<Expr> out_shape(A->shape.begin(), A->shape.begin() + shape_size_without_reduce_dim);
+  for (int idx = 0; idx < last_reduce_dim_num && keep_dim; ++idx) {
+    out_shape.push_back(Expr(1));
+  }
   auto out = Compute(
       out_shape,
       [=](const std::vector<Expr>& indexs) -> Expr {
-        std::vector<Expr> tmp_indexs(indexs);
+        std::vector<Expr> tmp_indexs(indexs.begin(), indexs.begin() + shape_size_without_reduce_dim);
         tmp_indexs.push_back(Expr(0));
         return tmp_out(tmp_indexs);
       },
@@ -241,71 +251,107 @@ std::vector<Tensor> WarpReduce(const ir::Tensor& A,
 /**
  * @brief find the max of array elements over the last dimension
  *
- * @param A The input Tensor
- * @param output_name The name of the output Tensor
+ * @param A The input Tensor.
+ * @param last_reduce_dim_num the number of last reduce dimension.
+ * @param keep_dim keep the output tensor shape size as input.
+ * @param output_name The name of the output Tensor.
  */
-std::vector<ir::Tensor> WarpReduceMax(const ir::Tensor& A, int last_reduce_dim_num, const std::string& output_name) {
-  return WarpReduce(A, last_reduce_dim_num, "cinn_warp_reduce_max", output_name);
-}
-
-/**
- * @brief compute the sum of array elements over the last dimension
- *
- * @param A The input Tensor
- * @param output_name The name of the output Tensor
- */
-std::vector<ir::Tensor> WarpReduceSum(const ir::Tensor& A, int last_reduce_dim_num, const std::string& output_name) {
-  return WarpReduce(A, last_reduce_dim_num, "cinn_warp_reduce_sum", output_name);
+std::vector<ir::Tensor> WarpReduceMax(const ir::Tensor& A,
+                                      const int last_reduce_dim_num,
+                                      const bool keep_dim,
+                                      const std::string& output_name) {
+  return WarpReduce(A, last_reduce_dim_num, keep_dim, "cinn_warp_reduce_max", output_name);
 }
 
 /**
  * @brief compute the average of array elements over the last dimension
  *
- * @param A The input Tensor
- * @param output_name The name of the output Tensor
+ * @param A The input Tensor.
+ * @param last_reduce_dim_num the number of last reduce dimension.
+ * @param keep_dim keep the output tensor shape size as input.
+ * @param output_name The name of the output Tensor.
  */
-std::vector<ir::Tensor> WarpReduceAvg(const ir::Tensor& A, int last_reduce_dim_num, const std::string& output_name) {
-  return WarpReduce(A, last_reduce_dim_num, "cinn_warp_reduce_avg", output_name);
+std::vector<ir::Tensor> WarpReduceSum(const ir::Tensor& A,
+                                      const int last_reduce_dim_num,
+                                      const bool keep_dim,
+                                      const std::string& output_name) {
+  return WarpReduce(A, last_reduce_dim_num, keep_dim, "cinn_warp_reduce_sum", output_name);
 }
 
+/**
+ * @brief compute the sum of array elements over the last dimension with block reduce.
+ *        'BlockReduceSumInternal' is used as the internal compute of reduce sum, do not use it directly.
+ *
+ * @param A The input Tensor.
+ * @param last_reduce_dim_num the number of last reduce dimension.
+ * @param keep_dim keep the output tensor shape size as input.
+ * @param output_name The name of the output Tensor.
+ */
+std::vector<ir::Tensor> WarpReduceAvg(const ir::Tensor& A,
+                                      const int last_reduce_dim_num,
+                                      const bool keep_dim,
+                                      const std::string& output_name) {
+  return WarpReduce(A, last_reduce_dim_num, keep_dim, "cinn_warp_reduce_avg", output_name);
+}
+
+/**
+ * @brief compute the sum of array elements over the last dimension with block reduce.
+ *        'BlockReduceSumInternal' is used as the internal compute of reduce sum, do not use it directly.
+ *
+ * @param A The input Tensor.
+ * @param last_reduce_dim_num the number of last reduce dimension.
+ * @param keep_dim keep the output tensor shape size as input.
+ * @param output_name The name of the output Tensor.
+ */
 std::vector<ir::Tensor> BlockReduceSumInternal(const ir::Tensor& A,
-                                               int last_reduce_dim_num,
+                                               const int last_reduce_dim_num,
+                                               const bool keep_dim,
                                                const std::string& output_name) {
-  Expr width(1);
-  for (int idx = A->shape.size() - 1; idx >= (A->shape.size() - last_reduce_dim_num); --idx) {
-    width = width * A->shape[idx].as_int32();
+  // compute shape size without last reduce dimension.
+  int shape_size_without_reduce_dim = A->shape.size() - last_reduce_dim_num;
+
+  // compute reduce dimension size.
+  Expr reduce_width(1);
+  for (int idx = shape_size_without_reduce_dim; idx < A->shape.size(); ++idx) {
+    reduce_width = reduce_width * A->shape[idx].as_int32();
   }
 
-  std::vector<Expr> tmp_shape(A->shape.begin(), A->shape.begin() + A->shape.size() - last_reduce_dim_num);
-  tmp_shape.push_back(width);
+  // compute tmp output shape.
+  std::vector<Expr> tmp_shape(A->shape.begin(), A->shape.begin() + shape_size_without_reduce_dim);
+  tmp_shape.push_back(reduce_width);
 
+  // compute the reduce dimension stride.
   std::vector<Expr> last_reduce_stride(last_reduce_dim_num, Expr(1));
-  for (int idx = A->shape.size() - 2, index = last_reduce_stride.size() - 2;
-       idx >= A->shape.size() - last_reduce_dim_num;
-       --idx, --index) {
-    last_reduce_stride[index] = last_reduce_stride[index + 1] * A->shape[idx + 1];
+  for (int idx = A->shape.size(), index = last_reduce_stride.size() - 2; index >= 0; --index) {
+    last_reduce_stride[index] = last_reduce_stride[index + 1] * A->shape[--idx];
   }
 
   auto tmp_out = Compute(
       tmp_shape,
       [=](const std::vector<Expr>& indexs) -> Expr {
+        // comput index map from output to input.
         auto last_index = indexs.back();
-        std::vector<Expr> input_indexs(indexs.begin(), indexs.end() - 1);
+        std::vector<Expr> input_indexs(indexs.begin(), indexs.begin() + indexs.size() - 1);
         for (int idx = 0; idx < last_reduce_dim_num; ++idx) {
           input_indexs.push_back(last_index / last_reduce_stride[idx]);
           last_index = last_index % last_reduce_stride[idx];
         }
 
+        // checkout input_indexs size equals input shape
         CHECK_EQ(input_indexs.size(), A->shape.size());
         return lang::CallExtern("cinn_block_reduce_sum_internal", {A(input_indexs)});
       },
       UniqName(output_name + "_tmp"));
 
-  std::vector<Expr> out_shape(A->shape.begin(), A->shape.begin() + A->shape.size() - last_reduce_dim_num);
+  // compute output shape.
+  std::vector<Expr> out_shape(A->shape.begin(), A->shape.begin() + shape_size_without_reduce_dim);
+  for (int idx = 0; idx < last_reduce_dim_num && keep_dim; ++idx) {
+    out_shape.push_back(Expr(1));
+  }
   auto out = Compute(
       out_shape,
       [=](const std::vector<Expr>& indexs) -> Expr {
-        std::vector<Expr> tmp_indexs(indexs);
+        std::vector<Expr> tmp_indexs(indexs.begin(), indexs.begin() + shape_size_without_reduce_dim);
         tmp_indexs.push_back(Expr(0));
         return tmp_out(tmp_indexs);
       },
@@ -314,35 +360,58 @@ std::vector<ir::Tensor> BlockReduceSumInternal(const ir::Tensor& A,
   return {out, tmp_out};
 }
 
+/**
+ * @brief compute the sum of array elements over the last dimension with block reduce
+ *
+ * @param A The input Tensor.
+ * @param last_reduce_dim_num the number of last reduce dimension.
+ * @param keep_dim keep the output tensor shape size as input.
+ * @param output_name The name of the output Tensor.
+ */
 std::vector<ir::Tensor> BlockReduceSum(const ir::Tensor& A,
                                        const int last_reduce_dim_num,
                                        const int block_size,
+                                       const bool keep_dim,
                                        const std::string& output_name) {
-  Expr lane(1);
-  for (int idx = A->shape.size() - 1; idx >= (A->shape.size() - last_reduce_dim_num); --idx) {
-    lane = lane * A->shape[idx].as_int32();
+  // compute shape size without last reduce dimension.
+  int shape_size_without_reduce_dim = A->shape.size() - last_reduce_dim_num;
+
+  // compute reduce dimension size.
+  Expr reduce_width(1);
+  for (int idx = shape_size_without_reduce_dim; idx < A->shape.size(); ++idx) {
+    reduce_width = reduce_width * A->shape[idx].as_int32();
   }
 
-  std::vector<Expr> tmp_shape(A->shape.begin(), A->shape.begin() + A->shape.size() - last_reduce_dim_num);
+  // compute tmp output tensor shape
+  std::vector<Expr> tmp_shape(A->shape.begin(), A->shape.begin() + shape_size_without_reduce_dim);
   tmp_shape.push_back(Expr(block_size));
   auto tmp_out = Compute(
       tmp_shape,
       [=](const std::vector<Expr>& indexs) -> Expr {
-        std::vector<Expr> tmp_indexs(indexs.begin(), indexs.begin() + indexs.size() - 1);
+        std::vector<Expr> tmp_indexs(indexs.begin(), indexs.begin() + shape_size_without_reduce_dim);
         for (int idx = 0; idx < last_reduce_dim_num; ++idx) {
           tmp_indexs.push_back(Expr(0));
         }
+        // checkout input shape size equals tmp indexs size.
         CHECK_EQ(A->shape.size(), tmp_indexs.size());
+        // compute offset.
         Expr offset = common::IndiceToAbsOffset(A->shape, tmp_indexs);
-        return lang::CallExtern("cinn_block_reduce_sum", {A, offset, lane});
+        // call block reduce sum
+        return lang::CallExtern("cinn_block_reduce_sum", {A, offset, reduce_width});
       },
       UniqName(output_name + "_tmp"));
 
-  std::vector<Expr> out_shape(A->shape.begin(), A->shape.begin() + A->shape.size() - last_reduce_dim_num);
+  // compute output tensor shape.
+  std::vector<Expr> out_shape(A->shape.begin(), A->shape.begin() + shape_size_without_reduce_dim);
+  // if keep_dim = true, add Expr(1) to output shape.
+  for (int idx = 0; idx < last_reduce_dim_num && keep_dim; ++idx) {
+    out_shape.push_back(Expr(1));
+  }
   auto out = Compute(
       out_shape,
       [=](const std::vector<Expr>& indexs) -> Expr {
-        std::vector<Expr> tmp_indexs(indexs);
+        // compute input index
+        std::vector<Expr> tmp_indexs(indexs.begin(), indexs.begin() + shape_size_without_reduce_dim);
         tmp_indexs.push_back(Expr(0));
         return tmp_out(tmp_indexs);
       },
