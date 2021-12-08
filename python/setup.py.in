@@ -6,6 +6,11 @@ import errno
 from contextlib import contextmanager
 from setuptools import setup
 
+def set_rpath(lib, rpath):
+    command = "patchelf --set-rpath '{}' {}".format(rpath, lib)
+    if os.system(command) != 0:
+        raise Exception("patch {} failed, command: {}".format(lib, command))
+
 def git_commit():
     try:
         cmd = ['git', 'rev-parse', 'HEAD']
@@ -132,17 +137,15 @@ if '${WITH_MKL_CBLAS}' == 'ON':
 
 if '${WITH_CUDA}' == 'ON':
     cinnlibs.append('${CMAKE_BINARY_DIR}/dist/cinn/include/cinn/runtime/cuda/cinn_cuda_runtime_source.cuh')
-    cinnlibs.append('${CUDA_NVRTC_LIB}')
-    cinnlibs.append('${CUDA_CUDA_LIBRARY}')
-    cinnlibs.append('${CUBLAS}')
-
-if '${WITH_CUDNN}' == 'ON':
-    cinnlibs.append('${CUDNN}')
 
 for lib in cinnlibs:
     shutil.copy(lib, libs_path)
-    package_data['cinn.libs'].append(os.path.basename(lib))
+    libname = os.path.basename(lib)
+    if lib.endswith('so'):
+        set_rpath(os.path.join(libs_path, libname) , '$ORIGIN/')
+    package_data['cinn.libs'].append(libname)
 
+set_rpath('${CMAKE_BINARY_DIR}/python/cinn/core_api.so', '$ORIGIN/libs/')
 
 def git_commit():
     try:
