@@ -236,6 +236,10 @@ std::vector<Tensor> WarpReduce(const ir::Tensor& A,
   for (int idx = 0; idx < last_reduce_dim_num && keep_dim; ++idx) {
     out_shape.push_back(Expr(1));
   }
+  // if reduce on all dimension, the out_shape = {1}.
+  if (out_shape.size() == 0) {
+    out_shape.push_back(Expr(1));
+  }
   auto out = Compute(
       out_shape,
       [=](const std::vector<Expr>& indexs) -> Expr {
@@ -348,6 +352,11 @@ std::vector<ir::Tensor> BlockReduceSumInternal(const ir::Tensor& A,
   for (int idx = 0; idx < last_reduce_dim_num && keep_dim; ++idx) {
     out_shape.push_back(Expr(1));
   }
+
+  // if reduce on all dimension, the out_shape = {1}.
+  if (out_shape.size() == 0) {
+    out_shape.push_back(Expr(1));
+  }
   auto out = Compute(
       out_shape,
       [=](const std::vector<Expr>& indexs) -> Expr {
@@ -403,8 +412,11 @@ std::vector<ir::Tensor> BlockReduceSum(const ir::Tensor& A,
 
   // compute output tensor shape.
   std::vector<Expr> out_shape(A->shape.begin(), A->shape.begin() + shape_size_without_reduce_dim);
-  // if keep_dim = true, add Expr(1) to output shape.
   for (int idx = 0; idx < last_reduce_dim_num && keep_dim; ++idx) {
+    out_shape.push_back(Expr(1));
+  }
+  // if reduce on all dimension, the out_shape = {1}.
+  if (out_shape.size() == 0) {
     out_shape.push_back(Expr(1));
   }
   auto out = Compute(

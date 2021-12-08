@@ -304,7 +304,16 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
   if (attrs.attr_store.count("dim")) {
     dim = absl::get<std::vector<int>>(attrs.attr_store.at("dim"));
     std::sort(dim.begin(), dim.end());
+    // check dim
+    CHECK_LE(dim.size(), inputs[0]->shape.size());
+    CHECK_LT(dim.back(), inputs[0]->shape.size());
+    for (int idx = 1; idx < dim.size(); ++idx) {
+      CHECK_NE(dim[idx - 1], dim[idx]);
+    }
+  } else {
+    LOG(FATAL) << "reduce dimension is not set!";
   }
+
   if (attrs.attr_store.count("keep_dim")) {
     keep_dim = absl::get<bool>(attrs.attr_store.at("keep_dim"));
   }

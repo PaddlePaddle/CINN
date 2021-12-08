@@ -348,12 +348,12 @@ void CudaScheduleReduce(poly::StageMap stages,
                         int last_dimension_num,
                         const common::Target &target) {
   int parallel_thread_num = 1;
-  for (int idx = output->shape.size() - 1; idx >= (int(output->shape.size()) - last_dimension_num); --idx) {
+  for (int idx = output->shape.size() - 1; idx >= int(output->shape.size()) - last_dimension_num; --idx) {
     parallel_thread_num *= output->shape[idx].as_int32();
   }
 
   int index = output->shape.size() - last_dimension_num;
-  for (int idx = output->shape.size() - last_dimension_num; idx < output->shape.size() - 1; ++idx) {
+  for (int idx = output->shape.size() - last_dimension_num; idx < int(output->shape.size()) - 1; ++idx) {
     stages[output]->Fuse(index, index + 1);
   }
 
@@ -376,15 +376,23 @@ void CudaScheduleReduce(poly::StageMap stages,
 
 void CudaScheduleWarpReduce(poly::StageMap stages, ir::Tensor tmp_out, ir::Tensor out, const common::Target &target) {
   int sum_out_dim = 1;
-  for (int idx = 0; idx < tmp_out->shape.size() - 2; ++idx) {
+  for (int idx = 0; idx < int(tmp_out->shape.size()) - 2; ++idx) {
     stages[out]->Fuse(0, 1);
     stages[tmp_out]->Fuse(0, 1);
     sum_out_dim *= out->shape[idx].as_int32();
   }
   sum_out_dim *= out->shape.back().as_int32();
 
-  if (sum_out_dim < 16) {
+  // out_shape = {1} tmp_shape = {32}
+  if (tmp_out->shape.size() == 1) {
+    stages[out]->Split(0, 1);
+    stages[tmp_out]->Split(0, tmp_out->shape[0].as_int32());
+  }
+
+  if (sum_out_dim <= 16) {
     stages[out]->Bind(0, "threadIdx.y");
+
+    stages[tmp_out]->Bind(0, "threadIdx.y");
     stages[tmp_out]->Bind(1, "threadIdx.x");
     stages[tmp_out]->SimpleComputeAt(stages[out], 0);
     stages[tmp_out]->SetBuffer("local");
@@ -404,17 +412,22 @@ void CudaScheduleBlockReduceInternal(poly::StageMap stages,
                                      ir::Tensor tmp_out,
                                      ir::Tensor out,
                                      const common::Target &target) {
-  for (int idx = 0; idx < tmp_out->shape.size() - 2; ++idx) {
+  for (int idx = 0; idx < int(tmp_out->shape.size()) - 2; ++idx) {
     stages[tmp_out]->Fuse(0, 1);
     stages[out]->Fuse(0, 1);
   }
+
+  if (tmp_out->shape.size() == 1) {
+    stages[out]->Split(0, 1);
+    stages[tmp_out]->Split(0, tmp_out->shape[0].as_int32());
+  }
+
+  stages[out]->Bind(0, "blockIdx.x");
 
   stages[tmp_out]->Bind(0, "blockIdx.x");
   stages[tmp_out]->Bind(1, "threadIdx.x");
   stages[tmp_out]->SimpleComputeAt(stages[out], 0);
   stages[tmp_out]->SetBuffer("local");
-
-  stages[out]->Bind(0, "blockIdx.x");
 }
 
 void CudaScheduleBlockReduce(poly::StageMap stages,
