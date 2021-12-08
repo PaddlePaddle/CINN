@@ -133,11 +133,25 @@ TEST(Operator, Operator_Reduction_Case_0) {
   GenReduceCode(shape, dim, "reduce_cast_0");
 }
 
+TEST(Operator, Operator_Reduction_Case_0_0) {
+  std::vector<int> shape = {16, 16, 8, 16};
+  std::vector<int> dim   = {2, 3};
+
+  GenReduceCode(shape, dim, "reduce_cast_0_0", true);
+}
+
 TEST(Operator, Operator_Reduction_Case_1) {
   std::vector<int> shape = {16, 16, 32, 32};
   std::vector<int> dim   = {2, 3};
 
   GenReduceCode(shape, dim, "reduce_cast_1");
+}
+
+TEST(Operator, Operator_Reduction_Case_1_1) {
+  std::vector<int> shape = {16, 16, 32, 32};
+  std::vector<int> dim   = {2, 3};
+
+  GenReduceCode(shape, dim, "reduce_cast_1_1", true);
 }
 
 TEST(Operator, Operator_Reduction_Case_2) {
@@ -161,11 +175,25 @@ TEST(Operator, Operator_Reduction_Case_4) {
   GenReduceCode(shape, dim, "reduce_cast_4");
 }
 
+TEST(Operator, Operator_Reduction_Case_4_4) {
+  std::vector<int> shape = {16, 16, 16, 16};
+  std::vector<int> dim   = {0, 2, 3};
+
+  GenReduceCode(shape, dim, "reduce_cast_4_4", true);
+}
+
 TEST(Operator, Operator_Reduction_Case_5) {
   std::vector<int> shape = {16, 16, 16, 16, 16, 32};
   std::vector<int> dim   = {1, 3, 5};
 
   GenReduceCode(shape, dim, "reduce_cast_5");
+}
+
+TEST(Operator, Operator_Reduction_Case_5_5) {
+  std::vector<int> shape = {16, 16, 16, 16, 16, 32};
+  std::vector<int> dim   = {1, 3, 5};
+
+  GenReduceCode(shape, dim, "reduce_cast_5_5", true);
 }
 
 void CpuReduceSum(const float* x,
