@@ -59,11 +59,11 @@ std::vector<int> GetShape(const ir::Tensor &x) {
   return new_shape;
 }
 
-std::shared_ptr<OpStrategy> StrategyForBnMeanVarianceReduce(const framework::NodeAttr &attrs,
-                                                            const std::vector<ir::Tensor> &inputs,
-                                                            const std::vector<Type> &out_type,
-                                                            const std::vector<std::vector<int>> &output_shapes,
-                                                            const Target &target) {
+std::shared_ptr<OpStrategy> StrategyForBnMeanVariance(const framework::NodeAttr &attrs,
+                                                      const std::vector<ir::Tensor> &inputs,
+                                                      const std::vector<Type> &out_type,
+                                                      const std::vector<std::vector<int>> &output_shapes,
+                                                      const Target &target) {
   CHECK_EQ(inputs.size(), 1) << "bn_mean_variance should has 1 input!";
   auto input = inputs[0];
   CHECK_EQ(input->shape.size(), 4) << "bn_mean_variance input shape should be 4 dimension!";
@@ -164,11 +164,11 @@ std::shared_ptr<OpStrategy> StrategyForBnMeanVarianceReduce(const framework::Nod
   return strategy;
 }
 
-std::shared_ptr<OpStrategy> StrategyForBnGradBiasScaleReduce(const framework::NodeAttr &attrs,
-                                                             const std::vector<ir::Tensor> &inputs,
-                                                             const std::vector<Type> &out_type,
-                                                             const std::vector<std::vector<int>> &output_shapes,
-                                                             const Target &target) {
+std::shared_ptr<OpStrategy> StrategyForBnGradBiasScale(const framework::NodeAttr &attrs,
+                                                       const std::vector<ir::Tensor> &inputs,
+                                                       const std::vector<Type> &out_type,
+                                                       const std::vector<std::vector<int>> &output_shapes,
+                                                       const Target &target) {
   CHECK_EQ(inputs.size(), 3) << "bn_grad_bias_scale should has 3 input!";
   auto input = inputs[0];
   CHECK_EQ(input->shape.size(), 4) << "bn_grad_bias_scale input shape should be 4 dimension!";
@@ -458,12 +458,12 @@ std::vector<shape_t> InferShapeForReduction(const std::vector<shape_t> &inputs_s
     out_shapes.push_back(1);
   }
 
-  return {out_shapes, out_shapes};
+  return {out_shapes};
 }
 
 std::vector<Type> InferDtypeForReduction(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
-  std::vector<Type> res{inputs_type[0], inputs_type[0]};
+  std::vector<Type> res{inputs_type[0]};
   return res;
 }
 
@@ -478,9 +478,26 @@ std::vector<std::vector<std::string>> InferLayoutForReduction(const std::vector<
     new_input_layouts[0] = "NCHW";
     VLOG(3) << "alter input layout from " << input_layouts[0] << " to " << new_input_layouts[0];
   }
-  new_input_layouts.push_back("");
 
-  return {{"", ""}, new_input_layouts};
+  return {{""}, new_input_layouts};
+}
+
+std::vector<shape_t> InferShapeForBnOptimize(const std::vector<shape_t> &inputs_shape,
+                                             const framework::AttrMapType &attrs) {
+  auto shapes = InferShapeForReduction(inputs_shape, attrs);
+  return {shapes[0], shapes[0]};
+}
+
+std::vector<Type> InferDtypeForBnOptimize(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
+  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
+  return {inputs_type[0], inputs_type[0]};
+}
+
+std::vector<std::vector<std::string>> InferLayoutForBnOptimize(const std::vector<framework::shape_t> &input_shapes,
+                                                               const std::vector<std::string> &input_layouts,
+                                                               const framework::NodeAttr &attrs,
+                                                               const Target &target) {
+  return {{"", ""}, {"", ""}};
 }
 
 StrategyForReduction(reduce_sum, ReduceSum, PeFunc);
@@ -514,27 +531,25 @@ CINN_REGISTER_HELPER(reduce_ops) {
 
 #undef CINN_REGISTER_REDUCTION
 
-  CINN_REGISTER_OP(bn_mean_variance_reduce)
+  CINN_REGISTER_OP(bn_mean_variance)
       .describe("This operator implements the optimization of bn reduce")
       .set_num_inputs(1)
       .set_num_outputs(2)
-      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy",
-                                                         cinn::hlir::op::StrategyForBnMeanVarianceReduce)
-      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForReduction))
-      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForReduction))
-      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForReduction))
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForBnMeanVariance)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForBnOptimize))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForBnOptimize))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForBnOptimize))
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
 
-  CINN_REGISTER_OP(bn_grad_bias_scale_reduce)
+  CINN_REGISTER_OP(bn_grad_bias_scale)
       .describe("This operator implements the optimization of bn grad reduce")
       .set_num_inputs(3)
       .set_num_outputs(2)
-      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy",
-                                                         cinn::hlir::op::StrategyForBnGradBiasScaleReduce)
-      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForReduction))
-      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForReduction))
-      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForReduction))
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForBnGradBiasScale)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForBnOptimize))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForBnOptimize))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForBnOptimize))
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
 
