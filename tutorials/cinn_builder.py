@@ -109,6 +109,7 @@ target = common.DefaultHostTarget()
 #
 # Run program and print result
 # -----------------------------
+# Finally, you can running model by invoking function `build_and_get_output`.
 # The `build_and_get_output` accepts the input data and finally return the results
 # of model, it has four parameters:
 #
