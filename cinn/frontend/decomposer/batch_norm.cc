@@ -60,9 +60,9 @@ struct BatchNormHelper {
   std::vector<Variable> MeanAndVariance(Variable x) {
 #ifdef CINN_WITH_CUDA
     // To optimize the bn forward by merge the reduce computation of mean and variance,
-    // build a fusion op 'BnMeanVarianceReduce' by hand as the fusion pass is not support now.
+    // build a fusion op 'BnMeanVariance' by hand as the fusion pass is not support now.
     // When the fusion pass is rebuild, this op is to be removed.
-    auto vars               = builder->BnMeanVarianceReduce(x);
+    auto vars               = builder->BnMeanVariance(x);
     auto element_count_1d_0 = GetTensorFromScalar<float>(element_count, "element_count", param_shape);
     auto element_count_1d_1 = GetTensorFromScalar<float>(element_count, "element_count", param_shape);
     auto mean               = builder->Div(vars[0], element_count_1d_0);
@@ -80,9 +80,9 @@ struct BatchNormHelper {
 
   std::vector<Variable> GradBiasAndScale(Variable x, Variable x_mean, Variable y_grad) {
 #ifdef CINN_WITH_CUDA
-    // Using fusion op "BnGradBiasScaleReduce" as the same reason with "BnMeanVarianceReduce".
+    // Using fusion op "BnGradBiasScale" as the same reason with "BnMeanVariance".
     // It also will be removed.
-    return builder->BnGradBiasScaleReduce(x, x_mean, y_grad);
+    return builder->BnGradBiasScale(x, x_mean, y_grad);
 #else
     auto mean_4d     = builder->BroadcastTo(x_mean, x->shape, {channel_dim});
     auto x_mean_diff = builder->Sub(x, mean_4d);
