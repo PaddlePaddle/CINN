@@ -16,7 +16,7 @@ Load and Execute Paddle Model
 =====================
 
 In this tutorial, we will show you how to load and execute a paddle model in CINN.
-We offer you four optional models: ResNet18, MobileNetV2, EfficientNet and FaceDet.
+We offer you four optional models: ResNet50, MobileNetV2, EfficientNet and FaceDet.
 """
 
 import cinn
@@ -32,9 +32,7 @@ import os
 # --------------------------
 # Declare the params and prepare to load and execute the paddle model.
 #
-# - :code:`enable_gpu` implies whether to run CINN on CUDA backends.
-#
-# - :code:`mnodel_dir` is the path where the paddle model is stored.
+# - :code:`model_dir` is the path where the paddle model is stored.
 #
 # - :code:`input_tensor` is the name of input tensor in the model.
 #
@@ -42,13 +40,13 @@ import os
 #
 # - :code:`x_shape` is the input tensor's shape of the model
 #
-# - When choosing model ResNet18, the params should be ::
+# - When choosing model ResNet50, the params should be ::
 #
-#       model_dir = "./ResNet18"
+#       model_dir = "./ResNet50"
 #
-#       input_tensor = 'image'
+#       input_tensor = 'inputs'
 #
-#       target_tensor = 'save_infer_model/scale_0'
+#       target_tensor = 'save_infer_model/scale_0.tmp_1'
 #
 #       x_shape = [1, 3, 224, 224]
 #
@@ -83,9 +81,9 @@ import os
 #       x_shape = [1, 3, 240, 320]
 #
 
-model_dir = "./ResNet18"
-input_tensor = 'image'
-target_tensor = 'save_infer_model/scale_0'
+model_dir = "./ResNet50"
+input_tensor = 'inputs'
+target_tensor = 'save_infer_model/scale_0.tmp_1'
 x_shape = [1, 3, 224, 224]
 
 ##################################################################
@@ -112,7 +110,7 @@ executor = Interpreter([input_tensor], [x_shape])
 # -------------------------
 # Load the paddle model and transform it into CINN IR.
 #
-# * :code:`mnodel_dir` is the path where the paddle model is stored.
+# * :code:`model_dir` is the path where the paddle model is stored.
 #
 # * :code:`target` is the backend to execute model on.
 #
@@ -120,9 +118,9 @@ executor = Interpreter([input_tensor], [x_shape])
 #
 # * :code:`model_name` is the name of the model. Entering this will enable optimizations for each specific model.
 #
-# - The model_name for each model is : ``"resnet18"``, ``"mobilenetv2"``, ``"efficientnet"`` and ``"facedet"``.
+# - The model_name for each model is : ``"resnet50"``, ``"mobilenetv2"``, ``"efficientnet"`` and ``"facedet"``.
 #
-model_name = "resnet18"
+model_name = "resnet50"
 params_combined = True
 executor.load_paddle_model(model_dir, target, params_combined, model_name)
 

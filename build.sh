@@ -126,7 +126,7 @@ function prepare_doc_model_file {
 function make_doc {
     proxy_off
     cd $workspace/tutorials
-    prepare_doc_model_file ResNet18
+    prepare_doc_model_file ResNet50
     prepare_doc_model_file MobileNetV2
     prepare_doc_model_file EfficientNet
     prepare_doc_model_file FaceDet
@@ -134,7 +134,9 @@ function make_doc {
     if [[ $cuda_config == "ON" && ! -d "./is_cuda" ]]; then
         mkdir is_cuda
     fi
-
+    if [[ $cuda_config == "OFF" && -d "./is_cuda" ]]; then
+        rm -rf ./is_cuda
+    fi
     cd $build_dir
     rm -f $workspace/python/cinn/core_api.so
     ln -s $build_dir/cinn/pybind/core_api.so $workspace/python/cinn/
@@ -143,9 +145,6 @@ function make_doc {
     cat $workspace/tutorials/matmul.cc | python${py_version} $workspace/tools/gen_c++_tutorial.py > $workspace/docs/source/matmul.md
     cat $workspace/tutorials/load_paddle_model.cc | python${py_version} $workspace/tools/gen_c++_tutorial.py > $workspace/docs/source/load_paddle_model.md
     make html
-    if [[ $cuda_config == "ON" && -d "./is_cuda" ]]; then
-        rm -rf $workspace/tutorials/is_cuda
-    fi
 }
 
 function cmake_ {

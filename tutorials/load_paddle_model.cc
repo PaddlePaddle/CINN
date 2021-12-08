@@ -14,7 +14,7 @@
 
 //! @h1 Load and Execute Paddle Model in C++
 //! In this tutorial, we will show you how to load and execute a paddle model in CINN using C++.
-//! We will use model ResNet18 as an example.
+//! We will use model ResNet50 as an example.
 
 #include <gtest/gtest.h>
 
@@ -30,8 +30,8 @@ TEST(LOAD_MODEL, basic) {
   //! + `target_name` is the name of output tensor we want.
   //! + `x_shape` is the input tensor's shape of the model.
 
-  std::string input_name   = "image";
-  std::string target_name  = "save_infer_model/scale_0";
+  std::string input_name   = "inputs";
+  std::string target_name  = "save_infer_model/scale_0.tmp_1";
   std::vector<int> x_shape = {1, 3, 224, 224};
 
   //! @h2 Set the target backend
@@ -48,13 +48,13 @@ TEST(LOAD_MODEL, basic) {
 
   //! @h2 Load Model to CINN
   //! Load the paddle model and transform it into CINN IR.
-  //! + `mnodel_dir` is the path where the paddle model is stored.
+  //! + `model_dir` is the path where the paddle model is stored.
   //! + `target` is the backend to execute model on.
   //! + `params_combined` implies whether the params of paddle model is stored in one file.
   //! + `model_name` is the name of the model. Entering this will enable optimizations for each specific model.
 
-  std::string model_dir  = "./ResNet18";
-  std::string model_name = "resnet18";
+  std::string model_dir  = "./ResNet50";
+  std::string model_name = "resnet50";
   bool params_combined   = true;
   executor.LoadPaddleModel(model_dir, target, params_combined, model_name);
 
@@ -92,5 +92,5 @@ TEST(LOAD_MODEL, basic) {
                          cudaMemcpyDeviceToHost));
   }
   //! @IGNORE-NEXT
-  LOG(INFO) << "Succeed!";
+  VLOG(3) << "Succeed!";
 }
