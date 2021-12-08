@@ -28,11 +28,14 @@ import numpy as np
 # Define the NetBuilder.
 # -----------------------------
 #
-# Using NetBuilder is a convenient way to build a model in CINN. You can build and run
-# a model by invoking NetBuilder's API as following.
+# Using NetBuilder is a convenient way to build a model in CINN.
+# You can build and run a model by invoking NetBuilder's API as following.
 #
 # :code:`name`: the ID of NetBuilder
-builder = frontend.NetBuilder(name="add_conv2d")
+#
+# Generally, the API in `NetBuilder` is coarse-grained operator, in other words,
+# the DL framework like Paddle's operator.
+builder = frontend.NetBuilder(name="batchnorm_conv2d")
 
 ##################################################################
 #
@@ -51,36 +54,36 @@ builder = frontend.NetBuilder(name="add_conv2d")
 #
 # :code:`id_hint`: the name of variable, the defaule value is `""`
 a = builder.create_input(
-    type=common.Float(32), shape=(1, 24, 56, 56), id_hint="A")
-b = builder.create_input(
-    type=common.Float(32), shape=(1, 24, 56, 56), id_hint="B")
-c = builder.create_input(
-    type=common.Float(32), shape=(144, 24, 1, 1), id_hint="C")
+    type=common.Float(32), shape=(8, 3, 224, 224), id_hint="x")
+scale = builder.create_input(type=common.Float(32), shape=[3], id_hint="scale")
+bias = builder.create_input(type=common.Float(32), shape=[3], id_hint="bias")
+mean = builder.create_input(type=common.Float(32), shape=[3], id_hint="mean")
+variance = builder.create_input(
+    type=common.Float(32), shape=[3], id_hint="variance")
+weight = builder.create_input(
+    type=common.Float(32), shape=(3, 3, 7, 7), id_hint="weight")
 
 ##################################################################
 #
 # Build the model by using NetBuilder API
 # ---------------------------------------------
 #
-# For convenience, here we build a simple model that only consists of add and conv2d
+# For convenience, here we build a simple model that only consists of batchnorm and conv2d
 # operators. Note that you can find the operator's detailed introduction in another
 # document, we won't go into detail here.
-#
-# Generally, the API in NetBuilder is coarse operator, which is corresponding to
-# the DL framework like Paddle's operator.
-d = builder.add(a, b)
-e = builder.conv2d(d, c)
+y = builder.batchnorm(a, scale, bias, mean, variance, is_test=True)
+res = builder.conv2d(y[0], weight)
 
 ##################################################################
 #
 # Generate the program
 # ---------------------
 #
-# After the model building, the NetBuilder will generate a CINN execution program,
-# and you can get it by invoking `builder.build()` function.
+# After the model building, the `builder` will generate a CINN execution program,
+# and you can get it like:
 prog = builder.build()
 
-# You can print the returned program as following code:
+# You can print the program like:
 for i in range(prog.size()):
     print(prog[i])
 
@@ -93,9 +96,12 @@ for i in range(prog.size()):
 # In model building, we just create some placeholder, to get the model's running
 # result, here we random some fake input data.
 tensor_data = [
-    np.random.random([1, 24, 56, 56]).astype("float32"),
-    np.random.random([1, 24, 56, 56]).astype("float32"),
-    np.random.random([144, 24, 1, 1]).astype("float32")
+    np.random.random([8, 3, 224, 224]).astype("float32"),  # a
+    np.random.random([3]).astype("float32"),  # scale
+    np.random.random([3]).astype("float32"),  # bias
+    np.random.random([3]).astype("float32"),  # mean
+    np.random.random([3]).astype("float32"),  # variance
+    np.random.random([3, 3, 7, 7]).astype("float32")  # weight
 ]
 
 ##################################################################
@@ -133,8 +139,9 @@ print("Model running at ", target.arch)
 # `tensor_inputs`, otherwise, the resulting error.
 #
 # :code:`tensor_outputs`: the model's output variable list, the ordering of the model's
-# result list is the same as `tensor_outputs`, here we just has one result `[e]`.
-result = prog.build_and_get_output(target, [a, b, c], tensor_data, [e])
+# result list is the same as `tensor_outputs`, here we just has one result `[res]`.
+result = prog.build_and_get_output(
+    target, [a, scale, bias, mean, variance, weight], tensor_data, [res])
 
 # print result
 print(result[0].numpy(target))

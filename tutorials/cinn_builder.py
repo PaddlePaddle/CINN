@@ -66,8 +66,8 @@ c = builder.create_input(
 # operators. Note that you can find the operator's detailed introduction in another
 # document, we won't go into detail here.
 #
-# Generally, the API in CinnBuilder is coarse operator, which is corresponding to
-# the DL framework like Paddle's operator.
+# Generally, the API in CinnBuilder is fine-grained operator, in other words,
+# the algebra or basic DL operator.
 d = builder.add(a, b)
 e = builder.conv(d, c)
 
