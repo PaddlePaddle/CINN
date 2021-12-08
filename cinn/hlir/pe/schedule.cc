@@ -376,7 +376,7 @@ void CudaScheduleReduce(poly::StageMap stages,
 
 void CudaScheduleWarpReduce(poly::StageMap stages, ir::Tensor tmp_out, ir::Tensor out, const common::Target &target) {
   int sum_out_dim = 1;
-  for (int idx = 0; idx < out->shape.size() - 1; ++idx) {
+  for (int idx = 0; idx < tmp_out->shape.size() - 2; ++idx) {
     stages[out]->Fuse(0, 1);
     stages[tmp_out]->Fuse(0, 1);
     sum_out_dim *= out->shape[idx].as_int32();
@@ -404,7 +404,7 @@ void CudaScheduleBlockReduceInternal(poly::StageMap stages,
                                      ir::Tensor tmp_out,
                                      ir::Tensor out,
                                      const common::Target &target) {
-  for (int idx = 0; idx < out->shape.size() - 1; ++idx) {
+  for (int idx = 0; idx < tmp_out->shape.size() - 2; ++idx) {
     stages[tmp_out]->Fuse(0, 1);
     stages[out]->Fuse(0, 1);
   }
@@ -422,10 +422,14 @@ void CudaScheduleBlockReduce(poly::StageMap stages,
                              ir::Tensor tmp_out,
                              ir::Tensor out,
                              const common::Target &target) {
-  for (int idx = out->shape.size(); idx < reduce_tmp_out->shape.size() - 1; ++idx) {
-    stages[reduce_tmp_out]->Fuse(out->shape.size(), out->shape.size() + 1);
+  int output_shape_size_without_reduce = tmp_out->shape.size() - 1;
+  // fuse last parallel dimension
+  for (int idx = 0; idx < reduce_tmp_out->shape.size() - tmp_out->shape.size(); ++idx) {
+    stages[reduce_tmp_out]->Fuse(output_shape_size_without_reduce, output_shape_size_without_reduce + 1);
   }
-  for (int idx = 0; idx < out->shape.size() - 1; ++idx) {
+
+  // fuse parallel dimension
+  for (int idx = 0; idx < output_shape_size_without_reduce - 1; ++idx) {
     stages[out]->Fuse(0, 1);
     stages[tmp_out]->Fuse(0, 1);
     stages[reduce_tmp_out]->Fuse(0, 1);

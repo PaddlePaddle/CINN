@@ -102,43 +102,68 @@ ir::Tensor ReduceMin(const ir::Tensor& A,
 /**
  * @brief find the max of array elements over the last dimension
  *
- * @param A The input Tensor
- * @param last_reduce_dim_num the number of last reduce dimension
- * @param output_name The name of the output Tensor
+ * @param A The input Tensor.
+ * @param last_reduce_dim_num the number of last reduce dimension.
+ * @param keep_dim keep the output tensor shape size as input.
+ * @param output_name The name of the output Tensor.
  */
 std::vector<ir::Tensor> WarpReduceMax(const ir::Tensor& A,
-                                      int last_reduce_dim_num,
+                                      const int last_reduce_dim_num,
+                                      const bool keep_dim            = false,
                                       const std::string& output_name = "T_Warp_Reduce_Max_out");
 
 /**
  * @brief compute the sum of array elements over the last dimension
  *
- * @param A The input Tensor
- * @param last_reduce_dim_num the number of last reduce dimension
- * @param output_name The name of the output Tensor
+ * @param A The input Tensor.
+ * @param last_reduce_dim_num the number of last reduce dimension.
+ * @param keep_dim keep the output tensor shape size as input.
+ * @param output_name The name of the output Tensor.
  */
 std::vector<ir::Tensor> WarpReduceSum(const ir::Tensor& A,
-                                      int last_reduce_dim_num,
+                                      const int last_reduce_dim_num,
+                                      const bool keep_dim            = false,
                                       const std::string& output_name = "T_Warp_Reduce_Sum_out");
 
 /**
  * @brief compute the average of array elements over the last dimension
  *
- * @param A The input Tensor
- * @param last_reduce_dim_num the number of last reduce dimension
- * @param output_name The name of the output Tensor
+ * @param A The input Tensor.
+ * @param last_reduce_dim_num the number of last reduce dimension.
+ * @param keep_dim keep the output tensor shape size as input.
+ * @param output_name The name of the output Tensor.
  */
 std::vector<ir::Tensor> WarpReduceAvg(const ir::Tensor& A,
-                                      int last_reduce_dim_num,
+                                      const int last_reduce_dim_num,
+                                      const bool keep_dim            = false,
                                       const std::string& output_name = "T_Warp_Reduce_Avg_out");
 
+/**
+ * @brief compute the sum of array elements over the last dimension with block reduce.
+ *        'BlockReduceSumInternal' is used as the internal compute of reduce sum, do not use it directly.
+ *
+ * @param A The input Tensor.
+ * @param last_reduce_dim_num the number of last reduce dimension.
+ * @param keep_dim keep the output tensor shape size as input.
+ * @param output_name The name of the output Tensor.
+ */
 std::vector<ir::Tensor> BlockReduceSumInternal(const ir::Tensor& A,
-                                               int last_reduce_dim_num,
+                                               const int last_reduce_dim_num,
+                                               const bool keep_dim            = false,
                                                const std::string& output_name = "T_Block_Reduce_Sum_Internal_out");
 
+/**
+ * @brief compute the sum of array elements over the last dimension with block reduce
+ *
+ * @param A The input Tensor.
+ * @param last_reduce_dim_num the number of last reduce dimension.
+ * @param keep_dim keep the output tensor shape size as input.
+ * @param output_name The name of the output Tensor.
+ */
 std::vector<ir::Tensor> BlockReduceSum(const ir::Tensor& A,
                                        const int last_reduce_dim_num,
                                        const int block_size,
+                                       const bool keep_dim            = false,
                                        const std::string& output_name = "T_Block_Reduce_Sum_out");
 
 }  // namespace pe

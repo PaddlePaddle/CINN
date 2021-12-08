@@ -333,19 +333,17 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
     if (target == common::DefaultNVGPUTarget() && dim.back() == inputs[0]->shape.size() - 1) {
       // the reduce dimension is succesive
       if (reduce_dim_succesive) {
-        // TODO(sunli) : support keep_dim = true
-        CHECK(!keep_dim) << "not support keep dim now!";
         if (last_succesive_dim < 256) {
           VLOG(3) << "Do WarpReduceSum Compute!";
           // if the succesive reduce dimension size < 256
-          auto res    = pe::WarpReduceSum(x, dim.size());
+          auto res    = pe::WarpReduceSum(x, dim.size(), keep_dim);
           auto stages = CreateStages(res);
           *ret        = CINNValuePack{{CINNValue(res[0]), CINNValue(res[1]), CINNValue(stages)}};
         } else {
           VLOG(3) << "Do BlockReduceSum Compute!";
           // if the succesive reduce dimension size > 256
           int block_size = last_succesive_dim > 1024 ? 512 : 128;
-          auto res       = pe::BlockReduceSum(x, dim.size(), block_size);
+          auto res       = pe::BlockReduceSum(x, dim.size(), block_size, keep_dim);
           auto stages    = CreateStages(res);
           *ret           = CINNValuePack{{CINNValue(res[0]), CINNValue(res[1]), CINNValue(stages)}};
         }
@@ -366,8 +364,6 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
         CHECK_LE(last_succesive_dim_tmp, 1024) << "last dimension size over 1024";
         // first: do reduce without last dimension
         auto out = pe_func(x, reduce_without_last_diemension, keep_dim, Expr(), UniqName(op_name + "_out"));
-        // TODO(sunli) : support keep_dim = true
-        CHECK(!keep_dim) << "not support keep dim now!";
         // second: do reduce on last dimension
         auto res    = pe::BlockReduceSumInternal(out, dim.size() - reduce_without_last_diemension.size());
         auto stages = CreateStages({res[0], res[1], out});
