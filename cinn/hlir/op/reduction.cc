@@ -41,12 +41,15 @@ using pe::ReduceSum;
 using PeFunc = std::function<ir::Tensor(const ir::Tensor &, const std::vector<int> &, bool, Expr, const std::string &)>;
 
 std::vector<int> GetShape(const ir::Tensor &x) {
-  auto last_reduce_dim = x->shape[2].as_int32() * x->shape[2].as_int32();
-  // split into last_reduce_dim into {n,k}
+  auto last_reduce_dim = x->shape[2].as_int32() * x->shape[3].as_int32();
+  // Split into last_reduce_dim into {n,k}
   std::vector<int> new_shape = {x->shape[0].as_int32(), x->shape[1].as_int32()};
+  // As the max block size is 1024, setting 1024 as limit
   if (last_reduce_dim <= 1024) {
     new_shape.push_back(last_reduce_dim);
   } else {
+    // As sum of reduce dimension is over 1024, so find a value along(1024, 1) that can be divied by
+    // last_reduce_dim.
     for (int idx = 1024;; --idx) {
       if (last_reduce_dim % idx == 0) {
         new_shape.push_back(last_reduce_dim / idx);
@@ -54,6 +57,8 @@ std::vector<int> GetShape(const ir::Tensor &x) {
         break;
       }
     }
+
+    CHECK_EQ(new_shape.size(), 4) << "Can't find a new shape that satisfy the requirement!";
   }
 
   return new_shape;
@@ -83,16 +88,19 @@ std::shared_ptr<OpStrategy> StrategyForBnMeanVariance(const framework::NodeAttr 
     auto x_square   = pe::Multiply(x_reshape, x_reshape, UniqName("bn_mean_variance_x_square"));
     auto reduce_dim = new_shape.size() == 3 ? std::vector<int>{0} : std::vector<int>{0, 2};
 
-    auto x_sum_0        = pe::ReduceSum(x_reshape, reduce_dim, false, Expr(0.0f), UniqName("bn_mean_variance_out0"));
-    auto x_square_sum_0 = pe::ReduceSum(x_square, reduce_dim, false, Expr(0.0f), UniqName("bn_mean_variance_out1"));
+    auto x_sum_local = pe::ReduceSum(x_reshape, reduce_dim, false, Expr(0.0f), UniqName("bn_mean_variance_out0"));
+    auto x_square_sum_local = pe::ReduceSum(x_square, reduce_dim, false, Expr(0.0f), UniqName("bn_mean_variance_out1"));
 
-    auto x_sum_out    = pe::BlockReduceSumInternal(x_sum_0, 1);
-    auto x_square_out = pe::BlockReduceSumInternal(x_square_sum_0, 1);
+    auto x_sum_out    = pe::BlockReduceSumInternal(x_sum_local, 1);
+    auto x_square_out = pe::BlockReduceSumInternal(x_square_sum_local, 1);
+
+    CHECK_EQ(x_sum_out.size(), 2);
+    CHECK_EQ(x_square_out.size(), 2);
 
     stages->InsertLazily(x_reshape);
     stages->InsertLazily(x_square);
-    stages->InsertLazily(x_sum_0);
-    stages->InsertLazily(x_square_sum_0);
+    stages->InsertLazily(x_sum_local);
+    stages->InsertLazily(x_square_sum_local);
     stages->InsertLazily(x_sum_out[1]);
     stages->InsertLazily(x_square_out[1]);
     stages->InsertLazily(x_sum_out[0]);
@@ -101,8 +109,8 @@ std::shared_ptr<OpStrategy> StrategyForBnMeanVariance(const framework::NodeAttr 
     stages[x_reshape]->ComputeInline();
     stages[x_square]->ComputeInline();
 
-    *ret = CINNValuePack{{CINNValue(x_sum_0),
-                          CINNValue(x_square_sum_0),
+    *ret = CINNValuePack{{CINNValue(x_sum_local),
+                          CINNValue(x_square_sum_local),
                           CINNValue(x_sum_out[1]),
                           CINNValue(x_square_out[1]),
                           CINNValue(x_sum_out[0]),
@@ -115,32 +123,32 @@ std::shared_ptr<OpStrategy> StrategyForBnMeanVariance(const framework::NodeAttr 
     CINNValuePack arg_pack = args[0];
     CHECK_EQ(arg_pack.size(), 7UL);
     if (target.arch == Target::Arch::NVGPU) {
-      Expr x_sum_0          = arg_pack[0];
-      Expr x_square_sum_0   = arg_pack[1];
-      Expr x_sum_tmp        = arg_pack[2];
-      Expr x_square_sum_tmp = arg_pack[3];
-      Expr x_sum            = arg_pack[4];
-      Expr x_square_sum     = arg_pack[5];
-      poly::StageMap stages = arg_pack.back();
-      CHECK(x_sum_0.as_tensor());
-      CHECK(x_square_sum_0.as_tensor());
+      Expr x_sum_local        = arg_pack[0];
+      Expr x_square_sum_local = arg_pack[1];
+      Expr x_sum_tmp          = arg_pack[2];
+      Expr x_square_sum_tmp   = arg_pack[3];
+      Expr x_sum              = arg_pack[4];
+      Expr x_square_sum       = arg_pack[5];
+      poly::StageMap stages   = arg_pack.back();
+      CHECK(x_sum_local.as_tensor());
+      CHECK(x_square_sum_local.as_tensor());
       CHECK(x_sum_tmp.as_tensor());
       CHECK(x_square_sum_tmp.as_tensor());
       CHECK(x_sum.as_tensor());
       CHECK(x_square_sum.as_tensor());
 
       pe::CudaScheduleBlockReduce(stages,
-                                  x_sum_0.as_tensor_ref(),
+                                  x_sum_local.as_tensor_ref(),
                                   x_sum_tmp.as_tensor_ref(),
                                   x_sum.as_tensor_ref(),
                                   common::DefaultNVGPUTarget());
 
       // set x_square compute at x
-      stages[x_square_sum_0.as_tensor_ref()]->SetBuffer("local");
+      stages[x_square_sum_local.as_tensor_ref()]->SetBuffer("local");
       if (new_shape.size() == 3) {
-        stages[x_square_sum_0.as_tensor_ref()]->SimpleComputeAt(stages[x_sum_0.as_tensor_ref()], 2);
+        stages[x_square_sum_local.as_tensor_ref()]->SimpleComputeAt(stages[x_sum_local.as_tensor_ref()], 2);
       } else {
-        stages[x_square_sum_0.as_tensor_ref()]->SimpleComputeAt(stages[x_sum_0.as_tensor_ref()], 3);
+        stages[x_square_sum_local.as_tensor_ref()]->SimpleComputeAt(stages[x_sum_local.as_tensor_ref()], 3);
       }
       stages[x_square_sum_tmp.as_tensor_ref()]->SetBuffer("local");
       stages[x_square_sum_tmp.as_tensor_ref()]->SimpleComputeAt(stages[x_sum_tmp.as_tensor_ref()], 1);
@@ -199,33 +207,38 @@ std::shared_ptr<OpStrategy> StrategyForBnGradBiasScale(const framework::NodeAttr
 
     auto reduce_dim = new_shape.size() == 3 ? std::vector<int>{0} : std::vector<int>{0, 2};
 
-    auto out_0 = pe::ReduceSum(y_grad_reshape, reduce_dim, false, Expr(0.0f), UniqName("bn_grad_bias_scale_out0"));
-    auto out_1 = pe::ReduceSum(grad_x_mean_diff, reduce_dim, false, Expr(0.0f), UniqName("bn_grad_bias_scale_out1"));
+    auto reduce_local_bias =
+        pe::ReduceSum(y_grad_reshape, reduce_dim, false, Expr(0.0f), UniqName("bn_grad_bias_scale_out0"));
+    auto reduce_local_diff =
+        pe::ReduceSum(grad_x_mean_diff, reduce_dim, false, Expr(0.0f), UniqName("bn_grad_bias_scale_out1"));
 
-    auto reduce_sum_0 = pe::BlockReduceSumInternal(out_0, 1);
-    auto reduce_sum_1 = pe::BlockReduceSumInternal(out_1, 1);
+    auto reduce_sum_bias = pe::BlockReduceSumInternal(reduce_local_bias, 1);
+    auto reduce_sum_diff = pe::BlockReduceSumInternal(reduce_local_diff, 1);
+
+    CHECK_EQ(reduce_sum_bias.size(), 2);
+    CHECK_EQ(reduce_sum_diff.size(), 2);
 
     stages->InsertLazily(x_reshape);
     stages->InsertLazily(y_grad_reshape);
     stages->InsertLazily(x_mean_diff);
     stages->InsertLazily(grad_x_mean_diff);
-    stages->InsertLazily(out_0);
-    stages->InsertLazily(out_1);
-    stages->InsertLazily(reduce_sum_0[1]);
-    stages->InsertLazily(reduce_sum_1[1]);
-    stages->InsertLazily(reduce_sum_0[0]);
-    stages->InsertLazily(reduce_sum_1[0]);
+    stages->InsertLazily(reduce_local_bias);
+    stages->InsertLazily(reduce_local_diff);
+    stages->InsertLazily(reduce_sum_bias[1]);
+    stages->InsertLazily(reduce_sum_diff[1]);
+    stages->InsertLazily(reduce_sum_bias[0]);
+    stages->InsertLazily(reduce_sum_diff[0]);
 
     stages[x_reshape]->ComputeInline();
     stages[y_grad_reshape]->ComputeInline();
     stages[x_mean_diff]->ComputeInline();
     stages[grad_x_mean_diff]->ComputeInline();
-    *ret = CINNValuePack{{CINNValue(out_0),
-                          CINNValue(out_1),
-                          CINNValue(reduce_sum_0[1]),
-                          CINNValue(reduce_sum_1[1]),
-                          CINNValue(reduce_sum_0[0]),
-                          CINNValue(reduce_sum_1[0]),
+    *ret = CINNValuePack{{CINNValue(reduce_local_bias),
+                          CINNValue(reduce_local_diff),
+                          CINNValue(reduce_sum_bias[1]),
+                          CINNValue(reduce_sum_diff[1]),
+                          CINNValue(reduce_sum_bias[0]),
+                          CINNValue(reduce_sum_diff[0]),
                           CINNValue(stages)}};
   });
 
@@ -234,36 +247,36 @@ std::shared_ptr<OpStrategy> StrategyForBnGradBiasScale(const framework::NodeAttr
     CINNValuePack arg_pack = args[0];
     CHECK_EQ(arg_pack.size(), 7UL);
     if (target.arch == Target::Arch::NVGPU) {
-      Expr out_0            = arg_pack[0];
-      Expr out_1            = arg_pack[1];
-      Expr reduce_sum_0_tmp = arg_pack[2];
-      Expr reduce_sum_1_tmp = arg_pack[3];
-      Expr reduce_sum_0     = arg_pack[4];
-      Expr reduce_sum_1     = arg_pack[5];
+      Expr reduce_local_bias   = arg_pack[0];
+      Expr reduce_local_diff   = arg_pack[1];
+      Expr reduce_sum_bias_tmp = arg_pack[2];
+      Expr reduce_sum_diff_tmp = arg_pack[3];
+      Expr reduce_sum_bias     = arg_pack[4];
+      Expr reduce_sum_diff     = arg_pack[5];
 
       poly::StageMap stages = arg_pack.back();
-      CHECK(out_0.as_tensor());
-      CHECK(out_1.as_tensor());
-      CHECK(reduce_sum_0_tmp.as_tensor());
-      CHECK(reduce_sum_1_tmp.as_tensor());
-      CHECK(reduce_sum_0.as_tensor());
-      CHECK(reduce_sum_1.as_tensor());
+      CHECK(reduce_local_bias.as_tensor());
+      CHECK(reduce_local_diff.as_tensor());
+      CHECK(reduce_sum_bias_tmp.as_tensor());
+      CHECK(reduce_sum_diff_tmp.as_tensor());
+      CHECK(reduce_sum_bias.as_tensor());
+      CHECK(reduce_sum_diff.as_tensor());
 
       pe::CudaScheduleBlockReduce(stages,
-                                  out_0.as_tensor_ref(),
-                                  reduce_sum_0_tmp.as_tensor_ref(),
-                                  reduce_sum_0.as_tensor_ref(),
+                                  reduce_local_bias.as_tensor_ref(),
+                                  reduce_sum_bias_tmp.as_tensor_ref(),
+                                  reduce_sum_bias.as_tensor_ref(),
                                   common::DefaultNVGPUTarget());
 
-      stages[out_1.as_tensor_ref()]->SetBuffer("local");
+      stages[reduce_local_diff.as_tensor_ref()]->SetBuffer("local");
       if (new_shape.size() == 3) {
-        stages[out_1.as_tensor_ref()]->SimpleComputeAt(stages[out_0.as_tensor_ref()], 2);
+        stages[reduce_local_diff.as_tensor_ref()]->SimpleComputeAt(stages[reduce_local_bias.as_tensor_ref()], 2);
       } else {
-        stages[out_1.as_tensor_ref()]->SimpleComputeAt(stages[out_0.as_tensor_ref()], 3);
+        stages[reduce_local_diff.as_tensor_ref()]->SimpleComputeAt(stages[reduce_local_bias.as_tensor_ref()], 3);
       }
-      stages[reduce_sum_1_tmp.as_tensor_ref()]->SetBuffer("local");
-      stages[reduce_sum_1_tmp.as_tensor_ref()]->SimpleComputeAt(stages[reduce_sum_0_tmp.as_tensor_ref()], 1);
-      stages[reduce_sum_1.as_tensor_ref()]->SimpleComputeAt(stages[reduce_sum_0.as_tensor_ref()], 0);
+      stages[reduce_sum_diff_tmp.as_tensor_ref()]->SetBuffer("local");
+      stages[reduce_sum_diff_tmp.as_tensor_ref()]->SimpleComputeAt(stages[reduce_sum_bias_tmp.as_tensor_ref()], 1);
+      stages[reduce_sum_diff.as_tensor_ref()]->SimpleComputeAt(stages[reduce_sum_bias.as_tensor_ref()], 0);
     } else if (target.arch == Target::Arch::X86) {
       Expr out              = arg_pack[0];
       poly::StageMap stages = arg_pack[1];
@@ -345,7 +358,8 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
         if (last_succesive_dim < 256) {
           VLOG(3) << "Do WarpReduceSum Compute!";
           // if the succesive reduce dimension size < 256
-          auto res    = pe::WarpReduceSum(x, dim.size(), keep_dim);
+          auto res = pe::WarpReduceSum(x, dim.size(), keep_dim);
+          CHECK_EQ(res.size(), 2);
           auto stages = CreateStages(res);
           *ret        = CINNValuePack{{CINNValue(res[0]), CINNValue(res[1]), CINNValue(stages)}};
         } else {
@@ -353,8 +367,9 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
           // if the succesive reduce dimension size > 256
           int block_size = last_succesive_dim > 1024 ? 512 : 128;
           auto res       = pe::BlockReduceSum(x, dim.size(), block_size, keep_dim);
-          auto stages    = CreateStages(res);
-          *ret           = CINNValuePack{{CINNValue(res[0]), CINNValue(res[1]), CINNValue(stages)}};
+          CHECK_EQ(res.size(), 2);
+          auto stages = CreateStages(res);
+          *ret        = CINNValuePack{{CINNValue(res[0]), CINNValue(res[1]), CINNValue(stages)}};
         }
       } else /* the reduce dimension is not succesive */ {
         VLOG(3) << "Do ReduceSum And BlockReduceSumInternal Compute!";
@@ -374,7 +389,8 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
         // first: do reduce without last dimension
         auto out = pe_func(x, reduce_without_last_diemension, keep_dim, Expr(), UniqName(op_name + "_out"));
         // second: do reduce on last dimension
-        auto res    = pe::BlockReduceSumInternal(out, dim.size() - reduce_without_last_diemension.size());
+        auto res = pe::BlockReduceSumInternal(out, dim.size() - reduce_without_last_diemension.size());
+        CHECK_EQ(res.size(), 2);
         auto stages = CreateStages({res[0], res[1], out});
         *ret        = CINNValuePack{{CINNValue(res[0]), CINNValue(res[1]), CINNValue(out), CINNValue(stages)}};
       }
@@ -494,6 +510,7 @@ std::vector<std::vector<std::string>> InferLayoutForReduction(const std::vector<
 std::vector<shape_t> InferShapeForBnOptimize(const std::vector<shape_t> &inputs_shape,
                                              const framework::AttrMapType &attrs) {
   auto shapes = InferShapeForReduction(inputs_shape, attrs);
+  CHECK_GE(shapes.size(), 1) << "shapes's size less than 1, please check!";
   return {shapes[0], shapes[0]};
 }
 
