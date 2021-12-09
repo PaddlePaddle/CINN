@@ -520,17 +520,24 @@ StrategyForReduction(reduce_min, ReduceMin, PeFunc);
 }  // namespace hlir
 }  // namespace cinn
 
+// TODO(sunli) : repair element-wise + reduce fusion on gpu
+#ifdef CINN_WITH_CUDA
+#define REDUCE_OP_PATTERN_KIND cinn::hlir::framework::OpPatternKind::kOpaque
+#else
+#define REDUCE_OP_PATTERN_KIND cinn::hlir::framework::OpPatternKind::kCommReduce
+#endif
+
 CINN_REGISTER_HELPER(reduce_ops) {
-#define CINN_REGISTER_REDUCTION(op__, op_stragegy__)                                                                  \
-  CINN_REGISTER_OP(op__)                                                                                              \
-      .describe(#op__ " function")                                                                                    \
-      .set_num_inputs(1)                                                                                              \
-      .set_num_outputs(1)                                                                                             \
-      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyFor##op_stragegy__)  \
-      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForReduction))                                 \
-      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForReduction))                                 \
-      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForReduction))                               \
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kCommReduce) \
+#define CINN_REGISTER_REDUCTION(op__, op_stragegy__)                                                                 \
+  CINN_REGISTER_OP(op__)                                                                                             \
+      .describe(#op__ " function")                                                                                   \
+      .set_num_inputs(1)                                                                                             \
+      .set_num_outputs(1)                                                                                            \
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyFor##op_stragegy__) \
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForReduction))                                \
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForReduction))                                \
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForReduction))                              \
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", REDUCE_OP_PATTERN_KIND)                           \
       .set_support_level(4);
 
   CINN_REGISTER_REDUCTION(reduce_sum, ReduceSum);
