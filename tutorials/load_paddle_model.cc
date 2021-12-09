@@ -43,26 +43,22 @@ TEST(LOAD_MODEL, basic) {
 
   auto target = common::DefaultHostTarget();
 
-  //! @h2 Set the input tensor and init interpreter
-  frontend::Interpreter executor({input_name}, {x_shape});
-
   //! @h2 Load Model to CINN
-  //! Load the paddle model and transform it into CINN IR.
-  //! + `model_dir` is the path where the paddle model is stored.
+  //! Load the paddle model and compile it into CINN IR.
   //! + `target` is the backend to execute model on.
+  //! + `model_dir` is the path where the paddle model is stored.
   //! + `params_combined` implies whether the params of paddle model is stored in one file.
-  //! + `model_name` is the name of the model. Entering this will enable optimizations for each specific model.
 
-  std::string model_dir  = "./ResNet50";
-  std::string model_name = "resnet50";
-  bool params_combined   = true;
-  executor.LoadPaddleModel(model_dir, target, params_combined, model_name);
+  std::string model_dir = "./ResNet50";
+  bool params_combined  = true;
+  auto computation =
+      frontend::CinnComputation::CompilePaddleModel(target, model_dir, {input_name}, {x_shape}, params_combined);
 
   //! @h2 Get input tensor and set input data
   //! Here we use all-zero data as input. In practical applications, please replace it with real data according to your
   //! needs.
 
-  auto input_tensor = executor.GetTensor(input_name);
+  auto input_tensor = computation.GetTensor(input_name);
 
   std::vector<float> fake_input(input_tensor->shape().numel(), 0.f);
 
@@ -77,9 +73,9 @@ TEST(LOAD_MODEL, basic) {
   //! @h2 Execute Model
   //! Execute the model and get output tensor's data.
 
-  executor.Run();
+  computation.Execute();
 
-  auto target_tensor = executor.GetTensor(target_name);
+  auto target_tensor = computation.GetTensor(target_name);
   std::vector<float> output_data(target_tensor->shape().numel(), 0.f);
   if (target.arch == Target::Arch::X86) {
     std::copy(target_tensor->data<float>(),
@@ -92,5 +88,5 @@ TEST(LOAD_MODEL, basic) {
                          cudaMemcpyDeviceToHost));
   }
   //! @IGNORE-NEXT
-  VLOG(3) << "Succeed!";
+  LOG(INFO) << "Succeed!";
 }
