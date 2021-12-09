@@ -41,6 +41,7 @@ C++ APIs
 
    matmul.md
    load_paddle_model.md
+   cinn_builder_api.md
    cpp/library_root.rst
 
 

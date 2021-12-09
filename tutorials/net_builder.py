@@ -15,13 +15,14 @@
 Run model by using NetBuilder API
 =========================================================
 
-In this tutorial, we will introduce the ways to build and run model by using NetBuilder API.
+In this tutorial, we will introduce the ways to build and run a model using NetBuilder APIs.
 """
 
 import cinn
 from cinn import frontend
 from cinn import common
 import numpy as np
+# sphinx_gallery_thumbnail_path = './paddlepaddle.png'
 
 ##################################################################
 #

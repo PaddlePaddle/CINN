@@ -171,7 +171,8 @@ Expr IsInf(Expr e) {
   if (type.is_int() || type.is_uint()) {
     return common::make_bool(false, type.lanes());
   } else if (type.is_float()) {
-    return ir::EQ::Make(Abs(e), Infinity(type)) && !IsNan(e);
+    Expr arg = e;
+    return CallExtern("isinf", {arg}, {{"vectorizable", false}});
   } else {
     LOG(FATAL) << type << "is not supported for isinf op.";
     return e;

@@ -28,24 +28,57 @@ This project is under active development.
 
 ## Example
 
-Let's take C++ APIs as an example, the corresponding Python APIs are available and just differ little.
+Let's take python APIs as examples, the corresponding C++ APIs are available and differ little.
 
-### Load a PaddlePaddle model and execute
+### Load a PaddlePaddle model
+You can load a paddle model directly using CINN.
+```python
+# Load Model to CINN
+computation = Computation.compile_paddle_model(
+    target = DefaultHostTarget(), model_dir = "./ResNet50", input_tensors = ['inputs'], input_sapes = [[1, 3, 224, 224]], params_combined = True)
 
-```c++
-#include "cinn/frontend/interpreter.h"
-using cinn::hlir::framework;
-
-Interpreter inter({"input0"}/*list of inputs' names*/, 
-                  {{1, 30}}/*list of inputs' shapes*/);
-inter.LoadPaddleModel(/*string of model directory*/);
-auto input_handle = inter.GetTensor("input0");
-auto output_handle = inter.GetTensor("output0");
-// set data to input_handle
-inter.Run();
-// get output content from output_handle
+# Get input tensor and set input data
+a_t = computation.get_tensor(input_tensor)
+a_t.from_numpy(np.random.random(x_shape).astype("float32"), target)
 ```
-Note that for api `LoadPaddleModel`, the `params_combined` param is set to be false by default.
+
+### Build a Network by NetBuilder
+You can build and run a model by using NetBuilder APIs. Each NetBuilder API is a paddle operator.
+```python
+# Define the NetBuilder.
+builder = frontend.NetBuilder(name="network")
+
+# Define the input variables of the model
+a = builder.create_input(type=common.Float(32), shape=(1, 3, 224, 224), id_hint="A")
+b = builder.create_input(type=common.Float(32), shape=(1, 3, 224, 224), id_hint="B")
+
+# Build the model using NetBuilder API
+y = builder.add(a, b)
+res = builder.relu(y)
+
+# Generate the computation
+computation = builder.build()
+```
+
+### Build a Network by CinnBuilder
+You can also build and run a model by using NetCinnBuilderBuilder APIs. Note that `CinnBuilder`'s APIs have much finer granularity than NetBuilder's.
+```python
+# Define the CinnBuilder.
+builder = frontend.CinnBuilder(name="network")
+
+# Define the input variable of the model.
+a = builder.create_input(type=common.Float(32), shape=(1, 24, 56, 56), id_hint="A")
+b = builder.create_input(type=common.Float(32), shape=(1, 24, 56, 56), id_hint="B")
+c = builder.create_input(type=common.Float(32), shape=(144, 24, 1, 1), id_hint="C")
+
+# Build the model by using CinnBuilder API
+d = builder.add(a, b)
+e = builder.conv(d, c)
+res = builder.max(e, 0)
+
+# Generate the computation
+computation = builder.build()
+```
 
 ### Use CINN lower level DSL to define some computation and execute
 
