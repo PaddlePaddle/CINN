@@ -84,6 +84,18 @@ CINN_REGISTER_HELPER(cuda_intrinsics) {
       .AddInputType<int>()
       .End();
 
+  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_block_reduce_sum_internal, target)
+      .SetRetType<float>()
+      .AddInputType<float>()
+      .End();
+
+  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_block_reduce_sum, target)
+      .SetRetType<float>()
+      .AddInputType<cinn_buffer_t *>()
+      .AddInputType<int>()
+      .AddInputType<int>()
+      .End();
+
   return true;
 }
 
