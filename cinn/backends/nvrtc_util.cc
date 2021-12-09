@@ -91,7 +91,7 @@ std::string NVRTC_Compiler::CompilePTX(const std::string& code, bool include_hea
   for (const auto& option : compile_options) {
     param_cstrings.push_back(option.c_str());
   }
-  LOG(INFO) << "compile options: " << utils::Join(compile_options, " ");
+  VLOG(3) << "compile options: " << utils::Join(compile_options, " ");
   NVRTC_CALL(nvrtcCreateProgram(&prog, code.c_str(), nullptr, 0, nullptr, nullptr));
   nvrtcResult compile_res = nvrtcCompileProgram(prog, param_cstrings.size(), param_cstrings.data());
 

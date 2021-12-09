@@ -127,7 +127,7 @@ std::shared_ptr<CinnComputation> CinnComputation::CompilePaddleModel(
   }
   program->SetInputs({input_vars});
   program->Validate();
-  LOG(INFO) << "program:\n" << *program;
+  VLOG(3) << "program:\n" << *program;
 
   for (auto &name : fetch_names) {
     output_vars.push_back(varmap.at(name));

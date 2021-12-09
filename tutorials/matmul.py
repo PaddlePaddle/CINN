@@ -18,12 +18,11 @@ Ways to optimize Matrix Multiplication on CPU
 In this tutorial, we will introduce several ways to optimize the performance of the matrix multiplication on X86 CPU.
 """
 
-# sphinx_gallery_thumbnail_path = '_static/icon.png'
-
 import cinn
 import numpy as np
 import time
 from cinn import runtime
+# sphinx_gallery_thumbnail_path = './paddlepaddle.png'
 
 ##################################################################
 # Declare the basic computation for a matmul

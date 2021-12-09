@@ -222,9 +222,9 @@ void LoadModelPb(const std::string &model_dir,
   CHECK(cpp_prog);
   CHECK(scope);
   cpp_prog->ClearBlocks();
-  LOG(INFO) << "model_dir is: " << model_dir;
-  LOG(INFO) << "model_file is: " << model_file;
-  LOG(INFO) << "param_file is: " << param_file;
+  VLOG(3) << "model_dir is: " << model_dir;
+  VLOG(3) << "model_file is: " << model_file;
+  VLOG(3) << "param_file is: " << param_file;
   // Load model
   VLOG(4) << "Start load model program...";
   std::string prog_path       = model_dir + "/__model__";
