@@ -252,14 +252,6 @@ std::vector<Tensor> WarpReduce(const ir::Tensor& A,
   return {out, tmp_out};
 }
 
-/**
- * @brief find the max of array elements over the last dimension
- *
- * @param A The input Tensor.
- * @param last_reduce_dim_num the number of last reduce dimension.
- * @param keep_dim keep the output tensor shape size as input.
- * @param output_name The name of the output Tensor.
- */
 std::vector<ir::Tensor> WarpReduceMax(const ir::Tensor& A,
                                       const int last_reduce_dim_num,
                                       const bool keep_dim,
@@ -267,14 +259,6 @@ std::vector<ir::Tensor> WarpReduceMax(const ir::Tensor& A,
   return WarpReduce(A, last_reduce_dim_num, keep_dim, "cinn_warp_reduce_max", output_name);
 }
 
-/**
- * @brief compute the average of array elements over the last dimension
- *
- * @param A The input Tensor.
- * @param last_reduce_dim_num the number of last reduce dimension.
- * @param keep_dim keep the output tensor shape size as input.
- * @param output_name The name of the output Tensor.
- */
 std::vector<ir::Tensor> WarpReduceSum(const ir::Tensor& A,
                                       const int last_reduce_dim_num,
                                       const bool keep_dim,
@@ -282,15 +266,6 @@ std::vector<ir::Tensor> WarpReduceSum(const ir::Tensor& A,
   return WarpReduce(A, last_reduce_dim_num, keep_dim, "cinn_warp_reduce_sum", output_name);
 }
 
-/**
- * @brief compute the sum of array elements over the last dimension with block reduce.
- *        'BlockReduceSumInternal' is used as the internal compute of reduce sum, do not use it directly.
- *
- * @param A The input Tensor.
- * @param last_reduce_dim_num the number of last reduce dimension.
- * @param keep_dim keep the output tensor shape size as input.
- * @param output_name The name of the output Tensor.
- */
 std::vector<ir::Tensor> WarpReduceAvg(const ir::Tensor& A,
                                       const int last_reduce_dim_num,
                                       const bool keep_dim,
@@ -298,15 +273,6 @@ std::vector<ir::Tensor> WarpReduceAvg(const ir::Tensor& A,
   return WarpReduce(A, last_reduce_dim_num, keep_dim, "cinn_warp_reduce_avg", output_name);
 }
 
-/**
- * @brief compute the sum of array elements over the last dimension with block reduce.
- *        'BlockReduceSumInternal' is used as the internal compute of reduce sum, do not use it directly.
- *
- * @param A The input Tensor.
- * @param last_reduce_dim_num the number of last reduce dimension.
- * @param keep_dim keep the output tensor shape size as input.
- * @param output_name The name of the output Tensor.
- */
 std::vector<ir::Tensor> BlockReduceSumInternal(const ir::Tensor& A,
                                                const int last_reduce_dim_num,
                                                const bool keep_dim,
