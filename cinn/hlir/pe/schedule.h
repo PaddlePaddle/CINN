@@ -156,9 +156,17 @@ void CudaScheduleMul(poly::StageMap stages,
                      const std::vector<int> &output_shape,
                      const common::Target &target);
 
-void CudaScheduleReduce(poly::StageMap stages, ir::Tensor output, const common::Target &target);
+void CudaScheduleReduce(poly::StageMap stages, ir::Tensor output, int last_dimension_num, const common::Target &target);
 
 void CudaScheduleWarpReduce(poly::StageMap stages, ir::Tensor tmp_out, ir::Tensor out, const common::Target &target);
+
+void CudaScheduleBlockReduceInternal(poly::StageMap stages,
+                                     ir::Tensor tmp_out,
+                                     ir::Tensor out,
+                                     const common::Target &target);
+
+void CudaScheduleBlockReduce(
+    poly::StageMap stages, ir::Tensor reduce_tmp_out, ir::Tensor tmp_out, ir::Tensor out, const common::Target &target);
 
 void CudaScheduleDepthwiseConv(poly::StageMap stages, ir::Tensor &output, const common::Target &target);
 

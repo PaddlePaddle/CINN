@@ -50,6 +50,152 @@ using framework::shape_t;
 using framework::StrategyFunction;
 using runtime::cuda::CUDAModule;
 
+std::pair<ir::Module, std::string> GenReduceCode(const std::vector<int>& shape,
+                                                 const std::vector<int>& dim,
+                                                 const std::string& func_name,
+                                                 bool keep_dim = false) {
+  // code gen
+  auto reduce_sum = Operator::Get("reduce_sum");
+  auto strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy")[reduce_sum];
+
+  // input tensor
+  std::vector<Expr> shape_as_expr;
+  for (auto value : shape) {
+    shape_as_expr.emplace_back(value);
+  }
+  Placeholder<float> X("X", shape_as_expr);
+
+  // set attrs
+  NodeAttr attrs;
+  attrs.attr_store["dim"]      = dim;
+  attrs.attr_store["keep_dim"] = keep_dim;
+  std::vector<ir::Tensor> inputs{X.tensor()};
+  std::vector<Type> out_type{Float(32)};
+
+  std::vector<int> output_shape;
+  for (int idx = 0; idx < shape.size(); ++idx) {
+    if (std::find(dim.begin(), dim.end(), idx) != dim.end()) {
+      if (keep_dim) {
+        output_shape.push_back(1);
+      }
+    } else {
+      output_shape.push_back(shape[idx]);
+    }
+  }
+
+  auto target = common::DefaultNVGPUTarget();
+  auto impl   = OpStrategy::SelectImpl(strategy(attrs, inputs, out_type, {output_shape}, target));
+
+  common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(X)}};
+  common::CINNValuePack rets       = impl->fcompute(cinn_input);
+  rets                             = impl->fschedule(rets);
+
+  // the last element is a StageMap
+  for (int i = 0; i < rets->size() - 1; i++) {
+    Expr temp = rets[i];
+    if (!temp.as_tensor_ref()->buffer.defined()) {
+      inputs.push_back(temp.as_tensor_ref());
+    }
+  }
+
+  auto func = lang::LowerVec(func_name, rets.back(), inputs, {}, {}, nullptr, target);
+  for (auto& f : func) {
+    LOG(INFO) << "Test Strategy Codegen:\n" << f;
+  }
+
+  Module::Builder builder(func_name + "_builder", target);
+  for (auto& f : func) {
+    builder.AddFunction(f);
+  }
+
+  auto module                    = builder.Build();
+  auto host_module_device_module = backends::SplitCudaAndHostModule(module);  // NOLINT
+  auto& host_module              = std::get<0>(host_module_device_module);
+  auto& device_module            = std::get<1>(host_module_device_module);
+  for (auto& func : host_module.functions()) {
+    LOG(INFO) << "host:\n" << func;
+  }
+  for (auto& func : device_module.functions()) {
+    LOG(INFO) << "device:\n" << func;
+  }
+
+  backends::CodeGenCUDA_Dev codegen(target);
+  auto source_code = codegen.Compile(builder.Build());
+  LOG(INFO) << "compiled code:\n\n\n" << source_code;
+
+  return std::pair<ir::Module, std::string>(host_module, source_code);
+}
+
+TEST(Operator, Operator_Reduction_Case_0) {
+  std::vector<int> shape = {16, 16, 8, 16};
+  std::vector<int> dim   = {2, 3};
+
+  GenReduceCode(shape, dim, "reduce_cast_0");
+}
+
+TEST(Operator, Operator_Reduction_Case_0_0) {
+  std::vector<int> shape = {16, 16, 8, 16};
+  std::vector<int> dim   = {2, 3};
+
+  GenReduceCode(shape, dim, "reduce_cast_0_0", true);
+}
+
+TEST(Operator, Operator_Reduction_Case_1) {
+  std::vector<int> shape = {16, 16, 32, 32};
+  std::vector<int> dim   = {2, 3};
+
+  GenReduceCode(shape, dim, "reduce_cast_1");
+}
+
+TEST(Operator, Operator_Reduction_Case_1_1) {
+  std::vector<int> shape = {16, 16, 32, 32};
+  std::vector<int> dim   = {2, 3};
+
+  GenReduceCode(shape, dim, "reduce_cast_1_1", true);
+}
+
+TEST(Operator, Operator_Reduction_Case_2) {
+  std::vector<int> shape = {16, 16, 32, 32};
+  std::vector<int> dim   = {1};
+
+  GenReduceCode(shape, dim, "reduce_cast_2", true);
+}
+
+TEST(Operator, Operator_Reduction_Case_3) {
+  std::vector<int> shape = {16, 16, 64, 64};
+  std::vector<int> dim   = {1};
+
+  GenReduceCode(shape, dim, "reduce_cast_3");
+}
+
+TEST(Operator, Operator_Reduction_Case_4) {
+  std::vector<int> shape = {16, 16, 16, 16};
+  std::vector<int> dim   = {0, 2, 3};
+
+  GenReduceCode(shape, dim, "reduce_cast_4");
+}
+
+TEST(Operator, Operator_Reduction_Case_4_4) {
+  std::vector<int> shape = {16, 16, 16, 16};
+  std::vector<int> dim   = {0, 2, 3};
+
+  GenReduceCode(shape, dim, "reduce_cast_4_4", true);
+}
+
+TEST(Operator, Operator_Reduction_Case_5) {
+  std::vector<int> shape = {16, 16, 16, 16, 16, 32};
+  std::vector<int> dim   = {1, 3, 5};
+
+  GenReduceCode(shape, dim, "reduce_cast_5");
+}
+
+TEST(Operator, Operator_Reduction_Case_5_5) {
+  std::vector<int> shape = {16, 16, 16, 16, 16, 32};
+  std::vector<int> dim   = {1, 3, 5};
+
+  GenReduceCode(shape, dim, "reduce_cast_5_5", true);
+}
+
 void CpuReduceSum(const float* x,
                   std::vector<float>* sum0,
                   std::vector<float>* sum1,
@@ -71,147 +217,46 @@ void CpuReduceSum(const float* x,
   }
 }
 
-std::pair<ir::Module, std::string> GenHostAndPtx(const std::vector<int>& shape,
-                                                 const std::vector<int>& dim,
-                                                 const std::string func_name = "reduce_sum") {
-  auto reduce_sum = Operator::Get("reduce_sum");
-  auto strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy")[reduce_sum];
+TEST(Operator, Operator_Reduction_Case_6) {
+  int n = 128, c = 128, h = 32, w = 32;
+  std::vector<int> shape = {n, c, h, w};
+  std::vector<int> dim   = {0, 2, 3};
 
-  std::vector<Expr> shape_as_expr;
-  for (auto value : shape) {
-    shape_as_expr.emplace_back(value);
-  }
-  Placeholder<float> X("X", shape_as_expr);
+  // get source code
+  auto source_code = GenReduceCode(shape, dim, "reduce_case_6").second;
 
-  NodeAttr attrs;
-  attrs.attr_store["dim"] = dim;
-  std::vector<ir::Tensor> inputs{X.tensor()};
-  std::vector<Type> out_type{Float(32)};
-
-  std::vector<int> output_shape;
-  for (auto value : shape) {
-    if (std::find(dim.begin(), dim.end(), value) == dim.end()) {
-      output_shape.push_back(value);
-    }
-  }
-
-  auto target = common::DefaultNVGPUTarget();
-  auto impl   = OpStrategy::SelectImpl(strategy(attrs, inputs, out_type, {output_shape}, target));
-
-  common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(X)}};
-  common::CINNValuePack rets       = impl->fcompute(cinn_input);
-  rets                             = impl->fschedule(rets);
-
-  // the last element is a StageMap
-  for (int i = 0; i < rets->size() - 1; i++) {
-    Expr temp = rets[i];
-    inputs.push_back(temp.as_tensor_ref());
-  }
-  auto func = lang::LowerVec(func_name, rets.back(), inputs, {}, {}, nullptr, target);
-  for (auto& f : func) {
-    LOG(INFO) << "Test Strategy Codegen:\n" << f;
-  }
-
-  Module::Builder builder("reduce_sum_0", target);
-  for (auto& f : func) {
-    builder.AddFunction(f);
-  }
-
-  auto module                    = builder.Build();
-  auto host_module_device_module = backends::SplitCudaAndHostModule(module);  // NOLINT
-  auto& host_module              = std::get<0>(host_module_device_module);
-  auto& device_module            = std::get<1>(host_module_device_module);
-  for (auto& func : host_module.functions()) {
-    LOG(INFO) << "host:\n" << func;
-  }
-  for (auto& func : device_module.functions()) {
-    LOG(INFO) << "device:\n" << func;
-  }
-
-  backends::CodeGenCUDA_Dev codegen(target);
-  auto source_code = codegen.Compile(builder.Build());
-  LOG(INFO) << "compiled code:\n\n\n" << source_code;
-
-  using runtime::cuda::CUDAModule;
+  // nv jit compile to ptx
   backends::NVRTC_Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
 
-  return std::pair<ir::Module, std::string>(host_module, ptx);
-}
-
-TEST(Operator, Operator_Reduction_Sum0) {
-  int n = 128, c = 128, h = 32, w = 32;
-  std::vector<int> shape = {n, c, h, w};
-  std::vector<int> dim   = {0, 2, 3};
-  auto module_ptx        = GenHostAndPtx(shape, dim);
-
-  CUDA_CALL(cudaSetDevice(0));
-  CUDAModule cuda_module(module_ptx.second, CUDAModule::Kind::PTX);
-  void* reduce_sum_kernel = cuda_module.GetFunction(0, "reduce_sum");
-  CHECK(reduce_sum_kernel);
-  void* reduce_sum_1_kernel = cuda_module.GetFunction(0, "reduce_sum_1");
-  CHECK(reduce_sum_1_kernel);
-
-  void* stream = nullptr;
-  backends::RuntimeSymbolRegistry::Global().RegisterFn("reduce_sum_kernel_ptr_",
-                                                       reinterpret_cast<void*>(&reduce_sum_kernel));
-  backends::RuntimeSymbolRegistry::Global().RegisterFn("reduce_sum_1_kernel_ptr_",
-                                                       reinterpret_cast<void*>(&reduce_sum_1_kernel));
-  backends::RuntimeSymbolRegistry::Global().RegisterVar("reduce_sum_kernel_stream_ptr_", stream);
-  backends::RuntimeSymbolRegistry::Global().RegisterVar("reduce_sum_1_kernel_stream_ptr_", stream);
-
-  auto jit = backends::SimpleJIT::Create();
-  jit->Link<backends::CodeGenCUDA_Host>(module_ptx.first);
-
-  auto fn_reduce_sum = jit->Lookup("reduce_sum");
-  CHECK(fn_reduce_sum);
-  auto fn_reduce_sum_1 = jit->Lookup("reduce_sum_1");
-  CHECK(fn_reduce_sum_1);
-
-  auto func_0 = reinterpret_cast<void (*)(cinn_pod_value_t*, int)>(fn_reduce_sum);
-  auto func_1 = reinterpret_cast<void (*)(cinn_pod_value_t*, int)>(fn_reduce_sum_1);
+  // cuda_module load ptx
+  runtime::cuda::CUDAModule cuda_module(ptx, CUDAModule::Kind::PTX);
 
   srand(time(NULL));
+  CUDA_CALL(cudaSetDevice(0));
+
+  // auto func_0   = reinterpret_cast<void (*)(cinn_pod_value_t*, int)>(fn_reduce_sum);
   auto buffer_x = common::BufferBuilder(Float(32), {n, c, h, w}).set_random().Build();
-  auto buffer_y = common::BufferBuilder(Float(32), {c, w}).set_random().Build();
   auto buffer_z = common::BufferBuilder(Float(32), {c}).set_random().Build();
 
-  void *dev_x = nullptr, *dev_y = nullptr, *dev_z = nullptr;
+  void *dev_x = nullptr, *dev_z = nullptr;
   CUDA_CALL(cudaMalloc(&dev_x, buffer_x->memory_size));
-  CUDA_CALL(cudaMalloc(&dev_y, buffer_y->memory_size));
   CUDA_CALL(cudaMalloc(&dev_z, buffer_z->memory_size));
-
   CUDA_CALL(cudaMemcpy(dev_x, buffer_x->memory, buffer_x->memory_size, cudaMemcpyHostToDevice));
 
-  cinn_buffer_t _x;
-  cinn_buffer_t _y;
-  cinn_buffer_t _z;
+  dim3 grid(128, 1, 1);
+  dim3 block(1024, 1, 1);
+  void* args[] = {&dev_x, &dev_z};
 
-  _x.memory = static_cast<uint8_t*>(dev_x);
-  _y.memory = static_cast<uint8_t*>(dev_y);
-  _z.memory = static_cast<uint8_t*>(dev_z);
-
-  _x.memory_size = buffer_x->memory_size;
-  _y.memory_size = buffer_y->memory_size;
-  _z.memory_size = buffer_z->memory_size;
-
-  cinn_pod_value_t x_arg(&_x), y_arg(&_y), z_arg(&_z);
-  cinn_pod_value_t args0[] = {x_arg, y_arg};
-  cinn_pod_value_t args1[] = {x_arg, y_arg, z_arg};
-
-  func_0(args0, 2);
-  func_1(args1, 3);
-
-  CUDA_CALL(cudaMemcpy(buffer_y->memory, dev_y, buffer_y->memory_size, cudaMemcpyDeviceToHost));
+  cuda_module.LaunchKernel(0, "reduce_case_6", grid, block, args);
   CUDA_CALL(cudaMemcpy(buffer_z->memory, dev_z, buffer_z->memory_size, cudaMemcpyDeviceToHost));
 
   std::vector<float> sum0(c * w);
   std::vector<float> sum1(c);
   CpuReduceSum(reinterpret_cast<float*>(buffer_x->memory), &sum0, &sum1, n, c, h, w);
 
-  std::vector<std::pair<std::vector<float>, float*>> results = {{sum0, reinterpret_cast<float*>(buffer_y->memory)},
-                                                                {sum1, reinterpret_cast<float*>(buffer_z->memory)}};
+  std::vector<std::pair<std::vector<float>, float*>> results = {{sum1, reinterpret_cast<float*>(buffer_z->memory)}};
   for (auto& res : results) {
     for (int idx = 0; idx < res.first.size(); ++idx) {
       ASSERT_LT(abs(res.first[idx] - res.second[idx]) / res.first[idx], 1e-4);
@@ -219,33 +264,43 @@ TEST(Operator, Operator_Reduction_Sum0) {
   }
 
   CUDA_CALL(cudaFree(dev_x));
-  CUDA_CALL(cudaFree(dev_y));
   CUDA_CALL(cudaFree(dev_z));
 }
 
-TEST(Operator, Operator_Reduction_Sum1) {
-  int n = 32, c = 32, h = 128, w = 128;
+TEST(Operator, Operator_Reduction_Case_7) {
+  int n = 32, c = 32, h = 16, w = 16;
   std::vector<int> shape = {n, c, h, w};
   std::vector<int> dim   = {0, 1};
-  auto module_ptx        = GenHostAndPtx(shape, dim, "reduce_sum_test_1");
 
+  std::string func_name = "reduce_cast_7";
+  // get source code
+  auto host_source = GenReduceCode(shape, dim, func_name);
+
+  // compile to ptx
+  backends::NVRTC_Compiler compiler;
+  auto ptx = compiler(host_source.second);
+  CHECK(!ptx.empty());
+
+  // load ptx
   CUDA_CALL(cudaSetDevice(0));
-  CUDAModule cuda_module(module_ptx.second, CUDAModule::Kind::PTX);
-  void* reduce_sum_test_1_kernel = cuda_module.GetFunction(0, "reduce_sum_test_1");
-  CHECK(reduce_sum_test_1_kernel);
+  runtime::cuda::CUDAModule cuda_module(ptx, runtime::cuda::CUDAModule::Kind::PTX);
+  void* reduce_sum_kernel = cuda_module.GetFunction(0, func_name);
+  CHECK(reduce_sum_kernel);
 
+  // register cufunction and stream
   void* stream = nullptr;
-  backends::RuntimeSymbolRegistry::Global().RegisterFn("reduce_sum_test_1_kernel_ptr_",
-                                                       reinterpret_cast<void*>(&reduce_sum_test_1_kernel));
-  backends::RuntimeSymbolRegistry::Global().RegisterVar("reduce_sum_test_1_kernel_stream_ptr_", stream);
+  backends::RuntimeSymbolRegistry::Global().RegisterFn(func_name + "_kernel_ptr_",
+                                                       reinterpret_cast<void*>(&reduce_sum_kernel));
+  backends::RuntimeSymbolRegistry::Global().RegisterVar(func_name + "_kernel_stream_ptr_", stream);
 
+  // gen host code
   auto jit = backends::SimpleJIT::Create();
-  jit->Link<backends::CodeGenCUDA_Host>(module_ptx.first);
+  jit->Link<backends::CodeGenCUDA_Host>(host_source.first);
 
-  auto fn_reduce_sum_test_1 = jit->Lookup("reduce_sum_test_1");
-  CHECK(fn_reduce_sum_test_1);
+  auto fn_reduce_sum = jit->Lookup(func_name);
+  CHECK(fn_reduce_sum);
 
-  auto func_0 = reinterpret_cast<void (*)(cinn_pod_value_t*, int)>(fn_reduce_sum_test_1);
+  auto func_0 = reinterpret_cast<void (*)(cinn_pod_value_t*, int)>(fn_reduce_sum);
 
   srand(time(NULL));
   auto buffer_x = common::BufferBuilder(Float(32), {n, c, h, w}).set_random().Build();
