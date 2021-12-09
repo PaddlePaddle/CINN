@@ -253,11 +253,11 @@ std::vector<ir::Tensor> Conv2d_NCHW(const ir::Tensor &input,
                       std::to_string(output_shape_int[1]) + " " + std::to_string(output_shape_int[2]) + " " +
                       std::to_string(output_shape_int[3]);
     if (res.count(key) > 0) {
-      LOG(INFO) << "Find saved winograd_conv2d schedule param! key is: " << key;
+      VLOG(3) << "Find saved winograd_conv2d schedule param! key is: " << key;
       return Conv2d_winograd_NCHW(
           input, weights, pad_h, pad_w, stride_h, stride_w, dilation_h, dilation_w, output_name);
     }
-    LOG(INFO) << "Didn't find saved winograd_conv2d schedule param! key is: " << key;
+    VLOG(3) << "Didn't find saved winograd_conv2d schedule param! key is: " << key;
   }
   ir::Tensor input_pad;
   if (pad_h == 0 && pad_w == 0) {

@@ -21,6 +21,7 @@ In this tutorial, we will guide you through the examples of using schedule primi
 
 import cinn
 import numpy as np
+# sphinx_gallery_thumbnail_path = './paddlepaddle.png'
 
 ##################################################################
 # declare some variables for latter use

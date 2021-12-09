@@ -970,12 +970,12 @@ void Stage::Vectorize(int level, int factor) {
   CHECK_LT(level, n_out_dims());
   CHECK_GT(factor, 0);
   if (factor == 1) {
-    LOG(INFO) << "Vectorize-factor 1 has no sense, skip it";
+    VLOG(3) << "Vectorize-factor 1 has no sense, skip it";
     return;
   }
   auto transformed_domain = this->transformed_domain();
   if (isl_is_removed_axis(transformed_domain.get(), level)) {
-    LOG(INFO) << "Vectorizing for-1 has no sense, skip it";
+    VLOG(3) << "Vectorizing for-1 has no sense, skip it";
     return;
   }
   int removed_axes_counts = isl_get_precending_removed_axes_counts(transformed_domain.get(), level);
@@ -1008,7 +1008,7 @@ void Stage::Parallel(int level) {
   auto transformed_domain = this->transformed_domain();
   VLOG(3) << "transformed_domain" << transformed_domain;
   if (isl_is_removed_axis(transformed_domain.get(), level)) {
-    LOG(INFO) << "Paralleling for-1 has no sense, skip it";
+    VLOG(3) << "Paralleling for-1 has no sense, skip it";
     return;
   }
   int removed_axes_counts = isl_get_precending_removed_axes_counts(transformed_domain.get(), level);
