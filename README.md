@@ -142,7 +142,7 @@ The overall architecture is as follows
 
 
 <p align="center">
-  <img width="600" src=" https://user-images.githubusercontent.com/328693/145570133-ae09f818-f646-48a8-bb9e-2a622b07c858.png" />
+  <img width="600" src="https://user-images.githubusercontent.com/328693/145570133-ae09f818-f646-48a8-bb9e-2a622b07c858.png" />
 </p>
 
 
