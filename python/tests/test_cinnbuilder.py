@@ -32,6 +32,32 @@ import sys
 enable_gpu = sys.argv.pop()
 
 
+class TestCinnBuildBasic(unittest.TestCase):
+    def setUp(self):
+        pass
+
+    def test_compare(self):
+        builder = CinnBuilder("test_compare")
+        a = builder.create_input(Float(32), (1, 24, 56, 56), "A")
+        b = builder.create_input(Float(32), (1, 24, 56, 56), "B")
+        # default compare kind is ComparisonKind.kEq
+        c = builder.compare(a, b)
+        d = builder.compare(a, c, ComparisonKind.kNe)
+        prog = builder.build()
+        for i in range(prog.size()):
+            print(prog[i])
+
+    def test_reduce(self):
+        builder = CinnBuilder("test_compare")
+        a = builder.create_input(Float(32), (1, 24, 56, 56), "A")
+        b = builder.reduce(a)
+        c = builder.reduce(a, ReduceKind.kMax)
+        d = builder.add(b, c)
+        prog = builder.build()
+        for i in range(prog.size()):
+            print(prog[i])
+
+
 class TestCinnBuilder(unittest.TestCase):
     def setUp(self):
         if enable_gpu == "ON":
