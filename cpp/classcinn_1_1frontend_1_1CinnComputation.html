@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Class CinnComputation &mdash; cinn release/v0.1-rc documentation</title><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery-binder.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery-dataframe.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/collapsible-lists/css/tree_view.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
+        <script src="../_static/collapsible-lists/js/CollapsibleLists.compressed.js"></script>
+        <script src="../_static/collapsible-lists/js/apply-collapsible-lists.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Class Decomposer" href="classcinn_1_1frontend_1_1Decomposer.html" />
+    <link rel="prev" title="Class CinnBuilder" href="classcinn_1_1frontend_1_1CinnBuilder.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> cinn
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../install.html">Build from source code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../guide.html">Install CINN using docker</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/index.html">Tutorials</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../matmul.html">C++ DSL API tutorial: Matrix Multiplication</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../load_paddle_model.html">Load and Execute Paddle Model in C++</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cinn_builder_api.html">CinnBuilder Primitive Semantics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="library_root.html">C++ Symbols</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">cinn</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="library_root.html">C++ Symbols</a> &raquo;</li>
+      <li>Class CinnComputation</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/cpp/classcinn_1_1frontend_1_1CinnComputation.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="class-cinncomputation">
+<span id="exhale-class-classcinn-1-1frontend-1-1cinncomputation"></span><h1>Class CinnComputation<a class="headerlink" href="#class-cinncomputation" title="Permalink to this headline"></a></h1>
+<ul class="simple">
+<li><p>Defined in <a class="reference internal" href="file__WorkSpace_CINN_cinn_frontend_computation.h.html#file-workspace-cinn-cinn-frontend-computation-h"><span class="std std-ref">File computation.h</span></a></p></li>
+</ul>
+<section id="nested-relationships">
+<h2>Nested Relationships<a class="headerlink" href="#nested-relationships" title="Permalink to this headline"></a></h2>
+<section id="nested-types">
+<h3>Nested Types<a class="headerlink" href="#nested-types" title="Permalink to this headline"></a></h3>
+<ul class="simple">
+<li><p><a class="reference internal" href="structcinn_1_1frontend_1_1CinnComputation_1_1CompileOptions.html#exhale-struct-structcinn-1-1frontend-1-1cinncomputation-1-1compileoptions"><span class="std std-ref">Struct CinnComputation::CompileOptions</span></a></p></li>
+</ul>
+</section>
+</section>
+<section id="class-documentation">
+<h2>Class Documentation<a class="headerlink" href="#class-documentation" title="Permalink to this headline"></a></h2>
+<dl class="cpp class">
+<dt id="_CPPv4N4cinn8frontend15CinnComputationE">
+<span id="_CPPv3N4cinn8frontend15CinnComputationE"></span><span id="_CPPv2N4cinn8frontend15CinnComputationE"></span><span id="cinn::frontend::CinnComputation"></span><span class="target" id="classcinn_1_1frontend_1_1CinnComputation"></span><em class="property">class </em><code class="sig-prename descclassname">cinn::frontend<code class="sig-prename descclassname">::</code></code><code class="sig-name descname">CinnComputation</code><a class="headerlink" href="#_CPPv4N4cinn8frontend15CinnComputationE" title="Permalink to this definition"></a><br /></dt>
+<dd><div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric">Public Functions</p>
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn8frontend15CinnComputation17GetAllTensorNamesEv">
+<span id="_CPPv3N4cinn8frontend15CinnComputation17GetAllTensorNamesEv"></span><span id="_CPPv2N4cinn8frontend15CinnComputation17GetAllTensorNamesEv"></span><span id="cinn::frontend::CinnComputation::GetAllTensorNames"></span><span class="target" id="classcinn_1_1frontend_1_1CinnComputation_1ab9045452b4ff4b6018feacf778d50651"></span>std::vector&lt;std::string&gt; <code class="sig-name descname">GetAllTensorNames</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N4cinn8frontend15CinnComputation17GetAllTensorNamesEv" title="Permalink to this definition"></a><br /></dt>
+<dd><p>get all variable names in the program </p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn8frontend15CinnComputation9GetTensorERKNSt6stringE">
+<span id="_CPPv3N4cinn8frontend15CinnComputation9GetTensorERKNSt6stringE"></span><span id="_CPPv2N4cinn8frontend15CinnComputation9GetTensorERKNSt6stringE"></span><span id="cinn::frontend::CinnComputation::GetTensor__ssCR"></span><span class="target" id="classcinn_1_1frontend_1_1CinnComputation_1ab8abec31e2db6fb73af0ec4c0edacf67"></span>hlir::framework::Tensor <code class="sig-name descname">GetTensor</code><span class="sig-paren">(</span><em class="property">const</em> std::string &amp;<em>name</em><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N4cinn8frontend15CinnComputation9GetTensorERKNSt6stringE" title="Permalink to this definition"></a><br /></dt>
+<dd><p>get tensor by name <dl class="simple">
+<dt><strong>Parameters</strong></dt><dd><ul class="breatheparameterlist simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">name</span></code>: tensor name </p></li>
+</ul>
+</dd>
+</dl>
+</p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn8frontend15CinnComputation15GetInputTensorsEv">
+<span id="_CPPv3N4cinn8frontend15CinnComputation15GetInputTensorsEv"></span><span id="_CPPv2N4cinn8frontend15CinnComputation15GetInputTensorsEv"></span><span id="cinn::frontend::CinnComputation::GetInputTensors"></span><span class="target" id="classcinn_1_1frontend_1_1CinnComputation_1ad2bb23d066ccd113427cf5d3c9acc316"></span>std::vector&lt;hlir::framework::Tensor&gt; <code class="sig-name descname">GetInputTensors</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N4cinn8frontend15CinnComputation15GetInputTensorsEv" title="Permalink to this definition"></a><br /></dt>
+<dd><p>get input tensors </p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn8frontend15CinnComputation16GetOutputTensorsEv">
+<span id="_CPPv3N4cinn8frontend15CinnComputation16GetOutputTensorsEv"></span><span id="_CPPv2N4cinn8frontend15CinnComputation16GetOutputTensorsEv"></span><span id="cinn::frontend::CinnComputation::GetOutputTensors"></span><span class="target" id="classcinn_1_1frontend_1_1CinnComputation_1aae4e1135da8fbd9dca0b047a5c885b8a"></span>std::vector&lt;hlir::framework::Tensor&gt; <code class="sig-name descname">GetOutputTensors</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N4cinn8frontend15CinnComputation16GetOutputTensorsEv" title="Permalink to this definition"></a><br /></dt>
+<dd><p>get output tensors </p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn8frontend15CinnComputation13SetTensorDataERN4hlir9framework6TensorEPv6size_t">
+<span id="_CPPv3N4cinn8frontend15CinnComputation13SetTensorDataERN4hlir9framework6TensorEPv6size_t"></span><span id="_CPPv2N4cinn8frontend15CinnComputation13SetTensorDataERN4hlir9framework6TensorEPv6size_t"></span><span id="cinn::frontend::CinnComputation::SetTensorData__hlir::framework::TensorR.voidP.s"></span><span class="target" id="classcinn_1_1frontend_1_1CinnComputation_1af4d56b4da389cffae9d941f5be0ddd07"></span>void <code class="sig-name descname">SetTensorData</code><span class="sig-paren">(</span>hlir::framework::Tensor &amp;<em>t</em>, void *<em>data</em>, size_t <em>size</em><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N4cinn8frontend15CinnComputation13SetTensorDataERN4hlir9framework6TensorEPv6size_t" title="Permalink to this definition"></a><br /></dt>
+<dd><p>set the data of a tensor from user specified buffer. if tensor is in NVGPU device memory, cudaMemcpy is used. <dl class="simple">
+<dt><strong>Parameters</strong></dt><dd><ul class="breatheparameterlist simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">t</span></code>: the tensor </p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">data</span></code>: address of the memory buffer to store tensor’s data </p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">size</span></code>: size of the memory buffer </p></li>
+</ul>
+</dd>
+</dl>
+</p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn8frontend15CinnComputation13SetTensorDataERKNSt6stringEPv6size_t">
+<span id="_CPPv3N4cinn8frontend15CinnComputation13SetTensorDataERKNSt6stringEPv6size_t"></span><span id="_CPPv2N4cinn8frontend15CinnComputation13SetTensorDataERKNSt6stringEPv6size_t"></span><span id="cinn::frontend::CinnComputation::SetTensorData__ssCR.voidP.s"></span><span class="target" id="classcinn_1_1frontend_1_1CinnComputation_1a4524d9b4a36c7d1b9d1753c3b7ded118"></span>void <code class="sig-name descname">SetTensorData</code><span class="sig-paren">(</span><em class="property">const</em> std::string &amp;<em>tname</em>, void *<em>data</em>, size_t <em>size</em><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N4cinn8frontend15CinnComputation13SetTensorDataERKNSt6stringEPv6size_t" title="Permalink to this definition"></a><br /></dt>
+<dd><p>set the data of a tensor (specified by it’s name) from user specified buffer. if tensor is in NVGPU device memory, cudaMemcpy is used. <dl class="simple">
+<dt><strong>Parameters</strong></dt><dd><ul class="breatheparameterlist simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">tname</span></code>: name of the tensor </p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">data</span></code>: address of the memory buffer to store tensor’s data </p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">size</span></code>: size of the memory buffer </p></li>
+</ul>
+</dd>
+</dl>
+</p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn8frontend15CinnComputation13GetTensorDataERN4hlir9framework6TensorEPv6size_t">
+<span id="_CPPv3N4cinn8frontend15CinnComputation13GetTensorDataERN4hlir9framework6TensorEPv6size_t"></span><span id="_CPPv2N4cinn8frontend15CinnComputation13GetTensorDataERN4hlir9framework6TensorEPv6size_t"></span><span id="cinn::frontend::CinnComputation::GetTensorData__hlir::framework::TensorR.voidP.s"></span><span class="target" id="classcinn_1_1frontend_1_1CinnComputation_1ac6768b968969b5e68e625fd8fabaa7b9"></span>void <code class="sig-name descname">GetTensorData</code><span class="sig-paren">(</span>hlir::framework::Tensor &amp;<em>t</em>, void *<em>data</em>, size_t <em>size</em><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N4cinn8frontend15CinnComputation13GetTensorDataERN4hlir9framework6TensorEPv6size_t" title="Permalink to this definition"></a><br /></dt>
+<dd><p>copy the data of a tensor to user specified buffer. if tensor is in NVGPU device memory, cudaMemcpy is used. <dl class="simple">
+<dt><strong>Parameters</strong></dt><dd><ul class="breatheparameterlist simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">t</span></code>: the tensor </p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">data</span></code>: address of the memory buffer to store tensor’s data </p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">size</span></code>: size of the memory buffer </p></li>
+</ul>
+</dd>
+</dl>
+</p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn8frontend15CinnComputation13GetTensorDataERKNSt6stringEPv6size_t">
+<span id="_CPPv3N4cinn8frontend15CinnComputation13GetTensorDataERKNSt6stringEPv6size_t"></span><span id="_CPPv2N4cinn8frontend15CinnComputation13GetTensorDataERKNSt6stringEPv6size_t"></span><span id="cinn::frontend::CinnComputation::GetTensorData__ssCR.voidP.s"></span><span class="target" id="classcinn_1_1frontend_1_1CinnComputation_1a1c4934d7b856c924a80f8fd62034c752"></span>void <code class="sig-name descname">GetTensorData</code><span class="sig-paren">(</span><em class="property">const</em> std::string &amp;<em>tname</em>, void *<em>data</em>, size_t <em>size</em><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N4cinn8frontend15CinnComputation13GetTensorDataERKNSt6stringEPv6size_t" title="Permalink to this definition"></a><br /></dt>
+<dd><p>copy the data of a tensor (specified by it’s name) to user specified buffer. if tensor is in NVGPU device memory, cudaMemcpy is used. <dl class="simple">
+<dt><strong>Parameters</strong></dt><dd><ul class="breatheparameterlist simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">tname</span></code>: name of the tensor </p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">data</span></code>: address of the memory buffer to store tensor’s data </p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">size</span></code>: size of the memory buffer </p></li>
+</ul>
+</dd>
+</dl>
+</p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn8frontend15CinnComputation7ExecuteEPKNSt3mapINSt6stringE16cinn_pod_value_tEE">
+<span id="_CPPv3N4cinn8frontend15CinnComputation7ExecuteEPKNSt3mapINSt6stringE16cinn_pod_value_tEE"></span><span id="_CPPv2N4cinn8frontend15CinnComputation7ExecuteEPKNSt3mapINSt6stringE16cinn_pod_value_tEE"></span><span id="cinn::frontend::CinnComputation::Execute__std::map:ss.cinn_pod_value_t:CP"></span><span class="target" id="classcinn_1_1frontend_1_1CinnComputation_1a19420d42bfd716365c2593160d111f90"></span>void <code class="sig-name descname">Execute</code><span class="sig-paren">(</span><em class="property">const</em> std::map&lt;std::string, cinn_pod_value_t&gt; *<em>name2podargs</em> = nullptr<span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N4cinn8frontend15CinnComputation7ExecuteEPKNSt3mapINSt6stringE16cinn_pod_value_tEE" title="Permalink to this definition"></a><br /></dt>
+<dd><p>run the compiled program </p>
+</dd></dl>
+
+</div>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric">Public Static Functions</p>
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn8frontend15CinnComputation21DefaultCompileOptionsEv">
+<span id="_CPPv3N4cinn8frontend15CinnComputation21DefaultCompileOptionsEv"></span><span id="_CPPv2N4cinn8frontend15CinnComputation21DefaultCompileOptionsEv"></span><span id="cinn::frontend::CinnComputation::DefaultCompileOptions"></span><span class="target" id="classcinn_1_1frontend_1_1CinnComputation_1ac0d72f2680d36d14c7da705a62f0ba5e"></span><a class="reference internal" href="#_CPPv4N4cinn8frontend15CinnComputation14CompileOptionsE" title="cinn::frontend::CinnComputation::CompileOptions">CompileOptions</a> <code class="sig-name descname">DefaultCompileOptions</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N4cinn8frontend15CinnComputation21DefaultCompileOptionsEv" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn8frontend15CinnComputation15BuildAndCompileERK6TargetR11BaseBuilderRK14CompileOptionsRKNSt6vectorI8VariableEEPv">
+<span id="_CPPv3N4cinn8frontend15CinnComputation15BuildAndCompileERK6TargetR11BaseBuilderRK14CompileOptionsRKNSt6vectorI8VariableEEPv"></span><span id="_CPPv2N4cinn8frontend15CinnComputation15BuildAndCompileERK6TargetR11BaseBuilderRK14CompileOptionsRKNSt6vectorI8VariableEEPv"></span><span id="cinn::frontend::CinnComputation::BuildAndCompile__TargetCR.BaseBuilderR.CompileOptionsCR.std::vector:Variable:CR.voidP"></span><span class="target" id="classcinn_1_1frontend_1_1CinnComputation_1a2f7c25e3c401890f7bfe23f4c6db92cd"></span>std::shared_ptr&lt;<a class="reference internal" href="#_CPPv4N4cinn8frontend15CinnComputationE" title="cinn::frontend::CinnComputation">CinnComputation</a>&gt; <code class="sig-name descname">BuildAndCompile</code><span class="sig-paren">(</span><em class="property">const</em> Target &amp;<em>target</em>, <a class="reference internal" href="classcinn_1_1frontend_1_1BaseBuilder.html#_CPPv4N4cinn8frontend11BaseBuilderE" title="cinn::frontend::BaseBuilder">BaseBuilder</a> &amp;<em>builder</em>, <em class="property">const</em> <a class="reference internal" href="#_CPPv4N4cinn8frontend15CinnComputation14CompileOptionsE" title="cinn::frontend::CinnComputation::CompileOptions">CompileOptions</a> &amp;<em>options</em> = <a class="reference internal" href="#_CPPv4N4cinn8frontend15CinnComputation21DefaultCompileOptionsEv" title="cinn::frontend::CinnComputation::DefaultCompileOptions">DefaultCompileOptions</a>(), <em class="property">const</em> std::vector&lt;<a class="reference internal" href="structcinn_1_1frontend_1_1Variable.html#_CPPv4N4cinn8frontend8VariableE" title="cinn::frontend::Variable">Variable</a>&gt; &amp;<em>outputs</em> = {}, void *<em>stream</em> = nullptr<span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N4cinn8frontend15CinnComputation15BuildAndCompileERK6TargetR11BaseBuilderRK14CompileOptionsRKNSt6vectorI8VariableEEPv" title="Permalink to this definition"></a><br /></dt>
+<dd><p>build program from <a class="reference internal" href="classcinn_1_1frontend_1_1BaseBuilder.html#classcinn_1_1frontend_1_1BaseBuilder"><span class="std std-ref">BaseBuilder</span></a>, then compile it. <a class="reference internal" href="classcinn_1_1frontend_1_1BaseBuilder.html#classcinn_1_1frontend_1_1BaseBuilder"><span class="std std-ref">BaseBuilder</span></a> is normally <a class="reference internal" href="classcinn_1_1frontend_1_1NetBuilder.html#classcinn_1_1frontend_1_1NetBuilder"><span class="std std-ref">NetBuilder</span></a> or CINNBuilder. <dl class="simple">
+<dt><strong>Return</strong></dt><dd><p>shared_ptr pointing to <a class="reference internal" href="#classcinn_1_1frontend_1_1CinnComputation"><span class="std std-ref">CinnComputation</span></a> instance </p>
+</dd>
+<dt><strong>Parameters</strong></dt><dd><ul class="breatheparameterlist simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">target</span></code>: the target to run the program </p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">builder</span></code>: program builder (<a class="reference internal" href="classcinn_1_1frontend_1_1NetBuilder.html#classcinn_1_1frontend_1_1NetBuilder"><span class="std std-ref">NetBuilder</span></a> or CINNBuilder) </p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">options</span></code>: <a class="reference internal" href="structcinn_1_1frontend_1_1CinnComputation_1_1CompileOptions.html#structcinn_1_1frontend_1_1CinnComputation_1_1CompileOptions"><span class="std std-ref">CompileOptions</span></a>, config the compilation steps </p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">outputs</span></code>: program output variables, if outputs is empty, then the output variable of the last instruction of the program is used </p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">stream</span></code>: CUDA stream, the value is meaningful only when target is NVGPU </p></li>
+</ul>
+</dd>
+</dl>
+</p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn8frontend15CinnComputation7CompileERK6TargetR7ProgramRK14CompileOptionsRKNSt6vectorI8VariableEEPv">
+<span id="_CPPv3N4cinn8frontend15CinnComputation7CompileERK6TargetR7ProgramRK14CompileOptionsRKNSt6vectorI8VariableEEPv"></span><span id="_CPPv2N4cinn8frontend15CinnComputation7CompileERK6TargetR7ProgramRK14CompileOptionsRKNSt6vectorI8VariableEEPv"></span><span id="cinn::frontend::CinnComputation::Compile__TargetCR.ProgramR.CompileOptionsCR.std::vector:Variable:CR.voidP"></span><span class="target" id="classcinn_1_1frontend_1_1CinnComputation_1ac7fae0a8fb676bc5f272b121f161f0c6"></span>std::shared_ptr&lt;<a class="reference internal" href="#_CPPv4N4cinn8frontend15CinnComputationE" title="cinn::frontend::CinnComputation">CinnComputation</a>&gt; <code class="sig-name descname">Compile</code><span class="sig-paren">(</span><em class="property">const</em> Target &amp;<em>target</em>, <a class="reference internal" href="structcinn_1_1frontend_1_1Program.html#_CPPv4N4cinn8frontend7ProgramE" title="cinn::frontend::Program">Program</a> &amp;<em>program</em>, <em class="property">const</em> <a class="reference internal" href="#_CPPv4N4cinn8frontend15CinnComputation14CompileOptionsE" title="cinn::frontend::CinnComputation::CompileOptions">CompileOptions</a> &amp;<em>options</em> = <a class="reference internal" href="#_CPPv4N4cinn8frontend15CinnComputation21DefaultCompileOptionsEv" title="cinn::frontend::CinnComputation::DefaultCompileOptions">DefaultCompileOptions</a>(), <em class="property">const</em> std::vector&lt;<a class="reference internal" href="structcinn_1_1frontend_1_1Variable.html#_CPPv4N4cinn8frontend8VariableE" title="cinn::frontend::Variable">Variable</a>&gt; &amp;<em>outputs</em> = {}, void *<em>stream</em> = nullptr<span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N4cinn8frontend15CinnComputation7CompileERK6TargetR7ProgramRK14CompileOptionsRKNSt6vectorI8VariableEEPv" title="Permalink to this definition"></a><br /></dt>
+<dd><p>compile the program <dl class="simple">
+<dt><strong>Return</strong></dt><dd><p>shared_ptr pointing to <a class="reference internal" href="#classcinn_1_1frontend_1_1CinnComputation"><span class="std std-ref">CinnComputation</span></a> instance </p>
+</dd>
+<dt><strong>Parameters</strong></dt><dd><ul class="breatheparameterlist simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">target</span></code>: the target to run the program </p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">program</span></code>: program (usually generated by a Builder, or converted from Paddle model) </p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">options</span></code>: <a class="reference internal" href="structcinn_1_1frontend_1_1CinnComputation_1_1CompileOptions.html#structcinn_1_1frontend_1_1CinnComputation_1_1CompileOptions"><span class="std std-ref">CompileOptions</span></a>, config the compilation steps </p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">outputs</span></code>: program output variables, if outputs is empty, then the output variable of the last instruction of the program is used </p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">stream</span></code>: CUDA stream, the value is meaningful only when target is NVGpu </p></li>
+</ul>
+</dd>
+</dl>
+</p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn8frontend15CinnComputation18CompilePaddleModelERK6TargetRKNSt6stringERKNSt6vectorINSt6stringEEERKNSt6vectorIN4hlir9framework7shape_tEEEbRK14CompileOptionsPv">
+<span id="_CPPv3N4cinn8frontend15CinnComputation18CompilePaddleModelERK6TargetRKNSt6stringERKNSt6vectorINSt6stringEEERKNSt6vectorIN4hlir9framework7shape_tEEEbRK14CompileOptionsPv"></span><span id="_CPPv2N4cinn8frontend15CinnComputation18CompilePaddleModelERK6TargetRKNSt6stringERKNSt6vectorINSt6stringEEERKNSt6vectorIN4hlir9framework7shape_tEEEbRK14CompileOptionsPv"></span><span id="cinn::frontend::CinnComputation::CompilePaddleModel__TargetCR.ssCR.std::vector:ss:CR.std::vector:hlir::framework::shape_t:CR.b.CompileOptionsCR.voidP"></span><span class="target" id="classcinn_1_1frontend_1_1CinnComputation_1aabb5e4b6d52b1f1f03ea06fa77a7e340"></span>std::shared_ptr&lt;<a class="reference internal" href="#_CPPv4N4cinn8frontend15CinnComputationE" title="cinn::frontend::CinnComputation">CinnComputation</a>&gt; <code class="sig-name descname">CompilePaddleModel</code><span class="sig-paren">(</span><em class="property">const</em> Target &amp;<em>target</em>, <em class="property">const</em> std::string &amp;<em>model_path</em>, <em class="property">const</em> std::vector&lt;std::string&gt; &amp;<em>input_names</em>, <em class="property">const</em> std::vector&lt;hlir::framework::shape_t&gt; &amp;<em>input_shapes</em>, bool <em>params_combined</em>, <em class="property">const</em> <a class="reference internal" href="#_CPPv4N4cinn8frontend15CinnComputation14CompileOptionsE" title="cinn::frontend::CinnComputation::CompileOptions">CompileOptions</a> &amp;<em>options</em> = <a class="reference internal" href="#_CPPv4N4cinn8frontend15CinnComputation21DefaultCompileOptionsEv" title="cinn::frontend::CinnComputation::DefaultCompileOptions">DefaultCompileOptions</a>(), void *<em>stream</em> = nullptr<span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N4cinn8frontend15CinnComputation18CompilePaddleModelERK6TargetRKNSt6stringERKNSt6vectorINSt6stringEEERKNSt6vectorIN4hlir9framework7shape_tEEEbRK14CompileOptionsPv" title="Permalink to this definition"></a><br /></dt>
+<dd><p>convert a paddle model to program, then compile it. <dl class="simple">
+<dt><strong>Return</strong></dt><dd><p>shared_ptr pointing to <a class="reference internal" href="#classcinn_1_1frontend_1_1CinnComputation"><span class="std std-ref">CinnComputation</span></a> instance </p>
+</dd>
+<dt><strong>Parameters</strong></dt><dd><ul class="breatheparameterlist simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">target</span></code>: the target to run the program </p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">model_path</span></code>: the path of the paddle model </p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">input_names</span></code>: input variable names of paddle model </p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">input_shapes</span></code>: input variable shapes of paddle model </p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">params_combined</span></code>: whether params are stored combined </p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">options</span></code>: <a class="reference internal" href="structcinn_1_1frontend_1_1CinnComputation_1_1CompileOptions.html#structcinn_1_1frontend_1_1CinnComputation_1_1CompileOptions"><span class="std std-ref">CompileOptions</span></a>, config the compilation steps </p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">stream</span></code>: CUDA stream, the value is meaningful only when target is NVGpu </p></li>
+</ul>
+</dd>
+</dl>
+</p>
+</dd></dl>
+
+</div>
+<dl class="cpp struct">
+<dt id="_CPPv4N4cinn8frontend15CinnComputation14CompileOptionsE">
+<span id="_CPPv3N4cinn8frontend15CinnComputation14CompileOptionsE"></span><span id="_CPPv2N4cinn8frontend15CinnComputation14CompileOptionsE"></span><span id="cinn::frontend::CinnComputation::CompileOptions"></span><span class="target" id="structcinn_1_1frontend_1_1CinnComputation_1_1CompileOptions"></span><em class="property">struct </em><code class="sig-name descname">CompileOptions</code> : <em class="property">public</em> <a class="reference internal" href="#_CPPv4N4cinn8frontend15CinnComputation14CompileOptionsE" title="cinn::frontend::CinnComputation::CompileOptions">CompileOptions</a><a class="headerlink" href="#_CPPv4N4cinn8frontend15CinnComputation14CompileOptionsE" title="Permalink to this definition"></a><br /></dt>
+<dd><div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric">Public Members</p>
+<dl class="cpp var">
+<dt id="_CPPv4N4cinn8frontend15CinnComputation14CompileOptions14use_decomposerE">
+<span id="_CPPv3N4cinn8frontend15CinnComputation14CompileOptions14use_decomposerE"></span><span id="_CPPv2N4cinn8frontend15CinnComputation14CompileOptions14use_decomposerE"></span><span id="cinn::frontend::CinnComputation::CompileOptions::use_decomposer__b"></span><span class="target" id="structcinn_1_1frontend_1_1CinnComputation_1_1CompileOptions_1a6d13d54741eea79a485bdefa189b17c4"></span>bool <code class="sig-name descname">use_decomposer</code> = false<a class="headerlink" href="#_CPPv4N4cinn8frontend15CinnComputation14CompileOptions14use_decomposerE" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt id="_CPPv4N4cinn8frontend15CinnComputation14CompileOptions9do_prerunE">
+<span id="_CPPv3N4cinn8frontend15CinnComputation14CompileOptions9do_prerunE"></span><span id="_CPPv2N4cinn8frontend15CinnComputation14CompileOptions9do_prerunE"></span><span id="cinn::frontend::CinnComputation::CompileOptions::do_prerun__b"></span><span class="target" id="structcinn_1_1frontend_1_1CinnComputation_1_1CompileOptions_1a7919e20d73618519108ee3d13507cb56"></span>bool <code class="sig-name descname">do_prerun</code> = true<a class="headerlink" href="#_CPPv4N4cinn8frontend15CinnComputation14CompileOptions9do_prerunE" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt id="_CPPv4N4cinn8frontend15CinnComputation14CompileOptions18use_default_passesE">
+<span id="_CPPv3N4cinn8frontend15CinnComputation14CompileOptions18use_default_passesE"></span><span id="_CPPv2N4cinn8frontend15CinnComputation14CompileOptions18use_default_passesE"></span><span id="cinn::frontend::CinnComputation::CompileOptions::use_default_passes__b"></span><span class="target" id="structcinn_1_1frontend_1_1CinnComputation_1_1CompileOptions_1a145ba12e78abcff8cea82d50897ba2f0"></span>bool <code class="sig-name descname">use_default_passes</code> = true<a class="headerlink" href="#_CPPv4N4cinn8frontend15CinnComputation14CompileOptions18use_default_passesE" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt id="_CPPv4N4cinn8frontend15CinnComputation14CompileOptions6passesE">
+<span id="_CPPv3N4cinn8frontend15CinnComputation14CompileOptions6passesE"></span><span id="_CPPv2N4cinn8frontend15CinnComputation14CompileOptions6passesE"></span><span id="cinn::frontend::CinnComputation::CompileOptions::passes__std::vector:ss:"></span><span class="target" id="structcinn_1_1frontend_1_1CinnComputation_1_1CompileOptions_1ae53cfb9f4097ca48775db04c67af6bd3"></span>std::vector&lt;std::string&gt; <code class="sig-name descname">passes</code><a class="headerlink" href="#_CPPv4N4cinn8frontend15CinnComputation14CompileOptions6passesE" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+</div>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="classcinn_1_1frontend_1_1CinnBuilder.html" class="btn btn-neutral float-left" title="Class CinnBuilder" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="classcinn_1_1frontend_1_1Decomposer.html" class="btn btn-neutral float-right" title="Class Decomposer" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, cinn team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

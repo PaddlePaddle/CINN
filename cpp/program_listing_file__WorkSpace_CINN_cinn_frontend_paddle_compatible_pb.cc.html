@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Program Listing for File compatible_pb.cc &mdash; cinn release/v0.1-rc documentation</title><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery-binder.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery-dataframe.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/collapsible-lists/css/tree_view.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
+        <script src="../_static/collapsible-lists/js/CollapsibleLists.compressed.js"></script>
+        <script src="../_static/collapsible-lists/js/apply-collapsible-lists.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> cinn
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../install.html">Build from source code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../guide.html">Install CINN using docker</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/index.html">Tutorials</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../matmul.html">C++ DSL API tutorial: Matrix Multiplication</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../load_paddle_model.html">Load and Execute Paddle Model in C++</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cinn_builder_api.html">CinnBuilder Primitive Semantics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="library_root.html">C++ Symbols</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">cinn</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Program Listing for File compatible_pb.cc</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/cpp/program_listing_file__WorkSpace_CINN_cinn_frontend_paddle_compatible_pb.cc.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="program-listing-for-file-compatible-pb-cc">
+<span id="program-listing-file-workspace-cinn-cinn-frontend-paddle-compatible-pb-cc"></span><h1>Program Listing for File compatible_pb.cc<a class="headerlink" href="#program-listing-for-file-compatible-pb-cc" title="Permalink to this headline"></a></h1>
+<p>↰ <a class="reference internal" href="file__WorkSpace_CINN_cinn_frontend_paddle_compatible_pb.cc.html#file-workspace-cinn-cinn-frontend-paddle-compatible-pb-cc"><span class="std std-ref">Return to documentation for file</span></a> (<code class="docutils literal notranslate"><span class="pre">/WorkSpace/CINN/cinn/frontend/paddle/compatible_pb.cc</span></code>)</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="c1">// Copyright (c) 2021 CINN Authors. All Rights Reserved.</span>
+<span class="c1">//</span>
+<span class="c1">// Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1">// you may not use this file except in compliance with the License.</span>
+<span class="c1">// You may obtain a copy of the License at</span>
+<span class="c1">//</span>
+<span class="c1">//     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">//</span>
+<span class="c1">// Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1">// distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1">// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1">// See the License for the specific language governing permissions and</span>
+<span class="c1">// limitations under the License.</span>
+
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;cinn/frontend/paddle/compatible_pb.h&quot;</span><span class="cp"></span>
+
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;string&gt;</span><span class="cp"></span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;vector&gt;</span><span class="cp"></span>
+
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;cinn/frontend/paddle/pb/block_desc.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;cinn/frontend/paddle/pb/op_desc.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;cinn/frontend/paddle/pb/program_desc.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;cinn/frontend/paddle/pb/var_desc.h&quot;</span><span class="cp"></span>
+
+<span class="k">namespace</span><span class="w"> </span><span class="nn">cinn</span><span class="o">::</span><span class="nn">frontend</span><span class="o">::</span><span class="nn">paddle</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="k">namespace</span><span class="w"> </span><span class="nn">framework_proto</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">::</span><span class="nn">paddle</span><span class="o">::</span><span class="nn">framework</span><span class="o">::</span><span class="nn">proto</span><span class="p">;</span><span class="w"></span>
+
+<span class="cp">#define TRANS_VAR_ANY_WITH_CPP_IMPL(T)                                          \</span>
+<span class="cp">  template &lt;&gt;                                                                   \</span>
+<span class="cp">  void TransformVarDescCppToAny&lt;T&gt;(const cpp::VarDesc &amp;cpp_desc, T *any_desc) { \</span>
+<span class="cp">    any_desc-&gt;SetName(cpp_desc.Name());                                         \</span>
+<span class="cp">    any_desc-&gt;SetType(cpp_desc.GetType());                                      \</span>
+<span class="cp">    any_desc-&gt;SetPersistable(cpp_desc.Persistable());                           \</span>
+<span class="cp">    if (cpp_desc.Name() != &quot;feed&quot; &amp;&amp; cpp_desc.Name() != &quot;fetch&quot;) {              \</span>
+<span class="cp">      any_desc-&gt;SetShape(cpp_desc.GetShape());                                  \</span>
+<span class="cp">      any_desc-&gt;SetDataType(cpp_desc.GetDataType());                            \</span>
+<span class="cp">    }                                                                           \</span>
+<span class="cp">  }</span>
+
+<span class="k">template</span><span class="w"> </span><span class="o">&lt;&gt;</span><span class="w"></span>
+<span class="kt">void</span><span class="w"> </span><span class="n">TransformVarDescAnyToCpp</span><span class="o">&lt;</span><span class="n">pb</span><span class="o">::</span><span class="n">VarDesc</span><span class="o">&gt;</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">pb</span><span class="o">::</span><span class="n">VarDesc</span><span class="w"> </span><span class="o">&amp;</span><span class="n">any_desc</span><span class="p">,</span><span class="w"> </span><span class="n">cpp</span><span class="o">::</span><span class="n">VarDesc</span><span class="w"> </span><span class="o">*</span><span class="n">cpp_desc</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="n">cpp_desc</span><span class="o">-&gt;</span><span class="n">SetName</span><span class="p">(</span><span class="n">any_desc</span><span class="p">.</span><span class="n">Name</span><span class="p">());</span><span class="w"></span>
+<span class="w">  </span><span class="n">cpp_desc</span><span class="o">-&gt;</span><span class="n">SetType</span><span class="p">(</span><span class="n">any_desc</span><span class="p">.</span><span class="n">GetType</span><span class="p">());</span><span class="w"></span>
+<span class="w">  </span><span class="n">cpp_desc</span><span class="o">-&gt;</span><span class="n">SetPersistable</span><span class="p">(</span><span class="n">any_desc</span><span class="p">.</span><span class="n">Persistable</span><span class="p">());</span><span class="w"></span>
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">any_desc</span><span class="p">.</span><span class="n">Name</span><span class="p">()</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="s">&quot;feed&quot;</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">any_desc</span><span class="p">.</span><span class="n">Name</span><span class="p">()</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="s">&quot;fetch&quot;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">cpp_desc</span><span class="o">-&gt;</span><span class="n">SetDataType</span><span class="p">(</span><span class="n">any_desc</span><span class="p">.</span><span class="n">GetDataType</span><span class="p">());</span><span class="w"></span>
+<span class="w">    </span><span class="n">cpp_desc</span><span class="o">-&gt;</span><span class="n">SetShape</span><span class="p">(</span><span class="n">any_desc</span><span class="p">.</span><span class="n">GetShape</span><span class="p">());</span><span class="w"></span>
+<span class="w">  </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="k">template</span><span class="w"> </span><span class="o">&lt;</span><span class="k">typename</span> <span class="nc">OpDescType</span><span class="o">&gt;</span><span class="w"></span>
+<span class="kt">void</span><span class="w"> </span><span class="n">OpInputsAnyToCpp</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">OpDescType</span><span class="w"> </span><span class="o">&amp;</span><span class="n">any_desc</span><span class="p">,</span><span class="w"> </span><span class="n">cpp</span><span class="o">::</span><span class="n">OpDesc</span><span class="w"> </span><span class="o">*</span><span class="n">cpp_desc</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="o">&amp;</span><span class="nl">param</span> <span class="p">:</span><span class="w"> </span><span class="n">any_desc</span><span class="p">.</span><span class="n">InputArgumentNames</span><span class="p">())</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">cpp_desc</span><span class="o">-&gt;</span><span class="n">SetInput</span><span class="p">(</span><span class="n">param</span><span class="p">,</span><span class="w"> </span><span class="n">any_desc</span><span class="p">.</span><span class="n">Input</span><span class="p">(</span><span class="n">param</span><span class="p">));</span><span class="w"></span>
+<span class="w">  </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="k">template</span><span class="w"> </span><span class="o">&lt;</span><span class="k">typename</span> <span class="nc">OpDescType</span><span class="o">&gt;</span><span class="w"></span>
+<span class="kt">void</span><span class="w"> </span><span class="n">OpInputsCppToAny</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">cpp</span><span class="o">::</span><span class="n">OpDesc</span><span class="w"> </span><span class="o">&amp;</span><span class="n">cpp_desc</span><span class="p">,</span><span class="w"> </span><span class="n">OpDescType</span><span class="w"> </span><span class="o">*</span><span class="n">any_desc</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="o">&amp;</span><span class="nl">param</span> <span class="p">:</span><span class="w"> </span><span class="n">cpp_desc</span><span class="p">.</span><span class="n">InputArgumentNames</span><span class="p">())</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">any_desc</span><span class="o">-&gt;</span><span class="n">SetInput</span><span class="p">(</span><span class="n">param</span><span class="p">,</span><span class="w"> </span><span class="n">cpp_desc</span><span class="p">.</span><span class="n">Input</span><span class="p">(</span><span class="n">param</span><span class="p">));</span><span class="w"></span>
+<span class="w">  </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="k">template</span><span class="w"> </span><span class="o">&lt;</span><span class="k">typename</span> <span class="nc">OpDescType</span><span class="o">&gt;</span><span class="w"></span>
+<span class="kt">void</span><span class="w"> </span><span class="n">OpOutputsAnyToCpp</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">OpDescType</span><span class="w"> </span><span class="o">&amp;</span><span class="n">any_desc</span><span class="p">,</span><span class="w"> </span><span class="n">cpp</span><span class="o">::</span><span class="n">OpDesc</span><span class="w"> </span><span class="o">*</span><span class="n">cpp_desc</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="o">&amp;</span><span class="nl">param</span> <span class="p">:</span><span class="w"> </span><span class="n">any_desc</span><span class="p">.</span><span class="n">OutputArgumentNames</span><span class="p">())</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">cpp_desc</span><span class="o">-&gt;</span><span class="n">SetOutput</span><span class="p">(</span><span class="n">param</span><span class="p">,</span><span class="w"> </span><span class="n">any_desc</span><span class="p">.</span><span class="n">Output</span><span class="p">(</span><span class="n">param</span><span class="p">));</span><span class="w"></span>
+<span class="w">  </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="k">template</span><span class="w"> </span><span class="o">&lt;</span><span class="k">typename</span> <span class="nc">OpDescType</span><span class="o">&gt;</span><span class="w"></span>
+<span class="kt">void</span><span class="w"> </span><span class="n">OpOutputsCppToAny</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">cpp</span><span class="o">::</span><span class="n">OpDesc</span><span class="w"> </span><span class="o">&amp;</span><span class="n">cpp_desc</span><span class="p">,</span><span class="w"> </span><span class="n">OpDescType</span><span class="w"> </span><span class="o">*</span><span class="n">any_desc</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="o">&amp;</span><span class="nl">param</span> <span class="p">:</span><span class="w"> </span><span class="n">cpp_desc</span><span class="p">.</span><span class="n">OutputArgumentNames</span><span class="p">())</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">any_desc</span><span class="o">-&gt;</span><span class="n">SetOutput</span><span class="p">(</span><span class="n">param</span><span class="p">,</span><span class="w"> </span><span class="n">cpp_desc</span><span class="p">.</span><span class="n">Output</span><span class="p">(</span><span class="n">param</span><span class="p">));</span><span class="w"></span>
+<span class="w">  </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="k">template</span><span class="w"> </span><span class="o">&lt;</span><span class="k">typename</span> <span class="nc">OpDescType</span><span class="o">&gt;</span><span class="w"></span>
+<span class="kt">void</span><span class="w"> </span><span class="n">OpAttrsAnyToCpp</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">OpDescType</span><span class="w"> </span><span class="o">&amp;</span><span class="n">any_desc</span><span class="p">,</span><span class="w"> </span><span class="n">cpp</span><span class="o">::</span><span class="n">OpDesc</span><span class="w"> </span><span class="o">*</span><span class="n">cpp_desc</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="k">using</span><span class="w"> </span><span class="n">AttrType</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cpp</span><span class="o">::</span><span class="n">OpDescAPI</span><span class="o">::</span><span class="n">AttrType</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="k">auto</span><span class="w"> </span><span class="n">set_attr</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="o">&amp;</span><span class="p">](</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="o">&amp;</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">AttrType</span><span class="w"> </span><span class="n">type</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">type</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">      </span><span class="k">case</span><span class="w"> </span><span class="n">AttrType</span><span class="o">::</span><span class="nl">INT</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="n">cpp_desc</span><span class="o">-&gt;</span><span class="n">SetAttr</span><span class="o">&lt;</span><span class="kt">int32_t</span><span class="o">&gt;</span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">any_desc</span><span class="p">.</span><span class="k">template</span><span class="w"> </span><span class="n">GetAttr</span><span class="o">&lt;</span><span class="kt">int32_t</span><span class="o">&gt;</span><span class="p">(</span><span class="n">name</span><span class="p">));</span><span class="w"></span>
+<span class="w">        </span><span class="k">break</span><span class="p">;</span><span class="w"></span>
+<span class="w">      </span><span class="k">case</span><span class="w"> </span><span class="n">AttrType</span><span class="o">::</span><span class="nl">FLOAT</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="n">cpp_desc</span><span class="o">-&gt;</span><span class="n">SetAttr</span><span class="o">&lt;</span><span class="kt">float</span><span class="o">&gt;</span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">any_desc</span><span class="p">.</span><span class="k">template</span><span class="w"> </span><span class="n">GetAttr</span><span class="o">&lt;</span><span class="kt">float</span><span class="o">&gt;</span><span class="p">(</span><span class="n">name</span><span class="p">));</span><span class="w"></span>
+<span class="w">        </span><span class="k">break</span><span class="p">;</span><span class="w"></span>
+<span class="w">      </span><span class="k">case</span><span class="w"> </span><span class="n">AttrType</span><span class="o">::</span><span class="nl">STRING</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="n">cpp_desc</span><span class="o">-&gt;</span><span class="n">SetAttr</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&gt;</span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">any_desc</span><span class="p">.</span><span class="k">template</span><span class="w"> </span><span class="n">GetAttr</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&gt;</span><span class="p">(</span><span class="n">name</span><span class="p">));</span><span class="w"></span>
+<span class="w">        </span><span class="k">break</span><span class="p">;</span><span class="w"></span>
+<span class="w">      </span><span class="k">case</span><span class="w"> </span><span class="n">AttrType</span><span class="o">::</span><span class="nl">LONG</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="n">cpp_desc</span><span class="o">-&gt;</span><span class="n">SetAttr</span><span class="o">&lt;</span><span class="kt">int64_t</span><span class="o">&gt;</span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">any_desc</span><span class="p">.</span><span class="k">template</span><span class="w"> </span><span class="n">GetAttr</span><span class="o">&lt;</span><span class="kt">int64_t</span><span class="o">&gt;</span><span class="p">(</span><span class="n">name</span><span class="p">));</span><span class="w"></span>
+<span class="w">        </span><span class="k">break</span><span class="p">;</span><span class="w"></span>
+<span class="w">      </span><span class="k">case</span><span class="w"> </span><span class="n">AttrType</span><span class="o">::</span><span class="nl">INTS</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="n">cpp_desc</span><span class="o">-&gt;</span><span class="n">SetAttr</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;&gt;</span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">any_desc</span><span class="p">.</span><span class="k">template</span><span class="w"> </span><span class="n">GetAttr</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;&gt;</span><span class="p">(</span><span class="n">name</span><span class="p">));</span><span class="w"></span>
+<span class="w">        </span><span class="k">break</span><span class="p">;</span><span class="w"></span>
+<span class="w">      </span><span class="k">case</span><span class="w"> </span><span class="n">AttrType</span><span class="o">::</span><span class="nl">FLOATS</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="n">cpp_desc</span><span class="o">-&gt;</span><span class="n">SetAttr</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">float</span><span class="o">&gt;&gt;</span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">any_desc</span><span class="p">.</span><span class="k">template</span><span class="w"> </span><span class="n">GetAttr</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">float</span><span class="o">&gt;&gt;</span><span class="p">(</span><span class="n">name</span><span class="p">));</span><span class="w"></span>
+<span class="w">        </span><span class="k">break</span><span class="p">;</span><span class="w"></span>
+<span class="w">      </span><span class="k">case</span><span class="w"> </span><span class="n">AttrType</span><span class="o">::</span><span class="nl">BOOLEAN</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="n">cpp_desc</span><span class="o">-&gt;</span><span class="n">SetAttr</span><span class="o">&lt;</span><span class="kt">bool</span><span class="o">&gt;</span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">any_desc</span><span class="p">.</span><span class="k">template</span><span class="w"> </span><span class="n">GetAttr</span><span class="o">&lt;</span><span class="kt">bool</span><span class="o">&gt;</span><span class="p">(</span><span class="n">name</span><span class="p">));</span><span class="w"></span>
+<span class="w">        </span><span class="k">break</span><span class="p">;</span><span class="w"></span>
+<span class="w">      </span><span class="k">case</span><span class="w"> </span><span class="n">AttrType</span><span class="o">::</span><span class="nl">STRINGS</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="n">cpp_desc</span><span class="o">-&gt;</span><span class="n">SetAttr</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&gt;&gt;</span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">any_desc</span><span class="p">.</span><span class="k">template</span><span class="w"> </span><span class="n">GetAttr</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&gt;&gt;</span><span class="p">(</span><span class="n">name</span><span class="p">));</span><span class="w"></span>
+<span class="w">        </span><span class="k">break</span><span class="p">;</span><span class="w"></span>
+<span class="w">      </span><span class="k">case</span><span class="w"> </span><span class="n">AttrType</span><span class="o">::</span><span class="nl">LONGS</span><span class="p">:</span><span class="w"></span>
+<span class="w">        </span><span class="n">cpp_desc</span><span class="o">-&gt;</span><span class="n">SetAttr</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int64_t</span><span class="o">&gt;&gt;</span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">any_desc</span><span class="p">.</span><span class="k">template</span><span class="w"> </span><span class="n">GetAttr</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int64_t</span><span class="o">&gt;&gt;</span><span class="p">(</span><span class="n">name</span><span class="p">));</span><span class="w"></span>
+<span class="w">        </span><span class="k">break</span><span class="p">;</span><span class="w"></span>
+<span class="w">      </span><span class="k">case</span><span class="w"> </span><span class="n">AttrType</span><span class="o">::</span><span class="nl">BLOCK</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="k">auto</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">any_desc</span><span class="p">.</span><span class="k">template</span><span class="w"> </span><span class="n">GetAttr</span><span class="o">&lt;</span><span class="kt">int16_t</span><span class="o">&gt;</span><span class="p">(</span><span class="n">name</span><span class="p">);</span><span class="w"></span>
+<span class="w">        </span><span class="n">cpp_desc</span><span class="o">-&gt;</span><span class="n">SetAttr</span><span class="o">&lt;</span><span class="kt">int32_t</span><span class="o">&gt;</span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">i</span><span class="p">);</span><span class="w"></span>
+<span class="w">        </span><span class="c1">// naive_buffer::BlockDesc* sub_block = any_desc.template</span>
+<span class="w">        </span><span class="c1">// GetAttr&lt;naive_buffer::BlockDesc*&gt;(name);</span>
+<span class="w">        </span><span class="c1">// LOG(INFO) &lt;&lt; sub_block-&gt;OpsSize();</span>
+<span class="w">        </span><span class="k">break</span><span class="p">;</span><span class="w"></span>
+<span class="w">      </span><span class="p">}</span><span class="w"></span>
+<span class="w">      </span><span class="k">default</span><span class="o">:</span><span class="w"></span>
+<span class="w">        </span><span class="n">LOG</span><span class="p">(</span><span class="n">FATAL</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;Unsupported attr type found &quot;</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="p">(</span><span class="n">type</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="w">  </span><span class="p">};</span><span class="w"></span>
+
+<span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="k">auto</span><span class="w"> </span><span class="o">&amp;</span><span class="nl">attr_name</span> <span class="p">:</span><span class="w"> </span><span class="n">any_desc</span><span class="p">.</span><span class="n">AttrNames</span><span class="p">())</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">any_desc</span><span class="p">.</span><span class="n">GetAttrType</span><span class="p">(</span><span class="n">attr_name</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">set_attr</span><span class="p">(</span><span class="n">attr_name</span><span class="p">,</span><span class="w"> </span><span class="n">type</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="k">template</span><span class="w"> </span><span class="o">&lt;</span><span class="k">typename</span> <span class="nc">OpDescType</span><span class="o">&gt;</span><span class="w"></span>
+<span class="kt">void</span><span class="w"> </span><span class="n">OpAttrsCppToAny</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">cpp</span><span class="o">::</span><span class="n">OpDesc</span><span class="w"> </span><span class="o">&amp;</span><span class="n">cpp_desc</span><span class="p">,</span><span class="w"> </span><span class="n">OpDescType</span><span class="w"> </span><span class="o">*</span><span class="n">any_desc</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="k">using</span><span class="w"> </span><span class="n">AttrType</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cpp</span><span class="o">::</span><span class="n">OpDescAPI</span><span class="o">::</span><span class="n">AttrType</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="k">auto</span><span class="w"> </span><span class="n">set_attr</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="o">&amp;</span><span class="p">](</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="o">&amp;</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">AttrType</span><span class="w"> </span><span class="n">type</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">type</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="cp">#define IMPL_ONE(type__, T)                                         \</span>
+<span class="cp">  case AttrType::type__:                                            \</span>
+<span class="cp">    any_desc-&gt;template SetAttr&lt;T&gt;(name, cpp_desc.GetAttr&lt;T&gt;(name)); \</span>
+<span class="cp">    break;</span>
+<span class="w">      </span><span class="n">IMPL_ONE</span><span class="p">(</span><span class="n">INT</span><span class="p">,</span><span class="w"> </span><span class="kt">int32_t</span><span class="p">);</span><span class="w"></span>
+<span class="w">      </span><span class="n">IMPL_ONE</span><span class="p">(</span><span class="n">FLOAT</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="p">);</span><span class="w"></span>
+<span class="w">      </span><span class="n">IMPL_ONE</span><span class="p">(</span><span class="n">STRING</span><span class="p">,</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="p">);</span><span class="w"></span>
+<span class="w">      </span><span class="n">IMPL_ONE</span><span class="p">(</span><span class="n">STRINGS</span><span class="p">,</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&gt;</span><span class="p">);</span><span class="w"></span>
+<span class="w">      </span><span class="n">IMPL_ONE</span><span class="p">(</span><span class="n">FLOATS</span><span class="p">,</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">float</span><span class="o">&gt;</span><span class="p">);</span><span class="w"></span>
+<span class="w">      </span><span class="n">IMPL_ONE</span><span class="p">(</span><span class="n">INTS</span><span class="p">,</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="p">);</span><span class="w"></span>
+<span class="w">      </span><span class="n">IMPL_ONE</span><span class="p">(</span><span class="n">BOOLEAN</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="p">);</span><span class="w"></span>
+<span class="w">      </span><span class="n">IMPL_ONE</span><span class="p">(</span><span class="n">LONG</span><span class="p">,</span><span class="w"> </span><span class="kt">int64_t</span><span class="p">);</span><span class="w"></span>
+<span class="w">      </span><span class="n">IMPL_ONE</span><span class="p">(</span><span class="n">LONGS</span><span class="p">,</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int64_t</span><span class="o">&gt;</span><span class="p">);</span><span class="w"></span>
+<span class="w">      </span><span class="k">default</span><span class="o">:</span><span class="w"></span>
+<span class="w">        </span><span class="n">LOG</span><span class="p">(</span><span class="n">FATAL</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;Unsupported attr type found: &quot;</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="p">(</span><span class="n">type</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="w">  </span><span class="p">};</span><span class="w"></span>
+<span class="cp">#undef IMPL_ONE</span>
+<span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="k">auto</span><span class="w"> </span><span class="o">&amp;</span><span class="nl">attr_name</span> <span class="p">:</span><span class="w"> </span><span class="n">cpp_desc</span><span class="p">.</span><span class="n">AttrNames</span><span class="p">())</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cpp_desc</span><span class="p">.</span><span class="n">GetAttrType</span><span class="p">(</span><span class="n">attr_name</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">set_attr</span><span class="p">(</span><span class="n">attr_name</span><span class="p">,</span><span class="w"> </span><span class="n">type</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="cp">#define TRANS_OP_ANY_WITH_CPP_IMPL(T)                                         \</span>
+<span class="cp">  template &lt;&gt;                                                                 \</span>
+<span class="cp">  void TransformOpDescAnyToCpp&lt;T&gt;(const T &amp;any_desc, cpp::OpDesc *cpp_desc) { \</span>
+<span class="cp">    cpp_desc-&gt;SetType(any_desc.Type());                                       \</span>
+<span class="cp">    OpInputsAnyToCpp&lt;T&gt;(any_desc, cpp_desc);                                  \</span>
+<span class="cp">    OpOutputsAnyToCpp&lt;T&gt;(any_desc, cpp_desc);                                 \</span>
+<span class="cp">    OpAttrsAnyToCpp&lt;T&gt;(any_desc, cpp_desc);                                   \</span>
+<span class="cp">  }                                                                           \</span>
+<span class="cp">                                                                              \</span>
+<span class="cp">  template &lt;&gt;                                                                 \</span>
+<span class="cp">  void TransformOpDescCppToAny&lt;T&gt;(const cpp::OpDesc &amp;cpp_desc, T *any_desc) { \</span>
+<span class="cp">    any_desc-&gt;SetType(cpp_desc.Type());                                       \</span>
+<span class="cp">    OpInputsCppToAny&lt;T&gt;(cpp_desc, any_desc);                                  \</span>
+<span class="cp">    OpOutputsCppToAny&lt;T&gt;(cpp_desc, any_desc);                                 \</span>
+<span class="cp">    OpAttrsCppToAny&lt;T&gt;(cpp_desc, any_desc);                                   \</span>
+<span class="cp">  }</span>
+
+<span class="cp">#define TRANS_BLOCK_ANY_WITH_CPP_IMPL(T, NT)                                                \</span>
+<span class="cp">  template &lt;&gt;                                                                               \</span>
+<span class="cp">  void TransformBlockDescAnyToCpp&lt;NT::T&gt;(const NT::T &amp;any_desc, cpp::BlockDesc *cpp_desc) { \</span>
+<span class="cp">    NT::T desc = any_desc;                                                                  \</span>
+<span class="cp">    cpp_desc-&gt;SetIdx(desc.Idx());                                                           \</span>
+<span class="cp">    cpp_desc-&gt;SetParentIdx(desc.ParentIdx());                                               \</span>
+<span class="cp">    cpp_desc-&gt;SetForwardBlockIdx(desc.ForwardBlockIdx());                                   \</span>
+<span class="cp">                                                                                            \</span>
+<span class="cp">    cpp_desc-&gt;ClearOps();                                                                   \</span>
+<span class="cp">    for (size_t i = 0; i &lt; desc.OpsSize(); ++i) {                                           \</span>
+<span class="cp">      auto any_op_desc  = NT::OpDesc(desc.GetOp&lt;framework_proto::OpDesc&gt;(i));               \</span>
+<span class="cp">      auto *cpp_op_desc = cpp_desc-&gt;AddOp&lt;cpp::OpDesc&gt;();                                   \</span>
+<span class="cp">      TransformOpDescAnyToCpp(any_op_desc, cpp_op_desc);                                    \</span>
+<span class="cp">    }                                                                                       \</span>
+<span class="cp">                                                                                            \</span>
+<span class="cp">    cpp_desc-&gt;ClearVars();                                                                  \</span>
+<span class="cp">    for (size_t i = 0; i &lt; desc.VarsSize(); ++i) {                                          \</span>
+<span class="cp">      auto any_var_desc  = NT::VarDesc(desc.GetVar&lt;framework_proto::VarDesc&gt;(i));           \</span>
+<span class="cp">      auto *cpp_var_desc = cpp_desc-&gt;AddVar&lt;cpp::VarDesc&gt;();                                \</span>
+<span class="cp">      TransformVarDescAnyToCpp(any_var_desc, cpp_var_desc);                                 \</span>
+<span class="cp">    }                                                                                       \</span>
+<span class="cp">  }                                                                                         \</span>
+<span class="cp">                                                                                            \</span>
+<span class="cp">  template &lt;&gt;                                                                               \</span>
+<span class="cp">  void TransformBlockDescCppToAny&lt;NT::T&gt;(const cpp::T &amp;cpp_desc, NT::T *any_desc) {         \</span>
+<span class="cp">    auto desc = cpp_desc;                                                                   \</span>
+<span class="cp">    any_desc-&gt;SetIdx(desc.Idx());                                                           \</span>
+<span class="cp">    any_desc-&gt;SetParentIdx(desc.ParentIdx());                                               \</span>
+<span class="cp">    any_desc-&gt;SetForwardBlockIdx(desc.ForwardBlockIdx());                                   \</span>
+<span class="cp">                                                                                            \</span>
+<span class="cp">    any_desc-&gt;ClearOps();                                                                   \</span>
+<span class="cp">    for (size_t i = 0; i &lt; desc.OpsSize(); ++i) {                                           \</span>
+<span class="cp">      auto *cpp_op_desc = desc.GetOp&lt;cpp::OpDesc&gt;(i);                                       \</span>
+<span class="cp">      auto any_op_desc  = NT::OpDesc(any_desc-&gt;AddOp&lt;framework_proto::OpDesc&gt;());           \</span>
+<span class="cp">      TransformOpDescCppToAny(*cpp_op_desc, &amp;any_op_desc);                                  \</span>
+<span class="cp">    }                                                                                       \</span>
+<span class="cp">                                                                                            \</span>
+<span class="cp">    any_desc-&gt;ClearVars();                                                                  \</span>
+<span class="cp">    for (size_t i = 0; i &lt; desc.VarsSize(); ++i) {                                          \</span>
+<span class="cp">      auto *cpp_var_desc = desc.GetVar&lt;cpp::VarDesc&gt;(i);                                    \</span>
+<span class="cp">      auto any_var_desc  = NT::VarDesc(any_desc-&gt;AddVar&lt;framework_proto::VarDesc&gt;());       \</span>
+<span class="cp">      TransformVarDescCppToAny(*cpp_var_desc, &amp;any_var_desc);                               \</span>
+<span class="cp">    }                                                                                       \</span>
+<span class="cp">  }</span>
+
+<span class="cp">#define TRANS_PROGRAM_ANY_WITH_CPP_IMPL(T, NT)                                                  \</span>
+<span class="cp">  template &lt;&gt;                                                                                   \</span>
+<span class="cp">  void TransformProgramDescAnyToCpp&lt;NT::T&gt;(const NT::T &amp;any_desc, cpp::ProgramDesc *cpp_desc) { \</span>
+<span class="cp">    NT::T desc = any_desc;                                                                      \</span>
+<span class="cp">    if (desc.HasVersion()) {                                                                    \</span>
+<span class="cp">      cpp_desc-&gt;SetVersion(desc.Version());                                                     \</span>
+<span class="cp">    }                                                                                           \</span>
+<span class="cp">                                                                                                \</span>
+<span class="cp">    cpp_desc-&gt;ClearBlocks();                                                                    \</span>
+<span class="cp">    for (size_t i = 0; i &lt; desc.BlocksSize(); ++i) {                                            \</span>
+<span class="cp">      auto any_block_desc  = NT::BlockDesc(desc.GetBlock&lt;framework_proto::BlockDesc&gt;(i));       \</span>
+<span class="cp">      auto *cpp_block_desc = cpp_desc-&gt;AddBlock&lt;cpp::BlockDesc&gt;();                              \</span>
+<span class="cp">      TransformBlockDescAnyToCpp(any_block_desc, cpp_block_desc);                               \</span>
+<span class="cp">    }                                                                                           \</span>
+<span class="cp">  }                                                                                             \</span>
+<span class="cp">                                                                                                \</span>
+<span class="cp">  template &lt;&gt;                                                                                   \</span>
+<span class="cp">  void TransformProgramDescCppToAny&lt;NT::T&gt;(const cpp::T &amp;cpp_desc, NT::T *any_desc) {           \</span>
+<span class="cp">    auto desc = cpp_desc;                                                                       \</span>
+<span class="cp">    if (desc.HasVersion()) {                                                                    \</span>
+<span class="cp">      any_desc-&gt;SetVersion(desc.Version());                                                     \</span>
+<span class="cp">    }                                                                                           \</span>
+<span class="cp">                                                                                                \</span>
+<span class="cp">    any_desc-&gt;ClearBlocks();                                                                    \</span>
+<span class="cp">    for (size_t i = 0; i &lt; desc.BlocksSize(); ++i) {                                            \</span>
+<span class="cp">      auto *cpp_block_desc = desc.GetBlock&lt;cpp::BlockDesc&gt;(i);                                  \</span>
+<span class="cp">      auto any_block_desc  = NT::BlockDesc(any_desc-&gt;AddBlock&lt;framework_proto::BlockDesc&gt;());   \</span>
+<span class="cp">      TransformBlockDescCppToAny(*cpp_block_desc, &amp;any_block_desc);                             \</span>
+<span class="cp">    }                                                                                           \</span>
+<span class="cp">  }</span>
+
+<span class="n">TRANS_VAR_ANY_WITH_CPP_IMPL</span><span class="p">(</span><span class="n">pb</span><span class="o">::</span><span class="n">VarDesc</span><span class="p">);</span><span class="w"></span>
+<span class="n">TRANS_OP_ANY_WITH_CPP_IMPL</span><span class="p">(</span><span class="n">pb</span><span class="o">::</span><span class="n">OpDesc</span><span class="p">);</span><span class="w"></span>
+<span class="n">TRANS_BLOCK_ANY_WITH_CPP_IMPL</span><span class="p">(</span><span class="n">BlockDesc</span><span class="p">,</span><span class="w"> </span><span class="n">pb</span><span class="p">)</span><span class="w"></span>
+<span class="n">TRANS_PROGRAM_ANY_WITH_CPP_IMPL</span><span class="p">(</span><span class="n">ProgramDesc</span><span class="p">,</span><span class="w"> </span><span class="n">pb</span><span class="p">)</span><span class="w"></span>
+
+<span class="cp">#undef TRANS_VAR_ANY_WITH_CPP_IMPL</span>
+<span class="cp">#undef TRANS_OP_ANY_WITH_CPP_IMPL</span>
+<span class="cp">#undef TRANS_BLOCK_ANY_WITH_CPP_IMPL</span>
+<span class="cp">#undef TRANS_PROGRAM_ANY_WITH_CPP_IMPL</span>
+
+<span class="p">}</span><span class="w">  </span><span class="c1">// namespace cinn::frontend::paddle</span>
+</pre></div>
+</div>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, cinn team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

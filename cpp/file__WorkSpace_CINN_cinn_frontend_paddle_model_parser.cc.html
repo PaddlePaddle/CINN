@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>File model_parser.cc &mdash; cinn release/v0.1-rc documentation</title><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery-binder.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery-dataframe.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/collapsible-lists/css/tree_view.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
+        <script src="../_static/collapsible-lists/js/CollapsibleLists.compressed.js"></script>
+        <script src="../_static/collapsible-lists/js/apply-collapsible-lists.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> cinn
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../install.html">Build from source code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../guide.html">Install CINN using docker</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/index.html">Tutorials</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../matmul.html">C++ DSL API tutorial: Matrix Multiplication</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../load_paddle_model.html">Load and Execute Paddle Model in C++</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cinn_builder_api.html">CinnBuilder Primitive Semantics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="library_root.html">C++ Symbols</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">cinn</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>File model_parser.cc</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/cpp/file__WorkSpace_CINN_cinn_frontend_paddle_model_parser.cc.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="file-model-parser-cc">
+<span id="file-workspace-cinn-cinn-frontend-paddle-model-parser-cc"></span><h1>File model_parser.cc<a class="headerlink" href="#file-model-parser-cc" title="Permalink to this headline"></a></h1>
+<p>↰ <a class="reference internal" href="dir__WorkSpace_CINN_cinn_frontend_paddle.html#dir-workspace-cinn-cinn-frontend-paddle"><span class="std std-ref">Parent directory</span></a> (<code class="docutils literal notranslate"><span class="pre">/WorkSpace/CINN/cinn/frontend/paddle</span></code>)</p>
+<div class="contents local topic" id="contents">
+<p class="topic-title">Contents</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#definition-workspace-cinn-cinn-frontend-paddle-model-parser-cc" id="id1">Definition (<code class="docutils literal notranslate"><span class="pre">/WorkSpace/CINN/cinn/frontend/paddle/model_parser.cc</span></code>)</a></p></li>
+<li><p><a class="reference internal" href="#includes" id="id2">Includes</a></p></li>
+<li><p><a class="reference internal" href="#namespaces" id="id3">Namespaces</a></p></li>
+<li><p><a class="reference internal" href="#functions" id="id4">Functions</a></p></li>
+<li><p><a class="reference internal" href="#defines" id="id5">Defines</a></p></li>
+</ul>
+</div>
+<section id="definition-workspace-cinn-cinn-frontend-paddle-model-parser-cc">
+<h2>Definition (<code class="docutils literal notranslate"><span class="pre">/WorkSpace/CINN/cinn/frontend/paddle/model_parser.cc</span></code>)<a class="headerlink" href="#definition-workspace-cinn-cinn-frontend-paddle-model-parser-cc" title="Permalink to this headline"></a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="program_listing_file__WorkSpace_CINN_cinn_frontend_paddle_model_parser.cc.html">Program Listing for File model_parser.cc</a></li>
+</ul>
+</div>
+</section>
+<section id="includes">
+<h2>Includes<a class="headerlink" href="#includes" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">cinn/backends/codegen_cuda_dev.h</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cinn/backends/codegen_cuda_host.h</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cinn/backends/codegen_cuda_util.h</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cinn/backends/cuda_util.h</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cinn/common/common.h</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cinn/frontend/paddle/compatible_pb.h</span></code> (<a class="reference internal" href="file__WorkSpace_CINN_cinn_frontend_paddle_compatible_pb.h.html#file-workspace-cinn-cinn-frontend-paddle-compatible-pb-h"><span class="std std-ref">File compatible_pb.h</span></a>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cinn/frontend/paddle/model_parser.h</span></code> (<a class="reference internal" href="file__WorkSpace_CINN_cinn_frontend_paddle_model_parser.h.html#file-workspace-cinn-cinn-frontend-paddle-model-parser-h"><span class="std std-ref">File model_parser.h</span></a>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">fstream</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">vector</span></code></p></li>
+</ul>
+</section>
+<section id="namespaces">
+<h2>Namespaces<a class="headerlink" href="#namespaces" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="namespace_cinn__frontend__paddle.html#namespace-cinn-frontend-paddle"><span class="std std-ref">Namespace cinn::frontend::paddle</span></a></p></li>
+</ul>
+</section>
+<section id="functions">
+<h2>Functions<a class="headerlink" href="#functions" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="function_model__parser_8cc_1abb1d2fab1d078f8509844845ab517f5b.html#exhale-function-model-parser-8cc-1abb1d2fab1d078f8509844845ab517f5b"><span class="std std-ref">Function cinn::frontend::paddle::IsPersistable</span></a></p></li>
+<li><p><a class="reference internal" href="function_model__parser_8cc_1a9b5dc2fa64c34360bb657e743fd417a2.html#exhale-function-model-parser-8cc-1a9b5dc2fa64c34360bb657e743fd417a2"><span class="std std-ref">Function cinn::frontend::paddle::LoadCombinedParamsPb(const std::string&amp;, hlir::framework::Scope *, const cpp::ProgramDesc&amp;, bool, const common::Target&amp;)</span></a></p></li>
+<li><p><a class="reference internal" href="function_model__parser_8cc_1a1c8f125201b72dfa38ed742c0452c314.html#exhale-function-model-parser-8cc-1a1c8f125201b72dfa38ed742c0452c314"><span class="std std-ref">Function cinn::frontend::paddle::LoadLoDTensor</span></a></p></li>
+<li><p><a class="reference internal" href="function_model__parser_8cc_1ac65e7db2fb857859d351fd51943295e0.html#exhale-function-model-parser-8cc-1ac65e7db2fb857859d351fd51943295e0"><span class="std std-ref">Function cinn::frontend::paddle::LoadModelPb</span></a></p></li>
+<li><p><a class="reference internal" href="function_model__parser_8cc_1a106926687c9bdd5315725253a6ef8e52.html#exhale-function-model-parser-8cc-1a106926687c9bdd5315725253a6ef8e52"><span class="std std-ref">Function cinn::frontend::paddle::LoadParam</span></a></p></li>
+<li><p><a class="reference internal" href="function_model__parser_8cc_1af4e466cfca98b9d898f9df735d8111db.html#exhale-function-model-parser-8cc-1af4e466cfca98b9d898f9df735d8111db"><span class="std std-ref">Function cinn::frontend::paddle::LoadParams</span></a></p></li>
+<li><p><a class="reference internal" href="function_model__parser_8cc_1aa68c94de9d1b854eaff5ca1ad5c7880c.html#exhale-function-model-parser-8cc-1aa68c94de9d1b854eaff5ca1ad5c7880c"><span class="std std-ref">Function cinn::frontend::paddle::LoadProgram</span></a></p></li>
+<li><p><a class="reference internal" href="function_model__parser_8cc_1a6c8d9fb9ea3d50032362577e942e268e.html#exhale-function-model-parser-8cc-1a6c8d9fb9ea3d50032362577e942e268e"><span class="std std-ref">Function cinn::frontend::paddle::ReadBinaryFile</span></a></p></li>
+<li><p><a class="reference internal" href="function_model__parser_8cc_1a7851ba4e8e763f35808fca91c882adfd.html#exhale-function-model-parser-8cc-1a7851ba4e8e763f35808fca91c882adfd"><span class="std std-ref">Function cinn::frontend::paddle::SizeOfType</span></a></p></li>
+<li><p><a class="reference internal" href="function_model__parser_8cc_1a7800a3126a3263fee2533cd6eb460541.html#exhale-function-model-parser-8cc-1a7800a3126a3263fee2533cd6eb460541"><span class="std std-ref">Function cinn::frontend::paddle::TensorFromStream</span></a></p></li>
+</ul>
+</section>
+<section id="defines">
+<h2>Defines<a class="headerlink" href="#defines" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="define_model__parser_8cc_1a26c26fa8bfe12d1267727a411c33698f.html#exhale-define-model-parser-8cc-1a26c26fa8bfe12d1267727a411c33698f"><span class="std std-ref">Define DO</span></a></p></li>
+<li><p><a class="reference internal" href="define_model__parser_8cc_1a0f28dbefa465b98c297f441870985bd6.html#exhale-define-model-parser-8cc-1a0f28dbefa465b98c297f441870985bd6"><span class="std std-ref">Define SET_TENSOR</span></a></p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, cinn team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

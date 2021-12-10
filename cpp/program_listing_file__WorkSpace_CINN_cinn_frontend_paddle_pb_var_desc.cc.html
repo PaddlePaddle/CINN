@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Program Listing for File var_desc.cc &mdash; cinn release/v0.1-rc documentation</title><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery-binder.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery-dataframe.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/collapsible-lists/css/tree_view.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
+        <script src="../_static/collapsible-lists/js/CollapsibleLists.compressed.js"></script>
+        <script src="../_static/collapsible-lists/js/apply-collapsible-lists.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> cinn
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../install.html">Build from source code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../guide.html">Install CINN using docker</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/index.html">Tutorials</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../matmul.html">C++ DSL API tutorial: Matrix Multiplication</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../load_paddle_model.html">Load and Execute Paddle Model in C++</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cinn_builder_api.html">CinnBuilder Primitive Semantics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="library_root.html">C++ Symbols</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">cinn</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Program Listing for File var_desc.cc</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/cpp/program_listing_file__WorkSpace_CINN_cinn_frontend_paddle_pb_var_desc.cc.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="program-listing-for-file-var-desc-cc">
+<span id="program-listing-file-workspace-cinn-cinn-frontend-paddle-pb-var-desc-cc"></span><h1>Program Listing for File var_desc.cc<a class="headerlink" href="#program-listing-for-file-var-desc-cc" title="Permalink to this headline"></a></h1>
+<p>↰ <a class="reference internal" href="file__WorkSpace_CINN_cinn_frontend_paddle_pb_var_desc.cc.html#file-workspace-cinn-cinn-frontend-paddle-pb-var-desc-cc"><span class="std std-ref">Return to documentation for file</span></a> (<code class="docutils literal notranslate"><span class="pre">/WorkSpace/CINN/cinn/frontend/paddle/pb/var_desc.cc</span></code>)</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="c1">// Copyright (c) 2021 CINN Authors. All Rights Reserved.</span>
+<span class="c1">//</span>
+<span class="c1">// Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1">// you may not use this file except in compliance with the License.</span>
+<span class="c1">// You may obtain a copy of the License at</span>
+<span class="c1">//</span>
+<span class="c1">//     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">//</span>
+<span class="c1">// Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1">// distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1">// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1">// See the License for the specific language governing permissions and</span>
+<span class="c1">// limitations under the License.</span>
+
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;cinn/frontend/paddle/pb/var_desc.h&quot;</span><span class="cp"></span>
+
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;google/protobuf/map.h&gt;</span><span class="cp"></span>
+
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;cinn/frontend/paddle/cpp/desc_api.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;cinn/frontend/paddle/framework.pb.h&quot;</span><span class="cp"></span>
+
+<span class="k">namespace</span><span class="w"> </span><span class="nn">cinn</span><span class="o">::</span><span class="nn">frontend</span><span class="o">::</span><span class="nn">paddle</span><span class="o">::</span><span class="nn">pb</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+
+<span class="n">cpp</span><span class="o">::</span><span class="n">VarDescAPI</span><span class="o">::</span><span class="n">Type</span><span class="w"> </span><span class="nf">VarDesc::GetType</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="k">auto</span><span class="w"> </span><span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">desc_</span><span class="o">-&gt;</span><span class="n">type</span><span class="p">().</span><span class="n">type</span><span class="p">();</span><span class="w"></span>
+
+<span class="cp">#define GET_TYPE_CASE_ITEM(type__)       \</span>
+<span class="cp">  case framework_proto::VarType::type__: \</span>
+<span class="cp">    return cpp::VarDescAPI::Type::type__;</span>
+
+<span class="w">  </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">type</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">GET_TYPE_CASE_ITEM</span><span class="p">(</span><span class="n">LOD_TENSOR</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">GET_TYPE_CASE_ITEM</span><span class="p">(</span><span class="n">LOD_TENSOR_ARRAY</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">GET_TYPE_CASE_ITEM</span><span class="p">(</span><span class="n">LOD_RANK_TABLE</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">GET_TYPE_CASE_ITEM</span><span class="p">(</span><span class="n">SELECTED_ROWS</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">GET_TYPE_CASE_ITEM</span><span class="p">(</span><span class="n">FEED_MINIBATCH</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">GET_TYPE_CASE_ITEM</span><span class="p">(</span><span class="n">FETCH_LIST</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">GET_TYPE_CASE_ITEM</span><span class="p">(</span><span class="n">STEP_SCOPES</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">GET_TYPE_CASE_ITEM</span><span class="p">(</span><span class="n">PLACE_LIST</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">GET_TYPE_CASE_ITEM</span><span class="p">(</span><span class="n">READER</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="k">default</span><span class="o">:</span><span class="w"></span>
+<span class="w">      </span><span class="n">LOG</span><span class="p">(</span><span class="n">FATAL</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;Unknown var type&quot;</span><span class="p">;</span><span class="w"></span>
+<span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="n">VarDescAPI</span><span class="o">::</span><span class="n">Type</span><span class="p">();</span><span class="w"></span>
+<span class="w">  </span><span class="p">}</span><span class="w"></span>
+<span class="cp">#undef GET_TYPE_CASE_ITEM</span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">VarDesc::SetType</span><span class="p">(</span><span class="n">VarDescAPI</span><span class="o">::</span><span class="n">Type</span><span class="w"> </span><span class="n">type</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="cp">#define SET_TYPE_CASE_ITEM(type__)                                     \</span>
+<span class="cp">  case VarDescAPI::Type::type__:                                       \</span>
+<span class="cp">    desc_-&gt;mutable_type()-&gt;set_type(framework_proto::VarType::type__); \</span>
+<span class="cp">    break;</span>
+
+<span class="w">  </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">type</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">SET_TYPE_CASE_ITEM</span><span class="p">(</span><span class="n">LOD_TENSOR</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">SET_TYPE_CASE_ITEM</span><span class="p">(</span><span class="n">LOD_TENSOR_ARRAY</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">SET_TYPE_CASE_ITEM</span><span class="p">(</span><span class="n">LOD_RANK_TABLE</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">SET_TYPE_CASE_ITEM</span><span class="p">(</span><span class="n">SELECTED_ROWS</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">SET_TYPE_CASE_ITEM</span><span class="p">(</span><span class="n">FEED_MINIBATCH</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">SET_TYPE_CASE_ITEM</span><span class="p">(</span><span class="n">FETCH_LIST</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">SET_TYPE_CASE_ITEM</span><span class="p">(</span><span class="n">STEP_SCOPES</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">SET_TYPE_CASE_ITEM</span><span class="p">(</span><span class="n">PLACE_LIST</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">SET_TYPE_CASE_ITEM</span><span class="p">(</span><span class="n">READER</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="k">default</span><span class="o">:</span><span class="w"></span>
+<span class="w">      </span><span class="n">LOG</span><span class="p">(</span><span class="n">FATAL</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;Unknown var type&quot;</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="p">}</span><span class="w"></span>
+<span class="cp">#undef SET_TYPE_CASE_ITEM</span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">VarDesc::SetShape</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int64_t</span><span class="o">&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">dims</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="n">VectorToRepeated</span><span class="p">(</span><span class="n">dims</span><span class="p">,</span><span class="w"> </span><span class="n">mutable_tensor_desc</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">mutable_dims</span><span class="p">());</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">VarDesc::SetTensorDescNum</span><span class="p">(</span><span class="kt">size_t</span><span class="w"> </span><span class="n">num</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">desc_</span><span class="o">-&gt;</span><span class="n">type</span><span class="p">().</span><span class="n">type</span><span class="p">())</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="n">framework_proto</span><span class="o">::</span><span class="n">VarType</span><span class="o">::</span><span class="nl">READER</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">      </span><span class="k">auto</span><span class="w"> </span><span class="o">*</span><span class="n">lod_tensors_ptr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">desc_</span><span class="o">-&gt;</span><span class="n">mutable_type</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">mutable_reader</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">mutable_lod_tensor</span><span class="p">();</span><span class="w"></span>
+<span class="w">      </span><span class="n">lod_tensors_ptr</span><span class="o">-&gt;</span><span class="n">Clear</span><span class="p">();</span><span class="w"></span>
+<span class="w">      </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">size_t</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">num</span><span class="p">;</span><span class="w"> </span><span class="o">++</span><span class="n">i</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">lod_tensors_ptr</span><span class="o">-&gt;</span><span class="n">Add</span><span class="p">();</span><span class="w"></span>
+<span class="w">      </span><span class="p">}</span><span class="w"></span>
+<span class="w">      </span><span class="k">return</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">break</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="k">default</span><span class="o">:</span><span class="w"></span>
+<span class="w">      </span><span class="n">LOG</span><span class="p">(</span><span class="n">FATAL</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;Setting &#39;sub_tensor_number&#39; is not supported by the type &quot;</span><span class="w"></span>
+<span class="w">                    </span><span class="s">&quot;of var %s.&quot;</span><span class="w"></span>
+<span class="w">                 </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="k">this</span><span class="o">-&gt;</span><span class="n">Name</span><span class="p">();</span><span class="w"></span>
+<span class="w">  </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="kt">size_t</span><span class="w"> </span><span class="nf">VarDesc::GetTensorDescNum</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">desc_</span><span class="o">-&gt;</span><span class="n">type</span><span class="p">().</span><span class="n">type</span><span class="p">())</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="n">framework_proto</span><span class="o">::</span><span class="n">VarType</span><span class="o">::</span><span class="nl">READER</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="n">desc_</span><span class="o">-&gt;</span><span class="n">type</span><span class="p">().</span><span class="n">reader</span><span class="p">().</span><span class="n">lod_tensor_size</span><span class="p">();</span><span class="w"></span>
+<span class="w">      </span><span class="k">break</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="k">default</span><span class="o">:</span><span class="w"></span>
+<span class="w">      </span><span class="n">LOG</span><span class="p">(</span><span class="n">FATAL</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;Getting &#39;sub_tensor_number&#39; is not supported by the type &quot;</span><span class="w"></span>
+<span class="w">                    </span><span class="s">&quot;of var %s.&quot;</span><span class="w"></span>
+<span class="w">                 </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="k">this</span><span class="o">-&gt;</span><span class="n">Name</span><span class="p">();</span><span class="w"></span>
+<span class="w">  </span><span class="p">}</span><span class="w"></span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">VarDesc::SetShapes</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int64_t</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">multiple_dims</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">multiple_dims</span><span class="p">.</span><span class="n">size</span><span class="p">()</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">GetTensorDescNum</span><span class="p">())</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">VLOG</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;WARNING: The number of given shapes(&quot;</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">multiple_dims</span><span class="p">.</span><span class="n">size</span><span class="p">()</span><span class="w"></span>
+<span class="w">            </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;) doesn&#39;t match the existing tensor number(&quot;</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">GetTensorDescNum</span><span class="p">()</span><span class="w"></span>
+<span class="w">            </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;). The Reader is going to be reinitialized.&quot;</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="n">SetTensorDescNum</span><span class="p">(</span><span class="n">multiple_dims</span><span class="p">.</span><span class="n">size</span><span class="p">());</span><span class="w"></span>
+<span class="w">  </span><span class="p">}</span><span class="w"></span>
+<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">framework_proto</span><span class="o">::</span><span class="n">VarType</span><span class="o">::</span><span class="n">TensorDesc</span><span class="w"> </span><span class="o">*&gt;</span><span class="w"> </span><span class="n">tensors</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">mutable_tensor_descs</span><span class="p">();</span><span class="w"></span>
+<span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">size_t</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">multiple_dims</span><span class="p">.</span><span class="n">size</span><span class="p">();</span><span class="w"> </span><span class="o">++</span><span class="n">i</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">VectorToRepeated</span><span class="p">(</span><span class="n">multiple_dims</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="w"> </span><span class="n">tensors</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">-&gt;</span><span class="n">mutable_dims</span><span class="p">());</span><span class="w"></span>
+<span class="w">  </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int64_t</span><span class="o">&gt;</span><span class="w"> </span><span class="n">VarDesc</span><span class="o">::</span><span class="n">GetShape</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">RepeatedToVector</span><span class="p">(</span><span class="n">tensor_desc</span><span class="p">().</span><span class="n">dims</span><span class="p">());</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+
+<span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int64_t</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="n">VarDesc</span><span class="o">::</span><span class="n">GetShapes</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">framework_proto</span><span class="o">::</span><span class="n">VarType</span><span class="o">::</span><span class="n">TensorDesc</span><span class="o">&gt;</span><span class="w"> </span><span class="n">descs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">tensor_descs</span><span class="p">();</span><span class="w"></span>
+<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int64_t</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="n">res</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="n">res</span><span class="p">.</span><span class="n">reserve</span><span class="p">(</span><span class="n">descs</span><span class="p">.</span><span class="n">size</span><span class="p">());</span><span class="w"></span>
+<span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="k">auto</span><span class="w"> </span><span class="o">&amp;</span><span class="nl">tensor_desc</span> <span class="p">:</span><span class="w"> </span><span class="n">descs</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">res</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">RepeatedToVector</span><span class="p">(</span><span class="n">tensor_desc</span><span class="p">.</span><span class="n">dims</span><span class="p">()));</span><span class="w"></span>
+<span class="w">  </span><span class="p">}</span><span class="w"></span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">res</span><span class="p">;</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="kt">void</span><span class="w"> </span><span class="n">VarDesc</span><span class="o">::</span><span class="n">SetDataType</span><span class="p">(</span><span class="n">VarDescAPI</span><span class="o">::</span><span class="n">VarDataType</span><span class="w"> </span><span class="n">data_type</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="cp">#define SET_DATA_TYPE_CASE_ITEM(type__)                                     \</span>
+<span class="cp">  case cpp::VarDescAPI::Type::type__:                                       \</span>
+<span class="cp">    mutable_tensor_desc()-&gt;set_data_type(framework_proto::VarType::type__); \</span>
+<span class="cp">    break;</span>
+
+<span class="w">  </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">data_type</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">SET_DATA_TYPE_CASE_ITEM</span><span class="p">(</span><span class="n">BOOL</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">SET_DATA_TYPE_CASE_ITEM</span><span class="p">(</span><span class="n">SIZE_T</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">SET_DATA_TYPE_CASE_ITEM</span><span class="p">(</span><span class="n">UINT8</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">SET_DATA_TYPE_CASE_ITEM</span><span class="p">(</span><span class="n">INT8</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">SET_DATA_TYPE_CASE_ITEM</span><span class="p">(</span><span class="n">INT16</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">SET_DATA_TYPE_CASE_ITEM</span><span class="p">(</span><span class="n">INT32</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">SET_DATA_TYPE_CASE_ITEM</span><span class="p">(</span><span class="n">INT64</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">SET_DATA_TYPE_CASE_ITEM</span><span class="p">(</span><span class="n">FP16</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">SET_DATA_TYPE_CASE_ITEM</span><span class="p">(</span><span class="n">FP32</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">SET_DATA_TYPE_CASE_ITEM</span><span class="p">(</span><span class="n">FP64</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="k">default</span><span class="o">:</span><span class="w"></span>
+<span class="w">      </span><span class="n">LOG</span><span class="p">(</span><span class="n">FATAL</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;Unknown var type: &quot;</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="p">(</span><span class="n">data_type</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="p">}</span><span class="w"></span>
+<span class="cp">#undef SET_DATA_TYPE_CASE_ITEM</span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="kt">void</span><span class="w"> </span><span class="n">VarDesc</span><span class="o">::</span><span class="n">SetDataTypes</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">framework_proto</span><span class="o">::</span><span class="n">VarType</span><span class="o">::</span><span class="n">Type</span><span class="o">&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">multiple_data_type</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">multiple_data_type</span><span class="p">.</span><span class="n">size</span><span class="p">()</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">GetTensorDescNum</span><span class="p">())</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">VLOG</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;WARNING: The number of given data types(&quot;</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">multiple_data_type</span><span class="p">.</span><span class="n">size</span><span class="p">()</span><span class="w"></span>
+<span class="w">            </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;) doesn&#39;t match the existing tensor number(&quot;</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">GetTensorDescNum</span><span class="p">()</span><span class="w"></span>
+<span class="w">            </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;). The Reader is going to be reinitialized.&quot;</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="n">SetTensorDescNum</span><span class="p">(</span><span class="n">multiple_data_type</span><span class="p">.</span><span class="n">size</span><span class="p">());</span><span class="w"></span>
+<span class="w">  </span><span class="p">}</span><span class="w"></span>
+<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">framework_proto</span><span class="o">::</span><span class="n">VarType</span><span class="o">::</span><span class="n">TensorDesc</span><span class="w"> </span><span class="o">*&gt;</span><span class="w"> </span><span class="n">tensor_descs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">mutable_tensor_descs</span><span class="p">();</span><span class="w"></span>
+<span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">size_t</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">multiple_data_type</span><span class="p">.</span><span class="n">size</span><span class="p">();</span><span class="w"> </span><span class="o">++</span><span class="n">i</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">tensor_descs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">-&gt;</span><span class="n">set_data_type</span><span class="p">(</span><span class="n">multiple_data_type</span><span class="p">[</span><span class="n">i</span><span class="p">]);</span><span class="w"></span>
+<span class="w">  </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="c1">// proto::VarType::Type VarDesc::GetDataType() const {</span>
+<span class="c1">//   return tensor_desc().data_type();</span>
+<span class="c1">// }</span>
+<span class="n">cpp</span><span class="o">::</span><span class="n">VarDescAPI</span><span class="o">::</span><span class="n">VarDataType</span><span class="w"> </span><span class="n">VarDesc</span><span class="o">::</span><span class="n">GetDataType</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="n">CHECK</span><span class="p">(</span><span class="n">desc_</span><span class="o">-&gt;</span><span class="n">has_type</span><span class="p">())</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;The var&#39;s type hasn&#39;t been set.&quot;</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="n">CHECK</span><span class="p">(</span><span class="n">desc_</span><span class="o">-&gt;</span><span class="n">type</span><span class="p">().</span><span class="n">has_type</span><span class="p">())</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;The var type hasn&#39;t been set.&quot;</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">desc_</span><span class="o">-&gt;</span><span class="n">type</span><span class="p">().</span><span class="n">type</span><span class="p">()</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">framework_proto</span><span class="o">::</span><span class="n">VarType</span><span class="o">::</span><span class="n">LOD_TENSOR</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">VarDescAPI</span><span class="o">::</span><span class="n">Type</span><span class="p">();</span><span class="w"></span>
+<span class="w">  </span><span class="p">}</span><span class="w"></span>
+<span class="w">  </span><span class="k">auto</span><span class="w"> </span><span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">tensor_desc</span><span class="p">().</span><span class="n">data_type</span><span class="p">();</span><span class="w"></span>
+<span class="cp">#define GET_DATA_TYPE_CASE_ITEM(type__)                       \</span>
+<span class="cp">  case framework_proto::VarType::Type::VarType_Type_##type__: \</span>
+<span class="cp">    return VarDescAPI::Type::type__</span>
+
+<span class="w">  </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">type</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">GET_DATA_TYPE_CASE_ITEM</span><span class="p">(</span><span class="n">BOOL</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">GET_DATA_TYPE_CASE_ITEM</span><span class="p">(</span><span class="n">SIZE_T</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">GET_DATA_TYPE_CASE_ITEM</span><span class="p">(</span><span class="n">UINT8</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">GET_DATA_TYPE_CASE_ITEM</span><span class="p">(</span><span class="n">INT8</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">GET_DATA_TYPE_CASE_ITEM</span><span class="p">(</span><span class="n">INT16</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">GET_DATA_TYPE_CASE_ITEM</span><span class="p">(</span><span class="n">INT32</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">GET_DATA_TYPE_CASE_ITEM</span><span class="p">(</span><span class="n">INT64</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">GET_DATA_TYPE_CASE_ITEM</span><span class="p">(</span><span class="n">FP16</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">GET_DATA_TYPE_CASE_ITEM</span><span class="p">(</span><span class="n">FP32</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">GET_DATA_TYPE_CASE_ITEM</span><span class="p">(</span><span class="n">FP64</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="k">default</span><span class="o">:</span><span class="w"></span>
+<span class="w">      </span><span class="n">LOG</span><span class="p">(</span><span class="n">FATAL</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;Unknown var type: &quot;</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="p">(</span><span class="n">type</span><span class="p">);</span><span class="w"></span>
+<span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="n">VarDescAPI</span><span class="o">::</span><span class="n">Type</span><span class="p">();</span><span class="w"></span>
+<span class="w">  </span><span class="p">}</span><span class="w"></span>
+<span class="cp">#undef GET_DATA_TYPE_CASE_ITEM</span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">framework_proto</span><span class="o">::</span><span class="n">VarType</span><span class="o">::</span><span class="n">Type</span><span class="o">&gt;</span><span class="w"> </span><span class="n">VarDesc</span><span class="o">::</span><span class="n">GetDataTypes</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">framework_proto</span><span class="o">::</span><span class="n">VarType</span><span class="o">::</span><span class="n">TensorDesc</span><span class="o">&gt;</span><span class="w"> </span><span class="n">descs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">tensor_descs</span><span class="p">();</span><span class="w"></span>
+<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">framework_proto</span><span class="o">::</span><span class="n">VarType</span><span class="o">::</span><span class="n">Type</span><span class="o">&gt;</span><span class="w"> </span><span class="n">res</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="n">res</span><span class="p">.</span><span class="n">reserve</span><span class="p">(</span><span class="n">descs</span><span class="p">.</span><span class="n">size</span><span class="p">());</span><span class="w"></span>
+<span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="k">auto</span><span class="w"> </span><span class="o">&amp;</span><span class="nl">tensor_desc</span> <span class="p">:</span><span class="w"> </span><span class="n">descs</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">res</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">tensor_desc</span><span class="p">.</span><span class="n">data_type</span><span class="p">());</span><span class="w"></span>
+<span class="w">  </span><span class="p">}</span><span class="w"></span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">res</span><span class="p">;</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="kt">void</span><span class="w"> </span><span class="n">VarDesc</span><span class="o">::</span><span class="n">SetLoDLevel</span><span class="p">(</span><span class="kt">int32_t</span><span class="w"> </span><span class="n">lod_level</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">desc_</span><span class="o">-&gt;</span><span class="n">type</span><span class="p">().</span><span class="n">type</span><span class="p">())</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="n">framework_proto</span><span class="o">::</span><span class="n">VarType</span><span class="o">::</span><span class="nl">LOD_TENSOR</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="n">desc_</span><span class="o">-&gt;</span><span class="n">mutable_type</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">mutable_lod_tensor</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">set_lod_level</span><span class="p">(</span><span class="n">lod_level</span><span class="p">);</span><span class="w"></span>
+<span class="w">      </span><span class="k">break</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="n">framework_proto</span><span class="o">::</span><span class="n">VarType</span><span class="o">::</span><span class="nl">LOD_TENSOR_ARRAY</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="n">desc_</span><span class="o">-&gt;</span><span class="n">mutable_type</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">mutable_tensor_array</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">set_lod_level</span><span class="p">(</span><span class="n">lod_level</span><span class="p">);</span><span class="w"></span>
+<span class="w">      </span><span class="k">break</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="k">default</span><span class="o">:</span><span class="w"></span>
+<span class="w">      </span><span class="n">LOG</span><span class="p">(</span><span class="n">FATAL</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;Setting &#39;lod_level&#39; is not supported by the type of var %s.&quot;</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="k">this</span><span class="o">-&gt;</span><span class="n">Name</span><span class="p">();</span><span class="w"></span>
+<span class="w">  </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="kt">void</span><span class="w"> </span><span class="n">VarDesc</span><span class="o">::</span><span class="n">SetLoDLevels</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int32_t</span><span class="o">&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">multiple_lod_level</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">multiple_lod_level</span><span class="p">.</span><span class="n">size</span><span class="p">()</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">GetTensorDescNum</span><span class="p">())</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">VLOG</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;WARNING: The number of given lod_levels(&quot;</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">multiple_lod_level</span><span class="p">.</span><span class="n">size</span><span class="p">()</span><span class="w"></span>
+<span class="w">            </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;) doesn&#39;t match the existing tensor number(&quot;</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">GetTensorDescNum</span><span class="p">()</span><span class="w"></span>
+<span class="w">            </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;). The Reader is going to be reinitialized.&quot;</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="n">SetTensorDescNum</span><span class="p">(</span><span class="n">multiple_lod_level</span><span class="p">.</span><span class="n">size</span><span class="p">());</span><span class="w"></span>
+<span class="w">  </span><span class="p">}</span><span class="w"></span>
+<span class="w">  </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">desc_</span><span class="o">-&gt;</span><span class="n">type</span><span class="p">().</span><span class="n">type</span><span class="p">())</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="n">framework_proto</span><span class="o">::</span><span class="n">VarType</span><span class="o">::</span><span class="nl">READER</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">      </span><span class="kt">size_t</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
+<span class="w">      </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">auto</span><span class="w"> </span><span class="o">&amp;</span><span class="nl">lod_tensor</span> <span class="p">:</span><span class="w"> </span><span class="o">*</span><span class="n">desc_</span><span class="o">-&gt;</span><span class="n">mutable_type</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">mutable_reader</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">mutable_lod_tensor</span><span class="p">())</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">lod_tensor</span><span class="p">.</span><span class="n">set_lod_level</span><span class="p">(</span><span class="n">multiple_lod_level</span><span class="p">[</span><span class="n">i</span><span class="o">++</span><span class="p">]);</span><span class="w"></span>
+<span class="w">      </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">break</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="k">default</span><span class="o">:</span><span class="w"></span>
+<span class="w">      </span><span class="n">LOG</span><span class="p">(</span><span class="n">FATAL</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;Setting &#39;lod_levels&#39; is not supported by the type of var %s.&quot;</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="k">this</span><span class="o">-&gt;</span><span class="n">Name</span><span class="p">();</span><span class="w"></span>
+<span class="w">  </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="kt">int32_t</span><span class="w"> </span><span class="n">VarDesc</span><span class="o">::</span><span class="n">GetLoDLevel</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">desc_</span><span class="o">-&gt;</span><span class="n">type</span><span class="p">().</span><span class="n">type</span><span class="p">())</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="n">framework_proto</span><span class="o">::</span><span class="n">VarType</span><span class="o">::</span><span class="nl">LOD_TENSOR</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="n">desc_</span><span class="o">-&gt;</span><span class="n">type</span><span class="p">().</span><span class="n">lod_tensor</span><span class="p">().</span><span class="n">lod_level</span><span class="p">();</span><span class="w"></span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="n">framework_proto</span><span class="o">::</span><span class="n">VarType</span><span class="o">::</span><span class="nl">LOD_TENSOR_ARRAY</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="n">desc_</span><span class="o">-&gt;</span><span class="n">type</span><span class="p">().</span><span class="n">tensor_array</span><span class="p">().</span><span class="n">lod_level</span><span class="p">();</span><span class="w"></span>
+<span class="w">    </span><span class="k">default</span><span class="o">:</span><span class="w"></span>
+<span class="w">      </span><span class="n">LOG</span><span class="p">(</span><span class="n">FATAL</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;Getting &#39;lod_level&#39; is not supported by the type of var %s.&quot;</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="k">this</span><span class="o">-&gt;</span><span class="n">Name</span><span class="p">();</span><span class="w"></span>
+<span class="w">  </span><span class="p">}</span><span class="w"></span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int32_t</span><span class="o">&gt;</span><span class="w"> </span><span class="n">VarDesc</span><span class="o">::</span><span class="n">GetLoDLevels</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int32_t</span><span class="o">&gt;</span><span class="w"> </span><span class="n">res</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">desc_</span><span class="o">-&gt;</span><span class="n">type</span><span class="p">().</span><span class="n">type</span><span class="p">())</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="n">framework_proto</span><span class="o">::</span><span class="n">VarType</span><span class="o">::</span><span class="nl">READER</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="n">res</span><span class="p">.</span><span class="n">reserve</span><span class="p">(</span><span class="n">desc_</span><span class="o">-&gt;</span><span class="n">type</span><span class="p">().</span><span class="n">reader</span><span class="p">().</span><span class="n">lod_tensor_size</span><span class="p">());</span><span class="w"></span>
+<span class="w">      </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">auto</span><span class="w"> </span><span class="o">&amp;</span><span class="nl">lod_tensor</span> <span class="p">:</span><span class="w"> </span><span class="n">desc_</span><span class="o">-&gt;</span><span class="n">type</span><span class="p">().</span><span class="n">reader</span><span class="p">().</span><span class="n">lod_tensor</span><span class="p">())</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">res</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">lod_tensor</span><span class="p">.</span><span class="n">lod_level</span><span class="p">());</span><span class="w"></span>
+<span class="w">      </span><span class="p">}</span><span class="w"></span>
+<span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="n">res</span><span class="p">;</span><span class="w"></span>
+<span class="w">      </span><span class="k">break</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="k">default</span><span class="o">:</span><span class="w"></span>
+<span class="w">      </span><span class="n">LOG</span><span class="p">(</span><span class="n">FATAL</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;Getting &#39;lod_levels&#39; is not supported by the type of var %s.&quot;</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="k">this</span><span class="o">-&gt;</span><span class="n">Name</span><span class="p">();</span><span class="w"></span>
+<span class="w">  </span><span class="p">}</span><span class="w"></span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int32_t</span><span class="o">&gt;</span><span class="p">();</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="k">const</span><span class="w"> </span><span class="n">framework_proto</span><span class="o">::</span><span class="n">VarType</span><span class="o">::</span><span class="n">TensorDesc</span><span class="w"> </span><span class="o">&amp;</span><span class="n">VarDesc</span><span class="o">::</span><span class="n">tensor_desc</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="n">CHECK</span><span class="p">(</span><span class="n">desc_</span><span class="o">-&gt;</span><span class="n">has_type</span><span class="p">())</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;The var&#39;s type hasn&#39;t been set.&quot;</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="n">CHECK</span><span class="p">(</span><span class="n">desc_</span><span class="o">-&gt;</span><span class="n">type</span><span class="p">().</span><span class="n">has_type</span><span class="p">())</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;The var type hasn&#39;t been set.&quot;</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">desc_</span><span class="o">-&gt;</span><span class="n">type</span><span class="p">().</span><span class="n">type</span><span class="p">())</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="n">framework_proto</span><span class="o">::</span><span class="n">VarType</span><span class="o">::</span><span class="nl">SELECTED_ROWS</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="n">desc_</span><span class="o">-&gt;</span><span class="n">type</span><span class="p">().</span><span class="n">selected_rows</span><span class="p">();</span><span class="w"></span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="n">framework_proto</span><span class="o">::</span><span class="n">VarType</span><span class="o">::</span><span class="nl">LOD_TENSOR</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="n">desc_</span><span class="o">-&gt;</span><span class="n">type</span><span class="p">().</span><span class="n">lod_tensor</span><span class="p">().</span><span class="n">tensor</span><span class="p">();</span><span class="w"></span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="n">framework_proto</span><span class="o">::</span><span class="n">VarType</span><span class="o">::</span><span class="nl">LOD_TENSOR_ARRAY</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="n">desc_</span><span class="o">-&gt;</span><span class="n">type</span><span class="p">().</span><span class="n">tensor_array</span><span class="p">().</span><span class="n">tensor</span><span class="p">();</span><span class="w"></span>
+<span class="w">    </span><span class="k">default</span><span class="o">:</span><span class="w"></span>
+<span class="w">      </span><span class="n">LOG</span><span class="p">(</span><span class="n">FATAL</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;Getting &#39;tensor_desc&#39; is not supported by the type of var %s.&quot;</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="k">this</span><span class="o">-&gt;</span><span class="n">Name</span><span class="p">();</span><span class="w"></span>
+<span class="w">  </span><span class="p">}</span><span class="w"></span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">framework_proto</span><span class="o">::</span><span class="n">VarDesc</span><span class="p">().</span><span class="n">type</span><span class="p">().</span><span class="n">lod_tensor</span><span class="p">().</span><span class="n">tensor</span><span class="p">();</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">framework_proto</span><span class="o">::</span><span class="n">VarType</span><span class="o">::</span><span class="n">TensorDesc</span><span class="o">&gt;</span><span class="w"> </span><span class="n">VarDesc</span><span class="o">::</span><span class="n">tensor_descs</span><span class="p">()</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="n">CHECK</span><span class="p">(</span><span class="n">desc_</span><span class="o">-&gt;</span><span class="n">has_type</span><span class="p">())</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;The var type hasn&#39;t been set.&quot;</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">framework_proto</span><span class="o">::</span><span class="n">VarType</span><span class="o">::</span><span class="n">TensorDesc</span><span class="o">&gt;</span><span class="w"> </span><span class="n">res</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="n">res</span><span class="p">.</span><span class="n">reserve</span><span class="p">(</span><span class="n">GetTensorDescNum</span><span class="p">());</span><span class="w"></span>
+<span class="w">  </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">desc_</span><span class="o">-&gt;</span><span class="n">type</span><span class="p">().</span><span class="n">type</span><span class="p">())</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="n">framework_proto</span><span class="o">::</span><span class="n">VarType</span><span class="o">::</span><span class="nl">READER</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="k">auto</span><span class="w"> </span><span class="o">&amp;</span><span class="nl">lod_tensor</span> <span class="p">:</span><span class="w"> </span><span class="n">desc_</span><span class="o">-&gt;</span><span class="n">type</span><span class="p">().</span><span class="n">reader</span><span class="p">().</span><span class="n">lod_tensor</span><span class="p">())</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">res</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">lod_tensor</span><span class="p">.</span><span class="n">tensor</span><span class="p">());</span><span class="w"></span>
+<span class="w">      </span><span class="p">}</span><span class="w"></span>
+<span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="n">res</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="k">default</span><span class="o">:</span><span class="w"></span>
+<span class="w">      </span><span class="n">LOG</span><span class="p">(</span><span class="n">FATAL</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;Getting &#39;tensor_descs&#39; is not supported by the type of var &quot;</span><span class="w"></span>
+<span class="w">                    </span><span class="s">&quot;%s.&quot;</span><span class="w"></span>
+<span class="w">                 </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="k">this</span><span class="o">-&gt;</span><span class="n">Name</span><span class="p">();</span><span class="w"></span>
+<span class="w">  </span><span class="p">}</span><span class="w"></span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">framework_proto</span><span class="o">::</span><span class="n">VarType</span><span class="o">::</span><span class="n">TensorDesc</span><span class="o">&gt;</span><span class="p">();</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="n">framework_proto</span><span class="o">::</span><span class="n">VarType</span><span class="o">::</span><span class="n">TensorDesc</span><span class="w"> </span><span class="o">*</span><span class="n">VarDesc</span><span class="o">::</span><span class="n">mutable_tensor_desc</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="n">CHECK</span><span class="p">(</span><span class="n">desc_</span><span class="o">-&gt;</span><span class="n">has_type</span><span class="p">())</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;The var type hasn&#39;t been set.&quot;</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="n">CHECK</span><span class="p">(</span><span class="n">desc_</span><span class="o">-&gt;</span><span class="n">type</span><span class="p">().</span><span class="n">has_type</span><span class="p">())</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;The var type hasn&#39;t been set.&quot;</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">desc_</span><span class="o">-&gt;</span><span class="n">type</span><span class="p">().</span><span class="n">type</span><span class="p">())</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="n">framework_proto</span><span class="o">::</span><span class="n">VarType</span><span class="o">::</span><span class="nl">SELECTED_ROWS</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="n">desc_</span><span class="o">-&gt;</span><span class="n">mutable_type</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">mutable_selected_rows</span><span class="p">();</span><span class="w"></span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="n">framework_proto</span><span class="o">::</span><span class="n">VarType</span><span class="o">::</span><span class="nl">LOD_TENSOR</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="n">desc_</span><span class="o">-&gt;</span><span class="n">mutable_type</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">mutable_lod_tensor</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">mutable_tensor</span><span class="p">();</span><span class="w"></span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="n">framework_proto</span><span class="o">::</span><span class="n">VarType</span><span class="o">::</span><span class="nl">LOD_TENSOR_ARRAY</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="n">desc_</span><span class="o">-&gt;</span><span class="n">mutable_type</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">mutable_tensor_array</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">mutable_tensor</span><span class="p">();</span><span class="w"></span>
+<span class="w">    </span><span class="k">default</span><span class="o">:</span><span class="w"></span>
+<span class="w">      </span><span class="n">LOG</span><span class="p">(</span><span class="n">FATAL</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;Getting &#39;mutable_tensor_desc&#39; is not supported by the &quot;</span><span class="w"></span>
+<span class="w">                    </span><span class="s">&quot;type of var &quot;</span><span class="w"></span>
+<span class="w">                    </span><span class="s">&quot;%s.&quot;</span><span class="w"></span>
+<span class="w">                 </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="k">this</span><span class="o">-&gt;</span><span class="n">Name</span><span class="p">();</span><span class="w"></span>
+<span class="w">  </span><span class="p">}</span><span class="w"></span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="k">nullptr</span><span class="p">;</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">framework_proto</span><span class="o">::</span><span class="n">VarType</span><span class="o">::</span><span class="n">TensorDesc</span><span class="w"> </span><span class="o">*&gt;</span><span class="w"> </span><span class="n">VarDesc</span><span class="o">::</span><span class="n">mutable_tensor_descs</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="n">CHECK</span><span class="p">(</span><span class="n">desc_</span><span class="o">-&gt;</span><span class="n">has_type</span><span class="p">())</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;The var type hasn&#39;t been set.&quot;</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="n">CHECK</span><span class="p">(</span><span class="n">desc_</span><span class="o">-&gt;</span><span class="n">type</span><span class="p">().</span><span class="n">has_type</span><span class="p">())</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;The var type hasn&#39;t been set.&quot;</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">framework_proto</span><span class="o">::</span><span class="n">VarType</span><span class="o">::</span><span class="n">TensorDesc</span><span class="w"> </span><span class="o">*&gt;</span><span class="w"> </span><span class="n">res</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="n">res</span><span class="p">.</span><span class="n">reserve</span><span class="p">(</span><span class="n">GetTensorDescNum</span><span class="p">());</span><span class="w"></span>
+<span class="w">  </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">desc_</span><span class="o">-&gt;</span><span class="n">type</span><span class="p">().</span><span class="n">type</span><span class="p">())</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="n">framework_proto</span><span class="o">::</span><span class="n">VarType</span><span class="o">::</span><span class="nl">READER</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">auto</span><span class="w"> </span><span class="o">&amp;</span><span class="nl">lod_tensor</span> <span class="p">:</span><span class="w"> </span><span class="o">*</span><span class="n">desc_</span><span class="o">-&gt;</span><span class="n">mutable_type</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">mutable_reader</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">mutable_lod_tensor</span><span class="p">())</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">res</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">lod_tensor</span><span class="p">.</span><span class="n">mutable_tensor</span><span class="p">());</span><span class="w"></span>
+<span class="w">      </span><span class="p">}</span><span class="w"></span>
+<span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="n">res</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="k">default</span><span class="o">:</span><span class="w"></span>
+<span class="w">      </span><span class="n">LOG</span><span class="p">(</span><span class="n">FATAL</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;Getting &#39;tensor_descs&#39; is not supported by the type of var &quot;</span><span class="w"></span>
+<span class="w">                    </span><span class="s">&quot;%s.&quot;</span><span class="w"></span>
+<span class="w">                 </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="k">this</span><span class="o">-&gt;</span><span class="n">Name</span><span class="p">();</span><span class="w"></span>
+<span class="w">  </span><span class="p">}</span><span class="w"></span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">framework_proto</span><span class="o">::</span><span class="n">VarType</span><span class="o">::</span><span class="n">TensorDesc</span><span class="w"> </span><span class="o">*&gt;</span><span class="p">();</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="p">}</span><span class="w">  </span><span class="c1">// namespace cinn::frontend::paddle::pb</span>
+</pre></div>
+</div>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, cinn team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>File builtin.h &mdash; cinn release/v0.1-rc documentation</title><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery-binder.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery-dataframe.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/collapsible-lists/css/tree_view.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
+        <script src="../_static/collapsible-lists/js/CollapsibleLists.compressed.js"></script>
+        <script src="../_static/collapsible-lists/js/apply-collapsible-lists.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> cinn
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../install.html">Build from source code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../guide.html">Install CINN using docker</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/index.html">Tutorials</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../matmul.html">C++ DSL API tutorial: Matrix Multiplication</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../load_paddle_model.html">Load and Execute Paddle Model in C++</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cinn_builder_api.html">CinnBuilder Primitive Semantics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="library_root.html">C++ Symbols</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">cinn</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>File builtin.h</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/cpp/file__WorkSpace_CINN_cinn_lang_builtin.h.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="file-builtin-h">
+<span id="file-workspace-cinn-cinn-lang-builtin-h"></span><h1>File builtin.h<a class="headerlink" href="#file-builtin-h" title="Permalink to this headline"></a></h1>
+<p>↰ <a class="reference internal" href="dir__WorkSpace_CINN_cinn_lang.html#dir-workspace-cinn-cinn-lang"><span class="std std-ref">Parent directory</span></a> (<code class="docutils literal notranslate"><span class="pre">/WorkSpace/CINN/cinn/lang</span></code>)</p>
+<div class="contents local topic" id="contents">
+<p class="topic-title">Contents</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#definition-workspace-cinn-cinn-lang-builtin-h" id="id1">Definition (<code class="docutils literal notranslate"><span class="pre">/WorkSpace/CINN/cinn/lang/builtin.h</span></code>)</a></p></li>
+<li><p><a class="reference internal" href="#includes" id="id2">Includes</a></p></li>
+<li><p><a class="reference internal" href="#included-by" id="id3">Included By</a></p></li>
+<li><p><a class="reference internal" href="#namespaces" id="id4">Namespaces</a></p></li>
+<li><p><a class="reference internal" href="#functions" id="id5">Functions</a></p></li>
+<li><p><a class="reference internal" href="#defines" id="id6">Defines</a></p></li>
+</ul>
+</div>
+<section id="definition-workspace-cinn-cinn-lang-builtin-h">
+<h2>Definition (<code class="docutils literal notranslate"><span class="pre">/WorkSpace/CINN/cinn/lang/builtin.h</span></code>)<a class="headerlink" href="#definition-workspace-cinn-cinn-lang-builtin-h" title="Permalink to this headline"></a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="program_listing_file__WorkSpace_CINN_cinn_lang_builtin.h.html">Program Listing for File builtin.h</a></li>
+</ul>
+</div>
+</section>
+<section id="includes">
+<h2>Includes<a class="headerlink" href="#includes" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">cinn/common/ir_util.h</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cinn/ir/ir.h</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cinn/ir/ir_operators.h</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">vector</span></code></p></li>
+</ul>
+</section>
+<section id="included-by">
+<h2>Included By<a class="headerlink" href="#included-by" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="file__WorkSpace_CINN_cinn_lang_builtin.cc.html#file-workspace-cinn-cinn-lang-builtin-cc"><span class="std std-ref">File builtin.cc</span></a></p></li>
+</ul>
+</section>
+<section id="namespaces">
+<h2>Namespaces<a class="headerlink" href="#namespaces" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="namespace_cinn.html#namespace-cinn"><span class="std std-ref">Namespace cinn</span></a></p></li>
+<li><p><a class="reference internal" href="namespace_cinn__lang.html#namespace-cinn-lang"><span class="std std-ref">Namespace cinn::lang</span></a></p></li>
+</ul>
+</section>
+<section id="functions">
+<h2>Functions<a class="headerlink" href="#functions" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="function_builtin_8h_1ac0aa2488013e4ec537cf83e16f99a1a7.html#exhale-function-builtin-8h-1ac0aa2488013e4ec537cf83e16f99a1a7"><span class="std std-ref">Function cinn::lang::BitwiseAnd</span></a></p></li>
+<li><p><a class="reference internal" href="function_builtin_8h_1a3d03b9393dd84dbb26b3815106facbc8.html#exhale-function-builtin-8h-1a3d03b9393dd84dbb26b3815106facbc8"><span class="std std-ref">Function cinn::lang::BitwiseNot</span></a></p></li>
+<li><p><a class="reference internal" href="function_builtin_8h_1a8ed0063d75eaec0452b23798f33ea8da.html#exhale-function-builtin-8h-1a8ed0063d75eaec0452b23798f33ea8da"><span class="std std-ref">Function cinn::lang::BitwiseOr</span></a></p></li>
+<li><p><a class="reference internal" href="function_builtin_8h_1a1c059e68f4fbf76e4bc7859a91d67cc7.html#exhale-function-builtin-8h-1a1c059e68f4fbf76e4bc7859a91d67cc7"><span class="std std-ref">Function cinn::lang::BitwiseXor</span></a></p></li>
+<li><p><a class="reference internal" href="function_builtin_8h_1a2f35bdc41529afd6a618ff6ea530042a.html#exhale-function-builtin-8h-1a2f35bdc41529afd6a618ff6ea530042a"><span class="std std-ref">Function cinn::lang::Identity</span></a></p></li>
+<li><p><a class="reference internal" href="function_builtin_8h_1a4877503347ceae6a73f41fe403a76700.html#exhale-function-builtin-8h-1a4877503347ceae6a73f41fe403a76700"><span class="std std-ref">Function cinn::lang::LeakyRelu(Expr, double)</span></a></p></li>
+<li><p><a class="reference internal" href="function_builtin_8h_1a1c6bef63552638643270a6fc342d645b.html#exhale-function-builtin-8h-1a1c6bef63552638643270a6fc342d645b"><span class="std std-ref">Function cinn::lang::LeakyRelu(Expr, Expr)</span></a></p></li>
+<li><p><a class="reference internal" href="function_builtin_8h_1a164efa7ecea1a534f4c42d36f390d1a5.html#exhale-function-builtin-8h-1a164efa7ecea1a534f4c42d36f390d1a5"><span class="std std-ref">Function cinn::lang::LeftShift</span></a></p></li>
+<li><p><a class="reference internal" href="function_builtin_8h_1a291e13e4c96065f199fdc18e759b13cc.html#exhale-function-builtin-8h-1a291e13e4c96065f199fdc18e759b13cc"><span class="std std-ref">Function cinn::lang::LogicalNot</span></a></p></li>
+<li><p><a class="reference internal" href="function_builtin_8h_1a36944908ffa71a0a5f7cd76e3f9b701d.html#exhale-function-builtin-8h-1a36944908ffa71a0a5f7cd76e3f9b701d"><span class="std std-ref">Function cinn::lang::Negative</span></a></p></li>
+<li><p><a class="reference internal" href="function_builtin_8h_1a7680d5171b1ae6815650c7f476a9c572.html#exhale-function-builtin-8h-1a7680d5171b1ae6815650c7f476a9c572"><span class="std std-ref">Function cinn::lang::ReduceMax</span></a></p></li>
+<li><p><a class="reference internal" href="function_builtin_8h_1a6c65ca206fc8e66ae68cdaf4cc0b26b8.html#exhale-function-builtin-8h-1a6c65ca206fc8e66ae68cdaf4cc0b26b8"><span class="std std-ref">Function cinn::lang::ReduceMin</span></a></p></li>
+<li><p><a class="reference internal" href="function_builtin_8h_1a67877e4fa08075730c9c592895db2341.html#exhale-function-builtin-8h-1a67877e4fa08075730c9c592895db2341"><span class="std std-ref">Function cinn::lang::ReduceMul</span></a></p></li>
+<li><p><a class="reference internal" href="function_builtin_8h_1a9998b932664e941f1bafc3e677cba98c.html#exhale-function-builtin-8h-1a9998b932664e941f1bafc3e677cba98c"><span class="std std-ref">Function cinn::lang::ReduceSum</span></a></p></li>
+<li><p><a class="reference internal" href="function_builtin_8h_1a9ea7bb5c3f0095e6c39da5ef4dbf617d.html#exhale-function-builtin-8h-1a9ea7bb5c3f0095e6c39da5ef4dbf617d"><span class="std std-ref">Template Function cinn::lang::Relu</span></a></p></li>
+<li><p><a class="reference internal" href="function_builtin_8h_1abd319f122021bc53fb97ee4fbb53abc2.html#exhale-function-builtin-8h-1abd319f122021bc53fb97ee4fbb53abc2"><span class="std std-ref">Template Function cinn::lang::Relu6</span></a></p></li>
+<li><p><a class="reference internal" href="function_builtin_8h_1afccaf5147235d649084dac489defcae5.html#exhale-function-builtin-8h-1afccaf5147235d649084dac489defcae5"><span class="std std-ref">Function cinn::lang::RightShift</span></a></p></li>
+<li><p><a class="reference internal" href="function_builtin_8h_1a2da494c572d54c1faadb0244e5b2250c.html#exhale-function-builtin-8h-1a2da494c572d54c1faadb0244e5b2250c"><span class="std std-ref">Function cinn::lang::Sigmoid</span></a></p></li>
+<li><p><a class="reference internal" href="function_builtin_8h_1ad619cd250ae5396c0704af3be8bb8ae0.html#exhale-function-builtin-8h-1ad619cd250ae5396c0704af3be8bb8ae0"><span class="std std-ref">Function cinn::lang::Sign</span></a></p></li>
+</ul>
+</section>
+<section id="defines">
+<h2>Defines<a class="headerlink" href="#defines" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="define_builtin_8h_1a270ab82b3f1251e73997a57899055b38.html#exhale-define-builtin-8h-1a270ab82b3f1251e73997a57899055b38"><span class="std std-ref">Define EXTERN_CALL_DCL</span></a></p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, cinn team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

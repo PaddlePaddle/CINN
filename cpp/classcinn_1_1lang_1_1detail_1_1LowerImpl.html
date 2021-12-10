@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Class LowerImpl &mdash; cinn release/v0.1-rc documentation</title><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery-binder.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery-dataframe.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/collapsible-lists/css/tree_view.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
+        <script src="../_static/collapsible-lists/js/CollapsibleLists.compressed.js"></script>
+        <script src="../_static/collapsible-lists/js/apply-collapsible-lists.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Class PackedFunc" href="classcinn_1_1lang_1_1PackedFunc.html" />
+    <link rel="prev" title="Class Buffer" href="classcinn_1_1lang_1_1Buffer.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> cinn
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../install.html">Build from source code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../guide.html">Install CINN using docker</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/index.html">Tutorials</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../matmul.html">C++ DSL API tutorial: Matrix Multiplication</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../load_paddle_model.html">Load and Execute Paddle Model in C++</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cinn_builder_api.html">CinnBuilder Primitive Semantics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="library_root.html">C++ Symbols</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">cinn</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="library_root.html">C++ Symbols</a> &raquo;</li>
+      <li>Class LowerImpl</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/cpp/classcinn_1_1lang_1_1detail_1_1LowerImpl.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="class-lowerimpl">
+<span id="exhale-class-classcinn-1-1lang-1-1detail-1-1lowerimpl"></span><h1>Class LowerImpl<a class="headerlink" href="#class-lowerimpl" title="Permalink to this headline"></a></h1>
+<ul class="simple">
+<li><p>Defined in <a class="reference internal" href="file__WorkSpace_CINN_cinn_lang_lower_impl.h.html#file-workspace-cinn-cinn-lang-lower-impl-h"><span class="std std-ref">File lower_impl.h</span></a></p></li>
+</ul>
+<section id="class-documentation">
+<h2>Class Documentation<a class="headerlink" href="#class-documentation" title="Permalink to this headline"></a></h2>
+<dl class="cpp class">
+<dt id="_CPPv4N4cinn4lang6detail9LowerImplE">
+<span id="_CPPv3N4cinn4lang6detail9LowerImplE"></span><span id="_CPPv2N4cinn4lang6detail9LowerImplE"></span><span id="cinn::lang::detail::LowerImpl"></span><span class="target" id="classcinn_1_1lang_1_1detail_1_1LowerImpl"></span><em class="property">class </em><code class="sig-prename descclassname">cinn::lang::detail<code class="sig-prename descclassname">::</code></code><code class="sig-name descname">LowerImpl</code><a class="headerlink" href="#_CPPv4N4cinn4lang6detail9LowerImplE" title="Permalink to this definition"></a><br /></dt>
+<dd><div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric">Public Functions</p>
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn4lang6detail9LowerImpl9LowerImplERKNSt6stringE8StageMapRKNSt6vectorI6TensorEERKNSt6vectorI3VarEERKNSt6vectorI6TensorEERK6Target">
+<span id="_CPPv3N4cinn4lang6detail9LowerImpl9LowerImplERKNSt6stringE8StageMapRKNSt6vectorI6TensorEERKNSt6vectorI3VarEERKNSt6vectorI6TensorEERK6Target"></span><span id="_CPPv2N4cinn4lang6detail9LowerImpl9LowerImplERKNSt6stringE8StageMapRKNSt6vectorI6TensorEERKNSt6vectorI3VarEERKNSt6vectorI6TensorEERK6Target"></span><span id="cinn::lang::detail::LowerImpl::LowerImpl__ssCR.StageMap.std::vector:Tensor:CR.std::vector:Var:CR.std::vector:Tensor:CR.TargetCR"></span><span class="target" id="classcinn_1_1lang_1_1detail_1_1LowerImpl_1ae8e48c40bc4bc718c234ff03af3c6807"></span><code class="sig-name descname">LowerImpl</code><span class="sig-paren">(</span><em class="property">const</em> std::string &amp;<em>fn_name</em>, StageMap <em>stages</em>, <em class="property">const</em> std::vector&lt;Tensor&gt; &amp;<em>tensor_args</em>, <em class="property">const</em> std::vector&lt;Var&gt; &amp;<em>scalar_args</em>, <em class="property">const</em> std::vector&lt;Tensor&gt; &amp;<em>temp_tensor_args</em> = {}, <em class="property">const</em> Target &amp;<em>target</em> = common::DefaultHostTarget()<span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N4cinn4lang6detail9LowerImpl9LowerImplERKNSt6stringE8StageMapRKNSt6vectorI6TensorEERKNSt6vectorI3VarEERKNSt6vectorI6TensorEERK6Target" title="Permalink to this definition"></a><br /></dt>
+<dd><p><p>The </p>
+<code class="docutils literal notranslate"><span class="pre">tensor_args</span></code> contains both input and output tensors. <dl class="simple">
+<dt><strong>Parameters</strong></dt><dd><ul class="breatheparameterlist simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">fn_name</span></code>: the name of the final output function. </p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tensor_args</span></code>: the tensor arguments for the function </p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">scalar_args</span></code>: the scalar arguments for the function </p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">temp_tensor_args</span></code>: the extra temporary tensor arguments</p></li>
+</ul>
+</dd>
+</dl>
+</p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn4lang6detail9LowerImplclEv">
+<span id="_CPPv3N4cinn4lang6detail9LowerImplclEv"></span><span id="_CPPv2N4cinn4lang6detail9LowerImplclEv"></span><span id="cinn::lang::detail::LowerImpl::call-operator"></span><span class="target" id="classcinn_1_1lang_1_1detail_1_1LowerImpl_1afcd9e223e024528f781ce050a2b4708e"></span>std::vector&lt;ir::LoweredFunc&gt; <code class="sig-name descname">operator()</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N4cinn4lang6detail9LowerImplclEv" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4NK4cinn4lang6detail9LowerImpl10comp_graphEv">
+<span id="_CPPv3NK4cinn4lang6detail9LowerImpl10comp_graphEv"></span><span id="_CPPv2NK4cinn4lang6detail9LowerImpl10comp_graphEv"></span><span id="cinn::lang::detail::LowerImpl::comp_graphC"></span><span class="target" id="classcinn_1_1lang_1_1detail_1_1LowerImpl_1ab648c731ca58249e850b4a7bf9b59ce3"></span><em class="property">const</em> common::Graph *<code class="sig-name descname">comp_graph</code><span class="sig-paren">(</span><span class="sig-paren">)</span> <em class="property">const</em><a class="headerlink" href="#_CPPv4NK4cinn4lang6detail9LowerImpl10comp_graphEv" title="Permalink to this definition"></a><br /></dt>
+<dd><p>Get the computational graph. </p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn4lang6detail9LowerImpl28GenerateFunctionArgumentListE4Expr">
+<span id="_CPPv3N4cinn4lang6detail9LowerImpl28GenerateFunctionArgumentListE4Expr"></span><span id="_CPPv2N4cinn4lang6detail9LowerImpl28GenerateFunctionArgumentListE4Expr"></span><span id="cinn::lang::detail::LowerImpl::GenerateFunctionArgumentList__Expr"></span><span class="target" id="classcinn_1_1lang_1_1detail_1_1LowerImpl_1a690a69bbe6012f36c2092b461bf54cfc"></span>std::vector&lt;ir::Argument&gt; <code class="sig-name descname">GenerateFunctionArgumentList</code><span class="sig-paren">(</span>Expr <em>fn_body</em><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N4cinn4lang6detail9LowerImpl28GenerateFunctionArgumentListE4Expr" title="Permalink to this definition"></a><br /></dt>
+<dd><p>generate the argument list of the final output function. We put the scalar_args in front of tensor_args, e.g. get tensor_args{A,B}, scalar_args{m}, the final argument list is {m, A, B}, the input and output tensor can be mixed in the tensor_args, the kInput and kOutput token will deduce from their usage in the computation. </p>
+</dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn4lang6detail9LowerImpl24GenFuncArgForSplitKernelE4ExprNSt6vectorIN2ir6TensorEEE">
+<span id="_CPPv3N4cinn4lang6detail9LowerImpl24GenFuncArgForSplitKernelE4ExprNSt6vectorIN2ir6TensorEEE"></span><span id="_CPPv2N4cinn4lang6detail9LowerImpl24GenFuncArgForSplitKernelE4ExprNSt6vectorIN2ir6TensorEEE"></span><span id="cinn::lang::detail::LowerImpl::GenFuncArgForSplitKernel__Expr.std::vector:ir::Tensor:"></span><span class="target" id="classcinn_1_1lang_1_1detail_1_1LowerImpl_1ace096cd51bd929c60934a80fd8e8cbc7"></span>std::vector&lt;ir::Argument&gt; <code class="sig-name descname">GenFuncArgForSplitKernel</code><span class="sig-paren">(</span>Expr <em>func_iterator</em>, std::vector&lt;ir::Tensor&gt; <em>temp_tensors</em><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N4cinn4lang6detail9LowerImpl24GenFuncArgForSplitKernelE4ExprNSt6vectorIN2ir6TensorEEE" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn4lang6detail9LowerImpl20GenerateFunctionBodyEPKN4poly8ScheduleE">
+<span id="_CPPv3N4cinn4lang6detail9LowerImpl20GenerateFunctionBodyEPKN4poly8ScheduleE"></span><span id="_CPPv2N4cinn4lang6detail9LowerImpl20GenerateFunctionBodyEPKN4poly8ScheduleE"></span><span id="cinn::lang::detail::LowerImpl::GenerateFunctionBody__poly::ScheduleCP"></span><span class="target" id="classcinn_1_1lang_1_1detail_1_1LowerImpl_1af92dfdc98dffa3f8ea7dc63ff2121107"></span>std::vector&lt;Expr&gt; <code class="sig-name descname">GenerateFunctionBody</code><span class="sig-paren">(</span><em class="property">const</em> poly::Schedule *<em>schedule</em><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N4cinn4lang6detail9LowerImpl20GenerateFunctionBodyEPKN4poly8ScheduleE" title="Permalink to this definition"></a><br /></dt>
+<dd><p>generate the body expression of the final output function. </p>
+</dd></dl>
+
+</div>
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="classcinn_1_1lang_1_1Buffer.html" class="btn btn-neutral float-left" title="Class Buffer" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="classcinn_1_1lang_1_1PackedFunc.html" class="btn btn-neutral float-right" title="Class PackedFunc" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, cinn team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
