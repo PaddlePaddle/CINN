@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Load and Execute Paddle Model in C++ &mdash; cinn release/v0.1-rc documentation</title><link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/gallery.css" type="text/css" />
+      <link rel="stylesheet" href="_static/gallery-binder.css" type="text/css" />
+      <link rel="stylesheet" href="_static/gallery-dataframe.css" type="text/css" />
+      <link rel="stylesheet" href="_static/collapsible-lists/css/tree_view.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/language_data.js"></script>
+        <script src="_static/collapsible-lists/js/CollapsibleLists.compressed.js"></script>
+        <script src="_static/collapsible-lists/js/apply-collapsible-lists.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="CinnBuilder Primitive Semantics" href="cinn_builder_api.html" />
+    <link rel="prev" title="C++ DSL API tutorial: Matrix Multiplication" href="matmul.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="index.html" class="icon icon-home"> cinn
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="install.html">Build from source code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guide.html">Install CINN using docker</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/index.html">Tutorials</a></li>
+</ul>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="matmul.html">C++ DSL API tutorial: Matrix Multiplication</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Load and Execute Paddle Model in C++</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#prepare-to-load-model">Prepare to Load Model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#set-the-target-backend">Set the target backend</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#load-model-to-cinn">Load Model to CINN</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#get-input-tensor-and-set-input-data">Get input tensor and set input data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#execute-model">Execute Model</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="cinn_builder_api.html">CinnBuilder Primitive Semantics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cpp/library_root.html">C++ Symbols</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">cinn</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Load and Execute Paddle Model in C++</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/load_paddle_model.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="c1">// Copyright (c) 2021 CINN Authors. All Rights Reserved.</span>
+<span class="c1">//</span>
+<span class="c1">// Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1">// you may not use this file except in compliance with the License.</span>
+<span class="c1">// You may obtain a copy of the License at</span>
+<span class="c1">//</span>
+<span class="c1">//     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">//</span>
+<span class="c1">// Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1">// distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1">// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1">// See the License for the specific language governing permissions and</span>
+<span class="c1">// limitations under the License.</span>
+</pre></div>
+</div>
+<section id="load-and-execute-paddle-model-in-c">
+<h1>Load and Execute Paddle Model in C++<a class="headerlink" href="#load-and-execute-paddle-model-in-c" title="Permalink to this headline"></a></h1>
+<p>In this tutorial, we will show you how to load and execute a paddle model in CINN using C++.
+We will use model ResNet50 as an example.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;gtest/gtest.h&gt;</span><span class="cp"></span>
+
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;cinn/cinn.h&quot;</span><span class="cp"></span>
+
+<span class="k">using</span><span class="w"> </span><span class="k">namespace</span><span class="w"> </span><span class="nn">cinn</span><span class="p">;</span><span class="w">  </span><span class="c1">// NOLINT</span>
+</pre></div>
+</div>
+<section id="prepare-to-load-model">
+<h2>Prepare to Load Model<a class="headerlink" href="#prepare-to-load-model" title="Permalink to this headline"></a></h2>
+<p>Declare the params and prepare to load and execute the paddle model.</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">input_name</span></code> is the name of input tensor in the model.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">target_name</span></code> is the name of output tensor we want.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">x_shape</span></code> is the input tensor’s shape of the model.</p></li>
+</ul>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="n">input_name</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;inputs&quot;</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="n">target_name</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;save_infer_model/scale_0.tmp_1&quot;</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="w"> </span><span class="n">x_shape</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">224</span><span class="p">,</span><span class="w"> </span><span class="mi">224</span><span class="p">};</span><span class="w"></span>
+</pre></div>
+</div>
+</section>
+<section id="set-the-target-backend">
+<h2>Set the target backend<a class="headerlink" href="#set-the-target-backend" title="Permalink to this headline"></a></h2>
+<p>Now CINN only supports two backends: X86 and CUDA.</p>
+<ul class="simple">
+<li><p>To choose X86 backends, use :
+<code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">target</span> <span class="pre">=</span> <span class="pre">common::DefaultHostTarget();</span></code></p></li>
+<li><p>To choose CUDA backends, use :
+<code class="docutils literal notranslate"><span class="pre">auto</span> <span class="pre">target</span> <span class="pre">=</span> <span class="pre">common::DefaultNVGPUTarget();</span></code></p></li>
+</ul>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="w">  </span><span class="k">auto</span><span class="w"> </span><span class="n">target</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">common</span><span class="o">::</span><span class="n">DefaultHostTarget</span><span class="p">();</span><span class="w"></span>
+</pre></div>
+</div>
+</section>
+<section id="load-model-to-cinn">
+<h2>Load Model to CINN<a class="headerlink" href="#load-model-to-cinn" title="Permalink to this headline"></a></h2>
+<p>Load the paddle model and compile it into CINN IR.</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">target</span></code> is the backend to execute model on.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">model_dir</span></code> is the path where the paddle model is stored.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">params_combined</span></code> implies whether the params of paddle model is stored in one file.</p></li>
+</ul>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="n">model_dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;./ResNet50&quot;</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="kt">bool</span><span class="w"> </span><span class="n">params_combined</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="k">auto</span><span class="w"> </span><span class="n">computation</span><span class="w"> </span><span class="o">=</span><span class="w"></span>
+<span class="w">      </span><span class="n">frontend</span><span class="o">::</span><span class="n">CinnComputation</span><span class="o">::</span><span class="n">CompilePaddleModel</span><span class="p">(</span><span class="n">target</span><span class="p">,</span><span class="w"> </span><span class="n">model_dir</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="n">input_name</span><span class="p">},</span><span class="w"> </span><span class="p">{</span><span class="n">x_shape</span><span class="p">},</span><span class="w"> </span><span class="n">params_combined</span><span class="p">);</span><span class="w"></span>
+</pre></div>
+</div>
+</section>
+<section id="get-input-tensor-and-set-input-data">
+<h2>Get input tensor and set input data<a class="headerlink" href="#get-input-tensor-and-set-input-data" title="Permalink to this headline"></a></h2>
+<p>Here we use all-zero data as input. In practical applications, please replace it with real data according to your
+needs.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="w">  </span><span class="k">auto</span><span class="w"> </span><span class="n">input_tensor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">computation</span><span class="p">.</span><span class="n">GetTensor</span><span class="p">(</span><span class="n">input_name</span><span class="p">);</span><span class="w"></span>
+
+<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">float</span><span class="o">&gt;</span><span class="w"> </span><span class="n">fake_input</span><span class="p">(</span><span class="n">input_tensor</span><span class="o">-&gt;</span><span class="n">shape</span><span class="p">().</span><span class="n">numel</span><span class="p">(),</span><span class="w"> </span><span class="mf">0.f</span><span class="p">);</span><span class="w"></span>
+
+<span class="w">  </span><span class="k">auto</span><span class="w"> </span><span class="o">*</span><span class="n">input_data</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">input_tensor</span><span class="o">-&gt;</span><span class="n">mutable_data</span><span class="o">&lt;</span><span class="kt">float</span><span class="o">&gt;</span><span class="p">(</span><span class="n">target</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">target</span><span class="p">.</span><span class="n">arch</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">Target</span><span class="o">::</span><span class="n">Arch</span><span class="o">::</span><span class="n">X86</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">copy</span><span class="p">(</span><span class="n">fake_input</span><span class="p">.</span><span class="n">begin</span><span class="p">(),</span><span class="w"> </span><span class="n">fake_input</span><span class="p">.</span><span class="n">end</span><span class="p">(),</span><span class="w"> </span><span class="n">input_data</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">target</span><span class="p">.</span><span class="n">arch</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">Target</span><span class="o">::</span><span class="n">Arch</span><span class="o">::</span><span class="n">NVGPU</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">CUDA_CALL</span><span class="p">(</span><span class="n">cudaMemcpy</span><span class="p">(</span><span class="w"></span>
+<span class="w">        </span><span class="n">input_data</span><span class="p">,</span><span class="w"> </span><span class="n">fake_input</span><span class="p">.</span><span class="n">data</span><span class="p">(),</span><span class="w"> </span><span class="n">input_tensor</span><span class="o">-&gt;</span><span class="n">shape</span><span class="p">().</span><span class="n">numel</span><span class="p">()</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="kt">float</span><span class="p">),</span><span class="w"> </span><span class="n">cudaMemcpyHostToDevice</span><span class="p">));</span><span class="w"></span>
+<span class="w">  </span><span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+</section>
+<section id="execute-model">
+<h2>Execute Model<a class="headerlink" href="#execute-model" title="Permalink to this headline"></a></h2>
+<p>Execute the model and get output tensor’s data.</p>
+<div class="highlight-c++ notranslate"><div class="highlight"><pre><span></span><span class="w">  </span><span class="n">computation</span><span class="p">.</span><span class="n">Execute</span><span class="p">();</span><span class="w"></span>
+
+<span class="w">  </span><span class="k">auto</span><span class="w"> </span><span class="n">target_tensor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">computation</span><span class="p">.</span><span class="n">GetTensor</span><span class="p">(</span><span class="n">target_name</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">float</span><span class="o">&gt;</span><span class="w"> </span><span class="n">output_data</span><span class="p">(</span><span class="n">target_tensor</span><span class="o">-&gt;</span><span class="n">shape</span><span class="p">().</span><span class="n">numel</span><span class="p">(),</span><span class="w"> </span><span class="mf">0.f</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">target</span><span class="p">.</span><span class="n">arch</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">Target</span><span class="o">::</span><span class="n">Arch</span><span class="o">::</span><span class="n">X86</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">copy</span><span class="p">(</span><span class="n">target_tensor</span><span class="o">-&gt;</span><span class="n">data</span><span class="o">&lt;</span><span class="kt">float</span><span class="o">&gt;</span><span class="p">(),</span><span class="w"></span>
+<span class="w">              </span><span class="n">target_tensor</span><span class="o">-&gt;</span><span class="n">data</span><span class="o">&lt;</span><span class="kt">float</span><span class="o">&gt;</span><span class="p">()</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">target_tensor</span><span class="o">-&gt;</span><span class="n">shape</span><span class="p">().</span><span class="n">numel</span><span class="p">(),</span><span class="w"></span>
+<span class="w">              </span><span class="n">output_data</span><span class="p">.</span><span class="n">data</span><span class="p">());</span><span class="w"></span>
+<span class="w">  </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">target</span><span class="p">.</span><span class="n">arch</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">Target</span><span class="o">::</span><span class="n">Arch</span><span class="o">::</span><span class="n">NVGPU</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">CUDA_CALL</span><span class="p">(</span><span class="n">cudaMemcpy</span><span class="p">(</span><span class="n">output_data</span><span class="p">.</span><span class="n">data</span><span class="p">(),</span><span class="w"></span>
+<span class="w">                         </span><span class="k">reinterpret_cast</span><span class="o">&lt;</span><span class="kt">void</span><span class="w"> </span><span class="o">*&gt;</span><span class="p">(</span><span class="n">target_tensor</span><span class="o">-&gt;</span><span class="n">mutable_data</span><span class="o">&lt;</span><span class="kt">float</span><span class="o">&gt;</span><span class="p">(</span><span class="n">target</span><span class="p">)),</span><span class="w"></span>
+<span class="w">                         </span><span class="n">target_tensor</span><span class="o">-&gt;</span><span class="n">shape</span><span class="p">().</span><span class="n">numel</span><span class="p">()</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="kt">float</span><span class="p">),</span><span class="w"></span>
+<span class="w">                         </span><span class="n">cudaMemcpyDeviceToHost</span><span class="p">));</span><span class="w"></span>
+<span class="w">  </span><span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="matmul.html" class="btn btn-neutral float-left" title="C++ DSL API tutorial: Matrix Multiplication" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="cinn_builder_api.html" class="btn btn-neutral float-right" title="CinnBuilder Primitive Semantics" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, cinn team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

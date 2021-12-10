@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Class VarDescAPI &mdash; cinn release/v0.1-rc documentation</title><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery-binder.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery-dataframe.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/collapsible-lists/css/tree_view.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
+        <script src="../_static/collapsible-lists/js/CollapsibleLists.compressed.js"></script>
+        <script src="../_static/collapsible-lists/js/apply-collapsible-lists.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Class BlockDesc" href="classcinn_1_1frontend_1_1paddle_1_1pb_1_1BlockDesc.html" />
+    <link rel="prev" title="Class VarDesc" href="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1VarDesc.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> cinn
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../install.html">Build from source code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../guide.html">Install CINN using docker</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/index.html">Tutorials</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../matmul.html">C++ DSL API tutorial: Matrix Multiplication</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../load_paddle_model.html">Load and Execute Paddle Model in C++</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cinn_builder_api.html">CinnBuilder Primitive Semantics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="library_root.html">C++ Symbols</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">cinn</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="library_root.html">C++ Symbols</a> &raquo;</li>
+      <li>Class VarDescAPI</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/cpp/classcinn_1_1frontend_1_1paddle_1_1cpp_1_1VarDescAPI.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="class-vardescapi">
+<span id="exhale-class-classcinn-1-1frontend-1-1paddle-1-1cpp-1-1vardescapi"></span><h1>Class VarDescAPI<a class="headerlink" href="#class-vardescapi" title="Permalink to this headline"></a></h1>
+<ul class="simple">
+<li><p>Defined in <a class="reference internal" href="file__WorkSpace_CINN_cinn_frontend_paddle_cpp_desc_api.h.html#file-workspace-cinn-cinn-frontend-paddle-cpp-desc-api-h"><span class="std std-ref">File desc_api.h</span></a></p></li>
+</ul>
+<section id="inheritance-relationships">
+<h2>Inheritance Relationships<a class="headerlink" href="#inheritance-relationships" title="Permalink to this headline"></a></h2>
+<section id="derived-types">
+<h3>Derived Types<a class="headerlink" href="#derived-types" title="Permalink to this headline"></a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">public</span> <span class="pre">cinn::frontend::paddle::cpp::VarDesc</span></code> (<a class="reference internal" href="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1VarDesc.html#exhale-class-classcinn-1-1frontend-1-1paddle-1-1cpp-1-1vardesc"><span class="std std-ref">Class VarDesc</span></a>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">public</span> <span class="pre">cinn::frontend::paddle::pb::VarDesc</span></code> (<a class="reference internal" href="classcinn_1_1frontend_1_1paddle_1_1pb_1_1VarDesc.html#exhale-class-classcinn-1-1frontend-1-1paddle-1-1pb-1-1vardesc"><span class="std std-ref">Class VarDesc</span></a>)</p></li>
+</ul>
+</section>
+</section>
+<section id="class-documentation">
+<h2>Class Documentation<a class="headerlink" href="#class-documentation" title="Permalink to this headline"></a></h2>
+<dl class="cpp class">
+<dt id="_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPIE">
+<span id="_CPPv3N4cinn8frontend6paddle3cpp10VarDescAPIE"></span><span id="_CPPv2N4cinn8frontend6paddle3cpp10VarDescAPIE"></span><span id="cinn::frontend::paddle::cpp::VarDescAPI"></span><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1VarDescAPI"></span><em class="property">class </em><code class="sig-prename descclassname">cinn::frontend::paddle::cpp<code class="sig-prename descclassname">::</code></code><code class="sig-name descname">VarDescAPI</code><a class="headerlink" href="#_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPIE" title="Permalink to this definition"></a><br /></dt>
+<dd><p>Subclassed by <a class="reference internal" href="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1VarDesc.html#classcinn_1_1frontend_1_1paddle_1_1cpp_1_1VarDesc"><span class="std std-ref">cinn::frontend::paddle::cpp::VarDesc</span></a>, <a class="reference internal" href="classcinn_1_1frontend_1_1paddle_1_1pb_1_1VarDesc.html#classcinn_1_1frontend_1_1paddle_1_1pb_1_1VarDesc"><span class="std std-ref">cinn::frontend::paddle::pb::VarDesc</span></a></p>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric">Public Types</p>
+<dl class="cpp enum">
+<dt id="_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI4TypeE">
+<span id="_CPPv3N4cinn8frontend6paddle3cpp10VarDescAPI4TypeE"></span><span id="_CPPv2N4cinn8frontend6paddle3cpp10VarDescAPI4TypeE"></span><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1VarDescAPI_1ab325fb0eeca5ae84eae6bbc76d42c404"></span><em class="property">enum </em><code class="sig-name descname">Type</code><a class="headerlink" href="#_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI4TypeE" title="Permalink to this definition"></a><br /></dt>
+<dd><p><em>Values:</em></p>
+<dl class="cpp enumerator">
+<dt id="_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI4Type4BOOLE">
+<span id="_CPPv3N4cinn8frontend6paddle3cpp10VarDescAPI4Type4BOOLE"></span><span id="_CPPv2N4cinn8frontend6paddle3cpp10VarDescAPI4Type4BOOLE"></span><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1VarDescAPI_1ab325fb0eeca5ae84eae6bbc76d42c404aa97b2c144243b2b9d2c593ec268b62f5"></span><em class="property">enumerator </em><code class="sig-name descname">BOOL</code><a class="headerlink" href="#_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI4Type4BOOLE" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt id="_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI4Type5INT16E">
+<span id="_CPPv3N4cinn8frontend6paddle3cpp10VarDescAPI4Type5INT16E"></span><span id="_CPPv2N4cinn8frontend6paddle3cpp10VarDescAPI4Type5INT16E"></span><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1VarDescAPI_1ab325fb0eeca5ae84eae6bbc76d42c404a5f90af42814c0a419d715d43ae54fd7a"></span><em class="property">enumerator </em><code class="sig-name descname">INT16</code><a class="headerlink" href="#_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI4Type5INT16E" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt id="_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI4Type5INT32E">
+<span id="_CPPv3N4cinn8frontend6paddle3cpp10VarDescAPI4Type5INT32E"></span><span id="_CPPv2N4cinn8frontend6paddle3cpp10VarDescAPI4Type5INT32E"></span><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1VarDescAPI_1ab325fb0eeca5ae84eae6bbc76d42c404a6495adba09844fac8eeb0aba86e6f1bf"></span><em class="property">enumerator </em><code class="sig-name descname">INT32</code><a class="headerlink" href="#_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI4Type5INT32E" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt id="_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI4Type5INT64E">
+<span id="_CPPv3N4cinn8frontend6paddle3cpp10VarDescAPI4Type5INT64E"></span><span id="_CPPv2N4cinn8frontend6paddle3cpp10VarDescAPI4Type5INT64E"></span><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1VarDescAPI_1ab325fb0eeca5ae84eae6bbc76d42c404a4e866b275c85fbb439f6484251cfb31c"></span><em class="property">enumerator </em><code class="sig-name descname">INT64</code><a class="headerlink" href="#_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI4Type5INT64E" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt id="_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI4Type4FP16E">
+<span id="_CPPv3N4cinn8frontend6paddle3cpp10VarDescAPI4Type4FP16E"></span><span id="_CPPv2N4cinn8frontend6paddle3cpp10VarDescAPI4Type4FP16E"></span><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1VarDescAPI_1ab325fb0eeca5ae84eae6bbc76d42c404aa4bf99d6945c25077fd6660d536af8a0"></span><em class="property">enumerator </em><code class="sig-name descname">FP16</code><a class="headerlink" href="#_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI4Type4FP16E" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt id="_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI4Type4FP32E">
+<span id="_CPPv3N4cinn8frontend6paddle3cpp10VarDescAPI4Type4FP32E"></span><span id="_CPPv2N4cinn8frontend6paddle3cpp10VarDescAPI4Type4FP32E"></span><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1VarDescAPI_1ab325fb0eeca5ae84eae6bbc76d42c404a693aa0bef84c25fe81c7e62e72f9313d"></span><em class="property">enumerator </em><code class="sig-name descname">FP32</code><a class="headerlink" href="#_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI4Type4FP32E" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt id="_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI4Type4FP64E">
+<span id="_CPPv3N4cinn8frontend6paddle3cpp10VarDescAPI4Type4FP64E"></span><span id="_CPPv2N4cinn8frontend6paddle3cpp10VarDescAPI4Type4FP64E"></span><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1VarDescAPI_1ab325fb0eeca5ae84eae6bbc76d42c404a3fc58a0c61fb59a7689728a045f2edbb"></span><em class="property">enumerator </em><code class="sig-name descname">FP64</code><a class="headerlink" href="#_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI4Type4FP64E" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt id="_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI4Type6SIZE_TE">
+<span id="_CPPv3N4cinn8frontend6paddle3cpp10VarDescAPI4Type6SIZE_TE"></span><span id="_CPPv2N4cinn8frontend6paddle3cpp10VarDescAPI4Type6SIZE_TE"></span><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1VarDescAPI_1ab325fb0eeca5ae84eae6bbc76d42c404a281dea8e27e21a83e47f92254e1f4d4d"></span><em class="property">enumerator </em><code class="sig-name descname">SIZE_T</code><a class="headerlink" href="#_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI4Type6SIZE_TE" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt id="_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI4Type5UINT8E">
+<span id="_CPPv3N4cinn8frontend6paddle3cpp10VarDescAPI4Type5UINT8E"></span><span id="_CPPv2N4cinn8frontend6paddle3cpp10VarDescAPI4Type5UINT8E"></span><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1VarDescAPI_1ab325fb0eeca5ae84eae6bbc76d42c404aecfc091ed2a607335524c8389cfa41b5"></span><em class="property">enumerator </em><code class="sig-name descname">UINT8</code><a class="headerlink" href="#_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI4Type5UINT8E" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt id="_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI4Type4INT8E">
+<span id="_CPPv3N4cinn8frontend6paddle3cpp10VarDescAPI4Type4INT8E"></span><span id="_CPPv2N4cinn8frontend6paddle3cpp10VarDescAPI4Type4INT8E"></span><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1VarDescAPI_1ab325fb0eeca5ae84eae6bbc76d42c404aee9d73311ff0658494edfff14c3ec1e3"></span><em class="property">enumerator </em><code class="sig-name descname">INT8</code><a class="headerlink" href="#_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI4Type4INT8E" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt id="_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI4Type10LOD_TENSORE">
+<span id="_CPPv3N4cinn8frontend6paddle3cpp10VarDescAPI4Type10LOD_TENSORE"></span><span id="_CPPv2N4cinn8frontend6paddle3cpp10VarDescAPI4Type10LOD_TENSORE"></span><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1VarDescAPI_1ab325fb0eeca5ae84eae6bbc76d42c404afae2a0731171dde55545f1833611fa00"></span><em class="property">enumerator </em><code class="sig-name descname">LOD_TENSOR</code><a class="headerlink" href="#_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI4Type10LOD_TENSORE" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt id="_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI4Type13SELECTED_ROWSE">
+<span id="_CPPv3N4cinn8frontend6paddle3cpp10VarDescAPI4Type13SELECTED_ROWSE"></span><span id="_CPPv2N4cinn8frontend6paddle3cpp10VarDescAPI4Type13SELECTED_ROWSE"></span><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1VarDescAPI_1ab325fb0eeca5ae84eae6bbc76d42c404ac81446c9734a6403ef27dd4ab79d52c9"></span><em class="property">enumerator </em><code class="sig-name descname">SELECTED_ROWS</code><a class="headerlink" href="#_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI4Type13SELECTED_ROWSE" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt id="_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI4Type14FEED_MINIBATCHE">
+<span id="_CPPv3N4cinn8frontend6paddle3cpp10VarDescAPI4Type14FEED_MINIBATCHE"></span><span id="_CPPv2N4cinn8frontend6paddle3cpp10VarDescAPI4Type14FEED_MINIBATCHE"></span><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1VarDescAPI_1ab325fb0eeca5ae84eae6bbc76d42c404a463a9a550152b6e02a3155e6f6b11320"></span><em class="property">enumerator </em><code class="sig-name descname">FEED_MINIBATCH</code><a class="headerlink" href="#_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI4Type14FEED_MINIBATCHE" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt id="_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI4Type10FETCH_LISTE">
+<span id="_CPPv3N4cinn8frontend6paddle3cpp10VarDescAPI4Type10FETCH_LISTE"></span><span id="_CPPv2N4cinn8frontend6paddle3cpp10VarDescAPI4Type10FETCH_LISTE"></span><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1VarDescAPI_1ab325fb0eeca5ae84eae6bbc76d42c404a7037c3fa00143accd5184c1f36185bdc"></span><em class="property">enumerator </em><code class="sig-name descname">FETCH_LIST</code><a class="headerlink" href="#_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI4Type10FETCH_LISTE" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt id="_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI4Type11STEP_SCOPESE">
+<span id="_CPPv3N4cinn8frontend6paddle3cpp10VarDescAPI4Type11STEP_SCOPESE"></span><span id="_CPPv2N4cinn8frontend6paddle3cpp10VarDescAPI4Type11STEP_SCOPESE"></span><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1VarDescAPI_1ab325fb0eeca5ae84eae6bbc76d42c404a1635a979fd6bf0a5e478c5cc9ef17059"></span><em class="property">enumerator </em><code class="sig-name descname">STEP_SCOPES</code><a class="headerlink" href="#_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI4Type11STEP_SCOPESE" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt id="_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI4Type14LOD_RANK_TABLEE">
+<span id="_CPPv3N4cinn8frontend6paddle3cpp10VarDescAPI4Type14LOD_RANK_TABLEE"></span><span id="_CPPv2N4cinn8frontend6paddle3cpp10VarDescAPI4Type14LOD_RANK_TABLEE"></span><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1VarDescAPI_1ab325fb0eeca5ae84eae6bbc76d42c404a3022f0863cf03aa2492e23e0479cf0e2"></span><em class="property">enumerator </em><code class="sig-name descname">LOD_RANK_TABLE</code><a class="headerlink" href="#_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI4Type14LOD_RANK_TABLEE" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt id="_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI4Type16LOD_TENSOR_ARRAYE">
+<span id="_CPPv3N4cinn8frontend6paddle3cpp10VarDescAPI4Type16LOD_TENSOR_ARRAYE"></span><span id="_CPPv2N4cinn8frontend6paddle3cpp10VarDescAPI4Type16LOD_TENSOR_ARRAYE"></span><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1VarDescAPI_1ab325fb0eeca5ae84eae6bbc76d42c404a581ee6e72955646d78a9c7e8fab248ac"></span><em class="property">enumerator </em><code class="sig-name descname">LOD_TENSOR_ARRAY</code><a class="headerlink" href="#_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI4Type16LOD_TENSOR_ARRAYE" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt id="_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI4Type10PLACE_LISTE">
+<span id="_CPPv3N4cinn8frontend6paddle3cpp10VarDescAPI4Type10PLACE_LISTE"></span><span id="_CPPv2N4cinn8frontend6paddle3cpp10VarDescAPI4Type10PLACE_LISTE"></span><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1VarDescAPI_1ab325fb0eeca5ae84eae6bbc76d42c404a3b820f3be78ae7bf2b0c184fca25b7a8"></span><em class="property">enumerator </em><code class="sig-name descname">PLACE_LIST</code><a class="headerlink" href="#_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI4Type10PLACE_LISTE" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt id="_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI4Type6READERE">
+<span id="_CPPv3N4cinn8frontend6paddle3cpp10VarDescAPI4Type6READERE"></span><span id="_CPPv2N4cinn8frontend6paddle3cpp10VarDescAPI4Type6READERE"></span><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1VarDescAPI_1ab325fb0eeca5ae84eae6bbc76d42c404afc7b1221c343d1c1c9339b2798ee61b0"></span><em class="property">enumerator </em><code class="sig-name descname">READER</code><a class="headerlink" href="#_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI4Type6READERE" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt id="_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI4Type3RAWE">
+<span id="_CPPv3N4cinn8frontend6paddle3cpp10VarDescAPI4Type3RAWE"></span><span id="_CPPv2N4cinn8frontend6paddle3cpp10VarDescAPI4Type3RAWE"></span><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1VarDescAPI_1ab325fb0eeca5ae84eae6bbc76d42c404a633d6abff0a3fc22404347728d195059"></span><em class="property">enumerator </em><code class="sig-name descname">RAW</code><a class="headerlink" href="#_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI4Type3RAWE" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt id="_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI4Type5TUPLEE">
+<span id="_CPPv3N4cinn8frontend6paddle3cpp10VarDescAPI4Type5TUPLEE"></span><span id="_CPPv2N4cinn8frontend6paddle3cpp10VarDescAPI4Type5TUPLEE"></span><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1VarDescAPI_1ab325fb0eeca5ae84eae6bbc76d42c404a5f6f02198ea426cd88e552e6a59ba307"></span><em class="property">enumerator </em><code class="sig-name descname">TUPLE</code><a class="headerlink" href="#_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI4Type5TUPLEE" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="cpp type">
+<dt id="_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI11VarDataTypeE">
+<span id="_CPPv3N4cinn8frontend6paddle3cpp10VarDescAPI11VarDataTypeE"></span><span id="_CPPv2N4cinn8frontend6paddle3cpp10VarDescAPI11VarDataTypeE"></span><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1VarDescAPI_1a81780ef3a14a9406a9cc1bfdaaebbde8"></span><em class="property">using </em><code class="sig-name descname">VarDataType</code> = <a class="reference internal" href="#_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI4TypeE" title="cinn::frontend::paddle::cpp::VarDescAPI::Type">Type</a><a class="headerlink" href="#_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI11VarDataTypeE" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+</div>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric">Public Functions</p>
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPID0Ev">
+<span id="_CPPv3N4cinn8frontend6paddle3cpp10VarDescAPID0Ev"></span><span id="_CPPv2N4cinn8frontend6paddle3cpp10VarDescAPID0Ev"></span><span id="cinn::frontend::paddle::cpp::VarDescAPI::~VarDescAPI"></span><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1VarDescAPI_1a2136dc139d2d124db69a8175bc4c8f92"></span><code class="sig-name descname">~VarDescAPI</code><span class="sig-paren">(</span><span class="sig-paren">)</span> = default<a class="headerlink" href="#_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPID0Ev" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4NK4cinn8frontend6paddle3cpp10VarDescAPI4NameEv">
+<span id="_CPPv3NK4cinn8frontend6paddle3cpp10VarDescAPI4NameEv"></span><span id="_CPPv2NK4cinn8frontend6paddle3cpp10VarDescAPI4NameEv"></span><span id="cinn::frontend::paddle::cpp::VarDescAPI::NameC"></span><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1VarDescAPI_1a8046a5941d3329ed2a97b9cc8bc69a6d"></span>std::string <code class="sig-name descname">Name</code><span class="sig-paren">(</span><span class="sig-paren">)</span> <em class="property">const</em> = 0<a class="headerlink" href="#_CPPv4NK4cinn8frontend6paddle3cpp10VarDescAPI4NameEv" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI7SetNameENSt6stringE">
+<span id="_CPPv3N4cinn8frontend6paddle3cpp10VarDescAPI7SetNameENSt6stringE"></span><span id="_CPPv2N4cinn8frontend6paddle3cpp10VarDescAPI7SetNameENSt6stringE"></span><span id="cinn::frontend::paddle::cpp::VarDescAPI::SetName__ss"></span><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1VarDescAPI_1ac4b72b2779087bad9d99273a4f548b23"></span>void <code class="sig-name descname">SetName</code><span class="sig-paren">(</span>std::string <em>name</em><span class="sig-paren">)</span> = 0<a class="headerlink" href="#_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI7SetNameENSt6stringE" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4NK4cinn8frontend6paddle3cpp10VarDescAPI7GetTypeEv">
+<span id="_CPPv3NK4cinn8frontend6paddle3cpp10VarDescAPI7GetTypeEv"></span><span id="_CPPv2NK4cinn8frontend6paddle3cpp10VarDescAPI7GetTypeEv"></span><span id="cinn::frontend::paddle::cpp::VarDescAPI::GetTypeC"></span><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1VarDescAPI_1a185fe0d642b073d65ddf9ed8f146b2ca"></span><a class="reference internal" href="#_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI4TypeE" title="cinn::frontend::paddle::cpp::VarDescAPI::Type">Type</a> <code class="sig-name descname">GetType</code><span class="sig-paren">(</span><span class="sig-paren">)</span> <em class="property">const</em> = 0<a class="headerlink" href="#_CPPv4NK4cinn8frontend6paddle3cpp10VarDescAPI7GetTypeEv" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI7SetTypeE4Type">
+<span id="_CPPv3N4cinn8frontend6paddle3cpp10VarDescAPI7SetTypeE4Type"></span><span id="_CPPv2N4cinn8frontend6paddle3cpp10VarDescAPI7SetTypeE4Type"></span><span id="cinn::frontend::paddle::cpp::VarDescAPI::SetType__Type"></span><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1VarDescAPI_1a6b40ea233fb05b75251a78eceac08824"></span>void <code class="sig-name descname">SetType</code><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI4TypeE" title="cinn::frontend::paddle::cpp::VarDescAPI::Type">Type</a> <em>type</em><span class="sig-paren">)</span> = 0<a class="headerlink" href="#_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI7SetTypeE4Type" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4NK4cinn8frontend6paddle3cpp10VarDescAPI11PersistableEv">
+<span id="_CPPv3NK4cinn8frontend6paddle3cpp10VarDescAPI11PersistableEv"></span><span id="_CPPv2NK4cinn8frontend6paddle3cpp10VarDescAPI11PersistableEv"></span><span id="cinn::frontend::paddle::cpp::VarDescAPI::PersistableC"></span><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1VarDescAPI_1ad183c972a94c02477ce14174aa4c0ad2"></span>bool <code class="sig-name descname">Persistable</code><span class="sig-paren">(</span><span class="sig-paren">)</span> <em class="property">const</em> = 0<a class="headerlink" href="#_CPPv4NK4cinn8frontend6paddle3cpp10VarDescAPI11PersistableEv" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI14SetPersistableEb">
+<span id="_CPPv3N4cinn8frontend6paddle3cpp10VarDescAPI14SetPersistableEb"></span><span id="_CPPv2N4cinn8frontend6paddle3cpp10VarDescAPI14SetPersistableEb"></span><span id="cinn::frontend::paddle::cpp::VarDescAPI::SetPersistable__b"></span><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1VarDescAPI_1a551c22c465de177b4293c932cae6df4e"></span>void <code class="sig-name descname">SetPersistable</code><span class="sig-paren">(</span>bool <em>persistable</em><span class="sig-paren">)</span> = 0<a class="headerlink" href="#_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI14SetPersistableEb" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4NK4cinn8frontend6paddle3cpp10VarDescAPI8GetShapeEv">
+<span id="_CPPv3NK4cinn8frontend6paddle3cpp10VarDescAPI8GetShapeEv"></span><span id="_CPPv2NK4cinn8frontend6paddle3cpp10VarDescAPI8GetShapeEv"></span><span id="cinn::frontend::paddle::cpp::VarDescAPI::GetShapeC"></span><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1VarDescAPI_1ae9e48f4f836833cbb4fd225311a5d9ce"></span>std::vector&lt;int64_t&gt; <code class="sig-name descname">GetShape</code><span class="sig-paren">(</span><span class="sig-paren">)</span> <em class="property">const</em> = 0<a class="headerlink" href="#_CPPv4NK4cinn8frontend6paddle3cpp10VarDescAPI8GetShapeEv" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI8SetShapeERKNSt6vectorI7int64_tEE">
+<span id="_CPPv3N4cinn8frontend6paddle3cpp10VarDescAPI8SetShapeERKNSt6vectorI7int64_tEE"></span><span id="_CPPv2N4cinn8frontend6paddle3cpp10VarDescAPI8SetShapeERKNSt6vectorI7int64_tEE"></span><span id="cinn::frontend::paddle::cpp::VarDescAPI::SetShape__std::vector:int64_t:CR"></span><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1VarDescAPI_1a052dc9c729a13461e92aa09e8efbba0e"></span>void <code class="sig-name descname">SetShape</code><span class="sig-paren">(</span><em class="property">const</em> std::vector&lt;int64_t&gt; &amp;<em>dims</em><span class="sig-paren">)</span> = 0<a class="headerlink" href="#_CPPv4N4cinn8frontend6paddle3cpp10VarDescAPI8SetShapeERKNSt6vectorI7int64_tEE" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+</div>
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1VarDesc.html" class="btn btn-neutral float-left" title="Class VarDesc" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="classcinn_1_1frontend_1_1paddle_1_1pb_1_1BlockDesc.html" class="btn btn-neutral float-right" title="Class BlockDesc" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, cinn team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

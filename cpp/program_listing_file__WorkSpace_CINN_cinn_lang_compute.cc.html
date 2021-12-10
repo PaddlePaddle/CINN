@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Program Listing for File compute.cc &mdash; cinn release/v0.1-rc documentation</title><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery-binder.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery-dataframe.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/collapsible-lists/css/tree_view.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
+        <script src="../_static/collapsible-lists/js/CollapsibleLists.compressed.js"></script>
+        <script src="../_static/collapsible-lists/js/apply-collapsible-lists.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> cinn
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../install.html">Build from source code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../guide.html">Install CINN using docker</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/index.html">Tutorials</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../matmul.html">C++ DSL API tutorial: Matrix Multiplication</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../load_paddle_model.html">Load and Execute Paddle Model in C++</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cinn_builder_api.html">CinnBuilder Primitive Semantics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="library_root.html">C++ Symbols</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">cinn</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Program Listing for File compute.cc</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/cpp/program_listing_file__WorkSpace_CINN_cinn_lang_compute.cc.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="program-listing-for-file-compute-cc">
+<span id="program-listing-file-workspace-cinn-cinn-lang-compute-cc"></span><h1>Program Listing for File compute.cc<a class="headerlink" href="#program-listing-for-file-compute-cc" title="Permalink to this headline"></a></h1>
+<p>↰ <a class="reference internal" href="file__WorkSpace_CINN_cinn_lang_compute.cc.html#file-workspace-cinn-cinn-lang-compute-cc"><span class="std std-ref">Return to documentation for file</span></a> (<code class="docutils literal notranslate"><span class="pre">/WorkSpace/CINN/cinn/lang/compute.cc</span></code>)</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="c1">// Copyright (c) 2021 CINN Authors. All Rights Reserved.</span>
+<span class="c1">//</span>
+<span class="c1">// Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1">// you may not use this file except in compliance with the License.</span>
+<span class="c1">// You may obtain a copy of the License at</span>
+<span class="c1">//</span>
+<span class="c1">//     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">//</span>
+<span class="c1">// Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1">// distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1">// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1">// See the License for the specific language governing permissions and</span>
+<span class="c1">// limitations under the License.</span>
+
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;cinn/lang/compute.h&quot;</span><span class="cp"></span>
+
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;cinn/backends/extern_func_protos.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;cinn/common/common.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;cinn/ir/operation.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;cinn/optim/ir_simplify.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;cinn/poly/dim.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;cinn/poly/domain.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;cinn/poly/stage.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;cinn/runtime/use_extern_funcs.h&quot;</span><span class="cp"></span>
+
+<span class="k">namespace</span><span class="w"> </span><span class="nn">cinn</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="k">namespace</span><span class="w"> </span><span class="nn">lang</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+
+<span class="n">ir</span><span class="o">::</span><span class="n">Tensor</span><span class="w"> </span><span class="nf">Compute</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">Expr</span><span class="o">&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">domain</span><span class="p">,</span><span class="w"></span>
+<span class="w">                   </span><span class="n">std</span><span class="o">::</span><span class="n">function</span><span class="o">&lt;</span><span class="n">Expr</span><span class="p">()</span><span class="o">&gt;</span><span class="w"> </span><span class="n">fn</span><span class="p">,</span><span class="w"></span>
+<span class="w">                   </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="o">&amp;</span><span class="n">name</span><span class="p">,</span><span class="w"></span>
+<span class="w">                   </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">Expr</span><span class="o">&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">shape</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">Compute</span><span class="p">(</span><span class="w"></span>
+<span class="w">      </span><span class="n">domain</span><span class="p">,</span><span class="w"></span>
+<span class="w">      </span><span class="p">[</span><span class="n">fn</span><span class="p">](</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">Expr</span><span class="o">&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">axis</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">Expr</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="c1">// CHECK_EQ(axis.size(), 0);</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">fn</span><span class="p">();</span><span class="w"></span>
+<span class="w">      </span><span class="p">},</span><span class="w"></span>
+<span class="w">      </span><span class="n">name</span><span class="p">,</span><span class="w"></span>
+<span class="w">      </span><span class="n">shape</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="n">ir</span><span class="o">::</span><span class="n">Tensor</span><span class="w"> </span><span class="nf">Compute</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">Expr</span><span class="o">&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">domain</span><span class="p">,</span><span class="w"></span>
+<span class="w">                   </span><span class="n">std</span><span class="o">::</span><span class="n">function</span><span class="o">&lt;</span><span class="n">Expr</span><span class="p">(</span><span class="n">Expr</span><span class="p">)</span><span class="o">&gt;</span><span class="w"> </span><span class="n">fn</span><span class="p">,</span><span class="w"></span>
+<span class="w">                   </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="o">&amp;</span><span class="n">name</span><span class="p">,</span><span class="w"></span>
+<span class="w">                   </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">Expr</span><span class="o">&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">shape</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">Compute</span><span class="p">(</span><span class="w"></span>
+<span class="w">      </span><span class="n">domain</span><span class="p">,</span><span class="w"></span>
+<span class="w">      </span><span class="p">[</span><span class="n">fn</span><span class="p">](</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">Expr</span><span class="o">&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">axis</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">Expr</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">CHECK_EQ</span><span class="p">(</span><span class="n">axis</span><span class="p">.</span><span class="n">size</span><span class="p">(),</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span><span class="w"></span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">fn</span><span class="p">(</span><span class="n">axis</span><span class="p">[</span><span class="mi">0</span><span class="p">]);</span><span class="w"></span>
+<span class="w">      </span><span class="p">},</span><span class="w"></span>
+<span class="w">      </span><span class="n">name</span><span class="p">,</span><span class="w"></span>
+<span class="w">      </span><span class="n">shape</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="n">ir</span><span class="o">::</span><span class="n">Tensor</span><span class="w"> </span><span class="nf">Compute</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">Expr</span><span class="o">&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">domain</span><span class="p">,</span><span class="w"></span>
+<span class="w">                   </span><span class="n">std</span><span class="o">::</span><span class="n">function</span><span class="o">&lt;</span><span class="n">Expr</span><span class="p">(</span><span class="n">Expr</span><span class="p">,</span><span class="w"> </span><span class="n">Expr</span><span class="p">)</span><span class="o">&gt;</span><span class="w"> </span><span class="n">fn</span><span class="p">,</span><span class="w"></span>
+<span class="w">                   </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="o">&amp;</span><span class="n">name</span><span class="p">,</span><span class="w"></span>
+<span class="w">                   </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">Expr</span><span class="o">&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">shape</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">Compute</span><span class="p">(</span><span class="w"></span>
+<span class="w">      </span><span class="n">domain</span><span class="p">,</span><span class="w"></span>
+<span class="w">      </span><span class="p">[</span><span class="n">fn</span><span class="p">](</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">Expr</span><span class="o">&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">axis</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">Expr</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">CHECK_EQ</span><span class="p">(</span><span class="n">axis</span><span class="p">.</span><span class="n">size</span><span class="p">(),</span><span class="w"> </span><span class="mi">2</span><span class="p">);</span><span class="w"></span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">fn</span><span class="p">(</span><span class="n">axis</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="w"> </span><span class="n">axis</span><span class="p">[</span><span class="mi">1</span><span class="p">]);</span><span class="w"></span>
+<span class="w">      </span><span class="p">},</span><span class="w"></span>
+<span class="w">      </span><span class="n">name</span><span class="p">,</span><span class="w"></span>
+<span class="w">      </span><span class="n">shape</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="n">ir</span><span class="o">::</span><span class="n">Tensor</span><span class="w"> </span><span class="nf">Compute</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">Expr</span><span class="o">&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">domain</span><span class="p">,</span><span class="w"></span>
+<span class="w">                   </span><span class="n">std</span><span class="o">::</span><span class="n">function</span><span class="o">&lt;</span><span class="n">Expr</span><span class="p">(</span><span class="n">Expr</span><span class="p">,</span><span class="w"> </span><span class="n">Expr</span><span class="p">,</span><span class="w"> </span><span class="n">Expr</span><span class="p">)</span><span class="o">&gt;</span><span class="w"> </span><span class="n">fn</span><span class="p">,</span><span class="w"></span>
+<span class="w">                   </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="o">&amp;</span><span class="n">name</span><span class="p">,</span><span class="w"></span>
+<span class="w">                   </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">Expr</span><span class="o">&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">shape</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">Compute</span><span class="p">(</span><span class="w"></span>
+<span class="w">      </span><span class="n">domain</span><span class="p">,</span><span class="w"></span>
+<span class="w">      </span><span class="p">[</span><span class="n">fn</span><span class="p">](</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">Expr</span><span class="o">&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">axis</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">Expr</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">CHECK_EQ</span><span class="p">(</span><span class="n">axis</span><span class="p">.</span><span class="n">size</span><span class="p">(),</span><span class="w"> </span><span class="mi">3</span><span class="p">);</span><span class="w"></span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">fn</span><span class="p">(</span><span class="n">axis</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="w"> </span><span class="n">axis</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="w"> </span><span class="n">axis</span><span class="p">[</span><span class="mi">2</span><span class="p">]);</span><span class="w"></span>
+<span class="w">      </span><span class="p">},</span><span class="w"></span>
+<span class="w">      </span><span class="n">name</span><span class="p">,</span><span class="w"></span>
+<span class="w">      </span><span class="n">shape</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="n">ir</span><span class="o">::</span><span class="n">Tensor</span><span class="w"> </span><span class="nf">Compute</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">Expr</span><span class="o">&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">domain</span><span class="p">,</span><span class="w"></span>
+<span class="w">                   </span><span class="n">std</span><span class="o">::</span><span class="n">function</span><span class="o">&lt;</span><span class="n">Expr</span><span class="p">(</span><span class="n">Expr</span><span class="p">,</span><span class="w"> </span><span class="n">Expr</span><span class="p">,</span><span class="w"> </span><span class="n">Expr</span><span class="p">,</span><span class="w"> </span><span class="n">Expr</span><span class="p">)</span><span class="o">&gt;</span><span class="w"> </span><span class="n">fn</span><span class="p">,</span><span class="w"></span>
+<span class="w">                   </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="o">&amp;</span><span class="n">name</span><span class="p">,</span><span class="w"></span>
+<span class="w">                   </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">Expr</span><span class="o">&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">shape</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">Compute</span><span class="p">(</span><span class="w"></span>
+<span class="w">      </span><span class="n">domain</span><span class="p">,</span><span class="w"></span>
+<span class="w">      </span><span class="p">[</span><span class="n">fn</span><span class="p">](</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">Expr</span><span class="o">&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">axis</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">Expr</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">CHECK_EQ</span><span class="p">(</span><span class="n">axis</span><span class="p">.</span><span class="n">size</span><span class="p">(),</span><span class="w"> </span><span class="mi">4</span><span class="p">);</span><span class="w"></span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">fn</span><span class="p">(</span><span class="n">axis</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="w"> </span><span class="n">axis</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="w"> </span><span class="n">axis</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span><span class="w"> </span><span class="n">axis</span><span class="p">[</span><span class="mi">3</span><span class="p">]);</span><span class="w"></span>
+<span class="w">      </span><span class="p">},</span><span class="w"></span>
+<span class="w">      </span><span class="n">name</span><span class="p">,</span><span class="w"></span>
+<span class="w">      </span><span class="n">shape</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="n">ir</span><span class="o">::</span><span class="n">Tensor</span><span class="w"> </span><span class="nf">Compute</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">Expr</span><span class="o">&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">domain</span><span class="p">,</span><span class="w"></span>
+<span class="w">                   </span><span class="n">std</span><span class="o">::</span><span class="n">function</span><span class="o">&lt;</span><span class="n">Expr</span><span class="p">(</span><span class="n">Expr</span><span class="p">,</span><span class="w"> </span><span class="n">Expr</span><span class="p">,</span><span class="w"> </span><span class="n">Expr</span><span class="p">,</span><span class="w"> </span><span class="n">Expr</span><span class="p">,</span><span class="w"> </span><span class="n">Expr</span><span class="p">)</span><span class="o">&gt;</span><span class="w"> </span><span class="n">fn</span><span class="p">,</span><span class="w"></span>
+<span class="w">                   </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="o">&amp;</span><span class="n">name</span><span class="p">,</span><span class="w"></span>
+<span class="w">                   </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">Expr</span><span class="o">&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">shape</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">Compute</span><span class="p">(</span><span class="w"></span>
+<span class="w">      </span><span class="n">domain</span><span class="p">,</span><span class="w"></span>
+<span class="w">      </span><span class="p">[</span><span class="n">fn</span><span class="p">](</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">Expr</span><span class="o">&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">axis</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">Expr</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">CHECK_EQ</span><span class="p">(</span><span class="n">axis</span><span class="p">.</span><span class="n">size</span><span class="p">(),</span><span class="w"> </span><span class="mi">5</span><span class="p">);</span><span class="w"></span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">fn</span><span class="p">(</span><span class="n">axis</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="w"> </span><span class="n">axis</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="w"> </span><span class="n">axis</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span><span class="w"> </span><span class="n">axis</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span><span class="w"> </span><span class="n">axis</span><span class="p">[</span><span class="mi">4</span><span class="p">]);</span><span class="w"></span>
+<span class="w">      </span><span class="p">},</span><span class="w"></span>
+<span class="w">      </span><span class="n">name</span><span class="p">,</span><span class="w"></span>
+<span class="w">      </span><span class="n">shape</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="n">ir</span><span class="o">::</span><span class="n">Tensor</span><span class="w"> </span><span class="nf">Compute</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">Expr</span><span class="o">&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">domain</span><span class="p">,</span><span class="w"></span>
+<span class="w">                   </span><span class="n">std</span><span class="o">::</span><span class="n">function</span><span class="o">&lt;</span><span class="n">Expr</span><span class="p">(</span><span class="n">Expr</span><span class="p">,</span><span class="w"> </span><span class="n">Expr</span><span class="p">,</span><span class="w"> </span><span class="n">Expr</span><span class="p">,</span><span class="w"> </span><span class="n">Expr</span><span class="p">,</span><span class="w"> </span><span class="n">Expr</span><span class="p">,</span><span class="w"> </span><span class="n">Expr</span><span class="p">)</span><span class="o">&gt;</span><span class="w"> </span><span class="n">fn</span><span class="p">,</span><span class="w"></span>
+<span class="w">                   </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="o">&amp;</span><span class="n">name</span><span class="p">,</span><span class="w"></span>
+<span class="w">                   </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">Expr</span><span class="o">&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">shape</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">Compute</span><span class="p">(</span><span class="w"></span>
+<span class="w">      </span><span class="n">domain</span><span class="p">,</span><span class="w"></span>
+<span class="w">      </span><span class="p">[</span><span class="n">fn</span><span class="p">](</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">Expr</span><span class="o">&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">axis</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">Expr</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">        </span><span class="n">CHECK_EQ</span><span class="p">(</span><span class="n">axis</span><span class="p">.</span><span class="n">size</span><span class="p">(),</span><span class="w"> </span><span class="mi">6</span><span class="p">);</span><span class="w"></span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">fn</span><span class="p">(</span><span class="n">axis</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="w"> </span><span class="n">axis</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="w"> </span><span class="n">axis</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span><span class="w"> </span><span class="n">axis</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span><span class="w"> </span><span class="n">axis</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span><span class="w"> </span><span class="n">axis</span><span class="p">[</span><span class="mi">5</span><span class="p">]);</span><span class="w"></span>
+<span class="w">      </span><span class="p">},</span><span class="w"></span>
+<span class="w">      </span><span class="n">name</span><span class="p">,</span><span class="w"></span>
+<span class="w">      </span><span class="n">shape</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="n">ir</span><span class="o">::</span><span class="n">Tensor</span><span class="w"> </span><span class="nf">Compute</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">Expr</span><span class="o">&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">domain</span><span class="p">,</span><span class="w"></span>
+<span class="w">                   </span><span class="n">std</span><span class="o">::</span><span class="n">function</span><span class="o">&lt;</span><span class="n">Expr</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">Expr</span><span class="o">&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="p">)</span><span class="o">&gt;</span><span class="w"> </span><span class="n">fn</span><span class="p">,</span><span class="w"></span>
+<span class="w">                   </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="o">&amp;</span><span class="n">name</span><span class="p">,</span><span class="w"></span>
+<span class="w">                   </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">Expr</span><span class="o">&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">shape</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="k">auto</span><span class="w"> </span><span class="n">axises</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">common</span><span class="o">::</span><span class="n">GenDefaultAxis</span><span class="p">(</span><span class="n">domain</span><span class="p">.</span><span class="n">size</span><span class="p">());</span><span class="w"></span>
+<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">Expr</span><span class="o">&gt;</span><span class="w"> </span><span class="n">_axis</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">auto</span><span class="w"> </span><span class="o">&amp;</span><span class="nl">x</span> <span class="p">:</span><span class="w"> </span><span class="n">axises</span><span class="p">)</span><span class="w"> </span><span class="n">_axis</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">x</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="n">Expr</span><span class="w"> </span><span class="n">fn_body</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fn</span><span class="p">(</span><span class="n">_axis</span><span class="p">);</span><span class="w"></span>
+
+<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">Var</span><span class="o">&gt;</span><span class="w"> </span><span class="n">reduce_axis</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">fn_body</span><span class="p">.</span><span class="n">defined</span><span class="p">()</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">fn_body</span><span class="p">.</span><span class="n">As</span><span class="o">&lt;</span><span class="n">ir</span><span class="o">::</span><span class="n">Reduce</span><span class="o">&gt;</span><span class="p">())</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="o">&amp;</span><span class="n">fn_reduce_axis</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fn_body</span><span class="p">.</span><span class="n">As</span><span class="o">&lt;</span><span class="n">ir</span><span class="o">::</span><span class="n">Reduce</span><span class="o">&gt;</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">reduce_axis</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="n">reduce_axis</span><span class="p">.</span><span class="n">insert</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">begin</span><span class="p">(</span><span class="n">reduce_axis</span><span class="p">),</span><span class="w"> </span><span class="n">fn_reduce_axis</span><span class="p">.</span><span class="n">begin</span><span class="p">(),</span><span class="w"> </span><span class="n">fn_reduce_axis</span><span class="p">.</span><span class="n">end</span><span class="p">());</span><span class="w"></span>
+<span class="w">  </span><span class="p">}</span><span class="w"></span>
+
+<span class="w">  </span><span class="c1">// When the fn_body is a CallExtern, a tensor will return directly.</span>
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">fn_body</span><span class="p">.</span><span class="n">as_tensor</span><span class="p">())</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">fn_body</span><span class="p">.</span><span class="n">as_tensor_ref</span><span class="p">();</span><span class="w"></span>
+<span class="w">  </span><span class="p">}</span><span class="w"></span>
+
+<span class="w">  </span><span class="c1">// shape is the buffer&#39;s shape.</span>
+<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">Expr</span><span class="o">&gt;</span><span class="w"> </span><span class="n">domain_without_reduce_axis</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">Expr</span><span class="o">&gt;</span><span class="w"> </span><span class="n">shape_simplified</span><span class="p">;</span><span class="w"></span>
+
+<span class="w">  </span><span class="c1">// construct the shape.</span>
+<span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">auto</span><span class="w"> </span><span class="nl">dim</span> <span class="p">:</span><span class="w"> </span><span class="n">domain</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">copied</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">dim</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="n">optim</span><span class="o">::</span><span class="n">Simplify</span><span class="p">(</span><span class="o">&amp;</span><span class="n">copied</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">domain_without_reduce_axis</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">copied</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="p">}</span><span class="w"></span>
+
+<span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">auto</span><span class="w"> </span><span class="nl">dim</span> <span class="p">:</span><span class="w"> </span><span class="n">shape</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">copied</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">dim</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="n">optim</span><span class="o">::</span><span class="n">Simplify</span><span class="p">(</span><span class="o">&amp;</span><span class="n">copied</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">shape_simplified</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">copied</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="p">}</span><span class="w"></span>
+
+<span class="w">  </span><span class="k">auto</span><span class="w"> </span><span class="n">real_shape</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">shape_simplified</span><span class="p">.</span><span class="n">empty</span><span class="p">()</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="nl">domain_without_reduce_axis</span> <span class="p">:</span><span class="w"> </span><span class="n">shape_simplified</span><span class="p">;</span><span class="w"></span>
+
+<span class="w">  </span><span class="c1">// The body returns void, that means no buffer is needed.</span>
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">fn_body</span><span class="p">.</span><span class="n">type</span><span class="p">()</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">Void</span><span class="p">())</span><span class="w"> </span><span class="n">real_shape</span><span class="p">.</span><span class="n">clear</span><span class="p">();</span><span class="w"></span>
+
+<span class="w">  </span><span class="k">auto</span><span class="w"> </span><span class="n">unique_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">name</span><span class="p">.</span><span class="n">empty</span><span class="p">()</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="n">Context</span><span class="o">::</span><span class="n">Global</span><span class="p">().</span><span class="n">NewName</span><span class="p">(</span><span class="s">&quot;tensor&quot;</span><span class="p">)</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">name</span><span class="p">;</span><span class="w"></span>
+
+<span class="w">  </span><span class="c1">// check reduce_axis not include the reserved axis name</span>
+<span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">auto</span><span class="w"> </span><span class="o">&amp;</span><span class="nl">ra</span> <span class="p">:</span><span class="w"> </span><span class="n">reduce_axis</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">CHECK</span><span class="p">(</span><span class="o">!</span><span class="n">common</span><span class="o">::</span><span class="n">IsAxisNameReserved</span><span class="p">(</span><span class="n">ra</span><span class="o">-&gt;</span><span class="n">name</span><span class="p">))</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;reduce axis [&quot;</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">ra</span><span class="o">-&gt;</span><span class="n">name</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;]&#39;s name is reserved&quot;</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="p">}</span><span class="w"></span>
+
+<span class="w">  </span><span class="n">VLOG</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;domain: &quot;</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">domain_without_reduce_axis</span><span class="p">;</span><span class="w"></span>
+
+<span class="w">  </span><span class="k">auto</span><span class="w"> </span><span class="n">op</span><span class="w">     </span><span class="o">=</span><span class="w"> </span><span class="n">ir</span><span class="o">::</span><span class="n">ComputeOp</span><span class="o">::</span><span class="n">Make</span><span class="p">(</span><span class="n">unique_name</span><span class="p">,</span><span class="w"> </span><span class="n">fn</span><span class="p">,</span><span class="w"> </span><span class="n">real_shape</span><span class="p">,</span><span class="w"> </span><span class="n">domain_without_reduce_axis</span><span class="p">,</span><span class="w"> </span><span class="n">reduce_axis</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="k">auto</span><span class="w"> </span><span class="n">tensor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ir</span><span class="o">::</span><span class="n">Tensor</span><span class="p">(</span><span class="n">unique_name</span><span class="p">,</span><span class="w"> </span><span class="n">fn_body</span><span class="p">.</span><span class="n">type</span><span class="p">(),</span><span class="w"> </span><span class="n">real_shape</span><span class="p">,</span><span class="w"> </span><span class="n">domain_without_reduce_axis</span><span class="p">,</span><span class="w"> </span><span class="n">op</span><span class="p">,</span><span class="w"> </span><span class="n">reduce_axis</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">tensor</span><span class="p">;</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">ir</span><span class="o">::</span><span class="n">Tensor</span><span class="o">&gt;</span><span class="w"> </span><span class="n">CallLowered</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="o">&amp;</span><span class="n">target</span><span class="p">,</span><span class="w"></span>
+<span class="w">                                    </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">Expr</span><span class="o">&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">args</span><span class="p">,</span><span class="w"></span>
+<span class="w">                                    </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">ReturnType</span><span class="o">&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">return_types</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="k">auto</span><span class="w"> </span><span class="n">call</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ir</span><span class="o">::</span><span class="n">Call</span><span class="o">::</span><span class="n">Make</span><span class="p">(</span><span class="n">Void</span><span class="p">(),</span><span class="w"> </span><span class="n">target</span><span class="p">,</span><span class="w"> </span><span class="n">args</span><span class="p">,</span><span class="w"> </span><span class="p">{},</span><span class="w"> </span><span class="n">ir</span><span class="o">::</span><span class="n">CallType</span><span class="o">::</span><span class="n">CINN</span><span class="p">,</span><span class="w"> </span><span class="n">ir</span><span class="o">::</span><span class="n">FunctionRef</span><span class="p">(),</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">ir</span><span class="o">::</span><span class="n">Tensor</span><span class="o">&gt;</span><span class="w"> </span><span class="n">new_tensors</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">return_types</span><span class="p">.</span><span class="n">size</span><span class="p">();</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="o">&amp;</span><span class="n">return_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">return_types</span><span class="p">[</span><span class="n">i</span><span class="p">];</span><span class="w"></span>
+<span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">call_op</span><span class="w">      </span><span class="o">=</span><span class="w"> </span><span class="n">ir</span><span class="o">::</span><span class="n">CallOp</span><span class="o">::</span><span class="n">Make</span><span class="p">(</span><span class="n">target</span><span class="p">,</span><span class="w"> </span><span class="n">call</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">new_tensor</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="n">ir</span><span class="o">::</span><span class="n">Tensor</span><span class="p">(</span><span class="n">return_type</span><span class="p">.</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">return_type</span><span class="p">.</span><span class="n">type</span><span class="p">,</span><span class="w"> </span><span class="n">return_type</span><span class="p">.</span><span class="n">dims</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="n">Expr</span><span class="p">(</span><span class="mi">1</span><span class="p">)},</span><span class="w"> </span><span class="n">call_op</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="c1">// Append write tensors in the tail.</span>
+<span class="w">    </span><span class="n">call</span><span class="p">.</span><span class="n">As</span><span class="o">&lt;</span><span class="n">ir</span><span class="o">::</span><span class="n">Call</span><span class="o">&gt;</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">write_args</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">new_tensor</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">new_tensor</span><span class="o">-&gt;</span><span class="n">set_type</span><span class="p">(</span><span class="n">return_type</span><span class="p">.</span><span class="n">type</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">new_tensor</span><span class="o">-&gt;</span><span class="n">WithBuffer</span><span class="p">();</span><span class="w"></span>
+<span class="w">    </span><span class="n">new_tensors</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">new_tensor</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="p">}</span><span class="w"></span>
+
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">new_tensors</span><span class="p">;</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="n">Expr</span><span class="w"> </span><span class="n">CallExtern</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="o">&amp;</span><span class="n">target</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">Expr</span><span class="o">&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">args</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">map</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="p">,</span><span class="w"> </span><span class="n">attr_t</span><span class="o">&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">attrs</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="k">auto</span><span class="w"> </span><span class="o">*</span><span class="n">proto</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">backends</span><span class="o">::</span><span class="n">ExternFunctionProtoRegistry</span><span class="o">::</span><span class="n">Global</span><span class="p">().</span><span class="n">Lookup</span><span class="p">(</span><span class="n">target</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="n">CHECK</span><span class="p">(</span><span class="n">proto</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;No extern function prototype &quot;</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">target</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot; found</span><span class="se">\n</span><span class="s">&quot;</span><span class="w"></span>
+<span class="w">               </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;existing records are:</span><span class="se">\n</span><span class="s">&quot;</span><span class="w"></span>
+<span class="w">               </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">backends</span><span class="o">::</span><span class="n">ExternFunctionProtoRegistry</span><span class="o">::</span><span class="n">Global</span><span class="p">().</span><span class="n">debug_string</span><span class="p">();</span><span class="w"></span>
+
+<span class="w">  </span><span class="k">auto</span><span class="w"> </span><span class="n">call</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ir</span><span class="o">::</span><span class="n">Call</span><span class="o">::</span><span class="n">Make</span><span class="p">(</span><span class="n">proto</span><span class="o">-&gt;</span><span class="n">ret_type</span><span class="p">,</span><span class="w"> </span><span class="n">target</span><span class="p">,</span><span class="w"> </span><span class="n">args</span><span class="p">,</span><span class="w"> </span><span class="p">{},</span><span class="w"> </span><span class="n">ir</span><span class="o">::</span><span class="n">CallType</span><span class="o">::</span><span class="n">Extern</span><span class="p">,</span><span class="w"> </span><span class="n">ir</span><span class="o">::</span><span class="n">FunctionRef</span><span class="p">(),</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">attrs</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">Expr</span><span class="o">&gt;</span><span class="w"> </span><span class="n">mutable_args</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="c1">// Call a function with multiple outputs.</span>
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">proto</span><span class="o">-&gt;</span><span class="n">ret_type</span><span class="p">.</span><span class="n">is_void</span><span class="p">())</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">proto</span><span class="o">-&gt;</span><span class="n">mutable_arg_types</span><span class="p">.</span><span class="n">size</span><span class="p">();</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">      </span><span class="k">auto</span><span class="w"> </span><span class="n">shape</span><span class="w">                         </span><span class="o">=</span><span class="w"> </span><span class="n">proto</span><span class="o">-&gt;</span><span class="n">shape_inference</span><span class="p">(</span><span class="n">args</span><span class="p">,</span><span class="w"> </span><span class="n">i</span><span class="p">);</span><span class="w"></span>
+<span class="w">      </span><span class="k">auto</span><span class="w"> </span><span class="n">op</span><span class="w">                            </span><span class="o">=</span><span class="w"> </span><span class="n">ir</span><span class="o">::</span><span class="n">CallOp</span><span class="o">::</span><span class="n">Make</span><span class="p">(</span><span class="n">target</span><span class="p">,</span><span class="w"> </span><span class="n">call</span><span class="p">);</span><span class="w"></span>
+<span class="w">      </span><span class="n">op</span><span class="o">-&gt;</span><span class="n">as</span><span class="o">&lt;</span><span class="n">ir</span><span class="o">::</span><span class="n">CallOp</span><span class="o">&gt;</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">value_slot</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="n">i</span><span class="p">;</span><span class="w"></span>
+<span class="w">      </span><span class="n">op</span><span class="o">-&gt;</span><span class="n">as</span><span class="o">&lt;</span><span class="n">ir</span><span class="o">::</span><span class="n">CallOp</span><span class="o">&gt;</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">is_tuple_get</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span><span class="w"></span>
+<span class="w">      </span><span class="k">auto</span><span class="w"> </span><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Context</span><span class="o">::</span><span class="n">Global</span><span class="p">().</span><span class="n">NewName</span><span class="p">(</span><span class="s">&quot;tuple_&quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">target</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s">&quot;_out&quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">to_string</span><span class="p">(</span><span class="n">i</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s">&quot;_&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="w">      </span><span class="k">auto</span><span class="w"> </span><span class="n">ret</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="n">ir</span><span class="o">::</span><span class="n">Tensor</span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">proto</span><span class="o">-&gt;</span><span class="n">mutable_arg_types</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="w"> </span><span class="n">shape</span><span class="p">,</span><span class="w"> </span><span class="n">shape</span><span class="p">,</span><span class="w"> </span><span class="n">op</span><span class="p">,</span><span class="w"> </span><span class="p">{});</span><span class="w"></span>
+<span class="w">      </span><span class="n">mutable_args</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">ret</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="p">}</span><span class="w"></span>
+<span class="w">    </span><span class="n">call</span><span class="p">.</span><span class="n">As</span><span class="o">&lt;</span><span class="n">ir</span><span class="o">::</span><span class="n">Call</span><span class="o">&gt;</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">write_args</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">mutable_args</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="p">}</span><span class="w"></span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">call</span><span class="p">;</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="p">}</span><span class="w">  </span><span class="c1">// namespace lang</span>
+<span class="p">}</span><span class="w">  </span><span class="c1">// namespace cinn</span>
+</pre></div>
+</div>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, cinn team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

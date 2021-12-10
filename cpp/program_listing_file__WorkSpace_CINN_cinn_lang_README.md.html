@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Program Listing for File README.md &mdash; cinn release/v0.1-rc documentation</title><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery-binder.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery-dataframe.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/collapsible-lists/css/tree_view.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
+        <script src="../_static/collapsible-lists/js/CollapsibleLists.compressed.js"></script>
+        <script src="../_static/collapsible-lists/js/apply-collapsible-lists.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> cinn
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../install.html">Build from source code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../guide.html">Install CINN using docker</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/index.html">Tutorials</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../matmul.html">C++ DSL API tutorial: Matrix Multiplication</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../load_paddle_model.html">Load and Execute Paddle Model in C++</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cinn_builder_api.html">CinnBuilder Primitive Semantics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="library_root.html">C++ Symbols</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">cinn</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Program Listing for File README.md</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/cpp/program_listing_file__WorkSpace_CINN_cinn_lang_README.md.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="program-listing-for-file-readme-md">
+<span id="program-listing-file-workspace-cinn-cinn-lang-readme-md"></span><h1>Program Listing for File README.md<a class="headerlink" href="#program-listing-for-file-readme-md" title="Permalink to this headline"></a></h1>
+<p>↰ <a class="reference internal" href="file__WorkSpace_CINN_cinn_lang_README.md.html#file-workspace-cinn-cinn-lang-readme-md"><span class="std std-ref">Return to documentation for file</span></a> (<code class="docutils literal notranslate"><span class="pre">/WorkSpace/CINN/cinn/lang/README.md</span></code>)</p>
+<div class="highlight-markdown notranslate"><div class="highlight"><pre><span></span><span class="gh"># Design of CINN/DSL</span>
+This module is a simple DSL defined in CINN project.
+The DSL module aims to represent the overall computation in a hardware indenpendent way.
+
+<span class="gu">## Concepts</span>
+<span class="gu">### Object</span>
+All the mutable elements in CINN are <span class="sb">`Object`</span>.
+<span class="gu">### Shared</span>
+The <span class="sb">`Shared`</span> objects are reference-count-self-contained container, which is similar to the <span class="sb">`std::shared_ptr`</span>.
+
+One can pass a <span class="sb">`Shared`</span> object by passing a pointer and the consumer object should store it in a local <span class="sb">`Shared`</span> member variable.
+
+<span class="gu">## Tensor</span>
+
+The input or the temporary ouptut node.
+
+Every <span class="sb">`Compute`</span> will output a Tensor, the tensor can be sliced.
+
+
+
+<span class="gu">### PlaceHolder</span>
+
+The special tensor that represents a input slot.
+
+```c++
+PlaceHolder&lt;float&gt; A(&quot;A&quot;, {M, N});
+PlaceHolder&lt;float&gt; B(&quot;B&quot;, {M, N});
+<span class="sb">```</span>
+
+<span class="sb">## Operation</span>
+
+<span class="sb">The Operation is the operation on tensors, including</span>
+
+<span class="sb">- placeholder</span>
+<span class="sb">- compute</span>
+<span class="sb">- bound inference</span>
+
+<span class="sb">```c++</span>
+<span class="sb">Tensor C = Compute({M,N}/*output shape*/, [&amp;](Var i, Var j) {</span>
+<span class="sb">  Var k;</span>
+<span class="sb">  return ReduceSum(A[i,k] * B[k,j], {k});</span>
+<span class="sb">});</span>
+<span class="sb">```</span>
+
+<span class="gu">### Bound inference</span>
+
+The PlaceHolder should define a shape.
+
+```c++
+Var M(Int(32));
+Var N(Int(32));
+
+PlaceHolder&lt;float&gt; A({M, N});
+
+Var i,j;
+Expr tmp = A[i][j] + 1; // i \in {0, M}; j \in {0, N}
+<span class="sb">```</span>
+
+<span class="sb">To simplify the implementation, we use ISL to generate code for basic snippets.</span>
+
+<span class="sb">## Schedule</span>
+
+<span class="sb">The schedule will</span>
+
+<span class="sb">1. determine the order of computation, by topological sorting the computational graph composed of tensors.</span>
+<span class="sb">2. transforming the computations</span>
+
+<span class="sb">### order schedule</span>
+
+<span class="sb">1. Topological sort the tensors</span>
+<span class="sb">2. for each tensor, generate the code it needs.</span>
+
+<span class="sb">## Some examples</span>
+<span class="sb">A matrix multiplication</span>
+
+<span class="sb">```c++</span>
+<span class="sb">// Declare some iterator variables.</span>
+<span class="sb">Var i, j, k;</span>
+<span class="sb">Placeholder&lt;float&gt; A({M, K}), B({K, N});</span>
+
+<span class="sb">Tensor C = Compute({M, N}/*output shape*/,</span>
+<span class="sb">        [](Var i, Var j) {</span>
+<span class="sb">            return ReduceSum(A(i,k) * B(k, j), k);</span>
+<span class="sb">        }, &quot;C&quot;);</span>
+<span class="sb">Tensor D = Compute({M, N}, [](Var i, Var j) {</span>
+<span class="sb">  return Map(C(i,j) + 1);</span>
+<span class="sb">});</span>
+
+<span class="sb">Schedule s = CreateSchedule(C);</span>
+<span class="sb">auto func = Build(s, [A, B, C], target=target, name=&quot;matmul&quot;);</span>
+
+<span class="sb">func(a, b, c);</span>
+<span class="sb">```</span>
+</pre></div>
+</div>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, cinn team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

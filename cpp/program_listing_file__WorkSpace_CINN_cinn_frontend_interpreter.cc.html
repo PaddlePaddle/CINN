@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Program Listing for File interpreter.cc &mdash; cinn release/v0.1-rc documentation</title><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery-binder.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery-dataframe.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/collapsible-lists/css/tree_view.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
+        <script src="../_static/collapsible-lists/js/CollapsibleLists.compressed.js"></script>
+        <script src="../_static/collapsible-lists/js/apply-collapsible-lists.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> cinn
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../install.html">Build from source code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../guide.html">Install CINN using docker</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/index.html">Tutorials</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../matmul.html">C++ DSL API tutorial: Matrix Multiplication</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../load_paddle_model.html">Load and Execute Paddle Model in C++</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cinn_builder_api.html">CinnBuilder Primitive Semantics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="library_root.html">C++ Symbols</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">cinn</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Program Listing for File interpreter.cc</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/cpp/program_listing_file__WorkSpace_CINN_cinn_frontend_interpreter.cc.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="program-listing-for-file-interpreter-cc">
+<span id="program-listing-file-workspace-cinn-cinn-frontend-interpreter-cc"></span><h1>Program Listing for File interpreter.cc<a class="headerlink" href="#program-listing-for-file-interpreter-cc" title="Permalink to this headline"></a></h1>
+<p>↰ <a class="reference internal" href="file__WorkSpace_CINN_cinn_frontend_interpreter.cc.html#file-workspace-cinn-cinn-frontend-interpreter-cc"><span class="std std-ref">Return to documentation for file</span></a> (<code class="docutils literal notranslate"><span class="pre">/WorkSpace/CINN/cinn/frontend/interpreter.cc</span></code>)</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="c1">// Copyright (c) 2021 CINN Authors. All Rights Reserved.</span>
+<span class="c1">//</span>
+<span class="c1">// Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1">// you may not use this file except in compliance with the License.</span>
+<span class="c1">// You may obtain a copy of the License at</span>
+<span class="c1">//</span>
+<span class="c1">//     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">//</span>
+<span class="c1">// Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1">// distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1">// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1">// See the License for the specific language governing permissions and</span>
+<span class="c1">// limitations under the License.</span>
+
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;cinn/frontend/interpreter.h&quot;</span><span class="cp"></span>
+
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;cinn/frontend/syntax.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;cinn/hlir/framework/graph.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;cinn/hlir/framework/pass.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;cinn/hlir/op/use_ops.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;cinn/hlir/pass/use_pass.h&quot;</span><span class="cp"></span>
+
+<span class="k">namespace</span><span class="w"> </span><span class="nn">cinn</span><span class="o">::</span><span class="nn">frontend</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+
+<span class="k">struct</span> <span class="nc">Interpreter</span><span class="o">::</span><span class="n">Impl</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="n">Impl</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">input_names</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">hlir</span><span class="o">::</span><span class="n">framework</span><span class="o">::</span><span class="n">shape_t</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">input_shapes</span><span class="p">)</span><span class="w"></span>
+<span class="w">      </span><span class="o">:</span><span class="w"> </span><span class="n">scope_</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">hlir</span><span class="o">::</span><span class="n">framework</span><span class="o">::</span><span class="n">Scope</span><span class="o">&gt;</span><span class="p">()),</span><span class="w"> </span><span class="n">input_names_</span><span class="p">(</span><span class="n">input_names</span><span class="p">),</span><span class="w"> </span><span class="n">input_shapes_</span><span class="p">(</span><span class="n">input_shapes</span><span class="p">)</span><span class="w"> </span><span class="p">{}</span><span class="w"></span>
+
+<span class="w">  </span><span class="kt">void</span><span class="w"> </span><span class="n">Build</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">input_names</span><span class="p">,</span><span class="w"></span>
+<span class="w">             </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">hlir</span><span class="o">::</span><span class="n">framework</span><span class="o">::</span><span class="n">shape_t</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">input_shapes</span><span class="p">,</span><span class="w"></span>
+<span class="w">             </span><span class="k">const</span><span class="w"> </span><span class="n">Target</span><span class="o">&amp;</span><span class="w"> </span><span class="n">target</span><span class="p">,</span><span class="w"></span>
+<span class="w">             </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&amp;</span><span class="w"> </span><span class="n">model_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;&quot;</span><span class="p">);</span><span class="w"></span>
+
+<span class="w"> </span><span class="k">private</span><span class="o">:</span><span class="w"></span>
+<span class="w">  </span><span class="k">friend</span><span class="w"> </span><span class="k">class</span> <span class="nc">Interpreter</span><span class="p">;</span><span class="w"></span>
+
+<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&gt;</span><span class="w"> </span><span class="n">input_names_</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="n">absl</span><span class="o">::</span><span class="n">flat_hash_set</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&gt;</span><span class="w"> </span><span class="n">fetch_names_</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">hlir</span><span class="o">::</span><span class="n">framework</span><span class="o">::</span><span class="n">shape_t</span><span class="o">&gt;</span><span class="w"> </span><span class="n">input_shapes_</span><span class="p">;</span><span class="w"></span>
+
+<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">hlir</span><span class="o">::</span><span class="n">framework</span><span class="o">::</span><span class="n">Scope</span><span class="o">&gt;</span><span class="w"> </span><span class="n">scope_</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">frontend</span><span class="o">::</span><span class="n">Program</span><span class="o">&gt;</span><span class="w"> </span><span class="n">program_</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">hlir</span><span class="o">::</span><span class="n">framework</span><span class="o">::</span><span class="n">GraphCompiler</span><span class="o">&gt;</span><span class="w"> </span><span class="n">graph_compiler_</span><span class="p">;</span><span class="w"></span>
+
+<span class="w">  </span><span class="n">absl</span><span class="o">::</span><span class="n">flat_hash_map</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="p">,</span><span class="w"> </span><span class="n">Variable</span><span class="o">&gt;</span><span class="w"> </span><span class="n">var_map_</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="n">absl</span><span class="o">::</span><span class="n">flat_hash_map</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="p">,</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&gt;</span><span class="w"> </span><span class="n">var_map_paddle_to_cinn_</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="n">absl</span><span class="o">::</span><span class="n">flat_hash_map</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="p">,</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&gt;</span><span class="w"> </span><span class="n">var_map_cinn_to_paddle_</span><span class="p">;</span><span class="w"></span>
+
+<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">hlir</span><span class="o">::</span><span class="n">framework</span><span class="o">::</span><span class="n">Program</span><span class="o">&gt;</span><span class="w"> </span><span class="n">runtime_program_</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">unique_ptr</span><span class="o">&lt;</span><span class="n">hlir</span><span class="o">::</span><span class="n">framework</span><span class="o">::</span><span class="n">Program</span><span class="o">&gt;</span><span class="w"> </span><span class="n">prerun_program_</span><span class="p">;</span><span class="w"></span>
+<span class="p">};</span><span class="w"></span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">Interpreter::LoadPaddleModel</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&amp;</span><span class="w"> </span><span class="n">model_dir</span><span class="p">,</span><span class="w"></span>
+<span class="w">                                  </span><span class="k">const</span><span class="w"> </span><span class="n">Target</span><span class="o">&amp;</span><span class="w"> </span><span class="n">target</span><span class="p">,</span><span class="w"></span>
+<span class="w">                                  </span><span class="kt">bool</span><span class="w"> </span><span class="n">params_combined</span><span class="p">,</span><span class="w"></span>
+<span class="w">                                  </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&amp;</span><span class="w"> </span><span class="n">model_name</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="k">auto</span><span class="w"> </span><span class="n">programTuple</span><span class="w">               </span><span class="o">=</span><span class="w"> </span><span class="n">LoadPaddleProgram</span><span class="p">(</span><span class="n">model_dir</span><span class="p">,</span><span class="w"> </span><span class="n">impl_</span><span class="o">-&gt;</span><span class="n">scope_</span><span class="p">.</span><span class="n">get</span><span class="p">(),</span><span class="w"> </span><span class="n">params_combined</span><span class="p">,</span><span class="w"> </span><span class="n">target</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="k">auto</span><span class="o">&amp;</span><span class="w"> </span><span class="n">program</span><span class="w">                   </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">get</span><span class="o">&lt;</span><span class="mi">0</span><span class="o">&gt;</span><span class="p">(</span><span class="n">programTuple</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="k">auto</span><span class="o">&amp;</span><span class="w"> </span><span class="n">var_map</span><span class="w">                   </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">get</span><span class="o">&lt;</span><span class="mi">1</span><span class="o">&gt;</span><span class="p">(</span><span class="n">programTuple</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="k">auto</span><span class="o">&amp;</span><span class="w"> </span><span class="n">var_map_paddle_to_program</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">get</span><span class="o">&lt;</span><span class="mi">2</span><span class="o">&gt;</span><span class="p">(</span><span class="n">programTuple</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="k">auto</span><span class="o">&amp;</span><span class="w"> </span><span class="n">fetch_names</span><span class="w">               </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">get</span><span class="o">&lt;</span><span class="mi">3</span><span class="o">&gt;</span><span class="p">(</span><span class="n">programTuple</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="n">impl_</span><span class="o">-&gt;</span><span class="n">program_</span><span class="p">.</span><span class="n">reset</span><span class="p">(</span><span class="n">program</span><span class="p">.</span><span class="n">release</span><span class="p">());</span><span class="w"></span>
+<span class="w">  </span><span class="n">impl_</span><span class="o">-&gt;</span><span class="n">var_map_</span><span class="w">                </span><span class="o">=</span><span class="w"> </span><span class="n">var_map</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="n">impl_</span><span class="o">-&gt;</span><span class="n">var_map_paddle_to_cinn_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">var_map_paddle_to_program</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="n">impl_</span><span class="o">-&gt;</span><span class="n">fetch_names_</span><span class="w">            </span><span class="o">=</span><span class="w"> </span><span class="n">fetch_names</span><span class="p">;</span><span class="w"></span>
+
+<span class="w">  </span><span class="n">impl_</span><span class="o">-&gt;</span><span class="n">Build</span><span class="p">(</span><span class="n">impl_</span><span class="o">-&gt;</span><span class="n">input_names_</span><span class="p">,</span><span class="w"> </span><span class="n">impl_</span><span class="o">-&gt;</span><span class="n">input_shapes_</span><span class="p">,</span><span class="w"> </span><span class="n">target</span><span class="p">,</span><span class="w"> </span><span class="n">model_name</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">Interpreter::Run</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">impl_</span><span class="o">-&gt;</span><span class="n">runtime_program_</span><span class="o">-&gt;</span><span class="n">Execute</span><span class="p">();</span><span class="w"> </span><span class="p">}</span><span class="w"></span>
+
+<span class="n">hlir</span><span class="o">::</span><span class="n">framework</span><span class="o">::</span><span class="n">Tensor</span><span class="w"> </span><span class="nf">Interpreter::GetTensor</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&amp;</span><span class="w"> </span><span class="n">name</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">impl_</span><span class="o">-&gt;</span><span class="n">scope_</span><span class="o">-&gt;</span><span class="n">FindVar</span><span class="p">(</span><span class="n">name</span><span class="p">))</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">impl_</span><span class="o">-&gt;</span><span class="n">scope_</span><span class="o">-&gt;</span><span class="n">GetTensor</span><span class="p">(</span><span class="n">name</span><span class="p">);</span><span class="w"></span>
+
+<span class="w">  </span><span class="k">auto</span><span class="w"> </span><span class="n">it</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">impl_</span><span class="o">-&gt;</span><span class="n">var_map_paddle_to_cinn_</span><span class="p">.</span><span class="n">find</span><span class="p">(</span><span class="n">name</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">it</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">impl_</span><span class="o">-&gt;</span><span class="n">var_map_paddle_to_cinn_</span><span class="p">.</span><span class="n">end</span><span class="p">())</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">LOG</span><span class="p">(</span><span class="n">FATAL</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;No variable called [&quot;</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">name</span><span class="w"></span>
+<span class="w">               </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;] found in executor</span><span class="se">\n</span><span class="s">The existing vars: &quot;</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">utils</span><span class="o">::</span><span class="n">Join</span><span class="p">(</span><span class="n">impl_</span><span class="o">-&gt;</span><span class="n">scope_</span><span class="o">-&gt;</span><span class="n">var_names</span><span class="p">(),</span><span class="w"> </span><span class="s">&quot;, &quot;</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="p">}</span><span class="w"></span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">impl_</span><span class="o">-&gt;</span><span class="n">scope_</span><span class="o">-&gt;</span><span class="n">GetTensor</span><span class="p">(</span><span class="n">it</span><span class="o">-&gt;</span><span class="n">second</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="kt">void</span><span class="w"> </span><span class="nf">Interpreter::Impl::Build</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">input_names</span><span class="p">,</span><span class="w"></span>
+<span class="w">                              </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">hlir</span><span class="o">::</span><span class="n">framework</span><span class="o">::</span><span class="n">shape_t</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">input_shapes</span><span class="p">,</span><span class="w"></span>
+<span class="w">                              </span><span class="k">const</span><span class="w"> </span><span class="n">Target</span><span class="o">&amp;</span><span class="w"> </span><span class="n">target</span><span class="p">,</span><span class="w"></span>
+<span class="w">                              </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&amp;</span><span class="w"> </span><span class="n">model_name</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="n">CHECK</span><span class="p">(</span><span class="o">!</span><span class="n">input_names</span><span class="p">.</span><span class="n">empty</span><span class="p">());</span><span class="w"></span>
+<span class="w">  </span><span class="n">CHECK</span><span class="p">(</span><span class="o">!</span><span class="n">var_map_</span><span class="p">.</span><span class="n">empty</span><span class="p">());</span><span class="w"></span>
+<span class="w">  </span><span class="n">CHECK_EQ</span><span class="p">(</span><span class="n">input_names</span><span class="p">.</span><span class="n">size</span><span class="p">(),</span><span class="w"> </span><span class="n">input_shapes</span><span class="p">.</span><span class="n">size</span><span class="p">());</span><span class="w"></span>
+
+<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">Variable</span><span class="o">&gt;</span><span class="w"> </span><span class="n">input_vars</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">transform</span><span class="p">(</span><span class="n">input_names</span><span class="p">.</span><span class="n">begin</span><span class="p">(),</span><span class="w"> </span><span class="n">input_names</span><span class="p">.</span><span class="n">end</span><span class="p">(),</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">back_inserter</span><span class="p">(</span><span class="n">input_vars</span><span class="p">),</span><span class="w"> </span><span class="p">[</span><span class="o">&amp;</span><span class="p">](</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&amp;</span><span class="w"> </span><span class="n">x</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">var_map_</span><span class="p">.</span><span class="n">at</span><span class="p">(</span><span class="n">x</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="p">});</span><span class="w"></span>
+
+<span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">input_vars</span><span class="p">.</span><span class="n">size</span><span class="p">();</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="n">input_vars</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">-&gt;</span><span class="n">shape</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">input_shapes</span><span class="p">[</span><span class="n">i</span><span class="p">];</span><span class="w"></span>
+
+<span class="w">  </span><span class="n">program_</span><span class="o">-&gt;</span><span class="n">SetInputs</span><span class="p">({</span><span class="n">input_vars</span><span class="p">});</span><span class="w"></span>
+<span class="w">  </span><span class="n">program_</span><span class="o">-&gt;</span><span class="n">Validate</span><span class="p">();</span><span class="w"></span>
+
+<span class="w">  </span><span class="n">VLOG</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;Program:</span><span class="se">\n</span><span class="s">&quot;</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="o">*</span><span class="n">program_</span><span class="p">;</span><span class="w"></span>
+
+<span class="w">  </span><span class="k">auto</span><span class="w"> </span><span class="n">graph</span><span class="w">                 </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">hlir</span><span class="o">::</span><span class="n">framework</span><span class="o">::</span><span class="n">Graph</span><span class="o">&gt;</span><span class="p">(</span><span class="o">*</span><span class="n">program_</span><span class="p">,</span><span class="w"> </span><span class="n">target</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="n">graph</span><span class="o">-&gt;</span><span class="n">attrs</span><span class="p">[</span><span class="s">&quot;model_name&quot;</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">make_shared</span><span class="o">&lt;</span><span class="n">absl</span><span class="o">::</span><span class="n">any</span><span class="o">&gt;</span><span class="p">(</span><span class="n">model_name</span><span class="p">);</span><span class="w"></span>
+
+<span class="w">  </span><span class="n">hlir</span><span class="o">::</span><span class="n">framework</span><span class="o">::</span><span class="n">ApplyPass</span><span class="p">(</span><span class="n">graph</span><span class="p">.</span><span class="n">get</span><span class="p">(),</span><span class="w"> </span><span class="s">&quot;InferShape&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="cp">#ifndef CINN_WITH_CUDA</span>
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">target</span><span class="p">.</span><span class="n">arch</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">Target</span><span class="o">::</span><span class="n">Arch</span><span class="o">::</span><span class="n">X86</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">hlir</span><span class="o">::</span><span class="n">framework</span><span class="o">::</span><span class="n">ApplyPass</span><span class="p">(</span><span class="n">graph</span><span class="p">.</span><span class="n">get</span><span class="p">(),</span><span class="w"> </span><span class="s">&quot;AlterLayout&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="p">}</span><span class="w"></span>
+<span class="cp">#endif</span>
+<span class="w">  </span><span class="n">hlir</span><span class="o">::</span><span class="n">framework</span><span class="o">::</span><span class="n">ApplyPass</span><span class="p">(</span><span class="n">graph</span><span class="p">.</span><span class="n">get</span><span class="p">(),</span><span class="w"> </span><span class="s">&quot;ConstPropagate&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="n">hlir</span><span class="o">::</span><span class="n">framework</span><span class="o">::</span><span class="n">ApplyPass</span><span class="p">(</span><span class="n">graph</span><span class="p">.</span><span class="n">get</span><span class="p">(),</span><span class="w"> </span><span class="s">&quot;OpFusion&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="c1">// Target target = common::DefaultHostTarget();</span>
+<span class="w">  </span><span class="n">scope_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">hlir</span><span class="o">::</span><span class="n">framework</span><span class="o">::</span><span class="n">BuildScope</span><span class="p">(</span><span class="n">target</span><span class="p">,</span><span class="w"> </span><span class="n">graph</span><span class="p">,</span><span class="w"> </span><span class="n">scope_</span><span class="p">);</span><span class="w"></span>
+
+<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">unordered_set</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&gt;</span><span class="w"> </span><span class="n">fetch_var_ids</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">auto</span><span class="o">&amp;</span><span class="w"> </span><span class="nl">name</span> <span class="p">:</span><span class="w"> </span><span class="n">fetch_names_</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">CHECK</span><span class="p">(</span><span class="n">var_map_</span><span class="p">.</span><span class="n">count</span><span class="p">(</span><span class="n">name</span><span class="p">))</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;var_map finds no fetch var &quot;</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">name</span><span class="p">;</span><span class="w"></span>
+<span class="w">    </span><span class="n">fetch_var_ids</span><span class="p">.</span><span class="n">insert</span><span class="p">(</span><span class="n">var_map_</span><span class="p">.</span><span class="n">at</span><span class="p">(</span><span class="n">name</span><span class="p">)</span><span class="o">-&gt;</span><span class="n">id</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="p">}</span><span class="w"></span>
+
+<span class="w">  </span><span class="n">graph_compiler_</span><span class="p">.</span><span class="n">reset</span><span class="p">(</span><span class="k">new</span><span class="w"> </span><span class="n">hlir</span><span class="o">::</span><span class="n">framework</span><span class="o">::</span><span class="n">GraphCompiler</span><span class="p">(</span><span class="n">target</span><span class="p">,</span><span class="w"> </span><span class="n">scope_</span><span class="p">,</span><span class="w"> </span><span class="n">graph</span><span class="p">));</span><span class="w"></span>
+<span class="w">  </span><span class="n">hlir</span><span class="o">::</span><span class="n">framework</span><span class="o">::</span><span class="n">GraphCompiler</span><span class="o">::</span><span class="n">CompileOptions</span><span class="w"> </span><span class="n">options</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="n">options</span><span class="p">.</span><span class="n">with_instantiate_variables</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="n">runtime_program_</span><span class="w">                   </span><span class="o">=</span><span class="w"> </span><span class="n">graph_compiler_</span><span class="o">-&gt;</span><span class="n">Build</span><span class="p">(</span><span class="n">options</span><span class="p">,</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">fetch_var_ids</span><span class="p">)).</span><span class="n">runtime_program</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="n">runtime_program_</span><span class="o">-&gt;</span><span class="n">PreRun</span><span class="p">();</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="n">std</span><span class="o">::</span><span class="n">shared_ptr</span><span class="o">&lt;</span><span class="n">hlir</span><span class="o">::</span><span class="n">framework</span><span class="o">::</span><span class="n">Scope</span><span class="o">&gt;</span><span class="w"> </span><span class="n">Interpreter</span><span class="o">::</span><span class="n">scope</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="n">CHECK</span><span class="p">(</span><span class="n">impl_</span><span class="o">-&gt;</span><span class="n">scope_</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">impl_</span><span class="o">-&gt;</span><span class="n">scope_</span><span class="p">;</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="n">Interpreter</span><span class="o">::</span><span class="n">Interpreter</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">input_names</span><span class="p">,</span><span class="w"></span>
+<span class="w">                         </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">hlir</span><span class="o">::</span><span class="n">framework</span><span class="o">::</span><span class="n">shape_t</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">input_shapes</span><span class="p">)</span><span class="w"></span>
+<span class="w">    </span><span class="o">:</span><span class="w"> </span><span class="n">impl_</span><span class="p">(</span><span class="k">new</span><span class="w"> </span><span class="n">Impl</span><span class="p">(</span><span class="n">input_names</span><span class="p">,</span><span class="w"> </span><span class="n">input_shapes</span><span class="p">))</span><span class="w"> </span><span class="p">{}</span><span class="w"></span>
+
+<span class="p">}</span><span class="w">  </span><span class="c1">// namespace cinn::frontend</span>
+
+<span class="n">cinn</span><span class="o">::</span><span class="n">frontend</span><span class="o">::</span><span class="n">Interpreter</span><span class="o">::~</span><span class="n">Interpreter</span><span class="p">()</span><span class="w"> </span><span class="p">{}</span><span class="w"></span>
+</pre></div>
+</div>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, cinn team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

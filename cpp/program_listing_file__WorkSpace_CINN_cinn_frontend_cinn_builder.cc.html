@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Program Listing for File cinn_builder.cc &mdash; cinn release/v0.1-rc documentation</title><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery-binder.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery-dataframe.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/collapsible-lists/css/tree_view.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
+        <script src="../_static/collapsible-lists/js/CollapsibleLists.compressed.js"></script>
+        <script src="../_static/collapsible-lists/js/apply-collapsible-lists.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> cinn
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../install.html">Build from source code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../guide.html">Install CINN using docker</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/index.html">Tutorials</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../matmul.html">C++ DSL API tutorial: Matrix Multiplication</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../load_paddle_model.html">Load and Execute Paddle Model in C++</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cinn_builder_api.html">CinnBuilder Primitive Semantics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="library_root.html">C++ Symbols</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">cinn</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Program Listing for File cinn_builder.cc</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/cpp/program_listing_file__WorkSpace_CINN_cinn_frontend_cinn_builder.cc.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="program-listing-for-file-cinn-builder-cc">
+<span id="program-listing-file-workspace-cinn-cinn-frontend-cinn-builder-cc"></span><h1>Program Listing for File cinn_builder.cc<a class="headerlink" href="#program-listing-for-file-cinn-builder-cc" title="Permalink to this headline"></a></h1>
+<p>↰ <a class="reference internal" href="file__WorkSpace_CINN_cinn_frontend_cinn_builder.cc.html#file-workspace-cinn-cinn-frontend-cinn-builder-cc"><span class="std std-ref">Return to documentation for file</span></a> (<code class="docutils literal notranslate"><span class="pre">/WorkSpace/CINN/cinn/frontend/cinn_builder.cc</span></code>)</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="c1">// Copyright (c) 2021 CINN Authors. All Rights Reserved.</span>
+<span class="c1">//</span>
+<span class="c1">// Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1">// you may not use this file except in compliance with the License.</span>
+<span class="c1">// You may obtain a copy of the License at</span>
+<span class="c1">//</span>
+<span class="c1">//     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">//</span>
+<span class="c1">// Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1">// distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1">// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1">// See the License for the specific language governing permissions and</span>
+<span class="c1">// limitations under the License.</span>
+
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;cinn/frontend/cinn_builder.h&quot;</span><span class="cp"></span>
+
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;glog/logging.h&gt;</span><span class="cp"></span>
+
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;string&gt;</span><span class="cp"></span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;utility&gt;</span><span class="cp"></span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;vector&gt;</span><span class="cp"></span>
+
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;cinn/frontend/syntax.h&quot;</span><span class="cp"></span>
+
+<span class="k">namespace</span><span class="w"> </span><span class="nn">cinn</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="k">namespace</span><span class="w"> </span><span class="nn">frontend</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+
+<span class="cp">#define UNARY_OP_DEF(func_name__, op_type__) \</span>
+<span class="cp">  Variable CinnBuilder::func_name__(const Variable&amp; operand) { return UnaryOp(#op_type__, operand); }</span>
+<span class="n">UNARY_OP_DEF</span><span class="p">(</span><span class="n">Exp</span><span class="p">,</span><span class="w"> </span><span class="n">exp</span><span class="p">)</span><span class="w"></span>
+<span class="n">UNARY_OP_DEF</span><span class="p">(</span><span class="n">Erf</span><span class="p">,</span><span class="w"> </span><span class="n">erf</span><span class="p">)</span><span class="w"></span>
+<span class="n">UNARY_OP_DEF</span><span class="p">(</span><span class="n">Sqrt</span><span class="p">,</span><span class="w"> </span><span class="n">sqrt</span><span class="p">)</span><span class="w"></span>
+<span class="n">UNARY_OP_DEF</span><span class="p">(</span><span class="n">Rsqrt</span><span class="p">,</span><span class="w"> </span><span class="n">rsqrt</span><span class="p">)</span><span class="w"></span>
+<span class="n">UNARY_OP_DEF</span><span class="p">(</span><span class="n">Log</span><span class="p">,</span><span class="w"> </span><span class="n">log</span><span class="p">)</span><span class="w"></span>
+<span class="n">UNARY_OP_DEF</span><span class="p">(</span><span class="n">Log2</span><span class="p">,</span><span class="w"> </span><span class="n">log2</span><span class="p">)</span><span class="w"></span>
+<span class="n">UNARY_OP_DEF</span><span class="p">(</span><span class="n">Log10</span><span class="p">,</span><span class="w"> </span><span class="n">log10</span><span class="p">)</span><span class="w"></span>
+<span class="n">UNARY_OP_DEF</span><span class="p">(</span><span class="n">Floor</span><span class="p">,</span><span class="w"> </span><span class="n">floor</span><span class="p">)</span><span class="w"></span>
+<span class="n">UNARY_OP_DEF</span><span class="p">(</span><span class="n">Ceil</span><span class="p">,</span><span class="w"> </span><span class="n">ceil</span><span class="p">)</span><span class="w"></span>
+<span class="n">UNARY_OP_DEF</span><span class="p">(</span><span class="n">Round</span><span class="p">,</span><span class="w"> </span><span class="n">round</span><span class="p">)</span><span class="w"></span>
+<span class="n">UNARY_OP_DEF</span><span class="p">(</span><span class="n">Trunc</span><span class="p">,</span><span class="w"> </span><span class="n">trunc</span><span class="p">)</span><span class="w"></span>
+<span class="n">UNARY_OP_DEF</span><span class="p">(</span><span class="n">Sin</span><span class="p">,</span><span class="w"> </span><span class="n">sin</span><span class="p">)</span><span class="w"></span>
+<span class="n">UNARY_OP_DEF</span><span class="p">(</span><span class="n">Cos</span><span class="p">,</span><span class="w"> </span><span class="n">cos</span><span class="p">)</span><span class="w"></span>
+<span class="n">UNARY_OP_DEF</span><span class="p">(</span><span class="n">Tan</span><span class="p">,</span><span class="w"> </span><span class="n">tan</span><span class="p">)</span><span class="w"></span>
+<span class="n">UNARY_OP_DEF</span><span class="p">(</span><span class="n">Sinh</span><span class="p">,</span><span class="w"> </span><span class="n">sinh</span><span class="p">)</span><span class="w"></span>
+<span class="n">UNARY_OP_DEF</span><span class="p">(</span><span class="n">Cosh</span><span class="p">,</span><span class="w"> </span><span class="n">cosh</span><span class="p">)</span><span class="w"></span>
+<span class="n">UNARY_OP_DEF</span><span class="p">(</span><span class="n">Tanh</span><span class="p">,</span><span class="w"> </span><span class="n">tanh</span><span class="p">)</span><span class="w"></span>
+<span class="n">UNARY_OP_DEF</span><span class="p">(</span><span class="n">Asin</span><span class="p">,</span><span class="w"> </span><span class="n">asin</span><span class="p">)</span><span class="w"></span>
+<span class="n">UNARY_OP_DEF</span><span class="p">(</span><span class="n">Acos</span><span class="p">,</span><span class="w"> </span><span class="n">acos</span><span class="p">)</span><span class="w"></span>
+<span class="n">UNARY_OP_DEF</span><span class="p">(</span><span class="n">Atan</span><span class="p">,</span><span class="w"> </span><span class="n">atan</span><span class="p">)</span><span class="w"></span>
+<span class="n">UNARY_OP_DEF</span><span class="p">(</span><span class="n">Asinh</span><span class="p">,</span><span class="w"> </span><span class="n">asinh</span><span class="p">)</span><span class="w"></span>
+<span class="n">UNARY_OP_DEF</span><span class="p">(</span><span class="n">Acosh</span><span class="p">,</span><span class="w"> </span><span class="n">acosh</span><span class="p">)</span><span class="w"></span>
+<span class="n">UNARY_OP_DEF</span><span class="p">(</span><span class="n">Atanh</span><span class="p">,</span><span class="w"> </span><span class="n">atanh</span><span class="p">)</span><span class="w"></span>
+<span class="n">UNARY_OP_DEF</span><span class="p">(</span><span class="n">IsNan</span><span class="p">,</span><span class="w"> </span><span class="n">isnan</span><span class="p">)</span><span class="w"></span>
+<span class="n">UNARY_OP_DEF</span><span class="p">(</span><span class="n">IsFinite</span><span class="p">,</span><span class="w"> </span><span class="n">isfinite</span><span class="p">)</span><span class="w"></span>
+<span class="n">UNARY_OP_DEF</span><span class="p">(</span><span class="n">IsInf</span><span class="p">,</span><span class="w"> </span><span class="n">isinf</span><span class="p">)</span><span class="w"></span>
+<span class="n">UNARY_OP_DEF</span><span class="p">(</span><span class="n">LogicalNot</span><span class="p">,</span><span class="w"> </span><span class="n">logical_not</span><span class="p">)</span><span class="w"></span>
+<span class="n">UNARY_OP_DEF</span><span class="p">(</span><span class="n">BitwiseNot</span><span class="p">,</span><span class="w"> </span><span class="n">bitwise_not</span><span class="p">)</span><span class="w"></span>
+<span class="n">UNARY_OP_DEF</span><span class="p">(</span><span class="n">Negative</span><span class="p">,</span><span class="w"> </span><span class="n">negative</span><span class="p">)</span><span class="w"></span>
+<span class="n">UNARY_OP_DEF</span><span class="p">(</span><span class="n">Sign</span><span class="p">,</span><span class="w"> </span><span class="n">sign</span><span class="p">)</span><span class="w"></span>
+<span class="n">UNARY_OP_DEF</span><span class="p">(</span><span class="n">Abs</span><span class="p">,</span><span class="w"> </span><span class="n">abs</span><span class="p">)</span><span class="w"></span>
+<span class="n">UNARY_OP_DEF</span><span class="p">(</span><span class="n">Identity</span><span class="p">,</span><span class="w"> </span><span class="n">identity</span><span class="p">)</span><span class="w"></span>
+<span class="cp">#undef UNARY_OP_DEF</span>
+
+<span class="cp">#define BINARY_OP_DEF(func_name__, op_type__) \</span>
+<span class="cp">  Variable CinnBuilder::func_name__(const Variable&amp; lhs, const Variable&amp; rhs) { return BinaryOp(#op_type__, lhs, rhs); }</span>
+<span class="n">BINARY_OP_DEF</span><span class="p">(</span><span class="n">Dot</span><span class="p">,</span><span class="w"> </span><span class="n">matmul</span><span class="p">)</span><span class="w"></span>
+<span class="n">BINARY_OP_DEF</span><span class="p">(</span><span class="n">Add</span><span class="p">,</span><span class="w"> </span><span class="n">elementwise_add</span><span class="p">)</span><span class="w"></span>
+<span class="n">BINARY_OP_DEF</span><span class="p">(</span><span class="n">Sub</span><span class="p">,</span><span class="w"> </span><span class="n">substract</span><span class="p">)</span><span class="w"></span>
+<span class="n">BINARY_OP_DEF</span><span class="p">(</span><span class="n">Mul</span><span class="p">,</span><span class="w"> </span><span class="n">elementwise_mul</span><span class="p">)</span><span class="w"></span>
+<span class="n">BINARY_OP_DEF</span><span class="p">(</span><span class="n">Div</span><span class="p">,</span><span class="w"> </span><span class="n">divide</span><span class="p">)</span><span class="w"></span>
+<span class="n">BINARY_OP_DEF</span><span class="p">(</span><span class="n">FloorDiv</span><span class="p">,</span><span class="w"> </span><span class="n">floor_divide</span><span class="p">)</span><span class="w"></span>
+<span class="n">BINARY_OP_DEF</span><span class="p">(</span><span class="n">Mod</span><span class="p">,</span><span class="w"> </span><span class="n">mod</span><span class="p">)</span><span class="w"></span>
+<span class="n">BINARY_OP_DEF</span><span class="p">(</span><span class="n">FloorMod</span><span class="p">,</span><span class="w"> </span><span class="n">floor_mod</span><span class="p">)</span><span class="w"></span>
+<span class="n">BINARY_OP_DEF</span><span class="p">(</span><span class="n">Max</span><span class="p">,</span><span class="w"> </span><span class="n">max</span><span class="p">)</span><span class="w"></span>
+<span class="n">BINARY_OP_DEF</span><span class="p">(</span><span class="n">Min</span><span class="p">,</span><span class="w"> </span><span class="n">min</span><span class="p">)</span><span class="w"></span>
+<span class="n">BINARY_OP_DEF</span><span class="p">(</span><span class="n">Power</span><span class="p">,</span><span class="w"> </span><span class="n">power</span><span class="p">)</span><span class="w"></span>
+<span class="n">BINARY_OP_DEF</span><span class="p">(</span><span class="n">LogicalAnd</span><span class="p">,</span><span class="w"> </span><span class="n">logical_and</span><span class="p">)</span><span class="w"></span>
+<span class="n">BINARY_OP_DEF</span><span class="p">(</span><span class="n">LogicalOr</span><span class="p">,</span><span class="w"> </span><span class="n">logical_or</span><span class="p">)</span><span class="w"></span>
+<span class="n">BINARY_OP_DEF</span><span class="p">(</span><span class="n">LogicalXor</span><span class="p">,</span><span class="w"> </span><span class="n">logical_xor</span><span class="p">)</span><span class="w"></span>
+<span class="n">BINARY_OP_DEF</span><span class="p">(</span><span class="n">BitwiseAnd</span><span class="p">,</span><span class="w"> </span><span class="n">bitwise_and</span><span class="p">)</span><span class="w"></span>
+<span class="n">BINARY_OP_DEF</span><span class="p">(</span><span class="n">BitwiseOr</span><span class="p">,</span><span class="w"> </span><span class="n">bitwise_or</span><span class="p">)</span><span class="w"></span>
+<span class="n">BINARY_OP_DEF</span><span class="p">(</span><span class="n">BitwiseXor</span><span class="p">,</span><span class="w"> </span><span class="n">bitwise_xor</span><span class="p">)</span><span class="w"></span>
+<span class="n">BINARY_OP_DEF</span><span class="p">(</span><span class="n">LeftShift</span><span class="p">,</span><span class="w"> </span><span class="n">left_shift</span><span class="p">)</span><span class="w"></span>
+<span class="n">BINARY_OP_DEF</span><span class="p">(</span><span class="n">RightShift</span><span class="p">,</span><span class="w"> </span><span class="n">right_shift</span><span class="p">)</span><span class="w"></span>
+<span class="cp">#undef BINARY_OP_DEF</span>
+
+<span class="n">Variable</span><span class="w"> </span><span class="n">CinnBuilder</span><span class="o">::</span><span class="n">Concat</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">Variable</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">input_vars</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">axis</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="n">Instruction</span><span class="w"> </span><span class="nf">instr</span><span class="p">(</span><span class="s">&quot;concat&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">input_vars</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="n">instr</span><span class="p">.</span><span class="n">SetAttr</span><span class="p">(</span><span class="s">&quot;axis&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">axis</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="n">InferShape</span><span class="p">(</span><span class="n">instr</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="n">AppendInstruction</span><span class="p">(</span><span class="n">instr</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">instr</span><span class="p">.</span><span class="n">GetOutput</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="n">Variable</span><span class="w"> </span><span class="n">CinnBuilder</span><span class="o">::</span><span class="n">Conv</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Variable</span><span class="o">&amp;</span><span class="w"> </span><span class="n">lhs</span><span class="p">,</span><span class="w"></span>
+<span class="w">                           </span><span class="k">const</span><span class="w"> </span><span class="n">Variable</span><span class="o">&amp;</span><span class="w"> </span><span class="n">rhs</span><span class="p">,</span><span class="w"></span>
+<span class="w">                           </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">strides</span><span class="p">,</span><span class="w"></span>
+<span class="w">                           </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">paddings</span><span class="p">,</span><span class="w"></span>
+<span class="w">                           </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">dilations</span><span class="p">,</span><span class="w"></span>
+<span class="w">                           </span><span class="kt">int</span><span class="w"> </span><span class="n">groups</span><span class="p">,</span><span class="w"></span>
+<span class="w">                           </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&amp;</span><span class="w"> </span><span class="n">conv_type</span><span class="p">,</span><span class="w"></span>
+<span class="w">                           </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&amp;</span><span class="w"> </span><span class="n">data_format</span><span class="p">,</span><span class="w"></span>
+<span class="w">                           </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&amp;</span><span class="w"> </span><span class="n">padding_algorithm</span><span class="p">,</span><span class="w"></span>
+<span class="w">                           </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">output_shape</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="n">Instruction</span><span class="w"> </span><span class="nf">instr</span><span class="p">(</span><span class="s">&quot;conv2d&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="n">instr</span><span class="p">.</span><span class="n">SetInputs</span><span class="p">({</span><span class="n">lhs</span><span class="p">,</span><span class="w"> </span><span class="n">rhs</span><span class="p">});</span><span class="w"></span>
+<span class="w">  </span><span class="n">instr</span><span class="p">.</span><span class="n">SetAttr</span><span class="p">(</span><span class="s">&quot;stride&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">strides</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="n">instr</span><span class="p">.</span><span class="n">SetAttr</span><span class="p">(</span><span class="s">&quot;padding&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">paddings</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="n">instr</span><span class="p">.</span><span class="n">SetAttr</span><span class="p">(</span><span class="s">&quot;dilation&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">dilations</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="n">instr</span><span class="p">.</span><span class="n">SetAttr</span><span class="p">(</span><span class="s">&quot;groups&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">groups</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="n">instr</span><span class="p">.</span><span class="n">SetAttr</span><span class="p">(</span><span class="s">&quot;conv_type&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">conv_type</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="n">instr</span><span class="p">.</span><span class="n">SetAttr</span><span class="p">(</span><span class="s">&quot;data_format&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">data_format</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="n">instr</span><span class="p">.</span><span class="n">SetAttr</span><span class="p">(</span><span class="s">&quot;padding_algorithm&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">padding_algorithm</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="n">instr</span><span class="p">.</span><span class="n">SetAttr</span><span class="p">(</span><span class="s">&quot;output_shape&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">output_shape</span><span class="p">);</span><span class="w"></span>
+
+<span class="w">  </span><span class="n">InferShape</span><span class="p">(</span><span class="n">instr</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="n">AppendInstruction</span><span class="p">(</span><span class="n">instr</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">instr</span><span class="p">.</span><span class="n">GetOutput</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="n">Variable</span><span class="w"> </span><span class="n">CinnBuilder</span><span class="o">::</span><span class="n">Compare</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Variable</span><span class="o">&amp;</span><span class="w"> </span><span class="n">lhs</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">Variable</span><span class="o">&amp;</span><span class="w"> </span><span class="n">rhs</span><span class="p">,</span><span class="w"> </span><span class="n">ComparisonKind</span><span class="w"> </span><span class="n">kind</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">kind</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="n">ComparisonKind</span><span class="o">::</span><span class="nl">kEq</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="n">BinaryOp</span><span class="p">(</span><span class="s">&quot;equal&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">lhs</span><span class="p">,</span><span class="w"> </span><span class="n">rhs</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="n">ComparisonKind</span><span class="o">::</span><span class="nl">kNe</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="n">BinaryOp</span><span class="p">(</span><span class="s">&quot;not_equal&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">lhs</span><span class="p">,</span><span class="w"> </span><span class="n">rhs</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="n">ComparisonKind</span><span class="o">::</span><span class="nl">kGe</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="n">BinaryOp</span><span class="p">(</span><span class="s">&quot;greater_equal&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">lhs</span><span class="p">,</span><span class="w"> </span><span class="n">rhs</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="n">ComparisonKind</span><span class="o">::</span><span class="nl">kGt</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="n">BinaryOp</span><span class="p">(</span><span class="s">&quot;greater&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">lhs</span><span class="p">,</span><span class="w"> </span><span class="n">rhs</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="n">ComparisonKind</span><span class="o">::</span><span class="nl">kLe</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="n">BinaryOp</span><span class="p">(</span><span class="s">&quot;less_equal&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">lhs</span><span class="p">,</span><span class="w"> </span><span class="n">rhs</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="n">ComparisonKind</span><span class="o">::</span><span class="nl">kLt</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="n">BinaryOp</span><span class="p">(</span><span class="s">&quot;less&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">lhs</span><span class="p">,</span><span class="w"> </span><span class="n">rhs</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="k">default</span><span class="o">:</span><span class="w"></span>
+<span class="w">      </span><span class="n">LOG</span><span class="p">(</span><span class="n">FATAL</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;unknown comparison kind&quot;</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="n">Variable</span><span class="w"> </span><span class="n">CinnBuilder</span><span class="o">::</span><span class="n">Reduce</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Variable</span><span class="o">&amp;</span><span class="w"> </span><span class="n">operand</span><span class="p">,</span><span class="w"> </span><span class="n">ReduceKind</span><span class="w"> </span><span class="n">kind</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">dim</span><span class="p">,</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="n">keep_dim</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="k">auto</span><span class="w"> </span><span class="n">reduce_func</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="o">&amp;</span><span class="p">](</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&amp;</span><span class="w"> </span><span class="n">op_type</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="n">Instruction</span><span class="w"> </span><span class="nf">instr</span><span class="p">(</span><span class="n">op_type</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="n">operand</span><span class="p">});</span><span class="w"></span>
+<span class="w">    </span><span class="n">instr</span><span class="p">.</span><span class="n">SetAttr</span><span class="p">(</span><span class="s">&quot;dim&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">dim</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">instr</span><span class="p">.</span><span class="n">SetAttr</span><span class="p">(</span><span class="s">&quot;keep_dim&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">keep_dim</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">InferShape</span><span class="p">(</span><span class="n">instr</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="n">AppendInstruction</span><span class="p">(</span><span class="n">instr</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">instr</span><span class="p">.</span><span class="n">GetOutput</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="p">};</span><span class="w"></span>
+
+<span class="w">  </span><span class="k">switch</span><span class="w"> </span><span class="p">(</span><span class="n">kind</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="n">ReduceKind</span><span class="o">::</span><span class="nl">kSum</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="n">reduce_func</span><span class="p">(</span><span class="s">&quot;reduce_sum&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="n">ReduceKind</span><span class="o">::</span><span class="nl">kProd</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="n">reduce_func</span><span class="p">(</span><span class="s">&quot;reduce_prod&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="n">ReduceKind</span><span class="o">::</span><span class="nl">kMax</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="n">reduce_func</span><span class="p">(</span><span class="s">&quot;reduce_max&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="n">ReduceKind</span><span class="o">::</span><span class="nl">kMin</span><span class="p">:</span><span class="w"></span>
+<span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="n">reduce_func</span><span class="p">(</span><span class="s">&quot;reduce_min&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="w">    </span><span class="k">default</span><span class="o">:</span><span class="w"></span>
+<span class="w">      </span><span class="n">LOG</span><span class="p">(</span><span class="n">FATAL</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;unknown reduction kind&quot;</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="p">}</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="n">Variable</span><span class="w"> </span><span class="n">CinnBuilder</span><span class="o">::</span><span class="n">BroadcastTo</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Variable</span><span class="o">&amp;</span><span class="w"> </span><span class="n">operand</span><span class="p">,</span><span class="w"></span>
+<span class="w">                                  </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">out_shape</span><span class="p">,</span><span class="w"></span>
+<span class="w">                                  </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">broadcast_axes</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="n">Instruction</span><span class="w"> </span><span class="nf">instr</span><span class="p">(</span><span class="s">&quot;broadcast_to&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="n">operand</span><span class="p">});</span><span class="w"></span>
+<span class="w">  </span><span class="n">instr</span><span class="p">.</span><span class="n">SetAttr</span><span class="p">(</span><span class="s">&quot;out_shape&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">out_shape</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="n">instr</span><span class="p">.</span><span class="n">SetAttr</span><span class="p">(</span><span class="s">&quot;broadcast_axes&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">broadcast_axes</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="n">InferShape</span><span class="p">(</span><span class="n">instr</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="n">AppendInstruction</span><span class="p">(</span><span class="n">instr</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">instr</span><span class="p">.</span><span class="n">GetOutput</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="n">Variable</span><span class="w"> </span><span class="n">CinnBuilder</span><span class="o">::</span><span class="n">Reshape</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Variable</span><span class="o">&amp;</span><span class="w"> </span><span class="n">operand</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">shape</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="n">Instruction</span><span class="w"> </span><span class="nf">instr</span><span class="p">(</span><span class="s">&quot;reshape&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="n">operand</span><span class="p">});</span><span class="w"></span>
+<span class="w">  </span><span class="n">instr</span><span class="p">.</span><span class="n">SetAttr</span><span class="p">(</span><span class="s">&quot;shape&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">shape</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="n">InferShape</span><span class="p">(</span><span class="n">instr</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="n">AppendInstruction</span><span class="p">(</span><span class="n">instr</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">instr</span><span class="p">.</span><span class="n">GetOutput</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="n">Variable</span><span class="w"> </span><span class="n">CinnBuilder</span><span class="o">::</span><span class="n">Transpose</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Variable</span><span class="o">&amp;</span><span class="w"> </span><span class="n">operand</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">axis</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="n">Instruction</span><span class="w"> </span><span class="nf">instr</span><span class="p">(</span><span class="s">&quot;transpose&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="n">operand</span><span class="p">});</span><span class="w"></span>
+<span class="w">  </span><span class="n">instr</span><span class="p">.</span><span class="n">SetAttr</span><span class="p">(</span><span class="s">&quot;axis&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">axis</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="n">InferShape</span><span class="p">(</span><span class="n">instr</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="n">AppendInstruction</span><span class="p">(</span><span class="n">instr</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">instr</span><span class="p">.</span><span class="n">GetOutput</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="n">Variable</span><span class="w"> </span><span class="n">CinnBuilder</span><span class="o">::</span><span class="n">Slice</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Variable</span><span class="o">&amp;</span><span class="w"> </span><span class="n">operand</span><span class="p">,</span><span class="w"></span>
+<span class="w">                            </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">axes</span><span class="p">,</span><span class="w"></span>
+<span class="w">                            </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">starts</span><span class="p">,</span><span class="w"></span>
+<span class="w">                            </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">ends</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="n">Instruction</span><span class="w"> </span><span class="nf">instr</span><span class="p">(</span><span class="s">&quot;slice&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="n">operand</span><span class="p">});</span><span class="w"></span>
+<span class="w">  </span><span class="n">instr</span><span class="p">.</span><span class="n">SetAttr</span><span class="p">(</span><span class="s">&quot;axes&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">axes</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="n">instr</span><span class="p">.</span><span class="n">SetAttr</span><span class="p">(</span><span class="s">&quot;starts&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">starts</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="n">instr</span><span class="p">.</span><span class="n">SetAttr</span><span class="p">(</span><span class="s">&quot;ends&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">ends</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="n">InferShape</span><span class="p">(</span><span class="n">instr</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="n">AppendInstruction</span><span class="p">(</span><span class="n">instr</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">instr</span><span class="p">.</span><span class="n">GetOutput</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="n">Variable</span><span class="w"> </span><span class="n">CinnBuilder</span><span class="o">::</span><span class="n">Select</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Variable</span><span class="o">&amp;</span><span class="w"> </span><span class="n">condition</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">Variable</span><span class="o">&amp;</span><span class="w"> </span><span class="n">true_value</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">Variable</span><span class="o">&amp;</span><span class="w"> </span><span class="n">false_value</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="n">Instruction</span><span class="w"> </span><span class="nf">instr</span><span class="p">(</span><span class="s">&quot;select&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="n">condition</span><span class="p">,</span><span class="w"> </span><span class="n">true_value</span><span class="p">,</span><span class="w"> </span><span class="n">false_value</span><span class="p">});</span><span class="w"></span>
+<span class="w">  </span><span class="n">InferShape</span><span class="p">(</span><span class="n">instr</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="n">AppendInstruction</span><span class="p">(</span><span class="n">instr</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">instr</span><span class="p">.</span><span class="n">GetOutput</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="n">Variable</span><span class="w"> </span><span class="n">CinnBuilder</span><span class="o">::</span><span class="n">Reverse</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Variable</span><span class="o">&amp;</span><span class="w"> </span><span class="n">operand</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;&amp;</span><span class="w"> </span><span class="n">axis</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="n">Instruction</span><span class="w"> </span><span class="nf">instr</span><span class="p">(</span><span class="s">&quot;reverse&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="n">operand</span><span class="p">});</span><span class="w"></span>
+<span class="w">  </span><span class="n">instr</span><span class="p">.</span><span class="n">SetAttr</span><span class="p">(</span><span class="s">&quot;axis&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">axis</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="n">InferShape</span><span class="p">(</span><span class="n">instr</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="n">AppendInstruction</span><span class="p">(</span><span class="n">instr</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">instr</span><span class="p">.</span><span class="n">GetOutput</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">Variable</span><span class="o">&gt;</span><span class="w"> </span><span class="n">CinnBuilder</span><span class="o">::</span><span class="n">BnMeanVariance</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Variable</span><span class="o">&amp;</span><span class="w"> </span><span class="n">x</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="n">Instruction</span><span class="w"> </span><span class="nf">instr</span><span class="p">(</span><span class="s">&quot;bn_mean_variance&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="n">x</span><span class="p">});</span><span class="w"></span>
+<span class="w">  </span><span class="c1">// optimize bn forward reduce computation, set reduce dimension(NCHW suppport only, to be deprecated).</span>
+<span class="w">  </span><span class="n">instr</span><span class="p">.</span><span class="n">SetAttr</span><span class="p">(</span><span class="s">&quot;dim&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="p">{</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">});</span><span class="w"></span>
+<span class="w">  </span><span class="n">instr</span><span class="p">.</span><span class="n">SetAttr</span><span class="p">(</span><span class="s">&quot;keep_dim&quot;</span><span class="p">,</span><span class="w"> </span><span class="nb">false</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="n">InferShape</span><span class="p">(</span><span class="n">instr</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="n">AppendInstruction</span><span class="p">(</span><span class="n">instr</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">instr</span><span class="p">.</span><span class="n">GetOutputs</span><span class="p">();</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">Variable</span><span class="o">&gt;</span><span class="w"> </span><span class="n">CinnBuilder</span><span class="o">::</span><span class="n">BnGradBiasScale</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Variable</span><span class="o">&amp;</span><span class="w"> </span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">Variable</span><span class="o">&amp;</span><span class="w"> </span><span class="n">x_mean</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">Variable</span><span class="o">&amp;</span><span class="w"> </span><span class="n">y_grad</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="n">Instruction</span><span class="w"> </span><span class="nf">instr</span><span class="p">(</span><span class="s">&quot;bn_grad_bias_scale&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">x_mean</span><span class="p">,</span><span class="w"> </span><span class="n">y_grad</span><span class="p">});</span><span class="w"></span>
+<span class="w">  </span><span class="c1">// optimize bn backward reduce computation, set reduce dimension(NCHW suppport only, to be deprecated).</span>
+<span class="w">  </span><span class="n">instr</span><span class="p">.</span><span class="n">SetAttr</span><span class="p">(</span><span class="s">&quot;dim&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="p">{</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">});</span><span class="w"></span>
+<span class="w">  </span><span class="n">instr</span><span class="p">.</span><span class="n">SetAttr</span><span class="p">(</span><span class="s">&quot;keep_dim&quot;</span><span class="p">,</span><span class="w"> </span><span class="nb">false</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="n">InferShape</span><span class="p">(</span><span class="n">instr</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="n">AppendInstruction</span><span class="p">(</span><span class="n">instr</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">instr</span><span class="p">.</span><span class="n">GetOutputs</span><span class="p">();</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="n">Variable</span><span class="w"> </span><span class="n">CinnBuilder</span><span class="o">::</span><span class="n">UnaryOp</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&amp;</span><span class="w"> </span><span class="n">op_type</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">Variable</span><span class="o">&amp;</span><span class="w"> </span><span class="n">operand</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="n">Instruction</span><span class="w"> </span><span class="nf">instr</span><span class="p">(</span><span class="n">op_type</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="n">operand</span><span class="p">});</span><span class="w"></span>
+<span class="w">  </span><span class="n">InferShape</span><span class="p">(</span><span class="n">instr</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="n">AppendInstruction</span><span class="p">(</span><span class="n">instr</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">instr</span><span class="p">.</span><span class="n">GetOutput</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="n">Variable</span><span class="w"> </span><span class="n">CinnBuilder</span><span class="o">::</span><span class="n">BinaryOp</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&amp;</span><span class="w"> </span><span class="n">op_type</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">Variable</span><span class="o">&amp;</span><span class="w"> </span><span class="n">lhs</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">Variable</span><span class="o">&amp;</span><span class="w"> </span><span class="n">rhs</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="n">Instruction</span><span class="w"> </span><span class="nf">instr</span><span class="p">(</span><span class="n">op_type</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="n">lhs</span><span class="p">,</span><span class="w"> </span><span class="n">rhs</span><span class="p">});</span><span class="w"></span>
+<span class="w">  </span><span class="n">InferShape</span><span class="p">(</span><span class="n">instr</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="n">AppendInstruction</span><span class="p">(</span><span class="n">instr</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">instr</span><span class="p">.</span><span class="n">GetOutput</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+
+<span class="p">}</span><span class="w">  </span><span class="c1">// namespace frontend</span>
+<span class="p">}</span><span class="w">  </span><span class="c1">// namespace cinn</span>
+</pre></div>
+</div>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, cinn team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

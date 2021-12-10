@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>File compute.cc &mdash; cinn release/v0.1-rc documentation</title><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery-binder.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery-dataframe.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/collapsible-lists/css/tree_view.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
+        <script src="../_static/collapsible-lists/js/CollapsibleLists.compressed.js"></script>
+        <script src="../_static/collapsible-lists/js/apply-collapsible-lists.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> cinn
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../install.html">Build from source code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../guide.html">Install CINN using docker</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/index.html">Tutorials</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../matmul.html">C++ DSL API tutorial: Matrix Multiplication</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../load_paddle_model.html">Load and Execute Paddle Model in C++</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cinn_builder_api.html">CinnBuilder Primitive Semantics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="library_root.html">C++ Symbols</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">cinn</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>File compute.cc</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/cpp/file__WorkSpace_CINN_cinn_lang_compute.cc.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="file-compute-cc">
+<span id="file-workspace-cinn-cinn-lang-compute-cc"></span><h1>File compute.cc<a class="headerlink" href="#file-compute-cc" title="Permalink to this headline"></a></h1>
+<p>↰ <a class="reference internal" href="dir__WorkSpace_CINN_cinn_lang.html#dir-workspace-cinn-cinn-lang"><span class="std std-ref">Parent directory</span></a> (<code class="docutils literal notranslate"><span class="pre">/WorkSpace/CINN/cinn/lang</span></code>)</p>
+<div class="contents local topic" id="contents">
+<p class="topic-title">Contents</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#definition-workspace-cinn-cinn-lang-compute-cc" id="id1">Definition (<code class="docutils literal notranslate"><span class="pre">/WorkSpace/CINN/cinn/lang/compute.cc</span></code>)</a></p></li>
+<li><p><a class="reference internal" href="#includes" id="id2">Includes</a></p></li>
+<li><p><a class="reference internal" href="#namespaces" id="id3">Namespaces</a></p></li>
+<li><p><a class="reference internal" href="#functions" id="id4">Functions</a></p></li>
+</ul>
+</div>
+<section id="definition-workspace-cinn-cinn-lang-compute-cc">
+<h2>Definition (<code class="docutils literal notranslate"><span class="pre">/WorkSpace/CINN/cinn/lang/compute.cc</span></code>)<a class="headerlink" href="#definition-workspace-cinn-cinn-lang-compute-cc" title="Permalink to this headline"></a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="program_listing_file__WorkSpace_CINN_cinn_lang_compute.cc.html">Program Listing for File compute.cc</a></li>
+</ul>
+</div>
+</section>
+<section id="includes">
+<h2>Includes<a class="headerlink" href="#includes" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">cinn/backends/extern_func_protos.h</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cinn/common/common.h</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cinn/ir/operation.h</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cinn/lang/compute.h</span></code> (<a class="reference internal" href="file__WorkSpace_CINN_cinn_lang_compute.h.html#file-workspace-cinn-cinn-lang-compute-h"><span class="std std-ref">File compute.h</span></a>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cinn/optim/ir_simplify.h</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cinn/poly/dim.h</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cinn/poly/domain.h</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cinn/poly/stage.h</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cinn/runtime/use_extern_funcs.h</span></code></p></li>
+</ul>
+</section>
+<section id="namespaces">
+<h2>Namespaces<a class="headerlink" href="#namespaces" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="namespace_cinn.html#namespace-cinn"><span class="std std-ref">Namespace cinn</span></a></p></li>
+<li><p><a class="reference internal" href="namespace_cinn__lang.html#namespace-cinn-lang"><span class="std std-ref">Namespace cinn::lang</span></a></p></li>
+</ul>
+</section>
+<section id="functions">
+<h2>Functions<a class="headerlink" href="#functions" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="function_compute_8cc_1a998e35777946a8be0b99a0dc2e75da4e.html#exhale-function-compute-8cc-1a998e35777946a8be0b99a0dc2e75da4e"><span class="std std-ref">Function cinn::lang::CallExtern</span></a></p></li>
+<li><p><a class="reference internal" href="function_compute_8cc_1a5cb0b12a417b14db6b4cd85ebca471a3.html#exhale-function-compute-8cc-1a5cb0b12a417b14db6b4cd85ebca471a3"><span class="std std-ref">Function cinn::lang::CallLowered</span></a></p></li>
+<li><p><a class="reference internal" href="function_compute_8cc_1ab1adf0124ccc1bddfe1d04f798530a53.html#exhale-function-compute-8cc-1ab1adf0124ccc1bddfe1d04f798530a53"><span class="std std-ref">Function cinn::lang::Compute()</span></a></p></li>
+<li><p><a class="reference internal" href="function_compute_8cc_1a655affae54d5e75a28cfced321cf632c.html#exhale-function-compute-8cc-1a655affae54d5e75a28cfced321cf632c"><span class="std std-ref">Function cinn::lang::Compute()</span></a></p></li>
+<li><p><a class="reference internal" href="function_compute_8cc_1a46275bf597458c3ea139a59e63f016c3.html#exhale-function-compute-8cc-1a46275bf597458c3ea139a59e63f016c3"><span class="std std-ref">Function cinn::lang::Compute()</span></a></p></li>
+<li><p><a class="reference internal" href="function_compute_8cc_1aeb4a8c1587cf546ea55a9293a0ca871c.html#exhale-function-compute-8cc-1aeb4a8c1587cf546ea55a9293a0ca871c"><span class="std std-ref">Function cinn::lang::Compute(const std::vector&lt;Expr&gt;&amp;, std::function&lt;Expr(const std::vector&lt;Expr&gt;&amp;)&gt;, const std::string&amp;, const std::vector&lt;Expr&gt;&amp;)</span></a></p></li>
+<li><p><a class="reference internal" href="function_compute_8cc_1a7c97347e762db6761b138a9106a18902.html#exhale-function-compute-8cc-1a7c97347e762db6761b138a9106a18902"><span class="std std-ref">Function cinn::lang::Compute()</span></a></p></li>
+<li><p><a class="reference internal" href="function_compute_8cc_1acd54a7a16ced940dc85e4c6f295a31ed.html#exhale-function-compute-8cc-1acd54a7a16ced940dc85e4c6f295a31ed"><span class="std std-ref">Function cinn::lang::Compute()</span></a></p></li>
+<li><p><a class="reference internal" href="function_compute_8cc_1a2fa2a7f775ea976996e21b24324ffc12.html#exhale-function-compute-8cc-1a2fa2a7f775ea976996e21b24324ffc12"><span class="std std-ref">Function cinn::lang::Compute()</span></a></p></li>
+<li><p><a class="reference internal" href="function_compute_8cc_1a87d569b521c47e2ae7b89d6d0181bf58.html#exhale-function-compute-8cc-1a87d569b521c47e2ae7b89d6d0181bf58"><span class="std std-ref">Function cinn::lang::Compute()</span></a></p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, cinn team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

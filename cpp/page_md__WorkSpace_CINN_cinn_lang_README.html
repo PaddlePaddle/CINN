@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Design of CINN/DSL &mdash; cinn release/v0.1-rc documentation</title><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery-binder.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery-dataframe.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/collapsible-lists/css/tree_view.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
+        <script src="../_static/collapsible-lists/js/CollapsibleLists.compressed.js"></script>
+        <script src="../_static/collapsible-lists/js/apply-collapsible-lists.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> cinn
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../install.html">Build from source code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../guide.html">Install CINN using docker</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/index.html">Tutorials</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../matmul.html">C++ DSL API tutorial: Matrix Multiplication</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../load_paddle_model.html">Load and Execute Paddle Model in C++</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cinn_builder_api.html">CinnBuilder Primitive Semantics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="library_root.html">C++ Symbols</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">cinn</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Design of CINN/DSL</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/cpp/page_md__WorkSpace_CINN_cinn_lang_README.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="design-of-cinn-dsl">
+<span id="page-md-workspace-cinn-cinn-lang-readme"></span><h1>Design of CINN/DSL<a class="headerlink" href="#design-of-cinn-dsl" title="Permalink to this headline"></a></h1>
+<dl class="page">
+<dt>
+<span class="target" id="md__WorkSpace_CINN_cinn_lang_README"></span><em>page</em> <code class="sig-name descname">md__WorkSpace_CINN_cinn_lang_README</code></dt>
+<dd><p>This module is a simple DSL defined in CINN project. The DSL module aims to represent the overall computation in a hardware indenpendent way.</p>
+<p><em>Concepts</em></p>
+<p><em>Object</em></p>
+<p>All the mutable elements in CINN are <code class="docutils literal notranslate"><span class="pre">Object</span></code>. <em>Shared</em></p>
+<p>The <code class="docutils literal notranslate"><span class="pre">Shared</span></code> objects are reference-count-self-contained container, which is similar to the <code class="docutils literal notranslate"><span class="pre">std::shared_ptr</span></code>.</p>
+<p>One can pass a <code class="docutils literal notranslate"><span class="pre">Shared</span></code> object by passing a pointer and the consumer object should store it in a local <code class="docutils literal notranslate"><span class="pre">Shared</span></code> member variable.</p>
+<p><em>Tensor</em></p>
+<p>The input or the temporary ouptut node.</p>
+<p>Every <code class="docutils literal notranslate"><span class="pre">Compute</span></code> will output a Tensor, the tensor can be sliced.</p>
+<p><em>PlaceHolder</em></p>
+<p>The special tensor that represents a input slot.</p>
+<p><div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="n">c</span><span class="o">++</span><span class="p">}</span><span class="w"></span>
+<span class="n">PlaceHolder</span><span class="o">&lt;</span><span class="kt">float</span><span class="o">&gt;</span><span class="w"> </span><span class="n">A</span><span class="p">(</span><span class="s">&quot;A&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="n">M</span><span class="p">,</span><span class="w"> </span><span class="n">N</span><span class="p">});</span><span class="w"></span>
+<span class="n">PlaceHolder</span><span class="o">&lt;</span><span class="kt">float</span><span class="o">&gt;</span><span class="w"> </span><span class="n">B</span><span class="p">(</span><span class="s">&quot;B&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="n">M</span><span class="p">,</span><span class="w"> </span><span class="n">N</span><span class="p">});</span><span class="w"></span>
+</pre></div>
+</div>
+</p>
+<p><em>Operation</em></p>
+<p>The Operation is the operation on tensors, including</p>
+<p><ul class="simple">
+<li><p>placeholder</p></li>
+<li><p>compute</p></li>
+<li><p>bound inference</p></li>
+</ul>
+</p>
+<p><div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="n">c</span><span class="o">++</span><span class="p">}</span><span class="w"></span>
+<span class="n">Tensor</span><span class="w"> </span><span class="n">C</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Compute</span><span class="p">({</span><span class="n">M</span><span class="p">,</span><span class="n">N</span><span class="p">}</span><span class="cm">/*output shape*/</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="o">&amp;</span><span class="p">](</span><span class="n">Var</span><span class="w"> </span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="n">Var</span><span class="w"> </span><span class="n">j</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="n">Var</span><span class="w"> </span><span class="n">k</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">ReduceSum</span><span class="p">(</span><span class="n">A</span><span class="p">[</span><span class="n">i</span><span class="p">,</span><span class="n">k</span><span class="p">]</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">B</span><span class="p">[</span><span class="n">k</span><span class="p">,</span><span class="n">j</span><span class="p">],</span><span class="w"> </span><span class="p">{</span><span class="n">k</span><span class="p">});</span><span class="w"></span>
+<span class="p">});</span><span class="w"></span>
+</pre></div>
+</div>
+</p>
+<p><em>Bound inference</em></p>
+<p>The PlaceHolder should define a shape.</p>
+<p><div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="n">c</span><span class="o">++</span><span class="p">}</span><span class="w"></span>
+<span class="n">Var</span><span class="w"> </span><span class="n">M</span><span class="p">(</span><span class="n">Int</span><span class="p">(</span><span class="mi">32</span><span class="p">));</span><span class="w"></span>
+<span class="n">Var</span><span class="w"> </span><span class="nf">N</span><span class="p">(</span><span class="n">Int</span><span class="p">(</span><span class="mi">32</span><span class="p">));</span><span class="w"></span>
+
+<span class="n">PlaceHolder</span><span class="o">&lt;</span><span class="kt">float</span><span class="o">&gt;</span><span class="w"> </span><span class="n">A</span><span class="p">({</span><span class="n">M</span><span class="p">,</span><span class="w"> </span><span class="n">N</span><span class="p">});</span><span class="w"></span>
+
+<span class="n">Var</span><span class="w"> </span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">;</span><span class="w"></span>
+<span class="n">Expr</span><span class="w"> </span><span class="n">tmp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">A</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">j</span><span class="p">]</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"> </span><span class="c1">// i \in {0, M}; j \in {0, N}</span>
+</pre></div>
+</div>
+</p>
+<p>To simplify the implementation, we use ISL to generate code for basic snippets.</p>
+<p><em>Schedule</em></p>
+<p>The schedule will</p>
+<p><ol class="arabic simple">
+<li><p>determine the order of computation, by topological sorting the computational graph composed of tensors.</p></li>
+<li><p>transforming the computations</p></li>
+</ol>
+</p>
+<p><em>order schedule</em></p>
+<p><ol class="arabic simple">
+<li><p>Topological sort the tensors</p></li>
+<li><p>for each tensor, generate the code it needs.</p></li>
+</ol>
+</p>
+<p><em>Some examples</em></p>
+<p>A matrix multiplication</p>
+<p><div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="n">c</span><span class="o">++</span><span class="p">}</span><span class="w"></span>
+<span class="c1">// Declare some iterator variables.</span>
+<span class="n">Var</span><span class="w"> </span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="n">j</span><span class="p">,</span><span class="w"> </span><span class="n">k</span><span class="p">;</span><span class="w"></span>
+<span class="n">Placeholder</span><span class="o">&lt;</span><span class="kt">float</span><span class="o">&gt;</span><span class="w"> </span><span class="n">A</span><span class="p">({</span><span class="n">M</span><span class="p">,</span><span class="w"> </span><span class="n">K</span><span class="p">}),</span><span class="w"> </span><span class="n">B</span><span class="p">({</span><span class="n">K</span><span class="p">,</span><span class="w"> </span><span class="n">N</span><span class="p">});</span><span class="w"></span>
+
+<span class="n">Tensor</span><span class="w"> </span><span class="n">C</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Compute</span><span class="p">({</span><span class="n">M</span><span class="p">,</span><span class="w"> </span><span class="n">N</span><span class="p">}</span><span class="cm">/*output shape*/</span><span class="p">,</span><span class="w"> </span>
+<span class="w">        </span><span class="p">[](</span><span class="n">Var</span><span class="w"> </span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="n">Var</span><span class="w"> </span><span class="n">j</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">ReduceSum</span><span class="p">(</span><span class="n">A</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">k</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">B</span><span class="p">(</span><span class="n">k</span><span class="p">,</span><span class="w"> </span><span class="n">j</span><span class="p">),</span><span class="w"> </span><span class="n">k</span><span class="p">);</span><span class="w"></span>
+<span class="w">        </span><span class="p">},</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="n">Tensor</span><span class="w"> </span><span class="n">D</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Compute</span><span class="p">({</span><span class="n">M</span><span class="p">,</span><span class="w"> </span><span class="n">N</span><span class="p">},</span><span class="w"> </span><span class="p">[](</span><span class="n">Var</span><span class="w"> </span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="n">Var</span><span class="w"> </span><span class="n">j</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">Map</span><span class="p">(</span><span class="n">C</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span><span class="w"></span>
+<span class="p">});</span><span class="w"></span>
+
+<span class="n">Schedule</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">CreateSchedule</span><span class="p">(</span><span class="n">C</span><span class="p">);</span><span class="w"></span>
+<span class="k">auto</span><span class="w"> </span><span class="n">func</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Build</span><span class="p">(</span><span class="n">s</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="n">A</span><span class="p">,</span><span class="w"> </span><span class="n">B</span><span class="p">,</span><span class="w"> </span><span class="n">C</span><span class="p">],</span><span class="w"> </span><span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span><span class="w"> </span><span class="n">name</span><span class="o">=</span><span class="s">&quot;matmul&quot;</span><span class="p">);</span><span class="w"></span>
+
+<span class="n">func</span><span class="p">(</span><span class="n">a</span><span class="p">,</span><span class="w"> </span><span class="n">b</span><span class="p">,</span><span class="w"> </span><span class="n">c</span><span class="p">);</span><span class="w"></span>
+</pre></div>
+</div>
+ </p>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, cinn team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

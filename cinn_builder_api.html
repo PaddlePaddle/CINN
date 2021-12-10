@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CinnBuilder Primitive Semantics &mdash; cinn release/v0.1-rc documentation</title><link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/gallery.css" type="text/css" />
+      <link rel="stylesheet" href="_static/gallery-binder.css" type="text/css" />
+      <link rel="stylesheet" href="_static/gallery-dataframe.css" type="text/css" />
+      <link rel="stylesheet" href="_static/collapsible-lists/css/tree_view.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/language_data.js"></script>
+        <script src="_static/collapsible-lists/js/CollapsibleLists.compressed.js"></script>
+        <script src="_static/collapsible-lists/js/apply-collapsible-lists.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="C++ Symbols" href="cpp/library_root.html" />
+    <link rel="prev" title="Load and Execute Paddle Model in C++" href="load_paddle_model.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="index.html" class="icon icon-home"> cinn
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="install.html">Build from source code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guide.html">Install CINN using docker</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/index.html">Tutorials</a></li>
+</ul>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="matmul.html">C++ DSL API tutorial: Matrix Multiplication</a></li>
+<li class="toctree-l1"><a class="reference internal" href="load_paddle_model.html">Load and Execute Paddle Model in C++</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">CinnBuilder Primitive Semantics</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#scalar-primitive-apis">1. Scalar Primitive APIs</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#constscalar">ConstScalar</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#unary-primitive-apis">2. Unary Primitive APIs</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#abs">Abs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#acos">Acos</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#acosh">Acosh</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#asin">Asin</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#asinh">Asinh</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#atan">Atan</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#atanh">Atanh</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#bitwisenot">BitwiseNot</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#ceil">Ceil</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#cos">Cos</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#cosh">Cosh</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#erf">Erf</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#exp">Exp</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#floor">Floor</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#identity">Identity</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#isfinite">IsFinite</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#isinf">IsInf</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#isnan">IsNan</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#log">Log</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#log10">Log10</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#log2">Log2</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#logicalnot">LogicalNot</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#negative">Negative</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#round">Round</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#rsqrt">Rsqrt</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sign">Sign</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sin">Sin</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sinh">Sinh</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sqrt">Sqrt</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#tan">Tan</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#tanh">Tanh</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#trunc">Trunc</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#binary-primitive-apis">3. Binary Primitive APIs</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#add">Add</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#bitwiseand">BitwiseAnd</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#bitwiseor">BitwiseOr</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#bitwisexor">BitwiseXor</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#div">Div</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#dot">Dot</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#floordiv">FloorDiv</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#floormod">FloorMod</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#leftshift">LeftShift</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#logicaland">LogicalAnd</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#logicalor">LogicalOr</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#logicalxor">LogicalXor</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#max">Max</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#min">Min</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#mod">Mod</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#mul">Mul</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#power">Power</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#rightshift">RightShift</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sub">Sub</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#complex-primitive-apis">4. Complex Primitive APIs</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#bngradbiasscale">BnGradBiasScale</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#bnmeanvariance">BnMeanVariance</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#broadcastto">BroadcastTo</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#compare">Compare</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#concat">Concat</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#conv">Conv</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#reduce">Reduce</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#reshape">Reshape</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#reverse">Reverse</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#select">Select</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#slice">Slice</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#transpose">Transpose</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="cpp/library_root.html">C++ Symbols</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">cinn</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>CinnBuilder Primitive Semantics</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/cinn_builder_api.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="cinnbuilder-primitive-semantics">
+<h1>CinnBuilder Primitive Semantics<a class="headerlink" href="#cinnbuilder-primitive-semantics" title="Permalink to this headline"></a></h1>
+<p>The following describes the semantics of operations defined in the CinnBuilder interface.</p>
+<section id="scalar-primitive-apis">
+<h2>1. Scalar Primitive APIs<a class="headerlink" href="#scalar-primitive-apis" title="Permalink to this headline"></a></h2>
+<section id="constscalar">
+<h3>ConstScalar<a class="headerlink" href="#constscalar" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">ConstScalar(value,</span> <span class="pre">name)</span></code>Create a constant value.</p>
+<p><code class="docutils literal notranslate"><span class="pre">Args:</span></code></p>
+<ul class="simple">
+<li><p>value(int|float|bool): constant value</p></li>
+<li><p>name(str): the name of the constant</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">Returns:</span></code> a scalar constant</p>
+</section>
+</section>
+<section id="unary-primitive-apis">
+<h2>2. Unary Primitive APIs<a class="headerlink" href="#unary-primitive-apis" title="Permalink to this headline"></a></h2>
+<section id="abs">
+<h3>Abs<a class="headerlink" href="#abs" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Abs(Variable)</span></code> Element-wise absolute <code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">-&gt;</span> <span class="pre">abs(x)</span></code></p>
+</section>
+<section id="acos">
+<h3>Acos<a class="headerlink" href="#acos" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Acos(Variable)</span></code> Element-wise arc-cosine <code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">-&gt;</span> <span class="pre">acos(x)</span></code></p>
+</section>
+<section id="acosh">
+<h3>Acosh<a class="headerlink" href="#acosh" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Acosh(Variable)</span></code> Element-wise hyperbolic arc-cosine <code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">-&gt;</span> <span class="pre">acosh(x)</span></code></p>
+</section>
+<section id="asin">
+<h3>Asin<a class="headerlink" href="#asin" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Asin(Variable)</span></code> Element-wise arc-sine <code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">-&gt;</span> <span class="pre">asin(x)</span></code></p>
+</section>
+<section id="asinh">
+<h3>Asinh<a class="headerlink" href="#asinh" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Asinh(Variable)</span></code> Element-wise hyperbolic arc-sine <code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">-&gt;</span> <span class="pre">asinh(x)</span></code></p>
+</section>
+<section id="atan">
+<h3>Atan<a class="headerlink" href="#atan" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Atan(Variable)</span></code> Element-wise arc-tangent <code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">-&gt;</span> <span class="pre">atan(x)</span></code></p>
+</section>
+<section id="atanh">
+<h3>Atanh<a class="headerlink" href="#atanh" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Atanh(Variable)</span></code> Element-wise hyperbolic arc-tangent <code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">-&gt;</span> <span class="pre">atanh(x)</span></code></p>
+</section>
+<section id="bitwisenot">
+<h3>BitwiseNot<a class="headerlink" href="#bitwisenot" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">BitwiseNot(Variable)</span></code> Given a input <code class="docutils literal notranslate"><span class="pre">x</span></code>, return its element-wise logical not.
+The mathematical expression is:</p>
+<ul class="simple">
+<li><p>BitwiseNot(x) =  ~ x</p></li>
+</ul>
+</section>
+<section id="ceil">
+<h3>Ceil<a class="headerlink" href="#ceil" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Ceil(Variable)</span></code> Element-wise ceil <code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">-&gt;</span> <span class="pre">⌈x⌉</span></code></p>
+</section>
+<section id="cos">
+<h3>Cos<a class="headerlink" href="#cos" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Cos(Variable)</span></code> Element-wise cosine <code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">-&gt;</span> <span class="pre">cos(x)</span></code></p>
+</section>
+<section id="cosh">
+<h3>Cosh<a class="headerlink" href="#cosh" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Cosh(Variable)</span></code> Element-wise hyperbolic cosine <code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">-&gt;</span> <span class="pre">cosh(x)</span></code></p>
+</section>
+<section id="erf">
+<h3>Erf<a class="headerlink" href="#erf" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Erf(Variable)</span></code> Given input <code class="docutils literal notranslate"><span class="pre">variable</span></code>, return its Gauss error function.
+The mathematical expression is:</p>
+<ul class="simple">
+<li><p>Erf(x) = $\frac{2}{\sqrt[]{\pi}}\int_{0}^{x}e^{-t^2}\text{d}t$</p></li>
+</ul>
+</section>
+<section id="exp">
+<h3>Exp<a class="headerlink" href="#exp" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Exp(Variable)</span></code> Given input <code class="docutils literal notranslate"><span class="pre">variable</span></code>, return its exponential function.
+The mathematical expression is:</p>
+<ul class="simple">
+<li><p>Exp(x) = $e^x$</p></li>
+</ul>
+</section>
+<section id="floor">
+<h3>Floor<a class="headerlink" href="#floor" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Floor(Variable)</span></code> Given input <code class="docutils literal notranslate"><span class="pre">variable</span></code>, return the greatest integer less than or equal to <code class="docutils literal notranslate"><span class="pre">variable</span></code>.
+The mathematical expression is:</p>
+<ul class="simple">
+<li><p>Floor(x) = $max{m\in Z \  | \ m \le x }$</p></li>
+</ul>
+</section>
+<section id="identity">
+<h3>Identity<a class="headerlink" href="#identity" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Identity(Variable)</span></code> Given input <code class="docutils literal notranslate"><span class="pre">variable</span></code>, return an identical variable.
+The mathematical expression is:</p>
+<ul class="simple">
+<li><p>Identity(x) = $x$</p></li>
+</ul>
+</section>
+<section id="isfinite">
+<h3>IsFinite<a class="headerlink" href="#isfinite" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">IsFinite(Variable)</span></code>  Element-wise determines if the given input <code class="docutils literal notranslate"><span class="pre">variable</span></code> has finite value.</p>
+</section>
+<section id="isinf">
+<h3>IsInf<a class="headerlink" href="#isinf" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">IsInf(Variable)</span></code>  Element-wise determines if the given input <code class="docutils literal notranslate"><span class="pre">variable</span></code> has infinite value.</p>
+</section>
+<section id="isnan">
+<h3>IsNan<a class="headerlink" href="#isnan" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">IsNan(Variable)</span></code>  Element-wise determines if the given input <code class="docutils literal notranslate"><span class="pre">variable</span></code> has not-a-number (NaN) value.</p>
+</section>
+<section id="log">
+<h3>Log<a class="headerlink" href="#log" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Log(Variable)</span></code> Given a input <code class="docutils literal notranslate"><span class="pre">x</span></code>,  return its natural logarithm.
+The mathematical expression is:</p>
+<ul class="simple">
+<li><p>Log(x) = $\log_ex$</p></li>
+</ul>
+</section>
+<section id="log10">
+<h3>Log10<a class="headerlink" href="#log10" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Log10(Variable)</span></code> Given a input <code class="docutils literal notranslate"><span class="pre">x</span></code>,  return its common logarithm.
+The mathematical expression is:</p>
+<ul class="simple">
+<li><p>Log10(x) = $\log_{10}x$</p></li>
+</ul>
+</section>
+<section id="log2">
+<h3>Log2<a class="headerlink" href="#log2" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Log2(Variable)</span></code> Given a input <code class="docutils literal notranslate"><span class="pre">x</span></code>,  return its binary logarithm.
+The mathematical expression is:</p>
+<ul class="simple">
+<li><p>Log2(x) = $\log_2x$</p></li>
+</ul>
+</section>
+<section id="logicalnot">
+<h3>LogicalNot<a class="headerlink" href="#logicalnot" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">LogicalNot(Variable)</span></code> Given a input <code class="docutils literal notranslate"><span class="pre">x</span></code>, return its element-wise logical not.
+The mathematical expression is:</p>
+<ul class="simple">
+<li><p>LogicalNot(x) = ! x</p></li>
+</ul>
+</section>
+<section id="negative">
+<h3>Negative<a class="headerlink" href="#negative" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Negative(Variable)</span></code> Given an input <code class="docutils literal notranslate"><span class="pre">x</span></code>,  return its negative.
+The mathematical expression is:</p>
+<ul class="simple">
+<li><p>Negative(x) = $-x$</p></li>
+</ul>
+</section>
+<section id="round">
+<h3>Round<a class="headerlink" href="#round" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Round(Variable)</span></code> Given an input <code class="docutils literal notranslate"><span class="pre">x</span></code>,  return the nearest value to <code class="docutils literal notranslate"><span class="pre">x</span></code> with halfway cases away from zero.
+The mathematical expression is（where $sgn(x)$ refers to the sign of <code class="docutils literal notranslate"><span class="pre">x</span></code>):</p>
+<ul class="simple">
+<li><p>Round(x) = $sgn(x)+ \lfloor \left| x \right| + 0.5 \rfloor$</p></li>
+</ul>
+</section>
+<section id="rsqrt">
+<h3>Rsqrt<a class="headerlink" href="#rsqrt" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Rsqrt(Variable)</span></code> Given an input <code class="docutils literal notranslate"><span class="pre">x</span></code>,  return the reciprocal of the square root of <code class="docutils literal notranslate"><span class="pre">x</span></code>.
+The mathematical expression is:</p>
+<ul class="simple">
+<li><p>Rsqrt(x) = $ \frac{1}{\sqrt{x}} $</p></li>
+</ul>
+</section>
+<section id="sign">
+<h3>Sign<a class="headerlink" href="#sign" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Sign(Variable)</span></code>, Given an input <code class="docutils literal notranslate"><span class="pre">x</span></code>, extracts the sign of <code class="docutils literal notranslate"><span class="pre">x</span></code>, usually called the signum function.
+The mathematical expression is：</p>
+<ul class="simple">
+<li><p>Sign(x) =  ${  \begin{array}{rc1}  -1 &amp; if &amp; x &lt; 0 \ 0 &amp; if &amp; x = 0 \ 1 &amp; if &amp; x &gt; 0 \end{array}$</p></li>
+</ul>
+</section>
+<section id="sin">
+<h3>Sin<a class="headerlink" href="#sin" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Sin(Variable)</span></code>, Given an input <code class="docutils literal notranslate"><span class="pre">x</span></code>,  return the sine of <code class="docutils literal notranslate"><span class="pre">x</span></code>.
+The mathematical expression is：</p>
+<ul class="simple">
+<li><p>Sin(x) = $\sin{x}$</p></li>
+</ul>
+</section>
+<section id="sinh">
+<h3>Sinh<a class="headerlink" href="#sinh" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Sin(Variable)</span></code>, Given an input <code class="docutils literal notranslate"><span class="pre">x</span></code>,  return the hyperbolic sine of <code class="docutils literal notranslate"><span class="pre">x</span></code>.
+The mathematical expression is：</p>
+<ul class="simple">
+<li><p>Sinh(x) = $\sinh{x}$</p></li>
+</ul>
+</section>
+<section id="sqrt">
+<h3>Sqrt<a class="headerlink" href="#sqrt" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Sqrt(Variable)</span></code> Given an input variable,  return the result of its square root.
+The mathematical expression is:</p>
+<ul class="simple">
+<li><p>Sqrt(x) = $ \sqrt{x} $</p></li>
+</ul>
+</section>
+<section id="tan">
+<h3>Tan<a class="headerlink" href="#tan" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Tan(Variable)</span></code>, Given an input <code class="docutils literal notranslate"><span class="pre">x</span></code>,  return the tangent of <code class="docutils literal notranslate"><span class="pre">x</span></code>.
+The mathematical expression is：</p>
+<ul class="simple">
+<li><p>Tan(x) = $\tan{x}$</p></li>
+</ul>
+</section>
+<section id="tanh">
+<h3>Tanh<a class="headerlink" href="#tanh" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Sin(Variable)</span></code>, Given an input <code class="docutils literal notranslate"><span class="pre">x</span></code>,  return the hyperbolic tangent of <code class="docutils literal notranslate"><span class="pre">x</span></code>.
+The mathematical expression is：</p>
+<ul class="simple">
+<li><p>Tanh(x) = $\tanh{x}$</p></li>
+</ul>
+</section>
+<section id="trunc">
+<h3>Trunc<a class="headerlink" href="#trunc" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Trunc(Variable)</span></code>, Given an input <code class="docutils literal notranslate"><span class="pre">x</span></code>,  return the nearest integer not greater in magnitude than <code class="docutils literal notranslate"><span class="pre">x</span></code> with cutting away (truncates) the decimal places.
+The mathematical expression is：</p>
+<ul class="simple">
+<li><p>Trunc(x) = ${  \begin{array}{rc1}  \lceil x \rceil &amp; if &amp; x &lt; 0 \ 0 &amp; if &amp; x = 0 \ \lfloor x \rfloor &amp; if &amp; x &gt; 0 \end{array}$</p></li>
+</ul>
+</section>
+</section>
+<section id="binary-primitive-apis">
+<h2>3. Binary Primitive APIs<a class="headerlink" href="#binary-primitive-apis" title="Permalink to this headline"></a></h2>
+<section id="add">
+<h3>Add<a class="headerlink" href="#add" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Add(Variable,</span> <span class="pre">Variable)</span></code>  Given two input variables, return the result of their element-wise addition.
+The mathematical expression is:</p>
+<ul class="simple">
+<li><p>Add(x, y) = x + y</p></li>
+</ul>
+</section>
+<section id="bitwiseand">
+<h3>BitwiseAnd<a class="headerlink" href="#bitwiseand" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">BitwiseAnd(Variable,</span> <span class="pre">Variable)</span></code> Given two inputs <code class="docutils literal notranslate"><span class="pre">x</span></code> and <code class="docutils literal notranslate"><span class="pre">y</span></code>, return their bitwise logical and.
+The mathematical expression is:</p>
+<ul class="simple">
+<li><p>BitwiseAnd(x, y) = x &amp; y</p></li>
+</ul>
+</section>
+<section id="bitwiseor">
+<h3>BitwiseOr<a class="headerlink" href="#bitwiseor" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">BitwiseOr(Variable,</span> <span class="pre">Variable)</span></code> Given two inputs <code class="docutils literal notranslate"><span class="pre">x</span></code> and <code class="docutils literal notranslate"><span class="pre">y</span></code>, return their bit-wise logical or .
+The mathematical expression is:</p>
+<ul class="simple">
+<li><p>BitwiseOr(x, y) = x | y</p></li>
+</ul>
+</section>
+<section id="bitwisexor">
+<h3>BitwiseXor<a class="headerlink" href="#bitwisexor" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">BitwiseXor(Variable,</span> <span class="pre">Variable)</span></code> Given two inputs <code class="docutils literal notranslate"><span class="pre">x</span></code> and <code class="docutils literal notranslate"><span class="pre">y</span></code>, return their bit-wise logical xor.
+The mathematical expression is:</p>
+<ul class="simple">
+<li><p>BitwiseXor(x, y) = $ $ x ^ y $ $</p></li>
+</ul>
+</section>
+<section id="div">
+<h3>Div<a class="headerlink" href="#div" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Div(Variable,</span> <span class="pre">Variable)</span></code>  Given two input variables, return the result of their element-wise division.
+The mathematical expression is:</p>
+<ul class="simple">
+<li><p>Div(x, y) = $x / y$</p></li>
+</ul>
+</section>
+<section id="dot">
+<h3>Dot<a class="headerlink" href="#dot" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Dot(Variable,</span> <span class="pre">Variable)</span></code>  Given two input variables, return the result of their dot product.
+The mathematical expression is:</p>
+<ul class="simple">
+<li><p>Dot(x, y) = $x^{T}y$</p></li>
+</ul>
+</section>
+<section id="floordiv">
+<h3>FloorDiv<a class="headerlink" href="#floordiv" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">FloorDiv(Variable,</span> <span class="pre">Variable)</span></code> Given two inputs <code class="docutils literal notranslate"><span class="pre">x</span></code> and <code class="docutils literal notranslate"><span class="pre">y</span></code>,  return the greatest integer less than or equal to <code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">/</span> <span class="pre">y</span></code>.
+The mathematical expression is:</p>
+<ul class="simple">
+<li><p>FloorDiv(x, y) = $max{m\in Z \  | \ m \le \frac{x}{y} }$</p></li>
+</ul>
+</section>
+<section id="floormod">
+<h3>FloorMod<a class="headerlink" href="#floormod" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">FloorMod(Variable,</span> <span class="pre">Variable)</span></code> Given two inputs <code class="docutils literal notranslate"><span class="pre">x</span></code> and <code class="docutils literal notranslate"><span class="pre">y</span></code>, return the modulo operation.
+The mathematical expression is:</p>
+<ul class="simple">
+<li><p>FloorMod(x, y) = $x-y*floor(\frac{x}{y})$</p></li>
+</ul>
+</section>
+<section id="leftshift">
+<h3>LeftShift<a class="headerlink" href="#leftshift" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">LeftShift(Variable,</span> <span class="pre">Integer)</span></code> Given two inputs <code class="docutils literal notranslate"><span class="pre">x</span></code> and <code class="docutils literal notranslate"><span class="pre">y</span></code>,  move all the bits of <code class="docutils literal notranslate"><span class="pre">x</span></code> to left by <code class="docutils literal notranslate"><span class="pre">y</span></code>.
+The operation is:</p>
+<ul class="simple">
+<li><p>LeftShift(x, y) = $x &lt;&lt; y$</p></li>
+</ul>
+</section>
+<section id="logicaland">
+<h3>LogicalAnd<a class="headerlink" href="#logicaland" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">LogicalAnd(Variable,</span> <span class="pre">Variable)</span></code>  Given two inputs <code class="docutils literal notranslate"><span class="pre">x</span></code> and <code class="docutils literal notranslate"><span class="pre">y</span></code>, return their element-wise logical and.
+The mathematical expression is:</p>
+<ul class="simple">
+<li><p>LogicalAnd(x, y) = x &amp;&amp; y</p></li>
+</ul>
+</section>
+<section id="logicalor">
+<h3>LogicalOr<a class="headerlink" href="#logicalor" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">LogicalOr(Variable,</span> <span class="pre">Variable)</span></code>  Given two inputs <code class="docutils literal notranslate"><span class="pre">x</span></code> and <code class="docutils literal notranslate"><span class="pre">y</span></code>, return their element-wise logical or.</p>
+<ul class="simple">
+<li><p>LogicalOr(x, y) = x || y</p></li>
+</ul>
+</section>
+<section id="logicalxor">
+<h3>LogicalXor<a class="headerlink" href="#logicalxor" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">LogicalXor(Variable,</span> <span class="pre">Variable)</span></code>  Given two inputs <code class="docutils literal notranslate"><span class="pre">x</span></code> and <code class="docutils literal notranslate"><span class="pre">y</span></code>, return their element-wise logical xor.</p>
+<ul class="simple">
+<li><p>LogicalXor(x, y) = (x || y) &amp;&amp; !(x &amp;&amp; y)</p></li>
+</ul>
+</section>
+<section id="max">
+<h3>Max<a class="headerlink" href="#max" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Max(Variable,</span> <span class="pre">Variable)</span></code> Given two inputs <code class="docutils literal notranslate"><span class="pre">x</span></code> and <code class="docutils literal notranslate"><span class="pre">y</span></code>, return the maximum one.</p>
+</section>
+<section id="min">
+<h3>Min<a class="headerlink" href="#min" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Min(Variable,</span> <span class="pre">Variable)</span></code> Given two inputs <code class="docutils literal notranslate"><span class="pre">x</span></code> and <code class="docutils literal notranslate"><span class="pre">y</span></code>, return the minimum one.</p>
+</section>
+<section id="mod">
+<h3>Mod<a class="headerlink" href="#mod" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Mod(Variable,</span> <span class="pre">Variable)</span></code> Given two inputs <code class="docutils literal notranslate"><span class="pre">x</span></code> and <code class="docutils literal notranslate"><span class="pre">y</span></code>,  return their mod value.
+The mathematical expression is:</p>
+<ul class="simple">
+<li><p>Mod(x, y) = x % y</p></li>
+</ul>
+</section>
+<section id="mul">
+<h3>Mul<a class="headerlink" href="#mul" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Mul(Variable,</span> <span class="pre">Variable)</span></code>  Given two input variables, return the result of their element-wise multiplication.
+The mathematical expression is:</p>
+<ul class="simple">
+<li><p>Mul(x, y) = $x * y$</p></li>
+</ul>
+</section>
+<section id="power">
+<h3>Power<a class="headerlink" href="#power" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Mod(Variable,</span> <span class="pre">Variable)</span></code> Given two inputs <code class="docutils literal notranslate"><span class="pre">x</span></code> and <code class="docutils literal notranslate"><span class="pre">y</span></code> sequentially,  where <code class="docutils literal notranslate"><span class="pre">x</span></code> is called the base and <code class="docutils literal notranslate"><span class="pre">y</span></code> is the exponent,  this operator returns the product of multiplying <code class="docutils literal notranslate"><span class="pre">y</span></code> on base <code class="docutils literal notranslate"><span class="pre">x</span></code>.
+The mathematical expression is:</p>
+<ul class="simple">
+<li><p>Power(x, y) = $x ^ {y}$</p></li>
+</ul>
+</section>
+<section id="rightshift">
+<h3>RightShift<a class="headerlink" href="#rightshift" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">RightShift(Variable,</span> <span class="pre">Variable)</span></code> Given two inputs <code class="docutils literal notranslate"><span class="pre">x</span></code> and <code class="docutils literal notranslate"><span class="pre">y</span></code>,  move all the bits of <code class="docutils literal notranslate"><span class="pre">x</span></code> to right by <code class="docutils literal notranslate"><span class="pre">y</span></code>, if <code class="docutils literal notranslate"><span class="pre">x</span></code> is a signed type then performs an arithmetic shift otherwise a logical shift.
+The mathematical expression is:</p>
+<ul class="simple">
+<li><p>RightShift(x, y) = $x &gt;&gt; y$</p></li>
+</ul>
+</section>
+<section id="sub">
+<h3>Sub<a class="headerlink" href="#sub" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Sub(Variable,</span> <span class="pre">Variable)</span></code>  Given two input variables, return the result of their element-wise subtraction.
+The mathematical expression is:</p>
+<ul class="simple">
+<li><p>Sub(x, y) = $x - y$</p></li>
+</ul>
+</section>
+</section>
+<section id="complex-primitive-apis">
+<h2>4. Complex Primitive APIs<a class="headerlink" href="#complex-primitive-apis" title="Permalink to this headline"></a></h2>
+<section id="bngradbiasscale">
+<h3>BnGradBiasScale<a class="headerlink" href="#bngradbiasscale" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">BnGradBiasScale(input,</span> <span class="pre">grad,</span> <span class="pre">save_mean)</span></code> Compute the gradient of bias and scale in batch normalization.</p>
+<p><code class="docutils literal notranslate"><span class="pre">Args:</span></code></p>
+<ul class="simple">
+<li><p>input: input tensor of batch normalization.</p></li>
+<li><p>grad: gradient of output tensor of batch normalization.</p></li>
+<li><p>save_mean: the mean of input tensor which was saved when doing batch normalization forward computation.</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">Returns:</span></code> Two gradient tensors of bias and scale.</p>
+</section>
+<section id="bnmeanvariance">
+<h3>BnMeanVariance<a class="headerlink" href="#bnmeanvariance" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">BnMeanVariance(input)</span></code> Compute the sum of input and input^2 in batch normalization.</p>
+<p><code class="docutils literal notranslate"><span class="pre">Args:</span></code></p>
+<ul class="simple">
+<li><p>input: input tensor of batch normalization.</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">Returns:</span></code> Two tensors for the sum of input and input^2.</p>
+</section>
+<section id="broadcastto">
+<h3>BroadcastTo<a class="headerlink" href="#broadcastto" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">BroadcastTo(var,</span> <span class="pre">out_shape,</span> <span class="pre">broadcast_axes)</span></code> Broadcast the input tensor to the target shape by duplicating the elements according to the broadcast_axes.</p>
+<p><code class="docutils literal notranslate"><span class="pre">Args:</span></code></p>
+<ul class="simple">
+<li><p>var:  Input tensor to broadcast</p></li>
+<li><p>out_shape(list[int]|tuple[int]): The sizes of the dimensions of the target shape.</p></li>
+<li><p>broadcast_axes(list[int]|tuple[int]): The target axis in the target shape which the input shape’s ith axis mapped to. Axis starts from 0.</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">Returns:</span></code> a tensor after expanding size and rank</p>
+<p><code class="docutils literal notranslate"><span class="pre">Examples:</span></code></p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="n">Variable</span><span class="w"> </span><span class="n">out_var</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cinn_builder</span><span class="p">.</span><span class="w"> </span><span class="n">BroadcastTo</span><span class="p">(</span><span class="n">input_var</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">64</span><span class="p">,</span><span class="w"> </span><span class="mi">112</span><span class="p">,</span><span class="w"> </span><span class="mi">112</span><span class="p">},</span><span class="w"> </span><span class="p">{</span><span class="mi">1</span><span class="p">});</span><span class="w"></span>
+</pre></div>
+</div>
+<p>If input_var[64] broadcasts to out_var[1, 64, 112, 112], then out_shape is [1, 64, 112, 112] and broadcast_axes are [1].
+The i-th axis of the input shape is mapped to the broadcast_axes[i]-th axis of the output shape.
+Notes that the i-th axis’s dimension of the input must be 1 or the same as the broadcast_axes[i]-th axis dimension of the output shape.  And the sizes of the input shape should be the same as the size of the broadcast_axes which indicates the mapping relation.
+In this case, the 0‘th axis of the input shape is mapped to the 1’th axis of the output shape. And
+both dimensions are 64.
+The left degenerate-axes then broadcast along these degenerate axes to reach the output shape.</p>
+</section>
+<section id="compare">
+<h3>Compare<a class="headerlink" href="#compare" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Compare(Variable,</span> <span class="pre">Variable,</span> <span class="pre">ComparisonKind)</span></code>  Given two input variables, return the result of their element-wise comparison. The value of <code class="docutils literal notranslate"><span class="pre">ComparisonKind</span></code> can be <code class="docutils literal notranslate"><span class="pre">kEq</span></code>, <code class="docutils literal notranslate"><span class="pre">kNe</span></code>, <code class="docutils literal notranslate"><span class="pre">kGe</span></code>, <code class="docutils literal notranslate"><span class="pre">kGt</span></code>, <code class="docutils literal notranslate"><span class="pre">kLe</span></code> or <code class="docutils literal notranslate"><span class="pre">kLt</span></code>.  Its semantics can be expressed by the following formula:</p>
+<p>$$
+Compare(x, y, kind) =
+\left{<br />\begin{array}{<strong>lr</strong>}<br />x == y &amp; if &amp; kind =  kEq \
+x \neq y &amp; if &amp; kind =  kNe \
+x \ge y &amp; if &amp; kind =  kGe \
+x \gt y &amp; if &amp; kind =  kGt \
+x \le y &amp; if &amp; kind =  kLe \
+x \lt y &amp; if &amp; kind =  kLt
+\end{array}<br />\right.
+$$</p>
+</section>
+<section id="concat">
+<h3>Concat<a class="headerlink" href="#concat" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Concat(input_vars,</span> <span class="pre">axis=0)</span></code>Concatenate the input tensors along an existing axis.</p>
+<p><code class="docutils literal notranslate"><span class="pre">Args:</span></code></p>
+<ul class="simple">
+<li><p>input_vars(list|tuple): input tensors to concatenate</p></li>
+<li><p>axis(int,optional): Specify the axis to concatenate the input tensors. Default
+is 0.</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">Returns:</span></code> a tensor after concatenation</p>
+</section>
+<section id="conv">
+<h3>Conv<a class="headerlink" href="#conv" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Conv(lhs,</span> <span class="pre">rhs,</span> <span class="pre">strides,</span> <span class="pre">paddings,</span> <span class="pre">dilations,</span> <span class="pre">groups,</span> <span class="pre">conv_type,</span> <span class="pre">data_format,</span> <span class="pre">padding_algorithm,</span> <span class="pre">output_shape)</span></code> Convolution operation with input tensor lhs and rhs.</p>
+<p><code class="docutils literal notranslate"><span class="pre">Args:</span></code></p>
+<ul class="simple">
+<li><p>lhs: Input tensor lhs.</p></li>
+<li><p>rhs: Input tensor rhs.</p></li>
+<li><p>strides: A list of 2 integers, specifying the strides of the convolution along with the height and width. Specifying any stride value != 1 is incompatible with specifying any dilation_rate value != 1.</p></li>
+<li><p>paddings:  A list of 2 integers. It has the form [pad_vertical, pad_horizontal].</p></li>
+<li><p>dilations: 	A list of 2 integers, specifying the dilation rate to use for dilated convolution. Currently, specifying any dilation_rate value != 1 is incompatible with specifying any stride value != 1.</p></li>
+<li><p>groups:  The group’s number of the convolution. According to grouped convolution in Alex Krizhevsky’s Deep CNN paper.  The default value is 1.</p></li>
+<li><p>conv_type: the type of convolution, it should be one of{<em>’forward’, ‘backward_data’, ‘backward_filter’</em>}.</p>
+<ul>
+<li><p>conv_type = <em>forward</em>. lhs is input tensor, rhs is weight tensor.</p></li>
+<li><p>conv_type = <em>backward_data</em>. lhs is weight tensor, rhs is gradient tensor.</p></li>
+<li><p>conv_type = <em>backward_filter</em>. lhs is input tensor, rhs is gradient tensor.</p></li>
+</ul>
+</li>
+<li><p>data_format: Data format that specifies the layout of input. It can be “NCHW” or “NHWC”. The default value is  “NCHW”.</p></li>
+<li><p>padding_algorithm: The algorithm used for padding. The default value is “EXPLICIT”.</p></li>
+<li><p>output_shape: The shape of the output tensor.  The default value is {}. output_shape can’t be Omitted, when conv_type = <em>“backward_data” or “backward_filter”</em>, as the shape’s inference is irreversible.</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">Returns:</span></code> A tensor after convolution.</p>
+<p><code class="docutils literal notranslate"><span class="pre">Examples:</span></code></p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="c1">// convolution forward</span>
+<span class="c1">// x = [16,16,28,28], filter = [32, 16, 3, 3]</span>
+<span class="c1">// strides = {1, 1}, paddings = {1, 1}, dilations = {1, 1}</span>
+<span class="c1">// y = [16, 32, 28, 28]</span>
+<span class="n">Variable</span><span class="w"> </span><span class="n">y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cinn_builder</span><span class="p">.</span><span class="n">Conv</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">filter</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">},</span><span class="w"> </span><span class="p">{</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">},</span><span class="w"> </span><span class="p">{</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">},</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;forward&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;NCHW&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;EXPLICIT&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{});</span><span class="w"></span>
+
+<span class="c1">// convolution backward_data</span>
+<span class="c1">// grad_y = [16, 32, 28, 28], filter = [32, 16, 3, 3]</span>
+<span class="c1">// strides = {1, 1}, paddings = {1, 1}, dilations = {1, 1}</span>
+<span class="c1">// grad_x = [16, 16, 28, 28]</span>
+<span class="n">Variable</span><span class="w"> </span><span class="n">grad_x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cinn_builder</span><span class="p">.</span><span class="n">Conv</span><span class="p">(</span><span class="n">filter</span><span class="p">,</span><span class="w"> </span><span class="n">grad_y</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">},</span><span class="w"> </span><span class="p">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">},</span><span class="w"> </span><span class="p">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">},</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;backward_data&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;NCHW&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;EXPLICIT&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="mi">16</span><span class="p">,</span><span class="w"> </span><span class="mi">16</span><span class="p">,</span><span class="w"> </span><span class="mi">28</span><span class="p">,</span><span class="w"> </span><span class="mi">28</span><span class="p">});</span><span class="w"></span>
+
+<span class="c1">// convolution backward_filter</span>
+<span class="c1">// grad_y = [16, 32, 28, 28], x = [16, 16, 28 ,28]</span>
+<span class="c1">// strides = {1, 1}, paddings = {1, 1}, dilations = {1, 1}</span>
+<span class="c1">// grad_filter = [32, 16, 3, 3]</span>
+<span class="n">grad_filte</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cinn_builder</span><span class="p">.</span><span class="n">Conv</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">grad_y</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">},</span><span class="w"> </span><span class="p">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">},</span><span class="w"> </span><span class="p">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">},</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;backward_filter&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;NCHW&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;EXPLICIT&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="mi">32</span><span class="p">,</span><span class="w"> </span><span class="mi">16</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">});</span><span class="w"></span>
+</pre></div>
+</div>
+</section>
+<section id="reduce">
+<h3>Reduce<a class="headerlink" href="#reduce" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Reduce(input,</span> <span class="pre">kind,</span> <span class="pre">dim,</span> <span class="pre">keep_dim)</span></code> Reduce on input tensors along the given dimensions.</p>
+<p><code class="docutils literal notranslate"><span class="pre">Args:</span></code></p>
+<ul class="simple">
+<li><p>input: The input tensor.</p></li>
+<li><p>kind: An enumerate value to specify the reduce type, the value should be on of {<em>’kSum’, ‘kProd’, ‘kMa’, ‘kMin’</em>}.</p></li>
+<li><p>dim: A list of integers,  specifying the reduced dimensions. the value must be along[0, size(input)).</p></li>
+<li><p>keep_dim: A boolean value, specifying whether to keep the output shape size.</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">Returns:</span></code> A tensor after reduce.</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="c1">// Case 1</span>
+<span class="c1">// x = [128, 128, 16, 16]</span>
+<span class="c1">// kind = sum, dim = {2, 3}</span>
+<span class="c1">// out = [128, 128] when keep_dim = false</span>
+<span class="n">out</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cinn_builder</span><span class="p">.</span><span class="n">Reduce</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">ReduceKind</span><span class="o">::</span><span class="n">kSum</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">},</span><span class="w"> </span><span class="nb">false</span><span class="p">);</span><span class="w"></span>
+
+<span class="c1">// Case 2</span>
+<span class="c1">// x = [128, 128, 16, 16]</span>
+<span class="c1">// kind = sum, dim = {2, 3}</span>
+<span class="c1">// out = [128, 128, 1, 1] when keep_dim = true</span>
+<span class="n">out</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cinn_builder</span><span class="p">.</span><span class="n">Reduce</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">ReduceKind</span><span class="o">::</span><span class="n">kSum</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">},</span><span class="w"> </span><span class="nb">true</span><span class="p">);</span><span class="w"></span>
+</pre></div>
+</div>
+</section>
+<section id="reshape">
+<h3>Reshape<a class="headerlink" href="#reshape" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Reshape(input,</span> <span class="pre">shape)</span></code> Reshape the input tensor to a given shape.</p>
+<p><code class="docutils literal notranslate"><span class="pre">Args:</span></code></p>
+<ul class="simple">
+<li><p>input: The input tensor.</p></li>
+<li><p>shape: A list of integers, define the target shape. At most one dimension of the target shape can be -1.</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">Returns:</span></code> A tensor after reduce.</p>
+</section>
+<section id="reverse">
+<h3>Reverse<a class="headerlink" href="#reverse" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Reverse(input,</span> <span class="pre">axis)</span></code> Reverse the elements of the input tensor on a given axis.</p>
+<p><code class="docutils literal notranslate"><span class="pre">Args:</span></code></p>
+<ul class="simple">
+<li><p>input:  The input tensor.</p></li>
+<li><p>axis: A list of integers, specifying the axis to be reversed.</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">Returns:</span></code> A tensor after reverse.</p>
+</section>
+<section id="select">
+<h3>Select<a class="headerlink" href="#select" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Select(condition,</span> <span class="pre">true_value,</span> <span class="pre">false_value)</span></code>  Select elements from input tensors <em>rue_value</em>  and <em>false_value</em>, based on the values of condition tensor.</p>
+<p><code class="docutils literal notranslate"><span class="pre">Args:</span></code></p>
+<ul class="simple">
+<li><p>condition: Condition tensor for elements selection.</p></li>
+<li><p>true_value: True value tensor.</p></li>
+<li><p>false_value: False value tensor.</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">Returns:</span></code> A tensor after select.</p>
+</section>
+<section id="slice">
+<h3>Slice<a class="headerlink" href="#slice" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Slice(input,</span> <span class="pre">axes,</span> <span class="pre">starts,</span> <span class="pre">ends)</span></code> Slicing extracts a sub-array from the input array. The sub-array is of the same rank as the input and contains the values inside a bounding box within the input array where the dimensions and indices of the bounding box are given as arguments to the slice operation.</p>
+<p><code class="docutils literal notranslate"><span class="pre">Args:</span></code></p>
+<ul class="simple">
+<li><p>input: The input tensor.</p></li>
+<li><p>axes: A list of integers specifying the dimensions to slice.</p></li>
+<li><p>starts: A list of Integers containing the starting indices of the slice for dimension in axes.  Values must be greater than or equal to zero.</p></li>
+<li><p>ends: A List of integers containing the ending indices of the slice for dimension in axes.  Values must be greater than starts and less or equal to the length of the dimension.</p></li>
+</ul>
+</section>
+<section id="transpose">
+<h3>Transpose<a class="headerlink" href="#transpose" title="Permalink to this headline"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">Transpose(input,</span> <span class="pre">axis)</span></code> Permutes the operand dimensions with the given axis.</p>
+<p><code class="docutils literal notranslate"><span class="pre">Args:</span></code></p>
+<ul class="simple">
+<li><p>input: The input tensor.</p></li>
+<li><p>axis: A list of integers for the permutation. The size of the axis should be equal to or lesser than the size dimension，and values must be along [0, size(input)).</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">Returns:</span></code> A tensor after Transpose.</p>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="load_paddle_model.html" class="btn btn-neutral float-left" title="Load and Execute Paddle Model in C++" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="cpp/library_root.html" class="btn btn-neutral float-right" title="C++ Symbols" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, cinn team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

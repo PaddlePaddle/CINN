@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Struct BatchNormHelper &mdash; cinn release/v0.1-rc documentation</title><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery-binder.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery-dataframe.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/collapsible-lists/css/tree_view.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
+        <script src="../_static/collapsible-lists/js/CollapsibleLists.compressed.js"></script>
+        <script src="../_static/collapsible-lists/js/apply-collapsible-lists.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Struct Instruction" href="structcinn_1_1frontend_1_1Instruction.html" />
+    <link rel="prev" title="Struct ComputationContext" href="structcinn_1_1frontend_1_1ComputationContext.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> cinn
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../install.html">Build from source code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../guide.html">Install CINN using docker</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/index.html">Tutorials</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../matmul.html">C++ DSL API tutorial: Matrix Multiplication</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../load_paddle_model.html">Load and Execute Paddle Model in C++</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cinn_builder_api.html">CinnBuilder Primitive Semantics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="library_root.html">C++ Symbols</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">cinn</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="library_root.html">C++ Symbols</a> &raquo;</li>
+      <li>Struct BatchNormHelper</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/cpp/structcinn_1_1frontend_1_1decomposer_1_1BatchNormHelper.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="struct-batchnormhelper">
+<span id="exhale-struct-structcinn-1-1frontend-1-1decomposer-1-1batchnormhelper"></span><h1>Struct BatchNormHelper<a class="headerlink" href="#struct-batchnormhelper" title="Permalink to this headline"></a></h1>
+<ul class="simple">
+<li><p>Defined in <a class="reference internal" href="file__WorkSpace_CINN_cinn_frontend_decomposer_batch_norm.cc.html#file-workspace-cinn-cinn-frontend-decomposer-batch-norm-cc"><span class="std std-ref">File batch_norm.cc</span></a></p></li>
+</ul>
+<section id="struct-documentation">
+<h2>Struct Documentation<a class="headerlink" href="#struct-documentation" title="Permalink to this headline"></a></h2>
+<dl class="cpp struct">
+<dt id="_CPPv4N4cinn8frontend10decomposer15BatchNormHelperE">
+<span id="_CPPv3N4cinn8frontend10decomposer15BatchNormHelperE"></span><span id="_CPPv2N4cinn8frontend10decomposer15BatchNormHelperE"></span><span id="cinn::frontend::decomposer::BatchNormHelper"></span><span class="target" id="structcinn_1_1frontend_1_1decomposer_1_1BatchNormHelper"></span><em class="property">struct </em><code class="sig-prename descclassname">cinn::frontend::decomposer<code class="sig-prename descclassname">::</code></code><code class="sig-name descname">BatchNormHelper</code><a class="headerlink" href="#_CPPv4N4cinn8frontend10decomposer15BatchNormHelperE" title="Permalink to this definition"></a><br /></dt>
+<dd><div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric">Public Functions</p>
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn8frontend10decomposer15BatchNormHelper15BatchNormHelperEP11CinnBuilderRKNSt6vectorIiEERKNSt6vectorIiEENSt6stringENSt6stringE">
+<span id="_CPPv3N4cinn8frontend10decomposer15BatchNormHelper15BatchNormHelperEP11CinnBuilderRKNSt6vectorIiEERKNSt6vectorIiEENSt6stringENSt6stringE"></span><span id="_CPPv2N4cinn8frontend10decomposer15BatchNormHelper15BatchNormHelperEP11CinnBuilderRKNSt6vectorIiEERKNSt6vectorIiEENSt6stringENSt6stringE"></span><span id="cinn::frontend::decomposer::BatchNormHelper::BatchNormHelper__CinnBuilderP.std::vector:i:CR.std::vector:i:CR.ss.ss"></span><span class="target" id="structcinn_1_1frontend_1_1decomposer_1_1BatchNormHelper_1a092c61cf7b8a0fa7582efac19ae968e8"></span><code class="sig-name descname">BatchNormHelper</code><span class="sig-paren">(</span><a class="reference internal" href="classcinn_1_1frontend_1_1CinnBuilder.html#_CPPv4N4cinn8frontend11CinnBuilderE" title="cinn::frontend::CinnBuilder">CinnBuilder</a> *<em>cinn_builder</em>, <em class="property">const</em> std::vector&lt;int&gt; &amp;<em>arg_x_shape</em>, <em class="property">const</em> std::vector&lt;int&gt; &amp;<em>arg_param_shape</em>, std::string <em>data_layout</em>, std::string <em>bn_op_type</em><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N4cinn8frontend10decomposer15BatchNormHelper15BatchNormHelperEP11CinnBuilderRKNSt6vectorIiEERKNSt6vectorIiEENSt6stringENSt6stringE" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn8frontend10decomposer15BatchNormHelperD0Ev">
+<span id="_CPPv3N4cinn8frontend10decomposer15BatchNormHelperD0Ev"></span><span id="_CPPv2N4cinn8frontend10decomposer15BatchNormHelperD0Ev"></span><span id="cinn::frontend::decomposer::BatchNormHelper::~BatchNormHelper"></span><span class="target" id="structcinn_1_1frontend_1_1decomposer_1_1BatchNormHelper_1a472220827332a1c2330657145a3cccd9"></span><code class="sig-name descname">~BatchNormHelper</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N4cinn8frontend10decomposer15BatchNormHelperD0Ev" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4I0EN4cinn8frontend10decomposer15BatchNormHelper19GetTensorFromScalarE8Variable1TNSt6stringERKNSt6vectorIiEE">
+<span id="_CPPv3I0EN4cinn8frontend10decomposer15BatchNormHelper19GetTensorFromScalarE1TNSt6stringERKNSt6vectorIiEE"></span><span id="_CPPv2I0EN4cinn8frontend10decomposer15BatchNormHelper19GetTensorFromScalarE1TNSt6stringERKNSt6vectorIiEE"></span>template&lt;typename <code class="sig-name descname">T</code>&gt;<br /><span class="target" id="structcinn_1_1frontend_1_1decomposer_1_1BatchNormHelper_1a98bbbe39038f64714675bf457488d181"></span><a class="reference internal" href="structcinn_1_1frontend_1_1Variable.html#_CPPv4N4cinn8frontend8VariableE" title="cinn::frontend::Variable">Variable</a> <code class="sig-name descname">GetTensorFromScalar</code><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv4I0EN4cinn8frontend10decomposer15BatchNormHelper19GetTensorFromScalarE8Variable1TNSt6stringERKNSt6vectorIiEE" title="cinn::frontend::decomposer::BatchNormHelper::GetTensorFromScalar::T">T</a> <em>value</em>, std::string <em>name</em>, <em class="property">const</em> std::vector&lt;int&gt; &amp;<em>shape</em><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4I0EN4cinn8frontend10decomposer15BatchNormHelper19GetTensorFromScalarE8Variable1TNSt6stringERKNSt6vectorIiEE" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn8frontend10decomposer15BatchNormHelper15MeanAndVarianceE8Variable">
+<span id="_CPPv3N4cinn8frontend10decomposer15BatchNormHelper15MeanAndVarianceE8Variable"></span><span id="_CPPv2N4cinn8frontend10decomposer15BatchNormHelper15MeanAndVarianceE8Variable"></span><span id="cinn::frontend::decomposer::BatchNormHelper::MeanAndVariance__Variable"></span><span class="target" id="structcinn_1_1frontend_1_1decomposer_1_1BatchNormHelper_1a77f06c1f56a5aa31610e0de306bdafff"></span>std::vector&lt;<a class="reference internal" href="structcinn_1_1frontend_1_1Variable.html#_CPPv4N4cinn8frontend8VariableE" title="cinn::frontend::Variable">Variable</a>&gt; <code class="sig-name descname">MeanAndVariance</code><span class="sig-paren">(</span><a class="reference internal" href="structcinn_1_1frontend_1_1Variable.html#_CPPv4N4cinn8frontend8VariableE" title="cinn::frontend::Variable">Variable</a> <em>x</em><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N4cinn8frontend10decomposer15BatchNormHelper15MeanAndVarianceE8Variable" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn8frontend10decomposer15BatchNormHelper16GradBiasAndScaleE8Variable8Variable8Variable">
+<span id="_CPPv3N4cinn8frontend10decomposer15BatchNormHelper16GradBiasAndScaleE8Variable8Variable8Variable"></span><span id="_CPPv2N4cinn8frontend10decomposer15BatchNormHelper16GradBiasAndScaleE8Variable8Variable8Variable"></span><span id="cinn::frontend::decomposer::BatchNormHelper::GradBiasAndScale__Variable.Variable.Variable"></span><span class="target" id="structcinn_1_1frontend_1_1decomposer_1_1BatchNormHelper_1a4b33b6d947c83b623621cbddc9fcd771"></span>std::vector&lt;<a class="reference internal" href="structcinn_1_1frontend_1_1Variable.html#_CPPv4N4cinn8frontend8VariableE" title="cinn::frontend::Variable">Variable</a>&gt; <code class="sig-name descname">GradBiasAndScale</code><span class="sig-paren">(</span><a class="reference internal" href="structcinn_1_1frontend_1_1Variable.html#_CPPv4N4cinn8frontend8VariableE" title="cinn::frontend::Variable">Variable</a> <em>x</em>, <a class="reference internal" href="structcinn_1_1frontend_1_1Variable.html#_CPPv4N4cinn8frontend8VariableE" title="cinn::frontend::Variable">Variable</a> <em>x_mean</em>, <a class="reference internal" href="structcinn_1_1frontend_1_1Variable.html#_CPPv4N4cinn8frontend8VariableE" title="cinn::frontend::Variable">Variable</a> <em>y_grad</em><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N4cinn8frontend10decomposer15BatchNormHelper16GradBiasAndScaleE8Variable8Variable8Variable" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn8frontend10decomposer15BatchNormHelper4MeanE8Variable">
+<span id="_CPPv3N4cinn8frontend10decomposer15BatchNormHelper4MeanE8Variable"></span><span id="_CPPv2N4cinn8frontend10decomposer15BatchNormHelper4MeanE8Variable"></span><span id="cinn::frontend::decomposer::BatchNormHelper::Mean__Variable"></span><span class="target" id="structcinn_1_1frontend_1_1decomposer_1_1BatchNormHelper_1ad7923bda688cbe4d5d109ea3b2533f54"></span><a class="reference internal" href="structcinn_1_1frontend_1_1Variable.html#_CPPv4N4cinn8frontend8VariableE" title="cinn::frontend::Variable">Variable</a> <code class="sig-name descname">Mean</code><span class="sig-paren">(</span><a class="reference internal" href="structcinn_1_1frontend_1_1Variable.html#_CPPv4N4cinn8frontend8VariableE" title="cinn::frontend::Variable">Variable</a> <em>x</em><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N4cinn8frontend10decomposer15BatchNormHelper4MeanE8Variable" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn8frontend10decomposer15BatchNormHelper8VarianceE8Variable8Variable">
+<span id="_CPPv3N4cinn8frontend10decomposer15BatchNormHelper8VarianceE8Variable8Variable"></span><span id="_CPPv2N4cinn8frontend10decomposer15BatchNormHelper8VarianceE8Variable8Variable"></span><span id="cinn::frontend::decomposer::BatchNormHelper::Variance__Variable.Variable"></span><span class="target" id="structcinn_1_1frontend_1_1decomposer_1_1BatchNormHelper_1aeb638b881320025a8277d9f6f76bad3e"></span><a class="reference internal" href="structcinn_1_1frontend_1_1Variable.html#_CPPv4N4cinn8frontend8VariableE" title="cinn::frontend::Variable">Variable</a> <code class="sig-name descname">Variance</code><span class="sig-paren">(</span><a class="reference internal" href="structcinn_1_1frontend_1_1Variable.html#_CPPv4N4cinn8frontend8VariableE" title="cinn::frontend::Variable">Variable</a> <em>x</em>, <a class="reference internal" href="structcinn_1_1frontend_1_1Variable.html#_CPPv4N4cinn8frontend8VariableE" title="cinn::frontend::Variable">Variable</a> <em>mean</em><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N4cinn8frontend10decomposer15BatchNormHelper8VarianceE8Variable8Variable" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn8frontend10decomposer15BatchNormHelper16StdVarianceInv1dE8Variablef">
+<span id="_CPPv3N4cinn8frontend10decomposer15BatchNormHelper16StdVarianceInv1dE8Variablef"></span><span id="_CPPv2N4cinn8frontend10decomposer15BatchNormHelper16StdVarianceInv1dE8Variablef"></span><span id="cinn::frontend::decomposer::BatchNormHelper::StdVarianceInv1d__Variable.float"></span><span class="target" id="structcinn_1_1frontend_1_1decomposer_1_1BatchNormHelper_1ac6aef9d75f81cfbffc2b3ec593b0eba0"></span><a class="reference internal" href="structcinn_1_1frontend_1_1Variable.html#_CPPv4N4cinn8frontend8VariableE" title="cinn::frontend::Variable">Variable</a> <code class="sig-name descname">StdVarianceInv1d</code><span class="sig-paren">(</span><a class="reference internal" href="structcinn_1_1frontend_1_1Variable.html#_CPPv4N4cinn8frontend8VariableE" title="cinn::frontend::Variable">Variable</a> <em>variance</em>, float <em>epsilon</em><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N4cinn8frontend10decomposer15BatchNormHelper16StdVarianceInv1dE8Variablef" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn8frontend10decomposer15BatchNormHelper16StdVarianceInv4dE8Variablef">
+<span id="_CPPv3N4cinn8frontend10decomposer15BatchNormHelper16StdVarianceInv4dE8Variablef"></span><span id="_CPPv2N4cinn8frontend10decomposer15BatchNormHelper16StdVarianceInv4dE8Variablef"></span><span id="cinn::frontend::decomposer::BatchNormHelper::StdVarianceInv4d__Variable.float"></span><span class="target" id="structcinn_1_1frontend_1_1decomposer_1_1BatchNormHelper_1a587ff1785cccfb76955a865423dfe7da"></span><a class="reference internal" href="structcinn_1_1frontend_1_1Variable.html#_CPPv4N4cinn8frontend8VariableE" title="cinn::frontend::Variable">Variable</a> <code class="sig-name descname">StdVarianceInv4d</code><span class="sig-paren">(</span><a class="reference internal" href="structcinn_1_1frontend_1_1Variable.html#_CPPv4N4cinn8frontend8VariableE" title="cinn::frontend::Variable">Variable</a> <em>variance</em>, float <em>epsilon</em><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N4cinn8frontend10decomposer15BatchNormHelper16StdVarianceInv4dE8Variablef" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn8frontend10decomposer15BatchNormHelper18UpdateMeanVarianceE8Variable8Variablef">
+<span id="_CPPv3N4cinn8frontend10decomposer15BatchNormHelper18UpdateMeanVarianceE8Variable8Variablef"></span><span id="_CPPv2N4cinn8frontend10decomposer15BatchNormHelper18UpdateMeanVarianceE8Variable8Variablef"></span><span id="cinn::frontend::decomposer::BatchNormHelper::UpdateMeanVariance__Variable.Variable.float"></span><span class="target" id="structcinn_1_1frontend_1_1decomposer_1_1BatchNormHelper_1abf3b49b94b51fec2229142b18890a96c"></span><a class="reference internal" href="structcinn_1_1frontend_1_1Variable.html#_CPPv4N4cinn8frontend8VariableE" title="cinn::frontend::Variable">Variable</a> <code class="sig-name descname">UpdateMeanVariance</code><span class="sig-paren">(</span><a class="reference internal" href="structcinn_1_1frontend_1_1Variable.html#_CPPv4N4cinn8frontend8VariableE" title="cinn::frontend::Variable">Variable</a> <em>moving_value</em>, <a class="reference internal" href="structcinn_1_1frontend_1_1Variable.html#_CPPv4N4cinn8frontend8VariableE" title="cinn::frontend::Variable">Variable</a> <em>saved_value</em>, float <em>momentum</em><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N4cinn8frontend10decomposer15BatchNormHelper18UpdateMeanVarianceE8Variable8Variablef" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn8frontend10decomposer15BatchNormHelper6ReduceE8Variable">
+<span id="_CPPv3N4cinn8frontend10decomposer15BatchNormHelper6ReduceE8Variable"></span><span id="_CPPv2N4cinn8frontend10decomposer15BatchNormHelper6ReduceE8Variable"></span><span id="cinn::frontend::decomposer::BatchNormHelper::Reduce__Variable"></span><span class="target" id="structcinn_1_1frontend_1_1decomposer_1_1BatchNormHelper_1a5680877bd284cf87e7ff3efe42c66967"></span><a class="reference internal" href="structcinn_1_1frontend_1_1Variable.html#_CPPv4N4cinn8frontend8VariableE" title="cinn::frontend::Variable">Variable</a> <code class="sig-name descname">Reduce</code><span class="sig-paren">(</span><a class="reference internal" href="structcinn_1_1frontend_1_1Variable.html#_CPPv4N4cinn8frontend8VariableE" title="cinn::frontend::Variable">Variable</a> <em>x</em><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N4cinn8frontend10decomposer15BatchNormHelper6ReduceE8Variable" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+</div>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric">Public Members</p>
+<dl class="cpp var">
+<dt id="_CPPv4N4cinn8frontend10decomposer15BatchNormHelper7builderE">
+<span id="_CPPv3N4cinn8frontend10decomposer15BatchNormHelper7builderE"></span><span id="_CPPv2N4cinn8frontend10decomposer15BatchNormHelper7builderE"></span><span id="cinn::frontend::decomposer::BatchNormHelper::builder__CinnBuilderP"></span><span class="target" id="structcinn_1_1frontend_1_1decomposer_1_1BatchNormHelper_1a946abb9e02cbbf274d9e19848fbe30b3"></span><a class="reference internal" href="classcinn_1_1frontend_1_1CinnBuilder.html#_CPPv4N4cinn8frontend11CinnBuilderE" title="cinn::frontend::CinnBuilder">CinnBuilder</a> *<code class="sig-name descname">builder</code> = {nullptr}<a class="headerlink" href="#_CPPv4N4cinn8frontend10decomposer15BatchNormHelper7builderE" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt id="_CPPv4N4cinn8frontend10decomposer15BatchNormHelper7x_shapeE">
+<span id="_CPPv3N4cinn8frontend10decomposer15BatchNormHelper7x_shapeE"></span><span id="_CPPv2N4cinn8frontend10decomposer15BatchNormHelper7x_shapeE"></span><span id="cinn::frontend::decomposer::BatchNormHelper::x_shape__std::vector:i:"></span><span class="target" id="structcinn_1_1frontend_1_1decomposer_1_1BatchNormHelper_1ac4849657a1a62ad7a4974f18bad5c763"></span>std::vector&lt;int&gt; <code class="sig-name descname">x_shape</code><a class="headerlink" href="#_CPPv4N4cinn8frontend10decomposer15BatchNormHelper7x_shapeE" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt id="_CPPv4N4cinn8frontend10decomposer15BatchNormHelper11param_shapeE">
+<span id="_CPPv3N4cinn8frontend10decomposer15BatchNormHelper11param_shapeE"></span><span id="_CPPv2N4cinn8frontend10decomposer15BatchNormHelper11param_shapeE"></span><span id="cinn::frontend::decomposer::BatchNormHelper::param_shape__std::vector:i:"></span><span class="target" id="structcinn_1_1frontend_1_1decomposer_1_1BatchNormHelper_1aa202898e1053b65fbb56d2fbf455c28a"></span>std::vector&lt;int&gt; <code class="sig-name descname">param_shape</code><a class="headerlink" href="#_CPPv4N4cinn8frontend10decomposer15BatchNormHelper11param_shapeE" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt id="_CPPv4N4cinn8frontend10decomposer15BatchNormHelper10reduce_dimE">
+<span id="_CPPv3N4cinn8frontend10decomposer15BatchNormHelper10reduce_dimE"></span><span id="_CPPv2N4cinn8frontend10decomposer15BatchNormHelper10reduce_dimE"></span><span id="cinn::frontend::decomposer::BatchNormHelper::reduce_dim__std::vector:i:"></span><span class="target" id="structcinn_1_1frontend_1_1decomposer_1_1BatchNormHelper_1a92229da656b69297a39535758199facf"></span>std::vector&lt;int&gt; <code class="sig-name descname">reduce_dim</code><a class="headerlink" href="#_CPPv4N4cinn8frontend10decomposer15BatchNormHelper10reduce_dimE" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt id="_CPPv4N4cinn8frontend10decomposer15BatchNormHelper13element_countE">
+<span id="_CPPv3N4cinn8frontend10decomposer15BatchNormHelper13element_countE"></span><span id="_CPPv2N4cinn8frontend10decomposer15BatchNormHelper13element_countE"></span><span id="cinn::frontend::decomposer::BatchNormHelper::element_count__float"></span><span class="target" id="structcinn_1_1frontend_1_1decomposer_1_1BatchNormHelper_1a756d2d155e9932fcd18692eb9752ab45"></span>float <code class="sig-name descname">element_count</code> = {0}<a class="headerlink" href="#_CPPv4N4cinn8frontend10decomposer15BatchNormHelper13element_countE" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt id="_CPPv4N4cinn8frontend10decomposer15BatchNormHelper11channel_dimE">
+<span id="_CPPv3N4cinn8frontend10decomposer15BatchNormHelper11channel_dimE"></span><span id="_CPPv2N4cinn8frontend10decomposer15BatchNormHelper11channel_dimE"></span><span id="cinn::frontend::decomposer::BatchNormHelper::channel_dim__i"></span><span class="target" id="structcinn_1_1frontend_1_1decomposer_1_1BatchNormHelper_1ae261dc45f690bdf78336cd128bed054d"></span>int <code class="sig-name descname">channel_dim</code> = {0}<a class="headerlink" href="#_CPPv4N4cinn8frontend10decomposer15BatchNormHelper11channel_dimE" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt id="_CPPv4N4cinn8frontend10decomposer15BatchNormHelper7op_typeE">
+<span id="_CPPv3N4cinn8frontend10decomposer15BatchNormHelper7op_typeE"></span><span id="_CPPv2N4cinn8frontend10decomposer15BatchNormHelper7op_typeE"></span><span id="cinn::frontend::decomposer::BatchNormHelper::op_type__ss"></span><span class="target" id="structcinn_1_1frontend_1_1decomposer_1_1BatchNormHelper_1ac7614881b6c852b84bafd0b840b1f070"></span>std::string <code class="sig-name descname">op_type</code><a class="headerlink" href="#_CPPv4N4cinn8frontend10decomposer15BatchNormHelper7op_typeE" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt id="_CPPv4N4cinn8frontend10decomposer15BatchNormHelper16num_instructionsE">
+<span id="_CPPv3N4cinn8frontend10decomposer15BatchNormHelper16num_instructionsE"></span><span id="_CPPv2N4cinn8frontend10decomposer15BatchNormHelper16num_instructionsE"></span><span id="cinn::frontend::decomposer::BatchNormHelper::num_instructions__i"></span><span class="target" id="structcinn_1_1frontend_1_1decomposer_1_1BatchNormHelper_1aa00b8b9928008a610d797822fe09c6d3"></span>int <code class="sig-name descname">num_instructions</code> = {0}<a class="headerlink" href="#_CPPv4N4cinn8frontend10decomposer15BatchNormHelper16num_instructionsE" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+</div>
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="structcinn_1_1frontend_1_1ComputationContext.html" class="btn btn-neutral float-left" title="Struct ComputationContext" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="structcinn_1_1frontend_1_1Instruction.html" class="btn btn-neutral float-right" title="Struct Instruction" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, cinn team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

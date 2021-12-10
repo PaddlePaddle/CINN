@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Build from source code &mdash; cinn release/v0.1-rc documentation</title><link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/gallery.css" type="text/css" />
+      <link rel="stylesheet" href="_static/gallery-binder.css" type="text/css" />
+      <link rel="stylesheet" href="_static/gallery-dataframe.css" type="text/css" />
+      <link rel="stylesheet" href="_static/collapsible-lists/css/tree_view.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/language_data.js"></script>
+        <script src="_static/collapsible-lists/js/CollapsibleLists.compressed.js"></script>
+        <script src="_static/collapsible-lists/js/apply-collapsible-lists.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Install CINN using docker" href="guide.html" />
+    <link rel="prev" title="Welcome to CINN’s documentation!" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="index.html" class="icon icon-home"> cinn
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Build from source code</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#dependencies">Dependencies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#build-without-docker">Build without Docker</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#build-using-docker">Build using Docker</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="guide.html">Install CINN using docker</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/index.html">Tutorials</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="matmul.html">C++ DSL API tutorial: Matrix Multiplication</a></li>
+<li class="toctree-l1"><a class="reference internal" href="load_paddle_model.html">Load and Execute Paddle Model in C++</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cinn_builder_api.html">CinnBuilder Primitive Semantics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cpp/library_root.html">C++ Symbols</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">cinn</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Build from source code</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/install.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="build-from-source-code">
+<h1>Build from source code<a class="headerlink" href="#build-from-source-code" title="Permalink to this headline"></a></h1>
+<section id="dependencies">
+<h2>Dependencies<a class="headerlink" href="#dependencies" title="Permalink to this headline"></a></h2>
+<p>CINN is build and tested on Ubuntu-18.04 with GCC 8.2.0, third party libraries are provided for that environment and will be downloaded automatically. Other compatible environments should work, but we cann’t gurantee it. Currently, CINN is under very active development, we provide Docker environment for you to have a quick experience. If you have any problem building CINN in your own environment, please try using Docker. More portability will be added to CINN in the future.</p>
+<p>Docker image we used to build and test CINN: <code class="docutils literal notranslate"><span class="pre">registry.baidubce.com/paddlepaddle/paddle:latest-dev-cuda11.2-cudnn8-gcc82</span></code>.</p>
+</section>
+<section id="build-without-docker">
+<h2>Build without Docker<a class="headerlink" href="#build-without-docker" title="Permalink to this headline"></a></h2>
+<p>Build without Docker is not recommended for now. Third party dependencies are downloaded automatically by cmake, some libraries will be compiled, and others are static prebuilt. If you indeed have interest to build CINN in your own environment, you can use the content in <code class="docutils literal notranslate"><span class="pre">Build</span> <span class="pre">using</span> <span class="pre">Docker</span></code> section as a reference.</p>
+</section>
+<section id="build-using-docker">
+<h2>Build using Docker<a class="headerlink" href="#build-using-docker" title="Permalink to this headline"></a></h2>
+<p>Checkout CINN source code from git.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ git clone --depth <span class="m">1</span> https://github.com/PaddlePaddle/CINN.git
+</pre></div>
+</div>
+<p>Download docker image from registry.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ docker pull registry.baidubce.com/paddlepaddle/paddle:latest-dev-cuda11.2-cudnn8-gcc82
+</pre></div>
+</div>
+<p>Start the container.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ docker run --gpus<span class="o">=</span>all -it -v <span class="nv">$PWD</span>/CINN:/CINN /registry.baidubce.com/paddlepaddle/paddle:latest-dev-cuda11.2-cudnn8-gcc82 bin/bash
+</pre></div>
+</div>
+<p>Build CINN in the created container.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># create a build directory</span>
+$ mkdir /CINN/build <span class="o">&amp;&amp;</span> <span class="nb">cd</span> /CINN/build
+<span class="c1"># use cmake to generate Makefile and download dependencies, use flags to toggle on/off CUDA and CUDNN support</span>
+<span class="c1"># e.g. 1) build with CUDA &amp; CUDNN support</span>
+<span class="c1">#   cmake .. -DWITH_CUDA=ON -DWITH_CUDNN=On</span>
+<span class="c1"># e.g. 2) build without CUDA &amp; CUDNN support(CPU only, default)</span>
+<span class="c1">#   cmake .. -DWITH_CUDA=OFF -DWITH_CUDNN=OFF</span>
+$ cmake ..  -DWITH_CUDA<span class="o">=</span>ON -DWITH_CUDNN<span class="o">=</span>ON
+<span class="c1"># build CINN</span>
+$ make 
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">build/dist/cinn-xxxxx.whl</span></code> is the generated python wheel package, the real file name will differ given by the build options, python version, build environments, and git tag.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ pip install build/dist/cinn.*.whl
+</pre></div>
+</div>
+<p>A demo using CINN’s computation API.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">cinn.frontend</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">cinn</span> <span class="kn">import</span> <span class="n">Target</span>
+<span class="kn">from</span> <span class="nn">cinn.framework</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">cinn</span> <span class="kn">import</span> <span class="n">runtime</span>
+<span class="kn">from</span> <span class="nn">cinn</span> <span class="kn">import</span> <span class="n">ir</span>
+<span class="kn">from</span> <span class="nn">cinn</span> <span class="kn">import</span> <span class="n">lang</span>
+<span class="kn">from</span> <span class="nn">cinn.common</span> <span class="kn">import</span> <span class="o">*</span>
+
+<span class="n">target</span> <span class="o">=</span> <span class="n">DefaultHostTarget</span><span class="p">()</span>
+<span class="c1">#target = DefaultNVGPUTarget()</span>
+
+<span class="n">builder</span> <span class="o">=</span> <span class="n">CinnBuilder</span><span class="p">(</span><span class="s2">&quot;test_basic&quot;</span><span class="p">)</span>
+<span class="n">a</span> <span class="o">=</span> <span class="n">builder</span><span class="o">.</span><span class="n">create_input</span><span class="p">(</span><span class="n">Float</span><span class="p">(</span><span class="mi">32</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">24</span><span class="p">,</span> <span class="mi">56</span><span class="p">,</span> <span class="mi">56</span><span class="p">),</span> <span class="s2">&quot;A&quot;</span><span class="p">)</span>
+<span class="n">b</span> <span class="o">=</span> <span class="n">builder</span><span class="o">.</span><span class="n">create_input</span><span class="p">(</span><span class="n">Float</span><span class="p">(</span><span class="mi">32</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">24</span><span class="p">,</span> <span class="mi">56</span><span class="p">,</span> <span class="mi">56</span><span class="p">),</span> <span class="s2">&quot;B&quot;</span><span class="p">)</span>
+<span class="n">c</span> <span class="o">=</span> <span class="n">builder</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span>
+<span class="n">d</span> <span class="o">=</span> <span class="n">builder</span><span class="o">.</span><span class="n">create_input</span><span class="p">(</span><span class="n">Float</span><span class="p">(</span><span class="mi">32</span><span class="p">),</span> <span class="p">(</span><span class="mi">144</span><span class="p">,</span> <span class="mi">24</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="s2">&quot;D&quot;</span><span class="p">)</span>
+<span class="n">e</span> <span class="o">=</span> <span class="n">builder</span><span class="o">.</span><span class="n">conv</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">d</span><span class="p">)</span>
+
+<span class="n">computation</span> <span class="o">=</span> <span class="n">Computation</span><span class="o">.</span><span class="n">build_and_compile</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">builder</span><span class="p">)</span>
+
+<span class="n">A_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">24</span><span class="p">,</span> <span class="mi">56</span><span class="p">,</span> <span class="mi">56</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float32&quot;</span><span class="p">)</span>
+<span class="n">B_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">24</span><span class="p">,</span> <span class="mi">56</span><span class="p">,</span> <span class="mi">56</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float32&quot;</span><span class="p">)</span>
+<span class="n">D_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">([</span><span class="mi">144</span><span class="p">,</span> <span class="mi">24</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float32&quot;</span><span class="p">)</span>
+
+<span class="n">computation</span><span class="o">.</span><span class="n">get_tensor</span><span class="p">(</span><span class="s2">&quot;A&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">A_data</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>
+<span class="n">computation</span><span class="o">.</span><span class="n">get_tensor</span><span class="p">(</span><span class="s2">&quot;B&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">B_data</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>
+<span class="n">computation</span><span class="o">.</span><span class="n">get_tensor</span><span class="p">(</span><span class="s2">&quot;D&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">D_data</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>
+
+<span class="n">computation</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
+
+<span class="n">e_tensor</span> <span class="o">=</span> <span class="n">computation</span><span class="o">.</span><span class="n">get_tensor</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+<span class="n">edata_cinn</span> <span class="o">=</span> <span class="n">e_tensor</span><span class="o">.</span><span class="n">numpy</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">edata_cinn</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>run the demo.</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="n">$</span><span class="w"> </span><span class="n">python</span><span class="w"> </span><span class="n">demo</span><span class="p">.</span><span class="n">py</span><span class="w"></span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">target</span> <span class="pre">=</span> <span class="pre">DefaultHostTarget()</span></code> indicates CINN to use CPU for computing, well <code class="docutils literal notranslate"><span class="pre">target</span> <span class="pre">=</span> <span class="pre">DefaultNVGPUTarget()</span></code> uses GPU.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="Welcome to CINN’s documentation!" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="guide.html" class="btn btn-neutral float-right" title="Install CINN using docker" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, cinn team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>File compatible_pb.cc &mdash; cinn release/v0.1-rc documentation</title><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery-binder.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery-dataframe.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/collapsible-lists/css/tree_view.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
+        <script src="../_static/collapsible-lists/js/CollapsibleLists.compressed.js"></script>
+        <script src="../_static/collapsible-lists/js/apply-collapsible-lists.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> cinn
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../install.html">Build from source code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../guide.html">Install CINN using docker</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/index.html">Tutorials</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../matmul.html">C++ DSL API tutorial: Matrix Multiplication</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../load_paddle_model.html">Load and Execute Paddle Model in C++</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cinn_builder_api.html">CinnBuilder Primitive Semantics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="library_root.html">C++ Symbols</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">cinn</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>File compatible_pb.cc</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/cpp/file__WorkSpace_CINN_cinn_frontend_paddle_compatible_pb.cc.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="file-compatible-pb-cc">
+<span id="file-workspace-cinn-cinn-frontend-paddle-compatible-pb-cc"></span><h1>File compatible_pb.cc<a class="headerlink" href="#file-compatible-pb-cc" title="Permalink to this headline"></a></h1>
+<p>↰ <a class="reference internal" href="dir__WorkSpace_CINN_cinn_frontend_paddle.html#dir-workspace-cinn-cinn-frontend-paddle"><span class="std std-ref">Parent directory</span></a> (<code class="docutils literal notranslate"><span class="pre">/WorkSpace/CINN/cinn/frontend/paddle</span></code>)</p>
+<div class="contents local topic" id="contents">
+<p class="topic-title">Contents</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#definition-workspace-cinn-cinn-frontend-paddle-compatible-pb-cc" id="id1">Definition (<code class="docutils literal notranslate"><span class="pre">/WorkSpace/CINN/cinn/frontend/paddle/compatible_pb.cc</span></code>)</a></p></li>
+<li><p><a class="reference internal" href="#includes" id="id2">Includes</a></p></li>
+<li><p><a class="reference internal" href="#namespaces" id="id3">Namespaces</a></p></li>
+<li><p><a class="reference internal" href="#functions" id="id4">Functions</a></p></li>
+<li><p><a class="reference internal" href="#defines" id="id5">Defines</a></p></li>
+</ul>
+</div>
+<section id="definition-workspace-cinn-cinn-frontend-paddle-compatible-pb-cc">
+<h2>Definition (<code class="docutils literal notranslate"><span class="pre">/WorkSpace/CINN/cinn/frontend/paddle/compatible_pb.cc</span></code>)<a class="headerlink" href="#definition-workspace-cinn-cinn-frontend-paddle-compatible-pb-cc" title="Permalink to this headline"></a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="program_listing_file__WorkSpace_CINN_cinn_frontend_paddle_compatible_pb.cc.html">Program Listing for File compatible_pb.cc</a></li>
+</ul>
+</div>
+</section>
+<section id="includes">
+<h2>Includes<a class="headerlink" href="#includes" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">cinn/frontend/paddle/compatible_pb.h</span></code> (<a class="reference internal" href="file__WorkSpace_CINN_cinn_frontend_paddle_compatible_pb.h.html#file-workspace-cinn-cinn-frontend-paddle-compatible-pb-h"><span class="std std-ref">File compatible_pb.h</span></a>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cinn/frontend/paddle/pb/block_desc.h</span></code> (<a class="reference internal" href="file__WorkSpace_CINN_cinn_frontend_paddle_pb_block_desc.h.html#file-workspace-cinn-cinn-frontend-paddle-pb-block-desc-h"><span class="std std-ref">File block_desc.h</span></a>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cinn/frontend/paddle/pb/op_desc.h</span></code> (<a class="reference internal" href="file__WorkSpace_CINN_cinn_frontend_paddle_pb_op_desc.h.html#file-workspace-cinn-cinn-frontend-paddle-pb-op-desc-h"><span class="std std-ref">File op_desc.h</span></a>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cinn/frontend/paddle/pb/program_desc.h</span></code> (<a class="reference internal" href="file__WorkSpace_CINN_cinn_frontend_paddle_pb_program_desc.h.html#file-workspace-cinn-cinn-frontend-paddle-pb-program-desc-h"><span class="std std-ref">File program_desc.h</span></a>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cinn/frontend/paddle/pb/var_desc.h</span></code> (<a class="reference internal" href="file__WorkSpace_CINN_cinn_frontend_paddle_pb_var_desc.h.html#file-workspace-cinn-cinn-frontend-paddle-pb-var-desc-h"><span class="std std-ref">File var_desc.h</span></a>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">string</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">vector</span></code></p></li>
+</ul>
+</section>
+<section id="namespaces">
+<h2>Namespaces<a class="headerlink" href="#namespaces" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="namespace_cinn__frontend__paddle.html#namespace-cinn-frontend-paddle"><span class="std std-ref">Namespace cinn::frontend::paddle</span></a></p></li>
+</ul>
+</section>
+<section id="functions">
+<h2>Functions<a class="headerlink" href="#functions" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="function_compatible__pb_8cc_1ab9fe485cd56af95fc5c3d6295997cb70.html#exhale-function-compatible-pb-8cc-1ab9fe485cd56af95fc5c3d6295997cb70"><span class="std std-ref">Template Function cinn::frontend::paddle::OpAttrsAnyToCpp</span></a></p></li>
+<li><p><a class="reference internal" href="function_compatible__pb_8cc_1adcb9226c46be54796c39a0eb16162593.html#exhale-function-compatible-pb-8cc-1adcb9226c46be54796c39a0eb16162593"><span class="std std-ref">Template Function cinn::frontend::paddle::OpAttrsCppToAny</span></a></p></li>
+<li><p><a class="reference internal" href="function_compatible__pb_8cc_1a44d6d7859f5d94faaa79249fd049ec45.html#exhale-function-compatible-pb-8cc-1a44d6d7859f5d94faaa79249fd049ec45"><span class="std std-ref">Template Function cinn::frontend::paddle::OpInputsAnyToCpp</span></a></p></li>
+<li><p><a class="reference internal" href="function_compatible__pb_8cc_1a98df8e928051d1b899e95127a579fab0.html#exhale-function-compatible-pb-8cc-1a98df8e928051d1b899e95127a579fab0"><span class="std std-ref">Template Function cinn::frontend::paddle::OpInputsCppToAny</span></a></p></li>
+<li><p><a class="reference internal" href="function_compatible__pb_8cc_1ac01c90a439d1553423a9ca22531dfb60.html#exhale-function-compatible-pb-8cc-1ac01c90a439d1553423a9ca22531dfb60"><span class="std std-ref">Template Function cinn::frontend::paddle::OpOutputsAnyToCpp</span></a></p></li>
+<li><p><a class="reference internal" href="function_compatible__pb_8cc_1a1a3986555131eb3ef68c5c10057cb2de.html#exhale-function-compatible-pb-8cc-1a1a3986555131eb3ef68c5c10057cb2de"><span class="std std-ref">Template Function cinn::frontend::paddle::OpOutputsCppToAny</span></a></p></li>
+<li><p><a class="reference internal" href="function_compatible__pb_8cc_1a0b8612785a295f5d2895811a8e504b7f.html#exhale-function-compatible-pb-8cc-1a0b8612785a295f5d2895811a8e504b7f"><span class="std std-ref">Function cinn::frontend::paddle::TransformBlockDescAnyToCpp&lt; pb ::BlockDesc &gt;</span></a></p></li>
+<li><p><a class="reference internal" href="function_compatible__pb_8cc_1af5dab85eaaa908c608763524aa81981d.html#exhale-function-compatible-pb-8cc-1af5dab85eaaa908c608763524aa81981d"><span class="std std-ref">Function cinn::frontend::paddle::TransformBlockDescCppToAny&lt; pb ::BlockDesc &gt;</span></a></p></li>
+<li><p><a class="reference internal" href="function_compatible__pb_8cc_1af35e2238ba463e45d33eb19aaf52b9b7.html#exhale-function-compatible-pb-8cc-1af35e2238ba463e45d33eb19aaf52b9b7"><span class="std std-ref">Function cinn::frontend::paddle::TransformOpDescAnyToCpp&lt; pb::OpDesc &gt;</span></a></p></li>
+<li><p><a class="reference internal" href="function_compatible__pb_8cc_1ad259e41020f16d928531c361d03a6382.html#exhale-function-compatible-pb-8cc-1ad259e41020f16d928531c361d03a6382"><span class="std std-ref">Function cinn::frontend::paddle::TransformOpDescCppToAny&lt; pb::OpDesc &gt;</span></a></p></li>
+<li><p><a class="reference internal" href="function_compatible__pb_8cc_1aafb7cb286160bdacfa58e597eef9ccac.html#exhale-function-compatible-pb-8cc-1aafb7cb286160bdacfa58e597eef9ccac"><span class="std std-ref">Function cinn::frontend::paddle::TransformProgramDescAnyToCpp&lt; pb ::ProgramDesc &gt;</span></a></p></li>
+<li><p><a class="reference internal" href="function_compatible__pb_8cc_1ad55e8c26f5ea2750f1a2ebae4de00848.html#exhale-function-compatible-pb-8cc-1ad55e8c26f5ea2750f1a2ebae4de00848"><span class="std std-ref">Function cinn::frontend::paddle::TransformProgramDescCppToAny&lt; pb ::ProgramDesc &gt;</span></a></p></li>
+<li><p><a class="reference internal" href="function_compatible__pb_8cc_1a651e018678338e6488786285dd327eb2.html#exhale-function-compatible-pb-8cc-1a651e018678338e6488786285dd327eb2"><span class="std std-ref">Function cinn::frontend::paddle::TransformVarDescAnyToCpp&lt; pb::VarDesc &gt;</span></a></p></li>
+<li><p><a class="reference internal" href="function_compatible__pb_8cc_1a4dbd9f6cde8429a24575ef8d79f85d0b.html#exhale-function-compatible-pb-8cc-1a4dbd9f6cde8429a24575ef8d79f85d0b"><span class="std std-ref">Function cinn::frontend::paddle::TransformVarDescCppToAny&lt; pb::VarDesc &gt;</span></a></p></li>
+</ul>
+</section>
+<section id="defines">
+<h2>Defines<a class="headerlink" href="#defines" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="define_compatible__pb_8cc_1a6bb8ccc2bdd9fedd3dfe6c2e05964195.html#exhale-define-compatible-pb-8cc-1a6bb8ccc2bdd9fedd3dfe6c2e05964195"><span class="std std-ref">Define IMPL_ONE</span></a></p></li>
+<li><p><a class="reference internal" href="define_compatible__pb_8cc_1af371c7cfe8f04f47cfdd878858668faa.html#exhale-define-compatible-pb-8cc-1af371c7cfe8f04f47cfdd878858668faa"><span class="std std-ref">Define TRANS_BLOCK_ANY_WITH_CPP_IMPL</span></a></p></li>
+<li><p><a class="reference internal" href="define_compatible__pb_8cc_1ae281246585e5a0bf790d4f07e561ba7a.html#exhale-define-compatible-pb-8cc-1ae281246585e5a0bf790d4f07e561ba7a"><span class="std std-ref">Define TRANS_OP_ANY_WITH_CPP_IMPL</span></a></p></li>
+<li><p><a class="reference internal" href="define_compatible__pb_8cc_1a47f04fb62acaf522a6a0481b293383a7.html#exhale-define-compatible-pb-8cc-1a47f04fb62acaf522a6a0481b293383a7"><span class="std std-ref">Define TRANS_PROGRAM_ANY_WITH_CPP_IMPL</span></a></p></li>
+<li><p><a class="reference internal" href="define_compatible__pb_8cc_1afb9d3c9690e7fc527d2385496b1493b4.html#exhale-define-compatible-pb-8cc-1afb9d3c9690e7fc527d2385496b1493b4"><span class="std std-ref">Define TRANS_VAR_ANY_WITH_CPP_IMPL</span></a></p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, cinn team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

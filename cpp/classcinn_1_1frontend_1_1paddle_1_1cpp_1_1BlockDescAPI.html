@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Class BlockDescAPI &mdash; cinn release/v0.1-rc documentation</title><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery-binder.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery-dataframe.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/collapsible-lists/css/tree_view.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
+        <script src="../_static/collapsible-lists/js/CollapsibleLists.compressed.js"></script>
+        <script src="../_static/collapsible-lists/js/apply-collapsible-lists.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Class OpDesc" href="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1OpDesc.html" />
+    <link rel="prev" title="Class BlockDesc" href="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1BlockDesc.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> cinn
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../install.html">Build from source code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../guide.html">Install CINN using docker</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/index.html">Tutorials</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../matmul.html">C++ DSL API tutorial: Matrix Multiplication</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../load_paddle_model.html">Load and Execute Paddle Model in C++</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cinn_builder_api.html">CinnBuilder Primitive Semantics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="library_root.html">C++ Symbols</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">cinn</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="library_root.html">C++ Symbols</a> &raquo;</li>
+      <li>Class BlockDescAPI</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/cpp/classcinn_1_1frontend_1_1paddle_1_1cpp_1_1BlockDescAPI.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="class-blockdescapi">
+<span id="exhale-class-classcinn-1-1frontend-1-1paddle-1-1cpp-1-1blockdescapi"></span><h1>Class BlockDescAPI<a class="headerlink" href="#class-blockdescapi" title="Permalink to this headline"></a></h1>
+<ul class="simple">
+<li><p>Defined in <a class="reference internal" href="file__WorkSpace_CINN_cinn_frontend_paddle_cpp_desc_api.h.html#file-workspace-cinn-cinn-frontend-paddle-cpp-desc-api-h"><span class="std std-ref">File desc_api.h</span></a></p></li>
+</ul>
+<section id="inheritance-relationships">
+<h2>Inheritance Relationships<a class="headerlink" href="#inheritance-relationships" title="Permalink to this headline"></a></h2>
+<section id="derived-types">
+<h3>Derived Types<a class="headerlink" href="#derived-types" title="Permalink to this headline"></a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">public</span> <span class="pre">cinn::frontend::paddle::cpp::BlockDesc</span></code> (<a class="reference internal" href="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1BlockDesc.html#exhale-class-classcinn-1-1frontend-1-1paddle-1-1cpp-1-1blockdesc"><span class="std std-ref">Class BlockDesc</span></a>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">public</span> <span class="pre">cinn::frontend::paddle::pb::BlockDesc</span></code> (<a class="reference internal" href="classcinn_1_1frontend_1_1paddle_1_1pb_1_1BlockDesc.html#exhale-class-classcinn-1-1frontend-1-1paddle-1-1pb-1-1blockdesc"><span class="std std-ref">Class BlockDesc</span></a>)</p></li>
+</ul>
+</section>
+</section>
+<section id="class-documentation">
+<h2>Class Documentation<a class="headerlink" href="#class-documentation" title="Permalink to this headline"></a></h2>
+<dl class="cpp class">
+<dt id="_CPPv4N4cinn8frontend6paddle3cpp12BlockDescAPIE">
+<span id="_CPPv3N4cinn8frontend6paddle3cpp12BlockDescAPIE"></span><span id="_CPPv2N4cinn8frontend6paddle3cpp12BlockDescAPIE"></span><span id="cinn::frontend::paddle::cpp::BlockDescAPI"></span><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1BlockDescAPI"></span><em class="property">class </em><code class="sig-prename descclassname">cinn::frontend::paddle::cpp<code class="sig-prename descclassname">::</code></code><code class="sig-name descname">BlockDescAPI</code><a class="headerlink" href="#_CPPv4N4cinn8frontend6paddle3cpp12BlockDescAPIE" title="Permalink to this definition"></a><br /></dt>
+<dd><p>Subclassed by <a class="reference internal" href="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1BlockDesc.html#classcinn_1_1frontend_1_1paddle_1_1cpp_1_1BlockDesc"><span class="std std-ref">cinn::frontend::paddle::cpp::BlockDesc</span></a>, <a class="reference internal" href="classcinn_1_1frontend_1_1paddle_1_1pb_1_1BlockDesc.html#classcinn_1_1frontend_1_1paddle_1_1pb_1_1BlockDesc"><span class="std std-ref">cinn::frontend::paddle::pb::BlockDesc</span></a></p>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric">Public Functions</p>
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn8frontend6paddle3cpp12BlockDescAPID0Ev">
+<span id="_CPPv3N4cinn8frontend6paddle3cpp12BlockDescAPID0Ev"></span><span id="_CPPv2N4cinn8frontend6paddle3cpp12BlockDescAPID0Ev"></span><span id="cinn::frontend::paddle::cpp::BlockDescAPI::~BlockDescAPI"></span><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1BlockDescAPI_1a1a6226521af30612c2ebdf8692500c0a"></span><code class="sig-name descname">~BlockDescAPI</code><span class="sig-paren">(</span><span class="sig-paren">)</span> = default<a class="headerlink" href="#_CPPv4N4cinn8frontend6paddle3cpp12BlockDescAPID0Ev" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4NK4cinn8frontend6paddle3cpp12BlockDescAPI3IdxEv">
+<span id="_CPPv3NK4cinn8frontend6paddle3cpp12BlockDescAPI3IdxEv"></span><span id="_CPPv2NK4cinn8frontend6paddle3cpp12BlockDescAPI3IdxEv"></span><span id="cinn::frontend::paddle::cpp::BlockDescAPI::IdxC"></span><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1BlockDescAPI_1a25d7b54dfedd7cffba2ca519e245ac24"></span>int32_t <code class="sig-name descname">Idx</code><span class="sig-paren">(</span><span class="sig-paren">)</span> <em class="property">const</em> = 0<a class="headerlink" href="#_CPPv4NK4cinn8frontend6paddle3cpp12BlockDescAPI3IdxEv" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn8frontend6paddle3cpp12BlockDescAPI6SetIdxE7int32_t">
+<span id="_CPPv3N4cinn8frontend6paddle3cpp12BlockDescAPI6SetIdxE7int32_t"></span><span id="_CPPv2N4cinn8frontend6paddle3cpp12BlockDescAPI6SetIdxE7int32_t"></span><span id="cinn::frontend::paddle::cpp::BlockDescAPI::SetIdx__int32_t"></span><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1BlockDescAPI_1a9a2402ec92c73462a215fa9ba197fa91"></span>void <code class="sig-name descname">SetIdx</code><span class="sig-paren">(</span>int32_t <em>idx</em><span class="sig-paren">)</span> = 0<a class="headerlink" href="#_CPPv4N4cinn8frontend6paddle3cpp12BlockDescAPI6SetIdxE7int32_t" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4NK4cinn8frontend6paddle3cpp12BlockDescAPI9ParentIdxEv">
+<span id="_CPPv3NK4cinn8frontend6paddle3cpp12BlockDescAPI9ParentIdxEv"></span><span id="_CPPv2NK4cinn8frontend6paddle3cpp12BlockDescAPI9ParentIdxEv"></span><span id="cinn::frontend::paddle::cpp::BlockDescAPI::ParentIdxC"></span><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1BlockDescAPI_1abc5c09e32c53a2b45c3f0c169ee14570"></span>int32_t <code class="sig-name descname">ParentIdx</code><span class="sig-paren">(</span><span class="sig-paren">)</span> <em class="property">const</em> = 0<a class="headerlink" href="#_CPPv4NK4cinn8frontend6paddle3cpp12BlockDescAPI9ParentIdxEv" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn8frontend6paddle3cpp12BlockDescAPI12SetParentIdxE7int32_t">
+<span id="_CPPv3N4cinn8frontend6paddle3cpp12BlockDescAPI12SetParentIdxE7int32_t"></span><span id="_CPPv2N4cinn8frontend6paddle3cpp12BlockDescAPI12SetParentIdxE7int32_t"></span><span id="cinn::frontend::paddle::cpp::BlockDescAPI::SetParentIdx__int32_t"></span><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1BlockDescAPI_1a13f4b8231c8da04f6b8355d5af83057e"></span>void <code class="sig-name descname">SetParentIdx</code><span class="sig-paren">(</span>int32_t <em>idx</em><span class="sig-paren">)</span> = 0<a class="headerlink" href="#_CPPv4N4cinn8frontend6paddle3cpp12BlockDescAPI12SetParentIdxE7int32_t" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4NK4cinn8frontend6paddle3cpp12BlockDescAPI8VarsSizeEv">
+<span id="_CPPv3NK4cinn8frontend6paddle3cpp12BlockDescAPI8VarsSizeEv"></span><span id="_CPPv2NK4cinn8frontend6paddle3cpp12BlockDescAPI8VarsSizeEv"></span><span id="cinn::frontend::paddle::cpp::BlockDescAPI::VarsSizeC"></span><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1BlockDescAPI_1a7ea2c085af63a208c89445027efe269f"></span>size_t <code class="sig-name descname">VarsSize</code><span class="sig-paren">(</span><span class="sig-paren">)</span> <em class="property">const</em> = 0<a class="headerlink" href="#_CPPv4NK4cinn8frontend6paddle3cpp12BlockDescAPI8VarsSizeEv" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn8frontend6paddle3cpp12BlockDescAPI9ClearVarsEv">
+<span id="_CPPv3N4cinn8frontend6paddle3cpp12BlockDescAPI9ClearVarsEv"></span><span id="_CPPv2N4cinn8frontend6paddle3cpp12BlockDescAPI9ClearVarsEv"></span><span id="cinn::frontend::paddle::cpp::BlockDescAPI::ClearVars"></span><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1BlockDescAPI_1ac2f599182284b885d99ac17ea5038a2c"></span>void <code class="sig-name descname">ClearVars</code><span class="sig-paren">(</span><span class="sig-paren">)</span> = 0<a class="headerlink" href="#_CPPv4N4cinn8frontend6paddle3cpp12BlockDescAPI9ClearVarsEv" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4I0EN4cinn8frontend6paddle3cpp12BlockDescAPI6GetVarEP1T7int32_t">
+<span id="_CPPv3I0EN4cinn8frontend6paddle3cpp12BlockDescAPI6GetVarE7int32_t"></span><span id="_CPPv2I0EN4cinn8frontend6paddle3cpp12BlockDescAPI6GetVarE7int32_t"></span>template&lt;typename <code class="sig-name descname">T</code>&gt;<br /><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1BlockDescAPI_1a52f961c4cf7fdd5220521fd0345d083c"></span><a class="reference internal" href="#_CPPv4I0EN4cinn8frontend6paddle3cpp12BlockDescAPI6GetVarEP1T7int32_t" title="cinn::frontend::paddle::cpp::BlockDescAPI::GetVar::T">T</a> *<code class="sig-name descname">GetVar</code><span class="sig-paren">(</span>int32_t <em>idx</em><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4I0EN4cinn8frontend6paddle3cpp12BlockDescAPI6GetVarEP1T7int32_t" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4I0EN4cinn8frontend6paddle3cpp12BlockDescAPI6AddVarEP1Tv">
+<span id="_CPPv3I0EN4cinn8frontend6paddle3cpp12BlockDescAPI6AddVarEv"></span><span id="_CPPv2I0EN4cinn8frontend6paddle3cpp12BlockDescAPI6AddVarEv"></span>template&lt;typename <code class="sig-name descname">T</code>&gt;<br /><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1BlockDescAPI_1a4910f7994d00e7dfaa4554b8aa231e9b"></span><a class="reference internal" href="#_CPPv4I0EN4cinn8frontend6paddle3cpp12BlockDescAPI6AddVarEP1Tv" title="cinn::frontend::paddle::cpp::BlockDescAPI::AddVar::T">T</a> *<code class="sig-name descname">AddVar</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4I0EN4cinn8frontend6paddle3cpp12BlockDescAPI6AddVarEP1Tv" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4NK4cinn8frontend6paddle3cpp12BlockDescAPI7OpsSizeEv">
+<span id="_CPPv3NK4cinn8frontend6paddle3cpp12BlockDescAPI7OpsSizeEv"></span><span id="_CPPv2NK4cinn8frontend6paddle3cpp12BlockDescAPI7OpsSizeEv"></span><span id="cinn::frontend::paddle::cpp::BlockDescAPI::OpsSizeC"></span><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1BlockDescAPI_1a5e09f2d136fdb54bb7f7f3a348fd98ac"></span>size_t <code class="sig-name descname">OpsSize</code><span class="sig-paren">(</span><span class="sig-paren">)</span> <em class="property">const</em> = 0<a class="headerlink" href="#_CPPv4NK4cinn8frontend6paddle3cpp12BlockDescAPI7OpsSizeEv" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn8frontend6paddle3cpp12BlockDescAPI8ClearOpsEv">
+<span id="_CPPv3N4cinn8frontend6paddle3cpp12BlockDescAPI8ClearOpsEv"></span><span id="_CPPv2N4cinn8frontend6paddle3cpp12BlockDescAPI8ClearOpsEv"></span><span id="cinn::frontend::paddle::cpp::BlockDescAPI::ClearOps"></span><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1BlockDescAPI_1aa4ff024f9e93434307452fe8e669a9c1"></span>void <code class="sig-name descname">ClearOps</code><span class="sig-paren">(</span><span class="sig-paren">)</span> = 0<a class="headerlink" href="#_CPPv4N4cinn8frontend6paddle3cpp12BlockDescAPI8ClearOpsEv" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4I0EN4cinn8frontend6paddle3cpp12BlockDescAPI5GetOpEP1T7int32_t">
+<span id="_CPPv3I0EN4cinn8frontend6paddle3cpp12BlockDescAPI5GetOpE7int32_t"></span><span id="_CPPv2I0EN4cinn8frontend6paddle3cpp12BlockDescAPI5GetOpE7int32_t"></span>template&lt;typename <code class="sig-name descname">T</code>&gt;<br /><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1BlockDescAPI_1a27e491e0dc6003ce410e884905c66091"></span><a class="reference internal" href="#_CPPv4I0EN4cinn8frontend6paddle3cpp12BlockDescAPI5GetOpEP1T7int32_t" title="cinn::frontend::paddle::cpp::BlockDescAPI::GetOp::T">T</a> *<code class="sig-name descname">GetOp</code><span class="sig-paren">(</span>int32_t <em>idx</em><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4I0EN4cinn8frontend6paddle3cpp12BlockDescAPI5GetOpEP1T7int32_t" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4I0EN4cinn8frontend6paddle3cpp12BlockDescAPI5AddOpEP1Tv">
+<span id="_CPPv3I0EN4cinn8frontend6paddle3cpp12BlockDescAPI5AddOpEv"></span><span id="_CPPv2I0EN4cinn8frontend6paddle3cpp12BlockDescAPI5AddOpEv"></span>template&lt;typename <code class="sig-name descname">T</code>&gt;<br /><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1BlockDescAPI_1aa9bfd16ed7033f06615dcb28e1aff316"></span><a class="reference internal" href="#_CPPv4I0EN4cinn8frontend6paddle3cpp12BlockDescAPI5AddOpEP1Tv" title="cinn::frontend::paddle::cpp::BlockDescAPI::AddOp::T">T</a> *<code class="sig-name descname">AddOp</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4I0EN4cinn8frontend6paddle3cpp12BlockDescAPI5AddOpEP1Tv" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4NK4cinn8frontend6paddle3cpp12BlockDescAPI15ForwardBlockIdxEv">
+<span id="_CPPv3NK4cinn8frontend6paddle3cpp12BlockDescAPI15ForwardBlockIdxEv"></span><span id="_CPPv2NK4cinn8frontend6paddle3cpp12BlockDescAPI15ForwardBlockIdxEv"></span><span id="cinn::frontend::paddle::cpp::BlockDescAPI::ForwardBlockIdxC"></span><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1BlockDescAPI_1a5a15b144646c23b47b1329b69a1f29e2"></span>int32_t <code class="sig-name descname">ForwardBlockIdx</code><span class="sig-paren">(</span><span class="sig-paren">)</span> <em class="property">const</em> = 0<a class="headerlink" href="#_CPPv4NK4cinn8frontend6paddle3cpp12BlockDescAPI15ForwardBlockIdxEv" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn8frontend6paddle3cpp12BlockDescAPI18SetForwardBlockIdxE7int32_t">
+<span id="_CPPv3N4cinn8frontend6paddle3cpp12BlockDescAPI18SetForwardBlockIdxE7int32_t"></span><span id="_CPPv2N4cinn8frontend6paddle3cpp12BlockDescAPI18SetForwardBlockIdxE7int32_t"></span><span id="cinn::frontend::paddle::cpp::BlockDescAPI::SetForwardBlockIdx__int32_t"></span><span class="target" id="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1BlockDescAPI_1a2bafbff0f37bb97ab3f65421f7d797f0"></span>void <code class="sig-name descname">SetForwardBlockIdx</code><span class="sig-paren">(</span>int32_t <em>idx</em><span class="sig-paren">)</span> = 0<a class="headerlink" href="#_CPPv4N4cinn8frontend6paddle3cpp12BlockDescAPI18SetForwardBlockIdxE7int32_t" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+</div>
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1BlockDesc.html" class="btn btn-neutral float-left" title="Class BlockDesc" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="classcinn_1_1frontend_1_1paddle_1_1cpp_1_1OpDesc.html" class="btn btn-neutral float-right" title="Class OpDesc" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, cinn team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

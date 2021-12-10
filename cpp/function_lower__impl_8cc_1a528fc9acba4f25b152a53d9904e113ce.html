@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Function cinn::lang::detail::LowerGroup(const poly::ScheduleGroup&amp;, const std::map&lt;std::string, Expr&gt;&amp;, std::map&lt;std::string, ir::Tensor&gt; *, std::unordered_set&lt;std::string&gt;&amp;, StageMap, ir::CudaAxisInfo *) &mdash; cinn release/v0.1-rc documentation</title><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery-binder.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery-dataframe.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/collapsible-lists/css/tree_view.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
+        <script src="../_static/collapsible-lists/js/CollapsibleLists.compressed.js"></script>
+        <script src="../_static/collapsible-lists/js/apply-collapsible-lists.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Function cinn::lang::detail::LowerGroup(const poly::ScheduleGroup&amp;, const std::map&lt;std::string, Expr&gt;&amp;, std::map&lt;std::string, Tensor&gt; *, std::unordered_set&lt;std::string&gt;&amp;, StageMap, ir::CudaAxisInfo *)" href="function_lower__impl_8h_1a51c95cc360e6b37ff9b83ce362989108.html" />
+    <link rel="prev" title="Template Function cinn::lang::detail::for_each" href="function_packed__func_8h_1a863e8bf6b0a08cad7c84ffa4ae64af41.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> cinn
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../install.html">Build from source code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../guide.html">Install CINN using docker</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/index.html">Tutorials</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../matmul.html">C++ DSL API tutorial: Matrix Multiplication</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../load_paddle_model.html">Load and Execute Paddle Model in C++</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cinn_builder_api.html">CinnBuilder Primitive Semantics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="library_root.html">C++ Symbols</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">cinn</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="library_root.html">C++ Symbols</a> &raquo;</li>
+      <li>Function cinn::lang::detail::LowerGroup(const poly::ScheduleGroup&amp;, const std::map&lt;std::string, Expr&gt;&amp;, std::map&lt;std::string, ir::Tensor&gt; *, std::unordered_set&lt;std::string&gt;&amp;, StageMap, ir::CudaAxisInfo *)</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/cpp/function_lower__impl_8cc_1a528fc9acba4f25b152a53d9904e113ce.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="function-cinn-lang-detail-lowergroup-const-poly-schedulegroup-const-std-map-std-string-expr-std-map-std-string-ir-tensor-std-unordered-set-std-string-stagemap-ir-cudaaxisinfo">
+<span id="exhale-function-lower-impl-8cc-1a528fc9acba4f25b152a53d9904e113ce"></span><h1>Function cinn::lang::detail::LowerGroup(const poly::ScheduleGroup&amp;, const std::map&lt;std::string, Expr&gt;&amp;, std::map&lt;std::string, ir::Tensor&gt; *, std::unordered_set&lt;std::string&gt;&amp;, StageMap, ir::CudaAxisInfo *)<a class="headerlink" href="#function-cinn-lang-detail-lowergroup-const-poly-schedulegroup-const-std-map-std-string-expr-std-map-std-string-ir-tensor-std-unordered-set-std-string-stagemap-ir-cudaaxisinfo" title="Permalink to this headline"></a></h1>
+<ul class="simple">
+<li><p>Defined in <a class="reference internal" href="file__WorkSpace_CINN_cinn_lang_lower_impl.cc.html#file-workspace-cinn-cinn-lang-lower-impl-cc"><span class="std std-ref">File lower_impl.cc</span></a></p></li>
+</ul>
+<section id="function-documentation">
+<h2>Function Documentation<a class="headerlink" href="#function-documentation" title="Permalink to this headline"></a></h2>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>doxygenfunction: Unable to resolve multiple matches for function “cinn::lang::detail::LowerGroup” with arguments (const poly::ScheduleGroup&amp;, const std::map&lt;std::string, Expr&gt;&amp;, std::map&lt;std::string, ir::Tensor&gt; *, std::unordered_set&lt;std::string&gt;&amp;, StageMap, ir::CudaAxisInfo *) in doxygen xml output for project “CINN Project” from directory: ./doxygen_output/xml.
+Potential matches:
+</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="o">-</span><span class="w"> </span><span class="n">Expr</span><span class="w"> </span><span class="n">LowerGroup</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">poly</span><span class="o">::</span><span class="n">ScheduleGroup</span><span class="w"> </span><span class="o">&amp;</span><span class="n">group</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">map</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="p">,</span><span class="w"> </span><span class="n">Expr</span><span class="o">&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">tuple_to_expr</span><span class="p">,</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">map</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="p">,</span><span class="w"> </span><span class="n">Tensor</span><span class="o">&gt;</span><span class="w"> </span><span class="o">*</span><span class="n">global_tensor_map</span><span class="p">,</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">unordered_set</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">resized_buffer</span><span class="p">,</span><span class="w"> </span><span class="n">StageMap</span><span class="w"> </span><span class="n">stage_map</span><span class="p">,</span><span class="w"> </span><span class="n">ir</span><span class="o">::</span><span class="n">CudaAxisInfo</span><span class="w"> </span><span class="o">*</span><span class="n">cuda_axis_info</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">nullptr</span><span class="p">)</span><span class="w"></span>
+<span class="o">-</span><span class="w"> </span><span class="n">Expr</span><span class="w"> </span><span class="n">LowerGroup</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">poly</span><span class="o">::</span><span class="n">ScheduleGroup</span><span class="w"> </span><span class="o">&amp;</span><span class="n">group</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">map</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="p">,</span><span class="w"> </span><span class="n">Expr</span><span class="o">&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">tuple_to_expr</span><span class="p">,</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">map</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="p">,</span><span class="w"> </span><span class="n">ir</span><span class="o">::</span><span class="n">Tensor</span><span class="o">&gt;</span><span class="w"> </span><span class="o">*</span><span class="n">global_tensor_map</span><span class="p">,</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">unordered_set</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&gt;</span><span class="w"> </span><span class="o">&amp;</span><span class="n">resized_buffer</span><span class="p">,</span><span class="w"> </span><span class="n">StageMap</span><span class="w"> </span><span class="n">stage_map</span><span class="p">,</span><span class="w"> </span><span class="n">ir</span><span class="o">::</span><span class="n">CudaAxisInfo</span><span class="w"> </span><span class="o">*</span><span class="n">cuda_axis_info</span><span class="p">)</span><span class="w"></span>
+</pre></div>
+</div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="function_packed__func_8h_1a863e8bf6b0a08cad7c84ffa4ae64af41.html" class="btn btn-neutral float-left" title="Template Function cinn::lang::detail::for_each" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="function_lower__impl_8h_1a51c95cc360e6b37ff9b83ce362989108.html" class="btn btn-neutral float-right" title="Function cinn::lang::detail::LowerGroup(const poly::ScheduleGroup&amp;, const std::map&lt;std::string, Expr&gt;&amp;, std::map&lt;std::string, Tensor&gt; *, std::unordered_set&lt;std::string&gt;&amp;, StageMap, ir::CudaAxisInfo *)" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, cinn team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

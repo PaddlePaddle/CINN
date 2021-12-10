@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Class BaseBuilder &mdash; cinn release/v0.1-rc documentation</title><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery-binder.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery-dataframe.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/collapsible-lists/css/tree_view.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
+        <script src="../_static/collapsible-lists/js/CollapsibleLists.compressed.js"></script>
+        <script src="../_static/collapsible-lists/js/apply-collapsible-lists.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Class CinnBuilder" href="classcinn_1_1frontend_1_1CinnBuilder.html" />
+    <link rel="prev" title="Struct ReturnType" href="structcinn_1_1lang_1_1ReturnType.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> cinn
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../install.html">Build from source code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../guide.html">Install CINN using docker</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/index.html">Tutorials</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../matmul.html">C++ DSL API tutorial: Matrix Multiplication</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../load_paddle_model.html">Load and Execute Paddle Model in C++</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cinn_builder_api.html">CinnBuilder Primitive Semantics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="library_root.html">C++ Symbols</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">cinn</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="library_root.html">C++ Symbols</a> &raquo;</li>
+      <li>Class BaseBuilder</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/cpp/classcinn_1_1frontend_1_1BaseBuilder.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="class-basebuilder">
+<span id="exhale-class-classcinn-1-1frontend-1-1basebuilder"></span><h1>Class BaseBuilder<a class="headerlink" href="#class-basebuilder" title="Permalink to this headline"></a></h1>
+<ul class="simple">
+<li><p>Defined in <a class="reference internal" href="file__WorkSpace_CINN_cinn_frontend_base_builder.h.html#file-workspace-cinn-cinn-frontend-base-builder-h"><span class="std std-ref">File base_builder.h</span></a></p></li>
+</ul>
+<section id="inheritance-relationships">
+<h2>Inheritance Relationships<a class="headerlink" href="#inheritance-relationships" title="Permalink to this headline"></a></h2>
+<section id="derived-types">
+<h3>Derived Types<a class="headerlink" href="#derived-types" title="Permalink to this headline"></a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">public</span> <span class="pre">cinn::frontend::CinnBuilder</span></code> (<a class="reference internal" href="classcinn_1_1frontend_1_1CinnBuilder.html#exhale-class-classcinn-1-1frontend-1-1cinnbuilder"><span class="std std-ref">Class CinnBuilder</span></a>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">public</span> <span class="pre">cinn::frontend::NetBuilder</span></code> (<a class="reference internal" href="classcinn_1_1frontend_1_1NetBuilder.html#exhale-class-classcinn-1-1frontend-1-1netbuilder"><span class="std std-ref">Class NetBuilder</span></a>)</p></li>
+</ul>
+</section>
+</section>
+<section id="class-documentation">
+<h2>Class Documentation<a class="headerlink" href="#class-documentation" title="Permalink to this headline"></a></h2>
+<dl class="cpp class">
+<dt id="_CPPv4N4cinn8frontend11BaseBuilderE">
+<span id="_CPPv3N4cinn8frontend11BaseBuilderE"></span><span id="_CPPv2N4cinn8frontend11BaseBuilderE"></span><span id="cinn::frontend::BaseBuilder"></span><span class="target" id="classcinn_1_1frontend_1_1BaseBuilder"></span><em class="property">class </em><code class="sig-prename descclassname">cinn::frontend<code class="sig-prename descclassname">::</code></code><code class="sig-name descname">BaseBuilder</code><a class="headerlink" href="#_CPPv4N4cinn8frontend11BaseBuilderE" title="Permalink to this definition"></a><br /></dt>
+<dd><p>Subclassed by <a class="reference internal" href="classcinn_1_1frontend_1_1CinnBuilder.html#classcinn_1_1frontend_1_1CinnBuilder"><span class="std std-ref">cinn::frontend::CinnBuilder</span></a>, <a class="reference internal" href="classcinn_1_1frontend_1_1NetBuilder.html#classcinn_1_1frontend_1_1NetBuilder"><span class="std std-ref">cinn::frontend::NetBuilder</span></a></p>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric">Public Functions</p>
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn8frontend11BaseBuilder11BaseBuilderERKNSt6stringE">
+<span id="_CPPv3N4cinn8frontend11BaseBuilder11BaseBuilderERKNSt6stringE"></span><span id="_CPPv2N4cinn8frontend11BaseBuilder11BaseBuilderERKNSt6stringE"></span><span id="cinn::frontend::BaseBuilder::BaseBuilder__ssCR"></span><span class="target" id="classcinn_1_1frontend_1_1BaseBuilder_1a7532144b46f2b1c57f87e13efbe61325"></span><code class="sig-name descname">BaseBuilder</code><span class="sig-paren">(</span><em class="property">const</em> std::string &amp;<em>name</em><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N4cinn8frontend11BaseBuilder11BaseBuilderERKNSt6stringE" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn8frontend11BaseBuilder5BuildEv">
+<span id="_CPPv3N4cinn8frontend11BaseBuilder5BuildEv"></span><span id="_CPPv2N4cinn8frontend11BaseBuilder5BuildEv"></span><span id="cinn::frontend::BaseBuilder::Build"></span><span class="target" id="classcinn_1_1frontend_1_1BaseBuilder_1a79bb1dfc7ba156e0c64d1af20c5082eb"></span><a class="reference internal" href="structcinn_1_1frontend_1_1Program.html#_CPPv4N4cinn8frontend7ProgramE" title="cinn::frontend::Program">Program</a> <code class="sig-name descname">Build</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N4cinn8frontend11BaseBuilder5BuildEv" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn8frontend11BaseBuilder11CreateInputERKN6common4TypeERKNSt6vectorIiEERKNSt6stringE">
+<span id="_CPPv3N4cinn8frontend11BaseBuilder11CreateInputERKN6common4TypeERKNSt6vectorIiEERKNSt6stringE"></span><span id="_CPPv2N4cinn8frontend11BaseBuilder11CreateInputERKN6common4TypeERKNSt6vectorIiEERKNSt6stringE"></span><span id="cinn::frontend::BaseBuilder::CreateInput__common::TypeCR.std::vector:i:CR.ssCR"></span><span class="target" id="classcinn_1_1frontend_1_1BaseBuilder_1a7f05a4b844fecdbdb6abf76daead7ff6"></span><a class="reference internal" href="classcinn_1_1frontend_1_1Placeholder.html#_CPPv4N4cinn8frontend11PlaceholderE" title="cinn::frontend::Placeholder">Placeholder</a> <code class="sig-name descname">CreateInput</code><span class="sig-paren">(</span><em class="property">const</em> common::Type &amp;<em>type</em>, <em class="property">const</em> std::vector&lt;int&gt; &amp;<em>shape</em>, <em class="property">const</em> std::string &amp;<em>id_hint</em> = &quot;&quot;<span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N4cinn8frontend11BaseBuilder11CreateInputERKN6common4TypeERKNSt6vectorIiEERKNSt6stringE" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn8frontend11BaseBuilder11CreateInputERK8Variable">
+<span id="_CPPv3N4cinn8frontend11BaseBuilder11CreateInputERK8Variable"></span><span id="_CPPv2N4cinn8frontend11BaseBuilder11CreateInputERK8Variable"></span><span id="cinn::frontend::BaseBuilder::CreateInput__VariableCR"></span><span class="target" id="classcinn_1_1frontend_1_1BaseBuilder_1a026731ac4cb4492382e89ac00b14f135"></span><a class="reference internal" href="classcinn_1_1frontend_1_1Placeholder.html#_CPPv4N4cinn8frontend11PlaceholderE" title="cinn::frontend::Placeholder">Placeholder</a> <code class="sig-name descname">CreateInput</code><span class="sig-paren">(</span><em class="property">const</em> <a class="reference internal" href="structcinn_1_1frontend_1_1Variable.html#_CPPv4N4cinn8frontend8VariableE" title="cinn::frontend::Variable">Variable</a> &amp;<em>input</em><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N4cinn8frontend11BaseBuilder11CreateInputERK8Variable" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn8frontend11BaseBuilder4nameEv">
+<span id="_CPPv3N4cinn8frontend11BaseBuilder4nameEv"></span><span id="_CPPv2N4cinn8frontend11BaseBuilder4nameEv"></span><span id="cinn::frontend::BaseBuilder::name"></span><span class="target" id="classcinn_1_1frontend_1_1BaseBuilder_1afde7be816ef1415e6a01e63f0b2e4c37"></span><em class="property">const</em> std::string &amp;<code class="sig-name descname">name</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N4cinn8frontend11BaseBuilder4nameEv" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn8frontend11BaseBuilder4sizeEv">
+<span id="_CPPv3N4cinn8frontend11BaseBuilder4sizeEv"></span><span id="_CPPv2N4cinn8frontend11BaseBuilder4sizeEv"></span><span id="cinn::frontend::BaseBuilder::size"></span><span class="target" id="classcinn_1_1frontend_1_1BaseBuilder_1ad14c2634631eb97c2b7eb0bb22e0a309"></span><em class="property">const</em> size_t <code class="sig-name descname">size</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N4cinn8frontend11BaseBuilder4sizeEv" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn8frontend11BaseBuilderD0Ev">
+<span id="_CPPv3N4cinn8frontend11BaseBuilderD0Ev"></span><span id="_CPPv2N4cinn8frontend11BaseBuilderD0Ev"></span><span id="cinn::frontend::BaseBuilder::~BaseBuilder"></span><span class="target" id="classcinn_1_1frontend_1_1BaseBuilder_1a67d1908fcc4c5c46d3c8a5700032d40a"></span><code class="sig-name descname">~BaseBuilder</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N4cinn8frontend11BaseBuilderD0Ev" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn8frontend11BaseBuilder17AppendInstructionERK11Instruction">
+<span id="_CPPv3N4cinn8frontend11BaseBuilder17AppendInstructionERK11Instruction"></span><span id="_CPPv2N4cinn8frontend11BaseBuilder17AppendInstructionERK11Instruction"></span><span id="cinn::frontend::BaseBuilder::AppendInstruction__InstructionCR"></span><span class="target" id="classcinn_1_1frontend_1_1BaseBuilder_1a63949acf5d095dfd6a1dde3fa73cde04"></span>void <code class="sig-name descname">AppendInstruction</code><span class="sig-paren">(</span><em class="property">const</em> <a class="reference internal" href="structcinn_1_1frontend_1_1Instruction.html#_CPPv4N4cinn8frontend11InstructionE" title="cinn::frontend::Instruction">Instruction</a> &amp;<em>instr</em><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N4cinn8frontend11BaseBuilder17AppendInstructionERK11Instruction" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+</div>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric">Protected Functions</p>
+<dl class="cpp function">
+<dt id="_CPPv4NK4cinn8frontend11BaseBuilder10InferShapeE11Instruction">
+<span id="_CPPv3NK4cinn8frontend11BaseBuilder10InferShapeE11Instruction"></span><span id="_CPPv2NK4cinn8frontend11BaseBuilder10InferShapeE11Instruction"></span><span id="cinn::frontend::BaseBuilder::InferShape__InstructionC"></span><span class="target" id="classcinn_1_1frontend_1_1BaseBuilder_1a00cebba041a47334954d4edcbf4a6ce7"></span>void <code class="sig-name descname">InferShape</code><span class="sig-paren">(</span><a class="reference internal" href="structcinn_1_1frontend_1_1Instruction.html#_CPPv4N4cinn8frontend11InstructionE" title="cinn::frontend::Instruction">Instruction</a> <em>instr</em><span class="sig-paren">)</span> <em class="property">const</em><a class="headerlink" href="#_CPPv4NK4cinn8frontend11BaseBuilder10InferShapeE11Instruction" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp function">
+<dt id="_CPPv4N4cinn8frontend11BaseBuilder29CINN_DISALLOW_COPY_AND_ASSIGNE11BaseBuilder">
+<span id="_CPPv3N4cinn8frontend11BaseBuilder29CINN_DISALLOW_COPY_AND_ASSIGNE11BaseBuilder"></span><span id="_CPPv2N4cinn8frontend11BaseBuilder29CINN_DISALLOW_COPY_AND_ASSIGNE11BaseBuilder"></span><span id="cinn::frontend::BaseBuilder::CINN_DISALLOW_COPY_AND_ASSIGN__BaseBuilder"></span><span class="target" id="classcinn_1_1frontend_1_1BaseBuilder_1acfe775360e480c5c4e160fede18e8dc7"></span><code class="sig-name descname">CINN_DISALLOW_COPY_AND_ASSIGN</code><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv4N4cinn8frontend11BaseBuilderE" title="cinn::frontend::BaseBuilder">BaseBuilder</a><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv4N4cinn8frontend11BaseBuilder29CINN_DISALLOW_COPY_AND_ASSIGNE11BaseBuilder" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+</div>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric">Protected Attributes</p>
+<dl class="cpp var">
+<dt id="_CPPv4N4cinn8frontend11BaseBuilder5name_E">
+<span id="_CPPv3N4cinn8frontend11BaseBuilder5name_E"></span><span id="_CPPv2N4cinn8frontend11BaseBuilder5name_E"></span><span id="cinn::frontend::BaseBuilder::name___ss"></span><span class="target" id="classcinn_1_1frontend_1_1BaseBuilder_1ade2371ce95d7c653851139233143aced"></span>std::string <code class="sig-name descname">name_</code><a class="headerlink" href="#_CPPv4N4cinn8frontend11BaseBuilder5name_E" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt id="_CPPv4N4cinn8frontend11BaseBuilder7instrs_E">
+<span id="_CPPv3N4cinn8frontend11BaseBuilder7instrs_E"></span><span id="_CPPv2N4cinn8frontend11BaseBuilder7instrs_E"></span><span id="cinn::frontend::BaseBuilder::instrs___std::vector:Instruction:"></span><span class="target" id="classcinn_1_1frontend_1_1BaseBuilder_1a0c89866911bece5cd7f837b80dcce048"></span>std::vector&lt;<a class="reference internal" href="structcinn_1_1frontend_1_1Instruction.html#_CPPv4N4cinn8frontend11InstructionE" title="cinn::frontend::Instruction">Instruction</a>&gt; <code class="sig-name descname">instrs_</code><a class="headerlink" href="#_CPPv4N4cinn8frontend11BaseBuilder7instrs_E" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt id="_CPPv4N4cinn8frontend11BaseBuilder7inputs_E">
+<span id="_CPPv3N4cinn8frontend11BaseBuilder7inputs_E"></span><span id="_CPPv2N4cinn8frontend11BaseBuilder7inputs_E"></span><span id="cinn::frontend::BaseBuilder::inputs___std::vector:Variable:"></span><span class="target" id="classcinn_1_1frontend_1_1BaseBuilder_1a1b4fb6982d9bb2585a003a3f2ce06653"></span>std::vector&lt;<a class="reference internal" href="structcinn_1_1frontend_1_1Variable.html#_CPPv4N4cinn8frontend8VariableE" title="cinn::frontend::Variable">Variable</a>&gt; <code class="sig-name descname">inputs_</code><a class="headerlink" href="#_CPPv4N4cinn8frontend11BaseBuilder7inputs_E" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+</div>
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="structcinn_1_1lang_1_1ReturnType.html" class="btn btn-neutral float-left" title="Struct ReturnType" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="classcinn_1_1frontend_1_1CinnBuilder.html" class="btn btn-neutral float-right" title="Class CinnBuilder" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, cinn team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
