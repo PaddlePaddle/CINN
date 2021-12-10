@@ -221,5 +221,4 @@ CINN learned a lot from the following projects:
 - [Halide](https://github.com/halide/Halide): Referenced the design of most IR nodes,
 - [TVM](https://github.com/apache/tvm): We learned many ideas including the semantics of some schedule primitives, TOPI, NNVM, and so on,
 - [tiramisu](https://github.com/Tiramisu-Compiler): The isl usage, polyhedral compilation, schedule primitive implementation, and so on,
-- [tensorflow/xla]
-(https://github.com/tensorflow/tensorflow/tree/master/tensorflow/compiler/xla): Referenced the semantics of the primitive operations.
+- [tensorflow/xla](https://github.com/tensorflow/tensorflow/tree/master/tensorflow/compiler/xla): Referenced the semantics of the primitive operations.
