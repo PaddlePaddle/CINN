@@ -1,0 +1,13 @@
+.. _exhale_function_op__mappers_2elementwise_8cc_1af4aaa830fe806729dd37c2a1b0ff8567:
+
+Function cinn::frontend::op_mappers::ElementwiseMulOpMapper
+===========================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_elementwise.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::op_mappers::ElementwiseMulOpMapper(const paddle::cpp::OpDesc&, const OpMapperContext&)

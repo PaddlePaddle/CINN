@@ -1,0 +1,61 @@
+
+.. _namespace_cinn__frontend__paddle__cpp:
+
+Namespace cinn::frontend::paddle::cpp
+=====================================
+
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+
+
+
+
+Classes
+-------
+
+
+- :ref:`exhale_class_classcinn_1_1frontend_1_1paddle_1_1cpp_1_1BlockDesc`
+
+- :ref:`exhale_class_classcinn_1_1frontend_1_1paddle_1_1cpp_1_1BlockDescAPI`
+
+- :ref:`exhale_class_classcinn_1_1frontend_1_1paddle_1_1cpp_1_1OpDesc`
+
+- :ref:`exhale_class_classcinn_1_1frontend_1_1paddle_1_1cpp_1_1OpDescAPI`
+
+- :ref:`exhale_class_classcinn_1_1frontend_1_1paddle_1_1cpp_1_1ProgramDesc`
+
+- :ref:`exhale_class_classcinn_1_1frontend_1_1paddle_1_1cpp_1_1ProgramDescAPI`
+
+- :ref:`exhale_class_classcinn_1_1frontend_1_1paddle_1_1cpp_1_1VarDesc`
+
+- :ref:`exhale_class_classcinn_1_1frontend_1_1paddle_1_1cpp_1_1VarDescAPI`
+
+
+Functions
+---------
+
+
+- :ref:`exhale_function_cpp_2op__desc_8cc_1ad41b2c886332078323249b47c8e6ed24`
+
+- :ref:`exhale_function_cpp_2op__desc_8cc_1a6ea2406645f71639ddb033c43909c0fe`
+
+- :ref:`exhale_function_cpp_2op__desc_8cc_1ab98cf6e578afe2dd7fec19000803e7e5`
+
+- :ref:`exhale_function_cpp_2op__desc_8cc_1a07381955c80d7be41330a5490ec4810f`
+
+- :ref:`exhale_function_cpp_2op__desc_8cc_1a884be4774ef37cf0e1194c7a82a06b17`
+
+- :ref:`exhale_function_cpp_2op__desc_8cc_1a92aa93bf297e8e884a1a386627f2d1bf`
+
+- :ref:`exhale_function_cpp_2op__desc_8cc_1a07ceefd7d6ed29eb37940e7ceb89f3b5`
+
+- :ref:`exhale_function_cpp_2op__desc_8cc_1a7ea24c4eb07cbb927af4ad878be7c5b8`
+
+- :ref:`exhale_function_cpp_2op__desc_8cc_1a05114e851a88a73851c481b21b2bf727`
+
+- :ref:`exhale_function_cpp_2op__desc_8cc_1aa6b077696fe4b58758783f278f39ef63`
+
+- :ref:`exhale_function_cpp_2op__desc_8cc_1a0dfa54bce19ec45752eb887943abff12`

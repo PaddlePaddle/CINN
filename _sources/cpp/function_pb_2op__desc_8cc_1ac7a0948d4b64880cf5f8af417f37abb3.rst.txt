@@ -1,0 +1,13 @@
+.. _exhale_function_pb_2op__desc_8cc_1ac7a0948d4b64880cf5f8af417f37abb3:
+
+Function cinn::frontend::paddle::pb::OpDesc::SetAttr< std::vector< std::string > >
+==================================================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_pb_op_desc.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::paddle::pb::OpDesc::SetAttr< std::vector< std::string > >(const std::string&, const std::vector<std::string>&)

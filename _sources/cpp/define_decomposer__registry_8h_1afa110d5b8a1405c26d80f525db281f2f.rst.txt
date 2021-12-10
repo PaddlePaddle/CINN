@@ -1,0 +1,13 @@
+.. _exhale_define_decomposer__registry_8h_1afa110d5b8a1405c26d80f525db281f2f:
+
+Define CINN_DECOMPOSER_REGISTER_ALL
+===================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_registry.h`
+
+
+Define Documentation
+--------------------
+
+
+.. doxygendefine:: CINN_DECOMPOSER_REGISTER_ALL

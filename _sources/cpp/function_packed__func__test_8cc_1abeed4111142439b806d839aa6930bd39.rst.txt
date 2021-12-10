@@ -1,0 +1,13 @@
+.. _exhale_function_packed__func__test_8cc_1abeed4111142439b806d839aa6930bd39:
+
+Function cinn::lang::TEST(Function, ReturnMultiValue)
+=====================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_packed_func_test.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::lang::TEST(Function, ReturnMultiValue)

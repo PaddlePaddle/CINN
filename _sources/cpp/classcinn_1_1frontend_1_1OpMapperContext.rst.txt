@@ -1,0 +1,26 @@
+.. _exhale_class_classcinn_1_1frontend_1_1OpMapperContext:
+
+Class OpMapperContext
+=====================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_op_mapper_registry.h`
+
+
+Nested Relationships
+--------------------
+
+
+Nested Types
+************
+
+- :ref:`exhale_struct_structcinn_1_1frontend_1_1OpMapperContext_1_1FeedInfo`
+
+
+Class Documentation
+-------------------
+
+
+.. doxygenclass:: cinn::frontend::OpMapperContext
+   :members:
+   :protected-members:
+   :undoc-members:

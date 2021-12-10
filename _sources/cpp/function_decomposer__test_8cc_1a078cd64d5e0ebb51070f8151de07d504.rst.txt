@@ -1,0 +1,13 @@
+.. _exhale_function_decomposer__test_8cc_1a078cd64d5e0ebb51070f8151de07d504:
+
+Function cinn::frontend::SetRandData(hlir::framework::Tensor, Target)
+=====================================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_pass_decomposer_test.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::SetRandData(hlir::framework::Tensor, Target)

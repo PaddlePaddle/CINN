@@ -1,0 +1,13 @@
+.. _exhale_define_builtin_8cc_1a52a87279af6cef0b40b70c1a061fbeec:
+
+Define EXTERN_CALL_IMP
+======================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_builtin.cc`
+
+
+Define Documentation
+--------------------
+
+
+.. doxygendefine:: EXTERN_CALL_IMP

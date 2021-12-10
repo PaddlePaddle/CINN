@@ -1,0 +1,13 @@
+.. _exhale_function_op__mapper__registry_8h_1a59cac9c3e18e7ce8e688d3e011c26ea9:
+
+Function cinn::frontend::paddle::GradVarName
+============================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_op_mapper_registry.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::paddle::GradVarName(const std::string&)

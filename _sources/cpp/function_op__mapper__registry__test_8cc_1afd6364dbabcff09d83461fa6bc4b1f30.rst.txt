@@ -1,0 +1,13 @@
+.. _exhale_function_op__mapper__registry__test_8cc_1afd6364dbabcff09d83461fa6bc4b1f30:
+
+Function cinn::frontend::TEST(OpMapperRegistryTest, basic)
+==========================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_op_mapper_registry_test.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::TEST(OpMapperRegistryTest, basic)

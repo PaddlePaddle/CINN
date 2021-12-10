@@ -1,0 +1,13 @@
+.. _exhale_function_builtin_8h_1a36944908ffa71a0a5f7cd76e3f9b701d:
+
+Function cinn::lang::Negative
+=============================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_builtin.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::lang::Negative(Expr)

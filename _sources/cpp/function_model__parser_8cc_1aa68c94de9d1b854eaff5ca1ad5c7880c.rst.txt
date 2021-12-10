@@ -1,0 +1,13 @@
+.. _exhale_function_model__parser_8cc_1aa68c94de9d1b854eaff5ca1ad5c7880c:
+
+Function cinn::frontend::paddle::LoadProgram
+============================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_model_parser.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::paddle::LoadProgram(const std::string&, bool)

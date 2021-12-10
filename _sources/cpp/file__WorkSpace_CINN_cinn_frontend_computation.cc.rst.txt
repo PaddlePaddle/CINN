@@ -1,0 +1,70 @@
+
+.. _file__WorkSpace_CINN_cinn_frontend_computation.cc:
+
+File computation.cc
+===================
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend>` (``/WorkSpace/CINN/cinn/frontend``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/frontend/computation.cc``)
+-------------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_frontend_computation.cc.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``cinn/frontend/computation.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_computation.h`)
+
+- ``cinn/frontend/program_pass.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_program_pass.h`)
+
+- ``cinn/hlir/framework/graph.h``
+
+- ``cinn/hlir/framework/graph_compiler.h``
+
+- ``cinn/hlir/framework/pass.h``
+
+- ``cinn/hlir/framework/scope.h``
+
+
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn`
+
+- :ref:`namespace_cinn__frontend`
+
+
+Classes
+-------
+
+
+- :ref:`exhale_struct_structcinn_1_1frontend_1_1ComputationContext`
+
+
+Functions
+---------
+
+
+- :ref:`exhale_function_computation_8cc_1aea936e7c826cba9ff73b046e19143d2b`
+

@@ -1,0 +1,107 @@
+
+.. _file__WorkSpace_CINN_cinn_frontend_program_pass.h:
+
+File program_pass.h
+===================
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend>` (``/WorkSpace/CINN/cinn/frontend``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/frontend/program_pass.h``)
+-------------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_frontend_program_pass.h.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``cinn/frontend/op_mapper_registry.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_op_mapper_registry.h`)
+
+- ``cinn/frontend/syntax.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_syntax.h`)
+
+- ``cinn/utils/registry.h``
+
+- ``memory``
+
+- ``string``
+
+- ``unordered_map``
+
+- ``vector``
+
+
+
+Included By
+-----------
+
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_computation.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_computation_test.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_conv2d_grad_test.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_test_helper.h`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_pass_decomposer.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_pass_decomposer_test.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_pass_remove_identity.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_pass_remove_identity_test.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_program_pass.cc`
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn`
+
+- :ref:`namespace_cinn__frontend`
+
+
+Classes
+-------
+
+
+- :ref:`exhale_class_classcinn_1_1frontend_1_1ProgramPass`
+
+- :ref:`exhale_class_classcinn_1_1frontend_1_1ProgramPassFunctionRegistry`
+
+- :ref:`exhale_class_classcinn_1_1frontend_1_1ProgramPassRegistry`
+
+
+Defines
+-------
+
+
+- :ref:`exhale_define_program__pass_8h_1a2be5f1a18da95307922d7bc698410f8e`
+
+- :ref:`exhale_define_program__pass_8h_1ae73906338f64f4fbdabebf02549d01b2`
+
+
+Typedefs
+--------
+
+
+- :ref:`exhale_typedef_program__pass_8h_1ab2442608d087b448126deb13761ec28f`
+

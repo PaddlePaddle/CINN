@@ -1,0 +1,13 @@
+.. _exhale_define_compatible__pb_8cc_1a6bb8ccc2bdd9fedd3dfe6c2e05964195:
+
+Define IMPL_ONE
+===============
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_compatible_pb.cc`
+
+
+Define Documentation
+--------------------
+
+
+.. doxygendefine:: IMPL_ONE

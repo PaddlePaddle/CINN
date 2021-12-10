@@ -1,0 +1,13 @@
+.. _exhale_typedef_pb_2op__desc_8h_1a35452211ddfb8a79900e3b2faea11164:
+
+Typedef cinn::frontend::paddle::pb::VariableNameMap
+===================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_pb_op_desc.h`
+
+
+Typedef Documentation
+---------------------
+
+
+.. doxygentypedef:: cinn::frontend::paddle::pb::VariableNameMap

@@ -1,0 +1,13 @@
+.. _exhale_function_pb_2var__desc_8h_1a17d73992f6dd4459505ad17ad01002bc:
+
+Template Function cinn::frontend::paddle::pb::VectorToRepeated(const std::vector<bool>&, RepeatedField \*)
+==========================================================================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_pb_var_desc.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::paddle::pb::VectorToRepeated(const std::vector<bool>&, RepeatedField *)

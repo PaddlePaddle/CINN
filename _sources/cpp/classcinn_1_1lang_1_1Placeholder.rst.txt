@@ -1,0 +1,16 @@
+.. _exhale_class_classcinn_1_1lang_1_1Placeholder:
+
+Template Class Placeholder
+==========================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_placeholder.h`
+
+
+Class Documentation
+-------------------
+
+
+.. doxygenclass:: cinn::lang::Placeholder
+   :members:
+   :protected-members:
+   :undoc-members:

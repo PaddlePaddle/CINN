@@ -1,0 +1,82 @@
+
+.. _file__WorkSpace_CINN_cinn_frontend_decomposer_conv2d_grad_test.cc:
+
+File conv2d_grad_test.cc
+========================
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend_decomposer>` (``/WorkSpace/CINN/cinn/frontend/decomposer``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/frontend/decomposer/conv2d_grad_test.cc``)
+-----------------------------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_frontend_decomposer_conv2d_grad_test.cc.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``algorithm``
+
+- ``cinn/common/target.h``
+
+- ``cinn/frontend/cinn_builder.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_cinn_builder.h`)
+
+- ``cinn/frontend/decomposer/test_helper.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_test_helper.h`)
+
+- ``cinn/frontend/decomposer/use_decomposer.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_use_decomposer.h`)
+
+- ``cinn/frontend/decomposer_registry.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_registry.h`)
+
+- ``cinn/frontend/net_builder.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_net_builder.h`)
+
+- ``cinn/frontend/program_pass.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_program_pass.h`)
+
+- ``cinn/frontend/syntax.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_syntax.h`)
+
+- ``cinn/hlir/framework/graph.h``
+
+- ``cinn/hlir/framework/graph_compiler.h``
+
+- ``cinn/hlir/framework/pass.h``
+
+- ``cinn/hlir/framework/tensor.h``
+
+- ``cinn/hlir/op/use_ops.h``
+
+- ``cinn/hlir/pass/use_pass.h``
+
+- ``gtest/gtest.h``
+
+- ``memory``
+
+- ``random``
+
+- ``vector``
+
+
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn`
+
+- :ref:`namespace_cinn__frontend`
+

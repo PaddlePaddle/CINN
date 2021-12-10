@@ -1,0 +1,13 @@
+.. _exhale_function_placeholder__test_8cc_1a4b095da8633fac8c97b821d37ff3b69b:
+
+Function cinn::lang::TEST(placeholder, dynamic_shape)
+=====================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_placeholder_test.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::lang::TEST(placeholder, dynamic_shape)

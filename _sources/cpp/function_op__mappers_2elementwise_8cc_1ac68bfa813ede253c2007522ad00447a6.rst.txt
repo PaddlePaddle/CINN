@@ -1,0 +1,13 @@
+.. _exhale_function_op__mappers_2elementwise_8cc_1ac68bfa813ede253c2007522ad00447a6:
+
+Function cinn::frontend::op_mappers::ElementwiseAddOpMapper
+===========================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_elementwise.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::op_mappers::ElementwiseAddOpMapper(const paddle::cpp::OpDesc&, const OpMapperContext&)

@@ -1,0 +1,13 @@
+.. _exhale_function_lower__test_8cc_1af5626b9b24dea2fb0ba942f052e8bd8a:
+
+Function cinn::lang::TEST(lower, basic)
+=======================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_lower_test.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::lang::TEST(lower, basic)

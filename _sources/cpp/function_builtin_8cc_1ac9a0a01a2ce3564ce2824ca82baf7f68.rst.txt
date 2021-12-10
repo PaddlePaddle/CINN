@@ -1,0 +1,13 @@
+.. _exhale_function_builtin_8cc_1ac9a0a01a2ce3564ce2824ca82baf7f68:
+
+Function cinn::lang::Tan
+========================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_builtin.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::lang::Tan(Expr)

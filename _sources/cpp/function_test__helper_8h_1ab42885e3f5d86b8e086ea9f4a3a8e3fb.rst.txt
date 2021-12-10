@@ -1,0 +1,13 @@
+.. _exhale_function_test__helper_8h_1ab42885e3f5d86b8e086ea9f4a3a8e3fb:
+
+Function cinn::frontend::RunDecomposer
+======================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_test_helper.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::RunDecomposer(Program *, const Target&)

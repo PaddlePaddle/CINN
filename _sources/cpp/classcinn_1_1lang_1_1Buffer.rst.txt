@@ -1,0 +1,16 @@
+.. _exhale_class_classcinn_1_1lang_1_1Buffer:
+
+Class Buffer
+============
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_buffer.h`
+
+
+Class Documentation
+-------------------
+
+
+.. doxygenclass:: cinn::lang::Buffer
+   :members:
+   :protected-members:
+   :undoc-members:

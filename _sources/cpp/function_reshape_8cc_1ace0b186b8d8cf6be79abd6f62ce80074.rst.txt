@@ -1,0 +1,13 @@
+.. _exhale_function_reshape_8cc_1ace0b186b8d8cf6be79abd6f62ce80074:
+
+Function cinn::frontend::op_mappers::Reshape2GradOpMapper
+=========================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_reshape.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::op_mappers::Reshape2GradOpMapper(const paddle::cpp::OpDesc&, const OpMapperContext&)

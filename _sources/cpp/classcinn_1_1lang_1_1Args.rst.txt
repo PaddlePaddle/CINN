@@ -1,0 +1,16 @@
+.. _exhale_class_classcinn_1_1lang_1_1Args:
+
+Class Args
+==========
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_packed_func.h`
+
+
+Class Documentation
+-------------------
+
+
+.. doxygenclass:: cinn::lang::Args
+   :members:
+   :protected-members:
+   :undoc-members:

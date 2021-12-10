@@ -1,0 +1,59 @@
+
+.. _file__WorkSpace_CINN_cinn_frontend_decomposer_batch_norm_test.cc:
+
+File batch_norm_test.cc
+=======================
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend_decomposer>` (``/WorkSpace/CINN/cinn/frontend/decomposer``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/frontend/decomposer/batch_norm_test.cc``)
+----------------------------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_frontend_decomposer_batch_norm_test.cc.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``cinn/frontend/decomposer/test_helper.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_test_helper.h`)
+
+
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn`
+
+- :ref:`namespace_cinn__frontend`
+
+
+Variables
+---------
+
+
+- :ref:`exhale_variable_batch__norm__test_8cc_1a4e1e0e72dd773439e333c84dd762a9c3`
+
+- :ref:`exhale_variable_batch__norm__test_8cc_1a16611451551e3d15916bae723c3f59f7`
+
+- :ref:`exhale_variable_batch__norm__test_8cc_1a76f11d9a0a47b94f72c2d0e77fb32240`
+
+- :ref:`exhale_variable_batch__norm__test_8cc_1aac374e320caaadeca4874add33b62af2`
+

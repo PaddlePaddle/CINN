@@ -1,0 +1,13 @@
+.. _exhale_function_model__parser_8cc_1a7851ba4e8e763f35808fca91c882adfd:
+
+Function cinn::frontend::paddle::SizeOfType
+===========================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_model_parser.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::paddle::SizeOfType(framework_proto::VarType::Type)

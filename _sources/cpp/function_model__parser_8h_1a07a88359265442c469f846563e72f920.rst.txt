@@ -1,0 +1,13 @@
+.. _exhale_function_model__parser_8h_1a07a88359265442c469f846563e72f920:
+
+Function cinn::frontend::paddle::LoadCombinedParamsPb(const std::string&, hlir::framework::Scope \*, const pb::ProgramDesc&, bool, const common::Target&)
+=========================================================================================================================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_model_parser.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::paddle::LoadCombinedParamsPb(const std::string&, hlir::framework::Scope *, const pb::ProgramDesc&, bool, const common::Target&)

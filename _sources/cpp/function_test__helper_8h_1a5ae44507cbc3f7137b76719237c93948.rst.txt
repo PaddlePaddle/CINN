@@ -1,0 +1,13 @@
+.. _exhale_function_test__helper_8h_1a5ae44507cbc3f7137b76719237c93948:
+
+Template Function cinn::frontend::RunAndCheckShape
+==================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_test_helper.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::RunAndCheckShape(NetBuilder&, const std::vector<std::string>&, const std::vector<std::string>&, const std::vector<std::vector<int>>&, std::vector<std::vector<T>> *, std::vector<std::vector<T>> *, T, T)

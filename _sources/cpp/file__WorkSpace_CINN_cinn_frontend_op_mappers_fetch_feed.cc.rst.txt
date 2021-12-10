@@ -1,0 +1,63 @@
+
+.. _file__WorkSpace_CINN_cinn_frontend_op_mappers_fetch_feed.cc:
+
+File fetch_feed.cc
+==================
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend_op_mappers>` (``/WorkSpace/CINN/cinn/frontend/op_mappers``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/frontend/op_mappers/fetch_feed.cc``)
+-----------------------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_frontend_op_mappers_fetch_feed.cc.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``cinn/common/macros.h``
+
+- ``cinn/frontend/op_mapper_registry.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_op_mapper_registry.h`)
+
+- ``cinn/frontend/op_mappers/common_utils.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_common_utils.h`)
+
+
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn`
+
+- :ref:`namespace_cinn__frontend`
+
+- :ref:`namespace_cinn__frontend__op_mappers`
+
+
+Functions
+---------
+
+
+- :ref:`exhale_function_fetch__feed_8cc_1a7b61a6cc5beea56b2001bf492872c51e`
+
+- :ref:`exhale_function_fetch__feed_8cc_1af23921fc88470a4892d781c63c59845c`
+
+- :ref:`exhale_function_fetch__feed_8cc_1ac5aed39afec4182c74ad723e136294fd`
+

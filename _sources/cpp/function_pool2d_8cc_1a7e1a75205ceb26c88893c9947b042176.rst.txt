@@ -1,0 +1,13 @@
+.. _exhale_function_pool2d_8cc_1a7e1a75205ceb26c88893c9947b042176:
+
+Function CINN_REGISTER_HELPER(pool2d)
+=====================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_pool2d.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: CINN_REGISTER_HELPER(pool2d)

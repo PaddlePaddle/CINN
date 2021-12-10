@@ -1,0 +1,13 @@
+.. _exhale_function_syntax__test_8cc_1a0e0c2dc4f786a91d91e5c591406b57c6:
+
+Function cinn::frontend::TEST(syntax, program_execute_multi_elementwise_add)
+============================================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_syntax_test.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::TEST(syntax, program_execute_multi_elementwise_add)

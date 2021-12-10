@@ -1,0 +1,16 @@
+.. _exhale_struct_structcinn_1_1frontend_1_1decomposer_1_1BatchNormHelper:
+
+Struct BatchNormHelper
+======================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_batch_norm.cc`
+
+
+Struct Documentation
+--------------------
+
+
+.. doxygenstruct:: cinn::frontend::decomposer::BatchNormHelper
+   :members:
+   :protected-members:
+   :undoc-members:

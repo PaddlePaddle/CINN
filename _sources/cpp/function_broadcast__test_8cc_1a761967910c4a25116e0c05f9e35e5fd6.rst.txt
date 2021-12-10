@@ -1,0 +1,13 @@
+.. _exhale_function_broadcast__test_8cc_1a761967910c4a25116e0c05f9e35e5fd6:
+
+Function cinn::frontend::TEST(Decomposer, elementwise_add_bcast1)
+=================================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_broadcast_test.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::TEST(Decomposer, elementwise_add_bcast1)

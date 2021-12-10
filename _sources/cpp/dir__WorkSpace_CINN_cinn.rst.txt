@@ -1,0 +1,17 @@
+.. _dir__WorkSpace_CINN_cinn:
+
+
+Directory cinn
+==============
+
+
+*Directory path:* ``/WorkSpace/CINN/cinn``
+
+Subdirectories
+--------------
+
+- :ref:`dir__WorkSpace_CINN_cinn_frontend`
+- :ref:`dir__WorkSpace_CINN_cinn_lang`
+
+
+

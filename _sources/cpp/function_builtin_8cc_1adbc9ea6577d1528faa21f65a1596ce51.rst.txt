@@ -1,0 +1,13 @@
+.. _exhale_function_builtin_8cc_1adbc9ea6577d1528faa21f65a1596ce51:
+
+Function cinn::lang::Trunc
+==========================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_builtin.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::lang::Trunc(Expr)

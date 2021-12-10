@@ -1,0 +1,13 @@
+.. _exhale_function_relu_8cc_1a2316583e83844843a5f0f7b1e2b655dc:
+
+Function CINN_REGISTER_HELPER(relu)
+===================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_relu.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: CINN_REGISTER_HELPER(relu)

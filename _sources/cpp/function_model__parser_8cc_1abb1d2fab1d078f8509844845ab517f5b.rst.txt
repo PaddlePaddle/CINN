@@ -1,0 +1,13 @@
+.. _exhale_function_model__parser_8cc_1abb1d2fab1d078f8509844845ab517f5b:
+
+Function cinn::frontend::paddle::IsPersistable
+==============================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_model_parser.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::paddle::IsPersistable(const cpp::VarDesc&)

@@ -1,0 +1,13 @@
+.. _exhale_function_model__parser_8cc_1a1c8f125201b72dfa38ed742c0452c314:
+
+Function cinn::frontend::paddle::LoadLoDTensor
+==============================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_model_parser.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::paddle::LoadLoDTensor(std::istream&, hlir::framework::Variable *, const common::Target&)

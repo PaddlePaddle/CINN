@@ -1,0 +1,13 @@
+.. _exhale_function_builtin_8h_1a67877e4fa08075730c9c592895db2341:
+
+Function cinn::lang::ReduceMul
+==============================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_builtin.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::lang::ReduceMul(Expr, const std::vector<Var>&, Expr)

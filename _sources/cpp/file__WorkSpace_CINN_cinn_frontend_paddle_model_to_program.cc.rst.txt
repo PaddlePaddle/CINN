@@ -1,0 +1,74 @@
+
+.. _file__WorkSpace_CINN_cinn_frontend_paddle_model_to_program.cc:
+
+File paddle_model_to_program.cc
+===============================
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend>` (``/WorkSpace/CINN/cinn/frontend``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/frontend/paddle_model_to_program.cc``)
+-------------------------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_frontend_paddle_model_to_program.cc.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``algorithm``
+
+- ``cinn/frontend/paddle/framework.pb.h``
+
+- ``cinn/frontend/paddle/model_parser.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_paddle_model_parser.h`)
+
+- ``cinn/frontend/paddle/pb/program_desc.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_paddle_pb_program_desc.h`)
+
+- ``cinn/frontend/paddle_model_to_program.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_paddle_model_to_program.h`)
+
+- ``cinn/hlir/framework/node.h``
+
+
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn`
+
+- :ref:`namespace_cinn__frontend`
+
+
+Functions
+---------
+
+
+- :ref:`exhale_function_paddle__model__to__program_8cc_1a00dfdbe722f138e2c63e67c8bb219954`
+
+- :ref:`exhale_function_paddle__model__to__program_8cc_1ad2e42d5975dfb15e5f9a296bf4caaf92`
+
+- :ref:`exhale_function_paddle__model__to__program_8cc_1acb5b96dc3c27a20ee7588d674b93caaa`
+
+
+Defines
+-------
+
+
+- :ref:`exhale_define_paddle__model__to__program_8cc_1a26c26fa8bfe12d1267727a411c33698f`
+

@@ -1,0 +1,13 @@
+.. _exhale_function_decomposer_2elementwise_8cc_1a707d8fb6c5463f1ab41863fdc4257e2f:
+
+Function CINN_REGISTER_HELPER(elementwise_decomposers)
+======================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_elementwise.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: CINN_REGISTER_HELPER(elementwise_decomposers)

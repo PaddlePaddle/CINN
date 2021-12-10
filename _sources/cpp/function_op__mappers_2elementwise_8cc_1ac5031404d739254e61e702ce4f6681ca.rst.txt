@@ -1,0 +1,13 @@
+.. _exhale_function_op__mappers_2elementwise_8cc_1ac5031404d739254e61e702ce4f6681ca:
+
+Function CINN_REGISTER_HELPER(elementwise)
+==========================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_elementwise.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: CINN_REGISTER_HELPER(elementwise)

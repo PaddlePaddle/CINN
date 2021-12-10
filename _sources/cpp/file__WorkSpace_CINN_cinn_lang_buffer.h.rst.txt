@@ -1,0 +1,67 @@
+
+.. _file__WorkSpace_CINN_cinn_lang_buffer.h:
+
+File buffer.h
+=============
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_lang>` (``/WorkSpace/CINN/cinn/lang``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/lang/buffer.h``)
+---------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_lang_buffer.h.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``cinn/ir/buffer.h``
+
+- ``string``
+
+
+
+Included By
+-----------
+
+
+- :ref:`file__WorkSpace_CINN_cinn_lang_buffer.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_lang_builtin.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_lang_compute_test.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_lang_lower_test.cc`
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn`
+
+- :ref:`namespace_cinn__lang`
+
+
+Classes
+-------
+
+
+- :ref:`exhale_class_classcinn_1_1lang_1_1Buffer`
+

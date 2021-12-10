@@ -1,0 +1,13 @@
+.. _exhale_function_pb_2var__desc_8h_1a8ff0057ffc8644719a0dbbd4eb635d4a:
+
+Template Function cinn::frontend::paddle::pb::RepeatedToVector
+==============================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_pb_var_desc.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::paddle::pb::RepeatedToVector(const google::protobuf::RepeatedField<T>&)

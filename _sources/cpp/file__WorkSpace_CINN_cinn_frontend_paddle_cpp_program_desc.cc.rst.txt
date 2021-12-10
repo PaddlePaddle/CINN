@@ -1,0 +1,44 @@
+
+.. _file__WorkSpace_CINN_cinn_frontend_paddle_cpp_program_desc.cc:
+
+File program_desc.cc
+====================
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend_paddle_cpp>` (``/WorkSpace/CINN/cinn/frontend/paddle/cpp``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/frontend/paddle/cpp/program_desc.cc``)
+-------------------------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_frontend_paddle_cpp_program_desc.cc.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``cinn/frontend/paddle/cpp/program_desc.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_paddle_cpp_program_desc.h`)
+
+
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn__frontend__paddle__cpp`
+

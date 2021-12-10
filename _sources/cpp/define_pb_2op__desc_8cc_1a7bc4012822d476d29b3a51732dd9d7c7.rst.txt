@@ -1,0 +1,13 @@
+.. _exhale_define_pb_2op__desc_8cc_1a7bc4012822d476d29b3a51732dd9d7c7:
+
+Define GET_ATTR_IMPL
+====================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_pb_op_desc.cc`
+
+
+Define Documentation
+--------------------
+
+
+.. doxygendefine:: GET_ATTR_IMPL

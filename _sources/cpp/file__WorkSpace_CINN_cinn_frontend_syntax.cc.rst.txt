@@ -1,0 +1,94 @@
+
+.. _file__WorkSpace_CINN_cinn_frontend_syntax.cc:
+
+File syntax.cc
+==============
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend>` (``/WorkSpace/CINN/cinn/frontend``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/frontend/syntax.cc``)
+--------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_frontend_syntax.cc.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``absl/types/variant.h``
+
+- ``cinn/frontend/paddle/model_parser.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_paddle_model_parser.h`)
+
+- ``cinn/frontend/paddle_model_to_program.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_paddle_model_to_program.h`)
+
+- ``cinn/frontend/syntax.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_syntax.h`)
+
+- ``cinn/hlir/framework/node.h``
+
+- ``cinn/hlir/framework/op.h``
+
+- ``cinn/utils/string.h``
+
+- ``iomanip``
+
+- ``memory``
+
+- ``sstream``
+
+- ``tuple``
+
+- ``type_traits``
+
+- ``utility``
+
+
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn`
+
+- :ref:`namespace_cinn__frontend`
+
+
+Functions
+---------
+
+
+- :ref:`exhale_function_syntax_8cc_1aa5cccd9eaf83550f5598d875fbe31833`
+
+- :ref:`exhale_function_syntax_8cc_1a61ec2561aae3c791a29d2f8daa71994a`
+
+- :ref:`exhale_function_syntax_8cc_1a9ac188b66efd83b3361892618785d1ec`
+
+- :ref:`exhale_function_syntax_8cc_1abde9fca71eaeec04852be89ef5a62ec5`
+
+
+Defines
+-------
+
+
+- :ref:`exhale_define_syntax_8cc_1a1d9bcea6178cf3ace88b9cf069f0c3b1`
+
+- :ref:`exhale_define_syntax_8cc_1a947c44cfcb08146d8d4060aaa3833635`
+
+- :ref:`exhale_define_syntax_8cc_1a2217bde779013cd53bb08ed677e440ec`
+

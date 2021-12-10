@@ -1,0 +1,13 @@
+.. _exhale_function_sigmoid_8cc_1a8d8fbd261a935185abd3958f7ed156f3:
+
+Function cinn::frontend::op_mappers::SigmoidOpMapper
+====================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_sigmoid.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::op_mappers::SigmoidOpMapper(const paddle::cpp::OpDesc&, const OpMapperContext&)

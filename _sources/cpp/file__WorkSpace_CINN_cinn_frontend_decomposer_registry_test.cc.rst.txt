@@ -1,0 +1,55 @@
+
+.. _file__WorkSpace_CINN_cinn_frontend_decomposer_registry_test.cc:
+
+File decomposer_registry_test.cc
+================================
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend>` (``/WorkSpace/CINN/cinn/frontend``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/frontend/decomposer_registry_test.cc``)
+--------------------------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_frontend_decomposer_registry_test.cc.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``cinn/frontend/decomposer/use_decomposer.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_use_decomposer.h`)
+
+- ``cinn/frontend/decomposer_registry.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_registry.h`)
+
+- ``gtest/gtest.h``
+
+
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn__frontend`
+
+
+Functions
+---------
+
+
+- :ref:`exhale_function_decomposer__registry__test_8cc_1abf050658456d24b4d7fb5f08697395f1`
+

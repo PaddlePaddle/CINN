@@ -1,0 +1,16 @@
+.. _exhale_class_classcinn_1_1frontend_1_1OpMapper:
+
+Class OpMapper
+==============
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_op_mapper_registry.h`
+
+
+Class Documentation
+-------------------
+
+
+.. doxygenclass:: cinn::frontend::OpMapper
+   :members:
+   :protected-members:
+   :undoc-members:

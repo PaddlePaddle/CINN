@@ -1,0 +1,13 @@
+.. _exhale_function_test__helper_8h_1a67ec0b7d272f0e06fa645bd46ec981e1:
+
+Template Function cinn::frontend::CheckOutput
+=============================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_test_helper.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::CheckOutput(const std::vector<T>&, const std::vector<T>&, float, float)

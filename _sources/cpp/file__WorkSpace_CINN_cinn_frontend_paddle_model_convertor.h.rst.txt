@@ -1,0 +1,79 @@
+
+.. _file__WorkSpace_CINN_cinn_frontend_paddle_model_convertor.h:
+
+File paddle_model_convertor.h
+=============================
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend>` (``/WorkSpace/CINN/cinn/frontend``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/frontend/paddle_model_convertor.h``)
+-----------------------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_frontend_paddle_model_convertor.h.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``cinn/common/target.h``
+
+- ``cinn/frontend/net_builder.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_net_builder.h`)
+
+- ``cinn/frontend/op_mapper_registry.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_op_mapper_registry.h`)
+
+- ``cinn/frontend/paddle/cpp/block_desc.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_paddle_cpp_block_desc.h`)
+
+- ``cinn/frontend/syntax.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_syntax.h`)
+
+- ``cinn/hlir/framework/scope.h``
+
+- ``memory``
+
+- ``string``
+
+- ``unordered_map``
+
+- ``unordered_set``
+
+
+
+Included By
+-----------
+
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_model_convertor.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_model_convertor_test.cc`
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn`
+
+- :ref:`namespace_cinn__frontend`
+
+
+Classes
+-------
+
+
+- :ref:`exhale_class_classcinn_1_1frontend_1_1PaddleModelConvertor`
+

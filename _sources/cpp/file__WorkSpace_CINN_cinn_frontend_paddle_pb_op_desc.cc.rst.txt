@@ -1,0 +1,84 @@
+
+.. _file__WorkSpace_CINN_cinn_frontend_paddle_pb_op_desc.cc:
+
+File op_desc.cc
+===============
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend_paddle_pb>` (``/WorkSpace/CINN/cinn/frontend/paddle/pb``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/frontend/paddle/pb/op_desc.cc``)
+-------------------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_frontend_paddle_pb_op_desc.cc.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``cinn/frontend/paddle/pb/op_desc.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_paddle_pb_op_desc.h`)
+
+
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn__frontend__paddle__pb`
+
+
+Functions
+---------
+
+
+- :ref:`exhale_function_pb_2op__desc_8cc_1ab122cc309eb30bc82a2134485b86d804`
+
+- :ref:`exhale_function_pb_2op__desc_8cc_1a893320d27432458b2b8179baca897f4c`
+
+- :ref:`exhale_function_pb_2op__desc_8cc_1a008c98d5536af106bf4587dd495aee37`
+
+- :ref:`exhale_function_pb_2op__desc_8cc_1ac645c2e6b5b68a6ba3b03234943afa4c`
+
+- :ref:`exhale_function_pb_2op__desc_8cc_1a6fb685107e947fbd312495508467515f`
+
+- :ref:`exhale_function_pb_2op__desc_8cc_1a797f2c4086f57dfe53ed0140c54c683c`
+
+- :ref:`exhale_function_pb_2op__desc_8cc_1a95a196b4496608a1aa2f54ffc31bf0ce`
+
+- :ref:`exhale_function_pb_2op__desc_8cc_1ac0fa96d4ba401e3b3e57e0f09ab30530`
+
+- :ref:`exhale_function_pb_2op__desc_8cc_1ad6f3e29af2494a7b7b0810f99c4d47c6`
+
+- :ref:`exhale_function_pb_2op__desc_8cc_1af4739b86db4e92b5442cef5463e98e32`
+
+- :ref:`exhale_function_pb_2op__desc_8cc_1ada4d6098dd1a809141901a2668041265`
+
+- :ref:`exhale_function_pb_2op__desc_8cc_1ac7a0948d4b64880cf5f8af417f37abb3`
+
+
+Defines
+-------
+
+
+- :ref:`exhale_define_pb_2op__desc_8cc_1a7bc4012822d476d29b3a51732dd9d7c7`
+
+- :ref:`exhale_define_pb_2op__desc_8cc_1ad204a24d7175c71850cde601987e1bca`
+
+- :ref:`exhale_define_pb_2op__desc_8cc_1ac38af645230353a5adc48e8e841e87b9`
+

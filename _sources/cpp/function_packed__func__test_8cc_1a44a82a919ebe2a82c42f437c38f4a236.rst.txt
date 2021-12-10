@@ -1,0 +1,13 @@
+.. _exhale_function_packed__func__test_8cc_1a44a82a919ebe2a82c42f437c38f4a236:
+
+Function cinn::lang::TEST(Function, test)
+=========================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_packed_func_test.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::lang::TEST(Function, test)

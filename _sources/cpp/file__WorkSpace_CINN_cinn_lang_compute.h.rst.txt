@@ -1,0 +1,97 @@
+
+.. _file__WorkSpace_CINN_cinn_lang_compute.h:
+
+File compute.h
+==============
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_lang>` (``/WorkSpace/CINN/cinn/lang``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/lang/compute.h``)
+----------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_lang_compute.h.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``absl/types/variant.h``
+
+- ``cinn/ir/ir.h``
+
+- ``cinn/ir/ir_operators.h``
+
+- ``cinn/lang/placeholder.h`` (:ref:`file__WorkSpace_CINN_cinn_lang_placeholder.h`)
+
+- ``cinn/poly/schedule.h``
+
+- ``functional``
+
+- ``map`` (:ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_batchnorm.cc`)
+
+- ``string``
+
+- ``utility``
+
+- ``vector``
+
+
+
+Included By
+-----------
+
+
+- :ref:`file__WorkSpace_CINN_cinn_lang_compute.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_lang_compute_test.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_lang_lower_test.cc`
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn`
+
+- :ref:`namespace_cinn__lang`
+
+
+Classes
+-------
+
+
+- :ref:`exhale_struct_structcinn_1_1lang_1_1ReturnType`
+
+
+Functions
+---------
+
+
+- :ref:`exhale_function_compute_8h_1adbe82832b1bdf41492e0d040ad22ef20`
+
+
+Typedefs
+--------
+
+
+- :ref:`exhale_typedef_compute_8h_1ab2019c1ba4ad4f743be7b6d380b51fd7`
+
+- :ref:`exhale_typedef_compute_8h_1a24e2675102aa5c182217970dfc25460a`
+

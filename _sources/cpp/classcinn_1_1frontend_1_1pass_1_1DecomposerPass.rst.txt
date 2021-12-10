@@ -1,0 +1,25 @@
+.. _exhale_class_classcinn_1_1frontend_1_1pass_1_1DecomposerPass:
+
+Class DecomposerPass
+====================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_pass_decomposer.cc`
+
+
+Inheritance Relationships
+-------------------------
+
+Base Type
+*********
+
+- ``public cinn::frontend::ProgramPass`` (:ref:`exhale_class_classcinn_1_1frontend_1_1ProgramPass`)
+
+
+Class Documentation
+-------------------
+
+
+.. doxygenclass:: cinn::frontend::pass::DecomposerPass
+   :members:
+   :protected-members:
+   :undoc-members:

@@ -1,0 +1,59 @@
+
+.. _file__WorkSpace_CINN_cinn_frontend_op_mappers_slice.cc:
+
+File slice.cc
+=============
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend_op_mappers>` (``/WorkSpace/CINN/cinn/frontend/op_mappers``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/frontend/op_mappers/slice.cc``)
+------------------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_frontend_op_mappers_slice.cc.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``cinn/frontend/op_mapper_registry.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_op_mapper_registry.h`)
+
+- ``cinn/frontend/op_mappers/common_utils.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_common_utils.h`)
+
+
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn`
+
+- :ref:`namespace_cinn__frontend`
+
+- :ref:`namespace_cinn__frontend__op_mappers`
+
+
+Functions
+---------
+
+
+- :ref:`exhale_function_slice_8cc_1a609832b2c1884302233e461c1eca9942`
+
+- :ref:`exhale_function_slice_8cc_1a8cbf273c4d721f139a9e5a171584f5fd`
+

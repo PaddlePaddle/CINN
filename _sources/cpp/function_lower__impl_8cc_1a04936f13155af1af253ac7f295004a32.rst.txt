@@ -1,0 +1,13 @@
+.. _exhale_function_lower__impl_8cc_1a04936f13155af1af253ac7f295004a32:
+
+Function cinn::lang::detail::TensorContainsGPUInfo
+==================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_lower_impl.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::lang::detail::TensorContainsGPUInfo(ir::Tensor, poly::Stage *)

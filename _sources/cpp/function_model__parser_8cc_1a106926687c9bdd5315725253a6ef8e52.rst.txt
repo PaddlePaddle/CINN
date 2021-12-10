@@ -1,0 +1,13 @@
+.. _exhale_function_model__parser_8cc_1a106926687c9bdd5315725253a6ef8e52:
+
+Function cinn::frontend::paddle::LoadParam
+==========================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_model_parser.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::paddle::LoadParam(const std::string&, hlir::framework::Variable *, const common::Target&)

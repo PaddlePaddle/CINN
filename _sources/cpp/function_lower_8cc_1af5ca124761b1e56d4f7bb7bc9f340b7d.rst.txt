@@ -1,0 +1,13 @@
+.. _exhale_function_lower_8cc_1af5ca124761b1e56d4f7bb7bc9f340b7d:
+
+Function cinn::lang::LowerVec(const std::string&, StageMap, const std::vector<Tensor>&, const std::vector<Var>&, const std::vector<Tensor>&, Module::Builder \*, const Target&)
+===============================================================================================================================================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_lower.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::lang::LowerVec(const std::string&, StageMap, const std::vector<Tensor>&, const std::vector<Var>&, const std::vector<Tensor>&, Module::Builder *, const Target&)

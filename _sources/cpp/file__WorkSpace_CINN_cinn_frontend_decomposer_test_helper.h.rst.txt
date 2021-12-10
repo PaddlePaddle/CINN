@@ -1,0 +1,114 @@
+
+.. _file__WorkSpace_CINN_cinn_frontend_decomposer_test_helper.h:
+
+File test_helper.h
+==================
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend_decomposer>` (``/WorkSpace/CINN/cinn/frontend/decomposer``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/frontend/decomposer/test_helper.h``)
+-----------------------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_frontend_decomposer_test_helper.h.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``cinn/frontend/decomposer/use_decomposer.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_use_decomposer.h`)
+
+- ``cinn/frontend/decomposer_registry.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_registry.h`)
+
+- ``cinn/frontend/net_builder.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_net_builder.h`)
+
+- ``cinn/frontend/pass/use_program_pass.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_pass_use_program_pass.h`)
+
+- ``cinn/frontend/program_pass.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_program_pass.h`)
+
+- ``cinn/hlir/framework/graph.h``
+
+- ``cinn/hlir/framework/graph_compiler.h``
+
+- ``cinn/hlir/framework/pass.h``
+
+- ``cinn/hlir/framework/tensor.h``
+
+- ``cinn/hlir/op/use_ops.h``
+
+- ``cinn/hlir/pass/use_pass.h``
+
+- ``gtest/gtest.h``
+
+- ``random``
+
+
+
+Included By
+-----------
+
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_activation_test.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_batch_norm_test.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_broadcast_test.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_conv2d_grad_test.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_elementwise_test.cc`
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn__frontend`
+
+
+Functions
+---------
+
+
+- :ref:`exhale_function_test__helper_8h_1a67ec0b7d272f0e06fa645bd46ec981e1`
+
+- :ref:`exhale_function_test__helper_8h_1a2c0f4346e91d03e77309c2a34890f838`
+
+- :ref:`exhale_function_test__helper_8h_1a641e7feccb240ae9179f4a07e903430c`
+
+- :ref:`exhale_function_test__helper_8h_1a153c937b676a26a58a1877467917063c`
+
+- :ref:`exhale_function_test__helper_8h_1ac58cf92ea66143cdff25a9fe9de666b2`
+
+- :ref:`exhale_function_test__helper_8h_1aa9184f9f94b2546268f3cb7163fcd680`
+
+- :ref:`exhale_function_test__helper_8h_1ae1dae827b855fbf4b101bd301f7d9f4c`
+
+- :ref:`exhale_function_test__helper_8h_1a80ed9facad716bd04964b8d6dfd8b74c`
+
+- :ref:`exhale_function_test__helper_8h_1a5ae44507cbc3f7137b76719237c93948`
+
+- :ref:`exhale_function_test__helper_8h_1ab42885e3f5d86b8e086ea9f4a3a8e3fb`
+
+
+Typedefs
+--------
+
+
+- :ref:`exhale_typedef_test__helper_8h_1a79affd0cacd36ec3276b36691a958d98`
+

@@ -1,0 +1,13 @@
+.. _exhale_function_conv2d_8cc_1ab209aabff55aef51cbc0ae4e4d94016d:
+
+Function cinn::frontend::op_mappers::Conv2dOpMapper
+===================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_conv2d.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::op_mappers::Conv2dOpMapper(const paddle::cpp::OpDesc&, const OpMapperContext&)

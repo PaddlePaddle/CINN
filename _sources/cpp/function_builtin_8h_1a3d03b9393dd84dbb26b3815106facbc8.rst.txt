@@ -1,0 +1,13 @@
+.. _exhale_function_builtin_8h_1a3d03b9393dd84dbb26b3815106facbc8:
+
+Function cinn::lang::BitwiseNot
+===============================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_builtin.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::lang::BitwiseNot(Expr)

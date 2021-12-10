@@ -1,0 +1,13 @@
+.. _exhale_function_builtin_8cc_1a385a82604fc2971718e04b782f9412b3:
+
+Function cinn::lang::Ceil
+=========================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_builtin.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::lang::Ceil(Expr)

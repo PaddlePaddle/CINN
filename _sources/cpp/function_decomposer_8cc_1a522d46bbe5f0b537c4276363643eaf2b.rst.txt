@@ -1,0 +1,13 @@
+.. _exhale_function_decomposer_8cc_1a522d46bbe5f0b537c4276363643eaf2b:
+
+Function CINN_REGISTER_HELPER(Decomposer)
+=========================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_pass_decomposer.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: CINN_REGISTER_HELPER(Decomposer)

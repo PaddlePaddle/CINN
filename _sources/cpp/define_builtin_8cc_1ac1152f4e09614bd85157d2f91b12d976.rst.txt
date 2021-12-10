@@ -1,0 +1,13 @@
+.. _exhale_define_builtin_8cc_1ac1152f4e09614bd85157d2f91b12d976:
+
+Define FOR_CASE
+===============
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_builtin.cc`
+
+
+Define Documentation
+--------------------
+
+
+.. doxygendefine:: FOR_CASE

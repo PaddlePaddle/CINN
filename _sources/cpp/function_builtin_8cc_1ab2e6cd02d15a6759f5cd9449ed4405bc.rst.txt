@@ -1,0 +1,13 @@
+.. _exhale_function_builtin_8cc_1ab2e6cd02d15a6759f5cd9449ed4405bc:
+
+Function cinn::lang::Log10
+==========================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_builtin.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::lang::Log10(Expr)

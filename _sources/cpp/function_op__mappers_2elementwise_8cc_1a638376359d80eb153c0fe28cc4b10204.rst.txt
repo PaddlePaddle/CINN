@@ -1,0 +1,13 @@
+.. _exhale_function_op__mappers_2elementwise_8cc_1a638376359d80eb153c0fe28cc4b10204:
+
+Function cinn::frontend::op_mappers::SumOpMapper
+================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_elementwise.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::op_mappers::SumOpMapper(const paddle::cpp::OpDesc&, const OpMapperContext&)

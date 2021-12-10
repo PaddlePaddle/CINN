@@ -1,0 +1,13 @@
+.. _exhale_function_pb_2block__desc_8cc_1a9ab8f3571ecf0289b7d1b2c746735859:
+
+Function cinn::frontend::paddle::pb::BlockDesc::GetVar< framework_proto::VarDesc >
+==================================================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_pb_block_desc.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::paddle::pb::BlockDesc::GetVar< framework_proto::VarDesc >(int32_t)

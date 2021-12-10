@@ -1,0 +1,13 @@
+.. _exhale_function_fetch__feed_8cc_1a7b61a6cc5beea56b2001bf492872c51e:
+
+Function cinn::frontend::op_mappers::FeedOpMapper
+=================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_fetch_feed.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::op_mappers::FeedOpMapper(const paddle::cpp::OpDesc&, const OpMapperContext&)

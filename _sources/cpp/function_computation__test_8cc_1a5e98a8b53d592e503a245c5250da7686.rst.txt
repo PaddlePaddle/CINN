@@ -1,0 +1,13 @@
+.. _exhale_function_computation__test_8cc_1a5e98a8b53d592e503a245c5250da7686:
+
+Function cinn::frontend::TEST(cinn_computation, without_instantiate_variables)
+==============================================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_computation_test.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::TEST(cinn_computation, without_instantiate_variables)

@@ -1,0 +1,13 @@
+.. _exhale_function_test__helper_8h_1aa9184f9f94b2546268f3cb7163fcd680:
+
+Template Function cinn::frontend::InitRandomVector
+==================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_test_helper.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::InitRandomVector(std::vector<T> *, size_t, T, T, T)

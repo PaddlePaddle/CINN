@@ -1,0 +1,57 @@
+.. _dir__WorkSpace_CINN_cinn_frontend:
+
+
+Directory frontend
+==================
+
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn>` (``/WorkSpace/CINN/cinn``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+*Directory path:* ``/WorkSpace/CINN/cinn/frontend``
+
+Subdirectories
+--------------
+
+- :ref:`dir__WorkSpace_CINN_cinn_frontend_decomposer`
+- :ref:`dir__WorkSpace_CINN_cinn_frontend_op_mappers`
+- :ref:`dir__WorkSpace_CINN_cinn_frontend_paddle`
+- :ref:`dir__WorkSpace_CINN_cinn_frontend_pass`
+
+
+Files
+-----
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_base_builder.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_base_builder.h`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_cinn_builder.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_cinn_builder.h`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_cinn_builder_test.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_computation.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_computation.h`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_computation_test.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_registry.h`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_registry_test.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_interpreter.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_interpreter.h`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_interpreter_test.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_net_builder.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_net_builder.h`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_net_builder_test.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mapper_registry.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mapper_registry.h`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mapper_registry_test.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_model_convertor.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_model_convertor.h`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_model_convertor_test.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_model_to_program.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_model_to_program.h`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_program_pass.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_program_pass.h`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_syntax.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_syntax.h`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_syntax_test.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_var_type_utils.h`
+
+

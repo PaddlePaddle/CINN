@@ -1,0 +1,13 @@
+.. _exhale_define_op__mapper__registry_8h_1a617b4bf494d29d871dcd23dd3d74d0db:
+
+Define UNIQUE_OPMAPPER_NAME
+===========================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_op_mapper_registry.h`
+
+
+Define Documentation
+--------------------
+
+
+.. doxygendefine:: UNIQUE_OPMAPPER_NAME

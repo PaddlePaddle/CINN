@@ -1,0 +1,78 @@
+
+.. _file__WorkSpace_CINN_cinn_frontend_var_type_utils.h:
+
+File var_type_utils.h
+=====================
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend>` (``/WorkSpace/CINN/cinn/frontend``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/frontend/var_type_utils.h``)
+---------------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_frontend_var_type_utils.h.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``cinn/common/macros.h``
+
+- ``cinn/common/type.h``
+
+- ``cinn/frontend/op_mapper_registry.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_op_mapper_registry.h`)
+
+- ``cinn/frontend/paddle/cpp/desc_api.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_paddle_cpp_desc_api.h`)
+
+- ``cinn/frontend/paddle/cpp/var_desc.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_paddle_cpp_var_desc.h`)
+
+
+
+Included By
+-----------
+
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_model_convertor.cc`
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn`
+
+- :ref:`namespace_cinn__frontend`
+
+- :ref:`namespace_cinn__frontend__utils`
+
+
+Functions
+---------
+
+
+- :ref:`exhale_function_var__type__utils_8h_1ab63867d07ec815ba1b153714bad08681`
+
+- :ref:`exhale_function_var__type__utils_8h_1ac9ada4246a97cf8d2e7b92ae785577d9`
+
+
+Defines
+-------
+
+
+- :ref:`exhale_define_var__type__utils_8h_1a59db7149a0704946c7f0ef004b034108`
+

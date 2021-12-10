@@ -1,0 +1,13 @@
+.. _exhale_function_cpp_2op__desc_8cc_1ad41b2c886332078323249b47c8e6ed24:
+
+Function cinn::frontend::paddle::cpp::FindAttr
+==============================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_cpp_op_desc.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::paddle::cpp::FindAttr(const OpDesc&, const std::string&)

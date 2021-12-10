@@ -1,0 +1,13 @@
+.. _exhale_enum_cinn__builder_8h_1a9071e95af852c5c1a39bf31fd7a27336:
+
+Enum ComparisonKind
+===================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_cinn_builder.h`
+
+
+Enum Documentation
+------------------
+
+
+.. doxygenenum:: cinn::frontend::ComparisonKind

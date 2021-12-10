@@ -1,0 +1,13 @@
+.. _exhale_function_packed__func_8h_1a863e8bf6b0a08cad7c84ffa4ae64af41:
+
+Template Function cinn::lang::detail::for_each
+==============================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_packed_func.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::lang::detail::for_each(const F&, Args&&...)

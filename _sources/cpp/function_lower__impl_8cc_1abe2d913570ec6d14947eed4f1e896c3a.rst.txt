@@ -1,0 +1,13 @@
+.. _exhale_function_lower__impl_8cc_1abe2d913570ec6d14947eed4f1e896c3a:
+
+Function cinn::lang::detail::CheckNoIslCallRemains(Expr \*)
+===========================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_lower_impl.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::lang::detail::CheckNoIslCallRemains(Expr *)

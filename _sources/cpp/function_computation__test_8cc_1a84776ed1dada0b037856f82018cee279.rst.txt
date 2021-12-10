@@ -1,0 +1,13 @@
+.. _exhale_function_computation__test_8cc_1a84776ed1dada0b037856f82018cee279:
+
+Function cinn::frontend::CreateTestProgram
+==========================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_computation_test.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::CreateTestProgram()

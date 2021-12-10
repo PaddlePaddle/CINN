@@ -1,0 +1,59 @@
+
+.. _file__WorkSpace_CINN_cinn_frontend_op_mappers_softmax.cc:
+
+File softmax.cc
+===============
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend_op_mappers>` (``/WorkSpace/CINN/cinn/frontend/op_mappers``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/frontend/op_mappers/softmax.cc``)
+--------------------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_frontend_op_mappers_softmax.cc.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``cinn/frontend/op_mapper_registry.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_op_mapper_registry.h`)
+
+- ``cinn/frontend/op_mappers/common_utils.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_common_utils.h`)
+
+
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn`
+
+- :ref:`namespace_cinn__frontend`
+
+- :ref:`namespace_cinn__frontend__op_mappers`
+
+
+Functions
+---------
+
+
+- :ref:`exhale_function_softmax_8cc_1abb03a13349b9b06924dd516151262730`
+
+- :ref:`exhale_function_softmax_8cc_1af33b160e5b83ee192a23043d4c0f0c5c`
+

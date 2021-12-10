@@ -1,0 +1,13 @@
+.. _exhale_function_dropout_8cc_1afb62b3064d32619cba2a2e6d7a625adf:
+
+Function CINN_REGISTER_HELPER(dropout)
+======================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_dropout.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: CINN_REGISTER_HELPER(dropout)

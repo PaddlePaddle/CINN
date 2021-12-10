@@ -1,0 +1,13 @@
+.. _exhale_function_batchnorm_8cc_1aac5c2940f311cb9e10862dbdf7c8984f:
+
+Function CINN_REGISTER_HELPER(batchnorm)
+========================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_batchnorm.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: CINN_REGISTER_HELPER(batchnorm)

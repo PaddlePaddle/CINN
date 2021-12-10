@@ -1,0 +1,13 @@
+.. _exhale_function_pb_2block__desc_8cc_1ace021d87b756fb6a487e1454f993e5c5:
+
+Function cinn::frontend::paddle::pb::BlockDesc::GetOp< framework_proto::OpDesc >
+================================================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_pb_block_desc.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::paddle::pb::BlockDesc::GetOp< framework_proto::OpDesc >(int32_t)

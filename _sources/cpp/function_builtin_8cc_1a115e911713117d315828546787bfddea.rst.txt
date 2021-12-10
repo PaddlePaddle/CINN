@@ -1,0 +1,13 @@
+.. _exhale_function_builtin_8cc_1a115e911713117d315828546787bfddea:
+
+Function cinn::lang::Exp
+========================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_builtin.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::lang::Exp(Expr)

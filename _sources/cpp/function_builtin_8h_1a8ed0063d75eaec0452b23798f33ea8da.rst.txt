@@ -1,0 +1,13 @@
+.. _exhale_function_builtin_8h_1a8ed0063d75eaec0452b23798f33ea8da:
+
+Function cinn::lang::BitwiseOr
+==============================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_builtin.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::lang::BitwiseOr(Expr, Expr)

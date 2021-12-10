@@ -1,0 +1,26 @@
+.. _exhale_class_classcinn_1_1frontend_1_1Interpreter:
+
+Class Interpreter
+=================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_interpreter.h`
+
+
+Nested Relationships
+--------------------
+
+
+Nested Types
+************
+
+- :ref:`exhale_struct_structcinn_1_1frontend_1_1Interpreter_1_1Impl`
+
+
+Class Documentation
+-------------------
+
+
+.. doxygenclass:: cinn::frontend::Interpreter
+   :members:
+   :protected-members:
+   :undoc-members:

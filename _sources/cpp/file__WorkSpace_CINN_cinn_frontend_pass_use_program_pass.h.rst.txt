@@ -1,0 +1,49 @@
+
+.. _file__WorkSpace_CINN_cinn_frontend_pass_use_program_pass.h:
+
+File use_program_pass.h
+=======================
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend_pass>` (``/WorkSpace/CINN/cinn/frontend/pass``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/frontend/pass/use_program_pass.h``)
+----------------------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_frontend_pass_use_program_pass.h.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``cinn/common/macros.h``
+
+
+
+Included By
+-----------
+
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_computation_test.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_test_helper.h`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_pass_decomposer_test.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_pass_remove_identity_test.cc`
+
+
+

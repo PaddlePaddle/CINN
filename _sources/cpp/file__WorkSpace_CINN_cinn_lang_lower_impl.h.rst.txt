@@ -1,0 +1,128 @@
+
+.. _file__WorkSpace_CINN_cinn_lang_lower_impl.h:
+
+File lower_impl.h
+=================
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_lang>` (``/WorkSpace/CINN/cinn/lang``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/lang/lower_impl.h``)
+-------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_lang_lower_impl.h.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``absl/container/flat_hash_map.h``
+
+- ``cinn/common/graph_utils.h``
+
+- ``cinn/ir/buffer.h``
+
+- ``cinn/ir/ir_printer.h``
+
+- ``cinn/optim/buffer_assign.h``
+
+- ``cinn/optim/compute_inline_expand.h``
+
+- ``cinn/optim/fold_cinn_call_arguments.h``
+
+- ``cinn/optim/optimize.h``
+
+- ``cinn/optim/remove_nested_block.h``
+
+- ``cinn/optim/replace_call_with_expr.h``
+
+- ``cinn/optim/tensor_write_tell.h``
+
+- ``cinn/optim/transform_gpu_forloop.h``
+
+- ``cinn/optim/transform_polyfor_to_for.h``
+
+- ``cinn/poly/ast_gen.h``
+
+- ``iostream``
+
+- ``map`` (:ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_batchnorm.cc`)
+
+- ``memory``
+
+- ``set``
+
+- ``stack``
+
+- ``string``
+
+- ``unordered_set``
+
+- ``utility``
+
+- ``vector``
+
+
+
+Included By
+-----------
+
+
+- :ref:`file__WorkSpace_CINN_cinn_lang_lower.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_lang_lower_impl.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_lang_lower_impl_test.cc`
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn`
+
+- :ref:`namespace_cinn__lang`
+
+- :ref:`namespace_cinn__lang__detail`
+
+- :ref:`namespace_cinn__poly`
+
+
+Classes
+-------
+
+
+- :ref:`exhale_struct_structcinn_1_1lang_1_1detail_1_1CompuGraphNode`
+
+- :ref:`exhale_struct_structcinn_1_1lang_1_1detail_1_1MarkParallelMutator`
+
+- :ref:`exhale_struct_structcinn_1_1lang_1_1detail_1_1MarkUnrollMutator`
+
+- :ref:`exhale_struct_structcinn_1_1lang_1_1detail_1_1MarkVectorizeMutator`
+
+- :ref:`exhale_class_classcinn_1_1lang_1_1detail_1_1LowerImpl`
+
+
+Functions
+---------
+
+
+- :ref:`exhale_function_lower__impl_8h_1ac84afa6ac30b53fec2f44144aa17898a`
+
+- :ref:`exhale_function_lower__impl_8h_1a51c95cc360e6b37ff9b83ce362989108`
+

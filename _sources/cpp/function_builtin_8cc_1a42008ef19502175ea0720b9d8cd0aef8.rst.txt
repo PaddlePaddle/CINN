@@ -1,0 +1,13 @@
+.. _exhale_function_builtin_8cc_1a42008ef19502175ea0720b9d8cd0aef8:
+
+Function cinn::lang::max_value
+==============================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_builtin.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::lang::max_value(const Type&)

@@ -1,0 +1,13 @@
+.. _exhale_function_mul_8cc_1a46d9674b4f0735ee727772d7fb4e03a9:
+
+Function cinn::frontend::op_mappers::MulOpMapper
+================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_mul.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::op_mappers::MulOpMapper(const paddle::cpp::OpDesc&, const OpMapperContext&)

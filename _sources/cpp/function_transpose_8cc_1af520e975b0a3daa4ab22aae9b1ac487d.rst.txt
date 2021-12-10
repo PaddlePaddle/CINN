@@ -1,0 +1,13 @@
+.. _exhale_function_transpose_8cc_1af520e975b0a3daa4ab22aae9b1ac487d:
+
+Function CINN_REGISTER_HELPER(transpose)
+========================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_transpose.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: CINN_REGISTER_HELPER(transpose)

@@ -1,0 +1,24 @@
+.. _dir__WorkSpace_CINN_cinn_frontend_pass:
+
+
+Directory pass
+==============
+
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend>` (``/WorkSpace/CINN/cinn/frontend``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+*Directory path:* ``/WorkSpace/CINN/cinn/frontend/pass``
+
+
+Files
+-----
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_pass_decomposer.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_pass_decomposer_test.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_pass_remove_identity.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_pass_remove_identity_test.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_pass_use_program_pass.h`
+
+

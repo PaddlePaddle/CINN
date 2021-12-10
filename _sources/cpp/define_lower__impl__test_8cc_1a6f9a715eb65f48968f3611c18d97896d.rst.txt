@@ -1,0 +1,13 @@
+.. _exhale_define_lower__impl__test_8cc_1a6f9a715eb65f48968f3611c18d97896d:
+
+Define CREATE_GNODE
+===================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_lower_impl_test.cc`
+
+
+Define Documentation
+--------------------
+
+
+.. doxygendefine:: CREATE_GNODE

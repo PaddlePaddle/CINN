@@ -1,0 +1,13 @@
+.. _exhale_function_batch__norm_8cc_1adde9135d49227b0644bc289de87e7fc3:
+
+Function cinn::frontend::decomposer::batch_norm_train
+=====================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_batch_norm.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::decomposer::batch_norm_train(const Instruction&, const DecomposerContext&)

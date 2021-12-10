@@ -1,0 +1,13 @@
+.. _exhale_function_model__parser_8cc_1a6c8d9fb9ea3d50032362577e942e268e:
+
+Function cinn::frontend::paddle::ReadBinaryFile
+===============================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_model_parser.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::paddle::ReadBinaryFile(const std::string&, std::string *)

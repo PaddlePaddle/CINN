@@ -1,0 +1,103 @@
+
+.. _file__WorkSpace_CINN_cinn_frontend_cinn_builder.h:
+
+File cinn_builder.h
+===================
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend>` (``/WorkSpace/CINN/cinn/frontend``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/frontend/cinn_builder.h``)
+-------------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_frontend_cinn_builder.h.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``cinn/common/type.h``
+
+- ``cinn/frontend/base_builder.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_base_builder.h`)
+
+- ``cinn/frontend/syntax.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_syntax.h`)
+
+- ``cstdint``
+
+- ``glog/logging.h``
+
+- ``string``
+
+- ``vector``
+
+
+
+Included By
+-----------
+
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_cinn_builder.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_cinn_builder_test.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_computation_test.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_conv2d_grad_test.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_registry.h`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_pass_remove_identity.cc`
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn`
+
+- :ref:`namespace_cinn__frontend`
+
+
+Classes
+-------
+
+
+- :ref:`exhale_class_classcinn_1_1frontend_1_1CinnBuilder`
+
+
+Enums
+-----
+
+
+- :ref:`exhale_enum_cinn__builder_8h_1a9071e95af852c5c1a39bf31fd7a27336`
+
+- :ref:`exhale_enum_cinn__builder_8h_1af8480258da90f2910eda7eead8d51fa5`
+
+
+Defines
+-------
+
+
+- :ref:`exhale_define_cinn__builder_8h_1a5fc010024246a30fc22e3c09474628dc`
+
+- :ref:`exhale_define_cinn__builder_8h_1a8a10bfab49189bd2841d6de216fddab3`
+
+- :ref:`exhale_define_cinn__builder_8h_1a5d5eec215a10ddc81ed618f10b16aabe`
+
+- :ref:`exhale_define_cinn__builder_8h_1ad32b50bd144e4633bea454c9b16b9a35`
+
