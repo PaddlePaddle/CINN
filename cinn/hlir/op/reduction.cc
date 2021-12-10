@@ -465,17 +465,18 @@ std::vector<shape_t> InferShapeForReduction(const std::vector<shape_t> &inputs_s
   if (attrs.find("keep_dim") != attrs.end()) {
     keep_dim = absl::get<bool>(attrs.at("keep_dim"));
   }
-  CHECK(!dim.empty()) << "should have reduce dim, please check!";
-  CHECK_LE(dim.size(), inputs_shape[0].size()) << "reduce dim should no more than the input size";
   std::vector<int> out_shapes;
-  auto ndim = inputs_shape[0].size();
-  for (size_t i = 0; i < ndim; ++i) {
-    if (std::find(dim.begin(), dim.end(), i) != dim.end()) {
-      if (keep_dim) {
-        out_shapes.push_back(1);
+  if (!dim.empty()) {
+    CHECK_LE(dim.size(), inputs_shape[0].size()) << "reduce dim should no more than the input size";
+    auto ndim = inputs_shape[0].size();
+    for (size_t i = 0; i < ndim; ++i) {
+      if (std::find(dim.begin(), dim.end(), i) != dim.end()) {
+        if (keep_dim) {
+          out_shapes.push_back(1);
+        }
+      } else {
+        out_shapes.push_back(inputs_shape[0][i]);
       }
-    } else {
-      out_shapes.push_back(inputs_shape[0][i]);
     }
   }
 
