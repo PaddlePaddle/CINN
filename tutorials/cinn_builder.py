@@ -15,13 +15,14 @@
 Run model by using CinnBuilder API
 =========================================================
 
-In this tutorial, we will introduce the ways to build and run model by using CinnBuilder API.
+In this tutorial, we will introduce the ways to build and run a model using CinnBuilder APIs.
 """
 
 import cinn
 from cinn import frontend
 from cinn import common
 import numpy as np
+# sphinx_gallery_thumbnail_path = './paddlepaddle.png'
 
 ##################################################################
 #
@@ -70,6 +71,7 @@ c = builder.create_input(
 # the algebra or basic DL operator.
 d = builder.add(a, b)
 e = builder.conv(d, c)
+f = builder.max()
 
 ##################################################################
 #

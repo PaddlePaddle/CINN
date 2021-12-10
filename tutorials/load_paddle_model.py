@@ -115,7 +115,6 @@ else:
 # * :code:`params_combined` implies whether the params of paddle model is stored in one file.
 #
 #
-model_name = "resnet50"
 params_combined = True
 computation = Computation.compile_paddle_model(
     target, model_dir, [input_tensor], [x_shape], params_combined)
