@@ -1,0 +1,13 @@
+.. _exhale_function_conv2d__grad_8cc_1a363bba48d554386090c1eb3fc03c0908:
+
+Function CINN_REGISTER_HELPER(conv2d_grad_decomposer)
+=====================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_conv2d_grad.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: CINN_REGISTER_HELPER(conv2d_grad_decomposer)

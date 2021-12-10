@@ -1,0 +1,31 @@
+.. _dir__WorkSpace_CINN_cinn_frontend_decomposer:
+
+
+Directory decomposer
+====================
+
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend>` (``/WorkSpace/CINN/cinn/frontend``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+*Directory path:* ``/WorkSpace/CINN/cinn/frontend/decomposer``
+
+
+Files
+-----
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_activation.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_activation_test.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_batch_norm.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_batch_norm_test.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_broadcast.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_broadcast_test.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_conv2d_grad.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_conv2d_grad_test.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_elementwise.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_elementwise_test.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_test_helper.h`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_use_decomposer.h`
+
+

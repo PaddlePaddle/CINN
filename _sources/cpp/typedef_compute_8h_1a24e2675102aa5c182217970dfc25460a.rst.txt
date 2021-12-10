@@ -1,0 +1,13 @@
+.. _exhale_typedef_compute_8h_1a24e2675102aa5c182217970dfc25460a:
+
+Typedef cinn::lang::compute_handler_t
+=====================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_compute.h`
+
+
+Typedef Documentation
+---------------------
+
+
+.. doxygentypedef:: cinn::lang::compute_handler_t

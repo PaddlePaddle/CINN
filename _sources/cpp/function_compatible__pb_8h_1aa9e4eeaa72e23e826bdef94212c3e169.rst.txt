@@ -1,0 +1,13 @@
+.. _exhale_function_compatible__pb_8h_1aa9e4eeaa72e23e826bdef94212c3e169:
+
+Template Function cinn::frontend::paddle::TransformOpDescCppToAny
+=================================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_compatible_pb.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::paddle::TransformOpDescCppToAny(const cpp::OpDesc&, OpDescType *)

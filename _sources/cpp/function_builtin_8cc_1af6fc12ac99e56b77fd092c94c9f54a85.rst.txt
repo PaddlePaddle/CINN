@@ -1,0 +1,13 @@
+.. _exhale_function_builtin_8cc_1af6fc12ac99e56b77fd092c94c9f54a85:
+
+Function cinn::lang::Sinh
+=========================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_builtin.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::lang::Sinh(Expr)

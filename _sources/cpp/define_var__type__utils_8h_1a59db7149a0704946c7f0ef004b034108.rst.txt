@@ -1,0 +1,13 @@
+.. _exhale_define_var__type__utils_8h_1a59db7149a0704946c7f0ef004b034108:
+
+Define SET_TYPE_CASE_ITEM
+=========================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_var_type_utils.h`
+
+
+Define Documentation
+--------------------
+
+
+.. doxygendefine:: SET_TYPE_CASE_ITEM

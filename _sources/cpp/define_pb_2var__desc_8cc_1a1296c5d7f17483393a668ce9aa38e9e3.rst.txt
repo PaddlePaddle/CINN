@@ -1,0 +1,13 @@
+.. _exhale_define_pb_2var__desc_8cc_1a1296c5d7f17483393a668ce9aa38e9e3:
+
+Define SET_DATA_TYPE_CASE_ITEM
+==============================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_pb_var_desc.cc`
+
+
+Define Documentation
+--------------------
+
+
+.. doxygendefine:: SET_DATA_TYPE_CASE_ITEM

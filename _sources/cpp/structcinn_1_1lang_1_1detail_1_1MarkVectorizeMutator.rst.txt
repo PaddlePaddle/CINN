@@ -1,0 +1,25 @@
+.. _exhale_struct_structcinn_1_1lang_1_1detail_1_1MarkVectorizeMutator:
+
+Struct MarkVectorizeMutator
+===========================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_lower_impl.h`
+
+
+Inheritance Relationships
+-------------------------
+
+Base Type
+*********
+
+- ``public ir::IRMutator< Expr *>``
+
+
+Struct Documentation
+--------------------
+
+
+.. doxygenstruct:: cinn::lang::detail::MarkVectorizeMutator
+   :members:
+   :protected-members:
+   :undoc-members:

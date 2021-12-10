@@ -1,0 +1,13 @@
+.. _exhale_function_var__type__utils_8h_1ab63867d07ec815ba1b153714bad08681:
+
+Function cinn::frontend::utils::CppVarType2CommonType
+=====================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_var_type_utils.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::utils::CppVarType2CommonType(paddle::cpp::VarDescAPI::Type)

@@ -1,0 +1,13 @@
+.. _exhale_function_pb_2block__desc_8cc_1a2851b25bc71647ece971820e610eb713:
+
+Function cinn::frontend::paddle::pb::BlockDesc::AddOp< framework_proto::OpDesc >
+================================================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_pb_block_desc.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::paddle::pb::BlockDesc::AddOp< framework_proto::OpDesc >()

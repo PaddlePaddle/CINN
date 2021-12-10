@@ -1,0 +1,13 @@
+.. _exhale_function_builtin_8cc_1ae6070fafb543a5f85c909f5410ec1071:
+
+Function cinn::lang::IsNan
+==========================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_builtin.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::lang::IsNan(Expr)

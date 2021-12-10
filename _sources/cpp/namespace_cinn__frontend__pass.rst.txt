@@ -1,0 +1,27 @@
+
+.. _namespace_cinn__frontend__pass:
+
+Namespace cinn::frontend::pass
+==============================
+
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+
+
+
+
+Classes
+-------
+
+
+- :ref:`exhale_class_classcinn_1_1frontend_1_1pass_1_1DecomposerPass`
+
+
+Functions
+---------
+
+
+- :ref:`exhale_function_remove__identity_8cc_1a1b1dca1a37f5901c54b5b29871cfd1bd`

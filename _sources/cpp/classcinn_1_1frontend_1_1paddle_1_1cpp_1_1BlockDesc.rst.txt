@@ -1,0 +1,25 @@
+.. _exhale_class_classcinn_1_1frontend_1_1paddle_1_1cpp_1_1BlockDesc:
+
+Class BlockDesc
+===============
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_cpp_block_desc.h`
+
+
+Inheritance Relationships
+-------------------------
+
+Base Type
+*********
+
+- ``public cinn::frontend::paddle::cpp::BlockDescAPI`` (:ref:`exhale_class_classcinn_1_1frontend_1_1paddle_1_1cpp_1_1BlockDescAPI`)
+
+
+Class Documentation
+-------------------
+
+
+.. doxygenclass:: cinn::frontend::paddle::cpp::BlockDesc
+   :members:
+   :protected-members:
+   :undoc-members:

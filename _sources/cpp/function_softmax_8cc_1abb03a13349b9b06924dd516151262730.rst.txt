@@ -1,0 +1,13 @@
+.. _exhale_function_softmax_8cc_1abb03a13349b9b06924dd516151262730:
+
+Function cinn::frontend::op_mappers::SoftmaxOpMapper
+====================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_softmax.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::op_mappers::SoftmaxOpMapper(const paddle::cpp::OpDesc&, const OpMapperContext&)

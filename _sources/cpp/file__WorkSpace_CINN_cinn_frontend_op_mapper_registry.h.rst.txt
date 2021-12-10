@@ -1,0 +1,149 @@
+
+.. _file__WorkSpace_CINN_cinn_frontend_op_mapper_registry.h:
+
+File op_mapper_registry.h
+=========================
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend>` (``/WorkSpace/CINN/cinn/frontend``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/frontend/op_mapper_registry.h``)
+-------------------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_frontend_op_mapper_registry.h.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``cinn/common/common.h``
+
+- ``cinn/common/macros.h``
+
+- ``cinn/common/target.h``
+
+- ``cinn/common/type.h``
+
+- ``cinn/frontend/net_builder.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_net_builder.h`)
+
+- ``cinn/frontend/paddle/cpp/op_desc.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_paddle_cpp_op_desc.h`)
+
+- ``cinn/frontend/syntax.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_syntax.h`)
+
+- ``cinn/hlir/framework/scope.h``
+
+- ``cinn/utils/registry.h``
+
+- ``functional``
+
+- ``memory``
+
+- ``string``
+
+- ``unordered_map``
+
+- ``unordered_set``
+
+- ``variant``
+
+- ``vector``
+
+
+
+Included By
+-----------
+
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mapper_registry.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mapper_registry_test.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_batchnorm.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_conv2d.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_dropout.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_elementwise.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_fetch_feed.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_mul.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_pool2d.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_relu.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_reshape.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_scale.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_sigmoid.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_slice.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_softmax.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_transpose.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_model_convertor.h`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_program_pass.h`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_var_type_utils.h`
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn`
+
+- :ref:`namespace_cinn__frontend`
+
+- :ref:`namespace_cinn__frontend__paddle`
+
+
+Classes
+-------
+
+
+- :ref:`exhale_struct_structcinn_1_1frontend_1_1OpMapperContext_1_1FeedInfo`
+
+- :ref:`exhale_class_classcinn_1_1frontend_1_1OpMapper`
+
+- :ref:`exhale_class_classcinn_1_1frontend_1_1OpMapperContext`
+
+- :ref:`exhale_class_classcinn_1_1frontend_1_1OpMapperRegistry`
+
+
+Functions
+---------
+
+
+- :ref:`exhale_function_op__mapper__registry_8h_1a59cac9c3e18e7ce8e688d3e011c26ea9`
+
+
+Defines
+-------
+
+
+- :ref:`exhale_define_op__mapper__registry_8h_1a22887ea41a86dfca53fac44087106e6a`
+
+- :ref:`exhale_define_op__mapper__registry_8h_1a617b4bf494d29d871dcd23dd3d74d0db`
+

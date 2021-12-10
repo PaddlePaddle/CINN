@@ -1,0 +1,13 @@
+.. _exhale_define_cinn__builder_8h_1a5fc010024246a30fc22e3c09474628dc:
+
+Define BINARY_OP_DECL
+=====================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_cinn_builder.h`
+
+
+Define Documentation
+--------------------
+
+
+.. doxygendefine:: BINARY_OP_DECL

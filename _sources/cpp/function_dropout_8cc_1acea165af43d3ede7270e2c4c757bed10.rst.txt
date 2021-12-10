@@ -1,0 +1,13 @@
+.. _exhale_function_dropout_8cc_1acea165af43d3ede7270e2c4c757bed10:
+
+Function cinn::frontend::op_mappers::DropoutInferOpMapper
+=========================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_dropout.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::op_mappers::DropoutInferOpMapper(const paddle::cpp::OpDesc&, const OpMapperContext&)

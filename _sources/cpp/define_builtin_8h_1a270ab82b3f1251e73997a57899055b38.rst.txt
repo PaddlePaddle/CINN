@@ -1,0 +1,13 @@
+.. _exhale_define_builtin_8h_1a270ab82b3f1251e73997a57899055b38:
+
+Define EXTERN_CALL_DCL
+======================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_builtin.h`
+
+
+Define Documentation
+--------------------
+
+
+.. doxygendefine:: EXTERN_CALL_DCL

@@ -1,0 +1,13 @@
+.. _exhale_define_decomposer__registry_8h_1a3b8df64f3c8c205f130365663cbc8927:
+
+Define GET_MACRO
+================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_registry.h`
+
+
+Define Documentation
+--------------------
+
+
+.. doxygendefine:: GET_MACRO

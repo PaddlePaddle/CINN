@@ -1,0 +1,67 @@
+
+.. _file__WorkSpace_CINN_cinn_frontend_op_mappers_reshape.cc:
+
+File reshape.cc
+===============
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend_op_mappers>` (``/WorkSpace/CINN/cinn/frontend/op_mappers``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/frontend/op_mappers/reshape.cc``)
+--------------------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_frontend_op_mappers_reshape.cc.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``cinn/backends/cuda_util.h``
+
+- ``cinn/frontend/op_mapper_registry.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_op_mapper_registry.h`)
+
+- ``cinn/frontend/op_mappers/common_utils.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_common_utils.h`)
+
+
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn`
+
+- :ref:`namespace_cinn__frontend`
+
+- :ref:`namespace_cinn__frontend__op_mappers`
+
+
+Functions
+---------
+
+
+- :ref:`exhale_function_reshape_8cc_1ace0b186b8d8cf6be79abd6f62ce80074`
+
+- :ref:`exhale_function_reshape_8cc_1a7bff8c167bf3dcdf1740f4f514088326`
+
+- :ref:`exhale_function_reshape_8cc_1a21b53e2a99743c8a77967c9009d72b8b`
+
+- :ref:`exhale_function_reshape_8cc_1ab41701c79c96185d978149850236a2e4`
+
+- :ref:`exhale_function_reshape_8cc_1ad472480a81c06270b301b8c5a2ffe0e9`
+

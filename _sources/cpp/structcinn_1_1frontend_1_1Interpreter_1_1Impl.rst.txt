@@ -1,0 +1,22 @@
+.. _exhale_struct_structcinn_1_1frontend_1_1Interpreter_1_1Impl:
+
+Struct Interpreter::Impl
+========================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_interpreter.cc`
+
+
+Nested Relationships
+--------------------
+
+This struct is a nested type of :ref:`exhale_class_classcinn_1_1frontend_1_1Interpreter`.
+
+
+Struct Documentation
+--------------------
+
+
+.. doxygenstruct:: cinn::frontend::Interpreter::Impl
+   :members:
+   :protected-members:
+   :undoc-members:

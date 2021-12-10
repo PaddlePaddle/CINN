@@ -1,0 +1,13 @@
+.. _exhale_define_compatible__pb_8cc_1afb9d3c9690e7fc527d2385496b1493b4:
+
+Define TRANS_VAR_ANY_WITH_CPP_IMPL
+==================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_compatible_pb.cc`
+
+
+Define Documentation
+--------------------
+
+
+.. doxygendefine:: TRANS_VAR_ANY_WITH_CPP_IMPL

@@ -1,0 +1,59 @@
+
+.. _file__WorkSpace_CINN_cinn_frontend_pass_remove_identity.cc:
+
+File remove_identity.cc
+=======================
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend_pass>` (``/WorkSpace/CINN/cinn/frontend/pass``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/frontend/pass/remove_identity.cc``)
+----------------------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_frontend_pass_remove_identity.cc.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``cinn/frontend/cinn_builder.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_cinn_builder.h`)
+
+- ``cinn/frontend/program_pass.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_program_pass.h`)
+
+
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn`
+
+- :ref:`namespace_cinn__frontend`
+
+- :ref:`namespace_cinn__frontend__pass`
+
+
+Functions
+---------
+
+
+- :ref:`exhale_function_remove__identity_8cc_1a1b1dca1a37f5901c54b5b29871cfd1bd`
+
+- :ref:`exhale_function_remove__identity_8cc_1aaa82bc991ca60fcf4547d595cc675a75`
+

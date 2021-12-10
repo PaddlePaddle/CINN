@@ -1,0 +1,13 @@
+.. _exhale_function_builtin_8cc_1af265875ee20f7691b33662a92622ff1c:
+
+Function cinn::lang::Atan
+=========================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_builtin.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::lang::Atan(Expr)

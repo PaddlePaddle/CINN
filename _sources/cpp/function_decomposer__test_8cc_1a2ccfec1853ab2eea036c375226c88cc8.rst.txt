@@ -1,0 +1,13 @@
+.. _exhale_function_decomposer__test_8cc_1a2ccfec1853ab2eea036c375226c88cc8:
+
+Function cinn::frontend::TEST(DecomposePass, basic)
+===================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_pass_decomposer_test.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::TEST(DecomposePass, basic)

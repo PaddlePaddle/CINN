@@ -1,0 +1,108 @@
+
+.. _file__WorkSpace_CINN_cinn_frontend_decomposer_registry.h:
+
+File decomposer_registry.h
+==========================
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend>` (``/WorkSpace/CINN/cinn/frontend``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/frontend/decomposer_registry.h``)
+--------------------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_frontend_decomposer_registry.h.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``cinn/common/target.h``
+
+- ``cinn/frontend/cinn_builder.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_cinn_builder.h`)
+
+- ``cinn/frontend/syntax.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_syntax.h`)
+
+- ``functional``
+
+- ``string``
+
+- ``unordered_map``
+
+
+
+Included By
+-----------
+
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_computation_test.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_activation.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_batch_norm.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_broadcast.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_conv2d_grad.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_conv2d_grad_test.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_elementwise.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_test_helper.h`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_registry_test.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_pass_decomposer.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_pass_decomposer_test.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_pass_remove_identity_test.cc`
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn`
+
+- :ref:`namespace_cinn__frontend`
+
+
+Classes
+-------
+
+
+- :ref:`exhale_class_classcinn_1_1frontend_1_1Decomposer`
+
+- :ref:`exhale_class_classcinn_1_1frontend_1_1DecomposerContext`
+
+- :ref:`exhale_class_classcinn_1_1frontend_1_1InstrDecomposerRegistry`
+
+
+Defines
+-------
+
+
+- :ref:`exhale_define_decomposer__registry_8h_1a5aaaf846820b9c25e404645419ebab7d`
+
+- :ref:`exhale_define_decomposer__registry_8h_1afa110d5b8a1405c26d80f525db281f2f`
+
+- :ref:`exhale_define_decomposer__registry_8h_1a9ec83853192ec7be5e9c71c6c2d5b246`
+
+- :ref:`exhale_define_decomposer__registry_8h_1a3b8df64f3c8c205f130365663cbc8927`
+

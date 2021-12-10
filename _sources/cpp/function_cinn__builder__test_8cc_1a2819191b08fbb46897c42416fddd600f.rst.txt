@@ -1,0 +1,13 @@
+.. _exhale_function_cinn__builder__test_8cc_1a2819191b08fbb46897c42416fddd600f:
+
+Function cinn::frontend::TEST(cinn_build, execution)
+====================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_cinn_builder_test.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::TEST(cinn_build, execution)

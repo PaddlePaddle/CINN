@@ -1,0 +1,13 @@
+.. _exhale_function_broadcast_8cc_1a73ef088b565c9708c874798e5d1ba7c3:
+
+Function cinn::frontend::decomposer::elementwise_add
+====================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_broadcast.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::decomposer::elementwise_add(const Instruction&, const DecomposerContext&)

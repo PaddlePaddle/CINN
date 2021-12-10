@@ -1,0 +1,13 @@
+.. _exhale_function_lower__impl__test_8cc_1adcfe1271f186807d8d3d6a06c519a30b:
+
+Function cinn::lang::detail::TEST(CreateCompGraph, inline_compatible1)
+======================================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_lower_impl_test.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::lang::detail::TEST(CreateCompGraph, inline_compatible1)

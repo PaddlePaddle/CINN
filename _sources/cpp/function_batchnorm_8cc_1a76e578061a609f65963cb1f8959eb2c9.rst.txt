@@ -1,0 +1,13 @@
+.. _exhale_function_batchnorm_8cc_1a76e578061a609f65963cb1f8959eb2c9:
+
+Function cinn::frontend::op_mappers::BatchNormGradOpMapper
+==========================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_batchnorm.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::op_mappers::BatchNormGradOpMapper(const paddle::cpp::OpDesc&, const OpMapperContext&)

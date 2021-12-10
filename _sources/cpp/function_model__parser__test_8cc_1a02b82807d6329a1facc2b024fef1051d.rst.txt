@@ -1,0 +1,13 @@
+.. _exhale_function_model__parser__test_8cc_1a02b82807d6329a1facc2b024fef1051d:
+
+Function cinn::frontend::paddle::TEST
+=====================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_model_parser_test.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::paddle::TEST(LoadModelPb, naive_model)

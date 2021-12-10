@@ -1,0 +1,13 @@
+.. _exhale_typedef_test__helper_8h_1a79affd0cacd36ec3276b36691a958d98:
+
+Typedef cinn::frontend::CPUKernelFunc
+=====================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_test_helper.h`
+
+
+Typedef Documentation
+---------------------
+
+
+.. doxygentypedef:: cinn::frontend::CPUKernelFunc

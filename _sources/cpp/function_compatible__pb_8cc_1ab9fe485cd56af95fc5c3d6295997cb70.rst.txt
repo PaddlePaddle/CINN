@@ -1,0 +1,13 @@
+.. _exhale_function_compatible__pb_8cc_1ab9fe485cd56af95fc5c3d6295997cb70:
+
+Template Function cinn::frontend::paddle::OpAttrsAnyToCpp
+=========================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_compatible_pb.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::paddle::OpAttrsAnyToCpp(const OpDescType&, cpp::OpDesc *)

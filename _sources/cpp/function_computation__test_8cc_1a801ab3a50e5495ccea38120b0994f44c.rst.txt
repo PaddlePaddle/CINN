@@ -1,0 +1,13 @@
+.. _exhale_function_computation__test_8cc_1a801ab3a50e5495ccea38120b0994f44c:
+
+Function cinn::frontend::TEST(cinn_computation, basic_cpu)
+==========================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_computation_test.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::TEST(cinn_computation, basic_cpu)

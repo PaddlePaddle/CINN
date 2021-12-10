@@ -1,0 +1,13 @@
+.. _exhale_function_decomposer__registry__test_8cc_1abf050658456d24b4d7fb5f08697395f1:
+
+Function cinn::frontend::TEST(InstrDecomposerRegistry, basic)
+=============================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_registry_test.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::TEST(InstrDecomposerRegistry, basic)

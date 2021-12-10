@@ -1,0 +1,13 @@
+.. _exhale_typedef_compute_8h_1ab2019c1ba4ad4f743be7b6d380b51fd7:
+
+Typedef cinn::lang::attr_t
+==========================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_compute.h`
+
+
+Typedef Documentation
+---------------------
+
+
+.. doxygentypedef:: cinn::lang::attr_t

@@ -1,0 +1,67 @@
+
+.. _file__WorkSpace_CINN_cinn_frontend_op_mappers_elementwise.cc:
+
+File elementwise.cc
+===================
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend_op_mappers>` (``/WorkSpace/CINN/cinn/frontend/op_mappers``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/frontend/op_mappers/elementwise.cc``)
+------------------------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_frontend_op_mappers_elementwise.cc.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``cinn/frontend/op_mapper_registry.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_op_mapper_registry.h`)
+
+- ``cinn/frontend/op_mappers/common_utils.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_common_utils.h`)
+
+
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn`
+
+- :ref:`namespace_cinn__frontend`
+
+- :ref:`namespace_cinn__frontend__op_mappers`
+
+
+Functions
+---------
+
+
+- :ref:`exhale_function_op__mappers_2elementwise_8cc_1a8e894b884068df3265b8e1e5ebb6ed16`
+
+- :ref:`exhale_function_op__mappers_2elementwise_8cc_1af10b3d655a430d78108bc502287015a5`
+
+- :ref:`exhale_function_op__mappers_2elementwise_8cc_1ac68bfa813ede253c2007522ad00447a6`
+
+- :ref:`exhale_function_op__mappers_2elementwise_8cc_1af4aaa830fe806729dd37c2a1b0ff8567`
+
+- :ref:`exhale_function_op__mappers_2elementwise_8cc_1a638376359d80eb153c0fe28cc4b10204`
+
+- :ref:`exhale_function_op__mappers_2elementwise_8cc_1ac5031404d739254e61e702ce4f6681ca`
+

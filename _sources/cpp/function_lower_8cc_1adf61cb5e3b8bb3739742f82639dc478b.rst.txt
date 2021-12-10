@@ -1,0 +1,13 @@
+.. _exhale_function_lower_8cc_1adf61cb5e3b8bb3739742f82639dc478b:
+
+Function cinn::lang::GetTempBuffers
+===================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_lower.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::lang::GetTempBuffers(const std::vector<Tensor>&, const poly::StageMap&, Expr)

@@ -1,0 +1,25 @@
+.. _exhale_class_classcinn_1_1frontend_1_1paddle_1_1cpp_1_1ProgramDesc:
+
+Class ProgramDesc
+=================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_cpp_program_desc.h`
+
+
+Inheritance Relationships
+-------------------------
+
+Base Type
+*********
+
+- ``public cinn::frontend::paddle::cpp::ProgramDescAPI`` (:ref:`exhale_class_classcinn_1_1frontend_1_1paddle_1_1cpp_1_1ProgramDescAPI`)
+
+
+Class Documentation
+-------------------
+
+
+.. doxygenclass:: cinn::frontend::paddle::cpp::ProgramDesc
+   :members:
+   :protected-members:
+   :undoc-members:

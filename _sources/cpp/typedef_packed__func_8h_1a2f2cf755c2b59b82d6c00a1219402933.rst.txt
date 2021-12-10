@@ -1,0 +1,13 @@
+.. _exhale_typedef_packed__func_8h_1a2f2cf755c2b59b82d6c00a1219402933:
+
+Typedef cinn::lang::ArgValue
+============================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_packed_func.h`
+
+
+Typedef Documentation
+---------------------
+
+
+.. doxygentypedef:: cinn::lang::ArgValue

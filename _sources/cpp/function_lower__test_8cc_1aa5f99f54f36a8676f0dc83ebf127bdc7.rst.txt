@@ -1,0 +1,13 @@
+.. _exhale_function_lower__test_8cc_1aa5f99f54f36a8676f0dc83ebf127bdc7:
+
+Function cinn::lang::TEST(lower, dynamic_shape)
+===============================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_lower_test.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::lang::TEST(lower, dynamic_shape)

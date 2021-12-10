@@ -1,0 +1,13 @@
+.. _exhale_define_cpp_2op__desc_8cc_1af22e91928acfa57c5c7b1a6cfc45b73a:
+
+Define GET_IMPL_ONE
+===================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_cpp_op_desc.cc`
+
+
+Define Documentation
+--------------------
+
+
+.. doxygendefine:: GET_IMPL_ONE

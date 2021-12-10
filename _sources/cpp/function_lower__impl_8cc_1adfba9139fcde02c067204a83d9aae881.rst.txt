@@ -1,0 +1,13 @@
+.. _exhale_function_lower__impl_8cc_1adfba9139fcde02c067204a83d9aae881:
+
+Function cinn::lang::detail::BindBuffer
+=======================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_lower_impl.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::lang::detail::BindBuffer(StageMap&)

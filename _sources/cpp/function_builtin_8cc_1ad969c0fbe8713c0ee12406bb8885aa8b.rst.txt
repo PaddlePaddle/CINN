@@ -1,0 +1,13 @@
+.. _exhale_function_builtin_8cc_1ad969c0fbe8713c0ee12406bb8885aa8b:
+
+Function cinn::lang::Cos
+========================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_builtin.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::lang::Cos(Expr)

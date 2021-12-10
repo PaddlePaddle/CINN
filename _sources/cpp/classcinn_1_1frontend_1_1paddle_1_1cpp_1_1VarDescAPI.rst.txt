@@ -1,0 +1,26 @@
+.. _exhale_class_classcinn_1_1frontend_1_1paddle_1_1cpp_1_1VarDescAPI:
+
+Class VarDescAPI
+================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_cpp_desc_api.h`
+
+
+Inheritance Relationships
+-------------------------
+
+Derived Types
+*************
+
+- ``public cinn::frontend::paddle::cpp::VarDesc`` (:ref:`exhale_class_classcinn_1_1frontend_1_1paddle_1_1cpp_1_1VarDesc`)
+- ``public cinn::frontend::paddle::pb::VarDesc`` (:ref:`exhale_class_classcinn_1_1frontend_1_1paddle_1_1pb_1_1VarDesc`)
+
+
+Class Documentation
+-------------------
+
+
+.. doxygenclass:: cinn::frontend::paddle::cpp::VarDescAPI
+   :members:
+   :protected-members:
+   :undoc-members:

@@ -1,0 +1,13 @@
+.. _exhale_function_builtin_8h_1a1c059e68f4fbf76e4bc7859a91d67cc7:
+
+Function cinn::lang::BitwiseXor
+===============================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_builtin.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::lang::BitwiseXor(Expr, Expr)

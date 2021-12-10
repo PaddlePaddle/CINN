@@ -1,0 +1,13 @@
+.. _exhale_define_cinn__builder_8cc_1ae37088a1b477317866a5025a72a6c3c6:
+
+Define UNARY_OP_DEF
+===================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_cinn_builder.cc`
+
+
+Define Documentation
+--------------------
+
+
+.. doxygendefine:: UNARY_OP_DEF

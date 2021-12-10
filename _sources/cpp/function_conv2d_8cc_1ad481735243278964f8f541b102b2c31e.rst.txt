@@ -1,0 +1,13 @@
+.. _exhale_function_conv2d_8cc_1ad481735243278964f8f541b102b2c31e:
+
+Function cinn::frontend::op_mappers::Conv2dGradOpMapper
+=======================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_conv2d.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::op_mappers::Conv2dGradOpMapper(const paddle::cpp::OpDesc&, const OpMapperContext&)

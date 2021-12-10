@@ -1,0 +1,16 @@
+.. _exhale_class_classcinn_1_1frontend_1_1PaddleModelConvertor:
+
+Class PaddleModelConvertor
+==========================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_model_convertor.h`
+
+
+Class Documentation
+-------------------
+
+
+.. doxygenclass:: cinn::frontend::PaddleModelConvertor
+   :members:
+   :protected-members:
+   :undoc-members:

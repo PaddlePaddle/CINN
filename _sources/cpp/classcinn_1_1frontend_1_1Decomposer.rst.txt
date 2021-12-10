@@ -1,0 +1,16 @@
+.. _exhale_class_classcinn_1_1frontend_1_1Decomposer:
+
+Class Decomposer
+================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_registry.h`
+
+
+Class Documentation
+-------------------
+
+
+.. doxygenclass:: cinn::frontend::Decomposer
+   :members:
+   :protected-members:
+   :undoc-members:

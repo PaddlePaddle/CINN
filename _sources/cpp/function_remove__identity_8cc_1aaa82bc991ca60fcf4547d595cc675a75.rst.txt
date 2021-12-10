@@ -1,0 +1,13 @@
+.. _exhale_function_remove__identity_8cc_1aaa82bc991ca60fcf4547d595cc675a75:
+
+Function CINN_REGISTER_HELPER(RemoveIdentity)
+=============================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_pass_remove_identity.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: CINN_REGISTER_HELPER(RemoveIdentity)

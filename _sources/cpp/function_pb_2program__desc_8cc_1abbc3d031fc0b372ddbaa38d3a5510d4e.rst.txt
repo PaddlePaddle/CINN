@@ -1,0 +1,13 @@
+.. _exhale_function_pb_2program__desc_8cc_1abbc3d031fc0b372ddbaa38d3a5510d4e:
+
+Function cinn::frontend::paddle::pb::ProgramDesc::AddBlock< framework_proto::BlockDesc >
+========================================================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_pb_program_desc.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::paddle::pb::ProgramDesc::AddBlock< framework_proto::BlockDesc >()

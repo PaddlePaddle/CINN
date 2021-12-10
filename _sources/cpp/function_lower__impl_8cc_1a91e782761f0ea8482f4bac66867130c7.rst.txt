@@ -1,0 +1,13 @@
+.. _exhale_function_lower__impl_8cc_1a91e782761f0ea8482f4bac66867130c7:
+
+Function cinn::lang::detail::CreateCompGraph
+============================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_lower_impl.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::lang::detail::CreateCompGraph(const std::vector<ir::Tensor>&, StageMap, bool)

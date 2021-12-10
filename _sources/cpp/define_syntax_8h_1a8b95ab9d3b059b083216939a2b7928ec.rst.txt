@@ -1,0 +1,13 @@
+.. _exhale_define_syntax_8h_1a8b95ab9d3b059b083216939a2b7928ec:
+
+Define SYNTAX_PRIM_REDUCE_DECL
+==============================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_syntax.h`
+
+
+Define Documentation
+--------------------
+
+
+.. doxygendefine:: SYNTAX_PRIM_REDUCE_DECL

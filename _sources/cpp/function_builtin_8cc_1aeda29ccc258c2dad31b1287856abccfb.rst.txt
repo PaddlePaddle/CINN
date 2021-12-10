@@ -1,0 +1,13 @@
+.. _exhale_function_builtin_8cc_1aeda29ccc258c2dad31b1287856abccfb:
+
+Function cinn::lang::logic_and
+==============================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_builtin.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::lang::logic_and(const std::vector<Expr>&)

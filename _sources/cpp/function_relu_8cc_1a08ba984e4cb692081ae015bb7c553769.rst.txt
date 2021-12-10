@@ -1,0 +1,13 @@
+.. _exhale_function_relu_8cc_1a08ba984e4cb692081ae015bb7c553769:
+
+Function cinn::frontend::op_mappers::ReluGradOpMapper
+=====================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_relu.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::op_mappers::ReluGradOpMapper(const paddle::cpp::OpDesc&, const OpMapperContext&)

@@ -1,0 +1,13 @@
+.. _exhale_function_batch__norm_8cc_1ac971ed977c671ee76ee78706a6fb2e85:
+
+Function cinn::frontend::decomposer::batch_norm_grad
+====================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_batch_norm.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::decomposer::batch_norm_grad(const Instruction&, const DecomposerContext&)

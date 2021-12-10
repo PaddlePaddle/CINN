@@ -1,0 +1,13 @@
+.. _exhale_define_op__mapper__registry_8h_1a22887ea41a86dfca53fac44087106e6a:
+
+Define CINN_REGISTER_OP_MAPPER
+==============================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_op_mapper_registry.h`
+
+
+Define Documentation
+--------------------
+
+
+.. doxygendefine:: CINN_REGISTER_OP_MAPPER

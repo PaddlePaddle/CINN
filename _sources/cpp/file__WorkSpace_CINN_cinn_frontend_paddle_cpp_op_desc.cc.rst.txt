@@ -1,0 +1,84 @@
+
+.. _file__WorkSpace_CINN_cinn_frontend_paddle_cpp_op_desc.cc:
+
+File op_desc.cc
+===============
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend_paddle_cpp>` (``/WorkSpace/CINN/cinn/frontend/paddle/cpp``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/frontend/paddle/cpp/op_desc.cc``)
+--------------------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_frontend_paddle_cpp_op_desc.cc.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``cinn/frontend/paddle/cpp/op_desc.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_paddle_cpp_op_desc.h`)
+
+- ``cstdint``
+
+- ``utility``
+
+
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn__frontend__paddle__cpp`
+
+
+Functions
+---------
+
+
+- :ref:`exhale_function_cpp_2op__desc_8cc_1ad41b2c886332078323249b47c8e6ed24`
+
+- :ref:`exhale_function_cpp_2op__desc_8cc_1a6ea2406645f71639ddb033c43909c0fe`
+
+- :ref:`exhale_function_cpp_2op__desc_8cc_1ab98cf6e578afe2dd7fec19000803e7e5`
+
+- :ref:`exhale_function_cpp_2op__desc_8cc_1a07381955c80d7be41330a5490ec4810f`
+
+- :ref:`exhale_function_cpp_2op__desc_8cc_1a884be4774ef37cf0e1194c7a82a06b17`
+
+- :ref:`exhale_function_cpp_2op__desc_8cc_1a92aa93bf297e8e884a1a386627f2d1bf`
+
+- :ref:`exhale_function_cpp_2op__desc_8cc_1a07ceefd7d6ed29eb37940e7ceb89f3b5`
+
+- :ref:`exhale_function_cpp_2op__desc_8cc_1a7ea24c4eb07cbb927af4ad878be7c5b8`
+
+- :ref:`exhale_function_cpp_2op__desc_8cc_1a05114e851a88a73851c481b21b2bf727`
+
+- :ref:`exhale_function_cpp_2op__desc_8cc_1aa6b077696fe4b58758783f278f39ef63`
+
+- :ref:`exhale_function_cpp_2op__desc_8cc_1a0dfa54bce19ec45752eb887943abff12`
+
+
+Defines
+-------
+
+
+- :ref:`exhale_define_cpp_2op__desc_8cc_1af22e91928acfa57c5c7b1a6cfc45b73a`
+
+- :ref:`exhale_define_cpp_2op__desc_8cc_1a2b2dd7f1b61cd988194a79ede6fb4e8c`
+

@@ -1,0 +1,13 @@
+.. _exhale_function_lower__impl__test_8cc_1a23302b16d71761d9d0326f7fca034d58:
+
+Function cinn::lang::detail::TEST(CreateCompGraph, multi_layers_with_extra_deps)
+================================================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_lower_impl_test.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::lang::detail::TEST(CreateCompGraph, multi_layers_with_extra_deps)

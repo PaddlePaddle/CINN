@@ -1,0 +1,13 @@
+.. _exhale_function_fetch__feed_8cc_1ac5aed39afec4182c74ad723e136294fd:
+
+Function CINN_REGISTER_HELPER(fetch_feed)
+=========================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_fetch_feed.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: CINN_REGISTER_HELPER(fetch_feed)

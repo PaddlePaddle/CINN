@@ -1,0 +1,13 @@
+.. _exhale_function_builtin_8h_1ad619cd250ae5396c0704af3be8bb8ae0:
+
+Function cinn::lang::Sign
+=========================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_builtin.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::lang::Sign(Expr)

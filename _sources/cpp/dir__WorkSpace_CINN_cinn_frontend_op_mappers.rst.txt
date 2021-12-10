@@ -1,0 +1,35 @@
+.. _dir__WorkSpace_CINN_cinn_frontend_op_mappers:
+
+
+Directory op_mappers
+====================
+
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend>` (``/WorkSpace/CINN/cinn/frontend``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+*Directory path:* ``/WorkSpace/CINN/cinn/frontend/op_mappers``
+
+
+Files
+-----
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_batchnorm.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_common_utils.h`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_conv2d.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_dropout.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_elementwise.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_fetch_feed.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_mul.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_pool2d.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_relu.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_reshape.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_scale.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_sigmoid.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_slice.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_softmax.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_transpose.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_use_op_mappers.h`
+
+

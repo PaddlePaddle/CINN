@@ -1,0 +1,142 @@
+
+.. _file__WorkSpace_CINN_cinn_lang_builtin.cc:
+
+File builtin.cc
+===============
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_lang>` (``/WorkSpace/CINN/cinn/lang``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/lang/builtin.cc``)
+-----------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_lang_builtin.cc.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``cinn/cinn.h``
+
+- ``cinn/common/ir_util.h``
+
+- ``cinn/ir/ir.h``
+
+- ``cinn/lang/buffer.h`` (:ref:`file__WorkSpace_CINN_cinn_lang_buffer.h`)
+
+- ``cinn/lang/builtin.h`` (:ref:`file__WorkSpace_CINN_cinn_lang_builtin.h`)
+
+- ``cmath``
+
+- ``limits``
+
+- ``utility``
+
+
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn`
+
+- :ref:`namespace_cinn__lang`
+
+
+Functions
+---------
+
+
+- :ref:`exhale_function_builtin_8cc_1a1da4cee56001e3f81f32f15041d0e219`
+
+- :ref:`exhale_function_builtin_8cc_1aea8e64842652eeeff6407b904fa6658a`
+
+- :ref:`exhale_function_builtin_8cc_1a68836ce550226e43b355a5f15762189e`
+
+- :ref:`exhale_function_builtin_8cc_1a003fa0e15ebd2026b3e1cfce9106d3bb`
+
+- :ref:`exhale_function_builtin_8cc_1a1ca923b4842dad4c4171428743aab902`
+
+- :ref:`exhale_function_builtin_8cc_1af265875ee20f7691b33662a92622ff1c`
+
+- :ref:`exhale_function_builtin_8cc_1a0862ccac7891339b17a1418dfd661e09`
+
+- :ref:`exhale_function_builtin_8cc_1a385a82604fc2971718e04b782f9412b3`
+
+- :ref:`exhale_function_builtin_8cc_1ad969c0fbe8713c0ee12406bb8885aa8b`
+
+- :ref:`exhale_function_builtin_8cc_1a12ccedc2786d997984a0a762cbbee5ba`
+
+- :ref:`exhale_function_builtin_8cc_1a0ec72a8b5b0e40689db54fa06d82be7c`
+
+- :ref:`exhale_function_builtin_8cc_1a115e911713117d315828546787bfddea`
+
+- :ref:`exhale_function_builtin_8cc_1a88f4e39516d4074158c5227c0664ef29`
+
+- :ref:`exhale_function_builtin_8cc_1a82f7e49136d956199f4db0ba9d17f03f`
+
+- :ref:`exhale_function_builtin_8cc_1a04da1a5f63413cae80258c514933c632`
+
+- :ref:`exhale_function_builtin_8cc_1a5466c705c382f14eb59c5b8f3a8a69db`
+
+- :ref:`exhale_function_builtin_8cc_1ae6070fafb543a5f85c909f5410ec1071`
+
+- :ref:`exhale_function_builtin_8cc_1abe25ad846e4d23d09016937adb5ec3b3`
+
+- :ref:`exhale_function_builtin_8cc_1ab2e6cd02d15a6759f5cd9449ed4405bc`
+
+- :ref:`exhale_function_builtin_8cc_1a92b67c3db88bca4545c10423b76f0b45`
+
+- :ref:`exhale_function_builtin_8cc_1aeda29ccc258c2dad31b1287856abccfb`
+
+- :ref:`exhale_function_builtin_8cc_1a8733302266179fcc439672599319959a`
+
+- :ref:`exhale_function_builtin_8cc_1a42008ef19502175ea0720b9d8cd0aef8`
+
+- :ref:`exhale_function_builtin_8cc_1a3acb9f96b790a42650ca8788fa970524`
+
+- :ref:`exhale_function_builtin_8cc_1aa397941e140046ade1da8551968d6e44`
+
+- :ref:`exhale_function_builtin_8cc_1a9bb87bba03f6494aebca8e6886a4e67d`
+
+- :ref:`exhale_function_builtin_8cc_1a58901dd6b0b27eded838de85e3a82a69`
+
+- :ref:`exhale_function_builtin_8cc_1af6fc12ac99e56b77fd092c94c9f54a85`
+
+- :ref:`exhale_function_builtin_8cc_1a891c71770cf6dbfd0a804dde179b2265`
+
+- :ref:`exhale_function_builtin_8cc_1ac9a0a01a2ce3564ce2824ca82baf7f68`
+
+- :ref:`exhale_function_builtin_8cc_1a456d08ce5cd8ace3b39e429727f7c854`
+
+- :ref:`exhale_function_builtin_8cc_1adbc9ea6577d1528faa21f65a1596ce51`
+
+
+Defines
+-------
+
+
+- :ref:`exhale_define_builtin_8cc_1a52a87279af6cef0b40b70c1a061fbeec`
+
+- :ref:`exhale_define_builtin_8cc_1a13d2ff8bffb0eb5795e4e44c230e6131`
+
+- :ref:`exhale_define_builtin_8cc_1ac1152f4e09614bd85157d2f91b12d976`
+
+- :ref:`exhale_define_builtin_8cc_1ac1152f4e09614bd85157d2f91b12d976`
+

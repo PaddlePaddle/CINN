@@ -1,0 +1,82 @@
+
+.. _namespace_cinn__frontend__paddle__pb:
+
+Namespace cinn::frontend::paddle::pb
+====================================
+
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+
+
+
+
+Classes
+-------
+
+
+- :ref:`exhale_class_classcinn_1_1frontend_1_1paddle_1_1pb_1_1BlockDesc`
+
+- :ref:`exhale_class_classcinn_1_1frontend_1_1paddle_1_1pb_1_1OpDesc`
+
+- :ref:`exhale_class_classcinn_1_1frontend_1_1paddle_1_1pb_1_1ProgramDesc`
+
+- :ref:`exhale_class_classcinn_1_1frontend_1_1paddle_1_1pb_1_1VarDesc`
+
+
+Functions
+---------
+
+
+- :ref:`exhale_function_pb_2block__desc_8cc_1a2851b25bc71647ece971820e610eb713`
+
+- :ref:`exhale_function_pb_2block__desc_8cc_1a49ab1aef6189a919487aa152cbfcdaa6`
+
+- :ref:`exhale_function_pb_2block__desc_8cc_1ace021d87b756fb6a487e1454f993e5c5`
+
+- :ref:`exhale_function_pb_2block__desc_8cc_1a9ab8f3571ecf0289b7d1b2c746735859`
+
+- :ref:`exhale_function_pb_2op__desc_8cc_1ab122cc309eb30bc82a2134485b86d804`
+
+- :ref:`exhale_function_pb_2op__desc_8cc_1a893320d27432458b2b8179baca897f4c`
+
+- :ref:`exhale_function_pb_2op__desc_8cc_1a008c98d5536af106bf4587dd495aee37`
+
+- :ref:`exhale_function_pb_2op__desc_8cc_1ac645c2e6b5b68a6ba3b03234943afa4c`
+
+- :ref:`exhale_function_pb_2op__desc_8cc_1a6fb685107e947fbd312495508467515f`
+
+- :ref:`exhale_function_pb_2op__desc_8cc_1a797f2c4086f57dfe53ed0140c54c683c`
+
+- :ref:`exhale_function_pb_2op__desc_8cc_1a95a196b4496608a1aa2f54ffc31bf0ce`
+
+- :ref:`exhale_function_pb_2op__desc_8cc_1ac0fa96d4ba401e3b3e57e0f09ab30530`
+
+- :ref:`exhale_function_pb_2op__desc_8cc_1ad6f3e29af2494a7b7b0810f99c4d47c6`
+
+- :ref:`exhale_function_pb_2op__desc_8cc_1af4739b86db4e92b5442cef5463e98e32`
+
+- :ref:`exhale_function_pb_2op__desc_8cc_1ada4d6098dd1a809141901a2668041265`
+
+- :ref:`exhale_function_pb_2op__desc_8cc_1ac7a0948d4b64880cf5f8af417f37abb3`
+
+- :ref:`exhale_function_pb_2program__desc_8cc_1abbc3d031fc0b372ddbaa38d3a5510d4e`
+
+- :ref:`exhale_function_pb_2program__desc_8cc_1ae495b4b7d11904dc49af30576a4e5fa5`
+
+- :ref:`exhale_function_pb_2var__desc_8h_1a8ff0057ffc8644719a0dbbd4eb635d4a`
+
+- :ref:`exhale_function_pb_2var__desc_8h_1a625ccf5b0b43f18776b9e0e0ca9825a7`
+
+- :ref:`exhale_function_pb_2var__desc_8h_1a17d73992f6dd4459505ad17ad01002bc`
+
+
+Typedefs
+--------
+
+
+- :ref:`exhale_typedef_pb_2op__desc_8h_1a53d1611df3787b023aeff80dd4783522`
+
+- :ref:`exhale_typedef_pb_2op__desc_8h_1a35452211ddfb8a79900e3b2faea11164`

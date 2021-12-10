@@ -1,0 +1,13 @@
+.. _exhale_function_compute__test_8cc_1ab2fec3621fbcc21cf092cc948d48e70a:
+
+Function cinn::lang::TEST(Call, basic)
+======================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_compute_test.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::lang::TEST(Call, basic)

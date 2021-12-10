@@ -1,0 +1,93 @@
+
+.. _file__WorkSpace_CINN_cinn_frontend_paddle_model_to_program.h:
+
+File paddle_model_to_program.h
+==============================
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend>` (``/WorkSpace/CINN/cinn/frontend``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/frontend/paddle_model_to_program.h``)
+------------------------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_frontend_paddle_model_to_program.h.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``absl/container/flat_hash_map.h``
+
+- ``absl/container/flat_hash_set.h``
+
+- ``absl/types/variant.h``
+
+- ``cinn/backends/cuda_util.h``
+
+- ``cinn/common/common.h``
+
+- ``cinn/common/context.h``
+
+- ``cinn/common/object.h``
+
+- ``cinn/common/type.h``
+
+- ``cinn/frontend/paddle/cpp/program_desc.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_paddle_cpp_program_desc.h`)
+
+- ``cinn/frontend/syntax.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_syntax.h`)
+
+- ``cinn/hlir/framework/node.h``
+
+- ``cinn/hlir/framework/scope.h``
+
+- ``glog/logging.h``
+
+- ``memory``
+
+- ``string``
+
+- ``utility``
+
+- ``vector``
+
+
+
+Included By
+-----------
+
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_model_to_program.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_syntax.cc`
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn`
+
+- :ref:`namespace_cinn__frontend`
+
+
+Classes
+-------
+
+
+- :ref:`exhale_class_classcinn_1_1frontend_1_1PaddleModelToProgram`
+

@@ -1,0 +1,13 @@
+.. _exhale_function_remove__identity__test_8cc_1ae3c92cfa425609587927de2cb9fd30b5:
+
+Function cinn::frontend::TEST(RemoveIdentity, cant_remove_by_fetchids)
+======================================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_pass_remove_identity_test.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::TEST(RemoveIdentity, cant_remove_by_fetchids)

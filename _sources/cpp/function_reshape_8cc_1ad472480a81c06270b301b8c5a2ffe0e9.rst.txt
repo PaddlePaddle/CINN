@@ -1,0 +1,13 @@
+.. _exhale_function_reshape_8cc_1ad472480a81c06270b301b8c5a2ffe0e9:
+
+Function CINN_REGISTER_HELPER(reshape)
+======================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_reshape.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: CINN_REGISTER_HELPER(reshape)

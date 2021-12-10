@@ -1,0 +1,16 @@
+.. _exhale_struct_structcinn_1_1lang_1_1detail_1_1for__each__dispatcher:
+
+Template Struct for_each_dispatcher
+===================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_packed_func.h`
+
+
+Struct Documentation
+--------------------
+
+
+.. doxygenstruct:: cinn::lang::detail::for_each_dispatcher
+   :members:
+   :protected-members:
+   :undoc-members:

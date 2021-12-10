@@ -1,0 +1,425 @@
+.. only:: html
+
+    .. note::
+        :class: sphx-glr-download-link-note
+
+        Click :ref:`here <sphx_glr_download_tutorials_net_builder.py>`     to download the full example code
+    .. rst-class:: sphx-glr-example-title
+
+    .. _sphx_glr_tutorials_net_builder.py:
+
+
+Run model by using NetBuilder API
+=========================================================
+
+In this tutorial, we will introduce the ways to build and run a model using NetBuilder APIs.
+
+
+.. code-block:: python
+
+
+    import cinn
+    from cinn import frontend
+    from cinn import common
+    import numpy as np
+    # sphinx_gallery_thumbnail_path = './paddlepaddle.png'
+
+
+
+
+
+
+
+
+Define the NetBuilder.
+-----------------------------
+
+Using NetBuilder is a convenient way to build a model in CINN.
+You can build and run a model by invoking NetBuilder's API as following.
+
+:code:`name`: the ID of NetBuilder
+
+Generally, the API in `NetBuilder` is coarse-grained operator, in other words,
+the DL framework like Paddle's operator.
+
+
+.. code-block:: python
+
+    builder = frontend.NetBuilder(name="batchnorm_conv2d")
+
+
+
+
+
+
+
+
+Define the input variable of the model.
+---------------------------------------------
+
+The input variable should be created by create_input API. Note that the variable
+here is just a placeholder, does not need the actual data.
+
+:code:`type`: the data type of input variable, now support `Void`, `Int`, `UInt`,
+`Float`, `Bool` and `String`, the parameter is the type's bit-widths, here the
+data type is `float32`.
+
+:code:`shape`: The shape of the input variable, note that here does not support
+dynamic shape, so the dimension value should be greater than 0 now.
+
+:code:`id_hint`: the name of variable, the defaule value is `""`
+
+
+.. code-block:: python
+
+    a = builder.create_input(
+        type=common.Float(32), shape=(8, 3, 224, 224), id_hint="x")
+    scale = builder.create_input(type=common.Float(32), shape=[3], id_hint="scale")
+    bias = builder.create_input(type=common.Float(32), shape=[3], id_hint="bias")
+    mean = builder.create_input(type=common.Float(32), shape=[3], id_hint="mean")
+    variance = builder.create_input(
+        type=common.Float(32), shape=[3], id_hint="variance")
+    weight = builder.create_input(
+        type=common.Float(32), shape=(3, 3, 7, 7), id_hint="weight")
+
+
+
+
+
+
+
+
+Build the model by using NetBuilder API
+---------------------------------------------
+
+For convenience, here we build a simple model that only consists of batchnorm and conv2d
+operators. Note that you can find the operator's detailed introduction in another
+document, we won't go into detail here.
+
+
+.. code-block:: python
+
+    y = builder.batchnorm(a, scale, bias, mean, variance, is_test=True)
+    res = builder.conv2d(y[0], weight)
+
+
+
+
+
+
+
+
+Generate the program
+---------------------
+
+After the model building, the `builder` will generate a CINN execution program,
+and you can get it like:
+
+
+.. code-block:: python
+
+    prog = builder.build()
+
+    # You can print the program like:
+    for i in range(prog.size()):
+        print(prog[i])
+
+
+
+
+
+.. rst-class:: sphx-glr-script-out
+
+ Out:
+
+ .. code-block:: none
+
+    var_1936 = batchnorm(x, scale, bias, mean, variance, momentum=0.9, data_layout=NCHW, epsilon=1e-05)
+    var_1937, var_1938, var_1939, var_1940 = conv2d(var_1936, weight, dilation=[1,1], padding=[0,0], groups=1, stride=[1,1], data_format=NCHW, padding_algorithm=EXPLICIT)
+
+
+
+
+Random fake input data
+-----------------------------
+
+Before running, you should read or generate some data to feed the model's input.
+In model building, we just create some placeholder, to get the model's running
+result, here we random some fake input data.
+
+
+.. code-block:: python
+
+    tensor_data = [
+        np.random.random([8, 3, 224, 224]).astype("float32"),  # a
+        np.random.random([3]).astype("float32"),  # scale
+        np.random.random([3]).astype("float32"),  # bias
+        np.random.random([3]).astype("float32"),  # mean
+        np.random.random([3]).astype("float32"),  # variance
+        np.random.random([3, 3, 7, 7]).astype("float32")  # weight
+    ]
+
+
+
+
+
+
+
+
+Set target
+---------------------
+
+The target identified where the model should run, now we support
+two targets:
+
+:code:`DefaultHostTarget`: the model will running at cpu.
+
+:code:`DefaultNVGPUTarget`: the model will running at nv gpu.
+
+
+.. code-block:: python
+
+    if common.is_compiled_with_cuda():
+        target = common.DefaultNVGPUTarget()
+    else:
+        target = common.DefaultHostTarget()
+
+    print("Model running at ", target.arch)
+
+
+
+
+
+.. rst-class:: sphx-glr-script-out
+
+ Out:
+
+ .. code-block:: none
+
+    Model running at  Arch.X86
+
+
+
+
+Run program and print result
+-----------------------------
+
+Finally, you can running model by invoking function `build_and_get_output`.
+The `build_and_get_output` accepts the input data and finally return the results
+of model, it has four parameters:
+
+:code:`target`: the model's irunning target.
+
+:code:`tensor_inputs`: the model's input variable list.
+
+:code:`input_data`: the actual data list, the order of the list must be the same as
+`tensor_inputs`, otherwise, the resulting error.
+
+:code:`tensor_outputs`: the model's output variable list, the ordering of the model's
+result list is the same as `tensor_outputs`, here we just has one result `[res]`.
+
+
+.. code-block:: python
+
+    result = prog.build_and_get_output(
+        target, [a, scale, bias, mean, variance, weight], tensor_data, [res])
+
+    # print result
+    print(result[0].numpy(target))
+
+
+
+
+.. rst-class:: sphx-glr-script-out
+
+ Out:
+
+ .. code-block:: none
+
+    [[[[64.21061  65.87418  65.763626 ... 62.086544 63.49157  65.53303 ]
+       [64.14025  65.211296 67.033356 ... 62.529022 64.42502  64.09968 ]
+       [63.738224 64.96451  66.14069  ... 63.117126 62.211117 65.66262 ]
+       ...
+       [63.095535 65.056694 65.01924  ... 67.621086 67.25922  65.39313 ]
+       [67.37804  66.497055 66.8896   ... 65.56404  65.15102  65.90404 ]
+       [67.88725  64.986244 66.85773  ... 67.588646 65.84995  63.94326 ]]
+
+      [[65.44316  64.73841  64.83346  ... 64.30037  62.358395 64.91036 ]
+       [63.882454 65.606224 65.43626  ... 63.841736 62.967865 64.96206 ]
+       [63.770874 63.706318 65.766    ... 62.54639  62.18338  64.49353 ]
+       ...
+       [62.850582 63.235638 64.68111  ... 66.67826  65.13285  63.668945]
+       [63.416527 65.456535 65.460045 ... 65.349266 65.0273   64.202484]
+       [66.22775  66.3933   66.502785 ... 67.31427  66.4009   64.66886 ]]
+
+      [[63.844772 64.570526 67.84306  ... 65.44192  63.759483 65.41727 ]
+       [65.52162  63.13163  66.24644  ... 62.95075  63.32836  65.40652 ]
+       [62.713535 64.85232  64.39781  ... 62.684242 61.264393 63.6468  ]
+       ...
+       [63.749733 63.313118 65.220665 ... 64.67555  64.28429  63.429855]
+       [64.66327  65.672966 65.91127  ... 66.59814  66.41675  62.218407]
+       [66.08987  64.87791  66.435776 ... 64.942764 65.63665  64.54016 ]]]
+
+
+     [[[65.33502  67.68948  70.222664 ... 64.16574  66.21451  63.910534]
+       [67.21668  70.27901  68.89906  ... 65.914734 66.39628  63.44854 ]
+       [66.13691  67.43127  69.551674 ... 67.83053  67.13604  63.606647]
+       ...
+       [62.888927 62.4449   66.08435  ... 63.813778 64.49621  64.13455 ]
+       [62.714485 63.460377 63.443542 ... 65.504364 65.22315  63.633854]
+       [60.88221  61.99609  64.18818  ... 67.57317  63.88739  64.984825]]
+
+      [[65.8158   66.555374 68.3947   ... 64.85654  65.97814  63.871307]
+       [67.47417  69.401115 68.84686  ... 65.44496  65.72951  63.819645]
+       [66.930916 68.53981  69.7012   ... 65.6145   65.11793  63.23214 ]
+       ...
+       [60.896446 63.432766 64.32712  ... 62.60589  64.35579  63.74778 ]
+       [62.227932 62.526432 65.006325 ... 65.42493  65.16996  64.992195]
+       [60.62861  62.733307 64.37402  ... 65.815735 63.459885 64.65814 ]]
+
+      [[66.93153  69.579025 68.93664  ... 65.828384 65.6525   64.06897 ]
+       [66.163246 70.81012  68.810905 ... 62.173557 65.25158  64.73495 ]
+       [64.74748  68.3087   69.05774  ... 65.6716   66.053795 64.397835]
+       ...
+       [62.686115 63.36768  63.906693 ... 63.413372 64.00317  62.30331 ]
+       [62.747906 64.583336 64.036736 ... 62.62981  64.86014  65.89268 ]
+       [60.61867  61.65107  62.17705  ... 64.854225 64.70435  65.084305]]]
+
+
+     [[[64.94174  66.771614 66.938446 ... 67.786896 67.084915 64.91413 ]
+       [67.10184  65.1236   64.635796 ... 67.294174 65.155426 64.745415]
+       [67.520454 67.36278  67.634254 ... 63.529743 64.632454 65.01379 ]
+       ...
+       [67.81726  66.80193  67.81855  ... 66.03208  68.82197  69.904526]
+       [65.858505 66.2704   68.25018  ... 67.308754 68.77759  68.89406 ]
+       [64.872185 66.77202  68.66664  ... 68.198555 67.05971  70.69848 ]]
+
+      [[63.252125 64.40385  65.60883  ... 67.29087  66.4743   64.443214]
+       [64.25254  63.571995 64.94719  ... 65.648895 65.19868  63.997894]
+       [64.92413  66.69758  67.50838  ... 65.15953  65.790955 64.574554]
+       ...
+       [67.215324 67.30661  66.54261  ... 65.880844 66.32269  71.718925]
+       [67.08474  66.16681  68.4115   ... 65.3705   67.87538  69.04484 ]
+       [64.84895  66.688774 67.53827  ... 66.16066  66.9255   69.62183 ]]
+
+      [[62.78721  65.06047  65.13406  ... 66.698296 66.29232  62.400608]
+       [63.23852  64.40191  64.95087  ... 64.71596  65.15747  64.02088 ]
+       [66.11788  66.94289  67.59539  ... 64.92403  65.36305  64.421745]
+       ...
+       [67.287575 66.02568  67.13354  ... 65.831154 66.74716  69.46794 ]
+       [66.72943  67.41486  68.327515 ... 65.28225  65.9927   67.47927 ]
+       [67.003685 66.0425   65.5558   ... 67.85772  67.6569   68.810646]]]
+
+
+     ...
+
+
+     [[[63.694588 62.26199  61.83     ... 65.53496  64.88153  67.71347 ]
+       [63.488712 63.32245  64.548706 ... 67.31385  65.67268  65.612236]
+       [65.89571  66.18095  65.25311  ... 62.706802 61.816093 64.5208  ]
+       ...
+       [66.32512  65.63474  66.477    ... 65.5236   65.599724 64.34104 ]
+       [64.635735 64.82859  65.3082   ... 66.012    66.03419  65.554344]
+       [65.9153   65.13286  62.77601  ... 63.765034 65.30179  65.033806]]
+
+      [[62.274097 64.04257  61.372715 ... 62.81611  66.13102  66.43024 ]
+       [64.85373  64.605415 65.32786  ... 64.903496 66.03627  65.86199 ]
+       [64.93946  66.910805 64.39615  ... 63.364937 61.465046 64.85767 ]
+       ...
+       [67.57004  65.978676 64.9677   ... 64.99487  64.06782  63.181656]
+       [65.19218  64.64489  65.19761  ... 65.341736 65.09381  63.904823]
+       [64.11554  63.36278  62.97649  ... 64.579384 64.26048  63.886616]]
+
+      [[61.89789  61.686176 61.88436  ... 65.5151   64.89029  63.594837]
+       [63.60202  65.0075   63.844154 ... 63.972744 64.146255 65.63254 ]
+       [64.932335 65.119675 64.48611  ... 64.195076 64.48824  65.36886 ]
+       ...
+       [66.35448  65.45599  66.46198  ... 66.34243  65.56563  63.26848 ]
+       [66.76722  65.985344 64.91838  ... 64.52104  64.80357  64.60007 ]
+       [64.54085  64.89698  62.19807  ... 64.372505 63.232624 63.039307]]]
+
+
+     [[[65.58628  63.869392 64.862045 ... 67.750404 69.58257  69.23643 ]
+       [64.69094  64.62502  67.41977  ... 67.17376  69.6061   66.80603 ]
+       [64.84177  64.335236 64.38397  ... 67.38411  69.00397  66.650955]
+       ...
+       [66.503    67.906    67.164276 ... 67.250275 69.54139  69.22904 ]
+       [67.04268  68.78853  65.86422  ... 65.97626  67.035484 68.45478 ]
+       [66.66594  65.3973   63.978436 ... 67.27534  66.83782  69.50086 ]]
+
+      [[65.22365  63.66067  65.76304  ... 66.27122  67.271965 67.19174 ]
+       [62.788403 65.662605 66.27378  ... 66.27799  67.88811  66.72734 ]
+       [64.356705 64.83886  64.490135 ... 66.951546 67.142654 64.9225  ]
+       ...
+       [65.55766  65.53733  66.93166  ... 65.41886  68.7671   68.47848 ]
+       [67.433075 67.39413  65.73126  ... 64.55822  66.960434 67.14743 ]
+       [65.88007  64.52993  64.2989   ... 66.69211  67.30564  66.69612 ]]
+
+      [[64.358604 66.55761  67.18905  ... 67.6599   68.59939  65.97331 ]
+       [64.82098  65.59143  64.836365 ... 66.90237  66.09527  67.17657 ]
+       [62.944782 61.870182 65.08532  ... 66.02092  66.052505 64.62024 ]
+       ...
+       [66.301796 66.72226  64.88427  ... 64.53576  69.36415  68.59893 ]
+       [66.608055 65.22023  65.69524  ... 66.11945  65.242714 66.69139 ]
+       [65.34541  64.66403  64.816956 ... 67.16862  66.35817  66.159096]]]
+
+
+     [[[66.851395 67.00608  69.871864 ... 69.39379  67.76285  66.236374]
+       [66.72325  66.5247   68.6641   ... 68.47124  67.59652  66.72836 ]
+       [67.63904  69.23317  70.11832  ... 67.446556 68.89914  66.60372 ]
+       ...
+       [64.50224  65.50456  63.95075  ... 66.658005 66.17425  66.342186]
+       [63.51249  64.461876 66.67648  ... 66.59985  68.0495   65.353355]
+       [66.783936 64.5147   64.96     ... 68.439186 68.71028  67.41316 ]]
+
+      [[66.37075  65.40092  67.8999   ... 66.81349  66.59517  66.39605 ]
+       [66.81062  66.77241  67.41805  ... 66.744774 67.376305 67.134384]
+       [68.53302  68.38797  68.63008  ... 66.63543  67.30649  65.81693 ]
+       ...
+       [65.14914  65.002396 64.529785 ... 63.5683   64.75679  66.00108 ]
+       [62.96699  64.07311  64.41331  ... 65.42957  65.47335  66.1259  ]
+       [65.76553  62.319267 64.94397  ... 67.13843  67.50248  66.806725]]
+
+      [[67.84882  66.38261  67.85703  ... 67.98854  68.15967  65.86645 ]
+       [66.88484  67.24917  66.18216  ... 67.00708  68.44356  67.50956 ]
+       [66.47713  67.72405  69.30881  ... 65.11958  67.148895 67.30383 ]
+       ...
+       [64.98839  63.984123 65.399796 ... 65.27653  63.91459  63.56261 ]
+       [64.93015  64.03481  63.511284 ... 65.20006  66.702675 66.842766]
+       [64.527954 64.29129  64.41722  ... 66.38901  64.98556  67.66615 ]]]]
+
+
+
+
+
+.. rst-class:: sphx-glr-timing
+
+   **Total running time of the script:** ( 0 minutes  2.388 seconds)
+
+
+.. _sphx_glr_download_tutorials_net_builder.py:
+
+
+.. only :: html
+
+ .. container:: sphx-glr-footer
+    :class: sphx-glr-footer-example
+
+
+
+  .. container:: sphx-glr-download sphx-glr-download-python
+
+     :download:`Download Python source code: net_builder.py <net_builder.py>`
+
+
+
+  .. container:: sphx-glr-download sphx-glr-download-jupyter
+
+     :download:`Download Jupyter notebook: net_builder.ipynb <net_builder.ipynb>`
+
+
+.. only:: html
+
+ .. rst-class:: sphx-glr-signature
+
+    `Gallery generated by Sphinx-Gallery <https://sphinx-gallery.github.io>`_

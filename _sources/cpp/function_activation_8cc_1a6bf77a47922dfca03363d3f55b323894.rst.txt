@@ -1,0 +1,13 @@
+.. _exhale_function_activation_8cc_1a6bf77a47922dfca03363d3f55b323894:
+
+Function CINN_REGISTER_HELPER(activation_grad_decomposers)
+==========================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_activation.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: CINN_REGISTER_HELPER(activation_grad_decomposers)

@@ -1,0 +1,13 @@
+.. _exhale_function_builtin_8cc_1aa397941e140046ade1da8551968d6e44:
+
+Function cinn::lang::Round
+==========================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_builtin.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::lang::Round(Expr)

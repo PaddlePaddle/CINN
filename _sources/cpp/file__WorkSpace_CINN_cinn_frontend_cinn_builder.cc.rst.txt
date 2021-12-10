@@ -1,0 +1,65 @@
+
+.. _file__WorkSpace_CINN_cinn_frontend_cinn_builder.cc:
+
+File cinn_builder.cc
+====================
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend>` (``/WorkSpace/CINN/cinn/frontend``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/frontend/cinn_builder.cc``)
+--------------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_frontend_cinn_builder.cc.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``cinn/frontend/cinn_builder.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_cinn_builder.h`)
+
+- ``cinn/frontend/syntax.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_syntax.h`)
+
+- ``glog/logging.h``
+
+- ``string``
+
+- ``utility``
+
+- ``vector``
+
+
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn`
+
+- :ref:`namespace_cinn__frontend`
+
+
+Defines
+-------
+
+
+- :ref:`exhale_define_cinn__builder_8cc_1ad988dd96c9f4af5c662852df76b3687e`
+
+- :ref:`exhale_define_cinn__builder_8cc_1ae37088a1b477317866a5025a72a6c3c6`
+

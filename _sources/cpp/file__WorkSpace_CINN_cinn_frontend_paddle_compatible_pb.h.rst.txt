@@ -1,0 +1,81 @@
+
+.. _file__WorkSpace_CINN_cinn_frontend_paddle_compatible_pb.h:
+
+File compatible_pb.h
+====================
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend_paddle>` (``/WorkSpace/CINN/cinn/frontend/paddle``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/frontend/paddle/compatible_pb.h``)
+---------------------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_frontend_paddle_compatible_pb.h.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``cinn/frontend/paddle/cpp/block_desc.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_paddle_cpp_block_desc.h`)
+
+- ``cinn/frontend/paddle/cpp/desc_api.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_paddle_cpp_desc_api.h`)
+
+- ``cinn/frontend/paddle/cpp/op_desc.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_paddle_cpp_op_desc.h`)
+
+- ``cinn/frontend/paddle/cpp/program_desc.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_paddle_cpp_program_desc.h`)
+
+- ``cinn/frontend/paddle/cpp/var_desc.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_paddle_cpp_var_desc.h`)
+
+
+
+Included By
+-----------
+
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_compatible_pb.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_model_parser.cc`
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn__frontend__paddle`
+
+
+Functions
+---------
+
+
+- :ref:`exhale_function_compatible__pb_8h_1a045c831bec6aad6f5f887cecb7a9baf6`
+
+- :ref:`exhale_function_compatible__pb_8h_1a465af1de55fe879bad53e7147fe05ff7`
+
+- :ref:`exhale_function_compatible__pb_8h_1a70b290d25be3e4624305b6829b501965`
+
+- :ref:`exhale_function_compatible__pb_8h_1aa9e4eeaa72e23e826bdef94212c3e169`
+
+- :ref:`exhale_function_compatible__pb_8h_1a75f5e1bfed5cd95efbc63f2d129ed390`
+
+- :ref:`exhale_function_compatible__pb_8h_1a6d7dcd9e9a200c62a232ed8e319df286`
+
+- :ref:`exhale_function_compatible__pb_8h_1aedab425542edc9d83c06984bb604c881`
+
+- :ref:`exhale_function_compatible__pb_8h_1aa3607bd4c98f7dc8b64a9406c5122a1a`
+

@@ -1,0 +1,13 @@
+.. _exhale_function_pb_2op__desc_8cc_1ac645c2e6b5b68a6ba3b03234943afa4c:
+
+Function cinn::frontend::paddle::pb::OpDesc::GetAttr< std::vector< float > >
+============================================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_pb_op_desc.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::paddle::pb::OpDesc::GetAttr< std::vector< float > >(const std::string&)

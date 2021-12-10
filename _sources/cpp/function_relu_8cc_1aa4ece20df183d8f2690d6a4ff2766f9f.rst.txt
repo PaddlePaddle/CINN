@@ -1,0 +1,13 @@
+.. _exhale_function_relu_8cc_1aa4ece20df183d8f2690d6a4ff2766f9f:
+
+Function cinn::frontend::op_mappers::Relu6OpMapper
+==================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_relu.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::op_mappers::Relu6OpMapper(const paddle::cpp::OpDesc&, const OpMapperContext&)

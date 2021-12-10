@@ -1,0 +1,13 @@
+.. _exhale_function_pool2d_8cc_1add1f4e03ca5ed7dc604296567920761e:
+
+Function cinn::frontend::op_mappers::Pool2dOpMapper
+===================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_pool2d.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::op_mappers::Pool2dOpMapper(const paddle::cpp::OpDesc&, const OpMapperContext&)

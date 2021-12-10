@@ -1,0 +1,13 @@
+.. _exhale_function_compatible__pb_8cc_1aafb7cb286160bdacfa58e597eef9ccac:
+
+Function cinn::frontend::paddle::TransformProgramDescAnyToCpp< pb ::ProgramDesc >
+=================================================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_compatible_pb.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::paddle::TransformProgramDescAnyToCpp< pb ::ProgramDesc >(const pb ::ProgramDesc&, cpp::ProgramDesc *)

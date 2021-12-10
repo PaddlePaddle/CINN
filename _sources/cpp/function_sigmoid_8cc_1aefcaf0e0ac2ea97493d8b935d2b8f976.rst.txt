@@ -1,0 +1,13 @@
+.. _exhale_function_sigmoid_8cc_1aefcaf0e0ac2ea97493d8b935d2b8f976:
+
+Function CINN_REGISTER_HELPER(sigmoid)
+======================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_sigmoid.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: CINN_REGISTER_HELPER(sigmoid)
