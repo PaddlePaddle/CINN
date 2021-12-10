@@ -14,15 +14,15 @@
 ```
 
 
-# CINN : a Compiler Infrastructure for Neural Networks
+# CINN : Compiler Infrastructure for Neural Networks
 
 
 [Installation Guide](./docs/guide.md) | 
 [Roadmap](./docs/roadmap.md)
 
-The project CINN is a machine learning compiler and executor for multiple hardwares. 
-It is designed to provide multiple layers of APIs to make DNN computation graph easier to define,  faster to execute, and more convenient to extend with hardware backends.
-Currently, it targets X86 CPUs and NVidia GPUs.
+The project CINN is a machine learning compiler and executor for multiple hardware backends. 
+It is designed to provide multiple layers of APIs to make tensor computation easier to define,  faster to execute, and more convenient to extend with hardware backends.
+Currently, it targets x86 CPUs and Nvidia GPUs.
 
 This project is under active development. 
 
@@ -179,3 +179,10 @@ The C++ API locates in `cinn/*/*_test.cc`, the high level API locates in `hlir/f
 ## License
 
 CINN is licensed under the [Apache 2.0 license](LICENSE).
+
+## Acknowledgement
+CINN learned a lot from the following projects:
+
+- [Halide](https://github.com/halide/Halide): Referenced the design of most IR nodes.
+- [TVM](https://github.com/apache/tvm): We learned many ideas including the semantics of some schedule primitives, TOPI, NNVM, and so on.
+- [tiramisu](https://github.com/Tiramisu-Compiler): The isl usage, polyhedral compilation, schedule primitive implementation, and so on.
