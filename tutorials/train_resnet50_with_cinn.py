@@ -13,16 +13,21 @@
 # limitations under the License.
 """
 Training ResNet50 using Paddle compiled with CINN
-=====================
+===================================================
 
 This is a beginner-friendly tutorial on how to train models using Paddle compiled with CINN.
 This tutorial assumes that you have installed Paddle compiled with CINN. Otherwise, please
 enable the ``-DWITH_CINN`` compilation option to recompile Paddle and reinstall it.
+
+Here is a compiled wheel package: ``URL of Wheel package``, you can use it in 
+``registry.baidubce.com/paddlepaddle/paddle:latest-dev-cuda11.2-cudnn8-gcc82`` docker image 
+with ``Python3.6``.
 """
 
 import os
 import numpy as np
 import paddle
+# sphinx_gallery_thumbnail_path = './paddlepaddle.png'
 
 ##################################################################
 #

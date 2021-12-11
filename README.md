@@ -61,7 +61,7 @@ computation = builder.build()
 ```
 
 ### Build a Network by CinnBuilder
-You can also build and run a model by using NetCinnBuilderBuilder APIs. Note that `CinnBuilder`'s APIs have much finer granularity than NetBuilder's.
+You can also build and run a model by using NetCinnBuilderBuilder APIs. Note that CinnBuilder's APIs have much finer granularity than NetBuilder's.
 ```python
 # Define the CinnBuilder.
 builder = frontend.CinnBuilder(name="network")
