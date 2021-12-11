@@ -45,14 +45,6 @@ C++ APIs
    cpp/library_root.rst
 
 
-CINNRT
--------
-TBD
-
-
-
-
-
 Indices and tables
 ==================
 

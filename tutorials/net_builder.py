@@ -119,7 +119,7 @@ tensor_data = [
     np.random.random([3, 3, 7, 7]).astype("float32")  # weight
 ]
 
-computation.get_tensor("a").from_numpy(tensor_data[0], target)
+computation.get_tensor("x").from_numpy(tensor_data[0], target)
 computation.get_tensor("scale").from_numpy(tensor_data[1], target)
 computation.get_tensor("bias").from_numpy(tensor_data[2], target)
 computation.get_tensor("mean").from_numpy(tensor_data[3], target)
@@ -135,7 +135,7 @@ computation.get_tensor("weight").from_numpy(tensor_data[5], target)
 # After that, you can get the tensor you want by `get_tensor` with tensor's name.
 computation.execute()
 res_tensor = computation.get_tensor(str(res))
-res_data = res_tensor.numpy(self.target)
+res_data = res_tensor.numpy(target)
 
 # print result
 print(res_data)
