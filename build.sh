@@ -106,8 +106,7 @@ function prepare_ci {
   pip install clang-format==9.0
   pip install wheel
   pip install sphinx==3.3.1 sphinx_gallery==0.8.1 recommonmark==0.6.0 exhale scipy breathe==4.24.0 matplotlib sphinx_rtd_theme
-  wget https://paddle-inference-dist.bj.bcebos.com/CINN/paddlepaddle_gpu-0.0.0-cp36-cp36m-linux_x86_64.whl
-  pip install paddlepaddle_gpu-0.0.0-cp36-cp36m-linux_x86_64.whl
+  pip install paddlepaddle-gpu==2.1.2.post101 -f https://www.paddlepaddle.org.cn/whl/linux/mkl/avx/stable.html
 }
 
 function prepare_doc_model_file {

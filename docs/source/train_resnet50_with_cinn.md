@@ -1,30 +1,16 @@
-# Copyright (c) 2021 CINN Authors. All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-"""
-Training ResNet50 using Paddle compiled with CINN
-===================================================
+# Training ResNet50 using Paddle compiled with CINN
 
 This is a beginner-friendly tutorial on how to train models using Paddle compiled with CINN.
 This tutorial assumes that you have installed Paddle compiled with CINN. Otherwise, please
 enable the ``-DWITH_CINN`` compilation option to recompile Paddle and reinstall it.
 
 Here is a compiled wheel package: 
-``https://paddle-inference-dist.bj.bcebos.com/CINN/paddlepaddle_gpu-0.0.0-cp36-cp36m-linux_x86_64.whl``,
+`https://paddle-inference-dist.bj.bcebos.com/CINN/paddlepaddle_gpu-0.0.0-cp36-cp36m-linux_x86_64.whl`,
 you can use it in 
-``registry.baidubce.com/paddlepaddle/paddle:latest-dev-cuda11.2-cudnn8-gcc82`` docker image with ``Python3.6``.
-"""
+`registry.baidubce.com/paddlepaddle/paddle:latest-dev-cuda11.2-cudnn8-gcc82` docker image with `Python3.6`.
 
+## Python Script
+```python
 import os
 import numpy as np
 import paddle
@@ -132,3 +118,4 @@ with paddle.static.scope_guard(scope):
             fetch_list=[loss],
             return_numpy=True)
         print("Train step: {} loss: {}".format(step, loss_v[0][0]))
+```
