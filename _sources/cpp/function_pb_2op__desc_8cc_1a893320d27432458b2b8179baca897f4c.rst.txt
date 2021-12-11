@@ -1,0 +1,13 @@
+.. _exhale_function_pb_2op__desc_8cc_1a893320d27432458b2b8179baca897f4c:
+
+Function cinn::frontend::paddle::pb::GetFindAttr
+================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_pb_op_desc.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::paddle::pb::GetFindAttr(const framework_proto::OpDesc&, const std::string&)

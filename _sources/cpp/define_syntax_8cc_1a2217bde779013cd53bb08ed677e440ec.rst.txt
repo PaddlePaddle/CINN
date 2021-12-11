@@ -1,0 +1,13 @@
+.. _exhale_define_syntax_8cc_1a2217bde779013cd53bb08ed677e440ec:
+
+Define SYNTAX_PRIM_UNARY_IMPL
+=============================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_syntax.cc`
+
+
+Define Documentation
+--------------------
+
+
+.. doxygendefine:: SYNTAX_PRIM_UNARY_IMPL

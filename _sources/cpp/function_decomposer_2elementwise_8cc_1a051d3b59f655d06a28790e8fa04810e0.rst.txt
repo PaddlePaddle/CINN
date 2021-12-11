@@ -1,0 +1,13 @@
+.. _exhale_function_decomposer_2elementwise_8cc_1a051d3b59f655d06a28790e8fa04810e0:
+
+Function cinn::frontend::decomposer::sum
+========================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_elementwise.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::decomposer::sum(const Instruction&, const DecomposerContext&)

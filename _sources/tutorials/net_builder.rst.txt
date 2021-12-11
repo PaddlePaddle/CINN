@@ -1,0 +1,409 @@
+.. only:: html
+
+    .. note::
+        :class: sphx-glr-download-link-note
+
+        Click :ref:`here <sphx_glr_download_tutorials_net_builder.py>`     to download the full example code
+    .. rst-class:: sphx-glr-example-title
+
+    .. _sphx_glr_tutorials_net_builder.py:
+
+
+Run model by using NetBuilder API
+=========================================================
+
+In this tutorial, we will introduce the ways to build and run a model using NetBuilder APIs.
+
+
+.. code-block:: python
+
+
+    import cinn
+    from cinn import frontend
+    from cinn import common
+    import numpy as np
+    # sphinx_gallery_thumbnail_path = './paddlepaddle.png'
+
+
+
+
+
+
+
+
+Define the NetBuilder.
+-----------------------------
+
+Using NetBuilder is a convenient way to build a model in CINN.
+You can build and run a model by invoking NetBuilder's API as following.
+
+:code:`name`: the ID of NetBuilder
+
+Generally, the API in `NetBuilder` is coarse-grained operator, in other words,
+the DL framework like Paddle's operator.
+
+
+.. code-block:: python
+
+    builder = frontend.NetBuilder(name="batchnorm_conv2d")
+
+
+
+
+
+
+
+
+Define the input variable of the model.
+---------------------------------------------
+
+The input variable should be created by create_input API. Note that the variable
+here is just a placeholder, does not need the actual data.
+
+:code:`type`: the data type of input variable, now support `Void`, `Int`, `UInt`,
+`Float`, `Bool` and `String`, the parameter is the type's bit-widths, here the
+data type is `float32`.
+
+:code:`shape`: The shape of the input variable, note that here does not support
+dynamic shape, so the dimension value should be greater than 0 now.
+
+:code:`id_hint`: the name of variable, the defaule value is `""`
+
+
+.. code-block:: python
+
+    a = builder.create_input(
+        type=common.Float(32), shape=(8, 3, 224, 224), id_hint="x")
+    scale = builder.create_input(type=common.Float(32), shape=[3], id_hint="scale")
+    bias = builder.create_input(type=common.Float(32), shape=[3], id_hint="bias")
+    mean = builder.create_input(type=common.Float(32), shape=[3], id_hint="mean")
+    variance = builder.create_input(
+        type=common.Float(32), shape=[3], id_hint="variance")
+    weight = builder.create_input(
+        type=common.Float(32), shape=(3, 3, 7, 7), id_hint="weight")
+
+
+
+
+
+
+
+
+Build the model by using NetBuilder API
+---------------------------------------------
+
+For convenience, here we build a simple model that only consists of batchnorm and conv2d
+operators. Note that you can find the operator's detailed introduction in another
+document, we won't go into detail here.
+
+
+.. code-block:: python
+
+    y = builder.batchnorm(a, scale, bias, mean, variance, is_test=True)
+    res = builder.conv2d(y[0], weight)
+
+
+
+
+
+
+
+
+Set target
+---------------------
+
+The target identified where the model should run, now we support
+two targets:
+
+:code:`DefaultHostTarget`: the model will running at cpu.
+
+:code:`DefaultNVGPUTarget`: the model will running at nv gpu.
+
+
+.. code-block:: python
+
+    if common.is_compiled_with_cuda():
+        target = common.DefaultNVGPUTarget()
+    else:
+        target = common.DefaultHostTarget()
+
+    print("Model running at ", target.arch)
+
+
+
+
+
+.. rst-class:: sphx-glr-script-out
+
+ Out:
+
+ .. code-block:: none
+
+    Model running at  Arch.X86
+
+
+
+
+Generate the program
+---------------------
+
+After the model building, the `Computation` will generate a CINN execution program,
+and you can get it like:
+
+
+.. code-block:: python
+
+    computation = frontend.Computation.build_and_compile(target, builder)
+
+
+
+
+
+
+
+
+Random fake input data
+-----------------------------
+
+Before running, you should read or generate some data to feed the model's input.
+:code:`get_tensor`: Get the tensor with specific name in computation.
+:code:`from_numpy`: Fill the tensor with numpy data.
+
+
+.. code-block:: python
+
+    tensor_data = [
+        np.random.random([8, 3, 224, 224]).astype("float32"),  # a
+        np.random.random([3]).astype("float32"),  # scale
+        np.random.random([3]).astype("float32"),  # bias
+        np.random.random([3]).astype("float32"),  # mean
+        np.random.random([3]).astype("float32"),  # variance
+        np.random.random([3, 3, 7, 7]).astype("float32")  # weight
+    ]
+
+    computation.get_tensor("x").from_numpy(tensor_data[0], target)
+    computation.get_tensor("scale").from_numpy(tensor_data[1], target)
+    computation.get_tensor("bias").from_numpy(tensor_data[2], target)
+    computation.get_tensor("mean").from_numpy(tensor_data[3], target)
+    computation.get_tensor("variance").from_numpy(tensor_data[4], target)
+    computation.get_tensor("weight").from_numpy(tensor_data[5], target)
+
+
+
+
+
+
+
+
+Run program and print result
+-----------------------------
+
+Finally, you can run the model by invoking function `execute()`.
+After that, you can get the tensor you want by `get_tensor` with tensor's name.
+
+
+.. code-block:: python
+
+    computation.execute()
+    res_tensor = computation.get_tensor(str(res))
+    res_data = res_tensor.numpy(target)
+
+    # print result
+    print(res_data)
+
+
+
+
+.. rst-class:: sphx-glr-script-out
+
+ Out:
+
+ .. code-block:: none
+
+    [[[[28.749847 29.850624 31.429333 ... 30.122839 29.969526 28.027552]
+       [30.61519  30.011799 30.447334 ... 30.823236 30.017126 28.561655]
+       [30.0859   30.386305 29.655466 ... 30.20463  28.586731 29.266693]
+       ...
+       [28.9264   29.939413 30.267277 ... 29.854618 30.412045 30.143436]
+       [29.056164 29.665678 30.194593 ... 29.324219 29.187155 29.944902]
+       [30.102419 30.954317 30.11104  ... 28.481743 29.882372 28.838732]]
+
+      [[30.335478 30.933086 31.233685 ... 31.259287 31.086895 29.570866]
+       [30.858921 30.841824 31.255213 ... 31.971382 30.333147 28.83098 ]
+       [31.218742 31.468792 31.05461  ... 30.859098 29.667854 29.458086]
+       ...
+       [30.597202 30.534637 31.001907 ... 31.265932 29.7402   32.159363]
+       [29.91013  31.708786 29.96735  ... 30.42579  30.300573 30.968344]
+       [30.936155 31.134203 31.605473 ... 30.431269 30.747732 30.092297]]
+
+      [[30.93821  31.035418 30.705345 ... 32.265907 30.666124 29.539421]
+       [31.708748 30.971823 32.178387 ... 31.507505 30.750427 30.42392 ]
+       [31.363758 31.82548  31.683718 ... 31.223997 30.92353  29.734896]
+       ...
+       [31.284124 31.585058 32.3996   ... 31.635775 31.387901 32.75071 ]
+       [29.936295 31.203606 31.425093 ... 30.596405 30.358305 31.150213]
+       [31.93663  32.301445 31.634233 ... 30.5537   30.125372 31.075726]]]
+
+
+     [[[29.77129  29.273878 29.655527 ... 28.046106 28.508419 27.760897]
+       [28.969275 28.035688 28.994213 ... 28.092083 29.165281 28.626905]
+       [28.250513 28.991755 29.212002 ... 28.813318 28.95741  27.620306]
+       ...
+       [28.63259  29.057596 29.931534 ... 31.653664 29.155024 30.675997]
+       [29.274769 29.62867  29.473822 ... 30.97984  29.173128 29.912157]
+       [28.431553 28.736977 30.474586 ... 30.542727 29.471992 30.491873]]
+
+      [[30.420574 29.894527 29.964548 ... 29.169611 29.824362 29.050755]
+       [29.819757 29.160643 29.942575 ... 29.20645  29.613861 29.268124]
+       [29.752121 29.806421 30.391582 ... 30.066904 28.8355   29.55655 ]
+       ...
+       [30.08727  30.981785 29.698587 ... 31.362892 30.523943 30.958809]
+       [29.281261 30.653126 30.9507   ... 31.364388 29.79489  31.234428]
+       [29.586845 30.052378 30.521492 ... 31.732552 30.52888  31.058424]]
+
+      [[32.015236 30.436935 30.688087 ... 29.973248 29.277584 30.17033 ]
+       [29.353708 30.388977 31.11296  ... 30.116472 30.714655 29.506117]
+       [31.332394 31.22406  30.190077 ... 29.919262 30.634848 29.785511]
+       ...
+       [31.086016 30.696386 31.664661 ... 32.5939   31.484915 31.203974]
+       [30.309376 31.08987  31.406803 ... 32.071056 31.357807 31.860943]
+       [30.482038 30.107275 30.960417 ... 32.657635 30.927221 31.705503]]]
+
+
+     [[[29.668583 30.082342 29.879883 ... 29.642227 29.989868 29.56302 ]
+       [31.387331 31.152864 30.811146 ... 28.720127 30.20219  28.937254]
+       [30.952997 32.207043 31.28855  ... 28.84716  29.23252  28.49373 ]
+       ...
+       [30.07196  30.751898 30.532219 ... 30.6141   30.062277 31.055412]
+       [30.591005 28.643654 31.20873  ... 31.378647 30.067123 31.0305  ]
+       [29.227821 29.712708 30.252415 ... 29.500467 29.842466 29.578775]]
+
+      [[31.304295 31.20133  30.63783  ... 30.085825 30.568085 30.796713]
+       [31.2785   32.96904  31.658213 ... 29.75245  30.006058 30.446796]
+       [32.35499  32.003643 32.301323 ... 30.00387  29.535519 29.39978 ]
+       ...
+       [31.3799   31.383972 31.318085 ... 31.976234 31.112928 31.88864 ]
+       [29.875843 30.300379 30.957405 ... 30.390043 30.510677 31.072042]
+       [30.669502 30.87405  31.49751  ... 30.595755 30.64074  30.900713]]
+
+      [[30.90797  31.573671 30.643448 ... 31.60877  31.55716  31.438343]
+       [32.431118 32.65833  32.314445 ... 30.421375 31.07556  30.606047]
+       [32.242283 33.20256  33.53171  ... 30.71262  31.450459 31.422508]
+       ...
+       [31.957462 32.080006 32.205765 ... 31.686039 32.160263 31.915176]
+       [31.552704 30.816437 31.905067 ... 31.78273  31.914959 32.58367 ]
+       [30.53884  32.030636 31.500313 ... 30.552084 30.309715 32.113747]]]
+
+
+     ...
+
+
+     [[[30.445515 30.664064 29.729097 ... 29.48983  30.545523 29.011133]
+       [31.056726 30.411245 30.536736 ... 29.02146  30.652176 29.154144]
+       [30.277758 30.718267 29.621946 ... 29.461607 30.018602 29.70048 ]
+       ...
+       [29.138504 28.03326  28.298391 ... 30.135057 30.514122 30.100056]
+       [28.27958  28.574032 29.527203 ... 29.029034 30.99209  30.356611]
+       [28.073622 29.32262  29.122663 ... 30.688313 29.486237 29.812319]]
+
+      [[31.355732 30.791489 31.113453 ... 31.12807  31.148956 30.24674 ]
+       [31.694115 31.499308 31.48577  ... 30.592405 29.836142 30.108797]
+       [30.983654 30.175524 29.538382 ... 29.795788 31.561613 30.161291]
+       ...
+       [28.737085 29.14919  29.88199  ... 30.600264 31.455969 31.248339]
+       [29.42644  29.761637 30.686148 ... 30.904755 31.564087 30.155117]
+       [29.487589 30.399782 30.596258 ... 31.267847 30.173294 30.984222]]
+
+      [[32.061943 31.863522 30.662474 ... 31.956785 32.156555 31.13415 ]
+       [32.73884  32.205673 31.622269 ... 30.446499 32.26097  30.146505]
+       [31.846899 31.26842  31.752829 ... 30.95318  30.857328 30.7594  ]
+       ...
+       [30.570215 30.341059 29.67729  ... 31.954985 30.436703 30.461863]
+       [29.806501 29.938822 29.971226 ... 30.708668 31.941156 31.411768]
+       [30.09203  31.254482 31.253733 ... 31.749905 31.435629 31.154377]]]
+
+
+     [[[30.12246  29.297    27.872524 ... 29.767605 30.081062 30.004143]
+       [28.243847 27.944511 27.453339 ... 30.436647 29.544422 31.43487 ]
+       [28.868979 26.614748 29.119856 ... 31.117674 31.048006 31.263418]
+       ...
+       [30.075834 29.741142 29.632868 ... 30.040838 28.980698 28.852919]
+       [31.334427 29.323631 28.577415 ... 29.974468 28.92464  29.867199]
+       [30.198933 29.71317  28.740295 ... 29.652569 29.53792  30.057251]]
+
+      [[30.01251  28.590961 28.443926 ... 30.965115 30.1842   31.415419]
+       [29.119041 28.901867 28.880037 ... 31.84786  31.76703  32.29701 ]
+       [29.565216 28.805456 29.010696 ... 31.395744 31.666384 32.40063 ]
+       ...
+       [30.840841 31.176064 29.428059 ... 30.112091 30.026466 29.948666]
+       [30.668123 30.018005 29.787653 ... 30.612139 30.33817  30.588697]
+       [30.23012  30.649326 28.935633 ... 30.462505 30.731884 30.348337]]
+
+      [[31.507204 29.830566 29.618742 ... 31.206083 30.892466 30.96647 ]
+       [30.50485  30.48535  28.419514 ... 31.996824 32.225235 32.645554]
+       [31.062666 28.632153 29.36085  ... 31.315046 31.993128 32.356705]
+       ...
+       [31.5055   31.889147 30.657175 ... 30.960226 31.309576 29.962675]
+       [31.494522 31.579962 30.879665 ... 32.298214 30.668106 30.776213]
+       [31.66101  30.175793 30.705032 ... 31.668266 31.317823 30.852798]]]
+
+
+     [[[30.127926 29.17017  30.170439 ... 29.792038 27.956446 29.587778]
+       [30.117449 29.157154 29.4427   ... 28.567156 28.342327 29.146955]
+       [30.377316 28.623692 28.67511  ... 29.110956 28.613136 29.291864]
+       ...
+       [30.231083 29.094553 29.738049 ... 31.391819 31.297653 31.795954]
+       [31.299297 28.892817 30.02199  ... 31.112875 30.868315 31.67919 ]
+       [30.659563 29.652786 30.145123 ... 31.884024 30.834557 31.979187]]
+
+      [[30.854548 30.559572 30.504114 ... 30.063784 29.372025 29.962803]
+       [29.997507 30.246643 29.753689 ... 29.460512 29.027706 29.639612]
+       [30.642447 30.249262 28.917496 ... 30.12343  29.212296 30.512997]
+       ...
+       [31.394236 30.637856 31.24858  ... 32.41612  31.969446 32.0994  ]
+       [31.066124 29.853136 30.46978  ... 32.16918  31.517551 32.92909 ]
+       [31.125576 31.470592 31.394138 ... 31.329214 32.05811  31.178566]]
+
+      [[31.58441  31.024902 30.334774 ... 29.977602 29.944197 30.059267]
+       [31.820728 30.52596  30.603119 ... 30.775507 30.180136 29.578396]
+       [31.258533 29.032503 30.386215 ... 29.788109 29.983074 29.889692]
+       ...
+       [30.871603 31.951204 31.3501   ... 33.666817 33.07376  31.996227]
+       [31.32885  30.678782 31.415644 ... 32.58962  32.603897 32.740265]
+       [31.580679 31.943861 32.204548 ... 33.135677 32.384106 31.869476]]]]
+
+
+
+
+
+.. rst-class:: sphx-glr-timing
+
+   **Total running time of the script:** ( 0 minutes  2.262 seconds)
+
+
+.. _sphx_glr_download_tutorials_net_builder.py:
+
+
+.. only :: html
+
+ .. container:: sphx-glr-footer
+    :class: sphx-glr-footer-example
+
+
+
+  .. container:: sphx-glr-download sphx-glr-download-python
+
+     :download:`Download Python source code: net_builder.py <net_builder.py>`
+
+
+
+  .. container:: sphx-glr-download sphx-glr-download-jupyter
+
+     :download:`Download Jupyter notebook: net_builder.ipynb <net_builder.ipynb>`
+
+
+.. only:: html
+
+ .. rst-class:: sphx-glr-signature
+
+    `Gallery generated by Sphinx-Gallery <https://sphinx-gallery.github.io>`_

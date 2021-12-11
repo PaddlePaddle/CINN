@@ -1,0 +1,13 @@
+.. _exhale_function_syntax_8cc_1a9ac188b66efd83b3361892618785d1ec:
+
+Function cinn::frontend::operator<<(std::ostream&, const Instruction&)
+======================================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_syntax.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::operator<<(std::ostream&, const Instruction&)

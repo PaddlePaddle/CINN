@@ -1,0 +1,13 @@
+.. _exhale_function_interpreter__test_8cc_1af7a67b387777da056a1f9bec36e3f777:
+
+Function cinn::frontend::TEST(Interpreter, basic)
+=================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_interpreter_test.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::TEST(Interpreter, basic)

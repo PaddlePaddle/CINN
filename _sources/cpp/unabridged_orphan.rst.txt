@@ -1,0 +1,602 @@
+:orphan:
+
+
+Full API
+========
+
+Directories
+***********
+
+
+.. toctree::
+   :maxdepth: 5
+
+   dir__WorkSpace_CINN_cinn.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   dir__WorkSpace_CINN_cinn_frontend.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   dir__WorkSpace_CINN_cinn_frontend_decomposer.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   dir__WorkSpace_CINN_cinn_frontend_op_mappers.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   dir__WorkSpace_CINN_cinn_frontend_paddle.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   dir__WorkSpace_CINN_cinn_frontend_paddle_cpp.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   dir__WorkSpace_CINN_cinn_frontend_paddle_pb.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   dir__WorkSpace_CINN_cinn_frontend_pass.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   dir__WorkSpace_CINN_cinn_lang.rst
+
+Files
+*****
+
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_decomposer_activation.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_decomposer_activation_test.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_base_builder.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_base_builder.h.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_decomposer_batch_norm.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_decomposer_batch_norm_test.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_op_mappers_batchnorm.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_paddle_cpp_block_desc.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_paddle_pb_block_desc.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_paddle_cpp_block_desc.h.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_paddle_pb_block_desc.h.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_decomposer_broadcast.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_decomposer_broadcast_test.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_lang_buffer.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_lang_buffer.h.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_lang_builtin.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_lang_builtin.h.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_cinn_builder.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_cinn_builder.h.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_cinn_builder_test.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_op_mappers_common_utils.h.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_paddle_compatible_pb.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_paddle_compatible_pb.h.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_computation.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_computation.h.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_computation_test.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_lang_compute.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_lang_compute.h.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_lang_compute_test.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_op_mappers_conv2d.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_decomposer_conv2d_grad.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_decomposer_conv2d_grad_test.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_pass_decomposer.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_decomposer_registry.h.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_decomposer_registry_test.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_pass_decomposer_test.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_paddle_cpp_desc_api.h.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_op_mappers_dropout.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_decomposer_elementwise.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_op_mappers_elementwise.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_decomposer_elementwise_test.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_op_mappers_fetch_feed.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_interpreter.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_interpreter.h.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_interpreter_test.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_lang_lower.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_lang_lower.h.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_lang_lower_impl.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_lang_lower_impl.h.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_lang_lower_impl_test.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_lang_lower_test.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_paddle_model_parser.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_paddle_model_parser.h.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_paddle_model_parser_test.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_op_mappers_mul.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_net_builder.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_net_builder.h.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_net_builder_test.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_paddle_cpp_op_desc.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_paddle_pb_op_desc.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_paddle_cpp_op_desc.h.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_paddle_pb_op_desc.h.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_op_mapper_registry.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_op_mapper_registry.h.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_op_mapper_registry_test.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_lang_packed_func.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_lang_packed_func.h.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_lang_packed_func_test.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_paddle_model_convertor.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_paddle_model_convertor.h.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_paddle_model_convertor_test.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_paddle_model_to_program.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_paddle_model_to_program.h.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_lang_placeholder.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_lang_placeholder.h.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_lang_placeholder_test.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_op_mappers_pool2d.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_paddle_cpp_program_desc.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_paddle_pb_program_desc.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_paddle_cpp_program_desc.h.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_paddle_pb_program_desc.h.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_program_pass.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_program_pass.h.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_paddle_README.md.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_lang_README.md.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_op_mappers_relu.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_pass_remove_identity.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_pass_remove_identity_test.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_op_mappers_reshape.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_op_mappers_scale.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_op_mappers_sigmoid.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_op_mappers_slice.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_op_mappers_softmax.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_syntax.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_syntax.h.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_syntax_test.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_decomposer_test_helper.h.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_op_mappers_transpose.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_decomposer_use_decomposer.h.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_op_mappers_use_op_mappers.h.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_pass_use_program_pass.h.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_paddle_cpp_var_desc.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_paddle_pb_var_desc.cc.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_paddle_cpp_var_desc.h.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_paddle_pb_var_desc.h.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   file__WorkSpace_CINN_cinn_frontend_var_type_utils.h.rst
+
+Pages
+*****
+
+
+.. toctree::
+   :maxdepth: 5
+
+   page_md__WorkSpace_CINN_cinn_frontend_paddle_README.rst
+
+.. toctree::
+   :maxdepth: 5
+
+   page_md__WorkSpace_CINN_cinn_lang_README.rst

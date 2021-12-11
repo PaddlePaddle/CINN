@@ -1,0 +1,13 @@
+.. _exhale_function_common__utils_8h_1a6338f2b431b89bf785f90b972a06ce3c:
+
+Template Function cinn::frontend::utils::GetAttrOrDefault
+=========================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_common_utils.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::utils::GetAttrOrDefault(const paddle::cpp::OpDesc&, const std::string&, const T&)

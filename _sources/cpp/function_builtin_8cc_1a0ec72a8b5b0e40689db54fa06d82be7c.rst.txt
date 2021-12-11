@@ -1,0 +1,13 @@
+.. _exhale_function_builtin_8cc_1a0ec72a8b5b0e40689db54fa06d82be7c:
+
+Function cinn::lang::Erf
+========================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_builtin.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::lang::Erf(Expr)

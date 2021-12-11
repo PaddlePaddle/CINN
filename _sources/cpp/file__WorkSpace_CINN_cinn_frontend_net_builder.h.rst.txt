@@ -1,0 +1,81 @@
+
+.. _file__WorkSpace_CINN_cinn_frontend_net_builder.h:
+
+File net_builder.h
+==================
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend>` (``/WorkSpace/CINN/cinn/frontend``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/frontend/net_builder.h``)
+------------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_frontend_net_builder.h.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``cinn/frontend/base_builder.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_base_builder.h`)
+
+- ``cinn/frontend/syntax.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_syntax.h`)
+
+- ``string``
+
+- ``vector``
+
+
+
+Included By
+-----------
+
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_computation_test.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_conv2d_grad_test.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_test_helper.h`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_net_builder.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_net_builder_test.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mapper_registry.h`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_model_convertor.h`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_pass_decomposer_test.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_pass_remove_identity_test.cc`
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn`
+
+- :ref:`namespace_cinn__frontend`
+
+
+Classes
+-------
+
+
+- :ref:`exhale_class_classcinn_1_1frontend_1_1NetBuilder`
+

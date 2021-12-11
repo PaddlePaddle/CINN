@@ -1,0 +1,94 @@
+
+.. _file__WorkSpace_CINN_cinn_frontend_paddle_model_parser.cc:
+
+File model_parser.cc
+====================
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend_paddle>` (``/WorkSpace/CINN/cinn/frontend/paddle``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/frontend/paddle/model_parser.cc``)
+---------------------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_frontend_paddle_model_parser.cc.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``cinn/backends/codegen_cuda_dev.h``
+
+- ``cinn/backends/codegen_cuda_host.h``
+
+- ``cinn/backends/codegen_cuda_util.h``
+
+- ``cinn/backends/cuda_util.h``
+
+- ``cinn/common/common.h``
+
+- ``cinn/frontend/paddle/compatible_pb.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_paddle_compatible_pb.h`)
+
+- ``cinn/frontend/paddle/model_parser.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_paddle_model_parser.h`)
+
+- ``fstream``
+
+- ``vector``
+
+
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn__frontend__paddle`
+
+
+Functions
+---------
+
+
+- :ref:`exhale_function_model__parser_8cc_1abb1d2fab1d078f8509844845ab517f5b`
+
+- :ref:`exhale_function_model__parser_8cc_1a9b5dc2fa64c34360bb657e743fd417a2`
+
+- :ref:`exhale_function_model__parser_8cc_1a1c8f125201b72dfa38ed742c0452c314`
+
+- :ref:`exhale_function_model__parser_8cc_1ac65e7db2fb857859d351fd51943295e0`
+
+- :ref:`exhale_function_model__parser_8cc_1a106926687c9bdd5315725253a6ef8e52`
+
+- :ref:`exhale_function_model__parser_8cc_1af4e466cfca98b9d898f9df735d8111db`
+
+- :ref:`exhale_function_model__parser_8cc_1aa68c94de9d1b854eaff5ca1ad5c7880c`
+
+- :ref:`exhale_function_model__parser_8cc_1a6c8d9fb9ea3d50032362577e942e268e`
+
+- :ref:`exhale_function_model__parser_8cc_1a7851ba4e8e763f35808fca91c882adfd`
+
+- :ref:`exhale_function_model__parser_8cc_1a7800a3126a3263fee2533cd6eb460541`
+
+
+Defines
+-------
+
+
+- :ref:`exhale_define_model__parser_8cc_1a26c26fa8bfe12d1267727a411c33698f`
+
+- :ref:`exhale_define_model__parser_8cc_1a0f28dbefa465b98c297f441870985bd6`
+

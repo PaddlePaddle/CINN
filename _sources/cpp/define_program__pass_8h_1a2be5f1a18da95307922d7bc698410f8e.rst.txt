@@ -1,0 +1,13 @@
+.. _exhale_define_program__pass_8h_1a2be5f1a18da95307922d7bc698410f8e:
+
+Define CINN_REGISTER_PROGRAM_PASS
+=================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_program_pass.h`
+
+
+Define Documentation
+--------------------
+
+
+.. doxygendefine:: CINN_REGISTER_PROGRAM_PASS

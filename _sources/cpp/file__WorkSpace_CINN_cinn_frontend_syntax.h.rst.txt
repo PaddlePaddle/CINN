@@ -1,0 +1,159 @@
+
+.. _file__WorkSpace_CINN_cinn_frontend_syntax.h:
+
+File syntax.h
+=============
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend>` (``/WorkSpace/CINN/cinn/frontend``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/frontend/syntax.h``)
+-------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_frontend_syntax.h.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``absl/container/flat_hash_map.h``
+
+- ``absl/container/flat_hash_set.h``
+
+- ``absl/strings/string_view.h``
+
+- ``cinn/common/common.h``
+
+- ``cinn/common/context.h``
+
+- ``cinn/common/object.h``
+
+- ``cinn/common/type.h``
+
+- ``cinn/hlir/framework/node.h``
+
+- ``cinn/hlir/framework/scope.h``
+
+- ``glog/logging.h``
+
+- ``memory``
+
+- ``string``
+
+- ``tuple``
+
+- ``utility``
+
+- ``vector``
+
+
+
+Included By
+-----------
+
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_base_builder.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_base_builder.h`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_cinn_builder.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_cinn_builder.h`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_cinn_builder_test.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_computation.h`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_activation.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_batch_norm.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_broadcast.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_conv2d_grad_test.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_elementwise.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_registry.h`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_interpreter.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_interpreter.h`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_net_builder.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_net_builder.h`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_net_builder_test.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mapper_registry.h`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_model_convertor.h`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_model_to_program.h`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_program_pass.h`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_syntax.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_syntax_test.cc`
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn`
+
+- :ref:`namespace_cinn__frontend`
+
+
+Classes
+-------
+
+
+- :ref:`exhale_struct_structcinn_1_1frontend_1_1__Instruction__`
+
+- :ref:`exhale_struct_structcinn_1_1frontend_1_1__Variable__`
+
+- :ref:`exhale_struct_structcinn_1_1frontend_1_1Instruction`
+
+- :ref:`exhale_struct_structcinn_1_1frontend_1_1Program`
+
+- :ref:`exhale_struct_structcinn_1_1frontend_1_1Variable`
+
+- :ref:`exhale_class_classcinn_1_1frontend_1_1Placeholder`
+
+
+Functions
+---------
+
+
+- :ref:`exhale_function_syntax_8h_1a12700b84819e3a09772b8f772e3f2a18`
+
+
+Defines
+-------
+
+
+- :ref:`exhale_define_syntax_8h_1aeb4d35261d9632e0b32729617b68d258`
+
+- :ref:`exhale_define_syntax_8h_1a8b95ab9d3b059b083216939a2b7928ec`
+
+- :ref:`exhale_define_syntax_8h_1abef360bbfd0ea4681b8eed04cea149b8`
+

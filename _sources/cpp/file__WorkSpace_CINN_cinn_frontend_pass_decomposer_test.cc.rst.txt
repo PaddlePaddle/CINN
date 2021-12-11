@@ -1,0 +1,79 @@
+
+.. _file__WorkSpace_CINN_cinn_frontend_pass_decomposer_test.cc:
+
+File decomposer_test.cc
+=======================
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend_pass>` (``/WorkSpace/CINN/cinn/frontend/pass``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/frontend/pass/decomposer_test.cc``)
+----------------------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_frontend_pass_decomposer_test.cc.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``cinn/frontend/decomposer/use_decomposer.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_use_decomposer.h`)
+
+- ``cinn/frontend/decomposer_registry.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_registry.h`)
+
+- ``cinn/frontend/net_builder.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_net_builder.h`)
+
+- ``cinn/frontend/pass/use_program_pass.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_pass_use_program_pass.h`)
+
+- ``cinn/frontend/program_pass.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_program_pass.h`)
+
+- ``cinn/hlir/framework/graph.h``
+
+- ``cinn/hlir/framework/graph_compiler.h``
+
+- ``cinn/hlir/framework/pass.h``
+
+- ``cinn/hlir/framework/tensor.h``
+
+- ``cinn/hlir/op/use_ops.h``
+
+- ``cinn/hlir/pass/use_pass.h``
+
+- ``gtest/gtest.h``
+
+- ``random``
+
+
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn__frontend`
+
+
+Functions
+---------
+
+
+- :ref:`exhale_function_decomposer__test_8cc_1a078cd64d5e0ebb51070f8151de07d504`
+
+- :ref:`exhale_function_decomposer__test_8cc_1a2ccfec1853ab2eea036c375226c88cc8`
+
+- :ref:`exhale_function_decomposer__test_8cc_1aabcd02d33b47d0e849e3bd60b21a15bc`
+

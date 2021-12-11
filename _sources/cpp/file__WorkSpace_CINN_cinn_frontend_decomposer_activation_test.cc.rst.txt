@@ -1,0 +1,53 @@
+
+.. _file__WorkSpace_CINN_cinn_frontend_decomposer_activation_test.cc:
+
+File activation_test.cc
+=======================
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend_decomposer>` (``/WorkSpace/CINN/cinn/frontend/decomposer``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/frontend/decomposer/activation_test.cc``)
+----------------------------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_frontend_decomposer_activation_test.cc.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``cinn/frontend/decomposer/test_helper.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_test_helper.h`)
+
+
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn__frontend`
+
+
+Functions
+---------
+
+
+- :ref:`exhale_function_activation__test_8cc_1a44ff8cb6e0bcf6fc9feab288f11a6912`
+
+- :ref:`exhale_function_activation__test_8cc_1a3a187d8349e0720122e3138d0e20ea53`
+

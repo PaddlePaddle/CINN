@@ -1,0 +1,13 @@
+.. _exhale_function_test__helper_8h_1ae1dae827b855fbf4b101bd301f7d9f4c:
+
+Template Function cinn::frontend::operator<<(std::ostream&, const std::vector<T, Alloc>&)
+=========================================================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_test_helper.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::operator<<(std::ostream&, const std::vector<T, Alloc>&)

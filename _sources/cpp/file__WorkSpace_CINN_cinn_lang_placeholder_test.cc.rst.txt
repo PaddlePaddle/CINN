@@ -1,0 +1,59 @@
+
+.. _file__WorkSpace_CINN_cinn_lang_placeholder_test.cc:
+
+File placeholder_test.cc
+========================
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_lang>` (``/WorkSpace/CINN/cinn/lang``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/lang/placeholder_test.cc``)
+--------------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_lang_placeholder_test.cc.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``cinn/ir/ir_printer.h``
+
+- ``cinn/lang/placeholder.h`` (:ref:`file__WorkSpace_CINN_cinn_lang_placeholder.h`)
+
+- ``gtest/gtest.h``
+
+
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn`
+
+- :ref:`namespace_cinn__lang`
+
+
+Functions
+---------
+
+
+- :ref:`exhale_function_placeholder__test_8cc_1a4b095da8633fac8c97b821d37ff3b69b`
+
+- :ref:`exhale_function_placeholder__test_8cc_1a2b3a1896703710a8aa00f81e17841a9e`
+

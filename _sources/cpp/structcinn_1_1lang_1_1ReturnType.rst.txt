@@ -1,0 +1,16 @@
+.. _exhale_struct_structcinn_1_1lang_1_1ReturnType:
+
+Struct ReturnType
+=================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_compute.h`
+
+
+Struct Documentation
+--------------------
+
+
+.. doxygenstruct:: cinn::lang::ReturnType
+   :members:
+   :protected-members:
+   :undoc-members:

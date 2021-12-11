@@ -1,0 +1,22 @@
+.. _exhale_struct_structcinn_1_1frontend_1_1OpMapperContext_1_1FeedInfo:
+
+Struct OpMapperContext::FeedInfo
+================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_op_mapper_registry.h`
+
+
+Nested Relationships
+--------------------
+
+This struct is a nested type of :ref:`exhale_class_classcinn_1_1frontend_1_1OpMapperContext`.
+
+
+Struct Documentation
+--------------------
+
+
+.. doxygenstruct:: cinn::frontend::OpMapperContext::FeedInfo
+   :members:
+   :protected-members:
+   :undoc-members:

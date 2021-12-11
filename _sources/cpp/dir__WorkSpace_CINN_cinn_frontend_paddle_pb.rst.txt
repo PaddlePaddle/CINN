@@ -1,0 +1,27 @@
+.. _dir__WorkSpace_CINN_cinn_frontend_paddle_pb:
+
+
+Directory pb
+============
+
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend_paddle>` (``/WorkSpace/CINN/cinn/frontend/paddle``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+*Directory path:* ``/WorkSpace/CINN/cinn/frontend/paddle/pb``
+
+
+Files
+-----
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_pb_block_desc.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_pb_block_desc.h`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_pb_op_desc.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_pb_op_desc.h`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_pb_program_desc.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_pb_program_desc.h`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_pb_var_desc.cc`
+- :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_pb_var_desc.h`
+
+

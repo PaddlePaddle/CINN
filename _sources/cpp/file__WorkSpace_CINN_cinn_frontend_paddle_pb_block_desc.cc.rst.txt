@@ -1,0 +1,57 @@
+
+.. _file__WorkSpace_CINN_cinn_frontend_paddle_pb_block_desc.cc:
+
+File block_desc.cc
+==================
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend_paddle_pb>` (``/WorkSpace/CINN/cinn/frontend/paddle/pb``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/frontend/paddle/pb/block_desc.cc``)
+----------------------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_frontend_paddle_pb_block_desc.cc.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``cinn/frontend/paddle/pb/block_desc.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_paddle_pb_block_desc.h`)
+
+
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn__frontend__paddle__pb`
+
+
+Functions
+---------
+
+
+- :ref:`exhale_function_pb_2block__desc_8cc_1a2851b25bc71647ece971820e610eb713`
+
+- :ref:`exhale_function_pb_2block__desc_8cc_1a49ab1aef6189a919487aa152cbfcdaa6`
+
+- :ref:`exhale_function_pb_2block__desc_8cc_1ace021d87b756fb6a487e1454f993e5c5`
+
+- :ref:`exhale_function_pb_2block__desc_8cc_1a9ab8f3571ecf0289b7d1b2c746735859`
+

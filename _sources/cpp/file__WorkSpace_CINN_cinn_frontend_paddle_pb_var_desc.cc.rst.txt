@@ -1,0 +1,63 @@
+
+.. _file__WorkSpace_CINN_cinn_frontend_paddle_pb_var_desc.cc:
+
+File var_desc.cc
+================
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend_paddle_pb>` (``/WorkSpace/CINN/cinn/frontend/paddle/pb``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/frontend/paddle/pb/var_desc.cc``)
+--------------------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_frontend_paddle_pb_var_desc.cc.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``cinn/frontend/paddle/cpp/desc_api.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_paddle_cpp_desc_api.h`)
+
+- ``cinn/frontend/paddle/framework.pb.h``
+
+- ``cinn/frontend/paddle/pb/var_desc.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_paddle_pb_var_desc.h`)
+
+- ``google/protobuf/map.h``
+
+
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn__frontend__paddle__pb`
+
+
+Defines
+-------
+
+
+- :ref:`exhale_define_pb_2var__desc_8cc_1a97a365e93970d34a1cc334f2743388df`
+
+- :ref:`exhale_define_pb_2var__desc_8cc_1a962c51b473e2b5c07b51b07bc771f5ea`
+
+- :ref:`exhale_define_pb_2var__desc_8cc_1a1296c5d7f17483393a668ce9aa38e9e3`
+
+- :ref:`exhale_define_pb_2var__desc_8cc_1a9eca360535c3140f0b6dcfee68d9dba0`
+

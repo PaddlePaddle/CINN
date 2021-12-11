@@ -1,0 +1,13 @@
+.. _exhale_function_test__helper_8h_1a80ed9facad716bd04964b8d6dfd8b74c:
+
+Template Function cinn::frontend::RunAndCheck
+=============================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_test_helper.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::RunAndCheck(NetBuilder&, const std::vector<std::string>&, const std::vector<std::string>&, const std::vector<std::vector<int>>&, CPUKernelFunc, T, T, float, float)

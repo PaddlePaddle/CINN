@@ -1,0 +1,104 @@
+
+.. _file__WorkSpace_CINN_cinn_frontend_paddle_compatible_pb.cc:
+
+File compatible_pb.cc
+=====================
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend_paddle>` (``/WorkSpace/CINN/cinn/frontend/paddle``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/frontend/paddle/compatible_pb.cc``)
+----------------------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_frontend_paddle_compatible_pb.cc.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``cinn/frontend/paddle/compatible_pb.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_paddle_compatible_pb.h`)
+
+- ``cinn/frontend/paddle/pb/block_desc.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_paddle_pb_block_desc.h`)
+
+- ``cinn/frontend/paddle/pb/op_desc.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_paddle_pb_op_desc.h`)
+
+- ``cinn/frontend/paddle/pb/program_desc.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_paddle_pb_program_desc.h`)
+
+- ``cinn/frontend/paddle/pb/var_desc.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_paddle_pb_var_desc.h`)
+
+- ``string``
+
+- ``vector``
+
+
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn__frontend__paddle`
+
+
+Functions
+---------
+
+
+- :ref:`exhale_function_compatible__pb_8cc_1ab9fe485cd56af95fc5c3d6295997cb70`
+
+- :ref:`exhale_function_compatible__pb_8cc_1adcb9226c46be54796c39a0eb16162593`
+
+- :ref:`exhale_function_compatible__pb_8cc_1a44d6d7859f5d94faaa79249fd049ec45`
+
+- :ref:`exhale_function_compatible__pb_8cc_1a98df8e928051d1b899e95127a579fab0`
+
+- :ref:`exhale_function_compatible__pb_8cc_1ac01c90a439d1553423a9ca22531dfb60`
+
+- :ref:`exhale_function_compatible__pb_8cc_1a1a3986555131eb3ef68c5c10057cb2de`
+
+- :ref:`exhale_function_compatible__pb_8cc_1a0b8612785a295f5d2895811a8e504b7f`
+
+- :ref:`exhale_function_compatible__pb_8cc_1af5dab85eaaa908c608763524aa81981d`
+
+- :ref:`exhale_function_compatible__pb_8cc_1af35e2238ba463e45d33eb19aaf52b9b7`
+
+- :ref:`exhale_function_compatible__pb_8cc_1ad259e41020f16d928531c361d03a6382`
+
+- :ref:`exhale_function_compatible__pb_8cc_1aafb7cb286160bdacfa58e597eef9ccac`
+
+- :ref:`exhale_function_compatible__pb_8cc_1ad55e8c26f5ea2750f1a2ebae4de00848`
+
+- :ref:`exhale_function_compatible__pb_8cc_1a651e018678338e6488786285dd327eb2`
+
+- :ref:`exhale_function_compatible__pb_8cc_1a4dbd9f6cde8429a24575ef8d79f85d0b`
+
+
+Defines
+-------
+
+
+- :ref:`exhale_define_compatible__pb_8cc_1a6bb8ccc2bdd9fedd3dfe6c2e05964195`
+
+- :ref:`exhale_define_compatible__pb_8cc_1af371c7cfe8f04f47cfdd878858668faa`
+
+- :ref:`exhale_define_compatible__pb_8cc_1ae281246585e5a0bf790d4f07e561ba7a`
+
+- :ref:`exhale_define_compatible__pb_8cc_1a47f04fb62acaf522a6a0481b293383a7`
+
+- :ref:`exhale_define_compatible__pb_8cc_1afb9d3c9690e7fc527d2385496b1493b4`
+

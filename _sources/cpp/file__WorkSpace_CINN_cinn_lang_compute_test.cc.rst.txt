@@ -1,0 +1,65 @@
+
+.. _file__WorkSpace_CINN_cinn_lang_compute_test.cc:
+
+File compute_test.cc
+====================
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_lang>` (``/WorkSpace/CINN/cinn/lang``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/lang/compute_test.cc``)
+----------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_lang_compute_test.cc.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``cinn/cinn.h``
+
+- ``cinn/ir/ir_operators.h``
+
+- ``cinn/ir/tensor.h``
+
+- ``cinn/lang/buffer.h`` (:ref:`file__WorkSpace_CINN_cinn_lang_buffer.h`)
+
+- ``cinn/lang/compute.h`` (:ref:`file__WorkSpace_CINN_cinn_lang_compute.h`)
+
+- ``cinn/lang/placeholder.h`` (:ref:`file__WorkSpace_CINN_cinn_lang_placeholder.h`)
+
+- ``gtest/gtest.h``
+
+
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn`
+
+- :ref:`namespace_cinn__lang`
+
+
+Functions
+---------
+
+
+- :ref:`exhale_function_compute__test_8cc_1ab2fec3621fbcc21cf092cc948d48e70a`
+

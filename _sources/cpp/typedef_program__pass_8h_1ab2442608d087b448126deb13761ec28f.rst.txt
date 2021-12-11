@@ -1,0 +1,13 @@
+.. _exhale_typedef_program__pass_8h_1ab2442608d087b448126deb13761ec28f:
+
+Typedef cinn::frontend::ProgramPassFunction
+===========================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_program_pass.h`
+
+
+Typedef Documentation
+---------------------
+
+
+.. doxygentypedef:: cinn::frontend::ProgramPassFunction

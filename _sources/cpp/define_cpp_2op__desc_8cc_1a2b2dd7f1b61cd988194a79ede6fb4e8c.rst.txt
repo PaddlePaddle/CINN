@@ -1,0 +1,13 @@
+.. _exhale_define_cpp_2op__desc_8cc_1a2b2dd7f1b61cd988194a79ede6fb4e8c:
+
+Define SET_ATTR_IMPL
+====================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_cpp_op_desc.cc`
+
+
+Define Documentation
+--------------------
+
+
+.. doxygendefine:: SET_ATTR_IMPL

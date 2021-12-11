@@ -1,0 +1,13 @@
+.. _exhale_function_model__parser_8h_1aac8a86706c40019fdb3847a373123c04:
+
+Function cinn::frontend::paddle::TensorToStream
+===============================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_model_parser.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::paddle::TensorToStream(std::ostream&, const hlir::framework::_Tensor_&)

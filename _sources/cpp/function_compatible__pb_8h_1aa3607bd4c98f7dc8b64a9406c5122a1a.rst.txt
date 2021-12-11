@@ -1,0 +1,13 @@
+.. _exhale_function_compatible__pb_8h_1aa3607bd4c98f7dc8b64a9406c5122a1a:
+
+Template Function cinn::frontend::paddle::TransformVarDescCppToAny
+==================================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_compatible_pb.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::paddle::TransformVarDescCppToAny(const cpp::VarDesc&, VarDescType *)

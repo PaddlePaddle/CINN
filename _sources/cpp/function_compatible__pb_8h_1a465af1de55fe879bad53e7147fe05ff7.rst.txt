@@ -1,0 +1,13 @@
+.. _exhale_function_compatible__pb_8h_1a465af1de55fe879bad53e7147fe05ff7:
+
+Template Function cinn::frontend::paddle::TransformBlockDescCppToAny
+====================================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_compatible_pb.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::paddle::TransformBlockDescCppToAny(const cpp::BlockDesc&, BlockDescType *)

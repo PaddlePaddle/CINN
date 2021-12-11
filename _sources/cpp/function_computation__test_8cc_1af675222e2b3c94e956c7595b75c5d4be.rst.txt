@@ -1,0 +1,13 @@
+.. _exhale_function_computation__test_8cc_1af675222e2b3c94e956c7595b75c5d4be:
+
+Function cinn::frontend::TEST(cinn_computation, decomposer_cpu)
+===============================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_computation_test.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::TEST(cinn_computation, decomposer_cpu)

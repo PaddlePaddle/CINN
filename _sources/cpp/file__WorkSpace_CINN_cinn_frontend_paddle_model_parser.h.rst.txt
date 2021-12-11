@@ -1,0 +1,87 @@
+
+.. _file__WorkSpace_CINN_cinn_frontend_paddle_model_parser.h:
+
+File model_parser.h
+===================
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend_paddle>` (``/WorkSpace/CINN/cinn/frontend/paddle``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/frontend/paddle/model_parser.h``)
+--------------------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_frontend_paddle_model_parser.h.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``algorithm``
+
+- ``cinn/frontend/paddle/cpp/program_desc.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_paddle_cpp_program_desc.h`)
+
+- ``cinn/frontend/paddle/framework.pb.h``
+
+- ``cinn/frontend/paddle/pb/block_desc.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_paddle_pb_block_desc.h`)
+
+- ``cinn/frontend/paddle/pb/op_desc.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_paddle_pb_op_desc.h`)
+
+- ``cinn/frontend/paddle/pb/program_desc.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_paddle_pb_program_desc.h`)
+
+- ``cinn/hlir/framework/scope.h``
+
+- ``cinn/hlir/framework/tensor.h``
+
+- ``memory``
+
+- ``string``
+
+- ``vector``
+
+
+
+Included By
+-----------
+
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_model_parser.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_model_parser_test.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_model_convertor.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_model_to_program.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_syntax.cc`
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn__frontend__paddle`
+
+
+Functions
+---------
+
+
+- :ref:`exhale_function_model__parser_8h_1a07a88359265442c469f846563e72f920`
+
+- :ref:`exhale_function_model__parser_8h_1aac8a86706c40019fdb3847a373123c04`
+

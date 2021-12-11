@@ -1,0 +1,13 @@
+.. _exhale_function_builtin_8h_1a1c6bef63552638643270a6fc342d645b:
+
+Function cinn::lang::LeakyRelu(Expr, Expr)
+==========================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_builtin.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::lang::LeakyRelu(Expr, Expr)

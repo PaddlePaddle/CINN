@@ -1,0 +1,13 @@
+.. _exhale_function_broadcast__test_8cc_1a89bb4b3b70bc5fdaabda71d854ad6b99:
+
+Function cinn::frontend::TEST(Decomposer, elementwise_add_grad_same_dims)
+=========================================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_broadcast_test.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::TEST(Decomposer, elementwise_add_grad_same_dims)

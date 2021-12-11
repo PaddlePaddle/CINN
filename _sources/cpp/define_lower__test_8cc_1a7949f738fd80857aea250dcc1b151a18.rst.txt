@@ -1,0 +1,13 @@
+.. _exhale_define_lower__test_8cc_1a7949f738fd80857aea250dcc1b151a18:
+
+Define TEST_SOUTPUT
+===================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_lower_test.cc`
+
+
+Define Documentation
+--------------------
+
+
+.. doxygendefine:: TEST_SOUTPUT

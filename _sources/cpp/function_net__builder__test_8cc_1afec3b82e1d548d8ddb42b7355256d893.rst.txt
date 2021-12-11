@@ -1,0 +1,13 @@
+.. _exhale_function_net__builder__test_8cc_1afec3b82e1d548d8ddb42b7355256d893:
+
+Function cinn::frontend::TEST(net_build, program_execute_fc)
+============================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_net_builder_test.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::TEST(net_build, program_execute_fc)

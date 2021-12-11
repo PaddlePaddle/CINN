@@ -1,0 +1,13 @@
+.. _exhale_variable_batch__norm__test_8cc_1a16611451551e3d15916bae723c3f59f7:
+
+Variable h
+==========
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_batch_norm_test.cc`
+
+
+Variable Documentation
+----------------------
+
+
+.. doxygenvariable:: h

@@ -1,0 +1,13 @@
+.. _exhale_function_batch__norm_8cc_1a8f33e33f1152ea25b776af06f2e1fd32:
+
+Function CINN_REGISTER_HELPER(batch_norm_train_decomposer)
+==========================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_batch_norm.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: CINN_REGISTER_HELPER(batch_norm_train_decomposer)

@@ -1,0 +1,13 @@
+.. _exhale_function_broadcast_8cc_1ac1fed807b00594e3faa7f960125ddbc5:
+
+Function CINN_REGISTER_HELPER(broadcast_grad_decomposers)
+=========================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_broadcast.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: CINN_REGISTER_HELPER(broadcast_grad_decomposers)

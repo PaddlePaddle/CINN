@@ -1,0 +1,13 @@
+.. _exhale_define_cinn__builder_8h_1ad32b50bd144e4633bea454c9b16b9a35:
+
+Define UNARY_OP_FOREACH
+=======================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_cinn_builder.h`
+
+
+Define Documentation
+--------------------
+
+
+.. doxygendefine:: UNARY_OP_FOREACH

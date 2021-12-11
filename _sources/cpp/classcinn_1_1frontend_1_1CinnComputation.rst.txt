@@ -1,0 +1,26 @@
+.. _exhale_class_classcinn_1_1frontend_1_1CinnComputation:
+
+Class CinnComputation
+=====================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_computation.h`
+
+
+Nested Relationships
+--------------------
+
+
+Nested Types
+************
+
+- :ref:`exhale_struct_structcinn_1_1frontend_1_1CinnComputation_1_1CompileOptions`
+
+
+Class Documentation
+-------------------
+
+
+.. doxygenclass:: cinn::frontend::CinnComputation
+   :members:
+   :protected-members:
+   :undoc-members:

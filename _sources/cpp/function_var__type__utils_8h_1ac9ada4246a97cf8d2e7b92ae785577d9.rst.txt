@@ -1,0 +1,13 @@
+.. _exhale_function_var__type__utils_8h_1ac9ada4246a97cf8d2e7b92ae785577d9:
+
+Function cinn::frontend::utils::GetFeedInfoFromDesc
+===================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_var_type_utils.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::utils::GetFeedInfoFromDesc(const paddle::cpp::VarDesc&)

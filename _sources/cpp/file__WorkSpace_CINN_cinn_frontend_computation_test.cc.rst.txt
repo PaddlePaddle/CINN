@@ -1,0 +1,83 @@
+
+.. _file__WorkSpace_CINN_cinn_frontend_computation_test.cc:
+
+File computation_test.cc
+========================
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend>` (``/WorkSpace/CINN/cinn/frontend``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/frontend/computation_test.cc``)
+------------------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_frontend_computation_test.cc.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``cinn/common/target.h``
+
+- ``cinn/frontend/cinn_builder.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_cinn_builder.h`)
+
+- ``cinn/frontend/computation.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_computation.h`)
+
+- ``cinn/frontend/decomposer/use_decomposer.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_use_decomposer.h`)
+
+- ``cinn/frontend/decomposer_registry.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_registry.h`)
+
+- ``cinn/frontend/net_builder.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_net_builder.h`)
+
+- ``cinn/frontend/pass/use_program_pass.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_pass_use_program_pass.h`)
+
+- ``cinn/frontend/program_pass.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_program_pass.h`)
+
+- ``gtest/gtest.h``
+
+
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn`
+
+- :ref:`namespace_cinn__frontend`
+
+
+Functions
+---------
+
+
+- :ref:`exhale_function_computation__test_8cc_1ab29947216af88c155c16d8d6d76c2376`
+
+- :ref:`exhale_function_computation__test_8cc_1a84776ed1dada0b037856f82018cee279`
+
+- :ref:`exhale_function_computation__test_8cc_1a801ab3a50e5495ccea38120b0994f44c`
+
+- :ref:`exhale_function_computation__test_8cc_1a39304b2e3325ff857ce791a0c2f91c86`
+
+- :ref:`exhale_function_computation__test_8cc_1ab2fbd77f122784b46eb222fca6ffcde5`
+
+- :ref:`exhale_function_computation__test_8cc_1af675222e2b3c94e956c7595b75c5d4be`
+
+- :ref:`exhale_function_computation__test_8cc_1a5e98a8b53d592e503a245c5250da7686`
+
+- :ref:`exhale_function_computation__test_8cc_1af7277858972563ec95f35ac4e5e01935`
+

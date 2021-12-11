@@ -1,0 +1,13 @@
+.. _exhale_function_conv2d__grad_8cc_1ae8f2bf12f07c5056e7f9fad5ca5d2319:
+
+Function cinn::frontend::decomposer::conv2d_grad
+================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_conv2d_grad.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::decomposer::conv2d_grad(const Instruction&, const DecomposerContext&)

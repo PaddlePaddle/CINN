@@ -1,0 +1,13 @@
+.. _exhale_define_cinn__builder_8h_1a8a10bfab49189bd2841d6de216fddab3:
+
+Define BINARY_OP_FOREACH
+========================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_cinn_builder.h`
+
+
+Define Documentation
+--------------------
+
+
+.. doxygendefine:: BINARY_OP_FOREACH

@@ -1,0 +1,13 @@
+.. _exhale_function_mul_8cc_1af526b006c1b927f102a3216db03aeb79:
+
+Function cinn::frontend::op_mappers::MulBiasOpMapper
+====================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_mul.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::op_mappers::MulBiasOpMapper(const paddle::cpp::OpDesc&, const OpMapperContext&)

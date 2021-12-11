@@ -1,0 +1,13 @@
+.. _exhale_function_remove__identity_8cc_1a1b1dca1a37f5901c54b5b29871cfd1bd:
+
+Function cinn::frontend::pass::RemoveIdentity
+=============================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_pass_remove_identity.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::pass::RemoveIdentity(Program *, const std::unordered_set<std::string>&)

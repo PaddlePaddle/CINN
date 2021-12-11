@@ -1,0 +1,53 @@
+
+.. _file__WorkSpace_CINN_cinn_frontend_decomposer_use_decomposer.h:
+
+File use_decomposer.h
+=====================
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend_decomposer>` (``/WorkSpace/CINN/cinn/frontend/decomposer``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/frontend/decomposer/use_decomposer.h``)
+--------------------------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_frontend_decomposer_use_decomposer.h.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``cinn/common/macros.h``
+
+
+
+Included By
+-----------
+
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_computation_test.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_conv2d_grad_test.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_test_helper.h`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_registry_test.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_pass_decomposer_test.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_pass_remove_identity_test.cc`
+
+
+

@@ -1,0 +1,70 @@
+
+.. _file__WorkSpace_CINN_cinn_frontend_decomposer_batch_norm.cc:
+
+File batch_norm.cc
+==================
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend_decomposer>` (``/WorkSpace/CINN/cinn/frontend/decomposer``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/frontend/decomposer/batch_norm.cc``)
+-----------------------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_frontend_decomposer_batch_norm.cc.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``cinn/frontend/decomposer_registry.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_registry.h`)
+
+- ``cinn/frontend/syntax.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_syntax.h`)
+
+
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn`
+
+- :ref:`namespace_cinn__frontend`
+
+- :ref:`namespace_cinn__frontend__decomposer`
+
+
+Classes
+-------
+
+
+- :ref:`exhale_struct_structcinn_1_1frontend_1_1decomposer_1_1BatchNormHelper`
+
+
+Functions
+---------
+
+
+- :ref:`exhale_function_batch__norm_8cc_1ac971ed977c671ee76ee78706a6fb2e85`
+
+- :ref:`exhale_function_batch__norm_8cc_1adde9135d49227b0644bc289de87e7fc3`
+
+- :ref:`exhale_function_batch__norm_8cc_1a8f33e33f1152ea25b776af06f2e1fd32`
+
+- :ref:`exhale_function_batch__norm_8cc_1a16b892b8ee00e9276f10330155b85e76`
+

@@ -1,0 +1,13 @@
+.. _exhale_function_lower_8cc_1a60f8682561a356eb5c111293a2a8da21:
+
+Function cinn::lang::InitReduceTensor
+=====================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_lower.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::lang::InitReduceTensor(StageMap, const Tensor&, const Target&)

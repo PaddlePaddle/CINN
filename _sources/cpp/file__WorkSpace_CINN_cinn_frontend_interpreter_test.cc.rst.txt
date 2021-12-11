@@ -1,0 +1,57 @@
+
+.. _file__WorkSpace_CINN_cinn_frontend_interpreter_test.cc:
+
+File interpreter_test.cc
+========================
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend>` (``/WorkSpace/CINN/cinn/frontend``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/frontend/interpreter_test.cc``)
+------------------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_frontend_interpreter_test.cc.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``cinn/frontend/interpreter.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_interpreter.h`)
+
+- ``cinn/runtime/use_extern_funcs.h``
+
+- ``gtest/gtest.h``
+
+
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn__frontend`
+
+
+Functions
+---------
+
+
+- :ref:`exhale_function_interpreter__test_8cc_1af7a67b387777da056a1f9bec36e3f777`
+
+- :ref:`exhale_function_interpreter__test_8cc_1af7277858972563ec95f35ac4e5e01935`
+

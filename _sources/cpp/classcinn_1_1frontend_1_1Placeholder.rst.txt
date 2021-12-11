@@ -1,0 +1,16 @@
+.. _exhale_class_classcinn_1_1frontend_1_1Placeholder:
+
+Class Placeholder
+=================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_syntax.h`
+
+
+Class Documentation
+-------------------
+
+
+.. doxygenclass:: cinn::frontend::Placeholder
+   :members:
+   :protected-members:
+   :undoc-members:

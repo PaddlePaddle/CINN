@@ -1,0 +1,57 @@
+
+.. _file__WorkSpace_CINN_cinn_frontend_paddle_model_parser_test.cc:
+
+File model_parser_test.cc
+=========================
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend_paddle>` (``/WorkSpace/CINN/cinn/frontend/paddle``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/frontend/paddle/model_parser_test.cc``)
+--------------------------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_frontend_paddle_model_parser_test.cc.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``cinn/frontend/paddle/model_parser.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_paddle_model_parser.h`)
+
+- ``gflags/gflags.h``
+
+- ``gtest/gtest.h``
+
+
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn__frontend__paddle`
+
+
+Functions
+---------
+
+
+- :ref:`exhale_function_model__parser__test_8cc_1a02b82807d6329a1facc2b024fef1051d`
+
+- :ref:`exhale_function_model__parser__test_8cc_1a320e413651154b4ccddf94c1daabd4ea`
+

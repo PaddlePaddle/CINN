@@ -1,0 +1,26 @@
+.. _exhale_class_classcinn_1_1frontend_1_1BaseBuilder:
+
+Class BaseBuilder
+=================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_base_builder.h`
+
+
+Inheritance Relationships
+-------------------------
+
+Derived Types
+*************
+
+- ``public cinn::frontend::CinnBuilder`` (:ref:`exhale_class_classcinn_1_1frontend_1_1CinnBuilder`)
+- ``public cinn::frontend::NetBuilder`` (:ref:`exhale_class_classcinn_1_1frontend_1_1NetBuilder`)
+
+
+Class Documentation
+-------------------
+
+
+.. doxygenclass:: cinn::frontend::BaseBuilder
+   :members:
+   :protected-members:
+   :undoc-members:

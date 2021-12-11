@@ -1,0 +1,13 @@
+.. _exhale_function_paddle__model__convertor__test_8cc_1af7277858972563ec95f35ac4e5e01935:
+
+Function DEFINE_string(model_dir, "", "")
+=========================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_model_convertor_test.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: DEFINE_string(model_dir, "", "")

@@ -1,0 +1,13 @@
+.. _exhale_function_scale_8cc_1a61abb046b82631ea337ed1d188989280:
+
+Function cinn::frontend::op_mappers::ScaleOpMapper
+==================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_scale.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::op_mappers::ScaleOpMapper(const paddle::cpp::OpDesc&, const cinn::frontend::OpMapperContext&)

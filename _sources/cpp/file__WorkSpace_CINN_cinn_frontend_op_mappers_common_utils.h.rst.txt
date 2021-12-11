@@ -1,0 +1,95 @@
+
+.. _file__WorkSpace_CINN_cinn_frontend_op_mappers_common_utils.h:
+
+File common_utils.h
+===================
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend_op_mappers>` (``/WorkSpace/CINN/cinn/frontend/op_mappers``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/frontend/op_mappers/common_utils.h``)
+------------------------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_frontend_op_mappers_common_utils.h.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``algorithm``
+
+- ``cinn/frontend/paddle/cpp/op_desc.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_paddle_cpp_op_desc.h`)
+
+- ``glog/logging.h``
+
+- ``string``
+
+- ``vector``
+
+
+
+Included By
+-----------
+
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_batchnorm.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_conv2d.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_dropout.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_elementwise.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_fetch_feed.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_mul.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_pool2d.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_relu.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_reshape.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_scale.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_sigmoid.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_slice.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_softmax.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_transpose.cc`
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn`
+
+- :ref:`namespace_cinn__frontend`
+
+- :ref:`namespace_cinn__frontend__utils`
+
+
+Functions
+---------
+
+
+- :ref:`exhale_function_common__utils_8h_1a6338f2b431b89bf785f90b972a06ce3c`
+

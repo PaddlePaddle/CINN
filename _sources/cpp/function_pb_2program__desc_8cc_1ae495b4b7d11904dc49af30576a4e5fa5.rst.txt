@@ -1,0 +1,13 @@
+.. _exhale_function_pb_2program__desc_8cc_1ae495b4b7d11904dc49af30576a4e5fa5:
+
+Function cinn::frontend::paddle::pb::ProgramDesc::GetBlock< framework_proto::BlockDesc >
+========================================================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_pb_program_desc.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::paddle::pb::ProgramDesc::GetBlock< framework_proto::BlockDesc >(int32_t)

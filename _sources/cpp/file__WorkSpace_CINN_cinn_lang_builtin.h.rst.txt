@@ -1,0 +1,108 @@
+
+.. _file__WorkSpace_CINN_cinn_lang_builtin.h:
+
+File builtin.h
+==============
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_lang>` (``/WorkSpace/CINN/cinn/lang``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/lang/builtin.h``)
+----------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_lang_builtin.h.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``cinn/common/ir_util.h``
+
+- ``cinn/ir/ir.h``
+
+- ``cinn/ir/ir_operators.h``
+
+- ``vector``
+
+
+
+Included By
+-----------
+
+
+- :ref:`file__WorkSpace_CINN_cinn_lang_builtin.cc`
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn`
+
+- :ref:`namespace_cinn__lang`
+
+
+Functions
+---------
+
+
+- :ref:`exhale_function_builtin_8h_1ac0aa2488013e4ec537cf83e16f99a1a7`
+
+- :ref:`exhale_function_builtin_8h_1a3d03b9393dd84dbb26b3815106facbc8`
+
+- :ref:`exhale_function_builtin_8h_1a8ed0063d75eaec0452b23798f33ea8da`
+
+- :ref:`exhale_function_builtin_8h_1a1c059e68f4fbf76e4bc7859a91d67cc7`
+
+- :ref:`exhale_function_builtin_8h_1a2f35bdc41529afd6a618ff6ea530042a`
+
+- :ref:`exhale_function_builtin_8h_1a4877503347ceae6a73f41fe403a76700`
+
+- :ref:`exhale_function_builtin_8h_1a1c6bef63552638643270a6fc342d645b`
+
+- :ref:`exhale_function_builtin_8h_1a164efa7ecea1a534f4c42d36f390d1a5`
+
+- :ref:`exhale_function_builtin_8h_1a291e13e4c96065f199fdc18e759b13cc`
+
+- :ref:`exhale_function_builtin_8h_1a36944908ffa71a0a5f7cd76e3f9b701d`
+
+- :ref:`exhale_function_builtin_8h_1a7680d5171b1ae6815650c7f476a9c572`
+
+- :ref:`exhale_function_builtin_8h_1a6c65ca206fc8e66ae68cdaf4cc0b26b8`
+
+- :ref:`exhale_function_builtin_8h_1a67877e4fa08075730c9c592895db2341`
+
+- :ref:`exhale_function_builtin_8h_1a9998b932664e941f1bafc3e677cba98c`
+
+- :ref:`exhale_function_builtin_8h_1a9ea7bb5c3f0095e6c39da5ef4dbf617d`
+
+- :ref:`exhale_function_builtin_8h_1abd319f122021bc53fb97ee4fbb53abc2`
+
+- :ref:`exhale_function_builtin_8h_1afccaf5147235d649084dac489defcae5`
+
+- :ref:`exhale_function_builtin_8h_1a2da494c572d54c1faadb0244e5b2250c`
+
+- :ref:`exhale_function_builtin_8h_1ad619cd250ae5396c0704af3be8bb8ae0`
+
+
+Defines
+-------
+
+
+- :ref:`exhale_define_builtin_8h_1a270ab82b3f1251e73997a57899055b38`
+

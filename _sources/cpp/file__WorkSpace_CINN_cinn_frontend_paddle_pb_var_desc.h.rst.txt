@@ -1,0 +1,82 @@
+
+.. _file__WorkSpace_CINN_cinn_frontend_paddle_pb_var_desc.h:
+
+File var_desc.h
+===============
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend_paddle_pb>` (``/WorkSpace/CINN/cinn/frontend/paddle/pb``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/frontend/paddle/pb/var_desc.h``)
+-------------------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_frontend_paddle_pb_var_desc.h.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``algorithm``
+
+- ``cinn/frontend/paddle/cpp/desc_api.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_paddle_cpp_desc_api.h`)
+
+- ``cinn/frontend/paddle/framework.pb.h``
+
+- ``glog/logging.h``
+
+- ``google/protobuf/map.h``
+
+- ``string``
+
+- ``vector``
+
+
+
+Included By
+-----------
+
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_compatible_pb.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_pb_var_desc.cc`
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn__frontend__paddle__pb`
+
+
+Classes
+-------
+
+
+- :ref:`exhale_class_classcinn_1_1frontend_1_1paddle_1_1pb_1_1VarDesc`
+
+
+Functions
+---------
+
+
+- :ref:`exhale_function_pb_2var__desc_8h_1a8ff0057ffc8644719a0dbbd4eb635d4a`
+
+- :ref:`exhale_function_pb_2var__desc_8h_1a625ccf5b0b43f18776b9e0e0ca9825a7`
+
+- :ref:`exhale_function_pb_2var__desc_8h_1a17d73992f6dd4459505ad17ad01002bc`
+

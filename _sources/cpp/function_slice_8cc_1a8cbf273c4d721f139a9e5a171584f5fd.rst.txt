@@ -1,0 +1,13 @@
+.. _exhale_function_slice_8cc_1a8cbf273c4d721f139a9e5a171584f5fd:
+
+Function CINN_REGISTER_HELPER(slice)
+====================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_slice.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: CINN_REGISTER_HELPER(slice)

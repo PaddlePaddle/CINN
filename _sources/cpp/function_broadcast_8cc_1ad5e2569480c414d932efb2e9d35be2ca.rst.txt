@@ -1,0 +1,13 @@
+.. _exhale_function_broadcast_8cc_1ad5e2569480c414d932efb2e9d35be2ca:
+
+Function cinn::frontend::decomposer::GetReduceDimsForX
+======================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_broadcast.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::decomposer::GetReduceDimsForX(const std::vector<int>&, const std::vector<int>&, std::vector<int> *)

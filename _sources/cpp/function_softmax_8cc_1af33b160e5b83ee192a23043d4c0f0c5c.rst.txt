@@ -1,0 +1,13 @@
+.. _exhale_function_softmax_8cc_1af33b160e5b83ee192a23043d4c0f0c5c:
+
+Function CINN_REGISTER_HELPER(softmax)
+======================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_softmax.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: CINN_REGISTER_HELPER(softmax)

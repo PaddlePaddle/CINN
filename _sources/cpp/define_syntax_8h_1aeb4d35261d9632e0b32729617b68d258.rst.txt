@@ -1,0 +1,13 @@
+.. _exhale_define_syntax_8h_1aeb4d35261d9632e0b32729617b68d258:
+
+Define SYNTAX_PRIM_BINARY_DECL
+==============================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_syntax.h`
+
+
+Define Documentation
+--------------------
+
+
+.. doxygendefine:: SYNTAX_PRIM_BINARY_DECL

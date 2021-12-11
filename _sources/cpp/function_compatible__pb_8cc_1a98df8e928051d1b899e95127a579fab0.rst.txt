@@ -1,0 +1,13 @@
+.. _exhale_function_compatible__pb_8cc_1a98df8e928051d1b899e95127a579fab0:
+
+Template Function cinn::frontend::paddle::OpInputsCppToAny
+==========================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_compatible_pb.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::paddle::OpInputsCppToAny(const cpp::OpDesc&, OpDescType *)

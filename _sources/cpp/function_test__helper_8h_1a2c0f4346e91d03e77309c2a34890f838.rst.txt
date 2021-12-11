@@ -1,0 +1,13 @@
+.. _exhale_function_test__helper_8h_1a2c0f4346e91d03e77309c2a34890f838:
+
+Template Function cinn::frontend::ComputeReferenceCpu
+=====================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_test_helper.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::ComputeReferenceCpu(const std::vector<std::vector<T>>&, const std::vector<std::vector<T>>&, std::vector<std::vector<T>> *, CPUKernelFunc)

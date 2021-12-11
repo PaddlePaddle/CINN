@@ -1,0 +1,64 @@
+
+.. _file__WorkSpace_CINN_cinn_frontend_paddle_model_convertor.cc:
+
+File paddle_model_convertor.cc
+==============================
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend>` (``/WorkSpace/CINN/cinn/frontend``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/frontend/paddle_model_convertor.cc``)
+------------------------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_frontend_paddle_model_convertor.cc.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``algorithm``
+
+- ``cinn/frontend/op_mappers/use_op_mappers.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_use_op_mappers.h`)
+
+- ``cinn/frontend/paddle/cpp/program_desc.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_paddle_cpp_program_desc.h`)
+
+- ``cinn/frontend/paddle/model_parser.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_paddle_model_parser.h`)
+
+- ``cinn/frontend/paddle_model_convertor.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_paddle_model_convertor.h`)
+
+- ``cinn/frontend/var_type_utils.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_var_type_utils.h`)
+
+- ``cinn/hlir/op/use_ops.h``
+
+- ``glog/logging.h``
+
+- ``unordered_set``
+
+- ``utility``
+
+
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn`
+
+- :ref:`namespace_cinn__frontend`
+

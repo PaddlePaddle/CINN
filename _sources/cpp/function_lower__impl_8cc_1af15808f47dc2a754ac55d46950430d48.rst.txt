@@ -1,0 +1,13 @@
+.. _exhale_function_lower__impl_8cc_1af15808f47dc2a754ac55d46950430d48:
+
+Function cinn::lang::detail::CompuGraphAddCtrlDepLinks
+======================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_lower_impl.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::lang::detail::CompuGraphAddCtrlDepLinks(common::Graph *, StageMap)

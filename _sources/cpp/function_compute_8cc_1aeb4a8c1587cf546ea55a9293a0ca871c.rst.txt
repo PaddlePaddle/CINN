@@ -1,0 +1,13 @@
+.. _exhale_function_compute_8cc_1aeb4a8c1587cf546ea55a9293a0ca871c:
+
+Function cinn::lang::Compute(const std::vector<Expr>&, std::function<Expr(const std::vector<Expr>&)>, const std::string&, const std::vector<Expr>&)
+===================================================================================================================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_compute.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::lang::Compute(const std::vector<Expr>&, std::function<Expr(const std::vector<Expr>&)>, const std::string&, const std::vector<Expr>&)

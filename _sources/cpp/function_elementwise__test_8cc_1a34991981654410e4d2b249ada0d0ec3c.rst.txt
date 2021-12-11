@@ -1,0 +1,13 @@
+.. _exhale_function_elementwise__test_8cc_1a34991981654410e4d2b249ada0d0ec3c:
+
+Function cinn::frontend::TEST(Decomposer, sum)
+==============================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_elementwise_test.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::TEST(Decomposer, sum)

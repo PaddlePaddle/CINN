@@ -1,0 +1,13 @@
+.. _exhale_function_syntax__test_8cc_1a251644c5f88a0fb9bc80d710bca7b250:
+
+Function cinn::frontend::TEST(load_paddle_model, fc_execute)
+============================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_syntax_test.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::TEST(load_paddle_model, fc_execute)

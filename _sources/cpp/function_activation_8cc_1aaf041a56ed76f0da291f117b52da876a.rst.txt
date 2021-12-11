@@ -1,0 +1,13 @@
+.. _exhale_function_activation_8cc_1aaf041a56ed76f0da291f117b52da876a:
+
+Function cinn::frontend::decomposer::relu_grad
+==============================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_decomposer_activation.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::decomposer::relu_grad(const Instruction&, const DecomposerContext&)

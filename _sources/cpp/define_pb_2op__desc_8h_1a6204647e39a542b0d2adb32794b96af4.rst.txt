@@ -1,0 +1,13 @@
+.. _exhale_define_pb_2op__desc_8h_1a6204647e39a542b0d2adb32794b96af4:
+
+Define DEF_ONE
+==============
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_pb_op_desc.h`
+
+
+Define Documentation
+--------------------
+
+
+.. doxygendefine:: DEF_ONE

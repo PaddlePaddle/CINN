@@ -1,0 +1,13 @@
+.. _exhale_function_program__pass_8cc_1a6c29995644e657d0eb95146ef06a4879:
+
+Function cinn::frontend::ApplyPass
+==================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_program_pass.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::ApplyPass(Program *, const std::unordered_set<std::string>&, const std::string&)

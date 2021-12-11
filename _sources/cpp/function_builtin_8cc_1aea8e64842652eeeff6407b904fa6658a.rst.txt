@@ -1,0 +1,13 @@
+.. _exhale_function_builtin_8cc_1aea8e64842652eeeff6407b904fa6658a:
+
+Function cinn::lang::Acos
+=========================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_builtin.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::lang::Acos(Expr)

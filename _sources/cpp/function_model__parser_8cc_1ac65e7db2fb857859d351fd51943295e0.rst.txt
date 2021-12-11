@@ -1,0 +1,13 @@
+.. _exhale_function_model__parser_8cc_1ac65e7db2fb857859d351fd51943295e0:
+
+Function cinn::frontend::paddle::LoadModelPb
+============================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_model_parser.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::paddle::LoadModelPb(const std::string&, const std::string&, const std::string&, hlir::framework::Scope *, cpp::ProgramDesc *, bool, bool, const common::Target&)

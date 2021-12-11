@@ -1,0 +1,13 @@
+.. _exhale_typedef_packed__func_8h_1ab33ff1443319c8b6860c5a05110be578:
+
+Typedef cinn::lang::RetValue
+============================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_packed_func.h`
+
+
+Typedef Documentation
+---------------------
+
+
+.. doxygentypedef:: cinn::lang::RetValue

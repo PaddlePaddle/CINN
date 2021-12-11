@@ -1,0 +1,13 @@
+.. _exhale_function_lower__impl_8cc_1a778ec3d16ffde468fc849b2c68746cf0:
+
+Function cinn::lang::detail::CreateCompGraphWithInlineTensorHidden
+==================================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_lower_impl.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::lang::detail::CreateCompGraphWithInlineTensorHidden(const std::vector<ir::Tensor>&, StageMap)

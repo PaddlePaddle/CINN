@@ -1,0 +1,13 @@
+.. _exhale_define_model__parser_8cc_1a0f28dbefa465b98c297f441870985bd6:
+
+Define SET_TENSOR
+=================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_model_parser.cc`
+
+
+Define Documentation
+--------------------
+
+
+.. doxygendefine:: SET_TENSOR

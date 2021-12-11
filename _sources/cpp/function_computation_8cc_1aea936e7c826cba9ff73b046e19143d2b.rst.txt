@@ -1,0 +1,13 @@
+.. _exhale_function_computation_8cc_1aea936e7c826cba9ff73b046e19143d2b:
+
+Function cinn::frontend::CompileProgram
+=======================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_computation.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::CompileProgram(const Target&, Program&, const std::vector<Variable>&, std::shared_ptr<hlir::framework::Scope>, const CinnComputation::CompileOptions&, void *)

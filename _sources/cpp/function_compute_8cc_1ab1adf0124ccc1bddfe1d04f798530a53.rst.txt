@@ -1,0 +1,13 @@
+.. _exhale_function_compute_8cc_1ab1adf0124ccc1bddfe1d04f798530a53:
+
+Function cinn::lang::Compute()
+==============================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_compute.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::lang::Compute()

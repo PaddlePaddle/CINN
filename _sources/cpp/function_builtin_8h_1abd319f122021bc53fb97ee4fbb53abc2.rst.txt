@@ -1,0 +1,13 @@
+.. _exhale_function_builtin_8h_1abd319f122021bc53fb97ee4fbb53abc2:
+
+Template Function cinn::lang::Relu6
+===================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_builtin.h`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::lang::Relu6(Expr, T)

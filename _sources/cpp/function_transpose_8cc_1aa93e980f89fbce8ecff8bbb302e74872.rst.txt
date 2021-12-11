@@ -1,0 +1,13 @@
+.. _exhale_function_transpose_8cc_1aa93e980f89fbce8ecff8bbb302e74872:
+
+Function cinn::frontend::op_mappers::TransposeOpMapper
+======================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_transpose.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::op_mappers::TransposeOpMapper(const paddle::cpp::OpDesc&, const OpMapperContext&)

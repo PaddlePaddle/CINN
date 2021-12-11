@@ -1,0 +1,13 @@
+.. _exhale_function_placeholder__test_8cc_1a2b3a1896703710a8aa00f81e17841a9e:
+
+Function cinn::lang::TEST(placeholder, basic)
+=============================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_lang_placeholder_test.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::lang::TEST(placeholder, basic)

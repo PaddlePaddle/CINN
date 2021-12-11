@@ -1,0 +1,25 @@
+.. _exhale_struct_structcinn_1_1frontend_1_1Instruction:
+
+Struct Instruction
+==================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_syntax.h`
+
+
+Inheritance Relationships
+-------------------------
+
+Base Type
+*********
+
+- ``public common::Shared< _Instruction_ >``
+
+
+Struct Documentation
+--------------------
+
+
+.. doxygenstruct:: cinn::frontend::Instruction
+   :members:
+   :protected-members:
+   :undoc-members:

@@ -1,0 +1,25 @@
+.. _exhale_class_classcinn_1_1frontend_1_1ProgramPassFunctionRegistry:
+
+Class ProgramPassFunctionRegistry
+=================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_program_pass.h`
+
+
+Inheritance Relationships
+-------------------------
+
+Base Type
+*********
+
+- ``public FunctionRegEntryBase< ProgramPassFunctionRegistry, ProgramPassFunction >``
+
+
+Class Documentation
+-------------------
+
+
+.. doxygenclass:: cinn::frontend::ProgramPassFunctionRegistry
+   :members:
+   :protected-members:
+   :undoc-members:

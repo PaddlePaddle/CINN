@@ -1,0 +1,61 @@
+
+.. _file__WorkSpace_CINN_cinn_frontend_op_mapper_registry_test.cc:
+
+File op_mapper_registry_test.cc
+===============================
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend>` (``/WorkSpace/CINN/cinn/frontend``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/frontend/op_mapper_registry_test.cc``)
+-------------------------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_frontend_op_mapper_registry_test.cc.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``cinn/frontend/op_mapper_registry.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_op_mapper_registry.h`)
+
+- ``cinn/frontend/op_mappers/use_op_mappers.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_use_op_mappers.h`)
+
+- ``cinn/utils/registry.h``
+
+- ``gtest/gtest.h``
+
+- ``typeinfo``
+
+
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn`
+
+- :ref:`namespace_cinn__frontend`
+
+
+Functions
+---------
+
+
+- :ref:`exhale_function_op__mapper__registry__test_8cc_1afd6364dbabcff09d83461fa6bc4b1f30`
+

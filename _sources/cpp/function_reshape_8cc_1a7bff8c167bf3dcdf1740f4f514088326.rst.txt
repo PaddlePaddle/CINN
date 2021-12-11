@@ -1,0 +1,13 @@
+.. _exhale_function_reshape_8cc_1a7bff8c167bf3dcdf1740f4f514088326:
+
+Function cinn::frontend::op_mappers::Reshape2OpMapper
+=====================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_op_mappers_reshape.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: cinn::frontend::op_mappers::Reshape2OpMapper(const paddle::cpp::OpDesc&, const OpMapperContext&)

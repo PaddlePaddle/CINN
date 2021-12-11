@@ -1,0 +1,13 @@
+.. _exhale_function_model__parser__test_8cc_1a320e413651154b4ccddf94c1daabd4ea:
+
+Function DEFINE_string(model_dir, "<NOTEXIST>", "model directory path")
+=======================================================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_model_parser_test.cc`
+
+
+Function Documentation
+----------------------
+
+
+.. doxygenfunction:: DEFINE_string(model_dir, "<NOTEXIST>", "model directory path")

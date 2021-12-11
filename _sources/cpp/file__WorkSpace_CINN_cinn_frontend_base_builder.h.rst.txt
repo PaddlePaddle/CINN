@@ -1,0 +1,75 @@
+
+.. _file__WorkSpace_CINN_cinn_frontend_base_builder.h:
+
+File base_builder.h
+===================
+
+|exhale_lsh| :ref:`Parent directory <dir__WorkSpace_CINN_cinn_frontend>` (``/WorkSpace/CINN/cinn/frontend``)
+
+.. |exhale_lsh| unicode:: U+021B0 .. UPWARDS ARROW WITH TIP LEFTWARDS
+
+.. contents:: Contents
+   :local:
+   :backlinks: none
+
+Definition (``/WorkSpace/CINN/cinn/frontend/base_builder.h``)
+-------------------------------------------------------------
+
+
+.. toctree::
+   :maxdepth: 1
+
+   program_listing_file__WorkSpace_CINN_cinn_frontend_base_builder.h.rst
+
+
+
+
+
+Includes
+--------
+
+
+- ``cinn/common/macros.h``
+
+- ``cinn/common/type.h``
+
+- ``cinn/frontend/syntax.h`` (:ref:`file__WorkSpace_CINN_cinn_frontend_syntax.h`)
+
+- ``cinn/hlir/framework/op.h``
+
+- ``string``
+
+- ``vector``
+
+
+
+Included By
+-----------
+
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_base_builder.cc`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_cinn_builder.h`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_computation.h`
+
+- :ref:`file__WorkSpace_CINN_cinn_frontend_net_builder.h`
+
+
+
+
+Namespaces
+----------
+
+
+- :ref:`namespace_cinn`
+
+- :ref:`namespace_cinn__frontend`
+
+
+Classes
+-------
+
+
+- :ref:`exhale_class_classcinn_1_1frontend_1_1BaseBuilder`
+

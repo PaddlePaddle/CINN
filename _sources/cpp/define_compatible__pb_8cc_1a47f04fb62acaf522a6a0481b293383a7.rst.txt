@@ -1,0 +1,13 @@
+.. _exhale_define_compatible__pb_8cc_1a47f04fb62acaf522a6a0481b293383a7:
+
+Define TRANS_PROGRAM_ANY_WITH_CPP_IMPL
+======================================
+
+- Defined in :ref:`file__WorkSpace_CINN_cinn_frontend_paddle_compatible_pb.cc`
+
+
+Define Documentation
+--------------------
+
+
+.. doxygendefine:: TRANS_PROGRAM_ANY_WITH_CPP_IMPL
