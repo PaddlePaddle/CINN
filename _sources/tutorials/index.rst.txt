@@ -22,27 +22,6 @@ Compile ``demo.cc``::
 
 .. raw:: html
 
-    <div class="sphx-glr-thumbcontainer" tooltip="In this tutorial, we will introduce the ways to build and run a model using CinnBuilder APIs. ">
-
-.. only:: html
-
- .. figure:: /tutorials/images/thumb/sphx_glr_cinn_builder_thumb.png
-     :alt: Run model by using CinnBuilder API
-
-     :ref:`sphx_glr_tutorials_cinn_builder.py`
-
-.. raw:: html
-
-    </div>
-
-
-.. toctree::
-   :hidden:
-
-   /tutorials/cinn_builder
-
-.. raw:: html
-
     <div class="sphx-glr-thumbcontainer" tooltip="In this tutorial, we will introduce the JIT module that execute the DSL on X86 and NV GPU. ">
 
 .. only:: html
@@ -61,6 +40,27 @@ Compile ``demo.cc``::
    :hidden:
 
    /tutorials/jit
+
+.. raw:: html
+
+    <div class="sphx-glr-thumbcontainer" tooltip="In this tutorial, we will introduce the ways to build and run a model using CinnBuilder APIs. ">
+
+.. only:: html
+
+ .. figure:: /tutorials/images/thumb/sphx_glr_cinn_builder_thumb.png
+     :alt: Run model by using CinnBuilder API
+
+     :ref:`sphx_glr_tutorials_cinn_builder.py`
+
+.. raw:: html
+
+    </div>
+
+
+.. toctree::
+   :hidden:
+
+   /tutorials/cinn_builder
 
 .. raw:: html
 

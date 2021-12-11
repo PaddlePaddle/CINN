@@ -22,9 +22,7 @@
         <script src="_static/collapsible-lists/js/apply-collapsible-lists.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
-    <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="C++ Symbols" href="cpp/library_root.html" />
-    <link rel="prev" title="Load and Execute Paddle Model in C++" href="load_paddle_model.html" /> 
+    <link rel="search" title="Search" href="search.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -48,90 +46,6 @@
 </ul>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="tutorials/index.html">Tutorials</a></li>
-</ul>
-<ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="matmul.html">C++ DSL API tutorial: Matrix Multiplication</a></li>
-<li class="toctree-l1"><a class="reference internal" href="load_paddle_model.html">Load and Execute Paddle Model in C++</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">CinnBuilder Primitive Semantics</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#scalar-primitive-apis">1. Scalar Primitive APIs</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#constscalar">ConstScalar</a></li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="#unary-primitive-apis">2. Unary Primitive APIs</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#abs">Abs</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#acos">Acos</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#acosh">Acosh</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#asin">Asin</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#asinh">Asinh</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#atan">Atan</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#atanh">Atanh</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#bitwisenot">BitwiseNot</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#ceil">Ceil</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#cos">Cos</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#cosh">Cosh</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#erf">Erf</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#exp">Exp</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#floor">Floor</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#identity">Identity</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#isfinite">IsFinite</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#isinf">IsInf</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#isnan">IsNan</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#log">Log</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#log10">Log10</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#log2">Log2</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#logicalnot">LogicalNot</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#negative">Negative</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#round">Round</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#rsqrt">Rsqrt</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#sign">Sign</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#sin">Sin</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#sinh">Sinh</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#sqrt">Sqrt</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#tan">Tan</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#tanh">Tanh</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#trunc">Trunc</a></li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="#binary-primitive-apis">3. Binary Primitive APIs</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#add">Add</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#bitwiseand">BitwiseAnd</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#bitwiseor">BitwiseOr</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#bitwisexor">BitwiseXor</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#div">Div</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#dot">Dot</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#floordiv">FloorDiv</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#floormod">FloorMod</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#leftshift">LeftShift</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#logicaland">LogicalAnd</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#logicalor">LogicalOr</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#logicalxor">LogicalXor</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#max">Max</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#min">Min</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#mod">Mod</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#mul">Mul</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#power">Power</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#rightshift">RightShift</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#sub">Sub</a></li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="#complex-primitive-apis">4. Complex Primitive APIs</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#bngradbiasscale">BnGradBiasScale</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#bnmeanvariance">BnMeanVariance</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#broadcastto">BroadcastTo</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#compare">Compare</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#concat">Concat</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#conv">Conv</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#reduce">Reduce</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#reshape">Reshape</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#reverse">Reverse</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#select">Select</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#slice">Slice</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#transpose">Transpose</a></li>
-</ul>
-</li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="cpp/library_root.html">C++ Symbols</a></li>
 </ul>
 
         </div>
@@ -721,10 +635,7 @@ is 0.</p></li>
 
            </div>
           </div>
-          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="load_paddle_model.html" class="btn btn-neutral float-left" title="Load and Execute Paddle Model in C++" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="cpp/library_root.html" class="btn btn-neutral float-right" title="C++ Symbols" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
-    </div>
+          <footer>
 
   <hr/>
 
