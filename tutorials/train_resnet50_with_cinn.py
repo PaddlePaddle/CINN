@@ -19,9 +19,10 @@ This is a beginner-friendly tutorial on how to train models using Paddle compile
 This tutorial assumes that you have installed Paddle compiled with CINN. Otherwise, please
 enable the ``-DWITH_CINN`` compilation option to recompile Paddle and reinstall it.
 
-Here is a compiled wheel package: ``URL of Wheel package``, you can use it in 
-``registry.baidubce.com/paddlepaddle/paddle:latest-dev-cuda11.2-cudnn8-gcc82`` docker image 
-with ``Python3.6``.
+Here is a compiled wheel package: 
+``https://paddle-inference-dist.bj.bcebos.com/CINN/paddlepaddle_gpu-0.0.0-cp36-cp36m-linux_x86_64.whl``,
+you can use it in 
+``registry.baidubce.com/paddlepaddle/paddle:latest-dev-cuda11.2-cudnn8-gcc82`` docker image with ``Python3.6``.
 """
 
 import os
