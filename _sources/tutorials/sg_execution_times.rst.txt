@@ -5,18 +5,18 @@
 
 Computation times
 =================
-**00:02.977** total execution time for **tutorials** files:
+**03:58.636** total execution time for **tutorials** files:
 
 +-------------------------------------------------------------------------------+-----------+--------+
-| :ref:`sphx_glr_tutorials_cinn_builder.py` (``cinn_builder.py``)               | 00:02.977 | 0.0 MB |
+| :ref:`sphx_glr_tutorials_load_paddle_model.py` (``load_paddle_model.py``)     | 03:31.531 | 0.0 MB |
 +-------------------------------------------------------------------------------+-----------+--------+
-| :ref:`sphx_glr_tutorials_jit.py` (``jit.py``)                                 | 00:00.000 | 0.0 MB |
+| :ref:`sphx_glr_tutorials_matmul.py` (``matmul.py``)                           | 00:20.980 | 0.0 MB |
 +-------------------------------------------------------------------------------+-----------+--------+
-| :ref:`sphx_glr_tutorials_load_paddle_model.py` (``load_paddle_model.py``)     | 00:00.000 | 0.0 MB |
+| :ref:`sphx_glr_tutorials_cinn_builder.py` (``cinn_builder.py``)               | 00:03.052 | 0.0 MB |
 +-------------------------------------------------------------------------------+-----------+--------+
-| :ref:`sphx_glr_tutorials_matmul.py` (``matmul.py``)                           | 00:00.000 | 0.0 MB |
+| :ref:`sphx_glr_tutorials_net_builder.py` (``net_builder.py``)                 | 00:02.262 | 0.0 MB |
 +-------------------------------------------------------------------------------+-----------+--------+
-| :ref:`sphx_glr_tutorials_net_builder.py` (``net_builder.py``)                 | 00:00.000 | 0.0 MB |
+| :ref:`sphx_glr_tutorials_jit.py` (``jit.py``)                                 | 00:00.479 | 0.0 MB |
 +-------------------------------------------------------------------------------+-----------+--------+
-| :ref:`sphx_glr_tutorials_schedule_primitives.py` (``schedule_primitives.py``) | 00:00.000 | 0.0 MB |
+| :ref:`sphx_glr_tutorials_schedule_primitives.py` (``schedule_primitives.py``) | 00:00.332 | 0.0 MB |
 +-------------------------------------------------------------------------------+-----------+--------+

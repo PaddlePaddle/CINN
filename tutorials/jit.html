@@ -23,8 +23,8 @@
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Load and Execute Paddle Model" href="load_paddle_model.html" />
-    <link rel="prev" title="Run model by using CinnBuilder API" href="cinn_builder.html" /> 
+    <link rel="next" title="Run model by using CinnBuilder API" href="cinn_builder.html" />
+    <link rel="prev" title="Tutorials" href="index.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -49,12 +49,12 @@
 <ul class="current">
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">Tutorials</a><ul class="current">
 <li class="toctree-l2 current"><a class="reference internal" href="index.html#run-demo">Run demo</a><ul class="current">
-<li class="toctree-l3"><a class="reference internal" href="cinn_builder.html">Run model by using CinnBuilder API</a></li>
 <li class="toctree-l3 current"><a class="current reference internal" href="#">JIT in CINN</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#decleare-the-computation">Decleare the computation</a></li>
 <li class="toctree-l4"><a class="reference internal" href="#create-a-jit-engine">Create a JIT engine.</a></li>
 </ul>
 </li>
+<li class="toctree-l3"><a class="reference internal" href="cinn_builder.html">Run model by using CinnBuilder API</a></li>
 <li class="toctree-l3"><a class="reference internal" href="load_paddle_model.html">Load and Execute Paddle Model</a></li>
 <li class="toctree-l3"><a class="reference internal" href="net_builder.html">Run model by using NetBuilder API</a></li>
 <li class="toctree-l3"><a class="reference internal" href="matmul.html">Ways to optimize Matrix Multiplication on CPU</a></li>
@@ -63,12 +63,6 @@
 </li>
 </ul>
 </li>
-</ul>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="../matmul.html">C++ DSL API tutorial: Matrix Multiplication</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../load_paddle_model.html">Load and Execute Paddle Model in C++</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../cinn_builder_api.html">CinnBuilder Primitive Semantics</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../cpp/library_root.html">C++ Symbols</a></li>
 </ul>
 
         </div>
@@ -146,13 +140,13 @@
 </div>
 <p>Execute the compiled function</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">a</span> <span class="o">=</span> <span class="n">runtime</span><span class="o">.</span><span class="n">cinn_buffer_t</span><span class="p">(</span>
-    <a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.random.html#numpy.random.randn" title="numpy.random.randn" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-np-function"><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span></a><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">int</span><span class="p">(),</span> <span class="n">k</span><span class="o">.</span><span class="n">int</span><span class="p">())</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float32&quot;</span><span class="p">),</span>
+    <a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.random.html#numpy.random.randn" title="numpy.random.randn" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-np-function"><a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.random.html#numpy.random.randn" title="numpy.random.randn" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-np-function"><a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.random.html#numpy.random.randn" title="numpy.random.randn" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-np-function"><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span></a></a></a><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">int</span><span class="p">(),</span> <span class="n">k</span><span class="o">.</span><span class="n">int</span><span class="p">())</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float32&quot;</span><span class="p">),</span>
     <span class="n">runtime</span><span class="o">.</span><span class="n">cinn_x86_device</span><span class="p">)</span>
 <span class="n">b</span> <span class="o">=</span> <span class="n">runtime</span><span class="o">.</span><span class="n">cinn_buffer_t</span><span class="p">(</span>
-    <a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.random.html#numpy.random.randn" title="numpy.random.randn" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-np-function"><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span></a><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">int</span><span class="p">(),</span> <span class="n">k</span><span class="o">.</span><span class="n">int</span><span class="p">())</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float32&quot;</span><span class="p">),</span>
+    <a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.random.html#numpy.random.randn" title="numpy.random.randn" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-np-function"><a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.random.html#numpy.random.randn" title="numpy.random.randn" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-np-function"><a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.random.html#numpy.random.randn" title="numpy.random.randn" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-np-function"><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span></a></a></a><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">int</span><span class="p">(),</span> <span class="n">k</span><span class="o">.</span><span class="n">int</span><span class="p">())</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float32&quot;</span><span class="p">),</span>
     <span class="n">runtime</span><span class="o">.</span><span class="n">cinn_x86_device</span><span class="p">)</span>
 <span class="n">c</span> <span class="o">=</span> <span class="n">runtime</span><span class="o">.</span><span class="n">cinn_buffer_t</span><span class="p">(</span>
-    <a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.html#numpy.zeros" title="numpy.zeros" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-np-function"><span class="n">np</span><span class="o">.</span><span class="n">zeros</span></a><span class="p">([</span><span class="n">m</span><span class="o">.</span><span class="n">int</span><span class="p">(),</span> <span class="n">n</span><span class="o">.</span><span class="n">int</span><span class="p">()])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float32&quot;</span><span class="p">),</span> <span class="n">runtime</span><span class="o">.</span><span class="n">cinn_x86_device</span><span class="p">)</span>
+    <a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.html#numpy.zeros" title="numpy.zeros" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-np-function"><a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.html#numpy.zeros" title="numpy.zeros" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-np-function"><a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.html#numpy.zeros" title="numpy.zeros" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-np-function"><span class="n">np</span><span class="o">.</span><span class="n">zeros</span></a></a></a><span class="p">([</span><span class="n">m</span><span class="o">.</span><span class="n">int</span><span class="p">(),</span> <span class="n">n</span><span class="o">.</span><span class="n">int</span><span class="p">()])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float32&quot;</span><span class="p">),</span> <span class="n">runtime</span><span class="o">.</span><span class="n">cinn_x86_device</span><span class="p">)</span>
 
 <span class="n">args</span> <span class="o">=</span> <span class="p">[</span><span class="n">runtime</span><span class="o">.</span><span class="n">cinn_pod_value_t</span><span class="p">(</span><span class="n">_</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="p">[</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">c</span><span class="p">]]</span>
 <span class="n">matmul</span> <span class="o">=</span> <span class="n">jit</span><span class="o">.</span><span class="n">lookup</span><span class="p">(</span><span class="s2">&quot;matmul&quot;</span><span class="p">)</span>
@@ -162,22 +156,22 @@
 </pre></div>
 </div>
 <p class="sphx-glr-script-out">Out:</p>
-<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>[[ 3.3325822  -1.6952821  -0.43298188 ...  1.7298388   3.8966396
-  -0.7043519 ]
- [-5.6133847   0.57056767  0.9133278  ... -5.245244    3.8143108
-  -0.7851429 ]
- [ 0.8786047   2.7660906   0.36960226 ...  2.2698011   8.996524
-  -0.38833025]
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>[[-4.081723   -0.5517099   2.4848666  ... -0.4616294  -0.98702335
+   0.32720998]
+ [-1.7864906  -0.730955    1.0589699  ...  1.455684   -2.54
+   2.1056092 ]
+ [ 2.972013   -0.13308796  1.4039603  ...  3.8339949   0.8497251
+  -4.981779  ]
  ...
- [-4.736283    1.2821844  -1.2885833  ... -4.86236     2.1387365
-  -0.92407393]
- [-4.01227     0.30870485  3.195774   ...  0.83601916 -0.92081094
-   1.7729033 ]
- [ 8.966785   -0.5353177  -5.333498   ... -1.7043017   8.233211
-  -3.3591487 ]]
+ [-2.9961278  -0.56431466  1.3524063  ... -3.4160056  -2.2495627
+   5.204043  ]
+ [-1.2378733  -0.13717127 -1.5316045  ...  3.8830905   0.66755056
+  -3.170727  ]
+ [ 1.1824512   0.87764204 -1.5679601  ... -0.27786762 -4.2257524
+  -2.2286716 ]]
 </pre></div>
 </div>
-<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> ( 0 minutes  0.409 seconds)</p>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> ( 0 minutes  0.479 seconds)</p>
 <div class="sphx-glr-footer class sphx-glr-footer-example docutils container" id="sphx-glr-download-tutorials-jit-py">
 <div class="sphx-glr-download sphx-glr-download-python docutils container">
 <p><a class="reference download internal" download="" href="../_downloads/99d679e7901e5b36c273754fc83755ef/jit.py"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Python</span> <span class="pre">source</span> <span class="pre">code:</span> <span class="pre">jit.py</span></code></a></p>
@@ -194,8 +188,8 @@
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="cinn_builder.html" class="btn btn-neutral float-left" title="Run model by using CinnBuilder API" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="load_paddle_model.html" class="btn btn-neutral float-right" title="Load and Execute Paddle Model" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="index.html" class="btn btn-neutral float-left" title="Tutorials" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="cinn_builder.html" class="btn btn-neutral float-right" title="Run model by using CinnBuilder API" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

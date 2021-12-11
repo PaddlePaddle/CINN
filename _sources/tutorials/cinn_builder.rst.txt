@@ -97,61 +97,7 @@ the algebra or basic DL operator.
 .. code-block:: python
 
     d = builder.add(a, b)
-    e = builder.conv(d, c)
-
-
-
-
-
-
-
-
-Generate the program
----------------------
-
-After the model building, the CinnBuilder will generate a CINN execution program,
-and you can get it by invoking `builder.build()` function.
-
-
-.. code-block:: python
-
-    prog = builder.build()
-
-    # You can print the returned program as following code:
-    for i in range(prog.size()):
-        print(prog[i])
-
-
-
-
-
-.. rst-class:: sphx-glr-script-out
-
- Out:
-
- .. code-block:: none
-
-    var_2 = elementwise_add(A, B)
-    var_3, var_4, var_5, var_6 = conv2d(var_2, C, conv_type=forward, padding_algorithm=EXPLICIT, padding=[0,0], groups=1, data_format=NCHW, dilation=[1,1], stride=[1,1], output_shape=[])
-
-
-
-
-Random fake input data
------------------------------
-
-Before running, you should read or generate some data to feed the model's input.
-In model building, we just create some placeholder, to get the model's running
-result, here we random some fake input data.
-
-
-.. code-block:: python
-
-    tensor_data = [
-        np.random.random([1, 24, 56, 56]).astype("float32"),
-        np.random.random([1, 24, 56, 56]).astype("float32"),
-        np.random.random([144, 24, 1, 1]).astype("float32")
-    ]
+    res = builder.conv(d, c)
 
 
 
@@ -195,30 +141,66 @@ two targets:
 
 
 
-Run program and print result
------------------------------
+Generate the program
+---------------------
 
-Finally, you can running model by invoking function `build_and_get_output`.
-The `build_and_get_output` accepts the input data and finally return the results
-of model, it has four parameters:
-
-:code:`target`: the model's irunning target.
-
-:code:`tensor_inputs`: the model's input variable list.
-
-:code:`input_data`: the actual data list, the order of the list must be the same as
-`tensor_inputs`, otherwise, the resulting error.
-
-:code:`tensor_outputs`: the model's output variable list, the ordering of the model's
-result list is the same as `tensor_outputs`, here we just has one result `[e]`.
+After the model building, the `Computation` will generate a CINN execution program,
+and you can get it like:
 
 
 .. code-block:: python
 
-    result = prog.build_and_get_output(target, [a, b, c], tensor_data, [e])
+    computation = frontend.Computation.build_and_compile(target, builder)
+
+
+
+
+
+
+
+
+Random fake input data
+-----------------------------
+
+Before running, you should read or generate some data to feed the model's input.
+:code:`get_tensor`: Get the tensor with specific name in computation.
+:code:`from_numpy`: Fill the tensor with numpy data.
+
+
+.. code-block:: python
+
+    tensor_data = [
+        np.random.random([1, 24, 56, 56]).astype("float32"),
+        np.random.random([1, 24, 56, 56]).astype("float32"),
+        np.random.random([144, 24, 1, 1]).astype("float32")
+    ]
+
+    computation.get_tensor("A").from_numpy(tensor_data[0], target)
+    computation.get_tensor("B").from_numpy(tensor_data[1], target)
+    computation.get_tensor("C").from_numpy(tensor_data[2], target)
+
+
+
+
+
+
+
+
+Run program and print result
+-----------------------------
+
+Finally, you can run the model by invoking function `execute()`.
+After that, you can get the tensor you want by `get_tensor` with tensor's name.
+
+
+.. code-block:: python
+
+    computation.execute()
+    res_tensor = computation.get_tensor(str(res))
+    res_data = res_tensor.numpy(target)
 
     # print result
-    print(result[0].numpy(target))
+    print(res_data)
 
 
 
@@ -229,91 +211,91 @@ result list is the same as `tensor_outputs`, here we just has one result `[e]`.
 
  .. code-block:: none
 
-    [[[[11.402205  10.357137  12.205004  ... 12.662119  12.108465
-        12.17814  ]
-       [11.668343  13.040956  12.447338  ... 11.788173  13.680928
-        11.163821 ]
-       [10.705553  12.2684765 12.922522  ... 11.701937  12.141318
-        12.00931  ]
+    [[[[ 8.568227  10.495934  14.111277  ... 12.915776  10.897482
+        11.8130665]
+       [11.73036   12.745227   9.864195  ... 12.029252  11.720777
+        10.681017 ]
+       [11.552584  11.194932  11.731369  ...  9.6833    11.616971
+         9.923548 ]
        ...
-       [10.910082  13.12296   13.373997  ... 11.379147  11.237022
-        12.465562 ]
-       [12.829292  12.533173  10.209457  ... 12.024549  12.784143
-        11.647084 ]
-       [12.789625  10.647254  11.03008   ... 12.388807  11.375592
-        13.725213 ]]
+       [11.1857    10.039899  10.077531  ... 12.993214  12.591804
+        11.112865 ]
+       [10.086812  11.090678  10.932195  ...  9.149495  11.799527
+        12.7821455]
+       [11.819088  13.115123  11.5466175 ... 12.03128   13.830334
+        10.10156  ]]
 
-      [[12.557223  11.4291115 12.727175  ... 13.534015  10.9858055
-        12.613867 ]
-       [11.192857  13.379105  11.150632  ... 11.991193  12.629285
-        11.94468  ]
-       [10.205065  12.959714  12.440995  ... 11.217756  13.051765
-        12.175887 ]
+      [[ 9.140931  10.158964  12.824207  ... 11.762231  10.866086
+        10.385833 ]
+       [10.199422  11.630757   9.003504  ... 10.739734  10.557848
+        12.422776 ]
+       [11.435442  10.80628   10.257032  ...  8.779116  10.648233
+         8.874485 ]
        ...
-       [12.427084  11.945395  13.473354  ... 11.4361105 11.136014
-        13.056772 ]
-       [12.684954  11.870396  10.699707  ... 11.960862  12.979715
-        11.861357 ]
-       [13.8027525 11.347755  11.3299265 ... 11.397205  13.315683
-        12.044161 ]]
+       [ 9.871626   8.696374  11.161393  ... 11.424716  11.248444
+         8.494017 ]
+       [11.031661  11.940538  10.0210495 ...  9.0157585 10.92778
+        10.79815  ]
+       [11.198552  10.2410145 10.011838  ... 12.412579  11.343032
+         9.757355 ]]
 
-      [[12.791991  11.036622  12.1653185 ... 14.04846   12.21716
-        14.208747 ]
-       [13.03016   13.604054  11.999368  ... 12.635714  14.058492
-        11.8943205]
-       [11.231338  13.568094  13.410501  ... 12.57478   12.68688
-        12.738601 ]
+      [[ 9.460655  11.023021  13.480662  ... 13.243182  10.792337
+        11.98477  ]
+       [11.751013  13.304368   9.321863  ... 11.729551  12.529137
+        11.4219675]
+       [11.73177   10.495691  11.171243  ...  9.691622  10.044816
+         8.952812 ]
        ...
-       [11.014916  12.034544  13.943432  ... 11.6848755 11.914125
-        12.689106 ]
-       [13.902449  12.121396  10.947582  ... 13.289367  12.895223
-        12.345871 ]
-       [13.716233  11.422139  12.329879  ... 12.18836   11.6483965
-        12.771475 ]]
+       [10.687203   9.228727  10.440135  ... 11.85991   11.144823
+         9.490603 ]
+       [10.2525835 10.747784  10.912067  ...  8.677981  12.606865
+        10.946193 ]
+       [11.818406  12.54317   11.840716  ... 11.409017  12.1202135
+        10.361343 ]]
 
       ...
 
-      [[11.265371   9.405574  10.941015  ... 12.890999  11.279657
-        11.894772 ]
-       [11.781168  12.854194  11.055632  ... 11.7509775 11.732627
-        10.933191 ]
-       [ 9.057939  11.78274   12.684501  ... 12.096486  11.419121
-        10.9600935]
+      [[ 8.677882  11.157555  14.701891  ... 12.634993  11.22414
+        12.291926 ]
+       [12.081546  12.866144   9.668225  ... 12.767154  12.435603
+        12.520116 ]
+       [11.400303   9.9390745 11.3090515 ... 10.442067  12.2591305
+        10.400177 ]
        ...
-       [ 9.710289  11.784645  14.149456  ... 11.0700865 11.318668
-        10.767227 ]
-       [12.895413  11.038522   9.862628  ... 11.10616   11.395766
-        11.592048 ]
-       [13.253885   9.710457  10.665722  ... 11.985099  10.861835
-        12.774499 ]]
+       [10.717231   9.740044  12.104015  ... 14.021527  13.324479
+        10.637178 ]
+       [11.404556  11.44735   11.5851555 ...  9.318158  12.825827
+        12.892293 ]
+       [11.296053  12.722934  12.22791   ... 13.714926  14.281215
+        10.548234 ]]
 
-      [[10.264269   8.83633   10.130927  ... 10.239141  10.558953
-         9.878659 ]
-       [11.106882  11.340644  10.736336  ...  9.463569  11.541263
-         9.14313  ]
-       [ 9.732337  10.423719  10.554124  ... 10.472389   9.019059
-         9.535725 ]
+      [[ 9.138985  11.493175  13.945364  ... 12.947515  11.058085
+        11.553017 ]
+       [11.907112  12.72487    9.442264  ... 11.371687  11.484827
+        10.841688 ]
+       [11.867383   9.942226  11.449764  ...  9.880114  11.890283
+         9.492042 ]
        ...
-       [ 9.636091  11.423969  12.298453  ... 10.077561   9.2619705
-        10.80918  ]
-       [10.809883   9.855771   8.53665   ... 10.269746  10.517506
-         9.652535 ]
-       [10.747098   9.658329   9.552267  ...  9.681683   9.387086
-        10.970349 ]]
+       [10.963314   9.424794  10.48686   ... 13.644491  12.413258
+        11.455426 ]
+       [10.264303  11.02569   11.5409565 ... 10.01723   12.619312
+        11.395249 ]
+       [10.879699  11.792351  11.205195  ... 12.478064  12.980261
+        10.551956 ]]
 
-      [[13.48398   12.029467  13.422038  ... 15.099518  13.211387
-        12.806797 ]
-       [12.734749  14.219908  13.266703  ... 12.847879  14.945753
-        10.753968 ]
-       [12.811082  13.176632  13.463695  ... 12.354083  13.412345
-        11.454769 ]
+      [[ 7.5163517  9.616672  13.253782  ... 11.829936   9.966538
+        10.329812 ]
+       [10.564097  11.971728   7.9362755 ...  9.654983  10.189467
+        10.020061 ]
+       [10.67687    9.2631035 10.837108  ...  9.0934725 10.470772
+         8.092543 ]
        ...
-       [12.897841  13.863539  15.539668  ... 13.398994  12.284518
-        13.89617  ]
-       [13.613338  12.448188  11.305966  ... 12.875809  13.898836
-        12.225086 ]
-       [14.096809  12.52793   13.014849  ... 12.049956  12.776677
-        13.420905 ]]]]
+       [ 9.488286   8.771321   8.743898  ... 10.773622  10.852684
+         8.901657 ]
+       [ 8.953464  10.175392   9.531574  ...  8.251192  11.690654
+        10.404082 ]
+       [10.233924  10.672572  10.099605  ... 10.1696    10.674373
+         9.36539  ]]]]
 
 
 
@@ -321,7 +303,7 @@ result list is the same as `tensor_outputs`, here we just has one result `[e]`.
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** ( 0 minutes  2.977 seconds)
+   **Total running time of the script:** ( 0 minutes  3.052 seconds)
 
 
 .. _sphx_glr_download_tutorials_cinn_builder.py:

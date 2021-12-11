@@ -49,8 +49,8 @@
 <ul class="current">
 <li class="toctree-l1 current"><a class="reference internal" href="index.html">Tutorials</a><ul class="current">
 <li class="toctree-l2 current"><a class="reference internal" href="index.html#run-demo">Run demo</a><ul class="current">
-<li class="toctree-l3"><a class="reference internal" href="cinn_builder.html">Run model by using CinnBuilder API</a></li>
 <li class="toctree-l3"><a class="reference internal" href="jit.html">JIT in CINN</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cinn_builder.html">Run model by using CinnBuilder API</a></li>
 <li class="toctree-l3"><a class="reference internal" href="load_paddle_model.html">Load and Execute Paddle Model</a></li>
 <li class="toctree-l3"><a class="reference internal" href="net_builder.html">Run model by using NetBuilder API</a></li>
 <li class="toctree-l3 current"><a class="current reference internal" href="#">Ways to optimize Matrix Multiplication on CPU</a><ul>
@@ -65,12 +65,6 @@
 </li>
 </ul>
 </li>
-</ul>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="../matmul.html">C++ DSL API tutorial: Matrix Multiplication</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../load_paddle_model.html">Load and Execute Paddle Model in C++</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../cinn_builder_api.html">CinnBuilder Primitive Semantics</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../cpp/library_root.html">C++ Symbols</a></li>
 </ul>
 
         </div>
@@ -133,13 +127,13 @@
 </div>
 <p>Fake input data, here we create a runtime buffer for each input of the generated function.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">a</span> <span class="o">=</span> <span class="n">runtime</span><span class="o">.</span><span class="n">cinn_buffer_t</span><span class="p">(</span>
-    <a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.random.html#numpy.random.randn" title="numpy.random.randn" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-np-function"><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span></a><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">int</span><span class="p">(),</span> <span class="n">k</span><span class="o">.</span><span class="n">int</span><span class="p">())</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float32&quot;</span><span class="p">),</span>
+    <a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.random.html#numpy.random.randn" title="numpy.random.randn" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-np-function"><a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.random.html#numpy.random.randn" title="numpy.random.randn" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-np-function"><a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.random.html#numpy.random.randn" title="numpy.random.randn" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-np-function"><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span></a></a></a><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">int</span><span class="p">(),</span> <span class="n">k</span><span class="o">.</span><span class="n">int</span><span class="p">())</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float32&quot;</span><span class="p">),</span>
     <span class="n">runtime</span><span class="o">.</span><span class="n">cinn_x86_device</span><span class="p">,</span> <span class="mi">32</span><span class="p">)</span>
 <span class="n">b</span> <span class="o">=</span> <span class="n">runtime</span><span class="o">.</span><span class="n">cinn_buffer_t</span><span class="p">(</span>
-    <a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.random.html#numpy.random.randn" title="numpy.random.randn" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-np-function"><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span></a><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">int</span><span class="p">(),</span> <span class="n">k</span><span class="o">.</span><span class="n">int</span><span class="p">())</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float32&quot;</span><span class="p">),</span>
+    <a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.random.html#numpy.random.randn" title="numpy.random.randn" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-np-function"><a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.random.html#numpy.random.randn" title="numpy.random.randn" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-np-function"><a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.random.html#numpy.random.randn" title="numpy.random.randn" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-np-function"><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span></a></a></a><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">int</span><span class="p">(),</span> <span class="n">k</span><span class="o">.</span><span class="n">int</span><span class="p">())</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float32&quot;</span><span class="p">),</span>
     <span class="n">runtime</span><span class="o">.</span><span class="n">cinn_x86_device</span><span class="p">,</span> <span class="mi">32</span><span class="p">)</span>
 <span class="n">c</span> <span class="o">=</span> <span class="n">runtime</span><span class="o">.</span><span class="n">cinn_buffer_t</span><span class="p">(</span>
-    <a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.html#numpy.zeros" title="numpy.zeros" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-np-function"><span class="n">np</span><span class="o">.</span><span class="n">zeros</span></a><span class="p">([</span><span class="n">m</span><span class="o">.</span><span class="n">int</span><span class="p">(),</span> <span class="n">n</span><span class="o">.</span><span class="n">int</span><span class="p">()])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float32&quot;</span><span class="p">),</span> <span class="n">runtime</span><span class="o">.</span><span class="n">cinn_x86_device</span><span class="p">,</span>
+    <a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.html#numpy.zeros" title="numpy.zeros" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-np-function"><a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.html#numpy.zeros" title="numpy.zeros" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-np-function"><a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.html#numpy.zeros" title="numpy.zeros" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-np-function"><span class="n">np</span><span class="o">.</span><span class="n">zeros</span></a></a></a><span class="p">([</span><span class="n">m</span><span class="o">.</span><span class="n">int</span><span class="p">(),</span> <span class="n">n</span><span class="o">.</span><span class="n">int</span><span class="p">()])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float32&quot;</span><span class="p">),</span> <span class="n">runtime</span><span class="o">.</span><span class="n">cinn_x86_device</span><span class="p">,</span>
     <span class="mi">32</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -178,7 +172,7 @@
 </pre></div>
 </div>
 <p class="sphx-glr-script-out">Out:</p>
-<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>Takes 3461.118 ms
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>Takes 3439.174 ms
 </pre></div>
 </div>
 <section id="blocking">
@@ -194,7 +188,7 @@
 </pre></div>
 </div>
 <p class="sphx-glr-script-out">Out:</p>
-<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>Takes 292.120 ms
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>Takes 292.337 ms
 </pre></div>
 </div>
 </section>
@@ -212,7 +206,7 @@
 </pre></div>
 </div>
 <p class="sphx-glr-script-out">Out:</p>
-<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>Takes 292.470 ms
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>Takes 292.294 ms
 </pre></div>
 </div>
 </section>
@@ -229,7 +223,7 @@
 </pre></div>
 </div>
 <p class="sphx-glr-script-out">Out:</p>
-<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>Takes 69.613 ms
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>Takes 70.884 ms
 </pre></div>
 </div>
 </section>
@@ -250,7 +244,7 @@
 
 <span class="c1"># We make the packedB as another input of the generated function and allocate a runtime buffer for it.</span>
 <span class="n">packedB_buf</span> <span class="o">=</span> <span class="n">runtime</span><span class="o">.</span><span class="n">cinn_buffer_t</span><span class="p">(</span>
-    <a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.html#numpy.zeros" title="numpy.zeros" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-np-function"><span class="n">np</span><span class="o">.</span><span class="n">zeros</span></a><span class="p">([</span><span class="n">n</span><span class="o">.</span><span class="n">int</span><span class="p">()</span> <span class="o">//</span> <span class="n">bn</span><span class="p">,</span> <span class="n">k</span><span class="o">.</span><span class="n">int</span><span class="p">(),</span> <span class="n">bn</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float32&quot;</span><span class="p">),</span>
+    <a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.html#numpy.zeros" title="numpy.zeros" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-np-function"><a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.html#numpy.zeros" title="numpy.zeros" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-np-function"><a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.html#numpy.zeros" title="numpy.zeros" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-np-function"><span class="n">np</span><span class="o">.</span><span class="n">zeros</span></a></a></a><span class="p">([</span><span class="n">n</span><span class="o">.</span><span class="n">int</span><span class="p">()</span> <span class="o">//</span> <span class="n">bn</span><span class="p">,</span> <span class="n">k</span><span class="o">.</span><span class="n">int</span><span class="p">(),</span> <span class="n">bn</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float32&quot;</span><span class="p">),</span>
     <span class="n">runtime</span><span class="o">.</span><span class="n">cinn_x86_device</span><span class="p">,</span> <span class="mi">32</span><span class="p">)</span>
 
 <span class="c1"># The final performance is</span>
@@ -261,10 +255,10 @@
 </pre></div>
 </div>
 <p class="sphx-glr-script-out">Out:</p>
-<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>Takes 64.975 ms
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>Takes 63.296 ms
 </pre></div>
 </div>
-<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> ( 0 minutes  21.096 seconds)</p>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> ( 0 minutes  20.980 seconds)</p>
 <div class="sphx-glr-footer class sphx-glr-footer-example docutils container" id="sphx-glr-download-tutorials-matmul-py">
 <div class="sphx-glr-download sphx-glr-download-python docutils container">
 <p><a class="reference download internal" download="" href="../_downloads/243534f0cdae00eee4a57d46f189897f/matmul.py"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Python</span> <span class="pre">source</span> <span class="pre">code:</span> <span class="pre">matmul.py</span></code></a></p>

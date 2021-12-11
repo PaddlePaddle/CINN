@@ -130,7 +130,7 @@ Here is a helper function to JIT compile the generated program and test the perf
 
  .. code-block:: none
 
-    Takes 3461.118 ms
+    Takes 3439.174 ms
 
 
 
@@ -160,7 +160,7 @@ Blocking
 
  .. code-block:: none
 
-    Takes 292.120 ms
+    Takes 292.337 ms
 
 
 
@@ -191,7 +191,7 @@ Vectorization
 
  .. code-block:: none
 
-    Takes 292.470 ms
+    Takes 292.294 ms
 
 
 
@@ -221,7 +221,7 @@ Loop Permutation
 
  .. code-block:: none
 
-    Takes 69.613 ms
+    Takes 70.884 ms
 
 
 
@@ -265,7 +265,7 @@ Array Packing
 
  .. code-block:: none
 
-    Takes 64.975 ms
+    Takes 63.296 ms
 
 
 
@@ -273,7 +273,7 @@ Array Packing
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** ( 0 minutes  21.096 seconds)
+   **Total running time of the script:** ( 0 minutes  20.980 seconds)
 
 
 .. _sphx_glr_download_tutorials_matmul.py:
