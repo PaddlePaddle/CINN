@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Training ResNet50 using Paddle compiled with CINN &mdash; cinn release/v0.1-rc documentation</title><link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/gallery.css" type="text/css" />
+      <link rel="stylesheet" href="_static/gallery-binder.css" type="text/css" />
+      <link rel="stylesheet" href="_static/gallery-dataframe.css" type="text/css" />
+      <link rel="stylesheet" href="_static/collapsible-lists/css/tree_view.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/language_data.js"></script>
+        <script src="_static/collapsible-lists/js/CollapsibleLists.compressed.js"></script>
+        <script src="_static/collapsible-lists/js/apply-collapsible-lists.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="C++ Symbols" href="cpp/library_root.html" />
+    <link rel="prev" title="CinnBuilder Primitive Semantics" href="cinn_builder_api.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="index.html" class="icon icon-home"> cinn
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="install.html">Build from source code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guide.html">Install CINN using docker</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="tutorials/index.html">Tutorials</a></li>
+</ul>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="matmul.html">C++ DSL API tutorial: Matrix Multiplication</a></li>
+<li class="toctree-l1"><a class="reference internal" href="load_paddle_model.html">Load and Execute Paddle Model in C++</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cinn_builder_api.html">CinnBuilder Primitive Semantics</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Training ResNet50 using Paddle compiled with CINN</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#python-script">Python Script</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="cpp/library_root.html">C++ Symbols</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">cinn</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Training ResNet50 using Paddle compiled with CINN</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/train_resnet50_with_cinn.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="training-resnet50-using-paddle-compiled-with-cinn">
+<h1>Training ResNet50 using Paddle compiled with CINN<a class="headerlink" href="#training-resnet50-using-paddle-compiled-with-cinn" title="Permalink to this headline"></a></h1>
+<p>This is a beginner-friendly tutorial on how to train models using Paddle compiled with CINN.
+This tutorial assumes that you have installed Paddle compiled with CINN. Otherwise, please
+enable the <code class="docutils literal notranslate"><span class="pre">-DWITH_CINN</span></code> compilation option to recompile Paddle and reinstall it.</p>
+<p>Here is a compiled wheel package:
+<code class="docutils literal notranslate"><span class="pre">https://paddle-inference-dist.bj.bcebos.com/CINN/paddlepaddle_gpu-0.0.0-cp36-cp36m-linux_x86_64.whl</span></code>,
+you can use it in
+<code class="docutils literal notranslate"><span class="pre">registry.baidubce.com/paddlepaddle/paddle:latest-dev-cuda11.2-cudnn8-gcc82</span></code> docker image with <code class="docutils literal notranslate"><span class="pre">Python3.6</span></code>.</p>
+<section id="python-script">
+<h2>Python Script<a class="headerlink" href="#python-script" title="Permalink to this headline"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">paddle</span>
+<span class="c1"># sphinx_gallery_thumbnail_path = &#39;./paddlepaddle.png&#39;</span>
+
+<span class="c1">##################################################################</span>
+<span class="c1">#</span>
+<span class="c1"># Enable static execution mode</span>
+<span class="c1"># ---------------------------------------------</span>
+<span class="c1">#</span>
+<span class="c1"># Currently, we only support static graphs, so call &#39;paddle.enable_static()&#39;  in advance.</span>
+<span class="c1">#</span>
+<span class="n">paddle</span><span class="o">.</span><span class="n">enable_static</span><span class="p">()</span>
+
+<span class="c1">##################################################################</span>
+<span class="c1">#</span>
+<span class="c1"># Enable training with CINN in Paddle</span>
+<span class="c1"># ---------------------------------------------</span>
+<span class="c1">#</span>
+<span class="c1"># To train models with CINN, you need to set ``FLAGS_use_cinn`` to true.</span>
+<span class="c1">#</span>
+<span class="c1"># When training models with CINN, some Paddle operators will be replaced by CINN primitives.</span>
+<span class="c1"># You can use the flag ``FLAGS_allow_cinn_ops`` to specify Paddle operators replaced by CINN.</span>
+<span class="c1">#</span>
+<span class="c1"># The fellowing operators are supported in CINN now.</span>
+<span class="c1"># &#39;batch_norm,batch_norm_grad,conv2d,conv2d_grad, elementwise_add,elementwise_add_grad,relu,relu_grad,sum&#39;</span>
+<span class="c1">#</span>
+<span class="n">allow_ops</span> <span class="o">=</span> <span class="s2">&quot;batch_norm;batch_norm_grad;conv2d;conv2d_grad;elementwise_add;elementwise_add_grad;relu;relu_grad;sum&quot;</span>
+<span class="n">paddle</span><span class="o">.</span><span class="n">set_flags</span><span class="p">({</span><span class="s1">&#39;FLAGS_use_cinn&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s1">&#39;FLAGS_allow_cinn_ops&#39;</span><span class="p">:</span> <span class="n">allow_ops</span><span class="p">})</span>
+
+<span class="c1">##################################################################</span>
+<span class="c1">#</span>
+<span class="c1"># Select Device On Multi-GPU System</span>
+<span class="c1"># -----------------------------------------------</span>
+<span class="c1"># **Note:** At present, Paddle compiled with CINN only supports the single GPU.</span>
+<span class="c1"># If you train models with CINN on a multi-GPU system, you should specify a device</span>
+<span class="c1"># by setting &#39;CUDA_VISIBLE_DEVICES=GPU_id&#39; in the system environment.</span>
+<span class="c1">#</span>
+<span class="c1"># Then you can specify the device by Using &#39;paddle.CUDAPlace(device))&#39; to get the device context.</span>
+<span class="c1">#</span>
+<span class="c1"># :code:`device`: the device id.</span>
+<span class="c1">#</span>
+<span class="n">place</span> <span class="o">=</span> <span class="n">paddle</span><span class="o">.</span><span class="n">CUDAPlace</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+<span class="c1">##################################################################</span>
+<span class="c1">#</span>
+<span class="c1"># Build the model by using Paddle API</span>
+<span class="c1"># ---------------------------------------------</span>
+<span class="c1">#</span>
+<span class="c1"># This example shows how to train ``ResNet50`` by using Paddle compiled with CINN.</span>
+<span class="c1"># You can find more about Paddle APIs from this `website &lt;https://www.paddlepaddle.org.cn/documentation/docs/en/api/index_en.html&gt;`_.</span>
+<span class="c1"># We set the batch size to 32 and input shape to [32, 3, 224, 224].</span>
+<span class="c1">#</span>
+<span class="n">batch_size</span> <span class="o">=</span> <span class="mi">32</span>
+<span class="n">startup_program</span> <span class="o">=</span> <span class="n">paddle</span><span class="o">.</span><span class="n">static</span><span class="o">.</span><span class="n">Program</span><span class="p">()</span>
+<span class="n">main_program</span> <span class="o">=</span> <span class="n">paddle</span><span class="o">.</span><span class="n">static</span><span class="o">.</span><span class="n">Program</span><span class="p">()</span>
+<span class="k">with</span> <span class="n">paddle</span><span class="o">.</span><span class="n">static</span><span class="o">.</span><span class="n">program_guard</span><span class="p">(</span><span class="n">main_program</span><span class="p">,</span> <span class="n">startup_program</span><span class="p">):</span>
+    <span class="n">image</span> <span class="o">=</span> <span class="n">paddle</span><span class="o">.</span><span class="n">static</span><span class="o">.</span><span class="n">data</span><span class="p">(</span>
+        <span class="n">name</span><span class="o">=</span><span class="s1">&#39;image&#39;</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="mi">32</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">224</span><span class="p">,</span> <span class="mi">224</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;float32&#39;</span><span class="p">)</span>
+    <span class="n">label</span> <span class="o">=</span> <span class="n">paddle</span><span class="o">.</span><span class="n">static</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;label&#39;</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="mi">32</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;int64&#39;</span><span class="p">)</span>
+
+    <span class="n">model</span> <span class="o">=</span> <span class="n">paddle</span><span class="o">.</span><span class="n">vision</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">resnet50</span><span class="p">()</span>
+    <span class="n">prediction</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+    <span class="n">loss</span> <span class="o">=</span> <span class="n">paddle</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">cross_entropy</span><span class="p">(</span><span class="nb">input</span><span class="o">=</span><span class="n">prediction</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="n">label</span><span class="p">)</span>
+    <span class="n">loss</span> <span class="o">=</span> <span class="n">paddle</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">loss</span><span class="p">)</span>
+
+    <span class="n">adam</span> <span class="o">=</span> <span class="n">paddle</span><span class="o">.</span><span class="n">optimizer</span><span class="o">.</span><span class="n">Adam</span><span class="p">(</span><span class="n">learning_rate</span><span class="o">=</span><span class="mf">0.001</span><span class="p">)</span>
+    <span class="n">adam</span><span class="o">.</span><span class="n">minimize</span><span class="p">(</span><span class="n">loss</span><span class="p">)</span>
+
+<span class="c1">##################################################################</span>
+<span class="c1">#</span>
+<span class="c1"># Generate random fake data as input</span>
+<span class="c1"># ----------------------------------------------</span>
+<span class="c1">#</span>
+<span class="c1"># Before running, you can load or generate some data as the feeding of a model.</span>
+<span class="c1"># Here, we generate some fake input data by NumPy replacing the real data.</span>
+<span class="c1">#</span>
+<span class="n">loop_num</span> <span class="o">=</span> <span class="mi">10</span>
+<span class="n">feed</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">loop_num</span><span class="p">):</span>
+    <span class="n">fake_input</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;image&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">256</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">[</span><span class="n">batch_size</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">224</span><span class="p">,</span> <span class="mi">224</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s1">&#39;float32&#39;</span><span class="p">),</span> \
+                 <span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1000</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">[</span><span class="n">batch_size</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s1">&#39;int64&#39;</span><span class="p">)}</span>
+    <span class="n">feed</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">fake_input</span><span class="p">)</span>
+
+<span class="c1">##################################################################</span>
+<span class="c1">#</span>
+<span class="c1"># Executing program and print result</span>
+<span class="c1"># -----------------------------</span>
+<span class="c1">#</span>
+<span class="c1"># Then we create an executor to train the model.</span>
+<span class="c1"># You can learn more about Paddle from `paddlepaddle.org.cn &lt;https://www.paddlepaddle.org.cn/&gt;`_.</span>
+<span class="c1">#</span>
+<span class="n">exe</span> <span class="o">=</span> <span class="n">paddle</span><span class="o">.</span><span class="n">static</span><span class="o">.</span><span class="n">Executor</span><span class="p">(</span><span class="n">place</span><span class="p">)</span>
+
+<span class="n">compiled_prog</span> <span class="o">=</span> <span class="n">paddle</span><span class="o">.</span><span class="n">static</span><span class="o">.</span><span class="n">CompiledProgram</span><span class="p">(</span><span class="n">main_program</span><span class="p">)</span><span class="o">.</span><span class="n">with_data_parallel</span><span class="p">(</span>
+    <span class="n">loss_name</span><span class="o">=</span><span class="n">loss</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+<span class="n">scope</span> <span class="o">=</span> <span class="n">paddle</span><span class="o">.</span><span class="n">static</span><span class="o">.</span><span class="n">Scope</span><span class="p">()</span>
+
+<span class="k">with</span> <span class="n">paddle</span><span class="o">.</span><span class="n">static</span><span class="o">.</span><span class="n">scope_guard</span><span class="p">(</span><span class="n">scope</span><span class="p">):</span>
+    <span class="n">exe</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">startup_program</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">step</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">loop_num</span><span class="p">):</span>
+        <span class="n">loss_v</span> <span class="o">=</span> <span class="n">exe</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+            <span class="n">compiled_prog</span><span class="p">,</span>
+            <span class="n">feed</span><span class="o">=</span><span class="n">feed</span><span class="p">[</span><span class="n">step</span><span class="p">],</span>
+            <span class="n">fetch_list</span><span class="o">=</span><span class="p">[</span><span class="n">loss</span><span class="p">],</span>
+            <span class="n">return_numpy</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Train step: </span><span class="si">{}</span><span class="s2"> loss: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">step</span><span class="p">,</span> <span class="n">loss_v</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]))</span>
+</pre></div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="cinn_builder_api.html" class="btn btn-neutral float-left" title="CinnBuilder Primitive Semantics" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="cpp/library_root.html" class="btn btn-neutral float-right" title="C++ Symbols" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, cinn team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
