@@ -71,7 +71,6 @@ c = builder.create_input(
 # the algebra or basic DL operator.
 d = builder.add(a, b)
 e = builder.conv(d, c)
-f = builder.max()
 
 ##################################################################
 #
