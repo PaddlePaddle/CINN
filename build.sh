@@ -107,7 +107,10 @@ function prepare_ci {
   pip install wheel
   pip install sphinx==3.3.1 sphinx_gallery==0.8.1 recommonmark==0.6.0 exhale scipy breathe==4.24.0 matplotlib sphinx_rtd_theme
   wget https://paddle-inference-dist.bj.bcebos.com/CINN/paddlepaddle_gpu-0.0.0-cp36-cp36m-linux_x86_64.whl
+  pip install -r $workspace/tools/docker/requirements.txt
   pip install paddlepaddle_gpu-0.0.0-cp36-cp36m-linux_x86_64.whl
+  # export LD_LIBRARY_PATH=/usr/local/lib/python3.6/dist-packages/paddle/libs/:$LD_LIBRARY_PATH
+  # export LD_LIBRARY_PATH=$build_dir/ci-env/lib/python3.6/site-packages/paddle/fluid/:$LD_LIBRARY_PATH
 }
 
 function prepare_doc_model_file {
@@ -199,6 +202,7 @@ function prepare_model {
     fi
     tar -zxvf mkldnn.tgz
     cd $build_dir/thirds
+    echo "$LD_LIBRARY_PATH"
     python $workspace/python/tests/fake_model/naive_mul.py
     python $workspace/python/tests/fake_model/naive_multi_fc.py
     python $workspace/python/tests/fake_model/resnet_model.py
@@ -239,7 +243,7 @@ function build {
 
 function run_demo {
     cd $build_dir/dist
-    export LD_LIBRARY_PATH=$build_dir/dist/cinn/lib:$LD_LIBRARY_PATH
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$build_dir/dist/cinn/lib
     bash build_demo.sh
     ./demo
     rm ./demo
