@@ -19,13 +19,16 @@ This is a beginner-friendly tutorial on how to train models using Paddle compile
 This tutorial assumes that you have installed Paddle compiled with CINN. Otherwise, please
 enable the ``-DWITH_CINN`` compilation option to recompile Paddle and reinstall it. In order
 to avoid the tedious compilation process, you can also use the following command to install the
-pre-compiled ``.whl`` package for trying this tutorial.
+pre-compiled ``.whl`` package.
+
+**Note:** Docker execution environment is required, and you should use the docker image 
+`registry.baidubce.com/paddlepaddle/paddle:latest-dev-cuda11.2-cudnn8-gcc82`
+to create a container for trying the next steps in this tutorial.
 
 .. code-block:: bash
 
-    # python3.6 execution environment is required
     wget https://paddle-inference-dist.bj.bcebos.com/CINN/paddlepaddle_gpu-0.0.0-cp36-cp36m-linux_x86_64.whl
-    pip install paddlepaddle_gpu-0.0.0-cp36-cp36m-linux_x86_64.whl
+    pip3.6 install paddlepaddle_gpu-0.0.0-cp36-cp36m-linux_x86_64.whl
 """
 
 import numpy as np
