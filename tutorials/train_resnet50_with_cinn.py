@@ -17,10 +17,17 @@ Training ResNet50 using Paddle compiled with CINN
 
 This is a beginner-friendly tutorial on how to train models using Paddle compiled with CINN.
 This tutorial assumes that you have installed Paddle compiled with CINN. Otherwise, please
-enable the ``-DWITH_CINN`` compilation option to recompile Paddle and reinstall it.
+enable the ``-DWITH_CINN`` compilation option to recompile Paddle and reinstall it. In order
+to avoid the tedious compilation process, you can also use the following command to install the
+pre-compiled ``.whl`` package for trying this tutorial.
+
+.. code-block:: bash
+
+    # python3.6 execution environment is required
+    wget https://paddle-inference-dist.bj.bcebos.com/CINN/paddlepaddle_gpu-0.0.0-cp36-cp36m-linux_x86_64.whl
+    pip install paddlepaddle_gpu-0.0.0-cp36-cp36m-linux_x86_64.whl
 """
 
-import os
 import numpy as np
 import paddle
 
@@ -29,7 +36,7 @@ import paddle
 # Enable static execution mode
 # ---------------------------------------------
 #
-# Currently, we only support static graphs, so call 'paddle.enable_static()'  in advance.
+# Currently, we only support static graphs, so call ``paddle.enable_static()``  in advance.
 #
 paddle.enable_static()
 
@@ -44,7 +51,7 @@ paddle.enable_static()
 # You can use the flag ``FLAGS_allow_cinn_ops`` to specify Paddle operators replaced by CINN.
 #
 # The fellowing operators are supported in CINN now.
-# 'batch_norm,batch_norm_grad,conv2d,conv2d_grad, elementwise_add,elementwise_add_grad,relu,relu_grad,sum'
+# ``batch_norm,batch_norm_grad,conv2d,conv2d_grad, elementwise_add,elementwise_add_grad,relu,relu_grad,sum``
 #
 allow_ops = "batch_norm;batch_norm_grad;conv2d;conv2d_grad;elementwise_add;elementwise_add_grad;relu;relu_grad;sum"
 paddle.set_flags({'FLAGS_use_cinn': True, 'FLAGS_allow_cinn_ops': allow_ops})
@@ -55,9 +62,9 @@ paddle.set_flags({'FLAGS_use_cinn': True, 'FLAGS_allow_cinn_ops': allow_ops})
 # -----------------------------------------------
 # **Note:** At present, Paddle compiled with CINN only supports the single GPU.
 # If you train models with CINN on a multi-GPU system, you should specify a device
-# by setting 'CUDA_VISIBLE_DEVICES=GPU_id' in the system environment.
+# by setting ``CUDA_VISIBLE_DEVICES=GPU_ID`` in the system environment.
 #
-# Then you can specify the device by Using 'paddle.CUDAPlace(device))' to get the device context.
+# Then you can specify the device by Using ``paddle.CUDAPlace(device))`` to get the device context.
 #
 # :code:`device`: the device id.
 #
