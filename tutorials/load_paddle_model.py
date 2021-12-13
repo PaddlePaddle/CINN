@@ -13,14 +13,12 @@
 # limitations under the License.
 """
 Load and Execute Paddle Model
-=====================
+===============================
 
 In this tutorial, we will show you how to load and execute a paddle model in CINN.
 We offer you four optional models: ResNet50, MobileNetV2, EfficientNet and FaceDet.
 """
 
-import paddle
-import paddle.fluid as fluid
 import cinn
 from cinn import *
 from cinn.frontend import *
@@ -143,17 +141,4 @@ computation.execute()
 res_cinn = out.numpy(target)
 print("CINN Execution Done!")
 
-##################################################################
-# **Use Paddle to Verify Correctness**
-# -------------------------
-# Now we run the model by paddle and check if the 2 results are identical.
-config = fluid.core.AnalysisConfig(model_dir + '/__model__',
-                                   model_dir + '/params')
-config.disable_gpu()
-config.switch_ir_optim(False)
-paddle_predictor = fluid.core.create_paddle_predictor(config)
-data = fluid.core.PaddleTensor(x_data)
-paddle_out = paddle_predictor.run([data])
-res_paddle = paddle_out[0].as_ndarray()
-print("Paddle Execution Done!\n =============================")
-print("Verification result is: ", np.allclose(res_cinn, res_paddle, atol=1e-3))
+print("Result is: ", res_cinn)
