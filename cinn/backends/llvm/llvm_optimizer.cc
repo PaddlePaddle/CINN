@@ -150,6 +150,9 @@ void LLVMModuleOptimizer::operator()(llvm::Module *m) {
   builder->Inliner       = llvm::createFunctionInliningPass();
   builder->LoopVectorize = true;
   builder->SLPVectorize  = true;
+#if LLVM_VERSION_MAJOR >= 11
+  machine->adjustPassManager(*builder);
+#endif
   builder->populateFunctionPassManager(*fpm);
   builder->populateModulePassManager(*mpm);
 

@@ -10,7 +10,7 @@ Welcome to CINN's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-CINN(a Compiler Infrusture for Neural Networks) is a union of several sub-projects:
+CINN(Compiler Infrusture for Neural Networks) is a union of several sub-projects:
 
 - :code:`cinn`, a domain specific language for kernel construction,
 - :code:`cinnrt`, an efficient runtime framework for static graph execution.
@@ -21,8 +21,9 @@ Install
    :maxdepth: 1
 
    ./install.md
+   ./guide.md
 
-cinn
+CINN
 ------
 
 Get Started
@@ -34,15 +35,17 @@ Get Started
 
 
 C++ APIs
-~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~
 .. toctree::
    :maxdepth: 1
 
    matmul.md
+   load_paddle_model.md
+   cinn_builder_api.md
    cpp/library_root.rst
 
 
-cinnrt
+CINNRT
 -------
 TBD
 

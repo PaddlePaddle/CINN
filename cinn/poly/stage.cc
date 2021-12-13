@@ -689,6 +689,24 @@ void Stage::ComputeAt3(Stage *other, int level) {
   }
 }
 
+void Stage::SimpleComputeAt(Stage *other, int level) {
+  CHECK(tensor_);
+  other->CtrlDepend(ir::Tensor(tensor()));
+  if (this->tensor()->buffer.defined()) {
+    std::string t_name = this->tensor()->buffer->name;
+    if (utils::Endswith(t_name, "_read_cache") || utils::Endswith(t_name, "_write_cache")) {
+      EditTempTensor(other, level);
+    }
+  }
+  ComputeAtRelation relation;
+  relation.stage = other;
+  relation.level = level;
+  other->CtrlDepend(ir::Tensor(tensor()));
+
+  CHECK(relation.IsCompatible(this));
+  compute_ats_[other->id()] = relation;
+}
+
 std::tuple<Iterator, Iterator> Stage::Skew(const Iterator &i, const Iterator &j, int factor) {
   CINN_NOT_IMPLEMENTED
   Iterator i_new(i.id + "_skew");
@@ -725,6 +743,19 @@ Iterator Stage::Fuse(const std::vector<int> &levels) {
 
 Iterator Stage::Fuse(const std::string &level0, const std::string &level1) {
   return Fuse(Iterator(level0), Iterator(level1));
+}
+
+Iterator Stage::FuseDirect(const std::vector<int> &levels) {
+  auto dims = isl_get_dim_names(transformed_domain());
+  for (auto i : levels) {
+    AssertAxisIsNotLocked(i);
+    CHECK_LT(i, dims.size());
+  }
+  std::vector<Iterator> iterators;
+  for (size_t i = 0; i < levels.size(); i++) {
+    iterators.push_back(Iterator(dims[levels[i]]));
+  }
+  return Fuse(iterators);
 }
 
 Iterator Stage::Fuse(const std::vector<Iterator> &levels) {
@@ -939,12 +970,12 @@ void Stage::Vectorize(int level, int factor) {
   CHECK_LT(level, n_out_dims());
   CHECK_GT(factor, 0);
   if (factor == 1) {
-    LOG(INFO) << "Vectorize-factor 1 has no sense, skip it";
+    VLOG(3) << "Vectorize-factor 1 has no sense, skip it";
     return;
   }
   auto transformed_domain = this->transformed_domain();
   if (isl_is_removed_axis(transformed_domain.get(), level)) {
-    LOG(INFO) << "Vectorizing for-1 has no sense, skip it";
+    VLOG(3) << "Vectorizing for-1 has no sense, skip it";
     return;
   }
   int removed_axes_counts = isl_get_precending_removed_axes_counts(transformed_domain.get(), level);
@@ -977,7 +1008,7 @@ void Stage::Parallel(int level) {
   auto transformed_domain = this->transformed_domain();
   VLOG(3) << "transformed_domain" << transformed_domain;
   if (isl_is_removed_axis(transformed_domain.get(), level)) {
-    LOG(INFO) << "Paralleling for-1 has no sense, skip it";
+    VLOG(3) << "Paralleling for-1 has no sense, skip it";
     return;
   }
   int removed_axes_counts = isl_get_precending_removed_axes_counts(transformed_domain.get(), level);
@@ -1202,6 +1233,24 @@ void CacheReadWriteReplace(std::vector<ir::Tensor> &readers, ir::Tensor cache_te
     for (auto j : op) {
       CacheReplaceMutator(origin_tensor_name, cache_tensor, true /*read*/)(&j);
     }
+  }
+}
+
+void Stage::SetBuffer(const std::string &memory_type) {
+  tensor_->WithBuffer(memory_type, "_" + this->tensor_->name + "_temp_buffer");
+  if (memory_type == "shared") {
+    this->SetScope(ScopeKind::kShared);
+  } else if (memory_type == "local") {
+    this->SetScope(ScopeKind::kLocal);
+  } else if (memory_type == "global") {
+    this->SetScope(ScopeKind::kGlobal);
+  } else {
+    CINN_NOT_IMPLEMENTED
+  }
+  if (tensor_->buffer.defined()) {
+    VLOG(2) << "Has tensor_->buffer: " << tensor_->buffer->name;
+  } else {
+    VLOG(2) << "No tensor_->buffer";
   }
 }
 

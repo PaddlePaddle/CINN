@@ -57,7 +57,7 @@ class Program {
   /**
    * Execute the program -- that is running all the instructions inside it.
    */
-  void Execute(const std::map<std::string, cinn_pod_value_t>* name2podargs = nullptr);
+  void Execute(const std::map<std::string, cinn_pod_value_t>* name2podargs = nullptr, void* stream = nullptr);
 
   void ExecuteTest(int repeat_);
 
@@ -91,12 +91,15 @@ class GraphCompiler final {
   };
 
   struct CompileOptions {
-    std::string attached_code       = "";
-    bool with_instantiate_variables = false;
+    std::string attached_code                    = "";
+    bool with_instantiate_variables              = false;
+    bool with_buffer_handle_instruction_inserted = false;
   };
 
   // Compile with a packing option and result, to be extended easily.
-  CompilationResult Build(const CompileOptions& options, std::unordered_set<std::string>&& fetch_var_ids = {});
+  CompilationResult Build(const CompileOptions& options,
+                          std::unordered_set<std::string>&& fetch_var_ids = {},
+                          void* stream                                    = nullptr);
   void ExportObject(const std::string& path) { compiler_->ExportObject(path); }
 
   std::unique_ptr<Program> Build(const std::string& code = "");
@@ -125,8 +128,26 @@ class GraphCompiler final {
 
   std::vector<std::unique_ptr<Instruction>> BuildInstructions();
 
+  // some variables are eliminated by optimized passes(such as OpFusion),
+  // we can filter out them according to arguments of the built instructions,
+  // and erase them from the scope to avoid unnecessary buffer allocation
+  void RemoveInvalidVariables(const std::vector<std::unique_ptr<Instruction>>& instructions);
+
+  // find the first and last instruction where a variable used, and mark the
+  // variable should allocate buffer before the first instruction runing and
+  // can release the buffer after the last instruction finished.
+  void AnalyzeVariableLifeTime(const std::vector<std::unique_ptr<Instruction>>& instructions,
+                               std::unordered_map<int, std::vector<std::string>>* step2malloc,
+                               std::unordered_map<int, std::vector<std::string>>* step2free);
+
+  // insert a buffer malloc instruction applying on variables before they are
+  // firstly used in the next instruction, and insert a buffer free instruction
+  // applying on variables after no instruction will use them anymore
+  void InsertBufferHandlers(std::vector<std::unique_ptr<Instruction>>* instructions);
+
  private:
   void ProcessFunction(const std::vector<ir::LoweredFunc>& lowered_func);
+  void SetSubKernels(Instruction* instr, const std::string& func_name);
   Target target_;
   std::shared_ptr<Graph> graph_;
   std::shared_ptr<Scope> scope_;
@@ -138,8 +159,11 @@ class GraphCompiler final {
   std::unordered_set<std::string> fetch_var_ids_;
 
   absl::flat_hash_map<std::string, std::string> prefix2full_namemap_;
+  // map dst reuse var to the src var sharing buffer
+  absl::flat_hash_map<std::string, std::string> reuse_vars_map_;
 
   std::unique_ptr<backends::Compiler> compiler_;
+  CompileOptions compile_options_;
 
   ir::Module::Builder m_builder_;
 

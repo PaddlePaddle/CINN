@@ -22,6 +22,7 @@ import cinn
 import numpy as np
 import time
 from cinn import runtime
+# sphinx_gallery_thumbnail_path = './paddlepaddle.png'
 
 ##################################################################
 # Declare the basic computation for a matmul

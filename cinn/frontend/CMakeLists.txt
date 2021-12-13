@@ -1,5 +1,6 @@
 core_gather_headers()
 gather_srcs(cinnapi_src SRCS
+  computation.cc
   syntax.cc
   paddle_model_to_program.cc
   interpreter.cc
@@ -36,6 +37,9 @@ else()
           SRCS paddle_model_convertor_test.cc DEPS cinncore)
 endif()
 
+cc_test(test_computation
+  ARGS "--model_dir=${THIRD_PARTY_PATH}/naive_mul_model"
+  SRCS computation_test.cc DEPS cinncore)
 cc_test(test_net_builder SRCS net_builder_test.cc DEPS cinncore)
 cc_test(test_cinn_builder SRCS cinn_builder_test.cc DEPS cinncore)
 cc_test(test_decomposer_registry

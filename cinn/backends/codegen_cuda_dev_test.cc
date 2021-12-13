@@ -89,7 +89,7 @@ TEST(CodeGenCUDA, basic) {
 
   CodeGenCUDA_Dev codegen(target);
 
-  auto func = Lower("elementwise_add", stages, {A, B, C});
+  auto func = Lower("elementwise_mul", stages, {A, B, C});
 
   auto compiled = codegen.Compile(func);
 
@@ -115,7 +115,7 @@ TEST(CodeGenCUDA, Module_output) {
 
   CodeGenCUDA_Dev codegen(target);
 
-  auto func = Lower("elementwise_add", stages, {A, B, C});
+  auto func = Lower("elementwise_mul", stages, {A, B, C});
 
   Module::Builder builder("module", target);
   builder.AddFunction(func);
@@ -149,7 +149,7 @@ TEST(CodeGenCUDA2, test_of_cacheread) {
   stages[B_cache]->ComputeAt(stages[C], 1);
   CodeGenCUDA_Dev codegen(target);
 
-  auto func = Lower("elementwise_add", stages, {A, B, C});
+  auto func = Lower("elementwise_mul", stages, {A, B, C});
 
   Module::Builder builder("module", target);
   builder.AddFunction(func);
@@ -181,7 +181,7 @@ TEST(CodeGenCUDA2, test_of_cacheread) {
 
   dim3 grid(10, 1, 1);
   dim3 block(10, 1, 1);
-  cuda_module.LaunchKernel(0, "elementwise_add", grid, block, args);
+  cuda_module.LaunchKernel(0, "elementwise_mul", grid, block, args);
 
   CUDA_CALL(cudaMemcpy(host_data3.data(),
                        reinterpret_cast<void*>(Cd),
@@ -221,7 +221,7 @@ TEST(CodeGenCUDA2, test_of_splitcudakernel) {
 
   CodeGenCUDA_Dev codegen(target);
 
-  auto func = lang::LowerVec("elementwise_add", stages, {A, B, C, D}, {}, {}, nullptr, target);
+  auto func = lang::LowerVec("elementwise_mul_and_add", stages, {A, B, C, D}, {}, {}, nullptr, target);
 
   Module::Builder builder("module", target);
   for (auto& i : func) {
@@ -251,7 +251,7 @@ typedef char int8_t;
 
 
 __global__
-void __launch_bounds__(200) elementwise_add(const float* __restrict__ X, const float* __restrict__ Y, float* __restrict__ C)
+void __launch_bounds__(200) elementwise_mul_and_add(const float* __restrict__ X, const float* __restrict__ Y, float* __restrict__ C)
 {
   if (((int)blockIdx.x < 100)) {
     if (((int)threadIdx.x < 200)) {
@@ -259,7 +259,7 @@ void __launch_bounds__(200) elementwise_add(const float* __restrict__ X, const f
     };
   };
 }__global__
-void __launch_bounds__(200) elementwise_add_1(const float* __restrict__ X, const float* __restrict__ Y, const float* __restrict__ C, float* __restrict__ D)
+void __launch_bounds__(200) elementwise_mul_and_add_1(const float* __restrict__ X, const float* __restrict__ Y, const float* __restrict__ C, float* __restrict__ D)
 {
   if (((int)blockIdx.x < 100)) {
     if (((int)threadIdx.x < 200)) {
@@ -368,6 +368,278 @@ void __launch_bounds__(5) elementwise_add_splitouter(const float* __restrict__ X
       int offset = i * N.as_int32() + j;
       EXPECT_NEAR(host_data3[offset], host_data1[offset] * host_data2[offset], 1e-5);
     }
+  }
+}
+
+TEST(GlobalPool, pool2d_max) {
+  Context::Global().ResetNameId();
+
+  Target target = common::DefaultNVGPUTarget();
+
+  Expr N(24);
+  Expr C(24);
+  Expr H(96);
+  Expr W(96);
+
+  Placeholder<float> A("X", {N, C, H, W});
+  auto res    = hlir::pe::GlobalPool2d(A, "max", "pool_out");
+  auto stages = CreateStages(res);
+
+  stages[res[0]]->Bind(0, "blockIdx.x");
+  stages[res[0]]->Bind(1, "threadIdx.y");
+  stages[res[1]]->ComputeAt2(stages[res[0]], 1);
+  stages[res[1]]->Bind(2, "threadIdx.x");
+  stages[res[1]]->SetBuffer("local");
+
+  auto func = cinn::lang::LowerVec("global_pool2d_max", stages, {A, res[0]}, {}, {}, nullptr, target);
+  CodeGenCUDA_Dev codegen(target);
+  Module::Builder builder("module", target);
+  for (auto& f : func) {
+    builder.AddFunction(f);
+  }
+  auto source_code = codegen.Compile(builder.Build());
+  ASSERT_NE(source_code.find("cinn_warp_reduce_max"), std::string::npos);
+  LOG(INFO) << "compiled global_pool2d_max code:\n\n\n" << source_code;
+
+  using runtime::cuda::CUDAModule;
+  backends::NVRTC_Compiler compiler;
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty());
+  CUDAModule cuda_module(ptx, CUDAModule::Kind::PTX);
+  CUDA_CALL(cudaDeviceSynchronize());
+
+  CUdeviceptr Ad, Bd;
+  cuMemAlloc(&Ad, 24 * 24 * 96 * 96 * sizeof(float));
+  cuMemAlloc(&Bd, 24 * 24 * 1 * 1 * sizeof(float));
+
+  std::vector<float> host_data1(24 * 24 * 96 * 96);
+  std::vector<float> host_data2(24 * 24 * 1 * 1);
+  std::vector<float> host_data3(24 * 24 * 1 * 1);
+
+  for (float& v : host_data1) v = static_cast<float>(rand()) / INT_MAX;
+  for (int i = 0; i < 24 * 24; i++) {
+    float* p = &host_data1[i * 96 * 96];
+    float mv = -3.402823e+38f;
+    for (int j = 0; j < 96 * 96; j++) {
+      mv = std::max(p[j], mv);
+    }
+    host_data3[i] = mv;
+  }
+  CUDA_CALL(cudaMemcpy(
+      reinterpret_cast<void*>(Ad), host_data1.data(), host_data1.size() * sizeof(float), cudaMemcpyHostToDevice));
+  void* args[] = {&Ad, &Bd};
+  dim3 blocks_per_grid(24, 1, 1);
+  dim3 threads_per_block(32, 24, 1);
+  cuda_module.LaunchKernel(0, "global_pool2d_max", blocks_per_grid, threads_per_block, args);
+  CUDA_CALL(cudaMemcpy(
+      host_data2.data(), reinterpret_cast<void*>(Bd), 24 * 24 * 1 * 1 * sizeof(float), cudaMemcpyDeviceToHost));
+  for (int i = 0; i < host_data2.size(); i++) {
+    ASSERT_NEAR(host_data2[i], host_data3[i], 1e-5);
+  }
+}
+
+TEST(GlobalPool, pool2d_avg) {
+  Context::Global().ResetNameId();
+
+  Target target = common::DefaultNVGPUTarget();
+
+  Expr N(24);
+  Expr C(24);
+  Expr H(96);
+  Expr W(96);
+
+  Placeholder<float> A("X", {N, C, H, W});
+  auto res    = hlir::pe::GlobalPool2d(A, "avg", "pool_out");
+  auto stages = CreateStages(res);
+
+  stages[res[0]]->Bind(0, "blockIdx.x");
+  stages[res[0]]->Bind(1, "threadIdx.y");
+  stages[res[1]]->ComputeAt2(stages[res[0]], 1);
+  stages[res[1]]->Bind(2, "threadIdx.x");
+  stages[res[1]]->SetBuffer("local");
+
+  auto func = cinn::lang::LowerVec("global_pool2d_avg", stages, {A, res[0]}, {}, {}, nullptr, target);
+  CodeGenCUDA_Dev codegen(target);
+  Module::Builder builder("module", target);
+  for (auto& f : func) {
+    builder.AddFunction(f);
+  }
+  auto source_code = codegen.Compile(builder.Build());
+  ASSERT_NE(source_code.find("cinn_warp_reduce_avg"), std::string::npos);
+  LOG(INFO) << "compiled global_pool2d_avg code:\n\n\n" << source_code;
+
+  using runtime::cuda::CUDAModule;
+  backends::NVRTC_Compiler compiler;
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty());
+  CUDAModule cuda_module(ptx, CUDAModule::Kind::PTX);
+  CUDA_CALL(cudaDeviceSynchronize());
+
+  CUdeviceptr Ad, Bd;
+  cuMemAlloc(&Ad, 24 * 24 * 96 * 96 * sizeof(float));
+  cuMemAlloc(&Bd, 24 * 24 * 1 * 1 * sizeof(float));
+
+  std::vector<float> host_data1(24 * 24 * 96 * 96);
+  std::vector<float> host_data2(24 * 24 * 1 * 1);
+  std::vector<float> host_data3(24 * 24 * 1 * 1);
+
+  for (float& v : host_data1) v = static_cast<float>(rand()) / INT_MAX;
+  for (int i = 0; i < 24 * 24; i++) {
+    float* p = &host_data1[i * 96 * 96];
+    float sv = 0;
+    for (int j = 0; j < 96 * 96; j++) {
+      sv += p[j];
+    }
+    host_data3[i] = sv / (96 * 96);
+  }
+  CUDA_CALL(cudaMemcpy(
+      reinterpret_cast<void*>(Ad), host_data1.data(), host_data1.size() * sizeof(float), cudaMemcpyHostToDevice));
+  void* args[] = {&Ad, &Bd};
+  dim3 blocks_per_grid(24, 1, 1);
+  dim3 threads_per_block(32, 24, 1);
+  cuda_module.LaunchKernel(0, "global_pool2d_avg", blocks_per_grid, threads_per_block, args);
+  CUDA_CALL(cudaMemcpy(
+      host_data2.data(), reinterpret_cast<void*>(Bd), 24 * 24 * 1 * 1 * sizeof(float), cudaMemcpyDeviceToHost));
+  for (int i = 0; i < host_data2.size(); i++) {
+    ASSERT_NEAR(host_data2[i], host_data3[i], 1e-5);
+  }
+}
+
+TEST(GlobalPool, pool2d_avg_1_1_7_7) {
+  Context::Global().ResetNameId();
+
+  Target target = common::DefaultNVGPUTarget();
+
+  Expr N(1);
+  Expr C(1);
+  Expr H(7);
+  Expr W(7);
+
+  Placeholder<float> A("X", {N, C, H, W});
+  auto res    = hlir::pe::GlobalPool2d(A, "avg", "pool_out");
+  auto stages = CreateStages(res);
+
+  stages[res[0]]->Bind(0, "blockIdx.x");
+  stages[res[0]]->Bind(1, "threadIdx.y");
+  stages[res[1]]->ComputeAt2(stages[res[0]], 1);
+  stages[res[1]]->Bind(2, "threadIdx.x");
+  stages[res[1]]->SetBuffer("local");
+
+  auto func = cinn::lang::LowerVec("global_pool2d_avg", stages, {A, res[0]}, {}, {}, nullptr, target);
+  CodeGenCUDA_Dev codegen(target);
+  Module::Builder builder("module", target);
+  for (auto& f : func) {
+    builder.AddFunction(f);
+  }
+  auto source_code = codegen.Compile(builder.Build());
+  ASSERT_NE(source_code.find("cinn_warp_reduce_avg"), std::string::npos);
+  LOG(INFO) << "compiled global_pool2d_avg code:\n\n\n" << source_code;
+
+  using runtime::cuda::CUDAModule;
+  backends::NVRTC_Compiler compiler;
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty());
+  CUDAModule cuda_module(ptx, CUDAModule::Kind::PTX);
+  CUDA_CALL(cudaDeviceSynchronize());
+
+  CUdeviceptr Ad, Bd;
+  cuMemAlloc(&Ad, 1 * C.as_int32() * 7 * 7 * sizeof(float));
+  cuMemAlloc(&Bd, 1 * C.as_int32() * 1 * 1 * sizeof(float));
+
+  std::vector<float> host_data1(1 * C.as_int32() * 7 * 7);
+  std::vector<float> host_data2(1 * C.as_int32() * 1 * 1);
+  std::vector<float> host_data3(1 * C.as_int32() * 1 * 1);
+
+  for (float& v : host_data1) v = static_cast<float>(rand()) / INT_MAX;
+  for (int i = 0; i < C.as_int32(); i++) {
+    float* p = &host_data1[i * 7 * 7];
+    float sv = 0;
+    for (int j = 0; j < 7 * 7; j++) {
+      sv += p[j];
+    }
+    host_data3[i] = sv / (7 * 7);
+  }
+  CUDA_CALL(cudaMemcpy(
+      reinterpret_cast<void*>(Ad), host_data1.data(), host_data1.size() * sizeof(float), cudaMemcpyHostToDevice));
+  void* args[] = {&Ad, &Bd};
+  dim3 blocks_per_grid(1, 1, 1);
+  dim3 threads_per_block(32, 1, 1);
+  cuda_module.LaunchKernel(0, "global_pool2d_avg", blocks_per_grid, threads_per_block, args);
+  CUDA_CALL(cudaMemcpy(host_data2.data(),
+                       reinterpret_cast<void*>(Bd),
+                       1 * C.as_int32() * 1 * 1 * sizeof(float),
+                       cudaMemcpyDeviceToHost));
+  for (int i = 0; i < host_data2.size(); i++) {
+    ASSERT_NEAR(host_data2[i], host_data3[i], 1e-5);
+  }
+}
+
+TEST(GlobalPool, pool2d_avg_1_32_7_7) {
+  Context::Global().ResetNameId();
+
+  Target target = common::DefaultNVGPUTarget();
+
+  Expr N(1);
+  Expr C(32);
+  Expr H(7);
+  Expr W(7);
+
+  Placeholder<float> A("X", {N, C, H, W});
+  auto res    = hlir::pe::GlobalPool2d(A, "avg", "pool_out");
+  auto stages = CreateStages(res);
+
+  stages[res[0]]->Bind(0, "blockIdx.x");
+  stages[res[0]]->Bind(1, "threadIdx.y");
+  stages[res[1]]->ComputeAt2(stages[res[0]], 1);
+  stages[res[1]]->Bind(2, "threadIdx.x");
+  stages[res[1]]->SetBuffer("local");
+
+  auto func = cinn::lang::LowerVec("global_pool2d_avg", stages, {A, res[0]}, {}, {}, nullptr, target);
+  CodeGenCUDA_Dev codegen(target);
+  Module::Builder builder("module", target);
+  for (auto& f : func) {
+    builder.AddFunction(f);
+  }
+  auto source_code = codegen.Compile(builder.Build());
+  ASSERT_NE(source_code.find("cinn_warp_reduce_avg"), std::string::npos);
+  LOG(INFO) << "compiled global_pool2d_avg code:\n\n\n" << source_code;
+
+  using runtime::cuda::CUDAModule;
+  backends::NVRTC_Compiler compiler;
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty());
+  CUDAModule cuda_module(ptx, CUDAModule::Kind::PTX);
+  CUDA_CALL(cudaDeviceSynchronize());
+
+  CUdeviceptr Ad, Bd;
+  cuMemAlloc(&Ad, 1 * C.as_int32() * 7 * 7 * sizeof(float));
+  cuMemAlloc(&Bd, 1 * C.as_int32() * 1 * 1 * sizeof(float));
+
+  std::vector<float> host_data1(1 * C.as_int32() * 7 * 7);
+  std::vector<float> host_data2(1 * C.as_int32() * 1 * 1);
+  std::vector<float> host_data3(1 * C.as_int32() * 1 * 1);
+
+  for (float& v : host_data1) v = static_cast<float>(rand()) / INT_MAX;
+  for (int i = 0; i < C.as_int32(); i++) {
+    float* p = &host_data1[i * 7 * 7];
+    float sv = 0;
+    for (int j = 0; j < 7 * 7; j++) {
+      sv += p[j];
+    }
+    host_data3[i] = sv / (7 * 7);
+  }
+  CUDA_CALL(cudaMemcpy(
+      reinterpret_cast<void*>(Ad), host_data1.data(), host_data1.size() * sizeof(float), cudaMemcpyHostToDevice));
+  void* args[] = {&Ad, &Bd};
+  dim3 blocks_per_grid(1, 1, 1);
+  dim3 threads_per_block(32, 32, 1);
+  cuda_module.LaunchKernel(0, "global_pool2d_avg", blocks_per_grid, threads_per_block, args);
+  CUDA_CALL(cudaMemcpy(host_data2.data(),
+                       reinterpret_cast<void*>(Bd),
+                       1 * C.as_int32() * 1 * 1 * sizeof(float),
+                       cudaMemcpyDeviceToHost));
+  for (int i = 0; i < host_data2.size(); i++) {
+    ASSERT_NEAR(host_data2[i], host_data3[i], 1e-5);
   }
 }
 
@@ -1482,42 +1754,13 @@ TEST(elementwise_add1, share_local_cache) {
   auto* C_target_mem = reinterpret_cast<float*>(C_target_host->memory);
   auto* A_mem        = reinterpret_cast<float*>(A_host->memory);
   auto* B_mem        = reinterpret_cast<float*>(B_host->memory);
-  /**
-   * Here the generated code will randomly be wrong.
-   *
-   * To improve development efficiency, temporarily turn off the accuracy testing.
-   *
-   * ToDo:@Haoze Fix this bug.
-   *
-   * The wrong code:
-   *
-   * __global__
-   * void elementwise_add(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
-   * {
-   *   float _A_read_cache [ 1 ];
-   *   float _A_read_cache_read_cache [ 1 ];
-   *   float* A_read_cache = _A_read_cache;
-   *   float* A_read_cache_read_cache = _A_read_cache_read_cache;
-   *   if ((blockIdx.x < 100)) {
-   *   {
-   *     for (int32_t j = 0; j < 200; j += 1) {
-   *       A_read_cache[0] = A[((200 * blockIdx.x) + j)];
-   *       A_read_cache_read_cache[0] = A_read_cache[0];
-   *     };
-   *     if ((threadIdx.x < 200)) {
-   *       C[((200 * blockIdx.x) + threadIdx.x)] = (A_read_cache_read_cache[0] + B[((200 * blockIdx.x) + threadIdx.x)]);
-   *     };
-   *   }
-   *   };
-   * }
-   */
 
-  /*   for (int i = 0; i < C_target_host->num_elements(); i++) {
-      if ((C_target_mem[i] - A_mem[i] - B_mem[i]) > 0.0001 || (C_target_mem[i] - A_mem[i] - B_mem[i]) < -0.0001) {
-        LOG(INFO) << "The target should be: " << C_target_mem[i] << ", but result is: " << A_mem[i] + B_mem[i];
-      }
-      ASSERT_NEAR(C_target_mem[i], A_mem[i] + B_mem[i], 1e-3);
-    } */
+  for (int i = 0; i < C_target_host->num_elements(); i++) {
+    if ((C_target_mem[i] - A_mem[i] - B_mem[i]) > 0.0001 || (C_target_mem[i] - A_mem[i] - B_mem[i]) < -0.0001) {
+      LOG(INFO) << "The target should be: " << C_target_mem[i] << ", but result is: " << A_mem[i] + B_mem[i];
+    }
+    ASSERT_NEAR(C_target_mem[i], A_mem[i] + B_mem[i], 1e-3);
+  }
 
   cuMemFree(reinterpret_cast<CUdeviceptr>(A_dev));
   cuMemFree(reinterpret_cast<CUdeviceptr>(B_dev));
@@ -2429,6 +2672,235 @@ void __launch_bounds__(4) external_function(const float* __restrict__ A, const f
   TestElementwiseAddPrecisionBasic(
       builder.Build(), "external_function", M, N, [](float a, float b) { return std::tanh(a) + std::cos(b); });
 }
+#ifndef CINN_WITH_CUDNN
+TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
+  Context::Global().ResetNameId();
+  int ni = 1;
+  int ci = 512;
+  int hi = 7;
+  int wi = 512;
+  int ki = 3;
+  Expr N(ni);
+  Expr C(ci);
+  Expr H(hi);
+  Expr W(wi);
+  Expr K(ki);
+
+  Target target = common::DefaultNVGPUTarget();
+
+  Placeholder<float> X("X", {N, C, H, H});
+  Placeholder<float> Y("Y", {W, C, K, K});
+
+  auto wino_res    = hlir::pe::Conv2d_winograd_NCHW(X, Y, 1, 1, 1, 1, 1, 1, "Winograd_Conv2d_out");
+  auto wino_stages = CreateStages(wino_res);
+
+  hlir::pe::CudaScheduleWinogradConv(wino_stages, wino_res, target);
+  CodeGenCUDA_Dev wino_codegen(target);
+
+  auto kernel_pack = wino_res[5];
+  auto data_pack   = wino_res[7];
+  auto bgemm       = wino_res[8];
+  auto wino_conv   = wino_res[10];
+
+  auto wino_func = lang::LowerVec(
+      "schedule_wino_conv2d", wino_stages, {X, Y, kernel_pack, data_pack, bgemm, wino_conv}, {}, {}, nullptr, target);
+
+  Module::Builder wino_builder("wino_module", target);
+  for (auto& i : wino_func) {
+    wino_builder.AddFunction(i);
+  }
+
+  auto wino_module = wino_builder.Build();
+
+  auto [host_module, device_module] = SplitCudaAndHostModule(wino_module);
+
+  auto wino_source_code = wino_codegen.Compile(wino_module);
+
+  LOG(INFO) << "compiled schedule_wino_conv2d code:\n\n\n" << wino_source_code;
+
+  backends::NVRTC_Compiler wino_compiler;
+
+  std::string target_code = R"ROC(
+extern "C" {
+
+#include "cinn_cuda_runtime_source.cuh"
+
+#ifdef __CUDACC_RTC__
+typedef int int32_t;
+typedef char int8_t;
+#endif
+
+
+
+__global__
+void __launch_bounds__(128) schedule_wino_conv2d(const float* __restrict__ X, float* __restrict__ data_pack)
+{
+  float _data_pack_write_cache [ 16 ];
+  float _input_tile_temp_buffer [ 16 ];
+  float* data_pack_write_cache = _data_pack_write_cache;
+  float* data_pack_write_cache__reduce_init = _data_pack_write_cache;
+  float* input_tile = _input_tile_temp_buffer;
+  if (((int)blockIdx.x < 64)) {
+    if (((int)threadIdx.x < 128)) {
+    {
+      for (int32_t i = 0; i < 4; i += 1) {
+        for (int32_t j = 0; j < 4; j += 1) {
+          data_pack_write_cache__reduce_init[((4 * i) + j)] = 0;
+        };
+      };
+      for (int32_t i = 0; i < 4; i += 1) {
+        for (int32_t j = 0; j < 4; j += 1) {
+          input_tile[((4 * i) + j)] = ((((((((2 * ((((int)threadIdx.x & 15) / 4) & 3)) + i) >= 1) && (((2 * ((((int)threadIdx.x & 15) / 4) & 3)) + i) < 8)) && (((2 * (((int)threadIdx.x & 15) & 3)) + j) >= 1)) && (((2 * (((int)threadIdx.x & 15) & 3)) + j) < 8))) ? X[(-8 + (((((int)threadIdx.x & 15) / 16) * 25088) + ((49 * ((int)threadIdx.x / 16)) + ((14 * ((((int)threadIdx.x & 15) / 4) & 3)) + ((2 * (((int)threadIdx.x & 15) & 3)) + ((392 * (int)blockIdx.x) + ((7 * i) + j)))))))] : 0);
+        };
+      };
+      for (int32_t i = 0; i < 4; i += 1) {
+        for (int32_t j = 0; j < 4; j += 1) {
+          for (int32_t r_a = 0; r_a < 4; r_a += 1) {
+            for (int32_t r_b = 0; r_b < 4; r_b += 1) {
+              data_pack_write_cache[((4 * i) + j)] = (data_pack_write_cache[((4 * i) + j)] + (input_tile[((4 * r_a) + r_b)] * ((((((3 - r_a) == 0) && ((3 - i) == 0))) ? 1 : (((((3 - r_a) == 0) && ((2 - i) == 0))) ? 0 : (((((3 - r_a) == 0) && ((1 - i) == 0))) ? 0 : (((((3 - r_a) == 0) && ((-1 * i) == 0))) ? 0 : (((((2 - r_a) == 0) && ((3 - i) == 0))) ? 0 : (((((2 - r_a) == 0) && ((2 - i) == 0))) ? 1 : (((((2 - r_a) == 0) && ((1 - i) == 0))) ? 1 : (((((2 - r_a) == 0) && ((-1 * i) == 0))) ? -1 : (((((1 - r_a) == 0) && ((3 - i) == 0))) ? -1 : (((((1 - r_a) == 0) && ((2 - i) == 0))) ? 1 : (((((1 - r_a) == 0) && ((1 - i) == 0))) ? -1 : (((((1 - r_a) == 0) && ((-1 * i) == 0))) ? 0 : (((((-1 * r_a) == 0) && ((3 - i) == 0))) ? 0 : (((((-1 * r_a) == 0) && ((2 - i) == 0))) ? 0 : (((((-1 * r_a) == 0) && ((1 - i) == 0))) ? 0 : (((((-1 * r_a) == 0) && ((-1 * i) == 0))) ? 1 : 1)))))))))))))))) * (((((3 - r_b) == 0) && ((3 - j) == 0))) ? 1 : (((((3 - r_b) == 0) && ((2 - j) == 0))) ? 0 : (((((3 - r_b) == 0) && ((1 - j) == 0))) ? 0 : (((((3 - r_b) == 0) && ((-1 * j) == 0))) ? 0 : (((((2 - r_b) == 0) && ((3 - j) == 0))) ? 0 : (((((2 - r_b) == 0) && ((2 - j) == 0))) ? 1 : (((((2 - r_b) == 0) && ((1 - j) == 0))) ? 1 : (((((2 - r_b) == 0) && ((-1 * j) == 0))) ? -1 : (((((1 - r_b) == 0) && ((3 - j) == 0))) ? -1 : (((((1 - r_b) == 0) && ((2 - j) == 0))) ? 1 : (((((1 - r_b) == 0) && ((1 - j) == 0))) ? -1 : (((((1 - r_b) == 0) && ((-1 * j) == 0))) ? 0 : (((((-1 * r_b) == 0) && ((3 - j) == 0))) ? 0 : (((((-1 * r_b) == 0) && ((2 - j) == 0))) ? 0 : (((((-1 * r_b) == 0) && ((1 - j) == 0))) ? 0 : (((((-1 * r_b) == 0) && ((-1 * j) == 0))) ? 1 : 1)))))))))))))))))));
+            };
+          };
+        };
+      };
+      for (int32_t i = 0; i < 4; i += 1) {
+        for (int32_t j = 0; j < 4; j += 1) {
+          data_pack[((16 * ((int)threadIdx.x / 16)) + (((int)threadIdx.x & 15) + ((128 * (int)blockIdx.x) + ((32768 * i) + (8192 * j)))))] = data_pack_write_cache[((4 * i) + j)];
+        };
+      };
+    }
+    };
+  };
+}__global__
+void __launch_bounds__(128) schedule_wino_conv2d_1(const float* __restrict__ Y, float* __restrict__ kernel_pack)
+{
+  float* kernel_pack__reduce_init = kernel_pack;
+  if (((int)blockIdx.x < 2048)) {
+    if (((int)threadIdx.x < 128)) {
+      for (int32_t i = 0; i < 4; i += 1) {
+        for (int32_t j = 0; j < 4; j += 1) {
+          kernel_pack__reduce_init[((((int)blockIdx.x / 4) * 512) + ((128 * ((int)blockIdx.x & 3)) + ((1048576 * i) + ((262144 * j) + (int)threadIdx.x))))] = 0;
+          for (int32_t r_kh = 0; r_kh < 3; r_kh += 1) {
+            for (int32_t r_kw = 0; r_kw < 3; r_kw += 1) {
+              kernel_pack[((((int)blockIdx.x / 4) * 512) + ((128 * ((int)blockIdx.x & 3)) + ((1048576 * i) + ((262144 * j) + (int)threadIdx.x))))] = (kernel_pack[((((int)blockIdx.x / 4) * 512) + ((128 * ((int)blockIdx.x & 3)) + ((1048576 * i) + ((262144 * j) + (int)threadIdx.x))))] + ((((((r_kh & 0) == 0) && ((r_kw & 0) == 0))) ? Y[((r_kw / 1) + (((r_kh / 1) * 3) + ((((int)blockIdx.x / 4) * 9) + ((589824 * ((int)blockIdx.x & 3)) + (4608 * (int)threadIdx.x)))))] : 0) * ((((((3 - i) == 0) && ((2 - r_kh) == 0))) ? 1 : (((((3 - i) == 0) && ((1 - r_kh) == 0))) ? 0 : (((((3 - i) == 0) && ((-1 * r_kh) == 0))) ? 0 : (((((2 - i) == 0) && ((2 - r_kh) == 0))) ? 0.5 : (((((2 - i) == 0) && ((1 - r_kh) == 0))) ? 0.5 : (((((2 - i) == 0) && ((-1 * r_kh) == 0))) ? 0.5 : (((((1 - i) == 0) && ((2 - r_kh) == 0))) ? 0.5 : (((((1 - i) == 0) && ((1 - r_kh) == 0))) ? -0.5 : (((((1 - i) == 0) && ((-1 * r_kh) == 0))) ? 0.5 : (((((-1 * i) == 0) && ((2 - r_kh) == 0))) ? 0 : (((((-1 * i) == 0) && ((1 - r_kh) == 0))) ? 0 : (((((-1 * i) == 0) && ((-1 * r_kh) == 0))) ? 1 : 1)))))))))))) * (((((3 - j) == 0) && ((2 - r_kw) == 0))) ? 1 : (((((3 - j) == 0) && ((1 - r_kw) == 0))) ? 0 : (((((3 - j) == 0) && ((-1 * r_kw) == 0))) ? 0 : (((((2 - j) == 0) && ((2 - r_kw) == 0))) ? 0.5 : (((((2 - j) == 0) && ((1 - r_kw) == 0))) ? 0.5 : (((((2 - j) == 0) && ((-1 * r_kw) == 0))) ? 0.5 : (((((1 - j) == 0) && ((2 - r_kw) == 0))) ? 0.5 : (((((1 - j) == 0) && ((1 - r_kw) == 0))) ? -0.5 : (((((1 - j) == 0) && ((-1 * r_kw) == 0))) ? 0.5 : (((((-1 * j) == 0) && ((2 - r_kw) == 0))) ? 0 : (((((-1 * j) == 0) && ((1 - r_kw) == 0))) ? 0 : (((((-1 * j) == 0) && ((-1 * r_kw) == 0))) ? 1 : 1)))))))))))))));
+            };
+          };
+        };
+      };
+    };
+  };
+}__global__
+void __launch_bounds__(128) schedule_wino_conv2d_2(const float* __restrict__ X, const float* __restrict__ Y, const float* __restrict__ kernel_pack, const float* __restrict__ data_pack, float* __restrict__ bgemm)
+{
+  float _data_pack_write_cache [ 16 ];
+  __shared__ float _kernel_pack_0_read_cache [ 1024 ];
+  __shared__ float _data_pack_0_read_cache [ 256 ];
+  float _bgemm_write_cache [ 8 ];
+  float _input_tile_temp_buffer [ 16 ];
+  float* bgemm_write_cache = _bgemm_write_cache;
+  float* bgemm_write_cache__reduce_init = _bgemm_write_cache;
+  float* data_pack_0_read_cache = _data_pack_0_read_cache;
+  float* data_pack_write_cache = _data_pack_write_cache;
+  float* input_tile = _input_tile_temp_buffer;
+  float* kernel_pack_0_read_cache = _kernel_pack_0_read_cache;
+  if (((int)blockIdx.z < 16)) {
+    if (((int)blockIdx.y < 8)) {
+      if (((int)threadIdx.y < 16)) {
+        if (((int)threadIdx.x < 8)) {
+        {
+          for (int32_t ci_outer = 0; ci_outer < 4; ci_outer += 1) {
+            for (int32_t ci_inner = 0; ci_inner < 2; ci_inner += 1) {
+              bgemm_write_cache__reduce_init[((2 * ci_outer) + ci_inner)] = 0;
+            };
+          };
+          for (int32_t ci_outer = 0; ci_outer < 32; ci_outer += 1) {
+            {
+              __syncthreads();
+              if (((int)threadIdx.x < 8)) {
+                for (int32_t k_inner = 0; k_inner < 8; k_inner += 1) {
+                  kernel_pack_0_read_cache[((64 * (k_inner / 4)) + ((k_inner & 3) + ((128 * (int)threadIdx.x) + (4 * (int)threadIdx.y))))] = kernel_pack[((((int)blockIdx.z / 4) * 1048576) + ((512 * (k_inner / 4)) + ((262144 * ((int)blockIdx.z & 3)) + ((k_inner & 3) + ((64 * (int)blockIdx.y) + ((8192 * ci_outer) + ((1024 * (int)threadIdx.x) + (4 * (int)threadIdx.y))))))))];
+                };
+              };
+            };
+            if (((int)threadIdx.y < 16)) {
+              for (int32_t k_inner = 0; k_inner < 2; k_inner += 1) {
+                data_pack_0_read_cache[((2 * (int)threadIdx.x) + ((16 * (int)threadIdx.y) + k_inner))] = data_pack[((((int)blockIdx.z / 4) * 32768) + ((8192 * ((int)blockIdx.z & 3)) + ((256 * ci_outer) + ((2 * (int)threadIdx.x) + ((16 * (int)threadIdx.y) + k_inner)))))];
+              };
+            };
+            __syncthreads();
+            for (int32_t ci_inner = 0; ci_inner < 16; ci_inner += 1) {
+              for (int32_t k_inner = 0; k_inner < 4; k_inner += 1) {
+                for (int32_t a_inner = 0; a_inner < 2; a_inner += 1) {
+                  bgemm_write_cache[((2 * k_inner) + a_inner)] = (bgemm_write_cache[((2 * k_inner) + a_inner)] + (kernel_pack_0_read_cache[((64 * ci_inner) + ((4 * (int)threadIdx.y) + k_inner))] * data_pack_0_read_cache[((16 * ci_inner) + ((2 * (int)threadIdx.x) + a_inner))]));
+                };
+              };
+            };
+          };
+          for (int32_t ci_inner = 0; ci_inner < 4; ci_inner += 1) {
+            for (int32_t k_inner = 0; k_inner < 2; k_inner += 1) {
+              bgemm[((((int)blockIdx.z / 4) * 32768) + ((8192 * ((int)blockIdx.z & 3)) + ((1024 * (int)blockIdx.y) + ((16 * ci_inner) + ((2 * (int)threadIdx.x) + ((64 * (int)threadIdx.y) + k_inner))))))] = bgemm_write_cache[((2 * ci_inner) + k_inner)];
+            };
+          };
+        }
+        };
+      };
+    };
+  };
+}__global__
+void __launch_bounds__(128) schedule_wino_conv2d_3(const float* __restrict__ X, const float* __restrict__ Y, const float* __restrict__ kernel_pack, const float* __restrict__ data_pack, const float* __restrict__ bgemm, float* __restrict__ Winograd_Conv2d_out)
+{
+  float _inverse_temp_buffer [ 4 ];
+  float _data_pack_write_cache [ 16 ];
+  __shared__ float _data_pack_0_read_cache [ 256 ];
+  float _bgemm_write_cache [ 8 ];
+  float _input_tile_temp_buffer [ 16 ];
+  __shared__ float _kernel_pack_0_read_cache [ 1024 ];
+  float* bgemm_write_cache = _bgemm_write_cache;
+  float* data_pack_0_read_cache = _data_pack_0_read_cache;
+  float* data_pack_write_cache = _data_pack_write_cache;
+  float* input_tile = _input_tile_temp_buffer;
+  float* inverse = _inverse_temp_buffer;
+  float* inverse__reduce_init = _inverse_temp_buffer;
+  float* kernel_pack_0_read_cache = _kernel_pack_0_read_cache;
+  if (((int)blockIdx.x < 64)) {
+    if (((int)threadIdx.x < 128)) {
+    {
+      for (int32_t k = 0; k < 2; k += 1) {
+        for (int32_t a = 0; a < 2; a += 1) {
+          inverse__reduce_init[((2 * k) + a)] = 0;
+          for (int32_t r_g_a = 0; r_g_a < 4; r_g_a += 1) {
+            for (int32_t r_g_b = 0; r_g_b < 4; r_g_b += 1) {
+              inverse[((2 * k) + a)] = (inverse[((2 * k) + a)] + (bgemm[((16 * ((int)threadIdx.x / 16)) + (((int)threadIdx.x & 15) + ((128 * (int)blockIdx.x) + ((32768 * r_g_a) + (8192 * r_g_b)))))] * ((((((3 - r_g_a) == 0) && ((1 - k) == 0))) ? 1 : (((((3 - r_g_a) == 0) && ((-1 * k) == 0))) ? 0 : (((((2 - r_g_a) == 0) && ((1 - k) == 0))) ? 1 : (((((2 - r_g_a) == 0) && ((-1 * k) == 0))) ? 1 : (((((1 - r_g_a) == 0) && ((1 - k) == 0))) ? -1 : (((((1 - r_g_a) == 0) && ((-1 * k) == 0))) ? 1 : (((((-1 * r_g_a) == 0) && ((1 - k) == 0))) ? 0 : (((((-1 * r_g_a) == 0) && ((-1 * k) == 0))) ? 1 : 1)))))))) * (((((3 - r_g_b) == 0) && ((1 - a) == 0))) ? 1 : (((((3 - r_g_b) == 0) && ((-1 * a) == 0))) ? 0 : (((((2 - r_g_b) == 0) && ((1 - a) == 0))) ? 1 : (((((2 - r_g_b) == 0) && ((-1 * a) == 0))) ? 1 : (((((1 - r_g_b) == 0) && ((1 - a) == 0))) ? -1 : (((((1 - r_g_b) == 0) && ((-1 * a) == 0))) ? 1 : (((((-1 * r_g_b) == 0) && ((1 - a) == 0))) ? 0 : (((((-1 * r_g_b) == 0) && ((-1 * a) == 0))) ? 1 : 1)))))))))));
+            };
+          };
+        };
+      };
+      for (int32_t k = 0; k < cinn_nvgpu_min_fp32(2, (7 + ((-2 * ((int)threadIdx.x / 4)) + (8 * ((int)threadIdx.x / 16))))); k += 1) {
+        for (int32_t a = 0; a < cinn_nvgpu_min_fp32(2, (31 + ((-2 * ((int)threadIdx.x & 15)) + (-4 * k)))); a += 1) {
+          if ((((1 + (int)threadIdx.x) & 3) >= a)) {
+            Winograd_Conv2d_out[((-7 * ((int)threadIdx.x / 16)) + ((14 * ((int)threadIdx.x / 4)) + ((2 * ((int)threadIdx.x & 3)) + ((392 * (int)blockIdx.x) + ((7 * k) + a)))))] = inverse[((2 * k) + a)];
+          };
+        };
+      };
+    }
+    };
+  };
+}
+
+}
+)ROC";
+
+  std::string wino_target_code = utils::Trim(target_code);
+  int start_target1            = wino_target_code.find("if (((int)blockIdx.z < 16)) {");
+  int end_target1              = wino_target_code.find("schedule_wino_conv2d_3");
+  int start_source1            = wino_source_code.find("if (((int)blockIdx.z < 16)) {");
+  int end_source1              = wino_source_code.find("schedule_wino_conv2d_3");
+  ASSERT_EQ(wino_target_code.substr(start_target1, end_target1 - start_target1),
+            wino_source_code.substr(start_source1, end_source1 - start_source1));
+  int start_target2 = wino_target_code.find("for (int32_t k = 0; k < 2; k += 1) {");
+  int start_source2 = wino_source_code.find("for (int32_t k = 0; k < 2; k += 1) {");
+  ASSERT_EQ(wino_target_code.substr(start_target2), wino_source_code.substr(start_source2));
+}
+#endif
 #ifdef CINN_WITH_CUDNN
 TEST(Cudnn, external_function_cudnn) {
   Context::Global().ResetNameId();

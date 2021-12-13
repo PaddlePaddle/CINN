@@ -41,6 +41,9 @@ class Scope {
   template <typename T>
   Variable* Var(const std::string& name);
 
+  // Erase a variable, check exists firstly
+  void EraseVar(const std::string& name);
+
   //! Find a variable, get null if not exists.
   Variable* FindVar(const std::string& name) const;
 

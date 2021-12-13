@@ -14,6 +14,7 @@
 
 #include "cinn/hlir/framework/graph_compiler.h"
 
+#include <memory>
 #include <unordered_set>
 
 #include "cinn/backends/codegen_cuda_dev.h"
@@ -65,6 +66,11 @@ Program::Program(const std::shared_ptr<Scope>& scope, std::vector<std::unique_pt
 void Program::PreRun(const std::map<std::string, cinn_pod_value_t>* name2podargs) {
   for (auto& ins : prerun_instrs_) {
     ins->Run(name2podargs);
+  }
+  for (auto& ins : instrs_) {
+    if (ins->size() == 4) {
+      ins->PreRun(name2podargs);
+    }
   }
 }
 
@@ -191,12 +197,13 @@ void Program::Export(const std::vector<std::string>& persistent_vars, const std:
   fclose(f);
 }
 
-void Program::Execute(const std::map<std::string, cinn_pod_value_t>* name2podargs) {
+void Program::Execute(const std::map<std::string, cinn_pod_value_t>* name2podargs, void* stream) {
   for (auto& ins : instrs_) {
-    ins->Run(name2podargs);
+    ins->Run(name2podargs, false, stream);
   }
 #ifdef CINN_WITH_CUDA
-  if (instrs_[0]->target_.arch == Target::Arch::NVGPU) {
+  VLOG(4) << "-- The value of the used stream: " << stream;
+  if (instrs_[0]->target_.arch == Target::Arch::NVGPU && stream == nullptr) {
     CUDA_CALL(cudaDeviceSynchronize());
   }
 #endif
@@ -301,6 +308,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const Node* node) {
     output_shapes.push_back(out_shape);
     out_types.push_back(dtype);
   }
+
   auto impl = OpStrategy::SelectImpl(strategy[node->op()](node->attrs, inputs, out_types, output_shapes, target_));
 
   common::CINNValuePack C = impl->fcompute(common::CINNValuePack{cinn_inputs});
@@ -314,7 +322,10 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const Node* node) {
   C = impl->fschedule(C);
   for (int i = 0; i < C->size() - 1; i++) {
     ir::Expr temp = C[i];
-    inputs.push_back(temp.as_tensor_ref());
+    // checkout whether the tensor is with buffer.
+    if (!temp.as_tensor_ref()->buffer.defined() || this->target_ != common::DefaultNVGPUTarget()) {
+      inputs.push_back(temp.as_tensor_ref());
+    }
   }
 
   auto func = lang::LowerVec(GetOrGenFullFuncName(GenOpFuncName(node)), stages, inputs, {}, {}, nullptr, this->target_);
@@ -419,8 +430,18 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
       Expr out          = C[0];
       master_out_tensor = out.as_tensor_ref();
     }
+
     CHECK_GE(C.size(), 2);
-    CHECK_LE(C.size() - 1, node->outlinks_in_order().size());
+    std::vector<Expr> temp_C;
+    if (C.size() - 1 > node->outlinks_in_order().size()) {
+      for (int i = 1; i < C.size() - 1; i++) {
+        ir::Expr temp = C[i];
+        VLOG(1) << "C[" << i << "] name is : " << temp.as_tensor_ref()->name;
+        outputs.push_back(temp.as_tensor_ref());
+      }
+      common::CINNValuePack C_temp{{C[0], C.back()}};
+      C = C_temp;
+    }
     for (int i = 0; i < C.size() - 1; i++) {
       Expr out                      = C[i];
       temp_var_map[temp_outvars[i]] = out;
@@ -430,6 +451,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
         fetch_tensors.insert(out.as_tensor_ref());
       }
     }
+    CHECK_LE(C.size() - 1, node->outlinks_in_order().size());
     poly::StageMap temp_stages = C.back();
 
     for (auto& i : temp_stages) {
@@ -455,13 +477,8 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
         }
       } else if (index < fuse_number - 1 && temp_tensor->is_reduce_tensor()) {
         VLOG(3) << "temp buffer " << temp_tensor->name;
-        if (target_.arch == Target::Arch::X86 || fetch_tensors.count(temp_tensor)) {
-          VLOG(3) << "add op's out_vars: " << temp_tensor->name;
-          outputs.push_back(temp_tensor);
-        } else {
-          temp_tensor->WithBuffer("local", "_" + temp_tensor->name + "_temp_buffer");
-          stages[temp_tensor]->SetScope(poly::ScopeKind::kLocal);
-        }
+        VLOG(3) << "add op's out_vars: " << temp_tensor->name;
+        outputs.push_back(temp_tensor);
       } else {
         if (index == fuse_number - 1) {
           // final output tensor
@@ -476,18 +493,27 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
   fuse_name += "fused";
   VLOG(3) << "fuse_name: " << fuse_name;
   // args order: inputs + final output + fetch outputs + other no_fused outputs
-  inputs.insert(inputs.end(), outputs.begin(), outputs.end());
+  for (auto& tensor : outputs) {
+    // checkout the tensor is with buffer.
+    if (!tensor->buffer.defined() || this->target_ != common::DefaultNVGPUTarget()) {
+      inputs.push_back(tensor);
+    }
+  }
 
   ir::Tensor final_out_tensor = outputs.front();
   if (final_out_tensor->name != master_out_tensor->name) {
-    stages[final_out_tensor]->CopyTransform(stages[master_out_tensor]);
-    stages[final_out_tensor]->CopyLoopInfo(stages[master_out_tensor]);
+    if (final_out_tensor->is_reduce_tensor()) {
+      VLOG(3) << "final_out_tensor is reduce tensor!";
+    } else {
+      stages[final_out_tensor]->CopyTransform(stages[master_out_tensor]);
+      stages[final_out_tensor]->CopyLoopInfo(stages[master_out_tensor]);
+    }
   }
 
   for (auto& s : stages) {
     auto& compute_ats = s.second->GetComputeAts();
     auto tensor       = s.second->tensor();
-    if (tensor->is_reduce_tensor() && !compute_ats.empty()) {
+    if (!compute_ats.empty()) {
       poly::ComputeAtRelation new_relation;
       CHECK_EQ(compute_ats.size(), 1U);
       auto new_stage = stages[final_out_tensor];
@@ -521,6 +547,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
     VLOG(3) << "Function [" << i->name << "] is:\n";
     VLOG(3) << i;
   }
+
   return func;
 }
 
@@ -572,11 +599,13 @@ std::unique_ptr<Program> GraphCompiler::Build(const std::string& code) {
 }
 
 GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::CompileOptions& options,
-                                                      std::unordered_set<std::string>&& fetch_var_ids) {
-  fetch_var_ids_  = std::move(fetch_var_ids);
-  auto topo_order = graph_->topological_order();
-  auto& nodes     = std::get<0>(topo_order);
-  auto& edges     = std::get<1>(topo_order);
+                                                      std::unordered_set<std::string>&& fetch_var_ids,
+                                                      void* stream) {
+  compile_options_ = options;
+  fetch_var_ids_   = std::move(fetch_var_ids);
+  auto topo_order  = graph_->topological_order();
+  auto& nodes      = std::get<0>(topo_order);
+  auto& edges      = std::get<1>(topo_order);
 
   auto& groups = graph_->groups;
 
@@ -616,20 +645,54 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
     VLOG(3) << "[X86] C Code is:\n" << out;
   }
 
-  compiler_->Build(build_module, options.attached_code);
+  compiler_->Build(build_module, options.attached_code, stream);
+  auto instructions = BuildInstructions();
+  RemoveInvalidVariables(instructions);
+  if (options.with_buffer_handle_instruction_inserted) {
+    VLOG(3) << "option.with_buffer_handle_instruction_inserted enable";
+    InsertBufferHandlers(&instructions);
+  }
+
   if (options.with_instantiate_variables) {
     VLOG(3) << "Initantiate all variables on compile-time";
     // All variables reside in scope_, so traverse it to instantiate each one
     for (auto& name : scope_->var_names()) {
       auto* var    = scope_->Var<Tensor>(std::string({name.data(), name.size()}));
       auto& tensor = absl::get<Tensor>(*var);
-      tensor->mutable_data<float>(target_);
+      if (reuse_vars_map_.count(name)) {
+        auto src_var_name = reuse_vars_map_.at(name);
+        auto* src_var     = scope_->Var<Tensor>(src_var_name);
+        auto& src_tensor  = absl::get<Tensor>(*src_var);
+        VLOG(3) << name << " shares buffer with " << src_var_name;
+        tensor->set_buffer(src_tensor->get_buffer());
+      } else {
+        tensor->mutable_data<float>(target_);
+      }
     }
   }
 
   GraphCompiler::CompilationResult result;
-  result.runtime_program.reset(new Program(scope_, BuildInstructions()));
+  result.runtime_program.reset(new Program(scope_, std::move(instructions)));
   return result;
+}
+
+void GraphCompiler::SetSubKernels(Instruction* instr, const std::string& func_name) {
+  int i                   = 1;
+  std::string new_op_func = func_name + "_" + std::to_string(i);
+  if (function2input_args_.count(new_op_func) != 0) {
+    CHECK_GT(function2input_args_.count(func_name), 0);
+    instr->AddInArgs(function2input_args_[func_name]);
+    instr->AddOutArgs(function2output_args_[func_name]);
+  }
+  while (function2input_args_.count(new_op_func) != 0) {
+    auto* fn2 = compiler_->Lookup(new_op_func);
+    CHECK(fn2);
+    instr->SetLoweredFunc(fn2, new_op_func);
+    instr->AddInArgs(function2input_args_[new_op_func]);
+    instr->AddOutArgs(function2output_args_[new_op_func]);
+    i++;
+    new_op_func = func_name + "_" + std::to_string(i);
+  }
 }
 
 std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
@@ -641,9 +704,22 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
   auto& groups = graph_->groups;
   for (auto& group : groups) {
     if (group.size() == 1) {
-      auto node  = group[0];
+      auto node       = group[0];
+      auto instr_name = node->op()->name;
+      if (node->op()->name == "reshape" && compile_options_.with_instantiate_variables) {
+        // not run instruction and shares buffer only when instantiate_variables
+        auto& inlinks  = node->inlinks_in_order();
+        auto& outlinks = node->outlinks_in_order();
+        CHECK_EQ(inlinks.size(), 1U);
+        CHECK_EQ(outlinks.size(), 1U);
+        std::string in_id       = inlinks[0]->source()->safe_as<NodeData>()->id();
+        std::string out_id      = outlinks[0]->sink()->safe_as<NodeData>()->id();
+        reuse_vars_map_[out_id] = in_id;
+        instr_name              = "no_run";
+      }
       auto instr = std::unique_ptr<Instruction>(
-          new Instruction(target_, scope_.get(), OpGetInputNames(node), OpGetOutputNames(node), node->op()->name));
+          new Instruction(target_, scope_.get(), OpGetInputNames(node), OpGetOutputNames(node), instr_name));
+
       if (target_.arch == Target::Arch::NVGPU) {
         if (node->op()->name == "conv2d") {
           auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
@@ -783,25 +859,15 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
       auto* fn                 = compiler_->Lookup(op_func_name);
       CHECK(fn);
       instr->SetLoweredFunc(fn, op_func_name);
-      int i                   = 1;
-      std::string new_op_func = op_func_name + "_" + std::to_string(i);
-      if (function2input_args_.count(new_op_func) != 0) {
-        CHECK_GT(function2input_args_.count(op_func_name), 0);
-        instr->AddInArgs(function2input_args_[op_func_name]);
-        instr->AddOutArgs(function2output_args_[op_func_name]);
-      }
-      while (function2input_args_.count(new_op_func) != 0) {
-        auto* fn2 = compiler_->Lookup(new_op_func);
-        CHECK(fn2);
-        instr->SetLoweredFunc(fn2, new_op_func);
-        instr->AddInArgs(function2input_args_[new_op_func]);
-        instr->AddOutArgs(function2output_args_[new_op_func]);
-        i++;
-        new_op_func = op_func_name + "_" + std::to_string(i);
-      }
+
+      // As some instruction like reduce, will generate more than one kernel.
+      // So try to find the rest kernel, if it exist.
+      SetSubKernels(instr.get(), op_func_name);
       if (node->attrs.attr_store.count("pre_run")) {
         instr->pre_run = absl::get<bool>(node->attrs.attr_store["pre_run"]);
       }
+      // explicitly call Finalize of the instruction after all assignments on it were done
+      instr->Finalize();
       instructions.push_back(std::move(instr));
     } else {
       CHECK_GT(group.size(), 1U) << "fuse number should be greater than 1";
@@ -841,19 +907,163 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
         }
       }
       fuse_name += "fused";
-      VLOG(3) << fuse_name;
-      auto fuse_func_name = GetOrGenFullFuncName(fuse_name);
-      auto instr =
-          std::unique_ptr<Instruction>(new Instruction(target_, scope_.get(), inputNames, outputNames, fuse_func_name));
+      VLOG(3) << "In buildInstructions, fuse_name is : " << fuse_name;
       VLOG(3) << "input_names: " << utils::Join(inputNames, ", ");
       VLOG(3) << "out_names: " << utils::Join(outputNames, ", ");
-      auto* fn = compiler_->Lookup(fuse_func_name);
+      fuse_name = GetOrGenFullFuncName(fuse_name);
+      auto instr =
+          std::unique_ptr<Instruction>(new Instruction(target_, scope_.get(), inputNames, outputNames, fuse_name));
+
+      auto* fn = compiler_->Lookup(fuse_name);
       CHECK(fn);
-      instr->SetLoweredFunc(fn, fuse_func_name);
+      instr->SetLoweredFunc(fn, fuse_name);
+      // As some situation like reduce,will generate more than one kernel.
+      // So try to find the rest kernel, if it exist.
+      SetSubKernels(instr.get(), fuse_name);
+
+      for (int j = 0; j < group.size(); j++) {
+        auto node = group[j];
+        if (node->attrs.attr_store.count("pre_run") && absl::get<bool>(node->attrs.attr_store["pre_run"]) == true) {
+          instr->pre_run = true;
+        }
+      }
+      // explicitly call Finalize of the instruction after all assignments on it were done
+      instr->Finalize();
       instructions.push_back(std::move(instr));
     }
   }
   return instructions;
+}
+
+void GraphCompiler::RemoveInvalidVariables(const std::vector<std::unique_ptr<Instruction>>& instructions) {
+  // mark all variables are invalid initially
+  std::unordered_set<std::string> invalid_variables;
+  auto var_names = scope_->var_names();
+  invalid_variables.reserve(var_names.size());
+  std::transform(var_names.begin(),
+                 var_names.end(),
+                 std::inserter(invalid_variables, invalid_variables.end()),
+                 [](const auto& name_view) { return std::string(name_view.data()); });
+
+  // erase used variable names
+  auto exclude_arguments_fn = [&invalid_variables](const std::vector<std::string>& args) {
+    std::for_each(args.begin(), args.end(), [&invalid_variables](const std::string& var_name) {
+      invalid_variables.erase(var_name);
+    });
+  };
+
+  // iterate the arguments of each instruction, eliminate the
+  // used variables, and remain variables are invalid finally
+  auto unused_var_num = invalid_variables.size();
+  VLOG(3) << "Before removing invalid variables: " << instructions.size() << " instructions, "
+          << invalid_variables.size() << " variables";
+  for (auto i = 0; i < instructions.size(); ++i) {
+    const auto& instr    = instructions.at(i);
+    const auto& in_args  = instr->GetInArgs();
+    const auto& out_args = instr->GetOutArgs();
+    std::for_each(in_args.begin(), in_args.end(), exclude_arguments_fn);
+    std::for_each(out_args.begin(), out_args.end(), exclude_arguments_fn);
+
+    VLOG(3) << "Instruction-" << i << " eliminate " << unused_var_num - invalid_variables.size() << " used variables";
+    unused_var_num = invalid_variables.size();
+  }
+
+  VLOG(3) << "There are " << unused_var_num << " invalid variables to be removed from scope";
+  std::for_each(invalid_variables.begin(), invalid_variables.end(), [this](const std::string& var_name) {
+    scope_->EraseVar(var_name);
+    VLOG(3) << "Variable(" << var_name << ") is erased";
+  });
+}
+
+static void BufferMallocWithCallback(void* args, int num_args) {
+  cinn_pod_value_t* pod_args = static_cast<cinn_pod_value_t*>(args);
+  for (int i = 0; i < num_args; ++i) {
+    cinn_buffer_t* buffer = static_cast<cinn_buffer_t*>(pod_args[i]);
+    CHECK(buffer->external_malloc) << "external_malloc is nullptr";
+    buffer->external_malloc->operator()(nullptr, buffer);
+  }
+}
+
+static void BufferFreeWithCallback(void* args, int num_args) {
+  cinn_pod_value_t* pod_args = static_cast<cinn_pod_value_t*>(args);
+  for (int i = 0; i < num_args; ++i) {
+    cinn_buffer_t* buffer = static_cast<cinn_buffer_t*>(pod_args[i]);
+    CHECK(buffer->external_free) << "external_free is nullptr";
+    buffer->external_free->operator()(nullptr, buffer);
+  }
+}
+
+void GraphCompiler::AnalyzeVariableLifeTime(const std::vector<std::unique_ptr<Instruction>>& instructions,
+                                            std::unordered_map<int, std::vector<std::string>>* step2malloc,
+                                            std::unordered_map<int, std::vector<std::string>>* step2free) {
+  absl::flat_hash_map<std::string, int> variable_last_used, variable_first_used;
+  for (auto step = 0; step < instructions.size(); ++step) {
+    const auto& instr = instructions.at(step);
+
+    for (const auto& args : instr->GetInArgs()) {
+      for (const auto& var_name : args) {
+        // use try_emplace to record the first time a variable appearance
+        variable_first_used.try_emplace(var_name, step);
+        // will update until last time a variable used
+        variable_last_used[var_name] = step;
+      }
+    }
+    for (const auto& args : instr->GetOutArgs()) {
+      for (const auto& var_name : args) {
+        variable_first_used.try_emplace(var_name, step);
+        variable_last_used[var_name] = step;
+      }
+    }
+  }
+
+  for (const auto& var2first : variable_first_used) {
+    (*step2malloc)[var2first.second].emplace_back(var2first.first);
+  }
+  for (const auto& var2last : variable_last_used) {
+    (*step2free)[var2last.second].emplace_back(var2last.first);
+  }
+}
+
+void GraphCompiler::InsertBufferHandlers(std::vector<std::unique_ptr<Instruction>>* instructions) {
+  std::unordered_map<int, std::vector<std::string>> step2malloc, step2free;
+  AnalyzeVariableLifeTime(*instructions, &step2malloc, &step2free);
+
+  std::vector<std::unique_ptr<Instruction>> results;
+  for (auto step = 0; step < instructions->size(); ++step) {
+    auto& instr = instructions->at(step);
+
+    // insert a buffer malloc instruction applying on variables
+    // before they are firstly used in the next instruction
+    auto m_it = step2malloc.find(step);
+    if (m_it != step2malloc.end()) {
+      const auto& malloc_var_names = m_it->second;
+      auto function_name           = "malloc_buffer_instruction_" + std::to_string(step);
+      auto malloc_instr            = std::make_unique<Instruction>(
+          target_, scope_.get(), malloc_var_names, std::vector<std::string>({}), function_name);
+      malloc_instr->SetLoweredFunc(BufferMallocWithCallback, function_name);
+      malloc_instr->Finalize();
+      results.emplace_back(std::move(malloc_instr));
+    }
+
+    // join the real computation instruction
+    results.emplace_back(std::move(instr));
+
+    // insert a buffer free instruction applying on variables
+    // after no instruction will use them anymore
+    auto f_it = step2free.find(step);
+    if (f_it != step2free.end()) {
+      const auto& free_var_names = f_it->second;
+      auto function_name         = "free_buffer_instruction_" + std::to_string(step);
+      auto free_instr            = std::make_unique<Instruction>(
+          target_, scope_.get(), std::vector<std::string>({}), free_var_names, function_name);
+      free_instr->SetLoweredFunc(BufferFreeWithCallback, function_name);
+      free_instr->Finalize();
+      results.emplace_back(std::move(free_instr));
+    }
+  }
+
+  // replace original instructions
+  instructions->swap(results);
 }
 
 std::vector<std::string> GraphCompiler::OpGetInputNames(const Node* node) const {

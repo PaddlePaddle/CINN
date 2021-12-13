@@ -47,6 +47,18 @@ void BindMap(py::module *m) {
   condition.def_readwrite("cond", &Condition::cond).def(py::init<std::string>()).def("__str__", &Condition::__str__);
 }
 
+void BindStageMap(py::module *m) {
+  DefineShared<poly::_StageMap_>(m, "StageMap");
+  py::class_<poly::StageMap, Shared<poly::_StageMap_>> stage_map(*m, "StageMap");
+  stage_map  //
+      .def(
+          "__getitem__",
+          [](poly::StageMap self, ir::Tensor &t) -> Stage & { return *self[t]; },
+          py::return_value_policy::reference);
+
+  m->def("create_stages", &poly::CreateStages, py::arg("tensors"));
+}
+
 void BindStage(py::module *m) {
   py::class_<Stage, common::Object> stage(*m, "Stage");
   // enum Stage::ComputeAtKind
@@ -73,6 +85,7 @@ void BindStage(py::module *m) {
       .def("split", py::overload_cast<const std::string &, int>(&Stage::Split), arg("level"), arg("factor"))
       .def("split", py::overload_cast<int, int>(&Stage::Split), arg("level"), arg("factor"))
       .def("fuse", py::overload_cast<int, int>(&Stage::Fuse), arg("level0"), arg("level1"))
+      .def("fuse", py::overload_cast<const std::vector<int> &>(&Stage::Fuse))
       .def("reorder",
            py::overload_cast<const std::vector<Iterator> &>(&Stage::Reorder),
            "Reorder the axis in the computation")
@@ -87,23 +100,17 @@ void BindStage(py::module *m) {
       .def("unroll", py::overload_cast<int>(&Stage::Unroll))
       .def("unroll", py::overload_cast<const std::string &>(&Stage::Unroll))
       .def("unroll", py::overload_cast<const Iterator &>(&Stage::Unroll))
+      .def("parallel", py::overload_cast<int>(&Stage::Parallel))
+      .def("parallel", py::overload_cast<const std::string &>(&Stage::Parallel))
+      .def("parallel", py::overload_cast<const Iterator &>(&Stage::Parallel))
       .def("compute_at", &Stage::ComputeAtSchedule, arg("other"), arg("level"), arg("kind") = Stage::kComputeAtAuto)
       .def("skew", &Stage::Skew)
       .def("ctrl_depend", &Stage::CtrlDepend)
       .def("cache_read", &Stage::CacheRead)
-      .def("cache_write", &Stage::CacheWrite);
-}
-
-void BindStageMap(py::module *m) {
-  DefineShared<poly::_StageMap_>(m, "StageMap");
-  py::class_<poly::StageMap, Shared<poly::_StageMap_>> stage_map(*m, "StageMap");
-  stage_map  //
-      .def(
-          "__getitem__",
-          [](poly::StageMap self, ir::Tensor &t) -> Stage & { return *self[t]; },
-          py::return_value_policy::reference);
-
-  m->def("create_stages", &poly::CreateStages, py::arg("tensors"));
+      .def("cache_write", &Stage::CacheWrite)
+      .def("sync_threads", py::overload_cast<poly::StageMap>(&Stage::SyncThreads))
+      .def("sync_threads",
+           py::overload_cast<int, const std::vector<ir::Tensor> &, poly::StageMap>(&Stage::SyncThreads));
 }
 
 }  // namespace

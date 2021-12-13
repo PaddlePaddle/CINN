@@ -79,6 +79,9 @@ TEST(Instruction, basic) {
   CHECK(fn_addr);
 
   instr.SetLoweredFunc(reinterpret_cast<lower_func_ptr_t>(fn_addr));
+  // should call Finalize explicitly before Run
+  ASSERT_DEATH(instr.Run(), "");
+  instr.Finalize();
   instr.Run();
 
   // check result
@@ -123,6 +126,7 @@ TEST(Instruction, RunWithRawPodArgs) {
 
   Instruction instr(common::DefaultHostTarget(), nullptr, {"x", "y"}, {"z"});  // empty scope
   instr.SetLoweredFunc(reinterpret_cast<lower_func_ptr_t>(fn_addr));
+  instr.Finalize();
 
   auto check_equal_by_element = [&]() {
     auto xd = reinterpret_cast<float*>(cinn_pod_value_to_buffer_p(&name2podargs.at("x"))->memory);

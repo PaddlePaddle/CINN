@@ -279,7 +279,7 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
       stages->InsertLazily(t);
       res.push_back(CINNValue(t));
     }
-    CHECK(out.size() == 3U || out.size() == 2U || out.size() == 5U)
+    CHECK(out.size() == 3U || out.size() == 2U || out.size() == 5U || out.size() == 12U)
         << "The output tensor sizes of conv2d op in conv2d op should be 2 or 3 or 5\n";
 
     res.push_back(CINNValue(stages));
@@ -289,7 +289,7 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
   framework::CINNSchedule conv2d_schedule([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of conv2d schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
-    CHECK(arg_pack.size() == 4UL || arg_pack.size() == 3UL || arg_pack.size() == 6UL);
+    CHECK(arg_pack.size() == 4UL || arg_pack.size() == 3UL || arg_pack.size() == 6UL || arg_pack.size() == 13UL);
     poly::StageMap stages = arg_pack.back();
     if (target.arch == Target::Arch::NVGPU) {
 #ifdef CINN_WITH_CUDNN
@@ -303,19 +303,69 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
         return;
       }
 #endif
-      Expr Out             = arg_pack[0];
-      Expr input_pad       = arg_pack[1];
-      Expr weights         = arg_pack[2];
-      ir::Tensor out_t     = Out.as_tensor_ref();
-      ir::Tensor input_t   = input_pad.as_tensor_ref();
-      ir::Tensor weights_t = weights.as_tensor_ref();
-      CHECK(Out.as_tensor());
-      pe::CudaScheduleConv(stages, input_t, weights_t, out_t, target);
-      arg_pack[0] = Expr(out_t);
-      arg_pack[1] = Expr(input_t);
-      arg_pack[2] = Expr(weights_t);
-      *ret        = CINNValuePack{{arg_pack[0], CINNValue(stages)}};
-      return;
+      if (arg_pack.size() == 4UL) {
+        Expr Out             = arg_pack[0];
+        Expr input_pad       = arg_pack[1];
+        Expr weights         = arg_pack[2];
+        ir::Tensor out_t     = Out.as_tensor_ref();
+        ir::Tensor input_t   = input_pad.as_tensor_ref();
+        ir::Tensor weights_t = weights.as_tensor_ref();
+        CHECK(Out.as_tensor());
+        pe::CudaScheduleConv(stages, input_t, weights_t, out_t, target);
+        arg_pack[0] = Expr(out_t);
+        arg_pack[1] = Expr(input_t);
+        arg_pack[2] = Expr(weights_t);
+        *ret        = CINNValuePack{{arg_pack[0], CINNValue(stages)}};
+        return;
+      } else if (arg_pack.size() == 13UL) {
+        Expr wino_weights_dilation          = arg_pack[0];
+        Expr wino_input_pad                 = arg_pack[1];
+        Expr wino_A                         = arg_pack[2];
+        Expr wino_B                         = arg_pack[3];
+        Expr wino_G                         = arg_pack[4];
+        Expr kernel_pack                    = arg_pack[5];
+        Expr input_tile                     = arg_pack[6];
+        Expr data_pack                      = arg_pack[7];
+        Expr bgemm                          = arg_pack[8];
+        Expr inverse                        = arg_pack[9];
+        Expr wino_conv                      = arg_pack[10];
+        ir::Tensor wino_weights_dilation_t  = wino_weights_dilation.as_tensor_ref();
+        ir::Tensor wino_input_pad_t         = wino_input_pad.as_tensor_ref();
+        ir::Tensor wino_A_t                 = wino_A.as_tensor_ref();
+        ir::Tensor wino_B_t                 = wino_B.as_tensor_ref();
+        ir::Tensor wino_G_t                 = wino_G.as_tensor_ref();
+        ir::Tensor kernel_pack_t            = kernel_pack.as_tensor_ref();
+        ir::Tensor input_tile_t             = input_tile.as_tensor_ref();
+        ir::Tensor data_pack_t              = data_pack.as_tensor_ref();
+        ir::Tensor bgemm_t                  = bgemm.as_tensor_ref();
+        ir::Tensor inverse_t                = inverse.as_tensor_ref();
+        ir::Tensor wino_conv_t              = wino_conv.as_tensor_ref();
+        std::vector<ir::Tensor> all_tensors = {wino_weights_dilation_t,
+                                               wino_input_pad_t,
+                                               wino_A_t,
+                                               wino_B_t,
+                                               wino_G_t,
+                                               kernel_pack_t,
+                                               input_tile_t,
+                                               data_pack_t,
+                                               bgemm_t,
+                                               inverse_t,
+                                               wino_conv_t};
+        hlir::pe::CudaScheduleWinogradConv(stages, all_tensors, target);
+        arg_pack[0]  = Expr(all_tensors[0]);
+        arg_pack[1]  = Expr(all_tensors[1]);
+        arg_pack[2]  = Expr(all_tensors[2]);
+        arg_pack[3]  = Expr(all_tensors[3]);
+        arg_pack[4]  = Expr(all_tensors[4]);
+        arg_pack[5]  = Expr(all_tensors[5]);
+        arg_pack[6]  = Expr(all_tensors[6]);
+        arg_pack[7]  = Expr(all_tensors[7]);
+        arg_pack[8]  = Expr(all_tensors[8]);
+        arg_pack[9]  = Expr(all_tensors[9]);
+        arg_pack[10] = Expr(all_tensors[10]);
+        *ret         = CINNValuePack{{arg_pack[10], arg_pack[5], arg_pack[7], arg_pack[8], CINNValue(stages)}};
+        return;
+      }
     } else if (target.arch == Target::Arch::X86) {
       if (arg_pack.size() == 6UL) {
         Expr res              = arg_pack[0];
@@ -499,11 +549,7 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
       // x(batch, C_in, h, w) dy(batch, C_out, h, w) dw (C_out, C_in/group, h, w)
       res_shape = {inputs_shape[1][1], inputs_shape[0][1] / groups, out_shape_h, out_shape_w};
     }
-#ifdef CINN_WITH_CUDA
-    return {res_shape};
-#else
     return {res_shape, packed_out_shape, weights_dilation_shape, input_pad_shape};
-#endif
   } else if (data_format == "NHWC") {
     // A is input: [N, H, W, C], B is filter: [C_out, C_in/group, filter_h, filter_w]
     int out_shape_h =
@@ -519,11 +565,7 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
 
 std::vector<Type> InferDtypeForConv2d(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
-#ifdef CINN_WITH_CUDA
-  std::vector<Type> res{inputs_type[0]};
-#else
   std::vector<Type> res{inputs_type[0], inputs_type[0], inputs_type[0], inputs_type[0]};
-#endif
   return res;
 }
 
@@ -700,7 +742,11 @@ std::vector<shape_t> InferShapeForConv2dNCHWc(const std::vector<shape_t> &inputs
   int oc_bn                         = inputs_shape[1][5];
   int oc_chunk                      = inputs_shape[1][0];
   std::vector<int> packed_out_shape = {batch, oc_chunk, out_shape_h, out_shape_w, oc_bn};
-  std::vector<int> input_pad_shape  = {batch, ic_chunk, h_in + 2 * pad_h, w_in + 2 * pad_w, ic_bn};
+  auto pad_h_bound                  = (out_shape_h - 1) * stride[0] + (h_f - 1) * dilation[0] + 1;
+  auto pad_w_bound                  = (out_shape_w - 1) * stride[1] + (w_f - 1) * dilation[1] + 1;
+  auto input_pad_h                  = std::min(pad_h_bound, h_in + 2 * pad_h);
+  auto input_pad_w                  = std::min(pad_w_bound, w_in + 2 * pad_w);
+  std::vector<int> input_pad_shape  = {batch, ic_chunk, input_pad_h, input_pad_w, ic_bn};
   VLOG(3) << "packed_out_shape: " << utils::Join(packed_out_shape, ", ");
   return {packed_out_shape, packed_out_shape, input_pad_shape};
 }
@@ -1167,72 +1213,99 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
                                               const std::vector<Type> &out_type,
                                               const std::vector<std::vector<int>> &output_shapes,
                                               const Target &target) {
+  auto attr_store = attrs.attr_store;
+  std::vector<int> kernel_size;   // [kernel_h, kernel_w]
+  std::vector<int> stride_size;   // [stride_h, stride_w]
+  std::vector<int> padding_size;  // [padding_top, padding_left, padding_bottom, padding_right]
+  std::string pool_type   = "max";
+  bool ceil_mode          = false;
+  bool exclusive          = true;
+  bool global_pooling     = false;
+  bool adaptive           = false;
+  std::string data_format = "NCHW";
+  for (auto &iter : attrs.attr_store) {
+    if (iter.first == "kernel_size") {
+      kernel_size = absl::get<std::vector<int>>(iter.second);
+    } else if (iter.first == "stride_size") {
+      stride_size = absl::get<std::vector<int>>(iter.second);
+    } else if (iter.first == "padding_size") {
+      padding_size = absl::get<std::vector<int>>(iter.second);
+    } else if (iter.first == "pool_type") {
+      pool_type = absl::get<std::string>(iter.second);
+    } else if (iter.first == "ceil_mode") {
+      ceil_mode = absl::get<bool>(iter.second);
+    } else if (iter.first == "exclusive") {
+      exclusive = absl::get<bool>(iter.second);
+    } else if (iter.first == "data_format") {
+      data_format = absl::get<std::string>(iter.second);
+    } else if (iter.first == "global_pooling") {
+      global_pooling = absl::get<bool>(iter.second);
+    } else if (iter.first == "adaptive") {
+      adaptive = absl::get<bool>(iter.second);
+    }
+  }
+  CHECK(!kernel_size.empty()) << "kernel_size for pool2d is empty. Please check.\n";
+  CHECK(!stride_size.empty()) << "stride_size for pool2d is empty. Please check.\n";
+  CHECK(!padding_size.empty()) << "padding_size for pool2d is empty. Please check.\n";
+
+  CHECK(!inputs.empty()) << "The input tensor of pool2d compute is empty! Please check.\n";
+  const ir::Tensor &A_tensor = inputs[0];
+  CHECK(A_tensor->shape.size() == 4U || A_tensor->shape.size() == 5U)
+      << "pool2d requires tensor's shape_size to be 4 or 5\n";
+
+  if (global_pooling) {
+    int height_index = -1;
+    int width_index  = -1;
+    if (data_format == "NCHW") {
+      height_index = 2;
+      width_index  = 3;
+    } else if (data_format == "NHWC") {
+      height_index = 1;
+      width_index  = 2;
+    } else if (data_format == "AnyLayout") {
+      height_index = 2;
+      width_index  = 3;
+      data_format  = "NCHW";
+    } else {
+      LOG(FATAL) << "Only support 'NCHW' or 'NHWC' or 'AnyLayout' data_format.\n";
+    }
+    kernel_size  = {A_tensor->shape[height_index].as_int32(), A_tensor->shape[width_index].as_int32()};
+    padding_size = {0, 0, 0, 0};
+  }
+  if (kernel_size.size() == padding_size.size()) {
+    padding_size.insert(padding_size.end(), padding_size.begin(), padding_size.end());
+  }
+
+  framework::CINNCompute global_pool2d_compute([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of pool2d compute is empty! Please check.\n";
+    CINNValuePack a = args[0];
+    Expr A          = a[0];
+    CHECK(A.as_tensor());
+    ir::Tensor A_tensor = A.as_tensor_ref();
+    auto out            = pe::GlobalPool2d(A_tensor, pool_type, UniqName("T_GlobalPool2d_out"));
+    CHECK(out.size() == 2U) << "The size of pe::GlobalPool2d's output should be 2.";
+    auto stages = CreateStages({A_tensor, out[0], out[1]});
+    *ret        = CINNValuePack{{CINNValue(out[0]), CINNValue(out[1]), CINNValue(stages)}};
+  });
+
+  framework::CINNSchedule global_pool2d_schedule([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of pool2d schedule is empty! Please check.\n";
+    CINNValuePack arg_pack = args[0];
+    CHECK(arg_pack.size() == 3UL);
+    Expr out    = arg_pack[0];
+    Expr reduce = arg_pack[1];
+    CHECK(out.as_tensor() && reduce.as_tensor());
+    poly::StageMap stages = arg_pack[arg_pack.size() - 1];
+    pe::GlobalPoolScheduleGPU(stages, {out.as_tensor_ref(), reduce.as_tensor_ref()}, target);
+    *ret = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
+  });
+
   framework::CINNCompute pool2d_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of pool2d compute is empty! Please check.\n";
     CINNValuePack a = args[0];
-    CHECK(!a.empty()) << "The input tensor of pool2d compute is empty! Please check.\n";
-    Expr A = a[0];
+    Expr A          = a[0];
     CHECK(A.as_tensor());
-    auto attr_store = attrs.attr_store;
-    std::vector<int> kernel_size;   // [kernel_h, kernel_w]
-    std::vector<int> stride_size;   // [stride_h, stride_w]
-    std::vector<int> padding_size;  // [padding_top, padding_left, padding_bottom, padding_right]
-    std::string pool_type   = "max";
-    bool ceil_mode          = false;
-    bool exclusive          = true;
-    bool global_pooling     = false;
-    bool adaptive           = false;
-    std::string data_format = "NCHW";
-    for (auto &iter : attrs.attr_store) {
-      if (iter.first == "kernel_size") {
-        kernel_size = absl::get<std::vector<int>>(iter.second);
-      } else if (iter.first == "stride_size") {
-        stride_size = absl::get<std::vector<int>>(iter.second);
-      } else if (iter.first == "padding_size") {
-        padding_size = absl::get<std::vector<int>>(iter.second);
-      } else if (iter.first == "pool_type") {
-        pool_type = absl::get<std::string>(iter.second);
-      } else if (iter.first == "ceil_mode") {
-        ceil_mode = absl::get<bool>(iter.second);
-      } else if (iter.first == "exclusive") {
-        exclusive = absl::get<bool>(iter.second);
-      } else if (iter.first == "data_format") {
-        data_format = absl::get<std::string>(iter.second);
-      } else if (iter.first == "global_pooling") {
-        global_pooling = absl::get<bool>(iter.second);
-      } else if (iter.first == "adaptive") {
-        adaptive = absl::get<bool>(iter.second);
-      }
-    }
-    CHECK(!kernel_size.empty()) << "kernel_size for pool2d is empty. Please check.\n";
-    CHECK(!stride_size.empty()) << "stride_size for pool2d is empty. Please check.\n";
-    CHECK(!padding_size.empty()) << "padding_size for pool2d is empty. Please check.\n";
-
     ir::Tensor A_tensor = A.as_tensor_ref();
-    CHECK(A_tensor->shape.size() == 4U || A_tensor->shape.size() == 5U)
-        << "pool2d requires tensor's shape_size to be 4 or 5\n";
-    if (global_pooling) {
-      int height_index = -1;
-      int width_index  = -1;
-      if (data_format == "NCHW") {
-        height_index = 2;
-        width_index  = 3;
-      } else if (data_format == "NHWC") {
-        height_index = 1;
-        width_index  = 2;
-      } else if (data_format == "AnyLayout") {
-        height_index = 2;
-        width_index  = 3;
-        data_format  = "NCHW";
-      } else {
-        LOG(FATAL) << "Only support 'NCHW' or 'NHWC' or 'AnyLayout' data_format.\n";
-      }
-      kernel_size  = {A_tensor->shape[height_index].as_int32(), A_tensor->shape[width_index].as_int32()};
-      padding_size = {0, 0, 0, 0};
-    }
-    if (kernel_size.size() == padding_size.size()) {
-      padding_size.insert(padding_size.end(), padding_size.begin(), padding_size.end());
-    }
 
     auto out = pe::Pool2d(A_tensor,
                           kernel_size,
@@ -1261,14 +1334,14 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
     CHECK(!args.empty()) << "The input argument of pool2d schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
     CHECK(arg_pack.size() == 2UL || arg_pack.size() == 3UL);
-    Expr Out              = arg_pack[0];
+    Expr Out = arg_pack[0];
+    CHECK(Out.as_tensor());
     poly::StageMap stages = arg_pack[arg_pack.size() - 1];
     if (arg_pack.size() == 3UL) {
       Expr input_pad = arg_pack[1];
       CHECK(input_pad.as_tensor());
       stages[input_pad.as_tensor_ref()]->ComputeInline();
     }
-    CHECK(Out.as_tensor());
     ir::Tensor temp_out = Out.as_tensor_ref();
     if (target.arch == Target::Arch::NVGPU) {
       pe::PoolScheduleGPU(stages, temp_out, target);
@@ -1278,7 +1351,19 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
+
+  bool use_warp_reduce = false;
+  if (global_pooling && data_format == "NCHW" && target.arch == Target::Arch::NVGPU) {
+    // TODO 32 may not be the exact number, try also 16 or 8 or other number
+    //      we choose 32 to make sure all the threads in a warp has work to do,
+    if ((A_tensor->shape[2].as_int32() * A_tensor->shape[3].as_int32()) >= 32) {
+      use_warp_reduce = true;
+    }
+  }
   strategy->AddImpl(pool2d_compute, pool2d_schedule, "strategy.pool2d.x86", 1);
+  if (use_warp_reduce) {
+    strategy->AddImpl(global_pool2d_compute, global_pool2d_schedule, "strategy.pool2d.gpu.global", 2);
+  }
 
   return strategy;
 }
@@ -2087,11 +2172,7 @@ CINN_REGISTER_HELPER(nn_ops) {
   CINN_REGISTER_OP(conv2d)
       .describe("Do a 2-D convolution with an NCHW/NHWC layout.")
       .set_num_inputs(2)  // here we consider filter as another input
-#ifdef CINN_WITH_CUDA
-      .set_num_outputs(1)
-#else
       .set_num_outputs(4)
-#endif
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForConv2d)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForConv2d))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForConv2d))
@@ -2123,11 +2204,7 @@ CINN_REGISTER_HELPER(nn_ops) {
   CINN_REGISTER_OP(depthwise_conv2d)
       .describe("Do a 2-D depthwise convolution with an NCHW/NHWC layout.")
       .set_num_inputs(2)  // here we consider filter as another input
-#ifdef CINN_WITH_CUDA
-      .set_num_outputs(1)
-#else
       .set_num_outputs(4)
-#endif
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForDepthwiseConv2d)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForConv2d))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForConv2d))

@@ -100,9 +100,9 @@ std::vector<float> CudaGetData(const Tensor& tensor, const Target& target) {
 TEST(GraphCompiler, RunModel) {
   using attr_t = hlir::framework::AttrType;
   frontend::Program prog;
-  Expr M(30);
-  Expr K(30);
-  Expr N(30);
+  Expr M(32);
+  Expr K(32);
+  Expr N(32);
   frontend::Variable a("A");
   frontend::Variable b("B");
   Type t   = Float(32);

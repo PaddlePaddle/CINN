@@ -112,7 +112,7 @@ void Conv2d_NCHWc_Schedule_CPU(poly::StageMap stages,
                                const common::Target &target,
                                const std::string &key,
                                bool do_padding);
-
+void GlobalPoolScheduleGPU(poly::StageMap stages, const std::vector<ir::Tensor> &output, const common::Target &target);
 void PoolScheduleCPU(poly::StageMap stages, const ir::Tensor &output, const common::Target &target);
 void PoolScheduleGPU(poly::StageMap stages, ir::Tensor &output, const common::Target &target);
 
@@ -156,6 +156,18 @@ void CudaScheduleMul(poly::StageMap stages,
                      const std::vector<int> &output_shape,
                      const common::Target &target);
 
+void CudaScheduleReduce(poly::StageMap stages, ir::Tensor output, int last_dimension_num, const common::Target &target);
+
+void CudaScheduleWarpReduce(poly::StageMap stages, ir::Tensor tmp_out, ir::Tensor out, const common::Target &target);
+
+void CudaScheduleBlockReduceInternal(poly::StageMap stages,
+                                     ir::Tensor tmp_out,
+                                     ir::Tensor out,
+                                     const common::Target &target);
+
+void CudaScheduleBlockReduce(
+    poly::StageMap stages, ir::Tensor reduce_tmp_out, ir::Tensor tmp_out, ir::Tensor out, const common::Target &target);
+
 void CudaScheduleDepthwiseConv(poly::StageMap stages, ir::Tensor &output, const common::Target &target);
 
 void CudaScheduleConv(poly::StageMap stages,
@@ -163,6 +175,10 @@ void CudaScheduleConv(poly::StageMap stages,
                       ir::Tensor &weights,
                       ir::Tensor &output,
                       const common::Target &target);
+
+void CudaScheduleWinogradConv(poly::StageMap wino_stages,
+                              std::vector<ir::Tensor> &all_tensors,
+                              const common::Target &target);
 
 void CudaScheduleConv2(poly::StageMap stages,
                        ir::Tensor &input_pad,
@@ -181,13 +197,17 @@ std::string GenerateX86ConvKey(const std::vector<Expr> &input_shape,
                                const std::vector<Expr> &weight_shape,
                                const std::vector<int> &strides,
                                const std::vector<int> &paddings,
-                               const std::vector<int> &dilations);
+                               const std::vector<int> &dilations,
+                               const int &index              = 0,
+                               const std::string &model_name = "");
 
 std::string GenerateX86ConvKey(const std::vector<int> &input_shape,
                                const std::vector<int> &weight_shape,
                                const std::vector<int> &strides,
                                const std::vector<int> &paddings,
-                               const std::vector<int> &dilations);
+                               const std::vector<int> &dilations,
+                               const int &index              = 0,
+                               const std::string &model_name = "");
 void CreateX86SerialData(const std::string &file_name = "default_serial.log");
 
 void LoadSerialData(absl::flat_hash_map<std::string, absl::flat_hash_map<std::string, std::vector<int>>> *params,
@@ -198,6 +218,7 @@ void SaveSerialData(
     const std::string &file_name = "default_serial.log");
 
 int GetMaxSplitter(int a, int b);
+
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn

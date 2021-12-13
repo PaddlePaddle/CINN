@@ -94,7 +94,7 @@ TEST(TransformGpuForloops, multiple_thread_axis) {
   stages[D]->Bind(0, "blockIdx.x");
   stages[D]->Bind(1, "blockIdx.y");
   stages[D]->Bind(2, "threadIdx.x");
-  stages[C]->ComputeAt(stages[D], 1);
+  stages[C]->ComputeAt(stages[D], 2);
 
   auto func = Lower("elementwise_add", stages, {A, B, C, D});
 
@@ -105,12 +105,9 @@ function elementwise_add (_A, _B, _C, _D)
 {
   if ((blockIdx.x < 10)) {
     if ((blockIdx.y < 10)) {
-      {
-        for (j, 0, 200)
+      if ((threadIdx.x < 200)) {
         {
-          C[((10 * blockIdx.x) + blockIdx.y), j] = (A[((10 * blockIdx.x) + blockIdx.y), j] * B[((10 * blockIdx.x) + blockIdx.y), j])
-        }
-        if ((threadIdx.x < 200)) {
+          C[((10 * blockIdx.x) + blockIdx.y), threadIdx.x] = (A[((10 * blockIdx.x) + blockIdx.y), threadIdx.x] * B[((10 * blockIdx.x) + blockIdx.y), threadIdx.x])
           D[((10 * blockIdx.x) + blockIdx.y), threadIdx.x] = (C[((10 * blockIdx.x) + blockIdx.y), threadIdx.x] + A[((10 * blockIdx.x) + blockIdx.y), threadIdx.x])
         }
       }
