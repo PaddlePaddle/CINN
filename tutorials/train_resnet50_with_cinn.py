@@ -98,15 +98,15 @@ startup_program = paddle.static.Program()
 main_program = paddle.static.Program()
 with paddle.static.program_guard(main_program, startup_program):
     image = paddle.static.data(
-        name='image', shape=[32, 3, 224, 224], dtype='float32')
-    label = paddle.static.data(name='label', shape=[32], dtype='int64')
+        name='image', shape=[batch_size, 3, 224, 224], dtype='float32')
+    label = paddle.static.data(name='label', shape=[batch_size], dtype='int64')
 
     model = paddle.vision.models.resnet50()
     prediction = model(image)
     loss = paddle.nn.functional.cross_entropy(input=prediction, label=label)
     loss = paddle.mean(loss)
 
-    adam = paddle.optimizer.Adam(learning_rate=0.001)
+    adam = paddle.optimizer.Adam(learning_rate=0.0125)
     adam.minimize(loss)
 
 ##################################################################
