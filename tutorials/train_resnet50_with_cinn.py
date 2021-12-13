@@ -15,20 +15,32 @@
 Training ResNet50 using Paddle compiled with CINN
 =====================
 
-This is a beginner-friendly tutorial on how to train models using Paddle compiled with CINN.
-This tutorial assumes that you have installed Paddle compiled with CINN. Otherwise, please
-enable the ``-DWITH_CINN`` compilation option to recompile Paddle and reinstall it. In order
-to avoid the tedious compilation process, you can also use the following command to install the
-pre-compiled ``.whl`` package.
-
 **Note:** Docker execution environment is required, and you should use the docker image 
-`registry.baidubce.com/paddlepaddle/paddle:latest-dev-cuda11.2-cudnn8-gcc82`
-to create a container for trying the next steps in this tutorial.
+``registry.baidubce.com/paddlepaddle/paddle:latest-dev-cuda11.2-cudnn8-gcc82``
+to create a container for trying the next steps in this tutorial. You can use the following
+command to create a required container:
 
 .. code-block:: bash
 
-    wget https://paddle-inference-dist.bj.bcebos.com/CINN/paddlepaddle_gpu-0.0.0-cp36-cp36m-linux_x86_64.whl
+    # Docker version 20.10.11, build dea9396
+    docker run --gpus all --name cinn_train_test \\
+        --shm-size="8g" --net=host -v $PWD:/work \\
+        -it registry.baidubce.com/paddlepaddle/paddle:latest-dev-cuda11.2-cudnn8-gcc82 /bin/bash
+
+All the code below should be executed in the ``cinn_train_test`` container.
+
+This is a beginner-friendly tutorial on how to train models using Paddle compiled with CINN.
+This tutorial assumes that you have installed Paddle compiled with CINN. Otherwise, please
+enable the ``-DWITH_CINN`` compilation option to recompile Paddle and reinstall it. To avoid
+the tedious compilation process, you can also use the following command to install the 
+pre-compiled ``.whl`` package.
+
+.. code-block:: bash
+
+    wget https://paddle-inference-dist.bj.bcebos.com/CINN_release/paddlepaddle_gpu-0.0.0-cp36-cp36m-linux_x86_64.whl
     pip3.6 install paddlepaddle_gpu-0.0.0-cp36-cp36m-linux_x86_64.whl
+    export LD_LIBRARY_PATH=/usr/local/lib/python3.6/dist-packages/paddle/libs/:$LD_LIBRARY_PATH
+    # Please use python3.6 to execute the following python codes.
 """
 
 import numpy as np
@@ -68,7 +80,7 @@ paddle.set_flags({'FLAGS_use_cinn': True, 'FLAGS_allow_cinn_ops': allow_ops})
 # by setting ``CUDA_VISIBLE_DEVICES=GPU_ID`` in the system environment.
 #
 # Then you can specify the device id by using ``paddle.CUDAPlace(device_id))`` to get the device context.
-# The sample code is shown below.
+# The sample code is shown below:
 #
 place = paddle.CUDAPlace(0)
 
