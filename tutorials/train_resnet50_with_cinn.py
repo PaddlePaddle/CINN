@@ -64,9 +64,8 @@ paddle.set_flags({'FLAGS_use_cinn': True, 'FLAGS_allow_cinn_ops': allow_ops})
 # If you train models with CINN on a multi-GPU system, you should specify a device
 # by setting ``CUDA_VISIBLE_DEVICES=GPU_ID`` in the system environment.
 #
-# Then you can specify the device by Using ``paddle.CUDAPlace(device))`` to get the device context.
-#
-# :code:`device`: the device id.
+# Then you can specify the device id by using ``paddle.CUDAPlace(device_id))`` to get the device context.
+# The sample code is shown below.
 #
 place = paddle.CUDAPlace(0)
 
