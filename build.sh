@@ -246,7 +246,13 @@ function build {
 
 function run_demo {
     cd $build_dir/dist
+    ORIGIN_PATH=$LD_LIBRARY_PATH
+    export LD_LIBRARY_PATH=$build_dir/dist/cinn/lib:$LD_LIBRARY_PATH
+    bash build_demo.sh
+    ./demo
+    rm ./demo
     cd -
+    export LD_LIBRARY_PATH=$ORIGIN_PATH
 }
 
 function run_test {

@@ -26,12 +26,20 @@ Install
 CINN
 ------
 
-Get Started
+CINN Tutorials
 ~~~~~~~~~~~~~~~~
 .. toctree::
    :maxdepth: 1
 
    tutorials/index
+
+
+Paddle-CINN Tutorials
+~~~~~~~~~~~~~~
+.. toctree::
+   :maxdepth: 1
+
+   tutorial_paddle/index
 
 
 C++ APIs

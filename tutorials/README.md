@@ -1,7 +1,7 @@
 =================
-Tutorials
+CINN Tutorials
 =================
-This page contains the tutorials about CINN.
+This page contains tutorials about CINN.
 
 ---------
 Run demo
