@@ -148,6 +148,7 @@ function make_doc {
     wget https://paddle-inference-dist.bj.bcebos.com/CINN_release/paddlepaddle_gpu-0.0.0-cp36-cp36m-linux_x86_64.whl
     pip uninstall -y paddlepaddle-gpu
     pip install paddlepaddle_gpu-0.0.0-cp36-cp36m-linux_x86_64.whl
+    echo $LD_LIBRARY_PATH
     make html
 }
 
@@ -243,16 +244,12 @@ function build {
 
 function run_demo {
     cd $build_dir/dist
-    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$build_dir/dist/cinn/lib
-    bash build_demo.sh
-    ./demo
-    rm ./demo
     cd -
 }
 
 function run_test {
     cd $build_dir
-    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$build_dir/paddle/mkldnn:$build_dir/thirds/install/mklml/lib
+    echo $LD_LIBRARY_PATH
     if [ ${TESTING_DEBUG_MODE:-OFF} == "ON" ] ; then
         ctest --parallel 10 -V
     else
