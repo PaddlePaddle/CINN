@@ -145,8 +145,8 @@ function make_doc {
     mkdir -p docs/source/cpp
     cat $workspace/tutorials/matmul.cc | python${py_version} $workspace/tools/gen_c++_tutorial.py > $workspace/docs/source/matmul.md
     cat $workspace/tutorials/load_paddle_model.cc | python${py_version} $workspace/tools/gen_c++_tutorial.py > $workspace/docs/source/load_paddle_model.md
-    wget https://paddle-inference-dist.bj.bcebos.com/CINN/paddlepaddle_gpu-0.0.0-cp36-cp36m-linux_x86_64.whl
-    pip uninstall paddlepaddle-gpu
+    wget https://paddle-inference-dist.bj.bcebos.com/CINN_release/paddlepaddle_gpu-0.0.0-cp36-cp36m-linux_x86_64.whl
+    pip uninstall -y paddlepaddle-gpu
     pip install paddlepaddle_gpu-0.0.0-cp36-cp36m-linux_x86_64.whl
     make html
 }
@@ -252,7 +252,7 @@ function run_demo {
 
 function run_test {
     cd $build_dir
-    export LD_LIBRARY_PATH=$build_dir/paddle/mkldnn:$build_dir/thirds/install/mklml/lib:$LD_LIBRARY_PATH
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$build_dir/paddle/mkldnn:$build_dir/thirds/install/mklml/lib
     if [ ${TESTING_DEBUG_MODE:-OFF} == "ON" ] ; then
         ctest --parallel 10 -V
     else
