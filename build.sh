@@ -148,7 +148,9 @@ function make_doc {
     wget https://paddle-inference-dist.bj.bcebos.com/CINN_release/paddlepaddle_gpu-0.0.0-cp36-cp36m-linux_x86_64.whl
     pip uninstall -y paddlepaddle-gpu
     pip install paddlepaddle_gpu-0.0.0-cp36-cp36m-linux_x86_64.whl
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$build_dir/ci-env/lib/python3.6/site-packages/paddle/libs/
     echo $LD_LIBRARY_PATH
+    export CUDA_VISIBLE_DEVICES=0
     make html
 }
 
