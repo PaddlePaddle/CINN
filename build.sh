@@ -198,9 +198,9 @@ function prepare_model {
     fi
     tar -zxvf mkldnn.tgz
     cd $build_dir/thirds
-    python3 $workspace/python/tests/fake_model/naive_mul.py
-    python3 $workspace/python/tests/fake_model/naive_multi_fc.py
-    python3 $workspace/python/tests/fake_model/resnet_model.py
+    python $workspace/python/tests/fake_model/naive_mul.py
+    python $workspace/python/tests/fake_model/naive_multi_fc.py
+    python $workspace/python/tests/fake_model/resnet_model.py
 }
 
 function codestyle_check {
@@ -238,7 +238,7 @@ function build {
 
 function run_demo {
     cd $build_dir/dist
-    export LD_LIBRARY_PATH=$build_dir/dist/cinn/lib:$LD_LIBRARY_PATH
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$build_dir/dist/cinn/lib
     bash build_demo.sh
     ./demo
     rm ./demo
@@ -247,7 +247,6 @@ function run_demo {
 
 function run_test {
     cd $build_dir
-    export LD_LIBRARY_PATH=$build_dir/paddle/mkldnn:$build_dir/thirds/install/mklml/lib:$LD_LIBRARY_PATH
     if [ ${TESTING_DEBUG_MODE:-OFF} == "ON" ] ; then
         ctest --parallel 10 -V
     else
