@@ -103,7 +103,7 @@ void Interpreter::Impl::Build(const std::vector<std::string>& input_names,
   program_->SetInputs({input_vars});
   program_->Validate();
 
-  LOG(INFO) << "Program:\n" << *program_;
+  VLOG(3) << "Program:\n" << *program_;
 
   auto graph                 = std::make_shared<hlir::framework::Graph>(*program_, target);
   graph->attrs["model_name"] = std::make_shared<absl::any>(model_name);

@@ -105,36 +105,46 @@ function prepare_ci {
   pip install pre-commit
   pip install clang-format==9.0
   pip install wheel
-  pip install sphinx==3.3.1 sphinx_gallery==0.8.1 recommonmark==0.6.0 exhale scipy breathe==4.24.0 matplotlib
-  pip install paddlepaddle-gpu==2.2.1 -f https://www.paddlepaddle.org.cn/whl/linux/mkl/avx/stable.html
+  pip install sphinx==3.3.1 sphinx_gallery==0.8.1 recommonmark==0.6.0 exhale scipy breathe==4.24.0 matplotlib sphinx_rtd_theme
+  pip install paddlepaddle-gpu==2.2.1.post101 -f https://www.paddlepaddle.org.cn/whl/linux/mkl/avx/stable.html
+}
+
+function prepare_doc_model_file {
+    proxy_off
+    local tar_file=$1
+    if [[ -f "$tar_file.tar.gz" ]]; then
+        echo "model file $tar_file.tar.gz for tutorials already downloaded."
+    elif [[ -f "$build_dir/thirds/$tar_file.tar.gz" ]]; then
+        rm -rf $workspace/tutorials/$tar_file
+        ln -s $build_dir/thirds/$tar_file $workspace/tutorials/$tar_file
+    else
+        wget https://paddle-inference-dist.bj.bcebos.com/CINN/$tar_file.tar.gz
+        tar -zxvf $tar_file.tar.gz
+    fi
 }
 
 function make_doc {
     proxy_off
     cd $workspace/tutorials
-    if [[ -f "ResNet18.tar.gz" ]]; then
-        echo "model file for tutorials already downloaded."
-    elif [[ -f "$build_dir/thirds/ResNet18.tar.gz" ]]; then
-        rm -rf $workspace/tutorials/ResNet18
-        ln -s $build_dir/thirds/ResNet18 $workspace/tutorials/ResNet18
-    else
-        wget http://paddle-inference-dist.bj.bcebos.com/CINN/ResNet18.tar.gz
-        tar -zxvf ResNet18.tar.gz
-    fi
+    prepare_doc_model_file ResNet50
+    prepare_doc_model_file MobileNetV2
+    prepare_doc_model_file EfficientNet
+    prepare_doc_model_file FaceDet
+
     if [[ $cuda_config == "ON" && ! -d "./is_cuda" ]]; then
         mkdir is_cuda
     fi
-
+    if [[ $cuda_config == "OFF" && -d "./is_cuda" ]]; then
+        rm -rf ./is_cuda
+    fi
     cd $build_dir
     rm -f $workspace/python/cinn/core_api.so
     ln -s $build_dir/cinn/pybind/core_api.so $workspace/python/cinn/
     cd $workspace/docs
     mkdir -p docs/source/cpp
-    cat $workspace/tutorials/matmul.cc | python${py_version} $workspace/tools/gen_c++_tutorial.py  > $workspace/docs/source/matmul.md
+    cat $workspace/tutorials/matmul.cc | python${py_version} $workspace/tools/gen_c++_tutorial.py > $workspace/docs/source/matmul.md
+    cat $workspace/tutorials/load_paddle_model.cc | python${py_version} $workspace/tools/gen_c++_tutorial.py > $workspace/docs/source/load_paddle_model.md
     make html
-    if [[ $cuda_config == "ON" && -d "./is_cuda" ]]; then
-        rm -rf $workspace/tutorials/is_cuda
-    fi
 }
 
 function cmake_ {

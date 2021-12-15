@@ -227,7 +227,7 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
       if (tensor_shape[index].is_constant() && tensor_shape[index].get_constant() <= 0) {
         tensor_shape[index] = Expr(1);
       } else if (!tensor_shape[index].is_constant()) {
-        LOG(INFO) << "Index is not constant: " << tensor_shape[index] << " and it will be replaced to 1";
+        VLOG(3) << "Index is not constant: " << tensor_shape[index] << " and it will be replaced to 1";
         tensor_shape[index] = Expr(1);
       }
       (*global_tensor_map_).at(tensor_name)->shape = tensor_shape;
@@ -239,7 +239,7 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
         VLOG(3) << i;
       }
     } else {
-      LOG(INFO) << "extent not defined";
+      VLOG(3) << "extent not defined";
     }
   }
 
