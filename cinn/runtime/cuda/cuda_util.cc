@@ -527,8 +527,8 @@ void cinn_gpu_cudnn_pool2d(const std::vector<int> &attrs,
                            cinn_buffer_t *input,
                            cinn_buffer_t *output,
                            const cudaStream_t &stream) {
-  cudnnHandle_t &cudnn = CudnnHandle::get_instance().GetCudnnHandle();
-  CUDNN_CALL(cudnnSetStream(cudnn, stream));
+  cudnnHandle_t handle = CudnnHelper::Instance().GetCudnnHandle();
+  CUDNN_CALL(cudnnSetStream(handle, stream));
   CHECK_EQ(attrs.size(), 17);
   // Here the input paddings are pad_top, pad_bottom, pad_left, pad_right.
   // Since pad_top==pad_bottom and pad_left==pad_rifht, we only take pad_top and pad_left.
@@ -616,8 +616,8 @@ void cinn_gpu_cudnn_softmax(const std::vector<int> &attrs,
   }
   rank = shape.size();
 
-  cudnnHandle_t &cudnn = CudnnHandle::get_instance().GetCudnnHandle();
-  CUDNN_CALL(cudnnSetStream(cudnn, stream));
+  cudnnHandle_t handle = CudnnHelper::Instance().GetCudnnHandle();
+  CUDNN_CALL(cudnnSetStream(handle, stream));
   float *in_data  = reinterpret_cast<float *>(input->memory);
   float *out_data = reinterpret_cast<float *>(output->memory);
 
