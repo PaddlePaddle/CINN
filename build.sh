@@ -238,7 +238,7 @@ function build {
 
 function run_demo {
     cd $build_dir/dist
-    export LD_LIBRARY_PATH=$build_dir/dist/cinn/lib:$LD_LIBRARY_PATH
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$build_dir/dist/cinn/lib
     bash build_demo.sh
     ./demo
     rm ./demo
@@ -247,7 +247,6 @@ function run_demo {
 
 function run_test {
     cd $build_dir
-    export LD_LIBRARY_PATH=$build_dir/paddle/mkldnn:$build_dir/thirds/install/mklml/lib:$LD_LIBRARY_PATH
     if [ ${TESTING_DEBUG_MODE:-OFF} == "ON" ] ; then
         ctest --parallel 10 -V
     else
