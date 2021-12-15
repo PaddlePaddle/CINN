@@ -277,3 +277,5 @@ print("\n======================================\nThe optimized kernel:\n", fn1)
 #
 # Thus we get an optimized kernel.
 #
+
+del cinn

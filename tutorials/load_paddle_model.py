@@ -142,3 +142,7 @@ res_cinn = out.numpy(target)
 print("CINN Execution Done!")
 
 print("Result is: ", res_cinn)
+del cinn
+del frontend
+del common
+del framework

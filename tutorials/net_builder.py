@@ -139,3 +139,7 @@ res_data = res_tensor.numpy(target)
 
 # print result
 print(res_data)
+
+del cinn
+del frontend
+del common

@@ -75,3 +75,6 @@ matmul = jit.lookup("matmul")
 matmul(args)
 
 print(c.numpy())
+
+del cinn
+del runtime

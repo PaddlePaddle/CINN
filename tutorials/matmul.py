@@ -153,3 +153,6 @@ test_performance(
     stages,
     fn_inputs=[A.to_tensor(), B.to_tensor(), C, packedB],
     input_args=[a, b, c, packedB_buf])
+
+del cinn
+del runtime
