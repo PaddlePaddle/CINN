@@ -188,8 +188,15 @@ void SchedulerBase::FinishStageAdd() {
     auto *schedule_node = node->safe_as<ScheduleGraphNode>();
     for (auto &depend : schedule_node->stage->ctrl_depends()) {
       auto *depend_node = schedule_graph_.RetrieveNode(depend->name);
-      if (depend_node) {            // some dependencies might be in another graph.
-        depend_node->LinkTo(node);  // Add link from extra depend statment to current node.
+      if (depend_node) {  // some dependencies might be in another graph.
+        auto *a_node = depend_node->safe_as<ScheduleGraphNode>();
+        auto *b_node = node->safe_as<ScheduleGraphNode>();
+        auto _a_edge_b_edge_ =
+            a_node->LinkTo<ScheduleGraphEdge>(b_node);  // Add link from extra depend statment to current node.
+        auto &a_edge                           = std::get<0>(_a_edge_b_edge_);
+        auto &b_edge                           = std::get<1>(_a_edge_b_edge_);
+        a_edge->as<ScheduleGraphEdge>()->level = -1;
+        b_edge->as<ScheduleGraphEdge>()->level = -1;
       }
     }
   }
@@ -226,6 +233,7 @@ SchedulerBase &SchedulerBase::After(const Stage &a, const Stage &b, int level) {
   auto &b_edge                           = std::get<1>(_a_edge_b_edge_);
   a_edge->as<ScheduleGraphEdge>()->level = level;
   b_edge->as<ScheduleGraphEdge>()->level = level;
+  VLOG(2) << "In After, Set [" << a.id() << "] -> [b: ]" << b.id() << "] with level = " << level;
   return *this;
 }
 

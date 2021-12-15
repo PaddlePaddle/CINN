@@ -21,6 +21,7 @@ In this tutorial, we will introduce the JIT module that execute the DSL on X86 a
 import cinn
 import numpy as np
 from cinn import runtime
+# sphinx_gallery_thumbnail_path = './paddlepaddle.png'
 
 ##################################################################
 # declare some variables for latter use

@@ -19,6 +19,7 @@
 
 #include "cinn/common/common.h"
 #include "cinn/frontend/cinn_builder.h"
+#include "cinn/frontend/computation.h"
 #include "cinn/frontend/decomposer/use_decomposer.h"
 #include "cinn/frontend/decomposer_registry.h"
 #include "cinn/frontend/interpreter.h"
@@ -225,7 +226,7 @@ void BindFrontend(pybind11::module *m) {
                  CINN_NOT_IMPLEMENTED
                }
              }
-             LOG(INFO) << info;
+             VLOG(3) << info;
              program->ExecuteTest(repeat_);
              auto out = scope->GetTensor(tensor_out->id);
              return out;
@@ -267,7 +268,7 @@ void BindFrontend(pybind11::module *m) {
                  CINN_NOT_IMPLEMENTED
                }
              }
-             LOG(INFO) << info;
+             VLOG(3) << info;
              program->ExecuteTest(repeat_);
              auto out = scope->GetTensor(tensor_out->id);
              return out;
@@ -289,7 +290,12 @@ void BindFrontend(pybind11::module *m) {
       .def(py::init<const std::vector<std::string> &, const std::vector<hlir::framework::shape_t> &>(),
            py::arg("input_names"),
            py::arg("input_shapes"))  //
-      .def("load_paddle_model", &frontend::Interpreter::LoadPaddleModel)
+      .def("load_paddle_model",
+           &frontend::Interpreter::LoadPaddleModel,
+           py::arg("model_dir"),
+           py::arg("target"),
+           py::arg("params_combined"),
+           py::arg("model_name") = "")
       .def("run", &frontend::Interpreter::Run)
       .def("get_tensor", &frontend::Interpreter::GetTensor)
       .def("scope", &frontend::Interpreter::scope);
@@ -471,6 +477,53 @@ void BindFrontend(pybind11::module *m) {
       .def("select", &CinnBuilder::Select, py::arg("condition"), py::arg("true_value"), py::arg("false_value"))
       .def("reverse", &CinnBuilder::Reverse, py::arg("operand"), py::arg("axis"))
       .def("__str__", [](CinnBuilder &self) { return self.name(); });
+
+  auto computation = py::class_<CinnComputation, std::shared_ptr<CinnComputation>>(*m, "Computation");
+  py::class_<CinnComputation::CompileOptions>(computation, "CompileOptions")
+      .def_readwrite("use_decomposer", &CinnComputation::CompileOptions::use_decomposer)
+      .def_readwrite("do_prerun", &CinnComputation::CompileOptions::do_prerun)
+      .def_readwrite("use_default_passes", &CinnComputation::CompileOptions::use_default_passes)
+      .def_readwrite("passes", &CinnComputation::CompileOptions::passes);
+
+  computation
+      .def("default_compile_options", &CinnComputation::DefaultCompileOptions)
+      // currently stream param is not exported to python, the default stream is used always
+      .def_static(
+          "build_and_compile",
+          [](const common::Target &target, BaseBuilder &builder, const CinnComputation::CompileOptions &options) {
+            return CinnComputation::BuildAndCompile(target, builder, options);
+          },
+          py::arg("target"),
+          py::arg("builder"),
+          py::arg("options") = CinnComputation::DefaultCompileOptions())
+      .def_static(
+          "compile",
+          [](const common::Target &target, Program &program, const CinnComputation::CompileOptions &options) {
+            return CinnComputation::Compile(target, program, options);
+          },
+          py::arg("target"),
+          py::arg("program"),
+          py::arg("options") = CinnComputation::DefaultCompileOptions())
+      .def_static(
+          "compile_paddle_model",
+          [](const common::Target &target,
+             const std::string &model_path,
+             const std::vector<std::string> &input_names,
+             const std::vector<hlir::framework::shape_t> &input_shapes,
+             bool params_combined,
+             const CinnComputation::CompileOptions &options) {
+            return CinnComputation::CompilePaddleModel(
+                target, model_path, input_names, input_shapes, params_combined, options);
+          },
+          py::arg("target"),
+          py::arg("model_path"),
+          py::arg("input_names"),
+          py::arg("input_shapes"),
+          py::arg("params_combined"),
+          py::arg("options") = CinnComputation::DefaultCompileOptions())
+      .def("get_all_tensor_names", &CinnComputation::GetAllTensorNames)
+      .def("get_tensor", &CinnComputation::GetTensor)
+      .def("execute", [](CinnComputation &self) { self.Execute(); });
 
 }  // namespace frontend
 

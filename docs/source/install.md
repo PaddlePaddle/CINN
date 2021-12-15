@@ -1,79 +1,94 @@
 # Build from source code
 
 ## Dependencies
+CINN is build and tested on Ubuntu-18.04 with GCC 8.2.0, third party libraries are provided for that environment and will be downloaded automatically. Other compatible environments should work, but we cann't gurantee it. Currently, CINN is under very active development, we provide Docker environment for you to have a quick experience. If you have any problem building CINN in your own environment, please try using Docker. More portability will be added to CINN in the future.
 
-- gcc-8
-- g++-8
-- isl 0.22
+Docker image we used to build and test CINN: `registry.baidubce.com/paddlepaddle/paddle:latest-dev-cuda11.2-cudnn8-gcc82`.
 
-### Install isl
+## Build without Docker
+Build without Docker is not recommended for now. Third party dependencies are downloaded automatically by cmake, some libraries will be compiled, and others are static prebuilt. If you indeed have interest to build CINN in your own environment, you can use the content in `Build using Docker` section as a reference. 
 
+## Build using Docker
 
-```sh
-git clone https://github.com/Meinersbur/isl.git
-git reset --hard isl-0.22
-cd isl
-./configure --with-clang=system
-make -j
-make install
+Checkout CINN source code from git. 
+
+```bash
+$ git clone --depth 1 https://github.com/PaddlePaddle/CINN.git
 ```
 
-### compile
+Download docker image from registry.
 
-```sh
-cd CINN
-cp cmake/config.cmake <build_dir>/
+```bash
+$ docker pull registry.baidubce.com/paddlepaddle/paddle:latest-dev-cuda11.2-cudnn8-gcc82
 ```
 
-Modify the `config.cmake`, change the `ISL_HOME` to the path isl installed.
+Start the container.
 
-
-### Install LLVM and MLIR
-To use the latest version of MLIR, the latest llvm-project should be compiled and installed.
-
-The git commit is `f9dc2b7079350d0fed3bb3775f496b90483c9e42`
-
-*download llvm source code*
-
-```sh
-git clone https://github.com/llvm/llvm-project.git
-```
-The git of the llvm-project is huge and git cloning in China is quite slow, use a http proxy if necessary.
-
-*compile and install to local directory*
-
-```sh
-cd llvm-project
-mkdir build && cd build
-
-cmake -G Ninja ../llvm \
-  -DLLVM_ENABLE_PROJECTS=mlir \
-  -DLLVM_BUILD_EXAMPLES=OFF \
-  -DLLVM_TARGETS_TO_BUILD="X86" \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DLLVM_ENABLE_ASSERTIONS=ON \
-  -DLLVM_ENABLE_ZLIB=OFF \
-  -DLLVM_ENABLE_RTTI=ON \
-  -DCMAKE_INSTALL_PREFIX=$PWD/../install/llvmorg-9e42
-  
-ninja install -j8
+```bash
+$ docker run --gpus=all -it -v $PWD/CINN:/CINN /registry.baidubce.com/paddlepaddle/paddle:latest-dev-cuda11.2-cudnn8-gcc82 bin/bash
 ```
 
-*add binary executables to environment variables*
+Build CINN in the created container.
 
-```sh
-export PATH="$PWD/../install/llvmorg-9e42/bin:$PATH"
+```bash
+# create a build directory
+$ mkdir /CINN/build && cd /CINN/build
+# use cmake to generate Makefile and download dependencies, use flags to toggle on/off CUDA and CUDNN support
+# e.g. 1) build with CUDA & CUDNN support
+#   cmake .. -DWITH_CUDA=ON -DWITH_CUDNN=On
+# e.g. 2) build without CUDA & CUDNN support(CPU only, default)
+#   cmake .. -DWITH_CUDA=OFF -DWITH_CUDNN=OFF
+$ cmake ..  -DWITH_CUDA=ON -DWITH_CUDNN=ON
+# build CINN
+$ make 
 ```
 
-*add llvm project directory to environment variables.*
-```
-export LLVM11_DIR="/path/to/llvm_directory/"
+`build/dist/cinn-xxxxx.whl` is the generated python wheel package, the real file name will differ given by the build options, python version, build environments, and git tag.
+
+```bash
+$ pip install build/dist/cinn.*.whl
 ```
 
-*check the llvm version*
+A demo using CINN's computation API.
+```python
+import numpy as np
+from cinn.frontend import *
+from cinn import Target
+from cinn.framework import *
+from cinn import runtime
+from cinn import ir
+from cinn import lang
+from cinn.common import *
 
-```sh
-llvm-config --version
+target = DefaultHostTarget()
+#target = DefaultNVGPUTarget()
 
-# should get 12.0.0git
+builder = CinnBuilder("test_basic")
+a = builder.create_input(Float(32), (1, 24, 56, 56), "A")
+b = builder.create_input(Float(32), (1, 24, 56, 56), "B")
+c = builder.add(a, b)
+d = builder.create_input(Float(32), (144, 24, 1, 1), "D")
+e = builder.conv(c, d)
+
+computation = Computation.build_and_compile(target, builder)
+
+A_data = np.random.random([1, 24, 56, 56]).astype("float32")
+B_data = np.random.random([1, 24, 56, 56]).astype("float32")
+D_data = np.random.random([144, 24, 1, 1]).astype("float32")
+
+computation.get_tensor("A").from_numpy(A_data, target)
+computation.get_tensor("B").from_numpy(B_data, target)
+computation.get_tensor("D").from_numpy(D_data, target)
+
+computation.execute()
+
+e_tensor = computation.get_tensor(str(e))
+edata_cinn = e_tensor.numpy(target)
+print(edata_cinn)
 ```
+
+run the demo.
+```
+$ python demo.py
+```
+`target = DefaultHostTarget()` indicates CINN to use CPU for computing, well `target = DefaultNVGPUTarget()` uses GPU. 

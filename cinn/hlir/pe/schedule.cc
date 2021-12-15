@@ -25,6 +25,7 @@
 #include <utility>
 
 #include "cinn/common/cas.h"
+#include "cinn/hlir/pe/load_x86_params.h"
 #include "cinn/optim/ir_simplify.h"
 #include "cinn/poly/isl_utils.h"
 
@@ -314,6 +315,152 @@ void MulScheduleCPU(poly::StageMap stages,
   }
 }
 
+int GetThreadBindAxis(const std::vector<ir::Expr> &shape) {
+  int thread_axis = shape.size() - 1;
+  for (int idx = thread_axis; idx >= 0; --idx) {
+    if (shape[idx].as_int32() > 1) {
+      thread_axis = idx;
+      break;
+    }
+  }
+  return thread_axis;
+}
+
+int GetBlockBindAxis(const std::vector<ir::Expr> &shape, const int thread_axis) {
+  int block_axis = 0, max_dim_size = shape[0].as_int32();
+  for (int idx = 0; idx <= thread_axis; ++idx) {
+    if (max_dim_size < shape[idx].as_int32()) {
+      if (idx < thread_axis) {
+        max_dim_size = shape[idx].as_int32();
+        block_axis   = idx;
+      } else {
+        if (max_dim_size == 1) {
+          block_axis = thread_axis;
+        }
+      }
+    }
+  }
+  return block_axis;
+}
+
+void CudaScheduleReduce(poly::StageMap stages,
+                        ir::Tensor output,
+                        int last_dimension_num,
+                        const common::Target &target) {
+  int parallel_thread_num = 1;
+  for (int idx = output->shape.size() - 1; idx >= static_cast<int>(output->shape.size()) - last_dimension_num; --idx) {
+    parallel_thread_num *= output->shape[idx].as_int32();
+  }
+
+  int index = output->shape.size() - last_dimension_num;
+  for (int idx = output->shape.size() - last_dimension_num; idx < static_cast<int>(output->shape.size()) - 1; ++idx) {
+    stages[output]->Fuse(index, index + 1);
+  }
+
+  int max_block_size = 1024;
+  if (parallel_thread_num > max_block_size) {
+    stages[output]->Split(index, max_block_size);
+    stages[output]->Bind(index + 1, "threadIdx.x");
+  } else {
+    stages[output]->Bind(index, "threadIdx.x");
+  }
+
+  for (int idx = 0; idx < index - 1; ++idx) {
+    stages[output]->Fuse(0, 1);
+  }
+
+  if (index > 0) {
+    stages[output]->Bind(0, "blockIdx.x");
+  }
+}
+
+void CudaScheduleWarpReduce(poly::StageMap stages, ir::Tensor tmp_out, ir::Tensor out, const common::Target &target) {
+  int sum_out_dim = 1;
+  for (int idx = 0; idx < static_cast<int>(tmp_out->shape.size()) - 2; ++idx) {
+    stages[out]->Fuse(0, 1);
+    stages[tmp_out]->Fuse(0, 1);
+    sum_out_dim *= out->shape[idx].as_int32();
+  }
+  sum_out_dim *= out->shape.back().as_int32();
+
+  // out_shape = {1} tmp_shape = {32}
+  if (tmp_out->shape.size() == 1) {
+    stages[out]->Split(0, 1);
+    stages[tmp_out]->Split(0, tmp_out->shape[0].as_int32());
+  }
+
+  if (sum_out_dim <= 16) {
+    stages[out]->Bind(0, "threadIdx.y");
+
+    stages[tmp_out]->Bind(0, "threadIdx.y");
+    stages[tmp_out]->Bind(1, "threadIdx.x");
+    stages[tmp_out]->SimpleComputeAt(stages[out], 0);
+    stages[tmp_out]->SetBuffer("local");
+  } else {
+    stages[out]->Split(0, 8);
+    stages[out]->Bind(0, "blockIdx.x");
+    stages[out]->Bind(1, "threadIdx.y");
+
+    stages[tmp_out]->Split(0, 8);
+    stages[tmp_out]->Bind(2, "threadIdx.x");
+    stages[tmp_out]->SimpleComputeAt(stages[out], 1);
+    stages[tmp_out]->SetBuffer("local");
+  }
+}
+
+void CudaScheduleBlockReduceInternal(poly::StageMap stages,
+                                     ir::Tensor tmp_out,
+                                     ir::Tensor out,
+                                     const common::Target &target) {
+  for (int idx = 0; idx < static_cast<int>(tmp_out->shape.size()) - 2; ++idx) {
+    stages[tmp_out]->Fuse(0, 1);
+    stages[out]->Fuse(0, 1);
+  }
+
+  if (tmp_out->shape.size() == 1) {
+    stages[out]->Split(0, 1);
+    stages[tmp_out]->Split(0, tmp_out->shape[0].as_int32());
+  }
+
+  stages[out]->Bind(0, "blockIdx.x");
+
+  stages[tmp_out]->Bind(0, "blockIdx.x");
+  stages[tmp_out]->Bind(1, "threadIdx.x");
+  stages[tmp_out]->SimpleComputeAt(stages[out], 0);
+  stages[tmp_out]->SetBuffer("local");
+}
+
+void CudaScheduleBlockReduce(poly::StageMap stages,
+                             ir::Tensor reduce_tmp_out,
+                             ir::Tensor tmp_out,
+                             ir::Tensor out,
+                             const common::Target &target) {
+  int output_shape_size_without_reduce = tmp_out->shape.size() - 1;
+  // fuse last parallel dimension
+  for (int idx = 0; idx < reduce_tmp_out->shape.size() - tmp_out->shape.size(); ++idx) {
+    stages[reduce_tmp_out]->Fuse(output_shape_size_without_reduce, output_shape_size_without_reduce + 1);
+  }
+
+  // fuse parallel dimension
+  for (int idx = 0; idx < output_shape_size_without_reduce - 1; ++idx) {
+    stages[out]->Fuse(0, 1);
+    stages[tmp_out]->Fuse(0, 1);
+    stages[reduce_tmp_out]->Fuse(0, 1);
+  }
+
+  stages[reduce_tmp_out]->Bind(0, "blockIdx.x");
+  stages[reduce_tmp_out]->Bind(1, "threadIdx.x");
+  stages[reduce_tmp_out]->SetBuffer("local");
+  stages[reduce_tmp_out]->SimpleComputeAt(stages[tmp_out], 0);
+
+  stages[tmp_out]->Bind(0, "blockIdx.x");
+  stages[tmp_out]->Bind(1, "threadIdx.x");
+  stages[tmp_out]->SetBuffer("local");
+  stages[tmp_out]->SimpleComputeAt(stages[out], 0);
+
+  stages[out]->Bind(0, "blockIdx.x");
+}
+
 void SoftmaxScheduleCPU(poly::StageMap stage, const ir::Tensor &output, const ir::Tensor &temp, int axis) {
   if (axis == -1) {
     axis += output->shape.size();
@@ -327,6 +474,17 @@ void SoftmaxScheduleCPU(poly::StageMap stage, const ir::Tensor &output, const ir
   stage[temp]->ComputeAt(stage[output], 0);
 }
 
+void GlobalPoolScheduleGPU(poly::StageMap stages, const std::vector<ir::Tensor> &output, const common::Target &target) {
+  auto &out    = output[0];
+  auto &reduce = output[1];
+  stages[out]->Fuse(0, 1);
+  stages[out]->Split(0, 32);
+  stages[out]->Bind(0, "blockIdx.x");
+  stages[out]->Bind(1, "threadIdx.y");
+  stages[reduce]->ComputeAt2(stages[out], 1);
+  stages[reduce]->SetBuffer("local");
+  stages[reduce]->Bind(2, "threadIdx.x");
+}
 void PoolScheduleCPU(poly::StageMap stages, const ir::Tensor &output, const common::Target &target) {
   CHECK_GE(stages[output]->n_out_dims(), 2);
   stages[output]->Fuse({0, 1});
@@ -497,11 +655,16 @@ std::string GenerateX86ConvKey(const std::vector<Expr> &input_shape,
                                const std::vector<Expr> &weight_shape,
                                const std::vector<int> &strides,
                                const std::vector<int> &paddings,
-                               const std::vector<int> &dilations) {
-  // format: schedule_name + input_shape + weight_shape + strides + paddings + dilations
-  // e.g. X86ScheduleConv input 1 3 224 224 weight 64 3 7 7 stride 2 2 padding 3 3 dilation 1 1
-  std::string key = "X86ScheduleConv";
-  key += " input";
+                               const std::vector<int> &dilations,
+                               const int &index,
+                               const std::string &model_name) {
+  // format: (model_name + index +)schedule_name + input_shape + weight_shape + strides + paddings + dilations
+  // e.g. resnet18 0 X86ScheduleConv input 1 3 224 224 weight 64 3 7 7 stride 2 2 padding 3 3 dilation 1 1
+  std::string key;
+  if (model_name != "") {
+    key = model_name + " index " + std::to_string(index) + " ";
+  }
+  key += "X86ScheduleConv input";
   for (auto &shape : input_shape) {
     key += " " + std::to_string(shape.as_int32());
   }
@@ -529,10 +692,15 @@ std::string GenerateX86ConvKey(const std::vector<int> &input_shape,
                                const std::vector<int> &weight_shape,
                                const std::vector<int> &strides,
                                const std::vector<int> &paddings,
-                               const std::vector<int> &dilations) {
-  // format: schedule_name + input_shape + weight_shape + strides + paddings + dilations
-  std::string key = "X86ScheduleConv";
-  key += " input";
+                               const std::vector<int> &dilations,
+                               const int &index,
+                               const std::string &model_name) {
+  // format: (model_name + index +)schedule_name + input_shape + weight_shape + strides + paddings + dilations
+  std::string key;
+  if (model_name != "") {
+    key = model_name + " index " + std::to_string(index) + " ";
+  }
+  key += "X86ScheduleConv input";
   for (auto &shape : input_shape) {
     key += " " + std::to_string(shape);
   }
@@ -556,141 +724,13 @@ std::string GenerateX86ConvKey(const std::vector<int> &input_shape,
   return key;
 }
 
-void InputX86Param(absl::flat_hash_map<std::string, absl::flat_hash_map<std::string, std::vector<int>>> &model_data,
-                   const std::string &key,
-                   const absl::flat_hash_map<std::string, std::vector<int>> &schedule_data) {
-  model_data[key] = schedule_data;
-}
-
 void CreateX86SerialData(const std::string &file_name) {
   absl::flat_hash_map<std::string, absl::flat_hash_map<std::string, std::vector<int>>> model_data;
   /** The format of serial data is:
    * hash_key: schedule_name + shape of input + shape of weights + stride + padding + dilation
    * value: vector of params
    */
-  // resnet 1
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 3 224 224 weight 64 3 7 7 stride 2 2 padding 3 3 dilation 1 1",
-                {{"ic_bn", {1, 3}}, {"oc_bn", {2, 32}}, {"ow_bn", {14, 8}}, {"unroll_kw", {0}}});
-  // resnet 3 4 5 6
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 64 56 56 weight 64 64 3 3 stride 1 1 padding 1 1 dilation 1 1",
-                {{"ic_bn", {1, 64}}, {"oc_bn", {2, 32}}, {"ow_bn", {8, 7}}, {"unroll_kw", {1}}});
-  // resnet 8
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 64 56 56 weight 128 64 3 3 stride 2 2 padding 1 1 dilation 1 1",
-                {{"ic_bn", {2, 32}}, {"oc_bn", {2, 64}}, {"ow_bn", {7, 4}}, {"unroll_kw", {0}}});
-  // resnet 9 10 11
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 128 28 28 weight 128 128 3 3 stride 1 1 padding 1 1 dilation 1 1",
-                {{"ic_bn", {1, 128}}, {"oc_bn", {4, 32}}, {"ow_bn", {4, 7}}, {"unroll_kw", {1}}});
-  // resnet 7
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 64 56 56 weight 128 64 1 1 stride 2 2 padding 0 0 dilation 1 1",
-                {{"ic_bn", {8, 8}}, {"oc_bn", {4, 32}}, {"ow_bn", {7, 4}}, {"oh_bn", {1}}});
-  // resnet 13
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 128 28 28 weight 256 128 3 3 stride 2 2 padding 1 1 dilation 1 1",
-                {{"ic_bn", {16, 8}}, {"oc_bn", {8, 32}}, {"ow_bn", {2, 7}}, {"unroll_kw", {1}}});
-  // resnet 14 15 16
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 256 14 14 weight 256 256 3 3 stride 1 1 padding 1 1 dilation 1 1",
-                {{"ic_bn", {2, 128}}, {"oc_bn", {16, 16}}, {"ow_bn", {1, 14}}, {"unroll_kw", {1}}});
-  // resnet 12
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 128 28 28 weight 256 128 1 1 stride 2 2 padding 0 0 dilation 1 1",
-                {{"ic_bn", {2, 64}}, {"oc_bn", {16, 16}}, {"ow_bn", {1, 14}}, {"oh_bn", {1}}});
-  // resnet 18
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 256 14 14 weight 512 256 3 3 stride 2 2 padding 1 1 dilation 1 1",
-                {{"ic_bn", {32, 8}}, {"oc_bn", {16, 32}}, {"ow_bn", {1, 7}}, {"unroll_kw", {1}}});
-  // resnet 19 20 21
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 512 7 7 weight 512 512 3 3 stride 1 1 padding 1 1 dilation 1 1",
-                {{"ic_bn", {1, 512}}, {"oc_bn", {16, 32}}, {"ow_bn", {1, 7}}, {"unroll_kw", {1}}});
-  // resnet 17
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 256 14 14 weight 512 256 1 1 stride 2 2 padding 0 0 dilation 1 1",
-                {{"ic_bn", {2, 128}}, {"oc_bn", {16, 32}}, {"ow_bn", {1, 7}}, {"oh_bn", {1}}});
-  // resnet 2
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 64 56 56 weight 64 64 1 1 stride 1 1 padding 0 0 dilation 1 1",
-                {{"ic_bn", {4, 16}}, {"oc_bn", {2, 32}}, {"ow_bn", {4, 14}}, {"oh_bn", {1}}});
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 64 56 56 weight 256 64 1 1 stride 1 1 padding 0 0 dilation 1 1",
-                {{"ic_bn", {16, 4}}, {"oc_bn", {8, 32}}, {"ow_bn", {8, 7}}, {"oh_bn", {1}}});
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 256 56 56 weight 64 256 1 1 stride 1 1 padding 0 0 dilation 1 1",
-                {{"ic_bn", {1, 256}}, {"oc_bn", {2, 32}}, {"ow_bn", {8, 7}}, {"oh_bn", {1}}});
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 256 56 56 weight 128 256 1 1 stride 2 2 padding 0 0 dilation 1 1",
-                {{"ic_bn", {1, 256}}, {"oc_bn", {4, 32}}, {"ow_bn", {4, 7}}, {"oh_bn", {1}}});
-  // resnet 50
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 256 56 56 weight 512 256 1 1 stride 2 2 padding 0 0 dilation 1 1",
-                // Todo: tempory fix, enhance alterlayout and test performance
-                {{"ic_bn", {1, 256}}, {"oc_bn", {16, 32}}, {"ow_bn", {7, 4}}, {"oh_bn", {1}}});
-  // {{"ic_bn", {1, 256}}, {"oc_bn", {8, 64}}, {"ow_bn", {7, 4}}, {"oh_bn", {1}}});
-  // resnet50
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 128 28 28 weight 512 128 1 1 stride 1 1 padding 0 0 dilation 1 1",
-                {{"ic_bn", {32, 4}}, {"oc_bn", {16, 32}}, {"ow_bn", {4, 7}}, {"oh_bn", {1}}});
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 512 28 28 weight 128 512 1 1 stride 1 1 padding 0 0 dilation 1 1",
-                {{"ic_bn", {1, 512}}, {"oc_bn", {2, 64}}, {"ow_bn", {7, 4}}, {"oh_bn", {1}}});
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 512 28 28 weight 256 512 1 1 stride 2 2 padding 0 0 dilation 1 1",
-                {{"ic_bn", {8, 64}}, {"oc_bn", {4, 64}}, {"ow_bn", {7, 2}}, {"oh_bn", {2}}});
-  // resnet 50
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 512 28 28 weight 1024 512 1 1 stride 2 2 padding 0 0 dilation 1 1",
-                {{"ic_bn", {1, 512}}, {"oc_bn", {16, 64}}, {"ow_bn", {7, 2}}, {"oh_bn", {2}}});
-  // resnet 50
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 256 14 14 weight 1024 256 1 1 stride 1 1 padding 0 0 dilation 1 1",
-                {{"ic_bn", {1, 256}}, {"oc_bn", {16, 64}}, {"ow_bn", {7, 2}}, {"oh_bn", {2}}});
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 1024 14 14 weight 256 1024 1 1 stride 2 2 padding 0 0 dilation 1 1",
-                {{"ic_bn", {2, 512}}, {"oc_bn", {4, 64}}, {"ow_bn", {7, 2}}, {"oh_bn", {2}}});
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 1024 14 14 weight 512 1024 1 1 stride 2 2 padding 0 0 dilation 1 1",
-                {{"ic_bn", {2, 512}}, {"oc_bn", {16, 32}}, {"ow_bn", {1, 7}}, {"oh_bn", {1}}});
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 1024 14 14 weight 2048 1024 1 1 stride 2 2 padding 0 0 dilation 1 1",
-                {{"ic_bn", {1, 1024}}, {"oc_bn", {64, 32}}, {"ow_bn", {1, 7}}, {"oh_bn", {1}}});
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 512 7 7 weight 2048 512 1 1 stride 1 1 padding 0 0 dilation 1 1",
-                {{"ic_bn", {128, 4}}, {"oc_bn", {64, 32}}, {"ow_bn", {1, 7}}, {"oh_bn", {1}}});
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 2048 7 7 weight 512 2048 1 1 stride 1 1 padding 0 0 dilation 1 1",
-                {{"ic_bn", {512, 4}}, {"oc_bn", {16, 32}}, {"ow_bn", {1, 7}}, {"oh_bn", {1}}});
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 3 224 224 weight 64 3 3 3 stride 1 1 padding 1 1 dilation 1 1",
-                {{"ic_bn", {1, 3}}, {"oc_bn", {2, 32}}, {"ow_bn", {28, 8}}, {"unroll_kw", {0}}});
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 64 224 224 weight 64 64 3 3 stride 1 1 padding 1 1 dilation 1 1",
-                {{"ic_bn", {4, 16}}, {"oc_bn", {2, 32}}, {"ow_bn", {28, 8}}, {"unroll_kw", {1}}});
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 64 112 112 weight 128 64 3 3 stride 1 1 padding 1 1 dilation 1 1",
-                {{"ic_bn", {2, 32}}, {"oc_bn", {2, 64}}, {"ow_bn", {28, 4}}, {"unroll_kw", {1}}});
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 128 112 112 weight 128 128 3 3 stride 1 1 padding 1 1 dilation 1 1",
-                {{"ic_bn", {2, 64}}, {"oc_bn", {2, 64}}, {"ow_bn", {28, 4}}, {"unroll_kw", {1}}});
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 128 56 56 weight 256 128 3 3 stride 1 1 padding 1 1 dilation 1 1",
-                {{"ic_bn", {4, 32}}, {"oc_bn", {8, 32}}, {"ow_bn", {7, 8}}, {"unroll_kw", {1}}});
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 256 56 56 weight 256 256 3 3 stride 1 1 padding 1 1 dilation 1 1",
-                {{"ic_bn", {1, 256}}, {"oc_bn", {8, 32}}, {"ow_bn", {7, 8}}, {"unroll_kw", {1}}});
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 256 28 28 weight 512 256 3 3 stride 1 1 padding 1 1 dilation 1 1",
-                {{"ic_bn", {1, 256}}, {"oc_bn", {16, 32}}, {"ow_bn", {4, 7}}, {"unroll_kw", {1}}});
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 512 28 28 weight 512 512 3 3 stride 1 1 padding 1 1 dilation 1 1",
-                {{"ic_bn", {1, 512}}, {"oc_bn", {32, 16}}, {"ow_bn", {2, 14}}, {"unroll_kw", {1}}});
-  InputX86Param(model_data,
-                "X86ScheduleConv input 1 512 14 14 weight 512 512 3 3 stride 1 1 padding 1 1 dilation 1 1",
-                {{"ic_bn", {1, 512}}, {"oc_bn", {32, 16}}, {"ow_bn", {1, 14}}, {"unroll_kw", {1}}});
+  CreateX86Params(&model_data);
   SaveSerialData(model_data, file_name);
 }
 
@@ -1254,6 +1294,19 @@ inline void InputDirectConvCudaParam(
   model_data[key] = schedule_data;
 }
 
+inline void InputWinogradConvCudaParam(
+    absl::flat_hash_map<std::string, absl::flat_hash_map<std::string, std::vector<int>>> &model_data,
+    const std::string &key,
+    const std::vector<std::vector<int>> &int_data) {
+  CHECK_EQ(int_data.size(), 4UL);
+  absl::flat_hash_map<std::string, std::vector<int>> schedule_data;
+  schedule_data["rc"] = int_data[0];
+  schedule_data["x"]  = int_data[1];
+  schedule_data["y"]  = int_data[2];
+  schedule_data["b"]  = int_data[3];
+  model_data[key]     = schedule_data;
+}
+
 void CreateCudaSerialData(const std::string &file_name) {
   absl::flat_hash_map<std::string, absl::flat_hash_map<std::string, std::vector<int>>> model_data;
   // The format of serial data is:
@@ -1535,6 +1588,27 @@ void CreateCudaSerialData(const std::string &file_name) {
                            "CudaDirectConvSchedule 1 256 6 7 6 256 3 3 1 6 4 5",
                            {{-1, 32}, {-1, 3}, {-1, 3}, {-1, 1, 2, 1}, {-1, 1, 4, 1}, {-1, 1, 1, 1}});
 
+#ifndef CINN_WITH_CUDNN
+  InputWinogradConvCudaParam(model_data,
+                             "CudaWinogradConvSchedule 1 512 9 9 512 512 3 3 1 512 7 7",
+                             {{32, 16}, {1, 1, 8, 2}, {8, 1, 16, 4}, {16, 1, 1, 1}});
+  InputWinogradConvCudaParam(model_data,
+                             "CudaWinogradConvSchedule 1 256 6 7 12 256 3 3 1 12 4 5",
+                             {{-1, 256}, {-1, 1, 6, 1}, {-1, 1, 6, 1}, {-1, 1, 1, 1}});
+  InputWinogradConvCudaParam(model_data,
+                             "CudaWinogradConvSchedule 1 256 6 7 6 256 3 3 1 12 4 5",
+                             {{-1, 256}, {-1, 1, 6, 1}, {-1, 1, 6, 1}, {-1, 1, 1, 1}});
+  InputWinogradConvCudaParam(model_data,
+                             "CudaWinogradConvSchedule 1 12 32 42 16 12 3 3 1 16 30 40",
+                             {{-1, 12}, {-1, 2, 30, 1}, {-1, 4, 2, 2}, {-1, 1, 1, 1}});
+  InputWinogradConvCudaParam(model_data,
+                             "CudaWinogradConvSchedule 1 8 32 42 12 8 3 3 1 12 30 40",
+                             {{-1, 8}, {-1, 2, 30, 1}, {-1, 1, 2, 6}, {-1, 1, 1, 1}});
+  InputWinogradConvCudaParam(model_data,
+                             "CudaWinogradConvSchedule 1 8 32 42 16 8 3 3 1 16 30 40",
+                             {{-1, 4}, {-1, 2, 30, 1}, {-1, 1, 4, 4}, {-1, 1, 1, 1}});
+#endif
+
   SaveSerialData(model_data, file_name);
 }
 
@@ -1807,12 +1881,146 @@ void CudaScheduleConv2(poly::StageMap stages,
   stages[KR]->Unroll(12);
 }
 
+void CudaScheduleWinogradConv(poly::StageMap wino_stages,
+                              std::vector<ir::Tensor> &all_tensors,
+                              const common::Target &target) {
+  auto &res = ScheduleParam::get_cuda_instance().GetParam();
+  if (res.empty()) {
+    CreateCudaSerialData();
+    LoadSerialData(&res);
+  }
+  auto &wino_weights_dilation = all_tensors[0];
+  auto &wino_input_pad        = all_tensors[1];
+  auto &wino_A                = all_tensors[2];
+  auto &wino_B                = all_tensors[3];
+  auto &wino_G                = all_tensors[4];
+  auto &kernel_pack           = all_tensors[5];
+  auto &input_tile            = all_tensors[6];
+  auto &data_pack             = all_tensors[7];
+  auto &bgemm                 = all_tensors[8];
+  auto &inverse               = all_tensors[9];
+  auto &wino_conv             = all_tensors[10];
+  std::string key =
+      "CudaWinogradConvSchedule " + std::to_string(wino_input_pad->shape[0].as_int32()) + " " +
+      std::to_string(wino_input_pad->shape[1].as_int32()) + " " + std::to_string(wino_input_pad->shape[2].as_int32()) +
+      " " + std::to_string(wino_input_pad->shape[3].as_int32()) + " " +
+      std::to_string(wino_weights_dilation->shape[0].as_int32()) + " " +
+      std::to_string(wino_weights_dilation->shape[1].as_int32()) + " " +
+      std::to_string(wino_weights_dilation->shape[2].as_int32()) + " " +
+      std::to_string(wino_weights_dilation->shape[3].as_int32()) + " " +
+      std::to_string(wino_conv->shape[0].as_int32()) + " " + std::to_string(wino_conv->shape[1].as_int32()) + " " +
+      std::to_string(wino_conv->shape[2].as_int32()) + " " + std::to_string(wino_conv->shape[3].as_int32());
+  VLOG(1) << "Key in CudaScheduleWinogradConv is : " << key;
+  CHECK_GT(res.count(key), 0);
+  auto &rc_param = res[key]["rc"];
+  auto &x_param  = res[key]["x"];
+  auto &y_param  = res[key]["y"];
+  auto &b_param  = res[key]["b"];
+
+  wino_stages[wino_B]->ComputeInline();
+
+  auto data_l = wino_stages[data_pack]->CacheWrite("local", wino_stages, data_pack);
+
+  wino_stages[data_pack]->Split(3, 1);
+  wino_stages[data_pack]->Fuse({2, 3});
+  wino_stages[data_pack]->Split(2, 128);
+  wino_stages[data_pack]->Reorder({2, 3, 4, 0, 1});
+  wino_stages[data_pack]->Bind(0, "blockIdx.x");
+  wino_stages[data_pack]->Bind(1, "threadIdx.x");
+  wino_stages[input_tile]->SetBuffer("local");
+  wino_stages[data_l]->ComputeAt(wino_stages[data_pack], 2);
+  wino_stages[input_tile]->ComputeAt(wino_stages[data_l], 2);
+  wino_stages[wino_input_pad]->ComputeInline();
+
+  wino_stages[wino_G]->ComputeInline();
+
+  wino_stages[kernel_pack]->Fuse({2, 3});
+  wino_stages[kernel_pack]->Split(2, 128);
+  wino_stages[kernel_pack]->Reorder({2, 3, 0, 1});
+
+  wino_stages[kernel_pack]->Bind(0, "blockIdx.x");
+  wino_stages[kernel_pack]->Bind(1, "threadIdx.x");
+
+  wino_stages[wino_weights_dilation]->ComputeInline();
+
+  auto wino_OL = wino_stages[bgemm]->CacheWrite("local", wino_stages, bgemm);
+  std::vector<ir::Tensor> readers{wino_OL};
+  auto AA = wino_stages[kernel_pack]->CacheRead("shared", readers, wino_stages);
+  auto BB = wino_stages[data_pack]->CacheRead("shared", readers, wino_stages);
+
+  wino_stages[bgemm]->Fuse({0, 1});
+
+  wino_stages[bgemm]->SplitOuter(0, 1);
+
+  // x param is :  [1, 1, 8, 2]
+  wino_stages[bgemm]->Split(3, x_param[3]);
+  wino_stages[bgemm]->Split(3, x_param[2]);
+  wino_stages[bgemm]->Split(3, x_param[1]);
+  // y param is :  [8, 1, 16, 4]
+  wino_stages[bgemm]->Split(2, y_param[3]);
+  wino_stages[bgemm]->Split(2, y_param[2]);
+  wino_stages[bgemm]->Split(2, y_param[1]);
+  // b param is :  [16, 1, 1, 1]
+  wino_stages[bgemm]->Split(1, b_param[3]);
+  wino_stages[bgemm]->Split(1, b_param[2]);
+  wino_stages[bgemm]->Split(1, b_param[1]);
+
+  wino_stages[bgemm]->Reorder({0, 1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12});
+
+  wino_stages[bgemm]->Bind(1, "blockIdx.z");
+  wino_stages[bgemm]->Bind(2, "blockIdx.y");
+  wino_stages[bgemm]->Bind(3, "blockIdx.x");
+  wino_stages[bgemm]->Bind(7, "threadIdx.z");
+  wino_stages[bgemm]->Bind(8, "threadIdx.y");
+  wino_stages[bgemm]->Bind(9, "threadIdx.x");
+
+  wino_stages[wino_OL]->ComputeAt(wino_stages[bgemm], 9);
+
+  // rc param is :  [32, 16]
+  wino_stages[wino_OL]->Split(12, rc_param[1]);
+
+  wino_stages[wino_OL]->Reorder({12, 13, 10, 11});
+
+  auto bgemm_init = wino_OL->GetInitTensor(wino_stages, target);
+  wino_stages[AA]->ComputeAt(wino_stages[wino_OL], 10);
+  wino_stages[BB]->ComputeAt(wino_stages[wino_OL], 10);
+
+  wino_stages[AA]->Fuse(11, 12);
+  wino_stages[AA]->SplitOuter(11, x_param[2]);
+  wino_stages[AA]->Bind(11, "threadIdx.x");
+
+  wino_stages[BB]->Fuse(11, 12);
+  wino_stages[BB]->SplitOuter(11, y_param[2]);
+  wino_stages[BB]->Bind(11, "threadIdx.y");
+
+  wino_stages[AA]->SyncThreads(10, {bgemm_init}, wino_stages);
+  wino_stages[BB]->SyncThreads(wino_stages);
+
+  int m = 2;
+
+  wino_stages[wino_conv]->Tile(2, 3, m, m);
+  wino_stages[wino_conv]->Reorder({2, 4, 3, 5});
+  wino_stages[wino_conv]->FuseDirect({0, 1, 2, 3});
+  wino_stages[wino_conv]->Split(0, 128);
+  wino_stages[wino_conv]->Bind(0, "blockIdx.x");
+  wino_stages[wino_conv]->Bind(1, "threadIdx.x");
+  wino_stages[wino_A]->ComputeInline();
+
+  wino_stages[inverse]->SetBuffer("local");
+  wino_stages[inverse]->Fuse(0, 1);
+  wino_stages[inverse]->Split(0, 128);
+  wino_stages[inverse]->Bind(0, "blockIdx.x");
+  wino_stages[inverse]->Bind(1, "threadIdx.x");
+  wino_stages[inverse]->SimpleComputeAt(wino_stages[wino_conv], 1);
+}
+
 void CudaScheduleInjective(poly::Stage *stage, const std::vector<int> &output_shape, const common::Target &target) {
   CHECK_EQ(stage->n_out_dims(), stage->n_in_dims()) << "The dims of op are not equal";
   int dims = stage->n_out_dims();
   for (int i = 1; i < dims; i++) {
     stage->Fuse(0, 1);
   }
+
   int num_thread        = target.max_num_threads();
   int num_block         = 256;
   int vector_width      = 1;

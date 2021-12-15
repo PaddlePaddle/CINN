@@ -6,7 +6,9 @@ gather_srcs(cinnapi_src SRCS
     broadcast.cc
     elementwise.cc
     nn.cc
+    nn_util.cc
     reduction.cc
+    load_x86_params.cc
     schedule.cc
     transform.cc
     vision.cc

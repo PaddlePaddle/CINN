@@ -34,11 +34,11 @@ sys.path.insert(0, os.path.join(cur_path, '../../python'))
 # -- Project information -----------------------------------------------------
 
 project = 'cinn'
-copyright = '2020, cinn team'
+copyright = '2021, cinn team'
 author = 'cinn Team'
 
 # The full version, including alpha/beta/rc tags
-release = '0.1-alpha'
+release = 'release/v0.1-rc'
 
 # -- General configuration ---------------------------------------------------
 
@@ -47,6 +47,7 @@ release = '0.1-alpha'
 # ones.
 extensions = [
     'sphinx.ext.doctest',
+    'sphinx_rtd_theme',
     'sphinx.ext.autosummary',
     'sphinx.ext.mathjax',
     'sphinx_gallery.gen_gallery',
@@ -76,7 +77,7 @@ exclude_patterns = []
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'alabaster'
+html_theme = 'sphinx_rtd_theme'
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -96,7 +97,6 @@ sphinx_gallery_conf = {
     'backreferences_dir': 'gen_modules/backreferences',
     'doc_module': ('cinn', 'numpy'),
     'reference_url': {
-        'tvm': None,
         'matplotlib': 'http://matplotlib.org',
         'numpy': 'http://docs.scipy.org/doc/numpy-1.9.1'
     },
@@ -104,7 +104,7 @@ sphinx_gallery_conf = {
     'gallery_dirs': gallery_dirs,
     'subsection_order': subsection_order,
     'filename_pattern': '/tutorials',
-    'find_mayavi_figures': False,
+    'image_scrapers': ('matplotlib', ),  # 'mayavi'
     'expected_failing_examples': []
 }
 

@@ -14,38 +14,73 @@
 ```
 
 
-# CINN : a Compiler Infrastructure for Neural Networks
+# CINN : Compiler Infrastructure for Neural Networks
 
 
-[Installation Guide](./docs/guide.md) | 
+[Installation Guide](./docs/source/install.md) | 
 [Roadmap](./docs/roadmap.md)
 
-The project CINN is a machine learning compiler and executor for multiple hardwares. 
-It is designed to provide multiple layers of APIs to make DNN computation graph easier to define,  faster to execute, and more convenient to extend with hardware backends.
-Currently, it targets X86 CPUs and NVidia GPUs.
+The project CINN is a machine learning compiler and executor for multiple hardware backends. 
+It is designed to provide multiple layers of APIs to make tensor computation easier to define,  faster to execute, and more convenient to extend with hardware backends.
+Currently, it targets x86 CPUs and Nvidia GPUs.
 
 This project is under active development. 
 
 ## Example
 
-Let's take C++ APIs as an example, the corresponding Python APIs are available and just differ little.
+Let's take python APIs as examples, the corresponding C++ APIs are available and differ little.
 
-### Load a PaddlePaddle model and execute
+### Load a PaddlePaddle model
+You can load a paddle model directly using CINN.
+```python
+# Load Model to CINN
+computation = Computation.compile_paddle_model(
+    target = DefaultHostTarget(), model_dir = "./ResNet50", input_tensors = ['inputs'], input_sapes = [[1, 3, 224, 224]], params_combined = True)
 
-```c++
-#include "cinn/frontend/interpreter.h"
-using cinn::hlir::framework;
-
-Interpreter inter({"input0"}/*list of inputs' names*/, 
-                  {{1, 30}}/*list of inputs' shapes*/);
-inter.LoadPaddleModel(/*string of model directory*/);
-auto input_handle = inter.GetTensor("input0");
-auto output_handle = inter.GetTensor("output0");
-// set data to input_handle
-inter.Run();
-// get output content from output_handle
+# Get input tensor and set input data
+a_t = computation.get_tensor(input_tensor)
+a_t.from_numpy(np.random.random(x_shape).astype("float32"), target)
 ```
-Note that for api `LoadPaddleModel`, the `params_combined` param is set to be false by default.
+
+### Build a Network by NetBuilder
+You can build and run a model by using NetBuilder APIs. Each NetBuilder API is a paddle operator.
+```python
+# Define the NetBuilder.
+builder = frontend.NetBuilder(name="network")
+
+# Define the input variables of the model
+a = builder.create_input(type=common.Float(32), shape=(1, 3, 224, 224), id_hint="A")
+b = builder.create_input(type=common.Float(32), shape=(1, 3, 224, 224), id_hint="B")
+
+# Build the model using NetBuilder API
+y = builder.add(a, b)
+res = builder.relu(y)
+
+# Specify target and generate the computation
+target = common.DefaultHostTarget()
+computation = Computation.build_and_compile(target, builder)
+```
+
+### Build a Network by CinnBuilder
+You can also build and run a model by using NetCinnBuilderBuilder APIs. Note that `CinnBuilder`'s APIs have much finer granularity than NetBuilder's.
+```python
+# Define the CinnBuilder.
+builder = frontend.CinnBuilder(name="network")
+
+# Define the input variable of the model.
+a = builder.create_input(type=common.Float(32), shape=(1, 24, 56, 56), id_hint="A")
+b = builder.create_input(type=common.Float(32), shape=(1, 24, 56, 56), id_hint="B")
+c = builder.create_input(type=common.Float(32), shape=(144, 24, 1, 1), id_hint="C")
+
+# Build the model by using CinnBuilder API
+d = builder.add(a, b)
+e = builder.conv(d, c)
+res = builder.max(e, 0)
+
+# Specify target and generate the computation
+target = common.DefaultHostTarget()
+computation = Computation.build_and_compile(target, builder)
+```
 
 ### Use CINN lower level DSL to define some computation and execute
 
@@ -141,12 +176,14 @@ The schedule transform is applied between the lowering from HLIR to CINN IR.
 The overall architecture is as follows
 
 
-![image](./CINN_instructure.png)
+<p align="center">
+  <img width="600" src="https://user-images.githubusercontent.com/328693/145572639-687caf7a-b8cc-4428-8728-7006eb044a9f.png" />
+</p>
 
 
 ##  Getting Started
 ### Compile and execute the code
-Please refer to [Installation Guidance](./docs/guide.md) and follow the guidance.
+Please refer to [Installation Guidance](./docs/source/install.md) and follow the guidance.
 
 ### Concepts
 There are two levels of APIs in CINN, the higher level is HLIR and the lower level is CINN IR, both contain some concepts.
@@ -179,3 +216,11 @@ The C++ API locates in `cinn/*/*_test.cc`, the high level API locates in `hlir/f
 ## License
 
 CINN is licensed under the [Apache 2.0 license](LICENSE).
+
+## Acknowledgement
+CINN learned a lot from the following projects:
+
+- [Halide](https://github.com/halide/Halide): Referenced the design of most IR nodes,
+- [TVM](https://github.com/apache/tvm): We learned many ideas including the semantics of some schedule primitives, TOPI, NNVM, and so on,
+- [tiramisu](https://github.com/Tiramisu-Compiler): The isl usage, polyhedral compilation, schedule primitive implementation, and so on,
+- [tensorflow/xla](https://github.com/tensorflow/tensorflow/tree/master/tensorflow/compiler/xla): Referenced the semantics of the primitive operations.

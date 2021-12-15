@@ -115,7 +115,7 @@ class CinnBuilder : public BaseBuilder {
   Variable ConstScalar(T value, const std::string& name) {
     Instruction instr("const_scalar");
     instr.SetInputs({});
-    instr.SetAttr("value", value);
+    instr.SetAttr<T>("value", value);
     InferShape(instr);
     AppendInstruction(instr);
     auto out = instr.GetOutput(0);
@@ -178,6 +178,10 @@ class CinnBuilder : public BaseBuilder {
   Variable Select(const Variable& condition, const Variable& true_value, const Variable& false_value);
 
   Variable Reverse(const Variable& operand, const std::vector<int>& axis);
+
+  std::vector<Variable> BnMeanVariance(const Variable& x);
+
+  std::vector<Variable> BnGradBiasScale(const Variable& x, const Variable& x_mean, const Variable& y_grad);
 
  private:
   Variable UnaryOp(const std::string& op_type, const Variable& operand);

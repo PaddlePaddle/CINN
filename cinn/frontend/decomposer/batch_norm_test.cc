@@ -143,7 +143,7 @@ void ComputeBatchNormTrainRef(const std::vector<T>& x,
 }
 
 TEST(Decomposer, BatchNormTrain) {
-  int n = 16, c = 32, h = 16, w = 16;
+  int n = 16, c = 128, h = 14, w = 14;
   float epsilon           = 1e-5;
   float momentum          = 0.9f;
   std::string data_layout = "NCHW";
@@ -226,7 +226,7 @@ TEST(Decomposer, BatchNormTrain) {
     CopyToVector(tensor, &data);
 
     LOG(INFO) << "output[" << iter.first << "], var_name=" << output.first << ", shape=" << tensor->shape().data();
-    CheckOutput<float>(data, output.second);
+    CheckOutput<float>(data, output.second, 1e-8, 1e-4);
   }
 }
 
@@ -326,7 +326,7 @@ void ComputeBatchNormGradRef(const std::vector<T>& y_grad,
 }
 
 TEST(Decomposer, BatchNormGrad) {
-  int n = 16, c = 32, h = 16, w = 16;
+  int n = 16, c = 128, h = 14, w = 14;
   int num       = n * c * h * w;
   float epsilon = 1e-5;
   NetBuilder net_builder("batch_norm_grad");

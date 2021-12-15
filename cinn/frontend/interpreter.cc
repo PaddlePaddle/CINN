@@ -33,7 +33,8 @@ struct Interpreter::Impl {
    */
   void Build(const std::vector<std::string>& input_names,
              const std::vector<hlir::framework::shape_t>& input_shapes,
-             const Target& target);
+             const Target& target,
+             const std::string& model_name = "");
 
  private:
   friend class Interpreter;
@@ -54,7 +55,10 @@ struct Interpreter::Impl {
   std::unique_ptr<hlir::framework::Program> prerun_program_;
 };
 
-void Interpreter::LoadPaddleModel(const std::string& model_dir, const Target& target, bool params_combined) {
+void Interpreter::LoadPaddleModel(const std::string& model_dir,
+                                  const Target& target,
+                                  bool params_combined,
+                                  const std::string& model_name) {
   auto programTuple               = LoadPaddleProgram(model_dir, impl_->scope_.get(), params_combined, target);
   auto& program                   = std::get<0>(programTuple);
   auto& var_map                   = std::get<1>(programTuple);
@@ -65,7 +69,7 @@ void Interpreter::LoadPaddleModel(const std::string& model_dir, const Target& ta
   impl_->var_map_paddle_to_cinn_ = var_map_paddle_to_program;
   impl_->fetch_names_            = fetch_names;
 
-  impl_->Build(impl_->input_names_, impl_->input_shapes_, target);
+  impl_->Build(impl_->input_names_, impl_->input_shapes_, target, model_name);
 }
 
 void Interpreter::Run() { impl_->runtime_program_->Execute(); }
@@ -83,7 +87,8 @@ hlir::framework::Tensor Interpreter::GetTensor(const std::string& name) {
 
 void Interpreter::Impl::Build(const std::vector<std::string>& input_names,
                               const std::vector<hlir::framework::shape_t>& input_shapes,
-                              const Target& target) {
+                              const Target& target,
+                              const std::string& model_name) {
   CHECK(!input_names.empty());
   CHECK(!var_map_.empty());
   CHECK_EQ(input_names.size(), input_shapes.size());
@@ -98,9 +103,10 @@ void Interpreter::Impl::Build(const std::vector<std::string>& input_names,
   program_->SetInputs({input_vars});
   program_->Validate();
 
-  LOG(INFO) << "Program:\n" << *program_;
+  VLOG(3) << "Program:\n" << *program_;
 
-  auto graph = std::make_shared<hlir::framework::Graph>(*program_, target);
+  auto graph                 = std::make_shared<hlir::framework::Graph>(*program_, target);
+  graph->attrs["model_name"] = std::make_shared<absl::any>(model_name);
 
   hlir::framework::ApplyPass(graph.get(), "InferShape");
 #ifndef CINN_WITH_CUDA

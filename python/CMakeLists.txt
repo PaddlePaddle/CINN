@@ -2,11 +2,21 @@ FILE(GLOB_RECURSE CINN_PY_FILES ${PROJECT_SOURCE_DIR}/cinn/python/cinn/*.py)
 SET(CINN_PYTHON_DIR ${PROJECT_SOURCE_DIR}/python/cinn)
 SET(CINN_PYTHON_TEST_DIR ${PROJECT_SOURCE_DIR}/python/tests)
 SET(CINN_CORE_API ${CMAKE_BINARY_DIR}/python/cinn/core_api.so)
+
+if (WITH_CUDA)
+  set(PACKAGE_NAME "cinn-gpu")
+else()
+  set(PACKAGE_NAME "cinn")
+endif ()
+set(SETUP_LOG_FILE "setup.py.log")
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in ${CMAKE_CURRENT_BINARY_DIR}/setup.py)
+
 ADD_CUSTOM_COMMAND(OUTPUT ${CINN_CORE_API} POST_BUILD
     COMMAND
     COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/cinn/pybind/core_api.so ${CINN_CORE_API}
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${CINN_PYTHON_DIR} ${CMAKE_BINARY_DIR}/python/cinn
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${CINN_PYTHON_TEST_DIR} ${CMAKE_BINARY_DIR}/python/tests
+    COMMAND cd ${CMAKE_CURRENT_BINARY_DIR} && python setup.py bdist_wheel
     DEPENDS core_api ${CINN_PY_FILES})
 
 ADD_CUSTOM_TARGET(COPY_CINN_CORE_API ALL
@@ -57,6 +67,13 @@ ADD_TEST(NAME test_cinnbuilder
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
 
+ADD_TEST(NAME test_computation
+    COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
+    python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_computation.py
+    ${CMAKE_BINARY_DIR}/thirds/naive_mul_model
+    "${WITH_CUDA}" WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+)
+
 ADD_TEST(NAME test_cinn_ops_check
     COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
     python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_ops.py "${WITH_CUDA}"
@@ -78,14 +95,12 @@ ADD_TEST(NAME test_cinn_fake_resnet
 ADD_TEST(NAME test_cinn_real_resnet18
     COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
     python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_resnet18.py "${CMAKE_BINARY_DIR}/thirds/ResNet18" "${WITH_CUDA}"
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-)
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 
 ADD_TEST(NAME test_cinn_real_mobilenetV2
     COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
     python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_mobilenetv2.py "${CMAKE_BINARY_DIR}/thirds/MobileNetV2" "${WITH_CUDA}"
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-)
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 
 ADD_TEST(NAME test_cinn_real_efficientnet
     COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
@@ -96,8 +111,7 @@ ADD_TEST(NAME test_cinn_real_efficientnet
 ADD_TEST(NAME test_cinn_real_mobilenetV1
     COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
     python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_mobilenetv1.py "${CMAKE_BINARY_DIR}/thirds/MobilenetV1" "${WITH_CUDA}"
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-)
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 
 ADD_TEST(NAME test_cinn_real_resnet50
     COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
@@ -108,8 +122,7 @@ ADD_TEST(NAME test_cinn_real_resnet50
 ADD_TEST(NAME test_cinn_real_squeezenet
     COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
     python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_squeezenet.py "${CMAKE_BINARY_DIR}/thirds/SqueezeNet" "${WITH_CUDA}"
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-)
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 
 ADD_TEST(NAME test_cinn_real_facedet
     COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}

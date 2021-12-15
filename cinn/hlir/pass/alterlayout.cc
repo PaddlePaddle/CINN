@@ -134,7 +134,13 @@ void AlterLayoutPass(Graph* graph) {
     auto& op_inferdtype  = Operator::GetAttrs<InferTypeFunc>("inferdtype");
     auto& op_inferlayout = Operator::GetAttrs<InferLayoutFunc>("inferlayout");
     absl::flat_hash_map<std::string, std::string> layout_dict;
+    std::string model_name = "";
+    if (graph->HasAttr("model_name")) {
+      model_name = graph->GetMutableAttrs<std::string>("model_name");
+      VLOG(3) << "model_name: " << model_name;
+    }
     // collect all convs' original input config before altering layout for loading tune params afterwards
+    int index = 0;
     for (int i = 0; i < store_nodes.size(); i++) {
       auto node = store_nodes[i]->safe_as<Node>();
       if (node && node->op()->name == "conv2d") {
@@ -158,7 +164,8 @@ void AlterLayoutPass(Graph* graph) {
           CHECK(shape_dict.count(source->id())) << source->id() << " finds no infershape";
           inputs_shape.push_back(shape_dict.at(source->id()));
         }
-        std::string key = pe::GenerateX86ConvKey(inputs_shape[0], inputs_shape[1], stride, padding, dilation);
+        std::string key =
+            pe::GenerateX86ConvKey(inputs_shape[0], inputs_shape[1], stride, padding, dilation, index++, model_name);
         VLOG(3) << "key: " << key;
         node->attrs.attr_store["key"] = key;
       }
@@ -208,9 +215,28 @@ void AlterLayoutPass(Graph* graph) {
           std::vector<std::string> conv2d_NCHWc_inputlayouts;
           CHECK(weight_shape.size() == 4) << "old conv2d's weight shape should be 4";
           absl::flat_hash_map<std::string, int> conv2d_factors;
-          int oc = weight_shape[0];
-          int fc = weight_shape[1];
-          int ic = input_shape[1];
+          int oc, fc, ic = 1;
+          if (input_shape.size() == 4) {
+            ic = input_shape[1];
+          } else if (input_shape.size() == 5) {
+            ic = input_shape[1] * input_shape[4];
+          } else {
+            LOG(FATAL) << "conv2d's input shape should be 4D/5D. Wrong input shape: " << utils::Join(input_shape, ", ");
+          }
+
+          if (weight_shape.size() == 4) {
+            oc = weight_shape[0];
+            fc = weight_shape[1];
+          } else if (weight_shape.size() == 6) {
+            oc = weight_shape[0] * weight_shape[5];
+            fc = weight_shape[1] * weight_shape[4];
+          } else {
+            LOG(FATAL) << "conv2d's weight shape should be 4D/6D. Wrong weight shape: "
+                       << utils::Join(weight_shape, ", ");
+          }
+          VLOG(3) << "oc: " << oc;
+          VLOG(3) << "ic: " << ic;
+          VLOG(3) << "fc: " << fc;
 
           // get the original conv config stored in the key attr
           CHECK(new_node->attrs.attr_store.count("key")) << "conv2d finds no key attr";

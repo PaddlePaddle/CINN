@@ -29,6 +29,7 @@
 #include <string.h>
 
 #ifdef __cplusplus
+#include <functional>
 #include <vector>
 #endif
 
@@ -203,7 +204,9 @@ typedef struct cinn_buffer_t {
         dimensions(0),
         lazy(true),
         memory_size(0),
-        align(0) {}
+        align(0),
+        external_malloc(NULL),
+        external_free(NULL) {}
 
   static struct cinn_buffer_t* new_(cinn_device_kind_t device,
                                     cinn_type_t type,
@@ -211,7 +214,14 @@ typedef struct cinn_buffer_t {
                                     int align = 0);
   static void delete_(struct cinn_buffer_t* x) { delete x; }
 
-  ~cinn_buffer_t() {}
+  ~cinn_buffer_t() {
+    if (external_malloc != NULL) {
+      delete external_malloc;
+    }
+    if (external_free != NULL) {
+      delete external_free;
+    }
+  }
 
   // NOTE the buffer should be resized first.
   static void alloc(struct cinn_buffer_t*);
@@ -252,6 +262,14 @@ typedef struct cinn_buffer_t {
     else
       this->flag &= ~flag;
   }
+
+  // The callback to control memory alloc. It is useful in Paddle-CINN
+  // where the memory is managed out of CINN.
+  std::function<int(void*, struct cinn_buffer_t*)>* external_malloc;
+
+  // The callback to control memory free. It is useful in Paddle-CINN
+  // where the memory is managed out of CINN.
+  std::function<int(void*, struct cinn_buffer_t*)>* external_free;
 
 #endif  // __cplusplus
 } cinn_buffer_t;

@@ -90,17 +90,41 @@ ir::Tensor PRelu(const ir::Tensor &A,
                  const std::string &output_name = UniqName("T_PRelu_out"));
 
 /**
- * @brief Perform a 2-D convolution with an NCHW-layout and support group and depthwise convolution.
+ * @brief Perform a 2-D convolution with an NCHW-layout using winograd algorithm.
  *
  * @param input The 4-D input tensor {N, C_in, H, W}
- * @param weight The 4-D weight tensor {C_out, C_in/group, filter_h, filter_w}
+ * @param weights The 4-D weight tensor {C_out, C_in/group, filter_h, filter_w}
  * @param pad_h padding applied to the height of the image, default is 0
  * @param pad_w padding applied to the width of the image, default is 0
  * @param stride_h striding applied to the height of the image, default is 1
  * @param stride_w striding applied to the width of the image, default is 1
  * @param dilation_h dilation applied to the height of the image, default is 1
  * @param dilation_w dilation applied to the width of the image, default is 1
- * @param output_shapes The shape of the output tensors
+ * @param output_name The name of the output tensors
+ *
+ * @return the output tensor
+ */
+std::vector<ir::Tensor> Conv2d_winograd_NCHW(const ir::Tensor &input,
+                                             const ir::Tensor &weights,
+                                             int pad_h,
+                                             int pad_w,
+                                             int stride_h,
+                                             int stride_w,
+                                             int dilation_h,
+                                             int dilation_w,
+                                             const std::string &output_name = UniqName("T_Conv2d_winograd_NCHW_out"));
+
+/**
+ * @brief Perform a 2-D convolution with an NCHW-layout and support group and depthwise convolution.
+ *
+ * @param input The 4-D input tensor {N, C_in, H, W}
+ * @param weights The 4-D weight tensor {C_out, C_in/group, filter_h, filter_w}
+ * @param pad_h padding applied to the height of the image, default is 0
+ * @param pad_w padding applied to the width of the image, default is 0
+ * @param stride_h striding applied to the height of the image, default is 1
+ * @param stride_w striding applied to the width of the image, default is 1
+ * @param dilation_h dilation applied to the height of the image, default is 1
+ * @param dilation_w dilation applied to the width of the image, default is 1
  * @param output_name The name of the output tensors
  *
  * @return the output tensor
@@ -113,7 +137,8 @@ std::vector<ir::Tensor> Conv2d_NCHW(const ir::Tensor &input,
                                     int stride_w,
                                     int dilation_h,
                                     int dilation_w,
-                                    const std::string &output_name = UniqName("T_Conv2d_NCHW_out"));
+                                    const std::string &output_name = UniqName("T_Conv2d_NCHW_out"),
+                                    bool choose_direct_compute     = false);
 
 std::vector<ir::Tensor> Conv2d_NCHW_5D(const ir::Tensor &input,
                                        const ir::Tensor &weights,
@@ -355,7 +380,9 @@ std::vector<ir::Tensor> Pool2d(const ir::Tensor &tensor,
                                const std::string &data_format = "NCHW",
                                bool adaptive                  = false,
                                const std::string &output_name = UniqName("T_Pool2d_out"));
-
+std::vector<ir::Tensor> GlobalPool2d(const ir::Tensor &tensor,
+                                     const std::string &pool_type,
+                                     const std::string &output_name);
 /**
  * @brief Perform pooling on the depth, height and width dimension of the tensor.
  *        Depth, height and width axis is determined by the data_format string in which 'D' means depth, 'H' means
