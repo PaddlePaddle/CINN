@@ -112,8 +112,6 @@ void Reshape2GradOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperCont
   auto xshape = get_input_var("XShape");
   VLOG(4) << "x shape: " << cinn::utils::Join(xshape->shape, ",");
 
-  ctx.Builder()->identity(xshape);
-
   auto out = ctx.Builder()->reshape(dout, xshape->shape);
 
   auto out_name = get_output_name(paddle::GradVarName("X"));
