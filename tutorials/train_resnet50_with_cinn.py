@@ -45,6 +45,7 @@ pre-compiled ``.whl`` package.
 
 import numpy as np
 import paddle
+# sphinx_gallery_thumbnail_path = './paddlepaddle.png'
 
 ##################################################################
 #
@@ -69,7 +70,15 @@ paddle.enable_static()
 # ``batch_norm,batch_norm_grad,conv2d,conv2d_grad, elementwise_add,elementwise_add_grad,relu,relu_grad,sum``
 #
 allow_ops = "batch_norm;batch_norm_grad;conv2d;conv2d_grad;elementwise_add;elementwise_add_grad;relu;relu_grad;sum"
-paddle.set_flags({'FLAGS_use_cinn': True, 'FLAGS_allow_cinn_ops': allow_ops})
+try:
+    paddle.set_flags({
+        'FLAGS_use_cinn': True,
+        'FLAGS_allow_cinn_ops': allow_ops
+    })
+except ValueError:
+    # If the used PaddlePaddle is not compiled with CINN, just skip and
+    # the following steps will not train with CINN.
+    pass
 
 ##################################################################
 #
