@@ -487,6 +487,7 @@ The left degenerate-axes then broadcast along these degenerate axes to reach the
 <h3>Compare<a class="headerlink" href="#compare" title="Permalink to this headline"></a></h3>
 <p><code class="docutils literal notranslate"><span class="pre">Compare(Variable,</span> <span class="pre">Variable,</span> <span class="pre">ComparisonKind)</span></code>  Given two input variables, return the result of their element-wise comparison. The value of <code class="docutils literal notranslate"><span class="pre">ComparisonKind</span></code> can be <code class="docutils literal notranslate"><span class="pre">kEq</span></code>, <code class="docutils literal notranslate"><span class="pre">kNe</span></code>, <code class="docutils literal notranslate"><span class="pre">kGe</span></code>, <code class="docutils literal notranslate"><span class="pre">kGt</span></code>, <code class="docutils literal notranslate"><span class="pre">kLe</span></code> or <code class="docutils literal notranslate"><span class="pre">kLt</span></code>.  Its semantics can be expressed by the following formula:</p>
 <p>$$
+
 Compare(x, y, kind) =
 \left{<br />\begin{array}{<strong>lr</strong>}<br />x == y &amp; if &amp; kind =  kEq \
 x \neq y &amp; if &amp; kind =  kNe \
@@ -495,6 +496,7 @@ x \gt y &amp; if &amp; kind =  kGt \
 x \le y &amp; if &amp; kind =  kLe \
 x \lt y &amp; if &amp; kind =  kLt
 \end{array}<br />\right.
+
 $$</p>
 </section>
 <section id="concat">
