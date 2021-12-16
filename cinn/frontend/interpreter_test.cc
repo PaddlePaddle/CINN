@@ -28,7 +28,7 @@ TEST(Interpreter, basic) {
   executor.Run();
   // fc_0.tmp_2 is eliminated by OpFusion, so here
   // change to get tenor of the out variable
-  executor.GetTensor("save_infer_model/scale_0.tmp_0");
+  executor.GetTensor("fc_0.tmp_2");
 }
 
 }  // namespace cinn::frontend

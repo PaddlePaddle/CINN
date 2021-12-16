@@ -143,7 +143,7 @@ class TestLoadPaddleModel_FC(unittest.TestCase):
 
         self.executor.run()
 
-        out = self.executor.get_tensor("save_infer_model/scale_0.tmp_0")
+        out = self.executor.get_tensor("fc_0.tmp_2")
         target_data = self.get_paddle_inference_result(self.model_dir, x_data)
         print("target_data's shape is: ", target_data.shape)
         out_np = out.numpy(self.target)
@@ -183,7 +183,7 @@ class TestLoadPaddleModel_MultiFC(unittest.TestCase):
 
         self.executor.run()
 
-        out = self.executor.get_tensor("save_infer_model/scale_0.tmp_0")
+        out = self.executor.get_tensor("fc_5.tmp_2")
         target = self.get_paddle_inference_result(self.model_dir, x_data)
 
         self.assertTrue(np.allclose(out.numpy(self.target), target, atol=1e-4))
