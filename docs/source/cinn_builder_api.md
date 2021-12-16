@@ -325,6 +325,7 @@ The left degenerate-axes then broadcast along these degenerate axes to reach the
 `Compare(Variable, Variable, ComparisonKind)`  Given two input variables, return the result of their element-wise comparison. The value of `ComparisonKind` can be `kEq`, `kNe`, `kGe`, `kGt`, `kLe` or `kLt`.  Its semantics can be expressed by the following formula:
 
 $$
+
 Compare(x, y, kind) =
 \left\{  
              \begin{array}{**lr**}  
@@ -336,6 +337,7 @@ Compare(x, y, kind) =
 				x \lt y & if & kind =  kLt
              \end{array}  
 \right.
+
 $$
 
 
