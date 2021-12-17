@@ -111,8 +111,8 @@ startup_program = paddle.static.Program()
 main_program = paddle.static.Program()
 with paddle.static.program_guard(main_program, startup_program):
     image = paddle.static.data(
-        name='image', shape=[batch_size, 3, 224, 224], dtype='float32')
-    label = paddle.static.data(name='label', shape=[batch_size], dtype='int64')
+        name='image', shape=[-1, 3, 224, 224], dtype='float32')
+    label = paddle.static.data(name='label', shape=[-1], dtype='int64')
 
     model = paddle.vision.models.resnet50()
     prediction = model(image)
