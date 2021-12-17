@@ -20,6 +20,7 @@
         <script src="../_static/language_data.js"></script>
         <script src="../_static/collapsible-lists/js/CollapsibleLists.compressed.js"></script>
         <script src="../_static/collapsible-lists/js/apply-collapsible-lists.js"></script>
+        <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" /> 
@@ -46,6 +47,12 @@
 </ul>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="index.html">Tutorials</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../matmul.html">C++ DSL API tutorial: Matrix Multiplication</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../load_paddle_model.html">Load and Execute Paddle Model in C++</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cinn_builder_api.html">CinnBuilder Primitive Semantics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cpp/library_root.html">C++ Symbols</a></li>
 </ul>
 
         </div>
@@ -74,36 +81,40 @@
              
   <section id="computation-times">
 <span id="sphx-glr-tutorials-sg-execution-times"></span><h1>Computation times<a class="headerlink" href="#computation-times" title="Permalink to this headline"></a></h1>
-<p><strong>03:58.636</strong> total execution time for <strong>tutorials</strong> files:</p>
+<p><strong>00:08.467</strong> total execution time for <strong>tutorials</strong> files:</p>
 <table class="docutils align-default">
 <colgroup>
-<col style="width: 81%" />
-<col style="width: 11%" />
-<col style="width: 8%" />
+<col style="width: 82%" />
+<col style="width: 10%" />
+<col style="width: 7%" />
 </colgroup>
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="load_paddle_model.html#sphx-glr-tutorials-load-paddle-model-py"><span class="std std-ref">Load and Execute Paddle Model</span></a> (<code class="docutils literal notranslate"><span class="pre">load_paddle_model.py</span></code>)</p></td>
-<td><p>03:31.531</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="train_resnet50_with_cinn.html#sphx-glr-tutorials-train-resnet50-with-cinn-py"><span class="std std-ref">Training ResNet50 using Paddle compiled with CINN</span></a> (<code class="docutils literal notranslate"><span class="pre">train_resnet50_with_cinn.py</span></code>)</p></td>
+<td><p>00:08.467</p></td>
 <td><p>0.0 MB</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="matmul.html#sphx-glr-tutorials-matmul-py"><span class="std std-ref">Ways to optimize Matrix Multiplication on CPU</span></a> (<code class="docutils literal notranslate"><span class="pre">matmul.py</span></code>)</p></td>
-<td><p>00:20.980</p></td>
-<td><p>0.0 MB</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="cinn_builder.html#sphx-glr-tutorials-cinn-builder-py"><span class="std std-ref">Run model by using CinnBuilder API</span></a> (<code class="docutils literal notranslate"><span class="pre">cinn_builder.py</span></code>)</p></td>
-<td><p>00:03.052</p></td>
-<td><p>0.0 MB</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="net_builder.html#sphx-glr-tutorials-net-builder-py"><span class="std std-ref">Run model by using NetBuilder API</span></a> (<code class="docutils literal notranslate"><span class="pre">net_builder.py</span></code>)</p></td>
-<td><p>00:02.262</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="cinn_builder.html#sphx-glr-tutorials-cinn-builder-py"><span class="std std-ref">Run model by using CinnBuilder API</span></a> (<code class="docutils literal notranslate"><span class="pre">cinn_builder.py</span></code>)</p></td>
+<td><p>00:00.000</p></td>
 <td><p>0.0 MB</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="jit.html#sphx-glr-tutorials-jit-py"><span class="std std-ref">JIT in CINN</span></a> (<code class="docutils literal notranslate"><span class="pre">jit.py</span></code>)</p></td>
-<td><p>00:00.479</p></td>
+<td><p>00:00.000</p></td>
 <td><p>0.0 MB</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="schedule_primitives.html#sphx-glr-tutorials-schedule-primitives-py"><span class="std std-ref">Schedule Primitives in CINN</span></a> (<code class="docutils literal notranslate"><span class="pre">schedule_primitives.py</span></code>)</p></td>
-<td><p>00:00.332</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="load_paddle_model.html#sphx-glr-tutorials-load-paddle-model-py"><span class="std std-ref">Load and Execute Paddle Model</span></a> (<code class="docutils literal notranslate"><span class="pre">load_paddle_model.py</span></code>)</p></td>
+<td><p>00:00.000</p></td>
+<td><p>0.0 MB</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="matmul.html#sphx-glr-tutorials-matmul-py"><span class="std std-ref">Ways to optimize Matrix Multiplication on CPU</span></a> (<code class="docutils literal notranslate"><span class="pre">matmul.py</span></code>)</p></td>
+<td><p>00:00.000</p></td>
+<td><p>0.0 MB</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="net_builder.html#sphx-glr-tutorials-net-builder-py"><span class="std std-ref">Run model by using NetBuilder API</span></a> (<code class="docutils literal notranslate"><span class="pre">net_builder.py</span></code>)</p></td>
+<td><p>00:00.000</p></td>
+<td><p>0.0 MB</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="schedule_primitives.html#sphx-glr-tutorials-schedule-primitives-py"><span class="std std-ref">Schedule Primitives in CINN</span></a> (<code class="docutils literal notranslate"><span class="pre">schedule_primitives.py</span></code>)</p></td>
+<td><p>00:00.000</p></td>
 <td><p>0.0 MB</p></td>
 </tr>
 </tbody>

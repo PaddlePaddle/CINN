@@ -71,11 +71,11 @@ Functions
 ---------
 
 
-- :ref:`exhale_function_net__builder__test_8cc_1ab354f4fb69806f64500690b3c5f4ae79`
-
-- :ref:`exhale_function_net__builder__test_8cc_1a43a64c7393cad88e32155f42b59cc2e8`
-
 - :ref:`exhale_function_net__builder__test_8cc_1a0fa1f1386a04c00de8e00eb3f2e09fa5`
 
 - :ref:`exhale_function_net__builder__test_8cc_1afec3b82e1d548d8ddb42b7355256d893`
+
+- :ref:`exhale_function_net__builder__test_8cc_1ab354f4fb69806f64500690b3c5f4ae79`
+
+- :ref:`exhale_function_net__builder__test_8cc_1a43a64c7393cad88e32155f42b59cc2e8`
 

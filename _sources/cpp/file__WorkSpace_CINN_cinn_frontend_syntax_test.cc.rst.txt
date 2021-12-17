@@ -69,15 +69,15 @@ Functions
 
 - :ref:`exhale_function_syntax__test_8cc_1aa1830b0904d7df8f8797dc21b5d10404`
 
+- :ref:`exhale_function_syntax__test_8cc_1a251644c5f88a0fb9bc80d710bca7b250`
+
+- :ref:`exhale_function_syntax__test_8cc_1a0e0c2dc4f786a91d91e5c591406b57c6`
+
 - :ref:`exhale_function_syntax__test_8cc_1a5516100bac3342ac010c55c383de2a6b`
 
 - :ref:`exhale_function_syntax__test_8cc_1ab94a1448174b3e309374e2211f6f8913`
 
-- :ref:`exhale_function_syntax__test_8cc_1a251644c5f88a0fb9bc80d710bca7b250`
-
 - :ref:`exhale_function_syntax__test_8cc_1a276554929cd52c64d9dd2d42f5520b36`
-
-- :ref:`exhale_function_syntax__test_8cc_1a0e0c2dc4f786a91d91e5c591406b57c6`
 
 - :ref:`exhale_function_syntax__test_8cc_1af7277858972563ec95f35ac4e5e01935`
 

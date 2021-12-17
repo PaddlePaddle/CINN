@@ -106,6 +106,27 @@ Compile ``demo.cc``::
 
 .. raw:: html
 
+    <div class="sphx-glr-thumbcontainer" tooltip="**Note:** Docker execution environment is required, and you should use the docker image  regist...">
+
+.. only:: html
+
+ .. figure:: /tutorials/images/thumb/sphx_glr_train_resnet50_with_cinn_thumb.png
+     :alt: Training ResNet50 using Paddle compiled with CINN
+
+     :ref:`sphx_glr_tutorials_train_resnet50_with_cinn.py`
+
+.. raw:: html
+
+    </div>
+
+
+.. toctree::
+   :hidden:
+
+   /tutorials/train_resnet50_with_cinn
+
+.. raw:: html
+
     <div class="sphx-glr-thumbcontainer" tooltip="In this tutorial, we will introduce several ways to optimize the performance of the matrix mult...">
 
 .. only:: html

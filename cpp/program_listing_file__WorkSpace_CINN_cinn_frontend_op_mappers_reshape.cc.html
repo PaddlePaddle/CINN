@@ -20,6 +20,7 @@
         <script src="../_static/language_data.js"></script>
         <script src="../_static/collapsible-lists/js/CollapsibleLists.compressed.js"></script>
         <script src="../_static/collapsible-lists/js/apply-collapsible-lists.js"></script>
+        <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" /> 
@@ -51,7 +52,6 @@
 <li class="toctree-l1"><a class="reference internal" href="../matmul.html">C++ DSL API tutorial: Matrix Multiplication</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../load_paddle_model.html">Load and Execute Paddle Model in C++</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../cinn_builder_api.html">CinnBuilder Primitive Semantics</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../train_resnet50_with_cinn.html">Training ResNet50 using Paddle compiled with CINN</a></li>
 <li class="toctree-l1"><a class="reference internal" href="library_root.html">C++ Symbols</a></li>
 </ul>
 
@@ -195,8 +195,6 @@
 
 <span class="w">  </span><span class="k">auto</span><span class="w"> </span><span class="n">xshape</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">get_input_var</span><span class="p">(</span><span class="s">&quot;XShape&quot;</span><span class="p">);</span><span class="w"></span>
 <span class="w">  </span><span class="n">VLOG</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;x shape: &quot;</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">cinn</span><span class="o">::</span><span class="n">utils</span><span class="o">::</span><span class="n">Join</span><span class="p">(</span><span class="n">xshape</span><span class="o">-&gt;</span><span class="n">shape</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;,&quot;</span><span class="p">);</span><span class="w"></span>
-
-<span class="w">  </span><span class="n">ctx</span><span class="p">.</span><span class="n">Builder</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">identity</span><span class="p">(</span><span class="n">xshape</span><span class="p">);</span><span class="w"></span>
 
 <span class="w">  </span><span class="k">auto</span><span class="w"> </span><span class="n">out</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ctx</span><span class="p">.</span><span class="n">Builder</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">reshape</span><span class="p">(</span><span class="n">dout</span><span class="p">,</span><span class="w"> </span><span class="n">xshape</span><span class="o">-&gt;</span><span class="n">shape</span><span class="p">);</span><span class="w"></span>
 

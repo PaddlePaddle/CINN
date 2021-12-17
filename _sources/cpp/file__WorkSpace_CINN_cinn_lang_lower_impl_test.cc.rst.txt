@@ -57,15 +57,15 @@ Functions
 ---------
 
 
+- :ref:`exhale_function_lower__impl__test_8cc_1adcfe1271f186807d8d3d6a06c519a30b`
+
+- :ref:`exhale_function_lower__impl__test_8cc_1a7f5bc40fcf77aeadeb6ea6f5d3d789ce`
+
 - :ref:`exhale_function_lower__impl__test_8cc_1ab6112365ffed92fc6b80d7deb986f134`
 
 - :ref:`exhale_function_lower__impl__test_8cc_1a23302b16d71761d9d0326f7fca034d58`
 
 - :ref:`exhale_function_lower__impl__test_8cc_1aa5abfcadd6bf233a886709d0960bcd24`
-
-- :ref:`exhale_function_lower__impl__test_8cc_1adcfe1271f186807d8d3d6a06c519a30b`
-
-- :ref:`exhale_function_lower__impl__test_8cc_1a7f5bc40fcf77aeadeb6ea6f5d3d789ce`
 
 
 Defines
