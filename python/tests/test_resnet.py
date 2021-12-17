@@ -61,7 +61,7 @@ class TestLoadResnetModel(unittest.TestCase):
         a_t = self.executor.get_tensor("resnet_input")
         a_t.from_numpy(x_data, self.target)
 
-        out = self.executor.get_tensor("save_infer_model/scale_0.tmp_0")
+        out = self.executor.get_tensor("relu_0.tmp_0")
         out.from_numpy(np.zeros(out.shape(), dtype='float32'), self.target)
 
         self.executor.run()

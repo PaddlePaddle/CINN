@@ -42,7 +42,6 @@ C++ APIs
    matmul.md
    load_paddle_model.md
    cinn_builder_api.md
-   train_resnet50_with_cinn.md
    cpp/library_root.rst
 
 
