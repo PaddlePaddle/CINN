@@ -20,6 +20,7 @@
         <script src="../_static/language_data.js"></script>
         <script src="../_static/collapsible-lists/js/CollapsibleLists.compressed.js"></script>
         <script src="../_static/collapsible-lists/js/apply-collapsible-lists.js"></script>
+        <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" /> 
@@ -51,7 +52,6 @@
 <li class="toctree-l1"><a class="reference internal" href="../matmul.html">C++ DSL API tutorial: Matrix Multiplication</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../load_paddle_model.html">Load and Execute Paddle Model in C++</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../cinn_builder_api.html">CinnBuilder Primitive Semantics</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../train_resnet50_with_cinn.html">Training ResNet50 using Paddle compiled with CINN</a></li>
 <li class="toctree-l1"><a class="reference internal" href="library_root.html">C++ Symbols</a></li>
 </ul>
 
@@ -112,7 +112,7 @@
 <span class="w">  </span><span class="n">executor</span><span class="p">.</span><span class="n">Run</span><span class="p">();</span><span class="w"></span>
 <span class="w">  </span><span class="c1">// fc_0.tmp_2 is eliminated by OpFusion, so here</span>
 <span class="w">  </span><span class="c1">// change to get tenor of the out variable</span>
-<span class="w">  </span><span class="n">executor</span><span class="p">.</span><span class="n">GetTensor</span><span class="p">(</span><span class="s">&quot;save_infer_model/scale_0.tmp_0&quot;</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="n">executor</span><span class="p">.</span><span class="n">GetTensor</span><span class="p">(</span><span class="s">&quot;fc_0.tmp_2&quot;</span><span class="p">);</span><span class="w"></span>
 <span class="p">}</span><span class="w"></span>
 
 <span class="p">}</span><span class="w">  </span><span class="c1">// namespace cinn::frontend</span>

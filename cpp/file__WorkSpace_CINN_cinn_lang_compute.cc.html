@@ -20,6 +20,7 @@
         <script src="../_static/language_data.js"></script>
         <script src="../_static/collapsible-lists/js/CollapsibleLists.compressed.js"></script>
         <script src="../_static/collapsible-lists/js/apply-collapsible-lists.js"></script>
+        <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" /> 
@@ -51,7 +52,6 @@
 <li class="toctree-l1"><a class="reference internal" href="../matmul.html">C++ DSL API tutorial: Matrix Multiplication</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../load_paddle_model.html">Load and Execute Paddle Model in C++</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../cinn_builder_api.html">CinnBuilder Primitive Semantics</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../train_resnet50_with_cinn.html">Training ResNet50 using Paddle compiled with CINN</a></li>
 <li class="toctree-l1"><a class="reference internal" href="library_root.html">C++ Symbols</a></li>
 </ul>
 
@@ -125,14 +125,14 @@
 <ul class="simple">
 <li><p><a class="reference internal" href="function_compute_8cc_1a998e35777946a8be0b99a0dc2e75da4e.html#exhale-function-compute-8cc-1a998e35777946a8be0b99a0dc2e75da4e"><span class="std std-ref">Function cinn::lang::CallExtern</span></a></p></li>
 <li><p><a class="reference internal" href="function_compute_8cc_1a5cb0b12a417b14db6b4cd85ebca471a3.html#exhale-function-compute-8cc-1a5cb0b12a417b14db6b4cd85ebca471a3"><span class="std std-ref">Function cinn::lang::CallLowered</span></a></p></li>
-<li><p><a class="reference internal" href="function_compute_8cc_1ab1adf0124ccc1bddfe1d04f798530a53.html#exhale-function-compute-8cc-1ab1adf0124ccc1bddfe1d04f798530a53"><span class="std std-ref">Function cinn::lang::Compute()</span></a></p></li>
-<li><p><a class="reference internal" href="function_compute_8cc_1a655affae54d5e75a28cfced321cf632c.html#exhale-function-compute-8cc-1a655affae54d5e75a28cfced321cf632c"><span class="std std-ref">Function cinn::lang::Compute()</span></a></p></li>
-<li><p><a class="reference internal" href="function_compute_8cc_1a46275bf597458c3ea139a59e63f016c3.html#exhale-function-compute-8cc-1a46275bf597458c3ea139a59e63f016c3"><span class="std std-ref">Function cinn::lang::Compute()</span></a></p></li>
-<li><p><a class="reference internal" href="function_compute_8cc_1aeb4a8c1587cf546ea55a9293a0ca871c.html#exhale-function-compute-8cc-1aeb4a8c1587cf546ea55a9293a0ca871c"><span class="std std-ref">Function cinn::lang::Compute(const std::vector&lt;Expr&gt;&amp;, std::function&lt;Expr(const std::vector&lt;Expr&gt;&amp;)&gt;, const std::string&amp;, const std::vector&lt;Expr&gt;&amp;)</span></a></p></li>
-<li><p><a class="reference internal" href="function_compute_8cc_1a7c97347e762db6761b138a9106a18902.html#exhale-function-compute-8cc-1a7c97347e762db6761b138a9106a18902"><span class="std std-ref">Function cinn::lang::Compute()</span></a></p></li>
-<li><p><a class="reference internal" href="function_compute_8cc_1acd54a7a16ced940dc85e4c6f295a31ed.html#exhale-function-compute-8cc-1acd54a7a16ced940dc85e4c6f295a31ed"><span class="std std-ref">Function cinn::lang::Compute()</span></a></p></li>
 <li><p><a class="reference internal" href="function_compute_8cc_1a2fa2a7f775ea976996e21b24324ffc12.html#exhale-function-compute-8cc-1a2fa2a7f775ea976996e21b24324ffc12"><span class="std std-ref">Function cinn::lang::Compute()</span></a></p></li>
 <li><p><a class="reference internal" href="function_compute_8cc_1a87d569b521c47e2ae7b89d6d0181bf58.html#exhale-function-compute-8cc-1a87d569b521c47e2ae7b89d6d0181bf58"><span class="std std-ref">Function cinn::lang::Compute()</span></a></p></li>
+<li><p><a class="reference internal" href="function_compute_8cc_1ab1adf0124ccc1bddfe1d04f798530a53.html#exhale-function-compute-8cc-1ab1adf0124ccc1bddfe1d04f798530a53"><span class="std std-ref">Function cinn::lang::Compute()</span></a></p></li>
+<li><p><a class="reference internal" href="function_compute_8cc_1a7c97347e762db6761b138a9106a18902.html#exhale-function-compute-8cc-1a7c97347e762db6761b138a9106a18902"><span class="std std-ref">Function cinn::lang::Compute()</span></a></p></li>
+<li><p><a class="reference internal" href="function_compute_8cc_1a46275bf597458c3ea139a59e63f016c3.html#exhale-function-compute-8cc-1a46275bf597458c3ea139a59e63f016c3"><span class="std std-ref">Function cinn::lang::Compute()</span></a></p></li>
+<li><p><a class="reference internal" href="function_compute_8cc_1a655affae54d5e75a28cfced321cf632c.html#exhale-function-compute-8cc-1a655affae54d5e75a28cfced321cf632c"><span class="std std-ref">Function cinn::lang::Compute()</span></a></p></li>
+<li><p><a class="reference internal" href="function_compute_8cc_1aeb4a8c1587cf546ea55a9293a0ca871c.html#exhale-function-compute-8cc-1aeb4a8c1587cf546ea55a9293a0ca871c"><span class="std std-ref">Function cinn::lang::Compute(const std::vector&lt;Expr&gt;&amp;, std::function&lt;Expr(const std::vector&lt;Expr&gt;&amp;)&gt;, const std::string&amp;, const std::vector&lt;Expr&gt;&amp;)</span></a></p></li>
+<li><p><a class="reference internal" href="function_compute_8cc_1acd54a7a16ced940dc85e4c6f295a31ed.html#exhale-function-compute-8cc-1acd54a7a16ced940dc85e4c6f295a31ed"><span class="std std-ref">Function cinn::lang::Compute()</span></a></p></li>
 </ul>
 </section>
 </section>

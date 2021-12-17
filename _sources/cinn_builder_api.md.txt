@@ -268,7 +268,18 @@ The mathematical expression is:
 `RightShift(Variable, Variable)` Given two inputs `x` and `y`,  move all the bits of `x` to right by `y`, if `x` is a signed type then performs an arithmetic shift otherwise a logical shift.
 The mathematical expression is:
 
-- RightShift(x, y) = $x >> y$
+.. math:: (a + b)^2 = a^2 + 2ab + b^2
+
+- .. math:: RightShift(x, y) = x >> y
+
+- :math:`(a + b)^2 = a^2 + 2ab + b^2`
+
+- :math:`RightShift(x, y) = x >> y`
+
+.. math::
+
+   y = \textrm{sigmoid}(X\beta - \textrm{offset}) + \epsilon =
+   \frac{1}{1 + \textrm{exp}(- X\beta + \textrm{offset})} + \epsilon
 
 ### Sub
 `Sub(Variable, Variable)`  Given two input variables, return the result of their element-wise subtraction.
@@ -325,6 +336,7 @@ The left degenerate-axes then broadcast along these degenerate axes to reach the
 `Compare(Variable, Variable, ComparisonKind)`  Given two input variables, return the result of their element-wise comparison. The value of `ComparisonKind` can be `kEq`, `kNe`, `kGe`, `kGt`, `kLe` or `kLt`.  Its semantics can be expressed by the following formula:
 
 $$
+
 Compare(x, y, kind) =
 \left\{  
              \begin{array}{**lr**}  
@@ -336,6 +348,7 @@ Compare(x, y, kind) =
 				x \lt y & if & kind =  kLt
              \end{array}  
 \right.
+
 $$
 
 

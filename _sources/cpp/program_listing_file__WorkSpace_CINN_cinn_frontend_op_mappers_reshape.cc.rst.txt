@@ -124,8 +124,6 @@ Program Listing for File reshape.cc
      auto xshape = get_input_var("XShape");
      VLOG(4) << "x shape: " << cinn::utils::Join(xshape->shape, ",");
    
-     ctx.Builder()->identity(xshape);
-   
      auto out = ctx.Builder()->reshape(dout, xshape->shape);
    
      auto out_name = get_output_name(paddle::GradVarName("X"));
