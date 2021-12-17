@@ -43,6 +43,10 @@ pre-compiled ``.whl`` package.
     # Please use python3.6 to execute the following python codes.
 """
 
+import os
+# Paddle compiled with CINN only supports the single GPU training now.
+# CUDA_VISIBLE_DEVICES should be set before paddle imported.
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 import numpy as np
 import paddle
 # sphinx_gallery_thumbnail_path = './paddlepaddle.png'
