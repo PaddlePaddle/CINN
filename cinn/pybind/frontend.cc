@@ -431,6 +431,24 @@ void BindFrontend(pybind11::module *m) {
            py::arg("padding_algorithm") = "EXPLICIT")
       .def("sum", &NetBuilder::sum, py::arg("inputs"));
 
+  py::enum_<ComparisonKind>(*m, "ComparisonKind")
+      .value("kUnk", ComparisonKind::kUnk)
+      .value("kEq", ComparisonKind::kEq)
+      .value("kNe", ComparisonKind::kNe)
+      .value("kGe", ComparisonKind::kGe)
+      .value("kGt", ComparisonKind::kGt)
+      .value("kLe", ComparisonKind::kLe)
+      .value("kLt", ComparisonKind::kLt)
+      .export_values();
+
+  py::enum_<ReduceKind>(*m, "ReduceKind")
+      .value("kUnk", ReduceKind::kUnk)
+      .value("kSum", ReduceKind::kSum)
+      .value("kProd", ReduceKind::kProd)
+      .value("kMax", ReduceKind::kMax)
+      .value("kMin", ReduceKind::kMin)
+      .export_values();
+
   py::class_<CinnBuilder, BaseBuilder>(*m, "CinnBuilder")
       .def(py::init<const std::string &>(), py::arg("name") = "")
       .def("const_scalar", &CinnBuilder::ConstScalar<bool>)
@@ -455,12 +473,12 @@ void BindFrontend(pybind11::module *m) {
            py::arg("data_format")       = "NCHW",
            py::arg("padding_algorithm") = "EXPLICIT",
            py::arg("output_shape")      = std::vector<int>{})
-      .def("compare", &CinnBuilder::Compare, py::arg("lhs"), py::arg("rhs"), py::arg("kind"))
+      .def("compare", &CinnBuilder::Compare, py::arg("lhs"), py::arg("rhs"), py::arg("kind") = ComparisonKind::kEq)
       .def("reduce",
            &CinnBuilder::Reduce,
            py::arg("operand"),
-           py::arg("kind"),
-           py::arg("dim"),
+           py::arg("kind")     = ReduceKind::kSum,
+           py::arg("dim")      = std::vector<int>{},
            py::arg("keep_dim") = false)
       .def("broadcast_to",
            &CinnBuilder::BroadcastTo,

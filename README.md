@@ -17,7 +17,7 @@
 # CINN : Compiler Infrastructure for Neural Networks
 
 
-[Installation Guide](./docs/guide.md) | 
+[Installation Guide](./docs/source/install.md) | 
 [Roadmap](./docs/roadmap.md)
 
 The project CINN is a machine learning compiler and executor for multiple hardware backends. 
@@ -56,12 +56,13 @@ b = builder.create_input(type=common.Float(32), shape=(1, 3, 224, 224), id_hint=
 y = builder.add(a, b)
 res = builder.relu(y)
 
-# Generate the computation
-computation = builder.build()
+# Specify target and generate the computation
+target = common.DefaultHostTarget()
+computation = Computation.build_and_compile(target, builder)
 ```
 
 ### Build a Network by CinnBuilder
-You can also build and run a model by using NetCinnBuilderBuilder APIs. Note that `CinnBuilder`'s APIs have much finer granularity than NetBuilder's.
+You can also build and run a model by using NetCinnBuilderBuilder APIs. Note that CinnBuilder's APIs have much finer granularity than NetBuilder's.
 ```python
 # Define the CinnBuilder.
 builder = frontend.CinnBuilder(name="network")
@@ -76,8 +77,9 @@ d = builder.add(a, b)
 e = builder.conv(d, c)
 res = builder.max(e, 0)
 
-# Generate the computation
-computation = builder.build()
+# Specify target and generate the computation
+target = common.DefaultHostTarget()
+computation = Computation.build_and_compile(target, builder)
 ```
 
 ### Use CINN lower level DSL to define some computation and execute
@@ -181,7 +183,7 @@ The overall architecture is as follows
 
 ##  Getting Started
 ### Compile and execute the code
-Please refer to [Installation Guidance](./docs/guide.md) and follow the guidance.
+Please refer to [Installation Guidance](./docs/source/install.md) and follow the guidance.
 
 ### Concepts
 There are two levels of APIs in CINN, the higher level is HLIR and the lower level is CINN IR, both contain some concepts.

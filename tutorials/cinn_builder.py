@@ -70,34 +70,7 @@ c = builder.create_input(
 # Generally, the API in CinnBuilder is fine-grained operator, in other words,
 # the algebra or basic DL operator.
 d = builder.add(a, b)
-e = builder.conv(d, c)
-
-##################################################################
-#
-# Generate the program
-# ---------------------
-#
-# After the model building, the CinnBuilder will generate a CINN execution program,
-# and you can get it by invoking `builder.build()` function.
-prog = builder.build()
-
-# You can print the returned program as following code:
-for i in range(prog.size()):
-    print(prog[i])
-
-##################################################################
-#
-# Random fake input data
-# -----------------------------
-#
-# Before running, you should read or generate some data to feed the model's input.
-# In model building, we just create some placeholder, to get the model's running
-# result, here we random some fake input data.
-tensor_data = [
-    np.random.random([1, 24, 56, 56]).astype("float32"),
-    np.random.random([1, 24, 56, 56]).astype("float32"),
-    np.random.random([144, 24, 1, 1]).astype("float32")
-]
+res = builder.conv(d, c)
 
 ##################################################################
 #
@@ -119,23 +92,41 @@ print("Model running at ", target.arch)
 
 ##################################################################
 #
+# Generate the program
+# ---------------------
+#
+# After the model building, the `Computation` will generate a CINN execution program,
+# and you can get it like:
+computation = frontend.Computation.build_and_compile(target, builder)
+
+##################################################################
+#
+# Random fake input data
+# -----------------------------
+#
+# Before running, you should read or generate some data to feed the model's input.
+# :code:`get_tensor`: Get the tensor with specific name in computation.
+# :code:`from_numpy`: Fill the tensor with numpy data.
+tensor_data = [
+    np.random.random([1, 24, 56, 56]).astype("float32"),
+    np.random.random([1, 24, 56, 56]).astype("float32"),
+    np.random.random([144, 24, 1, 1]).astype("float32")
+]
+
+computation.get_tensor("A").from_numpy(tensor_data[0], target)
+computation.get_tensor("B").from_numpy(tensor_data[1], target)
+computation.get_tensor("C").from_numpy(tensor_data[2], target)
+
+##################################################################
+#
 # Run program and print result
 # -----------------------------
 #
-# Finally, you can running model by invoking function `build_and_get_output`.
-# The `build_and_get_output` accepts the input data and finally return the results
-# of model, it has four parameters:
-#
-# :code:`target`: the model's irunning target.
-#
-# :code:`tensor_inputs`: the model's input variable list.
-#
-# :code:`input_data`: the actual data list, the order of the list must be the same as
-# `tensor_inputs`, otherwise, the resulting error.
-#
-# :code:`tensor_outputs`: the model's output variable list, the ordering of the model's
-# result list is the same as `tensor_outputs`, here we just has one result `[e]`.
-result = prog.build_and_get_output(target, [a, b, c], tensor_data, [e])
+# Finally, you can run the model by invoking function `execute()`.
+# After that, you can get the tensor you want by `get_tensor` with tensor's name.
+computation.execute()
+res_tensor = computation.get_tensor(str(res))
+res_data = res_tensor.numpy(target)
 
 # print result
-print(result[0].numpy(target))
+print(res_data)
