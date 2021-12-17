@@ -18,6 +18,7 @@
 
 #include <memory>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 #include "cinn/common/graph_utils.h"
@@ -44,6 +45,24 @@ class Graph : public cinn::common::Graph {
   absl::flat_hash_map<std::string, std::shared_ptr<absl::any>> attrs;
 
   std::vector<std::vector<Node*>> groups;
+
+  /** \brief fusion groups with multi-output*/
+  struct Group {
+    std::vector<Node*> nodes_;
+    std::unordered_set<Node*> nodes_set_;
+    // input nodes of the group.
+    std::unordered_set<Node*> input_nodes_;
+    // output nodes of the group.
+    std::unordered_set<Node*> output_nodes_;
+    // op pattern kind.
+    framework::OpPatternKind op_pattern_kind_;
+    // internal node, the output is used by multi-node.
+    // internal node can't use compute inline, should use buffer.
+    std::unordered_set<Node*> internal_nodes_;
+    // master node for schedule
+    std::unordered_set<Node*> master_nodes_;
+  };
+  std::vector<std::shared_ptr<Group>> fusion_groups_;
 
   void RegisterNode(size_t key, Node* node) { this->common::Graph::RegisterNode(key, node->as<common::GraphNode>()); }
   void RegisterNode(size_t key, NodeData* node) {
