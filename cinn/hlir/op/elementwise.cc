@@ -90,6 +90,45 @@ std::shared_ptr<OpStrategy> StrategyForElementwise(const framework::NodeAttr &at
   return strategy;
 }
 
+std::shared_ptr<OpStrategy> StrategyForGetShape(const framework::NodeAttr &attrs,
+                                                const std::vector<ir::Tensor> &inputs,
+                                                const std::vector<Type> &out_type,
+                                                const std::vector<std::vector<int>> &output_shapes,
+                                                const Target &target) {
+  framework::CINNCompute unary_compute([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of get_shape compute is empty! Please check.";
+    CINNValuePack a = args[0];
+    CHECK_EQ(a.size(), 1U) << "1 input tensor for get_shape compute";
+    Expr A_expr = a[0];
+    CHECK(A_expr.as_tensor());
+    ir::Tensor A   = A_expr.as_tensor_ref();
+    ir::Tensor out = lang::Compute(
+        {Expr(1)}, [=](const std::vector<Expr> &indice) { return Expr(0.0f); }, UniqName("get_shape_Out"));
+    auto stages = CreateStages({A});
+    *ret        = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
+  });
+
+  framework::CINNSchedule unary_schedule([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of get_shape schedule is empty! Please check.";
+    CINNValuePack arg_pack = args[0];
+    CHECK_EQ(arg_pack.size(), 2UL);
+    Expr Out              = arg_pack[0];
+    poly::StageMap stages = arg_pack[1];
+    CHECK(Out.as_tensor());
+    if (target.arch == Target::Arch::NVGPU) {
+      pe::CudaScheduleInjective(stages[Out.as_tensor_ref()], output_shapes.front(), target);
+    } else if (target.arch == Target::Arch::X86) {
+      pe::ScheduleInjectiveCPU(stages[Out.as_tensor_ref()], output_shapes.front(), target);
+    }
+    *ret = arg_pack;
+  });
+
+  auto strategy = std::make_shared<framework::OpStrategy>();
+  strategy->AddImpl(unary_compute, unary_schedule, "strategy.get_shape.x86", 1);
+
+  return strategy;
+}
+
 std::vector<shape_t> InferShapeForElementwise(const std::vector<shape_t> &inputs_shape,
                                               const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 1UL);
@@ -492,7 +531,10 @@ CINN_REGISTER_HELPER(elementwise_ops) {
       .describe("get the shape of the input Tensor")
       .set_num_inputs(1)
       .set_num_outputs(1)
-      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForElementwise));
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForGetShape)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForElementwise))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForElementwise))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise);
 
   return true;
 }

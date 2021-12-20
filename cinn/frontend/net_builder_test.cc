@@ -14,6 +14,7 @@
 
 #include "cinn/frontend/net_builder.h"
 
+#include <glog/logging.h>
 #include <gtest/gtest.h>
 
 #include <algorithm>
@@ -218,8 +219,8 @@ TEST(net_build, program_execute_get_shape) {
   SetRandData(input_tensor, target);
   runtime_program->Execute();
 
-  LOG(INFO) << cinn::utils::Join(get_shape_out->shape, ",");
-  ASSERT_EQ(get_shape_out->shape, {B, C, H, W});
+  LOG(INFO) << "get_shape return " << cinn::utils::Join(get_shape_out->shape, ",");
+  ASSERT_EQ(get_shape_out->shape, std::vector<int>({B, C, H, W}));
 }
 
 }  // namespace frontend
