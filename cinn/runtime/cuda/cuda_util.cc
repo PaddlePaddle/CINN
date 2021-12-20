@@ -239,7 +239,7 @@ void CallCudnnConv(const std::vector<int> &input,
     auto args = new std::shared_ptr<int8_t>(nullptr);
     *args     = CudnnHelper::Instance().GetWorkspace(ws_size);
     call_conv_func(handle, x_desc, w_desc, conv_desc, y_desc, algo, args->get(), ws_size);
-    CUDA_CALL(cudaLaunchHostFunc(nullptr, ReleaseWorkspace, args));
+    CUDA_CALL(cudaLaunchHostFunc(stream, ReleaseWorkspace, args));
   }
 
   CUDNN_CALL(cudnnDestroyTensorDescriptor(x_desc));
