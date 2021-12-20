@@ -59,57 +59,19 @@ class CudnnHelper {
     }
   }
 
-  std::pair<int8_t *, size_t> GetWorkspace(size_t size) {
-    // static std::mutex workspace_mtx;
-    if (workspace_queue_.size() == 0 && total_workspace_queue_size_ < GetCinnCudnnWorkspaceQueueSize()) {
-      size_t free_mem = 0, total_mem = 0;
-      CUDA_CALL(cudaMemGetInfo(&free_mem, &total_mem));
-      if (free_mem > size) {
-        int8_t *ptr = nullptr;
-        CUDA_CALL(cudaMalloc(&ptr, size));
-        {
-          static std::mutex local_mtx;
-          std::lock_guard<std::mutex> lock(local_mtx);
-          ++total_workspace_queue_size_;
-        }
-        return std::pair<int8_t *, size_t>(ptr, size);
-      } else if (total_workspace_queue_size_ == 0) {
-        LOG(FATAL) << "No memory left on device!";
-      }
+  std::shared_ptr<int8_t> GetWorkspace(size_t size) {
+    std::lock_guard<std::mutex> lock(cudnn_algo_mtx_);
+    if (workspace_size_ < size) {
+      int8_t *data_ptr = nullptr;
+      workspace_size_  = size;
+      CUDA_CALL(cudaMalloc(&data_ptr, size));
+      workspace_ptr_ = std::shared_ptr<int8_t>(data_ptr, [](int8_t *ptr) { CUDA_CALL(cudaFree(ptr)); });
     }
 
-    std::pair<int8_t *, size_t> workspace;
-    {
-      std::unique_lock<std::mutex> lock(workspace_mtx_);
-      workspace_cv_.wait(lock, [this]() { return !this->workspace_queue_.empty(); });
-      workspace = workspace_queue_.front();
-      workspace_queue_.pop();
-    }
-
-    if (workspace.second < size) {
-      workspace.second = size;
-      CUDA_CALL(cudaFree(workspace.first));
-      CUDA_CALL(cudaMalloc(&workspace.first, size));
-    }
-
-    return workspace;
+    return workspace_ptr_;
   }
 
-  void ReleaseWorkspace(std::pair<int8_t *, size_t> workspace) {
-    std::lock_guard<std::mutex> lock(workspace_mtx_);
-    workspace_queue_.push(workspace);
-    workspace_cv_.notify_one();
-  }
-
-  ~CudnnHelper() {
-    CUDNN_CALL(cudnnDestroy(handle_));
-    std::lock_guard<std::mutex> lock(workspace_mtx_);
-    while (!workspace_queue_.empty()) {
-      auto ws = workspace_queue_.front();
-      CUDA_CALL(cudaFree(ws.first));
-      workspace_queue_.pop();
-    }
-  }
+  ~CudnnHelper() { CUDNN_CALL(cudnnDestroy(handle_)); }
 
   static std::string GenAlgoKey(const std::string &conv_type, const std::vector<std::vector<int>> &shapes) {
     CHECK_EQ(shapes.size(), 3);
@@ -130,18 +92,19 @@ class CudnnHelper {
   std::mutex cudnn_algo_mtx_;
   absl::flat_hash_map<std::string, int> cudnn_algo_map_;
 
-  // size_t workspace_size_{0};
+  size_t workspace_size_{0};
   std::mutex workspace_mtx_;
-  std::condition_variable workspace_cv_;
-  // std::shared_ptr<int8_t> workspace_ptr_;
-  int total_workspace_queue_size_{0};
-  std::queue<std::pair<int8_t *, size_t>> workspace_queue_;
+  std::shared_ptr<int8_t> workspace_ptr_;
 };
 
-void CUDART_CB ReleaseWorkspace(void *args) {
-  auto workspace_ptr = reinterpret_cast<std::pair<int8_t *, size_t> *>(args);
-  CudnnHelper::Instance().ReleaseWorkspace(*workspace_ptr);
+void ReleaseWorkspaceThread(void *args) {
+  auto workspace_ptr = reinterpret_cast<std::shared_ptr<int8_t> *>(args);
   delete workspace_ptr;
+}
+
+void CUDART_CB ReleaseWorkspace(void *args) {
+  std::thread thread(ReleaseWorkspaceThread, args);
+  thread.detach();
 }
 
 void cinn_gpu_cublas_mul(const std::vector<int> &attrs,
@@ -273,9 +236,9 @@ void CallCudnnConv(const std::vector<int> &input,
   if (ws_size == 0) {
     call_conv_func(handle, x_desc, w_desc, conv_desc, y_desc, algo, nullptr, 0);
   } else {
-    auto args = new std::pair<int8_t *, size_t>();
+    auto args = new std::shared_ptr<int8_t>(nullptr);
     *args     = CudnnHelper::Instance().GetWorkspace(ws_size);
-    call_conv_func(handle, x_desc, w_desc, conv_desc, y_desc, algo, args->first, ws_size);
+    call_conv_func(handle, x_desc, w_desc, conv_desc, y_desc, algo, args->get(), ws_size);
     CUDA_CALL(cudaLaunchHostFunc(nullptr, ReleaseWorkspace, args));
   }
 

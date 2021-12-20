@@ -25,8 +25,6 @@ DEFINE_bool(cinn_cudnn_deterministic,
             "true, the algorithm is deterministic.");
 #endif
 
-DEFINE_int32(cinn_cudnn_workspace_queue_size, 5, "The limit of number of workspace queue!");
-
 namespace cinn {
 namespace runtime {
 
@@ -46,8 +44,6 @@ bool GetCinnCudnnDeterministic() {
   return false;
 #endif
 }
-
-int GetCinnCudnnWorkspaceQueueSize() { return FLAGS_cinn_cudnn_workspace_queue_size; }
 
 }  // namespace runtime
 }  // namespace cinn
