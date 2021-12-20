@@ -60,7 +60,7 @@ class CudnnHelper {
   }
 
   std::shared_ptr<int8_t> GetWorkspace(size_t size) {
-    std::lock_guard<std::mutex> lock(cudnn_algo_mtx_);
+    std::lock_guard<std::mutex> local_lock(workspace_mtx_);
     if (workspace_size_ < size) {
       int8_t *data_ptr = nullptr;
       workspace_size_  = size;
@@ -71,16 +71,9 @@ class CudnnHelper {
     return workspace_ptr_;
   }
 
-  void ReleaseWorkspace(void *args) {
-    std::lock_guard<std::mutex> local_lock{this->thread_mtx_};
-    this->args_queue_.push(args);
-    this->thread_cv_.notify_one();
-  }
-
   ~CudnnHelper() {
     CUDNN_CALL(cudnnDestroy(handle_));
     this->stop_ = true;
-    this->thread_cv_.notify_one();
     if (thread_[0].joinable()) {
       thread_[0].join();
     }
@@ -98,25 +91,29 @@ class CudnnHelper {
     return key;
   }
 
+  void RecoredEvent(cudaEvent_t event, std::shared_ptr<int8_t> workspace) {
+    std::lock_guard<std::mutex> local_lock(thread_mtx_);
+    workspace_queue_.emplace(event, workspace);
+    thread_cv_.notify_one();
+  }
+
  private:
   CudnnHelper() {
     CUDNN_CALL(cudnnCreate(&handle_));
     thread_.emplace_back([this]() {
       while (!this->stop_) {
-        void *args = nullptr;
+        std::pair<cudaEvent_t, std::shared_ptr<int8_t>> task;
         {
-          std::unique_lock<std::mutex> local_lock{this->thread_mtx_};
-          this->thread_cv_.wait(local_lock, [this]() { return this->stop_ || !this->args_queue_.empty(); });
-          if (this->stop_ && this->args_queue_.empty()) {
-            break;
+          std::unique_lock<std::mutex> local_lock(this->thread_mtx_);
+          this->thread_cv_.wait(local_lock, [this]() { return this->stop_ || !this->workspace_queue_.empty(); });
+          if (this->stop_ && this->workspace_queue_.empty()) {
+            return;
           }
-          args = this->args_queue_.front();
-          this->args_queue_.pop();
+          task = this->workspace_queue_.front();
+          this->workspace_queue_.pop();
         }
-        if (args) {
-          auto workspace_ptr = reinterpret_cast<std::shared_ptr<int8_t> *>(args);
-          delete workspace_ptr;
-        }
+        CUDA_CALL(cudaEventSynchronize(task.first));
+        CUDA_CALL(cudaEventDestroy(task.first));
       }
     });
   }
@@ -131,12 +128,11 @@ class CudnnHelper {
 
   bool stop_{false};
   std::mutex thread_mtx_;
-  std::queue<void *> args_queue_;
+
   std::vector<std::thread> thread_;
   std::condition_variable thread_cv_;
+  std::queue<std::pair<cudaEvent_t, std::shared_ptr<int8_t>>> workspace_queue_;
 };
-
-void CUDART_CB ReleaseWorkspace(void *args) { CudnnHelper::Instance().ReleaseWorkspace(args); }
 
 void cinn_gpu_cublas_mul(const std::vector<int> &attrs,
                          cinn_buffer_t *input1,
@@ -267,10 +263,16 @@ void CallCudnnConv(const std::vector<int> &input,
   if (ws_size == 0) {
     call_conv_func(handle, x_desc, w_desc, conv_desc, y_desc, algo, nullptr, 0);
   } else {
-    auto args = new std::shared_ptr<int8_t>(nullptr);
-    *args     = CudnnHelper::Instance().GetWorkspace(ws_size);
-    call_conv_func(handle, x_desc, w_desc, conv_desc, y_desc, algo, args->get(), ws_size);
-    CUDA_CALL(cudaLaunchHostFunc(stream, ReleaseWorkspace, args));
+    auto args = CudnnHelper::Instance().GetWorkspace(ws_size);
+    call_conv_func(handle, x_desc, w_desc, conv_desc, y_desc, algo, args.get(), ws_size);
+
+    // create event
+    cudaEvent_t event;
+    CUDA_CALL(cudaEventCreateWithFlags(&event, cudaEventBlockingSync));
+
+    // recored event
+    CUDA_CALL(cudaEventRecord(event, stream));
+    CudnnHelper::Instance().RecoredEvent(event, args);
   }
 
   CUDNN_CALL(cudnnDestroyTensorDescriptor(x_desc));
