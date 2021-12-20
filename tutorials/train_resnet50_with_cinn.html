@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Training ResNet50 using Paddle compiled with CINN &mdash; cinn release/v0.1-rc documentation</title><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery-binder.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/gallery-dataframe.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/collapsible-lists/css/tree_view.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
+        <script src="../_static/collapsible-lists/js/CollapsibleLists.compressed.js"></script>
+        <script src="../_static/collapsible-lists/js/apply-collapsible-lists.js"></script>
+        <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Ways to optimize Matrix Multiplication on CPU" href="matmul.html" />
+    <link rel="prev" title="Run model by using NetBuilder API" href="net_builder.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> cinn
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../install.html">Build from source code</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../guide.html">Install CINN using docker</a></li>
+</ul>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Tutorials</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="index.html#run-demo">Run demo</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="jit.html">JIT in CINN</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cinn_builder.html">Run model by using CinnBuilder API</a></li>
+<li class="toctree-l3"><a class="reference internal" href="load_paddle_model.html">Load and Execute Paddle Model</a></li>
+<li class="toctree-l3"><a class="reference internal" href="net_builder.html">Run model by using NetBuilder API</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">Training ResNet50 using Paddle compiled with CINN</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#enable-static-execution-mode">Enable static execution mode</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#enable-training-with-cinn-in-paddle">Enable training with CINN in Paddle</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#select-device-on-multi-gpu-system">Select Device On Multi-GPU System</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#build-the-model-by-using-paddle-api">Build the model by using Paddle API</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#generate-random-fake-data-as-input">Generate random fake data as input</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#executing-program-and-print-result">Executing program and print result</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="matmul.html">Ways to optimize Matrix Multiplication on CPU</a></li>
+<li class="toctree-l3"><a class="reference internal" href="schedule_primitives.html">Schedule Primitives in CINN</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../matmul.html">C++ DSL API tutorial: Matrix Multiplication</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../load_paddle_model.html">Load and Execute Paddle Model in C++</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cinn_builder_api.html">CinnBuilder Primitive Semantics</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cpp/library_root.html">C++ Symbols</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">cinn</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="index.html">Tutorials</a> &raquo;</li>
+      <li>Training ResNet50 using Paddle compiled with CINN</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/tutorials/train_resnet50_with_cinn.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="sphx-glr-download-link-note admonition note">
+<p class="admonition-title">Note</p>
+<p>Click <a class="reference internal" href="#sphx-glr-download-tutorials-train-resnet50-with-cinn-py"><span class="std std-ref">here</span></a>     to download the full example code</p>
+</div>
+<section class="sphx-glr-example-title" id="training-resnet50-using-paddle-compiled-with-cinn">
+<span id="sphx-glr-tutorials-train-resnet50-with-cinn-py"></span><h1>Training ResNet50 using Paddle compiled with CINN<a class="headerlink" href="#training-resnet50-using-paddle-compiled-with-cinn" title="Permalink to this headline"></a></h1>
+<p><strong>Note:</strong> Docker execution environment is required, and you should use the docker image
+<code class="docutils literal notranslate"><span class="pre">registry.baidubce.com/paddlepaddle/paddle:latest-dev-cuda11.2-cudnn8-gcc82</span></code>
+to create a container for trying the next steps in this tutorial. You can use the following
+command to create a required container:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Docker version 20.10.11, build dea9396</span>
+docker run --gpus all --name cinn_train_test <span class="se">\</span>
+    --shm-size<span class="o">=</span><span class="s2">&quot;8g&quot;</span> --net<span class="o">=</span>host -v <span class="nv">$PWD</span>:/work <span class="se">\</span>
+    -it registry.baidubce.com/paddlepaddle/paddle:latest-dev-cuda11.2-cudnn8-gcc82 /bin/bash
+</pre></div>
+</div>
+<p>All the code below should be executed in the <code class="docutils literal notranslate"><span class="pre">cinn_train_test</span></code> container.</p>
+<p>This is a beginner-friendly tutorial on how to train models using Paddle compiled with CINN.
+This tutorial assumes that you have installed Paddle compiled with CINN. Otherwise, please
+enable the <code class="docutils literal notranslate"><span class="pre">-DWITH_CINN</span></code> compilation option to recompile Paddle and reinstall it. To avoid
+the tedious compilation process, you can also use the following command to install the
+pre-compiled <code class="docutils literal notranslate"><span class="pre">.whl</span></code> package.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>wget https://paddle-inference-dist.bj.bcebos.com/CINN_release/paddlepaddle_gpu-0.0.0-cp36-cp36m-linux_x86_64.whl
+pip3.6 install paddlepaddle_gpu-0.0.0-cp36-cp36m-linux_x86_64.whl
+<span class="nb">export</span> <span class="nv">LD_LIBRARY_PATH</span><span class="o">=</span>/usr/local/lib/python3.6/dist-packages/paddle/libs/:<span class="nv">$LD_LIBRARY_PATH</span>
+<span class="c1"># Please use python3.6 to execute the following python codes.</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="c1"># Paddle compiled with CINN only supports the single GPU training now.</span>
+<span class="c1"># CUDA_VISIBLE_DEVICES should be set before paddle imported.</span>
+<span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;CUDA_VISIBLE_DEVICES&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;0&quot;</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">paddle</span>
+<span class="c1"># sphinx_gallery_thumbnail_path = &#39;./paddlepaddle.png&#39;</span>
+</pre></div>
+</div>
+<p class="sphx-glr-script-out">Out:</p>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>/WorkSpace/CINN/build/ci-env/lib/python3.6/site-packages/setuptools/depends.py:2: DeprecationWarning: the imp module is deprecated in favour of importlib; see the module&#39;s documentation for alternative uses
+  import imp
+</pre></div>
+</div>
+<section id="enable-static-execution-mode">
+<h2>Enable static execution mode<a class="headerlink" href="#enable-static-execution-mode" title="Permalink to this headline"></a></h2>
+<p>Currently, we only support static graphs, so call <code class="docutils literal notranslate"><span class="pre">paddle.enable_static()</span></code>  in advance.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">paddle</span><span class="o">.</span><span class="n">enable_static</span><span class="p">()</span>
+</pre></div>
+</div>
+</section>
+<section id="enable-training-with-cinn-in-paddle">
+<h2>Enable training with CINN in Paddle<a class="headerlink" href="#enable-training-with-cinn-in-paddle" title="Permalink to this headline"></a></h2>
+<p>To train models with CINN, you need to set <code class="docutils literal notranslate"><span class="pre">FLAGS_use_cinn</span></code> to true.</p>
+<p>When training models with CINN, some Paddle operators will be replaced by CINN primitives.
+You can use the flag <code class="docutils literal notranslate"><span class="pre">FLAGS_allow_cinn_ops</span></code> to specify Paddle operators replaced by CINN.</p>
+<p>The fellowing operators are supported in CINN now.
+<code class="docutils literal notranslate"><span class="pre">batch_norm,batch_norm_grad,conv2d,conv2d_grad,</span> <span class="pre">elementwise_add,elementwise_add_grad,relu,relu_grad,sum</span></code></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">allow_ops</span> <span class="o">=</span> <span class="s2">&quot;batch_norm;batch_norm_grad;conv2d;conv2d_grad;elementwise_add;elementwise_add_grad;relu;relu_grad;sum&quot;</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="n">paddle</span><span class="o">.</span><span class="n">set_flags</span><span class="p">({</span>
+        <span class="s1">&#39;FLAGS_use_cinn&#39;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="s1">&#39;FLAGS_allow_cinn_ops&#39;</span><span class="p">:</span> <span class="n">allow_ops</span>
+    <span class="p">})</span>
+<span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+    <span class="c1"># If the used PaddlePaddle is not compiled with CINN, just skip and</span>
+    <span class="c1"># the following steps will not train with CINN.</span>
+    <span class="k">pass</span>
+</pre></div>
+</div>
+</section>
+<section id="select-device-on-multi-gpu-system">
+<h2>Select Device On Multi-GPU System<a class="headerlink" href="#select-device-on-multi-gpu-system" title="Permalink to this headline"></a></h2>
+<p><strong>Note:</strong> At present, Paddle compiled with CINN only supports the single GPU.
+If you train models with CINN on a multi-GPU system, you should specify a device
+by setting <code class="docutils literal notranslate"><span class="pre">CUDA_VISIBLE_DEVICES=GPU_ID</span></code> in the system environment.</p>
+<p>Then you can specify the device id by using <code class="docutils literal notranslate"><span class="pre">paddle.CUDAPlace(device_id))</span></code> to get the device context.
+The sample code is shown below:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">place</span> <span class="o">=</span> <span class="n">paddle</span><span class="o">.</span><span class="n">CUDAPlace</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="build-the-model-by-using-paddle-api">
+<h2>Build the model by using Paddle API<a class="headerlink" href="#build-the-model-by-using-paddle-api" title="Permalink to this headline"></a></h2>
+<p>This example shows how to train <code class="docutils literal notranslate"><span class="pre">ResNet50</span></code> by using Paddle compiled with CINN.
+You can find more about Paddle APIs from this <a class="reference external" href="https://www.paddlepaddle.org.cn/documentation/docs/en/api/index_en.html">website</a>.
+We set the batch size to 32 and input shape to [32, 3, 224, 224].</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">batch_size</span> <span class="o">=</span> <span class="mi">32</span>
+<span class="n">startup_program</span> <span class="o">=</span> <span class="n">paddle</span><span class="o">.</span><span class="n">static</span><span class="o">.</span><span class="n">Program</span><span class="p">()</span>
+<span class="n">main_program</span> <span class="o">=</span> <span class="n">paddle</span><span class="o">.</span><span class="n">static</span><span class="o">.</span><span class="n">Program</span><span class="p">()</span>
+<span class="k">with</span> <span class="n">paddle</span><span class="o">.</span><span class="n">static</span><span class="o">.</span><span class="n">program_guard</span><span class="p">(</span><span class="n">main_program</span><span class="p">,</span> <span class="n">startup_program</span><span class="p">):</span>
+    <span class="n">image</span> <span class="o">=</span> <span class="n">paddle</span><span class="o">.</span><span class="n">static</span><span class="o">.</span><span class="n">data</span><span class="p">(</span>
+        <span class="n">name</span><span class="o">=</span><span class="s1">&#39;image&#39;</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">224</span><span class="p">,</span> <span class="mi">224</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;float32&#39;</span><span class="p">)</span>
+    <span class="n">label</span> <span class="o">=</span> <span class="n">paddle</span><span class="o">.</span><span class="n">static</span><span class="o">.</span><span class="n">data</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;label&#39;</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;int64&#39;</span><span class="p">)</span>
+
+    <span class="n">model</span> <span class="o">=</span> <span class="n">paddle</span><span class="o">.</span><span class="n">vision</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">resnet50</span><span class="p">()</span>
+    <span class="n">prediction</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+    <span class="n">loss</span> <span class="o">=</span> <span class="n">paddle</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">cross_entropy</span><span class="p">(</span><span class="nb">input</span><span class="o">=</span><span class="n">prediction</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="n">label</span><span class="p">)</span>
+    <span class="n">loss</span> <span class="o">=</span> <span class="n">paddle</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">loss</span><span class="p">)</span>
+
+    <span class="n">adam</span> <span class="o">=</span> <span class="n">paddle</span><span class="o">.</span><span class="n">optimizer</span><span class="o">.</span><span class="n">Adam</span><span class="p">(</span><span class="n">learning_rate</span><span class="o">=</span><span class="mf">0.0125</span><span class="p">)</span>
+    <span class="n">adam</span><span class="o">.</span><span class="n">minimize</span><span class="p">(</span><span class="n">loss</span><span class="p">)</span>
+</pre></div>
+</div>
+<p class="sphx-glr-script-out">Out:</p>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>/WorkSpace/CINN/build/ci-env/lib/python3.6/site-packages/paddle/nn/layer/norm.py:653: UserWarning: When training, we now always track global mean and variance.
+  &quot;When training, we now always track global mean and variance.&quot;)
+/WorkSpace/CINN/build/ci-env/lib/python3.6/site-packages/paddle/fluid/layers/math_op_patch.py:341: UserWarning: /WorkSpace/CINN/build/ci-env/lib/python3.6/site-packages/paddle/vision/models/resnet.py:143
+The behavior of expression A + B has been unified with elementwise_add(X, Y, axis=-1) from Paddle 2.0. If your code works well in the older versions but crashes in this version, try to use elementwise_add(X, Y, axis=0) instead of A + B. This transitional warning will be dropped in the future.
+  op_type, op_type, EXPRESSION_MAP[method_name]))
+</pre></div>
+</div>
+</section>
+<section id="generate-random-fake-data-as-input">
+<h2>Generate random fake data as input<a class="headerlink" href="#generate-random-fake-data-as-input" title="Permalink to this headline"></a></h2>
+<p>Before running, you can load or generate some data as the feeding of a model.
+Here, we generate some fake input data by NumPy replacing the real data.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">loop_num</span> <span class="o">=</span> <span class="mi">10</span>
+<span class="n">feed</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">loop_num</span><span class="p">):</span>
+    <span class="n">fake_input</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;image&#39;</span><span class="p">:</span> <a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.random.html#numpy.random.randint" title="numpy.random.randint" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-np-function"><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span></a><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">256</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">[</span><span class="n">batch_size</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">224</span><span class="p">,</span> <span class="mi">224</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s1">&#39;float32&#39;</span><span class="p">),</span> \
+                 <span class="s1">&#39;label&#39;</span><span class="p">:</span> <a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.random.html#numpy.random.randint" title="numpy.random.randint" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-np-function"><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span></a><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1000</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">[</span><span class="n">batch_size</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s1">&#39;int64&#39;</span><span class="p">)}</span>
+    <span class="n">feed</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">fake_input</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="executing-program-and-print-result">
+<h2>Executing program and print result<a class="headerlink" href="#executing-program-and-print-result" title="Permalink to this headline"></a></h2>
+<p>Then we create an executor to train the model.
+You can learn more about Paddle from <a class="reference external" href="https://www.paddlepaddle.org.cn/">paddlepaddle.org.cn</a>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">exe</span> <span class="o">=</span> <span class="n">paddle</span><span class="o">.</span><span class="n">static</span><span class="o">.</span><span class="n">Executor</span><span class="p">(</span><span class="n">place</span><span class="p">)</span>
+
+<span class="n">compiled_prog</span> <span class="o">=</span> <span class="n">paddle</span><span class="o">.</span><span class="n">static</span><span class="o">.</span><span class="n">CompiledProgram</span><span class="p">(</span><span class="n">main_program</span><span class="p">)</span><span class="o">.</span><span class="n">with_data_parallel</span><span class="p">(</span>
+    <span class="n">loss_name</span><span class="o">=</span><span class="n">loss</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+<span class="n">scope</span> <span class="o">=</span> <span class="n">paddle</span><span class="o">.</span><span class="n">static</span><span class="o">.</span><span class="n">Scope</span><span class="p">()</span>
+
+<span class="k">with</span> <span class="n">paddle</span><span class="o">.</span><span class="n">static</span><span class="o">.</span><span class="n">scope_guard</span><span class="p">(</span><span class="n">scope</span><span class="p">):</span>
+    <span class="n">exe</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">startup_program</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">step</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">loop_num</span><span class="p">):</span>
+        <span class="n">loss_v</span> <span class="o">=</span> <span class="n">exe</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+            <span class="n">compiled_prog</span><span class="p">,</span>
+            <span class="n">feed</span><span class="o">=</span><span class="n">feed</span><span class="p">[</span><span class="n">step</span><span class="p">],</span>
+            <span class="n">fetch_list</span><span class="o">=</span><span class="p">[</span><span class="n">loss</span><span class="p">],</span>
+            <span class="n">return_numpy</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Train step: </span><span class="si">{}</span><span class="s2"> loss: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">step</span><span class="p">,</span> <span class="n">loss_v</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]))</span>
+</pre></div>
+</div>
+<p class="sphx-glr-script-out">Out:</p>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>Train step: 0 loss: 7.575467109680176
+Train step: 1 loss: 53.954524993896484
+Train step: 2 loss: 73.55073547363281
+Train step: 3 loss: 50.63420867919922
+Train step: 4 loss: 28.146121978759766
+Train step: 5 loss: 26.37466049194336
+Train step: 6 loss: 14.501086235046387
+Train step: 7 loss: 15.389731407165527
+Train step: 8 loss: 9.826990127563477
+Train step: 9 loss: 13.917497634887695
+</pre></div>
+</div>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> ( 0 minutes  8.309 seconds)</p>
+<div class="sphx-glr-footer class sphx-glr-footer-example docutils container" id="sphx-glr-download-tutorials-train-resnet50-with-cinn-py">
+<div class="sphx-glr-download sphx-glr-download-python docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/5c3d08948ea1e3546b3a8e47cbe4d302/train_resnet50_with_cinn.py"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Python</span> <span class="pre">source</span> <span class="pre">code:</span> <span class="pre">train_resnet50_with_cinn.py</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/0578f5012bf3e4cc5f7e3ed99bea98d9/train_resnet50_with_cinn.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">train_resnet50_with_cinn.ipynb</span></code></a></p>
+</div>
+</div>
+<p class="sphx-glr-signature"><a class="reference external" href="https://sphinx-gallery.github.io">Gallery generated by Sphinx-Gallery</a></p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="net_builder.html" class="btn btn-neutral float-left" title="Run model by using NetBuilder API" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="matmul.html" class="btn btn-neutral float-right" title="Ways to optimize Matrix Multiplication on CPU" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, cinn team.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

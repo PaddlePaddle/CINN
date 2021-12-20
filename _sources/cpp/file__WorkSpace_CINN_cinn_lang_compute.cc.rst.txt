@@ -69,19 +69,19 @@ Functions
 
 - :ref:`exhale_function_compute_8cc_1a5cb0b12a417b14db6b4cd85ebca471a3`
 
-- :ref:`exhale_function_compute_8cc_1a2fa2a7f775ea976996e21b24324ffc12`
-
 - :ref:`exhale_function_compute_8cc_1a87d569b521c47e2ae7b89d6d0181bf58`
 
 - :ref:`exhale_function_compute_8cc_1ab1adf0124ccc1bddfe1d04f798530a53`
 
-- :ref:`exhale_function_compute_8cc_1a7c97347e762db6761b138a9106a18902`
+- :ref:`exhale_function_compute_8cc_1a655affae54d5e75a28cfced321cf632c`
 
 - :ref:`exhale_function_compute_8cc_1a46275bf597458c3ea139a59e63f016c3`
 
-- :ref:`exhale_function_compute_8cc_1a655affae54d5e75a28cfced321cf632c`
-
 - :ref:`exhale_function_compute_8cc_1aeb4a8c1587cf546ea55a9293a0ca871c`
 
+- :ref:`exhale_function_compute_8cc_1a7c97347e762db6761b138a9106a18902`
+
 - :ref:`exhale_function_compute_8cc_1acd54a7a16ced940dc85e4c6f295a31ed`
+
+- :ref:`exhale_function_compute_8cc_1a2fa2a7f775ea976996e21b24324ffc12`
 
