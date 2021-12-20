@@ -189,7 +189,7 @@ TEST(load_paddle_model, fc_execute) {
 
   LOG(INFO) << "scope.names: " << Join(scope->var_names(), ",");
 
-  const std::string output_name = "fc_0.tmp_1";
+  const std::string output_name = "fc_0.tmp_2";
   auto tensor                   = scope->GetTensor(var_map_paddle_to_program.at(output_name));
   LOG(INFO) << "tensor.shape: " << utils::Join(tensor->shape().data(), ",");
   auto* data = tensor->data<float>();

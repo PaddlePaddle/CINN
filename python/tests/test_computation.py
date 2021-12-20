@@ -111,7 +111,7 @@ class TestCompilePaddleModel(unittest.TestCase):
 
         computation.execute()
 
-        out = computation.get_tensor("save_infer_model/scale_0.tmp_0")
+        out = computation.get_tensor("fc_0.tmp_2")
         res_cinn = out.numpy(self.target)
 
         config = fluid.core.AnalysisConfig(naive_model_dir)
