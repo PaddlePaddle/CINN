@@ -71,7 +71,20 @@ class CudnnHelper {
     return workspace_ptr_;
   }
 
-  ~CudnnHelper() { CUDNN_CALL(cudnnDestroy(handle_)); }
+  void ReleaseWorkspace(void *args) {
+    std::lock_guard<std::mutex> local_lock{this->thread_mtx_};
+    this->args_queue_.push(args);
+    this->thread_cv_.notify_one();
+  }
+
+  ~CudnnHelper() {
+    CUDNN_CALL(cudnnDestroy(handle_));
+    this->stop_ = true;
+    this->thread_cv_.notify_one();
+    if (thread_[0].joinable()) {
+      thread_[0].join();
+    }
+  }
 
   static std::string GenAlgoKey(const std::string &conv_type, const std::vector<std::vector<int>> &shapes) {
     CHECK_EQ(shapes.size(), 3);
@@ -86,7 +99,27 @@ class CudnnHelper {
   }
 
  private:
-  CudnnHelper() { CUDNN_CALL(cudnnCreate(&handle_)); }
+  CudnnHelper() {
+    CUDNN_CALL(cudnnCreate(&handle_));
+    thread_.emplace_back([this]() {
+      while (!this->stop_) {
+        void *args = nullptr;
+        {
+          std::unique_lock<std::mutex> local_lock{this->thread_mtx_};
+          this->thread_cv_.wait(local_lock, [this]() { return this->stop_ || !this->args_queue_.empty(); });
+          if (this->stop_ && this->args_queue_.empty()) {
+            break;
+          }
+          args = this->args_queue_.front();
+          this->args_queue_.pop();
+        }
+        if (args) {
+          auto workspace_ptr = reinterpret_cast<std::shared_ptr<int8_t> *>(args);
+          delete workspace_ptr;
+        }
+      }
+    });
+  }
 
   cudnnHandle_t handle_{nullptr};
   std::mutex cudnn_algo_mtx_;
@@ -95,17 +128,15 @@ class CudnnHelper {
   size_t workspace_size_{0};
   std::mutex workspace_mtx_;
   std::shared_ptr<int8_t> workspace_ptr_;
+
+  bool stop_{false};
+  std::mutex thread_mtx_;
+  std::queue<void *> args_queue_;
+  std::vector<std::thread> thread_;
+  std::condition_variable thread_cv_;
 };
 
-void ReleaseWorkspaceThread(void *args) {
-  auto workspace_ptr = reinterpret_cast<std::shared_ptr<int8_t> *>(args);
-  delete workspace_ptr;
-}
-
-void CUDART_CB ReleaseWorkspace(void *args) {
-  std::thread thread(ReleaseWorkspaceThread, args);
-  thread.detach();
-}
+void CUDART_CB ReleaseWorkspace(void *args) { CudnnHelper::Instance().ReleaseWorkspace(args); }
 
 void cinn_gpu_cublas_mul(const std::vector<int> &attrs,
                          cinn_buffer_t *input1,
