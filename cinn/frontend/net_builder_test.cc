@@ -189,5 +189,38 @@ TEST(net_build, program_execute_reverse) {
   runtime_program->Execute();
 }
 
+TEST(net_build, program_execute_get_shape) {
+  const int B = 16;
+  const int C = 3;
+  const int H = 224;
+  const int W = 224;
+
+  NetBuilder builder("net_builder");
+  Placeholder input      = builder.CreateInput(Float(32), {B, C, H, W}, "Img");
+  Variable get_shape_out = builder.get_shape(input);
+  auto program           = builder.Build();
+
+#ifdef CINN_WITH_CUDA
+  Target target = common::DefaultNVGPUTarget();
+#else
+  Target target = common::DefaultHostTarget();
+#endif
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  auto scope = BuildScope(target, graph);
+  hlir::framework::GraphCompiler gc(target, scope, graph);
+  auto runtime_program = gc.Build();
+
+  scope->Var<hlir::framework::Tensor>(std::string(input.id()));
+  scope->Var<hlir::framework::Tensor>(std::string(get_shape_out->id));
+
+  auto input_tensor = scope->GetTensor(std::string(input.id()));
+  SetRandData(input_tensor, target);
+  runtime_program->Execute();
+
+  LOG(INFO) << cinn::utils::Join(get_shape_out->shape, ",");
+  ASSERT_EQ(get_shape_out->shape, {B, C, H, W});
+}
+
 }  // namespace frontend
 }  // namespace cinn

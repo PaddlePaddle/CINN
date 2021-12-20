@@ -488,5 +488,11 @@ CINN_REGISTER_HELPER(elementwise_ops) {
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
       .set_support_level(4);
 
+  CINN_REGISTER_OP(get_shape)
+      .describe("get the shape of the input Tensor")
+      .set_num_inputs(1)
+      .set_num_outputs(1)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForElementwise));
+
   return true;
 }

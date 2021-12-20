@@ -30,6 +30,13 @@ Variable NetBuilder::identity(const Variable& operand) {
   return instr.GetOutput(0);
 }
 
+Variable NetBuilder::get_shape(const Variable& operand) {
+  Instruction instr("get_shape", {operand});
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
 Variable NetBuilder::add(const Variable& a, const Variable& b) {
   Instruction instr("elementwise_add", {a, b});
   instr.SetAttr("axis", -1);

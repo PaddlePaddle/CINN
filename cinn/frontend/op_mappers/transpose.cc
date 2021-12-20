@@ -63,7 +63,7 @@ void Transpose2OpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContex
   CHECK_EQ(op_desc.Output("XShape").size(), 1UL);
   auto xshape_name = op_desc.Output("XShape").front();
 
-  auto xshape = ctx.Builder()->identity(x);
+  auto xshape = ctx.Builder()->get_shape(x);
 
   ctx.AddVar(xshape_name, xshape);
   ctx.AddVarModelToProgram(xshape_name, xshape->id);

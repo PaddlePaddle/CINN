@@ -27,7 +27,15 @@ class NetBuilder : public BaseBuilder {
  public:
   using BaseBuilder::BaseBuilder;
 
+  /**
+   * Copy variables.
+   */
   Variable identity(const Variable& a);
+
+  /**
+   * Copy variables.
+   */
+  Variable get_shape(const Variable& a);
 
   /**
    * Add two variables.
