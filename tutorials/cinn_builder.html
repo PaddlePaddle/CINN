@@ -63,6 +63,7 @@
 </li>
 <li class="toctree-l3"><a class="reference internal" href="load_paddle_model.html">Load and Execute Paddle Model</a></li>
 <li class="toctree-l3"><a class="reference internal" href="net_builder.html">Run model by using NetBuilder API</a></li>
+<li class="toctree-l3"><a class="reference internal" href="train_resnet50_with_cinn.html">Training ResNet50 using Paddle compiled with CINN</a></li>
 <li class="toctree-l3"><a class="reference internal" href="matmul.html">Ways to optimize Matrix Multiplication on CPU</a></li>
 <li class="toctree-l3"><a class="reference internal" href="schedule_primitives.html">Schedule Primitives in CINN</a></li>
 </ul>
@@ -189,9 +190,9 @@ and you can get it like:</p>
 <code class="code docutils literal notranslate"><span class="pre">get_tensor</span></code>: Get the tensor with specific name in computation.
 <code class="code docutils literal notranslate"><span class="pre">from_numpy</span></code>: Fill the tensor with numpy data.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">tensor_data</span> <span class="o">=</span> <span class="p">[</span>
-    <a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.random.html#numpy.random.random" title="numpy.random.random" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-np-function"><a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.random.html#numpy.random.random" title="numpy.random.random" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-np-function"><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">random</span></a></a><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">24</span><span class="p">,</span> <span class="mi">56</span><span class="p">,</span> <span class="mi">56</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float32&quot;</span><span class="p">),</span>
-    <a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.random.html#numpy.random.random" title="numpy.random.random" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-np-function"><a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.random.html#numpy.random.random" title="numpy.random.random" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-np-function"><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">random</span></a></a><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">24</span><span class="p">,</span> <span class="mi">56</span><span class="p">,</span> <span class="mi">56</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float32&quot;</span><span class="p">),</span>
-    <a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.random.html#numpy.random.random" title="numpy.random.random" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-np-function"><a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.random.html#numpy.random.random" title="numpy.random.random" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-np-function"><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">random</span></a></a><span class="p">([</span><span class="mi">144</span><span class="p">,</span> <span class="mi">24</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float32&quot;</span><span class="p">)</span>
+    <a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.random.html#numpy.random.random" title="numpy.random.random" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-np-function"><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">random</span></a><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">24</span><span class="p">,</span> <span class="mi">56</span><span class="p">,</span> <span class="mi">56</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float32&quot;</span><span class="p">),</span>
+    <a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.random.html#numpy.random.random" title="numpy.random.random" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-np-function"><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">random</span></a><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">24</span><span class="p">,</span> <span class="mi">56</span><span class="p">,</span> <span class="mi">56</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float32&quot;</span><span class="p">),</span>
+    <a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.random.html#numpy.random.random" title="numpy.random.random" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-np-function"><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">random</span></a><span class="p">([</span><span class="mi">144</span><span class="p">,</span> <span class="mi">24</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float32&quot;</span><span class="p">)</span>
 <span class="p">]</span>
 
 <span class="n">computation</span><span class="o">.</span><span class="n">get_tensor</span><span class="p">(</span><span class="s2">&quot;A&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">tensor_data</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">target</span><span class="p">)</span>
@@ -206,101 +207,101 @@ and you can get it like:</p>
 After that, you can get the tensor you want by <cite>get_tensor</cite> with tensor’s name.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">computation</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
 <span class="n">res_tensor</span> <span class="o">=</span> <span class="n">computation</span><span class="o">.</span><span class="n">get_tensor</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">res</span><span class="p">))</span>
-<a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-np-class"><a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-np-class"><span class="n">res_data</span></a></a> <span class="o">=</span> <span class="n">res_tensor</span><span class="o">.</span><span class="n">numpy</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
+<a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-np-class"><span class="n">res_data</span></a> <span class="o">=</span> <span class="n">res_tensor</span><span class="o">.</span><span class="n">numpy</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
 
 <span class="c1"># print result</span>
-<span class="nb">print</span><span class="p">(</span><a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-np-class"><a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-np-class"><span class="n">res_data</span></a></a><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-np-class"><span class="n">res_data</span></a><span class="p">)</span>
 </pre></div>
 </div>
 <p class="sphx-glr-script-out">Out:</p>
-<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>[[[[11.825397   9.497734  10.994997  ... 11.564425  11.802574
-     7.810427 ]
-   [10.633702   9.107078  13.146357  ... 11.36958    9.3614
-    11.78407  ]
-   [ 9.8078165 10.150157  12.43671   ... 10.297805  10.210708
-    10.463805 ]
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>[[[[11.571602  10.037912  12.110612  ... 11.803285  10.4503975
+    12.39268  ]
+   [12.118155  11.331117  11.2125    ... 10.547782  12.086964
+    10.297881 ]
+   [11.0286255 10.750516  11.5008745 ... 12.0907955 12.7944145
+    12.78049  ]
    ...
-   [10.413079  11.043922  10.318946  ... 11.812415  12.097085
-     9.659798 ]
-   [11.228265  10.6725     9.835354  ... 10.482658  11.95654
-     9.18777  ]
-   [ 9.941735  11.520419   9.88613   ... 11.382548   9.556459
-    10.539758 ]]
+   [10.9749365 10.080397  10.170232  ... 11.073846  13.112092
+    11.807571 ]
+   [11.376714  13.390822  10.701132  ...  8.375713  12.820743
+    12.455052 ]
+   [13.08021   10.476735  12.054475  ... 11.040751  10.412604
+    12.462891 ]]
 
-  [[11.862374  10.412022  10.64708   ... 13.073614  12.712017
-     8.962125 ]
-   [10.150982  10.44735   14.443952  ... 12.872017   9.668953
-    13.492509 ]
-   [10.061748  11.5756035 13.982996  ... 11.863102  11.173639
-    11.466635 ]
+  [[11.715233  10.517147  11.598742  ... 11.481009   9.9403715
+    11.722999 ]
+   [11.467173  10.645823  11.332581  ...  9.847761  10.552914
+    10.138514 ]
+   [10.465738   9.978148  10.484111  ... 10.257616  12.233998
+    12.2045965]
    ...
-   [11.294771  12.937322  10.699363  ... 11.50262   12.590882
-    10.514754 ]
-   [12.177071  10.651883  11.141602  ... 10.864339  12.156313
-     9.669305 ]
-   [10.98691   11.008277  11.613059  ... 12.75268   10.466328
-    11.484495 ]]
+   [10.829692   9.717082   9.959618  ... 10.864071  13.141303
+    11.720429 ]
+   [11.869147  12.892423  11.600269  ...  9.288053  13.1629715
+    11.902034 ]
+   [12.196988  10.507401  12.522007  ... 11.306245  11.8908
+    11.879142 ]]
 
-  [[11.993276  10.296038  12.917037  ... 12.420006  11.573832
-     8.750177 ]
-   [11.177816  11.046989  12.749254  ... 11.805249  10.243988
-    11.35535  ]
-   [ 9.927774  11.629159  13.330226  ... 11.411562  11.176723
-    11.927517 ]
+  [[ 7.0207853  6.780528   7.1823373 ...  7.7550783  7.077457
+     8.6607685]
+   [ 7.534683   7.4253626  7.140933  ...  6.2216945  8.172223
+     6.5323215]
+   [ 7.563627   7.8048253  7.6544023 ...  7.292347   8.270231
+     8.02856  ]
    ...
-   [10.901737  11.603136   9.18254   ... 13.310388  13.02659
-    10.84926  ]
-   [12.864747  10.805179  10.816618  ... 10.757512  13.069421
-     9.886452 ]
-   [11.096237  10.548768   9.700233  ... 11.351011  10.435749
-    11.4909115]]
+   [ 7.4650517  6.3309436  6.0289545 ...  7.835066   8.898898
+     7.6010804]
+   [ 8.542815   8.381237   6.937894  ...  6.03162    8.595205
+     8.731508 ]
+   [ 8.340959   6.5326405  7.241155  ...  7.484935   7.0709844
+     7.9060907]]
 
   ...
 
-  [[12.580488   9.748916  13.352043  ... 12.916212  14.747884
-     9.173361 ]
-   [11.456836  12.268961  14.026298  ... 12.549062  11.526264
-    12.539145 ]
-   [ 9.893695  12.353331  13.198449  ... 12.447523  11.861933
-    13.044559 ]
+  [[11.478321  10.483002  10.756042  ... 11.76803   10.395924
+    12.380386 ]
+   [12.15006   11.723205  11.261727  ... 11.094739  12.16321
+    11.7729025]
+   [10.40236   11.365674  12.381306  ... 12.539725  13.496915
+    13.967277 ]
    ...
-   [10.739757  11.9724    11.158052  ... 13.800599  13.70488
-    12.048205 ]
-   [13.363939  11.636631  10.710475  ... 11.0932255 14.440622
-     9.577049 ]
-   [11.643432  12.5627165 10.927944  ... 13.333765  12.344969
-    12.63435  ]]
+   [12.309769  10.177728  10.188444  ... 12.48512   13.499703
+    12.724175 ]
+   [13.344845  13.365545  12.548767  ...  9.05944   15.144086
+    13.429598 ]
+   [15.571053  11.193485  13.457433  ... 13.745621  12.467106
+    13.37518  ]]
 
-  [[12.7762785 12.074184  14.75132   ... 14.043757  14.032208
-    10.259153 ]
-   [12.345865  13.105844  15.157388  ... 15.246608  11.177194
-    12.736171 ]
-   [10.891927  13.041755  15.017636  ... 13.430908  13.1390705
-    13.972874 ]
+  [[13.315583  13.315888  12.039522  ... 11.5344515 12.055772
+    13.386152 ]
+   [12.634843  11.162848  12.577147  ... 11.380696  12.809536
+    12.337452 ]
+   [12.297415  11.702893  12.784704  ... 12.3519335 14.45426
+    13.621389 ]
    ...
-   [12.177785  15.373679  11.070608  ... 13.566356  13.865482
-    12.768555 ]
-   [14.492583  12.419825  13.24457   ... 12.044023  14.947982
-    11.263625 ]
-   [11.836925  12.706204  11.242768  ... 13.895689  12.850883
-    12.740564 ]]
+   [12.130316  11.363695  11.692377  ... 12.95829   14.201069
+    12.42412  ]
+   [13.981301  13.729186  12.080306  ...  9.493916  14.731629
+    13.593263 ]
+   [14.004305  10.771607  12.4516535 ... 14.381553  12.467554
+    13.803441 ]]
 
-  [[13.027336  11.038504  12.119643  ... 12.965125  13.473438
-     9.808621 ]
-   [10.70022   11.486482  14.947728  ... 13.676709  10.455558
-    13.6737175]
-   [ 9.996818  12.260973  13.621142  ... 12.9456    11.903737
-    13.574813 ]
+  [[13.910039  14.278668  13.928883  ... 14.040823  12.109072
+    14.80458  ]
+   [13.744701  13.308964  14.76345   ... 13.136091  14.855599
+    14.121593 ]
+   [14.864944  12.936687  15.485008  ... 14.28767   16.60473
+    15.257153 ]
    ...
-   [12.345036  14.311147  12.036575  ... 12.936253  13.137784
-    12.097998 ]
-   [12.825854  11.741037  11.357099  ... 11.5891285 13.473252
-    10.316513 ]
-   [11.763051  12.490102  11.294037  ... 12.816008  11.394723
-    12.43022  ]]]]
+   [13.914206  11.639483  12.371835  ... 14.61134   16.152748
+    14.045977 ]
+   [16.510437  16.021467  13.342856  ... 10.186195  16.333027
+    15.138903 ]
+   [15.972713  12.521988  15.687452  ... 15.2209425 14.478452
+    13.770096 ]]]]
 </pre></div>
 </div>
-<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> ( 0 minutes  3.083 seconds)</p>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> ( 0 minutes  3.108 seconds)</p>
 <div class="sphx-glr-footer class sphx-glr-footer-example docutils container" id="sphx-glr-download-tutorials-cinn-builder-py">
 <div class="sphx-glr-download sphx-glr-download-python docutils container">
 <p><a class="reference download internal" download="" href="../_downloads/4a2ce7cbdffc5b8bbe110c62e4ed12a9/cinn_builder.py"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Python</span> <span class="pre">source</span> <span class="pre">code:</span> <span class="pre">cinn_builder.py</span></code></a></p>

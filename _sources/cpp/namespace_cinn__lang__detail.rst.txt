@@ -54,9 +54,9 @@ Functions
 
 - :ref:`exhale_function_packed__func_8h_1a863e8bf6b0a08cad7c84ffa4ae64af41`
 
-- :ref:`exhale_function_lower__impl_8cc_1a528fc9acba4f25b152a53d9904e113ce`
-
 - :ref:`exhale_function_lower__impl_8h_1a51c95cc360e6b37ff9b83ce362989108`
+
+- :ref:`exhale_function_lower__impl_8cc_1a528fc9acba4f25b152a53d9904e113ce`
 
 - :ref:`exhale_function_lower__impl_8cc_1a04936f13155af1af253ac7f295004a32`
 

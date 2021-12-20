@@ -63,8 +63,6 @@ Functions
 ---------
 
 
-- :ref:`exhale_function_lower__test_8cc_1a3dca61692eee996b8c3acd0648ab095c`
-
 - :ref:`exhale_function_lower__test_8cc_1a366d9b1eff8ac24d9937301dc73b8bc2`
 
 - :ref:`exhale_function_lower__test_8cc_1af5626b9b24dea2fb0ba942f052e8bd8a`
@@ -72,6 +70,8 @@ Functions
 - :ref:`exhale_function_lower__test_8cc_1a568eb7ec25a0720732bf7b8f2c755e1a`
 
 - :ref:`exhale_function_lower__test_8cc_1aa5f99f54f36a8676f0dc83ebf127bdc7`
+
+- :ref:`exhale_function_lower__test_8cc_1a3dca61692eee996b8c3acd0648ab095c`
 
 
 Defines

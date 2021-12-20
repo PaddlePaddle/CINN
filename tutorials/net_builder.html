@@ -24,7 +24,7 @@
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Ways to optimize Matrix Multiplication on CPU" href="matmul.html" />
+    <link rel="next" title="Training ResNet50 using Paddle compiled with CINN" href="train_resnet50_with_cinn.html" />
     <link rel="prev" title="Load and Execute Paddle Model" href="load_paddle_model.html" /> 
 </head>
 
@@ -63,6 +63,7 @@
 <li class="toctree-l4"><a class="reference internal" href="#run-program-and-print-result">Run program and print result</a></li>
 </ul>
 </li>
+<li class="toctree-l3"><a class="reference internal" href="train_resnet50_with_cinn.html">Training ResNet50 using Paddle compiled with CINN</a></li>
 <li class="toctree-l3"><a class="reference internal" href="matmul.html">Ways to optimize Matrix Multiplication on CPU</a></li>
 <li class="toctree-l3"><a class="reference internal" href="schedule_primitives.html">Schedule Primitives in CINN</a></li>
 </ul>
@@ -192,12 +193,12 @@ and you can get it like:</p>
 <code class="code docutils literal notranslate"><span class="pre">get_tensor</span></code>: Get the tensor with specific name in computation.
 <code class="code docutils literal notranslate"><span class="pre">from_numpy</span></code>: Fill the tensor with numpy data.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">tensor_data</span> <span class="o">=</span> <span class="p">[</span>
-    <a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.random.html#numpy.random.random" title="numpy.random.random" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-np-function"><a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.random.html#numpy.random.random" title="numpy.random.random" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-np-function"><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">random</span></a></a><span class="p">([</span><span class="mi">8</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">224</span><span class="p">,</span> <span class="mi">224</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float32&quot;</span><span class="p">),</span>  <span class="c1"># a</span>
-    <a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.random.html#numpy.random.random" title="numpy.random.random" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-np-function"><a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.random.html#numpy.random.random" title="numpy.random.random" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-np-function"><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">random</span></a></a><span class="p">([</span><span class="mi">3</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float32&quot;</span><span class="p">),</span>  <span class="c1"># scale</span>
-    <a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.random.html#numpy.random.random" title="numpy.random.random" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-np-function"><a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.random.html#numpy.random.random" title="numpy.random.random" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-np-function"><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">random</span></a></a><span class="p">([</span><span class="mi">3</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float32&quot;</span><span class="p">),</span>  <span class="c1"># bias</span>
-    <a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.random.html#numpy.random.random" title="numpy.random.random" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-np-function"><a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.random.html#numpy.random.random" title="numpy.random.random" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-np-function"><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">random</span></a></a><span class="p">([</span><span class="mi">3</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float32&quot;</span><span class="p">),</span>  <span class="c1"># mean</span>
-    <a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.random.html#numpy.random.random" title="numpy.random.random" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-np-function"><a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.random.html#numpy.random.random" title="numpy.random.random" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-np-function"><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">random</span></a></a><span class="p">([</span><span class="mi">3</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float32&quot;</span><span class="p">),</span>  <span class="c1"># variance</span>
-    <a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.random.html#numpy.random.random" title="numpy.random.random" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-np-function"><a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.random.html#numpy.random.random" title="numpy.random.random" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-np-function"><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">random</span></a></a><span class="p">([</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">7</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float32&quot;</span><span class="p">)</span>  <span class="c1"># weight</span>
+    <a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.random.html#numpy.random.random" title="numpy.random.random" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-np-function"><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">random</span></a><span class="p">([</span><span class="mi">8</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">224</span><span class="p">,</span> <span class="mi">224</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float32&quot;</span><span class="p">),</span>  <span class="c1"># a</span>
+    <a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.random.html#numpy.random.random" title="numpy.random.random" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-np-function"><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">random</span></a><span class="p">([</span><span class="mi">3</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float32&quot;</span><span class="p">),</span>  <span class="c1"># scale</span>
+    <a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.random.html#numpy.random.random" title="numpy.random.random" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-np-function"><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">random</span></a><span class="p">([</span><span class="mi">3</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float32&quot;</span><span class="p">),</span>  <span class="c1"># bias</span>
+    <a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.random.html#numpy.random.random" title="numpy.random.random" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-np-function"><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">random</span></a><span class="p">([</span><span class="mi">3</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float32&quot;</span><span class="p">),</span>  <span class="c1"># mean</span>
+    <a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.random.html#numpy.random.random" title="numpy.random.random" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-np-function"><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">random</span></a><span class="p">([</span><span class="mi">3</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float32&quot;</span><span class="p">),</span>  <span class="c1"># variance</span>
+    <a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.random.html#numpy.random.random" title="numpy.random.random" class="sphx-glr-backref-module-numpy-random sphx-glr-backref-type-np-function"><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">random</span></a><span class="p">([</span><span class="mi">3</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">7</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float32&quot;</span><span class="p">)</span>  <span class="c1"># weight</span>
 <span class="p">]</span>
 
 <span class="n">computation</span><span class="o">.</span><span class="n">get_tensor</span><span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">tensor_data</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">target</span><span class="p">)</span>
@@ -215,275 +216,167 @@ and you can get it like:</p>
 After that, you can get the tensor you want by <cite>get_tensor</cite> with tensor’s name.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">computation</span><span class="o">.</span><span class="n">execute</span><span class="p">()</span>
 <span class="n">res_tensor</span> <span class="o">=</span> <span class="n">computation</span><span class="o">.</span><span class="n">get_tensor</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">res</span><span class="p">))</span>
-<a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-np-class"><a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-np-class"><span class="n">res_data</span></a></a> <span class="o">=</span> <span class="n">res_tensor</span><span class="o">.</span><span class="n">numpy</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
+<a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-np-class"><span class="n">res_data</span></a> <span class="o">=</span> <span class="n">res_tensor</span><span class="o">.</span><span class="n">numpy</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
 
 <span class="c1"># print result</span>
-<span class="nb">print</span><span class="p">(</span><a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-np-class"><a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-np-class"><span class="n">res_data</span></a></a><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><a href="http://docs.scipy.org/doc/numpy-1.9.1/reference/generated/numpy.html#numpy.ndarray" title="numpy.ndarray" class="sphx-glr-backref-module-numpy sphx-glr-backref-type-np-class"><span class="n">res_data</span></a><span class="p">)</span>
 </pre></div>
 </div>
 <p class="sphx-glr-script-out">Out:</p>
-<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>[[[[-32.083755 -28.277033 -25.638784 ... -29.775146 -29.728668
-    -31.433064]
-   [-27.691217 -29.852478 -31.044724 ... -33.318745 -27.607113
-    -29.616003]
-   [-29.415274 -30.150145 -28.367453 ... -31.640392 -28.370983
-    -30.478767]
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>[[[[41.300034 41.32889  40.87694  ... 41.017094 40.977764 41.43262 ]
+   [40.66744  40.374546 41.068977 ... 41.64359  40.59516  39.62327 ]
+   [41.18457  40.07553  40.306675 ... 42.416054 41.4802   40.468147]
    ...
-   [-25.369015 -27.397968 -27.597858 ... -32.674168 -31.949446
-    -31.156208]
-   [-21.97459  -26.864378 -28.542511 ... -29.255995 -36.200817
-    -34.835804]
-   [-20.998781 -27.588665 -24.192604 ... -28.922237 -34.756783
-    -31.757174]]
+   [42.274876 41.293266 41.46016  ... 41.1733   41.638245 41.78466 ]
+   [41.524933 42.01216  40.807613 ... 41.243847 42.163734 41.821606]
+   [41.252533 42.235886 41.395493 ... 42.59662  42.104828 41.440254]]
 
-  [[-24.87749  -23.93989  -25.49907  ... -24.393396 -23.043205
-    -22.221195]
-   [-28.622677 -29.08847  -23.72474  ... -25.969131 -26.7727
-    -27.316477]
-   [-26.476492 -25.619707 -21.07883  ... -27.575567 -19.058662
-    -28.54594 ]
+  [[43.64468  43.11713  43.218945 ... 44.419003 43.60452  43.440025]
+   [42.999943 42.594635 43.46457  ... 44.319992 43.11883  42.671257]
+   [42.989483 42.126328 43.062424 ... 44.44373  44.230293 43.123837]
    ...
-   [-18.513311 -20.472467 -23.275639 ... -26.430626 -27.304256
-    -25.369915]
-   [-16.890142 -23.78533  -16.226576 ... -28.177555 -29.246246
-    -28.355381]
-   [-22.7606   -21.686108 -19.811619 ... -29.090832 -26.322887
-    -26.569134]]
+   [45.079826 44.20662  44.09692  ... 44.75235  44.563763 44.032536]
+   [44.17878  44.37436  43.422424 ... 43.29678  45.046303 44.439877]
+   [43.977108 44.29691  43.525467 ... 44.779503 44.789032 43.94192 ]]
 
-  [[-36.336643 -34.379658 -34.062428 ... -36.239635 -38.091175
-    -30.184969]
-   [-36.926186 -36.214603 -29.985844 ... -34.50409  -32.513233
-    -32.423008]
-   [-31.582457 -37.107624 -33.983932 ... -33.008274 -34.575283
-    -32.049416]
+  [[37.902706 37.147522 38.064827 ... 37.633286 37.112053 38.035236]
+   [37.937916 37.733925 37.223503 ... 37.785645 37.849224 37.682865]
+   [37.63615  36.88459  37.599262 ... 38.829453 37.80579  37.403847]
    ...
-   [-25.68767  -35.93067  -27.939592 ... -35.449223 -34.70081
-    -33.41114 ]
-   [-26.137808 -30.963186 -25.356277 ... -36.700905 -38.766926
-    -38.90348 ]
-   [-32.095364 -32.418907 -26.780388 ... -35.204704 -37.704834
-    -41.42209 ]]]
+   [38.898945 37.51382  37.86469  ... 38.29599  38.365997 37.932575]
+   [39.033062 38.40738  37.687614 ... 38.914192 38.727806 38.252518]
+   [37.778    38.507298 37.885326 ... 38.903698 38.25751  38.395638]]]
 
 
- [[[-32.17134  -29.242693 -27.242197 ... -18.249071 -19.959028
-    -21.536022]
-   [-28.262804 -29.993593 -29.471296 ... -20.865623 -19.151642
-    -20.928385]
-   [-26.76036  -30.62042  -32.024338 ... -15.69079  -23.17112
-    -23.549833]
+ [[[42.743874 43.090458 42.705624 ... 42.29254  42.29984  42.315804]
+   [41.652885 42.61314  43.07195  ... 42.349762 41.72451  41.791553]
+   [42.272617 42.885338 42.491203 ... 40.942463 41.132015 41.276176]
    ...
-   [-28.710445 -26.06501  -18.275946 ... -21.712524 -20.448858
-    -23.869122]
-   [-23.090176 -23.949652 -14.579302 ... -16.492798 -20.002337
-    -21.789145]
-   [-23.489216 -24.94971  -22.25313  ... -19.062372 -22.543636
-    -26.73143 ]]
+   [41.428234 40.786144 41.092304 ... 42.25208  42.249966 41.074356]
+   [41.12266  41.098907 41.339474 ... 42.21494  41.98615  42.16423 ]
+   [41.093136 40.736393 40.612026 ... 42.172665 41.888657 40.606525]]
 
-  [[-25.859697 -23.609386 -19.927515 ... -18.553133 -13.02674
-    -16.315363]
-   [-26.935562 -26.737572 -28.112665 ... -17.576004 -18.18793
-    -18.366205]
-   [-23.864998 -28.199581 -23.953676 ... -15.369392 -15.663889
-    -21.096184]
+  [[44.885036 45.419273 46.009888 ... 44.758255 44.279404 44.31435 ]
+   [44.446453 44.900543 45.541084 ... 44.830772 44.37794  44.25062 ]
+   [44.989704 44.842106 45.5936   ... 44.16348  43.43664  43.622528]
    ...
-   [-25.647486 -19.763906 -17.428429 ... -18.074038 -21.01367
-    -22.065899]
-   [-17.623844 -22.07527  -17.643925 ... -19.990774 -18.83973
-    -18.333597]
-   [-21.45309  -19.774864 -15.339674 ... -17.400558 -15.70997
-    -18.023872]]
+   [43.886513 44.112514 43.552845 ... 44.617413 44.29766  43.1779  ]
+   [42.834915 43.53686  43.725327 ... 44.810688 44.49254  43.86616 ]
+   [43.13151  42.920265 43.617294 ... 43.78895  44.461014 44.139328]]
 
-  [[-33.34414  -31.66887  -33.097466 ... -19.807238 -22.793419
-    -29.077776]
-   [-35.94042  -32.03932  -36.583992 ... -21.486542 -20.667187
-    -23.922066]
-   [-33.234753 -36.843952 -37.683304 ... -25.106998 -24.868408
-    -23.640778]
+  [[39.576283 39.76104  38.940693 ... 39.581345 39.08043  38.17172 ]
+   [38.40676  39.181484 39.586117 ... 39.260128 39.443054 38.862144]
+   [39.67811  39.61034  39.58296  ... 37.678688 37.63858  37.570877]
    ...
-   [-29.180754 -25.83973  -26.072487 ... -25.49811  -23.834845
-    -30.113651]
-   [-29.828564 -23.839859 -22.886333 ... -22.676968 -22.192608
-    -25.930046]
-   [-26.076797 -31.700796 -22.476954 ... -26.493876 -23.976534
-    -25.783026]]]
+   [38.896503 38.52317  37.95039  ... 38.271748 39.490025 38.525524]
+   [37.65303  37.681347 37.494225 ... 38.75704  38.511597 38.41539 ]
+   [37.697704 38.209988 37.305393 ... 38.317337 38.559345 37.90143 ]]]
 
 
- [[[-25.90604  -29.638197 -31.674673 ... -25.349216 -21.480843
-    -18.689503]
-   [-25.854929 -30.001575 -31.215921 ... -20.417984 -18.699709
-    -20.244429]
-   [-29.2192   -30.484833 -34.21475  ... -23.297604 -23.117487
-    -25.103415]
+ [[[41.32929  41.74829  41.50349  ... 41.72447  42.585907 42.441044]
+   [40.862965 40.75343  41.075466 ... 42.22953  42.453655 42.17996 ]
+   [40.458736 40.56273  40.036434 ... 40.891075 42.229977 41.814816]
    ...
-   [-27.963657 -29.971722 -32.82553  ... -23.809895 -30.805676
-    -32.81528 ]
-   [-25.547764 -27.884768 -29.875694 ... -26.43834  -33.16467
-    -33.07623 ]
-   [-26.334345 -29.286425 -27.811762 ... -30.924442 -27.511618
-    -36.11759 ]]
+   [41.324177 41.208374 40.753242 ... 40.90548  40.210472 40.166634]
+   [41.38516  41.701263 41.078594 ... 41.429382 40.10512  40.95803 ]
+   [41.10963  41.760563 41.107037 ... 41.583523 41.279423 40.511284]]
 
-  [[-22.465185 -24.145918 -25.717077 ... -25.937113 -16.14525
-    -19.987667]
-   [-25.049288 -27.619055 -29.995546 ... -22.275948 -17.421234
-    -15.403507]
-   [-25.14622  -27.470154 -26.823822 ... -16.658382 -17.066566
-    -18.69833 ]
+  [[42.697742 43.3048   43.416958 ... 44.315994 44.881016 44.524723]
+   [43.65681  43.609573 43.47862  ... 44.12984  45.195675 44.301723]
+   [42.66219  42.837914 42.660976 ... 43.12605  44.239704 44.185734]
    ...
-   [-20.595522 -25.120209 -23.885841 ... -22.089407 -28.908815
-    -24.889654]
-   [-23.648571 -25.625025 -22.274376 ... -27.079521 -26.610086
-    -29.300571]
-   [-21.590322 -24.769928 -29.44771  ... -25.722797 -26.590261
-    -33.426346]]
+   [43.35991  44.273983 43.207153 ... 43.064762 42.679085 42.847244]
+   [43.215584 44.4136   43.950047 ... 44.113617 43.480686 43.274685]
+   [43.044224 44.134    43.45668  ... 44.51243  43.642487 44.029   ]]
 
-  [[-26.767487 -33.037334 -34.07745  ... -28.256493 -24.99288
-    -27.524763]
-   [-36.93624  -34.55149  -35.60641  ... -27.112555 -21.971272
-    -26.774443]
-   [-35.29402  -38.84241  -32.109455 ... -28.108747 -24.786577
-    -26.175333]
+  [[37.82997  38.30262  37.787506 ... 38.73762  39.145596 39.214157]
+   [37.7688   38.26052  38.676003 ... 39.158955 38.59617  38.96273 ]
+   [37.560474 37.328846 37.617752 ... 37.94291  38.034767 38.219986]
    ...
-   [-33.77845  -31.987066 -34.342167 ... -28.880802 -35.117573
-    -36.238537]
-   [-32.03578  -32.127174 -29.323624 ... -31.21359  -31.761353
-    -37.42686 ]
-   [-32.509693 -34.72139  -36.04278  ... -30.509174 -35.19944
-    -36.81163 ]]]
+   [38.091568 37.453407 37.60966  ... 37.83764  37.110413 38.025   ]
+   [37.61462  37.436928 37.175743 ... 38.37969  37.9572   37.72554 ]
+   [37.817383 38.15954  37.50487  ... 37.808636 37.927593 38.064747]]]
 
 
  ...
 
 
- [[[-26.558624 -29.011059 -24.545847 ... -27.342018 -26.070005
-    -24.160229]
-   [-26.878944 -24.181715 -22.03939  ... -24.744919 -23.411976
-    -28.209515]
-   [-27.000662 -26.768364 -21.223778 ... -26.723494 -29.972218
-    -29.59043 ]
+ [[[42.500374 42.63498  43.143276 ... 41.59989  41.403538 41.439278]
+   [41.934628 41.667717 41.721813 ... 41.25938  41.717907 41.12168 ]
+   [42.086777 41.656315 42.209263 ... 40.612267 41.285275 41.18172 ]
    ...
-   [-21.361963 -23.937664 -21.719194 ... -26.947788 -27.141085
-    -25.200516]
-   [-25.843166 -24.64525  -23.277184 ... -21.762678 -28.359509
-    -31.010246]
-   [-31.872776 -28.89058  -26.277618 ... -31.034658 -30.663553
-    -31.514526]]
+   [41.601242 40.837345 40.93395  ... 41.57721  40.890324 41.58985 ]
+   [41.779762 41.488    41.85838  ... 41.402683 40.187996 41.255142]
+   [41.348114 40.954266 40.663338 ... 41.30279  40.796883 41.137814]]
 
-  [[-27.529062 -25.332079 -24.477076 ... -21.873348 -21.254597
-    -22.42655 ]
-   [-23.23145  -22.884853 -22.469637 ... -18.77818  -18.705671
-    -23.2563  ]
-   [-24.770098 -16.984686 -22.773863 ... -25.8289   -23.690554
-    -20.452103]
+  [[44.657394 45.53907  45.630577 ... 44.103313 44.40315  44.38892 ]
+   [44.509567 44.630383 44.980797 ... 43.858788 44.71564  43.71002 ]
+   [44.681923 44.48463  44.330616 ... 43.469017 43.979595 43.557213]
    ...
-   [-20.055918 -22.311365 -20.368967 ... -23.465385 -19.921873
-    -26.309555]
-   [-24.590399 -19.276735 -18.034105 ... -22.527145 -27.74202
-    -25.323895]
-   [-20.397354 -19.408895 -25.001518 ... -24.325132 -26.668161
-    -28.651518]]
+   [43.882473 43.21293  43.204563 ... 44.308258 43.200928 43.94489 ]
+   [44.27936  43.209034 43.82105  ... 44.078785 43.275066 43.91738 ]
+   [43.55389  43.600197 43.039677 ... 43.96242  43.249626 43.746513]]
 
-  [[-34.580307 -36.002033 -27.377249 ... -28.750769 -30.707922
-    -32.962166]
-   [-26.421543 -31.12704  -28.906498 ... -28.439182 -26.210371
-    -27.670876]
-   [-29.373371 -27.79796  -30.711096 ... -33.8716   -30.517485
-    -34.125698]
+  [[39.58318  39.320465 39.307163 ... 38.91711  38.4188   37.95429 ]
+   [38.552593 38.997684 38.26397  ... 38.576607 38.561592 38.705746]
+   [38.561188 39.047134 39.052013 ... 38.048313 38.5195   37.435566]
    ...
-   [-31.192059 -31.945263 -23.867739 ... -30.221313 -33.426094
-    -32.594406]
-   [-26.064123 -27.91137  -23.686441 ... -28.920328 -32.976105
-    -31.082535]
-   [-31.128517 -31.52962  -31.785357 ... -31.787823 -36.074146
-    -34.7288  ]]]
+   [38.281456 37.773933 37.552616 ... 38.11439  38.358353 38.466003]
+   [38.46599  37.60399  38.231476 ... 38.224827 37.64155  37.612072]
+   [38.35948  38.304157 38.339863 ... 38.57184  38.04912  38.03847 ]]]
 
 
- [[[-31.225225 -28.74161  -25.902985 ... -22.926847 -19.50283
-    -26.633183]
-   [-28.15043  -27.56933  -26.126757 ... -22.803865 -21.317781
-    -28.996094]
-   [-30.378931 -26.295216 -24.791576 ... -25.820312 -20.740757
-    -29.213137]
+ [[[41.33109  42.337395 42.226433 ... 41.845016 41.81689  41.838345]
+   [42.269596 42.40946  41.885414 ... 41.318443 41.249157 43.030975]
+   [41.79686  41.850822 41.24382  ... 40.36381  41.83436  41.478294]
    ...
-   [-25.802258 -26.590149 -24.162703 ... -23.318514 -24.452572
-    -21.996714]
-   [-25.30189  -25.19122  -19.42739  ... -22.588327 -21.419308
-    -19.808002]
-   [-24.810032 -23.23572  -23.325693 ... -24.942923 -24.519243
-    -24.615816]]
+   [41.865494 41.216534 41.465626 ... 41.557777 40.824944 41.928368]
+   [40.651833 40.52206  40.488293 ... 41.33708  41.15255  40.85743 ]
+   [40.93058  40.23158  41.188267 ... 41.2085   40.418922 40.98327 ]]
 
-  [[-26.439758 -22.442749 -26.61142  ... -19.562162 -12.543569
-    -22.01497 ]
-   [-22.426882 -27.348768 -21.42856  ... -22.35003  -15.955251
-    -21.897219]
-   [-21.70095  -17.116835 -19.849226 ... -19.278185 -18.007742
-    -25.515976]
+  [[43.59166  44.904793 44.882133 ... 44.375744 44.469074 45.49534 ]
+   [43.99026  44.610493 44.02713  ... 44.04601  44.40529  44.809177]
+   [43.20949  44.403145 44.120373 ... 43.53783  43.44808  43.863758]
    ...
-   [-24.605152 -23.768028 -19.103807 ... -17.688917 -18.202427
-    -20.415897]
-   [-22.025143 -22.01571  -18.614656 ... -23.043863 -19.627396
-    -20.363197]
-   [-21.301273 -22.176807 -22.093487 ... -20.67002  -21.034914
-    -21.064117]]
+   [44.147076 43.202297 43.602135 ... 43.992283 43.225285 44.347965]
+   [43.081    42.78432  43.434864 ... 43.61393  43.01665  43.658325]
+   [43.17987  42.65024  43.901566 ... 43.732456 42.9811   42.32024 ]]
 
-  [[-28.366678 -32.28917  -31.071585 ... -33.39503  -22.417158
-    -32.88395 ]
-   [-32.81894  -27.798729 -29.649027 ... -30.850334 -26.380533
-    -30.506098]
-   [-32.712097 -31.03036  -23.791267 ... -27.137348 -23.524078
-    -31.465704]
+  [[38.399788 38.593864 39.02284  ... 38.261436 38.453922 38.70734 ]
+   [38.867073 38.48216  39.371414 ... 38.220577 38.467358 38.481518]
+   [38.20534  38.17316  37.907887 ... 38.19695  38.686535 38.449596]
    ...
-   [-28.816757 -32.18585  -26.749918 ... -25.759005 -32.176235
-    -25.216408]
-   [-33.65353  -28.498013 -23.727777 ... -25.563715 -24.615288
-    -23.547695]
-   [-28.610586 -29.151121 -27.287636 ... -31.97307  -32.90161
-    -23.210985]]]
+   [37.68741  37.41581  38.02491  ... 37.38249  38.079636 38.38591 ]
+   [37.626015 37.3454   37.000896 ... 37.047356 37.364502 38.381653]
+   [37.92605  37.451626 38.096653 ... 37.539745 37.250698 38.186066]]]
 
 
- [[[-17.643063 -18.307463 -18.326767 ... -30.356667 -28.340824
-    -26.81304 ]
-   [-20.7255   -15.513283 -17.710428 ... -27.792204 -26.774076
-    -24.788353]
-   [-18.579107 -16.405985 -18.407448 ... -27.221169 -26.76049
-    -25.512962]
+ [[[41.68087  42.280346 42.89318  ... 41.69584  41.929256 42.50261 ]
+   [41.522465 41.427807 42.00095  ... 41.31566  41.97961  41.62702 ]
+   [42.431652 42.685707 41.267784 ... 41.95677  42.240917 41.612564]
    ...
-   [-29.642826 -24.71326  -28.243692 ... -21.439491 -25.140257
-    -26.981787]
-   [-22.957203 -20.933256 -27.705551 ... -25.398838 -22.057873
-    -23.755535]
-   [-23.744156 -21.251787 -22.559761 ... -19.30142  -21.63926
-    -31.942131]]
+   [40.838047 41.18262  40.94151  ... 42.09618  42.608597 42.508175]
+   [41.33259  41.53562  41.837173 ... 41.67547  42.501366 42.1523  ]
+   [41.493443 41.757122 41.915096 ... 41.18798  41.721752 42.40112 ]]
 
-  [[-16.767609 -18.373425 -18.217657 ... -24.18774  -25.033691
-    -25.927776]
-   [-16.235348 -13.396036 -14.099486 ... -21.173035 -23.754688
-    -22.367794]
-   [-14.355827 -19.712088 -15.136566 ... -25.748104 -27.765123
-    -24.4023  ]
+  [[44.750164 44.57851  45.26397  ... 44.9957   44.70977  45.24735 ]
+   [44.808926 44.77709  44.230633 ... 44.154804 44.47225  44.445686]
+   [43.908375 44.38397  44.62626  ... 44.741566 44.519047 44.55006 ]
    ...
-   [-20.14892  -21.954405 -28.836773 ... -24.068493 -17.146955
-    -24.56471 ]
-   [-24.763227 -21.445827 -21.174513 ... -19.946514 -15.365329
-    -23.90397 ]
-   [-15.913421 -17.713158 -20.069603 ... -18.102865 -23.212128
-    -21.477592]]
+   [43.68286  43.816692 43.5502   ... 44.405636 45.3298   44.822346]
+   [43.891857 44.411987 43.604332 ... 43.910305 44.84048  44.914944]
+   [43.73606  44.097893 44.660606 ... 43.84984  44.46986  44.77598 ]]
 
-  [[-25.412586 -17.609968 -21.530785 ... -31.998302 -35.485123
-    -33.739304]
-   [-21.155008 -19.219131 -19.844957 ... -28.147043 -30.84547
-    -31.045277]
-   [-18.244074 -20.608362 -22.146034 ... -28.696724 -31.491798
-    -31.246729]
+  [[38.98857  38.616226 39.361988 ... 38.474712 38.66995  38.37242 ]
+   [38.150547 38.697502 38.99803  ... 38.67756  38.64789  38.150562]
+   [39.18136  38.32171  38.53559  ... 38.609066 39.11044  38.908623]
    ...
-   [-30.146551 -26.394905 -34.014385 ... -27.769817 -28.832287
-    -38.49785 ]
-   [-29.14026  -27.447657 -27.555271 ... -31.304945 -28.357706
-    -33.847435]
-   [-26.115108 -22.970295 -23.077232 ... -25.583662 -27.709597
-    -30.478352]]]]
+   [37.175915 37.93462  38.557713 ... 39.040977 39.305103 39.279564]
+   [38.43907  38.719715 38.484554 ... 37.88855  37.97843  39.52871 ]
+   [38.393093 38.361702 38.514805 ... 38.277405 38.47148  39.083828]]]]
 </pre></div>
 </div>
-<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> ( 0 minutes  2.215 seconds)</p>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> ( 0 minutes  2.201 seconds)</p>
 <div class="sphx-glr-footer class sphx-glr-footer-example docutils container" id="sphx-glr-download-tutorials-net-builder-py">
 <div class="sphx-glr-download sphx-glr-download-python docutils container">
 <p><a class="reference download internal" download="" href="../_downloads/bc1f2637331587db8a5b079545af31e1/net_builder.py"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Python</span> <span class="pre">source</span> <span class="pre">code:</span> <span class="pre">net_builder.py</span></code></a></p>
@@ -501,7 +394,7 @@ After that, you can get the tensor you want by <cite>get_tensor</cite> with tens
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="load_paddle_model.html" class="btn btn-neutral float-left" title="Load and Execute Paddle Model" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="matmul.html" class="btn btn-neutral float-right" title="Ways to optimize Matrix Multiplication on CPU" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="train_resnet50_with_cinn.html" class="btn btn-neutral float-right" title="Training ResNet50 using Paddle compiled with CINN" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

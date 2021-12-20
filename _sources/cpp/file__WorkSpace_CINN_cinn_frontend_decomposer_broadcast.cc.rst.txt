@@ -61,7 +61,7 @@ Functions
 
 - :ref:`exhale_function_broadcast_8cc_1aa96a3ab2c21a190f23beb07026be458d`
 
-- :ref:`exhale_function_broadcast_8cc_1ac1fed807b00594e3faa7f960125ddbc5`
-
 - :ref:`exhale_function_broadcast_8cc_1a917e09c47afcde3d001acb57a45b3a4f`
+
+- :ref:`exhale_function_broadcast_8cc_1ac1fed807b00594e3faa7f960125ddbc5`
 

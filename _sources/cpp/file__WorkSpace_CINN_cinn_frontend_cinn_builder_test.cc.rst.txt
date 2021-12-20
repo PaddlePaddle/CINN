@@ -71,7 +71,7 @@ Functions
 ---------
 
 
-- :ref:`exhale_function_cinn__builder__test_8cc_1a2819191b08fbb46897c42416fddd600f`
-
 - :ref:`exhale_function_cinn__builder__test_8cc_1ad94ebb9254e7f80ebf393f044731bcef`
+
+- :ref:`exhale_function_cinn__builder__test_8cc_1a2819191b08fbb46897c42416fddd600f`
 
