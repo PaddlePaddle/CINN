@@ -62,21 +62,21 @@ class CudnnHelper {
   std::shared_ptr<int8_t> GetWorkspace(size_t size) {
     std::lock_guard<std::mutex> local_lock(workspace_mtx_);
     if (workspace_size_ < size) {
-      int8_t *data_ptr = nullptr;
       workspace_size_  = size;
+      int8_t *data_ptr = nullptr;
       CUDA_CALL(cudaMalloc(&data_ptr, size));
       workspace_ptr_ = std::shared_ptr<int8_t>(data_ptr, [](int8_t *ptr) { CUDA_CALL(cudaFree(ptr)); });
     }
-
     return workspace_ptr_;
   }
 
   ~CudnnHelper() {
-    CUDNN_CALL(cudnnDestroy(handle_));
     this->stop_ = true;
+    thread_cv_.notify_one();
     if (thread_[0].joinable()) {
       thread_[0].join();
     }
+    CUDNN_CALL(cudnnDestroy(handle_));
   }
 
   static std::string GenAlgoKey(const std::string &conv_type, const std::vector<std::vector<int>> &shapes) {
@@ -112,8 +112,10 @@ class CudnnHelper {
           task = this->workspace_queue_.front();
           this->workspace_queue_.pop();
         }
-        CUDA_CALL(cudaEventSynchronize(task.first));
-        CUDA_CALL(cudaEventDestroy(task.first));
+        if (task.first) {
+          CUDA_CALL(cudaEventSynchronize(task.first));
+          CUDA_CALL(cudaEventDestroy(task.first));
+        }
       }
     });
   }
