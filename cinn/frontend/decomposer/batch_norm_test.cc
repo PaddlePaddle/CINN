@@ -403,7 +403,7 @@ TEST(Decomposer, BatchNormGrad) {
       // TODO(Xreki): fix the precision check of x_grad.
       // CheckOutput<float>(data, output.second, 1e-8, 1e-1);
     } else if (iter.first == "scale_grad") {
-      CheckOutput<float>(data, output.second, 1e-8, 1e-3);
+      CheckOutput<float>(data, output.second, 1e-8, 1e-2);
     } else {
       CheckOutput<float>(data, output.second);
     }
