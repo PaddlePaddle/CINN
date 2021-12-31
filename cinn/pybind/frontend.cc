@@ -137,7 +137,20 @@ void BindFrontend(pybind11::module *m) {
              hlir::framework::ApplyPass(g.get(), "OpFusion");
              std::shared_ptr<hlir::framework::Scope> scope = hlir::framework::BuildScope(target, g);
              hlir::framework::GraphCompiler gc(target, scope, g);
+
+#if 0
+             hlir::framework::GraphCompiler::CompileOptions options;
+             options.attached_code              = "";
+             options.with_instantiate_variables = true;
+             std::unordered_set<std::string> fetch_var_ids;
+             for (auto var : tensor_outputs) {
+               fetch_var_ids.insert(var->id);
+             }
+             auto result  = gc.Build(options, std::move(fetch_var_ids));
+             auto program = std::move(result.runtime_program);
+#else
              auto program = gc.Build();
+#endif
              for (size_t i = 0; i < tensor_inputs.size(); i++) {
                auto in_tensor = scope->GetTensor(tensor_inputs[i]->id);
                auto *data     = in_tensor->mutable_data<float>(target);
@@ -315,6 +328,7 @@ void BindFrontend(pybind11::module *m) {
 
   py::class_<NetBuilder, BaseBuilder>(*m, "NetBuilder")
       .def(py::init<const std::string &>(), py::arg("name") = "")
+      .def("identity", &NetBuilder::identity, py::arg("a"))
       .def("add", &NetBuilder::add, py::arg("a"), py::arg("b"))
       .def("reshape", &NetBuilder::reshape, py::arg("a"), py::arg("shape"))
       .def("transpose", &NetBuilder::transpose, py::arg("a"), py::arg("axis"))

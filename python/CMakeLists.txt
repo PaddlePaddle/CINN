@@ -130,6 +130,12 @@ ADD_TEST(NAME test_cinn_real_facedet
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
 
+ADD_TEST(NAME test_op_fusion
+    COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
+    python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_op_fusion.py
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+)
+
 file(GLOB CINN_OP_TEST RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" "tests/ops/test_*.py")
 set(EXCLUDE_OP test_mul_op)
 
