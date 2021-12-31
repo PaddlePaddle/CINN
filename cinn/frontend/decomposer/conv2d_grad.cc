@@ -52,6 +52,7 @@ void conv2d_grad(const Instruction& instr, const DecomposerContext& context) {
                           instr.GetAttrs<std::string>("padding_algorithm"),
                           w->shape);
   context.MapOutToOrigin(dw, instr->outputs[1]);
+  context.AddStatis("conv2d_grad");
 }
 
 }  // namespace decomposer

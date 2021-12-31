@@ -30,8 +30,8 @@ void relu(const Instruction& instr, const DecomposerContext& context) {
   auto bcast_zero = builder->BroadcastTo(zero_var, x->shape, {0});
   auto out        = builder->Max(x, bcast_zero);
 
-  // map the the output of decomposed operator to the original.
   context.MapOutToOrigin(out, output);
+  context.AddStatis("relu");
 }
 
 void relu_grad(const Instruction& instr, const DecomposerContext& context) {
@@ -47,8 +47,8 @@ void relu_grad(const Instruction& instr, const DecomposerContext& context) {
   auto condition  = builder->Compare(out, bcast_zero, ComparisonKind::kGt);
   auto res        = builder->Select(condition, dout, bcast_zero);
 
-  // map the the output of decomposed operator to the original.
   context.MapOutToOrigin(res, dx);
+  context.AddStatis("relu_grad");
 }
 
 }  // namespace decomposer

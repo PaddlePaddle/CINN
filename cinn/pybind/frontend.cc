@@ -335,8 +335,8 @@ void BindFrontend(pybind11::module *m) {
       .def("elementwise_add_grad",
            &NetBuilder::elementwise_add_grad,
            py::arg("dout"),
-           py::arg("x"),
-           py::arg("y"),
+           py::arg("x_shape"),
+           py::arg("y_shape"),
            py::arg("axis") = -1)
       .def("elementwise_mul", &NetBuilder::elementwise_mul, py::arg("a"), py::arg("b"), py::arg("axis") = -1)
       .def("relu", &NetBuilder::relu, py::arg("a"))

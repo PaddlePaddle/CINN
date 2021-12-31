@@ -33,6 +33,7 @@ void sum(const Instruction& instr, const DecomposerContext& context) {
 
   // map the the output of decomposed operator to the original.
   context.MapOutToOrigin(sum, output);
+  context.AddStatis("sum");
 }
 
 }  // namespace decomposer

@@ -82,11 +82,13 @@ Variable NetBuilder::elementwise_add(const Variable& a, const Variable& b, int a
 }
 
 const std::vector<Variable>& NetBuilder::elementwise_add_grad(const Variable& dout,
-                                                              const Variable& x,
-                                                              const Variable& y,
+                                                              const std::vector<int>& x_shape,
+                                                              const std::vector<int>& y_shape,
                                                               int axis) {
-  Instruction instr("elementwise_add_grad", {dout, x, y});
+  Instruction instr("elementwise_add_grad", {dout});
   instr.SetAttr("axis", axis);
+  instr.SetAttr("x_shape", x_shape);
+  instr.SetAttr("y_shape", y_shape);
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutputs();
