@@ -20,15 +20,31 @@ namespace frontend {
 namespace op_mappers {
 
 void ReluOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+  auto get_output_name = [&op_desc](const std::string& op_name) {
+    CHECK_EQ(op_desc.Output(op_name).size(), 1UL);
+    return op_desc.Output(op_name).front();
+  };
+
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
   auto x_name = op_desc.Input("X").front();
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
-  auto out_name = op_desc.Output("Out").front();
-  auto x        = ctx.GetVar(x_name);
-  auto out      = ctx.Builder()->relu(x);
 
-  ctx.AddVar(out_name, out);
-  ctx.AddVarModelToProgram(out_name, out->id);
+  bool compute_mask = utils::GetAttrOrDefault<float>(op_desc, "compute_mask", false);
+  auto x            = ctx.GetVar(x_name);
+  auto outs         = ctx.Builder()->relu(x, compute_mask);
+
+  std::vector<std::string> output_names;
+  if (compute_mask) {
+    output_names = {"Out", "Mask"};
+  } else {
+    output_names = {"Out"};
+  }
+
+  for (int i = 0; i < outs.size(); i++) {
+    auto out_name = get_output_name(output_names[i]);
+    ctx.AddVar(out_name, outs[i]);
+    ctx.AddVarModelToProgram(out_name, outs[i]->id);
+  }
 }
 
 void Relu6OpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
@@ -48,14 +64,14 @@ void Relu6OpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ct
 void ReluGradOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Input(paddle::GradVarName("Out")).size(), 1UL);
   auto dout_name = op_desc.Input(paddle::GradVarName("Out")).front();
-  CHECK_EQ(op_desc.Input("Out").size(), 1UL);
-  auto out_name = op_desc.Input("Out").front();
+  CHECK_EQ(op_desc.Input("Mask").size(), 1UL);
+  auto mask_name = op_desc.Input("Mask").front();
   CHECK_EQ(op_desc.Output(paddle::GradVarName("X")).size(), 1UL);
   auto dx_name = op_desc.Output(paddle::GradVarName("X")).front();
 
   auto dout = ctx.GetVar(dout_name);
-  auto out  = ctx.GetVar(out_name);
-  auto dx   = ctx.Builder()->relu_grad(dout, out);
+  auto mask = ctx.GetVar(mask_name);
+  auto dx   = ctx.Builder()->relu_grad(dout, mask);
 
   ctx.AddVar(dx_name, dx);
   ctx.AddVarModelToProgram(dx_name, dx->id);

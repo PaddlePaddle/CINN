@@ -80,17 +80,25 @@ std::shared_ptr<OpStrategy> StrategyForRelu(const framework::NodeAttr &attrs,
   return strategy;
 }
 
+template <bool ComputeMask = false>
 std::vector<framework::shape_t> InferShapeForRelu(const std::vector<framework::shape_t> &inputs_shape,
                                                   const framework::AttrMapType &attrs) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
-  std::vector<framework::shape_t> res{inputs_shape[0]};
-  return res;
+  if (ComputeMask) {
+    return {inputs_shape[0], inputs_shape[0]};
+  } else {
+    return {inputs_shape[0]};
+  }
 }
 
+template <bool ComputeMask = false>
 std::vector<Type> InferDtypeForRelu(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
-  std::vector<Type> res{inputs_type[0]};
-  return res;
+  if (ComputeMask) {
+    return {inputs_type[0], Bool()};
+  } else {
+    return {inputs_type[0]};
+  }
 }
 
 std::shared_ptr<OpStrategy> StrategyForRelu6(const framework::NodeAttr &attrs,
@@ -2153,6 +2161,16 @@ CINN_REGISTER_HELPER(nn_ops) {
 #ifndef CINN_WITH_CUDA
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForUnary))
 #endif
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
+      .set_support_level(4);
+
+  CINN_REGISTER_OP(relu_with_mask)
+      .describe("Output 0 for each input element < 0. Output itself for each input element >= 0.")
+      .set_num_inputs(1)
+      .set_num_outputs(2)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForRelu)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForRelu<true>))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForRelu<true>))
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
       .set_support_level(4);
 

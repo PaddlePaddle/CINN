@@ -17,6 +17,7 @@
 #include "cinn/common/macros.h"
 
 CINN_USE_REGISTER(activation_decomposers)
+CINN_USE_REGISTER(activation_mask_decomposers)
 CINN_USE_REGISTER(activation_grad_decomposers)
 CINN_USE_REGISTER(elementwise_decomposers)
 CINN_USE_REGISTER(broadcast_decomposers)

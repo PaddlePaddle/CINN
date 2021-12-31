@@ -100,15 +100,21 @@ Variable NetBuilder::elementwise_mul(const Variable& a, const Variable& b, int a
   return instr.GetOutput(0);
 }
 
-Variable NetBuilder::relu(const Variable& a) {
-  Instruction instr("relu", {a});
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+const std::vector<Variable>& NetBuilder::relu(const Variable& a, bool compute_mask) {
+  std::unique_ptr<Instruction> instr;
+  if (!compute_mask) {
+    instr = std::make_unique<Instruction>("relu");
+  } else {
+    instr = std::make_unique<Instruction>("relu_with_mask");
+  }
+  instr->SetInputs({a});
+  InferShape(*instr);
+  AppendInstruction(*instr);
+  return instr->GetOutputs();
 }
 
-Variable NetBuilder::relu_grad(const Variable& dout, const Variable& out) {
-  Instruction instr("relu_grad", {dout, out});
+Variable NetBuilder::relu_grad(const Variable& dout, const Variable& mask) {
+  Instruction instr("relu_grad", {dout, mask});
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(0);
@@ -209,15 +215,15 @@ Variable NetBuilder::pool2d(const Variable& a,
   return instr.GetOutput(0);
 }
 
-std::vector<Variable> NetBuilder::batchnorm(const Variable& a,
-                                            const Variable& scale,
-                                            const Variable& bias,
-                                            const Variable& mean,
-                                            const Variable& variance,
-                                            float epsilon,
-                                            float momentum,
-                                            const std::string& data_layout,
-                                            bool is_test) {
+const std::vector<Variable>& NetBuilder::batchnorm(const Variable& a,
+                                                   const Variable& scale,
+                                                   const Variable& bias,
+                                                   const Variable& mean,
+                                                   const Variable& variance,
+                                                   float epsilon,
+                                                   float momentum,
+                                                   const std::string& data_layout,
+                                                   bool is_test) {
   std::unique_ptr<Instruction> instr;
   if (is_test) {
     instr = std::make_unique<Instruction>("batchnorm");
@@ -233,14 +239,13 @@ std::vector<Variable> NetBuilder::batchnorm(const Variable& a,
   return instr->GetOutputs();
 }
 
-// batch norm grad, output(grad_x, grad_scale, grad_bias)
-std::vector<Variable> NetBuilder::batch_norm_grad(const Variable& dy,
-                                                  const Variable& x,
-                                                  const Variable& scale,
-                                                  const Variable& save_mean,
-                                                  const Variable& save_variance,
-                                                  const float epsilon,
-                                                  const std::string& data_layout) {
+const std::vector<Variable>& NetBuilder::batch_norm_grad(const Variable& dy,
+                                                         const Variable& x,
+                                                         const Variable& scale,
+                                                         const Variable& save_mean,
+                                                         const Variable& save_variance,
+                                                         const float epsilon,
+                                                         const std::string& data_layout) {
   Instruction instr("batch_norm_grad", {dy, x, scale, save_mean, save_variance});
   instr.SetAttr("epsilon", epsilon);
   instr.SetAttr("data_layout", data_layout);
@@ -309,16 +314,15 @@ Variable NetBuilder::sum(const std::vector<Variable>& inputs) {
   return instr.GetOutput(0);
 }
 
-// conv2d grad, output(grad_x, grad_w)
-std::vector<Variable> NetBuilder::conv2d_grad(const Variable& dy,
-                                              const Variable& x,
-                                              const Variable& w,
-                                              const std::vector<int>& strides,
-                                              const std::vector<int>& paddings,
-                                              const std::vector<int>& dilations,
-                                              const int groups,
-                                              const std::string& data_format,
-                                              const std::string& padding_algorithm) {
+const std::vector<Variable>& NetBuilder::conv2d_grad(const Variable& dy,
+                                                     const Variable& x,
+                                                     const Variable& w,
+                                                     const std::vector<int>& strides,
+                                                     const std::vector<int>& paddings,
+                                                     const std::vector<int>& dilations,
+                                                     const int groups,
+                                                     const std::string& data_format,
+                                                     const std::string& padding_algorithm) {
   Instruction instr("conv2d_grad", {dy, x, w});
   instr.SetAttr<std::vector<int>>("strides", strides);
   instr.SetAttr<std::vector<int>>("paddings", paddings);

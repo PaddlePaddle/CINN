@@ -77,13 +77,13 @@ class NetBuilder : public BaseBuilder {
    * Apply Rectified Linear Unit on input Variable.
    * Actually apply: outupt = max(input,0)
    */
-  Variable relu(const Variable& a);
+  const std::vector<Variable>& relu(const Variable& a, bool compute_mask = false);
 
   /**
    * The gradient of Rectified Linear Unit.
    * Actually apply: dx = dout * (out > 0)
    */
-  Variable relu_grad(const Variable& dout, const Variable& out);
+  Variable relu_grad(const Variable& dout, const Variable& mask);
 
   Variable relu6(const Variable& a, float threshold = 6.0f);
 
@@ -141,24 +141,24 @@ class NetBuilder : public BaseBuilder {
    * is_test(true): batch norm infer (default), output={y}
    * is_test(false): batch norm training, outputs={y, saved_mean, saved_variance, moving_mean, moving_variance}
    */
-  std::vector<Variable> batchnorm(const Variable& a,
-                                  const Variable& scale,
-                                  const Variable& bias,
-                                  const Variable& mean,
-                                  const Variable& variance,
-                                  float epsilon                  = 1e-5f,
-                                  float momentum                 = 0.9f,
-                                  const std::string& data_layout = "NCHW",
-                                  bool is_test                   = false);
+  const std::vector<Variable>& batchnorm(const Variable& a,
+                                         const Variable& scale,
+                                         const Variable& bias,
+                                         const Variable& mean,
+                                         const Variable& variance,
+                                         float epsilon                  = 1e-5f,
+                                         float momentum                 = 0.9f,
+                                         const std::string& data_layout = "NCHW",
+                                         bool is_test                   = false);
 
   // batch norm grad, output(x_grad, scale_grad, bias_grad)
-  std::vector<Variable> batch_norm_grad(const Variable& dy,
-                                        const Variable& x,
-                                        const Variable& scale,
-                                        const Variable& save_mean,
-                                        const Variable& save_variance,
-                                        const float epsilon            = 1e-5,
-                                        const std::string& data_layout = "NCHW");
+  const std::vector<Variable>& batch_norm_grad(const Variable& dy,
+                                               const Variable& x,
+                                               const Variable& scale,
+                                               const Variable& save_mean,
+                                               const Variable& save_variance,
+                                               const float epsilon            = 1e-5,
+                                               const std::string& data_layout = "NCHW");
 
   Variable scale(const Variable& a, float scale = 1.0f, float bias = 0.0f, bool bias_after_scale = true);
 
@@ -180,15 +180,15 @@ class NetBuilder : public BaseBuilder {
   Variable sum(const std::vector<Variable>& inputs);
 
   // conv2d grad, output(grad_x, grad_w)
-  std::vector<Variable> conv2d_grad(const Variable& dy,
-                                    const Variable& x,
-                                    const Variable& w,
-                                    const std::vector<int>& strides      = {1, 1},
-                                    const std::vector<int>& paddings     = {0, 0},
-                                    const std::vector<int>& dilations    = {1, 1},
-                                    const int groups                     = 1,
-                                    const std::string& data_format       = "NCHW",
-                                    const std::string& padding_algorithm = "EXPLICIT");
+  const std::vector<Variable>& conv2d_grad(const Variable& dy,
+                                           const Variable& x,
+                                           const Variable& w,
+                                           const std::vector<int>& strides      = {1, 1},
+                                           const std::vector<int>& paddings     = {0, 0},
+                                           const std::vector<int>& dilations    = {1, 1},
+                                           const int groups                     = 1,
+                                           const std::string& data_format       = "NCHW",
+                                           const std::string& padding_algorithm = "EXPLICIT");
 };
 
 }  // namespace frontend

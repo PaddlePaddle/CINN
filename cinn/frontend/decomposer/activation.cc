@@ -19,36 +19,47 @@ namespace cinn {
 namespace frontend {
 namespace decomposer {
 
+template <bool ComputeMask = false>
 void relu(const Instruction& instr, const DecomposerContext& context) {
-  CHECK_EQ(instr->inputs.size(), 1UL) << " 1 input tensor for " << instr->op_type;
-  CHECK_EQ(instr->outputs.size(), 1UL) << "1 output tensor for " << instr->op_type;
+  size_t num_outputs = ComputeMask ? 2 : 1;
+  CHECK_EQ(instr->inputs.size(), 1UL) << "1 input tensor for " << instr->op_type;
+  CHECK_EQ(instr->outputs.size(), num_outputs) << num_outputs << " output tensors for " << instr->op_type;
+
   auto x        = instr->inputs[0];
-  auto output   = instr->outputs[0];
   auto* builder = context.builder();
 
   auto zero_var   = builder->ConstScalar<float>(0.f, common::UniqName("zero"));
   auto bcast_zero = builder->BroadcastTo(zero_var, x->shape, {0});
   auto out        = builder->Max(x, bcast_zero);
+  context.MapOutToOrigin(out, instr->outputs[0]);
 
-  // map the the output of decomposed operator to the original.
-  context.MapOutToOrigin(out, output);
+  if (ComputeMask) {
+    auto mask = builder->Compare(out, bcast_zero, ComparisonKind::kGt);
+    context.MapOutToOrigin(mask, instr->outputs[1]);
+  }
 }
 
 void relu_grad(const Instruction& instr, const DecomposerContext& context) {
   CHECK_EQ(instr->inputs.size(), 2UL) << " 2 input tensors for " << instr->op_type;
   CHECK_EQ(instr->outputs.size(), 1UL) << "1 output tensor for " << instr->op_type;
-  auto dout     = instr->inputs[0];
-  auto out      = instr->inputs[1];
-  auto dx       = instr->outputs[0];
-  auto* builder = context.builder();
+
+  auto dout        = instr->inputs[0];
+  auto out_or_mask = instr->inputs[1];
+  auto* builder    = context.builder();
 
   auto zero_var   = builder->ConstScalar<float>(0.f, common::UniqName("zero"));
-  auto bcast_zero = builder->BroadcastTo(zero_var, out->shape, {0});
-  auto condition  = builder->Compare(out, bcast_zero, ComparisonKind::kGt);
-  auto res        = builder->Select(condition, dout, bcast_zero);
+  auto bcast_zero = builder->BroadcastTo(zero_var, out_or_mask->shape, {0});
+
+  Variable condition;
+  if (out_or_mask->type.is_bool()) {
+    condition = out_or_mask;
+  } else {
+    condition = builder->Compare(out_or_mask, bcast_zero, ComparisonKind::kGt);
+  }
+  auto res = builder->Select(condition, dout, bcast_zero);
 
   // map the the output of decomposed operator to the original.
-  context.MapOutToOrigin(res, dx);
+  context.MapOutToOrigin(res, instr->outputs[0]);
 }
 
 }  // namespace decomposer
@@ -56,7 +67,13 @@ void relu_grad(const Instruction& instr, const DecomposerContext& context) {
 }  // namespace cinn
 
 CINN_REGISTER_HELPER(activation_decomposers) {
-  CINN_DECOMPOSER_REGISTER(relu, cinn::frontend::decomposer::relu);
+  CINN_DECOMPOSER_REGISTER(relu, cinn::frontend::decomposer::relu<false>);
+
+  return true;
+}
+
+CINN_REGISTER_HELPER(activation_mask_decomposers) {
+  CINN_DECOMPOSER_REGISTER(relu_with_mask, cinn::frontend::decomposer::relu<true>);
 
   return true;
 }
