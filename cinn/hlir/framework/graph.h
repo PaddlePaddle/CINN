@@ -45,6 +45,30 @@ class Graph : public cinn::common::Graph {
 
   std::vector<std::vector<Node*>> groups;
 
+  /** \brief fusion groups with multi-output*/
+  struct Group {
+    // node in this group
+    std::vector<Node*> nodes_;
+    std::unordered_set<Node*> nodes_set_;
+
+    // input nodes of the group.
+    std::unordered_set<Node*> input_nodes_;
+
+    // output nodes of the group.
+    std::unordered_set<Node*> output_nodes_;
+
+    // op pattern kind.
+    framework::OpPatternKind op_pattern_kind_;
+
+    // internal node, the output is used by multi-node.
+    // internal node can't use compute inline, should use buffer.
+    std::unordered_set<Node*> internal_nodes_;
+
+    // master node for schedule
+    std::unordered_set<Node*> master_nodes_;
+  };
+  std::vector<std::shared_ptr<Group>> fusion_groups_;
+
   void RegisterNode(size_t key, Node* node) { this->common::Graph::RegisterNode(key, node->as<common::GraphNode>()); }
   void RegisterNode(size_t key, NodeData* node) {
     this->common::Graph::RegisterNode(key, node->as<common::GraphNode>());
