@@ -39,5 +39,28 @@ TEST(OpFusionPass, ElementWiseFusion_0) {
   hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
 }
 
+TEST(OpFusionPass, ElementWiseFusion_1) {
+  int h = 32, w = 32;
+  NetBuilder net_builder("elementwise_fusion_1");
+  // create model
+  {
+    auto A = net_builder.CreateInput(Float(32), {h, w}, "A");
+    auto B = net_builder.CreateInput(Float(32), {h, w}, "B");
+    auto C = net_builder.CreateInput(Float(32), {h, w}, "C");
+    auto D = net_builder.CreateInput(Float(32), {h, w}, "D");
+    auto E = net_builder.add(A, B);
+    auto F = net_builder.add(E, C);
+    auto G = net_builder.add(E, D);
+    auto H = net_builder.add(F, G);
+  }
+
+  auto program = net_builder.Build();
+  auto target  = GetTarget();
+  RunDecomposer(&program, target);
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+}
+
 }  // namespace frontend
 }  // namespace cinn

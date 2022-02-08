@@ -65,12 +65,16 @@ struct OpFusionPassHelper {
           auto input_graph_node = edge->source();
           auto input_node_data  = input_graph_node->safe_as<NodeData>();
           CHECK(input_node_data);
-          group->input_nodes_.insert(input_node_data->source_node.get());
+          // input data has noe source node
+          if (input_node_data->source_node.get()) {
+            group->input_nodes_.insert(input_node_data->source_node.get());
+          }
         }
 
         // group type
         CHECK(op_pattern_dict_->Find(node->op())) << "Don't find the pattern of op : " << node->id();
         group->op_pattern_kind_ = op_pattern_dict_[0][node->op()];
+
         if (group->op_pattern_kind_ == framework::kCommReduce) {
           group->master_nodes_.insert(node);
         }
@@ -111,9 +115,12 @@ struct OpFusionPassHelper {
       for (auto& edge : node->inlinks()) {
         auto graph_node = edge->source();
         auto node_data  = graph_node->safe_as<NodeData>();
-
         CHECK(node_data);
+
         auto source_node = node_data->source_node;
+        if (!source_node) {
+          continue;
+        }
 
         auto source_node_op_kind = op_pattern_dict_[0][source_node->op()];
         // group-kind (kInjective and > kCommReduce) not support fusion now.
@@ -171,7 +178,9 @@ struct OpFusionPassHelper {
         }
 
         // do merge
-        group->nodes_.push_back(source_node.get());
+        if (group->nodes_set_.find(source_node.get()) == group->nodes_set_.end()) {
+          group->nodes_.push_back(source_node.get());
+        }
         group->nodes_set_.insert(source_node.get());
         group->input_nodes_.erase(source_node.get());
         group->op_pattern_kind_ =
@@ -185,7 +194,9 @@ struct OpFusionPassHelper {
           auto input_graph_node = edge->source();
           auto input_node_data  = input_graph_node->safe_as<NodeData>();
           CHECK(input_node_data);
-          group->input_nodes_.insert(input_node_data->source_node.get());
+          if (input_node_data->source_node.get()) {
+            group->input_nodes_.insert(input_node_data->source_node.get());
+          }
         }
 
         // update node group
@@ -211,6 +222,14 @@ void OpFusionPassInternal(Graph* graph) {
 
   auto op_fusion_helper = OpFusionPassHelper(nodes, shape_dict);
   graph->fusion_groups_ = op_fusion_helper();
+
+  for (auto& Group : graph->fusion_groups_) {
+    VLOG(11) << "Group Start.";
+    for (auto node : Group->nodes_) {
+      VLOG(11) << "node -> " << node->id();
+    }
+    VLOG(11) << "Group End.";
+  }
 }
 
 }  // namespace pass

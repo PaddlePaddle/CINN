@@ -306,7 +306,7 @@ CINN_REGISTER_HELPER(broadcast_ops) {
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForBroadcast))                                \
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForBroadcast))                                \
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForBroadcast))                              \
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kBroadcast) \
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)  \
       .set_support_level(4);
 
 #define CINN_REGISTER_BINARY_CMP(op__, op_stragegy__)                                                                \
@@ -318,7 +318,7 @@ CINN_REGISTER_HELPER(broadcast_ops) {
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForBroadcast))                                \
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForBroadcastCmp))                             \
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForBroadcast))                              \
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kBroadcast) \
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)  \
       .set_support_level(4);
 
   CINN_REGISTER_BINARY(elementwise_add, Add);
