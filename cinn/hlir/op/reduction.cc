@@ -538,12 +538,7 @@ StrategyForReduction(reduce_min, ReduceMin, PeFunc);
 }  // namespace hlir
 }  // namespace cinn
 
-// TODO(sunli) : repair element-wise + reduce fusion on gpu
-#ifdef CINN_WITH_CUDA
-#define REDUCE_OP_PATTERN_KIND cinn::hlir::framework::OpPatternKind::kOpaque
-#else
 #define REDUCE_OP_PATTERN_KIND cinn::hlir::framework::OpPatternKind::kCommReduce
-#endif
 
 CINN_REGISTER_HELPER(reduce_ops) {
 #define CINN_REGISTER_REDUCTION(op__, op_stragegy__)                                                                 \

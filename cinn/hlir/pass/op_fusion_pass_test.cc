@@ -108,5 +108,76 @@ TEST(OpFusionPass, Brodcast_Test_1) {
   hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
 }
 
+TEST(OpFusionPass, Reduce_Test_0) {
+  int h = 32, w = 32;
+  NetBuilder net_builder("Reduce_Test_0");
+  // create model
+  {
+    auto A = net_builder.CreateInput(Float(32), {w}, "A");
+    auto B = net_builder.CreateInput(Float(32), {w}, "B");
+    auto C = net_builder.CreateInput(Float(32), {h, w}, "C");
+    auto D = net_builder.CreateInput(Float(32), {h, w}, "D");
+    auto E = net_builder.elementwise_add(A, B);
+    auto F = net_builder.elementwise_add(C, D);
+    auto G = net_builder.reduce_sum(F, {0});
+    auto H = net_builder.elementwise_add(E, G);
+  }
+
+  auto program = net_builder.Build();
+  auto target  = GetTarget();
+  RunDecomposer(&program, target);
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+}
+
+TEST(OpFusionPass, Reduce_Test_1) {
+  int h = 32, w = 32;
+  NetBuilder net_builder("Reduce_Test_1");
+  // create model
+  {
+    auto A = net_builder.CreateInput(Float(32), {w}, "A");
+    auto B = net_builder.CreateInput(Float(32), {w}, "B");
+    auto C = net_builder.CreateInput(Float(32), {h, w}, "C");
+    auto D = net_builder.CreateInput(Float(32), {h, w}, "D");
+    auto E = net_builder.elementwise_add(A, B);
+    auto F = net_builder.reduce_sum(C, {0});
+    auto G = net_builder.reduce_sum(D, {0});
+    auto H = net_builder.elementwise_add(E, F);
+    auto I = net_builder.elementwise_add(G, H);
+  }
+
+  auto program = net_builder.Build();
+  auto target  = GetTarget();
+  RunDecomposer(&program, target);
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+}
+
+TEST(OpFusionPass, Reduce_Test_2) {
+  int h = 32, w = 32;
+  NetBuilder net_builder("Reduce_Test_2");
+  // create model
+  {
+    auto A = net_builder.CreateInput(Float(32), {w}, "A");
+    auto B = net_builder.CreateInput(Float(32), {w}, "B");
+    auto C = net_builder.CreateInput(Float(32), {h, w}, "C");
+    auto D = net_builder.CreateInput(Float(32), {h, w}, "D");
+    auto E = net_builder.reduce_sum(C, {0});
+    auto F = net_builder.reduce_sum(D, {1});
+    auto G = net_builder.elementwise_add(A, E);
+    auto H = net_builder.elementwise_add(B, F);
+    auto I = net_builder.elementwise_add(G, H);
+  }
+
+  auto program = net_builder.Build();
+  auto target  = GetTarget();
+  RunDecomposer(&program, target);
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+}
+
 }  // namespace frontend
 }  // namespace cinn

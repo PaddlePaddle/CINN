@@ -74,7 +74,6 @@ struct OpFusionPassHelper {
         // group type
         CHECK(op_pattern_dict_->Find(node->op())) << "Don't find the pattern of op : " << node->id();
         group->op_pattern_kind_ = op_pattern_dict_[0][node->op()];
-
         if (group->op_pattern_kind_ == framework::kCommReduce) {
           group->master_nodes_.insert(node);
         }
@@ -114,7 +113,6 @@ struct OpFusionPassHelper {
 
       // if current node is broadcast, do not fuse, left to fusion merge
       auto node_op_kind = op_pattern_dict_[0][node->op()];
-
       if (node_op_kind == framework::kBroadcast) {
         continue;
       }
