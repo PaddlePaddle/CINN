@@ -112,6 +112,13 @@ struct OpFusionPassHelper {
         continue;
       }
 
+      // if current node is broadcast, do not fuse, left to fusion merge
+      auto node_op_kind = op_pattern_dict_[0][node->op()];
+
+      if (node_op_kind == framework::kBroadcast) {
+        continue;
+      }
+
       for (auto& edge : node->inlinks()) {
         auto graph_node = edge->source();
         auto node_data  = graph_node->safe_as<NodeData>();
@@ -146,21 +153,11 @@ struct OpFusionPassHelper {
         // element-wise + broadcast
         // element-wise + reduce
         // broadcast + element-wise
+        // broadcast + broadcast(horizontal op, same output shape)
         // broadcast + reduce
         // reduce + element-wise
+        // reduce + broadcast(horizontal op, same output shape)
         // reduce + reduce
-
-        // check broadcast + broadcast
-        if (source_node_op_kind == framework::kBroadcast && group_kind == framework::kBroadcast) {
-          // broadcast + broadcast not support fuse.
-          continue;
-        }
-
-        // check reduce + broadcast
-        if (source_node_op_kind == framework::kCommReduce && group_kind == framework::kBroadcast) {
-          // reduce + broadcast not support fuse.
-          continue;
-        }
 
         // if reduce fuse reduce, the input shape and output shape should be same.
         if (source_node_op_kind == framework::kCommReduce && group_kind == framework::kCommReduce) {
@@ -173,6 +170,12 @@ struct OpFusionPassHelper {
           auto master_output_shape = shape_dict_[master_node->outlinks_in_order()[0]->sink()->id()];
 
           if (source_input_shape != master_input_shape || source_output_shape != master_output_shape) {
+            continue;
+          }
+
+          // attr
+          if (absl::get<std::vector<int>>(master_node->attrs.attr_store.at("dim")) !=
+              absl::get<std::vector<int>>(source_node->attrs.attr_store.at("dim"))) {
             continue;
           }
         }
@@ -189,6 +192,11 @@ struct OpFusionPassHelper {
         if (source_node_op_kind == framework::kCommReduce) {
           group->master_nodes_.insert(source_node.get());
         }
+
+        if (node_data->outlinks().size() > 1) {
+          group->internal_nodes_.insert(source_node.get());
+        }
+
         // add input node
         for (auto& edge : source_node->inlinks_in_order()) {
           auto input_graph_node = edge->source();
