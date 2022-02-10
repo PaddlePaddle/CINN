@@ -52,7 +52,7 @@ Program CreateTestProgram() {
   auto l = builder.ConstScalar<bool>(1, "condition");
   auto m = builder.BroadcastTo(l, {B, M, N}, {0});
   auto n = builder.Select(m, j, k);
-  auto o = builder.Reduce(n, ReduceKind::kSum, {0, 1, 2});
+  auto o = builder.Reduce(n, ReduceKind::kSum, {1, 2});
 
   auto program = builder.Build();
   return program;

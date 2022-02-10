@@ -355,6 +355,23 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
     if (target == common::DefaultNVGPUTarget() && dim.back() == inputs[0]->shape.size() - 1) {
       // the reduce dimension is succesive
       if (reduce_dim_succesive) {
+        if (last_succesive_dim <= 1024) {
+          VLOG(3) << "Do BlockReduceSumInternal Compute!";
+          // if the succesive reduce dimension size <= 1024
+          auto res = pe::BlockReduceSumInternal(x, dim.size(), keep_dim);
+          CHECK_EQ(res.size(), 2);
+          auto stages = CreateStages(res);
+          *ret        = CINNValuePack{{CINNValue(res[0]), CINNValue(res[1]), CINNValue(stages)}};
+        } else {
+          VLOG(3) << "Do BlockReduceSum Compute!";
+          // if the succesive reduce dimension size > 256
+          int block_size = last_succesive_dim > 1024 ? 512 : 128;
+          auto res       = pe::BlockReduceSum(x, dim.size(), block_size, keep_dim);
+          CHECK_EQ(res.size(), 2);
+          auto stages = CreateStages(res);
+          *ret        = CINNValuePack{{CINNValue(res[0]), CINNValue(res[1]), CINNValue(stages)}};
+        }
+        /*
         if (last_succesive_dim < 256) {
           VLOG(3) << "Do WarpReduceSum Compute!";
           // if the succesive reduce dimension size < 256
@@ -371,6 +388,7 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
           auto stages = CreateStages(res);
           *ret        = CINNValuePack{{CINNValue(res[0]), CINNValue(res[1]), CINNValue(stages)}};
         }
+        */
       } else /* the reduce dimension is not succesive */ {
         VLOG(3) << "Do ReduceSum And BlockReduceSumInternal Compute!";
         // compute the parallel reduce dimension size
