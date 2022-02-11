@@ -425,9 +425,9 @@ TEST(conv_add_mul, conv_add_mul) {
 
 // conv+add with different out shape
 TEST(fuse_conv_add1, fuse_conv_add1) {
-  Placeholder A(Float(32), {1, 8, 1, 1}, "A");
-  Placeholder B(Float(32), {32, 8, 1, 1}, "B");
-  Placeholder C(Float(32), {1, 32, 112, 112}, "C");
+  Placeholder A(Float(32), {1, 32, 112, 112}, "A");
+  Placeholder B(Float(32), {8, 32, 1, 1}, "B");
+  Placeholder C(Float(32), {1, 8, 1, 1}, "C");
 
   Program program;
   absl::flat_hash_map<std::string, Program::attr_t> attrs;
