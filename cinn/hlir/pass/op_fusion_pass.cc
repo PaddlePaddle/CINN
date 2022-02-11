@@ -72,8 +72,7 @@ struct OpFusionPassHelper {
         }
 
         // group type
-        CHECK(op_pattern_dict_->Find(node->op())) << "Don't find the pattern of op : " << node->id();
-        group->op_pattern_kind_ = op_pattern_dict_[0][node->op()];
+        group->op_pattern_kind_ = GetOpKind(node);  // op_pattern_dict_[0][node->op()];
         if (group->op_pattern_kind_ == framework::kCommReduce) {
           group->master_nodes_.insert(node);
         }
@@ -101,6 +100,20 @@ struct OpFusionPassHelper {
   }
 
  private:
+  OpPatternKind GetOpKind(Node* node) {
+    CHECK(op_pattern_dict_->Find(node->op())) << "Don't find the pattern of op : " << node->id();
+    auto kind = op_pattern_dict_[0][node->op()];
+    if (kind == framework::kBroadcast) {
+      // As binary op was defined as broadcast, actually it should be element-wise.
+      // TODO : sunli
+      if (node->op()->name != "broadcast_to") {
+        return framework::kElemWise;
+      }
+    }
+
+    return kind;
+  }
+
   void DoOpFusion() {
     for (auto node : nodes_) {
       auto group      = fusion_groups_[node];
@@ -112,7 +125,7 @@ struct OpFusionPassHelper {
       }
 
       // if current node is broadcast, do not fuse, left to fusion merge
-      auto node_op_kind = op_pattern_dict_[0][node->op()];
+      auto node_op_kind = GetOpKind(node);  // op_pattern_dict_[0][node->op()];
       if (node_op_kind == framework::kBroadcast) {
         continue;
       }
@@ -127,7 +140,7 @@ struct OpFusionPassHelper {
           continue;
         }
 
-        auto source_node_op_kind = op_pattern_dict_[0][source_node->op()];
+        auto source_node_op_kind = GetOpKind(node);  // op_pattern_dict_[0][source_node->op()];
         // group-kind (kInjective and > kCommReduce) not support fusion now.
         if (static_cast<int>(source_node_op_kind) > static_cast<int>(framework::kCommReduce) ||
             source_node_op_kind == framework::kInjective) {
