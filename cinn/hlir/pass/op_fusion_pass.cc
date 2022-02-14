@@ -96,6 +96,32 @@ struct OpFusionPassHelper {
         fusion_groups.push_back(p.second);
       }
     }
+
+    for (auto& group : fusion_groups) {
+      // find producer group
+      for (auto& node : group->input_nodes_) {
+        for (auto& edge : node->inlinks()) {
+          auto producer_node      = edge->source();
+          auto producer_node_data = producer_node->safe_as<NodeData>();
+          CHECK(producer_node_data);
+          // input data has no source node
+          if (producer_node_data->source_node.get()) {
+            auto producer_group = fusion_groups_[producer_node_data->source_node.get()];
+            group->producer_groups_.insert(producer_group.get());
+          }
+        }
+      }
+      // find consumer group
+      auto output_node      = *group->output_nodes_.begin();
+      auto output_node_data = (*output_node->outlinks().begin())->sink();
+      for (auto& link : output_node_data->outlinks()) {
+        auto consumer_node = link->sink()->safe_as<Node>();
+        CHECK(consumer_node);
+        auto consumer_group = fusion_groups_[consumer_node];
+        group->consumer_groups_.insert(consumer_group.get());
+      }
+    }
+
     return fusion_groups;
   }
 

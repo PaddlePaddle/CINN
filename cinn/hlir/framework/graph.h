@@ -66,6 +66,12 @@ class Graph : public cinn::common::Graph {
 
     // master node for schedule
     std::unordered_set<Node*> master_nodes_;
+
+    // input groups
+    std::unordered_set<Group*> producer_groups_;
+
+    // output grous
+    std::unordered_set<Group*> consumer_groups_;
   };
   std::vector<std::shared_ptr<Group>> fusion_groups_;
 
