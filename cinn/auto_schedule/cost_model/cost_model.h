@@ -17,16 +17,40 @@
 
 #include <pybind11/embed.h>
 
+#include <string>
 #include <vector>
 
 namespace cinn {
 namespace auto_schedule {
 
+/**
+ * A C++ cost model which calls Python cost model via pybind
+ *
+ * Note: this class doesn't handle Python interpreter lifttime, users should
+ * manage scoped_interpreter/initialize_interpreter/finalize_interpreter by
+ * themselves. For pybind interpreter lifetime management, see:
+ *
+ *   https://pybind11.readthedocs.io/en/stable/advanced/embedding.html#interpreter-lifetime
+ *   https://pybind11.readthedocs.io/en/stable/reference.html#_CPPv422initialize_interpreterbiPPCKcb
+ */
 class CostModel {
  public:
-  CostModel() {}
-  ~CostModel() {}
-}
+  CostModel();
+  ~CostModel();
+
+  void Train(const std::vector<std::vector<float>>& samples, const std::vector<float>& labels);
+
+  std::vector<float> Predict(const std::vector<std::vector<float>>& samples);
+
+  void Update(const std::vector<std::vector<float>>& samples, const std::vector<float>& labels);
+
+  void Save(const std::string& path);
+
+  void Load(const std::string& path);
+
+ private:
+  pybind11::object python_member_;
+};
 
 }  // namespace auto_schedule
 }  // namespace cinn
