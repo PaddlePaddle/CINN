@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cinn/auto_schedule/cost_model"
+#include "cinn/auto_schedule/cost_model/cost_model.h"
 
 #include <gtest/gtest.h>
 
