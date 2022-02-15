@@ -371,24 +371,6 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
           auto stages = CreateStages(res);
           *ret        = CINNValuePack{{CINNValue(res[0]), CINNValue(res[1]), CINNValue(stages)}};
         }
-        /*
-        if (last_succesive_dim < 256) {
-          VLOG(3) << "Do WarpReduceSum Compute!";
-          // if the succesive reduce dimension size < 256
-          auto res = pe::WarpReduceSum(x, dim.size(), keep_dim);
-          CHECK_EQ(res.size(), 2);
-          auto stages = CreateStages(res);
-          *ret        = CINNValuePack{{CINNValue(res[0]), CINNValue(res[1]), CINNValue(stages)}};
-        } else {
-          VLOG(3) << "Do BlockReduceSum Compute!";
-          // if the succesive reduce dimension size > 256
-          int block_size = last_succesive_dim > 1024 ? 512 : 128;
-          auto res       = pe::BlockReduceSum(x, dim.size(), block_size, keep_dim);
-          CHECK_EQ(res.size(), 2);
-          auto stages = CreateStages(res);
-          *ret        = CINNValuePack{{CINNValue(res[0]), CINNValue(res[1]), CINNValue(stages)}};
-        }
-        */
       } else /* the reduce dimension is not succesive */ {
         VLOG(3) << "Do ReduceSum And BlockReduceSumInternal Compute!";
         // compute the parallel reduce dimension size

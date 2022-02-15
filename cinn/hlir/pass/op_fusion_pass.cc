@@ -37,16 +37,15 @@ using common::GraphNode;
 
 using Group  = std::shared_ptr<Graph::Group>;
 using Groups = std::vector<Group>;
-/*********** Op Fusion Pass*************************
- *
- * fuse producer into comsumer.
- * iteration until no group can merge.
- *
- *********************************************************/
+
+// Op Fusion Pass which performs Ops fusion, Ops are fused
+// "vertically", meaning producing Ops are fused into their consumers
+// with the intent that the loops which compute their values will be fused in
+// code generation.
 
 struct OpFusionPassHelper {
  public:
-  OpFusionPassHelper(std::vector<GraphNode*> graph_nodes, const absl::flat_hash_map<std::string, shape_t>& shape_dict)
+  OpFusionPassHelper(std::vector<GraphNode*>& graph_nodes, const absl::flat_hash_map<std::string, shape_t>& shape_dict)
       : shape_dict_(shape_dict) {
     // get op pattern dict
     op_pattern_dict_ = &framework::Operator::GetAttrs<OpPatternKind>("OpPattern");
@@ -199,12 +198,12 @@ struct OpFusionPassHelper {
         // if reduce fuse reduce, the input shape and output shape should be same.
         if (source_node_op_kind == framework::kCommReduce && group_kind == framework::kCommReduce) {
           // check reduce has same input shape and output shape
-          auto source_input_shape  = shape_dict_[source_node->inlinks_in_order()[0]->source()->id()];
-          auto source_output_shape = shape_dict_[source_node->outlinks_in_order()[0]->sink()->id()];
+          auto source_input_shape  = shape_dict_.at(source_node->inlinks_in_order()[0]->source()->id());
+          auto source_output_shape = shape_dict_.at(source_node->outlinks_in_order()[0]->sink()->id());
 
           const Node* master_node  = *group->master_nodes_.begin();
-          auto master_input_shape  = shape_dict_[master_node->inlinks_in_order()[0]->source()->id()];
-          auto master_output_shape = shape_dict_[master_node->outlinks_in_order()[0]->sink()->id()];
+          auto master_input_shape  = shape_dict_.at(master_node->inlinks_in_order()[0]->source()->id());
+          auto master_output_shape = shape_dict_.at(master_node->outlinks_in_order()[0]->sink()->id());
 
           if (source_input_shape != master_input_shape || source_output_shape != master_output_shape) {
             continue;
@@ -252,7 +251,7 @@ struct OpFusionPassHelper {
 
   std::vector<Node*> nodes_;
   std::unordered_map<Node*, Group> fusion_groups_;
-  absl::flat_hash_map<std::string, shape_t> shape_dict_;
+  const absl::flat_hash_map<std::string, shape_t>& shape_dict_;
   // a node map
   std::unordered_set<Node*> nodes_set_;
   // op pattern dict
@@ -283,7 +282,8 @@ void OpFusionPassInternal(Graph* graph) {
 
 CINN_REGISTER_HELPER(OpFusionPass) {
   CINN_REGISTER_PASS(OpFusionPass)
-      .describe("This pass does op fusion.")
+      .describe(
+          "Op Fusion Pass which performs Ops fusion, Producer Ops are fused into Consumer Ops with certain conditions.")
       .set_change_structure(false)
       .set_body(cinn::hlir::pass::OpFusionPassInternal);
 
