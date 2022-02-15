@@ -72,6 +72,9 @@ class Graph : public cinn::common::Graph {
 
     // output grous
     std::unordered_set<Group*> consumer_groups_;
+
+    // fused sub-groups, used for fusion merge pass
+    std::vector<std::shared_ptr<Group>> fused_sub_groups_;
   };
   std::vector<std::shared_ptr<Group>> fusion_groups_;
 
