@@ -12,6 +12,7 @@ gather_srcs(cinnapi_src SRCS
     node.cc
     pass.cc
     op_strategy.cc
+    op_lowering.cc
     )
 
 if(WITH_CUDA)
