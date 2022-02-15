@@ -96,7 +96,7 @@ add_subdirectory(tutorials)
 
 set(core_src "${cinnapi_src}")
 
-
+set(Python_VIRTUALENV FIRST)
 find_package(PythonInterp ${PY_VERSION} REQUIRED)
 find_package(PythonLibs ${PY_VERSION} REQUIRED)
 #execute_process(COMMAND python${PY_VERSION}-config --ldflags OUTPUT_VARIABLE PYTHON_LINK_FLAGS)
