@@ -300,6 +300,24 @@ void BindFrontend(pybind11::module *m) {
       .def("get_tensor", &frontend::Interpreter::GetTensor)
       .def("scope", &frontend::Interpreter::scope);
 
+  py::enum_<ComparisonKind>(*m, "ComparisonKind")
+      .value("kUnk", ComparisonKind::kUnk)
+      .value("kEq", ComparisonKind::kEq)
+      .value("kNe", ComparisonKind::kNe)
+      .value("kGe", ComparisonKind::kGe)
+      .value("kGt", ComparisonKind::kGt)
+      .value("kLe", ComparisonKind::kLe)
+      .value("kLt", ComparisonKind::kLt)
+      .export_values();
+
+  py::enum_<ReduceKind>(*m, "ReduceKind")
+      .value("kUnk", ReduceKind::kUnk)
+      .value("kSum", ReduceKind::kSum)
+      .value("kProd", ReduceKind::kProd)
+      .value("kMax", ReduceKind::kMax)
+      .value("kMin", ReduceKind::kMin)
+      .export_values();
+
   py::class_<BaseBuilder>(*m, "BaseBuilder")
       .def(py::init<const std::string &>(), py::arg("name") = "")
       .def("create_input",
@@ -315,9 +333,20 @@ void BindFrontend(pybind11::module *m) {
 
   py::class_<NetBuilder, BaseBuilder>(*m, "NetBuilder")
       .def(py::init<const std::string &>(), py::arg("name") = "")
+  // clang-format off
+#define PY_REGISTER_UNARY_FUNC(func_name__) \
+  .def(#func_name__, &NetBuilder::func_name__, py::arg("a"))
+     NETBUILDER_UNARY_OP_FOREACH(PY_REGISTER_UNARY_FUNC)
+#undef PY_REGISTER_UNARY_FUNC
+#define PY_REGISTER_BINARY_FUNC(func_name__) \
+  .def(#func_name__, &NetBuilder::func_name__, py::arg("a"), py::arg("b"))
+     NETBUILDER_BINARY_OP_FOREACH(PY_REGISTER_BINARY_FUNC)
+#undef PY_REGISTER_BINARY_FUNC
+      // clang-format on
       .def("add", &NetBuilder::add, py::arg("a"), py::arg("b"))
       .def("reshape", &NetBuilder::reshape, py::arg("a"), py::arg("shape"))
       .def("transpose", &NetBuilder::transpose, py::arg("a"), py::arg("axis"))
+      .def("concat", &NetBuilder::concat, py::arg("inputs"), py::arg("axis") = 0)
       .def("mul",
            &NetBuilder::mul,
            py::arg("a"),
@@ -339,8 +368,6 @@ void BindFrontend(pybind11::module *m) {
            py::arg("y"),
            py::arg("axis") = -1)
       .def("elementwise_mul", &NetBuilder::elementwise_mul, py::arg("a"), py::arg("b"), py::arg("axis") = -1)
-      .def("relu", &NetBuilder::relu, py::arg("a"))
-      .def("relu_grad", &NetBuilder::relu_grad, py::arg("dout"), py::arg("out"))
       .def("relu6", &NetBuilder::relu6, py::arg("a"), py::arg("threshold") = 6.0f)
       .def("reverse", &NetBuilder::reverse, py::arg("x"), py::arg("axis"))
       .def("reduce_sum", &NetBuilder::reduce_sum, py::arg("x"), py::arg("dim"), py::arg("keep_dim") = false)
@@ -404,7 +431,6 @@ void BindFrontend(pybind11::module *m) {
            py::arg("bias")             = 0.0f,
            py::arg("bias_after_scale") = true)
       .def("softmax", &NetBuilder::softmax, py::arg("a"), py::arg("axis") = -1, py::arg("data_format") = "AnyLayout")
-      .def("sigmoid", &NetBuilder::sigmoid, py::arg("a"))
       .def("slice",
            &NetBuilder::slice,
            py::arg("a"),
@@ -429,25 +455,14 @@ void BindFrontend(pybind11::module *m) {
            py::arg("groups")            = 1,
            py::arg("data_format")       = "NCHW",
            py::arg("padding_algorithm") = "EXPLICIT")
-      .def("sum", &NetBuilder::sum, py::arg("inputs"));
-
-  py::enum_<ComparisonKind>(*m, "ComparisonKind")
-      .value("kUnk", ComparisonKind::kUnk)
-      .value("kEq", ComparisonKind::kEq)
-      .value("kNe", ComparisonKind::kNe)
-      .value("kGe", ComparisonKind::kGe)
-      .value("kGt", ComparisonKind::kGt)
-      .value("kLe", ComparisonKind::kLe)
-      .value("kLt", ComparisonKind::kLt)
-      .export_values();
-
-  py::enum_<ReduceKind>(*m, "ReduceKind")
-      .value("kUnk", ReduceKind::kUnk)
-      .value("kSum", ReduceKind::kSum)
-      .value("kProd", ReduceKind::kProd)
-      .value("kMax", ReduceKind::kMax)
-      .value("kMin", ReduceKind::kMin)
-      .export_values();
+      .def("sum", &NetBuilder::sum, py::arg("inputs"))
+      .def("reduce",
+           &NetBuilder::reduce,
+           py::arg("a"),
+           py::arg("kind")     = ReduceKind::kSum,
+           py::arg("dim")      = std::vector<int>{},
+           py::arg("keep_dim") = false)
+      .def("broadcast_to", &NetBuilder::broadcast_to, py::arg("a"), py::arg("out_shape"), py::arg("broadcast_axes"));
 
   py::class_<CinnBuilder, BaseBuilder>(*m, "CinnBuilder")
       .def(py::init<const std::string &>(), py::arg("name") = "")

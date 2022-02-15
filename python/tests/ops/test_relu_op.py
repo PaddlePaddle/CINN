@@ -41,34 +41,22 @@ class TestReluOp(OpTest):
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.inputs["x"], stop_gradient=False)
-        out = F.relu(x)
+        out = F.sigmoid(x)
 
         self.paddle_outputs = [out]
-        self.paddle_grads = self.get_paddle_grads([out], [x],
-                                                  [self.inputs["dout"]])
 
     # Note: If the forward and backward operators are run in the same program,
     # the forward result will be incorrect.
     def build_cinn_program(self, target):
-        builder = NetBuilder("relu")
+        builder = NetBuilder("sigmoid")
         x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
-        out = builder.relu(x)
-        prog = builder.build()
-        forward_res = self.get_cinn_output(prog, target, [x],
-                                           [self.inputs["x"]], [out])
+        out = builder.sigmoid(x)
 
-        builder = NetBuilder("relu_grad")
-        shape = self.inputs["dout"].shape
-        dout = builder.create_input(Float(32), shape, "dout")
-        out = builder.create_input(Float(32), shape, "out")
-        x_grad = builder.relu_grad(dout, out)
         prog = builder.build()
-        backward_res = self.get_cinn_output(
-            prog, target, [dout, out], [self.inputs["dout"], forward_res[0]],
-            [x_grad])
+        res = self.get_cinn_output(prog, target, [x], [self.inputs["x"]],
+                                   [out])
 
-        self.cinn_outputs = forward_res
-        self.cinn_grads = backward_res
+        self.cinn_outputs = res
 
     def test_check_results(self):
         self.check_outputs_and_grads()

@@ -83,24 +83,6 @@
 namespace cinn {
 namespace frontend {
 
-enum class ComparisonKind : std::int8_t {
-  kUnk = -1,
-  kEq,
-  kNe,
-  kGe,
-  kGt,
-  kLe,
-  kLt,
-};
-
-enum class ReduceKind : std::int8_t {
-  kUnk = -1,
-  kSum,
-  kProd,
-  kMax,
-  kMin,
-};
-
 class CinnBuilder : public BaseBuilder {
  public:
   using BaseBuilder::BaseBuilder;

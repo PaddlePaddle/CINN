@@ -23,12 +23,34 @@
 namespace cinn {
 namespace frontend {
 
-Variable NetBuilder::identity(const Variable& operand) {
-  Instruction instr("identity", {operand});
+Variable NetBuilder::UnaryOp(const std::string& op_type, const Variable& operand) {
+  Instruction instr(op_type, {operand});
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(0);
 }
+
+Variable NetBuilder::BinaryOp(const std::string& op_type, const Variable& lhs, const Variable& rhs) {
+  Instruction instr(op_type, {lhs, rhs});
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
+#define NETBUILDER_UNARY_OP_DEF(func_name__, op_type__) \
+  Variable NetBuilder::func_name__(const Variable& operand) { return UnaryOp(#op_type__, operand); }
+NETBUILDER_UNARY_OP_DEF(sqrt, sqrt)
+NETBUILDER_UNARY_OP_DEF(tanh, tanh)
+NETBUILDER_UNARY_OP_DEF(relu, relu)
+NETBUILDER_UNARY_OP_DEF(sigmoid, sigmoid)
+NETBUILDER_UNARY_OP_DEF(identity, identity)
+
+#define NETBUILDER_BINARY_OP_DEF(func_name__, op_type__) \
+  Variable NetBuilder::func_name__(const Variable& lhs, const Variable& rhs) { return BinaryOp(#op_type__, lhs, rhs); }
+NETBUILDER_BINARY_OP_DEF(sub, substract)
+NETBUILDER_BINARY_OP_DEF(div, divide)
+NETBUILDER_BINARY_OP_DEF(matmul, matmul)
+NETBUILDER_BINARY_OP_DEF(relu_grad, relu_grad)
 
 Variable NetBuilder::add(const Variable& a, const Variable& b) {
   Instruction instr("elementwise_add", {a, b});
@@ -48,6 +70,14 @@ Variable NetBuilder::reshape(const Variable& operand, const std::vector<int>& sh
 
 Variable NetBuilder::transpose(const Variable& operand, const std::vector<int>& axis) {
   Instruction instr("transpose", {operand});
+  instr.SetAttr("axis", axis);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
+Variable NetBuilder::concat(const std::vector<Variable>& inputs, int axis) {
+  Instruction instr("concat", inputs);
   instr.SetAttr("axis", axis);
   InferShape(instr);
   AppendInstruction(instr);
@@ -95,20 +125,6 @@ const std::vector<Variable>& NetBuilder::elementwise_add_grad(const Variable& do
 Variable NetBuilder::elementwise_mul(const Variable& a, const Variable& b, int axis) {
   Instruction instr("elementwise_mul", {a, b});
   instr.SetAttr("axis", axis);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
-}
-
-Variable NetBuilder::relu(const Variable& a) {
-  Instruction instr("relu", {a});
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
-}
-
-Variable NetBuilder::relu_grad(const Variable& dout, const Variable& out) {
-  Instruction instr("relu_grad", {dout, out});
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(0);
@@ -269,13 +285,6 @@ Variable NetBuilder::softmax(const Variable& a, int axis, const std::string& dat
   return instr.GetOutput(0);
 }
 
-Variable NetBuilder::sigmoid(const Variable& a) {
-  Instruction instr("sigmoid", {a});
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
-}
-
 Variable NetBuilder::slice(const Variable& a,
                            const std::vector<int>& axes,
                            const std::vector<int>& starts,
@@ -330,6 +339,47 @@ std::vector<Variable> NetBuilder::conv2d_grad(const Variable& dy,
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutputs();
+}
+
+Variable NetBuilder::reduce(const Variable& a, ReduceKind kind, const std::vector<int>& dim, bool keep_dim) {
+  auto reduce_func = [&](const std::string& op_type) {
+    Instruction instr(op_type, {a});
+    std::vector<int> new_dim(dim);
+    if (dim.empty()) {
+      for (int i = 0; i < a->shape.size(); ++i) {
+        new_dim.push_back(i);
+      }
+    }
+    instr.SetAttr("dim", new_dim);
+    instr.SetAttr("keep_dim", keep_dim);
+    InferShape(instr);
+    AppendInstruction(instr);
+    return instr.GetOutput(0);
+  };
+
+  switch (kind) {
+    case ReduceKind::kSum:
+      return reduce_func("reduce_sum");
+    case ReduceKind::kProd:
+      return reduce_func("reduce_prod");
+    case ReduceKind::kMax:
+      return reduce_func("reduce_max");
+    case ReduceKind::kMin:
+      return reduce_func("reduce_min");
+    default:
+      LOG(FATAL) << "unknown reduction kind";
+  }
+}
+
+Variable NetBuilder::broadcast_to(const Variable& a,
+                                  const std::vector<int>& out_shape,
+                                  const std::vector<int>& broadcast_axes) {
+  Instruction instr("broadcast_to", {a});
+  instr.SetAttr("out_shape", out_shape);
+  instr.SetAttr("broadcast_axes", broadcast_axes);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
 }
 
 }  // namespace frontend

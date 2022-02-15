@@ -23,11 +23,32 @@
 namespace cinn {
 namespace frontend {
 
+// clang-format off
+#define NETBUILDER_UNARY_OP_FOREACH(macro__)    \
+    macro__(sqrt)                               \
+    macro__(tanh)                               \
+    macro__(relu)                               \
+    macro__(sigmoid)                            \
+    macro__(identity)
+
+#define NETBUILDER_BINARY_OP_FOREACH(macro__)   \
+    macro__(sub)                                \
+    macro__(div)                                \
+    macro__(matmul)                             \
+    macro__(relu_grad)
+// clang-format on
+
 class NetBuilder : public BaseBuilder {
  public:
   using BaseBuilder::BaseBuilder;
 
-  Variable identity(const Variable& a);
+#define NETBUILDER_UNARY_OP_DECL(func_name__) Variable func_name__(const Variable& operand);
+  NETBUILDER_UNARY_OP_FOREACH(NETBUILDER_UNARY_OP_DECL)
+#undef NETBUILDER_UNARY_OP_DECL
+
+#define NETBUILDER_BINARY_OP_DECL(func_name__) Variable func_name__(const Variable& lhs, const Variable& rhs);
+  NETBUILDER_BINARY_OP_FOREACH(NETBUILDER_BINARY_OP_DECL)
+#undef NETBUILDER_BINARY_OP_DECL
 
   /**
    * Add two variables.
@@ -43,6 +64,11 @@ class NetBuilder : public BaseBuilder {
    * Transpose matrix.
    */
   Variable transpose(const Variable& a, const std::vector<int>& axis);
+
+  /**
+   * Concat tensors among the axis dimension.
+   */
+  Variable concat(const std::vector<Variable>& inputs, int axis = 0);
 
   /**
    * Multiply two matrix.
@@ -72,18 +98,6 @@ class NetBuilder : public BaseBuilder {
    * Multiply two tensors element-wise.
    */
   Variable elementwise_mul(const Variable& a, const Variable& b, int axis = -1);
-
-  /**
-   * Apply Rectified Linear Unit on input Variable.
-   * Actually apply: outupt = max(input,0)
-   */
-  Variable relu(const Variable& a);
-
-  /**
-   * The gradient of Rectified Linear Unit.
-   * Actually apply: dx = dout * (out > 0)
-   */
-  Variable relu_grad(const Variable& dout, const Variable& out);
 
   Variable relu6(const Variable& a, float threshold = 6.0f);
 
@@ -164,8 +178,6 @@ class NetBuilder : public BaseBuilder {
 
   Variable softmax(const Variable& a, int axis = -1, const std::string& data_format = "AnyLayout");
 
-  Variable sigmoid(const Variable& a);
-
   Variable slice(const Variable& a,
                  const std::vector<int>& axes,
                  const std::vector<int>& starts        = {},
@@ -189,6 +201,21 @@ class NetBuilder : public BaseBuilder {
                                     const int groups                     = 1,
                                     const std::string& data_format       = "NCHW",
                                     const std::string& padding_algorithm = "EXPLICIT");
+
+  /**
+   * Reduce tensor by the kind operator among the dim.
+   */
+  Variable reduce(const Variable& a,
+                  ReduceKind kind             = ReduceKind::kSum,
+                  const std::vector<int>& dim = std::vector<int>{},
+                  bool keep_dim               = false);
+
+  Variable broadcast_to(const Variable& a, const std::vector<int>& out_shape, const std::vector<int>& broadcast_axes);
+
+ private:
+  Variable UnaryOp(const std::string& op_type, const Variable& operand);
+
+  Variable BinaryOp(const std::string& op_type, const Variable& lhs, const Variable& rhs);
 };
 
 }  // namespace frontend
