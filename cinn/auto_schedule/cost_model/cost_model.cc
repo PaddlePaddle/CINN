@@ -15,8 +15,6 @@
 #include "cinn/auto_schedule/cost_model/cost_model.h"
 
 #include <pybind11/embed.h>
-#include <pybind11/numpy.h>
-#include <pybind11/stl.h>
 
 #include <string>
 #include <vector>

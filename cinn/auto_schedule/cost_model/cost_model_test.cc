@@ -15,11 +15,15 @@
 #include "cinn/auto_schedule/cost_model/cost_model.h"
 
 #include <gtest/gtest.h>
+#include <pybind11/embed.h>
 
 namespace cinn {
 namespace auto_schedule {
 
-TEST(CostModel, Basic) { CostModel cost_model; }
+TEST(CostModel, Basic) {
+  pybind11::scoped_interpreter guard{};
+  CostModel cost_model;
+}
 
 }  // namespace auto_schedule
 }  // namespace cinn
