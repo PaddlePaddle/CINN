@@ -344,13 +344,7 @@ std::vector<Variable> NetBuilder::conv2d_grad(const Variable& dy,
 Variable NetBuilder::reduce(const Variable& a, ReduceKind kind, const std::vector<int>& dim, bool keep_dim) {
   auto reduce_func = [&](const std::string& op_type) {
     Instruction instr(op_type, {a});
-    std::vector<int> new_dim(dim);
-    if (dim.empty()) {
-      for (int i = 0; i < a->shape.size(); ++i) {
-        new_dim.push_back(i);
-      }
-    }
-    instr.SetAttr("dim", new_dim);
+    instr.SetAttr("dim", dim);
     instr.SetAttr("keep_dim", keep_dim);
     InferShape(instr);
     AppendInstruction(instr);

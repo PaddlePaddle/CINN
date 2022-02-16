@@ -32,6 +32,7 @@ class TestReduceBaseOp(OpTest):
     def init_case(self):
         self.inputs = {"x": np.random.random([10, 10, 10]).astype("float32")}
         self.dim = [0]
+        self.keep_dim = False
 
     def paddle_func(self, x):
         return paddle.sum(x)
@@ -66,25 +67,35 @@ class TestReduceSumOp(TestReduceBaseOp):
         return paddle.sum(x, axis=self.dim)
 
     def cinn_func(self, builder, x):
-        return builder.reduce(x, ReduceKind.kSum, self.dim)
+        return builder.reduce(x, ReduceKind.kSum, self.dim, self.keep_dim)
 
 
 class TestReduceSumCase1(TestReduceSumOp):
     def init_case(self):
         self.inputs = {"x": np.random.random([10, 10, 10]).astype("float32")}
         self.dim = []
+        self.keep_dim = False
 
 
 class TestReduceSumCase2(TestReduceSumOp):
     def init_case(self):
         self.inputs = {"x": np.random.random([10, 10, 10]).astype("float32")}
         self.dim = [0, 1]
+        self.keep_dim = False
 
 
 class TestReduceSumCase3(TestReduceSumOp):
     def init_case(self):
         self.inputs = {"x": np.random.random([10, 10, 10]).astype("float32")}
         self.dim = [0, 1, 2]
+        self.keep_dim = False
+
+
+class TestReduceSumCase4(TestReduceSumOp):
+    def init_case(self):
+        self.inputs = {"x": np.random.random([10, 10, 10]).astype("float32")}
+        self.dim = [0]
+        self.keep_dim = True
 
 
 class TestReduceProdOp(TestReduceBaseOp):
@@ -92,13 +103,28 @@ class TestReduceProdOp(TestReduceBaseOp):
         return paddle.prod(x, axis=self.dim)
 
     def cinn_func(self, builder, x):
-        return builder.reduce(x, ReduceKind.kProd, self.dim)
+        return builder.reduce(x, ReduceKind.kProd, self.dim, self.keep_dim)
 
 
 class TestReduceProdCase1(TestReduceProdOp):
     def init_case(self):
         self.inputs = {"x": np.random.random([10, 10, 10]).astype("float32")}
         self.dim = [0, 1]
+        self.keep_dim = False
+
+
+class TestReduceProdCase2(TestReduceProdOp):
+    def init_case(self):
+        self.inputs = {"x": np.random.random([10, 10, 10]).astype("float32")}
+        self.dim = [0, 1]
+        self.keep_dim = True
+
+
+class TestReduceProdCase3(TestReduceProdOp):
+    def init_case(self):
+        self.inputs = {"x": np.random.random([10, 10, 10]).astype("float32")}
+        self.dim = [0]
+        self.keep_dim = False
 
 
 class TestReduceMaxOp(TestReduceBaseOp):
@@ -106,13 +132,28 @@ class TestReduceMaxOp(TestReduceBaseOp):
         return paddle.max(x, axis=self.dim)
 
     def cinn_func(self, builder, x):
-        return builder.reduce(x, ReduceKind.kMax, self.dim)
+        return builder.reduce(x, ReduceKind.kMax, self.dim, self.keep_dim)
 
 
 class TestReduceMaxCase1(TestReduceMaxOp):
     def init_case(self):
         self.inputs = {"x": np.random.random([10, 10, 10]).astype("float32")}
         self.dim = [0, 1]
+        self.keep_dim = False
+
+
+class TestReduceMaxCase2(TestReduceMaxOp):
+    def init_case(self):
+        self.inputs = {"x": np.random.random([10, 10, 10]).astype("float32")}
+        self.dim = [0, 1]
+        self.keep_dim = True
+
+
+class TestReduceMaxCase3(TestReduceMaxOp):
+    def init_case(self):
+        self.inputs = {"x": np.random.random([10, 10, 10]).astype("float32")}
+        self.dim = [0]
+        self.keep_dim = False
 
 
 class TestReduceMinOp(TestReduceBaseOp):
@@ -120,13 +161,28 @@ class TestReduceMinOp(TestReduceBaseOp):
         return paddle.min(x, axis=self.dim)
 
     def cinn_func(self, builder, x):
-        return builder.reduce(x, ReduceKind.kMin, self.dim)
+        return builder.reduce(x, ReduceKind.kMin, self.dim, self.keep_dim)
 
 
 class TestReduceMinCase1(TestReduceMinOp):
     def init_case(self):
         self.inputs = {"x": np.random.random([10, 10, 10]).astype("float32")}
         self.dim = [0, 1]
+        self.keep_dim = False
+
+
+class TestReduceMinCase2(TestReduceMinOp):
+    def init_case(self):
+        self.inputs = {"x": np.random.random([10, 10, 10]).astype("float32")}
+        self.dim = [0, 1]
+        self.keep_dim = True
+
+
+class TestReduceMinCase3(TestReduceMinOp):
+    def init_case(self):
+        self.inputs = {"x": np.random.random([10, 10, 10]).astype("float32")}
+        self.dim = [0]
+        self.keep_dim = False
 
 
 if __name__ == "__main__":
