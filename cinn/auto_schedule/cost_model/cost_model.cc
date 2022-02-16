@@ -51,8 +51,7 @@ pybind11::array VectorToNumpy(const std::vector<std::vector<Dtype>>& vec) {
   Dtype* py_data = static_cast<Dtype*>(ret.mutable_data());
   for (size_t i = 0; i < vec.size(); ++i) {
     assert(vec[i].size() == shape[1] && "Sub vectors must have same size in VectorToNumpy");
-    const Dtype* sub_vec_data = vec[i].data();
-    memcpy(py_data + (shape[0] * i), sub_vec_data, shape[0] * sizeof(Dtype));
+    memcpy(py_data + (shape[1] * i), vec[i].data(), shape[1] * sizeof(Dtype));
   }
   return ret;
 }
@@ -62,6 +61,7 @@ CostModel::CostModel() {
   // TODO fix the hard code here
   std::string site_pkg_str = "/usr/local/lib/python3.7/dist-packages";
   sys_py_mod.attr("path").attr("append")(site_pkg_str);
+  sys_py_mod.attr("path").attr("append")("/usr/local/lib/python3.7/dist-packages/setuptools-50.3.2-py3.7.egg");
   auto path = sys_py_mod.attr("path").cast<std::vector<std::string>>();
   for (const std::string& s : path) {
     std::cout << s << std::endl;
@@ -84,8 +84,7 @@ void CostModel::Train(const std::vector<std::vector<float>>& samples, const std:
 std::vector<float> CostModel::Predict(const std::vector<std::vector<float>>& samples) {
   pybind11::array np_samples = VectorToNumpy<float>(samples);
 
-  pybind11::object py_result = python_member_.attr("predict")(np_samples);
-
+  pybind11::array py_result = python_member_.attr("predict")(np_samples);
   return py_result.cast<std::vector<float>>();
 }
 

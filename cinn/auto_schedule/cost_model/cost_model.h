@@ -34,6 +34,7 @@ namespace auto_schedule {
  *   https://pybind11.readthedocs.io/en/stable/reference.html#_CPPv422initialize_interpreterbiPPCKcb
  */
 class CostModel {
+  // TODO(zhhsplendid): add CostModelType for C++ interface
  public:
   CostModel();
   ~CostModel();
