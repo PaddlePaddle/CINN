@@ -72,9 +72,8 @@ struct OpFusionPassHelper {
 
         // group type
         group->op_pattern_kind_ = GetOpKind(node);  // op_pattern_dict_[0][node->op()];
-        if (group->op_pattern_kind_ == framework::kCommReduce) {
-          group->master_nodes_.insert(node);
-        }
+        // use current node as master node for schedule
+        group->master_nodes_.insert(node);
         fusion_groups_[node] = group;
       }
     }
