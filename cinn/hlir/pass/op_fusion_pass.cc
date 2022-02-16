@@ -165,8 +165,8 @@ struct OpFusionPassHelper {
           continue;
         }
 
-        auto source_node_op_kind = GetOpKind(node);  // op_pattern_dict_[0][source_node->op()];
-        // group-kind (kInjective and > kCommReduce) not support fusion now.
+        auto source_node_op_kind = GetOpKind(source_node.get());
+        // group-kind (kInjective and >= kCommReduce) not support fusion now.
         if (static_cast<int>(source_node_op_kind) > static_cast<int>(framework::kCommReduce) ||
             source_node_op_kind == framework::kInjective) {
           continue;
@@ -184,16 +184,15 @@ struct OpFusionPassHelper {
         }
 
         if (!can_merge) continue;
-        // checkout node type can be merged into group.
-        // element-wise + element-wise
-        // element-wise + broadcast
-        // element-wise + reduce
-        // broadcast + element-wise
-        // broadcast + broadcast(horizontal op, same output shape)
-        // broadcast + reduce
-        // reduce + element-wise
-        // reduce + broadcast(horizontal op, same output shape)
-        // reduce + reduce
+
+        if (source_node_op_kind == framework::kCommReduce) {
+          auto shape      = shape_dict_.at(source_node->inlinks_in_order()[0]->source()->id());
+          auto reduce_dim = absl::get<std::vector<int>>(source_node->attrs.attr_store.at("dim"));
+          // judge last dimension is in reduce.
+          if (std::find(reduce_dim.begin(), reduce_dim.end(), shape.size() - 1) != reduce_dim.end()) {
+            continue;
+          }
+        }
 
         // if reduce fuse reduce, the input shape and output shape should be same.
         if (source_node_op_kind == framework::kCommReduce && group_kind == framework::kCommReduce) {
@@ -201,7 +200,14 @@ struct OpFusionPassHelper {
           auto source_input_shape  = shape_dict_.at(source_node->inlinks_in_order()[0]->source()->id());
           auto source_output_shape = shape_dict_.at(source_node->outlinks_in_order()[0]->sink()->id());
 
-          const Node* master_node  = *group->master_nodes_.begin();
+          const Node* master_node = nullptr;
+          // find reduce node
+          for (auto& node : group->master_nodes_) {
+            if (GetOpKind(node) == framework::kCommReduce) {
+              master_node = node;
+              break;
+            }
+          }
           auto master_input_shape  = shape_dict_.at(master_node->inlinks_in_order()[0]->source()->id());
           auto master_output_shape = shape_dict_.at(master_node->outlinks_in_order()[0]->sink()->id());
 
