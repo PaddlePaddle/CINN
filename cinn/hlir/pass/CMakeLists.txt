@@ -6,6 +6,7 @@ gather_srcs(cinnapi_src SRCS
     opfusion.cc
     alterlayout.cc
     const_propagate.cc
+    transpose_folding.cc
     )
 
 
@@ -15,3 +16,4 @@ if (NOT WITH_CUDA)
 cc_test(test_alterlayout SRCS alterlayout_test.cc DEPS cinncore)
 endif()
 cc_test(test_const_propagate SRCS const_propagate_test.cc DEPS cinncore)
+cc_test(test_transpose_folding SRCS transpose_folding_test.cc DEPS cinncore)
