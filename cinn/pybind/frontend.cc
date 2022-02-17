@@ -356,12 +356,20 @@ void BindFrontend(pybind11::module *m) {
   // clang-format off
 #define PY_REGISTER_UNARY_FUNC(func_name__) \
   .def(SnakeName(#func_name__), &NetBuilder::func_name__, py::arg("a"))
-     NETBUILDER_UNARY_OP_FOREACH(PY_REGISTER_UNARY_FUNC)
+      NETBUILDER_UNARY_OP_FOREACH(PY_REGISTER_UNARY_FUNC)
 #undef PY_REGISTER_UNARY_FUNC
 #define PY_REGISTER_BINARY_FUNC(func_name__) \
   .def(SnakeName(#func_name__), &NetBuilder::func_name__, py::arg("a"), py::arg("b"))
-     NETBUILDER_BINARY_OP_FOREACH(PY_REGISTER_BINARY_FUNC)
+      NETBUILDER_BINARY_OP_FOREACH(PY_REGISTER_BINARY_FUNC)
 #undef PY_REGISTER_BINARY_FUNC
+#define PY_REGISTER_FILLCONSTANT_OP(TYPE__)                \
+  .def("fill_constant", &NetBuilder::FillConstant<TYPE__>, \
+       py::arg("shape"),                                   \
+       py::arg("value"),                                   \
+       py::arg("name"),                                    \
+       py::arg("force_cpu") = false)
+      FILLCONSTANT_SUPPORT_DATATYPE_FOREACH(PY_REGISTER_FILLCONSTANT_OP)
+#undef PY_REGISTER_FILLCONSTANT_OP
       // clang-format on
       .def("add", &NetBuilder::Add, py::arg("a"), py::arg("b"))
       .def("mul",

@@ -37,6 +37,10 @@ namespace frontend {
     macro__(Matmul)                             \
     macro__(ReluGrad)
 
+#define FILLCONSTANT_SUPPORT_DATATYPE_FOREACH(macro__)  \
+    macro__(float)                                      \
+    macro__(int)
+
 // clang-format on
 class NetBuilder : public BaseBuilder {
  public:
@@ -170,6 +174,9 @@ class NetBuilder : public BaseBuilder {
                                    const int groups                     = 1,
                                    const std::string& data_format       = "NCHW",
                                    const std::string& padding_algorithm = "EXPLICIT");
+
+  template <typename T>
+  Variable FillConstant(const std::vector<int>& shape, float value, const std::string& name, bool force_cpu = false);
 };
 
 }  // namespace frontend
