@@ -57,7 +57,7 @@ TEST(nn, CONV_GRAD) {
     auto x      = net_builder.CreateInput(Float(32), {n, ic, h, w}, "x");
     auto weight = net_builder.CreateInput(Float(32), {oc, ic, fh, fw}, "weight");
     // add batch norm train
-    auto outputs = net_builder.conv2d_grad(dy, x, weight, strides, paddings, dilations);
+    auto outputs = net_builder.Conv2dGrad(dy, x, weight, strides, paddings, dilations);
   }
 
   // build program

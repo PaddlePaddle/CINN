@@ -329,50 +329,66 @@ void BindFrontend(pybind11::module *m) {
       .def("create_input", static_cast<Placeholder (BaseBuilder::*)(const Variable &)>(&BaseBuilder::CreateInput))
       .def("build", &BaseBuilder::Build)
       .def("name", &BaseBuilder::name)
-      .def("append_instruction", &BaseBuilder::AppendInstruction);
+      .def("append_instruction", &BaseBuilder::AppendInstruction)
+      .def("concat", &BaseBuilder::Concat, py::arg("inputs"), py::arg("axis") = 0)
+      .def("reduce",
+           &BaseBuilder::Reduce,
+           py::arg("a"),
+           py::arg("kind")     = ReduceKind::kSum,
+           py::arg("dim")      = std::vector<int>{},
+           py::arg("keep_dim") = false)
+      .def("broadcast_to", &BaseBuilder::BroadcastTo, py::arg("a"), py::arg("out_shape"), py::arg("broadcast_axes"))
+      .def("reshape", &BaseBuilder::Reshape, py::arg("a"), py::arg("shape"))
+      .def("transpose", &BaseBuilder::Transpose, py::arg("a"), py::arg("axis"))
+      .def("slice",
+           &BaseBuilder::Slice,
+           py::arg("a"),
+           py::arg("axes"),
+           py::arg("starts")        = std::vector<int>{},
+           py::arg("ends")          = std::vector<int>{},
+           py::arg("infer_flags")   = std::vector<int>(),
+           py::arg("decrease_axis") = std::vector<int>())
+      .def("reverse", &BaseBuilder::Reverse, py::arg("x"), py::arg("axis"))
+      .def("select", &BaseBuilder::Select, py::arg("condition"), py::arg("true_value"), py::arg("false_value"));
 
   py::class_<NetBuilder, BaseBuilder>(*m, "NetBuilder")
       .def(py::init<const std::string &>(), py::arg("name") = "")
   // clang-format off
 #define PY_REGISTER_UNARY_FUNC(func_name__) \
-  .def(#func_name__, &NetBuilder::func_name__, py::arg("a"))
+  .def(SnakeName(#func_name__), &NetBuilder::func_name__, py::arg("a"))
      NETBUILDER_UNARY_OP_FOREACH(PY_REGISTER_UNARY_FUNC)
 #undef PY_REGISTER_UNARY_FUNC
 #define PY_REGISTER_BINARY_FUNC(func_name__) \
-  .def(#func_name__, &NetBuilder::func_name__, py::arg("a"), py::arg("b"))
+  .def(SnakeName(#func_name__), &NetBuilder::func_name__, py::arg("a"), py::arg("b"))
      NETBUILDER_BINARY_OP_FOREACH(PY_REGISTER_BINARY_FUNC)
 #undef PY_REGISTER_BINARY_FUNC
       // clang-format on
-      .def("add", &NetBuilder::add, py::arg("a"), py::arg("b"))
-      .def("reshape", &NetBuilder::reshape, py::arg("a"), py::arg("shape"))
-      .def("transpose", &NetBuilder::transpose, py::arg("a"), py::arg("axis"))
-      .def("concat", &NetBuilder::concat, py::arg("inputs"), py::arg("axis") = 0)
+      .def("add", &NetBuilder::Add, py::arg("a"), py::arg("b"))
       .def("mul",
-           &NetBuilder::mul,
+           &NetBuilder::Mul,
            py::arg("a"),
            py::arg("b"),
            py::arg("x_num_col_dims") = 1,
            py::arg("y_num_col_dims") = 1)
       .def("mulbias",
-           &NetBuilder::mulbias,
+           &NetBuilder::Mulbias,
            py::arg("a"),
            py::arg("b"),
            py::arg("c"),
            py::arg("x_num_col_dims") = 1,
            py::arg("y_num_col_dims") = 1)
-      .def("elementwise_add", &NetBuilder::elementwise_add, py::arg("a"), py::arg("b"), py::arg("axis") = -1)
+      .def("elementwise_add", &NetBuilder::ElementwiseAdd, py::arg("a"), py::arg("b"), py::arg("axis") = -1)
       .def("elementwise_add_grad",
-           &NetBuilder::elementwise_add_grad,
+           &NetBuilder::ElementwiseAddGrad,
            py::arg("dout"),
            py::arg("x"),
            py::arg("y"),
            py::arg("axis") = -1)
-      .def("elementwise_mul", &NetBuilder::elementwise_mul, py::arg("a"), py::arg("b"), py::arg("axis") = -1)
-      .def("relu6", &NetBuilder::relu6, py::arg("a"), py::arg("threshold") = 6.0f)
-      .def("reverse", &NetBuilder::reverse, py::arg("x"), py::arg("axis"))
-      .def("reduce_sum", &NetBuilder::reduce_sum, py::arg("x"), py::arg("dim"), py::arg("keep_dim") = false)
+      .def("elementwise_mul", &NetBuilder::ElementwiseMul, py::arg("a"), py::arg("b"), py::arg("axis") = -1)
+      .def("relu6", &NetBuilder::Relu6, py::arg("a"), py::arg("threshold") = 6.0f)
+      .def("reduce_sum", &NetBuilder::ReduceSum, py::arg("x"), py::arg("dim"), py::arg("keep_dim") = false)
       .def("conv2d",
-           &NetBuilder::conv2d,
+           &NetBuilder::Conv2d,
            py::arg("a"),
            py::arg("b"),
            py::arg("strides")           = std::vector<int>{1, 1},
@@ -382,7 +398,7 @@ void BindFrontend(pybind11::module *m) {
            py::arg("data_format")       = "NCHW",
            py::arg("padding_algorithm") = "EXPLICIT")
       .def("depthwise_conv2d",
-           &NetBuilder::depthwise_conv2d,
+           &NetBuilder::DepthwiseConv2d,
            py::arg("a"),
            py::arg("b"),
            py::arg("strides")           = std::vector<int>{1, 1},
@@ -392,7 +408,7 @@ void BindFrontend(pybind11::module *m) {
            py::arg("data_format")       = "NCHW",
            py::arg("padding_algorithm") = "EXPLICIT")
       .def("pool2d",
-           &NetBuilder::pool2d,
+           &NetBuilder::Pool2d,
            py::arg("a"),
            py::arg("polling_type"),
            py::arg("ksize"),
@@ -405,7 +421,7 @@ void BindFrontend(pybind11::module *m) {
            py::arg("adaptive")          = false,
            py::arg("padding_algorithm") = "EXPLICIT")
       .def("batchnorm",
-           &NetBuilder::batchnorm,
+           &NetBuilder::Batchnorm,
            py::arg("a"),
            py::arg("scale"),
            py::arg("bias"),
@@ -416,7 +432,7 @@ void BindFrontend(pybind11::module *m) {
            py::arg("data_layout") = "NCHW",
            py::arg("is_test")     = true)
       .def("batch_norm_grad",
-           &NetBuilder::batch_norm_grad,
+           &NetBuilder::BatchNormGrad,
            py::arg("dy"),
            py::arg("x"),
            py::arg("scale"),
@@ -425,27 +441,19 @@ void BindFrontend(pybind11::module *m) {
            py::arg("epsilon")     = 1e-5,
            py::arg("data_layout") = "NCHW")
       .def("scale",
-           &NetBuilder::scale,
+           &NetBuilder::Scale,
            py::arg("a"),
            py::arg("scale")            = 1.0f,
            py::arg("bias")             = 0.0f,
            py::arg("bias_after_scale") = true)
-      .def("softmax", &NetBuilder::softmax, py::arg("a"), py::arg("axis") = -1, py::arg("data_format") = "AnyLayout")
-      .def("slice",
-           &NetBuilder::slice,
-           py::arg("a"),
-           py::arg("axes"),
-           py::arg("starts")        = std::vector<int>{},
-           py::arg("ends")          = std::vector<int>{},
-           py::arg("infer_flags")   = std::vector<int>(),
-           py::arg("decrease_axis") = std::vector<int>())
+      .def("softmax", &NetBuilder::Softmax, py::arg("a"), py::arg("axis") = -1, py::arg("data_format") = "AnyLayout")
       .def("dropout_infer",
-           &NetBuilder::dropout_infer,
+           &NetBuilder::DropoutInfer,
            py::arg("a"),
            py::arg("dropout_prob")           = 0.5f,
            py::arg("dropout_implementation") = "downgrade_in_infer")
       .def("conv2d_grad",
-           &NetBuilder::conv2d_grad,
+           &NetBuilder::Conv2dGrad,
            py::arg("dy"),
            py::arg("x"),
            py::arg("w"),
@@ -455,14 +463,7 @@ void BindFrontend(pybind11::module *m) {
            py::arg("groups")            = 1,
            py::arg("data_format")       = "NCHW",
            py::arg("padding_algorithm") = "EXPLICIT")
-      .def("sum", &NetBuilder::sum, py::arg("inputs"))
-      .def("reduce",
-           &NetBuilder::reduce,
-           py::arg("a"),
-           py::arg("kind")     = ReduceKind::kSum,
-           py::arg("dim")      = std::vector<int>{},
-           py::arg("keep_dim") = false)
-      .def("broadcast_to", &NetBuilder::broadcast_to, py::arg("a"), py::arg("out_shape"), py::arg("broadcast_axes"));
+      .def("sum", &NetBuilder::Sum, py::arg("inputs"));
 
   py::class_<CinnBuilder, BaseBuilder>(*m, "CinnBuilder")
       .def(py::init<const std::string &>(), py::arg("name") = "")
@@ -475,7 +476,6 @@ void BindFrontend(pybind11::module *m) {
           BINARY_OP_FOREACH(PY_REGISTER_FUNC)
 #undef PY_REGISTER_FUNC
       // clang-format on
-      .def("concat", &CinnBuilder::Concat, py::arg("input_vars"), py::arg("axis") = 0)
       .def("conv",
            &CinnBuilder::Conv,
            py::arg("lhs"),
@@ -489,26 +489,6 @@ void BindFrontend(pybind11::module *m) {
            py::arg("padding_algorithm") = "EXPLICIT",
            py::arg("output_shape")      = std::vector<int>{})
       .def("compare", &CinnBuilder::Compare, py::arg("lhs"), py::arg("rhs"), py::arg("kind") = ComparisonKind::kEq)
-      .def("reduce",
-           &CinnBuilder::Reduce,
-           py::arg("operand"),
-           py::arg("kind")     = ReduceKind::kSum,
-           py::arg("dim")      = std::vector<int>{},
-           py::arg("keep_dim") = false)
-      .def("broadcast_to",
-           &CinnBuilder::BroadcastTo,
-           py::arg("operand"),
-           py::arg("out_shape"),
-           py::arg("broadcast_axes"))
-      .def("reshape", &CinnBuilder::Reshape, py::arg("operand"), py::arg("shape"))
-      .def("slice",
-           &CinnBuilder::Slice,
-           py::arg("operand"),
-           py::arg("axes"),
-           py::arg("starts") = std::vector<int>{},
-           py::arg("ends")   = std::vector<int>{})
-      .def("select", &CinnBuilder::Select, py::arg("condition"), py::arg("true_value"), py::arg("false_value"))
-      .def("reverse", &CinnBuilder::Reverse, py::arg("operand"), py::arg("axis"))
       .def("__str__", [](CinnBuilder &self) { return self.name(); });
 
   auto computation = py::class_<CinnComputation, std::shared_ptr<CinnComputation>>(*m, "Computation");

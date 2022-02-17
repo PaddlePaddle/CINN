@@ -58,7 +58,7 @@ void BatchnormOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
     VLOG(4) << "Invoke batch_norm OpMapper with train mode";
   }
 
-  auto outs = ctx.Builder()->batchnorm(x, scale, bias, mean, variance, epsilon, momentum, data_layout, test_mode);
+  auto outs = ctx.Builder()->Batchnorm(x, scale, bias, mean, variance, epsilon, momentum, data_layout, test_mode);
   CHECK_EQ(outs.size(), output_names.size()) << "batch_norm API's should return" << output_names.size() << "Variables!";
 
   for (int i = 0; i < outs.size(); i++) {
@@ -99,7 +99,7 @@ void BatchNormGradOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperCon
   auto epsilon     = utils::GetAttrOrDefault<float>(op_desc, "epsilon", 1e-5f);
 
   // batch norm grad, output(grad_x, grad_scale, grad_bias)
-  auto outs = ctx.Builder()->batch_norm_grad(dy, x, scale, saved_mean, saved_variance, epsilon, data_layout);
+  auto outs = ctx.Builder()->BatchNormGrad(dy, x, scale, saved_mean, saved_variance, epsilon, data_layout);
   CHECK_EQ(outs.size(), 3ul) << "batch_norm_grad API's should return 3 Variable!";
 
   std::vector<std::string> output_names = {

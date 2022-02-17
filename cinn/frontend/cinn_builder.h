@@ -116,8 +116,6 @@ class CinnBuilder : public BaseBuilder {
   BINARY_OP_FOREACH(BINARY_OP_DECL)
 #undef BINARY_OP_DECL
 
-  Variable Concat(const std::vector<Variable>& input_vars, int axis = 0);
-
   Variable Conv(const Variable& lhs,
                 const Variable& rhs,
                 const std::vector<int>& strides      = {1, 1},
@@ -131,44 +129,9 @@ class CinnBuilder : public BaseBuilder {
 
   Variable Compare(const Variable& lhs, const Variable& rhs, ComparisonKind kind);
 
-  /**
-   * @brief Reduce array elements over the given dims.
-   *
-   * @param operand The input variable.
-   * @param dim The dims along which a sum is performed. If dim is empty, the operation will sum over all elements
-   * of the input array. If the dim has negative value, it should count from the last dim to the first.
-   * @param keep_dim If it is set true, the axes which are reduced are left in the result as dimensions with size one.
-   * With this option, the result will broadcast correctly against the input array.
-   *
-   * @return The result variable.
-   */
-  Variable Reduce(const Variable& operand, ReduceKind kind, const std::vector<int>& dim, bool keep_dim = false);
-
-  Variable BroadcastTo(const Variable& operand,
-                       const std::vector<int>& out_shape,
-                       const std::vector<int>& broadcast_axes);
-
-  Variable Reshape(const Variable& operand, const std::vector<int>& shape);
-
-  Variable Transpose(const Variable& operand, const std::vector<int>& axis);
-
-  Variable Slice(const Variable& operand,
-                 const std::vector<int>& axes,
-                 const std::vector<int>& starts = {},
-                 const std::vector<int>& ends   = {});
-
-  Variable Select(const Variable& condition, const Variable& true_value, const Variable& false_value);
-
-  Variable Reverse(const Variable& operand, const std::vector<int>& axis);
-
   std::vector<Variable> BnMeanVariance(const Variable& x);
 
   std::vector<Variable> BnGradBiasScale(const Variable& x, const Variable& x_mean, const Variable& y_grad);
-
- private:
-  Variable UnaryOp(const std::string& op_type, const Variable& operand);
-
-  Variable BinaryOp(const std::string& op_type, const Variable& lhs, const Variable& rhs);
 };
 
 }  // namespace frontend

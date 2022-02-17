@@ -44,8 +44,8 @@ Program CreateAddProgram() {
   NetBuilder builder("net_builder");
   auto a       = builder.CreateInput(Float(32), {M, N}, "A");
   auto b       = builder.CreateInput(Float(32), {M, N}, "B");
-  auto c       = builder.add(a, b);
-  auto d       = builder.add(a, c);
+  auto c       = builder.Add(a, b);
+  auto d       = builder.Add(a, c);
   auto program = builder.Build();
 
   return program;
@@ -127,8 +127,8 @@ TEST(net_build, program_execute_fc) {
   auto w = builder.CreateInput(Float(32), {N, K}, "W");  // weight
   auto b = builder.CreateInput(Float(32), {N}, "B");     // bias
 
-  auto mul_out = builder.mul(a, w, 2, 1);
-  auto add_out = builder.add(mul_out, b);
+  auto mul_out = builder.Mul(a, w, 2, 1);
+  auto add_out = builder.Add(mul_out, b);
   auto program = builder.Build();
 
 #ifdef CINN_WITH_CUDA
@@ -167,7 +167,7 @@ TEST(net_build, program_execute_reverse) {
 
   NetBuilder builder("net_builder");
   Placeholder input    = builder.CreateInput(Float(32), {B, C, H, W}, "Img");
-  Variable reverse_out = builder.reverse(input, {2, 3});
+  Variable reverse_out = builder.Reverse(input, {2, 3});
   auto program         = builder.Build();
 
 #ifdef CINN_WITH_CUDA

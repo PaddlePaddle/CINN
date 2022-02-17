@@ -62,8 +62,53 @@ class BaseBuilder {
 
   void AppendInstruction(const Instruction& instr) { instrs_.push_back(instr); }
 
+  Variable Concat(const std::vector<Variable>& input_vars, int axis = 0);
+
+  /**
+   * @brief Reduce array elements over the given dims.
+   *
+   * @param operand The input variable.
+   * @param dim The dims along which a sum is performed. If dim is empty, the operation will sum over all elements
+   * of the input array. If the dim has negative value, it should count from the last dim to the first.
+   * @param keep_dim If it is set true, the axes which are reduced are left in the result as dimensions with size one.
+   * With this option, the result will broadcast correctly against the input array.
+   *
+   * @return The result variable.
+   */
+  Variable Reduce(const Variable& operand, ReduceKind kind, const std::vector<int>& dim, bool keep_dim = false);
+
+  Variable BroadcastTo(const Variable& operand,
+                       const std::vector<int>& out_shape,
+                       const std::vector<int>& broadcast_axes);
+
+  Variable Reshape(const Variable& operand, const std::vector<int>& shape);
+
+  Variable Transpose(const Variable& operand, const std::vector<int>& axis);
+
+  Variable Slice(const Variable& operand,
+                 const std::vector<int>& axes,
+                 const std::vector<int>& starts        = {},
+                 const std::vector<int>& ends          = {},
+                 const std::vector<int>& infer_flags   = {},
+                 const std::vector<int>& decrease_axis = {});
+
+  /**
+   * This API reverses the Variable x along the given axis.
+   * Example 1: x = [[0, 1], [2, 3], [4, 5]], axis = [0]
+   *            output = [[4, 5], [2, 3], [0, 1]]
+   * Example 2: x = [[0, 1], [2, 3], [4, 5]], axis = [0, 1]
+   *            output = [[5, 4], [3, 2], [1, 0]]
+   */
+  Variable Reverse(const Variable& operand, const std::vector<int>& axis);
+
+  Variable Select(const Variable& condition, const Variable& true_value, const Variable& false_value);
+
  protected:
   void InferShape(Instruction instr) const;
+
+  Variable UnaryOp(const std::string& op_type, const Variable& operand);
+
+  Variable BinaryOp(const std::string& op_type, const Variable& lhs, const Variable& rhs);
 
   std::string name_;
   std::vector<Instruction> instrs_;

@@ -43,14 +43,14 @@ void MulOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx)
 #ifdef CINN_WITH_CUDNN
     auto tran_shape = y->shape;
     std::swap(tran_shape[0], tran_shape[1]);
-    tran_y = ctx.Builder()->reshape(y, tran_shape);
+    tran_y = ctx.Builder()->Reshape(y, tran_shape);
     VLOG(4) << "Run with CUDNN and reshape y to" << cinn::utils::Join(tran_y->shape, ",");
 #else
-    tran_y = ctx.Builder()->transpose(y, {1, 0});
+    tran_y = ctx.Builder()->Transpose(y, {1, 0});
     VLOG(4) << "Run Not with CUDNN and transpose y to" << cinn::utils::Join(tran_y->shape, ",");
 #endif
   } else {
-    tran_y = ctx.Builder()->transpose(y, {1, 0});
+    tran_y = ctx.Builder()->Transpose(y, {1, 0});
     VLOG(4) << "Run Not with CUDNN and transpose y to" << cinn::utils::Join(tran_y->shape, ",");
   }
 
@@ -61,7 +61,7 @@ void MulOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx)
   VLOG(4) << "Mul y_num_col_dims: " << y_num_col_dims;
   VLOG(4) << "x shape: " << cinn::utils::Join(x->shape, ",");
   VLOG(4) << "y shape: " << cinn::utils::Join(tran_y->shape, ",");
-  auto out = ctx.Builder()->mul(x, tran_y, x_num_col_dims, y_num_col_dims);
+  auto out = ctx.Builder()->Mul(x, tran_y, x_num_col_dims, y_num_col_dims);
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
   auto out_name = op_desc.Output("Out").front();
   ctx.AddVar(out_name, out);
@@ -95,14 +95,14 @@ void MulBiasOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& 
 #ifdef CINN_WITH_CUDNN
     auto tran_shape = y->shape;
     std::swap(tran_shape[0], tran_shape[1]);
-    tran_y = ctx.Builder()->reshape(y, tran_shape);
+    tran_y = ctx.Builder()->Reshape(y, tran_shape);
     VLOG(4) << "Run with CUDNN and reshape y to" << cinn::utils::Join(tran_y->shape, ",");
 #else
-    tran_y = ctx.Builder()->transpose(y, {1, 0});
+    tran_y = ctx.Builder()->Transpose(y, {1, 0});
     VLOG(4) << "Run Not with CUDNN and transpose y to" << cinn::utils::Join(tran_y->shape, ",");
 #endif
   } else {
-    tran_y = ctx.Builder()->transpose(y, {1, 0});
+    tran_y = ctx.Builder()->Transpose(y, {1, 0});
     VLOG(4) << "Run Not with CUDNN and transpose y to" << cinn::utils::Join(tran_y->shape, ",");
   }
 
@@ -114,7 +114,7 @@ void MulBiasOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& 
   VLOG(4) << "x shape: " << cinn::utils::Join(x->shape, ",");
   VLOG(4) << "y shape: " << cinn::utils::Join(tran_y->shape, ",");
   VLOG(4) << "z shape: " << cinn::utils::Join(z->shape, ",");
-  auto out = ctx.Builder()->mulbias(x, tran_y, z, x_num_col_dims, y_num_col_dims);
+  auto out = ctx.Builder()->Mulbias(x, tran_y, z, x_num_col_dims, y_num_col_dims);
 
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
   auto out_name = op_desc.Output("Out").front();

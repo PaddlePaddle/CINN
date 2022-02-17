@@ -23,68 +23,22 @@
 namespace cinn {
 namespace frontend {
 
-Variable NetBuilder::UnaryOp(const std::string& op_type, const Variable& operand) {
-  Instruction instr(op_type, {operand});
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
-}
-
-Variable NetBuilder::BinaryOp(const std::string& op_type, const Variable& lhs, const Variable& rhs) {
-  Instruction instr(op_type, {lhs, rhs});
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
-}
-
 #define NETBUILDER_UNARY_OP_DEF(func_name__, op_type__) \
   Variable NetBuilder::func_name__(const Variable& operand) { return UnaryOp(#op_type__, operand); }
-NETBUILDER_UNARY_OP_DEF(sqrt, sqrt)
-NETBUILDER_UNARY_OP_DEF(tanh, tanh)
-NETBUILDER_UNARY_OP_DEF(relu, relu)
-NETBUILDER_UNARY_OP_DEF(sigmoid, sigmoid)
-NETBUILDER_UNARY_OP_DEF(identity, identity)
+NETBUILDER_UNARY_OP_DEF(Sqrt, sqrt)
+NETBUILDER_UNARY_OP_DEF(Tanh, tanh)
+NETBUILDER_UNARY_OP_DEF(Relu, relu)
+NETBUILDER_UNARY_OP_DEF(Sigmoid, sigmoid)
+NETBUILDER_UNARY_OP_DEF(Identity, identity)
 
 #define NETBUILDER_BINARY_OP_DEF(func_name__, op_type__) \
   Variable NetBuilder::func_name__(const Variable& lhs, const Variable& rhs) { return BinaryOp(#op_type__, lhs, rhs); }
-NETBUILDER_BINARY_OP_DEF(sub, substract)
-NETBUILDER_BINARY_OP_DEF(div, divide)
-NETBUILDER_BINARY_OP_DEF(matmul, matmul)
-NETBUILDER_BINARY_OP_DEF(relu_grad, relu_grad)
+NETBUILDER_BINARY_OP_DEF(Sub, substract)
+NETBUILDER_BINARY_OP_DEF(Div, divide)
+NETBUILDER_BINARY_OP_DEF(Matmul, matmul)
+NETBUILDER_BINARY_OP_DEF(ReluGrad, relu_grad)
 
-Variable NetBuilder::add(const Variable& a, const Variable& b) {
-  Instruction instr("elementwise_add", {a, b});
-  instr.SetAttr("axis", -1);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
-}
-
-Variable NetBuilder::reshape(const Variable& operand, const std::vector<int>& shape) {
-  Instruction instr("reshape", {operand});
-  instr.SetAttr("shape", shape);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
-}
-
-Variable NetBuilder::transpose(const Variable& operand, const std::vector<int>& axis) {
-  Instruction instr("transpose", {operand});
-  instr.SetAttr("axis", axis);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
-}
-
-Variable NetBuilder::concat(const std::vector<Variable>& inputs, int axis) {
-  Instruction instr("concat", inputs);
-  instr.SetAttr("axis", axis);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
-}
-
-Variable NetBuilder::mul(const Variable& a, const Variable& b, int x_num_col_dims, int y_num_col_dims) {
+Variable NetBuilder::Mul(const Variable& a, const Variable& b, int x_num_col_dims, int y_num_col_dims) {
   Instruction instr("mul", {a, b});
   instr.SetAttr("x_num_col_dims", x_num_col_dims);
   instr.SetAttr("y_num_col_dims", y_num_col_dims);
@@ -93,7 +47,7 @@ Variable NetBuilder::mul(const Variable& a, const Variable& b, int x_num_col_dim
   return instr.GetOutput(0);
 }
 
-Variable NetBuilder::mulbias(
+Variable NetBuilder::Mulbias(
     const Variable& a, const Variable& b, const Variable& c, int x_num_col_dims, int y_num_col_dims) {
   Instruction instr("mulbias", {a, b, c});
   instr.SetAttr("x_num_col_dims", x_num_col_dims);
@@ -103,7 +57,9 @@ Variable NetBuilder::mulbias(
   return instr.GetOutput(1);
 }
 
-Variable NetBuilder::elementwise_add(const Variable& a, const Variable& b, int axis) {
+Variable NetBuilder::Add(const Variable& a, const Variable& b) { return ElementwiseAdd(a, b, -1); }
+
+Variable NetBuilder::ElementwiseAdd(const Variable& a, const Variable& b, int axis) {
   Instruction instr("elementwise_add", {a, b});
   instr.SetAttr("axis", axis);
   InferShape(instr);
@@ -111,10 +67,10 @@ Variable NetBuilder::elementwise_add(const Variable& a, const Variable& b, int a
   return instr.GetOutput(0);
 }
 
-const std::vector<Variable>& NetBuilder::elementwise_add_grad(const Variable& dout,
-                                                              const Variable& x,
-                                                              const Variable& y,
-                                                              int axis) {
+const std::vector<Variable>& NetBuilder::ElementwiseAddGrad(const Variable& dout,
+                                                            const Variable& x,
+                                                            const Variable& y,
+                                                            int axis) {
   Instruction instr("elementwise_add_grad", {dout, x, y});
   instr.SetAttr("axis", axis);
   InferShape(instr);
@@ -122,7 +78,7 @@ const std::vector<Variable>& NetBuilder::elementwise_add_grad(const Variable& do
   return instr.GetOutputs();
 }
 
-Variable NetBuilder::elementwise_mul(const Variable& a, const Variable& b, int axis) {
+Variable NetBuilder::ElementwiseMul(const Variable& a, const Variable& b, int axis) {
   Instruction instr("elementwise_mul", {a, b});
   instr.SetAttr("axis", axis);
   InferShape(instr);
@@ -130,7 +86,7 @@ Variable NetBuilder::elementwise_mul(const Variable& a, const Variable& b, int a
   return instr.GetOutput(0);
 }
 
-Variable NetBuilder::relu6(const Variable& a, float threshold) {
+Variable NetBuilder::Relu6(const Variable& a, float threshold) {
   Instruction instr("relu6", {a});
   instr.SetAttr("threshold", threshold);
   InferShape(instr);
@@ -138,24 +94,11 @@ Variable NetBuilder::relu6(const Variable& a, float threshold) {
   return instr.GetOutput(0);
 }
 
-Variable NetBuilder::reverse(const Variable& x, const std::vector<int>& axis) {
-  Instruction instr("reverse", {x});
-  instr.SetAttr("axis", axis);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+Variable NetBuilder::ReduceSum(const Variable& x, const std::vector<int>& dim, bool keep_dim) {
+  return Reduce(x, ReduceKind::kSum, dim, keep_dim);
 }
 
-Variable NetBuilder::reduce_sum(const Variable& x, const std::vector<int>& dim, bool keep_dim) {
-  Instruction instr("reduce_sum", {x});
-  instr.SetAttr("dim", dim);
-  instr.SetAttr("keep_dim", keep_dim);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
-}
-
-Variable NetBuilder::conv2d(const Variable& a,
+Variable NetBuilder::Conv2d(const Variable& a,
                             const Variable& b,
                             const std::vector<int>& strides,
                             const std::vector<int>& paddings,
@@ -176,14 +119,14 @@ Variable NetBuilder::conv2d(const Variable& a,
   return instr.GetOutput(0);
 }
 
-Variable NetBuilder::depthwise_conv2d(const Variable& a,
-                                      const Variable& b,
-                                      const std::vector<int>& strides,
-                                      const std::vector<int>& paddings,
-                                      const std::vector<int>& dilations,
-                                      int groups,
-                                      const std::string& data_format,
-                                      const std::string& padding_algorithm) {
+Variable NetBuilder::DepthwiseConv2d(const Variable& a,
+                                     const Variable& b,
+                                     const std::vector<int>& strides,
+                                     const std::vector<int>& paddings,
+                                     const std::vector<int>& dilations,
+                                     int groups,
+                                     const std::string& data_format,
+                                     const std::string& padding_algorithm) {
   Instruction instr("depthwise_conv2d");
   instr.SetInputs({a, b});
   instr.SetAttr("stride", strides);
@@ -197,7 +140,7 @@ Variable NetBuilder::depthwise_conv2d(const Variable& a,
   return instr.GetOutput(0);
 }
 
-Variable NetBuilder::pool2d(const Variable& a,
+Variable NetBuilder::Pool2d(const Variable& a,
                             const std::string& pooling_type,
                             const std::vector<int>& ksize,
                             const std::vector<int>& strides,
@@ -225,7 +168,7 @@ Variable NetBuilder::pool2d(const Variable& a,
   return instr.GetOutput(0);
 }
 
-std::vector<Variable> NetBuilder::batchnorm(const Variable& a,
+std::vector<Variable> NetBuilder::Batchnorm(const Variable& a,
                                             const Variable& scale,
                                             const Variable& bias,
                                             const Variable& mean,
@@ -250,13 +193,13 @@ std::vector<Variable> NetBuilder::batchnorm(const Variable& a,
 }
 
 // batch norm grad, output(grad_x, grad_scale, grad_bias)
-std::vector<Variable> NetBuilder::batch_norm_grad(const Variable& dy,
-                                                  const Variable& x,
-                                                  const Variable& scale,
-                                                  const Variable& save_mean,
-                                                  const Variable& save_variance,
-                                                  const float epsilon,
-                                                  const std::string& data_layout) {
+std::vector<Variable> NetBuilder::BatchNormGrad(const Variable& dy,
+                                                const Variable& x,
+                                                const Variable& scale,
+                                                const Variable& save_mean,
+                                                const Variable& save_variance,
+                                                const float epsilon,
+                                                const std::string& data_layout) {
   Instruction instr("batch_norm_grad", {dy, x, scale, save_mean, save_variance});
   instr.SetAttr("epsilon", epsilon);
   instr.SetAttr("data_layout", data_layout);
@@ -266,7 +209,7 @@ std::vector<Variable> NetBuilder::batch_norm_grad(const Variable& dy,
   return instr.GetOutputs();
 }
 
-Variable NetBuilder::scale(const Variable& a, float scale, float bias, bool bias_after_scale) {
+Variable NetBuilder::Scale(const Variable& a, float scale, float bias, bool bias_after_scale) {
   Instruction instr("scale", {a});
   instr.SetAttr("scale", scale);
   instr.SetAttr("bias", bias);
@@ -276,7 +219,7 @@ Variable NetBuilder::scale(const Variable& a, float scale, float bias, bool bias
   return instr.GetOutput(0);
 }
 
-Variable NetBuilder::softmax(const Variable& a, int axis, const std::string& data_format) {
+Variable NetBuilder::Softmax(const Variable& a, int axis, const std::string& data_format) {
   Instruction instr("softmax", {a});
   instr.SetAttr("axis", axis);
   instr.SetAttr("data_format", data_format);
@@ -285,24 +228,7 @@ Variable NetBuilder::softmax(const Variable& a, int axis, const std::string& dat
   return instr.GetOutput(0);
 }
 
-Variable NetBuilder::slice(const Variable& a,
-                           const std::vector<int>& axes,
-                           const std::vector<int>& starts,
-                           const std::vector<int>& ends,
-                           const std::vector<int>& infer_flags,
-                           const std::vector<int>& decrease_axis) {
-  Instruction instr("slice", {a});
-  instr.SetAttr("axes", axes);
-  instr.SetAttr("starts", starts);
-  instr.SetAttr("ends", ends);
-  instr.SetAttr("infer_flags", infer_flags);
-  instr.SetAttr("decrease_axis", decrease_axis);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
-}
-
-Variable NetBuilder::dropout_infer(const Variable& a, float dropout_prob, const std::string& dropout_implementation) {
+Variable NetBuilder::DropoutInfer(const Variable& a, float dropout_prob, const std::string& dropout_implementation) {
   Instruction instr("dropout_infer", {a});
   instr.SetAttr("dropout_prob", dropout_prob);
   instr.SetAttr("dropout_implementation", dropout_implementation);
@@ -311,7 +237,7 @@ Variable NetBuilder::dropout_infer(const Variable& a, float dropout_prob, const 
   return instr.GetOutput(0);
 }
 
-Variable NetBuilder::sum(const std::vector<Variable>& inputs) {
+Variable NetBuilder::Sum(const std::vector<Variable>& inputs) {
   Instruction instr("sum", inputs);
   InferShape(instr);
   AppendInstruction(instr);
@@ -319,15 +245,15 @@ Variable NetBuilder::sum(const std::vector<Variable>& inputs) {
 }
 
 // conv2d grad, output(grad_x, grad_w)
-std::vector<Variable> NetBuilder::conv2d_grad(const Variable& dy,
-                                              const Variable& x,
-                                              const Variable& w,
-                                              const std::vector<int>& strides,
-                                              const std::vector<int>& paddings,
-                                              const std::vector<int>& dilations,
-                                              const int groups,
-                                              const std::string& data_format,
-                                              const std::string& padding_algorithm) {
+std::vector<Variable> NetBuilder::Conv2dGrad(const Variable& dy,
+                                             const Variable& x,
+                                             const Variable& w,
+                                             const std::vector<int>& strides,
+                                             const std::vector<int>& paddings,
+                                             const std::vector<int>& dilations,
+                                             const int groups,
+                                             const std::string& data_format,
+                                             const std::string& padding_algorithm) {
   Instruction instr("conv2d_grad", {dy, x, w});
   instr.SetAttr<std::vector<int>>("strides", strides);
   instr.SetAttr<std::vector<int>>("paddings", paddings);
@@ -339,41 +265,6 @@ std::vector<Variable> NetBuilder::conv2d_grad(const Variable& dy,
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutputs();
-}
-
-Variable NetBuilder::reduce(const Variable& a, ReduceKind kind, const std::vector<int>& dim, bool keep_dim) {
-  auto reduce_func = [&](const std::string& op_type) {
-    Instruction instr(op_type, {a});
-    instr.SetAttr("dim", dim);
-    instr.SetAttr("keep_dim", keep_dim);
-    InferShape(instr);
-    AppendInstruction(instr);
-    return instr.GetOutput(0);
-  };
-
-  switch (kind) {
-    case ReduceKind::kSum:
-      return reduce_func("reduce_sum");
-    case ReduceKind::kProd:
-      return reduce_func("reduce_prod");
-    case ReduceKind::kMax:
-      return reduce_func("reduce_max");
-    case ReduceKind::kMin:
-      return reduce_func("reduce_min");
-    default:
-      LOG(FATAL) << "unknown reduction kind";
-  }
-}
-
-Variable NetBuilder::broadcast_to(const Variable& a,
-                                  const std::vector<int>& out_shape,
-                                  const std::vector<int>& broadcast_axes) {
-  Instruction instr("broadcast_to", {a});
-  instr.SetAttr("out_shape", out_shape);
-  instr.SetAttr("broadcast_axes", broadcast_axes);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
 }
 
 }  // namespace frontend

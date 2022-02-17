@@ -20,7 +20,7 @@ TEST(Decomposer, elementwise_add_bcast0) {
   NetBuilder builder("elementwise_add");
   auto x   = builder.CreateInput(Float(32), {4, 1, 20, 10});
   auto y   = builder.CreateInput(Float(32), {10, 20});
-  auto out = builder.elementwise_add(x, y, 1);
+  auto out = builder.ElementwiseAdd(x, y, 1);
 
   std::vector<std::string> input_names        = {x.id().data(), y.id().data()};
   std::vector<std::string> output_names       = {out->id};
@@ -33,7 +33,7 @@ TEST(Decomposer, elementwise_add_grad_bcast0) {
   auto dout      = builder.CreateInput(Float(32), {4, 10, 20, 10});
   auto x         = builder.CreateInput(Float(32), {4, 1, 20, 10});
   auto y         = builder.CreateInput(Float(32), {10, 20});
-  auto out_grads = builder.elementwise_add_grad(dout, x, y, 1);
+  auto out_grads = builder.ElementwiseAddGrad(dout, x, y, 1);
 
   std::vector<std::string> input_names        = {dout.id().data()};
   std::vector<std::string> output_names       = {out_grads[0]->id, out_grads[1]->id};
@@ -45,7 +45,7 @@ TEST(Decomposer, elementwise_add_bcast1) {
   NetBuilder builder("elementwise_add");
   auto x   = builder.CreateInput(Float(32), {32, 64, 32, 32});
   auto y   = builder.CreateInput(Float(32), {64});
-  auto out = builder.elementwise_add(x, y, 1);
+  auto out = builder.ElementwiseAdd(x, y, 1);
 
   auto add_cpu = [](const std::vector<size_t>& lengths, const std::vector<void*>& ptrs) {
     float* x   = static_cast<float*>(ptrs[0]);
@@ -71,7 +71,7 @@ TEST(Decomposer, elementwise_add_grad_bcast1) {
   auto dout      = builder.CreateInput(Float(32), {32, 64, 32, 32});
   auto x         = builder.CreateInput(Float(32), {32, 64, 32, 32});
   auto y         = builder.CreateInput(Float(32), {64});
-  auto out_grads = builder.elementwise_add_grad(dout, x, y, 1);
+  auto out_grads = builder.ElementwiseAddGrad(dout, x, y, 1);
 
   auto add_grad_cpu = [](const std::vector<size_t>& lengths, const std::vector<void*>& ptrs) {
     float* dout = static_cast<float*>(ptrs[0]);
@@ -100,7 +100,7 @@ TEST(Decomposer, elementwise_add_bcast2) {
   NetBuilder builder("elementwise_add");
   auto x   = builder.CreateInput(Float(32), {32, 16});
   auto y   = builder.CreateInput(Float(32), {1});
-  auto out = builder.elementwise_add(x, y);
+  auto out = builder.ElementwiseAdd(x, y);
 
   auto add_cpu = [](const std::vector<size_t>& lengths, const std::vector<void*>& ptrs) {
     size_t n     = lengths[0];
@@ -124,7 +124,7 @@ TEST(Decomposer, elementwise_add_grad_bcast2) {
   auto dout      = builder.CreateInput(Float(32), {32, 16});
   auto x         = builder.CreateInput(Float(32), {32, 16});
   auto y         = builder.CreateInput(Float(32), {1});
-  auto out_grads = builder.elementwise_add_grad(dout, x, y);
+  auto out_grads = builder.ElementwiseAddGrad(dout, x, y);
 
   auto add_grad_cpu = [](const std::vector<size_t>& lengths, const std::vector<void*>& ptrs) {
     size_t n    = lengths[0];
@@ -148,7 +148,7 @@ TEST(Decomposer, elementwise_add_same_dims) {
   NetBuilder builder("elementwise_add");
   auto x   = builder.CreateInput(Float(32), {32, 16});
   auto y   = builder.CreateInput(Float(32), {32, 16});
-  auto out = builder.elementwise_add(x, y);
+  auto out = builder.ElementwiseAdd(x, y);
 
   auto add_cpu = [](const std::vector<size_t>& lengths, const std::vector<void*>& ptrs) {
     size_t n   = lengths[0];
@@ -171,7 +171,7 @@ TEST(Decomposer, elementwise_add_grad_same_dims) {
   auto dout      = builder.CreateInput(Float(32), {32, 16});
   auto x         = builder.CreateInput(Float(32), {32, 16});
   auto y         = builder.CreateInput(Float(32), {32, 16});
-  auto out_grads = builder.elementwise_add_grad(dout, x, y);
+  auto out_grads = builder.ElementwiseAddGrad(dout, x, y);
 
   auto add_grad_cpu = [](const std::vector<size_t>& lengths, const std::vector<void*>& ptrs) {
     size_t n    = lengths[0];

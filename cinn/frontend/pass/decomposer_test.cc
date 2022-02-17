@@ -37,8 +37,8 @@ Program CreateAddProgram() {
   NetBuilder builder("net_builder");
   auto a       = builder.CreateInput(Float(32), {M, N});
   auto b       = builder.CreateInput(Float(32), {M, N});
-  auto c       = builder.relu(a);
-  auto d       = builder.add(b, c);
+  auto c       = builder.Relu(a);
+  auto d       = builder.Add(b, c);
   auto program = builder.Build();
 
   return program;
