@@ -21,12 +21,17 @@ import paddle
 import cinn
 from cinn.frontend import *
 from cinn.common import *
+import sys
+
+enable_gpu = sys.argv.pop()
 
 
-@OpTestTool.skip_if(not is_compiled_with_cuda(),
-                    "x86 test will be skipped due to timeout.")
 class TestBroadcastToOp(OpTest):
     def setUp(self):
+        if enable_gpu == "ON":
+            self.target = DefaultNVGPUTarget()
+        else:
+            self.target = DefaultHostTarget()
         self.init_case()
 
     def init_case(self):
@@ -63,6 +68,22 @@ class TestBroadcastToCase1(TestBroadcastToOp):
         self.inputs = {"x": np.random.random([1, 1, 3]).astype("float32")}
         self.out_shape = [4, 5, 3]
         self.broadcast_axes = [0, 1, 2]
+
+
+class TestBroadcastToCase2(TestBroadcastToOp):
+    def init_case(self):
+        self.inputs = {"x": np.random.random([3, 2]).astype("float32")}
+        self.out_shape = [2, 3, 2]
+        self.broadcast_axes = [1, 2]
+
+
+class TestBroadcastToCase3(TestBroadcastToOp):
+    def init_case(self):
+        self.inputs = {
+            "x": np.random.random([3, 1, 5, 1, 4]).astype("float32")
+        }
+        self.out_shape = [3, 6, 5, 8, 4]
+        self.broadcast_axes = [0, 1, 2, 3, 4]
 
 
 if __name__ == "__main__":
