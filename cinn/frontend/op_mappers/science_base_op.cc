@@ -231,14 +231,21 @@ void ConcatPOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& 
   CHECK_EQ(op_desc.Output("Y").size(), 1UL);
   auto out_name = op_desc.Output("Y").front();
 
-  std::vector<Variable> xs;
-  for (const auto& name : x_names) {
-    xs.emplace_back(ctx.GetVar(name));
+  Variable out;
+  if (x_names.size() == 1) {
+    // if concat only has one input, using Identity to copy the input and return
+    auto x = ctx.GetVar(x_names.front());
+    out    = ctx.Builder()->Identity(x);
+  } else {
+    std::vector<Variable> xs;
+    for (const auto& name : x_names) {
+      xs.emplace_back(ctx.GetVar(name));
+    }
+
+    auto axis = utils::GetAttrOrDefault<int>(op_desc, "axis");
+
+    out = ctx.Builder()->Concat(xs, axis);
   }
-
-  auto axis = utils::GetAttrOrDefault<int>(op_desc, "axis");
-
-  auto out = ctx.Builder()->Concat(xs, axis);
 
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);
