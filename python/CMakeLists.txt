@@ -141,7 +141,7 @@ ADD_TEST(NAME test_mul_op
 
 ADD_TEST(NAME test_broadcast_to_op
     COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
-    python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/ops/test_broadcast_to_op.py "${WITH_CUDNN}"
+    python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/ops/test_broadcast_to_op.py "${WITH_CUDA}"
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
 
