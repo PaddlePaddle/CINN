@@ -157,7 +157,7 @@ function fn (_A, _B, _cache, _C)
     for (j, 0, 10)
     {
       cache[i, j] = A[i, j]
-      C[i, j] = (cache[i, j] + B[i, j])
+      C[i, j] = (B[i, j] + cache[i, j])
     }
   }
 }
@@ -211,12 +211,12 @@ function fn (_A, _A1, _B)
       {
         for (i_at, 0, 3)
         {
-          A1[((16 * i_outer) + (i_at + i_inner)), j] = A[((16 * i_outer) + (i_at + i_inner)), j]
+          A1[(i_at + (i_inner + (i_outer * 16))), j] = A[(i_at + (i_inner + (i_outer * 16))), j]
         }
       }
       for (j, 0, 32)
       {
-        B[((16 * i_outer) + i_inner), j] = (A1[((16 * i_outer) + i_inner), j] + (A1[(1 + ((16 * i_outer) + i_inner)), j] + A1[(2 + ((16 * i_outer) + i_inner)), j]))
+        B[(i_inner + (i_outer * 16)), j] = (A1[(((i_outer * 16) + 1) + i_inner), j] + (A1[(((i_outer * 16) + 2) + i_inner), j] + A1[(i_inner + (i_outer * 16)), j]))
       }
     }
   }
@@ -417,7 +417,7 @@ function fn (_A, _C)
   {
     for (j, 0, 200)
     {
-      C[i, j] = (6 + (2 * A[i, j]))
+      C[i, j] = ((A[i, j] * 2) + 6)
     }
   }
 }
@@ -461,21 +461,21 @@ function fn (_A, _C, _C1, _C2)
   {
     for (j, 0, 200)
     {
-      C2[i, j] = (6 + (2 * A[i, j]))
+      C2[i, j] = ((A[i, j] * 2) + 6)
     }
   }
   for (i, 0, 100)
   {
     for (j, 0, 200)
     {
-      C1[i, j] = (4 + (2 * A[i, j]))
+      C1[i, j] = ((A[i, j] * 2) + 4)
     }
   }
   for (i, 0, 100)
   {
     for (j, 0, 200)
     {
-      C[i, j] = (2 + (2 * A[i, j]))
+      C[i, j] = ((A[i, j] * 2) + 2)
     }
   }
 }

@@ -80,7 +80,7 @@ void matmul(void* _args, int32_t num_args)
   float* C = ((float*)(_C->memory));
   for (int32_t i = 0; i < 100; i += 1) {
     for (int32_t j = 0; j < 32; j += 1) {
-      C[StackVec<16,int32_t>::Ramp(((500 * i) + (16 * j)), 1, 16)] = (StackedVec<float,16>::Load(A,((500 * i) + (16 * j))) * StackedVec<float,16>::Load(B,((500 * i) + (16 * j))));
+      C[StackVec<16,int32_t>::Ramp(((i * 500) + (j * 16)), 1, 16)] = (StackedVec<float,16>::Load(A,((i * 500) + (j * 16))) * StackedVec<float,16>::Load(B,((i * 500) + (j * 16))));
     };
   };
   cinn_buffer_free((void*)(0), _C);
@@ -187,7 +187,7 @@ TEST(Vectorize, vectorize) {
     Expr d = a * 10 + b;
     detail::Vectorize(b, 16, &d);
     Simplify(&d);
-    EXPECT_EQ(GetStreamCnt(d), "Ramp((10 * a),1,16)");
+    EXPECT_EQ(GetStreamCnt(d), "Ramp((a * 10),1,16)");
   }
 
   {

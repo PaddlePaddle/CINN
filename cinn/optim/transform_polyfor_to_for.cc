@@ -73,12 +73,12 @@ struct PolyForWithSimpleConditionToForMutator : public ir::IRMutator<Expr*> {
     auto* le_n = node->condition.As<ir::LE>();
 
     if (lt_n) {
-      if (lt_n->b() != common::make_const(0)) {
+      if (lt_n->b() != common::make_const(Int(32), 0)) {
         node->condition = lt_n->a() - lt_n->b() < 0;
       }
     }
     if (le_n) {
-      if (le_n->b() != common::make_const(0)) {
+      if (le_n->b() != common::make_const(Int(32), 0)) {
         node->condition = le_n->a() - le_n->b() <= 0;
       }
     }

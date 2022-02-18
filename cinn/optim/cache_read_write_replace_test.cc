@@ -105,7 +105,7 @@ function fn (_A, _B, _C1_write_cache)
   {
     for (j, 0, 100)
     {
-      C1_write_cache[i, j] = (3 + A[i, j])
+      C1_write_cache[i, j] = (A[i, j] + 3)
     }
   }
   for (i, 0, 100)

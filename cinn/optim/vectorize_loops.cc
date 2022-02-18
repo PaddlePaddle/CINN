@@ -257,8 +257,8 @@ class Vectorizer : public IRMutator<Expr *> {
     var_map[var.As<ir::_Var_>()] = idx;
 
     common::Substitute(expr, var_map);
-    *expr =
-        ir::For::Make(idx, common::make_const(0), common::make_const(lanes_), ForType::Serial, DeviceAPI::Host, *expr);
+    *expr = ir::For::Make(
+        idx, common::make_const(Int(32), 0), common::make_const(lanes_), ForType::Serial, DeviceAPI::Host, *expr);
   }
 
   template <typename T>

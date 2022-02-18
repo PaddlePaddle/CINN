@@ -21,6 +21,7 @@
 
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_printer.h"
+#include "cinn/optim/ir_copy.h"
 #include "cinn/optim/ir_simplify.h"
 
 namespace cinn {
@@ -36,7 +37,12 @@ Expr ReplaceMaxToConstant(Expr expr);
  */
 struct CasInterval {
   template <typename T>
-  CasInterval(T l, T r) : l(l), r(r) {
+  CasInterval(T lower, T upper) {
+    // ToDo: Here is a werid bug: e_l and e_r will disappear. Check cas_test.cc
+    l   = lower;
+    r   = upper;
+    e_l = Expr(l);
+    e_r = Expr(r);
     CHECK_LE(l, r) << "left shoud not be larger than right";
   }
 
@@ -68,6 +74,7 @@ struct CasInterval {
   }
   int l, r;
   // Note: not verify l <= r and (e_l, e_r) has higher priority than (l, r)
+  // If you need to change l and r, remember to change e_l and e_r, too.
   Expr e_l, e_r;
 
   friend std::ostream& operator<<(std::ostream& os, const CasInterval& i) {

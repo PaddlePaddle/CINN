@@ -41,7 +41,7 @@ TEST(IrSimplify, basic) {
     // get (((C[(i * 20)] + 0) + 100) + 24.5)
     Simplify(&B);
     LOG(INFO) << "simplified: " << B;
-    auto out = "(124.5 + C[i, 0])";
+    auto out = "(C[i, 0] + 124.5)";
     EXPECT_EQ(out, utils::GetStreamCnt(B));
   }
 
@@ -69,7 +69,7 @@ TEST(IrSimplify, basic) {
   {
     for (j, 0, 20)
     {
-      B[i, j] = (125 + (X[i, j] + y[i, 0]))
+      B[i, j] = (X[i, j] + (y[i, 0] + 125))
     }
   }
 }
@@ -103,7 +103,7 @@ TEST(IrSimplify, basic) {
   {
     for (j, 0, 20)
     {
-      B[i, j] = (125 + (X[(1000 * i), 0] + (0.333333 * y[i, 0])))
+      B[i, j] = ((y[i, 0] * 0.333333) + (X[(i * 1000), 0] + 125))
     }
   }
 }

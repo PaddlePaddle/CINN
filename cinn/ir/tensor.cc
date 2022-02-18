@@ -156,7 +156,7 @@ isl::set _Tensor_::GenerateIslDomain() const {
       if (dim.is_constant()) {
         dims.emplace_back(_axis_with_reduce[i]->name, 0, dim.as_int32() - 1);
       } else {
-        dims.emplace_back(_axis_with_reduce[i]->name, Expr(0), Sub::Make(dim, common::make_const(1)));
+        dims.emplace_back(_axis_with_reduce[i]->name, Expr(0), Sub::Make(dim, common::make_const(Int(32), 1)));
       }
     }
   }

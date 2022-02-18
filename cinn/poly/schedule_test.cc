@@ -48,7 +48,7 @@ TEST(CreateStages, compute_at) {
   {
     for (j, 0, 100)
     {
-      B[i, j] = (1 + A[i, j])
+      B[i, j] = (A[i, j] + 1)
       for (k, 0, 100)
       {
         C[i, j, k] = (B[i, j] * B[j, k])
@@ -98,21 +98,21 @@ TEST(CreateStages, buffer_bind_to_multiple_tensors_schedule) {
   {
     for (j, 0, 100)
     {
-      B[i, j] = (1 + A[i, j])
+      B[i, j] = (A[i, j] + 1)
     }
   }
   for (i, 0, 100)
   {
     for (j, 0, 100)
     {
-      C[i, j] = (1 + A[i, j])
+      C[i, j] = (A[i, j] + 1)
     }
   }
   for (i, 0, 100)
   {
     for (j, 0, 100)
     {
-      D[i, j] = (1 + A[i, j])
+      D[i, j] = (A[i, j] + 1)
     }
   }
 }

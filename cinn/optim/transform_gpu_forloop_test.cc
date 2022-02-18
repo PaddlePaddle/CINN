@@ -62,7 +62,7 @@ function elementwise_add (_A, _B, _C)
   if ((blockIdx.x < 10)) {
     if ((threadIdx.x < 10)) {
       if ((threadIdx.y < 200)) {
-        C[((10 * blockIdx.x) + threadIdx.x), threadIdx.y] = (A[((10 * blockIdx.x) + threadIdx.x), threadIdx.y] * B[((10 * blockIdx.x) + threadIdx.x), threadIdx.y])
+        C[((blockIdx.x * 10) + threadIdx.x), threadIdx.y] = (A[((blockIdx.x * 10) + threadIdx.x), threadIdx.y] * B[((blockIdx.x * 10) + threadIdx.x), threadIdx.y])
       }
     }
   }
@@ -107,8 +107,8 @@ function elementwise_add (_A, _B, _C, _D)
     if ((blockIdx.y < 10)) {
       if ((threadIdx.x < 200)) {
         {
-          C[((10 * blockIdx.x) + blockIdx.y), threadIdx.x] = (A[((10 * blockIdx.x) + blockIdx.y), threadIdx.x] * B[((10 * blockIdx.x) + blockIdx.y), threadIdx.x])
-          D[((10 * blockIdx.x) + blockIdx.y), threadIdx.x] = (C[((10 * blockIdx.x) + blockIdx.y), threadIdx.x] + A[((10 * blockIdx.x) + blockIdx.y), threadIdx.x])
+          C[((blockIdx.x * 10) + blockIdx.y), threadIdx.x] = (A[((blockIdx.x * 10) + blockIdx.y), threadIdx.x] * B[((blockIdx.x * 10) + blockIdx.y), threadIdx.x])
+          D[((blockIdx.x * 10) + blockIdx.y), threadIdx.x] = (A[((blockIdx.x * 10) + blockIdx.y), threadIdx.x] + C[((blockIdx.x * 10) + blockIdx.y), threadIdx.x])
         }
       }
     }

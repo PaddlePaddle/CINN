@@ -114,7 +114,10 @@ Expr RampRelatedMul(Expr a, Expr b) {
   } else if (!a_ramp && b_ramp && (a->type().is_vector() || a_broadcast)) {
     return RampRelatedMul(b_ramp, a);
   } else if (!a_ramp && !b_ramp && !a->type().is_vector() && !b->type().is_vector()) {
-    return a * b;
+    if (detail::ExprPosCmp()(b, a))
+      return b * a;
+    else
+      return a * b;
   } else if (a_ramp && b_ramp) {  // a_ramp && b_ramp
     return RampRelatedMul(a_ramp, b_ramp);
   } else if (a_broadcast && !b_broadcast) {

@@ -104,7 +104,7 @@ void RemoveGpuForloopsAxis(Expr *expr) {
       if (for_n) {
         // for(i, 2, 100);
         //        ^
-        if (for_n->min != common::make_const(0)) {
+        if (for_n->min != common::make_const(Int(32), 0)) {
           condition_append(ir::GE::Make(for_n->loop_var, for_n->min));
         }
 
@@ -112,7 +112,7 @@ void RemoveGpuForloopsAxis(Expr *expr) {
         //            ^
         condition_append(ir::LT::Make(for_n->loop_var, for_n->extent));
       } else {
-        if (poly_for_n->init != common::make_const(0)) {
+        if (poly_for_n->init != common::make_const(Int(32), 0)) {
           condition_append(ir::GE::Make(poly_for_n->iterator, poly_for_n->init));
         }
 
@@ -404,7 +404,7 @@ void CudaSyncThreadsDropIfThenElse(Expr *expr) {
         if (!blocked_statement_stack.empty()) {
           auto *last_for = blocked_statement_stack.back()->As<ir::IfThenElse>();
           if (auto *eq_n = last_for->condition.As<ir::EQ>()) {
-            if (eq_n->b() == common::make_const(0)) {
+            if (eq_n->b() == common::make_const(Int(32), 0)) {
               *blocked_statement_stack.back() = *expr;
             }
           }

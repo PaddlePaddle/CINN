@@ -18,6 +18,7 @@
 
 #include <utility>
 
+#include "cinn/common/cas.h"
 #include "cinn/common/common.h"
 #include "cinn/ir/ir.h"
 
@@ -454,13 +455,19 @@ void IslAstExprToCinnExpr(const isl::ast_expr& node, ir::Expr* expr) {
           *expr = ir::Minus::Make(ops[0]);
           break;
         case isl_ast_op_add:
-          *expr = ir::Add::Make(ops[0], ops[1]);
+          if (common::detail::ExprPosCmp()(ops[1], ops[0]))
+            *expr = ir::Add::Make(ops[1], ops[0]);
+          else
+            *expr = ir::Add::Make(ops[0], ops[1]);
           break;
         case isl_ast_op_sub:
           *expr = ir::Sub::Make(ops[0], ops[1]);
           break;
         case isl_ast_op_mul:
-          *expr = ir::Mul::Make(ops[0], ops[1]);
+          if (common::detail::ExprPosCmp()(ops[1], ops[0]))
+            *expr = ir::Mul::Make(ops[1], ops[0]);
+          else
+            *expr = ir::Mul::Make(ops[0], ops[1]);
           break;
         case isl_ast_op_div:
           *expr = ir::Div::Make(ops[0], ops[1]);

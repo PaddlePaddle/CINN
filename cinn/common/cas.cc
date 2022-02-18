@@ -71,8 +71,9 @@ int gcd(int a, int b) {
 /// Symbolic Computation - Joel S. Cohen>
 
 template <typename T>
-std::vector<T> Rest(const std::vector<T>& vs) {
-  return std::vector<T>(vs.begin() + 1, vs.end());
+std::vector<T> EraseFront(const std::vector<T>& vs) {
+  auto res = std::vector<T>(vs.begin() + 1, vs.end());
+  return res;
 }
 
 template <typename T>
@@ -87,9 +88,18 @@ std::vector<T> Concat(const std::vector<T>& as, const std::vector<T>& bs) {
 Expr ProductGetConstantPart(Expr u) {
   auto* product = u.As<Product>();
   if (product) {
-    if (product->operand(0).is_constant()) {
-      return product->operand(0);
+    std::vector<Expr> constant_operands;
+    for (auto& i : product->operands()) {
+      if (i.is_constant()) {
+        constant_operands.push_back(i);
+      }
     }
+    if (constant_operands.empty())
+      return make_const(u->type(), 1);
+    else if (constant_operands.size() == 1)
+      return constant_operands.front();
+    else
+      return Product::Make(constant_operands);
   }
   return make_const(u->type(), 1);
 }
@@ -100,18 +110,18 @@ Expr ProductGetConstantPart(Expr u) {
 Expr ProductGetNonConstantPart(Expr u) {
   auto* product = u.As<Product>();
   if (product) {
-    if (product->operands().size() == 1) {
-      auto a = product->operands().front();
-      if (a.is_constant()) return Expr();
-      return a;
+    std::vector<Expr> nonconstant_operands;
+    for (auto& i : product->operands()) {
+      if (!i.is_constant()) {
+        nonconstant_operands.push_back(i);
+      }
     }
-
-    if (product->operand(0).is_constant()) {
-      if (product->operands().size() == 2) return product->operands()[1];
-      auto rest = Rest(product->operands());
-      if (rest.size() > 1) return Product::Make(Rest(product->operands()));
-      return rest.front();
-    }
+    if (nonconstant_operands.empty()) {
+      return make_const(u->type(), 1);
+    } else if (nonconstant_operands.size() == 1)
+      return nonconstant_operands.front();
+    else
+      return Product::Make(nonconstant_operands);
   }
   return u;
 }
@@ -280,8 +290,8 @@ Expr CasSimplifyMutator::SimplifyIntegerPower(Expr u) {
   auto* vf = v.As<FloatImm>();
   auto* ni = n.As<IntImm>();
   if (vi) {
-    if (vi->value == 0) return make_const(0);
-    if (vi->value == 1) return make_const(1);
+    if (vi->value == 0) return make_const(vi->type(), 0);
+    if (vi->value == 1) return make_const(vi->type(), 1);
   }
   if (vf) {
     if (vf->value == 0.f) return make_const(vf->type(), 0.f);
@@ -383,31 +393,12 @@ Expr SumOrProductGetSingleElementsRec(Expr u) {
   return u;
 }
 
-double EvaluatePower(Expr u) {
-  auto* power = u.As<Power>();
-  auto a      = power->a();
-  auto b      = power->b();
-
-  auto bi = b.As<IntImm>();
-  CHECK(bi);
-
-  return std::pow(power->a().get_constant(), bi->value);
-}
-
 // Order, reference to Page 85.
 bool ExprPosCmp::operator()(const Expr& a, const Expr& b) {
   // O-1, 1 <| 2
+  VLOG(3) << "Begin ExprPosCmp " << a << " and " << b;
   if (a.is_constant() && b.is_constant()) {
     return a.get_constant() < b.get_constant();
-  }
-  if (a.As<Power>() && a.As<Power>()->is_constant() && b.is_constant()) {
-    return EvaluatePower(a) < b.get_constant();
-  }
-  if (a.As<Power>() && a.As<Power>()->is_constant() && b.As<Power>() && b.As<Power>()->is_constant()) {
-    return EvaluatePower(a) < EvaluatePower(b);
-  }
-  if (b.As<Power>() && b.As<Power>()->is_constant() && a.is_constant()) {
-    return a.get_constant() < EvaluatePower(b);
   }
 
   // O-2, both are symbols, compare by the lexicographical order.
@@ -422,9 +413,11 @@ bool ExprPosCmp::operator()(const Expr& a, const Expr& b) {
     int m       = std::min(aoprs.size(), boprs.size());
 
     for (int i = 0; i < m; i++) {
-      // ugly compare representation in string.
-      auto& aopr = aoprs[aoprs.size() - 1 - i];
-      auto& bopr = boprs[boprs.size() - 1 - i];
+      // compare opers front left to right.
+      // for example:
+      // a * e * f < b * c * d
+      auto& aopr = aoprs[i];
+      auto& bopr = boprs[i];
       if (aopr != bopr) return operator()(aopr, bopr);
     }
 
@@ -458,19 +451,22 @@ bool ExprPosCmp::operator()(const Expr& a, const Expr& b) {
   }
 
   // O-7, if a is an integer or fraction and v is any other type, 1 < x
-  if (a.As<IntImm>() || a.As<FloatImm>() || a.As<FracOp>()) {
-    if (!(b.As<IntImm>() || b.As<FloatImm>() || b.As<FracOp>())) return true;
+  if (a.is_constant() && !b.is_constant()) {
+    return false;
   }
-  if (b.As<IntImm>() || b.As<FloatImm>() || b.As<FracOp>()) {
-    if (!(a.As<IntImm>() || a.As<FloatImm>() || a.As<FracOp>())) return false;
+  if (!a.is_constant() && b.is_constant()) {
+    return true;
   }
 
   // O-8, if a is a product, v is a power, sum, fractional, or symbol
   {
     auto* ap = a.As<Product>();
-
     if (ap && (b.As<Power>() || b.As<Sum>() || b.As<Call>() || b.As<_Var_>() || b.As<Mod>())) {
       return operator()(a, Product::Make({b}));
+    }
+    auto* bp = b.As<Product>();
+    if (bp && (a.As<Power>() || a.As<Sum>() || a.As<Call>() || a.As<_Var_>() || a.As<Mod>())) {
+      return operator()(Product::Make({a}), b);
     }
   }
 
@@ -478,30 +474,27 @@ bool ExprPosCmp::operator()(const Expr& a, const Expr& b) {
   {
     if (a.As<Power>()) {
       if (b.As<Add>() || b.As<Call>() || b.As<_Var_>() || b.As<Mod>() || b.As<Call>()) {
-        return operator()(a, Power::Make(b, make_const(1)));
+        return operator()(a, Power::Make(b, make_const(Int(32), 1)));
+      }
+    }
+    if (b.As<Power>()) {
+      if (a.As<Add>() || a.As<Call>() || a.As<_Var_>() || a.As<Mod>() || a.As<Call>()) {
+        return operator()(Power::Make(a, make_const(Int(32), 1)), b);
       }
     }
   }
 
   {
-    if (a.As<Mod>()) {
-      if (!b.As<Mod>()) {
-        // Todo: may be wrong especially for negative value
-        return operator()(a, Mod::Make(b, Sum::Make({b, Expr(1)})));
-      }
+    // Todo: may be wrong especially for negative value
+    if (a.As<Mod>() && !b.As<Mod>()) {
+      return operator()(a, Mod::Make(b, Sum::Make({b, Expr(1)})));
+    }
+    if (!a.As<Mod>() && b.As<Mod>()) {
+      return operator()(Mod::Make(a, Sum::Make({a, Expr(1)})), b);
     }
   }
-
-  // O-10, if a is a sum, b is a function, or symbol
-  {
-    if (a.As<Sum>()) {
-      if (b.As<_Var_>()) {
-        return operator()(a, Sum::Make({b}));
-      }
-    }
-  }
-
-  return false;
+  VLOG(3) << "In this case we can't handle the compare between " << a << " and " << b;
+  return (utils::GetStreamCnt(CasSimplify(a)) < utils::GetStreamCnt(CasSimplify(b)));
 }
 
 std::vector<Expr> CasSimplifyMutator::MergeProduct(const std::vector<Expr>& p, const std::vector<Expr>& q) {
@@ -777,7 +770,7 @@ std::vector<Expr> CasSimplifyMutator::MergeExprs(const std::vector<Expr>& p,
                                                  const std::vector<Expr>& q,
                                                  const std::function<std::vector<Expr>(Expr, Expr)>& binary_merge) {
   std::vector<Expr> res;
-  int li = 0, lj = 0, append_size = 0;
+  int li = 0, lj = 0;
   while (li < p.size() && lj < q.size()) {
     auto&& p1 = p[li];
     auto&& q1 = q[lj];
@@ -815,7 +808,6 @@ std::vector<Expr> CasSimplifyMutator::MergeSum(const std::vector<Expr>& p, const
     ss.str("");
   }
 #endif
-
   return MergeExprs(p, q, [this](Expr left, Expr right) -> std::vector<Expr> {
     auto&& h = SimplifyBinarySum(std::move(left), std::move(right));
     if (h.size() == 1 && h[0].is_constant() && h[0].get_constant() == 0) {
@@ -897,18 +889,15 @@ std::vector<Expr> CasSimplifyMutator::SimplifyBinarySum(Expr left, Expr right) {
       VLOG(3) << "a " << a;
       VLOG(3) << "b " << b;
       Expr s = SimplifySum(Sum::Make({ProductGetConstantPart(a), ProductGetConstantPart(b)}));
-      Expr p = Product::Make({s, ProductGetNonConstantPart(a)});
+      Expr p = Product::Make({ProductGetNonConstantPart(a), s});
       return {CasSimplify(p, var_intervals)};
     }
 
     // case 4, b <| a
-    {
-      if (ExprPosCmp()(b, a)) {
-        return {b, a};
-      }
+    if (ExprPosCmp()(b, a)) {
+      return {b, a};
     }
-
-    return {left, right};
+    return {a, b};
   }
 
   // SPRDREC-2, Page 101
@@ -1140,27 +1129,65 @@ bool CasSimplifyMutator::GetMaxBound(Expr* lower_bound, Expr* upper_bound, Expr 
 }
 
 bool CasSimplifyMutator::SimplifySpecificSumMod(Expr* result, Expr a, Expr b) {
-  // case1: (32+(-x))%33 = 32-x%33 (0<=x<=32)
-  // case2: (x-32))%33 = x%33 - 32%33 (0<=x<=32)
+  VLOG(3) << "SimplifySpecificSumMod " << a << ", " << b;
   auto a_sum = a.As<Sum>();
   auto b_i   = b.As<IntImm>();
   if (!a_sum || !b_i) {
     return false;
   }
-  // if 0 < b < 3, (3a+b) % 6 = (3a % 6) + (b % 6)
+  // handle the case in CUDA and X86:
+  // (1 + x + y) % 100 = 1 + x + y if  0 <= (1 + x + y) < 100
+  bool constant_interval   = true;
+  double total_lower_bound = 0;
+  double total_upper_bound = 0;
+  for (int i = 0; i < a_sum->operands().size(); i++) {
+    Expr lower_bound;
+    Expr upper_bound;
+    auto oper_i = a_sum->operand(i);
+    if (oper_i.is_constant()) {
+      total_lower_bound += oper_i.get_constant();
+      total_upper_bound += oper_i.get_constant();
+    } else if (GetVarBound(&lower_bound, &upper_bound, oper_i, true) && lower_bound.defined() &&
+               lower_bound.is_constant() && upper_bound.defined() && upper_bound.is_constant()) {
+      total_lower_bound += lower_bound.get_constant();
+      total_upper_bound += upper_bound.get_constant();
+    } else {
+      constant_interval = false;
+    }
+  }
+  // If operands of Sum a are either constant or Var with constant interval, we can calculate a's range.
+  if (constant_interval) {
+    if (b_i->value > 0 && (int)total_upper_bound < b_i->value && 0 <= (int)total_lower_bound) {
+      *result = a;
+      return true;
+    }
+  }
+
+  // handle the case:
+  // (3*a + b) % 6 = (3*a % 6) + (b % 6) when 0 < b < 3
   if (a_sum->operands().size() == 2) {
     a_sum->operands()[0] = CasSimplify(a_sum->operands()[0], var_intervals);
-    auto sum_a_prod      = a_sum->operands()[0].As<Product>();
-    auto sum_b_var       = a_sum->operands()[1].As<_Var_>();
-    if (sum_a_prod && sum_b_var && var_intervals.count(sum_b_var->name)) {
-      auto sum_a_prod_b_int = sum_a_prod->operand(1).As<IntImm>();
-      if (sum_a_prod_b_int) std::swap(sum_a_prod->operand(0), sum_a_prod->operand(1));
-      auto sum_a_prod_a_int = sum_a_prod->operand(0).As<IntImm>();
-      auto& interval        = var_intervals.at(sum_b_var->name);
-      int b_abs             = std::abs(b_i->value);
-      int sum_prod_a_abs    = std::abs(sum_a_prod_a_int->value);
-      if (sum_a_prod_a_int && (b_abs % sum_prod_a_abs == 0)) {
-        if (std::abs(interval.l) < sum_prod_a_abs && std::abs(interval.r) < sum_prod_a_abs) {
+    a_sum->operands()[1] = CasSimplify(a_sum->operands()[1], var_intervals);
+
+    auto sum_prod = a_sum->operands()[0].As<Product>();
+    auto sum_var  = a_sum->operands()[1].As<_Var_>();
+    // Make b+3*a and 3*a+b equivalent
+    if (a_sum->operands()[1].As<Product>() && a_sum->operands()[0].As<_Var_>()) {
+      sum_prod = a_sum->operands()[1].As<Product>();
+      sum_var  = a_sum->operands()[0].As<_Var_>();
+    }
+    if (sum_prod && sum_prod->operands().size() == 2 && sum_var && var_intervals.count(sum_var->name)) {
+      auto sum_prod_int = sum_prod->operand(0).As<IntImm>();
+      // Make 3*a and a*3 equivalent
+      if (sum_prod_int) std::swap(sum_prod->operand(0), sum_prod->operand(1));
+      sum_prod_int   = sum_prod->operand(1).As<IntImm>();
+      auto& interval = var_intervals.at(sum_var->name);
+      int b_abs      = std::abs(b_i->value);
+      // Check 6 % 3 == 0
+      if (sum_prod_int && (b_abs % std::abs(sum_prod_int->value) == 0)) {
+        // Check interval(b) < 3
+        int sum_prod_int_abs = std::abs(sum_prod_int->value);
+        if (std::abs(interval.l) < sum_prod_int_abs && std::abs(interval.r) < sum_prod_int_abs) {
           *result = CasSimplify(Sum::Make({CasSimplify(Mod::Make(a_sum->operands()[0], b), var_intervals),
                                            CasSimplify(Mod::Make(a_sum->operands()[1], b), var_intervals)}),
                                 var_intervals);
@@ -1172,7 +1199,7 @@ bool CasSimplifyMutator::SimplifySpecificSumMod(Expr* result, Expr a, Expr b) {
 #ifdef CINN_WITH_CUDA
   return false;
 #else
-
+  // Do further simplification only in X86
   int const_value = 0;
   Expr lower_bound;
   Expr upper_bound;
@@ -1182,9 +1209,7 @@ bool CasSimplifyMutator::SimplifySpecificSumMod(Expr* result, Expr a, Expr b) {
   // fold only the expr bound(may contains the var) and try to simplify the var
   Expr unfolded_lower_bound, unfolded_upper_bound;
   for (Expr& v : a_sum->operands()) {
-    auto* v_int     = v.As<IntImm>();
-    auto* v_var     = v.As<_Var_>();
-    auto* v_product = v.As<Product>();
+    auto* v_int = v.As<IntImm>();
     if (v_int) {
       const_value += v_int->value;
       has_int = true;
@@ -1201,10 +1226,7 @@ bool CasSimplifyMutator::SimplifySpecificSumMod(Expr* result, Expr a, Expr b) {
   if (can_simplify) {
     std::vector<Expr> bounds = {lower_bound, upper_bound};
     for (int i = 0; i < bounds.size(); ++i) {
-      Expr bound      = bounds[i];
-      auto* bound_sum = bound.As<Sum>();
-      auto* bound_min = bound.As<Min>();
-      auto* bound_max = bound.As<Max>();
+      Expr bound = bounds[i];
       Expr bound_l, bound_r;
       GetExprBound(&bound_l, &bound_r, bound);
       if (i == 0 && bound_l.defined()) {
@@ -1232,7 +1254,7 @@ bool CasSimplifyMutator::SimplifySpecificSumMod(Expr* result, Expr a, Expr b) {
     } else {
       const_expr = make_const(b->type(), const_value % b_i->value);
     }
-    *result = CasSimplify(Sum::Make({const_expr, CasSimplify(Mod::Make(rest_oper, b), var_intervals)}), var_intervals);
+    *result = CasSimplify(Sum::Make({CasSimplify(Mod::Make(rest_oper, b), var_intervals), const_expr}), var_intervals);
     return true;
   }
   return false;
@@ -1262,29 +1284,28 @@ Expr CasSimplifyMutator::SimplifyMod(Expr u) {
   // x % 1 = 0
   if (b_i && b_i->value == 1) return make_const(b_i->type(), 0);
 
-  // 4x % 2 = 0
-  // 2x % 4 = 2 * (x % 2)
-  if (b_i && a_product && a_product->operand(0).As<IntImm>() && b_i->value > 0 &&
-      a_product->operand(0).As<IntImm>()->value > 0) {
-    if (a_product->operand(0).As<IntImm>()->value % b_i->value == 0) return make_const(a_product->type(), 0);
-    if (b_i->value % a_product->operand(0).As<IntImm>()->value == 0) {
-      int a_product_int = a_product->operand(0).As<IntImm>()->value;
-      int new_b         = b_i->value / a_product_int;
-      return Product::Make({Expr(a_product_int), SimplifyMod(Mod::Make(a_product->operand(1), Expr(new_b)))});
+  // handle cases:
+  // (x * 6) % 2 = 0
+  // (x * 2) % 6 = (x % 3) * 2
+  if (b_i && a_product && b_i->value > 0) {
+    for (int i = 0; i < a_product->operands().size(); i++) {
+      auto a_op_i = a_product->operand(i);
+      if (a_op_i.As<IntImm>() && a_op_i.As<IntImm>()->value > 0) {
+        int a_op_int = a_op_i.As<IntImm>()->value;
+        // case: (x * 6) % 2 = 0
+        if (a_op_int % b_i->value == 0) return make_const(a_product->type(), 0);
+        // case: (x * y * 2) % 6 = ((x * y) % 3) * 2
+        if (b_i->value % a_op_int == 0) {
+          int new_b                    = b_i->value / a_op_int;
+          std::vector<Expr> a_operands = a_product->operands();
+          a_operands.erase(a_operands.begin() + i);
+          return Product::Make({SimplifyMod(Mod::Make(Product::Make(a_operands), Expr(new_b))), Expr(a_op_int)});
+        }
+      }
     }
   }
 
-  if (b_i && a_product && a_product->operand(1).As<IntImm>() && b_i->value > 0 &&
-      a_product->operand(0).As<IntImm>()->value > 0) {
-    if (a_product->operand(1).As<IntImm>()->value % b_i->value == 0) return make_const(a_product->type(), 0);
-    if (b_i->value % a_product->operand(1).As<IntImm>()->value == 0) {
-      int a_product_int = a_product->operand(1).As<IntImm>()->value;
-      int new_b         = b_i->value / a_product_int;
-      return Product::Make({Expr(a_product_int), SimplifyMod(Mod::Make(a_product->operand(0), Expr(new_b)))});
-    }
-  }
-
-  // 0 % x = 1, 1 % x = 1
+  // 0 % x = 0, 1 % x = 1
   if (a_i && (a_i->value == 0 || a_i->value == 1)) return a;
 
   if (b_i && a_var && var_intervals.count(a_var->name)) {
@@ -1312,8 +1333,24 @@ Expr CasSimplifyMutator::SimplifyMod(Expr u) {
     }
 
     if (sum_args.empty()) return make_const(b_i->type(), 0);
-    // Todo: (2x+y) % 2 = y % 2 when y >=0
-    if (sum_args.size() == a_sum->operands().size()) {
+    // handle the case: (2x+y+z) % 2 = (y+z) % 2 when y>=0 and z>=0
+    if (sum_args.size() < a_sum->operands().size()) {
+      bool all_positive_var = true;
+      bool all_positive_int = true;
+      for (int i = 0; i < sum_args.size(); i++) {
+        auto* arg_var = sum_args[i].As<_Var_>();
+        all_positive_var =
+            all_positive_var && arg_var && var_intervals.count(arg_var->name) && var_intervals.at(arg_var->name).l >= 0;
+        auto* arg_int    = sum_args[i].As<IntImm>();
+        all_positive_int = all_positive_int && arg_int && arg_int->value >= 0;
+      }
+      if (all_positive_var) return SimplifyMod(Mod::Make(Sum::Make(sum_args), b));
+      if (all_positive_int) {
+        int sum_value = 0;
+        for (auto& i : sum_args) sum_value += i.As<IntImm>()->value;
+        return make_const(a_sum->type(), sum_value % b_i->value);
+      }
+    } else if (sum_args.size() == a_sum->operands().size()) {
       if (b_i->value > 0 && !var_intervals.empty()) {
         // case1: (32+(-x))%33 = 32-x%33 (0<=x<=32)
         // case2: (x-32))%33 = x%33 - 32%33 (0<=x<=32)
@@ -1461,10 +1498,41 @@ Expr CasSimplifyMutator::SimplifyCmp(Expr u) {
 }
 
 /**
- * deal with index's div-mod add simplification, tempory solution, not cover all situations.
- * case 1: (m / n) * n + m % n = m (m, n's type is int)
- * case 2: (m / n1) * n3 + (n2 * m) % n3 = n2 * m if n3 = n1 * n2 (m, n1, n2, n3's type is int)
- * case 3: m / n2 + (n1 * m) % n3 = n1 * m if n3 = n1 * n2 (m, n1, n2, n3's type is int)
+ * @brief Given an vector of Exprs and a target, find a subset of the vector whose sum is equal to target.
+ * @tparam operands The vector contains Exprs.
+ * @tparam target The target Expr.
+ * @return A vector containing the index of operands' elements, and their sum is equal to target.
+ */
+std::vector<int> FindSumEqualToX(const std::vector<Expr>& operands, Expr target) {
+  for (int i = 0; i < operands.size(); i++) {
+    std::vector<int> result;
+    Expr temp = operands[i];
+    result.push_back(i);
+    if (MathEqual(temp, target)) {
+      return result;
+    }
+    for (int j = i + 1; j < operands.size(); j++) {
+      temp = temp + operands[j];
+      result.push_back(j);
+      if (MathEqual(temp, target)) {
+        return result;
+      }
+    }
+  }
+  return {};
+}
+
+/**
+ * There only 1 general simplyfing case to consider:
+ * (m / n) * n + m % n = m (m, n's type is int)
+ * However, m could be a expression and may be simplied.
+ * For example, when m = m1 * m2 and n = m1 * n1,
+ * (m / n) * n will be simplified to:
+ * ((m1 * m2) / (m1 * n1)) * (m1 * n1) = (m2 / n1) * (m1 * n1)
+ * and m % n will be simplified to:
+ * (m1 * m2) % (m1 * n1)
+ * Then the function goes to:
+ * (m2 / n1) * (m1 * n1) + (m1 * m2) % (m1 * n1) =  m1 * m2
  */
 Expr CasSimplifyMutator::SimplifySpecificSum(Expr tmp) {
   auto sum = tmp.As<Sum>();
@@ -1472,75 +1540,35 @@ Expr CasSimplifyMutator::SimplifySpecificSum(Expr tmp) {
     return tmp;
   }
   CHECK_GE(sum->operands().size(), 2U);
-  Expr left      = sum->operand(0);
-  Expr right     = sum->operand(1);
-  auto left_mod  = left.As<Mod>();
-  auto right_mod = right.As<Mod>();
-  auto left_mul  = left.As<Product>();
-  auto right_mul = right.As<Product>();
-  auto left_div  = left.As<FracOp>();
-  auto right_div = right.As<FracOp>();
-  // normalize to left mul and right mod
-  if (right_mul && left_mod) {
-    left_mul  = right_mul;
-    right_mod = left_mod;
+  // Case 1: When m % n is not simplified.
+  // Then we only need to find if there is any expr equals to (m / n) * n
+  std::vector<Expr> opers_except_mod;
+  std::vector<Expr> opers_mod;
+  for (auto& operand : sum->operands()) {
+    if (operand.As<Mod>())
+      opers_mod.push_back(operand);
+    else
+      opers_except_mod.push_back(operand);
   }
-  // normalize to left div and right mod
-  if (right_div && left_mod) {
-    left_div  = right_div;
-    right_mod = left_mod;
-  }
-  if (!right_mod || (!left_mul && !left_div)) {
-    return tmp;
-  }
-  CHECK_GE(right_mod->operands().size(), 2U);
-  Expr mod_left  = right_mod->operand(0);
-  Expr mod_right = right_mod->operand(1);
-  if (!mod_left->type().is_integer() || !mod_right->type().is_integer()) {
-    return tmp;
-  }
-  if (left_mul) {
-    // case 1: (m / n) * n + m % n = m (m, n's type is int)
-    // case 2: (m / n1) * n3 + (n2 * m) % n3 = n2 * m if n3 = n1 * n2 (m, n1, n2, n3's type is int)
-    CHECK_GE(left_mul->operands().size(), 2U);
-    Expr mul_left  = left_mul->operand(0);
-    Expr mul_right = left_mul->operand(1);
-
-    // handle the case1 : n * (m / n)  + m % n = (m / n) * n + m % n = m
-    // handle the case2 : n3 * (m / n1) + (n2 * m) % n3 = (m / n1) * n3 + (n2 * m) % n3 = n2 * m if n3 = n1 * n2
-    if (MathEqual(mod_right, mul_left)) {
-      mul_left  = left_mul->operand(1);
-      mul_right = left_mul->operand(0);
-    } else if (!MathEqual(mod_right, mul_right)) {
-      return tmp;
+  // If there is no m % n, just return tmp.
+  if (opers_mod.empty()) return tmp;
+  // If there is m % n, find (m / n) * n among other operands.
+  for (int i = 0; i < opers_mod.size(); i++) {
+    Expr m           = opers_mod[i].As<Mod>()->a();
+    Expr n           = opers_mod[i].As<Mod>()->b();
+    Expr target      = Product::Make({FracOp::Make(m, n), n});
+    auto find_target = FindSumEqualToX(opers_except_mod, target);
+    if (!find_target.empty()) {
+      opers_mod.erase(opers_mod.begin() + i);
+      // Note that the index data in find_target is in ascending order.
+      // Thus we need to delete elements from back to front to keep the index(iterator) correct.
+      for (int j = find_target.size() - 1; j >= 0; j--) {
+        opers_except_mod.erase(opers_except_mod.begin() + j);
+      }
+      opers_except_mod.insert(opers_except_mod.begin(), opers_mod.begin(), opers_mod.end());
+      opers_except_mod.push_back(m);
+      return SimplifySpecificSum(Sum::Make(opers_except_mod));
     }
-    auto div = mul_left.As<FracOp>();
-    if (!div) {
-      return tmp;
-    }
-    CHECK_GE(div->operands().size(), 2U);
-    Expr div_left  = div->operand(0);
-    Expr div_right = div->operand(1);
-    if (!div_left->type().is_integer() || !div_right->type().is_integer()) {
-      return tmp;
-    }
-    if (MathEqual(div_left * mod_right, mod_left * div_right)) {
-      tmp = mod_left;
-    }
-  } else if (left_div) {
-    // case 3: m / n1 + (n2 * m) % n3 = n2 * m if n3 = n1 * n2 (m, n1, n2, n3's type is int)
-    CHECK_GE(left_div->operands().size(), 2U);
-    Expr div_left  = left_div->operand(0);
-    Expr div_right = left_div->operand(1);
-    if (!div_left->type().is_integer() || !div_right->type().is_integer()) {
-      return tmp;
-    }
-    if (MathEqual(mod_right * div_left, mod_left * div_right)) {
-      tmp = mod_left;
-    }
-  }
-  for (int i = 2; i < sum->operands().size(); i++) {
-    tmp = tmp + sum->operand(i);
   }
   return tmp;
 }
@@ -1574,8 +1602,6 @@ Expr CasSimplifyMutator::operator()(Expr u) {
     auto tmp = detail::SumOrProductGetSingleElementsRec(SimplifySum(u));
     // deal with index's div-mod add simplification, tempory solution, not cover all situations.
     // case 1: (m / n) * n + m % n = m (m, n's type is int)
-    // case 2: (m / n1) * n3 + (n2 * m) % n3 = n2 * m if n3 = n1 * n2 (m, n1, n2, n3's type is int)
-    // case 3: m / n2 + (n1 * m) % n3 = n1 * m if n3 = n1 * n2 (m, n1, n2, n3's type is int)
     return SimplifySpecificSum(tmp);
   }
 
@@ -1630,6 +1656,12 @@ Expr ConvertCinnToCAS(Expr expr) {
         *expr = a;
         return;
       }
+      // Sort operands in ExprPosCmp order.
+      if (ExprPosCmp()(b, a)) {
+        *expr = Sum::Make({b, a});
+        return;
+      }
+
       *expr = Sum::Make({a, b});
     }
     void Visit(const Mul* op, Expr* expr) override {
@@ -1658,6 +1690,11 @@ Expr ConvertCinnToCAS(Expr expr) {
         *expr = a;
         return;
       }
+      // Sort operands in ExprPosCmp order.
+      if (ExprPosCmp()(b, a)) {
+        *expr = Product::Make({b, a});
+        return;
+      }
 
       *expr = Product::Make({a, b});
     }
@@ -1668,18 +1705,22 @@ Expr ConvertCinnToCAS(Expr expr) {
 
       Visit(&a);
       Visit(&b);
+      if (a == b) {
+        *expr = make_const(a->type(), 0);
+        return;
+      }
 
       bool is_zero_a = a.is_constant() && a.get_constant() == 0;
       bool is_zero_b = b.is_constant() && b.get_constant() == 0;
       if (is_zero_a) {
-        *expr = Product::Make({make_const(b->type(), -1), b});
+        *expr = Product::Make({b, make_const(b->type(), -1)});
         return;
       } else if (is_zero_b) {
         *expr = a;
         return;
       }
 
-      b     = Product::Make({make_const(b->type(), -1), b});
+      b     = Product::Make({b, make_const(b->type(), -1)});
       *expr = Sum::Make({a, b});
     }
 
@@ -1723,7 +1764,7 @@ Expr ConvertCinnToCAS(Expr expr) {
         }
       }
 
-      *expr = Product::Make({make_const(a->type(), -1), a});
+      *expr = Product::Make({a, make_const(a->type(), -1)});
     }
   };
 
@@ -1822,8 +1863,8 @@ Expr ConvertCasToCinn(Expr expr) {
       } else if (operands.size() == 2) {
         *expr = Mul::Make(operands[0], operands[1]);
       } else {
-        auto a = operands[0];
-        auto b = Product::Make(Rest(operands));
+        auto a = operands.front();
+        auto b = Product::Make(EraseFront(operands));
         Mutator()(&b);
         *expr = Mul::Make(a, b);
       }
@@ -1847,8 +1888,8 @@ Expr ConvertCasToCinn(Expr expr) {
       } else if (operands.size() == 2) {
         *expr = Add::Make(operands[0], operands[1]);
       } else {
-        auto a = operands[0];
-        auto b = Sum::Make(Rest(operands));
+        auto a = operands.front();
+        auto b = Sum::Make(EraseFront(operands));
         Mutator()(&b);
         *expr = Add::Make(a, b);
       }

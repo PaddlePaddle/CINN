@@ -256,7 +256,7 @@ void __launch_bounds__(200) elementwise_mul_and_add(const float* __restrict__ X,
 {
   if (((int)blockIdx.x < 100)) {
     if (((int)threadIdx.x < 200)) {
-      C[((200 * (int)blockIdx.x) + (int)threadIdx.x)] = (X[((200 * (int)blockIdx.x) + (int)threadIdx.x)] * Y[((200 * (int)blockIdx.x) + (int)threadIdx.x)]);
+      C[(((int)blockIdx.x * 200) + (int)threadIdx.x)] = (X[(((int)blockIdx.x * 200) + (int)threadIdx.x)] * Y[(((int)blockIdx.x * 200) + (int)threadIdx.x)]);
     };
   };
 }__global__
@@ -264,7 +264,7 @@ void __launch_bounds__(200) elementwise_mul_and_add_1(const float* __restrict__ 
 {
   if (((int)blockIdx.x < 100)) {
     if (((int)threadIdx.x < 200)) {
-      D[((200 * (int)blockIdx.x) + (int)threadIdx.x)] = (C[((200 * (int)blockIdx.x) + (int)threadIdx.x)] + Y[((200 * (int)blockIdx.x) + (int)threadIdx.x)]);
+      D[(((int)blockIdx.x * 200) + (int)threadIdx.x)] = (C[(((int)blockIdx.x * 200) + (int)threadIdx.x)] + Y[(((int)blockIdx.x * 200) + (int)threadIdx.x)]);
     };
   };
 }
@@ -322,8 +322,8 @@ void __launch_bounds__(5) elementwise_add_splitouter(const float* __restrict__ X
   if (((int)blockIdx.x < 20)) {
     if (((int)threadIdx.x < 5)) {
       for (int32_t j_outer = 0; j_outer < 17; j_outer += 1) {
-        for (int32_t j_inner = 0; j_inner < cinn_nvgpu_min_fp32(6, (100 + (-6 * j_outer))); j_inner += 1) {
-          C[((500 * (int)blockIdx.x) + ((6 * j_outer) + ((100 * (int)threadIdx.x) + j_inner)))] = (X[((500 * (int)blockIdx.x) + ((6 * j_outer) + ((100 * (int)threadIdx.x) + j_inner)))] * Y[((500 * (int)blockIdx.x) + ((6 * j_outer) + ((100 * (int)threadIdx.x) + j_inner)))]);
+        for (int32_t j_inner = 0; j_inner < cinn_nvgpu_min_fp32(6, ((j_outer * -6) + 100)); j_inner += 1) {
+          C[(((int)blockIdx.x * 500) + (j_inner + ((j_outer * 6) + ((int)threadIdx.x * 100))))] = (X[(((int)blockIdx.x * 500) + (j_inner + ((j_outer * 6) + ((int)threadIdx.x * 100))))] * Y[(((int)blockIdx.x * 500) + (j_inner + ((j_outer * 6) + ((int)threadIdx.x * 100))))]);
         };
       };
     };
@@ -394,6 +394,19 @@ TEST(CodeGenCUDA2, test_new_schedule) {
   ir::IRSchedule ir_sch(mod_expr);
   auto loops = ir_sch.GetLoops();
 
+  auto fused = ir_sch.Fuse(loops);
+  LOG(INFO) << "After fuse, IR is : " << ir_sch.GetModule().GetExprs().at(0);
+  auto splited = ir_sch.Split(fused, {4, -1});
+  LOG(INFO) << "After split, IR is : " << ir_sch.GetModule().GetExprs().at(0);
+
+  /*   loops = ir_sch.GetLoops();
+    LOG(INFO) << "stage1.1, IR is : " << ir_sch.GetModule().GetExprs().at(0);
+    fused = ir_sch.Fuse(loops);
+    LOG(INFO) << "stage1.2, IR is : " << ir_sch.GetModule().GetExprs().at(0);
+    splited = ir_sch.Split(fused, {256, -1});
+
+    LOG(INFO) << "Stage2, IR is : " << ir_sch.GetModule().GetExprs().at(0); */
+
   func[0]->body = ir_sch.GetModule().GetExprs().at(0);
 
   Module::Builder builder("module1", target);
@@ -406,6 +419,32 @@ TEST(CodeGenCUDA2, test_new_schedule) {
   auto source_code = codegen.Compile(module);
 
   LOG(INFO) << "test_new_schedule source code is : " << source_code;
+
+  std::string source_target = R"ROC(
+extern "C" {
+
+#include "cinn_cuda_runtime_source.cuh"
+
+#ifdef __CUDACC_RTC__
+typedef int int32_t;
+typedef char int8_t;
+#endif
+
+
+
+__global__
+void test_new_schedule(const float* __restrict__ X, float* __restrict__ B)
+{
+  for (int32_t i_j_fused_0 = 0; i_j_fused_0 < 4; i_j_fused_0 += 1) {
+    for (int32_t i_j_fused_1 = 0; i_j_fused_1 < 256; i_j_fused_1 += 1) {
+      B[((i_j_fused_0 * 256) + i_j_fused_1)] = X[((i_j_fused_0 * 256) + i_j_fused_1)];
+    };
+  };
+}
+
+}
+)ROC";
+  ASSERT_EQ(utils::Trim(source_target), source_code);
 }
 
 TEST(GlobalPool, pool2d_max) {
@@ -1111,13 +1150,13 @@ void __launch_bounds__(200) elementwise_add(const float* __restrict__ A, const f
   float* B_read_cache = _B_read_cache;
   if (((int)blockIdx.x < 100)) {
     if (((int)threadIdx.x < 200)) {
-      B_read_cache[0] = B[((200 * (int)blockIdx.x) + (int)threadIdx.x)];
+      B_read_cache[0] = B[(((int)blockIdx.x * 200) + (int)threadIdx.x)];
     };
   };
   __syncthreads();
   if (((int)blockIdx.x < 100)) {
     if (((int)threadIdx.x < 200)) {
-      C[((200 * (int)blockIdx.x) + (int)threadIdx.x)] = (A[((200 * (int)blockIdx.x) + (int)threadIdx.x)] * B_read_cache[0]);
+      C[(((int)blockIdx.x * 200) + (int)threadIdx.x)] = (A[(((int)blockIdx.x * 200) + (int)threadIdx.x)] * B_read_cache[0]);
     };
   };
 }
@@ -1224,11 +1263,11 @@ void __launch_bounds__(4) mul_cache_write(const float* __restrict__ A1, const fl
         for (int32_t j_inner = 0; j_inner < 2; j_inner += 1) {
           C1_write_cache__reduce_init[j_inner] = 0;
           for (int32_t k1 = 0; k1 < 32; k1 += 1) {
-            C1_write_cache[j_inner] = (C1_write_cache[j_inner] + (A1[((128 * (int)blockIdx.x) + ((32 * (int)threadIdx.x) + k1))] * B1[((32 * j_inner) + ((64 * j_outer) + k1))]));
+            C1_write_cache[j_inner] = ((A1[(((int)blockIdx.x * 128) + (k1 + ((int)threadIdx.x * 32)))] * B1[((j_inner * 32) + ((j_outer * 64) + k1))]) + C1_write_cache[j_inner]);
           };
         };
         for (int32_t j_inner = 0; j_inner < 2; j_inner += 1) {
-          C1[((128 * (int)blockIdx.x) + ((2 * j_outer) + ((32 * (int)threadIdx.x) + j_inner)))] = C1_write_cache[j_inner];
+          C1[(((int)blockIdx.x * 128) + (j_inner + ((j_outer * 2) + ((int)threadIdx.x * 32))))] = C1_write_cache[j_inner];
         };
       };
     };
@@ -2021,10 +2060,10 @@ void __launch_bounds__(10) fn0(const float* __restrict__ A, const float* __restr
     if (((int)blockIdx.x < 10)) {
     {
       for (int32_t j = 0; j < 200; j += 1) {
-        A_read_cache[j] = A[((200 * (int)blockIdx.x) + ((2000 * (int)threadIdx.x) + j))];
+        A_read_cache[j] = A[(((int)blockIdx.x * 200) + (j + ((int)threadIdx.x * 2000)))];
       };
       for (int32_t j = 0; j < 200; j += 1) {
-        C[((200 * (int)blockIdx.x) + ((2000 * (int)threadIdx.x) + j))] = (A_read_cache[j] + B[((200 * (int)blockIdx.x) + ((2000 * (int)threadIdx.x) + j))]);
+        C[(((int)blockIdx.x * 200) + (j + ((int)threadIdx.x * 2000)))] = (A_read_cache[j] + B[(((int)blockIdx.x * 200) + (j + ((int)threadIdx.x * 2000)))]);
       };
     }
     };
@@ -2157,9 +2196,9 @@ void __launch_bounds__(98) fn1(const float* __restrict__ A, const float* __restr
     if (((int)blockIdx.x < 20)) {
       for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
         for (int32_t i_at = 0; i_at < 3; i_at += 1) {
-          A_read_cache[i_at] = A[((10 * (int)blockIdx.x) + ((200 * i_at) + ((200 * (int)threadIdx.x) + j_inner)))];
+          A_read_cache[i_at] = A[(((int)blockIdx.x * 10) + ((i_at * 200) + (j_inner + ((int)threadIdx.x * 200))))];
         };
-        C[((10 * (int)blockIdx.x) + ((200 * (int)threadIdx.x) + j_inner))] = (A_read_cache[0] + (A_read_cache[1] + (A_read_cache[2] + B[((10 * (int)blockIdx.x) + ((200 * (int)threadIdx.x) + j_inner))])));
+        C[(((int)blockIdx.x * 10) + (j_inner + ((int)threadIdx.x * 200)))] = (A_read_cache[0] + (A_read_cache[1] + (A_read_cache[2] + B[(((int)blockIdx.x * 10) + (j_inner + ((int)threadIdx.x * 200)))])));
       };
     };
   };
@@ -2264,10 +2303,10 @@ void __launch_bounds__(95) fn_cacheread_computeat1(const float* __restrict__ AA,
     {
       for (int32_t i_at = 0; i_at < 6; i_at += 1) {
         for (int32_t j_at = 0; j_at < 6; j_at += 1) {
-          AA_read_cache[((100 * i_at) + (j_at + (int)threadIdx.x))] = AA[((100 * (int)blockIdx.x) + ((100 * i_at) + (j_at + (int)threadIdx.x)))];
+          AA_read_cache[((i_at * 100) + (j_at + (int)threadIdx.x))] = AA[(((int)blockIdx.x * 100) + ((i_at * 100) + (j_at + (int)threadIdx.x)))];
         };
       };
-      C[((95 * (int)blockIdx.x) + (int)threadIdx.x)] = (AA_read_cache[(int)threadIdx.x] + (AA_read_cache[(202 + (int)threadIdx.x)] + AA_read_cache[(505 + (int)threadIdx.x)]));
+      C[(((int)blockIdx.x * 95) + (int)threadIdx.x)] = (AA_read_cache[(int)threadIdx.x] + (AA_read_cache[((int)threadIdx.x + 202)] + AA_read_cache[((int)threadIdx.x + 505)]));
     }
     };
   };
@@ -2366,10 +2405,10 @@ void __launch_bounds__(5) fn_cacheread_computeat2(const float* __restrict__ AA, 
       for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
         for (int32_t i_at = 0; i_at < 6; i_at += 1) {
           for (int32_t j_at = 0; j_at < 6; j_at += 1) {
-            AA_read_cache[((6 * i_at) + j_at)] = AA[((100 * (int)blockIdx.x) + ((100 * i_at) + ((10 * (int)threadIdx.x) + (j_at + j_inner))))];
+            AA_read_cache[((i_at * 6) + j_at)] = AA[(((int)blockIdx.x * 100) + ((i_at * 100) + (j_at + (j_inner + ((int)threadIdx.x * 10)))))];
           };
         };
-        C[((50 * (int)blockIdx.x) + ((10 * (int)threadIdx.x) + j_inner))] = (AA_read_cache[30] + AA_read_cache[5]);
+        C[(((int)blockIdx.x * 50) + (j_inner + ((int)threadIdx.x * 10)))] = (AA_read_cache[5] + AA_read_cache[30]);
       };
     };
   };
@@ -2526,8 +2565,8 @@ void __launch_bounds__(1) fn2(const float* __restrict__ A, const float* __restri
   float* A_read_cache = _A_read_cache;
   if (((int)blockIdx.x < 100)) {
     for (int32_t j = 0; j < 200; j += 1) {
-      A_read_cache[0] = A[((200 * (int)blockIdx.x) + j)];
-      C[((200 * (int)blockIdx.x) + j)] = (A_read_cache[0] + B[((200 * (int)blockIdx.x) + j)]);
+      A_read_cache[0] = A[(((int)blockIdx.x * 200) + j)];
+      C[(((int)blockIdx.x * 200) + j)] = (A_read_cache[0] + B[(((int)blockIdx.x * 200) + j)]);
     };
   };
 }
@@ -2612,12 +2651,12 @@ void __launch_bounds__(4) cache_write_local(const float* __restrict__ A, const f
     {
       for (int32_t j_outer = 0; j_outer < 8; j_outer += 1) {
         for (int32_t j_inner = 0; j_inner < 5; j_inner += 1) {
-          C_write_cache[((5 * j_outer) + j_inner)] = (A[((160 * (int)blockIdx.x) + ((5 * j_outer) + ((40 * (int)threadIdx.x) + j_inner)))] + B[((160 * (int)blockIdx.x) + ((5 * j_outer) + ((40 * (int)threadIdx.x) + j_inner)))]);
+          C_write_cache[(j_inner + (j_outer * 5))] = (A[(((int)blockIdx.x * 160) + (j_inner + ((j_outer * 5) + ((int)threadIdx.x * 40))))] + B[(((int)blockIdx.x * 160) + (j_inner + ((j_outer * 5) + ((int)threadIdx.x * 40))))]);
         };
       };
       for (int32_t j_outer = 0; j_outer < 10; j_outer += 1) {
         for (int32_t j_inner = 0; j_inner < 4; j_inner += 1) {
-          C[((160 * (int)blockIdx.x) + ((4 * j_outer) + ((40 * (int)threadIdx.x) + j_inner)))] = C_write_cache[((4 * j_outer) + j_inner)];
+          C[(((int)blockIdx.x * 160) + (j_inner + ((j_outer * 4) + ((int)threadIdx.x * 40))))] = C_write_cache[(j_inner + (j_outer * 4))];
         };
       };
     }
@@ -2693,7 +2732,7 @@ void __launch_bounds__(4) external_function(const float* __restrict__ A, const f
   if (((int)blockIdx.x < 40)) {
     if (((int)threadIdx.x < 4)) {
       for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
-        C[((40 * (int)blockIdx.x) + ((10 * (int)threadIdx.x) + j_inner))] = (cinn_nvgpu_tanh_fp32(A[((40 * (int)blockIdx.x) + ((10 * (int)threadIdx.x) + j_inner))]) + cinn_nvgpu_cos_fp32(B[((40 * (int)blockIdx.x) + ((10 * (int)threadIdx.x) + j_inner))]));
+        C[(((int)blockIdx.x * 40) + (j_inner + ((int)threadIdx.x * 10)))] = (cinn_nvgpu_cos_fp32(B[(((int)blockIdx.x * 40) + (j_inner + ((int)threadIdx.x * 10)))]) + cinn_nvgpu_tanh_fp32(A[(((int)blockIdx.x * 40) + (j_inner + ((int)threadIdx.x * 10)))]));
       };
     };
   };
@@ -2846,7 +2885,7 @@ void __launch_bounds__(128) schedule_wino_conv2d_2(const float* __restrict__ X, 
         {
           for (int32_t ci_outer = 0; ci_outer < 4; ci_outer += 1) {
             for (int32_t ci_inner = 0; ci_inner < 2; ci_inner += 1) {
-              bgemm_write_cache__reduce_init[((2 * ci_outer) + ci_inner)] = 0;
+              bgemm_write_cache__reduce_init[(ci_inner + (ci_outer * 2))] = 0;
             };
           };
           for (int32_t ci_outer = 0; ci_outer < 32; ci_outer += 1) {
@@ -2854,27 +2893,27 @@ void __launch_bounds__(128) schedule_wino_conv2d_2(const float* __restrict__ X, 
               __syncthreads();
               if (((int)threadIdx.x < 8)) {
                 for (int32_t k_inner = 0; k_inner < 8; k_inner += 1) {
-                  kernel_pack_0_read_cache[((64 * (k_inner / 4)) + ((k_inner & 3) + ((128 * (int)threadIdx.x) + (4 * (int)threadIdx.y))))] = kernel_pack[((((int)blockIdx.z / 4) * 1048576) + ((512 * (k_inner / 4)) + ((262144 * ((int)blockIdx.z & 3)) + ((k_inner & 3) + ((64 * (int)blockIdx.y) + ((8192 * ci_outer) + ((1024 * (int)threadIdx.x) + (4 * (int)threadIdx.y))))))))];
+                  kernel_pack_0_read_cache[(((k_inner / 4) * 64) + (((int)threadIdx.x * 128) + (((int)threadIdx.y * 4) + (k_inner & 3))))] = kernel_pack[((((int)blockIdx.z / 4) * 1048576) + (((k_inner / 4) * 512) + (((int)blockIdx.y * 64) + ((ci_outer * 8192) + (((int)threadIdx.x * 1024) + (((int)threadIdx.y * 4) + ((((int)blockIdx.z & 3) * 262144) + (k_inner & 3))))))))];
                 };
               };
             };
             if (((int)threadIdx.y < 16)) {
               for (int32_t k_inner = 0; k_inner < 2; k_inner += 1) {
-                data_pack_0_read_cache[((2 * (int)threadIdx.x) + ((16 * (int)threadIdx.y) + k_inner))] = data_pack[((((int)blockIdx.z / 4) * 32768) + ((8192 * ((int)blockIdx.z & 3)) + ((256 * ci_outer) + ((2 * (int)threadIdx.x) + ((16 * (int)threadIdx.y) + k_inner)))))];
+                data_pack_0_read_cache[(k_inner + (((int)threadIdx.x * 2) + ((int)threadIdx.y * 16)))] = data_pack[((((int)blockIdx.z / 4) * 32768) + ((ci_outer * 256) + (k_inner + (((int)threadIdx.x * 2) + (((int)threadIdx.y * 16) + (((int)blockIdx.z & 3) * 8192))))))];
               };
             };
             __syncthreads();
             for (int32_t ci_inner = 0; ci_inner < 16; ci_inner += 1) {
               for (int32_t k_inner = 0; k_inner < 4; k_inner += 1) {
                 for (int32_t a_inner = 0; a_inner < 2; a_inner += 1) {
-                  bgemm_write_cache[((2 * k_inner) + a_inner)] = (bgemm_write_cache[((2 * k_inner) + a_inner)] + (kernel_pack_0_read_cache[((64 * ci_inner) + ((4 * (int)threadIdx.y) + k_inner))] * data_pack_0_read_cache[((16 * ci_inner) + ((2 * (int)threadIdx.x) + a_inner))]));
+                  bgemm_write_cache[(a_inner + (k_inner * 2))] = ((data_pack_0_read_cache[(a_inner + ((ci_inner * 16) + ((int)threadIdx.x * 2)))] * kernel_pack_0_read_cache[((ci_inner * 64) + (k_inner + ((int)threadIdx.y * 4)))]) + bgemm_write_cache[(a_inner + (k_inner * 2))]);
                 };
               };
             };
           };
           for (int32_t ci_inner = 0; ci_inner < 4; ci_inner += 1) {
             for (int32_t k_inner = 0; k_inner < 2; k_inner += 1) {
-              bgemm[((((int)blockIdx.z / 4) * 32768) + ((8192 * ((int)blockIdx.z & 3)) + ((1024 * (int)blockIdx.y) + ((16 * ci_inner) + ((2 * (int)threadIdx.x) + ((64 * (int)threadIdx.y) + k_inner))))))] = bgemm_write_cache[((2 * ci_inner) + k_inner)];
+              bgemm[((((int)blockIdx.z / 4) * 32768) + (((int)blockIdx.y * 1024) + ((ci_inner * 16) + (k_inner + (((int)threadIdx.x * 2) + (((int)threadIdx.y * 64) + (((int)blockIdx.z & 3) * 8192)))))))] = bgemm_write_cache[((ci_inner * 2) + k_inner)];
             };
           };
         }
@@ -2903,18 +2942,18 @@ void __launch_bounds__(128) schedule_wino_conv2d_3(const float* __restrict__ X, 
     {
       for (int32_t k = 0; k < 2; k += 1) {
         for (int32_t a = 0; a < 2; a += 1) {
-          inverse__reduce_init[((2 * k) + a)] = 0;
+          inverse__reduce_init[(a + (k * 2))] = 0;
           for (int32_t r_g_a = 0; r_g_a < 4; r_g_a += 1) {
             for (int32_t r_g_b = 0; r_g_b < 4; r_g_b += 1) {
-              inverse[((2 * k) + a)] = (inverse[((2 * k) + a)] + (bgemm[((128 * (int)blockIdx.x) + ((32768 * r_g_a) + ((8192 * r_g_b) + (int)threadIdx.x)))] * ((((((3 - r_g_a) == 0) && ((1 - k) == 0))) ? 1 : (((((3 - r_g_a) == 0) && ((-1 * k) == 0))) ? 0 : (((((2 - r_g_a) == 0) && ((1 - k) == 0))) ? 1 : (((((2 - r_g_a) == 0) && ((-1 * k) == 0))) ? 1 : (((((1 - r_g_a) == 0) && ((1 - k) == 0))) ? -1 : (((((1 - r_g_a) == 0) && ((-1 * k) == 0))) ? 1 : (((((-1 * r_g_a) == 0) && ((1 - k) == 0))) ? 0 : (((((-1 * r_g_a) == 0) && ((-1 * k) == 0))) ? 1 : 1)))))))) * (((((3 - r_g_b) == 0) && ((1 - a) == 0))) ? 1 : (((((3 - r_g_b) == 0) && ((-1 * a) == 0))) ? 0 : (((((2 - r_g_b) == 0) && ((1 - a) == 0))) ? 1 : (((((2 - r_g_b) == 0) && ((-1 * a) == 0))) ? 1 : (((((1 - r_g_b) == 0) && ((1 - a) == 0))) ? -1 : (((((1 - r_g_b) == 0) && ((-1 * a) == 0))) ? 1 : (((((-1 * r_g_b) == 0) && ((1 - a) == 0))) ? 0 : (((((-1 * r_g_b) == 0) && ((-1 * a) == 0))) ? 1 : 1)))))))))));
+              inverse[(a + (k * 2))] = ((bgemm[(((int)blockIdx.x * 128) + ((r_g_a * 32768) + ((r_g_b * 8192) + (int)threadIdx.x)))] * (((((((r_g_a * -1) + 3) == 0) && (((k * -1) + 1) == 0))) ? 1 : ((((((r_g_a * -1) + 3) == 0) && ((k * -1) == 0))) ? 0 : ((((((r_g_a * -1) + 2) == 0) && (((k * -1) + 1) == 0))) ? 1 : ((((((r_g_a * -1) + 2) == 0) && ((k * -1) == 0))) ? 1 : ((((((r_g_a * -1) + 1) == 0) && (((k * -1) + 1) == 0))) ? -1 : ((((((r_g_a * -1) + 1) == 0) && ((k * -1) == 0))) ? 1 : (((((r_g_a * -1) == 0) && (((k * -1) + 1) == 0))) ? 0 : (((((r_g_a * -1) == 0) && ((k * -1) == 0))) ? 1 : 1)))))))) * ((((((r_g_b * -1) + 3) == 0) && (((a * -1) + 1) == 0))) ? 1 : ((((((r_g_b * -1) + 3) == 0) && ((a * -1) == 0))) ? 0 : ((((((r_g_b * -1) + 2) == 0) && (((a * -1) + 1) == 0))) ? 1 : ((((((r_g_b * -1) + 2) == 0) && ((a * -1) == 0))) ? 1 : ((((((r_g_b * -1) + 1) == 0) && (((a * -1) + 1) == 0))) ? -1 : ((((((r_g_b * -1) + 1) == 0) && ((a * -1) == 0))) ? 1 : (((((r_g_b * -1) == 0) && (((a * -1) + 1) == 0))) ? 0 : (((((r_g_b * -1) == 0) && ((a * -1) == 0))) ? 1 : 1)))))))))) + inverse[(a + (k * 2))]);
             };
           };
         };
       };
-      for (int32_t k = 0; k < cinn_nvgpu_min_fp32(2, (7 + ((-2 * ((int)threadIdx.x / 4)) + (8 * ((int)threadIdx.x / 16))))); k += 1) {
-        for (int32_t a = 0; a < cinn_nvgpu_min_fp32(2, (31 + ((-2 * ((int)threadIdx.x & 15)) + (-4 * k)))); a += 1) {
-          if ((((1 + (int)threadIdx.x) & 3) >= a)) {
-            Winograd_Conv2d_out[((-7 * ((int)threadIdx.x / 16)) + ((14 * ((int)threadIdx.x / 4)) + ((2 * ((int)threadIdx.x & 3)) + ((392 * (int)blockIdx.x) + ((7 * k) + a)))))] = inverse[((2 * k) + a)];
+      for (int32_t k = 0; k < cinn_nvgpu_min_fp32(2, ((((int)threadIdx.x / 16) * 8) + ((((int)threadIdx.x / 4) * -2) + 7))); k += 1) {
+        for (int32_t a = 0; a < cinn_nvgpu_min_fp32(2, ((k * -4) + ((((int)threadIdx.x & 15) * -2) + 31))); a += 1) {
+          if (((((int)threadIdx.x + 1) & 3) >= a)) {
+            Winograd_Conv2d_out[((((a + ((int)threadIdx.x * 2)) / 8) * 14) + ((((int)threadIdx.x / 16) * -7) + (a + (((int)blockIdx.x * 392) + ((k * 7) + (((int)threadIdx.x & 3) * 2))))))] = inverse[(a + (k * 2))];
           };
         };
       };
