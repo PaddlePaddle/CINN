@@ -43,6 +43,12 @@ enum class ReduceKind : std::int8_t {
   kMin,
 };
 
+/**
+ * WARNING: In BaseBuilder, you should only place the meta op, which are also the common op between NetBuilder and
+ * CinnBuilder!!! That means, you should not place any non-meta op, or the op only belong to NetBuilder or
+ * CinnBuilder!!!
+ * TODO: Reconstruct the BaseBuilder, NetBuilder and CinnBuilder
+ */
 class BaseBuilder {
  public:
   explicit BaseBuilder(const std::string& name);
