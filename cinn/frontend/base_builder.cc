@@ -192,6 +192,13 @@ Variable BaseBuilder::BinaryOp(const std::string& op_type, const Variable& lhs, 
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(0);
+std::vector<Variable> BaseBuilder::Split(const Variable& operand, const std::vector<int>& num_or_sections, int axis) {
+  Instruction instr("split", {operand});
+  instr.SetAttr("num_or_sections", num_or_sections);
+  instr.SetAttr("axis", axis);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutputs();
 }
 
 }  // namespace frontend

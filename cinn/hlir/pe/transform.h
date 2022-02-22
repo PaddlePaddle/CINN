@@ -149,6 +149,18 @@ ir::Tensor Transpose(const ir::Tensor& input,
                      const std::vector<int>& axis,
                      const std::string& output_name = UniqName("T_Transpose_out"));
 
+/**
+ * @brief Perform meta op Split
+ * @param A The input tensor
+ * @param sections The sub-tensor length list among the axis dimension
+ * @param axis split axis
+ * @param output_name the name of the output tensor
+ */
+std::vector<ir::Tensor> Split(const ir::Tensor& A,
+                              int axis,
+                              const std::vector<std::vector<int>>& output_shapes,
+                              const std::string& name);
+
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn
