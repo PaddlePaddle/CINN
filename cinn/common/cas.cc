@@ -1312,9 +1312,7 @@ Expr CasSimplifyMutator::SimplifyMod(Expr u) {
     }
 
     if (sum_args.empty()) return make_const(b_i->type(), 0);
-    if (sum_args.size() == 1) {
-      return SimplifyMod(Mod::Make(sum_args.front(), b));
-    }
+    // Todo: (2x+y) % 2 = y % 2 when y >=0
     if (sum_args.size() == a_sum->operands().size()) {
       if (b_i->value > 0 && !var_intervals.empty()) {
         // case1: (32+(-x))%33 = 32-x%33 (0<=x<=32)
@@ -1327,7 +1325,6 @@ Expr CasSimplifyMutator::SimplifyMod(Expr u) {
 
       return Mod::Make(a, b);
     }
-    return SimplifyMod(Mod::Make(Sum::Make(sum_args), b));
   }
 
   return Mod::Make(a, b);
