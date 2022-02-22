@@ -114,7 +114,7 @@ void MulBiasOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& 
   VLOG(4) << "x shape: " << cinn::utils::Join(x->shape, ",");
   VLOG(4) << "y shape: " << cinn::utils::Join(tran_y->shape, ",");
   VLOG(4) << "z shape: " << cinn::utils::Join(z->shape, ",");
-  auto out = ctx.Builder()->Mulbias(x, tran_y, z, x_num_col_dims, y_num_col_dims);
+  auto out = ctx.Builder()->MulBias(x, tran_y, z, x_num_col_dims, y_num_col_dims);
 
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
   auto out_name = op_desc.Output("Out").front();

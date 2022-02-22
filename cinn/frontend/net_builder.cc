@@ -47,7 +47,7 @@ Variable NetBuilder::Mul(const Variable& a, const Variable& b, int x_num_col_dim
   return instr.GetOutput(0);
 }
 
-Variable NetBuilder::Mulbias(
+Variable NetBuilder::MulBias(
     const Variable& a, const Variable& b, const Variable& c, int x_num_col_dims, int y_num_col_dims) {
   Instruction instr("mulbias", {a, b, c});
   instr.SetAttr("x_num_col_dims", x_num_col_dims);
@@ -168,7 +168,7 @@ Variable NetBuilder::Pool2d(const Variable& a,
   return instr.GetOutput(0);
 }
 
-std::vector<Variable> NetBuilder::Batchnorm(const Variable& a,
+std::vector<Variable> NetBuilder::BatchNorm(const Variable& a,
                                             const Variable& scale,
                                             const Variable& bias,
                                             const Variable& mean,
@@ -266,27 +266,6 @@ std::vector<Variable> NetBuilder::Conv2dGrad(const Variable& dy,
   AppendInstruction(instr);
   return instr.GetOutputs();
 }
-
-template <typename T>
-Variable NetBuilder::FillConstant(const std::vector<int>& shape, float value, const std::string& name, bool force_cpu) {
-  Instruction instr("fill_constant");
-  instr.SetInputs({});
-  instr.SetAttr("shape", shape);
-  instr.SetAttr("value", value);
-  instr.SetAttr("force_cpu", force_cpu);
-
-  InferShape(instr);
-  AppendInstruction(instr);
-  auto out = instr.GetOutput(0);
-  out.set_id(name);
-  return out;
-}
-
-#define FILLCONSTANT_TEMPLATE_EXPANDER(TYPE__)        \
-  template Variable NetBuilder::FillConstant<TYPE__>( \
-      const std::vector<int>& shape, float value, const std::string& name, bool force_cpu);
-FILLCONSTANT_SUPPORT_DATATYPE_FOREACH(FILLCONSTANT_TEMPLATE_EXPANDER)
-#undef FILLCONSTANT_TEMPLATE_EXPANDER
 
 }  // namespace frontend
 }  // namespace cinn

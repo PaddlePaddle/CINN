@@ -368,7 +368,10 @@ void BindFrontend(pybind11::module *m) {
        py::arg("value"),                                   \
        py::arg("name"),                                    \
        py::arg("force_cpu") = false)
-      FILLCONSTANT_SUPPORT_DATATYPE_FOREACH(PY_REGISTER_FILLCONSTANT_OP)
+      PY_REGISTER_FILLCONSTANT_OP(double)
+      PY_REGISTER_FILLCONSTANT_OP(float)
+      PY_REGISTER_FILLCONSTANT_OP(int64_t)
+      PY_REGISTER_FILLCONSTANT_OP(int)
 #undef PY_REGISTER_FILLCONSTANT_OP
       // clang-format on
       .def("add", &NetBuilder::Add, py::arg("a"), py::arg("b"))
@@ -379,7 +382,7 @@ void BindFrontend(pybind11::module *m) {
            py::arg("x_num_col_dims") = 1,
            py::arg("y_num_col_dims") = 1)
       .def("mulbias",
-           &NetBuilder::Mulbias,
+           &NetBuilder::MulBias,
            py::arg("a"),
            py::arg("b"),
            py::arg("c"),
@@ -429,7 +432,7 @@ void BindFrontend(pybind11::module *m) {
            py::arg("adaptive")          = false,
            py::arg("padding_algorithm") = "EXPLICIT")
       .def("batchnorm",
-           &NetBuilder::Batchnorm,
+           &NetBuilder::BatchNorm,
            py::arg("a"),
            py::arg("scale"),
            py::arg("bias"),

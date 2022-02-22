@@ -36,12 +36,8 @@ namespace frontend {
     macro__(Div)                                \
     macro__(Matmul)                             \
     macro__(ReluGrad)
-
-#define FILLCONSTANT_SUPPORT_DATATYPE_FOREACH(macro__)  \
-    macro__(float)                                      \
-    macro__(int)
-
 // clang-format on
+
 class NetBuilder : public BaseBuilder {
  public:
   using BaseBuilder::BaseBuilder;
@@ -62,7 +58,7 @@ class NetBuilder : public BaseBuilder {
   /**
    * Multiply two matrix and add a bias.
    */
-  Variable Mulbias(
+  Variable MulBias(
       const Variable& a, const Variable& b, const Variable& c, int x_num_col_dims = 1, int y_num_col_dims = 1);
 
   /**
@@ -135,7 +131,7 @@ class NetBuilder : public BaseBuilder {
    * is_test(true): batch norm infer (default), output={y}
    * is_test(false): batch norm training, outputs={y, saved_mean, saved_variance, moving_mean, moving_variance}
    */
-  std::vector<Variable> Batchnorm(const Variable& a,
+  std::vector<Variable> BatchNorm(const Variable& a,
                                   const Variable& scale,
                                   const Variable& bias,
                                   const Variable& mean,
@@ -176,7 +172,19 @@ class NetBuilder : public BaseBuilder {
                                    const std::string& padding_algorithm = "EXPLICIT");
 
   template <typename T>
-  Variable FillConstant(const std::vector<int>& shape, float value, const std::string& name, bool force_cpu = false);
+  Variable FillConstant(const std::vector<int>& shape, float value, const std::string& name, bool force_cpu = false) {
+    Instruction instr("fill_constant");
+    instr.SetInputs({});
+    instr.SetAttr("shape", shape);
+    instr.SetAttr("value", value);
+    instr.SetAttr("force_cpu", force_cpu);
+
+    InferShape(instr);
+    AppendInstruction(instr);
+    auto out = instr.GetOutput(0);
+    out.set_id(name);
+    return out;
+  }
 };
 
 }  // namespace frontend
