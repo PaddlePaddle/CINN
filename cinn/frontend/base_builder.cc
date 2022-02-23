@@ -83,7 +83,10 @@ void BaseBuilder::InferShape(Instruction instr) const {
   auto out_types  = op_inferdtype[key](in_types, instr->attrs);
 
   auto& outs = instr->outputs;
+  outs.reserve(out_shapes.size());
+
   for (size_t i = 0; i < outs.size(); i++) {
+    outs[i]        = Variable();
     outs[i]->shape = out_shapes[i];
     outs[i]->type  = out_types[i];
   }

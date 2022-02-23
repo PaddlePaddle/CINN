@@ -468,9 +468,23 @@ std::shared_ptr<OpStrategy> StrategyForSplit(const framework::NodeAttr &attrs,
 
 std::vector<std::vector<int>> InferShapeForSplit(const std::vector<std::vector<int>> &inputs_shape,
                                                  const framework::AttrMapType &attrs) {
+  std::vector<int> sections;
+  if (inputs_shape.empty()) {
+    if (attrs.find("num_or_sections") != attrs.end()) {
+      sections = absl::get<std::vector<int>>(attrs.at("num_or_sections"));
+    } else {
+      LOG(FATAL) << "The Split op doesn't find [num_or_sections] attrbute! It it a mandatory attribute ! Please check.";
+    }
+    std::vector<std::vector<int>> ret;
+    if (sections.size() == 1) {
+      ret.reserve(sections[0]);
+    } else {
+      ret.reserve(sections.size());
+    }
+    return ret;
+  }
   CHECK_GE(inputs_shape.size(), 1U) << "The input's shape size should be no less than 1! Please check again.";
 
-  std::vector<int> sections;
   int axis = 0;
   if (attrs.find("num_or_sections") != attrs.end()) {
     sections = absl::get<std::vector<int>>(attrs.at("num_or_sections"));
@@ -1347,7 +1361,7 @@ CINN_REGISTER_HELPER(transform_ops) {
   CINN_REGISTER_OP(split)
       .describe("This operator is used to split tensors X to 'sections' sub-tensor on specified axis.")
       .set_num_inputs(1)
-      .set_num_outputs(2)
+      .set_num_outputs(-1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForSplit)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForSplit))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForSplit))
