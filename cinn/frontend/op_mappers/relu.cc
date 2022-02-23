@@ -25,7 +25,7 @@ void ReluOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
   auto out_name = op_desc.Output("Out").front();
   auto x        = ctx.GetVar(x_name);
-  auto out      = ctx.Builder()->relu(x);
+  auto out      = ctx.Builder()->Relu(x);
 
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);
@@ -39,7 +39,7 @@ void Relu6OpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ct
 
   auto threshold = utils::GetAttrOrDefault<float>(op_desc, "threshold", 6.0f);
   auto x         = ctx.GetVar(x_name);
-  auto out       = ctx.Builder()->relu6(x, threshold);
+  auto out       = ctx.Builder()->Relu6(x, threshold);
 
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);
@@ -55,7 +55,7 @@ void ReluGradOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext&
 
   auto dout = ctx.GetVar(dout_name);
   auto out  = ctx.GetVar(out_name);
-  auto dx   = ctx.Builder()->relu_grad(dout, out);
+  auto dx   = ctx.Builder()->ReluGrad(dout, out);
 
   ctx.AddVar(dx_name, dx);
   ctx.AddVarModelToProgram(dx_name, dx->id);

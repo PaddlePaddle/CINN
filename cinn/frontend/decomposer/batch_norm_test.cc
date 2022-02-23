@@ -158,7 +158,7 @@ TEST(Decomposer, BatchNormTrain) {
     auto moving_variance = net_builder.CreateInput(Float(32), {c}, "moving_variance");
 
     auto outputs =
-        net_builder.batchnorm(x, scale, bias, moving_mean, moving_variance, epsilon, momentum, data_layout, is_test);
+        net_builder.BatchNorm(x, scale, bias, moving_mean, moving_variance, epsilon, momentum, data_layout, is_test);
     for (auto output : outputs) {
       output_names.push_back(output->id);
     }
@@ -338,7 +338,7 @@ TEST(Decomposer, BatchNormGrad) {
     auto saved_mean     = net_builder.CreateInput(Float(32), {c}, "saved_mean");
     auto saved_variance = net_builder.CreateInput(Float(32), {c}, "saved_variance");
 
-    auto outputs = net_builder.batch_norm_grad(y_grad, x, scale, saved_mean, saved_variance, epsilon);
+    auto outputs = net_builder.BatchNormGrad(y_grad, x, scale, saved_mean, saved_variance, epsilon);
     for (auto output : outputs) {
       output_names.push_back(output->id);
     }

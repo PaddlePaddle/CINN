@@ -23,89 +23,79 @@
 namespace cinn {
 namespace frontend {
 
+// clang-format off
+#define NETBUILDER_UNARY_OP_FOREACH(macro__)    \
+    macro__(Sqrt)                               \
+    macro__(Tanh)                               \
+    macro__(Relu)                               \
+    macro__(Sigmoid)                            \
+    macro__(Identity)
+
+#define NETBUILDER_BINARY_OP_FOREACH(macro__)   \
+    macro__(Sub)                                \
+    macro__(Div)                                \
+    macro__(Matmul)                             \
+    macro__(ReluGrad)
+// clang-format on
+
 class NetBuilder : public BaseBuilder {
  public:
   using BaseBuilder::BaseBuilder;
 
-  Variable identity(const Variable& a);
+#define NETBUILDER_UNARY_OP_DECL(func_name__) Variable func_name__(const Variable& operand);
+  NETBUILDER_UNARY_OP_FOREACH(NETBUILDER_UNARY_OP_DECL)
+#undef NETBUILDER_UNARY_OP_DECL
 
-  /**
-   * Add two variables.
-   */
-  Variable add(const Variable& a, const Variable& b);
-
-  /**
-   * Reshape Variable.
-   */
-  Variable reshape(const Variable& a, const std::vector<int>& shape);
-
-  /**
-   * Transpose matrix.
-   */
-  Variable transpose(const Variable& a, const std::vector<int>& axis);
+#define NETBUILDER_BINARY_OP_DECL(func_name__) Variable func_name__(const Variable& lhs, const Variable& rhs);
+  NETBUILDER_BINARY_OP_FOREACH(NETBUILDER_BINARY_OP_DECL)
+#undef NETBUILDER_BINARY_OP_DECL
 
   /**
    * Multiply two matrix.
    */
-  Variable mul(const Variable& a, const Variable& b, int x_num_col_dims = 1, int y_num_col_dims = 1);
+  Variable Mul(const Variable& a, const Variable& b, int x_num_col_dims = 1, int y_num_col_dims = 1);
 
   /**
    * Multiply two matrix and add a bias.
    */
-  Variable mulbias(
+  Variable MulBias(
       const Variable& a, const Variable& b, const Variable& c, int x_num_col_dims = 1, int y_num_col_dims = 1);
+
+  /**
+   * Add two matrix(with broadcast).
+   */
+  Variable Add(const Variable& a, const Variable& b);
 
   /**
    * Add two tensors element-wise.
    */
-  Variable elementwise_add(const Variable& a, const Variable& b, int axis = -1);
+  Variable ElementwiseAdd(const Variable& a, const Variable& b, int axis = -1);
 
   /**
    * The gradient of elementwise_add.
    */
-  const std::vector<Variable>& elementwise_add_grad(const Variable& dout,
-                                                    const Variable& x,
-                                                    const Variable& y,
-                                                    int axis = -1);
+  const std::vector<Variable>& ElementwiseAddGrad(const Variable& dout,
+                                                  const Variable& x,
+                                                  const Variable& y,
+                                                  int axis = -1);
 
   /**
    * Multiply two tensors element-wise.
    */
-  Variable elementwise_mul(const Variable& a, const Variable& b, int axis = -1);
+  Variable ElementwiseMul(const Variable& a, const Variable& b, int axis = -1);
 
-  /**
-   * Apply Rectified Linear Unit on input Variable.
-   * Actually apply: outupt = max(input,0)
-   */
-  Variable relu(const Variable& a);
-
-  /**
-   * The gradient of Rectified Linear Unit.
-   * Actually apply: dx = dout * (out > 0)
-   */
-  Variable relu_grad(const Variable& dout, const Variable& out);
-
-  Variable relu6(const Variable& a, float threshold = 6.0f);
-
-  /**
-   * This API reverses the Variable x along the given axis.
-   * Example 1: x = [[0, 1], [2, 3], [4, 5]], axis = [0]
-   *            output = [[4, 5], [2, 3], [0, 1]]
-   * Example 2: x = [[0, 1], [2, 3], [4, 5]], axis = [0, 1]
-   *            output = [[5, 4], [3, 2], [1, 0]]
-   */
-  Variable reverse(const Variable& x, const std::vector<int>& axis);
+  Variable Relu6(const Variable& a, float threshold = 6.0f);
 
   /**
    * Compute the sum of Variable x along the given dim.
    */
-  Variable reduce_sum(const Variable& x, const std::vector<int>& dim, bool keep_dim = false);
+  Variable ReduceSum(const Variable& x, const std::vector<int>& dim, bool keep_dim = false);
 
   /**
    * The convolution2D layer calculates the output based on the input, filter
    * and strides, paddings, dilations, groups parameters.
    */
-  Variable conv2d(const Variable& a,
+  Variable Conv2d(const Variable& a,
                   const Variable& b,
                   const std::vector<int>& strides      = {1, 1},
                   const std::vector<int>& paddings     = {0, 0},
@@ -114,16 +104,16 @@ class NetBuilder : public BaseBuilder {
                   const std::string& data_format       = "NCHW",
                   const std::string& padding_algorithm = "EXPLICIT");
 
-  Variable depthwise_conv2d(const Variable& a,
-                            const Variable& b,
-                            const std::vector<int>& strides      = {1, 1},
-                            const std::vector<int>& paddings     = {0, 0},
-                            const std::vector<int>& dilations    = {1, 1},
-                            int groups                           = 1,
-                            const std::string& data_format       = "NCHW",
-                            const std::string& padding_algorithm = "EXPLICIT");
+  Variable DepthwiseConv2d(const Variable& a,
+                           const Variable& b,
+                           const std::vector<int>& strides      = {1, 1},
+                           const std::vector<int>& paddings     = {0, 0},
+                           const std::vector<int>& dilations    = {1, 1},
+                           int groups                           = 1,
+                           const std::string& data_format       = "NCHW",
+                           const std::string& padding_algorithm = "EXPLICIT");
 
-  Variable pool2d(const Variable& a,
+  Variable Pool2d(const Variable& a,
                   const std::string& pooling_type,
                   const std::vector<int>& ksize,
                   const std::vector<int>& strides      = {1, 1},
@@ -141,7 +131,7 @@ class NetBuilder : public BaseBuilder {
    * is_test(true): batch norm infer (default), output={y}
    * is_test(false): batch norm training, outputs={y, saved_mean, saved_variance, moving_mean, moving_variance}
    */
-  std::vector<Variable> batchnorm(const Variable& a,
+  std::vector<Variable> BatchNorm(const Variable& a,
                                   const Variable& scale,
                                   const Variable& bias,
                                   const Variable& mean,
@@ -152,43 +142,49 @@ class NetBuilder : public BaseBuilder {
                                   bool is_test                   = false);
 
   // batch norm grad, output(x_grad, scale_grad, bias_grad)
-  std::vector<Variable> batch_norm_grad(const Variable& dy,
-                                        const Variable& x,
-                                        const Variable& scale,
-                                        const Variable& save_mean,
-                                        const Variable& save_variance,
-                                        const float epsilon            = 1e-5,
-                                        const std::string& data_layout = "NCHW");
+  std::vector<Variable> BatchNormGrad(const Variable& dy,
+                                      const Variable& x,
+                                      const Variable& scale,
+                                      const Variable& save_mean,
+                                      const Variable& save_variance,
+                                      const float epsilon            = 1e-5,
+                                      const std::string& data_layout = "NCHW");
 
-  Variable scale(const Variable& a, float scale = 1.0f, float bias = 0.0f, bool bias_after_scale = true);
+  Variable Scale(const Variable& a, float scale = 1.0f, float bias = 0.0f, bool bias_after_scale = true);
 
-  Variable softmax(const Variable& a, int axis = -1, const std::string& data_format = "AnyLayout");
+  Variable Softmax(const Variable& a, int axis = -1, const std::string& data_format = "AnyLayout");
 
-  Variable sigmoid(const Variable& a);
+  Variable DropoutInfer(const Variable& a,
+                        float dropout_prob                        = 0.5f,
+                        const std::string& dropout_implementation = "downgrade_in_infer");
 
-  Variable slice(const Variable& a,
-                 const std::vector<int>& axes,
-                 const std::vector<int>& starts        = {},
-                 const std::vector<int>& ends          = {},
-                 const std::vector<int>& infer_flags   = {},
-                 const std::vector<int>& decrease_axis = {});
-
-  Variable dropout_infer(const Variable& a,
-                         float dropout_prob                        = 0.5f,
-                         const std::string& dropout_implementation = "downgrade_in_infer");
-
-  Variable sum(const std::vector<Variable>& inputs);
+  Variable Sum(const std::vector<Variable>& inputs);
 
   // conv2d grad, output(grad_x, grad_w)
-  std::vector<Variable> conv2d_grad(const Variable& dy,
-                                    const Variable& x,
-                                    const Variable& w,
-                                    const std::vector<int>& strides      = {1, 1},
-                                    const std::vector<int>& paddings     = {0, 0},
-                                    const std::vector<int>& dilations    = {1, 1},
-                                    const int groups                     = 1,
-                                    const std::string& data_format       = "NCHW",
-                                    const std::string& padding_algorithm = "EXPLICIT");
+  std::vector<Variable> Conv2dGrad(const Variable& dy,
+                                   const Variable& x,
+                                   const Variable& w,
+                                   const std::vector<int>& strides      = {1, 1},
+                                   const std::vector<int>& paddings     = {0, 0},
+                                   const std::vector<int>& dilations    = {1, 1},
+                                   const int groups                     = 1,
+                                   const std::string& data_format       = "NCHW",
+                                   const std::string& padding_algorithm = "EXPLICIT");
+
+  template <typename T>
+  Variable FillConstant(const std::vector<int>& shape, float value, const std::string& name, bool force_cpu = false) {
+    Instruction instr("fill_constant");
+    instr.SetInputs({});
+    instr.SetAttr("shape", shape);
+    instr.SetAttr("value", value);
+    instr.SetAttr("force_cpu", force_cpu);
+
+    InferShape(instr);
+    AppendInstruction(instr);
+    auto out = instr.GetOutput(0);
+    out.set_id(name);
+    return out;
+  }
 };
 
 }  // namespace frontend

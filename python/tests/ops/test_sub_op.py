@@ -14,42 +14,74 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cinn
-import numpy as np
-import paddle
 import unittest
-
+import numpy as np
+from op_test import OpTest, OpTestTool
+import paddle
+import paddle.nn.functional as F
+import cinn
 from cinn.frontend import *
 from cinn.common import *
-from op_test import OpTest, OpTestTool
 
 
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
                     "x86 test will be skipped due to timeout.")
-class TestTransposeOp(OpTest):
+class TestSubOp(OpTest):
     def setUp(self):
         self.init_case()
 
     def init_case(self):
-        self.inputs = {"x": np.random.random([2, 3]).astype("float32")}
+        self.inputs = {
+            "x": np.random.random([32]).astype("float32"),
+            "y": np.random.random([32]).astype("float32")
+        }
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.inputs["x"], stop_gradient=True)
-        out = paddle.transpose(x, [1, 0])
+        y = paddle.to_tensor(self.inputs["y"], stop_gradient=True)
+
+        out = paddle.subtract(x, y)
+
         self.paddle_outputs = [out]
 
     def build_cinn_program(self, target):
-        builder = NetBuilder("transpose_test")
+        builder = NetBuilder("sub")
         x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
-        out = builder.transpose(x, [1, 0])
+        y = builder.create_input(Float(32), self.inputs["y"].shape, "y")
+        out = builder.sub(x, y)
 
         prog = builder.build()
-        res = self.get_cinn_output(prog, target, [x], [self.inputs["x"]],
-                                   [out])
+        res = self.get_cinn_output(prog, target, [x, y],
+                                   [self.inputs["x"], self.inputs["y"]], [out])
+
         self.cinn_outputs = [res[0]]
 
     def test_check_results(self):
         self.check_outputs_and_grads()
+
+
+class TestSubCase1(TestSubOp):
+    def init_case(self):
+        self.inputs = {
+            "x": np.random.random([32, 64]).astype("float32"),
+            "y": np.random.random([32, 64]).astype("float32")
+        }
+
+
+class TestSubCase2(TestSubOp):
+    def init_case(self):
+        self.inputs = {
+            "x": np.random.random([2, 2, 32]).astype("float32"),
+            "y": np.random.random([32]).astype("float32")
+        }
+
+
+class TestSubCase3(TestSubOp):
+    def init_case(self):
+        self.inputs = {
+            "x": np.random.random([2, 32]).astype("float32"),
+            "y": np.random.random([1]).astype("float32")
+        }
 
 
 if __name__ == "__main__":

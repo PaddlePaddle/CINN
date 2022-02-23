@@ -45,7 +45,7 @@ void Pool2dOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
   auto adaptive          = utils::GetAttrOrDefault<bool>(op_desc, "adaptive", false);
   auto padding_algorithm = utils::GetAttrOrDefault<std::string>(op_desc, "padding_algorithm", "EXPLICIT");
   auto x                 = ctx.GetVar(x_name);
-  auto out               = ctx.Builder()->pool2d(x,
+  auto out               = ctx.Builder()->Pool2d(x,
                                    pooling_type,
                                    ksize,
                                    strides,

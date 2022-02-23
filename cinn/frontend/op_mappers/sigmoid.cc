@@ -26,7 +26,7 @@ void SigmoidOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& 
   auto out_name = op_desc.Output("Out").front();
 
   auto x   = ctx.GetVar(x_name);
-  auto out = ctx.Builder()->sigmoid(x);
+  auto out = ctx.Builder()->Sigmoid(x);
 
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);

@@ -34,7 +34,7 @@ class TestReshapeOp(OpTest):
         self.inputs = {"x": np.random.random([2, 3]).astype("float32")}
 
     def build_paddle_program(self, target):
-        x = paddle.to_tensor(self.inputs["x"], stop_gradient=False)
+        x = paddle.to_tensor(self.inputs["x"], stop_gradient=True)
         out = paddle.reshape(x, [3, 2])
         self.paddle_outputs = [out]
 

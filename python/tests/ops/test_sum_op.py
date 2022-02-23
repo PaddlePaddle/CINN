@@ -39,13 +39,12 @@ class TestSumOp(OpTest):
             "x2": np.random.random([
                 32,
                 64,
-            ]).astype("float32"),
-            "dout": np.random.random((32, 64)).astype("float32")
+            ]).astype("float32")
         }
 
     def build_paddle_program(self, target):
-        x1 = paddle.to_tensor(self.inputs["x1"], stop_gradient=False)
-        x2 = paddle.to_tensor(self.inputs["x2"], stop_gradient=False)
+        x1 = paddle.to_tensor(self.inputs["x1"], stop_gradient=True)
+        x2 = paddle.to_tensor(self.inputs["x2"], stop_gradient=True)
         out = paddle.add(x1, x2)
 
         self.paddle_outputs = [out]
