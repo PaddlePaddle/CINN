@@ -42,8 +42,7 @@ using Groups = std::vector<Group>;
 // "vertically", meaning producing Ops are fused into their consumers
 // with the intent that the loops which compute their values will be fused in
 // code generation.
-
-struct OpFusionPassHelper {
+class OpFusionPassHelper {
  public:
   OpFusionPassHelper(std::vector<GraphNode*>& graph_nodes, const absl::flat_hash_map<std::string, shape_t>& shape_dict)
       : shape_dict_(shape_dict) {
@@ -56,9 +55,9 @@ struct OpFusionPassHelper {
         nodes_.push_back(node);
         auto group = std::make_shared<Graph::Group>();
         // init group
-        group->nodes_.push_back(node);
-        group->nodes_set_.insert(node);
-        group->output_nodes_.insert(node);
+        group->nodes.push_back(node);
+        group->nodes_set.insert(node);
+        group->output_nodes.insert(node);
         // input node
         for (auto& edge : node->inlinks()) {
           auto input_graph_node = edge->source();
@@ -66,14 +65,14 @@ struct OpFusionPassHelper {
           CHECK(input_node_data);
           // input data has noe source node
           if (input_node_data->source_node.get()) {
-            group->input_nodes_.insert(input_node_data->source_node.get());
+            group->input_nodes.insert(input_node_data->source_node.get());
           }
         }
 
         // group type
-        group->op_pattern_kind_ = GetOpKind(node);  // op_pattern_dict_[0][node->op()];
+        group->op_pattern_kind = GetOpKind(node);
         // use current node as master node for schedule
-        group->master_nodes_.insert(node);
+        group->master_nodes.insert(node);
         fusion_groups_[node] = group;
       }
     }
@@ -97,7 +96,7 @@ struct OpFusionPassHelper {
 
     for (auto& group : fusion_groups) {
       // find producer group
-      for (auto& node : group->input_nodes_) {
+      for (auto& node : group->input_nodes) {
         for (auto& edge : node->inlinks()) {
           auto producer_node      = edge->source();
           auto producer_node_data = producer_node->safe_as<NodeData>();
@@ -105,18 +104,18 @@ struct OpFusionPassHelper {
           // input data has no source node
           if (producer_node_data->source_node.get()) {
             auto producer_group = fusion_groups_[producer_node_data->source_node.get()];
-            group->producer_groups_.insert(producer_group.get());
+            group->producer_groups.insert(producer_group.get());
           }
         }
       }
       // find consumer group
-      auto output_node      = *group->output_nodes_.begin();
+      auto output_node      = *group->output_nodes.begin();
       auto output_node_data = (*output_node->outlinks().begin())->sink();
       for (auto& link : output_node_data->outlinks()) {
         auto consumer_node = link->sink()->safe_as<Node>();
         CHECK(consumer_node);
         auto consumer_group = fusion_groups_[consumer_node];
-        group->consumer_groups_.insert(consumer_group.get());
+        group->consumer_groups.insert(consumer_group.get());
       }
     }
 
@@ -141,7 +140,7 @@ struct OpFusionPassHelper {
   void DoOpFusion() {
     for (auto node : nodes_) {
       auto group      = fusion_groups_[node];
-      auto group_kind = group->op_pattern_kind_;
+      auto group_kind = group->op_pattern_kind;
       // group-kind (kInjective and > kCommReduce) not support fusion now.
       if (static_cast<int>(group_kind) > static_cast<int>(framework::kCommReduce) ||
           group_kind == framework::kInjective) {
@@ -149,7 +148,7 @@ struct OpFusionPassHelper {
       }
 
       // if current node is broadcast, do not fuse, left to fusion merge
-      auto node_op_kind = GetOpKind(node);  // op_pattern_dict_[0][node->op()];
+      auto node_op_kind = GetOpKind(node);
       if (node_op_kind == framework::kBroadcast) {
         continue;
       }
@@ -160,12 +159,14 @@ struct OpFusionPassHelper {
         CHECK(node_data);
 
         auto source_node = node_data->source_node;
+        // is node data is placeholder
         if (!source_node) {
           continue;
         }
 
         auto source_node_op_kind = GetOpKind(source_node.get());
         // group-kind (kInjective and >= kCommReduce) not support fusion now.
+        // TODO(sunli):support other op kind
         if (static_cast<int>(source_node_op_kind) > static_cast<int>(framework::kCommReduce) ||
             source_node_op_kind == framework::kInjective) {
           continue;
@@ -176,7 +177,8 @@ struct OpFusionPassHelper {
         for (auto& link : node_data->outlinks()) {
           auto out_node = link->sink()->safe_as<Node>();
           CHECK(out_node);
-          if (group->nodes_set_.find(out_node) == group->nodes_set_.end()) {
+          // if group can't find node, can't merge
+          if (group->nodes_set.find(out_node) == group->nodes_set.end()) {
             can_merge = false;
             break;
           }
@@ -184,10 +186,11 @@ struct OpFusionPassHelper {
 
         if (!can_merge) continue;
 
-        if (source_node_op_kind == framework::kCommReduce) {
+        // if node is reduce node, check can fuse reduce + elementwise
+        if (source_node_op_kind == framework::kCommReduce && group_kind == framework::kElemWise) {
           auto shape      = shape_dict_.at(source_node->inlinks_in_order()[0]->source()->id());
           auto reduce_dim = absl::get<std::vector<int>>(source_node->attrs.attr_store.at("dim"));
-          // judge last dimension is in reduce.
+          // last dimension is in reduce, can't fuse reduce + elementwise, left in fusion merge pass
           if (std::find(reduce_dim.begin(), reduce_dim.end(), shape.size() - 1) != reduce_dim.end()) {
             continue;
           }
@@ -201,41 +204,42 @@ struct OpFusionPassHelper {
 
           const Node* master_node = nullptr;
           // find reduce node
-          for (auto& node : group->master_nodes_) {
-            if (GetOpKind(node) == framework::kCommReduce) {
-              master_node = node;
+          for (auto& rnode : group->master_nodes) {
+            if (GetOpKind(rnode) == framework::kCommReduce) {
+              master_node = rnode;
               break;
             }
           }
           auto master_input_shape  = shape_dict_.at(master_node->inlinks_in_order()[0]->source()->id());
           auto master_output_shape = shape_dict_.at(master_node->outlinks_in_order()[0]->sink()->id());
 
+          // check shape is same
           if (source_input_shape != master_input_shape || source_output_shape != master_output_shape) {
             continue;
           }
 
-          // attr
+          // check reduce axis
           if (absl::get<std::vector<int>>(master_node->attrs.attr_store.at("dim")) !=
               absl::get<std::vector<int>>(source_node->attrs.attr_store.at("dim"))) {
             continue;
           }
         }
 
-        // do merge
-        if (group->nodes_set_.find(source_node.get()) == group->nodes_set_.end()) {
-          group->nodes_.push_back(source_node.get());
+        // start merge node to fusion group
+        if (group->nodes_set.find(source_node.get()) == group->nodes_set.end()) {
+          group->nodes.push_back(source_node.get());
         }
-        group->nodes_set_.insert(source_node.get());
-        group->input_nodes_.erase(source_node.get());
-        group->op_pattern_kind_ =
+        group->nodes_set.insert(source_node.get());
+        group->input_nodes.erase(source_node.get());
+        group->op_pattern_kind =
             static_cast<int>(group_kind) > static_cast<int>(source_node_op_kind) ? group_kind : source_node_op_kind;
 
         if (source_node_op_kind == framework::kCommReduce) {
-          group->master_nodes_.insert(source_node.get());
+          group->master_nodes.insert(source_node.get());
         }
 
         if (node_data->outlinks().size() > 1) {
-          group->internal_nodes_.insert(source_node.get());
+          group->internal_nodes.insert(source_node.get());
         }
 
         // add input node
@@ -244,7 +248,7 @@ struct OpFusionPassHelper {
           auto input_node_data  = input_graph_node->safe_as<NodeData>();
           CHECK(input_node_data);
           if (input_node_data->source_node.get()) {
-            group->input_nodes_.insert(input_node_data->source_node.get());
+            group->input_nodes.insert(input_node_data->source_node.get());
           }
         }
 
@@ -270,11 +274,11 @@ void OpFusionPassInternal(Graph* graph) {
   auto& shape_dict = graph->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
 
   auto op_fusion_helper = OpFusionPassHelper(nodes, shape_dict);
-  graph->fusion_groups_ = op_fusion_helper();
+  graph->fusion_groups  = op_fusion_helper();
 
-  for (auto& Group : graph->fusion_groups_) {
+  for (auto& Group : graph->fusion_groups) {
     VLOG(11) << "Group Start.";
-    for (auto node : Group->nodes_) {
+    for (auto node : Group->nodes) {
       VLOG(11) << "node -> " << node->id();
     }
     VLOG(11) << "Group End.";
