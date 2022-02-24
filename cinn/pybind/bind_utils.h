@@ -14,12 +14,8 @@
 
 #pragma once
 
-#include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
 
-#include <cassert>
-#include <cstring>
 #include <string>
 
 #include "cinn/common/cinn_value.h"
@@ -170,30 +166,4 @@ class _Operation_Wrapper : ir::_Operation_ {
  public:
   const char *func_type() const override { PYBIND11_OVERLOAD_PURE(const char *, ir::_Operation_, func_type); }
 };
-
-// Convert 1D vector to py numpy
-template <typename Dtype>
-py::array VectorToNumpy(const std::vector<Dtype> &vec) {
-  return py::array(py::cast(vec));
-}
-
-// Convert 2D vector to py numpy
-template <typename Dtype>
-py::array VectorToNumpy(const std::vector<std::vector<Dtype>> &vec) {
-  if (vec.size() == 0) {
-    return py::array(py::dtype::of<Dtype>(), {0, 0});
-  }
-
-  std::vector<size_t> shape{vec.size(), vec[0].size()};
-  py::array ret(py::dtype::of<Dtype>(), shape);
-
-  Dtype *py_data = static_cast<Dtype *>(ret.mutable_data());
-  for (size_t i = 0; i < vec.size(); ++i) {
-    assert(vec[i].size() == shape[1] && "Sub vectors must have same size in VectorToNumpy");
-    const Dtype *sub_vec_data = vec[i].data();
-    memcpy(py_data + (shape[0] * i), sub_vec_data, shape[0] * sizeof(Dtype));
-  }
-  return ret;
-}
-
 }  // namespace cinn::pybind
