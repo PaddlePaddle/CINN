@@ -19,6 +19,7 @@ workspace=$PWD
 build_dir_name=${cinn_build:-build}
 build_dir=$workspace/${build_dir_name}
 py_version=${py_version:-3.6}
+cinn_whl_path=python/dist/cinn-0.0.0-py3-none-any.whl
 
 #export LLVM11_DIR=${workspace}/THIRDS/usr
 
@@ -38,6 +39,7 @@ function mkldnn_off {
 
 
 function gpu_on {
+  cinn_whl_path=python/dist/cinn_gpu-0.0.0-py3-none-any.whl
   cuda_config=ON
   cudnn_config=ON
 }
@@ -234,8 +236,9 @@ function build {
     ctest -R "test_codegen_c$"
 
     make -j $JOBS
-    ls -l python/dist
-    pip${py_version} install -U python/dist/cinn-0.0.0-py3-none-any.whl
+
+    ls python/dist
+    pip${py_version} install -U ${cinn_whl_path}
 }
 
 function run_demo {
