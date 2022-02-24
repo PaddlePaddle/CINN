@@ -22,15 +22,14 @@
 #include <cassert>
 #include <cstring>
 #include <iostream>
+#include <mutex>
 #include <string>
 #include <vector>
-
-//#include "cinn/pybind/bind_utils.h"
 
 namespace cinn {
 namespace auto_schedule {
 
-// using ::cinn::pybind::VectorToNumpy;
+std::once_flag CostModel::init_once_flag_;
 
 // Convert 1D vector to py numpy
 template <typename Dtype>
@@ -56,16 +55,20 @@ pybind11::array VectorToNumpy(const std::vector<std::vector<Dtype>>& vec) {
   return ret;
 }
 
-CostModel::CostModel() {
+void AddDistPkgToPythonSysPath() {
   pybind11::module sys_py_mod = pybind11::module::import("sys");
-  // TODO fix the hard code here
-  std::string site_pkg_str = "/usr/local/lib/python3.7/dist-packages";
+  // short version such as "3.7", "3.8", ...
+  std::string py_short_version = sys_py_mod.attr("version").cast<std::string>().substr(0, 3);
+
+  std::string site_pkg_str = "/usr/local/lib/python" + py_short_version + "/dist-packages";
   sys_py_mod.attr("path").attr("append")(site_pkg_str);
-  sys_py_mod.attr("path").attr("append")("/usr/local/lib/python3.7/dist-packages/setuptools-50.3.2-py3.7.egg");
-  auto path = sys_py_mod.attr("path").cast<std::vector<std::string>>();
-  for (const std::string& s : path) {
-    std::cout << s << std::endl;
-  }
+
+  std::string setuptools_str = site_pkg_str + "/setuptools-50.3.2-py3.7.egg";
+  sys_py_mod.attr("path").attr("append")(setuptools_str);
+}
+
+CostModel::CostModel() {
+  std::call_once(init_once_flag_, AddDistPkgToPythonSysPath);
   pybind11::module cost_model_py_mod = pybind11::module::import("cinn.auto_schedule.cost_model");
   python_member_                     = cost_model_py_mod.attr("CostModel")();
 }

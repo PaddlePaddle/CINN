@@ -17,6 +17,7 @@
 
 #include <pybind11/embed.h>
 
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -50,7 +51,11 @@ class CostModel {
   void Load(const std::string& path);
 
  private:
+  // Object points to Python CostModel
   pybind11::object python_member_;
+
+  // Flag to call_once on python inititalization function
+  static std::once_flag init_once_flag_;
 };
 
 }  // namespace auto_schedule
