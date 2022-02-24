@@ -89,5 +89,110 @@ void BaseBuilder::InferShape(Instruction instr) const {
   }
 }
 
+Variable BaseBuilder::Concat(const std::vector<Variable>& input_vars, int axis) {
+  Instruction instr("concat", input_vars);
+  instr.SetAttr("axis", axis);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
+Variable BaseBuilder::Reduce(const Variable& operand, ReduceKind kind, const std::vector<int>& dim, bool keep_dim) {
+  auto reduce_func = [&](const std::string& op_type) {
+    Instruction instr(op_type, {operand});
+    instr.SetAttr("dim", dim);
+    instr.SetAttr("keep_dim", keep_dim);
+    InferShape(instr);
+    AppendInstruction(instr);
+    return instr.GetOutput(0);
+  };
+
+  switch (kind) {
+    case ReduceKind::kSum:
+      return reduce_func("reduce_sum");
+    case ReduceKind::kProd:
+      return reduce_func("reduce_prod");
+    case ReduceKind::kMax:
+      return reduce_func("reduce_max");
+    case ReduceKind::kMin:
+      return reduce_func("reduce_min");
+    default:
+      LOG(FATAL) << "unknown reduction kind";
+  }
+}
+
+Variable BaseBuilder::BroadcastTo(const Variable& operand,
+                                  const std::vector<int>& out_shape,
+                                  const std::vector<int>& broadcast_axes) {
+  Instruction instr("broadcast_to", {operand});
+  instr.SetAttr("out_shape", out_shape);
+  instr.SetAttr("broadcast_axes", broadcast_axes);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
+Variable BaseBuilder::Reshape(const Variable& operand, const std::vector<int>& shape) {
+  Instruction instr("reshape", {operand});
+  instr.SetAttr("shape", shape);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
+Variable BaseBuilder::Transpose(const Variable& operand, const std::vector<int>& axis) {
+  Instruction instr("transpose", {operand});
+  instr.SetAttr("axis", axis);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
+Variable BaseBuilder::Slice(const Variable& operand,
+                            const std::vector<int>& axes,
+                            const std::vector<int>& starts,
+                            const std::vector<int>& ends,
+                            const std::vector<int>& infer_flags,
+                            const std::vector<int>& decrease_axis) {
+  Instruction instr("slice", {operand});
+  instr.SetAttr("axes", axes);
+  instr.SetAttr("starts", starts);
+  instr.SetAttr("ends", ends);
+  instr.SetAttr("infer_flags", infer_flags);
+  instr.SetAttr("decrease_axis", decrease_axis);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
+Variable BaseBuilder::Reverse(const Variable& operand, const std::vector<int>& axis) {
+  Instruction instr("reverse", {operand});
+  instr.SetAttr("axis", axis);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
+Variable BaseBuilder::Select(const Variable& condition, const Variable& true_value, const Variable& false_value) {
+  Instruction instr("select", {condition, true_value, false_value});
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
+Variable BaseBuilder::UnaryOp(const std::string& op_type, const Variable& operand) {
+  Instruction instr(op_type, {operand});
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
+Variable BaseBuilder::BinaryOp(const std::string& op_type, const Variable& lhs, const Variable& rhs) {
+  Instruction instr(op_type, {lhs, rhs});
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
 }  // namespace frontend
 }  // namespace cinn

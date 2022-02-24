@@ -14,42 +14,58 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cinn
-import numpy as np
-import paddle
 import unittest
-
+import numpy as np
+from op_test import OpTest, OpTestTool
+import paddle
+import paddle.nn.functional as F
+import cinn
 from cinn.frontend import *
 from cinn.common import *
-from op_test import OpTest, OpTestTool
 
 
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
                     "x86 test will be skipped due to timeout.")
-class TestTransposeOp(OpTest):
+class TestAddOp(OpTest):
     def setUp(self):
         self.init_case()
 
     def init_case(self):
-        self.inputs = {"x": np.random.random([2, 3]).astype("float32")}
+        self.shape = [32]
+        self.value = float(1.0)
+        self.cinn_type = Float(32)
+        self.inputs = {"y": np.random.random(self.shape).astype("float32")}
 
     def build_paddle_program(self, target):
-        x = paddle.to_tensor(self.inputs["x"], stop_gradient=True)
-        out = paddle.transpose(x, [1, 0])
+        x = paddle.full(self.shape, self.value)
+        y = paddle.to_tensor(self.inputs["y"], stop_gradient=True)
+
+        out = paddle.add(x, y)
+
         self.paddle_outputs = [out]
 
     def build_cinn_program(self, target):
-        builder = NetBuilder("transpose_test")
-        x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
-        out = builder.transpose(x, [1, 0])
+        builder = NetBuilder("add")
+        x = builder.fill_constant(self.shape, self.value, "x")
+        y = builder.create_input(self.cinn_type, self.inputs["y"].shape, "y")
+        out = builder.add(x, y)
 
         prog = builder.build()
-        res = self.get_cinn_output(prog, target, [x], [self.inputs["x"]],
+        res = self.get_cinn_output(prog, target, [y], [self.inputs["y"]],
                                    [out])
+
         self.cinn_outputs = [res[0]]
 
     def test_check_results(self):
         self.check_outputs_and_grads()
+
+
+class TestAddCase1(TestAddOp):
+    def init_case(self):
+        self.shape = [10, 32, 4]
+        self.value = float(-100.0)
+        self.cinn_type = Float(32)
+        self.inputs = {"y": np.random.random(self.shape).astype("float32")}
 
 
 if __name__ == "__main__":

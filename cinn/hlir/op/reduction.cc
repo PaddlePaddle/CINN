@@ -316,6 +316,11 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
   bool keep_dim = false;
   if (attrs.attr_store.count("dim")) {
     dim = absl::get<std::vector<int>>(attrs.attr_store.at("dim"));
+    if (dim.empty()) {
+      for (int i = 0; i < inputs[0]->shape.size(); ++i) {
+        dim.push_back(i);
+      }
+    }
     std::sort(dim.begin(), dim.end());
     // check dim
     CHECK_LE(dim.size(), inputs[0]->shape.size());

@@ -51,10 +51,10 @@ void SetRandData(hlir::framework::Tensor tensor, Target target) {
 TEST(RemoveIdentity, can_remove) {
   NetBuilder builder("net_builder");
   auto x          = builder.CreateInput(Float(32), {32, 16});
-  auto identity_1 = builder.identity(x);
-  auto identity_2 = builder.identity(x);
-  auto relu_1     = builder.reduce_sum(x, {0, 1});
-  auto relu_2     = builder.reduce_sum(x, {0, 1});
+  auto identity_1 = builder.Identity(x);
+  auto identity_2 = builder.Identity(x);
+  auto relu_1     = builder.ReduceSum(x, {0, 1});
+  auto relu_2     = builder.ReduceSum(x, {0, 1});
   auto program    = builder.Build();
 #ifdef CINN_WITH_CUDA
   Target target = common::DefaultNVGPUTarget();
@@ -84,10 +84,10 @@ TEST(RemoveIdentity, can_remove) {
 TEST(RemoveIdentity, cant_remove_by_fetchids) {
   NetBuilder builder("net_builder");
   auto x          = builder.CreateInput(Float(32), {32, 16});
-  auto identity_1 = builder.identity(x);
-  auto identity_2 = builder.identity(x);
-  auto relu_1     = builder.reduce_sum(x, {0, 1});
-  auto relu_2     = builder.reduce_sum(x, {0, 1});
+  auto identity_1 = builder.Identity(x);
+  auto identity_2 = builder.Identity(x);
+  auto relu_1     = builder.ReduceSum(x, {0, 1});
+  auto relu_2     = builder.ReduceSum(x, {0, 1});
   auto program    = builder.Build();
 #ifdef CINN_WITH_CUDA
   Target target = common::DefaultNVGPUTarget();
@@ -117,9 +117,9 @@ TEST(RemoveIdentity, cant_remove_by_fetchids) {
 TEST(RemoveIdentity, cant_remove_by_pattern) {
   NetBuilder builder("net_builder");
   auto x          = builder.CreateInput(Float(32), {32, 16});
-  auto identity_1 = builder.identity(x);
-  auto identity_2 = builder.identity(x);
-  auto mul        = builder.mul(x, identity_1);
+  auto identity_1 = builder.Identity(x);
+  auto identity_2 = builder.Identity(x);
+  auto mul        = builder.Mul(x, identity_1);
   auto program    = builder.Build();
 #ifdef CINN_WITH_CUDA
   Target target = common::DefaultNVGPUTarget();

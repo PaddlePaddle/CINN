@@ -21,7 +21,7 @@ TEST(Decomposer, sum) {
   auto x   = builder.CreateInput(Float(32), {32, 16});
   auto y   = builder.CreateInput(Float(32), {32, 16});
   auto z   = builder.CreateInput(Float(32), {32, 16});
-  auto out = builder.sum({x, y, z});
+  auto out = builder.Sum({x, y, z});
 
   auto sum_cpu = [](const std::vector<size_t>& lengths, const std::vector<void*>& ptrs) {
     size_t n   = lengths[0];
