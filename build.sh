@@ -234,6 +234,7 @@ function build {
     ctest -R "test_codegen_c$"
 
     make -j $JOBS
+    ls -l python/dist
     pip${py_version} install -U python/dist/cinn-0.0.0-py3-none-any.whl
 }
 
