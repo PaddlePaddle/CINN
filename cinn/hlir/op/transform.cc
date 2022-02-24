@@ -1221,14 +1221,12 @@ std::vector<std::vector<int>> InferShapeForIndexSelect(const std::vector<std::ve
   output_shape[axis] = inputs_shape[1][0];
   VLOG(1) << "The output calculated in InferShapeForIndexSelect: " << utils::Join(output_shape, ", ");
 
-  std::vector<std::vector<int>> res{std::move(output_shape)};
-  return res;
+  return {std::move(output_shape)};
 }
 
 std::vector<Type> InferDtypeForIndexSelect(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
-  std::vector<Type> res{inputs_type[0]};
-  return res;
+  return {inputs_type[0]};
 }
 
 std::vector<std::vector<std::string>> InferLayoutForIndexSelect(const std::vector<framework::shape_t> &input_shapes,

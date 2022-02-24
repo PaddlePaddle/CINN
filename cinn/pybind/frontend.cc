@@ -350,7 +350,7 @@ void BindFrontend(pybind11::module *m) {
            py::arg("decrease_axis") = std::vector<int>())
       .def("reverse", &BaseBuilder::Reverse, py::arg("x"), py::arg("axis"))
       .def("select", &BaseBuilder::Select, py::arg("condition"), py::arg("true_value"), py::arg("false_value"))
-      .def("index_select", &BaseBuilder::IndexSelect, py::arg("x"), py::arg("index"), py::arg("axis"));
+      .def("index_select", &BaseBuilder::IndexSelect, py::arg("x"), py::arg("index"), py::arg("axis") = 0);
 
   py::class_<NetBuilder, BaseBuilder>(*m, "NetBuilder")
       .def(py::init<const std::string &>(), py::arg("name") = "")
