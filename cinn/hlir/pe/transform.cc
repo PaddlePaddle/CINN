@@ -653,7 +653,7 @@ ir::Tensor LayoutTransform(const Tensor& input,
 
 ir::Tensor Reverse(const ir::Tensor& input, const std::vector<int>& axis, const std::string& output_name) {
   for (auto& val : axis) {
-    CHECK(val >= 0 && val < input->shape.size()) << "axis should be [0,n_dim)";
+    CHECK(val >= 0 && val < static_cast<int>(input->shape.size())) << "axis should be [0,n_dim)";
   }
   std::vector<Expr> shape = input->shape;
   return lang::Compute(
@@ -704,6 +704,10 @@ ir::Tensor Transpose(const ir::Tensor& input, const std::vector<int>& axis, cons
         return input(indexs);
       },
       output_name);
+}
+
+ir::Tensor IndexSelect(const ir::Tensor& x, const ir::Tensor& index, int axis, const std::string& name) {
+  return pe::Identity(x, name)[0];
 }
 
 }  // namespace pe
