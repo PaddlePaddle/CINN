@@ -238,6 +238,7 @@ function build {
     make -j $JOBS
 
     ls python/dist
+    pip${py_version} install xgboost
     pip${py_version} install -U ${cinn_whl_path}
 }
 
