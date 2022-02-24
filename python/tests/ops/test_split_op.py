@@ -36,20 +36,24 @@ class TestSplitOp(OpTest):
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.inputs["x"], stop_gradient=False)
-        out = paddle.split(
-            x, num_or_sections=self.num_or_sections, axis=self.axis)
 
-        self.paddle_outputs = [out]
+        if (len(self.num_or_sections) == 1):
+            num = self.num_or_sections[0]
+        else:
+            num = self.num_or_sections
+
+        out = paddle.split(x, num_or_sections=num, axis=self.axis)
+
+        self.paddle_outputs = out
 
     def build_cinn_program(self, target):
         builder = NetBuilder("split")
         x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
-        out1, out2, out3 = builder.split(
+        out = builder.split(
             x, num_or_sections=self.num_or_sections, axis=self.axis)
 
         prog = builder.build()
-        res = self.get_cinn_output(prog, target, [x], [self.inputs["x"]],
-                                   [out1])
+        res = self.get_cinn_output(prog, target, [x], [self.inputs["x"]], out)
 
         self.cinn_outputs = res
 
