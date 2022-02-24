@@ -37,81 +37,104 @@ __device__ inline float FN(min)(float a, float b) { return min(a, b); }
 
 #undef FN
 
-__device__ inline float cinn_warp_shuffle_sum_interal(const float value) {
-  float sumv        = value;
+template <class Dtype>
+__device__ inline Dtype cinn_max(const Dtype left, const Dtype right) {
+  return max(left, right);
+}
+
+template <class Dtype>
+__device__ inline Dtype cinn_min(const Dtype left, const Dtype right) {
+  return min(left, right);
+}
+
+template <class Dtype>
+__device__ inline Dtype cinn_sum(const Dtype left, const Dtype right) {
+  return left + right;
+}
+
+template <class Dtype>
+__device__ inline Dtype cinn_prod(const Dtype left, const Dtype right) {
+  return left * right;
+}
+
+template <class Dtype, Dtype (*Operator)(const Dtype, const Dtype)>
+__device__ inline Dtype cinn_warp_shuffle_internal(const Dtype value) {
+  Dtype tmp         = value;
   unsigned int mask = __activemask();
-  sumv += __shfl_down_sync(mask, sumv, 16, 32);
-  sumv += __shfl_down_sync(mask, sumv, 8, 32);
-  sumv += __shfl_down_sync(mask, sumv, 4, 32);
-  sumv += __shfl_down_sync(mask, sumv, 2, 32);
-  sumv += __shfl_down_sync(mask, sumv, 1, 32);
-  sumv = __shfl_sync(mask, sumv, 0, 32);
-  return sumv;
+  // do shuffle
+  tmp = Operator(tmp, __shfl_down_sync(mask, tmp, 16, 32));
+  tmp = Operator(tmp, __shfl_down_sync(mask, tmp, 8, 32));
+  tmp = Operator(tmp, __shfl_down_sync(mask, tmp, 4, 32));
+  tmp = Operator(tmp, __shfl_down_sync(mask, tmp, 2, 32));
+  tmp = Operator(tmp, __shfl_down_sync(mask, tmp, 1, 32));
+  // broadcast to all threads
+  tmp = _shfl_sync(mask, tmp, 0, 32);
+  return tmp;
 }
 
 __device__ inline float cinn_warp_reduce_max(const float *buf, int offset, int extend) {
-  float maxv = -3.402823e+38f;
+  float tmp_val = -3.402823e+38f;
   for (int i = threadIdx.x; i < extend; i += 32) {
-    maxv = max(maxv, buf[offset + i]);
+    tmp_val = max(tmp_val, buf[offset + i]);
   }
-  unsigned int mask;
-  mask = __activemask();
-  maxv = max(maxv, __shfl_down_sync(mask, maxv, 16, 32));
-  maxv = max(maxv, __shfl_down_sync(mask, maxv, 8, 32));
-  maxv = max(maxv, __shfl_down_sync(mask, maxv, 4, 32));
-  maxv = max(maxv, __shfl_down_sync(mask, maxv, 2, 32));
-  maxv = max(maxv, __shfl_down_sync(mask, maxv, 1, 32));
-  maxv = __shfl_sync(mask, maxv, 0, 32);
-  return maxv;
-}
-
-__device__ inline float cinn_warp_reduce_avg(const float *buf, int offset, int extend) {
-  float sumv = 0;
-  for (int i = threadIdx.x; i < extend; i += 32) {
-    sumv += buf[offset + i] / (float)extend;
-  }
-
-  return cinn_warp_shuffle_sum_interal(sumv);
+  return cinn_warp_shuffle_internal<float, cinn_max<float>>(tmp_val);
 }
 
 __device__ inline float cinn_warp_reduce_sum(const float *buf, int offset, int extend) {
-  float sumv = 0;
+  float tmp_val = 0.0f;
   for (int i = threadIdx.x; i < extend; i += 32) {
-    sumv += buf[offset + i];
+    tmp_val += buf[offset + i];
   }
-  return cinn_warp_shuffle_sum_interal(sumv);
+  return cinn_warp_shuffle_internal<float, cinn_sum<float>>(tmp_val);
 }
 
-__device__ inline float cinn_block_reduce_sum_internal(const float buf) {
+__device__ inline float cinn_warp_reduce_avg(const float *buf, int offset, int extend) {
+  return cinn_warp_reduce_sum(buf, offset, extend) / extend;
+}
+
+template <class Dtype, Dtype (*Operator)(const Dtype, const Dtype)>
+__device__ inline Dtype cinn_block_reduce_internal(const Dtype value) {
   int warp_id = threadIdx.x / 32;
-  __shared__ float tmp[32];
+  __shared__ Dtype tmp[32];
   if (warp_id == 0) {
     tmp[threadIdx.x] = 0.0f;
   }
-  float sum = cinn_warp_shuffle_sum_interal(buf);
+  Dtype tmp_val = cinn_warp_shuffle_internal<Dtype, Operator>(value);
   if (blockDim.x <= 32) {
-    return sum;
+    return tmp_val;
   }
   __syncthreads();
   if (threadIdx.x % 32 == 0) {
-    tmp[warp_id] = sum;
+    tmp[warp_id] = tmp_val;
   }
   __syncthreads();
   if (warp_id == 0) {
-    sum = tmp[threadIdx.x];
-    sum = cinn_warp_shuffle_sum_interal(sum);
+    tmp_val = tmp[threadIdx.x];
+    tmp_val = cinn_warp_shuffle_internal<Dtype, Operator>(tmp_val);
     if (threadIdx.x == 0) {
-      tmp[0] = sum;
+      tmp[0] = tmp_val;
     }
   }
   __syncthreads();
   return tmp[0];
 }
 
-__device__ inline float cinn_block_reduce_sum(const float *buf, int offset, int extend) {
-  float sumv = 0;
+auto cinn_block_reduce_max_internal  = cinn_block_reduce_internal<float, cinn_max<float>>;
+auto cinn_block_reduce_min_internal  = cinn_block_reduce_internal<float, cinn_min<float>>;
+auto cinn_block_reduce_sum_internal  = cinn_block_reduce_internal<float, cinn_sum<float>>;
+auto cinn_block_reduce_prod_internal = cinn_block_reduce_internal<float, cinn_prod<float>>;
+
+template <class Dtype, Dtype (*Operator)(const Dtype, const Dtype)>
+__device__ inline float cinn_block_reduce(const Dtype *buf, int offset, int extend) {
+  Dtype tmp_val = 0;
   for (int i = threadIdx.x; i < extend; i += blockDim.x) {
-    sumv += buf[offset + i];
+    tmp_val = Operator(tmp_val, buf[offset + i]);
   }
-  return cinn_block_reduce_sum_internal(sumv);
+
+  return cinn_block_reduce_internal<Dtype, Operator>(tmp_val);
 }
+
+auto cinn_block_reduce_max  = cinn_block_reduce<float, cinn_max<float>>;
+auto cinn_block_reduce_min  = cinn_block_reduce<float, cinn_min<float>>;
+auto cinn_block_reduce_sum  = cinn_block_reduce<float, cinn_sum<float>>;
+auto cinn_block_reduce_prod = cinn_block_reduce<float, cinn_prod<float>>;
