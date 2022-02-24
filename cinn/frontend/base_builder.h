@@ -65,6 +65,8 @@ class BaseBuilder {
 
   void AppendInstruction(const Instruction& instr) { instrs_.push_back(instr); }
 
+  std::vector<Variable> Split(const Variable& operand, const std::vector<int>& num_or_sections, int axis = 0);
+
   Variable Concat(const std::vector<Variable>& input_vars, int axis = 0);
 
   /**
@@ -105,7 +107,6 @@ class BaseBuilder {
   Variable Reverse(const Variable& operand, const std::vector<int>& axis);
 
   Variable Select(const Variable& condition, const Variable& true_value, const Variable& false_value);
-  std::vector<Variable> Split(const Variable& operand, const std::vector<int>& num_or_sections, int axis = 0);
 
  protected:
   void InferShape(Instruction instr) const;
