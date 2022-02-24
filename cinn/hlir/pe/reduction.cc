@@ -336,40 +336,32 @@ std::vector<ir::Tensor> BlockReduceInternal(const ir::Tensor& A,
   return {out, tmp_out};
 }
 
-std::vector<ir::Tensor> BlockReduceSum(const ir::Tensor& A,
-                                       const int last_reduce_dim_num,
-                                       const int block_size,
-                                       const bool keep_dim,
-                                       const std::string& output_name) {
-  return BlockReduceInternal(
-      A, last_reduce_dim_num, block_size, keep_dim, "cinn_block_reduce_sum_internal", output_name);
+std::vector<ir::Tensor> BlockReduceSumInternal(const ir::Tensor& A,
+                                               const int last_reduce_dim_num,
+                                               const bool keep_dim,
+                                               const std::string& output_name) {
+  return BlockReduceInternal(A, last_reduce_dim_num, keep_dim, "cinn_block_reduce_sum_internal", output_name);
 }
 
-std::vector<ir::Tensor> BlockReduceProd(const ir::Tensor& A,
-                                        const int last_reduce_dim_num,
-                                        const int block_size,
-                                        const bool keep_dim,
-                                        const std::string& output_name) {
-  return BlockReduceInternal(
-      A, last_reduce_dim_num, block_size, keep_dim, "cinn_block_reduce_prod_internal", output_name);
+std::vector<ir::Tensor> BlockReduceProdInternal(const ir::Tensor& A,
+                                                const int last_reduce_dim_num,
+                                                const bool keep_dim,
+                                                const std::string& output_name) {
+  return BlockReduceInternal(A, last_reduce_dim_num, keep_dim, "cinn_block_reduce_prod_internal", output_name);
 }
 
-std::vector<ir::Tensor> BlockReduceMax(const ir::Tensor& A,
-                                       const int last_reduce_dim_num,
-                                       const int block_size,
-                                       const bool keep_dim,
-                                       const std::string& output_name) {
-  return BlockReduceInternal(
-      A, last_reduce_dim_num, block_size, keep_dim, "cinn_block_reduce_max_internal", output_name);
+std::vector<ir::Tensor> BlockReduceMaxInternal(const ir::Tensor& A,
+                                               const int last_reduce_dim_num,
+                                               const bool keep_dim,
+                                               const std::string& output_name) {
+  return BlockReduceInternal(A, last_reduce_dim_num, keep_dim, "cinn_block_reduce_max_internal", output_name);
 }
 
-std::vector<ir::Tensor> BlockReduceMin(const ir::Tensor& A,
-                                       const int last_reduce_dim_num,
-                                       const int block_size,
-                                       const bool keep_dim,
-                                       const std::string& output_name) {
-  return BlockReduceInternal(
-      A, last_reduce_dim_num, block_size, keep_dim, "cinn_block_reduce_min_internal", output_name);
+std::vector<ir::Tensor> BlockReduceMinInternal(const ir::Tensor& A,
+                                               const int last_reduce_dim_num,
+                                               const bool keep_dim,
+                                               const std::string& output_name) {
+  return BlockReduceInternal(A, last_reduce_dim_num, keep_dim, "cinn_block_reduce_min_internal", output_name);
 }
 
 /**

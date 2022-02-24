@@ -68,7 +68,7 @@ __device__ inline Dtype cinn_warp_shuffle_internal(const Dtype value) {
   tmp = Operator(tmp, __shfl_down_sync(mask, tmp, 2, 32));
   tmp = Operator(tmp, __shfl_down_sync(mask, tmp, 1, 32));
   // broadcast to all threads
-  tmp = _shfl_sync(mask, tmp, 0, 32);
+  tmp = __shfl_sync(mask, tmp, 0, 32);
   return tmp;
 }
 
