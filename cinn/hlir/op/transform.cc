@@ -1181,13 +1181,11 @@ std::shared_ptr<OpStrategy> StrategyForIndexSelect(const framework::NodeAttr &at
     CHECK(x.as_tensor());
     Expr index = arg_pack[1];
     CHECK(index.as_tensor());
-    auto outs =
+    auto out =
         pe::IndexSelect(x.as_tensor_ref(), index.as_tensor_ref(), output_shape, axis, UniqName("index_select_output"));
     auto stages = CreateStages({x.as_tensor_ref(), index.as_tensor_ref()});
-    for (const auto &out : outs) {
-      stages->InsertLazily(out);
-    }
-    std::vector<CINNValue> res{CINNValue(outs[0]), CINNValue(stages)};
+    stages->InsertLazily(out);
+    std::vector<CINNValue> res{CINNValue(out), CINNValue(stages)};
     *ret = CINNValuePack{res};
   }};
 
