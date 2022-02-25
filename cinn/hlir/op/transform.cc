@@ -1162,8 +1162,17 @@ std::shared_ptr<OpStrategy> StrategyForIndexSelect(const framework::NodeAttr &at
   if (attrs.attr_store.contains("axis")) {
     axis = absl::get<int>(attrs.attr_store.at("axis"));
   }
+  axis = axis < 0 ? axis + static_cast<int>(inputs[0]->shape.size()) : axis;
 
-  framework::CINNCompute index_select_compute{[axis](lang::Args args, lang::RetValue *ret) {
+  std::vector<Expr> output_shape;
+  output_shape.reserve(output_shapes[0].size());
+  for (int i : output_shapes[0]) {
+    output_shape.emplace_back(i);
+  }
+
+  framework::CINNCompute index_select_compute{[axis, output_shape = std::move(output_shape)](lang::Args args,
+                                                                                             lang::RetValue *ret) {
+    VLOG(1) << "The axis value used in index_select_compute: " << axis;
     CHECK(!args.empty()) << "The input args are empty! Please check again.";
     CINNValuePack arg_pack = args[0];
     int input_size         = arg_pack.size();
@@ -1172,27 +1181,31 @@ std::shared_ptr<OpStrategy> StrategyForIndexSelect(const framework::NodeAttr &at
     CHECK(x.as_tensor());
     Expr index = arg_pack[1];
     CHECK(index.as_tensor());
-    ir::Tensor out = pe::IndexSelect(x.as_tensor_ref(), index.as_tensor_ref(), axis, UniqName("index_select_output"));
-    auto stages    = CreateStages({x.as_tensor_ref(), index.as_tensor_ref()});
-    stages->InsertLazily(out);
-    std::vector<CINNValue> res{CINNValue(out), CINNValue(stages)};
+    auto outs =
+        pe::IndexSelect(x.as_tensor_ref(), index.as_tensor_ref(), output_shape, axis, UniqName("index_select_output"));
+    auto stages = CreateStages({x.as_tensor_ref(), index.as_tensor_ref()});
+    for (const auto &out : outs) {
+      stages->InsertLazily(out);
+    }
+    std::vector<CINNValue> res{CINNValue(outs[0]), CINNValue(stages)};
     *ret = CINNValuePack{res};
   }};
 
-  framework::CINNSchedule index_select_schedule{[output_shapes, target](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input args are empty! Please check again.";
-    CINNValuePack arg_pack = args[0];
-    CHECK_EQ(arg_pack.size(), 2U) << "Expected 2 values in args[0] for index_select_schedule.";
-    Expr out              = arg_pack[0];
-    poly::StageMap stages = arg_pack[1];
-    CHECK(out.as_tensor());
-    if (target.arch == Target::Arch::NVGPU) {
-      pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes[0], target);
-    } else if (target.arch == Target::Arch::X86) {
-      pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes[0], target);
-    }
-    *ret = arg_pack;
-  }};
+  framework::CINNSchedule index_select_schedule{
+      [output_shape = output_shapes[0], target](lang::Args args, lang::RetValue *ret) {
+        CHECK(!args.empty()) << "The input args are empty! Please check again.";
+        CINNValuePack arg_pack = args[0];
+        CHECK_EQ(arg_pack.size(), 2U) << "Expected 2 values in args[0] for index_select_schedule.";
+        Expr out              = arg_pack[0];
+        poly::StageMap stages = arg_pack[1];
+        CHECK(out.as_tensor());
+        if (target.arch == Target::Arch::NVGPU) {
+          pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shape, target);
+        } else if (target.arch == Target::Arch::X86) {
+          pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shape, target);
+        }
+        *ret = arg_pack;
+      }};
 
   auto strategy = std::make_shared<framework::OpStrategy>();
   strategy->AddImpl(index_select_compute, index_select_schedule, "strategy.index_select.x86", 1);
@@ -1206,11 +1219,10 @@ std::vector<std::vector<int>> InferShapeForIndexSelect(const std::vector<std::ve
   if (attrs.contains("axis")) {
     axis = absl::get<int>(attrs.at("axis"));
   }
-  VLOG(1) << "The axis value in IndexSelect: " << axis;
-
   if (axis < 0) {
     axis += static_cast<int>(inputs_shape[0].size());
   }
+  VLOG(1) << "The axis value used in IndexSelect: " << axis;
 
   CHECK(axis >= 0 && axis < static_cast<int>(inputs_shape[0].size()))
       << "The attribute `axis` in IndexSelect should be >= 0 and < the size of the first input shape! Please check "
@@ -1218,6 +1230,7 @@ std::vector<std::vector<int>> InferShapeForIndexSelect(const std::vector<std::ve
 
   std::vector<int> output_shape = inputs_shape[0];
   CHECK_EQ(inputs_shape[1].size(), 1U) << "The index should be a 1-D Tensor.";
+  CHECK_GT(inputs_shape[1][0], 0) << "The length of the index should be greater than 0.";
   output_shape[axis] = inputs_shape[1][0];
   VLOG(1) << "The output calculated in InferShapeForIndexSelect: " << utils::Join(output_shape, ", ");
 

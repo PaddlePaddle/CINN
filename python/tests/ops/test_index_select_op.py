@@ -39,12 +39,12 @@ from cinn.common import *
 target = DefaultNVGPUTarget()
 
 builder = CinnBuilder("test_index_select")
-x = builder.create_input(Float(32), (2, 4, 3), "X")
-index = builder.create_input(Float(32), (4, ), "Index")
+x = builder.create_input(Float(32), (3, 4, 3), "X")
+index = builder.create_input(Float(32), (2, ), "Index")
 print(f"x: {x.shape()}")
 print(f"index: {index.shape()}")
 
-res = builder.index_select(x, index, axis=1)
+res = builder.index_select(x, index, axis=-3)
 print(f"res: {repr(res)}")
 
 computation = Computation.build_and_compile(target, builder)
@@ -52,8 +52,10 @@ computation = Computation.build_and_compile(target, builder)
 x_data = np.array([[[1.1, 1.2, 1.3], [2.1, 2.2, 2.3], [3.1, 3.2, 3.3],
                     [4.1, 4.2, 4.3]],
                    [[5.1, 5.2, 5.3], [6.1, 6.2, 6.3], [7.1, 7.2, 7.3],
-                    [8.1, 8.2, 8.3]]]).astype("float32")
-index_data = np.array([0, 1, 2, 3]).astype("float32")
+                    [8.1, 8.2, 8.3]],
+                   [[9.1, 9.2, 9.3], [10.1, 10.2, 10.3], [11.1, 11.2, 11.3],
+                    [12.1, 12.2, 12.3]]]).astype("float32")
+index_data = np.array([0, 2]).astype("float32")  # should be int32
 
 computation.get_tensor("X").from_numpy(x_data, target)
 computation.get_tensor("Index").from_numpy(index_data, target)

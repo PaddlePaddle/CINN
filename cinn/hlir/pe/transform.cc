@@ -25,6 +25,7 @@
 #include "cinn/ir/tensor.h"
 #include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"
+#include "cinn/utils/string.h"
 
 namespace cinn {
 namespace hlir {
@@ -706,8 +707,58 @@ ir::Tensor Transpose(const ir::Tensor& input, const std::vector<int>& axis, cons
       output_name);
 }
 
-ir::Tensor IndexSelect(const ir::Tensor& x, const ir::Tensor& index, int axis, const std::string& name) {
-  return pe::Identity(x, name)[0];
+std::vector<ir::Tensor> IndexSelect(const ir::Tensor& x,
+                                    const ir::Tensor& index,
+                                    const std::vector<Expr>& output_shape,
+                                    int axis,
+                                    const std::string& name) {
+  int outer_num = 1;
+  for (auto i = 0; i < axis; i++) {
+    outer_num *= x->shape[i].as_int32();
+  }
+  VLOG(1) << "The outer_num calculated in pe::IndexSelect = " << outer_num;
+
+  int slice_size = 1;
+  for (int i = axis + 1; i < x->shape.size(); i++) {
+    slice_size *= x->shape[i].as_int32();
+  }
+  VLOG(1) << "The slice_size calculated in pe::IndexSelect = " << slice_size;
+
+  auto reshape_input = pe::Reshape(x, {outer_num, x->shape[axis].as_int32(), slice_size}, name + "_reshape");
+
+  int index_size = index->shape[0].as_int32();
+  std::vector<ir::Tensor> output_one_tensors(index_size);
+  std::vector<Expr> output_one_shape = output_shape;
+  output_one_shape[axis]             = Expr(1);
+  for (int i = 0; i < index_size; i++) {
+    auto output_one = Compute(
+        output_one_shape,
+        [reshape_input, index, axis, i](const std::vector<Expr>& indice) {
+          Expr index_val                   = ir::Cast::Make(common::Int(32), index(Expr(i)));
+          std::vector<Expr> mutable_indice = indice;
+          mutable_indice[axis]             = mutable_indice[axis] + index_val;
+          return reshape_input(mutable_indice);
+        },
+        name + std::to_string(i));
+    output_one_tensors[i] = std::move(output_one);
+  }
+
+  auto concat_output = pe::Concat(output_one_tensors, axis, name + "_concat");
+  std::vector<int> output_shape_val(output_shape.size());
+  std::transform(output_shape.begin(), output_shape.end(), output_shape_val.begin(), [](const Expr& expr) {
+    return expr.as_int32();
+  });
+  VLOG(1) << "The output shape used in IndexSelect: " << utils::Join(output_shape_val, ", ");
+
+  auto reshape_output = pe::Reshape(concat_output, output_shape_val, name);
+
+  std::vector<Tensor> output_tensors;
+  output_tensors.reserve(index_size + 3);
+  output_tensors.emplace_back(std::move(reshape_output));
+  output_tensors.emplace_back(std::move(concat_output));
+  output_tensors.emplace_back(std::move(reshape_input));
+  output_tensors.insert(output_tensors.end(), output_one_tensors.begin(), output_one_tensors.end());
+  return output_tensors;
 }
 
 }  // namespace pe
