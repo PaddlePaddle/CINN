@@ -15,6 +15,7 @@
 #include <cuda_runtime.h>
 #include <gtest/gtest.h>
 
+#include <cmath>
 #include <functional>
 #include <iostream>
 #include <string>
@@ -53,9 +54,10 @@ using runtime::cuda::CUDAModule;
 std::pair<ir::Module, std::string> GenReduceCode(const std::vector<int>& shape,
                                                  const std::vector<int>& dim,
                                                  const std::string& func_name,
-                                                 bool keep_dim = false) {
+                                                 bool keep_dim             = false,
+                                                 const std::string op_name = "reduce_sum") {
   // code gen
-  auto reduce_sum = Operator::Get("reduce_sum");
+  auto reduce_sum = Operator::Get(op_name);
   auto strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy")[reduce_sum];
 
   // input tensor
@@ -196,34 +198,55 @@ TEST(Operator, Operator_Reduction_Case_5_5) {
   GenReduceCode(shape, dim, "reduce_cast_5_5", true);
 }
 
-void CpuReduceSum(const float* x,
-                  std::vector<float>* sum0,
-                  std::vector<float>* sum1,
-                  const int n,
-                  const int c,
-                  const int h,
-                  const int w) {
-  memset(sum0->data(), 0, sizeof(float) * c * w);
-  memset(sum1->data(), 0, sizeof(float) * c);
+struct SumOp {
+  float operator()(const float left, const float right) { return left + right; }
+};
+struct ProdOp {
+  float operator()(const float left, const float right) { return left * right; }
+};
+struct MaxOp {
+  float operator()(const float left, const float right) { return std::max(left, right); }
+};
+struct MinOp {
+  float operator()(const float left, const float right) { return std::min(left, right); }
+};
+
+template <class Op>
+void DoCpuReduce(const float* x,
+                 std::vector<float>* sum0,
+                 std::vector<float>* sum1,
+                 const float init_val,
+                 const int n,
+                 const int c,
+                 const int h,
+                 const int w) {
+  for (auto& val : *sum0) {
+    val = init_val;
+  }
+  for (auto& val : *sum1) {
+    val = init_val;
+  }
+
   for (int idx = 0; idx < n; ++idx) {
     for (int idy = 0; idy < c; ++idy) {
       for (int idz = 0; idz < h; ++idz) {
         for (int ida = 0; ida < w; ++ida) {
-          sum0->at(idy * w + ida) += x[idx * c * h * w + idy * h * w + idz * w + ida];
-          sum1->at(idy) += x[idx * c * h * w + idy * h * w + idz * w + ida];
+          sum0->at(idy * w + ida) += Op()(sum0->at(idy * w + ida), x[idx * c * h * w + idy * h * w + idz * w + ida]);
+          sum1->at(idy) = Op()(sum1->at(idy), x[idx * c * h * w + idy * h * w + idz * w + ida]);
         }
       }
     }
   }
 }
 
-TEST(Operator, Operator_Reduction_Case_6) {
-  int n = 128, c = 128, h = 32, w = 32;
+template <class Op>
+void TestCaseForReduce(
+    const float init_val, int n, int c, int h, int w, const std::string& test_name, const std::string& op_name) {
   std::vector<int> shape = {n, c, h, w};
   std::vector<int> dim   = {0, 2, 3};
 
   // get source code
-  auto source_code = GenReduceCode(shape, dim, "reduce_case_6").second;
+  auto source_code = GenReduceCode(shape, dim, test_name, false, op_name).second;
 
   // nv jit compile to ptx
   backends::NVRTC_Compiler compiler;
@@ -245,16 +268,16 @@ TEST(Operator, Operator_Reduction_Case_6) {
   CUDA_CALL(cudaMalloc(&dev_z, buffer_z->memory_size));
   CUDA_CALL(cudaMemcpy(dev_x, buffer_x->memory, buffer_x->memory_size, cudaMemcpyHostToDevice));
 
-  dim3 grid(128, 1, 1);
-  dim3 block(1024, 1, 1);
+  dim3 grid(n * c, 1, 1);
+  dim3 block(h * w, 1, 1);
   void* args[] = {&dev_x, &dev_z};
 
-  cuda_module.LaunchKernel(0, "reduce_case_6", grid, block, args);
+  cuda_module.LaunchKernel(0, test_name, grid, block, args);
   CUDA_CALL(cudaMemcpy(buffer_z->memory, dev_z, buffer_z->memory_size, cudaMemcpyDeviceToHost));
 
   std::vector<float> sum0(c * w);
   std::vector<float> sum1(c);
-  CpuReduceSum(reinterpret_cast<float*>(buffer_x->memory), &sum0, &sum1, n, c, h, w);
+  DoCpuReduce<Op>(reinterpret_cast<float*>(buffer_x->memory), &sum0, &sum1, init_val, n, c, h, w);
 
   std::vector<std::pair<std::vector<float>, float*>> results = {{sum1, reinterpret_cast<float*>(buffer_z->memory)}};
   for (auto& res : results) {
@@ -265,6 +288,19 @@ TEST(Operator, Operator_Reduction_Case_6) {
 
   CUDA_CALL(cudaFree(dev_x));
   CUDA_CALL(cudaFree(dev_z));
+}
+
+TEST(Operator, Operator_Reduction_Case_6_1) {
+  TestCaseForReduce<SumOp>(0.0f, 32, 32, 32, 32, "Operator_Reduction_Case_6_1", "reduce_sum");
+}
+TEST(Operator, Operator_Reduction_Case_6_2) {
+  TestCaseForReduce<ProdOp>(1.0f, 1, 1, 1, 32, "Operator_Reduction_Case_6_2", "reduce_prod");
+}
+TEST(Operator, Operator_Reduction_Case_6_3) {
+  TestCaseForReduce<MaxOp>(-1e38f, 32, 32, 32, 32, "Operator_Reduction_Case_6_3", "reduce_max");
+}
+TEST(Operator, Operator_Reduction_Case_6_4) {
+  TestCaseForReduce<MinOp>(1e38f, 32, 32, 32, 32, "Operator_Reduction_Case_6_4", "reduce_min");
 }
 
 TEST(Operator, Operator_Reduction_Case_7) {
