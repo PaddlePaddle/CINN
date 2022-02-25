@@ -71,8 +71,8 @@ CreateNVMemory(int M, int N) {
 }
 
 TEST(CodeGenCUDA, basic) {
-  Expr M(1);
-  Expr N(200);
+  Expr M(10);
+  Expr N(10);
 
   Target target = common::DefaultNVGPUTarget();
 
@@ -80,12 +80,14 @@ TEST(CodeGenCUDA, basic) {
   Placeholder<float> B("B", {M, N});
 
   auto C = Compute(
-      {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
+      {M, N},
+      [&](Expr i, Expr j) {
+        Expr index = B(i, j);
+        return A(index, j);
+      },
+      "C");
 
-  auto stages = CreateStages({C});
-
-  stages[C]->Bind(0, "blockIdx.x");
-  stages[C]->Bind(1, "threadIdx.x");
+  auto stages = CreateStages({A, B, C});
 
   CodeGenCUDA_Dev codegen(target);
 
@@ -93,7 +95,7 @@ TEST(CodeGenCUDA, basic) {
 
   auto compiled = codegen.Compile(func);
 
-  std::cout << "test cout: " << compiled << std::endl;
+  std::cout << "test tensor as index cout: " << compiled << std::endl;
 }
 
 TEST(CodeGenCUDA, Module_output) {

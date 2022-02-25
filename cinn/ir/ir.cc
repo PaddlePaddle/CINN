@@ -474,10 +474,17 @@ Var &Var::operator=(const _Var_ *x) {
 Expr Load::Make(Expr tensor, const std::vector<Expr> &indices) {
   CHECK(tensor->type().valid());
   CHECK(!indices.empty());
-  for (auto &idx : indices) CHECK_EQ(idx.type().ElementOf(), Int(32));
+  std::vector<Expr> actual_indices;
+  for (auto &idx : indices) {
+    if (idx.type().ElementOf() != Int(32)) {
+      actual_indices.push_back(Cast::Make(Int(32), idx));
+    } else {
+      actual_indices.push_back(idx);
+    }
+  }
   auto node     = make_shared<Load>();
   node->tensor  = tensor;
-  node->indices = indices;
+  node->indices = actual_indices;
   node->set_type(node->type());
   return Expr(node);
 }
