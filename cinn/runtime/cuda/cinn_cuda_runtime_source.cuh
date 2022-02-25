@@ -103,7 +103,7 @@ __device__ inline float cinn_warp_reduce_avg(const float *buf, int offset, int e
   __syncthreads();                                                           \
   if (warp_id == 0) {                                                        \
     tmp_val = tmp[threadIdx.x];                                              \
-    tmp_val = cinn_warp_shuffle_internal(value);                             \
+    tmp_val = cinn_warp_shuffle_internal(tmp_val);                             \
     if (threadIdx.x == 0) {                                                  \
       tmp[0] = tmp_val;                                                      \
     }                                                                        \
