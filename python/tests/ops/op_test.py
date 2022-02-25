@@ -23,7 +23,7 @@ from contextlib import contextmanager
 import os
 
 logging.basicConfig(level=os.environ.get('LOG_LEVEL', 'INFO').upper())
-logger = logging.getLogger()
+logger = logging.getLogger(name="op_test")
 
 
 def random(shape, dtype="float32", low=0.0, high=1.0):

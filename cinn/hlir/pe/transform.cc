@@ -712,14 +712,29 @@ ir::Tensor IndexSelect(const ir::Tensor& x,
                        const std::vector<Expr>& output_shape,
                        int axis,
                        const std::string& name) {
-  CHECK_EQ(1, static_cast<int>(index->shape.size()));
-  int index_size     = index->shape[0].as_int32();
+  CHECK_EQ(1, static_cast<int>(index->shape.size())) << "The index should be a 1-D Tensor.";
+  int index_size = index->shape[0].as_int32();
+  // If output_shape = [2, 4, 3] and axis = 0, the index transformation is shown below:
+  // {
+  //   for (i, 0, 2)
+  //   {
+  //     for (j, 0, 4)
+  //     {
+  //       for (k, 0, 3)
+  //       {
+  //         index_select_output[i, j, k] = X[int32(Index[i]), j, k]
+  //       }
+  //     }
+  //   }
+  // }
   auto output_tensor = Compute(
       output_shape,
       [x, index, axis](const std::vector<Expr>& indice) {
-        std::vector<Expr> out_indice = indice;
-        out_indice[axis]             = ir::Cast::Make(common::Int(32), index(indice[axis]));
-        return x(out_indice);
+        // 1) indice is got from `output_shape`
+        // 2) transformed_indice is used in the input `x`
+        std::vector<Expr> transformed_indice = indice;
+        transformed_indice[axis]             = ir::Cast::Make(common::Int(32), index(indice[axis]));
+        return x(transformed_indice);
       },
       name);
   return output_tensor;
