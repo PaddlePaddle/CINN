@@ -37,14 +37,14 @@
 namespace cinn {
 namespace ir {
 
-IRSchedule::IRSchedule(const ModuleExpr &modexpr, bool debug_flag) {
-  ScheduleHelper sch_helper(modexpr, debug_flag);
+IRSchedule::IRSchedule(const ModuleExpr &module_expr, bool debug_flag) {
+  ScheduleHelper sch_helper(module_expr, debug_flag);
   helper_ = sch_helper;
 }
 
 std::vector<Expr> ScheduleHelper::GetLoops() const {
   std::vector<Expr> result;
-  auto exprs = modexpr_.GetExprs();
+  auto exprs = module_expr_.GetExprs();
   for (auto &it_expr : exprs) {
     auto loop_nodes = ir::CollectIRNodes(it_expr, [&](const Expr *x) { return x->As<ir::For>(); });
     for (auto &it_for : loop_nodes) result.push_back(it_for);

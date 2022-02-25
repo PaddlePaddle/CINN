@@ -28,7 +28,7 @@ namespace ir {
 class ModuleExpr {
  public:
   ModuleExpr() = default;
-  ModuleExpr(const std::vector<Expr>& init_exprs) : init_exprs_(init_exprs) {}
+  explicit ModuleExpr(const std::vector<Expr>& init_exprs) : init_exprs_(init_exprs) {}
 
   //! Get all the Expr in this ModuleExpr.
   std::vector<Expr> GetExprs() const { return init_exprs_; }
@@ -44,7 +44,8 @@ class ModuleExpr {
 class ScheduleHelper {
  public:
   ScheduleHelper() = default;
-  ScheduleHelper(const ModuleExpr& modexpr, bool debug_flag) : modexpr_(modexpr), debug_flag_(debug_flag) {}
+  explicit ScheduleHelper(const ModuleExpr& module_expr, bool debug_flag = false)
+      : module_expr_(module_expr), debug_flag_(debug_flag) {}
 
   //! Set the debug flag.
   void SetDebugFlag(bool debug_flag) { debug_flag_ = debug_flag; }
@@ -60,11 +61,11 @@ class ScheduleHelper {
   std::vector<Expr> GetLoops() const;
 
   //! Get the ModuleExpr stored in ScheduleHelper.
-  ModuleExpr GetModule() const { return modexpr_; }
+  ModuleExpr GetModule() const { return module_expr_; }
 
  private:
-  ModuleExpr modexpr_;
-  bool debug_flag_;
+  ModuleExpr module_expr_;
+  bool debug_flag_{false};
 };
 
 /**
@@ -74,7 +75,7 @@ class ScheduleHelper {
 class IRSchedule {
  public:
   IRSchedule() = default;
-  IRSchedule(const ModuleExpr& modexpr, bool debug_flag = false);
+  explicit IRSchedule(const ModuleExpr& modexpr, bool debug_flag = false);
 
   //! Get all the loops in IR(Expr)/AST stored in ModuleExpr.
   std::vector<Expr> GetLoops() const { return helper_.GetLoops(); }
