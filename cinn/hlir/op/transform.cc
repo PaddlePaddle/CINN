@@ -418,7 +418,8 @@ std::shared_ptr<OpStrategy> StrategyForSplit(const framework::NodeAttr &attrs,
   if (attrs.attr_store.find("axis") != attrs.attr_store.end()) {
     axis = absl::get<int>(attrs.attr_store.at("axis"));
   }
-
+  if (axis < 0) axis += (int)output_shapes[0].size();
+  CHECK_LT(axis, (int)output_shapes[0].size());
   CHECK(!sections.empty())
       << "The Split op doesn't find [num_or_sections] attrbute! It it a mandatory attribute ! Please check.";
 
@@ -447,15 +448,29 @@ std::shared_ptr<OpStrategy> StrategyForSplit(const framework::NodeAttr &attrs,
     CHECK_GE(arg_pack.size(), 2UL) << "The input tensor's size of split schedule is " << arg_pack.size()
                                    << "and it should be greater equal to 2! Please check.";
     poly::StageMap stages = arg_pack.back();
-
+    std::vector<ir::Tensor> out_tensors;
+    int dims = output_shapes[0].size();
     for (int i = 0; i < arg_pack.size() - 1; ++i) {
       Expr Out = arg_pack[i];
       CHECK(Out.as_tensor());
-      if (target.arch == Target::Arch::NVGPU) {
-        pe::CudaScheduleInjective(stages[Out.as_tensor_ref()], output_shapes[i], target);
-      } else {
-        pe::ScheduleInjectiveCPU(stages[Out.as_tensor_ref()], output_shapes[i], target);
-      }
+      out_tensors.push_back(Out.as_tensor_ref());
+    }
+    std::vector<int> reorders;
+    for (int i = 0; i < dims; i++) {
+      reorders.push_back(i);
+    }
+    reorders.erase(reorders.begin() + axis);
+    reorders.push_back(axis);
+    for (auto &out : out_tensors) {
+      stages[out]->Reorder(reorders);
+    }
+    auto last_output = out_tensors.back();
+    for (int i = 0; i < out_tensors.size() - 1; i++) {
+      stages[out_tensors[i]]->ComputeAt2(stages[last_output], dims - 2);
+    }
+    if (target.arch == Target::Arch::NVGPU) {
+      if (output_shapes[0][reorders[0]] > 1024) CINN_NOT_IMPLEMENTED
+      stages[last_output]->Bind(0, "threadIdx.x");
     }
     *ret = arg_pack;
   });
@@ -477,9 +492,9 @@ std::vector<std::vector<int>> InferShapeForSplit(const std::vector<std::vector<i
     }
     std::vector<std::vector<int>> ret;
     if (sections.size() == 1) {
-      ret.reserve(sections[0]);
+      ret.resize(sections[0]);
     } else {
-      ret.reserve(sections.size());
+      ret.resize(sections.size());
     }
     return ret;
   }
@@ -1361,7 +1376,7 @@ CINN_REGISTER_HELPER(transform_ops) {
   CINN_REGISTER_OP(split)
       .describe("This operator is used to split tensors X to 'sections' sub-tensor on specified axis.")
       .set_num_inputs(1)
-      .set_num_outputs(-1)
+      .set_num_outputs(0)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForSplit)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForSplit))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForSplit))

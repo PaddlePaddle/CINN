@@ -104,7 +104,7 @@ class Node : public common::GraphNode {
 
   inline uint32_t num_outputs() {
     if (is_variable()) return 1;
-    if (this->op()->num_inputs == -1) {
+    if (this->op()->num_inputs == 0) {
       using shape_func_t = std::function<std::vector<shape_t>(const std::vector<shape_t> &, const AttrMapType &)>;
       const auto &op_infershape = Operator::GetAttrs<shape_func_t>("infershape");
       auto key                  = Operator::Get(this->op()->name);
