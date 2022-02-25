@@ -86,7 +86,9 @@ void BaseBuilder::InferShape(Instruction instr) const {
   size_t origin_shape = outs.size();
   outs.resize(out_shapes.size());
   for (size_t i = origin_shape; i < outs.size(); i++) {
-    outs[i]        = Variable();
+    outs[i] = Variable();
+  }
+  for (size_t i = 0; i < outs.size(); i++) {
     outs[i]->shape = out_shapes[i];
     outs[i]->type  = out_types[i];
   }
