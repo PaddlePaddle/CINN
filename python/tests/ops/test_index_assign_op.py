@@ -52,13 +52,14 @@ class TestAddOp(OpTest):
         x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
         y = builder.create_input(Float(32), self.inputs["y"].shape, "y")
         index = builder.create_input(
-            Int(32), self.inputs["index"].shape, "index")
+            Float(32), self.inputs["index"].shape, "index")
         out = builder.index_assign(x, y, index)
 
         prog = builder.build()
-        res = self.get_cinn_output(
-            prog, target, [x, y, index],
-            [self.inputs["x"], self.inputs["y"], self.inputs["index"]], [out])
+        res = self.get_cinn_output(prog, target, [x, y, index], [
+            self.inputs["x"], self.inputs["y"],
+            self.inputs["index"].astype("float32")
+        ], [out])
 
         print(res[0])
         self.cinn_outputs = [res[0]]

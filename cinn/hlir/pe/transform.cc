@@ -150,40 +150,27 @@ ir::Tensor Reshape(const ir::Tensor& A, const std::vector<int>& new_shape, const
 }
 
 ir::Tensor IndexAssign(const ir::Tensor& A,
-                       const ir::Tensor& B,
-                       const ir::Tensor& index_tensor,
-                       const std::string& name) {
+                       const ir::Tensor& Assign,
+                       const ir::Tensor& Index,
+                       const std::string& output_name) {
   auto res = Compute(
       A->shape,
       [=](const std::vector<Expr>& indice) {
-        auto indice_B = indice;
+        std::vector<Expr> indice_assign = indice;
+        ir::Var iter("iter");
+        ir::Expr st(0);
+        ir::Expr extend(Index->shape.size());
 
-        ir::Var ir_iter;
-        Expr iter, end_iter;
-
-        // auto condition1 = ir::LT::Make(iter, index_tensor->shape[0]);
-        // auto condition2 = ir::LT::Make(indice[0], index_tensor(iter));
-        // auto condition = ir::And::Make(condition1, condition2);
-
-        // auto body = ir::Let::Make(end_iter, iter);
+        ir::Expr select = ir::EQ::Make(ir::Cast::Make(common::Int(32), Index(static_cast<ir::Expr>(iter))), indice[0]);
+        ir::Expr index  = ir::Select::Make(select, indice[0], static_cast<ir::Expr>(iter));
 
         auto block_for =
-            ir::PolyFor::Make(ir_iter,
-                              Expr(0),
-                              ir::Block::Make({ir::Let::Make(iter, Expr(ir_iter)),
-                                               ir::And::Make(ir::LT::Make(iter, index_tensor->shape[0]),
-                                                             ir::LT::Make(indice[0], index_tensor(iter)))}),
-                              Expr(1),
-                              ir::ForType::Serial,
-                              ir::DeviceAPI::UNK,
-                              ir::Block::Make({ir::Let::Make(iter, Expr(ir_iter)), ir::Let::Make(end_iter, iter)}));
+            ir::For::Make(iter, st, extend, ir::ForType::Serial, ir::DeviceAPI::UNK, ir::Block::Make({select, index}));
 
-        auto block_if = ir::Block::Make(
-            {ir::Let::Make(indice_B[0], end_iter),
-             ir::Select::Make(ir::NE::Make(indice[0], index_tensor(end_iter)), A(indice), B(indice_B))});
-        return ir::Block::Make({block_for, block_if});
+        indice_assign[0] = ir::Cast::Make(common::Int(32), select);
+        return ir::Block::Make({block_for, ir::Select::Make(select, A(indice), Assign(indice_assign))});
       },
-      name);
+      UniqName(output_name));
   return res;
 }
 
