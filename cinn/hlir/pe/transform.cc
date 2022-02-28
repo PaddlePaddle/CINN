@@ -713,8 +713,8 @@ ir::Tensor IndexSelect(const ir::Tensor& x,
                        int axis,
                        const std::string& name) {
   CHECK_EQ(1, static_cast<int>(index->shape.size())) << "The index should be a 1-D Tensor.";
-  int index_size = index->shape[0].as_int32();
-  // If output_shape = [2, 4, 3] and axis = 0, the index transformation is shown below:
+  // The implementation details are explained below.
+  // If output_shape = [2, 4, 3] and axis = 0, `Compute` can be translated as the following code:
   // {
   //   for (i, 0, 2)
   //   {
@@ -733,7 +733,10 @@ ir::Tensor IndexSelect(const ir::Tensor& x,
         // 1) indice is got from `output_shape`
         // 2) transformed_indice is used in the input `x`
         std::vector<Expr> transformed_indice = indice;
-        transformed_indice[axis]             = ir::Cast::Make(common::Int(32), index(indice[axis]));
+        // The element type of index maybe int64, but the index type is limited to int32 in CINN.
+        // See the below link for more details:
+        // https://github.com/PaddlePaddle/CINN/blob/85ab4981a38926dc5c1dbf672762cec335d2b857/cinn/ir/ir.cc#L477
+        transformed_indice[axis] = ir::Cast::Make(common::Int(32), index(indice[axis]));
         return x(transformed_indice);
       },
       name);

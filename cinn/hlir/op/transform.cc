@@ -1155,7 +1155,7 @@ std::shared_ptr<OpStrategy> StrategyForIndexSelect(const framework::NodeAttr &at
                                                    const std::vector<std::vector<int>> &output_shapes,
                                                    const Target &target) {
   CHECK(!output_shapes.empty() && !output_shapes[0].empty()) << "The shape of output is empty! Please check again.";
-  VLOG(1) << "The output passed in StrategyForIndexSelect: " << utils::Join(output_shapes[0], ", ");
+  VLOG(4) << "The output passed in StrategyForIndexSelect: " << utils::Join(output_shapes[0], ", ");
   CHECK(!out_type.empty()) << "The output type of IndexSelect is empty! Please check again.\n";
 
   int axis = 0;
@@ -1172,7 +1172,7 @@ std::shared_ptr<OpStrategy> StrategyForIndexSelect(const framework::NodeAttr &at
 
   framework::CINNCompute index_select_compute{[axis, output_shape = std::move(output_shape)](lang::Args args,
                                                                                              lang::RetValue *ret) {
-    VLOG(1) << "The axis value used in index_select_compute: " << axis;
+    VLOG(4) << "The axis value used in index_select_compute: " << axis;
     CHECK(!args.empty()) << "The input args are empty! Please check again.";
     CINNValuePack arg_pack = args[0];
     int input_size         = arg_pack.size();
@@ -1220,7 +1220,7 @@ std::vector<std::vector<int>> InferShapeForIndexSelect(const std::vector<std::ve
   if (axis < 0) {
     axis += static_cast<int>(inputs_shape[0].size());
   }
-  VLOG(1) << "The axis value used in IndexSelect: " << axis;
+  VLOG(4) << "The axis value used in IndexSelect: " << axis;
 
   CHECK(axis >= 0 && axis < static_cast<int>(inputs_shape[0].size()))
       << "The attribute `axis` in IndexSelect should be >= 0 and < the size of the first input shape! Please check "
@@ -1230,7 +1230,7 @@ std::vector<std::vector<int>> InferShapeForIndexSelect(const std::vector<std::ve
   CHECK_EQ(inputs_shape[1].size(), 1U) << "The index should be a 1-D Tensor.";
   CHECK_GT(inputs_shape[1][0], 0) << "The length of the index should be greater than 0.";
   output_shape[axis] = inputs_shape[1][0];
-  VLOG(1) << "The output calculated in InferShapeForIndexSelect: " << utils::Join(output_shape, ", ");
+  VLOG(4) << "The output calculated in InferShapeForIndexSelect: " << utils::Join(output_shape, ", ");
 
   return {std::move(output_shape)};
 }
