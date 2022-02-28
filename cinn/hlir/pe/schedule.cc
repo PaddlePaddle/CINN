@@ -448,6 +448,12 @@ void CudaScheduleBlockReduce(poly::StageMap stages,
     stages[reduce_tmp_out]->Fuse(0, 1);
   }
 
+  if (out->shape.size() == 1) {
+    stages[reduce_tmp_out]->Split(0, stages[reduce_tmp_out]->GetDimRange(0));
+    stages[tmp_out]->Split(0, stages[tmp_out]->GetDimRange(0));
+    stages[out]->Split(0, stages[out]->GetDimRange(0));
+  }
+
   stages[reduce_tmp_out]->Bind(0, "blockIdx.x");
   stages[reduce_tmp_out]->Bind(1, "threadIdx.x");
   stages[reduce_tmp_out]->SetBuffer("local");
