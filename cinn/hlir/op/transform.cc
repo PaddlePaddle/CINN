@@ -409,7 +409,7 @@ std::shared_ptr<OpStrategy> StrategyForIndexAssign(const framework::NodeAttr &at
                                                    const std::vector<Type> &out_type,
                                                    const std::vector<std::vector<int>> &output_shapes,
                                                    const Target &target) {
-  framework::CINNCompute concat_compute([=](lang::Args args, lang::RetValue *ret) {
+  framework::CINNCompute index_assign_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input arguments of IndexAssign compute is empty! Please check.\n";
     CINNValuePack a = args[0];
     int input_size  = a.size();
@@ -439,7 +439,7 @@ std::shared_ptr<OpStrategy> StrategyForIndexAssign(const framework::NodeAttr &at
     *ret = CINNValuePack{res};
   });
 
-  framework::CINNSchedule concat_schedule([=](lang::Args args, lang::RetValue *ret) {
+  framework::CINNSchedule index_assign_schedule([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of IndexAssign schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
     // int arg_size           = arg_pack.size();
@@ -455,7 +455,7 @@ std::shared_ptr<OpStrategy> StrategyForIndexAssign(const framework::NodeAttr &at
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(concat_compute, concat_schedule, "strategy.index_assign.x86", 1);
+  strategy->AddImpl(index_assign_compute, index_assign_schedule, "strategy.index_assign.x86", 1);
   return strategy;
 }
 
