@@ -97,8 +97,9 @@ Variable BaseBuilder::Concat(const std::vector<Variable>& input_vars, int axis) 
   return instr.GetOutput(0);
 }
 
-Variable BaseBuilder::IndexAssign(const Variable& A, const Variable& B, const Variable& index) {
+Variable BaseBuilder::IndexAssign(const Variable& A, const Variable& B, const Variable& index, int axis) {
   Instruction instr("index_assign", {A, B, index});
+  instr.SetAttr("axis", axis);
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(0);

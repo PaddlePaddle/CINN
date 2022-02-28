@@ -26,7 +26,7 @@ from cinn.common import *
 
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
                     "x86 test will be skipped due to timeout.")
-class TestAddOp(OpTest):
+class TestIndexAssignOp(OpTest):
     def setUp(self):
         self.init_case()
 
@@ -36,14 +36,31 @@ class TestAddOp(OpTest):
             "y": np.random.random([3, 5, 5]).astype("float32"),
             "index": np.random.randint(0, 10, size=3)
         }
+        self.axis = 0
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.inputs["x"], stop_gradient=True)
         y = paddle.to_tensor(self.inputs["y"], stop_gradient=True)
 
         out = x
-        for i in range(len(self.inputs["index"])):
-            out[self.inputs["index"][i]] = y[i]
+        axis = self.axis
+        while (axis < 0):
+            axis += len(self.inputs["index"].shape)
+
+        if axis == 0:
+            for i in range(self.inputs["index"].shape[0]):
+                out[self.inputs["index"][i]] = y[i]
+        elif axis == 1:
+            for i in range(self.inputs["x"].shape[0]):
+                for j in range(self.inputs["index"].shape[0]):
+                    out[i][self.inputs["index"][j]] = y[i][j]
+        elif axis == 2:
+            for i in range(self.inputs["x"].shape[0]):
+                for j in range(self.inputs["x"].shape[1]):
+                    for k in range(self.inputs["index"].shape[0]):
+                        out[i][j][self.inputs["index"][k]] = y[i][j][k]
+        else:
+            self.assertTrue(False, "Axis {} No Implement".format(self.axis))
 
         self.paddle_outputs = [out]
 
@@ -53,7 +70,7 @@ class TestAddOp(OpTest):
         y = builder.create_input(Float(32), self.inputs["y"].shape, "y")
         index = builder.create_input(
             Float(32), self.inputs["index"].shape, "index")
-        out = builder.index_assign(x, y, index)
+        out = builder.index_assign(x, y, index, self.axis)
 
         prog = builder.build()
         res = self.get_cinn_output(prog, target, [x, y, index], [
@@ -66,6 +83,26 @@ class TestAddOp(OpTest):
 
     def test_check_results(self):
         self.check_outputs_and_grads()
+
+
+class TestIndexAssignCase1(TestIndexAssignOp):
+    def init_case(self):
+        self.inputs = {
+            "x": np.random.random([10, 5, 5]).astype("float32"),
+            "y": np.random.random([10, 3, 5]).astype("float32"),
+            "index": np.random.randint(0, 10, size=3)
+        }
+        self.axis = 1
+
+
+class TestIndexAssignCase2(TestIndexAssignOp):
+    def init_case(self):
+        self.inputs = {
+            "x": np.random.random([10, 5, 5]).astype("float32"),
+            "y": np.random.random([10, 5, 3]).astype("float32"),
+            "index": np.random.randint(0, 10, size=3)
+        }
+        self.axis = -1
 
 
 if __name__ == "__main__":

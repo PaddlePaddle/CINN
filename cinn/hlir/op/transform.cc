@@ -409,6 +409,11 @@ std::shared_ptr<OpStrategy> StrategyForIndexAssign(const framework::NodeAttr &at
                                                    const std::vector<Type> &out_type,
                                                    const std::vector<std::vector<int>> &output_shapes,
                                                    const Target &target) {
+  int axis = 0;
+  if (attrs.attr_store.find("axis") != attrs.attr_store.end()) {
+    axis = absl::get<int>(attrs.attr_store.at("axis"));
+  }
+
   framework::CINNCompute index_assign_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input arguments of IndexAssign compute is empty! Please check.\n";
     CINNValuePack a = args[0];
@@ -429,7 +434,7 @@ std::shared_ptr<OpStrategy> StrategyForIndexAssign(const framework::NodeAttr &at
     auto tensor_index = expr_index.as_tensor_ref();
 
     auto stages = CreateStages({tensor_A, tensor_B, tensor_index});
-    auto out    = pe::IndexAssign(tensor_A, tensor_B, tensor_index, UniqName("index_assign_output"));
+    auto out    = pe::IndexAssign(tensor_A, tensor_B, tensor_index, axis, UniqName("index_assign_output"));
 
     std::vector<CINNValue> res;
     stages->InsertLazily(out);
@@ -467,18 +472,30 @@ std::vector<std::vector<int>> InferShapeForIndexAssign(const std::vector<std::ve
   const auto &b_shape     = inputs_shape[1];
   const auto &index_shape = inputs_shape[2];
 
+  int axis = 0;
+  if (attrs.find("axis") != attrs.end()) {
+    axis = absl::get<int>(attrs.at("axis"));
+  }
+
+  if (axis < 0) axis += a_shape.size();
+
+  CHECK(axis >= 0 && axis < a_shape.size())
+      << "In IndexAssign op, the attribute `axis` should be >= 0 and < input shape's size! Please check.";
   CHECK_EQ(index_shape.size(), 1U) << "Dimensions of index tensor in IndexAssign should be 1! Please check.";
   CHECK_EQ(a_shape.size(), b_shape.size())
       << "Dimensions of inputs A and B in IndexAssign should be equal! Please check.";
-  CHECK_EQ(b_shape[0], index_shape[0])
+  CHECK_EQ(b_shape[axis], index_shape[0])
       << "The first dimension of input B and index tensor in IndexAssign should be equal! Please check.";
-  for (int i = 1; i < a_shape.size(); ++i) {
-    CHECK_EQ(a_shape[i], b_shape[i]) << "The " << i
-                                     << "-th dimension of input A and B in IndexAssign should be equal! Please check.";
+  for (int i = 0; i < a_shape.size(); ++i) {
+    if (i != axis) {
+      CHECK_EQ(a_shape[i], b_shape[i])
+          << "The " << i << "-th dimension of input A and B in IndexAssign should be equal! Please check.";
+    }
   }
 
   VLOG(4) << "Each input tensor's shape of IndexAssign: A(" << cinn::utils::Join(a_shape, ",") << "), B("
-          << cinn::utils::Join(b_shape, ",") << "), index(" << cinn::utils::Join(index_shape, ",") << ")";
+          << cinn::utils::Join(b_shape, ",") << "), index(" << cinn::utils::Join(index_shape, ",") << ")"
+          << " at axis (" << axis << ")";
 
   return {a_shape};
 }

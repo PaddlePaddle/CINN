@@ -55,7 +55,8 @@ ir::Tensor Reshape(const ir::Tensor& A,
 ir::Tensor IndexAssign(const ir::Tensor& A,
                        const ir::Tensor& Assign,
                        const ir::Tensor& Index,
-                       const std::string& output_name);
+                       int axis                       = 0,
+                       const std::string& output_name = UniqName("T_Transform_IndexAssign_out"));
 
 ir::Tensor Reshape(const ir::Tensor& A,
                    const std::vector<int>& new_shape,

@@ -149,10 +149,8 @@ ir::Tensor Reshape(const ir::Tensor& A, const std::vector<int>& new_shape, const
   return res;
 }
 
-ir::Tensor IndexAssign(const ir::Tensor& A,
-                       const ir::Tensor& Assign,
-                       const ir::Tensor& Index,
-                       const std::string& output_name) {
+ir::Tensor IndexAssign(
+    const ir::Tensor& A, const ir::Tensor& Assign, const ir::Tensor& Index, int axis, const std::string& output_name) {
   auto res = Compute(
       A->shape,
       [=](const std::vector<Expr>& indice) {
@@ -161,13 +159,13 @@ ir::Tensor IndexAssign(const ir::Tensor& A,
         ir::Expr st(0);
         ir::Expr extend(Index->shape.size());
 
-        ir::Expr select = ir::EQ::Make(ir::Cast::Make(common::Int(32), Index(static_cast<ir::Expr>(iter))), indice[0]);
-        ir::Expr index  = ir::Select::Make(select, indice[0], static_cast<ir::Expr>(iter));
+        ir::Expr select =
+            ir::EQ::Make(ir::Cast::Make(common::Int(32), Index(static_cast<ir::Expr>(iter))), indice[axis]);
+        ir::Expr index = ir::Select::Make(select, indice[axis], static_cast<ir::Expr>(iter));
 
-        auto block_for =
-            ir::For::Make(iter, st, extend, ir::ForType::Serial, ir::DeviceAPI::UNK, ir::Block::Make({select, index}));
+        auto block_for = ir::For::Make(iter, st, extend, ir::ForType::Serial, ir::DeviceAPI::UNK, index);
 
-        indice_assign[0] = ir::Cast::Make(common::Int(32), select);
+        indice_assign[axis] = ir::Cast::Make(common::Int(32), select);
         return ir::Block::Make({block_for, ir::Select::Make(select, A(indice), Assign(indice_assign))});
       },
       UniqName(output_name));
