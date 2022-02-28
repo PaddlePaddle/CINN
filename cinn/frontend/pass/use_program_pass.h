@@ -18,3 +18,4 @@
 
 CINN_USE_REGISTER(Decomposer)
 CINN_USE_REGISTER(RemoveIdentity)
+CINN_USE_REGISTER(ReductionRewrite)
