@@ -65,6 +65,8 @@ class BaseBuilder {
 
   void AppendInstruction(const Instruction& instr) { instrs_.push_back(instr); }
 
+  Variable IndexAssign(const Variable& A, const Variable& B, const Variable& index);
+
   Variable Concat(const std::vector<Variable>& input_vars, int axis = 0);
 
   /**

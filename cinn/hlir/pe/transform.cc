@@ -149,6 +149,44 @@ ir::Tensor Reshape(const ir::Tensor& A, const std::vector<int>& new_shape, const
   return res;
 }
 
+ir::Tensor IndexAssign(const ir::Tensor& A,
+                       const ir::Tensor& B,
+                       const ir::Tensor& index_tensor,
+                       const std::string& name) {
+  auto res = Compute(
+      A->shape,
+      [=](const std::vector<Expr>& indice) {
+        auto indice_B = indice;
+
+        ir::Var ir_iter;
+        Expr iter, end_iter;
+
+        // auto condition1 = ir::LT::Make(iter, index_tensor->shape[0]);
+        // auto condition2 = ir::LT::Make(indice[0], index_tensor(iter));
+        // auto condition = ir::And::Make(condition1, condition2);
+
+        // auto body = ir::Let::Make(end_iter, iter);
+
+        auto block_for =
+            ir::PolyFor::Make(ir_iter,
+                              Expr(0),
+                              ir::Block::Make({ir::Let::Make(iter, Expr(ir_iter)),
+                                               ir::And::Make(ir::LT::Make(iter, index_tensor->shape[0]),
+                                                             ir::LT::Make(indice[0], index_tensor(iter)))}),
+                              Expr(1),
+                              ir::ForType::Serial,
+                              ir::DeviceAPI::UNK,
+                              ir::Block::Make({ir::Let::Make(iter, Expr(ir_iter)), ir::Let::Make(end_iter, iter)}));
+
+        auto block_if = ir::Block::Make(
+            {ir::Let::Make(indice_B[0], end_iter),
+             ir::Select::Make(ir::NE::Make(indice[0], index_tensor(end_iter)), A(indice), B(indice_B))});
+        return ir::Block::Make({block_for, block_if});
+      },
+      name);
+  return res;
+}
+
 ir::Tensor Concat(const ir::Tensor& A, const ir::Tensor& B, int axis, const std::string& name) {
   if (axis < 0) axis += A->shape.size();
   CHECK_EQ(A->shape.size(), B->shape.size()) << "Dimensions of inputs A and B in Concat should be equal! Please check.";

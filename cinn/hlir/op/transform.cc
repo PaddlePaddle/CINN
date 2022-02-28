@@ -404,6 +404,99 @@ std::vector<std::vector<std::string>> InferLayoutForReshape(const std::vector<fr
   }
 }
 
+std::shared_ptr<OpStrategy> StrategyForIndexAssign(const framework::NodeAttr &attrs,
+                                                   const std::vector<ir::Tensor> &inputs,
+                                                   const std::vector<Type> &out_type,
+                                                   const std::vector<std::vector<int>> &output_shapes,
+                                                   const Target &target) {
+  framework::CINNCompute concat_compute([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input arguments of IndexAssign compute is empty! Please check.\n";
+    CINNValuePack a = args[0];
+    int input_size  = a.size();
+    CHECK_GE(input_size, 3U) << "at least 3 input tensors for IndexAssign compute\n";
+    CHECK(!output_shapes.empty());
+
+    Expr expr_A = a[0];
+    CHECK(expr_A.as_tensor());
+    auto tensor_A = expr_A.as_tensor_ref();
+
+    Expr expr_B = a[1];
+    CHECK(expr_B.as_tensor());
+    auto tensor_B = expr_B.as_tensor_ref();
+
+    Expr expr_index = a[2];
+    CHECK(expr_index.as_tensor());
+    auto tensor_index = expr_index.as_tensor_ref();
+
+    auto stages = CreateStages({tensor_A, tensor_B, tensor_index});
+    auto out    = pe::IndexAssign(tensor_A, tensor_B, tensor_index, UniqName("index_assign_output"));
+
+    std::vector<CINNValue> res;
+    stages->InsertLazily(out);
+    res.push_back(CINNValue(out));
+    CHECK(!out_type.empty()) << "Output type of IndexAssign is empty! Please check.\n";
+    res.push_back(CINNValue(stages));
+    *ret = CINNValuePack{res};
+  });
+
+  framework::CINNSchedule concat_schedule([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of IndexAssign schedule is empty! Please check.\n";
+    CINNValuePack arg_pack = args[0];
+    // int arg_size           = arg_pack.size();
+    // poly::StageMap stages  = arg_pack.back();
+    // Expr out               = arg_pack[0];
+    // CHECK(out.as_tensor());
+    // if (target.arch == Target::Arch::NVGPU) {
+    //   pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes.back(), target);
+    // } else if (target.arch == Target::Arch::X86) {
+    //   pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes.back(), target, false);
+    // }
+    *ret = arg_pack;
+  });
+
+  auto strategy = std::make_shared<framework::OpStrategy>();
+  strategy->AddImpl(concat_compute, concat_schedule, "strategy.index_assign.x86", 1);
+  return strategy;
+}
+
+std::vector<std::vector<int>> InferShapeForIndexAssign(const std::vector<std::vector<int>> &inputs_shape,
+                                                       const framework::AttrMapType &attrs) {
+  CHECK_GE(inputs_shape.size(), 3U) << "The input's shape size should be no less than 3! Please check again.";
+
+  const auto &a_shape     = inputs_shape[0];
+  const auto &b_shape     = inputs_shape[1];
+  const auto &index_shape = inputs_shape[2];
+
+  CHECK_EQ(index_shape.size(), 1U) << "Dimensions of index tensor in IndexAssign should be 1! Please check.";
+  CHECK_EQ(a_shape.size(), b_shape.size())
+      << "Dimensions of inputs A and B in IndexAssign should be equal! Please check.";
+  CHECK_EQ(b_shape[0], index_shape[0])
+      << "The first dimension of input B and index tensor in IndexAssign should be equal! Please check.";
+  for (int i = 1; i < a_shape.size(); ++i) {
+    CHECK_EQ(a_shape[i], b_shape[i]) << "The " << i
+                                     << "-th dimension of input A and B in IndexAssign should be equal! Please check.";
+  }
+
+  VLOG(4) << "Each input tensor's shape of IndexAssign: A(" << cinn::utils::Join(a_shape, ",") << "), B("
+          << cinn::utils::Join(b_shape, ",") << "), index(" << cinn::utils::Join(index_shape, ",") << ")";
+
+  return {a_shape};
+}
+
+std::vector<Type> InferDtypeForIndexAssign(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
+  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
+  std::vector<Type> res{inputs_type[0]};
+  return res;
+}
+
+std::vector<std::vector<std::string>> InferLayoutForIndexAssign(const std::vector<framework::shape_t> &input_shapes,
+                                                                const std::vector<std::string> &input_layouts,
+                                                                const framework::NodeAttr &attrs,
+                                                                const Target &target) {
+  CHECK_GE(input_layouts.size(), 3U) << "The input's layout size is less than 3! Please check again.";
+  return {{input_layouts[0]}, input_layouts};
+}
+
 std::shared_ptr<OpStrategy> StrategyForConcat(const framework::NodeAttr &attrs,
                                               const std::vector<ir::Tensor> &inputs,
                                               const std::vector<Type> &out_type,
@@ -1179,6 +1272,19 @@ CINN_REGISTER_HELPER(transform_ops) {
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForReshape))
 #endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
+      .set_support_level(4);
+
+  CINN_REGISTER_OP(index_assign)
+      .describe("This operator is used to assign tensor B to tensor A by index.")
+      .set_num_inputs(3)
+      .set_num_outputs(1)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForIndexAssign)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForIndexAssign))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForIndexAssign))
+#ifndef CINN_WITH_CUDA
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForIndexAssign))
+#endif
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kInjective)
       .set_support_level(4);
 
   CINN_REGISTER_OP(concat)

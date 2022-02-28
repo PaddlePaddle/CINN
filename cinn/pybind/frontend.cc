@@ -330,6 +330,7 @@ void BindFrontend(pybind11::module *m) {
       .def("build", &BaseBuilder::Build)
       .def("name", &BaseBuilder::name)
       .def("append_instruction", &BaseBuilder::AppendInstruction)
+      .def("index_assign", &BaseBuilder::IndexAssign, py::arg("a"), py::arg("b"), py::arg("index"))
       .def("concat", &BaseBuilder::Concat, py::arg("inputs"), py::arg("axis") = 0)
       .def("reduce",
            &BaseBuilder::Reduce,

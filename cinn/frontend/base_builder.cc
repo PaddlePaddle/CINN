@@ -97,6 +97,13 @@ Variable BaseBuilder::Concat(const std::vector<Variable>& input_vars, int axis) 
   return instr.GetOutput(0);
 }
 
+Variable BaseBuilder::IndexAssign(const Variable& A, const Variable& B, const Variable& index) {
+  Instruction instr("index_assign", {A, B, index});
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
 Variable BaseBuilder::Reduce(const Variable& operand, ReduceKind kind, const std::vector<int>& dim, bool keep_dim) {
   auto reduce_func = [&](const std::string& op_type) {
     Instruction instr(op_type, {operand});

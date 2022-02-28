@@ -52,6 +52,11 @@ ir::Tensor Reshape(const ir::Tensor& A,
                    poly::StageMap stages,
                    const std::string& name);
 
+ir::Tensor IndexAssign(const ir::Tensor& A,
+                       const ir::Tensor& B,
+                       const ir::Tensor& index_tensor,
+                       const std::string& name);
+
 ir::Tensor Reshape(const ir::Tensor& A,
                    const std::vector<int>& new_shape,
                    const std::string& name = UniqName("T_Transform_Matmul_out"));
