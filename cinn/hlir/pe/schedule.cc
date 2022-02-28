@@ -417,7 +417,7 @@ void CudaScheduleBlockReduceInternal(poly::StageMap stages,
     stages[out]->Fuse(0, 1);
   }
 
-  if (out->shape.size() == 1) {
+  if (tmp_out->shape.size() == 1) {
     stages[tmp_out]->Split(0, stages[tmp_out]->GetDimRange(0));
     stages[out]->Split(0, stages[out]->GetDimRange(0));
   }
@@ -448,7 +448,7 @@ void CudaScheduleBlockReduce(poly::StageMap stages,
     stages[reduce_tmp_out]->Fuse(0, 1);
   }
 
-  if (out->shape.size() == 1) {
+  if (tmp_out->shape.size() == 1) {
     stages[reduce_tmp_out]->Split(0, stages[reduce_tmp_out]->GetDimRange(0));
     stages[tmp_out]->Split(0, stages[tmp_out]->GetDimRange(0));
     stages[out]->Split(0, stages[out]->GetDimRange(0));

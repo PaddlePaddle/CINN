@@ -198,6 +198,20 @@ TEST(Operator, Operator_Reduction_Case_5_5) {
   GenReduceCode(shape, dim, "reduce_cast_5_5", true);
 }
 
+TEST(Operator, Operator_Reduction_Case_6_0) {
+  std::vector<int> shape = {32, 32, 32};
+  std::vector<int> dim   = {0, 1, 2};
+
+  GenReduceCode(shape, dim, "reduce_cast_6_0", false);
+}
+
+TEST(Operator, Operator_Reduction_Case_6_00) {
+  std::vector<int> shape = {32, 32, 32, 32};
+  std::vector<int> dim   = {0, 1, 2};
+
+  GenReduceCode(shape, dim, "reduce_cast_6_00", false);
+}
+
 struct SumOp {
   float operator()(const float left, const float right) { return left + right; }
 };
