@@ -94,7 +94,7 @@ class TestIndexSelectOpCase1(TestIndexSelectOp):
         self.axis = 0
 
 
-class TestIndexSelectOpCase1(TestIndexSelectOp):
+class TestIndexSelectOpCase2(TestIndexSelectOp):
     def init_case(self):
         self.inputs = {
             "x": np.random.random([16, 32, 32]).astype("float32"),
@@ -103,7 +103,7 @@ class TestIndexSelectOpCase1(TestIndexSelectOp):
         self.axis = 1
 
 
-class TestIndexSelectOpCase1(TestIndexSelectOp):
+class TestIndexSelectOpCase3(TestIndexSelectOp):
     def init_case(self):
         self.inputs = {
             "x": np.random.random([16, 16, 32, 32]).astype("float32"),
@@ -112,13 +112,31 @@ class TestIndexSelectOpCase1(TestIndexSelectOp):
         self.axis = 2
 
 
-class TestIndexSelectOpCase1(TestIndexSelectOp):
+class TestIndexSelectOpCase4(TestIndexSelectOp):
     def init_case(self):
         self.inputs = {
             "x": np.random.random([17, 29, 31, 13]).astype("float32"),
             "index": np.random.randint(0, 13, 11).astype("int32")
         }
         self.axis = 3
+
+
+class TestIndexSelectOpCase5(TestIndexSelectOp):
+    def init_case(self):
+        self.inputs = {
+            "x": np.random.random([17, 29, 31, 17]).astype("float32"),
+            "index": np.random.randint(0, 17, 3).astype("int32")
+        }
+        self.axis = -1
+
+
+class TestIndexSelectOpCase6(TestIndexSelectOp):
+    def init_case(self):
+        self.inputs = {
+            "x": np.random.random([17, 29, 31]).astype("float32"),
+            "index": np.random.randint(0, 29, 9).astype("int32")
+        }
+        self.axis = -2
 
 
 if __name__ == "__main__":
