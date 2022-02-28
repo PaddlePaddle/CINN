@@ -157,6 +157,8 @@ std::vector<ir::Tensor> Split(const ir::Tensor& A,
   auto output_size = output_shapes.size();
 
   // compute select index list
+  // if   index = [2, 3, 4, 5]
+  // then start = [0, 2, 5, 9]
   std::vector<int> start(output_size, 0);
   for (int i = 1; i < output_size; ++i) {
     start[i] = start[i - 1] + output_shapes[i - 1][axis];

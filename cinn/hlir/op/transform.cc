@@ -418,7 +418,9 @@ std::shared_ptr<OpStrategy> StrategyForSplit(const framework::NodeAttr &attrs,
   if (attrs.attr_store.find("axis") != attrs.attr_store.end()) {
     axis = absl::get<int>(attrs.attr_store.at("axis"));
   }
-  if (axis < 0) axis += (int)output_shapes[0].size();
+  if (axis < 0) axis += static_cast<int>(output_shapes[0].size());
+
+  CHECK(!output_shapes.empty()) << "The Spilt Op's output shape list should not empty.";
   CHECK_LT(axis, (int)output_shapes[0].size());
   CHECK(!sections.empty())
       << "The Split op doesn't find [num_or_sections] attrbute! It it a mandatory attribute ! Please check.";
@@ -447,31 +449,7 @@ std::shared_ptr<OpStrategy> StrategyForSplit(const framework::NodeAttr &attrs,
     CINNValuePack arg_pack = args[0];
     CHECK_GE(arg_pack.size(), 2UL) << "The input tensor's size of split schedule is " << arg_pack.size()
                                    << "and it should be greater equal to 2! Please check.";
-    poly::StageMap stages = arg_pack.back();
-    std::vector<ir::Tensor> out_tensors;
-    int dims = output_shapes[0].size();
-    for (int i = 0; i < arg_pack.size() - 1; ++i) {
-      Expr Out = arg_pack[i];
-      CHECK(Out.as_tensor());
-      out_tensors.push_back(Out.as_tensor_ref());
-    }
-    std::vector<int> reorders;
-    for (int i = 0; i < dims; i++) {
-      reorders.push_back(i);
-    }
-    reorders.erase(reorders.begin() + axis);
-    reorders.push_back(axis);
-    for (auto &out : out_tensors) {
-      stages[out]->Reorder(reorders);
-    }
-    auto last_output = out_tensors.back();
-    for (int i = 0; i < out_tensors.size() - 1; i++) {
-      stages[out_tensors[i]]->ComputeAt2(stages[last_output], dims - 2);
-    }
-    if (target.arch == Target::Arch::NVGPU) {
-      if (output_shapes[0][reorders[0]] > 1024) CINN_NOT_IMPLEMENTED
-      stages[last_output]->Bind(0, "threadIdx.x");
-    }
+    pe::CudaSplitSchedule(&arg_pack, output_shapes, axis, target);
     *ret = arg_pack;
   });
 
@@ -484,12 +462,13 @@ std::shared_ptr<OpStrategy> StrategyForSplit(const framework::NodeAttr &attrs,
 std::vector<std::vector<int>> InferShapeForSplit(const std::vector<std::vector<int>> &inputs_shape,
                                                  const framework::AttrMapType &attrs) {
   std::vector<int> sections;
+  if (attrs.find("num_or_sections") != attrs.end()) {
+    sections = absl::get<std::vector<int>>(attrs.at("num_or_sections"));
+  } else {
+    LOG(FATAL) << "The Split op doesn't find [num_or_sections] attrbute! It it a mandatory attribute ! Please check.";
+  }
+
   if (inputs_shape.empty()) {
-    if (attrs.find("num_or_sections") != attrs.end()) {
-      sections = absl::get<std::vector<int>>(attrs.at("num_or_sections"));
-    } else {
-      LOG(FATAL) << "The Split op doesn't find [num_or_sections] attrbute! It it a mandatory attribute ! Please check.";
-    }
     std::vector<std::vector<int>> ret;
     if (sections.size() == 1) {
       ret.resize(sections[0]);
@@ -501,12 +480,6 @@ std::vector<std::vector<int>> InferShapeForSplit(const std::vector<std::vector<i
   CHECK_GE(inputs_shape.size(), 1U) << "The input's shape size should be no less than 1! Please check again.";
 
   int axis = 0;
-  if (attrs.find("num_or_sections") != attrs.end()) {
-    sections = absl::get<std::vector<int>>(attrs.at("num_or_sections"));
-  } else {
-    LOG(FATAL) << "The Split op doesn't find [num_or_sections] attrbute! It it a mandatory attribute ! Please check.";
-  }
-
   if (attrs.find("axis") != attrs.end()) {
     axis = absl::get<int>(attrs.at("axis"));
     if (axis < 0) {
@@ -536,11 +509,15 @@ std::vector<std::vector<int>> InferShapeForSplit(const std::vector<std::vector<i
       } else if (sections[i] == -1 && neg_index < 0) {
         neg_index = i;
       } else {
-        LOG(FATAL) << "The attribute 'num_or_sections' can only have at most one '-1' ! Please check.";
+        if (sections[i] == 0) {
+          LOG(FATAL) << "The attribute 'num_or_sections' should not has 0 ! Please check.";
+        } else {
+          LOG(FATAL) << "The attribute 'num_or_sections' can only have at most one '-1' ! Please check.";
+        }
       }
     }
 
-    if (neg_index > 0) {
+    if (neg_index >= 0) {
       // has '-1' in sections
       real_sections[neg_index] = pivot - section_sum;
     } else {

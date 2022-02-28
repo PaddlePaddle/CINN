@@ -2049,15 +2049,34 @@ void CudaScheduleInjective(poly::Stage *stage, const std::vector<int> &output_sh
   }
 }
 
-void CudaSplitSchedule(poly::Stage *stage, const std::vector<int> &output_shape) {
-  if (output_shape.size() > 1 && output_shape[1] >= 512) {
-    int temp_split = 1;
-    int temp_num   = output_shape[1];
-    while (temp_num >= 512) {
-      temp_split = temp_split * 2;
-      temp_num   = temp_num / 2;
-    }
-    stage->Split(1, temp_split);
+void CudaSplitSchedule(common::CINNValuePack *arg_pack,
+                       const std::vector<std::vector<int>> &output_shapes,
+                       int axis,
+                       const common::Target &target) {
+  poly::StageMap stages = arg_pack->back();
+  std::vector<ir::Tensor> out_tensors;
+  int dims = output_shapes[0].size();
+  for (int i = 0; i < arg_pack->size() - 1; ++i) {
+    Expr Out = (*arg_pack)[i];
+    CHECK(Out.as_tensor());
+    out_tensors.push_back(Out.as_tensor_ref());
+  }
+  std::vector<int> reorders;
+  for (int i = 0; i < dims; i++) {
+    reorders.push_back(i);
+  }
+  reorders.erase(reorders.begin() + axis);
+  reorders.push_back(axis);
+  for (auto &out : out_tensors) {
+    stages[out]->Reorder(reorders);
+  }
+  auto last_output = out_tensors.back();
+  for (int i = 0; i < out_tensors.size() - 1; i++) {
+    stages[out_tensors[i]]->ComputeAt2(stages[last_output], dims - 2);
+  }
+  if (target.arch == Target::Arch::NVGPU) {
+    if (output_shapes[0][reorders[0]] > 1024) CINN_NOT_IMPLEMENTED
+    stages[last_output]->Bind(0, "threadIdx.x");
   }
 }
 

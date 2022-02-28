@@ -82,5 +82,19 @@ class TestSplitCase3(TestSplitOp):
         self.axis = 1
 
 
+class TestSplitCase4(TestSplitOp):
+    def init_case(self):
+        self.inputs = {"x": np.random.random([8, 9, 5]).astype("float32")}
+        self.num_or_sections = [2]
+        self.axis = 0
+
+
+class TestSplitCase5(TestSplitOp):
+    def init_case(self):
+        self.inputs = {"x": np.random.random([8, 9, 5]).astype("float32")}
+        self.num_or_sections = [-1, 2, 2, 2]
+        self.axis = 0
+
+
 if __name__ == "__main__":
     unittest.main()
