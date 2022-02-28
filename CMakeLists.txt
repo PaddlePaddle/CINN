@@ -17,8 +17,8 @@ option(WITH_CUDA            "Compile with CUDA support"             OFF)
 option(WITH_CUDNN           "Compile with CUDNN support"            OFF)
 option(WITH_DEBUG           "Compile with debug information"        OFF)
 option(PUBLISH_LIBS         "Whether to publish compiled libraries" ON)
+option(PY_VERSION           "Python version"                        ${PY_VERSION})
 
-set(PY_VERSION CACHE STRING FORCE)
 if (NOT PY_VERSION)
   set(PY_VERSION 3.6)
 endif()
@@ -96,9 +96,19 @@ add_subdirectory(tutorials)
 
 set(core_src "${cinnapi_src}")
 
-cc_library(cinnapi SHARED SRCS ${cinnapi_src} DEPS glog ${llvm_libs} framework_proto param_proto framework_proto absl isl ginac)
+set(Python_VIRTUALENV FIRST)
+find_package(PythonInterp ${PY_VERSION} REQUIRED)
+find_package(PythonLibs ${PY_VERSION} REQUIRED)
+message(STATUS "PYTHON_LIBRARIES: "${PYTHON_LIBRARIES})
+message(STATUS "PYTHON_INCLUDE_DIR: "${PYTHON_INCLUDE_DIR})
+
+INCLUDE_DIRECTORIES(${PYTHON_INCLUDE_DIR})
+cc_library(cinnapi SHARED SRCS ${cinnapi_src} DEPS glog ${llvm_libs} framework_proto param_proto framework_proto absl isl ginac pybind)
 add_dependencies(cinnapi GEN_LLVM_RUNTIME_IR_HEADER ZLIB::ZLIB)
 add_dependencies(cinnapi GEN_LLVM_RUNTIME_IR_HEADER ${core_deps})
+
+target_link_libraries(cinnapi ${PYTHON_LIBRARIES})
+
 if (WITH_MKL_CBLAS)
   target_link_libraries(cinnapi mklml)
   add_dependencies(cinnapi mklml)
@@ -120,6 +130,10 @@ function(gen_cinncore LINKTYPE)
   cc_library(${CINNCORE_TARGET} ${LINKTYPE} SRCS ${core_src} DEPS glog ${llvm_libs} framework_proto param_proto framework_proto absl isl ginac)
   add_dependencies(${CINNCORE_TARGET} GEN_LLVM_RUNTIME_IR_HEADER ZLIB::ZLIB)
   add_dependencies(${CINNCORE_TARGET} GEN_LLVM_RUNTIME_IR_HEADER ${core_deps})
+
+  add_dependencies(${CINNCORE_TARGET} pybind)
+  target_link_libraries(${CINNCORE_TARGET} ${PYTHON_LIBRARIES})
+
   if (WITH_MKL_CBLAS)
     target_link_libraries(${CINNCORE_TARGET} mklml)
     add_dependencies(${CINNCORE_TARGET} mklml)
