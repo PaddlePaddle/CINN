@@ -34,6 +34,7 @@
 #include "cinn/hlir/pe/nn.h"
 #include "cinn/hlir/pe/schedule.h"
 #include "cinn/ir/ir_printer.h"
+#include "cinn/ir/ir_schedule.h"
 #include "cinn/lang/lower.h"
 #include "cinn/optim/ir_simplify.h"
 #include "cinn/runtime/cpu/use_extern_funcs.h"
@@ -369,6 +370,42 @@ void __launch_bounds__(5) elementwise_add_splitouter(const float* __restrict__ X
       EXPECT_NEAR(host_data3[offset], host_data1[offset] * host_data2[offset], 1e-5);
     }
   }
+}
+
+TEST(CodeGenCUDA2, test_new_schedule) {
+  Context::Global().ResetNameId();
+  Expr M(32);
+  Expr N(32);
+  Expr P(32);
+
+  Target target = common::DefaultNVGPUTarget();
+
+  Placeholder<float> A("X", {M, N});
+  auto B = Compute(
+      {M, N}, [&](Var i, Var j) { return A(i, j); }, "B");
+
+  auto stages = CreateStages({A, B});
+  CodeGenCUDA_Dev codegen(target);
+
+  auto func     = cinn::lang::LowerVec("test_new_schedule", stages, {A, B});
+  auto ast_expr = func[0]->body;
+  std::vector<Expr> vec_ast{ast_expr};
+  ir::ModuleExpr mod_expr(vec_ast);
+  ir::IRSchedule ir_sch(mod_expr);
+  auto loops = ir_sch.GetLoops();
+
+  func[0]->body = ir_sch.GetModule().GetExprs().at(0);
+
+  Module::Builder builder("module1", target);
+  for (auto& i : func) {
+    builder.AddFunction(i);
+  }
+
+  auto module = builder.Build();
+
+  auto source_code = codegen.Compile(module);
+
+  LOG(INFO) << "test_new_schedule source code is : " << source_code;
 }
 
 TEST(GlobalPool, pool2d_max) {
