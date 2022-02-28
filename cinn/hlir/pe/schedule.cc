@@ -417,17 +417,17 @@ void CudaScheduleBlockReduceInternal(poly::StageMap stages,
     stages[out]->Fuse(0, 1);
   }
 
-  if (tmp_out->shape.size() == 1) {
-    stages[out]->Split(0, 1);
-    stages[tmp_out]->Split(0, tmp_out->shape[0].as_int32());
+  if (out->shape.size() == 1) {
+    stages[tmp_out]->Split(0, stages[tmp_out]->GetDimRange(0));
+    stages[out]->Split(0, stages[out]->GetDimRange(0));
   }
-
-  stages[out]->Bind(0, "blockIdx.x");
 
   stages[tmp_out]->Bind(0, "blockIdx.x");
   stages[tmp_out]->Bind(1, "threadIdx.x");
-  stages[tmp_out]->SimpleComputeAt(stages[out], 0);
   stages[tmp_out]->SetBuffer("local");
+  stages[tmp_out]->SimpleComputeAt(stages[out], 0);
+
+  stages[out]->Bind(0, "blockIdx.x");
 }
 
 void CudaScheduleBlockReduce(poly::StageMap stages,
