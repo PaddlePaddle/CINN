@@ -154,26 +154,16 @@ ir::Tensor IndexAssign(
   auto res = Compute(
       A->shape,
       [=](const std::vector<Expr>& indice) {
+        // find whether indice[axis] in Index,
+        // then return id if found Index[id] == indice[axis]
+        // else return -1
+        auto id = lang::CallExtern("cinn_find", {Index, Index->shape[0], indice[axis]});
+
         std::vector<Expr> indice_assign = indice;
-        ir::Var iter("iter");
-        ir::Expr st(0);
-        ir::Expr extend(Index->shape.size());
+        indice_assign[axis]             = id;
 
-        // let cur_index = indice[axis]
-        // if find cur_index in Index, and assume Index[j] == cur_index, then return Assign[...][j][...].
-        // else return A[...][cur_index][...]
-
-        ir::Expr select =
-            ir::EQ::Make(ir::Cast::Make(common::Int(32), Index(static_cast<ir::Expr>(iter))), indice[axis]);
-        ir::Expr index = ir::Select::Make(select, indice[axis], static_cast<ir::Expr>(iter));
-
-        // try find whether indice[axis] in Index by loop
-        auto block_for = ir::For::Make(iter, st, extend, ir::ForType::Serial, ir::DeviceAPI::UNK, index);
-
-        indice_assign[axis] = ir::Cast::Make(common::Int(32), select);
-
-        // check wheter Index[j] == cur_index and return by check result
-        return ir::Block::Make({block_for, ir::Select::Make(select, A(indice), Assign(indice_assign))});
+        // check wheter Index[id] == cur_index and return by check result
+        return ir::Select::Make(ir::EQ::Make(id, Expr(-1)), A(indice), Assign(indice_assign));
       },
       UniqName(output_name));
   return res;
