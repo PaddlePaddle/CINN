@@ -28,12 +28,12 @@ class TuneTask {
  public:
   TuneTask(){};
 
-  std::vector<Node*>& SubGraph() { return sub_graph_; }
+  std::vector<hlir::framework::Node*>& SubGraph() { return sub_graph_; }
 
-  TuneContext& TuneContext() { return tune_context_; }
+  TuneContext& TaskTuneContext() { return tune_context_; }
 
  private:
-  std::vector<Node*> sub_graph_;
+  std::vector<hlir::framework::Node*> sub_graph_;
   TuneContext tune_context_;
 };
 

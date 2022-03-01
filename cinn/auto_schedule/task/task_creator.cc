@@ -15,29 +15,31 @@
 #include "cinn/auto_schedule/task/task_creator.h"
 
 #include <memory>
+#include <tuple>
 #include <vector>
 
-#include "cinn/common/graph.h"
 #include "cinn/hlir/framework/graph.h"
+#include "cinn/hlir/framework/node.h"
 
 namespace cinn {
 namespace auto_schedule {
 
-using common::GraphEdge;
-using common::GraphNode;
+using ::cinn::common::GraphEdge;
+using ::cinn::common::GraphNode;
+using ::cinn::hlir::framework::Node;
 
 std::vector<TuneTask> TaskCreator::CreateTuneTaskOpLevel(hlir::framework::Graph* graph) {
   std::vector<TuneTask> ret_tasks;
   std::tuple<std::vector<GraphNode*>, std::vector<GraphEdge*>> topo_result = graph->topological_order();
 
-  const std::vector<GraphNode*>& nodes = topo_result.get<0>();
+  const std::vector<GraphNode*>& nodes = std::get<0>(topo_result);
 
-  for (const GraphNode* n : nodes) {
-    const Node* op_node = node->safe_as<Node>();
+  for (GraphNode* n : nodes) {
+    Node* op_node = n->safe_as<Node>();
     if (op_node) {
       // n must be an op node
-      ret_task.emplace_back(TuneTask());
-      ret_task.back().SubGraph().push_back(op_node);
+      ret_tasks.emplace_back(TuneTask());
+      ret_tasks.back().SubGraph().push_back(op_node);
     }
   }
 

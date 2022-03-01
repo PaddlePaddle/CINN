@@ -21,6 +21,7 @@
 
 #include "cinn/common/target.h"
 #include "cinn/frontend/net_builder.h"
+#include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/node.h"
@@ -29,7 +30,8 @@ namespace cinn {
 namespace auto_schedule {
 
 using ::cinn::frontend::NetBuilder;
-using ::cinn::hlir::framework::Program;
+using ::cinn::frontend::Program;
+using ::cinn::hlir::framework::Node;
 
 Program CreateAddProgram() {
   constexpr int M = 32;
@@ -55,13 +57,13 @@ TEST(TaskCreator, Basic) {
   auto graph   = std::make_shared<hlir::framework::Graph>(prog, target);
 
   TaskCreator task_creator;
-  std::vector<TuneTask> tasks = task_creator.CreateTuneTaskOpLevel(graph.ptr());
+  std::vector<TuneTask> tasks = task_creator.CreateTuneTaskOpLevel(graph.get());
 
   ASSERT_EQ(tasks.size(), 2UL);
   for (TuneTask& task : tasks) {
-    vector<Node*>& sub_graph = task.SubGraph();
+    std::vector<Node*>& sub_graph = task.SubGraph();
     ASSERT_EQ(sub_graph.size(), 1UL);
-    ASSERT_EQ(sub_graph[0]->op()->name, "add");
+    ASSERT_EQ(sub_graph[0]->op()->name, "elementwise_add");
   }
 }
 
