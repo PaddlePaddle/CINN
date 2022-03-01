@@ -18,7 +18,7 @@
 
 namespace cinn {
 namespace frontend {
-namespace op_mappers {
+namespace paddle_mappers {
 
 void FetchOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
@@ -39,12 +39,12 @@ void FeedOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
   ctx.AddVarModelToProgram(feed_name, input.id().data());
 }
 
-}  // namespace op_mappers
+}  // namespace paddle_mappers
 }  // namespace frontend
 }  // namespace cinn
 
 CINN_REGISTER_HELPER(fetch_feed) {
-  CINN_REGISTER_OP_MAPPER(fetch, cinn::frontend::op_mappers::FetchOpMapper)
-  CINN_REGISTER_OP_MAPPER(feed, cinn::frontend::op_mappers::FeedOpMapper)
+  CINN_REGISTER_OP_MAPPER(fetch, cinn::frontend::paddle_mappers::FetchOpMapper)
+  CINN_REGISTER_OP_MAPPER(feed, cinn::frontend::paddle_mappers::FeedOpMapper)
   return true;
 }

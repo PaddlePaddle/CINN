@@ -17,8 +17,7 @@
 
 namespace cinn {
 namespace frontend {
-namespace op_mappers {
-namespace science {
+namespace science_mappers {
 
 void FillConstantOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Output("Y").size(), 1UL);
@@ -81,14 +80,13 @@ void BroadcastOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
   ctx.AddVarModelToProgram(y_name, out->id);
 }
 
-}  // namespace science
-}  // namespace op_mappers
+}  // namespace science_mappers
 }  // namespace frontend
 }  // namespace cinn
 
 CINN_REGISTER_HELPER(science_broadcast) {
-  CINN_REGISTER_OP_MAPPER(fill_constant_p, cinn::frontend::op_mappers::science::FillConstantOpMapper)
-  CINN_REGISTER_OP_MAPPER(broadcast_p, cinn::frontend::op_mappers::science::BroadcastOpMapper)
+  CINN_REGISTER_OP_MAPPER(fill_constant_p, cinn::frontend::science_mappers::FillConstantOpMapper)
+  CINN_REGISTER_OP_MAPPER(broadcast_p, cinn::frontend::science_mappers::BroadcastOpMapper)
 
   return true;
 }

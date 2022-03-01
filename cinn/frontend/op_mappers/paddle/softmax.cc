@@ -17,7 +17,7 @@
 
 namespace cinn {
 namespace frontend {
-namespace op_mappers {
+namespace paddle_mappers {
 
 void SoftmaxOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
@@ -34,11 +34,11 @@ void SoftmaxOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& 
   ctx.AddVarModelToProgram(out_name, out->id);
 }
 
-}  // namespace op_mappers
+}  // namespace paddle_mappers
 }  // namespace frontend
 }  // namespace cinn
 
 CINN_REGISTER_HELPER(softmax) {
-  CINN_REGISTER_OP_MAPPER(softmax, cinn::frontend::op_mappers::SoftmaxOpMapper)
+  CINN_REGISTER_OP_MAPPER(softmax, cinn::frontend::paddle_mappers::SoftmaxOpMapper)
   return true;
 }

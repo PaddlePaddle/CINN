@@ -17,8 +17,7 @@
 
 namespace cinn {
 namespace frontend {
-namespace op_mappers {
-namespace science {
+namespace science_mappers {
 
 void MatmulOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
@@ -59,13 +58,12 @@ void ReduceOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
   ctx.AddVarModelToProgram(out_name, out->id);
 }
 
-}  // namespace science
-}  // namespace op_mappers
+}  // namespace science_mappers
 }  // namespace frontend
 }  // namespace cinn
 
 CINN_REGISTER_HELPER(science_nn) {
-  CINN_REGISTER_OP_MAPPER(matmul_p, cinn::frontend::op_mappers::science::MatmulOpMapper)
-  CINN_REGISTER_OP_MAPPER(reduce_p, cinn::frontend::op_mappers::science::ReduceOpMapper)
+  CINN_REGISTER_OP_MAPPER(matmul_p, cinn::frontend::science_mappers::MatmulOpMapper)
+  CINN_REGISTER_OP_MAPPER(reduce_p, cinn::frontend::science_mappers::ReduceOpMapper)
   return true;
 }

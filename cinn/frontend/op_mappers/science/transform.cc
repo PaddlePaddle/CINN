@@ -17,8 +17,7 @@
 
 namespace cinn {
 namespace frontend {
-namespace op_mappers {
-namespace science {
+namespace science_mappers {
 
 void ConcatOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_GE(op_desc.Input("X").size(), 1UL);
@@ -109,15 +108,14 @@ void SliceSelectOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperConte
   ctx.AddVarModelToProgram(out_name, out->id);
 }
 
-}  // namespace science
-}  // namespace op_mappers
+}  // namespace science_mappers
 }  // namespace frontend
 }  // namespace cinn
 
 CINN_REGISTER_HELPER(science_transform) {
-  CINN_REGISTER_OP_MAPPER(concat_p, cinn::frontend::op_mappers::science::ConcatOpMapper)
-  CINN_REGISTER_OP_MAPPER(reshape_p, cinn::frontend::op_mappers::science::ReshapeOpMapper)
-  CINN_REGISTER_OP_MAPPER(transpose_p, cinn::frontend::op_mappers::science::TransposeOpMapper)
-  CINN_REGISTER_OP_MAPPER(slice_select_p, cinn::frontend::op_mappers::science::SliceSelectOpMapper)
+  CINN_REGISTER_OP_MAPPER(concat_p, cinn::frontend::science_mappers::ConcatOpMapper)
+  CINN_REGISTER_OP_MAPPER(reshape_p, cinn::frontend::science_mappers::ReshapeOpMapper)
+  CINN_REGISTER_OP_MAPPER(transpose_p, cinn::frontend::science_mappers::TransposeOpMapper)
+  CINN_REGISTER_OP_MAPPER(slice_select_p, cinn::frontend::science_mappers::SliceSelectOpMapper)
   return true;
 }

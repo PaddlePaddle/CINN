@@ -17,8 +17,7 @@
 
 namespace cinn {
 namespace frontend {
-namespace op_mappers {
-namespace science {
+namespace science_mappers {
 
 void AddOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
@@ -126,17 +125,16 @@ void TanhOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
   ctx.AddVarModelToProgram(out_name, out->id);
 }
 
-}  // namespace science
-}  // namespace op_mappers
+}  // namespace science_mappers
 }  // namespace frontend
 }  // namespace cinn
 
 CINN_REGISTER_HELPER(science_math) {
-  CINN_REGISTER_OP_MAPPER(add_p, cinn::frontend::op_mappers::science::AddOpMapper)
-  CINN_REGISTER_OP_MAPPER(sub_p, cinn::frontend::op_mappers::science::SubOpMapper)
-  CINN_REGISTER_OP_MAPPER(div_p, cinn::frontend::op_mappers::science::DivOpMapper)
-  CINN_REGISTER_OP_MAPPER(mul_p, cinn::frontend::op_mappers::science::MulOpMapper)
-  CINN_REGISTER_OP_MAPPER(sqrt_p, cinn::frontend::op_mappers::science::SqrtOpMapper)
-  CINN_REGISTER_OP_MAPPER(tanh_p, cinn::frontend::op_mappers::science::TanhOpMapper)
+  CINN_REGISTER_OP_MAPPER(add_p, cinn::frontend::science_mappers::AddOpMapper)
+  CINN_REGISTER_OP_MAPPER(sub_p, cinn::frontend::science_mappers::SubOpMapper)
+  CINN_REGISTER_OP_MAPPER(div_p, cinn::frontend::science_mappers::DivOpMapper)
+  CINN_REGISTER_OP_MAPPER(mul_p, cinn::frontend::science_mappers::MulOpMapper)
+  CINN_REGISTER_OP_MAPPER(sqrt_p, cinn::frontend::science_mappers::SqrtOpMapper)
+  CINN_REGISTER_OP_MAPPER(tanh_p, cinn::frontend::science_mappers::TanhOpMapper)
   return true;
 }
