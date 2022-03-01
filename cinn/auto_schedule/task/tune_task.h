@@ -17,7 +17,7 @@
 
 #include <vector>
 
-#include "cinn/auto_schedule/task/task_context.h"
+#include "cinn/auto_schedule/task/tune_context.h"
 #include "cinn/common/target.h"
 #include "cinn/hlir/framework/node.h"
 
@@ -26,18 +26,15 @@ namespace auto_schedule {
 
 class TuneTask {
  public:
-  TuneTask()
-      : {
-
-        };
+  TuneTask(){};
 
   std::vector<Node*>& SubGraph() { return sub_graph_; }
 
-  TaskContext& TaskContext() { return task_context_; }
+  TuneContext& TuneContext() { return tune_context_; }
 
  private:
   std::vector<Node*> sub_graph_;
-  TaskContext task_context_;
+  TuneContext tune_context_;
 };
 
 }  // namespace auto_schedule
