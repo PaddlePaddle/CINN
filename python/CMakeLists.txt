@@ -11,10 +11,12 @@ endif ()
 set(SETUP_LOG_FILE "setup.py.log")
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in ${CMAKE_CURRENT_BINARY_DIR}/setup.py)
 
+# There may be a link file called core_api.so under the dir ${CINN_PYTHON_DIR} due to the `mac_doc`
+# function defined in build.sh. So, we need to copy the directory ${CINN_PYTHON_DIR} first and
+# then core_api.so.
 ADD_CUSTOM_COMMAND(OUTPUT ${CINN_CORE_API} POST_BUILD
-    COMMAND
-    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/cinn/pybind/core_api.so ${CINN_CORE_API}
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${CINN_PYTHON_DIR} ${CMAKE_BINARY_DIR}/python/cinn
+    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/cinn/pybind/core_api.so ${CINN_CORE_API}
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${CINN_PYTHON_TEST_DIR} ${CMAKE_BINARY_DIR}/python/tests
     COMMAND cd ${CMAKE_CURRENT_BINARY_DIR} && python setup.py bdist_wheel
     DEPENDS core_api ${CINN_PY_FILES})
