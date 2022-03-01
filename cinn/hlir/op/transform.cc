@@ -421,7 +421,7 @@ std::shared_ptr<OpStrategy> StrategyForSplit(const framework::NodeAttr &attrs,
   if (axis < 0) axis += static_cast<int>(output_shapes[0].size());
 
   CHECK(!output_shapes.empty()) << "The Spilt Op's output shape list should not empty.";
-  CHECK_LT(axis, (int)output_shapes[0].size());
+  CHECK_LT(axis, static_cast<int>(output_shapes[0].size()));
   CHECK(!sections.empty())
       << "The Split op doesn't find [num_or_sections] attrbute! It it a mandatory attribute ! Please check.";
 
