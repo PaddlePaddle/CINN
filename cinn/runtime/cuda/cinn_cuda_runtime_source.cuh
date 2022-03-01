@@ -37,10 +37,10 @@ __device__ inline float FN(min)(float a, float b) { return min(a, b); }
 
 #undef FN
 
-__device__ inline float CinnSum(const float left, const float right) { return left + right; }
-__device__ inline float CinnProd(const float left, const float right) { return left * right; }
-__device__ inline float CinnMax(const float left, const float right) { return max(left, right); }
-__device__ inline float CinnMin(const float left, const float right) { return min(left, right); }
+__device__ inline float cinn_sum(const float left, const float right) { return left + right; }
+__device__ inline float cinn_prod(const float left, const float right) { return left * right; }
+__device__ inline float cinn_max(const float left, const float right) { return max(left, right); }
+__device__ inline float cinn_min(const float left, const float right) { return min(left, right); }
 
 #define cinn_warp_shuffle_internal_kernel(value, op)                        \
   float tmp_val     = value;                                                \
@@ -54,16 +54,16 @@ __device__ inline float CinnMin(const float left, const float right) { return mi
   return tmp_val;
 
 __device__ inline float cinn_warp_shuffle_sum_internal(const float value) {
-  cinn_warp_shuffle_internal_kernel(value, CinnSum);
+  cinn_warp_shuffle_internal_kernel(value, cinn_sum);
 }
 __device__ inline float cinn_warp_shuffle_prod_internal(const float value) {
-  cinn_warp_shuffle_internal_kernel(value, CinnProd);
+  cinn_warp_shuffle_internal_kernel(value, cinn_prod);
 }
 __device__ inline float cinn_warp_shuffle_max_internal(const float value) {
-  cinn_warp_shuffle_internal_kernel(value, CinnMax);
+  cinn_warp_shuffle_internal_kernel(value, cinn_max);
 }
 __device__ inline float cinn_warp_shuffle_min_internal(const float value) {
-  cinn_warp_shuffle_internal_kernel(value, CinnMin);
+  cinn_warp_shuffle_internal_kernel(value, cinn_min);
 }
 
 __device__ inline float cinn_warp_reduce_max(const float *buf, int offset, int extend) {

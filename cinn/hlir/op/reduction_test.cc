@@ -54,8 +54,8 @@ using runtime::cuda::CUDAModule;
 std::pair<ir::Module, std::string> GenReduceCode(const std::vector<int>& shape,
                                                  const std::vector<int>& dim,
                                                  const std::string& func_name,
-                                                 bool keep_dim             = false,
-                                                 const std::string op_name = "reduce_sum") {
+                                                 bool keep_dim              = false,
+                                                 const std::string& op_name = "reduce_sum") {
   // code gen
   auto reduce_sum = Operator::Get(op_name);
   auto strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy")[reduce_sum];
