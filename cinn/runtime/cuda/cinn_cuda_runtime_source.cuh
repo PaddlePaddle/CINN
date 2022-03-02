@@ -146,7 +146,7 @@ __device__ inline float cinn_block_reduce_prod(const float *buf, int offset, int
 }
 // block reduce max
 __device__ inline float cinn_block_reduce_max(const float *buf, int offset, int extend) {
-  float tmp_val = -3.4e38f;
+  float tmp_val = -3.402823e+38f;
   for (int i = threadIdx.x; i < extend; i += blockDim.x) {
     tmp_val = max(tmp_val, buf[offset + i]);
   }
@@ -154,7 +154,7 @@ __device__ inline float cinn_block_reduce_max(const float *buf, int offset, int 
 }
 // block reduce min
 __device__ inline float cinn_block_reduce_min(const float *buf, int offset, int extend) {
-  float tmp_val = 3.4e38f;
+  float tmp_val = 3.402823e+38f;
   for (int i = threadIdx.x; i < extend; i += blockDim.x) {
     tmp_val = min(tmp_val, buf[offset + i]);
   }
