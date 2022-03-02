@@ -34,7 +34,7 @@ namespace frontend {
 #define NETBUILDER_BINARY_OP_FOREACH(macro__)   \
     macro__(Sub)                                \
     macro__(Div)                                \
-    macro__(Matmul)                             \
+    macro__(MatMul)                             \
     macro__(ReluGrad)
 // clang-format on
 

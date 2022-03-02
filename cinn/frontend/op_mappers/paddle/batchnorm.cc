@@ -19,7 +19,7 @@ namespace cinn {
 namespace frontend {
 namespace paddle_mappers {
 
-void BatchnormOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+void BatchNormOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   auto get_output_name = [&op_desc](const std::string& op_name) {
     CHECK_EQ(op_desc.Output(op_name).size(), 1UL);
     return op_desc.Output(op_name).front();
@@ -123,7 +123,7 @@ void BatchNormGradOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperCon
 }  // namespace cinn
 
 CINN_REGISTER_HELPER(paddle_batchnorm) {
-  CINN_REGISTER_OP_MAPPER(batch_norm, cinn::frontend::paddle_mappers::BatchnormOpMapper)
+  CINN_REGISTER_OP_MAPPER(batch_norm, cinn::frontend::paddle_mappers::BatchNormOpMapper)
   CINN_REGISTER_OP_MAPPER(batch_norm_grad, cinn::frontend::paddle_mappers::BatchNormGradOpMapper)
   return true;
 }
