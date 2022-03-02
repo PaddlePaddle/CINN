@@ -63,6 +63,13 @@ CINN_REGISTER_HELPER(cuda_intrinsics) {
     return shape;
   };
 
+  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_find_index, target)
+      .SetRetType<int>()
+      .AddInputType<cinn_buffer_t *>()
+      .AddInputType<int>()
+      .AddInputType<int>()
+      .End();
+
   REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_warp_reduce_max, target)
       .SetRetType<float>()
       .AddInputType<cinn_buffer_t *>()

@@ -149,6 +149,18 @@ ir::Tensor Transpose(const ir::Tensor& input,
                      const std::vector<int>& axis,
                      const std::string& output_name = UniqName("T_Transpose_out"));
 
+/**
+ * @brief Perform meta op IndexAssign
+ * @param input The input tensor
+ * @param assign The assign tensor
+ * @param indexs The indexs tensor
+ * @param output_name the name of the output tensor
+ */
+ir::Tensor IndexAssign(const ir::Tensor& input,
+                       const ir::Tensor& assign,
+                       const ir::Tensor& indexs,
+                       const std::string& output_name = UniqName("T_IndexAssign_out"));
+
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn

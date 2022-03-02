@@ -14,12 +14,18 @@
 
 #include <gtest/gtest.h>
 
+#include "cinn/backends/codegen_cuda_dev.h"
+#include "cinn/backends/codegen_cuda_util.h"
+#include "cinn/backends/cuda_util.h"
 #include "cinn/backends/llvm/execution_engine.h"
+#include "cinn/backends/nvrtc_util.h"
 #include "cinn/cinn.h"
 #include "cinn/common/target.h"
 #include "cinn/common/test_helper.h"
 #include "cinn/hlir/pe/transform.h"
+#include "cinn/runtime/cinn_runtime.h"
 #include "cinn/runtime/cpu/host_intrinsics.h"
+#include "cinn/runtime/cuda/cuda_module.h"
 
 namespace cinn {
 namespace hlir {
@@ -90,6 +96,50 @@ TEST(MatmulPE, PE_Matmul_Test0) {
       ASSERT_NEAR(cd[i * size_b + j], tmp, 1e-5);
     }
   }
+}
+
+TEST(IndexAssign, IndexAssign_1) {
+  int m = 128;
+  int n = 32;
+  int k = 32;
+  Expr M(m), N(n), K(k);
+
+  Placeholder<float> input("A", {M, K});
+  Placeholder<float> assign("B", {N, K});
+  Placeholder<float> indexs("C", {N});
+
+  auto output = hlir::pe::IndexAssign(input.tensor(), assign.tensor(), indexs.tensor());
+  auto stages = CreateStages({input, assign, indexs, output});
+  auto func   = Lower("fn", stages, {input, assign, indexs, output});
+  LOG(INFO) << "func:\n" << func;
+
+  auto target = common::DefaultNVGPUTarget();
+  Module::Builder builder("IndexAssign_Builder", target);
+  builder.AddFunction(func);
+
+  auto module                    = builder.Build();
+  auto host_module_device_module = backends::SplitCudaAndHostModule(module);
+  auto &host_module              = std::get<0>(host_module_device_module);
+  auto &device_module            = std::get<1>(host_module_device_module);
+  for (auto &func : host_module.functions()) {
+    LOG(INFO) << "host:\n" << func;
+  }
+  for (auto &func : device_module.functions()) {
+    LOG(INFO) << "device:\n" << func;
+  }
+
+  backends::CodeGenCUDA_Dev codegen(target);
+  auto source_code = codegen.Compile(builder.Build());
+  LOG(INFO) << "compiled code:\n\n\n" << source_code;
+
+  // nv jit compile to ptx
+  backends::NVRTC_Compiler compiler;
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty());
+
+  LOG(INFO) << "compiled ptx:\n\n\n" << ptx;
+  // cuda_module load ptx
+  runtime::cuda::CUDAModule cuda_module(ptx, runtime::cuda::CUDAModule::Kind::PTX);
 }
 
 }  // namespace pe

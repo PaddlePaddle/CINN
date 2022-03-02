@@ -36,6 +36,14 @@ __device__ inline float FN(max)(float a, float b) { return max(a, b); }
 __device__ inline float FN(min)(float a, float b) { return min(a, b); }
 
 #undef FN
+__device__ inline int cinn_find_index(const float *indexs, int index, int extend) {
+  for (int idx = 0; idx < extend; ++idx) {
+    if (indexs[idx] == index) {
+      return idx;
+    }
+  }
+  return -1;
+}
 
 __device__ inline float cinn_warp_shuffle_sum_interal(const float value) {
   float sumv        = value;

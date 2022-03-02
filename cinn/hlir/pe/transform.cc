@@ -706,6 +706,26 @@ ir::Tensor Transpose(const ir::Tensor& input, const std::vector<int>& axis, cons
       output_name);
 }
 
+ir::Tensor IndexAssign(const ir::Tensor& input,
+                       const ir::Tensor& assign,
+                       const ir::Tensor& indexs,
+                       const std::string& output_name) {
+  CHECK_EQ(input->shape.size(), assign->shape.size())
+      << "Op IndexAssign's input 'input' and 'assign' shape size is not equal!";
+  CHECK_EQ(indexs->shape.size(), 1) << "Op IndexAssign's input 'indexs' shape size is not equal 1";
+  CHECK_EQ(assign->shape[0], indexs->shape[0]) << "Op IndexAssign's input 'assign' and 'indexs' shape[0] is not equal!";
+
+  return lang::Compute(
+      input->shape,
+      [=](const std::vector<Expr>& indice) {
+        std::vector<Expr> assign_indice = indice;
+        Expr index                      = lang::CallExtern("cinn_find_index", {indexs, indice[0], indexs->shape[0]});
+        assign_indice[0]                = index;
+        return ir::Select::Make(ir::EQ::Make(index, ir::Expr(-1)), input(indice), assign(assign_indice));
+      },
+      output_name);
+}
+
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn
