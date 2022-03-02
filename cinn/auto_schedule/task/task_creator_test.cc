@@ -61,9 +61,9 @@ TEST(TaskCreator, Basic) {
 
   ASSERT_EQ(tasks.size(), 2UL);
   for (TuneTask& task : tasks) {
-    std::vector<Node*>& sub_graph = task.SubGraph();
-    ASSERT_EQ(sub_graph.size(), 1UL);
-    ASSERT_EQ(sub_graph[0]->op()->name, "elementwise_add");
+    std::vector<Node*>& subgraph = task.subgraph();
+    ASSERT_EQ(subgraph.size(), 1UL);
+    ASSERT_EQ(subgraph[0]->op()->name, "elementwise_add");
   }
 }
 

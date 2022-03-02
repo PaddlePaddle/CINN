@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef _CINN__AUTO_SCHEDULE__COST_MODEL_
-#define _CINN__AUTO_SCHEDULE__COST_MODEL_
+#pragma once
 
 #include <pybind11/embed.h>
 
@@ -60,5 +59,3 @@ class CostModel {
 
 }  // namespace auto_schedule
 }  // namespace cinn
-
-#endif  // _CINN__AUTO_SCHEDULE__COST_MODEL_

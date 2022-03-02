@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef _CINN__AUTO_SCHEDULE__TASK__TUNE_TASK_
-#define _CINN__AUTO_SCHEDULE__TASK__TUNE_TASK_
+#pragma once
 
 #include <vector>
 
@@ -26,18 +25,16 @@ namespace auto_schedule {
 
 class TuneTask {
  public:
-  TuneTask(){};
+  TuneTask() = default;
 
-  std::vector<hlir::framework::Node*>& SubGraph() { return sub_graph_; }
+  std::vector<hlir::framework::Node*>& subgraph() { return subgraph_; }
 
-  TuneContext& TaskTuneContext() { return tune_context_; }
+  TuneContext& tune_context() { return tune_context_; }
 
  private:
-  std::vector<hlir::framework::Node*> sub_graph_;
+  std::vector<hlir::framework::Node*> subgraph_;
   TuneContext tune_context_;
 };
 
 }  // namespace auto_schedule
 }  // namespace cinn
-
-#endif  // _CINN__AUTO_SCHEDULE__TASK__TUNE_TASK_

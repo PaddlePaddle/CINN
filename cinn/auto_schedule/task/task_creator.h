@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef _CINN__AUTO_SCHEDULE__TASK__TASK_CREATOR_
-#define _CINN__AUTO_SCHEDULE__TASK__TASK_CREATOR_
+#pragma once
 
 #include <memory>
 #include <vector>
@@ -35,5 +34,3 @@ class TaskCreator {
 
 }  // namespace auto_schedule
 }  // namespace cinn
-
-#endif  // _CINN__AUTO_SCHEDULE__TASK__TUNE_TASK_

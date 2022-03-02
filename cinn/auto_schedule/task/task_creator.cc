@@ -39,7 +39,8 @@ std::vector<TuneTask> TaskCreator::CreateTuneTaskOpLevel(hlir::framework::Graph*
     if (op_node) {
       // n must be an op node
       ret_tasks.emplace_back(TuneTask());
-      ret_tasks.back().SubGraph().push_back(op_node);
+      ret_tasks.back().subgraph().push_back(op_node);
+      ret_tasks.back().tune_context().target = graph->target_;
     }
   }
 
