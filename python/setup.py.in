@@ -157,6 +157,13 @@ def git_commit():
     git_commit = git_commit.decode()
     return str(git_commit)
 
+packages = ["cinn",
+            "cinn.auto_schedule",
+            "cinn.auto_schedule.cost_model",
+            "cinn.ir",
+            "cinn.libs",
+            "cinn.version"
+            ]
 
 with redirect_stdout():
     setup(
@@ -167,6 +174,6 @@ with redirect_stdout():
         maintainer_email="Paddle-better@baidu.com",
         url='https://github.com/PaddlePaddle/CINN',
         license='Apache Software License',
-        packages=["cinn", "cinn.libs", "cinn.ir", "cinn.version"],
+        packages=packages,
         package_data=package_data
     )

@@ -19,6 +19,7 @@ workspace=$PWD
 build_dir_name=${cinn_build:-build}
 build_dir=$workspace/${build_dir_name}
 py_version=${py_version:-3.6}
+cinn_whl_path=python/dist/cinn-0.0.0-py3-none-any.whl
 
 #export LLVM11_DIR=${workspace}/THIRDS/usr
 
@@ -38,6 +39,7 @@ function mkldnn_off {
 
 
 function gpu_on {
+  cinn_whl_path=python/dist/cinn_gpu-0.0.0-py3-none-any.whl
   cuda_config=ON
   cudnn_config=ON
 }
@@ -106,7 +108,7 @@ function prepare_ci {
   pip install clang-format==9.0
   pip install wheel
   pip install sphinx==3.3.1 sphinx_gallery==0.8.1 recommonmark==0.6.0 exhale scipy breathe==4.24.0 matplotlib sphinx_rtd_theme
-  pip install paddlepaddle-gpu==2.2.1.post101 -f https://www.paddlepaddle.org.cn/whl/linux/mkl/avx/stable.html
+  pip install paddlepaddle-gpu==2.2.2.post101 -f https://www.paddlepaddle.org.cn/whl/linux/mkl/avx/stable.html
 }
 
 function prepare_doc_model_file {
@@ -234,6 +236,10 @@ function build {
     ctest -R "test_codegen_c$"
 
     make -j $JOBS
+
+    ls python/dist
+    pip${py_version} install xgboost
+    pip${py_version} install -U ${cinn_whl_path}
 }
 
 function run_demo {

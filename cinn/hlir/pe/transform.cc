@@ -25,6 +25,7 @@
 #include "cinn/ir/tensor.h"
 #include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"
+#include "cinn/utils/string.h"
 
 namespace cinn {
 namespace hlir {
@@ -673,7 +674,7 @@ ir::Tensor LayoutTransform(const Tensor& input,
 
 ir::Tensor Reverse(const ir::Tensor& input, const std::vector<int>& axis, const std::string& output_name) {
   for (auto& val : axis) {
-    CHECK(val >= 0 && val < input->shape.size()) << "axis should be [0,n_dim)";
+    CHECK(val >= 0 && val < static_cast<int>(input->shape.size())) << "axis should be [0,n_dim)";
   }
   std::vector<Expr> shape = input->shape;
   return lang::Compute(
@@ -724,6 +725,42 @@ ir::Tensor Transpose(const ir::Tensor& input, const std::vector<int>& axis, cons
         return input(indexs);
       },
       output_name);
+}
+
+ir::Tensor IndexSelect(const ir::Tensor& x,
+                       const ir::Tensor& index,
+                       const std::vector<Expr>& output_shape,
+                       int axis,
+                       const std::string& name) {
+  CHECK_EQ(1, static_cast<int>(index->shape.size())) << "The index should be a 1-D Tensor.";
+  // The implementation details are explained below.
+  // If output_shape = [2, 4, 3] and axis = 0, `Compute` can be translated as the following code:
+  // {
+  //   for (i, 0, 2)
+  //   {
+  //     for (j, 0, 4)
+  //     {
+  //       for (k, 0, 3)
+  //       {
+  //         index_select_output[i, j, k] = X[int32(Index[i]), j, k]
+  //       }
+  //     }
+  //   }
+  // }
+  auto output_tensor = Compute(
+      output_shape,
+      [x, index, axis](const std::vector<Expr>& indice) {
+        // 1) indice is got from `output_shape`
+        // 2) transformed_indice is used in the input `x`
+        std::vector<Expr> transformed_indice = indice;
+        // The element type of index maybe int64, but the index type is limited to int32 in CINN.
+        // See the below link for more details:
+        // https://github.com/PaddlePaddle/CINN/blob/85ab4981a38926dc5c1dbf672762cec335d2b857/cinn/ir/ir.cc#L477
+        transformed_indice[axis] = ir::Cast::Make(common::Int(32), index(indice[axis]));
+        return x(transformed_indice);
+      },
+      name);
+  return output_tensor;
 }
 
 }  // namespace pe

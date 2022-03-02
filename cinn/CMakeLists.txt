@@ -2,6 +2,7 @@ if (WITH_TESTING)
   cc_library(cinn_gtest_main SRCS gtest_main.cc DEPS gtest)
 endif()
 
+add_subdirectory(auto_schedule)
 add_subdirectory(common)
 add_subdirectory(utils)
 add_subdirectory(poly)
