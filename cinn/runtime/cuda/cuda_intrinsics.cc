@@ -89,7 +89,43 @@ CINN_REGISTER_HELPER(cuda_intrinsics) {
       .AddInputType<float>()
       .End();
 
+  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_block_reduce_prod_internal, target)
+      .SetRetType<float>()
+      .AddInputType<float>()
+      .End();
+
+  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_block_reduce_max_internal, target)
+      .SetRetType<float>()
+      .AddInputType<float>()
+      .End();
+
+  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_block_reduce_min_internal, target)
+      .SetRetType<float>()
+      .AddInputType<float>()
+      .End();
+
   REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_block_reduce_sum, target)
+      .SetRetType<float>()
+      .AddInputType<cinn_buffer_t *>()
+      .AddInputType<int>()
+      .AddInputType<int>()
+      .End();
+
+  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_block_reduce_prod, target)
+      .SetRetType<float>()
+      .AddInputType<cinn_buffer_t *>()
+      .AddInputType<int>()
+      .AddInputType<int>()
+      .End();
+
+  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_block_reduce_max, target)
+      .SetRetType<float>()
+      .AddInputType<cinn_buffer_t *>()
+      .AddInputType<int>()
+      .AddInputType<int>()
+      .End();
+
+  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_block_reduce_min, target)
       .SetRetType<float>()
       .AddInputType<cinn_buffer_t *>()
       .AddInputType<int>()
