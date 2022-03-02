@@ -38,17 +38,53 @@ Target GetTarget() {
 #endif
 }
 
+void SetRandData(hlir::framework::Tensor tensor, Target target) {
+  auto* data = tensor->mutable_data<float>(target);
+  std::random_device seed;
+  std::default_random_engine engine(seed());
+  std::uniform_real_distribution<float> dist(0.f, 1.f);
+  size_t num_ele = tensor->shape().numel();
+  std::vector<float> random_data(num_ele);
+  for (size_t i = 0; i < num_ele; i++) {
+    random_data[i] = dist(engine);  // All random data
+  }
+#ifdef CINN_WITH_CUDA
+  cudaMemcpy(data, random_data.data(), num_ele * sizeof(float), cudaMemcpyHostToDevice);
+#else
+  std::copy(random_data.begin(), random_data.end(), data);
+#endif
+}
+
 TEST(ReductionRewrite, nochange) {
   Target target = GetTarget();
   Program program;
-  Placeholder X(Float(32), {32, 16}, "X");
-  auto out = program.reduce_sum(X, {1});
+  Placeholder X(Float(32), {256, 256, 256}, "X");
+  auto out = program.reduce_min(X, {});
   program.SetInputs({X});
-  VLOG(1) << program;
+  size_t before_size = program.size();
   ProgramPass::Apply(&program, target, {"ReductionRewrite"});
+  size_t after_size = program.size();
+  ASSERT_EQ(before_size, after_size);
 }
 
-TEST(ReductionRewrite, basic) {}
+TEST(ReductionRewrite, basic) {
+  Target target = GetTarget();
+  Program program;
+  Placeholder X(Float(32), {256, 256, 256}, "X");
+  auto out = program.reduce_sum(X, {0, 2});
+  program.SetInputs({X});
+  VLOG(1) << "Before " << program;
+  ProgramPass::Apply(&program, target, {"ReductionRewrite"});
+  return;
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  hlir::framework::ApplyPasses(graph.get(), {"InferShape", "OpFusion"});
+  auto scope = hlir::framework::BuildScope(target, graph);
+  hlir::framework::GraphCompiler gc(target, scope, graph);
+  auto runtime_program = gc.Build();
+  scope->Var<hlir::framework::Tensor>("X");
+  SetRandData(scope->GetTensor("X"), target);
+  runtime_program->Execute();
+}
 
 TEST(ReductionRewrite, row) {}
 
