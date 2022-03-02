@@ -1,4 +1,4 @@
-// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+// Copyright (c) 2022 CINN Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,6 +17,9 @@
 
 namespace cinn::frontend::pass {
 
+// Rules that transpose can fold into dot:
+//   1) input operand of dot must be transpose;
+//   2) `axis` of tranpose must be consecutive;
 std::vector<Instruction*> TryFoldIntoDot(Instruction* dot,
                                          const absl::flat_hash_map<std::string, Instruction*>& var_instrs) {
   std::vector<Instruction*> remove_instrs;
@@ -44,6 +47,9 @@ std::vector<Instruction*> TryFoldIntoDot(Instruction* dot,
   return remove_instrs;
 }
 
+// Pass `TransposeFolding` folds transpose into dot, than it can be implemented by a GEMM kernel.
+// For each dot operator, try folding every input that belong output of transpose. If output of
+// tranpose in `fetch_ids`, keep the operator.
 void TransposeFolding(Program* program, const std::unordered_set<std::string>& fetch_ids) {
   absl::flat_hash_map<std::string, Instruction*> var_instrs;
   absl::flat_hash_set<Instruction*> remove_instrs;
@@ -52,6 +58,7 @@ void TransposeFolding(Program* program, const std::unordered_set<std::string>& f
     for (const auto& out : instr->outputs) {
       var_instrs[out->id] = &instr;
     }
+    // Operator dot is actually operator matmul.
     if ("matmul" == instr->op_type) {
       for (auto transpose : TryFoldIntoDot(&instr, var_instrs)) {
         if (fetch_ids.find((*transpose)->outputs[0]->id) == fetch_ids.end()) {
@@ -59,6 +66,7 @@ void TransposeFolding(Program* program, const std::unordered_set<std::string>& f
         }
       }
     } else {
+      // The output of transpose maybe used by other operators.
       for (const auto& in : instr->inputs) {
         auto iter = var_instrs.find(in->id);
         if (iter != var_instrs.end()) {
@@ -82,7 +90,7 @@ void TransposeFolding(Program* program, const std::unordered_set<std::string>& f
 
 CINN_REGISTER_HELPER(TransposeFolding) {
   CINN_REGISTER_PROGRAM_PASS_FUNCTION(TransposeFolding)
-      .describe("This pass folding transpose into dot.")
+      .describe("This pass folds transpose into dot.")
       .set_body(cinn::frontend::pass::TransposeFolding);
 
   return true;
