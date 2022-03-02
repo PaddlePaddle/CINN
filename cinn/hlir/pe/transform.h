@@ -161,6 +161,19 @@ ir::Tensor IndexAssign(const ir::Tensor& input,
                        const ir::Tensor& indexs,
                        const std::string& output_name = UniqName("T_IndexAssign_out"));
 
+/**
+ * @brief Perform meta op IndexAssign
+ * @param x The input tensor
+ * @param index The index tensor
+ * @param axis The axis to do select tensor
+ * @param output_name the name of the output tensor
+ */
+ir::Tensor IndexSelect(const ir::Tensor& x,
+                       const ir::Tensor& index,
+                       const std::vector<Expr>& output_shape,
+                       int axis                = 0,
+                       const std::string& name = UniqName("T_Transform_IndexSelect_out"));
+
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn
