@@ -152,14 +152,20 @@ ir::Tensor Transpose(const ir::Tensor& input,
 /**
  * @brief Perform meta op Split
  * @param A The input tensor
- * @param sections The sub-tensor length list among the axis dimension
  * @param axis split axis
+ * @param output_shapes The output sub-tensors shape
  * @param output_name the name of the output tensor
  */
 std::vector<ir::Tensor> Split(const ir::Tensor& A,
                               int axis,
                               const std::vector<std::vector<int>>& output_shapes,
                               const std::string& name);
+
+ir::Tensor IndexSelect(const ir::Tensor& x,
+                       const ir::Tensor& index,
+                       const std::vector<Expr>& output_shape,
+                       int axis                = 0,
+                       const std::string& name = UniqName("T_Transform_IndexSelect_out"));
 
 }  // namespace pe
 }  // namespace hlir
