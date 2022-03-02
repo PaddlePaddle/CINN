@@ -1391,19 +1391,6 @@ CINN_REGISTER_HELPER(transform_ops) {
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
 
-  CINN_REGISTER_OP(index_assign)
-      .describe("This operator is used to assign tensor B to tensor A by index.")
-      .set_num_inputs(3)
-      .set_num_outputs(1)
-      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForIndexAssign)
-      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForIndexAssign))
-      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForIndexAssign))
-#ifndef CINN_WITH_CUDA
-      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForIndexAssign))
-#endif
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kInjective)
-      .set_support_level(4);
-
   CINN_REGISTER_OP(concat)
       .describe("This operator is used to concat two input tensors X and Y on specified axis.")
       .set_num_inputs(2)
@@ -1496,6 +1483,17 @@ CINN_REGISTER_HELPER(transform_ops) {
 #ifndef CINN_WITH_CUDA
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForIndexSelect))
 #endif
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kInjective)
+      .set_support_level(4);
+
+  CINN_REGISTER_OP(index_assign)
+      .describe("This operator is used to assign tensor B to tensor A by index.")
+      .set_num_inputs(3)
+      .set_num_outputs(1)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForIndexAssign)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForIndexAssign))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForIndexAssign))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForIndexAssign))
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kInjective)
       .set_support_level(4);
 

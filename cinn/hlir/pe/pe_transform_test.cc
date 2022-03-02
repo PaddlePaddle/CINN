@@ -138,8 +138,6 @@ TEST(IndexAssign, IndexAssign_1) {
   backends::NVRTC_Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
-
-  LOG(INFO) << "compiled ptx:\n\n\n" << ptx;
   // cuda_module load ptx
   runtime::cuda::CUDAModule cuda_module(ptx, runtime::cuda::CUDAModule::Kind::PTX);
 }

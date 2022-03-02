@@ -37,6 +37,7 @@ void __cinn_host_tanh_v(const cinn_buffer_t* x, cinn_buffer_t* out) {
 }
 
 inline int cinn_host_find(const cinn_buffer_t* buf, int size, int num) {
+  // find the last index which satisfies buf[i] == num
   for (int i = size - 1; i >= 0; --i) {
     if (reinterpret_cast<int*>(buf->memory)[i] == num) return i;
   }

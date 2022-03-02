@@ -166,7 +166,7 @@ ir::Tensor IndexAssign(const ir::Tensor& A,
                        const ir::Tensor& Assign,
                        const ir::Tensor& Index,
                        const common::Target& target,
-                       int axis                       = 0,
+                       const int axis                 = 0,
                        const std::string& output_name = UniqName("T_Transform_IndexAssign_out"));
 
 }  // namespace pe
