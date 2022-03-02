@@ -24,4 +24,6 @@ extern "C" {
 //@{
 void __cinn_host_tanh_v(const cinn_buffer_t* x, cinn_buffer_t* out);
 //@}
+
+inline int cinn_find(const cinn_buffer_t* buf, int size, int num);
 }
