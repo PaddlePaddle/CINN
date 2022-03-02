@@ -106,9 +106,9 @@ class BaseBuilder {
 
   Variable Select(const Variable& condition, const Variable& true_value, const Variable& false_value);
 
-  Variable IndexSelect(const Variable& x, const Variable& index, int axis = 0);
+  Variable IndexSelect(const Variable& operand, const Variable& index, int axis = 0);
 
-  Variable IndexAssign(const Variable& A, const Variable& B, const Variable& index, int axis = 0);
+  Variable IndexAssign(const Variable& operand, const Variable& assign, const Variable& index, int axis = 0);
 
  protected:
   void InferShape(Instruction instr) const;

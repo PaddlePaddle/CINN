@@ -32,7 +32,7 @@ namespace hlir {
 namespace pe {
 using ir::Tensor;
 
-TEST(MatmulPE, PE_Matmul_Test0) {
+TEST(MatmulPE, MatmulCase1) {
   int m = 100;
   int n = 32;
   int k = 16;
@@ -98,7 +98,7 @@ TEST(MatmulPE, PE_Matmul_Test0) {
   }
 }
 
-TEST(IndexAssign, IndexAssign_1) {
+TEST(IndexAssign, IndexAssignCase1) {
   int m = 128;
   int n = 32;
   int k = 32;

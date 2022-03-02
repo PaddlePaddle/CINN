@@ -116,5 +116,15 @@ class TestIndexAssignCase3(TestIndexAssignOp):
         self.axis = -1
 
 
+class TestIndexAssignCase4(TestIndexAssignOp):
+    def init_case(self):
+        self.inputs = {
+            "x": np.random.random([10, 5]).astype("float32"),
+            "y": np.random.random([3, 5]).astype("float32"),
+            "index": np.array([0, 5, 0])
+        }
+        self.axis = 0
+
+
 if __name__ == "__main__":
     unittest.main()

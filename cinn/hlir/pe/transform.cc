@@ -743,9 +743,9 @@ ir::Tensor IndexSelect(const ir::Tensor& x,
   return output_tensor;
 }
 
-ir::Tensor IndexAssign(const ir::Tensor& A,
-                       const ir::Tensor& Assign,
-                       const ir::Tensor& Index,
+ir::Tensor IndexAssign(const ir::Tensor& input,
+                       const ir::Tensor& assign,
+                       const ir::Tensor& index,
                        const common::Target& target,
                        const int axis,
                        const std::string& output_name) {
@@ -760,21 +760,21 @@ ir::Tensor IndexAssign(const ir::Tensor& A,
   }
 
   auto pos_axis = axis;
-  if (pos_axis < 0) pos_axis += A->shape.size();
+  if (pos_axis < 0) pos_axis += input->shape.size();
 
   auto res = Compute(
-      A->shape,
+      input->shape,
       [=](const std::vector<Expr>& indice) {
         // find whether indice[axis] in Index,
         // then return id if found Index[id] == indice[axis]
         // else return -1
-        auto id = lang::CallExtern(extern_fun_name, {Index, Index->shape[0], indice[pos_axis]});
+        auto id = lang::CallExtern(extern_fun_name, {index, index->shape[0], indice[pos_axis]});
 
         std::vector<Expr> indice_assign = indice;
         indice_assign[pos_axis]         = id;
 
         // check wheter Index[id] == cur_index and return by check result
-        return ir::Select::Make(ir::EQ::Make(id, Expr(-1)), A(indice), Assign(indice_assign));
+        return ir::Select::Make(ir::EQ::Make(id, Expr(-1)), input(indice), assign(indice_assign));
       },
       UniqName(output_name));
   return res;

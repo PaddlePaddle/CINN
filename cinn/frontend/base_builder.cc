@@ -180,16 +180,16 @@ Variable BaseBuilder::Select(const Variable& condition, const Variable& true_val
   return instr.GetOutput(0);
 }
 
-Variable BaseBuilder::IndexSelect(const Variable& x, const Variable& index, int axis) {
-  Instruction instr("index_select", {x, index});
+Variable BaseBuilder::IndexSelect(const Variable& operand, const Variable& index, int axis) {
+  Instruction instr("index_select", {operand, index});
   instr.SetAttr("axis", axis);
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(0);
 }
 
-Variable BaseBuilder::IndexAssign(const Variable& A, const Variable& B, const Variable& index, int axis) {
-  Instruction instr("index_assign", {A, B, index});
+Variable BaseBuilder::IndexAssign(const Variable& operand, const Variable& assign, const Variable& index, int axis) {
+  Instruction instr("index_assign", {operand, assign, index});
   instr.SetAttr("axis", axis);
   InferShape(instr);
   AppendInstruction(instr);

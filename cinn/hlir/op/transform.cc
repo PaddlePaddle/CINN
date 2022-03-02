@@ -1260,25 +1260,26 @@ std::shared_ptr<OpStrategy> StrategyForIndexAssign(const framework::NodeAttr &at
 
   framework::CINNCompute index_assign_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input arguments of IndexAssign compute is empty! Please check.\n";
-    CINNValuePack a = args[0];
-    int input_size  = a.size();
+    CINNValuePack arg_pack = args[0];
+    int input_size         = arg_pack.size();
     CHECK_GE(input_size, 3U) << "at least 3 input tensors for IndexAssign compute\n";
     CHECK(!output_shapes.empty());
 
-    Expr expr_A = a[0];
-    CHECK(expr_A.as_tensor());
-    auto tensor_A = expr_A.as_tensor_ref();
+    Expr expr_input = arg_pack[0];
+    CHECK(expr_input.as_tensor());
+    auto tensor_input = expr_input.as_tensor_ref();
 
-    Expr expr_B = a[1];
-    CHECK(expr_B.as_tensor());
-    auto tensor_B = expr_B.as_tensor_ref();
+    Expr expr_assign = arg_pack[1];
+    CHECK(expr_assign.as_tensor());
+    auto tensor_assign = expr_assign.as_tensor_ref();
 
-    Expr expr_index = a[2];
+    Expr expr_index = arg_pack[2];
     CHECK(expr_index.as_tensor());
     auto tensor_index = expr_index.as_tensor_ref();
 
-    auto stages = CreateStages({tensor_A, tensor_B, tensor_index});
-    auto out    = pe::IndexAssign(tensor_A, tensor_B, tensor_index, target, axis, UniqName("index_assign_output"));
+    auto stages = CreateStages({tensor_input, tensor_assign, tensor_index});
+    auto out =
+        pe::IndexAssign(tensor_input, tensor_assign, tensor_index, target, axis, UniqName("index_assign_output"));
 
     std::vector<CINNValue> res;
     stages->InsertLazily(out);
@@ -1312,36 +1313,36 @@ std::vector<std::vector<int>> InferShapeForIndexAssign(const std::vector<std::ve
                                                        const framework::AttrMapType &attrs) {
   CHECK_GE(inputs_shape.size(), 3U) << "The input's shape size should be no less than 3! Please check again.";
 
-  const auto &a_shape     = inputs_shape[0];
-  const auto &b_shape     = inputs_shape[1];
-  const auto &index_shape = inputs_shape[2];
+  const auto &input_shape  = inputs_shape[0];
+  const auto &assign_shape = inputs_shape[1];
+  const auto &index_shape  = inputs_shape[2];
 
   int axis = 0;
   if (attrs.find("axis") != attrs.end()) {
     axis = absl::get<int>(attrs.at("axis"));
   }
 
-  if (axis < 0) axis += a_shape.size();
+  if (axis < 0) axis += input_shape.size();
 
-  CHECK(axis >= 0 && axis < a_shape.size())
+  CHECK(axis >= 0 && axis < input_shape.size())
       << "In IndexAssign op, the attribute `axis` should be >= 0 and < input shape's size! Please check.";
   CHECK_EQ(index_shape.size(), 1U) << "Dimensions of index tensor in IndexAssign should be 1! Please check.";
-  CHECK_EQ(a_shape.size(), b_shape.size())
+  CHECK_EQ(input_shape.size(), assign_shape.size())
       << "Dimensions of inputs A and B in IndexAssign should be equal! Please check.";
-  CHECK_EQ(b_shape[axis], index_shape[0])
+  CHECK_EQ(assign_shape[axis], index_shape[0])
       << "The first dimension of input B and index tensor in IndexAssign should be equal! Please check.";
-  for (int i = 0; i < a_shape.size(); ++i) {
+  for (int i = 0; i < input_shape.size(); ++i) {
     if (i != axis) {
-      CHECK_EQ(a_shape[i], b_shape[i])
+      CHECK_EQ(input_shape[i], assign_shape[i])
           << "The " << i << "-th dimension of input A and B in IndexAssign should be equal! Please check.";
     }
   }
 
-  VLOG(4) << "Each input tensor's shape of IndexAssign: A(" << cinn::utils::Join(a_shape, ",") << "), B("
-          << cinn::utils::Join(b_shape, ",") << "), index(" << cinn::utils::Join(index_shape, ",") << ")"
+  VLOG(4) << "Each input tensor's shape of IndexAssign: A(" << cinn::utils::Join(input_shape, ",") << "), B("
+          << cinn::utils::Join(assign_shape, ",") << "), index(" << cinn::utils::Join(index_shape, ",") << ")"
           << " at axis (" << axis << ")";
 
-  return {a_shape};
+  return {input_shape};
 }
 
 std::vector<Type> InferDtypeForIndexAssign(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {

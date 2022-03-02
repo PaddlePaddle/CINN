@@ -162,9 +162,9 @@ ir::Tensor IndexSelect(const ir::Tensor& x,
  * @param indexs The indexs tensor
  * @param output_name the name of the output tensor
  */
-ir::Tensor IndexAssign(const ir::Tensor& A,
-                       const ir::Tensor& Assign,
-                       const ir::Tensor& Index,
+ir::Tensor IndexAssign(const ir::Tensor& input,
+                       const ir::Tensor& assign,
+                       const ir::Tensor& index,
                        const common::Target& target,
                        const int axis                 = 0,
                        const std::string& output_name = UniqName("T_Transform_IndexAssign_out"));
