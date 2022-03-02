@@ -757,6 +757,9 @@ ir::Tensor IndexAssign(const ir::Tensor& A,
   } else {
     LOG(FATAL) << "IndexAssign only support X86 and NVGPU ! Please Check.\n";
   }
+
+  if (axis < 0) axis += A->shape.size();
+
   auto res = Compute(
       A->shape,
       [=](const std::vector<Expr>& indice) {
