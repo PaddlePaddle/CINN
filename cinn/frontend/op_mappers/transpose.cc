@@ -30,7 +30,7 @@ void TransposeOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
   VLOG(4) << "x shape: " << cinn::utils::Join(x->shape, ",");
   VLOG(4) << "transpose perm : " << cinn::utils::Join(axis, ",");
 
-  auto out = ctx.Builder()->transpose(x, axis);
+  auto out = ctx.Builder()->Transpose(x, axis);
 
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
   auto out_name = op_desc.Output("Out").front();
@@ -48,7 +48,7 @@ void Transpose2OpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContex
   VLOG(4) << "x shape: " << cinn::utils::Join(x->shape, ",");
   VLOG(4) << "transpose2 perm : " << cinn::utils::Join(axis, ",");
 
-  auto out = ctx.Builder()->transpose(x, axis);
+  auto out = ctx.Builder()->Transpose(x, axis);
 
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
   auto out_name = op_desc.Output("Out").front();
@@ -63,7 +63,7 @@ void Transpose2OpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContex
   CHECK_EQ(op_desc.Output("XShape").size(), 1UL);
   auto xshape_name = op_desc.Output("XShape").front();
 
-  auto xshape = ctx.Builder()->identity(x);
+  auto xshape = ctx.Builder()->Identity(x);
 
   ctx.AddVar(xshape_name, xshape);
   ctx.AddVarModelToProgram(xshape_name, xshape->id);

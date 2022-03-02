@@ -19,7 +19,7 @@ namespace cinn::frontend {
 TEST(Decomposer, relu) {
   NetBuilder builder("relu");
   auto x   = builder.CreateInput(Float(32), {20, 10}, "x");
-  auto out = builder.relu(x);
+  auto out = builder.Relu(x);
 
   auto relu_cpu = [](const std::vector<size_t>& lengths, const std::vector<void*>& ptrs) {
     size_t n   = lengths[0];
@@ -41,7 +41,7 @@ TEST(Decomposer, relu_grad) {
   NetBuilder builder("relu_grad");
   auto dout = builder.CreateInput(Float(32), {20, 10}, "dout");
   auto out  = builder.CreateInput(Float(32), {20, 10}, "out");
-  auto dx   = builder.relu_grad(dout, out);
+  auto dx   = builder.ReluGrad(dout, out);
 
   auto relu_grad_cpu = [](const std::vector<size_t>& lengths, const std::vector<void*>& ptrs) {
     size_t n    = lengths[0];

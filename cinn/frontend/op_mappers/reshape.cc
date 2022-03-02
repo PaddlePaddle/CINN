@@ -30,7 +30,7 @@ void ReshapeOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& 
   VLOG(4) << "x shape: " << cinn::utils::Join(x->shape, ",");
   VLOG(4) << "reshape to : " << cinn::utils::Join(shape, ",");
 
-  auto out = ctx.Builder()->reshape(x, shape);
+  auto out = ctx.Builder()->Reshape(x, shape);
 
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
   auto out_name = op_desc.Output("Out").front();
@@ -56,7 +56,7 @@ void ReshapeGradOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperConte
   auto x = get_input_var("X");
   VLOG(4) << "x shape: " << cinn::utils::Join(x->shape, ",");
 
-  auto out = ctx.Builder()->reshape(dout, x->shape);
+  auto out = ctx.Builder()->Reshape(dout, x->shape);
 
   auto out_name = get_output_name(paddle::GradVarName("X"));
   ctx.AddVar(out_name, out);
@@ -73,7 +73,7 @@ void Reshape2OpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext&
   VLOG(4) << "x shape: " << cinn::utils::Join(x->shape, ",");
   VLOG(4) << "reshape to : " << cinn::utils::Join(shape, ",");
 
-  auto out = ctx.Builder()->reshape(x, shape);
+  auto out = ctx.Builder()->Reshape(x, shape);
 
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
   auto out_name = op_desc.Output("Out").front();
@@ -88,7 +88,7 @@ void Reshape2OpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext&
   CHECK_EQ(op_desc.Output("XShape").size(), 1UL);
   auto xshape_name = op_desc.Output("XShape").front();
 
-  auto xshape = ctx.Builder()->identity(x);
+  auto xshape = ctx.Builder()->Identity(x);
 
   ctx.AddVar(xshape_name, xshape);
   ctx.AddVarModelToProgram(xshape_name, xshape->id);
@@ -112,7 +112,7 @@ void Reshape2GradOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperCont
   auto xshape = get_input_var("XShape");
   VLOG(4) << "x shape: " << cinn::utils::Join(xshape->shape, ",");
 
-  auto out = ctx.Builder()->reshape(dout, xshape->shape);
+  auto out = ctx.Builder()->Reshape(dout, xshape->shape);
 
   auto out_name = get_output_name(paddle::GradVarName("X"));
   ctx.AddVar(out_name, out);

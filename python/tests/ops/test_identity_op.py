@@ -14,39 +14,47 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cinn
-import numpy as np
-import paddle
 import unittest
-
+import numpy as np
+from op_test import OpTest, OpTestTool
+import paddle
+import cinn
 from cinn.frontend import *
 from cinn.common import *
-from op_test import OpTest, OpTestTool
 
 
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
                     "x86 test will be skipped due to timeout.")
-class TestTransposeOp(OpTest):
+class TestIdentityOp(OpTest):
     def setUp(self):
         self.init_case()
 
     def init_case(self):
-        self.inputs = {"x": np.random.random([2, 3]).astype("float32")}
+        self.inputs = {
+            "x": np.random.random([
+                32,
+                64,
+            ]).astype("float32")
+        }
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.inputs["x"], stop_gradient=True)
-        out = paddle.transpose(x, [1, 0])
+        out = x
+
         self.paddle_outputs = [out]
 
+    # Note: If the forward and backward operators are run in the same program,
+    # the forward result will be incorrect.
     def build_cinn_program(self, target):
-        builder = NetBuilder("transpose_test")
+        builder = NetBuilder("identity")
         x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
-        out = builder.transpose(x, [1, 0])
+        out = builder.identity(x)
 
         prog = builder.build()
         res = self.get_cinn_output(prog, target, [x], [self.inputs["x"]],
                                    [out])
-        self.cinn_outputs = [res[0]]
+
+        self.cinn_outputs = res
 
     def test_check_results(self):
         self.check_outputs_and_grads()

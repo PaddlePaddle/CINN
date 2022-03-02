@@ -29,7 +29,7 @@ void AddOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx)
 
   auto x   = ctx.GetVar(x_name);
   auto y   = ctx.GetVar(y_name);
-  auto out = ctx.Builder()->add(x, y);
+  auto out = ctx.Builder()->Add(x, y);
 
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);
@@ -47,7 +47,7 @@ void ElementwiseAddOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperCo
 
   auto x   = ctx.GetVar(x_name);
   auto y   = ctx.GetVar(y_name);
-  auto out = ctx.Builder()->elementwise_add(x, y, axis);
+  auto out = ctx.Builder()->ElementwiseAdd(x, y, axis);
 
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);
@@ -71,7 +71,7 @@ void ElementwiseAddGradOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapp
   auto x    = ctx.GetVar(x_name);
   auto y    = ctx.GetVar(y_name);
   auto dout = ctx.GetVar(dout_name);
-  auto outs = ctx.Builder()->elementwise_add_grad(dout, x, y, axis);
+  auto outs = ctx.Builder()->ElementwiseAddGrad(dout, x, y, axis);
   CHECK_EQ(outs.size(), 2) << "elementwise_add_grad should return 2 variables";
 
   auto dx = outs.front();
@@ -94,7 +94,7 @@ void ElementwiseMulOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperCo
 
   auto x   = ctx.GetVar(x_name);
   auto y   = ctx.GetVar(y_name);
-  auto out = ctx.Builder()->elementwise_mul(x, y, axis);
+  auto out = ctx.Builder()->ElementwiseMul(x, y, axis);
 
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);
@@ -109,7 +109,7 @@ void SumOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx)
     xs.emplace_back(ctx.GetVar(name));
   }
 
-  auto out = ctx.Builder()->sum(xs);
+  auto out = ctx.Builder()->Sum(xs);
 
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
   auto out_name = op_desc.Output("Out").front();

@@ -42,7 +42,7 @@ void Conv2dOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
   auto padding_algorithm = utils::GetAttrOrDefault<std::string>(op_desc, "padding_algorithm", "EXPLICIT");
   auto x                 = ctx.GetVar(x_name);
   Variable y             = ctx.GetVar(y_name);
-  auto out = ctx.Builder()->conv2d(x, y, strides, paddings, dilations, groups, data_format, padding_algorithm);
+  auto out = ctx.Builder()->Conv2d(x, y, strides, paddings, dilations, groups, data_format, padding_algorithm);
 
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);
@@ -73,9 +73,9 @@ void DepthwiseConv2dOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperC
 
   Variable out;
   if (ctx.Target().arch == Target::Arch::X86) {
-    out = ctx.Builder()->conv2d(x, y, strides, paddings, dilations, groups, data_format, padding_algorithm);
+    out = ctx.Builder()->Conv2d(x, y, strides, paddings, dilations, groups, data_format, padding_algorithm);
   } else {
-    out = ctx.Builder()->depthwise_conv2d(x, y, strides, paddings, dilations, groups, data_format, padding_algorithm);
+    out = ctx.Builder()->DepthwiseConv2d(x, y, strides, paddings, dilations, groups, data_format, padding_algorithm);
   }
 
   ctx.AddVar(out_name, out);
@@ -121,7 +121,7 @@ void Conv2dGradOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContex
   auto weight = ctx.GetVar(w_name);
 
   auto out =
-      ctx.Builder()->conv2d_grad(dy, x, weight, strides, paddings, dilations, groups, data_format, padding_algorithm);
+      ctx.Builder()->Conv2dGrad(dy, x, weight, strides, paddings, dilations, groups, data_format, padding_algorithm);
 
   if (has_dx) {
     ctx.AddVar(dx_name, out[0]);
