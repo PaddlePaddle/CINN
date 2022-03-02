@@ -180,6 +180,14 @@ Variable BaseBuilder::Select(const Variable& condition, const Variable& true_val
   return instr.GetOutput(0);
 }
 
+Variable BaseBuilder::IndexSelect(const Variable& x, const Variable& index, int axis) {
+  Instruction instr("index_select", {x, index});
+  instr.SetAttr("axis", axis);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
 Variable BaseBuilder::UnaryOp(const std::string& op_type, const Variable& operand) {
   Instruction instr(op_type, {operand});
   InferShape(instr);

@@ -63,6 +63,9 @@ struct Cast : public ExprNode<Cast> {
   void Verify() const override;
 
   static const IrNodeTy _node_type_ = IrNodeTy::Cast;
+
+  std::vector<Expr*> expr_fields() override { return {&operand(0)}; }
+  std::vector<const Expr*> expr_fields() const override { return {&operand(0)}; }
 };
 
 /**

@@ -149,6 +149,12 @@ ir::Tensor Transpose(const ir::Tensor& input,
                      const std::vector<int>& axis,
                      const std::string& output_name = UniqName("T_Transpose_out"));
 
+ir::Tensor IndexSelect(const ir::Tensor& x,
+                       const ir::Tensor& index,
+                       const std::vector<Expr>& output_shape,
+                       int axis                = 0,
+                       const std::string& name = UniqName("T_Transform_IndexSelect_out"));
+
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn
