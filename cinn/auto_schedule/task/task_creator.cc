@@ -30,16 +30,28 @@ using ::cinn::hlir::framework::Node;
 
 std::vector<TuneTask> TaskCreator::CreateTuneTaskOpLevel(hlir::framework::Graph* graph) {
   std::vector<TuneTask> ret_tasks;
+
+  const std::vector<std::vector<Node*>>& groups = graph->groups;
+
+  // The input graph has run Op Fusion
+  if (!groups.empty()) {
+    for (const std::vector<Node*>& sub_graph : groups) {
+      ret_tasks.emplace_back(TuneTask());
+      ret_tasks.back().task_graph().push_back(sub_graph);
+      ret_tasks.back().tune_context().target = graph->target_;
+    }
+    return ret_tasks;
+  }
+
+  // The input graph hasn't run Op Fusion
   std::tuple<std::vector<GraphNode*>, std::vector<GraphEdge*>> topo_result = graph->topological_order();
-
-  const std::vector<GraphNode*>& nodes = std::get<0>(topo_result);
-
+  const std::vector<GraphNode*>& nodes                                     = std::get<0>(topo_result);
   for (GraphNode* n : nodes) {
     Node* op_node = n->safe_as<Node>();
     if (op_node) {
       // n must be an op node
       ret_tasks.emplace_back(TuneTask());
-      ret_tasks.back().subgraph().push_back(op_node);
+      ret_tasks.back().task_graph().push_back(std::vector<Node*>(1, op_node));
       ret_tasks.back().tune_context().target = graph->target_;
     }
   }

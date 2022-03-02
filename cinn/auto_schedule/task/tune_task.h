@@ -27,12 +27,16 @@ class TuneTask {
  public:
   TuneTask() = default;
 
-  std::vector<hlir::framework::Node*>& subgraph() { return subgraph_; }
+  std::vector<std::vector<hlir::framework::Node*>>& task_graph() { return task_graph_; }
 
   TuneContext& tune_context() { return tune_context_; }
 
  private:
-  std::vector<hlir::framework::Node*> subgraph_;
+  // In CINN, we use std::vector<hlir::framework::Node*> to represent a fused
+  // sub-graph (if an op won't be fused, it will be a vector with size=1). So
+  // the task_graph_ consist of multiple "fused sub-graph" / "unfused op"
+  std::vector<std::vector<hlir::framework::Node*>> task_graph_;
+  // Context of a tune task
   TuneContext tune_context_;
 };
 
