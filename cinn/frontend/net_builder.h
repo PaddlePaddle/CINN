@@ -31,10 +31,11 @@ namespace frontend {
     macro__(Sigmoid)                            \
     macro__(Identity)
 
+// Matmul not MatMul is not mistake, the SnakeName function in pybind need this name type
 #define NETBUILDER_BINARY_OP_FOREACH(macro__)   \
     macro__(Sub)                                \
     macro__(Div)                                \
-    macro__(MatMul)                             \
+    macro__(Matmul)                             \
     macro__(ReluGrad)
 // clang-format on
 

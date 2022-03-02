@@ -35,7 +35,7 @@ NETBUILDER_UNARY_OP_DEF(Identity, identity)
   Variable NetBuilder::func_name__(const Variable& lhs, const Variable& rhs) { return BinaryOp(#op_type__, lhs, rhs); }
 NETBUILDER_BINARY_OP_DEF(Sub, substract)
 NETBUILDER_BINARY_OP_DEF(Div, divide)
-NETBUILDER_BINARY_OP_DEF(MatMul, matmul)
+NETBUILDER_BINARY_OP_DEF(Matmul, matmul)
 NETBUILDER_BINARY_OP_DEF(ReluGrad, relu_grad)
 
 Variable NetBuilder::Mul(const Variable& a, const Variable& b, int x_num_col_dims, int y_num_col_dims) {
