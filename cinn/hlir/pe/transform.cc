@@ -150,26 +150,6 @@ ir::Tensor Reshape(const ir::Tensor& A, const std::vector<int>& new_shape, const
   return res;
 }
 
-ir::Tensor IndexAssign(
-    const ir::Tensor& A, const ir::Tensor& Assign, const ir::Tensor& Index, int axis, const std::string& output_name) {
-  auto res = Compute(
-      A->shape,
-      [=](const std::vector<Expr>& indice) {
-        // find whether indice[axis] in Index,
-        // then return id if found Index[id] == indice[axis]
-        // else return -1
-        auto id = lang::CallExtern("cinn_find", {Index, Index->shape[0], indice[axis]});
-
-        std::vector<Expr> indice_assign = indice;
-        indice_assign[axis]             = id;
-
-        // check wheter Index[id] == cur_index and return by check result
-        return ir::Select::Make(ir::EQ::Make(id, Expr(-1)), A(indice), Assign(indice_assign));
-      },
-      UniqName(output_name));
-  return res;
-}
-
 ir::Tensor Concat(const ir::Tensor& A, const ir::Tensor& B, int axis, const std::string& name) {
   if (axis < 0) axis += A->shape.size();
   CHECK_EQ(A->shape.size(), B->shape.size()) << "Dimensions of inputs A and B in Concat should be equal! Please check.";
@@ -761,6 +741,38 @@ ir::Tensor IndexSelect(const ir::Tensor& x,
       },
       name);
   return output_tensor;
+}
+
+ir::Tensor IndexAssign(const ir::Tensor& A,
+                       const ir::Tensor& Assign,
+                       const ir::Tensor& Index,
+                       const common::Target& target,
+                       int axis,
+                       const std::string& output_name) {
+  std::string extern_fun_name;
+  if (target.arch == common::Target::Arch::NVGPU) {
+    extern_fun_name.assign("cinn_cuda_find");
+  } else if (target.arch == common::Target::Arch::X86) {
+    extern_fun_name.assign("cinn_host_find");
+  } else {
+    LOG(FATAL) << "IndexAssign only support X86 and NVGPU ! Please Check.\n";
+  }
+  auto res = Compute(
+      A->shape,
+      [=](const std::vector<Expr>& indice) {
+        // find whether indice[axis] in Index,
+        // then return id if found Index[id] == indice[axis]
+        // else return -1
+        auto id = lang::CallExtern("cinn_cuda_find", {Index, Index->shape[0], indice[axis]});
+
+        std::vector<Expr> indice_assign = indice;
+        indice_assign[axis]             = id;
+
+        // check wheter Index[id] == cur_index and return by check result
+        return ir::Select::Make(ir::EQ::Make(id, Expr(-1)), A(indice), Assign(indice_assign));
+      },
+      UniqName(output_name));
+  return res;
 }
 
 }  // namespace pe

@@ -52,12 +52,6 @@ ir::Tensor Reshape(const ir::Tensor& A,
                    poly::StageMap stages,
                    const std::string& name);
 
-ir::Tensor IndexAssign(const ir::Tensor& A,
-                       const ir::Tensor& Assign,
-                       const ir::Tensor& Index,
-                       int axis                       = 0,
-                       const std::string& output_name = UniqName("T_Transform_IndexAssign_out"));
-
 ir::Tensor Reshape(const ir::Tensor& A,
                    const std::vector<int>& new_shape,
                    const std::string& name = UniqName("T_Transform_Matmul_out"));
@@ -160,6 +154,20 @@ ir::Tensor IndexSelect(const ir::Tensor& x,
                        const std::vector<Expr>& output_shape,
                        int axis                = 0,
                        const std::string& name = UniqName("T_Transform_IndexSelect_out"));
+
+/**
+ * @brief Perform meta op IndexAssign
+ * @param input The input tensor
+ * @param assign The assign tensor
+ * @param indexs The indexs tensor
+ * @param output_name the name of the output tensor
+ */
+ir::Tensor IndexAssign(const ir::Tensor& A,
+                       const ir::Tensor& Assign,
+                       const ir::Tensor& Index,
+                       const common::Target& target,
+                       int axis                       = 0,
+                       const std::string& output_name = UniqName("T_Transform_IndexAssign_out"));
 
 }  // namespace pe
 }  // namespace hlir

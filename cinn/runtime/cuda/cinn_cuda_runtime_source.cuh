@@ -117,7 +117,7 @@ __device__ inline float cinn_block_reduce_sum(const float *buf, int offset, int 
 }
 
 // TODO: modify buf's type from float to T when CINN support other type tensor
-__device__ inline int cinn_find(const float *buf, int size, int num) {
+__device__ inline int cinn_cuda_find(const float *buf, int size, int num) {
   for (int i = size - 1; i >= 0; --i) {
     if (static_cast<int>(buf[i]) == num) return i;
   }
