@@ -121,7 +121,7 @@ void SumOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx)
 }  // namespace frontend
 }  // namespace cinn
 
-CINN_REGISTER_HELPER(elementwise) {
+CINN_REGISTER_HELPER(paddle_elementwise) {
   CINN_REGISTER_OP_MAPPER(add, cinn::frontend::paddle_mappers::AddOpMapper)
   CINN_REGISTER_OP_MAPPER(elementwise_add, cinn::frontend::paddle_mappers::ElementwiseAddOpMapper)
   CINN_REGISTER_OP_MAPPER(elementwise_add_grad, cinn::frontend::paddle_mappers::ElementwiseAddGradOpMapper)

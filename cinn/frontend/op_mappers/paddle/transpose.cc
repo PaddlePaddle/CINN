@@ -73,7 +73,7 @@ void Transpose2OpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContex
 }  // namespace frontend
 }  // namespace cinn
 
-CINN_REGISTER_HELPER(transpose) {
+CINN_REGISTER_HELPER(paddle_transpose) {
   CINN_REGISTER_OP_MAPPER(transpose, cinn::frontend::paddle_mappers::TransposeOpMapper)
   CINN_REGISTER_OP_MAPPER(transpose2, cinn::frontend::paddle_mappers::Transpose2OpMapper)
   return true;

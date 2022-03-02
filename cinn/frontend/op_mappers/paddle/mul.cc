@@ -126,7 +126,7 @@ void MulBiasOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& 
 }  // namespace frontend
 }  // namespace cinn
 
-CINN_REGISTER_HELPER(mul) {
+CINN_REGISTER_HELPER(paddle_mul) {
   CINN_REGISTER_OP_MAPPER(mul, cinn::frontend::paddle_mappers::MulOpMapper)
   CINN_REGISTER_OP_MAPPER(mulbias, cinn::frontend::paddle_mappers::MulBiasOpMapper)
   return true;

@@ -65,7 +65,7 @@ void ReluGradOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext&
 }  // namespace frontend
 }  // namespace cinn
 
-CINN_REGISTER_HELPER(relu) {
+CINN_REGISTER_HELPER(paddle_relu) {
   CINN_REGISTER_OP_MAPPER(relu, cinn::frontend::paddle_mappers::ReluOpMapper)
   CINN_REGISTER_OP_MAPPER(relu_grad, cinn::frontend::paddle_mappers::ReluGradOpMapper)
   CINN_REGISTER_OP_MAPPER(relu6, cinn::frontend::paddle_mappers::Relu6OpMapper)

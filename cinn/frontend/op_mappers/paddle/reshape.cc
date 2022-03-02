@@ -123,7 +123,7 @@ void Reshape2GradOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperCont
 }  // namespace frontend
 }  // namespace cinn
 
-CINN_REGISTER_HELPER(reshape) {
+CINN_REGISTER_HELPER(paddle_reshape) {
   CINN_REGISTER_OP_MAPPER(reshape, cinn::frontend::paddle_mappers::ReshapeOpMapper)
   CINN_REGISTER_OP_MAPPER(reshape2, cinn::frontend::paddle_mappers::Reshape2OpMapper)
 

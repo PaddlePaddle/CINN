@@ -108,6 +108,27 @@ void SliceSelectOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperConte
   ctx.AddVarModelToProgram(out_name, out->id);
 }
 
+void ReduceOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+  CHECK_EQ(op_desc.Input("X").size(), 1UL);
+  auto x_name = op_desc.Input("X").front();
+  CHECK_EQ(op_desc.Output("Y").size(), 1UL);
+  auto out_name = op_desc.Output("Y").front();
+
+  auto axis    = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "axis");
+  auto keepdim = utils::GetAttrOrDefault<bool>(op_desc, "keepdim", false);
+
+  auto x = ctx.GetVar(x_name);
+
+  VLOG(4) << "Reudce " << x_name << " from shape (" << cinn::utils::Join(x->shape, ",")
+          << "), now only support reduce_sum.";
+
+  // now paddle science only need reduce sum
+  auto out = ctx.Builder()->ReduceSum(x, axis, keepdim);
+
+  ctx.AddVar(out_name, out);
+  ctx.AddVarModelToProgram(out_name, out->id);
+}
+
 }  // namespace science_mappers
 }  // namespace frontend
 }  // namespace cinn
@@ -117,5 +138,6 @@ CINN_REGISTER_HELPER(science_transform) {
   CINN_REGISTER_OP_MAPPER(reshape_p, cinn::frontend::science_mappers::ReshapeOpMapper)
   CINN_REGISTER_OP_MAPPER(transpose_p, cinn::frontend::science_mappers::TransposeOpMapper)
   CINN_REGISTER_OP_MAPPER(slice_select_p, cinn::frontend::science_mappers::SliceSelectOpMapper)
+  CINN_REGISTER_OP_MAPPER(reduce_p, cinn::frontend::science_mappers::ReduceOpMapper)
   return true;
 }

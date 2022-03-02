@@ -125,6 +125,24 @@ void TanhOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
   ctx.AddVarModelToProgram(out_name, out->id);
 }
 
+void MatmulOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+  CHECK_EQ(op_desc.Input("X").size(), 1UL);
+  auto x_name = op_desc.Input("X").front();
+  CHECK_EQ(op_desc.Input("Y").size(), 1UL);
+  auto y_name = op_desc.Input("Y").front();
+  CHECK_EQ(op_desc.Output("Z").size(), 1UL);
+  auto out_name = op_desc.Output("Z").front();
+
+  VLOG(4) << x_name << " x " << y_name;
+
+  auto x   = ctx.GetVar(x_name);
+  auto y   = ctx.GetVar(y_name);
+  auto out = ctx.Builder()->Matmul(x, y);
+
+  ctx.AddVar(out_name, out);
+  ctx.AddVarModelToProgram(out_name, out->id);
+}
+
 }  // namespace science_mappers
 }  // namespace frontend
 }  // namespace cinn
@@ -136,5 +154,6 @@ CINN_REGISTER_HELPER(science_math) {
   CINN_REGISTER_OP_MAPPER(mul_p, cinn::frontend::science_mappers::MulOpMapper)
   CINN_REGISTER_OP_MAPPER(sqrt_p, cinn::frontend::science_mappers::SqrtOpMapper)
   CINN_REGISTER_OP_MAPPER(tanh_p, cinn::frontend::science_mappers::TanhOpMapper)
+  CINN_REGISTER_OP_MAPPER(matmul_p, cinn::frontend::science_mappers::MatmulOpMapper)
   return true;
 }

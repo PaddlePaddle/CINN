@@ -36,7 +36,7 @@ void SigmoidOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& 
 }  // namespace frontend
 }  // namespace cinn
 
-CINN_REGISTER_HELPER(sigmoid) {
+CINN_REGISTER_HELPER(paddle_sigmoid) {
   CINN_REGISTER_OP_MAPPER(sigmoid, cinn::frontend::paddle_mappers::SigmoidOpMapper)
   return true;
 }

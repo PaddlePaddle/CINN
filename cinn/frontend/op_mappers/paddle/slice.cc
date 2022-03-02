@@ -45,7 +45,7 @@ void SliceOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ct
 }  // namespace frontend
 }  // namespace cinn
 
-CINN_REGISTER_HELPER(slice) {
+CINN_REGISTER_HELPER(paddle_slice) {
   CINN_REGISTER_OP_MAPPER(slice, cinn::frontend::paddle_mappers::SliceOpMapper)
   return true;
 }
