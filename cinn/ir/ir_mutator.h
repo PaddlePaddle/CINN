@@ -289,5 +289,49 @@ void IRMutator<T>::Visit(const IntrinsicOp *expr, T op) {
   }
 }
 
+template <typename T>
+void IRMutator<T>::Visit(const _BufferRange_ *expr, T op) {
+  auto *node = op->template As<_BufferRange_>();
+  CHECK(node);
+  IRVisitorBase<void, T>::Visit(&node->buffer, &node->buffer);
+  for (auto &var : node->ranges) {
+    IRVisitorBase<void, T>::Visit(&var->lower_bound, &var->lower_bound);
+    IRVisitorBase<void, T>::Visit(&var->upper_bound, &var->upper_bound);
+  }
+}
+
+template <typename T>
+void IRMutator<T>::Visit(const ScheduleBlock *expr, T op) {
+  auto *node = op->template As<ScheduleBlock>();
+  CHECK(node);
+  for (auto &var : node->iter_vars) {
+    IRVisitorBase<void, T>::Visit(&var->lower_bound, &var->lower_bound);
+    IRVisitorBase<void, T>::Visit(&var->upper_bound, &var->upper_bound);
+  }
+  for (auto &buffer_region : node->read_buffers) {
+    for (auto &var : buffer_region->ranges) {
+      IRVisitorBase<void, T>::Visit(&var->lower_bound, &var->lower_bound);
+      IRVisitorBase<void, T>::Visit(&var->upper_bound, &var->upper_bound);
+    }
+  }
+  for (auto &buffer_region : node->write_buffers) {
+    for (auto &var : buffer_region->ranges) {
+      IRVisitorBase<void, T>::Visit(&var->lower_bound, &var->lower_bound);
+      IRVisitorBase<void, T>::Visit(&var->upper_bound, &var->upper_bound);
+    }
+  }
+  IRVisitorBase<void, T>::Visit(&(node->body), &(node->body));
+}
+
+template <typename T>
+void IRMutator<T>::Visit(const ScheduleBlockRealize *expr, T op) {
+  auto *node = op->template As<ScheduleBlockRealize>();
+  CHECK(node);
+  for (auto &value : node->iter_values) {
+    IRVisitorBase<void, T>::Visit(&value, &value);
+  }
+  IRVisitorBase<void, T>::Visit(&node->schedule_block, &node->schedule_block);
+}
+
 }  // namespace ir
 }  // namespace cinn

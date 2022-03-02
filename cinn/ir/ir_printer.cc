@@ -389,6 +389,65 @@ void IrPrinter::Visit(const PrimitiveNode *x) {
   os() << ")";
 }
 
+void IrPrinter::Visit(const _BufferRange_ *x) {
+  auto *buffer = x->buffer.As<ir::_Buffer_>();
+  CHECK(buffer);
+  os() << buffer->name << "[";
+  for (int i = 0; i < x->ranges.size(); i++) {
+    if (i) os() << ", ";
+    auto &range = x->ranges[i];
+    CHECK(range->lower_bound.defined());
+    CHECK(range->upper_bound.defined());
+    os() << range->lower_bound << ":" << range->upper_bound;
+  }
+  os() << "]";
+}
+
+void IrPrinter::Visit(const ScheduleBlock *x) {}
+
+void IrPrinter::Visit(const ScheduleBlockRealize *x) {
+  auto *schedule_block = x->schedule_block.As<ScheduleBlock>();
+  os() << "ScheduleBlock(" << schedule_block->name << ") {\n";
+  // print block vars and bindings
+  auto iter_vars   = schedule_block->iter_vars;
+  auto iter_values = x->iter_values;
+  CHECK_EQ(iter_vars.size(), iter_values.size());
+  IncIndent();
+  DoIndent();
+  for (int i = 0; i < iter_vars.size(); i++) {
+    if (i) os() << ", ";
+    os() << iter_vars[i]->name;
+  }
+  os() << " = axis.bind(";
+  for (int i = 0; i < iter_values.size(); i++) {
+    if (i) os() << ", ";
+    os() << iter_values[i];
+  }
+  os() << ")\n";
+  // print block body
+  DoIndent();
+  os() << "read_buffers(";
+  auto &read_buffers = schedule_block->read_buffers;
+  for (int i = 0; i < read_buffers.size(); i++) {
+    if (i) os() << ", ";
+    Print(read_buffers[i]);
+  }
+  os() << ")\n";
+  DoIndent();
+  os() << "write_buffers(";
+  auto &write_buffers = schedule_block->write_buffers;
+  for (int i = 0; i < write_buffers.size(); i++) {
+    if (i) os() << ", ";
+    Print(write_buffers[i]);
+  }
+  os() << ")\n";
+  DoIndent();
+  Print(schedule_block->body);
+  DecIndent();
+  DoIndent();
+  os() << "}";
+}
+
 void IrPrinter::Visit(const IntrinsicOp *x) {
   switch (x->getKind()) {
 #define __(op__)                                \
