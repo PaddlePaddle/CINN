@@ -188,6 +188,20 @@ Variable BaseBuilder::IndexSelect(const Variable& x, const Variable& index, int 
   return instr.GetOutput(0);
 }
 
+Variable BaseBuilder::SliceAssign(const Variable& input,
+                                  const Variable& assign,
+                                  const std::vector<int>& axis,
+                                  const std::vector<int>& starts,
+                                  const std::vector<int>& strides) {
+  Instruction instr("index_select", {input, assign});
+  instr.SetAttr("axis", axis);
+  instr.SetAttr("starts", starts);
+  instr.SetAttr("strides", strides);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
 Variable BaseBuilder::UnaryOp(const std::string& op_type, const Variable& operand) {
   Instruction instr(op_type, {operand});
   InferShape(instr);
