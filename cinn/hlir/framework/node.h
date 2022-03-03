@@ -102,7 +102,18 @@ class Node : public common::GraphNode {
 
   inline bool is_variable() { return (this->attrs.op == nullptr); }
 
-  inline uint32_t num_outputs() { return is_variable() ? 1 : this->op()->num_outputs; }
+  inline uint32_t num_outputs() {
+    if (is_variable()) return 1;
+    if (this->op()->num_outputs == 0) {
+      using shape_func_t = std::function<std::vector<shape_t>(const std::vector<shape_t> &, const AttrMapType &)>;
+      const auto &op_infershape = Operator::GetAttrs<shape_func_t>("infershape");
+      auto key                  = Operator::Get(this->op()->name);
+      auto out_shapes           = op_infershape[key]({}, this->attrs.attr_store);
+      return out_shapes.size();
+    } else {
+      return this->op()->num_outputs;
+    }
+  }
 
   inline uint32_t num_inputs() { return is_variable() ? 1 : this->op()->num_inputs; }
 

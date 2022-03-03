@@ -150,6 +150,42 @@ ir::Tensor Reshape(const ir::Tensor& A, const std::vector<int>& new_shape, const
   return res;
 }
 
+std::vector<ir::Tensor> Split(const ir::Tensor& A,
+                              int axis,
+                              const std::vector<std::vector<int>>& output_shapes,
+                              const std::string& name) {
+  if (axis < 0) axis += A->shape.size();
+  auto output_size = output_shapes.size();
+
+  // compute select index list
+  // if   index = [2, 3, 4, 5]
+  // then start = [0, 2, 5, 9]
+  std::vector<int> start(output_size, 0);
+  for (int i = 1; i < output_size; ++i) {
+    start[i] = start[i - 1] + output_shapes[i - 1][axis];
+  }
+
+  std::vector<std::vector<Expr>> out_shape(output_size, std::vector<Expr>{});
+  for (int i = 0; i < output_size; ++i) {
+    for (int val : output_shapes[i]) {
+      out_shape[i].emplace_back(Expr(val));
+    }
+  }
+
+  std::vector<ir::Tensor> res(output_size);
+  for (int i = 0; i < output_size; ++i) {
+    res[i] = Compute(
+        out_shape[i],
+        [=](const std::vector<Expr>& indice) {
+          auto temp  = indice;
+          temp[axis] = common::AutoSimplify(temp[axis] + Expr(start[i]));
+          return A(temp);
+        },
+        name + std::to_string(i));
+  }
+  return res;
+}
+
 ir::Tensor Concat(const ir::Tensor& A, const ir::Tensor& B, int axis, const std::string& name) {
   if (axis < 0) axis += A->shape.size();
   CHECK_EQ(A->shape.size(), B->shape.size()) << "Dimensions of inputs A and B in Concat should be equal! Please check.";

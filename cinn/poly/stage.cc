@@ -655,6 +655,7 @@ void Stage::ComputeAt(Stage *other, int level) {
 
 void Stage::ComputeAt2(Stage *other, int level) {
   // TODO(Superjomn) Check there are data dependency between `self` and `other`, or the `ComputeAt` is meaningless.
+  CHECK_GE(level, 0) << "level param of ComputeAt2 must be >= 0. Please check!";
   this->ChangeDomain(other, level);
   this->CopyTransform(other, level);
   this->ChangeIndex(other);
