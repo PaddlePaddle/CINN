@@ -157,6 +157,18 @@ ir::Tensor Transpose(const ir::Tensor& input,
  * @param axis select axis
  * @param output_name the name of the output tensor
  */
+std::vector<ir::Tensor> Split(const ir::Tensor& A,
+                              int axis,
+                              const std::vector<std::vector<int>>& output_shapes,
+                              const std::string& name);
+
+/**
+ * @brief Perform meta op Split
+ * @param A The input tensor
+ * @param axis split axis
+ * @param output_shapes The output sub-tensors shape
+ * @param output_name the name of the output tensor
+ */
 ir::Tensor IndexSelect(const ir::Tensor& x,
                        const ir::Tensor& index,
                        const std::vector<Expr>& output_shape,
