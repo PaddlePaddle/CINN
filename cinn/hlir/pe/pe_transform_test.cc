@@ -98,6 +98,8 @@ TEST(MatmulPE, PE_Matmul_Test0) {
   }
 }
 
+#ifdef CINN_WITH_CUDA
+
 TEST(SliceAssign, SliceAssign) {
   int m = 128;
   int n = 32;
@@ -144,6 +146,8 @@ TEST(SliceAssign, SliceAssign) {
   // cuda_module load ptx
   runtime::cuda::CUDAModule cuda_module(ptx, runtime::cuda::CUDAModule::Kind::PTX);
 }
+
+#endif
 
 }  // namespace pe
 }  // namespace hlir
