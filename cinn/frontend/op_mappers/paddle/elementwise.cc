@@ -17,7 +17,7 @@
 
 namespace cinn {
 namespace frontend {
-namespace op_mappers {
+namespace paddle_mappers {
 
 void AddOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
@@ -117,15 +117,15 @@ void SumOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx)
   ctx.AddVarModelToProgram(out_name, out->id);
 }
 
-}  // namespace op_mappers
+}  // namespace paddle_mappers
 }  // namespace frontend
 }  // namespace cinn
 
-CINN_REGISTER_HELPER(elementwise) {
-  CINN_REGISTER_OP_MAPPER(add, cinn::frontend::op_mappers::AddOpMapper)
-  CINN_REGISTER_OP_MAPPER(elementwise_add, cinn::frontend::op_mappers::ElementwiseAddOpMapper)
-  CINN_REGISTER_OP_MAPPER(elementwise_add_grad, cinn::frontend::op_mappers::ElementwiseAddGradOpMapper)
-  CINN_REGISTER_OP_MAPPER(elementwise_mul, cinn::frontend::op_mappers::ElementwiseMulOpMapper)
-  CINN_REGISTER_OP_MAPPER(sum, cinn::frontend::op_mappers::SumOpMapper)
+CINN_REGISTER_HELPER(paddle_elementwise) {
+  CINN_REGISTER_OP_MAPPER(add, cinn::frontend::paddle_mappers::AddOpMapper)
+  CINN_REGISTER_OP_MAPPER(elementwise_add, cinn::frontend::paddle_mappers::ElementwiseAddOpMapper)
+  CINN_REGISTER_OP_MAPPER(elementwise_add_grad, cinn::frontend::paddle_mappers::ElementwiseAddGradOpMapper)
+  CINN_REGISTER_OP_MAPPER(elementwise_mul, cinn::frontend::paddle_mappers::ElementwiseMulOpMapper)
+  CINN_REGISTER_OP_MAPPER(sum, cinn::frontend::paddle_mappers::SumOpMapper)
   return true;
 }

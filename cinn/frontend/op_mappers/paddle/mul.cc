@@ -18,7 +18,7 @@
 
 namespace cinn {
 namespace frontend {
-namespace op_mappers {
+namespace paddle_mappers {
 
 void MulOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
@@ -122,12 +122,12 @@ void MulBiasOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& 
   ctx.AddVarModelToProgram(out_name, out->id);
 }
 
-}  // namespace op_mappers
+}  // namespace paddle_mappers
 }  // namespace frontend
 }  // namespace cinn
 
-CINN_REGISTER_HELPER(mul) {
-  CINN_REGISTER_OP_MAPPER(mul, cinn::frontend::op_mappers::MulOpMapper)
-  CINN_REGISTER_OP_MAPPER(mulbias, cinn::frontend::op_mappers::MulBiasOpMapper)
+CINN_REGISTER_HELPER(paddle_mul) {
+  CINN_REGISTER_OP_MAPPER(mul, cinn::frontend::paddle_mappers::MulOpMapper)
+  CINN_REGISTER_OP_MAPPER(mulbias, cinn::frontend::paddle_mappers::MulBiasOpMapper)
   return true;
 }

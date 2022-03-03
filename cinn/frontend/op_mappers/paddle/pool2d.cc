@@ -17,7 +17,7 @@
 
 namespace cinn {
 namespace frontend {
-namespace op_mappers {
+namespace paddle_mappers {
 
 void Pool2dOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
@@ -61,11 +61,11 @@ void Pool2dOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
   ctx.AddVarModelToProgram(out_name, out->id);
 }
 
-}  // namespace op_mappers
+}  // namespace paddle_mappers
 }  // namespace frontend
 }  // namespace cinn
 
-CINN_REGISTER_HELPER(pool2d) {
-  CINN_REGISTER_OP_MAPPER(pool2d, cinn::frontend::op_mappers::Pool2dOpMapper)
+CINN_REGISTER_HELPER(paddle_pool2d) {
+  CINN_REGISTER_OP_MAPPER(pool2d, cinn::frontend::paddle_mappers::Pool2dOpMapper)
   return true;
 }

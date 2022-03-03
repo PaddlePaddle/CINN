@@ -18,7 +18,7 @@
 
 namespace cinn {
 namespace frontend {
-namespace op_mappers {
+namespace paddle_mappers {
 
 void TransposeOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
@@ -69,12 +69,12 @@ void Transpose2OpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContex
   ctx.AddVarModelToProgram(xshape_name, xshape->id);
 }
 
-}  // namespace op_mappers
+}  // namespace paddle_mappers
 }  // namespace frontend
 }  // namespace cinn
 
-CINN_REGISTER_HELPER(transpose) {
-  CINN_REGISTER_OP_MAPPER(transpose, cinn::frontend::op_mappers::TransposeOpMapper)
-  CINN_REGISTER_OP_MAPPER(transpose2, cinn::frontend::op_mappers::Transpose2OpMapper)
+CINN_REGISTER_HELPER(paddle_transpose) {
+  CINN_REGISTER_OP_MAPPER(transpose, cinn::frontend::paddle_mappers::TransposeOpMapper)
+  CINN_REGISTER_OP_MAPPER(transpose2, cinn::frontend::paddle_mappers::Transpose2OpMapper)
   return true;
 }

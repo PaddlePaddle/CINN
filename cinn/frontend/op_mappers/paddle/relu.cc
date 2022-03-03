@@ -17,7 +17,7 @@
 
 namespace cinn {
 namespace frontend {
-namespace op_mappers {
+namespace paddle_mappers {
 
 void ReluOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
@@ -61,13 +61,13 @@ void ReluGradOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext&
   ctx.AddVarModelToProgram(dx_name, dx->id);
 }
 
-}  // namespace op_mappers
+}  // namespace paddle_mappers
 }  // namespace frontend
 }  // namespace cinn
 
-CINN_REGISTER_HELPER(relu) {
-  CINN_REGISTER_OP_MAPPER(relu, cinn::frontend::op_mappers::ReluOpMapper)
-  CINN_REGISTER_OP_MAPPER(relu_grad, cinn::frontend::op_mappers::ReluGradOpMapper)
-  CINN_REGISTER_OP_MAPPER(relu6, cinn::frontend::op_mappers::Relu6OpMapper)
+CINN_REGISTER_HELPER(paddle_relu) {
+  CINN_REGISTER_OP_MAPPER(relu, cinn::frontend::paddle_mappers::ReluOpMapper)
+  CINN_REGISTER_OP_MAPPER(relu_grad, cinn::frontend::paddle_mappers::ReluGradOpMapper)
+  CINN_REGISTER_OP_MAPPER(relu6, cinn::frontend::paddle_mappers::Relu6OpMapper)
   return true;
 }
