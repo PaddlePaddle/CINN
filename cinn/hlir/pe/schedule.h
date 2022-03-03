@@ -189,7 +189,10 @@ void CudaScheduleConv2(poly::StageMap stages,
 
 void CudaScheduleInjective(poly::Stage *stage, const std::vector<int> &output_shape, const common::Target &target);
 
-void CudaSplitSchedule(poly::Stage *stage, const std::vector<int> &output_shape);
+void CudaSplitSchedule(common::CINNValuePack *arg_pack,
+                       const std::vector<std::vector<int>> &output_shapes,
+                       int axis,
+                       const common::Target &target);
 
 void CreateCudaSerialData(const std::string &file_name = "default_serial.log");
 

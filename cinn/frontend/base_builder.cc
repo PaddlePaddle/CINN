@@ -82,11 +82,25 @@ void BaseBuilder::InferShape(Instruction instr) const {
   auto out_shapes = op_infershape[key](in_shapes, instr->attrs);
   auto out_types  = op_inferdtype[key](in_types, instr->attrs);
 
-  auto& outs = instr->outputs;
+  auto& outs            = instr->outputs;
+  size_t origin_out_num = outs.size();
+  outs.resize(out_shapes.size());
+  for (size_t i = origin_out_num; i < outs.size(); i++) {
+    outs[i] = Variable();
+  }
   for (size_t i = 0; i < outs.size(); i++) {
     outs[i]->shape = out_shapes[i];
     outs[i]->type  = out_types[i];
   }
+}
+
+std::vector<Variable> BaseBuilder::Split(const Variable& operand, const std::vector<int>& num_or_sections, int axis) {
+  Instruction instr("split", {operand});
+  instr.SetAttr("num_or_sections", num_or_sections);
+  instr.SetAttr("axis", axis);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutputs();
 }
 
 Variable BaseBuilder::Concat(const std::vector<Variable>& input_vars, int axis) {
