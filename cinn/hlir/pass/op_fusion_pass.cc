@@ -260,7 +260,7 @@ class OpFusionPassHelper {
   void InitFusionRelation() {
     // define consumer -> producer fusion relation
     // 1.kElementwise as consumer
-    //  producer: kElementwise、kBroacast、kOutEWiseFusable、
+    //  producer: kElementwise、kBroacast、kOutEWiseFusable、kInjective
   }
 
   std::vector<Node*> nodes_;
@@ -272,8 +272,8 @@ class OpFusionPassHelper {
   const framework::OpValueType<OpPatternKind>* op_pattern_dict_;
 
   struct FusionRelation {
-    std::unordered_set<framework::OpPatternKind> op_kind =
-        {} std::unordered_set<framework::OpPatternKind> fusion_op_kind = {}
+    std::unordered_set<framework::OpPatternKind> op_kind        = {};
+    std::unordered_set<framework::OpPatternKind> fusion_op_kind = {};
   };
   std::unordered_map<framework::OpPatternKind, FusionRelation> fusion_relation_map_;
 };
