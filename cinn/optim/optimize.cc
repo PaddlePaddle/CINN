@@ -29,6 +29,7 @@
 #include "cinn/optim/lower_intrin.h"
 #include "cinn/optim/map_extern_call.h"
 #include "cinn/optim/remove_nested_block.h"
+#include "cinn/optim/remove_schedule_block.h"
 #include "cinn/optim/replace_const_param_to_integer.h"
 #include "cinn/optim/transform_gpu_forloop.h"
 #include "cinn/optim/transform_polyfor_to_for.h"
@@ -73,6 +74,7 @@ Expr Optimize(Expr e, Target target, bool runtime_debug_info) {
 ir::Module Optimize(const ir::Module& module, const Target& target) {
   auto copied = IRCopy(Expr(module));
 
+  RemoveScheduleBlock(&copied);
   LowerFunctionCallBindVars(&copied);
   CallArgListToPodValue(&copied);
   LowerIntrin(&copied, target);

@@ -137,8 +137,10 @@ void IRMutator<T>::Visit(const _Module_ *expr, T op) {
 template <typename T>
 void IRMutator<T>::Visit(const _Var_ *expr, T op) {
   auto *node = op->template As<ir::_Var_>();
-  if (expr->is_reduce_axis) {
+  if (node->lower_bound.defined()) {
     IRVisitorBase<void, T>::Visit(&node->lower_bound, &node->lower_bound);
+  }
+  if (node->upper_bound.defined()) {
     IRVisitorBase<void, T>::Visit(&node->upper_bound, &node->upper_bound);
   }
 }
@@ -295,8 +297,12 @@ void IRMutator<T>::Visit(const _BufferRange_ *expr, T op) {
   CHECK(node);
   IRVisitorBase<void, T>::Visit(&node->buffer, &node->buffer);
   for (auto &var : node->ranges) {
-    IRVisitorBase<void, T>::Visit(&var->lower_bound, &var->lower_bound);
-    IRVisitorBase<void, T>::Visit(&var->upper_bound, &var->upper_bound);
+    if (var->lower_bound.defined()) {
+      IRVisitorBase<void, T>::Visit(&var->lower_bound, &var->lower_bound);
+    }
+    if (var->upper_bound.defined()) {
+      IRVisitorBase<void, T>::Visit(&var->upper_bound, &var->upper_bound);
+    }
   }
 }
 
@@ -305,19 +311,31 @@ void IRMutator<T>::Visit(const ScheduleBlock *expr, T op) {
   auto *node = op->template As<ScheduleBlock>();
   CHECK(node);
   for (auto &var : node->iter_vars) {
-    IRVisitorBase<void, T>::Visit(&var->lower_bound, &var->lower_bound);
-    IRVisitorBase<void, T>::Visit(&var->upper_bound, &var->upper_bound);
+    if (var->lower_bound.defined()) {
+      IRVisitorBase<void, T>::Visit(&var->lower_bound, &var->lower_bound);
+    }
+    if (var->upper_bound.defined()) {
+      IRVisitorBase<void, T>::Visit(&var->upper_bound, &var->upper_bound);
+    }
   }
   for (auto &buffer_region : node->read_buffers) {
     for (auto &var : buffer_region->ranges) {
-      IRVisitorBase<void, T>::Visit(&var->lower_bound, &var->lower_bound);
-      IRVisitorBase<void, T>::Visit(&var->upper_bound, &var->upper_bound);
+      if (var->lower_bound.defined()) {
+        IRVisitorBase<void, T>::Visit(&var->lower_bound, &var->lower_bound);
+      }
+      if (var->upper_bound.defined()) {
+        IRVisitorBase<void, T>::Visit(&var->upper_bound, &var->upper_bound);
+      }
     }
   }
   for (auto &buffer_region : node->write_buffers) {
     for (auto &var : buffer_region->ranges) {
-      IRVisitorBase<void, T>::Visit(&var->lower_bound, &var->lower_bound);
-      IRVisitorBase<void, T>::Visit(&var->upper_bound, &var->upper_bound);
+      if (var->lower_bound.defined()) {
+        IRVisitorBase<void, T>::Visit(&var->lower_bound, &var->lower_bound);
+      }
+      if (var->upper_bound.defined()) {
+        IRVisitorBase<void, T>::Visit(&var->upper_bound, &var->upper_bound);
+      }
     }
   }
   IRVisitorBase<void, T>::Visit(&(node->body), &(node->body));

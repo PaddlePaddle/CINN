@@ -407,42 +407,49 @@ void IrPrinter::Visit(const ScheduleBlock *x) {}
 
 void IrPrinter::Visit(const ScheduleBlockRealize *x) {
   auto *schedule_block = x->schedule_block.As<ScheduleBlock>();
-  os() << "ScheduleBlock(" << schedule_block->name << ") {\n";
+  os() << "ScheduleBlock(" << schedule_block->name << ")\n";
+  DoIndent();
+  os() << "{\n";
   // print block vars and bindings
   auto iter_vars   = schedule_block->iter_vars;
   auto iter_values = x->iter_values;
   CHECK_EQ(iter_vars.size(), iter_values.size());
   IncIndent();
-  DoIndent();
+  if (!iter_vars.empty()) DoIndent();
   for (int i = 0; i < iter_vars.size(); i++) {
     if (i) os() << ", ";
     os() << iter_vars[i]->name;
   }
-  os() << " = axis.bind(";
+  if (!iter_vars.empty()) os() << " = axis.bind(";
   for (int i = 0; i < iter_values.size(); i++) {
     if (i) os() << ", ";
     os() << iter_values[i];
   }
-  os() << ")\n";
+  if (!iter_vars.empty()) os() << ")\n";
   // print block body
-  DoIndent();
-  os() << "read_buffers(";
-  auto &read_buffers = schedule_block->read_buffers;
-  for (int i = 0; i < read_buffers.size(); i++) {
-    if (i) os() << ", ";
-    Print(read_buffers[i]);
+  if (!schedule_block->read_buffers.empty()) {
+    DoIndent();
+    os() << "read_buffers(";
+    auto &read_buffers = schedule_block->read_buffers;
+    for (int i = 0; i < read_buffers.size(); i++) {
+      if (i) os() << ", ";
+      Print(read_buffers[i]);
+    }
+    os() << ")\n";
   }
-  os() << ")\n";
-  DoIndent();
-  os() << "write_buffers(";
-  auto &write_buffers = schedule_block->write_buffers;
-  for (int i = 0; i < write_buffers.size(); i++) {
-    if (i) os() << ", ";
-    Print(write_buffers[i]);
+  if (!schedule_block->write_buffers.empty()) {
+    DoIndent();
+    os() << "write_buffers(";
+    auto &write_buffers = schedule_block->write_buffers;
+    for (int i = 0; i < write_buffers.size(); i++) {
+      if (i) os() << ", ";
+      Print(write_buffers[i]);
+    }
+    os() << ")\n";
   }
-  os() << ")\n";
   DoIndent();
   Print(schedule_block->body);
+  os() << "\n";
   DecIndent();
   DoIndent();
   os() << "}";
