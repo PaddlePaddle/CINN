@@ -22,6 +22,8 @@ from cinn.frontend import *
 from cinn.common import *
 
 
+@OpTestTool.skip_if(not is_compiled_with_cuda(),
+                    "x86 test will be skipped due to timeout.")
 class TestSliceAssignOp(OpTest):
     def setUp(self):
         self.init_case()
