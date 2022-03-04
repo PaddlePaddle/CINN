@@ -14,19 +14,25 @@
 
 #include <gtest/gtest.h>
 
+#include "cinn/backends/codegen_cuda_dev.h"
+#include "cinn/backends/codegen_cuda_util.h"
+#include "cinn/backends/cuda_util.h"
 #include "cinn/backends/llvm/execution_engine.h"
+#include "cinn/backends/nvrtc_util.h"
 #include "cinn/cinn.h"
 #include "cinn/common/target.h"
 #include "cinn/common/test_helper.h"
 #include "cinn/hlir/pe/transform.h"
+#include "cinn/runtime/cinn_runtime.h"
 #include "cinn/runtime/cpu/host_intrinsics.h"
+#include "cinn/runtime/cuda/cuda_module.h"
 
 namespace cinn {
 namespace hlir {
 namespace pe {
 using ir::Tensor;
 
-TEST(MatmulPE, PE_Matmul_Test0) {
+TEST(MatmulPE, MatmulCase1) {
   int m = 100;
   int n = 32;
   int k = 16;
@@ -91,6 +97,53 @@ TEST(MatmulPE, PE_Matmul_Test0) {
     }
   }
 }
+
+#ifdef CINN_WITH_CUDA
+TEST(IndexAssign, IndexAssignCase1) {
+  int m = 128;
+  int n = 32;
+  int k = 32;
+  Expr M(m), N(n), K(k);
+
+  Placeholder<float> input("A", {M, K});
+  Placeholder<float> assign("B", {N, K});
+  Placeholder<float> indexs("C", {N});
+  int axis = 0;
+
+  auto target = common::DefaultNVGPUTarget();
+
+  auto output = hlir::pe::IndexAssign(input.tensor(), assign.tensor(), indexs.tensor(), target, axis);
+  auto stages = CreateStages({input, assign, indexs, output});
+  auto func   = Lower("fn", stages, {input, assign, indexs, output});
+  LOG(INFO) << "func:\n" << func;
+
+  Module::Builder builder("IndexAssign_Builder", target);
+  builder.AddFunction(func);
+
+  auto module                    = builder.Build();
+  auto host_module_device_module = backends::SplitCudaAndHostModule(module);
+  auto &host_module              = std::get<0>(host_module_device_module);
+  auto &device_module            = std::get<1>(host_module_device_module);
+  for (auto &func : host_module.functions()) {
+    LOG(INFO) << "host:\n" << func;
+  }
+  for (auto &func : device_module.functions()) {
+    LOG(INFO) << "device:\n" << func;
+  }
+
+  backends::CodeGenCUDA_Dev codegen(target);
+  auto source_code = codegen.Compile(builder.Build());
+  LOG(INFO) << "compiled code:\n\n\n" << source_code;
+
+  // nv jit compile to ptx
+  backends::NVRTC_Compiler compiler;
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty());
+  // cuda_module load ptx
+  runtime::cuda::CUDAModule cuda_module(ptx, runtime::cuda::CUDAModule::Kind::PTX);
+}
+
+#endif  // CINN_WITH_CUDA
 
 }  // namespace pe
 }  // namespace hlir

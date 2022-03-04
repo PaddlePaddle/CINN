@@ -779,6 +779,43 @@ ir::Tensor IndexSelect(const ir::Tensor& x,
   return output_tensor;
 }
 
+ir::Tensor IndexAssign(const ir::Tensor& input,
+                       const ir::Tensor& assign,
+                       const ir::Tensor& index,
+                       const common::Target& target,
+                       const int axis,
+                       const std::string& output_name) {
+  std::string extern_fun_name;
+  if (target.arch == common::Target::Arch::NVGPU) {
+    extern_fun_name.assign("cinn_cuda_find");
+  } else if (target.arch == common::Target::Arch::X86) {
+    // TODO: seen that this function has no effective when run in host, why?
+    extern_fun_name.assign("cinn_host_find");
+  } else {
+    LOG(FATAL) << "IndexAssign only support X86 and NVGPU ! Please Check.\n";
+  }
+
+  auto pos_axis = axis;
+  if (pos_axis < 0) pos_axis += input->shape.size();
+
+  auto res = Compute(
+      input->shape,
+      [=](const std::vector<Expr>& indice) {
+        // find whether indice[axis] in Index,
+        // then return id if found Index[id] == indice[axis]
+        // else return -1
+        auto id = lang::CallExtern(extern_fun_name, {index, index->shape[0], indice[pos_axis]});
+
+        std::vector<Expr> indice_assign = indice;
+        indice_assign[pos_axis]         = id;
+
+        // check wheter Index[id] == cur_index and return by check result
+        return ir::Select::Make(ir::EQ::Make(id, Expr(-1)), input(indice), assign(indice_assign));
+      },
+      UniqName(output_name));
+  return res;
+}
+
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn
