@@ -1448,6 +1448,10 @@ std::shared_ptr<OpStrategy> StrategyForSliceAssign(const framework::NodeAttr &at
     LOG(FATAL) << "strides is not set!";
   }
 
+  CHECK(!axis.empty()) << "axis can't be empty!";
+  CHECK_EQ(axis.size(), starts.size()) << "axis's size must be equal to starts!";
+  CHECK_EQ(axis.size(), strides.size()) << "axis's size must be equal to strides!";
+
   framework::CINNCompute slice_assign_compute{[=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input args are empty! Please check again.";
     CINNValuePack arg_pack = args[0];

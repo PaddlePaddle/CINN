@@ -207,7 +207,7 @@ Variable BaseBuilder::SliceAssign(const Variable& input,
                                   const std::vector<int>& axis,
                                   const std::vector<int>& starts,
                                   const std::vector<int>& strides) {
-  Instruction instr("index_select", {input, assign});
+  Instruction instr("slice_assign", {input, assign});
   instr.SetAttr("axis", axis);
   instr.SetAttr("starts", starts);
   instr.SetAttr("strides", strides);

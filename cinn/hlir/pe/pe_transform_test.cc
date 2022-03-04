@@ -98,8 +98,6 @@ TEST(MatmulPE, PE_Matmul_Test0) {
   }
 }
 
-#ifdef CINN_WITH_CUDA
-
 TEST(SliceAssign, SliceAssign) {
   int m = 128;
   int n = 32;
@@ -118,6 +116,7 @@ TEST(SliceAssign, SliceAssign) {
   auto func   = Lower("fn", stages, {input, assign, output});
   LOG(INFO) << "func:\n" << func;
 
+#ifdef CINN_WITH_CUDA
   auto target = common::DefaultNVGPUTarget();
   Module::Builder builder("SliceAssign_Builder", target);
   builder.AddFunction(func);
@@ -145,9 +144,8 @@ TEST(SliceAssign, SliceAssign) {
   // LOG(INFO) << "compiled ptx:\n\n\n" << ptx;
   // cuda_module load ptx
   runtime::cuda::CUDAModule cuda_module(ptx, runtime::cuda::CUDAModule::Kind::PTX);
-}
-
 #endif
+}
 
 }  // namespace pe
 }  // namespace hlir
