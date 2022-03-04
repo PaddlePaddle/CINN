@@ -1544,24 +1544,24 @@ std::shared_ptr<OpStrategy> StrategyForSliceAssign(const framework::NodeAttr &at
   if (attrs.attr_store.contains("axis")) {
     axis = absl::get<std::vector<int>>(attrs.attr_store.at("axis"));
   } else {
-    LOG(FATAL) << "axis is not set!";
+    LOG(FATAL) << "Op SliceAssign's args 'axis' is not set!";
   }
 
   if (attrs.attr_store.contains("starts")) {
     starts = absl::get<std::vector<int>>(attrs.attr_store.at("starts"));
   } else {
-    LOG(FATAL) << "starts is not set!";
+    LOG(FATAL) << "Op SliceAssign's args 'starts' is not set!";
   }
 
   if (attrs.attr_store.contains("strides")) {
     strides = absl::get<std::vector<int>>(attrs.attr_store.at("strides"));
   } else {
-    LOG(FATAL) << "strides is not set!";
+    LOG(FATAL) << "Op SliceAssign's args 'strides' is not set!";
   }
 
-  CHECK(!axis.empty()) << "axis can't be empty!";
-  CHECK_EQ(axis.size(), starts.size()) << "axis's size must be equal to starts!";
-  CHECK_EQ(axis.size(), strides.size()) << "axis's size must be equal to strides!";
+  CHECK(!axis.empty()) << "Op SliceAssign's args 'axis' can't be empty!";
+  CHECK_EQ(axis.size(), starts.size()) << "Op SliceAssign's args 'axis's' size must be equal to 'starts'!";
+  CHECK_EQ(axis.size(), strides.size()) << "Op SliceAssign's args 'axis's' size must be equal to 'strides'!";
 
   framework::CINNCompute slice_assign_compute{[=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input args are empty! Please check again.";
