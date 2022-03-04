@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <cuda_runtime.h>
 #include <gtest/gtest.h>
 
 #include <cmath>
@@ -49,7 +48,6 @@ using common::CINNValuePack;
 using framework::OpStrategy;
 using framework::shape_t;
 using framework::StrategyFunction;
-using runtime::cuda::CUDAModule;
 
 TEST(SliceAssign, SliceAssign_Op) {
   // code gen
