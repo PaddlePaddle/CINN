@@ -47,9 +47,9 @@ void ConcatOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
 
 void SplitOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
-  auto x_name = op_desc.Input("X");
+  auto x_name = op_desc.Input("X").front();
   CHECK_GE(op_desc.Output("Y").size(), 1UL);
-  auto out_name = op_desc.Output("Y").front();
+  auto out_name = op_desc.Output("Y");
 
   CHECK(op_desc.HasAttr("num_or_sections"));
   auto num_or_sections = op_desc.GetAttr<std::vector<int>>("num_or_sections");
@@ -89,8 +89,13 @@ void SplitOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ct
 
   auto out = ctx.Builder()->Split(x, num_or_sections, axis);
 
-  ctx.AddVar(out_name, out);
-  ctx.AddVarModelToProgram(out_name, out->id);
+  CHECK_EQ(out.size(), out_name.size()) << "The Split op should has " << out_name.size() << " output, but only "
+                                        << out.size();
+
+  for (int i = 0; i < out.size(); ++i) {
+    ctx.AddVar(out_name[i], out[i]);
+    ctx.AddVarModelToProgram(out_name[i], out[i]->id);
+  }
 }
 
 void ReshapeOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
@@ -213,17 +218,16 @@ void IndexSelectOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperConte
   CHECK_EQ(op_desc.Output("Y").size(), 1UL);
   auto out_name = op_desc.Output("Y").front();
 
-  auto axis = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "axis", 0);
+  auto axis = utils::GetAttrOrDefault<int>(op_desc, "axis", 0);
 
   auto x     = ctx.GetVar(x_name);
   auto index = ctx.GetVar(index_name);
 
-  VLOG(4) << "IndexSelect " << index_name << " (" << ;
-  cinn::utils::Join(index->shape, ",") << ") from " << x_name << " shape (" << cinn::utils::Join(x->shape, ",") << ") "
-                                       << "at dimension "
-                                       << axis.
+  VLOG(4) << "IndexSelect " << index_name << " (" << cinn::utils::Join(index->shape, ",") << ") from " << x_name
+          << " shape (" << cinn::utils::Join(x->shape, ",") << ") "
+          << "at dimension " << axis;
 
-                                          auto out = ctx.Builder()->IndexSelect(x, index, axis);
+  auto out = ctx.Builder()->IndexSelect(x, index, axis);
 
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);
@@ -239,7 +243,7 @@ void IndexAssignOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperConte
   CHECK_EQ(op_desc.Output("Z").size(), 1UL);
   auto out_name = op_desc.Output("Z").front();
 
-  auto axis = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "axis", 0);
+  auto axis = utils::GetAttrOrDefault<int>(op_desc, "axis", 0);
 
   auto x      = ctx.GetVar(x_name);
   auto assign = ctx.GetVar(assign_name);
@@ -247,12 +251,11 @@ void IndexAssignOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperConte
 
   auto out = ctx.Builder()->IndexAssign(x, assign, index, axis);
 
-  VLOG(4) << "IndexAssign " << assign_name << " (" << ;
-  cinn::utils::Join(assign->shape, ",") << ") to " << x_name << " shape (" << cinn::utils::Join(x->shape, ",") << ") "
-                                        << "at dimension "
-                                        << axis.
+  VLOG(4) << "IndexAssign " << assign_name << " (" << cinn::utils::Join(assign->shape, ",") << ") to " << x_name
+          << " shape (" << cinn::utils::Join(x->shape, ",") << ") "
+          << "at dimension " << axis;
 
-                                           ctx.AddVar(out_name, out);
+  ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);
 }
 
