@@ -45,6 +45,25 @@ void ConcatOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
   ctx.AddVarModelToProgram(out_name, out->id);
 }
 
+void SplitOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+  CHECK_EQ(op_desc.Input("X").size(), 1UL);
+  auto x_name = op_desc.Input("X");
+  CHECK_GE(op_desc.Output("Y").size(), 1UL);
+  auto out_name = op_desc.Output("Y").front();
+
+  CHECK(op_desc.HasAttr("num_or_sections"));
+  auto num_or_sections = op_desc.GetAttr<std::vector<int>>("num_or_sections");
+
+  auto axis = utils::GetAttrOrDefault<int>(op_desc, "axis", 0);
+
+  auto x = ctx.GetVar(x_name);
+
+  auto out = ctx.Builder()->Split(x, num_or_sections, axis);
+
+  ctx.AddVar(out_name, out);
+  ctx.AddVarModelToProgram(out_name, out->id);
+}
+
 void ReshapeOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
   auto x_name = op_desc.Input("X").front();
@@ -129,15 +148,88 @@ void ReduceOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
   ctx.AddVarModelToProgram(out_name, out->id);
 }
 
+void SliceAssignOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+  CHECK_EQ(op_desc.Input("X").size(), 1UL);
+  auto x_name = op_desc.Input("X").front();
+  CHECK_EQ(op_desc.Input("Y").size(), 1UL);
+  auto y_name = op_desc.Input("Y").front();
+  CHECK_EQ(op_desc.Output("Z").size(), 1UL);
+  auto out_name = op_desc.Output("Z").front();
+
+  CHECK(op_desc.HasAttr("starts"));
+  auto starts = op_desc.GetAttr<std::vector<int>>("starts");
+  CHECK(op_desc.HasAttr("axis"));
+  auto axis = op_desc.GetAttr<std::vector<int>>("axis");
+  CHECK(op_desc.HasAttr("strides"));
+  auto strides = op_desc.GetAttr<std::vector<int>>("strides");
+
+  auto x      = ctx.GetVar(x_name);
+  auto assign = ctx.GetVar(y_name);
+
+  VLOG(4) << "SliceAssign " << x_name << "from shape (" << cinn::utils::Join(x->shape, ",") << ") with starts ["
+          << cinn::utils::Join(starts, ",") << "], ends [" << cinn::utils::Join(axis, ",") << "], strides ["
+          << cinn::utils::Join(strides, ",") << "].";
+
+  auto out = ctx.Builder()->SliceAssign(x, assign, axis, starts, strides);
+
+  ctx.AddVar(out_name, out);
+  ctx.AddVarModelToProgram(out_name, out->id);
+}
+
+void IndexSelectOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+  CHECK_EQ(op_desc.Input("X").size(), 1UL);
+  auto x_name = op_desc.Input("X").front();
+  CHECK_EQ(op_desc.Input("IndexTensor").size(), 1UL);
+  auto index_name = op_desc.Input("IndexTensor").front();
+  CHECK_EQ(op_desc.Output("Y").size(), 1UL);
+  auto out_name = op_desc.Output("Y").front();
+
+  auto axis = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "axis", 0);
+
+  auto x     = ctx.GetVar(x_name);
+  auto index = ctx.GetVar(index_name);
+
+  auto out = ctx.Builder()->IndexSelect(x, index, axis);
+
+  ctx.AddVar(out_name, out);
+  ctx.AddVarModelToProgram(out_name, out->id);
+}
+
+void IndexAssignOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+  CHECK_EQ(op_desc.Input("X").size(), 1UL);
+  auto x_name = op_desc.Input("X").front();
+  CHECK_EQ(op_desc.Input("Y").size(), 1UL);
+  auto assign_name = op_desc.Input("Y").front();
+  CHECK_EQ(op_desc.Input("IndexTensor").size(), 1UL);
+  auto index_name = op_desc.Input("IndexTensor").front();
+  CHECK_EQ(op_desc.Output("Z").size(), 1UL);
+  auto out_name = op_desc.Output("Z").front();
+
+  auto axis = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "axis", 0);
+
+  auto x      = ctx.GetVar(x_name);
+  auto assign = ctx.GetVar(assign_name);
+  auto index  = ctx.GetVar(index_name);
+
+  auto out = ctx.Builder()->IndexAssign(x, assign, index, axis);
+
+  ctx.AddVar(out_name, out);
+  ctx.AddVarModelToProgram(out_name, out->id);
+}
+
 }  // namespace science_mappers
 }  // namespace frontend
 }  // namespace cinn
 
 CINN_REGISTER_HELPER(science_transform) {
   CINN_REGISTER_OP_MAPPER(concat_p, cinn::frontend::science_mappers::ConcatOpMapper)
+  CINN_REGISTER_OP_MAPPER(split_p, cinn::frontend::science_mappers::SplitOpMapper)
   CINN_REGISTER_OP_MAPPER(reshape_p, cinn::frontend::science_mappers::ReshapeOpMapper)
   CINN_REGISTER_OP_MAPPER(transpose_p, cinn::frontend::science_mappers::TransposeOpMapper)
   CINN_REGISTER_OP_MAPPER(slice_select_p, cinn::frontend::science_mappers::SliceSelectOpMapper)
+  CINN_REGISTER_OP_MAPPER(slice_assign_p, cinn::frontend::science_mappers::SliceAssignOpMapper)
+  CINN_REGISTER_OP_MAPPER(index_select_p, cinn::frontend::science_mappers::IndexSelectOpMapper)
+  CINN_REGISTER_OP_MAPPER(index_assign_p, cinn::frontend::science_mappers::IndexAssignOpMapper)
   CINN_REGISTER_OP_MAPPER(reduce_p, cinn::frontend::science_mappers::ReduceOpMapper)
   return true;
 }
