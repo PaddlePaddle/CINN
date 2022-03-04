@@ -12,37 +12,40 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <variant>
-
 #include "cinn/frontend/op_mapper_registry.h"
 #include "cinn/frontend/op_mappers/common_utils.h"
-#include "cinn/utils/string.h"
 
 namespace cinn {
 namespace frontend {
-namespace op_mappers {
+namespace paddle_mappers {
 
-void ScaleOpMapper(const paddle::cpp::OpDesc& op_desc, const cinn::frontend::OpMapperContext& ctx) {
-  CHECK_EQ(op_desc.Input("X").size(), 1UL);
-  auto x_name = op_desc.Input("X").front();
-  auto x      = ctx.GetVar(x_name);
-
-  auto scale            = utils::GetAttrOrDefault<float>(op_desc, "scale", 1.0f);
-  auto bias             = utils::GetAttrOrDefault<float>(op_desc, "bias", 0.0f);
-  auto bias_after_scale = utils::GetAttrOrDefault<bool>(op_desc, "bias_after_scale", true);
-
-  auto out = ctx.Builder()->Scale(x, scale, bias, bias_after_scale);
+void SliceOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+  CHECK_EQ(op_desc.Input("Input").size(), 1UL);
+  auto x_name = op_desc.Input("Input").front();
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
   auto out_name = op_desc.Output("Out").front();
+
+  CHECK(op_desc.HasAttr("starts"));
+  auto starts = op_desc.GetAttr<std::vector<int>>("starts");
+  CHECK(op_desc.HasAttr("ends"));
+  auto ends = op_desc.GetAttr<std::vector<int>>("ends");
+  CHECK(op_desc.HasAttr("axes"));
+  auto axes = op_desc.GetAttr<std::vector<int>>("axes");
+
+  auto infer_flags   = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "infer_flags");
+  auto decrease_axis = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "decrease_axis");
+  auto x             = ctx.GetVar(x_name);
+  auto out           = ctx.Builder()->Slice(x, axes, starts, ends, infer_flags, decrease_axis);
+
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);
 }
 
-}  // namespace op_mappers
+}  // namespace paddle_mappers
 }  // namespace frontend
 }  // namespace cinn
 
-CINN_REGISTER_HELPER(scale) {
-  CINN_REGISTER_OP_MAPPER(scale, cinn::frontend::op_mappers::ScaleOpMapper)
+CINN_REGISTER_HELPER(paddle_slice) {
+  CINN_REGISTER_OP_MAPPER(slice, cinn::frontend::paddle_mappers::SliceOpMapper)
   return true;
 }

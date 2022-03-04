@@ -18,7 +18,7 @@
 
 namespace cinn {
 namespace frontend {
-namespace op_mappers {
+namespace paddle_mappers {
 
 void Conv2dOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Input("Input").size(), 1UL);
@@ -134,16 +134,16 @@ void Conv2dGradOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContex
   ctx.AddVarModelToProgram(dw_name, out[1]->id);
 }
 
-}  // namespace op_mappers
+}  // namespace paddle_mappers
 }  // namespace frontend
 }  // namespace cinn
 
-CINN_REGISTER_HELPER(conv2d) {
-  CINN_REGISTER_OP_MAPPER(conv2d, cinn::frontend::op_mappers::Conv2dOpMapper)
-  CINN_REGISTER_OP_MAPPER(depthwise_conv2d, cinn::frontend::op_mappers::DepthwiseConv2dOpMapper)
+CINN_REGISTER_HELPER(paddle_conv2d) {
+  CINN_REGISTER_OP_MAPPER(conv2d, cinn::frontend::paddle_mappers::Conv2dOpMapper)
+  CINN_REGISTER_OP_MAPPER(depthwise_conv2d, cinn::frontend::paddle_mappers::DepthwiseConv2dOpMapper)
 
 #ifdef CINN_WITH_CUDNN
-  CINN_REGISTER_OP_MAPPER(conv2d_grad, cinn::frontend::op_mappers::Conv2dGradOpMapper)
+  CINN_REGISTER_OP_MAPPER(conv2d_grad, cinn::frontend::paddle_mappers::Conv2dGradOpMapper)
 #endif
   return true;
 }

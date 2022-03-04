@@ -190,6 +190,19 @@ ir::Tensor SliceAssign(const ir::Tensor& input,
                        const std::vector<int>& starts,
                        const std::vector<int>& strides,
                        const std::string& output_name = UniqName("T_Transform_SliceAssign_out"));
+/**
+ * @brief Perform meta op IndexAssign
+ * @param input The input tensor
+ * @param assign The assign tensor
+ * @param indexs The indexs tensor
+ * @param output_name the name of the output tensor
+ */
+ir::Tensor IndexAssign(const ir::Tensor& input,
+                       const ir::Tensor& assign,
+                       const ir::Tensor& index,
+                       const common::Target& target,
+                       const int axis                 = 0,
+                       const std::string& output_name = UniqName("T_Transform_IndexAssign_out"));
 
 }  // namespace pe
 }  // namespace hlir

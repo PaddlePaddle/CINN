@@ -17,35 +17,29 @@
 
 namespace cinn {
 namespace frontend {
-namespace op_mappers {
+namespace paddle_mappers {
 
-void SliceOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
-  CHECK_EQ(op_desc.Input("Input").size(), 1UL);
-  auto x_name = op_desc.Input("Input").front();
+void DropoutInferOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+  CHECK_EQ(op_desc.Input("X").size(), 1UL);
+  auto x_name = op_desc.Input("X").front();
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
   auto out_name = op_desc.Output("Out").front();
 
-  CHECK(op_desc.HasAttr("starts"));
-  auto starts = op_desc.GetAttr<std::vector<int>>("starts");
-  CHECK(op_desc.HasAttr("ends"));
-  auto ends = op_desc.GetAttr<std::vector<int>>("ends");
-  CHECK(op_desc.HasAttr("axes"));
-  auto axes = op_desc.GetAttr<std::vector<int>>("axes");
-
-  auto infer_flags   = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "infer_flags");
-  auto decrease_axis = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "decrease_axis");
-  auto x             = ctx.GetVar(x_name);
-  auto out           = ctx.Builder()->Slice(x, axes, starts, ends, infer_flags, decrease_axis);
+  auto dropout_prob = utils::GetAttrOrDefault<float>(op_desc, "dropout_prob", 0.5f);
+  auto dropout_implementation =
+      utils::GetAttrOrDefault<std::string>(op_desc, "dropout_implementation", "downgrade_in_infer");
+  auto x   = ctx.GetVar(x_name);
+  auto out = ctx.Builder()->DropoutInfer(x, dropout_prob, dropout_implementation);
 
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);
 }
 
-}  // namespace op_mappers
+}  // namespace paddle_mappers
 }  // namespace frontend
 }  // namespace cinn
 
-CINN_REGISTER_HELPER(slice) {
-  CINN_REGISTER_OP_MAPPER(slice, cinn::frontend::op_mappers::SliceOpMapper)
+CINN_REGISTER_HELPER(paddle_dropout) {
+  CINN_REGISTER_OP_MAPPER(dropout, cinn::frontend::paddle_mappers::DropoutInferOpMapper)
   return true;
 }

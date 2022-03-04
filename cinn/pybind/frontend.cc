@@ -358,7 +358,14 @@ void BindFrontend(pybind11::module *m) {
            py::arg("assign"),
            py::arg("axis"),
            py::arg("starts"),
-           py::arg("strides"));
+           py::arg("strides"))
+      .def("index_assign",
+           &BaseBuilder::IndexAssign,
+           py::arg("x"),
+           py::arg("assign"),
+           py::arg("index"),
+           py::arg("axis") = 0);
+  ;
 
   py::class_<NetBuilder, BaseBuilder>(*m, "NetBuilder")
       .def(py::init<const std::string &>(), py::arg("name") = "")
