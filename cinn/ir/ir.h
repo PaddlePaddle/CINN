@@ -816,7 +816,12 @@ struct Power : public ExprNode<Power> {
   const Expr& b() const { return operands()[1]; }
 
   bool is_constant() const { return a().is_constant() && b().is_constant(); }
-
+  double get_constant() const {
+    CHECK(is_constant());
+    double a_value = a().get_constant();
+    double b_value = b().get_constant();
+    return std::pow(a_value, b_value);
+  }
   static const IrNodeTy _node_type_ = IrNodeTy::Power;
 
   using ExprNode<Power>::operands;
