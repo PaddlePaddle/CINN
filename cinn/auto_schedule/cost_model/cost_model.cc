@@ -14,6 +14,7 @@
 
 #include "cinn/auto_schedule/cost_model/cost_model.h"
 
+#include <dirent.h>
 #include <pybind11/embed.h>
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
@@ -23,6 +24,7 @@
 #include <cstring>
 #include <iostream>
 #include <mutex>
+#include <regex>
 #include <string>
 #include <vector>
 
@@ -68,11 +70,18 @@ void AddDistPkgToPythonSysPath() {
   std::string site_pkg_str = "/usr/local/lib/python" + py_short_version + "/dist-packages";
   sys_py_mod.attr("path").attr("append")(site_pkg_str);
 
-  pybind11::module setuptool_py_mod = pybind11::module::import("setuptools");
-  std::string setuptool_version     = setuptool_py_mod.attr("__version__").cast<std::string>();
-
-  std::string setuptools_str = site_pkg_str + "/setuptools-" + setuptool_version + "-py" + py_short_version + ".egg";
-  sys_py_mod.attr("path").attr("append")(setuptools_str);
+  // TODO(zhhsplendid): warning to users if setuptools hasn't been installed
+  DIR* site_pkg_dir = opendir(site_pkg_str.c_str());
+  if (site_pkg_dir != nullptr) {
+    std::regex setuptool_regex("setuptools-.*-py" + py_short_version + "\\.egg");
+    struct dirent* entry = nullptr;
+    while ((entry = readdir(site_pkg_dir)) != nullptr) {
+      if (std::regex_match(entry->d_name, setuptool_regex)) {
+        sys_py_mod.attr("path").attr("append")(site_pkg_str + "/" + entry->d_name);
+      }
+    }
+    closedir(site_pkg_dir);
+  }
 }
 
 CostModel::CostModel() {
