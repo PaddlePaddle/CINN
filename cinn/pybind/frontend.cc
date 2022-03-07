@@ -352,6 +352,13 @@ void BindFrontend(pybind11::module *m) {
       .def("select", &BaseBuilder::Select, py::arg("condition"), py::arg("true_value"), py::arg("false_value"))
       .def("split", &BaseBuilder::Split, py::arg("a"), py::arg("num_or_sections"), py::arg("axis") = 0)
       .def("index_select", &BaseBuilder::IndexSelect, py::arg("x"), py::arg("index"), py::arg("axis") = 0)
+      .def("slice_assign",
+           &BaseBuilder::SliceAssign,
+           py::arg("input"),
+           py::arg("assign"),
+           py::arg("axis"),
+           py::arg("starts"),
+           py::arg("strides"))
       .def("index_assign",
            &BaseBuilder::IndexAssign,
            py::arg("x"),
