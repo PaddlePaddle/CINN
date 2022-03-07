@@ -28,6 +28,7 @@ gather_srcs(cinnapi_src SRCS
     cast_bool_to_int8.cc
     collect_undefined_vars.cc
     var_mod_simplify.cc
+    remove_schedule_block.cc
     )
 
 if (WITH_CUDA)
@@ -45,6 +46,7 @@ cc_test(test_optimize SRCS optimize_test.cc DEPS cinncore)
 cc_test(test_cache_read_write_replace SRCS cache_read_write_replace_test.cc DEPS cinncore)
 cc_test(test_cast_simplify SRCS cast_simplify_test.cc DEPS cinncore)
 cc_test(test_if_simplify SRCS if_simplify_test.cc DEPS cinncore)
+cc_test(test_remove_schedule_block SRCS remove_schedule_block_test.cc DEPS cinncore)
 
 if (WITH_CUDA)
   cc_test(test_transform_gpu_forloop SRCS transform_gpu_forloop_test.cc DEPS cinncore)

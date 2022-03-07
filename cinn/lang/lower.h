@@ -47,7 +47,8 @@ ir::LoweredFunc Lower(const std::string &name,
                       const std::vector<Var> &scalar_args     = {},
                       const std::vector<Tensor> &temp_tensors = {},
                       ir::Module::Builder *b                  = nullptr,
-                      const Target &target                    = common::DefaultHostTarget());
+                      const Target &target                    = common::DefaultHostTarget(),
+                      bool support_ir_schedule                = false);
 
 /**
  * \brief Lower the computation of \p tensor_args and \p scalar_args to a vector of LoweredFuncs. Each schedule group
@@ -66,7 +67,8 @@ std::vector<ir::LoweredFunc> LowerVec(const std::string &name,
                                       const std::vector<Var> &scalar_args     = {},
                                       const std::vector<Tensor> &temp_tensors = {},
                                       ir::Module::Builder *b                  = nullptr,
-                                      const Target &target                    = common::DefaultHostTarget());
+                                      const Target &target                    = common::DefaultHostTarget(),
+                                      bool support_ir_schedule                = false);
 
 }  // namespace lang
 }  // namespace cinn

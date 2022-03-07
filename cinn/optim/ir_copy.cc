@@ -344,6 +344,22 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
     return Expr(n);
   }
 
+  Expr Visit(const ir::_BufferRange_* op) {
+    std::vector<Var> ranges;
+    for (auto& var : ranges) {
+      ranges.push_back(var);
+    }
+    return ir::_BufferRange_::Make(Visit(&op->buffer), ranges);
+  }
+
+  Expr Visit(const ir::ScheduleBlock* op) {
+    return ir::ScheduleBlock::Make(op->iter_vars, op->read_buffers, op->write_buffers, op->name, op->body);
+  }
+
+  Expr Visit(const ir::ScheduleBlockRealize* op) {
+    return ir::ScheduleBlockRealize::Make(op->iter_values, op->schedule_block);
+  }
+
 #define __(x__) Expr Visit(const ir::intrinsics::x__* op);
   INTRINSIC_KIND_FOR_EACH(__)
 #undef __

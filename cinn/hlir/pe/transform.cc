@@ -779,6 +779,44 @@ ir::Tensor IndexSelect(const ir::Tensor& x,
   return output_tensor;
 }
 
+ir::Tensor SliceAssign(const ir::Tensor& input,
+                       const ir::Tensor& assign,
+                       const std::vector<int>& axis,
+                       const std::vector<int>& starts,
+                       const std::vector<int>& strides,
+                       const std::string& output_name) {
+  CHECK_EQ(axis.size(), starts.size()) << "axis's size is not equal to starts's size!";
+  CHECK_EQ(axis.size(), strides.size()) << "axis's size is not equal to strides's size!";
+
+  for (int idx = 0; idx < axis.size(); ++idx) {
+    CHECK_LT(axis[idx], input->shape.size()) << "axis should less than input's shape size";
+    CHECK_EQ(strides[idx], assign->shape[axis[idx]].as_int32()) << "stride should equal to assign size";
+    CHECK_LE(starts[idx] + strides[idx], input->shape[axis[idx]].as_int32())
+        << "the end axis should less equal than input's size";
+  }
+  auto output_tensor = Compute(
+      input->shape,
+      [=](const std::vector<Expr>& indice) {
+        ir::Expr is_assigned             = ir::Expr(true);
+        std::vector<ir::Expr> tmp_indice = indice;
+        for (int idx = 0; idx < axis.size(); ++idx) {
+          // get axis to be assigned
+          auto tmp_axis = indice[axis[idx]];
+          // axis >= start
+          auto ge = ir::GE::Make(tmp_axis, ir::Expr(starts[idx]));
+          // axis < start + stride
+          auto lt = ir::LT::Make(tmp_axis, ir::Expr(starts[idx] + strides[idx]));
+          // check start <= axis < start + stride
+          is_assigned = ir::And::Make(is_assigned, ir::And::Make(ge, lt));
+          // update axis for assign tensor
+          tmp_indice[axis[idx]] = tmp_axis - ir::Expr(starts[idx]);
+        }
+        return ir::Select::Make(is_assigned, assign(tmp_indice), input(indice));
+      },
+      output_name);
+  return output_tensor;
+}
+
 ir::Tensor IndexAssign(const ir::Tensor& input,
                        const ir::Tensor& assign,
                        const ir::Tensor& index,

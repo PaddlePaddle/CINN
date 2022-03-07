@@ -273,6 +273,60 @@ std::vector<const Expr *> Block::expr_fields() const {
   return res;
 }
 
+Expr ScheduleBlock::Make(const std::vector<Var> &iter_vars,
+                         const std::vector<BufferRange> &read_buffers,
+                         const std::vector<BufferRange> &write_buffers,
+                         const std::string &name,
+                         Expr body) {
+  auto node           = make_shared<ScheduleBlock>();
+  node->iter_vars     = iter_vars;
+  node->read_buffers  = read_buffers;
+  node->write_buffers = write_buffers;
+  node->name          = name;
+  node->body          = body;
+  return Expr(node);
+}
+void ScheduleBlock::Verify() const {
+  CHECK(!name.empty());
+  CHECK(body.defined());
+}
+std::vector<Expr *> ScheduleBlock::expr_fields() {
+  std::vector<Expr *> res;
+  res.push_back(&body);
+  return res;
+}
+std::vector<const Expr *> ScheduleBlock::expr_fields() const {
+  std::vector<const Expr *> res;
+  res.push_back(&body);
+  return res;
+}
+
+Expr ScheduleBlockRealize::Make(const std::vector<Expr> &iter_values, const Expr &schedule_block) {
+  auto node            = make_shared<ScheduleBlockRealize>();
+  node->iter_values    = iter_values;
+  node->schedule_block = schedule_block;
+  return Expr(node);
+}
+void ScheduleBlockRealize::Verify() const {
+  auto *schedule_block_ptr = schedule_block.As<ScheduleBlock>();
+  CHECK(schedule_block_ptr);
+  CHECK_EQ(schedule_block_ptr->iter_vars.size(), iter_values.size());
+}
+std::vector<Expr *> ScheduleBlockRealize::expr_fields() {
+  std::vector<Expr *> res;
+  auto *schedule_block_ptr = schedule_block.As<ScheduleBlock>();
+  CHECK(schedule_block_ptr);
+  res.push_back(&schedule_block_ptr->body);
+  return res;
+}
+std::vector<const Expr *> ScheduleBlockRealize::expr_fields() const {
+  std::vector<const Expr *> res;
+  auto *schedule_block_ptr = schedule_block.As<ScheduleBlock>();
+  CHECK(schedule_block_ptr);
+  res.push_back(&schedule_block_ptr->body);
+  return res;
+}
+
 Expr IfThenElse::Make(Expr condition, Expr true_case, Expr false_case) {
   auto node = make_shared<IfThenElse>(condition, true_case, false_case);
   return Expr(node);
