@@ -45,6 +45,10 @@ class _Tensor_;
 class Tensor;
 class _Var_;
 class Var;
+class _BufferRange_;
+class BufferRange;
+class ScheduleBlock;
+class ScheduleBlockRealize;
 
 // clang-format off
 #define NODETY_PRIMITIVE_TYPE_FOR_EACH(macro__) \
@@ -103,6 +107,10 @@ class Var;
   macro__(Sum)                              \
   macro__(PrimitiveNode)                    \
   macro__(IntrinsicOp)                      \
+  macro__(_BufferRange_)                    \
+  macro__(ScheduleBlock)                    \
+  macro__(ScheduleBlockRealize)             \
+
 
 #define NODETY_FORALL(__m)              \
   NODETY_PRIMITIVE_TYPE_FOR_EACH(__m)   \
