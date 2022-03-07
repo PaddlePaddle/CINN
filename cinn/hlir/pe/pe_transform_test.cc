@@ -109,7 +109,11 @@ TEST(IndexAssign, IndexAssignCase1) {
   Placeholder<float> indexs("C", {N});
   int axis = 0;
 
+#ifdef CINN_WITH_CUDA
   auto target = common::DefaultNVGPUTarget();
+#else
+  auto target = common::DefaultHostTarget();
+#endif
 
   auto output = hlir::pe::IndexAssign(input.tensor(), assign.tensor(), indexs.tensor(), target, axis);
   auto stages = CreateStages({input, assign, indexs, output});
