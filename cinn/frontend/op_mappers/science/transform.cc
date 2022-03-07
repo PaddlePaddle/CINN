@@ -161,6 +161,36 @@ void SliceSelectOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperConte
   ctx.AddVarModelToProgram(out_name, out->id);
 }
 
+void SliceAssignOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+  CHECK_EQ(op_desc.Input("X").size(), 1UL);
+  auto x_name = op_desc.Input("X").front();
+  CHECK_EQ(op_desc.Input("Y").size(), 1UL);
+  auto y_name = op_desc.Input("Y").front();
+  CHECK_EQ(op_desc.Output("Z").size(), 1UL);
+  auto out_name = op_desc.Output("Z").front();
+
+  CHECK(op_desc.HasAttr("starts"));
+  auto starts = op_desc.GetAttr<std::vector<int>>("starts");
+  CHECK(op_desc.HasAttr("ends"));
+  auto ends = op_desc.GetAttr<std::vector<int>>("ends");
+  CHECK(op_desc.HasAttr("axis"));
+  auto axis = op_desc.GetAttr<std::vector<int>>("axis");
+  CHECK(op_desc.HasAttr("strides"));
+  auto strides = op_desc.GetAttr<std::vector<int>>("strides");
+
+  auto x      = ctx.GetVar(x_name);
+  auto assign = ctx.GetVar(y_name);
+
+  VLOG(4) << "SliceAssign " << x_name << "from shape (" << cinn::utils::Join(x->shape, ",") << ") with starts ["
+          << cinn::utils::Join(starts, ",") << "], ends [" << cinn::utils::Join(ends, ",") << "], axis ["
+          << cinn::utils::Join(axis, ",") << "], strides [" << cinn::utils::Join(strides, ",") << "].";
+
+  auto out = ctx.Builder()->SliceAssign(x, assign, axis, starts, ends, strides);
+
+  ctx.AddVar(out_name, out);
+  ctx.AddVarModelToProgram(out_name, out->id);
+}
+
 void ReduceOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
   auto x_name = op_desc.Input("X").front();
@@ -177,34 +207,6 @@ void ReduceOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
 
   // now paddle science only need reduce sum
   auto out = ctx.Builder()->ReduceSum(x, axis, keepdim);
-
-  ctx.AddVar(out_name, out);
-  ctx.AddVarModelToProgram(out_name, out->id);
-}
-
-void SliceAssignOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
-  CHECK_EQ(op_desc.Input("X").size(), 1UL);
-  auto x_name = op_desc.Input("X").front();
-  CHECK_EQ(op_desc.Input("Y").size(), 1UL);
-  auto y_name = op_desc.Input("Y").front();
-  CHECK_EQ(op_desc.Output("Z").size(), 1UL);
-  auto out_name = op_desc.Output("Z").front();
-
-  CHECK(op_desc.HasAttr("starts"));
-  auto starts = op_desc.GetAttr<std::vector<int>>("starts");
-  CHECK(op_desc.HasAttr("axis"));
-  auto axis = op_desc.GetAttr<std::vector<int>>("axis");
-  CHECK(op_desc.HasAttr("strides"));
-  auto strides = op_desc.GetAttr<std::vector<int>>("strides");
-
-  auto x      = ctx.GetVar(x_name);
-  auto assign = ctx.GetVar(y_name);
-
-  VLOG(4) << "SliceAssign " << x_name << "from shape (" << cinn::utils::Join(x->shape, ",") << ") with starts ["
-          << cinn::utils::Join(starts, ",") << "], ends [" << cinn::utils::Join(axis, ",") << "], strides ["
-          << cinn::utils::Join(strides, ",") << "].";
-
-  auto out = ctx.Builder()->SliceAssign(x, assign, axis, starts, strides);
 
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);
