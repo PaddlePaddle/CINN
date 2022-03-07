@@ -61,10 +61,11 @@ void BindLower(py::module *m) {
          arg("name"),
          arg("stages"),
          arg("tensor_args"),
-         arg("scalar_args")  = std::vector<ir::Var>(),
-         arg("temp_tensors") = std::vector<ir::Tensor>(),
-         arg("b")            = nullptr,
-         arg("target")       = common::DefaultHostTarget());
+         arg("scalar_args")        = std::vector<ir::Var>(),
+         arg("temp_tensors")       = std::vector<ir::Tensor>(),
+         arg("b")                  = nullptr,
+         arg("target")             = common::DefaultHostTarget(),
+         arg("supprt_ir_schedule") = false);
 }
 
 void BindLowerVec(py::module *m) {
@@ -74,10 +75,11 @@ void BindLowerVec(py::module *m) {
          arg("name"),
          arg("stages"),
          arg("tensor_args"),
-         arg("scalar_args")  = std::vector<ir::Var>(),
-         arg("temp_tensors") = std::vector<ir::Tensor>(),
-         arg("b")            = nullptr,
-         arg("target")       = common::DefaultHostTarget());
+         arg("scalar_args")        = std::vector<ir::Var>(),
+         arg("temp_tensors")       = std::vector<ir::Tensor>(),
+         arg("b")                  = nullptr,
+         arg("target")             = common::DefaultHostTarget(),
+         arg("supprt_ir_schedule") = false);
 }
 
 void BindCompute(py::module *m) {

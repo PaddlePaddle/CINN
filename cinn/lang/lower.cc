@@ -93,7 +93,8 @@ ir::LoweredFunc Lower(const std::string& name,
                       const std::vector<Var>& scalar_args,
                       const std::vector<Tensor>& temp_tensors,
                       Module::Builder* b,
-                      const Target& target) {
+                      const Target& target,
+                      bool support_ir_schedule) {
   // Init the reduce tensors first before any process.
   for (auto& t : tensor_args) InitReduceTensor(stages, t, target);
   for (auto& t : temp_tensors) InitReduceTensor(stages, t, target);
@@ -102,8 +103,13 @@ ir::LoweredFunc Lower(const std::string& name,
   auto ctrl_deps = CollectTempTensorsFromCtrlDepends(stages, tensor_args);
   ctrl_deps.insert(temp_tensors.begin(), temp_tensors.end());
 
-  auto lower_impl_instance = detail::LowerImpl(
-      name, stages, tensor_args, scalar_args, std::vector<Tensor>(ctrl_deps.begin(), ctrl_deps.end()), target);
+  auto lower_impl_instance = detail::LowerImpl(name,
+                                               stages,
+                                               tensor_args,
+                                               scalar_args,
+                                               std::vector<Tensor>(ctrl_deps.begin(), ctrl_deps.end()),
+                                               target,
+                                               support_ir_schedule);
 
   auto result = lower_impl_instance();
   std::vector<ir::LoweredFunc> return_value;
@@ -148,7 +154,8 @@ std::vector<ir::LoweredFunc> LowerVec(const std::string& name,
                                       const std::vector<Var>& scalar_args,
                                       const std::vector<Tensor>& temp_tensors,
                                       Module::Builder* b,
-                                      const Target& target) {
+                                      const Target& target,
+                                      bool support_ir_schedule) {
   // Init the reduce tensors first before any process.
   for (auto& t : tensor_args) InitReduceTensor(stages, t, target);
   for (auto& t : temp_tensors) InitReduceTensor(stages, t, target);
@@ -157,8 +164,13 @@ std::vector<ir::LoweredFunc> LowerVec(const std::string& name,
   auto ctrl_deps = CollectTempTensorsFromCtrlDepends(stages, tensor_args);
   ctrl_deps.insert(temp_tensors.begin(), temp_tensors.end());
 
-  auto lower_impl_instance = detail::LowerImpl(
-      name, stages, tensor_args, scalar_args, std::vector<Tensor>(ctrl_deps.begin(), ctrl_deps.end()), target);
+  auto lower_impl_instance = detail::LowerImpl(name,
+                                               stages,
+                                               tensor_args,
+                                               scalar_args,
+                                               std::vector<Tensor>(ctrl_deps.begin(), ctrl_deps.end()),
+                                               target,
+                                               support_ir_schedule);
   // return vectorof ir::LoweredFunc.
   auto result = lower_impl_instance();
   std::vector<ir::LoweredFunc> return_value;

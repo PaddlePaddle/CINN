@@ -23,6 +23,7 @@
 #include "cinn/common/ir_util.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/tensor.h"
+#include "cinn/optim/replace_var_with_expr.h"
 #include "cinn/poly/stage.h"
 
 namespace cinn {
@@ -556,6 +557,11 @@ std::vector<ir::LoweredFunc> LowerImpl::operator()() {
   std::vector<ir::LoweredFunc> result;
   int num_func = 0;
   for (auto& func_iterator : func_body) {
+    if (support_ir_schedule_) {
+      // add ScheduleBlockRealize
+      func_iterator = ir::ScheduleBlockRealize::Make(
+          {}, ir::ScheduleBlock::Make({}, {}, {}, common::UniqName("root"), func_iterator));
+    }
     std::set<std::string> temp_tensor_names;
     for (auto& t : temp_tensor_args_) temp_tensor_names.insert(t->name);
 
@@ -697,7 +703,28 @@ std::vector<Expr> LowerImpl::GenerateFunctionBody(const poly::Schedule* schedule
       }
       auto& tensor = tensor_map[node->id()];
       if (!tensor->has_expression()) continue;
-      tuple_to_expr[tensor->name] = tensor->tensor_store_expanded_body();
+      auto store_body = tensor->tensor_store_expanded_body();
+      if (support_ir_schedule_) {
+        // add schedule block of tensor computation for schedule IR
+        int var_counts = tensor->domain.size() + tensor->reduce_axis.size();
+        // create block itervars, i0,i1...
+        std::vector<Var> block_vars;
+        std::vector<Expr> iter_values;
+        std::vector<Var> axis_vars = common::GenDefaultAxis(tensor->domain.size());
+        // bind var_values
+        axis_vars.insert(axis_vars.end(), tensor->reduce_axis.begin(), tensor->reduce_axis.end());
+        for (int i = 0; i < var_counts; i++) {
+          block_vars.push_back(Var("i" + std::to_string(i)));
+          iter_values.push_back(axis_vars[i]);
+          // replace store's indice
+          VLOG(3) << "replace axis_var " << axis_vars[i]->name << " to block_var " << block_vars[i];
+          optim::ReplaceVarWithExpr(&store_body, axis_vars[i], block_vars[i]);
+        }
+        store_body = ir::ScheduleBlockRealize::Make(
+            iter_values, ir::ScheduleBlock::Make(block_vars, {}, {}, common::UniqName(tensor->name), store_body));
+        VLOG(3) << "store body\n" << store_body;
+      }
+      tuple_to_expr[tensor->name] = store_body;
     }
 
     ir::CudaAxisInfo temp_cuda_axis_info;
@@ -729,13 +756,15 @@ LowerImpl::LowerImpl(const std::string& fn_name,
                      const std::vector<Tensor>& tensor_args,
                      const std::vector<Var>& scalar_args,
                      const std::vector<Tensor>& temp_tensor_args,
-                     const Target& target)
+                     const Target& target,
+                     bool support_ir_schedule)
     : fn_name_(fn_name),
       stages_(stages),
       tensor_args_(tensor_args),
       scalar_args_(scalar_args),
       temp_tensor_args_(temp_tensor_args),
-      target_(target) {
+      target_(target),
+      support_ir_schedule_(support_ir_schedule) {
   {  // Initialize the graph
     std::vector<ir::Tensor> tensors(tensor_args.begin(), tensor_args.end());
     tensors.insert(std::end(tensors), temp_tensor_args.begin(), temp_tensor_args.end());

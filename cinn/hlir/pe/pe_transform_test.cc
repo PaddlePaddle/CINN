@@ -98,7 +98,6 @@ TEST(MatmulPE, MatmulCase1) {
   }
 }
 
-#ifdef CINN_WITH_CUDA
 TEST(IndexAssign, IndexAssignCase1) {
   int m = 128;
   int n = 32;
@@ -110,13 +109,18 @@ TEST(IndexAssign, IndexAssignCase1) {
   Placeholder<float> indexs("C", {N});
   int axis = 0;
 
+#ifdef CINN_WITH_CUDA
   auto target = common::DefaultNVGPUTarget();
+#else
+  auto target = common::DefaultHostTarget();
+#endif
 
   auto output = hlir::pe::IndexAssign(input.tensor(), assign.tensor(), indexs.tensor(), target, axis);
   auto stages = CreateStages({input, assign, indexs, output});
   auto func   = Lower("fn", stages, {input, assign, indexs, output});
   LOG(INFO) << "func:\n" << func;
 
+#ifdef CINN_WITH_CUDA
   Module::Builder builder("IndexAssign_Builder", target);
   builder.AddFunction(func);
 
@@ -141,9 +145,55 @@ TEST(IndexAssign, IndexAssignCase1) {
   CHECK(!ptx.empty());
   // cuda_module load ptx
   runtime::cuda::CUDAModule cuda_module(ptx, runtime::cuda::CUDAModule::Kind::PTX);
+#endif  // CINN_WITH_CUDA
 }
 
-#endif  // CINN_WITH_CUDA
+TEST(SliceAssign, SliceAssign) {
+  int m = 128;
+  int n = 32;
+  int k = 32;
+  Expr M(m), N(n), K(k);
+
+  std::vector<int> axis    = {0, 1};
+  std::vector<int> starts  = {32, 32};
+  std::vector<int> strides = {32, 32};
+
+  Placeholder<float> input("A", {M, M});
+  Placeholder<float> assign("B", {N, N});
+
+  auto output = hlir::pe::SliceAssign(input.tensor(), assign.tensor(), axis, starts, strides);
+  auto stages = CreateStages({input, assign, output});
+  auto func   = Lower("fn", stages, {input, assign, output});
+  LOG(INFO) << "func:\n" << func;
+
+#ifdef CINN_WITH_CUDA
+  auto target = common::DefaultNVGPUTarget();
+  Module::Builder builder("SliceAssign_Builder", target);
+  builder.AddFunction(func);
+
+  auto module                    = builder.Build();
+  auto host_module_device_module = backends::SplitCudaAndHostModule(module);
+  auto &host_module              = std::get<0>(host_module_device_module);
+  auto &device_module            = std::get<1>(host_module_device_module);
+  for (auto &func : host_module.functions()) {
+    LOG(INFO) << "host:\n" << func;
+  }
+  for (auto &func : device_module.functions()) {
+    LOG(INFO) << "device:\n" << func;
+  }
+
+  backends::CodeGenCUDA_Dev codegen(target);
+  auto source_code = codegen.Compile(builder.Build());
+  LOG(INFO) << "compiled code:\n\n\n" << source_code;
+
+  // nv jit compile to ptx
+  backends::NVRTC_Compiler compiler;
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty());
+
+  runtime::cuda::CUDAModule cuda_module(ptx, runtime::cuda::CUDAModule::Kind::PTX);
+#endif
+}
 
 }  // namespace pe
 }  // namespace hlir

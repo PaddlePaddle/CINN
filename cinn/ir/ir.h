@@ -39,7 +39,8 @@ class Stage;
 }  // namespace poly
 
 namespace ir {
-struct Buffer;
+class Buffer;
+class BufferRange;
 struct LoweredFunc;
 class Module;
 
@@ -858,6 +859,44 @@ struct Block : public ExprNode<Block> {
   std::vector<const Expr*> expr_fields() const override;
 
   static const IrNodeTy _node_type_ = IrNodeTy::Block;
+};
+
+// ScheduleBlock is the unit of schedule IR which represents tensor's computation
+struct ScheduleBlock : public ExprNode<ScheduleBlock> {
+  std::vector<Var> iter_vars;
+  std::vector<BufferRange> read_buffers;
+  std::vector<BufferRange> write_buffers;
+  std::string name;
+  Expr body;
+
+  static Expr Make(const std::vector<Var>& iter_vars,
+                   const std::vector<BufferRange>& read_buffers,
+                   const std::vector<BufferRange>& write_buffers,
+                   const std::string& name,
+                   Expr body);
+
+  void Verify() const override;
+
+  std::vector<Expr*> expr_fields() override;
+  std::vector<const Expr*> expr_fields() const override;
+
+  static const IrNodeTy _node_type_ = IrNodeTy::ScheduleBlock;
+};
+
+// ScheduleBlockRealize is used to execute ScheduleBlock with the binding iter_values
+struct ScheduleBlockRealize : public ExprNode<ScheduleBlockRealize> {
+  // values of the iter_vars
+  std::vector<Expr> iter_values;
+  Expr schedule_block;
+
+  static Expr Make(const std::vector<Expr>& iter_values, const Expr& schedule_block);
+
+  void Verify() const override;
+
+  std::vector<Expr*> expr_fields() override;
+  std::vector<const Expr*> expr_fields() const override;
+
+  static const IrNodeTy _node_type_ = IrNodeTy::ScheduleBlockRealize;
 };
 
 /**
