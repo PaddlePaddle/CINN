@@ -813,7 +813,7 @@ ir::Tensor SliceAssign(const ir::Tensor& input,
     // if strides < 0, starts > ends, we need swap them
     CHECK_NE(strides[i], 0) << "[strides] should not be 0 ! Please Check.";
     if (strides[i] < 0) {
-      CHECK_GT(new_starts[i], new_ends[i]) << "[starts] shoould greater than [ends] when [strides] < 0";
+      CHECK_GT(new_starts[i], new_ends[i]) << "[starts] should greater than [ends] when [strides] < 0";
       // if strides > 0, the range is [starts, ends)
       // but if strides < 0, the range is (ends, starts]
       auto tmp      = new_starts[i];

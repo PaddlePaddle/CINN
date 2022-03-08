@@ -1664,19 +1664,11 @@ std::vector<std::vector<int>> InferShapeForSlice(const std::vector<std::vector<i
     if (strides[i] > 0) {
       CHECK(ends[i] > starts[i]) << "[ends] should greater than [starts] when strides > 0 ! But here " << ends[i]
                                  << " < " << starts[i] << ", Please Check.";
-      // Why we cannot count the value by (ends[i] - starts[i]) / strides[i] or (ends[i] - starts[i] + strides[i]) /
-      // strides[i] ? For example, starts=2, ends=9,strides=3 ==> should has 3 number: 2, 5, 8, but (9-2)/3 = 2
-      // otherwise, when if starts=2, ends=11,strides=3 ==> should has 3 number: 2, 5, 8, but (11-2+3) / 3 = 4
-      int num = 0;
-      for (auto j = starts[i]; j < ends[i]; j += strides[i]) ++num;
-      output_shape[axes[i]] = num;
+      output_shape[axes[i]] = (ends[i] - starts[i] + strides[i] - 1) / strides[i];
     } else {
-      CHECK(ends[i] < starts[i]) << "[ends] should less than [starts] when strides > 0 ! But here " << ends[i] << " > "
+      CHECK(ends[i] < starts[i]) << "[ends] should less than [starts] when strides < 0 ! But here " << ends[i] << " > "
                                  << starts[i] << ",  Please Check.";
-      int num = 0;
-      // note strides[i] < 0
-      for (auto j = starts[i]; j > ends[i]; j += strides[i]) ++num;
-      output_shape[axes[i]] = num;
+      output_shape[axes[i]] = (starts[i] - ends[i] + (-strides[i]) - 1) / (-strides[i]);
     }
   }
   VLOG(4) << "Output shape of Slice is: " << cinn::utils::Join(output_shape, ",");
