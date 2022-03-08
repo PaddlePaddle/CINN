@@ -89,11 +89,38 @@ class IRSchedule {
   std::vector<Expr> Split(Expr& loop, const std::vector<int>& factors);
 
   /**
+   * \brief Split a for loop into multiple loops, based on the factors.
+   * @param loop_index Index of the loop to be splited.
+   * @param factors The factors we used to split the loop.
+   * @return The splited loops.
+   */
+  std::vector<Expr> Split(int loop_index, const std::vector<int>& factors);
+
+  /**
    * \brief Fuse for loops and return the fused loop.
    * @param loops All the loops to be fused, stored in ascending order.
    * @return The fused loop.
    */
   Expr Fuse(std::vector<Expr>& loops);
+
+  /**
+   * \brief Fuse for loops and return the fused loop.
+   * @param loops_index Indices of the loops to be fused, stored in ascending order.
+   * @return The fused loop.
+   */
+  Expr Fuse(std::vector<int>& loops_index);
+
+  /**
+   * \brief Reorder the loops in the order of vector.
+   * @param loops The loops to be reordered.
+   */
+  void Reorder(std::vector<Expr>& loops);
+
+  /**
+   * \brief Reorder the loops in the order of vector elements.
+   * @param loops_index Indices of loops to be reordered.
+   */
+  void Reorder(const std::vector<int>& loops_index);
 
   //! Get the ModuleExpr stored in ScheduleHelper.
   ModuleExpr GetModule() { return helper_.GetModule(); }

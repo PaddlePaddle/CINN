@@ -21,12 +21,12 @@
 #include <memory>
 #include <set>
 #include <string>
-#include <unordered_set>
 #include <vector>
 
 #include "cinn/common/cas.h"
 #include "cinn/common/common.h"
 #include "cinn/common/ir_util.h"
+#include "cinn/ir/collect_ir_nodes.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"
@@ -38,6 +38,70 @@
 
 namespace cinn {
 namespace ir {
+
+// Self-defined operator to support std::set<Expr>
+struct CompExpr {
+  bool operator()(const Expr& left, const Expr& right) const {
+    return utils::GetStreamCnt(left) < utils::GetStreamCnt(right);
+  }
+};
+
+/**
+ * \brief Given a For loop, return the next For loop in its body.
+ * @param for_loop The given For loop.
+ * @return The next For loop.
+ */
+Expr GetNextForLoop(const Expr& for_loop) {
+  Expr result;
+  CHECK(for_loop.As<ir::For>()) << "The input of GetNextForLoop should be ir::For!";
+  Expr for_body = for_loop.As<ir::For>()->body;
+  CHECK(for_body.As<ir::Block>()) << "The for_loop's body shoule be Block!";
+  if (for_body.As<ir::Block>()->stmts.size() != 1U) return result;
+  Expr block_body = for_body.As<ir::Block>()->stmts[0];
+  if (block_body.As<IfThenElse>()) {
+    CHECK(block_body.As<IfThenElse>()->true_case.As<ir::Block>());
+    Expr true_case = block_body.As<IfThenElse>()->true_case;
+    if (true_case.As<ir::Block>()->stmts.size() != 1U || !true_case.As<ir::Block>()->stmts[0].As<ir::For>())
+      return result;
+    result = true_case.As<ir::Block>()->stmts[0];
+    return result;
+  } else if (block_body.As<ir::For>()) {
+    return block_body;
+  } else {
+    return result;
+  }
+}
+
+/**
+ * \brief Given two For loops, return all ir::IfThenElse nodes between them.
+ * @param top The given top For loop.
+ * @param bottom The given bottom For loop.
+ * @return All ir::IfThenElse nodes between them.
+ */
+std::vector<Expr> GetIfThenElseInRange(Expr top, Expr bottom) {
+  std::vector<Expr> if_nodes;
+  CHECK(top.As<ir::For>());
+  CHECK(bottom.As<ir::For>());
+  for (Expr loop_iter = top; loop_iter != bottom;) {
+    CHECK(loop_iter.As<ir::For>());
+    CHECK(loop_iter.As<ir::For>()->body.As<ir::Block>()) << "For node's body should be Block!";
+    auto block = loop_iter.As<ir::For>()->body.As<ir::Block>();
+    if (block->stmts.size() != 1) LOG(FATAL) << "Between For top and For bottom, there is a block's size not = 1!";
+    Expr tmp = block->stmts[0];
+    if (tmp.As<IfThenElse>()) {
+      if_nodes.push_back(tmp);
+      CHECK(tmp.As<IfThenElse>()->true_case.As<ir::Block>());
+      Expr true_case = tmp.As<IfThenElse>()->true_case;
+      CHECK(true_case.As<ir::Block>()->stmts.size() == 1U && true_case.As<ir::Block>()->stmts[0].As<ir::For>());
+      tmp = true_case.As<ir::Block>()->stmts[0];
+    }
+    if (tmp.As<ir::For>())
+      loop_iter = tmp;
+    else
+      LOG(FATAL) << "Between For top and For bottom, Block stmt:\n " << tmp << " is neither IfThenElse nor For!";
+  }
+  return if_nodes;
+}
 
 /**
  * Replace Vars in replaced to Exprs in candidates in source. Vars -> Exprs is one-to-one correspondence.
@@ -112,7 +176,7 @@ std::vector<Expr> IRSchedule::Split(Expr& loop, const std::vector<int>& factors)
     new_loop_vars.push_back(temp_var);
   }
   substitute_value = common::AutoSimplify(substitute_value);
-  Expr new_node    = for_node->body;
+  Expr& new_node   = for_node->body;
   ReplaceExpr(&new_node, {for_node->loop_var}, {substitute_value});
   std::vector<Expr> splited_loops;
   splited_loops.resize(processed_factors.size());
@@ -129,6 +193,14 @@ std::vector<Expr> IRSchedule::Split(Expr& loop, const std::vector<int>& factors)
   return splited_loops;
 }
 
+std::vector<Expr> IRSchedule::Split(int loop_index, const std::vector<int>& factors) {
+  std::vector<Expr> all_loops = this->GetLoops();
+  Expr loop_expr;
+  CHECK_LT(loop_index, (int)all_loops.size()) << "The loop index in Split should be less than total loop's number.";
+  loop_expr = all_loops[loop_index];
+  return this->Split(loop_expr, factors);
+}
+
 Expr IRSchedule::Fuse(std::vector<Expr>& loops) {
   std::vector<ir::For*> for_nodes;
   std::vector<Var> loop_vars;
@@ -138,6 +210,7 @@ Expr IRSchedule::Fuse(std::vector<Expr>& loops) {
     CHECK(it_loop.As<ir::For>()) << "Expr param of Fuse must be For node! Please check.";
     if (!for_nodes.empty()) {
       CHECK(for_nodes.back()->body.As<ir::Block>()) << "The body of for node is not Block!";
+      CHECK_EQ(for_nodes.back()->body.As<ir::Block>()->stmts.size(), 1U) << "The Block'size of for node is not 1!";
       CHECK_EQ(for_nodes.back()->body.As<ir::Block>()->stmts[0], it_loop)
           << "The For nodes in loops param of Fuse must be adjacent! Please check.";
     }
@@ -161,7 +234,7 @@ Expr IRSchedule::Fuse(std::vector<Expr>& loops) {
   }
   substitute_value[0] = fused_expr;
 
-  Expr fused_body = for_nodes.back()->body;
+  Expr& fused_body = for_nodes.back()->body;
   ReplaceExpr(&fused_body, loop_vars, substitute_value);
   optim::Simplify(&fused_body);
   Expr fused_extent(1);
@@ -175,6 +248,20 @@ Expr IRSchedule::Fuse(std::vector<Expr>& loops) {
       For::Make(fused_var, Expr(0), fused_extent, for_nodes[0]->for_type(), for_nodes[0]->device_api, fused_body);
   helper_.Replace(loops[0], new_stmt);
   return loops[0];
+}
+
+Expr IRSchedule::Fuse(std::vector<int>& loops_index) {
+  std::vector<Expr> all_loops = this->GetLoops();
+  std::vector<Expr> loops_expr;
+  loops_expr.reserve(loops_index.size());
+  for (int i = 0; i < loops_index.size(); i++) {
+    if (i > 0) CHECK_EQ(loops_index[i - 1] + 1, loops_index[i + 1]) << "Loops index in Fuse shoule be continuous!";
+  }
+  for (int i : loops_index) {
+    CHECK_LT(i, (int)all_loops.size()) << "The loop index in Reorder should be less than total loop's number.";
+    loops_expr.emplace_back(all_loops[i]);
+  }
+  return this->Fuse(loops_expr);
 }
 
 IRSchedule::IRSchedule(const ModuleExpr& module_expr, bool debug_flag) {
@@ -198,6 +285,163 @@ void ScheduleHelper::Replace(Expr& src_sref, const Expr& tgt_stmt) {
   src_sref.As<ir::For>()->extent     = tgt_stmt.As<ir::For>()->extent;
   src_sref.As<ir::For>()->body       = tgt_stmt.As<ir::For>()->body;
   src_sref.As<ir::For>()->device_api = tgt_stmt.As<ir::For>()->device_api;
+}
+
+/**
+ * \brief Given a vector of For loops, return a set of them.
+ * @param loops The given vector of For loops.
+ * @return A set containing all the For loops in loops.
+ */
+const std::set<Expr, CompExpr> CollectLoopsToSet(const std::vector<Expr>& loops) {
+  std::set<Expr, CompExpr> for_loops;
+  for (auto& i : loops) {
+    CHECK(i.As<ir::For>()) << "loops should be For node! Please check.";
+    auto inserted = for_loops.insert(i);
+    if (!inserted.second) {
+      LOG(FATAL) << "There should be no duplicate elements in loops! Please check.";
+    }
+  }
+  return for_loops;
+}
+
+/**
+ * \brief Given a set of For loops, return the boundary among them.
+ * @param loop_set The given set of For loops.
+ * @return A pair of the boundary among For loops.(The top For and bottom For)
+ */
+std::pair<Expr, Expr> GetBoundaryOfReorderRange(const std::set<Expr, CompExpr>& loop_set) {
+  Expr top = *loop_set.begin();
+  Expr bottom;
+  std::set<Expr, CompExpr> visited;
+  bool first_traversal = true;
+  for (Expr loop_i : loop_set) {
+    if (visited.count(loop_i)) continue;
+    for (auto v_for = loop_i;;) {
+      if (visited.count(v_for)) {
+        if (v_for != top) {
+          LOG(FATAL) << "Loops in GetBoundaryOfReorderRange is not a chain! Please check.";
+        }
+        top = loop_i;
+        break;
+      }
+      visited.insert(v_for);
+      if (first_traversal && loop_set.count(v_for)) {
+        bottom = v_for;
+      }
+      CHECK(v_for.As<ir::For>());
+      auto tmp = GetNextForLoop(v_for);
+      if (!tmp.defined()) break;
+      v_for = tmp;
+    }
+    first_traversal = false;
+  }
+  CHECK(top.As<ir::For>());
+  CHECK(bottom.defined());
+  CHECK(bottom.As<ir::For>());
+  return std::make_pair(top, bottom);
+}
+
+/**
+ * \brief Given two For loops, return all loops between them.
+ * @param top The top For loop.
+ * @param bottom The bottom For loop.
+ * @return A vector containing all For loops between the boundary, stored in ascending order.
+ */
+std::vector<Expr> GetLoopsInRange(Expr top, Expr bottom) {
+  std::vector<Expr> chain;
+  CHECK(top.As<ir::For>());
+  CHECK(bottom.As<ir::For>());
+  for (Expr loop_iter = top; loop_iter != bottom;) {
+    Expr tmp = GetNextForLoop(loop_iter);
+    if (!tmp.defined()) LOG(FATAL) << "Loops in GetLoopsInReorderRange is not a chain! Please check.";
+    chain.push_back(loop_iter);
+    loop_iter = tmp;
+  }
+  chain.push_back(bottom);
+  return chain;
+}
+
+/**
+ * \brief Given params, construct a new loop.
+ */
+Expr ConstructNewLoopChain(std::vector<Expr>& chain,
+                           std::vector<Expr>& ordered_loops,
+                           const std::set<Expr, CompExpr>& loop_set,
+                           std::vector<Expr>& if_nodes) {
+  std::vector<std::set<std::string>> condition_vars;
+  // In each IfThenElse node, find the vars its condition depends on.
+  for (auto& if_expr : if_nodes) {
+    CHECK(if_expr.As<IfThenElse>());
+    auto var_set = ir::CollectIRNodes(if_expr.As<IfThenElse>()->condition, [&](const Expr* x) { return x->as_var(); });
+    std::set<std::string> var_name_set;
+    for (auto& i : var_set) var_name_set.insert(i.as_var()->name);
+    condition_vars.push_back(var_name_set);
+  }
+  Expr new_loop;
+  int index = static_cast<int>(ordered_loops.size()) - 1;
+  // Construct the loop from bottom to top.
+  for (int i = static_cast<int>(chain.size()) - 1; i >= 0; i--) {
+    Expr& loop_in_chain = chain[i];
+    CHECK(loop_in_chain.As<ir::For>());
+    Expr temp;
+    if (loop_set.count(loop_in_chain)) {
+      CHECK_GE(index, 0);
+      temp = optim::IRCopy(ordered_loops[index]);
+      --index;
+    } else {
+      temp = optim::IRCopy(loop_in_chain);
+    }
+    CHECK(temp.defined());
+    CHECK(temp.As<ir::For>());
+    if (new_loop.defined()) {
+      temp.As<ir::For>()->body = Block::Make({new_loop});
+    } else {
+      temp.As<ir::For>()->body = loop_in_chain.As<ir::For>()->body;
+    }
+    Expr original_temp = temp;
+    // Here we handle the IfThenElse nodes.
+    for (int i = 0; i < static_cast<int>(if_nodes.size()); i++) {
+      if (condition_vars[i].count(original_temp.As<ir::For>()->loop_var->name)) {
+        Expr temp_body = temp.As<ir::For>()->body;
+        if (temp_body.As<Block>() && temp_body.As<Block>()->stmts.size() == 1U)
+          temp_body = temp_body.As<Block>()->stmts[0];
+        temp.As<ir::For>()->body = IfThenElse::Make(
+            if_nodes[i].As<IfThenElse>()->condition, temp_body, if_nodes[i].As<IfThenElse>()->false_case);
+        temp.As<ir::For>()->body = Block::Make({temp.As<ir::For>()->body});
+        if_nodes.erase(if_nodes.begin() + i);
+        condition_vars.erase(condition_vars.begin() + i);
+        i--;
+      }
+    }
+    new_loop = temp;
+  }
+  CHECK(new_loop.defined());
+  return new_loop;
+}
+
+void IRSchedule::Reorder(std::vector<Expr>& loops) {
+  if (loops.size() <= 1) return;
+  std::set<Expr, CompExpr> loop_set = CollectLoopsToSet(loops);
+  auto boundary                     = GetBoundaryOfReorderRange(loop_set);
+  Expr top                          = boundary.first;
+  Expr bottom                       = boundary.second;
+  std::vector<Expr> chain           = GetLoopsInRange(top, bottom);
+  std::vector<Expr> if_nodes        = GetIfThenElseInRange(top, bottom);
+
+  Expr new_loop = ConstructNewLoopChain(chain, loops, loop_set, if_nodes);
+  helper_.Replace(top, new_loop);
+  auto result = helper_.GetLoops();
+}
+
+void IRSchedule::Reorder(const std::vector<int>& loops_index) {
+  std::vector<Expr> all_loops = this->GetLoops();
+  std::vector<Expr> loops_expr;
+  loops_expr.reserve(loops_index.size());
+  for (int i : loops_index) {
+    CHECK_LT(i, (int)all_loops.size()) << "The loop index in Reorder should be less than total loop's number.";
+    loops_expr.emplace_back(all_loops[i]);
+  }
+  this->Reorder(loops_expr);
 }
 
 std::vector<Expr> ScheduleHelper::GetLoops() const {
