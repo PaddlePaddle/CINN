@@ -764,6 +764,13 @@ ir::Tensor Slice(const ir::Tensor& A,
   }
 
   // output = input[starts:ends:strides]
+  // Note that when strides < 0, the output reverse:
+  // data=[[1,2,3,4],[5,6,7,8],]
+  // axes=[0,1]
+  // starts=[1,3]
+  // ends=[2,0]
+  // strides=[1,-1]
+  // ==> result=[[8,7,6],]
   return Compute(
       output_shape,
       [=](const std::vector<Expr>& indice) {
@@ -791,7 +798,9 @@ ir::Tensor SliceAssign(const ir::Tensor& input,
   for (const auto& shape : input->shape) {
     input_shape.emplace_back(shape.as_int32());
   }
-  std::vector<int> new_starts(starts), new_ends(ends), new_strides(strides);
+  std::vector<int> new_starts(starts);
+  std::vector<int> new_ends(ends);
+  std::vector<int> new_strides(strides);
   for (int i = 0; i < axes.size(); i++) {
     CHECK_LT(axes[i], input->shape.size()) << "axes should less than input's shape size";
 
@@ -827,13 +836,6 @@ ir::Tensor SliceAssign(const ir::Tensor& input,
   }
 
   // input[starts:ends:strides] = assign
-  // Note that when strides < 0, the output reverse:
-  // data=[[1,2,3,4],[5,6,7,8],]
-  // axes=[0,1]
-  // starts=[1,3]
-  // ends=[2,0]
-  // strides=[1,-1]
-  // ==> result=[[8,7,6],]
   auto output_tensor = Compute(
       input->shape,
       [=](const std::vector<Expr>& indice) {
