@@ -797,12 +797,14 @@ ir::Tensor SliceAssign(const ir::Tensor& input,
 
     if (new_starts[i] < 0) {
       new_starts[i] = input_shape[axes[i]] + new_starts[i];
+      CHECK_GE(new_starts[i], 0) << "The value of [starts] should not less than " << -input_shape[axes[i]];
     }
     if (new_starts[i] > input_shape[axes[i]]) {
       new_starts[i] = input_shape[axes[i]];
     }
     if (new_ends[i] < 0) {
       new_ends[i] = input_shape[axes[i]] + new_ends[i];
+      CHECK_GE(new_ends[i], 0) << "The value of [ends] should not less than " << -input_shape[axes[i]];
     }
     if (new_ends[i] > input_shape[axes[i]]) {
       new_ends[i] = input_shape[axes[i]];

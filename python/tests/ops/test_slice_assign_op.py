@@ -88,7 +88,7 @@ class TestSliceAssignOp(OpTest):
             starts=self.starts,
             ends=self.ends,
             axes=self.axes,
-            decrease_axis=self.strides)
+            strides=self.strides)
 
         prog = builder.build()
         res = self.get_cinn_output(

@@ -167,13 +167,13 @@ Variable BaseBuilder::Slice(const Variable& operand,
                             const std::vector<int>& starts,
                             const std::vector<int>& ends,
                             const std::vector<int>& infer_flags,
-                            const std::vector<int>& decrease_axis) {
+                            const std::vector<int>& strides) {
   Instruction instr("slice", {operand});
   instr.SetAttr("axes", axes);
   instr.SetAttr("starts", starts);
   instr.SetAttr("ends", ends);
   instr.SetAttr("infer_flags", infer_flags);
-  instr.SetAttr("decrease_axis", decrease_axis);
+  instr.SetAttr("strides", strides);
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(0);
@@ -184,12 +184,12 @@ Variable BaseBuilder::SliceAssign(const Variable& input,
                                   const std::vector<int>& axes,
                                   const std::vector<int>& starts,
                                   const std::vector<int>& ends,
-                                  const std::vector<int>& decrease_axis) {
+                                  const std::vector<int>& strides) {
   Instruction instr("slice_assign", {input, assign});
   instr.SetAttr("axes", axes);
   instr.SetAttr("starts", starts);
   instr.SetAttr("ends", ends);
-  instr.SetAttr("decrease_axis", decrease_axis);
+  instr.SetAttr("strides", strides);
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(0);

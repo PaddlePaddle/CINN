@@ -1543,8 +1543,8 @@ std::shared_ptr<OpStrategy> StrategyForSlice(const framework::NodeAttr &attrs,
   if (attrs.attr_store.find("axes") != attrs.attr_store.end()) {
     axes = absl::get<std::vector<int>>(attrs.attr_store.at("axes"));
   }
-  if (attrs.attr_store.find("decrease_axis") != attrs.attr_store.end()) {
-    strides = absl::get<std::vector<int>>(attrs.attr_store.at("decrease_axis"));
+  if (attrs.attr_store.find("strides") != attrs.attr_store.end()) {
+    strides = absl::get<std::vector<int>>(attrs.attr_store.at("strides"));
   }
 
   CHECK(!starts.empty()) << "The Slice op doesn't find [starts] attrbute! It it a mandatory attribute, please check.";
@@ -1616,10 +1616,13 @@ std::vector<std::vector<int>> InferShapeForSlice(const std::vector<std::vector<i
       ends = absl::get<std::vector<int>>(iter.second);
     } else if (iter.first == "axes") {
       axes = absl::get<std::vector<int>>(iter.second);
-    } else if (iter.first == "decrease_axis") {
+    } else if (iter.first == "strides") {
       strides = absl::get<std::vector<int>>(iter.second);
     } else if (iter.first == "infer_flags") {
-      LOG(WARNING) << "attr [infer_flags] not support now";
+      auto infer_flags = absl::get<std::vector<int>>(iter.second);
+      if (!infer_flags.empty()) {
+        LOG(WARNING) << "attr [infer_flags] not support now";
+      }
     } else {
       LOG(ERROR) << "Unsupported attr: " << iter.first << std::endl;
     }
@@ -1741,8 +1744,8 @@ std::shared_ptr<OpStrategy> StrategyForSliceAssign(const framework::NodeAttr &at
   if (attrs.attr_store.find("axes") != attrs.attr_store.end()) {
     axes = absl::get<std::vector<int>>(attrs.attr_store.at("axes"));
   }
-  if (attrs.attr_store.find("decrease_axis") != attrs.attr_store.end()) {
-    strides = absl::get<std::vector<int>>(attrs.attr_store.at("decrease_axis"));
+  if (attrs.attr_store.find("strides") != attrs.attr_store.end()) {
+    strides = absl::get<std::vector<int>>(attrs.attr_store.at("strides"));
   }
 
   CHECK(!starts.empty()) << "The Slice op doesn't find [starts] attrbute! It it a mandatory attribute, please check.";
