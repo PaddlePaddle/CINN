@@ -104,6 +104,7 @@ class BaseBuilder {
   Variable Reverse(const Variable& operand, const std::vector<int>& axis);
 
   Variable Select(const Variable& condition, const Variable& true_value, const Variable& false_value);
+
   std::vector<Variable> Split(const Variable& operand, const std::vector<int>& num_or_sections, int axis = 0);
 
   Variable IndexSelect(const Variable& operand, const Variable& index, int axis = 0);
@@ -112,9 +113,10 @@ class BaseBuilder {
 
   Variable SliceAssign(const Variable& input,
                        const Variable& assign,
-                       const std::vector<int>& axis,
+                       const std::vector<int>& axes,
                        const std::vector<int>& starts,
-                       const std::vector<int>& strides);
+                       const std::vector<int>& ends,
+                       const std::vector<int>& decrease_axis = {});
 
  protected:
   void InferShape(Instruction instr) const;

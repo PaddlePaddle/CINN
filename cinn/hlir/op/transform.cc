@@ -1528,6 +1528,199 @@ std::vector<std::vector<std::string>> InferLayoutForIndexAssign(const std::vecto
   return {{input_layouts[0]}, input_layouts};
 }
 
+std::shared_ptr<OpStrategy> StrategyForSlice(const framework::NodeAttr &attrs,
+                                             const std::vector<ir::Tensor> &inputs,
+                                             const std::vector<Type> &out_type,
+                                             const std::vector<std::vector<int>> &output_shapes,
+                                             const Target &target) {
+  std::vector<int> starts, ends, axes, strides;
+  if (attrs.attr_store.find("starts") != attrs.attr_store.end()) {
+    starts = absl::get<std::vector<int>>(attrs.attr_store.at("starts"));
+  }
+  if (attrs.attr_store.find("ends") != attrs.attr_store.end()) {
+    ends = absl::get<std::vector<int>>(attrs.attr_store.at("ends"));
+  }
+  if (attrs.attr_store.find("axes") != attrs.attr_store.end()) {
+    axes = absl::get<std::vector<int>>(attrs.attr_store.at("axes"));
+  }
+  if (attrs.attr_store.find("decrease_axis") != attrs.attr_store.end()) {
+    strides = absl::get<std::vector<int>>(attrs.attr_store.at("decrease_axis"));
+  }
+
+  CHECK(!starts.empty()) << "The Slice op doesn't find [starts] attrbute! It it a mandatory attribute, please check.";
+  CHECK(!ends.empty()) << "The Slice op doesn't find [ends] attrbute! It it a mandatory attribute, please check.";
+  CHECK_EQ(starts.size(), ends.size()) << "The size of [starts] and [ends] must be identical! Please check.";
+  if (!axes.empty()) {
+    CHECK_EQ(starts.size(), axes.size()) << "The size of [starts] and [axes] must be identical! Please check.";
+  } else {
+    for (int i = 0; i < starts.size(); i++) {
+      axes.push_back(i);
+    }
+  }
+  if (!strides.empty()) {
+    CHECK_EQ(starts.size(), strides.size()) << "The size of [starts] and [strides] must be identical! Please check.";
+  } else {
+    for (int i = 0; i < starts.size(); i++) {
+      strides.push_back(1);
+    }
+  }
+
+  std::vector<Expr> output_shape;
+  for (auto &i : output_shapes[0]) {
+    output_shape.push_back(Expr(i));
+  }
+
+  framework::CINNCompute slice_compute([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input arguments of slice compute is empty! Please check.";
+    CINNValuePack a = args[0];
+    CHECK(!a.empty()) << "The input tensors of slice compute is empty! Please check.";
+    Expr A_expr = a[0];
+    CHECK(A_expr.as_tensor());
+    ir::Tensor A = A_expr.as_tensor_ref();
+
+    auto out    = pe::Slice(A, starts, axes, strides, output_shape, UniqName("Slice_output"));
+    auto stages = CreateStages({out});
+    *ret        = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
+  });
+
+  framework::CINNSchedule slice_schedule([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input arguments of slice schedule is empty! Please check.";
+    CINNValuePack arg_pack = args[0];
+    CHECK_EQ(arg_pack.size(), 2UL) << "The input tensor's size of slice schedule is " << arg_pack.size()
+                                   << "and it should be equal to 2! Please check.";
+    Expr Out              = arg_pack[0];
+    poly::StageMap stages = arg_pack[1];
+    CHECK(Out.as_tensor());
+    if (target.arch == Target::Arch::NVGPU) {
+      pe::CudaScheduleInjective(stages[Out.as_tensor_ref()], output_shapes.front(), target);
+    } else {
+      pe::ScheduleInjectiveCPU(stages[Out.as_tensor_ref()], output_shapes.front(), target);
+    }
+    *ret = arg_pack;
+  });
+
+  auto strategy = std::make_shared<framework::OpStrategy>();
+  strategy->AddImpl(slice_compute, slice_schedule, "strategy.slice.x86", 1);
+
+  return strategy;
+}
+
+std::vector<std::vector<int>> InferShapeForSlice(const std::vector<std::vector<int>> &inputs_shape,
+                                                 const framework::AttrMapType &attrs) {
+  CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
+  std::vector<int> starts, ends, axes, strides;
+  for (auto &iter : attrs) {
+    if (iter.first == "starts") {
+      starts = absl::get<std::vector<int>>(iter.second);
+    } else if (iter.first == "ends") {
+      ends = absl::get<std::vector<int>>(iter.second);
+    } else if (iter.first == "axes") {
+      axes = absl::get<std::vector<int>>(iter.second);
+    } else if (iter.first == "decrease_axis") {
+      strides = absl::get<std::vector<int>>(iter.second);
+    } else if (iter.first == "infer_flags") {
+      LOG(WARNING) << "attr [infer_flags] not support now";
+    } else {
+      LOG(ERROR) << "Unsupported attr: " << iter.first << std::endl;
+    }
+  }
+  CHECK(!starts.empty()) << "The Slice op doesn't find [starts] attrbute! It it a mandatory attribute, please check.";
+  CHECK(!ends.empty()) << "The Slice op doesn't find [ends] attrbute! It it a mandatory attribute, please check.";
+  CHECK_EQ(starts.size(), ends.size()) << "The size of [starts] and [ends] must be identical! Please check.";
+  if (!axes.empty()) {
+    CHECK_EQ(starts.size(), axes.size()) << "The size of [starts] and [axes] must be identical! Please check.";
+  } else {
+    for (int i = 0; i < starts.size(); i++) {
+      axes.push_back(i);
+    }
+  }
+  if (!strides.empty()) {
+    CHECK_EQ(starts.size(), strides.size()) << "The size of [starts] and [strides] must be identical! Please check.";
+  } else {
+    for (int i = 0; i < starts.size(); i++) {
+      strides.push_back(1);
+    }
+  }
+
+  std::vector<int> output_shape = inputs_shape[0];
+  for (int i = 0; i < axes.size(); i++) {
+    if (ends[i] < 0) {
+      ends[i] = output_shape[axes[i]] + ends[i];
+    }
+    if (starts[i] < 0) {
+      starts[i] = output_shape[axes[i]] + starts[i];
+    }
+    if (ends[i] > output_shape[axes[i]]) {
+      ends[i] = output_shape[axes[i]];
+    }
+    if (starts[i] > output_shape[axes[i]]) {
+      starts[i] = output_shape[axes[i]] - 1;
+    }
+
+    CHECK_NE(strides[i], 0) << "The value of [strides] of slice should not be 0 ! Please Check.";
+    if (strides[i] > 0) {
+      CHECK(ends[i] > starts[i]) << "[ends] should greater than [starts] when strides > 0 ! But here " << ends[i]
+                                 << " < " << starts[i] << ", Please Check.";
+      // Why we cannot count the value by (ends[i] - starts[i]) / strides[i] or (ends[i] - starts[i] + strides[i]) /
+      // strides[i] ? For example, starts=2, ends=9,strides=3 ==> should has 3 number: 2, 5, 8, but (9-2)/3 = 2
+      // otherwise, when if starts=2, ends=11,strides=3 ==> should has 3 number: 2, 5, 8, but (11-2+3) / 3 = 4
+      int num = 0;
+      for (auto j = starts[i]; j < ends[i]; j += strides[i]) ++num;
+      output_shape[axes[i]] = num;
+    } else {
+      CHECK(ends[i] < starts[i]) << "[ends] should less than [starts] when strides > 0 ! But here " << ends[i] << " > "
+                                 << starts[i] << ",  Please Check.";
+      int num = 0;
+      // note strides[i] < 0
+      for (auto j = starts[i]; j > ends[i]; j += strides[i]) ++num;
+      output_shape[axes[i]] = num;
+    }
+  }
+  VLOG(4) << "Output shape of Slice is: " << cinn::utils::Join(output_shape, ",");
+  std::vector<std::vector<int>> res{output_shape};
+  return res;
+}
+
+std::vector<Type> InferDtypeForSlice(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
+  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
+  std::vector<Type> res{inputs_type[0]};
+  return res;
+}
+
+std::vector<std::vector<std::string>> InferLayoutForSlice(const std::vector<framework::shape_t> &input_shapes,
+                                                          const std::vector<std::string> &input_layouts,
+                                                          const framework::NodeAttr &attrs,
+                                                          const Target &target) {
+  CHECK_EQ(input_layouts.size(), 1U) << "The input's layout size is not 1! Please check again.";
+  CHECK_EQ(input_shapes.size(), 1U) << "The input's shape size is not 1! Please check again.";
+  std::vector<int> starts;
+  std::vector<int> ends;
+  std::vector<int> axes;
+  for (auto &iter : attrs.attr_store) {
+    if (iter.first == "starts") {
+      starts = absl::get<std::vector<int>>(iter.second);
+    } else if (iter.first == "ends") {
+      ends = absl::get<std::vector<int>>(iter.second);
+    } else if (iter.first == "axes") {
+      axes = absl::get<std::vector<int>>(iter.second);
+    }
+  }
+  std::string new_input_layouts = input_layouts[0];
+  bool trans_back               = false;
+  if (input_shapes[0].size() > 4) {
+    for (int i = 0; i < axes.size(); i++) {
+      if (axes[i] == 1) {
+        trans_back = true;
+        break;
+      }
+    }
+  }
+  if (trans_back) {
+    return {{"NCHW"}, {"NCHW"}};
+  }
+  return {input_layouts, input_layouts};
+}
+
 std::shared_ptr<OpStrategy> StrategyForSliceAssign(const framework::NodeAttr &attrs,
                                                    const std::vector<ir::Tensor> &inputs,
                                                    const std::vector<Type> &out_type,
@@ -1538,30 +1731,37 @@ std::shared_ptr<OpStrategy> StrategyForSliceAssign(const framework::NodeAttr &at
   VLOG(4) << "The output passed in StrategyForIndexSelect: " << utils::Join(output_shapes[0], ", ");
   CHECK(!out_type.empty()) << "The output type of IndexSelect is empty! Please check again.\n";
 
-  std::vector<int> axis;
-  std::vector<int> starts;
-  std::vector<int> strides;
-  if (attrs.attr_store.contains("axis")) {
-    axis = absl::get<std::vector<int>>(attrs.attr_store.at("axis"));
-  } else {
-    LOG(FATAL) << "Op SliceAssign's args 'axis' is not set!";
-  }
-
-  if (attrs.attr_store.contains("starts")) {
+  std::vector<int> starts, ends, axes, strides;
+  if (attrs.attr_store.find("starts") != attrs.attr_store.end()) {
     starts = absl::get<std::vector<int>>(attrs.attr_store.at("starts"));
-  } else {
-    LOG(FATAL) << "Op SliceAssign's args 'starts' is not set!";
+  }
+  if (attrs.attr_store.find("ends") != attrs.attr_store.end()) {
+    ends = absl::get<std::vector<int>>(attrs.attr_store.at("ends"));
+  }
+  if (attrs.attr_store.find("axes") != attrs.attr_store.end()) {
+    axes = absl::get<std::vector<int>>(attrs.attr_store.at("axes"));
+  }
+  if (attrs.attr_store.find("decrease_axis") != attrs.attr_store.end()) {
+    strides = absl::get<std::vector<int>>(attrs.attr_store.at("decrease_axis"));
   }
 
-  if (attrs.attr_store.contains("strides")) {
-    strides = absl::get<std::vector<int>>(attrs.attr_store.at("strides"));
+  CHECK(!starts.empty()) << "The Slice op doesn't find [starts] attrbute! It it a mandatory attribute, please check.";
+  CHECK(!ends.empty()) << "The Slice op doesn't find [ends] attrbute! It it a mandatory attribute, please check.";
+  CHECK_EQ(starts.size(), ends.size()) << "The size of [starts] and [ends] must be identical! Please check.";
+  if (!axes.empty()) {
+    CHECK_EQ(starts.size(), axes.size()) << "The size of [starts] and [axes] must be identical! Please check.";
   } else {
-    LOG(FATAL) << "Op SliceAssign's args 'strides' is not set!";
+    for (int i = 0; i < starts.size(); i++) {
+      axes.push_back(i);
+    }
   }
-
-  CHECK(!axis.empty()) << "Op SliceAssign's args 'axis' can't be empty!";
-  CHECK_EQ(axis.size(), starts.size()) << "Op SliceAssign's args 'axis's' size must be equal to 'starts'!";
-  CHECK_EQ(axis.size(), strides.size()) << "Op SliceAssign's args 'axis's' size must be equal to 'strides'!";
+  if (!strides.empty()) {
+    CHECK_EQ(starts.size(), strides.size()) << "The size of [starts] and [strides] must be identical! Please check.";
+  } else {
+    for (int i = 0; i < starts.size(); i++) {
+      strides.push_back(1);
+    }
+  }
 
   framework::CINNCompute slice_assign_compute{[=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input args are empty! Please check again.";
@@ -1573,7 +1773,7 @@ std::shared_ptr<OpStrategy> StrategyForSliceAssign(const framework::NodeAttr &at
     Expr assign = arg_pack[1];
     CHECK(assign.as_tensor());
     auto out = pe::SliceAssign(
-        input.as_tensor_ref(), assign.as_tensor_ref(), axis, starts, strides, UniqName("slice_assign_output"));
+        input.as_tensor_ref(), assign.as_tensor_ref(), axes, starts, ends, strides, UniqName("slice_assign_output"));
     auto stages = CreateStages({out});
     std::vector<CINNValue> res{CINNValue(out), CINNValue(stages)};
     *ret = CINNValuePack{res};
@@ -1744,16 +1944,16 @@ CINN_REGISTER_HELPER(transform_ops) {
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kInjective)
       .set_support_level(4);
 
-  CINN_REGISTER_OP(index_select)
-      .describe(
-          "This operator is used to create a new tensor which indexes the `input` tensor along dimension `axis` using "
-          "the entries in `index`.")
-      .set_num_inputs(2)
+  CINN_REGISTER_OP(slice)
+      .describe("This operator implements the slice layer")
+      .set_num_inputs(1)
       .set_num_outputs(1)
-      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForIndexSelect)
-      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForIndexSelect))
-      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForIndexSelect))
-      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForIndexSelect))
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForSlice)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForSlice))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForSlice))
+#ifndef CINN_WITH_CUDA
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForSlice))
+#endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kInjective)
       .set_support_level(4);
 
@@ -1766,6 +1966,19 @@ CINN_REGISTER_HELPER(transform_ops) {
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForSliceAssign))
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForSliceAssign))
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
+      .set_support_level(4);
+
+  CINN_REGISTER_OP(index_select)
+      .describe(
+          "This operator is used to create a new tensor which indexes the `input` tensor along dimension `axis` using "
+          "the entries in `index`.")
+      .set_num_inputs(2)
+      .set_num_outputs(1)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForIndexSelect)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForIndexSelect))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForIndexSelect))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForIndexSelect))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kInjective)
       .set_support_level(4);
 
   CINN_REGISTER_OP(index_assign)

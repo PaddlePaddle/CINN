@@ -179,6 +179,22 @@ Variable BaseBuilder::Slice(const Variable& operand,
   return instr.GetOutput(0);
 }
 
+Variable BaseBuilder::SliceAssign(const Variable& input,
+                                  const Variable& assign,
+                                  const std::vector<int>& axes,
+                                  const std::vector<int>& starts,
+                                  const std::vector<int>& ends,
+                                  const std::vector<int>& decrease_axis) {
+  Instruction instr("slice_assign", {input, assign});
+  instr.SetAttr("axes", axes);
+  instr.SetAttr("starts", starts);
+  instr.SetAttr("ends", ends);
+  instr.SetAttr("decrease_axis", decrease_axis);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
 Variable BaseBuilder::Reverse(const Variable& operand, const std::vector<int>& axis) {
   Instruction instr("reverse", {operand});
   instr.SetAttr("axis", axis);
@@ -205,20 +221,6 @@ Variable BaseBuilder::IndexSelect(const Variable& operand, const Variable& index
 Variable BaseBuilder::IndexAssign(const Variable& operand, const Variable& assign, const Variable& index, int axis) {
   Instruction instr("index_assign", {operand, assign, index});
   instr.SetAttr("axis", axis);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
-}
-
-Variable BaseBuilder::SliceAssign(const Variable& input,
-                                  const Variable& assign,
-                                  const std::vector<int>& axis,
-                                  const std::vector<int>& starts,
-                                  const std::vector<int>& strides) {
-  Instruction instr("slice_assign", {input, assign});
-  instr.SetAttr("axis", axis);
-  instr.SetAttr("starts", starts);
-  instr.SetAttr("strides", strides);
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(0);

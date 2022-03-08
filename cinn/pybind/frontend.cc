@@ -344,10 +344,10 @@ void BindFrontend(pybind11::module *m) {
            &BaseBuilder::Slice,
            py::arg("a"),
            py::arg("axes"),
-           py::arg("starts")        = std::vector<int>{},
-           py::arg("ends")          = std::vector<int>{},
-           py::arg("infer_flags")   = std::vector<int>(),
-           py::arg("decrease_axis") = std::vector<int>())
+           py::arg("starts"),
+           py::arg("ends"),
+           py::arg("infer_flags")   = std::vector<int>{},
+           py::arg("decrease_axis") = std::vector<int>{})
       .def("reverse", &BaseBuilder::Reverse, py::arg("x"), py::arg("axis"))
       .def("select", &BaseBuilder::Select, py::arg("condition"), py::arg("true_value"), py::arg("false_value"))
       .def("split", &BaseBuilder::Split, py::arg("a"), py::arg("num_or_sections"), py::arg("axis") = 0)
@@ -356,9 +356,10 @@ void BindFrontend(pybind11::module *m) {
            &BaseBuilder::SliceAssign,
            py::arg("input"),
            py::arg("assign"),
-           py::arg("axis"),
+           py::arg("axes"),
            py::arg("starts"),
-           py::arg("strides"))
+           py::arg("ends"),
+           py::arg("decrease_axis") = std::vector<int>{})
       .def("index_assign",
            &BaseBuilder::IndexAssign,
            py::arg("x"),

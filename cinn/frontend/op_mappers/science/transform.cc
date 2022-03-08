@@ -102,7 +102,7 @@ void SliceSelectOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperConte
           << cinn::utils::Join(starts, ",") << "], ends [" << cinn::utils::Join(ends, ",") << "], axis ["
           << cinn::utils::Join(axis, ",") << "], strides [" << cinn::utils::Join(strides, ",") << "].";
 
-  auto out = ctx.Builder()->Slice(x, axis, starts, ends, std::vector<int>{}, strides);
+  auto out = ctx.Builder()->Slice(x, starts, ends, axis, std::vector<int>{}, strides);
 
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);

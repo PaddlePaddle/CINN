@@ -322,12 +322,6 @@ std::vector<ir::Tensor> SoftmaxMKLDNN(const ir::Tensor &A,
                                       const std::string &output_name = UniqName("T_softmax_out"));
 #endif
 
-ir::Tensor Slice(const ir::Tensor &A,
-                 const std::vector<int> &starts,
-                 const std::vector<int> &axes,
-                 const std::vector<Expr> &output_shape,
-                 const std::string &output_name);
-
 /**
  * @brief Perform pooling on the width dimension of the tensor.
  *        Width axis is determined by the data_format string in which 'W' means width. Only support NCW and NWC
