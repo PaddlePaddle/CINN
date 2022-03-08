@@ -26,9 +26,9 @@ TEST(OpFusionPass, ElementWise_Fusion_0) {
     auto B = net_builder.CreateInput(Float(32), {h, w}, "B");
     auto C = net_builder.CreateInput(Float(32), {h, w}, "C");
     auto D = net_builder.CreateInput(Float(32), {h, w}, "D");
-    auto E = net_builder.add(A, B);
-    auto F = net_builder.add(C, D);
-    auto G = net_builder.add(E, F);
+    auto E = net_builder.ElementwiseAdd(A, B);
+    auto F = net_builder.ElementwiseAdd(C, D);
+    auto G = net_builder.ElementwiseAdd(E, F);
   }
 
   auto program = net_builder.Build();
@@ -48,10 +48,10 @@ TEST(OpFusionPass, ElementWise_Fusion_1) {
     auto B = net_builder.CreateInput(Float(32), {h, w}, "B");
     auto C = net_builder.CreateInput(Float(32), {h, w}, "C");
     auto D = net_builder.CreateInput(Float(32), {h, w}, "D");
-    auto E = net_builder.add(A, B);
-    auto F = net_builder.add(E, C);
-    auto G = net_builder.add(E, D);
-    auto H = net_builder.add(F, G);
+    auto E = net_builder.ElementwiseAdd(A, B);
+    auto F = net_builder.ElementwiseAdd(E, C);
+    auto G = net_builder.ElementwiseAdd(E, D);
+    auto H = net_builder.ElementwiseAdd(F, G);
   }
 
   auto program = net_builder.Build();
@@ -71,9 +71,9 @@ TEST(OpFusionPass, Brodcast_Test_0) {
     auto B = net_builder.CreateInput(Float(32), {w}, "B");
     auto C = net_builder.CreateInput(Float(32), {h, w}, "C");
     auto D = net_builder.CreateInput(Float(32), {h, w}, "D");
-    auto E = net_builder.elementwise_add(C, A, 0);
-    auto F = net_builder.elementwise_add(D, B, 0);
-    auto G = net_builder.elementwise_add(E, F);
+    auto E = net_builder.ElementwiseAdd(C, A, 0);
+    auto F = net_builder.ElementwiseAdd(D, B, 0);
+    auto G = net_builder.ElementwiseAdd(E, F);
   }
 
   auto program = net_builder.Build();
@@ -93,11 +93,11 @@ TEST(OpFusionPass, Brodcast_Test_1) {
     auto B = net_builder.CreateInput(Float(32), {w}, "B");
     auto C = net_builder.CreateInput(Float(32), {h, w}, "C");
     auto D = net_builder.CreateInput(Float(32), {h, w}, "D");
-    auto E = net_builder.elementwise_add(A, B);
-    auto F = net_builder.elementwise_add(C, D);
-    auto G = net_builder.elementwise_add(F, E);
-    auto H = net_builder.elementwise_add(G, C);
-    auto I = net_builder.elementwise_add(H, D);
+    auto E = net_builder.ElementwiseAdd(A, B);
+    auto F = net_builder.ElementwiseAdd(C, D);
+    auto G = net_builder.ElementwiseAdd(F, E);
+    auto H = net_builder.ElementwiseAdd(G, C);
+    auto I = net_builder.ElementwiseAdd(H, D);
   }
 
   auto program = net_builder.Build();
@@ -117,10 +117,10 @@ TEST(OpFusionPass, Reduce_Test_0) {
     auto B = net_builder.CreateInput(Float(32), {w}, "B");
     auto C = net_builder.CreateInput(Float(32), {h, w}, "C");
     auto D = net_builder.CreateInput(Float(32), {h, w}, "D");
-    auto E = net_builder.elementwise_add(A, B);
-    auto F = net_builder.elementwise_add(C, D);
-    auto G = net_builder.reduce_sum(F, {0});
-    auto H = net_builder.elementwise_add(E, G);
+    auto E = net_builder.ElementwiseAdd(A, B);
+    auto F = net_builder.ElementwiseAdd(C, D);
+    auto G = net_builder.ReduceSum(F, {0});
+    auto H = net_builder.ElementwiseAdd(E, G);
   }
 
   auto program = net_builder.Build();
@@ -140,11 +140,11 @@ TEST(OpFusionPass, Reduce_Test_1) {
     auto B = net_builder.CreateInput(Float(32), {w}, "B");
     auto C = net_builder.CreateInput(Float(32), {h, w}, "C");
     auto D = net_builder.CreateInput(Float(32), {h, w}, "D");
-    auto E = net_builder.elementwise_add(A, B);
-    auto F = net_builder.reduce_sum(C, {0});
-    auto G = net_builder.reduce_sum(D, {0});
-    auto H = net_builder.elementwise_add(E, F);
-    auto I = net_builder.elementwise_add(G, H);
+    auto E = net_builder.ElementwiseAdd(A, B);
+    auto F = net_builder.ReduceSum(C, {0});
+    auto G = net_builder.ReduceSum(D, {0});
+    auto H = net_builder.ElementwiseAdd(E, F);
+    auto I = net_builder.ElementwiseAdd(G, H);
   }
 
   auto program = net_builder.Build();
@@ -164,11 +164,11 @@ TEST(OpFusionPass, Reduce_Test_2) {
     auto B = net_builder.CreateInput(Float(32), {w}, "B");
     auto C = net_builder.CreateInput(Float(32), {h, w}, "C");
     auto D = net_builder.CreateInput(Float(32), {h, w}, "D");
-    auto E = net_builder.reduce_sum(C, {0});
-    auto F = net_builder.reduce_sum(D, {1});
-    auto G = net_builder.elementwise_add(A, E);
-    auto H = net_builder.elementwise_add(B, F);
-    auto I = net_builder.elementwise_add(G, H);
+    auto E = net_builder.ReduceSum(C, {0});
+    auto F = net_builder.ReduceSum(D, {1});
+    auto G = net_builder.ElementwiseAdd(A, E);
+    auto H = net_builder.ElementwiseAdd(B, F);
+    auto I = net_builder.ElementwiseAdd(G, H);
   }
 
   auto program = net_builder.Build();
