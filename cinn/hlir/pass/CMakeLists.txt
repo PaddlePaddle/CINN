@@ -6,6 +6,7 @@ gather_srcs(cinnapi_src SRCS
     opfusion.cc
     alterlayout.cc
     const_propagate.cc
+    op_fusion_pass.cc
     )
 
 

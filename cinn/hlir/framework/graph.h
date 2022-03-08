@@ -67,6 +67,7 @@ class Graph : public cinn::common::Graph {
     // fused sub-groups, used for fusion merge pass
     std::vector<std::shared_ptr<Group>> fused_sub_groups;
   };
+  std::vector<std::shared_ptr<Group>> fusion_groups;
 
   void RegisterNode(size_t key, Node* node) { this->common::Graph::RegisterNode(key, node->as<common::GraphNode>()); }
   void RegisterNode(size_t key, NodeData* node) {
