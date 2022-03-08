@@ -146,13 +146,13 @@ class OpFusionPassHelper {
 
   void DoOpFusion() {
     for (auto consumer : nodes_) {
-      // kOpaque op can't fuse any other op
+      // kOpaque op can't fuse any other op.
       if (GetOpKind(consumer) == framework::kOpaque) {
         continue;
       }
 
-      // As others + kBroacast/kCommonReduce is left to 'Fusion Merge Pass'
-      if (GetOpKind(consumer) == framework::kBroadcast || GetOpKind(consumer) == framework::kCommReduce) {
+      // As others + kBroacast is left to 'Fusion Merge Pass'.
+      if (GetOpKind(consumer) == framework::kBroadcast) {
         continue;
       }
 
@@ -170,13 +170,18 @@ class OpFusionPassHelper {
           continue;
         }
 
+        // kOpaque op can't fuse any other op.
+        if (GetOpKind(producer) == framework::kOpaque) {
+          continue;
+        }
+
         bool can_fuse = true;
         // checkout producer node outputs are all in fusion op
         for (auto& link : producer_data->outlinks()) {
-          auto out_node = link->sink()->safe_as<Node>();
-          CHECK(out_node);
+          auto consumer_node = link->sink()->safe_as<Node>();
+          CHECK(consumer_node);
           // if fusion group can't find node, can't merge
-          if (consumer_fusion->nodes_set.find(out_node) == consumer_fusion->nodes_set.end()) {
+          if (consumer_fusion->nodes_set.find(consumer_node) == consumer_fusion->nodes_set.end()) {
             can_fuse = false;
             break;
           }
@@ -284,37 +289,44 @@ class OpFusionPassHelper {
     {
       FusionRelation relation;
       // producer -> consumer
-      // TODO(sunli) : To support kElemWise + kInjective
-      relation.op_kind = {framework::kElemWise};
+      relation.op_kind = {framework::kElemWise, framework::kInjective};
       // producer -> fusion
-      relation.fusion_op_kind                    = {// always can fuse.
-                                 {framework::kElemWise, always_fuse},
-                                 // it must be horizontal, as elementwise + broadcast is left to fusion merge pass.
-                                 {framework::kBroadcast, is_same_shape},
-                                 // it must be horizontal, as elementwise + reduce is left to fusion merge pass.
-                                 {framework::kCommReduce, is_same_shape},
-                                 // it must be horizontal.
-                                 {framework::kInjective, is_same_shape},
-                                 // it must be horizontal.
-                                 {framework::kOutEWiseFusable, is_same_shape}};
+      relation.fusion_op_kind = {
+          // horizontal or vertical relation(Elementwise + *Elementwise*). As has same output shape, can always fuse.
+          {framework::kElemWise, always_fuse},
+          // must be horizontal, as Elementwise + Broadcast is left to fusion merge pass.
+          {framework::kBroadcast, is_same_shape},
+          // must be horizontal, as Elementwise + Reduce is left to fusion merge pass.
+          {framework::kCommReduce, is_same_shape},
+          // can be horizontal or can compute inline, check with same output shape or can compute inline.
+          {framework::kInjective,
+           [this, &is_same_shape](const Node* producer, const Node* consumer) -> bool {
+             return is_same_shape(producer, consumer) || (this->GetNodeData(producer)->outlinks().size() == 1);
+           }},
+          // must be horizontal, check with same output shape.
+          {framework::kOutEWiseFusable, is_same_shape}};
       fusion_relation_map_[framework::kElemWise] = std::move(relation);
     }
     // 2.kBroadcast as producer
     {
       FusionRelation relation;
       // producer -> consumer
-      relation.op_kind = {framework::kElemWise, framework::kCommReduce};
+      relation.op_kind = {framework::kElemWise, framework::kCommReduce, framework::kInjective};
       // producer -> fusion
-      relation.fusion_op_kind                    = {// horizontal or vertical, must with same output shape.
-                                 {framework::kElemWise, is_same_shape},
-                                 // it must be horizontal, as elementwise + broadcast is left to fusion merge pass.
-                                 {framework::kBroadcast, is_same_shape},
-                                 // horizontal or vertical relation
-                                 {framework::kCommReduce, always_fuse},
-                                 // it must be horizontal.
-                                 {framework::kInjective, is_same_shape},
-                                 // it must be horizontal.
-                                 {framework::kOutEWiseFusable, is_same_shape}};
+      relation.fusion_op_kind = {
+          // horizontal or vertical relation(Broadcast + *Elementwise*), check with same output shape.
+          {framework::kElemWise, is_same_shape},
+          // must be horizontal, as Broadcast + Broadcast is not allowed.
+          {framework::kBroadcast, is_same_shape},
+          // horizontal or vertical relation(Broadcast + Reduce).
+          {framework::kCommReduce, always_fuse},
+          // can be horizontal or can compute inline, check with same output shape or just one consumer.
+          {framework::kInjective,
+           [this, &is_same_shape](const Node* producer, const Node* consumer) -> bool {
+             return is_same_shape(producer, consumer) || (this->GetNodeData(producer)->outlinks().size() == 1);
+           }},
+          // must be horizontal, check with same output shape.
+          {framework::kOutEWiseFusable, is_same_shape}};
       fusion_relation_map_[framework::kElemWise] = std::move(relation);
     }
     // 3.kCommReduce as producer
@@ -324,14 +336,15 @@ class OpFusionPassHelper {
       relation.op_kind = {framework::kElemWise};
       // producer -> fusion
       relation.fusion_op_kind = {
-          // horizontal or vertical relation, must without last dimension in reduce.
+          // horizontal or vertical relation(Reduce + Elementwise*), check without last dimension in reduce.
           {framework::kElemWise, without_last_dimension_in_reduce},
-          // it must be horizontal relation, must with same output shape and without last dimension in reduce.
+          // must be horizontal relation, check with same output shape and without last dimension in reduce.
           {framework::kBroadcast,
-           [this, is_same_shape, without_last_dimension_in_reduce](const Node* producer, const Node* consumer) -> bool {
+           [this, &is_same_shape, &without_last_dimension_in_reduce](const Node* producer,
+                                                                     const Node* consumer) -> bool {
              return is_same_shape(producer, consumer) && without_last_dimension_in_reduce(producer, consumer);
            }},
-          // is must be horizontal relation and with same reduce attr.
+          // must be horizontal relation and with same reduce attr.
           {framework::kCommReduce, reduce_fuse_reduce},
           // can't fuse.
           {framework::kInjective, cant_fuse},
@@ -346,13 +359,13 @@ class OpFusionPassHelper {
       relation.op_kind = {framework::kElemWise, framework::kCommReduce};
       // producer -> fusion
       relation.fusion_op_kind = {
-          // can be vertical or horizontal.
+          // can be horizontal or vertical(Injective + Elementwise), check with same output shape.
           {framework::kElemWise, is_same_shape},
-          // it must be horizontal relation.
+          // must be horizontal relation, check with same output shape.
           {framework::kBroadcast, is_same_shape},
           // left to fusion merge pass.
           {framework::kCommReduce, cant_fuse},
-          // it must be horizontal relation.
+          // must be horizontal relation, check with same output shape.
           {framework::kInjective, is_same_shape},
           // can't fuse.
           {framework::kOutEWiseFusable, cant_fuse},
@@ -366,13 +379,13 @@ class OpFusionPassHelper {
       relation.op_kind = {framework::kElemWise};
       // producer -> fusion
       relation.fusion_op_kind = {
-          // horizontal or vertical relation.
+          // horizontal or vertical relation, check has same shape.
           {framework::kElemWise, is_same_shape},
           // it must be horizontal relation, check has same shape.
           {framework::kBroadcast, is_same_shape},
           // can't fuse.
           {framework::kCommReduce, cant_fuse},
-          // it must be horizontal relation, check has same shape.
+          // must be horizontal relation, check has same shape.
           {framework::kInjective, is_same_shape},
           // can't fuse.
           {framework::kOutEWiseFusable, cant_fuse},
