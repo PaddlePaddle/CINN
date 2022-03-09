@@ -14,6 +14,7 @@
 
 #include "cinn/auto_schedule/cost_model/cost_model.h"
 
+#include <dirent.h>
 #include <pybind11/embed.h>
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
@@ -23,6 +24,7 @@
 #include <cstring>
 #include <iostream>
 #include <mutex>
+#include <regex>
 #include <string>
 #include <vector>
 
@@ -55,6 +57,11 @@ pybind11::array VectorToNumpy(const std::vector<std::vector<Dtype>>& vec) {
   return ret;
 }
 
+// the Pybind default Python interpreter doesn't contain some paths in
+// sys.path, so we have to add it.
+//
+// Note: the Pybind default Python interpreter only uses default Python.
+// Something may be wrong when users use virtual Python environment.
 void AddDistPkgToPythonSysPath() {
   pybind11::module sys_py_mod = pybind11::module::import("sys");
   // short version such as "3.7", "3.8", ...
@@ -63,8 +70,18 @@ void AddDistPkgToPythonSysPath() {
   std::string site_pkg_str = "/usr/local/lib/python" + py_short_version + "/dist-packages";
   sys_py_mod.attr("path").attr("append")(site_pkg_str);
 
-  std::string setuptools_str = site_pkg_str + "/setuptools-50.3.2-py3.7.egg";
-  sys_py_mod.attr("path").attr("append")(setuptools_str);
+  // TODO(zhhsplendid): warning to users if setuptools hasn't been installed
+  DIR* site_pkg_dir = opendir(site_pkg_str.c_str());
+  if (site_pkg_dir != nullptr) {
+    std::regex setuptool_regex("setuptools-.*-py" + py_short_version + "\\.egg");
+    struct dirent* entry = nullptr;
+    while ((entry = readdir(site_pkg_dir)) != nullptr) {
+      if (std::regex_match(entry->d_name, setuptool_regex)) {
+        sys_py_mod.attr("path").attr("append")(site_pkg_str + "/" + entry->d_name);
+      }
+    }
+    closedir(site_pkg_dir);
+  }
 }
 
 CostModel::CostModel() {

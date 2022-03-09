@@ -284,7 +284,41 @@ TEST(CAS, Mod) {
 
   u = AutoSimplify((x % 32) + ((32768 * (x / 32)) + ((32768 * y) + ((32 * z) + (128 * k)))), var_intervals0);
   OUTPUT_EQUAL("((128 * k) + (x + ((32768 * y) + (32 * z))))")
-  LOG(INFO) << u;
+
+  // (2x+y+z) % 2 = (y+z) % 2
+  u = AutoSimplify((2 * x + y + z) % 2, var_intervals0);
+  OUTPUT_EQUAL("((y + z) % 2)")
+
+  // 0 % x = 0
+  u = AutoSimplify(0 % x);
+  OUTPUT_EQUAL("0")
+
+  // 1 % x = 1
+  u = AutoSimplify(1 % x);
+  OUTPUT_EQUAL("1")
+
+  // (x * 6) % 2 = 0
+  u = AutoSimplify((x * 6) % 2);
+  OUTPUT_EQUAL("0")
+
+  // (x * 2) % 6 = (x % 3) * 2
+  u = AutoSimplify((x * 2) % 6);
+  OUTPUT_EQUAL("((x % 3) * 2)")
+
+  // 7 % 3 = 1
+  u = AutoSimplify(Expr(7) % Expr(3));
+  OUTPUT_EQUAL("1")
+
+  // x % 1 = 0
+  u = AutoSimplify(x % 1);
+  OUTPUT_EQUAL("0")
+
+  // (m / n) * n + m % n = m (m, n's type is int)
+  u = AutoSimplify((x / 10) * 10 + x % 10);
+  OUTPUT_EQUAL("x")
+
+  u = AutoSimplify(((x + y * 2) / 10) * 10 + (x + y * 2) % 10 + 3 * z);
+  OUTPUT_EQUAL("(x + ((2 * y) + (3 * z)))")
 }
 
 TEST(CAS, IntConnerCase) {

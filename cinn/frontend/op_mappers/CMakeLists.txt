@@ -1,4 +1,3 @@
-
 core_gather_headers()
 
 add_subdirectory(paddle)
