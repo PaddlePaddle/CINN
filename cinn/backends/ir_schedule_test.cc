@@ -26,6 +26,7 @@
 #include "cinn/ir/ir_printer.h"
 #include "cinn/lang/lower.h"
 #include "cinn/optim/ir_simplify.h"
+#include "cinn/optim/remove_schedule_block.h"
 
 namespace cinn {
 namespace backends {
@@ -44,7 +45,7 @@ TEST(IrSchedule, split_and_fuse1) {
 
   auto stages = CreateStages({A, B});
 
-  auto func     = cinn::lang::LowerVec("test_split_and_fuse1", stages, {A, B});
+  auto func     = cinn::lang::LowerVec("test_split_and_fuse1", stages, {A, B}, {}, {}, nullptr, target, true);
   auto ast_expr = func[0]->body;
   std::vector<Expr> vec_ast{ast_expr};
   ir::ModuleExpr mod_expr(vec_ast);
@@ -61,6 +62,8 @@ TEST(IrSchedule, split_and_fuse1) {
   VLOG(3) << "After split {256, -1}, IR is : " << ir_sch.GetModule().GetExprs().at(0);
 
   func[0]->body = ir_sch.GetModule().GetExprs().at(0);
+
+  optim::RemoveScheduleBlock(&func[0]->body);
 
   Module::Builder builder("module1", target);
   for (auto& i : func) {
@@ -110,7 +113,7 @@ TEST(IrSchedule, split_and_fuse2) {
 
   auto stages = CreateStages({A, B});
 
-  auto func     = cinn::lang::LowerVec("test_split_and_fuse2", stages, {A, B});
+  auto func     = cinn::lang::LowerVec("test_split_and_fuse2", stages, {A, B}, {}, {}, nullptr, target, true);
   auto ast_expr = func[0]->body;
   std::vector<Expr> vec_ast{ast_expr};
   ir::ModuleExpr mod_expr(vec_ast);
@@ -122,6 +125,8 @@ TEST(IrSchedule, split_and_fuse2) {
   VLOG(3) << "After split {-1, 20}, IR is : " << ir_sch.GetModule().GetExprs().at(0);
 
   func[0]->body = ir_sch.GetModule().GetExprs().at(0);
+
+  optim::RemoveScheduleBlock(&func[0]->body);
 
   Module::Builder builder("module1", target);
   for (auto& i : func) {
@@ -173,7 +178,7 @@ TEST(IrSchedule, reorder1) {
 
   auto stages = CreateStages({A, B});
 
-  auto func     = cinn::lang::LowerVec("test_reorder1", stages, {A, B});
+  auto func     = cinn::lang::LowerVec("test_reorder1", stages, {A, B}, {}, {}, nullptr, target, true);
   auto ast_expr = func[0]->body;
   std::vector<Expr> vec_ast{ast_expr};
   ir::ModuleExpr mod_expr(vec_ast);
@@ -187,6 +192,8 @@ TEST(IrSchedule, reorder1) {
 
   func[0]->body = ir_sch.GetModule().GetExprs().at(0);
 
+  optim::RemoveScheduleBlock(&func[0]->body);
+
   Module::Builder builder("module1", target);
   for (auto& i : func) {
     builder.AddFunction(i);
@@ -196,7 +203,7 @@ TEST(IrSchedule, reorder1) {
   codegen.SetInlineBuiltinCodes(false);
   auto source_code = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
 
-  LOG(INFO) << "reorder1 source code is :\n" << source_code;
+  VLOG(3) << "reorder1 source code is :\n" << source_code;
 
   std::string target_code = R"ROC(
 #include <cinn_runtime.h>
@@ -241,7 +248,7 @@ TEST(IrSchedule, reorder2) {
 
   auto stages = CreateStages({A, B});
 
-  auto func     = cinn::lang::LowerVec("test_reorder2", stages, {A, B});
+  auto func     = cinn::lang::LowerVec("test_reorder2", stages, {A, B}, {}, {}, nullptr, target, true);
   auto ast_expr = func[0]->body;
   std::vector<Expr> vec_ast{ast_expr};
   ir::ModuleExpr mod_expr(vec_ast);
@@ -255,6 +262,8 @@ TEST(IrSchedule, reorder2) {
 
   func[0]->body = ir_sch.GetModule().GetExprs().at(0);
 
+  optim::RemoveScheduleBlock(&func[0]->body);
+
   Module::Builder builder("module1", target);
   for (auto& i : func) {
     builder.AddFunction(i);
@@ -264,7 +273,7 @@ TEST(IrSchedule, reorder2) {
   codegen.SetInlineBuiltinCodes(false);
   auto source_code = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
 
-  LOG(INFO) << "reorder2 source code is :\n" << source_code;
+  VLOG(3) << "reorder2 source code is :\n" << source_code;
 
   std::string target_code = R"ROC(
 #include <cinn_runtime.h>
@@ -309,7 +318,7 @@ TEST(IrSchedule, reorder3) {
 
   auto stages = CreateStages({A, B});
 
-  auto func     = cinn::lang::LowerVec("test_reorder3", stages, {A, B});
+  auto func     = cinn::lang::LowerVec("test_reorder3", stages, {A, B}, {}, {}, nullptr, target, true);
   auto ast_expr = func[0]->body;
   std::vector<Expr> vec_ast{ast_expr};
   ir::ModuleExpr mod_expr(vec_ast);
@@ -323,6 +332,8 @@ TEST(IrSchedule, reorder3) {
 
   func[0]->body = ir_sch.GetModule().GetExprs().at(0);
 
+  optim::RemoveScheduleBlock(&func[0]->body);
+
   Module::Builder builder("module1", target);
   for (auto& i : func) {
     builder.AddFunction(i);
@@ -332,7 +343,7 @@ TEST(IrSchedule, reorder3) {
   codegen.SetInlineBuiltinCodes(false);
   auto source_code = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
 
-  LOG(INFO) << "reorder3 source code is :\n" << source_code;
+  VLOG(3) << "reorder3 source code is :\n" << source_code;
 
   std::string target_code = R"ROC(
 #include <cinn_runtime.h>
@@ -379,7 +390,7 @@ TEST(IrSchedule, reorder4) {
 
   auto stages = CreateStages({A, B});
 
-  auto func     = cinn::lang::LowerVec("test_reorder4", stages, {A, B});
+  auto func     = cinn::lang::LowerVec("test_reorder4", stages, {A, B}, {}, {}, nullptr, target, true);
   auto ast_expr = func[0]->body;
   std::vector<Expr> vec_ast{ast_expr};
   ir::ModuleExpr mod_expr(vec_ast);
@@ -393,6 +404,8 @@ TEST(IrSchedule, reorder4) {
 
   func[0]->body = ir_sch.GetModule().GetExprs().at(0);
 
+  optim::RemoveScheduleBlock(&func[0]->body);
+
   Module::Builder builder("module1", target);
   for (auto& i : func) {
     builder.AddFunction(i);
@@ -402,7 +415,7 @@ TEST(IrSchedule, reorder4) {
   codegen.SetInlineBuiltinCodes(false);
   auto source_code = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
 
-  LOG(INFO) << "reorder4 source code is :\n" << source_code;
+  VLOG(3) << "reorder4 source code is :\n" << source_code;
 
   std::string target_code = R"ROC(
 #include <cinn_runtime.h>
