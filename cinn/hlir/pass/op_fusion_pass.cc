@@ -87,15 +87,17 @@ class OpFusionPassHelper {
 
   // return a vector of groups in topological order.
   Groups operator()() {
+    // do op fusion.
     DoOpFusion();
+
+    // find all fusion group.
     Groups fusion_groups;
     std::unordered_set<Graph::Group*> groups_set;
-
-    for (auto& p : fusion_groups_) {
-      if (groups_set.find(p.second.get()) == groups_set.end()) {
-        groups_set.insert(p.second.get());
-        // groups set
-        fusion_groups.push_back(p.second);
+    for (auto node : nodes_) {
+      auto& group = fusion_groups_[node];
+      if (!groups_set.count(group.get())) {
+        groups_set.insert(group.get());
+        fusion_groups.push_back(group);
       }
     }
 
@@ -124,6 +126,8 @@ class OpFusionPassHelper {
       }
     }
 
+    // reverse to keep fusion group in order.
+    std::reverse(fusion_groups.begin(), fusion_groups.end());
     return fusion_groups;
   }
 
@@ -165,6 +169,11 @@ class OpFusionPassHelper {
         CHECK(producer_data);
 
         auto producer = producer_data->source_node.get();
+        // if producer is fused.
+        if (consumer_fusion->nodes_set.count(producer)) {
+          VLOG(11) << "Op " << producer->id() << " is fused.";
+          continue;
+        }
         // if producer data is placeholder
         if (!producer) {
           continue;
@@ -174,7 +183,6 @@ class OpFusionPassHelper {
         if (GetOpKind(producer) == framework::kOpaque) {
           continue;
         }
-
         bool can_fuse = true;
         // checkout producer node outputs are all in fusion op
         for (auto& link : producer_data->outlinks()) {
@@ -188,6 +196,8 @@ class OpFusionPassHelper {
         }
 
         if (!can_fuse || !CanFuse(producer, consumer)) continue;
+
+        VLOG(11) << "Fuse Op " << producer->id() << " into Op " << consumer->id();
 
         // fuse producer to fusion group
         if (consumer_fusion->nodes_set.find(producer) == consumer_fusion->nodes_set.end()) {
@@ -240,7 +250,7 @@ class OpFusionPassHelper {
     // fusion op fuse condition function.
     // 1. always can fuse.
     auto always_fuse = [](const Node* producer, const Node* consumer) -> bool { return true; };
-    // 2. cant fuse
+    // 2. cant fuse.
     auto cant_fuse = [](const Node* producer, const Node* consumer) -> bool { return false; };
     // 3. has same output shape.
     auto is_same_shape = [this](const Node* producer, const Node* consumer) -> bool {
@@ -327,7 +337,7 @@ class OpFusionPassHelper {
            }},
           // must be horizontal, check with same output shape.
           {framework::kOutEWiseFusable, is_same_shape}};
-      fusion_relation_map_[framework::kElemWise] = std::move(relation);
+      fusion_relation_map_[framework::kBroadcast] = std::move(relation);
     }
     // 3.kCommReduce as producer
     {

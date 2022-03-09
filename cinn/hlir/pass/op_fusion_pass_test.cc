@@ -95,7 +95,7 @@ TEST(OpFusionPass, Brodcast_Test_1) {
     auto D = net_builder.CreateInput(Float(32), {h, w}, "D");
     auto E = net_builder.ElementwiseAdd(A, B);
     auto F = net_builder.ElementwiseAdd(C, D);
-    auto G = net_builder.ElementwiseAdd(F, E);
+    auto G = net_builder.ElementwiseAdd(F, E, 0);
     auto H = net_builder.ElementwiseAdd(G, C);
     auto I = net_builder.ElementwiseAdd(H, D);
   }
