@@ -743,6 +743,135 @@ ir::Tensor Transpose(const ir::Tensor& input, const std::vector<int>& axis, cons
       output_name);
 }
 
+ir::Tensor Slice(const ir::Tensor& A,
+                 const std::vector<int>& starts,
+                 const std::vector<int>& axes,
+                 const std::vector<int>& strides,
+                 const std::vector<Expr>& output_shape,
+                 const std::string& output_name) {
+  std::vector<int> input_shape;
+  for (const auto& shape : A->shape) {
+    input_shape.emplace_back(shape.as_int32());
+  }
+  std::vector<int> new_starts(starts);
+  for (int i = 0; i < axes.size(); i++) {
+    if (new_starts[i] < 0) {
+      new_starts[i] = input_shape[axes[i]] + new_starts[i];
+    }
+    if (new_starts[i] > input_shape[axes[i]]) {
+      new_starts[i] = input_shape[axes[i]] - 1;
+    }
+  }
+
+  // output = input[starts:ends:strides]
+  // Note that when strides < 0, the output reverse:
+  // data=[[1,2,3,4],[5,6,7,8],]
+  // axes=[0,1]
+  // starts=[1,3]
+  // ends=[2,0]
+  // strides=[1,-1]
+  // ==> result=[[8,7,6],]
+  return Compute(
+      output_shape,
+      [=](const std::vector<Expr>& indice) {
+        std::vector<Expr> temp = indice;
+        for (int i = 0; i < axes.size(); i++) {
+          temp[axes[i]] = temp[axes[i]] * Expr(strides[i]) + Expr(new_starts[i]);
+        }
+        return A(temp);
+      },
+      output_name);
+}
+
+ir::Tensor SliceAssign(const ir::Tensor& input,
+                       const ir::Tensor& assign,
+                       const std::vector<int>& axes,
+                       const std::vector<int>& starts,
+                       const std::vector<int>& ends,
+                       const std::vector<int>& strides,
+                       const std::string& output_name) {
+  CHECK_EQ(axes.size(), starts.size()) << "axes's size is not equal to starts's size!";
+  CHECK_EQ(axes.size(), ends.size()) << "axes's size is not equal to starts's size!";
+  CHECK_EQ(axes.size(), strides.size()) << "axes's size is not equal to strides's size!";
+
+  std::vector<int> input_shape;
+  for (const auto& shape : input->shape) {
+    input_shape.emplace_back(shape.as_int32());
+  }
+  std::vector<int> new_starts(starts);
+  std::vector<int> new_ends(ends);
+  std::vector<int> new_strides(strides);
+  for (int i = 0; i < axes.size(); i++) {
+    CHECK_LT(axes[i], input->shape.size()) << "axes should less than input's shape size";
+
+    if (new_starts[i] < 0) {
+      new_starts[i] = input_shape[axes[i]] + new_starts[i];
+      CHECK_GE(new_starts[i], 0) << "The value of [starts] should not less than " << -input_shape[axes[i]];
+    }
+    if (new_starts[i] > input_shape[axes[i]]) {
+      new_starts[i] = input_shape[axes[i]];
+    }
+    if (new_ends[i] < 0) {
+      new_ends[i] = input_shape[axes[i]] + new_ends[i];
+      CHECK_GE(new_ends[i], 0) << "The value of [ends] should not less than " << -input_shape[axes[i]];
+    }
+    if (new_ends[i] > input_shape[axes[i]]) {
+      new_ends[i] = input_shape[axes[i]];
+    }
+
+    // if strides < 0, starts > ends, we need swap them
+    CHECK_NE(strides[i], 0) << "[strides] should not be 0 ! Please Check.";
+    if (strides[i] < 0) {
+      CHECK_GT(new_starts[i], new_ends[i]) << "[starts] should greater than [ends] when [strides] < 0";
+      // if strides > 0, the range is [starts, ends)
+      // but if strides < 0, the range is (ends, starts]
+      auto tmp      = new_starts[i];
+      new_starts[i] = new_ends[i] + 1;  // the new starts should not contain ends[i]
+      new_ends[i]   = tmp + 1;          // the new ends should contain starts[i]
+
+      new_strides[i] = -new_strides[i];
+    } else {
+      CHECK_LT(new_starts[i], new_ends[i]) << "[ends] shoould greater than [starts] when [strides] > 0";
+    }
+  }
+
+  // input[starts:ends:strides] = assign
+  auto output_tensor = Compute(
+      input->shape,
+      [=](const std::vector<Expr>& indice) {
+        ir::Expr is_assigned             = ir::Expr(true);
+        std::vector<ir::Expr> tmp_indice = indice;
+        for (int idx = 0; idx < axes.size(); ++idx) {
+          // get input axis to be assigned
+          auto tmp_axis = indice[axes[idx]];
+          // get assign axis
+          Expr out_axis;
+          if (strides[idx] > 0) {
+            out_axis = tmp_axis - ir::Expr(new_starts[idx]);
+          } else {
+            // when strides < 0, reverse input to output.
+            // the value of ends is not contained in slice, so `ends - 1`
+            out_axis = ir::Expr(new_ends[idx] - 1) - tmp_axis;
+          }
+          // axis >= start
+          auto ge = ir::GE::Make(tmp_axis, ir::Expr(new_starts[idx]));
+          // axis < ends
+          auto lt = ir::LT::Make(tmp_axis, ir::Expr(new_ends[idx]));
+          // check start <= axis < ends
+          auto inside = ir::And::Make(ge, lt);
+          // check (axis - starts) % strides == 0
+          auto mod = ir::EQ::Make(ir::Mod::Make(out_axis, Expr(new_strides[idx])), Expr(0));
+          // check start <= axis < ends and (axis - starts) % strides == 0
+          is_assigned = ir::And::Make(is_assigned, ir::And::Make(inside, mod));
+          // update axis for assign tensor
+          tmp_indice[axes[idx]] = out_axis / Expr(new_strides[idx]);
+        }
+        return ir::Select::Make(is_assigned, assign(tmp_indice), input(indice));
+      },
+      output_name);
+  return output_tensor;
+}
+
 ir::Tensor IndexSelect(const ir::Tensor& x,
                        const ir::Tensor& index,
                        const std::vector<Expr>& output_shape,
@@ -777,6 +906,43 @@ ir::Tensor IndexSelect(const ir::Tensor& x,
       },
       name);
   return output_tensor;
+}
+
+ir::Tensor IndexAssign(const ir::Tensor& input,
+                       const ir::Tensor& assign,
+                       const ir::Tensor& index,
+                       const common::Target& target,
+                       const int axis,
+                       const std::string& output_name) {
+  std::string extern_fun_name;
+  if (target.arch == common::Target::Arch::NVGPU) {
+    extern_fun_name.assign("cinn_cuda_find");
+  } else if (target.arch == common::Target::Arch::X86) {
+    // TODO: seen that this function has no effective when run in host, why?
+    extern_fun_name.assign("cinn_host_find");
+  } else {
+    LOG(FATAL) << "IndexAssign only support X86 and NVGPU ! Please Check.\n";
+  }
+
+  auto pos_axis = axis;
+  if (pos_axis < 0) pos_axis += input->shape.size();
+
+  auto res = Compute(
+      input->shape,
+      [=](const std::vector<Expr>& indice) {
+        // find whether indice[axis] in Index,
+        // then return id if found Index[id] == indice[axis]
+        // else return -1
+        auto id = lang::CallExtern(extern_fun_name, {index, index->shape[0], indice[pos_axis]});
+
+        std::vector<Expr> indice_assign = indice;
+        indice_assign[pos_axis]         = id;
+
+        // check wheter Index[id] == cur_index and return by check result
+        return ir::Select::Make(ir::EQ::Make(id, Expr(-1)), input(indice), assign(indice_assign));
+      },
+      UniqName(output_name));
+  return res;
 }
 
 }  // namespace pe

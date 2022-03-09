@@ -160,3 +160,12 @@ __device__ inline float cinn_block_reduce_min(const float *buf, int offset, int 
   }
   return cinn_block_reduce_min_internal(tmp_val);
 }
+
+// TODO: modify buf's type from float to T when CINN support other type tensor
+__device__ inline int cinn_cuda_find(const float *buf, int size, int num) {
+  // find the last index which satisfies buf[i] == num
+  for (int i = size - 1; i >= 0; --i) {
+    if (static_cast<int>(buf[i]) == num) return i;
+  }
+  return -1;
+}

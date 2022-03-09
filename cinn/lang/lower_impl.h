@@ -111,7 +111,8 @@ class LowerImpl {
             const std::vector<Tensor>& tensor_args,
             const std::vector<Var>& scalar_args,
             const std::vector<Tensor>& temp_tensor_args = {},
-            const Target& target                        = common::DefaultHostTarget());
+            const Target& target                        = common::DefaultHostTarget(),
+            bool support_ir_schedule                    = false);
 
   std::vector<ir::LoweredFunc> operator()();
 
@@ -187,6 +188,8 @@ class LowerImpl {
 
   //! CUDA axis info for this function.
   std::vector<ir::CudaAxisInfo> cuda_axis_info_;
+
+  bool support_ir_schedule_ = false;
 };
 
 /**

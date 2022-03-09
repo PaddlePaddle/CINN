@@ -12,18 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#pragma once
 /**
- * \file This file implements some intrinsic functions for math operation in host device.
+ * This file implements the strategy to remove the unnecessary nested block.
  */
-#include "cinn/runtime/cinn_runtime.h"
+#pragma once
+#include <vector>
 
-extern "C" {
+#include "cinn/common/common.h"
+#include "cinn/ir/ir.h"
 
-//! math extern functions
-//@{
-void __cinn_host_tanh_v(const cinn_buffer_t* x, cinn_buffer_t* out);
-//@}
+namespace cinn {
+namespace optim {
 
-inline int cinn_host_find(const cinn_buffer_t* buf, int size, int num);
-}
+/**
+ * Remove schedule block.
+ */
+void RemoveScheduleBlock(Expr* e);
+
+}  // namespace optim
+}  // namespace cinn

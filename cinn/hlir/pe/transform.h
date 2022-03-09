@@ -150,10 +150,11 @@ ir::Tensor Transpose(const ir::Tensor& input,
                      const std::string& output_name = UniqName("T_Transpose_out"));
 
 /**
- * @brief Perform meta op Split
- * @param A The input tensor
- * @param axis split axis
- * @param output_shapes The output sub-tensors shape
+ * @brief Perform meta op IndexSelect
+ * @param x The input tensor
+ * @param index The index tensor
+ * @param output_shape The output tensor shape
+ * @param axis select axis
  * @param output_name the name of the output tensor
  */
 std::vector<ir::Tensor> Split(const ir::Tensor& A,
@@ -161,11 +162,55 @@ std::vector<ir::Tensor> Split(const ir::Tensor& A,
                               const std::vector<std::vector<int>>& output_shapes,
                               const std::string& name);
 
+ir::Tensor Slice(const ir::Tensor& A,
+                 const std::vector<int>& starts,
+                 const std::vector<int>& axes,
+                 const std::vector<int>& strides,
+                 const std::vector<Expr>& output_shape,
+                 const std::string& output_name);
+
+/**
+ * @brief Perform meta op SliceAssign
+ * @param input The input tensor
+ * @param assign The assign tensor
+ * @param axis select axis
+ * @param starts select reigon starts
+ * @param strides select reigon strides
+ * @param output_name the name of the output tensor
+ */
+ir::Tensor SliceAssign(const ir::Tensor& input,
+                       const ir::Tensor& assign,
+                       const std::vector<int>& axes,
+                       const std::vector<int>& starts,
+                       const std::vector<int>& ends,
+                       const std::vector<int>& strides,
+                       const std::string& output_name = UniqName("T_Transform_SliceAssign_out"));
+/**
+ * @brief Perform meta op Split
+ * @param A The input tensor
+ * @param axis split axis
+ * @param output_shapes The output sub-tensors shape
+ * @param output_name the name of the output tensor
+ */
 ir::Tensor IndexSelect(const ir::Tensor& x,
                        const ir::Tensor& index,
                        const std::vector<Expr>& output_shape,
                        int axis                = 0,
                        const std::string& name = UniqName("T_Transform_IndexSelect_out"));
+
+/**
+ * @brief Perform meta op IndexAssign
+ * @param input The input tensor
+ * @param assign The assign tensor
+ * @param indexs The indexs tensor
+ * @param output_name the name of the output tensor
+ */
+ir::Tensor IndexAssign(const ir::Tensor& input,
+                       const ir::Tensor& assign,
+                       const ir::Tensor& index,
+                       const common::Target& target,
+                       const int axis                 = 0,
+                       const std::string& output_name = UniqName("T_Transform_IndexAssign_out"));
 
 }  // namespace pe
 }  // namespace hlir
