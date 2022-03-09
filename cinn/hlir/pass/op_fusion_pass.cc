@@ -195,7 +195,6 @@ class OpFusionPassHelper {
         }
 
         if (!can_fuse || !CanFuse(producer, consumer)) continue;
-
         VLOG(11) << "Fuse Op " << producer->id() << " into Op " << consumer->id();
 
         // fuse producer to fusion group
@@ -242,6 +241,7 @@ class OpFusionPassHelper {
   shape_t GetNodeDataShape(const Node* node) {
     auto node_data = (*node->outlinks().begin())->sink()->safe_as<NodeData>();
     CHECK(node_data);
+    CHECK(shape_dict_.count(node_data->id())) << "Can't find " << node_data->id() << " 's shape!";
     return shape_dict_.at(node_data->id());
   }
 
@@ -309,8 +309,8 @@ class OpFusionPassHelper {
           {framework::kCommReduce, is_same_shape},
           // can be horizontal or can compute inline, check with same output shape or can compute inline.
           {framework::kInjective,
-           [this, &is_same_shape](const Node* producer, const Node* consumer) -> bool {
-             return is_same_shape(producer, consumer) || (this->GetNodeData(producer)->outlinks().size() == 1);
+           [this, is_same_shape](const Node* producer, const Node* consumer) -> bool {
+             return is_same_shape(producer, consumer) || this->GetNodeData(producer)->outlinks().size() == 1;
            }},
           // must be horizontal, check with same output shape.
           {framework::kOutEWiseFusable, is_same_shape}};
@@ -331,8 +331,8 @@ class OpFusionPassHelper {
           {framework::kCommReduce, always_fuse},
           // can be horizontal or can compute inline, check with same output shape or just one consumer.
           {framework::kInjective,
-           [this, &is_same_shape](const Node* producer, const Node* consumer) -> bool {
-             return is_same_shape(producer, consumer) || (this->GetNodeData(producer)->outlinks().size() == 1);
+           [this, is_same_shape](const Node* producer, const Node* consumer) -> bool {
+             return is_same_shape(producer, consumer) || this->GetNodeData(producer)->outlinks().size() == 1;
            }},
           // must be horizontal, check with same output shape.
           {framework::kOutEWiseFusable, is_same_shape}};
@@ -349,8 +349,7 @@ class OpFusionPassHelper {
           {framework::kElemWise, without_last_dimension_in_reduce},
           // must be horizontal relation, check with same output shape and without last dimension in reduce.
           {framework::kBroadcast,
-           [this, &is_same_shape, &without_last_dimension_in_reduce](const Node* producer,
-                                                                     const Node* consumer) -> bool {
+           [this, is_same_shape, without_last_dimension_in_reduce](const Node* producer, const Node* consumer) -> bool {
              return is_same_shape(producer, consumer) && without_last_dimension_in_reduce(producer, consumer);
            }},
           // must be horizontal relation and with same reduce attr.
