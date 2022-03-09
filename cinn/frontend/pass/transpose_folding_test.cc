@@ -121,17 +121,26 @@ TEST(TransposeFolding, FoldIntoDotCase2) {
   auto y             = builder.Transpose(x, {1, 0});
   auto z             = builder.CreateInput(Float(32), {121, 20}, "Z");
   auto q             = builder.Matmul(z, y);
+  auto out           = builder.Add(d, q);
   auto program       = builder.Build();
   auto target        = GetTarget();
   auto graph         = std::make_shared<hlir::framework::Graph>(program, target);
   size_t origin_size = program.size();
   VLOG(1) << "Program:\n" << program;
-  RunWithProgram(program, target, hlir::framework::BuildScope(target, graph));
+  auto before_scope = hlir::framework::BuildScope(target, graph);
+  RunWithProgram(program, target, before_scope);
+  auto origin_out = GetTensorData(before_scope->GetTensor(out->id), target);
   ApplyPass(&program, {}, "TransposeFolding");
   size_t folded_size = program.size();
   VLOG(1) << "Program:\n" << program;
-  RunWithProgram(program, target, hlir::framework::BuildScope(target, graph));
+  auto after_scope = hlir::framework::BuildScope(target, graph);
+  RunWithProgram(program, target, after_scope);
+  auto folded_out = GetTensorData(after_scope->GetTensor(out->id), target);
   ASSERT_EQ(origin_size, folded_size + 2);
+  ASSERT_EQ(origin_out.size(), folded_out.size());
+  for (size_t i = 0; i < origin_out.size(); ++i) {
+    ASSERT_FLOAT_EQ(origin_out[i], folded_out[i]);
+  }
 }
 
 }  // namespace cinn::frontend
