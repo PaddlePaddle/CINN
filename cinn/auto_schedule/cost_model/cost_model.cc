@@ -55,6 +55,11 @@ pybind11::array VectorToNumpy(const std::vector<std::vector<Dtype>>& vec) {
   return ret;
 }
 
+// the Pybind default Python interpreter doesn't contain some paths in
+// sys.path, so we have to add it.
+//
+// Note: the Pybind default Python interpreter only uses default Python.
+// Something may be wrong when users use virtual Python environment.
 void AddDistPkgToPythonSysPath() {
   pybind11::module sys_py_mod = pybind11::module::import("sys");
   // short version such as "3.7", "3.8", ...
@@ -63,7 +68,10 @@ void AddDistPkgToPythonSysPath() {
   std::string site_pkg_str = "/usr/local/lib/python" + py_short_version + "/dist-packages";
   sys_py_mod.attr("path").attr("append")(site_pkg_str);
 
-  std::string setuptools_str = site_pkg_str + "/setuptools-50.3.2-py3.7.egg";
+  pybind11::module setuptool_py_mod = pybind11::module::import("setuptools");
+  std::string setuptool_version     = setuptool_py_mod.attr("__version__")..cast<std::string>();
+
+  std::string setuptools_str = site_pkg_str + "/setuptools-" + setuptool_version + "-py" + py_short_version + ".egg";
   sys_py_mod.attr("path").attr("append")(setuptools_str);
 }
 
