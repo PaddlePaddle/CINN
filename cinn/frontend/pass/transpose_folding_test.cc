@@ -143,4 +143,65 @@ TEST(TransposeFolding, FoldIntoDotCase2) {
   }
 }
 
+TEST(TransposeFolding, TransposeOutInFetchIds) {
+  CinnBuilder builder("cinn_builder");
+  auto x           = builder.CreateInput(Float(32), {2, 3}, "X");
+  auto y           = builder.CreateInput(Float(32), {2, 3}, "Y");
+  auto transpose_y = builder.Transpose(y, {1, 0});
+  auto out         = builder.Dot(x, transpose_y);
+  auto program     = builder.Build();
+  auto target      = GetTarget();
+  auto graph       = std::make_shared<hlir::framework::Graph>(program, target);
+  auto scope       = hlir::framework::BuildScope(target, graph);
+  scope->Var<hlir::framework::Tensor>("X");
+  scope->Var<hlir::framework::Tensor>("Y");
+  SetRandData(scope->GetTensor("X"), target);
+  SetRandData(scope->GetTensor("Y"), target);
+  size_t origin_size = program.size();
+  VLOG(1) << "Program:\n" << program;
+  RunWithProgram(program, target, scope);
+  auto origin_out = GetTensorData(scope->GetTensor(out->id), target);
+  ApplyPass(&program, {transpose_y->id}, "TransposeFolding");
+  size_t folded_size = program.size();
+  VLOG(1) << "Program:\n" << program;
+  RunWithProgram(program, target, scope);
+  auto folded_out = GetTensorData(scope->GetTensor(out->id), target);
+  ASSERT_EQ(origin_size, folded_size);
+  ASSERT_EQ(origin_out.size(), folded_out.size());
+  for (size_t i = 0; i < origin_out.size(); ++i) {
+    ASSERT_FLOAT_EQ(origin_out[i], folded_out[i]);
+  }
+}
+
+TEST(TransposeFolding, TransposeOutUsedByOtherInstrs) {
+  CinnBuilder builder("cinn_builder");
+  auto x           = builder.CreateInput(Float(32), {2, 2}, "X");
+  auto y           = builder.CreateInput(Float(32), {2, 2}, "Y");
+  auto transpose_y = builder.Transpose(y, {1, 0});
+  auto dot         = builder.Dot(x, transpose_y);
+  auto out         = builder.Add(transpose_y, dot);
+  auto program     = builder.Build();
+  auto target      = GetTarget();
+  auto graph       = std::make_shared<hlir::framework::Graph>(program, target);
+  auto scope       = hlir::framework::BuildScope(target, graph);
+  scope->Var<hlir::framework::Tensor>("X");
+  scope->Var<hlir::framework::Tensor>("Y");
+  SetRandData(scope->GetTensor("X"), target);
+  SetRandData(scope->GetTensor("Y"), target);
+  size_t origin_size = program.size();
+  VLOG(1) << "Program:\n" << program;
+  RunWithProgram(program, target, scope);
+  auto origin_out = GetTensorData(scope->GetTensor(out->id), target);
+  ApplyPass(&program, {}, "TransposeFolding");
+  size_t folded_size = program.size();
+  VLOG(1) << "Program:\n" << program;
+  RunWithProgram(program, target, scope);
+  auto folded_out = GetTensorData(scope->GetTensor(out->id), target);
+  ASSERT_EQ(origin_size, folded_size);
+  ASSERT_EQ(origin_out.size(), folded_out.size());
+  for (size_t i = 0; i < origin_out.size(); ++i) {
+    ASSERT_FLOAT_EQ(origin_out[i], folded_out[i]);
+  }
+}
+
 }  // namespace cinn::frontend
