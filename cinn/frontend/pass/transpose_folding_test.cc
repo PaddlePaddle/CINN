@@ -14,6 +14,8 @@
 
 #include <gtest/gtest.h>
 
+#include <cfloat>
+
 #include "cinn/cinn.h"
 #include "cinn/frontend/cinn_builder.h"
 #include "cinn/frontend/pass/use_program_pass.h"
@@ -128,12 +130,20 @@ TEST(TransposeFolding, FoldIntoDotCase2) {
   size_t origin_size = program.size();
   VLOG(1) << "Program:\n" << program;
   auto before_scope = hlir::framework::BuildScope(target, graph);
+  before_scope->Var<hlir::framework::Tensor>("C");
+  before_scope->Var<hlir::framework::Tensor>("Z");
+  SetRandData(before_scope->GetTensor("C"), target);
+  SetRandData(before_scope->GetTensor("Z"), target);
   RunWithProgram(program, target, before_scope);
   auto origin_out = GetTensorData(before_scope->GetTensor(out->id), target);
   ApplyPass(&program, {}, "TransposeFolding");
   size_t folded_size = program.size();
   VLOG(1) << "Program:\n" << program;
   auto after_scope = hlir::framework::BuildScope(target, graph);
+  after_scope->Var<hlir::framework::Tensor>("C");
+  after_scope->Var<hlir::framework::Tensor>("Z");
+  after_scope->GetTensor("C")->set_buffer(before_scope->GetTensor("C")->get_buffer());
+  after_scope->GetTensor("Z")->set_buffer(before_scope->GetTensor("Z")->get_buffer());
   RunWithProgram(program, target, after_scope);
   auto folded_out = GetTensorData(after_scope->GetTensor(out->id), target);
   ASSERT_EQ(origin_size, folded_size + 2);
