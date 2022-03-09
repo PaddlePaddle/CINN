@@ -23,11 +23,17 @@ class ReductionRewritePass : public ProgramPass {
   void ApplyImpl(Program* program, const Target& target) const;
 
  private:
+  struct ReductionDim {
+    bool on_row;
+    std::array<int, 3> dim;
+  };
   bool IsDimConsecutive(std::vector<int> dim) const;
   std::array<int, 3> DivideShapeByDim(const std::vector<int>& shape, const std::vector<int>& dim) const;
+  std::array<int, 3> GetReductionTiling(const ReductionDim& reduction_dim) const;
+  ReductionDim GetReductionDim(const std::vector<int>& shape, const std::vector<int>& dim) const;
   bool IsHighPerformance(bool on_row, const std::array<int, 3>& dim) const;
   bool CanRewriteReduction(const Instruction& instr) const;
-  Instruction RewriteReduction(const Instruction& instr) const;
+  std::vector<Instruction> RewriteReduction(const Instruction& instr) const;
 };
 
 void ReductionRewritePass::ApplyImpl(Program* program, const Target& target) const {
@@ -39,7 +45,9 @@ void ReductionRewritePass::ApplyImpl(Program* program, const Target& target) con
     const auto& instr = (*program)[i];
     if (CanRewriteReduction(instr)) {
       VLOG(1) << "Rewrite instruction:\n" << instr;
-      builder.AppendInstruction(RewriteReduction(instr));
+      for (auto new_instr : RewriteReduction(instr)) {
+        builder.AppendInstruction(new_instr);
+      }
     } else {
       builder.AppendInstruction(instr);
     }
@@ -110,7 +118,95 @@ bool ReductionRewritePass::CanRewriteReduction(const Instruction& instr) const {
   return IsHighPerformance(false, divided);
 }
 
-Instruction ReductionRewritePass::RewriteReduction(const Instruction& instr) const { return instr; }
+std::vector<Instruction> ReductionRewritePass::RewriteReduction(const Instruction& instr) const {
+  auto shape                          = instr->inputs[0]->shape;
+  auto dim                            = instr.GetAttrs<std::vector<int>>("dim");
+  auto reduction_dim                  = GetReductionDim(shape, dim);
+  std::array<int, 3> reduction_tiling = GetReductionTiling(reduction_dim);
+  std::vector<int> input_shape_dims   = shape;
+  bool reduce_batch_dimension         = dim.size() > 1;
+  VLOG(3) << "reduce_batch_dimension = " << reduce_batch_dimension;
+
+  std::sort(dim.begin(), dim.end());
+  CHECK_LE(dim.size(), 2);
+  int reduced_input_dimension = dim[dim.size() - 1];
+  VLOG(3) << "reduced_input_dimension: " << reduced_input_dimension;
+
+  auto RewriteBatchDimensionLargerThanTile =
+      [](const Instruction& instr, const ReductionDim& reduction_dim, int reduced_input_dimension) {
+        CHECK(reduction_dim.on_row);
+
+        Instruction inner(instr->op_type, instr->inputs);
+        inner.SetAttr("dim", std::vector<int>({reduced_input_dimension}));
+
+        Instruction out(instr->op_type, inner->outputs);
+        out.SetAttr("dim", std::vector<int>({0}));
+
+        return std::vector<Instruction>({inner, out});
+      };
+  if (reduce_batch_dimension && shape[0] > 8) {
+    return RewriteBatchDimensionLargerThanTile(instr, reduction_dim, reduced_input_dimension);
+  }
+  bool is_row_reduction = reduction_dim.on_row;
+
+  auto ReductionIsRaceFree = [](const ReductionDim& reduction_dim, const std::array<int, 3>& reduction_tiling) {
+    return (reduction_dim.on_row && reduction_dim.dim[2] <= 1024 * reduction_tiling[2] && reduction_dim.dim[0] <= 8) ||
+           (!reduction_dim.on_row && reduction_dim.dim[1] <= 32 * reduction_tiling[1]);
+  };
+  if (ReductionIsRaceFree(reduction_dim, reduction_tiling)) {
+    return {instr};
+  }
+
+  int reduced_dim_size = shape[reduced_input_dimension];
+  VLOG(3) << "reduced_dim_size = " << reduced_dim_size;
+
+  int num_fit = static_cast<int>(std::ceil(std::sqrt(reduced_dim_size)));
+
+  bool no_padding_necessary = reduced_dim_size % num_fit == 0;
+  auto padded               = [&]() -> std::array<std::vector<int>, 2> { return {instr->inputs[0]->shape}; }();
+
+  absl::InlinedVector<int, 3> reshaped_dimensions;
+  for (int64_t dim_idx = 0; dim_idx < padded[0].size(); dim_idx++) {
+    if (dim_idx == reduced_input_dimension) {
+      if (no_padding_necessary) {
+        reshaped_dimensions.push_back(reduced_dim_size / num_fit);
+      } else {
+        reshaped_dimensions.push_back(num_fit);
+      }
+
+      reshaped_dimensions.push_back(num_fit);
+    } else {
+      reshaped_dimensions.push_back(padded[0][dim_idx]);
+    }
+  }
+
+  absl::InlinedVector<int, 3> inner_reduce_dimensions = reshaped_dimensions;
+  int inner_reduced_dimension = is_row_reduction ? inner_reduce_dimensions.size() - 1 : reduced_input_dimension;
+  VLOG(2) << "inner_reduced_dimension = " << inner_reduced_dimension;
+  inner_reduce_dimensions.erase(inner_reduce_dimensions.begin() + inner_reduced_dimension);
+  if (reduce_batch_dimension) {
+    inner_reduce_dimensions.erase(inner_reduce_dimensions.begin());
+  }
+  std::vector<int> dims_to_reduce = {inner_reduced_dimension};
+  if (reduce_batch_dimension) {
+    dims_to_reduce.push_back(0);
+    inner_reduced_dimension -= 1;
+  }
+
+  std::array<std::vector<int>, 2> reshaped_padded_inputs;
+  std::array<std::vector<int>, 2> inner_reduce_shapes;
+  for (int i = 0; i < padded.size(); i++) {
+    auto& p                         = padded[i];
+    std::vector<int> reshaped_shape = {reshaped_dimensions[0], reshaped_dimensions[1], reshaped_dimensions[2]};
+  }
+
+  absl::InlinedVector<int, 3> outer_reduce_dimensions = inner_reduce_dimensions;
+  int outer_reduced_dimension = is_row_reduction ? outer_reduce_dimensions.size() - 1 : reduced_input_dimension;
+
+  outer_reduce_dimensions.erase(outer_reduce_dimensions.begin() + outer_reduced_dimension);
+
+  return {instr};
+}
 
 }  // namespace cinn::frontend::pass
 
