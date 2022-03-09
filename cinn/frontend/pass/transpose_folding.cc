@@ -17,7 +17,7 @@
 
 namespace cinn::frontend::pass {
 
-// Rules that transpose can fold into dot:
+// Rules that transpose can be folded into dot:
 //   1) input operand of dot must be transpose;
 //   2) `axis` of tranpose must be consecutive;
 std::vector<Instruction*> TryFoldIntoDot(Instruction* dot,
@@ -26,6 +26,7 @@ std::vector<Instruction*> TryFoldIntoDot(Instruction* dot,
   if (!(*dot)->attrs.empty()) return remove_instrs;
   auto is_transpose = [](const Instruction& transpose) {
     if ("transpose" != transpose->op_type) return false;
+    // The following codes for Rule 2).
     auto axis = transpose.GetAttrs<std::vector<int>>("axis");
     for (size_t i = 0; i < axis.size(); ++i) {
       if (axis[i] + 1 != axis.size() - i) return false;
@@ -47,11 +48,13 @@ std::vector<Instruction*> TryFoldIntoDot(Instruction* dot,
   return remove_instrs;
 }
 
-// Pass `TransposeFolding` folds transpose into dot, than it can be implemented by a GEMM kernel.
-// For each dot operator, try folding every input that belong output of transpose. If output of
-// tranpose in `fetch_ids`, keep the operator.
+// Pass `TransposeFolding` folds transpose into dot, then both of them can be implemented by a
+// GEMM kernel. For each dot operator, try folding every input that belong output of transpose.
+// If output of tranpose in `fetch_ids`, keep the operator.
 void TransposeFolding(Program* program, const std::unordered_set<std::string>& fetch_ids) {
+  // `var_instrs` is used to represent the mapping of Output to Instruction.
   absl::flat_hash_map<std::string, Instruction*> var_instrs;
+  // `remove_instrs` is used to represent Instructions which type is transpose to be deleted.
   absl::flat_hash_set<Instruction*> remove_instrs;
   for (size_t i = 0; i < program->size(); ++i) {
     auto& instr = (*program)[i];

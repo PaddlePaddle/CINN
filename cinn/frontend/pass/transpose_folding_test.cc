@@ -81,7 +81,7 @@ void RunWithProgram(const Program& program,
   runtime_program->Execute();
 }
 
-TEST(TransposeFolding, FoldIntoDot) {
+TEST(TransposeFolding, FoldIntoDotCase1) {
   CinnBuilder builder("cinn_builder");
   auto x           = builder.CreateInput(Float(32), {2, 3}, "X");
   auto y           = builder.CreateInput(Float(32), {2, 3}, "Y");
@@ -109,6 +109,29 @@ TEST(TransposeFolding, FoldIntoDot) {
   for (size_t i = 0; i < origin_out.size(); ++i) {
     ASSERT_FLOAT_EQ(origin_out[i], folded_out[i]);
   }
+}
+
+TEST(TransposeFolding, FoldIntoDotCase2) {
+  NetBuilder builder("net_builder");
+  auto a             = builder.FillConstant<float>({2, 20}, 2.0f, "A");
+  auto b             = builder.Transpose(a, {1, 0});
+  auto c             = builder.CreateInput(Float(32), {121, 20}, "C");
+  auto d             = builder.Matmul(c, b);
+  auto x             = builder.FillConstant<float>({2, 20}, 1.0f, "X");
+  auto y             = builder.Transpose(x, {1, 0});
+  auto z             = builder.CreateInput(Float(32), {121, 20}, "Z");
+  auto q             = builder.Matmul(z, y);
+  auto program       = builder.Build();
+  auto target        = GetTarget();
+  auto graph         = std::make_shared<hlir::framework::Graph>(program, target);
+  size_t origin_size = program.size();
+  VLOG(1) << "Program:\n" << program;
+  RunWithProgram(program, target, hlir::framework::BuildScope(target, graph));
+  ApplyPass(&program, {}, "TransposeFolding");
+  size_t folded_size = program.size();
+  VLOG(1) << "Program:\n" << program;
+  RunWithProgram(program, target, hlir::framework::BuildScope(target, graph));
+  ASSERT_EQ(origin_size, folded_size + 2);
 }
 
 }  // namespace cinn::frontend
