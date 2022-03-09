@@ -92,7 +92,7 @@ void SliceSelectOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperConte
   CHECK(op_desc.HasAttr("ends"));
   auto ends = op_desc.GetAttr<std::vector<int>>("ends");
   CHECK(op_desc.HasAttr("axis"));
-  auto axis = op_desc.GetAttr<std::vector<int>>("axis");
+  auto axes = op_desc.GetAttr<std::vector<int>>("axis");
   CHECK(op_desc.HasAttr("strides"));
   auto strides = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "strides");
 
@@ -100,9 +100,9 @@ void SliceSelectOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperConte
 
   VLOG(4) << "Slice " << x_name << "from shape (" << cinn::utils::Join(x->shape, ",") << ") with starts ["
           << cinn::utils::Join(starts, ",") << "], ends [" << cinn::utils::Join(ends, ",") << "], axis ["
-          << cinn::utils::Join(axis, ",") << "], strides [" << cinn::utils::Join(strides, ",") << "].";
+          << cinn::utils::Join(axes, ",") << "], strides [" << cinn::utils::Join(strides, ",") << "].";
 
-  auto out = ctx.Builder()->Slice(x, axis, starts, ends, std::vector<int>{}, strides);
+  auto out = ctx.Builder()->Slice(x, axes, starts, ends, std::vector<int>{}, strides);
 
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);

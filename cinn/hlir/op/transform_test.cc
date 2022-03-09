@@ -64,7 +64,8 @@ TEST(SliceAssign, SliceAssign_Op) {
   NodeAttr attrs;
   attrs.attr_store["axis"]    = std::vector<int>{0, 1};
   attrs.attr_store["starts"]  = std::vector<int>{16, 16};
-  attrs.attr_store["strides"] = std::vector<int>{32, 32};
+  attrs.attr_store["ends"]    = std::vector<int>{32, 32};
+  attrs.attr_store["strides"] = std::vector<int>{1, 1};
 
   std::vector<Type> out_type{Float(32)};
   std::vector<int> output_shape = {64, 64};
