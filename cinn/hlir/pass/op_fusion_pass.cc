@@ -139,7 +139,6 @@ class OpFusionPassHelper {
     CHECK_NE(kind, framework::kTuple) << "kTuple is not support now!";
     if (kind == framework::kBroadcast) {
       // As binary op was defined as broadcast, actually it should be element-wise.
-      // TODO : sunli
       if (node->op()->name != "broadcast_to") {
         return framework::kElemWise;
       }

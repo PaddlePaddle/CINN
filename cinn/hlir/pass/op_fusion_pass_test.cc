@@ -37,6 +37,7 @@ TEST(OpFusionPass, ElementWise_Fusion_0) {
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
   hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+  CHECK_EQ(graph->fusion_groups.size(), 1);
 }
 
 TEST(OpFusionPass, ElementWise_Fusion_1) {
@@ -60,6 +61,7 @@ TEST(OpFusionPass, ElementWise_Fusion_1) {
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
   hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+  CHECK_EQ(graph->fusion_groups.size(), 1);
 }
 
 TEST(OpFusionPass, Brodcast_Test_0) {
@@ -82,6 +84,7 @@ TEST(OpFusionPass, Brodcast_Test_0) {
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
   hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+  CHECK_EQ(graph->fusion_groups.size(), 1);
 }
 
 TEST(OpFusionPass, Brodcast_Test_1) {
@@ -106,6 +109,8 @@ TEST(OpFusionPass, Brodcast_Test_1) {
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
   hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+  LOG(INFO) << graph->Visualize();
+  CHECK_EQ(graph->fusion_groups.size(), 2);
 }
 
 TEST(OpFusionPass, Reduce_Test_0) {
@@ -129,6 +134,7 @@ TEST(OpFusionPass, Reduce_Test_0) {
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
   hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+  CHECK_EQ(graph->fusion_groups.size(), 2);
 }
 
 TEST(OpFusionPass, Reduce_Test_1) {
@@ -153,6 +159,7 @@ TEST(OpFusionPass, Reduce_Test_1) {
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
   hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+  CHECK_EQ(graph->fusion_groups.size(), 1);
 }
 
 TEST(OpFusionPass, Reduce_Test_2) {
@@ -177,6 +184,7 @@ TEST(OpFusionPass, Reduce_Test_2) {
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
   hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+  CHECK_EQ(graph->fusion_groups.size(), 2);
 }
 
 }  // namespace frontend
