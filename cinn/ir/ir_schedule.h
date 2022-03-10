@@ -17,6 +17,7 @@
 #include <string>
 #include <vector>
 
+#include "cinn/ir/ir.h"
 #include "cinn/ir/ir_base.h"
 
 namespace cinn {
@@ -160,6 +161,32 @@ class IRSchedule {
    * @param loops_index Indices of loops to be reordered.
    */
   void Reorder(const std::string& block_name, const std::vector<int>& loops_index);
+
+  /**
+   * \brief Change forloop to be parallelized/vectorized/unrolled.
+   * @param loop The forloop to parallel/vectorize/unroll.
+   * @param for_type the target forloop type.
+   */
+  void MutateForType(Expr& loop, ForType for_type, int factor = -1);
+
+  /**
+   * \brief Parallelize the given loop.
+   * @param loop the loop to parallel.
+   */
+  void Parallel(Expr& loop);
+
+  /**
+   * \brief Vectorize the given loop.
+   * @param loop the loop to vectorize.
+   * @param factor the vectorized factor.
+   */
+  void Vectorize(Expr& loop, int factor);
+
+  /**
+   * \brief Unroll the given loop.
+   * @param loop the loop to unroll.
+   */
+  void Unroll(Expr& loop);
 
   //! Get the ModuleExpr stored in ScheduleHelper.
   ModuleExpr GetModule() { return helper_.GetModule(); }

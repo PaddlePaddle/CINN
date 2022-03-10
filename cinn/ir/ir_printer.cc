@@ -79,6 +79,11 @@ void IrPrinter::Visit(const Minus *x) {
 void IrPrinter::Visit(const For *x) {
   if (x->is_parallel()) {
     os() << "parallel for (";
+  } else if (x->is_unrolled()) {
+    os() << "unroll for (";
+  } else if (x->is_vectorized()) {
+    int factor = x->vectorize_info().factor;
+    os() << "vectorize_" << factor << " for (";
   } else {
     os() << "for (";
   }

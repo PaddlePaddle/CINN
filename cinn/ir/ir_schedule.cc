@@ -266,6 +266,32 @@ Expr IRSchedule::Fuse(const std::string& block_name, const std::vector<int>& loo
   return this->Fuse(loops_expr);
 }
 
+void IRSchedule::MutateForType(Expr& loop, ForType for_type, int factor) {
+  auto* for_node = loop.As<ir::For>();
+  CHECK(for_node) << "loop param must be For node! Please check.";
+  CHECK(for_node->is_serial()) << "loop is not serial, current forloop type is "
+                               << static_cast<int>(for_node->for_type());
+  // check forloop axis is parallable
+  auto loop_copy     = optim::IRCopy(loop);
+  auto* new_for_node = loop_copy.As<ir::For>();
+  CHECK(new_for_node);
+  new_for_node->set_for_type(for_type);
+  if (new_for_node->is_vectorized()) {
+    VectorizeInfo vec_info(0, factor);
+    new_for_node->set_vectorize_info(vec_info);
+  }
+  helper_.Replace(loop, loop_copy);
+}
+
+void IRSchedule::Parallel(Expr& loop) { MutateForType(loop, ForType::Parallel); }
+
+void IRSchedule::Vectorize(Expr& loop, int factor) {
+  // validate factor
+  MutateForType(loop, ForType::Vectorized, factor);
+}
+
+void IRSchedule::Unroll(Expr& loop) { MutateForType(loop, ForType::Unrolled); }
+
 IRSchedule::IRSchedule(const ModuleExpr& module_expr, bool debug_flag) {
   ScheduleHelper sch_helper(module_expr, debug_flag);
   helper_ = sch_helper;
