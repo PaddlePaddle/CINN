@@ -26,17 +26,23 @@ namespace auto_schedule {
 
 class EvolutionarySearch {
  public:
+  EvolutionarySearch() = default;
   EvolutionarySearch(TuneTask* tune_task);
   ~EvolutionarySearch();
 
-  ir::ModuleExpr GetAutoTuneModuleExpr(TuneTask* tune_task);
-  std::vector<ir::ModuleExpr> GetAutoTuneModuleExprBests(TuneTask* tune_task);
-  std::vector<ir::ModuleExpr> GetAutoTuneEpsGreedy(TuneTask* tune_task);
+  void SetTuneTask(TuneTask* tune_task);
+  ir::ModuleExpr GetAutoTuneModuleExpr();
+  std::vector<ir::ModuleExpr> GetAutoTuneModuleExprBests();
+  std::vector<ir::ModuleExpr> GetAutoTuneEpsGreedy();
+
+#ifdef CINN_WITH_TEST
+  void SetSearchSpace(SearchSpace* search_space) { search_space_.reset(search_space); }
+#endif
 
  private:
-  std::vector<ir::ModuleExpr> GetTopKCandidatesFromDatabase(int topk, TuneTask* tune_task);
+  std::vector<ir::ModuleExpr> GetTopKCandidatesFromDatabase(int topk);
 
-  std::vector<ir::ModuleExpr> RandomInitSketch(int num, TuneTask* tune_task);
+  std::vector<ir::ModuleExpr> RandomInitSketch(int num);
 
   ir::ModuleExpr CrossOver(const ir::ModuleExpr& mod_expr1, const ir::ModuleExpr& mod_expr2);
 
@@ -55,7 +61,10 @@ class EvolutionarySearch {
   float eps_greedy_ = 0.0f;
 
   std::unique_ptr<SearchSpace> search_space_;
-  std::unique_ptr<CostModel> cost_model_;
+
+  TuneTask* tune_task_;
+
+  CostModel* cost_model_;  // not owned
 };
 
 }  // namespace auto_schedule

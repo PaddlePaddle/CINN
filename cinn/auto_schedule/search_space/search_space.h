@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <utility>
 #include <vector>
 
 #include "cinn/auto_schedule/cost_model/cost_model.h"
@@ -42,10 +43,11 @@ class SearchSpace {
   };
 
   // Generate sketch as initial population of evolutionary search
-  std::vector<ir::ModuleExpr> GetRandomInitialSketch(int num) { return std::vector<ir::ModuleExpr>(); };
+  virtual std::vector<ir::ModuleExpr> GetRandomInitialSketch(int num) { return std::vector<ir::ModuleExpr>(); };
 
   // Evolutionary search mutate, returns the mutated ModuleExpr and estimited cost
-  std::pair<ir::ModuleExpr, float> GetScheduleMutate(const CostModel& cost_model, const ir::ModuleExpr& mod_expr) {
+  virtual std::pair<ir::ModuleExpr, float> GetScheduleMutate(const CostModel& cost_model,
+                                                             const ir::ModuleExpr& mod_expr) {
     return std::make_pair<ir::ModuleExpr, float>(ir::ModuleExpr(), 0.0f);
   };
 };
