@@ -31,11 +31,12 @@ class EvolutionarySearch {
 
   ir::ModuleExpr GetAutoTuneModuleExpr(TuneTask* tune_task);
   std::vector<ir::ModuleExpr> GetAutoTuneModuleExprBests(TuneTask* tune_task);
+  std::vector<ir::ModuleExpr> GetAutoTuneEpsGreedy(TuneTask* tune_task);
 
  private:
-  std::vector<ir::ModuleExpr> GetTopKCandidatesFromDatabase(int topk);
+  std::vector<ir::ModuleExpr> GetTopKCandidatesFromDatabase(int topk, TuneTask* tune_task);
 
-  std::vector<ir::ModuleExpr> RandomInitSketch(int num);
+  std::vector<ir::ModuleExpr> RandomInitSketch(int num, TuneTask* tune_task);
 
   ir::ModuleExpr CrossOver(const ir::ModuleExpr& mod_expr1, const ir::ModuleExpr& mod_expr2);
 

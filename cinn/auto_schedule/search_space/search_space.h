@@ -16,8 +16,8 @@
 
 #include <vector>
 
+#include "cinn/auto_schedule/cost_model/cost_model.h"
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
-#include "cinn/auto_schedule/search_space/cost_model/cost_model.h"
 #include "cinn/auto_schedule/task/tune_task.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_schedule.h"
@@ -42,10 +42,12 @@ class SearchSpace {
   };
 
   // Generate sketch as initial population of evolutionary search
-  std::vector<ir::ModuleExpr> GetRandomInitialSketch(int num){};
+  std::vector<ir::ModuleExpr> GetRandomInitialSketch(int num) { return std::vector<ir::ModuleExpr>(); };
 
   // Evolutionary search mutate, returns the mutated ModuleExpr and estimited cost
-  std::pair<ir::ModuleExpr, float> GetScheduleMutate(const CostModel& cost_model, const ir::ModuleExpr& mod_expr){};
+  std::pair<ir::ModuleExpr, float> GetScheduleMutate(const CostModel& cost_model, const ir::ModuleExpr& mod_expr) {
+    return std::make_pair<ir::ModuleExpr, float>(ir::ModuleExpr(), 0.0f);
+  };
 };
 
 }  // namespace auto_schedule

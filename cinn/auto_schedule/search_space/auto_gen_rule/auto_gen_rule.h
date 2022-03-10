@@ -26,7 +26,7 @@ class AutoGenRule {
  public:
   AutoGenRule()  = default;
   ~AutoGenRule() = default;
-}
+};
 
 }  // namespace auto_schedule
 }  // namespace cinn

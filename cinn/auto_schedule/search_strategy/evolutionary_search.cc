@@ -27,7 +27,9 @@
 namespace cinn {
 namespace auto_schedule {
 
-EvolutionarySearch::EvolutionarySearch() { search_space_ = std::make_unique<SearchSpace>(*tune_task); }
+EvolutionarySearch::EvolutionarySearch(TuneTask* tune_task) {
+  search_space_ = std::make_unique<SearchSpace>(*tune_task);
+}
 
 EvolutionarySearch::~EvolutionarySearch() {}
 
@@ -36,7 +38,7 @@ std::vector<ir::ModuleExpr> EvolutionarySearch::GetAutoTuneModuleExprBests(TuneT
   std::vector<ir::ModuleExpr> topk_from_database = GetTopKCandidatesFromDatabase(database_topk_, tune_task);
 
   int random_num                            = init_population_num_ - topk_from_database.size();
-  std::vector<ir::ModuleExpr> random_sketch = RandomInitSketch(random_num_, tune_task);
+  std::vector<ir::ModuleExpr> random_sketch = RandomInitSketch(random_num, tune_task);
 
   init_population.insert(init_population.end(), topk_from_database.begin(), topk_from_database.end());
   init_population.insert(init_population.end(), random_sketch.begin(), random_sketch.end());
@@ -51,7 +53,8 @@ ir::ModuleExpr EvolutionarySearch::GetAutoTuneModuleExpr(TuneTask* tune_task) {
 
 std::vector<ir::ModuleExpr> EvolutionarySearch::GetAutoTuneEpsGreedy(TuneTask* tune_task) {
   std::vector<ir::ModuleExpr> picked_bests = GetAutoTuneModuleExprBests(tune_task);
-  return PickNextGeneration(picked_bests, RandomInitSketch(random_num_, tune_task), sample_num_, eps_greedy_);
+  int random_num                           = init_population_num_ - database_topk_;
+  return PickNextGeneration(picked_bests, RandomInitSketch(random_num, tune_task), sample_num_, eps_greedy_);
 }
 
 std::vector<ir::ModuleExpr> EvolutionarySearch::GetTopKCandidatesFromDatabase(int topk, TuneTask* tune_task) {
@@ -75,7 +78,7 @@ ir::ModuleExpr EvolutionarySearch::CrossOver(const ir::ModuleExpr& mod_expr1, co
     if (rand() % 2 == 0) {
       cross_over_exprs.push_back(optim::IRCopy(father_exprs[i]));
     } else {
-      cross_over_exprs.push_back(optim::IRCopy(mather_exprs[i]));
+      cross_over_exprs.push_back(optim::IRCopy(mathor_exprs[i]));
     }
   }
   return ir::ModuleExpr(cross_over_exprs);
@@ -90,21 +93,22 @@ std::vector<ir::ModuleExpr> EvolutionarySearch::Evolve(const std::vector<ir::Mod
     while (first_rand_idx == second_rand_idx) {
       second_rand_idx = rand() % generation_num;
     }
-    evolutin.push_back(CrossOver(population[first_rand_idx], population[second_rand_idx]));
+    evolution.push_back(CrossOver(population[first_rand_idx], population[second_rand_idx]));
   }
 
   // TODO(zhhsplendid): optimize sort with sized-heap
-  std::vector<std::pair<ir::ModuleExpr, float>> evolution_with_cost for (size_t i = 0; i < evolution.size(); ++i) {
+  std::vector<std::pair<ir::ModuleExpr, float>> evolution_with_cost;
+  for (size_t i = 0; i < evolution.size(); ++i) {
     evolution_with_cost.push_back(search_space_->GetScheduleMutate(*cost_model_, evolution[i]));
   }
-  sort(evolution_with_cost.begin(),
-       evolution_with_cost.end(),
-       [](const std::pair<ir::ModuleExpr, float>& lhs, const std::pair<ir::ModuleExpr, float>& rhs) {
-         return lhs.second < rhs.second;
-       });
+  std::sort(evolution_with_cost.begin(),
+            evolution_with_cost.end(),
+            [](const std::pair<ir::ModuleExpr, float>& lhs, const std::pair<ir::ModuleExpr, float>& rhs) {
+              return lhs.second < rhs.second;
+            });
 
   std::vector<ir::ModuleExpr> result(num);
-  for (int i = 0; i < std::min(num, evolution_with_cost.size()); ++i) {
+  for (int i = 0; i < std::min(num, static_cast<int>(evolution_with_cost.size())); ++i) {
     result.push_back(evolution_with_cost[i].first);
   }
   return result;
