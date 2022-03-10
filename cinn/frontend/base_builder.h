@@ -90,10 +90,10 @@ class BaseBuilder {
 
   Variable Slice(const Variable& operand,
                  const std::vector<int>& axes,
-                 const std::vector<int>& starts        = {},
-                 const std::vector<int>& ends          = {},
-                 const std::vector<int>& infer_flags   = {},
-                 const std::vector<int>& decrease_axis = {});
+                 const std::vector<int>& starts      = {},
+                 const std::vector<int>& ends        = {},
+                 const std::vector<int>& infer_flags = {},
+                 const std::vector<int>& strides     = {});
   /**
    * This API reverses the Variable x along the given axis.
    * Example 1: x = [[0, 1], [2, 3], [4, 5]], axis = [0]
@@ -104,6 +104,7 @@ class BaseBuilder {
   Variable Reverse(const Variable& operand, const std::vector<int>& axis);
 
   Variable Select(const Variable& condition, const Variable& true_value, const Variable& false_value);
+
   std::vector<Variable> Split(const Variable& operand, const std::vector<int>& num_or_sections, int axis = 0);
 
   Variable IndexSelect(const Variable& operand, const Variable& index, int axis = 0);
@@ -112,9 +113,10 @@ class BaseBuilder {
 
   Variable SliceAssign(const Variable& input,
                        const Variable& assign,
-                       const std::vector<int>& axis,
+                       const std::vector<int>& axes,
                        const std::vector<int>& starts,
-                       const std::vector<int>& strides);
+                       const std::vector<int>& ends,
+                       const std::vector<int>& strides = {});
 
  protected:
   void InferShape(Instruction instr) const;

@@ -156,12 +156,13 @@ TEST(SliceAssign, SliceAssign) {
 
   std::vector<int> axis    = {0, 1};
   std::vector<int> starts  = {32, 32};
-  std::vector<int> strides = {32, 32};
+  std::vector<int> ends    = {64, 64};
+  std::vector<int> strides = {1, 1};
 
   Placeholder<float> input("A", {M, M});
   Placeholder<float> assign("B", {N, N});
 
-  auto output = hlir::pe::SliceAssign(input.tensor(), assign.tensor(), axis, starts, strides);
+  auto output = hlir::pe::SliceAssign(input.tensor(), assign.tensor(), axis, starts, ends, strides);
   auto stages = CreateStages({input, assign, output});
   auto func   = Lower("fn", stages, {input, assign, output});
   LOG(INFO) << "func:\n" << func;

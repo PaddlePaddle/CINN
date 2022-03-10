@@ -162,6 +162,29 @@ std::vector<ir::Tensor> Split(const ir::Tensor& A,
                               const std::vector<std::vector<int>>& output_shapes,
                               const std::string& name);
 
+ir::Tensor Slice(const ir::Tensor& A,
+                 const std::vector<int>& starts,
+                 const std::vector<int>& axes,
+                 const std::vector<int>& strides,
+                 const std::vector<Expr>& output_shape,
+                 const std::string& output_name);
+
+/**
+ * @brief Perform meta op SliceAssign
+ * @param input The input tensor
+ * @param assign The assign tensor
+ * @param axis select axis
+ * @param starts select reigon starts
+ * @param strides select reigon strides
+ * @param output_name the name of the output tensor
+ */
+ir::Tensor SliceAssign(const ir::Tensor& input,
+                       const ir::Tensor& assign,
+                       const std::vector<int>& axes,
+                       const std::vector<int>& starts,
+                       const std::vector<int>& ends,
+                       const std::vector<int>& strides,
+                       const std::string& output_name = UniqName("T_Transform_SliceAssign_out"));
 /**
  * @brief Perform meta op Split
  * @param A The input tensor
@@ -175,21 +198,6 @@ ir::Tensor IndexSelect(const ir::Tensor& x,
                        int axis                = 0,
                        const std::string& name = UniqName("T_Transform_IndexSelect_out"));
 
-/**
- * @brief Perform meta op SliceAssign
- * @param input The input tensor
- * @param assign The assign tensor
- * @param axis select axis
- * @param starts select reigon starts
- * @param strides select reigon strides
- * @param output_name the name of the output tensor
- */
-ir::Tensor SliceAssign(const ir::Tensor& input,
-                       const ir::Tensor& assign,
-                       const std::vector<int>& axis,
-                       const std::vector<int>& starts,
-                       const std::vector<int>& strides,
-                       const std::string& output_name = UniqName("T_Transform_SliceAssign_out"));
 /**
  * @brief Perform meta op IndexAssign
  * @param input The input tensor
