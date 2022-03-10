@@ -206,31 +206,26 @@ TEST(OpFusionPass, Injective_Test_0) {
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  LOG(INFO) << graph->Visualize();
   hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
 }
 
-TEST(OpFusionPass, Injective_Test_1) {
+TEST(OpFusionPass, Test_Insert_BroadcastTo) {
   int h = 32, w = 32;
-  NetBuilder net_builder("Injective_Test_0");
+  NetBuilder net_builder("Test_Insert_BroadcastTo");
   // create model
   {
-    auto A = net_builder.CreateInput(Float(32), {h, w}, "A");
-    auto B = net_builder.CreateInput(Float(32), {h, w}, "B");
+    auto A = net_builder.CreateInput(Float(32), {w}, "A");
+    auto B = net_builder.CreateInput(Float(32), {w}, "B");
     auto C = net_builder.CreateInput(Float(32), {h, w}, "C");
-    auto D = net_builder.CreateInput(Float(32), {h * 2, w}, "D");
 
-    auto E = net_builder.ElementwiseAdd(A, B);
-    auto F = net_builder.Concat({C, E}, 0);
-    auto G = net_builder.ElementwiseAdd(D, F);
+    auto E = net_builder.ElementwiseAdd(C, A, -1);
+    auto F = net_builder.ElementwiseAdd(E, B, -1);
   }
 
   auto program = net_builder.Build();
   auto target  = GetTarget();
-  RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  LOG(INFO) << graph->Visualize();
   hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
 }
 

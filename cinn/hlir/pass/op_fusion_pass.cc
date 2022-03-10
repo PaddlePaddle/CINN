@@ -250,7 +250,7 @@ class OpFusionPassHelper {
     // 1. always can fuse.
     auto always_fuse = [](const Node* producer, const Node* consumer) -> bool { return true; };
     // 2. cant fuse.
-    auto cant_fuse = [](const Node* producer, const Node* consumer) -> bool { return false; };
+    auto no_fuse = [](const Node* producer, const Node* consumer) -> bool { return false; };
     // 3. has same output shape.
     auto is_same_shape = [this](const Node* producer, const Node* consumer) -> bool {
       auto& fusion_op  = this->fusion_groups_[consumer];
@@ -262,7 +262,8 @@ class OpFusionPassHelper {
       auto reduce_dim = absl::get<std::vector<int>>(producer->attrs.attr_store.at("dim"));
       auto shape      = this->shape_dict_.at(producer->inlinks_in_order()[0]->source()->id());
       // check last dimension in reduce.
-      if (std::find(reduce_dim.begin(), reduce_dim.end(), shape.size() - 1) == reduce_dim.end()) {
+      if (std::find(reduce_dim.begin(), reduce_dim.end(), shape.size() - 1) == reduce_dim.end() &&
+          std::find(reduce_dim.begin(), reduce_dim.end(), -1) == reduce_dim.end()) {
         return true;
       }
       return false;
@@ -284,10 +285,27 @@ class OpFusionPassHelper {
       auto reducer_input_shape  = shape_dict_.at(reducer->inlinks_in_order()[0]->source()->id());
       auto reducer_output_shape = shape_dict_.at(reducer->outlinks_in_order()[0]->sink()->id());
 
+      auto producer_reduce_dim = absl::get<std::vector<int>>(producer->attrs.attr_store.at("dim"));
+      auto reducer_reduce_dim  = absl::get<std::vector<int>>(reducer->attrs.attr_store.at("dim"));
+
+      for (auto& dim : producer_reduce_dim) {
+        // if dim = -1, set as shape.size() - 1
+        if (dim == -1) {
+          dim = producer_input_shape.size() - 1;
+        }
+      }
+
+      for (auto& dim : reducer_reduce_dim) {
+        // if dim = -1,  set as shape.size() - 1
+        if (dim == -1) {
+          dim = reducer_input_shape.size() - 1;
+        }
+      }
       // check shape is same
       if (producer_input_shape != reducer_input_shape || producer_output_shape != reducer_output_shape ||
-          absl::get<std::vector<int>>(producer->attrs.attr_store.at("dim")) !=
-              absl::get<std::vector<int>>(reducer->attrs.attr_store.at("dim"))) {
+          producer_reduce_dim != reducer_reduce_dim ||
+          absl::get<std::vector<int>>(producer->attrs.attr_store.at("keep_dim")) !=
+              absl::get<std::vector<int>>(reducer->attrs.attr_store.at("keep_dim"))) {
         return false;
       }
 
@@ -355,9 +373,9 @@ class OpFusionPassHelper {
           // must be horizontal relation and with same reduce attr.
           {framework::kCommReduce, reduce_fuse_reduce},
           // can't fuse.
-          {framework::kInjective, cant_fuse},
+          {framework::kInjective, no_fuse},
           // can't fuse.
-          {framework::kOutEWiseFusable, cant_fuse}};
+          {framework::kOutEWiseFusable, no_fuse}};
       fusion_relation_map_[framework::kCommReduce] = std::move(relation);
     }
     // 4.kInjective
@@ -372,11 +390,11 @@ class OpFusionPassHelper {
           // must be horizontal relation, check with same output shape.
           {framework::kBroadcast, is_same_shape},
           // left to fusion merge pass.
-          {framework::kCommReduce, cant_fuse},
+          {framework::kCommReduce, no_fuse},
           // must be horizontal relation, check with same output shape.
           {framework::kInjective, is_same_shape},
           // can't fuse.
-          {framework::kOutEWiseFusable, cant_fuse},
+          {framework::kOutEWiseFusable, no_fuse},
       };
       fusion_relation_map_[framework::kInjective] = std::move(relation);
     }
@@ -392,11 +410,11 @@ class OpFusionPassHelper {
           // it must be horizontal relation, check has same shape.
           {framework::kBroadcast, is_same_shape},
           // can't fuse.
-          {framework::kCommReduce, cant_fuse},
+          {framework::kCommReduce, no_fuse},
           // must be horizontal relation, check has same shape.
           {framework::kInjective, is_same_shape},
           // can't fuse.
-          {framework::kOutEWiseFusable, cant_fuse},
+          {framework::kOutEWiseFusable, no_fuse},
       };
       fusion_relation_map_[framework::kOutEWiseFusable] = std::move(relation);
     }
@@ -428,7 +446,76 @@ class OpFusionPassHelper {
   std::unordered_map<framework::OpPatternKind, FusionRelation> fusion_relation_map_;
 };
 
+void InsertBroadcastTo(Graph* graph) {
+  // get nodes and op pattern.
+  auto graph_nodes      = std::get<0>(graph->topological_order());
+  auto& op_pattern_dict = framework::Operator::GetAttrs<OpPatternKind>("OpPattern");
+  auto& dtype_dict      = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
+  auto& shape_dict      = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
+
+  // node index.
+  auto index = graph_nodes.size();
+  for (auto graph_node : graph_nodes) {
+    auto node = graph_node->safe_as<Node>();
+    // if node is NodeData, continue.
+    if (!node) {
+      continue;
+    }
+    // check kBroadcast op and insert broadcast to.
+    if (op_pattern_dict[node->op()] == framework::kBroadcast && node->op()->name != "broadcast_to") {
+      // get output shape
+      auto node_data = (*node->outlinks().begin())->sink()->safe_as<NodeData>();
+      CHECK(node_data);
+      CHECK(shape_dict.count(node_data->id())) << "Can't find " << node_data->id() << " 's shape!";
+      auto output_shape = shape_dict.at(node_data->id());
+
+      // check input node
+      for (auto& edge : node->inlinks_in_order()) {
+        auto input_data = edge->source()->safe_as<NodeData>();
+        CHECK(input_data);
+        CHECK(shape_dict.count(input_data->id())) << "Can't find " << input_data->id() << " 's shape!";
+        auto input_shape = shape_dict.at(input_data->id());
+        // input shape is not equal to output shape, insert broadcast_to
+        if (output_shape != input_shape) {
+          // input_data UnLinkTo node
+          input_data->UnLinkTo(node);
+          int axis = -1;
+          if (node->attrs.attr_store.find("axis") != node->attrs.attr_store.end()) {
+            axis = absl::get<int>(node->attrs.attr_store["axis"]);
+          }
+          if (axis == -1) {
+            axis = output_shape.size() - 1;
+          }
+          node->attrs.attr_store = {};
+          CHECK_LE(axis + input_shape.size(), output_shape.size());
+          // create node
+          auto tmp_node = new Node(
+              framework::Operator::Get("broadcast_to"), "broadcast_to", "broadcast_to_" + std::to_string(++index));
+          std::vector<int> broadcast_axes;
+          for (int idx = 0; idx < input_shape.size(); ++idx) {
+            broadcast_axes.push_back(axis++);
+          }
+          tmp_node->attrs.attr_store["out_shape"]      = output_shape;
+          tmp_node->attrs.attr_store["broadcast_axes"] = broadcast_axes;
+          input_data->LinkTo(tmp_node);
+          graph->RegisterNode(tmp_node->id(), tmp_node);
+          // create node data
+          auto tmp_node_data = new NodeData(nullptr, 0, 0, "var_" + std::to_string(index), false);
+          tmp_node->LinkTo(tmp_node_data);
+          tmp_node_data->LinkTo(node);
+          graph->RegisterNode(tmp_node_data->id(), tmp_node_data);
+          // update shape_dict
+          shape_dict[tmp_node_data->id()] = output_shape;
+          // update dtype_dict
+          dtype_dict[tmp_node_data->id()] = dtype_dict[node_data->id()];
+        }
+      }
+    }
+  }
+}
+
 void OpFusionPassInternal(Graph* graph) {
+  InsertBroadcastTo(graph);
   // nodes include(node, data node)
   auto nodes = std::get<0>(graph->topological_order());
   // shape
