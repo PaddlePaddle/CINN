@@ -50,15 +50,13 @@ TEST(IrSchedule, split_and_fuse1) {
   std::vector<Expr> vec_ast{ast_expr};
   ir::ModuleExpr mod_expr(vec_ast);
   ir::IRSchedule ir_sch(mod_expr);
-  auto loops = ir_sch.GetLoops();
-
-  auto fused   = ir_sch.Fuse(loops);
+  auto fused   = ir_sch.Fuse("B", {0, 1});
   auto splited = ir_sch.Split(fused, {4, -1});
   VLOG(3) << "After split {4, -1}, IR is : " << ir_sch.GetModule().GetExprs().at(0);
 
-  loops   = ir_sch.GetLoops();
-  fused   = ir_sch.Fuse(loops);
-  splited = ir_sch.Split(fused, {256, -1});
+  auto loops = ir_sch.GetLoops("B");
+  fused      = ir_sch.Fuse(loops);
+  splited    = ir_sch.Split(fused, {256, -1});
   VLOG(3) << "After split {256, -1}, IR is : " << ir_sch.GetModule().GetExprs().at(0);
 
   func[0]->body = ir_sch.GetModule().GetExprs().at(0);
@@ -118,7 +116,7 @@ TEST(IrSchedule, split_and_fuse2) {
   std::vector<Expr> vec_ast{ast_expr};
   ir::ModuleExpr mod_expr(vec_ast);
   ir::IRSchedule ir_sch(mod_expr);
-  auto loops = ir_sch.GetLoops();
+  auto loops = ir_sch.GetLoops("B");
 
   auto fused   = ir_sch.Fuse(loops);
   auto splited = ir_sch.Split(fused, {-1, 20});
@@ -183,12 +181,12 @@ TEST(IrSchedule, reorder1) {
   std::vector<Expr> vec_ast{ast_expr};
   ir::ModuleExpr mod_expr(vec_ast);
   ir::IRSchedule ir_sch(mod_expr);
-  auto loops = ir_sch.GetLoops();
 
-  auto splited = ir_sch.Split(0, {-1, 4});
-  splited      = ir_sch.Split(2, {-1, 2});
+  auto splited = ir_sch.Split("B", 0, {-1, 4});
+  splited      = ir_sch.Split("B", 2, {-1, 2});
 
-  ir_sch.Reorder({4, 0});
+  auto loops = ir_sch.GetLoops("B");
+  ir_sch.Reorder({loops[4], loops[0]});
 
   func[0]->body = ir_sch.GetModule().GetExprs().at(0);
 
@@ -253,12 +251,11 @@ TEST(IrSchedule, reorder2) {
   std::vector<Expr> vec_ast{ast_expr};
   ir::ModuleExpr mod_expr(vec_ast);
   ir::IRSchedule ir_sch(mod_expr);
-  auto loops = ir_sch.GetLoops();
 
-  auto splited = ir_sch.Split(0, {-1, 4});
-  splited      = ir_sch.Split(2, {-1, 2});
+  auto splited = ir_sch.Split("B", 0, {-1, 4});
+  splited      = ir_sch.Split("B", 2, {-1, 2});
 
-  ir_sch.Reorder({4, 2, 3, 1, 0});
+  ir_sch.Reorder("B", {4, 2, 3, 1, 0});
 
   func[0]->body = ir_sch.GetModule().GetExprs().at(0);
 
@@ -323,12 +320,13 @@ TEST(IrSchedule, reorder3) {
   std::vector<Expr> vec_ast{ast_expr};
   ir::ModuleExpr mod_expr(vec_ast);
   ir::IRSchedule ir_sch(mod_expr);
-  auto loops = ir_sch.GetLoops();
+  auto all_blocks = ir_sch.GetAllBlocks();
+  auto loops      = ir_sch.GetLoops(all_blocks[0]);
 
-  auto splited = ir_sch.Split(0, {-1, 5});
-  splited      = ir_sch.Split(2, {-1, 2});
+  auto splited = ir_sch.Split(loops[0], {-1, 5});
+  splited      = ir_sch.Split("B", 2, {-1, 2});
 
-  ir_sch.Reorder({3, 1, 2, 0, 4});
+  ir_sch.Reorder("B", {3, 1, 2, 0, 4});
 
   func[0]->body = ir_sch.GetModule().GetExprs().at(0);
 
@@ -395,12 +393,15 @@ TEST(IrSchedule, reorder4) {
   std::vector<Expr> vec_ast{ast_expr};
   ir::ModuleExpr mod_expr(vec_ast);
   ir::IRSchedule ir_sch(mod_expr);
-  auto loops = ir_sch.GetLoops();
 
-  auto splited = ir_sch.Split(0, {-1, 10});
-  splited      = ir_sch.Split(2, {-1, 5});
+  auto all_blocks = ir_sch.GetAllBlocks();
+  auto block_b    = ir_sch.GetBlock("B");
+  auto loops      = ir_sch.GetLoops(block_b);
 
-  ir_sch.Reorder({0, 2, 1, 3, 4});
+  auto splited = ir_sch.Split("B", 0, {-1, 10});
+  splited      = ir_sch.Split("B", 2, {-1, 5});
+
+  ir_sch.Reorder("B", {0, 2, 1, 3, 4});
 
   func[0]->body = ir_sch.GetModule().GetExprs().at(0);
 

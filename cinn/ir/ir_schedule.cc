@@ -28,6 +28,7 @@
 #include "cinn/common/ir_util.h"
 #include "cinn/ir/collect_ir_nodes.h"
 #include "cinn/ir/ir.h"
+#include "cinn/ir/ir_mutator.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_visitor.h"
@@ -78,11 +79,11 @@ Expr GetNextForLoop(const Expr& for_loop) {
  * @param bottom The given bottom For loop.
  * @return All ir::IfThenElse nodes between them.
  */
-std::vector<Expr> GetIfThenElseInRange(Expr top, Expr bottom) {
+std::vector<Expr> GetIfThenElseInRange(const Expr& top, const Expr& bottom) {
   std::vector<Expr> if_nodes;
   CHECK(top.As<ir::For>());
   CHECK(bottom.As<ir::For>());
-  for (Expr loop_iter = top; loop_iter != bottom;) {
+  for (auto loop_iter = top; loop_iter != bottom;) {
     CHECK(loop_iter.As<ir::For>());
     CHECK(loop_iter.As<ir::For>()->body.As<ir::Block>()) << "For node's body should be Block!";
     auto block = loop_iter.As<ir::For>()->body.As<ir::Block>();
@@ -159,10 +160,9 @@ std::vector<int> ValidateFactors(const std::vector<int>& factors, int total_exte
   }
 }
 
-std::vector<Expr> IRSchedule::Split(Expr& loop, const std::vector<int>& factors) {
+std::vector<Expr> IRSchedule::Split(const Expr& loop, const std::vector<int>& factors) {
   CHECK(loop.As<ir::For>()) << "Expr param of Split must be For node! Please check.";
-  auto loop_copy    = optim::IRCopy(loop);
-  ir::For* for_node = loop_copy.As<ir::For>();
+  auto* for_node = loop.As<ir::For>();
   CHECK(common::is_zero(for_node->min)) << "The For node must start with 0! Please check.";
   CHECK(for_node->extent.is_constant()) << "The For node's extent must be constant! Please check.";
   int tot_extent         = for_node->extent.get_constant();
@@ -176,7 +176,7 @@ std::vector<Expr> IRSchedule::Split(Expr& loop, const std::vector<int>& factors)
     new_loop_vars.push_back(temp_var);
   }
   substitute_value = common::AutoSimplify(substitute_value);
-  Expr& new_node   = for_node->body;
+  Expr new_node    = optim::IRCopy(for_node->body);
   ReplaceExpr(&new_node, {for_node->loop_var}, {substitute_value});
   std::vector<Expr> splited_loops;
   splited_loops.resize(processed_factors.size());
@@ -193,20 +193,20 @@ std::vector<Expr> IRSchedule::Split(Expr& loop, const std::vector<int>& factors)
   return splited_loops;
 }
 
-std::vector<Expr> IRSchedule::Split(int loop_index, const std::vector<int>& factors) {
-  std::vector<Expr> all_loops = this->GetLoops();
+std::vector<Expr> IRSchedule::Split(const std::string& block_name, int loop_index, const std::vector<int>& factors) {
+  std::vector<Expr> all_loops = this->GetLoops(block_name);
   Expr loop_expr;
   CHECK_LT(loop_index, (int)all_loops.size()) << "The loop index in Split should be less than total loop's number.";
   loop_expr = all_loops[loop_index];
   return this->Split(loop_expr, factors);
 }
 
-Expr IRSchedule::Fuse(std::vector<Expr>& loops) {
-  std::vector<ir::For*> for_nodes;
+Expr IRSchedule::Fuse(const std::vector<Expr>& loops) {
+  std::vector<const ir::For*> for_nodes;
   std::vector<Var> loop_vars;
   CHECK(!loops.empty()) << "The loops param of Fuse should not be empty! Please check.";
 
-  for (Expr& it_loop : loops) {
+  for (const Expr& it_loop : loops) {
     CHECK(it_loop.As<ir::For>()) << "Expr param of Fuse must be For node! Please check.";
     if (!for_nodes.empty()) {
       CHECK(for_nodes.back()->body.As<ir::Block>()) << "The body of for node is not Block!";
@@ -234,7 +234,7 @@ Expr IRSchedule::Fuse(std::vector<Expr>& loops) {
   }
   substitute_value[0] = fused_expr;
 
-  Expr& fused_body = for_nodes.back()->body;
+  Expr fused_body = optim::IRCopy(for_nodes.back()->body);
   ReplaceExpr(&fused_body, loop_vars, substitute_value);
   optim::Simplify(&fused_body);
   Expr fused_extent(1);
@@ -247,15 +247,15 @@ Expr IRSchedule::Fuse(std::vector<Expr>& loops) {
   Expr new_stmt =
       For::Make(fused_var, Expr(0), fused_extent, for_nodes[0]->for_type(), for_nodes[0]->device_api, fused_body);
   helper_.Replace(loops[0], new_stmt);
-  return loops[0];
+  return new_stmt;
 }
 
-Expr IRSchedule::Fuse(std::vector<int>& loops_index) {
-  std::vector<Expr> all_loops = this->GetLoops();
+Expr IRSchedule::Fuse(const std::string& block_name, const std::vector<int>& loops_index) {
+  std::vector<Expr> all_loops = this->GetLoops(block_name);
   std::vector<Expr> loops_expr;
   loops_expr.reserve(loops_index.size());
   for (int i = 0; i < loops_index.size(); i++) {
-    if (i > 0) CHECK_EQ(loops_index[i - 1] + 1, loops_index[i + 1]) << "Loops index in Fuse shoule be continuous!";
+    if (i > 0) CHECK_EQ(loops_index[i - 1] + 1, loops_index[i]) << "Loops index in Fuse shoule be continuous!";
   }
   for (int i : loops_index) {
     CHECK_LT(i, (int)all_loops.size()) << "The loop index in Reorder should be less than total loop's number.";
@@ -274,17 +274,32 @@ IRSchedule::IRSchedule(const ModuleExpr& module_expr, bool debug_flag) {
  * @param src_sref The For node to be changed.
  * @param tgt_stmt The For node we want.
  */
-void ScheduleHelper::Replace(Expr& src_sref, const Expr& tgt_stmt) {
+void ScheduleHelper::Replace(const Expr& src_sref, const Expr& tgt_stmt) {
   CHECK(src_sref.As<ir::For>() && tgt_stmt.As<ir::For>());
   if (src_sref == tgt_stmt) {
-    LOG(INFO) << "two exprs are the same, no need to replace";
+    VLOG(3) << "two exprs are the same, no need to replace";
     return;
   }
-  src_sref.As<ir::For>()->loop_var   = tgt_stmt.As<ir::For>()->loop_var;
-  src_sref.As<ir::For>()->min        = tgt_stmt.As<ir::For>()->min;
-  src_sref.As<ir::For>()->extent     = tgt_stmt.As<ir::For>()->extent;
-  src_sref.As<ir::For>()->body       = tgt_stmt.As<ir::For>()->body;
-  src_sref.As<ir::For>()->device_api = tgt_stmt.As<ir::For>()->device_api;
+  struct ForLoopMutator : public ir::IRMutator<> {
+    ForLoopMutator(const Expr& source, const Expr& target) : source_(source), target_(target) {}
+
+    void operator()(Expr* expr) { ir::IRMutator<>::Visit(expr, expr); }
+
+    void Visit(const ir::For* op, Expr* expr) override {
+      if (*expr == source_) {
+        *expr = target_;
+        return;
+      }
+      ir::IRMutator<>::Visit(op, expr);
+    }
+    const Expr& source_;
+    const Expr& target_;
+  };
+  auto exprs = module_expr_.GetExprs();
+  ForLoopMutator mutator(src_sref, tgt_stmt);
+  for (auto& i : exprs) {
+    mutator(&i);
+  }
 }
 
 /**
@@ -347,11 +362,11 @@ std::pair<Expr, Expr> GetBoundaryOfReorderRange(const std::set<Expr, CompExpr>& 
  * @param bottom The bottom For loop.
  * @return A vector containing all For loops between the boundary, stored in ascending order.
  */
-std::vector<Expr> GetLoopsInRange(Expr top, Expr bottom) {
+std::vector<Expr> GetLoopsInRange(const Expr& top, const Expr& bottom) {
   std::vector<Expr> chain;
   CHECK(top.As<ir::For>());
   CHECK(bottom.As<ir::For>());
-  for (Expr loop_iter = top; loop_iter != bottom;) {
+  for (auto loop_iter = top; loop_iter != bottom;) {
     Expr tmp = GetNextForLoop(loop_iter);
     if (!tmp.defined()) LOG(FATAL) << "Loops in GetLoopsInReorderRange is not a chain! Please check.";
     chain.push_back(loop_iter);
@@ -364,8 +379,8 @@ std::vector<Expr> GetLoopsInRange(Expr top, Expr bottom) {
 /**
  * \brief Given params, construct a new loop.
  */
-Expr ConstructNewLoopChain(std::vector<Expr>& chain,
-                           std::vector<Expr>& ordered_loops,
+Expr ConstructNewLoopChain(const std::vector<Expr>& chain,
+                           const std::vector<Expr>& ordered_loops,
                            const std::set<Expr, CompExpr>& loop_set,
                            std::vector<Expr>& if_nodes) {
   std::vector<std::set<std::string>> condition_vars;
@@ -381,7 +396,7 @@ Expr ConstructNewLoopChain(std::vector<Expr>& chain,
   int index = static_cast<int>(ordered_loops.size()) - 1;
   // Construct the loop from bottom to top.
   for (int i = static_cast<int>(chain.size()) - 1; i >= 0; i--) {
-    Expr& loop_in_chain = chain[i];
+    auto& loop_in_chain = chain[i];
     CHECK(loop_in_chain.As<ir::For>());
     Expr temp;
     if (loop_set.count(loop_in_chain)) {
@@ -419,7 +434,7 @@ Expr ConstructNewLoopChain(std::vector<Expr>& chain,
   return new_loop;
 }
 
-void IRSchedule::Reorder(std::vector<Expr>& loops) {
+void IRSchedule::Reorder(const std::vector<Expr>& loops) {
   if (loops.size() <= 1) return;
   std::set<Expr, CompExpr> loop_set = CollectLoopsToSet(loops);
   auto boundary                     = GetBoundaryOfReorderRange(loop_set);
@@ -430,11 +445,10 @@ void IRSchedule::Reorder(std::vector<Expr>& loops) {
 
   Expr new_loop = ConstructNewLoopChain(chain, loops, loop_set, if_nodes);
   helper_.Replace(top, new_loop);
-  auto result = helper_.GetLoops();
 }
 
-void IRSchedule::Reorder(const std::vector<int>& loops_index) {
-  std::vector<Expr> all_loops = this->GetLoops();
+void IRSchedule::Reorder(const std::string& block_name, const std::vector<int>& loops_index) {
+  std::vector<Expr> all_loops = this->GetLoops(block_name);
   std::vector<Expr> loops_expr;
   loops_expr.reserve(loops_index.size());
   for (int i : loops_index) {
@@ -444,18 +458,73 @@ void IRSchedule::Reorder(const std::vector<int>& loops_index) {
   this->Reorder(loops_expr);
 }
 
-std::vector<Expr> ScheduleHelper::GetLoops() const {
+std::vector<Expr> ScheduleHelper::GetLoops(const Expr& block) const {
   std::vector<Expr> result;
   auto exprs = module_expr_.GetExprs();
+  CHECK(block.As<ir::ScheduleBlockRealize>());
+  CHECK(block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>());
+  std::string block_name = block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->name;
   for (auto& it_expr : exprs) {
-    auto loop_nodes = ir::CollectIRNodes(it_expr, [&](const Expr* x) { return x->As<ir::For>(); });
-    for (auto& it_for : loop_nodes) result.push_back(it_for);
+    auto find_block = ir::CollectIRNodes(it_expr, [&](const Expr* x) {
+      return x->As<ir::ScheduleBlockRealize>() &&
+             x->As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>() &&
+             x->As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->name == block_name;
+    });
+    if (!find_block.empty()) {
+      if (!result.empty()) LOG(FATAL) << "Find block with name: \n" << block_name << " appeared in more than one AST!";
+      std::set<std::string> loops_name;
+      for (auto& iter_val : block.As<ir::ScheduleBlockRealize>()->iter_values) {
+        auto vars = ir::CollectIRNodes(iter_val, [&](const Expr* x) { return x->is_var(); });
+        for (auto& iter_var : vars) loops_name.insert(iter_var.as_var_ref()->name);
+      }
+      auto loop_nodes = ir::CollectIRNodes(it_expr, [&](const Expr* x) {
+        return x->As<ir::For>() && loops_name.count(x->As<ir::For>()->loop_var->name) != 0;
+      });
+      for (auto& it_for : loop_nodes) result.push_back(it_for);
+    }
   }
+  if (result.empty()) LOG(FATAL) << "Didn't find block with name: \n" << block_name << " in ModuleExepr.";
   std::sort(result.begin(), result.end(), [&](Expr i, Expr j) {
     return (utils::GetStreamCnt(i).size() > utils::GetStreamCnt(j).size());
   });
+  for (auto& it_for : result) VLOG(3) << "Get Loops :\n" << it_for;
+  return result;
+}
 
-  for (auto& it_for : result) VLOG(3) << "Get Loops : \n" << it_for;
+std::vector<Expr> ScheduleHelper::GetLoops(const std::string& block_name) const {
+  Expr block               = this->GetBlock(block_name);
+  std::vector<Expr> result = this->GetLoops(block);
+  return result;
+}
+
+std::vector<Expr> ScheduleHelper::GetAllBlocks() const {
+  std::vector<Expr> result;
+  auto exprs = module_expr_.GetExprs();
+  for (auto& it_expr : exprs) {
+    auto block_nodes = ir::CollectIRNodes(it_expr, [&](const Expr* x) { return x->As<ir::ScheduleBlockRealize>(); });
+    for (auto& it_block : block_nodes) result.push_back(it_block);
+  }
+  CHECK(!result.empty());
+  std::sort(result.begin(), result.end(), [&](Expr i, Expr j) {
+    CHECK(i.As<ir::ScheduleBlockRealize>());
+    CHECK(j.As<ir::ScheduleBlockRealize>());
+    CHECK(i.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>());
+    CHECK(j.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>());
+    std::string& i_name = i.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->name;
+    std::string& j_name = j.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->name;
+    return (i_name < j_name);
+  });
+  return result;
+}
+
+Expr ScheduleHelper::GetBlock(const std::string& block_name) const {
+  Expr result;
+  std::vector<Expr> all_blocks = this->GetAllBlocks();
+  for (auto& it_block : all_blocks) {
+    if (it_block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->name == block_name)
+      result = it_block;
+  }
+  if (!result.defined()) LOG(FATAL) << "Didn't find a block with name " << block_name << " in this ModuleExpr!";
   return result;
 }
 
