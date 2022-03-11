@@ -14,19 +14,18 @@
 
 #pragma once
 
-#include <string>
-
-#include "cinn/common/target.h"
-#include "cinn/ir/ir_base.h"
-#include "cinn/ir/ir_schedule.h"
-
 namespace cinn {
 namespace auto_schedule {
 
-class TuneContext {
+/**
+ * Base class for rules of auto-generating schedule (like Ansor's sketch generation)
+ *
+ * TODO(zhhsplendid): Finish this class and related rule classes
+ */
+class AutoGenRule {
  public:
-  ir::ModuleExpr module;
-  common::Target target;
+  AutoGenRule()  = default;
+  ~AutoGenRule() = default;
 };
 
 }  // namespace auto_schedule
