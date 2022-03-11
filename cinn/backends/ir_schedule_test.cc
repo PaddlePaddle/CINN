@@ -59,10 +59,6 @@ TEST(IrSchedule, split_and_fuse1) {
   splited    = ir_sch.Split(fused, {256, -1});
   VLOG(3) << "After split {256, -1}, IR is : " << ir_sch.GetModule().GetExprs().at(0);
 
-  func[0]->body = ir_sch.GetModule().GetExprs().at(0);
-
-  optim::RemoveScheduleBlock(&func[0]->body);
-
   Module::Builder builder("module1", target);
   for (auto& i : func) {
     builder.AddFunction(i);
@@ -121,10 +117,6 @@ TEST(IrSchedule, split_and_fuse2) {
   auto fused   = ir_sch.Fuse(loops);
   auto splited = ir_sch.Split(fused, {-1, 20});
   VLOG(3) << "After split {-1, 20}, IR is : " << ir_sch.GetModule().GetExprs().at(0);
-
-  func[0]->body = ir_sch.GetModule().GetExprs().at(0);
-
-  optim::RemoveScheduleBlock(&func[0]->body);
 
   Module::Builder builder("module1", target);
   for (auto& i : func) {
@@ -187,10 +179,6 @@ TEST(IrSchedule, reorder1) {
 
   auto loops = ir_sch.GetLoops("B");
   ir_sch.Reorder({loops[4], loops[0]});
-
-  func[0]->body = ir_sch.GetModule().GetExprs().at(0);
-
-  optim::RemoveScheduleBlock(&func[0]->body);
 
   Module::Builder builder("module1", target);
   for (auto& i : func) {
@@ -256,10 +244,6 @@ TEST(IrSchedule, reorder2) {
   splited      = ir_sch.Split("B", 2, {-1, 2});
 
   ir_sch.Reorder("B", {4, 2, 3, 1, 0});
-
-  func[0]->body = ir_sch.GetModule().GetExprs().at(0);
-
-  optim::RemoveScheduleBlock(&func[0]->body);
 
   Module::Builder builder("module1", target);
   for (auto& i : func) {
@@ -327,10 +311,6 @@ TEST(IrSchedule, reorder3) {
   splited      = ir_sch.Split("B", 2, {-1, 2});
 
   ir_sch.Reorder("B", {3, 1, 2, 0, 4});
-
-  func[0]->body = ir_sch.GetModule().GetExprs().at(0);
-
-  optim::RemoveScheduleBlock(&func[0]->body);
 
   Module::Builder builder("module1", target);
   for (auto& i : func) {
@@ -402,10 +382,6 @@ TEST(IrSchedule, reorder4) {
   splited      = ir_sch.Split("B", 2, {-1, 5});
 
   ir_sch.Reorder("B", {0, 2, 1, 3, 4});
-
-  func[0]->body = ir_sch.GetModule().GetExprs().at(0);
-
-  optim::RemoveScheduleBlock(&func[0]->body);
 
   Module::Builder builder("module1", target);
   for (auto& i : func) {

@@ -197,6 +197,7 @@ std::vector<Expr> IRSchedule::Split(const std::string& block_name, int loop_inde
   std::vector<Expr> all_loops = this->GetLoops(block_name);
   Expr loop_expr;
   CHECK_LT(loop_index, (int)all_loops.size()) << "The loop index in Split should be less than total loop's number.";
+  CHECK_GE(loop_index, 0) << "The loop index in Split should be >= 0.";
   loop_expr = all_loops[loop_index];
   return this->Split(loop_expr, factors);
 }
@@ -258,7 +259,8 @@ Expr IRSchedule::Fuse(const std::string& block_name, const std::vector<int>& loo
     if (i > 0) CHECK_EQ(loops_index[i - 1] + 1, loops_index[i]) << "Loops index in Fuse shoule be continuous!";
   }
   for (int i : loops_index) {
-    CHECK_LT(i, (int)all_loops.size()) << "The loop index in Reorder should be less than total loop's number.";
+    CHECK_LT(i, (int)all_loops.size()) << "The loop index in Fuse should be less than total loop's number.";
+    CHECK_GE(i, 0) << "The loop index in Fuse should be >= 0.";
     loops_expr.emplace_back(all_loops[i]);
   }
   return this->Fuse(loops_expr);
@@ -453,6 +455,7 @@ void IRSchedule::Reorder(const std::string& block_name, const std::vector<int>& 
   loops_expr.reserve(loops_index.size());
   for (int i : loops_index) {
     CHECK_LT(i, (int)all_loops.size()) << "The loop index in Reorder should be less than total loop's number.";
+    CHECK_GE(i, 0) << "The loop index in Reorder should be >= 0.";
     loops_expr.emplace_back(all_loops[i]);
   }
   this->Reorder(loops_expr);
@@ -501,19 +504,12 @@ std::vector<Expr> ScheduleHelper::GetAllBlocks() const {
   std::vector<Expr> result;
   auto exprs = module_expr_.GetExprs();
   for (auto& it_expr : exprs) {
-    auto block_nodes = ir::CollectIRNodes(it_expr, [&](const Expr* x) { return x->As<ir::ScheduleBlockRealize>(); });
+    auto block_nodes = ir::CollectIRNodes(it_expr, [&](const Expr* x) {
+      return x->As<ir::ScheduleBlockRealize>() && !x->As<ir::ScheduleBlockRealize>()->iter_values.empty();
+    });
     for (auto& it_block : block_nodes) result.push_back(it_block);
   }
   CHECK(!result.empty());
-  std::sort(result.begin(), result.end(), [&](Expr i, Expr j) {
-    CHECK(i.As<ir::ScheduleBlockRealize>());
-    CHECK(j.As<ir::ScheduleBlockRealize>());
-    CHECK(i.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>());
-    CHECK(j.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>());
-    std::string& i_name = i.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->name;
-    std::string& j_name = j.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->name;
-    return (i_name < j_name);
-  });
   return result;
 }
 

@@ -28,16 +28,16 @@ namespace ir {
 class ModuleExpr {
  public:
   ModuleExpr() = default;
-  explicit ModuleExpr(const std::vector<Expr>& init_exprs) : init_exprs_(init_exprs) {}
+  explicit ModuleExpr(const std::vector<Expr>& exprs) : exprs_(exprs) {}
 
   //! Get all the Expr in this ModuleExpr.
-  std::vector<Expr> GetExprs() { return init_exprs_; }
+  std::vector<Expr> GetExprs() { return exprs_; }
 
-  std::vector<Expr> GetExprs() const { return init_exprs_; }
+  std::vector<Expr> GetExprs() const { return exprs_; }
 
  private:
   //! Exprs stored in ModuleExpr. Each one is an AST, representing a computation kernel.
-  std::vector<Expr> init_exprs_;
+  std::vector<Expr> exprs_;
 };
 
 /**
