@@ -63,7 +63,7 @@ ir::ModuleExpr EvolutionarySearch::GetAutoTuneModuleExpr() { return GetAutoTuneM
 std::vector<ir::ModuleExpr> EvolutionarySearch::GetAutoTuneEpsGreedy() {
   std::vector<ir::ModuleExpr> picked_bests = GetAutoTuneModuleExprBests();
   int random_num                           = init_population_num_ - database_topk_;
-  return PickNextGeneration(picked_bests, RandomInitSketch(random_num), sample_num_, eps_greedy_);
+  return PickNextGenerationEpsGreedy(picked_bests, RandomInitSketch(random_num), sample_num_, eps_greedy_);
 }
 
 std::vector<ir::ModuleExpr> EvolutionarySearch::GetTopKCandidatesFromDatabase(int topk) {
@@ -120,17 +120,19 @@ std::vector<ir::ModuleExpr> EvolutionarySearch::Evolve(const std::vector<ir::Mod
               return lhs.second < rhs.second;
             });
 
-  std::vector<ir::ModuleExpr> result(num);
-  for (int i = 0; i < std::min(num, static_cast<int>(evolution_with_cost.size())); ++i) {
-    result.push_back(evolution_with_cost[i].first);
+  std::vector<ir::ModuleExpr> result;
+  int result_size = std::min(num, static_cast<int>(evolution_with_cost.size()));
+  for (int i = 0; i < result_size; ++i) {
+    result.emplace_back(evolution_with_cost[i].first);
   }
   return result;
 }
 
-std::vector<ir::ModuleExpr> EvolutionarySearch::PickNextGeneration(const std::vector<ir::ModuleExpr>& picked_bests,
-                                                                   const std::vector<ir::ModuleExpr>& random_init,
-                                                                   int num,
-                                                                   float eps_greedy) {
+std::vector<ir::ModuleExpr> EvolutionarySearch::PickNextGenerationEpsGreedy(
+    const std::vector<ir::ModuleExpr>& picked_bests,
+    const std::vector<ir::ModuleExpr>& random_init,
+    int num,
+    float eps_greedy) {
   int num_rands = num * eps_greedy;
   int num_bests = num - num_rands;
 
@@ -141,15 +143,12 @@ std::vector<ir::ModuleExpr> EvolutionarySearch::PickNextGeneration(const std::ve
     if (i < num_bests && best_idx < picked_bests.size()) {
       result.push_back(picked_bests[best_idx]);
       ++best_idx;
-      continue;
     } else if (rand_idx < random_init.size()) {
       result.push_back(random_init[rand_idx]);
       ++rand_idx;
-      continue;
     } else if (best_idx < picked_bests.size()) {
       result.push_back(picked_bests[best_idx]);
       ++best_idx;
-      continue;
     } else {
       break;
     }

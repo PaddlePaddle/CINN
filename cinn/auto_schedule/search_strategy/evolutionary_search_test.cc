@@ -28,17 +28,19 @@ namespace cinn {
 namespace auto_schedule {
 
 /**
- * A mock search space is only used for test. It create integer ir::Expr from
+ * A mock search space is only used for test. It creates integer ir::Expr from
  * 0, -1, -2, ... and set the cost value same as the integer value.
  *
- * So evolutionary search should be above to find the minimal ModuleExpr with
+ * So evolutionary search should be able to find the minimal ModuleExpr with
  * smallest ir::Expr. This file tests it.
  */
 class MockSearchSpace : public SearchSpace {
  public:
-  MockSearchSpace(const TuneTask& tune_task) : SearchSpace(tune_task){};
+  MockSearchSpace(const TuneTask& tune_task) : SearchSpace(tune_task) {}
 
-  int GetMinExprValue() const { return min_expr_value; };
+  int GetMinExprValue() const { return min_expr_value_; }
+
+  int GetModuleExprSize() const { return module_expr_size_; }
 
   std::vector<ir::ModuleExpr> GetRandomInitialSketch(int num) override {
     std::vector<ir::ModuleExpr> ret;
@@ -47,11 +49,11 @@ class MockSearchSpace : public SearchSpace {
       for (int j = 0; j < module_expr_size_; ++j) {
         exprs.push_back(ir::Expr(-i));
       }
-      min_expr_value = i;
+      min_expr_value_ = -i;
       ret.push_back(ir::ModuleExpr(exprs));
     }
     return ret;
-  };
+  }
 
   std::pair<ir::ModuleExpr, float> GetScheduleMutate(const CostModel& cost_model,
                                                      const ir::ModuleExpr& mod_expr) override {
@@ -61,11 +63,11 @@ class MockSearchSpace : public SearchSpace {
       cost += static_cast<float>((expr.as_int32()));
     }
     return std::make_pair<ir::ModuleExpr, float>(ir::ModuleExpr(exprs), float(cost));
-  };
+  }
 
  private:
   int module_expr_size_ = 10;
-  int min_expr_value    = 0;
+  int min_expr_value_   = 0;
 };
 
 TEST(EvolutionarySearch, GetOneBest) {
@@ -80,6 +82,7 @@ TEST(EvolutionarySearch, GetOneBest) {
   ir::ModuleExpr best_mod_expr = evolutionary_search.GetAutoTuneModuleExpr();
 
   std::vector<ir::Expr> exprs = best_mod_expr.GetExprs();
+  EXPECT_GE(exprs.size(), 1UL);
   for (const ir::Expr& expr : exprs) {
     EXPECT_EQ(expr.as_int32(), mock_search_space->GetMinExprValue());
   }
@@ -95,6 +98,10 @@ TEST(EvolutionarySearch, GetEpsGreedy) {
   std::vector<ir::ModuleExpr> mod_exprs = evolutionary_search.GetAutoTuneEpsGreedy();
 
   EXPECT_GE(mod_exprs.size(), 1UL);
+  size_t expr_size = static_cast<size_t>(mock_search_space->GetModuleExprSize());
+  for (const ir::ModuleExpr& mod_expr : mod_exprs) {
+    EXPECT_EQ(mod_expr.GetExprs().size(), expr_size);
+  }
 }
 
 }  // namespace auto_schedule

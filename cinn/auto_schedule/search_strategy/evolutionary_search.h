@@ -48,10 +48,10 @@ class EvolutionarySearch {
 
   std::vector<ir::ModuleExpr> Evolve(const std::vector<ir::ModuleExpr>& population, int num);
 
-  std::vector<ir::ModuleExpr> PickNextGeneration(const std::vector<ir::ModuleExpr>& population,
-                                                 const std::vector<ir::ModuleExpr>& random_init,
-                                                 int num,
-                                                 float eps_greedy);
+  std::vector<ir::ModuleExpr> PickNextGenerationEpsGreedy(const std::vector<ir::ModuleExpr>& population,
+                                                          const std::vector<ir::ModuleExpr>& random_init,
+                                                          int num,
+                                                          float eps_greedy);
 
   int database_topk_       = 8;
   int init_population_num_ = 10;
