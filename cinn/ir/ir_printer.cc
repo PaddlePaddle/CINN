@@ -84,6 +84,12 @@ void IrPrinter::Visit(const For *x) {
   } else if (x->is_vectorized()) {
     int factor = x->vectorize_info().factor;
     os() << "vectorize_" << factor << " for (";
+  } else if (x->is_binded()) {
+    auto &bind_info       = x->bind_info();
+    std::string axis_name = "x" + bind_info.offset;
+    auto for_type         = bind_info.for_type;
+    std::string prefix    = for_type == ForType::GPUBlock ? "blockIdx." : "threadIdx.";
+    os() << "thread_bind_" << prefix << axis_name << " for (";
   } else {
     os() << "for (";
   }

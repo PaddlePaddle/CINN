@@ -212,11 +212,11 @@ Expr _Var_::Make(const std::string &name, const Type &type) {
   return Expr(node);
 }
 
-Expr _Var_::Make(Expr lower_bound, Expr upper_bound, const std::string &name) {
+Expr _Var_::Make(Expr lower_bound, Expr upper_bound, const std::string &name, bool is_reduce_axis) {
   auto *n           = make_shared<_Var_>();
   n->lower_bound    = lower_bound;
   n->upper_bound    = upper_bound;
-  n->is_reduce_axis = true;
+  n->is_reduce_axis = is_reduce_axis;
   n->name           = name;
   n->set_type(lower_bound.type());
   return Expr(n);
@@ -236,8 +236,14 @@ void _Var_::Verify() const { CHECK(!name.empty()) << "Var should have a name"; }
 
 void Mul::Verify() const { BinaryNodeVerify(a(), b(), "Mul"); }
 
-Expr For::Make(
-    Var loop_var, Expr min, Expr extent, ForType for_type, DeviceAPI device_api, Expr body, VectorizeInfo vector_info) {
+Expr For::Make(Var loop_var,
+               Expr min,
+               Expr extent,
+               ForType for_type,
+               DeviceAPI device_api,
+               Expr body,
+               VectorizeInfo vector_info,
+               BindInfo bind_info) {
   auto node = make_shared<For>();
   CHECK(loop_var.defined());
   CHECK(min.defined());
@@ -249,8 +255,11 @@ Expr For::Make(
   node->body       = body;
   node->set_for_type(for_type);
   node->set_vectorize_info(vector_info);
+  node->set_bind_info(bind_info);
 
   if (node->is_vectorized()) CHECK(node->vectorize_info().valid());
+  if (node->is_binded() && bind_info.offset >= 0) CHECK(node->bind_info().valid());
+
   return Expr(node);
 }
 
@@ -464,7 +473,8 @@ Expr PolyFor::Make(Var iterator,
                    ForType for_type,
                    DeviceAPI device_api,
                    Expr body,
-                   VectorizeInfo vectorize_info) {
+                   VectorizeInfo vectorize_info,
+                   BindInfo bind_info) {
   auto n        = make_shared<PolyFor>();
   n->iterator   = iterator;
   n->init       = init_val;
@@ -474,8 +484,10 @@ Expr PolyFor::Make(Var iterator,
   n->body       = body;
   n->set_for_type(for_type);
   n->set_vectorize_info(vectorize_info);
+  n->set_bind_info(bind_info);
 
   if (n->is_vectorized()) CHECK(n->vectorize_info().valid());
+  if (n->is_binded() && bind_info.offset >= 0) CHECK(n->bind_info().valid());
 
   return Expr(n);
 }

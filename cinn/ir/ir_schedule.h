@@ -188,6 +188,13 @@ class IRSchedule {
    */
   void Unroll(Expr& loop);
 
+  /**
+   * \brief Bind the loop to the given thread axis.
+   * @param loop the loop to Bind.
+   * @param thread_axis the name of the thread axis to be bound to the loop.
+   */
+  void Bind(Expr& loop, const std::string& thread_axis);
+
   //! Get the ModuleExpr stored in ScheduleHelper.
   ModuleExpr GetModule() { return helper_.GetModule(); }
 
