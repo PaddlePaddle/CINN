@@ -17,7 +17,6 @@
 #include <glog/logging.h>
 
 #include <algorithm>
-#include <cassert>
 #include <cstdlib>
 #include <limits>
 #include <memory>
@@ -39,29 +38,29 @@ void EvolutionarySearch::SetTuneTask(TuneTask* tune_task) {
   search_space_ = std::make_unique<SearchSpace>(*tune_task);
 }
 
-std::vector<ir::ModuleExpr> EvolutionarySearch::GetAutoTuneModuleExprBests() {
+std::vector<ir::ModuleExpr> EvolutionarySearch::SearchModuleExprBests() {
   std::vector<ir::ModuleExpr> init_population;
   std::vector<ir::ModuleExpr> topk_from_database = GetTopKCandidatesFromDatabase(database_topk_);
-  LOG(INFO) << "EvolutionarySearch got " << topk_from_database.size() << " as topk from database";
+  VLOG(4) << "EvolutionarySearch got " << topk_from_database.size() << " as topk from database";
   int random_num = init_population_num_ - topk_from_database.size();
 
-  LOG(INFO) << "EvolutionarySearch will fetch " << random_num << " sketches";
+  VLOG(4) << "EvolutionarySearch will fetch " << random_num << " sketches";
   std::vector<ir::ModuleExpr> random_sketch = RandomInitSketch(random_num);
 
   init_population.insert(init_population.end(), topk_from_database.begin(), topk_from_database.end());
   init_population.insert(init_population.end(), random_sketch.begin(), random_sketch.end());
 
-  LOG(INFO) << "EvolutionarySearch got generation size " << init_population.size();
+  VLOG(4) << "EvolutionarySearch got generation size " << init_population.size();
   std::vector<ir::ModuleExpr> picked_bests = Evolve(init_population, sample_num_);
 
-  LOG(INFO) << "EvolutionarySearch got evolved generation size " << picked_bests.size();
+  VLOG(4) << "EvolutionarySearch got evolved generation size " << picked_bests.size();
   return picked_bests;
 }
 
-ir::ModuleExpr EvolutionarySearch::GetAutoTuneModuleExpr() { return GetAutoTuneModuleExprBests()[0]; }
+ir::ModuleExpr EvolutionarySearch::SearchModuleExpr() { return SearchModuleExprBests()[0]; }
 
-std::vector<ir::ModuleExpr> EvolutionarySearch::GetAutoTuneEpsGreedy() {
-  std::vector<ir::ModuleExpr> picked_bests = GetAutoTuneModuleExprBests();
+std::vector<ir::ModuleExpr> EvolutionarySearch::SearchModuleExprEpsGreedy() {
+  std::vector<ir::ModuleExpr> picked_bests = SearchModuleExprBests();
   int random_num                           = init_population_num_ - database_topk_;
   return PickNextGenerationEpsGreedy(picked_bests, RandomInitSketch(random_num), sample_num_, eps_greedy_);
 }
@@ -78,16 +77,16 @@ std::vector<ir::ModuleExpr> EvolutionarySearch::RandomInitSketch(int num) {
 ir::ModuleExpr EvolutionarySearch::CrossOver(const ir::ModuleExpr& mod_expr1, const ir::ModuleExpr& mod_expr2) {
   std::vector<ir::Expr> cross_over_exprs;
   std::vector<ir::Expr> father_exprs = mod_expr1.GetExprs();
-  std::vector<ir::Expr> mathor_exprs = mod_expr2.GetExprs();
+  std::vector<ir::Expr> mother_exprs = mod_expr2.GetExprs();
 
-  assert(father_exprs.size() == mathor_exprs.size() &&
-         "CrossOver ModuleExpr in EvolutionarySearch must have same number of AST");
+  CHECK_EQ(father_exprs.size(), mother_exprs.size())
+      << "CrossOver ModuleExpr in EvolutionarySearch must have same number of AST";
 
   for (size_t i = 0; i < father_exprs.size(); ++i) {
     if (rand() % 2 == 0) {
       cross_over_exprs.push_back(optim::IRCopy(father_exprs[i]));
     } else {
-      cross_over_exprs.push_back(optim::IRCopy(mathor_exprs[i]));
+      cross_over_exprs.push_back(optim::IRCopy(mother_exprs[i]));
     }
   }
   return ir::ModuleExpr(cross_over_exprs);
