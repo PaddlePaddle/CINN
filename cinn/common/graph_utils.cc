@@ -192,6 +192,9 @@ const char *GraphNode::__type_info__ = "GraphNode";
 
 bool GraphEdgeCompare::operator()(const Shared<GraphEdge> &a, const Shared<GraphEdge> &b) const {
   if (a->source()->id() == b->source()->id()) {
+    if (a->sink()->id() == b->sink()->id()) {
+      return a->index() < b->index();
+    }
     return a->sink()->id() > b->sink()->id();
   }
   return a->source()->id() < b->source()->id();
