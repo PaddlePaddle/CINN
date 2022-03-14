@@ -24,18 +24,72 @@
 namespace cinn {
 namespace auto_schedule {
 
+/**
+ * Class implement the evolutionary search on ModuleExpr search space.
+ */
 class EvolutionarySearch {
  public:
+  /**
+   * Default constructor. Note that this class doesn't set TuneTask, you should
+   * call EvolutionarySearch::SetTuneTask to bind a TuneTask.
+   */
   EvolutionarySearch() = default;
+
+  /**
+   * constutor with TuneTask.
+   *
+   * @param tune_task: the TuneTask this class works on. This class doesn't
+   *     take ownership of the pointer.
+   */
   EvolutionarySearch(TuneTask* tune_task);
+
+  /**
+   * Destructor
+   */
   ~EvolutionarySearch();
 
+  /**
+   * Set the TuneTask this class works on. This class doesn't take ownership
+   * of the pointer.
+   *
+   * @param tune_task: the TuneTask this class works on.
+   */
   void SetTuneTask(TuneTask* tune_task);
-  ir::ModuleExpr GetAutoTuneModuleExpr();
-  std::vector<ir::ModuleExpr> GetAutoTuneModuleExprBests();
-  std::vector<ir::ModuleExpr> GetAutoTuneEpsGreedy();
+
+  /**
+   * Run the evolutionary search for one iteration.
+   *
+   * @return the best ir::ModuleExpr searched in this iteration
+   */
+  ir::ModuleExpr SearchModuleExpr();
+
+  /**
+   * Run the evolutionary search for one iteration.
+   *
+   * @return those best ir::ModuleExpr's searched in this iteration
+   */
+  std::vector<ir::ModuleExpr> SearchModuleExprBests();
+
+  /**
+   * Run the evolutionary search for one iteration, but since evolutionary
+   * search with cost model may not be accurate, this method picks
+   * "eps * total_return_size" random samples along with those best
+   * ir::ModuleExpr's searched in this iteration.
+   *
+   * @return those best ir::ModuleExpr's searched in this iteration and
+   *     some random samples. There are "eps * total_return_size" random
+   *     samples and "(1 - eps) * total_return_size" best searched samples.
+   */
+  std::vector<ir::ModuleExpr> SearchModuleExprEpsGreedy();
 
 #ifdef CINN_WITH_TEST
+  /**
+   * Method only be called during testing. It is used to set mock search
+   * space.
+   *
+   * @param search_space: the mock search space, note that EvolutionarySearch
+   *     takes the ownership.
+   */
   void SetSearchSpace(SearchSpace* search_space) { search_space_.reset(search_space); }
 #endif
 
