@@ -82,6 +82,10 @@ class Node : public common::GraphNode {
   }
   const char *type_info() const override { return __type_info__; }
   std::tuple<common::GraphEdge *, common::GraphEdge *> LinkTo(NodeData *other);
+
+  // This node determines another node, which means the other node depeneds on this node.
+  void Controls(NodeData *other);
+
   /**
    * \brief Get the unique id of this NodeData.
    */
@@ -146,6 +150,10 @@ class NodeData : public common::GraphNode {
   NodeData() : source_node(), output_index(), version(), id_(), is_const_() {}
 
   std::tuple<common::GraphEdge *, common::GraphEdge *> LinkTo(Node *other);
+
+  // This node determines another node, which means the other node depeneds on this node.
+  void Controls(Node *other);
+
   static std::shared_ptr<NodeData> Create(
       const char *op_name,
       std::string node_name,

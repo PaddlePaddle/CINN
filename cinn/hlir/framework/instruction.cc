@@ -27,7 +27,15 @@ std::vector<cinn_pod_value_t>& Instruction::PreparePodArgs(
   else if (args_cached_.size() < i)
     PreparePodArgs(i - 1, name2podargs);
   common::ArgsBuilder builder;
-  std::vector<std::string> all_args(in_args_[i].begin(), in_args_[i].end());
+  // Remove duplicate input arguments
+  std::set<std::string> in_args_set;
+  std::vector<std::string> all_args;
+  for (auto& arg : in_args_[i]) {
+    if (in_args_set.count(arg) != 0) continue;
+    all_args.push_back(arg);
+    in_args_set.insert(arg);
+  }
+  // std::vector<std::string> all_args(in_args_[i].begin(), in_args_[i].end());
 
   all_args.insert(std::end(all_args), out_args_[i].begin(), out_args_[i].end());
 
