@@ -85,12 +85,13 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
     n->is_reduce_axis = op->is_reduce_axis;
     n->set_type(op->type());
 
-    if (n->is_reduce_axis) {
-      auto lower_bound = Visit(&op->lower_bound);
-      auto upper_bound = Visit(&op->upper_bound);
-      n->lower_bound   = lower_bound;
-      n->upper_bound   = upper_bound;
+    if (op->lower_bound.defined()) {
+      n->lower_bound = Visit(&op->lower_bound);
     }
+    if (op->upper_bound.defined()) {
+      n->upper_bound = Visit(&op->upper_bound);
+    }
+
     return Expr(n);
   }
 
@@ -190,7 +191,8 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
     auto min    = Visit(&op->min);
     auto body   = Visit(&op->body);
 
-    return ir::For::Make(op->loop_var, min, extent, op->for_type(), op->device_api, body, op->vectorize_info());
+    return ir::For::Make(
+        op->loop_var, min, extent, op->for_type(), op->device_api, body, op->vectorize_info(), op->bind_info());
   }
 
   Expr Visit(const ir::PolyFor* op) override {
@@ -198,8 +200,15 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
     auto condition = Visit(&op->condition);
     auto inc       = Visit(&op->inc);
     auto body      = Visit(&op->body);
-    auto expr =
-        PolyFor::Make(op->iterator, init, condition, inc, op->for_type(), op->device_api, body, op->vectorize_info());
+    auto expr      = PolyFor::Make(op->iterator,
+                              init,
+                              condition,
+                              inc,
+                              op->for_type(),
+                              op->device_api,
+                              body,
+                              op->vectorize_info(),
+                              op->bind_info());
     return expr;
   }
 
