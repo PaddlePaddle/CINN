@@ -28,14 +28,16 @@ namespace ir {
 class ModuleExpr {
  public:
   ModuleExpr() = default;
-  explicit ModuleExpr(const std::vector<Expr>& init_exprs) : init_exprs_(init_exprs) {}
+  explicit ModuleExpr(const std::vector<Expr>& exprs) : exprs_(exprs) {}
 
   //! Get all the Expr in this ModuleExpr.
-  std::vector<Expr> GetExprs() const { return init_exprs_; }
+  std::vector<Expr> GetExprs() { return exprs_; }
+
+  std::vector<Expr> GetExprs() const { return exprs_; }
 
  private:
   //! Exprs stored in ModuleExpr. Each one is an AST, representing a computation kernel.
-  std::vector<Expr> init_exprs_;
+  std::vector<Expr> exprs_;
 };
 
 /**
@@ -55,10 +57,27 @@ class ScheduleHelper {
    * @param src_sref The IR node to be replaced.
    * @param tgt_stmt The IR node to replace the original one.
    */
-  void Replace(Expr& src_sref, const Expr& tgt_stmt);
+  void Replace(const Expr& src_sref, const Expr& tgt_stmt);
 
-  //! Get all the loops in AST stored in ModuleExpr.
-  std::vector<Expr> GetLoops() const;
+  /**
+   * \brief Get all the loops of specific Block stored in ModuleExpr.
+   * @param block The block we find loop in.
+   * @return Loops of the block.
+   */
+  std::vector<Expr> GetLoops(const Expr& block) const;
+
+  /**
+   * \brief Get all the loops of specific Block stored in ModuleExpr.
+   * @param block_name Name of the block.
+   * @return Loops of the block.
+   */
+  std::vector<Expr> GetLoops(const std::string& block_name) const;
+
+  //! Get all blocks stored in this ModuleExpr.
+  std::vector<Expr> GetAllBlocks() const;
+
+  //! Get a block with the specific name.
+  Expr GetBlock(const std::string& block_name) const;
 
   //! Get the ModuleExpr stored in ScheduleHelper.
   ModuleExpr GetModule() const { return module_expr_; }
@@ -77,8 +96,25 @@ class IRSchedule {
   IRSchedule() = default;
   explicit IRSchedule(const ModuleExpr& modexpr, bool debug_flag = false);
 
-  //! Get all the loops in IR(Expr)/AST stored in ModuleExpr.
-  std::vector<Expr> GetLoops() const { return helper_.GetLoops(); }
+  /**
+   * \brief Get all the loops of specific Block stored in ModuleExpr.
+   * @param block The block we find loop in.
+   * @return Loops of the block.
+   */
+  std::vector<Expr> GetLoops(const Expr& block) const { return helper_.GetLoops(block); }
+
+  /**
+   * \brief Get all the loops of specific Block stored in ModuleExpr.
+   * @param block_name Name of the block.
+   * @return Loops of the block.
+   */
+  std::vector<Expr> GetLoops(const std::string& block_name) const { return helper_.GetLoops(block_name); }
+
+  //! Get all blocks stored in this ModuleExpr.
+  std::vector<Expr> GetAllBlocks() const { return helper_.GetAllBlocks(); }
+
+  //! Get a block with the specific name.
+  Expr GetBlock(const std::string& block_name) const { return helper_.GetBlock(block_name); }
 
   /**
    * \brief Split a for loop into multiple loops, based on the factors.
@@ -86,14 +122,44 @@ class IRSchedule {
    * @param factors The factors we used to split the loop.
    * @return The splited loops.
    */
-  std::vector<Expr> Split(Expr& loop, const std::vector<int>& factors);
+  std::vector<Expr> Split(const Expr& loop, const std::vector<int>& factors);
+
+  /**
+   * \brief Split a for loop into multiple loops, based on the factors.
+   * @param block_name Name of the block we want to modify.
+   * @param loop_index Index of the loop to be splited.
+   * @param factors The factors we used to split the loop.
+   * @return The splited loops.
+   */
+  std::vector<Expr> Split(const std::string& block_name, int loop_index, const std::vector<int>& factors);
 
   /**
    * \brief Fuse for loops and return the fused loop.
    * @param loops All the loops to be fused, stored in ascending order.
    * @return The fused loop.
    */
-  Expr Fuse(std::vector<Expr>& loops);
+  Expr Fuse(const std::vector<Expr>& loops);
+
+  /**
+   * \brief Fuse for loops and return the fused loop.
+   * @param block_name Name of the block we want to modify.
+   * @param loops_index Indices of the loops to be fused, stored in ascending order.
+   * @return The fused loop.
+   */
+  Expr Fuse(const std::string& block_name, const std::vector<int>& loops_index);
+
+  /**
+   * \brief Reorder the loops in the order of vector.
+   * @param loops The loops to be reordered.
+   */
+  void Reorder(const std::vector<Expr>& loops);
+
+  /**
+   * \brief Reorder the loops in the order of vector elements.
+   * @param block_name Name of the block we want to modify.
+   * @param loops_index Indices of loops to be reordered.
+   */
+  void Reorder(const std::string& block_name, const std::vector<int>& loops_index);
 
   //! Get the ModuleExpr stored in ScheduleHelper.
   ModuleExpr GetModule() { return helper_.GetModule(); }
