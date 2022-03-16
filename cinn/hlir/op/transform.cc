@@ -993,17 +993,17 @@ std::vector<Type> InferDtypeForMulBias(const std::vector<Type> &inputs_type, con
   return res;
 }
 
-std::vector<shape_t> InferShapeForCublasMulBias(const std::vector<std::vector<int>> &inputs_shape,
-                                                const framework::AttrMapType &attrs) {
-  std::vector<shape_t> output_shape{{121, 2}};
-  return output_shape;
+std::vector<shape_t> InferShapeForCublasGemm(const std::vector<std::vector<int>> &input_shapes,
+                                             const framework::AttrMapType &attrs) {
+  CHECK_EQ(input_shapes.size(), 3U) << "cublas_gemm should have 2 input shapes";
+  CHECK_EQ(input_shapes[0].size(), input_shapes[1].size());
+  CHECK_EQ(input_shapes[1].size(), input_shapes[2].size());
+  return {input_shapes[2]};
 }
 
-std::vector<Type> InferDtypeForCublasMulBias(const std::vector<Type> &inputs_type,
-                                             const framework::AttrMapType &attrs) {
+std::vector<Type> InferDtypeForCublasGemm(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
-  std::vector<Type> res{inputs_type[0]};
-  return res;
+  return {inputs_type[0]};
 }
 
 std::shared_ptr<OpStrategy> StrategyForLayoutTransform(const framework::NodeAttr &attrs,
@@ -1939,12 +1939,12 @@ CINN_REGISTER_HELPER(transform_ops) {
                                                       cinn::hlir::framework::OpPatternKind::kOutEWiseFusable)
       .set_support_level(4);
 
-  CINN_REGISTER_OP(cublas_mulbias)
+  CINN_REGISTER_OP(cublas_gemm)
       .describe("This operator use cublas to compute `mulbias`.")
       .set_num_inputs(3)
       .set_num_outputs(1)
-      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForCublasMulBias))
-      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForCublasMulBias))
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForCublasGemm))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForCublasGemm))
       .set_support_level(4);
 
   CINN_REGISTER_OP(layout_transform)

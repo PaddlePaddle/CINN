@@ -38,8 +38,18 @@ using hlir::framework::shape_t;
 
 BaseBuilder::BaseBuilder(const std::string& name) : name_(name) {}
 
-Program BaseBuilder::Build() {
-  Program program{std::move(instrs_), std::move(inputs_)};
+Program BaseBuilder::Build(bool in_reverse) {
+  std::vector<Instruction> instrs;
+  if (in_reverse) {
+    instrs.reserve(instrs_.size());
+    for (auto it = instrs_.rbegin(); it != instrs_.rend(); it++) {
+      instrs.emplace_back(*it);
+    }
+  } else {
+    instrs = std::move(instrs_);
+  }
+
+  Program program{std::move(instrs), std::move(inputs_)};
   program.Validate();
   return program;
 }

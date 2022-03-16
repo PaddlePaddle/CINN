@@ -16,7 +16,6 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "absl/status/statusor.h"
 #include "cinn/frontend/cinn_builder.h"
 #include "cinn/frontend/program_pass.h"
 #include "glog/logging.h"
@@ -38,31 +37,26 @@ class GemmRewriterPass : public ProgramPass {
 
     CollectInfo(*prog);
 
-    std::vector<Instruction> instrs;
-    for (int i = prog->size() - 1; i >= 0; i--) {
-      auto& instr = prog->operator[](i);
-      if (instr->op_type == "elementwise_add") {
-        auto may_fused = TryGetMulBias(instr, fetch_ids);
-        if (may_fused) {
-          instrs.emplace_back(*may_fused);
-          continue;
-        }
-      }
-      if (!removed_instrs_.count(instr.get())) {
-        instrs.emplace_back(instr);
-      }
-    }
-
     CinnBuilder builder("gemm_rewriter_builder");
     for (auto& var : prog->GetInputs()) {
       builder.CreateInput(var);
     }
-    for (auto it = instrs.rbegin(); it != instrs.rend(); it++) {
-      builder.AppendInstruction(*it);
+    for (int i = prog->size() - 1; i >= 0; i--) {
+      auto& instr = prog->operator[](i);
+      if (instr->op_type == "elementwise_add") {
+        auto fused = DoGemmFusion(&builder, instr, fetch_ids);
+        if (fused) {
+          // the elementwise_add is fused in gemm, just skip it
+          continue;
+        }
+      }
+      if (!removed_instrs_.count(instr.get())) {
+        builder.AppendInstruction(instr);
+      }
     }
+    *prog = builder.Build(true);
 
-    *prog = builder.Build();
-
+    // relink old outputs to new outputs
     for (size_t i = 0; i < prog->size(); i++) {
       auto& inputs = (*prog)[i]->inputs;
       for (size_t j = 0; j < inputs.size(); j++) {
@@ -87,7 +81,7 @@ class GemmRewriterPass : public ProgramPass {
     }
   }
 
-  absl::optional<Instruction> TryGetMulBias(Instruction instr, const std::unordered_set<std::string>& fetch_ids) {
+  bool DoGemmFusion(CinnBuilder* builder, const Instruction& instr, const std::unordered_set<std::string>& fetch_ids) {
     CHECK_EQ(instr->inputs.size(), 2) << "elementwise should have only two inputs";
     std::vector<Variable> inputs;
     bool trans_a = false;
@@ -124,20 +118,15 @@ class GemmRewriterPass : public ProgramPass {
     }
 
     if (inputs.size() == 3) {
-      CinnBuilder builder("create_mulbias");
-      for (auto& var : inputs) {
-        builder.CreateInput(var);
-      }
-
       LOG(INFO) << "-- trans_a = " << std::boolalpha << trans_a;
       LOG(INFO) << "-- trans_b = " << std::boolalpha << trans_b;
-      const auto& new_out = builder.CustomInstr("cublas_mulbias", inputs, {{"trans_a", trans_a}, {"trans_b", trans_b}});
+      const auto& new_out = builder->CustomInstr("cublas_gemm", inputs, {{"trans_a", trans_a}, {"trans_b", trans_b}});
       origin2new_.emplace(instr.GetOutput(0).get(), new_out[0]);
-      return builder.Build()[0];
+      return true;
     }
 
-    CHECK_EQ(inputs.size(), 0);
-    return absl::nullopt;
+    CHECK_EQ(inputs.size(), 0) << "The gemm should only have three inputs.";
+    return false;
   }
 
   std::unordered_set<_Instruction_*> removed_instrs_;

@@ -120,9 +120,9 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
   } else if (function_name_ == "softmax" && target_.arch == Target::Arch::NVGPU) {
     CHECK_EQ(pod_args.size(), 3);
     runtime::cuda::cinn_gpu_cudnn_softmax(attrs, pod_args[0], pod_args[1], static_cast<cudaStream_t>(stream));
-  } else if (function_name_ == "cublas_mulbias" && target_.arch == Target::Arch::NVGPU) {
+  } else if (function_name_ == "cublas_gemm" && target_.arch == Target::Arch::NVGPU) {
     LOG(INFO) << "---- The pod_args size of mulbias: " << pod_args.size();
-    runtime::cuda::cinn_gpu_cublas_mulbias(
+    runtime::cuda::cinn_gpu_cublas_gemm(
         attrs, pod_args[0], pod_args[1], pod_args[2], static_cast<cudaStream_t>(stream));
   } else if (function_name_ == "mul" && target_.arch == Target::Arch::NVGPU) {
     CHECK_EQ(pod_args.size(), 4);

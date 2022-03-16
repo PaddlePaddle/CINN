@@ -86,11 +86,11 @@ void cinn_gpu_cublas_mul(const std::vector<int> &attrs,
   cublasSgemm(cublas, CUBLAS_OP_N, CUBLAS_OP_N, K, M, N, &alpha, y_data, K, x_data, N, &beta, out_data, K);
 }
 
-void cinn_gpu_cublas_mulbias(const std::vector<int> &attrs,
-                             cinn_buffer_t *input1,
-                             cinn_buffer_t *input2,
-                             cinn_buffer_t *output,
-                             const cudaStream_t &stream) {
+void cinn_gpu_cublas_gemm(const std::vector<int> &attrs,
+                          cinn_buffer_t *input1,
+                          cinn_buffer_t *input2,
+                          cinn_buffer_t *output,
+                          const cudaStream_t &stream) {
   cublasHandle_t &cublas = CublasHandle::get_instance().GetCublasHandle();
   cublasSetStream(cublas, stream);
   float *x_data   = reinterpret_cast<float *>(input1->memory);
