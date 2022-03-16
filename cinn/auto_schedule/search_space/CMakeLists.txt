@@ -1,0 +1,1 @@
+add_subdirectory(auto_gen_rule)

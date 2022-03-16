@@ -1,4 +1,4 @@
-// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+// Copyright (c) 2022 CINN Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,11 +14,19 @@
 
 #pragma once
 
-#include "cinn/common/macros.h"
+namespace cinn {
+namespace auto_schedule {
 
-CINN_USE_REGISTER(InferShape)
-CINN_USE_REGISTER(OpFusion)
-CINN_USE_REGISTER(AlterLayout)
-CINN_USE_REGISTER(ConstPropagate)
+/**
+ * Base class for rules of auto-generating schedule (like Ansor's sketch generation)
+ *
+ * TODO(zhhsplendid): Finish this class and related rule classes
+ */
+class AutoGenRule {
+ public:
+  AutoGenRule()  = default;
+  ~AutoGenRule() = default;
+};
 
-CINN_USE_REGISTER(OpFusionPass)
+}  // namespace auto_schedule
+}  // namespace cinn

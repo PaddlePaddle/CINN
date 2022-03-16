@@ -81,8 +81,10 @@ struct Mutator : public ir::IRMutator<> {
   void Visit(const ir::_Var_* op, Expr* expr) final {
     CollectVarUse(op->name);
     auto* node = expr->As<ir::_Var_>();
-    if (node->is_reduce_axis) {
+    if (node->lower_bound.defined()) {
       Visit(&node->lower_bound, &node->lower_bound);
+    }
+    if (node->upper_bound.defined()) {
       Visit(&node->upper_bound, &node->upper_bound);
     }
   }
