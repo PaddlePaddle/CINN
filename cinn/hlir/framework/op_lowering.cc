@@ -52,7 +52,7 @@ OpLoweringHelper::OpLoweringHelper(const absl::flat_hash_map<std::string, Type>&
                                    const Target& target)
     : type_dict_(type_dict), shape_dict_(shape_dict), target_(target) {}
 
-ir::LoweredFunc OpLoweringHelper::Lowering(const Group& group) {
+std::vector<ir::LoweredFunc> OpLoweringHelper::Lowering(const Group& group) {
   switch (group->op_pattern_kind) {
     case framework::kElemWise:
     case framework::kBroadcast:
@@ -70,7 +70,7 @@ ir::LoweredFunc OpLoweringHelper::Lowering(const Group& group) {
 }
 
 // elementwise fusion op lowering
-ir::LoweredFunc OpLoweringHelper::ElementwiseOpLowering(const Group& group) {
+std::vector<ir::LoweredFunc> OpLoweringHelper::ElementwiseOpLowering(const Group& group) {
   // get input tensor and output tensor
   poly::StageMap stages;
   std::string func_name = "fn_fuse";
@@ -185,10 +185,10 @@ ir::LoweredFunc OpLoweringHelper::ElementwiseOpLowering(const Group& group) {
     func_args.push_back(tensor);
   }
 
-  return lang::Lower(func_name, stages, func_args, {}, {}, nullptr, this->target_);
+  return lang::LowerVec(func_name, stages, func_args, {}, {}, nullptr, this->target_);
 }
 
-ir::LoweredFunc OpLoweringHelper::ReduceOpLowering(const Group& group) {
+std::vector<ir::LoweredFunc> OpLoweringHelper::ReduceOpLowering(const Group& group) {
   // get input tensor and output tensor
   poly::StageMap stages;
   std::string func_name = "fn_fuse";
@@ -407,10 +407,10 @@ ir::LoweredFunc OpLoweringHelper::ReduceOpLowering(const Group& group) {
     func_args.push_back(tensor);
   }
 
-  return lang::Lower(func_name, stages, func_args, {}, {}, nullptr, this->target_);
+  return lang::LowerVec(func_name, stages, func_args, {}, {}, nullptr, this->target_);
 }
 
-ir::LoweredFunc OpLoweringHelper::FusableOpLowering(const Group& group) {
+std::vector<ir::LoweredFunc> OpLoweringHelper::FusableOpLowering(const Group& group) {
   // get input tensor and output tensor
   poly::StageMap stages;
   std::string func_name = "fn_fuse";
@@ -563,10 +563,10 @@ ir::LoweredFunc OpLoweringHelper::FusableOpLowering(const Group& group) {
     func_args.push_back(tensor);
   }
 
-  return lang::Lower(func_name, stages, func_args, {}, {}, nullptr, this->target_);
+  return lang::LowerVec(func_name, stages, func_args, {}, {}, nullptr, this->target_);
 }
 
-ir::LoweredFunc OpLoweringHelper::OpaqueOpLowering(const Group& group) {
+std::vector<ir::LoweredFunc> OpLoweringHelper::OpaqueOpLowering(const Group& group) {
   // get input tensor and output tensor
   std::vector<ir::Tensor> func_args;
   CHECK_EQ(group->nodes.size(), 1) << "fusion op exist more than 1 op.";
@@ -608,7 +608,7 @@ ir::LoweredFunc OpLoweringHelper::OpaqueOpLowering(const Group& group) {
   }
   poly::StageMap stages = C.back();
 
-  return lang::Lower("fn_" + node->id(), stages, func_args, {}, {}, nullptr, this->target_);
+  return lang::LowerVec("fn_" + node->id(), stages, func_args, {}, {}, nullptr, this->target_);
 }
 
 }  // namespace framework

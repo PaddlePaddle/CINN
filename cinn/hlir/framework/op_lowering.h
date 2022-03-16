@@ -44,13 +44,13 @@ class OpLoweringHelper {
   OpLoweringHelper(const absl::flat_hash_map<std::string, Type>&,
                    const absl::flat_hash_map<std::string, shape_t>&,
                    const Target&);
-  ir::LoweredFunc Lowering(const Group& group);
+  std::vector<ir::LoweredFunc> Lowering(const Group& group);
 
  private:
-  ir::LoweredFunc ElementwiseOpLowering(const Group& group);
-  ir::LoweredFunc ReduceOpLowering(const Group& group);
-  ir::LoweredFunc FusableOpLowering(const Group& group);
-  ir::LoweredFunc OpaqueOpLowering(const Group& group);
+  std::vector<ir::LoweredFunc> ElementwiseOpLowering(const Group& group);
+  std::vector<ir::LoweredFunc> ReduceOpLowering(const Group& group);
+  std::vector<ir::LoweredFunc> FusableOpLowering(const Group& group);
+  std::vector<ir::LoweredFunc> OpaqueOpLowering(const Group& group);
 
   Target target_;
   const absl::flat_hash_map<std::string, Type>& type_dict_;
