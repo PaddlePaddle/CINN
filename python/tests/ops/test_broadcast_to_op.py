@@ -70,5 +70,38 @@ class TestBroadcastToCase1(TestBroadcastToOp):
         self.broadcast_axes = [0, 1, 2]
 
 
+class TestBroadcastToCase2(TestBroadcastToOp):
+    def init_case(self):
+        self.inputs = {"x": np.random.random([5, 3]).astype("float32")}
+        self.out_shape = [4, 5, 3]
+        self.broadcast_axes = [1, 2]
+
+
+class TestBroadcastToCase3(TestBroadcastToOp):
+    def init_case(self):
+        self.inputs = {"x": np.random.random([4, 3]).astype("float32")}
+        self.out_shape = [4, 5, 3]
+        self.broadcast_axes = [0, 2]
+
+    def test_check_results(self):
+        self.build_cinn_program(self.target)
+        # because paddle and numpy do not support discontinuous broadcast,
+        # so here we just pass the check until we know how to compose
+        pass
+
+
+class TestBroadcastToCase4(TestBroadcastToOp):
+    def init_case(self):
+        self.inputs = {"x": np.random.random([5]).astype("float32")}
+        self.out_shape = [4, 5, 3]
+        self.broadcast_axes = [1]
+
+    def test_check_results(self):
+        self.build_cinn_program(self.target)
+        # because paddle and numpy do not support discontinuous broadcast,
+        # so here we just pass the check until we know how to compose
+        pass
+
+
 if __name__ == "__main__":
     unittest.main()

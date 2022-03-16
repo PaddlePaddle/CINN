@@ -83,9 +83,16 @@ void MulOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx)
 
   VLOG(4) << x_name << " .* " << y_name;
 
-  auto x   = ctx.GetVar(x_name);
-  auto y   = ctx.GetVar(y_name);
-  auto out = ctx.Builder()->ElementwiseMul(x, y);
+  Variable out;
+  if (x_name != y_name) {
+    auto x = ctx.GetVar(x_name);
+    auto y = ctx.GetVar(y_name);
+    out    = ctx.Builder()->ElementwiseMul(x, y);
+  } else {
+    auto x = ctx.GetVar(x_name);
+    auto y = ctx.Builder()->Identity(x);
+    out    = ctx.Builder()->ElementwiseMul(x, y);
+  }
 
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);
