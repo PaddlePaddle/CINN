@@ -75,7 +75,7 @@ class TestIndexSelectOp(OpTest):
         out = builder.index_select(x, index, axis=self.axis)
 
         prog = builder.build()
-        res = self.get_cinn_output(prog, target, [x, index],
+        res = self.get_cinn_output(prog, set(), target, [x, index],
                                    [self.inputs["x"], self.inputs["index"]],
                                    [out])
         logger.debug(" -- The output of CINN:\n{}".format(res))

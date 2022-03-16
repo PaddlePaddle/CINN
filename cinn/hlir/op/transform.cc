@@ -951,19 +951,10 @@ std::vector<std::vector<int>> InferShapeForMulBias(const std::vector<std::vector
   CHECK_GE(inputs_shape[1].size(), 2U) << "Input matrix Y's dim should be >= 2! Please check.";
 
   std::vector<int> output_shape;
-  int x_num_col_dims = 1;
-  int y_num_col_dims = 1;
-  for (auto &iter : attrs) {
-    if (iter.first == "x_num_col_dims") {
-      x_num_col_dims = absl::get<int>(iter.second);
-    } else if (iter.first == "y_num_col_dims") {
-      y_num_col_dims = absl::get<int>(iter.second);
-    } else {
-      LOG(ERROR) << "Unsupported attr: " << iter.first << std::endl;
-    }
-  }
-  int check_dim_x = 1;
-  int check_dim_y = 1;
+  int x_num_col_dims = absl::get<int>(attrs.at("x_num_col_dims"));
+  int y_num_col_dims = absl::get<int>(attrs.at("y_num_col_dims"));
+  int check_dim_x    = 1;
+  int check_dim_y    = 1;
   for (int i = 0; i < inputs_shape[0].size(); i++) {
     if (i < x_num_col_dims) {
       output_shape.push_back(inputs_shape[0][i]);

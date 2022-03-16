@@ -59,8 +59,13 @@ class NetBuilder : public BaseBuilder {
   /**
    * Multiply two matrix and add a bias.
    */
-  Variable MulBias(
-      const Variable& a, const Variable& b, const Variable& c, int x_num_col_dims = 1, int y_num_col_dims = 1);
+  Variable MulBias(const Variable& a,
+                   const Variable& b,
+                   const Variable& c,
+                   int x_num_col_dims = 1,
+                   int y_num_col_dims = 1,
+                   bool trans_a       = false,
+                   bool trans_b       = false);
 
   /**
    * Add two matrix(with broadcast).

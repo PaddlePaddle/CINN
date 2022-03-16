@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <unordered_set>
+
 #include "cinn/frontend/decomposer_registry.h"
 #include "cinn/frontend/program_pass.h"
 
@@ -23,7 +25,7 @@ class DecomposerPass : public ProgramPass {
  public:
   using ProgramPass::ProgramPass;
 
-  void ApplyImpl(Program* prog, const common::Target& target) const {
+  void ApplyImpl(Program* prog, const std::unordered_set<std::string>& fetch_ids, const common::Target& target) const {
     // step 1: set the inputs of the origin program to the new program
     CinnBuilder builder("decomposer_builder");
     for (auto& var : prog->GetInputs()) {

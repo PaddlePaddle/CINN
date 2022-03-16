@@ -60,7 +60,7 @@ class TestMulOp(OpTest):
             "y")
         out = builder.mul(x, y)
         prog = builder.build()
-        forward_res = self.get_cinn_output(prog, target, [x, y],
+        forward_res = self.get_cinn_output(prog, set(), target, [x, y],
                                            [self.inputs["x"], tran_y], [out])
 
         self.cinn_outputs = forward_res

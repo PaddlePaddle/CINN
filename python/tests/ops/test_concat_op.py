@@ -52,7 +52,7 @@ class TestConcatOp1(OpTest):
         out = builder.concat([x1, x2], axis=self.axis)
 
         prog = builder.build()
-        res = self.get_cinn_output(prog, target, [x1, x2],
+        res = self.get_cinn_output(prog, set(), target, [x1, x2],
                                    [self.inputs["x1"], self.inputs["x2"]],
                                    [out])
 
@@ -125,7 +125,7 @@ class TestConcatOp2(OpTest):
         out = builder.concat([x1, x2, x3, x4, x5], axis=self.axis)
 
         prog = builder.build()
-        res = self.get_cinn_output(prog, target, [x1, x2, x3, x4, x5], [
+        res = self.get_cinn_output(prog, set(), target, [x1, x2, x3, x4, x5], [
             self.inputs["x1"], self.inputs["x2"], self.inputs["x3"],
             self.inputs["x4"], self.inputs["x5"]
         ], [out])

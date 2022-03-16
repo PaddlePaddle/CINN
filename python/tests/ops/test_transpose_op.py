@@ -44,8 +44,8 @@ class TestTransposeOp(OpTest):
         out = builder.transpose(x, [1, 0])
 
         prog = builder.build()
-        res = self.get_cinn_output(prog, target, [x], [self.inputs["x"]],
-                                   [out])
+        res = self.get_cinn_output(prog, set(), target, [x],
+                                   [self.inputs["x"]], [out])
         self.cinn_outputs = [res[0]]
 
     def test_check_results(self):

@@ -92,7 +92,7 @@ class TestSliceAssignOp(OpTest):
 
         prog = builder.build()
         res = self.get_cinn_output(
-            prog, target, [inputs, assign],
+            prog, set(), target, [inputs, assign],
             [self.inputs["inputs"], self.inputs["assign"]], [out])
         self.cinn_outputs = res
 

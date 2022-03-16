@@ -53,7 +53,8 @@ class TestSplitOp(OpTest):
             x, num_or_sections=self.num_or_sections, axis=self.axis)
 
         prog = builder.build()
-        res = self.get_cinn_output(prog, target, [x], [self.inputs["x"]], out)
+        res = self.get_cinn_output(prog, set(), target, [x],
+                                   [self.inputs["x"]], out)
 
         self.cinn_outputs = res
 
