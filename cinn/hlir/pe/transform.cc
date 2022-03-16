@@ -549,7 +549,7 @@ std::vector<ir::Tensor> MulBias(const Tensor& A,
       UniqName("temp_out_mulbias"));
   auto res = Compute(
       output_shape, [=](const std::vector<Expr>& indice) { return temp(indice) + C(indice); }, name);
-  return {temp, res};
+  return {res, temp};
 }
 
 void GetLayoutTransformInfo(const ir::Layout& src_layout,

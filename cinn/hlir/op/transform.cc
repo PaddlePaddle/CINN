@@ -794,21 +794,12 @@ std::shared_ptr<OpStrategy> StrategyForMulBias(const framework::NodeAttr &attrs,
     CHECK(B.as_tensor());
     CHECK(C.as_tensor());
     auto attr_store    = attrs.attr_store;
-    int x_num_col_dims = 1;
-    int y_num_col_dims = 1;
-    for (auto &iter : attrs.attr_store) {
-      if (iter.first == "x_num_col_dims") {
-        x_num_col_dims = absl::get<int>(iter.second);
-      } else if (iter.first == "y_num_col_dims") {
-        y_num_col_dims = absl::get<int>(iter.second);
-      } else {
-        LOG(ERROR) << "Unsupported attr: " << iter.first << std::endl;
-      }
-    }
-    auto A_tensor = A.as_tensor_ref();
-    auto B_tensor = B.as_tensor_ref();
-    auto C_tensor = C.as_tensor_ref();
-    auto stages   = CreateStages({A_tensor, B_tensor, C_tensor});
+    int x_num_col_dims = absl::get<int>(attr_store.at("x_num_col_dims"));
+    int y_num_col_dims = absl::get<int>(attr_store.at("y_num_col_dims"));
+    auto A_tensor      = A.as_tensor_ref();
+    auto B_tensor      = B.as_tensor_ref();
+    auto C_tensor      = C.as_tensor_ref();
+    auto stages        = CreateStages({A_tensor, B_tensor, C_tensor});
     std::vector<Expr> output_shape;
     std::vector<Expr> new_xshape;
     std::vector<Expr> new_yshape;
@@ -850,8 +841,8 @@ std::shared_ptr<OpStrategy> StrategyForMulBias(const framework::NodeAttr &attrs,
     CHECK(!args.empty()) << "The input argument of mul schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
     CHECK_EQ(arg_pack.size(), 3UL);
-    Expr temp             = arg_pack[0];
-    Expr out              = arg_pack[1];
+    Expr out              = arg_pack[0];
+    Expr temp             = arg_pack[1];
     poly::StageMap stages = arg_pack[2];
     CHECK(out.as_tensor());
     CHECK(temp.as_tensor());

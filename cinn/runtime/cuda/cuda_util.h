@@ -130,6 +130,11 @@ void cinn_gpu_cublas_mul(const std::vector<int>& attrs,
                          cinn_buffer_t* input2,
                          cinn_buffer_t* output,
                          const cudaStream_t& stream = nullptr);
+void cinn_gpu_cublas_mulbias(const std::vector<int>& attrs,
+                             cinn_buffer_t* input1,
+                             cinn_buffer_t* input2,
+                             cinn_buffer_t* output,
+                             const cudaStream_t& stream = nullptr);
 }  // namespace cuda
 }  // namespace runtime
 }  // namespace cinn

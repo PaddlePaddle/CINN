@@ -109,8 +109,8 @@ TEST(GemmRwriter, Basic) {
   auto y       = builder.Transpose(x, {1, 0});
   auto z       = builder.CreateInput(Float(32), {121, 20}, "Z");
   auto q       = builder.Matmul(z, y);
-  auto k       = builder.FillConstant<float>({121, 2}, 2.0f, "K");
-  auto m       = builder.Sub(d, k);
+  auto p       = builder.Mul(c, a);
+  auto m       = builder.Sub(d, p);
   auto n       = builder.Add(d, q);
   auto out     = builder.Add(m, n);
   auto program = builder.Build();

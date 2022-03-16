@@ -86,6 +86,29 @@ void cinn_gpu_cublas_mul(const std::vector<int> &attrs,
   cublasSgemm(cublas, CUBLAS_OP_N, CUBLAS_OP_N, K, M, N, &alpha, y_data, K, x_data, N, &beta, out_data, K);
 }
 
+void cinn_gpu_cublas_mulbias(const std::vector<int> &attrs,
+                             cinn_buffer_t *input1,
+                             cinn_buffer_t *input2,
+                             cinn_buffer_t *output,
+                             const cudaStream_t &stream) {
+  cublasHandle_t &cublas = CublasHandle::get_instance().GetCublasHandle();
+  cublasSetStream(cublas, stream);
+  float *x_data   = reinterpret_cast<float *>(input1->memory);
+  float *y_data   = reinterpret_cast<float *>(input2->memory);
+  float *out_data = reinterpret_cast<float *>(output->memory);
+  int M           = 1;
+  CHECK_GE(attrs.size(), 6);
+  for (int i = 0; i < attrs[attrs.size() - 2]; i++) {
+    M *= attrs[i];
+  }
+  int N       = attrs[attrs.size() - 3];
+  int K       = attrs[attrs.size() - 4];
+  float alpha = 1.f;
+  float beta  = 0.f;
+  // M,N * N,K
+  cublasSgemm(cublas, CUBLAS_OP_N, CUBLAS_OP_N, K, M, N, &alpha, y_data, K, x_data, N, &beta, out_data, K);
+}
+
 void cinn_call_cuda_kernel(void *kernel_fn,
                            cinn_pod_value_t *args,
                            int num_args,

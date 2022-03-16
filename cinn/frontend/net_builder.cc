@@ -61,7 +61,7 @@ Variable NetBuilder::MulBias(const Variable& a,
   instr.SetAttr("trans_b", trans_b);
   InferShape(instr);
   AppendInstruction(instr);
-  return instr.GetOutput(1);
+  return instr.GetOutput(0);
 }
 
 Variable NetBuilder::Add(const Variable& a, const Variable& b) { return ElementwiseAdd(a, b, -1); }
