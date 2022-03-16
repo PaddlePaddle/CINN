@@ -73,7 +73,7 @@ void RunGraph(std::shared_ptr<hlir::framework::Graph> graph,
               const std::shared_ptr<hlir::framework::Scope>& scope,
               std::unordered_set<std::string>&& fetch_ids) {
   hlir::framework::ApplyPass(graph.get(), "OpFusion");
-  LOG(INFO) << "After OpFusion:\n" << graph->Visualize();
+  LOG(INFO) << "Graph Viz:\n" << graph->Visualize();
   hlir::framework::GraphCompiler gc(target, scope, graph);
   auto runtime_program = gc.Build();
   runtime_program->Execute();
@@ -107,8 +107,9 @@ TEST(GemmRwriter, Basic) {
   auto d       = builder.Matmul(c, b);
   auto x       = builder.FillConstant<float>({2, 20}, 1.0f, "X");
   auto y       = builder.Transpose(x, {1, 0});
-  auto z       = builder.CreateInput(Float(32), {121, 20}, "Z");
-  auto q       = builder.Matmul(z, y);
+  auto z       = builder.CreateInput(Float(32), {20, 121}, "Z");
+  auto l       = builder.Transpose(z, {1, 0});
+  auto q       = builder.Matmul(l, y);
   auto p       = builder.Mul(c, a);
   auto m       = builder.Sub(d, p);
   auto n       = builder.Add(d, q);
@@ -127,7 +128,7 @@ TEST(GemmRwriter, Basic) {
   // fuse transpose + add + dot, then run and get the fused output
   ApplyPass(&program, {}, "TransposeFolding");
   ProgramPass::Apply(&program, {}, target, {"GemmRewriter"});
-  auto fused_out = RunProgram(program, target, {c, z}, {out->id});
+  // auto fused_out = RunProgram(program, target, {c, z}, {out->id});
 }
 
 }  // namespace cinn::frontend

@@ -77,7 +77,6 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
 
 #ifdef CINN_WITH_CUDNN
   auto& pod_args = PreparePodArgs(0, name2podargs);
-  LOG(INFO) << "---- The size of pod_args: " << pod_args.size();
   // Here conv2d and depthwise_conv2d are implemented by one cudnn api cudnnConvolutionForward
   if ((function_name_ == "conv2d" || function_name_ == "depthwise_conv2d") && target_.arch == Target::Arch::NVGPU) {
     if (str_attrs[0] == "forward") {
@@ -121,7 +120,7 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
   } else if (function_name_ == "softmax" && target_.arch == Target::Arch::NVGPU) {
     CHECK_EQ(pod_args.size(), 3);
     runtime::cuda::cinn_gpu_cudnn_softmax(attrs, pod_args[0], pod_args[1], static_cast<cudaStream_t>(stream));
-  } else if (function_name_ == "mulbias" && target_.arch == Target::Arch::NVGPU) {
+  } else if (function_name_ == "cublas_mulbias" && target_.arch == Target::Arch::NVGPU) {
     LOG(INFO) << "---- The pod_args size of mulbias: " << pod_args.size();
     runtime::cuda::cinn_gpu_cublas_mulbias(
         attrs, pod_args[0], pod_args[1], pod_args[2], static_cast<cudaStream_t>(stream));

@@ -17,7 +17,7 @@
 #include <unordered_set>
 
 #include "absl/status/statusor.h"
-#include "cinn/frontend/net_builder.h"
+#include "cinn/frontend/cinn_builder.h"
 #include "cinn/frontend/program_pass.h"
 #include "glog/logging.h"
 
@@ -53,7 +53,7 @@ class GemmRewriterPass : public ProgramPass {
       }
     }
 
-    NetBuilder builder("gemm_rewriter_builder");
+    CinnBuilder builder("gemm_rewriter_builder");
     for (auto& var : prog->GetInputs()) {
       builder.CreateInput(var);
     }
@@ -124,15 +124,15 @@ class GemmRewriterPass : public ProgramPass {
     }
 
     if (inputs.size() == 3) {
-      NetBuilder builder("create_mulbias");
+      CinnBuilder builder("create_mulbias");
       for (auto& var : inputs) {
         builder.CreateInput(var);
       }
 
       LOG(INFO) << "-- trans_a = " << std::boolalpha << trans_a;
       LOG(INFO) << "-- trans_b = " << std::boolalpha << trans_b;
-      auto new_out = builder.MulBias(inputs[0], inputs[1], inputs[2], 1, 1, trans_a, trans_b);
-      origin2new_.emplace(instr.GetOutput(0).get(), new_out);
+      const auto& new_out = builder.CustomInstr("cublas_mulbias", inputs, {{"trans_a", trans_a}, {"trans_b", trans_b}});
+      origin2new_.emplace(instr.GetOutput(0).get(), new_out[0]);
       return builder.Build()[0];
     }
 

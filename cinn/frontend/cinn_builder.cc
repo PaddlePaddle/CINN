@@ -129,6 +129,20 @@ Variable CinnBuilder::Compare(const Variable& lhs, const Variable& rhs, Comparis
   }
 }
 
+const std::vector<Variable>& CinnBuilder::CustomInstr(const std::string& type,
+                                                      const std::vector<Variable>& inputs,
+                                                      const attr_amp& attrs) {
+  Instruction instr(type);
+  instr.SetInputs(inputs);
+  for (auto& kv : attrs) {
+    instr.SetAttr(kv.first, kv.second);
+  }
+
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutputs();
+}
+
 std::vector<Variable> CinnBuilder::BnMeanVariance(const Variable& x) {
   Instruction instr("bn_mean_variance", {x});
   // optimize bn forward reduce computation, set reduce dimension(NCHW suppport only, to be deprecated).

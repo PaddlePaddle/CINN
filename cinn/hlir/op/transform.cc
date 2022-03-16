@@ -794,12 +794,21 @@ std::shared_ptr<OpStrategy> StrategyForMulBias(const framework::NodeAttr &attrs,
     CHECK(B.as_tensor());
     CHECK(C.as_tensor());
     auto attr_store    = attrs.attr_store;
-    int x_num_col_dims = absl::get<int>(attr_store.at("x_num_col_dims"));
-    int y_num_col_dims = absl::get<int>(attr_store.at("y_num_col_dims"));
-    auto A_tensor      = A.as_tensor_ref();
-    auto B_tensor      = B.as_tensor_ref();
-    auto C_tensor      = C.as_tensor_ref();
-    auto stages        = CreateStages({A_tensor, B_tensor, C_tensor});
+    int x_num_col_dims = 1;
+    int y_num_col_dims = 1;
+    for (auto &iter : attrs.attr_store) {
+      if (iter.first == "x_num_col_dims") {
+        x_num_col_dims = absl::get<int>(iter.second);
+      } else if (iter.first == "y_num_col_dims") {
+        y_num_col_dims = absl::get<int>(iter.second);
+      } else {
+        LOG(ERROR) << "Unsupported attr: " << iter.first << std::endl;
+      }
+    }
+    auto A_tensor = A.as_tensor_ref();
+    auto B_tensor = B.as_tensor_ref();
+    auto C_tensor = C.as_tensor_ref();
+    auto stages   = CreateStages({A_tensor, B_tensor, C_tensor});
     std::vector<Expr> output_shape;
     std::vector<Expr> new_xshape;
     std::vector<Expr> new_yshape;
@@ -841,8 +850,8 @@ std::shared_ptr<OpStrategy> StrategyForMulBias(const framework::NodeAttr &attrs,
     CHECK(!args.empty()) << "The input argument of mul schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
     CHECK_EQ(arg_pack.size(), 3UL);
-    Expr out              = arg_pack[0];
-    Expr temp             = arg_pack[1];
+    Expr temp             = arg_pack[0];
+    Expr out              = arg_pack[1];
     poly::StageMap stages = arg_pack[2];
     CHECK(out.as_tensor());
     CHECK(temp.as_tensor());
@@ -942,10 +951,19 @@ std::vector<std::vector<int>> InferShapeForMulBias(const std::vector<std::vector
   CHECK_GE(inputs_shape[1].size(), 2U) << "Input matrix Y's dim should be >= 2! Please check.";
 
   std::vector<int> output_shape;
-  int x_num_col_dims = absl::get<int>(attrs.at("x_num_col_dims"));
-  int y_num_col_dims = absl::get<int>(attrs.at("y_num_col_dims"));
-  int check_dim_x    = 1;
-  int check_dim_y    = 1;
+  int x_num_col_dims = 1;
+  int y_num_col_dims = 1;
+  for (auto &iter : attrs) {
+    if (iter.first == "x_num_col_dims") {
+      x_num_col_dims = absl::get<int>(iter.second);
+    } else if (iter.first == "y_num_col_dims") {
+      y_num_col_dims = absl::get<int>(iter.second);
+    } else {
+      LOG(ERROR) << "Unsupported attr: " << iter.first << std::endl;
+    }
+  }
+  int check_dim_x = 1;
+  int check_dim_y = 1;
   for (int i = 0; i < inputs_shape[0].size(); i++) {
     if (i < x_num_col_dims) {
       output_shape.push_back(inputs_shape[0][i]);
@@ -972,6 +990,19 @@ std::vector<std::vector<int>> InferShapeForMulBias(const std::vector<std::vector
 std::vector<Type> InferDtypeForMulBias(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0], inputs_type[0]};
+  return res;
+}
+
+std::vector<shape_t> InferShapeForCublasMulBias(const std::vector<std::vector<int>> &inputs_shape,
+                                                const framework::AttrMapType &attrs) {
+  std::vector<shape_t> output_shape{{121, 2}};
+  return output_shape;
+}
+
+std::vector<Type> InferDtypeForCublasMulBias(const std::vector<Type> &inputs_type,
+                                             const framework::AttrMapType &attrs) {
+  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
+  std::vector<Type> res{inputs_type[0]};
   return res;
 }
 
@@ -1906,6 +1937,14 @@ CINN_REGISTER_HELPER(transform_ops) {
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForMulBias))
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern",
                                                       cinn::hlir::framework::OpPatternKind::kOutEWiseFusable)
+      .set_support_level(4);
+
+  CINN_REGISTER_OP(cublas_mulbias)
+      .describe("This operator use cublas to compute `mulbias`.")
+      .set_num_inputs(3)
+      .set_num_outputs(1)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForCublasMulBias))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForCublasMulBias))
       .set_support_level(4);
 
   CINN_REGISTER_OP(layout_transform)

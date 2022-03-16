@@ -404,9 +404,7 @@ void BindFrontend(pybind11::module *m) {
            py::arg("b"),
            py::arg("c"),
            py::arg("x_num_col_dims") = 1,
-           py::arg("y_num_col_dims") = 1,
-           py::arg("trans_a")        = false,
-           py::arg("trans_b")        = false)
+           py::arg("y_num_col_dims") = 1)
       .def("elementwise_add", &NetBuilder::ElementwiseAdd, py::arg("a"), py::arg("b"), py::arg("axis") = -1)
       .def("elementwise_add_grad",
            &NetBuilder::ElementwiseAddGrad,
