@@ -266,6 +266,46 @@ Expr IRSchedule::Fuse(const std::string& block_name, const std::vector<int>& loo
   return this->Fuse(loops_expr);
 }
 
+void IRSchedule::MutateForType(Expr& loop, ForType for_type, int factor) {
+  auto* for_node = loop.As<ir::For>();
+  CHECK(for_node) << "loop param must be For node! Please check.";
+  CHECK(for_node->is_serial()) << "loop is not serial, current forloop type is "
+                               << static_cast<int>(for_node->for_type());
+  auto loop_copy     = optim::IRCopy(loop);
+  auto* new_for_node = loop_copy.As<ir::For>();
+  CHECK(new_for_node);
+  new_for_node->set_for_type(for_type);
+  if (new_for_node->is_vectorized()) {
+    VectorizeInfo vec_info(0, factor);
+    new_for_node->set_vectorize_info(vec_info);
+  } else if (new_for_node->is_binded()) {
+    BindInfo bind_info(for_type, factor, DeviceAPI::GPU);
+    new_for_node->set_bind_info(bind_info);
+  }
+  helper_.Replace(loop, loop_copy);
+}
+
+void IRSchedule::Parallel(Expr& loop) { MutateForType(loop, ForType::Parallel); }
+
+void IRSchedule::Vectorize(Expr& loop, int factor) {
+  CHECK_GT(factor, 0) << "vectorize factor should be more than 0";
+  MutateForType(loop, ForType::Vectorized, factor);
+}
+
+void IRSchedule::Unroll(Expr& loop) { MutateForType(loop, ForType::Unrolled); }
+
+void IRSchedule::Bind(Expr& loop, const std::string& thread_axis) {
+  static std::set<std::string> thread_axes = {
+      "blockIdx.x", "blockIdx.y", "blockIdx.z", "threadIdx.x", "threadIdx.y", "threadIdx.z"};
+  CHECK(thread_axes.count(thread_axis)) << "thread_axis " << thread_axis << " is not supported";
+  int offset = thread_axis.back() - 'x';
+  if (thread_axis[0] == 'b') {
+    MutateForType(loop, ForType::GPUBlock, offset);
+  } else {
+    MutateForType(loop, ForType::GPUThread, offset);
+  }
+}
+
 IRSchedule::IRSchedule(const ModuleExpr& module_expr, bool debug_flag) {
   ScheduleHelper sch_helper(module_expr, debug_flag);
   helper_ = sch_helper;
