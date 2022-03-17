@@ -27,6 +27,7 @@ namespace auto_schedule {
 TEST(TaskScheduler, Make) {
   std::vector<TuneTask> tasks(3);
   TaskScheduler::Config config;
+
   auto round_robin = TaskScheduler::Make(tasks, config);
   ASSERT_STREQ(round_robin->Name(), "round_robin");
   auto efficiency_priority = TaskScheduler::Make(tasks, config, "efficiency_priority");

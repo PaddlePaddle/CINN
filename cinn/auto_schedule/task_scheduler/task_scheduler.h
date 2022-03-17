@@ -26,7 +26,7 @@
 namespace cinn {
 namespace auto_schedule {
 
-// Class for scheduling tuners of all tasks to perform auto-tune
+// Class for scheduling tasks to perform auto-tune
 class TaskScheduler {
  public:
   // All configs of different schedule strategies
@@ -45,13 +45,14 @@ class TaskScheduler {
                                              const Config& config,
                                              const std::string& strategy = "round_robin");
 
-  // Return the name of strategy for scheduling tasks
+  // Return the name of schedule strategy
   virtual const char* Name() const = 0;
 
   // Schedule all tunners to tune tasks
   void Run(const TuningOptions& tune_options);
 
  protected:
+  // A taskScheduler object should be created with the static function Make
   TaskScheduler(const std::vector<TuneTask>& tasks, const Config& config);
 
   // Select a task to tune

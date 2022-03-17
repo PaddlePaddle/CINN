@@ -21,6 +21,8 @@
 namespace cinn {
 namespace auto_schedule {
 
+// Schedule tasks with efficiency_priority strategy, that
+// is picking a task with the maximum earnings ratio.
 class EfficiencyPriority : public TaskScheduler {
  public:
   EfficiencyPriority(const std::vector<TuneTask>& tasks, const Config& config) : TaskScheduler(tasks, config) {}

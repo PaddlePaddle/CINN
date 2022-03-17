@@ -21,6 +21,8 @@
 namespace cinn {
 namespace auto_schedule {
 
+// Schedule tasks with round_robin strategy, that
+// is picking a task to tune once a time iteratively.
 class RoundRobin : public TaskScheduler {
  public:
   RoundRobin(const std::vector<TuneTask>& tasks, const Config& config) : TaskScheduler(tasks, config) {}

@@ -17,6 +17,7 @@
 namespace cinn {
 namespace auto_schedule {
 
+// Options for task tuning process
 struct TuningOptions {
   // The number of measurement trials, if it is 0,
   // that means the tunner will return the best
