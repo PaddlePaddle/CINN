@@ -24,6 +24,7 @@ else()
   cc_test(test_hlir_framework_infershape_pass SRCS infershape_pass_test.cc DEPS cinncore)
 endif()
 
+cc_test(test_hlir_framework_op_lowering SRCS op_lowering_test.cc DEPS cinncore)
 cc_test(test_hlir_framework_tensor SRCS tensor_test.cc DEPS cinncore)
 cc_test(test_hlir_framework_scope SRCS scope_test.cc DEPS cinncore)
 cc_test(test_hlir_framework_instruction SRCS instruction_test.cc DEPS cinncore)

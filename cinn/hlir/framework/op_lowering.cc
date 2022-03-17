@@ -101,6 +101,7 @@ std::vector<ir::LoweredFunc> OpLoweringHelper::ElementwiseOpLowering(const Group
         } else {
           auto tensor = lang::Placeholder<float>(source_data->id(), this->shape_dict_.at(source_data->id()));
           tensor_map[source_data->id()] = tensor;
+          stages->InsertLazily(tensor);
 
           tensor_inputs.push_back(tensor);
           cinn_inputs.push_back(common::CINNValue(ir::Expr(tensor)));
@@ -119,7 +120,7 @@ std::vector<ir::LoweredFunc> OpLoweringHelper::ElementwiseOpLowering(const Group
           strategy[node->op()](node->attrs, tensor_inputs, out_types, out_shapes, this->target_));
       common::CINNValuePack C = impl->fcompute(common::CINNValuePack{cinn_inputs});
 
-      if (sub_group->master_nodes.count(node) || group->master_nodes.count(node) || group->output_nodes.count(node)) {
+      if (group->master_nodes.count(node)) {
         C = impl->fschedule(C);
       }
 
@@ -149,6 +150,7 @@ std::vector<ir::LoweredFunc> OpLoweringHelper::ElementwiseOpLowering(const Group
         continue;
       }
 
+      LOG(INFO) << node->id();
       // if node is fringe node or internal node, fringe node is output node of sub-graph
       if (group->output_nodes.count(node) || group->internal_nodes.count(node) ||
           sub_group->internal_nodes.count(node)) {
@@ -167,6 +169,7 @@ std::vector<ir::LoweredFunc> OpLoweringHelper::ElementwiseOpLowering(const Group
         node_stage->SimpleComputeAt(master_node_stage, master_node_stage->n_out_dims() - 1);
         continue;
       }
+      LOG(INFO) << node->id();
       // others elemenwise internal node use compute-inline
       stages[tensor_map[node_data->id()]]->ComputeInline();
     }
@@ -181,7 +184,7 @@ std::vector<ir::LoweredFunc> OpLoweringHelper::ElementwiseOpLowering(const Group
   }
 
   for (auto& node : group->output_nodes) {
-    auto tensor = tensor_map[node->id()];
+    auto tensor = tensor_map[GetNodeData(node)->id()];
     func_args.push_back(tensor);
   }
 
