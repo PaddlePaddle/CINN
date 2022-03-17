@@ -103,5 +103,64 @@ class TestBroadcastToCase4(TestBroadcastToOp):
         pass
 
 
+class TestBroadcastToOpNoAxes(OpTest):
+    def setUp(self):
+        if enable_gpu == "ON":
+            self.target = DefaultNVGPUTarget()
+        else:
+            self.target = DefaultHostTarget()
+        self.init_case()
+
+    def init_case(self):
+        self.inputs = {"x": np.random.random([6]).astype("float32")}
+        self.out_shape = [4, 5, 6]
+
+    def build_paddle_program(self, target):
+        x = paddle.to_tensor(self.inputs["x"], stop_gradient=True)
+        out = paddle.broadcast_to(x, shape=self.out_shape)
+
+        self.paddle_outputs = [out]
+
+    # Note: If the forward and backward operators are run in the same program,
+    # the forward result will be incorrect.
+    def build_cinn_program(self, target):
+        builder = NetBuilder("BroadcastTo")
+        x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
+        out = builder.broadcast_to(x, out_shape=self.out_shape)
+
+        prog = builder.build()
+        res = self.get_cinn_output(prog, target, [x], [self.inputs["x"]],
+                                   [out])
+
+        self.cinn_outputs = res
+
+    def test_check_results(self):
+        self.check_outputs_and_grads()
+
+
+class TestBroadcastToNoAxesCase1(TestBroadcastToOpNoAxes):
+    def init_case(self):
+        self.inputs = {"x": np.random.random([1, 1, 3]).astype("float32")}
+        self.out_shape = [4, 5, 3]
+
+
+class TestBroadcastToNoAxesCase2(TestBroadcastToOpNoAxes):
+    def init_case(self):
+        self.inputs = {"x": np.random.random([5, 3]).astype("float32")}
+        self.out_shape = [4, 5, 3]
+
+
+class TestBroadcastToNoAxesCase3(TestBroadcastToOpNoAxes):
+    def init_case(self):
+        self.inputs = {"x": np.random.random([4, 1, 3]).astype("float32")}
+        self.out_shape = [4, 5, 3]
+
+
+class TestBroadcastToNoAxesCase4(TestBroadcastToOpNoAxes):
+    def init_case(self):
+        self.inputs = {"x": np.random.random([1, 1, 1]).astype("float32")}
+        self.out_shape = [4, 5, 3]
+
+
 if __name__ == "__main__":
     unittest.main()

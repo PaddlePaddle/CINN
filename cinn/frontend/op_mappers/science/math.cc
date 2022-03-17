@@ -29,9 +29,19 @@ void AddOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx)
 
   VLOG(4) << x_name << " + " << y_name;
 
-  auto x   = ctx.GetVar(x_name);
-  auto y   = ctx.GetVar(y_name);
-  auto out = ctx.Builder()->Add(x, y);
+  auto x = ctx.GetVar(x_name);
+  auto y = ctx.GetVar(y_name);
+
+  Variable out;
+  if (x->shape.size() < y->shape.size()) {
+    auto bc_x = ctx.Builder()->BroadcastTo(x, y->shape);
+    out       = ctx.Builder()->Add(bc_x, y);
+  } else if (x->shape.size() > y->shape.size()) {
+    auto bc_y = ctx.Builder()->BroadcastTo(y, x->shape);
+    out       = ctx.Builder()->Add(bc_y, y);
+  } else {
+    out = ctx.Builder()->Add(x, y);
+  }
 
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);

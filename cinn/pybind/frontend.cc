@@ -337,7 +337,16 @@ void BindFrontend(pybind11::module *m) {
            py::arg("kind")     = ReduceKind::kSum,
            py::arg("dim")      = std::vector<int>{},
            py::arg("keep_dim") = false)
-      .def("broadcast_to", &BaseBuilder::BroadcastTo, py::arg("a"), py::arg("out_shape"), py::arg("broadcast_axes"))
+      .def("broadcast_to",
+           (Variable(BaseBuilder::*)(const Variable &, const std::vector<int> &)) & BaseBuilder::BroadcastTo,
+           py::arg("a"),
+           py::arg("out_shape"))
+      .def("broadcast_to",
+           (Variable(BaseBuilder::*)(const Variable &, const std::vector<int> &, const std::vector<int> &)) &
+               BaseBuilder::BroadcastTo,
+           py::arg("a"),
+           py::arg("out_shape"),
+           py::arg("broadcast_axes"))
       .def("reshape", &BaseBuilder::Reshape, py::arg("a"), py::arg("shape"))
       .def("transpose", &BaseBuilder::Transpose, py::arg("a"), py::arg("axis"))
       .def("slice",

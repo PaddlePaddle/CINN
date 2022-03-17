@@ -46,28 +46,14 @@ void BroadcastOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
 
   CHECK(op_desc.HasAttr("shape")) << "The broadcast_p operator should has 'shape' attribute, but " << x_name
                                   << "'s broadcast hasn't.";
-  ;
+
   auto y_shape = op_desc.GetAttr<std::vector<int>>("shape");
-
-  auto x = ctx.GetVar(x_name);
-
-  auto x_shape_size = x->shape.size();
-  auto y_shape_size = y_shape.size();
-  CHECK_LE(x_shape_size, y_shape_size) << "The broadcast_p's input shape dimension should less than the output's, "
-                                       << "but here (" << x_shape_size << " > " << y_shape_size << ").";
-
-  std::vector<int> broadcast_axes(x_shape_size, 0);
-  for (int i = 1; i <= x_shape_size; ++i) {
-    CHECK_EQ(y_shape[y_shape_size - i], x->shape[x_shape_size - i])
-        << "We cannot broadcast from shape (" << cinn::utils::Join(x->shape, ",") << ") to shape ("
-        << cinn::utils::Join(y_shape, ",") << ")";
-    broadcast_axes[x_shape_size - i] = y_shape_size - i;
-  }
+  auto x       = ctx.GetVar(x_name);
 
   VLOG(4) << "Broadcast " << x_name << "from shape (" << cinn::utils::Join(x->shape, ",") << ") to shape ("
           << cinn::utils::Join(y_shape, ",") << ").";
 
-  auto out = ctx.Builder()->BroadcastTo(x, y_shape, broadcast_axes);
+  auto out = ctx.Builder()->BroadcastTo(x, y_shape);
 
   ctx.AddVar(y_name, out);
   ctx.AddVarModelToProgram(y_name, out->id);

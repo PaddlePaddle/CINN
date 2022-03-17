@@ -135,6 +135,23 @@ Variable BaseBuilder::Reduce(const Variable& operand, ReduceKind kind, const std
   }
 }
 
+Variable BaseBuilder::BroadcastTo(const Variable& operand, const std::vector<int>& out_shape) {
+  auto x_shape_size = operand->shape.size();
+  auto y_shape_size = out_shape.size();
+  CHECK_LE(x_shape_size, y_shape_size) << "The broadcast_p's input shape dimension should less than the output's, "
+                                       << "but here (" << x_shape_size << " > " << y_shape_size << ").";
+
+  std::vector<int> broadcast_axes(x_shape_size, 0);
+  for (int i = 1; i <= x_shape_size; ++i) {
+    CHECK((out_shape[y_shape_size - i] == operand->shape[x_shape_size - i]) || (operand->shape[x_shape_size - i] == 1))
+        << "We cannot broadcast from shape (" << cinn::utils::Join(operand->shape, ",") << ") to shape ("
+        << cinn::utils::Join(out_shape, ",") << ")";
+    broadcast_axes[x_shape_size - i] = y_shape_size - i;
+  }
+
+  return BroadcastTo(operand, out_shape, broadcast_axes);
+}
+
 Variable BaseBuilder::BroadcastTo(const Variable& operand,
                                   const std::vector<int>& out_shape,
                                   const std::vector<int>& broadcast_axes) {
