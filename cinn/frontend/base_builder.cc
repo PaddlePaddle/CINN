@@ -138,9 +138,13 @@ Variable BaseBuilder::Reduce(const Variable& operand, ReduceKind kind, const std
 Variable BaseBuilder::BroadcastTo(const Variable& operand, const std::vector<int>& out_shape) {
   auto x_shape_size = operand->shape.size();
   auto y_shape_size = out_shape.size();
-  CHECK_GT(x_shape_size, 0) << "Cannot broadcast to empty operand";
+  CHECK_GT(x_shape_size, 0) << "Cannot broadcast a empty operand " << operand->id << " to "
+                            << cinn::utils::Join(out_shape, ",");
   CHECK_LE(x_shape_size, y_shape_size) << "The broadcast_p's input shape dimension should less than the output's, "
                                        << "but here (" << x_shape_size << " > " << y_shape_size << ").";
+
+  VLOG(4) << "Try broadcast " << operand->id << " from shape (" << cinn::utils::Join(operand->shape, ",")
+          << ") to shape (" << cinn::utils::Join(out_shape, ",") << ")";
 
   std::vector<int> broadcast_axes(x_shape_size, 0);
   if (x_shape_size > 1) {
@@ -158,16 +162,16 @@ Variable BaseBuilder::BroadcastTo(const Variable& operand, const std::vector<int
       // Can broadcast directly, default axis 0
       axis = 0;
     } else {
+      // The broadcast axes is the index of the shape in out_shape when the input dimension is 1
       for (int i = 0; i < y_shape_size; ++i) {
         if (out_shape[i] == x_shape) {
           axis = i;
           break;
         }
       }
-      CHECK_NE(axis, -1)
-          << "When we broadcast a single number shape, the number should contained in the broadcast shape. "
-          << "We cannot broadcast from shape (" << cinn::utils::Join(operand->shape, ",") << ") to shape ("
-          << cinn::utils::Join(out_shape, ",") << ")";
+      CHECK_NE(axis, -1) << "When we broadcast a 1-dimension shape, the number should contained in the out_shape. "
+                         << "We cannot broadcast from shape (" << cinn::utils::Join(operand->shape, ",")
+                         << ") to shape (" << cinn::utils::Join(out_shape, ",") << ")";
     }
     broadcast_axes[0] = axis;
   }
