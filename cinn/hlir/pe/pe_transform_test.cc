@@ -196,6 +196,49 @@ TEST(SliceAssign, SliceAssign) {
 #endif
 }
 
+TEST(Concat, ConcatCase0) {
+  int m = 128;
+  int n = 32;
+  Expr M(m), N(n);
+
+  Placeholder<float> A("A", {M, N});
+  Placeholder<float> B("B", {M, N});
+  Placeholder<float> C("C", {M, N});
+  Placeholder<float> D("D", {M, N});
+
+  std::vector<ir::Tensor> inputs{A.tensor(), B.tensor(), C.tensor(), D.tensor()};
+  auto output = hlir::pe::Concat(inputs, 1);
+  auto stages = CreateStages({output});
+  auto func   = Lower("fn", stages, {A, B, C, D, output});
+  LOG(INFO) << "func:\n" << func;
+
+#ifdef CINN_WITH_CUDA
+  auto target = common::DefaultNVGPUTarget();
+  Module::Builder builder("Concat_Builder", target);
+  builder.AddFunction(func);
+
+  auto module                    = builder.Build();
+  auto host_module_device_module = backends::SplitCudaAndHostModule(module);
+  auto &host_module              = std::get<0>(host_module_device_module);
+  auto &device_module            = std::get<1>(host_module_device_module);
+  for (auto &func : host_module.functions()) {
+    LOG(INFO) << "host:\n" << func;
+  }
+  for (auto &func : device_module.functions()) {
+    LOG(INFO) << "device:\n" << func;
+  }
+
+  backends::CodeGenCUDA_Dev codegen(target);
+  auto source_code = codegen.Compile(builder.Build());
+  LOG(INFO) << "compiled code:\n\n\n" << source_code;
+
+  // nv jit compile to ptx
+  backends::NVRTC_Compiler compiler;
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty());
+#endif
+}
+
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn

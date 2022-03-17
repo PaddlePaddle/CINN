@@ -1,3 +1,5 @@
 add_subdirectory(cost_model)
+add_subdirectory(search_space)
+add_subdirectory(search_strategy)
 add_subdirectory(task)
 add_subdirectory(task_scheduler)

@@ -18,13 +18,14 @@
 
 #include "cinn/common/target.h"
 #include "cinn/ir/ir_base.h"
+#include "cinn/ir/ir_schedule.h"
 
 namespace cinn {
 namespace auto_schedule {
 
 class TuneContext {
  public:
-  ir::Expr module;
+  ir::ModuleExpr module;
   common::Target target;
 };
 
