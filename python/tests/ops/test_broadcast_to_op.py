@@ -167,6 +167,12 @@ class TestBroadcastToNoAxesCase5(TestBroadcastToOpNoAxes):
         self.inputs = {"x": np.random.random([5]).astype("float32")}
         self.out_shape = [4, 5, 3]
 
+
+class TestBroadcastToNoAxesCase6(TestBroadcastToOpNoAxes):
+    def init_case(self):
+        self.inputs = {"x": np.random.random([1]).astype("float32")}
+        self.out_shape = [5]
+
     def test_check_results(self):
         self.build_cinn_program(self.target)
         # because paddle and numpy do not support discontinuous broadcast,
