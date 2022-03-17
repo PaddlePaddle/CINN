@@ -38,17 +38,32 @@ bool IsCompiledWithCUDA() {
 #endif
 }
 
-void SetRandData(hlir::framework::Tensor tensor, Target target) {
-  auto* data = tensor->mutable_data<float>(target);
-  std::random_device seed;
-  std::default_random_engine engine(seed());
-  std::uniform_real_distribution<float> dist(0.f, 1.f);
+void PrintMatrix(const std::vector<float>& mat, int m, int n) {
+  std::cout << "-----------------------------------------------------\n";
+  for (int i = 0; i < m; i++) {
+    for (int j = 0; j < n; j++) {
+      std::cout << mat[i * n + j] << ", ";
+    }
+    std::cout << "\n";
+  }
+  std::cout << "-----------------------------------------------------\n\n";
+}
+
+void SetRandData(hlir::framework::Tensor tensor, Target target, int seed = -1) {
+  if (seed == -1) {
+    std::random_device rd;
+    seed = rd();
+  }
+  std::default_random_engine engine(seed);
+  std::uniform_int_distribution<int> dist(1, 10);
   size_t num_ele = tensor->shape().numel();
   std::vector<float> random_data(num_ele);
   for (size_t i = 0; i < num_ele; i++) {
-    random_data[i] = dist(engine);  // All random data
+    random_data[i] = static_cast<float>(dist(engine));  // All random data
   }
+  PrintMatrix(random_data, tensor->shape().data()[0], tensor->shape().data()[1]);
 
+  auto* data = tensor->mutable_data<float>(target);
 #ifdef CINN_WITH_CUDA
   cudaMemcpy(data, random_data.data(), num_ele * sizeof(float), cudaMemcpyHostToDevice);
 #else
@@ -82,12 +97,13 @@ void RunGraph(std::shared_ptr<hlir::framework::Graph> graph,
 std::vector<float> RunProgram(const Program& program,
                               const Target& target,
                               std::vector<cinn::frontend::Placeholder> inputs,
-                              std::vector<std::string> output_ids) {
+                              std::vector<std::string> output_ids,
+                              int seed = -1) {
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
   auto scope = hlir::framework::BuildScope(target, graph);
   for (auto& input : inputs) {
     scope->Var<hlir::framework::Tensor>(std::string(input.id()));
-    SetRandData(scope->GetTensor(std::string(input.id())), target);
+    SetRandData(scope->GetTensor(std::string(input.id())), target, seed);
   }
   std::unordered_set<std::string> fetch_ids(output_ids.begin(), output_ids.end());
   RunGraph(graph, target, scope, std::move(fetch_ids));
@@ -97,6 +113,39 @@ std::vector<float> RunProgram(const Program& program,
 }  // namespace
 
 TEST(GemmRwriter, Basic) {
+  if (!IsCompiledWithCUDA()) {
+    return;
+  }
+  NetBuilder builder("net_builder");
+  auto a       = builder.CreateInput(Float(32), {6, 8}, "A");
+  auto b       = builder.Transpose(a, {1, 0});
+  auto c       = builder.CreateInput(Float(32), {7, 6}, "C");
+  auto d       = builder.Transpose(c, {1, 0});
+  auto e       = builder.Matmul(b, d);
+  auto f       = builder.FillConstant<float>({8, 7}, 2.0f, "F");
+  auto g       = builder.FillConstant<float>({8, 7}, 0.0f, "G");
+  auto h       = builder.Add(e, f);
+  auto out     = builder.Add(h, g);
+  auto program = builder.Build();
+
+  Target target = common::DefaultNVGPUTarget();
+  std::unordered_set<std::string> fetch_ids{out->id};
+  // apply common pass
+  ProgramPass::Apply(&program, fetch_ids, target, {"Decomposer"});
+  ApplyPass(&program, fetch_ids, "RemoveIdentity");
+
+  // get origin output
+  auto origin_out = RunProgram(program, target, {a, c}, {out->id}, 123);
+  PrintMatrix(origin_out, 8, 7);
+
+  // fuse transpose + add + dot, then run and get the fused output
+  ApplyPass(&program, fetch_ids, "TransposeFolding");
+  ProgramPass::Apply(&program, fetch_ids, target, {"GemmRewriter"});
+  auto fused_out = RunProgram(program, target, {a, c}, {out->id}, 123);
+  PrintMatrix(fused_out, 8, 7);
+}
+
+TEST(GemmRwriter, Complex) {
   if (!IsCompiledWithCUDA()) {
     return;
   }
@@ -120,14 +169,14 @@ TEST(GemmRwriter, Basic) {
   std::unordered_set<std::string> fetch_ids{out->id};
   // apply common pass
   ProgramPass::Apply(&program, fetch_ids, target, {"Decomposer"});
-  ::cinn::frontend::ApplyPass(&program, fetch_ids, "RemoveIdentity");
+  ApplyPass(&program, fetch_ids, "RemoveIdentity");
 
   // get origin output
   auto origin_out = RunProgram(program, target, {c, z}, {out->id});
 
   // fuse transpose + add + dot, then run and get the fused output
-  ApplyPass(&program, {}, "TransposeFolding");
-  ProgramPass::Apply(&program, {}, target, {"GemmRewriter"});
+  ApplyPass(&program, fetch_ids, "TransposeFolding");
+  ProgramPass::Apply(&program, fetch_ids, target, {"GemmRewriter"});
   auto fused_out = RunProgram(program, target, {c, z}, {out->id});
 }
 
