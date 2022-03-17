@@ -142,11 +142,27 @@ Variable BaseBuilder::BroadcastTo(const Variable& operand, const std::vector<int
                                        << "but here (" << x_shape_size << " > " << y_shape_size << ").";
 
   std::vector<int> broadcast_axes(x_shape_size, 0);
-  for (int i = 1; i <= x_shape_size; ++i) {
-    CHECK((out_shape[y_shape_size - i] == operand->shape[x_shape_size - i]) || (operand->shape[x_shape_size - i] == 1))
+  if (x_shape_size > 1) {
+    for (int i = 1; i <= x_shape_size; ++i) {
+      CHECK((out_shape[y_shape_size - i] == operand->shape[x_shape_size - i]) ||
+            (operand->shape[x_shape_size - i] == 1))
+          << "We cannot broadcast from shape (" << cinn::utils::Join(operand->shape, ",") << ") to shape ("
+          << cinn::utils::Join(out_shape, ",") << ")";
+      broadcast_axes[x_shape_size - i] = y_shape_size - i;
+    }
+  } else {
+    int axis = -1;
+    for (int i = 0; i < y_shape_size; ++i) {
+      if (out_shape[i] == operand->shape.at(0)) {
+        axis = i;
+        break;
+      }
+    }
+    CHECK_NE(axis, -1)
+        << "When we broadcast a single number shape, the number should contained in the broadcast shape. "
         << "We cannot broadcast from shape (" << cinn::utils::Join(operand->shape, ",") << ") to shape ("
         << cinn::utils::Join(out_shape, ",") << ")";
-    broadcast_axes[x_shape_size - i] = y_shape_size - i;
+    broadcast_axes[0] = axis;
   }
 
   return BroadcastTo(operand, out_shape, broadcast_axes);
