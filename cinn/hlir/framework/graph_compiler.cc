@@ -853,6 +853,23 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
           } else {
             instr->attrs.push_back(1);
           }
+        } else if (node->op()->name == "cublas_gemm") {
+          auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
+          std::vector<int> input_sizes;
+          input_sizes.reserve(node->inlinks_in_order().size());
+          for (auto& in_node : node->inlinks_in_order()) {
+            std::string in_id = in_node->source()->safe_as<NodeData>()->id();
+            auto in_shape     = shape_dict.at(in_id);
+            instr->attrs.insert(instr->attrs.end(), in_shape.begin(), in_shape.end());
+            input_sizes.push_back(in_shape.size());
+          }
+          instr->attrs.insert(instr->attrs.end(), input_sizes.begin(), input_sizes.end());
+          CHECK(node->attrs.attr_store.contains("trans_a"));
+          CHECK(node->attrs.attr_store.contains("trans_b"));
+          bool trans_a = absl::get<bool>(node->attrs.attr_store.at("trans_a"));
+          instr->attrs.push_back(static_cast<int>(trans_a));
+          bool trans_b = absl::get<bool>(node->attrs.attr_store.at("trans_b"));
+          instr->attrs.push_back(static_cast<int>(trans_b));
         }
       }
       std::string op_func_name = GetOrGenFullFuncName(GenOpFuncName(node));

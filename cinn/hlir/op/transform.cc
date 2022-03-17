@@ -18,6 +18,7 @@
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
+#include "cinn/hlir/pe/elementwise.h"
 #include "cinn/hlir/pe/nn.h"
 #include "cinn/hlir/pe/schedule.h"
 #include "cinn/ir/ir_printer.h"
@@ -993,6 +994,56 @@ std::vector<Type> InferDtypeForMulBias(const std::vector<Type> &inputs_type, con
   return res;
 }
 
+std::shared_ptr<OpStrategy> StrategyForCublasGemm(const framework::NodeAttr &attrs,
+                                                  const std::vector<ir::Tensor> &inputs,
+                                                  const std::vector<Type> &out_type,
+                                                  const std::vector<std::vector<int>> &output_shapes,
+                                                  const Target &target) {
+  framework::CINNCompute gemm_compute([attrs](lang::Args args, lang::RetValue *ret) {
+    auto &attr_store = attrs.attr_store;
+    CHECK(attr_store.contains("trans_a")) << "The cublas_gemm should have an attr named `trans_a`.";
+    CHECK(attr_store.contains("trans_b")) << "The cublas_gemm should have an attr named `trans_b`.";
+    CHECK(!args.empty()) << "The input `args` of cublas_gemm is empty! Please check.";
+
+    CINNValuePack input_args = args[0];
+    CHECK_EQ(input_args.size(), 3U) << "The input number of cublas_gemm should be equal to 3.";
+    Expr lhs  = input_args[0];
+    Expr rhs  = input_args[1];
+    Expr bias = input_args[2];
+    CHECK(lhs.as_tensor());
+    CHECK(rhs.as_tensor());
+    CHECK(bias.as_tensor());
+    auto bias_tensor = bias.as_tensor_ref();
+    // dummy gemm, which uses cublas_gemm instead
+    auto out    = pe::Identity(bias_tensor, UniqName("cublas_gemm_output")).front();
+    auto stages = CreateStages({lhs.as_tensor_ref(), rhs.as_tensor_ref(), bias_tensor});
+    stages->InsertLazily(out);
+    std::vector<CINNValue> res{CINNValue(out), CINNValue(stages)};
+    *ret = CINNValuePack{res};
+  });
+
+  framework::CINNSchedule gemm_schedule(
+      [output_shape = output_shapes[0], target](lang::Args args, lang::RetValue *ret) {
+        CHECK(!args.empty()) << "The input `args` is empty! Please check again.";
+        CINNValuePack input_args = args[0];
+        CHECK_EQ(input_args.size(), 2U) << "Expected 2 values in args[0] for gemm_schedule.";
+        Expr out              = input_args[0];
+        poly::StageMap stages = input_args[1];
+        CHECK(out.as_tensor());
+        if (target.arch == Target::Arch::NVGPU) {
+          pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shape, target);
+        } else if (target.arch == Target::Arch::X86) {
+          pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shape, target);
+        }
+        *ret = input_args;
+      });
+
+  auto strategy = std::make_shared<framework::OpStrategy>();
+  strategy->AddImpl(gemm_compute, gemm_schedule, "strategy.cublas.gemm", 1);
+
+  return strategy;
+}
+
 std::vector<shape_t> InferShapeForCublasGemm(const std::vector<std::vector<int>> &input_shapes,
                                              const framework::AttrMapType &attrs) {
   CHECK_EQ(input_shapes.size(), 3U) << "cublas_gemm should have 2 input shapes";
@@ -1940,11 +1991,13 @@ CINN_REGISTER_HELPER(transform_ops) {
       .set_support_level(4);
 
   CINN_REGISTER_OP(cublas_gemm)
-      .describe("This operator use cublas to compute `mulbias`.")
+      .describe("This operator uses cublas to compute the gemm.")
       .set_num_inputs(3)
       .set_num_outputs(1)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForCublasGemm)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForCublasGemm))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForCublasGemm))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
 
   CINN_REGISTER_OP(layout_transform)

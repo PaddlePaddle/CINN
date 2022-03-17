@@ -128,7 +128,7 @@ TEST(GemmRwriter, Basic) {
   // fuse transpose + add + dot, then run and get the fused output
   ApplyPass(&program, {}, "TransposeFolding");
   ProgramPass::Apply(&program, {}, target, {"GemmRewriter"});
-  // auto fused_out = RunProgram(program, target, {c, z}, {out->id});
+  auto fused_out = RunProgram(program, target, {c, z}, {out->id});
 }
 
 }  // namespace cinn::frontend

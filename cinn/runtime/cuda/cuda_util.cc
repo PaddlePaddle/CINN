@@ -87,26 +87,49 @@ void cinn_gpu_cublas_mul(const std::vector<int> &attrs,
 }
 
 void cinn_gpu_cublas_gemm(const std::vector<int> &attrs,
-                          cinn_buffer_t *input1,
-                          cinn_buffer_t *input2,
+                          cinn_buffer_t *lhs,
+                          cinn_buffer_t *rhs,
+                          cinn_buffer_t *bias,
                           cinn_buffer_t *output,
                           const cudaStream_t &stream) {
   cublasHandle_t &cublas = CublasHandle::get_instance().GetCublasHandle();
   cublasSetStream(cublas, stream);
-  float *x_data   = reinterpret_cast<float *>(input1->memory);
-  float *y_data   = reinterpret_cast<float *>(input2->memory);
-  float *out_data = reinterpret_cast<float *>(output->memory);
-  int M           = 1;
-  CHECK_GE(attrs.size(), 6);
-  for (int i = 0; i < attrs[attrs.size() - 2]; i++) {
-    M *= attrs[i];
-  }
-  int N       = attrs[attrs.size() - 3];
-  int K       = attrs[attrs.size() - 4];
+  float *lhs_data  = reinterpret_cast<float *>(lhs->memory);
+  float *rhs_data  = reinterpret_cast<float *>(rhs->memory);
+  float *bias_data = reinterpret_cast<float *>(bias->memory);
+
+  CHECK_GE(attrs.size(), 11);
+  int lhs_size   = attrs[attrs.size() - 5];
+  int rhs_size   = attrs[attrs.size() - 4];
+  int bias_size  = attrs[attrs.size() - 3];
+  auto lhs_trans = attrs[attrs.size() - 2] ? CUBLAS_OP_T : CUBLAS_OP_N;
+  auto rhs_trans = attrs[attrs.size() - 1] ? CUBLAS_OP_T : CUBLAS_OP_N;
+
+  CHECK_EQ(lhs_size, rhs_size);
+  CHECK_EQ(rhs_size, bias_size);
+  CHECK((lhs_size == 2 || lhs_size == 3));
+  int lhs_row = attrs[0];
+  int lhs_col = attrs[1];
+  int rhs_row = attrs[2];
+  int rhs_col = attrs[3];
+
   float alpha = 1.f;
-  float beta  = 0.f;
-  // M,N * N,K
-  cublasSgemm(cublas, CUBLAS_OP_N, CUBLAS_OP_N, K, M, N, &alpha, y_data, K, x_data, N, &beta, out_data, K);
+  float beta  = 1.f;
+  cublasSgemm(cublas,
+              lhs_trans,
+              rhs_trans,
+              lhs_row,
+              rhs_col,
+              lhs_col,
+              &alpha,
+              lhs_data,
+              lhs_col,
+              rhs_data,
+              rhs_col,
+              &beta,
+              bias_data,
+              lhs_row);
+  output->memory = bias->memory;
 }
 
 void cinn_call_cuda_kernel(void *kernel_fn,
