@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <unordered_set>
 
+#include "cinn/common/target.h"
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
@@ -47,8 +48,10 @@ using ConditionFunction = std::function<bool(const Node*, const Node*)>;
 // code generation.
 class OpFusionPassHelper {
  public:
-  OpFusionPassHelper(std::vector<GraphNode*>& graph_nodes, const absl::flat_hash_map<std::string, shape_t>& shape_dict)
-      : shape_dict_(shape_dict) {
+  OpFusionPassHelper(const std::vector<GraphNode*>& graph_nodes,
+                     const absl::flat_hash_map<std::string, shape_t>& shape_dict,
+                     const common::Target target)
+      : shape_dict_(shape_dict), target_(target) {
     // init fusion relation
     InitFusionRelation();
     // get op pattern dict
@@ -182,6 +185,8 @@ class OpFusionPassHelper {
         if (GetOpKind(producer) == framework::kOpaque) {
           continue;
         }
+        VLOG(11) << "Producer Op: " << producer->id() << ", Op Pattern: " << GetOpKind(producer)
+                 << " -> Consumer Op: " << consumer->id() << ", Op Pattern: " << GetOpKind(consumer);
         bool can_fuse = true;
         // checkout producer node outputs are all in fusion op
         for (auto& link : producer_data->outlinks()) {
@@ -243,6 +248,17 @@ class OpFusionPassHelper {
     CHECK(node_data);
     CHECK(shape_dict_.count(node_data->id())) << "Can't find " << node_data->id() << " 's shape!";
     return shape_dict_.at(node_data->id());
+  }
+
+  std::vector<NodeData*> GetProducerNodeData(const Node* node) {
+    std::vector<NodeData*> producer_node_data;
+    for (auto& edge : node->inlinks()) {
+      auto graph_node    = edge->source();
+      auto producer_data = graph_node->safe_as<NodeData>();
+      CHECK(producer_data);
+      producer_node_data.push_back(producer_data);
+    }
+    return producer_node_data;
   }
 
   void InitFusionRelation() {
@@ -311,20 +327,66 @@ class OpFusionPassHelper {
 
       return true;
     };
+    // 6.check with same shape or with last successive reduce is less than max threads
+    auto is_same_shape_or_vertical_reduce_relation = [this, is_same_shape](const Node* producer,
+                                                                           const Node* consumer) -> bool {
+      // check is same shape with horizontal relation.
+      if (is_same_shape(producer, consumer)) {
+        return true;
+      }
+
+      // reducer node in fusion op.
+      auto& fusion_op = this->fusion_groups_[consumer];
+      Node* reducer   = NULL;
+      for (auto* master : fusion_op->master_nodes) {
+        if (this->GetOpKind(master) == framework::kCommReduce) {
+          reducer = master;
+          break;
+        }
+      }
+
+      // check producer has same shape with reducer node.
+      auto reduce_shape = shape_dict_.at(GetProducerNodeData(reducer)[0]->id());
+      auto reduce_dim   = absl::get<std::vector<int>>(reducer->attrs.attr_store.at("dim"));
+      for (auto& dim : reduce_dim) {
+        // if dim = -1, set as shape.size() - 1
+        if (dim == -1) {
+          dim = reduce_dim.size() - 1;
+        }
+      }
+      //
+      if (GetNodeDataShape(producer) != reduce_shape ||
+          std::find(reduce_dim.begin(), reduce_dim.end(), reduce_shape.size() - 1) == reduce_dim.end()) {
+        return false;
+      }
+
+      int succesive_reduce_dimension = reduce_shape.back();
+      for (int idx = reduce_dim.size() - 2; idx >= 0; --idx) {
+        if (reduce_dim[idx] == reduce_dim[idx + 1] - 1) {
+          succesive_reduce_dimension *= reduce_shape[reduce_dim[idx]];
+          continue;
+        }
+        break;
+      }
+
+      return succesive_reduce_dimension <= this->target_.max_num_threads() ? true : false;
+    };
+
     // fusion relation.
     // 1.kElementwise as producer
     {
       FusionRelation relation;
       // producer -> consumer
-      relation.op_kind = {framework::kElemWise, framework::kInjective};
+      relation.op_kind = {framework::kElemWise, framework::kCommReduce, framework::kInjective};
       // producer -> fusion
       relation.fusion_op_kind = {
           // horizontal or vertical relation(Elementwise + *Elementwise*). As has same output shape, can always fuse.
           {framework::kElemWise, always_fuse},
           // must be horizontal, as Elementwise + Broadcast is left to fusion merge pass.
           {framework::kBroadcast, is_same_shape},
-          // must be horizontal, as Elementwise + Reduce is left to fusion merge pass.
-          {framework::kCommReduce, is_same_shape},
+          // horizontal or vertical relation, check with same output shape with horizontal relation or with last
+          // successive dimension less than 1024 for gpu.
+          {framework::kCommReduce, is_same_shape_or_vertical_reduce_relation},
           // can be horizontal or can compute inline, check with same output shape or can compute inline.
           {framework::kInjective,
            [this, is_same_shape](const Node* producer, const Node* consumer) -> bool {
@@ -429,6 +491,9 @@ class OpFusionPassHelper {
     return false;
   }
 
+  // target
+  common::Target target_;
+
   std::vector<Node*> nodes_;
   std::unordered_map<const Node*, Group> fusion_groups_;
   const absl::flat_hash_map<std::string, shape_t>& shape_dict_;
@@ -500,7 +565,8 @@ void InsertBroadcastTo(Graph* graph) {
           input_data->LinkTo(tmp_node);
           graph->RegisterNode(tmp_node->id(), tmp_node);
           // create node data
-          auto tmp_node_data = new NodeData(nullptr, 0, 0, "var_" + std::to_string(index), false);
+          auto tmp_node_data =
+              new NodeData(std::shared_ptr<Node>(tmp_node), 0, 0, "var_" + std::to_string(index), false);
           tmp_node->LinkTo(tmp_node_data);
           tmp_node_data->LinkTo(node);
           graph->RegisterNode(tmp_node_data->id(), tmp_node_data);
@@ -521,7 +587,7 @@ void OpFusionPassInternal(Graph* graph) {
   // shape
   auto& shape_dict = graph->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
 
-  auto op_fusion_helper = OpFusionPassHelper(nodes, shape_dict);
+  auto op_fusion_helper = OpFusionPassHelper(nodes, shape_dict, graph->target_);
   graph->fusion_groups  = op_fusion_helper();
 
   for (auto& Group : graph->fusion_groups) {

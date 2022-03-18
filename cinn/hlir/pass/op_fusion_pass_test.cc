@@ -207,6 +207,7 @@ TEST(OpFusionPass, Injective_Test_0) {
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
   hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+  CHECK_EQ(graph->fusion_groups.size(), 1);
 }
 
 TEST(OpFusionPass, Test_Insert_BroadcastTo) {
@@ -227,6 +228,8 @@ TEST(OpFusionPass, Test_Insert_BroadcastTo) {
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
   hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+
+  CHECK_EQ(graph->fusion_groups.size(), 1);
 }
 
 }  // namespace frontend

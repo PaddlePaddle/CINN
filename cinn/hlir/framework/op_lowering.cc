@@ -222,6 +222,7 @@ std::vector<ir::LoweredFunc> OpLoweringHelper::ReduceOpLowering(const Group& gro
         } else {
           auto tensor = lang::Placeholder<float>(source_data->id(), this->shape_dict_.at(source_data->id()));
           tensor_map[source_data->id()] = tensor;
+          stages->InsertLazily(tensor);
 
           tensor_inputs.push_back(tensor);
           cinn_inputs.push_back(common::CINNValue(ir::Expr(tensor)));
@@ -444,6 +445,7 @@ std::vector<ir::LoweredFunc> OpLoweringHelper::FusableOpLowering(const Group& gr
         } else {
           auto tensor = lang::Placeholder<float>(source_data->id(), this->shape_dict_.at(source_data->id()));
           tensor_map[source_data->id()] = tensor;
+          stages->InsertLazily(tensor);
 
           tensor_inputs.push_back(tensor);
           cinn_inputs.push_back(common::CINNValue(ir::Expr(tensor)));
@@ -587,6 +589,7 @@ std::vector<ir::LoweredFunc> OpLoweringHelper::OpaqueOpLowering(const Group& gro
 
     auto tensor = lang::Placeholder<float>(source_data->id(), this->shape_dict_.at(source_data->id()));
     tensor_inputs.push_back(tensor);
+
     cinn_inputs.push_back(common::CINNValue(ir::Expr(tensor)));
     // recored func input args
     func_args.push_back(tensor);
@@ -604,12 +607,17 @@ std::vector<ir::LoweredFunc> OpLoweringHelper::OpaqueOpLowering(const Group& gro
   C                       = impl->fschedule(C);
 
   CHECK(C.size() >= 2);
+  poly::StageMap stages = C.back();
+  // lazily insert input tensor.
+  for (auto tensor_input : tensor_inputs) {
+    stages->InsertLazily(tensor_input);
+  }
+
   for (int idx = 0; idx < C.size() - 1; ++idx) {
     Expr out = C[0];
     // collect output tensor
     func_args.push_back(out.as_tensor_ref());
   }
-  poly::StageMap stages = C.back();
 
   return lang::LowerVec("fn_" + node->id(), stages, func_args, {}, {}, nullptr, this->target_);
 }
