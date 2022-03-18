@@ -108,10 +108,12 @@ void cinn_gpu_cublas_gemm(const std::vector<int> &attrs,
   CHECK_EQ(lhs_size, rhs_size);
   CHECK_EQ(rhs_size, bias_size);
   CHECK((lhs_size == 2 || lhs_size == 3));
-  int lhs_row = attrs[0];
-  int lhs_col = attrs[1];
-  int rhs_row = attrs[2];
-  int rhs_col = attrs[3];
+  int lhs_row  = attrs[0];
+  int lhs_col  = attrs[1];
+  int rhs_row  = attrs[2];
+  int rhs_col  = attrs[3];
+  int bias_row = attrs[4];
+  int bias_col = attrs[5];
 
   float alpha = 1.f;
   float beta  = 1.f;

@@ -34,8 +34,8 @@ using framework::Operator;
 using framework::OpValueType;
 
 using InferShapeFunc  = std::function<std::vector<framework::shape_t>(const std::vector<framework::shape_t>&,
-                                                                     const framework::AttrMapType&)>;
-using InferTypeFunc   = std::function<std::vector<Type>(const std::vector<Type>&, const framework::AttrMapType&)>;
+                                                                     const framework::AttributeMap&)>;
+using InferTypeFunc   = std::function<std::vector<Type>(const std::vector<Type>&, const framework::AttributeMap&)>;
 using InferLayoutFunc = std::function<std::vector<std::vector<std::string>>(const std::vector<framework::shape_t>&,
                                                                             const std::vector<std::string>&,
                                                                             const framework::NodeAttr&,

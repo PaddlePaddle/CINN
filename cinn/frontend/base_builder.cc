@@ -24,17 +24,17 @@
 #include "cinn/common/context.h"
 #include "cinn/common/type.h"
 #include "cinn/frontend/syntax.h"
-#include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
+#include "cinn/utils/type_defs.h"
 
 namespace cinn {
 namespace frontend {
 
 using common::Context;
 using common::Type;
-using hlir::framework::AttrMapType;
 using hlir::framework::Operator;
-using hlir::framework::shape_t;
+using utils::AttributeMap;
+using utils::ShapeType;
 
 BaseBuilder::BaseBuilder(const std::string& name) : name_(name) {}
 
@@ -75,13 +75,13 @@ Placeholder BaseBuilder::CreateInput(const Variable& var) {
 }
 
 void BaseBuilder::InferShape(Instruction instr) const {
-  using shape_func_t        = std::function<std::vector<shape_t>(const std::vector<shape_t>&, const AttrMapType&)>;
-  using type_func_t         = std::function<std::vector<Type>(const std::vector<Type>&, const AttrMapType&)>;
-  const auto& op_infershape = Operator::GetAttrs<shape_func_t>("infershape");
-  const auto& op_inferdtype = Operator::GetAttrs<type_func_t>("inferdtype");
+  using ShapeFunc           = std::function<std::vector<ShapeType>(const std::vector<ShapeType>&, const AttributeMap&)>;
+  using TypeFunc            = std::function<std::vector<Type>(const std::vector<Type>&, const AttributeMap&)>;
+  const auto& op_infershape = Operator::GetAttrs<ShapeFunc>("infershape");
+  const auto& op_inferdtype = Operator::GetAttrs<TypeFunc>("inferdtype");
 
   size_t size = instr->inputs.size();
-  std::vector<shape_t> in_shapes(size);
+  std::vector<ShapeType> in_shapes(size);
   std::vector<Type> in_types(size);
   std::transform(
       instr->inputs.begin(), instr->inputs.end(), in_shapes.begin(), [](const Variable& var) { return var->shape; });

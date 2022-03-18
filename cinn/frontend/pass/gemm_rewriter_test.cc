@@ -123,9 +123,7 @@ TEST(GemmRwriter, Basic) {
   auto d       = builder.Transpose(c, {1, 0});
   auto e       = builder.Matmul(b, d);
   auto f       = builder.FillConstant<float>({8, 7}, 2.0f, "F");
-  auto g       = builder.FillConstant<float>({8, 7}, 0.0f, "G");
-  auto h       = builder.Add(e, f);
-  auto out     = builder.Add(h, g);
+  auto out     = builder.Add(e, f);
   auto program = builder.Build();
 
   Target target = common::DefaultNVGPUTarget();
@@ -145,39 +143,39 @@ TEST(GemmRwriter, Basic) {
   PrintMatrix(fused_out, 8, 7);
 }
 
-TEST(GemmRwriter, Complex) {
-  if (!IsCompiledWithCUDA()) {
-    return;
-  }
-  NetBuilder builder("net_builder");
-  auto a       = builder.FillConstant<float>({2, 20}, 2.0f, "A");
-  auto b       = builder.Transpose(a, {1, 0});
-  auto c       = builder.CreateInput(Float(32), {121, 20}, "C");
-  auto d       = builder.Matmul(c, b);
-  auto x       = builder.FillConstant<float>({2, 20}, 1.0f, "X");
-  auto y       = builder.Transpose(x, {1, 0});
-  auto z       = builder.CreateInput(Float(32), {20, 121}, "Z");
-  auto l       = builder.Transpose(z, {1, 0});
-  auto q       = builder.Matmul(l, y);
-  auto p       = builder.Mul(c, a);
-  auto m       = builder.Sub(d, p);
-  auto n       = builder.Add(d, q);
-  auto out     = builder.Add(m, n);
-  auto program = builder.Build();
+// TEST(GemmRwriter, Complex) {
+//   if (!IsCompiledWithCUDA()) {
+//     return;
+//   }
+//   NetBuilder builder("net_builder");
+//   auto a       = builder.FillConstant<float>({2, 20}, 2.0f, "A");
+//   auto b       = builder.Transpose(a, {1, 0});
+//   auto c       = builder.CreateInput(Float(32), {121, 20}, "C");
+//   auto d       = builder.Matmul(c, b);
+//   auto x       = builder.FillConstant<float>({2, 20}, 1.0f, "X");
+//   auto y       = builder.Transpose(x, {1, 0});
+//   auto z       = builder.CreateInput(Float(32), {20, 121}, "Z");
+//   auto l       = builder.Transpose(z, {1, 0});
+//   auto q       = builder.Matmul(l, y);
+//   auto p       = builder.Mul(c, a);
+//   auto m       = builder.Sub(d, p);
+//   auto n       = builder.Add(d, q);
+//   auto out     = builder.Add(m, n);
+//   auto program = builder.Build();
 
-  Target target = common::DefaultNVGPUTarget();
-  std::unordered_set<std::string> fetch_ids{out->id};
-  // apply common pass
-  ProgramPass::Apply(&program, fetch_ids, target, {"Decomposer"});
-  ApplyPass(&program, fetch_ids, "RemoveIdentity");
+//   Target target = common::DefaultNVGPUTarget();
+//   std::unordered_set<std::string> fetch_ids{out->id};
+//   // apply common pass
+//   ProgramPass::Apply(&program, fetch_ids, target, {"Decomposer"});
+//   ApplyPass(&program, fetch_ids, "RemoveIdentity");
 
-  // get origin output
-  auto origin_out = RunProgram(program, target, {c, z}, {out->id});
+//   // get origin output
+//   auto origin_out = RunProgram(program, target, {c, z}, {out->id});
 
-  // fuse transpose + add + dot, then run and get the fused output
-  ApplyPass(&program, fetch_ids, "TransposeFolding");
-  ProgramPass::Apply(&program, fetch_ids, target, {"GemmRewriter"});
-  auto fused_out = RunProgram(program, target, {c, z}, {out->id});
-}
+//   // fuse transpose + add + dot, then run and get the fused output
+//   ApplyPass(&program, fetch_ids, "TransposeFolding");
+//   ProgramPass::Apply(&program, fetch_ids, target, {"GemmRewriter"});
+//   auto fused_out = RunProgram(program, target, {c, z}, {out->id});
+// }
 
 }  // namespace cinn::frontend

@@ -120,7 +120,7 @@ class Placeholder {
  * Data of a Instruction.
  */
 struct _Instruction_ : public common::Object {
-  using attr_t = hlir::framework::AttrType;
+  using attr_t = hlir::framework::Attribute;
 
   std::string op_type;
   absl::flat_hash_map<std::string, attr_t> attrs;

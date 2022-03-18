@@ -23,7 +23,7 @@
 #include "cinn/common/type.h"
 #include "cinn/frontend/base_builder.h"
 #include "cinn/frontend/syntax.h"
-#include "cinn/hlir/framework/node.h"
+#include "cinn/utils/type_defs.h"
 
 // clang-format off
 #define UNARY_OP_FOREACH(macro__)         \
@@ -85,7 +85,7 @@ namespace cinn {
 namespace frontend {
 
 class CinnBuilder : public BaseBuilder {
-  using attr_amp = hlir::framework::AttrMapType;
+  using AttributeMap = utils::AttributeMap;
 
  public:
   using BaseBuilder::BaseBuilder;
@@ -134,7 +134,7 @@ class CinnBuilder : public BaseBuilder {
 
   const std::vector<Variable>& CustomInstr(const std::string& type,
                                            const std::vector<Variable>& inputs,
-                                           const attr_amp& attrs);
+                                           const AttributeMap& attrs);
 
   std::vector<Variable> BnMeanVariance(const Variable& x);
 

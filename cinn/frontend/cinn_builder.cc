@@ -131,7 +131,7 @@ Variable CinnBuilder::Compare(const Variable& lhs, const Variable& rhs, Comparis
 
 const std::vector<Variable>& CinnBuilder::CustomInstr(const std::string& type,
                                                       const std::vector<Variable>& inputs,
-                                                      const attr_amp& attrs) {
+                                                      const AttributeMap& attrs) {
   Instruction instr(type);
   instr.SetInputs(inputs);
   for (auto& kv : attrs) {

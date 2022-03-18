@@ -122,8 +122,8 @@ class GemmRewriterPass : public ProgramPass {
       LOG(INFO) << "-- trans_b = " << std::boolalpha << trans_b;
       const auto& new_outs = builder->CustomInstr("cublas_gemm", inputs, {{"trans_a", trans_a}, {"trans_b", trans_b}});
       auto new_out         = new_outs[0];
-      auto old_out         = instr.GetOutputs()[0];
-      new_out->id          = old_out->id;
+      auto old_out         = instr.GetOutput(0);
+      new_out.set_id(old_out->id);
       origin2new_.emplace(old_out.get(), new_out);
       return true;
     }

@@ -29,7 +29,7 @@ namespace cinn {
 namespace hlir {
 namespace framework {
 // Store params from node to instruction
-void AddAttrs(const absl::flat_hash_map<std::string, AttrType>& attrs_store,
+void AddAttrs(const absl::flat_hash_map<std::string, Attribute>& attrs_store,
               const std::vector<std::string>& attrs_name,
               Instruction* instr) {
   for (auto& attr : attrs_name) {
