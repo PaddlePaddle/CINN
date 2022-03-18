@@ -12,7 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <algorithm>
+#include <iomanip>
+#include <iostream>
 #include <random>
+#include <string>
 #include <unordered_set>
 
 #include "cinn/frontend/net_builder.h"
@@ -39,14 +43,18 @@ bool IsCompiledWithCUDA() {
 }
 
 void PrintMatrix(const std::vector<float>& mat, int m, int n) {
-  std::cout << "-----------------------------------------------------\n";
+  const auto min_max = std::minmax_element(mat.begin(), mat.end());
+  int min            = static_cast<int>(*min_max.first);
+  int max            = static_cast<int>(*min_max.second);
+  auto ele_width     = std::max(std::to_string(min).length(), std::to_string(max).length());
+  std::cout << "\n" << std::string((ele_width + 2) * n - 1, '-') << "\n";
   for (int i = 0; i < m; i++) {
     for (int j = 0; j < n; j++) {
-      std::cout << mat[i * n + j] << ", ";
+      std::cout << std::setw(ele_width) << mat[i * n + j] << ", ";
     }
     std::cout << "\n";
   }
-  std::cout << "-----------------------------------------------------\n\n";
+  std::cout << std::string((ele_width + 2) * n - 1, '-') << "\n\n";
 }
 
 void SetRandData(hlir::framework::Tensor tensor, Target target, int seed = -1) {
@@ -61,7 +69,6 @@ void SetRandData(hlir::framework::Tensor tensor, Target target, int seed = -1) {
   for (size_t i = 0; i < num_ele; i++) {
     random_data[i] = static_cast<float>(dist(engine));  // All random data
   }
-  PrintMatrix(random_data, tensor->shape().data()[0], tensor->shape().data()[1]);
 
   auto* data = tensor->mutable_data<float>(target);
 #ifdef CINN_WITH_CUDA
@@ -85,8 +92,7 @@ std::vector<float> GetTensorData(const hlir::framework::Tensor& tensor, Target t
 
 void RunGraph(std::shared_ptr<hlir::framework::Graph> graph,
               const Target& target,
-              const std::shared_ptr<hlir::framework::Scope>& scope,
-              std::unordered_set<std::string>&& fetch_ids) {
+              const std::shared_ptr<hlir::framework::Scope>& scope) {
   hlir::framework::ApplyPass(graph.get(), "OpFusion");
   LOG(INFO) << "Graph Viz:\n" << graph->Visualize();
   hlir::framework::GraphCompiler gc(target, scope, graph);
@@ -98,16 +104,29 @@ std::vector<float> RunProgram(const Program& program,
                               const Target& target,
                               std::vector<cinn::frontend::Placeholder> inputs,
                               std::vector<std::string> output_ids,
-                              int seed = -1) {
+                              int seed          = -1,
+                              bool print_tensor = false) {
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
   auto scope = hlir::framework::BuildScope(target, graph);
   for (auto& input : inputs) {
-    scope->Var<hlir::framework::Tensor>(std::string(input.id()));
-    SetRandData(scope->GetTensor(std::string(input.id())), target, seed);
+    std::string input_id{input.id()};
+    scope->Var<hlir::framework::Tensor>(input_id);
+    auto input_tensor = scope->GetTensor(input_id);
+    SetRandData(input_tensor, target, seed);
+    if (print_tensor) {
+      auto tensor_data = GetTensorData(input_tensor, target);
+      PrintMatrix(tensor_data, input_tensor->shape().data()[0], input_tensor->shape().data()[1]);
+    }
   }
-  std::unordered_set<std::string> fetch_ids(output_ids.begin(), output_ids.end());
-  RunGraph(graph, target, scope, std::move(fetch_ids));
-  return GetTensorData(scope->GetTensor(output_ids.front()), target);
+
+  RunGraph(graph, target, scope);
+
+  auto output_tensor = scope->GetTensor(output_ids.front());
+  auto output_data   = GetTensorData(output_tensor, target);
+  if (print_tensor) {
+    PrintMatrix(output_data, output_tensor->shape().data()[0], output_tensor->shape().data()[1]);
+  }
+  return output_data;
 }
 
 }  // namespace
@@ -133,14 +152,17 @@ TEST(GemmRwriter, Basic) {
   ApplyPass(&program, fetch_ids, "RemoveIdentity");
 
   // get origin output
-  auto origin_out = RunProgram(program, target, {a, c}, {out->id}, 123);
-  PrintMatrix(origin_out, 8, 7);
+  auto origin_out = RunProgram(program, target, {a, c}, {out->id}, 123, true);
 
   // fuse transpose + add + dot, then run and get the fused output
   ApplyPass(&program, fetch_ids, "TransposeFolding");
   ProgramPass::Apply(&program, fetch_ids, target, {"GemmRewriter"});
-  auto fused_out = RunProgram(program, target, {a, c}, {out->id}, 123);
-  PrintMatrix(fused_out, 8, 7);
+  auto fused_out = RunProgram(program, target, {a, c}, {out->id}, 123, true);
+
+  // ASSERT_EQ(origin_out.size(), fused_out.size());
+  // for (size_t i = 0; i < origin_out.size(); ++i) {
+  //   ASSERT_FLOAT_EQ(origin_out[i], fused_out[i]);
+  // }
 }
 
 // TEST(GemmRwriter, Complex) {
@@ -176,6 +198,10 @@ TEST(GemmRwriter, Basic) {
 //   ApplyPass(&program, fetch_ids, "TransposeFolding");
 //   ProgramPass::Apply(&program, fetch_ids, target, {"GemmRewriter"});
 //   auto fused_out = RunProgram(program, target, {c, z}, {out->id});
+//   ASSERT_EQ(origin_out.size(), fused_out.size());
+//   for (size_t i = 0; i < origin_out.size(); ++i) {
+//     ASSERT_FLOAT_EQ(origin_out[i], fused_out[i]);
+//   }
 // }
 
 }  // namespace cinn::frontend
