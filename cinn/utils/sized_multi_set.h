@@ -14,6 +14,8 @@
 
 #pragma once
 
+#include <glog/logging.h>
+
 #include <functional>
 #include <memory>
 #include <set>
@@ -44,6 +46,7 @@ class SizedMultiSet {
   }
 
   void Pop() {
+    CHECK_GE(multi_set_.size(), 1UL) << "Call Pop on empty SizedMultiSet";
     if (pop_max_when_full_) {
       multi_set_.erase(--multi_set_.end());
     } else {
