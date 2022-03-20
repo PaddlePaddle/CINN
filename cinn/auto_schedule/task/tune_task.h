@@ -20,6 +20,7 @@
 #include "cinn/auto_schedule/task/tune_context.h"
 #include "cinn/common/target.h"
 #include "cinn/hlir/framework/graph.h"
+#include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/node.h"
 #include "cinn/ir/ir_schedule.h"
 
@@ -34,6 +35,10 @@ class TuneTask {
 
   TuneContext& tune_context() { return tune_context_; }
 
+  void SetGraphCompiler(hlir::framework::GraphCompiler* compiler);
+
+  void TaskGraphToModuleExpr();
+
  private:
   // In CINN, we use std::vector<hlir::framework::Node*> to represent a fused
   // sub-graph (if an op won't be fused, it will be a vector with size=1). So
@@ -41,6 +46,8 @@ class TuneTask {
   std::vector<std::vector<hlir::framework::Node*>> task_graph_;
   // Context of a tune task
   TuneContext tune_context_;
+  // Not owned
+  hlir::framework::GraphCompiler* graph_compiler_;
 };
 
 }  // namespace auto_schedule

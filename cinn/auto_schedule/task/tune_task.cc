@@ -14,24 +14,24 @@
 
 #include "cinn/auto_schedule/task/tune_task.h"
 
-#include <absl/container/flat_hash_map.h>
 #include <glog/logging.h>
 
-#include <string>
 #include <vector>
 
-#include "cinn/common/cinn_value.h"
-#include "cinn/common/graph_utils.h"
-#include "cinn/common/shared.h"
-#include "cinn/common/target.h"
-#include "cinn/common/type.h"
 #include "cinn/hlir/framework/node.h"
-#include "cinn/hlir/framework/op.h"
-#include "cinn/hlir/framework/op_strategy.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_schedule.h"
-#include "cinn/lang/placeholder.h"
 
 namespace cinn {
-namespace auto_schedule {}  // namespace auto_schedule
+namespace auto_schedule {
+
+void TuneTask::SetGraphCompiler(hlir::framework::GraphCompiler* compiler) { graph_compiler_ = compiler; }
+
+void TuneTask::TaskGraphToModuleExpr() {
+  CHECK(graph_compiler_ != nullptr) << "graph_compiler_ must be set before processing graph";
+  std::vector<ir::Expr> exprs = graph_compiler_->FusedGraphToExpr(task_graph_);
+  tune_context_.module        = ir::ModuleExpr(exprs);
+}
+
+}  // namespace auto_schedule
 }  // namespace cinn
