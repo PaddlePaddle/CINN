@@ -1102,6 +1102,149 @@ std::shared_ptr<Scope> BuildScope(Target target, const std::shared_ptr<Graph>& g
   return scope;
 }
 
+std::vector<ir::Expr> GraphCompiler::FusedGraphToExpr(const std::vector<std::vector<hlir::framework::Node*>>& graph) {
+  std::vector<ir::Expr> result;
+  for (const std::vector<hlir::framework::Node*>& node_group : graph) {
+    CHECK(!node_group.empty()) << "Invalid graph which contains empty node group in GraphCompiler.";
+    if (node_group.size() == 1) {
+      std::vector<ir::Expr> node_expr = NodeToExpr(*(node_group[0]));
+      result.insert(result.end(), node_expr.begin(), node_expr.end());
+    } else {
+      std::vector<ir::Expr> fused_expr = FusedNodeGroupToExpr(node_group);
+      result.insert(result.end(), fused_expr.begin(), fused_expr.end());
+    }
+  }
+  return result;
+}
+
+std::vector<ir::Expr> GraphCompiler::NodeToExpr(const hlir::framework::Node& node) {
+  VLOG(4) << "Start NodeToExpr of op " << node.id();
+  auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
+  auto& dtype_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
+
+  std::vector<ir::Tensor> inputs;
+  std::vector<common::CINNValue> cinn_value_inputs;
+
+  for (const common::Shared<common::GraphEdge>& i : node.inlinks_in_order(true)) {
+    std::string input_id    = i->source()->as<NodeData>()->id();
+    const shape_t& in_shape = shape_dict.at(input_id);
+    Type in_dtype           = dtype_dict.at(input_id);
+
+    CHECK(in_dtype == Float(32) || in_dtype.is_bool() || in_dtype == Int(32))
+        << "The dtype of node " << input_id << " is " << in_dtype << ", which is not supported yet.";
+
+    ir::Tensor tmp = lang::CreatePlaceHolder(in_shape, in_dtype, input_id);
+    inputs.push_back(tmp);
+    cinn_value_inputs.push_back(common::CINNValue(tmp));
+  }
+
+  std::vector<Type> out_types;
+  std::vector<std::vector<int>> output_shapes;
+  for (const common::Shared<common::GraphEdge>& out : node.outlinks_in_order(true)) {
+    std::string out_id       = out->sink()->safe_as<NodeData>()->id();
+    const shape_t& out_shape = shape_dict.at(out_id);
+    Type dtype               = dtype_dict.at(out_id);
+    output_shapes.push_back(out_shape);
+    out_types.push_back(dtype);
+  }
+
+  auto& strategy = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
+
+  // Current SelectImpl would set implementation schedule
+  // Consider to remove it when auto tunine has good performance
+  std::shared_ptr<OpImpl> impl =
+      OpStrategy::SelectImpl(strategy[node.op()](node.attrs, inputs, out_types, output_shapes, target_));
+  common::CINNValuePack C = impl->fcompute(common::CINNValuePack{cinn_value_inputs});
+  poly::StageMap stages   = C.back();
+
+  std::vector<ir::LoweredFunc> funcs =
+      lang::LowerVec(GetOrGenFullFuncName(GenOpFuncName(&node)), stages, inputs, {}, {}, nullptr, target_);
+
+  VLOG(6) << "The [" << funcs.size() << "] functions of node [" << node.attrs.node_name << "] are:\n";
+  for (auto& f : funcs) {
+    VLOG(6) << f;
+  }
+  std::vector<Expr> ast_vec = {funcs[0]->body};
+
+  return ast_vec;
+}
+
+std::vector<ir::Expr> GraphCompiler::FusedNodeGroupToExpr(const std::vector<hlir::framework::Node*>& node_group) {
+  VLOG(4) << "fuse begin: " << node_group[0]->id();
+  int fuse_number = node_group.size();
+  CHECK_GT(fuse_number, 1) << "fuse nodes number must be greater than 1";
+
+  auto& strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
+  auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
+  auto& dtype_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
+
+  poly::StageMap stages;
+  std::vector<ir::Tensor> inputs;
+  std::unordered_set<NodeData*> in_vars;
+  std::unordered_set<NodeData*> out_vars;
+  absl::flat_hash_map<NodeData*, Expr> temp_var_map;
+  std::string fuse_name = "fn_";
+  int master_index      = GetMasterRefNode(node_group);
+  for (const hlir::framework::Node* node : node_group) {
+    std::vector<ir::Tensor> temp_inputs;
+    std::vector<common::CINNValue> cinn_value_inputs;
+
+    fuse_name += node->id() + "_";
+    for (const common::Shared<common::GraphEdge>& link : node->inlinks_in_order(true)) {
+      NodeData* source_data = link->source()->as<NodeData>();
+      in_vars.insert(source_data);
+      if (temp_var_map.count(source_data)) {
+        VLOG(6) << "duplicate var: " << source_data->id();
+        Expr fuse_out = temp_var_map[source_data];
+        cinn_value_inputs.push_back(common::CINNValue(fuse_out));
+        temp_inputs.push_back(fuse_out.as_tensor_ref());
+      } else {
+        std::string input_id = source_data->id();
+        shape_t in_shape     = shape_dict.at(input_id);
+        Type in_dtype        = dtype_dict.at(input_id);
+        ir::Tensor temp_in   = lang::CreatePlaceHolder(in_shape, in_dtype, input_id);
+        inputs.push_back(temp_in);
+        temp_inputs.push_back(temp_in);
+        cinn_value_inputs.push_back(common::CINNValue(temp_in));
+        temp_var_map[source_data] = Expr(temp_in);
+      }
+    }
+
+    std::vector<std::vector<int>> output_shapes;
+    std::vector<Type> out_types;
+    std::vector<NodeData*> temp_outvars;
+    for (const common::Shared<common::GraphEdge>& out : node->outlinks_in_order(true)) {
+      NodeData* out_var = out->sink()->safe_as<NodeData>();
+      out_vars.insert(out_var);
+
+      temp_outvars.push_back(out_var);
+      std::string out_id = out_var->id();
+      shape_t out_shape  = shape_dict.at(out_id);
+      Type dtype         = dtype_dict.at(out_id);
+      output_shapes.push_back(out_shape);
+      out_types.push_back(dtype);
+    }
+
+    std::shared_ptr<OpImpl> impl =
+        OpStrategy::SelectImpl(strategy[node->op()](node->attrs, temp_inputs, out_types, output_shapes, target_));
+    common::CINNValuePack C = impl->fcompute(common::CINNValuePack{cinn_value_inputs});
+  }
+  fuse_name += "fused";
+  VLOG(6) << "fuse_name: " << fuse_name;
+  std::vector<ir::LoweredFunc> funcs =
+      lang::LowerVec(GetOrGenFullFuncName(fuse_name), stages, inputs, {}, {}, nullptr, this->target_);
+
+  VLOG(6) << "The [" << funcs.size() << "] functions of " << fuse_name << " are:\n";
+  std::vector<Expr> ast_vec;
+  for (const ir::LoweredFunc& f : funcs) {
+    VLOG(6) << "Function [" << f->name << "] is:\n";
+    VLOG(6) << f;
+    ast_vec.push_back(f->body);
+  }
+
+  return ast_vec;
+}
+
 }  // namespace framework
 }  // namespace hlir
 }  // namespace cinn
