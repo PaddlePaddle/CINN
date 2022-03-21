@@ -14,12 +14,24 @@
 
 #pragma once
 
-#include "cinn/auto_schedule/task/task_tuner.h"
+#include "cinn/auto_schedule/task/tune_task.h"
+#include "cinn/auto_schedule/task/tuning_options.h"
 
 namespace cinn {
 namespace auto_schedule {
 
-void TaskTuner::Tune(const TuningOptions& options) {}
+// This class is responsible for tuning a specific task,
+// it will integrate necessary components to search the
+// optimal schedule for the task.
+class TaskOptimizer {
+ public:
+  TaskOptimizer(const TuneTask& task) : task_(&task) {}
+
+  void Tune(const TuningOptions& options);
+
+ private:
+  const TuneTask* task_;
+};
 
 }  // namespace auto_schedule
 }  // namespace cinn

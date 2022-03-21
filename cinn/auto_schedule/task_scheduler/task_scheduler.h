@@ -19,7 +19,7 @@
 #include <string>
 #include <vector>
 
-#include "cinn/auto_schedule/task/task_tuner.h"
+#include "cinn/auto_schedule/task/task_optimizer.h"
 #include "cinn/auto_schedule/task/tune_task.h"
 #include "cinn/auto_schedule/task/tuning_options.h"
 
@@ -65,7 +65,7 @@ class TaskScheduler {
   // The current task id to be estimated
   int cur_task_id_;
   // The tuners to perform auto-tune, each tuner assigns a task.
-  std::vector<std::unique_ptr<TaskTuner>> task_tuners_;
+  std::vector<std::unique_ptr<TaskOptimizer>> task_tuners_;
 };
 
 }  // namespace auto_schedule

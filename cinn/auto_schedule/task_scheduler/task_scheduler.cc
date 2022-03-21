@@ -43,7 +43,7 @@ TaskScheduler::TaskScheduler(const std::vector<TuneTask>& tasks, const Config& c
 
   task_tuners_.resize(tasks.size());
   std::transform(tasks.begin(), tasks.end(), task_tuners_.begin(), [](const TuneTask& task) {
-    return std::make_unique<TaskTuner>(task);
+    return std::make_unique<TaskOptimizer>(task);
   });
 }
 

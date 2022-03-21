@@ -12,26 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#pragma once
-
-#include "cinn/auto_schedule/task/tune_task.h"
-#include "cinn/auto_schedule/task/tuning_options.h"
+#include "cinn/auto_schedule/task/task_optimizer.h"
 
 namespace cinn {
 namespace auto_schedule {
 
-// This class is responsible for tuning a specific task,
-// it will integrate necessary components to search the
-// optimal schedule for the task.
-class TaskTuner {
- public:
-  TaskTuner(const TuneTask& task) : task_(&task) {}
-
-  void Tune(const TuningOptions& options);
-
- private:
-  const TuneTask* task_;
-};
+void TaskOptimizer::Tune(const TuningOptions& options) {}
 
 }  // namespace auto_schedule
 }  // namespace cinn
