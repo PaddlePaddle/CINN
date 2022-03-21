@@ -75,10 +75,15 @@ TEST(TuneTask, GraphToModuleExpr_NoPass) {
   for (TuneTask& task : tasks) {
     task.SetGraphCompiler(&graph_compiler);
     task.TaskGraphToModuleExpr();
+
+    std::vector<ir::Expr> exprs = task.tune_context().module.GetExprs();
+    VLOG(6) << "ir:Expr is: ";
+    for (const ir::Expr& e : exprs) {
+      VLOG(6) << e;
+    }
   }
 }
 
-/*
 TEST(TuneTask, GraphToModuleExpr_ApplyPass) {
   Context::Global().ResetNameId();
 #ifdef CINN_WITH_CUDA
@@ -101,8 +106,14 @@ TEST(TuneTask, GraphToModuleExpr_ApplyPass) {
   for (TuneTask& task : tasks) {
     task.SetGraphCompiler(&graph_compiler);
     task.TaskGraphToModuleExpr();
+
+    std::vector<ir::Expr> exprs = task.tune_context().module.GetExprs();
+    VLOG(6) << "ir:Expr is: ";
+    for (const ir::Expr& e : exprs) {
+      VLOG(6) << e;
+    }
   }
-}*/
+}
 
 }  // namespace auto_schedule
 }  // namespace cinn

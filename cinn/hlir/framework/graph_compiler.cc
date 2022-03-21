@@ -1162,6 +1162,7 @@ std::vector<ir::Expr> GraphCompiler::NodeToExpr(const hlir::framework::Node& nod
     ir::Expr temp = C[i];
     // checkout whether the tensor is with buffer.
     if (!temp.as_tensor_ref()->buffer.defined() || this->target_ != common::DefaultNVGPUTarget()) {
+      // inputs is reused as args of LowerVec, so we add output Tensor here.
       inputs.push_back(temp.as_tensor_ref());
     }
   }
@@ -1183,8 +1184,8 @@ std::vector<ir::Expr> GraphCompiler::NodeToExpr(const hlir::framework::Node& nod
 
 std::vector<ir::Expr> GraphCompiler::FusedNodeGroupToExpr(const std::vector<hlir::framework::Node*>& node_group) {
   VLOG(4) << "fuse begin: " << node_group[0]->id();
-  int fuse_number = node_group.size();
-  CHECK_GT(fuse_number, 1) << "fuse nodes number must be greater than 1";
+  size_t fuse_number = node_group.size();
+  CHECK_GT(fuse_number, 1UL) << "fuse nodes number must be greater than 1";
 
   auto& strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
   auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
@@ -1192,12 +1193,15 @@ std::vector<ir::Expr> GraphCompiler::FusedNodeGroupToExpr(const std::vector<hlir
 
   poly::StageMap stages;
   std::vector<ir::Tensor> inputs;
+  std::vector<ir::Tensor> outputs;
   std::unordered_set<NodeData*> in_vars;
   std::unordered_set<NodeData*> out_vars;
   absl::flat_hash_map<NodeData*, Expr> temp_var_map;
+  absl::flat_hash_set<ir::Tensor> fetch_tensors;
   std::string fuse_name = "fn_";
   int master_index      = GetMasterRefNode(node_group);
-  for (const hlir::framework::Node* node : node_group) {
+  for (size_t index = 0; index < node_group.size(); ++index) {
+    const hlir::framework::Node* node = node_group[index];
     std::vector<ir::Tensor> temp_inputs;
     std::vector<common::CINNValue> cinn_value_inputs;
 
@@ -1240,9 +1244,42 @@ std::vector<ir::Expr> GraphCompiler::FusedNodeGroupToExpr(const std::vector<hlir
     std::shared_ptr<OpImpl> impl =
         OpStrategy::SelectImpl(strategy[node->op()](node->attrs, temp_inputs, out_types, output_shapes, target_));
     common::CINNValuePack C = impl->fcompute(common::CINNValuePack{cinn_value_inputs});
+
+    // The last element of the result of fcompute is a StageMap
+    poly::StageMap temp_stages = C.back();
+    for (const auto& i : temp_stages) {
+      ir::Tensor tensor(i.second->tensor());
+      stages->InsertLazily(tensor, i.second.get());
+    }
+
+    for (int i = 0; i < C.size() - 1; i++) {
+      Expr out                      = C[i];
+      temp_var_map[temp_outvars[i]] = out;
+      ir::Tensor temp_tensor        = out.as_tensor_ref();
+      stages->InsertLazily(temp_tensor, temp_stages[temp_tensor]);
+      if (fetch_var_ids_.count(temp_outvars[i]->id())) {
+        VLOG(6) << "get fetch output var " << temp_outvars[i]->id();
+        CHECK(out.as_tensor());
+        fetch_tensors.insert(out.as_tensor_ref());
+      }
+      if (index == fuse_number - 1) {
+        // final output tensor
+        outputs.insert(outputs.begin(), temp_tensor);
+      } else {
+        outputs.push_back(temp_tensor);
+      }
+    }
   }
   fuse_name += "fused";
   VLOG(6) << "fuse_name: " << fuse_name;
+
+  for (const ir::Tensor& tensor : outputs) {
+    // checkout the tensor is with buffer.
+    if (!tensor->buffer.defined() || this->target_ != common::DefaultNVGPUTarget()) {
+      inputs.push_back(tensor);
+    }
+  }
+
   std::vector<ir::LoweredFunc> funcs =
       lang::LowerVec(GetOrGenFullFuncName(fuse_name), stages, inputs, {}, {}, nullptr, this->target_);
 
