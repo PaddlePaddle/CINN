@@ -1151,11 +1151,23 @@ std::vector<ir::Expr> GraphCompiler::NodeToExpr(const hlir::framework::Node& nod
   auto& strategy = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
 
   // Current SelectImpl would set implementation schedule
-  // Consider to remove it when auto tunine has good performance
   std::shared_ptr<OpImpl> impl =
       OpStrategy::SelectImpl(strategy[node.op()](node.attrs, inputs, out_types, output_shapes, target_));
   common::CINNValuePack C = impl->fcompute(common::CINNValuePack{cinn_value_inputs});
-  poly::StageMap stages   = C.back();
+  // The last element of the result of fcompute is a StageMap
+  poly::StageMap stages = static_cast<poly::StageMap>(C.back());
+
+  // make sure the outputs are also in the Lower inputs
+  for (int i = 0; i < C->size() - 1; ++i) {
+    ir::Expr temp = C[i];
+    // checkout whether the tensor is with buffer.
+    if (!temp.as_tensor_ref()->buffer.defined() || this->target_ != common::DefaultNVGPUTarget()) {
+      inputs.push_back(temp.as_tensor_ref());
+    }
+  }
+  // Note: we didn't call `C = impl->fschedule(C)` because we remove the pre-set
+  // schedule in auto-tuning. Can we speed up tuning using pre-set? Consider it
+  // in the future.
 
   std::vector<ir::LoweredFunc> funcs =
       lang::LowerVec(GetOrGenFullFuncName(GenOpFuncName(&node)), stages, inputs, {}, {}, nullptr, target_);
