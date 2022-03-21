@@ -50,7 +50,7 @@ void BroadcastOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
   auto y_shape = op_desc.GetAttr<std::vector<int>>("shape");
   auto x       = ctx.GetVar(x_name);
 
-  VLOG(4) << "Broadcast " << x_name << "from shape (" << cinn::utils::Join(x->shape, ",") << ") to shape ("
+  VLOG(4) << "Broadcast " << x_name << " from shape (" << cinn::utils::Join(x->shape, ",") << ") to shape ("
           << cinn::utils::Join(y_shape, ",") << ").";
 
   auto out = ctx.Builder()->BroadcastTo(x, y_shape);
