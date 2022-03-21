@@ -108,8 +108,6 @@ TEST(OP_LOWERING, Broadcast_Test_0) {
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
   hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
 
-  LOG(INFO) << graph->Visualize();
-
   auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
   auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
 
@@ -126,13 +124,8 @@ TEST(OP_LOWERING, Reduce_Test_0) {
   NetBuilder net_builder("Reduce_Test_0");
   // create model
   {
-    auto A = net_builder.CreateInput(Float(32), {w}, "A");
-    auto B = net_builder.CreateInput(Float(32), {w}, "B");
-    auto C = net_builder.CreateInput(Float(32), {h, w}, "C");
-    auto D = net_builder.CreateInput(Float(32), {h, w}, "D");
-    auto E = net_builder.ElementwiseAdd(C, A);
-    auto F = net_builder.ElementwiseAdd(D, B);
-    auto G = net_builder.ElementwiseAdd(E, F);
+    auto A = net_builder.CreateInput(Float(32), {w, h}, "A");
+    auto B = net_builder.Reduce(A, ReduceKind::kSum, {0, 1});
   }
 
   auto program = net_builder.Build();
@@ -142,7 +135,101 @@ TEST(OP_LOWERING, Reduce_Test_0) {
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
   hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
 
-  LOG(INFO) << graph->Visualize();
+  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
+  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
+
+  OpLoweringHelper op_lowering_helper(dtype_dict, shape_dict, target);
+  for (auto& fusion_op : graph->fusion_groups) {
+    auto lowered_func = op_lowering_helper.Lowering(fusion_op);
+    CHECK_EQ(lowered_func.size(), 1);
+    LOG(INFO) << lowered_func[0];
+  }
+}
+
+TEST(OP_LOWERING, Reduce_Test_1) {
+  int h = 32, w = 32;
+  NetBuilder net_builder("Reduce_Test_1");
+  // create model
+  {
+    auto A = net_builder.CreateInput(Float(32), {h, w}, "A");
+    auto B = net_builder.CreateInput(Float(32), {w}, "B");
+
+    auto C = net_builder.Reduce(A, ReduceKind::kSum, {0});
+    auto D = net_builder.ElementwiseAdd(B, C);
+  }
+
+  auto program = net_builder.Build();
+  auto target  = GetTarget();
+  RunDecomposer(&program, target);
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+  CHECK_EQ(graph->fusion_groups.size(), 1);
+
+  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
+  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
+
+  OpLoweringHelper op_lowering_helper(dtype_dict, shape_dict, target);
+  for (auto& fusion_op : graph->fusion_groups) {
+    auto lowered_func = op_lowering_helper.Lowering(fusion_op);
+    CHECK_EQ(lowered_func.size(), 1);
+    LOG(INFO) << lowered_func[0];
+  }
+}
+
+TEST(OP_LOWERING, Reduce_Test_2) {
+  int h = 32, w = 32;
+  NetBuilder net_builder("Reduce_Test_2");
+  // create model
+  {
+    auto A = net_builder.CreateInput(Float(32), {h, w}, "A");
+    auto B = net_builder.CreateInput(Float(32), {h, w}, "B");
+    auto C = net_builder.ElementwiseAdd(A, B);
+    auto D = net_builder.Reduce(C, ReduceKind::kSum, {1});
+  }
+
+  auto program = net_builder.Build();
+  auto target  = GetTarget();
+  RunDecomposer(&program, target);
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+  CHECK_EQ(graph->fusion_groups.size(), 1);
+
+  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
+  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
+
+  OpLoweringHelper op_lowering_helper(dtype_dict, shape_dict, target);
+  for (auto& fusion_op : graph->fusion_groups) {
+    auto lowered_func = op_lowering_helper.Lowering(fusion_op);
+    CHECK_EQ(lowered_func.size(), 1);
+    LOG(INFO) << lowered_func[0];
+  }
+}
+
+TEST(OP_LOWERING, Reduce_Test_3) {
+  int h = 32, w = 32;
+  NetBuilder net_builder("Reduce_Test_3");
+  // create model
+  {
+    auto A = net_builder.CreateInput(Float(32), {h, w}, "A");
+    auto B = net_builder.CreateInput(Float(32), {w}, "B");
+    auto C = net_builder.CreateInput(Float(32), {w}, "C");
+    auto D = net_builder.CreateInput(Float(32), {w}, "D");
+
+    auto E = net_builder.Reduce(A, ReduceKind::kSum, {0});
+    auto F = net_builder.ElementwiseAdd(B, C);
+    auto G = net_builder.ElementwiseAdd(D, F);
+    auto H = net_builder.ElementwiseAdd(E, G);
+  }
+
+  auto program = net_builder.Build();
+  auto target  = GetTarget();
+  RunDecomposer(&program, target);
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+  CHECK_EQ(graph->fusion_groups.size(), 1);
 
   auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
   auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");

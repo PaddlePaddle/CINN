@@ -260,12 +260,12 @@ std::vector<ir::LoweredFunc> OpLoweringHelper::ReduceOpLowering(const Group& gro
         }
       }
 
-      if (C.size() == 2) {
+      if (C.size() >= 2) {
         tensor_map[node_data->id()] = out.as_tensor_ref();
         stages->InsertLazily(out.as_tensor_ref(), tmp_stages[out.as_tensor_ref()]);
       }
 
-      if (C.size() == 3) {
+      if (C.size() >= 3) {
         Expr out_0                         = C[1];
         tensor_map[node_data->id() + "_0"] = out_0.as_tensor_ref();
         stages->InsertLazily(out_0.as_tensor_ref(), tmp_stages[out_0.as_tensor_ref()]);
@@ -301,6 +301,16 @@ std::vector<ir::LoweredFunc> OpLoweringHelper::ReduceOpLowering(const Group& gro
         break;
       }
     }
+
+    // if not find master node, using last kCommReduce as master node.
+    if (!master_node) {
+      if (group->fused_sub_groups.empty()) {
+        master_node = group->nodes.front();
+      } else {
+        master_node = group->fused_sub_groups.back()->nodes.front();
+      }
+      CHECK_EQ(op_pattern_dict[master_node->op()], framework::kCommReduce) << "Master Node Type Must Be Reduce!";
+    }
     auto master_node_data = GetNodeData(master_node);
     auto master_stage     = stages[tensor_map[master_node_data->id()]];
 
@@ -308,8 +318,8 @@ std::vector<ir::LoweredFunc> OpLoweringHelper::ReduceOpLowering(const Group& gro
       auto node      = sub_group->nodes[idx];
       auto node_data = GetNodeData(node);
       auto stage     = stages[tensor_map[node_data->id()]];
-      // if group master node and not kCommReduce
-      if (group->master_nodes.count(node) && op_pattern_dict[master_node->op()] != framework::kCommReduce) {
+      // if node is kCommReduce
+      if (node == master_node) {
         continue;
       }
 
@@ -398,7 +408,7 @@ std::vector<ir::LoweredFunc> OpLoweringHelper::ReduceOpLowering(const Group& gro
     }
   };
 
-  if (group->fused_sub_groups.size() == 0) {
+  if (group->fused_sub_groups.empty()) {
     schedule(group);
   } else {
     for (auto& sub_group : group->fused_sub_groups) {
@@ -407,7 +417,7 @@ std::vector<ir::LoweredFunc> OpLoweringHelper::ReduceOpLowering(const Group& gro
   }
 
   for (auto& node : group->output_nodes) {
-    auto tensor = tensor_map[node->id()];
+    auto tensor = tensor_map[GetNodeData(node)->id()];
     func_args.push_back(tensor);
   }
 
@@ -513,6 +523,18 @@ std::vector<ir::LoweredFunc> OpLoweringHelper::FusableOpLowering(const Group& gr
         break;
       }
     }
+
+    // if not find master node, using last kOutEWiseFusable as master node.
+    if (!master_node) {
+      if (group->fused_sub_groups.empty()) {
+        master_node = group->nodes.front();
+      } else {
+        master_node = group->fused_sub_groups.back()->nodes.front();
+      }
+      CHECK_EQ(op_pattern_dict[master_node->op()], framework::kOutEWiseFusable)
+          << "Master Node Type Must Be OutEWiseFusable!";
+    }
+
     auto master_node_data = GetNodeData(master_node);
     auto master_stage     = stages[tensor_map[master_node_data->id()]];
 
@@ -520,8 +542,8 @@ std::vector<ir::LoweredFunc> OpLoweringHelper::FusableOpLowering(const Group& gr
       auto node      = sub_group->nodes[idx];
       auto node_data = GetNodeData(node);
       auto stage     = stages[tensor_map[node_data->id()]];
-      // if group master node and not kOutEWiseFusable
-      if (group->master_nodes.count(node) && op_pattern_dict[master_node->op()] != framework::kOutEWiseFusable) {
+      // if node is master node.
+      if (node == master_node) {
         continue;
       }
 
@@ -529,7 +551,7 @@ std::vector<ir::LoweredFunc> OpLoweringHelper::FusableOpLowering(const Group& gr
       if (op_pattern_dict[node->op()] == framework::kOutEWiseFusable) {
         // if node is not output nodes
         if (!group->output_nodes.count(node)) {
-          tensor_map[node->id()]->WithBuffer("local");
+          tensor_map[node_data->id()]->WithBuffer("local");
         }
         // use compute at master node
         stage->SimpleComputeAt(master_stage, master_stage->n_out_dims() - 1);
@@ -564,7 +586,7 @@ std::vector<ir::LoweredFunc> OpLoweringHelper::FusableOpLowering(const Group& gr
   }
 
   for (auto& node : group->output_nodes) {
-    auto tensor = tensor_map[node->id()];
+    auto tensor = tensor_map[GetNodeData(node)->id()];
     func_args.push_back(tensor);
   }
 
