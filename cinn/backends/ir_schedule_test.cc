@@ -467,6 +467,7 @@ TEST(IrSchedule, parallel) {
   std::string target_code = R"ROC(
 #include <cinn_runtime.h>
 #include <stdio.h>
+
 void test_parallel(void* _args, int32_t num_args)
 {
   const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
@@ -553,6 +554,7 @@ function test_vectorize (_A, _B)
   std::string target_code = R"ROC(
 #include <cinn_runtime.h>
 #include <stdio.h>
+
 void test_vectorize(void* _args, int32_t num_args)
 {
   const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
@@ -628,6 +630,7 @@ function test_unroll (_A, _B)
   std::string target_code = R"ROC(
 #include <cinn_runtime.h>
 #include <stdio.h>
+
 void test_unroll(void* _args, int32_t num_args)
 {
   const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
