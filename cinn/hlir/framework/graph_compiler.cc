@@ -1130,9 +1130,6 @@ std::vector<ir::Expr> GraphCompiler::NodeToExpr(const hlir::framework::Node& nod
     const shape_t& in_shape = shape_dict.at(input_id);
     Type in_dtype           = dtype_dict.at(input_id);
 
-    CHECK(in_dtype == Float(32) || in_dtype.is_bool() || in_dtype == Int(32))
-        << "The dtype of node " << input_id << " is " << in_dtype << ", which is not supported yet.";
-
     ir::Tensor tmp = lang::CreatePlaceHolder(in_shape, in_dtype, input_id);
     inputs.push_back(tmp);
     cinn_value_inputs.push_back(common::CINNValue(tmp));
@@ -1150,7 +1147,6 @@ std::vector<ir::Expr> GraphCompiler::NodeToExpr(const hlir::framework::Node& nod
 
   auto& strategy = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
 
-  // Current SelectImpl would set implementation schedule
   std::shared_ptr<OpImpl> impl =
       OpStrategy::SelectImpl(strategy[node.op()](node.attrs, inputs, out_types, output_shapes, target_));
   common::CINNValuePack C = impl->fcompute(common::CINNValuePack{cinn_value_inputs});
