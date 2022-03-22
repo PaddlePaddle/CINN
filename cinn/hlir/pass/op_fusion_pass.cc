@@ -496,9 +496,8 @@ class OpFusionPassHelper {
 
   std::vector<Node*> nodes_;
   std::unordered_map<const Node*, Group> fusion_groups_;
+  // shape dict
   const absl::flat_hash_map<std::string, shape_t>& shape_dict_;
-  // a node map
-  std::unordered_set<Node*> nodes_set_;
   // op pattern dict
   const framework::OpValueType<OpPatternKind>* op_pattern_dict_;
 
