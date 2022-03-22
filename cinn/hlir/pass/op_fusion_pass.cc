@@ -369,7 +369,9 @@ class OpFusionPassHelper {
         break;
       }
 
-      return succesive_reduce_dimension <= this->target_.max_num_threads() ? true : false;
+      return this->target_ == common::DefaultNVGPUTarget()
+                 ? (succesive_reduce_dimension <= this->target_.max_num_threads() ? true : false)
+                 : true;
     };
 
     // fusion relation.
