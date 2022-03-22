@@ -349,7 +349,7 @@ void ScheduleHelper::Replace(const Expr& src_sref, const Expr& tgt_stmt) {
   auto exprs = module_expr_.GetExprs();
   ForLoopMutator mutator(src_sref, tgt_stmt);
   for (auto& i : exprs) {
-    LOG(INFO) << "Origin Expr is: \n" << i;
+    VLOG(3) << "Origin Expr is: \n" << i;
     mutator(&i);
   }
 }
@@ -571,7 +571,7 @@ std::vector<Expr> GetConsumers(const Expr& block, const Expr& root) {
  * \param loop The for node we want to put the block under in ComputeAt.
  * \param root The root ScheduleBlockRealize node of block and loop.
  */
-void CheckValidation(const Expr& block, const Expr& loop, const Expr& root) {
+void CheckComputeAtValidation(const Expr& block, const Expr& loop, const Expr& root) {
   auto find_block = ir::CollectIRNodesWithoutTensor(root, [&](const Expr* x) { return *x == block; });
   CHECK(!find_block.empty()) << "Didn't find block in root!";
 
@@ -848,7 +848,7 @@ void IRSchedule::ComputeAt(const Expr& block, const Expr& loop) {
   Expr root      = this->GetRootBlock(block);
   auto producers = GetProducers(block, root);
   auto consumers = GetConsumers(block, root);
-  CheckValidation(block, loop, root);
+  CheckComputeAtValidation(block, loop, root);
   LoopReconstructor reconstructor(root, block, loop);
   LeafBlockRemovalPlan remove_plan(block, &reconstructor.source_expr, &reconstructor.target_expr);
   remove_plan(&root);
