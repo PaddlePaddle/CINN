@@ -5,7 +5,6 @@ gather_srcs(cinnapi_src SRCS
   dot_lang.cc
   error.cc
   functional.cc
-  graph_to_expr.cc
   sized_multi_set.cc
   small_vector.cc
   string.cc

@@ -31,6 +31,8 @@ class TuneTask {
  public:
   TuneTask() = default;
 
+  TuneTask(hlir::framework::GraphCompiler* compiler) : graph_compiler_(compiler) {}
+
   std::vector<std::vector<hlir::framework::Node*>>& task_graph() { return task_graph_; }
 
   TuneContext& tune_context() { return tune_context_; }
