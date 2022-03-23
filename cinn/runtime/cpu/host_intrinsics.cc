@@ -36,13 +36,16 @@ void __cinn_host_tanh_v(const cinn_buffer_t* x, cinn_buffer_t* out) {
   }
 }
 
-inline int cinn_host_find(const cinn_buffer_t* buf, int size, int num) {
-  // find the last index which satisfies buf[i] == num
-  for (int i = size - 1; i >= 0; --i) {
-    if (reinterpret_cast<int*>(buf->memory)[i] == num) return i;
+#define DEFINE_CINN_HOST_FIND(TYPE)                                                   \
+  inline int cinn_host_find_##TYPE(const cinn_buffer_t* buf, int size, int num) {     \
+    for (int i = size - 1; i >= 0; --i) {                                             \
+      if (static_cast<int>(reinterpret_cast<TYPE*>(buf->memory)[i]) == num) return i; \
+    }                                                                                 \
+    return -1;                                                                        \
   }
-  return -1;
-}
+
+CINN_HOST_FIND_FOREACH_TYPE(DEFINE_CINN_HOST_FIND)
+#undef DEFINE_CINN_HOST_FIND
 }
 
 CINN_REGISTER_HELPER(host_intrinsics) {
@@ -62,12 +65,16 @@ CINN_REGISTER_HELPER(host_intrinsics) {
   REGISTER_EXTERN_FUNC_1_IN_1_OUT_FP32(atanf);
   REGISTER_EXTERN_FUNC_1_IN_1_OUT_FP32(atanhf);
 
-  REGISTER_EXTERN_FUNC_HELPER(cinn_host_find, host_target)
-      .SetRetType<int>()
-      .AddInputType<cinn_buffer_t*>()
-      .AddInputType<int>()
-      .AddInputType<int>()
+#define REGISTER_CINN_HOST_FIND(TYPE)                             \
+  REGISTER_EXTERN_FUNC_HELPER(cinn_host_find_##TYPE, host_target) \
+      .SetRetType<int>() \ 
+      .AddInputType<cinn_buffer_t*>()                             \
+      .AddInputType<int>()                                        \
+      .AddInputType<int>()                                        \
       .End();
+
+  CINN_HOST_FIND_FOREACH_TYPE(REGISTER_CINN_HOST_FIND)
+#undef REGISTER_CINN_HOST_FIND
 
   return true;
 }
