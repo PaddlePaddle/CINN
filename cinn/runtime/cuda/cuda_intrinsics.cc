@@ -135,8 +135,7 @@ CINN_REGISTER_HELPER(cuda_intrinsics) {
 #ifndef CINN_CUDA_FIND_FOREACH_TYPE
 #define CINN_CUDA_FIND_FOREACH_TYPE(MACRO) \
   MACRO(int)                               \
-  MACRO(float)                             \
-  MACRO(int64_t)
+  MACRO(float)
 #endif
 
 #define REGISTER_CINN_CUDA_FIND(TYPE)                               \
@@ -144,7 +143,7 @@ CINN_REGISTER_HELPER(cuda_intrinsics) {
       .SetRetType<int>()                                            \
       .AddInputType<cinn_buffer_t *>()                              \
       .AddInputType<int>()                                          \
-      .AddInputType<int>()                                          \
+      .AddInputType<TYPE>()                                         \
       .End();
   CINN_CUDA_FIND_FOREACH_TYPE(REGISTER_CINN_CUDA_FIND)
 #undef REGISTER_CINN_CUDA_FIND

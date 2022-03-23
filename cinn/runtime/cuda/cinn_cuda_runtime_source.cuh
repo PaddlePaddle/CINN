@@ -161,17 +161,15 @@ __device__ inline float cinn_block_reduce_min(const float *buf, int offset, int 
   return cinn_block_reduce_min_internal(tmp_val);
 }
 
-// TODO: modify buf's type from float to T when CINN support other type tensor
-typedef long long int int64_t;
+// TODO: support int64_t
 #define CINN_CUDA_FIND_FOREACH_TYPE(MACRO) \
   MACRO(int)  \
-  MACRO(float) \
-  MACRO(int64_t)
+  MACRO(float)
 
 #define DEFINE_CINN_CUDA_FIND(TYPE) \
-__device__ inline int cinn_cuda_find_##TYPE(const TYPE *buf, int size, int num) { \
+__device__ inline int cinn_cuda_find_##TYPE(const TYPE *buf, int size, TYPE num) { \
   for (int i = size - 1; i >= 0; --i) { \
-    if (static_cast<int>(buf[i]) == num) return i; \
+    if (buf[i] == num) return i; \
   } \
   return -1; \
 }
