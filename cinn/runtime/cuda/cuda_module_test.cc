@@ -47,6 +47,36 @@ void saxpy(float a, float *x, float *y, float *out, size_t n)
   ASSERT_TRUE(func);
 }
 
+TEST(CUDAModule, int64) {
+  backends::NVRTC_Compiler compiler;
+
+  std::string source_code = R"ROC(
+extern "C" {
+
+#ifdef __CUDACC_RTC__
+typedef long long int int64_t;
+typedef int int32_t;
+typedef char int8_t;
+#endif
+
+__global__
+void __launch_bounds__(40) fn_index_select_268_substract_271_fused_kernel(const float* __restrict__ var_2230, const int64_t* __restrict__ bc_idx, const float* __restrict__ bc_v, float* __restrict__ substract_Out_43)
+{
+  if (((int)threadIdx.x < 40)) {
+    substract_Out_43[(int)threadIdx.x] = (var_2230[((int32_t)(bc_idx[(int)threadIdx.x]))] - bc_v[(int)threadIdx.x]);
+  };
+}
+}
+)ROC";
+
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty());
+
+  CUDAModule module(ptx, CUDAModule::Kind::PTX);
+  auto func = module.GetFunction(0, "fn_index_select_268_substract_271_fused_kernel");
+  ASSERT_TRUE(func);
+}
+
 }  // namespace cuda
 }  // namespace runtime
 }  // namespace cinn
