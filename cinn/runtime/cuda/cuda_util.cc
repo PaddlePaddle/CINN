@@ -18,8 +18,6 @@
 #include <glog/logging.h>
 
 #include <algorithm>
-#include <iomanip>
-#include <iostream>
 #include <string>
 #include <vector>
 
@@ -32,22 +30,6 @@
 namespace cinn {
 namespace runtime {
 namespace cuda {
-namespace {
-void PrintMatrix(const std::vector<float> &mat, int m, int n) {
-  const auto min_max = std::minmax_element(mat.begin(), mat.end());
-  int min            = static_cast<int>(*min_max.first);
-  int max            = static_cast<int>(*min_max.second);
-  auto ele_width     = std::max(std::to_string(min).length(), std::to_string(max).length());
-  std::cout << "\n" << std::string((ele_width + 2) * n - 1, '-') << "\n";
-  for (int i = 0; i < m; i++) {
-    for (int j = 0; j < n; j++) {
-      std::cout << std::setw(ele_width) << mat[i * n + j] << ", ";
-    }
-    std::cout << "\n";
-  }
-  std::cout << std::string((ele_width + 2) * n - 1, '-') << "\n\n";
-}
-}  // namespace
 
 SerialData::SerialData() {}
 
@@ -98,12 +80,12 @@ void cinn_gpu_cublas_mul(const std::vector<int> &attrs,
   for (int i = 0; i < attrs[attrs.size() - 2]; i++) {
     M *= attrs[i];
   }
-  int N       = attrs[attrs.size() - 4];
-  int K       = attrs[attrs.size() - 3];
+  int N       = attrs[attrs.size() - 3];
+  int K       = attrs[attrs.size() - 4];
   float alpha = 1.f;
   float beta  = 0.f;
-  // M,K * N,K
-  cublasSgemm(cublas, CUBLAS_OP_N, CUBLAS_OP_N, N, M, K, &alpha, y_data, N, x_data, K, &beta, out_data, N);
+  // M,N * N,K
+  cublasSgemm(cublas, CUBLAS_OP_N, CUBLAS_OP_N, K, M, N, &alpha, y_data, K, x_data, N, &beta, out_data, K);
 }
 
 void cinn_gpu_cublas_gemm(const std::vector<int> &attrs,
@@ -114,69 +96,50 @@ void cinn_gpu_cublas_gemm(const std::vector<int> &attrs,
                           const cudaStream_t &stream) {
   cublasHandle_t &cublas = CublasHandle::get_instance().GetCublasHandle();
   cublasSetStream(cublas, stream);
-  float *lhs_data  = reinterpret_cast<float *>(lhs->memory);
-  float *rhs_data  = reinterpret_cast<float *>(rhs->memory);
-  float *bias_data = reinterpret_cast<float *>(bias->memory);
+
+  const float *lhs_data  = reinterpret_cast<const float *>(lhs->memory);
+  const float *rhs_data  = reinterpret_cast<const float *>(rhs->memory);
+  const float *bias_data = reinterpret_cast<const float *>(bias->memory);
+  float *output_data     = reinterpret_cast<float *>(output->memory);
 
   CHECK_GE(attrs.size(), 11);
   int lhs_dim_size  = attrs[attrs.size() - 5];
   int rhs_dim_size  = attrs[attrs.size() - 4];
   int bias_dim_size = attrs[attrs.size() - 3];
-  auto lhs_trans    = attrs[attrs.size() - 2] ? CUBLAS_OP_T : CUBLAS_OP_N;
-  auto rhs_trans    = attrs[attrs.size() - 1] ? CUBLAS_OP_T : CUBLAS_OP_N;
-
   CHECK_EQ(lhs_dim_size, rhs_dim_size);
   CHECK_EQ(rhs_dim_size, bias_dim_size);
   CHECK((lhs_dim_size == 2 || lhs_dim_size == 3));
-  int lhs_row  = attrs[0];
-  int lhs_col  = attrs[1];
-  int rhs_row  = attrs[2];
-  int rhs_col  = attrs[3];
-  int bias_row = attrs[4];
-  int bias_col = attrs[5];
 
-  float alpha = 1.f;
-  float beta  = 1.f;
+  bool lhs_trans = static_cast<bool>(attrs[attrs.size() - 2]);
+  bool rhs_trans = static_cast<bool>(attrs[attrs.size() - 1]);
+  int lhs_row    = attrs[0];
+  int lhs_col    = attrs[1];
+  int rhs_col    = attrs[3];
+  int output_row = attrs[4];
+  int output_col = attrs[5];
 
-  // cublasStatus_t cublasSgemm(cublasHandle_t handle,
-  //                          cublasOperation_t transa, cublasOperation_t transb,
-  //                          int m, int n, int k,
-  //                          const float           *alpha,
-  //                          const float           *A, int lda,
-  //                          const float           *B, int ldb,
-  //                          const float           *beta,
-  //                          float           *C, int ldc)
+  // copy values of bias_data to the output_data
+  cudaMemcpyAsync(output_data, bias_data, output_row * output_col * sizeof(float), cudaMemcpyDeviceToDevice, stream);
 
-  auto check_mat = [&stream](float *data, int row, int col, bool trans) {
-    LOG(INFO) << "trans = " << std::boolalpha << trans;
-    LOG(INFO) << "-- row = " << row;
-    LOG(INFO) << "-- col = " << col;
-    std::vector<float> vec(row * col);
-    cudaMemcpyAsync(vec.data(), data, row * col * sizeof(float), cudaMemcpyDeviceToHost, stream);
-    PrintMatrix(vec, row, col);
-  };
-  LOG(INFO) << "------------------------lhs:";
-  check_mat(lhs_data, lhs_row, lhs_col, lhs_trans);
-  LOG(INFO) << "------------------------rhs:";
-  check_mat(rhs_data, rhs_row, rhs_col, rhs_trans);
-  LOG(INFO) << "------------------------bias:";
-  check_mat(bias_data, bias_row, bias_col, false);
-
+  float alpha          = 1.f;
+  float beta           = 1.f;
+  int contracting_size = lhs_trans ? lhs_row : lhs_col;
+  auto trans_a         = rhs_trans ? CUBLAS_OP_T : CUBLAS_OP_N;
+  auto trans_b         = lhs_trans ? CUBLAS_OP_T : CUBLAS_OP_N;
   cublasSgemm(cublas,
-              lhs_trans,
-              rhs_trans,
-              bias_row,
-              bias_col,
-              lhs_row,
+              trans_a,
+              trans_b,
+              output_col,
+              output_row,
+              contracting_size,
               &alpha,
-              lhs_data,
-              lhs_row,
               rhs_data,
-              rhs_row,
+              rhs_col,
+              lhs_data,
+              lhs_col,
               &beta,
-              bias_data,
-              bias_row);
-  cudaMemcpyAsync(output->memory, bias->memory, bias_row * bias_col * sizeof(float), cudaMemcpyDeviceToDevice, stream);
+              output_data,
+              output_col);
 }
 
 void cinn_call_cuda_kernel(void *kernel_fn,

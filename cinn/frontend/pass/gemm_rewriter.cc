@@ -33,7 +33,7 @@ class GemmRewriterPass : public ProgramPass {
       return;
     }
 
-    LOG(INFO) << "-- Origin: " << *prog;
+    VLOG(4) << "-- Before rewriting: " << *prog;
 
     CollectInfo(*prog);
 
@@ -65,7 +65,7 @@ class GemmRewriterPass : public ProgramPass {
         }
       }
     }
-    LOG(INFO) << "-- Update: " << *prog;
+    VLOG(4) << "-- After rewriting: " << *prog;
   }
 
  private:
@@ -118,8 +118,8 @@ class GemmRewriterPass : public ProgramPass {
     }
 
     if (inputs.size() == 3) {
-      LOG(INFO) << "-- trans_a = " << std::boolalpha << trans_a;
-      LOG(INFO) << "-- trans_b = " << std::boolalpha << trans_b;
+      VLOG(4) << "-- The trans_a of GEMM: " << std::boolalpha << trans_a;
+      VLOG(4) << "-- The trans_b of GEMM: " << std::boolalpha << trans_b;
       const auto& new_outs = builder->CustomInstr("cublas_gemm", inputs, {{"trans_a", trans_a}, {"trans_b", trans_b}});
       auto new_out         = new_outs[0];
       auto old_out         = instr.GetOutput(0);
