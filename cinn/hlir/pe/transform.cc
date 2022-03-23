@@ -918,25 +918,19 @@ ir::Tensor IndexAssign(const ir::Tensor& input,
   if (target.arch == common::Target::Arch::NVGPU) {
     if (index->type() == common::Int(32)) {
       extern_fun_name.assign("cinn_cuda_find_int");
-    } else if (index->type() == common::Int(64)) {
-      extern_fun_name.assign("cinn_cuda_find_int64_t");
-    }
-    if (index->type() == common::Float(32)) {
+    } else if (index->type() == common::Float(32)) {
       extern_fun_name.assign("cinn_cuda_find_float");
     } else {
-      LOG(FATAL) << "IndexAssign cuda only support int or float or int64_t ! Please Check.\n";
+      LOG(FATAL) << "IndexAssign cuda only support int or float ! Please Check.\n";
     }
   } else if (target.arch == common::Target::Arch::X86) {
     // TODO: seen that this function has no effective when run in host, why?
     if (index->type() == common::Int(32)) {
       extern_fun_name.assign("cinn_host_find_int");
-    } else if (index->type() == common::Int(64)) {
-      extern_fun_name.assign("cinn_host_find_int64_t");
-    }
-    if (index->type() == common::Float(32)) {
+    } else if (index->type() == common::Float(32)) {
       extern_fun_name.assign("cinn_host_find_float");
     } else {
-      LOG(FATAL) << "IndexAssign host only support int or float or int64_t ! Please Check.\n";
+      LOG(FATAL) << "IndexAssign host only support int or float ! Please Check.\n";
     }
   } else {
     LOG(FATAL) << "IndexAssign only support X86 and NVGPU ! Please Check.\n";
