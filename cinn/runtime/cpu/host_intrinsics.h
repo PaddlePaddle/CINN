@@ -27,10 +27,9 @@ void __cinn_host_tanh_v(const cinn_buffer_t* x, cinn_buffer_t* out);
 
 #define CINN_HOST_FIND_FOREACH_TYPE(MACRO) \
   MACRO(int)                               \
-  MACRO(float)                             \
-  MACRO(int64_t)
+  MACRO(float)
 
-#define DECALARE_CINN_HOST_FIND(TYPE) inline int cinn_host_find_##TYPE(const cinn_buffer_t* buf, int size, int num);
+#define DECALARE_CINN_HOST_FIND(TYPE) inline int cinn_host_find_##TYPE(const cinn_buffer_t* buf, int size, TYPE num);
 
 CINN_HOST_FIND_FOREACH_TYPE(DECALARE_CINN_HOST_FIND)
 #undef DECALARE_CINN_HOST_FIND
