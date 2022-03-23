@@ -162,10 +162,18 @@ __device__ inline float cinn_block_reduce_min(const float *buf, int offset, int 
 }
 
 // TODO: modify buf's type from float to T when CINN support other type tensor
-__device__ inline int cinn_cuda_find(const float *buf, int size, int num) {
-  // find the last index which satisfies buf[i] == num
-  for (int i = size - 1; i >= 0; --i) {
-    if (static_cast<int>(buf[i]) == num) return i;
-  }
-  return -1;
+typedef long long int int64_t;
+#define CINN_CUDA_FIND_FOREACH_TYPE(MACRO) \
+  MACRO(int)  \
+  MACRO(float) \
+  MACRO(int64_t)
+
+#define DEFINE_CINN_CUDA_FIND(TYPE) \
+__device__ inline int cinn_cuda_find_##TYPE(const TYPE *buf, int size, int num) { \
+  for (int i = size - 1; i >= 0; --i) { \
+    if (static_cast<int>(buf[i]) == num) return i; \
+  } \
+  return -1; \
 }
+CINN_CUDA_FIND_FOREACH_TYPE(DEFINE_CINN_CUDA_FIND)
+#undef DEFINE_CINN_CUDA_FIND

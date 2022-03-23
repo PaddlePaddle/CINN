@@ -132,12 +132,22 @@ CINN_REGISTER_HELPER(cuda_intrinsics) {
       .AddInputType<int>()
       .End();
 
-  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_cuda_find, target)
-      .SetRetType<int>()
-      .AddInputType<cinn_buffer_t *>()
-      .AddInputType<int>()
-      .AddInputType<int>()
+#ifndef CINN_CUDA_FIND_FOREACH_TYPE
+#define CINN_CUDA_FIND_FOREACH_TYPE(MACRO) \
+  MACRO(int)                               \
+  MACRO(float)                             \
+  MACRO(int64_t)
+#endif
+
+#define REGISTER_CINN_CUDA_FIND(TYPE)                               \
+  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_cuda_find_##TYPE, target) \
+      .SetRetType<int>()                                            \
+      .AddInputType<cinn_buffer_t *>()                              \
+      .AddInputType<int>()                                          \
+      .AddInputType<int>()                                          \
       .End();
+  CINN_CUDA_FIND_FOREACH_TYPE(REGISTER_CINN_CUDA_FIND)
+#undef REGISTER_CINN_CUDA_FIND
 
   return true;
 }
