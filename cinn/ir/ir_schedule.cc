@@ -317,7 +317,7 @@ IRSchedule::IRSchedule(const ModuleExpr& module_expr, bool debug_flag) {
  * @param tgt_stmt The For node we want.
  */
 void ScheduleHelper::Replace(const Expr& src_sref, const Expr& tgt_stmt) {
-  CHECK(src_sref.As<ir::For>() && tgt_stmt.As<ir::For>());
+  CHECK((src_sref.As<ir::For>() && tgt_stmt.As<ir::For>()) || (src_sref.As<ir::Block>() && tgt_stmt.As<ir::Block>()));
   if (src_sref == tgt_stmt) {
     VLOG(3) << "two exprs are the same, no need to replace";
     return;
@@ -334,12 +334,22 @@ void ScheduleHelper::Replace(const Expr& src_sref, const Expr& tgt_stmt) {
       }
       ir::IRMutator<>::Visit(op, expr);
     }
+
+    void Visit(const ir::Block* op, Expr* expr) override {
+      if (*expr == source_) {
+        *expr = target_;
+        return;
+      }
+      ir::IRMutator<>::Visit(op, expr);
+    }
+
     const Expr& source_;
     const Expr& target_;
   };
   auto exprs = module_expr_.GetExprs();
   ForLoopMutator mutator(src_sref, tgt_stmt);
   for (auto& i : exprs) {
+    VLOG(3) << "Origin Expr is: \n" << i;
     mutator(&i);
   }
 }
@@ -501,6 +511,354 @@ void IRSchedule::Reorder(const std::string& block_name, const std::vector<int>& 
   this->Reorder(loops_expr);
 }
 
+Expr IRSchedule::GetRootBlock(const Expr& expr) const {
+  auto exprs = this->GetModule().GetExprs();
+  for (auto& it_expr : exprs) {
+    auto find_expr = ir::CollectIRNodesWithoutTensor(it_expr, [&](const Expr* x) { return *x == expr; });
+    if (!find_expr.empty()) {
+      CHECK(it_expr.As<ir::Block>());
+      CHECK_EQ(it_expr.As<ir::Block>()->stmts.size(), 1U);
+      CHECK(it_expr.As<ir::Block>()->stmts[0].As<ir::ScheduleBlockRealize>());
+      return it_expr.As<ir::Block>()->stmts[0];
+    }
+  }
+  LOG(FATAL) << "Didn't find expr in IRSchedule:\n" << expr;
+}
+
+/*!
+ * \brief Find producers of block in root.
+ * \param block The ScheduleBlockRealize node we want to find its producers.
+ * \param root The root ScheduleBlockRealize node.
+ * \return block's producers(Load nodes) in root.
+ */
+std::vector<Expr> GetProducers(const Expr& block, const Expr& root) {
+  CHECK(block.As<ir::ScheduleBlockRealize>());
+  CHECK(root.As<ir::ScheduleBlockRealize>());
+  std::vector<Expr> producers;
+  auto compute_body = block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->body;
+  auto find_load    = ir::CollectIRNodesWithoutTensor(compute_body, [&](const Expr* x) { return x->As<ir::Load>(); });
+  for (auto& i : find_load) producers.emplace_back(i);
+  return producers;
+}
+
+/*!
+ * \brief Find consumers of block in root.
+ * \param block The ScheduleBlockRealize node we want to find its consumers.
+ * \param root The root ScheduleBlockRealize node.
+ * \return block's consumers(ScheduleBlockRealize nodes) in root.
+ */
+std::vector<Expr> GetConsumers(const Expr& block, const Expr& root) {
+  CHECK(block.As<ir::ScheduleBlockRealize>());
+  CHECK(root.As<ir::ScheduleBlockRealize>());
+  std::vector<Expr> consumers;
+  std::string block_tensor = block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->name;
+  auto find_block          = ir::CollectIRNodesWithoutTensor(
+      root, [&](const Expr* x) { return x->As<ir::ScheduleBlockRealize>() && *x != block && *x != root; });
+  for (auto& i : find_block) {
+    CHECK(i.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>());
+    auto block_body = i.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->body;
+    auto find_load  = ir::CollectIRNodesWithoutTensor(block_body, [&](const Expr* x) {
+      return x->As<ir::Load>() && x->As<ir::Load>()->tensor.as_tensor_ref()->name == block_tensor;
+    });
+    if (!find_load.empty()) consumers.emplace_back(i);
+  }
+  return consumers;
+}
+
+/*!
+ * \brief Check if the params of ComputeAt is validate.
+ * \param block The block node we want to move in ComputeAt.
+ * \param loop The for node we want to put the block under in ComputeAt.
+ * \param root The root ScheduleBlockRealize node of block and loop.
+ */
+void CheckComputeAtValidation(const Expr& block, const Expr& loop, const Expr& root) {
+  auto find_block = ir::CollectIRNodesWithoutTensor(root, [&](const Expr* x) { return *x == block; });
+  CHECK(!find_block.empty()) << "Didn't find block in root!";
+
+  auto find_loop = ir::CollectIRNodesWithoutTensor(root, [&](const Expr* x) { return *x == loop; });
+  CHECK(!find_loop.empty()) << "Didn't find loop in root!";
+
+  auto find_block_in_loop = ir::CollectIRNodesWithoutTensor(loop, [&](const Expr* x) { return *x == block; });
+  CHECK(find_block_in_loop.empty()) << "loop should not be block's ancestor!";
+}
+
+/*!
+ * \brief Insert a new ScheduleBlockRealize in a loop's body(under its IfThenElse Node, if any)
+ * \param for_loop The for loop whose body we want to modify
+ * \param insertion The ScheduleBlockRealize we want to insert
+ */
+void InsertBlock(Expr& for_loop, const Expr& insertion) {
+  CHECK(for_loop.As<ir::For>());
+  CHECK(for_loop.As<ir::For>()->body.As<Block>());
+  Expr& block = for_loop.As<ir::For>()->body;
+  if (block.As<Block>()->stmts[0].As<IfThenElse>()) {
+    CHECK(block.As<Block>()->stmts[0].As<IfThenElse>()->true_case.As<Block>());
+    Expr& insert_block = block.As<Block>()->stmts[0].As<IfThenElse>()->true_case;
+    insert_block.As<Block>()->stmts.insert(insert_block.As<Block>()->stmts.begin(), insertion);
+  } else {
+    block.As<Block>()->stmts.insert(block.As<Block>()->stmts.begin(), insertion);
+  }
+}
+
+// The struct used to reconstruct the new For node to replace the old For node.
+struct LoopReconstructor : public ir::IRMutator<> {
+ public:
+  explicit LoopReconstructor(const Expr& root, const Expr& block, const Expr& loop)
+      : root_(root), block_(block), loop_(loop) {}
+
+  void operator()(Expr* expr) { IRMutator::Visit(expr, expr); }
+
+  void MakeNewLoop(const std::vector<std::pair<Expr, Expr>>& iter_doms) {
+    int n_iters = iter_doms.size();
+    std::vector<Var> loop_vars;
+    std::vector<Expr> loop_extents;
+    std::vector<Expr> iter_values;
+    loop_vars.reserve(n_iters);
+    loop_extents.reserve(n_iters);
+    iter_values.reserve(n_iters);
+    for (int i = 0; i < n_iters; ++i) {
+      auto iter_dom = iter_doms[i];
+      if (iter_dom.second != Expr(1)) {
+        Var var("ax" + std::to_string(loop_vars.size()), Int(32));
+        loop_vars.push_back(var);
+        loop_extents.push_back(iter_dom.second);
+        iter_values.push_back(common::AutoSimplify(iter_dom.first) + var);
+      } else {
+        iter_values.push_back(common::AutoSimplify(iter_dom.first));
+      }
+    }
+    auto schedule_block_node = block_.As<ir::ScheduleBlockRealize>()->schedule_block;
+    new_block_               = ScheduleBlockRealize::Make(std::move(iter_values), std::move(schedule_block_node));
+    Expr loop_body           = new_block_;
+    for (int i = static_cast<int>(loop_vars.size()) - 1; i >= 0; --i) {
+      auto loop_var    = loop_vars[i];
+      auto loop_extent = loop_extents[i];
+      if (!loop_body.As<ir::Block>()) loop_body = Block::Make({loop_body});
+      loop_body = For::Make(loop_var,
+                            Expr(0),
+                            loop_extent,
+                            loop_.As<ir::For>()->for_type(),
+                            loop_.As<ir::For>()->device_api,
+                            std::move(loop_body));
+    }
+    new_loop_ = optim::IRCopy(loop_);
+    InsertBlock(new_loop_, loop_body);
+    return;
+  }
+
+ private:
+ public:
+  /*! \brief The root block */
+  Expr root_;
+  /*! \brief The given block to be moved */
+  Expr block_;
+  /*! \brief The given loop the block and its loop nest to be put under */
+  Expr loop_;
+  /*! \brief The new loop to replace the original loop */
+  Expr new_loop_{nullptr};
+  /*! \brief The new block realize to the moved block */
+  Expr new_block_{nullptr};
+  /*! \brief The plan to remove the given block by replacing this loop/block in the AST */
+  Expr source_expr{nullptr};
+  /*! \brief The plan to remove the given block by replacing to this loop/block in the AST */
+  Expr target_expr{nullptr};
+};
+
+// The struct used to remove the original block in ComputeAt.
+struct LeafBlockRemovalPlan : public ir::IRMutator<> {
+  LeafBlockRemovalPlan(const Expr& block, Expr* source_expr, Expr* target_expr)
+      : block_(block), source_expr_(source_expr), target_expr_(target_expr) {}
+
+  void operator()(Expr* expr) { IRMutator::Visit(expr, expr); }
+
+ private:
+  void Visit(const ir::ScheduleBlockRealize* expr, Expr* op) override {
+    if (*op == block_) {
+      find_block = true;
+      return;
+    }
+    IRMutator::Visit(expr, op);
+  }
+
+  void Visit(const ir::Block* expr, Expr* op) override {
+    if (expr->stmts.size() > 1U) {
+      int block_index = -1;
+      for (int i = 0; i < expr->stmts.size(); i++) {
+        auto keep_flag = find_block;
+        find_block     = false;
+        auto* node     = op->As<ir::Block>();
+        IRMutator::Visit(&node->stmts[i], &node->stmts[i]);
+        if (find_block) {
+          if (depth == 0) {
+            *source_expr_ = *op;
+            block_index   = i;
+          }
+          depth++;
+        }
+        find_block = find_block || keep_flag;
+      }
+      if (block_index != -1) {
+        std::vector<Expr> new_stmts;
+        for (int i = 0; i < expr->stmts.size(); i++) {
+          if (i == block_index)
+            continue;
+          else
+            new_stmts.push_back(expr->stmts[i]);
+        }
+        auto target_block = ir::Block::Make(new_stmts);
+        *target_expr_     = target_block;
+      }
+    } else {
+      IRMutator::Visit(expr, op);
+    }
+  }
+
+ private:
+  bool find_block{false};
+  int depth{0};
+  const Expr& block_;
+  Expr* source_expr_;
+  Expr* target_expr_;
+};
+
+void IRSchedule::SetBuffer(const Expr& block, const std::string& memory_type) const {
+  CHECK(block.As<ir::ScheduleBlockRealize>());
+  auto find_tensor = ir::CollectIRNodesWithoutTensor(block, [&](const Expr* x) { return x->As<ir::Store>(); });
+  CHECK(!find_tensor.empty()) << "Didn't find Store in block!";
+  CHECK_EQ(find_tensor.size(), 1U) << "One block should only have one Store node!(except for root block)";
+  Tensor tensor = (*find_tensor.begin()).As<ir::Store>()->tensor.as_tensor_ref();
+  tensor->WithBuffer(memory_type, "_" + tensor->name + "_temp_buffer");
+}
+
+/*!
+ * \brief Check if a Expr node contains a ScheduleBlockRealize node
+ * \param container The container Expr node
+ * \param expr The ScheduleBlockRealize node
+ * \return If the container contains the expr
+ */
+bool Contains(const Expr& container, const Expr& expr) {
+  CHECK(expr.As<ir::ScheduleBlockRealize>());
+  auto find_expr = ir::CollectIRNodesWithoutTensor(container, [&](const Expr* x) { return *x == expr; });
+  return (!find_expr.empty());
+}
+/*!
+ * \brief Make a union of two range. The detailed function is :
+ * new_range.min = min(range1.min, range2.min)
+ * new_range.extent = max(range1.min + range1.extent, range2.min + range2.extent) - new_range.min
+ * Notice that the pair<Expr, Expr> indicates a range's min and extent.
+ * \param range1 The first range
+ * \param range2 The second range
+ * \return The union of these two ranges
+ */
+std::pair<Expr, Expr> RangeUnion(const std::pair<Expr, Expr>& range1, const std::pair<Expr, Expr>& range2) {
+  Expr new_min    = common::AutoSimplify(Min::Make(range1.first, range2.first));
+  Expr new_extent = common::AutoSimplify(
+      common::AutoSimplify(Max::Make(range1.first + range1.second, range2.first + range2.second)) - new_min);
+  return std::make_pair(new_min, new_extent);
+}
+
+/*!
+ * \brief Calculate the required buffer region given a block and its consumers.
+ * For example, if block is :
+ * B[i0, j0] = A[i0, j0]
+ * loop is :
+ * for (i, 0, 64) {
+ *   for (j, 0, 64) {
+ *     C[i, j] = B[i, j]
+ *   }
+ * }
+ * And consumers is :
+ * C[i, j] = B[i, j]
+ * Then we get the consumer requires B's region:
+ * B[i, j], where:
+ * i : [i, i]
+ * j : [0, 64]
+ * \param block The ScheduleBlockRealize node begin required
+ * \param loop The loop where we will insert the block under it
+ * \param consumers Vector of ScheduleBlockRealize nodes that require the block
+ * \return Each index's range of block's tensor. Indicating the buffer region being required.
+ */
+std::vector<std::pair<Expr, Expr>> CalculateRequiredRegions(const Expr& block,
+                                                            const Expr& loop,
+                                                            const std::vector<Expr>& consumers) {
+  CHECK(block.As<ir::ScheduleBlockRealize>());
+  std::string block_tensor = block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->name;
+  std::vector<std::pair<Expr, Expr>> required_buffer_range;
+  CHECK(loop.As<ir::For>());
+  for (auto& i : consumers) {
+    CHECK(i.As<ir::ScheduleBlockRealize>());
+    Expr block_body = optim::IRCopy(i.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->body);
+    auto iter_var   = i.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->iter_vars;
+    auto iter_value = i.As<ir::ScheduleBlockRealize>()->iter_values;
+    ReplaceExpr(&block_body, iter_var, iter_value);
+    // Notice that we look for For nodes in loop's body instead of loop itself.
+    auto find_loops = ir::CollectIRNodesWithoutTensor(
+        loop.As<ir::For>()->body, [&](const Expr* x) { return x->As<ir::For>() && Contains(*x, i); });
+    auto find_load = ir::CollectIRNodesWithoutTensor(block_body, [&](const Expr* x) {
+      return x->As<ir::Load>() && x->As<ir::Load>()->tensor.as_tensor_ref()->name == block_tensor;
+    });
+    for (auto& load : find_load) {
+      CHECK(load.As<ir::Load>());
+      auto indices = load.As<ir::Load>()->indices;
+      if (find_loops.empty()) {
+        for (int i = 0; i < indices.size(); i++) {
+          if (i >= required_buffer_range.size())
+            required_buffer_range.push_back(std::make_pair(indices[i], Expr(1)));
+          else
+            required_buffer_range[i] = RangeUnion(required_buffer_range[i], std::make_pair(indices[i], Expr(1)));
+        }
+      } else {
+        for (int i = 0; i < indices.size(); i++) {
+          Expr indice_min = optim::IRCopy(indices[i]);
+          Expr indice_max = optim::IRCopy(indices[i]);
+          std::vector<Var> loop_vars;
+          std::vector<Expr> vars_min;
+          std::vector<Expr> vars_max;
+          for (auto& for_loop : find_loops) {
+            loop_vars.push_back(for_loop.As<ir::For>()->loop_var);
+            vars_min.push_back(for_loop.As<ir::For>()->min);
+            vars_max.push_back(for_loop.As<ir::For>()->min + for_loop.As<ir::For>()->extent);
+          }
+          ReplaceExpr(&indice_min, loop_vars, vars_min);
+          ReplaceExpr(&indice_max, loop_vars, vars_max);
+          Expr indice_extent;
+          // If a index keeps constant, its extent should be 1.
+          if (indice_min == indice_max)
+            indice_extent = Expr(1);
+          else
+            indice_extent = common::AutoSimplify(common::AutoSimplify(indice_max) - common::AutoSimplify(indice_min));
+          if (indice_extent.is_constant() && indice_extent.get_constant() < 0) {
+            indice_min    = common::AutoSimplify(indice_max);
+            indice_extent = Expr(-indice_extent.get_constant());
+          }
+          if (i >= required_buffer_range.size())
+            required_buffer_range.push_back(std::make_pair(indice_min, indice_extent));
+          else
+            required_buffer_range[i] = RangeUnion(required_buffer_range[i], std::make_pair(indice_min, indice_extent));
+        }
+      }
+    }
+  }
+  return required_buffer_range;
+}
+
+void IRSchedule::ComputeAt(const Expr& block, const Expr& loop) {
+  CHECK(block.As<ir::ScheduleBlockRealize>());
+  CHECK(loop.As<ir::For>());
+  Expr root      = this->GetRootBlock(block);
+  auto producers = GetProducers(block, root);
+  auto consumers = GetConsumers(block, root);
+  CheckComputeAtValidation(block, loop, root);
+  LoopReconstructor reconstructor(root, block, loop);
+  LeafBlockRemovalPlan remove_plan(block, &reconstructor.source_expr, &reconstructor.target_expr);
+  remove_plan(&root);
+  auto iter_doms = CalculateRequiredRegions(block, loop, consumers);
+  reconstructor.MakeNewLoop(iter_doms);
+  helper_.Replace(reconstructor.source_expr, reconstructor.target_expr);
+  helper_.Replace(reconstructor.loop_, reconstructor.new_loop_);
+  return;
+}
+
 std::vector<Expr> ScheduleHelper::GetLoops(const Expr& block) const {
   std::vector<Expr> result;
   auto exprs = module_expr_.GetExprs();
@@ -523,7 +881,9 @@ std::vector<Expr> ScheduleHelper::GetLoops(const Expr& block) const {
       auto loop_nodes = ir::CollectIRNodes(it_expr, [&](const Expr* x) {
         return x->As<ir::For>() && loops_name.count(x->As<ir::For>()->loop_var->name) != 0;
       });
-      for (auto& it_for : loop_nodes) result.push_back(it_for);
+      for (auto& it_for : loop_nodes) {
+        if (Contains(it_for, block)) result.push_back(it_for);
+      }
     }
   }
   if (result.empty()) LOG(FATAL) << "Didn't find block with name: \n" << block_name << " in ModuleExepr.";

@@ -273,7 +273,7 @@ function CI {
     run_demo
     prepare_model
     run_test
-    make_doc
+    # make_doc
 }
 
 function CINNRT {

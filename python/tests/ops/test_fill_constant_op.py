@@ -33,26 +33,18 @@ class TestAddOp(OpTest):
     def init_case(self):
         self.shape = [32]
         self.value = float(1.0)
-        self.cinn_type = Float(32)
-        self.inputs = {"y": np.random.random(self.shape).astype("float32")}
 
     def build_paddle_program(self, target):
         x = paddle.full(self.shape, self.value)
-        y = paddle.to_tensor(self.inputs["y"], stop_gradient=True)
 
-        out = paddle.add(x, y)
-
-        self.paddle_outputs = [out]
+        self.paddle_outputs = [x]
 
     def build_cinn_program(self, target):
         builder = NetBuilder("add")
         x = builder.fill_constant(self.shape, self.value, "x")
-        y = builder.create_input(self.cinn_type, self.inputs["y"].shape, "y")
-        out = builder.add(x, y)
 
         prog = builder.build()
-        res = self.get_cinn_output(prog, target, [y], [self.inputs["y"]],
-                                   [out])
+        res = self.get_cinn_output(prog, target, [], [], [x])
 
         self.cinn_outputs = [res[0]]
 
@@ -64,8 +56,6 @@ class TestAddCase1(TestAddOp):
     def init_case(self):
         self.shape = [10, 32, 4]
         self.value = float(-100.0)
-        self.cinn_type = Float(32)
-        self.inputs = {"y": np.random.random(self.shape).astype("float32")}
 
 
 if __name__ == "__main__":
