@@ -212,7 +212,7 @@ TEST(Instruction, CONV_FORWARD) {
   auto strategy         = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
   auto infer_shape_func = Operator::GetAttrs<InferShapeFunction>("infershape")[conv2d];
 
-  absl::flat_hash_map<std::string, Attribute> attrs_map;
+  absl::flat_hash_map<std::string, AttrType> attrs_map;
   attrs_map["padding"]      = std::vector<int>({ph, pw});
   attrs_map["stride"]       = std::vector<int>({sh, sw});
   attrs_map["dilation"]     = std::vector<int>({dila_h, dila_w});
@@ -291,7 +291,7 @@ TEST(Instruction, CONV_BACKWARD_DATA) {
   auto strategy         = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
   auto infer_shape_func = Operator::GetAttrs<InferShapeFunction>("infershape")[conv2d];
 
-  absl::flat_hash_map<std::string, Attribute> attrs_map;
+  absl::flat_hash_map<std::string, AttrType> attrs_map;
   attrs_map["padding"]      = std::vector<int>({ph, pw});
   attrs_map["stride"]       = std::vector<int>({sh, sw});
   attrs_map["dilation"]     = std::vector<int>({dila_h, dila_w});
@@ -370,7 +370,7 @@ TEST(Instruction, CONV_BACKWARD_FILTER) {
   auto strategy         = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
   auto infer_shape_func = Operator::GetAttrs<InferShapeFunction>("infershape")[conv2d];
 
-  absl::flat_hash_map<std::string, Attribute> attrs_map;
+  absl::flat_hash_map<std::string, AttrType> attrs_map;
   attrs_map["padding"]      = std::vector<int>({ph, pw});
   attrs_map["stride"]       = std::vector<int>({sh, sw});
   attrs_map["dilation"]     = std::vector<int>({dila_h, dila_w});

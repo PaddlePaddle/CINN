@@ -96,7 +96,7 @@ std::shared_ptr<OpStrategy> StrategyForBroadcast(
 }
 
 std::vector<shape_t> InferShapeForBroadcast(const std::vector<shape_t> &inputs_shape,
-                                            const framework::AttributeMap &attrs) {
+                                            const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 2UL);
   std::vector<int> out_shape;
 
@@ -114,14 +114,13 @@ std::vector<shape_t> InferShapeForBroadcast(const std::vector<shape_t> &inputs_s
   return {out_shape};
 }
 
-std::vector<Type> InferDtypeForBroadcast(const std::vector<Type> &inputs_type, const framework::AttributeMap &attrs) {
+std::vector<Type> InferDtypeForBroadcast(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0]};
   return res;
 }
 
-std::vector<Type> InferDtypeForBroadcastCmp(const std::vector<Type> &inputs_type,
-                                            const framework::AttributeMap &attrs) {
+std::vector<Type> InferDtypeForBroadcastCmp(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   return {Bool()};
 }
@@ -211,7 +210,7 @@ std::shared_ptr<OpStrategy> StrategyForBroadcastTo(const framework::NodeAttr &at
 }
 
 std::vector<shape_t> InferShapeForBroadcastTo(const std::vector<shape_t> &inputs_shape,
-                                              const framework::AttributeMap &attrs) {
+                                              const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 1UL) << "input_shape size should be one. Please Check.";
   std::vector<int> broadcast_axes;
   std::vector<int> out_shape;
@@ -241,14 +240,14 @@ std::vector<std::vector<std::string>> InferLayoutForBroadcastTo(const std::vecto
 }
 
 std::vector<Type> InferDtypeForBroadcastGrad(const std::vector<Type> &inputs_type,
-                                             const framework::AttributeMap &attrs) {
+                                             const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_type.size(), 3UL);
   std::vector<Type> out_type{inputs_type[1], inputs_type[2]};
   return out_type;
 }
 
 std::vector<shape_t> InferShapeForBroadcastGrad(const std::vector<shape_t> &inputs_shape,
-                                                const framework::AttributeMap &attrs) {
+                                                const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 3UL);
   std::vector<shape_t> out_shape{inputs_shape[1], inputs_shape[2]};
 

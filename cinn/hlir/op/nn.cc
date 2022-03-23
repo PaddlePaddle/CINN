@@ -81,13 +81,13 @@ std::shared_ptr<OpStrategy> StrategyForRelu(const framework::NodeAttr &attrs,
 }
 
 std::vector<framework::shape_t> InferShapeForRelu(const std::vector<framework::shape_t> &inputs_shape,
-                                                  const framework::AttributeMap &attrs) {
+                                                  const framework::AttrMapType &attrs) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
   std::vector<framework::shape_t> res{inputs_shape[0]};
   return res;
 }
 
-std::vector<Type> InferDtypeForRelu(const std::vector<Type> &inputs_type, const framework::AttributeMap &attrs) {
+std::vector<Type> InferDtypeForRelu(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0]};
   return res;
@@ -448,7 +448,7 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
 }
 
 std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shape,
-                                         const framework::AttributeMap &attrs) {
+                                         const framework::AttrMapType &attrs) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
   std::vector<int> padding({0, 0});
   std::vector<int> stride({1, 1});
@@ -563,7 +563,7 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
   return res;
 }
 
-std::vector<Type> InferDtypeForConv2d(const std::vector<Type> &inputs_type, const framework::AttributeMap &attrs) {
+std::vector<Type> InferDtypeForConv2d(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0], inputs_type[0], inputs_type[0], inputs_type[0]};
   return res;
@@ -696,7 +696,7 @@ std::shared_ptr<OpStrategy> StrategyForConv2dNCHWc(const framework::NodeAttr &at
 }
 
 std::vector<shape_t> InferShapeForConv2dNCHWc(const std::vector<shape_t> &inputs_shape,
-                                              const framework::AttributeMap &attrs) {
+                                              const framework::AttrMapType &attrs) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
   std::vector<int> padding({0, 0});
   std::vector<int> stride({1, 1});
@@ -765,7 +765,7 @@ std::vector<std::vector<std::string>> InferLayoutForConv2dNCHWc(const std::vecto
   return {{outlayout, outlayout, input_layouts[0]}, input_layouts};
 }
 
-std::vector<Type> InferDtypeForConv2dNCHWc(const std::vector<Type> &inputs_type, const framework::AttributeMap &attrs) {
+std::vector<Type> InferDtypeForConv2dNCHWc(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0], inputs_type[0], inputs_type[0]};
   return res;
@@ -918,7 +918,7 @@ std::shared_ptr<OpStrategy> StrategyForDepthwiseConv2d(const framework::NodeAttr
 }
 
 std::vector<shape_t> InferShapeForDepthwiseConv2d(const std::vector<shape_t> &inputs_shape,
-                                                  const framework::AttributeMap &attrs) {
+                                                  const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 2U) << "at least 2 input tensors for depthwise_conv2d op\n";
   CHECK_EQ(inputs_shape[0].size(), 4U) << "The input tensor's shape should be 4! Please check again.";
   CHECK_EQ(inputs_shape[1].size(), 4U) << "The input tensor's shape should be 4! Please check again.";
@@ -954,7 +954,7 @@ std::vector<shape_t> InferShapeForDepthwiseConv2d(const std::vector<shape_t> &in
 }
 
 std::vector<Type> InferDtypeForDepthwiseConv2d(const std::vector<Type> &inputs_type,
-                                               const framework::AttributeMap &attrs) {
+                                               const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0]};
   return res;
@@ -1042,13 +1042,13 @@ std::shared_ptr<OpStrategy> StrategyForBatchNorm(const framework::NodeAttr &attr
 }
 
 std::vector<shape_t> InferShapeForBatchNorm(const std::vector<shape_t> &inputs_shape,
-                                            const framework::AttributeMap &attrs) {
+                                            const framework::AttrMapType &attrs) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
   std::vector<shape_t> res{inputs_shape[0]};
   return res;
 }
 
-std::vector<Type> InferDtypeForBatchNorm(const std::vector<Type> &inputs_type, const framework::AttributeMap &attrs) {
+std::vector<Type> InferDtypeForBatchNorm(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0]};
   return res;
@@ -1155,7 +1155,7 @@ std::shared_ptr<OpStrategy> StrategyForPool1d(const framework::NodeAttr &attrs,
 }
 
 std::vector<std::vector<int>> InferShapeForPool1d(const std::vector<std::vector<int>> &inputs_shape,
-                                                  const framework::AttributeMap &attrs) {
+                                                  const framework::AttrMapType &attrs) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
   std::vector<int> kernel_size;   // [kernel_w]
   std::vector<int> stride_size;   // [stride_w]
@@ -1369,7 +1369,7 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
 }
 
 std::vector<std::vector<int>> InferShapeForPool2d(const std::vector<std::vector<int>> &inputs_shape,
-                                                  const framework::AttributeMap &attrs) {
+                                                  const framework::AttrMapType &attrs) {
   CHECK(inputs_shape[0].size() == 4 || inputs_shape[0].size() == 5)
       << "The input's shape size of pool2d should be 4 or 5! Please check again.";
   std::vector<int> kernel_size;
@@ -1544,7 +1544,7 @@ std::shared_ptr<OpStrategy> StrategyForPool3d(const framework::NodeAttr &attrs,
 }
 
 std::vector<std::vector<int>> InferShapeForPool3d(const std::vector<std::vector<int>> &inputs_shape,
-                                                  const framework::AttributeMap &attrs) {
+                                                  const framework::AttrMapType &attrs) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
   std::vector<int> kernel_size;  // [kernel_d, kernel_h, kernel_w]
   std::vector<int> stride_size;  // [stride_d, stride_h, stride_w]
@@ -1616,7 +1616,7 @@ std::vector<std::vector<int>> InferShapeForPool3d(const std::vector<std::vector<
   return res;
 }
 
-std::vector<Type> InferDtypeForPool(const std::vector<Type> &inputs_type, const framework::AttributeMap &attrs) {
+std::vector<Type> InferDtypeForPool(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0]};
   return res;
@@ -1709,13 +1709,13 @@ std::shared_ptr<OpStrategy> StrategyForSoftmax(const framework::NodeAttr &attrs,
 }
 
 std::vector<std::vector<int>> InferShapeForSoftmax(const std::vector<std::vector<int>> &inputs_shape,
-                                                   const framework::AttributeMap &attrs) {
+                                                   const framework::AttrMapType &attrs) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
   std::vector<std::vector<int>> res{inputs_shape[0], inputs_shape[0]};
   return res;
 }
 
-std::vector<Type> InferDtypeForSoftmax(const std::vector<Type> &inputs_type, const framework::AttributeMap &attrs) {
+std::vector<Type> InferDtypeForSoftmax(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0], inputs_type[0]};
   return res;
@@ -1783,7 +1783,7 @@ std::shared_ptr<OpStrategy> StrategyForDropoutInfer(const framework::NodeAttr &a
 }
 
 std::vector<std::vector<int>> InferShapeForDropoutInfer(const std::vector<std::vector<int>> &inputs_shape,
-                                                        const framework::AttributeMap &attrs) {
+                                                        const framework::AttrMapType &attrs) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
   float dropout_prob                 = 0;
   std::string dropout_implementation = "downgrade_in_infer";
@@ -1801,8 +1801,7 @@ std::vector<std::vector<int>> InferShapeForDropoutInfer(const std::vector<std::v
   return res;
 }
 
-std::vector<Type> InferDtypeForDropoutInfer(const std::vector<Type> &inputs_type,
-                                            const framework::AttributeMap &attrs) {
+std::vector<Type> InferDtypeForDropoutInfer(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0]};
   return res;
@@ -1857,7 +1856,7 @@ std::shared_ptr<OpStrategy> StrategyForSelect(const framework::NodeAttr &attrs,
 }
 
 std::vector<framework::shape_t> InferShapeForSelect(const std::vector<framework::shape_t> &inputs_shape,
-                                                    const framework::AttributeMap &attrs) {
+                                                    const framework::AttrMapType &attrs) {
   CHECK_GE(inputs_shape.size(), 3) << "The input's shape size is 0! Please check again.";
   CHECK(inputs_shape[0].size() == inputs_shape[1].size() && inputs_shape[1].size() == inputs_shape[2].size())
       << "input tensors n_dim is not equal!";
@@ -1867,7 +1866,7 @@ std::vector<framework::shape_t> InferShapeForSelect(const std::vector<framework:
   return res;
 }
 
-std::vector<Type> InferDtypeForSelect(const std::vector<Type> &inputs_type, const framework::AttributeMap &attrs) {
+std::vector<Type> InferDtypeForSelect(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK_GE(inputs_type.size(), 3) << "The input's type size is less than three! Please check again.";
   CHECK(inputs_type[0].is_bool()) << "The condition tensor type should be bool";
   std::vector<Type> res{inputs_type[1]};
@@ -1884,7 +1883,7 @@ std::vector<std::vector<std::string>> InferLayoutForUnary(const std::vector<fram
 
 // batch norm train
 std::vector<framework::shape_t> InferShapeForBatchNormTrain(const std::vector<framework::shape_t> &inputs_shape,
-                                                            const framework::AttributeMap &attrs) {
+                                                            const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 5U) << "The input's layout size is not 5! Please check again.";
   std::string data_layout = "";
   if (attrs.find("data_layout") != attrs.end()) {
@@ -1917,7 +1916,7 @@ std::vector<framework::shape_t> InferShapeForBatchNormTrain(const std::vector<fr
 }
 
 std::vector<Type> InferDtypeForBatchNormTrain(const std::vector<Type> &inputs_type,
-                                              const framework::AttributeMap &attrs) {
+                                              const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   return {inputs_type[0], inputs_type[0], inputs_type[0], inputs_type[0], inputs_type[0]};
 }
@@ -1933,7 +1932,7 @@ std::shared_ptr<OpStrategy> StrategyForGradOp(const framework::NodeAttr &attrs,
 
 // batch norm grad
 std::vector<framework::shape_t> InferShapeForBatchNormGrad(const std::vector<framework::shape_t> &inputs_shape,
-                                                           const framework::AttributeMap &attrs) {
+                                                           const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 5U) << "The input's layout size is not 5! Please check again.";
   std::string data_layout = "";
   if (attrs.find("data_layout") != attrs.end()) {
@@ -1965,14 +1964,14 @@ std::vector<framework::shape_t> InferShapeForBatchNormGrad(const std::vector<fra
 }
 
 std::vector<Type> InferDtypeForBatchNormGrad(const std::vector<Type> &inputs_type,
-                                             const framework::AttributeMap &attrs) {
+                                             const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   return {inputs_type[0], inputs_type[0], inputs_type[0]};
 }
 
 // conv2d grad
 std::vector<framework::shape_t> InferShapeForConv2dGrad(const std::vector<framework::shape_t> &inputs_shape,
-                                                        const framework::AttributeMap &attrs) {
+                                                        const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 3U) << "The input's layout size is not 3! Please check again.";
   CHECK_EQ(inputs_shape[0].size(), 4U) << "Dy shape is not 4, Please check again.";
   CHECK_EQ(inputs_shape[1].size(), 4U) << "Dy shape is not 4, Please check again.";
@@ -1980,7 +1979,7 @@ std::vector<framework::shape_t> InferShapeForConv2dGrad(const std::vector<framew
   return {inputs_shape[1], inputs_shape[2]};
 }
 
-std::vector<Type> InferDtypeForConv2dGrad(const std::vector<Type> &inputs_type, const framework::AttributeMap &attrs) {
+std::vector<Type> InferDtypeForConv2dGrad(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   return {inputs_type[0], inputs_type[0]};
 }

@@ -91,13 +91,13 @@ std::shared_ptr<OpStrategy> StrategyForElementwise(const framework::NodeAttr &at
 }
 
 std::vector<shape_t> InferShapeForElementwise(const std::vector<shape_t> &inputs_shape,
-                                              const framework::AttributeMap &attrs) {
+                                              const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 1UL);
   std::vector<shape_t> res{inputs_shape[0]};
   return res;
 }
 
-std::vector<Type> InferDtypeForElementwise(const std::vector<Type> &inputs_type, const framework::AttributeMap &attrs) {
+std::vector<Type> InferDtypeForElementwise(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0]};
   return res;
@@ -224,11 +224,11 @@ std::shared_ptr<OpStrategy> StrategyForConstScalar(const framework::NodeAttr &at
 }
 
 std::vector<shape_t> InferShapeForConstScalar(const std::vector<shape_t> &inputs_shape,
-                                              const framework::AttributeMap &attrs) {
+                                              const framework::AttrMapType &attrs) {
   return {{1}};
 }
 
-std::vector<Type> InferDtypeForConstScalar(const std::vector<Type> &inputs_type, const framework::AttributeMap &attrs) {
+std::vector<Type> InferDtypeForConstScalar(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(attrs.count("value"));
   auto scalar   = GetScalarExpr(attrs.at("value"));
   auto out_type = scalar->type();
@@ -251,7 +251,7 @@ std::shared_ptr<OpStrategy> StrategyForSum(const framework::NodeAttr &attrs,
   LOG(FATAL) << "The operator will be decomposed into several primitive operators. Please Use Decomposer Program Pass.";
 }
 
-std::vector<shape_t> InferShapeForSum(const std::vector<shape_t> &inputs_shape, const framework::AttributeMap &attrs) {
+std::vector<shape_t> InferShapeForSum(const std::vector<shape_t> &inputs_shape, const framework::AttrMapType &attrs) {
   CHECK(!inputs_shape.empty()) << "At least 1 input tensor for sum operator.";
   auto shape = inputs_shape[0];
   for (size_t i = 1; i < inputs_shape.size(); ++i) {
@@ -265,7 +265,7 @@ std::vector<shape_t> InferShapeForSum(const std::vector<shape_t> &inputs_shape, 
   return out_shape;
 }
 
-std::vector<Type> InferDtypeForSum(const std::vector<Type> &inputs_type, const framework::AttributeMap &attrs) {
+std::vector<Type> InferDtypeForSum(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "At least 1 input tensor for sum operator.";
   auto type = inputs_type[0];
   for (size_t i = 1; i < inputs_type.size(); ++i) {
@@ -326,15 +326,14 @@ std::shared_ptr<OpStrategy> StrategyForFillConstant(const framework::NodeAttr &a
 }
 
 std::vector<shape_t> InferShapeForFillConstant(const std::vector<shape_t> &inputs_shape,
-                                               const framework::AttributeMap &attrs) {
+                                               const framework::AttrMapType &attrs) {
   CHECK(attrs.count("shape"));
   auto shape = absl::get<std::vector<int>>(attrs.at("shape"));
   CHECK(!shape.empty()) << "shape attr is empty!";
   return {shape};
 }
 
-std::vector<Type> InferDtypeForFillConstant(const std::vector<Type> &inputs_type,
-                                            const framework::AttributeMap &attrs) {
+std::vector<Type> InferDtypeForFillConstant(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(attrs.count("value"));
   auto scalar   = GetScalarExpr(attrs.at("value"));
   auto out_type = scalar->type();

@@ -32,9 +32,9 @@ namespace framework {
 class Node;
 class NodeData;
 
-using NodePtr      = std::shared_ptr<Node>;
-using Attribute    = utils::Attribute;
-using AttributeMap = utils::AttributeMap;
+using NodePtr     = std::shared_ptr<Node>;
+using AttrType    = utils::Attribute;
+using AttrMapType = utils::AttributeMap;
 
 /**
  * \brief Attributes of each node in graph.
@@ -42,7 +42,7 @@ using AttributeMap = utils::AttributeMap;
  *  and other parameters like axis.
  */
 struct NodeAttr {
-  using attr_t = Attribute;
+  using attr_t = AttrType;
 
   /**
    * \brief The operator this node uses.
@@ -98,7 +98,7 @@ class Node : public common::GraphNode {
   inline uint32_t num_outputs() {
     if (is_variable()) return 1;
     if (this->op()->num_outputs == 0) {
-      using shape_func_t = std::function<std::vector<shape_t>(const std::vector<shape_t> &, const AttributeMap &)>;
+      using shape_func_t = std::function<std::vector<shape_t>(const std::vector<shape_t> &, const AttrMapType &)>;
       const auto &op_infershape = Operator::GetAttrs<shape_func_t>("infershape");
       auto key                  = Operator::Get(this->op()->name);
       auto out_shapes           = op_infershape[key]({}, this->attrs.attr_store);
@@ -130,7 +130,7 @@ class Node : public common::GraphNode {
  * \brief NodeData represents the output data from an operator.
  */
 class NodeData : public common::GraphNode {
-  using attr_t = Attribute;
+  using attr_t = AttrType;
 
  public:
   NodeData(NodePtr node, uint32_t index, uint32_t version, std::string id, bool is_const = false)

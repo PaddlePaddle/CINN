@@ -466,7 +466,7 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
 }
 
 std::vector<shape_t> InferShapeForReduction(const std::vector<shape_t> &inputs_shape,
-                                            const framework::AttributeMap &attrs) {
+                                            const framework::AttrMapType &attrs) {
   CHECK(inputs_shape.size() == 1UL || inputs_shape.size() == 3UL);
   std::vector<int> dim;
   bool keep_dim = false;
@@ -499,7 +499,7 @@ std::vector<shape_t> InferShapeForReduction(const std::vector<shape_t> &inputs_s
   return {out_shapes};
 }
 
-std::vector<Type> InferDtypeForReduction(const std::vector<Type> &inputs_type, const framework::AttributeMap &attrs) {
+std::vector<Type> InferDtypeForReduction(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0]};
   return res;
@@ -521,13 +521,13 @@ std::vector<std::vector<std::string>> InferLayoutForReduction(const std::vector<
 }
 
 std::vector<shape_t> InferShapeForBnOptimize(const std::vector<shape_t> &inputs_shape,
-                                             const framework::AttributeMap &attrs) {
+                                             const framework::AttrMapType &attrs) {
   auto shapes = InferShapeForReduction(inputs_shape, attrs);
   CHECK_GE(shapes.size(), 1) << "shapes's size less than 1, please check!";
   return {shapes[0], shapes[0]};
 }
 
-std::vector<Type> InferDtypeForBnOptimize(const std::vector<Type> &inputs_type, const framework::AttributeMap &attrs) {
+std::vector<Type> InferDtypeForBnOptimize(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   return {inputs_type[0], inputs_type[0]};
 }
