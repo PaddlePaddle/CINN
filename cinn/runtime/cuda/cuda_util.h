@@ -44,41 +44,6 @@ class CublasHandle {
   cublasHandle_t cublas;
 };
 
-class SerialData {
- public:
-  ~SerialData();
-  SerialData(const SerialData&) = delete;
-  SerialData& operator=(const SerialData&) = delete;
-  static SerialData& get_instance() {
-    static SerialData instance;
-    return instance;
-  }
-  absl::flat_hash_map<std::string, int>& GetMap() { return get_algo; }
-
- private:
-  SerialData();
-  absl::flat_hash_map<std::string, int> get_algo;
-};
-
-class CudnnHandle {
- public:
-  ~CudnnHandle();
-  CudnnHandle(const CudnnHandle&) = delete;
-  CudnnHandle& operator=(const CudnnHandle&) = delete;
-  static CudnnHandle& get_instance() {
-    static CudnnHandle instance;
-    return instance;
-  }
-  cudnnHandle_t& GetCudnnHandle() { return cudnn; }
-  float* GetWorkSpace(size_t size);
-
- private:
-  CudnnHandle();
-  cudnnHandle_t cudnn;
-  float* work_space;
-  size_t size_;
-};
-
 /**
  * Call a CUDA compiled kernel.
  *
