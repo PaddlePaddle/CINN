@@ -245,7 +245,6 @@ extern "C" {
 #include "cinn_cuda_runtime_source.cuh"
 
 #ifdef __CUDACC_RTC__
-typedef long long int int64_t;
 typedef int int32_t;
 typedef char int8_t;
 #endif
@@ -311,7 +310,6 @@ extern "C" {
 #include "cinn_cuda_runtime_source.cuh"
 
 #ifdef __CUDACC_RTC__
-typedef long long int int64_t;
 typedef int int32_t;
 typedef char int8_t;
 #endif
@@ -685,7 +683,6 @@ extern "C" {
 #include "cinn_cuda_runtime_source.cuh"
 
 #ifdef __CUDACC_RTC__
-typedef long long int int64_t;
 typedef int int32_t;
 typedef char int8_t;
 #endif
@@ -831,7 +828,6 @@ extern "C" {
 #include "cinn_cuda_runtime_source.cuh"
 
 #ifdef __CUDACC_RTC__
-typedef long long int int64_t;
 typedef int int32_t;
 typedef char int8_t;
 #endif
@@ -946,7 +942,6 @@ void __launch_bounds__(128) schedule_conv2d_1(const float* __restrict__ X, const
   #include "cinn_cuda_runtime_source.cuh"
 
   #ifdef __CUDACC_RTC__
-  typedef long long int int64_t;
   typedef int int32_t;
   typedef char int8_t;
   #endif
@@ -1067,7 +1062,6 @@ extern "C" {
 #include "cinn_cuda_runtime_source.cuh"
 
 #ifdef __CUDACC_RTC__
-typedef long long int int64_t;
 typedef int int32_t;
 typedef char int8_t;
 #endif
@@ -1176,7 +1170,6 @@ extern "C" {
 #include "cinn_cuda_runtime_source.cuh"
 
 #ifdef __CUDACC_RTC__
-typedef long long int int64_t;
 typedef int int32_t;
 typedef char int8_t;
 #endif
@@ -1977,7 +1970,6 @@ extern "C" {
 #include "cinn_cuda_runtime_source.cuh"
 
 #ifdef __CUDACC_RTC__
-typedef long long int int64_t;
 typedef int int32_t;
 typedef char int8_t;
 #endif
@@ -2114,7 +2106,6 @@ extern "C" {
 #include "cinn_cuda_runtime_source.cuh"
 
 #ifdef __CUDACC_RTC__
-typedef long long int int64_t;
 typedef int int32_t;
 typedef char int8_t;
 #endif
@@ -2221,7 +2212,6 @@ extern "C" {
 #include "cinn_cuda_runtime_source.cuh"
 
 #ifdef __CUDACC_RTC__
-typedef long long int int64_t;
 typedef int int32_t;
 typedef char int8_t;
 #endif
@@ -2324,7 +2314,6 @@ extern "C" {
 #include "cinn_cuda_runtime_source.cuh"
 
 #ifdef __CUDACC_RTC__
-typedef long long int int64_t;
 typedef int int32_t;
 typedef char int8_t;
 #endif
@@ -2488,7 +2477,6 @@ extern "C" {
 #include "cinn_cuda_runtime_source.cuh"
 
 #ifdef __CUDACC_RTC__
-typedef long long int int64_t;
 typedef int int32_t;
 typedef char int8_t;
 #endif
@@ -2572,7 +2560,6 @@ extern "C" {
 #include "cinn_cuda_runtime_source.cuh"
 
 #ifdef __CUDACC_RTC__
-typedef long long int int64_t;
 typedef int int32_t;
 typedef char int8_t;
 #endif
@@ -2658,7 +2645,6 @@ extern "C" {
 #include "cinn_cuda_runtime_source.cuh"
 
 #ifdef __CUDACC_RTC__
-typedef long long int int64_t;
 typedef int int32_t;
 typedef char int8_t;
 #endif
@@ -2741,7 +2727,6 @@ extern "C" {
 #include "cinn_cuda_runtime_source.cuh"
 
 #ifdef __CUDACC_RTC__
-typedef long long int int64_t;
 typedef int int32_t;
 typedef char int8_t;
 #endif
