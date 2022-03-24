@@ -91,17 +91,31 @@ class GemmRewriterPass : public ProgramPass {
       if (it != output2instr_.end() && it->second->op_type == "matmul") {
         // If the output var of matmul is consumed by more than one instruction or
         // a fetch var, just skip to fuse it.
-        CHECK_GT(var_used_count_.count(var.get()), 0);
+        CHECK_GT(var_used_count_.count(var.get()), 0)
+            << "The input(" << var->id << ")"
+            << "should be included in var_used_count_. Please check the CollectInfo method.";
         if ((var_used_count_.at(var.get()) > 1) || fetch_ids.count(var->id)) {
           continue;
         }
 
         auto& matmul_instr = it->second;
-        // set inputs of mulbias
-        inputs     = matmul_instr->inputs;
-        auto& bias = instr->inputs[0].get() == var.get() ? instr->inputs[1] : instr->inputs[0];
+        // check inputs of cublas_gemm
+        auto& bias          = instr->inputs[0].get() == var.get() ? instr->inputs[1] : instr->inputs[0];
+        auto& matmul_inputs = matmul_instr->inputs;
+        int lhs_dim_size    = matmul_inputs[0]->shape.size();
+        int rhs_dim_size    = matmul_inputs[1]->shape.size();
+        int bias_dim_size   = bias->shape.size();
+        // only support the condition below:
+        // 1) tow-dim matrix multiply, such as m * k, k * n
+        // 2) three-dim tensor multiply, such as b * m * k, b * k * n
+        if (!((lhs_dim_size == 2 || lhs_dim_size == 3) && lhs_dim_size == rhs_dim_size &&
+              rhs_dim_size == bias_dim_size)) {
+          continue;
+        }
+        // set inputs of cublas_gemm
+        inputs = matmul_inputs;
         inputs.emplace_back(bias);
-        // set attrs of mulbias
+        // set attrs of cublas_gemm
         auto& attrs = matmul_instr->attrs;
         if (attrs.count("trans_a")) {
           trans_a = absl::get<bool>(attrs.at("trans_a"));

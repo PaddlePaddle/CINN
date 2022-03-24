@@ -15,10 +15,13 @@
 #include <algorithm>
 #include <iomanip>
 #include <iostream>
+#include <iterator>
 #include <random>
 #include <string>
 #include <unordered_set>
 
+#include "absl/algorithm/container.h"
+#include "absl/strings/string_view.h"
 #include "cinn/frontend/net_builder.h"
 #include "cinn/frontend/pass/use_program_pass.h"
 #include "cinn/frontend/program_pass.h"
@@ -42,7 +45,7 @@ bool IsCompiledWithCUDA() {
 #endif
 }
 
-void PrintMatrix(const std::vector<float>& mat, int m, int n) {
+void PrintMatrix(const std::vector<float>& mat, int bs, int m, int n) {
   if (!VLOG_IS_ON(4)) {
     return;
   }
@@ -51,16 +54,21 @@ void PrintMatrix(const std::vector<float>& mat, int m, int n) {
   int max            = static_cast<int>(*min_max.second);
   auto ele_width     = std::max(std::to_string(min).length(), std::to_string(max).length());
   std::cout << "\n" << std::string((ele_width + 2) * n - 1, '-') << "\n";
-  for (int i = 0; i < m; i++) {
-    for (int j = 0; j < n; j++) {
-      std::cout << std::setw(ele_width) << mat[i * n + j] << ", ";
+  for (int b = 0; b < bs; b++) {
+    for (int i = 0; i < m; i++) {
+      for (int j = 0; j < n; j++) {
+        std::cout << std::setw(ele_width) << mat[b * m * n + i * n + j] << ", ";
+      }
+      std::cout << "\n";
     }
-    std::cout << "\n";
+    if (b != bs - 1) {
+      std::cout << std::string((ele_width + 2) * n - 1, '*') << "\n";
+    }
   }
   std::cout << std::string((ele_width + 2) * n - 1, '-') << "\n\n";
 }
 
-void SetRandData(hlir::framework::Tensor tensor, Target target, int seed = -1) {
+void SetRandData(hlir::framework::Tensor tensor, const Target& target, int seed = -1) {
   if (seed == -1) {
     std::random_device rd;
     seed = rd();
@@ -105,20 +113,26 @@ void RunGraph(std::shared_ptr<hlir::framework::Graph> graph,
 
 std::vector<float> RunProgram(const Program& program,
                               const Target& target,
-                              std::vector<cinn::frontend::Placeholder> inputs,
-                              std::vector<std::string> output_ids,
+                              const std::vector<std::string>& input_ids,
+                              const std::vector<std::string>& output_ids,
                               int seed          = -1,
                               bool print_tensor = false) {
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
   auto scope = hlir::framework::BuildScope(target, graph);
-  for (auto& input : inputs) {
-    std::string input_id{input.id()};
+  for (auto& input_id : input_ids) {
     scope->Var<hlir::framework::Tensor>(input_id);
     auto input_tensor = scope->GetTensor(input_id);
     SetRandData(input_tensor, target, seed);
     if (print_tensor) {
       auto tensor_data = GetTensorData(input_tensor, target);
-      PrintMatrix(tensor_data, input_tensor->shape().data()[0], input_tensor->shape().data()[1]);
+      if (input_tensor->shape().data().size() == 2) {
+        PrintMatrix(tensor_data, 1, input_tensor->shape().data()[0], input_tensor->shape().data()[1]);
+      } else if (input_tensor->shape().data().size() == 3) {
+        PrintMatrix(tensor_data,
+                    input_tensor->shape().data()[0],
+                    input_tensor->shape().data()[1],
+                    input_tensor->shape().data()[2]);
+      }
     }
   }
 
@@ -127,12 +141,128 @@ std::vector<float> RunProgram(const Program& program,
   auto output_tensor = scope->GetTensor(output_ids.front());
   auto output_data   = GetTensorData(output_tensor, target);
   if (print_tensor) {
-    PrintMatrix(output_data, output_tensor->shape().data()[0], output_tensor->shape().data()[1]);
+    if (output_tensor->shape().data().size() == 2) {
+      PrintMatrix(output_data, 1, output_tensor->shape().data()[0], output_tensor->shape().data()[1]);
+    } else if (output_tensor->shape().data().size() == 3) {
+      PrintMatrix(output_data,
+                  output_tensor->shape().data()[0],
+                  output_tensor->shape().data()[1],
+                  output_tensor->shape().data()[2]);
+    }
   }
   return output_data;
 }
 
+void CompareResult(Program* program,
+                   const Target& target,
+                   const std::vector<std::string>& input_ids,
+                   const std::vector<std::string>& output_ids,
+                   int seed          = -1,
+                   bool print_tensor = false) {
+  std::unordered_set<std::string> fetch_ids(output_ids.begin(), output_ids.end());
+  // apply common pass
+  ProgramPass::Apply(program, fetch_ids, target, {"Decomposer"});
+  ApplyPass(program, fetch_ids, "RemoveIdentity");
+
+  // get origin output
+  auto origin_out = RunProgram(*program, target, input_ids, output_ids, seed, print_tensor);
+
+  // fuse transpose + add + dot, then run and get the fused output
+  ApplyPass(program, fetch_ids, "TransposeFolding");
+  ProgramPass::Apply(program, fetch_ids, target, {"GemmRewriter"});
+  auto fused_out = RunProgram(*program, target, input_ids, output_ids, seed, print_tensor);
+
+  ASSERT_EQ(origin_out.size(), fused_out.size());
+  for (size_t i = 0; i < origin_out.size(); ++i) {
+    ASSERT_FLOAT_EQ(origin_out[i], fused_out[i]);
+  }
+}
+
 }  // namespace
+
+TEST(GemmRwriter, BatchedTransLeft) {
+  if (!IsCompiledWithCUDA()) {
+    return;
+  }
+  NetBuilder builder("net_builder");
+  auto a       = builder.CreateInput(Float(32), {3, 6, 8}, "A");
+  auto b       = builder.Transpose(a, {0, 2, 1});
+  auto c       = builder.CreateInput(Float(32), {3, 6, 7}, "C");
+  auto d       = builder.Matmul(b, c);
+  auto e       = builder.CreateInput(Float(32), {3, 8, 7}, "E");
+  auto out     = builder.Add(d, e);
+  auto program = builder.Build();
+
+  Target target = common::DefaultNVGPUTarget();
+  std::vector<std::string> input_ids;
+  absl::c_transform(std::vector<absl::string_view>{a.id(), c.id(), e.id()},
+                    std::back_inserter(input_ids),
+                    [](absl::string_view id) { return std::string(id); });
+  CompareResult(&program, target, input_ids, {out->id}, 123, true);
+}
+
+TEST(GemmRwriter, BatchedTransRight) {
+  if (!IsCompiledWithCUDA()) {
+    return;
+  }
+  NetBuilder builder("net_builder");
+  auto a       = builder.CreateInput(Float(32), {3, 8, 6}, "A");
+  auto b       = builder.CreateInput(Float(32), {3, 7, 6}, "B");
+  auto c       = builder.Transpose(b, {0, 2, 1});
+  auto e       = builder.Matmul(a, c);
+  auto f       = builder.CreateInput(Float(32), {3, 8, 7}, "F");
+  auto out     = builder.Add(e, f);
+  auto program = builder.Build();
+
+  Target target = common::DefaultNVGPUTarget();
+  std::vector<std::string> input_ids;
+  absl::c_transform(std::vector<absl::string_view>{a.id(), b.id(), f.id()},
+                    std::back_inserter(input_ids),
+                    [](absl::string_view id) { return std::string(id); });
+  CompareResult(&program, target, input_ids, {out->id}, 123, true);
+}
+
+TEST(GemmRwriter, BatchedTransTwo) {
+  if (!IsCompiledWithCUDA()) {
+    return;
+  }
+  NetBuilder builder("net_builder");
+  auto a       = builder.CreateInput(Float(32), {3, 6, 8}, "A");
+  auto b       = builder.Transpose(a, {0, 2, 1});
+  auto c       = builder.CreateInput(Float(32), {3, 7, 6}, "C");
+  auto d       = builder.Transpose(c, {0, 2, 1});
+  auto e       = builder.Matmul(b, d);
+  auto f       = builder.CreateInput(Float(32), {3, 8, 7}, "F");
+  auto out     = builder.Add(e, f);
+  auto program = builder.Build();
+
+  Target target = common::DefaultNVGPUTarget();
+  std::vector<std::string> input_ids;
+  absl::c_transform(std::vector<absl::string_view>{a.id(), c.id(), f.id()},
+                    std::back_inserter(input_ids),
+                    [](absl::string_view id) { return std::string(id); });
+  CompareResult(&program, target, input_ids, {out->id}, 123, true);
+}
+
+TEST(GemmRwriter, BatchedNoTrans) {
+  if (!IsCompiledWithCUDA()) {
+    return;
+  }
+  NetBuilder builder("net_builder");
+  auto a       = builder.CreateInput(Float(32), {3, 8, 6}, "A");
+  auto b       = builder.CreateInput(Float(32), {3, 6, 7}, "B");
+  auto e       = builder.Matmul(a, b);
+  auto f       = builder.CreateInput(Float(32), {3, 8, 7}, "F");
+  auto out     = builder.Add(e, f);
+  auto program = builder.Build();
+
+  Target target = common::DefaultNVGPUTarget();
+  std::vector<std::string> input_ids;
+  absl::c_transform(std::vector<absl::string_view>{a.id(), b.id(), f.id()},
+                    std::back_inserter(input_ids),
+                    [](absl::string_view id) { return std::string(id); });
+  CompareResult(&program, target, input_ids, {out->id}, 123, true);
+}
 
 TEST(GemmRwriter, TransLeft) {
   if (!IsCompiledWithCUDA()) {
@@ -142,29 +272,17 @@ TEST(GemmRwriter, TransLeft) {
   auto a       = builder.CreateInput(Float(32), {6, 8}, "A");
   auto b       = builder.Transpose(a, {1, 0});
   auto c       = builder.CreateInput(Float(32), {6, 7}, "C");
-  auto e       = builder.Matmul(b, c);
-  auto f       = builder.CreateInput(Float(32), {8, 7}, "F");
-  auto out     = builder.Add(e, f);
+  auto d       = builder.Matmul(b, c);
+  auto e       = builder.CreateInput(Float(32), {8, 7}, "E");
+  auto out     = builder.Add(d, e);
   auto program = builder.Build();
 
   Target target = common::DefaultNVGPUTarget();
-  std::unordered_set<std::string> fetch_ids{out->id};
-  // apply common pass
-  ProgramPass::Apply(&program, fetch_ids, target, {"Decomposer"});
-  ApplyPass(&program, fetch_ids, "RemoveIdentity");
-
-  // get origin output
-  auto origin_out = RunProgram(program, target, {a, c, f}, {out->id}, 123, true);
-
-  // fuse transpose + add + dot, then run and get the fused output
-  ApplyPass(&program, fetch_ids, "TransposeFolding");
-  ProgramPass::Apply(&program, fetch_ids, target, {"GemmRewriter"});
-  auto fused_out = RunProgram(program, target, {a, c, f}, {out->id}, 123, true);
-
-  ASSERT_EQ(origin_out.size(), fused_out.size());
-  for (size_t i = 0; i < origin_out.size(); ++i) {
-    ASSERT_FLOAT_EQ(origin_out[i], fused_out[i]);
-  }
+  std::vector<std::string> input_ids;
+  absl::c_transform(std::vector<absl::string_view>{a.id(), c.id(), e.id()},
+                    std::back_inserter(input_ids),
+                    [](absl::string_view id) { return std::string(id); });
+  CompareResult(&program, target, input_ids, {out->id}, 123, true);
 }
 
 TEST(GemmRwriter, TransRight) {
@@ -173,31 +291,19 @@ TEST(GemmRwriter, TransRight) {
   }
   NetBuilder builder("net_builder");
   auto a       = builder.CreateInput(Float(32), {8, 6}, "A");
-  auto c       = builder.CreateInput(Float(32), {7, 6}, "C");
-  auto b       = builder.Transpose(c, {1, 0});
-  auto e       = builder.Matmul(a, b);
+  auto b       = builder.CreateInput(Float(32), {7, 6}, "B");
+  auto c       = builder.Transpose(b, {1, 0});
+  auto e       = builder.Matmul(a, c);
   auto f       = builder.CreateInput(Float(32), {8, 7}, "F");
   auto out     = builder.Add(e, f);
   auto program = builder.Build();
 
   Target target = common::DefaultNVGPUTarget();
-  std::unordered_set<std::string> fetch_ids{out->id};
-  // apply common pass
-  ProgramPass::Apply(&program, fetch_ids, target, {"Decomposer"});
-  ApplyPass(&program, fetch_ids, "RemoveIdentity");
-
-  // get origin output
-  auto origin_out = RunProgram(program, target, {a, c, f}, {out->id}, 123, true);
-
-  // fuse transpose + add + dot, then run and get the fused output
-  ApplyPass(&program, fetch_ids, "TransposeFolding");
-  ProgramPass::Apply(&program, fetch_ids, target, {"GemmRewriter"});
-  auto fused_out = RunProgram(program, target, {a, c, f}, {out->id}, 123, true);
-
-  ASSERT_EQ(origin_out.size(), fused_out.size());
-  for (size_t i = 0; i < origin_out.size(); ++i) {
-    ASSERT_FLOAT_EQ(origin_out[i], fused_out[i]);
-  }
+  std::vector<std::string> input_ids;
+  absl::c_transform(std::vector<absl::string_view>{a.id(), b.id(), f.id()},
+                    std::back_inserter(input_ids),
+                    [](absl::string_view id) { return std::string(id); });
+  CompareResult(&program, target, input_ids, {out->id}, 123, true);
 }
 
 TEST(GemmRwriter, TransTwo) {
@@ -215,55 +321,59 @@ TEST(GemmRwriter, TransTwo) {
   auto program = builder.Build();
 
   Target target = common::DefaultNVGPUTarget();
-  std::unordered_set<std::string> fetch_ids{out->id};
-  // apply common pass
-  ProgramPass::Apply(&program, fetch_ids, target, {"Decomposer"});
-  ApplyPass(&program, fetch_ids, "RemoveIdentity");
-
-  // get origin output
-  auto origin_out = RunProgram(program, target, {a, c, f}, {out->id}, 123, true);
-
-  // fuse transpose + add + dot, then run and get the fused output
-  ApplyPass(&program, fetch_ids, "TransposeFolding");
-  ProgramPass::Apply(&program, fetch_ids, target, {"GemmRewriter"});
-  auto fused_out = RunProgram(program, target, {a, c, f}, {out->id}, 123, true);
-
-  ASSERT_EQ(origin_out.size(), fused_out.size());
-  for (size_t i = 0; i < origin_out.size(); ++i) {
-    ASSERT_FLOAT_EQ(origin_out[i], fused_out[i]);
-  }
+  std::vector<std::string> input_ids;
+  absl::c_transform(std::vector<absl::string_view>{a.id(), c.id(), f.id()},
+                    std::back_inserter(input_ids),
+                    [](absl::string_view id) { return std::string(id); });
+  CompareResult(&program, target, input_ids, {out->id}, 123, true);
 }
 
 TEST(GemmRwriter, NoTrans) {
-  if (!IsCompiledWithCUDA()) {
-    return;
-  }
   NetBuilder builder("net_builder");
   auto a       = builder.CreateInput(Float(32), {8, 6}, "A");
-  auto c       = builder.CreateInput(Float(32), {6, 7}, "C");
-  auto e       = builder.Matmul(a, c);
+  auto b       = builder.CreateInput(Float(32), {6, 7}, "B");
+  auto e       = builder.Matmul(a, b);
   auto f       = builder.CreateInput(Float(32), {8, 7}, "F");
   auto out     = builder.Add(e, f);
   auto program = builder.Build();
 
   Target target = common::DefaultNVGPUTarget();
-  std::unordered_set<std::string> fetch_ids{out->id};
-  // apply common pass
-  ProgramPass::Apply(&program, fetch_ids, target, {"Decomposer"});
-  ApplyPass(&program, fetch_ids, "RemoveIdentity");
+  std::vector<std::string> input_ids;
+  absl::c_transform(std::vector<absl::string_view>{a.id(), b.id(), f.id()},
+                    std::back_inserter(input_ids),
+                    [](absl::string_view id) { return std::string(id); });
+  CompareResult(&program, target, input_ids, {out->id}, 123, true);
+}
 
-  // get origin output
-  auto origin_out = RunProgram(program, target, {a, c, f}, {out->id}, 123, true);
-
-  // fuse transpose + add + dot, then run and get the fused output
-  ApplyPass(&program, fetch_ids, "TransposeFolding");
-  ProgramPass::Apply(&program, fetch_ids, target, {"GemmRewriter"});
-  auto fused_out = RunProgram(program, target, {a, c, f}, {out->id}, 123, true);
-
-  ASSERT_EQ(origin_out.size(), fused_out.size());
-  for (size_t i = 0; i < origin_out.size(); ++i) {
-    ASSERT_FLOAT_EQ(origin_out[i], fused_out[i]);
+TEST(GemmRwriter, BatchedComplex) {
+  if (!IsCompiledWithCUDA()) {
+    return;
   }
+  NetBuilder builder("net_builder");
+  auto a       = builder.FillConstant<float>({2, 20}, 2.0f, "A");
+  auto b       = builder.BroadcastTo(a, {16, 2, 20}, {1, 2});
+  auto c       = builder.Transpose(b, {0, 2, 1});
+  auto d       = builder.CreateInput(Float(32), {121, 20}, "C");
+  auto e       = builder.BroadcastTo(d, {16, 121, 20}, {1, 2});
+  auto f       = builder.Matmul(e, c);
+  auto x       = builder.FillConstant<float>({16, 2, 20}, 1.0f, "X");
+  auto y       = builder.Transpose(x, {0, 2, 1});
+  auto z       = builder.CreateInput(Float(32), {16, 20, 121}, "Z");
+  auto l       = builder.Transpose(z, {0, 2, 1});
+  auto m       = builder.Matmul(l, y);
+  auto n       = builder.Mul(d, a);
+  auto o       = builder.BroadcastTo(n, {16, n->shape[0], n->shape[1]}, {1, 2});
+  auto p       = builder.Sub(f, o);
+  auto q       = builder.Add(f, m);
+  auto out     = builder.Add(p, q);
+  auto program = builder.Build();
+
+  Target target = common::DefaultNVGPUTarget();
+  std::vector<std::string> input_ids;
+  absl::c_transform(std::vector<absl::string_view>{d.id(), z.id()},
+                    std::back_inserter(input_ids),
+                    [](absl::string_view id) { return std::string(id); });
+  CompareResult(&program, target, input_ids, {out->id}, 123, false);
 }
 
 TEST(GemmRwriter, Complex) {
@@ -279,30 +389,19 @@ TEST(GemmRwriter, Complex) {
   auto y       = builder.Transpose(x, {1, 0});
   auto z       = builder.CreateInput(Float(32), {20, 121}, "Z");
   auto l       = builder.Transpose(z, {1, 0});
-  auto q       = builder.Matmul(l, y);
-  auto p       = builder.Mul(c, a);
-  auto m       = builder.Sub(d, p);
-  auto n       = builder.Add(d, q);
-  auto out     = builder.Add(m, n);
+  auto m       = builder.Matmul(l, y);
+  auto n       = builder.Mul(c, a);
+  auto p       = builder.Sub(d, n);
+  auto q       = builder.Add(d, m);
+  auto out     = builder.Add(p, q);
   auto program = builder.Build();
 
   Target target = common::DefaultNVGPUTarget();
-  std::unordered_set<std::string> fetch_ids{out->id};
-  // apply common pass
-  ProgramPass::Apply(&program, fetch_ids, target, {"Decomposer"});
-  ApplyPass(&program, fetch_ids, "RemoveIdentity");
-
-  // get origin output
-  auto origin_out = RunProgram(program, target, {c, z}, {out->id}, 456);
-
-  // fuse transpose + add + dot, then run and get the fused output
-  ApplyPass(&program, fetch_ids, "TransposeFolding");
-  ProgramPass::Apply(&program, fetch_ids, target, {"GemmRewriter"});
-  auto fused_out = RunProgram(program, target, {c, z}, {out->id}, 456);
-  ASSERT_EQ(origin_out.size(), fused_out.size());
-  for (size_t i = 0; i < origin_out.size(); ++i) {
-    ASSERT_FLOAT_EQ(origin_out[i], fused_out[i]);
-  }
+  std::vector<std::string> input_ids;
+  absl::c_transform(std::vector<absl::string_view>{c.id(), z.id()},
+                    std::back_inserter(input_ids),
+                    [](absl::string_view id) { return std::string(id); });
+  CompareResult(&program, target, input_ids, {out->id}, 123, false);
 }
 
 }  // namespace cinn::frontend

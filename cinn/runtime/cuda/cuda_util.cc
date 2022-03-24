@@ -30,6 +30,104 @@
 namespace cinn {
 namespace runtime {
 namespace cuda {
+namespace details {
+void Gemm(const cublasHandle_t &cublas,
+          bool lhs_trans,
+          bool rhs_trans,
+          const float *lhs_data,
+          const float *rhs_data,
+          const float *bias_data,
+          float *output_data,
+          const std::vector<int> &attrs,
+          const cudaStream_t &stream) {
+  CHECK_EQ(attrs.size(), 11);
+  int lhs_row    = attrs[0];
+  int lhs_col    = attrs[1];
+  int rhs_row    = attrs[2];
+  int rhs_col    = attrs[3];
+  int output_row = attrs[4];
+  int output_col = attrs[5];
+
+  // copy values of bias_data to the output_data
+  cudaMemcpyAsync(output_data, bias_data, output_row * output_col * sizeof(float), cudaMemcpyDeviceToDevice, stream);
+
+  float alpha          = 1.f;
+  float beta           = 1.f;
+  int contracting_size = lhs_trans ? lhs_row : lhs_col;
+  CHECK_EQ(contracting_size, rhs_trans ? rhs_col : rhs_row);
+  auto trans_a = rhs_trans ? CUBLAS_OP_T : CUBLAS_OP_N;
+  auto trans_b = lhs_trans ? CUBLAS_OP_T : CUBLAS_OP_N;
+  cublasSgemm(cublas,
+              trans_a,
+              trans_b,
+              output_col,
+              output_row,
+              contracting_size,
+              &alpha,
+              rhs_data,
+              rhs_col,
+              lhs_data,
+              lhs_col,
+              &beta,
+              output_data,
+              output_col);
+}
+
+void GemmStridedBatched(const cublasHandle_t &cublas,
+                        bool lhs_trans,
+                        bool rhs_trans,
+                        const float *lhs_data,
+                        const float *rhs_data,
+                        const float *bias_data,
+                        float *output_data,
+                        const std::vector<int> &attrs,
+                        const cudaStream_t &stream) {
+  CHECK_EQ(attrs.size(), 14);
+  int lhs_bs     = attrs[0];
+  int lhs_row    = attrs[1];
+  int lhs_col    = attrs[2];
+  int rhs_bs     = attrs[3];
+  int rhs_row    = attrs[4];
+  int rhs_col    = attrs[5];
+  int output_bs  = attrs[6];
+  int output_row = attrs[7];
+  int output_col = attrs[8];
+  CHECK_EQ(lhs_bs, rhs_bs);
+  CHECK_EQ(lhs_bs, output_bs);
+
+  // copy values of bias_data to the output_data
+  cudaMemcpyAsync(
+      output_data, bias_data, output_bs * output_row * output_col * sizeof(float), cudaMemcpyDeviceToDevice, stream);
+
+  float alpha          = 1.f;
+  float beta           = 1.f;
+  int contracting_size = lhs_trans ? lhs_row : lhs_col;
+  CHECK_EQ(contracting_size, rhs_trans ? rhs_col : rhs_row);
+  auto trans_a          = rhs_trans ? CUBLAS_OP_T : CUBLAS_OP_N;
+  auto trans_b          = lhs_trans ? CUBLAS_OP_T : CUBLAS_OP_N;
+  int64_t lhs_stride    = lhs_row * lhs_col;
+  int64_t rhs_stride    = rhs_row * rhs_col;
+  int64_t output_stride = output_row * output_col;
+  cublasSgemmStridedBatched(cublas,
+                            trans_a,
+                            trans_b,
+                            output_col,
+                            output_row,
+                            contracting_size,
+                            &alpha,
+                            rhs_data,
+                            rhs_col,
+                            rhs_stride,
+                            lhs_data,
+                            lhs_col,
+                            lhs_stride,
+                            &beta,
+                            output_data,
+                            output_col,
+                            output_stride,
+                            output_bs);
+}
+}  // namespace details
 
 SerialData::SerialData() {}
 
@@ -106,40 +204,18 @@ void cinn_gpu_cublas_gemm(const std::vector<int> &attrs,
   int lhs_dim_size  = attrs[attrs.size() - 5];
   int rhs_dim_size  = attrs[attrs.size() - 4];
   int bias_dim_size = attrs[attrs.size() - 3];
+  bool lhs_trans    = static_cast<bool>(attrs[attrs.size() - 2]);
+  bool rhs_trans    = static_cast<bool>(attrs[attrs.size() - 1]);
   CHECK_EQ(lhs_dim_size, rhs_dim_size);
-  CHECK_EQ(rhs_dim_size, bias_dim_size);
+  CHECK_EQ(lhs_dim_size, bias_dim_size);
   CHECK((lhs_dim_size == 2 || lhs_dim_size == 3));
 
-  bool lhs_trans = static_cast<bool>(attrs[attrs.size() - 2]);
-  bool rhs_trans = static_cast<bool>(attrs[attrs.size() - 1]);
-  int lhs_row    = attrs[0];
-  int lhs_col    = attrs[1];
-  int rhs_col    = attrs[3];
-  int output_row = attrs[4];
-  int output_col = attrs[5];
-
-  // copy values of bias_data to the output_data
-  cudaMemcpyAsync(output_data, bias_data, output_row * output_col * sizeof(float), cudaMemcpyDeviceToDevice, stream);
-
-  float alpha          = 1.f;
-  float beta           = 1.f;
-  int contracting_size = lhs_trans ? lhs_row : lhs_col;
-  auto trans_a         = rhs_trans ? CUBLAS_OP_T : CUBLAS_OP_N;
-  auto trans_b         = lhs_trans ? CUBLAS_OP_T : CUBLAS_OP_N;
-  cublasSgemm(cublas,
-              trans_a,
-              trans_b,
-              output_col,
-              output_row,
-              contracting_size,
-              &alpha,
-              rhs_data,
-              rhs_col,
-              lhs_data,
-              lhs_col,
-              &beta,
-              output_data,
-              output_col);
+  if (lhs_dim_size == 2) {
+    details::Gemm(cublas, lhs_trans, rhs_trans, lhs_data, rhs_data, bias_data, output_data, attrs, stream);
+  } else {
+    details::GemmStridedBatched(
+        cublas, lhs_trans, rhs_trans, lhs_data, rhs_data, bias_data, output_data, attrs, stream);
+  }
 }
 
 void cinn_call_cuda_kernel(void *kernel_fn,
