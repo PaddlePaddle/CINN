@@ -337,13 +337,14 @@ void BindFrontend(pybind11::module *m) {
            py::arg("kind")     = ReduceKind::kSum,
            py::arg("dim")      = std::vector<int>{},
            py::arg("keep_dim") = false)
+      .def(
+          "broadcast_to",
+          static_cast<Variable (BaseBuilder::*)(const Variable &, const std::vector<int> &)>(&BaseBuilder::BroadcastTo),
+          py::arg("a"),
+          py::arg("out_shape"))
       .def("broadcast_to",
-           (Variable(BaseBuilder::*)(const Variable &, const std::vector<int> &)) & BaseBuilder::BroadcastTo,
-           py::arg("a"),
-           py::arg("out_shape"))
-      .def("broadcast_to",
-           (Variable(BaseBuilder::*)(const Variable &, const std::vector<int> &, const std::vector<int> &)) &
-               BaseBuilder::BroadcastTo,
+           static_cast<Variable (BaseBuilder::*)(const Variable &, const std::vector<int> &, const std::vector<int> &)>(
+               &BaseBuilder::BroadcastTo),
            py::arg("a"),
            py::arg("out_shape"),
            py::arg("broadcast_axes"))
