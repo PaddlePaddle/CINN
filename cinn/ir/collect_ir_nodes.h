@@ -20,9 +20,14 @@ namespace cinn {
 namespace ir {
 
 /**
- * Collect the tensors(without duplication) in the expression.
+ * Collect the IR Nodes(without duplication) in the expression.
  */
 std::set<Expr> CollectIRNodes(Expr x, std::function<bool(const Expr*)>&& teller);
+
+/**
+ * Collect the IR Nodes(without duplication and tensor's compute body) in the expression.
+ */
+std::set<Expr> CollectIRNodesWithoutTensor(Expr x, std::function<bool(const Expr*)>&& teller);
 
 /**
  * Collect the tensors in Load nodes.

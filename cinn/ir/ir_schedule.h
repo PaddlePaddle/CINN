@@ -150,6 +150,26 @@ class IRSchedule {
   Expr Fuse(const std::string& block_name, const std::vector<int>& loops_index);
 
   /**
+   * \brief Move a block's location under a loop.
+   * @param block The block we want to move its computation location.
+   * @param loop The loop we will move the block to.
+   */
+  void ComputeAt(const Expr& block, const Expr& loop);
+
+  /**
+   * \brief Find an expr's root ScheduleBlockRealize node
+   * @param expr The expr node.
+   * @return Its root ScheduleBlockRealize node.
+   */
+  Expr GetRootBlock(const Expr& expr) const;
+  /*!
+   * \brief Set a tensor's buffer type(memory_type)
+   * \param block The ScheduleBlockRealize corresponding to an unique tensor.
+   * \param memory_type The memory type we want to set. Should be "local", "shared" or "global".
+   */
+  void SetBuffer(const Expr& block, const std::string& memory_type) const;
+
+  /**
    * \brief Reorder the loops in the order of vector.
    * @param loops The loops to be reordered.
    */
@@ -196,7 +216,7 @@ class IRSchedule {
   void Bind(Expr& loop, const std::string& thread_axis);
 
   //! Get the ModuleExpr stored in ScheduleHelper.
-  ModuleExpr GetModule() { return helper_.GetModule(); }
+  ModuleExpr GetModule() const { return helper_.GetModule(); }
 
  private:
   ScheduleHelper helper_;
