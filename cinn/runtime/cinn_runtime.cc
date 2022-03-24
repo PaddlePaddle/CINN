@@ -117,7 +117,7 @@ cinn_buffer_t* cinn_buffer_new_default(int target, uint64_t memory_size, int ali
 }
 
 cinn_type_t cinn_unk_t() { return cinn_type_t(cinn_type_unk, 0); }
-cinn_type_t cinn_bool_t(int num_asterisks) { return cinn_type_t(cinn_type_int, 8, num_asterisks); }
+cinn_type_t cinn_bool_t(int num_asterisks) { return cinn_type_t(cinn_type_int, 1, num_asterisks); }
 cinn_type_t cinn_int8_t(int num_asterisks) { return cinn_type_t(cinn_type_int, 8, num_asterisks); }
 cinn_type_t cinn_int32_t(int num_asterisks) { return cinn_type_t(cinn_type_int, 32, num_asterisks); }
 cinn_type_t cinn_int64_t(int num_asterisks) { return cinn_type_t(cinn_type_int, 64, num_asterisks); }
