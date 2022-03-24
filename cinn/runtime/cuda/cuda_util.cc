@@ -129,38 +129,47 @@ void GemmStridedBatched(const cublasHandle_t &cublas,
 }
 }  // namespace details
 
-SerialData::SerialData() {}
-
-SerialData::~SerialData() {}
-
-CudnnHandle::CudnnHandle() {
-  CUDNN_CALL(cudnnCreate(&cudnn));
-  size_      = 0;
-  work_space = nullptr;
-}
-
-CudnnHandle::~CudnnHandle() {
-  CUDNN_CALL(cudnnDestroy(cudnn));
-  if (size_ > 0) {
-    CUDA_CALL(cudaFree(work_space));
-  }
-}
-
 CublasHandle::CublasHandle() { cublasCreate(&cublas); }
 
 CublasHandle::~CublasHandle() { cublasDestroy(cublas); }
 
-float *CudnnHandle::GetWorkSpace(size_t size) {
-  if (size_ >= size) {
-    return work_space;
-  } else {
-    if (size_ > 0) {
-      CUDA_CALL(cudaFree(work_space));
+SerialData::SerialData() {}
+
+SerialData::~SerialData() {}
+
+void cinn_call_cuda_kernel(void *kernel_fn,
+                           cinn_pod_value_t *args,
+                           int num_args,
+                           int grid_x,
+                           int grid_y,
+                           int grid_z,
+                           int block_x,
+                           int block_y,
+                           int block_z,
+                           void *stream) {
+  // prepare void**
+  VLOG(3) << "In cinn_call_cuda_kernel, grid_dim={" << grid_x << ", " << grid_y << ", " << grid_z << "}, block_dim={"
+          << block_x << ", " << block_y << ", " << block_z << "}, num_args=" << num_args << ", stream=" << stream;
+  void *arr[30];
+  CHECK_LT(num_args, 30);
+  for (int i = 0; i < num_args; i++) {
+    if (args[i].type_code() == ::cinn_type_code<cinn_buffer_t *>()) {
+      arr[i] = &((cinn_buffer_t *)(args[i]))->memory;  // NOLINT
+    } else {
+      arr[i] = args[i].data_addr();
     }
-    CUDA_CALL(cudaMalloc(&work_space, size));
-    size_ = size;
-    return work_space;
   }
+  CUDA_DRIVER_CALL(cuLaunchKernel(static_cast<CUfunction>(kernel_fn),
+                                  grid_x,
+                                  grid_y,
+                                  grid_z,
+                                  block_x,
+                                  block_y,
+                                  block_z,
+                                  0,  // share memory
+                                  static_cast<CUstream>(stream),
+                                  reinterpret_cast<void **>(arr),
+                                  nullptr))
 }
 
 void cinn_gpu_cublas_mul(const std::vector<int> &attrs,
@@ -218,39 +227,31 @@ void cinn_gpu_cublas_gemm(const std::vector<int> &attrs,
   }
 }
 
-void cinn_call_cuda_kernel(void *kernel_fn,
-                           cinn_pod_value_t *args,
-                           int num_args,
-                           int grid_x,
-                           int grid_y,
-                           int grid_z,
-                           int block_x,
-                           int block_y,
-                           int block_z,
-                           void *stream) {
-  // prepare void**
-  VLOG(3) << "In cinn_call_cuda_kernel, grid_dim={" << grid_x << ", " << grid_y << ", " << grid_z << "}, block_dim={"
-          << block_x << ", " << block_y << ", " << block_z << "}, num_args=" << num_args << ", stream=" << stream;
-  void *arr[30];
-  CHECK_LT(num_args, 30);
-  for (int i = 0; i < num_args; i++) {
-    if (args[i].type_code() == ::cinn_type_code<cinn_buffer_t *>()) {
-      arr[i] = &((cinn_buffer_t *)(args[i]))->memory;  // NOLINT
-    } else {
-      arr[i] = args[i].data_addr();
-    }
+#ifdef CINN_WITH_CUDNN
+CudnnHandle::CudnnHandle() {
+  CUDNN_CALL(cudnnCreate(&cudnn));
+  size_      = 0;
+  work_space = nullptr;
+}
+
+CudnnHandle::~CudnnHandle() {
+  CUDNN_CALL(cudnnDestroy(cudnn));
+  if (size_ > 0) {
+    CUDA_CALL(cudaFree(work_space));
   }
-  CUDA_DRIVER_CALL(cuLaunchKernel(static_cast<CUfunction>(kernel_fn),
-                                  grid_x,
-                                  grid_y,
-                                  grid_z,
-                                  block_x,
-                                  block_y,
-                                  block_z,
-                                  0,  // share memory
-                                  static_cast<CUstream>(stream),
-                                  reinterpret_cast<void **>(arr),
-                                  nullptr))
+}
+
+float *CudnnHandle::GetWorkSpace(size_t size) {
+  if (size_ >= size) {
+    return work_space;
+  } else {
+    if (size_ > 0) {
+      CUDA_CALL(cudaFree(work_space));
+    }
+    CUDA_CALL(cudaMalloc(&work_space, size));
+    size_ = size;
+    return work_space;
+  }
 }
 
 #define GetAttrValue(attr_map, key_name, default_value)      \
@@ -655,6 +656,7 @@ void cinn_gpu_cudnn_softmax(const std::vector<int> &attrs,
   cudnnDestroyTensorDescriptor(in_desc);
   cudnnDestroyTensorDescriptor(out_desc);
 }
+#endif
 
 }  // namespace cuda
 }  // namespace runtime
