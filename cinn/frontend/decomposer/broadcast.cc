@@ -52,10 +52,14 @@ void GetReduceDimsForY(const std::vector<int>& dy_shape,
 void elementwise_add(const Instruction& instr, const DecomposerContext& context) {
   CHECK_EQ(instr->inputs.size(), 2UL) << " 2 input tensors for " << instr->op_type;
   CHECK_EQ(instr->outputs.size(), 1UL) << "1 output tensor for " << instr->op_type;
-  auto x        = instr->inputs[0];
-  auto y        = instr->inputs[1];
-  auto output   = instr->outputs[0];
-  int axis      = instr.GetAttrs<int>("axis");
+  auto x      = instr->inputs[0];
+  auto y      = instr->inputs[1];
+  auto output = instr->outputs[0];
+
+  int axis = -1;
+  if (instr->attrs.find("axis") != instr->attrs.end()) {
+    axis = instr.GetAttrs<int>("axis");
+  }
   axis          = axis >= 0 ? axis : x->shape.size() - y->shape.size();
   auto* builder = context.builder();
 
