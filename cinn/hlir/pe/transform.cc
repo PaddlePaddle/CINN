@@ -82,7 +82,7 @@ std::vector<Tensor> Matmul(
         }
         return lang::ReduceSum(A(A_indice) * B(B_indice), {reduce_k});
       },
-      "temp_matmul_out");
+      UniqName("temp_matmul_out"));
   if (alpha != 1) {
     auto res = Compute(
         output_shape,

@@ -1,4 +1,4 @@
-// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+// Copyright (c) 2022 CINN Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,17 +13,25 @@
 // limitations under the License.
 
 #pragma once
-#include <utility>
 
-#include "cinn/ir/ir.h"
+#include <string>
+
+#include "cinn/auto_schedule/task_scheduler/task_scheduler.h"
 
 namespace cinn {
-namespace optim {
+namespace auto_schedule {
 
-//! Shallow copy an expression.
-Expr IRCopy(Expr x);
+// Schedule tasks with round_robin strategy, that
+// is picking a task to tune once a time iteratively.
+class RoundRobin : public TaskScheduler {
+ public:
+  RoundRobin(const std::vector<TuneTask>& tasks, const Config& config) : TaskScheduler(tasks, config) {}
 
-std::vector<Expr> IRCopy(const std::vector<Expr>& x);
+  const char* Name() const override { return "round_robin"; };
 
-}  // namespace optim
+ protected:
+  int NextTaskId() override;
+};
+
+}  // namespace auto_schedule
 }  // namespace cinn

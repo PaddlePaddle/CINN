@@ -1,4 +1,4 @@
-// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+// Copyright (c) 2022 CINN Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,17 +13,25 @@
 // limitations under the License.
 
 #pragma once
-#include <utility>
 
-#include "cinn/ir/ir.h"
+#include "cinn/auto_schedule/task/tune_task.h"
+#include "cinn/auto_schedule/task/tuning_options.h"
 
 namespace cinn {
-namespace optim {
+namespace auto_schedule {
 
-//! Shallow copy an expression.
-Expr IRCopy(Expr x);
+// This class is responsible for tuning a specific task,
+// it will integrate necessary components to search the
+// optimal schedule for the task.
+class TaskOptimizer {
+ public:
+  TaskOptimizer(const TuneTask& task) : task_(&task) {}
 
-std::vector<Expr> IRCopy(const std::vector<Expr>& x);
+  void Tune(const TuningOptions& options);
 
-}  // namespace optim
+ private:
+  const TuneTask* task_;
+};
+
+}  // namespace auto_schedule
 }  // namespace cinn
