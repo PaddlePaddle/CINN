@@ -538,6 +538,16 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
     stages[fetch_tensor]->DisableComputeInline();
     int level = stages[final_out_tensor]->n_out_dims() - 1;
     VLOG(3) << "no fuse fetch tensor " << fetch_tensor->name << " and recomputeAt in level " << level;
+
+    // if the fetch tensor size is 1, the fetch tensor cannot fuse by ComputeAt2
+    int len = 1;
+    for (const auto& dim : fetch_tensor->shape) {
+      len *= dim.as_int32();
+    }
+    if (len <= 1) {
+      continue;
+    }
+
     stages[fetch_tensor]->ComputeAt2(stages[final_out_tensor], level);
   }
 
