@@ -54,7 +54,8 @@ void Gemm(const cublasHandle_t &cublas,
   float alpha          = 1.f;
   float beta           = 1.f;
   int contracting_size = lhs_trans ? lhs_row : lhs_col;
-  CHECK_EQ(contracting_size, rhs_trans ? rhs_col : rhs_row);
+  CHECK_EQ(contracting_size, (rhs_trans ? rhs_col : rhs_row))
+      << "The contracting dimension value of lhs matrix should be equal to the one of rhs matrix.";
   auto trans_a = rhs_trans ? CUBLAS_OP_T : CUBLAS_OP_N;
   auto trans_b = lhs_trans ? CUBLAS_OP_T : CUBLAS_OP_N;
   cublasSgemm(cublas,
@@ -102,7 +103,8 @@ void GemmStridedBatched(const cublasHandle_t &cublas,
   float alpha          = 1.f;
   float beta           = 1.f;
   int contracting_size = lhs_trans ? lhs_row : lhs_col;
-  CHECK_EQ(contracting_size, rhs_trans ? rhs_col : rhs_row);
+  CHECK_EQ(contracting_size, (rhs_trans ? rhs_col : rhs_row))
+      << "The contracting dimension value of lhs matrix should be equal to the one of rhs matrix.";
   auto trans_a          = rhs_trans ? CUBLAS_OP_T : CUBLAS_OP_N;
   auto trans_b          = lhs_trans ? CUBLAS_OP_T : CUBLAS_OP_N;
   int64_t lhs_stride    = lhs_row * lhs_col;
