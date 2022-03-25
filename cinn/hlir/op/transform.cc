@@ -1014,7 +1014,7 @@ std::shared_ptr<OpStrategy> StrategyForCublasGemm(const framework::NodeAttr &att
     CHECK(rhs.as_tensor());
     CHECK(bias.as_tensor());
     auto bias_tensor = bias.as_tensor_ref();
-    // dummy gemm, which uses cublas_gemm instead
+    // dummy gemm computation, which will be replaced by cinn_gpu_cublas_gemm in the GemmRewriter pass.
     auto out    = pe::Identity(bias_tensor, UniqName("cublas_gemm_output")).front();
     auto stages = CreateStages({lhs.as_tensor_ref(), rhs.as_tensor_ref(), bias_tensor});
     stages->InsertLazily(out);
@@ -1992,6 +1992,7 @@ CINN_REGISTER_HELPER(transform_ops) {
                                                       cinn::hlir::framework::OpPatternKind::kOutEWiseFusable)
       .set_support_level(4);
 
+#ifdef CINN_WITH_CUDA
   CINN_REGISTER_OP(cublas_gemm)
       .describe("This operator uses cublas to compute the gemm.")
       .set_num_inputs(3)
@@ -2001,6 +2002,7 @@ CINN_REGISTER_HELPER(transform_ops) {
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForCublasGemm))
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
+#endif
 
   CINN_REGISTER_OP(layout_transform)
       .describe("This operator is used to transform op's layouts")
