@@ -73,8 +73,8 @@ class OpTest(unittest.TestCase):
                         inputs,
                         feed_data,
                         outputs,
-                        passes=["Decomposer"],
-                        fetch_ids=set()):
+                        passes=["Decomposer"]):
+        fetch_ids = {str(out) for out in outputs}
         self.apply_pass(prog, target, passes, fetch_ids)
         result = prog.build_and_get_output(target, inputs, feed_data, outputs)
         outs_and_grads = []

@@ -329,6 +329,9 @@ TEST(GemmRwriter, TransTwo) {
 }
 
 TEST(GemmRwriter, NoTrans) {
+  if (!IsCompiledWithCUDA()) {
+    return;
+  }
   NetBuilder builder("net_builder");
   auto a       = builder.CreateInput(Float(32), {8, 6}, "A");
   auto b       = builder.CreateInput(Float(32), {6, 7}, "B");
