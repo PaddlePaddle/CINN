@@ -848,12 +848,12 @@ TEST(IrSchedule, compute_at3) {
   auto B = Compute(
       {M, M}, [&](Var i, Var j) { return A(i, j); }, "B");
   auto C = Compute(
-      {N, N}, [&](Var i, Var j) { return B(i + j, i + j); }, "C");
+      {M, M}, [&](Var i, Var j) { return B(i, j); }, "C");
 
   auto stages = CreateStages({A, B, C});
   stages[B]->SetBuffer("local");
 
-  auto func = cinn::lang::LowerVec("test_compute_at1", stages, {A, C}, {}, {}, nullptr, target, true);
+  auto func = cinn::lang::LowerVec("test_compute_at3", stages, {A, C}, {}, {}, nullptr, target, true);
   LOG(INFO) << "func size is : " << func.size();
   for (auto& i : func) LOG(INFO) << i->body;
 
@@ -865,13 +865,13 @@ TEST(IrSchedule, compute_at3) {
   auto block_b = ir_sch.GetBlock("B");
 
   auto fused   = ir_sch.Fuse("C", {0, 1});
-  auto splited = ir_sch.Split(fused, {64, -1});
+  auto splited = ir_sch.Split(fused, {32, -1});
 
   auto loops = ir_sch.GetLoops("C");
 
-  ir_sch.ComputeAt(block_b, loops[0]);
+  ir_sch.ComputeAt(block_b, loops[1]);
 
-  LOG(INFO) << "After ComputeAt, IR is : " << ir_sch.GetModule().GetExprs().at(0);
+  VLOG(1) << "After ComputeAt, IR is : " << ir_sch.GetModule().GetExprs().at(0);
 
   Module::Builder builder("module1", target);
   for (auto& i : func) {
@@ -882,7 +882,7 @@ TEST(IrSchedule, compute_at3) {
   codegen.SetInlineBuiltinCodes(false);
   auto source_code = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
 
-  LOG(INFO) << "compute_at3 source code is :\n" << source_code;
+  VLOG(1) << "compute_at3 source code is :\n" << source_code;
 
   std::string target_code = R"ROC(
 #include "cinn_cuda_runtime_source.cuh"
@@ -895,18 +895,14 @@ typedef char int8_t;
 
 
 __global__
-void test_compute_at1(const float* __restrict__ A, float* __restrict__ C)
+void test_compute_at3(const float* __restrict__ A, float* __restrict__ C)
 {
   float _B_temp_buffer [ 4096 ];
   float* B = _B_temp_buffer;
-  for (int32_t i_j_fused_0 = 0; i_j_fused_0 < 64; i_j_fused_0 += 1) {
-    for (int32_t ax0 = 0; ax0 < 16; ax0 += 1) {
-      for (int32_t ax1 = 0; ax1 < 16; ax1 += 1) {
-        B[((64 * ax0) + ((1040 * i_j_fused_0) + ax1))] = A[((64 * ax0) + ((1040 * i_j_fused_0) + ax1))];
-      };
-    };
-    for (int32_t i_j_fused_1 = 0; i_j_fused_1 < 16; i_j_fused_1 += 1) {
-      C[((16 * i_j_fused_0) + i_j_fused_1)] = B[((1040 * i_j_fused_0) + (65 * i_j_fused_1))];
+  for (int32_t i_j_fused_0 = 0; i_j_fused_0 < 32; i_j_fused_0 += 1) {
+    for (int32_t i_j_fused_1 = 0; i_j_fused_1 < 128; i_j_fused_1 += 1) {
+      B[((64 * (i_j_fused_1 / 64)) + ((((128 * i_j_fused_0) + i_j_fused_1) & 63) + (128 * i_j_fused_0)))] = A[((64 * (i_j_fused_1 / 64)) + ((((128 * i_j_fused_0) + i_j_fused_1) & 63) + (128 * i_j_fused_0)))];
+      C[((128 * i_j_fused_0) + i_j_fused_1)] = B[((128 * i_j_fused_0) + i_j_fused_1)];
     };
   };
 }
