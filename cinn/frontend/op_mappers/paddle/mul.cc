@@ -40,7 +40,7 @@ void MulOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx)
   // not using CUDNN, else just reshape.
   Variable tran_y;
   if (ctx.Target().arch == Target::Arch::NVGPU) {
-#ifdef CINN_WITH_CUDNN
+#ifdef CINN_WITH_CUDA
     auto tran_shape = y->shape;
     std::swap(tran_shape[0], tran_shape[1]);
     tran_y = ctx.Builder()->Reshape(y, tran_shape);
@@ -92,7 +92,7 @@ void MulBiasOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& 
   // not using CUDNN, else just reshape.
   Variable tran_y;
   if (ctx.Target().arch == Target::Arch::NVGPU) {
-#ifdef CINN_WITH_CUDNN
+#ifdef CINN_WITH_CUDA
     auto tran_shape = y->shape;
     std::swap(tran_shape[0], tran_shape[1]);
     tran_y = ctx.Builder()->Reshape(y, tran_shape);
