@@ -148,5 +148,102 @@ class TestSliceAssignCase4(TestSliceAssignOp):
         self.strides = [-1, -2]
 
 
+class TestSliceAssignAxes1Op(TestSliceAssignOp):
+    def init_case(self):
+        self.inputs = {
+            "inputs": np.random.random([121, 2]).astype("float32"),
+            "assign": np.zeros([121, 1]).astype("float32")
+        }
+        self.axes = [1]
+        self.starts = [0]
+        self.ends = [1]
+        self.strides = [1]
+
+    def build_paddle_program(self, target):
+        res = self.inputs["inputs"].copy()
+
+        for row_id in range(self.inputs["inputs"].shape[0]):
+            res[row_id][self.starts[0]:self.ends[0]:self.
+                        strides[0]] = self.inputs["assign"][row_id]
+
+        pd_res = paddle.to_tensor(res, stop_gradient=True)
+        self.paddle_outputs = [pd_res]
+
+
+class TestSliceAssignAxes1Case1(TestSliceAssignAxes1Op):
+    def init_case(self):
+        self.inputs = {
+            "inputs": np.random.random([121, 2]).astype("float32"),
+            "assign": np.zeros([121, 1]).astype("float32")
+        }
+        self.axes = [1]
+        self.starts = [1]
+        self.ends = [2]
+        self.strides = [1]
+
+
+class TestSliceAssignAxes1Case2(TestSliceAssignAxes1Op):
+    def init_case(self):
+        self.inputs = {
+            "inputs": np.random.random([121, 2]).astype("float32"),
+            "assign": np.zeros([121, 1]).astype("float32")
+        }
+        self.axes = [1]
+        self.starts = [1]
+        self.ends = [0]
+        self.strides = [-1]
+
+
+class TestSliceAssignAxes2Op(TestSliceAssignOp):
+    def init_case(self):
+        self.inputs = {
+            "inputs": np.random.random([121, 2, 2]).astype("float32"),
+            "assign": np.zeros([121, 2, 1]).astype("float32")
+        }
+        self.axes = [2]
+        self.starts = [0]
+        self.ends = [1]
+        self.strides = [1]
+
+    def build_paddle_program(self, target):
+        res = self.inputs["inputs"].copy()
+
+        row_len = self.num_of_slice(self.starts[0], self.ends[0],
+                                    self.strides[0])
+
+        for row_id in range(self.inputs["inputs"].shape[0]):
+            for col_id in range(self.inputs["inputs"].shape[1]):
+                res[row_id][col_id][self.starts[0]:self.ends[0]:self.
+                                    strides[0]] = self.inputs["assign"][
+                                        row_id][col_id]
+
+        pd_res = paddle.to_tensor(res, stop_gradient=True)
+        self.paddle_outputs = [pd_res]
+
+
+class TestSliceAssignAxes2Case1(TestSliceAssignAxes2Op):
+    def init_case(self):
+        self.inputs = {
+            "inputs": np.random.random([121, 2, 2]).astype("float32"),
+            "assign": np.zeros([121, 2, 1]).astype("float32")
+        }
+        self.axes = [2]
+        self.starts = [1]
+        self.ends = [2]
+        self.strides = [1]
+
+
+class TestSliceAssignAxes2Case2(TestSliceAssignAxes2Op):
+    def init_case(self):
+        self.inputs = {
+            "inputs": np.random.random([121, 2, 2]).astype("float32"),
+            "assign": np.zeros([121, 2, 1]).astype("float32")
+        }
+        self.axes = [2]
+        self.starts = [1]
+        self.ends = [0]
+        self.strides = [-1]
+
+
 if __name__ == "__main__":
     unittest.main()
