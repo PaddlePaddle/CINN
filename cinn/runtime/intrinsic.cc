@@ -21,21 +21,24 @@ namespace cinn {
 namespace runtime {
 
 cinn_type_t ToRuntimeType(Type type) {
-  if (type == Int(32)) {
-    return cinn_int32_t();
-  } else if (type == Int(64)) {
-    return cinn_int64_t();
-  } else if (type == UInt(32)) {
-    return cinn_uint64_t();
-  } else if (type == Float(32)) {
-    return cinn_float32_t();
-  } else if (type == Float(64)) {
-    return cinn_float64_t();
-  } else if (type == Float(32).PointerOf()) {
-    return cinn_type_of<float*>();
+#define SET_TYPE_CASE_ITEM(compiled_type, runtime_type) \
+  if (type == common::compiled_type()) {                \
+    return runtime_type();                              \
   }
+
+  SET_TYPE_CASE_ITEM(Bool, cinn_bool_t)
+  SET_TYPE_CASE_ITEM(I8, cinn_int8_t)
+  SET_TYPE_CASE_ITEM(I32, cinn_int32_t)
+  SET_TYPE_CASE_ITEM(I64, cinn_int64_t)
+  SET_TYPE_CASE_ITEM(UI32, cinn_uint32_t)
+  SET_TYPE_CASE_ITEM(UI64, cinn_uint64_t)
+  SET_TYPE_CASE_ITEM(F32, cinn_float32_t)
+  SET_TYPE_CASE_ITEM(F64, cinn_float64_t)
+  SET_TYPE_CASE_ITEM(Float(32).PointerOf, cinn_type_of<float*>);
+
   LOG(FATAL) << "Not supported type " << type;
   return cinn_unk_t();
+#undef SET_TYPE_CASE_ITEM
 }
 
 Expr IntrinsicCall(Type type,

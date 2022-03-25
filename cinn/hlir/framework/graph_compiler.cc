@@ -588,6 +588,7 @@ void GraphCompiler::ProcessFunction(const std::vector<ir::LoweredFunc>& lowered_
             shape.push_back(static_cast<int>(shape_dim.get_constant()));
           }
           tensor->Resize(Shape{shape});
+          tensor->set_type(j.type());
         }
       }
       function2input_args_[i->name]  = input_args;
@@ -1108,6 +1109,7 @@ std::shared_ptr<Scope> BuildScope(Target target, const std::shared_ptr<Graph>& g
     CHECK(dtype_dict.at(iter.first) == Float(32) || dtype_dict.at(iter.first).is_bool() ||
           dtype_dict.at(iter.first) == Int(32))
         << "The dtype of node " << iter.first << " is not float or bool or int! Other dtype is not implemented yet.";
+    tensor->set_type(dtype_dict.at(iter.first));
   }
   return scope;
 }
