@@ -54,7 +54,7 @@ class TestReluOp(OpTest):
         x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
         out = builder.relu(x)
         prog = builder.build()
-        forward_res = self.get_cinn_output(prog, set(), target, [x],
+        forward_res = self.get_cinn_output(prog, target, [x],
                                            [self.inputs["x"]], [out])
 
         builder = NetBuilder("relu_grad")
@@ -64,8 +64,8 @@ class TestReluOp(OpTest):
         x_grad = builder.relu_grad(dout, out)
         prog = builder.build()
         backward_res = self.get_cinn_output(
-            prog, set(), target, [dout, out],
-            [self.inputs["dout"], forward_res[0]], [x_grad])
+            prog, target, [dout, out], [self.inputs["dout"], forward_res[0]],
+            [x_grad])
 
         self.cinn_outputs = forward_res
         self.cinn_grads = backward_res

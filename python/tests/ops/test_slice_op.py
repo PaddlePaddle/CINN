@@ -55,7 +55,7 @@ class TestSliceOp(OpTest):
             strides=self.strides)
 
         prog = builder.build()
-        res = self.get_cinn_output(prog, set(), target, [inputs],
+        res = self.get_cinn_output(prog, target, [inputs],
                                    [self.inputs["inputs"]], [out])
         self.cinn_outputs = [res]
 

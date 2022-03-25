@@ -76,7 +76,7 @@ class TestElementwiseAddOp(OpTest):
 
         prog = builder.build()
         res = self.get_cinn_output(
-            prog, set(), target, [x, y, dout],
+            prog, target, [x, y, dout],
             [self.inputs["x"], self.inputs["y"], self.inputs["dout"]],
             [out, x_grad, y_grad])
 

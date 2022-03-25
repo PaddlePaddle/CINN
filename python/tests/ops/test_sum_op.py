@@ -56,8 +56,8 @@ class TestSumOp(OpTest):
         out = builder.sum([x1, x2])
         prog = builder.build()
         forward_res = self.get_cinn_output(
-            prog, set(), target, [x1, x2],
-            [self.inputs["x1"], self.inputs["x2"]], [out])
+            prog, target, [x1, x2], [self.inputs["x1"], self.inputs["x2"]],
+            [out])
 
         self.cinn_outputs = forward_res
 

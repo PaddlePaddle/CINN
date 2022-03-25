@@ -53,8 +53,8 @@ class TestReduceBaseOp(OpTest):
         out = self.cinn_func(builder, x)
 
         prog = builder.build()
-        res = self.get_cinn_output(prog, set(), target, [x],
-                                   [self.inputs["x"]], [out])
+        res = self.get_cinn_output(prog, target, [x], [self.inputs["x"]],
+                                   [out])
 
         self.cinn_outputs = res
 

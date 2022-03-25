@@ -75,7 +75,7 @@ class TestIndexAssignOp(OpTest):
         out = builder.index_assign(x, y, index, self.axis)
 
         prog = builder.build()
-        res = self.get_cinn_output(prog, set(), target, [x, y, index], [
+        res = self.get_cinn_output(prog, target, [x, y, index], [
             self.inputs["x"], self.inputs["y"],
             self.inputs["index"].astype("float32")
         ], [out])

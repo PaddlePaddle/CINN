@@ -44,7 +44,7 @@ class TestAddOp(OpTest):
         x = builder.fill_constant(self.shape, self.value, "x")
 
         prog = builder.build()
-        res = self.get_cinn_output(prog, set(), target, [], [], [x])
+        res = self.get_cinn_output(prog, target, [], [], [x])
 
         self.cinn_outputs = [res[0]]
 

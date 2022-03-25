@@ -67,9 +67,15 @@ class OpTest(unittest.TestCase):
     def build_cinn_program(self, target):
         raise Exception("Not implemented.")
 
-    def get_cinn_output(self, prog, fetch_ids, target, inputs, feed_data,
-                        outputs):
-        self.apply_pass(prog, fetch_ids, target)
+    def get_cinn_output(self,
+                        prog,
+                        target,
+                        inputs,
+                        feed_data,
+                        outputs,
+                        passes=["Decomposer"],
+                        fetch_ids=set()):
+        self.apply_pass(prog, target, passes, fetch_ids)
         result = prog.build_and_get_output(target, inputs, feed_data, outputs)
         outs_and_grads = []
         for res in result:
@@ -77,7 +83,7 @@ class OpTest(unittest.TestCase):
 
         return outs_and_grads
 
-    def apply_pass(self, prog, fetch_ids, target, passes=["Decomposer"]):
+    def apply_pass(self, prog, target, passes=["Decomposer"], fetch_ids=set()):
         def print_program(prog):
             if logger.getEffectiveLevel() != logging.DEBUG:
                 return

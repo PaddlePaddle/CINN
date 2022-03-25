@@ -67,14 +67,14 @@ class TestConv2dOp(OpTest):
             x_grad, weight_grad = builder.conv2d_grad(dy, x, weight)
             prog = builder.build()
             res = self.get_cinn_output(
-                prog, set(), target, [x, weight, dy],
+                prog, target, [x, weight, dy],
                 [self.inputs["x"], self.inputs["weight"], self.inputs["dy"]],
                 [y, x_grad, weight_grad])
             self.cinn_outputs = res
         else:
             prog = builder.build()
             res = self.get_cinn_output(
-                prog, set(), target, [x, weight],
+                prog, target, [x, weight],
                 [self.inputs["x"], self.inputs["weight"]], [y])
             self.cinn_outputs = [res[0]]
 
