@@ -66,12 +66,34 @@ struct IrNodesCollector : public IRVisitor {
   std::set<void*> visited_;
 };
 
+struct IrNodesWithoutTensorCollector : public IrNodesCollector {
+  using teller_t  = std::function<bool(const Expr*)>;
+  using handler_t = std::function<void(const Expr*)>;
+  IrNodesWithoutTensorCollector(teller_t teller, handler_t handler)
+      : IrNodesCollector(std::move(teller), std::move(handler)) {}
+
+  void Visit(const _Tensor_* expr) override {
+    for (auto& e : expr->shape) {
+      IrNodesCollector::Visit(&e);
+    }
+  }
+  void Visit(const Expr* expr) override { IrNodesCollector::Visit(expr); }
+};
+
 }  // namespace
 
 std::set<Expr> CollectIRNodes(Expr expr, std::function<bool(const Expr*)>&& teller) {
   std::set<Expr> exprs;
   IrNodesCollector::handler_t handler = [&](const Expr* x) { exprs.insert(*x); };
   IrNodesCollector collector(std::move(teller), std::move(handler));
+  collector.Visit(&expr);
+  return exprs;
+}
+
+std::set<Expr> CollectIRNodesWithoutTensor(Expr expr, std::function<bool(const Expr*)>&& teller) {
+  std::set<Expr> exprs;
+  IrNodesWithoutTensorCollector::handler_t handler = [&](const Expr* x) { exprs.insert(*x); };
+  IrNodesWithoutTensorCollector collector(teller, handler);
   collector.Visit(&expr);
   return exprs;
 }

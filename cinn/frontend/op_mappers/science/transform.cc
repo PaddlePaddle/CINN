@@ -202,8 +202,8 @@ void ReduceOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
 
   auto x = ctx.GetVar(x_name);
 
-  VLOG(4) << "Reudce " << x_name << " from shape (" << cinn::utils::Join(x->shape, ",")
-          << "), now only support reduce_sum.";
+  VLOG(4) << "Reudce " << x_name << " from shape (" << cinn::utils::Join(x->shape, ",") << "), with axis "
+          << cinn::utils::Join(axis, ",") << ", keepdim " << keepdim;
 
   // now paddle science only need reduce sum
   auto out = ctx.Builder()->ReduceSum(x, axis, keepdim);

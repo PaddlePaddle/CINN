@@ -1788,8 +1788,8 @@ std::shared_ptr<OpStrategy> StrategyForSliceAssign(const framework::NodeAttr &at
                                                    const Target &target) {
   CHECK_EQ(inputs.size(), 2) << "the number of input tensors must be equal to 2";
   CHECK(!output_shapes.empty() && !output_shapes[0].empty()) << "The shape of output is empty! Please check again.";
-  VLOG(4) << "The output passed in StrategyForIndexSelect: " << utils::Join(output_shapes[0], ", ");
-  CHECK(!out_type.empty()) << "The output type of IndexSelect is empty! Please check again.\n";
+  VLOG(4) << "The output passed in StrategyForSliceAssign: " << utils::Join(output_shapes[0], ", ");
+  CHECK(!out_type.empty()) << "The output type of SliceAssign is empty! Please check again.\n";
 
   std::vector<int> starts, ends, axes, strides;
   if (attrs.attr_store.find("starts") != attrs.attr_store.end()) {
@@ -1805,8 +1805,9 @@ std::shared_ptr<OpStrategy> StrategyForSliceAssign(const framework::NodeAttr &at
     strides = absl::get<std::vector<int>>(attrs.attr_store.at("strides"));
   }
 
-  CHECK(!starts.empty()) << "The Slice op doesn't find [starts] attrbute! It it a mandatory attribute, please check.";
-  CHECK(!ends.empty()) << "The Slice op doesn't find [ends] attrbute! It it a mandatory attribute, please check.";
+  CHECK(!starts.empty())
+      << "The SliceAssign op doesn't find [starts] attrbute! It it a mandatory attribute, please check.";
+  CHECK(!ends.empty()) << "The SliceAssign op doesn't find [ends] attrbute! It it a mandatory attribute, please check.";
   CHECK_EQ(starts.size(), ends.size()) << "The size of [starts] and [ends] must be identical! Please check.";
   if (!axes.empty()) {
     CHECK_EQ(starts.size(), axes.size()) << "The size of [starts] and [axes] must be identical! Please check.";
@@ -1842,7 +1843,7 @@ std::shared_ptr<OpStrategy> StrategyForSliceAssign(const framework::NodeAttr &at
   framework::CINNSchedule slice_assign_schedule{[=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input args are empty! Please check again.";
     CINNValuePack arg_pack = args[0];
-    CHECK_EQ(arg_pack.size(), 2U) << "Expected 2 values in args[0] for index_select_schedule.";
+    CHECK_EQ(arg_pack.size(), 2U) << "Expected 2 values in args[0] for slice_assign_schedule.";
     Expr out              = arg_pack[0];
     poly::StageMap stages = arg_pack[1];
     CHECK(out.as_tensor());

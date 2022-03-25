@@ -80,6 +80,8 @@ class BaseBuilder {
    */
   Variable Reduce(const Variable& operand, ReduceKind kind, const std::vector<int>& dim, bool keep_dim = false);
 
+  Variable BroadcastTo(const Variable& operand, const std::vector<int>& out_shape);
+
   Variable BroadcastTo(const Variable& operand,
                        const std::vector<int>& out_shape,
                        const std::vector<int>& broadcast_axes);

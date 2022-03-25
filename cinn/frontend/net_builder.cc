@@ -33,10 +33,18 @@ NETBUILDER_UNARY_OP_DEF(Identity, identity)
 
 #define NETBUILDER_BINARY_OP_DEF(func_name__, op_type__) \
   Variable NetBuilder::func_name__(const Variable& lhs, const Variable& rhs) { return BinaryOp(#op_type__, lhs, rhs); }
+NETBUILDER_BINARY_OP_DEF(Add, elementwise_add)
 NETBUILDER_BINARY_OP_DEF(Sub, substract)
 NETBUILDER_BINARY_OP_DEF(Div, divide)
 NETBUILDER_BINARY_OP_DEF(Matmul, matmul)
 NETBUILDER_BINARY_OP_DEF(ReluGrad, relu_grad)
+
+#define NETBUILDER_ELEMENTWISE_OP_DEF(func_name__, op_type__)                            \
+  Variable NetBuilder::func_name__(const Variable& lhs, const Variable& rhs, int axis) { \
+    return ElementwiseOp(#op_type__, lhs, rhs, axis);                                    \
+  }
+NETBUILDER_ELEMENTWISE_OP_DEF(ElementwiseAdd, elementwise_add)
+NETBUILDER_ELEMENTWISE_OP_DEF(ElementwiseMul, elementwise_mul)
 
 Variable NetBuilder::Mul(const Variable& a, const Variable& b, int x_num_col_dims, int y_num_col_dims) {
   Instruction instr("mul", {a, b});
@@ -57,16 +65,6 @@ Variable NetBuilder::MulBias(
   return instr.GetOutput(1);
 }
 
-Variable NetBuilder::Add(const Variable& a, const Variable& b) { return ElementwiseAdd(a, b, -1); }
-
-Variable NetBuilder::ElementwiseAdd(const Variable& a, const Variable& b, int axis) {
-  Instruction instr("elementwise_add", {a, b});
-  instr.SetAttr("axis", axis);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
-}
-
 const std::vector<Variable>& NetBuilder::ElementwiseAddGrad(const Variable& dout,
                                                             const Variable& x,
                                                             const Variable& y,
@@ -76,14 +74,6 @@ const std::vector<Variable>& NetBuilder::ElementwiseAddGrad(const Variable& dout
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutputs();
-}
-
-Variable NetBuilder::ElementwiseMul(const Variable& a, const Variable& b, int axis) {
-  Instruction instr("elementwise_mul", {a, b});
-  instr.SetAttr("axis", axis);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
 }
 
 Variable NetBuilder::Relu6(const Variable& a, float threshold) {
@@ -265,6 +255,14 @@ std::vector<Variable> NetBuilder::Conv2dGrad(const Variable& dy,
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutputs();
+}
+
+Variable NetBuilder::ElementwiseOp(const std::string& op_type, const Variable& lhs, const Variable& rhs, int axis) {
+  Instruction instr(op_type, {lhs, rhs});
+  instr.SetAttr("axis", axis);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
 }
 
 }  // namespace frontend
