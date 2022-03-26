@@ -157,6 +157,7 @@ void CompareResult(Program* program,
                    const Target& target,
                    const std::vector<std::string>& input_ids,
                    const std::vector<std::string>& output_ids,
+                   size_t size_diff,
                    int seed          = -1,
                    bool print_tensor = false) {
   std::unordered_set<std::string> fetch_ids(output_ids.begin(), output_ids.end());
@@ -164,12 +165,19 @@ void CompareResult(Program* program,
   ProgramPass::Apply(program, fetch_ids, target, {"Decomposer"});
   ApplyPass(program, fetch_ids, "RemoveIdentity");
 
-  // get origin output
+  // get original program size
+  auto origin_size = program->size();
+  // get original output
   auto origin_out = RunProgram(*program, target, input_ids, output_ids, seed, print_tensor);
 
   // fuse transpose + add + dot, then run and get the fused output
   ApplyPass(program, fetch_ids, "TransposeFolding");
   ProgramPass::Apply(program, fetch_ids, target, {"GemmRewriter"});
+
+  // get fused program size
+  auto fused_size = program->size();
+  ASSERT_EQ(size_diff, origin_size - fused_size);
+  // get fused output
   auto fused_out = RunProgram(*program, target, input_ids, output_ids, seed, print_tensor);
 
   ASSERT_EQ(origin_out.size(), fused_out.size());
@@ -198,7 +206,7 @@ TEST(GemmRwriter, BatchedTransLeft) {
   absl::c_transform(std::vector<absl::string_view>{a.id(), c.id(), e.id()},
                     std::back_inserter(input_ids),
                     [](absl::string_view id) { return std::string(id); });
-  CompareResult(&program, target, input_ids, {out->id}, 123, true);
+  CompareResult(&program, target, input_ids, {out->id}, 2, 123, true);
 }
 
 TEST(GemmRwriter, BatchedTransRight) {
@@ -219,7 +227,7 @@ TEST(GemmRwriter, BatchedTransRight) {
   absl::c_transform(std::vector<absl::string_view>{a.id(), b.id(), f.id()},
                     std::back_inserter(input_ids),
                     [](absl::string_view id) { return std::string(id); });
-  CompareResult(&program, target, input_ids, {out->id}, 123, true);
+  CompareResult(&program, target, input_ids, {out->id}, 2, 123, true);
 }
 
 TEST(GemmRwriter, BatchedTransTwo) {
@@ -241,7 +249,7 @@ TEST(GemmRwriter, BatchedTransTwo) {
   absl::c_transform(std::vector<absl::string_view>{a.id(), c.id(), f.id()},
                     std::back_inserter(input_ids),
                     [](absl::string_view id) { return std::string(id); });
-  CompareResult(&program, target, input_ids, {out->id}, 123, true);
+  CompareResult(&program, target, input_ids, {out->id}, 3, 123, true);
 }
 
 TEST(GemmRwriter, BatchedNoTrans) {
@@ -261,7 +269,7 @@ TEST(GemmRwriter, BatchedNoTrans) {
   absl::c_transform(std::vector<absl::string_view>{a.id(), b.id(), f.id()},
                     std::back_inserter(input_ids),
                     [](absl::string_view id) { return std::string(id); });
-  CompareResult(&program, target, input_ids, {out->id}, 123, true);
+  CompareResult(&program, target, input_ids, {out->id}, 1, 123, true);
 }
 
 TEST(GemmRwriter, TransLeft) {
@@ -282,7 +290,7 @@ TEST(GemmRwriter, TransLeft) {
   absl::c_transform(std::vector<absl::string_view>{a.id(), c.id(), e.id()},
                     std::back_inserter(input_ids),
                     [](absl::string_view id) { return std::string(id); });
-  CompareResult(&program, target, input_ids, {out->id}, 123, true);
+  CompareResult(&program, target, input_ids, {out->id}, 2, 123, true);
 }
 
 TEST(GemmRwriter, TransRight) {
@@ -303,7 +311,7 @@ TEST(GemmRwriter, TransRight) {
   absl::c_transform(std::vector<absl::string_view>{a.id(), b.id(), f.id()},
                     std::back_inserter(input_ids),
                     [](absl::string_view id) { return std::string(id); });
-  CompareResult(&program, target, input_ids, {out->id}, 123, true);
+  CompareResult(&program, target, input_ids, {out->id}, 2, 123, true);
 }
 
 TEST(GemmRwriter, TransTwo) {
@@ -325,7 +333,7 @@ TEST(GemmRwriter, TransTwo) {
   absl::c_transform(std::vector<absl::string_view>{a.id(), c.id(), f.id()},
                     std::back_inserter(input_ids),
                     [](absl::string_view id) { return std::string(id); });
-  CompareResult(&program, target, input_ids, {out->id}, 123, true);
+  CompareResult(&program, target, input_ids, {out->id}, 3, 123, true);
 }
 
 TEST(GemmRwriter, NoTrans) {
@@ -345,7 +353,7 @@ TEST(GemmRwriter, NoTrans) {
   absl::c_transform(std::vector<absl::string_view>{a.id(), b.id(), f.id()},
                     std::back_inserter(input_ids),
                     [](absl::string_view id) { return std::string(id); });
-  CompareResult(&program, target, input_ids, {out->id}, 123, true);
+  CompareResult(&program, target, input_ids, {out->id}, 1, 123, true);
 }
 
 TEST(GemmRwriter, BatchedComplex) {
@@ -376,7 +384,7 @@ TEST(GemmRwriter, BatchedComplex) {
   absl::c_transform(std::vector<absl::string_view>{d.id(), z.id()},
                     std::back_inserter(input_ids),
                     [](absl::string_view id) { return std::string(id); });
-  CompareResult(&program, target, input_ids, {out->id}, 123, false);
+  CompareResult(&program, target, input_ids, {out->id}, 4, 123, false);
 }
 
 TEST(GemmRwriter, Complex) {
@@ -404,7 +412,7 @@ TEST(GemmRwriter, Complex) {
   absl::c_transform(std::vector<absl::string_view>{c.id(), z.id()},
                     std::back_inserter(input_ids),
                     [](absl::string_view id) { return std::string(id); });
-  CompareResult(&program, target, input_ids, {out->id}, 123, false);
+  CompareResult(&program, target, input_ids, {out->id}, 4, 123, false);
 }
 
 }  // namespace cinn::frontend
