@@ -83,6 +83,97 @@ void RunWithProgram(const Program& program,
   runtime_program->Execute();
 }
 
+TEST(TransposeFolding, FoldIntoDotBachedCase1) {
+  CinnBuilder builder("cinn_builder");
+  auto x           = builder.CreateInput(Float(32), {4, 5, 3}, "X");
+  auto y           = builder.CreateInput(Float(32), {4, 5, 6}, "Y");
+  auto transpose_x = builder.Transpose(x, {0, 2, 1});
+  auto out         = builder.Dot(transpose_x, y);
+  auto program     = builder.Build();
+  auto target      = GetTarget();
+  auto graph       = std::make_shared<hlir::framework::Graph>(program, target);
+  auto scope       = hlir::framework::BuildScope(target, graph);
+  scope->Var<hlir::framework::Tensor>("X");
+  scope->Var<hlir::framework::Tensor>("Y");
+  SetRandData(scope->GetTensor("X"), target);
+  SetRandData(scope->GetTensor("Y"), target);
+  size_t origin_size = program.size();
+  VLOG(1) << "Program:\n" << program;
+  RunWithProgram(program, target, scope);
+  auto origin_out = GetTensorData(scope->GetTensor(out->id), target);
+  ApplyPass(&program, {}, "TransposeFolding");
+  size_t folded_size = program.size();
+  VLOG(1) << "Program:\n" << program;
+  RunWithProgram(program, target, scope);
+  auto folded_out = GetTensorData(scope->GetTensor(out->id), target);
+  ASSERT_EQ(origin_size, folded_size + 1);
+  ASSERT_EQ(origin_out.size(), folded_out.size());
+  for (size_t i = 0; i < origin_out.size(); ++i) {
+    ASSERT_FLOAT_EQ(origin_out[i], folded_out[i]);
+  }
+}
+
+TEST(TransposeFolding, FoldIntoDotBachedCase2) {
+  CinnBuilder builder("cinn_builder");
+  auto x           = builder.CreateInput(Float(32), {4, 3, 5}, "X");
+  auto y           = builder.CreateInput(Float(32), {4, 6, 5}, "Y");
+  auto transpose_y = builder.Transpose(y, {0, 2, 1});
+  auto out         = builder.Dot(x, transpose_y);
+  auto program     = builder.Build();
+  auto target      = GetTarget();
+  auto graph       = std::make_shared<hlir::framework::Graph>(program, target);
+  auto scope       = hlir::framework::BuildScope(target, graph);
+  scope->Var<hlir::framework::Tensor>("X");
+  scope->Var<hlir::framework::Tensor>("Y");
+  SetRandData(scope->GetTensor("X"), target);
+  SetRandData(scope->GetTensor("Y"), target);
+  size_t origin_size = program.size();
+  VLOG(1) << "Program:\n" << program;
+  RunWithProgram(program, target, scope);
+  auto origin_out = GetTensorData(scope->GetTensor(out->id), target);
+  ApplyPass(&program, {}, "TransposeFolding");
+  size_t folded_size = program.size();
+  VLOG(1) << "Program:\n" << program;
+  RunWithProgram(program, target, scope);
+  auto folded_out = GetTensorData(scope->GetTensor(out->id), target);
+  ASSERT_EQ(origin_size, folded_size + 1);
+  ASSERT_EQ(origin_out.size(), folded_out.size());
+  for (size_t i = 0; i < origin_out.size(); ++i) {
+    ASSERT_FLOAT_EQ(origin_out[i], folded_out[i]);
+  }
+}
+
+TEST(TransposeFolding, FoldIntoDotBachedCase3) {
+  CinnBuilder builder("cinn_builder");
+  auto x           = builder.CreateInput(Float(32), {4, 5, 3}, "X");
+  auto y           = builder.CreateInput(Float(32), {4, 6, 5}, "Y");
+  auto transpose_x = builder.Transpose(x, {0, 2, 1});
+  auto transpose_y = builder.Transpose(y, {0, 2, 1});
+  auto out         = builder.Dot(transpose_x, transpose_y);
+  auto program     = builder.Build();
+  auto target      = GetTarget();
+  auto graph       = std::make_shared<hlir::framework::Graph>(program, target);
+  auto scope       = hlir::framework::BuildScope(target, graph);
+  scope->Var<hlir::framework::Tensor>("X");
+  scope->Var<hlir::framework::Tensor>("Y");
+  SetRandData(scope->GetTensor("X"), target);
+  SetRandData(scope->GetTensor("Y"), target);
+  size_t origin_size = program.size();
+  VLOG(1) << "Program:\n" << program;
+  RunWithProgram(program, target, scope);
+  auto origin_out = GetTensorData(scope->GetTensor(out->id), target);
+  ApplyPass(&program, {}, "TransposeFolding");
+  size_t folded_size = program.size();
+  VLOG(1) << "Program:\n" << program;
+  RunWithProgram(program, target, scope);
+  auto folded_out = GetTensorData(scope->GetTensor(out->id), target);
+  ASSERT_EQ(origin_size, folded_size + 2);
+  ASSERT_EQ(origin_out.size(), folded_out.size());
+  for (size_t i = 0; i < origin_out.size(); ++i) {
+    ASSERT_FLOAT_EQ(origin_out[i], folded_out[i]);
+  }
+}
+
 TEST(TransposeFolding, FoldIntoDotCase1) {
   CinnBuilder builder("cinn_builder");
   auto x           = builder.CreateInput(Float(32), {2, 3}, "X");
