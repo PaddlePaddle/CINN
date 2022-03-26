@@ -57,7 +57,7 @@ std::vector<float> test_mul(const std::vector<float>& A, const std::vector<float
   for (int i = 0; i < M; i++) {
     for (int j = 0; j < N; j++) {
       for (int k = 0; k < K; k++) {
-#ifdef CINN_WITH_CUDA
+#ifdef CINN_WITH_CUDNN
         C_target[i * N + j] += A[i * K + k] * B[k * N + j];
 #else
         C_target[i * N + j] += A[i * K + k] * B[j * N + k];

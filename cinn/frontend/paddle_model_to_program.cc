@@ -629,7 +629,22 @@ void PaddleModelToProgram::TransposeVar(const std::string& name) {
       CHECK(tensor->shape().size() == 2) << "The y data's shape size of op [mul] is not equal to 2! Please check.";
       TransposeData(data, tensor->shape().data()[0], tensor->shape().data()[1]);
     } else if (target_.arch == Target::Arch::NVGPU) {
-#ifndef CINN_WITH_CUDA
+#ifdef CINN_WITH_CUDA
+      // To use cublas mul api, there is no need to transpose data.
+#ifndef CINN_WITH_CUDNN
+      std::vector<float> data(tensor->shape().numel());
+      CUDA_CALL(cudaMemcpy(data.data(),
+                           reinterpret_cast<void*>(tensor->mutable_data<float>(target_)),
+                           tensor->shape().numel() * sizeof(float),
+                           cudaMemcpyDeviceToHost));
+      CHECK(tensor->shape().size() == 2) << "The y data's shape size of op [mul] is not equal to 2! Please check.";
+      TransposeData(data.data(), tensor->shape().data()[0], tensor->shape().data()[1]);
+      CUDA_CALL(cudaMemcpy(reinterpret_cast<void*>(tensor->mutable_data<float>(target_)),
+                           data.data(),
+                           tensor->shape().numel() * sizeof(float),
+                           cudaMemcpyHostToDevice));
+#endif
+#else
       LOG(FATAL) << "To use CUDA backends, you need to set WITH_CUDA ON!";
 #endif
     } else {
