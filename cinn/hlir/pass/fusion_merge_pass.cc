@@ -146,7 +146,7 @@ class FusionMergePassHelper : public FusionHelperBase {
       return false;
     }
 
-    Groups fusionable_consumers;
+    std::unordered_set<Group, Hasher, Comparator> fusionable_consumers;
     for (auto& consumer : consumers) {
       // if can't fuse
       if (relation.vertical_relation.count(consumer->op_pattern_kind)) {
@@ -158,7 +158,11 @@ class FusionMergePassHelper : public FusionHelperBase {
         continue;
       }
 
-      fusionable_consumers.push_back(consumer);
+      if (!CanFuseWithCostModel(producer, consumer)) {
+        continue;
+      }
+
+      fusionable_consumers.insert(consumer);
     }
 
     // if fusionable consumers exist
@@ -230,14 +234,7 @@ class FusionMergePassHelper : public FusionHelperBase {
     fusion_groups_.push_back(fused_group);
   }
 
-  void DoVerticalFuse(Group& producer, Groups& consumers) {
-    std::unordered_set<Group, Hasher, Comparator> fusionable_consumers;
-    for (auto& consumer : consumers) {
-      if (CanFuseWithCostModel(producer, consumer)) {
-        fusionable_consumers.insert(consumer);
-      }
-    }
-
+  void DoVerticalFuse(Group& producer, std::unordered_set<Group, Hasher, Comparator>& fusionable_consumers) {
     Groups fused_groups;
     for (auto& consumer : fusionable_consumers) {
       auto fused_group = std::make_shared<Graph::Group>();
@@ -270,8 +267,8 @@ class FusionMergePassHelper : public FusionHelperBase {
         }
       } else {
         fused_group->fused_sub_groups.push_back(producer);
-        producer->belong_groups.insert(fused_group);
       }
+      producer->belong_groups.insert(fused_group);
 
       // fuse consumer into fusion group
       fused_group->op_pattern_kind =
@@ -302,6 +299,9 @@ class FusionMergePassHelper : public FusionHelperBase {
       for (auto& group : consumer->producer_groups) {
         if (group.get() != producer.get()) {
           fused_group->producer_groups.insert(group);
+          // update consumer's producer's consumer
+          group->consumer_groups.erase(consumer);
+          group->consumer_groups.insert(fused_group);
         }
       }
       // consumer nodes
@@ -315,15 +315,15 @@ class FusionMergePassHelper : public FusionHelperBase {
       // sub group
       if (consumer->fused_sub_groups.size()) {
         for (auto& sub_group : consumer->fused_sub_groups) {
-          fused_group->fused_sub_groups.push_back(consumer);
+          fused_group->fused_sub_groups.push_back(sub_group);
           // update belong group
           sub_group->belong_groups.erase(consumer);
           sub_group->belong_groups.insert(fused_group);
         }
       } else {
         fused_group->fused_sub_groups.push_back(consumer);
-        consumer->belong_groups.insert(fused_group);
       }
+      consumer->belong_groups.insert(fused_group);
 
       fused_groups.push_back(fused_group);
       fusion_groups_.push_back(fused_group);
@@ -352,6 +352,7 @@ class FusionMergePassHelper : public FusionHelperBase {
         // if consumer is not fusinable.
         if (!fusionable_consumers.count(consumer)) {
           fused_group->consumer_groups.insert(consumer);
+          // update consumer's producer
           consumer->producer_groups.erase(producer);
           consumer->producer_groups.insert(fused_group);
         }
@@ -506,6 +507,9 @@ class FusionMergePassHelper : public FusionHelperBase {
 };  // namespace hlir
 
 void FusionMergePassInternal(Graph* graph) {
+  if (!graph->fusion_groups.size()) {
+    return;
+  }
   FusionMergePassHelper fusion_merge_pass_helper(graph);
   graph->fusion_groups = fusion_merge_pass_helper();
 }
