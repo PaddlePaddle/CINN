@@ -16,6 +16,7 @@
 
 #include <gtest/gtest.h>
 
+#include <iostream>
 #include <memory>
 #include <vector>
 
@@ -30,7 +31,9 @@
 #include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/framework/scope.h"
 #include "cinn/ir/ir_base.h"
+#include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_schedule.h"
+#include "cinn/utils/string.h"
 
 namespace cinn {
 namespace auto_schedule {
@@ -72,6 +75,8 @@ TEST(TuneTask, GraphToModuleExpr_NoPass) {
   GraphCompiler graph_compiler(target, scope, graph);
 
   ASSERT_EQ(tasks.size(), 2UL);
+
+  std::stringstream ss;
   for (TuneTask& task : tasks) {
     task.SetGraphCompiler(&graph_compiler);
     task.TaskGraphToModuleExpr();
@@ -80,8 +85,33 @@ TEST(TuneTask, GraphToModuleExpr_NoPass) {
     VLOG(6) << "ir:Expr is: ";
     for (const ir::Expr& e : exprs) {
       VLOG(6) << e;
+      ss << e << std::endl;
     }
   }
+
+  std::string expr_str   = ss.str();
+  std::string target_str = R"ROC(
+{
+  for (i, 0, 32)
+  {
+    for (j, 0, 24)
+    {
+      elementwise_add_Out[i, j] = (A[i, j] + B[i, j])
+    }
+  }
+}
+{
+  for (i, 0, 32)
+  {
+    for (j, 0, 24)
+    {
+      elementwise_add_Out_0[i, j] = (A[i, j] + var_1[i, j])
+    }
+  }
+}
+)ROC";
+
+  EXPECT_EQ(utils::Trim(target_str), utils::Trim(expr_str));
 }
 
 TEST(TuneTask, GraphToModuleExpr_ApplyPass) {
@@ -103,6 +133,8 @@ TEST(TuneTask, GraphToModuleExpr_ApplyPass) {
   GraphCompiler graph_compiler(target, scope, graph);
 
   ASSERT_EQ(tasks.size(), 1UL);
+
+  std::stringstream ss;
   for (TuneTask& task : tasks) {
     task.SetGraphCompiler(&graph_compiler);
     task.TaskGraphToModuleExpr();
@@ -111,8 +143,32 @@ TEST(TuneTask, GraphToModuleExpr_ApplyPass) {
     VLOG(6) << "ir:Expr is: ";
     for (const ir::Expr& e : exprs) {
       VLOG(6) << e;
+      ss << e << std::endl;
     }
   }
+
+  std::string expr_str   = ss.str();
+  std::string target_str = R"ROC(
+{
+  for (i, 0, 32)
+  {
+    for (j, 0, 24)
+    {
+      elementwise_add_Out[i, j] = (A[i, j] + B[i, j])
+    }
+  }
+}
+{
+  for (i, 0, 32)
+  {
+    for (j, 0, 24)
+    {
+      elementwise_add_Out_0[i, j] = (A[i, j] + elementwise_add_Out[i, j])
+    }
+  }
+}
+)ROC";
+  EXPECT_EQ(utils::Trim(target_str), utils::Trim(expr_str));
 }
 
 }  // namespace auto_schedule
