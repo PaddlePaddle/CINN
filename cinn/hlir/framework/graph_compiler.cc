@@ -1181,11 +1181,12 @@ std::vector<ir::Expr> GraphCompiler::NodeToExpr(const hlir::framework::Node& nod
   std::vector<ir::LoweredFunc> funcs =
       lang::LowerVec(GetOrGenFullFuncName(GenOpFuncName(&node)), stages, inputs, {}, {}, nullptr, target_);
 
+  std::vector<Expr> ast_vec;
   VLOG(6) << "The [" << funcs.size() << "] functions of node [" << node.attrs.node_name << "] are:\n";
   for (auto& f : funcs) {
     VLOG(6) << f;
+    ast_vec.push_back(f->body);
   }
-  std::vector<Expr> ast_vec = {funcs[0]->body};
 
   return ast_vec;
 }
