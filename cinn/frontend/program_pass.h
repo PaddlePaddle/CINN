@@ -41,6 +41,10 @@ class ProgramPass {
                     const std::unordered_set<std::string>& fetch_ids,
                     const common::Target& target,
                     const std::vector<std::string>& passes);
+
+  const std::string& name() { return name_; }
+
+ protected:
   virtual void ApplyImpl(Program* prog,
                          const std::unordered_set<std::string>& fetch_ids,
                          const common::Target& target) {}
@@ -49,8 +53,6 @@ class ProgramPass {
                          const common::Target& target) const {
     return const_cast<ProgramPass*>(this)->ApplyImpl(prog, fetch_ids, target);
   }
-
-  const std::string& name() { return name_; }
 
  private:
   std::string name_;

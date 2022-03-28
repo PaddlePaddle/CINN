@@ -25,10 +25,10 @@ void ProgramPass::Apply(Program* prog,
                         const std::vector<std::string>& passes) {
   std::vector<const ProgramPass*> fpass;
   for (auto& name : passes) {
-    auto pass = ProgramPassRegistry::Global()->Get(name);
+    const auto* pass = ProgramPassRegistry::Global()->Get(name);
     fpass.push_back(pass);
   }
-  for (auto& pass : fpass) {
+  for (const auto* pass : fpass) {
     pass->ApplyImpl(prog, fetch_ids, target);
   }
 }

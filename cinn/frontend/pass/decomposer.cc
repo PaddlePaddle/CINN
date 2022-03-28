@@ -25,7 +25,10 @@ class DecomposerPass : public ProgramPass {
  public:
   using ProgramPass::ProgramPass;
 
-  void ApplyImpl(Program* prog, const std::unordered_set<std::string>& fetch_ids, const common::Target& target) const {
+ protected:
+  void ApplyImpl(Program* prog,
+                 const std::unordered_set<std::string>& fetch_ids,
+                 const common::Target& target) const override {
     // step 1: set the inputs of the origin program to the new program
     CinnBuilder builder("decomposer_builder");
     for (auto& var : prog->GetInputs()) {
