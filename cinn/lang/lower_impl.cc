@@ -21,6 +21,7 @@
 
 #include "cinn/common/context.h"
 #include "cinn/common/ir_util.h"
+#include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/tensor.h"
 #include "cinn/optim/replace_var_with_expr.h"
@@ -696,6 +697,7 @@ std::vector<Expr> LowerImpl::GenerateFunctionBody(const poly::Schedule* schedule
 
   for (auto& group : schedule->groups) {
     CHECK_GT(group.nodes.size(), 0) << "group is empty";
+    bool all_temp_tensor = true;
     for (auto& node : group.nodes) {
       if (!tensor_map.count(node->id())) {
         VLOG(2) << "tensor_map doesn't count " << node->id();
@@ -703,6 +705,10 @@ std::vector<Expr> LowerImpl::GenerateFunctionBody(const poly::Schedule* schedule
       }
       auto& tensor = tensor_map[node->id()];
       if (!tensor->has_expression()) continue;
+      all_temp_tensor =
+          all_temp_tensor && (stages_[tensor]->inlined() ||
+                              (tensor->buffer.defined() && (tensor->buffer->memory_type == ir::MemoryType::GPUShared ||
+                                                            tensor->buffer->memory_type == ir::MemoryType::GPULocal)));
       auto store_body = tensor->tensor_store_expanded_body();
       if (support_ir_schedule_) {
         // add schedule block of tensor computation for schedule IR
@@ -733,7 +739,7 @@ std::vector<Expr> LowerImpl::GenerateFunctionBody(const poly::Schedule* schedule
 
     if (group_expr.defined()) {
       cuda_axis_info_.emplace_back(std::move(temp_cuda_axis_info));
-      if (target_ == common::DefaultNVGPUTarget()) {
+      if (target_ == common::DefaultNVGPUTarget() && !all_temp_tensor) {
         exprs.push_back(group_expr);
         Expr body = ir::Block::Make(exprs);
         result.push_back(body);
@@ -746,6 +752,11 @@ std::vector<Expr> LowerImpl::GenerateFunctionBody(const poly::Schedule* schedule
   if (target_ == common::DefaultHostTarget()) {
     Expr body = ir::Block::Make(exprs);
     result.push_back(body);
+    exprs.clear();
+  } else if (!exprs.empty()) {
+    Expr body = ir::Block::Make(exprs);
+    result.push_back(body);
+    exprs.clear();
   }
 
   return result;

@@ -538,6 +538,16 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
     stages[fetch_tensor]->DisableComputeInline();
     int level = stages[final_out_tensor]->n_out_dims() - 1;
     VLOG(3) << "no fuse fetch tensor " << fetch_tensor->name << " and recomputeAt in level " << level;
+
+    // if the fetch tensor size is 1, the fetch tensor cannot fuse by ComputeAt2
+    int len = 1;
+    for (const auto& dim : fetch_tensor->shape) {
+      len *= dim.as_int32();
+    }
+    if (len <= 1) {
+      continue;
+    }
+
     stages[fetch_tensor]->ComputeAt2(stages[final_out_tensor], level);
   }
 
@@ -578,6 +588,7 @@ void GraphCompiler::ProcessFunction(const std::vector<ir::LoweredFunc>& lowered_
             shape.push_back(static_cast<int>(shape_dim.get_constant()));
           }
           tensor->Resize(Shape{shape});
+          tensor->set_type(j.type());
         }
       }
       function2input_args_[i->name]  = input_args;
@@ -1098,6 +1109,7 @@ std::shared_ptr<Scope> BuildScope(Target target, const std::shared_ptr<Graph>& g
     CHECK(dtype_dict.at(iter.first) == Float(32) || dtype_dict.at(iter.first).is_bool() ||
           dtype_dict.at(iter.first) == Int(32))
         << "The dtype of node " << iter.first << " is not float or bool or int! Other dtype is not implemented yet.";
+    tensor->set_type(dtype_dict.at(iter.first));
   }
   return scope;
 }

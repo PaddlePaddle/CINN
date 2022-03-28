@@ -1,4 +1,4 @@
-// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+// Copyright (c) 2022 CINN Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,17 +13,17 @@
 // limitations under the License.
 
 #pragma once
-#include <utility>
-
-#include "cinn/ir/ir.h"
 
 namespace cinn {
-namespace optim {
+namespace auto_schedule {
 
-//! Shallow copy an expression.
-Expr IRCopy(Expr x);
+// Options for task tuning process
+struct TuningOptions {
+  // The number of measurement trials, if it is 0,
+  // that means the tunner will return the best
+  // candidate of schedule config without measurement.
+  int num_measure_trials = 0;
+};
 
-std::vector<Expr> IRCopy(const std::vector<Expr>& x);
-
-}  // namespace optim
+}  // namespace auto_schedule
 }  // namespace cinn

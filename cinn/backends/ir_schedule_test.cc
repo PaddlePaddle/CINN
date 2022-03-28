@@ -22,6 +22,7 @@
 
 #include "cinn/backends/codegen_c.h"
 #include "cinn/backends/codegen_c_x86.h"
+#include "cinn/backends/codegen_cuda_dev.h"
 #include "cinn/cinn.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/lang/lower.h"
@@ -54,12 +55,12 @@ TEST(IrSchedule, split_and_fuse1) {
   ir::IRSchedule ir_sch(mod_expr);
   auto fused   = ir_sch.Fuse("B", {0, 1});
   auto splited = ir_sch.Split(fused, {4, -1});
-  VLOG(3) << "After split {4, -1}, IR is : " << ir_sch.GetModule().GetExprs().at(0);
+  LOG(INFO) << "After split {4, -1}, IR is : " << ir_sch.GetModule().GetExprs().at(0);
 
   auto loops = ir_sch.GetLoops("B");
   fused      = ir_sch.Fuse(loops);
   splited    = ir_sch.Split(fused, {256, -1});
-  VLOG(3) << "After split {256, -1}, IR is : " << ir_sch.GetModule().GetExprs().at(0);
+  LOG(INFO) << "After split {256, -1}, IR is : " << ir_sch.GetModule().GetExprs().at(0);
 
   Module::Builder builder("module1", target);
   for (auto& i : func) {
@@ -70,7 +71,7 @@ TEST(IrSchedule, split_and_fuse1) {
   codegen.SetInlineBuiltinCodes(false);
   auto source_code = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
 
-  VLOG(3) << "split_and_fuse1 source code is :\n" << source_code;
+  LOG(INFO) << "split_and_fuse1 source code is :\n" << source_code;
 
   std::string target_code = R"ROC(
 #include <cinn_runtime.h>
@@ -492,7 +493,6 @@ void test_parallel(void* _args, int32_t num_args)
   };
   cinn_buffer_free((void*)(0), _B);
 }
-
 )ROC";
   ASSERT_EQ(utils::Trim(target_code), utils::Trim(source_code));
 }
@@ -569,7 +569,6 @@ void test_vectorize(void* _args, int32_t num_args)
   };
   cinn_buffer_free((void*)(0), _B);
 }
-
 )ROC";
   ASSERT_EQ(utils::Trim(target_code), utils::Trim(source_code));
 }
@@ -691,6 +690,225 @@ function test_bind (_A, _B)
   }
 }
 )ROC"));
+}
+
+TEST(IrSchedule, compute_at1) {
+  Context::Global().ResetNameId();
+  Expr M(32);
+  Expr N(32);
+  Expr P(32);
+
+  Target target = common::DefaultNVGPUTarget();
+
+  Placeholder<float> A("A", {M, N, P});
+  auto B = Compute(
+      {M, N, P}, [&](Var i, Var j, Var k) { return A(i, j, k); }, "B");
+  auto C = Compute(
+      {M, N, P}, [&](Var i, Var j, Var k) { return B(i, j, k); }, "C");
+
+  auto stages = CreateStages({A, B, C});
+  stages[B]->SetBuffer("local");
+
+  auto func = cinn::lang::LowerVec("test_compute_at1", stages, {A, C}, {}, {}, nullptr, target, true);
+  LOG(INFO) << "func size is : " << func.size();
+  for (auto& i : func) LOG(INFO) << i->body;
+
+  auto ast_expr = func[0]->body;
+  std::vector<Expr> vec_ast{ast_expr};
+  ir::ModuleExpr mod_expr(vec_ast);
+  ir::IRSchedule ir_sch(mod_expr);
+
+  auto block_b = ir_sch.GetBlock("B");
+  auto loops   = ir_sch.GetLoops("C");
+
+  ir_sch.ComputeAt(block_b, loops[1]);
+
+  Module::Builder builder("module1", target);
+  for (auto& i : func) {
+    builder.AddFunction(i);
+  }
+  auto module = builder.Build();
+  CodeGenCUDA_Dev codegen(target);
+  codegen.SetInlineBuiltinCodes(false);
+  auto source_code = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
+
+  VLOG(3) << "compute_at1 source code is :\n" << source_code;
+
+  std::string target_code = R"ROC(
+#include "cinn_cuda_runtime_source.cuh"
+
+#ifdef __CUDACC_RTC__
+typedef int int32_t;
+typedef char int8_t;
+#endif
+
+
+
+__global__
+void test_compute_at1(const float* __restrict__ A, float* __restrict__ C)
+{
+  float _B_temp_buffer [ 32768 ];
+  float* B = _B_temp_buffer;
+  for (int32_t i = 0; i < 32; i += 1) {
+    for (int32_t j = 0; j < 32; j += 1) {
+      for (int32_t ax0 = 0; ax0 < 32; ax0 += 1) {
+        B[((1024 * i) + ((32 * j) + ax0))] = A[((1024 * i) + ((32 * j) + ax0))];
+      };
+      for (int32_t k = 0; k < 32; k += 1) {
+        C[((1024 * i) + ((32 * j) + k))] = B[((1024 * i) + ((32 * j) + k))];
+      };
+    };
+  };
+}
+
+)ROC";
+  ASSERT_EQ(utils::Trim(target_code), utils::Trim(source_code));
+}
+
+TEST(IrSchedule, compute_at2) {
+  Context::Global().ResetNameId();
+  Expr M(64);
+  Expr N(32);
+
+  Target target = common::DefaultNVGPUTarget();
+
+  Placeholder<float> A("A", {M, M});
+  auto B = Compute(
+      {M, M}, [&](Var i, Var j) { return A(i, j); }, "B");
+  auto C = Compute(
+      {N, N}, [&](Var i, Var j) { return B(i + j, i + j); }, "C");
+
+  auto stages = CreateStages({A, B, C});
+  stages[B]->SetBuffer("local");
+
+  auto func = cinn::lang::LowerVec("test_compute_at1", stages, {A, C}, {}, {}, nullptr, target, true);
+  LOG(INFO) << "func size is : " << func.size();
+  for (auto& i : func) LOG(INFO) << i->body;
+
+  auto ast_expr = func[0]->body;
+  std::vector<Expr> vec_ast{ast_expr};
+  ir::ModuleExpr mod_expr(vec_ast);
+  ir::IRSchedule ir_sch(mod_expr);
+
+  auto block_b = ir_sch.GetBlock("B");
+  auto loops   = ir_sch.GetLoops("C");
+
+  ir_sch.ComputeAt(block_b, loops[0]);
+
+  Module::Builder builder("module1", target);
+  for (auto& i : func) {
+    builder.AddFunction(i);
+  }
+  auto module = builder.Build();
+  CodeGenCUDA_Dev codegen(target);
+  codegen.SetInlineBuiltinCodes(false);
+  auto source_code = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
+
+  LOG(INFO) << "compute_at2 source code is :\n" << source_code;
+
+  std::string target_code = R"ROC(
+#include "cinn_cuda_runtime_source.cuh"
+
+#ifdef __CUDACC_RTC__
+typedef int int32_t;
+typedef char int8_t;
+#endif
+
+
+
+__global__
+void test_compute_at1(const float* __restrict__ A, float* __restrict__ C)
+{
+  float _B_temp_buffer [ 4096 ];
+  float* B = _B_temp_buffer;
+  for (int32_t i = 0; i < 32; i += 1) {
+    for (int32_t ax0 = 0; ax0 < 32; ax0 += 1) {
+      for (int32_t ax1 = 0; ax1 < 32; ax1 += 1) {
+        B[((64 * ax0) + ((64 * i) + (ax1 + i)))] = A[((64 * ax0) + ((64 * i) + (ax1 + i)))];
+      };
+    };
+    for (int32_t j = 0; j < 32; j += 1) {
+      C[((32 * i) + j)] = B[((65 * i) + (65 * j))];
+    };
+  };
+}
+
+)ROC";
+  ASSERT_EQ(utils::Trim(target_code), utils::Trim(source_code));
+}
+
+TEST(IrSchedule, compute_at3) {
+  Context::Global().ResetNameId();
+  Expr M(64);
+  Expr N(32);
+
+  Target target = common::DefaultNVGPUTarget();
+
+  Placeholder<float> A("A", {M, M});
+  auto B = Compute(
+      {M, M}, [&](Var i, Var j) { return A(i, j); }, "B");
+  auto C = Compute(
+      {M, M}, [&](Var i, Var j) { return B(i, j); }, "C");
+
+  auto stages = CreateStages({A, B, C});
+  stages[B]->SetBuffer("local");
+
+  auto func = cinn::lang::LowerVec("test_compute_at3", stages, {A, C}, {}, {}, nullptr, target, true);
+  LOG(INFO) << "func size is : " << func.size();
+  for (auto& i : func) LOG(INFO) << i->body;
+
+  auto ast_expr = func[0]->body;
+  std::vector<Expr> vec_ast{ast_expr};
+  ir::ModuleExpr mod_expr(vec_ast);
+  ir::IRSchedule ir_sch(mod_expr);
+
+  auto block_b = ir_sch.GetBlock("B");
+
+  auto fused   = ir_sch.Fuse("C", {0, 1});
+  auto splited = ir_sch.Split(fused, {32, -1});
+
+  auto loops = ir_sch.GetLoops("C");
+
+  ir_sch.ComputeAt(block_b, loops[1]);
+
+  VLOG(1) << "After ComputeAt, IR is : " << ir_sch.GetModule().GetExprs().at(0);
+
+  Module::Builder builder("module1", target);
+  for (auto& i : func) {
+    builder.AddFunction(i);
+  }
+  auto module = builder.Build();
+  CodeGenCUDA_Dev codegen(target);
+  codegen.SetInlineBuiltinCodes(false);
+  auto source_code = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
+
+  VLOG(1) << "compute_at3 source code is :\n" << source_code;
+
+  std::string target_code = R"ROC(
+#include "cinn_cuda_runtime_source.cuh"
+
+#ifdef __CUDACC_RTC__
+typedef int int32_t;
+typedef char int8_t;
+#endif
+
+
+
+__global__
+void test_compute_at3(const float* __restrict__ A, float* __restrict__ C)
+{
+  float _B_temp_buffer [ 4096 ];
+  float* B = _B_temp_buffer;
+  for (int32_t i_j_fused_0 = 0; i_j_fused_0 < 32; i_j_fused_0 += 1) {
+    for (int32_t i_j_fused_1 = 0; i_j_fused_1 < 128; i_j_fused_1 += 1) {
+      B[((64 * (i_j_fused_1 / 64)) + ((((128 * i_j_fused_0) + i_j_fused_1) & 63) + (128 * i_j_fused_0)))] = A[((64 * (i_j_fused_1 / 64)) + ((((128 * i_j_fused_0) + i_j_fused_1) & 63) + (128 * i_j_fused_0)))];
+      C[((128 * i_j_fused_0) + i_j_fused_1)] = B[((128 * i_j_fused_0) + i_j_fused_1)];
+    };
+  };
+}
+
+)ROC";
+  ASSERT_EQ(utils::Trim(target_code), utils::Trim(source_code));
 }
 
 }  // namespace backends
