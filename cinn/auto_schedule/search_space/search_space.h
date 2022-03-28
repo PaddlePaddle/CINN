@@ -51,7 +51,14 @@ class SearchSpace {
                                                              const ir::ModuleExpr& mod_expr);
 
  private:
+  // TODO(zhhsplendid): mutate by manual schedule.
+  ir::ModuleExpr ManualScheduleMutate(const ir::ModuleExpr& mod_expr);
+
+  ir::ModuleExpr RandomScheduleMutate(const ir::ModuleExpr& mod_expr);
+
   const TuneTask& tune_task_;
+
+  std::vector<AutoGenRule> auto_gen_rules;
 };
 
 }  // namespace auto_schedule

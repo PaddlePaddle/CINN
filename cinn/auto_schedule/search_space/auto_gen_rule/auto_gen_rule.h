@@ -14,6 +14,10 @@
 
 #pragma once
 
+#include <string>
+
+#include "cinn/ir/ir_schedule.h"
+
 namespace cinn {
 namespace auto_schedule {
 
@@ -26,6 +30,30 @@ class AutoGenRule {
  public:
   AutoGenRule()  = default;
   ~AutoGenRule() = default;
+
+  // Initailize the AutoGenRule, it must be called before further actions.
+  // Returns false if the rule cannot be applied on the mod_expr, true otherwise.
+  virtual bool Init(const ir::ModuleExpr& mod_expr) = 0;
+
+  // CINN IRSchedule can contain many ScheduleBlock(s) and Loop(s), so
+  // a auto gen rule may be suitable to different number of
+  // Schedule Blocks. This method returns the number of ScheduleBlock
+  // that can be applied by this auto gen rule
+  virtual int NumberApplicable() const;
+
+  // Applies rule on the ir::ModuleExpr for a schedule block randomly
+  virtual ir::ModuleExpr ApplyRandomly();
+
+  // Applies rule on the ir::ModuleExpr for a schedule block specified by index
+  // between 0 (inclusive) and NumberApplicable() (exclusive)
+  virtual ir::ModuleExpr Apply(int index) = 0;
+
+  // Returns the name of the rule, used for debug.
+  virtual std::string GetRuleName() const = 0;
+
+ protected:
+  // number of ScheduleBlock that can apply this auto gen rule
+  int num_applicable_ = -1;
 };
 
 }  // namespace auto_schedule
