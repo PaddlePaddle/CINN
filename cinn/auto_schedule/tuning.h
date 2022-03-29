@@ -14,15 +14,39 @@
 
 #pragma once
 
+#include <vector>
+
+#include "cinn/hlir/framework/node.h"
+#include "cinn/ir/lowered_func.h"
+
 namespace cinn {
 namespace auto_schedule {
 
-// Options for task tuning process
+// Options for tuning process
 struct TuningOptions {
+  // The number of tuning rounds, each round will
+  // involve TuningOptions.num_measure_trials measurements.
+  int num_tuning_rounds = 1;
   // The number of measurement trials, if it is 0,
   // that means the tunner will return the best
   // candidate of schedule config without measurement.
   int num_measure_trials = 0;
+};
+
+// Result of the tuning process
+struct TuningResult {
+  // Result of graph tuning
+  struct TunedGraph {
+    std::vector<std::vector<hlir::framework::Node*>> groups;
+  };
+
+  // Result of schedule tuning in CINN IR
+  struct OptimizedSchedule {
+    std::vector<std::vector<ir::LoweredFunc>> lowered_funcs;
+  };
+
+  std::vector<TunedGraph> tuned_graphs;
+  std::vector<OptimizedSchedule> optimized_schedules;
 };
 
 }  // namespace auto_schedule

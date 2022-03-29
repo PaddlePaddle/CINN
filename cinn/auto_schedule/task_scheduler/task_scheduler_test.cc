@@ -34,14 +34,23 @@ TEST(TaskScheduler, Make) {
   ASSERT_STREQ(efficiency_priority->Name(), "efficiency_priority");
 }
 
-// TODO(CtfGo): Add tests for member functions (Run, NextTaskId) of
-// a detail TaskScheduler object after we define
-// the callback for returning tuning results in TuningOptions
-TEST(TaskScheduler, Run) {}
+TEST(RoundRobinScheduler, NextTaskId) {
+  std::vector<TuneTask> tasks(3);
+  TaskScheduler::Config config;
+  auto round_robin = TaskScheduler::Make(tasks, config);
+  ASSERT_EQ(0, round_robin->NextTaskId());
+  ASSERT_EQ(1, round_robin->NextTaskId());
+  round_robin->Reset();
+  ASSERT_EQ(0, round_robin->NextTaskId());
+}
 
-TEST(RoundRobinScheduler, NextTaskId) {}
-
-TEST(EfficiencyPriorityScheduler, NextTaskId) {}
+TEST(EfficiencyPriorityScheduler, NextTaskId) {
+  std::vector<TuneTask> tasks(3);
+  TaskScheduler::Config config;
+  config.minimum_gain_threshold = -1.0;
+  auto round_robin              = TaskScheduler::Make(tasks, config);
+  ASSERT_EQ(-1, round_robin->NextTaskId());
+}
 
 }  // namespace auto_schedule
 }  // namespace cinn
