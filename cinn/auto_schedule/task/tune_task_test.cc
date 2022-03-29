@@ -62,7 +62,7 @@ TEST(TuneTask, GraphToModuleExpr_NoPass) {
 #ifdef CINN_WITH_CUDA
   Target target = common::DefaultNVGPUTarget();
 #else
-  Target target = common::DefaultHostTarget();
+  Target target          = common::DefaultHostTarget();
 #endif
   Program prog = CreateAddProgram();
   auto graph   = std::make_shared<hlir::framework::Graph>(prog, target);
@@ -119,7 +119,7 @@ TEST(TuneTask, GraphToModuleExpr_ApplyPass) {
 #ifdef CINN_WITH_CUDA
   Target target = common::DefaultNVGPUTarget();
 #else
-  Target target = common::DefaultHostTarget();
+  Target target          = common::DefaultHostTarget();
 #endif
   Program prog = CreateAddProgram();
   auto graph   = std::make_shared<hlir::framework::Graph>(prog, target);
@@ -147,7 +147,29 @@ TEST(TuneTask, GraphToModuleExpr_ApplyPass) {
     }
   }
 
-  std::string expr_str   = ss.str();
+  std::string expr_str = ss.str();
+#ifdef CINN_WITH_CUDA
+  std::string target_str = R"ROC(
+{
+  for (i, 0, 32)
+  {
+    for (j, 0, 24)
+    {
+      elementwise_add_Out[i, j] = (A[i, j] + B[i, j])
+    }
+  }
+}
+{
+  for (i, 0, 32)
+  {
+    for (j, 0, 24)
+    {
+      elementwise_add_Out_0[i, j] = (A[i, j] + elementwise_add_Out[i, j])
+    }
+  }
+}
+)ROC";
+#else
   std::string target_str = R"ROC(
 {
   for (i, 0, 32)
@@ -166,6 +188,8 @@ TEST(TuneTask, GraphToModuleExpr_ApplyPass) {
   }
 }
 )ROC";
+#endif
+
   EXPECT_EQ(utils::Trim(target_str), utils::Trim(expr_str));
 }
 
