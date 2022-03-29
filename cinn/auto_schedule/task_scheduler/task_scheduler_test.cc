@@ -48,8 +48,8 @@ TEST(EfficiencyPriorityScheduler, NextTaskId) {
   std::vector<TuneTask> tasks(3);
   TaskScheduler::Config config;
   config.minimum_gain_threshold = -1.0;
-  auto round_robin              = TaskScheduler::Make(tasks, config);
-  ASSERT_EQ(-1, round_robin->NextTaskId());
+  auto efficiency_priority      = TaskScheduler::Make(tasks, config, "efficiency_priority");
+  ASSERT_EQ(-1, efficiency_priority->NextTaskId());
 }
 
 }  // namespace auto_schedule
