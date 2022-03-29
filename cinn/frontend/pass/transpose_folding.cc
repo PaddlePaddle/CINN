@@ -19,18 +19,35 @@ namespace cinn::frontend::pass {
 
 // Rules that transpose can be folded into dot:
 //   1) input operand of dot must be transpose;
-//   2) `axis` of tranpose must be consecutive;
+//   2) `axis` of tranpose must be consecutive in the reverse order, excluding the first dim;
 std::vector<Instruction*> TryFoldIntoDot(Instruction* dot,
                                          const absl::flat_hash_map<std::string, Instruction*>& var_instrs) {
   std::vector<Instruction*> remove_instrs;
   if (!(*dot)->attrs.empty()) return remove_instrs;
   auto is_transpose = [](const Instruction& transpose) {
-    if ("transpose" != transpose->op_type) return false;
+    if ("transpose" != transpose->op_type) {
+      return false;
+    }
+
     // The following codes for Rule 2).
     auto axis = transpose.GetAttrs<std::vector<int>>("axis");
-    for (size_t i = 0; i < axis.size(); ++i) {
-      if (axis[i] + 1 != axis.size() - i) return false;
+    // In the batched martix multiplication, the first dim should be batch dim.
+    if (axis[0] == 0) {
+      for (size_t i = 1; i < axis.size(); ++i) {
+        if (axis[i] != axis.size() - i) {
+          return false;
+        }
+      }
     }
+    // Otherwise, the axis should be consecutive in the reverse order.
+    if (axis[0] == axis.size() - 1) {
+      for (size_t i = 1; i < axis.size(); ++i) {
+        if (axis[i] != axis.size() - 1 - i) {
+          return false;
+        }
+      }
+    }
+
     return true;
   };
   for (size_t i = 0; i < (*dot)->inputs.size(); ++i) {

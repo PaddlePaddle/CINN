@@ -327,7 +327,7 @@ void BindFrontend(pybind11::module *m) {
            py::arg("shape"),
            py::arg("id_hint") = "")
       .def("create_input", static_cast<Placeholder (BaseBuilder::*)(const Variable &)>(&BaseBuilder::CreateInput))
-      .def("build", &BaseBuilder::Build)
+      .def("build", &BaseBuilder::Build, py::arg("in_reverse") = false)
       .def("name", &BaseBuilder::name)
       .def("append_instruction", &BaseBuilder::AppendInstruction)
       .def("concat", &BaseBuilder::Concat, py::arg("inputs"), py::arg("axis") = 0)

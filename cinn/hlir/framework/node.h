@@ -14,7 +14,6 @@
 
 #pragma once
 #include <absl/container/flat_hash_map.h>
-#include <absl/types/variant.h>
 
 #include <memory>
 #include <string>
@@ -25,6 +24,7 @@
 #include "cinn/common/graph_utils.h"
 #include "cinn/common/shared.h"
 #include "cinn/hlir/framework/op.h"
+#include "cinn/utils/type_defs.h"
 
 namespace cinn {
 namespace hlir {
@@ -33,15 +33,8 @@ class Node;
 class NodeData;
 
 using NodePtr     = std::shared_ptr<Node>;
-using AttrType    = absl::variant<bool,
-                               float,
-                               int,
-                               std::string,
-                               std::vector<bool>,
-                               std::vector<int>,
-                               std::vector<float>,
-                               std::vector<std::string>>;
-using AttrMapType = absl::flat_hash_map<std::string, AttrType>;
+using AttrType    = utils::Attribute;
+using AttrMapType = utils::AttributeMap;
 
 /**
  * \brief Attributes of each node in graph.
