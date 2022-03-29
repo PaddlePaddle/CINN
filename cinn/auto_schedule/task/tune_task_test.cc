@@ -157,8 +157,6 @@ TEST(TuneTask, GraphToModuleExpr_ApplyPass) {
       elementwise_add_Out[i, j] = (A[i, j] + B[i, j])
     }
   }
-}
-{
   for (i, 0, 32)
   {
     for (j, 0, 24)
