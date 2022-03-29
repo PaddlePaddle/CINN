@@ -161,18 +161,20 @@ __device__ inline float cinn_block_reduce_min(const float *buf, int offset, int 
   return cinn_block_reduce_min_internal(tmp_val);
 }
 
-// TODO: support int64_t
-#define CINN_CUDA_FIND_FOREACH_TYPE(MACRO) \
-  MACRO(int)                               \
-  MACRO(float)
+#define __cinn_cuda_find_kernel           \
+  do {                                    \
+    for (int i = size - 1; i >= 0; --i) { \
+      if (buf[i] == num) return i;        \
+    }                                     \
+    return -1;                            \
+  } while(0);
 
-#define DEFINE_CINN_CUDA_FIND(TYPE)                                                \
-__device__ inline int cinn_cuda_find_##TYPE(const TYPE *buf, int size, TYPE num) { \
-  for (int i = size - 1; i >= 0; --i) {                                            \
-    if (buf[i] == num) return i;                                                   \
-  }                                                                                \
-  return -1;                                                                       \
+__device__ inline int cinn_cuda_find_int(const int *buf, int size, int num) {
+  __cinn_cuda_find_kernel
 }
 
-CINN_CUDA_FIND_FOREACH_TYPE(DEFINE_CINN_CUDA_FIND)
-#undef DEFINE_CINN_CUDA_FIND
+__device__ inline int cinn_cuda_find_float(const float *buf, int size, float num) {
+  __cinn_cuda_find_kernel
+}
+
+#undef __cinn_cuda_find_kernel

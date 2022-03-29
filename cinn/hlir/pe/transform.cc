@@ -914,24 +914,12 @@ ir::Tensor IndexAssign(const ir::Tensor& input,
                        const common::Target& target,
                        const int axis,
                        const std::string& output_name) {
+  CHECK_EQ(index->type(), common::Int(32)) << "Param [Index] of IndexAssign only support int32 ! Please Check.\n";
   std::string extern_fun_name;
   if (target.arch == common::Target::Arch::NVGPU) {
-    if (index->type() == common::Int(32)) {
-      extern_fun_name.assign("cinn_cuda_find_int");
-    } else if (index->type() == common::Float(32)) {
-      extern_fun_name.assign("cinn_cuda_find_float");
-    } else {
-      LOG(FATAL) << "IndexAssign cuda only support int or float ! Please Check.\n";
-    }
+    extern_fun_name.assign("cinn_cuda_find_int");
   } else if (target.arch == common::Target::Arch::X86) {
-    // TODO: seen that this function has no effective when run in host, why?
-    if (index->type() == common::Int(32)) {
-      extern_fun_name.assign("cinn_host_find_int");
-    } else if (index->type() == common::Float(32)) {
-      extern_fun_name.assign("cinn_host_find_float");
-    } else {
-      LOG(FATAL) << "IndexAssign host only support int or float ! Please Check.\n";
-    }
+    extern_fun_name.assign("cinn_host_find_int");
   } else {
     LOG(FATAL) << "IndexAssign only support X86 and NVGPU ! Please Check.\n";
   }
@@ -946,12 +934,7 @@ ir::Tensor IndexAssign(const ir::Tensor& input,
         // then return id if found Index[id] == indice[axis]
         // else return -1
         Expr id;
-        if (index->type() == common::Int(32)) {
-          id = lang::CallExtern(extern_fun_name, {index, index->shape[0], indice[pos_axis]});
-        } else if (index->type() == common::Float(32)) {
-          id = lang::CallExtern(extern_fun_name,
-                                {index, index->shape[0], ir::Cast::Make(common::Float(32), indice[pos_axis])});
-        }
+        id = lang::CallExtern(extern_fun_name, {index, index->shape[0], indice[pos_axis]});
 
         std::vector<Expr> indice_assign = indice;
         indice_assign[pos_axis]         = id;
