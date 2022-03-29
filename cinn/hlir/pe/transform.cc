@@ -933,8 +933,7 @@ ir::Tensor IndexAssign(const ir::Tensor& input,
         // find whether indice[axis] in Index,
         // then return id if found Index[id] == indice[axis]
         // else return -1
-        Expr id;
-        id = lang::CallExtern(extern_fun_name, {index, index->shape[0], indice[pos_axis]});
+        auto id = lang::CallExtern(extern_fun_name, {index, index->shape[0], indice[pos_axis]});
 
         std::vector<Expr> indice_assign = indice;
         indice_assign[pos_axis]         = id;
