@@ -14,8 +14,13 @@
 
 #pragma once
 
+#include <algorithm>
+#include <cmath>
+#include <cstdlib>
 #include <memory>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
 #include "cinn/ir/ir.h"
@@ -38,9 +43,30 @@ class MultiLevelTiling : public AutoGenRule {
   // Returns true if sche_block_realize is applicable by MultiLevelTiling
   bool MeetCondition(const ir::ScheduleBlockRealize& sche_block_realize) const;
 
+  template <typename T>
+  std::pair<T, T> SampleTileSplit(T extent) const {
+    std::vector<std::pair<T, T>> candidates;
+    for (T div = 1; div <= sqrt(extent); ++div) {
+      if (extent % div == 0) {
+        candidates.push_back(std::make_pair<T, T>(T(div), extent / div));
+      }
+    }
+    int index            = rand() % candidates.size();
+    std::pair<T, T> pick = candidates[index];
+    if (rand() % 2 != 0) {
+      T tmp       = pick.first;
+      pick.first  = pick.second;
+      pick.second = tmp;
+    }
+    return pick;
+  }
+
  private:
   std::unique_ptr<ir::IRSchedule> ir_schedule_;
-  std::vector<int> applicable_indices;
+  std::vector<ir::Expr> all_block_realizes_;
+  std::vector<int> applicable_indices_;
+
+  int max_factor = 64;
 };
 
 }  // namespace auto_schedule
