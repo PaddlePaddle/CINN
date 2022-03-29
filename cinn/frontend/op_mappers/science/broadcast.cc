@@ -44,37 +44,16 @@ void BroadcastOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
   CHECK_EQ(op_desc.Output("Y").size(), 1UL);
   auto y_name = op_desc.Output("Y").front();
 
-  std::vector<int> y_shape;
-  if (op_desc.HasInput("ShapeTensor")) {
-    CHECK_EQ(op_desc.Input("ShapeTensor").size(), 1UL);
-    auto shape_name = op_desc.Input("ShapeTensor").front();
+  CHECK(op_desc.HasAttr("shape")) << "The broadcast_p operator should has 'shape' attribute, but " << x_name
+                                  << "'s broadcast hasn't.";
 
-    auto shape_var = ctx.GetVar(x_name);
-    // Can we get the variable's real data at OpMapper?
-    // y_shape = GetVarData<std::vector<int>>(shape_var);
-  } else if (op_desc.HasAttr("shape")) {
-    y_shape = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "shape");
-  } else {
-    LOG(FATAL) << "The broadcast_p operator should has 'shape' parameter, but " << x_name << "'s broadcast hasn't.";
-  }
+  auto y_shape = op_desc.GetAttr<std::vector<int>>("shape");
+  auto x       = ctx.GetVar(x_name);
 
-  auto x = ctx.GetVar(x_name);
-
-  auto x_shape_size = x->shape.size();
-  auto y_shape_size = y_shape.size();
-  CHECK(x_shape_size == y_shape_size) << "The broadcast_p operator's input "
-                                      << "shape size should the same as output "
-                                      << " shape size, but here (" << x_shape_size << " vs " << y_shape_size << ").";
-
-  std::vector<int> broadcast_axes(x_shape_size, 0);
-  for (int i = 0; i < x_shape_size; ++i) {
-    broadcast_axes[i] = i;
-  }
-
-  VLOG(4) << "Broadcast " << x_name << "from shape (" << cinn::utils::Join(x->shape, ",") << ") to shape ("
+  VLOG(4) << "Broadcast " << x_name << " from shape (" << cinn::utils::Join(x->shape, ",") << ") to shape ("
           << cinn::utils::Join(y_shape, ",") << ").";
 
-  auto out = ctx.Builder()->BroadcastTo(x, y_shape, broadcast_axes);
+  auto out = ctx.Builder()->BroadcastTo(x, y_shape);
 
   ctx.AddVar(y_name, out);
   ctx.AddVarModelToProgram(y_name, out->id);

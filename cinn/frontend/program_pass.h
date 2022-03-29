@@ -17,6 +17,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "cinn/frontend/op_mapper_registry.h"
@@ -36,10 +37,22 @@ class ProgramPass {
    * @param passes The sequence of pass.
    * @return The program after being modified by the passes.
    */
-  static void Apply(Program* prog, const common::Target& target, const std::vector<std::string>& passes);
-  virtual void ApplyImpl(Program* prog, const common::Target& target) const {}
+  static void Apply(Program* prog,
+                    const std::unordered_set<std::string>& fetch_ids,
+                    const common::Target& target,
+                    const std::vector<std::string>& passes);
 
   const std::string& name() { return name_; }
+
+ protected:
+  virtual void ApplyImpl(Program* prog,
+                         const std::unordered_set<std::string>& fetch_ids,
+                         const common::Target& target) {}
+  virtual void ApplyImpl(Program* prog,
+                         const std::unordered_set<std::string>& fetch_ids,
+                         const common::Target& target) const {
+    return const_cast<ProgramPass*>(this)->ApplyImpl(prog, fetch_ids, target);
+  }
 
  private:
   std::string name_;

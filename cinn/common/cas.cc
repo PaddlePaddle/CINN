@@ -1486,7 +1486,6 @@ Expr CasSimplifyMutator::SimplifyCmp(Expr u) {
  * deal with index's div-mod add simplification, tempory solution, not cover all situations.
  * case 1: (m / n) * n + m % n = m (m, n's type is int)
  * case 2: (m / n1) * n3 + (n2 * m) % n3 = n2 * m if n3 = n1 * n2 (m, n1, n2, n3's type is int)
- * case 3: m / n2 + (n1 * m) % n3 = n1 * m if n3 = n1 * n2 (m, n1, n2, n3's type is int)
  */
 Expr CasSimplifyMutator::SimplifySpecificSum(Expr tmp) {
   auto sum = tmp.As<Sum>();
@@ -1547,21 +1546,6 @@ Expr CasSimplifyMutator::SimplifySpecificSum(Expr tmp) {
       return tmp;
     }
     if (MathEqual(div_left * mod_right, mod_left * div_right)) {
-      tmp = mod_left;
-      for (int i = 2; i < sum->operands().size(); i++) {
-        tmp = tmp + sum->operand(i);
-      }
-      return tmp;
-    }
-  } else if (left_div) {
-    // case 3: m / n1 + (n2 * m) % n3 = n2 * m if n3 = n1 * n2 (m, n1, n2, n3's type is int)
-    CHECK_GE(left_div->operands().size(), 2U);
-    Expr div_left  = left_div->operand(0);
-    Expr div_right = left_div->operand(1);
-    if (!div_left->type().is_integer() || !div_right->type().is_integer()) {
-      return tmp;
-    }
-    if (MathEqual(mod_right * div_left, mod_left * div_right)) {
       tmp = mod_left;
       for (int i = 2; i < sum->operands().size(); i++) {
         tmp = tmp + sum->operand(i);
