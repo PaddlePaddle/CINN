@@ -14,9 +14,11 @@
 
 #include "cinn/runtime/cuda/cuda_util.h"
 
+#include <cuda_runtime.h>
 #include <glog/logging.h>
 
 #include <algorithm>
+#include <string>
 #include <vector>
 
 #include "cinn/backends/cuda_util.h"
@@ -28,63 +30,114 @@
 namespace cinn {
 namespace runtime {
 namespace cuda {
+namespace details {
+void Gemm(const cublasHandle_t &cublas,
+          bool lhs_trans,
+          bool rhs_trans,
+          const float *lhs_data,
+          const float *rhs_data,
+          const float *bias_data,
+          float *output_data,
+          const std::vector<int> &attrs,
+          const cudaStream_t &stream) {
+  CHECK_EQ(attrs.size(), 11);
+  int lhs_row    = attrs[0];
+  int lhs_col    = attrs[1];
+  int rhs_row    = attrs[2];
+  int rhs_col    = attrs[3];
+  int output_row = attrs[4];
+  int output_col = attrs[5];
 
-SerialData::SerialData() {}
+  // copy values of bias_data to the output_data
+  cudaMemcpyAsync(output_data, bias_data, output_row * output_col * sizeof(float), cudaMemcpyDeviceToDevice, stream);
 
-SerialData::~SerialData() {}
-
-CudnnHandle::CudnnHandle() {
-  CUDNN_CALL(cudnnCreate(&cudnn));
-  size_      = 0;
-  work_space = nullptr;
+  float alpha          = 1.f;
+  float beta           = 1.f;
+  int contracting_size = lhs_trans ? lhs_row : lhs_col;
+  CHECK_EQ(contracting_size, (rhs_trans ? rhs_col : rhs_row))
+      << "The contracting dimension value of lhs matrix should be equal to the one of rhs matrix.";
+  auto trans_a = rhs_trans ? CUBLAS_OP_T : CUBLAS_OP_N;
+  auto trans_b = lhs_trans ? CUBLAS_OP_T : CUBLAS_OP_N;
+  cublasSgemm(cublas,
+              trans_a,
+              trans_b,
+              output_col,
+              output_row,
+              contracting_size,
+              &alpha,
+              rhs_data,
+              rhs_col,
+              lhs_data,
+              lhs_col,
+              &beta,
+              output_data,
+              output_col);
 }
 
-CudnnHandle::~CudnnHandle() {
-  CUDNN_CALL(cudnnDestroy(cudnn));
-  if (size_ > 0) {
-    CUDA_CALL(cudaFree(work_space));
-  }
+void GemmStridedBatched(const cublasHandle_t &cublas,
+                        bool lhs_trans,
+                        bool rhs_trans,
+                        const float *lhs_data,
+                        const float *rhs_data,
+                        const float *bias_data,
+                        float *output_data,
+                        const std::vector<int> &attrs,
+                        const cudaStream_t &stream) {
+  CHECK_EQ(attrs.size(), 14);
+  int lhs_bs     = attrs[0];
+  int lhs_row    = attrs[1];
+  int lhs_col    = attrs[2];
+  int rhs_bs     = attrs[3];
+  int rhs_row    = attrs[4];
+  int rhs_col    = attrs[5];
+  int output_bs  = attrs[6];
+  int output_row = attrs[7];
+  int output_col = attrs[8];
+  CHECK_EQ(lhs_bs, rhs_bs);
+  CHECK_EQ(lhs_bs, output_bs);
+
+  // copy values of bias_data to the output_data
+  cudaMemcpyAsync(
+      output_data, bias_data, output_bs * output_row * output_col * sizeof(float), cudaMemcpyDeviceToDevice, stream);
+
+  float alpha          = 1.f;
+  float beta           = 1.f;
+  int contracting_size = lhs_trans ? lhs_row : lhs_col;
+  CHECK_EQ(contracting_size, (rhs_trans ? rhs_col : rhs_row))
+      << "The contracting dimension value of lhs matrix should be equal to the one of rhs matrix.";
+  auto trans_a          = rhs_trans ? CUBLAS_OP_T : CUBLAS_OP_N;
+  auto trans_b          = lhs_trans ? CUBLAS_OP_T : CUBLAS_OP_N;
+  int64_t lhs_stride    = lhs_row * lhs_col;
+  int64_t rhs_stride    = rhs_row * rhs_col;
+  int64_t output_stride = output_row * output_col;
+  cublasSgemmStridedBatched(cublas,
+                            trans_a,
+                            trans_b,
+                            output_col,
+                            output_row,
+                            contracting_size,
+                            &alpha,
+                            rhs_data,
+                            rhs_col,
+                            rhs_stride,
+                            lhs_data,
+                            lhs_col,
+                            lhs_stride,
+                            &beta,
+                            output_data,
+                            output_col,
+                            output_stride,
+                            output_bs);
 }
+}  // namespace details
 
 CublasHandle::CublasHandle() { cublasCreate(&cublas); }
 
 CublasHandle::~CublasHandle() { cublasDestroy(cublas); }
 
-float *CudnnHandle::GetWorkSpace(size_t size) {
-  if (size_ >= size) {
-    return work_space;
-  } else {
-    if (size_ > 0) {
-      CUDA_CALL(cudaFree(work_space));
-    }
-    CUDA_CALL(cudaMalloc(&work_space, size));
-    size_ = size;
-    return work_space;
-  }
-}
+SerialData::SerialData() {}
 
-void cinn_gpu_cublas_mul(const std::vector<int> &attrs,
-                         cinn_buffer_t *input1,
-                         cinn_buffer_t *input2,
-                         cinn_buffer_t *output,
-                         const cudaStream_t &stream) {
-  cublasHandle_t &cublas = CublasHandle::get_instance().GetCublasHandle();
-  cublasSetStream(cublas, stream);
-  float *x_data   = reinterpret_cast<float *>(input1->memory);
-  float *y_data   = reinterpret_cast<float *>(input2->memory);
-  float *out_data = reinterpret_cast<float *>(output->memory);
-  int M           = 1;
-  CHECK_GE(attrs.size(), 6);
-  for (int i = 0; i < attrs[attrs.size() - 2]; i++) {
-    M *= attrs[i];
-  }
-  int N       = attrs[attrs.size() - 3];
-  int K       = attrs[attrs.size() - 4];
-  float alpha = 1.f;
-  float beta  = 0.f;
-  // M,N * N,K
-  cublasSgemm(cublas, CUBLAS_OP_N, CUBLAS_OP_N, K, M, N, &alpha, y_data, K, x_data, N, &beta, out_data, K);
-}
+SerialData::~SerialData() {}
 
 void cinn_call_cuda_kernel(void *kernel_fn,
                            cinn_pod_value_t *args,
@@ -119,6 +172,88 @@ void cinn_call_cuda_kernel(void *kernel_fn,
                                   static_cast<CUstream>(stream),
                                   reinterpret_cast<void **>(arr),
                                   nullptr))
+}
+
+void cinn_gpu_cublas_mul(const std::vector<int> &attrs,
+                         cinn_buffer_t *input1,
+                         cinn_buffer_t *input2,
+                         cinn_buffer_t *output,
+                         const cudaStream_t &stream) {
+  cublasHandle_t &cublas = CublasHandle::get_instance().GetCublasHandle();
+  cublasSetStream(cublas, stream);
+  float *x_data   = reinterpret_cast<float *>(input1->memory);
+  float *y_data   = reinterpret_cast<float *>(input2->memory);
+  float *out_data = reinterpret_cast<float *>(output->memory);
+  int M           = 1;
+  CHECK_GE(attrs.size(), 6);
+  for (int i = 0; i < attrs[attrs.size() - 2]; i++) {
+    M *= attrs[i];
+  }
+  int N       = attrs[attrs.size() - 3];
+  int K       = attrs[attrs.size() - 4];
+  float alpha = 1.f;
+  float beta  = 0.f;
+  // M,N * N,K
+  cublasSgemm(cublas, CUBLAS_OP_N, CUBLAS_OP_N, K, M, N, &alpha, y_data, K, x_data, N, &beta, out_data, K);
+}
+
+void cinn_gpu_cublas_gemm(const std::vector<int> &attrs,
+                          cinn_buffer_t *lhs,
+                          cinn_buffer_t *rhs,
+                          cinn_buffer_t *bias,
+                          cinn_buffer_t *output,
+                          const cudaStream_t &stream) {
+  cublasHandle_t &cublas = CublasHandle::get_instance().GetCublasHandle();
+  cublasSetStream(cublas, stream);
+
+  const float *lhs_data  = reinterpret_cast<const float *>(lhs->memory);
+  const float *rhs_data  = reinterpret_cast<const float *>(rhs->memory);
+  const float *bias_data = reinterpret_cast<const float *>(bias->memory);
+  float *output_data     = reinterpret_cast<float *>(output->memory);
+
+  CHECK_GE(attrs.size(), 11);
+  int lhs_dim_size  = attrs[attrs.size() - 5];
+  int rhs_dim_size  = attrs[attrs.size() - 4];
+  int bias_dim_size = attrs[attrs.size() - 3];
+  bool lhs_trans    = static_cast<bool>(attrs[attrs.size() - 2]);
+  bool rhs_trans    = static_cast<bool>(attrs[attrs.size() - 1]);
+  CHECK_EQ(lhs_dim_size, rhs_dim_size);
+  CHECK_EQ(lhs_dim_size, bias_dim_size);
+  CHECK((lhs_dim_size == 2 || lhs_dim_size == 3));
+
+  if (lhs_dim_size == 2) {
+    details::Gemm(cublas, lhs_trans, rhs_trans, lhs_data, rhs_data, bias_data, output_data, attrs, stream);
+  } else {
+    details::GemmStridedBatched(
+        cublas, lhs_trans, rhs_trans, lhs_data, rhs_data, bias_data, output_data, attrs, stream);
+  }
+}
+
+#ifdef CINN_WITH_CUDNN
+CudnnHandle::CudnnHandle() {
+  CUDNN_CALL(cudnnCreate(&cudnn));
+  size_      = 0;
+  work_space = nullptr;
+}
+
+CudnnHandle::~CudnnHandle() {
+  CUDNN_CALL(cudnnDestroy(cudnn));
+  if (size_ > 0) {
+    CUDA_CALL(cudaFree(work_space));
+  }
+}
+
+float *CudnnHandle::GetWorkSpace(size_t size) {
+  if (size_ >= size) {
+    return work_space;
+  } else {
+    if (size_ > 0) {
+      CUDA_CALL(cudaFree(work_space));
+    }
+    CUDA_CALL(cudaMalloc(&work_space, size));
+    size_ = size;
+    return work_space;
+  }
 }
 
 #define GetAttrValue(attr_map, key_name, default_value)      \
@@ -523,6 +658,7 @@ void cinn_gpu_cudnn_softmax(const std::vector<int> &attrs,
   cudnnDestroyTensorDescriptor(in_desc);
   cudnnDestroyTensorDescriptor(out_desc);
 }
+#endif
 
 }  // namespace cuda
 }  // namespace runtime

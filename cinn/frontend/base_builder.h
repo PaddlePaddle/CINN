@@ -50,7 +50,7 @@ class BaseBuilder {
  public:
   explicit BaseBuilder(const std::string& name);
 
-  Program Build();
+  Program Build(bool in_reverse = false);
 
   Placeholder CreateInput(const common::Type& type, const std::vector<int>& shape, const std::string& id_hint = "");
   Placeholder CreateInput(const Variable& input);
