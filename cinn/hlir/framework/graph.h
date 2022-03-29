@@ -45,6 +45,7 @@ class Graph : public cinn::common::Graph {
 
   std::vector<std::vector<Node*>> groups;
   struct Group {
+    std::string group_id{""};
     // node in this group
     std::vector<Node*> nodes;
     std::unordered_set<Node*> nodes_set;

@@ -70,6 +70,7 @@ class OpFusionPassHelper : public FusionHelperBase {
         group->op_pattern_kind = GetOpKind(node);
         // use current node as master node for schedule
         group->master_nodes.insert(node);
+        group->group_id      = node->id();
         fusion_groups_[node] = group;
       }
     }
@@ -93,28 +94,12 @@ class OpFusionPassHelper : public FusionHelperBase {
       }
     }
 
-    for (auto& group : fusion_groups) {
-      // find producer group
-      for (auto& node : group->input_nodes) {
-        for (auto& edge : node->inlinks()) {
-          auto producer_node      = edge->source();
-          auto producer_node_data = producer_node->safe_as<NodeData>();
-          CHECK(producer_node_data);
-          // input data has no source node
-          if (producer_node_data->source_node.get()) {
-            auto producer_group = fusion_groups_[producer_node_data->source_node.get()];
-            group->producer_groups.insert(producer_group);
-          }
-        }
-      }
-      // find consumer group
-      auto output_node      = *group->output_nodes.begin();
-      auto output_node_data = (*output_node->outlinks().begin())->sink();
-      for (auto& link : output_node_data->outlinks()) {
-        auto consumer_node = link->sink()->safe_as<Node>();
-        CHECK(consumer_node);
-        auto consumer_group = fusion_groups_[consumer_node];
-        group->consumer_groups.insert(consumer_group);
+    // producer consumer
+    for (auto& consumer : fusion_groups) {
+      for (auto& node : consumer->input_nodes) {
+        auto& producer = fusion_groups_[node];
+        consumer->producer_groups.insert(producer);
+        producer->consumer_groups.insert(consumer);
       }
     }
 
@@ -178,6 +163,7 @@ class OpFusionPassHelper : public FusionHelperBase {
 
         // fuse producer to fusion group
         if (consumer_fusion->nodes_set.find(producer) == consumer_fusion->nodes_set.end()) {
+          consumer_fusion->group_id = producer->id() + "_" + consumer_fusion->group_id;
           consumer_fusion->nodes.push_back(producer);
         }
         consumer_fusion->nodes_set.insert(producer);
@@ -269,9 +255,7 @@ class OpFusionPassHelper : public FusionHelperBase {
       }
       // check shape is same
       if (producer_input_shape != reducer_input_shape || producer_output_shape != reducer_output_shape ||
-          producer_reduce_dim != reducer_reduce_dim ||
-          absl::get<std::vector<int>>(producer->attrs.attr_store.at("keep_dim")) !=
-              absl::get<std::vector<int>>(reducer->attrs.attr_store.at("keep_dim"))) {
+          producer_reduce_dim != reducer_reduce_dim) {
         return false;
       }
 
@@ -533,10 +517,19 @@ void OpFusionPassInternal(Graph* graph) {
   auto op_fusion_helper = OpFusionPassHelper(nodes, shape_dict, graph->target_);
   graph->fusion_groups  = op_fusion_helper();
 
-  for (auto& Group : graph->fusion_groups) {
+  for (auto& group : graph->fusion_groups) {
     VLOG(11) << "Group Start.";
-    for (auto node : Group->nodes) {
+    for (auto& node : group->input_nodes) {
+      VLOG(11) << "input node -> " << node->id();
+    }
+    for (auto node : group->nodes) {
       VLOG(11) << "node -> " << node->id();
+    }
+    for (auto& producer : group->producer_groups) {
+      VLOG(11) << "producer group -> " << producer->group_id;
+    }
+    for (auto& consumer : group->consumer_groups) {
+      VLOG(11) << "consumer group -> " << consumer->group_id;
     }
     VLOG(11) << "Group End.";
   }

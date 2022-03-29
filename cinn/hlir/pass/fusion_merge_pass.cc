@@ -59,23 +59,32 @@ class FusionMergePassHelper : public FusionHelperBase {
 
  private:
   bool DoFusionMerge() {
+    VLOG(11) << "DoFusionMerge...!";
     bool updated = false;
     for (int idx = 0; idx < fusion_groups_.size(); ++idx) {
       auto producer = fusion_groups_[idx];
+      VLOG(11) << "Fusion Producer Group -> " << producer->group_id;
       // if producer is sub group.
-      if (!producer->belong_groups.size()) {
+      if (producer->belong_groups.size()) {
         continue;
       }
 
-      updated = DoFusionMergeHorizontal(producer->consumer_groups);
-      updated = DoFusionMergeVertical(producer, producer->consumer_groups);
+      updated |= DoFusionMergeHorizontal(producer->consumer_groups);
+      updated |= DoFusionMergeVertical(producer, producer->consumer_groups);
     }
+
+    Groups fusion_groups;
     // update fusion_groups_
-    for (auto iter = fusion_groups_.begin(); iter != fusion_groups_.end(); ++iter) {
-      if ((*iter)->belong_groups.size()) {
-        fusion_groups_.erase(iter);
+    for (auto& group : fusion_groups_) {
+      if (!group->belong_groups.size()) {
+        VLOG(11) << "Fusion Group -> " << group->group_id;
+        for (auto& sub_group : group->fused_sub_groups) {
+          VLOG(11) << "  Fused Sub-Group -> " << sub_group->group_id;
+        }
+        fusion_groups.push_back(group);
       }
     }
+    fusion_groups_ = fusion_groups;
     return updated;
   }
 
@@ -139,46 +148,17 @@ class FusionMergePassHelper : public FusionHelperBase {
     return updated;
   }
 
-  bool DoFusionMergeVertical(Group& producer, std::unordered_set<Group, Hasher, Comparator>& consumers) {
-    auto& relation = fusion_relation_map_[producer->op_pattern_kind];
-    // if producer can't fuse others
-    if (!relation.vertical_relation.size()) {
-      return false;
-    }
-
-    std::unordered_set<Group, Hasher, Comparator> fusionable_consumers;
-    for (auto& consumer : consumers) {
-      // if can't fuse
-      if (relation.vertical_relation.count(consumer->op_pattern_kind)) {
-        continue;
-      }
-
-      // if condition function is false
-      if (!relation.vertical_relation[consumer->op_pattern_kind](producer, consumer)) {
-        continue;
-      }
-
-      if (!CanFuseWithCostModel(producer, consumer)) {
-        continue;
-      }
-
-      fusionable_consumers.insert(consumer);
-    }
-
-    // if fusionable consumers exist
-    if (fusionable_consumers.size()) {
-      DoVerticalFuse(producer, fusionable_consumers);
-      return true;
-    }
-
-    return false;
-  }
-
   void DoHorizontalFuse(Groups& consumers) {
     // create fusion group
     auto fused_group = std::make_shared<Graph::Group>();
     // fuse all group into fusion group.
     for (auto consumer : consumers) {
+      VLOG(11) << "fuse consumer " << consumer->group_id << " into fused_group!";
+      if (fused_group->group_id.size()) {
+        fused_group->group_id += "_" + consumer->group_id;
+      } else {
+        fused_group->group_id = consumer->group_id;
+      }
       // set op pattern kind
       fused_group->op_pattern_kind = consumer->op_pattern_kind;
       // input nodes
@@ -229,15 +209,54 @@ class FusionMergePassHelper : public FusionHelperBase {
     for (auto& node : consumer->master_nodes) {
       fused_group->master_nodes.insert(node);
     }
-
     // push group to back.
     fusion_groups_.push_back(fused_group);
+  }
+
+  bool DoFusionMergeVertical(Group& producer, std::unordered_set<Group, Hasher, Comparator>& consumers) {
+    auto& relation = fusion_relation_map_[producer->op_pattern_kind];
+    // if producer can't fuse others
+    if (!relation.vertical_relation.size()) {
+      return false;
+    }
+
+    std::unordered_set<Group, Hasher, Comparator> fusionable_consumers;
+    for (auto& consumer : consumers) {
+      // if can't fuse
+      if (!relation.vertical_relation.count(consumer->op_pattern_kind)) {
+        VLOG(11) << "Can't fuse producer " << producer->op_pattern_kind << " consumer " << consumer->op_pattern_kind;
+        continue;
+      }
+
+      // if condition function is false
+      if (!relation.vertical_relation[consumer->op_pattern_kind](producer, consumer)) {
+        VLOG(11) << "Can't fuse producer " << producer->op_pattern_kind << " consumer " << consumer->op_pattern_kind;
+        continue;
+      }
+
+      fusionable_consumers.insert(consumer);
+    }
+
+    if (fusionable_consumers.size() > 1 && !RecomputeWithCostModel(producer, fusionable_consumers)) {
+      return false;
+    }
+
+    // if fusionable consumers exist
+    if (fusionable_consumers.size()) {
+      DoVerticalFuse(producer, fusionable_consumers);
+      return true;
+    }
+
+    return false;
   }
 
   void DoVerticalFuse(Group& producer, std::unordered_set<Group, Hasher, Comparator>& fusionable_consumers) {
     Groups fused_groups;
     for (auto& consumer : fusionable_consumers) {
       auto fused_group = std::make_shared<Graph::Group>();
+      // update group id
+      fused_group->group_id = producer->group_id;
+      VLOG(11) << "fuse producer " << producer->group_id << " into consumer " << consumer->group_id;
       // fuse producer into fusion group
       fused_group->op_pattern_kind = producer->op_pattern_kind;
       // input nodes
@@ -276,6 +295,7 @@ class FusionMergePassHelper : public FusionHelperBase {
               ? fused_group->op_pattern_kind
               : consumer->op_pattern_kind;
 
+      fused_group->group_id += "_" + consumer->group_id;
       // input nodes
       for (auto& node : consumer->input_nodes) {
         if (!producer->output_nodes.count(node)) {
@@ -360,7 +380,13 @@ class FusionMergePassHelper : public FusionHelperBase {
     }
   }
 
-  bool CanFuseWithCostModel(const Group& producer, const Group& consumer) { return true; }
+  bool RecomputeWithCostModel(const Group& producer,
+                              std::unordered_set<Group, Hasher, Comparator>& fusionable_consumers) {
+    if (producer->op_pattern_kind == framework::kCommReduce) {
+      return false;
+    }
+    return true;
+  }
 
   bool IsDepency(Group consumer, const std::unordered_set<Group, Hasher, Comparator>& consumers) {
     std::queue<Group> candidates;
@@ -386,6 +412,7 @@ class FusionMergePassHelper : public FusionHelperBase {
   }
 
   void InitFusionRelation() {
+    VLOG(11) << "InitFusionRelation...!";
     // fuse condition function
     auto always_fuse   = [this](const Group& first, const Group& second) -> bool { return true; };
     auto is_same_shape = [this](const Group& first, const Group& second) -> bool {
@@ -401,6 +428,7 @@ class FusionMergePassHelper : public FusionHelperBase {
           break;
         }
       }
+      CHECK(reducer_0) << "Don't find reduce op in group " << first->group_id;
 
       Node* reducer_1 = nullptr;
       for (auto& reducer : second->master_nodes) {
@@ -409,6 +437,7 @@ class FusionMergePassHelper : public FusionHelperBase {
           break;
         }
       }
+      CHECK(reducer_1) << "Don't find reduce op in group " << second->group_id;
 
       // check reduce has same input shape and output shape
       auto reducer_0_input_shape  = shape_dict_.at(reducer_0->inlinks_in_order()[0]->source()->id());
@@ -433,13 +462,13 @@ class FusionMergePassHelper : public FusionHelperBase {
           dim = reducer_1_reduce_dim.size() - 1;
         }
       }
+
       // check shape is same
       if (reducer_0_input_shape != reducer_1_input_shape || reducer_0_output_shape != reducer_1_output_shape ||
-          reducer_0_reduce_dim != reducer_1_reduce_dim ||
-          absl::get<std::vector<int>>(reducer_0->attrs.attr_store.at("keep_dim")) !=
-              absl::get<std::vector<int>>(reducer_1->attrs.attr_store.at("keep_dim"))) {
+          reducer_0_reduce_dim != reducer_1_reduce_dim) {
         return false;
       }
+
       return true;
     };
 
@@ -449,14 +478,10 @@ class FusionMergePassHelper : public FusionHelperBase {
       // horizontal
       relation.horizontal_relation = {{framework::kElemWise, is_same_shape}};
       // vertical
-      relation.vertical_relation = {// one-by-one(only one can fuse), fuse
-                                    // one-by-multi, re-compute + cost model
-                                    {OpPatternKind::kElemWise, is_same_shape},
-                                    // one-by-one(only one can fuse), need check as may can't use with buffer.
-                                    // one-by-multi, re-compute + cost model
+      relation.vertical_relation = {{OpPatternKind::kElemWise, is_same_shape},
+                                    // TODO(sunli) : Using cost-model.
                                     {OpPatternKind::kBroadcast, always_fuse},
-                                    // one-by-one(only one can fuse), fuse
-                                    // one-by-multi, re-compute + cost model
+                                    // TODO(sunli) : Check can fuse.
                                     {OpPatternKind::kCommReduce, always_fuse}};
     }
     // kBroadcast
@@ -465,11 +490,7 @@ class FusionMergePassHelper : public FusionHelperBase {
       // horizontal
       relation.horizontal_relation = {{framework::kBroadcast, is_same_shape}};
       // vertical
-      relation.vertical_relation = {// one-by-one(only one can fuse), fuse
-                                    // one-by-multi, re-compute + cost model
-                                    {OpPatternKind::kElemWise, is_same_shape},
-                                    // one-by-one(only one can fuse), need check as may can't use with buffer.
-                                    // one-by-multi, re-compute + cost model
+      relation.vertical_relation = {{OpPatternKind::kElemWise, is_same_shape},
                                     {OpPatternKind::kCommReduce, always_fuse}};
     }
     // kInjective
@@ -478,11 +499,7 @@ class FusionMergePassHelper : public FusionHelperBase {
       // horizontal
       // relation.horizontal_relation = {{OpPatternKind::kInjective, is_same_shape}};
       // vertical
-      relation.vertical_relation = {// one-by-one(only one can fuse), fuse
-                                    // one-by-multi, re-compute + cost model
-                                    {OpPatternKind::kElemWise, is_same_shape},
-                                    // one-by-one(only one can fuse), need check as may can't use with buffer.
-                                    // one-by-multi, re-compute + cost model
+      relation.vertical_relation = {{OpPatternKind::kElemWise, is_same_shape},
                                     {OpPatternKind::kCommReduce, always_fuse}};
     }
     // kCommReduce
@@ -491,8 +508,7 @@ class FusionMergePassHelper : public FusionHelperBase {
       // horizontal
       relation.horizontal_relation = {{OpPatternKind::kCommReduce, reduce_fuse_reduce}};
       // vertical
-      relation.vertical_relation = {// one-by-one(only one can fuse), cost model
-                                    // one-by-multi, re-compute + cost model
+      relation.vertical_relation = {// TODO(sunli): Using cost-model.
                                     {OpPatternKind::kElemWise, always_fuse}};
     }
   }
@@ -507,9 +523,12 @@ class FusionMergePassHelper : public FusionHelperBase {
 };  // namespace hlir
 
 void FusionMergePassInternal(Graph* graph) {
+  VLOG(11) << "FusionMergePass...!";
   if (!graph->fusion_groups.size()) {
+    VLOG(11) << "Don't do OpFusoin Pass...!";
     return;
   }
+
   FusionMergePassHelper fusion_merge_pass_helper(graph);
   graph->fusion_groups = fusion_merge_pass_helper();
 }
