@@ -161,20 +161,20 @@ __device__ inline float cinn_block_reduce_min(const float *buf, int offset, int 
   return cinn_block_reduce_min_internal(tmp_val);
 }
 
-#define __cinn_cuda_find_kernel           \
-  do {                                    \
-    for (int i = size - 1; i >= 0; --i) { \
-      if (buf[i] == num) return i;        \
-    }                                     \
-    return -1;                            \
-  } while(0);
+#define __cinn_cuda_find_kernel(buf, size, num) \
+  do {                                          \
+    for (int i = size - 1; i >= 0; --i) {       \
+      if (buf[i] == num) return i;              \
+    }                                           \
+    return -1;                                  \
+  } while(0)
 
 __device__ inline int cinn_cuda_find_int(const int *buf, int size, int num) {
-  __cinn_cuda_find_kernel
+  __cinn_cuda_find_kernel(buf, size, num);
 }
 
 __device__ inline int cinn_cuda_find_float(const float *buf, int size, float num) {
-  __cinn_cuda_find_kernel
+  __cinn_cuda_find_kernel(buf, size, num);
 }
 
 #undef __cinn_cuda_find_kernel

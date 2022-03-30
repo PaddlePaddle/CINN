@@ -36,17 +36,21 @@ void __cinn_host_tanh_v(const cinn_buffer_t* x, cinn_buffer_t* out) {
   }
 }
 
-#define __cinn_host_find_kernel(TYPE)                               \
+#define __cinn_host_find_kernel(buf, size, num, type)               \
   do {                                                              \
     for (int i = size - 1; i >= 0; --i) {                           \
-      if (reinterpret_cast<TYPE*>(buf->memory)[i] == num) return i; \
+      if (reinterpret_cast<type*>(buf->memory)[i] == num) return i; \
     }                                                               \
     return -1;                                                      \
-  } while (0);
+  } while (0)
 
-inline int cinn_host_find_int(const cinn_buffer_t* buf, int size, int num) { __cinn_host_find_kernel(int) }
+inline int cinn_host_find_int(const cinn_buffer_t* buf, int size, int num) {
+  __cinn_host_find_kernel(buf, size, num, int);
+}
 
-inline int cinn_host_find_float(const cinn_buffer_t* buf, int size, float num) { __cinn_host_find_kernel(float) }
+inline int cinn_host_find_float(const cinn_buffer_t* buf, int size, float num) {
+  __cinn_host_find_kernel(buf, size, num, float);
+}
 
 #undef __cinn_host_find_kernel
 }
