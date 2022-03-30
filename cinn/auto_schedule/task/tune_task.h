@@ -14,11 +14,15 @@
 
 #pragma once
 
+#include <memory>
 #include <vector>
 
 #include "cinn/auto_schedule/task/tune_context.h"
 #include "cinn/common/target.h"
+#include "cinn/hlir/framework/graph.h"
+#include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/node.h"
+#include "cinn/ir/ir_schedule.h"
 
 namespace cinn {
 namespace auto_schedule {
@@ -27,9 +31,15 @@ class TuneTask {
  public:
   TuneTask() = default;
 
+  TuneTask(hlir::framework::GraphCompiler* compiler) : graph_compiler_(compiler) {}
+
   std::vector<std::vector<hlir::framework::Node*>>& task_graph() { return task_graph_; }
 
   TuneContext& tune_context() { return tune_context_; }
+
+  void SetGraphCompiler(hlir::framework::GraphCompiler* compiler);
+
+  void TaskGraphToModuleExpr();
 
  private:
   // In CINN, we use std::vector<hlir::framework::Node*> to represent a fused
@@ -38,6 +48,8 @@ class TuneTask {
   std::vector<std::vector<hlir::framework::Node*>> task_graph_;
   // Context of a tune task
   TuneContext tune_context_;
+  // Not owned
+  hlir::framework::GraphCompiler* graph_compiler_;
 };
 
 }  // namespace auto_schedule

@@ -88,6 +88,8 @@ Placeholder<T>::Placeholder(const std::string &name, const std::vector<Expr> &sh
   Init(name, shape);
 }
 
+ir::Tensor CreatePlaceHolder(const std::vector<int> &shape, Type type, const std::string &name);
+
 ir::Tensor CreatePlaceHolder(const std::vector<Expr> &shape, Type type, const std::string &name);
 
 /// ------- details -------
