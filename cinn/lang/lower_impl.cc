@@ -255,7 +255,7 @@ void CreateCompGraphWithInlineTensors(common::Graph* graph,
     if (!e_node) {
       e_node = graph->RegisterNode(e_tensor->name, new CompuGraphNode(e_tensor));
     }
-    e_node->LinkTo(t_node);
+    e_node->Controls(t_node);
     if (!visited->count(e_tensor)) {
       CreateCompGraphWithInlineTensors(graph, e_tensor, stages, visited);
     }
@@ -295,10 +295,10 @@ std::unique_ptr<common::Graph> CreateCompGraphWithInlineTensorHidden(const std::
 
       // unlink the inline node from its inputs and outputs
       for (auto& link : inline_inlinks) {
-        link->source()->UnLinkTo(link->sink());
+        link->source()->UnLinkSingleTo(link->sink());
       }
       for (auto& link : inline_outlinks) {
-        link->source()->UnLinkTo(link->sink());
+        link->source()->UnLinkSingleTo(link->sink());
       }
 
       // link inline node's input nodes to its output nodes.
@@ -325,7 +325,7 @@ void CompuGraphAddCtrlDepLinks(common::Graph* graph, StageMap stages) {
       auto* dep_node = graph->RetrieveNode(dep->name);
       if (dep_node) {
         VLOG(3) << "Add control link: " << dep << " -> " << node->id();
-        dep_node->LinkTo(node);
+        dep_node->Controls(node);
       }
     }
   }
@@ -350,22 +350,12 @@ std::unique_ptr<common::Graph> CreateCompGraph(const std::vector<ir::Tensor>& te
 }
 
 void LowerImpl::CheckArgsUnique() {
-  std::unordered_set<std::string> arg_names;
   for (auto& tensor : tensor_args_) {
     CHECK(!stages_[tensor]->inlined()) << "Inline tensor cannot be argument of function";
-    CHECK(!arg_names.count(tensor->name))
-        << "The argument of the function, tensor [" << tensor->name << "] duplicates in function " << fn_name_;
-    arg_names.insert(tensor->name);
     if (!tensor->buffer.defined()) {
       LOG(ERROR) << "tensor [" << tensor->name << "] buffer is null";
       continue;
     }
-    arg_names.insert(tensor->buffer->name);
-  }
-
-  for (auto& scalar : scalar_args_) {
-    CHECK(!arg_names.count(scalar->name)) << "The argument of the function, scalar [" << scalar->name << "] duplicates";
-    arg_names.insert(scalar->name);
   }
 }
 

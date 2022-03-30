@@ -30,6 +30,10 @@ std::tuple<common::GraphEdge*, common::GraphEdge*> NodeData::LinkTo(Node* other)
   return this->common::GraphNode::LinkTo(other->as<common::GraphNode>());
 }
 
+void Node::Controls(NodeData* other) { return this->common::GraphNode::Controls(other->as<common::GraphNode>()); }
+
+void NodeData::Controls(Node* other) { return this->common::GraphNode::Controls(other->as<common::GraphNode>()); }
+
 namespace {
 
 struct PyBindNodeAttrVisitor {
@@ -107,10 +111,10 @@ NodeData* InsertGraphOpNodeAfter(
   CHECK(graph);
   CHECK(insert_node);
   CHECK(input_nodedata);
-  input_nodedata->LinkTo(insert_node);
+  input_nodedata->Controls(insert_node);
   std::shared_ptr<Node> node_ptr(insert_node);
   auto* out_nodedata = new NodeData(node_ptr, 0, 0, common::UniqName(insert_node->id() + "_out"));
-  insert_node->LinkTo(out_nodedata);
+  insert_node->Controls(out_nodedata);
   std::vector<common::GraphNode*> old_sources;
   auto input_links = out_node->inlinks_in_order(true);
 
@@ -118,7 +122,7 @@ NodeData* InsertGraphOpNodeAfter(
     for (auto& link : input_links) {
       auto* source = link->source();
       // unlink and relink afterwards to make sure the order
-      source->UnLinkTo(out_node);
+      source->UnLinkSingleTo(out_node);
       old_sources.push_back(source);
     }
     for (int i = 0; i < old_sources.size(); i++) {
@@ -149,11 +153,11 @@ NodeData* InsertGraphOpNodeBefore(
   for (auto& link : old_outlinks) {
     auto sink = link->sink();
     // unlink and relink afterwards to make sure the right outputs order
-    input_node->UnLinkTo(sink);
+    input_node->UnLinkSingleTo(sink);
     old_sinks.push_back(sink);
   }
-  input_node_out->LinkTo(insert_node);
-  insert_node->LinkTo(dst_data);
+  input_node_out->Controls(insert_node);
+  insert_node->Controls(dst_data);
   dst_data->source_node = std::shared_ptr<Node>(insert_node);
 
   for (int i = 0; i < old_sinks.size(); i++) {

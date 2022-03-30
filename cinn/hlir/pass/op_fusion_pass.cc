@@ -478,7 +478,7 @@ void InsertBroadcastTo(Graph* graph) {
         // input shape is not equal to output shape, insert broadcast_to
         if (output_shape != input_shape) {
           // input_data UnLinkTo node
-          input_data->UnLinkTo(node);
+          input_data->UnLinkSingleTo(node);
           int axis = -1;
           if (node->attrs.attr_store.find("axis") != node->attrs.attr_store.end()) {
             axis = absl::get<int>(node->attrs.attr_store["axis"]);

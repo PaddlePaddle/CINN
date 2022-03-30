@@ -96,5 +96,24 @@ class TestNetBuilder(unittest.TestCase):
         self.paddle_verify_basic(tensor_data)
 
 
+class TestNetBuilderOp(unittest.TestCase):
+    def setUp(self):
+        if enable_gpu == "ON":
+            self.target = DefaultNVGPUTarget()
+        else:
+            self.target = DefaultHostTarget()
+
+    def test_basic(self):
+        builder = NetBuilder("testmul")
+        a = builder.create_input(Float(32), (4, 4), "A")
+        tensor_data = [np.random.random([4, 4]).astype("float32")]
+        print(tensor_data[0])
+        b = builder.elementwise_add(a, a)
+        prog = builder.build()
+        result = prog.build_and_get_output(self.target, [a], tensor_data, [b])
+        res = result[0].numpy(self.target)
+        print(res)
+
+
 if __name__ == "__main__":
     unittest.main()

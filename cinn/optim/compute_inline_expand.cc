@@ -177,8 +177,7 @@ struct SSABuilder : public ir::IRMutator<> {
       if (!n) {
         n = graph.RegisterNode(t, new SSANode(t));
       }
-
-      n->LinkTo(cur_graph_node);
+      n->Controls(cur_graph_node);
     }
   }
 };
