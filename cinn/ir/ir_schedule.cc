@@ -1262,12 +1262,17 @@ std::vector<std::pair<Expr, Expr>> CalculateRequiredRegions(const Expr& block,
             vars_min.push_back(for_loop.As<ir::For>()->min);
             vars_max.push_back(for_loop.As<ir::For>()->min + for_loop.As<ir::For>()->extent);
           }
+          Expr mod_extent(0);
+          if (indice_min.As<Mod>() && indice_min.As<Mod>()->b().is_constant()) mod_extent = indice_min.As<Mod>()->b();
           ReplaceExpr(&indice_min, loop_vars, vars_min);
           ReplaceExpr(&indice_max, loop_vars, vars_max);
           Expr indice_extent;
           // If a index keeps constant, its extent should be 1.
-          if (indice_min == indice_max)
-            indice_extent = Expr(1);
+          if (common::AutoSimplify(indice_min) == common::AutoSimplify(indice_max))
+            if (common::is_zero(mod_extent))
+              indice_extent = Expr(1);
+            else
+              indice_extent = mod_extent;
           else
             indice_extent = common::AutoSimplify(common::AutoSimplify(indice_max) - common::AutoSimplify(indice_min));
           if (indice_extent.is_constant() && indice_extent.get_constant() < 0) {
@@ -1296,6 +1301,7 @@ void IRSchedule::ComputeAt(const Expr& block, const Expr& loop) {
   LeafBlockRemovalPlan remove_plan(block, &reconstructor.source_expr, &reconstructor.target_expr);
   remove_plan(&root);
   auto iter_doms = CalculateRequiredRegions(block, loop, consumers);
+  for (auto& i : iter_doms) LOG(INFO) << "CalculateRequiredRegions is : " << i.first << " to " << i.second;
   reconstructor.MakeNewLoop(iter_doms);
   helper_.Replace(reconstructor.source_expr, reconstructor.target_expr);
   helper_.Replace(reconstructor.loop_, reconstructor.new_loop_);

@@ -846,7 +846,7 @@ TEST(IrSchedule, compute_at3) {
   auto B = Compute(
       {M, M}, [&](Var i, Var j) { return A(i, j); }, "B");
   auto C = Compute(
-      {N, N}, [&](Var i, Var j) { return B(i + j, i + j); }, "C");
+      {M, M}, [&](Var i, Var j) { return B(i, j); }, "C");
 
   auto stages = CreateStages({A, B, C});
 
@@ -861,7 +861,7 @@ TEST(IrSchedule, compute_at3) {
   auto block_b = ir_sch.GetBlock("B");
 
   auto fused   = ir_sch.Fuse("C", {0, 1});
-  auto splited = ir_sch.Split(fused, {64, -1});
+  auto splited = ir_sch.Split(fused, {32, -1});
 
   auto loops = ir_sch.GetLoops("C");
 
@@ -894,14 +894,14 @@ void test_compute_at3(void* _args, int32_t num_args)
   const float* A = ((const float*)(_A->memory));
   float* B = ((float*)(_B->memory));
   float* C = ((float*)(_C->memory));
-  for (int32_t i_j_fused_0 = 0; i_j_fused_0 < 64; i_j_fused_0 += 1) {
-    for (int32_t ax0 = 0; ax0 < 16; ax0 += 1) {
-      for (int32_t ax1 = 0; ax1 < 16; ax1 += 1) {
-        B[((64 * ax0) + ((1040 * i_j_fused_0) + ax1))] = A[((64 * ax0) + ((1040 * i_j_fused_0) + ax1))];
+  for (int32_t i_j_fused_0 = 0; i_j_fused_0 < 32; i_j_fused_0 += 1) {
+    for (int32_t ax0 = 0; ax0 < 2; ax0 += 1) {
+      for (int32_t ax1 = 0; ax1 < 64; ax1 += 1) {
+        B[((64 * ax0) + ((128 * i_j_fused_0) + ax1))] = A[((64 * ax0) + ((128 * i_j_fused_0) + ax1))];
       };
     };
-    for (int32_t i_j_fused_1 = 0; i_j_fused_1 < 16; i_j_fused_1 += 1) {
-      C[((16 * i_j_fused_0) + i_j_fused_1)] = B[((1040 * i_j_fused_0) + (65 * i_j_fused_1))];
+    for (int32_t i_j_fused_1 = 0; i_j_fused_1 < 128; i_j_fused_1 += 1) {
+      C[((128 * i_j_fused_0) + i_j_fused_1)] = B[((128 * i_j_fused_0) + i_j_fused_1)];
     };
   };
   cinn_buffer_free((void*)(0), _B);
