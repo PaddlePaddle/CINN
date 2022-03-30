@@ -237,8 +237,8 @@ class FusionMergePassHelper : public FusionHelperBase {
       fusionable_consumers.insert(consumer);
     }
 
-    if (fusionable_consumers.size() > 1 && !RecomputeWithCostModel(producer, fusionable_consumers)) {
-      return false;
+    if (fusionable_consumers.size() > 1) {
+      RecomputeWithCostModel(producer, fusionable_consumers);
     }
 
     // if fusionable consumers exist
@@ -380,12 +380,14 @@ class FusionMergePassHelper : public FusionHelperBase {
     }
   }
 
-  bool RecomputeWithCostModel(const Group& producer,
+  void RecomputeWithCostModel(const Group& producer,
                               std::unordered_set<Group, Hasher, Comparator>& fusionable_consumers) {
     if (producer->op_pattern_kind == framework::kCommReduce) {
-      return false;
+      auto consumer = *fusionable_consumers.begin();
+      fusionable_consumers.clear();
+      fusionable_consumers.insert(consumer);
+      return;
     }
-    return true;
   }
 
   bool IsDepency(Group consumer, const std::unordered_set<Group, Hasher, Comparator>& consumers) {
