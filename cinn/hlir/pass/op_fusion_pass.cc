@@ -60,9 +60,9 @@ class OpFusionPassHelper : public FusionHelperBase {
           auto input_graph_node = edge->source();
           auto input_node_data  = input_graph_node->safe_as<NodeData>();
           CHECK(input_node_data);
-          // input data has noe source node
+          // input data has no source node
           if (input_node_data->source_node.get()) {
-            group->input_nodes.insert(input_node_data->source_node.get());
+            group->input_nodes[input_node_data->source_node.get()] = 1;
           }
         }
 
@@ -96,8 +96,8 @@ class OpFusionPassHelper : public FusionHelperBase {
 
     // producer consumer
     for (auto& consumer : fusion_groups) {
-      for (auto& node : consumer->input_nodes) {
-        auto& producer = fusion_groups_[node];
+      for (auto& input_node : consumer->input_nodes) {
+        auto& producer = fusion_groups_[input_node.first];
         consumer->producer_groups.insert(producer);
         producer->consumer_groups.insert(consumer);
       }
@@ -181,13 +181,13 @@ class OpFusionPassHelper : public FusionHelperBase {
           consumer_fusion->internal_nodes.insert(producer);
         }
 
-        // add input node
-        for (auto& edge : producer->inlinks_in_order()) {
-          auto input_node      = edge->source();
-          auto input_node_data = input_node->safe_as<NodeData>();
-          CHECK(input_node_data);
-          if (input_node_data->source_node.get()) {
-            consumer_fusion->input_nodes.insert(input_node_data->source_node.get());
+        // fuse input node
+        auto& producer_fusion = fusion_groups_[producer];
+        for (auto input_node : producer_fusion->input_nodes) {
+          if (consumer_fusion->input_nodes.count(input_node.first)) {
+            consumer_fusion->input_nodes[input_node.first] += input_node.second;
+          } else {
+            consumer_fusion->input_nodes.insert(input_node);
           }
         }
 
@@ -520,7 +520,7 @@ void OpFusionPassInternal(Graph* graph) {
   for (auto& group : graph->fusion_groups) {
     VLOG(11) << "Group Start.";
     for (auto& node : group->input_nodes) {
-      VLOG(11) << "input node -> " << node->id();
+      VLOG(11) << "input node -> " << node.first->id();
     }
     for (auto node : group->nodes) {
       VLOG(11) << "node -> " << node->id();

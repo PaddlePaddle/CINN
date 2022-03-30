@@ -50,7 +50,8 @@ class Graph : public cinn::common::Graph {
     std::vector<Node*> nodes;
     std::unordered_set<Node*> nodes_set;
     // input nodes of the group.
-    std::unordered_set<Node*> input_nodes;
+    // std::unordered_set<Node*> input_nodes;
+    std::unordered_map<Node*, int> input_nodes;
     // output nodes of the group.
     std::unordered_set<Node*> output_nodes;
     // op pattern kind.

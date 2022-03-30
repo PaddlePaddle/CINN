@@ -163,7 +163,11 @@ class FusionMergePassHelper : public FusionHelperBase {
       fused_group->op_pattern_kind = consumer->op_pattern_kind;
       // input nodes
       for (auto& node : consumer->input_nodes) {
-        fused_group->input_nodes.insert(node);
+        if (fused_group->input_nodes.count(node.first)) {
+          fused_group->input_nodes[node.first] += node.second;
+        } else {
+          fused_group->input_nodes.insert(node);
+        }
       }
       // output node
       for (auto& node : consumer->output_nodes) {
@@ -261,6 +265,15 @@ class FusionMergePassHelper : public FusionHelperBase {
       fused_group->op_pattern_kind = producer->op_pattern_kind;
       // input nodes
       fused_group->input_nodes = producer->input_nodes;
+      // internal nodes
+      for (auto node : producer->output_nodes) {
+        // if node is used more than 1 time.
+        if (consumer->input_nodes.count(node)) {
+          if (consumer->input_nodes[node] > 1) {
+            fused_group->internal_nodes.insert(node);
+          }
+        }
+      }
       // master nodes
       for (auto& node : producer->master_nodes) {
         if (GetOpKind(node) == framework::kCommReduce) {
@@ -297,9 +310,14 @@ class FusionMergePassHelper : public FusionHelperBase {
 
       fused_group->group_id += "_" + consumer->group_id;
       // input nodes
-      for (auto& node : consumer->input_nodes) {
-        if (!producer->output_nodes.count(node)) {
-          fused_group->input_nodes.insert(node);
+      for (auto& input_node : consumer->input_nodes) {
+        // if input node not in producer output.
+        if (!producer->output_nodes.count(input_node.first)) {
+          if (fused_group->input_nodes.count(input_node.first)) {
+            fused_group->input_nodes[input_node.first] += input_node.second;
+          } else {
+            fused_group->input_nodes.insert(input_node);
+          }
         }
       }
 
@@ -356,6 +374,7 @@ class FusionMergePassHelper : public FusionHelperBase {
       for (auto& node : producer->output_nodes) {
         bool be_output = true;
         for (auto& consumer : fusionable_consumers) {
+          // if node is in consumer input node.
           if (consumer->input_nodes.count(node)) {
             be_output = false;
             break;
