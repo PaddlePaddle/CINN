@@ -162,6 +162,25 @@ class IRSchedule {
    * @return Its root ScheduleBlockRealize node.
    */
   Expr GetRootBlock(const Expr& expr) const;
+
+  /**
+   * \brief Find a buffer that is being read, and create its cache.
+   * @param block Block that reads the buffer.
+   * @param read_buffer_index Index of the buffer being read in block.
+   * @param memory_type String that indicates the buffer's storage scope.
+   * @return The buffer's cache.
+   */
+  Expr CacheRead(const Expr& block, int read_buffer_index, const std::string& memory_type);
+
+  /**
+   * \brief Find a buffer that is being written, and create its cache.
+   * @param block Block that writes the buffer.
+   * @param write_buffer_index Index of the buffer being written in block.
+   * @param memory_type String that indicates the buffer's storage scope.
+   * @return The buffer's cache.
+   */
+  Expr CacheWrite(const Expr& block, int write_buffer_index, const std::string& memory_type);
+
   /*!
    * \brief Set a tensor's buffer type(memory_type)
    * \param block The ScheduleBlockRealize corresponding to an unique tensor.
@@ -181,6 +200,12 @@ class IRSchedule {
    * @param loops_index Indices of loops to be reordered.
    */
   void Reorder(const std::string& block_name, const std::vector<int>& loops_index);
+
+  /**
+   * Get the device api of this IRSchedule.
+   * @param return The device api of this IRSchedule.
+   */
+  DeviceAPI GetDeviceAPI() const;
 
   /**
    * \brief Change forloop to be parallelized/vectorized/unrolled.

@@ -32,6 +32,7 @@
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_visitor.h"
+#include "cinn/lang/compute.h"
 #include "cinn/optim/ir_copy.h"
 #include "cinn/optim/ir_simplify.h"
 #include "cinn/optim/replace_var_with_expr.h"
@@ -46,6 +47,17 @@ struct CompExpr {
     return utils::GetStreamCnt(left) < utils::GetStreamCnt(right);
   }
 };
+
+/*!
+ * \brief Check if a Expr node contains a ScheduleBlockRealize node.
+ * \param container The container Expr node.
+ * \param expr The node we want to find.
+ * \return If the container contains the expr.
+ */
+bool Contains(const Expr& container, const Expr& expr) {
+  auto find_expr = ir::CollectIRNodesWithoutTensor(container, [&](const Expr* x) { return *x == expr; });
+  return (!find_expr.empty());
+}
 
 /**
  * \brief Given a For loop, return the next For loop in its body.
@@ -304,6 +316,448 @@ void IRSchedule::Bind(Expr& loop, const std::string& thread_axis) {
   } else {
     MutateForType(loop, ForType::GPUThread, offset);
   }
+}
+
+/**
+ * Return loops that contain the expr.
+ * @param expr The expr.
+ * @param root The root of the whole AST.
+ * @param return Loops in AST that contain the expr.
+ */
+std::vector<Expr> GetLoopsOfExpr(const Expr& expr, const Expr& root) {
+  auto loop_nodes = ir::CollectIRNodes(root, [&](const Expr* x) { return x->As<ir::For>() && Contains(*x, expr); });
+  std::vector<Expr> result(loop_nodes.begin(), loop_nodes.end());
+  if (result.empty()) LOG(FATAL) << "Didn't find expr's loops in root.";
+  std::sort(result.begin(), result.end(), [&](Expr i, Expr j) {
+    return (utils::GetStreamCnt(i).size() > utils::GetStreamCnt(j).size());
+  });
+  return result;
+}
+
+/**
+ * Given an Expr and all vars' range, return the Expr's range(min and max).
+ * @param index The Expr we want to calculate its range.
+ * @param iter_vars The vars in expr.
+ * @param iter_range Each var's range.
+ * @param i The index indicating we are replacing i-th var to its range.
+ * @param return The <min, max> of index after replacing i-th var to its range. If the range is not constant, return
+ * <-1, -1>.
+ */
+std::pair<Expr, Expr> GetRange(Expr index,
+                               const std::vector<Var>& iter_vars,
+                               const std::vector<std::pair<Expr, Expr>>& iter_range,
+                               int i) {
+  if (index.is_constant())
+    return std::make_pair(index, index);
+  else if (i >= (int)iter_vars.size()) {
+    return std::make_pair(Expr(-1), Expr(-1));
+  } else {
+    Expr index2 = index;
+    ReplaceExpr(&index, {iter_vars[i]}, {iter_range[i].first});
+    ReplaceExpr(&index2, {iter_vars[i]}, {iter_range[i].second});
+    index       = common::AutoSimplify(index);
+    index2      = common::AutoSimplify(index2);
+    auto range1 = GetRange(index, iter_vars, iter_range, i + 1);
+    auto range2 = GetRange(index2, iter_vars, iter_range, i + 1);
+    CHECK(range1.first.is_constant());
+    CHECK(range1.second.is_constant());
+    CHECK(range2.first.is_constant());
+    CHECK(range2.second.is_constant());
+    return std::make_pair(range1.first.get_constant() > range2.first.get_constant() ? range2.first : range1.first,
+                          range1.second.get_constant() > range2.second.get_constant() ? range1.second : range2.second);
+  }
+}
+
+/**
+ * Given a vector of Expr and all vars' range, return the vector of Expr's ranges(min and max).
+ * @param tensor_indices The vector of Expr. We want to calculate each Expr's range.
+ * @param iter_vars The vars in expr.
+ * @param iter_range Each var's range.
+ * @param tensor The tensor. tensor_indices is its index.
+ * @param return The <min, max> of tensor_indices. If it is not constant, return corresponding tensor's shape.
+ */
+std::vector<std::pair<Expr, Expr>> GetRange(const std::vector<Expr>& tensor_indices,
+                                            const std::vector<Var>& iter_vars,
+                                            const std::vector<std::pair<Expr, Expr>>& iter_range,
+                                            const Tensor& tensor) {
+  CHECK_EQ(iter_vars.size(), iter_range.size());
+  std::vector<std::pair<Expr, Expr>> result;
+  for (int i = 0; i < (int)tensor_indices.size(); i++) {
+    auto range = GetRange(tensor_indices[i], iter_vars, iter_range, 0);
+    CHECK(range.first.is_constant());
+    if ((int)range.first.get_constant() == (-1)) {
+      if (tensor->buffer.defined()) {
+        CHECK_GT((int)tensor->buffer->shape.size(), i);
+        result.push_back(std::make_pair(Expr(0), tensor->buffer->shape[i]));
+      } else {
+        CHECK_GT((int)tensor->shape.size(), i);
+        result.push_back(std::make_pair(Expr(0), tensor->shape[i]));
+      }
+    } else {
+      CHECK(range.second.is_constant());
+      result.push_back(range);
+    }
+  }
+  return result;
+}
+
+/**
+ * Given a ScheduleBlockRealize, an AST root, a tensor and its tensor_indices, return the accessed buffer region of the
+ * tensor in block.
+ * @param block The ScheduleBlockRealize.
+ * @param tensor_indices The tensor's indices.
+ * @param tensor The tensor.
+ * @param root The root of whole AST.
+ * @param return The accessed buffer region of the tensor in block.
+ */
+std::vector<std::pair<Expr, Expr>> CalculateTensorRegions(const Expr& block,
+                                                          const std::vector<Expr>& tensor_indices,
+                                                          const Tensor& tensor,
+                                                          const Expr& root) {
+  CHECK(block.As<ScheduleBlockRealize>());
+  auto iter_var   = block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->iter_vars;
+  auto iter_value = block.As<ir::ScheduleBlockRealize>()->iter_values;
+
+  std::vector<Var> iter_vars;
+  std::vector<std::pair<Expr, Expr>> iter_range;
+
+  auto outer_loops = GetLoopsOfExpr(block, root);
+  for (auto& loop : outer_loops) {
+    CHECK(loop.As<For>());
+    iter_vars.push_back(loop.As<For>()->loop_var);
+    iter_range.push_back(
+        std::make_pair(loop.As<For>()->min, common::AutoSimplify(loop.As<For>()->min + loop.As<For>()->extent)));
+  }
+
+  std::vector<Expr> replaced_indices;
+
+  for (auto& index : tensor_indices) {
+    auto temp = optim::IRCopy(index);
+    ReplaceExpr(&temp, iter_var, iter_value);
+    replaced_indices.push_back(temp);
+  }
+  auto result = GetRange(replaced_indices, iter_vars, iter_range, tensor);
+
+  return result;
+}
+struct CacheBlockInfo {
+  /*! \brief The tensor to be read. */
+  Tensor read_tensor;
+  /*! \brief The tensor to be written. */
+  Tensor write_tensor;
+  /*! \brief The tensor allocation to be inserted into the block signature. */
+  Tensor alloc;
+  /*! \brief The AST node whose body is where the cache stage should be inserted. */
+  Expr loc_block;
+  /*! \brief The index to insert the cache_read/cache_write stage. */
+  int loc_pos;
+  /*! \brief The cache_read/cache_write stage to be inserted. */
+  Expr cache_block;
+};
+
+/**
+ * Return n-th access tensor in block
+ * @param block The ScheduleBlockRealize.
+ * @param index The index indicating which tensor we want to get.
+ * @param is_write We want to get write tensor or read tensor.
+ * @param return The n-th access tensor in block. Should be ir::Store(is_write) or ir::Load(!is_write).
+ */
+Expr GetNthAccessExpr(const Expr& block, int index, bool is_write) {
+  CHECK(block.As<ScheduleBlockRealize>());
+  auto compute_body = block.As<ScheduleBlockRealize>()->schedule_block.As<ScheduleBlock>()->body;
+  if (is_write) {
+    auto find_store = ir::CollectIRNodesWithoutTensor(compute_body, [&](const Expr* x) { return x->As<ir::Store>(); });
+    CHECK_LT(index, (int)find_store.size());
+    std::vector<Expr> store_vec(find_store.begin(), find_store.end());
+    Expr store_index = store_vec[index];
+    CHECK(store_index.As<ir::Store>());
+    CHECK(store_index.As<ir::Store>()->tensor.as_tensor());
+    return store_index;
+  } else {
+    auto find_load = ir::CollectIRNodesWithoutTensor(compute_body, [&](const Expr* x) { return x->As<ir::Load>(); });
+    CHECK_LT(index, (int)find_load.size());
+    std::vector<Expr> load_vec(find_load.begin(), find_load.end());
+    Expr load_index = load_vec[index];
+    CHECK(load_index.As<ir::Load>());
+    CHECK(load_index.As<ir::Load>()->tensor.as_tensor());
+    return load_index;
+  }
+}
+
+/**
+ * Make a tensor's cache tensor.
+ * @param tensor The original tensor.
+ * @param memory_type The memory type of the cache tensor.
+ * @param return The tensor's cache tensor.
+ */
+Tensor MakeCacheTensor(const Tensor& tensor, const std::string& memory_type) {
+  auto cache_tensor = lang::Compute(
+      tensor->shape, [=](const std::vector<Expr>& dims) { return tensor(dims); }, tensor->name + "_" + memory_type);
+  cache_tensor->WithBuffer(memory_type);
+  return cache_tensor;
+}
+
+/**
+ * Make a the cache tensor's block.
+ * @param buffer_region The accessed region of cache tensor.
+ * @param info The information of cache block.
+ * @param memory_type The memory type of cache tensor.
+ * @param device_api The device api of this Expr.
+ * @param return ScheduleBlockRealize of the cache tensor.
+ */
+Expr MakeCacheBlock(const std::vector<std::pair<Expr, Expr>>& buffer_region,
+                    CacheBlockInfo* info,
+                    const std::string& memory_type,
+                    DeviceAPI device_api) {
+  // loop variables
+  std::vector<Var> loop_vars;
+  // bindings in block realize
+  std::vector<Expr> iter_values;
+  // Create loop vars and block vars' binding_value
+  for (auto& axis_range : buffer_region) {
+    Var loop_var("ax" + std::to_string(loop_vars.size()));
+    loop_vars.push_back(loop_var);
+    iter_values.push_back(common::AutoSimplify(axis_range.first + loop_var));
+  }
+  // block variables
+  std::vector<Var> block_vars;
+  Tensor new_tensor = info->alloc;
+  // Create block vars, block's accessed region and accessing indices
+  CHECK(new_tensor->buffer.defined());
+  for (auto& dim : new_tensor->buffer->shape) {
+    Var var(Expr(0), dim, "v" + std::to_string(block_vars.size()));
+    block_vars.push_back(var);
+  }
+  auto body                  = new_tensor->tensor_store_expanded_body();
+  std::vector<Var> axis_vars = common::GenDefaultAxis(new_tensor->domain.size());
+  axis_vars.insert(axis_vars.end(), new_tensor->reduce_axis.begin(), new_tensor->reduce_axis.end());
+  for (int i = 0; i < axis_vars.size(); i++) {
+    optim::ReplaceVarWithExpr(&body, axis_vars[i], block_vars[i]);
+  }
+  Expr block = ir::ScheduleBlockRealize::Make(
+      iter_values,
+      ir::ScheduleBlock::Make(block_vars, {}, {}, common::UniqName(new_tensor->name), Block::Make({body})));
+  Expr new_body = block;
+  for (int i = (int)loop_vars.size() - 1; i >= 0; i--) {
+    new_body = For::Make(loop_vars[i],
+                         Expr(0),
+                         common::AutoSimplify(buffer_region[i].second - buffer_region[i].first),
+                         ir::ForType::Serial,
+                         device_api,
+                         ir::Block::Make({new_body}));
+  }
+  info->cache_block = std::move(new_body);
+  return block;
+}
+
+struct CacheReadRewriter : public ir::IRMutator<> {
+ public:
+  static Expr Rewrite(const Expr& root, CacheBlockInfo* info) {
+    CacheReadRewriter rewriter(root, info);
+    Expr new_root = optim::IRCopy(root);
+    rewriter(&new_root);
+    return new_root;
+  }
+
+  void operator()(Expr* expr) { IRMutator::Visit(expr, expr); }
+
+ private:
+  explicit CacheReadRewriter(const Expr& root, CacheBlockInfo* info) : root_(root), info_(info) {}
+
+  void Visit(const ir::Block* expr, Expr* op) override {
+    if (*op == info_->loc_block) {
+      IRMutator::Visit(expr, op);
+      op->As<Block>()->stmts.insert(op->As<Block>()->stmts.begin() + info_->loc_pos, info_->cache_block);
+    } else {
+      IRMutator::Visit(expr, op);
+    }
+  }
+
+  void Visit(const ir::Load* expr, Expr* op) override {
+    if (expr->tensor == Expr(info_->read_tensor)) {
+      IRMutator::Visit(expr, op);
+      op->As<Load>()->tensor = Expr(info_->write_tensor);
+    } else {
+      IRMutator::Visit(expr, op);
+    }
+  }
+
+ private:
+  /*! \brief The parent scope of the insertion */
+  const Expr& root_;
+  /*! \brief The info for inserting cache stage */
+  CacheBlockInfo* info_;
+};
+
+struct CacheWriteRewriter : public ir::IRMutator<> {
+ public:
+  static Expr Rewrite(const Expr& root, CacheBlockInfo* info) {
+    CacheWriteRewriter rewriter(root, info);
+    Expr new_root               = optim::IRCopy(root);
+    rewriter.mutate_cache_block = true;
+    rewriter(&info->cache_block);
+    rewriter.mutate_cache_block = false;
+    rewriter(&new_root);
+    return new_root;
+  }
+
+  void operator()(Expr* expr) { IRMutator::Visit(expr, expr); }
+
+ private:
+  explicit CacheWriteRewriter(const Expr& root, CacheBlockInfo* info) : root_(root), info_(info) {}
+
+  void Visit(const ir::Block* expr, Expr* op) override {
+    if (*op == info_->loc_block) {
+      IRMutator::Visit(expr, op);
+      op->As<Block>()->stmts.insert(op->As<Block>()->stmts.begin() + info_->loc_pos, info_->cache_block);
+    } else {
+      IRMutator::Visit(expr, op);
+    }
+  }
+
+  void Visit(const ir::ScheduleBlock* expr, Expr* op) override {
+    if (op->As<ScheduleBlock>()->name == info_->write_tensor->name) {
+      op->As<ScheduleBlock>()->name = info_->read_tensor->name;
+    } else if (op->As<ScheduleBlock>()->name == info_->read_tensor->name) {
+      op->As<ScheduleBlock>()->name = info_->write_tensor->name;
+    }
+    IRMutator::Visit(expr, op);
+  }
+
+  void Visit(const ir::Load* expr, Expr* op) override {
+    IRMutator::Visit(expr, op);
+    if (op->As<Load>()->tensor == Expr(info_->write_tensor) && mutate_cache_block) {
+      op->As<Load>()->tensor = Expr(info_->read_tensor);
+    } else if (op->As<Load>()->tensor == Expr(info_->read_tensor) && mutate_cache_block) {
+      op->As<Load>()->tensor = Expr(info_->write_tensor);
+    }
+  }
+
+  void Visit(const ir::Store* expr, Expr* op) override {
+    IRMutator::Visit(expr, op);
+    if (op->As<Store>()->tensor == Expr(info_->write_tensor)) {
+      op->As<Store>()->tensor = Expr(info_->read_tensor);
+    } else if (op->As<Store>()->tensor == Expr(info_->read_tensor) && mutate_cache_block) {
+      op->As<Store>()->tensor = Expr(info_->write_tensor);
+    }
+  }
+
+ private:
+  /*! \brief The parent scope of the insertion */
+  const Expr& root_;
+  /*! \brief The info for inserting cache stage */
+  CacheBlockInfo* info_;
+  /*! \brief Are we mutating the cache tensor's block */
+  bool mutate_cache_block{true};
+};
+
+//! Visit all ScheduleBlock and change its body to ir::Block if it is not.
+struct ChangeBodyToBlock : public ir::IRMutator<> {
+ public:
+  static void Change(Expr* expr) {
+    ChangeBodyToBlock mutator;
+    mutator(expr);
+  }
+
+  void operator()(Expr* expr) { IRMutator::Visit(expr, expr); }
+
+ private:
+  void Visit(const ir::ScheduleBlock* expr, Expr* op) override {
+    if (!op->As<ScheduleBlock>()->body.As<Block>()) {
+      op->As<ScheduleBlock>()->body = Block::Make({op->As<ScheduleBlock>()->body});
+    }
+    IRMutator::Visit(expr, op);
+  }
+};
+
+/**
+ * Fidn cache tensor block's insertion point in the whole AST(root).
+ * @param root The whole AST.
+ * @param info The information of cache block.
+ * @param is_write Are we inserting a write cache tensor or a read cache tensor.
+ */
+void FindInsertionPoint(Expr& root, CacheBlockInfo* info, bool is_write) {
+  Expr find_tensor       = is_write ? Expr(info->write_tensor) : Expr(info->read_tensor);
+  auto find_produce_read = ir::CollectIRNodesWithoutTensor(
+      root, [&](const Expr* x) { return x->As<ir::Store>() && x->As<ir::Store>()->tensor == find_tensor; });
+
+  if (find_produce_read.empty()) {
+    CHECK(root.As<ScheduleBlockRealize>()->schedule_block.As<ScheduleBlock>());
+    CHECK(root.As<ScheduleBlockRealize>()->schedule_block.As<ScheduleBlock>()->body.As<Block>());
+    info->loc_block = root.As<ScheduleBlockRealize>()->schedule_block.As<ScheduleBlock>()->body;
+    info->loc_pos   = 0;
+    return;
+  }
+
+  CHECK_EQ(find_produce_read.size(), 1U);
+  Expr producer = *(find_produce_read.begin());
+
+  CHECK(root.As<ScheduleBlockRealize>()->schedule_block.As<ScheduleBlock>());
+  CHECK(root.As<ScheduleBlockRealize>()->schedule_block.As<ScheduleBlock>()->body.As<Block>());
+  info->loc_block = root.As<ScheduleBlockRealize>()->schedule_block.As<ScheduleBlock>()->body;
+  for (int i = 0; i < (int)info->loc_block.As<Block>()->stmts.size(); i++) {
+    if (Contains(info->loc_block.As<Block>()->stmts[i], producer)) {
+      info->loc_pos = i + 1;
+      break;
+    }
+  }
+}
+
+DeviceAPI IRSchedule::GetDeviceAPI() const {
+  auto exprs          = this->GetModule().GetExprs();
+  auto find_for_nodes = ir::CollectIRNodesWithoutTensor(exprs.front(), [&](const Expr* x) { return x->As<ir::For>(); });
+  return (*find_for_nodes.begin()).As<ir::For>()->device_api;
+}
+
+Expr IRSchedule::CacheRead(const Expr& block, int read_tensor_index, const std::string& memory_type) {
+  CHECK(block.As<ScheduleBlockRealize>());
+  auto root = GetRootBlock(block);
+  ChangeBodyToBlock::Change(&root);
+  Expr read_expr = GetNthAccessExpr(block, read_tensor_index, false);
+  CHECK(read_expr.As<ir::Load>());
+  auto tensor_indices = read_expr.As<ir::Load>()->indices;
+  CacheBlockInfo info;
+  info.read_tensor  = read_expr.As<ir::Load>()->tensor.as_tensor_ref();
+  info.write_tensor = MakeCacheTensor(info.read_tensor, memory_type);
+  info.alloc        = info.write_tensor;
+
+  auto read_buffer_region = CalculateTensorRegions(block, tensor_indices, info.read_tensor, root);
+  auto new_block          = MakeCacheBlock(read_buffer_region, &info, memory_type, this->GetDeviceAPI());
+  FindInsertionPoint(root, &info, false);
+  auto new_root = CacheReadRewriter::Rewrite(root, &info);
+  helper_.Replace(root.As<ScheduleBlockRealize>()->schedule_block.As<ScheduleBlock>()->body,
+                  new_root.As<ScheduleBlockRealize>()->schedule_block.As<ScheduleBlock>()->body);
+  return new_block;
+}
+
+Expr IRSchedule::CacheWrite(const Expr& block, int write_buffer_index, const std::string& memory_type) {
+  CHECK(block.As<ScheduleBlockRealize>());
+  auto root = GetRootBlock(block);
+  ChangeBodyToBlock::Change(&root);
+  Expr write_expr = GetNthAccessExpr(block, write_buffer_index, true);
+  CHECK(write_expr.As<ir::Store>());
+  Tensor write_tensor = write_expr.As<ir::Store>()->tensor.as_tensor_ref();
+  auto tensor_indices = write_expr.As<ir::Store>()->indices;
+  CacheBlockInfo info;
+  info.read_tensor         = MakeCacheTensor(write_tensor, memory_type);
+  info.write_tensor        = write_tensor;
+  info.alloc               = info.read_tensor;
+  auto write_buffer_region = CalculateTensorRegions(block, tensor_indices, info.write_tensor, root);
+  auto new_block           = MakeCacheBlock(write_buffer_region, &info, memory_type, this->GetDeviceAPI());
+  FindInsertionPoint(root, &info, true);
+
+  auto new_root = CacheWriteRewriter::Rewrite(root, &info);
+  helper_.Replace(root.As<ScheduleBlockRealize>()->schedule_block.As<ScheduleBlock>()->body,
+                  new_root.As<ScheduleBlockRealize>()->schedule_block.As<ScheduleBlock>()->body);
+
+  auto find_cache_block = ir::CollectIRNodesWithoutTensor(root, [&](const Expr* x) {
+    return x->As<ir::ScheduleBlockRealize>() &&
+           x->As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->name == info.read_tensor->name;
+  });
+
+  CHECK_EQ(find_cache_block.size(), 1U);
+
+  return *find_cache_block.begin();
 }
 
 IRSchedule::IRSchedule(const ModuleExpr& module_expr, bool debug_flag) {
@@ -731,17 +1185,6 @@ void IRSchedule::SetBuffer(const Expr& block, const std::string& memory_type) co
 }
 
 /*!
- * \brief Check if a Expr node contains a ScheduleBlockRealize node
- * \param container The container Expr node
- * \param expr The ScheduleBlockRealize node
- * \return If the container contains the expr
- */
-bool Contains(const Expr& container, const Expr& expr) {
-  CHECK(expr.As<ir::ScheduleBlockRealize>());
-  auto find_expr = ir::CollectIRNodesWithoutTensor(container, [&](const Expr* x) { return *x == expr; });
-  return (!find_expr.empty());
-}
-/*!
  * \brief Make a union of two range. The detailed function is :
  * new_range.min = min(range1.min, range2.min)
  * new_range.extent = max(range1.min + range1.extent, range2.min + range2.extent) - new_range.min
@@ -819,12 +1262,17 @@ std::vector<std::pair<Expr, Expr>> CalculateRequiredRegions(const Expr& block,
             vars_min.push_back(for_loop.As<ir::For>()->min);
             vars_max.push_back(for_loop.As<ir::For>()->min + for_loop.As<ir::For>()->extent);
           }
+          Expr mod_extent(0);
+          if (indice_min.As<Mod>() && indice_min.As<Mod>()->b().is_constant()) mod_extent = indice_min.As<Mod>()->b();
           ReplaceExpr(&indice_min, loop_vars, vars_min);
           ReplaceExpr(&indice_max, loop_vars, vars_max);
           Expr indice_extent;
           // If a index keeps constant, its extent should be 1.
-          if (indice_min == indice_max)
-            indice_extent = Expr(1);
+          if (common::AutoSimplify(indice_min) == common::AutoSimplify(indice_max))
+            if (common::is_zero(mod_extent))
+              indice_extent = Expr(1);
+            else
+              indice_extent = mod_extent;
           else
             indice_extent = common::AutoSimplify(common::AutoSimplify(indice_max) - common::AutoSimplify(indice_min));
           if (indice_extent.is_constant() && indice_extent.get_constant() < 0) {
@@ -853,6 +1301,7 @@ void IRSchedule::ComputeAt(const Expr& block, const Expr& loop) {
   LeafBlockRemovalPlan remove_plan(block, &reconstructor.source_expr, &reconstructor.target_expr);
   remove_plan(&root);
   auto iter_doms = CalculateRequiredRegions(block, loop, consumers);
+  for (auto& i : iter_doms) LOG(INFO) << "CalculateRequiredRegions is : " << i.first << " to " << i.second;
   reconstructor.MakeNewLoop(iter_doms);
   helper_.Replace(reconstructor.source_expr, reconstructor.target_expr);
   helper_.Replace(reconstructor.loop_, reconstructor.new_loop_);
