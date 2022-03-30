@@ -422,6 +422,47 @@ class FusionMergePassHelper : public FusionHelperBase {
       auto output_var_1 = this->GetNodeDataShape(*second->output_nodes.begin());
       return output_var_0 == output_var_1;
     };
+    auto elementwise_fuse_broadcast = [this](const Group& first, const Group& second) -> bool {
+      // 1.compute io-size
+      // 2.compute computation-size
+      // 3.compute recompute-times
+      // 4.compute cost
+      // TODO(sunli) : cost-model.
+      return true;
+    };
+    auto elementwise_fuse_reduce = [this](const Group& first, const Group& second) -> bool {
+      if (this->target_ == common::DefaultHostTarget()) {
+        return false;
+      }
+      // if reduce using block_reduce, can't fuse producer.
+      Node* reducer = nullptr;
+      for (auto& node : second->master_nodes) {
+        if (GetOpKind(node) == framework::kCommReduce) {
+          reducer = node;
+          break;
+        }
+      }
+      CHECK(reducer) << "Don't find reduce op in group " << second->group_id;
+      auto input_shape = shape_dict_.at(reducer->inlinks_in_order()[0]->source()->id());
+      auto reduce_dim  = absl::get<std::vector<int>>(reducer->attrs.attr_store.at("dim"));
+      // if without last dimension in reduce.
+      if (std::find(reduce_dim.begin(), reduce_dim.end(), input_shape.size() - 1) == reduce_dim.end()) {
+        return true;
+      } else {
+        // if last axis size > 1024.
+        if (input_shape.back() > this->target_.max_num_threads()) {
+          return false;
+        }
+      }
+
+      return true;
+    };
+    auto reduce_fuse_elementwise = [this](const Group& first, const Group& second) -> bool {
+      // if with last axis in reduce, fuse will waste computation resource.
+      // so use a simple model evaluate the cost.
+      // TODO(sunli) : cost-model.
+      return true;
+    };
     auto reduce_fuse_reduce = [this](const Group& first, const Group& second) -> bool {
       Node* reducer_0 = nullptr;
       for (auto& reducer : first->master_nodes) {
@@ -481,10 +522,8 @@ class FusionMergePassHelper : public FusionHelperBase {
       relation.horizontal_relation = {{framework::kElemWise, is_same_shape}};
       // vertical
       relation.vertical_relation = {{OpPatternKind::kElemWise, is_same_shape},
-                                    // TODO(sunli) : Using cost-model.
-                                    {OpPatternKind::kBroadcast, always_fuse},
-                                    // TODO(sunli) : Check can fuse.
-                                    {OpPatternKind::kCommReduce, always_fuse}};
+                                    {OpPatternKind::kBroadcast, elementwise_fuse_broadcast},
+                                    {OpPatternKind::kCommReduce, elementwise_fuse_reduce}};
     }
     // kBroadcast
     {
@@ -510,8 +549,7 @@ class FusionMergePassHelper : public FusionHelperBase {
       // horizontal
       relation.horizontal_relation = {{OpPatternKind::kCommReduce, reduce_fuse_reduce}};
       // vertical
-      relation.vertical_relation = {// TODO(sunli): Using cost-model.
-                                    {OpPatternKind::kElemWise, always_fuse}};
+      relation.vertical_relation = {{OpPatternKind::kElemWise, reduce_fuse_elementwise}};
     }
   }
 
