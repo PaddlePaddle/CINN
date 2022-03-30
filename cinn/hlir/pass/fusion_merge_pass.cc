@@ -432,7 +432,7 @@ class FusionMergePassHelper : public FusionHelperBase {
     };
     auto elementwise_fuse_reduce = [this](const Group& first, const Group& second) -> bool {
       if (this->target_ == common::DefaultHostTarget()) {
-        return false;
+        return true;
       }
       // if reduce using block_reduce, can't fuse producer.
       Node* reducer = nullptr;
