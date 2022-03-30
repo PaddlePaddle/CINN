@@ -22,6 +22,7 @@
 namespace cinn {
 namespace auto_schedule {
 
+// TODO(zhhsplendid): develop this class.
 class AutoInline : public AutoGenRule {
  public:
   AutoInline()  = default;

@@ -24,6 +24,7 @@
 
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
 #include "cinn/ir/ir.h"
+#include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_schedule.h"
 
 namespace cinn {
@@ -43,6 +44,8 @@ class MultiLevelTiling : public AutoGenRule {
   // Returns true if sche_block_realize is applicable by MultiLevelTiling
   bool MeetCondition(const ir::ScheduleBlockRealize& sche_block_realize) const;
 
+  void AnalyzeScheduleBlockReadWriteBuffer(ir::ScheduleBlock* sche_block) const;
+
   template <typename T>
   std::pair<T, T> SampleTileSplit(T extent) const {
     std::vector<std::pair<T, T>> candidates;
@@ -50,6 +53,9 @@ class MultiLevelTiling : public AutoGenRule {
       if (extent % div == 0) {
         candidates.push_back(std::make_pair<T, T>(T(div), extent / div));
       }
+    }
+    if (candidates.size() == 0) {
+      return std::make_pair<T, T>(1, T(extent));
     }
     int index            = rand() % candidates.size();
     std::pair<T, T> pick = candidates[index];

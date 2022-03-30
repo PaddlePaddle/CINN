@@ -21,6 +21,7 @@
 
 #include "cinn/common/context.h"
 #include "cinn/common/ir_util.h"
+#include "cinn/ir/collect_ir_nodes.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/tensor.h"
@@ -71,7 +72,6 @@ Expr LowerGroup(const poly::ScheduleGroup& group,
                 std::unordered_set<std::string>& resized_buffer,
                 StageMap stage_map,
                 ir::CudaAxisInfo* cuda_axis_info) {
-  BindBuffer(stage_map);
   std::vector<poly::Stage*> stages;
   for (auto& node : group.nodes) {
     VLOG(1) << "In LowerGroup, node id is: " << node->id();
@@ -726,6 +726,30 @@ std::vector<Expr> LowerImpl::GenerateFunctionBody(const poly::Schedule* schedule
           VLOG(3) << "replace axis_var " << axis_vars[i]->name << " to block_var " << block_vars[i];
           optim::ReplaceVarWithExpr(&store_body, axis_vars[i], block_vars[i]);
         }
+        /*
+  std::vector<ir::BufferRange> read_buffers;
+  std::set<ir::Expr> load_tensors = ir::CollectLoadTensors(store_body, [&](const Expr* x) {return true;});
+        for (const ir::Expr& e : load_tensors) {
+    ir::Tensor t = e.as_tensor_ref();
+    VLOG(6) << "Load Tensor: " << t;
+    VLOG(6) << "t->buffer.defined(): " << t->buffer.defined();
+    //read_buffers.emplace_back(ir::BufferRange(t->buffer, t->axis_with_reduce()));
+  }
+
+  std::vector<ir::BufferRange> write_buffers;
+  std::set<ir::Expr> store_tensors = ir::CollectStoreTensors(store_body, [&](const Expr* x) {return true;});
+        for (const ir::Expr& e : store_tensors) {
+          ir::Tensor t = e.as_tensor_ref();
+          VLOG(6) << "Store Tensor: " << t;
+    VLOG(6) << "t->buffer.defined(): " << t->buffer.defined();
+    //VLOG(6) << "Store BufferRange: " << ir::BufferRange(t->buffer, t->axis_with_reduce());
+          //write_buffers.emplace_back(ir::BufferRange(t->buffer, t->axis_with_reduce()));
+        }*/
+
+        // store_body = ir::ScheduleBlockRealize::Make(
+        //    iter_values, ir::ScheduleBlock::Make(block_vars, read_buffers, write_buffers,
+        //    common::UniqName(tensor->name), store_body));
+
         store_body = ir::ScheduleBlockRealize::Make(
             iter_values, ir::ScheduleBlock::Make(block_vars, {}, {}, common::UniqName(tensor->name), store_body));
         VLOG(3) << "store body\n" << store_body;
@@ -734,6 +758,45 @@ std::vector<Expr> LowerImpl::GenerateFunctionBody(const poly::Schedule* schedule
     }
 
     ir::CudaAxisInfo temp_cuda_axis_info;
+
+    BindBuffer(stages_);
+    /*
+    if (support_ir_schedule_) {
+      // Have to set ScheduleBlock read/write buffers after BindBuffer
+      for (auto& iter : tuple_to_expr) {
+        ir::ScheduleBlockRealize* sche_block_realize = iter.second.As<ir::ScheduleBlockRealize>();
+        ir::ScheduleBlock* sche_block = sche_block_realize->schedule_block.As<ir::ScheduleBlock>();
+
+        std::set<ir::Expr> load_tensors = ir::CollectLoadTensors(sche_block->body, [&](const Expr* x) {return true;});
+        for (const ir::Expr& e : load_tensors) {
+          ir::Tensor t = e.as_tensor_ref();
+          VLOG(6) << "Load Tensor: " << t;
+          VLOG(6) << "t->buffer.defined(): " << t->buffer.defined();
+    VLOG(6) << "axis";
+    for (auto& x : t->axis_with_reduce()) {
+      VLOG(6) << x;
+    }
+    if (t->buffer.defined()) {
+            sche_block->read_buffers.emplace_back(ir::BufferRange(t->buffer, t->axis_with_reduce()));
+          }
+  }
+
+  std::set<ir::Expr> store_tensors = ir::CollectStoreTensors(sche_block->body, [&](const Expr* x) {return true;});
+        for (const ir::Expr& e : store_tensors) {
+          ir::Tensor t = e.as_tensor_ref();
+          VLOG(6) << "Store Tensor: " << t;
+          VLOG(6) << "t->buffer.defined(): " << t->buffer.defined();
+    VLOG(6) << "axis";
+          for (auto& x : t->axis_with_reduce()) {
+            VLOG(6) << x;
+          }
+    if (t->buffer.defined()) {
+            sche_block->write_buffers.emplace_back(ir::BufferRange(t->buffer, t->axis_with_reduce()));
+          }
+  }
+      }
+    }*/
+
     Expr group_expr =
         LowerGroup(group, tuple_to_expr, &global_tensor_map, resized_buffer, stages_, &temp_cuda_axis_info);
 
