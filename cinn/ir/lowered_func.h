@@ -176,6 +176,7 @@ struct _LoweredFunc_ : ExprNode<_LoweredFunc_> {
   std::vector<Expr> PrepareDeallocTempBufferExprs() const;
   std::vector<Expr> CudaPrepareAllocTempBufferExprs() const;
   std::vector<Expr> CudaAliasVarExprs() const;
+  void PrepareBufferCastExprs();
 
  private:
   void CheckValid() const;
@@ -185,7 +186,6 @@ struct _LoweredFunc_ : ExprNode<_LoweredFunc_> {
   void PrepareDeallocOutputBufferExprs();
   //! Insert the allocation expr for temporary variables.
   void AllocTempBuffer();
-  void PrepareBufferCastExprs();
 
   void PrepareArgumentExprs();
   //! Get all the Buffers the function body references.

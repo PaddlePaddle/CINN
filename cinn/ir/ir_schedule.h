@@ -212,33 +212,70 @@ class IRSchedule {
    * @param loop The forloop to parallel/vectorize/unroll.
    * @param for_type the target forloop type.
    */
-  void MutateForType(Expr& loop, ForType for_type, int factor = -1);
+  void MutateForType(const Expr& loop, ForType for_type, int factor = -1);
 
   /**
    * \brief Parallelize the given loop.
    * @param loop the loop to parallel.
    */
-  void Parallel(Expr& loop);
+  void Parallel(const Expr& loop);
 
   /**
    * \brief Vectorize the given loop.
    * @param loop the loop to vectorize.
    * @param factor the vectorized factor.
    */
-  void Vectorize(Expr& loop, int factor);
+  void Vectorize(const Expr& loop, int factor);
 
   /**
    * \brief Unroll the given loop.
    * @param loop the loop to unroll.
    */
-  void Unroll(Expr& loop);
+  void Unroll(const Expr& loop);
 
   /**
    * \brief Bind the loop to the given thread axis.
    * @param loop the loop to Bind.
    * @param thread_axis the name of the thread axis to be bound to the loop.
    */
-  void Bind(Expr& loop, const std::string& thread_axis);
+  void Bind(const Expr& loop, const std::string& thread_axis);
+
+  /**
+   * \brief Factorize the reduction block by the given loop. The block will be split into two blocks: rfactor block and
+   * final write-back block.
+   * @param rf_loop the reduce loop to do rfactor transformation.
+   * @param rf_axis the axis where the new generated loop is placed in the rfactor block.
+   * @return The new created rfactor tensor.
+   *
+   * For example, input the block:
+   * \code
+   * for (i, 0, 10)      // serial loop
+   *   B_init[i] = 0
+   *   for (j, 0, 20)    // reduce loop
+   *      for (k, 0, 30) // reduce loop
+   *         B[i] = B[i] + A[i, j, k]
+   * \endcode
+   *
+   * If the rfactor loop is k and rf_axis is 0, the rfactor transformation is divided into 2 steps:
+   * 1. get the rfactor block where the reduce loop k is transformed to the serial loop with no accumalation and a new
+   * rfactor tensor is created. The axis k will be placed in the rf_axis of the new rf_tensor. The rf_block is as
+   * follows:
+   * \code
+   * for (rf_k, 0, 30)      // rfactor loop k is transformed to the serial loop.
+   *   for (i, 0, 10)       // serial loop for (j, 0, 20) // reduce loop
+   *     rf_B_init[rf_k, i] = 0
+   *     for (j, 0, 20)     // reduce loop
+   *       rf_B[rf_k, i] = rf_B[rf_k, i] + A[i, j, rf_k]
+   * \endcode
+   * 2. do reduction of the rfactor loop k to get the final result block:
+   * \code
+   *   for (i, 0, 10)    // serial loop
+   *      B_init[i] = 0
+   *      for (k, 0, 30)
+   *        B[i] = B[i] + rf_B[k, i]
+   * \endcode
+   */
+  Expr Rfactor(const Expr& rf_loop, int rf_axis);
 
   //! Get the ModuleExpr stored in ScheduleHelper.
   ModuleExpr GetModule() const { return helper_.GetModule(); }

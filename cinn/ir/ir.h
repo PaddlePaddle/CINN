@@ -911,14 +911,14 @@ struct Block : public ExprNode<Block> {
 // ScheduleBlock is the unit of schedule IR which represents tensor's computation
 struct ScheduleBlock : public ExprNode<ScheduleBlock> {
   std::vector<Var> iter_vars;
-  std::vector<BufferRange> read_buffers;
-  std::vector<BufferRange> write_buffers;
+  std::vector<Expr> read_buffers;
+  std::vector<Expr> write_buffers;
   std::string name;
   Expr body;
 
   static Expr Make(const std::vector<Var>& iter_vars,
-                   const std::vector<BufferRange>& read_buffers,
-                   const std::vector<BufferRange>& write_buffers,
+                   const std::vector<Expr>& read_buffers,
+                   const std::vector<Expr>& write_buffers,
                    const std::string& name,
                    Expr body);
 

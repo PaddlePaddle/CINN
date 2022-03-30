@@ -283,8 +283,8 @@ std::vector<const Expr *> Block::expr_fields() const {
 }
 
 Expr ScheduleBlock::Make(const std::vector<Var> &iter_vars,
-                         const std::vector<BufferRange> &read_buffers,
-                         const std::vector<BufferRange> &write_buffers,
+                         const std::vector<Expr> &read_buffers,
+                         const std::vector<Expr> &write_buffers,
                          const std::string &name,
                          Expr body) {
   auto node           = make_shared<ScheduleBlock>();

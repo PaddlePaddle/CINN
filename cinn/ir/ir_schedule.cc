@@ -278,7 +278,7 @@ Expr IRSchedule::Fuse(const std::string& block_name, const std::vector<int>& loo
   return this->Fuse(loops_expr);
 }
 
-void IRSchedule::MutateForType(Expr& loop, ForType for_type, int factor) {
+void IRSchedule::MutateForType(const Expr& loop, ForType for_type, int factor) {
   auto* for_node = loop.As<ir::For>();
   CHECK(for_node) << "loop param must be For node! Please check.";
   CHECK(for_node->is_serial()) << "loop is not serial, current forloop type is "
@@ -297,16 +297,16 @@ void IRSchedule::MutateForType(Expr& loop, ForType for_type, int factor) {
   helper_.Replace(loop, loop_copy);
 }
 
-void IRSchedule::Parallel(Expr& loop) { MutateForType(loop, ForType::Parallel); }
+void IRSchedule::Parallel(const Expr& loop) { MutateForType(loop, ForType::Parallel); }
 
-void IRSchedule::Vectorize(Expr& loop, int factor) {
+void IRSchedule::Vectorize(const Expr& loop, int factor) {
   CHECK_GT(factor, 0) << "vectorize factor should be more than 0";
   MutateForType(loop, ForType::Vectorized, factor);
 }
 
-void IRSchedule::Unroll(Expr& loop) { MutateForType(loop, ForType::Unrolled); }
+void IRSchedule::Unroll(const Expr& loop) { MutateForType(loop, ForType::Unrolled); }
 
-void IRSchedule::Bind(Expr& loop, const std::string& thread_axis) {
+void IRSchedule::Bind(const Expr& loop, const std::string& thread_axis) {
   static std::set<std::string> thread_axes = {
       "blockIdx.x", "blockIdx.y", "blockIdx.z", "threadIdx.x", "threadIdx.y", "threadIdx.z"};
   CHECK(thread_axes.count(thread_axis)) << "thread_axis " << thread_axis << " is not supported";
@@ -316,6 +316,370 @@ void IRSchedule::Bind(Expr& loop, const std::string& thread_axis) {
   } else {
     MutateForType(loop, ForType::GPUThread, offset);
   }
+}
+
+// check whether or not have the var with the same name
+bool ContainVar(const std::vector<Expr>& exprs, const std::string& var_name) {
+  for (auto& expr : exprs) {
+    auto find_expr = ir::CollectIRNodesWithoutTensor(
+        expr, [&](const Expr* x) { return x->As<_Var_>() && x->As<_Var_>()->name == var_name; });
+    if (!find_expr.empty()) return true;
+  }
+  return false;
+}
+
+// The struct used to mutate new rfactor forloop and its' schedule block.
+struct RfMutator : public ir::IRMutator<> {
+ public:
+  RfMutator(const Expr& rf_loop, const int& rf_axis) : rf_loop_(rf_loop), rf_axis_(rf_axis) {}
+  void operator()(Expr* expr) {
+    auto* rf_for = rf_loop_.As<For>();
+    CHECK(rf_for);
+    old_rf_loop_var_ = rf_for->loop_var;
+    new_rf_loop_var_ = Var("rf_" + old_rf_loop_var_->name);
+    IRMutator::Visit(expr, expr);
+  }
+
+  Tensor GetNewRfTensor() { return new_rf_tensor_; }
+
+  void Visit(const ScheduleBlockRealize* op, Expr* expr) override {
+    // modify iter_vars and iter_values
+    auto* node = expr->As<ScheduleBlockRealize>();
+    CHECK(node);
+    auto* schedule_block = node->schedule_block.As<ScheduleBlock>();
+    CHECK(schedule_block);
+    old_output_name_  = schedule_block->name;
+    find_tensor_      = false;
+    auto& block_vars  = schedule_block->iter_vars;
+    auto& iter_values = node->iter_values;
+    CHECK(old_rf_loop_var_.defined());
+    CHECK(new_rf_loop_var_.defined());
+    CHECK_EQ(iter_values.size(), block_vars.size());
+    int rf_index = -1;
+    for (int i = 0; i < iter_values.size(); i++) {
+      // substitute the old rfactor loop var to new rfactor loop var
+      if (ContainVar({iter_values[i]}, old_rf_loop_var_->name)) {
+        CHECK_EQ(rf_index, -1) << "only one block var can bind the rfactor loop var";
+        CHECK(iter_values[i].As<_Var_>()) << "rfactor loop var not support composite bindings";
+        rf_index = i;
+        optim::ReplaceVarWithExpr(&iter_values[i], old_rf_loop_var_, new_rf_loop_var_);
+        new_rf_itervar_ = block_vars[i];
+      }
+    }
+    // create new rfactor block var if not exist
+    if (rf_index == -1) {
+      new_rf_itervar_ = Var("i" + std::to_string(block_vars.size()));
+      iter_values.push_back(new_rf_loop_var_);
+      block_vars.push_back(new_rf_itervar_);
+    }
+    IRMutator::Visit(&node->schedule_block, &node->schedule_block);
+    CHECK(find_tensor_) << "not find the store tensor with the schedule block name " << old_output_name_;
+    schedule_block->name = "rf_" + old_output_name_;
+  }
+
+  void Visit(const Load* op, Expr* expr) override {
+    // insert the new rfactor indice if not exist
+    auto* node = expr->As<Load>();
+    CHECK(node);
+    auto* tensor = node->tensor.As<_Tensor_>();
+    CHECK(tensor);
+    if (tensor->name == "rf_" + old_output_name_) {
+      int size = node->indices.size();
+      CHECK_LE(rf_axis_, size) << "rf_axis should not be greater than indice size " << size;
+      CHECK(new_rf_itervar_.defined());
+      CHECK(!ContainVar(node->indices, new_rf_itervar_->name))
+          << "original output tensor " << old_output_name_ << " should not have the new rfactor index "
+          << new_rf_itervar_;
+      node->indices.insert(node->indices.begin() + rf_axis_, new_rf_itervar_);
+    }
+  }
+
+  void Visit(const Store* op, Expr* expr) override {
+    // insert the new rfactor indice if not exist
+    auto* node = expr->As<Store>();
+    CHECK(node);
+    auto* tensor = node->tensor.As<_Tensor_>();
+    CHECK(tensor);
+    if (tensor->name == old_output_name_) {
+      find_tensor_ = true;
+      tensor->name = "rf_" + tensor->name;
+      int size     = node->indices.size();
+      CHECK_LE(rf_axis_, size) << "rf_axis should not be greater than indice size " << size;
+      CHECK(!ContainVar(node->indices, new_rf_itervar_->name))
+          << "original output tensor " << old_output_name_ << " should not have the new rfactor index "
+          << new_rf_itervar_;
+      node->indices.insert(node->indices.begin() + rf_axis_, new_rf_itervar_);
+      auto* rf_for = rf_loop_.As<For>();
+      CHECK(rf_for);
+      CHECK(is_zero(rf_for->min)) << "rfactor loop's min should be zero";
+      auto extent  = common::AutoSimplify(rf_for->extent);
+      auto& shape  = tensor->shape;
+      auto& domain = tensor->domain;
+      CHECK_LE(rf_axis_, shape.size()) << "rf_axis should not be greater than tensor shape size " << shape.size();
+      CHECK_LE(rf_axis_, domain.size()) << "rf_axis should not be greater than tensor domain size " << domain.size();
+      shape.insert(shape.begin() + rf_axis_, extent);
+      domain.insert(domain.begin() + rf_axis_, extent);
+      if (tensor->buffer.defined()) {
+        if (tensor->buffer->name.find_first_of("rf") == std::string::npos) {
+          tensor->buffer->name  = "rf_" + tensor->buffer->name;
+          tensor->buffer->shape = shape;
+        }
+      }
+      new_rf_tensor_ = Tensor(tensor);
+    }
+    IRMutator::Visit(&node->value, &node->value);
+  }
+
+  void Visit(const For* op, Expr* expr) override {
+    auto* node = expr->As<For>();
+    CHECK(node);
+    depth++;
+    auto* rf_for = rf_loop_.As<For>();
+    CHECK(rf_for);
+    // erase the original rfactor forloop
+    if (node->loop_var->name == old_rf_loop_var_->name) {
+      auto body = node->body.As<Block>();
+      if (body && body->stmts.size() == 1) {
+        *expr = body->stmts[0];
+      } else {
+        *expr = node->body;
+      }
+      IRMutator::Visit(expr, expr);
+    } else {
+      IRMutator::Visit(&node->body, &node->body);
+    }
+    if (rf_axis_ == 0 && depth == rf_axis_) {
+      // insert new rfactor forloop in the rf_axis as serial loop
+      *expr = For::Make(
+          new_rf_loop_var_, rf_for->min, rf_for->extent, ForType::Serial, rf_for->device_api, Block::Make({*expr}));
+    } else if (depth == rf_axis_ - 1) {
+      // insert new rfactor forloop in the rf_axis as serial loop
+      node->body = Block::Make(
+          {For::Make(new_rf_loop_var_, rf_for->min, rf_for->extent, ForType::Serial, rf_for->device_api, node->body)});
+    }
+    depth--;
+  }
+
+ private:
+  Expr rf_loop_;
+  Var old_rf_loop_var_;
+  Var new_rf_loop_var_;
+  int rf_axis_;
+  int depth         = -1;
+  bool find_tensor_ = false;
+  std::string old_output_name_;
+  Var new_rf_itervar_;
+  Tensor new_rf_tensor_;
+};
+
+// The struct used to mutate final write-back forloop and schedule block.
+struct FinalMutator : public ir::IRMutator<> {
+ public:
+  FinalMutator(const Expr& rf_loop, const int& rf_axis, const Tensor& new_rf_tensor)
+      : rf_loop_(rf_loop), rf_axis_(rf_axis), new_rf_tensor_(new_rf_tensor) {}
+  void operator()(Expr* expr) {
+    auto* rf_for = rf_loop_.As<For>();
+    CHECK(rf_for);
+    old_rf_loop_var_ = rf_for->loop_var;
+    IRMutator::Visit(expr, expr);
+  }
+
+  void Visit(const ScheduleBlockRealize* op, Expr* expr) override {
+    auto* node = expr->As<ScheduleBlockRealize>();
+    CHECK(node);
+    auto* schedule_block = node->schedule_block.As<ScheduleBlock>();
+    CHECK(schedule_block);
+    auto& iter_vars   = schedule_block->iter_vars;
+    auto& iter_values = node->iter_values;
+    output_name_      = schedule_block->name;
+    visit_init_block_ = output_name_.rfind("_init") != std::string::npos;
+    if (!visit_init_block_) {
+      for (int i = 0; i < iter_values.size(); i++) {
+        if (ContainVar({iter_values[i]}, old_rf_loop_var_->name)) {
+          // record the rfactor loop var's block var
+          CHECK(iter_values[i].As<_Var_>()) << "not support complex reduce bindings: " << iter_values[i];
+          old_rf_iter_var_ = iter_vars[i];
+          break;
+        }
+      }
+    }
+    IRMutator::Visit(&node->schedule_block, &node->schedule_block);
+    // modify iter_vars and iter_values, erase other reduce block vars and values
+    for (auto it = iter_values.begin(); it != iter_values.end(); ++it) {
+      for (auto erase_var : erase_reduce_loopvars_) {
+        if (ContainVar({*it}, erase_var)) {
+          CHECK((*it).As<_Var_>()) << "not support complex reduce bindings: " << *it;
+          iter_vars.erase(it - iter_values.begin() + iter_vars.begin());
+          iter_values.erase(it);
+          --it;
+          break;
+        }
+      }
+    }
+  }
+
+  // currently only support reduce_sum, reduce_mul, reduce_min and reduce_max
+  void Visit(const Add* op, Expr* expr) override {
+    auto* node = expr->As<Add>();
+    CHECK(node);
+    auto& oper_b = node->b();
+    oper_b       = Load::Make(new_rf_tensor_, new_rf_indice_);
+  }
+
+  void Visit(const Mul* op, Expr* expr) override {
+    auto* node = expr->As<Mul>();
+    CHECK(node);
+    auto& oper_b = node->b();
+    oper_b       = Load::Make(new_rf_tensor_, new_rf_indice_);
+  }
+
+  void Visit(const Min* op, Expr* expr) override {
+    auto* node = expr->As<Min>();
+    CHECK(node);
+    auto& oper_b = node->b();
+    oper_b       = Load::Make(new_rf_tensor_, new_rf_indice_);
+  }
+
+  void Visit(const Max* op, Expr* expr) override {
+    auto* node = expr->As<Max>();
+    CHECK(node);
+    auto& oper_b = node->b();
+    oper_b       = Load::Make(new_rf_tensor_, new_rf_indice_);
+  }
+
+  void Visit(const Store* op, Expr* expr) override {
+    // insert the new rfactor indice if not exist
+    auto* node = expr->As<Store>();
+    CHECK(node);
+    auto* tensor = node->tensor.As<_Tensor_>();
+    CHECK(tensor);
+    CHECK_EQ(tensor->name, output_name_) << "store name should be same with the schedule block name";
+    if (!visit_init_block_) {
+      new_rf_indice_ = node->indices;
+      CHECK_LE(rf_axis_, new_rf_indice_.size())
+          << "rf_axis_ should not be greater than tensor indice size " << new_rf_indice_.size();
+      CHECK(old_rf_iter_var_.defined());
+      new_rf_indice_.insert(new_rf_indice_.begin() + rf_axis_, old_rf_iter_var_);
+      IRMutator::Visit(&node->value, &node->value);
+    }
+  }
+
+  void Visit(const For* op, Expr* expr) override {
+    auto* node = expr->As<For>();
+    CHECK(node);
+    auto* rf_for = rf_loop_.As<For>();
+    // erase the reduce forloops after the init block except the rfactor loop
+    if (visit_init_block_ && node->loop_var->name != old_rf_loop_var_->name) {
+      erase_reduce_loopvars_.insert(node->loop_var->name);
+      auto body = node->body.As<Block>();
+      if (body && body->stmts.size() == 1) {
+        *expr = body->stmts[0];
+      } else {
+        *expr = node->body;
+      }
+      IRMutator::Visit(expr, expr);
+    } else {
+      IRMutator::Visit(&node->body, &node->body);
+    }
+  }
+
+ private:
+  Expr rf_loop_;
+  int rf_axis_;
+  Var old_rf_loop_var_;
+  Var old_rf_iter_var_;
+  std::string output_name_;
+  // collect reduce loop vars except rfactor loop var
+  std::set<std::string> erase_reduce_loopvars_;
+  bool visit_init_block_ = false;
+  Tensor new_rf_tensor_;
+  std::vector<Expr> new_rf_indice_;
+};
+
+// The struct used to create all stmts after rfactor transformation.
+struct RfCreater : public ir::IRMutator<> {
+ public:
+  RfCreater(const Expr& root, const Expr& rf_loop, const int& rf_axis)
+      : root_(root), rf_loop_(rf_loop), rf_axis_(rf_axis) {}
+  void operator()(Expr* expr) { IRMutator::Visit(expr, expr); }
+
+  Expr CreateRfAllStmts() {
+    auto root_realize = root_.As<ScheduleBlockRealize>();
+    CHECK(root_realize);
+    auto root_block = root_realize->schedule_block.As<ScheduleBlock>();
+    CHECK(root_block);
+    Expr root_loop = optim::IRCopy(root_block->body);
+    if (auto block = root_loop.As<Block>()) {
+      CHECK_EQ(block->stmts.size(), 1U) << "rfactor root should only have one block stmt";
+      root_loop = block->stmts[0];
+    }
+    auto* root_for = root_loop.As<For>();
+    CHECK(root_for);
+    auto rf_for = rf_loop_.As<For>();
+    CHECK(rf_for);
+    // create new rfactor forloops
+    Expr new_rf_forloop = optim::IRCopy(root_loop);
+    RfMutator rf_mutator(rf_loop_, rf_axis_);
+    rf_mutator(&new_rf_forloop);
+    VLOG(3) << "After RfMutator, new rf_forloop is\n" << new_rf_forloop;
+    auto new_rf_tensor = rf_mutator.GetNewRfTensor();
+    // create final write-back forloops
+    Expr final_forloop = optim::IRCopy(root_loop);
+    FinalMutator final_mutator(rf_loop_, rf_axis_, new_rf_tensor);
+    final_mutator(&final_forloop);
+    VLOG(3) << "After FinalMuator, final write-back forloop is\n" << final_forloop;
+    // combine the new created rfactor forloops with the final write-back forloops and replace
+    root_block->body = Block::Make({new_rf_forloop, final_forloop});
+    return new_rf_tensor;
+  }
+
+  Expr root_;
+  Expr rf_loop_;
+  int rf_axis_;
+};
+
+void CHECKRfactorValidation(const Expr& rf_loop, int rf_axis) {
+  auto* rf_for = rf_loop.As<ir::For>();
+  CHECK(rf_for) << "Expr param of Rfactor must be For node! Please check.";
+  // check the rf_loop only has one schedule block
+  auto block_nodes = ir::CollectIRNodes(rf_loop, [&](const Expr* x) { return x->As<ScheduleBlockRealize>(); });
+  CHECK_EQ(block_nodes.size(), 1U) << "Rfactor Loop should only have one schedule block";
+  auto find_store = ir::CollectIRNodes(rf_loop, [&](const Expr* x) { return x->As<Store>(); });
+  CHECK_EQ(find_store.size(), 1U);
+  auto indice = find_store.begin()->As<Store>()->indices;
+  // check rf_axis
+  CHECK_LE(rf_axis, indice.size()) << "rf_axis should not be greater than store's domain size";
+  // check rfactor loop is reduce
+  auto* sch_block_realize = block_nodes.begin()->As<ScheduleBlockRealize>();
+  auto* sch_block         = sch_block_realize->schedule_block.As<ScheduleBlock>();
+  CHECK(sch_block);
+  auto& iter_values = sch_block_realize->iter_values;
+  auto& iter_vars   = sch_block->iter_vars;
+  CHECK_EQ(iter_values.size(), iter_vars.size());
+  auto rf_loop_var = rf_for->loop_var;
+  Var rf_block_var;
+  for (int i = 0; i < iter_values.size(); i++) {
+    if (ContainVar({iter_values[i]}, rf_loop_var->name)) {
+      CHECK(!rf_block_var.defined()) << "rfactor loop var can only be binded to one block var";
+      auto iter_value = iter_values[i].As<_Var_>();
+      CHECK(iter_value) << "not support complex reduce bindings";
+      rf_block_var = iter_vars[i];
+      auto it      = std::find_if(indice.begin(), indice.end(), [&](const Expr& x) {
+        return x.As<_Var_>() && x.As<_Var_>()->name == rf_block_var->name;
+      });
+      CHECK(it == indice.end()) << "rfactor loop var is not reduce, please check!";
+    }
+  }
+}
+
+Expr IRSchedule::Rfactor(const Expr& rf_loop, int rf_axis) {
+  CHECKRfactorValidation(rf_loop, rf_axis);
+  // get root ScheduleBlockRealize
+  Expr root = GetRootBlock(rf_loop);
+  // create all stmts after rfactor transformation
+  RfCreater rf_create(root, rf_loop, rf_axis);
+  // return new created rfactor tensor
+  return rf_create.CreateRfAllStmts();
 }
 
 /**
