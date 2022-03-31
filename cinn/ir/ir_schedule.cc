@@ -48,6 +48,11 @@ struct CompExpr {
   }
 };
 
+// Self-defined operator to support std::set<Var>
+struct CompVar {
+  bool operator()(const Var& left, const Var& right) const { return left->name < right->name; }
+};
+
 /*!
  * \brief Check if a Expr node contains a ScheduleBlockRealize node.
  * \param container The container Expr node.
@@ -116,6 +121,22 @@ std::vector<Expr> GetIfThenElseInRange(const Expr& top, const Expr& bottom) {
   return if_nodes;
 }
 
+struct MappingVarToExprMutator : public ir::IRMutator<> {
+  MappingVarToExprMutator(const std::map<Var, Expr, CompVar>& replacing_map) : replacing_map_(replacing_map) {}
+
+  void operator()(Expr* expr) { IRMutator::Visit(expr, expr); }
+
+ private:
+  void Visit(const ir::_Var_* expr, Expr* op) override {
+    if (replacing_map_.count(op->as_var_ref())) {
+      *op = replacing_map_.at(op->as_var_ref());
+    }
+  }
+
+ private:
+  const std::map<Var, Expr, CompVar>& replacing_map_;
+};
+
 /**
  * Replace Vars in replaced to Exprs in candidates in source. Vars -> Exprs is one-to-one correspondence.
  * @param source The Expr we will implement the change.
@@ -126,11 +147,14 @@ void ReplaceExpr(Expr* source, const std::vector<Var>& replaced, const std::vect
   CHECK_EQ(replaced.size(), candidates.size())
       << "In ReplaceExpr, the size of Vars to be replaced must be equal to the size of cadidate Exprs! Please check.";
   if (replaced.empty()) return;
+  std::map<Var, Expr, CompVar> replacing_map;
   for (int i = 0; i < replaced.size(); i++) {
     // If the Var to be replaced is equal to the candidate, we skip it.
     if (candidates[i].is_var() && candidates[i].as_var_ref() == replaced[i]) continue;
-    optim::ReplaceVarWithExpr(source, replaced[i], candidates[i]);
+    replacing_map[replaced[i]] = candidates[i];
   }
+  MappingVarToExprMutator mapper(replacing_map);
+  mapper(source);
   return;
 }
 
@@ -1135,7 +1159,8 @@ IRSchedule::IRSchedule(const ModuleExpr& module_expr, bool debug_flag) {
  * @param tgt_stmt The For node we want.
  */
 void ScheduleHelper::Replace(const Expr& src_sref, const Expr& tgt_stmt) {
-  CHECK((src_sref.As<ir::For>() && tgt_stmt.As<ir::For>()) || (src_sref.As<ir::Block>() && tgt_stmt.As<ir::Block>()));
+  CHECK((src_sref.As<ir::For>() && tgt_stmt.As<ir::For>()) || (src_sref.As<ir::Block>() && tgt_stmt.As<ir::Block>()) ||
+        (src_sref.As<ir::ScheduleBlockRealize>() && tgt_stmt.As<ir::ScheduleBlockRealize>()));
   if (src_sref == tgt_stmt) {
     VLOG(3) << "two exprs are the same, no need to replace";
     return;
@@ -1146,6 +1171,14 @@ void ScheduleHelper::Replace(const Expr& src_sref, const Expr& tgt_stmt) {
     void operator()(Expr* expr) { ir::IRMutator<>::Visit(expr, expr); }
 
     void Visit(const ir::For* op, Expr* expr) override {
+      if (*expr == source_) {
+        *expr = target_;
+        return;
+      }
+      ir::IRMutator<>::Visit(op, expr);
+    }
+
+    void Visit(const ir::ScheduleBlockRealize* op, Expr* expr) override {
       if (*expr == source_) {
         *expr = target_;
         return;
@@ -1669,6 +1702,173 @@ void IRSchedule::ComputeAt(const Expr& block, const Expr& loop) {
   reconstructor.MakeNewLoop(iter_doms);
   helper_.Replace(reconstructor.source_expr, reconstructor.target_expr);
   helper_.Replace(reconstructor.loop_, reconstructor.new_loop_);
+  return;
+}
+
+/*!
+ * \brief The base class of the inliner, which handles:
+ * 1) Remove the block to be lined
+ * 2) Maintain a list of index variables and their substition of the buffer being inlined
+ */
+class BaseInliner : public ir::IRMutator<> {
+ protected:
+  explicit BaseInliner(const Tensor& inlined_tensor, const Expr& inlined_store)
+      : inlined_tensor_(inlined_tensor), inlined_store_(inlined_store) {}
+
+ public:
+  void operator()(Expr* expr) {
+    IRMutator::Visit(&tgt_stmt, &tgt_stmt);
+    IRMutator::Visit(expr, expr);
+  }
+
+ private:
+  void Visit(const ir::Block* expr, Expr* op) override {
+    if (*op == src_stmt) {
+      *op = tgt_stmt;
+      return;
+    }
+    IRMutator::Visit(expr, op);
+  }
+
+ protected:
+  //! Check if indices are validate. If so, set idx_vars_ properly.
+  bool UpdateAndCheckIndexVars(const std::vector<Expr>& indices, int expected_ndim) {
+    int n = indices.size();
+    if (n != expected_ndim) {
+      return false;
+    }
+    std::vector<Var> result;
+    result.reserve(n);
+    for (auto& i : indices) {
+      if (i.as_var()) {
+        result.push_back(i.as_var_ref());
+      } else {
+        return false;
+      }
+    }
+    int n_distinct = std::set<Var, CompVar>(result.begin(), result.end()).size();
+    if (n != n_distinct) {
+      return false;
+    }
+    if (idx_vars_.empty()) {
+      idx_vars_ = std::move(result);
+    } else {
+      if (idx_vars_.size() != result.size()) return false;
+      for (int i = 0; i < result.size(); i++) {
+        if (Expr(idx_vars_[i]) != Expr(result[i])) return false;
+      }
+    }
+    return true;
+  }
+
+  void SetIndexSubstitution(const std::vector<Expr>& indices) {
+    CHECK_EQ(indices.size(), idx_vars_.size());
+    int n = idx_vars_.size();
+    idx_sub_var_.reserve(n);
+    idx_sub_expr_.reserve(n);
+    for (int i = 0; i < n; ++i) {
+      idx_sub_var_.push_back(idx_vars_[i]);
+      idx_sub_expr_.push_back(indices[i]);
+    }
+  }
+
+ protected:
+  //! The tensor to be inlined
+  Tensor inlined_tensor_{nullptr};
+  //! The body of the block to be inlined
+  Expr inlined_store_{nullptr};
+  //! The indices used for indexing the buffer to be inlined
+  std::vector<Var> idx_vars_;
+  //! Replacing vars(idx_sub_var_) in indices to corresponding expr(idx_sub_expr_)
+  std::vector<Var> idx_sub_var_;
+  std::vector<Expr> idx_sub_expr_;
+
+ public:
+  /*!
+   * \brief The Expr to be replaced when removing the block
+   * \note The pair (src_stmt, tgt_stmt) are produced by LeafBlockRemovalPlan
+   */
+  Expr src_stmt{nullptr};
+  //! The Expr to replace the original one when removing the block
+  Expr tgt_stmt{nullptr};
+};
+
+/*!
+ * \brief Helper to inline the producer block into its consumer(s)
+ * The derived class implements:
+ * Substitute `Load` on the tensor to be inlined to its value calculation in the producer block
+ */
+class ComputeInliner : public BaseInliner {
+ public:
+  explicit ComputeInliner(const Tensor& inlined_tensor, const Expr& inlined_store)
+      : BaseInliner(inlined_tensor, inlined_store) {}
+
+  bool BodyPatternAllowInline() {
+    if (!inlined_store_.defined()) {
+      return false;
+    }
+    CHECK(inlined_store_.As<Store>());
+    auto find_vars = ir::CollectIRNodesWithoutTensor(inlined_store_, [&](const Expr* x) { return x->as_var(); });
+    std::set<Var, CompVar> vars_set;
+    for (auto& i : find_vars) vars_set.insert(i.as_var_ref());
+    int n_vars = vars_set.size();
+    if (!UpdateAndCheckIndexVars(inlined_store_.As<Store>()->indices, n_vars)) {
+      return false;
+    }
+    return true;
+  }
+
+ private:
+  void Visit(const ir::Load* expr, Expr* op) override {
+    if (expr->tensor == Expr(inlined_tensor_)) {
+      *op = ReplaceInlinedTensor(op);
+      return;
+    }
+    IRMutator::Visit(expr, op);
+  }
+
+  //! Replace the 'Load' node on the tensor to 'Load' node of its producers.
+  Expr ReplaceInlinedTensor(Expr* load) {
+    CHECK(load->As<ir::Load>());
+    SetIndexSubstitution(load->As<ir::Load>()->indices);
+    LOG(INFO) << "Before ReplaceExpr, inlined_store_ is: " << inlined_store_;
+    Expr value_copy = optim::IRCopy(inlined_store_.As<Store>()->value);
+    ReplaceExpr(&value_copy, idx_sub_var_, idx_sub_expr_);
+    LOG(INFO) << "After ReplaceExpr, inlined_store_ is: " << inlined_store_;
+    LOG(INFO) << "After ReplaceExpr, value_copy is: " << value_copy;
+    return value_copy;
+  }
+};
+
+Expr CheckComputeInlineValidationAndGetStore(const Expr& schedule_block, const Expr& root) {
+  CHECK(schedule_block.As<ir::ScheduleBlockRealize>());
+  auto compute_body = schedule_block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->body;
+  // 1. Check the schedule block to be inlined is not a reduce tensor.
+  auto find_store = ir::CollectIRNodesWithoutTensor(compute_body, [&](const Expr* x) { return x->As<ir::Store>(); });
+  CHECK_EQ(find_store.size(), 1U);
+  Expr tensor = (*find_store.begin()).As<ir::Store>()->tensor;
+  CHECK(!tensor.as_tensor_ref()->is_reduce_tensor());
+  // 2. Check this schedule block is the only writer of the tensor.
+  find_store = ir::CollectIRNodesWithoutTensor(
+      root, [&](const Expr* x) { return x->As<ir::Store>() && x->As<ir::Store>()->tensor == tensor; });
+  CHECK_EQ(find_store.size(), 1U);
+  // 3. Check there is no overlap between the buffers the schedule block reads and writes.
+  auto find_load = ir::CollectIRNodesWithoutTensor(
+      compute_body, [&](const Expr* x) { return x->As<ir::Load>() && x->As<ir::Load>()->tensor == tensor; });
+  CHECK(find_load.empty());
+  return (*find_store.begin());
+}
+
+void IRSchedule::ComputeInline(const Expr& schedule_block) {
+  CHECK(schedule_block.As<ir::ScheduleBlockRealize>());
+  Expr root  = this->GetRootBlock(schedule_block);
+  Expr store = CheckComputeInlineValidationAndGetStore(schedule_block, root);
+  ComputeInliner inliner(store.As<ir::Store>()->tensor.as_tensor_ref(), store);
+  CHECK(inliner.BodyPatternAllowInline());
+  // Create a plan that removes the block to be inlined
+  LeafBlockRemovalPlan remove_plan(schedule_block, &inliner.src_stmt, &inliner.tgt_stmt);
+  remove_plan(&root);
+  inliner(&root);
   return;
 }
 

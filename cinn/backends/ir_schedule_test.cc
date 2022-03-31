@@ -2001,5 +2001,264 @@ void test_rfactor(void* _args, int32_t num_args)
   ASSERT_EQ(utils::Trim(target_code), utils::Trim(source_code));
 }
 
+TEST(IrSchedule, compute_inline1) {
+  Context::Global().ResetNameId();
+  Expr M(32);
+  Expr N(32);
+  Expr P(32);
+
+  Target target = common::DefaultHostTarget();
+
+  Placeholder<float> A("A", {M, N, P});
+  auto B = Compute(
+      {M, N, P}, [&](Var i, Var j, Var k) { return A(i, j, k) + Expr(1.f); }, "B");
+  auto C = Compute(
+      {M, N, P}, [&](Var i, Var j, Var k) { return B(j, i, k) * Expr(2.f); }, "C");
+
+  auto stages = CreateStages({A, B, C});
+
+  auto func = cinn::lang::LowerVec("test_compute_inline1", stages, {A, C}, {}, {}, nullptr, target, true);
+
+  auto ast_expr = func[0]->body;
+  std::vector<Expr> vec_ast{ast_expr};
+  ir::ModuleExpr mod_expr(vec_ast);
+  ir::IRSchedule ir_sch(mod_expr);
+
+  auto block_b = ir_sch.GetBlock("B");
+  ir_sch.ComputeInline(block_b);
+  VLOG(1) << "After ComputeInline, IR is : " << ir_sch.GetModule().GetExprs().at(0);
+  Module::Builder builder("module1", target);
+  for (auto& i : func) {
+    builder.AddFunction(i);
+  }
+  auto module = builder.Build();
+  CodeGenC codegen(target);
+  codegen.SetInlineBuiltinCodes(false);
+  auto source_code = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
+
+  VLOG(1) << "compute_inline1 source code is :\n" << source_code;
+
+  std::string target_code = R"ROC(
+#include <cinn_runtime.h>
+#include <stdio.h>
+void test_compute_inline1(void* _args, int32_t num_args)
+{
+  const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
+  cinn_buffer_t* _C = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[1]));
+  cinn_buffer_t* _B = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 32, 32, 32 });
+  cinn_buffer_malloc((void*)(0), _C);
+  cinn_buffer_malloc((void*)(0), _B);
+  const float* A = ((const float*)(_A->memory));
+  float* B = ((float*)(_B->memory));
+  float* C = ((float*)(_C->memory));
+  for (int32_t i = 0; i < 32; i += 1) {
+    for (int32_t j = 0; j < 32; j += 1) {
+      for (int32_t k = 0; k < 32; k += 1) {
+        C[((1024 * i) + ((32 * j) + k))] = (2 * (1 + A[((32 * i) + ((1024 * j) + k))]));
+      };
+    };
+  };
+  cinn_buffer_free((void*)(0), _B);
+  cinn_buffer_free((void*)(0), _C);
+}
+)ROC";
+  ASSERT_EQ(utils::Trim(target_code), utils::Trim(source_code));
+}
+
+TEST(IrSchedule, compute_inline2) {
+  Context::Global().ResetNameId();
+  Expr M(32);
+  Expr N(32);
+  Expr P(32);
+
+  Target target = common::DefaultHostTarget();
+
+  Placeholder<float> A("A", {M, N, P});
+  auto B = Compute(
+      {M, N, P}, [&](Var i, Var j, Var k) { return A(i, j, k) + Expr(1.f); }, "B");
+  auto C = Compute(
+      {M, N, P}, [&](Var i, Var j, Var k) { return B(i, j, k) * Expr(2.f); }, "C");
+
+  auto stages = CreateStages({A, B, C});
+
+  auto func = cinn::lang::LowerVec("test_compute_inline2", stages, {A, C}, {}, {}, nullptr, target, true);
+
+  auto ast_expr = func[0]->body;
+  std::vector<Expr> vec_ast{ast_expr};
+  ir::ModuleExpr mod_expr(vec_ast);
+  ir::IRSchedule ir_sch(mod_expr);
+
+  auto block_b = ir_sch.GetBlock("B");
+  auto loops   = ir_sch.GetLoops("C");
+  ir_sch.ComputeAt(block_b, loops[1]);
+  block_b = ir_sch.GetBlock("B");
+  ir_sch.ComputeInline(block_b);
+  VLOG(1) << "After ComputeInline, IR is : " << ir_sch.GetModule().GetExprs().at(0);
+  Module::Builder builder("module1", target);
+  for (auto& i : func) {
+    builder.AddFunction(i);
+  }
+  auto module = builder.Build();
+  CodeGenC codegen(target);
+  codegen.SetInlineBuiltinCodes(false);
+  auto source_code = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
+
+  VLOG(1) << "compute_inline2 source code is :\n" << source_code;
+
+  std::string target_code = R"ROC(
+#include <cinn_runtime.h>
+#include <stdio.h>
+void test_compute_inline2(void* _args, int32_t num_args)
+{
+  const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
+  cinn_buffer_t* _C = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[1]));
+  cinn_buffer_t* _B = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 32, 32, 32 });
+  cinn_buffer_malloc((void*)(0), _C);
+  cinn_buffer_malloc((void*)(0), _B);
+  const float* A = ((const float*)(_A->memory));
+  float* B = ((float*)(_B->memory));
+  float* C = ((float*)(_C->memory));
+  for (int32_t i = 0; i < 32; i += 1) {
+    for (int32_t j = 0; j < 32; j += 1) {
+      for (int32_t k = 0; k < 32; k += 1) {
+        C[((1024 * i) + ((32 * j) + k))] = (2 * (1 + A[((1024 * i) + ((32 * j) + k))]));
+      };
+    };
+  };
+  cinn_buffer_free((void*)(0), _B);
+  cinn_buffer_free((void*)(0), _C);
+}
+)ROC";
+  ASSERT_EQ(utils::Trim(target_code), utils::Trim(source_code));
+}
+
+#ifdef CINN_WITH_CUDA
+TEST(IrSchedule, compute_inline3) {
+  Context::Global().ResetNameId();
+  Expr M(32);
+  Expr N(32);
+  Expr P(32);
+
+  Target target = common::DefaultNVGPUTarget();
+
+  Placeholder<float> A("A", {M, N, P});
+  auto B = Compute(
+      {M, N, P}, [&](Var i, Var j, Var k) { return A(i, j, k) + Expr(1.f); }, "B");
+  auto C = Compute(
+      {M, N, P}, [&](Var i, Var j, Var k) { return B(j, i, k) * Expr(2.f); }, "C");
+
+  auto stages = CreateStages({A, B, C});
+  stages[B]->SetBuffer("local");
+
+  auto func = cinn::lang::LowerVec("test_compute_inline3", stages, {A, C}, {}, {}, nullptr, target, true);
+
+  auto ast_expr = func[0]->body;
+  std::vector<Expr> vec_ast{ast_expr};
+  ir::ModuleExpr mod_expr(vec_ast);
+  ir::IRSchedule ir_sch(mod_expr);
+
+  auto block_b = ir_sch.GetBlock("B");
+  ir_sch.ComputeInline(block_b);
+  VLOG(1) << "After ComputeInline, IR is : " << ir_sch.GetModule().GetExprs().at(0);
+
+  Module::Builder builder("module1", target);
+  for (auto& i : func) {
+    builder.AddFunction(i);
+  }
+  auto module = builder.Build();
+  CodeGenCUDA_Dev codegen(target);
+  codegen.SetInlineBuiltinCodes(false);
+  auto source_code = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
+
+  VLOG(1) << "compute_inline3 source code is :\n" << source_code;
+
+  std::string target_code = R"ROC(
+#include "cinn_cuda_runtime_source.cuh"
+#ifdef __CUDACC_RTC__
+typedef int int32_t;
+typedef char int8_t;
+#endif
+__global__
+void test_compute_inline3(const float* __restrict__ A, float* __restrict__ C)
+{
+  float _B_temp_buffer [ 32768 ];
+  float* B = _B_temp_buffer;
+  for (int32_t i = 0; i < 32; i += 1) {
+    for (int32_t j = 0; j < 32; j += 1) {
+      for (int32_t k = 0; k < 32; k += 1) {
+        C[((1024 * i) + ((32 * j) + k))] = (2 * (1 + A[((32 * i) + ((1024 * j) + k))]));
+      };
+    };
+  };
+}
+)ROC";
+  ASSERT_EQ(utils::Trim(target_code), utils::Trim(source_code));
+}
+
+TEST(IrSchedule, compute_inline4) {
+  Context::Global().ResetNameId();
+  Expr M(32);
+  Expr N(32);
+  Expr P(32);
+
+  Target target = common::DefaultNVGPUTarget();
+
+  Placeholder<float> A("A", {M, N, P});
+  auto B = Compute(
+      {M, N, P}, [&](Var i, Var j, Var k) { return A(i, j, k) + Expr(1.f); }, "B");
+  auto C = Compute(
+      {M, N, P}, [&](Var i, Var j, Var k) { return B(i, j, k) * Expr(2.f); }, "C");
+
+  auto stages = CreateStages({A, B, C});
+  stages[B]->SetBuffer("local");
+
+  auto func = cinn::lang::LowerVec("test_compute_inline4", stages, {A, C}, {}, {}, nullptr, target, true);
+
+  auto ast_expr = func[0]->body;
+  std::vector<Expr> vec_ast{ast_expr};
+  ir::ModuleExpr mod_expr(vec_ast);
+  ir::IRSchedule ir_sch(mod_expr);
+
+  auto block_b = ir_sch.GetBlock("B");
+  auto loops   = ir_sch.GetLoops("C");
+  ir_sch.ComputeAt(block_b, loops[1]);
+  block_b = ir_sch.GetBlock("B");
+  ir_sch.ComputeInline(block_b);
+  VLOG(1) << "After ComputeInline, IR is : " << ir_sch.GetModule().GetExprs().at(0);
+  Module::Builder builder("module1", target);
+  for (auto& i : func) {
+    builder.AddFunction(i);
+  }
+  auto module = builder.Build();
+  CodeGenCUDA_Dev codegen(target);
+  codegen.SetInlineBuiltinCodes(false);
+  auto source_code = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
+
+  LOG(INFO) << "compute_inline4 source code is :\n" << source_code;
+
+  std::string target_code = R"ROC(
+#include "cinn_cuda_runtime_source.cuh"
+#ifdef __CUDACC_RTC__
+typedef int int32_t;
+typedef char int8_t;
+#endif
+__global__
+void test_compute_inline4(const float* __restrict__ A, float* __restrict__ C)
+{
+  float _B_temp_buffer [ 32768 ];
+  float* B = _B_temp_buffer;
+  for (int32_t i = 0; i < 32; i += 1) {
+    for (int32_t j = 0; j < 32; j += 1) {
+      for (int32_t k = 0; k < 32; k += 1) {
+        C[((1024 * i) + ((32 * j) + k))] = (2 * (1 + A[((1024 * i) + ((32 * j) + k))]));
+      };
+    };
+  };
+}
+)ROC";
+  ASSERT_EQ(utils::Trim(target_code), utils::Trim(source_code));
+}
+#endif
+
 }  // namespace backends
 }  // namespace cinn

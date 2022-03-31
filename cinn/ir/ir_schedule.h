@@ -234,6 +234,12 @@ class IRSchedule {
   void Unroll(const Expr& loop);
 
   /**
+   * \brief Mark an schedule block as inlined.
+   * @param schedule_block the schedule block to be inlined.
+   */
+  void ComputeInline(const Expr& schedule_block);
+
+  /**
    * \brief Bind the loop to the given thread axis.
    * @param loop the loop to Bind.
    * @param thread_axis the name of the thread axis to be bound to the loop.
