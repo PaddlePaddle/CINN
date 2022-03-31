@@ -319,24 +319,10 @@ void IRMutator<T>::Visit(const ScheduleBlock *expr, T op) {
     }
   }
   for (auto &buffer_region : node->read_buffers) {
-    for (auto &var : buffer_region->ranges) {
-      if (var->lower_bound.defined()) {
-        IRVisitorBase<void, T>::Visit(&var->lower_bound, &var->lower_bound);
-      }
-      if (var->upper_bound.defined()) {
-        IRVisitorBase<void, T>::Visit(&var->upper_bound, &var->upper_bound);
-      }
-    }
+    IRVisitorBase<void, T>::Visit(&buffer_region, &buffer_region);
   }
   for (auto &buffer_region : node->write_buffers) {
-    for (auto &var : buffer_region->ranges) {
-      if (var->lower_bound.defined()) {
-        IRVisitorBase<void, T>::Visit(&var->lower_bound, &var->lower_bound);
-      }
-      if (var->upper_bound.defined()) {
-        IRVisitorBase<void, T>::Visit(&var->upper_bound, &var->upper_bound);
-      }
-    }
+    IRVisitorBase<void, T>::Visit(&buffer_region, &buffer_region);
   }
   IRVisitorBase<void, T>::Visit(&(node->body), &(node->body));
 }
