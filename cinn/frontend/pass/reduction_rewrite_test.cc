@@ -38,21 +38,49 @@ Target GetTarget() {
 #endif
 }
 
-void SetRandData(hlir::framework::Tensor tensor, Target target) {
-  auto* data = tensor->mutable_data<float>(target);
-  std::random_device seed;
-  std::default_random_engine engine(seed());
-  std::uniform_real_distribution<float> dist(0.f, 1.f);
-  size_t num_ele = tensor->shape().numel();
-  std::vector<float> random_data(num_ele);
-  for (size_t i = 0; i < num_ele; i++) {
-    random_data[i] = dist(engine);  // All random data
-  }
+void SetRandData(const hlir::framework::Tensor& tensor, Target target) {
 #ifdef CINN_WITH_CUDA
-  cudaMemcpy(data, random_data.data(), num_ele * sizeof(float), cudaMemcpyHostToDevice);
+  auto* data = tensor->mutable_data<float>(target);
+  std::vector<float> host_memory(tensor->shape().numel(), 0);
+  for (float& v : host_memory) {
+    v = (rand() * 1.f) / RAND_MAX;  // All random data
+  }
+  CUDA_CALL(cudaMemcpy(reinterpret_cast<void*>(data),
+                       host_memory.data(),
+                       tensor->shape().numel() * sizeof(float),
+                       cudaMemcpyHostToDevice));
 #else
-  std::copy(random_data.begin(), random_data.end(), data);
+  auto* data = tensor->mutable_data<float>(target);
+  for (size_t j = 0; j < tensor->shape().numel(); j++) {
+    data[j] = (rand() * 1.f) / RAND_MAX;  // All random data
+  }
 #endif
+}
+
+std::vector<float> GetTensorData(const hlir::framework::Tensor& tensor, Target target) {
+  std::vector<float> data;
+#ifdef CINN_WITH_CUDA
+  data.resize(tensor->shape().numel());
+  CUDA_CALL(cudaMemcpy(data.data(),
+                       reinterpret_cast<void*>(tensor->mutable_data<float>(target)),
+                       tensor->shape().numel() * sizeof(float),
+                       cudaMemcpyDeviceToHost));
+#else
+  for (size_t i = 0; i < tensor->shape().numel(); ++i) {
+    data.push_back(tensor->data<float>()[i]);
+  }
+#endif
+  return data;
+}
+
+void RunWithGraph(const std::shared_ptr<hlir::framework::Graph>& graph,
+                  const Target& target,
+                  const std::shared_ptr<hlir::framework::Scope>& scope) {
+  hlir::framework::ApplyPasses(graph.get(), {"InferShape", "OpFusion"});
+  VLOG(1) << "graph:\n" << graph->Visualize();
+  hlir::framework::GraphCompiler gc(target, scope, graph);
+  auto runtime_program = gc.Build();
+  runtime_program->Execute();
 }
 
 TEST(ReductionRewrite, nochange) {
@@ -68,26 +96,36 @@ TEST(ReductionRewrite, nochange) {
 }
 
 TEST(ReductionRewrite, basic) {
-  Target target = GetTarget();
-  Program program;
-  Placeholder X(Float(32), {256, 256, 256}, "X");
-  auto out = program.reduce_sum(X, {0, 2});
-  program.SetInputs({X});
+  CinnBuilder builder("cinn_builder");
+  auto x       = builder.CreateInput(Float(32), {256, 256, 256}, "X");
+  auto out     = builder.Reduce(x, ReduceKind::kSum, {0, 2});
+  auto program = builder.Build();
+  auto target  = GetTarget();
+  // before
+  auto before_graph = std::make_shared<hlir::framework::Graph>(program, target);
+  auto before_scope = hlir::framework::BuildScope(target, before_graph);
+  before_scope->Var<hlir::framework::Tensor>("X");
+  SetRandData(before_scope->GetTensor("X"), target);
+  size_t origin_size = program.size();
   VLOG(1) << "Before " << program;
+  RunWithGraph(before_graph, target, before_scope);
+  auto origin_out = GetTensorData(before_scope->GetTensor(out->id), target);
+  // after
   ProgramPass::Apply(&program, target, {"ReductionRewrite"});
-  return;
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPasses(graph.get(), {"InferShape", "OpFusion"});
-  auto scope = hlir::framework::BuildScope(target, graph);
-  hlir::framework::GraphCompiler gc(target, scope, graph);
-  auto runtime_program = gc.Build();
-  scope->Var<hlir::framework::Tensor>("X");
-  SetRandData(scope->GetTensor("X"), target);
-  runtime_program->Execute();
+  size_t rewrite_size = program.size();
+  VLOG(1) << "After " << program;
+  auto after_graph = std::make_shared<hlir::framework::Graph>(program, target);
+  hlir::framework::ApplyPass(after_graph.get(), "InferShape");
+  auto after_scope = hlir::framework::BuildScope(target, after_graph);
+  after_scope->Var<hlir::framework::Tensor>("X");
+  after_scope->GetTensor("X")->set_buffer(before_scope->GetTensor("X")->get_buffer());
+  RunWithGraph(after_graph, target, after_scope);
+  auto rewrite_out = GetTensorData(after_scope->GetTensor(out->id), target);
+  ASSERT_EQ(origin_size, rewrite_size - 1);
+  ASSERT_EQ(origin_out.size(), rewrite_out.size());
+  for (size_t i = 0; i < origin_out.size(); ++i) {
+    ASSERT_LT(std::abs((rewrite_out[i] - origin_out[i]) / rewrite_out[i]), 0.0001);
+  }
 }
-
-TEST(ReductionRewrite, row) {}
-
-TEST(ReductionRewrite, col) {}
 
 }  // namespace cinn::frontend
