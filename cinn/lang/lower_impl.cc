@@ -71,7 +71,7 @@ Expr LowerGroup(const poly::ScheduleGroup& group,
                 std::unordered_set<std::string>& resized_buffer,
                 StageMap stage_map,
                 ir::CudaAxisInfo* cuda_axis_info) {
-  BindBuffer(stages_);
+  BindBuffer(stage_map);
   std::vector<poly::Stage*> stages;
   for (auto& node : group.nodes) {
     VLOG(1) << "In LowerGroup, node id is: " << node->id();

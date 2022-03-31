@@ -16,6 +16,7 @@
 
 #include <glog/logging.h>
 
+#include <algorithm>
 #include <memory>
 #include <string>
 #include <utility>
@@ -89,6 +90,12 @@ void MultiLevelTiling::AnalyzeScheduleBlockReadWriteBuffer(ir::ScheduleBlock* sc
     ir::Tensor t = e.as_tensor_ref();
     sche_block->write_buffers.emplace_back(ir::BufferRange(t->buffer, t->axis_with_reduce()));
   }
+
+  auto buffer_range_cmp = [](const ir::BufferRange& lhs, const ir::BufferRange& rhs) {
+    return lhs->buffer.as_buffer_ref() < rhs->buffer.as_buffer_ref();
+  };
+  sort(sche_block->read_buffers.begin(), sche_block->read_buffers.end(), buffer_range_cmp);
+  sort(sche_block->write_buffers.begin(), sche_block->write_buffers.end(), buffer_range_cmp);
 }
 
 bool MultiLevelTiling::Init(const ir::ModuleExpr& mod_expr) {
