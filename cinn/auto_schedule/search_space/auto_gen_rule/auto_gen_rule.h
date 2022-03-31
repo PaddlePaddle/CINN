@@ -24,7 +24,6 @@ namespace auto_schedule {
 /**
  * Base class for rules of auto-generating schedule (like Ansor's sketch generation)
  *
- * TODO(zhhsplendid): Finish this class and related rule classes
  */
 class AutoGenRule {
  public:

@@ -35,17 +35,24 @@ class MultiLevelTiling : public AutoGenRule {
   MultiLevelTiling()  = default;
   ~MultiLevelTiling() = default;
 
-  bool Init(const ir::ModuleExpr& mod_expr);
+  // Initailize the AutoGenRule, it must be called before further actions.
+  // Returns false if the rule cannot be applied on the mod_expr, true otherwise
+  bool Init(const ir::ModuleExpr& mod_expr) override;
 
-  ir::ModuleExpr Apply(int index);
+  // Applies rule on the ir::ModuleExpr for a schedule block specified by index
+  // between 0 (inclusive) and NumberApplicable() (exclusive)
+  ir::ModuleExpr Apply(int index) override;
 
-  std::string GetRuleName() const;
+  // Returns the name of the rule, used for debug.
+  std::string GetRuleName() const override;
 
   // Returns true if sche_block_realize is applicable by MultiLevelTiling
   bool MeetCondition(const ir::ScheduleBlockRealize& sche_block_realize) const;
 
+  // Set ScheduleBlock's read_buffers and write_buffers
   void AnalyzeScheduleBlockReadWriteBuffer(ir::ScheduleBlock* sche_block) const;
 
+  // Sample pair of integer type (a, b) such as a * b = extent
   template <typename T>
   std::pair<T, T> SampleTileSplit(T extent) const {
     std::vector<std::pair<T, T>> candidates;

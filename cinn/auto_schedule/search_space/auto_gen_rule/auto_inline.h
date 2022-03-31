@@ -28,11 +28,11 @@ class AutoInline : public AutoGenRule {
   AutoInline()  = default;
   ~AutoInline() = default;
 
-  bool Init(const ir::ModuleExpr& mod_expr);
+  bool Init(const ir::ModuleExpr& mod_expr) override;
 
-  ir::ModuleExpr Apply(int index);
+  ir::ModuleExpr Apply(int index) override;
 
-  std::string GetRuleName() const;
+  std::string GetRuleName() const override;
 };
 
 }  // namespace auto_schedule
