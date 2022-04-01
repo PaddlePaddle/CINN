@@ -98,7 +98,7 @@ TEST(MatmulPE, MatmulCase1) {
   }
 }
 
-TEST(IndexAssign, IndexAssignCase1) {
+TEST(IndexAssign, IndexAssign) {
   int m = 128;
   int n = 32;
   int k = 32;
@@ -106,7 +106,7 @@ TEST(IndexAssign, IndexAssignCase1) {
 
   Placeholder<float> input("A", {M, K});
   Placeholder<float> assign("B", {N, K});
-  Placeholder<float> indexs("C", {N});
+  Placeholder<int> indexs("C", {N});
   int axis = 0;
 
 #ifdef CINN_WITH_CUDA

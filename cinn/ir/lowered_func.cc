@@ -154,6 +154,7 @@ void _LoweredFunc_::PrepareDeallocOutputBufferExprs() {
 void _LoweredFunc_::AllocTempBuffer() {}
 
 void _LoweredFunc_::PrepareBufferCastExprs() {
+  buffer_data_cast_exprs.clear();
   // collect write.
   optim::TensorWriteTeller write_teller;
   write_teller.Collect(&body);

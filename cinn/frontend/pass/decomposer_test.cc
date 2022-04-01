@@ -79,7 +79,7 @@ TEST(DecomposePass, basic) {
   Target target = common::DefaultHostTarget();
 #endif
 
-  ProgramPass::Apply(&prog, target, {"Decomposer"});
+  ProgramPass::Apply(&prog, {}, target, {"Decomposer"});
   for (int i = 0; i < prog.size(); i++) {
     LOG(INFO) << "new instruction: " << prog[i];
   }
