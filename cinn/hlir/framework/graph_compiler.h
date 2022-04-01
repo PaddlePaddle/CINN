@@ -94,6 +94,8 @@ class GraphCompiler final {
     std::string attached_code                    = "";
     bool with_instantiate_variables              = false;
     bool with_buffer_handle_instruction_inserted = false;
+    std::vector<std::vector<Node*>> groups;
+    std::vector<std::vector<ir::LoweredFunc>> lowered_funcs;
   };
 
   // Compile with a packing option and result, to be extended easily.
@@ -132,7 +134,7 @@ class GraphCompiler final {
   // TODO(haozech) add implementation
   std::vector<std::string> OpGetOutputNames(const Node* node) const;
 
-  std::vector<std::unique_ptr<Instruction>> BuildInstructions();
+  std::vector<std::unique_ptr<Instruction>> BuildInstructions(const std::vector<std::vector<Node*>>& groups);
 
   // some variables are eliminated by optimized passes(such as OpFusion),
   // we can filter out them according to arguments of the built instructions,

@@ -618,9 +618,19 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   auto& nodes      = std::get<0>(topo_order);
   auto& edges      = std::get<1>(topo_order);
 
-  auto& groups = graph_->groups;
+  if (options.groups.empty() && graph_->groups.empty()) {
+    VLOG(3) << "not run opfusion pass";
+    for (auto& node : nodes) {
+      auto op_node = node->safe_as<Node>();
+      if (op_node) {
+        graph_->groups.push_back({op_node});
+      }
+    }
+  }
+  const auto& groups = options.groups.empty() ? graph_->groups : options.groups;
 
-  if (!groups.empty()) {
+  std::vector<std::vector<ir::LoweredFunc>> local_lowered_funcs;
+  if (options.lowered_funcs.empty()) {
     for (int i = 0; i < groups.size(); i++) {
       std::vector<ir::LoweredFunc> lowered_func;
       if (groups[i].size() == 1) {
@@ -628,18 +638,12 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
       } else {
         lowered_func = GetOpFunc(groups[i]);
       }
-      this->ProcessFunction(lowered_func);
+      local_lowered_funcs.emplace_back(std::move(lowered_func));
     }
-  } else {
-    VLOG(3) << "not run opfusion pass";
-    for (auto& node : nodes) {
-      auto op_node = node->safe_as<Node>();
-      if (op_node) {
-        auto lowered_func = GetOpFunc(op_node);
-        this->ProcessFunction(lowered_func);
-        graph_->groups.push_back({op_node});
-      }
-    }
+  }
+  const auto& lowered_funcs = options.lowered_funcs.empty() ? local_lowered_funcs : options.lowered_funcs;
+  for (auto&& lowered_func : lowered_funcs) {
+    this->ProcessFunction(lowered_func);
   }
 
   // compile the module
@@ -657,7 +661,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   }
 
   compiler_->Build(build_module, options.attached_code, stream);
-  auto instructions = BuildInstructions();
+  auto instructions = BuildInstructions(groups);
   RemoveInvalidVariables(instructions);
   if (options.with_buffer_handle_instruction_inserted) {
     VLOG(3) << "option.with_buffer_handle_instruction_inserted enable";
@@ -706,13 +710,13 @@ void GraphCompiler::SetSubKernels(Instruction* instr, const std::string& func_na
   }
 }
 
-std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
+std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions(
+    const std::vector<std::vector<Node*>>& groups) {
   std::vector<std::unique_ptr<Instruction>> instructions;
   auto topo_order = graph_->topological_order();
   auto& nodes     = std::get<0>(topo_order);
   auto& edges     = std::get<1>(topo_order);
 
-  auto& groups = graph_->groups;
   for (auto& group : groups) {
     if (group.size() == 1) {
       auto node       = group[0];
