@@ -21,7 +21,7 @@
 namespace cinn {
 namespace auto_schedule {
 
-// This class performs schedule measurement, it mainly includes two processes,
+// Entrance of schedule measurement, it mainly includes two processes:
 // which are building the input schedules and running the generated codes.
 class ScheduleMeasurer {
  public:

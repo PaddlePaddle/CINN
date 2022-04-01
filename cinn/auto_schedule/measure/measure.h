@@ -61,7 +61,7 @@ class ScheduleBuilder {
   virtual BuildResult Build(const MeasureInput& input) = 0;
 };
 
-// This interface defines how to run the build result. Like above ScheduleBuilder,
+// This interface defines how to run the built result. Like above ScheduleBuilder,
 // a runner shoule be implemented with not bound to a specific task.
 class ScheduleRunner {
  public:
