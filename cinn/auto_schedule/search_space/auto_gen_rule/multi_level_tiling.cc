@@ -38,15 +38,16 @@ bool MultiLevelTiling::MeetCondition(const ir::ScheduleBlockRealize& sche_block_
   if (sche_block->write_buffers.size() != 1 || sche_block->read_buffers.empty()) {
     return false;
   }
-  const ir::Expr& write_buffer = sche_block->write_buffers[0]->buffer;
+  const ir::Expr& write_buffer = sche_block->write_buffers[0].As<ir::_BufferRange_>()->buffer;
 
   // Enumerate each read region, get the number of schedule block iter vars
   // which  are not used to index the read region
   int total_unused_iter_vars = 0;
 
-  for (const ir::BufferRange& read_buffer : sche_block->read_buffers) {
+  for (const ir::Expr& read_buffer_expr : sche_block->read_buffers) {
+    const ir::_BufferRange_* read_buffer = read_buffer_expr.As<ir::_BufferRange_>();
     // Skip the reduction buffer
-    if (read_buffer->buffer == sche_block->write_buffers[0]->buffer) {
+    if (read_buffer->buffer == write_buffer) {
       continue;
     }
     // Collect the vars in schedule block that are used to index the read region
@@ -91,8 +92,8 @@ void MultiLevelTiling::AnalyzeScheduleBlockReadWriteBuffer(ir::ScheduleBlock* sc
     sche_block->write_buffers.emplace_back(ir::BufferRange(t->buffer, t->axis_with_reduce()));
   }
 
-  auto buffer_range_cmp = [](const ir::BufferRange& lhs, const ir::BufferRange& rhs) {
-    return lhs->buffer.as_buffer_ref() < rhs->buffer.as_buffer_ref();
+  auto buffer_range_cmp = [](const Expr& lhs, const Expr& rhs) {
+    return lhs.As<ir::_BufferRange_>()->buffer.as_buffer_ref() < rhs.As<ir::_BufferRange_>()->buffer.as_buffer_ref();
   };
   sort(sche_block->read_buffers.begin(), sche_block->read_buffers.end(), buffer_range_cmp);
   sort(sche_block->write_buffers.begin(), sche_block->write_buffers.end(), buffer_range_cmp);

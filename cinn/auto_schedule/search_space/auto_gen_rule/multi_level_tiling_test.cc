@@ -90,7 +90,7 @@ TEST(MultiLevelTile, SimpleLoops) {
             {
               i0, i1 = axis.bind(((2 * i_0) + i_1), ((4 * j_0) + j_1))
               read_buffers(_A[], _B[])
-              write_buffers(_C[undefined:undefined, undefined:undefined])
+              write_buffers(_C[])
               C[i0, i1] = (A[i0] + B[i1])
             }
           }
@@ -160,7 +160,7 @@ TEST(MulitLevelTile, MatrixMultiply) {
             ScheduleBlock(C__reduce_init)
             {
               i0, i1 = axis.bind(((16 * i_0) + i_1), ((2 * j_0) + j_1))
-              write_buffers(_C[undefined:undefined, undefined:undefined])
+              write_buffers(_C[])
               C__reduce_init[i0, i1] = 0
             }
             for (reduce_axis_k_0, 0, 16)
@@ -170,8 +170,8 @@ TEST(MulitLevelTile, MatrixMultiply) {
                 ScheduleBlock(C)
                 {
                   i0, i1, i2 = axis.bind(((16 * i_0) + i_1), ((2 * j_0) + j_1), ((2 * reduce_axis_k_0) + reduce_axis_k_1))
-                  read_buffers(_A[], _B[], _C[0:32])
-                  write_buffers(_C[undefined:undefined, undefined:undefined, 0:32])
+                  read_buffers(_A[], _B[], _C[])
+                  write_buffers(_C[])
                   C[i0, i1] = (C[i0, i1] + (A[i0, i2] * B[i2, i1]))
                 }
               }
