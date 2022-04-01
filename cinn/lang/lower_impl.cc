@@ -441,7 +441,6 @@ std::vector<ir::Argument> LowerImpl::GenFuncArgForSplitKernel(Expr func_iterator
         VLOG(3) << "And its share_buffer_tensor is : " << i;
       }
     }
-    VLOG(3) << "In all_tensors, it has : " << tensor->name;
   }
   for (auto& i : all_vars) {
     auto* var = i.as_var();

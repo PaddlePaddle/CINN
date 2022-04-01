@@ -23,6 +23,8 @@
 namespace cinn {
 namespace ir {
 
+bool Contains(const Expr& container, const Expr& expr);
+
 /**
  * A struct representing a module that contains Expr. This struct is only used in Schedule process.
  */

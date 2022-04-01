@@ -22,6 +22,7 @@
 #include "cinn/hlir/framework/instruction.h"
 #include "cinn/hlir/framework/tensor.h"
 #include "cinn/hlir/pe/schedule.h"
+#include "cinn/ir/ir_schedule.h"
 #include "cinn/lang/lower.h"
 #include "cinn/poly/stage.h"
 
@@ -492,6 +493,34 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
   }
   fuse_name += "fused";
   VLOG(3) << "fuse_name: " << fuse_name;
+
+  // This Section only deals with invalid fusion of elemenwtise + op(with ir::Call) .
+  // We disables this kind of fusion by disabling the ComputeInline and apply the schedule to elementwise op.
+  if (this->target_ == common::DefaultNVGPUTarget()) {
+    for (auto& s : stages) {
+      auto tensor    = s.second->tensor();
+      ir::Expr temp2 = Expr(tensor);
+      auto find_call = ir::CollectIRNodes(temp2, [&](const Expr* x) { return x->As<ir::Call>(); });
+      if (!find_call.empty()) {
+        for (auto& i : find_call) {
+          for (auto& j : i.As<ir::Call>()->read_args) {
+            if (j.as_tensor() && stages[j.as_tensor_ref()]->inlined()) {
+              outputs.push_back(j.as_tensor_ref());
+              stages[j.as_tensor_ref()]->DisableComputeInline();
+              s.second->CtrlDepend(j.as_tensor_ref());
+              std::vector<int> j_shape;
+              for (auto& k : j.as_tensor_ref()->shape) {
+                CHECK(k.is_constant());
+                j_shape.push_back((int)k.get_constant());
+              }
+              pe::CudaScheduleInjective(stages[j.as_tensor_ref()], j_shape, this->target_);
+            }
+          }
+        }
+      }
+    }
+  }
+
   // args order: inputs + final output + fetch outputs + other no_fused outputs
   for (auto& tensor : outputs) {
     // checkout the tensor is with buffer.
