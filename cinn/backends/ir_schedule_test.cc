@@ -2041,6 +2041,7 @@ TEST(IrSchedule, compute_inline1) {
   std::string target_code = R"ROC(
 #include <cinn_runtime.h>
 #include <stdio.h>
+
 void test_compute_inline1(void* _args, int32_t num_args)
 {
   const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
@@ -2108,6 +2109,7 @@ TEST(IrSchedule, compute_inline2) {
   std::string target_code = R"ROC(
 #include <cinn_runtime.h>
 #include <stdio.h>
+
 void test_compute_inline2(void* _args, int32_t num_args)
 {
   const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
@@ -2174,10 +2176,14 @@ TEST(IrSchedule, compute_inline3) {
 
   std::string target_code = R"ROC(
 #include "cinn_cuda_runtime_source.cuh"
+
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
 #endif
+
+
+
 __global__
 void test_compute_inline3(const float* __restrict__ A, float* __restrict__ C)
 {
@@ -2238,10 +2244,14 @@ TEST(IrSchedule, compute_inline4) {
 
   std::string target_code = R"ROC(
 #include "cinn_cuda_runtime_source.cuh"
+
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
 #endif
+
+
+
 __global__
 void test_compute_inline4(const float* __restrict__ A, float* __restrict__ C)
 {

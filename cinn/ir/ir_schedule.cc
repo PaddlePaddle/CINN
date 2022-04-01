@@ -1698,7 +1698,7 @@ void IRSchedule::ComputeAt(const Expr& block, const Expr& loop) {
   LeafBlockRemovalPlan remove_plan(block, &reconstructor.source_expr, &reconstructor.target_expr);
   remove_plan(&root);
   auto iter_doms = CalculateRequiredRegions(block, loop, consumers);
-  for (auto& i : iter_doms) LOG(INFO) << "CalculateRequiredRegions is : " << i.first << " to " << i.second;
+  for (auto& i : iter_doms) VLOG(3) << "CalculateRequiredRegions is : " << i.first << " to " << i.second;
   reconstructor.MakeNewLoop(iter_doms);
   helper_.Replace(reconstructor.source_expr, reconstructor.target_expr);
   helper_.Replace(reconstructor.loop_, reconstructor.new_loop_);
@@ -1820,7 +1820,7 @@ class ComputeInliner : public BaseInliner {
 
  private:
   void Visit(const ir::Load* expr, Expr* op) override {
-    if (expr->tensor == Expr(inlined_tensor_)) {
+    if ((expr->tensor).as_tensor_ref()->name == inlined_tensor_->name) {
       *op = ReplaceInlinedTensor(op);
       return;
     }
@@ -1831,11 +1831,8 @@ class ComputeInliner : public BaseInliner {
   Expr ReplaceInlinedTensor(Expr* load) {
     CHECK(load->As<ir::Load>());
     SetIndexSubstitution(load->As<ir::Load>()->indices);
-    LOG(INFO) << "Before ReplaceExpr, inlined_store_ is: " << inlined_store_;
     Expr value_copy = optim::IRCopy(inlined_store_.As<Store>()->value);
     ReplaceExpr(&value_copy, idx_sub_var_, idx_sub_expr_);
-    LOG(INFO) << "After ReplaceExpr, inlined_store_ is: " << inlined_store_;
-    LOG(INFO) << "After ReplaceExpr, value_copy is: " << value_copy;
     return value_copy;
   }
 };
@@ -1849,8 +1846,9 @@ Expr CheckComputeInlineValidationAndGetStore(const Expr& schedule_block, const E
   Expr tensor = (*find_store.begin()).As<ir::Store>()->tensor;
   CHECK(!tensor.as_tensor_ref()->is_reduce_tensor());
   // 2. Check this schedule block is the only writer of the tensor.
-  find_store = ir::CollectIRNodesWithoutTensor(
-      root, [&](const Expr* x) { return x->As<ir::Store>() && x->As<ir::Store>()->tensor == tensor; });
+  find_store = ir::CollectIRNodesWithoutTensor(root, [&](const Expr* x) {
+    return x->As<ir::Store>() && (x->As<ir::Store>()->tensor).as_tensor_ref()->name == tensor.as_tensor_ref()->name;
+  });
   CHECK_EQ(find_store.size(), 1U);
   // 3. Check there is no overlap between the buffers the schedule block reads and writes.
   auto find_load = ir::CollectIRNodesWithoutTensor(
