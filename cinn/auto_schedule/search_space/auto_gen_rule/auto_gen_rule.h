@@ -20,6 +20,20 @@
 
 namespace cinn {
 namespace auto_schedule {
+/**
+ * Enum class representing how this rule can be applied to a ModuleExpr.
+ */
+enum class RuleApplyType : int {
+  // This rule cannot be applied to ModuleExpr
+  kCannotApply = 0,
+  // This rule can be applied to ModuleExpr
+  kApply = 1,
+  // This rule can be applied, but after applying, we should skip this rule
+  // to apply on the module again.
+  kApplyAndSkipThisRule = 2,
+  // This rule can be applied, but after applying, we should skip all rules
+  kApplyAndSkipAllRules = 3
+};
 
 /**
  * Base class for rules of auto-generating schedule (like Ansor's sketch generation)
@@ -32,7 +46,7 @@ class AutoGenRule {
 
   // Initailize the AutoGenRule, it must be called before further actions.
   // Returns false if the rule cannot be applied on the mod_expr, true otherwise.
-  virtual bool Init(const ir::ModuleExpr& mod_expr) = 0;
+  virtual RuleApplyType Init(const ir::ModuleExpr& mod_expr) = 0;
 
   // CINN IRSchedule can contain many ScheduleBlock(s) and Loop(s), so
   // a auto gen rule may be suitable to different number of

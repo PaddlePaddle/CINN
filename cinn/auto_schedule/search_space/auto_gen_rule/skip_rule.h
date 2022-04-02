@@ -22,17 +22,19 @@
 namespace cinn {
 namespace auto_schedule {
 
-// TODO(zhhsplendid): develop this class.
-class AutoInline : public AutoGenRule {
+class SkipRule : public AutoGenRule {
  public:
-  AutoInline()  = default;
-  ~AutoInline() = default;
+  SkipRule()  = default;
+  ~SkipRule() = default;
 
   RuleApplyType Init(const ir::ModuleExpr& mod_expr) override;
 
   ir::ModuleExpr Apply(int index) override;
 
   std::string GetRuleName() const override;
+
+ private:
+  ir::ModuleExpr mod_expr_;
 };
 
 }  // namespace auto_schedule

@@ -22,6 +22,7 @@
 #include <utility>
 #include <vector>
 
+#include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
 #include "cinn/ir/buffer.h"
 #include "cinn/ir/collect_ir_nodes.h"
 #include "cinn/ir/ir.h"
@@ -72,6 +73,7 @@ bool MultiLevelTiling::MeetCondition(const ir::ScheduleBlockRealize& sche_block_
     }
     total_unused_iter_vars += n_unused_block_vars;
   }
+
   return total_unused_iter_vars >= 1;
 }
 
@@ -99,7 +101,7 @@ void MultiLevelTiling::AnalyzeScheduleBlockReadWriteBuffer(ir::ScheduleBlock* sc
   sort(sche_block->write_buffers.begin(), sche_block->write_buffers.end(), buffer_range_cmp);
 }
 
-bool MultiLevelTiling::Init(const ir::ModuleExpr& mod_expr) {
+RuleApplyType MultiLevelTiling::Init(const ir::ModuleExpr& mod_expr) {
   ir_schedule_        = std::make_unique<ir::IRSchedule>(mod_expr);
   all_block_realizes_ = ir_schedule_->GetAllBlocks();
 
@@ -113,7 +115,7 @@ bool MultiLevelTiling::Init(const ir::ModuleExpr& mod_expr) {
     }
   }
 
-  return num_applicable_ > 0;
+  return num_applicable_ > 0 ? RuleApplyType::kApplyAndSkipThisRule : RuleApplyType::kCannotApply;
 }
 
 ir::ModuleExpr MultiLevelTiling::Apply(int index) {

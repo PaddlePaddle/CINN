@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#pragma once
+#include "cinn/auto_schedule/search_space/auto_gen_rule/skip_rule.h"
 
 #include <string>
 
@@ -22,18 +22,15 @@
 namespace cinn {
 namespace auto_schedule {
 
-// TODO(zhhsplendid): develop this class.
-class AutoInline : public AutoGenRule {
- public:
-  AutoInline()  = default;
-  ~AutoInline() = default;
+RuleApplyType SkipRule::Init(const ir::ModuleExpr& mod_expr) {
+  num_applicable_ = 1;
+  mod_expr_       = mod_expr;
+  return RuleApplyType::kApply;
+}
 
-  RuleApplyType Init(const ir::ModuleExpr& mod_expr) override;
+ir::ModuleExpr SkipRule::Apply(int index) { return mod_expr_; }
 
-  ir::ModuleExpr Apply(int index) override;
-
-  std::string GetRuleName() const override;
-};
+std::string SkipRule::GetRuleName() const { return "SikpRule"; }
 
 }  // namespace auto_schedule
 }  // namespace cinn

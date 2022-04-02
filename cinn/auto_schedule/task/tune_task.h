@@ -37,6 +37,8 @@ class TuneTask {
 
   TuneContext& tune_context() { return tune_context_; }
 
+  const TuneContext& tune_context() const { return tune_context_; }
+
   void SetGraphCompiler(hlir::framework::GraphCompiler* compiler);
 
   void TaskGraphToModuleExpr();
