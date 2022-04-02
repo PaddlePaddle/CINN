@@ -94,8 +94,8 @@ class GraphCompiler final {
     std::string attached_code                    = "";
     bool with_instantiate_variables              = false;
     bool with_buffer_handle_instruction_inserted = false;
-    // nodes group, it may be the result of op fusion or graph tuning,
-    // nodes in a group will be built into a Instruction
+    // nodes group, it may come from the result of op fusion or graph tuning.
+    // nodes in a group will be built into an Instruction
     std::vector<std::vector<Node*>> groups;
     // corresponding LoweredFuncs of above grouped nodes,
     // if it is empty then graph_compiler will generate for them

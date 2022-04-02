@@ -618,7 +618,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   auto& nodes      = std::get<0>(topo_order);
   auto& edges      = std::get<1>(topo_order);
 
-  // if there is no avaiable groups, we will take each node as a group
+  // if there are no avaiable groups, we will take each node as a group
   if (options.groups.empty() && graph_->groups.empty()) {
     VLOG(3) << "not run opfusion pass";
     for (auto& node : nodes) {
