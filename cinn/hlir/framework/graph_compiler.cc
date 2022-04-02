@@ -609,6 +609,18 @@ std::unique_ptr<Program> GraphCompiler::Build(const std::string& code) {
   return std::move(result.runtime_program);
 }
 
+void GraphCompiler::CompileOptions::Apply(const auto_schedule::TuningResult& tuning_result) {
+  // joint all sub_graph into a whole graph
+  for (auto&& sub_graph : tuning_result.tuned_graph) {
+    groups.insert(groups.end(), sub_graph.groups.begin(), sub_graph.groups.end());
+  }
+
+  // joint all lowered_funcs together
+  for (auto&& expr : tuning_result.optimized_exprs) {
+    lowered_funcs.insert(lowered_funcs.end(), expr.lowered_funcs.begin(), expr.lowered_funcs.end());
+  }
+}
+
 GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::CompileOptions& options,
                                                       std::unordered_set<std::string>&& fetch_var_ids,
                                                       void* stream) {
@@ -646,6 +658,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   }
   // use the input lowered_funcs in options firstly if exists
   const auto& lowered_funcs = options.lowered_funcs.empty() ? local_lowered_funcs : options.lowered_funcs;
+  CHECK_EQ(groups.size(), lowered_funcs.size()) << "The size of groups and lowered_funcs shoule be equal";
   for (auto&& lowered_func : lowered_funcs) {
     this->ProcessFunction(lowered_func);
   }

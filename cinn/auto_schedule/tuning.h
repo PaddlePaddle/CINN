@@ -36,17 +36,17 @@ struct TuningOptions {
 // Result of the tuning process
 struct TuningResult {
   // Result of graph tuning
-  struct TunedGraph {
+  struct TunedSubGraph {
     std::vector<std::vector<hlir::framework::Node*>> groups;
   };
 
   // Result of schedule tuning in CINN IR
-  struct OptimizedSchedule {
+  struct OptimizedComputeExpr {
     std::vector<std::vector<ir::LoweredFunc>> lowered_funcs;
   };
 
-  std::vector<TunedGraph> tuned_graphs;
-  std::vector<OptimizedSchedule> optimized_schedules;
+  std::vector<TunedSubGraph> tuned_graph;
+  std::vector<OptimizedComputeExpr> optimized_exprs;
 };
 
 }  // namespace auto_schedule

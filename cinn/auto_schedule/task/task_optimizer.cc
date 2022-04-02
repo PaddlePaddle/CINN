@@ -17,8 +17,8 @@
 namespace cinn {
 namespace auto_schedule {
 
-TuningResult::OptimizedSchedule TaskOptimizer::optimize(const TuningOptions& options) {
-  TuningResult::OptimizedSchedule result;
+TuningResult::OptimizedComputeExpr TaskOptimizer::optimize(const TuningOptions& options) {
+  TuningResult::OptimizedComputeExpr result;
   return result;
 }
 

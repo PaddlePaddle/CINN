@@ -27,7 +27,7 @@ class TaskOptimizer {
  public:
   TaskOptimizer(const TuneTask& task) : task_(&task) {}
 
-  TuningResult::OptimizedSchedule optimize(const TuningOptions& options);
+  TuningResult::OptimizedComputeExpr optimize(const TuningOptions& options);
 
  private:
   const TuneTask* task_;

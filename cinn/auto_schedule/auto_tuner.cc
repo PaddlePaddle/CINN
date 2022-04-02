@@ -28,7 +28,7 @@ void AutoTuner::Initialize(const Config& config, hlir::framework::GraphCompiler*
   // create tasks
   TaskCreator task_creator;
   tasks_ = task_creator.CreateTuneTaskOpLevel(graph_);
-  CHECK_GT(tasks_.size(), 0) << "Create tasks failed";
+  CHECK_GT(tasks_.size(), 0) << "Create auto-tune tasks failed";
 
   // create task optimizers
   task_optimizers_.resize(tasks_.size());
@@ -44,24 +44,24 @@ TuningResult AutoTuner::Tune(const TuningOptions& options) {
   CHECK_GT(options.num_tuning_rounds, 0) << "Invalid config";
 
   TuningResult result;
-  result.tuned_graphs.resize(tasks_.size());
-  result.optimized_schedules.resize(tasks_.size());
+  result.tuned_graph.resize(tasks_.size());
+  result.optimized_exprs.resize(tasks_.size());
   // A task only tunes schedule now, so we populate its sub_graph
   // as default result of graph tuning, and that should be updated
   // once we support graph tuning.
   for (auto i = 0; i < tasks_.size(); ++i) {
-    auto&& task                   = tasks_.at(i);
-    result.tuned_graphs[i].groups = task.task_graph();
+    auto&& task                  = tasks_.at(i);
+    result.tuned_graph[i].groups = task.task_graph();
   }
 
   for (int r = 0; r < options.num_tuning_rounds; ++r) {
     int run_id = -1;
     task_scheduler_->Reset();
     while ((run_id = task_scheduler_->NextTaskId()) != -1) {
-      auto* opt               = task_optimizers_.at(run_id).get();
-      auto optimized_schedule = opt->optimize(options);
+      auto* opt           = task_optimizers_.at(run_id).get();
+      auto optimized_expr = opt->optimize(options);
       // update the best schedules searched so far.
-      result.optimized_schedules.at(run_id) = optimized_schedule;
+      result.optimized_exprs.at(run_id) = std::move(optimized_expr);
     }
   }
 

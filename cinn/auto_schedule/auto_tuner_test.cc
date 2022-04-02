@@ -53,15 +53,29 @@ TEST(AutoTuner, Basic) {
   TuningOptions tuning_options;
   tuning_options.num_tuning_rounds  = 2;
   tuning_options.num_measure_trials = 1;
-  TuningResult result               = tuner->Tune(tuning_options);
+  TuningResult tuning_result        = tuner->Tune(tuning_options);
 
-  ASSERT_EQ(2, result.tuned_graphs.size());
-  const auto& sub_graph1 = result.tuned_graphs.front();
+  // check result of graph tuning
+  ASSERT_EQ(2, tuning_result.tuned_graph.size());
+  const auto& sub_graph1 = tuning_result.tuned_graph.front();
   ASSERT_EQ(1, sub_graph1.groups.size());
   ASSERT_EQ(sub_graph1.groups[0][0]->op()->name, "elementwise_add");
-  const auto& sub_graph2 = result.tuned_graphs.back();
+  const auto& sub_graph2 = tuning_result.tuned_graph.back();
   ASSERT_EQ(1, sub_graph2.groups.size());
   ASSERT_EQ(sub_graph2.groups[0][0]->op()->name, "relu");
+
+  // build runtime program with tuning result
+  GraphCompiler::CompileOptions compile_options;
+  compile_options.with_instantiate_variables = true;
+  compile_options.Apply(tuning_result);
+  ASSERT_EQ(2, compile_options.groups.size());
+  // TODO(CtfGo): update the expected size of lowered functions
+  // once we complete the schedule tuning
+  ASSERT_EQ(0, compile_options.lowered_funcs.size());
+
+  auto runtime_program = graph_compiler->Build(compile_options).runtime_program;
+  ASSERT_EQ(2, runtime_program->size());
+  runtime_program->Execute();
 }
 
 }  // namespace auto_schedule

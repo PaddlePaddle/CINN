@@ -23,6 +23,7 @@
 #include <utility>
 #include <vector>
 
+#include "cinn/auto_schedule/tuning.h"
 #include "cinn/backends/compiler.h"
 #include "cinn/backends/cuda_util.h"
 #include "cinn/common/macros.h"
@@ -100,6 +101,9 @@ class GraphCompiler final {
     // corresponding LoweredFuncs of above grouped nodes,
     // if it is empty then graph_compiler will generate for them
     std::vector<std::vector<ir::LoweredFunc>> lowered_funcs;
+
+    // apply result of auto-tune to compile
+    void Apply(const auto_schedule::TuningResult& tuning_result);
   };
 
   // Compile with a packing option and result, to be extended easily.
