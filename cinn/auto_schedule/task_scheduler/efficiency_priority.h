@@ -29,7 +29,6 @@ class EfficiencyPriority : public TaskScheduler {
 
   const char* Name() const override { return "efficiency_priority"; };
 
- protected:
   int NextTaskId() override;
 
  private:

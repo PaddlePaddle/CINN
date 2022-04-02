@@ -29,7 +29,6 @@ class RoundRobin : public TaskScheduler {
 
   const char* Name() const override { return "round_robin"; };
 
- protected:
   int NextTaskId() override;
 };
 
