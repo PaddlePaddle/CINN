@@ -15,7 +15,7 @@
 #pragma once
 
 #include "cinn/auto_schedule/task/tune_task.h"
-#include "cinn/auto_schedule/task/tuning_options.h"
+#include "cinn/auto_schedule/tuning.h"
 
 namespace cinn {
 namespace auto_schedule {
@@ -27,7 +27,7 @@ class TaskOptimizer {
  public:
   TaskOptimizer(const TuneTask& task) : task_(&task) {}
 
-  void Tune(const TuningOptions& options);
+  TuningResult::OptimizedSchedule optimize(const TuningOptions& options);
 
  private:
   const TuneTask* task_;

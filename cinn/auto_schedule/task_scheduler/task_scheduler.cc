@@ -23,13 +23,14 @@
 namespace cinn {
 namespace auto_schedule {
 
-std::shared_ptr<TaskScheduler> TaskScheduler::Make(const std::vector<TuneTask>& tasks,
+std::unique_ptr<TaskScheduler> TaskScheduler::Make(const std::vector<TuneTask>& tasks,
                                                    const Config& config,
                                                    const std::string& strategy) {
+  CHECK_GT(tasks.size(), 0) << "Empty task list";
   if (strategy == "round_robin") {
-    return std::make_shared<RoundRobin>(tasks, config);
+    return std::make_unique<RoundRobin>(tasks, config);
   } else if (strategy == "efficiency_priority") {
-    return std::make_shared<EfficiencyPriority>(tasks, config);
+    return std::make_unique<EfficiencyPriority>(tasks, config);
   }
 
   LOG(FATAL) << "Unimplementd strategy:" << strategy;
@@ -37,28 +38,9 @@ std::shared_ptr<TaskScheduler> TaskScheduler::Make(const std::vector<TuneTask>& 
 }
 
 TaskScheduler::TaskScheduler(const std::vector<TuneTask>& tasks, const Config& config)
-    : tasks_(&tasks), config_(config), cur_task_id_(0) {
-  CHECK_GT(tasks.size(), 0) << "Empty task";
-  CHECK_GT(config.num_tuning_rounds, 0) << "Invalid config";
+    : tasks_(&tasks), config_(config), cur_task_id_(0) {}
 
-  task_tuners_.resize(tasks.size());
-  std::transform(tasks.begin(), tasks.end(), task_tuners_.begin(), [](const TuneTask& task) {
-    return std::make_unique<TaskOptimizer>(task);
-  });
-}
-
-void TaskScheduler::Run(const TuningOptions& tune_options) {
-  // TODO(CtfGo): support tuners execute in synchronous
-  // or asynchronous parallel
-  for (int r = 0; r < config_.num_tuning_rounds; ++r) {
-    this->cur_task_id_ = 0;
-    int run_id         = -1;
-    while ((run_id = NextTaskId()) != -1) {
-      auto* tuner = task_tuners_.at(run_id).get();
-      tuner->Tune(tune_options);
-    }
-  }
-}
+void TaskScheduler::Reset() { cur_task_id_ = 0; }
 
 }  // namespace auto_schedule
 }  // namespace cinn
