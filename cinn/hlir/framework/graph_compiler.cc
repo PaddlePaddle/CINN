@@ -618,6 +618,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   auto& nodes      = std::get<0>(topo_order);
   auto& edges      = std::get<1>(topo_order);
 
+  // if there is no avaiable groups, we will take each node as a group
   if (options.groups.empty() && graph_->groups.empty()) {
     VLOG(3) << "not run opfusion pass";
     for (auto& node : nodes) {
@@ -627,8 +628,10 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
       }
     }
   }
+  // use the input groups in options firstly if exists
   const auto& groups = options.groups.empty() ? graph_->groups : options.groups;
 
+  // if the input lowered_funcs is empty, we will use the defalut lowering process to generate
   std::vector<std::vector<ir::LoweredFunc>> local_lowered_funcs;
   if (options.lowered_funcs.empty()) {
     for (int i = 0; i < groups.size(); i++) {
@@ -641,6 +644,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
       local_lowered_funcs.emplace_back(std::move(lowered_func));
     }
   }
+  // use the input lowered_funcs in options firstly if exists
   const auto& lowered_funcs = options.lowered_funcs.empty() ? local_lowered_funcs : options.lowered_funcs;
   for (auto&& lowered_func : lowered_funcs) {
     this->ProcessFunction(lowered_func);
