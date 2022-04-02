@@ -21,7 +21,7 @@
 
 #include "cinn/auto_schedule/task/task_optimizer.h"
 #include "cinn/auto_schedule/task/tune_task.h"
-#include "cinn/auto_schedule/task/tuning_options.h"
+#include "cinn/auto_schedule/tuning.h"
 
 namespace cinn {
 namespace auto_schedule {
@@ -29,43 +29,38 @@ namespace auto_schedule {
 // Class for scheduling tasks to perform auto-tune
 class TaskScheduler {
  public:
-  // All configs of different schedule strategies
-  // needed will be defined here together.
+  // All configs for different schedule strategies
+  // will be defined here together.
   struct Config {
-    // The number of tuning rounds, each round will
-    // involve TuningOptions.num_measure_trials measurements.
-    int num_tuning_rounds = 1;
     // The minimum threshold of earnings ratio, used by EfficiencyPriority
     float minimum_gain_threshold = 0.0;
   };
 
   // Create a TaskScheduler with the specific strategy name
   // and necessary construct parameters.
-  static std::shared_ptr<TaskScheduler> Make(const std::vector<TuneTask>& tasks,
+  static std::unique_ptr<TaskScheduler> Make(const std::vector<TuneTask>& tasks,
                                              const Config& config,
                                              const std::string& strategy = "round_robin");
+
+  // Reset associated states to schedule at the beginning
+  void Reset();
 
   // Return the name of schedule strategy
   virtual const char* Name() const = 0;
 
-  // Schedule all tunners to tune tasks
-  void Run(const TuningOptions& tune_options);
+  // Select a task to tune
+  virtual int NextTaskId() = 0;
 
  protected:
   // A taskScheduler object should be created with the static function Make
   TaskScheduler(const std::vector<TuneTask>& tasks, const Config& config);
 
-  // Select a task to tune
-  virtual int NextTaskId() = 0;
-
-  // The pointer refers to all tasks
-  const std::vector<TuneTask>* tasks_;
   // The config for scheduling strategy
   Config config_;
   // The current task id to be estimated
   int cur_task_id_;
-  // The tuners to perform auto-tune, each tuner assigns a task.
-  std::vector<std::unique_ptr<TaskOptimizer>> task_tuners_;
+  // The pointer refers to all tasks
+  const std::vector<TuneTask>* tasks_;
 };
 
 }  // namespace auto_schedule
