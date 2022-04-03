@@ -57,7 +57,7 @@ Program CreateAddProgram() {
   return program;
 }
 
-TEST(TuneTask, GraphToModuleExpr_NoPass) {
+TEST(TuneTask, GraphToUnoptLoweredFunc_NoPass) {
   Context::Global().ResetNameId();
 #ifdef CINN_WITH_CUDA
   Target target = common::DefaultNVGPUTarget();
@@ -79,9 +79,9 @@ TEST(TuneTask, GraphToModuleExpr_NoPass) {
   std::stringstream ss;
   for (TuneTask& task : tasks) {
     task.SetGraphCompiler(&graph_compiler);
-    task.TaskGraphToModuleExpr();
+    task.TaskGraphToUnoptLoweredFunc();
 
-    std::vector<ir::Expr> exprs = task.tune_context().module.GetExprs();
+    std::vector<ir::Expr> exprs = task.tune_context().GetLoweredFuncBodyExprs();
     VLOG(6) << "ir:Expr is: ";
     for (const ir::Expr& e : exprs) {
       VLOG(6) << e;
@@ -114,7 +114,7 @@ TEST(TuneTask, GraphToModuleExpr_NoPass) {
   EXPECT_EQ(utils::Trim(target_str), utils::Trim(expr_str));
 }
 
-TEST(TuneTask, GraphToModuleExpr_ApplyPass) {
+TEST(TuneTask, GraphToUnoptLoweredFunc_ApplyPass) {
   Context::Global().ResetNameId();
 #ifdef CINN_WITH_CUDA
   Target target = common::DefaultNVGPUTarget();
@@ -137,9 +137,9 @@ TEST(TuneTask, GraphToModuleExpr_ApplyPass) {
   std::stringstream ss;
   for (TuneTask& task : tasks) {
     task.SetGraphCompiler(&graph_compiler);
-    task.TaskGraphToModuleExpr();
+    task.TaskGraphToUnoptLoweredFunc();
 
-    std::vector<ir::Expr> exprs = task.tune_context().module.GetExprs();
+    std::vector<ir::Expr> exprs = task.tune_context().GetLoweredFuncBodyExprs();
     VLOG(6) << "ir:Expr is: ";
     for (const ir::Expr& e : exprs) {
       VLOG(6) << e;

@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#pragma once
+#include "cinn/auto_schedule/task/tune_context.h"
 
-#include <string>
+#include <glog/logging.h>
+
 #include <vector>
 
-#include "cinn/common/target.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/lowered_func.h"
@@ -25,21 +25,22 @@
 namespace cinn {
 namespace auto_schedule {
 
-/**
- * A class containing context information for tuning-task. The difference
- * between this class and TuneTask is that the data in this context is only
- * needed by autotune while the TuneTask contains some information for whole
- * compiler, such as Graph, GraphCompiler.
- */
-class TuneContext {
- public:
-  std::vector<ir::LoweredFunc> lowered_funcs;
-  common::Target target;
+std::vector<ir::Expr> TuneContext::GetLoweredFuncBodyExprs() const {
+  std::vector<ir::Expr> result;
+  for (const ir::LoweredFunc& func : lowered_funcs) {
+    result.push_back(func->body);
+  }
+  return result;
+}
 
-  std::vector<ir::Expr> GetLoweredFuncBodyExprs() const;
-
-  void SetLoweredFuncBodyExprs(const std::vector<ir::Expr>& exprs);
-};
+void TuneContext::SetLoweredFuncBodyExprs(const std::vector<ir::Expr>& exprs) {
+  size_t exprs_size = exprs.size();
+  CHECK_EQ(exprs_size, lowered_funcs.size())
+      << "SetLoweredFuncBodyExprs must have same number of Expr(s) and LoweredFunc(s)";
+  for (size_t i = 0; i < exprs_size; ++i) {
+    lowered_funcs[i]->body = exprs[i];
+  }
+}
 
 }  // namespace auto_schedule
 }  // namespace cinn

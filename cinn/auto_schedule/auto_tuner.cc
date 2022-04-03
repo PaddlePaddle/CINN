@@ -45,7 +45,7 @@ TuningResult AutoTuner::Tune(const TuningOptions& options) {
 
   TuningResult result;
   result.tuned_graphs.resize(tasks_.size());
-  result.optimized_schedules.resize(tasks_.size());
+  result.optimized_lowered.resize(tasks_.size());
   // A task only tunes schedule now, so we populate its sub_graph
   // as default result of graph tuning, and that should be updated
   // once we support graph tuning.
@@ -58,10 +58,10 @@ TuningResult AutoTuner::Tune(const TuningOptions& options) {
     int run_id = -1;
     task_scheduler_->Reset();
     while ((run_id = task_scheduler_->NextTaskId()) != -1) {
-      auto* opt               = task_optimizers_.at(run_id).get();
-      auto optimized_schedule = opt->optimize(options);
+      auto* opt                    = task_optimizers_.at(run_id).get();
+      auto optimized_lowered_funcs = opt->Optimize(options);
       // update the best schedules searched so far.
-      result.optimized_schedules.at(run_id) = optimized_schedule;
+      result.optimized_lowered.at(run_id) = optimized_lowered_funcs;
     }
   }
 

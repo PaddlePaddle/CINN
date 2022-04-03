@@ -14,11 +14,13 @@
 
 #include "cinn/auto_schedule/task/task_optimizer.h"
 
+#include "cinn/auto_schedule/search_strategy/evolutionary_search.h"
+
 namespace cinn {
 namespace auto_schedule {
 
-TuningResult::OptimizedSchedule TaskOptimizer::optimize(const TuningOptions& options) {
-  TuningResult::OptimizedSchedule result;
+TuningResult::OptimizedLoweredFuncs TaskOptimizer::Optimize(const TuningOptions& options) {
+  TuningResult::OptimizedLoweredFuncs result;
   return result;
 }
 

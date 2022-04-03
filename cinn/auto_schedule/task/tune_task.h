@@ -41,7 +41,7 @@ class TuneTask {
 
   void SetGraphCompiler(hlir::framework::GraphCompiler* compiler);
 
-  void TaskGraphToModuleExpr();
+  void TaskGraphToUnoptLoweredFunc();
 
  private:
   // In CINN, we use std::vector<hlir::framework::Node*> to represent a fused

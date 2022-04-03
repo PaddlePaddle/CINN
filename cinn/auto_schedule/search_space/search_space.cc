@@ -35,7 +35,7 @@ std::vector<ir::ModuleExpr> SearchSpace::GetRandomInitialSketch(int num) {
   std::vector<ir::ModuleExpr> result;
   while (result.size() < num) {
     std::vector<std::shared_ptr<AutoGenRule>> candidate_rules = auto_gen_rules_;
-    ir::ModuleExpr mod_expr                                   = tune_task_.tune_context().module;
+    ir::ModuleExpr mod_expr = ir::ModuleExpr(tune_task_.tune_context().GetLoweredFuncBodyExprs());
     for (int i = 0; i < init_sketch_random_depth_; ++i) {
       mod_expr = RandomScheduleMutate(mod_expr, &candidate_rules);
       if (candidate_rules.empty()) {
