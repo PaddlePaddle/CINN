@@ -27,10 +27,23 @@ struct TuningOptions {
   // The number of tuning rounds, each round will
   // involve TuningOptions.num_measure_trials measurements.
   int num_tuning_rounds = 1;
+
   // The number of measurement trials, if it is 0,
   // that means the tunner will return the best
   // candidate of schedule config without measurement.
-  int num_measure_trials = 0;
+  int num_measure_trials = 10;
+
+  // Every round TaskSchedule chooses a TuneTask to optimize and run several
+  // iterations of search algorithm to generate samples. Each iteration has
+  // num_samples_per_iteration samples.
+  //
+  // 1. if TuningOptions.num_measure_trials is 0, the autotune doesn't involve
+  // hardware measurements. It predicts performance by cost model.
+  //
+  // 2. num_measure_trials % num_samples_per_iteration must equal 0.
+  // In each round, autotune will run iterations until number of iterations
+  // * num_samples_per_iteration equals num_measure_trials.
+  int num_samples_per_iteration = 10;
 };
 
 // Result of the tuning process

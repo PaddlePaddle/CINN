@@ -110,7 +110,8 @@ class GraphCompiler final {
 
   const std::shared_ptr<Scope>& GetScope() const { return scope_; }
 
-  std::vector<ir::LoweredFunc> FusedGraphToLoweredFunc(const std::vector<std::vector<hlir::framework::Node*>>& graph);
+  std::vector<std::vector<ir::LoweredFunc>> FusedGraphToLoweredFunc(
+      const std::vector<std::vector<hlir::framework::Node*>>& graph);
 
  private:
   std::vector<ir::LoweredFunc> NodeToLoweredFunc(const hlir::framework::Node& node);

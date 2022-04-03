@@ -14,6 +14,10 @@
 
 #pragma once
 
+#include <memory>
+
+#include "cinn/auto_schedule/measure/schedule_measurer.h"
+#include "cinn/auto_schedule/search_strategy/evolutionary_search.h"
 #include "cinn/auto_schedule/task/tune_task.h"
 #include "cinn/auto_schedule/tuning.h"
 
@@ -25,7 +29,8 @@ namespace auto_schedule {
 // optimal schedule for the task.
 class TaskOptimizer {
  public:
-  TaskOptimizer(const TuneTask& task) : task_(&task) {}
+  TaskOptimizer(const TuneTask& task, ScheduleMeasurer* schedule_measure)
+      : task_(&task), schedule_measure_(schedule_measure) {}
 
   TuningResult::OptimizedLoweredFuncs Optimize(const TuningOptions& options);
 
@@ -33,6 +38,10 @@ class TaskOptimizer {
   TuningResult::OptimizedLoweredFuncs OptimizeByEvolution(const TuningOptions& options);
 
   const TuneTask* task_;
+
+  ScheduleMeasurer* schedule_measure_;
+
+  std::unique_ptr<EvolutionarySearch> = nullptr;
 };
 
 }  // namespace auto_schedule

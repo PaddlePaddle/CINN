@@ -1131,17 +1131,15 @@ std::shared_ptr<Scope> BuildScope(Target target, const std::shared_ptr<Graph>& g
   return scope;
 }
 
-std::vector<ir::LoweredFunc> GraphCompiler::FusedGraphToLoweredFunc(
+std::vector<std::vector<ir::LoweredFunc>> GraphCompiler::FusedGraphToLoweredFunc(
     const std::vector<std::vector<hlir::framework::Node*>>& graph) {
-  std::vector<ir::LoweredFunc> result;
+  std::vector<std::vector<ir::LoweredFunc>> result;
   for (const std::vector<hlir::framework::Node*>& node_group : graph) {
     CHECK(!node_group.empty()) << "Invalid graph which contains empty node group in GraphCompiler.";
     if (node_group.size() == 1) {
-      std::vector<ir::LoweredFunc> node_expr = NodeToLoweredFunc(*(node_group[0]));
-      result.insert(result.end(), node_expr.begin(), node_expr.end());
+      result.emplace_back(NodeToLoweredFunc(*(node_group[0])));
     } else {
-      std::vector<ir::LoweredFunc> fused_expr = FusedNodeGroupToLoweredFunc(node_group);
-      result.insert(result.end(), fused_expr.begin(), fused_expr.end());
+      result.emplace_back(FusedNodeGroupToLoweredFunc(node_group));
     }
   }
   return result;

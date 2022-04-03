@@ -31,7 +31,11 @@ void TuneTask::SetGraphCompiler(hlir::framework::GraphCompiler* compiler) { grap
 
 void TuneTask::TaskGraphToUnoptLoweredFunc() {
   CHECK(graph_compiler_ != nullptr) << "graph_compiler_ must be set before processing graph";
-  tune_context_.lowered_funcs = graph_compiler_->FusedGraphToLoweredFunc(task_graph_);
+  // TODO(zhhsplendid): current a task only contains one Op or one Fused Op,
+  // so we can take only first std::vector<ir::LoweredFunc>. Support the
+  // tune_context_.lowered_funcs to be std::vector<std::vector<ir::LoweredFunc>>
+  // in the future.
+  tune_context_.lowered_funcs = graph_compiler_->FusedGraphToLoweredFunc(task_graph_)[0];
 }
 
 }  // namespace auto_schedule

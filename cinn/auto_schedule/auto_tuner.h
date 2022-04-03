@@ -18,6 +18,7 @@
 #include <string>
 #include <vector>
 
+#include "cinn/auto_schedule/measure/schedule_measurer.h"
 #include "cinn/auto_schedule/task/task_optimizer.h"
 #include "cinn/auto_schedule/task/tune_task.h"
 #include "cinn/auto_schedule/task_scheduler/task_scheduler.h"
@@ -40,6 +41,7 @@ class AutoTuner {
   struct Config {
     std::string task_schedule_strategy = "round_robin";
     TaskScheduler::Config task_schedule_config;
+    int repeat_times = 1
   };
 
   AutoTuner(const common::Target& target, hlir::framework::Graph* graph);
@@ -60,6 +62,11 @@ class AutoTuner {
   std::unique_ptr<TaskScheduler> task_scheduler_;
   // The actor to perform auto-tune, each optimizer take a task.
   std::vector<std::unique_ptr<TaskOptimizer>> task_optimizers_;
+
+  // Classes used to measure AutoTune samples
+  std::unique_ptr<ScheduleBuilder> builder_;
+  std::unique_ptr<ScheduleRunner> runner_;
+  std::unique_ptr<ScheduleMeasurer> schedule_measurer_;
 };
 
 }  // namespace auto_schedule
