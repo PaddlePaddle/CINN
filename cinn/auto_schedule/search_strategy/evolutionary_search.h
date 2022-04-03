@@ -18,7 +18,7 @@
 #include <vector>
 
 #include "cinn/auto_schedule/search_space/search_space.h"
-#include "cinn/auto_schedule/task/tune_task.h"
+#include "cinn/auto_schedule/task/tune_context.h"
 #include "cinn/ir/ir_schedule.h"
 
 namespace cinn {
@@ -30,18 +30,18 @@ namespace auto_schedule {
 class EvolutionarySearch {
  public:
   /**
-   * Default constructor. Note that this class doesn't set TuneTask, you should
-   * call EvolutionarySearch::SetTuneTask to bind a TuneTask.
+   * Default constructor. Note that this class doesn't set TuneContext, you should
+   * call EvolutionarySearch::SetTuneContext to bind a TuneContext.
    */
   EvolutionarySearch() = default;
 
   /**
-   * constutor with TuneTask.
+   * constutor with TuneContext.
    *
-   * @param tune_task: the TuneTask this class works on. This class doesn't
+   * @param tune_context: the TuneContext this class works on. This class doesn't
    *     take ownership of the pointer.
    */
-  EvolutionarySearch(TuneTask* tune_task);
+  EvolutionarySearch(TuneContext* tune_context);
 
   /**
    * Destructor
@@ -49,12 +49,12 @@ class EvolutionarySearch {
   ~EvolutionarySearch();
 
   /**
-   * Set the TuneTask this class works on. This class doesn't take ownership
+   * Set the TuneContext this class works on. This class doesn't take ownership
    * of the pointer.
    *
-   * @param tune_task: the TuneTask this class works on.
+   * @param tune_context: the TuneContext this class works on.
    */
-  void SetTuneTask(TuneTask* tune_task);
+  void SetTuneContext(TuneContext* tune_context);
 
   /**
    * Run the evolutionary search for one iteration.
@@ -116,7 +116,7 @@ class EvolutionarySearch {
 
   std::unique_ptr<SearchSpace> search_space_;
 
-  TuneTask* tune_task_;
+  TuneContext* tune_context_;
 
   CostModel* cost_model_;  // not owned
 };

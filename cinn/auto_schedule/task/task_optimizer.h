@@ -30,10 +30,7 @@ class TaskOptimizer {
   TuningResult::OptimizedLoweredFuncs Optimize(const TuningOptions& options);
 
  private:
-  TuningResult::OptimizedLoweredFuncs OptimizeByEvolution(const TuningOptions& options) {
-    // TODO
-    return TuningResult::OptimizedLoweredFuncs();
-  }
+  TuningResult::OptimizedLoweredFuncs OptimizeByEvolution(const TuningOptions& options);
 
   const TuneTask* task_;
 };

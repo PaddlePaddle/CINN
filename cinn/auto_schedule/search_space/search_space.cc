@@ -22,20 +22,20 @@
 
 #include "cinn/auto_schedule/cost_model/cost_model.h"
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
-#include "cinn/auto_schedule/task/tune_task.h"
+#include "cinn/auto_schedule/task/tune_context.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_schedule.h"
 
 namespace cinn {
 namespace auto_schedule {
 
-SearchSpace::SearchSpace(const TuneTask& tune_task) : tune_task_(tune_task) {}
+SearchSpace::SearchSpace(const TuneContext& tune_context) : tune_context_(tune_context) {}
 
 std::vector<ir::ModuleExpr> SearchSpace::GetRandomInitialSketch(int num) {
   std::vector<ir::ModuleExpr> result;
   while (result.size() < num) {
     std::vector<std::shared_ptr<AutoGenRule>> candidate_rules = auto_gen_rules_;
-    ir::ModuleExpr mod_expr = ir::ModuleExpr(tune_task_.tune_context().GetLoweredFuncBodyExprs());
+    ir::ModuleExpr mod_expr                                   = ir::ModuleExpr(tune_context_.GetLoweredFuncBodyExprs());
     for (int i = 0; i < init_sketch_random_depth_; ++i) {
       mod_expr = RandomScheduleMutate(mod_expr, &candidate_rules);
       if (candidate_rules.empty()) {

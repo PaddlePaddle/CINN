@@ -23,19 +23,19 @@
 #include <utility>
 
 #include "cinn/auto_schedule/search_space/search_space.h"
-#include "cinn/auto_schedule/task/tune_task.h"
+#include "cinn/auto_schedule/task/tune_context.h"
 #include "cinn/optim/ir_copy.h"
 
 namespace cinn {
 namespace auto_schedule {
 
-EvolutionarySearch::EvolutionarySearch(TuneTask* tune_task) { SetTuneTask(tune_task); }
+EvolutionarySearch::EvolutionarySearch(TuneContext* tune_context) { SetTuneContext(tune_context); }
 
 EvolutionarySearch::~EvolutionarySearch() {}
 
-void EvolutionarySearch::SetTuneTask(TuneTask* tune_task) {
-  tune_task_    = tune_task;
-  search_space_ = std::make_unique<SearchSpace>(*tune_task);
+void EvolutionarySearch::SetTuneContext(TuneContext* tune_context) {
+  tune_context_ = tune_context;
+  search_space_ = std::make_unique<SearchSpace>(*tune_context);
 }
 
 std::vector<ir::ModuleExpr> EvolutionarySearch::SearchModuleExprBests() {

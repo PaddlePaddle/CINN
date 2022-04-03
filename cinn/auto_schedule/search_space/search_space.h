@@ -23,7 +23,7 @@
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_inline.h"
 #include "cinn/auto_schedule/search_space/auto_gen_rule/multi_level_tiling.h"
 #include "cinn/auto_schedule/search_space/auto_gen_rule/skip_rule.h"
-#include "cinn/auto_schedule/task/tune_task.h"
+#include "cinn/auto_schedule/task/tune_context.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_schedule.h"
 
@@ -41,7 +41,7 @@ namespace auto_schedule {
  */
 class SearchSpace {
  public:
-  SearchSpace(const TuneTask& tune_task);
+  SearchSpace(const TuneContext& tune_context);
 
   // Generate sketch as initial population of evolutionary search
   virtual std::vector<ir::ModuleExpr> GetRandomInitialSketch(int num);
@@ -57,7 +57,7 @@ class SearchSpace {
   ir::ModuleExpr RandomScheduleMutate(const ir::ModuleExpr& mod_expr,
                                       std::vector<std::shared_ptr<AutoGenRule>>* candidate_rules);
 
-  const TuneTask& tune_task_;
+  const TuneContext& tune_context_;
 
   int init_sketch_random_depth_ = 6;
 

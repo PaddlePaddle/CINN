@@ -20,8 +20,13 @@ namespace cinn {
 namespace auto_schedule {
 
 TuningResult::OptimizedLoweredFuncs TaskOptimizer::Optimize(const TuningOptions& options) {
-  TuningResult::OptimizedLoweredFuncs result;
-  return result;
+  // TODO(zhhsplendid): develop other optimize methods and configure the method by options.
+  return OptimizeByEvolution(options);
+}
+
+TuningResult::OptimizedLoweredFuncs TaskOptimizer::OptimizeByEvolution(const TuningOptions& options) {
+  // TODO(zhhsplendid): finish this function
+  return TuningResult::OptimizedLoweredFuncs();
 }
 
 }  // namespace auto_schedule
