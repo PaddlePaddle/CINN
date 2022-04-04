@@ -30,31 +30,17 @@ namespace auto_schedule {
 class EvolutionarySearch {
  public:
   /**
-   * Default constructor. Note that this class doesn't set TuneContext, you should
-   * call EvolutionarySearch::SetTuneContext to bind a TuneContext.
-   */
-  EvolutionarySearch() = default;
-
-  /**
    * constutor with TuneContext.
    *
    * @param tune_context: the TuneContext this class works on. This class doesn't
    *     take ownership of the pointer.
    */
-  EvolutionarySearch(TuneContext* tune_context);
+  EvolutionarySearch(const TuneContext* tune_context);
 
   /**
    * Destructor
    */
   ~EvolutionarySearch();
-
-  /**
-   * Set the TuneContext this class works on. This class doesn't take ownership
-   * of the pointer.
-   *
-   * @param tune_context: the TuneContext this class works on.
-   */
-  void SetTuneContext(TuneContext* tune_context);
 
   /**
    * Run the evolutionary search for one iteration.
@@ -116,7 +102,7 @@ class EvolutionarySearch {
 
   std::unique_ptr<SearchSpace> search_space_;
 
-  TuneContext* tune_context_;
+  const TuneContext* tune_context_;
 
   CostModel* cost_model_;  // not owned
 };

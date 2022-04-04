@@ -73,8 +73,7 @@ class MockSearchSpace : public SearchSpace {
 
 TEST(EvolutionarySearch, GetOneBest) {
   TuneTask mock_tune_task;
-  EvolutionarySearch evolutionary_search;
-  evolutionary_search.SetTuneContext(&mock_tune_task.tune_context());
+  EvolutionarySearch evolutionary_search(&mock_tune_task.tune_context());
 
   MockSearchSpace* mock_search_space = new MockSearchSpace(mock_tune_task.tune_context());
   // Ownership is transferred so don't delete mock_search_space

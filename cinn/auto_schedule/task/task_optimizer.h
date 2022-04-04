@@ -29,8 +29,8 @@ namespace auto_schedule {
 // optimal schedule for the task.
 class TaskOptimizer {
  public:
-  TaskOptimizer(const TuneTask& task, ScheduleMeasurer* schedule_measure)
-      : task_(&task), schedule_measure_(schedule_measure) {}
+  TaskOptimizer(const TuneTask& task, ScheduleMeasurer* schedule_measurer)
+      : task_(&task), schedule_measurer_(schedule_measurer) {}
 
   TuningResult::OptimizedLoweredFuncs Optimize(const TuningOptions& options);
 
@@ -39,9 +39,9 @@ class TaskOptimizer {
 
   const TuneTask* task_;
 
-  ScheduleMeasurer* schedule_measure_;
+  ScheduleMeasurer* schedule_measurer_;
 
-  std::unique_ptr<EvolutionarySearch> = nullptr;
+  std::unique_ptr<EvolutionarySearch> evolutionary_search_ = nullptr;
 };
 
 }  // namespace auto_schedule

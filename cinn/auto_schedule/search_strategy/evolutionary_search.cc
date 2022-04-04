@@ -29,14 +29,11 @@
 namespace cinn {
 namespace auto_schedule {
 
-EvolutionarySearch::EvolutionarySearch(TuneContext* tune_context) { SetTuneContext(tune_context); }
-
-EvolutionarySearch::~EvolutionarySearch() {}
-
-void EvolutionarySearch::SetTuneContext(TuneContext* tune_context) {
-  tune_context_ = tune_context;
+EvolutionarySearch::EvolutionarySearch(const TuneContext* tune_context) : tune_context_(tune_context) {
   search_space_ = std::make_unique<SearchSpace>(*tune_context);
 }
+
+EvolutionarySearch::~EvolutionarySearch() {}
 
 std::vector<ir::ModuleExpr> EvolutionarySearch::SearchModuleExprBests() {
   std::vector<ir::ModuleExpr> init_population;
