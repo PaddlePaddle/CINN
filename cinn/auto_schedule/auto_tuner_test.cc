@@ -39,7 +39,7 @@ frontend::Program CreateAddReluProgram() {
   return builder.Build();
 }
 
-TEST(AutoTuner, Basic) {
+TEST(AutoTuner, ZeroMeasure) {
   auto target         = common::DefaultHostTarget();
   auto graph          = std::make_shared<Graph>(CreateAddReluProgram(), target);
   auto scope          = BuildScope(target, graph);
@@ -51,9 +51,10 @@ TEST(AutoTuner, Basic) {
   tuner->Initialize(tuning_config, graph_compiler.get());
 
   TuningOptions tuning_options;
-  tuning_options.num_tuning_rounds  = 2;
-  tuning_options.num_measure_trials = 1;
-  TuningResult result               = tuner->Tune(tuning_options);
+  tuning_options.num_tuning_rounds         = 1;
+  tuning_options.num_measure_trials        = 0;
+  tuning_options.num_samples_per_iteration = 10;
+  TuningResult result                      = tuner->Tune(tuning_options);
 
   ASSERT_EQ(2, result.tuned_graphs.size());
   const auto& sub_graph1 = result.tuned_graphs.front();

@@ -24,22 +24,24 @@
 
 #include "cinn/auto_schedule/search_space/search_space.h"
 #include "cinn/auto_schedule/task/tune_context.h"
+#include "cinn/auto_schedule/tuning.h"
 #include "cinn/optim/ir_copy.h"
 
 namespace cinn {
 namespace auto_schedule {
 
-EvolutionarySearch::EvolutionarySearch(const TuneContext* tune_context) : tune_context_(tune_context) {
-  search_space_ = std::make_unique<SearchSpace>(*tune_context);
+EvolutionarySearch::EvolutionarySearch(const TuneContext& tune_context, const TuningOptions& options)
+    : tune_context_(tune_context), options_(options) {
+  search_space_ = std::make_unique<SearchSpace>(tune_context);
 }
 
 EvolutionarySearch::~EvolutionarySearch() {}
 
 std::vector<ir::ModuleExpr> EvolutionarySearch::SearchModuleExprBests() {
   std::vector<ir::ModuleExpr> init_population;
-  std::vector<ir::ModuleExpr> topk_from_database = GetTopKCandidatesFromDatabase(database_topk_);
+  std::vector<ir::ModuleExpr> topk_from_database = GetTopKCandidatesFromDatabase(options_.evolution_pick_database_topk);
   VLOG(4) << "EvolutionarySearch got " << topk_from_database.size() << " as topk from database";
-  int random_num = init_population_num_ - topk_from_database.size();
+  int random_num = options_.evolution_init_population_num - topk_from_database.size();
 
   VLOG(4) << "EvolutionarySearch will fetch " << random_num << " sketches";
   std::vector<ir::ModuleExpr> random_sketch = RandomInitSketch(random_num);
@@ -48,7 +50,7 @@ std::vector<ir::ModuleExpr> EvolutionarySearch::SearchModuleExprBests() {
   init_population.insert(init_population.end(), random_sketch.begin(), random_sketch.end());
 
   VLOG(4) << "EvolutionarySearch got generation size " << init_population.size();
-  std::vector<ir::ModuleExpr> picked_bests = Evolve(init_population, sample_num_);
+  std::vector<ir::ModuleExpr> picked_bests = Evolve(init_population, options_.num_samples_per_iteration);
 
   VLOG(4) << "EvolutionarySearch got evolved generation size " << picked_bests.size();
   return picked_bests;
@@ -58,8 +60,9 @@ ir::ModuleExpr EvolutionarySearch::SearchModuleExpr() { return SearchModuleExprB
 
 std::vector<ir::ModuleExpr> EvolutionarySearch::SearchModuleExprEpsGreedy() {
   std::vector<ir::ModuleExpr> picked_bests = SearchModuleExprBests();
-  int random_num                           = init_population_num_ - database_topk_;
-  return PickNextGenerationEpsGreedy(picked_bests, RandomInitSketch(random_num), sample_num_, eps_greedy_);
+  int random_num = options_.evolution_init_population_num - options_.evolution_pick_database_topk;
+  return PickNextGenerationEpsGreedy(
+      picked_bests, RandomInitSketch(random_num), options_.num_samples_per_iteration, options_.evolution_eps_greedy);
 }
 
 std::vector<ir::ModuleExpr> EvolutionarySearch::GetTopKCandidatesFromDatabase(int topk) {
@@ -96,7 +99,7 @@ std::vector<ir::ModuleExpr> EvolutionarySearch::Evolve(const std::vector<ir::Mod
   }
   std::vector<ir::ModuleExpr> evolution(population);
 
-  for (int i = 0; i < cross_over_num_; ++i) {
+  for (int i = 0; i < options_.evolution_cross_over_num; ++i) {
     int first_rand_idx  = rand() % generation_num;
     int second_rand_idx = rand() % generation_num;
     while (first_rand_idx == second_rand_idx) {

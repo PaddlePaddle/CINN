@@ -34,7 +34,9 @@ TuningResult::OptimizedLoweredFuncs TaskOptimizer::OptimizeByEvolution(const Tun
       << "TuningOptions.num_measure_trials % TuningOptions.num_samples_per_iteration must be 0.";
 
   if (evolutionary_search_ == nullptr) {
-    evolutionary_search_ = std::make_unique<EvolutionarySearch>(&(task_->tune_context()));
+    // TODO(zhhsplendid): check whether the options is same as previous,
+    // if not, we should create new EvolutionarySearch
+    evolutionary_search_ = std::make_unique<EvolutionarySearch>(task_->tune_context(), options);
   }
 
   if (options.num_measure_trials == 0) {

@@ -19,6 +19,7 @@
 
 #include "cinn/auto_schedule/search_space/search_space.h"
 #include "cinn/auto_schedule/task/tune_context.h"
+#include "cinn/auto_schedule/tuning.h"
 #include "cinn/ir/ir_schedule.h"
 
 namespace cinn {
@@ -35,7 +36,7 @@ class EvolutionarySearch {
    * @param tune_context: the TuneContext this class works on. This class doesn't
    *     take ownership of the pointer.
    */
-  EvolutionarySearch(const TuneContext* tune_context);
+  EvolutionarySearch(const TuneContext& tune_context, const TuningOptions& options);
 
   /**
    * Destructor
@@ -93,16 +94,11 @@ class EvolutionarySearch {
                                                           int num,
                                                           float eps_greedy);
 
-  int database_topk_       = 8;
-  int init_population_num_ = 10;
-  int cross_over_num_      = 10;
-  int sample_num_          = 10;
-
-  float eps_greedy_ = 0.0f;
-
   std::unique_ptr<SearchSpace> search_space_;
 
-  const TuneContext* tune_context_;
+  const TuneContext& tune_context_;
+
+  const TuningOptions& options_;
 
   CostModel* cost_model_;  // not owned
 };

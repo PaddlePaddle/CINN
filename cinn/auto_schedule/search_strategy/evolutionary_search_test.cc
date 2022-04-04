@@ -22,6 +22,7 @@
 #include "cinn/auto_schedule/search_space/search_space.h"
 #include "cinn/auto_schedule/task/tune_context.h"
 #include "cinn/auto_schedule/task/tune_task.h"
+#include "cinn/auto_schedule/tuning.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_schedule.h"
 
@@ -73,7 +74,8 @@ class MockSearchSpace : public SearchSpace {
 
 TEST(EvolutionarySearch, GetOneBest) {
   TuneTask mock_tune_task;
-  EvolutionarySearch evolutionary_search(&mock_tune_task.tune_context());
+  TuningOptions options;
+  EvolutionarySearch evolutionary_search(mock_tune_task.tune_context(), options);
 
   MockSearchSpace* mock_search_space = new MockSearchSpace(mock_tune_task.tune_context());
   // Ownership is transferred so don't delete mock_search_space
@@ -90,7 +92,8 @@ TEST(EvolutionarySearch, GetOneBest) {
 
 TEST(EvolutionarySearch, GetEpsGreedy) {
   TuneTask mock_tune_task;
-  EvolutionarySearch evolutionary_search(&mock_tune_task.tune_context());
+  TuningOptions options;
+  EvolutionarySearch evolutionary_search(mock_tune_task.tune_context(), options);
 
   MockSearchSpace* mock_search_space = new MockSearchSpace(mock_tune_task.tune_context());
   // Ownership is transferred so don't delete mock_search_space
