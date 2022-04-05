@@ -293,6 +293,39 @@ std::vector<ir::LoweredFunc> OpLoweringHelper::ReduceOpLowering(const Group& gro
   // reduce + reduce(horizontal)
   // (reduce + reduce(horizontal)) + elementwise(vertical)
   auto schedule = [this, &group, &stages, &tensor_map](const Group& sub_group) {
+    // assign reduce input tensor schedule, do loop transform.
+    auto assign_reduce = [this, &stages](ir::Tensor input, const std::vector<int>& axes) {
+      // reorder none-last reduce axis to last.
+      // like: shape = [16,16,16,16,16],axes = [1,3] -> new order = [0, 2, 4, 1, 3].
+      std::vector<int> order;
+      auto shape = input->shape;
+      for (int idx = 0; idx < shape.size(); ++idx) {
+        if (std::find(axes.begin(), axes.end(), idx) == axes.end()) {
+          order.push_back(idx);
+        }
+      }
+      for (auto axis : axes) {
+        order.push_back(axis);
+      }
+      stages[input]->Reorder(order);
+
+      // fuse others none-reduce axis.
+      int last_dimension_num = shape.size() - axes.back() - 1;
+      int index              = shape.size() - last_dimension_num - axes.size();
+      // fuse last_dimension_num - 1 times
+      for (auto idx = index; idx < index + last_dimension_num - 1; ++idx) {
+        stages[input]->Fuse(index, index + 1);
+      }
+
+      if (stages[input]->GetDimRange(index) > 1024) {
+        stages[input]->Split(index, 1024);
+      }
+
+      // fuse index - 1 times
+      for (int idx = 0; idx < index - 1; ++idx) {
+        stages[input]->Fuse(0, 1);
+      }
+    };
     auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
     Node* master_node     = nullptr;
     for (auto node : group->master_nodes) {
@@ -313,6 +346,26 @@ std::vector<ir::LoweredFunc> OpLoweringHelper::ReduceOpLowering(const Group& gro
     }
     auto master_node_data = GetNodeData(master_node);
     auto master_stage     = stages[tensor_map[master_node_data->id()]];
+    // get master reducer
+    auto GetReducerNode = [&op_pattern_dict](const Group& g) -> Node* {
+      for (auto& node : g->master_nodes) {
+        if (op_pattern_dict[node->op()] == framework::kCommReduce) {
+          return node;
+        }
+      }
+      return nullptr;
+    };
+    Node* master_reducer = nullptr;
+    for (int idx = group->fused_sub_groups.size() - 1; idx >= 0; --idx) {
+      master_reducer = GetReducerNode(group->fused_sub_groups[idx]);
+    }
+    if (!master_reducer) {
+      master_reducer = GetReducerNode(group);
+    }
+    auto master_reducer_data  = GetNodeData(master_reducer);
+    auto master_reducer_stage = stages[tensor_map[master_reducer_data->id()]];
+    auto master_reducer_axis  = absl::get<std::vector<int>>(master_reducer->attrs.attr_store.at("dim"));
+    auto master_reducer_shape = this->shape_dict_.at(master_reducer->inlinks_in_order()[0]->source()->id());
 
     for (int idx = sub_group->nodes.size() - 1; idx >= 0; --idx) {
       auto node      = sub_group->nodes[idx];
@@ -325,28 +378,43 @@ std::vector<ir::LoweredFunc> OpLoweringHelper::ReduceOpLowering(const Group& gro
 
       // if node is kCommReduce
       if (op_pattern_dict[node->op()] == framework::kCommReduce) {
-        auto shape       = this->shape_dict_.at(node->inlinks_in_order()[0]->source()->id());
-        auto reduce_axis = absl::get<std::vector<int>>(node->attrs.attr_store.at("dim"));
-        // last dimension is in reduce, use BlockReduceInternal to reduce
-        if (std::find(reduce_axis.begin(), reduce_axis.end(), shape.size() - 1) != reduce_axis.end()) {
-          // if node is not output node, set buffer.
-          if (!group->output_nodes.count(node)) {
-            stage->SetBuffer("local");
-          }
-          // schedule loop > 1, compute at 0
-          if (master_stage->n_out_dims() > 1) {
-            stage->SimpleComputeAt(master_stage, 0);
-          }
-        } else /*last dimension is not in reduce*/ {
-          // if node is not output node, set buffer.
-          if (!group->output_nodes.count(node)) {
-            stage->SetBuffer("local");
-          }
-          // compute at last dimension
-          stage->SimpleComputeAt(master_stage, master_stage->n_out_dims() - 1);
+        // if node is not output node, set buffer.
+        if (!group->output_nodes.count(node)) {
+          stage->SetBuffer("local");
         }
-        continue;
+
+        // last dimension is in reduce, use BlockReduceInternal to reduce
+        if (std::find(master_reducer_axis.begin(), master_reducer_axis.end(), master_reducer_shape.size() - 1) ==
+            master_reducer_axis.end()) {
+          // compute at last dimension
+          if (node == master_reducer) {
+            stage->SimpleComputeAt(master_stage, master_stage->n_out_dims() - 1);
+          } else {
+            stage->SimpleComputeAt(master_reducer_stage, master_reducer_stage->n_out_dims() - 1);
+          }
+        } else {
+          //
+          if (node == master_reducer) {
+            // schedule loop > 1, compute at 0
+            if (master_stage->n_out_dims() > 1) {
+              stage->SimpleComputeAt(master_stage, 0);
+            }
+          } else if (tensor_map.count(node_data->id() + "_1")) {
+            auto stage_1 = stages[tensor_map[node_data->id() + "_1"]];
+            auto stage_2 = stages[tensor_map[master_reducer_data->id() + "_1"]];
+            // compute at master reducer
+            stage_1->SimpleComputeAt(stage_2, stage_2->n_out_dims() - 1);
+            // delete stage_1 compute at stage_0
+            auto stage_0 = stages[tensor_map[node_data->id() + "_0"]];
+            stage_1->GetComputeAts().erase(stage_0->id());
+          }
+
+          if (master_reducer_stage->n_out_dims() > 1) {
+            stage->SimpleComputeAt(master_reducer_stage, 0);
+          }
+        }
       }
+      continue;
 
       // if node is internal node or output, try to copy schedule from fellow node
       if (group->output_nodes.count(node) || group->internal_nodes.count(node) ||
@@ -362,43 +430,47 @@ std::vector<ir::LoweredFunc> OpLoweringHelper::ReduceOpLowering(const Group& gro
           stage->SimpleComputeAt(master_stage, master_stage->n_out_dims() - 1);
           continue;
         }
-        // try to get schedule from reduce node
-        for (auto rnode : group->master_nodes) {
-          if (op_pattern_dict[rnode->op()] == framework::kCommReduce) {
-            auto shape       = this->shape_dict_.at(rnode->inlinks_in_order()[0]->source()->id());
-            auto reduce_axis = absl::get<std::vector<int>>(node->attrs.attr_store.at("dim"));
-            // if there exist without last dimension reduce
-            if (std::find(reduce_axis.begin(), reduce_axis.end(), shape.size() - 1) == reduce_axis.end()) {
-              // node can't be output node.
-              CHECK(!group->output_nodes.count(node));
-              stage->ComputeInline();
-            } else {
-              // compute succesive reduce dimension size
-              int last_reduce_size = reduce_axis.back();
-              for (int idx = reduce_axis.size() - 2; reduce_axis.size() > 0; --idx) {
-                if (reduce_axis[idx] != reduce_axis[idx + 1] - 1) {
-                  break;
-                }
-                last_reduce_size *= reduce_axis[idx];
-              }
-              // if last_reduce_size is over 1024, ComputeInline
-              if (last_reduce_size > this->target_.max_num_threads()) {
-                // node can't be output node.
-                CHECK(!group->output_nodes.count(node));
-                stage->ComputeInline();
-              } else {
-                // compute at reduce node
-                auto rnode_data  = GetNodeData(rnode);
-                auto rnode_stage = stages[tensor_map[rnode_data->id() + "_0"]];
-                stage->CopyTransform(rnode_stage);
-                stage->CopyLoopInfo(rnode_stage);
-                if (group->internal_nodes.count(node) || sub_group->internal_nodes.count(node)) {
-                  stage->SetBuffer("local");
-                }
-                stage->SimpleComputeAt(rnode_stage, rnode_stage->n_out_dims() - 1);
-              }
+        // node is before reduce
+        if (std::find(master_reducer_axis.begin(), master_reducer_axis.end(), master_reducer_shape.size() - 1) ==
+            master_reducer_axis.end()) {
+          // node can't be output node.
+          // CHECK(!group->output_nodes.count(node));
+          if (!group->output_nodes.count(node) && !group->internal_nodes.count(node) &&
+              !sub_group->internal_nodes.count(node)) {
+            stage->ComputeInline();
+          } else {
+            assign_reduce(tensor_map[node_data->id()], master_reducer_axis);
+            stage->SimpleComputeAt(master_reducer_stage, master_reducer_stage->n_out_dims() - 1);
+          }
+        } else {
+          std::vector<int> reducer_axes(master_reducer_axis.begin(), master_reducer_axis.end() - 1);
+          // compute succesive reduce dimension size
+          int last_reduce_size = master_reducer_shape.back();
+          for (int idx = master_reducer_axis.size() - 2; idx >= 0; --idx) {
+            if (master_reducer_axis[idx] != master_reducer_axis[idx + 1] - 1) {
+              break;
             }
-            break;
+            last_reduce_size *= master_reducer_shape[master_reducer_axis[idx]];
+            if (last_reduce_size <= this->target_.max_num_threads()) {
+              reducer_axes.resize(idx);
+            }
+          }
+
+          // if last_reduce_size is over 1024, ComputeInline
+          if (last_reduce_size > this->target_.max_num_threads() && reducer_axes.size() > 0) {
+            CHECK(tensor_map.count(master_reducer_data->id() + "_1"));
+            auto reducer_stage = stages[tensor_map[master_reducer_data->id() + "_1"]];
+            assign_reduce(tensor_map[node_data->id()], reducer_axes);
+            stage->SimpleComputeAt(reducer_stage, reducer_stage->n_out_dims() - 1);
+          } else {
+            // compute at reduce node
+            auto reducer_stage = stages[tensor_map[master_reducer_data->id() + "_0"]];
+            stage->CopyTransform(reducer_stage);
+            stage->CopyLoopInfo(reducer_stage);
+            if (group->internal_nodes.count(node) || sub_group->internal_nodes.count(node)) {
+              stage->SetBuffer("local");
+            }
+            stage->SimpleComputeAt(reducer_stage, reducer_stage->n_out_dims() - 1);
           }
         }
         continue;
@@ -422,7 +494,7 @@ std::vector<ir::LoweredFunc> OpLoweringHelper::ReduceOpLowering(const Group& gro
   }
 
   return lang::LowerVec(func_name, stages, func_args, {}, {}, nullptr, this->target_);
-}
+}  // namespace framework
 
 std::vector<ir::LoweredFunc> OpLoweringHelper::FusableOpLowering(const Group& group) {
   // get input tensor and output tensor
