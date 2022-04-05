@@ -16,7 +16,9 @@
 
 #include <absl/container/flat_hash_map.h>
 #include <cublas_v2.h>
+#ifdef CINN_WITH_CUDNN
 #include <cudnn.h>
+#endif
 
 #include <string>
 #include <vector>
@@ -60,6 +62,36 @@ class SerialData {
   absl::flat_hash_map<std::string, int> get_algo;
 };
 
+/**
+ * Call a CUDA compiled kernel.
+ *
+ * @param kernel_fn the compiled PTX kernel.
+ * @param args an array of cinn_pod_value_ts(consists of scalars and buffers).
+ */
+void cinn_call_cuda_kernel(void* kernel_fn,
+                           cinn_pod_value_t* args,
+                           int num_args,
+                           int grid_x,
+                           int grid_y,
+                           int grid_z,
+                           int block_x,
+                           int block_y,
+                           int block_z,
+                           void* stream);
+
+void cinn_gpu_cublas_mul(const std::vector<int>& attrs,
+                         cinn_buffer_t* input1,
+                         cinn_buffer_t* input2,
+                         cinn_buffer_t* output,
+                         const cudaStream_t& stream = nullptr);
+void cinn_gpu_cublas_gemm(const std::vector<int>& attrs,
+                          cinn_buffer_t* lhs,
+                          cinn_buffer_t* rhs,
+                          cinn_buffer_t* bias,
+                          cinn_buffer_t* output,
+                          const cudaStream_t& stream = nullptr);
+
+#ifdef CINN_WITH_CUDNN
 class CudnnHandle {
  public:
   ~CudnnHandle();
@@ -78,23 +110,6 @@ class CudnnHandle {
   float* work_space;
   size_t size_;
 };
-
-/**
- * Call a CUDA compiled kernel.
- *
- * @param kernel_fn the compiled PTX kernel.
- * @param args an array of cinn_pod_value_ts(consists of scalars and buffers).
- */
-void cinn_call_cuda_kernel(void* kernel_fn,
-                           cinn_pod_value_t* args,
-                           int num_args,
-                           int grid_x,
-                           int grid_y,
-                           int grid_z,
-                           int block_x,
-                           int block_y,
-                           int block_z,
-                           void* stream);
 
 void cinn_gpu_cudnn_conv2d(const absl::flat_hash_map<std::string, int>& attr,
                            cinn_buffer_t* x,
@@ -124,12 +139,8 @@ void cinn_gpu_cudnn_softmax(const std::vector<int>& attrs,
                             cinn_buffer_t* input,
                             cinn_buffer_t* output,
                             const cudaStream_t& stream = nullptr);
+#endif
 
-void cinn_gpu_cublas_mul(const std::vector<int>& attrs,
-                         cinn_buffer_t* input1,
-                         cinn_buffer_t* input2,
-                         cinn_buffer_t* output,
-                         const cudaStream_t& stream = nullptr);
 }  // namespace cuda
 }  // namespace runtime
 }  // namespace cinn

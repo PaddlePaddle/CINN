@@ -36,12 +36,12 @@ class TestIndexAssignOp(OpTest):
         self.inputs = {
             "x": np.random.random([10, 5]).astype("float32"),
             "y": np.random.random([3, 5]).astype("float32"),
-            "index": np.random.randint(0, 10, size=3)
+            "index": np.random.randint(0, 10, size=3).astype("int32")
         }
 
     def build_paddle_program(self, target):
-        x = self.inputs["x"]
-        y = self.inputs["y"]
+        x = self.inputs["x"].copy()
+        y = self.inputs["y"].copy()
 
         out = x
         axis = self.axis
@@ -71,14 +71,13 @@ class TestIndexAssignOp(OpTest):
         x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
         y = builder.create_input(Float(32), self.inputs["y"].shape, "y")
         index = builder.create_input(
-            Float(32), self.inputs["index"].shape, "index")
+            Int(32), self.inputs["index"].shape, "index")
         out = builder.index_assign(x, y, index, self.axis)
 
         prog = builder.build()
-        res = self.get_cinn_output(prog, target, [x, y, index], [
-            self.inputs["x"], self.inputs["y"],
-            self.inputs["index"].astype("float32")
-        ], [out])
+        res = self.get_cinn_output(
+            prog, target, [x, y, index],
+            [self.inputs["x"], self.inputs["y"], self.inputs["index"]], [out])
 
         self.cinn_outputs = [res[0]]
 
@@ -91,7 +90,7 @@ class TestIndexAssignCase1(TestIndexAssignOp):
         self.inputs = {
             "x": np.random.random([10, 5]).astype("float32"),
             "y": np.random.random([10, 3]).astype("float32"),
-            "index": np.random.randint(0, 5, size=3)
+            "index": np.random.randint(0, 5, size=3).astype("int32")
         }
         self.axis = 1
 
@@ -101,7 +100,7 @@ class TestIndexAssignCase2(TestIndexAssignOp):
         self.inputs = {
             "x": np.random.random([10, 5, 5]).astype("float32"),
             "y": np.random.random([10, 5, 3]).astype("float32"),
-            "index": np.random.randint(0, 5, size=3)
+            "index": np.random.randint(0, 5, size=3).astype("int32")
         }
         self.axis = -1
 
@@ -111,7 +110,7 @@ class TestIndexAssignCase3(TestIndexAssignOp):
         self.inputs = {
             "x": np.random.random([10]).astype("float32"),
             "y": np.random.random([1]).astype("float32"),
-            "index": np.random.randint(0, 10, size=1)
+            "index": np.random.randint(0, 10, size=1).astype("int32")
         }
         self.axis = -1
 
@@ -121,7 +120,7 @@ class TestIndexAssignCase4(TestIndexAssignOp):
         self.inputs = {
             "x": np.random.random([10, 5]).astype("float32"),
             "y": np.random.random([3, 5]).astype("float32"),
-            "index": np.array([0, 5, 0])
+            "index": np.array([0, 5, 0]).astype("int32")
         }
         self.axis = 0
 

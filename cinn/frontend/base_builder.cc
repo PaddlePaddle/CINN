@@ -24,22 +24,32 @@
 #include "cinn/common/context.h"
 #include "cinn/common/type.h"
 #include "cinn/frontend/syntax.h"
-#include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
+#include "cinn/utils/type_defs.h"
 
 namespace cinn {
 namespace frontend {
 
 using common::Context;
 using common::Type;
-using hlir::framework::AttrMapType;
 using hlir::framework::Operator;
-using hlir::framework::shape_t;
+using utils::AttributeMap;
+using utils::ShapeType;
 
 BaseBuilder::BaseBuilder(const std::string& name) : name_(name) {}
 
-Program BaseBuilder::Build() {
-  Program program{std::move(instrs_), std::move(inputs_)};
+Program BaseBuilder::Build(bool in_reverse) {
+  std::vector<Instruction> instrs;
+  if (in_reverse) {
+    instrs.reserve(instrs_.size());
+    for (auto it = instrs_.rbegin(); it != instrs_.rend(); it++) {
+      instrs.emplace_back(*it);
+    }
+  } else {
+    instrs = std::move(instrs_);
+  }
+
+  Program program{std::move(instrs), std::move(inputs_)};
   program.Validate();
   return program;
 }
@@ -65,13 +75,13 @@ Placeholder BaseBuilder::CreateInput(const Variable& var) {
 }
 
 void BaseBuilder::InferShape(Instruction instr) const {
-  using shape_func_t        = std::function<std::vector<shape_t>(const std::vector<shape_t>&, const AttrMapType&)>;
-  using type_func_t         = std::function<std::vector<Type>(const std::vector<Type>&, const AttrMapType&)>;
-  const auto& op_infershape = Operator::GetAttrs<shape_func_t>("infershape");
-  const auto& op_inferdtype = Operator::GetAttrs<type_func_t>("inferdtype");
+  using ShapeFunc           = std::function<std::vector<ShapeType>(const std::vector<ShapeType>&, const AttributeMap&)>;
+  using TypeFunc            = std::function<std::vector<Type>(const std::vector<Type>&, const AttributeMap&)>;
+  const auto& op_infershape = Operator::GetAttrs<ShapeFunc>("infershape");
+  const auto& op_inferdtype = Operator::GetAttrs<TypeFunc>("inferdtype");
 
   size_t size = instr->inputs.size();
-  std::vector<shape_t> in_shapes(size);
+  std::vector<ShapeType> in_shapes(size);
   std::vector<Type> in_types(size);
   std::transform(
       instr->inputs.begin(), instr->inputs.end(), in_shapes.begin(), [](const Variable& var) { return var->shape; });
@@ -133,6 +143,50 @@ Variable BaseBuilder::Reduce(const Variable& operand, ReduceKind kind, const std
     default:
       LOG(FATAL) << "unknown reduction kind";
   }
+}
+
+Variable BaseBuilder::BroadcastTo(const Variable& operand, const std::vector<int>& out_shape) {
+  auto x_shape_size = operand->shape.size();
+  auto y_shape_size = out_shape.size();
+  CHECK_GT(x_shape_size, 0) << "Cannot broadcast a empty operand " << operand->id << " to "
+                            << cinn::utils::Join(out_shape, ",");
+  CHECK_LE(x_shape_size, y_shape_size) << "The broadcast_p's input shape dimension should less than the output's, "
+                                       << "but here (" << x_shape_size << " > " << y_shape_size << ").";
+
+  VLOG(4) << "Try broadcast " << operand->id << " from shape (" << cinn::utils::Join(operand->shape, ",")
+          << ") to shape (" << cinn::utils::Join(out_shape, ",") << ")";
+
+  std::vector<int> broadcast_axes(x_shape_size, 0);
+  if (x_shape_size > 1) {
+    for (int i = 1; i <= x_shape_size; ++i) {
+      CHECK((out_shape[y_shape_size - i] == operand->shape[x_shape_size - i]) ||
+            (operand->shape[x_shape_size - i] == 1))
+          << "We cannot broadcast from shape (" << cinn::utils::Join(operand->shape, ",") << ") to shape ("
+          << cinn::utils::Join(out_shape, ",") << ")";
+      broadcast_axes[x_shape_size - i] = y_shape_size - i;
+    }
+  } else {
+    int axis     = -1;
+    auto x_shape = operand->shape.at(0);
+    if (x_shape == 1) {
+      // Can broadcast directly, default axis 0
+      axis = 0;
+    } else {
+      // The broadcast axes is the index of the shape in out_shape when the input dimension is 1
+      for (int i = 0; i < y_shape_size; ++i) {
+        if (out_shape[i] == x_shape) {
+          axis = i;
+          break;
+        }
+      }
+      CHECK_NE(axis, -1) << "When we broadcast a 1-dimension shape, the number should contained in the out_shape. "
+                         << "We cannot broadcast from shape (" << cinn::utils::Join(operand->shape, ",")
+                         << ") to shape (" << cinn::utils::Join(out_shape, ",") << ")";
+    }
+    broadcast_axes[0] = axis;
+  }
+
+  return BroadcastTo(operand, out_shape, broadcast_axes);
 }
 
 Variable BaseBuilder::BroadcastTo(const Variable& operand,

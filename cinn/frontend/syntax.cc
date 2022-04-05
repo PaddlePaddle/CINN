@@ -283,7 +283,8 @@ void Program::SetInputs(const std::vector<Variable>& xs) {
 }
 
 void Program::Validate() const {
-  CHECK(!inputs_.empty()) << "Inputs of the program is not set yet";
+  // Existing some program don't have input, such as a program only has `fill_constant`
+  // CHECK(!inputs_.empty()) << "Inputs of the program is not set yet";
   CHECK(!instrs_.empty()) << "No instruction is added yet";
 }
 

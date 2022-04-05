@@ -370,7 +370,7 @@ struct _Var_ : public ExprNode<_Var_> {
   std::string name;
 
   bool is_reduce_axis{false};
-  //! Lower bound and upper bound of a reduce axis.
+  //! Lower bound and upper bound of a axis.
   // @{
   Expr lower_bound;
   Expr upper_bound;
@@ -384,7 +384,7 @@ struct _Var_ : public ExprNode<_Var_> {
 
   static Expr Make(const std::string& name, const Type& type);
   //! Make a reduce axis.
-  static Expr Make(Expr lower_bound, Expr upper_bound, const std::string& name);
+  static Expr Make(Expr lower_bound, Expr upper_bound, const std::string& name, bool is_reduce = true);
 
   void Verify() const override;
 
@@ -625,6 +625,26 @@ struct VectorizeInfo {
   inline bool valid() const { return level >= 0 && factor > 0; }
 };
 
+struct BindInfo {
+  BindInfo() = default;
+  BindInfo(const ForType& for_type, const int& offset, const DeviceAPI& device)
+      : for_type(for_type), offset(offset), device(device) {}
+
+  ForType for_type{ForType::Default};
+  int offset{-1};
+  DeviceAPI device{DeviceAPI::UNK};
+
+  inline void set(const ForType& for_type, const int& offset, const DeviceAPI& device) {
+    this->for_type = for_type;
+    this->offset   = offset;
+    this->device   = device;
+  }
+  // offset should be 0-2, should correspond to the thread of x, y, z
+  inline bool valid() const {
+    return offset >= 0 && offset < 3 && (for_type == ForType::GPUThread || for_type == ForType::GPUBlock);
+  }
+};
+
 struct ForBase {
   ForType for_type() const { return for_type_; }
   void set_for_type(ForType x) { for_type_ = x; }
@@ -633,12 +653,22 @@ struct ForBase {
     if (x.valid()) set_vectorized();
     vectorize_info_ = x;
   }
+  void set_bind_info(const BindInfo& x) {
+    if (x.valid()) set_binded(x.for_type);
+    bind_info_ = x;
+  }
   const VectorizeInfo& vectorize_info() const { return vectorize_info_; }
+  const BindInfo& bind_info() const { return bind_info_; }
 
   void reset_vectorize_info() {
     set_vectorized(false);
     vectorize_info_.factor = -1;
     vectorize_info_.level  = -1;
+  }
+  void reset_bind_info() {
+    set_binded(bind_info_.for_type, false);
+    bind_info_.offset = -1;
+    bind_info_.device = DeviceAPI::UNK;
   }
 
   void set_serial() { for_type_ = ForType::Serial; }
@@ -661,11 +691,20 @@ struct ForBase {
     else
       unset_for_type_flag(ForType::Parallel);
   }
+  void set_binded(ForType for_type, bool x = true) {
+    if (x)
+      set_for_type_flag(for_type);
+    else
+      unset_for_type_flag(for_type);
+  }
 
   inline bool is_serial() const { return for_type_ == ForType::Serial; }
   inline bool is_unrolled() const { return tell_for_type_flag(ForType::Unrolled); }
   inline bool is_vectorized() const { return tell_for_type_flag(ForType::Vectorized); }
   inline bool is_parallel() const { return tell_for_type_flag(ForType::Parallel); }
+  inline bool is_binded() const {
+    return tell_for_type_flag(ForType::GPUBlock) || tell_for_type_flag(ForType::GPUThread);
+  }
 
  private:
   inline void set_for_type_flag(ForType type) { *reinterpret_cast<int*>(&for_type_) |= static_cast<int>(type); }
@@ -674,6 +713,7 @@ struct ForBase {
 
   ForType for_type_{ForType::Serial};
   VectorizeInfo vectorize_info_;
+  BindInfo bind_info_;
 };
 
 /// LLVM loop unroll metadata infomation
@@ -704,7 +744,8 @@ struct For : public ExprNode<For>, public ForBase {
                    ForType for_type,
                    DeviceAPI device_api,
                    Expr body,
-                   VectorizeInfo vector_info = VectorizeInfo());
+                   VectorizeInfo vector_info = VectorizeInfo(),
+                   BindInfo bind_info        = BindInfo());
 
   void Verify() const override;
 
@@ -740,7 +781,8 @@ struct PolyFor : public ExprNode<PolyFor>, public ForBase {
                    ForType for_type,
                    DeviceAPI device_api,
                    Expr body,
-                   VectorizeInfo vector_info = VectorizeInfo());
+                   VectorizeInfo vector_info = VectorizeInfo(),
+                   BindInfo bind_info        = BindInfo());
 
   void Verify() const override;
 
@@ -869,14 +911,14 @@ struct Block : public ExprNode<Block> {
 // ScheduleBlock is the unit of schedule IR which represents tensor's computation
 struct ScheduleBlock : public ExprNode<ScheduleBlock> {
   std::vector<Var> iter_vars;
-  std::vector<BufferRange> read_buffers;
-  std::vector<BufferRange> write_buffers;
+  std::vector<Expr> read_buffers;
+  std::vector<Expr> write_buffers;
   std::string name;
   Expr body;
 
   static Expr Make(const std::vector<Var>& iter_vars,
-                   const std::vector<BufferRange>& read_buffers,
-                   const std::vector<BufferRange>& write_buffers,
+                   const std::vector<Expr>& read_buffers,
+                   const std::vector<Expr>& write_buffers,
                    const std::string& name,
                    Expr body);
 

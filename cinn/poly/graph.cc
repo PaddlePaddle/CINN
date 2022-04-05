@@ -103,7 +103,7 @@ std::unique_ptr<DataFlowGraph> CreateGraph(const std::vector<Stage*>& stages,
       // nodes, just ignore the dependence.
       if (input_it != std::end(id2stage)) {
         auto& input_node = input_it->second;
-        input_node->LinkTo(id2stage.at(stage->id()).get());
+        input_node->Controls(id2stage.at(stage->id()).get());
       }
     }
   }
@@ -115,7 +115,7 @@ std::unique_ptr<DataFlowGraph> CreateGraph(const std::vector<Stage*>& stages,
     auto& a = id2stage.at(item.first);
     auto& b = id2stage.at(item.second);
     if (a.get() != b.get()) {
-      a->LinkTo(b.get());
+      a->Controls(b.get());
     }
   }
 
