@@ -56,9 +56,15 @@ class SizedMultiMap {
     }
   }
 
-  std::pair<Key, T> MaxKeyValuePair() const { return *(multi_map_.rbegin()); }
+  std::pair<Key, T> MaxKeyValuePair() const {
+    CHECK(!multi_map_.empty()) << "Get value from empty SizedMultiMap";
+    return *(multi_map_.rbegin());
+  }
 
-  std::pair<Key, T> MinKeyValuePair() const { return *(multi_map_.begin()); }
+  std::pair<Key, T> MinKeyValuePair() const {
+    CHECK(!multi_map_.empty()) << "Get value from empty SizedMultiMap";
+    return *(multi_map_.begin());
+  }
 
   size_t Size() const { return multi_map_.size(); }
 

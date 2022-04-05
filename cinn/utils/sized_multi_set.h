@@ -54,9 +54,15 @@ class SizedMultiSet {
     }
   }
 
-  T MaxValue() const { return *(multi_set_.rbegin()); }
+  T MaxValue() const {
+    CHECK(!multi_set_.empty()) << "Get value from empty SizedMultiSet";
+    return *(multi_set_.rbegin());
+  }
 
-  T MinValue() const { return *(multi_set_.begin()); }
+  T MinValue() const {
+    CHECK(!multi_set_.empty()) << "Get value from empty SizedMultiSet";
+    return *(multi_set_.begin());
+  }
 
   size_t Size() const { return multi_set_.size(); }
 

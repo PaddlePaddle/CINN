@@ -12,36 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#pragma once
+#include "cinn/auto_schedule/cache/tune_cache.h"
 
-#include <string>
-#include <utility>
-
-#include "cinn/auto_schedule/tuning.h"
-#include "cinn/utils/sized_multi_map.h"
+#include <gtest/gtest.h>
 
 namespace cinn {
 namespace auto_schedule {
 
-/**
- * A cache class stores the tuning parameters
- */
-template <class Storable>
-class TuneCache {
- public:
-  TuneCache(size_t capacity) : cost_to_result_(capacity){};
+TEST(TuneCache, Basic) {
+  auto cache = TuneCache<int>(10);
 
-  void Push(double cost, const Storable& obj) { cost_to_result_.Push(cost, obj); }
+  cache.Push(1.0, 123);
 
-  std::pair<double, Storable> MinPair() const { return cost_to_result_.MinKeyValuePair(); }
-
-  bool Save(const std::string& path) { return false; }
-
-  bool Load(const std::string& load) { return false; }
-
- private:
-  utils::SizedMultiMap<double, Storable> cost_to_result_;
-};
+  EXPECT_EQ(cache.MinPair().second, 123);
+  EXPECT_EQ(cache.MinPair().first, 1.0);
+}
 
 }  // namespace auto_schedule
 }  // namespace cinn
