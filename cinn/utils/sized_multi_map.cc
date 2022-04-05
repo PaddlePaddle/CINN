@@ -12,30 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#pragma once
-
-#include <string>
-
-#include "cinn/auto_schedule/tuning.h"
 #include "cinn/utils/sized_multi_map.h"
 
-namespace cinn {
-namespace auto_schedule {
-
-/**
- * A cache class stores the tuning parameters
- */
-class TuneCache {
- public:
-  TuneCache(size_t capacity);
-
-  bool Save(const std::string& path);
-
-  bool Load(const std::string& load);
-
- private:
-  utils::SizedMultiMap<double, TuningResult> cost_to_result_;
-};
-
-}  // namespace auto_schedule
-}  // namespace cinn
+namespace cinn::utils {}  // namespace cinn::utils

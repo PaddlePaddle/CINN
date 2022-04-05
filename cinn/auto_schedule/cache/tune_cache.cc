@@ -19,6 +19,8 @@
 namespace cinn {
 namespace auto_schedule {
 
+TuneCache::TuneCache(size_t capacity) : cost_to_result_(capacity) {}
+
 bool TuneCache::Save(const std::string& path) {
   // TODO(zhhsplendid): Implement this function
   return false;
@@ -29,7 +31,5 @@ bool TuneCache::Load(const std::string& load) {
   return false;
 }
 
-};  // namespace auto_schedule
-
-}  // namespace cinn
+}  // namespace auto_schedule
 }  // namespace cinn
