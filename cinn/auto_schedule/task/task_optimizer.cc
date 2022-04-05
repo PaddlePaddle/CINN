@@ -24,14 +24,21 @@
 namespace cinn {
 namespace auto_schedule {
 
-TuningResult::OptimizedLoweredFuncs TaskOptimizer::Optimize(const TuningOptions& options) {
+TuningResult::OptimizedComputeExpr TaskOptimizer::Optimize(const TuningOptions& options) {
   // TODO(zhhsplendid): develop other optimize methods and configure the method by options.
   return OptimizeByEvolution(options);
 }
 
-TuningResult::OptimizedLoweredFuncs TaskOptimizer::OptimizeByEvolution(const TuningOptions& options) {
+TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const TuningOptions& options) {
   CHECK_EQ(options.num_measure_trials % options.num_samples_per_iteration, 0)
       << "TuningOptions.num_measure_trials % TuningOptions.num_samples_per_iteration must be 0.";
+
+  VLOG(4) << "TuneTask LoweredFunc before optimization is:";
+  VLOG(4) << "task_->tune_context().lowered_funcs.size() = " << task_->tune_context().lowered_funcs.size();
+  for (size_t i = 0; i < task_->tune_context().lowered_funcs.size(); ++i) {
+    VLOG(4) << "lowered_funcs[" << i << "] = ";
+    VLOG(4) << task_->tune_context().lowered_funcs[i];
+  }
 
   if (evolutionary_search_ == nullptr) {
     // TODO(zhhsplendid): check whether the options is same as previous,
@@ -41,7 +48,8 @@ TuningResult::OptimizedLoweredFuncs TaskOptimizer::OptimizeByEvolution(const Tun
 
   if (options.num_measure_trials == 0) {
     std::vector<ir::ModuleExpr> mod_exprs = evolutionary_search_->SearchModuleExprEpsGreedy();
-    TuningResult::OptimizedLoweredFuncs result;
+    VLOG(4) << "TaskOptimizer run EvolutionarySearch with return size = " << mod_exprs.size();
+    TuningResult::OptimizedComputeExpr result;
     // TODO(zhhsplendid): current a task only contains one Op or one Fused Op,
     // so we can take only first std::vector<ir::LoweredFunc>. Support the
     // TuneContext.lowered_funcs to be std::vector<std::vector<ir::LoweredFunc>>
@@ -58,11 +66,12 @@ TuningResult::OptimizedLoweredFuncs TaskOptimizer::OptimizeByEvolution(const Tun
 
   int measured_count   = 0;
   double min_exec_time = std::numeric_limits<double>().max();
-  TuningResult::OptimizedLoweredFuncs result;
+  TuningResult::OptimizedComputeExpr result;
   result.lowered_funcs.push_back(task_->tune_context().lowered_funcs);
 
   while (measured_count < options.num_measure_trials) {
     std::vector<ir::ModuleExpr> mod_exprs = evolutionary_search_->SearchModuleExprEpsGreedy();
+    VLOG(4) << "TaskOptimizer run EvolutionarySearch with return size = " << mod_exprs.size();
     std::vector<MeasureInput> measure_inputs(mod_exprs.size());
     for (size_t i = 0; i < mod_exprs.size(); ++i) {
       // Make a copy and set the lowered func body

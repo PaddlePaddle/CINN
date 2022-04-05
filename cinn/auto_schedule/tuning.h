@@ -80,12 +80,12 @@ struct TuningResult {
   };
 
   // Result of schedule tuning in CINN IR
-  struct OptimizedLoweredFuncs {
+  struct OptimizedComputeExpr {
     std::vector<std::vector<ir::LoweredFunc>> lowered_funcs;
   };
 
   std::vector<TunedGraph> tuned_graphs;
-  std::vector<OptimizedLoweredFuncs> optimized_lowered;
+  std::vector<OptimizedComputeExpr> optimized_lowered;
 };
 
 }  // namespace auto_schedule

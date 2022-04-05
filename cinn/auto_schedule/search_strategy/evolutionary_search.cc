@@ -40,19 +40,19 @@ EvolutionarySearch::~EvolutionarySearch() {}
 std::vector<ir::ModuleExpr> EvolutionarySearch::SearchModuleExprBests() {
   std::vector<ir::ModuleExpr> init_population;
   std::vector<ir::ModuleExpr> topk_from_database = GetTopKCandidatesFromDatabase(options_.evolution_pick_database_topk);
-  VLOG(4) << "EvolutionarySearch got " << topk_from_database.size() << " as topk from database";
+  VLOG(5) << "EvolutionarySearch got " << topk_from_database.size() << " as topk from database";
   int random_num = options_.evolution_init_population_num - topk_from_database.size();
 
-  VLOG(4) << "EvolutionarySearch will fetch " << random_num << " sketches";
+  VLOG(5) << "EvolutionarySearch will fetch " << random_num << " sketches";
   std::vector<ir::ModuleExpr> random_sketch = RandomInitSketch(random_num);
 
   init_population.insert(init_population.end(), topk_from_database.begin(), topk_from_database.end());
   init_population.insert(init_population.end(), random_sketch.begin(), random_sketch.end());
 
-  VLOG(4) << "EvolutionarySearch got generation size " << init_population.size();
+  VLOG(5) << "EvolutionarySearch got generation size " << init_population.size();
   std::vector<ir::ModuleExpr> picked_bests = Evolve(init_population, options_.num_samples_per_iteration);
 
-  VLOG(4) << "EvolutionarySearch got evolved generation size " << picked_bests.size();
+  VLOG(5) << "EvolutionarySearch got evolved generation size " << picked_bests.size();
   return picked_bests;
 }
 

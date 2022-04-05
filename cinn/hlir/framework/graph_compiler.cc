@@ -1194,8 +1194,14 @@ std::vector<ir::LoweredFunc> GraphCompiler::NodeToLoweredFunc(const hlir::framew
   // schedule in auto-tuning. Can we speed up tuning using pre-set? Consider it
   // in the future.
 
-  std::vector<ir::LoweredFunc> funcs =
-      lang::LowerVec(GetOrGenFullFuncName(GenOpFuncName(&node)), stages, inputs, {}, {}, nullptr, target_);
+  std::vector<ir::LoweredFunc> funcs = lang::LowerVec(GetOrGenFullFuncName(GenOpFuncName(&node)),
+                                                      stages,
+                                                      inputs,
+                                                      {},
+                                                      {},
+                                                      nullptr,
+                                                      target_,
+                                                      /*support_ir_schedule*/ true);
 
   VLOG(6) << "The [" << funcs.size() << "] functions of node [" << node.attrs.node_name << "] are:\n";
   for (auto& f : funcs) {
@@ -1304,8 +1310,8 @@ std::vector<ir::LoweredFunc> GraphCompiler::FusedNodeGroupToLoweredFunc(
     }
   }
 
-  std::vector<ir::LoweredFunc> funcs =
-      lang::LowerVec(GetOrGenFullFuncName(fuse_name), stages, inputs, {}, {}, nullptr, this->target_);
+  std::vector<ir::LoweredFunc> funcs = lang::LowerVec(
+      GetOrGenFullFuncName(fuse_name), stages, inputs, {}, {}, nullptr, this->target_, /*support_ir_schedule*/ true);
 
   VLOG(6) << "The [" << funcs.size() << "] functions of " << fuse_name << " are:\n";
   for (const ir::LoweredFunc& f : funcs) {

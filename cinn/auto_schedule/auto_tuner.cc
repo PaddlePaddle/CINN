@@ -14,6 +14,8 @@
 
 #include "cinn/auto_schedule/auto_tuner.h"
 
+#include <glog/logging.h>
+
 #include <algorithm>
 #include <memory>
 #include <utility>
@@ -22,6 +24,7 @@
 #include "cinn/auto_schedule/measure/simple_builder.h"
 #include "cinn/auto_schedule/measure/simple_runner.h"
 #include "cinn/auto_schedule/task/task_creator.h"
+#include "cinn/auto_schedule/task/tune_task.h"
 #include "cinn/auto_schedule/task_scheduler/task_scheduler.h"
 
 namespace cinn {
@@ -39,6 +42,10 @@ void AutoTuner::Initialize(const Config& config, hlir::framework::GraphCompiler*
   TaskCreator task_creator;
   tasks_ = task_creator.CreateTuneTaskOpLevel(graph_);
   CHECK_GT(tasks_.size(), 0) << "Create tasks failed";
+  for (TuneTask& task : tasks_) {
+    task.SetGraphCompiler(graph_compiler);
+    task.TaskGraphToUnoptLoweredFunc();
+  }
 
   // create task optimizers
   task_optimizers_.resize(tasks_.size());
@@ -68,6 +75,7 @@ TuningResult AutoTuner::Tune(const TuningOptions& options) {
     int run_id = -1;
     task_scheduler_->Reset();
     while ((run_id = task_scheduler_->NextTaskId()) != -1) {
+      VLOG(3) << "TaskScheduler returned TaskId = " << run_id << " as the task to be optimized";
       auto* opt                    = task_optimizers_.at(run_id).get();
       auto optimized_lowered_funcs = opt->Optimize(options);
       // update the best schedules searched so far.

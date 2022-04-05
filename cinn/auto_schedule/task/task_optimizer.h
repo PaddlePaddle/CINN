@@ -32,10 +32,10 @@ class TaskOptimizer {
   TaskOptimizer(const TuneTask& task, ScheduleMeasurer* schedule_measurer)
       : task_(&task), schedule_measurer_(schedule_measurer) {}
 
-  TuningResult::OptimizedLoweredFuncs Optimize(const TuningOptions& options);
+  TuningResult::OptimizedComputeExpr Optimize(const TuningOptions& options);
 
  private:
-  TuningResult::OptimizedLoweredFuncs OptimizeByEvolution(const TuningOptions& options);
+  TuningResult::OptimizedComputeExpr OptimizeByEvolution(const TuningOptions& options);
 
   const TuneTask* task_;
 

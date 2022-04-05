@@ -104,7 +104,7 @@ void MultiLevelTiling::AnalyzeScheduleBlockReadWriteBuffer(ir::ScheduleBlock* sc
 RuleApplyType MultiLevelTiling::Init(const ir::ModuleExpr& mod_expr) {
   ir_schedule_        = std::make_unique<ir::IRSchedule>(mod_expr);
   all_block_realizes_ = ir_schedule_->GetAllBlocks();
-
+  applicable_indices_.clear();
   num_applicable_ = 0;
   for (size_t i = 0; i < all_block_realizes_.size(); ++i) {
     ir::ScheduleBlockRealize* sche_block_realize = all_block_realizes_[i].As<ir::ScheduleBlockRealize>();
