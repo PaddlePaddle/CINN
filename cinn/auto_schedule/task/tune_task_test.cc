@@ -92,20 +92,34 @@ TEST(TuneTask, GraphToUnoptLoweredFunc_NoPass) {
   std::string expr_str   = ss.str();
   std::string target_str = R"ROC(
 {
-  for (i, 0, 32)
+  ScheduleBlock(root)
   {
-    for (j, 0, 24)
+    for (i, 0, 32)
     {
-      elementwise_add_Out[i, j] = (A[i, j] + B[i, j])
+      for (j, 0, 24)
+      {
+        ScheduleBlock(elementwise_add_Out_0)
+        {
+          i0, i1 = axis.bind(i, j)
+          elementwise_add_Out[i0, i1] = (A[i0, i1] + B[i0, i1])
+        }
+      }
     }
   }
 }
 {
-  for (i, 0, 32)
+  ScheduleBlock(root_0)
   {
-    for (j, 0, 24)
+    for (i, 0, 32)
     {
-      elementwise_add_Out_0[i, j] = (A[i, j] + var_1[i, j])
+      for (j, 0, 24)
+      {
+        ScheduleBlock(elementwise_add_Out_1)
+        {
+          i0, i1 = axis.bind(i, j)
+          elementwise_add_Out_1[i0, i1] = (A[i0, i1] + var_1[i0, i1])
+        }
+      }
     }
   }
 }
@@ -151,20 +165,34 @@ TEST(TuneTask, GraphToUnoptLoweredFunc_ApplyPass) {
 #ifdef CINN_WITH_CUDA
   std::string target_str = R"ROC(
 {
-  for (i, 0, 32)
+  ScheduleBlock(root)
   {
-    for (j, 0, 24)
+    for (i, 0, 32)
     {
-      elementwise_add_Out[i, j] = (A[i, j] + B[i, j])
+      for (j, 0, 24)
+      {
+        ScheduleBlock(elementwise_add_Out_1)
+        {
+          i0, i1 = axis.bind(i, j)
+          elementwise_add_Out[i0, i1] = (A[i0, i1] + B[i0, i1])
+        }
+      }
     }
   }
 }
 {
-  for (i, 0, 32)
+  ScheduleBlock(root_0)
   {
-    for (j, 0, 24)
+    for (i, 0, 32)
     {
-      elementwise_add_Out_0[i, j] = (A[i, j] + elementwise_add_Out[i, j])
+      for (j, 0, 24)
+      {
+        ScheduleBlock(elementwise_add_Out_0)
+        {
+          i0, i1 = axis.bind(i, j)
+          elementwise_add_Out_0[i0, i1] = (A[i0, i1] + elementwise_add_Out[i0, i1])
+        }
+      }
     }
   }
 }
