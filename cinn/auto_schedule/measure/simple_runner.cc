@@ -93,7 +93,7 @@ std::map<std::string, cinn_pod_value_t> SimpleRunner::PrepareArgs(const MeasureI
   const auto& target         = input.task->tune_context().target;
   const auto* input_args     = input.execution_args;
   const auto* compiled_scope = build_result.compiled_scope;
-  const auto& instructions   = build_result.runtime_program.GetRunInstructions();
+  const auto& instructions   = build_result.runtime_program->GetRunInstructions();
 
   auto fill_arg_fn = [&](const std::string& param) {
     // the argument is duplicated and has been prepared.
@@ -147,7 +147,7 @@ MeasureResult SimpleRunner::Run(const MeasureInput& input, const BuildResult& bu
 
   // Execute each instruction repeatedly and take the average as cost.
   result.execution_cost    = 0;
-  const auto& instructions = build_result.runtime_program.GetRunInstructions();
+  const auto& instructions = build_result.runtime_program->GetRunInstructions();
   for (auto ct = 0; ct < instructions.size(); ++ct) {
     auto&& instr = instructions.at(ct);
     VLOG(5) << "Start running instruction-" << ct;

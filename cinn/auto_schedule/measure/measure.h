@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "cinn/auto_schedule/task/tune_task.h"
+#include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/instruction.h"
 #include "cinn/runtime/cinn_runtime.h"
 
@@ -51,7 +52,7 @@ struct BuildResult {
   // The scope that owns detail compilation infos of parameters in the runtime program
   const hlir::framework::Scope* compiled_scope;
   // The executable program
-  std::unique_ptr<Program> runtime_program;
+  std::unique_ptr<hlir::framework::Program> runtime_program;
 };
 
 // This interface defines how to generate executable objects
