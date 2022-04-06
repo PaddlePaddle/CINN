@@ -14,6 +14,7 @@
 
 #include "cinn/hlir/framework/op_lowering.h"
 
+#include "cinn/backends/codegen_c_x86.h"
 #include "cinn/backends/codegen_cuda_dev.h"
 #include "cinn/backends/codegen_cuda_util.h"
 #include "cinn/backends/cuda_util.h"
@@ -31,21 +32,14 @@ using namespace frontend;
 void CodeGen(ir::LoweredFunc& func) {
 #ifdef CINN_WITH_CUDA
   auto target = common::DefaultNVGPUTarget();
-  Module::Builder builder("Concat_Builder", target);
+  Module::Builder builder("Module_Builder", target);
   builder.AddFunction(func);
 
   auto module                    = builder.Build();
   auto host_module_device_module = backends::SplitCudaAndHostModule(module);
   auto& host_module              = std::get<0>(host_module_device_module);
   auto& device_module            = std::get<1>(host_module_device_module);
-  /*
-  for (auto& func : host_module.functions()) {
-    LOG(INFO) << "host:\n" << func;
-  }
-  for (auto& func : device_module.functions()) {
-    LOG(INFO) << "device:\n" << func;
-  }
-  */
+
   backends::CodeGenCUDA_Dev codegen(target);
   auto source_code = codegen.Compile(builder.Build());
   LOG(INFO) << "compiled code:\n\n\n" << source_code;
@@ -54,6 +48,15 @@ void CodeGen(ir::LoweredFunc& func) {
   backends::NVRTC_Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
+#else
+  auto target = common::DefaultHostTarget();
+  ir::Module::Builder builder("Module_Builder", target);
+  builder.AddFunction(func);
+
+  CodeGenCX86 codegen(target, CodeGenCX86::Feature::AVX512);
+  codegen.SetInlineBuiltinCodes(false);
+  auto source_code = codegen.Compile(builder.Build(), CodeGenC::OutputKind::CImpl);
+  LOG(INFO) << "compiled code:\n\n\n" << source_code;
 #endif
 }
 

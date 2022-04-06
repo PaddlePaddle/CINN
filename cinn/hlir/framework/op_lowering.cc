@@ -150,7 +150,6 @@ std::vector<ir::LoweredFunc> OpLoweringHelper::ElementwiseOpLowering(const Group
         continue;
       }
 
-      LOG(INFO) << node->id();
       // if node is fringe node or internal node, fringe node is output node of sub-graph
       if (group->output_nodes.count(node) || group->internal_nodes.count(node) ||
           sub_group->internal_nodes.count(node)) {
