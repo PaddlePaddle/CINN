@@ -28,6 +28,10 @@ from cinn.common import *
 class TestTanhOp(OpTest):
     def setUp(self):
         self.init_case()
+        # failed if
+        self.target = DefaultNVGPUTarget()
+        # correct if
+        # self.target = DefaultHostTarget()
 
     def init_case(self):
         self.inputs = {
@@ -58,6 +62,11 @@ class TestTanhOp(OpTest):
 
     def test_check_results(self):
         self.check_outputs_and_grads()
+
+
+class TestTanhCase1(TestTanhOp):
+    def init_case(self):
+        self.inputs = {"x": np.random.random([10201, 50]).astype("float32")}
 
 
 if __name__ == "__main__":
