@@ -1,0 +1,124 @@
+
+// Copyright (c) 2022 CINN Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include "cinn/auto_schedule/measure/simple_runner.h"
+
+#include <gtest/gtest.h>
+
+#include <chrono>
+#include <thread>
+
+#include "cinn/common/target.h"
+#include "cinn/frontend/net_builder.h"
+#include "cinn/frontend/syntax.h"
+#include "cinn/hlir/framework/graph_compiler.h"
+
+namespace cinn {
+namespace auto_schedule {
+
+using ::cinn::hlir::framework::BuildScope;
+using ::cinn::hlir::framework::Graph;
+using ::cinn::hlir::framework::GraphCompiler;
+using ::cinn::hlir::framework::Instruction;
+using ::cinn::hlir::framework::Scope;
+
+class TestSimpleRunner : public ::testing::Test {
+ public:
+  common::Target target = common::DefaultHostTarget();
+  std::shared_ptr<Graph> graph;
+  std::shared_ptr<Scope> compiled_scope;
+  std::unique_ptr<GraphCompiler> graph_compiler;
+  std::unique_ptr<TuneTask> task;
+
+  MeasureInput input;
+  BuildResult build_result;
+
+  static frontend::Program CreateAddReluProgram();
+  void SetUp() override {
+    graph                    = std::make_shared<Graph>(CreateAddReluProgram(), target);
+    compiled_scope           = BuildScope(target, graph);
+    graph_compiler           = std::make_unique<GraphCompiler>(target, compiled_scope, graph);
+    auto runtime_program     = graph_compiler->Build();
+    const auto& instructions = runtime_program->GetRunInstructions();
+    ASSERT_EQ(2, instructions.size());
+
+    build_result.compiled_scope = compiled_scope.get();
+    build_result.instructions.resize(instructions.size());
+    for (auto i = 0; i < instructions.size(); ++i) {
+      build_result.instructions[i].reset(new Instruction(*instructions[i]));
+    }
+
+    task                             = std::make_unique<TuneTask>();
+    task->tune_context().target.arch = Target::Arch::X86;
+    task->tune_context().target.bits = Target::Bit::k64;
+    input.task                       = task.get();
+  }
+};
+
+frontend::Program TestSimpleRunner::CreateAddReluProgram() {
+  constexpr int M = 32;
+  constexpr int N = 24;
+  frontend::NetBuilder builder("test");
+
+  auto a = builder.CreateInput(Float(32), {M, N}, "A");
+  auto b = builder.CreateInput(Float(32), {M, N}, "B");
+  auto c = builder.Add(a, b);
+  auto d = builder.Relu(c);
+  return builder.Build();
+}
+
+TEST_F(TestSimpleRunner, MeasureWithRandomValue) {
+  auto runner = std::make_unique<SimpleRunner>(1);
+  ASSERT_NO_THROW(runner->Run(input, build_result));
+}
+
+TEST_F(TestSimpleRunner, MeasureWithSpecifiedArgs) {
+  auto ta = compiled_scope->GetTensor("A");
+  ta->mutable_data<float>(target);
+  auto tb = compiled_scope->GetTensor("B");
+  tb->mutable_data<float>(target);
+  std::map<std::string, cinn_pod_value_t> preset_args;
+  preset_args.emplace("A", ta->buffer());
+  preset_args.emplace("B", tb->buffer());
+
+  auto runner = std::make_unique<SimpleRunner>(1);
+  // specific several execution args
+  input.execution_args = &preset_args;
+  ASSERT_NO_THROW(runner->Run(input, build_result));
+}
+
+TEST_F(TestSimpleRunner, TimeMeasured) {
+  auto sleep_fn = [](void*, int32_t) { std::this_thread::sleep_for(std::chrono::microseconds(100)); };
+  BuildResult build_result;
+  build_result.compiled_scope = nullptr;
+  build_result.instructions.emplace_back(
+      new hlir::framework::Instruction(target, nullptr, {}, {"empty_placeholder"}, "sleep_fn"));
+  build_result.instructions.back()->SetLoweredFunc(sleep_fn);
+  build_result.instructions.back()->Finalize();
+  std::map<std::string, cinn_pod_value_t> preset_args;
+  preset_args.emplace("empty_placeholder", cinn_pod_value_t());
+  input.execution_args = &preset_args;
+
+  auto runner                  = std::make_unique<SimpleRunner>(2);
+  MeasureResult measure_result = runner->Run(input, build_result);
+  // because the kernel function will sleep 100 us,
+  // the cost time of execution and span in total must
+  // be greater than 100us and 200us (repeatedly running 2 times) respectively.
+  ASSERT_GE(measure_result.execution_cost, 100);
+  ASSERT_GE(measure_result.elapsed_time, 200);
+}
+
+}  // namespace auto_schedule
+}  // namespace cinn
