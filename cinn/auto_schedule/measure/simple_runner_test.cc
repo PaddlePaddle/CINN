@@ -54,11 +54,8 @@ class TestSimpleRunner : public ::testing::Test {
     const auto& instructions = runtime_program->GetRunInstructions();
     ASSERT_EQ(2, instructions.size());
 
-    build_result.compiled_scope = compiled_scope.get();
-    build_result.instructions.resize(instructions.size());
-    for (auto i = 0; i < instructions.size(); ++i) {
-      build_result.instructions[i].reset(new Instruction(*instructions[i]));
-    }
+    build_result.compiled_scope  = compiled_scope.get();
+    build_result.runtime_program = std::move(runtime_program);
 
     task                             = std::make_unique<TuneTask>();
     task->tune_context().target.arch = Target::Arch::X86;

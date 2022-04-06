@@ -17,11 +17,20 @@
 namespace cinn {
 namespace auto_schedule {
 
+using hlir::framework::GraphCompiler;
+
 SimpleBuilder::SimpleBuilder(hlir::framework::GraphCompiler* graph_compiler) : graph_compiler_(graph_compiler) {}
 
 BuildResult SimpleBuilder::Build(const MeasureInput& input) {
-  BuildResult result;
-  return result;
+  CHECK_NE(graph_compiler_, nullptr) << "empty hanlde of GraphCompiler";
+  GraphCompiler::CompileOptions compile_options;
+  compile_options.groups                           = input.task->task_graph();
+  compile_options.lowered_funcs                    = input.lowered_funcs;
+  GraphCompiler::CompilationResult compiled_result = graph_compiler_->Build(compile_options);
+
+  BuildResult build_result;
+  build_result.runtime_program = std::move(compiled_result.runtime_program);
+  return build_result;
 }
 
 }  // namespace auto_schedule
