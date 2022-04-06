@@ -28,10 +28,6 @@ from cinn.common import *
 class TestSqrtOp(OpTest):
     def setUp(self):
         self.init_case()
-        # failed if
-        # self.target = DefaultNVGPUTarget()
-        # correct if
-        # self.target = DefaultHostTarget()
 
     def init_case(self):
         self.inputs = {
