@@ -14,9 +14,17 @@
 
 #include "cinn/auto_schedule/auto_tuner.h"
 
-#include <algorithm>
+#include <glog/logging.h>
 
+#include <algorithm>
+#include <memory>
+#include <utility>
+
+#include "cinn/auto_schedule/measure/schedule_measurer.h"
+#include "cinn/auto_schedule/measure/simple_builder.h"
+#include "cinn/auto_schedule/measure/simple_runner.h"
 #include "cinn/auto_schedule/task/task_creator.h"
+#include "cinn/auto_schedule/task/tune_task.h"
 #include "cinn/auto_schedule/task_scheduler/task_scheduler.h"
 
 namespace cinn {
@@ -25,15 +33,24 @@ namespace auto_schedule {
 AutoTuner::AutoTuner(const common::Target& target, hlir::framework::Graph* graph) : target_(target), graph_(graph) {}
 
 void AutoTuner::Initialize(const Config& config, hlir::framework::GraphCompiler* graph_compiler) {
+  // create builder, runner, and schedule measurer
+  builder_           = std::make_unique<SimpleBuilder>(graph_compiler);
+  runner_            = std::make_unique<SimpleRunner>(config.repeat_times);
+  schedule_measurer_ = std::make_unique<ScheduleMeasurer>(builder_.get(), runner_.get());
+
   // create tasks
   TaskCreator task_creator;
   tasks_ = task_creator.CreateTuneTaskOpLevel(graph_);
   CHECK_GT(tasks_.size(), 0) << "Create tasks failed";
+  for (TuneTask& task : tasks_) {
+    task.SetGraphCompiler(graph_compiler);
+    task.TaskGraphToUnoptLoweredFunc();
+  }
 
   // create task optimizers
   task_optimizers_.resize(tasks_.size());
-  std::transform(tasks_.begin(), tasks_.end(), task_optimizers_.begin(), [](const TuneTask& task) {
-    return std::make_unique<TaskOptimizer>(task);
+  std::transform(tasks_.begin(), tasks_.end(), task_optimizers_.begin(), [&](const TuneTask& task) {
+    return std::make_unique<TaskOptimizer>(task, schedule_measurer_.get());
   });
 
   // create task scheduler
@@ -45,7 +62,7 @@ TuningResult AutoTuner::Tune(const TuningOptions& options) {
 
   TuningResult result;
   result.tuned_graphs.resize(tasks_.size());
-  result.optimized_schedules.resize(tasks_.size());
+  result.optimized_lowered.resize(tasks_.size());
   // A task only tunes schedule now, so we populate its sub_graph
   // as default result of graph tuning, and that should be updated
   // once we support graph tuning.
@@ -58,10 +75,11 @@ TuningResult AutoTuner::Tune(const TuningOptions& options) {
     int run_id = -1;
     task_scheduler_->Reset();
     while ((run_id = task_scheduler_->NextTaskId()) != -1) {
-      auto* opt               = task_optimizers_.at(run_id).get();
-      auto optimized_schedule = opt->optimize(options);
+      VLOG(3) << "TaskScheduler returned TaskId = " << run_id << " as the task to be optimized";
+      auto* opt                    = task_optimizers_.at(run_id).get();
+      auto optimized_lowered_funcs = opt->Optimize(options);
       // update the best schedules searched so far.
-      result.optimized_schedules.at(run_id) = optimized_schedule;
+      result.optimized_lowered.at(run_id) = optimized_lowered_funcs;
     }
   }
 

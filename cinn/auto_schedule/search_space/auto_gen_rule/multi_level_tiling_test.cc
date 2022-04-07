@@ -21,6 +21,7 @@
 #include <iostream>
 #include <vector>
 
+#include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
 #include "cinn/cinn.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_base.h"
@@ -63,7 +64,7 @@ TEST(MultiLevelTile, SimpleLoops) {
 
   MultiLevelTiling multi_level_tiling;
   ir::ModuleExpr mod_expr_before_tile(std::vector<ir::Expr>{ast_expr});
-  EXPECT_TRUE(multi_level_tiling.Init(mod_expr_before_tile));
+  EXPECT_EQ(multi_level_tiling.Init(mod_expr_before_tile), RuleApplyType::kApplyAndSkipThisRule);
 
   EXPECT_EQ(multi_level_tiling.NumberApplicable(), 1);
   ir::ModuleExpr mod_expr_after_tile = multi_level_tiling.ApplyRandomly();
@@ -133,7 +134,7 @@ TEST(MulitLevelTile, MatrixMultiply) {
 
   MultiLevelTiling multi_level_tiling;
   ir::ModuleExpr mod_expr_before_tile(std::vector<ir::Expr>{ast_expr});
-  EXPECT_TRUE(multi_level_tiling.Init(mod_expr_before_tile));
+  EXPECT_EQ(multi_level_tiling.Init(mod_expr_before_tile), RuleApplyType::kApplyAndSkipThisRule);
 
   EXPECT_EQ(multi_level_tiling.NumberApplicable(), 1);
 

@@ -18,7 +18,8 @@
 #include <vector>
 
 #include "cinn/auto_schedule/search_space/search_space.h"
-#include "cinn/auto_schedule/task/tune_task.h"
+#include "cinn/auto_schedule/task/tune_context.h"
+#include "cinn/auto_schedule/tuning.h"
 #include "cinn/ir/ir_schedule.h"
 
 namespace cinn {
@@ -30,18 +31,12 @@ namespace auto_schedule {
 class EvolutionarySearch {
  public:
   /**
-   * Default constructor. Note that this class doesn't set TuneTask, you should
-   * call EvolutionarySearch::SetTuneTask to bind a TuneTask.
-   */
-  EvolutionarySearch() = default;
-
-  /**
-   * constutor with TuneTask.
+   * constutor with TuneContext.
    *
-   * @param tune_task: the TuneTask this class works on. This class doesn't
+   * @param tune_context: the TuneContext this class works on. This class doesn't
    *     take ownership of the pointer.
    */
-  EvolutionarySearch(TuneTask* tune_task);
+  EvolutionarySearch(const TuneContext& tune_context);
 
   /**
    * Destructor
@@ -49,26 +44,18 @@ class EvolutionarySearch {
   ~EvolutionarySearch();
 
   /**
-   * Set the TuneTask this class works on. This class doesn't take ownership
-   * of the pointer.
-   *
-   * @param tune_task: the TuneTask this class works on.
-   */
-  void SetTuneTask(TuneTask* tune_task);
-
-  /**
    * Run the evolutionary search for one iteration.
    *
    * @return the best ir::ModuleExpr searched in this iteration
    */
-  ir::ModuleExpr SearchModuleExpr();
+  ir::ModuleExpr SearchModuleExpr(const TuningOptions& options);
 
   /**
    * Run the evolutionary search for one iteration.
    *
    * @return those best ir::ModuleExpr's searched in this iteration
    */
-  std::vector<ir::ModuleExpr> SearchModuleExprBests();
+  std::vector<ir::ModuleExpr> SearchModuleExprBests(const TuningOptions& options);
 
   /**
    * Run the evolutionary search for one iteration, but since evolutionary
@@ -80,7 +67,7 @@ class EvolutionarySearch {
    *     some random samples. There are "eps * total_return_size" random
    *     samples and "(1 - eps) * total_return_size" best searched samples.
    */
-  std::vector<ir::ModuleExpr> SearchModuleExprEpsGreedy();
+  std::vector<ir::ModuleExpr> SearchModuleExprEpsGreedy(const TuningOptions& options);
 
 #ifdef CINN_WITH_TEST
   /**
@@ -100,23 +87,16 @@ class EvolutionarySearch {
 
   ir::ModuleExpr CrossOver(const ir::ModuleExpr& mod_expr1, const ir::ModuleExpr& mod_expr2);
 
-  std::vector<ir::ModuleExpr> Evolve(const std::vector<ir::ModuleExpr>& population, int num);
+  std::vector<ir::ModuleExpr> Evolve(const std::vector<ir::ModuleExpr>& population, int cross_over_num, int ret_num);
 
   std::vector<ir::ModuleExpr> PickNextGenerationEpsGreedy(const std::vector<ir::ModuleExpr>& population,
                                                           const std::vector<ir::ModuleExpr>& random_init,
                                                           int num,
                                                           float eps_greedy);
 
-  int database_topk_       = 8;
-  int init_population_num_ = 10;
-  int cross_over_num_      = 10;
-  int sample_num_          = 10;
-
-  float eps_greedy_ = 0.0f;
-
   std::unique_ptr<SearchSpace> search_space_;
 
-  TuneTask* tune_task_;
+  const TuneContext& tune_context_;
 
   CostModel* cost_model_;  // not owned
 };

@@ -28,7 +28,7 @@ class AutoInline : public AutoGenRule {
   AutoInline()  = default;
   ~AutoInline() = default;
 
-  bool Init(const ir::ModuleExpr& mod_expr) override;
+  RuleApplyType Init(const ir::ModuleExpr& mod_expr) override;
 
   ir::ModuleExpr Apply(int index) override;
 
