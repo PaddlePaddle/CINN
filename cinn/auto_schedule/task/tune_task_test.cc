@@ -57,7 +57,7 @@ Program CreateAddProgram() {
   return program;
 }
 
-TEST(TuneTask, GraphToModuleExpr_NoPass) {
+TEST(TuneTask, GraphToUnoptLoweredFunc_NoPass) {
   Context::Global().ResetNameId();
 #ifdef CINN_WITH_CUDA
   Target target = common::DefaultNVGPUTarget();
@@ -79,9 +79,9 @@ TEST(TuneTask, GraphToModuleExpr_NoPass) {
   std::stringstream ss;
   for (TuneTask& task : tasks) {
     task.SetGraphCompiler(&graph_compiler);
-    task.TaskGraphToModuleExpr();
+    task.TaskGraphToUnoptLoweredFunc();
 
-    std::vector<ir::Expr> exprs = task.tune_context().module.GetExprs();
+    std::vector<ir::Expr> exprs = task.tune_context().GetLoweredFuncBodyExprs();
     VLOG(6) << "ir:Expr is: ";
     for (const ir::Expr& e : exprs) {
       VLOG(6) << e;
@@ -92,20 +92,34 @@ TEST(TuneTask, GraphToModuleExpr_NoPass) {
   std::string expr_str   = ss.str();
   std::string target_str = R"ROC(
 {
-  for (i, 0, 32)
+  ScheduleBlock(root)
   {
-    for (j, 0, 24)
+    for (i, 0, 32)
     {
-      elementwise_add_Out[i, j] = (A[i, j] + B[i, j])
+      for (j, 0, 24)
+      {
+        ScheduleBlock(elementwise_add_Out_0)
+        {
+          i0, i1 = axis.bind(i, j)
+          elementwise_add_Out[i0, i1] = (A[i0, i1] + B[i0, i1])
+        }
+      }
     }
   }
 }
 {
-  for (i, 0, 32)
+  ScheduleBlock(root_0)
   {
-    for (j, 0, 24)
+    for (i, 0, 32)
     {
-      elementwise_add_Out_0[i, j] = (A[i, j] + var_1[i, j])
+      for (j, 0, 24)
+      {
+        ScheduleBlock(elementwise_add_Out_1)
+        {
+          i0, i1 = axis.bind(i, j)
+          elementwise_add_Out_1[i0, i1] = (A[i0, i1] + var_1[i0, i1])
+        }
+      }
     }
   }
 }
@@ -114,7 +128,7 @@ TEST(TuneTask, GraphToModuleExpr_NoPass) {
   EXPECT_EQ(utils::Trim(target_str), utils::Trim(expr_str));
 }
 
-TEST(TuneTask, GraphToModuleExpr_ApplyPass) {
+TEST(TuneTask, GraphToUnoptLoweredFunc_ApplyPass) {
   Context::Global().ResetNameId();
 #ifdef CINN_WITH_CUDA
   Target target = common::DefaultNVGPUTarget();
@@ -137,9 +151,9 @@ TEST(TuneTask, GraphToModuleExpr_ApplyPass) {
   std::stringstream ss;
   for (TuneTask& task : tasks) {
     task.SetGraphCompiler(&graph_compiler);
-    task.TaskGraphToModuleExpr();
+    task.TaskGraphToUnoptLoweredFunc();
 
-    std::vector<ir::Expr> exprs = task.tune_context().module.GetExprs();
+    std::vector<ir::Expr> exprs = task.tune_context().GetLoweredFuncBodyExprs();
     VLOG(6) << "ir:Expr is: ";
     for (const ir::Expr& e : exprs) {
       VLOG(6) << e;
@@ -151,20 +165,34 @@ TEST(TuneTask, GraphToModuleExpr_ApplyPass) {
 #ifdef CINN_WITH_CUDA
   std::string target_str = R"ROC(
 {
-  for (i, 0, 32)
+  ScheduleBlock(root)
   {
-    for (j, 0, 24)
+    for (i, 0, 32)
     {
-      elementwise_add_Out[i, j] = (A[i, j] + B[i, j])
+      for (j, 0, 24)
+      {
+        ScheduleBlock(elementwise_add_Out_1)
+        {
+          i0, i1 = axis.bind(i, j)
+          elementwise_add_Out[i0, i1] = (A[i0, i1] + B[i0, i1])
+        }
+      }
     }
   }
 }
 {
-  for (i, 0, 32)
+  ScheduleBlock(root_0)
   {
-    for (j, 0, 24)
+    for (i, 0, 32)
     {
-      elementwise_add_Out_0[i, j] = (A[i, j] + elementwise_add_Out[i, j])
+      for (j, 0, 24)
+      {
+        ScheduleBlock(elementwise_add_Out_0)
+        {
+          i0, i1 = axis.bind(i, j)
+          elementwise_add_Out_0[i0, i1] = (A[i0, i1] + elementwise_add_Out[i0, i1])
+        }
+      }
     }
   }
 }
@@ -172,18 +200,31 @@ TEST(TuneTask, GraphToModuleExpr_ApplyPass) {
 #else
   std::string target_str = R"ROC(
 {
-  for (i, 0, 32)
+  ScheduleBlock(root)
   {
-    for (j, 0, 24)
     {
-      elementwise_add_Out[i, j] = (A[i, j] + B[i, j])
-    }
-  }
-  for (i, 0, 32)
-  {
-    for (j, 0, 24)
-    {
-      elementwise_add_Out_0[i, j] = (A[i, j] + elementwise_add_Out[i, j])
+      for (i, 0, 32)
+      {
+        for (j, 0, 24)
+        {
+          ScheduleBlock(elementwise_add_Out_1)
+          {
+            i0, i1 = axis.bind(i, j)
+            elementwise_add_Out[i0, i1] = (A[i0, i1] + B[i0, i1])
+          }
+        }
+      }
+      for (i, 0, 32)
+      {
+        for (j, 0, 24)
+        {
+          ScheduleBlock(elementwise_add_Out_0)
+          {
+            i0, i1 = axis.bind(i, j)
+            elementwise_add_Out_0[i0, i1] = (A[i0, i1] + elementwise_add_Out[i0, i1])
+          }
+        }
+      }
     }
   }
 }

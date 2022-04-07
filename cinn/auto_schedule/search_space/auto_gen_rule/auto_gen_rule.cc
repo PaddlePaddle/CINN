@@ -12,34 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#pragma once
+#include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
 
-#include <string>
-#include <vector>
+#include <glog/logging.h>
 
-#include "cinn/common/target.h"
-#include "cinn/ir/ir.h"
-#include "cinn/ir/ir_base.h"
-#include "cinn/ir/lowered_func.h"
+#include <cstdlib>
+
+#include "cinn/ir/ir_schedule.h"
 
 namespace cinn {
 namespace auto_schedule {
 
-/**
- * A class containing context information for tuning-task. The difference
- * between this class and TuneTask is that the data in this context is only
- * needed by autotune while the TuneTask contains some information for whole
- * compiler, such as Graph, GraphCompiler.
- */
-class TuneContext {
- public:
-  std::vector<ir::LoweredFunc> lowered_funcs;
-  common::Target target;
+int AutoGenRule::NumberApplicable() const {
+  CHECK_GE(num_applicable_, 0) << "Call " << GetRuleName() << "::NumberApplicable() without initailization.";
+  return num_applicable_;
+}
 
-  std::vector<ir::Expr> GetLoweredFuncBodyExprs() const;
-
-  void SetLoweredFuncBodyExprs(const std::vector<ir::Expr>& exprs);
-};
+ir::ModuleExpr AutoGenRule::ApplyRandomly() {
+  CHECK_GT(num_applicable_, 0) << "Call " << GetRuleName() << "::ApplyRandomly() with NumberApplicable() == 0";
+  int index = rand() % num_applicable_;
+  return Apply(index);
+}
 
 }  // namespace auto_schedule
 }  // namespace cinn

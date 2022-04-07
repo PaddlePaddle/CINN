@@ -12,34 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#pragma once
+#include "cinn/auto_schedule/search_space/auto_gen_rule/auto_inline.h"
 
 #include <string>
-#include <vector>
 
-#include "cinn/common/target.h"
-#include "cinn/ir/ir.h"
-#include "cinn/ir/ir_base.h"
-#include "cinn/ir/lowered_func.h"
+#include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
+#include "cinn/ir/ir_schedule.h"
 
 namespace cinn {
 namespace auto_schedule {
 
-/**
- * A class containing context information for tuning-task. The difference
- * between this class and TuneTask is that the data in this context is only
- * needed by autotune while the TuneTask contains some information for whole
- * compiler, such as Graph, GraphCompiler.
- */
-class TuneContext {
- public:
-  std::vector<ir::LoweredFunc> lowered_funcs;
-  common::Target target;
+RuleApplyType AutoInline::Init(const ir::ModuleExpr& mod_expr) { return RuleApplyType::kCannotApply; }
 
-  std::vector<ir::Expr> GetLoweredFuncBodyExprs() const;
+ir::ModuleExpr AutoInline::Apply(int index) { return ir::ModuleExpr(); }
 
-  void SetLoweredFuncBodyExprs(const std::vector<ir::Expr>& exprs);
-};
+std::string AutoInline::GetRuleName() const { return "AutoInline"; }
 
 }  // namespace auto_schedule
 }  // namespace cinn

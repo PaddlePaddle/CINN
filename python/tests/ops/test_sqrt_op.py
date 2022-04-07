@@ -60,5 +60,10 @@ class TestSqrtOp(OpTest):
         self.check_outputs_and_grads()
 
 
+class TestSqrtCase1(TestSqrtOp):
+    def init_case(self):
+        self.inputs = {"x": np.random.random([10201, 50]).astype("float32")}
+
+
 if __name__ == "__main__":
     unittest.main()

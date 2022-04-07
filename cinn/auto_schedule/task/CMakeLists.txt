@@ -3,6 +3,7 @@ core_gather_headers()
 gather_srcs(cinnapi_src SRCS
     task_creator.cc
     task_optimizer.cc
+    tune_context.cc
     tune_task.cc
     )
 gather_srcs(cinnapi_src SRCS task_creator.cc task_optimizer.cc)

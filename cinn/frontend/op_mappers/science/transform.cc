@@ -151,7 +151,7 @@ void SliceSelectOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperConte
 
   auto x = ctx.GetVar(x_name);
 
-  VLOG(4) << "Slice " << x_name << "from shape (" << cinn::utils::Join(x->shape, ",") << ") with starts ["
+  VLOG(4) << "SliceSelect " << x_name << " from shape (" << cinn::utils::Join(x->shape, ",") << ") with starts ["
           << cinn::utils::Join(starts, ",") << "], ends [" << cinn::utils::Join(ends, ",") << "], axis ["
           << cinn::utils::Join(axes, ",") << "], strides [" << cinn::utils::Join(strides, ",") << "].";
 
@@ -181,7 +181,7 @@ void SliceAssignOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperConte
   auto x      = ctx.GetVar(x_name);
   auto assign = ctx.GetVar(y_name);
 
-  VLOG(4) << "SliceAssign " << x_name << "from shape (" << cinn::utils::Join(x->shape, ",") << ") with starts ["
+  VLOG(4) << "SliceAssign " << x_name << " from shape (" << cinn::utils::Join(x->shape, ",") << ") with starts ["
           << cinn::utils::Join(starts, ",") << "], ends [" << cinn::utils::Join(ends, ",") << "], axis ["
           << cinn::utils::Join(axes, ",") << "], strides [" << cinn::utils::Join(strides, ",") << "].";
 

@@ -35,11 +35,15 @@ class TuneTask {
 
   std::vector<std::vector<hlir::framework::Node*>>& task_graph() { return task_graph_; }
 
+  const std::vector<std::vector<hlir::framework::Node*>>& task_graph() const { return task_graph_; }
+
   TuneContext& tune_context() { return tune_context_; }
+
+  const TuneContext& tune_context() const { return tune_context_; }
 
   void SetGraphCompiler(hlir::framework::GraphCompiler* compiler);
 
-  void TaskGraphToModuleExpr();
+  void TaskGraphToUnoptLoweredFunc();
 
  private:
   // In CINN, we use std::vector<hlir::framework::Node*> to represent a fused

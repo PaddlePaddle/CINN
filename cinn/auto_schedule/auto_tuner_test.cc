@@ -16,6 +16,8 @@
 
 #include <gtest/gtest.h>
 
+#include <iostream>
+
 #include "cinn/common/target.h"
 #include "cinn/frontend/net_builder.h"
 #include "cinn/frontend/syntax.h"
@@ -39,7 +41,7 @@ frontend::Program CreateAddReluProgram() {
   return builder.Build();
 }
 
-TEST(AutoTuner, Basic) {
+TEST(AutoTuner, ZeroMeasure) {
   auto target         = common::DefaultHostTarget();
   auto graph          = std::make_shared<Graph>(CreateAddReluProgram(), target);
   auto scope          = BuildScope(target, graph);
@@ -51,27 +53,60 @@ TEST(AutoTuner, Basic) {
   tuner->Initialize(tuning_config, graph_compiler.get());
 
   TuningOptions tuning_options;
-  tuning_options.num_tuning_rounds  = 2;
-  tuning_options.num_measure_trials = 1;
-  TuningResult tuning_result        = tuner->Tune(tuning_options);
+  tuning_options.num_tuning_rounds         = 1;
+  tuning_options.num_measure_trials        = 0;
+  tuning_options.num_samples_per_iteration = 10;
+  TuningResult result                      = tuner->Tune(tuning_options);
 
-  // check result of graph tuning
-  ASSERT_EQ(2, tuning_result.tuned_graph.size());
-  const auto& sub_graph1 = tuning_result.tuned_graph.front();
+  ASSERT_EQ(2, result.tuned_graph.size());
+  const auto& sub_graph1 = result.tuned_graph.front();
   ASSERT_EQ(1, sub_graph1.groups.size());
   ASSERT_EQ(sub_graph1.groups[0][0]->op()->name, "elementwise_add");
-  const auto& sub_graph2 = tuning_result.tuned_graph.back();
+  const auto& sub_graph2 = result.tuned_graph.back();
   ASSERT_EQ(1, sub_graph2.groups.size());
   ASSERT_EQ(sub_graph2.groups[0][0]->op()->name, "relu");
+
+  ASSERT_EQ(result.optimized_exprs.size(), 2UL);
+  ASSERT_EQ(result.optimized_exprs[0].lowered_funcs.size(), 1UL);
+  ASSERT_EQ(result.optimized_exprs[0].lowered_funcs[0].size(), 1UL);
+}
+
+TEST(AutoTuner, NonZeroMeasure) {
+  auto target         = common::DefaultHostTarget();
+  auto graph          = std::make_shared<Graph>(CreateAddReluProgram(), target);
+  auto scope          = BuildScope(target, graph);
+  auto graph_compiler = std::make_unique<GraphCompiler>(target, scope, graph);
+
+  auto tuner = std::make_unique<AutoTuner>(target, graph.get());
+  AutoTuner::Config tuning_config;
+  tuning_config.task_schedule_strategy = "round_robin";
+  tuner->Initialize(tuning_config, graph_compiler.get());
+
+  TuningOptions tuning_options;
+  tuning_options.num_tuning_rounds         = 1;
+  tuning_options.num_measure_trials        = 30;
+  tuning_options.num_samples_per_iteration = 10;
+  TuningResult result                      = tuner->Tune(tuning_options);
+
+  // check result of graph tuning
+  ASSERT_EQ(2, result.tuned_graph.size());
+  const auto& sub_graph1 = result.tuned_graph.front();
+  ASSERT_EQ(1, sub_graph1.groups.size());
+  ASSERT_EQ(sub_graph1.groups[0][0]->op()->name, "elementwise_add");
+  const auto& sub_graph2 = result.tuned_graph.back();
+  ASSERT_EQ(1, sub_graph2.groups.size());
+  ASSERT_EQ(sub_graph2.groups[0][0]->op()->name, "relu");
+
+  ASSERT_EQ(result.optimized_exprs.size(), 2UL);
+  ASSERT_EQ(result.optimized_exprs[0].lowered_funcs.size(), 1UL);
+  ASSERT_EQ(result.optimized_exprs[0].lowered_funcs[0].size(), 1UL);
 
   // build runtime program with tuning result
   GraphCompiler::CompileOptions compile_options;
   compile_options.with_instantiate_variables = true;
   compile_options.Apply(tuning_result);
   ASSERT_EQ(2, compile_options.groups.size());
-  // TODO(CtfGo): update the expected size of lowered functions
-  // once we complete the schedule tuning
-  ASSERT_EQ(0, compile_options.lowered_funcs.size());
+  ASSERT_EQ(2, compile_options.lowered_funcs.size());
 
   auto runtime_program = graph_compiler->Build(compile_options).runtime_program;
   ASSERT_EQ(2, runtime_program->size());

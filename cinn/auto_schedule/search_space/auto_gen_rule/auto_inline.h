@@ -15,30 +15,24 @@
 #pragma once
 
 #include <string>
-#include <vector>
 
-#include "cinn/common/target.h"
-#include "cinn/ir/ir.h"
-#include "cinn/ir/ir_base.h"
-#include "cinn/ir/lowered_func.h"
+#include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
+#include "cinn/ir/ir_schedule.h"
 
 namespace cinn {
 namespace auto_schedule {
 
-/**
- * A class containing context information for tuning-task. The difference
- * between this class and TuneTask is that the data in this context is only
- * needed by autotune while the TuneTask contains some information for whole
- * compiler, such as Graph, GraphCompiler.
- */
-class TuneContext {
+// TODO(zhhsplendid): develop this class.
+class AutoInline : public AutoGenRule {
  public:
-  std::vector<ir::LoweredFunc> lowered_funcs;
-  common::Target target;
+  AutoInline()  = default;
+  ~AutoInline() = default;
 
-  std::vector<ir::Expr> GetLoweredFuncBodyExprs() const;
+  RuleApplyType Init(const ir::ModuleExpr& mod_expr) override;
 
-  void SetLoweredFuncBodyExprs(const std::vector<ir::Expr>& exprs);
+  ir::ModuleExpr Apply(int index) override;
+
+  std::string GetRuleName() const override;
 };
 
 }  // namespace auto_schedule

@@ -29,7 +29,7 @@ namespace auto_schedule {
 // The input to a measurer
 struct MeasureInput {
   // The task object releated to this measurement.
-  TuneTask* task;
+  const TuneTask* task;
   // lowered Exprs to be measured
   std::vector<std::vector<ir::LoweredFunc>> lowered_funcs;
   // It is used to pass for some arguments that maybe

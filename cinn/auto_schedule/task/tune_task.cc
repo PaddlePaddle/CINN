@@ -18,19 +18,24 @@
 
 #include <vector>
 
+#include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/node.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_schedule.h"
+#include "cinn/ir/lowered_func.h"
 
 namespace cinn {
 namespace auto_schedule {
 
 void TuneTask::SetGraphCompiler(hlir::framework::GraphCompiler* compiler) { graph_compiler_ = compiler; }
 
-void TuneTask::TaskGraphToModuleExpr() {
+void TuneTask::TaskGraphToUnoptLoweredFunc() {
   CHECK(graph_compiler_ != nullptr) << "graph_compiler_ must be set before processing graph";
-  std::vector<ir::Expr> exprs = graph_compiler_->FusedGraphToExpr(task_graph_);
-  tune_context_.module        = ir::ModuleExpr(exprs);
+  // TODO(zhhsplendid): current a task only contains one Op or one Fused Op,
+  // so we can take only first std::vector<ir::LoweredFunc>. Support the
+  // tune_context_.lowered_funcs to be std::vector<std::vector<ir::LoweredFunc>>
+  // in the future.
+  tune_context_.lowered_funcs = graph_compiler_->FusedGraphToLoweredFunc(task_graph_)[0];
 }
 
 }  // namespace auto_schedule
