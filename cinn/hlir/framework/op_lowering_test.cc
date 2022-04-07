@@ -84,9 +84,9 @@ TEST(OP_LOWERING, Elementwise_Test_0) {
   auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
   auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
 
-  OpLoweringHelper op_lowering_helper(dtype_dict, shape_dict, target);
+  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
   for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowering_helper.Lowering(fusion_op);
+    auto lowered_func = op_lowerer.Lower(fusion_op);
     CHECK_EQ(lowered_func.size(), 1);
     LOG(INFO) << lowered_func[0];
   }
@@ -117,9 +117,9 @@ TEST(OP_LOWERING, Elementwise_Test_1) {
   auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
   auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
 
-  OpLoweringHelper op_lowering_helper(dtype_dict, shape_dict, target);
+  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
   for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowering_helper.Lowering(fusion_op);
+    auto lowered_func = op_lowerer.Lower(fusion_op);
     CHECK_EQ(lowered_func.size(), 1);
     LOG(INFO) << lowered_func[0];
   }
@@ -149,9 +149,9 @@ TEST(OP_LOWERING, Broadcast_Test_0) {
   auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
   auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
 
-  OpLoweringHelper op_lowering_helper(dtype_dict, shape_dict, target);
+  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
   for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowering_helper.Lowering(fusion_op);
+    auto lowered_func = op_lowerer.Lower(fusion_op);
     CHECK_EQ(lowered_func.size(), 1);
     LOG(INFO) << lowered_func[0];
   }
@@ -176,9 +176,9 @@ TEST(OP_LOWERING, Reduce_Test_0) {
   auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
   auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
 
-  OpLoweringHelper op_lowering_helper(dtype_dict, shape_dict, target);
+  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
   for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowering_helper.Lowering(fusion_op);
+    auto lowered_func = op_lowerer.Lower(fusion_op);
     CHECK_EQ(lowered_func.size(), 1);
     LOG(INFO) << lowered_func[0];
     CodeGen(lowered_func[0]);
@@ -208,9 +208,9 @@ TEST(OP_LOWERING, Reduce_Test_1) {
   auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
   auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
 
-  OpLoweringHelper op_lowering_helper(dtype_dict, shape_dict, target);
+  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
   for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowering_helper.Lowering(fusion_op);
+    auto lowered_func = op_lowerer.Lower(fusion_op);
     CHECK_EQ(lowered_func.size(), 1);
     LOG(INFO) << lowered_func[0];
     CodeGen(lowered_func[0]);
@@ -239,9 +239,9 @@ TEST(OP_LOWERING, Reduce_Test_2) {
   auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
   auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
 
-  OpLoweringHelper op_lowering_helper(dtype_dict, shape_dict, target);
+  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
   for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowering_helper.Lowering(fusion_op);
+    auto lowered_func = op_lowerer.Lower(fusion_op);
     CHECK_EQ(lowered_func.size(), 1);
     LOG(INFO) << lowered_func[0];
     CodeGen(lowered_func[0]);
@@ -275,9 +275,9 @@ TEST(OP_LOWERING, Reduce_Test_3) {
   auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
   auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
 
-  OpLoweringHelper op_lowering_helper(dtype_dict, shape_dict, target);
+  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
   for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowering_helper.Lowering(fusion_op);
+    auto lowered_func = op_lowerer.Lower(fusion_op);
     CHECK_EQ(lowered_func.size(), 1);
     LOG(INFO) << lowered_func[0];
     CodeGen(lowered_func[0]);
@@ -306,9 +306,9 @@ TEST(OP_LOWERING, Reduce_Test_4) {
   auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
   auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
 
-  OpLoweringHelper op_lowering_helper(dtype_dict, shape_dict, target);
+  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
   for (auto& fusion_op : graph->fusion_groups) {
-    auto lowered_func = op_lowering_helper.Lowering(fusion_op);
+    auto lowered_func = op_lowerer.Lower(fusion_op);
     CHECK_EQ(lowered_func.size(), 1);
     LOG(INFO) << lowered_func[0];
     CodeGen(lowered_func[0]);

@@ -636,9 +636,9 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
     auto& dtype_dict = graph_->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
     auto& shape_dict = graph_->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
 
-    OpLoweringHelper op_lowering_helper(dtype_dict, shape_dict, target_);
+    OpLowerer op_lowerer(dtype_dict, shape_dict, target_);
     for (auto& group : graph_->fusion_groups) {
-      auto lowered_func = op_lowering_helper.Lowering(group);
+      auto lowered_func = op_lowerer.Lower(group);
       this->ProcessFunction(lowered_func);
     }
   }
