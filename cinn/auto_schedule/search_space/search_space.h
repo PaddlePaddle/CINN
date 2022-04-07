@@ -38,18 +38,27 @@ namespace auto_schedule {
  */
 class SearchSpace {
  public:
-  SearchSpace(const TuneTask& tune_task){
+  SearchSpace(const TuneTask& tune_task)
+      : tune_task_(tune_task){
 
-  };
+        };
 
   // Generate sketch as initial population of evolutionary search
-  virtual std::vector<ir::ModuleExpr> GetRandomInitialSketch(int num) { return std::vector<ir::ModuleExpr>(); };
+  virtual std::vector<ir::ModuleExpr> GetRandomInitialSketch(int num);
 
   // Evolutionary search mutate, returns the mutated ModuleExpr and estimited cost
   virtual std::pair<ir::ModuleExpr, float> GetScheduleMutate(const CostModel& cost_model,
-                                                             const ir::ModuleExpr& mod_expr) {
-    return std::make_pair<ir::ModuleExpr, float>(ir::ModuleExpr(), 0.0f);
-  };
+                                                             const ir::ModuleExpr& mod_expr);
+
+ private:
+  // TODO(zhhsplendid): mutate by manual schedule.
+  ir::ModuleExpr ManualScheduleMutate(const ir::ModuleExpr& mod_expr);
+
+  ir::ModuleExpr RandomScheduleMutate(const ir::ModuleExpr& mod_expr);
+
+  const TuneTask& tune_task_;
+
+  std::vector<AutoGenRule> auto_gen_rules;
 };
 
 }  // namespace auto_schedule

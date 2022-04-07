@@ -15,6 +15,7 @@
 #pragma once
 #include <map>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "cinn/ir/ir.h"
@@ -28,7 +29,12 @@ namespace ir {
  */
 class ModuleExpr {
  public:
-  ModuleExpr() = default;
+  ModuleExpr()                           = default;
+  ModuleExpr(const ModuleExpr& mod_expr) = default;
+  ModuleExpr(ModuleExpr&& mod_expr)      = default;
+
+  ModuleExpr& operator=(const ModuleExpr& mod_expr) = default;
+
   explicit ModuleExpr(const std::vector<Expr>& exprs) : exprs_(exprs) {}
 
   //! Get all the Expr in this ModuleExpr.
