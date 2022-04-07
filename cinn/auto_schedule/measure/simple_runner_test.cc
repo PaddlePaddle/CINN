@@ -97,13 +97,17 @@ TEST_F(TestSimpleRunner, MeasureWithSpecifiedArgs) {
 }
 
 TEST_F(TestSimpleRunner, TimeMeasured) {
+  // set up a BuildResult object with one instruction of the `sleep` function
   auto sleep_fn = [](void*, int32_t) { std::this_thread::sleep_for(std::chrono::microseconds(100)); };
   BuildResult build_result;
   build_result.compiled_scope = nullptr;
-  build_result.instructions.emplace_back(
-      new hlir::framework::Instruction(target, nullptr, {}, {"empty_placeholder"}, "sleep_fn"));
-  build_result.instructions.back()->SetLoweredFunc(sleep_fn);
-  build_result.instructions.back()->Finalize();
+  std::vector<std::unique_ptr<Instruction>> instructions;
+  instructions.emplace_back(new Instruction(target, nullptr, {}, {"empty_placeholder"}, "sleep_fn"));
+  instructions.back()->SetLoweredFunc(sleep_fn);
+  instructions.back()->Finalize();
+  build_result.runtime_program.reset(new hlir::framework::Program(nullptr, std::move(instructions)));
+
+  // to skip the condition check of params in Instruction::PreparePodArgs
   std::map<std::string, cinn_pod_value_t> preset_args;
   preset_args.emplace("empty_placeholder", cinn_pod_value_t());
   input.execution_args = &preset_args;
