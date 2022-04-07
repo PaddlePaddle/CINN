@@ -75,13 +75,13 @@ class MockSearchSpace : public SearchSpace {
 TEST(EvolutionarySearch, GetOneBest) {
   TuneTask mock_tune_task;
   TuningOptions options;
-  EvolutionarySearch evolutionary_search(mock_tune_task.tune_context(), options);
+  EvolutionarySearch evolutionary_search(mock_tune_task.tune_context());
 
   MockSearchSpace* mock_search_space = new MockSearchSpace(mock_tune_task.tune_context());
   // Ownership is transferred so don't delete mock_search_space
   evolutionary_search.SetSearchSpace(mock_search_space);
 
-  ir::ModuleExpr best_mod_expr = evolutionary_search.SearchModuleExpr();
+  ir::ModuleExpr best_mod_expr = evolutionary_search.SearchModuleExpr(options);
 
   std::vector<ir::Expr> exprs = best_mod_expr.GetExprs();
   EXPECT_GE(exprs.size(), 1UL);
@@ -93,12 +93,12 @@ TEST(EvolutionarySearch, GetOneBest) {
 TEST(EvolutionarySearch, GetEpsGreedy) {
   TuneTask mock_tune_task;
   TuningOptions options;
-  EvolutionarySearch evolutionary_search(mock_tune_task.tune_context(), options);
+  EvolutionarySearch evolutionary_search(mock_tune_task.tune_context());
 
   MockSearchSpace* mock_search_space = new MockSearchSpace(mock_tune_task.tune_context());
   // Ownership is transferred so don't delete mock_search_space
   evolutionary_search.SetSearchSpace(mock_search_space);
-  std::vector<ir::ModuleExpr> mod_exprs = evolutionary_search.SearchModuleExprEpsGreedy();
+  std::vector<ir::ModuleExpr> mod_exprs = evolutionary_search.SearchModuleExprEpsGreedy(options);
 
   EXPECT_GE(mod_exprs.size(), 1UL);
   size_t expr_size = static_cast<size_t>(mock_search_space->GetModuleExprSize());

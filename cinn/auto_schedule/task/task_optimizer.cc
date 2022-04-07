@@ -75,7 +75,7 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
     std::vector<MeasureInput> measure_inputs(mod_exprs.size());
     for (size_t i = 0; i < mod_exprs.size(); ++i) {
       // Make a copy and set the lowered func body
-      measure_inputs[i].task           = task_;
+      measure_inputs[i].task           = new TuneTask(*task_);
       std::vector<ir::Expr> best_exprs = mod_exprs[i].GetExprs();
       CHECK_EQ(best_exprs.size(), measure_inputs[i].task->tune_context().lowered_funcs.size())
           << "RuntimeError: Expr size is not equal to LoweredFunc size in TaskOptimizer";

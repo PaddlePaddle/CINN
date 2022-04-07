@@ -49,7 +49,8 @@ std::vector<ir::ModuleExpr> EvolutionarySearch::SearchModuleExprBests(const Tuni
   init_population.insert(init_population.end(), random_sketch.begin(), random_sketch.end());
 
   VLOG(5) << "EvolutionarySearch got generation size " << init_population.size();
-  std::vector<ir::ModuleExpr> picked_bests = Evolve(init_population, options.num_samples_per_iteration);
+  std::vector<ir::ModuleExpr> picked_bests =
+      Evolve(init_population, options.evolution_cross_over_num, options.num_samples_per_iteration);
 
   VLOG(5) << "EvolutionarySearch got evolved generation size " << picked_bests.size();
   return picked_bests;
@@ -60,7 +61,7 @@ ir::ModuleExpr EvolutionarySearch::SearchModuleExpr(const TuningOptions& options
 }
 
 std::vector<ir::ModuleExpr> EvolutionarySearch::SearchModuleExprEpsGreedy(const TuningOptions& options) {
-  std::vector<ir::ModuleExpr> picked_bests = SearchModuleExprBests();
+  std::vector<ir::ModuleExpr> picked_bests = SearchModuleExprBests(options);
   int random_num = options.evolution_init_population_num - options.evolution_pick_database_topk;
   return PickNextGenerationEpsGreedy(
       picked_bests, RandomInitSketch(random_num), options.num_samples_per_iteration, options.evolution_eps_greedy);
