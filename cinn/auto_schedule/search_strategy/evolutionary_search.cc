@@ -30,18 +30,17 @@
 namespace cinn {
 namespace auto_schedule {
 
-EvolutionarySearch::EvolutionarySearch(const TuneContext& tune_context, const TuningOptions& options)
-    : tune_context_(tune_context), options_(options) {
+EvolutionarySearch::EvolutionarySearch(const TuneContext& tune_context) : tune_context_(tune_context) {
   search_space_ = std::make_unique<SearchSpace>(tune_context);
 }
 
 EvolutionarySearch::~EvolutionarySearch() {}
 
-std::vector<ir::ModuleExpr> EvolutionarySearch::SearchModuleExprBests() {
+std::vector<ir::ModuleExpr> EvolutionarySearch::SearchModuleExprBests(const TuningOptions& options) {
   std::vector<ir::ModuleExpr> init_population;
-  std::vector<ir::ModuleExpr> topk_from_database = GetTopKCandidatesFromDatabase(options_.evolution_pick_database_topk);
+  std::vector<ir::ModuleExpr> topk_from_database = GetTopKCandidatesFromDatabase(options.evolution_pick_database_topk);
   VLOG(5) << "EvolutionarySearch got " << topk_from_database.size() << " as topk from database";
-  int random_num = options_.evolution_init_population_num - topk_from_database.size();
+  int random_num = options.evolution_init_population_num - topk_from_database.size();
 
   VLOG(5) << "EvolutionarySearch will fetch " << random_num << " sketches";
   std::vector<ir::ModuleExpr> random_sketch = RandomInitSketch(random_num);
@@ -50,19 +49,21 @@ std::vector<ir::ModuleExpr> EvolutionarySearch::SearchModuleExprBests() {
   init_population.insert(init_population.end(), random_sketch.begin(), random_sketch.end());
 
   VLOG(5) << "EvolutionarySearch got generation size " << init_population.size();
-  std::vector<ir::ModuleExpr> picked_bests = Evolve(init_population, options_.num_samples_per_iteration);
+  std::vector<ir::ModuleExpr> picked_bests = Evolve(init_population, options.num_samples_per_iteration);
 
   VLOG(5) << "EvolutionarySearch got evolved generation size " << picked_bests.size();
   return picked_bests;
 }
 
-ir::ModuleExpr EvolutionarySearch::SearchModuleExpr() { return SearchModuleExprBests()[0]; }
+ir::ModuleExpr EvolutionarySearch::SearchModuleExpr(const TuningOptions& options) {
+  return SearchModuleExprBests(options)[0];
+}
 
-std::vector<ir::ModuleExpr> EvolutionarySearch::SearchModuleExprEpsGreedy() {
+std::vector<ir::ModuleExpr> EvolutionarySearch::SearchModuleExprEpsGreedy(const TuningOptions& options) {
   std::vector<ir::ModuleExpr> picked_bests = SearchModuleExprBests();
-  int random_num = options_.evolution_init_population_num - options_.evolution_pick_database_topk;
+  int random_num = options.evolution_init_population_num - options.evolution_pick_database_topk;
   return PickNextGenerationEpsGreedy(
-      picked_bests, RandomInitSketch(random_num), options_.num_samples_per_iteration, options_.evolution_eps_greedy);
+      picked_bests, RandomInitSketch(random_num), options.num_samples_per_iteration, options.evolution_eps_greedy);
 }
 
 std::vector<ir::ModuleExpr> EvolutionarySearch::GetTopKCandidatesFromDatabase(int topk) {
@@ -92,14 +93,16 @@ ir::ModuleExpr EvolutionarySearch::CrossOver(const ir::ModuleExpr& mod_expr1, co
   return ir::ModuleExpr(cross_over_exprs);
 }
 
-std::vector<ir::ModuleExpr> EvolutionarySearch::Evolve(const std::vector<ir::ModuleExpr>& population, int num) {
+std::vector<ir::ModuleExpr> EvolutionarySearch::Evolve(const std::vector<ir::ModuleExpr>& population,
+                                                       int cross_over_num,
+                                                       int ret_num) {
   int generation_num = population.size();
   if (generation_num == 0) {
     return std::vector<ir::ModuleExpr>();
   }
   std::vector<ir::ModuleExpr> evolution(population);
 
-  for (int i = 0; i < options_.evolution_cross_over_num; ++i) {
+  for (int i = 0; i < cross_over_num; ++i) {
     int first_rand_idx  = rand() % generation_num;
     int second_rand_idx = rand() % generation_num;
     while (first_rand_idx == second_rand_idx) {
@@ -120,7 +123,7 @@ std::vector<ir::ModuleExpr> EvolutionarySearch::Evolve(const std::vector<ir::Mod
             });
 
   std::vector<ir::ModuleExpr> result;
-  int result_size = std::min(num, static_cast<int>(evolution_with_cost.size()));
+  int result_size = std::min(ret_num, static_cast<int>(evolution_with_cost.size()));
   for (int i = 0; i < result_size; ++i) {
     result.emplace_back(evolution_with_cost[i].first);
   }

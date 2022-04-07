@@ -36,7 +36,7 @@ class EvolutionarySearch {
    * @param tune_context: the TuneContext this class works on. This class doesn't
    *     take ownership of the pointer.
    */
-  EvolutionarySearch(const TuneContext& tune_context, const TuningOptions& options);
+  EvolutionarySearch(const TuneContext& tune_context);
 
   /**
    * Destructor
@@ -48,14 +48,14 @@ class EvolutionarySearch {
    *
    * @return the best ir::ModuleExpr searched in this iteration
    */
-  ir::ModuleExpr SearchModuleExpr();
+  ir::ModuleExpr SearchModuleExpr(const TuningOptions& options);
 
   /**
    * Run the evolutionary search for one iteration.
    *
    * @return those best ir::ModuleExpr's searched in this iteration
    */
-  std::vector<ir::ModuleExpr> SearchModuleExprBests();
+  std::vector<ir::ModuleExpr> SearchModuleExprBests(const TuningOptions& options);
 
   /**
    * Run the evolutionary search for one iteration, but since evolutionary
@@ -67,7 +67,7 @@ class EvolutionarySearch {
    *     some random samples. There are "eps * total_return_size" random
    *     samples and "(1 - eps) * total_return_size" best searched samples.
    */
-  std::vector<ir::ModuleExpr> SearchModuleExprEpsGreedy();
+  std::vector<ir::ModuleExpr> SearchModuleExprEpsGreedy(const TuningOptions& options);
 
 #ifdef CINN_WITH_TEST
   /**
@@ -87,7 +87,7 @@ class EvolutionarySearch {
 
   ir::ModuleExpr CrossOver(const ir::ModuleExpr& mod_expr1, const ir::ModuleExpr& mod_expr2);
 
-  std::vector<ir::ModuleExpr> Evolve(const std::vector<ir::ModuleExpr>& population, int num);
+  std::vector<ir::ModuleExpr> Evolve(const std::vector<ir::ModuleExpr>& population, int cross_over_num, int ret_num);
 
   std::vector<ir::ModuleExpr> PickNextGenerationEpsGreedy(const std::vector<ir::ModuleExpr>& population,
                                                           const std::vector<ir::ModuleExpr>& random_init,
@@ -97,8 +97,6 @@ class EvolutionarySearch {
   std::unique_ptr<SearchSpace> search_space_;
 
   const TuneContext& tune_context_;
-
-  const TuningOptions& options_;
 
   CostModel* cost_model_;  // not owned
 };

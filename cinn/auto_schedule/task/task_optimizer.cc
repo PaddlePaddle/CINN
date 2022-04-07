@@ -43,11 +43,11 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
   if (evolutionary_search_ == nullptr) {
     // TODO(zhhsplendid): check whether the options is same as previous,
     // if not, we should create new EvolutionarySearch
-    evolutionary_search_ = std::make_unique<EvolutionarySearch>(task_->tune_context(), options);
+    evolutionary_search_ = std::make_unique<EvolutionarySearch>(task_->tune_context());
   }
 
   if (options.num_measure_trials == 0) {
-    std::vector<ir::ModuleExpr> mod_exprs = evolutionary_search_->SearchModuleExprEpsGreedy();
+    std::vector<ir::ModuleExpr> mod_exprs = evolutionary_search_->SearchModuleExprEpsGreedy(options);
     VLOG(4) << "TaskOptimizer run EvolutionarySearch with return size = " << mod_exprs.size();
     TuningResult::OptimizedComputeExpr result;
     // TODO(zhhsplendid): current a task only contains one Op or one Fused Op,
@@ -70,12 +70,12 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
   result.lowered_funcs.push_back(task_->tune_context().lowered_funcs);
 
   while (measured_count < options.num_measure_trials) {
-    std::vector<ir::ModuleExpr> mod_exprs = evolutionary_search_->SearchModuleExprEpsGreedy();
+    std::vector<ir::ModuleExpr> mod_exprs = evolutionary_search_->SearchModuleExprEpsGreedy(options);
     VLOG(4) << "TaskOptimizer run EvolutionarySearch with return size = " << mod_exprs.size();
     std::vector<MeasureInput> measure_inputs(mod_exprs.size());
     for (size_t i = 0; i < mod_exprs.size(); ++i) {
       // Make a copy and set the lowered func body
-      measure_inputs[i].task           = new TuneTask(*task_);
+      measure_inputs[i].task           = task_;
       std::vector<ir::Expr> best_exprs = mod_exprs[i].GetExprs();
       CHECK_EQ(best_exprs.size(), measure_inputs[i].task->tune_context().lowered_funcs.size())
           << "RuntimeError: Expr size is not equal to LoweredFunc size in TaskOptimizer";
