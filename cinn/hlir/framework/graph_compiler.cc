@@ -630,6 +630,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   auto& nodes      = std::get<0>(topo_order);
   auto& edges      = std::get<1>(topo_order);
 
+  m_builder_.Clear();
   // if there are no avaiable groups, we will take each node as a group
   if (options.groups.empty() && graph_->groups.empty()) {
     VLOG(3) << "not run opfusion pass";
@@ -664,9 +665,9 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   }
 
   // compile the module
-  if (!compiler_) {
-    compiler_ = backends::Compiler::Create(target_);
-  }
+  // Need to create a new compiler for every call of Build,
+  // because the underneath jit engine does't support addIRModule repeatedly now.
+  compiler_ = backends::Compiler::Create(target_);
 
   auto build_module = m_builder_.Build();
 
@@ -679,7 +680,9 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
 
   compiler_->Build(build_module, options.attached_code, stream);
   auto instructions = BuildInstructions(groups);
-  RemoveInvalidVariables(instructions);
+  if (options.remove_unused_variables) {
+    RemoveInvalidVariables(instructions);
+  }
   if (options.with_buffer_handle_instruction_inserted) {
     VLOG(3) << "option.with_buffer_handle_instruction_inserted enable";
     InsertBufferHandlers(&instructions);
