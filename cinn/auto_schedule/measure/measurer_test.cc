@@ -45,7 +45,11 @@ frontend::Program CreateAddReluProgram() {
 }
 
 TEST(ScheduleMeasurer, Basic) {
-  auto target         = common::DefaultHostTarget();
+#ifdef CINN_WITH_CUDA
+  Target target = common::DefaultNVGPUTarget();
+#else
+  Target target = common::DefaultHostTarget();
+#endif
   auto graph          = std::make_shared<Graph>(CreateAddReluProgram(), target);
   auto scope          = BuildScope(target, graph);
   auto graph_compiler = std::make_unique<GraphCompiler>(target, scope, graph);
@@ -55,9 +59,9 @@ TEST(ScheduleMeasurer, Basic) {
 
   std::vector<MeasureInput> inputs(tasks.size());
   for (int i = 0; i < tasks.size(); ++i) {
-    auto* task     = &tasks[i];
-    inputs[i].task = task;
-    // inputs[i].lowered_funcs = graph_compiler->FusedGraphToLoweredFunc(task->task_graph());
+    auto* task              = &tasks[i];
+    inputs[i].task          = task;
+    inputs[i].lowered_funcs = graph_compiler->FusedGraphToLoweredFunc(task->task_graph());
   }
 
   auto builder                       = std::make_unique<SimpleBuilder>(graph_compiler.get());

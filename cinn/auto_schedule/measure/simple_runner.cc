@@ -37,7 +37,6 @@ using hlir::framework::Tensor;
 static void PopulateRandomValue(const common::Type& type, const int numel, void* raw_ptr) {
   std::random_device seed;
   std::default_random_engine engine(seed());
-  VLOG(6) << "type : " << type << ", numel:" << numel;
 
   if (type == common::Bool()) {
     auto* fmt_ptr = reinterpret_cast<bool*>(raw_ptr);
@@ -66,7 +65,8 @@ static std::shared_ptr<Buffer> AllocBuffer(const common::Target& target,
 
   const uint32_t bytes_of_ele = static_cast<uint32_t>(std::floor(static_cast<float>(type.bits() + 1) / 8.0));
   CHECK_GT(bytes_of_ele, 0) << "The number bytes of each element is invalid";
-  VLOG(6) << "bytes_of_ele: " << bytes_of_ele;
+  VLOG(6) << "AllocBuffer-target:" << target << ",type:"
+          << ",numel:" << shape.numel() << ",fill_random_value:" << fill_random_value;
 
   if (target == common::DefaultHostTarget()) {
     buffer->ResizeLazy(default_alignment, shape.numel() * bytes_of_ele);
@@ -98,7 +98,6 @@ std::map<std::string, cinn_pod_value_t> SimpleRunner::PrepareArgs(const MeasureI
   const auto& instructions   = build_result.runtime_program->GetRunInstructions();
 
   auto fill_arg_fn = [&](const std::string& param) {
-    VLOG(6) << "Argument[" << param << "] to be filled";
     // the argument is duplicated and has been prepared.
     if (result.count(param)) {
       return;
@@ -121,9 +120,7 @@ std::map<std::string, cinn_pod_value_t> SimpleRunner::PrepareArgs(const MeasureI
     // allocate a new buffer for this argument and store it in
     // the temporary scope to be released at proper time.
     auto compiled_tensor = compiled_scope->GetTensor(param);
-    VLOG(6) << "Argument[" << param << "] AllocBuffer ";
-    auto buffer = AllocBuffer(target, compiled_tensor->type(), compiled_tensor->shape());
-    VLOG(6) << "Argument[" << param << "] AllocBuffer end";
+    auto buffer          = AllocBuffer(target, compiled_tensor->type(), compiled_tensor->shape());
     temp_scope->Var<Tensor>(param);
     auto temp_tensor = temp_scope->GetTensor(param);
     temp_tensor->set_buffer(buffer);

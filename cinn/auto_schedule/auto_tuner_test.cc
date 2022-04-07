@@ -42,7 +42,11 @@ frontend::Program CreateAddReluProgram() {
 }
 
 TEST(AutoTuner, ZeroMeasure) {
-  auto target         = common::DefaultHostTarget();
+#ifdef CINN_WITH_CUDA
+  Target target = common::DefaultNVGPUTarget();
+#else
+  Target target = common::DefaultHostTarget();
+#endif
   auto graph          = std::make_shared<Graph>(CreateAddReluProgram(), target);
   auto scope          = BuildScope(target, graph);
   auto graph_compiler = std::make_unique<GraphCompiler>(target, scope, graph);
@@ -69,10 +73,25 @@ TEST(AutoTuner, ZeroMeasure) {
   ASSERT_EQ(result.optimized_exprs.size(), 2UL);
   ASSERT_EQ(result.optimized_exprs[0].lowered_funcs.size(), 1UL);
   ASSERT_EQ(result.optimized_exprs[0].lowered_funcs[0].size(), 1UL);
+
+  // build runtime program with tuning result
+  GraphCompiler::CompileOptions compile_options;
+  compile_options.with_instantiate_variables = true;
+  compile_options.Apply(result);
+  ASSERT_EQ(2, compile_options.groups.size());
+  ASSERT_EQ(2, compile_options.lowered_funcs.size());
+
+  auto runtime_program = graph_compiler->Build(compile_options).runtime_program;
+  ASSERT_EQ(2, runtime_program->size());
+  runtime_program->Execute();
 }
 
 TEST(AutoTuner, NonZeroMeasure) {
-  auto target         = common::DefaultHostTarget();
+#ifdef CINN_WITH_CUDA
+  Target target = common::DefaultNVGPUTarget();
+#else
+  Target target = common::DefaultHostTarget();
+#endif
   auto graph          = std::make_shared<Graph>(CreateAddReluProgram(), target);
   auto scope          = BuildScope(target, graph);
   auto graph_compiler = std::make_unique<GraphCompiler>(target, scope, graph);
@@ -84,8 +103,8 @@ TEST(AutoTuner, NonZeroMeasure) {
 
   TuningOptions tuning_options;
   tuning_options.num_tuning_rounds         = 1;
-  tuning_options.num_measure_trials        = 30;
-  tuning_options.num_samples_per_iteration = 10;
+  tuning_options.num_measure_trials        = 4;
+  tuning_options.num_samples_per_iteration = 2;
   TuningResult result                      = tuner->Tune(tuning_options);
 
   // check result of graph tuning
@@ -104,7 +123,7 @@ TEST(AutoTuner, NonZeroMeasure) {
   // build runtime program with tuning result
   GraphCompiler::CompileOptions compile_options;
   compile_options.with_instantiate_variables = true;
-  compile_options.Apply(tuning_result);
+  compile_options.Apply(result);
   ASSERT_EQ(2, compile_options.groups.size());
   ASSERT_EQ(2, compile_options.lowered_funcs.size());
 

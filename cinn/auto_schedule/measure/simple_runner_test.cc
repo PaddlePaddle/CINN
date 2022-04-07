@@ -36,7 +36,11 @@ using ::cinn::hlir::framework::Scope;
 
 class TestSimpleRunner : public ::testing::Test {
  public:
-  common::Target target = common::DefaultHostTarget();
+#ifdef CINN_WITH_CUDA
+  Target target = common::DefaultNVGPUTarget();
+#else
+  Target target = common::DefaultHostTarget();
+#endif
   std::shared_ptr<Graph> graph;
   std::shared_ptr<Scope> compiled_scope;
   std::unique_ptr<GraphCompiler> graph_compiler;

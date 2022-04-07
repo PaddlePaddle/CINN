@@ -41,7 +41,7 @@ class AutoTuner {
   struct Config {
     std::string task_schedule_strategy = "round_robin";
     TaskScheduler::Config task_schedule_config;
-    int repeat_times = 1;
+    int runner_repeat_times = 1;
   };
 
   AutoTuner(const common::Target& target, hlir::framework::Graph* graph);

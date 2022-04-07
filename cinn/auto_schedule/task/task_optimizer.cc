@@ -92,14 +92,11 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
 
     for (size_t i = 0; i < measure_outputs.size(); ++i) {
       if (measure_outputs[i].execution_cost < min_exec_time) {
-        min_exec_time           = measure_outputs[i].execution_cost;
-        result.lowered_funcs[0] = measure_inputs[i].task->tune_context().lowered_funcs;
+        min_exec_time        = measure_outputs[i].execution_cost;
+        result.lowered_funcs = measure_inputs[i].lowered_funcs;
       }
     }
 
-    for (size_t i = 0; i < measure_inputs.size(); ++i) {
-      delete measure_inputs[i].task;
-    }
     measured_count += mod_exprs.size();
   }
   return result;

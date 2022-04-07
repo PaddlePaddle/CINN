@@ -35,7 +35,7 @@ AutoTuner::AutoTuner(const common::Target& target, hlir::framework::Graph* graph
 void AutoTuner::Initialize(const Config& config, hlir::framework::GraphCompiler* graph_compiler) {
   // create builder, runner, and schedule measurer
   builder_           = std::make_unique<SimpleBuilder>(graph_compiler);
-  runner_            = std::make_unique<SimpleRunner>(config.repeat_times);
+  runner_            = std::make_unique<SimpleRunner>(config.runner_repeat_times);
   schedule_measurer_ = std::make_unique<ScheduleMeasurer>(builder_.get(), runner_.get());
 
   // create tasks
@@ -76,7 +76,7 @@ TuningResult AutoTuner::Tune(const TuningOptions& options) {
     while ((run_id = task_scheduler_->NextTaskId()) != -1) {
       VLOG(3) << "TaskScheduler returned TaskId = " << run_id << " as the task to be optimized";
       auto* opt           = task_optimizers_.at(run_id).get();
-      auto optimized_expr = opt->optimize(options);
+      auto optimized_expr = opt->Optimize(options);
       // update the best schedules searched so far.
       result.optimized_exprs.at(run_id) = std::move(optimized_expr);
     }
