@@ -20,6 +20,7 @@
 #include "cinn/backends/codegen_cuda_dev.h"
 #include "cinn/common/context.h"
 #include "cinn/hlir/framework/instruction.h"
+#include "cinn/hlir/framework/op_lowering.h"
 #include "cinn/hlir/framework/tensor.h"
 #include "cinn/hlir/pe/schedule.h"
 #include "cinn/lang/lower.h"
@@ -614,31 +615,42 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
                                                       void* stream) {
   compile_options_ = options;
   fetch_var_ids_   = std::move(fetch_var_ids);
-  auto topo_order  = graph_->topological_order();
-  auto& nodes      = std::get<0>(topo_order);
-  auto& edges      = std::get<1>(topo_order);
 
-  auto& groups = graph_->groups;
+  if (graph_->fusion_groups.empty()) {
+    auto topo_order = graph_->topological_order();
+    auto& nodes     = std::get<0>(topo_order);
+    auto& edges     = std::get<1>(topo_order);
 
-  if (!groups.empty()) {
-    for (int i = 0; i < groups.size(); i++) {
-      std::vector<ir::LoweredFunc> lowered_func;
-      if (groups[i].size() == 1) {
-        lowered_func = GetOpFunc(groups[i][0]);
-      } else {
-        lowered_func = GetOpFunc(groups[i]);
+    auto& groups = graph_->groups;
+    if (!groups.empty()) {
+      for (int i = 0; i < groups.size(); i++) {
+        std::vector<ir::LoweredFunc> lowered_func;
+        if (groups[i].size() == 1) {
+          lowered_func = GetOpFunc(groups[i][0]);
+        } else {
+          lowered_func = GetOpFunc(groups[i]);
+        }
+        this->ProcessFunction(lowered_func);
       }
-      this->ProcessFunction(lowered_func);
+    } else {
+      VLOG(3) << "not run opfusion pass";
+      for (auto& node : nodes) {
+        auto op_node = node->safe_as<Node>();
+        if (op_node) {
+          auto lowered_func = GetOpFunc(op_node);
+          this->ProcessFunction(lowered_func);
+          graph_->groups.push_back({op_node});
+        }
+      }
     }
   } else {
-    VLOG(3) << "not run opfusion pass";
-    for (auto& node : nodes) {
-      auto op_node = node->safe_as<Node>();
-      if (op_node) {
-        auto lowered_func = GetOpFunc(op_node);
-        this->ProcessFunction(lowered_func);
-        graph_->groups.push_back({op_node});
-      }
+    auto& dtype_dict = graph_->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
+    auto& shape_dict = graph_->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
+
+    OpLowerer op_lowerer(dtype_dict, shape_dict, target_);
+    for (auto& group : graph_->fusion_groups) {
+      auto lowered_func = op_lowerer.Lower(group);
+      this->ProcessFunction(lowered_func);
     }
   }
 
