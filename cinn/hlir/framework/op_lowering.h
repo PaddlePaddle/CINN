@@ -79,7 +79,7 @@ class OpLowerer {
   const absl::flat_hash_map<std::string, shape_t>& shape_dict_;
 
   // fucntion name prefix
-  const std::string func_name_prefix = "fn_fuse";
+  const std::string func_name_prefix = "fn_fuse_";
 };
 
 }  // namespace framework

@@ -100,7 +100,7 @@ std::vector<ir::LoweredFunc> OpLowerer::LowerOp(ComputeFunction compute,
     func_args.push_back(tensor);
   }
 
-  return lang::LowerVec(func_name_prefix + "_" + group->group_id, stages, func_args, {}, {}, nullptr, this->target_);
+  return lang::LowerVec(func_name_prefix + group->group_id, stages, func_args, {}, {}, nullptr, this->target_);
 }
 
 void OpLowerer::ElementwiseCompute(poly::StageMap& stages,
