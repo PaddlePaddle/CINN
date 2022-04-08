@@ -25,7 +25,6 @@
 #include "cinn/hlir/framework/buffer.h"
 #include "cinn/hlir/framework/scope.h"
 #include "cinn/hlir/framework/tensor.h"
-#include "cinn/runtime/cuda/cuda_util.h"
 
 namespace cinn {
 namespace auto_schedule {
