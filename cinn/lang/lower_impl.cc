@@ -711,6 +711,10 @@ std::vector<Expr> LowerImpl::GenerateFunctionBody(const poly::Schedule* schedule
         axis_vars.insert(axis_vars.end(), tensor->reduce_axis.begin(), tensor->reduce_axis.end());
         for (int i = 0; i < var_counts; i++) {
           block_vars.push_back(Var("i" + std::to_string(i)));
+          if (i >= tensor->domain.size()) {
+            block_vars[i]->is_reduce_axis = true;
+            axis_vars[i]->is_reduce_axis  = true;
+          }
           iter_values.push_back(axis_vars[i]);
           // replace store's indice
           VLOG(3) << "replace axis_var " << axis_vars[i]->name << " to block_var " << block_vars[i];

@@ -640,7 +640,7 @@ void test_unroll(void* _args, int32_t num_args)
   float* B = ((float*)(_B->memory));
   for (int32_t i = 0; i < 32; i += 1) {
     B[(2 * i)] = A[(2 * i)];
-    B[(2 * i)] = A[(2 * i)];
+    B[(1 + (2 * i))] = A[(1 + (2 * i))];
   };
   cinn_buffer_free((void*)(0), _B);
 }
@@ -1603,6 +1603,668 @@ void test_cache_write3(const float* __restrict__ A, float* __restrict__ C)
   };
 }
 
+)ROC";
+  ASSERT_EQ(utils::Trim(target_code), utils::Trim(source_code));
+}
+#endif
+
+TEST(IrSchedule, rfactor) {
+  Context::Global().ResetNameId();
+  Expr M(32);
+  Expr N(2);
+  Expr K(16);
+
+  Target target = common::DefaultHostTarget();
+
+  Placeholder<float> A("A", {M, N, K});
+  Var j(2, "j0");
+  Var k(16, "k0");
+  auto B = Compute(
+      {M},
+      [&](Var i) {
+        return lang::ReduceSum(A(i, j, k), {j, k});
+      },
+      "B");
+
+  auto stages = CreateStages({A, B});
+  auto func   = cinn::lang::LowerVec("test_rfactor", stages, {A, B}, {}, {}, nullptr, target, true);
+  CHECK(!func.empty());
+  auto ast_expr = func[0]->body;
+  std::vector<Expr> vec_ast{ast_expr};
+  ir::ModuleExpr mod_expr(vec_ast);
+  ir::IRSchedule ir_sch(mod_expr);
+  auto loops = ir_sch.GetLoops("B");
+  CHECK_EQ(loops.size(), 3U);
+  auto new_rf_tensor      = ir_sch.Rfactor(loops[2], 0);
+  auto* new_rf_tensor_ref = new_rf_tensor.As<ir::_Tensor_>();
+  CHECK(new_rf_tensor_ref);
+  CHECK(new_rf_tensor_ref->buffer.defined());
+  func[0]->temp_bufs.push_back(new_rf_tensor_ref->buffer);
+  func[0]->PrepareBufferCastExprs();
+  std::string origin = utils::GetStreamCnt(func[0]);
+  LOG(INFO) << "After rfactor , func is : \n" << func[0];
+  EXPECT_EQ(origin, utils::Trim(R"ROC(
+function test_rfactor (_A, _B)
+{
+  ScheduleBlock(root)
+  {
+    {
+      for (rf_k0, 0, 16)
+      {
+        for (i, 0, 32)
+        {
+          ScheduleBlock(rf_B__reduce_init)
+          {
+            i0, i1 = axis.bind(i, rf_k0)
+            rf_B__reduce_init[i1, i0] = 0
+          }
+          for (j0, 0, 2)
+          {
+            ScheduleBlock(rf_B)
+            {
+              i0, i1, i2 = axis.bind(i, j0, rf_k0)
+              rf_B[i2, i0] = (rf_B[i2, i0] + A[i0, i1, i2])
+            }
+          }
+        }
+      }
+      for (i, 0, 32)
+      {
+        ScheduleBlock(B__reduce_init)
+        {
+          i0 = axis.bind(i)
+          B__reduce_init[i0] = 0
+        }
+        for (k0, 0, 16)
+        {
+          ScheduleBlock(B)
+          {
+            i0, i2 = axis.bind(i, k0)
+            B[i0] = (B[i0] + rf_B[i2, i0])
+          }
+        }
+      }
+    }
+  }
+}
+)ROC"));
+  // optimze pass: add temp buffers
+  Module::Builder builder("module1", target);
+  for (auto& i : func) {
+    builder.AddFunction(i);
+  }
+  auto module = builder.Build();
+  CodeGenC codegen(target);
+  codegen.SetInlineBuiltinCodes(false);
+  auto source_code = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
+
+  LOG(INFO) << "rfactor source code is :\n" << source_code;
+  std::string target_code = R"ROC(
+#include <cinn_runtime.h>
+#include <stdio.h>
+
+void test_rfactor(void* _args, int32_t num_args)
+{
+  const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
+  cinn_buffer_t* _B = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[1]));
+  cinn_buffer_t* rf__B = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 16, 32 });
+  cinn_buffer_malloc((void*)(0), _B);
+  cinn_buffer_malloc((void*)(0), rf__B);
+  const float* A = ((const float*)(_A->memory));
+  float* B = ((float*)(_B->memory));
+  float* B__reduce_init = ((float*)(_B->memory));
+  float* rf_B = ((float*)(rf__B->memory));
+  float* rf_B__reduce_init = ((float*)(rf__B->memory));
+  {
+    for (int32_t rf_k0 = 0; rf_k0 < 16; rf_k0 += 1) {
+      for (int32_t i = 0; i < 32; i += 1) {
+        rf_B__reduce_init[((32 * rf_k0) + i)] = 0;
+        for (int32_t j0 = 0; j0 < 2; j0 += 1) {
+          rf_B[((32 * rf_k0) + i)] = (rf_B[((32 * rf_k0) + i)] + A[((32 * i) + ((16 * j0) + rf_k0))]);
+        };
+      };
+    };
+    for (int32_t i = 0; i < 32; i += 1) {
+      B__reduce_init[i] = 0;
+      for (int32_t k0 = 0; k0 < 16; k0 += 1) {
+        B[i] = (B[i] + rf_B[((32 * k0) + i)]);
+      };
+    };
+  };
+  cinn_buffer_free((void*)(0), rf__B);
+  cinn_buffer_free((void*)(0), _B);
+}
+)ROC";
+  ASSERT_EQ(utils::Trim(target_code), utils::Trim(source_code));
+}
+
+TEST(IrSchedule, rfactor1) {
+  Context::Global().ResetNameId();
+  Expr M(32);
+  Expr N(2);
+  Expr K(16);
+
+  Target target = common::DefaultHostTarget();
+
+  Placeholder<float> A("A", {M, N, K});
+  Var j(2, "j0");
+  Var k(16, "k0");
+  auto B = Compute(
+      {M},
+      [&](Var i) {
+        return lang::ReduceSum(A(i, j, k), {j, k});
+      },
+      "B");
+
+  auto stages = CreateStages({A, B});
+  auto func   = cinn::lang::LowerVec("test_rfactor", stages, {A, B}, {}, {}, nullptr, target, true);
+  CHECK(!func.empty());
+  auto ast_expr = func[0]->body;
+  std::vector<Expr> vec_ast{ast_expr};
+  ir::ModuleExpr mod_expr(vec_ast);
+  ir::IRSchedule ir_sch(mod_expr);
+  auto loops = ir_sch.GetLoops("B");
+  CHECK_EQ(loops.size(), 3U);
+  auto new_rf_tensor      = ir_sch.Rfactor(loops[1], 1);
+  auto* new_rf_tensor_ref = new_rf_tensor.As<ir::_Tensor_>();
+  CHECK(new_rf_tensor_ref);
+  CHECK(new_rf_tensor_ref->buffer.defined());
+  func[0]->temp_bufs.push_back(new_rf_tensor_ref->buffer);
+  func[0]->PrepareBufferCastExprs();
+  std::string origin = utils::GetStreamCnt(func[0]);
+  LOG(INFO) << "After rfactor , func is : \n" << func[0];
+  EXPECT_EQ(origin, utils::Trim(R"ROC(
+function test_rfactor (_A, _B)
+{
+  ScheduleBlock(root)
+  {
+    {
+      for (i, 0, 32)
+      {
+        for (rf_j0, 0, 2)
+        {
+          ScheduleBlock(rf_B__reduce_init)
+          {
+            i0, i1 = axis.bind(i, rf_j0)
+            rf_B__reduce_init[i0, i1] = 0
+          }
+          for (k0, 0, 16)
+          {
+            ScheduleBlock(rf_B)
+            {
+              i0, i1, i2 = axis.bind(i, rf_j0, k0)
+              rf_B[i0, i1] = (rf_B[i0, i1] + A[i0, i1, i2])
+            }
+          }
+        }
+      }
+      for (i, 0, 32)
+      {
+        ScheduleBlock(B__reduce_init)
+        {
+          i0 = axis.bind(i)
+          B__reduce_init[i0] = 0
+        }
+        for (j0, 0, 2)
+        {
+          ScheduleBlock(B)
+          {
+            i0, i1 = axis.bind(i, j0)
+            B[i0] = (B[i0] + rf_B[i0, i1])
+          }
+        }
+      }
+    }
+  }
+}
+)ROC"));
+  // optimze pass: add temp buffers
+  Module::Builder builder("module1", target);
+  for (auto& i : func) {
+    builder.AddFunction(i);
+  }
+  auto module = builder.Build();
+  CodeGenC codegen(target);
+  codegen.SetInlineBuiltinCodes(false);
+  auto source_code = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
+
+  LOG(INFO) << "rfactor source code is :\n" << source_code;
+  std::string target_code = R"ROC(
+#include <cinn_runtime.h>
+#include <stdio.h>
+
+void test_rfactor(void* _args, int32_t num_args)
+{
+  const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
+  cinn_buffer_t* _B = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[1]));
+  cinn_buffer_t* rf__B = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 32, 2 });
+  cinn_buffer_malloc((void*)(0), _B);
+  cinn_buffer_malloc((void*)(0), rf__B);
+  const float* A = ((const float*)(_A->memory));
+  float* B = ((float*)(_B->memory));
+  float* B__reduce_init = ((float*)(_B->memory));
+  float* rf_B = ((float*)(rf__B->memory));
+  float* rf_B__reduce_init = ((float*)(rf__B->memory));
+  {
+    for (int32_t i = 0; i < 32; i += 1) {
+      for (int32_t rf_j0 = 0; rf_j0 < 2; rf_j0 += 1) {
+        rf_B__reduce_init[((2 * i) + rf_j0)] = 0;
+        for (int32_t k0 = 0; k0 < 16; k0 += 1) {
+          rf_B[((2 * i) + rf_j0)] = (rf_B[((2 * i) + rf_j0)] + A[((32 * i) + ((16 * rf_j0) + k0))]);
+        };
+      };
+    };
+    for (int32_t i = 0; i < 32; i += 1) {
+      B__reduce_init[i] = 0;
+      for (int32_t j0 = 0; j0 < 2; j0 += 1) {
+        B[i] = (B[i] + rf_B[((2 * i) + j0)]);
+      };
+    };
+  };
+  cinn_buffer_free((void*)(0), rf__B);
+  cinn_buffer_free((void*)(0), _B);
+}
+)ROC";
+  ASSERT_EQ(utils::Trim(target_code), utils::Trim(source_code));
+}
+
+TEST(IrSchedule, rfactor2) {
+  Context::Global().ResetNameId();
+  Expr M(32);
+  Expr N(2);
+  Expr K(16);
+
+  Target target = common::DefaultHostTarget();
+
+  Placeholder<float> A("A", {M, K});
+  Placeholder<float> B("B", {K, N});
+  Var k(16, "k0");
+  auto C = Compute(
+      {M, N}, [&](Var i, Var j) { return lang::ReduceSum(A(i, k) * B(k, j), {k}); }, "C");
+
+  auto stages = CreateStages({A, B, C});
+  auto func   = cinn::lang::LowerVec("test_rfactor", stages, {A, B, C}, {}, {}, nullptr, target, true);
+  CHECK(!func.empty());
+  auto ast_expr = func[0]->body;
+  std::vector<Expr> vec_ast{ast_expr};
+  ir::ModuleExpr mod_expr(vec_ast);
+  ir::IRSchedule ir_sch(mod_expr);
+  auto loops = ir_sch.GetLoops("C");
+  CHECK_EQ(loops.size(), 3U);
+  auto new_rf_tensor      = ir_sch.Rfactor(loops[2], 0);
+  auto* new_rf_tensor_ref = new_rf_tensor.As<ir::_Tensor_>();
+  CHECK(new_rf_tensor_ref);
+  CHECK(new_rf_tensor_ref->buffer.defined());
+  func[0]->temp_bufs.push_back(new_rf_tensor_ref->buffer);
+  func[0]->PrepareBufferCastExprs();
+  std::string origin = utils::GetStreamCnt(func[0]);
+  LOG(INFO) << "After rfactor , func is : \n" << func[0];
+  EXPECT_EQ(origin, utils::Trim(R"ROC(
+function test_rfactor (_A, _B, _C)
+{
+  ScheduleBlock(root)
+  {
+    {
+      for (rf_k0, 0, 16)
+      {
+        for (i, 0, 32)
+        {
+          for (j, 0, 2)
+          {
+            ScheduleBlock(rf_C__reduce_init)
+            {
+              i0, i1, i2 = axis.bind(i, j, rf_k0)
+              rf_C__reduce_init[i2, i0, i1] = 0
+            }
+            ScheduleBlock(rf_C)
+            {
+              i0, i1, i2 = axis.bind(i, j, rf_k0)
+              rf_C[i2, i0, i1] = (rf_C[i2, i0, i1] + (A[i0, i2] * B[i2, i1]))
+            }
+          }
+        }
+      }
+      for (i, 0, 32)
+      {
+        for (j, 0, 2)
+        {
+          ScheduleBlock(C__reduce_init)
+          {
+            i0, i1 = axis.bind(i, j)
+            C__reduce_init[i0, i1] = 0
+          }
+          for (k0, 0, 16)
+          {
+            ScheduleBlock(C)
+            {
+              i0, i1, i2 = axis.bind(i, j, k0)
+              C[i0, i1] = (C[i0, i1] + rf_C[i2, i0, i1])
+            }
+          }
+        }
+      }
+    }
+  }
+}
+)ROC"));
+  // optimze pass: add temp buffers
+  Module::Builder builder("module1", target);
+  for (auto& i : func) {
+    builder.AddFunction(i);
+  }
+  auto module = builder.Build();
+  CodeGenC codegen(target);
+  codegen.SetInlineBuiltinCodes(false);
+  auto source_code = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
+
+  LOG(INFO) << "rfactor source code is :\n" << source_code;
+  std::string target_code = R"ROC(
+#include <cinn_runtime.h>
+#include <stdio.h>
+
+void test_rfactor(void* _args, int32_t num_args)
+{
+  const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
+  const cinn_buffer_t* _B = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[1]));
+  cinn_buffer_t* _C = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[2]));
+  cinn_buffer_t* rf__C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 16, 32, 2 });
+  cinn_buffer_malloc((void*)(0), _C);
+  cinn_buffer_malloc((void*)(0), rf__C);
+  const float* A = ((const float*)(_A->memory));
+  const float* B = ((const float*)(_B->memory));
+  float* C = ((float*)(_C->memory));
+  float* C__reduce_init = ((float*)(_C->memory));
+  float* rf_C = ((float*)(rf__C->memory));
+  float* rf_C__reduce_init = ((float*)(rf__C->memory));
+  {
+    for (int32_t rf_k0 = 0; rf_k0 < 16; rf_k0 += 1) {
+      for (int32_t i = 0; i < 32; i += 1) {
+        for (int32_t j = 0; j < 2; j += 1) {
+          rf_C__reduce_init[((2 * i) + ((64 * rf_k0) + j))] = 0;
+          rf_C[((2 * i) + ((64 * rf_k0) + j))] = fma(A[((16 * i) + rf_k0)], B[((2 * rf_k0) + j)], rf_C[((2 * i) + ((64 * rf_k0) + j))]);
+        };
+      };
+    };
+    for (int32_t i = 0; i < 32; i += 1) {
+      for (int32_t j = 0; j < 2; j += 1) {
+        C__reduce_init[((2 * i) + j)] = 0;
+        for (int32_t k0 = 0; k0 < 16; k0 += 1) {
+          C[((2 * i) + j)] = (C[((2 * i) + j)] + rf_C[((2 * i) + ((64 * k0) + j))]);
+        };
+      };
+    };
+  };
+  cinn_buffer_free((void*)(0), rf__C);
+  cinn_buffer_free((void*)(0), _C);
+}
+)ROC";
+  ASSERT_EQ(utils::Trim(target_code), utils::Trim(source_code));
+}
+
+TEST(IrSchedule, compute_inline1) {
+  Context::Global().ResetNameId();
+  Expr M(32);
+  Expr N(32);
+  Expr P(32);
+
+  Target target = common::DefaultHostTarget();
+
+  Placeholder<float> A("A", {M, N, P});
+  auto B = Compute(
+      {M, N, P}, [&](Var i, Var j, Var k) { return A(i, j, k) + Expr(1.f); }, "B");
+  auto C = Compute(
+      {M, N, P}, [&](Var i, Var j, Var k) { return B(j, i, k) * Expr(2.f); }, "C");
+
+  auto stages = CreateStages({A, B, C});
+
+  auto func = cinn::lang::LowerVec("test_compute_inline1", stages, {A, C}, {}, {}, nullptr, target, true);
+
+  auto ast_expr = func[0]->body;
+  std::vector<Expr> vec_ast{ast_expr};
+  ir::ModuleExpr mod_expr(vec_ast);
+  ir::IRSchedule ir_sch(mod_expr);
+
+  auto block_b = ir_sch.GetBlock("B");
+  ir_sch.ComputeInline(block_b);
+  VLOG(1) << "After ComputeInline, IR is : " << ir_sch.GetModule().GetExprs().at(0);
+  Module::Builder builder("module1", target);
+  for (auto& i : func) {
+    builder.AddFunction(i);
+  }
+  auto module = builder.Build();
+  CodeGenC codegen(target);
+  codegen.SetInlineBuiltinCodes(false);
+  auto source_code = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
+
+  VLOG(1) << "compute_inline1 source code is :\n" << source_code;
+
+  std::string target_code = R"ROC(
+#include <cinn_runtime.h>
+#include <stdio.h>
+
+void test_compute_inline1(void* _args, int32_t num_args)
+{
+  const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
+  cinn_buffer_t* _C = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[1]));
+  cinn_buffer_t* _B = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 32, 32, 32 });
+  cinn_buffer_malloc((void*)(0), _C);
+  cinn_buffer_malloc((void*)(0), _B);
+  const float* A = ((const float*)(_A->memory));
+  float* B = ((float*)(_B->memory));
+  float* C = ((float*)(_C->memory));
+  for (int32_t i = 0; i < 32; i += 1) {
+    for (int32_t j = 0; j < 32; j += 1) {
+      for (int32_t k = 0; k < 32; k += 1) {
+        C[((1024 * i) + ((32 * j) + k))] = (2 * (1 + A[((32 * i) + ((1024 * j) + k))]));
+      };
+    };
+  };
+  cinn_buffer_free((void*)(0), _B);
+  cinn_buffer_free((void*)(0), _C);
+}
+)ROC";
+  ASSERT_EQ(utils::Trim(target_code), utils::Trim(source_code));
+}
+
+TEST(IrSchedule, compute_inline2) {
+  Context::Global().ResetNameId();
+  Expr M(32);
+  Expr N(32);
+  Expr P(32);
+
+  Target target = common::DefaultHostTarget();
+
+  Placeholder<float> A("A", {M, N, P});
+  auto B = Compute(
+      {M, N, P}, [&](Var i, Var j, Var k) { return A(i, j, k) + Expr(1.f); }, "B");
+  auto C = Compute(
+      {M, N, P}, [&](Var i, Var j, Var k) { return B(i, j, k) * Expr(2.f); }, "C");
+
+  auto stages = CreateStages({A, B, C});
+
+  auto func = cinn::lang::LowerVec("test_compute_inline2", stages, {A, C}, {}, {}, nullptr, target, true);
+
+  auto ast_expr = func[0]->body;
+  std::vector<Expr> vec_ast{ast_expr};
+  ir::ModuleExpr mod_expr(vec_ast);
+  ir::IRSchedule ir_sch(mod_expr);
+
+  auto block_b = ir_sch.GetBlock("B");
+  auto loops   = ir_sch.GetLoops("C");
+  ir_sch.ComputeAt(block_b, loops[1]);
+  block_b = ir_sch.GetBlock("B");
+  ir_sch.ComputeInline(block_b);
+  VLOG(1) << "After ComputeInline, IR is : " << ir_sch.GetModule().GetExprs().at(0);
+  Module::Builder builder("module1", target);
+  for (auto& i : func) {
+    builder.AddFunction(i);
+  }
+  auto module = builder.Build();
+  CodeGenC codegen(target);
+  codegen.SetInlineBuiltinCodes(false);
+  auto source_code = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
+
+  VLOG(1) << "compute_inline2 source code is :\n" << source_code;
+
+  std::string target_code = R"ROC(
+#include <cinn_runtime.h>
+#include <stdio.h>
+
+void test_compute_inline2(void* _args, int32_t num_args)
+{
+  const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
+  cinn_buffer_t* _C = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[1]));
+  cinn_buffer_t* _B = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 32, 32, 32 });
+  cinn_buffer_malloc((void*)(0), _C);
+  cinn_buffer_malloc((void*)(0), _B);
+  const float* A = ((const float*)(_A->memory));
+  float* B = ((float*)(_B->memory));
+  float* C = ((float*)(_C->memory));
+  for (int32_t i = 0; i < 32; i += 1) {
+    for (int32_t j = 0; j < 32; j += 1) {
+      for (int32_t k = 0; k < 32; k += 1) {
+        C[((1024 * i) + ((32 * j) + k))] = (2 * (1 + A[((1024 * i) + ((32 * j) + k))]));
+      };
+    };
+  };
+  cinn_buffer_free((void*)(0), _B);
+  cinn_buffer_free((void*)(0), _C);
+}
+)ROC";
+  ASSERT_EQ(utils::Trim(target_code), utils::Trim(source_code));
+}
+
+#ifdef CINN_WITH_CUDA
+TEST(IrSchedule, compute_inline3) {
+  Context::Global().ResetNameId();
+  Expr M(32);
+  Expr N(32);
+  Expr P(32);
+
+  Target target = common::DefaultNVGPUTarget();
+
+  Placeholder<float> A("A", {M, N, P});
+  auto B = Compute(
+      {M, N, P}, [&](Var i, Var j, Var k) { return A(i, j, k) + Expr(1.f); }, "B");
+  auto C = Compute(
+      {M, N, P}, [&](Var i, Var j, Var k) { return B(j, i, k) * Expr(2.f); }, "C");
+
+  auto stages = CreateStages({A, B, C});
+  stages[B]->SetBuffer("local");
+
+  auto func = cinn::lang::LowerVec("test_compute_inline3", stages, {A, C}, {}, {}, nullptr, target, true);
+
+  auto ast_expr = func[0]->body;
+  std::vector<Expr> vec_ast{ast_expr};
+  ir::ModuleExpr mod_expr(vec_ast);
+  ir::IRSchedule ir_sch(mod_expr);
+
+  auto block_b = ir_sch.GetBlock("B");
+  ir_sch.ComputeInline(block_b);
+  VLOG(1) << "After ComputeInline, IR is : " << ir_sch.GetModule().GetExprs().at(0);
+
+  Module::Builder builder("module1", target);
+  for (auto& i : func) {
+    builder.AddFunction(i);
+  }
+  auto module = builder.Build();
+  CodeGenCUDA_Dev codegen(target);
+  codegen.SetInlineBuiltinCodes(false);
+  auto source_code = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
+
+  VLOG(1) << "compute_inline3 source code is :\n" << source_code;
+
+  std::string target_code = R"ROC(
+#include "cinn_cuda_runtime_source.cuh"
+
+#ifdef __CUDACC_RTC__
+typedef int int32_t;
+typedef char int8_t;
+#endif
+
+
+
+__global__
+void test_compute_inline3(const float* __restrict__ A, float* __restrict__ C)
+{
+  float _B_temp_buffer [ 32768 ];
+  float* B = _B_temp_buffer;
+  for (int32_t i = 0; i < 32; i += 1) {
+    for (int32_t j = 0; j < 32; j += 1) {
+      for (int32_t k = 0; k < 32; k += 1) {
+        C[((1024 * i) + ((32 * j) + k))] = (2 * (1 + A[((32 * i) + ((1024 * j) + k))]));
+      };
+    };
+  };
+}
+)ROC";
+  ASSERT_EQ(utils::Trim(target_code), utils::Trim(source_code));
+}
+
+TEST(IrSchedule, compute_inline4) {
+  Context::Global().ResetNameId();
+  Expr M(32);
+  Expr N(32);
+  Expr P(32);
+
+  Target target = common::DefaultNVGPUTarget();
+
+  Placeholder<float> A("A", {M, N, P});
+  auto B = Compute(
+      {M, N, P}, [&](Var i, Var j, Var k) { return A(i, j, k) + Expr(1.f); }, "B");
+  auto C = Compute(
+      {M, N, P}, [&](Var i, Var j, Var k) { return B(i, j, k) * Expr(2.f); }, "C");
+
+  auto stages = CreateStages({A, B, C});
+  stages[B]->SetBuffer("local");
+
+  auto func = cinn::lang::LowerVec("test_compute_inline4", stages, {A, C}, {}, {}, nullptr, target, true);
+
+  auto ast_expr = func[0]->body;
+  std::vector<Expr> vec_ast{ast_expr};
+  ir::ModuleExpr mod_expr(vec_ast);
+  ir::IRSchedule ir_sch(mod_expr);
+
+  auto block_b = ir_sch.GetBlock("B");
+  auto loops   = ir_sch.GetLoops("C");
+  ir_sch.ComputeAt(block_b, loops[1]);
+  block_b = ir_sch.GetBlock("B");
+  ir_sch.ComputeInline(block_b);
+  VLOG(1) << "After ComputeInline, IR is : " << ir_sch.GetModule().GetExprs().at(0);
+  Module::Builder builder("module1", target);
+  for (auto& i : func) {
+    builder.AddFunction(i);
+  }
+  auto module = builder.Build();
+  CodeGenCUDA_Dev codegen(target);
+  codegen.SetInlineBuiltinCodes(false);
+  auto source_code = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
+
+  LOG(INFO) << "compute_inline4 source code is :\n" << source_code;
+
+  std::string target_code = R"ROC(
+#include "cinn_cuda_runtime_source.cuh"
+
+#ifdef __CUDACC_RTC__
+typedef int int32_t;
+typedef char int8_t;
+#endif
+
+
+
+__global__
+void test_compute_inline4(const float* __restrict__ A, float* __restrict__ C)
+{
+  float _B_temp_buffer [ 32768 ];
+  float* B = _B_temp_buffer;
+  for (int32_t i = 0; i < 32; i += 1) {
+    for (int32_t j = 0; j < 32; j += 1) {
+      for (int32_t k = 0; k < 32; k += 1) {
+        C[((1024 * i) + ((32 * j) + k))] = (2 * (1 + A[((1024 * i) + ((32 * j) + k))]));
+      };
+    };
+  };
+}
 )ROC";
   ASSERT_EQ(utils::Trim(target_code), utils::Trim(source_code));
 }

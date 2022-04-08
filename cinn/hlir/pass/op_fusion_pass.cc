@@ -27,8 +27,8 @@ using framework::shape_t;
 using common::GraphEdge;
 using common::GraphNode;
 
-using Group  = std::shared_ptr<Graph::Group>;
-using Groups = std::vector<Group>;
+using GroupPtr  = std::shared_ptr<Graph::Group>;
+using GroupList = std::vector<GroupPtr>;
 
 using ShapeDict         = absl::flat_hash_map<std::string, shape_t>;
 using ConditionFunction = std::function<bool(const Node*, const Node*)>;
@@ -79,12 +79,12 @@ class OpFusionPassHelper : public FusionHelperBase {
   }
 
   // return a vector of groups in topological order.
-  Groups operator()() {
+  GroupList operator()() {
     // do op fusion.
     DoOpFusion();
 
     // find all fusion group.
-    Groups fusion_groups;
+    GroupList fusion_groups;
     std::unordered_set<Graph::Group*> groups_set;
     for (auto node : nodes_) {
       auto& group = fusion_groups_[node];
@@ -427,7 +427,7 @@ class OpFusionPassHelper : public FusionHelperBase {
     return false;
   }
   std::vector<Node*> nodes_;
-  std::unordered_map<const Node*, Group> fusion_groups_;
+  std::unordered_map<const Node*, GroupPtr> fusion_groups_;
 
   struct FusionRelation {
     // producer -> consumer

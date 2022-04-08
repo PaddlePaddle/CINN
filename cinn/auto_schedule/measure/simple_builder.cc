@@ -12,18 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#pragma once
+#include "cinn/auto_schedule/measure/simple_builder.h"
 
 namespace cinn {
 namespace auto_schedule {
 
-// Options for task tuning process
-struct TuningOptions {
-  // The number of measurement trials, if it is 0,
-  // that means the tunner will return the best
-  // candidate of schedule config without measurement.
-  int num_measure_trials = 0;
-};
+SimpleBuilder::SimpleBuilder(hlir::framework::GraphCompiler* graph_compiler) : graph_compiler_(graph_compiler) {}
+
+BuildResult SimpleBuilder::Build(const MeasureInput& input) {
+  BuildResult result;
+  return result;
+}
 
 }  // namespace auto_schedule
 }  // namespace cinn

@@ -20,6 +20,7 @@
 #include "cinn/backends/codegen_cuda_dev.h"
 #include "cinn/common/context.h"
 #include "cinn/hlir/framework/instruction.h"
+#include "cinn/hlir/framework/op_lowering.h"
 #include "cinn/hlir/framework/tensor.h"
 #include "cinn/hlir/pe/schedule.h"
 #include "cinn/lang/lower.h"
@@ -614,31 +615,42 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
                                                       void* stream) {
   compile_options_ = options;
   fetch_var_ids_   = std::move(fetch_var_ids);
-  auto topo_order  = graph_->topological_order();
-  auto& nodes      = std::get<0>(topo_order);
-  auto& edges      = std::get<1>(topo_order);
 
-  auto& groups = graph_->groups;
+  if (graph_->fusion_groups.empty()) {
+    auto topo_order = graph_->topological_order();
+    auto& nodes     = std::get<0>(topo_order);
+    auto& edges     = std::get<1>(topo_order);
 
-  if (!groups.empty()) {
-    for (int i = 0; i < groups.size(); i++) {
-      std::vector<ir::LoweredFunc> lowered_func;
-      if (groups[i].size() == 1) {
-        lowered_func = GetOpFunc(groups[i][0]);
-      } else {
-        lowered_func = GetOpFunc(groups[i]);
+    auto& groups = graph_->groups;
+    if (!groups.empty()) {
+      for (int i = 0; i < groups.size(); i++) {
+        std::vector<ir::LoweredFunc> lowered_func;
+        if (groups[i].size() == 1) {
+          lowered_func = GetOpFunc(groups[i][0]);
+        } else {
+          lowered_func = GetOpFunc(groups[i]);
+        }
+        this->ProcessFunction(lowered_func);
       }
-      this->ProcessFunction(lowered_func);
+    } else {
+      VLOG(3) << "not run opfusion pass";
+      for (auto& node : nodes) {
+        auto op_node = node->safe_as<Node>();
+        if (op_node) {
+          auto lowered_func = GetOpFunc(op_node);
+          this->ProcessFunction(lowered_func);
+          graph_->groups.push_back({op_node});
+        }
+      }
     }
   } else {
-    VLOG(3) << "not run opfusion pass";
-    for (auto& node : nodes) {
-      auto op_node = node->safe_as<Node>();
-      if (op_node) {
-        auto lowered_func = GetOpFunc(op_node);
-        this->ProcessFunction(lowered_func);
-        graph_->groups.push_back({op_node});
-      }
+    auto& dtype_dict = graph_->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
+    auto& shape_dict = graph_->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
+
+    OpLowerer op_lowerer(dtype_dict, shape_dict, target_);
+    for (auto& group : graph_->fusion_groups) {
+      auto lowered_func = op_lowerer.Lower(group);
+      this->ProcessFunction(lowered_func);
     }
   }
 
@@ -1131,22 +1143,21 @@ std::shared_ptr<Scope> BuildScope(Target target, const std::shared_ptr<Graph>& g
   return scope;
 }
 
-std::vector<ir::Expr> GraphCompiler::FusedGraphToExpr(const std::vector<std::vector<hlir::framework::Node*>>& graph) {
-  std::vector<ir::Expr> result;
+std::vector<std::vector<ir::LoweredFunc>> GraphCompiler::FusedGraphToLoweredFunc(
+    const std::vector<std::vector<hlir::framework::Node*>>& graph) {
+  std::vector<std::vector<ir::LoweredFunc>> result;
   for (const std::vector<hlir::framework::Node*>& node_group : graph) {
     CHECK(!node_group.empty()) << "Invalid graph which contains empty node group in GraphCompiler.";
     if (node_group.size() == 1) {
-      std::vector<ir::Expr> node_expr = NodeToExpr(*(node_group[0]));
-      result.insert(result.end(), node_expr.begin(), node_expr.end());
+      result.emplace_back(NodeToLoweredFunc(*(node_group[0])));
     } else {
-      std::vector<ir::Expr> fused_expr = FusedNodeGroupToExpr(node_group);
-      result.insert(result.end(), fused_expr.begin(), fused_expr.end());
+      result.emplace_back(FusedNodeGroupToLoweredFunc(node_group));
     }
   }
   return result;
 }
 
-std::vector<ir::Expr> GraphCompiler::NodeToExpr(const hlir::framework::Node& node) {
+std::vector<ir::LoweredFunc> GraphCompiler::NodeToLoweredFunc(const hlir::framework::Node& node) {
   VLOG(4) << "Start NodeToExpr of op " << node.id();
   auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
   auto& dtype_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
@@ -1195,20 +1206,25 @@ std::vector<ir::Expr> GraphCompiler::NodeToExpr(const hlir::framework::Node& nod
   // schedule in auto-tuning. Can we speed up tuning using pre-set? Consider it
   // in the future.
 
-  std::vector<ir::LoweredFunc> funcs =
-      lang::LowerVec(GetOrGenFullFuncName(GenOpFuncName(&node)), stages, inputs, {}, {}, nullptr, target_);
+  std::vector<ir::LoweredFunc> funcs = lang::LowerVec(GetOrGenFullFuncName(GenOpFuncName(&node)),
+                                                      stages,
+                                                      inputs,
+                                                      {},
+                                                      {},
+                                                      nullptr,
+                                                      target_,
+                                                      /*support_ir_schedule*/ true);
 
-  std::vector<Expr> ast_vec;
   VLOG(6) << "The [" << funcs.size() << "] functions of node [" << node.attrs.node_name << "] are:\n";
   for (auto& f : funcs) {
     VLOG(6) << f;
-    ast_vec.push_back(f->body);
   }
 
-  return ast_vec;
+  return funcs;
 }
 
-std::vector<ir::Expr> GraphCompiler::FusedNodeGroupToExpr(const std::vector<hlir::framework::Node*>& node_group) {
+std::vector<ir::LoweredFunc> GraphCompiler::FusedNodeGroupToLoweredFunc(
+    const std::vector<hlir::framework::Node*>& node_group) {
   VLOG(4) << "fuse begin: " << node_group[0]->id();
   size_t fuse_number = node_group.size();
   CHECK_GT(fuse_number, 1UL) << "fuse nodes number must be greater than 1";
@@ -1306,18 +1322,16 @@ std::vector<ir::Expr> GraphCompiler::FusedNodeGroupToExpr(const std::vector<hlir
     }
   }
 
-  std::vector<ir::LoweredFunc> funcs =
-      lang::LowerVec(GetOrGenFullFuncName(fuse_name), stages, inputs, {}, {}, nullptr, this->target_);
+  std::vector<ir::LoweredFunc> funcs = lang::LowerVec(
+      GetOrGenFullFuncName(fuse_name), stages, inputs, {}, {}, nullptr, this->target_, /*support_ir_schedule*/ true);
 
   VLOG(6) << "The [" << funcs.size() << "] functions of " << fuse_name << " are:\n";
-  std::vector<Expr> ast_vec;
   for (const ir::LoweredFunc& f : funcs) {
     VLOG(6) << "Function [" << f->name << "] is:\n";
     VLOG(6) << f;
-    ast_vec.push_back(f->body);
   }
 
-  return ast_vec;
+  return funcs;
 }
 
 }  // namespace framework
