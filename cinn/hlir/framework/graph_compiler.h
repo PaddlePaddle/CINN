@@ -103,7 +103,7 @@ class GraphCompiler final {
     // if it is empty then graph_compiler will generate for them
     std::vector<std::vector<ir::LoweredFunc>> lowered_funcs;
 
-    // apply result of auto-tune to compile
+    // apply results of auto-tune to compile
     void Apply(const auto_schedule::TuningResult& tuning_result);
   };
 
