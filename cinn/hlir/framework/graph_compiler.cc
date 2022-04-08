@@ -20,6 +20,7 @@
 #include "cinn/backends/codegen_cuda_dev.h"
 #include "cinn/common/context.h"
 #include "cinn/hlir/framework/instruction.h"
+#include "cinn/hlir/framework/op_lowering.h"
 #include "cinn/hlir/framework/tensor.h"
 #include "cinn/hlir/pe/schedule.h"
 #include "cinn/lang/lower.h"
@@ -628,7 +629,6 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   fetch_var_ids_   = std::move(fetch_var_ids);
   auto topo_order  = graph_->topological_order();
   auto& nodes      = std::get<0>(topo_order);
-  auto& edges      = std::get<1>(topo_order);
 
   m_builder_.Clear();
   // if there are no avaiable groups, we will take each node as a group
@@ -647,16 +647,30 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   // if the input lowered_funcs is empty, we will use the defalut lowering process to generate
   std::vector<std::vector<ir::LoweredFunc>> local_lowered_funcs;
   if (options.lowered_funcs.empty()) {
-    for (int i = 0; i < groups.size(); i++) {
-      std::vector<ir::LoweredFunc> lowered_func;
-      if (groups[i].size() == 1) {
-        lowered_func = GetOpFunc(groups[i][0]);
-      } else {
-        lowered_func = GetOpFunc(groups[i]);
+    // lowering of new fusion pass is not compatible with the groups from the input options,
+    // thus process it seperately
+    if (!graph_->fusion_groups.empty()) {
+      auto& dtype_dict = graph_->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
+      auto& shape_dict = graph_->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
+
+      OpLowerer op_lowerer(dtype_dict, shape_dict, target_);
+      for (auto& group : graph_->fusion_groups) {
+        auto lowered_func = op_lowerer.Lower(group);
+        this->ProcessFunction(lowered_func);
       }
-      local_lowered_funcs.emplace_back(std::move(lowered_func));
+    } else {
+      for (int i = 0; i < groups.size(); i++) {
+        std::vector<ir::LoweredFunc> lowered_func;
+        if (groups[i].size() == 1) {
+          lowered_func = GetOpFunc(groups[i][0]);
+        } else {
+          lowered_func = GetOpFunc(groups[i]);
+        }
+        local_lowered_funcs.emplace_back(std::move(lowered_func));
+      }
     }
   }
+
   // use the input lowered_funcs in options firstly if exists
   const auto& lowered_funcs = options.lowered_funcs.empty() ? local_lowered_funcs : options.lowered_funcs;
   CHECK_EQ(groups.size(), lowered_funcs.size()) << "The size of groups and lowered_funcs shoule be equal";
