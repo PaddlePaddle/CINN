@@ -219,7 +219,10 @@ void BindPlaceholder(py::module *m) {
       .def("to_expr", [](PlaceholderWrapper &self) { return ir::Expr(self); })
       .def("to_tensor", [](PlaceholderWrapper &self) { return ir::Tensor(self); });
 
-  m->def("create_placeholder", &lang::CreatePlaceHolder);
+  m->def("create_placeholder",
+         static_cast<ir::Tensor (*)(const std::vector<Expr> &, Type, const std::string &)>(&lang::CreatePlaceHolder));
+  m->def("create_placeholder",
+         static_cast<ir::Tensor (*)(const std::vector<int> &, Type, const std::string &)>(&lang::CreatePlaceHolder));
 }
 
 void BindBuiltin(py::module *m) {

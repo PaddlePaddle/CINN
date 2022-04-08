@@ -50,7 +50,7 @@ std::shared_ptr<ComputationContext> CompileProgram(const Target &target,
   ctx->target          = target;
   ctx->compile_options = options;
   if (ctx->compile_options.use_decomposer) {
-    ProgramPass::Apply(&program, target, {"Decomposer"});
+    ProgramPass::Apply(&program, {}, target, {"Decomposer"});
   }
   ctx->graph.reset(new hlir::framework::Graph(program, target));
 

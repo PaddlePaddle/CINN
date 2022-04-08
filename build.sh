@@ -59,15 +59,15 @@ function cudnn_off {
   cudnn_config=OFF
 }
 
-OLD_HTTP_PROXY=$http_proxy
-OLD_HTTPS_PROXY=$https_proxy
+OLD_HTTP_PROXY=$http_proxy &> /dev/null
+OLD_HTTPS_PROXY=$https_proxy &> /dev/null
 function proxy_off {
-  unset http_proxy
-  unset https_proxy
+  unset http_proxy &> /dev/null
+  unset https_proxy &> /dev/null
 }
 function proxy_on {
-  export http_proxy=$OLD_HTTP_PROXY
-  export https_proxy=$OLD_HTTPS_PROXY
+  export http_proxy=$OLD_HTTP_PROXY &> /dev/null
+  export https_proxy=$OLD_HTTPS_PROXY &> /dev/null
 }
 
 function prepare_ci {
@@ -273,7 +273,7 @@ function CI {
     run_demo
     prepare_model
     run_test
-    make_doc
+    # make_doc
 }
 
 function CINNRT {

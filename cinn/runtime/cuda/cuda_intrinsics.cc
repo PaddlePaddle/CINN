@@ -132,11 +132,18 @@ CINN_REGISTER_HELPER(cuda_intrinsics) {
       .AddInputType<int>()
       .End();
 
-  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_cuda_find, target)
+  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_cuda_find_int, target)
       .SetRetType<int>()
       .AddInputType<cinn_buffer_t *>()
       .AddInputType<int>()
       .AddInputType<int>()
+      .End();
+
+  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_cuda_find_float, target)
+      .SetRetType<int>()
+      .AddInputType<cinn_buffer_t *>()
+      .AddInputType<int>()
+      .AddInputType<float>()
       .End();
 
   return true;

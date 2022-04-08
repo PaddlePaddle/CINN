@@ -15,18 +15,30 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 #include "cinn/common/target.h"
+#include "cinn/ir/ir.h"
 #include "cinn/ir/ir_base.h"
-#include "cinn/ir/ir_schedule.h"
+#include "cinn/ir/lowered_func.h"
 
 namespace cinn {
 namespace auto_schedule {
 
+/**
+ * A class containing context information for tuning-task. The difference
+ * between this class and TuneTask is that the data in this context is only
+ * needed by autotune while the TuneTask contains some information for whole
+ * compiler, such as Graph, GraphCompiler.
+ */
 class TuneContext {
  public:
-  ir::ModuleExpr module;
+  std::vector<ir::LoweredFunc> lowered_funcs;
   common::Target target;
+
+  std::vector<ir::Expr> GetLoweredFuncBodyExprs() const;
+
+  void SetLoweredFuncBodyExprs(const std::vector<ir::Expr>& exprs);
 };
 
 }  // namespace auto_schedule

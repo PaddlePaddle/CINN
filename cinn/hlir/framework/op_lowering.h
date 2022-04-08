@@ -1,4 +1,4 @@
-// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+// Copyright (c) 2022 CINN Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,8 +15,6 @@
 #pragma once
 
 #include <string>
-#include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
 #include "cinn/common/target.h"
@@ -35,26 +33,53 @@ namespace cinn {
 namespace hlir {
 namespace framework {
 
-using Group  = std::shared_ptr<Graph::Group>;
-using Groups = std::vector<Group>;
+using GroupPtr = std::shared_ptr<Graph::Group>;
 using common::Target;
 
-class OpLoweringHelper {
+class OpLowerer;
+typedef std::string (OpLowerer::*ComputeFunction)(poly::StageMap&,
+                                                  std::vector<ir::Tensor>&,
+                                                  std::unordered_map<std::string, ir::Tensor>&,
+                                                  const GroupPtr&,
+                                                  const GroupPtr&);
+typedef void (OpLowerer::*ScheduleFunction)(poly::StageMap&,
+                                            std::unordered_map<std::string, ir::Tensor>&,
+                                            const GroupPtr&,
+                                            const GroupPtr&);
+
+class OpLowerer {
  public:
-  OpLoweringHelper(const absl::flat_hash_map<std::string, Type>&,
-                   const absl::flat_hash_map<std::string, shape_t>&,
-                   const Target&);
-  std::vector<ir::LoweredFunc> Lowering(const Group& group);
+  OpLowerer(const absl::flat_hash_map<std::string, Type>&,
+            const absl::flat_hash_map<std::string, shape_t>&,
+            const Target&);
+  std::vector<ir::LoweredFunc> Lower(const GroupPtr& group);
 
  private:
-  std::vector<ir::LoweredFunc> ElementwiseOpLowering(const Group& group);
-  std::vector<ir::LoweredFunc> ReduceOpLowering(const Group& group);
-  std::vector<ir::LoweredFunc> FusableOpLowering(const Group& group);
-  std::vector<ir::LoweredFunc> OpaqueOpLowering(const Group& group);
+  std::vector<ir::LoweredFunc> LowerOp(ComputeFunction, ScheduleFunction, const GroupPtr&);
+  std::vector<ir::LoweredFunc> LowerOpaqueOp(const GroupPtr&);
+
+#define ComputeAndSchedule(type)                                                     \
+  std::string type##Compute(poly::StageMap& stages,                                  \
+                            std::vector<ir::Tensor>& func_args,                      \
+                            std::unordered_map<std::string, ir::Tensor>& tensor_map, \
+                            const GroupPtr& group,                                   \
+                            const GroupPtr& sub_group);                              \
+  void type##Schedule(poly::StageMap& stages,                                        \
+                      std::unordered_map<std::string, ir::Tensor>& tensor_map,       \
+                      const GroupPtr& group,                                         \
+                      const GroupPtr& sub_group);
+
+  // compute and schedule
+  ComputeAndSchedule(Elementwise);
+  ComputeAndSchedule(Reduce);
+  ComputeAndSchedule(OutEWiseFusable);
 
   Target target_;
   const absl::flat_hash_map<std::string, Type>& type_dict_;
   const absl::flat_hash_map<std::string, shape_t>& shape_dict_;
+
+  // fucntion name prefix
+  const std::string func_name_prefix = "fn_fuse";
 };
 
 }  // namespace framework

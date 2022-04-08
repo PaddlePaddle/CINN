@@ -163,7 +163,7 @@ void RunDecomposer(Program* prog, const Target& target) {
   for (int i = 0; i < prog->size(); i++) {
     LOG(INFO) << "instruction: " << (*prog)[i];
   }
-  ProgramPass::Apply(prog, target, {"Decomposer"});
+  ProgramPass::Apply(prog, {}, target, {"Decomposer"});
   LOG(INFO) << "===================== After Decomposition =====================";
   for (int i = 0; i < prog->size(); i++) {
     LOG(INFO) << "instruction: " << (*prog)[i];

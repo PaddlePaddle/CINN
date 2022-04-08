@@ -355,18 +355,37 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
 
   Expr Visit(const ir::_BufferRange_* op) {
     std::vector<Var> ranges;
-    for (auto& var : ranges) {
-      ranges.push_back(var);
+    for (auto& range_var : ranges) {
+      auto* var = range_var.As<_Var_>();
+      ranges.push_back(Visit(var));
     }
     return ir::_BufferRange_::Make(Visit(&op->buffer), ranges);
   }
 
   Expr Visit(const ir::ScheduleBlock* op) {
-    return ir::ScheduleBlock::Make(op->iter_vars, op->read_buffers, op->write_buffers, op->name, op->body);
+    std::vector<Var> iter_vars;
+    for (auto iter_var : op->iter_vars) {
+      auto* var = iter_var.As<_Var_>();
+      CHECK(var);
+      iter_vars.push_back(Visit(var));
+    }
+    std::vector<Expr> read_buffers;
+    for (auto buffer_range : op->read_buffers) {
+      read_buffers.push_back(Visit(&buffer_range));
+    }
+    std::vector<Expr> write_buffers;
+    for (auto buffer_range : op->write_buffers) {
+      write_buffers.push_back(Visit(&buffer_range));
+    }
+    return ir::ScheduleBlock::Make(iter_vars, read_buffers, write_buffers, op->name, Visit(&op->body));
   }
 
   Expr Visit(const ir::ScheduleBlockRealize* op) {
-    return ir::ScheduleBlockRealize::Make(op->iter_values, op->schedule_block);
+    std::vector<Expr> iter_values;
+    for (auto iter_value : op->iter_values) {
+      iter_values.push_back(Visit(&iter_value));
+    }
+    return ir::ScheduleBlockRealize::Make(iter_values, Visit(&op->schedule_block));
   }
 
 #define __(x__) Expr Visit(const ir::intrinsics::x__* op);

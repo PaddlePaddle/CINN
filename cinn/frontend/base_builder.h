@@ -50,7 +50,7 @@ class BaseBuilder {
  public:
   explicit BaseBuilder(const std::string& name);
 
-  Program Build();
+  Program Build(bool in_reverse = false);
 
   Placeholder CreateInput(const common::Type& type, const std::vector<int>& shape, const std::string& id_hint = "");
   Placeholder CreateInput(const Variable& input);
@@ -79,6 +79,8 @@ class BaseBuilder {
    * @return The result variable.
    */
   Variable Reduce(const Variable& operand, ReduceKind kind, const std::vector<int>& dim, bool keep_dim = false);
+
+  Variable BroadcastTo(const Variable& operand, const std::vector<int>& out_shape);
 
   Variable BroadcastTo(const Variable& operand,
                        const std::vector<int>& out_shape,

@@ -84,49 +84,96 @@ class GraphNode : public Object {
   std::tuple<EdgeT*, EdgeT*> LinkTo(GraphNode* other) {
     EdgeT *a, *b;
     CHECK(other);
-    CHECK_NE(other, this) << "cannot link to itself";
-    auto edge  = make_shared<GraphEdge>(this, other, index_outlinks);
-    auto edge1 = make_shared<GraphEdge>(this, other, other->index_inlinks);
+    CHECK_NE(other, this) << "Cannot link to itself";
+    auto outlink_edge = make_shared<GraphEdge>(this, other, index_outlinks);
+    auto inlink_edge  = make_shared<GraphEdge>(this, other, other->index_inlinks);
     index_outlinks++;
     other->index_inlinks++;
-    outlinks_.insert(edge);
-    other->inlinks_.insert(edge1);
+    outlinks_.insert(outlink_edge);
+    other->inlinks_.insert(inlink_edge);
 
     for (auto& item : outlinks_) {
-      if (item->sink()->id() == other->id()) {
+      if (item->index() == index_outlinks - 1) {
         a = static_cast<EdgeT*>(item.get());
         break;
       }
     }
     for (auto& item : other->inlinks_) {
-      if (item->sink()->id() == other->id()) {
+      if (item->index() == other->index_inlinks - 1) {
         b = static_cast<EdgeT*>(item.get());
         break;
       }
     }
+    CHECK(a);
+    CHECK(b);
     return std::make_tuple(a, b);
   }
 
-  void UnLinkTo(GraphNode* other) {
-    if (other == this) return;
-    // remove outlink
-    {
-      auto it = std::find_if(outlinks_.begin(), outlinks_.end(), [&](const Shared<GraphEdge>& x) {
-        return x->sink() == other || x->source() == other;
-      });
-      if (it != outlinks_.end()) {
-        outlinks_.erase(it);
-        other->UnLinkTo(this);
+  void Controls(GraphNode* other) {
+    bool outlink_linked = false;
+    bool inlink_linked  = false;
+    for (auto& item : outlinks_) {
+      if (item->sink()->id() == other->id()) {
+        outlink_linked = true;
+        break;
       }
     }
-    {
-      auto it = std::find_if(inlinks_.begin(), inlinks_.end(), [&](const Shared<GraphEdge>& x) {
-        return x->sink() == other || x->source() == other;
-      });
-      if (it != inlinks_.end()) {
-        inlinks_.erase(it);
-        other->UnLinkTo(this);
+    for (auto& item : other->inlinks_) {
+      if (item->source()->id() == this->id()) {
+        inlink_linked = true;
+        break;
       }
+    }
+    CHECK_EQ(outlink_linked, inlink_linked);
+    if (outlink_linked)
+      return;
+    else
+      this->LinkTo(other);
+  }
+
+  void UnLinkAllTo(GraphNode* other) {
+    if (other == this) return;
+    // remove all this node's outlink
+    {
+      auto it = std::find_if(outlinks_.begin(), outlinks_.end(), [&](const Shared<GraphEdge>& x) {
+        return x->source() == this && x->sink() == other;
+      });
+      while (it != outlinks_.end()) {
+        outlinks_.erase(it);
+        it = std::find_if(outlinks_.begin(), outlinks_.end(), [&](const Shared<GraphEdge>& x) {
+          return x->source() == this && x->sink() == other;
+        });
+      }
+    }
+    // remove all other node's inlink
+    {
+      auto it = std::find_if(other->inlinks_.begin(), other->inlinks_.end(), [&](const Shared<GraphEdge>& x) {
+        return x->source() == this && x->sink() == other;
+      });
+      while (it != other->inlinks_.end()) {
+        other->inlinks_.erase(it);
+        it = std::find_if(other->inlinks_.begin(), other->inlinks_.end(), [&](const Shared<GraphEdge>& x) {
+          return x->source() == this && x->sink() == other;
+        });
+      }
+    }
+  }
+
+  void UnLinkSingleTo(GraphNode* other) {
+    if (other == this) return;
+    // remove single outlink
+    {
+      auto it = std::find_if(outlinks_.begin(), outlinks_.end(), [&](const Shared<GraphEdge>& x) {
+        return x->source() == this && x->sink() == other;
+      });
+      if (it != outlinks_.end()) outlinks_.erase(it);
+    }
+    // remove single inlink
+    {
+      auto it = std::find_if(other->inlinks_.begin(), other->inlinks_.end(), [&](const Shared<GraphEdge>& x) {
+        return x->source() == this && x->sink() == other;
+      });
+      if (it != other->inlinks_.end()) other->inlinks_.erase(it);
     }
   }
 

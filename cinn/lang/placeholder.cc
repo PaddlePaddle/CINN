@@ -19,6 +19,14 @@
 namespace cinn {
 namespace lang {
 
+ir::Tensor CreatePlaceHolder(const std::vector<int> &shape, Type type, const std::string &name) {
+  std::vector<Expr> expr_shape;
+  for (int s : shape) {
+    expr_shape.push_back(Expr(s));
+  }
+  return CreatePlaceHolder(expr_shape, type, name);
+}
+
 ir::Tensor CreatePlaceHolder(const std::vector<Expr> &shape, Type type, const std::string &name) {
   if (type == Float(32)) {
     return Placeholder<float>(name, shape);

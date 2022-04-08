@@ -2028,7 +2028,7 @@ void CudaScheduleInjective(poly::Stage *stage, const std::vector<int> &output_sh
   }
 
   int num_thread        = target.max_num_threads();
-  int num_block         = 256;
+  int num_block         = 1024;
   int vector_width      = 1;
   int prod_size         = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int>());
   bool need_block_split = prod_size > num_thread * num_block * vector_width ? true : false;
@@ -2077,12 +2077,27 @@ void CudaSplitSchedule(common::CINNValuePack *arg_pack,
     stages[out]->Reorder(reorders);
   }
   auto last_output = out_tensors.back();
-  for (int i = 0; i < out_tensors.size() - 1; i++) {
-    stages[out_tensors[i]]->ComputeAt2(stages[last_output], dims - 2);
+
+  std::vector<int> fuse_index;
+  for (int i = 0; i < dims - 1; i++) fuse_index.push_back(i);
+  for (auto &out : out_tensors) stages[out]->Fuse(fuse_index);
+  int fused_shape = 1;
+  for (int i = 0; i < dims; i++) {
+    if (i != axis) fused_shape = fused_shape * output_shapes[0][i];
   }
+  int compute_at_level = 0;
   if (target.arch == Target::Arch::NVGPU) {
-    if (output_shapes[0][reorders[0]] > 1024) CINN_NOT_IMPLEMENTED
-    stages[last_output]->Bind(0, "threadIdx.x");
+    if (fused_shape > target.max_num_threads()) {
+      stages[last_output]->Split(0, target.max_num_threads());
+      stages[last_output]->Bind(0, "blockIdx.x");
+      stages[last_output]->Bind(1, "threadIdx.x");
+      compute_at_level++;
+    } else
+      stages[last_output]->Bind(0, "threadIdx.x");
+  }
+
+  for (int i = 0; i < out_tensors.size() - 1; i++) {
+    stages[out_tensors[i]]->ComputeAt2(stages[last_output], compute_at_level);
   }
 }
 
