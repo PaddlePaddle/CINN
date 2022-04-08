@@ -37,11 +37,11 @@ using GroupPtr = std::shared_ptr<Graph::Group>;
 using common::Target;
 
 class OpLowerer;
-typedef std::string (OpLowerer::*ComputeFunction)(poly::StageMap&,
-                                                  std::vector<ir::Tensor>&,
-                                                  std::unordered_map<std::string, ir::Tensor>&,
-                                                  const GroupPtr&,
-                                                  const GroupPtr&);
+typedef void (OpLowerer::*ComputeFunction)(poly::StageMap&,
+                                           std::vector<ir::Tensor>&,
+                                           std::unordered_map<std::string, ir::Tensor>&,
+                                           const GroupPtr&,
+                                           const GroupPtr&);
 typedef void (OpLowerer::*ScheduleFunction)(poly::StageMap&,
                                             std::unordered_map<std::string, ir::Tensor>&,
                                             const GroupPtr&,
@@ -58,15 +58,15 @@ class OpLowerer {
   std::vector<ir::LoweredFunc> LowerOp(ComputeFunction, ScheduleFunction, const GroupPtr&);
   std::vector<ir::LoweredFunc> LowerOpaqueOp(const GroupPtr&);
 
-#define ComputeAndSchedule(type)                                                     \
-  std::string type##Compute(poly::StageMap& stages,                                  \
-                            std::vector<ir::Tensor>& func_args,                      \
-                            std::unordered_map<std::string, ir::Tensor>& tensor_map, \
-                            const GroupPtr& group,                                   \
-                            const GroupPtr& sub_group);                              \
-  void type##Schedule(poly::StageMap& stages,                                        \
-                      std::unordered_map<std::string, ir::Tensor>& tensor_map,       \
-                      const GroupPtr& group,                                         \
+#define ComputeAndSchedule(type)                                               \
+  void type##Compute(poly::StageMap& stages,                                   \
+                     std::vector<ir::Tensor>& func_args,                       \
+                     std::unordered_map<std::string, ir::Tensor>& tensor_map,  \
+                     const GroupPtr& group,                                    \
+                     const GroupPtr& sub_group);                               \
+  void type##Schedule(poly::StageMap& stages,                                  \
+                      std::unordered_map<std::string, ir::Tensor>& tensor_map, \
+                      const GroupPtr& group,                                   \
                       const GroupPtr& sub_group);
 
   // compute and schedule
