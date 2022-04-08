@@ -61,10 +61,13 @@ class TestSimpleRunner : public ::testing::Test {
     build_result.compiled_scope  = compiled_scope.get();
     build_result.runtime_program = std::move(runtime_program);
 
-    task                             = std::make_unique<TuneTask>();
-    task->tune_context().target.arch = Target::Arch::X86;
-    task->tune_context().target.bits = Target::Bit::k64;
-    input.task                       = task.get();
+    task = std::make_unique<TuneTask>();
+#ifdef CINN_WITH_CUDA
+    task->tune_context().target = common::DefaultNVGPUTarget();
+#else
+    task->tune_context().target = common::DefaultHostTarget();
+#endif
+    input.task = task.get();
   }
 };
 
