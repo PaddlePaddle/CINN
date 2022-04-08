@@ -58,7 +58,7 @@ class OpLowerer {
   std::vector<ir::LoweredFunc> LowerOp(ComputeFunction, ScheduleFunction, const GroupPtr&);
   std::vector<ir::LoweredFunc> LowerOpaqueOp(const GroupPtr&);
 
-#define ComputeAndSchedule(type)                                               \
+#define DEFINE_COMPUTE_SCHDULE(type)                                           \
   void type##Compute(poly::StageMap& stages,                                   \
                      std::vector<ir::Tensor>& func_args,                       \
                      std::unordered_map<std::string, ir::Tensor>& tensor_map,  \
@@ -70,9 +70,9 @@ class OpLowerer {
                       const GroupPtr& sub_group);
 
   // compute and schedule
-  ComputeAndSchedule(Elementwise);
-  ComputeAndSchedule(Reduce);
-  ComputeAndSchedule(OutEWiseFusable);
+  DEFINE_COMPUTE_SCHDULE(Elementwise);
+  DEFINE_COMPUTE_SCHDULE(Reduce);
+  DEFINE_COMPUTE_SCHDULE(OutEWiseFusable);
 
   Target target_;
   const absl::flat_hash_map<std::string, Type>& type_dict_;
