@@ -1,4 +1,4 @@
-// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+// Copyright (c) 2022 CINN Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,16 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <algorithm>
-#include <unordered_set>
-
-#include "cinn/common/target.h"
-#include "cinn/hlir/framework/graph.h"
-#include "cinn/hlir/framework/node.h"
-#include "cinn/hlir/framework/op.h"
-#include "cinn/hlir/framework/pass.h"
-#include "cinn/hlir/pass/use_pass.h"
-#include "cinn/utils/string.h"
+#include "cinn/hlir/pass/fusion_helper_base.h"
 
 namespace cinn {
 namespace hlir {
@@ -36,8 +27,8 @@ using framework::shape_t;
 using common::GraphEdge;
 using common::GraphNode;
 
-using Group  = std::shared_ptr<Graph::Group>;
-using Groups = std::vector<Group>;
+using GroupPtr  = std::shared_ptr<Graph::Group>;
+using GroupList = std::vector<GroupPtr>;
 
 using ShapeDict         = absl::flat_hash_map<std::string, shape_t>;
 using ConditionFunction = std::function<bool(const Node*, const Node*)>;
@@ -46,16 +37,14 @@ using ConditionFunction = std::function<bool(const Node*, const Node*)>;
 // "vertically", meaning producing Ops are fused into their consumers
 // with the intent that the loops which compute their values will be fused in
 // code generation.
-class OpFusionPassHelper {
+class OpFusionPassHelper : public FusionHelperBase {
  public:
   OpFusionPassHelper(const std::vector<GraphNode*>& graph_nodes,
                      const absl::flat_hash_map<std::string, shape_t>& shape_dict,
                      const common::Target target)
-      : shape_dict_(shape_dict), target_(target) {
+      : FusionHelperBase(shape_dict, target) {
     // init fusion relation
     InitFusionRelation();
-    // get op pattern dict
-    op_pattern_dict_ = &framework::Operator::GetAttrs<OpPatternKind>("OpPattern");
     // filter node data, create group for each node
     for (auto graph_node : graph_nodes) {
       auto node = graph_node->safe_as<Node>();
@@ -71,9 +60,9 @@ class OpFusionPassHelper {
           auto input_graph_node = edge->source();
           auto input_node_data  = input_graph_node->safe_as<NodeData>();
           CHECK(input_node_data);
-          // input data has noe source node
+          // input data has no source node
           if (input_node_data->source_node.get()) {
-            group->input_nodes.insert(input_node_data->source_node.get());
+            group->input_nodes[input_node_data->source_node.get()] = 1;
           }
         }
 
@@ -81,6 +70,7 @@ class OpFusionPassHelper {
         group->op_pattern_kind = GetOpKind(node);
         // use current node as master node for schedule
         group->master_nodes.insert(node);
+        group->group_id      = node->id();
         fusion_groups_[node] = group;
       }
     }
@@ -89,12 +79,12 @@ class OpFusionPassHelper {
   }
 
   // return a vector of groups in topological order.
-  Groups operator()() {
+  GroupList operator()() {
     // do op fusion.
     DoOpFusion();
 
     // find all fusion group.
-    Groups fusion_groups;
+    GroupList fusion_groups;
     std::unordered_set<Graph::Group*> groups_set;
     for (auto node : nodes_) {
       auto& group = fusion_groups_[node];
@@ -104,28 +94,12 @@ class OpFusionPassHelper {
       }
     }
 
-    for (auto& group : fusion_groups) {
-      // find producer group
-      for (auto& node : group->input_nodes) {
-        for (auto& edge : node->inlinks()) {
-          auto producer_node      = edge->source();
-          auto producer_node_data = producer_node->safe_as<NodeData>();
-          CHECK(producer_node_data);
-          // input data has no source node
-          if (producer_node_data->source_node.get()) {
-            auto producer_group = fusion_groups_[producer_node_data->source_node.get()];
-            group->producer_groups.insert(producer_group.get());
-          }
-        }
-      }
-      // find consumer group
-      auto output_node      = *group->output_nodes.begin();
-      auto output_node_data = (*output_node->outlinks().begin())->sink();
-      for (auto& link : output_node_data->outlinks()) {
-        auto consumer_node = link->sink()->safe_as<Node>();
-        CHECK(consumer_node);
-        auto consumer_group = fusion_groups_[consumer_node];
-        group->consumer_groups.insert(consumer_group.get());
+    // producer consumer
+    for (auto& consumer : fusion_groups) {
+      for (auto& input_node : consumer->input_nodes) {
+        auto& producer = fusion_groups_[input_node.first];
+        consumer->producer_groups.insert(producer);
+        producer->consumer_groups.insert(consumer);
       }
     }
 
@@ -135,21 +109,6 @@ class OpFusionPassHelper {
   }
 
  private:
-  OpPatternKind GetOpKind(const Node* node) {
-    CHECK(op_pattern_dict_->Find(node->op())) << "Don't find the pattern of op : " << node->id();
-    auto kind = op_pattern_dict_[0][node->op()];
-
-    CHECK_NE(kind, framework::kTuple) << "kTuple is not support now!";
-    if (kind == framework::kBroadcast) {
-      // As binary op was defined as broadcast, actually it should be element-wise.
-      if (node->op()->name != "broadcast_to") {
-        return framework::kElemWise;
-      }
-    }
-
-    return kind;
-  }
-
   void DoOpFusion() {
     for (auto consumer : nodes_) {
       // kOpaque op can't fuse any other op.
@@ -204,6 +163,7 @@ class OpFusionPassHelper {
 
         // fuse producer to fusion group
         if (consumer_fusion->nodes_set.find(producer) == consumer_fusion->nodes_set.end()) {
+          consumer_fusion->group_id = producer->id() + "_" + consumer_fusion->group_id;
           consumer_fusion->nodes.push_back(producer);
         }
         consumer_fusion->nodes_set.insert(producer);
@@ -221,13 +181,13 @@ class OpFusionPassHelper {
           consumer_fusion->internal_nodes.insert(producer);
         }
 
-        // add input node
-        for (auto& edge : producer->inlinks_in_order()) {
-          auto input_node      = edge->source();
-          auto input_node_data = input_node->safe_as<NodeData>();
-          CHECK(input_node_data);
-          if (input_node_data->source_node.get()) {
-            consumer_fusion->input_nodes.insert(input_node_data->source_node.get());
+        // fuse input node
+        auto& producer_fusion = fusion_groups_[producer];
+        for (auto input_node : producer_fusion->input_nodes) {
+          if (consumer_fusion->input_nodes.count(input_node.first)) {
+            consumer_fusion->input_nodes[input_node.first] += input_node.second;
+          } else {
+            consumer_fusion->input_nodes.insert(input_node);
           }
         }
 
@@ -235,30 +195,6 @@ class OpFusionPassHelper {
         fusion_groups_[producer] = consumer_fusion;
       }
     }
-  }
-
-  NodeData* GetNodeData(const Node* node) {
-    auto node_data = (*node->outlinks().begin())->sink()->safe_as<NodeData>();
-    CHECK(node_data);
-    return node_data;
-  }
-
-  shape_t GetNodeDataShape(const Node* node) {
-    auto node_data = (*node->outlinks().begin())->sink()->safe_as<NodeData>();
-    CHECK(node_data);
-    CHECK(shape_dict_.count(node_data->id())) << "Can't find " << node_data->id() << " 's shape!";
-    return shape_dict_.at(node_data->id());
-  }
-
-  std::vector<NodeData*> GetProducerNodeData(const Node* node) {
-    std::vector<NodeData*> producer_node_data;
-    for (auto& edge : node->inlinks()) {
-      auto graph_node    = edge->source();
-      auto producer_data = graph_node->safe_as<NodeData>();
-      CHECK(producer_data);
-      producer_node_data.push_back(producer_data);
-    }
-    return producer_node_data;
   }
 
   void InitFusionRelation() {
@@ -319,9 +255,7 @@ class OpFusionPassHelper {
       }
       // check shape is same
       if (producer_input_shape != reducer_input_shape || producer_output_shape != reducer_output_shape ||
-          producer_reduce_dim != reducer_reduce_dim ||
-          absl::get<std::vector<int>>(producer->attrs.attr_store.at("keep_dim")) !=
-              absl::get<std::vector<int>>(reducer->attrs.attr_store.at("keep_dim"))) {
+          producer_reduce_dim != reducer_reduce_dim) {
         return false;
       }
 
@@ -492,17 +426,8 @@ class OpFusionPassHelper {
 
     return false;
   }
-
-  // target
-  common::Target target_;
-
   std::vector<Node*> nodes_;
-  std::unordered_map<const Node*, Group> fusion_groups_;
-  const absl::flat_hash_map<std::string, shape_t>& shape_dict_;
-  // a node map
-  std::unordered_set<Node*> nodes_set_;
-  // op pattern dict
-  const framework::OpValueType<OpPatternKind>* op_pattern_dict_;
+  std::unordered_map<const Node*, GroupPtr> fusion_groups_;
 
   struct FusionRelation {
     // producer -> consumer
@@ -592,10 +517,19 @@ void OpFusionPassInternal(Graph* graph) {
   auto op_fusion_helper = OpFusionPassHelper(nodes, shape_dict, graph->target_);
   graph->fusion_groups  = op_fusion_helper();
 
-  for (auto& Group : graph->fusion_groups) {
+  for (auto& group : graph->fusion_groups) {
     VLOG(11) << "Group Start.";
-    for (auto node : Group->nodes) {
+    for (auto& node : group->input_nodes) {
+      VLOG(11) << "input node -> " << node.first->id();
+    }
+    for (auto node : group->nodes) {
       VLOG(11) << "node -> " << node->id();
+    }
+    for (auto& producer : group->producer_groups) {
+      VLOG(11) << "producer group -> " << producer->group_id;
+    }
+    for (auto& consumer : group->consumer_groups) {
+      VLOG(11) << "consumer group -> " << consumer->group_id;
     }
     VLOG(11) << "Group End.";
   }

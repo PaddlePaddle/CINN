@@ -78,12 +78,11 @@ std::vector<ir::LoweredFunc> OpLowerer::LowerOp(ComputeFunction compute,
   std::unordered_map<std::string, ir::Tensor> tensor_map;
 
   // do compute.
-  std::string func_name = func_name_prefix;
   if (group->fused_sub_groups.size() == 0) {
-    func_name += (this->*compute)(stages, func_args, tensor_map, group, group);
+    (this->*compute)(stages, func_args, tensor_map, group, group);
   } else {
     for (auto& sub_group : group->fused_sub_groups) {
-      func_name += (this->*compute)(stages, func_args, tensor_map, group, sub_group);
+      (this->*compute)(stages, func_args, tensor_map, group, sub_group);
     }
   }
 
@@ -101,23 +100,19 @@ std::vector<ir::LoweredFunc> OpLowerer::LowerOp(ComputeFunction compute,
     func_args.push_back(tensor);
   }
 
-  return lang::LowerVec(func_name, stages, func_args, {}, {}, nullptr, this->target_);
+  return lang::LowerVec(func_name_prefix + group->group_id, stages, func_args, {}, {}, nullptr, this->target_);
 }
 
-std::string OpLowerer::ElementwiseCompute(poly::StageMap& stages,
-                                          std::vector<ir::Tensor>& func_args,
-                                          std::unordered_map<std::string, ir::Tensor>& tensor_map,
-                                          const GroupPtr& group,
-                                          const GroupPtr& sub_group) {
+void OpLowerer::ElementwiseCompute(poly::StageMap& stages,
+                                   std::vector<ir::Tensor>& func_args,
+                                   std::unordered_map<std::string, ir::Tensor>& tensor_map,
+                                   const GroupPtr& group,
+                                   const GroupPtr& sub_group) {
   auto& strategy = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
 
-  std::string func_name = "";
   for (int idx = sub_group->nodes.size() - 1; idx >= 0; --idx) {
     auto node      = sub_group->nodes[idx];
     auto node_data = GetNodeData(node);
-
-    // function name
-    func_name += "_" + node->id();
 
     std::vector<ir::Tensor> tensor_inputs;
     std::vector<common::CINNValue> cinn_inputs;
@@ -166,8 +161,6 @@ std::string OpLowerer::ElementwiseCompute(poly::StageMap& stages,
     tensor_map[node_data->id()] = out.as_tensor_ref();
     stages->InsertLazily(out.as_tensor_ref(), tmp_stages[out.as_tensor_ref()]);
   }
-
-  return func_name;
 }
 
 void OpLowerer::ElementwiseSchedule(poly::StageMap& stages,
@@ -205,21 +198,17 @@ void OpLowerer::ElementwiseSchedule(poly::StageMap& stages,
   }
 }
 
-std::string OpLowerer::ReduceCompute(poly::StageMap& stages,
-                                     std::vector<ir::Tensor>& func_args,
-                                     std::unordered_map<std::string, ir::Tensor>& tensor_map,
-                                     const GroupPtr& group,
-                                     const GroupPtr& sub_group) {
+void OpLowerer::ReduceCompute(poly::StageMap& stages,
+                              std::vector<ir::Tensor>& func_args,
+                              std::unordered_map<std::string, ir::Tensor>& tensor_map,
+                              const GroupPtr& group,
+                              const GroupPtr& sub_group) {
   auto& cinn_strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
 
-  std::string func_name = "";
   for (int idx = sub_group->nodes.size() - 1; idx >= 0; --idx) {
     auto node      = sub_group->nodes[idx];
     auto node_data = GetNodeData(node);
-
-    // function name
-    func_name += "_" + node->id();
 
     std::vector<ir::Tensor> tensor_inputs;
     std::vector<common::CINNValue> cinn_inputs;
@@ -293,8 +282,6 @@ std::string OpLowerer::ReduceCompute(poly::StageMap& stages,
       stages->InsertLazily(out_1.as_tensor_ref(), tmp_stages[out_1.as_tensor_ref()]);
     }
   }
-
-  return func_name;
 }
 
 void OpLowerer::ReduceSchedule(poly::StageMap& stages,
@@ -482,21 +469,17 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
   }
 }
 
-std::string OpLowerer::OutEWiseFusableCompute(poly::StageMap& stages,
-                                              std::vector<ir::Tensor>& func_args,
-                                              std::unordered_map<std::string, ir::Tensor>& tensor_map,
-                                              const GroupPtr& group,
-                                              const GroupPtr& sub_group) {
+void OpLowerer::OutEWiseFusableCompute(poly::StageMap& stages,
+                                       std::vector<ir::Tensor>& func_args,
+                                       std::unordered_map<std::string, ir::Tensor>& tensor_map,
+                                       const GroupPtr& group,
+                                       const GroupPtr& sub_group) {
   auto& cinn_strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
 
-  std::string func_name = "";
   for (int idx = sub_group->nodes.size() - 1; idx >= 0; --idx) {
     auto node      = sub_group->nodes[idx];
     auto node_data = GetNodeData(node);
-
-    // function name.
-    func_name += "_" + node->id();
 
     std::vector<ir::Tensor> tensor_inputs;
     std::vector<common::CINNValue> cinn_inputs;
@@ -561,7 +544,6 @@ std::string OpLowerer::OutEWiseFusableCompute(poly::StageMap& stages,
       postfix = "_" + std::to_string(idx);
     }
   }
-  return func_name;
 }
 
 void OpLowerer::OutEWiseFusableSchedule(poly::StageMap& stages,

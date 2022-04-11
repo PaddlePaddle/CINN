@@ -22,3 +22,4 @@ CINN_USE_REGISTER(AlterLayout)
 CINN_USE_REGISTER(ConstPropagate)
 
 CINN_USE_REGISTER(OpFusionPass)
+CINN_USE_REGISTER(FusionMergePass)
