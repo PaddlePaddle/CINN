@@ -23,6 +23,7 @@
 #include <utility>
 #include <vector>
 
+#include "cinn/auto_schedule/tuning.h"
 #include "cinn/backends/compiler.h"
 #include "cinn/backends/cuda_util.h"
 #include "cinn/common/macros.h"
@@ -94,6 +95,16 @@ class GraphCompiler final {
     std::string attached_code                    = "";
     bool with_instantiate_variables              = false;
     bool with_buffer_handle_instruction_inserted = false;
+    bool remove_unused_variables                 = true;
+    // nodes group, it may come from the result of op fusion or graph tuning.
+    // nodes in a group will be built into an Instruction
+    std::vector<std::vector<Node*>> groups;
+    // corresponding LoweredFuncs of above grouped nodes,
+    // if it is empty then graph_compiler will generate for them
+    std::vector<std::vector<ir::LoweredFunc>> lowered_funcs;
+
+    // apply results of auto-tune to compile
+    void Apply(const auto_schedule::TuningResult& tuning_result);
   };
 
   // Compile with a packing option and result, to be extended easily.
@@ -133,7 +144,7 @@ class GraphCompiler final {
   // TODO(haozech) add implementation
   std::vector<std::string> OpGetOutputNames(const Node* node) const;
 
-  std::vector<std::unique_ptr<Instruction>> BuildInstructions();
+  std::vector<std::unique_ptr<Instruction>> BuildInstructions(const std::vector<std::vector<Node*>>& groups);
 
   // some variables are eliminated by optimized passes(such as OpFusion),
   // we can filter out them according to arguments of the built instructions,

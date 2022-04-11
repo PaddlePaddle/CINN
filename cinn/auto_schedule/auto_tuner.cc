@@ -35,13 +35,12 @@ AutoTuner::AutoTuner(const common::Target& target, hlir::framework::Graph* graph
 void AutoTuner::Initialize(const Config& config, hlir::framework::GraphCompiler* graph_compiler) {
   // create builder, runner, and schedule measurer
   builder_           = std::make_unique<SimpleBuilder>(graph_compiler);
-  runner_            = std::make_unique<SimpleRunner>(config.repeat_times);
+  runner_            = std::make_unique<SimpleRunner>(config.runner_repeat_times);
   schedule_measurer_ = std::make_unique<ScheduleMeasurer>(builder_.get(), runner_.get());
 
   // create tasks
   TaskCreator task_creator;
   tasks_ = task_creator.CreateTuneTaskOpLevel(graph_);
-  CHECK_GT(tasks_.size(), 0) << "Create tasks failed";
   for (TuneTask& task : tasks_) {
     task.SetGraphCompiler(graph_compiler);
     task.TaskGraphToUnoptLoweredFunc();
@@ -61,14 +60,14 @@ TuningResult AutoTuner::Tune(const TuningOptions& options) {
   CHECK_GT(options.num_tuning_rounds, 0) << "Invalid config";
 
   TuningResult result;
-  result.tuned_graphs.resize(tasks_.size());
-  result.optimized_lowered.resize(tasks_.size());
+  result.tuned_graph.resize(tasks_.size());
+  result.optimized_exprs.resize(tasks_.size());
   // A task only tunes schedule now, so we populate its sub_graph
   // as default result of graph tuning, and that should be updated
   // once we support graph tuning.
   for (auto i = 0; i < tasks_.size(); ++i) {
-    auto&& task                   = tasks_.at(i);
-    result.tuned_graphs[i].groups = task.task_graph();
+    auto&& task                  = tasks_.at(i);
+    result.tuned_graph[i].groups = task.task_graph();
   }
 
   for (int r = 0; r < options.num_tuning_rounds; ++r) {
@@ -76,10 +75,10 @@ TuningResult AutoTuner::Tune(const TuningOptions& options) {
     task_scheduler_->Reset();
     while ((run_id = task_scheduler_->NextTaskId()) != -1) {
       VLOG(3) << "TaskScheduler returned TaskId = " << run_id << " as the task to be optimized";
-      auto* opt                    = task_optimizers_.at(run_id).get();
-      auto optimized_lowered_funcs = opt->Optimize(options);
+      auto* opt           = task_optimizers_.at(run_id).get();
+      auto optimized_expr = opt->Optimize(options);
       // update the best schedules searched so far.
-      result.optimized_lowered.at(run_id) = optimized_lowered_funcs;
+      result.optimized_exprs.at(run_id) = std::move(optimized_expr);
     }
   }
 

@@ -36,7 +36,11 @@ using ::cinn::hlir::framework::Scope;
 
 class TestSimpleRunner : public ::testing::Test {
  public:
-  common::Target target = common::DefaultHostTarget();
+#ifdef CINN_WITH_CUDA
+  Target target = common::DefaultNVGPUTarget();
+#else
+  Target target = common::DefaultHostTarget();
+#endif
   std::shared_ptr<Graph> graph;
   std::shared_ptr<Scope> compiled_scope;
   std::unique_ptr<GraphCompiler> graph_compiler;
@@ -54,16 +58,16 @@ class TestSimpleRunner : public ::testing::Test {
     const auto& instructions = runtime_program->GetRunInstructions();
     ASSERT_EQ(2, instructions.size());
 
-    build_result.compiled_scope = compiled_scope.get();
-    build_result.instructions.resize(instructions.size());
-    for (auto i = 0; i < instructions.size(); ++i) {
-      build_result.instructions[i].reset(new Instruction(*instructions[i]));
-    }
+    build_result.compiled_scope  = compiled_scope.get();
+    build_result.runtime_program = std::move(runtime_program);
 
-    task                             = std::make_unique<TuneTask>();
-    task->tune_context().target.arch = Target::Arch::X86;
-    task->tune_context().target.bits = Target::Bit::k64;
-    input.task                       = task.get();
+    task = std::make_unique<TuneTask>();
+#ifdef CINN_WITH_CUDA
+    task->tune_context().target = common::DefaultNVGPUTarget();
+#else
+    task->tune_context().target = common::DefaultHostTarget();
+#endif
+    input.task = task.get();
   }
 };
 
@@ -100,13 +104,17 @@ TEST_F(TestSimpleRunner, MeasureWithSpecifiedArgs) {
 }
 
 TEST_F(TestSimpleRunner, TimeMeasured) {
+  // set up a BuildResult object with one instruction of the `sleep` function
   auto sleep_fn = [](void*, int32_t) { std::this_thread::sleep_for(std::chrono::microseconds(100)); };
   BuildResult build_result;
   build_result.compiled_scope = nullptr;
-  build_result.instructions.emplace_back(
-      new hlir::framework::Instruction(target, nullptr, {}, {"empty_placeholder"}, "sleep_fn"));
-  build_result.instructions.back()->SetLoweredFunc(sleep_fn);
-  build_result.instructions.back()->Finalize();
+  std::vector<std::unique_ptr<Instruction>> instructions;
+  instructions.emplace_back(new Instruction(target, nullptr, {}, {"empty_placeholder"}, "sleep_fn"));
+  instructions.back()->SetLoweredFunc(sleep_fn);
+  instructions.back()->Finalize();
+  build_result.runtime_program.reset(new hlir::framework::Program(nullptr, std::move(instructions)));
+
+  // to skip the condition check of params in Instruction::PreparePodArgs
   std::map<std::string, cinn_pod_value_t> preset_args;
   preset_args.emplace("empty_placeholder", cinn_pod_value_t());
   input.execution_args = &preset_args;

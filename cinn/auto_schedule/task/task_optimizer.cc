@@ -74,13 +74,14 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
     VLOG(4) << "TaskOptimizer run EvolutionarySearch with return size = " << mod_exprs.size();
     std::vector<MeasureInput> measure_inputs(mod_exprs.size());
     for (size_t i = 0; i < mod_exprs.size(); ++i) {
-      // Make a copy and set the lowered func body
-      measure_inputs[i].task           = new TuneTask(*task_);
+      measure_inputs[i].task           = task_;
       std::vector<ir::Expr> best_exprs = mod_exprs[i].GetExprs();
-      CHECK_EQ(best_exprs.size(), measure_inputs[i].task->tune_context().lowered_funcs.size())
+      CHECK_EQ(best_exprs.size(), task_->tune_context().lowered_funcs.size())
           << "RuntimeError: Expr size is not equal to LoweredFunc size in TaskOptimizer";
+
+      measure_inputs[i].lowered_funcs.emplace_back(task_->tune_context().lowered_funcs);
       for (size_t j = 0; j < best_exprs.size(); ++j) {
-        measure_inputs[i].task->tune_context().lowered_funcs[j]->body = best_exprs[j];
+        measure_inputs[i].lowered_funcs.front().at(j)->body = best_exprs[j];
       }
     }
     std::vector<MeasureResult> measure_outputs = schedule_measurer_->Measure(measure_inputs);
@@ -91,14 +92,11 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
 
     for (size_t i = 0; i < measure_outputs.size(); ++i) {
       if (measure_outputs[i].execution_cost < min_exec_time) {
-        min_exec_time           = measure_outputs[i].execution_cost;
-        result.lowered_funcs[0] = measure_inputs[i].task->tune_context().lowered_funcs;
+        min_exec_time        = measure_outputs[i].execution_cost;
+        result.lowered_funcs = measure_inputs[i].lowered_funcs;
       }
     }
 
-    for (size_t i = 0; i < measure_inputs.size(); ++i) {
-      delete measure_inputs[i].task;
-    }
     measured_count += mod_exprs.size();
   }
   return result;

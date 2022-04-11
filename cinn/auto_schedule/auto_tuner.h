@@ -30,10 +30,10 @@
 namespace cinn {
 namespace auto_schedule {
 
-// This class is entrance of auto-tune, user can use it
-// to tune graph (not supported yet) and search a schedule
+// This class is entrance of auto-tune, users can use it
+// to tune graph (not supported yet) and search a series of schedules
 // that maybe more likely to obtain better performance.
-// Internally, it create necessary components and use them to finish tuning.
+// Internally, it creates necessary components and use them to finish tuning.
 class AutoTuner {
  public:
   // configure how to perform auto-tune, such as
@@ -41,7 +41,7 @@ class AutoTuner {
   struct Config {
     std::string task_schedule_strategy = "round_robin";
     TaskScheduler::Config task_schedule_config;
-    int repeat_times = 1;
+    int runner_repeat_times = 1;
   };
 
   AutoTuner(const common::Target& target, hlir::framework::Graph* graph);

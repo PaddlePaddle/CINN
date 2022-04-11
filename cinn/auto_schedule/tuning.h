@@ -75,7 +75,7 @@ struct TuningOptions {
 // Result of the tuning process
 struct TuningResult {
   // Result of graph tuning
-  struct TunedGraph {
+  struct TunedSubGraph {
     std::vector<std::vector<hlir::framework::Node*>> groups;
   };
 
@@ -84,8 +84,8 @@ struct TuningResult {
     std::vector<std::vector<ir::LoweredFunc>> lowered_funcs;
   };
 
-  std::vector<TunedGraph> tuned_graphs;
-  std::vector<OptimizedComputeExpr> optimized_lowered;
+  std::vector<TunedSubGraph> tuned_graph;
+  std::vector<OptimizedComputeExpr> optimized_exprs;
 };
 
 }  // namespace auto_schedule

@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "cinn/auto_schedule/task/tune_task.h"
+#include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/instruction.h"
 #include "cinn/runtime/cinn_runtime.h"
 
@@ -28,7 +29,9 @@ namespace auto_schedule {
 // The input to a measurer
 struct MeasureInput {
   // The task object releated to this measurement.
-  TuneTask* task;
+  const TuneTask* task;
+  // lowered Exprs to be measured
+  std::vector<std::vector<ir::LoweredFunc>> lowered_funcs;
   // It is used to pass for some arguments that maybe
   // specified value in advance. default is null
   const std::map<std::string, cinn_pod_value_t>* execution_args = nullptr;
@@ -46,10 +49,10 @@ struct MeasureResult {
 
 // The result of building with input schedule
 struct BuildResult {
-  // The scope that owns detail infos of parameters of all instructions
+  // The scope that owns detail compilation infos of parameters in the runtime program
   const hlir::framework::Scope* compiled_scope;
-  // The executable instructions built with the measurement input
-  std::vector<std::unique_ptr<hlir::framework::Instruction>> instructions;
+  // The executable program
+  std::unique_ptr<hlir::framework::Program> runtime_program;
 };
 
 // This interface defines how to generate executable objects

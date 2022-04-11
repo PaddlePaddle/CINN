@@ -610,19 +610,55 @@ std::unique_ptr<Program> GraphCompiler::Build(const std::string& code) {
   return std::move(result.runtime_program);
 }
 
+void GraphCompiler::CompileOptions::Apply(const auto_schedule::TuningResult& tuning_result) {
+  // joint all sub_graph into a whole graph
+  for (auto&& sub_graph : tuning_result.tuned_graph) {
+    groups.insert(groups.end(), sub_graph.groups.begin(), sub_graph.groups.end());
+  }
+
+  // joint all lowered_funcs together
+  for (auto&& expr : tuning_result.optimized_exprs) {
+    lowered_funcs.insert(lowered_funcs.end(), expr.lowered_funcs.begin(), expr.lowered_funcs.end());
+  }
+}
+
 GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::CompileOptions& options,
                                                       std::unordered_set<std::string>&& fetch_var_ids,
                                                       void* stream) {
   compile_options_ = options;
   fetch_var_ids_   = std::move(fetch_var_ids);
+  auto topo_order  = graph_->topological_order();
+  auto& nodes      = std::get<0>(topo_order);
 
-  if (graph_->fusion_groups.empty()) {
-    auto topo_order = graph_->topological_order();
-    auto& nodes     = std::get<0>(topo_order);
-    auto& edges     = std::get<1>(topo_order);
+  m_builder_.Clear();
+  // if there are no avaiable groups, we will take each node as a group
+  if (options.groups.empty() && graph_->groups.empty()) {
+    VLOG(3) << "not run opfusion pass";
+    for (auto& node : nodes) {
+      auto op_node = node->safe_as<Node>();
+      if (op_node) {
+        graph_->groups.push_back({op_node});
+      }
+    }
+  }
+  // use the input groups in options firstly if exists
+  const auto& groups = options.groups.empty() ? graph_->groups : options.groups;
 
-    auto& groups = graph_->groups;
-    if (!groups.empty()) {
+  // if the input lowered_funcs is empty, we will use the defalut lowering process to generate
+  std::vector<std::vector<ir::LoweredFunc>> local_lowered_funcs;
+  if (options.lowered_funcs.empty()) {
+    // lowering of new fusion pass is not compatible with the groups from the input options,
+    // thus process it seperately
+    if (!graph_->fusion_groups.empty()) {
+      auto& dtype_dict = graph_->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
+      auto& shape_dict = graph_->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
+
+      OpLowerer op_lowerer(dtype_dict, shape_dict, target_);
+      for (auto& group : graph_->fusion_groups) {
+        auto lowered_func = op_lowerer.Lower(group);
+        this->ProcessFunction(lowered_func);
+      }
+    } else {
       for (int i = 0; i < groups.size(); i++) {
         std::vector<ir::LoweredFunc> lowered_func;
         if (groups[i].size() == 1) {
@@ -630,34 +666,22 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
         } else {
           lowered_func = GetOpFunc(groups[i]);
         }
-        this->ProcessFunction(lowered_func);
-      }
-    } else {
-      VLOG(3) << "not run opfusion pass";
-      for (auto& node : nodes) {
-        auto op_node = node->safe_as<Node>();
-        if (op_node) {
-          auto lowered_func = GetOpFunc(op_node);
-          this->ProcessFunction(lowered_func);
-          graph_->groups.push_back({op_node});
-        }
+        local_lowered_funcs.emplace_back(std::move(lowered_func));
       }
     }
-  } else {
-    auto& dtype_dict = graph_->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-    auto& shape_dict = graph_->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
+  }
 
-    OpLowerer op_lowerer(dtype_dict, shape_dict, target_);
-    for (auto& group : graph_->fusion_groups) {
-      auto lowered_func = op_lowerer.Lower(group);
-      this->ProcessFunction(lowered_func);
-    }
+  // use the input lowered_funcs in options firstly if exists
+  const auto& lowered_funcs = options.lowered_funcs.empty() ? local_lowered_funcs : options.lowered_funcs;
+  CHECK_EQ(groups.size(), lowered_funcs.size()) << "The size of groups and lowered_funcs shoule be equal";
+  for (auto&& lowered_func : lowered_funcs) {
+    this->ProcessFunction(lowered_func);
   }
 
   // compile the module
-  if (!compiler_) {
-    compiler_ = backends::Compiler::Create(target_);
-  }
+  // Need to create a new compiler for every call of Build,
+  // because the underneath jit engine does't support addIRModule repeatedly now.
+  compiler_ = backends::Compiler::Create(target_);
 
   auto build_module = m_builder_.Build();
 
@@ -669,8 +693,10 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   }
 
   compiler_->Build(build_module, options.attached_code, stream);
-  auto instructions = BuildInstructions();
-  RemoveInvalidVariables(instructions);
+  auto instructions = BuildInstructions(groups);
+  if (options.remove_unused_variables) {
+    RemoveInvalidVariables(instructions);
+  }
   if (options.with_buffer_handle_instruction_inserted) {
     VLOG(3) << "option.with_buffer_handle_instruction_inserted enable";
     InsertBufferHandlers(&instructions);
@@ -718,13 +744,13 @@ void GraphCompiler::SetSubKernels(Instruction* instr, const std::string& func_na
   }
 }
 
-std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
+std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions(
+    const std::vector<std::vector<Node*>>& groups) {
   std::vector<std::unique_ptr<Instruction>> instructions;
   auto topo_order = graph_->topological_order();
   auto& nodes     = std::get<0>(topo_order);
   auto& edges     = std::get<1>(topo_order);
 
-  auto& groups = graph_->groups;
   for (auto& group : groups) {
     if (group.size() == 1) {
       auto node       = group[0];
