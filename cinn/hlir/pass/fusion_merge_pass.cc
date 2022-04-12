@@ -69,8 +69,8 @@ class FusionMergePassHelper : public FusionHelperBase {
         continue;
       }
 
-      updated |= DoFusionMergeHorizontal(producer->consumer_groups);
-      updated |= DoFusionMergeVertical(producer, producer->consumer_groups);
+      updated |= DoHorizontalFusion(producer->consumer_groups);
+      updated |= DoVerticalFusion(producer, producer->consumer_groups);
     }
 
     GroupList fusion_groups;
@@ -88,7 +88,7 @@ class FusionMergePassHelper : public FusionHelperBase {
     return updated;
   }
 
-  bool DoFusionMergeHorizontal(std::unordered_set<GroupPtr, Hasher, Comparator>& consumers) {
+  bool DoHorizontalFusion(std::unordered_set<GroupPtr, Hasher, Comparator>& consumers) {
     GroupList candidate_consumers;
     // check consumers exist depency relation
     for (auto& consumer : consumers) {
@@ -141,14 +141,14 @@ class FusionMergePassHelper : public FusionHelperBase {
     for (auto& groups : fusionable_consumers) {
       if (groups.size() > 1) {
         updated = true;
-        DoHorizontalFuse(groups);
+        HorizontalFuse(groups);
       }
     }
 
     return updated;
   }
 
-  void DoHorizontalFuse(GroupList& consumers) {
+  void HorizontalFuse(GroupList& consumers) {
     // create fusion group
     auto fused_group = std::make_shared<Graph::Group>();
     // fuse all group into fusion group.
@@ -208,16 +208,35 @@ class FusionMergePassHelper : public FusionHelperBase {
       consumer->belong_groups.insert(fused_group);
     }
 
-    // Using last group as main group.
-    auto& consumer = consumers.back();
-    for (auto& node : consumer->master_nodes) {
-      fused_group->master_nodes.insert(node);
+    for (auto consumer : consumers) {
+      // group is elementwise/broadcast/injective
+      if (consumer->op_pattern_kind == framework::kElemWise || consumer->op_pattern_kind == framework::kBroadcast ||
+          consumer->op_pattern_kind == framework::kInjective) {
+        for (auto& node : consumer->master_nodes) {
+          fused_group->master_nodes.insert(node);
+        }
+        break;
+      } /* group is reduce */
+      else if (consumer->op_pattern_kind == framework::kCommReduce) {
+        Node* master_node = nullptr;
+        for (auto& node : consumer->master_nodes) {
+          if (GetOpKind(node) != framework::kCommReduce) {
+            master_node = node;
+            break;
+          }
+        }
+        if (master_node) {
+          fused_group->master_nodes.insert(master_node);
+          break;
+        }
+      }
     }
+
     // push group to back.
     fusion_groups_.push_back(fused_group);
   }
 
-  bool DoFusionMergeVertical(GroupPtr& producer, std::unordered_set<GroupPtr, Hasher, Comparator>& consumers) {
+  bool DoVerticalFusion(GroupPtr& producer, std::unordered_set<GroupPtr, Hasher, Comparator>& consumers) {
     auto& relation = fusion_relation_map_[producer->op_pattern_kind];
     // if producer can't fuse others
     if (!relation.vertical_relation.size()) {
@@ -247,14 +266,14 @@ class FusionMergePassHelper : public FusionHelperBase {
 
     // if fusionable consumers exist
     if (fusionable_consumers.size()) {
-      DoVerticalFuse(producer, fusionable_consumers);
+      VerticalFuse(producer, fusionable_consumers);
       return true;
     }
 
     return false;
   }
 
-  void DoVerticalFuse(GroupPtr& producer, std::unordered_set<GroupPtr, Hasher, Comparator>& fusionable_consumers) {
+  void VerticalFuse(GroupPtr& producer, std::unordered_set<GroupPtr, Hasher, Comparator>& fusionable_consumers) {
     GroupList fused_groups;
     for (auto& consumer : fusionable_consumers) {
       auto fused_group = std::make_shared<Graph::Group>();
@@ -328,9 +347,7 @@ class FusionMergePassHelper : public FusionHelperBase {
 
       // master nodes
       for (auto& node : consumer->master_nodes) {
-        if (GetOpKind(node) == framework::kCommReduce) {
-          fused_group->master_nodes.insert(node);
-        }
+        fused_group->master_nodes.insert(node);
       }
 
       // producer nodes
@@ -579,12 +596,12 @@ class FusionMergePassHelper : public FusionHelperBase {
     std::unordered_map<framework::OpPatternKind, ConditionFunction> horizontal_relation;
   };
   std::unordered_map<framework::OpPatternKind, Relation> fusion_relation_map_;
-};  // namespace hlir
+};  // namespace pass
 
 void FusionMergePassInternal(Graph* graph) {
   VLOG(11) << "FusionMergePass...!";
-  if (!graph->fusion_groups.size()) {
-    VLOG(11) << "Don't do OpFusoin Pass...!";
+  if (graph->fusion_groups.size() <= 1) {
+    VLOG(11) << "Don't do Fusoin Merge Pass...!";
     return;
   }
 

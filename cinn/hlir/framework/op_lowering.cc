@@ -331,9 +331,9 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
   // if not find master node, using last kCommReduce as master node.
   if (!master_node) {
     if (group->fused_sub_groups.empty()) {
-      master_node = group->nodes.front();
+      master_node = group->nodes.back();
     } else {
-      master_node = group->fused_sub_groups.back()->nodes.front();
+      master_node = group->fused_sub_groups.back()->nodes.back();
     }
     CHECK_EQ(op_pattern_dict[master_node->op()], framework::kCommReduce) << "Master Node Type Must Be Reduce!";
   }
@@ -557,9 +557,9 @@ void OpLowerer::OutEWiseFusableSchedule(poly::StageMap& stages,
   // if not find master node, using last kOutEWiseFusable as master node.
   if (!master_node) {
     if (group->fused_sub_groups.empty()) {
-      master_node = group->nodes.front();
+      master_node = group->nodes.back();
     } else {
-      master_node = group->fused_sub_groups.back()->nodes.front();
+      master_node = group->fused_sub_groups.back()->nodes.back();
     }
     CHECK_EQ(op_pattern_dict[master_node->op()], framework::kOutEWiseFusable)
         << "Master Node Type Must Be OutEWiseFusable!";
