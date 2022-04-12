@@ -363,6 +363,7 @@ TEST(OP_LOWERING, Reduce_Test_6) {
     auto E = net_builder.Reduce(D, ReduceKind::kSum, {0});
     auto F = net_builder.Reduce(D, ReduceKind::kSum, {0});
     auto G = net_builder.ElementwiseAdd(E, C);
+    auto I = net_builder.ElementwiseAdd(F, C);
   }
 
   auto program = net_builder.Build();

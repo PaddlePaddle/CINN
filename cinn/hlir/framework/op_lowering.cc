@@ -252,7 +252,7 @@ void OpLowerer::ReduceCompute(poly::StageMap& stages,
       C = impl->fschedule(C);
     } else if (group->master_nodes.count(node)) {
       // node is master node, copy schedule from reduce node
-      for (auto rnode : group->master_nodes) {
+      for (auto rnode : sub_group->master_nodes) {
         if (op_pattern_dict[rnode->op()] == framework::kCommReduce) {
           auto rnode_data = GetNodeData(rnode);
           tmp_stages[out.as_tensor_ref()]->CopyTransform(stages[tensor_map[rnode_data->id()]]);
