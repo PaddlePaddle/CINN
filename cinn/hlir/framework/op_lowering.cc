@@ -110,8 +110,7 @@ void OpLowerer::ElementwiseCompute(poly::StageMap& stages,
                                    const GroupPtr& sub_group) {
   auto& strategy = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
 
-  for (int idx = sub_group->nodes.size() - 1; idx >= 0; --idx) {
-    auto node      = sub_group->nodes[idx];
+  for (auto& node : sub_group->nodes) {
     auto node_data = GetNodeData(node);
 
     std::vector<ir::Tensor> tensor_inputs;
@@ -167,8 +166,7 @@ void OpLowerer::ElementwiseSchedule(poly::StageMap& stages,
                                     std::unordered_map<std::string, ir::Tensor>& tensor_map,
                                     const GroupPtr& group,
                                     const GroupPtr& sub_group) {
-  for (int idx = sub_group->nodes.size() - 1; idx >= 0; --idx) {
-    auto node      = sub_group->nodes[idx];
+  for (auto& node : sub_group->nodes) {
     auto node_data = GetNodeData(node);
     // if group master node
     if (group->master_nodes.count(node)) {
@@ -206,8 +204,7 @@ void OpLowerer::ReduceCompute(poly::StageMap& stages,
   auto& cinn_strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
 
-  for (int idx = sub_group->nodes.size() - 1; idx >= 0; --idx) {
-    auto node      = sub_group->nodes[idx];
+  for (auto& node : sub_group->nodes) {
     auto node_data = GetNodeData(node);
 
     std::vector<ir::Tensor> tensor_inputs;
@@ -363,8 +360,7 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
   auto master_reducer_axes  = absl::get<std::vector<int>>(master_reducer->attrs.attr_store.at("dim"));
   auto master_reducer_shape = this->shape_dict_.at(master_reducer->inlinks_in_order()[0]->source()->id());
 
-  for (int idx = sub_group->nodes.size() - 1; idx >= 0; --idx) {
-    auto node      = sub_group->nodes[idx];
+  for (auto& node : sub_group->nodes) {
     auto node_data = GetNodeData(node);
     auto stage     = stages[tensor_map[node_data->id()]];
     // if node is kCommReduce
@@ -477,8 +473,7 @@ void OpLowerer::OutEWiseFusableCompute(poly::StageMap& stages,
   auto& cinn_strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
 
-  for (int idx = sub_group->nodes.size() - 1; idx >= 0; --idx) {
-    auto node      = sub_group->nodes[idx];
+  for (auto& node : sub_group->nodes) {
     auto node_data = GetNodeData(node);
 
     std::vector<ir::Tensor> tensor_inputs;
@@ -573,8 +568,7 @@ void OpLowerer::OutEWiseFusableSchedule(poly::StageMap& stages,
   auto master_node_data = GetNodeData(master_node);
   auto master_stage     = stages[tensor_map[master_node_data->id()]];
 
-  for (int idx = sub_group->nodes.size() - 1; idx >= 0; --idx) {
-    auto node      = sub_group->nodes[idx];
+  for (auto& node : sub_group->nodes) {
     auto node_data = GetNodeData(node);
     auto stage     = stages[tensor_map[node_data->id()]];
     // if node is master node.
@@ -662,7 +656,7 @@ std::vector<ir::LoweredFunc> OpLowerer::LowerOpaqueOp(const GroupPtr& group) {
     func_args.push_back(out.as_tensor_ref());
   }
 
-  return lang::LowerVec("fn_" + node->id(), stages, func_args, {}, {}, nullptr, this->target_);
+  return lang::LowerVec(func_name_prefix + node->id(), stages, func_args, {}, {}, nullptr, this->target_);
 }
 
 }  // namespace framework
