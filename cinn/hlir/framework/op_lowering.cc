@@ -204,6 +204,7 @@ void OpLowerer::ReduceCompute(poly::StageMap& stages,
   auto& cinn_strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
 
+  Node* reducer = nullptr;
   for (auto& node : sub_group->nodes) {
     auto node_data = GetNodeData(node);
 
@@ -248,16 +249,23 @@ void OpLowerer::ReduceCompute(poly::StageMap& stages,
 
     // node is kCommReduce
     if (op_pattern_dict[node->op()] == framework::kCommReduce) {
+      reducer = node;
       // do schedule
       C = impl->fschedule(C);
     } else if (group->master_nodes.count(node)) {
       // node is master node, copy schedule from reduce node
-      for (auto rnode : sub_group->master_nodes) {
-        if (op_pattern_dict[rnode->op()] == framework::kCommReduce) {
-          auto rnode_data = GetNodeData(rnode);
-          tmp_stages[out.as_tensor_ref()]->CopyTransform(stages[tensor_map[rnode_data->id()]]);
-          tmp_stages[out.as_tensor_ref()]->CopyLoopInfo(stages[tensor_map[rnode_data->id()]]);
-          break;
+      if (reducer) {
+        auto reducer_data = GetNodeData(reducer);
+        tmp_stages[out.as_tensor_ref()]->CopyTransform(stages[tensor_map[reducer_data->id()]]);
+        tmp_stages[out.as_tensor_ref()]->CopyLoopInfo(stages[tensor_map[reducer_data->id()]]);
+      } else {
+        for (auto rnode : group->master_nodes) {
+          if (op_pattern_dict[rnode->op()] == framework::kCommReduce) {
+            auto rnode_data = GetNodeData(rnode);
+            tmp_stages[out.as_tensor_ref()]->CopyTransform(stages[tensor_map[rnode_data->id()]]);
+            tmp_stages[out.as_tensor_ref()]->CopyLoopInfo(stages[tensor_map[rnode_data->id()]]);
+            break;
+          }
         }
       }
     }
