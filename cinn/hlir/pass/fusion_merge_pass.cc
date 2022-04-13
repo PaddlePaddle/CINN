@@ -173,6 +173,10 @@ class FusionMergePassHelper : public FusionHelperBase {
       for (auto& node : consumer->output_nodes) {
         fused_group->output_nodes.insert(node);
       }
+      // internal node
+      for (auto& node : consumer->internal_nodes) {
+        fused_group->internal_nodes.insert(node);
+      }
       // master node
       for (auto& node : consumer->master_nodes) {
         if (GetOpKind(node) == framework::kCommReduce) {
@@ -285,6 +289,10 @@ class FusionMergePassHelper : public FusionHelperBase {
       // input nodes
       fused_group->input_nodes = producer->input_nodes;
       // internal nodes
+      for (auto& node : producer->internal_nodes) {
+        fused_group->internal_nodes.insert(node);
+      }
+      // convert producer's output node to internal.
       for (auto node : producer->output_nodes) {
         // if node is used more than 1 time.
         if (consumer->input_nodes.count(node)) {
@@ -343,6 +351,11 @@ class FusionMergePassHelper : public FusionHelperBase {
       // output nodes
       for (auto& node : consumer->output_nodes) {
         fused_group->output_nodes.insert(node);
+      }
+
+      // internal nodes
+      for (auto& node : consumer->internal_nodes) {
+        fused_group->internal_nodes.insert(node);
       }
 
       // master nodes
