@@ -655,9 +655,8 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
 
       OpLowerer op_lowerer(dtype_dict, shape_dict, target_);
       for (auto& group : graph_->fusion_groups) {
-        auto lowered_func = op_lowerer.Lower(group);
-        this->ProcessFunction(lowered_func);
-        groups.emplace_back(group->CollectNodes());
+        local_lowered_funcs.emplace_back(std::move(op_lowerer.Lower(group)));
+        groups.emplace_back(std::move(group->CollectNodes()));
       }
     } else {
       for (int i = 0; i < groups.size(); i++) {
