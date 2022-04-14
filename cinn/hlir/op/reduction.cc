@@ -34,11 +34,12 @@ using common::CINNValuePack;
 using framework::OpStrategy;
 using framework::shape_t;
 using framework::StrategyFunction;
-using pe::ReduceMax;
-using pe::ReduceMin;
-using pe::ReduceProd;
-using pe::ReduceSum;
-using PeFunc = std::function<ir::Tensor(const ir::Tensor &, const std::vector<int> &, bool, Expr, const std::string &)>;
+using ReduceFunc =
+    std::function<ir::Tensor(const ir::Tensor &, const std::vector<int> &, bool, Expr, const std::string &)>;
+using BlockReduceInternalFunc =
+    std::function<std::vector<ir::Tensor>(const ir::Tensor &, const int, const bool, const std::string &)>;
+using BlockReduceFunc =
+    std::function<std::vector<ir::Tensor>(const ir::Tensor &, const int, const int, const bool, const std::string &)>;
 
 std::vector<int> GetShape(const ir::Tensor &x) {
   auto last_reduce_dim = x->shape[2].as_int32() * x->shape[3].as_int32();
@@ -296,13 +297,21 @@ std::shared_ptr<OpStrategy> StrategyForBnGradBiasScale(const framework::NodeAttr
   return strategy;
 }
 
-#define StrategyForReduction(op_name__, pe__, pe_func__)                                            \
-  std::shared_ptr<OpStrategy> StrategyFor##pe__(const framework::NodeAttr &attrs,                   \
-                                                const std::vector<ir::Tensor> &inputs,              \
-                                                const std::vector<Type> &out_type,                  \
-                                                const std::vector<std::vector<int>> &output_shapes, \
-                                                const Target &target) {                             \
-    return StrategyForReduce(attrs, inputs, out_type, output_shapes, target, #op_name__, pe__);     \
+#define StrategyForReduction(op_name_, reduce_op_, reduce_func_, block_reduce_internal_func_, block_reduce_func_) \
+  std::shared_ptr<OpStrategy> StrategyFor##reduce_op_(const framework::NodeAttr &attrs,                           \
+                                                      const std::vector<ir::Tensor> &inputs,                      \
+                                                      const std::vector<Type> &out_type,                          \
+                                                      const std::vector<std::vector<int>> &output_shapes,         \
+                                                      const Target &target) {                                     \
+    return StrategyForReduce(attrs,                                                                               \
+                             inputs,                                                                              \
+                             out_type,                                                                            \
+                             output_shapes,                                                                       \
+                             target,                                                                              \
+                             #op_name_,                                                                           \
+                             reduce_func_,                                                                        \
+                             block_reduce_internal_func_,                                                         \
+                             block_reduce_func_);                                                                 \
   }
 
 std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
@@ -311,7 +320,9 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
                                               const std::vector<std::vector<int>> &output_shapes,
                                               const Target &target,
                                               const std::string &op_name,
-                                              const PeFunc &pe_func) {
+                                              const ReduceFunc &reduce_func,
+                                              const BlockReduceInternalFunc &block_reduce_internal_func,
+                                              const BlockReduceFunc &block_reduce_func) {
   std::vector<int> dim;
   bool keep_dim = false;
   if (attrs.attr_store.count("dim")) {
@@ -346,6 +357,11 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
       reduce_dim_succesive = false;
       break;
     } else {
+      if (last_succesive_dim * inputs[0]->shape[dim[idx]].as_int32() > 1024) {
+        succesive_dim_idx    = idx + 1;
+        reduce_dim_succesive = false;
+        break;
+      }
       last_succesive_dim *= inputs[0]->shape[dim[idx]].as_int32();
     }
   }
@@ -360,48 +376,44 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
     if (target == common::DefaultNVGPUTarget() && dim.back() == inputs[0]->shape.size() - 1) {
       // the reduce dimension is succesive
       if (reduce_dim_succesive) {
-        if (last_succesive_dim < 256) {
-          VLOG(3) << "Do WarpReduceSum Compute!";
-          // if the succesive reduce dimension size < 256
-          auto res = pe::WarpReduceSum(x, dim.size(), keep_dim);
+        if (last_succesive_dim <= 1024) {
+          VLOG(3) << "Do BlockReduceInternal Compute!";
+          // if the succesive reduce dimension size <= 1024
+          auto res = block_reduce_internal_func(x, static_cast<int>(dim.size()), keep_dim, UniqName(op_name + "_out"));
           CHECK_EQ(res.size(), 2);
           auto stages = CreateStages(res);
           *ret        = CINNValuePack{{CINNValue(res[0]), CINNValue(res[1]), CINNValue(stages)}};
         } else {
-          VLOG(3) << "Do BlockReduceSum Compute!";
+          VLOG(3) << "Do BlockReduce Compute!";
           // if the succesive reduce dimension size > 256
-          int block_size = last_succesive_dim > 1024 ? 512 : 128;
-          auto res       = pe::BlockReduceSum(x, dim.size(), block_size, keep_dim);
+          int block_size = 1024;
+          auto res =
+              block_reduce_func(x, static_cast<int>(dim.size()), block_size, keep_dim, UniqName(op_name + "_out"));
           CHECK_EQ(res.size(), 2);
           auto stages = CreateStages(res);
           *ret        = CINNValuePack{{CINNValue(res[0]), CINNValue(res[1]), CINNValue(stages)}};
         }
       } else /* the reduce dimension is not succesive */ {
-        VLOG(3) << "Do ReduceSum And BlockReduceSumInternal Compute!";
+        VLOG(3) << "Do Reduce And BlockReduceInternal Compute!";
         // compute the parallel reduce dimension size
         int last_succesive_dim_tmp = last_succesive_dim;
         std::vector<int> reduce_without_last_diemension(dim.begin(), dim.begin() + succesive_dim_idx);
-        for (int idx = dim[succesive_dim_idx]; idx < inputs[0]->shape.size(); idx++) {
-          if (last_succesive_dim_tmp > 1024) {
-            last_succesive_dim_tmp /= inputs[0]->shape[idx].as_int32();
-            reduce_without_last_diemension.push_back(idx);
-          } else {
-            break;
-          }
-        }
         // TODO(sunli) : support last dimension size over 1024
-        CHECK_LE(last_succesive_dim_tmp, 1024) << "last dimension size over 1024";
+        CHECK_LE(last_succesive_dim_tmp, 1024) << "last dimension size is over 1024";
         // first: do reduce without last dimension
-        auto out = pe_func(x, reduce_without_last_diemension, keep_dim, Expr(), UniqName(op_name + "_out"));
+        auto out = reduce_func(x, reduce_without_last_diemension, keep_dim, Expr(), UniqName(op_name + "_out"));
         // second: do reduce on last dimension
-        auto res = pe::BlockReduceSumInternal(out, dim.size() - reduce_without_last_diemension.size());
+        auto res = block_reduce_internal_func(out,
+                                              static_cast<int>(dim.size() - reduce_without_last_diemension.size()),
+                                              keep_dim,
+                                              UniqName(op_name + "_out"));
         CHECK_EQ(res.size(), 2);
         auto stages = CreateStages({res[0], res[1], out});
         *ret        = CINNValuePack{{CINNValue(res[0]), CINNValue(res[1]), CINNValue(out), CINNValue(stages)}};
       }
     } else {
       VLOG(3) << "Do ReduceSum Compute!";
-      auto out    = pe_func(x, dim, keep_dim, Expr(), UniqName(op_name + "_out"));
+      auto out    = reduce_func(x, dim, keep_dim, Expr(), UniqName(op_name + "_out"));
       auto stages = CreateStages({out});
       *ret        = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
     }
@@ -418,15 +430,10 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
           Expr out              = arg_pack[0];
           Expr tmp_out          = arg_pack[1];
           poly::StageMap stages = arg_pack.back();
-          if (last_succesive_dim < 256) {
-            VLOG(3) << "Do CudaScheduleWarpReduce Schedule!";
-            pe::CudaScheduleWarpReduce(
-                stages, tmp_out.as_tensor_ref(), out.as_tensor_ref(), common::DefaultNVGPUTarget());
-          } else {
-            VLOG(3) << "Do CudaScheduleBlockReduceInternal Schedule!";
-            pe::CudaScheduleBlockReduceInternal(
-                stages, tmp_out.as_tensor_ref(), out.as_tensor_ref(), common::DefaultNVGPUTarget());
-          }
+
+          VLOG(3) << "Do CudaScheduleBlockReduceInternal Schedule!";
+          pe::CudaScheduleBlockReduceInternal(
+              stages, tmp_out.as_tensor_ref(), out.as_tensor_ref(), common::DefaultNVGPUTarget());
         } else {
           CHECK_EQ(arg_pack.size(), 4UL);
           Expr out              = arg_pack[0];
@@ -532,10 +539,10 @@ std::vector<std::vector<std::string>> InferLayoutForBnOptimize(const std::vector
   return {{"", ""}, {"", ""}};
 }
 
-StrategyForReduction(reduce_sum, ReduceSum, PeFunc);
-StrategyForReduction(reduce_prod, ReduceProd, PeFunc);
-StrategyForReduction(reduce_max, ReduceMax, PeFunc);
-StrategyForReduction(reduce_min, ReduceMin, PeFunc);
+StrategyForReduction(reduce_sum, ReduceSum, pe::ReduceSum, pe::BlockReduceSumInternal, pe::BlockReduceSum);
+StrategyForReduction(reduce_prod, ReduceProd, pe::ReduceProd, pe::BlockReduceProdInternal, pe::BlockReduceProd);
+StrategyForReduction(reduce_max, ReduceMax, pe::ReduceMax, pe::BlockReduceMaxInternal, pe::BlockReduceMax);
+StrategyForReduction(reduce_min, ReduceMin, pe::ReduceMin, pe::BlockReduceMinInternal, pe::BlockReduceMin);
 
 #undef StrategyForReduction
 
@@ -543,24 +550,17 @@ StrategyForReduction(reduce_min, ReduceMin, PeFunc);
 }  // namespace hlir
 }  // namespace cinn
 
-// TODO(sunli) : repair element-wise + reduce fusion on gpu
-#ifdef CINN_WITH_CUDA
-#define REDUCE_OP_PATTERN_KIND cinn::hlir::framework::OpPatternKind::kOpaque
-#else
-#define REDUCE_OP_PATTERN_KIND cinn::hlir::framework::OpPatternKind::kCommReduce
-#endif
-
 CINN_REGISTER_HELPER(reduce_ops) {
-#define CINN_REGISTER_REDUCTION(op__, op_stragegy__)                                                                 \
-  CINN_REGISTER_OP(op__)                                                                                             \
-      .describe(#op__ " function")                                                                                   \
-      .set_num_inputs(1)                                                                                             \
-      .set_num_outputs(1)                                                                                            \
-      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyFor##op_stragegy__) \
-      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForReduction))                                \
-      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForReduction))                                \
-      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForReduction))                              \
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", REDUCE_OP_PATTERN_KIND)                           \
+#define CINN_REGISTER_REDUCTION(op__, op_stragegy__)                                                                  \
+  CINN_REGISTER_OP(op__)                                                                                              \
+      .describe(#op__ " function")                                                                                    \
+      .set_num_inputs(1)                                                                                              \
+      .set_num_outputs(1)                                                                                             \
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyFor##op_stragegy__)  \
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForReduction))                                 \
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForReduction))                                 \
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForReduction))                               \
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kCommReduce) \
       .set_support_level(4);
 
   CINN_REGISTER_REDUCTION(reduce_sum, ReduceSum);

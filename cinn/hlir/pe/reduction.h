@@ -153,7 +153,49 @@ std::vector<ir::Tensor> BlockReduceSumInternal(const ir::Tensor& A,
                                                const std::string& output_name = "T_Block_Reduce_Sum_Internal_out");
 
 /**
- * @brief compute the sum of array elements over the last dimension with block reduce
+ * @brief compute the Product of array elements over the last dimension with block reduce.
+ *        'BlockReduceSumInternal' is used as the internal compute of reduce sum, do not use it directly.
+ *
+ * @param A The input Tensor.
+ * @param last_reduce_dim_num the number of last reduce dimension.
+ * @param keep_dim keep the output tensor shape size as input.
+ * @param output_name The name of the output Tensor.
+ */
+std::vector<ir::Tensor> BlockReduceProdInternal(const ir::Tensor& A,
+                                                const int last_reduce_dim_num,
+                                                const bool keep_dim            = false,
+                                                const std::string& output_name = "T_Block_Reduce_Prod_Internal_out");
+
+/**
+ * @brief compute the Max of array elements over the last dimension with block reduce.
+ *        'BlockReduceSumInternal' is used as the internal compute of reduce sum, do not use it directly.
+ *
+ * @param A The input Tensor.
+ * @param last_reduce_dim_num the number of last reduce dimension.
+ * @param keep_dim keep the output tensor shape size as input.
+ * @param output_name The name of the output Tensor.
+ */
+std::vector<ir::Tensor> BlockReduceMaxInternal(const ir::Tensor& A,
+                                               const int last_reduce_dim_num,
+                                               const bool keep_dim            = false,
+                                               const std::string& output_name = "T_Block_Reduce_Max_Internal_out");
+
+/**
+ * @brief compute the Min of array elements over the last dimension with block reduce.
+ *        'BlockReduceSumInternal' is used as the internal compute of reduce sum, do not use it directly.
+ *
+ * @param A The input Tensor.
+ * @param last_reduce_dim_num the number of last reduce dimension.
+ * @param keep_dim keep the output tensor shape size as input.
+ * @param output_name The name of the output Tensor.
+ */
+std::vector<ir::Tensor> BlockReduceMinInternal(const ir::Tensor& A,
+                                               const int last_reduce_dim_num,
+                                               const bool keep_dim            = false,
+                                               const std::string& output_name = "T_Block_Reduce_Min_Internal_out");
+
+/**
+ * @brief compute the Sum of array elements over the last dimension with block reduce
  *
  * @param A The input Tensor.
  * @param last_reduce_dim_num the number of last reduce dimension.
@@ -165,6 +207,48 @@ std::vector<ir::Tensor> BlockReduceSum(const ir::Tensor& A,
                                        const int block_size,
                                        const bool keep_dim            = false,
                                        const std::string& output_name = "T_Block_Reduce_Sum_out");
+
+/**
+ * @brief compute the Product of array elements over the last dimension with block reduce
+ *
+ * @param A The input Tensor.
+ * @param last_reduce_dim_num the number of last reduce dimension.
+ * @param keep_dim keep the output tensor shape size as input.
+ * @param output_name The name of the output Tensor.
+ */
+std::vector<ir::Tensor> BlockReduceProd(const ir::Tensor& A,
+                                        const int last_reduce_dim_num,
+                                        const int block_size,
+                                        const bool keep_dim            = false,
+                                        const std::string& output_name = "T_Block_Reduce_Prod_out");
+
+/**
+ * @brief compute the Max of array elements over the last dimension with block reduce
+ *
+ * @param A The input Tensor.
+ * @param last_reduce_dim_num the number of last reduce dimension.
+ * @param keep_dim keep the output tensor shape size as input.
+ * @param output_name The name of the output Tensor.
+ */
+std::vector<ir::Tensor> BlockReduceMax(const ir::Tensor& A,
+                                       const int last_reduce_dim_num,
+                                       const int block_size,
+                                       const bool keep_dim            = false,
+                                       const std::string& output_name = "T_Block_Reduce_Max_out");
+
+/**
+ * @brief compute the Min of array elements over the last dimension with block reduce
+ *
+ * @param A The input Tensor.
+ * @param last_reduce_dim_num the number of last reduce dimension.
+ * @param keep_dim keep the output tensor shape size as input.
+ * @param output_name The name of the output Tensor.
+ */
+std::vector<ir::Tensor> BlockReduceMin(const ir::Tensor& A,
+                                       const int last_reduce_dim_num,
+                                       const int block_size,
+                                       const bool keep_dim            = false,
+                                       const std::string& output_name = "T_Block_Reduce_Min_out");
 
 }  // namespace pe
 }  // namespace hlir

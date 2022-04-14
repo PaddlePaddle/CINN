@@ -137,8 +137,10 @@ void IRMutator<T>::Visit(const _Module_ *expr, T op) {
 template <typename T>
 void IRMutator<T>::Visit(const _Var_ *expr, T op) {
   auto *node = op->template As<ir::_Var_>();
-  if (expr->is_reduce_axis) {
+  if (node->lower_bound.defined()) {
     IRVisitorBase<void, T>::Visit(&node->lower_bound, &node->lower_bound);
+  }
+  if (node->upper_bound.defined()) {
     IRVisitorBase<void, T>::Visit(&node->upper_bound, &node->upper_bound);
   }
 }
@@ -287,6 +289,52 @@ void IRMutator<T>::Visit(const IntrinsicOp *expr, T op) {
       }
     } break;
   }
+}
+
+template <typename T>
+void IRMutator<T>::Visit(const _BufferRange_ *expr, T op) {
+  auto *node = op->template As<_BufferRange_>();
+  CHECK(node);
+  IRVisitorBase<void, T>::Visit(&node->buffer, &node->buffer);
+  for (auto &var : node->ranges) {
+    if (var->lower_bound.defined()) {
+      IRVisitorBase<void, T>::Visit(&var->lower_bound, &var->lower_bound);
+    }
+    if (var->upper_bound.defined()) {
+      IRVisitorBase<void, T>::Visit(&var->upper_bound, &var->upper_bound);
+    }
+  }
+}
+
+template <typename T>
+void IRMutator<T>::Visit(const ScheduleBlock *expr, T op) {
+  auto *node = op->template As<ScheduleBlock>();
+  CHECK(node);
+  for (auto &var : node->iter_vars) {
+    if (var->lower_bound.defined()) {
+      IRVisitorBase<void, T>::Visit(&var->lower_bound, &var->lower_bound);
+    }
+    if (var->upper_bound.defined()) {
+      IRVisitorBase<void, T>::Visit(&var->upper_bound, &var->upper_bound);
+    }
+  }
+  for (auto &buffer_region : node->read_buffers) {
+    IRVisitorBase<void, T>::Visit(&buffer_region, &buffer_region);
+  }
+  for (auto &buffer_region : node->write_buffers) {
+    IRVisitorBase<void, T>::Visit(&buffer_region, &buffer_region);
+  }
+  IRVisitorBase<void, T>::Visit(&(node->body), &(node->body));
+}
+
+template <typename T>
+void IRMutator<T>::Visit(const ScheduleBlockRealize *expr, T op) {
+  auto *node = op->template As<ScheduleBlockRealize>();
+  CHECK(node);
+  for (auto &value : node->iter_values) {
+    IRVisitorBase<void, T>::Visit(&value, &value);
+  }
+  IRVisitorBase<void, T>::Visit(&node->schedule_block, &node->schedule_block);
 }
 
 }  // namespace ir

@@ -14,19 +14,28 @@
 
 #include <gtest/gtest.h>
 
+#include "cinn/backends/codegen_cuda_dev.h"
+#include "cinn/backends/codegen_cuda_util.h"
+#include "cinn/backends/cuda_util.h"
 #include "cinn/backends/llvm/execution_engine.h"
+#include "cinn/backends/nvrtc_util.h"
 #include "cinn/cinn.h"
 #include "cinn/common/target.h"
 #include "cinn/common/test_helper.h"
+#include "cinn/hlir/pe/broadcast.h"
+#include "cinn/hlir/pe/reduction.h"
+#include "cinn/hlir/pe/schedule.h"
 #include "cinn/hlir/pe/transform.h"
+#include "cinn/runtime/cinn_runtime.h"
 #include "cinn/runtime/cpu/host_intrinsics.h"
+#include "cinn/runtime/cuda/cuda_module.h"
 
 namespace cinn {
 namespace hlir {
 namespace pe {
 using ir::Tensor;
 
-TEST(MatmulPE, PE_Matmul_Test0) {
+TEST(MatmulPE, MatmulCase1) {
   int m = 100;
   int n = 32;
   int k = 16;
@@ -90,6 +99,268 @@ TEST(MatmulPE, PE_Matmul_Test0) {
       ASSERT_NEAR(cd[i * size_b + j], tmp, 1e-5);
     }
   }
+}
+
+TEST(IndexAssign, IndexAssign) {
+  int m = 128;
+  int n = 32;
+  int k = 32;
+  Expr M(m), N(n), K(k);
+
+  Placeholder<float> input("A", {M, K});
+  Placeholder<float> assign("B", {N, K});
+  Placeholder<int> indexs("C", {N});
+  int axis = 0;
+
+#ifdef CINN_WITH_CUDA
+  auto target = common::DefaultNVGPUTarget();
+#else
+  auto target = common::DefaultHostTarget();
+#endif
+
+  auto output = hlir::pe::IndexAssign(input.tensor(), assign.tensor(), indexs.tensor(), target, axis);
+  auto stages = CreateStages({input, assign, indexs, output});
+  auto func   = Lower("fn", stages, {input, assign, indexs, output});
+  LOG(INFO) << "func:\n" << func;
+
+#ifdef CINN_WITH_CUDA
+  Module::Builder builder("IndexAssign_Builder", target);
+  builder.AddFunction(func);
+
+  auto module                    = builder.Build();
+  auto host_module_device_module = backends::SplitCudaAndHostModule(module);
+  auto &host_module              = std::get<0>(host_module_device_module);
+  auto &device_module            = std::get<1>(host_module_device_module);
+  for (auto &func : host_module.functions()) {
+    LOG(INFO) << "host:\n" << func;
+  }
+  for (auto &func : device_module.functions()) {
+    LOG(INFO) << "device:\n" << func;
+  }
+
+  backends::CodeGenCUDA_Dev codegen(target);
+  auto source_code = codegen.Compile(builder.Build());
+  LOG(INFO) << "compiled code:\n\n\n" << source_code;
+
+  // nv jit compile to ptx
+  backends::NVRTC_Compiler compiler;
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty());
+  // cuda_module load ptx
+  runtime::cuda::CUDAModule cuda_module(ptx, runtime::cuda::CUDAModule::Kind::PTX);
+#endif  // CINN_WITH_CUDA
+}
+
+TEST(SliceAssign, SliceAssign) {
+  int m = 128;
+  int n = 32;
+  int k = 32;
+  Expr M(m), N(n), K(k);
+
+  std::vector<int> axis    = {0, 1};
+  std::vector<int> starts  = {32, 32};
+  std::vector<int> ends    = {64, 64};
+  std::vector<int> strides = {1, 1};
+
+  Placeholder<float> input("A", {M, M});
+  Placeholder<float> assign("B", {N, N});
+
+  auto output = hlir::pe::SliceAssign(input.tensor(), assign.tensor(), axis, starts, ends, strides);
+  auto stages = CreateStages({input, assign, output});
+  auto func   = Lower("fn", stages, {input, assign, output});
+  LOG(INFO) << "func:\n" << func;
+
+#ifdef CINN_WITH_CUDA
+  auto target = common::DefaultNVGPUTarget();
+  Module::Builder builder("SliceAssign_Builder", target);
+  builder.AddFunction(func);
+
+  auto module                    = builder.Build();
+  auto host_module_device_module = backends::SplitCudaAndHostModule(module);
+  auto &host_module              = std::get<0>(host_module_device_module);
+  auto &device_module            = std::get<1>(host_module_device_module);
+  for (auto &func : host_module.functions()) {
+    LOG(INFO) << "host:\n" << func;
+  }
+  for (auto &func : device_module.functions()) {
+    LOG(INFO) << "device:\n" << func;
+  }
+
+  backends::CodeGenCUDA_Dev codegen(target);
+  auto source_code = codegen.Compile(builder.Build());
+  LOG(INFO) << "compiled code:\n\n\n" << source_code;
+
+  // nv jit compile to ptx
+  backends::NVRTC_Compiler compiler;
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty());
+
+  runtime::cuda::CUDAModule cuda_module(ptx, runtime::cuda::CUDAModule::Kind::PTX);
+#endif
+}
+
+TEST(Concat, ConcatCase0) {
+  int m = 128;
+  int n = 32;
+  Expr M(m), N(n);
+
+  Placeholder<float> A("A", {M, N});
+  Placeholder<float> B("B", {M, N});
+  Placeholder<float> C("C", {M, N});
+  Placeholder<float> D("D", {M, N});
+
+  std::vector<ir::Tensor> inputs{A.tensor(), B.tensor(), C.tensor(), D.tensor()};
+  auto output = hlir::pe::Concat(inputs, 1);
+  auto stages = CreateStages({output});
+  auto func   = Lower("fn", stages, {A, B, C, D, output});
+  LOG(INFO) << "func:\n" << func;
+
+#ifdef CINN_WITH_CUDA
+  auto target = common::DefaultNVGPUTarget();
+  Module::Builder builder("Concat_Builder", target);
+  builder.AddFunction(func);
+
+  auto module                    = builder.Build();
+  auto host_module_device_module = backends::SplitCudaAndHostModule(module);
+  auto &host_module              = std::get<0>(host_module_device_module);
+  auto &device_module            = std::get<1>(host_module_device_module);
+  for (auto &func : host_module.functions()) {
+    LOG(INFO) << "host:\n" << func;
+  }
+  for (auto &func : device_module.functions()) {
+    LOG(INFO) << "device:\n" << func;
+  }
+
+  backends::CodeGenCUDA_Dev codegen(target);
+  auto source_code = codegen.Compile(builder.Build());
+  LOG(INFO) << "compiled code:\n\n\n" << source_code;
+
+  // nv jit compile to ptx
+  backends::NVRTC_Compiler compiler;
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty());
+#endif
+}
+
+TEST(Reduce, Reduce_Test_0) {
+  int m = 128;
+  int n = 128;
+  Expr M(m), N(n);
+
+  Placeholder<float> A("A", {M, N});
+  Placeholder<float> B("B", {M, N});
+
+  auto C      = hlir::pe::Add(A.tensor(), B.tensor());
+  auto D      = hlir::pe::ReduceSum(C, {0});
+  auto stages = CreateStages({C, D});
+  stages[C]->SetBuffer("local");
+  stages[C]->Reorder({1, 0});
+  stages[D]->Bind(0, "threadIdx.x");
+  stages[C]->SimpleComputeAt(stages[D], 1);
+
+  auto func = Lower("fn", stages, {A, B, D});
+  LOG(INFO) << "func:\n" << func;
+
+#ifdef CINN_WITH_CUDA
+  auto target = common::DefaultNVGPUTarget();
+  Module::Builder builder("Concat_Builder", target);
+  builder.AddFunction(func);
+
+  auto module                    = builder.Build();
+  auto host_module_device_module = backends::SplitCudaAndHostModule(module);
+  auto &host_module              = std::get<0>(host_module_device_module);
+  auto &device_module            = std::get<1>(host_module_device_module);
+  for (auto &func : host_module.functions()) {
+    LOG(INFO) << "host:\n" << func;
+  }
+  for (auto &func : device_module.functions()) {
+    LOG(INFO) << "device:\n" << func;
+  }
+
+  backends::CodeGenCUDA_Dev codegen(target);
+  auto source_code = codegen.Compile(builder.Build());
+  LOG(INFO) << "compiled code:\n\n\n" << source_code;
+
+  // nv jit compile to ptx
+  backends::NVRTC_Compiler compiler;
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty());
+#endif
+}
+
+void CudaReduceReorder(poly::StageMap stages, ir::Tensor input, const std::vector<int> &axes) {
+  auto &shape = input->shape;
+  std::vector<int> order;
+  for (int idx = 0; idx < shape.size(); ++idx) {
+    if (std::find(axes.begin(), axes.end(), idx) == axes.end()) {
+      order.push_back(idx);
+    }
+  }
+  for (auto axis : axes) {
+    order.push_back(axis);
+  }
+  stages[input]->Reorder(order);
+
+  int last_dimension_num = shape.size() - axes.back() - 1;
+  int index              = shape.size() - last_dimension_num - axes.size();
+  for (auto idx = index; idx < index + last_dimension_num - 1; ++idx) {
+    stages[input]->Fuse(index, index + 1);
+  }
+
+  if (stages[input]->GetDimRange(index) > 1024) {
+    stages[input]->Split(index, 1024);
+  }
+
+  for (int idx = 0; idx < index - 1; ++idx) {
+    stages[input]->Fuse(0, 1);
+  }
+}
+
+TEST(Reduce, Reduce_Test_1) {
+  int m = 128;
+  int n = 128;
+  Expr M(m), N(n);
+
+  Placeholder<float> A("A", {M, M, M, N, N});
+  Placeholder<float> B("B", {M, M, M, N, N});
+
+  auto C      = hlir::pe::Add(A.tensor(), B.tensor());
+  auto D      = hlir::pe::ReduceSum(C, {0, 2});
+  auto stages = CreateStages({C, D});
+  hlir::pe::CudaScheduleReduce(stages, D, 2, common::DefaultNVGPUTarget());
+  CudaReduceReorder(stages, C, {0, 2});
+  stages[C]->SetBuffer("local");
+  stages[C]->SimpleComputeAt(stages[D], stages[D]->n_out_dims() - 1);
+  // stages[C]->ComputeInline();
+
+  auto func = Lower("fn", stages, {A, B, D});
+  LOG(INFO) << "func:\n" << func;
+
+#ifdef CINN_WITH_CUDA
+  auto target = common::DefaultNVGPUTarget();
+  Module::Builder builder("Concat_Builder", target);
+  builder.AddFunction(func);
+
+  auto module                    = builder.Build();
+  auto host_module_device_module = backends::SplitCudaAndHostModule(module);
+  auto &host_module              = std::get<0>(host_module_device_module);
+  auto &device_module            = std::get<1>(host_module_device_module);
+  for (auto &func : host_module.functions()) {
+    LOG(INFO) << "host:\n" << func;
+  }
+  for (auto &func : device_module.functions()) {
+    LOG(INFO) << "device:\n" << func;
+  }
+
+  backends::CodeGenCUDA_Dev codegen(target);
+  auto source_code = codegen.Compile(builder.Build());
+  LOG(INFO) << "compiled code:\n\n\n" << source_code;
+
+  // nv jit compile to ptx
+  backends::NVRTC_Compiler compiler;
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty());
+#endif
 }
 
 }  // namespace pe

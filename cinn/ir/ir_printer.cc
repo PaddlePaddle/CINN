@@ -79,6 +79,17 @@ void IrPrinter::Visit(const Minus *x) {
 void IrPrinter::Visit(const For *x) {
   if (x->is_parallel()) {
     os() << "parallel for (";
+  } else if (x->is_unrolled()) {
+    os() << "unroll for (";
+  } else if (x->is_vectorized()) {
+    int factor = x->vectorize_info().factor;
+    os() << "vectorize_" << factor << " for (";
+  } else if (x->is_binded()) {
+    auto &bind_info       = x->bind_info();
+    std::string axis_name = "x" + bind_info.offset;
+    auto for_type         = bind_info.for_type;
+    std::string prefix    = for_type == ForType::GPUBlock ? "blockIdx." : "threadIdx.";
+    os() << "thread_bind_" << prefix << axis_name << " for (";
   } else {
     os() << "for (";
   }
@@ -387,6 +398,80 @@ void IrPrinter::Visit(const PrimitiveNode *x) {
 
   os() << utils::Join(args_repr, ",");
   os() << ")";
+}
+
+void IrPrinter::Visit(const _BufferRange_ *x) {
+  auto *buffer = x->buffer.As<ir::_Buffer_>();
+  CHECK(buffer);
+  os() << buffer->name << "[";
+  for (int i = 0; i < x->ranges.size(); i++) {
+    if (i) os() << ", ";
+    auto &range = x->ranges[i];
+    if (range->lower_bound.defined()) {
+      os() << range->lower_bound << ":";
+    } else {
+      os() << "undefined:";
+    }
+
+    if (range->upper_bound.defined()) {
+      os() << range->upper_bound;
+    } else {
+      os() << "undefined";
+    }
+  }
+  os() << "]";
+}
+
+void IrPrinter::Visit(const ScheduleBlock *x) {}
+
+void IrPrinter::Visit(const ScheduleBlockRealize *x) {
+  auto *schedule_block = x->schedule_block.As<ScheduleBlock>();
+  os() << "ScheduleBlock(" << schedule_block->name << ")\n";
+  DoIndent();
+  os() << "{\n";
+  // print block vars and bindings
+  auto iter_vars   = schedule_block->iter_vars;
+  auto iter_values = x->iter_values;
+  CHECK_EQ(iter_vars.size(), iter_values.size());
+  IncIndent();
+  if (!iter_vars.empty()) DoIndent();
+  for (int i = 0; i < iter_vars.size(); i++) {
+    if (i) os() << ", ";
+    os() << iter_vars[i]->name;
+  }
+  if (!iter_vars.empty()) os() << " = axis.bind(";
+  for (int i = 0; i < iter_values.size(); i++) {
+    if (i) os() << ", ";
+    os() << iter_values[i];
+  }
+  if (!iter_vars.empty()) os() << ")\n";
+  // print block body
+  if (!schedule_block->read_buffers.empty()) {
+    DoIndent();
+    os() << "read_buffers(";
+    auto &read_buffers = schedule_block->read_buffers;
+    for (int i = 0; i < read_buffers.size(); i++) {
+      if (i) os() << ", ";
+      Print(read_buffers[i]);
+    }
+    os() << ")\n";
+  }
+  if (!schedule_block->write_buffers.empty()) {
+    DoIndent();
+    os() << "write_buffers(";
+    auto &write_buffers = schedule_block->write_buffers;
+    for (int i = 0; i < write_buffers.size(); i++) {
+      if (i) os() << ", ";
+      Print(write_buffers[i]);
+    }
+    os() << ")\n";
+  }
+  DoIndent();
+  Print(schedule_block->body);
+  os() << "\n";
+  DecIndent();
+  DoIndent();
+  os() << "}";
 }
 
 void IrPrinter::Visit(const IntrinsicOp *x) {

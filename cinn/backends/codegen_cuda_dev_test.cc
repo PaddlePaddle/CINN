@@ -34,6 +34,7 @@
 #include "cinn/hlir/pe/nn.h"
 #include "cinn/hlir/pe/schedule.h"
 #include "cinn/ir/ir_printer.h"
+#include "cinn/ir/ir_schedule.h"
 #include "cinn/lang/lower.h"
 #include "cinn/optim/ir_simplify.h"
 #include "cinn/runtime/cpu/use_extern_funcs.h"
@@ -2975,5 +2976,110 @@ TEST(Cudnn, external_function_cudnn3) {
   runtime::cuda::cinn_gpu_cudnn_softmax({2, 1000, -1}, dev_bufs[0], dev_bufs[1]);
 }
 #endif
+
+TEST(CodeGenCUDA2, test_of_slice_assign) {
+  Context::Global().ResetNameId();
+
+  Target target = common::DefaultNVGPUTarget();
+  CodeGenCUDA_Dev codegen(target);
+
+  Placeholder<float> input("input", {121, 2});
+  Placeholder<float> assign("assign", {121, 1});
+
+  std::vector<int> axes        = {1};
+  std::vector<int> new_starts  = {0};
+  std::vector<int> new_ends    = {1};
+  std::vector<int> strides     = {1};
+  std::vector<int> new_strides = {1};
+
+  auto output = Compute(
+      input->shape,
+      [=](const std::vector<Expr>& indice) {
+        ir::Expr is_assigned             = ir::Expr(true);
+        std::vector<ir::Expr> tmp_indice = indice;
+        for (int idx = 0; idx < axes.size(); ++idx) {
+          // get input axis to be assigned
+          auto tmp_axis = indice[axes[idx]];
+          // get assign axis
+          Expr out_axis;
+          if (strides[idx] > 0) {
+            out_axis = tmp_axis - ir::Expr(new_starts[idx]);
+          } else {
+            // when strides < 0, reverse input to output.
+            // the value of ends is not contained in slice, so `ends - 1`
+            out_axis = ir::Expr(new_ends[idx] - 1) - tmp_axis;
+          }
+          // axis >= start
+          auto ge = ir::GE::Make(tmp_axis, ir::Expr(new_starts[idx]));
+          // axis < ends
+          auto lt = ir::LT::Make(tmp_axis, ir::Expr(new_ends[idx]));
+          // check start <= axis < ends
+          auto inside = ir::And::Make(ge, lt);
+          // check (axis - starts) % strides == 0
+          auto mod = ir::EQ::Make(ir::Mod::Make(out_axis, Expr(new_strides[idx])), Expr(0));
+          // check start <= axis < ends and (axis - starts) % strides == 0
+          is_assigned = ir::And::Make(is_assigned, ir::And::Make(inside, mod));
+          // update axis for assign tensor
+          tmp_indice[axes[idx]] = out_axis / Expr(new_strides[idx]);
+        }
+        return ir::Select::Make(is_assigned, assign(tmp_indice), input(indice));
+      },
+      "output");
+
+  auto stages = CreateStages({output});
+
+  if (target.arch == Target::Arch::NVGPU) {
+    hlir::pe::CudaScheduleInjective(stages[output], std::vector<int>{121, 2}, target);
+  } else if (target.arch == Target::Arch::X86) {
+    hlir::pe::ScheduleInjectiveCPU(stages[output], std::vector<int>{121, 2}, target);
+  }
+
+  auto func = Lower("slice_assign", stages, {input, assign, output});
+
+  Module::Builder builder("module", target);
+  builder.AddFunction(func);
+
+  auto source_code = codegen.Compile(builder.Build());
+
+  LOG(INFO) << "compiled test_of_cacheread code:\n\n\n" << source_code;
+
+  using runtime::cuda::CUDAModule;
+
+  backends::NVRTC_Compiler compiler;
+
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty());
+
+  CUDAModule cuda_module(ptx, CUDAModule::Kind::PTX);
+
+  CUDA_CALL(cudaDeviceSynchronize());
+
+  CUdeviceptr input_d, assign_d, output_d;
+  cuMemAlloc(&input_d, 121 * 2 * sizeof(float));
+  cuMemAlloc(&assign_d, 121 * 1 * sizeof(float));
+  cuMemAlloc(&output_d, 121 * 2 * sizeof(float));
+
+  std::vector<float> input_h(121 * 2, 0);
+  std::vector<float> assign_h(121 * 1, 0);
+  for (float& v : assign_h) v = static_cast<float>(rand()) / INT_MAX;  // NOLINT
+
+  CUDA_CALL(cudaMemset(reinterpret_cast<void*>(input_d), 0, 121 * 2 * sizeof(float)));
+  CUDA_CALL(
+      cudaMemcpy(reinterpret_cast<void*>(assign_d), assign_h.data(), 121 * 1 * sizeof(float), cudaMemcpyHostToDevice));
+
+  // launch the kernel
+
+  void* args[] = {&input_d, &assign_d, &output_d};
+
+  dim3 grid(1, 1, 1);
+  dim3 block(242, 1, 1);
+  cuda_module.LaunchKernel(0, "slice_assign", grid, block, args);
+  CUDA_CALL(cudaDeviceSynchronize());
+
+  cuMemFree(input_d);
+  cuMemFree(assign_d);
+  cuMemFree(output_d);
+}
+
 }  // namespace backends
 }  // namespace cinn

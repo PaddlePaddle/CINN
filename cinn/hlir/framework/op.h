@@ -27,6 +27,7 @@
 
 #include "cinn/common/macros.h"
 #include "cinn/utils/registry.h"
+#include "cinn/utils/type_defs.h"
 
 template <typename R, typename... Args>
 inline auto MakeOpFunction(R (*func)(Args...)) {
@@ -38,8 +39,8 @@ namespace hlir {
 namespace framework {
 class Operator;
 
-using shape_t = std::vector<int32_t>;
-using dim_t   = shape_t::value_type;
+using shape_t = utils::ShapeType;
+using dim_t   = utils::DimType;
 
 /*! \brief operator pattern used in graph fusion */
 enum OpPatternKind {

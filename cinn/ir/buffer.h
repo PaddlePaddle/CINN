@@ -144,5 +144,47 @@ class _Buffer_ : public ExprNode<_Buffer_> {
 
 static bool operator<(const ir::Buffer& a, const ir::Buffer& b) { return a->name < b->name; }
 
+// represents the multi-dimension ranges of the buffer
+struct _BufferRange_ : public ExprNode<_BufferRange_> {
+  Expr buffer;
+  // For every range, it starts from var's lower_bound and ends at var's upper_bound.
+  std::vector<Var> ranges;
+
+  _BufferRange_() = default;
+  _BufferRange_(const Expr& buffer, const std::vector<Var>& ranges)
+      : ExprNode<_BufferRange_>(), buffer(buffer), ranges(ranges) {}
+
+  static Expr Make(const Expr& buffer, const std::vector<Var>& ranges);
+
+  void Verify() const override;
+
+  Expr Copy() const override;
+  static const IrNodeTy _node_type_ = IrNodeTy::_BufferRange_;
+};
+
+struct BufferRange : public IrNodeRef {
+  BufferRange() = default;
+  explicit BufferRange(IrNode* n) : IrNodeRef(n) {}
+  BufferRange(const Expr& buffer, const std::vector<Var>& ranges)
+      : BufferRange(_BufferRange_::Make(buffer, ranges).ptr()) {}
+
+  operator Expr() { return Expr(get()); }
+  operator Expr() const {
+    BufferRange v = *this;
+    return Expr(v);
+  }
+
+  bool operator==(const BufferRange& o) const;
+  bool operator!=(const BufferRange& o) const;
+
+  BufferRange& operator=(_BufferRange_* x);
+  BufferRange& operator=(const _BufferRange_* x);
+
+  const _BufferRange_* operator->() const { return get(); }
+  _BufferRange_* operator->() { return get(); }
+  const _BufferRange_* get() const { return static_cast<const _BufferRange_*>(ptr()); }
+  _BufferRange_* get() { return static_cast<_BufferRange_*>(ptr()); }
+};
+
 }  // namespace ir
 }  // namespace cinn

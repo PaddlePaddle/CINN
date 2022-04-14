@@ -790,23 +790,6 @@ std::vector<ir::Tensor> SoftmaxMKLDNN(const ir::Tensor &A, int axis, const std::
 }
 #endif
 
-ir::Tensor Slice(const ir::Tensor &A,
-                 const std::vector<int> &starts,
-                 const std::vector<int> &axes,
-                 const std::vector<Expr> &output_shape,
-                 const std::string &output_name) {
-  return Compute(
-      output_shape,
-      [=](const std::vector<Expr> &indice) {
-        std::vector<Expr> temp = indice;
-        for (int i = 0; i < axes.size(); i++) {
-          temp[axes[i]] = temp[axes[i]] + Expr(starts[i]) + (starts[i] < 0 ? A->shape[axes[i]] : Expr(0));
-        }
-        return A(temp);
-      },
-      output_name);
-}
-
 /**
  * @brief Perform padding operation.
  * @param tensor The input tensor.

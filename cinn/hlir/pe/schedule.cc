@@ -418,16 +418,16 @@ void CudaScheduleBlockReduceInternal(poly::StageMap stages,
   }
 
   if (tmp_out->shape.size() == 1) {
-    stages[out]->Split(0, 1);
-    stages[tmp_out]->Split(0, tmp_out->shape[0].as_int32());
+    stages[tmp_out]->Split(0, stages[tmp_out]->GetDimRange(0));
+    stages[out]->Split(0, stages[out]->GetDimRange(0));
   }
-
-  stages[out]->Bind(0, "blockIdx.x");
 
   stages[tmp_out]->Bind(0, "blockIdx.x");
   stages[tmp_out]->Bind(1, "threadIdx.x");
-  stages[tmp_out]->SimpleComputeAt(stages[out], 0);
   stages[tmp_out]->SetBuffer("local");
+  stages[tmp_out]->SimpleComputeAt(stages[out], 0);
+
+  stages[out]->Bind(0, "blockIdx.x");
 }
 
 void CudaScheduleBlockReduce(poly::StageMap stages,
@@ -446,6 +446,12 @@ void CudaScheduleBlockReduce(poly::StageMap stages,
     stages[out]->Fuse(0, 1);
     stages[tmp_out]->Fuse(0, 1);
     stages[reduce_tmp_out]->Fuse(0, 1);
+  }
+
+  if (tmp_out->shape.size() == 1) {
+    stages[reduce_tmp_out]->Split(0, stages[reduce_tmp_out]->GetDimRange(0));
+    stages[tmp_out]->Split(0, stages[tmp_out]->GetDimRange(0));
+    stages[out]->Split(0, stages[out]->GetDimRange(0));
   }
 
   stages[reduce_tmp_out]->Bind(0, "blockIdx.x");
@@ -2022,7 +2028,7 @@ void CudaScheduleInjective(poly::Stage *stage, const std::vector<int> &output_sh
   }
 
   int num_thread        = target.max_num_threads();
-  int num_block         = 256;
+  int num_block         = 1024;
   int vector_width      = 1;
   int prod_size         = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int>());
   bool need_block_split = prod_size > num_thread * num_block * vector_width ? true : false;
@@ -2049,15 +2055,49 @@ void CudaScheduleInjective(poly::Stage *stage, const std::vector<int> &output_sh
   }
 }
 
-void CudaSplitSchedule(poly::Stage *stage, const std::vector<int> &output_shape) {
-  if (output_shape.size() > 1 && output_shape[1] >= 512) {
-    int temp_split = 1;
-    int temp_num   = output_shape[1];
-    while (temp_num >= 512) {
-      temp_split = temp_split * 2;
-      temp_num   = temp_num / 2;
-    }
-    stage->Split(1, temp_split);
+void CudaSplitSchedule(common::CINNValuePack *arg_pack,
+                       const std::vector<std::vector<int>> &output_shapes,
+                       int axis,
+                       const common::Target &target) {
+  poly::StageMap stages = arg_pack->back();
+  std::vector<ir::Tensor> out_tensors;
+  int dims = output_shapes[0].size();
+  for (int i = 0; i < arg_pack->size() - 1; ++i) {
+    Expr Out = (*arg_pack)[i];
+    CHECK(Out.as_tensor());
+    out_tensors.push_back(Out.as_tensor_ref());
+  }
+  std::vector<int> reorders;
+  for (int i = 0; i < dims; i++) {
+    reorders.push_back(i);
+  }
+  reorders.erase(reorders.begin() + axis);
+  reorders.push_back(axis);
+  for (auto &out : out_tensors) {
+    stages[out]->Reorder(reorders);
+  }
+  auto last_output = out_tensors.back();
+
+  std::vector<int> fuse_index;
+  for (int i = 0; i < dims - 1; i++) fuse_index.push_back(i);
+  for (auto &out : out_tensors) stages[out]->Fuse(fuse_index);
+  int fused_shape = 1;
+  for (int i = 0; i < dims; i++) {
+    if (i != axis) fused_shape = fused_shape * output_shapes[0][i];
+  }
+  int compute_at_level = 0;
+  if (target.arch == Target::Arch::NVGPU) {
+    if (fused_shape > target.max_num_threads()) {
+      stages[last_output]->Split(0, target.max_num_threads());
+      stages[last_output]->Bind(0, "blockIdx.x");
+      stages[last_output]->Bind(1, "threadIdx.x");
+      compute_at_level++;
+    } else
+      stages[last_output]->Bind(0, "threadIdx.x");
+  }
+
+  for (int i = 0; i < out_tensors.size() - 1; i++) {
+    stages[out_tensors[i]]->ComputeAt2(stages[last_output], compute_at_level);
   }
 }
 

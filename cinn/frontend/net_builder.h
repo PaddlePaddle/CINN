@@ -31,11 +31,17 @@ namespace frontend {
     macro__(Sigmoid)                            \
     macro__(Identity)
 
+// Matmul not MatMul is not mistake, the SnakeName function in pybind need this name type
 #define NETBUILDER_BINARY_OP_FOREACH(macro__)   \
+    macro__(Add)                                \
     macro__(Sub)                                \
     macro__(Div)                                \
     macro__(Matmul)                             \
     macro__(ReluGrad)
+
+#define NETBUILDER_ELEMENTWISE_OP_FOREACH(macro__)   \
+    macro__(ElementwiseAdd)                                \
+    macro__(ElementwiseMul)
 // clang-format on
 
 class NetBuilder : public BaseBuilder {
@@ -50,6 +56,11 @@ class NetBuilder : public BaseBuilder {
   NETBUILDER_BINARY_OP_FOREACH(NETBUILDER_BINARY_OP_DECL)
 #undef NETBUILDER_BINARY_OP_DECL
 
+#define NETBUILDER_ELEMENTWISE_OP_DECL(func_name__) \
+  Variable func_name__(const Variable& lhs, const Variable& rhs, int axis = -1);
+  NETBUILDER_ELEMENTWISE_OP_FOREACH(NETBUILDER_ELEMENTWISE_OP_DECL)
+#undef NETBUILDER_ELEMENTWISE_OP_DECL
+
   /**
    * Multiply two matrix.
    */
@@ -62,27 +73,12 @@ class NetBuilder : public BaseBuilder {
       const Variable& a, const Variable& b, const Variable& c, int x_num_col_dims = 1, int y_num_col_dims = 1);
 
   /**
-   * Add two matrix(with broadcast).
-   */
-  Variable Add(const Variable& a, const Variable& b);
-
-  /**
-   * Add two tensors element-wise.
-   */
-  Variable ElementwiseAdd(const Variable& a, const Variable& b, int axis = -1);
-
-  /**
    * The gradient of elementwise_add.
    */
   const std::vector<Variable>& ElementwiseAddGrad(const Variable& dout,
                                                   const Variable& x,
                                                   const Variable& y,
                                                   int axis = -1);
-
-  /**
-   * Multiply two tensors element-wise.
-   */
-  Variable ElementwiseMul(const Variable& a, const Variable& b, int axis = -1);
 
   Variable Relu6(const Variable& a, float threshold = 6.0f);
 
@@ -185,6 +181,9 @@ class NetBuilder : public BaseBuilder {
     out.set_id(name);
     return out;
   }
+
+ protected:
+  Variable ElementwiseOp(const std::string& op_type, const Variable& lhs, const Variable& rhs, int axis = -1);
 };
 
 }  // namespace frontend

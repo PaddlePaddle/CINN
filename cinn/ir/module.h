@@ -42,6 +42,7 @@ class Module : public ir::IrNodeRef {
 
     void AddFunction(ir::LoweredFunc func);
     void AddBuffer(ir::Buffer buffer);
+    void Clear();
 
     Module Build();
 

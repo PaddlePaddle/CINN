@@ -19,3 +19,5 @@
 CINN_USE_REGISTER(Decomposer)
 CINN_USE_REGISTER(RemoveIdentity)
 CINN_USE_REGISTER(ReductionRewrite)
+CINN_USE_REGISTER(TransposeFolding)
+CINN_USE_REGISTER(GemmRewriter)

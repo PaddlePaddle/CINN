@@ -25,6 +25,7 @@
 #include "cinn/ir/tensor.h"
 #include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"
+#include "cinn/utils/string.h"
 
 namespace cinn {
 namespace hlir {
@@ -81,7 +82,7 @@ std::vector<Tensor> Matmul(
         }
         return lang::ReduceSum(A(A_indice) * B(B_indice), {reduce_k});
       },
-      "temp_matmul_out");
+      UniqName("temp_matmul_out"));
   if (alpha != 1) {
     auto res = Compute(
         output_shape,
@@ -146,6 +147,42 @@ ir::Tensor Reshape(const ir::Tensor& A, const std::vector<int>& new_shape, const
         return A(indice_a);
       },
       name);
+  return res;
+}
+
+std::vector<ir::Tensor> Split(const ir::Tensor& A,
+                              int axis,
+                              const std::vector<std::vector<int>>& output_shapes,
+                              const std::string& name) {
+  if (axis < 0) axis += A->shape.size();
+  auto output_size = output_shapes.size();
+
+  // compute select index list
+  // if   index = [2, 3, 4, 5]
+  // then start = [0, 2, 5, 9]
+  std::vector<int> start(output_size, 0);
+  for (int i = 1; i < output_size; ++i) {
+    start[i] = start[i - 1] + output_shapes[i - 1][axis];
+  }
+
+  std::vector<std::vector<Expr>> out_shape(output_size, std::vector<Expr>{});
+  for (int i = 0; i < output_size; ++i) {
+    for (int val : output_shapes[i]) {
+      out_shape[i].emplace_back(Expr(val));
+    }
+  }
+
+  std::vector<ir::Tensor> res(output_size);
+  for (int i = 0; i < output_size; ++i) {
+    res[i] = Compute(
+        out_shape[i],
+        [=](const std::vector<Expr>& indice) {
+          auto temp  = indice;
+          temp[axis] = common::AutoSimplify(temp[axis] + Expr(start[i]));
+          return A(temp);
+        },
+        name + std::to_string(i));
+  }
   return res;
 }
 
@@ -653,7 +690,7 @@ ir::Tensor LayoutTransform(const Tensor& input,
 
 ir::Tensor Reverse(const ir::Tensor& input, const std::vector<int>& axis, const std::string& output_name) {
   for (auto& val : axis) {
-    CHECK(val >= 0 && val < input->shape.size()) << "axis should be [0,n_dim)";
+    CHECK(val >= 0 && val < static_cast<int>(input->shape.size())) << "axis should be [0,n_dim)";
   }
   std::vector<Expr> shape = input->shape;
   return lang::Compute(
@@ -704,6 +741,208 @@ ir::Tensor Transpose(const ir::Tensor& input, const std::vector<int>& axis, cons
         return input(indexs);
       },
       output_name);
+}
+
+ir::Tensor Slice(const ir::Tensor& A,
+                 const std::vector<int>& starts,
+                 const std::vector<int>& axes,
+                 const std::vector<int>& strides,
+                 const std::vector<Expr>& output_shape,
+                 const std::string& output_name) {
+  std::vector<int> input_shape;
+  for (const auto& shape : A->shape) {
+    input_shape.emplace_back(shape.as_int32());
+  }
+  std::vector<int> new_starts(starts);
+  for (int i = 0; i < axes.size(); i++) {
+    if (new_starts[i] < 0) {
+      new_starts[i] = input_shape[axes[i]] + new_starts[i];
+    }
+    if (new_starts[i] > input_shape[axes[i]]) {
+      new_starts[i] = input_shape[axes[i]] - 1;
+    }
+  }
+
+  // output = input[starts:ends:strides]
+  // Note that when strides < 0, the output reverse:
+  // data=[[1,2,3,4],[5,6,7,8],]
+  // axes=[0,1]
+  // starts=[1,3]
+  // ends=[2,0]
+  // strides=[1,-1]
+  // ==> result=[[8,7,6],]
+  return Compute(
+      output_shape,
+      [=](const std::vector<Expr>& indice) {
+        std::vector<Expr> temp = indice;
+        for (int i = 0; i < axes.size(); i++) {
+          temp[axes[i]] = temp[axes[i]] * Expr(strides[i]) + Expr(new_starts[i]);
+        }
+        return A(temp);
+      },
+      output_name);
+}
+
+ir::Tensor SliceAssign(const ir::Tensor& input,
+                       const ir::Tensor& assign,
+                       const std::vector<int>& axes,
+                       const std::vector<int>& starts,
+                       const std::vector<int>& ends,
+                       const std::vector<int>& strides,
+                       const std::string& output_name) {
+  CHECK_EQ(axes.size(), starts.size()) << "axes's size is not equal to starts's size!";
+  CHECK_EQ(axes.size(), ends.size()) << "axes's size is not equal to starts's size!";
+  CHECK_EQ(axes.size(), strides.size()) << "axes's size is not equal to strides's size!";
+
+  std::vector<int> input_shape;
+  for (const auto& shape : input->shape) {
+    input_shape.emplace_back(shape.as_int32());
+  }
+  std::vector<int> new_starts(starts);
+  std::vector<int> new_ends(ends);
+  std::vector<int> new_strides(strides);
+  for (int i = 0; i < axes.size(); i++) {
+    CHECK_LT(axes[i], input->shape.size()) << "axes should less than input's shape size";
+
+    if (new_starts[i] < 0) {
+      new_starts[i] = input_shape[axes[i]] + new_starts[i];
+      CHECK_GE(new_starts[i], 0) << "The value of [starts] should not less than " << -input_shape[axes[i]];
+    }
+    if (new_starts[i] > input_shape[axes[i]]) {
+      new_starts[i] = input_shape[axes[i]];
+    }
+    if (new_ends[i] < 0) {
+      new_ends[i] = input_shape[axes[i]] + new_ends[i];
+      CHECK_GE(new_ends[i], 0) << "The value of [ends] should not less than " << -input_shape[axes[i]];
+    }
+    if (new_ends[i] > input_shape[axes[i]]) {
+      new_ends[i] = input_shape[axes[i]];
+    }
+
+    // if strides < 0, starts > ends, we need swap them
+    CHECK_NE(strides[i], 0) << "[strides] should not be 0 ! Please Check.";
+    if (strides[i] < 0) {
+      CHECK_GT(new_starts[i], new_ends[i]) << "[starts] should greater than [ends] when [strides] < 0";
+      // if strides > 0, the range is [starts, ends)
+      // but if strides < 0, the range is (ends, starts]
+      auto tmp      = new_starts[i];
+      new_starts[i] = new_ends[i] + 1;  // the new starts should not contain ends[i]
+      new_ends[i]   = tmp + 1;          // the new ends should contain starts[i]
+
+      new_strides[i] = -new_strides[i];
+    } else {
+      CHECK_LT(new_starts[i], new_ends[i]) << "[ends] shoould greater than [starts] when [strides] > 0";
+    }
+  }
+
+  // input[starts:ends:strides] = assign
+  auto output_tensor = Compute(
+      input->shape,
+      [=](const std::vector<Expr>& indice) {
+        ir::Expr is_assigned             = ir::Expr(true);
+        std::vector<ir::Expr> tmp_indice = indice;
+        for (int idx = 0; idx < axes.size(); ++idx) {
+          // get input axis to be assigned
+          auto tmp_axis = indice[axes[idx]];
+          // get assign axis
+          Expr out_axis;
+          if (strides[idx] > 0) {
+            out_axis = tmp_axis - ir::Expr(new_starts[idx]);
+          } else {
+            // when strides < 0, reverse input to output.
+            // the value of ends is not contained in slice, so `ends - 1`
+            out_axis = ir::Expr(new_ends[idx] - 1) - tmp_axis;
+          }
+          // axis >= start
+          auto ge = ir::GE::Make(tmp_axis, ir::Expr(new_starts[idx]));
+          // axis < ends
+          auto lt = ir::LT::Make(tmp_axis, ir::Expr(new_ends[idx]));
+          // check start <= axis < ends
+          auto inside = ir::And::Make(ge, lt);
+          // check (axis - starts) % strides == 0
+          auto mod = ir::EQ::Make(ir::Mod::Make(out_axis, Expr(new_strides[idx])), Expr(0));
+          // check start <= axis < ends and (axis - starts) % strides == 0
+          is_assigned = ir::And::Make(is_assigned, ir::And::Make(inside, mod));
+          // update axis for assign tensor
+          tmp_indice[axes[idx]] = out_axis / Expr(new_strides[idx]);
+        }
+        return ir::Select::Make(is_assigned, assign(tmp_indice), input(indice));
+      },
+      output_name);
+  return output_tensor;
+}
+
+ir::Tensor IndexSelect(const ir::Tensor& x,
+                       const ir::Tensor& index,
+                       const std::vector<Expr>& output_shape,
+                       int axis,
+                       const std::string& name) {
+  CHECK_EQ(1, static_cast<int>(index->shape.size())) << "The index should be a 1-D Tensor.";
+  // The implementation details are explained below.
+  // If output_shape = [2, 4, 3] and axis = 0, `Compute` can be translated as the following code:
+  // {
+  //   for (i, 0, 2)
+  //   {
+  //     for (j, 0, 4)
+  //     {
+  //       for (k, 0, 3)
+  //       {
+  //         index_select_output[i, j, k] = X[int32(Index[i]), j, k]
+  //       }
+  //     }
+  //   }
+  // }
+  auto output_tensor = Compute(
+      output_shape,
+      [x, index, axis](const std::vector<Expr>& indice) {
+        // 1) indice is got from `output_shape`
+        // 2) transformed_indice is used in the input `x`
+        std::vector<Expr> transformed_indice = indice;
+        // The element type of index maybe int64, but the index type is limited to int32 in CINN.
+        // See the below link for more details:
+        // https://github.com/PaddlePaddle/CINN/blob/85ab4981a38926dc5c1dbf672762cec335d2b857/cinn/ir/ir.cc#L477
+        transformed_indice[axis] = ir::Cast::Make(common::Int(32), index(indice[axis]));
+        return x(transformed_indice);
+      },
+      name);
+  return output_tensor;
+}
+
+ir::Tensor IndexAssign(const ir::Tensor& input,
+                       const ir::Tensor& assign,
+                       const ir::Tensor& index,
+                       const common::Target& target,
+                       const int axis,
+                       const std::string& output_name) {
+  CHECK_EQ(index->type(), common::Int(32)) << "Param [Index] of IndexAssign only support int32 ! Please Check.\n";
+  std::string extern_fun_name;
+  if (target.arch == common::Target::Arch::NVGPU) {
+    extern_fun_name.assign("cinn_cuda_find_int");
+  } else if (target.arch == common::Target::Arch::X86) {
+    extern_fun_name.assign("cinn_host_find_int");
+  } else {
+    LOG(FATAL) << "IndexAssign only support X86 and NVGPU ! Please Check.\n";
+  }
+
+  auto pos_axis = axis;
+  if (pos_axis < 0) pos_axis += input->shape.size();
+
+  auto res = Compute(
+      input->shape,
+      [=](const std::vector<Expr>& indice) {
+        // find whether indice[axis] in Index,
+        // then return id if found Index[id] == indice[axis]
+        // else return -1
+        auto id = lang::CallExtern(extern_fun_name, {index, index->shape[0], indice[pos_axis]});
+
+        std::vector<Expr> indice_assign = indice;
+        indice_assign[pos_axis]         = id;
+
+        // check wheter Index[id] == cur_index and return by check result
+        return ir::Select::Make(ir::EQ::Make(id, Expr(-1)), input(indice), assign(indice_assign));
+      },
+      UniqName(output_name));
+  return res;
 }
 
 }  // namespace pe

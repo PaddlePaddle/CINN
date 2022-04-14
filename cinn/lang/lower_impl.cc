@@ -21,8 +21,10 @@
 
 #include "cinn/common/context.h"
 #include "cinn/common/ir_util.h"
+#include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/tensor.h"
+#include "cinn/optim/replace_var_with_expr.h"
 #include "cinn/poly/stage.h"
 
 namespace cinn {
@@ -253,7 +255,7 @@ void CreateCompGraphWithInlineTensors(common::Graph* graph,
     if (!e_node) {
       e_node = graph->RegisterNode(e_tensor->name, new CompuGraphNode(e_tensor));
     }
-    e_node->LinkTo(t_node);
+    e_node->Controls(t_node);
     if (!visited->count(e_tensor)) {
       CreateCompGraphWithInlineTensors(graph, e_tensor, stages, visited);
     }
@@ -293,10 +295,10 @@ std::unique_ptr<common::Graph> CreateCompGraphWithInlineTensorHidden(const std::
 
       // unlink the inline node from its inputs and outputs
       for (auto& link : inline_inlinks) {
-        link->source()->UnLinkTo(link->sink());
+        link->source()->UnLinkSingleTo(link->sink());
       }
       for (auto& link : inline_outlinks) {
-        link->source()->UnLinkTo(link->sink());
+        link->source()->UnLinkSingleTo(link->sink());
       }
 
       // link inline node's input nodes to its output nodes.
@@ -323,7 +325,7 @@ void CompuGraphAddCtrlDepLinks(common::Graph* graph, StageMap stages) {
       auto* dep_node = graph->RetrieveNode(dep->name);
       if (dep_node) {
         VLOG(3) << "Add control link: " << dep << " -> " << node->id();
-        dep_node->LinkTo(node);
+        dep_node->Controls(node);
       }
     }
   }
@@ -348,22 +350,12 @@ std::unique_ptr<common::Graph> CreateCompGraph(const std::vector<ir::Tensor>& te
 }
 
 void LowerImpl::CheckArgsUnique() {
-  std::unordered_set<std::string> arg_names;
   for (auto& tensor : tensor_args_) {
     CHECK(!stages_[tensor]->inlined()) << "Inline tensor cannot be argument of function";
-    CHECK(!arg_names.count(tensor->name))
-        << "The argument of the function, tensor [" << tensor->name << "] duplicates in function " << fn_name_;
-    arg_names.insert(tensor->name);
     if (!tensor->buffer.defined()) {
       LOG(ERROR) << "tensor [" << tensor->name << "] buffer is null";
       continue;
     }
-    arg_names.insert(tensor->buffer->name);
-  }
-
-  for (auto& scalar : scalar_args_) {
-    CHECK(!arg_names.count(scalar->name)) << "The argument of the function, scalar [" << scalar->name << "] duplicates";
-    arg_names.insert(scalar->name);
   }
 }
 
@@ -556,6 +548,11 @@ std::vector<ir::LoweredFunc> LowerImpl::operator()() {
   std::vector<ir::LoweredFunc> result;
   int num_func = 0;
   for (auto& func_iterator : func_body) {
+    if (support_ir_schedule_) {
+      // add ScheduleBlockRealize
+      func_iterator = ir::ScheduleBlockRealize::Make(
+          {}, ir::ScheduleBlock::Make({}, {}, {}, common::UniqName("root"), func_iterator));
+    }
     std::set<std::string> temp_tensor_names;
     for (auto& t : temp_tensor_args_) temp_tensor_names.insert(t->name);
 
@@ -690,6 +687,7 @@ std::vector<Expr> LowerImpl::GenerateFunctionBody(const poly::Schedule* schedule
 
   for (auto& group : schedule->groups) {
     CHECK_GT(group.nodes.size(), 0) << "group is empty";
+    bool all_temp_tensor = true;
     for (auto& node : group.nodes) {
       if (!tensor_map.count(node->id())) {
         VLOG(2) << "tensor_map doesn't count " << node->id();
@@ -697,7 +695,36 @@ std::vector<Expr> LowerImpl::GenerateFunctionBody(const poly::Schedule* schedule
       }
       auto& tensor = tensor_map[node->id()];
       if (!tensor->has_expression()) continue;
-      tuple_to_expr[tensor->name] = tensor->tensor_store_expanded_body();
+      all_temp_tensor =
+          all_temp_tensor && (stages_[tensor]->inlined() ||
+                              (tensor->buffer.defined() && (tensor->buffer->memory_type == ir::MemoryType::GPUShared ||
+                                                            tensor->buffer->memory_type == ir::MemoryType::GPULocal)));
+      auto store_body = tensor->tensor_store_expanded_body();
+      if (support_ir_schedule_) {
+        // add schedule block of tensor computation for schedule IR
+        int var_counts = tensor->domain.size() + tensor->reduce_axis.size();
+        // create block itervars, i0,i1...
+        std::vector<Var> block_vars;
+        std::vector<Expr> iter_values;
+        std::vector<Var> axis_vars = common::GenDefaultAxis(tensor->domain.size());
+        // bind var_values
+        axis_vars.insert(axis_vars.end(), tensor->reduce_axis.begin(), tensor->reduce_axis.end());
+        for (int i = 0; i < var_counts; i++) {
+          block_vars.push_back(Var("i" + std::to_string(i)));
+          if (i >= tensor->domain.size()) {
+            block_vars[i]->is_reduce_axis = true;
+            axis_vars[i]->is_reduce_axis  = true;
+          }
+          iter_values.push_back(axis_vars[i]);
+          // replace store's indice
+          VLOG(3) << "replace axis_var " << axis_vars[i]->name << " to block_var " << block_vars[i];
+          optim::ReplaceVarWithExpr(&store_body, axis_vars[i], block_vars[i]);
+        }
+        store_body = ir::ScheduleBlockRealize::Make(
+            iter_values, ir::ScheduleBlock::Make(block_vars, {}, {}, common::UniqName(tensor->name), store_body));
+        VLOG(3) << "store body\n" << store_body;
+      }
+      tuple_to_expr[tensor->name] = store_body;
     }
 
     ir::CudaAxisInfo temp_cuda_axis_info;
@@ -706,7 +733,7 @@ std::vector<Expr> LowerImpl::GenerateFunctionBody(const poly::Schedule* schedule
 
     if (group_expr.defined()) {
       cuda_axis_info_.emplace_back(std::move(temp_cuda_axis_info));
-      if (target_ == common::DefaultNVGPUTarget()) {
+      if (target_ == common::DefaultNVGPUTarget() && !all_temp_tensor) {
         exprs.push_back(group_expr);
         Expr body = ir::Block::Make(exprs);
         result.push_back(body);
@@ -719,6 +746,11 @@ std::vector<Expr> LowerImpl::GenerateFunctionBody(const poly::Schedule* schedule
   if (target_ == common::DefaultHostTarget()) {
     Expr body = ir::Block::Make(exprs);
     result.push_back(body);
+    exprs.clear();
+  } else if (!exprs.empty()) {
+    Expr body = ir::Block::Make(exprs);
+    result.push_back(body);
+    exprs.clear();
   }
 
   return result;
@@ -729,13 +761,15 @@ LowerImpl::LowerImpl(const std::string& fn_name,
                      const std::vector<Tensor>& tensor_args,
                      const std::vector<Var>& scalar_args,
                      const std::vector<Tensor>& temp_tensor_args,
-                     const Target& target)
+                     const Target& target,
+                     bool support_ir_schedule)
     : fn_name_(fn_name),
       stages_(stages),
       tensor_args_(tensor_args),
       scalar_args_(scalar_args),
       temp_tensor_args_(temp_tensor_args),
-      target_(target) {
+      target_(target),
+      support_ir_schedule_(support_ir_schedule) {
   {  // Initialize the graph
     std::vector<ir::Tensor> tensors(tensor_args.begin(), tensor_args.end());
     tensors.insert(std::end(tensors), temp_tensor_args.begin(), temp_tensor_args.end());

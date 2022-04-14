@@ -50,7 +50,7 @@ class BaseBuilder {
  public:
   explicit BaseBuilder(const std::string& name);
 
-  Program Build();
+  Program Build(bool in_reverse = false);
 
   Placeholder CreateInput(const common::Type& type, const std::vector<int>& shape, const std::string& id_hint = "");
   Placeholder CreateInput(const Variable& input);
@@ -80,6 +80,8 @@ class BaseBuilder {
    */
   Variable Reduce(const Variable& operand, ReduceKind kind, const std::vector<int>& dim, bool keep_dim = false);
 
+  Variable BroadcastTo(const Variable& operand, const std::vector<int>& out_shape);
+
   Variable BroadcastTo(const Variable& operand,
                        const std::vector<int>& out_shape,
                        const std::vector<int>& broadcast_axes);
@@ -90,11 +92,10 @@ class BaseBuilder {
 
   Variable Slice(const Variable& operand,
                  const std::vector<int>& axes,
-                 const std::vector<int>& starts        = {},
-                 const std::vector<int>& ends          = {},
-                 const std::vector<int>& infer_flags   = {},
-                 const std::vector<int>& decrease_axis = {});
-
+                 const std::vector<int>& starts      = {},
+                 const std::vector<int>& ends        = {},
+                 const std::vector<int>& infer_flags = {},
+                 const std::vector<int>& strides     = {});
   /**
    * This API reverses the Variable x along the given axis.
    * Example 1: x = [[0, 1], [2, 3], [4, 5]], axis = [0]
@@ -105,6 +106,19 @@ class BaseBuilder {
   Variable Reverse(const Variable& operand, const std::vector<int>& axis);
 
   Variable Select(const Variable& condition, const Variable& true_value, const Variable& false_value);
+
+  std::vector<Variable> Split(const Variable& operand, const std::vector<int>& num_or_sections, int axis = 0);
+
+  Variable IndexSelect(const Variable& operand, const Variable& index, int axis = 0);
+
+  Variable IndexAssign(const Variable& operand, const Variable& assign, const Variable& index, int axis = 0);
+
+  Variable SliceAssign(const Variable& input,
+                       const Variable& assign,
+                       const std::vector<int>& axes,
+                       const std::vector<int>& starts,
+                       const std::vector<int>& ends,
+                       const std::vector<int>& strides = {});
 
  protected:
   void InferShape(Instruction instr) const;

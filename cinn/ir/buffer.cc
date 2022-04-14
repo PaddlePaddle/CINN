@@ -109,5 +109,52 @@ Expr Buffer::DestroyExpr() const {
       Void(), runtime::intrinsic::buffer_destroy, {ir::_Var_::Make(node->name, node->type())});
 }
 
+Expr _BufferRange_::Make(const Expr &buffer, const std::vector<Var> &ranges) {
+  auto node    = make_shared<_BufferRange_>();
+  node->buffer = buffer;
+  node->ranges = ranges;
+  return Expr(node);
+}
+void _BufferRange_::Verify() const {
+  auto *buffer_ptr = buffer.As<_Buffer_>();
+  CHECK(buffer_ptr);
+}
+Expr _BufferRange_::Copy() const {
+  auto node    = make_shared<_BufferRange_>();
+  node->buffer = buffer;
+  node->ranges = ranges;
+  node->set_type(type());
+  return Expr(node);
+}
+
+bool BufferRange::operator==(const BufferRange &x) const {
+  auto this_buffer  = operator->()->buffer.As<_Buffer_>();
+  auto other_buffer = x->buffer.As<_Buffer_>();
+  CHECK(this_buffer);
+  CHECK(other_buffer);
+  if (this_buffer != other_buffer) return false;
+  if (x->ranges.size() != operator->()->ranges.size()) return false;
+  for (int i = 0; i < x->ranges.size(); i++) {
+    Var this_range  = operator->()->ranges[i];
+    Var other_range = x->ranges[i];
+    if (!is_zero(this_range->lower_bound - other_range->lower_bound)) return false;
+    if (!is_zero(this_range->upper_bound - other_range->upper_bound)) return false;
+  }
+  return true;
+}
+bool BufferRange::operator!=(const BufferRange &x) const { return !(*this == x); }
+BufferRange &BufferRange::operator=(_BufferRange_ *x) {
+  *this = BufferRange(x);
+  return *this;
+}
+BufferRange &BufferRange::operator=(const _BufferRange_ *x) {
+  auto node    = make_shared<_BufferRange_>();
+  node->buffer = x->buffer;
+  node->ranges = x->ranges;
+  node->set_type(x->type());
+  *this = BufferRange(node);
+  return *this;
+}
+
 }  // namespace ir
 }  // namespace cinn

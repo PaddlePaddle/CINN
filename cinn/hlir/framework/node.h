@@ -14,7 +14,6 @@
 
 #pragma once
 #include <absl/container/flat_hash_map.h>
-#include <absl/types/variant.h>
 
 #include <memory>
 #include <string>
@@ -25,6 +24,7 @@
 #include "cinn/common/graph_utils.h"
 #include "cinn/common/shared.h"
 #include "cinn/hlir/framework/op.h"
+#include "cinn/utils/type_defs.h"
 
 namespace cinn {
 namespace hlir {
@@ -33,15 +33,8 @@ class Node;
 class NodeData;
 
 using NodePtr     = std::shared_ptr<Node>;
-using AttrType    = absl::variant<bool,
-                               float,
-                               int,
-                               std::string,
-                               std::vector<bool>,
-                               std::vector<int>,
-                               std::vector<float>,
-                               std::vector<std::string>>;
-using AttrMapType = absl::flat_hash_map<std::string, AttrType>;
+using AttrType    = utils::Attribute;
+using AttrMapType = utils::AttributeMap;
 
 /**
  * \brief Attributes of each node in graph.
@@ -82,6 +75,10 @@ class Node : public common::GraphNode {
   }
   const char *type_info() const override { return __type_info__; }
   std::tuple<common::GraphEdge *, common::GraphEdge *> LinkTo(NodeData *other);
+
+  // This node determines another node, which means the other node depeneds on this node.
+  void Controls(NodeData *other);
+
   /**
    * \brief Get the unique id of this NodeData.
    */
@@ -102,7 +99,18 @@ class Node : public common::GraphNode {
 
   inline bool is_variable() { return (this->attrs.op == nullptr); }
 
-  inline uint32_t num_outputs() { return is_variable() ? 1 : this->op()->num_outputs; }
+  inline uint32_t num_outputs() {
+    if (is_variable()) return 1;
+    if (this->op()->num_outputs == 0) {
+      using shape_func_t = std::function<std::vector<shape_t>(const std::vector<shape_t> &, const AttrMapType &)>;
+      const auto &op_infershape = Operator::GetAttrs<shape_func_t>("infershape");
+      auto key                  = Operator::Get(this->op()->name);
+      auto out_shapes           = op_infershape[key]({}, this->attrs.attr_store);
+      return out_shapes.size();
+    } else {
+      return this->op()->num_outputs;
+    }
+  }
 
   inline uint32_t num_inputs() { return is_variable() ? 1 : this->op()->num_inputs; }
 
@@ -135,6 +143,10 @@ class NodeData : public common::GraphNode {
   NodeData() : source_node(), output_index(), version(), id_(), is_const_() {}
 
   std::tuple<common::GraphEdge *, common::GraphEdge *> LinkTo(Node *other);
+
+  // This node determines another node, which means the other node depeneds on this node.
+  void Controls(Node *other);
+
   static std::shared_ptr<NodeData> Create(
       const char *op_name,
       std::string node_name,

@@ -367,7 +367,7 @@ TEST(CodeGenC, matmul_tile) {
   stages[C_init]->ComputeAtSchedule(stages[C], 3, poly::Stage::kComputeAtBefore);
 
   // Code gen
-  auto func = Lower("matmul", stages, {A, B, C_init, C});
+  auto func = Lower("matmul", stages, {A, B, C});
 
   Target target = common::DefaultHostTarget();
 
