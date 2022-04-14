@@ -20,6 +20,7 @@
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
 #include "cinn/hlir/op/op_util.h"
+#include "cinn/hlir/pe/new_schedule.h"
 #include "cinn/hlir/pe/nn.h"
 #include "cinn/hlir/pe/schedule.h"
 #include "cinn/ir/ir_operators.h"
@@ -73,15 +74,18 @@ std::shared_ptr<OpStrategy> StrategyForElementwise(const framework::NodeAttr &at
     CHECK(!args.empty()) << "The input argument of " << op_name << " schedule is empty! Please check.";
     CINNValuePack arg_pack = args[0];
     CHECK_EQ(arg_pack.size(), 2UL);
-    Expr Out              = arg_pack[0];
-    poly::StageMap stages = arg_pack[1];
-    CHECK(Out.as_tensor());
+    Expr ast_expr = arg_pack[0];
+    std::vector<Expr> vec_ast{ast_expr};
+    ir::ModuleExpr mod_expr(vec_ast);
+    ir::IRSchedule ir_sch(mod_expr);
     if (target.arch == Target::Arch::NVGPU) {
-      pe::CudaScheduleInjective(stages[Out.as_tensor_ref()], output_shapes.front(), target);
+      pe::NewCudaScheduleInjective(ir_sch, output_shapes.front(), target);
     } else if (target.arch == Target::Arch::X86) {
-      pe::ScheduleInjectiveCPU(stages[Out.as_tensor_ref()], output_shapes.front(), target);
+      pe::NewScheduleInjectiveCPU(ir_sch, output_shapes.front(), target);
     }
-    *ret = arg_pack;
+    std::vector<CINNValue> res;
+    res.push_back(arg_pack[0]);
+    *ret = CINNValuePack{res};
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();

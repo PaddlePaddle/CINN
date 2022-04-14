@@ -132,7 +132,7 @@ ir::LoweredFunc Lower(const std::string& name,
         }
       }
 
-      if (contains_gpu) {
+      if (contains_gpu || target == common::DefaultNVGPUTarget()) {
         res->device_api = ir::DeviceAPI::GPU;
       }
     }
@@ -193,7 +193,7 @@ std::vector<ir::LoweredFunc> LowerVec(const std::string& name,
         }
       }
 
-      if (contains_gpu) {
+      if (contains_gpu || target == common::DefaultNVGPUTarget()) {
         res->device_api = ir::DeviceAPI::GPU;
       }
     }

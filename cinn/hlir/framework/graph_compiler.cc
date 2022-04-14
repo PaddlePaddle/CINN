@@ -318,22 +318,37 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const Node* node) {
     ir::Expr temp = C[i];
     stages->InsertLazily(temp.as_tensor_ref());
   }
-
-  C = impl->fschedule(C);
+  std::vector<common::CINNValue> schedule_inputs;
+  // C = impl->fschedule(C);
   for (int i = 0; i < C->size() - 1; i++) {
     ir::Expr temp = C[i];
     // checkout whether the tensor is with buffer.
     if (!temp.as_tensor_ref()->buffer.defined() || this->target_ != common::DefaultNVGPUTarget()) {
       inputs.push_back(temp.as_tensor_ref());
+      schedule_inputs.push_back(common::CINNValue(temp));
     }
   }
 
-  auto func = lang::LowerVec(GetOrGenFullFuncName(GenOpFuncName(node)), stages, inputs, {}, {}, nullptr, this->target_);
+  auto func =
+      lang::LowerVec(GetOrGenFullFuncName(GenOpFuncName(node)), stages, inputs, {}, {}, nullptr, this->target_, true);
+  for (int i = 0; i < func.size(); i++) {
+    LOG(INFO) << "func[" << i << "] is : " << func[i];
+  }
+  // CHECK_EQ(func.size(), 1UL);
+  for (int i = func.size() - 1; i >= 0; i--) {
+    auto ast_expr = func[i]->body;
+    schedule_inputs.insert(schedule_inputs.begin(), common::CINNValue(ast_expr));
+  }
+
+  common::CINNValuePack expr_pack = impl->fschedule(common::CINNValuePack{schedule_inputs});
+  VLOG(3) << "expr_pack.size() is : " << expr_pack.size();
   VLOG(3) << "The [" << func.size() << "] functions of node [" << node->attrs.node_name << "] are:\n";
-  for (auto& i : func) {
+  std::vector<ir::LoweredFunc> res;
+  for (int i = 0; i < expr_pack.size(); i++) res.push_back(func[i]);
+  for (auto& i : res) {
     VLOG(3) << i;
   }
-  return func;
+  return res;
 }
 
 // get the most complex op's index in the fused groups according to the OpPattern. If the OpPattern is same, we will
