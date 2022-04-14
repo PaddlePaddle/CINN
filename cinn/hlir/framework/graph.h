@@ -44,13 +44,13 @@ class Graph : public cinn::common::Graph {
   absl::flat_hash_map<std::string, std::shared_ptr<absl::any>> attrs;
 
   std::vector<std::vector<Node*>> groups;
-
   struct Group {
+    std::string group_id{""};
     // node in this group
     std::vector<Node*> nodes;
     std::unordered_set<Node*> nodes_set;
     // input nodes of the group.
-    std::unordered_set<Node*> input_nodes;
+    std::unordered_map<Node*, int> input_nodes;
     // output nodes of the group.
     std::unordered_set<Node*> output_nodes;
     // op pattern kind.
@@ -60,12 +60,25 @@ class Graph : public cinn::common::Graph {
     std::unordered_set<Node*> internal_nodes;
     // master node for schedule
     std::unordered_set<Node*> master_nodes;
+
+    struct SharedGroupHasher {
+      size_t operator()(const std::shared_ptr<Group>& group) const noexcept {
+        return std::hash<uint64_t>()(reinterpret_cast<uint64_t>(group.get()));
+      }
+    };
+    struct SharedGroupComparator {
+      bool operator()(const std::shared_ptr<Group>& first, const std::shared_ptr<Group>& second) const noexcept {
+        return first.get() == second.get();
+      }
+    };
     // input groups
-    std::unordered_set<Group*> producer_groups;
+    std::unordered_set<std::shared_ptr<Group>, SharedGroupHasher, SharedGroupComparator> producer_groups;
     // output grous
-    std::unordered_set<Group*> consumer_groups;
+    std::unordered_set<std::shared_ptr<Group>, SharedGroupHasher, SharedGroupComparator> consumer_groups;
     // fused sub-groups, used for fusion merge pass
     std::vector<std::shared_ptr<Group>> fused_sub_groups;
+    // if as sub-group, used for belong groups.
+    std::unordered_set<std::shared_ptr<Group>, SharedGroupHasher, SharedGroupComparator> belong_groups;
   };
   std::vector<std::shared_ptr<Group>> fusion_groups;
 

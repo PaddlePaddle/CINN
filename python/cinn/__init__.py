@@ -18,7 +18,7 @@ runtime_include_dir = os.path.join(cinndir, "libs")
 cuhfile = os.path.join(runtime_include_dir, "cinn_cuda_runtime_source.cuh")
 
 if os.path.exists(cuhfile):
-    os.environ['runtime_include_dir'] = runtime_include_dir
+    os.environ.setdefault('runtime_include_dir', runtime_include_dir)
 
 from .core_api.common import *
 from .core_api.backends import *

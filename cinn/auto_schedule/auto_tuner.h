@@ -18,6 +18,7 @@
 #include <string>
 #include <vector>
 
+#include "cinn/auto_schedule/measure/schedule_measurer.h"
 #include "cinn/auto_schedule/task/task_optimizer.h"
 #include "cinn/auto_schedule/task/tune_task.h"
 #include "cinn/auto_schedule/task_scheduler/task_scheduler.h"
@@ -29,10 +30,10 @@
 namespace cinn {
 namespace auto_schedule {
 
-// This class is entrance of auto-tune, user can use it
-// to tune graph (not supported yet) and search a schedule
+// This class is entrance of auto-tune, users can use it
+// to tune graph (not supported yet) and search a series of schedules
 // that maybe more likely to obtain better performance.
-// Internally, it create necessary components and use them to finish tuning.
+// Internally, it creates necessary components and use them to finish tuning.
 class AutoTuner {
  public:
   // configure how to perform auto-tune, such as
@@ -40,6 +41,7 @@ class AutoTuner {
   struct Config {
     std::string task_schedule_strategy = "round_robin";
     TaskScheduler::Config task_schedule_config;
+    int runner_repeat_times = 1;
   };
 
   AutoTuner(const common::Target& target, hlir::framework::Graph* graph);
@@ -60,6 +62,11 @@ class AutoTuner {
   std::unique_ptr<TaskScheduler> task_scheduler_;
   // The actor to perform auto-tune, each optimizer take a task.
   std::vector<std::unique_ptr<TaskOptimizer>> task_optimizers_;
+
+  // Classes used to measure AutoTune samples
+  std::unique_ptr<ScheduleBuilder> builder_;
+  std::unique_ptr<ScheduleRunner> runner_;
+  std::unique_ptr<ScheduleMeasurer> schedule_measurer_;
 };
 
 }  // namespace auto_schedule
