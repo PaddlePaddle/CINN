@@ -945,6 +945,46 @@ ir::Tensor IndexAssign(const ir::Tensor& input,
   return res;
 }
 
+ir::Tensor ScatterAdd(const ir::Tensor& input,
+                      const ir::Tensor& updates,
+                      const ir::Tensor& index,
+                      const common::Target& target,
+                      const int axis,
+                      const std::string& output_name) {
+  CHECK_EQ(target.arch, common::Target::Arch::NVGPU) << "Op IndexAdd only support NVGPU now ! Please Check.\n";
+
+  CHECK_EQ(index->type(), common::Int(32)) << "Param [index] of IndexAdd only support int32 ! Please Check.\n";
+  CHECK_EQ(index->shape.size(), 1) << "The dimension of param [index] of IndexAdd should be 1 ! Please Check.\n";
+
+  auto pos_axis = axis;
+  if (pos_axis < 0) pos_axis += input->shape.size();
+  CHECK(pos_axis >= 0 && pos_axis < input->shape.size())
+      << "Param [axis] of IndexAdd should satisfy 0 <= axis < input.shape ! Please Check.\n";
+
+  std::vector<int> strides(updates->shape.size(), 1);
+  for (int i = updates->shape.size() - 2; i >= 0; --i) {
+    strides[i] = strides[i + 1] * updates->shape[i + 1].as_int32();
+  }
+
+  auto output = Compute(
+      input->shape,
+      [=](const std::vector<Expr>& indice) {
+        Expr offset(0);
+        for (int i = 0; i < pos_axis; ++i) {
+          offset = offset + indice[i] * Expr(strides[i]);
+        }
+        for (int i = pos_axis + 1; i < updates->shape.size(); ++i) {
+          offset = offset + indice[i] * Expr(strides[i]);
+        }
+        return lang::CallExtern(
+            "cinn_cuda_index_add",
+            {input(indice), indice[pos_axis], updates, offset, Expr(strides[pos_axis]), index, index->shape[0]});
+      },
+      UniqName(output_name));
+
+  return output;
+}
+
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn

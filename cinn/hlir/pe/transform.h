@@ -212,6 +212,20 @@ ir::Tensor IndexAssign(const ir::Tensor& input,
                        const int axis                 = 0,
                        const std::string& output_name = UniqName("T_Transform_IndexAssign_out"));
 
+/**
+ * @brief Perform meta op ScatterAdd
+ * @param input The input tensor
+ * @param updates The updates tensor
+ * @param indexs The indexs tensor
+ * @param output_name the name of the output tensor
+ */
+ir::Tensor ScatterAdd(const ir::Tensor& input,
+                      const ir::Tensor& updates,
+                      const ir::Tensor& index,
+                      const common::Target& target,
+                      const int axis,
+                      const std::string& output_name);
+
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn

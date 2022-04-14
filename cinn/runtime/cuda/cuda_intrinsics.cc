@@ -146,6 +146,33 @@ CINN_REGISTER_HELPER(cuda_intrinsics) {
       .AddInputType<float>()
       .End();
 
+  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_cuda_find_int_from, target)
+      .SetRetType<int>()
+      .AddInputType<cinn_buffer_t *>()
+      .AddInputType<int>()
+      .AddInputType<int>()
+      .AddInputType<int>()
+      .End();
+
+  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_cuda_find_float_from, target)
+      .SetRetType<int>()
+      .AddInputType<cinn_buffer_t *>()
+      .AddInputType<int>()
+      .AddInputType<float>()
+      .AddInputType<int>()
+      .End();
+
+  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_cuda_index_add, target)
+      .SetRetType<float>()
+      .AddInputType<float>()
+      .AddInputType<int>()
+      .AddInputType<cinn_buffer_t *>()
+      .AddInputType<int>()
+      .AddInputType<int>()
+      .AddInputType<cinn_buffer_t *>()
+      .AddInputType<int>()
+      .End();
+
   return true;
 }
 
