@@ -206,7 +206,7 @@ ir::Tensor IndexSelect(const ir::Tensor& x,
  * @param output_name the name of the output tensor
  */
 ir::Tensor ScatterAssign(const ir::Tensor& input,
-                         const ir::Tensor& assign,
+                         const ir::Tensor& updates,
                          const ir::Tensor& index,
                          const common::Target& target,
                          const int axis                 = 0,

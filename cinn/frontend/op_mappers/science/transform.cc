@@ -235,11 +235,11 @@ void IndexSelectOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperConte
   ctx.AddVarModelToProgram(out_name, out->id);
 }
 
-void ScatterAssignOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+void IndexAssignOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
   auto x_name = op_desc.Input("X").front();
   CHECK_EQ(op_desc.Input("Y").size(), 1UL);
-  auto assign_name = op_desc.Input("Y").front();
+  auto updates_name = op_desc.Input("Y").front();
   CHECK_EQ(op_desc.Input("IndexTensor").size(), 1UL);
   auto index_name = op_desc.Input("IndexTensor").front();
   CHECK_EQ(op_desc.Output("Z").size(), 1UL);
@@ -247,13 +247,13 @@ void ScatterAssignOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperCon
 
   auto axis = utils::GetAttrOrDefault<int>(op_desc, "axis", 0);
 
-  auto x      = ctx.GetVar(x_name);
-  auto assign = ctx.GetVar(assign_name);
-  auto index  = ctx.GetVar(index_name);
+  auto x       = ctx.GetVar(x_name);
+  auto updates = ctx.GetVar(updates_name);
+  auto index   = ctx.GetVar(index_name);
 
-  auto out = ctx.Builder()->ScatterAssign(x, assign, index, axis);
+  auto out = ctx.Builder()->ScatterAssign(x, updates, index, axis);
 
-  VLOG(4) << "ScatterAssign " << assign_name << " (" << cinn::utils::Join(assign->shape, ",") << ") to " << x_name
+  VLOG(4) << "IndexAssign " << updates_name << " (" << cinn::utils::Join(updates->shape, ",") << ") to " << x_name
           << " shape (" << cinn::utils::Join(x->shape, ",") << ") "
           << "at dimension " << axis;
 
@@ -273,7 +273,7 @@ CINN_REGISTER_HELPER(science_transform) {
   CINN_REGISTER_OP_MAPPER(slice_select_p, cinn::frontend::science_mappers::SliceSelectOpMapper)
   CINN_REGISTER_OP_MAPPER(slice_assign_p, cinn::frontend::science_mappers::SliceAssignOpMapper)
   CINN_REGISTER_OP_MAPPER(index_select_p, cinn::frontend::science_mappers::IndexSelectOpMapper)
-  CINN_REGISTER_OP_MAPPER(scatter_assign_p, cinn::frontend::science_mappers::ScatterAssignOpMapper)
+  CINN_REGISTER_OP_MAPPER(index_assign_p, cinn::frontend::science_mappers::IndexAssignOpMapper)
   CINN_REGISTER_OP_MAPPER(reduce_p, cinn::frontend::science_mappers::ReduceOpMapper)
   return true;
 }

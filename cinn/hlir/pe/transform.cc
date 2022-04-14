@@ -909,7 +909,7 @@ ir::Tensor IndexSelect(const ir::Tensor& x,
 }
 
 ir::Tensor ScatterAssign(const ir::Tensor& input,
-                         const ir::Tensor& assign,
+                         const ir::Tensor& updates,
                          const ir::Tensor& index,
                          const common::Target& target,
                          const int axis,
@@ -935,11 +935,11 @@ ir::Tensor ScatterAssign(const ir::Tensor& input,
         // else return -1
         auto id = lang::CallExtern(extern_fun_name, {index, index->shape[0], indice[pos_axis]});
 
-        std::vector<Expr> indice_assign = indice;
-        indice_assign[pos_axis]         = id;
+        std::vector<Expr> indice_updates = indice;
+        indice_updates[pos_axis]         = id;
 
         // check wheter Index[id] == cur_index and return by check result
-        return ir::Select::Make(ir::EQ::Make(id, Expr(-1)), input(indice), assign(indice_assign));
+        return ir::Select::Make(ir::EQ::Make(id, Expr(-1)), input(indice), updates(indice_updates));
       },
       UniqName(output_name));
   return res;

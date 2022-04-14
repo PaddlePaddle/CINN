@@ -1503,17 +1503,17 @@ std::shared_ptr<OpStrategy> StrategyForScatterAssign(const framework::NodeAttr &
     CHECK(expr_input.as_tensor());
     auto tensor_input = expr_input.as_tensor_ref();
 
-    Expr expr_assign = arg_pack[1];
-    CHECK(expr_assign.as_tensor());
-    auto tensor_assign = expr_assign.as_tensor_ref();
+    Expr expr_updates = arg_pack[1];
+    CHECK(expr_updates.as_tensor());
+    auto tensor_updates = expr_updates.as_tensor_ref();
 
     Expr expr_index = arg_pack[2];
     CHECK(expr_index.as_tensor());
     auto tensor_index = expr_index.as_tensor_ref();
 
-    auto stages = CreateStages({tensor_input, tensor_assign, tensor_index});
+    auto stages = CreateStages({tensor_input, tensor_updates, tensor_index});
     auto out =
-        pe::ScatterAssign(tensor_input, tensor_assign, tensor_index, target, axis, UniqName("scatter_assign_output"));
+        pe::ScatterAssign(tensor_input, tensor_updates, tensor_index, target, axis, UniqName("scatter_assign_output"));
 
     std::vector<CINNValue> res;
     stages->InsertLazily(out);

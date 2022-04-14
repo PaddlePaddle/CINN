@@ -373,7 +373,7 @@ void BindFrontend(pybind11::module *m) {
       .def("scatter_assign",
            &BaseBuilder::ScatterAssign,
            py::arg("x"),
-           py::arg("assign"),
+           py::arg("updates"),
            py::arg("index"),
            py::arg("axis") = 0);
   ;
