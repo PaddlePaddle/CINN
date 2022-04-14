@@ -26,7 +26,7 @@ from cinn.common import *
 
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
                     "x86 test will be skipped due to timeout.")
-class TestIndexAssignOp(OpTest):
+class TestScatterAssignOp(OpTest):
     def setUp(self):
         self.init_case()
         self.target = DefaultNVGPUTarget()
@@ -67,12 +67,12 @@ class TestIndexAssignOp(OpTest):
         self.paddle_outputs = [pd_out]
 
     def build_cinn_program(self, target):
-        builder = NetBuilder("index_assign")
+        builder = NetBuilder("scatter_assign")
         x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
         y = builder.create_input(Float(32), self.inputs["y"].shape, "y")
         index = builder.create_input(
             Int(32), self.inputs["index"].shape, "index")
-        out = builder.index_assign(x, y, index, self.axis)
+        out = builder.scatter_assign(x, y, index, self.axis)
 
         prog = builder.build()
         res = self.get_cinn_output(
@@ -85,7 +85,7 @@ class TestIndexAssignOp(OpTest):
         self.check_outputs_and_grads()
 
 
-class TestIndexAssignCase1(TestIndexAssignOp):
+class TestScatterAssignCase1(TestScatterAssignOp):
     def init_case(self):
         self.inputs = {
             "x": np.random.random([10, 5]).astype("float32"),
@@ -95,7 +95,7 @@ class TestIndexAssignCase1(TestIndexAssignOp):
         self.axis = 1
 
 
-class TestIndexAssignCase2(TestIndexAssignOp):
+class TestScatterAssignCase2(TestScatterAssignOp):
     def init_case(self):
         self.inputs = {
             "x": np.random.random([10, 5, 5]).astype("float32"),
@@ -105,7 +105,7 @@ class TestIndexAssignCase2(TestIndexAssignOp):
         self.axis = -1
 
 
-class TestIndexAssignCase3(TestIndexAssignOp):
+class TestScatterAssignCase3(TestScatterAssignOp):
     def init_case(self):
         self.inputs = {
             "x": np.random.random([10]).astype("float32"),
@@ -115,7 +115,7 @@ class TestIndexAssignCase3(TestIndexAssignOp):
         self.axis = -1
 
 
-class TestIndexAssignCase4(TestIndexAssignOp):
+class TestScatterAssignCase4(TestScatterAssignOp):
     def init_case(self):
         self.inputs = {
             "x": np.random.random([10, 5]).astype("float32"),

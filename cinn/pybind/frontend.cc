@@ -370,8 +370,8 @@ void BindFrontend(pybind11::module *m) {
            py::arg("starts"),
            py::arg("ends"),
            py::arg("strides") = std::vector<int>{})
-      .def("index_assign",
-           &BaseBuilder::IndexAssign,
+      .def("scatter_assign",
+           &BaseBuilder::ScatterAssign,
            py::arg("x"),
            py::arg("assign"),
            py::arg("index"),

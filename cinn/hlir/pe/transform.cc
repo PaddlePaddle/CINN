@@ -908,20 +908,20 @@ ir::Tensor IndexSelect(const ir::Tensor& x,
   return output_tensor;
 }
 
-ir::Tensor IndexAssign(const ir::Tensor& input,
-                       const ir::Tensor& assign,
-                       const ir::Tensor& index,
-                       const common::Target& target,
-                       const int axis,
-                       const std::string& output_name) {
-  CHECK_EQ(index->type(), common::Int(32)) << "Param [Index] of IndexAssign only support int32 ! Please Check.\n";
+ir::Tensor ScatterAssign(const ir::Tensor& input,
+                         const ir::Tensor& assign,
+                         const ir::Tensor& index,
+                         const common::Target& target,
+                         const int axis,
+                         const std::string& output_name) {
+  CHECK_EQ(index->type(), common::Int(32)) << "Param [Index] of ScatterAssign only support int32 ! Please Check.\n";
   std::string extern_fun_name;
   if (target.arch == common::Target::Arch::NVGPU) {
     extern_fun_name.assign("cinn_cuda_find_int");
   } else if (target.arch == common::Target::Arch::X86) {
     extern_fun_name.assign("cinn_host_find_int");
   } else {
-    LOG(FATAL) << "IndexAssign only support X86 and NVGPU ! Please Check.\n";
+    LOG(FATAL) << "ScatterAssign only support X86 and NVGPU ! Please Check.\n";
   }
 
   auto pos_axis = axis;

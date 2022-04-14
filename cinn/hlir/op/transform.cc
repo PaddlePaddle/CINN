@@ -1482,21 +1482,21 @@ std::vector<std::vector<std::string>> InferLayoutForIndexSelect(const std::vecto
   return {{input_layouts[0]}, input_layouts};
 }
 
-std::shared_ptr<OpStrategy> StrategyForIndexAssign(const framework::NodeAttr &attrs,
-                                                   const std::vector<ir::Tensor> &inputs,
-                                                   const std::vector<Type> &out_type,
-                                                   const std::vector<std::vector<int>> &output_shapes,
-                                                   const Target &target) {
+std::shared_ptr<OpStrategy> StrategyForScatterAssign(const framework::NodeAttr &attrs,
+                                                     const std::vector<ir::Tensor> &inputs,
+                                                     const std::vector<Type> &out_type,
+                                                     const std::vector<std::vector<int>> &output_shapes,
+                                                     const Target &target) {
   int axis = 0;
   if (attrs.attr_store.find("axis") != attrs.attr_store.end()) {
     axis = absl::get<int>(attrs.attr_store.at("axis"));
   }
 
-  framework::CINNCompute index_assign_compute([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input arguments of IndexAssign compute is empty! Please check.\n";
+  framework::CINNCompute scatter_assign_compute([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input arguments of ScatterAssign compute is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
     int input_size         = arg_pack.size();
-    CHECK_GE(input_size, 3U) << "at least 3 input tensors for IndexAssign compute\n";
+    CHECK_GE(input_size, 3U) << "at least 3 input tensors for ScatterAssign compute\n";
     CHECK(!output_shapes.empty());
 
     Expr expr_input = arg_pack[0];
@@ -1513,18 +1513,18 @@ std::shared_ptr<OpStrategy> StrategyForIndexAssign(const framework::NodeAttr &at
 
     auto stages = CreateStages({tensor_input, tensor_assign, tensor_index});
     auto out =
-        pe::IndexAssign(tensor_input, tensor_assign, tensor_index, target, axis, UniqName("index_assign_output"));
+        pe::ScatterAssign(tensor_input, tensor_assign, tensor_index, target, axis, UniqName("scatter_assign_output"));
 
     std::vector<CINNValue> res;
     stages->InsertLazily(out);
     res.push_back(CINNValue(out));
-    CHECK(!out_type.empty()) << "Output type of IndexAssign is empty! Please check.\n";
+    CHECK(!out_type.empty()) << "Output type of ScatterAssign is empty! Please check.\n";
     res.push_back(CINNValue(stages));
     *ret = CINNValuePack{res};
   });
 
-  framework::CINNSchedule index_assign_schedule([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input argument of IndexAssign schedule is empty! Please check.\n";
+  framework::CINNSchedule scatter_assign_schedule([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of ScatterAssign schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
     int arg_size           = arg_pack.size();
     poly::StageMap stages  = arg_pack.back();
@@ -1539,12 +1539,12 @@ std::shared_ptr<OpStrategy> StrategyForIndexAssign(const framework::NodeAttr &at
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(index_assign_compute, index_assign_schedule, "strategy.index_assign.x86", 1);
+  strategy->AddImpl(scatter_assign_compute, scatter_assign_schedule, "strategy.scatter_assign.x86", 1);
   return strategy;
 }
 
-std::vector<std::vector<int>> InferShapeForIndexAssign(const std::vector<std::vector<int>> &inputs_shape,
-                                                       const framework::AttrMapType &attrs) {
+std::vector<std::vector<int>> InferShapeForScatterAssign(const std::vector<std::vector<int>> &inputs_shape,
+                                                         const framework::AttrMapType &attrs) {
   CHECK_GE(inputs_shape.size(), 3U) << "The input's shape size should be no less than 3! Please check again.";
 
   const auto &input_shape  = inputs_shape[0];
@@ -1559,36 +1559,37 @@ std::vector<std::vector<int>> InferShapeForIndexAssign(const std::vector<std::ve
   if (axis < 0) axis += input_shape.size();
 
   CHECK(axis >= 0 && axis < input_shape.size())
-      << "In IndexAssign op, the attribute `axis` should be >= 0 and < input shape's size! Please check.";
-  CHECK_EQ(index_shape.size(), 1U) << "Dimensions of index tensor in IndexAssign should be 1! Please check.";
+      << "In ScatterAssign op, the attribute `axis` should be >= 0 and < input shape's size! Please check.";
+  CHECK_EQ(index_shape.size(), 1U) << "Dimensions of index tensor in ScatterAssign should be 1! Please check.";
   CHECK_EQ(input_shape.size(), assign_shape.size())
-      << "Dimensions of inputs A and B in IndexAssign should be equal! Please check.";
+      << "Dimensions of inputs A and B in ScatterAssign should be equal! Please check.";
   CHECK_EQ(assign_shape[axis], index_shape[0])
-      << "The first dimension of input B and index tensor in IndexAssign should be equal! Please check.";
+      << "The first dimension of input B and index tensor in ScatterAssign should be equal! Please check.";
   for (int i = 0; i < input_shape.size(); ++i) {
     if (i != axis) {
       CHECK_EQ(input_shape[i], assign_shape[i])
-          << "The " << i << "-th dimension of input A and B in IndexAssign should be equal! Please check.";
+          << "The " << i << "-th dimension of input A and B in ScatterAssign should be equal! Please check.";
     }
   }
 
-  VLOG(4) << "Each input tensor's shape of IndexAssign: A(" << cinn::utils::Join(input_shape, ",") << "), B("
+  VLOG(4) << "Each input tensor's shape of ScatterAssign: A(" << cinn::utils::Join(input_shape, ",") << "), B("
           << cinn::utils::Join(assign_shape, ",") << "), index(" << cinn::utils::Join(index_shape, ",") << ")"
           << " at axis (" << axis << ")";
 
   return {input_shape};
 }
 
-std::vector<Type> InferDtypeForIndexAssign(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
+std::vector<Type> InferDtypeForScatterAssign(const std::vector<Type> &inputs_type,
+                                             const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0]};
   return res;
 }
 
-std::vector<std::vector<std::string>> InferLayoutForIndexAssign(const std::vector<framework::shape_t> &input_shapes,
-                                                                const std::vector<std::string> &input_layouts,
-                                                                const framework::NodeAttr &attrs,
-                                                                const Target &target) {
+std::vector<std::vector<std::string>> InferLayoutForScatterAssign(const std::vector<framework::shape_t> &input_shapes,
+                                                                  const std::vector<std::string> &input_layouts,
+                                                                  const framework::NodeAttr &attrs,
+                                                                  const Target &target) {
   CHECK_GE(input_layouts.size(), 3U) << "The input's layout size is less than 3! Please check again.";
   return {{input_layouts[0]}, input_layouts};
 }
@@ -2054,14 +2055,14 @@ CINN_REGISTER_HELPER(transform_ops) {
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kInjective)
       .set_support_level(4);
 
-  CINN_REGISTER_OP(index_assign)
+  CINN_REGISTER_OP(scatter_assign)
       .describe("This operator is used to assign tensor B to tensor A by index.")
       .set_num_inputs(3)
       .set_num_outputs(1)
-      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForIndexAssign)
-      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForIndexAssign))
-      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForIndexAssign))
-      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForIndexAssign))
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForScatterAssign)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForScatterAssign))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForScatterAssign))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForScatterAssign))
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kInjective)
       .set_support_level(4);
 
