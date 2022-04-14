@@ -374,6 +374,53 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
     if (node == master_node) {
       continue;
     }
+    // for x86 schedule.
+    if (this->target_ == common::DefaultHostTarget()) {
+      if (op_pattern_dict[node->op()] == framework::kCommReduce) {
+        if (!group->output_nodes.count(node)) {
+          stage->SetBuffer("local");
+        }
+        if (node == master_reducer) {
+          stage->SimpleComputeAt(master_stage, master_stage->n_out_dims() - 1);
+        } else {
+          stage->SimpleComputeAt(master_reducer_stage, master_reducer_stage->n_out_dims() - 1);
+        }
+        continue;
+      }
+
+      if (group->output_nodes.count(node) || group->internal_nodes.count(node) ||
+          sub_group->internal_nodes.count(node)) {
+        if (!group->output_nodes.count(node)) {
+          stage->SetBuffer("local");
+        }
+        if (this->shape_dict_.at(node_data->id()) == this->shape_dict_.at(master_node_data->id())) {
+          stage->SimpleComputeAt(master_stage, master_stage->n_out_dims() - 1);
+        } else {
+          if (stage->n_out_dims() == master_reducer_stage->n_out_dims() - 1) {
+            stage->Split(0, stage->GetDimRange(0));
+          }
+          if (stage->n_out_dims() == master_reducer_stage->n_out_dims()) {
+            std::vector<int> order;
+            for (int idx = 0; idx < master_reducer_shape.size(); ++idx) {
+              if (std::find(master_reducer_axes.begin(), master_reducer_axes.end(), idx) == master_reducer_axes.end()) {
+                order.push_back(idx);
+              }
+            }
+            for (auto axis : master_reducer_axes) {
+              order.push_back(axis);
+            }
+            stage->Reorder(order);
+            stage->SimpleComputeAt(master_reducer_stage, master_reducer_stage->n_out_dims() - 1);
+          } else {
+            stage->ComputeInline();
+          }
+        }
+        continue;
+      }
+
+      stage->ComputeInline();
+      continue;
+    }
 
     // if node is kCommReduce
     if (op_pattern_dict[node->op()] == framework::kCommReduce) {
