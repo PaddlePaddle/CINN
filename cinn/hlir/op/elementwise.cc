@@ -298,7 +298,9 @@ std::shared_ptr<OpStrategy> StrategyForFillConstant(const framework::NodeAttr &a
     CHECK(!shape.empty()) << "shape attr is empty!";
     auto shape_exprs = ToCinnExprs(shape);
     auto out         = lang::Compute(
-        shape_exprs, [=](const std::vector<Expr> &indice) { return value; }, UniqName("fill_constant_Out"));
+        shape_exprs,
+        [=](const std::vector<Expr> &indice) { return ir::Cast::Make(out_type[0], value); },
+        UniqName("fill_constant_Out"));
     CHECK(out.defined()) << "can't create fill_constant with the given type " << out_type[0];
     auto stages = CreateStages({out});
     *ret        = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
@@ -334,10 +336,10 @@ std::vector<shape_t> InferShapeForFillConstant(const std::vector<shape_t> &input
 }
 
 std::vector<Type> InferDtypeForFillConstant(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
-  CHECK(attrs.count("value"));
-  auto scalar   = GetScalarExpr(attrs.at("value"));
-  auto out_type = scalar->type();
-  VLOG(3) << "scalar type: " << out_type;
+  CHECK(attrs.count("dtype"));
+  auto dtype_str = absl::get<std::string>(attrs.at("dtype"));
+  auto out_type  = common::str2type(dtype_str);
+  VLOG(3) << "FillConstant output dtype: " << dtype_str;
   return {out_type};
 }
 

@@ -17,6 +17,7 @@
 #include <string>
 #include <vector>
 
+#include "cinn/common/type.h"
 #include "cinn/frontend/base_builder.h"
 #include "cinn/frontend/syntax.h"
 
@@ -167,19 +168,18 @@ class NetBuilder : public BaseBuilder {
                                    const std::string& data_format       = "NCHW",
                                    const std::string& padding_algorithm = "EXPLICIT");
 
-  template <typename T>
-  Variable FillConstant(const std::vector<int>& shape, float value, const std::string& name, bool force_cpu = false) {
-    Instruction instr("fill_constant");
-    instr.SetInputs({});
-    instr.SetAttr("shape", shape);
-    instr.SetAttr("value", value);
-    instr.SetAttr("force_cpu", force_cpu);
+  Variable FillConstant(const std::vector<int>& shape,
+                        float value,
+                        const std::string& name,
+                        const std::string& dtype = "float32",
+                        bool force_cpu           = false);
 
-    InferShape(instr);
-    AppendInstruction(instr);
-    auto out = instr.GetOutput(0);
-    out.set_id(name);
-    return out;
+  template <typename T>
+  inline Variable FillConstant(const std::vector<int>& shape,
+                               T value,
+                               const std::string& name,
+                               bool force_cpu = false) {
+    return FillConstant(shape, static_cast<float>(value), common::type2str(common::type_of<T>()), name, force_cpu);
   }
 
  protected:

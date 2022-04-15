@@ -14,6 +14,7 @@
 
 #include "cinn/common/type.h"
 
+#include <unordered_map>
 #include <utility>
 
 namespace cinn {
@@ -40,35 +41,7 @@ Type::~Type() {}
 
 std::ostream &operator<<(std::ostream &os, const Type &t) {
   if (t.is_cpp_const()) os << "const ";
-  switch (t.type()) {
-    case Type::type_t::Int:
-      if (t.bits() == 1) {
-        os << "bool";
-      } else {
-        os << "int" << t.bits();
-      }
-
-      break;
-    case Type::type_t::UInt:
-      os << "uint" << t.bits();
-      break;
-
-    case Type::type_t::Float:
-      os << "float" << t.bits();
-      break;
-    case Type::type_t::Void:
-      os << "void";
-      break;
-    case Type::type_t::Customized:
-      os << t.customized_type();
-      break;
-    case Type::type_t::String:
-      os << "string";
-      break;
-    case Type::type_t::Unk:
-      os << "unk";
-      break;
-  }
+  os << type2str(t);
 
   if (t.lanes() > 1) os << "<" << t.lanes() << ">";
   if (t.is_cpp_handle()) os << "*";
@@ -327,6 +300,109 @@ const Type &I1() {
 const Type &UI1() {
   static auto t = UInt(1);
   return t;
+}
+
+Type str2type(const std::string &type) {
+  static std::unordered_map<std::string, Type> str2type_map = {
+      {"void", Void()},
+      {"bool", Bool()},
+      {"unsigned char", UI8()},
+
+      {"char", I8()},
+      {"signed char", I8()},
+
+      {"string", String()},
+
+      {"bit", I1()},
+      {"signed bit", I1()},
+      {"int1", I1()},
+      {"int1_t", I1()},
+
+      {"ubit", UI1()},
+      {"unsigned bit", UI1()},
+      {"uint1", UI1()},
+      {"uint1_t", UI1()},
+
+      {"int8", I8()},
+      {"int8_t", I8()},
+
+      {"int16", I16()},
+      {"int16_t", I16()},
+
+      {"int", I32()},
+      {"int32", I32()},
+      {"int32_t", I32()},
+
+      {"int64", I64()},
+      {"int64_t", I64()},
+
+      {"uint8", UI8()},
+      {"uint8_t", UI8()},
+
+      {"uint16", UI16()},
+      {"uint16_t", UI16()},
+
+      {"uint", UI32()},
+      {"uint32", UI32()},
+      {"uint32_t", UI32()},
+
+      {"uint64", UI64()},
+      {"uint64_t", UI64()},
+
+      {"float16", F16()},
+      {"half", F16()},
+
+      {"float", F32()},
+      {"float32", F32()},
+
+      {"float64", F64()},
+      {"double", F64()},
+
+      {"void*", type_of<void *>()},
+      {"void**", type_of<void **>()},
+      {"int8*", type_of<int8_t *>()},
+      {"int8_t*", type_of<int8_t *>()},
+      {"float*", type_of<float *>()},
+      {"float32*", type_of<float *>()},
+      {"double*", type_of<double *>()},
+      {"float64*", type_of<double *>()},
+  };
+
+  CHECK(str2type_map.find(type) != str2type_map.end()) << "Not support type [" << type << "] ! Please Check.\n";
+  return str2type_map.at(type);
+}
+
+std::string type2str(const Type &type) {
+  switch (type.type()) {
+    case Type::type_t::Int:
+      if (type.bits() == 1) {
+        return "bool";
+      } else {
+        return "int" + std::to_string(type.bits());
+      }
+
+    case Type::type_t::UInt:
+      return "uint" + std::to_string(type.bits());
+
+    case Type::type_t::Float:
+      return "float" + std::to_string(type.bits());
+
+    case Type::type_t::Void:
+      return "void";
+
+    case Type::type_t::Customized:
+      return type.customized_type();
+
+    case Type::type_t::String:
+      return "string";
+
+    case Type::type_t::Unk:
+      return "unk";
+
+    default:
+      LOG(FATAL) << "Not support type [" << type << "] ! Please Check.\n";
+  }
+  return "unk";
 }
 
 }  // namespace common

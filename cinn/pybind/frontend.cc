@@ -140,23 +140,24 @@ void BindFrontend(pybind11::module *m) {
              auto program = gc.Build();
              for (size_t i = 0; i < tensor_inputs.size(); i++) {
                auto in_tensor = scope->GetTensor(tensor_inputs[i]->id);
-               auto *data     = in_tensor->mutable_data<float>(target);
+               auto dtype     = tensor_inputs[i]->type;
+               auto *data     = in_tensor->mutable_data(target, dtype);
                CHECK_EQ(input_data[i].size(), in_tensor->shape().numel())
                    << "The size of tensor [" << tensor_inputs[i]->id
                    << "] is different with the input data's size! Please check.";
                if (target.arch == Target::Arch::NVGPU) {
 #ifdef CINN_WITH_CUDA
-                 CUDA_CALL(cudaMemcpy(reinterpret_cast<void *>(data),
+                 CUDA_CALL(cudaMemcpy(data,
                                       input_data[i].data(),
-                                      in_tensor->shape().numel() * sizeof(float),
+                                      (in_tensor->shape().numel() * dtype.bits() + 7) / 8,
                                       cudaMemcpyHostToDevice));
 #else
                  LOG(FATAL) <<"To use CUDA backends, you need to set WITH_CUDA ON!";
 #endif
                } else if (target.arch == Target::Arch::X86) {
-                 for (size_t j = 0; j < in_tensor->shape().numel(); j++) {
-                   data[j] = reinterpret_cast<const float *>(input_data[i].data())[j];  // All random data
-                 }
+                 memcpy(data,
+                        input_data[i].data(),
+                        (in_tensor->shape().numel() * dtype.bits() + 7) / 8);  // All random data
                } else {
                  CINN_NOT_IMPLEMENTED
                }
@@ -166,6 +167,7 @@ void BindFrontend(pybind11::module *m) {
              std::vector<hlir::framework::Tensor> outputs;
              for (size_t i = 0; i < tensor_outputs.size(); i++) {
                outputs.push_back(scope->GetTensor(tensor_outputs[i]->id));
+               outputs.back()->set_type(tensor_outputs[i]->type);
              }
 
              return outputs;
@@ -393,18 +395,16 @@ void BindFrontend(pybind11::module *m) {
   .def(SnakeName(#func_name__), &NetBuilder::func_name__, py::arg("a"), py::arg("b"), py::arg("axis") = -1)
       NETBUILDER_ELEMENTWISE_OP_FOREACH(PY_REGISTER_ELEMENTWISE_FUNC)
 #undef PY_REGISTER_ELEMENTWISE_FUNC
-#define PY_REGISTER_FILLCONSTANT_OP(TYPE__)                \
-  .def("fill_constant", &NetBuilder::FillConstant<TYPE__>, \
-       py::arg("shape"),                                   \
-       py::arg("value"),                                   \
-       py::arg("name"),                                    \
-       py::arg("force_cpu") = false)
-      PY_REGISTER_FILLCONSTANT_OP(double)
-      PY_REGISTER_FILLCONSTANT_OP(float)
-      PY_REGISTER_FILLCONSTANT_OP(int64_t)
-      PY_REGISTER_FILLCONSTANT_OP(int)
-#undef PY_REGISTER_FILLCONSTANT_OP
       // clang-format on
+      .def("fill_constant",
+           static_cast<Variable (NetBuilder::*)(
+               const std::vector<int> &, float, const std::string &, const std::string &, bool)>(
+               &NetBuilder::FillConstant),
+           py::arg("shape"),
+           py::arg("value"),
+           py::arg("name"),
+           py::arg("dtype")     = "float32",
+           py::arg("force_cpu") = false)
       .def("add", &NetBuilder::Add, py::arg("a"), py::arg("b"))
       .def("mul",
            &NetBuilder::Mul,
