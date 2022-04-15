@@ -21,6 +21,7 @@
 #include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"
 #include "cinn/poly/stage.h"
+#include "cinn/utils/type_defs.h"
 
 namespace cinn {
 namespace hlir {
@@ -86,7 +87,7 @@ ir::Tensor LeakyRelu(const ir::Tensor &A,
  */
 ir::Tensor PRelu(const ir::Tensor &A,
                  const ir::Tensor &slope,
-                 const int axis                 = 1,
+                 const utils::DimType axis      = 1,
                  const std::string &output_name = UniqName("T_PRelu_out"));
 
 /**
@@ -313,12 +314,12 @@ ir::Tensor Pad(const ir::Tensor &tensor,
                const std::string &pad_mode = "constant");
 
 std::vector<ir::Tensor> Softmax(const ir::Tensor &A,
-                                int axis                       = -1,
+                                utils::DimType axis            = -1,
                                 const std::string &output_name = UniqName("T_softmax_out"));
 
 #ifdef CINN_WITH_MKLDNN
 std::vector<ir::Tensor> SoftmaxMKLDNN(const ir::Tensor &A,
-                                      int axis                       = -1,
+                                      utils::DimType axis            = -1,
                                       const std::string &output_name = UniqName("T_softmax_out"));
 #endif
 

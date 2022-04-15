@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "cinn/ir/ir.h"
+#include "cinn/utils/type_defs.h"
 
 namespace cinn {
 namespace hlir {
@@ -36,7 +37,7 @@ namespace pe {
  * @return The result Tensors.
  */
 ir::Tensor ReduceSum(const ir::Tensor& A,
-                     const std::vector<int>& axis,
+                     const utils::ShapeType& axis,
                      bool keep_dims                 = false,
                      Expr initial                   = Expr(0.f),
                      const std::string& output_name = "T_Reduce_Sum_out");
@@ -56,7 +57,7 @@ ir::Tensor ReduceSum(const ir::Tensor& A,
  * @return The result Tensors.
  */
 ir::Tensor ReduceProd(const ir::Tensor& A,
-                      const std::vector<int>& axis,
+                      const utils::ShapeType& axis,
                       bool keep_dims                 = false,
                       Expr initial                   = Expr(1.f),
                       const std::string& output_name = "T_Reduce_Prod_out");
@@ -75,7 +76,7 @@ ir::Tensor ReduceProd(const ir::Tensor& A,
  * @return The result Tensor.
  */
 ir::Tensor ReduceMax(const ir::Tensor& A,
-                     const std::vector<int>& axis,
+                     const utils::ShapeType& axis,
                      bool keep_dims                 = false,
                      Expr initial                   = Expr(),
                      const std::string& output_name = "T_Reduce_Max_out");
@@ -94,7 +95,7 @@ ir::Tensor ReduceMax(const ir::Tensor& A,
  * @return The result Tensor.
  */
 ir::Tensor ReduceMin(const ir::Tensor& A,
-                     const std::vector<int>& axis,
+                     const utils::ShapeType& axis,
                      bool keep_dims                 = false,
                      Expr initial                   = Expr(),
                      const std::string& output_name = "T_Reduce_Min_out");

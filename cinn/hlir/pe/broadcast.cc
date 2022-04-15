@@ -31,6 +31,8 @@ namespace pe {
 using common::make_zero;
 using ir::Tensor;
 using lang::Compute;
+using utils::DimType;
+using utils::ShapeType;
 
 void GetBroadcastShape(const std::vector<Expr>& shape1,
                        const std::vector<Expr>& shape2,
@@ -117,13 +119,13 @@ void GetBroadcastShape(const std::vector<Expr>& shape1,
   }
 }
 
-void GetBroadcastOutShape(const std::vector<int>& input_shape1,
-                          const std::vector<int>& input_shape2,
-                          std::vector<int>* common_shape,
-                          int axis) {
+void GetBroadcastOutShape(const ShapeType& input_shape1,
+                          const ShapeType& input_shape2,
+                          ShapeType* common_shape,
+                          DimType axis) {
   std::vector<Expr> shape1;
   std::vector<Expr> shape2;
-  auto fn_expr = [](const std::vector<int>& input_shape, std::vector<Expr>* shape) {
+  auto fn_expr = [](const ShapeType& input_shape, std::vector<Expr>* shape) {
     for (int i = 0; i < input_shape.size(); i++) {
       shape->push_back(Expr(input_shape[i]));
     }
@@ -232,8 +234,8 @@ HLIR_IMP_BC_PE(GreaterEqual, return a >= b;);
 HLIR_IMP_BC_PE(LessEqual, return a <= b;);
 
 Tensor BroadcastTo(const Tensor& A,
-                   const std::vector<int>& out_shape,
-                   const std::vector<int>& broadcast_axes,
+                   const ShapeType& out_shape,
+                   const ShapeType& broadcast_axes,
                    const std::string& out_name) {
   auto A_shape = A->shape;
   CHECK_EQ(A_shape.size(), broadcast_axes.size()) << "broadcast_axes's size should be same with the input shape's size";

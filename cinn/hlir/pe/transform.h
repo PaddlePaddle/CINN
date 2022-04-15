@@ -21,6 +21,7 @@
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/layout.h"
 #include "cinn/poly/stage.h"
+#include "cinn/utils/type_defs.h"
 
 namespace cinn {
 namespace hlir {
@@ -48,21 +49,21 @@ std::vector<ir::Tensor> Matmul(const ir::Tensor& A,
 
 // realized by sharing buffer
 ir::Tensor Reshape(const ir::Tensor& A,
-                   const std::vector<int>& new_shape,
+                   const utils::ShapeType& new_shape,
                    poly::StageMap stages,
                    const std::string& name);
 
 ir::Tensor Reshape(const ir::Tensor& A,
-                   const std::vector<int>& new_shape,
+                   const utils::ShapeType& new_shape,
                    const std::string& name = UniqName("T_Transform_Matmul_out"));
 
 ir::Tensor Concat(const ir::Tensor& A,
                   const ir::Tensor& B,
-                  int axis                = 0,
+                  utils::DimType axis     = 0,
                   const std::string& name = UniqName("T_Transform_Concat_out"));
 
 ir::Tensor Concat(const std::vector<ir::Tensor>& input_tensors,
-                  int axis                = 0,
+                  utils::DimType axis     = 0,
                   const std::string& name = UniqName("T_Transform_Concat_out"));
 
 std::vector<ir::Tensor> MatmulV2(const ir::Tensor& A,
@@ -127,7 +128,7 @@ ir::Tensor LayoutTransform(const ir::Tensor& input,
 std::vector<ir::Expr> InferShapeLayoutTransform(const std::vector<Expr>& input_shapes,
                                                 const ir::Layout& old_layout,
                                                 const ir::Layout& new_layout,
-                                                absl::flat_hash_map<int, std::vector<int>>* split_index_map);
+                                                absl::flat_hash_map<int, utils::ShapeType>* split_index_map);
 
 /**
  * @brief Perform meta op Reverse
@@ -136,7 +137,7 @@ std::vector<ir::Expr> InferShapeLayoutTransform(const std::vector<Expr>& input_s
  * @param output_name the name of the output tensor
  */
 ir::Tensor Reverse(const ir::Tensor& input,
-                   const std::vector<int>& axis,
+                   const utils::ShapeType& axis,
                    const std::string& output_name = UniqName("T_Reverse_out"));
 
 /**
@@ -146,7 +147,7 @@ ir::Tensor Reverse(const ir::Tensor& input,
  * @param output_name the name of the output tensor
  */
 ir::Tensor Transpose(const ir::Tensor& input,
-                     const std::vector<int>& axis,
+                     const utils::ShapeType& axis,
                      const std::string& output_name = UniqName("T_Transpose_out"));
 
 /**
@@ -158,14 +159,14 @@ ir::Tensor Transpose(const ir::Tensor& input,
  * @param output_name the name of the output tensor
  */
 std::vector<ir::Tensor> Split(const ir::Tensor& A,
-                              int axis,
-                              const std::vector<std::vector<int>>& output_shapes,
+                              utils::DimType axis,
+                              const std::vector<utils::ShapeType>& output_shapes,
                               const std::string& name);
 
 ir::Tensor Slice(const ir::Tensor& A,
-                 const std::vector<int>& starts,
-                 const std::vector<int>& axes,
-                 const std::vector<int>& strides,
+                 const utils::ShapeType& starts,
+                 const utils::ShapeType& axes,
+                 const utils::ShapeType& strides,
                  const std::vector<Expr>& output_shape,
                  const std::string& output_name);
 
@@ -180,10 +181,10 @@ ir::Tensor Slice(const ir::Tensor& A,
  */
 ir::Tensor SliceAssign(const ir::Tensor& input,
                        const ir::Tensor& assign,
-                       const std::vector<int>& axes,
-                       const std::vector<int>& starts,
-                       const std::vector<int>& ends,
-                       const std::vector<int>& strides,
+                       const utils::ShapeType& axes,
+                       const utils::ShapeType& starts,
+                       const utils::ShapeType& ends,
+                       const utils::ShapeType& strides,
                        const std::string& output_name = UniqName("T_Transform_SliceAssign_out"));
 /**
  * @brief Perform meta op Split
@@ -195,7 +196,7 @@ ir::Tensor SliceAssign(const ir::Tensor& input,
 ir::Tensor IndexSelect(const ir::Tensor& x,
                        const ir::Tensor& index,
                        const std::vector<Expr>& output_shape,
-                       int axis                = 0,
+                       utils::DimType axis     = 0,
                        const std::string& name = UniqName("T_Transform_IndexSelect_out"));
 
 /**
@@ -209,7 +210,7 @@ ir::Tensor IndexAssign(const ir::Tensor& input,
                        const ir::Tensor& assign,
                        const ir::Tensor& index,
                        const common::Target& target,
-                       const int axis                 = 0,
+                       const utils::DimType axis      = 0,
                        const std::string& output_name = UniqName("T_Transform_IndexAssign_out"));
 
 }  // namespace pe

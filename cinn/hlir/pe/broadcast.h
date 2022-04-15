@@ -17,15 +17,16 @@
 #include <vector>
 
 #include "cinn/ir/ir.h"
+#include "cinn/utils/type_defs.h"
 
 namespace cinn {
 namespace hlir {
 namespace pe {
 
-void GetBroadcastOutShape(const std::vector<int>& input_shape1,
-                          const std::vector<int>& input_shape2,
-                          std::vector<int>* common_shape,
-                          int axis = -1);
+void GetBroadcastOutShape(const utils::ShapeType& input_shape1,
+                          const utils::ShapeType& input_shape2,
+                          utils::ShapeType* common_shape,
+                          utils::DimType axis = -1);
 /**
  * @brief Compute A && B with auto-broadcasting.
  *
@@ -98,8 +99,8 @@ HLIR_DCL_BC_PE(GreaterEqual);
 HLIR_DCL_BC_PE(LessEqual);
 
 ir::Tensor BroadcastTo(const ir::Tensor& A,
-                       const std::vector<int>& out_shape,
-                       const std::vector<int>& broadcast_axes,
+                       const utils::ShapeType& out_shape,
+                       const utils::ShapeType& broadcast_axes,
                        const std::string& out_name = common::UniqName("T_broadcast_to_out"));
 
 }  // namespace pe

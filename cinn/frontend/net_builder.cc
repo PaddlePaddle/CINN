@@ -19,9 +19,13 @@
 #include <vector>
 
 #include "cinn/frontend/syntax.h"
+#include "cinn/utils/type_defs.h"
 
 namespace cinn {
 namespace frontend {
+
+using utils::DimType;
+using utils::ShapeType;
 
 #define NETBUILDER_UNARY_OP_DEF(func_name__, op_type__) \
   Variable NetBuilder::func_name__(const Variable& operand) { return UnaryOp(#op_type__, operand); }
@@ -39,9 +43,9 @@ NETBUILDER_BINARY_OP_DEF(Div, divide)
 NETBUILDER_BINARY_OP_DEF(Matmul, matmul)
 NETBUILDER_BINARY_OP_DEF(ReluGrad, relu_grad)
 
-#define NETBUILDER_ELEMENTWISE_OP_DEF(func_name__, op_type__)                            \
-  Variable NetBuilder::func_name__(const Variable& lhs, const Variable& rhs, int axis) { \
-    return ElementwiseOp(#op_type__, lhs, rhs, axis);                                    \
+#define NETBUILDER_ELEMENTWISE_OP_DEF(func_name__, op_type__)                                \
+  Variable NetBuilder::func_name__(const Variable& lhs, const Variable& rhs, DimType axis) { \
+    return ElementwiseOp(#op_type__, lhs, rhs, axis);                                        \
   }
 NETBUILDER_ELEMENTWISE_OP_DEF(ElementwiseAdd, elementwise_add)
 NETBUILDER_ELEMENTWISE_OP_DEF(ElementwiseMul, elementwise_mul)
@@ -68,7 +72,7 @@ Variable NetBuilder::MulBias(
 const std::vector<Variable>& NetBuilder::ElementwiseAddGrad(const Variable& dout,
                                                             const Variable& x,
                                                             const Variable& y,
-                                                            int axis) {
+                                                            DimType axis) {
   Instruction instr("elementwise_add_grad", {dout, x, y});
   instr.SetAttr("axis", axis);
   InferShape(instr);
@@ -84,7 +88,7 @@ Variable NetBuilder::Relu6(const Variable& a, float threshold) {
   return instr.GetOutput(0);
 }
 
-Variable NetBuilder::ReduceSum(const Variable& x, const std::vector<int>& dim, bool keep_dim) {
+Variable NetBuilder::ReduceSum(const Variable& x, const ShapeType& dim, bool keep_dim) {
   return Reduce(x, ReduceKind::kSum, dim, keep_dim);
 }
 
@@ -257,7 +261,7 @@ std::vector<Variable> NetBuilder::Conv2dGrad(const Variable& dy,
   return instr.GetOutputs();
 }
 
-Variable NetBuilder::ElementwiseOp(const std::string& op_type, const Variable& lhs, const Variable& rhs, int axis) {
+Variable NetBuilder::ElementwiseOp(const std::string& op_type, const Variable& lhs, const Variable& rhs, DimType axis) {
   Instruction instr(op_type, {lhs, rhs});
   instr.SetAttr("axis", axis);
   InferShape(instr);

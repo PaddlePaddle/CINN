@@ -31,6 +31,8 @@ namespace pe {
 
 using ir::Tensor;
 using lang::Compute;
+using utils::DimType;
+using utils::ShapeType;
 
 /**
  * @brief transform reduction axes which could be empty or have negative elements into real axes with valid dimension
@@ -43,7 +45,7 @@ using lang::Compute;
  * @notes If the input axes are empty, the result will be axes including all dimensions. If any input element is
  * negative, it will be treated as an offset from the last dimension (same as python indexing rules).
  */
-void GetRealAxes(int ndim, const std::vector<int>& axes, std::vector<int>* real_axes) {
+void GetRealAxes(int ndim, const ShapeType& axes, ShapeType* real_axes) {
   CHECK(real_axes);
   if (axes.empty()) {
     for (int i = 0; i < ndim; ++i) {
@@ -72,10 +74,7 @@ void GetRealAxes(int ndim, const std::vector<int>& axes, std::vector<int>* real_
  * @param keep_dims If this is set to true, the reduced axes are kept as dimensions with size one. This enables the
  * result to broadcast correctly against the input array.
  */
-void GetOutputShape(const std::vector<int>& real_axes,
-                    std::vector<Expr>* output_shape,
-                    const Tensor& tensor,
-                    bool keep_dims) {
+void GetOutputShape(const ShapeType& real_axes, std::vector<Expr>* output_shape, const Tensor& tensor, bool keep_dims) {
   CHECK(output_shape);
   auto ndim = tensor->shape.size();
   if (keep_dims) {
@@ -115,8 +114,8 @@ template <typename FuncOp>
 Tensor DoReduce(const Tensor& tensor,
                 const FuncOp& fn,
                 const std::vector<Expr>& output_shape,
-                const std::vector<int>& real_axes,
-                const std::vector<int>& squeeze_axes,
+                const ShapeType& real_axes,
+                const ShapeType& squeeze_axes,
                 Expr initial,
                 const std::string& output_name) {
   std::vector<Var> reduce_axes;
@@ -160,23 +159,22 @@ Tensor DoReduce(const Tensor& tensor,
  */
 template <typename FuncOp>
 Tensor Reduce(const Tensor& tensor,
-              const std::vector<int>& axes,
+              const ShapeType& axes,
               const FuncOp& fn,
               bool keep_dims,
               ir::Expr initial,
               const std::string& output_name) {
   auto ndim = tensor->shape.size();
   CHECK_GT(ndim, 0) << "Reduce tensor's dim must be more than 0";
-  std::vector<int> real_axes;
+  ShapeType real_axes;
   GetRealAxes(static_cast<int>(ndim), axes, &real_axes);
   std::vector<Expr> output_shapes;
   GetOutputShape(real_axes, &output_shapes, tensor, keep_dims);
-  return DoReduce(
-      tensor, fn, output_shapes, real_axes, keep_dims ? std::vector<int>() : real_axes, initial, output_name);
+  return DoReduce(tensor, fn, output_shapes, real_axes, keep_dims ? ShapeType() : real_axes, initial, output_name);
 }
 
 Tensor ReduceSum(
-    const Tensor& A, const std::vector<int>& axes, bool keep_dims, ir::Expr initial, const std::string& output_name) {
+    const Tensor& A, const ShapeType& axes, bool keep_dims, ir::Expr initial, const std::string& output_name) {
   if (!initial.defined()) {
     initial = common::make_const(A->type(), 0);
   }
@@ -184,20 +182,18 @@ Tensor ReduceSum(
 }
 
 Tensor ReduceProd(
-    const Tensor& A, const std::vector<int>& axes, bool keep_dims, ir::Expr initial, const std::string& output_name) {
+    const Tensor& A, const ShapeType& axes, bool keep_dims, ir::Expr initial, const std::string& output_name) {
   if (!initial.defined()) {
     initial = common::make_const(A->type(), 1);
   }
   return Reduce(A, axes, lang::ReduceMul, keep_dims, initial, output_name);
 }
 
-Tensor ReduceMax(
-    const Tensor& A, const std::vector<int>& axes, bool keep_dims, Expr initial, const std::string& output_name) {
+Tensor ReduceMax(const Tensor& A, const ShapeType& axes, bool keep_dims, Expr initial, const std::string& output_name) {
   return Reduce(A, axes, lang::ReduceMax, keep_dims, Expr(), output_name);
 }
 
-Tensor ReduceMin(
-    const Tensor& A, const std::vector<int>& axes, bool keep_dims, Expr initial, const std::string& output_name) {
+Tensor ReduceMin(const Tensor& A, const ShapeType& axes, bool keep_dims, Expr initial, const std::string& output_name) {
   return Reduce(A, axes, lang::ReduceMin, keep_dims, Expr(), output_name);
 }
 

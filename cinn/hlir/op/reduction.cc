@@ -34,17 +34,16 @@ using common::CINNValuePack;
 using framework::OpStrategy;
 using framework::shape_t;
 using framework::StrategyFunction;
-using ReduceFunc =
-    std::function<ir::Tensor(const ir::Tensor &, const std::vector<int> &, bool, Expr, const std::string &)>;
+using ReduceFunc = std::function<ir::Tensor(const ir::Tensor &, const shape_t &, bool, Expr, const std::string &)>;
 using BlockReduceInternalFunc =
     std::function<std::vector<ir::Tensor>(const ir::Tensor &, const int, const bool, const std::string &)>;
 using BlockReduceFunc =
     std::function<std::vector<ir::Tensor>(const ir::Tensor &, const int, const int, const bool, const std::string &)>;
 
-std::vector<int> GetShape(const ir::Tensor &x) {
+shape_t GetShape(const ir::Tensor &x) {
   auto last_reduce_dim = x->shape[2].as_int32() * x->shape[3].as_int32();
   // Split into last_reduce_dim into {n,k}
-  std::vector<int> new_shape = {x->shape[0].as_int32(), x->shape[1].as_int32()};
+  shape_t new_shape = {x->shape[0].as_int32(), x->shape[1].as_int32()};
   // As the max block size is 1024, setting 1024 as limit
   if (last_reduce_dim <= 1024) {
     new_shape.push_back(last_reduce_dim);
@@ -68,7 +67,7 @@ std::vector<int> GetShape(const ir::Tensor &x) {
 std::shared_ptr<OpStrategy> StrategyForBnMeanVariance(const framework::NodeAttr &attrs,
                                                       const std::vector<ir::Tensor> &inputs,
                                                       const std::vector<Type> &out_type,
-                                                      const std::vector<std::vector<int>> &output_shapes,
+                                                      const std::vector<shape_t> &output_shapes,
                                                       const Target &target) {
   CHECK_EQ(inputs.size(), 1) << "bn_mean_variance should has 1 input!";
   auto input = inputs[0];
@@ -87,7 +86,7 @@ std::shared_ptr<OpStrategy> StrategyForBnMeanVariance(const framework::NodeAttr 
     auto stages     = CreateStages({x});
     auto x_reshape  = pe::Reshape(x, new_shape, stages, UniqName("bn_mean_variance_x_reshape_out"));
     auto x_square   = pe::Multiply(x_reshape, x_reshape, UniqName("bn_mean_variance_x_square"));
-    auto reduce_dim = new_shape.size() == 3 ? std::vector<int>{0} : std::vector<int>{0, 2};
+    auto reduce_dim = new_shape.size() == 3 ? shape_t{0} : shape_t{0, 2};
 
     auto x_sum_local = pe::ReduceSum(x_reshape, reduce_dim, false, Expr(0.0f), UniqName("bn_mean_variance_out0"));
     auto x_square_sum_local = pe::ReduceSum(x_square, reduce_dim, false, Expr(0.0f), UniqName("bn_mean_variance_out1"));
@@ -176,7 +175,7 @@ std::shared_ptr<OpStrategy> StrategyForBnMeanVariance(const framework::NodeAttr 
 std::shared_ptr<OpStrategy> StrategyForBnGradBiasScale(const framework::NodeAttr &attrs,
                                                        const std::vector<ir::Tensor> &inputs,
                                                        const std::vector<Type> &out_type,
-                                                       const std::vector<std::vector<int>> &output_shapes,
+                                                       const std::vector<shape_t> &output_shapes,
                                                        const Target &target) {
   CHECK_EQ(inputs.size(), 3) << "bn_grad_bias_scale should has 3 input!";
   auto input = inputs[0];
@@ -206,7 +205,7 @@ std::shared_ptr<OpStrategy> StrategyForBnGradBiasScale(const framework::NodeAttr
     auto x_mean_diff      = pe::Substract(x_reshape, x_mean, UniqName("bn_grad_bias_scale_mean_diff"), Expr(1));
     auto grad_x_mean_diff = pe::Multiply(y_grad_reshape, x_mean_diff, UniqName("bn_grad_bias_scale_grad_mean_diff"));
 
-    auto reduce_dim = new_shape.size() == 3 ? std::vector<int>{0} : std::vector<int>{0, 2};
+    auto reduce_dim = new_shape.size() == 3 ? shape_t{0} : shape_t{0, 2};
 
     auto reduce_local_bias =
         pe::ReduceSum(y_grad_reshape, reduce_dim, false, Expr(0.0f), UniqName("bn_grad_bias_scale_out0"));
@@ -301,7 +300,7 @@ std::shared_ptr<OpStrategy> StrategyForBnGradBiasScale(const framework::NodeAttr
   std::shared_ptr<OpStrategy> StrategyFor##reduce_op_(const framework::NodeAttr &attrs,                           \
                                                       const std::vector<ir::Tensor> &inputs,                      \
                                                       const std::vector<Type> &out_type,                          \
-                                                      const std::vector<std::vector<int>> &output_shapes,         \
+                                                      const std::vector<shape_t> &output_shapes,                  \
                                                       const Target &target) {                                     \
     return StrategyForReduce(attrs,                                                                               \
                              inputs,                                                                              \
@@ -317,16 +316,16 @@ std::shared_ptr<OpStrategy> StrategyForBnGradBiasScale(const framework::NodeAttr
 std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
                                               const std::vector<ir::Tensor> &inputs,
                                               const std::vector<Type> &out_type,
-                                              const std::vector<std::vector<int>> &output_shapes,
+                                              const std::vector<shape_t> &output_shapes,
                                               const Target &target,
                                               const std::string &op_name,
                                               const ReduceFunc &reduce_func,
                                               const BlockReduceInternalFunc &block_reduce_internal_func,
                                               const BlockReduceFunc &block_reduce_func) {
-  std::vector<int> dim;
+  shape_t dim;
   bool keep_dim = false;
   if (attrs.attr_store.count("dim")) {
-    dim = absl::get<std::vector<int>>(attrs.attr_store.at("dim"));
+    dim = absl::get<shape_t>(attrs.attr_store.at("dim"));
     if (dim.empty()) {
       for (int i = 0; i < inputs[0]->shape.size(); ++i) {
         dim.push_back(i);
@@ -397,7 +396,7 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
         VLOG(3) << "Do Reduce And BlockReduceInternal Compute!";
         // compute the parallel reduce dimension size
         int last_succesive_dim_tmp = last_succesive_dim;
-        std::vector<int> reduce_without_last_diemension(dim.begin(), dim.begin() + succesive_dim_idx);
+        shape_t reduce_without_last_diemension(dim.begin(), dim.begin() + succesive_dim_idx);
         // TODO(sunli) : support last dimension size over 1024
         CHECK_LE(last_succesive_dim_tmp, 1024) << "last dimension size is over 1024";
         // first: do reduce without last dimension
@@ -468,16 +467,16 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
 std::vector<shape_t> InferShapeForReduction(const std::vector<shape_t> &inputs_shape,
                                             const framework::AttrMapType &attrs) {
   CHECK(inputs_shape.size() == 1UL || inputs_shape.size() == 3UL);
-  std::vector<int> dim;
+  shape_t dim;
   bool keep_dim = false;
   if (attrs.find("dim") != attrs.end()) {
-    dim = absl::get<std::vector<int>>(attrs.at("dim"));
+    dim = absl::get<shape_t>(attrs.at("dim"));
   }
 
   if (attrs.find("keep_dim") != attrs.end()) {
     keep_dim = absl::get<bool>(attrs.at("keep_dim"));
   }
-  std::vector<int> out_shapes;
+  shape_t out_shapes;
   if (!dim.empty()) {
     CHECK_LE(dim.size(), inputs_shape[0].size()) << "reduce dim should no more than the input size";
     auto ndim = inputs_shape[0].size();

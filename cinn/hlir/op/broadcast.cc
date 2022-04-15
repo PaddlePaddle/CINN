@@ -39,7 +39,7 @@ using framework::StrategyFunction;
   std::shared_ptr<OpStrategy> StrategyFor##pe__(const framework::NodeAttr &attrs,                      \
                                                 const std::vector<ir::Tensor> &inputs,                 \
                                                 const std::vector<Type> &out_type,                     \
-                                                const std::vector<std::vector<int>> &output_shapes,    \
+                                                const std::vector<shape_t> &output_shapes,             \
                                                 const Target &target) {                                \
     return StrategyForBroadcast(attrs, inputs, out_type, output_shapes, target, #op_name__, pe::pe__); \
   }
@@ -48,7 +48,7 @@ std::shared_ptr<OpStrategy> StrategyForBroadcast(
     const framework::NodeAttr &attrs,
     const std::vector<ir::Tensor> &inputs,
     const std::vector<Type> &out_type,
-    const std::vector<std::vector<int>> &output_shapes,
+    const std::vector<shape_t> &output_shapes,
     const Target &target,
     const std::string &op_name,
     ir::Tensor (*pe_func)(const ir::Tensor &A, const ir::Tensor &B, const std::string &output_name, const Expr &axis)) {
@@ -98,7 +98,7 @@ std::shared_ptr<OpStrategy> StrategyForBroadcast(
 std::vector<shape_t> InferShapeForBroadcast(const std::vector<shape_t> &inputs_shape,
                                             const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 2UL);
-  std::vector<int> out_shape;
+  shape_t out_shape;
 
   int axis = -1;
   for (auto &iter : attrs) {
@@ -125,7 +125,7 @@ std::vector<Type> InferDtypeForBroadcastCmp(const std::vector<Type> &inputs_type
   return {Bool()};
 }
 
-std::vector<std::vector<std::string>> InferLayoutForBroadcast(const std::vector<std::vector<int>> &input_shapes,
+std::vector<std::vector<std::string>> InferLayoutForBroadcast(const std::vector<shape_t> &input_shapes,
                                                               const std::vector<std::string> &input_layouts,
                                                               const framework::NodeAttr &attrs,
                                                               const Target &target) {
@@ -165,15 +165,15 @@ std::vector<std::vector<std::string>> InferLayoutForBroadcast(const std::vector<
 std::shared_ptr<OpStrategy> StrategyForBroadcastTo(const framework::NodeAttr &attrs,
                                                    const std::vector<ir::Tensor> &inputs,
                                                    const std::vector<Type> &out_type,
-                                                   const std::vector<std::vector<int>> &output_shapes,
+                                                   const std::vector<shape_t> &output_shapes,
                                                    const Target &target) {
-  std::vector<int> out_shape;
-  std::vector<int> broadcast_axes;
+  shape_t out_shape;
+  shape_t broadcast_axes;
   if (attrs.attr_store.count("out_shape")) {
-    out_shape = absl::get<std::vector<int>>(attrs.attr_store.at("out_shape"));
+    out_shape = absl::get<shape_t>(attrs.attr_store.at("out_shape"));
   }
   if (attrs.attr_store.count("broadcast_axes")) {
-    broadcast_axes = absl::get<std::vector<int>>(attrs.attr_store.at("broadcast_axes"));
+    broadcast_axes = absl::get<shape_t>(attrs.attr_store.at("broadcast_axes"));
   }
 
   framework::CINNCompute broadcast_to_compute([=](lang::Args args, lang::RetValue *ret) {
@@ -212,12 +212,12 @@ std::shared_ptr<OpStrategy> StrategyForBroadcastTo(const framework::NodeAttr &at
 std::vector<shape_t> InferShapeForBroadcastTo(const std::vector<shape_t> &inputs_shape,
                                               const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 1UL) << "input_shape size should be one. Please Check.";
-  std::vector<int> broadcast_axes;
-  std::vector<int> out_shape;
+  shape_t broadcast_axes;
+  shape_t out_shape;
   CHECK(attrs.count("broadcast_axes"));
   CHECK(attrs.count("out_shape"));
-  out_shape      = absl::get<std::vector<int>>(attrs.at("out_shape"));
-  broadcast_axes = absl::get<std::vector<int>>(attrs.at("broadcast_axes"));
+  out_shape      = absl::get<shape_t>(attrs.at("out_shape"));
+  broadcast_axes = absl::get<shape_t>(attrs.at("broadcast_axes"));
 
   CHECK_EQ(inputs_shape[0].size(), broadcast_axes.size())
       << "broadcast_axes's size should be same with the input shape's size";
@@ -227,7 +227,7 @@ std::vector<shape_t> InferShapeForBroadcastTo(const std::vector<shape_t> &inputs
   return {out_shape};
 }
 
-std::vector<std::vector<std::string>> InferLayoutForBroadcastTo(const std::vector<std::vector<int>> &input_shapes,
+std::vector<std::vector<std::string>> InferLayoutForBroadcastTo(const std::vector<shape_t> &input_shapes,
                                                                 const std::vector<std::string> &input_layouts,
                                                                 const framework::NodeAttr &attrs,
                                                                 const Target &target) {
@@ -257,7 +257,7 @@ std::vector<shape_t> InferShapeForBroadcastGrad(const std::vector<shape_t> &inpu
 std::shared_ptr<OpStrategy> StrategyForBroadcastGrad(const framework::NodeAttr &attrs,
                                                      const std::vector<ir::Tensor> &inputs,
                                                      const std::vector<Type> &out_type,
-                                                     const std::vector<std::vector<int>> &output_shapes,
+                                                     const std::vector<shape_t> &output_shapes,
                                                      const Target &target) {
   LOG(FATAL)
       << "Gradient operator will be decomposed into several primitive operators. Please Use Decomposer Program Pass.";

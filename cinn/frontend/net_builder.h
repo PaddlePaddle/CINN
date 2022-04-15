@@ -19,6 +19,7 @@
 
 #include "cinn/frontend/base_builder.h"
 #include "cinn/frontend/syntax.h"
+#include "cinn/utils/type_defs.h"
 
 namespace cinn {
 namespace frontend {
@@ -57,7 +58,7 @@ class NetBuilder : public BaseBuilder {
 #undef NETBUILDER_BINARY_OP_DECL
 
 #define NETBUILDER_ELEMENTWISE_OP_DECL(func_name__) \
-  Variable func_name__(const Variable& lhs, const Variable& rhs, int axis = -1);
+  Variable func_name__(const Variable& lhs, const Variable& rhs, utils::DimType axis = -1);
   NETBUILDER_ELEMENTWISE_OP_FOREACH(NETBUILDER_ELEMENTWISE_OP_DECL)
 #undef NETBUILDER_ELEMENTWISE_OP_DECL
 
@@ -78,14 +79,14 @@ class NetBuilder : public BaseBuilder {
   const std::vector<Variable>& ElementwiseAddGrad(const Variable& dout,
                                                   const Variable& x,
                                                   const Variable& y,
-                                                  int axis = -1);
+                                                  utils::DimType axis = -1);
 
   Variable Relu6(const Variable& a, float threshold = 6.0f);
 
   /**
    * Compute the sum of Variable x along the given dim.
    */
-  Variable ReduceSum(const Variable& x, const std::vector<int>& dim, bool keep_dim = false);
+  Variable ReduceSum(const Variable& x, const utils::ShapeType& dim, bool keep_dim = false);
 
   /**
    * The convolution2D layer calculates the output based on the input, filter
@@ -183,7 +184,10 @@ class NetBuilder : public BaseBuilder {
   }
 
  protected:
-  Variable ElementwiseOp(const std::string& op_type, const Variable& lhs, const Variable& rhs, int axis = -1);
+  Variable ElementwiseOp(const std::string& op_type,
+                         const Variable& lhs,
+                         const Variable& rhs,
+                         utils::DimType axis = -1);
 };
 
 }  // namespace frontend

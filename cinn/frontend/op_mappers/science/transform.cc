@@ -14,14 +14,18 @@
 
 #include "cinn/frontend/op_mapper_registry.h"
 #include "cinn/frontend/op_mappers/common_utils.h"
+#include "cinn/utils/type_defs.h"
 
 namespace cinn {
 namespace frontend {
 namespace science_mappers {
 
+using utils::DimType;
+using utils::ShapeType;
+
 void ConcatOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
-  CHECK_GE(op_desc.Input("X").size(), 1UL);
-  auto x_names = op_desc.Input("X");
+  CHECK_GE(op_desc.Input("XS").size(), 1UL);
+  auto x_names = op_desc.Input("XS");
   CHECK_EQ(op_desc.Output("Y").size(), 1UL);
   auto out_name = op_desc.Output("Y").front();
 
@@ -36,7 +40,7 @@ void ConcatOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
       xs.emplace_back(ctx.GetVar(name));
     }
 
-    auto axis = utils::GetAttrOrDefault<int>(op_desc, "axis");
+    auto axis = utils::GetAttrOrDefault<DimType>(op_desc, "axis");
 
     out = ctx.Builder()->Concat(xs, axis);
   }
@@ -48,15 +52,15 @@ void ConcatOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
 void SplitOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
   auto x_name = op_desc.Input("X").front();
-  CHECK_GE(op_desc.Output("Y").size(), 1UL);
-  auto out_name = op_desc.Output("Y");
+  CHECK_GE(op_desc.Output("YS").size(), 1UL);
+  auto out_name = op_desc.Output("YS");
 
   CHECK(op_desc.HasAttr("num_or_sections"));
-  auto num_or_sections = op_desc.GetAttr<std::vector<int>>("num_or_sections");
+  auto num_or_sections = op_desc.GetAttr<ShapeType>("num_or_sections");
 
   CHECK(!num_or_sections.empty()) << "The Split op cannot found [num_or_sections] attrbute!  ! Please check.";
 
-  auto axis = utils::GetAttrOrDefault<int>(op_desc, "axis", 0);
+  auto axis = utils::GetAttrOrDefault<DimType>(op_desc, "axis", 0);
 
   auto x = ctx.GetVar(x_name);
 
@@ -102,7 +106,7 @@ void ReshapeOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& 
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
   auto x_name = op_desc.Input("X").front();
 
-  auto shape = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "shape");
+  auto shape = utils::GetAttrOrDefault<ShapeType>(op_desc, "shape");
 
   auto x = ctx.GetVar(x_name);
 
@@ -141,13 +145,13 @@ void SliceSelectOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperConte
   auto out_name = op_desc.Output("Y").front();
 
   CHECK(op_desc.HasAttr("starts"));
-  auto starts = op_desc.GetAttr<std::vector<int>>("starts");
+  auto starts = op_desc.GetAttr<ShapeType>("starts");
   CHECK(op_desc.HasAttr("ends"));
-  auto ends = op_desc.GetAttr<std::vector<int>>("ends");
+  auto ends = op_desc.GetAttr<ShapeType>("ends");
   CHECK(op_desc.HasAttr("axis"));
-  auto axes = op_desc.GetAttr<std::vector<int>>("axis");
+  auto axes = op_desc.GetAttr<ShapeType>("axis");
   CHECK(op_desc.HasAttr("strides"));
-  auto strides = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "strides");
+  auto strides = utils::GetAttrOrDefault<ShapeType>(op_desc, "strides");
 
   auto x = ctx.GetVar(x_name);
 
@@ -155,7 +159,7 @@ void SliceSelectOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperConte
           << cinn::utils::Join(starts, ",") << "], ends [" << cinn::utils::Join(ends, ",") << "], axis ["
           << cinn::utils::Join(axes, ",") << "], strides [" << cinn::utils::Join(strides, ",") << "].";
 
-  auto out = ctx.Builder()->Slice(x, axes, starts, ends, std::vector<int>{}, strides);
+  auto out = ctx.Builder()->Slice(x, axes, starts, ends, ShapeType{}, strides);
 
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);
@@ -170,13 +174,13 @@ void SliceAssignOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperConte
   auto out_name = op_desc.Output("Z").front();
 
   CHECK(op_desc.HasAttr("starts"));
-  auto starts = op_desc.GetAttr<std::vector<int>>("starts");
+  auto starts = op_desc.GetAttr<ShapeType>("starts");
   CHECK(op_desc.HasAttr("ends"));
-  auto ends = op_desc.GetAttr<std::vector<int>>("ends");
+  auto ends = op_desc.GetAttr<ShapeType>> ("ends");
   CHECK(op_desc.HasAttr("axis"));
-  auto axes = op_desc.GetAttr<std::vector<int>>("axis");
+  auto axes = op_desc.GetAttr<ShapeType>("axis");
   CHECK(op_desc.HasAttr("strides"));
-  auto strides = op_desc.GetAttr<std::vector<int>>("strides");
+  auto strides = op_desc.GetAttr<ShapeType>("strides");
 
   auto x      = ctx.GetVar(x_name);
   auto assign = ctx.GetVar(y_name);
@@ -197,7 +201,7 @@ void ReduceOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
   CHECK_EQ(op_desc.Output("Y").size(), 1UL);
   auto out_name = op_desc.Output("Y").front();
 
-  auto axis    = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "axis");
+  auto axis    = utils::GetAttrOrDefault<ShapeType>(op_desc, "axis");
   auto keepdim = utils::GetAttrOrDefault<bool>(op_desc, "keepdim", false);
 
   auto x = ctx.GetVar(x_name);
@@ -220,7 +224,7 @@ void IndexSelectOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperConte
   CHECK_EQ(op_desc.Output("Y").size(), 1UL);
   auto out_name = op_desc.Output("Y").front();
 
-  auto axis = utils::GetAttrOrDefault<int>(op_desc, "axis", 0);
+  auto axis = utils::GetAttrOrDefault<DimType>(op_desc, "axis", 0);
 
   auto x     = ctx.GetVar(x_name);
   auto index = ctx.GetVar(index_name);
@@ -245,7 +249,7 @@ void IndexAssignOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperConte
   CHECK_EQ(op_desc.Output("Z").size(), 1UL);
   auto out_name = op_desc.Output("Z").front();
 
-  auto axis = utils::GetAttrOrDefault<int>(op_desc, "axis", 0);
+  auto axis = utils::GetAttrOrDefault<DimType>(op_desc, "axis", 0);
 
   auto x      = ctx.GetVar(x_name);
   auto assign = ctx.GetVar(assign_name);

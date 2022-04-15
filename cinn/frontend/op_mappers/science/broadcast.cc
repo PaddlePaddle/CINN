@@ -14,16 +14,20 @@
 
 #include "cinn/frontend/op_mapper_registry.h"
 #include "cinn/frontend/op_mappers/common_utils.h"
+#include "cinn/utils/type_defs.h"
 
 namespace cinn {
 namespace frontend {
 namespace science_mappers {
 
+using utils::DimType;
+using utils::ShapeType;
+
 void FillConstantOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Output("Y").size(), 1UL);
   auto y_name = op_desc.Output("Y").front();
 
-  auto shape = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "shape");
+  auto shape = utils::GetAttrOrDefault<ShapeType>(op_desc, "shape");
   // TODO(jiangcheng): value support different datatype, not just float
   auto value = utils::GetAttrOrDefault<float>(op_desc, "value");
 
@@ -47,7 +51,7 @@ void BroadcastOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
   CHECK(op_desc.HasAttr("shape")) << "The broadcast_p operator should has 'shape' attribute, but " << x_name
                                   << "'s broadcast hasn't.";
 
-  auto y_shape = op_desc.GetAttr<std::vector<int>>("shape");
+  auto y_shape = op_desc.GetAttr<ShapeType>("shape");
   auto x       = ctx.GetVar(x_name);
 
   VLOG(4) << "Broadcast " << x_name << " from shape (" << cinn::utils::Join(x->shape, ",") << ") to shape ("

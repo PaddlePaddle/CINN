@@ -33,13 +33,15 @@ namespace pe {
 
 using cinn::lang::Compute;
 using ir::Tensor;
+using utils::DimType;
+using utils::ShapeType;
 
 std::vector<Tensor> Matmul(
     const Tensor& A, const Tensor& B, bool trans_a, bool trans_b, float alpha, const std::string& name) {
   std::vector<Expr> shape_A = A->shape;
   std::vector<Expr> shape_B = B->shape;
-  int a_dim                 = shape_A.size();
-  int b_dim                 = shape_B.size();
+  auto a_dim                = shape_A.size();
+  auto b_dim                = shape_B.size();
   CHECK(a_dim == 3U || a_dim == 2U) << "tensor_A's dim should be 2 or 3 while current dim is " << a_dim;
   CHECK(b_dim == 3U || b_dim == 2U) << "tensor_B's dim should be 2 or 3 while current dim is " << b_dim;
   CHECK_EQ(a_dim, b_dim) << "tensor_A's dim should be same with tensor_B";
@@ -52,8 +54,8 @@ std::vector<Tensor> Matmul(
   std::vector<Expr> output_shape;
   std::vector<ir::Tensor> out;
   if (a_dim == 3) {
-    int max_batch = std::max(shape_A[0].as_int32(), shape_B[0].as_int32());
-    output_shape  = {Expr(max_batch), M, N};
+    auto max_batch = std::max(shape_A[0].as_int32(), shape_B[0].as_int32());
+    output_shape   = {Expr(max_batch), M, N};
   } else {
     output_shape = {M, N};
   }
@@ -61,7 +63,7 @@ std::vector<Tensor> Matmul(
   auto temp = Compute(
       output_shape,
       [=](const std::vector<Expr>& indice) {
-        int out_dim = indice.size();
+        auto out_dim = indice.size();
         std::vector<Expr> A_indice;
         std::vector<Expr> B_indice;
         CHECK(out_dim == 3U || out_dim == 2U) << "indice size should be 2 or 3 while current dim is " << out_dim;
@@ -94,10 +96,7 @@ std::vector<Tensor> Matmul(
   }
 }
 
-ir::Tensor Reshape(const ir::Tensor& A,
-                   const std::vector<int>& new_shape,
-                   poly::StageMap stages,
-                   const std::string& name) {
+ir::Tensor Reshape(const ir::Tensor& A, const ShapeType& new_shape, poly::StageMap stages, const std::string& name) {
   std::vector<Expr> new_expr_shape;
   std::vector<Expr> A_expr_shape = A->shape;
   int input_total_size           = 1;
@@ -116,7 +115,7 @@ ir::Tensor Reshape(const ir::Tensor& A,
   return out;
 }
 
-ir::Tensor Reshape(const ir::Tensor& A, const std::vector<int>& new_shape, const std::string& name) {
+ir::Tensor Reshape(const ir::Tensor& A, const ShapeType& new_shape, const std::string& name) {
   std::vector<Expr> new_expr_shape;
   std::vector<Expr> A_expr_shape = A->shape;
   int input_total_size           = 1;
@@ -151,8 +150,8 @@ ir::Tensor Reshape(const ir::Tensor& A, const std::vector<int>& new_shape, const
 }
 
 std::vector<ir::Tensor> Split(const ir::Tensor& A,
-                              int axis,
-                              const std::vector<std::vector<int>>& output_shapes,
+                              DimType axis,
+                              const std::vector<ShapeType>& output_shapes,
                               const std::string& name) {
   if (axis < 0) axis += A->shape.size();
   auto output_size = output_shapes.size();
@@ -160,14 +159,14 @@ std::vector<ir::Tensor> Split(const ir::Tensor& A,
   // compute select index list
   // if   index = [2, 3, 4, 5]
   // then start = [0, 2, 5, 9]
-  std::vector<int> start(output_size, 0);
+  ShapeType start(output_size, 0);
   for (int i = 1; i < output_size; ++i) {
     start[i] = start[i - 1] + output_shapes[i - 1][axis];
   }
 
   std::vector<std::vector<Expr>> out_shape(output_size, std::vector<Expr>{});
   for (int i = 0; i < output_size; ++i) {
-    for (int val : output_shapes[i]) {
+    for (auto val : output_shapes[i]) {
       out_shape[i].emplace_back(Expr(val));
     }
   }
@@ -186,7 +185,7 @@ std::vector<ir::Tensor> Split(const ir::Tensor& A,
   return res;
 }
 
-ir::Tensor Concat(const ir::Tensor& A, const ir::Tensor& B, int axis, const std::string& name) {
+ir::Tensor Concat(const ir::Tensor& A, const ir::Tensor& B, DimType axis, const std::string& name) {
   if (axis < 0) axis += A->shape.size();
   CHECK_EQ(A->shape.size(), B->shape.size()) << "Dimensions of inputs A and B in Concat should be equal! Please check.";
   std::vector<Expr> output_shape = A->shape;
@@ -203,7 +202,7 @@ ir::Tensor Concat(const ir::Tensor& A, const ir::Tensor& B, int axis, const std:
   return res;
 }
 
-ir::Tensor Concat(const std::vector<ir::Tensor>& input_tensors, int axis, const std::string& name) {
+ir::Tensor Concat(const std::vector<ir::Tensor>& input_tensors, DimType axis, const std::string& name) {
   int input_size = input_tensors.size();
   CHECK_GE(input_size, 2U) << "Concat should have at least 2 input tensors";
   std::vector<Expr> output_shape = input_tensors[0]->shape;
@@ -260,14 +259,14 @@ std::vector<Tensor> MatmulV2(const Tensor& A,
   std::vector<ir::Tensor> out;
 
   if (a_dim == 3) {
-    int max_batch = std::max(shape_A[0].as_int32(), shape_B[0].as_int32());
-    output_shape  = {Expr(max_batch), M, N};
+    auto max_batch = std::max(shape_A[0].as_int32(), shape_B[0].as_int32());
+    output_shape   = {Expr(max_batch), M, N};
   } else {
     output_shape = {M, N};
   }
   // array packing
-  int shape_B_N = N.as_int32();
-  int bn        = GetArrayPackingFactor(shape_B_N, B->type(), target);
+  auto shape_B_N = N.as_int32();
+  auto bn        = GetArrayPackingFactor(shape_B_N, B->type(), target);
   // {N / bn, K, bn}
   std::vector<Expr> packedB_shape = {Expr(shape_B_N / bn), y_height, Expr(bn)};
   if (b_dim == 3) {
@@ -404,7 +403,7 @@ std::vector<Tensor> MatmulMKL(const Tensor& A,
   return {out, call};
 }
 
-int GetMulFactor(int shape, const Type& type, const common::Target& target) {
+int GetMulFactor(DimType shape, const Type& type, const common::Target& target) {
   int split_base   = GetBasicFactor(type, target);
   int split_factor = 1;
   for (size_t i = split_base; i >= 1; --i) {
@@ -427,8 +426,8 @@ std::vector<Tensor> MulBase(const Tensor& A, const Tensor& B, const std::string&
   output_shape.push_back(B->shape[0]);
 
   if (target.arch == Target::Arch::X86) {
-    int reduce_dim   = A->shape[1].as_int32();
-    int split_factor = GetMulFactor(reduce_dim, A->type(), target);
+    auto reduce_dim   = A->shape[1].as_int32();
+    auto split_factor = GetMulFactor(reduce_dim, A->type(), target);
     Var reduce_k_first(common::make_const(A->shape[1]->type(), reduce_dim / split_factor), UniqName("reduce_k_first"));
     auto mul_reduce_first = Compute(
         {A->shape[0], B->shape[0], Expr(split_factor)},
@@ -554,7 +553,7 @@ std::vector<ir::Tensor> MulBias(const Tensor& A,
 
 void GetLayoutTransformInfo(const ir::Layout& src_layout,
                             const ir::Layout& dst_layout,
-                            absl::flat_hash_map<int, std::vector<int>>* split_index_map) {
+                            absl::flat_hash_map<int, ShapeType>* split_index_map) {
   CHECK_GT(dst_layout.ndims(), src_layout.ndims());
   int offset = 'A' - 'a';
   CHECK_EQ(dst_layout.axis_names().size(), dst_layout.ndims());
@@ -583,7 +582,7 @@ void GetLayoutTransformInfo(const ir::Layout& src_layout,
 std::vector<Expr> InferShapeLayoutTransform(const std::vector<Expr>& input_shapes,
                                             const ir::Layout& old_layout,
                                             const ir::Layout& new_layout,
-                                            absl::flat_hash_map<int, std::vector<int>>* split_index_map) {
+                                            absl::flat_hash_map<int, ShapeType>* split_index_map) {
   int src_dim = old_layout.ndims();
   int dst_dim = new_layout.ndims();
   std::vector<Expr> output_shape(dst_dim);
@@ -641,7 +640,7 @@ ir::Tensor LayoutTransform(const Tensor& input,
   // OIHWxixo -> OIHW
   CHECK_GE(src_layout.size(), 4U);
   CHECK_GE(dst_layout.size(), 4U);
-  absl::flat_hash_map<int, std::vector<int>> split_index_map;
+  absl::flat_hash_map<int, ShapeType> split_index_map;
   // transform shape
   int offset = 'A' - 'a';
   ir::Layout old_layout(src_layout);
@@ -659,11 +658,11 @@ ir::Tensor LayoutTransform(const Tensor& input,
         int min_dim = std::min(src_dim, dst_dim);
         for (int i = 0; i < min_dim; i++) {
           CHECK(split_index_map.find(i) != split_index_map.end());
-          std::vector<int> split_infos = split_index_map.at(i);
+          ShapeType split_infos = split_index_map.at(i);
           if (split_infos.size() == 3) {
-            int prim_index = split_infos[0];
-            int sub_index  = split_infos[1];
-            int factor     = split_infos[2];
+            auto prim_index = split_infos[0];
+            auto sub_index  = split_infos[1];
+            auto factor     = split_infos[2];
             if (dst_dim > src_dim) {
               new_indice[i] = common::AutoSimplify(indice[prim_index] * factor + indice[sub_index]);
             } else {
@@ -672,7 +671,7 @@ ir::Tensor LayoutTransform(const Tensor& input,
             }
 
           } else if (split_infos.size() == 1) {
-            int prim_index = split_infos[0];
+            auto prim_index = split_infos[0];
             if (dst_dim > src_dim) {
               new_indice[i] = indice[prim_index];
             } else {
@@ -688,7 +687,7 @@ ir::Tensor LayoutTransform(const Tensor& input,
   return {res};
 }
 
-ir::Tensor Reverse(const ir::Tensor& input, const std::vector<int>& axis, const std::string& output_name) {
+ir::Tensor Reverse(const ir::Tensor& input, const ShapeType& axis, const std::string& output_name) {
   for (auto& val : axis) {
     CHECK(val >= 0 && val < static_cast<int>(input->shape.size())) << "axis should be [0,n_dim)";
   }
@@ -705,7 +704,7 @@ ir::Tensor Reverse(const ir::Tensor& input, const std::vector<int>& axis, const 
       output_name);
 }
 
-ir::Tensor Transpose(const ir::Tensor& input, const std::vector<int>& axis, const std::string& output_name) {
+ir::Tensor Transpose(const ir::Tensor& input, const ShapeType& axis, const std::string& output_name) {
   CHECK_EQ(input->shape.size(), axis.size()) << "input shape size and axis size is not equal!";
   for (int idx = 0; idx < axis.size(); ++idx) {
     CHECK(axis[idx] >= 0 && axis[idx] < axis.size()) << "axis value should be among [0,axis.size())";
@@ -722,7 +721,7 @@ ir::Tensor Transpose(const ir::Tensor& input, const std::vector<int>& axis, cons
 
   // tranpose axis to map output to input
   // new_axis = axis(T)
-  std::vector<int> new_axis;
+  ShapeType new_axis;
   for (int idx = 0; idx < axis.size(); ++idx) {
     for (int idy = 0; idy < axis.size(); ++idy) {
       if (idx == axis[idy]) {
@@ -744,16 +743,16 @@ ir::Tensor Transpose(const ir::Tensor& input, const std::vector<int>& axis, cons
 }
 
 ir::Tensor Slice(const ir::Tensor& A,
-                 const std::vector<int>& starts,
-                 const std::vector<int>& axes,
-                 const std::vector<int>& strides,
+                 const ShapeType& starts,
+                 const ShapeType& axes,
+                 const ShapeType& strides,
                  const std::vector<Expr>& output_shape,
                  const std::string& output_name) {
-  std::vector<int> input_shape;
+  ShapeType input_shape;
   for (const auto& shape : A->shape) {
     input_shape.emplace_back(shape.as_int32());
   }
-  std::vector<int> new_starts(starts);
+  ShapeType new_starts(starts);
   for (int i = 0; i < axes.size(); i++) {
     if (new_starts[i] < 0) {
       new_starts[i] = input_shape[axes[i]] + new_starts[i];
@@ -785,22 +784,22 @@ ir::Tensor Slice(const ir::Tensor& A,
 
 ir::Tensor SliceAssign(const ir::Tensor& input,
                        const ir::Tensor& assign,
-                       const std::vector<int>& axes,
-                       const std::vector<int>& starts,
-                       const std::vector<int>& ends,
-                       const std::vector<int>& strides,
+                       const ShapeType& axes,
+                       const ShapeType& starts,
+                       const ShapeType& ends,
+                       const ShapeType& strides,
                        const std::string& output_name) {
   CHECK_EQ(axes.size(), starts.size()) << "axes's size is not equal to starts's size!";
   CHECK_EQ(axes.size(), ends.size()) << "axes's size is not equal to starts's size!";
   CHECK_EQ(axes.size(), strides.size()) << "axes's size is not equal to strides's size!";
 
-  std::vector<int> input_shape;
+  ShapeType input_shape;
   for (const auto& shape : input->shape) {
     input_shape.emplace_back(shape.as_int32());
   }
-  std::vector<int> new_starts(starts);
-  std::vector<int> new_ends(ends);
-  std::vector<int> new_strides(strides);
+  ShapeType new_starts(starts);
+  ShapeType new_ends(ends);
+  ShapeType new_strides(strides);
   for (int i = 0; i < axes.size(); i++) {
     CHECK_LT(axes[i], input->shape.size()) << "axes should less than input's shape size";
 
@@ -875,7 +874,7 @@ ir::Tensor SliceAssign(const ir::Tensor& input,
 ir::Tensor IndexSelect(const ir::Tensor& x,
                        const ir::Tensor& index,
                        const std::vector<Expr>& output_shape,
-                       int axis,
+                       DimType axis,
                        const std::string& name) {
   CHECK_EQ(1, static_cast<int>(index->shape.size())) << "The index should be a 1-D Tensor.";
   // The implementation details are explained below.
@@ -912,7 +911,7 @@ ir::Tensor IndexAssign(const ir::Tensor& input,
                        const ir::Tensor& assign,
                        const ir::Tensor& index,
                        const common::Target& target,
-                       const int axis,
+                       const DimType axis,
                        const std::string& output_name) {
   CHECK_EQ(index->type(), common::Int(32)) << "Param [Index] of IndexAssign only support int32 ! Please Check.\n";
   std::string extern_fun_name;

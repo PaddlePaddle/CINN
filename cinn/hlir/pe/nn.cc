@@ -42,13 +42,15 @@ using ir::Max;
 using ir::Min;
 using ir::Select;
 using ir::Tensor;
+using utils::DimType;
+using utils::ShapeType;
 
 Tensor LeakyRelu(const Tensor &A, double alpha, const std::string &output_name) {
   return Compute(
       A->shape, [=](const std::vector<Expr> &indice) { return lang::LeakyRelu(A(indice), alpha); }, output_name);
 }
 
-Tensor PRelu(const Tensor &A, const Tensor &slope, const int axis, const std::string &output_name) {
+Tensor PRelu(const Tensor &A, const Tensor &slope, const DimType axis, const std::string &output_name) {
   CHECK_LT(axis, A->shape.size()) << "Wrong axis value: " << axis << std::endl;
   CHECK(A->shape[axis] == slope->shape[0]) << "Wrong slope shape: " << slope->shape[0] << std::endl;
   return Compute(
@@ -717,14 +719,14 @@ ir::Tensor BatchNorm_NCHWc(const ir::Tensor &input,
  * @param output_name The name of output tensor.
  * @return The calculated output tensor.
  */
-std::vector<ir::Tensor> Softmax(const ir::Tensor &A, int axis, const std::string &output_name) {
+std::vector<ir::Tensor> Softmax(const ir::Tensor &A, DimType axis, const std::string &output_name) {
   if (axis == -1) {
     axis = A->shape.size() - 1;
   }
   Var reduce_axis(A->shape[axis], UniqName("reduce_axis"));
   std::vector<Expr> new_shapes;
   for (size_t i = 0; i < A->shape.size(); i++) {
-    if (static_cast<int>(i) != axis) {
+    if (static_cast<DimType>(i) != axis) {
       new_shapes.push_back(A->shape[i]);
     }
   }
@@ -734,7 +736,7 @@ std::vector<ir::Tensor> Softmax(const ir::Tensor &A, int axis, const std::string
         std::vector<Expr> new_indice;
         int count = 0;
         for (size_t i = 0; i < A->shape.size(); i++) {
-          if (static_cast<int>(i) != axis) {
+          if (static_cast<DimType>(i) != axis) {
             new_indice.push_back(indice[count++]);
           } else {
             new_indice.push_back(reduce_axis);
@@ -749,7 +751,7 @@ std::vector<ir::Tensor> Softmax(const ir::Tensor &A, int axis, const std::string
       [=](const std::vector<Expr> &indice) {
         std::vector<Expr> new_indice;
         for (size_t i = 0; i < indice.size(); i++) {
-          if (static_cast<int>(i) != axis) {
+          if (static_cast<DimType>(i) != axis) {
             new_indice.push_back(indice[i]);
           }
         }
@@ -760,7 +762,7 @@ std::vector<ir::Tensor> Softmax(const ir::Tensor &A, int axis, const std::string
 }
 
 #ifdef CINN_WITH_MKLDNN
-std::vector<ir::Tensor> SoftmaxMKLDNN(const ir::Tensor &A, int axis, const std::string &output_name) {
+std::vector<ir::Tensor> SoftmaxMKLDNN(const ir::Tensor &A, DimType axis, const std::string &output_name) {
   CHECK_LE(A->shape.size(), 4U) << "Input's dimension of mkldnn softmax op is less than 4! Please check.";
   if (axis == -1) {
     axis = A->shape.size() - 1;

@@ -39,7 +39,7 @@ using PeFunc = std::function<std::vector<ir::Tensor>(const ir::Tensor &A, const 
   std::shared_ptr<OpStrategy> StrategyFor##pe__(const framework::NodeAttr &attrs,                        \
                                                 const std::vector<ir::Tensor> &inputs,                   \
                                                 const std::vector<Type> &out_type,                       \
-                                                const std::vector<std::vector<int>> &output_shapes,      \
+                                                const std::vector<shape_t> &output_shapes,               \
                                                 const Target &target) {                                  \
     return StrategyForElementwise(attrs, inputs, out_type, output_shapes, target, #op_name__, pe::pe__); \
   }
@@ -47,7 +47,7 @@ using PeFunc = std::function<std::vector<ir::Tensor>(const ir::Tensor &A, const 
 std::shared_ptr<OpStrategy> StrategyForElementwise(const framework::NodeAttr &attrs,
                                                    const std::vector<ir::Tensor> &inputs,
                                                    const std::vector<Type> &out_type,
-                                                   const std::vector<std::vector<int>> &output_shapes,
+                                                   const std::vector<shape_t> &output_shapes,
                                                    const Target &target,
                                                    const std::string &op_name,
                                                    const PeFunc &pe_func) {
@@ -114,7 +114,7 @@ std::vector<std::vector<std::string>> InferLayoutForElementwise(const std::vecto
 std::shared_ptr<OpStrategy> StrategyForScale(const framework::NodeAttr &attrs,
                                              const std::vector<ir::Tensor> &inputs,
                                              const std::vector<Type> &out_type,
-                                             const std::vector<std::vector<int>> &output_shapes,
+                                             const std::vector<shape_t> &output_shapes,
                                              const Target &target) {
   float scale           = 1.f;
   float bias            = 0.f;
@@ -190,7 +190,7 @@ Expr GetScalarExpr(const framework::NodeAttr::attr_t &attr) {
 std::shared_ptr<OpStrategy> StrategyForConstScalar(const framework::NodeAttr &attrs,
                                                    const std::vector<ir::Tensor> &inputs,
                                                    const std::vector<Type> &out_type,
-                                                   const std::vector<std::vector<int>> &output_shapes,
+                                                   const std::vector<shape_t> &output_shapes,
                                                    const Target &target) {
   framework::CINNCompute const_scalar_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of const_float compute is empty! Please check.";
@@ -246,7 +246,7 @@ std::vector<std::vector<std::string>> InferLayoutForConstScalar(const std::vecto
 std::shared_ptr<OpStrategy> StrategyForSum(const framework::NodeAttr &attrs,
                                            const std::vector<ir::Tensor> &inputs,
                                            const std::vector<Type> &out_type,
-                                           const std::vector<std::vector<int>> &output_shapes,
+                                           const std::vector<shape_t> &output_shapes,
                                            const Target &target) {
   LOG(FATAL) << "The operator will be decomposed into several primitive operators. Please Use Decomposer Program Pass.";
 }
@@ -281,13 +281,13 @@ std::vector<Type> InferDtypeForSum(const std::vector<Type> &inputs_type, const f
 std::shared_ptr<OpStrategy> StrategyForFillConstant(const framework::NodeAttr &attrs,
                                                     const std::vector<ir::Tensor> &inputs,
                                                     const std::vector<Type> &out_type,
-                                                    const std::vector<std::vector<int>> &output_shapes,
+                                                    const std::vector<shape_t> &output_shapes,
                                                     const Target &target) {
   framework::CINNCompute fill_constant_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of fill_constant compute is empty! Please check.";
     bool force_cpu = false;
     CHECK(attrs.attr_store.count("shape"));
-    auto shape = absl::get<std::vector<int>>(attrs.attr_store.at("shape"));
+    auto shape = absl::get<shape_t>(attrs.attr_store.at("shape"));
     CHECK(attrs.attr_store.count("value"));
     auto value = GetScalarExpr(attrs.attr_store.at("value"));
     CHECK(attrs.attr_store.count("force_cpu"));
@@ -328,7 +328,7 @@ std::shared_ptr<OpStrategy> StrategyForFillConstant(const framework::NodeAttr &a
 std::vector<shape_t> InferShapeForFillConstant(const std::vector<shape_t> &inputs_shape,
                                                const framework::AttrMapType &attrs) {
   CHECK(attrs.count("shape"));
-  auto shape = absl::get<std::vector<int>>(attrs.at("shape"));
+  auto shape = absl::get<shape_t>(attrs.at("shape"));
   CHECK(!shape.empty()) << "shape attr is empty!";
   return {shape};
 }
