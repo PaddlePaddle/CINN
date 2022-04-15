@@ -20,8 +20,8 @@ namespace frontend {
 namespace science_mappers {
 
 void ConcatOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
-  CHECK_GE(op_desc.Input("XS").size(), 1UL);
-  auto x_names = op_desc.Input("XS");
+  CHECK_GE(op_desc.Input("X").size(), 1UL);
+  auto x_names = op_desc.Input("X");
   CHECK_EQ(op_desc.Output("Y").size(), 1UL);
   auto out_name = op_desc.Output("Y").front();
 
@@ -48,8 +48,8 @@ void ConcatOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
 void SplitOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
   auto x_name = op_desc.Input("X").front();
-  CHECK_GE(op_desc.Output("YS").size(), 1UL);
-  auto out_name = op_desc.Output("YS");
+  CHECK_GE(op_desc.Output("Y").size(), 1UL);
+  auto out_name = op_desc.Output("Y");
 
   CHECK(op_desc.HasAttr("num_or_sections"));
   auto num_or_sections = op_desc.GetAttr<std::vector<int>>("num_or_sections");
