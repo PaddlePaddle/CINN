@@ -684,7 +684,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   compiler_ = backends::Compiler::Create(target_);
 
   auto build_module = m_builder_.Build();
-
+  VLOG(5) << "Built module: " << build_module;
   if (this->target_.arch == Target::Arch::X86) {
     CodeGenCX86 codegen(this->target_, CodeGenCX86::Feature::AVX512);
     codegen.SetInlineBuiltinCodes(false);
@@ -693,6 +693,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   }
 
   compiler_->Build(build_module, options.attached_code, stream);
+  VLOG(5) << "Compiler Built";
   auto instructions = BuildInstructions(groups);
   if (options.remove_unused_variables) {
     RemoveInvalidVariables(instructions);

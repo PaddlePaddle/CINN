@@ -36,8 +36,7 @@ using ::cinn::hlir::framework::Scope;
 class TestAutoTuner : public ::testing::Test {
  public:
 #ifdef CINN_WITH_CUDA
-  // Target target = common::DefaultNVGPUTarget();
-  Target target = common::DefaultHostTarget();
+  Target target = common::DefaultNVGPUTarget();
 #else
   Target target = common::DefaultHostTarget();
 #endif
@@ -82,13 +81,12 @@ class TestAutoTuner : public ::testing::Test {
     ASSERT_EQ(2, compile_options.groups.size());
     ASSERT_EQ(2, compile_options.lowered_funcs.size());
     std::cout << "Print before building" << std::endl;
-    compile_options.lowered_funcs[0][0]->device_api = ir::DeviceAPI::GPU;
-    compile_options.lowered_funcs[1][0]->device_api = ir::DeviceAPI::GPU;
     std::cout << compile_options.lowered_funcs[0][0] << std::endl;
     std::cout << compile_options.lowered_funcs[1][0] << std::endl;
     auto runtime_program = graph_compiler->Build(compile_options).runtime_program;
     std::cout << "Checking runtime_program" << std::endl;
     ASSERT_EQ(2, runtime_program->size());
+    std::cout << "Before executing " << std::endl;
     runtime_program->Execute();
   }
 };
