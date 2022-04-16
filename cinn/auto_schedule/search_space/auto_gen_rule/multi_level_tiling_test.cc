@@ -74,34 +74,7 @@ TEST(MultiLevelTile, SimpleLoops) {
   std::stringstream ss;
   ss << exprs[0];
 
-  std::string expr_str   = ss.str();
-  std::string target_str = R"ROC(
-{
-  ScheduleBlock(root)
-  {
-    for (i_0, 0, 16)
-    {
-      for (i_1, 0, 2)
-      {
-        for (j_0, 0, 32)
-        {
-          for (j_1, 0, 4)
-          {
-            ScheduleBlock(C)
-            {
-              i0, i1 = axis.bind(((2 * i_0) + i_1), ((4 * j_0) + j_1))
-              read_buffers(_A[], _B[])
-              write_buffers(_C[])
-              C[i0, i1] = (A[i0] + B[i1])
-            }
-          }
-        }
-      }
-    }
-  }
-}
-)ROC";
-  //  EXPECT_EQ(utils::Trim(target_str), utils::Trim(expr_str));
+  std::string expr_str = ss.str();
   std::cout << expr_str << std::endl;
 }
 
@@ -146,47 +119,7 @@ TEST(MulitLevelTile, MatrixMultiply) {
   std::stringstream ss;
   ss << exprs[0];
 
-  std::string expr_str   = ss.str();
-  std::string target_str = R"ROC(
-{
-  ScheduleBlock(root)
-  {
-    for (i_0, 0, 2)
-    {
-      for (i_1, 0, 16)
-      {
-        for (j_0, 0, 16)
-        {
-          for (j_1, 0, 2)
-          {
-            ScheduleBlock(C__reduce_init)
-            {
-              i0, i1 = axis.bind(((16 * i_0) + i_1), ((2 * j_0) + j_1))
-              write_buffers(_C[])
-              C__reduce_init[i0, i1] = 0
-            }
-            for (reduce_axis_k_0, 0, 16)
-            {
-              for (reduce_axis_k_1, 0, 2)
-              {
-                ScheduleBlock(C)
-                {
-                  i0, i1, i2 = axis.bind(((16 * i_0) + i_1), ((2 * j_0) + j_1), ((2 * reduce_axis_k_0) + reduce_axis_k_1))
-                  read_buffers(_A[], _B[], _C[])
-                  write_buffers(_C[])
-                  C[i0, i1] = (C[i0, i1] + (A[i0, i2] * B[i2, i1]))
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-}
-)ROC";
-
-  // EXPECT_EQ(utils::Trim(target_str), utils::Trim(expr_str));
+  std::string expr_str = ss.str();
   std::cout << expr_str << std::endl;
 }
 
