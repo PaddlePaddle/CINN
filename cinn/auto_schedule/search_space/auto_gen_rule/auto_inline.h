@@ -33,6 +33,8 @@ class AutoInline : public AutoGenRule {
   ir::ModuleExpr Apply(int index) override;
 
   std::string GetRuleName() const override;
+
+  AutoGenRule* NewPointer() const override;
 };
 
 }  // namespace auto_schedule

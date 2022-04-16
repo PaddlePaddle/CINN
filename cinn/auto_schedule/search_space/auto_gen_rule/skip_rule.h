@@ -33,6 +33,8 @@ class SkipRule : public AutoGenRule {
 
   std::string GetRuleName() const override;
 
+  AutoGenRule* NewPointer() const override;
+
  private:
   ir::ModuleExpr mod_expr_;
 };

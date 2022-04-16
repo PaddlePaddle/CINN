@@ -28,5 +28,7 @@ ir::ModuleExpr AutoInline::Apply(int index) { return ir::ModuleExpr(); }
 
 std::string AutoInline::GetRuleName() const { return "AutoInline"; }
 
+AutoGenRule* AutoInline::NewPointer() const { return new AutoInline(); }
+
 }  // namespace auto_schedule
 }  // namespace cinn

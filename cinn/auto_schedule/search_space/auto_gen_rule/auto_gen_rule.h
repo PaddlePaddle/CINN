@@ -64,6 +64,10 @@ class AutoGenRule {
   // Returns the name of the rule, used for debug.
   virtual std::string GetRuleName() const = 0;
 
+  // Returns a pointer pointing to the rule. This class doesn't own the
+  // pointer, caller should manage the life time of the pointer.
+  virtual AutoGenRule* NewPointer() const = 0;
+
  protected:
   // number of ScheduleBlock that can apply this auto gen rule
   int num_applicable_ = -1;

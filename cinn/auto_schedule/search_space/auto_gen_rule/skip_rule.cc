@@ -32,5 +32,7 @@ ir::ModuleExpr SkipRule::Apply(int index) { return mod_expr_; }
 
 std::string SkipRule::GetRuleName() const { return "SikpRule"; }
 
+AutoGenRule* SkipRule::NewPointer() const { return new SkipRule(); }
+
 }  // namespace auto_schedule
 }  // namespace cinn

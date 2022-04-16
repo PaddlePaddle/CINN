@@ -22,6 +22,7 @@
 #include "cinn/frontend/net_builder.h"
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/graph_compiler.h"
+#include "cinn/ir/ir_base.h"
 
 namespace cinn {
 namespace auto_schedule {
@@ -34,8 +35,12 @@ using ::cinn::hlir::framework::Scope;
 
 class TestAutoTuner : public ::testing::Test {
  public:
-  // TODO(CtfGo): add test on GPU once the bug of thread.idx not bound is fixed
+#ifdef CINN_WITH_CUDA
+  // Target target = common::DefaultNVGPUTarget();
   Target target = common::DefaultHostTarget();
+#else
+  Target target = common::DefaultHostTarget();
+#endif
 
   std::shared_ptr<Graph> graph;
   std::shared_ptr<Scope> compiled_scope;
@@ -76,8 +81,13 @@ class TestAutoTuner : public ::testing::Test {
     compile_options.Apply(result);
     ASSERT_EQ(2, compile_options.groups.size());
     ASSERT_EQ(2, compile_options.lowered_funcs.size());
-
+    std::cout << "Print before building" << std::endl;
+    compile_options.lowered_funcs[0][0]->device_api = ir::DeviceAPI::GPU;
+    compile_options.lowered_funcs[1][0]->device_api = ir::DeviceAPI::GPU;
+    std::cout << compile_options.lowered_funcs[0][0] << std::endl;
+    std::cout << compile_options.lowered_funcs[1][0] << std::endl;
     auto runtime_program = graph_compiler->Build(compile_options).runtime_program;
+    std::cout << "Checking runtime_program" << std::endl;
     ASSERT_EQ(2, runtime_program->size());
     runtime_program->Execute();
   }
