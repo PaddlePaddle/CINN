@@ -27,7 +27,30 @@ void FillConstantOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperCont
   // TODO(jiangcheng): value support different datatype, not just float
   auto value = utils::GetAttrOrDefault<float>(op_desc, "value");
 
-  VLOG(4) << "fill constant (" << value << ") with shape (" << cinn::utils::Join(shape, ",") << ").";
+  VLOG(4) << "FillConstantOp: fill constant (" << value << ") with shape (" << cinn::utils::Join(shape, ",") << ").";
+
+  const auto& cinn_name = cinn::utils::TransValidVarName(y_name);
+  CheckVarNameValid(cinn_name);
+
+  auto out = ctx.Builder()->FillConstant<float>(shape, value, cinn_name);
+
+  ctx.AddVar(y_name, out);
+  ctx.AddVarModelToProgram(y_name, out->id);
+}
+
+void FillAnyLikeOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+  CHECK_EQ(op_desc.Input("X").size(), 1UL);
+  auto x_name = op_desc.Input("X").front();
+  auto x      = ctx.GetVar(x_name);
+
+  CHECK_EQ(op_desc.Output("Out").size(), 1UL);
+  auto y_name = op_desc.Output("Out").front();
+
+  auto shape = x->shape;
+  // TODO(wzzju): value support different datatype, not just float
+  auto value = utils::GetAttrOrDefault<float>(op_desc, "value");
+
+  VLOG(4) << "FillAnyLikeOp: fill constant (" << value << ") with shape (" << cinn::utils::Join(shape, ",") << ").";
 
   const auto& cinn_name = cinn::utils::TransValidVarName(y_name);
   CheckVarNameValid(cinn_name);
@@ -65,6 +88,7 @@ void BroadcastOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
 
 CINN_REGISTER_HELPER(science_broadcast) {
   CINN_REGISTER_OP_MAPPER(fill_constant_p, cinn::frontend::science_mappers::FillConstantOpMapper)
+  CINN_REGISTER_OP_MAPPER(fill_any_like, cinn::frontend::science_mappers::FillAnyLikeOpMapper)
   CINN_REGISTER_OP_MAPPER(broadcast_p, cinn::frontend::science_mappers::BroadcastOpMapper)
 
   return true;
