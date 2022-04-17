@@ -655,8 +655,21 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
 
       OpLowerer op_lowerer(dtype_dict, shape_dict, target_);
       for (auto& group : graph_->fusion_groups) {
+        groups.push_back(std::move(group->CollectNodes()));
+        // set node as output node from fetch_var_ids.
+        for (auto node : groups.back()) {
+          // get all node datas.
+          for (auto& link : node->outlinks()) {
+            auto node_data = link->sink()->safe_as<NodeData>();
+            CHECK(node_data);
+            // if node data is in fetch_var_ids.
+            if (fetch_var_ids_.count(node_data->id())) {
+              group->output_nodes.insert(node);
+              break;
+            }
+          }
+        }
         local_lowered_funcs.emplace_back(std::move(op_lowerer.Lower(group)));
-        groups.emplace_back(std::move(group->CollectNodes()));
       }
     } else {
       for (int i = 0; i < groups.size(); i++) {
