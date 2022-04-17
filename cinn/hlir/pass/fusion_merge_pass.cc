@@ -77,7 +77,15 @@ class FusionMergePassHelper : public FusionHelperBase {
     // fuse input consumers
     updated |= FuseInputToConsumers();
 
+    if (updated) {
+      UpdateFusionGroup();
+    }
+    return updated;
+  }
+
+  void UpdateFusionGroup() {
     GroupList fusion_groups;
+    std::unordered_set<GroupPtr, Hasher, Comparator> fusion_groups_set;
     // update fusion_groups_
     for (auto& group : fusion_groups_) {
       if (!group->belong_groups.size()) {
@@ -86,10 +94,34 @@ class FusionMergePassHelper : public FusionHelperBase {
           VLOG(11) << "  Fused Sub-Group -> " << sub_group->group_id;
         }
         fusion_groups.push_back(group);
+        fusion_groups_set.insert(group);
       }
     }
-    fusion_groups_ = fusion_groups;
-    return updated;
+    // keep group in order
+    fusion_groups_.clear();
+    while (!fusion_groups_set.empty()) {
+      for (int idx = 0; idx < fusion_groups.size(); ++idx) {
+        auto& group = fusion_groups[idx];
+        if (!group.get()) {
+          continue;
+        }
+
+        bool exist = false;
+        for (auto& producer : group->producer_groups) {
+          if (fusion_groups_set.count(producer)) {
+            exist = true;
+            break;
+          }
+        }
+
+        if (!exist) {
+          fusion_groups_.push_back(group);
+          fusion_groups_set.erase(group);
+          group.reset();
+          continue;
+        }
+      }
+    }
   }
 
   bool DoHorizontalFusion(std::unordered_set<GroupPtr, Hasher, Comparator>& consumers) {
