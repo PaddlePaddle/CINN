@@ -155,6 +155,28 @@ TEST(FusionMergePass, ElementWise_Fusion_4) {
   CHECK_EQ(graph->fusion_groups.size(), 1);
 }
 
+TEST(FusionMergePass, ElementWise_Fusion_5) {
+  int h = 32, w = 32;
+  NetBuilder net_builder("ElementWise_Fusion_5");
+  // create model
+  {
+    auto A = net_builder.CreateInput(Float(32), {h, w}, "A");
+    auto B = net_builder.CreateInput(Float(32), {h, w}, "B");
+    auto C = net_builder.ElementwiseAdd(A, B);
+    auto D = net_builder.ElementwiseAdd(A, B);
+  }
+
+  auto program = net_builder.Build();
+  auto target  = GetTarget();
+  RunDecomposer(&program, target);
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+  CHECK_EQ(graph->fusion_groups.size(), 2);
+  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
+  CHECK_EQ(graph->fusion_groups.size(), 1);
+}
+
 TEST(FusionMergePass, Broadcast_Test_0) {
   int h = 32, w = 32;
   NetBuilder net_builder("Broadcast_Test_0");
@@ -433,6 +455,30 @@ TEST(FusionMergePass, Reduce_Test_4) {
   CHECK_EQ(graph->fusion_groups.size(), 5);
   hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
   CHECK_EQ(graph->fusion_groups.size(), 2);
+}
+
+TEST(FusionMergePass, Reduce_Test_5) {
+  int h = 128, w = 128;
+  NetBuilder net_builder("Reduce_Test_5");
+  // create model
+  {
+    auto A = net_builder.CreateInput(Float(32), {h, w}, "A");
+    auto B = net_builder.CreateInput(Float(32), {h, w}, "B");
+    auto C = net_builder.ElementwiseAdd(A, B);
+    auto D = net_builder.Reduce(A, ReduceKind::kSum, {1});
+    auto E = net_builder.Reduce(B, ReduceKind::kSum, {1});
+    auto F = net_builder.Reduce(C, ReduceKind::kSum, {1});
+  }
+
+  auto program = net_builder.Build();
+  auto target  = GetTarget();
+  RunDecomposer(&program, target);
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+  CHECK_EQ(graph->fusion_groups.size(), 3);
+  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
+  CHECK_EQ(graph->fusion_groups.size(), 1);
 }
 
 }  // namespace frontend

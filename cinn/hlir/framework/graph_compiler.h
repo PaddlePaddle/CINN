@@ -144,7 +144,8 @@ class GraphCompiler final {
   // TODO(haozech) add implementation
   std::vector<std::string> OpGetOutputNames(const Node* node) const;
 
-  std::vector<std::unique_ptr<Instruction>> BuildInstructions(const std::vector<std::vector<Node*>>& groups);
+  std::vector<std::unique_ptr<Instruction>> BuildInstructions(
+      const std::vector<std::vector<Node*>>& groups, const std::vector<std::shared_ptr<Graph::Group>>& fusion_groups);
 
   // some variables are eliminated by optimized passes(such as OpFusion),
   // we can filter out them according to arguments of the built instructions,

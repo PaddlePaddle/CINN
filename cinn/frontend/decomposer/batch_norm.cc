@@ -58,39 +58,19 @@ struct BatchNormHelper {
   }
 
   std::vector<Variable> MeanAndVariance(Variable x) {
-#ifdef CINN_WITH_CUDA
-    // To optimize the bn forward by merge the reduce computation of mean and variance,
-    // build a fusion op 'BnMeanVariance' by hand as the fusion pass is not support now.
-    // When the fusion pass is rebuild, this op is to be removed.
-    auto vars               = builder->BnMeanVariance(x);
-    auto element_count_1d_0 = GetTensorFromScalar<float>(element_count, "element_count", param_shape);
-    auto element_count_1d_1 = GetTensorFromScalar<float>(element_count, "element_count", param_shape);
-    auto mean               = builder->Div(vars[0], element_count_1d_0);
-    auto mean_squre         = builder->Div(vars[1], element_count_1d_1);
-
-    auto variance = builder->Sub(mean_squre, builder->Mul(mean, builder->Identity(mean)));
-#else
-    // mean = reduce_sum(x) / nhw, shape = [c]
     auto mean = Mean(x);
     // variance = reduce_sum(x * x) / nhw - mean * mean, shape = [c], simplified by equation: E(x^2) - [E(x)]^2
-    auto variance    = Variance(x, mean);
-#endif
+    auto variance = Variance(x, mean);
     return {mean, variance};
   }
 
   std::vector<Variable> GradBiasAndScale(Variable x, Variable x_mean, Variable y_grad) {
-#ifdef CINN_WITH_CUDA
-    // Using fusion op "BnGradBiasScale" as the same reason with "BnMeanVariance".
-    // It also will be removed.
-    return builder->BnGradBiasScale(x, x_mean, y_grad);
-#else
     auto mean_4d     = builder->BroadcastTo(x_mean, x->shape, {channel_dim});
     auto x_mean_diff = builder->Sub(x, mean_4d);
     // bias_grad = reduce_sum(y_grad), shape = [c]
     auto bias_grad                     = Reduce(y_grad);
     auto sum_of_y_grad_mul_x_mean_diff = Reduce(builder->Mul(y_grad, x_mean_diff));
     return {bias_grad, sum_of_y_grad_mul_x_mean_diff};
-#endif
   }
 
   // mean = reduce_sum(x) / nhw
@@ -135,13 +115,7 @@ struct BatchNormHelper {
     return new_moving_value;
   }
 
-  Variable Reduce(Variable x) {
-    auto reduce_sum_0 =
-        builder->Reduce(x, ReduceKind::kSum, std::vector<int>(reduce_dim.begin(), reduce_dim.begin() + 2));
-    auto reduce_sum_1 =
-        builder->Reduce(reduce_sum_0, ReduceKind::kSum, std::vector<int>(1, reduce_sum_0->shape.size() - 1));
-    return reduce_sum_1;
-  }
+  Variable Reduce(Variable x) { return builder->Reduce(x, ReduceKind::kSum, reduce_dim); }
 
   CinnBuilder* builder{nullptr};
   std::vector<int> x_shape;

@@ -118,11 +118,6 @@ class OpFusionPassHelper : public FusionHelperBase {
         continue;
       }
 
-      // As others + kBroacast is left to 'Fusion Merge Pass'.
-      if (GetOpKind(consumer) == framework::kBroadcast) {
-        continue;
-      }
-
       // fusion op for consumer
       auto consumer_fusion = fusion_groups_[consumer];
       // check all linkin node
@@ -315,13 +310,23 @@ class OpFusionPassHelper : public FusionHelperBase {
     {
       FusionRelation relation;
       // producer -> consumer
-      relation.op_kind = {framework::kElemWise, framework::kCommReduce, framework::kInjective};
+      relation.op_kind = {framework::kElemWise, framework::kBroadcast, framework::kCommReduce, framework::kInjective};
       // producer -> fusion
       relation.fusion_op_kind = {
           // horizontal or vertical relation(Elementwise + *Elementwise*). As has same output shape, can always fuse.
           {framework::kElemWise, always_fuse},
           // must be horizontal, as Elementwise + Broadcast is left to fusion merge pass.
-          {framework::kBroadcast, is_same_shape},
+          {framework::kBroadcast,
+           [this, is_same_shape](const Node* producer, const Node* consumer) -> bool {
+             if (is_same_shape(producer, consumer)) {
+               return true;
+             }
+             if (producer->op()->name == "const_scalar" && consumer->op()->name == "broadcast_to") {
+               return true;
+             }
+
+             return false;
+           }},
           // horizontal or vertical relation, check with same output shape with horizontal relation or with last
           // successive dimension less than 1024 for gpu.
           {framework::kCommReduce, is_same_shape_or_vertical_reduce_relation},
@@ -520,20 +525,13 @@ void OpFusionPassInternal(Graph* graph) {
   graph->fusion_groups  = op_fusion_helper();
 
   for (auto& group : graph->fusion_groups) {
-    VLOG(11) << "Group Start.";
-    for (auto& node : group->input_nodes) {
-      VLOG(11) << "input node -> " << node.first->id();
-    }
-    for (auto node : group->nodes) {
-      VLOG(11) << "node -> " << node->id();
-    }
+    VLOG(11) << "Group Id : " << group->group_id;
     for (auto& producer : group->producer_groups) {
-      VLOG(11) << "producer group -> " << producer->group_id;
+      VLOG(11) << "  producer group -> " << producer->group_id;
     }
     for (auto& consumer : group->consumer_groups) {
-      VLOG(11) << "consumer group -> " << consumer->group_id;
+      VLOG(11) << "  consumer group -> " << consumer->group_id;
     }
-    VLOG(11) << "Group End.";
   }
 }
 

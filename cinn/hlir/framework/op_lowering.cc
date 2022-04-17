@@ -36,6 +36,17 @@ NodeData* GetNodeData(Node* node) {
   return node_data;
 }
 
+std::vector<NodeData*> GetAllNodeData(Node* node) {
+  std::vector<NodeData*> node_datas;
+  for (auto& link : node->outlinks()) {
+    auto node_data = link->sink()->safe_as<NodeData>();
+    CHECK(node_data);
+    node_datas.push_back(node_data);
+  }
+
+  return node_datas;
+}
+
 std::vector<Node*> GetConsumer(Node* node) {
   std::vector<Node*> consumers;
   auto node_data = GetNodeData(node);
@@ -52,7 +63,8 @@ OpLowerer::OpLowerer(const absl::flat_hash_map<std::string, Type>& type_dict,
                      const Target& target)
     : type_dict_(type_dict), shape_dict_(shape_dict), target_(target) {}
 
-std::vector<ir::LoweredFunc> OpLowerer::Lower(const GroupPtr& group) {
+std::vector<ir::LoweredFunc> OpLowerer::Lower(GroupPtr& group) {
+  VLOG(11) << "Lowering Group : " << group->group_id << " , Op Pattern : " << group->op_pattern_kind;
   switch (group->op_pattern_kind) {
     case framework::kElemWise:
     case framework::kBroadcast:
@@ -70,9 +82,7 @@ std::vector<ir::LoweredFunc> OpLowerer::Lower(const GroupPtr& group) {
 }
 
 // fusion op lowering
-std::vector<ir::LoweredFunc> OpLowerer::LowerOp(ComputeFunction compute,
-                                                ScheduleFunction schedule,
-                                                const GroupPtr& group) {
+std::vector<ir::LoweredFunc> OpLowerer::LowerOp(ComputeFunction compute, ScheduleFunction schedule, GroupPtr& group) {
   poly::StageMap stages;
   std::vector<ir::Tensor> func_args;
   std::unordered_map<std::string, ir::Tensor> tensor_map;
@@ -95,9 +105,31 @@ std::vector<ir::LoweredFunc> OpLowerer::LowerOp(ComputeFunction compute,
     }
   }
 
+  for (auto& args : func_args) {
+    // input node data name.
+    group->input_names.push_back(args->name);
+  }
+
   for (auto& node : group->output_nodes) {
-    auto tensor = tensor_map[GetNodeData(node)->id()];
-    func_args.push_back(tensor);
+    // output node data name.
+    for (auto node_data : GetAllNodeData(node)) {
+      group->output_names.push_back(node_data->id());
+    }
+    // collect all output tensor.
+    std::string post   = "";
+    std::string prefix = GetNodeData(node)->id();
+    for (int idx = 0;; ++idx) {
+      if (!tensor_map.count(prefix + post)) {
+        break;
+      }
+      auto tensor = tensor_map[prefix + post];
+      // if tensor is with buffer, it's not a output.
+      if (!tensor->buffer.defined() || this->target_ != common::DefaultNVGPUTarget()) {
+        func_args.push_back(tensor);
+      }
+      // update post
+      post = "_" + std::to_string(idx);
+    }
   }
 
   return lang::LowerVec(func_name_prefix + group->group_id, stages, func_args, {}, {}, nullptr, this->target_);
@@ -108,8 +140,8 @@ void OpLowerer::ElementwiseCompute(poly::StageMap& stages,
                                    std::unordered_map<std::string, ir::Tensor>& tensor_map,
                                    const GroupPtr& group,
                                    const GroupPtr& sub_group) {
+  VLOG(11) << "ElementwiseCompute Group : " << sub_group->group_id;
   auto& strategy = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
-
   for (auto& node : sub_group->nodes) {
     auto node_data = GetNodeData(node);
 
@@ -166,6 +198,7 @@ void OpLowerer::ElementwiseSchedule(poly::StageMap& stages,
                                     std::unordered_map<std::string, ir::Tensor>& tensor_map,
                                     const GroupPtr& group,
                                     const GroupPtr& sub_group) {
+  VLOG(11) << "ElementwiseSchedule Group : " << sub_group->group_id;
   for (auto& node : sub_group->nodes) {
     auto node_data = GetNodeData(node);
     // if group master node
@@ -201,6 +234,7 @@ void OpLowerer::ReduceCompute(poly::StageMap& stages,
                               std::unordered_map<std::string, ir::Tensor>& tensor_map,
                               const GroupPtr& group,
                               const GroupPtr& sub_group) {
+  VLOG(11) << "ReduceCompute Group : " << sub_group->group_id;
   auto& cinn_strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
 
@@ -293,6 +327,7 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
                                std::unordered_map<std::string, ir::Tensor>& tensor_map,
                                const GroupPtr& group,
                                const GroupPtr& sub_group) {
+  VLOG(11) << "ReduceSchedule Group : " << sub_group->group_id;
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
   // assign reduce input tensor schedule, do loop transform.
   auto assign_reduce = [this, &stages](ir::Tensor input, const std::vector<int>& axes) {
@@ -535,6 +570,7 @@ void OpLowerer::OutEWiseFusableCompute(poly::StageMap& stages,
                                        std::unordered_map<std::string, ir::Tensor>& tensor_map,
                                        const GroupPtr& group,
                                        const GroupPtr& sub_group) {
+  VLOG(11) << "OutEWiseFusableCompute Group : " << sub_group->group_id;
   auto& cinn_strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
 
@@ -610,6 +646,7 @@ void OpLowerer::OutEWiseFusableSchedule(poly::StageMap& stages,
                                         std::unordered_map<std::string, ir::Tensor>& tensor_map,
                                         const GroupPtr& group,
                                         const GroupPtr& sub_group) {
+  VLOG(11) << "OutEWiseFusableSchedule Group : " << sub_group->group_id;
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
   Node* master_node     = nullptr;
   for (auto node : group->master_nodes) {
@@ -670,7 +707,8 @@ void OpLowerer::OutEWiseFusableSchedule(poly::StageMap& stages,
   }
 }
 
-std::vector<ir::LoweredFunc> OpLowerer::LowerOpaqueOp(const GroupPtr& group) {
+std::vector<ir::LoweredFunc> OpLowerer::LowerOpaqueOp(GroupPtr& group) {
+  VLOG(11) << "LowerOpaqueOp Group : " << group->group_id;
   // get input tensor and output tensor
   std::vector<ir::Tensor> func_args;
   CHECK_EQ(group->nodes.size(), 1) << "fusion op exist more than 1 op.";
@@ -692,14 +730,20 @@ std::vector<ir::LoweredFunc> OpLowerer::LowerOpaqueOp(const GroupPtr& group) {
     cinn_inputs.push_back(common::CINNValue(ir::Expr(tensor)));
     // recored func input args
     func_args.push_back(tensor);
+    // collect input node data name.
+    group->input_names.push_back(tensor->name);
   }
 
   std::vector<Type> out_types;
   std::vector<std::vector<int>> out_shapes;
 
-  auto node_data = GetNodeData(node);
-  out_types.push_back(this->type_dict_.at(node_data->id()));
-  out_shapes.push_back(this->shape_dict_.at(node_data->id()));
+  auto node_datas = GetAllNodeData(node);
+  for (auto node_data : node_datas) {
+    // collect output node data name.
+    group->output_names.push_back(node_data->id());
+    out_types.push_back(this->type_dict_.at(node_data->id()));
+    out_shapes.push_back(this->shape_dict_.at(node_data->id()));
+  }
 
   auto impl =
       OpStrategy::SelectImpl(cinn_strategy[node->op()](node->attrs, tensor_inputs, out_types, out_shapes, target_));
@@ -716,9 +760,12 @@ std::vector<ir::LoweredFunc> OpLowerer::LowerOpaqueOp(const GroupPtr& group) {
   }
 
   for (int idx = 0; idx < C.size() - 1; ++idx) {
-    Expr out = C[0];
+    Expr out    = C[idx];
+    auto tensor = out.as_tensor_ref();
     // collect output tensor
-    func_args.push_back(out.as_tensor_ref());
+    if (!tensor->buffer.defined() || this->target_ != common::DefaultNVGPUTarget()) {
+      func_args.push_back(tensor);
+    }
   }
 
   return lang::LowerVec(func_name_prefix + node->id(), stages, func_args, {}, {}, nullptr, this->target_);

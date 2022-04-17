@@ -169,10 +169,11 @@ TEST(Decomposer, BatchNormTrain) {
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusion");
+  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
+
   auto scope = BuildScope(target, graph);
   hlir::framework::GraphCompiler gc(target, scope, graph);
-
   auto run_program = gc.Build();
 
   // set input
@@ -349,9 +350,13 @@ TEST(Decomposer, BatchNormGrad) {
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  LOG(INFO) << graph->Visualize();
+
+  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
+
   auto scope = BuildScope(target, graph);
   hlir::framework::GraphCompiler gc(target, scope, graph);
-  hlir::framework::ApplyPass(graph.get(), "OpFusion");
   auto run_program = gc.Build();
 
   // set input
