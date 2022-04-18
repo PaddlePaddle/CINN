@@ -350,8 +350,6 @@ TEST(Decomposer, BatchNormGrad) {
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  LOG(INFO) << graph->Visualize();
-
   hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
   hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
 

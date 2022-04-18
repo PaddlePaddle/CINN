@@ -122,7 +122,6 @@ TEST(Operator, Operator_ElementWise_Add_Test1) {
   }
   auto func = Lower("add1", rets.back(), inputs);
   LOG(INFO) << "Test Strategy Codegen:\n" << func;
-  std::cout << func;
 
   ASSERT_EQ(impl->name, "strategy.elementwise_add.x86");
   ASSERT_EQ(add->description, "elementwise_add function");
@@ -162,7 +161,86 @@ TEST(Operator, Operator_BroadcastTo) {
 
   auto func = Lower("broadcast_to", rets.back(), inputs);
   LOG(INFO) << "Test Strategy Codegen:\n" << func;
-  std::cout << func;
+}
+
+TEST(Operator, Operator_BroadcastTo_0) {
+  auto const_scalar    = Operator::Get("const_scalar");
+  auto broadcast_to    = Operator::Get("broadcast_to");
+  auto reduce_sum      = Operator::Get("reduce_sum");
+  auto elementwise_add = Operator::Get("elementwise_mul");
+
+  auto strategy = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
+
+  Expr N(16);
+  Placeholder<float> A("A", {N, N, N, N});
+
+  NodeAttr attrs;
+  attrs.attr_store["value"] = 0.5f;
+
+  std::vector<int> out_shape    = {16};
+  attrs.attr_store["out_shape"] = out_shape;
+
+  std::vector<int> broadcast_axes    = {0};
+  attrs.attr_store["broadcast_axes"] = broadcast_axes;
+
+  std::vector<int> dim    = {0, 2, 3};
+  attrs.attr_store["dim"] = dim;
+
+  std::vector<Type> type{Float(32)};
+  common::Target target = common::DefaultHostTarget();
+
+  auto impl_0 =
+      OpStrategy::SelectImpl(strategy[const_scalar](attrs, std::vector<ir::Tensor>{}, type, {out_shape}, target));
+  std::vector<common::CINNValue> cinn_inputs;
+  common::CINNValuePack rets_0 = impl_0->fcompute(common::CINNValuePack{cinn_inputs});
+  ir::Expr out_0               = rets_0[0];
+  auto tensor_0                = out_0.as_tensor_ref();
+  poly::StageMap stages_0      = rets_0.back();
+
+  auto impl_1  = OpStrategy::SelectImpl(strategy[broadcast_to](attrs, {tensor_0}, type, {out_shape}, target));
+  auto input_1 = common::CINNValuePack{{{common::CINNValue(tensor_0)}}};
+  common::CINNValuePack rets_1 = impl_1->fcompute(input_1);
+
+  ir::Expr out_1          = rets_1[0];
+  auto tensor_1           = out_1.as_tensor_ref();
+  poly::StageMap stages_1 = rets_1.back();
+
+  auto impl_2  = OpStrategy::SelectImpl(strategy[reduce_sum](attrs, {A.tensor()}, type, {out_shape}, target));
+  auto input_2 = common::CINNValuePack{{{common::CINNValue(A.tensor())}}};
+  common::CINNValuePack rets_2 = impl_2->fcompute(input_2);
+
+  ir::Expr out_2          = rets_2[0];
+  auto tensor_2           = out_2.as_tensor_ref();
+  poly::StageMap stages_2 = rets_2.back();
+
+  auto input_4                 = common::CINNValuePack{{{common::CINNValue(A.tensor())}}};
+  common::CINNValuePack rets_4 = impl_2->fcompute(input_4);
+  ir::Expr out_4               = rets_4[0];
+  auto tensor_4                = out_4.as_tensor_ref();
+  poly::StageMap stages_4      = rets_4.back();
+
+  auto impl_3 =
+      OpStrategy::SelectImpl(strategy[elementwise_add](attrs, {tensor_1, tensor_2}, type, {out_shape}, target));
+  auto input_3                 = common::CINNValuePack{{{common::CINNValue(tensor_1), common::CINNValue(tensor_2)}}};
+  common::CINNValuePack rets_3 = impl_3->fcompute(input_3);
+
+  ir::Expr out_3          = rets_3[0];
+  auto tensor_3           = out_3.as_tensor_ref();
+  poly::StageMap stages_3 = rets_3.back();
+
+  stages_3->InsertLazily(tensor_0, stages_0[tensor_0]);
+  stages_3->InsertLazily(tensor_1, stages_1[tensor_1]);
+  stages_3->InsertLazily(tensor_2, stages_2[tensor_2]);
+  stages_3->InsertLazily(tensor_4, stages_4[tensor_4]);
+  stages_3[tensor_0]->ComputeInline();
+  stages_3[tensor_1]->ComputeInline();
+  stages_3[tensor_2]->SetBuffer("local");
+  stages_3[tensor_4]->SimpleComputeAt(stages_3[tensor_2], 3);
+  stages_3[tensor_2]->SimpleComputeAt(stages_3[tensor_3], 0);
+
+  std::vector<ir::Tensor> inputs = {A.tensor(), tensor_3, tensor_4};
+  auto func                      = Lower("broadcast_to", stages_3, inputs);
+  LOG(INFO) << "Test Strategy Codegen:\n" << func;
 }
 
 }  // namespace framework
