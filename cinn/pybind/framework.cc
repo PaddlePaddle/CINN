@@ -95,18 +95,18 @@ void BindFramework(pybind11::module *m) {
       .def(py::init<>())  //
       .def("get_tensor",
            [](Scope &self, const std::string &name, const Target &target) {
-             py::dtype dt = py::dtype::of<float>();
-             auto t       = self.GetTensor(name);
+             auto t = self.GetTensor(name);
+             py::dtype dt(common::type2str(t->type()));
              py::array::ShapeContainer shape(t->shape().data().begin(), t->shape().data().end());
              py::array array(std::move(dt), std::move(shape));
              auto *mutable_data = array.mutable_data();
              if (target.arch == Target::Arch::X86) {
-               std::memcpy(mutable_data, t->data<float>(), t->shape().numel() * sizeof(float));
+               std::memcpy(mutable_data, t->data<void>(), (t->shape().numel() * t->type().bits() + 7) / 8);
              } else if (target.arch == Target::Arch::NVGPU) {
 #ifdef CINN_WITH_CUDA
                CUDA_CALL(cudaMemcpy(mutable_data,
-                                    reinterpret_cast<void *>(t->mutable_data<float>(target)),
-                                    t->shape().numel() * sizeof(float),
+                                    reinterpret_cast<void *>(t->mutable_data(target, t->type())),
+                                    (t->shape().numel() * t->type().bits() + 7) / 8,
                                     cudaMemcpyDeviceToHost));
 #else
                LOG(FATAL) <<"To use CUDA backends, you need to set WITH_CUDA ON!";
