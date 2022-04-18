@@ -41,6 +41,23 @@
 namespace cinn {
 namespace ir {
 
+Tensor GetTensor(const Expr& block) {
+  CHECK(block.As<ir::ScheduleBlockRealize>());
+  auto find_tensor = ir::CollectIRNodesWithoutTensor(block, [&](const Expr* x) { return x->As<ir::Store>(); });
+  CHECK(!find_tensor.empty()) << "Didn't find Store in block!";
+  CHECK_EQ(find_tensor.size(), 1U) << "One block should only have one Store node!(except for root block)";
+  CHECK((*find_tensor.begin()).As<ir::Store>()->tensor.as_tensor());
+  Tensor tensor = (*find_tensor.begin()).As<ir::Store>()->tensor.as_tensor_ref();
+  return tensor;
+}
+
+int GetLoopExtent(const Expr& loop) {
+  CHECK(loop.As<ir::For>());
+  CHECK(common::is_zero(loop.As<ir::For>()->min));
+  CHECK(loop.As<ir::For>()->extent.is_constant());
+  return (int)loop.As<ir::For>()->extent.get_constant();
+}
+
 // Self-defined operator to support std::set<Expr>
 struct CompExpr {
   bool operator()(const Expr& left, const Expr& right) const {
@@ -1597,6 +1614,36 @@ std::pair<Expr, Expr> RangeUnion(const std::pair<Expr, Expr>& range1, const std:
   return std::make_pair(new_min, new_extent);
 }
 
+void IRSchedule::MergeExprs() {
+  auto exprs = this->GetModule().GetExprs();
+  if (exprs.size() == 1U) return;
+  CHECK(exprs[0].As<ir::Block>());
+  CHECK_EQ(exprs[0].As<ir::Block>()->stmts.size(), 1U);
+  CHECK(exprs[0].As<ir::Block>()->stmts[0].As<ir::ScheduleBlockRealize>());
+  CHECK(exprs[0].As<ir::Block>()->stmts[0].As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>());
+  std::vector<Expr> merged_block;
+  merged_block.push_back(
+      exprs[0].As<ir::Block>()->stmts[0].As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->body);
+  LOG(INFO) << "Before merging, exprs[0] is : " << exprs[0];
+  for (int i = 1; i < exprs.size(); i++) {
+    auto root_block = ir::CollectIRNodes(exprs[i], [&](const Expr* x) {
+      return x->As<ir::ScheduleBlockRealize>() && x->As<ir::ScheduleBlockRealize>()->iter_values.empty();
+    });
+    CHECK_EQ(root_block.size(), 1U);
+    for (auto& it_block : root_block) {
+      auto& block_body = it_block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->body;
+      merged_block.push_back(block_body);
+    }
+  }
+  for (auto& i : merged_block) LOG(INFO) << "in merged_block, it has " << i;
+  auto merged_expr = ir::Block::Make(merged_block);
+  exprs[0].As<ir::Block>()->stmts[0].As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->body =
+      merged_expr;
+  LOG(INFO) << "After merging, exprs[0] is : " << exprs[0];
+  exprs.erase(exprs.begin() + 1, exprs.end());
+  this->SetExprs(exprs);
+}
+
 /*!
  * \brief Calculate the required buffer region given a block and its consumers.
  * For example, if block is :
@@ -1916,9 +1963,11 @@ std::vector<Expr> ScheduleHelper::GetAllBlocks() const {
   auto exprs = module_expr_.GetExprs();
   for (auto& it_expr : exprs) {
     auto block_nodes = ir::CollectIRNodes(it_expr, [&](const Expr* x) {
+      if (x->As<ir::ScheduleBlockRealize>() && !x->As<ir::ScheduleBlockRealize>()->iter_values.empty())
+        result.push_back(*x);
       return x->As<ir::ScheduleBlockRealize>() && !x->As<ir::ScheduleBlockRealize>()->iter_values.empty();
     });
-    for (auto& it_block : block_nodes) result.push_back(it_block);
+    // for (auto& it_block : block_nodes) result.push_back(it_block);
   }
   CHECK(!result.empty());
   return result;

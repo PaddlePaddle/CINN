@@ -20,9 +20,14 @@
 
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_base.h"
+#include "cinn/ir/tensor.h"
 
 namespace cinn {
 namespace ir {
+
+Tensor GetTensor(const Expr& block);
+
+int GetLoopExtent(const Expr& loop);
 
 /**
  * A struct representing a module that contains Expr. This struct is only used in Schedule process.
@@ -41,6 +46,8 @@ class ModuleExpr {
   std::vector<Expr> GetExprs() { return exprs_; }
 
   std::vector<Expr> GetExprs() const { return exprs_; }
+
+  void SetExprs(const std::vector<Expr>& exprs) { exprs_ = exprs; }
 
  private:
   //! Exprs stored in ModuleExpr. Each one is an AST, representing a computation kernel.
@@ -89,6 +96,8 @@ class ScheduleHelper {
   //! Get the ModuleExpr stored in ScheduleHelper.
   ModuleExpr GetModule() const { return module_expr_; }
 
+  void SetExprs(const std::vector<Expr>& exprs) { module_expr_.SetExprs(exprs); }
+
  private:
   ModuleExpr module_expr_;
   bool debug_flag_{false};
@@ -102,6 +111,8 @@ class IRSchedule {
  public:
   IRSchedule() = default;
   explicit IRSchedule(const ModuleExpr& modexpr, bool debug_flag = false);
+
+  void SetExprs(const std::vector<Expr>& exprs) { helper_.SetExprs(exprs); }
 
   /**
    * \brief Get all the loops of specific Block stored in ModuleExpr.
@@ -291,6 +302,8 @@ class IRSchedule {
 
   //! Get the ModuleExpr stored in ScheduleHelper.
   ModuleExpr GetModule() const { return helper_.GetModule(); }
+
+  void MergeExprs();
 
  private:
   ScheduleHelper helper_;
