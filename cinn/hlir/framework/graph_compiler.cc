@@ -347,7 +347,12 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const Node* node) {
   VLOG(3) << "expr_pack.size() is : " << expr_pack.size();
   VLOG(3) << "The [" << func.size() << "] functions of node [" << node->attrs.node_name << "] are:\n";
   std::vector<ir::LoweredFunc> res;
-  for (int i = 0; i < expr_pack.size(); i++) res.push_back(func[i]);
+  for (int i = 0; i < expr_pack.size(); i++) {
+    auto temp_buffers = lang::GetTempBuffers(inputs, stages, func[i]->body);
+    func[i]->temp_bufs = temp_buffers;
+    func[0]->PrepareBufferCastExprs();
+    res.push_back(func[i]);
+  }
   for (auto& i : res) {
     VLOG(3) << i;
   }
