@@ -91,6 +91,8 @@ class OpFusionPassHelper : public FusionHelperBase {
       if (!groups_set.count(group.get())) {
         groups_set.insert(group.get());
         fusion_groups.push_back(group);
+        // reverse nodes order to producer->consumer.
+        std::reverse(group->nodes.begin(), group->nodes.end());
       }
     }
 

@@ -642,7 +642,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
     }
   }
   // use the input groups in options firstly if exists
-  const auto& groups = options.groups.empty() ? graph_->groups : options.groups;
+  auto groups = options.groups.empty() ? graph_->groups : options.groups;
 
   // if the input lowered_funcs is empty, we will use the defalut lowering process to generate
   std::vector<std::vector<ir::LoweredFunc>> local_lowered_funcs;
@@ -655,8 +655,8 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
 
       OpLowerer op_lowerer(dtype_dict, shape_dict, target_);
       for (auto& group : graph_->fusion_groups) {
-        auto lowered_func = op_lowerer.Lower(group);
-        this->ProcessFunction(lowered_func);
+        local_lowered_funcs.emplace_back(std::move(op_lowerer.Lower(group)));
+        groups.emplace_back(std::move(group->CollectNodes()));
       }
     } else {
       for (int i = 0; i < groups.size(); i++) {

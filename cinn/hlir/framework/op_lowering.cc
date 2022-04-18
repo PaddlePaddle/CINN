@@ -110,8 +110,7 @@ void OpLowerer::ElementwiseCompute(poly::StageMap& stages,
                                    const GroupPtr& sub_group) {
   auto& strategy = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
 
-  for (int idx = sub_group->nodes.size() - 1; idx >= 0; --idx) {
-    auto node      = sub_group->nodes[idx];
+  for (auto& node : sub_group->nodes) {
     auto node_data = GetNodeData(node);
 
     std::vector<ir::Tensor> tensor_inputs;
@@ -167,8 +166,7 @@ void OpLowerer::ElementwiseSchedule(poly::StageMap& stages,
                                     std::unordered_map<std::string, ir::Tensor>& tensor_map,
                                     const GroupPtr& group,
                                     const GroupPtr& sub_group) {
-  for (int idx = sub_group->nodes.size() - 1; idx >= 0; --idx) {
-    auto node      = sub_group->nodes[idx];
+  for (auto& node : sub_group->nodes) {
     auto node_data = GetNodeData(node);
     // if group master node
     if (group->master_nodes.count(node)) {
@@ -206,8 +204,8 @@ void OpLowerer::ReduceCompute(poly::StageMap& stages,
   auto& cinn_strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
 
-  for (int idx = sub_group->nodes.size() - 1; idx >= 0; --idx) {
-    auto node      = sub_group->nodes[idx];
+  Node* reducer = nullptr;
+  for (auto& node : sub_group->nodes) {
     auto node_data = GetNodeData(node);
 
     std::vector<ir::Tensor> tensor_inputs;
@@ -251,16 +249,23 @@ void OpLowerer::ReduceCompute(poly::StageMap& stages,
 
     // node is kCommReduce
     if (op_pattern_dict[node->op()] == framework::kCommReduce) {
+      reducer = node;
       // do schedule
       C = impl->fschedule(C);
     } else if (group->master_nodes.count(node)) {
       // node is master node, copy schedule from reduce node
-      for (auto rnode : group->master_nodes) {
-        if (op_pattern_dict[rnode->op()] == framework::kCommReduce) {
-          auto rnode_data = GetNodeData(rnode);
-          tmp_stages[out.as_tensor_ref()]->CopyTransform(stages[tensor_map[rnode_data->id()]]);
-          tmp_stages[out.as_tensor_ref()]->CopyLoopInfo(stages[tensor_map[rnode_data->id()]]);
-          break;
+      if (reducer) {
+        auto reducer_data = GetNodeData(reducer);
+        tmp_stages[out.as_tensor_ref()]->CopyTransform(stages[tensor_map[reducer_data->id()]]);
+        tmp_stages[out.as_tensor_ref()]->CopyLoopInfo(stages[tensor_map[reducer_data->id()]]);
+      } else {
+        for (auto rnode : group->master_nodes) {
+          if (op_pattern_dict[rnode->op()] == framework::kCommReduce) {
+            auto rnode_data = GetNodeData(rnode);
+            tmp_stages[out.as_tensor_ref()]->CopyTransform(stages[tensor_map[rnode_data->id()]]);
+            tmp_stages[out.as_tensor_ref()]->CopyLoopInfo(stages[tensor_map[rnode_data->id()]]);
+            break;
+          }
         }
       }
     }
@@ -334,9 +339,9 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
   // if not find master node, using last kCommReduce as master node.
   if (!master_node) {
     if (group->fused_sub_groups.empty()) {
-      master_node = group->nodes.front();
+      master_node = group->nodes.back();
     } else {
-      master_node = group->fused_sub_groups.back()->nodes.front();
+      master_node = group->fused_sub_groups.back()->nodes.back();
     }
     CHECK_EQ(op_pattern_dict[master_node->op()], framework::kCommReduce) << "Master Node Type Must Be Reduce!";
   }
@@ -351,24 +356,69 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
     }
     return nullptr;
   };
-  Node* master_reducer = nullptr;
-  for (int idx = group->fused_sub_groups.size() - 1; idx >= 0; --idx) {
+  Node* master_reducer = op_pattern_dict[master_node->op()] == framework::kCommReduce ? master_node : nullptr;
+  for (int idx = group->fused_sub_groups.size() - 1; idx >= 0 && !master_reducer; --idx) {
     master_reducer = GetReducerNode(group->fused_sub_groups[idx]);
   }
-  if (!master_reducer) {
-    master_reducer = GetReducerNode(group);
-  }
+  master_reducer = master_reducer ? master_reducer : GetReducerNode(group);
+
   auto master_reducer_data  = GetNodeData(master_reducer);
   auto master_reducer_stage = stages[tensor_map[master_reducer_data->id()]];
   auto master_reducer_axes  = absl::get<std::vector<int>>(master_reducer->attrs.attr_store.at("dim"));
   auto master_reducer_shape = this->shape_dict_.at(master_reducer->inlinks_in_order()[0]->source()->id());
 
-  for (int idx = sub_group->nodes.size() - 1; idx >= 0; --idx) {
-    auto node      = sub_group->nodes[idx];
+  for (auto& node : sub_group->nodes) {
     auto node_data = GetNodeData(node);
     auto stage     = stages[tensor_map[node_data->id()]];
     // if node is kCommReduce
     if (node == master_node) {
+      continue;
+    }
+    // for x86 schedule.
+    if (this->target_ == common::DefaultHostTarget()) {
+      if (op_pattern_dict[node->op()] == framework::kCommReduce) {
+        if (!group->output_nodes.count(node)) {
+          stage->SetBuffer("local");
+        }
+        if (node == master_reducer) {
+          stage->SimpleComputeAt(master_stage, master_stage->n_out_dims() - 1);
+        } else {
+          stage->SimpleComputeAt(master_reducer_stage, master_reducer_stage->n_out_dims() - 1);
+        }
+        continue;
+      }
+
+      if (group->output_nodes.count(node) || group->internal_nodes.count(node) ||
+          sub_group->internal_nodes.count(node)) {
+        if (!group->output_nodes.count(node)) {
+          stage->SetBuffer("local");
+        }
+        if (this->shape_dict_.at(node_data->id()) == this->shape_dict_.at(master_node_data->id())) {
+          stage->SimpleComputeAt(master_stage, master_stage->n_out_dims() - 1);
+        } else {
+          if (stage->n_out_dims() == master_reducer_stage->n_out_dims() - 1) {
+            stage->Split(0, stage->GetDimRange(0));
+          }
+          if (stage->n_out_dims() == master_reducer_stage->n_out_dims()) {
+            std::vector<int> order;
+            for (int idx = 0; idx < master_reducer_shape.size(); ++idx) {
+              if (std::find(master_reducer_axes.begin(), master_reducer_axes.end(), idx) == master_reducer_axes.end()) {
+                order.push_back(idx);
+              }
+            }
+            for (auto axis : master_reducer_axes) {
+              order.push_back(axis);
+            }
+            stage->Reorder(order);
+            stage->SimpleComputeAt(master_reducer_stage, master_reducer_stage->n_out_dims() - 1);
+          } else {
+            stage->ComputeInline();
+          }
+        }
+        continue;
+      }
+
+      stage->ComputeInline();
       continue;
     }
 
@@ -379,7 +429,7 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
         stage->SetBuffer("local");
       }
 
-      // last dimension is in reduce, use BlockReduceInternal to reduce
+      // last dimension is not in reduce.
       if (std::find(master_reducer_axes.begin(), master_reducer_axes.end(), master_reducer_shape.size() - 1) ==
           master_reducer_axes.end()) {
         // compute at last dimension
@@ -389,10 +439,9 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
           stage->SimpleComputeAt(master_reducer_stage, master_reducer_stage->n_out_dims() - 1);
         }
       } else {
-        //
         if (node == master_reducer) {
           // schedule loop > 1, compute at 0
-          if (master_stage->n_out_dims() > 1) {
+          if (master_stage->n_out_dims() > 0) {
             stage->SimpleComputeAt(master_stage, 0);
           }
         } else if (tensor_map.count(node_data->id() + "_1")) {
@@ -403,10 +452,14 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
           // delete stage_1 compute at stage_0
           auto stage_0 = stages[tensor_map[node_data->id() + "_0"]];
           stage_1->GetComputeAts().erase(stage_0->id());
-        }
 
-        if (master_reducer_stage->n_out_dims() > 1) {
-          stage->SimpleComputeAt(master_reducer_stage, 0);
+          if (master_reducer_stage->n_out_dims() > 0) {
+            stage->SimpleComputeAt(master_reducer_stage, 0);
+          }
+        } else {
+          if (master_reducer_stage->n_out_dims() > 0) {
+            stage->SimpleComputeAt(master_reducer_stage, 0);
+          }
         }
       }
       continue;
@@ -418,7 +471,7 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
       if (!group->output_nodes.count(node)) {
         stage->SetBuffer("local");
       }
-      // checkout node data size is before reduce or after reduce
+      // node is after reduce
       if (this->shape_dict_.at(node_data->id()) == this->shape_dict_.at(master_node_data->id())) {
         stage->CopyTransform(master_stage);
         stage->CopyLoopInfo(master_stage);
@@ -426,10 +479,12 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
         stage->SimpleComputeAt(master_stage, master_stage->n_out_dims() - 1);
         continue;
       }
-      // node is before reduce
+      // node is before reduce.
       if (std::find(master_reducer_axes.begin(), master_reducer_axes.end(), master_reducer_shape.size() - 1) ==
           master_reducer_axes.end()) {
         assign_reduce(tensor_map[node_data->id()], master_reducer_axes);
+        CHECK_EQ(stage->n_out_dims(), master_reducer_stage->n_out_dims())
+            << "stage and master_reducer_stage's n_out_dims must be equal!";
         stage->SimpleComputeAt(master_reducer_stage, master_reducer_stage->n_out_dims() - 1);
       } else {
         if (tensor_map.count(master_reducer_data->id() + "_1")) {
@@ -450,9 +505,15 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
               break;
             }
           }
+
           std::vector<int> reducer_axes(master_reducer_axes.begin(), master_reducer_axes.begin() + axes_num);
           assign_reduce(tensor_map[node_data->id()], reducer_axes);
           auto reducer_stage = stages[tensor_map[master_reducer_data->id() + "_1"]];
+          if (stage->n_out_dims() < reducer_stage->n_out_dims()) {
+            stage->Split(0, stage->GetDimRange(0));
+          }
+          CHECK_EQ(stage->n_out_dims(), reducer_stage->n_out_dims())
+              << "stage and reducer_stage's n_out_dims must be equal!";
           stage->SimpleComputeAt(reducer_stage, reducer_stage->n_out_dims() - 1);
         } else {
           // compute at reduce node
@@ -477,8 +538,7 @@ void OpLowerer::OutEWiseFusableCompute(poly::StageMap& stages,
   auto& cinn_strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
 
-  for (int idx = sub_group->nodes.size() - 1; idx >= 0; --idx) {
-    auto node      = sub_group->nodes[idx];
+  for (auto& node : sub_group->nodes) {
     auto node_data = GetNodeData(node);
 
     std::vector<ir::Tensor> tensor_inputs;
@@ -562,9 +622,9 @@ void OpLowerer::OutEWiseFusableSchedule(poly::StageMap& stages,
   // if not find master node, using last kOutEWiseFusable as master node.
   if (!master_node) {
     if (group->fused_sub_groups.empty()) {
-      master_node = group->nodes.front();
+      master_node = group->nodes.back();
     } else {
-      master_node = group->fused_sub_groups.back()->nodes.front();
+      master_node = group->fused_sub_groups.back()->nodes.back();
     }
     CHECK_EQ(op_pattern_dict[master_node->op()], framework::kOutEWiseFusable)
         << "Master Node Type Must Be OutEWiseFusable!";
@@ -573,8 +633,7 @@ void OpLowerer::OutEWiseFusableSchedule(poly::StageMap& stages,
   auto master_node_data = GetNodeData(master_node);
   auto master_stage     = stages[tensor_map[master_node_data->id()]];
 
-  for (int idx = sub_group->nodes.size() - 1; idx >= 0; --idx) {
-    auto node      = sub_group->nodes[idx];
+  for (auto& node : sub_group->nodes) {
     auto node_data = GetNodeData(node);
     auto stage     = stages[tensor_map[node_data->id()]];
     // if node is master node.
@@ -662,7 +721,7 @@ std::vector<ir::LoweredFunc> OpLowerer::LowerOpaqueOp(const GroupPtr& group) {
     func_args.push_back(out.as_tensor_ref());
   }
 
-  return lang::LowerVec("fn_" + node->id(), stages, func_args, {}, {}, nullptr, this->target_);
+  return lang::LowerVec(func_name_prefix + node->id(), stages, func_args, {}, {}, nullptr, this->target_);
 }
 
 }  // namespace framework
