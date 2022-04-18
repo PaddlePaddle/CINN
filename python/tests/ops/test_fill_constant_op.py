@@ -38,8 +38,6 @@ class TestFillConstantOp(OpTest):
     def build_paddle_program(self, target):
         x = paddle.full(self.shape, self.value, dtype=self.dtype)
 
-        print(self.dtype)
-        print(x)
         self.paddle_outputs = [x]
 
     def build_cinn_program(self, target):
@@ -49,7 +47,6 @@ class TestFillConstantOp(OpTest):
         prog = builder.build()
         res = self.get_cinn_output(prog, target, [], [], [x])
 
-        print(res)
         self.cinn_outputs = [res[0]]
 
     def test_check_results(self):

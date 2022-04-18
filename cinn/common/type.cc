@@ -375,14 +375,14 @@ Type str2type(const std::string &type) {
 std::string type2str(const Type &type) {
   switch (type.type()) {
     case Type::type_t::Int:
+      return "int" + std::to_string(type.bits());
+
+    case Type::type_t::UInt:
       if (type.bits() == 1) {
         return "bool";
       } else {
-        return "int" + std::to_string(type.bits());
+        return "uint" + std::to_string(type.bits());
       }
-
-    case Type::type_t::UInt:
-      return "uint" + std::to_string(type.bits());
 
     case Type::type_t::Float:
       return "float" + std::to_string(type.bits());
