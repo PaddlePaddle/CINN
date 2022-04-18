@@ -70,5 +70,9 @@ std::vector<ir::LoweredFunc> LowerVec(const std::string &name,
                                       const Target &target                    = common::DefaultHostTarget(),
                                       bool support_ir_schedule                = false);
 
+//! Collect the temporary tensors from a computational graph.
+std::vector<ir::Buffer> GetTempBuffers(const std::vector<Tensor>& tensor_args,
+                                       const poly::StageMap& stage_map,
+                                       Expr body);
 }  // namespace lang
 }  // namespace cinn

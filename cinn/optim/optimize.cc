@@ -73,6 +73,8 @@ Expr Optimize(Expr e, Target target, bool runtime_debug_info) {
 
 ir::Module Optimize(const ir::Module& module, const Target& target) {
   auto copied = IRCopy(Expr(module));
+  UnrollLoop(&copied);
+  VectorizeLoops(&copied, Target());
 
   RemoveScheduleBlock(&copied);
   LowerFunctionCallBindVars(&copied);
