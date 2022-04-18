@@ -75,12 +75,18 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
     VLOG(2) << "skip instruction";
     return;
   }
+  VLOG(2) << "Run function " << function_name_;
+  VLOG(6) << "name2podargs address: " << name2podargs;
 
   if (name2podargs != nullptr) {
+    VLOG(6) << "arg names";
+    for (const auto& name_pod : *name2podargs) {
+      VLOG(6) << name_pod.first << " " << name_pod.second.type_code();
+    }
+    VLOG(6) << "arg names print finish";
+
     args_cached_.clear();
   }
-
-  VLOG(2) << "Run function " << function_name_;
 
 #if defined(CINN_WITH_CUDA) && !defined(CINN_WITH_CUDNN)
   if (function_name_ == "cublas_gemm" && target_.arch == Target::Arch::NVGPU) {
@@ -92,11 +98,14 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
     int i = 0;
     VLOG(2) << "Runing extern function " << function_name_;
     for (auto& it_fn : fn_) {
+      VLOG(6) << "Runing it_fn " << fn_names_[i];
       auto& pod_args = PreparePodArgs(i, name2podargs);
+      VLOG(6) << "Finish preparing PodArgs";
       CHECK(it_fn) << "The LoweredFunc address should be set first by calling SetLoweredFunc method";
       if (!dryrun) {
         it_fn(pod_args.data(), pod_args.size());
       }
+      VLOG(6) << "Finish runing it_fn " << fn_names_[i];
       i++;
     }
   }

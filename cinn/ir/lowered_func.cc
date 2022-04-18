@@ -79,6 +79,14 @@ void _LoweredFunc_::PrepareCudaAxisInfoFromBody() {
     return for_expr != nullptr && for_expr->is_binded();
   });
 
+  if (bound_for_exprs.empty()) {
+    device_api = ir::DeviceAPI::GPU;
+    cuda_axis_info.set_grid_dim(0, 1);
+    cuda_axis_info.set_block_dim(0, 1);
+    cuda_axis_info.set_valid(true);
+    return;
+  }
+
   int preset_dim = 512;
   for (const Expr& expr : bound_for_exprs) {
     const ir::For* for_expr = expr.As<ir::For>();
