@@ -261,21 +261,6 @@ __global__ void fn_conv2d_0_kernel(float* __restrict__ placeholder, float* __res
             self.target, [a, b], tensor_data, c, 200,
             "TESTING [matmul] time cost with shape [512,512]...")
 
-    def atest_matmul1(self):
-        prog = Program()
-        a = Variable("A").set_type(Float(32)).set_shape([128, 512])
-        b = Variable("B").set_type(Float(32)).set_shape([256, 512])
-        c = Variable("C").set_type(Float(32)).set_shape([128, 256])
-        d = prog.mulbias(a, b, c, 1, 1)
-        tensor_data = [
-            np.random.random([128, 512]).astype("float32"),
-            np.random.random([256, 512]).astype("float32"),
-            np.random.random([128, 256]).astype("float32")
-        ]
-        result = prog.test_benchmark(
-            self.target, [a, b, c], tensor_data, d, 200,
-            "TESTING [mulbias] time cost with shape [128,512]*[256,512]...")
-
     def atest_matmul2(self):
         prog = Program()
         a = Variable("A").set_type(Float(32)).set_shape([128, 512])

@@ -70,6 +70,12 @@ ADD_TEST(NAME test_netbuilder
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
 
+ADD_TEST(NAME test_new_ir_schedule
+    COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
+    python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_ir_schedule.py "${WITH_CUDA}"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+)
+
 ADD_TEST(NAME test_cinnbuilder
     COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
     python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_cinnbuilder.py "${WITH_CUDA}"

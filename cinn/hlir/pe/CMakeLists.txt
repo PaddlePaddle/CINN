@@ -10,6 +10,7 @@ gather_srcs(cinnapi_src SRCS
     reduction.cc
     load_x86_params.cc
     schedule.cc
+    new_schedule.cc
     transform.cc
     vision.cc
     )
