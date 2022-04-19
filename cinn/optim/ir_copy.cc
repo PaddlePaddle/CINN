@@ -466,5 +466,7 @@ std::vector<Expr> IRCopy(const std::vector<Expr>& x) {
   return res;
 }
 
+ir::ModuleExpr IRCopy(const ir::ModuleExpr& x) { return ir::ModuleExpr(IRCopy(x.GetExprs())); }
+
 }  // namespace optim
 }  // namespace cinn

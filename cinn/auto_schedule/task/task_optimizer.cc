@@ -20,6 +20,7 @@
 
 #include "cinn/auto_schedule/measure/measure.h"
 #include "cinn/auto_schedule/search_strategy/evolutionary_search.h"
+#include "cinn/optim/ir_copy.h"
 
 namespace cinn {
 namespace auto_schedule {
@@ -35,9 +36,13 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
 
   VLOG(4) << "TuneTask LoweredFunc before optimization is:";
   VLOG(4) << "task_->tune_context().lowered_funcs.size() = " << task_->tune_context().lowered_funcs.size();
+  std::vector<ir::LoweredFunc> copy_lowered_func;
   for (size_t i = 0; i < task_->tune_context().lowered_funcs.size(); ++i) {
     VLOG(4) << "lowered_funcs[" << i << "] = ";
     VLOG(4) << task_->tune_context().lowered_funcs[i];
+    ir::Expr copy_func_expr          = optim::IRCopy(static_cast<ir::Expr>(task_->tune_context().lowered_funcs[i]));
+    ir::_LoweredFunc_* copy_func_ptr = copy_func_expr.As<ir::_LoweredFunc_>();
+    copy_lowered_func.emplace_back(ir::LoweredFunc(copy_func_ptr));
   }
 
   if (evolutionary_search_ == nullptr) {
@@ -54,7 +59,10 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
     // so we can take only first std::vector<ir::LoweredFunc>. Support the
     // TuneContext.lowered_funcs to be std::vector<std::vector<ir::LoweredFunc>>
     // in the future.
-    result.lowered_funcs.push_back(task_->tune_context().lowered_funcs);
+
+    // result.lowered_funcs.push_back(task_->tune_context().lowered_funcs);
+    result.lowered_funcs.emplace_back(copy_lowered_func);
+
     std::vector<ir::Expr> best_exprs = states[0].mod_expr.GetExprs();
     CHECK_EQ(best_exprs.size(), result.lowered_funcs[0].size())
         << "RuntimeError: Expr size is not equal to LoweredFunc size in TaskOptimizer";
@@ -70,7 +78,7 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
   int measured_count   = 0;
   double min_exec_time = std::numeric_limits<double>().max();
   TuningResult::OptimizedComputeExpr result;
-  result.lowered_funcs.push_back(task_->tune_context().lowered_funcs);
+  result.lowered_funcs.emplace_back(copy_lowered_func);
 
   while (measured_count < options.num_measure_trials) {
     std::vector<SearchState> states = evolutionary_search_->SearchModuleExprEpsGreedy(options);
@@ -82,7 +90,8 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
       CHECK_EQ(best_exprs.size(), task_->tune_context().lowered_funcs.size())
           << "RuntimeError: Expr size is not equal to LoweredFunc size in TaskOptimizer";
 
-      measure_inputs[i].lowered_funcs.emplace_back(task_->tune_context().lowered_funcs);
+      // measure_inputs[i].lowered_funcs.emplace_back(task_->tune_context().lowered_funcs);
+      measure_inputs[i].lowered_funcs.emplace_back(copy_lowered_func);
       for (size_t j = 0; j < best_exprs.size(); ++j) {
         measure_inputs[i].lowered_funcs.front().at(j)->body = best_exprs[j];
         if (task_->tune_context().target == common::DefaultNVGPUTarget()) {

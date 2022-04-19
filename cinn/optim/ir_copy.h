@@ -16,6 +16,8 @@
 #include <utility>
 
 #include "cinn/ir/ir.h"
+#include "cinn/ir/ir_schedule.h"
+#include "cinn/ir/lowered_func.h"
 
 namespace cinn {
 namespace optim {
@@ -24,6 +26,8 @@ namespace optim {
 Expr IRCopy(Expr x);
 
 std::vector<Expr> IRCopy(const std::vector<Expr>& x);
+
+ir::ModuleExpr IRCopy(const ir::ModuleExpr& x);
 
 }  // namespace optim
 }  // namespace cinn
