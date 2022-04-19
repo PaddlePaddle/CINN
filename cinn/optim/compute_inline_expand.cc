@@ -93,19 +93,21 @@ struct TensorInlineExpandMutator : public ir::IRMutator<> {
       } else if (utils::Endswith(tensor->buffer->name, "_write_cache") ||
                  utils::Endswith(tensor->buffer->name, "_read_cache") ||
                  utils::Endswith(tensor->buffer->name, "_temp_buffer")) {
-        auto axis_names  = stages_[tensor]->axis_names();
-        auto compute_ats = stages_[tensor]->GetComputeAts();
-        if (compute_ats.size() == 1) {
-          int level_tmp;
-          for (auto &i : compute_ats) {
-            level_tmp = i.second.level;
-          }
-          for (int i = 0; i < node->indices.size(); i++) {
-            for (int j = 0; j <= level_tmp; j++) {
-              auto temp = optim::IRCopy(node->indices[i]);
-              // TODO(haoze) : check how to solve it.
-              // ReplaceVarWithExpr(&temp, Var(axis_names[j]), Expr(0));
-              node->indices[i] = temp;
+        if ((*all_tensor_map_).at(tensor->name)->buffer->memory_type == ir::MemoryType::GPULocal) {
+          auto axis_names  = stages_[tensor]->axis_names();
+          auto compute_ats = stages_[tensor]->GetComputeAts();
+          if (compute_ats.size() == 1) {
+            int level_tmp;
+            for (auto &i : compute_ats) {
+              level_tmp = i.second.level;
+            }
+            for (int i = 0; i < node->indices.size(); i++) {
+              for (int j = 0; j <= level_tmp; j++) {
+                auto temp = optim::IRCopy(node->indices[i]);
+                // TODO(haoze) : check how to solve it.
+                // ReplaceVarWithExpr(&temp, Var(axis_names[j]), Expr(0));
+                node->indices[i] = temp;
+              }
             }
           }
         }
