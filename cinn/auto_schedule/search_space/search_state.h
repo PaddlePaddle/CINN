@@ -19,9 +19,7 @@
 #include <vector>
 
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
-#include "cinn/auto_schedule/search_space/auto_gen_rule/auto_inline.h"
-#include "cinn/auto_schedule/search_space/auto_gen_rule/multi_level_tiling.h"
-#include "cinn/auto_schedule/search_space/auto_gen_rule/skip_rule.h"
+#include "cinn/common/target.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_schedule.h"
 
@@ -60,7 +58,7 @@ class SearchState {
 
   // Not all ModuleExpr has to be mutated AutoGenRule. For those states which
   // have ModuleExpr to random mutated by AutoGenRule, initialize it.
-  void InitAutoGenRules();
+  void InitAutoGenRules(const common::Target& target);
 };
 
 }  // namespace auto_schedule

@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
+#include "cinn/common/target.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_schedule.h"
@@ -34,10 +35,10 @@ namespace auto_schedule {
 
 class MultiLevelTiling : public AutoGenRule {
  public:
-  MultiLevelTiling();
+  MultiLevelTiling(const common::Target& target);
   ~MultiLevelTiling() = default;
 
-  // Initailize the AutoGenRule, it must be called before further actions.
+  // initailize the autogenrule, it must be called before further actions.
   // Returns false if the rule cannot be applied on the mod_expr, true otherwise
   RuleApplyType Init(const ir::ModuleExpr& mod_expr) override;
 

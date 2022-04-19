@@ -23,6 +23,7 @@
 #include <vector>
 
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
+#include "cinn/common/target.h"
 #include "cinn/ir/buffer.h"
 #include "cinn/ir/collect_ir_nodes.h"
 #include "cinn/ir/ir.h"
@@ -34,14 +35,15 @@
 namespace cinn {
 namespace auto_schedule {
 
-MultiLevelTiling::MultiLevelTiling() {
-#ifdef CINN_WITH_CUDA
-  bind_axis_   = {"blockIdx.x", "threadIdx.x"};
-  tile_struct_ = "SSSRRSRS";
-#else
-  bind_axis_   = {};
-  tile_struct_ = "SSRSRS";
-#endif
+MultiLevelTiling::MultiLevelTiling(const common::Target& target) : AutoGenRule(target) {
+  if (target == common::DefaultNVGPUTarget()) {
+    bind_axis_   = {"blockIdx.x", "threadIdx.x"};
+    tile_struct_ = "SSSRRSRS";
+  } else {
+    bind_axis_   = {};
+    tile_struct_ = "SSRSRS";
+  }
+
   for (int i = 0; i < tile_struct_.size(); ++i) {
     if (tile_struct_[i] == 'S') {
       s_indices_.push_back(i);
@@ -198,7 +200,7 @@ ir::ModuleExpr MultiLevelTiling::Apply(int index) {
 
 std::string MultiLevelTiling::GetRuleName() const { return "MultiLevelTiling"; }
 
-AutoGenRule* MultiLevelTiling::NewPointer() const { return new MultiLevelTiling(); }
+AutoGenRule* MultiLevelTiling::NewPointer() const { return new MultiLevelTiling(*target_); }
 
 }  // namespace auto_schedule
 }  // namespace cinn

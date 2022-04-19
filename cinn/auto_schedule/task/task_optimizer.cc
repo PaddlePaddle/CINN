@@ -60,7 +60,9 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
         << "RuntimeError: Expr size is not equal to LoweredFunc size in TaskOptimizer";
     for (size_t i = 0; i < best_exprs.size(); ++i) {
       result.lowered_funcs[0][i]->body = best_exprs[i];
-      result.lowered_funcs[0][i]->PrepareCudaAxisInfoFromBody();
+      if (task_->tune_context().target == common::DefaultNVGPUTarget()) {
+        result.lowered_funcs[0][i]->PrepareCudaAxisInfoFromBody();
+      }
     }
     return result;
   }
@@ -83,7 +85,9 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
       measure_inputs[i].lowered_funcs.emplace_back(task_->tune_context().lowered_funcs);
       for (size_t j = 0; j < best_exprs.size(); ++j) {
         measure_inputs[i].lowered_funcs.front().at(j)->body = best_exprs[j];
-        measure_inputs[i].lowered_funcs.front().at(j)->PrepareCudaAxisInfoFromBody();
+        if (task_->tune_context().target == common::DefaultNVGPUTarget()) {
+          measure_inputs[i].lowered_funcs.front().at(j)->PrepareCudaAxisInfoFromBody();
+        }
       }
     }
     std::vector<MeasureResult> measure_outputs = schedule_measurer_->Measure(measure_inputs);

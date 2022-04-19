@@ -42,7 +42,7 @@ std::vector<SearchState> SearchSpace::GetRandomInitialSketch(int num) {
       copy_exprs.push_back(optim::IRCopy(e));
     }
     SearchState state(std::move(ir::ModuleExpr(copy_exprs)));
-    state.InitAutoGenRules();
+    state.InitAutoGenRules(tune_context_.target);
     for (int i = 0; i < init_sketch_random_depth_; ++i) {
       VLOG(5) << "Generating random sketch at depth: " << i;
       state = RandomScheduleMutate(state);

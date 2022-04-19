@@ -17,10 +17,13 @@
 #include <string>
 
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
+#include "cinn/common/target.h"
 #include "cinn/ir/ir_schedule.h"
 
 namespace cinn {
 namespace auto_schedule {
+
+AutoInline::AutoInline(const common::Target& target) : AutoGenRule(target) {}
 
 RuleApplyType AutoInline::Init(const ir::ModuleExpr& mod_expr) { return RuleApplyType::kCannotApply; }
 
@@ -28,7 +31,7 @@ ir::ModuleExpr AutoInline::Apply(int index) { return ir::ModuleExpr(); }
 
 std::string AutoInline::GetRuleName() const { return "AutoInline"; }
 
-AutoGenRule* AutoInline::NewPointer() const { return new AutoInline(); }
+AutoGenRule* AutoInline::NewPointer() const { return new AutoInline(*target_); }
 
 }  // namespace auto_schedule
 }  // namespace cinn

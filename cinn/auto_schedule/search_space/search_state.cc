@@ -18,6 +18,11 @@
 #include <utility>
 #include <vector>
 
+#include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
+#include "cinn/auto_schedule/search_space/auto_gen_rule/auto_inline.h"
+#include "cinn/auto_schedule/search_space/auto_gen_rule/multi_level_tiling.h"
+#include "cinn/auto_schedule/search_space/auto_gen_rule/skip_rule.h"
+#include "cinn/common/target.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_schedule.h"
 
@@ -48,10 +53,10 @@ SearchState& SearchState::operator=(const SearchState& src) {
 
 bool operator<(const SearchState& left, const SearchState& right) { return left.predicted_cost < right.predicted_cost; }
 
-void SearchState::InitAutoGenRules() {
-  applicable_rules = {std::shared_ptr<AutoGenRule>(new AutoInline()),
-                      std::shared_ptr<AutoGenRule>(new MultiLevelTiling()),
-                      std::shared_ptr<AutoGenRule>(new SkipRule())};
+void SearchState::InitAutoGenRules(const common::Target& target) {
+  applicable_rules = {std::shared_ptr<AutoGenRule>(new AutoInline(target)),
+                      std::shared_ptr<AutoGenRule>(new MultiLevelTiling(target)),
+                      std::shared_ptr<AutoGenRule>(new SkipRule(target))};
 }
 
 }  // namespace auto_schedule

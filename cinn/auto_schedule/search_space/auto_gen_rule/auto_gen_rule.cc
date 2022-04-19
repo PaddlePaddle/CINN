@@ -18,10 +18,13 @@
 
 #include <cstdlib>
 
+#include "cinn/common/target.h"
 #include "cinn/ir/ir_schedule.h"
 
 namespace cinn {
 namespace auto_schedule {
+
+AutoGenRule::AutoGenRule(const common::Target& target) : target_(&target) {}
 
 int AutoGenRule::NumberApplicable() const {
   CHECK_GE(num_applicable_, 0) << "Call " << GetRuleName() << "::NumberApplicable() without initailization.";

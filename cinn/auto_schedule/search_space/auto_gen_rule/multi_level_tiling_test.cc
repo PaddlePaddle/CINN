@@ -62,7 +62,7 @@ TEST(MultiLevelTile, SimpleLoops) {
   VLOG(6) << "Expr before MultiLevelTiling: ";
   VLOG(6) << ast_expr;
 
-  MultiLevelTiling multi_level_tiling;
+  MultiLevelTiling multi_level_tiling(target);
   ir::ModuleExpr mod_expr_before_tile(std::vector<ir::Expr>{ast_expr});
   EXPECT_EQ(multi_level_tiling.Init(mod_expr_before_tile), RuleApplyType::kApplyAndSkipThisRule);
 
@@ -106,7 +106,7 @@ TEST(MulitLevelTile, MatrixMultiply) {
   VLOG(6) << "Expr before MultiLevelTiling: ";
   VLOG(6) << ast_expr;
 
-  MultiLevelTiling multi_level_tiling;
+  MultiLevelTiling multi_level_tiling(target);
   ir::ModuleExpr mod_expr_before_tile(std::vector<ir::Expr>{ast_expr});
   EXPECT_EQ(multi_level_tiling.Init(mod_expr_before_tile), RuleApplyType::kApplyAndSkipThisRule);
 
