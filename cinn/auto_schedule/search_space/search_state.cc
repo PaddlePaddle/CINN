@@ -25,7 +25,6 @@
 #include "cinn/common/target.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_schedule.h"
-#include "cinn/optim/ir_copy.h"
 
 namespace cinn {
 namespace auto_schedule {

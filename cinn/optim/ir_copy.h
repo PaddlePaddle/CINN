@@ -13,7 +13,9 @@
 // limitations under the License.
 
 #pragma once
+
 #include <utility>
+#include <vector>
 
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_schedule.h"
@@ -28,6 +30,10 @@ Expr IRCopy(Expr x);
 std::vector<Expr> IRCopy(const std::vector<Expr>& x);
 
 ir::ModuleExpr IRCopy(const ir::ModuleExpr& x);
+
+ir::LoweredFunc IRCopy(const ir::LoweredFunc& x);
+
+std::vector<ir::LoweredFunc> IRCopy(const std::vector<ir::LoweredFunc>& x);
 
 }  // namespace optim
 }  // namespace cinn
