@@ -79,6 +79,18 @@ class Graph : public cinn::common::Graph {
     std::vector<std::shared_ptr<Group>> fused_sub_groups;
     // if as sub-group, used for belong groups.
     std::unordered_set<std::shared_ptr<Group>, SharedGroupHasher, SharedGroupComparator> belong_groups;
+
+    std::vector<Node*> CollectNodes() {
+      if (fused_sub_groups.size()) {
+        std::vector<Node*> tmp_nodes;
+        for (auto& group : fused_sub_groups) {
+          tmp_nodes.insert(tmp_nodes.end(), group->nodes.begin(), group->nodes.end());
+        }
+        return tmp_nodes;
+      } else {
+        return nodes;
+      }
+    }
   };
   std::vector<std::shared_ptr<Group>> fusion_groups;
 

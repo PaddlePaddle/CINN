@@ -14,6 +14,7 @@
 
 #include "cinn/common/context.h"
 
+#include <glog/logging.h>
 #include <isl/cpp.h>
 
 #include <mutex>
@@ -39,6 +40,7 @@ const std::string& Context::runtime_include_dir() {
     char* env            = std::getenv(kRuntimeIncludeDirEnvironKey);
     runtime_include_dir_ = env ? env : "";  // Leave empty if no env found.
   }
+  VLOG(4) << "-- runtime_include_dir: " << runtime_include_dir_;
   return runtime_include_dir_;
 }
 
