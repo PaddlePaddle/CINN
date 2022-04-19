@@ -320,20 +320,20 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const Node* node) {
     stages->InsertLazily(temp.as_tensor_ref());
   }
   std::vector<common::CINNValue> schedule_inputs;
+  schedule_inputs.push_back(common::CINNValue(C.back()));
   // C = impl->fschedule(C);
   for (int i = 0; i < C->size() - 1; i++) {
     ir::Expr temp = C[i];
     // checkout whether the tensor is with buffer.
     if (!temp.as_tensor_ref()->buffer.defined() || this->target_ != common::DefaultNVGPUTarget()) {
       inputs.push_back(temp.as_tensor_ref());
-      schedule_inputs.push_back(common::CINNValue(temp));
     }
   }
 
   auto func =
       lang::LowerVec(GetOrGenFullFuncName(GenOpFuncName(node)), stages, inputs, {}, {}, nullptr, this->target_, true);
   for (int i = 0; i < func.size(); i++) {
-    LOG(INFO) << "func[" << i << "] is : " << func[i];
+    LOG(INFO) << "Before schedule, func[" << i << "] is : " << func[i];
   }
   // CHECK_EQ(func.size(), 1UL);
   for (int i = func.size() - 1; i >= 0; i--) {
@@ -343,7 +343,6 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const Node* node) {
 
   common::CINNValuePack expr_pack = impl->fschedule(common::CINNValuePack{schedule_inputs});
   VLOG(3) << "expr_pack.size() is : " << expr_pack.size();
-  VLOG(3) << "The [" << func.size() << "] functions of node [" << node->attrs.node_name << "] are:\n";
   std::vector<ir::LoweredFunc> res;
   for (int i = 0; i < expr_pack.size(); i++) {
     auto temp_buffers = lang::GetTempBuffers(inputs, stages, func[i]->body);
@@ -352,7 +351,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const Node* node) {
     res.push_back(func[i]);
   }
   for (auto& i : res) {
-    VLOG(3) << i;
+    VLOG(3) << "After schedule, The res is : " << i;
   }
   return res;
 }
@@ -556,6 +555,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
   // deal with fetch tensors, not compute_inline but do compute_at
   for (auto& fetch_tensor : fetch_tensors) {
     if (fetch_tensor->is_reduce_tensor() || fetch_tensor->name == final_out_tensor->name) continue;
+    LOG(FATAL) << "Not implemented yet!";
     stages[fetch_tensor]->DisableComputeInline();
     int level = stages[final_out_tensor]->n_out_dims() - 1;
     VLOG(3) << "no fuse fetch tensor " << fetch_tensor->name << " and recomputeAt in level " << level;
