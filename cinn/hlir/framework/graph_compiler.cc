@@ -684,7 +684,6 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   compiler_ = backends::Compiler::Create(target_);
 
   auto build_module = m_builder_.Build();
-  VLOG(5) << "Built module: " << build_module;
   if (this->target_.arch == Target::Arch::X86) {
     CodeGenCX86 codegen(this->target_, CodeGenCX86::Feature::AVX512);
     codegen.SetInlineBuiltinCodes(false);
@@ -707,27 +706,18 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
     VLOG(3) << "Initantiate all variables on compile-time";
     // All variables reside in scope_, so traverse it to instantiate each one
     for (auto& name : scope_->var_names()) {
-      VLOG(6) << "checking name: " << name;
       auto* var    = scope_->Var<Tensor>(std::string({name.data(), name.size()}));
       auto& tensor = absl::get<Tensor>(*var);
       if (reuse_vars_map_.count(name)) {
         auto src_var_name = reuse_vars_map_.at(name);
         auto* src_var     = scope_->Var<Tensor>(src_var_name);
         auto& src_tensor  = absl::get<Tensor>(*src_var);
-        VLOG(6) << name << " shares buffer with " << src_var_name;
         tensor->set_buffer(src_tensor->get_buffer());
       } else {
         tensor->mutable_data<float>(target_);
-        VLOG(6) << name << " initial with shape: (";
-        const std::vector<dim_t>& data = tensor->shape().data();
-        for (dim_t x : data) {
-          VLOG(6) << x;
-        }
-        VLOG(6) << ")";
       }
     }
   }
-  VLOG(5) << "Before last reset";
   GraphCompiler::CompilationResult result;
   result.runtime_program.reset(new Program(scope_, std::move(instructions)));
   return result;

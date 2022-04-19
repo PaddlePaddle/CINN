@@ -80,13 +80,11 @@ class TestAutoTuner : public ::testing::Test {
     compile_options.Apply(result);
     ASSERT_EQ(2, compile_options.groups.size());
     ASSERT_EQ(2, compile_options.lowered_funcs.size());
-    std::cout << "Print before building" << std::endl;
+    std::cout << "Print lowered_funcs before building" << std::endl;
     std::cout << compile_options.lowered_funcs[0][0] << std::endl;
     std::cout << compile_options.lowered_funcs[1][0] << std::endl;
     auto runtime_program = graph_compiler->Build(compile_options).runtime_program;
-    std::cout << "Checking runtime_program" << std::endl;
     ASSERT_EQ(2, runtime_program->size());
-    std::cout << "Before executing " << std::endl;
     runtime_program->Execute();
   }
 };
