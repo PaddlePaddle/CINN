@@ -179,7 +179,7 @@ class NetBuilder : public BaseBuilder {
                                T value,
                                const std::string& name,
                                bool force_cpu = false) {
-    return FillConstant(shape, static_cast<float>(value), common::type2str(common::type_of<T>()), name, force_cpu);
+    return FillConstant(shape, static_cast<float>(value), name, common::type2str(common::type_of<T>()), force_cpu);
   }
 
  protected:

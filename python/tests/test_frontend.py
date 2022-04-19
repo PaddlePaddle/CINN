@@ -105,6 +105,7 @@ class TestFrontend(unittest.TestCase):
         ]
         result = prog.build_and_get_output(self.target, [a, b, e], tensor_data,
                                            [h])
+        result[0].set_type(Float(32))
         result = result[0].numpy(self.target).reshape(-1)
         tensor_data.append(result)
         self.paddle_verify(tensor_data)

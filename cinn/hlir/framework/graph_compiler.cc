@@ -715,7 +715,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
         VLOG(3) << name << " shares buffer with " << src_var_name;
         tensor->set_buffer(src_tensor->get_buffer());
       } else {
-        tensor->mutable_data(target_, tensor->type());
+        tensor->mutable_data<float>(target_);
       }
     }
   }

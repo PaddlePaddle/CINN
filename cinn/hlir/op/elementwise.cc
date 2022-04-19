@@ -336,10 +336,19 @@ std::vector<shape_t> InferShapeForFillConstant(const std::vector<shape_t> &input
 }
 
 std::vector<Type> InferDtypeForFillConstant(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
-  CHECK(attrs.count("dtype"));
-  auto dtype_str = absl::get<std::string>(attrs.at("dtype"));
-  auto out_type  = common::str2type(dtype_str);
-  VLOG(3) << "FillConstant output dtype: " << dtype_str;
+  common::Type out_type;
+  if (attrs.find("dtype") != attrs.end()) {
+    // attribute [dtype] are given
+    auto dtype_str = absl::get<std::string>(attrs.at("dtype"));
+    out_type       = common::str2type(dtype_str);
+    VLOG(3) << "FillConstant output dtype (from [dtype]): " << dtype_str;
+  } else {
+    // attribute [dtype] no given, infered by value's type
+    CHECK(attrs.count("value"));
+    auto scalar = GetScalarExpr(attrs.at("value"));
+    out_type    = scalar->type();
+    VLOG(3) << "FillConstant scalar type (from [vaule]): " << common::type2str(out_type);
+  }
   return {out_type};
 }
 

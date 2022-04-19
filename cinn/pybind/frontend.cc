@@ -66,9 +66,15 @@ void BindFrontend(pybind11::module *m) {
       .def(py::init([](const Placeholder &p) { return new Variable(p); }))
       .def("__str__", [](Variable &self) { return self->id; })
       .def("__repr__", [](Variable &self) { return utils::GetStreamCnt(self); })
+      .def("type", [](Variable &self) { return common::type2str(self->type); })
       .def("set_type",
            [](Variable &self, const Type &type) {
              self->type = type;
+             return self;
+           })
+      .def("set_type",
+           [](Variable &self, const std::string &type) {
+             self->type = common::str2type(type);
              return self;
            })
       .def("set_shape", [](Variable &self, const std::vector<int> &shape) {
