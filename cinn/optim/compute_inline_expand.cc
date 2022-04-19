@@ -105,7 +105,7 @@ struct TensorInlineExpandMutator : public ir::IRMutator<> {
               for (int j = 0; j <= level_tmp; j++) {
                 auto temp = optim::IRCopy(node->indices[i]);
                 // TODO(haoze) : check how to solve it.
-                // ReplaceVarWithExpr(&temp, Var(axis_names[j]), Expr(0));
+                ReplaceVarWithExpr(&temp, Var(axis_names[j]), Expr(0));
                 node->indices[i] = temp;
               }
             }
