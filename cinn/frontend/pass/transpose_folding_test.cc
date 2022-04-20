@@ -18,6 +18,7 @@
 
 #include "cinn/cinn.h"
 #include "cinn/frontend/cinn_builder.h"
+#include "cinn/frontend/net_builder.h"
 #include "cinn/frontend/pass/use_program_pass.h"
 #include "cinn/frontend/program_pass.h"
 #include "cinn/frontend/syntax.h"
@@ -101,7 +102,7 @@ TEST(TransposeFolding, FoldIntoDotBachedCase1) {
   VLOG(1) << "Program:\n" << program;
   RunWithProgram(program, target, scope);
   auto origin_out = GetTensorData(scope->GetTensor(out->id), target);
-  ApplyPass(&program, {}, "TransposeFolding");
+  ProgramPass::Apply(&program, {}, target, {"TransposeFolding"});
   size_t folded_size = program.size();
   VLOG(1) << "Program:\n" << program;
   RunWithProgram(program, target, scope);
@@ -131,7 +132,7 @@ TEST(TransposeFolding, FoldIntoDotBachedCase2) {
   VLOG(1) << "Program:\n" << program;
   RunWithProgram(program, target, scope);
   auto origin_out = GetTensorData(scope->GetTensor(out->id), target);
-  ApplyPass(&program, {}, "TransposeFolding");
+  ProgramPass::Apply(&program, {}, target, {"TransposeFolding"});
   size_t folded_size = program.size();
   VLOG(1) << "Program:\n" << program;
   RunWithProgram(program, target, scope);
@@ -162,7 +163,7 @@ TEST(TransposeFolding, FoldIntoDotBachedCase3) {
   VLOG(1) << "Program:\n" << program;
   RunWithProgram(program, target, scope);
   auto origin_out = GetTensorData(scope->GetTensor(out->id), target);
-  ApplyPass(&program, {}, "TransposeFolding");
+  ProgramPass::Apply(&program, {}, target, {"TransposeFolding"});
   size_t folded_size = program.size();
   VLOG(1) << "Program:\n" << program;
   RunWithProgram(program, target, scope);
@@ -192,7 +193,7 @@ TEST(TransposeFolding, FoldIntoDotCase1) {
   VLOG(1) << "Program:\n" << program;
   RunWithProgram(program, target, scope);
   auto origin_out = GetTensorData(scope->GetTensor(out->id), target);
-  ApplyPass(&program, {}, "TransposeFolding");
+  ProgramPass::Apply(&program, {}, target, {"TransposeFolding"});
   size_t folded_size = program.size();
   VLOG(1) << "Program:\n" << program;
   RunWithProgram(program, target, scope);
@@ -227,7 +228,7 @@ TEST(TransposeFolding, FoldIntoDotCase2) {
   SetRandData(before_scope->GetTensor("Z"), target);
   RunWithProgram(program, target, before_scope);
   auto origin_out = GetTensorData(before_scope->GetTensor(out->id), target);
-  ApplyPass(&program, {}, "TransposeFolding");
+  ProgramPass::Apply(&program, {}, target, {"TransposeFolding"});
   size_t folded_size = program.size();
   VLOG(1) << "Program:\n" << program;
   auto after_scope = hlir::framework::BuildScope(target, graph);
@@ -262,7 +263,7 @@ TEST(TransposeFolding, TransposeOutInFetchIds) {
   VLOG(1) << "Program:\n" << program;
   RunWithProgram(program, target, scope);
   auto origin_out = GetTensorData(scope->GetTensor(out->id), target);
-  ApplyPass(&program, {transpose_y->id}, "TransposeFolding");
+  ProgramPass::Apply(&program, {transpose_y->id}, target, {"TransposeFolding"});
   size_t folded_size = program.size();
   VLOG(1) << "Program:\n" << program;
   RunWithProgram(program, target, scope);
@@ -293,7 +294,7 @@ TEST(TransposeFolding, TransposeOutUsedByOtherInstrs) {
   VLOG(1) << "Program:\n" << program;
   RunWithProgram(program, target, scope);
   auto origin_out = GetTensorData(scope->GetTensor(out->id), target);
-  ApplyPass(&program, {}, "TransposeFolding");
+  ProgramPass::Apply(&program, {}, target, {"TransposeFolding"});
   size_t folded_size = program.size();
   VLOG(1) << "Program:\n" << program;
   RunWithProgram(program, target, scope);

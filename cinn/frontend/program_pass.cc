@@ -33,11 +33,5 @@ void ProgramPass::Apply(Program* prog,
   }
 }
 
-void ApplyPass(Program* program, const std::unordered_set<std::string>& fetch_ids, const std::string& pass) {
-  auto* reg = Registry<ProgramPassFunctionRegistry>::Global()->Find(pass);
-  CHECK(reg) << "Cannot find pass " << pass << " in the registry";
-  reg->body(program, fetch_ids);
-}
-
 }  // namespace frontend
 }  // namespace cinn

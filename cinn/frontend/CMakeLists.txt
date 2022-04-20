@@ -9,7 +9,8 @@ gather_srcs(cinnapi_src SRCS
   cinn_builder.cc
   op_mapper_registry.cc
   paddle_model_convertor.cc
-  program_pass.cc)
+  program_pass.cc
+  optimize.cc)
 
 if(NOT WITH_CUDA)
   cc_test(test_frontend_syntax
