@@ -18,6 +18,7 @@
 
 #include "cinn/cinn.h"
 #include "cinn/frontend/cinn_builder.h"
+#include "cinn/frontend/net_builder.h"
 #include "cinn/frontend/pass/use_program_pass.h"
 #include "cinn/frontend/program_pass.h"
 #include "cinn/frontend/syntax.h"
