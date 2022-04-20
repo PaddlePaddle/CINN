@@ -33,8 +33,9 @@ std::shared_ptr<hlir::framework::Graph> Optimize(frontend::Program* program,
                                                  const std::unordered_set<std::string>& fetch_ids,
                                                  common::Target target,
                                                  const OptimizeOptions& options) {
+  // Apply program passes
   frontend::ProgramPass::Apply(program, fetch_ids, target, options.program_passes);
-
+  // Apply graph passes
   auto graph = std::make_shared<hlir::framework::Graph>(*program, target);
   hlir::framework::ApplyPasses(graph.get(), options.graph_passes);
   return graph;
