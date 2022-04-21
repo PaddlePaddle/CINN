@@ -655,6 +655,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
 
       OpLowerer op_lowerer(dtype_dict, shape_dict, target_);
       for (auto& group : graph_->fusion_groups) {
+        LOG(INFO) << group->group_id;
         groups.push_back(std::move(group->CollectNodes()));
         // set node as output node from fetch_var_ids.
         for (auto node : groups.back()) {
@@ -670,6 +671,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
           }
         }
         local_lowered_funcs.emplace_back(std::move(op_lowerer.Lower(group)));
+        CHECK_EQ(local_lowered_funcs.back().size(), 1) << "Lowerd Function Is Not Equal 1!";
       }
     } else {
       for (int i = 0; i < groups.size(); i++) {

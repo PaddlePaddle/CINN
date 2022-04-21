@@ -135,6 +135,42 @@ std::vector<ir::LoweredFunc> OpLowerer::LowerOp(ComputeFunction compute, Schedul
   return lang::LowerVec(func_name_prefix + group->group_id, stages, func_args, {}, {}, nullptr, this->target_);
 }
 
+std::vector<ir::Tensor> OpLowerer::CollectInputTensor(std::vector<ir::Tensor>& func_args,
+                                                      std::unordered_map<std::string, ir::Tensor>& tensor_map,
+                                                      const Node* node) {
+  std::vector<ir::Tensor> tensor_inputs;
+  // get all input nodes
+  for (auto& link : node->inlinks_in_order(true)) {
+    auto source = link->source();
+    CHECK(source);
+    auto source_data = source->safe_as<NodeData>();
+    CHECK(source_data);
+
+    if (tensor_map.count(source_data->id())) {
+      tensor_inputs.push_back(tensor_map[source_data->id()]);
+    } else {
+      auto dtype = this->type_dict_.at(source_data->id());
+      CHECK(dtype == Float(32) || dtype.is_bool() || dtype == Int(32))
+          << "The dtype of node " << source_data->id()
+          << " is not float or bool or int! Other dtype is not implemented yet.";
+      ir::Tensor tensor;
+      if (dtype == Float(32)) {
+        tensor = lang::Placeholder<float>(source_data->id(), this->shape_dict_.at(source_data->id()));
+      } else if (dtype.is_bool()) {
+        tensor = lang::Placeholder<bool>(source_data->id(), this->shape_dict_.at(source_data->id()));
+      } else if (dtype == Int(32)) {
+        tensor = lang::Placeholder<int>(source_data->id(), this->shape_dict_.at(source_data->id()));
+      }
+      tensor_map[source_data->id()] = tensor;
+      tensor_inputs.push_back(tensor);
+      // recored func input args
+      func_args.push_back(tensor);
+    }
+  }
+
+  return tensor_inputs;
+}
+
 void OpLowerer::ElementwiseCompute(poly::StageMap& stages,
                                    std::vector<ir::Tensor>& func_args,
                                    std::unordered_map<std::string, ir::Tensor>& tensor_map,
@@ -144,29 +180,11 @@ void OpLowerer::ElementwiseCompute(poly::StageMap& stages,
   auto& strategy = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
   for (auto& node : sub_group->nodes) {
     auto node_data = GetNodeData(node);
-
-    std::vector<ir::Tensor> tensor_inputs;
     std::vector<common::CINNValue> cinn_inputs;
-    // get all input nodes
-    for (auto& link : node->inlinks_in_order(true)) {
-      auto source = link->source();
-      CHECK(source);
-      auto source_data = source->safe_as<NodeData>();
-      CHECK(source_data);
-
-      if (tensor_map.count(source_data->id())) {
-        tensor_inputs.push_back(tensor_map[source_data->id()]);
-        cinn_inputs.push_back(common::CINNValue(ir::Expr(tensor_map[source_data->id()])));
-      } else {
-        auto tensor = lang::Placeholder<float>(source_data->id(), this->shape_dict_.at(source_data->id()));
-        tensor_map[source_data->id()] = tensor;
-        stages->InsertLazily(tensor);
-
-        tensor_inputs.push_back(tensor);
-        cinn_inputs.push_back(common::CINNValue(ir::Expr(tensor)));
-        // recored func input args
-        func_args.push_back(tensor);
-      }
+    std::vector<ir::Tensor> tensor_inputs = std::move(CollectInputTensor(func_args, tensor_map, node));
+    for (auto& tensor : tensor_inputs) {
+      stages->InsertLazily(tensor);
+      cinn_inputs.push_back(common::CINNValue(ir::Expr(tensor)));
     }
 
     std::vector<Type> out_types;
@@ -242,28 +260,11 @@ void OpLowerer::ReduceCompute(poly::StageMap& stages,
   for (auto& node : sub_group->nodes) {
     auto node_data = GetNodeData(node);
 
-    std::vector<ir::Tensor> tensor_inputs;
     std::vector<common::CINNValue> cinn_inputs;
-    // get all input nodes
-    for (auto& link : node->inlinks_in_order(true)) {
-      auto source = link->source();
-      CHECK(source);
-      auto source_data = source->safe_as<NodeData>();
-      CHECK(source_data);
-
-      if (tensor_map.count(source_data->id())) {
-        tensor_inputs.push_back(tensor_map[source_data->id()]);
-        cinn_inputs.push_back(common::CINNValue(ir::Expr(tensor_map[source_data->id()])));
-      } else {
-        auto tensor = lang::Placeholder<float>(source_data->id(), this->shape_dict_.at(source_data->id()));
-        tensor_map[source_data->id()] = tensor;
-        stages->InsertLazily(tensor);
-
-        tensor_inputs.push_back(tensor);
-        cinn_inputs.push_back(common::CINNValue(ir::Expr(tensor)));
-        // recored func input args
-        func_args.push_back(tensor);
-      }
+    std::vector<ir::Tensor> tensor_inputs = std::move(CollectInputTensor(func_args, tensor_map, node));
+    for (auto& tensor : tensor_inputs) {
+      stages->InsertLazily(tensor);
+      cinn_inputs.push_back(common::CINNValue(ir::Expr(tensor)));
     }
 
     std::vector<Type> out_types;
@@ -360,6 +361,25 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
     // fuse index - 1 times
     for (int idx = 0; idx < index - 1; ++idx) {
       stages[input]->Fuse(0, 1);
+    }
+  };
+
+  auto WithoutLastDimInReduce = [](const std::vector<int>& inshape, const std::vector<int>& axes) {
+    // if last axis is in reduce.
+    if (std::find(axes.begin(), axes.end(), inshape.size() - 1) != axes.end() ||
+        std::find(axes.begin(), axes.end(), -1) != axes.end()) {
+      return false;
+    }
+
+    int sum_last_axes = 1;
+    for (int idx = axes.back() + 1; idx < inshape.size(); ++idx) {
+      sum_last_axes *= inshape[idx];
+    }
+
+    if (sum_last_axes > 1) {
+      return true;
+    } else {
+      return false;
     }
   };
 
@@ -465,8 +485,7 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
       }
 
       // last dimension is not in reduce.
-      if (std::find(master_reducer_axes.begin(), master_reducer_axes.end(), master_reducer_shape.size() - 1) ==
-          master_reducer_axes.end()) {
+      if (WithoutLastDimInReduce(master_reducer_shape, master_reducer_axes)) {
         // compute at last dimension
         if (node == master_reducer) {
           stage->SimpleComputeAt(master_stage, master_stage->n_out_dims() - 1);
@@ -515,8 +534,7 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
         continue;
       }
       // node is before reduce.
-      if (std::find(master_reducer_axes.begin(), master_reducer_axes.end(), master_reducer_shape.size() - 1) ==
-          master_reducer_axes.end()) {
+      if (WithoutLastDimInReduce(master_reducer_shape, master_reducer_axes)) {
         assign_reduce(tensor_map[node_data->id()], master_reducer_axes);
         CHECK_EQ(stage->n_out_dims(), master_reducer_stage->n_out_dims())
             << "stage and master_reducer_stage's n_out_dims must be equal!";
@@ -577,28 +595,11 @@ void OpLowerer::OutEWiseFusableCompute(poly::StageMap& stages,
   for (auto& node : sub_group->nodes) {
     auto node_data = GetNodeData(node);
 
-    std::vector<ir::Tensor> tensor_inputs;
     std::vector<common::CINNValue> cinn_inputs;
-    // get all input nodes
-    for (auto& link : node->inlinks_in_order(true)) {
-      auto source = link->source();
-      CHECK(source);
-      auto source_data = source->safe_as<NodeData>();
-      CHECK(source_data);
-
-      if (tensor_map.count(source_data->id())) {
-        tensor_inputs.push_back(tensor_map[source_data->id()]);
-        cinn_inputs.push_back(common::CINNValue(ir::Expr(tensor_map[source_data->id()])));
-      } else {
-        auto tensor = lang::Placeholder<float>(source_data->id(), this->shape_dict_.at(source_data->id()));
-        tensor_map[source_data->id()] = tensor;
-        stages->InsertLazily(tensor);
-
-        tensor_inputs.push_back(tensor);
-        cinn_inputs.push_back(common::CINNValue(ir::Expr(tensor)));
-        // recored func input args
-        func_args.push_back(tensor);
-      }
+    std::vector<ir::Tensor> tensor_inputs = std::move(CollectInputTensor(func_args, tensor_map, node));
+    for (auto& tensor : tensor_inputs) {
+      stages->InsertLazily(tensor);
+      cinn_inputs.push_back(common::CINNValue(ir::Expr(tensor)));
     }
 
     std::vector<Type> out_types;

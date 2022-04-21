@@ -155,14 +155,16 @@ class OpFusionPassHelper : public FusionHelperBase {
           }
         }
 
+        if (producer->inlinks().size() == 0) {
+          can_fuse = true;
+        }
+
         if (!can_fuse || !CanFuse(producer, consumer)) continue;
         VLOG(11) << "Fuse Op " << producer->id() << " into Op " << consumer->id();
 
         // fuse producer to fusion group
-        if (consumer_fusion->nodes_set.find(producer) == consumer_fusion->nodes_set.end()) {
-          consumer_fusion->group_id = producer->id() + "_" + consumer_fusion->group_id;
-          consumer_fusion->nodes.push_back(producer);
-        }
+        consumer_fusion->group_id = producer->id() + "_" + consumer_fusion->group_id;
+        consumer_fusion->nodes.push_back(producer);
         consumer_fusion->nodes_set.insert(producer);
         consumer_fusion->input_nodes.erase(producer);
         consumer_fusion->op_pattern_kind =
@@ -174,7 +176,8 @@ class OpFusionPassHelper : public FusionHelperBase {
           consumer_fusion->master_nodes.insert(producer);
         }
 
-        if (producer_data->outlinks().size() > 1) {
+        // producer is not a const value node.
+        if (producer_data->outlinks().size() > 1 && producer->inlinks().size() > 0) {
           consumer_fusion->internal_nodes.insert(producer);
         }
 
@@ -208,14 +211,9 @@ class OpFusionPassHelper : public FusionHelperBase {
     };
     // 4. without last dimension in reduce axis.
     auto without_last_dimension_in_reduce = [this](const Node* producer, const Node* consumer) -> bool {
-      auto reduce_dim = absl::get<std::vector<int>>(producer->attrs.attr_store.at("dim"));
-      auto shape      = this->shape_dict_.at(producer->inlinks_in_order()[0]->source()->id());
-      // check last dimension in reduce.
-      if (std::find(reduce_dim.begin(), reduce_dim.end(), shape.size() - 1) == reduce_dim.end() &&
-          std::find(reduce_dim.begin(), reduce_dim.end(), -1) == reduce_dim.end()) {
-        return true;
-      }
-      return false;
+      auto in_shape    = this->shape_dict_.at(producer->inlinks_in_order()[0]->source()->id());
+      auto reduce_axes = absl::get<std::vector<int>>(producer->attrs.attr_store.at("dim"));
+      return this->WithoutLastDimInReduce(in_shape, reduce_axes);
     };
     // 5. checkout reduce op has same attr.
     auto reduce_fuse_reduce = [this](const Node* producer, const Node* consumer) -> bool {
@@ -278,23 +276,22 @@ class OpFusionPassHelper : public FusionHelperBase {
 
       // check producer has same shape with reducer node.
       auto reduce_shape = shape_dict_.at(GetProducerNodeData(reducer)[0]->id());
-      auto reduce_dim   = absl::get<std::vector<int>>(reducer->attrs.attr_store.at("dim"));
-      for (auto& dim : reduce_dim) {
-        // if dim = -1, set as shape.size() - 1
-        if (dim == -1) {
-          dim = reduce_dim.size() - 1;
+      auto reduce_axes  = absl::get<std::vector<int>>(reducer->attrs.attr_store.at("dim"));
+      for (auto& axis : reduce_axes) {
+        // if axis = -1, set as shape.size() - 1
+        if (axis == -1) {
+          axis = reduce_shape.size() - 1;
         }
       }
-      //
-      if (GetNodeDataShape(producer) != reduce_shape ||
-          std::find(reduce_dim.begin(), reduce_dim.end(), reduce_shape.size() - 1) == reduce_dim.end()) {
+      // check without last axis in reduce.
+      if (GetNodeDataShape(producer) != reduce_shape || WithoutLastDimInReduce(reduce_shape, reduce_axes)) {
         return false;
       }
 
-      int succesive_reduce_dimension = reduce_shape.back();
-      for (int idx = reduce_dim.size() - 2; idx >= 0; --idx) {
-        if (reduce_dim[idx] == reduce_dim[idx + 1] - 1) {
-          succesive_reduce_dimension *= reduce_shape[reduce_dim[idx]];
+      int succesive_reduce_dimension = reduce_shape.at(reduce_axes.back());
+      for (int idx = reduce_axes.size() - 2; idx >= 0; --idx) {
+        if (reduce_axes[idx] == reduce_axes[idx + 1] - 1) {
+          succesive_reduce_dimension *= reduce_shape[reduce_axes[idx]];
           continue;
         }
         break;

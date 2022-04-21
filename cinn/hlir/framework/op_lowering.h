@@ -74,6 +74,10 @@ class OpLowerer {
   DEFINE_COMPUTE_SCHDULE(Reduce);
   DEFINE_COMPUTE_SCHDULE(OutEWiseFusable);
 
+  std::vector<ir::Tensor> CollectInputTensor(std::vector<ir::Tensor>& func_args,
+                                             std::unordered_map<std::string, ir::Tensor>& tensor_map,
+                                             const Node* node);
+
   Target target_;
   const absl::flat_hash_map<std::string, Type>& type_dict_;
   const absl::flat_hash_map<std::string, shape_t>& shape_dict_;

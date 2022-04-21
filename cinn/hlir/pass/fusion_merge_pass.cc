@@ -70,9 +70,12 @@ class FusionMergePassHelper : public FusionHelperBase {
         continue;
       }
       // do horizontal fusion.
-      updated |= DoHorizontalFusion(producer->consumer_groups);
+      updated |= DoHorizontalFusion(producer, producer->consumer_groups);
       // do vertical fusion.
       updated |= DoVerticalFusion(producer, producer->consumer_groups);
+      if (updated) {
+        break;
+      }
     }
     // fuse input consumers
     updated |= FuseInputToConsumers();
@@ -100,6 +103,7 @@ class FusionMergePassHelper : public FusionHelperBase {
     // keep group in order
     fusion_groups_.clear();
     while (!fusion_groups_set.empty()) {
+      bool is_ring = true;
       for (int idx = 0; idx < fusion_groups.size(); ++idx) {
         auto& group = fusion_groups[idx];
         if (!group.get()) {
@@ -118,18 +122,22 @@ class FusionMergePassHelper : public FusionHelperBase {
           fusion_groups_.push_back(group);
           fusion_groups_set.erase(group);
           group.reset();
+          is_ring = false;
           continue;
         }
+      }
+      if (is_ring) {
+        LOG(FATAL) << "Exists Ring, Please Check!";
       }
     }
   }
 
-  bool DoHorizontalFusion(std::unordered_set<GroupPtr, Hasher, Comparator>& consumers) {
+  bool DoHorizontalFusion(GroupPtr& producer, std::unordered_set<GroupPtr, Hasher, Comparator>& consumers) {
     VLOG(11) << "DoHorizontalFusion...!";
     GroupList candidate_consumers;
     // check consumers exist depency relation
     for (auto& consumer : consumers) {
-      if (!IsDepency(consumer, consumers)) {
+      if (!IsDepency(producer, consumer, consumers)) {
         candidate_consumers.push_back(consumer);
       }
     }
@@ -292,6 +300,11 @@ class FusionMergePassHelper : public FusionHelperBase {
 
     std::unordered_set<GroupPtr, Hasher, Comparator> fusionable_consumers;
     for (auto& consumer : consumers) {
+      // check consumer exist depency
+      if (IsDepency(producer, consumer, consumers)) {
+        VLOG(11) << "Can't fuse consumer " << consumer->group_id << " ,As it depency others!";
+        continue;
+      }
       // if can't fuse
       if (!relation.vertical_relation.count(consumer->op_pattern_kind)) {
         VLOG(11) << "Can't fuse producer " << producer->group_id << " consumer " << consumer->group_id;
@@ -345,7 +358,7 @@ class FusionMergePassHelper : public FusionHelperBase {
       for (auto node : producer->output_nodes) {
         // if node is used more than 1 time.
         if (consumer->input_nodes.count(node)) {
-          if (consumer->input_nodes[node] > 1) {
+          if (consumer->input_nodes[node] > 1 && node->inlinks().size() > 0) {
             fused_group->internal_nodes.insert(node);
           }
         }
@@ -491,7 +504,9 @@ class FusionMergePassHelper : public FusionHelperBase {
     }
   }
 
-  bool IsDepency(GroupPtr consumer, const std::unordered_set<GroupPtr, Hasher, Comparator>& consumers) {
+  bool IsDepency(const GroupPtr& producer_g,
+                 const GroupPtr consumer,
+                 const std::unordered_set<GroupPtr, Hasher, Comparator>& consumers) {
     std::queue<GroupPtr> candidates;
     candidates.push(consumer);
 
@@ -502,6 +517,9 @@ class FusionMergePassHelper : public FusionHelperBase {
       candidates.pop();
 
       for (auto& producer : candidate->producer_groups) {
+        if (producer.get() == producer_g.get()) {
+          continue;
+        }
         if (consumers.count(producer)) {
           return true;
         }
@@ -518,13 +536,14 @@ class FusionMergePassHelper : public FusionHelperBase {
     VLOG(11) << "FuseInputToConsumers...!";
     auto updated = false;
     UpdateInputToConsumers();
+    GroupPtr producer(nullptr);
     for (auto& input_consumers : input_to_consumers_) {
       // if group set size == 1.
       if (input_consumers.second.size() == 1) {
         continue;
       }
       // do horizontal fusion.
-      auto st = DoHorizontalFusion(input_consumers.second);
+      auto st = DoHorizontalFusion(producer, input_consumers.second);
       if (st) {
         // fused consumers, update
         UpdateInputToConsumers();
@@ -611,13 +630,13 @@ class FusionMergePassHelper : public FusionHelperBase {
       }
       CHECK(reducer) << "Don't find reduce op in group " << second->group_id;
       auto input_shape = shape_dict_.at(reducer->inlinks_in_order()[0]->source()->id());
-      auto reduce_dim  = absl::get<std::vector<int>>(reducer->attrs.attr_store.at("dim"));
+      auto reduce_axes = absl::get<std::vector<int>>(reducer->attrs.attr_store.at("dim"));
       // if without last dimension in reduce.
-      if (std::find(reduce_dim.begin(), reduce_dim.end(), input_shape.size() - 1) == reduce_dim.end()) {
+      if (WithoutLastDimInReduce(input_shape, reduce_axes)) {
         return true;
       } else {
         // if last axis size > 1024.
-        if (input_shape.back() > this->target_.max_num_threads()) {
+        if (input_shape[reduce_axes.back()] > this->target_.max_num_threads()) {
           return false;
         }
       }
