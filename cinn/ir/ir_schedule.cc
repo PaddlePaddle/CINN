@@ -1616,13 +1616,30 @@ struct LeafBlockRemovalPlan : public ir::IRMutator<> {
   Expr* target_expr_;
 };
 
-void IRSchedule::SetBuffer(const Expr& block, const std::string& memory_type) const {
+void IRSchedule::SetBuffer(Expr& block, const std::string& memory_type) {
   CHECK(block.As<ir::ScheduleBlockRealize>());
   auto find_tensor = ir::CollectIRNodesWithoutTensor(block, [&](const Expr* x) { return x->As<ir::Store>(); });
   CHECK(!find_tensor.empty()) << "Didn't find Store in block!";
   CHECK_EQ(find_tensor.size(), 1U) << "One block should only have one Store node!(except for root block)";
-  Tensor tensor = (*find_tensor.begin()).As<ir::Store>()->tensor.as_tensor_ref();
-  tensor->WithBuffer(memory_type, "_" + tensor->name + "_temp_buffer");
+  auto& tensor = (*find_tensor.begin()).As<ir::Store>()->tensor;
+  LOG(INFO) << "Tensor " << tensor.as_tensor_ref()->name << " WithBuffer!";
+  tensor.as_tensor_ref()->WithBuffer(memory_type, "_" + tensor.as_tensor_ref()->name + "_temp_buffer");
+  if (tensor.as_tensor_ref()->buffer.defined())
+    LOG(INFO) << tensor.as_tensor_ref()->name << " buffer is defined with buffer name "
+              << tensor.as_tensor_ref()->buffer->name;
+  else
+    LOG(INFO) << tensor.as_tensor_ref()->name << " buffer is not defined!";
+  LOG(INFO) << "tensor->buffer->memory_type is : " << tensor.as_tensor_ref()->buffer->memory_type;
+
+  auto exprs = this->GetModule().GetExprs();
+  for (auto& it_expr : exprs) {
+    auto find_tensor = ir::CollectIRNodes(
+        it_expr, [&](const Expr* x) { return x->as_tensor() && x->as_tensor()->name == tensor.as_tensor_ref()->name; });
+    for (auto& t : find_tensor) {
+      CHECK(t.as_tensor());
+      t.as_tensor_ref()->Bind(tensor.as_tensor_ref()->buffer);
+    }
+  }
 }
 
 /*!
@@ -1994,6 +2011,13 @@ std::vector<Expr> ScheduleHelper::GetLoops(const Expr& block) const {
   CHECK(block.As<ir::ScheduleBlockRealize>());
   CHECK(block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>());
   std::string block_name = block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->name;
+
+  std::set<std::string> loops_name;
+  for (auto& iter_val : block.As<ir::ScheduleBlockRealize>()->iter_values) {
+    auto vars = ir::CollectIRNodes(iter_val, [&](const Expr* x) { return x->is_var(); });
+    for (auto& iter_var : vars) loops_name.insert(iter_var.as_var_ref()->name);
+  }
+
   for (auto& it_expr : exprs) {
     auto find_block = ir::CollectIRNodes(it_expr, [&](const Expr* x) {
       return x->As<ir::ScheduleBlockRealize>() &&
@@ -2002,11 +2026,6 @@ std::vector<Expr> ScheduleHelper::GetLoops(const Expr& block) const {
     });
     if (!find_block.empty()) {
       if (!result.empty()) LOG(FATAL) << "Find block with name: \n" << block_name << " appeared in more than one AST!";
-      std::set<std::string> loops_name;
-      for (auto& iter_val : block.As<ir::ScheduleBlockRealize>()->iter_values) {
-        auto vars = ir::CollectIRNodes(iter_val, [&](const Expr* x) { return x->is_var(); });
-        for (auto& iter_var : vars) loops_name.insert(iter_var.as_var_ref()->name);
-      }
       auto loop_nodes = ir::CollectIRNodes(it_expr, [&](const Expr* x) {
         return x->As<ir::For>() && loops_name.count(x->As<ir::For>()->loop_var->name) != 0;
       });
@@ -2052,6 +2071,42 @@ Expr ScheduleHelper::GetBlock(const std::string& block_name) const {
   }
   if (!result.defined()) LOG(FATAL) << "Didn't find a block with name " << block_name << " in this ModuleExpr!";
   return result;
+}
+
+void SetCudaAxisInfo(Expr* lowered_func) {
+  if (!lowered_func->as_lowered_func()) {
+    LOG(ERROR) << "The input of SetCudaAxisInfo should be lowered_func!";
+    return;
+  }
+
+  auto func_body = lowered_func->as_lowered_func_ref()->body;
+  CudaAxisInfo info;
+
+  auto block_nodes                                    = ir::CollectIRNodes(func_body, [&](const Expr* x) {
+    if (x->As<ir::For>() && x->As<ir::For>()->bind_info().valid()) {
+      auto bind_info = x->As<ir::For>()->bind_info();
+      info.set_valid(true);
+      if (bind_info.for_type == ForType::GPUThread) {
+        CHECK(common::is_zero(x->As<ir::For>()->min));
+        CHECK(x->As<ir::For>()->extent.is_constant());
+        int range = x->As<ir::For>()->extent.get_constant();
+        range     = range > info.block_dim(bind_info.offset) ? range : info.block_dim(bind_info.offset);
+        VLOG(3) << "Set block dim[" << bind_info.offset << "] with range " << range;
+        info.set_block_dim(bind_info.offset, range);
+      } else if (bind_info.for_type == ForType::GPUBlock) {
+        CHECK(common::is_zero(x->As<ir::For>()->min));
+        CHECK(x->As<ir::For>()->extent.is_constant());
+        int range = x->As<ir::For>()->extent.get_constant();
+        range     = range > info.grid_dim(bind_info.offset) ? range : info.grid_dim(bind_info.offset);
+        info.set_grid_dim(bind_info.offset, range);
+        VLOG(3) << "Set grid dim[" << bind_info.offset << "] with range " << range;
+      } else {
+        LOG(FATAL) << "The for loop's bind info should be gpu block or thread!";
+      }
+    }
+    return (x->As<ir::For>() && x->As<ir::For>()->bind_info().valid());
+  });
+  lowered_func->as_lowered_func_ref()->cuda_axis_info = info;
 }
 
 }  // namespace ir

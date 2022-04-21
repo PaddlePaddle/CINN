@@ -218,7 +218,7 @@ class IRSchedule {
    * \param block The ScheduleBlockRealize corresponding to an unique tensor.
    * \param memory_type The memory type we want to set. Should be "local", "shared" or "global".
    */
-  void SetBuffer(const Expr& block, const std::string& memory_type) const;
+  void SetBuffer(Expr& block, const std::string& memory_type);
 
   /**
    * \brief Reorder the loops in the order of vector.
@@ -331,5 +331,6 @@ class IRSchedule {
   ScheduleHelper helper_;
 };
 
+void SetCudaAxisInfo(Expr* lowered_func);
 }  // namespace ir
 }  // namespace cinn

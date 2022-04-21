@@ -1709,10 +1709,13 @@ std::shared_ptr<OpStrategy> StrategyForSoftmax(const framework::NodeAttr &attrs,
     auto tensor_b = GetTensor(all_blocks[1]);
     auto tensor_a = GetTensor(all_blocks[2]);
     if (target.arch == Target::Arch::NVGPU) {
+      ir_sch.SetBuffer(all_blocks[1], "local");
+      all_blocks = ir_sch.GetAllBlocks();
       if (tensor_a->shape.size() > 1) {
         auto loops = ir_sch.GetLoops(all_blocks[2]);
         ir_sch.Split(loops[1], {-1, 5});
-        loops = ir_sch.GetLoops(all_blocks[2]);
+        all_blocks = ir_sch.GetAllBlocks();
+        loops      = ir_sch.GetLoops(all_blocks[2]);
         ir_sch.Bind(loops[0], "blockIdx.x");
         ir_sch.Bind(loops[1], "threadIdx.x");
         int shape_size = tensor_a->shape.size();

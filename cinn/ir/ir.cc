@@ -366,7 +366,11 @@ Expr Store::index() const {
   auto *tensor_n = tensor.As<ir::_Tensor_>();
   CHECK(tensor_n);
   Expr res = common::IndiceToAbsOffset(tensor_n->shape, indices);
+  for (auto &i : tensor_n->shape) LOG(INFO) << "Store tensor shape is : " << i;
+  for (auto &i : indices) LOG(INFO) << "Store indices is : " << i;
+  LOG(INFO) << "Store index is : " << res;
   optim::Simplify(&res);
+  LOG(INFO) << "After Simplify, Store index is : " << res;
   return res;
 }
 
@@ -576,7 +580,9 @@ Expr Load::index() const {
     auto *tensor_n = tensor.As<_Tensor_>();
     CHECK(tensor_n);
     Expr res = common::IndiceToAbsOffset(tensor_n->shape, indices);
+    LOG(INFO) << "Load index is : " << res;
     optim::Simplify(&res);
+    LOG(INFO) << "After Simplify, Load index is : " << res;
     return res;
   } else {
     CHECK_EQ(indices.size(), 1UL);

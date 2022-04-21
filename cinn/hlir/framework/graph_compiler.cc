@@ -23,7 +23,9 @@
 #include "cinn/hlir/framework/op_lowering.h"
 #include "cinn/hlir/framework/tensor.h"
 #include "cinn/hlir/pe/schedule.h"
+#include "cinn/ir/ir_base.h"
 #include "cinn/lang/lower.h"
+#include "cinn/optim/transform_gpu_forloop.h"
 #include "cinn/poly/stage.h"
 
 namespace cinn {
@@ -322,6 +324,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const Node* node) {
   std::vector<common::CINNValue> schedule_inputs;
   schedule_inputs.push_back(common::CINNValue(C.back()));
   // C = impl->fschedule(C);
+  auto inputs_arg = inputs;
   for (int i = 0; i < C->size() - 1; i++) {
     ir::Expr temp = C[i];
     // checkout whether the tensor is with buffer.
@@ -342,16 +345,36 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const Node* node) {
   }
 
   common::CINNValuePack expr_pack = impl->fschedule(common::CINNValuePack{schedule_inputs});
+
+  {
+    ir::Expr temp = C[0];
+    if (!temp.as_tensor_ref()->buffer.defined() || this->target_ != common::DefaultNVGPUTarget() ||
+        temp.as_tensor_ref()->buffer->memory_type == ir::MemoryType::Heap) {
+      if (!temp.as_tensor_ref()->buffer.defined()) LOG(INFO) << temp.as_tensor_ref()->name << " buffer is not defined.";
+      if (this->target_ != common::DefaultNVGPUTarget()) LOG(INFO) << "target is not nvgpu!";
+      if (temp.as_tensor_ref()->buffer->memory_type == ir::MemoryType::Heap) LOG(INFO) << "buffer memory type is Heap!";
+      LOG(INFO) << "inputs_arg push back " << temp.as_tensor_ref()->name
+                << " with buffer name : " << temp.as_tensor_ref()->buffer->name << " with mem type "
+                << temp.as_tensor_ref()->buffer->memory_type;
+      inputs_arg.push_back(temp.as_tensor_ref());
+    }
+  }
+
   VLOG(3) << "expr_pack.size() is : " << expr_pack.size();
   std::vector<ir::LoweredFunc> res;
   for (int i = 0; i < expr_pack.size(); i++) {
-    auto temp_buffers = lang::GetTempBuffers(inputs, stages, func[i]->body);
+    auto new_args      = lang::GetArgs(func[i]);
+    func[i]->args      = new_args;
+    auto temp_buffers  = lang::GetTempBuffers(inputs_arg, stages, func[i]->body);
     func[i]->temp_bufs = temp_buffers;
-    func[0]->PrepareBufferCastExprs();
+    func[i]->PrepareBufferCastExprs();
     res.push_back(func[i]);
   }
   for (auto& i : res) {
-    VLOG(3) << "After schedule, The res is : " << i;
+    optim::OptimizeExprGPU(&(i->body));
+    // i->body = optim::Optimize(i->body, target_, false);
+    i = optim::Optimize(Expr(i), target_, false).as_lowered_func_ref();
+    LOG(INFO) << "res[i]'s name is : " << i->name;
   }
   return res;
 }

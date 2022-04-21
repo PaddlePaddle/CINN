@@ -54,11 +54,6 @@ class CodeGenCUDA_Dev : public CodeGenC {
   std::string Compile(const ir::LoweredFunc& func);
 
   /**
-   * Generate the kernel function's name given a function.
-   */
-  static std::string GenKernelName(const std::string& func_name) { return func_name + "_kernel"; }
-
-  /**
    * \brief Print a function argument in CUDA syntax. Currently, just some decoration of __restrict__.
    * @param arg the argument.
    * @return the representation in CUDA syntax.

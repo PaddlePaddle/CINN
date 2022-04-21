@@ -147,6 +147,8 @@ Expr IndiceToAbsOffset(const std::vector<Expr> &shape, const std::vector<Expr> &
       res = indice_prod;
     }
   }
+  LOG(INFO) << "Before AutoSimplify, res is: " << res;
+  LOG(INFO) << "After AutoSimplify, res is: " << common::AutoSimplify(res);
   return common::AutoSimplify(res);
 }
 

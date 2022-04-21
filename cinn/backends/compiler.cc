@@ -91,7 +91,8 @@ void Compiler::CompileCudaModule(const Module& module, const std::string& code, 
 
     for (auto& fn : device_module.functions()) {
       std::string kernel_fn_name = fn->name;
-      auto fn_kernel             = cuda_module_->GetFunction(0, kernel_fn_name);
+      LOG(INFO) << "Get device function : " << kernel_fn_name;
+      auto fn_kernel = cuda_module_->GetFunction(0, kernel_fn_name);
       CHECK(fn_kernel);
 
       backends::RuntimeSymbolRegistry::Global().RegisterVar(kernel_fn_name + "_ptr_",
@@ -100,11 +101,12 @@ void Compiler::CompileCudaModule(const Module& module, const std::string& code, 
                                                             static_cast<cudaStream_t>(stream));
     }
   }
-
+  LOG(INFO) << "Before compile host jit";
   {  // compile host jit
     engine_ = ExecutionEngine::Create(ExecutionOptions());
     engine_->Link<CodeGenCUDA_Host>(host_module);
   }
+  LOG(INFO) << "After compile host jit";
 
 #else
   CINN_NOT_IMPLEMENTED

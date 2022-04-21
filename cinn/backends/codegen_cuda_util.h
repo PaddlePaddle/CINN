@@ -53,13 +53,19 @@ struct CollectHostFunctionVisitor : public ir::IRMutator<> {
 
  private:
   void Visit(const ir::_LoweredFunc_* op, Expr* expr) override {
+    LOG(INFO) << "Visiting loweredFunc: " << *expr;
     if (IsCudaFunction(op)) {
-      // CHECK(op->cuda_axis_info.valid());
-
+      CHECK(op->cuda_axis_info.valid());
+      LOG(INFO) << "It is cuda function";
       auto host_func = CreateHostFunctionGivenDeviceKernel(op);
+      LOG(INFO) << "host_module_builder.AddFunction: " << host_func.as_lowered_func_ref()->name;
       host_module_builder.AddFunction(host_func.as_lowered_func_ref());
+      LOG(INFO) << "device_module_builder.AddFunction: "
+                << CreateDeviceFunctionGivenDeviceKernel(*expr).as_lowered_func_ref()->name;
       device_module_builder.AddFunction(CreateDeviceFunctionGivenDeviceKernel(*expr).as_lowered_func_ref());
     } else {
+      LOG(INFO) << "It is not cuda function";
+      LOG(INFO) << "host_module_builder.AddFunction: " << expr->as_lowered_func_ref()->name;
       host_module_builder.AddFunction(expr->as_lowered_func_ref());
     }
   }
