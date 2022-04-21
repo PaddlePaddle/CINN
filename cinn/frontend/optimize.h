@@ -32,7 +32,7 @@ struct OptimizeOptions {
 inline OptimizeOptions DefaultTrainingOptimizeOptions() {
   OptimizeOptions options;
   options.program_passes = {"Decomposer", "TransposeFolding", "GemmRewriter", "RemoveIdentity"};
-  options.graph_passes   = {"OpFusion"};
+  options.graph_passes   = {"OpFusionPass", "FusionMergePass"};
   return options;
 }
 
