@@ -73,9 +73,6 @@ class FusionMergePassHelper : public FusionHelperBase {
       updated |= DoHorizontalFusion(producer, producer->consumer_groups);
       // do vertical fusion.
       updated |= DoVerticalFusion(producer, producer->consumer_groups);
-      if (updated) {
-        break;
-      }
     }
     // fuse input consumers
     updated |= FuseInputToConsumers();
