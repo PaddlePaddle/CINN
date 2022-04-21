@@ -162,8 +162,7 @@ void CompareResult(Program* program,
                    bool print_tensor = false) {
   std::unordered_set<std::string> fetch_ids(output_ids.begin(), output_ids.end());
   // apply common pass
-  ProgramPass::Apply(program, fetch_ids, target, {"Decomposer"});
-  ApplyPass(program, fetch_ids, "RemoveIdentity");
+  ProgramPass::Apply(program, fetch_ids, target, {"Decomposer", "RemoveIdentity"});
 
   // get original program size
   auto origin_size = program->size();
@@ -171,8 +170,7 @@ void CompareResult(Program* program,
   auto origin_out = RunProgram(*program, target, input_ids, output_ids, seed, print_tensor);
 
   // fuse transpose + add + dot, then run and get the fused output
-  ApplyPass(program, fetch_ids, "TransposeFolding");
-  ProgramPass::Apply(program, fetch_ids, target, {"GemmRewriter"});
+  ProgramPass::Apply(program, fetch_ids, target, {"TransposeFolding", "GemmRewriter"});
 
   // get fused program size
   auto fused_size = program->size();
