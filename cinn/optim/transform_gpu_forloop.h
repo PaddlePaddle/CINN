@@ -62,6 +62,8 @@ void TransformGpuForloops(const forloop_infos_t& forloop_infos,
                           std::unordered_set<std::string>& resized_buffer,
                           Expr* expr);
 
+void OptimizeExprGPU(Expr* expr);
+
 /**
  * Remove the forloops of block and thread axis, add the kernel launch thread dimension information to the outermost
  * LoweredFunc.
