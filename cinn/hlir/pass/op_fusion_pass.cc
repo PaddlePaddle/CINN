@@ -155,10 +155,6 @@ class OpFusionPassHelper : public FusionHelperBase {
           }
         }
 
-        if (producer->inlinks().size() == 0) {
-          can_fuse = true;
-        }
-
         if (!can_fuse || !CanFuse(producer, consumer)) continue;
         VLOG(11) << "Fuse Op " << producer->id() << " into Op " << consumer->id();
 

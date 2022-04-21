@@ -672,6 +672,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
         }
         local_lowered_funcs.emplace_back(std::move(op_lowerer.Lower(group)));
         CHECK_EQ(local_lowered_funcs.back().size(), 1) << "Lowerd Function Is Not Equal 1!";
+        // LOG(INFO) << local_lowered_funcs.back()[0];
       }
     } else {
       for (int i = 0; i < groups.size(); i++) {
