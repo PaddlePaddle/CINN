@@ -628,6 +628,7 @@ class FusionMergePassHelper : public FusionHelperBase {
       CHECK(reducer) << "Don't find reduce op in group " << second->group_id;
       auto input_shape = shape_dict_.at(reducer->inlinks_in_order()[0]->source()->id());
       auto reduce_axes = absl::get<std::vector<int>>(reducer->attrs.attr_store.at("dim"));
+
       // if without last dimension in reduce.
       if (WithoutLastDimInReduce(input_shape, reduce_axes)) {
         return true;
@@ -650,9 +651,9 @@ class FusionMergePassHelper : public FusionHelperBase {
       }
       CHECK(reducer) << "Don't find reduce op in group " << second->group_id;
 
-      auto reducer_input_shape = shape_dict_.at(reducer->inlinks_in_order()[0]->source()->id());
-      auto shape               = this->GetNodeDataShape(*first->master_nodes.begin());
-      if (shape == reducer_input_shape) {
+      auto reducer_input_shape   = shape_dict_.at(reducer->inlinks_in_order()[0]->source()->id());
+      auto broacast_output_shape = this->GetNodeDataShape(*first->master_nodes.begin());
+      if (reducer_input_shape == broacast_output_shape) {
         return true;
       }
 
@@ -781,7 +782,7 @@ class FusionMergePassHelper : public FusionHelperBase {
                                     // injective and injective op must be horizontal relation.
                                     {OpPatternKind::kInjective, is_same_shape},
                                     // injective and reduce can be horizontal/vertical relation.
-                                    {OpPatternKind::kCommReduce, broadcast_fuse_reduce}};
+                                    {OpPatternKind::kCommReduce, elementwise_fuse_reduce}};
     }
     // kCommReduce
     {
