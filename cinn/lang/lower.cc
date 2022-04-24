@@ -124,6 +124,7 @@ ir::LoweredFunc Lower(const std::string& name,
       for (auto& stage : stages) {
         if (stage.second->IfCudaBind()) {
           res->device_api = ir::DeviceAPI::GPU;
+          break;
         }
       }
     }
@@ -177,6 +178,7 @@ std::vector<ir::LoweredFunc> LowerVec(const std::string& name,
       for (auto& stage : stages) {
         if (stage.second->IfCudaBind()) {
           res->device_api = ir::DeviceAPI::GPU;
+          break;
         }
       }
     }

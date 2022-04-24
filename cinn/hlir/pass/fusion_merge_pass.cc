@@ -631,7 +631,8 @@ class FusionMergePassHelper : public FusionHelperBase {
 
       // if without last dimension in reduce.
       if (WithoutLastDimInReduce(input_shape, reduce_axes)) {
-        return true;
+        // set it as can't fues for temp.
+        return false;
       } else {
         // if last axis size > 1024.
         if (input_shape[reduce_axes.back()] > this->target_.max_num_threads()) {
@@ -651,9 +652,14 @@ class FusionMergePassHelper : public FusionHelperBase {
       }
       CHECK(reducer) << "Don't find reduce op in group " << second->group_id;
 
-      auto reducer_input_shape   = shape_dict_.at(reducer->inlinks_in_order()[0]->source()->id());
-      auto broacast_output_shape = this->GetNodeDataShape(*first->master_nodes.begin());
-      if (reducer_input_shape == broacast_output_shape) {
+      auto input_shape  = shape_dict_.at(reducer->inlinks_in_order()[0]->source()->id());
+      auto reduce_axes  = absl::get<std::vector<int>>(reducer->attrs.attr_store.at("dim"));
+      auto output_shape = this->GetNodeDataShape(*first->master_nodes.begin());
+      if (WithoutLastDimInReduce(input_shape, reduce_axes)) {
+        // set it as can't fues for temp.
+        return false;
+      }
+      if (input_shape == output_shape) {
         return true;
       }
 

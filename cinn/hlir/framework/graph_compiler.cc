@@ -655,7 +655,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
 
       OpLowerer op_lowerer(dtype_dict, shape_dict, target_);
       for (auto& group : graph_->fusion_groups) {
-        LOG(INFO) << group->group_id;
+        VLOG(11) << group->group_id;
         groups.push_back(std::move(group->CollectNodes()));
         // set node as output node from fetch_var_ids.
         for (auto node : groups.back()) {
@@ -672,7 +672,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
         }
         local_lowered_funcs.emplace_back(std::move(op_lowerer.Lower(group)));
         CHECK_EQ(local_lowered_funcs.back().size(), 1) << "Lowerd Function Is Not Equal 1!";
-        // LOG(INFO) << local_lowered_funcs.back()[0];
+        VLOG(11) << local_lowered_funcs.back()[0];
       }
     } else {
       for (int i = 0; i < groups.size(); i++) {
@@ -779,6 +779,9 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions(
     if (group.size() == 1) {
       auto node       = group[0];
       auto instr_name = node->op()->name;
+      if (fusion_group.get()) {
+        instr_name = fusion_group->group_id;
+      }
       if (node->op()->name == "reshape" && compile_options_.with_instantiate_variables) {
         // not run instruction and shares buffer only when instantiate_variables
         auto& inlinks  = node->inlinks_in_order();
