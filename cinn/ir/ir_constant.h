@@ -1,4 +1,4 @@
-// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+// Copyright (c) 2022 CINN Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,23 +13,19 @@
 // limitations under the License.
 
 #pragma once
-#include <string>
-#include <vector>
 
-#include "cinn/ir/ir.h"
-#include "cinn/utils/type_defs.h"
+#include "cinn/ir/ir_base.h"
 
 namespace cinn {
-namespace hlir {
+namespace ir {
 
-template <typename T = int>
-std::vector<Expr> ToCinnExprs(const std::vector<T>& args) {
-  std::vector<Expr> exprs;
-  std::transform(args.begin(), args.end(), std::back_inserter(exprs), [](const T& arg) { return Expr(arg); });
-  return exprs;
-}
+Expr Zero(const Type& type);
 
-cinn::utils::ShapeType ToShapeType(const std::vector<Expr>& args);
+Expr One(const Type& type);
 
-}  // namespace hlir
+Expr Maximum(const Type& type);
+
+Expr Minimum(const Type& type);
+
+}  // namespace ir
 }  // namespace cinn

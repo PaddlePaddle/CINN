@@ -168,6 +168,11 @@ void CudaScheduleBlockReduceInternal(poly::StageMap stages,
 void CudaScheduleBlockReduce(
     poly::StageMap stages, ir::Tensor reduce_tmp_out, ir::Tensor tmp_out, ir::Tensor out, const common::Target &target);
 
+void CudaScheduleReduceForSmallerDim(poly::StageMap stages,
+                                     const std::vector<int> &axes,
+                                     ir::Tensor tmp_out,
+                                     ir::Tensor out);
+
 void CudaScheduleDepthwiseConv(poly::StageMap stages, ir::Tensor &output, const common::Target &target);
 
 void CudaScheduleConv(poly::StageMap stages,

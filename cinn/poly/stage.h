@@ -254,7 +254,7 @@ class Stage : public Object {
    * Create a cache Tensor and load the \p source into this buffer, replace all the reading in the readers with the
    * cache.
    * @param tensor the source memory to cache.
-   * @param memory_type the memory type, "share" for CUDA share memory, "local" for CUDA local memory.
+   * @param memory_type the memory type, "shared" for CUDA shared memory, "local" for CUDA local memory.
    * @param readers the readers of the \p tensor
    */
   ir::Tensor CacheRead(const std::string& memory_type, std::vector<ir::Tensor>& readers, poly::StageMap stages);
@@ -291,7 +291,7 @@ class Stage : public Object {
   /**
    * Create a cache for write to the original tensor.
    * @param tensor the tensor to create the cache for.
-   * @param memory_type "share" for CUDA share memory, "local" for CUDA local memory.
+   * @param memory_type "shared" for CUDA shared memory, "local" for CUDA local memory.
    */
   ir::Tensor CacheWrite(const std::string& memory_type, poly::StageMap stages, ir::Tensor& key_tensor);
 

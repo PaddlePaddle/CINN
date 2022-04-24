@@ -250,6 +250,75 @@ std::vector<ir::Tensor> BlockReduceMin(const ir::Tensor& A,
                                        const bool keep_dim            = false,
                                        const std::string& output_name = "T_Block_Reduce_Min_out");
 
+/**
+ * @brief sums array elements over a given axis
+ *
+ * @param A The input Tensor
+ * @param axes Axis or axes along which a sum is performed. If axis is empty, the operation will sum over all elements
+ * of the input array. If axis is negative it counts from the last to the first axis.
+ * @param keep_dim If it is set true, the axes which are reduced are left in the result as dimensions with size one.
+ * With this option, the result will broadcast correctly against the input array.
+ * @param initial Starting value for the sum.
+ * @param output_name The name of the output Tensor
+ *
+ * @return The result Tensors.
+ */
+std::vector<ir::Tensor> ReduceSumForSmallerDim(const ir::Tensor& A,
+                                               const std::vector<int>& axes,
+                                               bool keep_dim                  = false,
+                                               const std::string& output_name = "T_Reduce_Sum_out");
+
+/**
+ * @brief product array elements over a given axis
+ *
+ * @param A The input Tensor
+ * @param axes Axis or axes along which a production is performed. If axis is empty, the operation will product over all
+ * elements of the input array. If axis is negative it counts from the last to the first axis.
+ * @param keep_dim If it is set true, the axes which are reduced are left in the result as dimensions with size one.
+ * With this option, the result will broadcast correctly against the input array.
+ * @param output_name The name of the output Tensor
+ *
+ * @return The result Tensors.
+ */
+std::vector<ir::Tensor> ReduceProdForSmallerDim(const ir::Tensor& A,
+                                                const std::vector<int>& axes,
+                                                bool keep_dim                  = false,
+                                                const std::string& output_name = "T_Reduce_Prod_out");
+
+/**
+ * @brief find the maxium of array elements over a given axis
+ *
+ * @param A The input Tensor
+ * @param axes Axis or axes to find the maximum over. If axis is empty, the operation will product over all elements of
+ * the input array. If axis is negative it counts from the last to the first axis.
+ * @param keep_dim If it is set true, the axes which are reduced are left in the result as dimensions with size one.
+ * With this option, the result will broadcast correctly against the input array.
+ * @param output_name The name of the output Tensor
+ *
+ * @return The result Tensor.
+ */
+std::vector<ir::Tensor> ReduceMaxForSmallerDim(const ir::Tensor& A,
+                                               const std::vector<int>& axes,
+                                               bool keep_dim                  = false,
+                                               const std::string& output_name = "T_Reduce_Max_out");
+
+/**
+ * @brief find the minimum of array elements over a given axis
+ *
+ * @param A The input Tensor
+ * @param axes Axis or axes to find the minimum over. If axis is empty, the operation will product over all elements of
+ * the input array. If axis is negative it counts from the last to the first axis.
+ * @param keep_dim If it is set true, the axes which are reduced are left in the result as dimensions with size one.
+ * With this option, the result will broadcast correctly against the input array.
+ * @param output_name The name of the output Tensor
+ *
+ * @return The result Tensor.
+ */
+std::vector<ir::Tensor> ReduceMinForSmallerDim(const ir::Tensor& A,
+                                               const std::vector<int>& axes,
+                                               bool keep_dim                  = false,
+                                               const std::string& output_name = "T_Reduce_Min_out");
+
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn

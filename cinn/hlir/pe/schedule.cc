@@ -467,6 +467,100 @@ void CudaScheduleBlockReduce(poly::StageMap stages,
   stages[out]->Bind(0, "blockIdx.x");
 }
 
+void CudaScheduleReduceForSmallerDim(poly::StageMap stages,
+                                     const std::vector<int> &axes,
+                                     ir::Tensor tmp_out,
+                                     ir::Tensor out) {
+  // for shape=[a, b, c, d, e, f], axis=[2, 3], shape[axis]=[c, d]
+  // tmp_out: fuse a*b and bind with blockIdx.x, fuse c*d*e*f and bind with threadIdx.x
+  // out: fuse a*b and bind with blockIdx.x, fuse e*f and bind with threadIdx.x
+
+  // Assume batch=a*b, row=c*d, col=e*f, the finally cuda source code could be:
+  // if (blockIdx.x < batch) {
+  //   if (threadIdx.x < row_in_block * col) {
+  //     tmp_out[threadIdx.x] = 0;
+  //     for (int i = 0; i < row_per_thread; ++i) {
+  //       tmp_out[threadIdx.x] += input[blockIdx.x, i * row_in_block + threadIdx.x / col, threadIdx.x % col]
+  //     }
+  //   }
+  //   __syncthreads();
+  //   if (threadIdx.x < col) {
+  //     out[blockIdx.x, threadIdx.x] = 0;
+  //     for (int i = 0; i < row_in_block; ++i) {
+  //       out[blockIdx.x, threadIdx.x] += tmp_out[i * col + threadIdx.x];
+  //     }
+  //   }
+  // }
+  // TODO(jiangcheng05): tmp_out using shared memory not global memory
+
+  int bind_axis = 0;
+  {
+    // if shape[:axis[0]] is empty, no need fuse
+    if (axes.front() == 1) {
+      // if axis[0] == 1, no need fuse but need set shape[0] with blockIdx to ensure concurrency
+      stages[tmp_out]->Bind(0, "blockIdx.x");
+      stages[out]->Bind(0, "blockIdx.x");
+    } else if (axes.front() > 1) {
+      // if axis[0] > 2, fuse and bind to blockIdx
+      std::vector<int> fuse_levels;
+      for (int i = 0; i < axes.front(); ++i) {
+        fuse_levels.emplace_back(i);
+      }
+
+      stages[tmp_out]->Fuse(fuse_levels);
+      stages[out]->Fuse(fuse_levels);
+
+      stages[tmp_out]->Bind(bind_axis, "blockIdx.x");
+      stages[out]->Bind(bind_axis, "blockIdx.x");
+
+      VLOG(4) << "fuse levels [" << cinn::utils::Join(fuse_levels, ",") << "] of tmp_out and bind axis=[" << bind_axis
+              << "] with blockIdx.x";
+
+      ++bind_axis;
+    }
+  }
+
+  int fuse_begin = axes.front() == 0 ? 0 : 1;
+  {
+    auto tmp_fuse_size = tmp_out->shape.size() - axes.front();
+    if (tmp_fuse_size == 1) {
+      stages[tmp_out]->Bind(bind_axis, "threadIdx.x");
+    } else {
+      std::vector<int> tmp_fuse_levels;
+      for (int i = 0; i < tmp_fuse_size; ++i) {
+        tmp_fuse_levels.emplace_back(fuse_begin + i);
+      }
+      stages[tmp_out]->Fuse(tmp_fuse_levels);
+      stages[tmp_out]->Bind(bind_axis, "threadIdx.x");
+
+      VLOG(4) << "fuse levels [" << cinn::utils::Join(tmp_fuse_levels, ",") << "] of tmp_out and bind axis=["
+              << bind_axis << "] with threadIdx.x";
+    }
+  }
+
+  {
+    // output's shape dimension different with tmp_out when keep_dim == false
+    // the axis disappear, the out_fuse_size means the last dim size
+    auto out_fuse_size = out->shape.size() - axes.front();
+    if (out_fuse_size == 1) {
+      stages[out]->Bind(bind_axis, "threadIdx.x");
+    } else {
+      std::vector<int> out_fuse_levels;
+      for (int i = 0; i < out_fuse_size; ++i) {
+        out_fuse_levels.emplace_back(fuse_begin + i);
+      }
+      stages[out]->Fuse(out_fuse_levels);
+      stages[out]->Bind(bind_axis, "threadIdx.x");
+
+      VLOG(4) << "fuse levels [" << cinn::utils::Join(out_fuse_levels, ",") << "] of out and bind axis=[" << bind_axis
+              << "] with threadIdx.x";
+    }
+  }
+
+  // sync all threads in block
+  // stages[tmp_out]->SyncThreads(stages);
+}
+
 void SoftmaxScheduleCPU(poly::StageMap stage, const ir::Tensor &output, const ir::Tensor &temp, int axis) {
   if (axis == -1) {
     axis += output->shape.size();

@@ -30,15 +30,15 @@ class TestReduceBaseOp(OpTest):
         self.init_case()
 
     def init_case(self):
-        self.inputs = {"x": np.random.random([10, 10, 10]).astype("float32")}
-        self.dim = [0]
+        self.inputs = {"x": np.random.random([2, 3, 4]).astype("float32")}
+        self.dim = [0, 1]
         self.keep_dim = False
 
     def paddle_func(self, x):
-        return paddle.sum(x)
+        return paddle.sum(x, axis=self.dim)
 
     def cinn_func(self, builder, x):
-        return builder.reduce(x)
+        return builder.reduce(x, ReduceKind.kSum, self.dim, self.keep_dim)
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.inputs["x"], stop_gradient=True)
@@ -64,7 +64,7 @@ class TestReduceBaseOp(OpTest):
 
 class TestReduceSumOp(TestReduceBaseOp):
     def paddle_func(self, x):
-        return paddle.sum(x, axis=self.dim)
+        return paddle.sum(x, axis=self.dim, keepdim=self.keep_dim)
 
     def cinn_func(self, builder, x):
         return builder.reduce(x, ReduceKind.kSum, self.dim, self.keep_dim)
@@ -98,9 +98,48 @@ class TestReduceSumCase4(TestReduceSumOp):
         self.keep_dim = True
 
 
+class TestReduceSumCase5(TestReduceSumOp):
+    def init_case(self):
+        self.inputs = {"x": np.random.random([101, 50]).astype("float32")}
+        self.dim = [0]
+        self.keep_dim = False
+
+
+class TestReduceSumCase6(TestReduceSumOp):
+    def init_case(self):
+        self.inputs = {"x": np.random.random([11, 50]).astype("float32")}
+        self.dim = [0]
+        self.keep_dim = False
+
+
+class TestReduceSumCase7(TestReduceSumOp):
+    def init_case(self):
+        self.inputs = {"x": np.random.random([10, 101, 50]).astype("float32")}
+        self.dim = [1]
+        self.keep_dim = False
+
+
+class TestReduceSumCase8(TestReduceSumOp):
+    def init_case(self):
+        self.inputs = {
+            "x": np.random.random([7, 6, 5, 4, 3, 2]).astype("float32")
+        }
+        self.dim = [2, 3]
+        self.keep_dim = False
+
+
+class TestReduceSumCase9(TestReduceSumOp):
+    def init_case(self):
+        self.inputs = {
+            "x": np.random.random([7, 6, 5, 4, 3, 2]).astype("float32")
+        }
+        self.dim = [2, 3]
+        self.keep_dim = True
+
+
 class TestReduceProdOp(TestReduceBaseOp):
     def paddle_func(self, x):
-        return paddle.prod(x, axis=self.dim)
+        return paddle.prod(x, axis=self.dim, keepdim=self.keep_dim)
 
     def cinn_func(self, builder, x):
         return builder.reduce(x, ReduceKind.kProd, self.dim, self.keep_dim)
@@ -129,7 +168,7 @@ class TestReduceProdCase3(TestReduceProdOp):
 
 class TestReduceMaxOp(TestReduceBaseOp):
     def paddle_func(self, x):
-        return paddle.max(x, axis=self.dim)
+        return paddle.max(x, axis=self.dim, keepdim=self.keep_dim)
 
     def cinn_func(self, builder, x):
         return builder.reduce(x, ReduceKind.kMax, self.dim, self.keep_dim)
@@ -158,7 +197,7 @@ class TestReduceMaxCase3(TestReduceMaxOp):
 
 class TestReduceMinOp(TestReduceBaseOp):
     def paddle_func(self, x):
-        return paddle.min(x, axis=self.dim)
+        return paddle.min(x, axis=self.dim, keepdim=self.keep_dim)
 
     def cinn_func(self, builder, x):
         return builder.reduce(x, ReduceKind.kMin, self.dim, self.keep_dim)

@@ -13,3 +13,15 @@
 // limitations under the License.
 
 #include "cinn/hlir/op/op_util.h"
+
+namespace cinn {
+namespace hlir {
+
+cinn::utils::ShapeType ToShapeType(const std::vector<Expr>& args) {
+  cinn::utils::ShapeType input_shape;
+  std::for_each(args.begin(), args.end(), [&](const Expr& expr) { input_shape.emplace_back(expr.as_int32()); });
+  return input_shape;
+}
+
+}  // namespace hlir
+}  // namespace cinn

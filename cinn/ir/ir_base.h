@@ -396,9 +396,6 @@ struct BinaryOpNode : public ExprNode<T> {
   using ExprNode<T>::operands;
 };
 
-//! Zero in CINN type system.
-Expr Zero(const Type& type);
-
 #define DEVICE_API_FOR_ALL(__) \
   __(UNK)                      \
   __(Host)                     \

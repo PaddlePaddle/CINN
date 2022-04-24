@@ -19,7 +19,9 @@
 #include <algorithm>
 
 #include "cinn/common/ir_util.h"
+#include "cinn/hlir/op/op_util.h"
 #include "cinn/hlir/pe/broadcast.h"
+#include "cinn/ir/ir_constant.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/tensor.h"
 #include "cinn/lang/builtin.h"
@@ -458,6 +460,181 @@ std::vector<ir::Tensor> BlockReduceMin(const ir::Tensor& A,
                                        const bool keep_dim,
                                        const std::string& output_name) {
   return BlockReduce(A, last_reduce_dim_num, block_size, keep_dim, "cinn_block_reduce_min", output_name);
+}
+
+std::vector<ir::Tensor> ReduceForSmallerDim(const ir::Tensor& A,
+                                            const std::vector<int>& axes,
+                                            const std::function<Expr(Expr, Expr)>& func,
+                                            bool keep_dim,
+                                            Expr initial,
+                                            const std::string& output_name = "T_Reduce_out") {
+  CHECK_NE(A->shape.size(), axes.size()) << "ReduceForLargerAxisDim not support reduce all ! Please check.";
+  bool is_succesive = true;
+  for (int i = axes.size() - 2; i >= 0; --i) {
+    CHECK_EQ(axes[i] + 1, axes[i + 1]) << "ReduceForLargerAxisDim only supporting succesive axis, but here axis=["
+                                       << cinn::utils::Join(axes, ",") << "] ! Please check.";
+  }
+
+  // for shape=[a, b, c, d, e, f], axis=[2, 3], shape[axis]=[c, d]
+  // --> tmp_out=[a, b, c*d, 1, e, f]
+  // --> out=[a, b, 1, 1, e, f] if keep_dim else [a, b, e, f]
+
+  auto input_shape = ToShapeType(A->shape);
+
+  // compute tensor size of each range
+  auto shape_product = [&](const int begin, const int end) {
+    int prod = 1;
+    for (int i = begin; i < end; ++i) {
+      prod *= input_shape[i];
+    }
+    return prod;
+  };
+
+  int axis_dim = shape_product(axes.front(), axes.back() + 1);
+  int last_dim = shape_product(axes.back() + 1, A->shape.size());
+
+  CHECK_LE(last_dim, 128) << "The subsequent dim of reduce should less than 128 to ensure concurrency, but here "
+                          << last_dim << " > 128 ! Please check.";
+
+  // When `e*f < 1024`, we can compute a reduce result in a block,
+  // in other words, a block can compute multi reduce result.
+  // For example, we can reshape the input into three parts,
+  // [batch, row, col] where batch=a*b, row=c*d, col=e*f,
+  // that means, we can reduce `row*col` number into row in a block with a loop,
+  // where a loop can compute `row_in_block=1024/col` row,
+  // each block loop `row_per_thread=row/row_in_block`.
+
+  // we can compute it by two step:
+  // loop1 :                 col_1 | col_2 | ... | col_[row_in_block]
+  // ...                        +      +     ...         +
+  // loop_[row_per_thread] : col_1 | col_2 | ... | col_[row_in_block]
+  //   |
+  //   V
+  // tmp_out               : sum_1 | sum_2 | ... | sum_[row_in_block]
+  //   |
+  //   V
+  // out = sum_1 + sum_2 + ... + sum_[row_in_block]
+
+  int block_size = 1024;
+  int row_in_block, row_per_thread;
+  do {
+    // compute the max row number in a block without loop
+    row_in_block = block_size / last_dim;
+    // compute the row number of each thread should compute
+    row_per_thread = (axis_dim + row_in_block - 1) / row_in_block;
+    block_size /= 2;
+  } while (block_size > 0 && row_per_thread == 1);
+
+  CHECK(block_size > 0) << "The size of reduce tensor should greater than 2 ! Please check.";
+
+  VLOG(4) << "A: [" << cinn::utils::Join(input_shape, ",") << "] axes: (" << cinn::utils::Join(axes, ",")
+          << ") row_in_block: " << row_in_block << " row_per_thread: " << row_per_thread;
+
+  // compute output shape
+  std::vector<ir::Expr> tmp_shape, out_shape;
+  {
+    auto compute_out_shape = [&](const int bein, const int end) {
+      for (int i = bein; i < end; ++i) {
+        tmp_shape.emplace_back(A->shape[i]);
+        out_shape.emplace_back(A->shape[i]);
+      }
+    };
+
+    compute_out_shape(0, axes.front());
+    for (int i = 0; i < axes.size(); ++i) {
+      tmp_shape.emplace_back(1);  // useless shape, only convenient for index compute
+      if (keep_dim) {
+        out_shape.emplace_back(1);
+      }
+    }
+    tmp_shape[axes.front()] = Expr(row_in_block);
+    compute_out_shape(axes.back() + 1, A->shape.size());
+
+    if (out_shape.empty()) {
+      // to avoid reduce all
+      out_shape.emplace_back(1);
+    }
+  }
+
+  // change output index to input index
+  std::vector<int> prod_shape(axes.size(), 1);
+  for (int i = axes.size() - 2; i >= 0; --i) {
+    prod_shape[i] = prod_shape[i + 1] * input_shape[axes[i + 1]];
+  }
+
+  // tmp_index=[a, b, c*d, 1, e, f] --> input=[a, b, c, d, e, f]
+  // change index of [c*d] to [c, d]
+  auto outidx2inidx = [&](const std::vector<Expr>& output_index, Expr index) {
+    auto input_index = output_index;
+    for (int i = 0; i < axes.size(); ++i) {
+      input_index[axes[i]] = index / Expr(prod_shape[i]);
+      index                = index - input_index[axes[i]] * Expr(prod_shape[i]);
+    }
+    return input_index;
+  };
+
+  auto tmp_out = lang::Compute(
+      tmp_shape,
+      [&](const std::vector<Expr>& indices) -> Expr {
+        Expr sum(initial);
+        for (int i = 0; i < row_per_thread; ++i) {
+          auto index       = Expr(row_in_block * i) + indices[axes.front()];
+          auto input_index = outidx2inidx(indices, index);
+          if (i < row_per_thread - 1) {
+            sum = func(sum, A(input_index));
+          } else {
+            sum = func(sum, ir::Select::Make(index < Expr(axis_dim), A(input_index), initial));
+          }
+        }
+        return sum;
+      },
+      cinn::UniqName(output_name + "_tmp"));
+
+  auto out = lang::Compute(
+      out_shape,
+      [&](const std::vector<Expr>& indices) -> Expr {
+        Expr sum(initial);
+        auto input_idx = indices;
+        if (!keep_dim) {
+          input_idx.insert(input_idx.begin() + axes.front(), axes.size(), Expr(0));
+        }
+        for (int i = 0; i < row_in_block; ++i) {
+          input_idx[axes.front()] = Expr(i);
+          sum                     = func(sum, tmp_out(input_idx));
+        }
+        return sum;
+      },
+      cinn::UniqName(output_name));
+
+  return {out, tmp_out};
+}
+
+std::vector<ir::Tensor> ReduceSumForSmallerDim(const ir::Tensor& A,
+                                               const std::vector<int>& axes,
+                                               bool keep_dim,
+                                               const std::string& output_name) {
+  return ReduceForSmallerDim(A, axes, ir::Add::Make, keep_dim, ir::Zero(A->type()), output_name);
+}
+
+std::vector<ir::Tensor> ReduceProdForSmallerDim(const ir::Tensor& A,
+                                                const std::vector<int>& axes,
+                                                bool keep_dim,
+                                                const std::string& output_name) {
+  return ReduceForSmallerDim(A, axes, ir::Mul::Make, keep_dim, ir::One(A->type()), output_name);
+}
+
+std::vector<ir::Tensor> ReduceMaxForSmallerDim(const ir::Tensor& A,
+                                               const std::vector<int>& axes,
+                                               bool keep_dim,
+                                               const std::string& output_name) {
+  return ReduceForSmallerDim(A, axes, ir::Max::Make, keep_dim, ir::Minimum(A->type()), output_name);
+}
+
+std::vector<ir::Tensor> ReduceMinForSmallerDim(const ir::Tensor& A,
+                                               const std::vector<int>& axes,
+                                               bool keep_dim,
+                                               const std::string& output_name) {
+  return ReduceForSmallerDim(A, axes, ir::Min::Make, keep_dim, ir::Maximum(A->type()), output_name);
 }
 
 }  // namespace pe

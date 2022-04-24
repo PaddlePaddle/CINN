@@ -20,6 +20,7 @@
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
+#include "cinn/hlir/op/reduction_util.h"
 #include "cinn/hlir/pe/broadcast.h"
 #include "cinn/hlir/pe/schedule.h"
 #include "cinn/hlir/pe/transform.h"
@@ -34,36 +35,6 @@ using common::CINNValuePack;
 using framework::OpStrategy;
 using framework::shape_t;
 using framework::StrategyFunction;
-using ReduceFunc =
-    std::function<ir::Tensor(const ir::Tensor &, const std::vector<int> &, bool, Expr, const std::string &)>;
-using BlockReduceInternalFunc =
-    std::function<std::vector<ir::Tensor>(const ir::Tensor &, const int, const bool, const std::string &)>;
-using BlockReduceFunc =
-    std::function<std::vector<ir::Tensor>(const ir::Tensor &, const int, const int, const bool, const std::string &)>;
-
-std::vector<int> GetShape(const ir::Tensor &x) {
-  auto last_reduce_dim = x->shape[2].as_int32() * x->shape[3].as_int32();
-  // Split into last_reduce_dim into {n,k}
-  std::vector<int> new_shape = {x->shape[0].as_int32(), x->shape[1].as_int32()};
-  // As the max block size is 1024, setting 1024 as limit
-  if (last_reduce_dim <= 1024) {
-    new_shape.push_back(last_reduce_dim);
-  } else {
-    // As sum of reduce dimension is over 1024, so find a value along(1024, 1) that can be divied by
-    // last_reduce_dim.
-    for (int idx = 1024;; --idx) {
-      if (last_reduce_dim % idx == 0) {
-        new_shape.push_back(last_reduce_dim / idx);
-        new_shape.push_back(idx);
-        break;
-      }
-    }
-
-    CHECK_EQ(new_shape.size(), 4) << "Can't find a new shape that satisfy the requirement!";
-  }
-
-  return new_shape;
-}
 
 std::shared_ptr<OpStrategy> StrategyForBnMeanVariance(const framework::NodeAttr &attrs,
                                                       const std::vector<ir::Tensor> &inputs,
@@ -74,7 +45,7 @@ std::shared_ptr<OpStrategy> StrategyForBnMeanVariance(const framework::NodeAttr 
   auto input = inputs[0];
   CHECK_EQ(input->shape.size(), 4) << "bn_mean_variance input shape should be 4 dimension!";
   // compute the new shape for reduce.
-  auto new_shape = GetShape(input);
+  auto new_shape = util::GetShape(input);
 
   framework::CINNCompute bn_mean_variance_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of bn_mean_variance compute is empty! Please check.";
@@ -182,7 +153,7 @@ std::shared_ptr<OpStrategy> StrategyForBnGradBiasScale(const framework::NodeAttr
   auto input = inputs[0];
   CHECK_EQ(input->shape.size(), 4) << "bn_grad_bias_scale input shape should be 4 dimension!";
   // compute the new shape for reduce.
-  auto new_shape = GetShape(input);
+  auto new_shape = util::GetShape(input);
 
   framework::CINNCompute bn_grad_bias_scale_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of bn_grad_bias_scale compute is empty! Please check.";
@@ -297,74 +268,33 @@ std::shared_ptr<OpStrategy> StrategyForBnGradBiasScale(const framework::NodeAttr
   return strategy;
 }
 
-#define StrategyForReduction(op_name_, reduce_op_, reduce_func_, block_reduce_internal_func_, block_reduce_func_) \
-  std::shared_ptr<OpStrategy> StrategyFor##reduce_op_(const framework::NodeAttr &attrs,                           \
-                                                      const std::vector<ir::Tensor> &inputs,                      \
-                                                      const std::vector<Type> &out_type,                          \
-                                                      const std::vector<std::vector<int>> &output_shapes,         \
-                                                      const Target &target) {                                     \
-    return StrategyForReduce(attrs,                                                                               \
-                             inputs,                                                                              \
-                             out_type,                                                                            \
-                             output_shapes,                                                                       \
-                             target,                                                                              \
-                             #op_name_,                                                                           \
-                             reduce_func_,                                                                        \
-                             block_reduce_internal_func_,                                                         \
-                             block_reduce_func_);                                                                 \
+#define StrategyForReduction(op_name_, reduce_op_)                                               \
+  std::shared_ptr<OpStrategy> StrategyFor##reduce_op_(const framework::NodeAttr &attrs,          \
+                                                      const std::vector<ir::Tensor> &inputs,     \
+                                                      const std::vector<Type> &out_type,         \
+                                                      const std::vector<shape_t> &output_shapes, \
+                                                      const Target &target) {                    \
+    return StrategyForReduce(attrs, inputs, out_type, output_shapes, target, #op_name_);         \
   }
 
 std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
                                               const std::vector<ir::Tensor> &inputs,
                                               const std::vector<Type> &out_type,
-                                              const std::vector<std::vector<int>> &output_shapes,
+                                              const std::vector<shape_t> &output_shapes,
                                               const Target &target,
-                                              const std::string &op_name,
-                                              const ReduceFunc &reduce_func,
-                                              const BlockReduceInternalFunc &block_reduce_internal_func,
-                                              const BlockReduceFunc &block_reduce_func) {
-  std::vector<int> dim;
-  bool keep_dim = false;
-  if (attrs.attr_store.count("dim")) {
-    dim = absl::get<std::vector<int>>(attrs.attr_store.at("dim"));
-    if (dim.empty()) {
-      for (int i = 0; i < inputs[0]->shape.size(); ++i) {
-        dim.push_back(i);
-      }
-    }
-    std::sort(dim.begin(), dim.end());
-    // check dim
-    CHECK_LE(dim.size(), inputs[0]->shape.size());
-    CHECK_LT(dim.back(), inputs[0]->shape.size());
-    for (int idx = 1; idx < dim.size(); ++idx) {
-      CHECK_NE(dim[idx - 1], dim[idx]);
-    }
-  } else {
-    LOG(FATAL) << "reduce dimension is not set!";
-  }
+                                              const std::string &op_name) {
+  CHECK(attrs.attr_store.count("dim")) << "reduce dimension is not set!";
 
+  auto dim = absl::get<shape_t>(attrs.attr_store.at("dim"));
+  dim      = util::CheckAndValidReduceDim(dim, inputs[0]->shape.size());
+
+  bool keep_dim = false;
   if (attrs.attr_store.count("keep_dim")) {
     keep_dim = absl::get<bool>(attrs.attr_store.at("keep_dim"));
   }
 
-  // compute reduce args
-  int succesive_dim_idx     = 0;
-  bool reduce_dim_succesive = true;
-  int last_succesive_dim    = inputs[0]->shape.back().as_int32();
-  for (int idx = dim.size() - 2; idx >= 0; --idx) {
-    if (dim[idx] != dim[idx + 1] - 1) {
-      succesive_dim_idx    = idx + 1;
-      reduce_dim_succesive = false;
-      break;
-    } else {
-      if (last_succesive_dim * inputs[0]->shape[dim[idx]].as_int32() > 1024) {
-        succesive_dim_idx    = idx + 1;
-        reduce_dim_succesive = false;
-        break;
-      }
-      last_succesive_dim *= inputs[0]->shape[dim[idx]].as_int32();
-    }
-  }
+  auto reduce_func_type = util::SelectReduceFuncType(inputs[0]->shape, dim, target);
+  VLOG(4) << "Select Reduce Type: " << util::ReduceFuncType2String(reduce_func_type);
 
   framework::CINNCompute reduction_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of " << op_name << " compute is empty! Please check.";
@@ -373,89 +303,21 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
     Expr x_expr = a[0];
     CHECK(x_expr.as_tensor());
     ir::Tensor x = x_expr.as_tensor_ref();
-    if (target == common::DefaultNVGPUTarget() && dim.back() == inputs[0]->shape.size() - 1) {
-      // the reduce dimension is succesive
-      if (reduce_dim_succesive) {
-        if (last_succesive_dim <= 1024) {
-          VLOG(3) << "Do BlockReduceInternal Compute!";
-          // if the succesive reduce dimension size <= 1024
-          auto res = block_reduce_internal_func(x, static_cast<int>(dim.size()), keep_dim, UniqName(op_name + "_out"));
-          CHECK_EQ(res.size(), 2);
-          auto stages = CreateStages(res);
-          *ret        = CINNValuePack{{CINNValue(res[0]), CINNValue(res[1]), CINNValue(stages)}};
-        } else {
-          VLOG(3) << "Do BlockReduce Compute!";
-          // if the succesive reduce dimension size > 256
-          int block_size = 1024;
-          auto res =
-              block_reduce_func(x, static_cast<int>(dim.size()), block_size, keep_dim, UniqName(op_name + "_out"));
-          CHECK_EQ(res.size(), 2);
-          auto stages = CreateStages(res);
-          *ret        = CINNValuePack{{CINNValue(res[0]), CINNValue(res[1]), CINNValue(stages)}};
-        }
-      } else /* the reduce dimension is not succesive */ {
-        VLOG(3) << "Do Reduce And BlockReduceInternal Compute!";
-        // compute the parallel reduce dimension size
-        int last_succesive_dim_tmp = last_succesive_dim;
-        std::vector<int> reduce_without_last_diemension(dim.begin(), dim.begin() + succesive_dim_idx);
-        // TODO(sunli) : support last dimension size over 1024
-        CHECK_LE(last_succesive_dim_tmp, 1024) << "last dimension size is over 1024";
-        // first: do reduce without last dimension
-        auto out = reduce_func(x, reduce_without_last_diemension, keep_dim, Expr(), UniqName(op_name + "_out"));
-        // second: do reduce on last dimension
-        auto res = block_reduce_internal_func(out,
-                                              static_cast<int>(dim.size() - reduce_without_last_diemension.size()),
-                                              keep_dim,
-                                              UniqName(op_name + "_out"));
-        CHECK_EQ(res.size(), 2);
-        auto stages = CreateStages({res[0], res[1], out});
-        *ret        = CINNValuePack{{CINNValue(res[0]), CINNValue(res[1]), CINNValue(out), CINNValue(stages)}};
-      }
-    } else {
-      VLOG(3) << "Do ReduceSum Compute!";
-      auto out    = reduce_func(x, dim, keep_dim, Expr(), UniqName(op_name + "_out"));
-      auto stages = CreateStages({out});
-      *ret        = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
-    }
+
+    auto out = util::RunReduceCompute(reduce_func_type, op_name, x, dim, keep_dim, UniqName(op_name + "_out"));
+
+    auto stages = CreateStages(out);
+    std::vector<CINNValue> pack;
+    std::for_each(out.begin(), out.end(), [&pack](const ir::Tensor &t) { pack.emplace_back(t); });
+    pack.emplace_back(stages);
+    *ret = CINNValuePack{pack};
   });
 
   framework::CINNSchedule reduction_schedule([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of " << op_name << " schedule is empty! Please check.";
     CINNValuePack arg_pack = args[0];
     CHECK(arg_pack.size() == 2UL || arg_pack.size() == 3UL || arg_pack.size() == 4UL);
-    if (target.arch == Target::Arch::NVGPU) {
-      if (dim.back() == inputs[0]->shape.size() - 1) {
-        if (reduce_dim_succesive) {
-          CHECK_EQ(arg_pack.size(), 3UL);
-          Expr out              = arg_pack[0];
-          Expr tmp_out          = arg_pack[1];
-          poly::StageMap stages = arg_pack.back();
-
-          VLOG(3) << "Do CudaScheduleBlockReduceInternal Schedule!";
-          pe::CudaScheduleBlockReduceInternal(
-              stages, tmp_out.as_tensor_ref(), out.as_tensor_ref(), common::DefaultNVGPUTarget());
-        } else {
-          CHECK_EQ(arg_pack.size(), 4UL);
-          Expr out              = arg_pack[0];
-          Expr tmp_out          = arg_pack[1];
-          Expr reduce_tmp_out   = arg_pack[2];
-          poly::StageMap stages = arg_pack.back();
-
-          VLOG(3) << "Do CudaScheduleBlockReduce Schedule!";
-          pe::CudaScheduleBlockReduce(stages,
-                                      reduce_tmp_out.as_tensor_ref(),
-                                      tmp_out.as_tensor_ref(),
-                                      out.as_tensor_ref(),
-                                      common::DefaultNVGPUTarget());
-        }
-      } else {
-        CHECK_EQ(arg_pack.size(), 2UL);
-        Expr out              = arg_pack[0];
-        poly::StageMap stages = arg_pack.back();
-        VLOG(3) << "Do CudaScheduleReduce Schedule!";
-        pe::CudaScheduleReduce(stages, out.as_tensor_ref(), inputs[0]->shape.size() - dim.back() - 1, target);
-      }
-    }
+    util::RunReduceSchedule(reduce_func_type, inputs[0]->shape, dim, target, &arg_pack);
     *ret = arg_pack;
   });
 
@@ -495,6 +357,9 @@ std::vector<shape_t> InferShapeForReduction(const std::vector<shape_t> &inputs_s
   if (out_shapes.empty()) {
     out_shapes.push_back(1);
   }
+
+  VLOG(4) << "Reduce input[" << cinn::utils::Join(inputs_shape[0], ",") << "] with dim[" << cinn::utils::Join(dim, ",")
+          << "] into output[" << cinn::utils::Join(out_shapes, ",") << "]";
 
   return {out_shapes};
 }
@@ -539,10 +404,10 @@ std::vector<std::vector<std::string>> InferLayoutForBnOptimize(const std::vector
   return {{"", ""}, {"", ""}};
 }
 
-StrategyForReduction(reduce_sum, ReduceSum, pe::ReduceSum, pe::BlockReduceSumInternal, pe::BlockReduceSum);
-StrategyForReduction(reduce_prod, ReduceProd, pe::ReduceProd, pe::BlockReduceProdInternal, pe::BlockReduceProd);
-StrategyForReduction(reduce_max, ReduceMax, pe::ReduceMax, pe::BlockReduceMaxInternal, pe::BlockReduceMax);
-StrategyForReduction(reduce_min, ReduceMin, pe::ReduceMin, pe::BlockReduceMinInternal, pe::BlockReduceMin);
+StrategyForReduction(reduce_sum, ReduceSum);
+StrategyForReduction(reduce_prod, ReduceProd);
+StrategyForReduction(reduce_max, ReduceMax);
+StrategyForReduction(reduce_min, ReduceMin);
 
 #undef StrategyForReduction
 

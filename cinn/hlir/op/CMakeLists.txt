@@ -5,6 +5,7 @@ gather_srcs(cinnapi_src SRCS
     broadcast.cc
     transform.cc
     elementwise.cc
+    reduction_util.cc
     reduction.cc
     op_util.cc
     )

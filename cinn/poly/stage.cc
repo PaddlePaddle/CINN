@@ -730,6 +730,7 @@ Iterator Stage::Fuse(int level0, int level1) {
 }
 
 Iterator Stage::Fuse(const std::vector<int> &levels) {
+  CHECK(!levels.empty()) << "Cannot Fuse empty levels ! Please check";
   auto dims = isl_get_dim_names(transformed_domain());
   for (auto i : levels) {
     AssertAxisIsNotLocked(i);
