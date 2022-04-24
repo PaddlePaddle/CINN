@@ -208,11 +208,13 @@ void cinn_gpu_cublas_matmul(const std::vector<int> &attrs,
   const float *rhs_data = reinterpret_cast<const float *>(rhs->memory);
   float *output_data    = reinterpret_cast<float *>(output->memory);
 
-  CHECK_GE(attrs.size(), 8);
-  int lhs_dim_size = attrs[attrs.size() - 4];
-  int rhs_dim_size = attrs[attrs.size() - 3];
-  bool lhs_trans   = static_cast<bool>(attrs[attrs.size() - 2]);
-  bool rhs_trans   = static_cast<bool>(attrs[attrs.size() - 1]);
+  CHECK_GE(attrs.size(), 9);
+  int lhs_dim_size  = attrs[attrs.size() - 5];
+  int rhs_dim_size  = attrs[attrs.size() - 4];
+  bool lhs_trans    = static_cast<bool>(attrs[attrs.size() - 3]);
+  bool rhs_trans    = static_cast<bool>(attrs[attrs.size() - 2]);
+  const float alpha = *reinterpret_cast<const float *>(&attrs[attrs.size() - 1]);
+  VLOG(4) << "The alpha value used by cublas_matmul: " << alpha;
   CHECK_EQ(lhs_dim_size, rhs_dim_size);
   CHECK((lhs_dim_size == 2 || lhs_dim_size == 3));
 
@@ -226,7 +228,7 @@ void cinn_gpu_cublas_matmul(const std::vector<int> &attrs,
     details::Gemm(cublas,
                   lhs_trans,
                   rhs_trans,
-                  1.f,
+                  alpha,
                   lhs_data,
                   lhs_row,
                   lhs_col,
@@ -252,7 +254,7 @@ void cinn_gpu_cublas_matmul(const std::vector<int> &attrs,
     details::GemmStridedBatched(cublas,
                                 lhs_trans,
                                 rhs_trans,
-                                1.f,
+                                alpha,
                                 lhs_data,
                                 lhs_bs,
                                 lhs_row,
@@ -285,12 +287,14 @@ void cinn_gpu_cublas_gemm(const std::vector<int> &attrs,
   const float *bias_data = reinterpret_cast<const float *>(bias->memory);
   float *output_data     = reinterpret_cast<float *>(output->memory);
 
-  CHECK_GE(attrs.size(), 11);
-  int lhs_dim_size  = attrs[attrs.size() - 5];
-  int rhs_dim_size  = attrs[attrs.size() - 4];
-  int bias_dim_size = attrs[attrs.size() - 3];
-  bool lhs_trans    = static_cast<bool>(attrs[attrs.size() - 2]);
-  bool rhs_trans    = static_cast<bool>(attrs[attrs.size() - 1]);
+  CHECK_GE(attrs.size(), 12);
+  int lhs_dim_size  = attrs[attrs.size() - 6];
+  int rhs_dim_size  = attrs[attrs.size() - 5];
+  int bias_dim_size = attrs[attrs.size() - 4];
+  bool lhs_trans    = static_cast<bool>(attrs[attrs.size() - 3]);
+  bool rhs_trans    = static_cast<bool>(attrs[attrs.size() - 2]);
+  const float alpha = *reinterpret_cast<const float *>(&attrs[attrs.size() - 1]);
+  VLOG(4) << "The alpha value used by cublas_gemm: " << alpha;
   CHECK_EQ(lhs_dim_size, rhs_dim_size);
   CHECK_EQ(lhs_dim_size, bias_dim_size);
   CHECK((lhs_dim_size == 2 || lhs_dim_size == 3));
@@ -305,7 +309,7 @@ void cinn_gpu_cublas_gemm(const std::vector<int> &attrs,
     details::Gemm(cublas,
                   lhs_trans,
                   rhs_trans,
-                  1.f,
+                  alpha,
                   lhs_data,
                   lhs_row,
                   lhs_col,
@@ -331,7 +335,7 @@ void cinn_gpu_cublas_gemm(const std::vector<int> &attrs,
     details::GemmStridedBatched(cublas,
                                 lhs_trans,
                                 rhs_trans,
-                                1.f,
+                                alpha,
                                 lhs_data,
                                 lhs_bs,
                                 lhs_row,

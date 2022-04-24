@@ -915,11 +915,14 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions(
           instr->attrs.insert(instr->attrs.end(), input_sizes.begin(), input_sizes.end());
           CHECK(node->attrs.attr_store.contains("trans_a"));
           CHECK(node->attrs.attr_store.contains("trans_b"));
+          CHECK(node->attrs.attr_store.contains("alpha"));
           bool trans_a = absl::get<bool>(node->attrs.attr_store.at("trans_a"));
           instr->attrs.push_back(static_cast<int>(trans_a));
           bool trans_b = absl::get<bool>(node->attrs.attr_store.at("trans_b"));
           instr->attrs.push_back(static_cast<int>(trans_b));
-        } else if (node->op()->name == "matmul") {
+          float alpha = absl::get<float>(node->attrs.attr_store.at("alpha"));
+          instr->attrs.push_back(*reinterpret_cast<int*>(&alpha));
+        } else if (node->op()->name == "cublas_matmul") {
           auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
           std::vector<int> input_sizes;
           // input info
@@ -931,7 +934,7 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions(
             input_sizes.push_back(in_shape.size());
           }
           instr->attrs.insert(instr->attrs.end(), input_sizes.begin(), input_sizes.end());
-          // transpose info
+          // attribute info
           bool trans_a = false;
           if (node->attrs.attr_store.contains("trans_a")) {
             trans_a = absl::get<bool>(node->attrs.attr_store.at("trans_a"));
@@ -942,6 +945,11 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions(
             trans_b = absl::get<bool>(node->attrs.attr_store.at("trans_b"));
           }
           instr->attrs.push_back(static_cast<int>(trans_b));
+          float alpha = 1.f;
+          if (node->attrs.attr_store.contains("alpha")) {
+            alpha = absl::get<float>(node->attrs.attr_store.at("alpha"));
+          }
+          instr->attrs.push_back(*reinterpret_cast<int*>(&alpha));
         }
       }
       std::string op_func_name = GetOrGenFullFuncName(GenOpFuncName(node));
