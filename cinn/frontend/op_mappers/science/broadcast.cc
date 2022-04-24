@@ -25,7 +25,6 @@ void FillConstantOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperCont
   auto y_name = op_desc.Output("Y").front();
 
   auto shape = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "shape");
-  // TODO(jiangcheng): value support different datatype, not just float
   auto value = utils::GetAttrOrDefault<float>(op_desc, "value", 0.0f);
 
   auto dtype_id = utils::GetAttrOrDefault<int>(op_desc, "dtype", static_cast<int>(paddle::cpp::VarDescAPI::Type::FP32));
@@ -35,6 +34,34 @@ void FillConstantOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperCont
 
   VLOG(4) << "fill constant (" << value << ") with shape (" << cinn::utils::Join(shape, ",") << ") and dtype [" << dtype
           << "]";
+
+  const auto& cinn_name = cinn::utils::TransValidVarName(y_name);
+  CheckVarNameValid(cinn_name);
+
+  auto out = ctx.Builder()->FillConstant(shape, value, cinn_name, dtype);
+
+  ctx.AddVar(y_name, out);
+  ctx.AddVarModelToProgram(y_name, out->id);
+}
+
+void FillAnyLikeOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+  CHECK_EQ(op_desc.Input("X").size(), 1UL);
+  auto x_name = op_desc.Input("X").front();
+  auto x      = ctx.GetVar(x_name);
+
+  CHECK_EQ(op_desc.Output("Out").size(), 1UL);
+  auto y_name = op_desc.Output("Out").front();
+
+  auto shape = x->shape;
+  auto value = utils::GetAttrOrDefault<float>(op_desc, "value");
+
+  auto dtype_id = utils::GetAttrOrDefault<int>(op_desc, "dtype", static_cast<int>(paddle::cpp::VarDescAPI::Type::FP32));
+  auto dtype_pd = static_cast<paddle::cpp::VarDescAPI::Type>(dtype_id);
+  auto dtype_cinn = utils::CppVarType2CommonType(dtype_pd);
+  auto dtype      = common::type2str(dtype_cinn);
+
+  VLOG(4) << "FillAnyLikeOp: fill constant (" << value << ") with shape (" << cinn::utils::Join(shape, ",")
+          << ") and dtype [" << dtype << "]";
 
   const auto& cinn_name = cinn::utils::TransValidVarName(y_name);
   CheckVarNameValid(cinn_name);
@@ -72,6 +99,7 @@ void BroadcastOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
 
 CINN_REGISTER_HELPER(science_broadcast) {
   CINN_REGISTER_OP_MAPPER(fill_constant_p, cinn::frontend::science_mappers::FillConstantOpMapper)
+  CINN_REGISTER_OP_MAPPER(fill_any_like, cinn::frontend::science_mappers::FillAnyLikeOpMapper)
   CINN_REGISTER_OP_MAPPER(broadcast_p, cinn::frontend::science_mappers::BroadcastOpMapper)
 
   return true;

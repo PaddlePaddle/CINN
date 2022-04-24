@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "cinn/common/target.h"
+#include "cinn/frontend/optimize.h"
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/graph_compiler.h"
@@ -100,7 +101,7 @@ TEST(cinn_build, execution) {
   Target target = common::DefaultHostTarget();
 #endif
 
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  auto graph = Optimize(&program, {"A", "B"}, target);
   LOG(INFO) << "graph:\n" << graph->Visualize();
 
   auto scope = BuildScope(target, graph);
