@@ -21,9 +21,11 @@
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
 #include "cinn/hlir/pe/broadcast.h"
+#include "cinn/hlir/pe/new_schedule.h"
 #include "cinn/hlir/pe/schedule.h"
 #include "cinn/hlir/pe/transform.h"
 #include "cinn/ir/ir_operators.h"
+#include "cinn/ir/ir_schedule.h"
 
 namespace cinn {
 namespace hlir {
@@ -323,6 +325,7 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
                                               const ReduceFunc &reduce_func,
                                               const BlockReduceInternalFunc &block_reduce_internal_func,
                                               const BlockReduceFunc &block_reduce_func) {
+  CHECK_EQ(output_shapes.size(), 1U);
   std::vector<int> dim;
   bool keep_dim = false;
   if (attrs.attr_store.count("dim")) {
@@ -422,41 +425,66 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
   framework::CINNSchedule reduction_schedule([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of " << op_name << " schedule is empty! Please check.";
     CINNValuePack arg_pack = args[0];
-    CHECK(arg_pack.size() == 2UL || arg_pack.size() == 3UL || arg_pack.size() == 4UL);
+    std::vector<CINNValue> res;
+    // CHECK(arg_pack.size() == 2UL || arg_pack.size() == 3UL || arg_pack.size() == 4UL);
     if (target.arch == Target::Arch::NVGPU) {
       if (dim.back() == inputs[0]->shape.size() - 1) {
         if (reduce_dim_succesive) {
-          CHECK_EQ(arg_pack.size(), 3UL);
-          Expr out              = arg_pack[0];
-          Expr tmp_out          = arg_pack[1];
-          poly::StageMap stages = arg_pack.back();
+          // (arg_pack.size(), 3UL);
 
+          Expr ast_expr0 = arg_pack[0];
+          Expr ast_expr1 = arg_pack[1];
+          std::vector<Expr> vec_ast{ast_expr0, ast_expr1};
+          ir::ModuleExpr mod_expr(vec_ast);
+          ir::IRSchedule ir_sch(mod_expr);
+          ir_sch.MergeExprs();
+          auto all_blocks = ir_sch.GetAllBlocks();
+          CHECK_EQ(all_blocks.size(), 2U);
+          auto tmp_out = GetTensor(all_blocks[0]);
+          auto out     = GetTensor(all_blocks[1]);
           VLOG(3) << "Do CudaScheduleBlockReduceInternal Schedule!";
-          pe::CudaScheduleBlockReduceInternal(
-              stages, tmp_out.as_tensor_ref(), out.as_tensor_ref(), common::DefaultNVGPUTarget());
+          pe::NewCudaScheduleBlockReduceInternal(ir_sch, tmp_out, out, common::DefaultNVGPUTarget());
+          res.push_back(CINNValue(ir_sch.GetModule().GetExprs().at(0)));
+          *ret = CINNValuePack{res};
         } else {
-          CHECK_EQ(arg_pack.size(), 4UL);
-          Expr out              = arg_pack[0];
-          Expr tmp_out          = arg_pack[1];
-          Expr reduce_tmp_out   = arg_pack[2];
-          poly::StageMap stages = arg_pack.back();
+          // CHECK_EQ(arg_pack.size(), 4UL);
+
+          Expr ast_expr0 = arg_pack[0];
+          Expr ast_expr1 = arg_pack[1];
+          Expr ast_expr2 = arg_pack[2];
+          std::vector<Expr> vec_ast{ast_expr0, ast_expr1, ast_expr2};
+          ir::ModuleExpr mod_expr(vec_ast);
+          ir::IRSchedule ir_sch(mod_expr);
+          ir_sch.MergeExprs();
+          auto all_blocks = ir_sch.GetAllBlocks();
+          CHECK_EQ(all_blocks.size(), 3U);
+          auto reduce_tmp_out = GetTensor(all_blocks[0]);
+          auto tmp_out        = GetTensor(all_blocks[1]);
+          auto out            = GetTensor(all_blocks[2]);
 
           VLOG(3) << "Do CudaScheduleBlockReduce Schedule!";
-          pe::CudaScheduleBlockReduce(stages,
-                                      reduce_tmp_out.as_tensor_ref(),
-                                      tmp_out.as_tensor_ref(),
-                                      out.as_tensor_ref(),
-                                      common::DefaultNVGPUTarget());
+          pe::NewCudaScheduleBlockReduce(ir_sch, reduce_tmp_out, tmp_out, out, common::DefaultNVGPUTarget());
+          res.push_back(CINNValue(ir_sch.GetModule().GetExprs().at(0)));
+          *ret = CINNValuePack{res};
         }
       } else {
-        CHECK_EQ(arg_pack.size(), 2UL);
-        Expr out              = arg_pack[0];
-        poly::StageMap stages = arg_pack.back();
+        // CHECK_EQ(arg_pack.size(), 2UL);
+
+        Expr ast_expr0 = arg_pack[0];
+        std::vector<Expr> vec_ast{ast_expr0};
+        ir::ModuleExpr mod_expr(vec_ast);
+        ir::IRSchedule ir_sch(mod_expr);
+
         VLOG(3) << "Do CudaScheduleReduce Schedule!";
-        pe::CudaScheduleReduce(stages, out.as_tensor_ref(), inputs[0]->shape.size() - dim.back() - 1, target);
+        pe::NewCudaScheduleReduce(ir_sch, output_shapes[0], inputs[0]->shape.size() - dim.back() - 1, target);
+        res.push_back(CINNValue(ir_sch.GetModule().GetExprs().at(0)));
+        *ret = CINNValuePack{res};
       }
+    } else {
+      std::vector<CINNValue> res;
+      res.push_back(arg_pack[0]);
+      *ret = CINNValuePack{res};
     }
-    *ret = arg_pack;
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();

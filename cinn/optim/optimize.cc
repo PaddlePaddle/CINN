@@ -15,6 +15,7 @@
 #include "cinn/optim/optimize.h"
 
 #include "cinn/ir/ir_printer.h"
+#include "cinn/ir/ir_schedule.h"
 #include "cinn/optim/call_arg_list_to_pod_value.h"
 #include "cinn/optim/cast_bool_to_int8.h"
 #include "cinn/optim/cast_simplify.h"
@@ -51,6 +52,7 @@ Expr Optimize(Expr e, Target target, bool runtime_debug_info) {
   UnrollLoop(&copied);
   VectorizeLoops(&copied, Target());
 #ifdef CINN_WITH_CUDA
+  ir::SetCudaAxisInfo(&copied);
   RemoveGpuForloopsAxis(&copied);
   CudaSyncThreadsDropIfThenElse(&copied);
 #endif

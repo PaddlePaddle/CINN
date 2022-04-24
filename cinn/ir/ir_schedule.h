@@ -167,11 +167,26 @@ class IRSchedule {
   Expr Fuse(const std::string& block_name, const std::vector<int>& loops_index);
 
   /**
+   * \brief Fuse for loops and return the fused loop.
+   * @param block The block we want to modify.
+   * @param loops_index Indices of the loops to be fused, stored in ascending order.
+   * @return The fused loop.
+   */
+  Expr Fuse(const Expr& block, const std::vector<int>& loops_index);
+
+  /**
    * \brief Move a block's location under a loop.
    * @param block The block we want to move its computation location.
    * @param loop The loop we will move the block to.
    */
   void ComputeAt(const Expr& block, const Expr& loop);
+
+  /**
+   * \brief Move a block's location under a loop without considering their dependency.
+   * @param block The block we want to move its computation location.
+   * @param loop The loop we will move the block to.
+   */
+  void SimpleComputeAt(const Expr& block, const Expr& loop);
 
   /**
    * \brief Find an expr's root ScheduleBlockRealize node
@@ -203,7 +218,7 @@ class IRSchedule {
    * \param block The ScheduleBlockRealize corresponding to an unique tensor.
    * \param memory_type The memory type we want to set. Should be "local", "shared" or "global".
    */
-  void SetBuffer(const Expr& block, const std::string& memory_type) const;
+  void SetBuffer(Expr& block, const std::string& memory_type);
 
   /**
    * \brief Reorder the loops in the order of vector.
@@ -217,6 +232,13 @@ class IRSchedule {
    * @param loops_index Indices of loops to be reordered.
    */
   void Reorder(const std::string& block_name, const std::vector<int>& loops_index);
+
+  /**
+   * \brief Reorder the loops in the order of vector elements.
+   * @param block The block we want to modify.
+   * @param loops_index Indices of loops to be reordered.
+   */
+  void Reorder(const Expr& block, const std::vector<int>& loops_index);
 
   /**
    * Get the device api of this IRSchedule.
@@ -309,5 +331,6 @@ class IRSchedule {
   ScheduleHelper helper_;
 };
 
+void SetCudaAxisInfo(Expr* lowered_func);
 }  // namespace ir
 }  // namespace cinn

@@ -32,6 +32,27 @@ namespace lang {
 using ir::Tensor;
 using poly::Stage;
 
+std::vector<ir::Argument> GetArgs(ir::LoweredFunc& lowered_func) {
+  std::vector<ir::Argument> res;
+  std::set<std::string> arg_name;
+  for (auto& i : lowered_func->args) {
+    if (i.is_input()) res.push_back(i);
+  }
+  auto all_output_tensors = ir::CollectIRNodesWithoutTensor(lowered_func->body, [&](const Expr* x) {
+    return x->As<ir::Store>() && x->As<ir::Store>()->tensor.as_tensor() &&
+           x->As<ir::Store>()->tensor.as_tensor_ref()->buffer.defined() &&
+           x->As<ir::Store>()->tensor.as_tensor_ref()->buffer->memory_type != ir::MemoryType::GPUShared &&
+           x->As<ir::Store>()->tensor.as_tensor_ref()->buffer->memory_type != ir::MemoryType::GPULocal;
+  });
+  for (auto i : all_output_tensors) {
+    if (arg_name.count(i.As<ir::Store>()->tensor.as_tensor_ref()->buffer->name)) continue;
+    res.emplace_back(i.As<ir::Store>()->tensor.as_tensor_ref()->buffer, ir::Argument::IO::kOutput);
+    arg_name.insert(i.As<ir::Store>()->tensor.as_tensor_ref()->buffer->name);
+  }
+  for (auto& i : res) VLOG(3) << "In res, arg has : " << i.name();
+  return res;
+}
+
 //! Collect the temporary tensors from a computational graph.
 std::vector<ir::Buffer> GetTempBuffers(const std::vector<Tensor>& tensor_args,
                                        const poly::StageMap& stage_map,

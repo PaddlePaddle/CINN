@@ -380,18 +380,32 @@ void _Tensor_::WithBuffer(const Type &type) {
 
 void _Tensor_::WithBuffer(const std::string &memory_type, const std::string &buffer_name, const Type &type) {
   Type buf_type = type.is_void() ? type_ : type;
-  lang::Buffer buf(buf_type, buffer_name);
-  buf->target = common::DefaultHostTarget();
-  Bind(buf);
-
-  if (memory_type == "shared") {
-    buf->memory_type = MemoryType::GPUShared;
-  } else if (memory_type == "local") {
-    buf->memory_type = MemoryType::GPULocal;
-  } else if (memory_type == "global") {
-    buf->memory_type = MemoryType::Heap;
+  if (this->buffer.defined()) {
+    this->buffer->dtype = buf_type;
+    this->buffer->name  = buffer_name;
+    if (memory_type == "shared") {
+      this->buffer->memory_type = MemoryType::GPUShared;
+    } else if (memory_type == "local") {
+      this->buffer->memory_type = MemoryType::GPULocal;
+    } else if (memory_type == "global") {
+      this->buffer->memory_type = MemoryType::Heap;
+    } else {
+      LOG(FATAL) << "Not supported memory type " << memory_type;
+    }
   } else {
-    LOG(FATAL) << "Not supported memory type " << memory_type;
+    lang::Buffer buf(buf_type, buffer_name);
+    buf->target = common::DefaultHostTarget();
+    Bind(buf);
+
+    if (memory_type == "shared") {
+      buf->memory_type = MemoryType::GPUShared;
+    } else if (memory_type == "local") {
+      buf->memory_type = MemoryType::GPULocal;
+    } else if (memory_type == "global") {
+      buf->memory_type = MemoryType::Heap;
+    } else {
+      LOG(FATAL) << "Not supported memory type " << memory_type;
+    }
   }
 }
 

@@ -61,6 +61,31 @@ class TestNetBuilder2(unittest.TestCase):
 
     def test_basic(self):
         builder = NetBuilder("test_basic")
+        a = builder.create_input(Float(32), (32, 32), "A")
+        b = builder.create_input(Float(32), (32, 32), "B")
+        d = builder.mul(a, b)
+        prog = builder.build()
+        self.assertEqual(prog.size(), 1)
+        # print program
+        for i in range(prog.size()):
+            print(prog[i])
+        tensor_data = [
+            np.random.random([32, 32]).astype("float32"),
+            np.random.random([32, 32]).astype("float32")
+        ]
+        result = prog.build_and_get_output(self.target, [a, b], tensor_data,
+                                           [d])
+
+
+class TestNetBuilder3(unittest.TestCase):
+    def setUp(self):
+        if enable_gpu == "ON":
+            self.target = DefaultNVGPUTarget()
+        else:
+            self.target = DefaultHostTarget()
+
+    def test_basic(self):
+        builder = NetBuilder("test_basic")
         a = builder.create_input(Float(32), (512, 32), "A")
         d = builder.softmax(a)
         prog = builder.build()

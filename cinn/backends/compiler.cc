@@ -100,7 +100,6 @@ void Compiler::CompileCudaModule(const Module& module, const std::string& code, 
                                                             static_cast<cudaStream_t>(stream));
     }
   }
-
   {  // compile host jit
     engine_ = ExecutionEngine::Create(ExecutionOptions());
     engine_->Link<CodeGenCUDA_Host>(host_module);
