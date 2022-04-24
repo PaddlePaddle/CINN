@@ -66,8 +66,8 @@ void SplitOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ct
         << "If the attribute 'num_or_sections' is a number, it should be divisible by the "
            "axis's dimension of inputs A ! Please check.";
   } else {
-    utils::DimType sec_sum = 0;
-    bool has_neg           = false;
+    cinn::utils::DimType sec_sum = 0;
+    bool has_neg                 = false;
     for (auto sec : num_or_sections) {
       if (sec > 0) {
         sec_sum += sec;
@@ -155,7 +155,7 @@ void SliceSelectOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperConte
           << cinn::utils::Join(starts, ",") << "], ends [" << cinn::utils::Join(ends, ",") << "], axis ["
           << cinn::utils::Join(axes, ",") << "], strides [" << cinn::utils::Join(strides, ",") << "].";
 
-  auto out = ctx.Builder()->Slice(x, axes, starts, ends, utils::ShapeType{}, strides);
+  auto out = ctx.Builder()->Slice(x, axes, starts, ends, cinn::utils::ShapeType{}, strides);
 
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);
@@ -279,7 +279,7 @@ void ScatterAddOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContex
 
   auto out = ctx.Builder()->ScatterAdd(x, updates, index, axis);
 
-  VLOG(4) << "ScatterAdd " << assign_name << " (" << cinn::utils::Join(updates->shape, ",") << ") to " << x_name
+  VLOG(4) << "ScatterAdd " << updates_name << " (" << cinn::utils::Join(updates->shape, ",") << ") to " << x_name
           << " shape (" << cinn::utils::Join(x->shape, ",") << ") "
           << "at dimension " << axis;
 

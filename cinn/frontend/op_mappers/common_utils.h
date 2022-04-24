@@ -79,13 +79,13 @@ inline bool GetAttrOrDefault(const paddle::cpp::OpDesc& op_desc, const std::stri
 }
 
 template <typename T>
-inline utils::ShapeType ToShapeType(const std::vector<T>& shape) {
-  return utils::ShapeType(shape.begin(), shape.end());
+inline cinn::utils::ShapeType ToShapeType(const std::vector<T>& shape) {
+  return cinn::utils::ShapeType(shape.begin(), shape.end());
 }
 
 template <typename T>
-inline utils::DimType ToDimType(const T& val) {
-  return static_cast<utils::DimType>(val);
+inline cinn::utils::DimType ToDimType(const T& val) {
+  return static_cast<cinn::utils::DimType>(val);
 }
 
 }  // namespace utils
