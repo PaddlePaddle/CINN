@@ -40,6 +40,47 @@ void NewCudaScheduleInjective(ir::IRSchedule &ir_sch,
                               const common::Target &target);
 
 void NewCudaScheduleMul(ir::IRSchedule &ir_sch, const std::vector<int> &output_shape, const common::Target &target);
+
+void NewMulScheduleCPU(ir::IRSchedule &ir_sch,
+                       const std::vector<int> &reduce_first_shape,
+                       const common::Target &target);
+
+void NewCudaSplitSchedule(ir::IRSchedule &ir_sch,
+                          const std::vector<std::vector<int>> &output_shapes,
+                          int axis,
+                          const common::Target &target);
+
+void NewCudaScheduleReduce(ir::IRSchedule &ir_sch,
+                           const std::vector<int> &output_shape,
+                           int last_dimension_num,
+                           const common::Target &target);
+
+void NewCudaScheduleBlockReduce(ir::IRSchedule &ir_sch,
+                                ir::Tensor reduce_tmp_out,
+                                ir::Tensor tmp_out,
+                                ir::Tensor out,
+                                const common::Target &target);
+
+void NewCudaScheduleBlockReduceInternal(ir::IRSchedule &ir_sch,
+                                        ir::Tensor tmp_out,
+                                        ir::Tensor out,
+                                        const common::Target &target);
+
+void NewSoftmaxScheduleCPU(ir::IRSchedule &ir_sch, int axis = -1);
+
+void NewPoolScheduleGPU(ir::IRSchedule &ir_sch, const common::Target &target);
+
+void NewGlobalPoolScheduleGPU(ir::IRSchedule &ir_sch, const common::Target &target);
+
+void NewCudaScheduleConv2(ir::IRSchedule &ir_sch,
+                          ir::Tensor &input_pad,
+                          ir::Tensor &weights,
+                          ir::Tensor &output,
+                          const common::Target &target,
+                          const std::string &key);
+
+void NewCudaScheduleConv(ir::IRSchedule &ir_sch, const common::Target &target);
+
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn

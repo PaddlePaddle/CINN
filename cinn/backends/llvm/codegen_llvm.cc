@@ -638,6 +638,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::ScheduleBlock *) { CINN_NOT_IMPLEMENTE
 llvm::Value *CodeGenLLVM::Visit(const ir::ScheduleBlockRealize *) { CINN_NOT_IMPLEMENTED return nullptr; }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::Call *op) {
+  LOG(INFO) << "CodeGenLLVM::Visit(const ir::Call : " << Expr(op);
   if (op->name == runtime::intrinsic::debug_log_repr) {
     return EmitCall_debug_info(op);
   } else if (op->is_extern_call()) {
@@ -650,7 +651,11 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Call *op) {
       return extern_func_emit_res_;
     }
   }
+  for (auto curFref = m_->getFunctionList().begin(); curFref != m_->getFunctionList().end(); curFref++) {
+    LOG(INFO) << "found function in m_: " << std::string(curFref->getName()) << "\n";
+  }
 
+  LOG(INFO) << "m_->getFunction : " << op->name;
   llvm::Function *callee = m_->getFunction(op->name);
   CHECK(callee) << "Unknown function referenced. [" << op->name << "]";
 
@@ -910,6 +915,7 @@ void appendBody(std::vector<Expr> &new_body, T &&v) {
 }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::_LoweredFunc_ *op) {
+  LOG(INFO) << "CodeGenLLVM::Visit(const ir::_LoweredFunc_ : " << Expr(op);
   auto init_function_state = [this]() { alias_vars_.clear(); };
   init_function_state();
 

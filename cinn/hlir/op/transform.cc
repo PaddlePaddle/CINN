@@ -201,24 +201,23 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
     CINNValuePack arg_pack = args[0];
     int arg_size           = arg_pack.size();
     CHECK(arg_size == 2UL || arg_size == 3UL);
-    poly::StageMap stages = arg_pack.back();
+    Expr ast_expr = arg_pack[0];
+    std::vector<Expr> vec_ast{ast_expr};
+    ir::ModuleExpr mod_expr(vec_ast);
+    ir::IRSchedule ir_sch(mod_expr);
     if (target.arch == Target::Arch::NVGPU) {
-      Expr out = arg_pack[0];
-      CHECK(out.as_tensor());
-      stages[out.as_tensor_ref()]->Split(1, 2);
-      stages[out.as_tensor_ref()]->Bind(0, "blockIdx.x");
-      stages[out.as_tensor_ref()]->Bind(1, "threadIdx.x");
+      pe::NewCudaScheduleMul(ir_sch, output_shapes.back(), target);
     } else if (target.arch == Target::Arch::X86) {
-#ifdef CINN_WITH_MKL_CBLAS
-      CHECK_EQ(arg_pack.size(), 3UL);
-#else
-      CHECK(arg_pack.size() == 3UL);
-      Expr out     = arg_pack[0];
-      Expr packedB = arg_pack[1];
-      CHECK(packedB.as_tensor());
-      CHECK(out.as_tensor());
-      pe::MatmulScheduleCPU(stages, out.as_tensor_ref(), packedB.as_tensor_ref(), target);
-#endif
+      /* #ifdef CINN_WITH_MKL_CBLAS
+            CHECK_EQ(arg_pack.size(), 3UL);
+      #else
+            CHECK(arg_pack.size() == 3UL);
+            Expr out     = arg_pack[0];
+            Expr packedB = arg_pack[1];
+            CHECK(packedB.as_tensor());
+            CHECK(out.as_tensor());
+            pe::MatmulScheduleCPU(stages, out.as_tensor_ref(), packedB.as_tensor_ref(), target);
+      #endif */
     }
     *ret = arg_pack;
   });
@@ -463,8 +462,14 @@ std::shared_ptr<OpStrategy> StrategyForSplit(const framework::NodeAttr &attrs,
     CINNValuePack arg_pack = args[0];
     CHECK_GE(arg_pack.size(), 2UL) << "The input tensor's size of split schedule is " << arg_pack.size()
                                    << "and it should be greater equal to 2! Please check.";
-    pe::CudaSplitSchedule(&arg_pack, output_shapes, axis, target);
-    *ret = arg_pack;
+    Expr ast_expr = arg_pack[0];
+    std::vector<Expr> vec_ast{ast_expr};
+    ir::ModuleExpr mod_expr(vec_ast);
+    ir::IRSchedule ir_sch(mod_expr);
+    pe::NewCudaSplitSchedule(ir_sch, output_shapes, axis, target);
+    std::vector<CINNValue> res;
+    res.push_back(arg_pack[0]);
+    *ret = CINNValuePack{res};
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -771,20 +776,22 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
     CHECK(!args.empty()) << "The input argument of mul schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
     CHECK(arg_pack.size() == 2UL || arg_pack.size() == 3UL);
-    Expr out              = arg_pack[0];
-    poly::StageMap stages = arg_pack.back();
-    CHECK(out.as_tensor());
+    Expr ast_expr = arg_pack[0];
+    std::vector<Expr> vec_ast{ast_expr};
+    ir::ModuleExpr mod_expr(vec_ast);
+    ir::IRSchedule ir_sch(mod_expr);
     if (target.arch == Target::Arch::NVGPU) {
-      pe::CudaScheduleMul(stages, out.as_tensor_ref(), output_shapes.back(), target);
+      pe::NewCudaScheduleMul(ir_sch, output_shapes.back(), target);
     } else if (target.arch == Target::Arch::X86) {
-      CHECK_EQ(arg_pack.size(), 3UL);
+      CHECK_EQ(arg_pack.size(), 2UL);
 #ifndef CINN_WITH_MKL_CBLAS
-      Expr reduce_first = arg_pack[1];
-      CHECK(reduce_first.as_tensor());
-      pe::MulScheduleCPU(stages, out.as_tensor_ref(), reduce_first.as_tensor_ref(), target);
+      CHECK_EQ(output_shapes.size(), 2U);
+      pe::NewMulScheduleCPU(ir_sch, output_shapes[1], target);
 #endif
     }
-    *ret = arg_pack;
+    std::vector<CINNValue> res;
+    res.push_back(arg_pack[0]);
+    *ret = CINNValuePack{res};
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -896,17 +903,20 @@ std::shared_ptr<OpStrategy> StrategyForCublasGemm(const framework::NodeAttr &att
   framework::CINNSchedule gemm_schedule(
       [output_shape = output_shapes[0], target](lang::Args args, lang::RetValue *ret) {
         CHECK(!args.empty()) << "The input `args` is empty! Please check again.";
-        CINNValuePack input_args = args[0];
-        CHECK_EQ(input_args.size(), 2U) << "Expected 2 values in args[0] for gemm_schedule.";
-        Expr out              = input_args[0];
-        poly::StageMap stages = input_args[1];
-        CHECK(out.as_tensor());
+        CINNValuePack arg_pack = args[0];
+        CHECK_EQ(arg_pack.size(), 2UL);
+        Expr ast_expr = arg_pack[0];
+        std::vector<Expr> vec_ast{ast_expr};
+        ir::ModuleExpr mod_expr(vec_ast);
+        ir::IRSchedule ir_sch(mod_expr);
         if (target.arch == Target::Arch::NVGPU) {
-          pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shape, target);
+          pe::NewCudaScheduleInjective(ir_sch, output_shape, target);
         } else if (target.arch == Target::Arch::X86) {
-          pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shape, target);
+          pe::NewScheduleInjectiveCPU(ir_sch, output_shape, target);
         }
-        *ret = input_args;
+        std::vector<CINNValue> res;
+        res.push_back(arg_pack[0]);
+        *ret = CINNValuePack{res};
       });
 
   auto strategy = std::make_shared<framework::OpStrategy>();

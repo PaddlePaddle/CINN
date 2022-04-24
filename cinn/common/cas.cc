@@ -1310,6 +1310,7 @@ Expr CasSimplifyMutator::SimplifyMod(Expr u) {
 
   // (2x+y+z) % 2 = (y+z) % 2
   if (a_sum && b_i) {
+    LOG(INFO) << "Case 1, u is : " << u;
     std::vector<Expr> sum_args;
     for (auto& v : a_sum->operands()) {
       if (!IsDivisible(v, b_i->value)) {
@@ -1320,22 +1321,34 @@ Expr CasSimplifyMutator::SimplifyMod(Expr u) {
     if (sum_args.empty()) return make_const(b_i->type(), 0);
     // handle the case: (2x+y+z) % 2 = (y+z) % 2 when y>=0 and z>=0
     if (sum_args.size() < a_sum->operands().size()) {
+      LOG(INFO) << "Case 2, sum_args.size() < a_sum->operands().size(), u is : " << u;
       bool all_positive_var = true;
       bool all_positive_int = true;
       for (int i = 0; i < sum_args.size(); i++) {
+        LOG(INFO) << "sum_args[" << i << "] is : " << sum_args[i];
         auto* arg_var = sum_args[i].As<_Var_>();
+        if (!arg_var)
+          LOG(INFO) << " And it is not Var";
+        else
+          LOG(INFO) << " And it is Var";
         all_positive_var =
-            all_positive_var && arg_var && var_intervals.count(arg_var->name) && var_intervals.at(arg_var->name).l >= 0;
+            all_positive_var && arg_var &&
+            ((var_intervals.count(arg_var->name) && var_intervals.at(arg_var->name).l >= 0) ||
+             (utils::Startswith(arg_var->name, "threadIdx") || utils::Startswith(arg_var->name, "blockIdx")));
         auto* arg_int    = sum_args[i].As<IntImm>();
         all_positive_int = all_positive_int && arg_int && arg_int->value >= 0;
       }
-      if (all_positive_var) return SimplifyMod(Mod::Make(Sum::Make(sum_args), b));
+      if (all_positive_var) {
+        LOG(INFO) << "Case 3, all_positive_var";
+        return SimplifyMod(Mod::Make(Sum::Make(sum_args), b));
+      }
       if (all_positive_int) {
         int sum_value = 0;
         for (auto& i : sum_args) sum_value += i.As<IntImm>()->value;
         return make_const(a_sum->type(), sum_value % b_i->value);
       }
     } else if (sum_args.size() == a_sum->operands().size()) {
+      LOG(INFO) << "Case sum_args.size() == a_sum->operands().size()";
       if (b_i->value > 0 && !var_intervals.empty()) {
         // case1: (32+(-x))%33 = 32-x%33 (0<=x<=32)
         // case2: (x-32))%33 = x%33 - 32%33 (0<=x<=32)
@@ -1344,7 +1357,6 @@ Expr CasSimplifyMutator::SimplifyMod(Expr u) {
           return result;
         }
       }
-
       return Mod::Make(a, b);
     }
   }
@@ -2057,7 +2069,6 @@ Expr SimplifyConstantFrac(FracOp* node) {
 }
 
 Expr CasSimplifyMutator::SimplifyFracOp(Expr expr) {
-  VLOG(3) << "CAS simplify Frac " << expr;
   auto* node = expr.As<FracOp>();
   auto a     = CasSimplify(node->a(), var_intervals);
   auto b     = CasSimplify(node->b(), var_intervals);

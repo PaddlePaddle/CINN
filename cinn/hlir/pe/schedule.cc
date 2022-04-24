@@ -1698,8 +1698,8 @@ void CudaScheduleConv(poly::StageMap stages,
                       const common::Target &target) {
   auto &res = ScheduleParam::get_cuda_instance().GetParam();
   if (res.empty()) {
-    CreateCudaSerialData();
-    LoadSerialData(&res);
+    /*     CreateCudaSerialData();
+        LoadSerialData(&res); */
   }
 
   int n = output->shape[0].as_int32();
@@ -1892,8 +1892,8 @@ void CudaScheduleWinogradConv(poly::StageMap wino_stages,
                               const common::Target &target) {
   auto &res = ScheduleParam::get_cuda_instance().GetParam();
   if (res.empty()) {
-    CreateCudaSerialData();
-    LoadSerialData(&res);
+    /*     CreateCudaSerialData();
+        LoadSerialData(&res); */
   }
   auto &wino_weights_dilation = all_tensors[0];
   auto &wino_input_pad        = all_tensors[1];
