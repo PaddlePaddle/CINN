@@ -28,8 +28,14 @@ DEFINE_bool(cinn_cudnn_deterministic,
             "true, the algorithm is deterministic.");
 #endif
 
-DEFINE_bool(cinn_use_new_fusion_pass, false, "Whether use the new op_fusion and fusion_merge pass.");
-DEFINE_bool(cinn_sync_run, false, "Whether sync all devices after each instruction run, which is used for debug.");
+using ::GFLAGS_NAMESPACE::BoolFromEnv;
+
+DEFINE_bool(cinn_use_new_fusion_pass,
+            BoolFromEnv("FLAGS_cinn_use_new_fusion_pass", false),
+            "Whether use the new op_fusion and fusion_merge pass.");
+DEFINE_bool(cinn_sync_run,
+            BoolFromEnv("FLAGS_cinn_sync_run", false),
+            "Whether sync all devices after each instruction run, which is used for debug.");
 
 namespace cinn {
 namespace runtime {
@@ -51,33 +57,9 @@ bool GetCinnCudnnDeterministic() {
 #endif
 }
 
-bool ParseFromEnv(std::string name, bool default_value) {
-  const char *env_str = std::getenv(name.c_str());
-  if (env_str) {
-    VLOG(4) << "Parse " << name << ", get " << env_str;
-    return static_cast<bool>(std::stoi(std::string(env_str)));
-  } else {
-    return default_value;
-  }
-}
+bool GetCinnUseNewFusionPass() { return FLAGS_cinn_use_new_fusion_pass; }
 
-bool GetCinnUseNewFusionPassFromEnv() {
-  static bool parsed = false;
-  if (!parsed) {
-    FLAGS_cinn_use_new_fusion_pass = ParseFromEnv("FLAGS_cinn_use_new_fusion_pass", FLAGS_cinn_use_new_fusion_pass);
-    parsed                         = true;
-  }
-  return FLAGS_cinn_use_new_fusion_pass;
-}
-
-bool GetCinnSyncRunFromEnv() {
-  static bool parsed = false;
-  if (!parsed) {
-    FLAGS_cinn_sync_run = ParseFromEnv("FLAGS_cinn_sync_run", FLAGS_cinn_sync_run);
-    parsed              = true;
-  }
-  return FLAGS_cinn_sync_run;
-}
+bool GetCinnSyncRun() { return FLAGS_cinn_sync_run; }
 
 }  // namespace runtime
 }  // namespace cinn

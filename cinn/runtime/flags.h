@@ -20,8 +20,8 @@ namespace runtime {
 void SetCinnCudnnDeterministic(bool state);
 bool GetCinnCudnnDeterministic();
 
-bool GetCinnUseNewFusionPassFromEnv();
-bool GetCinnSyncRunFromEnv();
+bool GetCinnUseNewFusionPass();
+bool GetCinnSyncRun();
 
 }  // namespace runtime
 }  // namespace cinn

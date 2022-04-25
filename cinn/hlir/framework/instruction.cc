@@ -190,7 +190,7 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
 #endif
 
 #if defined(CINN_WITH_CUDA) || defined(CINN_WITH_CUDNN)
-  if (cinn::runtime::GetCinnSyncRunFromEnv()) {
+  if (cinn::runtime::GetCinnSyncRun()) {
     cudaStreamSynchronize(static_cast<cudaStream_t>(stream));
   }
 #endif
