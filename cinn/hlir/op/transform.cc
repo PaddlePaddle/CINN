@@ -2002,6 +2002,16 @@ CINN_REGISTER_HELPER(transform_ops) {
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForCublasGemm))
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
+
+  CINN_REGISTER_OP(cublas_matmul)
+      .describe("This operator uses cublas to compute the matmul.")
+      .set_num_inputs(2)
+      .set_num_outputs(2)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForMatMul)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForMatMul))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForMatMul))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
+      .set_support_level(4);
 #endif
 
   CINN_REGISTER_OP(layout_transform)
