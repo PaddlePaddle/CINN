@@ -84,6 +84,13 @@ void cinn_gpu_cublas_mul(const std::vector<int>& attrs,
                          cinn_buffer_t* input2,
                          cinn_buffer_t* output,
                          const cudaStream_t& stream = nullptr);
+
+void cinn_gpu_cublas_matmul(const std::vector<int>& attrs,
+                            cinn_buffer_t* lhs,
+                            cinn_buffer_t* rhs,
+                            cinn_buffer_t* output,
+                            const cudaStream_t& stream = nullptr);
+
 void cinn_gpu_cublas_gemm(const std::vector<int>& attrs,
                           cinn_buffer_t* lhs,
                           cinn_buffer_t* rhs,
