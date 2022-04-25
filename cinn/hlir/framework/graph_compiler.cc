@@ -811,9 +811,6 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions(
     if (group.size() == 1) {
       auto node       = group[0];
       auto instr_name = node->op()->name;
-      if (fusion_group.get()) {
-        instr_name = fusion_group->group_id;
-      }
       if (node->op()->name == "reshape" && compile_options_.with_instantiate_variables) {
         // not run instruction and shares buffer only when instantiate_variables
         auto& inlinks  = node->inlinks_in_order();
