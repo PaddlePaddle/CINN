@@ -26,7 +26,8 @@
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/pass/use_pass.h"
-#include "cinn/runtime/flags.h"
+
+DECLARE_bool(cinn_use_new_fusion_pass);
 
 namespace cinn {
 namespace frontend {
@@ -34,7 +35,7 @@ namespace frontend {
 OptimizeOptions DefaultTrainingOptimizeOptions() {
   OptimizeOptions options;
   options.program_passes = {"Decomposer", "TransposeFolding", "GemmRewriter", "RemoveIdentity"};
-  if (cinn::runtime::GetCinnUseNewFusionPass()) {
+  if (FLAGS_cinn_use_new_fusion_pass) {
     options.graph_passes = {"OpFusionPass", "FusionMergePass"};
   } else {
     options.graph_passes = {"OpFusion"};

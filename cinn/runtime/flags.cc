@@ -57,9 +57,5 @@ bool GetCinnCudnnDeterministic() {
 #endif
 }
 
-bool GetCinnUseNewFusionPass() { return FLAGS_cinn_use_new_fusion_pass; }
-
-bool GetCinnSyncRun() { return FLAGS_cinn_sync_run; }
-
 }  // namespace runtime
 }  // namespace cinn

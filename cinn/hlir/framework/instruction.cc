@@ -15,7 +15,8 @@
 #include "cinn/hlir/framework/instruction.h"
 
 #include "cinn/common/test_helper.h"
-#include "cinn/runtime/flags.h"
+
+DECLARE_bool(cinn_sync_run);
 
 namespace cinn {
 namespace hlir {
@@ -189,8 +190,8 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
   }
 #endif
 
-#if defined(CINN_WITH_CUDA) || defined(CINN_WITH_CUDNN)
-  if (cinn::runtime::GetCinnSyncRun()) {
+#ifdef CINN_WITH_CUDA
+  if (FLAGS_cinn_sync_run) {
     cudaStreamSynchronize(static_cast<cudaStream_t>(stream));
   }
 #endif
