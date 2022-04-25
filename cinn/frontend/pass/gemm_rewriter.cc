@@ -59,6 +59,9 @@ class GemmRewriterPass : public ProgramPass {
     }
     *prog = builder.Build(true);
 
+    // Use the cublas call instead of the single matmul
+    RewriteSingleMatmul(prog);
+
     // relink old outputs to new outputs
     for (size_t i = 0; i < prog->size(); i++) {
       auto& inputs = (*prog)[i]->inputs;
@@ -84,11 +87,13 @@ class GemmRewriterPass : public ProgramPass {
     }
   }
 
+  // Fuse the pattern of `matmul + add`
   bool DoGemmFusion(CinnBuilder* builder, const Instruction& instr, const std::unordered_set<std::string>& fetch_ids) {
     CHECK_EQ(instr->inputs.size(), 2) << "elementwise should have only two inputs";
     std::vector<Variable> inputs;
     bool trans_a = false;
     bool trans_b = false;
+    float alpha  = 1.f;
     for (auto& var : instr->inputs) {
       auto it = output2instr_.find(var.get());
       if (it != output2instr_.end() && it->second->op_type == "matmul") {
@@ -126,6 +131,9 @@ class GemmRewriterPass : public ProgramPass {
         if (attrs.count("trans_b")) {
           trans_b = absl::get<bool>(attrs.at("trans_b"));
         }
+        if (attrs.count("alpha")) {
+          alpha = absl::get<float>(attrs.at("alpha"));
+        }
 
         // After the fusion, matmul and elementwise_add should be removed.
         removed_instrs_.emplace(matmul_instr.get());
@@ -137,9 +145,10 @@ class GemmRewriterPass : public ProgramPass {
     if (inputs.size() == 3) {
       VLOG(4) << "-- The trans_a of GEMM: " << std::boolalpha << trans_a;
       VLOG(4) << "-- The trans_b of GEMM: " << std::boolalpha << trans_b;
-      const auto& new_outs = builder->CustomInstr("cublas_gemm", inputs, {{"trans_a", trans_a}, {"trans_b", trans_b}});
-      auto new_out         = new_outs[0];
-      auto old_out         = instr.GetOutput(0);
+      const auto& new_outs =
+          builder->CustomInstr("cublas_gemm", inputs, {{"trans_a", trans_a}, {"trans_b", trans_b}, {"alpha", alpha}});
+      auto new_out = new_outs[0];
+      auto old_out = instr.GetOutput(0);
       new_out.set_id(old_out->id);
       origin2new_.emplace(old_out.get(), new_out);
       return true;
@@ -147,6 +156,24 @@ class GemmRewriterPass : public ProgramPass {
 
     CHECK_EQ(inputs.size(), 0) << "The gemm should only have three inputs.";
     return false;
+  }
+
+  // Rewrite the left single matmul, use cublas call instead
+  void RewriteSingleMatmul(Program* prog) {
+    for (int i = 0; i < prog->size(); i++) {
+      auto& instr = (*prog)[i];
+      if (instr->op_type == "matmul") {
+        auto& matmul_inputs = instr->inputs;
+        int lhs_dim_size    = matmul_inputs[0]->shape.size();
+        int rhs_dim_size    = matmul_inputs[1]->shape.size();
+        // only support the condition below:
+        // 1) tow-dim matrix multiply, such as m * k, k * n
+        // 2) three-dim tensor multiply, such as b * m * k, b * k * n
+        if ((lhs_dim_size == 2 || lhs_dim_size == 3) && (lhs_dim_size == rhs_dim_size)) {
+          instr->op_type = "cublas_matmul";
+        }
+      }
+    }
   }
 
   std::unordered_set<_Instruction_*> removed_instrs_;
