@@ -21,6 +21,7 @@ void SetCinnCudnnDeterministic(bool state);
 bool GetCinnCudnnDeterministic();
 
 bool GetCinnUseNewFusionPassFromEnv();
+bool GetCinnSyncRunFromEnv();
 
 }  // namespace runtime
 }  // namespace cinn
