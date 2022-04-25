@@ -17,9 +17,6 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include <cstdlib>
-#include <string>
-
 #ifdef CINN_WITH_CUDNN
 DEFINE_bool(cinn_cudnn_deterministic,
             false,
