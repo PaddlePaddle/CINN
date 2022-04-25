@@ -29,12 +29,7 @@ struct OptimizeOptions {
   std::vector<std::string> graph_passes;
 };
 
-inline OptimizeOptions DefaultTrainingOptimizeOptions() {
-  OptimizeOptions options;
-  options.program_passes = {"Decomposer", "TransposeFolding", "GemmRewriter", "RemoveIdentity"};
-  options.graph_passes   = {"OpFusionPass", "FusionMergePass"};
-  return options;
-}
+OptimizeOptions DefaultTrainingOptimizeOptions();
 
 std::shared_ptr<hlir::framework::Graph> Optimize(frontend::Program* program,
                                                  const std::unordered_set<std::string>& fetch_ids,

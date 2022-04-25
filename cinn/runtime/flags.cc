@@ -17,6 +17,9 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
+#include <cstdlib>
+#include <string>
+
 #ifdef CINN_WITH_CUDNN
 DEFINE_bool(cinn_cudnn_deterministic,
             false,
@@ -24,6 +27,8 @@ DEFINE_bool(cinn_cudnn_deterministic,
             "operator. The autotuning algorithm may be non-deterministic. If "
             "true, the algorithm is deterministic.");
 #endif
+
+DEFINE_bool(cinn_use_new_fusion_pass, false, "Whether use to new op_fusion and fusion_merge pass.");
 
 namespace cinn {
 namespace runtime {
@@ -43,6 +48,14 @@ bool GetCinnCudnnDeterministic() {
   LOG(FATAL) << "CINN is compiled without cuDNN, this api is invalid!";
   return false;
 #endif
+}
+
+bool GetCinnUseNewFusionPassFromEnv() {
+  const char *env_str = std::getenv("FLAGS_cinn_use_new_fusion_pass");
+  if (env_str) {
+    FLAGS_cinn_use_new_fusion_pass = static_cast<bool>(std::stoi(std::string(env_str)));
+  }
+  return FLAGS_cinn_use_new_fusion_pass;
 }
 
 }  // namespace runtime
