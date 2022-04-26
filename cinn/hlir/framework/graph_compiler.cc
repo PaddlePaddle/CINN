@@ -27,6 +27,9 @@
 #include "cinn/hlir/pe/schedule.h"
 #include "cinn/lang/lower.h"
 #include "cinn/poly/stage.h"
+#include "cinn/utils/dot_lang.h"
+
+// DECLARE_string(cinn_graphviz_path);
 
 namespace cinn {
 namespace hlir {
@@ -624,6 +627,66 @@ void GraphCompiler::CompileOptions::Apply(const auto_schedule::TuningResult& tun
   }
 }
 
+std::string VisualizeGroups(std::shared_ptr<Graph> graph, const std::vector<std::vector<Node*>>& groups) {
+  LOG(INFO) << "VisualizeGroups: num_groups=" << groups.size();
+  std::vector<utils::Attr> group_op_attrs = {
+      utils::Attr("shape", "Mrecord"), utils::Attr("color", "grey"), utils::Attr("style", "filled")};
+  std::vector<utils::Attr> out_op_attrs = {
+      utils::Attr("shape", "Mrecord"), utils::Attr("color", "#ff7f00"), utils::Attr("style", "filled")};
+  for (auto& group : groups) {
+    utils::DotLang dot;
+    std::unordered_set<Node*> nodes_set;
+    for (auto& node : group) {
+      nodes_set.insert(node);
+      dot.AddNode(node->id(), group_op_attrs);
+      for (auto& inlink : node->inlinks()) {
+        auto* innode = inlink->source()->safe_as<NodeData>();
+        if (innode) {
+          dot.AddNode(innode->id(), {}, "", true);
+          dot.AddEdge(innode->id(), node->id(), {});
+        }
+      }
+      for (auto& outlink : node->outlinks()) {
+        auto* outnode = outlink->sink()->safe_as<NodeData>();
+        if (outnode) {
+          dot.AddNode(outnode->id(), {}, "", true);
+          dot.AddEdge(node->id(), outnode->id(), {});
+        }
+      }
+    }
+    for (auto& node : group) {
+      for (auto& inlink : node->inlinks()) {
+        auto* innode = inlink->source()->safe_as<NodeData>();
+        if (innode) {
+          for (auto& innode_inlink : innode->inlinks()) {
+            auto* in_innode = innode_inlink->source()->safe_as<Node>();
+            if (in_innode && nodes_set.find(in_innode) == nodes_set.end()) {
+              nodes_set.insert(in_innode);
+              dot.AddNode(in_innode->id(), out_op_attrs);
+              dot.AddEdge(in_innode->id(), innode->id(), {});
+            }
+          }
+        }
+      }
+      for (auto& outlink : node->outlinks()) {
+        auto* outnode = outlink->sink()->safe_as<NodeData>();
+        if (outnode) {
+          for (auto& outnode_outlink : outnode->outlinks()) {
+            auto* out_outnode = outnode_outlink->sink()->safe_as<Node>();
+            if (out_outnode && nodes_set.find(out_outnode) == nodes_set.end()) {
+              nodes_set.insert(out_outnode);
+              dot.AddNode(out_outnode->id(), out_op_attrs);
+              dot.AddEdge(outnode->id(), out_outnode->id(), {});
+            }
+          }
+        }
+      }
+    }
+    LOG(INFO) << dot();
+  }
+  return "";
+}
+
 GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::CompileOptions& options,
                                                       std::unordered_set<std::string>&& fetch_var_ids,
                                                       void* stream) {
@@ -679,6 +742,8 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   for (auto&& lowered_func : lowered_funcs) {
     this->ProcessFunction(lowered_func);
   }
+
+  VisualizeGroups(graph_, groups);
 
   // compile the module
   // Need to create a new compiler for every call of Build,

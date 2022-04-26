@@ -43,7 +43,10 @@ class DotLang {
    * @param label Name of the node.
    */
 
-  void AddNode(const std::string& id, const std::vector<Attr>& attrs, std::string label = "");
+  void AddNode(const std::string& id,
+               const std::vector<Attr>& attrs,
+               std::string label    = "",
+               bool allow_duplicate = false);
 
   /**
    * Add an edge to the DOT graph.

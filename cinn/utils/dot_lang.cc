@@ -28,6 +28,7 @@ Node::Node(const std::string& name, const std::vector<Attr>& attrs) : name(name)
   ss << "node_" << dot_node_counter++;
   id_ = ss.str();
 }
+
 std::string Node::repr() const {
   std::stringstream ss;
   CHECK(!name.empty());
@@ -45,6 +46,7 @@ std::string Node::repr() const {
   }
   return ss.str();
 }
+
 std::string Edge::repr() const {
   std::stringstream ss;
   CHECK(!source.empty());
@@ -59,18 +61,29 @@ std::string Edge::repr() const {
   }
   return ss.str();
 }
-void DotLang::AddNode(const std::string& id, const std::vector<Attr>& attrs, std::string label) {
-  CHECK(!nodes_.count(id)) << "duplicate Node '" << id << "'";
-  if (label.empty()) label = id;
-  nodes_.emplace(id, Node{label, attrs});
+
+void DotLang::AddNode(const std::string& id, const std::vector<Attr>& attrs, std::string label, bool allow_duplicate) {
+  if (!allow_duplicate) {
+    CHECK(!nodes_.count(id)) << "duplicate Node '" << id << "'";
+  }
+  if (!nodes_.count(id)) {
+    if (label.empty()) {
+      label = id;
+    }
+    nodes_.emplace(id, Node{label, attrs});
+  }
 }
+
 void DotLang::AddEdge(const std::string& source, const std::string& target, const std::vector<Attr>& attrs) {
   CHECK(!source.empty());
   CHECK(!target.empty());
+  CHECK(nodes_.find(source) != nodes_.end()) << "Call AddNode to add " << source << " to dot first";
+  CHECK(nodes_.find(target) != nodes_.end()) << "Call AddNode to add " << target << " to dot first";
   auto sid = nodes_.at(source).id();
   auto tid = nodes_.at(target).id();
   edges_.emplace_back(sid, tid, attrs);
 }
+
 std::string DotLang::Build() const {
   std::stringstream ss;
   const std::string indent = "   ";
