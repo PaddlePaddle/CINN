@@ -18,6 +18,7 @@
 
 #include "cinn/common/ir_util.h"
 #include "cinn/ir/ir.h"
+#include "cinn/ir/ir_constant.h"
 #include "cinn/ir/ir_operators.h"
 
 namespace cinn {
@@ -114,18 +115,15 @@ inline Expr ReduceMul(Expr e, const std::vector<Var>& reduce_axis, Expr initial 
   return ir::Reduce::Make(ir::Reduce::kMul, initial, e, reduce_axis);
 }
 
-Expr min_value(const Type& type);
-Expr max_value(const Type& type);
-
 inline Expr ReduceMax(Expr e, const std::vector<Var>& reduce_axis, Expr initial = Expr()) {
   if (!initial.defined()) {
-    initial = min_value(e.type());
+    initial = ir::Minimum(e.type());
   }
   return ir::Reduce::Make(ir::Reduce::kMax, initial, e, reduce_axis);
 }
 inline Expr ReduceMin(Expr e, const std::vector<Var>& reduce_axis, Expr initial = Expr()) {
   if (!initial.defined()) {
-    initial = max_value(e.type());
+    initial = ir::Maximum(e.type());
   }
   return ir::Reduce::Make(ir::Reduce::kMin, initial, e, reduce_axis);
 }

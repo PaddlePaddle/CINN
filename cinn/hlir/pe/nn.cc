@@ -970,7 +970,7 @@ std::vector<Tensor> PoolImpl(const Tensor &tensor,
   Tensor temp;
   Tensor res;
   if (pool_type == "max") {
-    Expr min_value = lang::min_value(tensor->type());
+    Expr min_value = ir::Minimum(tensor->type());
     // Pad the input tensor with the pad_value of type's minimum value
     temp = do_pad ? Pad(tensor, pad_before, pad_after, min_value, UniqName("pad_temp")) : tensor;
     res  = Compute(

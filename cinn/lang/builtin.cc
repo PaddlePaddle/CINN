@@ -78,41 +78,6 @@ EXTERN_CALL_IMP_NO_VEC(Asinh, asinh);
 EXTERN_CALL_IMP_NO_VEC(Atan, atan);
 EXTERN_CALL_IMP_NO_VEC(Atanh, atanh);
 
-Expr min_value(const Type& type) {
-  CHECK_EQ(type.lanes(), 1);
-#define FOR_CASE(type__)                                \
-  if (type == type_of<type__>()) {                      \
-    return Expr(std::numeric_limits<type__>::lowest()); \
-  }
-  FOR_CASE(int32_t)
-  FOR_CASE(int64_t)
-  FOR_CASE(uint32_t)
-  FOR_CASE(uint64_t)
-  FOR_CASE(float)
-  FOR_CASE(double)
-#undef FOR_CASE
-  return Expr();
-}
-
-Expr max_value(const Type& type) {
-  CHECK_EQ(type.lanes(), 1);
-
-#define FOR_CASE(type__)                             \
-  if (type == type_of<type__>()) {                   \
-    return Expr(std::numeric_limits<type__>::max()); \
-  }
-  FOR_CASE(int32_t)
-  FOR_CASE(int64_t)
-  FOR_CASE(uint32_t)
-  FOR_CASE(uint64_t)
-  FOR_CASE(float)
-  FOR_CASE(double)
-#undef FOR_CASE
-
-  CINN_NOT_IMPLEMENTED
-  return Expr();
-}
-
 Expr Abs(Expr e) {
   Type type      = e->type();
   Type bool_type = Bool(type.lanes());

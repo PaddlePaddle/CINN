@@ -104,7 +104,6 @@ shape_t CheckAndValidReduceDim(const shape_t& dim, const size_t rank) {
   std::sort(new_dim.begin(), new_dim.end());
   // check dim
   CHECK_LE(new_dim.size(), rank);
-  CHECK_LT(new_dim.back(), rank);
   for (int idx = 1; idx < new_dim.size(); ++idx) {
     CHECK_NE(new_dim[idx - 1], new_dim[idx]);
   }

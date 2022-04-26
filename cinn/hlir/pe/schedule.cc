@@ -493,13 +493,35 @@ void CudaScheduleReduceForSmallerDim(poly::StageMap stages,
   // }
   // TODO(jiangcheng05): tmp_out using shared memory not global memory
 
-  int bind_axis = 0;
+  int bind_tmp_axis = 0;
   {
     // if shape[:axis[0]] is empty, no need fuse
     if (axes.front() == 1) {
       // if axis[0] == 1, no need fuse but need set shape[0] with blockIdx to ensure concurrency
-      stages[tmp_out]->Bind(0, "blockIdx.x");
-      stages[out]->Bind(0, "blockIdx.x");
+      stages[tmp_out]->Bind(bind_tmp_axis, "blockIdx.x");
+      ++bind_tmp_axis;
+    } else if (axes.front() > 1) {
+      // if axis[0] > 2, fuse and bind to blockIdx
+      std::vector<int> fuse_levels;
+      for (int i = 0; i < axes.front(); ++i) {
+        fuse_levels.emplace_back(i);
+      }
+      fuse_levels.emplace_back(tmp_out->shape.size() - 2);
+
+      stages[tmp_out]->Fuse(fuse_levels);
+      stages[tmp_out]->Bind(bind_tmp_axis, "blockIdx.x");
+      ++bind_tmp_axis;
+
+      VLOG(4) << "fuse levels [" << cinn::utils::Join(fuse_levels, ",") << "] of tmp_out and bind axis=["
+              << bind_tmp_axis << "] with blockIdx.x";
+    }
+  }
+
+  int bind_out_axis = 0;
+  {
+    if (axes.front() == 1) {
+      stages[out]->Bind(bind_out_axis, "blockIdx.x");
+      ++bind_out_axis;
     } else if (axes.front() > 1) {
       // if axis[0] > 2, fuse and bind to blockIdx
       std::vector<int> fuse_levels;
@@ -507,34 +529,32 @@ void CudaScheduleReduceForSmallerDim(poly::StageMap stages,
         fuse_levels.emplace_back(i);
       }
 
-      stages[tmp_out]->Fuse(fuse_levels);
       stages[out]->Fuse(fuse_levels);
+      stages[out]->Bind(bind_out_axis, "blockIdx.x");
+      ++bind_out_axis;
 
-      stages[tmp_out]->Bind(bind_axis, "blockIdx.x");
-      stages[out]->Bind(bind_axis, "blockIdx.x");
-
-      VLOG(4) << "fuse levels [" << cinn::utils::Join(fuse_levels, ",") << "] of tmp_out and bind axis=[" << bind_axis
+      VLOG(4) << "fuse levels [" << cinn::utils::Join(fuse_levels, ",") << "] of out and bind axis=[" << bind_out_axis
               << "] with blockIdx.x";
-
-      ++bind_axis;
     }
   }
 
   int fuse_begin = axes.front() == 0 ? 0 : 1;
   {
-    auto tmp_fuse_size = tmp_out->shape.size() - axes.front();
+    auto tmp_fuse_size = tmp_out->shape.size() - 2 - axes.front();
     if (tmp_fuse_size == 1) {
-      stages[tmp_out]->Bind(bind_axis, "threadIdx.x");
+      stages[tmp_out]->Bind(bind_tmp_axis, "threadIdx.x");
     } else {
       std::vector<int> tmp_fuse_levels;
       for (int i = 0; i < tmp_fuse_size; ++i) {
         tmp_fuse_levels.emplace_back(fuse_begin + i);
       }
+
+      tmp_fuse_levels.emplace_back(tmp_out->shape.size() - 1);
       stages[tmp_out]->Fuse(tmp_fuse_levels);
-      stages[tmp_out]->Bind(bind_axis, "threadIdx.x");
+      stages[tmp_out]->Bind(bind_tmp_axis, "threadIdx.x");
 
       VLOG(4) << "fuse levels [" << cinn::utils::Join(tmp_fuse_levels, ",") << "] of tmp_out and bind axis=["
-              << bind_axis << "] with threadIdx.x";
+              << bind_tmp_axis << "] with threadIdx.x";
     }
   }
 
@@ -543,17 +563,18 @@ void CudaScheduleReduceForSmallerDim(poly::StageMap stages,
     // the axis disappear, the out_fuse_size means the last dim size
     auto out_fuse_size = out->shape.size() - axes.front();
     if (out_fuse_size == 1) {
-      stages[out]->Bind(bind_axis, "threadIdx.x");
+      stages[out]->Bind(bind_out_axis, "threadIdx.x");
     } else {
       std::vector<int> out_fuse_levels;
       for (int i = 0; i < out_fuse_size; ++i) {
         out_fuse_levels.emplace_back(fuse_begin + i);
       }
-      stages[out]->Fuse(out_fuse_levels);
-      stages[out]->Bind(bind_axis, "threadIdx.x");
 
-      VLOG(4) << "fuse levels [" << cinn::utils::Join(out_fuse_levels, ",") << "] of out and bind axis=[" << bind_axis
-              << "] with threadIdx.x";
+      stages[out]->Fuse(out_fuse_levels);
+      stages[out]->Bind(bind_out_axis, "threadIdx.x");
+
+      VLOG(4) << "fuse levels [" << cinn::utils::Join(out_fuse_levels, ",") << "] of out and bind axis=["
+              << bind_out_axis << "] with threadIdx.x";
     }
   }
 
