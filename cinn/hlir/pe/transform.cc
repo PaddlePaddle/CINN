@@ -908,20 +908,20 @@ ir::Tensor IndexSelect(const ir::Tensor& x,
   return output_tensor;
 }
 
-ir::Tensor IndexAssign(const ir::Tensor& input,
-                       const ir::Tensor& assign,
-                       const ir::Tensor& index,
-                       const common::Target& target,
-                       const int axis,
-                       const std::string& output_name) {
-  CHECK_EQ(index->type(), common::Int(32)) << "Param [Index] of IndexAssign only support int32 ! Please Check.\n";
+ir::Tensor ScatterAssign(const ir::Tensor& input,
+                         const ir::Tensor& updates,
+                         const ir::Tensor& index,
+                         const common::Target& target,
+                         const int axis,
+                         const std::string& output_name) {
+  CHECK_EQ(index->type(), common::Int(32)) << "Param [Index] of ScatterAssign only support int32 ! Please Check.\n";
   std::string extern_fun_name;
   if (target.arch == common::Target::Arch::NVGPU) {
     extern_fun_name.assign("cinn_cuda_find_int");
   } else if (target.arch == common::Target::Arch::X86) {
     extern_fun_name.assign("cinn_host_find_int");
   } else {
-    LOG(FATAL) << "IndexAssign only support X86 and NVGPU ! Please Check.\n";
+    LOG(FATAL) << "ScatterAssign only support X86 and NVGPU ! Please Check.\n";
   }
 
   auto pos_axis = axis;
@@ -935,11 +935,11 @@ ir::Tensor IndexAssign(const ir::Tensor& input,
         // else return -1
         auto id = lang::CallExtern(extern_fun_name, {index, index->shape[0], indice[pos_axis]});
 
-        std::vector<Expr> indice_assign = indice;
-        indice_assign[pos_axis]         = id;
+        std::vector<Expr> indice_updates = indice;
+        indice_updates[pos_axis]         = id;
 
         // check wheter Index[id] == cur_index and return by check result
-        return ir::Select::Make(ir::EQ::Make(id, Expr(-1)), input(indice), assign(indice_assign));
+        return ir::Select::Make(ir::EQ::Make(id, Expr(-1)), input(indice), updates(indice_updates));
       },
       UniqName(output_name));
   return res;

@@ -111,7 +111,7 @@ class BaseBuilder {
 
   Variable IndexSelect(const Variable& operand, const Variable& index, int axis = 0);
 
-  Variable IndexAssign(const Variable& operand, const Variable& assign, const Variable& index, int axis = 0);
+  Variable ScatterAssign(const Variable& operand, const Variable& updates, const Variable& index, int axis = 0);
 
   Variable ScatterAdd(const Variable& operand, const Variable& updates, const Variable& index, int axis = 0);
 
