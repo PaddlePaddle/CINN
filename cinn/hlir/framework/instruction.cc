@@ -16,6 +16,8 @@
 
 #include "cinn/common/test_helper.h"
 
+DECLARE_bool(cinn_sync_run);
+
 namespace cinn {
 namespace hlir {
 namespace framework {
@@ -185,6 +187,12 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
       it_fn(pod_args.data(), pod_args.size());
     }
     i++;
+  }
+#endif
+
+#ifdef CINN_WITH_CUDA
+  if (FLAGS_cinn_sync_run) {
+    cudaStreamSynchronize(static_cast<cudaStream_t>(stream));
   }
 #endif
 }
