@@ -25,6 +25,15 @@ DEFINE_bool(cinn_cudnn_deterministic,
             "true, the algorithm is deterministic.");
 #endif
 
+using ::GFLAGS_NAMESPACE::BoolFromEnv;
+
+DEFINE_bool(cinn_use_new_fusion_pass,
+            BoolFromEnv("FLAGS_cinn_use_new_fusion_pass", false),
+            "Whether use the new op_fusion and fusion_merge pass.");
+DEFINE_bool(cinn_sync_run,
+            BoolFromEnv("FLAGS_cinn_sync_run", false),
+            "Whether sync all devices after each instruction run, which is used for debug.");
+
 namespace cinn {
 namespace runtime {
 
