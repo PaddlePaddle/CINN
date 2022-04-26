@@ -1897,7 +1897,7 @@ CINN_REGISTER_HELPER(transform_ops) {
           "This operator is used to perform (batched) matrix multiplication over the last two dimensions of the input "
           "tensors X and Y.")
       .set_num_inputs(2)
-#ifndef CINN_WITH_CUDA
+#ifdef CINN_WITH_CUDA
       .set_num_outputs(1)
 #else
       .set_num_outputs(2)
