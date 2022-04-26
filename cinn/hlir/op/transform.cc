@@ -271,7 +271,11 @@ std::vector<std::vector<int>> InferShapeForMatMul(const std::vector<std::vector<
 
 std::vector<Type> InferDtypeForMatMul(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
+#ifdef CINN_WITH_CUDA
+  std::vector<Type> res{inputs_type[0]};
+#else
   std::vector<Type> res{inputs_type[0], inputs_type[0]};
+#endif
   return res;
 }
 
@@ -1893,7 +1897,11 @@ CINN_REGISTER_HELPER(transform_ops) {
           "This operator is used to perform (batched) matrix multiplication over the last two dimensions of the input "
           "tensors X and Y.")
       .set_num_inputs(2)
+#ifndef CINN_WITH_CUDA
       .set_num_outputs(1)
+#else
+      .set_num_outputs(2)
+#endif
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForMatMul)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForMatMul))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForMatMul))
