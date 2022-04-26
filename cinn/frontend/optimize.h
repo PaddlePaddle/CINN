@@ -12,26 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cinn/frontend/program_pass.h"
-
+#include <memory>
+#include <string>
 #include <unordered_set>
+#include <vector>
+
+#include "cinn/common/target.h"
+#include "cinn/frontend/syntax.h"
+#include "cinn/hlir/framework/graph.h"
 
 namespace cinn {
 namespace frontend {
 
-void ProgramPass::Apply(Program* prog,
-                        const std::unordered_set<std::string>& fetch_ids,
-                        const common::Target& target,
-                        const std::vector<std::string>& passes) {
-  std::vector<const ProgramPass*> fpass;
-  for (auto& name : passes) {
-    const auto* pass = ProgramPassRegistry::Global()->Get(name);
-    fpass.push_back(pass);
-  }
-  for (const auto* pass : fpass) {
-    pass->ApplyImpl(prog, fetch_ids, target);
-  }
-}
+struct OptimizeOptions {
+  std::vector<std::string> program_passes;
+  std::vector<std::string> graph_passes;
+};
+
+OptimizeOptions DefaultTrainingOptimizeOptions();
+
+std::shared_ptr<hlir::framework::Graph> Optimize(frontend::Program* program,
+                                                 const std::unordered_set<std::string>& fetch_ids,
+                                                 common::Target target,
+                                                 const OptimizeOptions& options = DefaultTrainingOptimizeOptions());
 
 }  // namespace frontend
 }  // namespace cinn

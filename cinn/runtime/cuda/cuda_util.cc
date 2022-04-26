@@ -34,25 +34,24 @@ namespace details {
 void Gemm(const cublasHandle_t &cublas,
           bool lhs_trans,
           bool rhs_trans,
+          const float alpha,
           const float *lhs_data,
+          int lhs_row,
+          int lhs_col,
           const float *rhs_data,
+          int rhs_row,
+          int rhs_col,
           const float *bias_data,
+          const float beta,
           float *output_data,
-          const std::vector<int> &attrs,
+          int output_row,
+          int output_col,
           const cudaStream_t &stream) {
-  CHECK_EQ(attrs.size(), 11);
-  int lhs_row    = attrs[0];
-  int lhs_col    = attrs[1];
-  int rhs_row    = attrs[2];
-  int rhs_col    = attrs[3];
-  int output_row = attrs[4];
-  int output_col = attrs[5];
-
   // copy values of bias_data to the output_data
-  cudaMemcpyAsync(output_data, bias_data, output_row * output_col * sizeof(float), cudaMemcpyDeviceToDevice, stream);
+  if (bias_data != nullptr) {
+    cudaMemcpyAsync(output_data, bias_data, output_row * output_col * sizeof(float), cudaMemcpyDeviceToDevice, stream);
+  }
 
-  float alpha          = 1.f;
-  float beta           = 1.f;
   int contracting_size = lhs_trans ? lhs_row : lhs_col;
   CHECK_EQ(contracting_size, (rhs_trans ? rhs_col : rhs_row))
       << "The contracting dimension value of lhs matrix should be equal to the one of rhs matrix.";
@@ -77,31 +76,31 @@ void Gemm(const cublasHandle_t &cublas,
 void GemmStridedBatched(const cublasHandle_t &cublas,
                         bool lhs_trans,
                         bool rhs_trans,
+                        const float alpha,
                         const float *lhs_data,
+                        int lhs_bs,
+                        int lhs_row,
+                        int lhs_col,
                         const float *rhs_data,
+                        int rhs_bs,
+                        int rhs_row,
+                        int rhs_col,
                         const float *bias_data,
+                        const float beta,
                         float *output_data,
-                        const std::vector<int> &attrs,
+                        int output_bs,
+                        int output_row,
+                        int output_col,
                         const cudaStream_t &stream) {
-  CHECK_EQ(attrs.size(), 14);
-  int lhs_bs     = attrs[0];
-  int lhs_row    = attrs[1];
-  int lhs_col    = attrs[2];
-  int rhs_bs     = attrs[3];
-  int rhs_row    = attrs[4];
-  int rhs_col    = attrs[5];
-  int output_bs  = attrs[6];
-  int output_row = attrs[7];
-  int output_col = attrs[8];
   CHECK_EQ(lhs_bs, rhs_bs);
   CHECK_EQ(lhs_bs, output_bs);
 
   // copy values of bias_data to the output_data
-  cudaMemcpyAsync(
-      output_data, bias_data, output_bs * output_row * output_col * sizeof(float), cudaMemcpyDeviceToDevice, stream);
+  if (bias_data != nullptr) {
+    cudaMemcpyAsync(
+        output_data, bias_data, output_bs * output_row * output_col * sizeof(float), cudaMemcpyDeviceToDevice, stream);
+  }
 
-  float alpha          = 1.f;
-  float beta           = 1.f;
   int contracting_size = lhs_trans ? lhs_row : lhs_col;
   CHECK_EQ(contracting_size, (rhs_trans ? rhs_col : rhs_row))
       << "The contracting dimension value of lhs matrix should be equal to the one of rhs matrix.";
@@ -197,6 +196,83 @@ void cinn_gpu_cublas_mul(const std::vector<int> &attrs,
   cublasSgemm(cublas, CUBLAS_OP_N, CUBLAS_OP_N, K, M, N, &alpha, y_data, K, x_data, N, &beta, out_data, K);
 }
 
+void cinn_gpu_cublas_matmul(const std::vector<int> &attrs,
+                            cinn_buffer_t *lhs,
+                            cinn_buffer_t *rhs,
+                            cinn_buffer_t *output,
+                            const cudaStream_t &stream) {
+  cublasHandle_t &cublas = CublasHandle::get_instance().GetCublasHandle();
+  cublasSetStream(cublas, stream);
+
+  const float *lhs_data = reinterpret_cast<const float *>(lhs->memory);
+  const float *rhs_data = reinterpret_cast<const float *>(rhs->memory);
+  float *output_data    = reinterpret_cast<float *>(output->memory);
+
+  CHECK_GE(attrs.size(), 9);
+  int lhs_dim_size  = attrs[attrs.size() - 5];
+  int rhs_dim_size  = attrs[attrs.size() - 4];
+  bool lhs_trans    = static_cast<bool>(attrs[attrs.size() - 3]);
+  bool rhs_trans    = static_cast<bool>(attrs[attrs.size() - 2]);
+  const float alpha = *reinterpret_cast<const float *>(&attrs[attrs.size() - 1]);
+  VLOG(4) << "The alpha value used by cublas_matmul: " << alpha;
+  CHECK_EQ(lhs_dim_size, rhs_dim_size);
+  CHECK((lhs_dim_size == 2 || lhs_dim_size == 3));
+
+  if (lhs_dim_size == 2) {
+    int lhs_row    = attrs[0];
+    int lhs_col    = attrs[1];
+    int rhs_row    = attrs[2];
+    int rhs_col    = attrs[3];
+    int output_row = lhs_trans ? lhs_col : lhs_row;
+    int output_col = rhs_trans ? rhs_row : rhs_col;
+    details::Gemm(cublas,
+                  lhs_trans,
+                  rhs_trans,
+                  alpha,
+                  lhs_data,
+                  lhs_row,
+                  lhs_col,
+                  rhs_data,
+                  rhs_row,
+                  rhs_col,
+                  nullptr,
+                  0.f,
+                  output_data,
+                  output_row,
+                  output_col,
+                  stream);
+  } else {
+    int lhs_bs     = attrs[0];
+    int lhs_row    = attrs[1];
+    int lhs_col    = attrs[2];
+    int rhs_bs     = attrs[3];
+    int rhs_row    = attrs[4];
+    int rhs_col    = attrs[5];
+    int output_bs  = lhs_bs;
+    int output_row = lhs_trans ? lhs_col : lhs_row;
+    int output_col = rhs_trans ? rhs_row : rhs_col;
+    details::GemmStridedBatched(cublas,
+                                lhs_trans,
+                                rhs_trans,
+                                alpha,
+                                lhs_data,
+                                lhs_bs,
+                                lhs_row,
+                                lhs_col,
+                                rhs_data,
+                                rhs_bs,
+                                rhs_row,
+                                rhs_col,
+                                nullptr,
+                                0.f,
+                                output_data,
+                                output_bs,
+                                output_row,
+                                output_col,
+                                stream);
+  }
+}
+
 void cinn_gpu_cublas_gemm(const std::vector<int> &attrs,
                           cinn_buffer_t *lhs,
                           cinn_buffer_t *rhs,
@@ -211,21 +287,70 @@ void cinn_gpu_cublas_gemm(const std::vector<int> &attrs,
   const float *bias_data = reinterpret_cast<const float *>(bias->memory);
   float *output_data     = reinterpret_cast<float *>(output->memory);
 
-  CHECK_GE(attrs.size(), 11);
-  int lhs_dim_size  = attrs[attrs.size() - 5];
-  int rhs_dim_size  = attrs[attrs.size() - 4];
-  int bias_dim_size = attrs[attrs.size() - 3];
-  bool lhs_trans    = static_cast<bool>(attrs[attrs.size() - 2]);
-  bool rhs_trans    = static_cast<bool>(attrs[attrs.size() - 1]);
+  CHECK_GE(attrs.size(), 12);
+  int lhs_dim_size  = attrs[attrs.size() - 6];
+  int rhs_dim_size  = attrs[attrs.size() - 5];
+  int bias_dim_size = attrs[attrs.size() - 4];
+  bool lhs_trans    = static_cast<bool>(attrs[attrs.size() - 3]);
+  bool rhs_trans    = static_cast<bool>(attrs[attrs.size() - 2]);
+  const float alpha = *reinterpret_cast<const float *>(&attrs[attrs.size() - 1]);
+  VLOG(4) << "The alpha value used by cublas_gemm: " << alpha;
   CHECK_EQ(lhs_dim_size, rhs_dim_size);
   CHECK_EQ(lhs_dim_size, bias_dim_size);
   CHECK((lhs_dim_size == 2 || lhs_dim_size == 3));
 
   if (lhs_dim_size == 2) {
-    details::Gemm(cublas, lhs_trans, rhs_trans, lhs_data, rhs_data, bias_data, output_data, attrs, stream);
+    int lhs_row    = attrs[0];
+    int lhs_col    = attrs[1];
+    int rhs_row    = attrs[2];
+    int rhs_col    = attrs[3];
+    int output_row = attrs[4];
+    int output_col = attrs[5];
+    details::Gemm(cublas,
+                  lhs_trans,
+                  rhs_trans,
+                  alpha,
+                  lhs_data,
+                  lhs_row,
+                  lhs_col,
+                  rhs_data,
+                  rhs_row,
+                  rhs_col,
+                  bias_data,
+                  1.f,
+                  output_data,
+                  output_row,
+                  output_col,
+                  stream);
   } else {
-    details::GemmStridedBatched(
-        cublas, lhs_trans, rhs_trans, lhs_data, rhs_data, bias_data, output_data, attrs, stream);
+    int lhs_bs     = attrs[0];
+    int lhs_row    = attrs[1];
+    int lhs_col    = attrs[2];
+    int rhs_bs     = attrs[3];
+    int rhs_row    = attrs[4];
+    int rhs_col    = attrs[5];
+    int output_bs  = attrs[6];
+    int output_row = attrs[7];
+    int output_col = attrs[8];
+    details::GemmStridedBatched(cublas,
+                                lhs_trans,
+                                rhs_trans,
+                                alpha,
+                                lhs_data,
+                                lhs_bs,
+                                lhs_row,
+                                lhs_col,
+                                rhs_data,
+                                rhs_bs,
+                                rhs_row,
+                                rhs_col,
+                                bias_data,
+                                1.f,
+                                output_data,
+                                output_bs,
+                                output_row,
+                                output_col,
+                                stream);
   }
 }
 
