@@ -280,6 +280,14 @@ Variable BaseBuilder::IndexAssign(const Variable& operand, const Variable& assig
   return instr.GetOutput(0);
 }
 
+Variable BaseBuilder::ScatterAdd(const Variable& operand, const Variable& updates, const Variable& index, int axis) {
+  Instruction instr("scatter_add", {operand, updates, index});
+  instr.SetAttr("axis", axis);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
 Variable BaseBuilder::UnaryOp(const std::string& op_type, const Variable& operand) {
   Instruction instr(op_type, {operand});
   InferShape(instr);
