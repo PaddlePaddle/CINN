@@ -182,13 +182,15 @@ ir::ModuleExpr MultiLevelTiling::Apply(int index) {
     splited_loops.insert(splited_loops.end(), t.begin(), t.end());
   }
 
-  // Reorder has some bugs in this case. Enable it after we fix it.
+  // TODO(zhhsplendid): Reorder has some bugs in this case.
+  // Enable it after we fix it.
+  //
   // ir_schedule_->Reorder(splited_loops);
   // VLOG(5) << "Finish Reorder in MultiLevelTiling";
 
   int num_binds = std::min(bind_axis_.size(), tiles.size());
   for (int i = 0; i < num_binds; ++i) {
-    //   Enable fuse and then bind after fixing reorder bug.
+    //   TODO(zhhsplendid): Enable fuse and then bind after fixing reorder bug.
     //   Expr fused = ir_schedule_->Fuse(tiles[i]);
     //   ir_schedule_->Bind(fused, bind_axis_[i]);
     ir_schedule_->Bind(tiles[i][0], bind_axis_[i]);

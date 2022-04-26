@@ -36,6 +36,49 @@
 namespace cinn {
 namespace auto_schedule {
 
+TEST(MultiLevelTile, SampleSplitTwo) {
+  srand(0);
+  Context::Global().ResetNameId();
+#ifdef CINN_WITH_CUDA
+  Target target = common::DefaultNVGPUTarget();
+#else
+  Target target = common::DefaultHostTarget();
+#endif
+
+  MultiLevelTiling multi_level_tiling(target);
+
+  for (int i = 0; i < 100; ++i) {
+    size_t number_to_split    = rand() % 65535 + 2;  // random number in [2, 2^16]
+    std::vector<size_t> split = multi_level_tiling.SampleSplitTwo<size_t>(number_to_split);
+    EXPECT_EQ(split.size(), 2UL);
+    EXPECT_EQ(split[0] * split[1], number_to_split);
+  }
+}
+
+TEST(MultiLevelTile, SampleTileSplit) {
+  srand(0);
+  Context::Global().ResetNameId();
+#ifdef CINN_WITH_CUDA
+  Target target = common::DefaultNVGPUTarget();
+#else
+  Target target = common::DefaultHostTarget();
+#endif
+
+  MultiLevelTiling multi_level_tiling(target);
+
+  for (int i = 0; i < 100; ++i) {
+    int number_to_split    = rand() % 65535 + 2;  // random number in [2, 2^16]
+    int split_size         = rand() % 5 + 1;      // random in [1, 5]
+    std::vector<int> split = multi_level_tiling.SampleTileSplit<int>(number_to_split, split_size);
+    EXPECT_EQ(split.size(), static_cast<size_t>(split_size));
+    int product = 1;
+    for (int num : split) {
+      product *= num;
+    }
+    EXPECT_EQ(product, number_to_split);
+  }
+}
+
 TEST(MultiLevelTile, SimpleLoops) {
   srand(0);
   Context::Global().ResetNameId();
@@ -75,7 +118,7 @@ TEST(MultiLevelTile, SimpleLoops) {
   ss << exprs[0];
 
   std::string expr_str = ss.str();
-  std::cout << expr_str << std::endl;
+  VLOG(6) << expr_str;
 }
 
 TEST(MulitLevelTile, MatrixMultiply) {
@@ -120,7 +163,7 @@ TEST(MulitLevelTile, MatrixMultiply) {
   ss << exprs[0];
 
   std::string expr_str = ss.str();
-  std::cout << expr_str << std::endl;
+  VLOG(6) << expr_str;
 }
 
 }  // namespace auto_schedule

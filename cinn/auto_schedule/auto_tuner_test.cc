@@ -14,6 +14,7 @@
 
 #include "cinn/auto_schedule/auto_tuner.h"
 
+#include <glog/logging.h>
 #include <gtest/gtest.h>
 
 #include <iostream>
@@ -80,9 +81,9 @@ class TestAutoTuner : public ::testing::Test {
     compile_options.Apply(result);
     ASSERT_EQ(2, compile_options.groups.size());
     ASSERT_EQ(2, compile_options.lowered_funcs.size());
-    std::cout << "Print lowered_funcs before building" << std::endl;
-    std::cout << compile_options.lowered_funcs[0][0] << std::endl;
-    std::cout << compile_options.lowered_funcs[1][0] << std::endl;
+    VLOG(6) << "Print lowered_funcs before building";
+    VLOG(6) << compile_options.lowered_funcs[0][0];
+    VLOG(6) << compile_options.lowered_funcs[1][0];
     auto runtime_program = graph_compiler->Build(compile_options).runtime_program;
     ASSERT_EQ(2, runtime_program->size());
     runtime_program->Execute();
