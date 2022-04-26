@@ -272,8 +272,8 @@ Variable BaseBuilder::IndexSelect(const Variable& operand, const Variable& index
   return instr.GetOutput(0);
 }
 
-Variable BaseBuilder::IndexAssign(const Variable& operand, const Variable& assign, const Variable& index, int axis) {
-  Instruction instr("index_assign", {operand, assign, index});
+Variable BaseBuilder::ScatterAssign(const Variable& operand, const Variable& updates, const Variable& index, int axis) {
+  Instruction instr("scatter_assign", {operand, updates, index});
   instr.SetAttr("axis", axis);
   InferShape(instr);
   AppendInstruction(instr);

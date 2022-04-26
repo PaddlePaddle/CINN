@@ -101,7 +101,7 @@ TEST(MatmulPE, MatmulCase1) {
   }
 }
 
-TEST(IndexAssign, IndexAssign) {
+TEST(ScatterAssign, ScatterAssign) {
   int m = 128;
   int n = 32;
   int k = 32;
@@ -118,13 +118,13 @@ TEST(IndexAssign, IndexAssign) {
   auto target = common::DefaultHostTarget();
 #endif
 
-  auto output = hlir::pe::IndexAssign(input.tensor(), assign.tensor(), indexs.tensor(), target, axis);
+  auto output = hlir::pe::ScatterAssign(input.tensor(), assign.tensor(), indexs.tensor(), target, axis);
   auto stages = CreateStages({input, assign, indexs, output});
   auto func   = Lower("fn", stages, {input, assign, indexs, output});
   LOG(INFO) << "func:\n" << func;
 
 #ifdef CINN_WITH_CUDA
-  Module::Builder builder("IndexAssign_Builder", target);
+  Module::Builder builder("ScatterAssign_Builder", target);
   builder.AddFunction(func);
 
   auto module                    = builder.Build();
