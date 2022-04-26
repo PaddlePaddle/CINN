@@ -27,8 +27,22 @@
 #include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/pass/use_pass.h"
 
+DECLARE_bool(cinn_use_new_fusion_pass);
+
 namespace cinn {
 namespace frontend {
+
+OptimizeOptions DefaultTrainingOptimizeOptions() {
+  OptimizeOptions options;
+  options.program_passes = {"Decomposer", "TransposeFolding", "GemmRewriter", "RemoveIdentity"};
+  if (FLAGS_cinn_use_new_fusion_pass) {
+    options.graph_passes = {"OpFusionPass", "FusionMergePass"};
+  } else {
+    options.graph_passes = {"OpFusion"};
+  }
+  return options;
+}
+
 std::shared_ptr<hlir::framework::Graph> Optimize(frontend::Program* program,
                                                  const std::unordered_set<std::string>& fetch_ids,
                                                  common::Target target,
