@@ -29,7 +29,7 @@
 #include "cinn/poly/stage.h"
 #include "cinn/utils/dot_lang.h"
 
-// DECLARE_string(cinn_graphviz_path);
+DECLARE_string(cinn_graphviz_path);
 
 namespace cinn {
 namespace hlir {
@@ -627,8 +627,11 @@ void GraphCompiler::CompileOptions::Apply(const auto_schedule::TuningResult& tun
   }
 }
 
-std::string VisualizeGroups(std::shared_ptr<Graph> graph, const std::vector<std::vector<Node*>>& groups) {
-  LOG(INFO) << "VisualizeGroups: num_groups=" << groups.size();
+void VisualizeGroups(std::shared_ptr<Graph> graph, const std::vector<std::vector<Node*>>& groups) {
+  if (FLAGS_cinn_graphviz_path.empty()) {
+    return;
+  }
+
   std::vector<utils::Attr> group_op_attrs = {
       utils::Attr("shape", "Mrecord"), utils::Attr("color", "grey"), utils::Attr("style", "filled")};
   std::vector<utils::Attr> out_op_attrs = {
@@ -684,7 +687,6 @@ std::string VisualizeGroups(std::shared_ptr<Graph> graph, const std::vector<std:
     }
     LOG(INFO) << dot();
   }
-  return "";
 }
 
 GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::CompileOptions& options,

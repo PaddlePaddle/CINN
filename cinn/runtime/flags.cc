@@ -26,6 +26,7 @@ DEFINE_bool(cinn_cudnn_deterministic,
 #endif
 
 using ::GFLAGS_NAMESPACE::BoolFromEnv;
+using ::GFLAGS_NAMESPACE::StringFromEnv;
 
 DEFINE_bool(cinn_use_new_fusion_pass,
             BoolFromEnv("FLAGS_cinn_use_new_fusion_pass", false),
@@ -33,6 +34,9 @@ DEFINE_bool(cinn_use_new_fusion_pass,
 DEFINE_bool(cinn_sync_run,
             BoolFromEnv("FLAGS_cinn_sync_run", false),
             "Whether sync all devices after each instruction run, which is used for debug.");
+DEFINE_string(cinn_graphviz_path,
+              StringFromEnv("FLAGS_cinn_graphviz_path", ""),
+              "Specify the path of dot file of graph, which is used for debug.");
 
 namespace cinn {
 namespace runtime {
