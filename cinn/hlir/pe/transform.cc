@@ -970,7 +970,7 @@ ir::Tensor ScatterAdd(const ir::Tensor& input,
 
   // compute multi-dimension index(without axis's) to scalar offset,
   // offset = offset + indice[i] * strides[i];
-  auto indice2offset = [&strides](const std::vector<Expr>& indice) -> Expr {
+  auto indice2offset = [&](const std::vector<Expr>& indice) -> Expr {
     Expr offset(0);
     for (int i = 0; i < pos_axis; ++i) {
       offset = offset + indice[i] * Expr(strides[i]);
