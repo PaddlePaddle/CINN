@@ -214,7 +214,6 @@ std::vector<ir::LoweredFunc> LowerVec(const std::string& name,
         res->device_api = ir::DeviceAPI::GPU;
       }
     }
-
     if (b) {
       b->AddFunction(res);
     }
