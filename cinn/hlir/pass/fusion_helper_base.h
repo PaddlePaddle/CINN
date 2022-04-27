@@ -76,6 +76,25 @@ class FusionHelperBase {
     }
     return producer_node_data;
   }
+
+  bool WithoutLastDimInReduce(const std::vector<int>& inshape, const std::vector<int>& axes) {
+    // if last axis is in reduce.
+    if (std::find(axes.begin(), axes.end(), inshape.size() - 1) != axes.end() ||
+        std::find(axes.begin(), axes.end(), -1) != axes.end()) {
+      return false;
+    }
+
+    int sum_last_axes = 1;
+    for (int idx = axes.back() + 1; idx < inshape.size(); ++idx) {
+      sum_last_axes *= inshape[idx];
+    }
+
+    if (sum_last_axes > 1) {
+      return true;
+    } else {
+      return false;
+    }
+  }
   // target
   common::Target target_;
   // shape dict

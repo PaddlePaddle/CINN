@@ -14,6 +14,8 @@
 
 #include "cinn/hlir/framework/graph_compiler.h"
 
+#include <absl/container/flat_hash_map.h>
+
 #include <memory>
 #include <unordered_set>
 
@@ -677,7 +679,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
 
   m_builder_.Clear();
   // if there are no avaiable groups, we will take each node as a group
-  if (options.groups.empty() && graph_->groups.empty()) {
+  if (options.groups.empty() && graph_->groups.empty() && graph_->fusion_groups.empty()) {
     VLOG(3) << "not run opfusion pass";
     for (auto& node : nodes) {
       auto op_node = node->safe_as<Node>();
@@ -687,7 +689,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
     }
   }
   // use the input groups in options firstly if exists
-  const auto& groups = options.groups.empty() ? graph_->groups : options.groups;
+  auto groups = options.groups.empty() ? graph_->groups : options.groups;
 
   // if the input lowered_funcs is empty, we will use the defalut lowering process to generate
   std::vector<std::vector<ir::LoweredFunc>> local_lowered_funcs;
@@ -700,8 +702,24 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
 
       OpLowerer op_lowerer(dtype_dict, shape_dict, target_);
       for (auto& group : graph_->fusion_groups) {
-        auto lowered_func = op_lowerer.Lower(group);
-        this->ProcessFunction(lowered_func);
+        VLOG(11) << group->group_id;
+        groups.push_back(std::move(group->CollectNodes()));
+        // set node as output node from fetch_var_ids.
+        for (auto node : groups.back()) {
+          // get all node datas.
+          for (auto& link : node->outlinks()) {
+            auto node_data = link->sink()->safe_as<NodeData>();
+            CHECK(node_data);
+            // if node data is in fetch_var_ids.
+            if (fetch_var_ids_.count(node_data->id())) {
+              group->output_nodes.insert(node);
+              break;
+            }
+          }
+        }
+        local_lowered_funcs.emplace_back(std::move(op_lowerer.Lower(group)));
+        CHECK_EQ(local_lowered_funcs.back().size(), 1) << "Lowerd Function Is Not Equal 1!";
+        VLOG(11) << local_lowered_funcs.back()[0];
       }
     } else {
       for (int i = 0; i < groups.size(); i++) {
@@ -738,7 +756,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   }
 
   compiler_->Build(build_module, options.attached_code, stream);
-  auto instructions = BuildInstructions(groups);
+  auto instructions = BuildInstructions(groups, graph_->fusion_groups);
   if (options.remove_unused_variables) {
     RemoveInvalidVariables(instructions);
   }
@@ -789,14 +807,52 @@ void GraphCompiler::SetSubKernels(Instruction* instr, const std::string& func_na
   }
 }
 
+void GraphCompiler::BuildCublasInstr(const Node& node, Instruction* instr) const {
+  auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
+  std::vector<int> input_sizes;
+  // input info
+  input_sizes.reserve(node.inlinks_in_order().size());
+  for (auto& in_node : node.inlinks_in_order()) {
+    std::string in_id = in_node->source()->safe_as<NodeData>()->id();
+    auto in_shape     = shape_dict.at(in_id);
+    instr->attrs.insert(instr->attrs.end(), in_shape.begin(), in_shape.end());
+    input_sizes.push_back(in_shape.size());
+  }
+  instr->attrs.insert(instr->attrs.end(), input_sizes.begin(), input_sizes.end());
+  // attribute info
+  bool trans_a = false;
+  if (node.attrs.attr_store.contains("trans_a")) {
+    trans_a = absl::get<bool>(node.attrs.attr_store.at("trans_a"));
+  }
+  instr->attrs.push_back(static_cast<int>(trans_a));
+  bool trans_b = false;
+  if (node.attrs.attr_store.contains("trans_b")) {
+    trans_b = absl::get<bool>(node.attrs.attr_store.at("trans_b"));
+  }
+  instr->attrs.push_back(static_cast<int>(trans_b));
+  float alpha = 1.f;
+  if (node.attrs.attr_store.contains("alpha")) {
+    alpha = absl::get<float>(node.attrs.attr_store.at("alpha"));
+  }
+  instr->attrs.push_back(*reinterpret_cast<int*>(&alpha));
+}
+
 std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions(
-    const std::vector<std::vector<Node*>>& groups) {
+    const std::vector<std::vector<Node*>>& groups, const std::vector<std::shared_ptr<Graph::Group>>& fusion_groups) {
   std::vector<std::unique_ptr<Instruction>> instructions;
   auto topo_order = graph_->topological_order();
   auto& nodes     = std::get<0>(topo_order);
   auto& edges     = std::get<1>(topo_order);
 
-  for (auto& group : groups) {
+  CHECK_GT(groups.size(), 0);
+  CHECK_EQ(fusion_groups.size() != 0, groups.size() == fusion_groups.size())
+      << "fusion_groups's size must be 0 or equal to groups.";
+  for (int idx = 0; idx < groups.size(); ++idx) {
+    auto& group = groups[idx];
+    std::shared_ptr<Graph::Group> fusion_group(nullptr);
+    if (fusion_groups.size()) {
+      fusion_group = fusion_groups[idx];
+    }
     if (group.size() == 1) {
       auto node       = group[0];
       auto instr_name = node->op()->name;
@@ -812,7 +868,11 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions(
         instr_name              = "no_run";
       }
       auto instr = std::unique_ptr<Instruction>(
-          new Instruction(target_, scope_.get(), OpGetInputNames(node), OpGetOutputNames(node), instr_name));
+          new Instruction(target_,
+                          scope_.get(),
+                          fusion_group.get() ? fusion_group->input_names : OpGetInputNames(node),
+                          fusion_group.get() ? fusion_group->output_names : OpGetOutputNames(node),
+                          instr_name));
 
       if (target_.arch == Target::Arch::NVGPU) {
         if (node->op()->name == "conv2d") {
@@ -947,27 +1007,13 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions(
           } else {
             instr->attrs.push_back(1);
           }
-        } else if (node->op()->name == "cublas_gemm") {
-          auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-          std::vector<int> input_sizes;
-          input_sizes.reserve(node->inlinks_in_order().size());
-          for (auto& in_node : node->inlinks_in_order()) {
-            std::string in_id = in_node->source()->safe_as<NodeData>()->id();
-            auto in_shape     = shape_dict.at(in_id);
-            instr->attrs.insert(instr->attrs.end(), in_shape.begin(), in_shape.end());
-            input_sizes.push_back(in_shape.size());
-          }
-          instr->attrs.insert(instr->attrs.end(), input_sizes.begin(), input_sizes.end());
-          CHECK(node->attrs.attr_store.contains("trans_a"));
-          CHECK(node->attrs.attr_store.contains("trans_b"));
-          bool trans_a = absl::get<bool>(node->attrs.attr_store.at("trans_a"));
-          instr->attrs.push_back(static_cast<int>(trans_a));
-          bool trans_b = absl::get<bool>(node->attrs.attr_store.at("trans_b"));
-          instr->attrs.push_back(static_cast<int>(trans_b));
+        } else if (node->op()->name == "cublas_gemm" || node->op()->name == "cublas_matmul") {
+          BuildCublasInstr(*node, instr.get());
         }
       }
-      std::string op_func_name = GetOrGenFullFuncName(GenOpFuncName(node));
-      auto* fn                 = compiler_->Lookup(op_func_name);
+      std::string op_func_name =
+          fusion_group.get() ? fusion_group->GetFuncName() : GetOrGenFullFuncName(GenOpFuncName(node));
+      auto* fn = compiler_->Lookup(op_func_name);
       CHECK(fn);
       instr->SetLoweredFunc(fn, op_func_name);
 
@@ -987,43 +1033,50 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions(
       std::unordered_set<std::string> names_set;
       int count             = 0;
       std::string fuse_name = "fn_";
-      for (int i = 0; i < group.size(); i++) {
-        auto node = group[i];
-        CHECK(node);
-        fuse_name += node->id() + "_";
-        auto temp_inputnames = OpGetInputNames(node);
-        for (int j = 0; j < temp_inputnames.size(); j++) {
-          if (!names_set.count(temp_inputnames[j])) {
-            inputNames.push_back(temp_inputnames[j]);
-            names_set.insert(temp_inputnames[j]);
+      if (!fusion_group.get()) {
+        for (int i = 0; i < group.size(); i++) {
+          auto node = group[i];
+          CHECK(node);
+          fuse_name += node->id() + "_";
+          auto temp_inputnames = OpGetInputNames(node);
+          for (int j = 0; j < temp_inputnames.size(); j++) {
+            if (!names_set.count(temp_inputnames[j])) {
+              inputNames.push_back(temp_inputnames[j]);
+              names_set.insert(temp_inputnames[j]);
+            }
           }
-        }
-        auto temp_outputnames = OpGetOutputNames(node);
-        // fused output arg order: final output, ops no_fused outputs
-        for (int j = 0; j < temp_outputnames.size(); j++) {
-          if (!names_set.count(temp_outputnames[j])) {
-            names_set.insert(temp_outputnames[j]);
-            // assume that the first out_var of the op node is the fused var
-            bool is_fetch = fetch_var_ids_.count(temp_outputnames[j]);
-            if (j == 0 && i != group.size() - 1 && !is_fetch) continue;
-            if (j == 0 && i == group.size() - 1) {
-              outputNames.insert(outputNames.begin(), temp_outputnames[0]);
-            } else if (is_fetch) {
-              VLOG(3) << "fetch var " << temp_outputnames[j];
-              outputNames.insert(outputNames.begin(), temp_outputnames[j]);
-            } else {
-              outputNames.push_back(temp_outputnames[j]);
+          auto temp_outputnames = OpGetOutputNames(node);
+          // fused output arg order: final output, ops no_fused outputs
+          for (int j = 0; j < temp_outputnames.size(); j++) {
+            if (!names_set.count(temp_outputnames[j])) {
+              names_set.insert(temp_outputnames[j]);
+              // assume that the first out_var of the op node is the fused var
+              bool is_fetch = fetch_var_ids_.count(temp_outputnames[j]);
+              if (j == 0 && i != group.size() - 1 && !is_fetch) continue;
+              if (j == 0 && i == group.size() - 1) {
+                outputNames.insert(outputNames.begin(), temp_outputnames[0]);
+              } else if (is_fetch) {
+                VLOG(3) << "fetch var " << temp_outputnames[j];
+                outputNames.insert(outputNames.begin(), temp_outputnames[j]);
+              } else {
+                outputNames.push_back(temp_outputnames[j]);
+              }
             }
           }
         }
+
+        fuse_name += "fused";
+        VLOG(3) << "In buildInstructions, fuse_name is : " << fuse_name;
+        VLOG(3) << "input_names: " << utils::Join(inputNames, ", ");
+        VLOG(3) << "out_names: " << utils::Join(outputNames, ", ");
       }
-      fuse_name += "fused";
-      VLOG(3) << "In buildInstructions, fuse_name is : " << fuse_name;
-      VLOG(3) << "input_names: " << utils::Join(inputNames, ", ");
-      VLOG(3) << "out_names: " << utils::Join(outputNames, ", ");
-      fuse_name = GetOrGenFullFuncName(fuse_name);
+      fuse_name = fusion_group.get() ? fusion_group->GetFuncName() : GetOrGenFullFuncName(fuse_name);
       auto instr =
-          std::unique_ptr<Instruction>(new Instruction(target_, scope_.get(), inputNames, outputNames, fuse_name));
+          std::unique_ptr<Instruction>(new Instruction(target_,
+                                                       scope_.get(),
+                                                       fusion_group.get() ? fusion_group->input_names : inputNames,
+                                                       fusion_group.get() ? fusion_group->output_names : outputNames,
+                                                       fuse_name));
 
       auto* fn = compiler_->Lookup(fuse_name);
       CHECK(fn);

@@ -54,7 +54,7 @@ class Graph : public cinn::common::Graph {
     // output nodes of the group.
     std::unordered_set<Node*> output_nodes;
     // op pattern kind.
-    framework::OpPatternKind op_pattern_kind;
+    framework::OpPatternKind op_pattern_kind{framework::kElemWise};
     // internal node, the output is used by multi-node.
     // internal node can't use compute inline, should use buffer.
     std::unordered_set<Node*> internal_nodes;
@@ -79,6 +79,24 @@ class Graph : public cinn::common::Graph {
     std::vector<std::shared_ptr<Group>> fused_sub_groups;
     // if as sub-group, used for belong groups.
     std::unordered_set<std::shared_ptr<Group>, SharedGroupHasher, SharedGroupComparator> belong_groups;
+
+    // for op lowering.
+    std::vector<std::string> input_names;
+    std::vector<std::string> output_names;
+
+    std::vector<Node*> CollectNodes() {
+      if (fused_sub_groups.size()) {
+        std::vector<Node*> tmp_nodes;
+        for (auto& group : fused_sub_groups) {
+          tmp_nodes.insert(tmp_nodes.end(), group->nodes.begin(), group->nodes.end());
+        }
+        return tmp_nodes;
+      } else {
+        return nodes;
+      }
+    }
+
+    std::string GetFuncName() { return "fn_" + group_id; }
   };
   std::vector<std::shared_ptr<Group>> fusion_groups;
 

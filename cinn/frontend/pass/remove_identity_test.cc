@@ -63,7 +63,7 @@ TEST(RemoveIdentity, can_remove) {
 #endif
   LOG(INFO) << program;
   size_t before_size = program.size();
-  ApplyPass(&program, {}, "RemoveIdentity");
+  ProgramPass::Apply(&program, {}, target, {"RemoveIdentity"});
   size_t after_size = program.size();
   ASSERT_EQ(before_size, after_size + 2);
   LOG(INFO) << program;
@@ -96,7 +96,7 @@ TEST(RemoveIdentity, cant_remove_by_fetchids) {
 #endif
   LOG(INFO) << program;
   size_t before_size = program.size();
-  ApplyPass(&program, {identity_1->id}, "RemoveIdentity");
+  ProgramPass::Apply(&program, {identity_1->id}, target, {"RemoveIdentity"});
   size_t after_size = program.size();
   ASSERT_EQ(before_size, after_size + 1);
   LOG(INFO) << program;
@@ -128,7 +128,7 @@ TEST(RemoveIdentity, cant_remove_by_pattern) {
 #endif
   LOG(INFO) << program;
   size_t before_size = program.size();
-  ApplyPass(&program, {}, "RemoveIdentity");
+  ProgramPass::Apply(&program, {}, target, {"RemoveIdentity"});
   size_t after_size = program.size();
   ASSERT_EQ(before_size, after_size + 1);
   LOG(INFO) << program;

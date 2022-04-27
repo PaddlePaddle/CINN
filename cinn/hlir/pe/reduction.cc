@@ -274,26 +274,23 @@ std::vector<ir::Tensor> WarpReduceAvg(const ir::Tensor& A,
 }
 
 std::vector<ir::Tensor> BlockReduceInternal(const ir::Tensor& A,
-                                            const int last_reduce_dim_num,
+                                            const std::vector<int>& axes,
                                             const bool keep_dim,
                                             const std::string& reduce_type,
                                             const std::string& output_name) {
-  // compute shape size without last reduce dimension.
-  int shape_size_without_reduce_dim = A->shape.size() - last_reduce_dim_num;
-
   // compute reduce dimension size.
   Expr reduce_width(1);
-  for (int idx = shape_size_without_reduce_dim; idx < A->shape.size(); ++idx) {
+  for (int idx = axes.front(); idx < A->shape.size(); ++idx) {
     reduce_width = reduce_width * A->shape[idx].as_int32();
   }
 
   // compute tmp output shape.
-  std::vector<Expr> tmp_shape(A->shape.begin(), A->shape.begin() + shape_size_without_reduce_dim);
+  std::vector<Expr> tmp_shape(A->shape.begin(), A->shape.begin() + axes.front());
   tmp_shape.push_back(reduce_width);
 
   // compute the reduce dimension stride.
-  std::vector<Expr> last_reduce_stride(last_reduce_dim_num, Expr(1));
-  for (int idx = A->shape.size(), index = last_reduce_stride.size() - 2; index >= 0; --index) {
+  std::vector<Expr> last_reduce_stride(A->shape.size() - axes.front(), Expr(1));
+  for (int idx = A->shape.size(), index = int(last_reduce_stride.size()) - 2; index >= 0; --index) {
     last_reduce_stride[index] = last_reduce_stride[index + 1] * A->shape[--idx];
   }
 
@@ -303,7 +300,7 @@ std::vector<ir::Tensor> BlockReduceInternal(const ir::Tensor& A,
         // comput index map from output to input.
         auto last_index = indexs.back();
         std::vector<Expr> input_indexs(indexs.begin(), indexs.begin() + indexs.size() - 1);
-        for (int idx = 0; idx < last_reduce_dim_num; ++idx) {
+        for (int idx = 0; idx < A->shape.size() - axes.front(); ++idx) {
           input_indexs.push_back(last_index / last_reduce_stride[idx]);
           last_index = last_index % last_reduce_stride[idx];
         }
@@ -315,11 +312,11 @@ std::vector<ir::Tensor> BlockReduceInternal(const ir::Tensor& A,
       UniqName(output_name + "_tmp"));
 
   // compute output shape.
-  std::vector<Expr> out_shape(A->shape.begin(), A->shape.begin() + shape_size_without_reduce_dim);
-  for (int idx = 0; idx < last_reduce_dim_num && keep_dim; ++idx) {
+  std::vector<Expr> out_shape(A->shape.begin(), A->shape.begin() + axes.front());
+  int tailf = keep_dim ? (int(A->shape.size()) - axes.front()) : (int(A->shape.size()) - axes.back() - 1);
+  for (int idx = 0; idx < tailf; ++idx) {
     out_shape.push_back(Expr(1));
   }
-
   // if reduce on all dimension, the out_shape = {1}.
   if (out_shape.size() == 0) {
     out_shape.push_back(Expr(1));
@@ -327,41 +324,40 @@ std::vector<ir::Tensor> BlockReduceInternal(const ir::Tensor& A,
   auto out = Compute(
       out_shape,
       [=](const std::vector<Expr>& indexs) -> Expr {
-        std::vector<Expr> tmp_indexs(indexs.begin(), indexs.begin() + shape_size_without_reduce_dim);
+        std::vector<Expr> tmp_indexs(indexs.begin(), indexs.begin() + axes.front());
         tmp_indexs.push_back(Expr(0));
         return tmp_out(tmp_indexs);
       },
       UniqName(output_name));
-
   return {out, tmp_out};
 }
 
 std::vector<ir::Tensor> BlockReduceSumInternal(const ir::Tensor& A,
-                                               const int last_reduce_dim_num,
+                                               const std::vector<int>& axes,
                                                const bool keep_dim,
                                                const std::string& output_name) {
-  return BlockReduceInternal(A, last_reduce_dim_num, keep_dim, "cinn_block_reduce_sum_internal", output_name);
+  return BlockReduceInternal(A, axes, keep_dim, "cinn_block_reduce_sum_internal", output_name);
 }
 
 std::vector<ir::Tensor> BlockReduceProdInternal(const ir::Tensor& A,
-                                                const int last_reduce_dim_num,
+                                                const std::vector<int>& axes,
                                                 const bool keep_dim,
                                                 const std::string& output_name) {
-  return BlockReduceInternal(A, last_reduce_dim_num, keep_dim, "cinn_block_reduce_prod_internal", output_name);
+  return BlockReduceInternal(A, axes, keep_dim, "cinn_block_reduce_prod_internal", output_name);
 }
 
 std::vector<ir::Tensor> BlockReduceMaxInternal(const ir::Tensor& A,
-                                               const int last_reduce_dim_num,
+                                               const std::vector<int>& axes,
                                                const bool keep_dim,
                                                const std::string& output_name) {
-  return BlockReduceInternal(A, last_reduce_dim_num, keep_dim, "cinn_block_reduce_max_internal", output_name);
+  return BlockReduceInternal(A, axes, keep_dim, "cinn_block_reduce_max_internal", output_name);
 }
 
 std::vector<ir::Tensor> BlockReduceMinInternal(const ir::Tensor& A,
-                                               const int last_reduce_dim_num,
+                                               const std::vector<int>& axes,
                                                const bool keep_dim,
                                                const std::string& output_name) {
-  return BlockReduceInternal(A, last_reduce_dim_num, keep_dim, "cinn_block_reduce_min_internal", output_name);
+  return BlockReduceInternal(A, axes, keep_dim, "cinn_block_reduce_min_internal", output_name);
 }
 
 /**
@@ -373,28 +369,25 @@ std::vector<ir::Tensor> BlockReduceMinInternal(const ir::Tensor& A,
  * @param output_name The name of the output Tensor.
  */
 std::vector<ir::Tensor> BlockReduce(const ir::Tensor& A,
-                                    const int last_reduce_dim_num,
+                                    const std::vector<int>& axes,
                                     const int block_size,
                                     const bool keep_dim,
                                     const std::string& reduce_type,
                                     const std::string& output_name) {
-  // compute shape size without last reduce dimension.
-  int shape_size_without_reduce_dim = A->shape.size() - last_reduce_dim_num;
-
   // compute reduce dimension size.
   Expr reduce_width(1);
-  for (int idx = shape_size_without_reduce_dim; idx < A->shape.size(); ++idx) {
+  for (int idx = axes.front(); idx < A->shape.size(); ++idx) {
     reduce_width = reduce_width * A->shape[idx].as_int32();
   }
 
   // compute tmp output tensor shape
-  std::vector<Expr> tmp_shape(A->shape.begin(), A->shape.begin() + shape_size_without_reduce_dim);
+  std::vector<Expr> tmp_shape(A->shape.begin(), A->shape.begin() + axes.front());
   tmp_shape.push_back(Expr(block_size));
   auto tmp_out = Compute(
       tmp_shape,
       [=](const std::vector<Expr>& indexs) -> Expr {
-        std::vector<Expr> tmp_indexs(indexs.begin(), indexs.begin() + shape_size_without_reduce_dim);
-        for (int idx = 0; idx < last_reduce_dim_num; ++idx) {
+        std::vector<Expr> tmp_indexs(indexs.begin(), indexs.begin() + axes.front());
+        for (int idx = 0; idx < A->shape.size() - axes.front(); ++idx) {
           tmp_indexs.push_back(Expr(0));
         }
         // checkout input shape size equals tmp indexs size.
@@ -407,8 +400,9 @@ std::vector<ir::Tensor> BlockReduce(const ir::Tensor& A,
       UniqName(output_name + "_tmp"));
 
   // compute output tensor shape.
-  std::vector<Expr> out_shape(A->shape.begin(), A->shape.begin() + shape_size_without_reduce_dim);
-  for (int idx = 0; idx < last_reduce_dim_num && keep_dim; ++idx) {
+  std::vector<Expr> out_shape(A->shape.begin(), A->shape.begin() + axes.front());
+  int tailf = keep_dim ? (int(A->shape.size()) - axes.front()) : (int(A->shape.size()) - axes.back() - 1);
+  for (int idx = 0; idx < tailf; ++idx) {
     out_shape.push_back(Expr(1));
   }
   // if reduce on all dimension, the out_shape = {1}.
@@ -419,7 +413,7 @@ std::vector<ir::Tensor> BlockReduce(const ir::Tensor& A,
       out_shape,
       [=](const std::vector<Expr>& indexs) -> Expr {
         // compute input index
-        std::vector<Expr> tmp_indexs(indexs.begin(), indexs.begin() + shape_size_without_reduce_dim);
+        std::vector<Expr> tmp_indexs(indexs.begin(), indexs.begin() + axes.front());
         tmp_indexs.push_back(Expr(0));
         return tmp_out(tmp_indexs);
       },
@@ -429,35 +423,35 @@ std::vector<ir::Tensor> BlockReduce(const ir::Tensor& A,
 }
 
 std::vector<ir::Tensor> BlockReduceSum(const ir::Tensor& A,
-                                       const int last_reduce_dim_num,
+                                       const std::vector<int>& axes,
                                        const int block_size,
                                        const bool keep_dim,
                                        const std::string& output_name) {
-  return BlockReduce(A, last_reduce_dim_num, block_size, keep_dim, "cinn_block_reduce_sum", output_name);
+  return BlockReduce(A, axes, block_size, keep_dim, "cinn_block_reduce_sum", output_name);
 }
 
 std::vector<ir::Tensor> BlockReduceProd(const ir::Tensor& A,
-                                        const int last_reduce_dim_num,
+                                        const std::vector<int>& axes,
                                         const int block_size,
                                         const bool keep_dim,
                                         const std::string& output_name) {
-  return BlockReduce(A, last_reduce_dim_num, block_size, keep_dim, "cinn_block_reduce_prod", output_name);
+  return BlockReduce(A, axes, block_size, keep_dim, "cinn_block_reduce_prod", output_name);
 }
 
 std::vector<ir::Tensor> BlockReduceMax(const ir::Tensor& A,
-                                       const int last_reduce_dim_num,
+                                       const std::vector<int>& axes,
                                        const int block_size,
                                        const bool keep_dim,
                                        const std::string& output_name) {
-  return BlockReduce(A, last_reduce_dim_num, block_size, keep_dim, "cinn_block_reduce_max", output_name);
+  return BlockReduce(A, axes, block_size, keep_dim, "cinn_block_reduce_max", output_name);
 }
 
 std::vector<ir::Tensor> BlockReduceMin(const ir::Tensor& A,
-                                       const int last_reduce_dim_num,
+                                       const std::vector<int>& axes,
                                        const int block_size,
                                        const bool keep_dim,
                                        const std::string& output_name) {
-  return BlockReduce(A, last_reduce_dim_num, block_size, keep_dim, "cinn_block_reduce_min", output_name);
+  return BlockReduce(A, axes, block_size, keep_dim, "cinn_block_reduce_min", output_name);
 }
 
 }  // namespace pe
