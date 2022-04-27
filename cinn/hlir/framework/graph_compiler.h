@@ -144,11 +144,10 @@ class GraphCompiler final {
   // TODO(haozech) add implementation
   std::vector<std::string> OpGetOutputNames(const Node* node) const;
 
-  // Build an instruction used to call the cublas gemm
+  std::vector<std::unique_ptr<Instruction>> BuildInstructions(
+      const std::vector<std::vector<Node*>>& groups, const std::vector<std::shared_ptr<Graph::Group>>& fusion_groups);
+
   void BuildCublasInstr(const Node& node, Instruction* instr) const;
-
-  std::vector<std::unique_ptr<Instruction>> BuildInstructions(const std::vector<std::vector<Node*>>& groups);
-
   // some variables are eliminated by optimized passes(such as OpFusion),
   // we can filter out them according to arguments of the built instructions,
   // and erase them from the scope to avoid unnecessary buffer allocation

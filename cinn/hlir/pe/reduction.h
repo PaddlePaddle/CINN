@@ -148,7 +148,7 @@ std::vector<ir::Tensor> WarpReduceAvg(const ir::Tensor& A,
  * @param output_name The name of the output Tensor.
  */
 std::vector<ir::Tensor> BlockReduceSumInternal(const ir::Tensor& A,
-                                               const int last_reduce_dim_num,
+                                               const std::vector<int>& axes,
                                                const bool keep_dim            = false,
                                                const std::string& output_name = "T_Block_Reduce_Sum_Internal_out");
 
@@ -162,7 +162,7 @@ std::vector<ir::Tensor> BlockReduceSumInternal(const ir::Tensor& A,
  * @param output_name The name of the output Tensor.
  */
 std::vector<ir::Tensor> BlockReduceProdInternal(const ir::Tensor& A,
-                                                const int last_reduce_dim_num,
+                                                const std::vector<int>& axes,
                                                 const bool keep_dim            = false,
                                                 const std::string& output_name = "T_Block_Reduce_Prod_Internal_out");
 
@@ -176,7 +176,7 @@ std::vector<ir::Tensor> BlockReduceProdInternal(const ir::Tensor& A,
  * @param output_name The name of the output Tensor.
  */
 std::vector<ir::Tensor> BlockReduceMaxInternal(const ir::Tensor& A,
-                                               const int last_reduce_dim_num,
+                                               const std::vector<int>& axes,
                                                const bool keep_dim            = false,
                                                const std::string& output_name = "T_Block_Reduce_Max_Internal_out");
 
@@ -190,7 +190,7 @@ std::vector<ir::Tensor> BlockReduceMaxInternal(const ir::Tensor& A,
  * @param output_name The name of the output Tensor.
  */
 std::vector<ir::Tensor> BlockReduceMinInternal(const ir::Tensor& A,
-                                               const int last_reduce_dim_num,
+                                               const std::vector<int>& axes,
                                                const bool keep_dim            = false,
                                                const std::string& output_name = "T_Block_Reduce_Min_Internal_out");
 
@@ -203,7 +203,7 @@ std::vector<ir::Tensor> BlockReduceMinInternal(const ir::Tensor& A,
  * @param output_name The name of the output Tensor.
  */
 std::vector<ir::Tensor> BlockReduceSum(const ir::Tensor& A,
-                                       const int last_reduce_dim_num,
+                                       const std::vector<int>& axes,
                                        const int block_size,
                                        const bool keep_dim            = false,
                                        const std::string& output_name = "T_Block_Reduce_Sum_out");
@@ -217,7 +217,7 @@ std::vector<ir::Tensor> BlockReduceSum(const ir::Tensor& A,
  * @param output_name The name of the output Tensor.
  */
 std::vector<ir::Tensor> BlockReduceProd(const ir::Tensor& A,
-                                        const int last_reduce_dim_num,
+                                        const std::vector<int>& axes,
                                         const int block_size,
                                         const bool keep_dim            = false,
                                         const std::string& output_name = "T_Block_Reduce_Prod_out");
@@ -231,7 +231,7 @@ std::vector<ir::Tensor> BlockReduceProd(const ir::Tensor& A,
  * @param output_name The name of the output Tensor.
  */
 std::vector<ir::Tensor> BlockReduceMax(const ir::Tensor& A,
-                                       const int last_reduce_dim_num,
+                                       const std::vector<int>& axes,
                                        const int block_size,
                                        const bool keep_dim            = false,
                                        const std::string& output_name = "T_Block_Reduce_Max_out");
@@ -245,7 +245,7 @@ std::vector<ir::Tensor> BlockReduceMax(const ir::Tensor& A,
  * @param output_name The name of the output Tensor.
  */
 std::vector<ir::Tensor> BlockReduceMin(const ir::Tensor& A,
-                                       const int last_reduce_dim_num,
+                                       const std::vector<int>& axes,
                                        const int block_size,
                                        const bool keep_dim            = false,
                                        const std::string& output_name = "T_Block_Reduce_Min_out");
