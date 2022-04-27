@@ -36,6 +36,7 @@ class ModuleExpr {
   ModuleExpr& operator=(const ModuleExpr& mod_expr) = default;
 
   explicit ModuleExpr(const std::vector<Expr>& exprs) : exprs_(exprs) {}
+  explicit ModuleExpr(std::vector<Expr>&& exprs) : exprs_(std::move(exprs)) {}
 
   //! Get all the Expr in this ModuleExpr.
   std::vector<Expr> GetExprs() { return exprs_; }
