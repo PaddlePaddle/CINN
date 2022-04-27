@@ -97,5 +97,63 @@ class TestNetBuilder3(unittest.TestCase):
         result = prog.build_and_get_output(self.target, [a], tensor_data, [d])
 
 
+class TestNetBuilder4(unittest.TestCase):
+    def setUp(self):
+        if enable_gpu == "ON":
+            self.target = DefaultNVGPUTarget()
+        else:
+            self.target = DefaultHostTarget()
+
+    def paddle_verify_basic(self, result):
+        paddle.enable_static()
+
+        a = fluid.layers.data(name='A', shape=[24, 56, 56], dtype='float32')
+        d = fluid.initializer.NumpyArrayInitializer(
+            np.array(result[2]).reshape((144, 24, 1, 1)).astype('float32'))
+        res = fluid.layers.conv2d(
+            input=a,
+            num_filters=144,
+            filter_size=1,
+            stride=1,
+            padding=0,
+            dilation=1,
+            param_attr=d)
+
+        exe = fluid.Executor(fluid.CPUPlace())
+        exe.run(fluid.default_startup_program())
+
+        x = np.array(result[0]).reshape((1, 24, 56, 56)).astype("float32")
+        output = exe.run(feed={"A": x}, fetch_list=[res])
+        output = np.array(output).reshape(-1)
+        print("result in paddle_verify: \n")
+        for i in range(0, output.shape[0]):
+            if np.abs(output[i] - result[len(result) - 1][i]) > 1e-4:
+                print("Error! ", i, "-th data has diff with target data:\n",
+                      output[i], " vs: ", result[len(result) - 1][i],
+                      ". Diff is: ", output[i] - result[len(result) - 1][i])
+        self.assertTrue(
+            np.allclose(result[len(result) - 1], output, atol=1e-4))
+
+    def test_basic(self):
+        builder = NetBuilder("test_basic")
+        a = builder.create_input(Float(32), (1, 24, 56, 56), "A")
+        d = builder.create_input(Float(32), (144, 24, 1, 1), "D")
+        e = builder.conv2d(a, d)
+        prog = builder.build()
+        self.assertEqual(prog.size(), 1)
+        # print program
+        for i in range(prog.size()):
+            print(prog[i])
+        tensor_data = [
+            np.random.random([1, 24, 56, 56]).astype("float32"),
+            np.random.random([144, 24, 1, 1]).astype("float32")
+        ]
+        result = prog.build_and_get_output(self.target, [a, d], tensor_data,
+                                           [e])
+        result = result[0].numpy(self.target).reshape(-1)
+        tensor_data.append(result)
+        self.paddle_verify_basic(tensor_data)
+
+
 if __name__ == "__main__":
     unittest.main()
