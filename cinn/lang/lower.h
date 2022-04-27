@@ -70,7 +70,7 @@ std::vector<ir::LoweredFunc> LowerVec(const std::string &name,
                                       const Target &target                    = common::DefaultHostTarget(),
                                       bool support_ir_schedule                = false);
 
-std::vector<ir::Argument> GetArgs(ir::LoweredFunc &lowered_func);
+std::vector<ir::Argument> GetArgs(ir::LoweredFunc &lowered_func, const std::vector<ir::Tensor> &input_args);
 
 //! Collect the temporary tensors from a computational graph.
 std::vector<ir::Buffer> GetTempBuffers(const std::vector<Tensor> &tensor_args,

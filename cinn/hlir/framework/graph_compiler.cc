@@ -285,6 +285,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const Node* node) {
   std::vector<ir::Tensor> inputs;
   std::vector<common::CINNValue> cinn_inputs;
   std::vector<std::vector<int>> output_shapes;
+  std::vector<ir::Tensor> input_args;
   VLOG(3) << "GetOpFunc of op " << node->id();
   for (auto& i : node->inlinks_in_order(true)) {
     std::string input_id = i->source()->as<NodeData>()->id();
@@ -300,6 +301,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const Node* node) {
     } else if (dtype == Int(32)) {
       temp = lang::Placeholder<int>(input_id, in_shape);
     }
+    input_args.push_back(temp);
     inputs.push_back(temp);
     cinn_inputs.push_back(common::CINNValue(temp));
   }
@@ -363,7 +365,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const Node* node) {
   VLOG(3) << "expr_pack.size() is : " << expr_pack.size();
   std::vector<ir::LoweredFunc> res;
   for (int i = 0; i < expr_pack.size(); i++) {
-    auto new_args      = lang::GetArgs(func[i]);
+    auto new_args      = lang::GetArgs(func[i], input_args);
     func[i]->args      = new_args;
     auto temp_buffers  = lang::GetTempBuffers(inputs_arg, stages, func[i]->body);
     func[i]->temp_bufs = temp_buffers;

@@ -27,6 +27,8 @@ namespace ir {
 
 Tensor GetTensor(const Expr& block);
 
+Tensor GetReadTensor(const Expr& block, int index);
+
 int GetLoopExtent(const Expr& loop);
 
 /**

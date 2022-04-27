@@ -72,6 +72,15 @@ void NewPoolScheduleGPU(ir::IRSchedule &ir_sch, const common::Target &target);
 
 void NewGlobalPoolScheduleGPU(ir::IRSchedule &ir_sch, const common::Target &target);
 
+void NewCudaScheduleConv2(ir::IRSchedule &ir_sch,
+                          ir::Tensor &input_pad,
+                          ir::Tensor &weights,
+                          ir::Tensor &output,
+                          const common::Target &target,
+                          const std::string &key);
+
+void NewCudaScheduleConv(ir::IRSchedule &ir_sch, const common::Target &target);
+
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn

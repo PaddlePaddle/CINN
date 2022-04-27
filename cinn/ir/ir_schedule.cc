@@ -51,6 +51,22 @@ Tensor GetTensor(const Expr& block) {
   return tensor;
 }
 
+Tensor GetReadTensor(const Expr& block, int index) {
+  CHECK(block.As<ir::ScheduleBlockRealize>());
+  auto find_tensor = ir::CollectIRNodesWithoutTensor(block, [&](const Expr* x) { return x->As<ir::Store>(); });
+  CHECK(!find_tensor.empty()) << "Didn't find Store in block!";
+  CHECK_EQ(find_tensor.size(), 1U) << "One block should only have one Store node!(except for root block)";
+  std::vector<Tensor> res;
+  auto find_read_tensor = ir::CollectIRNodesWithoutTensor(block, [&](const Expr* x) {
+    if (x->As<ir::Load>()) res.push_back(x->As<ir::Load>()->tensor.as_tensor_ref());
+    return x->As<ir::Load>();
+  });
+  CHECK_EQ(find_read_tensor.size(), res.size());
+  CHECK(!find_read_tensor.empty()) << "Didn't find Load tensor in block!";
+  CHECK_LT(index, (int)find_read_tensor.size()) << "Index is not < read tensor's size!";
+  return res[index];
+}
+
 int GetLoopExtent(const Expr& loop) {
   CHECK(loop.As<ir::For>());
   CHECK(common::is_zero(loop.As<ir::For>()->min));
@@ -767,9 +783,10 @@ std::pair<Expr, Expr> GetRange(Expr index,
                                const std::vector<Var>& iter_vars,
                                const std::vector<std::pair<Expr, Expr>>& iter_range,
                                int i) {
-  if (index.is_constant())
+  if (index.is_constant()) {
+    if (index.get_constant() == 0.f) return std::make_pair(index, common::AutoSimplify(index + Expr(1)));
     return std::make_pair(index, index);
-  else if (i >= (int)iter_vars.size()) {
+  } else if (i >= (int)iter_vars.size()) {
     return std::make_pair(Expr(-1), Expr(-1));
   } else {
     Expr index2 = index;
@@ -886,20 +903,24 @@ Expr GetNthAccessExpr(const Expr& block, int index, bool is_write) {
   CHECK(block.As<ScheduleBlockRealize>());
   auto compute_body = block.As<ScheduleBlockRealize>()->schedule_block.As<ScheduleBlock>()->body;
   if (is_write) {
-    auto find_store = ir::CollectIRNodesWithoutTensor(compute_body, [&](const Expr* x) { return x->As<ir::Store>(); });
+    std::vector<Expr> find_store_vec;
+    auto find_store = ir::CollectIRNodesWithoutTensor(compute_body, [&](const Expr* x) {
+      if (x->As<ir::Store>()) find_store_vec.push_back(*x);
+      return x->As<ir::Store>();
+    });
+    CHECK_EQ(find_store.size(), find_store_vec.size());
     CHECK_LT(index, (int)find_store.size());
-    std::vector<Expr> store_vec(find_store.begin(), find_store.end());
-    Expr store_index = store_vec[index];
-    CHECK(store_index.As<ir::Store>());
-    CHECK(store_index.As<ir::Store>()->tensor.as_tensor());
+    Expr store_index = find_store_vec[index];
     return store_index;
   } else {
-    auto find_load = ir::CollectIRNodesWithoutTensor(compute_body, [&](const Expr* x) { return x->As<ir::Load>(); });
+    std::vector<Expr> find_load_vec;
+    auto find_load = ir::CollectIRNodesWithoutTensor(compute_body, [&](const Expr* x) {
+      if (x->As<ir::Load>()) find_load_vec.push_back(*x);
+      return x->As<ir::Load>();
+    });
+    CHECK_EQ(find_load.size(), find_load_vec.size());
     CHECK_LT(index, (int)find_load.size());
-    std::vector<Expr> load_vec(find_load.begin(), find_load.end());
-    Expr load_index = load_vec[index];
-    CHECK(load_index.As<ir::Load>());
-    CHECK(load_index.As<ir::Load>()->tensor.as_tensor());
+    Expr load_index = find_load_vec[index];
     return load_index;
   }
 }
@@ -1782,14 +1803,20 @@ std::vector<std::pair<Expr, Expr>> CalculateRequiredRegions(const Expr& block,
   int iter_size = block.As<ir::ScheduleBlockRealize>()->iter_values.size();
   if (iter_size > required_buffer_range.size()) {
     for (int i = required_buffer_range.size(); i < iter_size; i++) {
-      CHECK(block.As<ir::ScheduleBlockRealize>()->iter_values[i].as_var());
-      auto find_for_loops = ir::CollectIRNodesWithoutTensor(root, [&](const Expr* x) {
-        return x->As<ir::For>() && x->As<ir::For>()->loop_var->name ==
-                                       block.As<ir::ScheduleBlockRealize>()->iter_values[i].as_var_ref()->name;
-      });
-      CHECK_EQ(find_for_loops.size(), 1U);
-      required_buffer_range.push_back(std::make_pair((*find_for_loops.begin()).As<ir::For>()->min,
-                                                     (*find_for_loops.begin()).As<ir::For>()->extent));
+      CHECK(block.As<ir::ScheduleBlockRealize>()->iter_values[i].as_var() ||
+            block.As<ir::ScheduleBlockRealize>()->iter_values[i].is_constant());
+      if (block.As<ir::ScheduleBlockRealize>()->iter_values[i].as_var()) {
+        auto find_for_loops = ir::CollectIRNodesWithoutTensor(root, [&](const Expr* x) {
+          return x->As<ir::For>() && x->As<ir::For>()->loop_var->name ==
+                                         block.As<ir::ScheduleBlockRealize>()->iter_values[i].as_var_ref()->name;
+        });
+        CHECK_EQ(find_for_loops.size(), 1U);
+        required_buffer_range.push_back(std::make_pair((*find_for_loops.begin()).As<ir::For>()->min,
+                                                       (*find_for_loops.begin()).As<ir::For>()->extent));
+      } else {
+        int cons = (int)block.As<ir::ScheduleBlockRealize>()->iter_values[i].is_constant();
+        required_buffer_range.push_back(std::make_pair(Expr(cons), Expr(1)));
+      }
     }
   }
   return required_buffer_range;
