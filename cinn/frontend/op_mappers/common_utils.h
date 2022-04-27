@@ -28,7 +28,9 @@ namespace frontend {
 namespace utils {
 
 template <typename T>
-inline T GetAttrOrDefault(const paddle::cpp::OpDesc& op_desc, const std::string& name, const T& default_value = T{}) {
+inline T GetAttrOrDefaultImpl(const paddle::cpp::OpDesc& op_desc,
+                              const std::string& name,
+                              const T& default_value = T{}) {
   if (op_desc.HasAttr(name)) {
     return op_desc.GetAttr<T>(name);
   }
@@ -37,7 +39,7 @@ inline T GetAttrOrDefault(const paddle::cpp::OpDesc& op_desc, const std::string&
 
 #define EXPAND_SINGLE_NUM_TO_VECTOR(DATA_TYPE, ATTR_TYPE)                                                         \
   template <>                                                                                                     \
-  inline std::vector<DATA_TYPE> GetAttrOrDefault(                                                                 \
+  inline std::vector<DATA_TYPE> GetAttrOrDefaultImpl(                                                             \
       const paddle::cpp::OpDesc& op_desc, const std::string& name, const std::vector<DATA_TYPE>& default_value) { \
     if (op_desc.HasAttr(name)) {                                                                                  \
       auto attr_type = op_desc.GetAttrType(name);                                                                 \
@@ -62,7 +64,9 @@ EXPAND_SINGLE_NUM_TO_VECTOR(int64_t, LONG)
 #undef EXPAND_SINGLE_NUM_TO_VECTOR
 
 template <>
-inline bool GetAttrOrDefault(const paddle::cpp::OpDesc& op_desc, const std::string& name, const bool& default_value) {
+inline bool GetAttrOrDefaultImpl(const paddle::cpp::OpDesc& op_desc,
+                                 const std::string& name,
+                                 const bool& default_value) {
   if (op_desc.HasAttr(name)) {
     auto attr_type = op_desc.GetAttrType(name);
     if (attr_type == paddle::cpp::OpDescAPI::AttrType::BOOLEAN) {
@@ -76,6 +80,28 @@ inline bool GetAttrOrDefault(const paddle::cpp::OpDesc& op_desc, const std::stri
     }
   }
   return default_value;
+}
+
+template <typename T>
+inline T GetAttrOrDefault(const paddle::cpp::OpDesc& op_desc, const std::string& name, const T& default_value = T{}) {
+  return GetAttrOrDefaultImpl<T>(op_desc, name, default_value);
+}
+
+template <>
+inline std::vector<int64_t> GetAttrOrDefault(const paddle::cpp::OpDesc& op_desc,
+                                             const std::string& name,
+                                             const std::vector<int64_t>& default_value) {
+  if (!op_desc.HasAttr(name)) {
+    return default_value;
+  }
+
+  using AttrType = paddle::cpp::OpDescAPI::AttrType;
+  auto attr_type = op_desc.GetAttrType(name);
+  if (attr_type == AttrType::INTS || attr_type == AttrType::INT) {
+    auto int_attr_val = GetAttrOrDefaultImpl<std::vector<int>>(op_desc, name);
+    return std::vector<int64_t>{int_attr_val.begin(), int_attr_val.end()};
+  }
+  return GetAttrOrDefaultImpl<std::vector<int64_t>>(op_desc, name);
 }
 
 template <typename T>
