@@ -135,10 +135,6 @@ class CinnBuilder : public BaseBuilder {
   const std::vector<Variable>& CustomInstr(const std::string& type,
                                            const std::vector<Variable>& inputs,
                                            const AttributeMap& attrs);
-
-  std::vector<Variable> BnMeanVariance(const Variable& x);
-
-  std::vector<Variable> BnGradBiasScale(const Variable& x, const Variable& x_mean, const Variable& y_grad);
 };
 
 }  // namespace frontend
