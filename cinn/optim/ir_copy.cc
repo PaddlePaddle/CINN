@@ -466,5 +466,22 @@ std::vector<Expr> IRCopy(const std::vector<Expr>& x) {
   return res;
 }
 
+ir::ModuleExpr IRCopy(const ir::ModuleExpr& x) { return ir::ModuleExpr(IRCopy(x.GetExprs())); }
+
+ir::LoweredFunc IRCopy(const ir::LoweredFunc& x) {
+  ir::Expr copy_func_expr          = IRCopy(static_cast<ir::Expr>(x));
+  ir::_LoweredFunc_* copy_func_ptr = copy_func_expr.As<ir::_LoweredFunc_>();
+  return ir::LoweredFunc(copy_func_ptr);
+}
+
+// TODO(zhhsplendid): make IRCopy of std::vector a template function
+std::vector<ir::LoweredFunc> IRCopy(const std::vector<ir::LoweredFunc>& x) {
+  std::vector<ir::LoweredFunc> res;
+  for (const auto& i : x) {
+    res.emplace_back(IRCopy(i));
+  }
+  return res;
+}
+
 }  // namespace optim
 }  // namespace cinn

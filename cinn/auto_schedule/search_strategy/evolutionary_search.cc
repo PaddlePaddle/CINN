@@ -23,9 +23,11 @@
 #include <utility>
 
 #include "cinn/auto_schedule/search_space/search_space.h"
+#include "cinn/auto_schedule/search_space/search_state.h"
 #include "cinn/auto_schedule/task/tune_context.h"
 #include "cinn/auto_schedule/tuning.h"
 #include "cinn/optim/ir_copy.h"
+#include "cinn/utils/sized_multi_set.h"
 
 namespace cinn {
 namespace auto_schedule {
@@ -36,50 +38,50 @@ EvolutionarySearch::EvolutionarySearch(const TuneContext& tune_context) : tune_c
 
 EvolutionarySearch::~EvolutionarySearch() {}
 
-std::vector<ir::ModuleExpr> EvolutionarySearch::SearchModuleExprBests(const TuningOptions& options) {
-  std::vector<ir::ModuleExpr> init_population;
-  std::vector<ir::ModuleExpr> topk_from_database = GetTopKCandidatesFromDatabase(options.evolution_pick_database_topk);
+SearchState EvolutionarySearch::SearchModuleExpr(const TuningOptions& options) {
+  return SearchModuleExprBests(options)[0];
+}
+
+std::vector<SearchState> EvolutionarySearch::SearchModuleExprBests(const TuningOptions& options) {
+  std::vector<SearchState> init_population;
+  std::vector<SearchState> topk_from_database = GetTopKCandidatesFromDatabase(options.evolution_pick_database_topk);
   VLOG(5) << "EvolutionarySearch got " << topk_from_database.size() << " as topk from database";
   int random_num = options.evolution_init_population_num - topk_from_database.size();
 
   VLOG(5) << "EvolutionarySearch will fetch " << random_num << " sketches";
-  std::vector<ir::ModuleExpr> random_sketch = RandomInitSketch(random_num);
+  std::vector<SearchState> random_sketch = RandomInitSketch(random_num);
 
   init_population.insert(init_population.end(), topk_from_database.begin(), topk_from_database.end());
   init_population.insert(init_population.end(), random_sketch.begin(), random_sketch.end());
 
   VLOG(5) << "EvolutionarySearch got generation size " << init_population.size();
-  std::vector<ir::ModuleExpr> picked_bests =
+  std::vector<SearchState> picked_bests =
       Evolve(init_population, options.evolution_cross_over_num, options.num_samples_per_iteration);
 
   VLOG(5) << "EvolutionarySearch got evolved generation size " << picked_bests.size();
   return picked_bests;
 }
 
-ir::ModuleExpr EvolutionarySearch::SearchModuleExpr(const TuningOptions& options) {
-  return SearchModuleExprBests(options)[0];
-}
-
-std::vector<ir::ModuleExpr> EvolutionarySearch::SearchModuleExprEpsGreedy(const TuningOptions& options) {
-  std::vector<ir::ModuleExpr> picked_bests = SearchModuleExprBests(options);
-  int random_num = options.evolution_init_population_num - options.evolution_pick_database_topk;
+std::vector<SearchState> EvolutionarySearch::SearchModuleExprEpsGreedy(const TuningOptions& options) {
+  std::vector<SearchState> picked_bests = SearchModuleExprBests(options);
+  int random_num                        = options.evolution_init_population_num - options.evolution_pick_database_topk;
   return PickNextGenerationEpsGreedy(
       picked_bests, RandomInitSketch(random_num), options.num_samples_per_iteration, options.evolution_eps_greedy);
 }
 
-std::vector<ir::ModuleExpr> EvolutionarySearch::GetTopKCandidatesFromDatabase(int topk) {
+std::vector<SearchState> EvolutionarySearch::GetTopKCandidatesFromDatabase(int topk) {
   // TODO(zhhsplendid): implement it after we have the database
-  return std::vector<ir::ModuleExpr>();
+  return std::vector<SearchState>();
 }
 
-std::vector<ir::ModuleExpr> EvolutionarySearch::RandomInitSketch(int num) {
+std::vector<SearchState> EvolutionarySearch::RandomInitSketch(int num) {
   return search_space_->GetRandomInitialSketch(num);
 }
 
-ir::ModuleExpr EvolutionarySearch::CrossOver(const ir::ModuleExpr& mod_expr1, const ir::ModuleExpr& mod_expr2) {
+SearchState EvolutionarySearch::CrossOver(const SearchState& state1, const SearchState& state2) {
   std::vector<ir::Expr> cross_over_exprs;
-  std::vector<ir::Expr> father_exprs = mod_expr1.GetExprs();
-  std::vector<ir::Expr> mother_exprs = mod_expr2.GetExprs();
+  std::vector<ir::Expr> father_exprs = state1.mod_expr.GetExprs();
+  std::vector<ir::Expr> mother_exprs = state2.mod_expr.GetExprs();
 
   CHECK_EQ(father_exprs.size(), mother_exprs.size())
       << "CrossOver ModuleExpr in EvolutionarySearch must have same number of AST";
@@ -91,17 +93,17 @@ ir::ModuleExpr EvolutionarySearch::CrossOver(const ir::ModuleExpr& mod_expr1, co
       cross_over_exprs.push_back(optim::IRCopy(mother_exprs[i]));
     }
   }
-  return ir::ModuleExpr(cross_over_exprs);
+  return SearchState(ir::ModuleExpr(cross_over_exprs));
 }
 
-std::vector<ir::ModuleExpr> EvolutionarySearch::Evolve(const std::vector<ir::ModuleExpr>& population,
-                                                       int cross_over_num,
-                                                       int ret_num) {
+std::vector<SearchState> EvolutionarySearch::Evolve(const std::vector<SearchState>& population,
+                                                    int cross_over_num,
+                                                    int ret_num) {
   int generation_num = population.size();
   if (generation_num == 0) {
-    return std::vector<ir::ModuleExpr>();
+    return std::vector<SearchState>();
   }
-  std::vector<ir::ModuleExpr> evolution(population);
+  std::vector<SearchState> evolution(population);
 
   for (int i = 0; i < cross_over_num; ++i) {
     int first_rand_idx  = rand() % generation_num;
@@ -112,34 +114,22 @@ std::vector<ir::ModuleExpr> EvolutionarySearch::Evolve(const std::vector<ir::Mod
     evolution.push_back(CrossOver(population[first_rand_idx], population[second_rand_idx]));
   }
 
-  // TODO(zhhsplendid): optimize sort with sized-heap
-  std::vector<std::pair<ir::ModuleExpr, float>> evolution_with_cost;
+  utils::SizedMultiSet<SearchState> evolution_with_cost(ret_num);
   for (size_t i = 0; i < evolution.size(); ++i) {
-    evolution_with_cost.push_back(search_space_->GetScheduleMutate(*cost_model_, evolution[i]));
+    evolution_with_cost.Push(search_space_->GetScheduleMutate(evolution[i], *cost_model_));
   }
-  std::sort(evolution_with_cost.begin(),
-            evolution_with_cost.end(),
-            [](const std::pair<ir::ModuleExpr, float>& lhs, const std::pair<ir::ModuleExpr, float>& rhs) {
-              return lhs.second < rhs.second;
-            });
 
-  std::vector<ir::ModuleExpr> result;
-  int result_size = std::min(ret_num, static_cast<int>(evolution_with_cost.size()));
-  for (int i = 0; i < result_size; ++i) {
-    result.emplace_back(evolution_with_cost[i].first);
-  }
-  return result;
+  return evolution_with_cost.ReturnAsContainer<std::vector<SearchState>>();
 }
 
-std::vector<ir::ModuleExpr> EvolutionarySearch::PickNextGenerationEpsGreedy(
-    const std::vector<ir::ModuleExpr>& picked_bests,
-    const std::vector<ir::ModuleExpr>& random_init,
-    int num,
-    float eps_greedy) {
+std::vector<SearchState> EvolutionarySearch::PickNextGenerationEpsGreedy(const std::vector<SearchState>& picked_bests,
+                                                                         const std::vector<SearchState>& random_init,
+                                                                         int num,
+                                                                         float eps_greedy) {
   int num_rands = num * eps_greedy;
   int num_bests = num - num_rands;
 
-  std::vector<ir::ModuleExpr> result;
+  std::vector<SearchState> result;
   int best_idx = 0;
   int rand_idx = 0;
   for (int i = 0; i < num; ++i) {
