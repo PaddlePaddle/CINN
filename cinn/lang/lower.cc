@@ -120,20 +120,12 @@ ir::LoweredFunc Lower(const std::string& name,
         b->AddBuffer(temp_buffer);
       }
     }
-
-    {  // set function device_api
-      bool contains_gpu = false;
-      for (auto& t : tensor_args) {
-        if (contains_gpu = detail::TensorContainsGPUInfo(t, stages[t])) break;
-      }
-      if (!contains_gpu) {
-        for (auto& t : temp_tensors) {
-          if (contains_gpu = detail::TensorContainsGPUInfo(t, stages[t])) break;
+    {
+      for (auto& stage : stages) {
+        if (stage.second->IfCudaBind()) {
+          res->device_api = ir::DeviceAPI::GPU;
+          break;
         }
-      }
-
-      if (contains_gpu) {
-        res->device_api = ir::DeviceAPI::GPU;
       }
     }
 
@@ -183,18 +175,11 @@ std::vector<ir::LoweredFunc> LowerVec(const std::string& name,
     }
 
     {  // set function device_api
-      bool contains_gpu = false;
-      for (auto& t : tensor_args) {
-        if (contains_gpu = detail::TensorContainsGPUInfo(t, stages[t])) break;
-      }
-      if (!contains_gpu) {
-        for (auto& t : temp_tensors) {
-          if (contains_gpu = detail::TensorContainsGPUInfo(t, stages[t])) break;
+      for (auto& stage : stages) {
+        if (stage.second->IfCudaBind()) {
+          res->device_api = ir::DeviceAPI::GPU;
+          break;
         }
-      }
-
-      if (contains_gpu) {
-        res->device_api = ir::DeviceAPI::GPU;
       }
     }
 

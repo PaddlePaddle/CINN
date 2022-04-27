@@ -93,6 +93,7 @@ struct TensorInlineExpandMutator : public ir::IRMutator<> {
       } else if (utils::Endswith(tensor->buffer->name, "_write_cache") ||
                  utils::Endswith(tensor->buffer->name, "_read_cache") ||
                  utils::Endswith(tensor->buffer->name, "_temp_buffer")) {
+#ifdef CINN_WITH_CUDA
         auto axis_names  = stages_[tensor]->axis_names();
         auto compute_ats = stages_[tensor]->GetComputeAts();
         if (compute_ats.size() == 1) {
@@ -103,11 +104,13 @@ struct TensorInlineExpandMutator : public ir::IRMutator<> {
           for (int i = 0; i < node->indices.size(); i++) {
             for (int j = 0; j <= level_tmp; j++) {
               auto temp = optim::IRCopy(node->indices[i]);
+              // TODO(haoze) : check how to solve it.
               ReplaceVarWithExpr(&temp, Var(axis_names[j]), Expr(0));
               node->indices[i] = temp;
             }
           }
         }
+#endif
         bool keep_buffer       = temp_buffer;
         temp_buffer            = true;
         bool keep_memory_local = memory_local;
