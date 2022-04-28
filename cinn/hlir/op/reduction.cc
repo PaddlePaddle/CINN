@@ -35,27 +35,31 @@ using framework::OpStrategy;
 using framework::shape_t;
 using framework::StrategyFunction;
 using ReduceFunc =
-    std::function<ir::Tensor(const ir::Tensor &, const std::vector<int> &, bool, Expr, const std::string &)>;
+    std::function<ir::Tensor(const ir::Tensor &, const std::vector<int> &, const bool, Expr, const std::string &)>;
 using BlockReduceInternalFunc = std::function<std::vector<ir::Tensor>(
     const ir::Tensor &, const std::vector<int> &, const bool, const std::string &)>;
 using BlockReduceFunc         = std::function<std::vector<ir::Tensor>(
     const ir::Tensor &, const std::vector<int> &, const int, const bool, const std::string &)>;
+using BlockShuffleFunc        = std::function<std::vector<ir::Tensor>(
+    const ir::Tensor &, const std::vector<int> &, const bool, const std::string &)>;
 
-#define StrategyForReduction(op_name_, reduce_op_, reduce_func_, block_reduce_internal_func_, block_reduce_func_) \
-  std::shared_ptr<OpStrategy> StrategyFor##reduce_op_(const framework::NodeAttr &attrs,                           \
-                                                      const std::vector<ir::Tensor> &inputs,                      \
-                                                      const std::vector<Type> &out_type,                          \
-                                                      const std::vector<std::vector<int>> &output_shapes,         \
-                                                      const Target &target) {                                     \
-    return StrategyForReduce(attrs,                                                                               \
-                             inputs,                                                                              \
-                             out_type,                                                                            \
-                             output_shapes,                                                                       \
-                             target,                                                                              \
-                             #op_name_,                                                                           \
-                             reduce_func_,                                                                        \
-                             block_reduce_internal_func_,                                                         \
-                             block_reduce_func_);                                                                 \
+#define StrategyForReduction(                                                                                 \
+    op_name_, reduce_op_, reduce_func_, block_reduce_internal_func_, block_reduce_func_, block_shuffle_func_) \
+  std::shared_ptr<OpStrategy> StrategyFor##reduce_op_(const framework::NodeAttr &attrs,                       \
+                                                      const std::vector<ir::Tensor> &inputs,                  \
+                                                      const std::vector<Type> &out_type,                      \
+                                                      const std::vector<std::vector<int>> &output_shapes,     \
+                                                      const Target &target) {                                 \
+    return StrategyForReduce(attrs,                                                                           \
+                             inputs,                                                                          \
+                             out_type,                                                                        \
+                             output_shapes,                                                                   \
+                             target,                                                                          \
+                             #op_name_,                                                                       \
+                             reduce_func_,                                                                    \
+                             block_reduce_internal_func_,                                                     \
+                             block_reduce_func_,                                                              \
+                             block_shuffle_func_);                                                            \
   }
 
 std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
@@ -66,7 +70,8 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
                                               const std::string &op_name,
                                               const ReduceFunc &reduce_func,
                                               const BlockReduceInternalFunc &block_reduce_internal_func,
-                                              const BlockReduceFunc &block_reduce_func) {
+                                              const BlockReduceFunc &block_reduce_func,
+                                              const BlockShuffleFunc &block_shuffle_func) {
   std::vector<int> dim;
   bool keep_dim = false;
   if (attrs.attr_store.count("dim")) {
@@ -148,12 +153,16 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
           *ret        = CINNValuePack{{CINNValue(res[0]), CINNValue(res[1]), CINNValue(stages)}};
         } else {
           VLOG(3) << "Do BlockReduce Compute!";
-          // if the succesive reduce dimension size > 256
-          int block_size = target.max_num_threads();
-          auto res       = block_reduce_func(x, dim, block_size, keep_dim, UniqName(op_name + "_out"));
-          CHECK_EQ(res.size(), 2);
+          /*
+          auto res    = pe::TwoStepBlockReduceInternal(x, dim, keep_dim, UniqName(op_name + "_out"));
           auto stages = CreateStages(res);
-          *ret        = CINNValuePack{{CINNValue(res[0]), CINNValue(res[1]), CINNValue(stages)}};
+          std::vector<CINNValue> cinn_values;
+          for (auto &t : res) {
+            cinn_values.emplace_back(t);
+          }
+          cinn_values.emplace_back(stages);
+          *ret = CINNValuePack{cinn_values};
+          */
         }
       } else /* the reduce dimension is not succesive */ {
         VLOG(3) << "Do Reduce And BlockReduceInternal Compute!";
@@ -178,9 +187,13 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
       }
     } else {
       VLOG(3) << "Do ReduceSum Compute!";
-      auto out    = reduce_func(x, dim, keep_dim, Expr(), UniqName(op_name + "_out"));
-      auto stages = CreateStages({out});
-      *ret        = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
+      auto out    = block_shuffle_func(x, dim, keep_dim, UniqName(op_name + "_out"));
+      auto stages = CreateStages(out);
+      if (out.size() == 1) {
+        *ret = CINNValuePack{{CINNValue(out[0]), CINNValue(stages)}};
+      } else {
+        *ret = CINNValuePack{{CINNValue(out[0]), CINNValue(out[1]), CINNValue(out[2]), CINNValue(stages)}};
+      }
     }
   });
 
@@ -214,11 +227,24 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
                                       common::DefaultNVGPUTarget());
         }
       } else {
-        CHECK_EQ(arg_pack.size(), 2UL);
-        Expr out              = arg_pack[0];
-        poly::StageMap stages = arg_pack.back();
-        VLOG(3) << "Do CudaScheduleReduce Schedule!";
-        pe::CudaScheduleReduce(stages, out.as_tensor_ref(), inputs[0]->shape.size() - dim.back() - 1, target);
+        if (arg_pack.size(), 2) {
+          Expr reduce_out       = arg_pack[0];
+          poly::StageMap stages = arg_pack.back();
+          VLOG(3) << "Do CudaScheduleReduce Schedule!";
+          pe::CudaScheduleReduce(stages, reduce_out.as_tensor_ref(), inputs[0]->shape.size() - dim.back() - 1, target);
+        } else {
+          CHECK_EQ(arg_pack.size(), 4) << "args is not equal 4!";
+          Expr reduce_reshape   = arg_pack[2];
+          Expr reduce_internal  = arg_pack[2];
+          Expr reduce_out       = arg_pack[0];
+          poly::StageMap stages = arg_pack.back();
+          VLOG(3) << "Do CudaScheduleShuffleReduce Schedule!";
+          pe::CudaScheduleShuffleReduce(stages,
+                                        reduce_reshape.as_tensor_ref(),
+                                        reduce_internal.as_tensor_ref(),
+                                        reduce_out.as_tensor_ref(),
+                                        target);
+        }
       }
     }
     *ret = arg_pack;
@@ -304,10 +330,18 @@ std::vector<std::vector<std::string>> InferLayoutForBnOptimize(const std::vector
   return {{"", ""}, {"", ""}};
 }
 
-StrategyForReduction(reduce_sum, ReduceSum, pe::ReduceSum, pe::BlockReduceSumInternal, pe::BlockReduceSum);
-StrategyForReduction(reduce_prod, ReduceProd, pe::ReduceProd, pe::BlockReduceProdInternal, pe::BlockReduceProd);
-StrategyForReduction(reduce_max, ReduceMax, pe::ReduceMax, pe::BlockReduceMaxInternal, pe::BlockReduceMax);
-StrategyForReduction(reduce_min, ReduceMin, pe::ReduceMin, pe::BlockReduceMinInternal, pe::BlockReduceMin);
+StrategyForReduction(
+    reduce_sum, ReduceSum, pe::ReduceSum, pe::BlockReduceSumInternal, pe::BlockReduceSum, pe::BlockShuffleReduceSum);
+StrategyForReduction(reduce_prod,
+                     ReduceProd,
+                     pe::ReduceProd,
+                     pe::BlockReduceProdInternal,
+                     pe::BlockReduceProd,
+                     pe::BlockShuffleReduceProd);
+StrategyForReduction(
+    reduce_max, ReduceMax, pe::ReduceMax, pe::BlockReduceMaxInternal, pe::BlockReduceMax, pe::BlockShuffleReduceMax);
+StrategyForReduction(
+    reduce_min, ReduceMin, pe::ReduceMin, pe::BlockReduceMinInternal, pe::BlockReduceMin, pe::BlockShuffleReduceMin);
 
 #undef StrategyForReduction
 

@@ -466,6 +466,41 @@ void CudaScheduleBlockReduce(poly::StageMap stages,
 
   stages[out]->Bind(0, "blockIdx.x");
 }
+void CudaScheduleShuffleReduce(poly::StageMap stages,
+                               ir::Tensor reduce_reshape,
+                               ir::Tensor reduce_internal,
+                               ir::Tensor reduce_out,
+                               const common::Target &target) {
+  int fuse_times = reduce_internal->shape.size() - 2;
+  for (int idx = 0; idx < fuse_times; ++idx) {
+    stages[reduce_internal]->Fuse(0, 1);
+    stages[reduce_out]->Fuse(0, 1);
+  }
+
+  fuse_times = reduce_out->shape.size() - reduce_internal->shape.size();
+  for (int idx = 0; idx < fuse_times; ++idx) {
+    if (stages[reduce_internal]->n_out_dims() == 1) {
+      stages[reduce_out]->Fuse(0, 1);
+    } else {
+      stages[reduce_out]->Fuse(1, 2);
+    }
+  }
+
+  if (stages[reduce_out]->n_out_dims() > 1) {
+    stages[reduce_internal]->Bind(0, "blockIdx.x");
+    stages[reduce_internal]->Bind(1, "threadIdx.x");
+
+    stages[reduce_out]->Bind(0, "blockIdx.x");
+    stages[reduce_out]->Bind(1, "threadIdx.x");
+
+    stages[reduce_internal]->SimpleComputeAt(stages[reduce_out], 0);
+  } else {
+    stages[reduce_internal]->Bind(0, "threadIdx.x");
+    stages[reduce_out]->Bind(0, "threadIdx.x");
+  }
+  stages[reduce_reshape]->ComputeInline();
+  stages[reduce_internal]->SetBuffer("shared");
+}
 
 void SoftmaxScheduleCPU(poly::StageMap stage, const ir::Tensor &output, const ir::Tensor &temp, int axis) {
   if (axis == -1) {

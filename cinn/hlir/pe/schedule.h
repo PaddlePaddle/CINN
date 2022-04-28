@@ -168,6 +168,12 @@ void CudaScheduleBlockReduceInternal(poly::StageMap stages,
 void CudaScheduleBlockReduce(
     poly::StageMap stages, ir::Tensor reduce_tmp_out, ir::Tensor tmp_out, ir::Tensor out, const common::Target &target);
 
+void CudaScheduleShuffleReduce(poly::StageMap stages,
+                               ir::Tensor reduce_reshape,
+                               ir::Tensor reduce_internal,
+                               ir::Tensor reduce_out,
+                               const common::Target &target);
+
 void CudaScheduleDepthwiseConv(poly::StageMap stages, ir::Tensor &output, const common::Target &target);
 
 void CudaScheduleConv(poly::StageMap stages,

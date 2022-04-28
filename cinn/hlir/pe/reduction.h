@@ -37,7 +37,7 @@ namespace pe {
  */
 ir::Tensor ReduceSum(const ir::Tensor& A,
                      const std::vector<int>& axis,
-                     bool keep_dims                 = false,
+                     const bool keep_dims           = false,
                      Expr initial                   = Expr(0.f),
                      const std::string& output_name = "T_Reduce_Sum_out");
 
@@ -57,7 +57,7 @@ ir::Tensor ReduceSum(const ir::Tensor& A,
  */
 ir::Tensor ReduceProd(const ir::Tensor& A,
                       const std::vector<int>& axis,
-                      bool keep_dims                 = false,
+                      const bool keep_dims           = false,
                       Expr initial                   = Expr(1.f),
                       const std::string& output_name = "T_Reduce_Prod_out");
 
@@ -76,7 +76,7 @@ ir::Tensor ReduceProd(const ir::Tensor& A,
  */
 ir::Tensor ReduceMax(const ir::Tensor& A,
                      const std::vector<int>& axis,
-                     bool keep_dims                 = false,
+                     const bool keep_dims           = false,
                      Expr initial                   = Expr(),
                      const std::string& output_name = "T_Reduce_Max_out");
 
@@ -95,7 +95,7 @@ ir::Tensor ReduceMax(const ir::Tensor& A,
  */
 ir::Tensor ReduceMin(const ir::Tensor& A,
                      const std::vector<int>& axis,
-                     bool keep_dims                 = false,
+                     const bool keep_dims           = false,
                      Expr initial                   = Expr(),
                      const std::string& output_name = "T_Reduce_Min_out");
 
@@ -250,6 +250,62 @@ std::vector<ir::Tensor> BlockReduceMin(const ir::Tensor& A,
                                        const bool keep_dim            = false,
                                        const std::string& output_name = "T_Block_Reduce_Min_out");
 
+/**
+ * @brief compute the value of array elements over the last dimension with block reduce
+ *
+ * @param A The input Tensor.
+ * @param axes the reduce axes.
+ * @param keep_dim keep the output tensor shape size as input.
+ * @param output_name The name of the output Tensor.
+ */
+std::vector<ir::Tensor> BlockShuffleReduceSum(const ir::Tensor& A,
+                                              const std::vector<int>& axes,
+                                              const bool keep_dim,
+                                              const std::string& output_name = "T_Reduce_Sum_out");
+
+std::vector<ir::Tensor> BlockShuffleReduceProd(const ir::Tensor& A,
+                                               const std::vector<int>& axes,
+                                               const bool keep_dim,
+                                               const std::string& output_name = "T_Reduce_Prod_out");
+
+std::vector<ir::Tensor> BlockShuffleReduceMax(const ir::Tensor& A,
+                                              const std::vector<int>& axes,
+                                              const bool keep_dim,
+                                              const std::string& output_name = "T_Reduce_Max_out");
+
+std::vector<ir::Tensor> BlockShuffleReduceMin(const ir::Tensor& A,
+                                              const std::vector<int>& axes,
+                                              const bool keep_dim,
+                                              const std::string& output_name = "T_Reduce_Min_out");
+
+/**
+ * @brief compute the value of array elements over the last dimension with block reduce
+ *
+ * @param A The input Tensor.
+ * @param axes the reduce axes.
+ * @param keep_dim keep the output tensor shape size as input.
+ * @param output_name The name of the output Tensor.
+ */
+
+std::vector<ir::Tensor> TwoStepBlockReduceSum(const ir::Tensor& A,
+                                              const std::vector<int>& axes,
+                                              const bool keep_dim,
+                                              const std::string& output_name = "T_Reduce_Sum_out");
+
+std::vector<ir::Tensor> TwoStepBlockReduceProd(const ir::Tensor& A,
+                                               const std::vector<int>& axes,
+                                               const bool keep_dim,
+                                               const std::string& output_name = "T_Reduce_Prod_out");
+
+std::vector<ir::Tensor> TwoStepBlockReduceMax(const ir::Tensor& A,
+                                              const std::vector<int>& axes,
+                                              const bool keep_dim,
+                                              const std::string& output_name = "T_Reduce_Max_out");
+
+std::vector<ir::Tensor> TwoStepBlockReduceMin(const ir::Tensor& A,
+                                              const std::vector<int>& axes,
+                                              const bool keep_dim,
+                                              const std::string& output_name = "T_Reduce_Min_out");
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn
