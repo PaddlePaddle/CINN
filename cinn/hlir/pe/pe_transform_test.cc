@@ -131,12 +131,6 @@ TEST(ScatterAssign, ScatterAssign) {
   auto host_module_device_module = backends::SplitCudaAndHostModule(module);
   auto &host_module              = std::get<0>(host_module_device_module);
   auto &device_module            = std::get<1>(host_module_device_module);
-  for (auto &func : host_module.functions()) {
-    LOG(INFO) << "host:\n" << func;
-  }
-  for (auto &func : device_module.functions()) {
-    LOG(INFO) << "device:\n" << func;
-  }
 
   backends::CodeGenCUDA_Dev codegen(target);
   auto source_code = codegen.Compile(builder.Build());
@@ -179,12 +173,6 @@ TEST(SliceAssign, SliceAssign) {
   auto host_module_device_module = backends::SplitCudaAndHostModule(module);
   auto &host_module              = std::get<0>(host_module_device_module);
   auto &device_module            = std::get<1>(host_module_device_module);
-  for (auto &func : host_module.functions()) {
-    LOG(INFO) << "host:\n" << func;
-  }
-  for (auto &func : device_module.functions()) {
-    LOG(INFO) << "device:\n" << func;
-  }
 
   backends::CodeGenCUDA_Dev codegen(target);
   auto source_code = codegen.Compile(builder.Build());
@@ -224,12 +212,6 @@ TEST(Concat, ConcatCase0) {
   auto host_module_device_module = backends::SplitCudaAndHostModule(module);
   auto &host_module              = std::get<0>(host_module_device_module);
   auto &device_module            = std::get<1>(host_module_device_module);
-  for (auto &func : host_module.functions()) {
-    LOG(INFO) << "host:\n" << func;
-  }
-  for (auto &func : device_module.functions()) {
-    LOG(INFO) << "device:\n" << func;
-  }
 
   backends::CodeGenCUDA_Dev codegen(target);
   auto source_code = codegen.Compile(builder.Build());
@@ -270,12 +252,6 @@ TEST(Reduce, Reduce_Test_0) {
   auto host_module_device_module = backends::SplitCudaAndHostModule(module);
   auto &host_module              = std::get<0>(host_module_device_module);
   auto &device_module            = std::get<1>(host_module_device_module);
-  for (auto &func : host_module.functions()) {
-    LOG(INFO) << "host:\n" << func;
-  }
-  for (auto &func : device_module.functions()) {
-    LOG(INFO) << "device:\n" << func;
-  }
 
   backends::CodeGenCUDA_Dev codegen(target);
   auto source_code = codegen.Compile(builder.Build());
@@ -368,10 +344,7 @@ TEST(Reduce, Reduce_Test_2) {
   CHECK_EQ(reduce_out.size(), 3) << "the output of reduce is not equal to 3";
   auto stages = CreateStages({A, reduce_out[2], reduce_out[1], reduce_out[0]});
 
-  stages[reduce_out[2]]->ComputeInline();
-  stages[reduce_out[1]]->SetBuffer("shared");
-  stages[reduce_out[1]]->Bind(0, "threadIdx.x");
-  stages[reduce_out[0]]->Bind(0, "threadIdx.x");
+  CudaBlockShuffleReduceSchedule(stages, reduce_out[2], reduce_out[1], reduce_out[0], common::DefaultNVGPUTarget());
 
   auto func = Lower("fn", stages, {A, reduce_out[0]});
   LOG(INFO) << "func:\n" << func;
@@ -408,10 +381,7 @@ TEST(Reduce, Reduce_Test_2_1) {
   CHECK_EQ(reduce_out.size(), 3) << "the output of reduce is not equal to 3";
   auto stages = CreateStages({A, reduce_out[2], reduce_out[1], reduce_out[0]});
 
-  stages[reduce_out[2]]->ComputeInline();
-  stages[reduce_out[1]]->SetBuffer("shared");
-  stages[reduce_out[1]]->Bind(0, "threadIdx.x");
-  stages[reduce_out[0]]->Bind(0, "threadIdx.x");
+  CudaBlockShuffleReduceSchedule(stages, reduce_out[2], reduce_out[1], reduce_out[0], common::DefaultNVGPUTarget());
 
   auto func = Lower("fn", stages, {A, reduce_out[0]});
   LOG(INFO) << "func:\n" << func;
@@ -448,12 +418,7 @@ TEST(Reduce, Reduce_Test_2_2) {
   CHECK_EQ(reduce_out.size(), 3) << "the output of reduce is not equal to 3";
   auto stages = CreateStages({A, reduce_out[2], reduce_out[1], reduce_out[0]});
 
-  stages[reduce_out[2]]->ComputeInline();
-  stages[reduce_out[1]]->SetBuffer("shared");
-  stages[reduce_out[1]]->Bind(0, "blockIdx.x");
-  stages[reduce_out[1]]->Bind(1, "threadIdx.x");
-  stages[reduce_out[0]]->Bind(0, "blockIdx.x");
-  stages[reduce_out[0]]->Bind(1, "threadIdx.x");
+  CudaBlockShuffleReduceSchedule(stages, reduce_out[2], reduce_out[1], reduce_out[0], common::DefaultNVGPUTarget());
 
   auto func = Lower("fn", stages, {A, reduce_out[0]});
   LOG(INFO) << "func:\n" << func;
@@ -490,10 +455,7 @@ TEST(Reduce, Reduce_Test_2_3) {
   CHECK_EQ(reduce_out.size(), 3) << "the output of reduce is not equal to 3";
   auto stages = CreateStages({A, reduce_out[2], reduce_out[1], reduce_out[0]});
 
-  stages[reduce_out[2]]->ComputeInline();
-  stages[reduce_out[1]]->SetBuffer("shared");
-  stages[reduce_out[1]]->Bind(0, "threadIdx.x");
-  stages[reduce_out[0]]->Bind(0, "threadIdx.x");
+  CudaBlockShuffleReduceSchedule(stages, reduce_out[2], reduce_out[1], reduce_out[0], common::DefaultNVGPUTarget());
 
   auto func = Lower("fn", stages, {A, reduce_out[0]});
   LOG(INFO) << "func:\n" << func;
@@ -528,17 +490,9 @@ TEST(Reduce, Reduce_Test_3) {
   auto reduce_out = hlir::pe::TwoStepBlockReduceSum(A.tensor(), {0}, false);
   CHECK_EQ(reduce_out.size(), 4) << "the output of reduce is not equal to 4!";
   auto stages = CreateStages({A, reduce_out[3], reduce_out[2], reduce_out[1], reduce_out[0]});
-  LOG(INFO) << reduce_out[0]->shape[0].as_int32();
-  LOG(INFO) << reduce_out[1]->shape[0].as_int32();
-  LOG(INFO) << reduce_out[2]->shape[0].as_int32();
-  LOG(INFO) << reduce_out[3]->shape[0].as_int32() << " " << reduce_out[3]->shape[1].as_int32();
 
-  stages[reduce_out[3]]->ComputeInline();
-  stages[reduce_out[2]]->Bind(0, "threadIdx.x");
-  stages[reduce_out[2]]->SetBuffer("local");
-  stages[reduce_out[1]]->Bind(0, "threadIdx.x");
-  stages[reduce_out[1]]->SetBuffer("local");
-  stages[reduce_out[0]]->Bind(0, "threadIdx.x");
+  CudaTwoStepReduceSchedule(
+      stages, reduce_out[3], reduce_out[2], reduce_out[1], reduce_out[0], common::DefaultNVGPUTarget());
 
   auto func = Lower("fn", stages, {A, reduce_out[0]});
   LOG(INFO) << "func:\n" << func;
@@ -573,17 +527,9 @@ TEST(Reduce, Reduce_Test_3_1) {
   auto reduce_out = hlir::pe::TwoStepBlockReduceSum(A.tensor(), {0}, false);
   CHECK_EQ(reduce_out.size(), 4) << "the output of reduce is not equal to 4!";
   auto stages = CreateStages({A, reduce_out[3], reduce_out[2], reduce_out[1], reduce_out[0]});
-  LOG(INFO) << reduce_out[0]->shape[0].as_int32();
-  LOG(INFO) << reduce_out[1]->shape[0].as_int32();
-  LOG(INFO) << reduce_out[2]->shape[0].as_int32();
-  LOG(INFO) << reduce_out[3]->shape[0].as_int32() << " " << reduce_out[3]->shape[1].as_int32();
 
-  stages[reduce_out[3]]->ComputeInline();
-  stages[reduce_out[2]]->Bind(0, "threadIdx.x");
-  stages[reduce_out[2]]->SetBuffer("local");
-  stages[reduce_out[1]]->Bind(0, "threadIdx.x");
-  stages[reduce_out[1]]->SetBuffer("local");
-  stages[reduce_out[0]]->Bind(0, "threadIdx.x");
+  CudaTwoStepReduceSchedule(
+      stages, reduce_out[3], reduce_out[2], reduce_out[1], reduce_out[0], common::DefaultNVGPUTarget());
 
   auto func = Lower("fn", stages, {A, reduce_out[0]});
   LOG(INFO) << "func:\n" << func;
@@ -619,21 +565,9 @@ TEST(Reduce, Reduce_Test_3_2) {
   auto reduce_out = hlir::pe::TwoStepBlockReduceSum(A.tensor(), {1}, false);
   CHECK_EQ(reduce_out.size(), 4) << "the output of reduce is not equal to 4!";
   auto stages = CreateStages({A, reduce_out[3], reduce_out[2], reduce_out[1], reduce_out[0]});
-  LOG(INFO) << reduce_out[0]->shape;
-  LOG(INFO) << reduce_out[1]->shape;
-  LOG(INFO) << reduce_out[2]->shape;
-  LOG(INFO) << reduce_out[3]->shape;
 
-  stages[reduce_out[3]]->ComputeInline();
-  stages[reduce_out[2]]->Bind(0, "blockIdx.x");
-  stages[reduce_out[2]]->Bind(1, "threadIdx.x");
-  stages[reduce_out[2]]->SetBuffer("local");
-  stages[reduce_out[2]]->SimpleComputeAt(stages[reduce_out[1]], 0);
-  stages[reduce_out[1]]->Bind(0, "blockIdx.x");
-  stages[reduce_out[1]]->Bind(1, "threadIdx.x");
-  stages[reduce_out[1]]->SetBuffer("local");
-  stages[reduce_out[1]]->SimpleComputeAt(stages[reduce_out[0]], 0);
-  stages[reduce_out[0]]->Bind(0, "blockIdx.x");
+  CudaTwoStepReduceSchedule(
+      stages, reduce_out[3], reduce_out[2], reduce_out[1], reduce_out[0], common::DefaultNVGPUTarget());
 
   auto func = Lower("fn", stages, {A, reduce_out[0]});
   LOG(INFO) << "func:\n" << func;
@@ -669,21 +603,9 @@ TEST(Reduce, Reduce_Test_4) {
   auto reduce_out = hlir::pe::TwoStepBlockReduceSum(A.tensor(), {1}, false);
   CHECK_EQ(reduce_out.size(), 4) << "the output of reduce is not equal to 4!";
   auto stages = CreateStages({A, reduce_out[3], reduce_out[2], reduce_out[1], reduce_out[0]});
-  LOG(INFO) << reduce_out[0]->shape.size();
-  LOG(INFO) << reduce_out[1]->shape.size();
-  LOG(INFO) << reduce_out[2]->shape.size();
-  LOG(INFO) << reduce_out[3]->shape.size();
 
-  stages[reduce_out[3]]->ComputeInline();
-  stages[reduce_out[2]]->Bind(0, "blockIdx.x");
-  stages[reduce_out[2]]->Bind(1, "threadIdx.x");
-  stages[reduce_out[2]]->SetBuffer("local");
-  stages[reduce_out[2]]->SimpleComputeAt(stages[reduce_out[1]], 0);
-  stages[reduce_out[1]]->Bind(0, "blockIdx.x");
-  stages[reduce_out[1]]->Bind(1, "threadIdx.x");
-  stages[reduce_out[1]]->SetBuffer("local");
-  stages[reduce_out[1]]->SimpleComputeAt(stages[reduce_out[0]], 0);
-  stages[reduce_out[0]]->Bind(0, "blockIdx.x");
+  CudaTwoStepReduceSchedule(
+      stages, reduce_out[3], reduce_out[2], reduce_out[1], reduce_out[0], common::DefaultNVGPUTarget());
 
   auto func = Lower("fn", stages, {A, reduce_out[0]});
   LOG(INFO) << "func:\n" << func;
@@ -719,8 +641,6 @@ TEST(Reduce, Reduce_Test_5) {
   auto reduce_out = hlir::pe::TwoStepBlockReduceSum(A.tensor(), {1, 2}, false);
   CHECK_EQ(reduce_out.size(), 2) << "the output of reduce is not equal to 4!";
   auto stages = CreateStages({A, reduce_out[1], reduce_out[0]});
-  LOG(INFO) << reduce_out[0]->shape.size();
-  LOG(INFO) << reduce_out[1]->shape.size();
 
   CudaBlockReduceInternalSchedule(stages, reduce_out[1], reduce_out[0], common::DefaultNVGPUTarget());
 
@@ -758,9 +678,6 @@ TEST(Reduce, Reduce_Test_6) {
   auto reduce_out = hlir::pe::TwoStepBlockReduceSum(A.tensor(), {0, 2, 3}, false);
   CHECK_EQ(reduce_out.size(), 3) << "the output of reduce is not equal to 4!";
   auto stages = CreateStages({A, reduce_out[1], reduce_out[0]});
-  LOG(INFO) << reduce_out[0]->shape.size();
-  LOG(INFO) << reduce_out[1]->shape.size();
-  LOG(INFO) << reduce_out[2]->shape.size();
 
   CudaBlockReduceSchedule(stages, reduce_out[2], reduce_out[1], reduce_out[0], common::DefaultNVGPUTarget());
 
@@ -798,21 +715,9 @@ TEST(Reduce, Reduce_Test_7) {
   auto reduce_out = hlir::pe::TwoStepBlockReduceSum(A.tensor(), {1, 2}, false);
   CHECK_EQ(reduce_out.size(), 4) << "the output of reduce is not equal to 4!";
   auto stages = CreateStages({A, reduce_out[3], reduce_out[2], reduce_out[1], reduce_out[0]});
-  LOG(INFO) << reduce_out[0]->shape.size();
-  LOG(INFO) << reduce_out[1]->shape.size();
-  LOG(INFO) << reduce_out[2]->shape.size();
-  LOG(INFO) << reduce_out[3]->shape.size();
 
-  stages[reduce_out[3]]->ComputeInline();
-  stages[reduce_out[2]]->Bind(0, "blockIdx.x");
-  stages[reduce_out[2]]->Bind(1, "threadIdx.x");
-  stages[reduce_out[2]]->SetBuffer("local");
-  stages[reduce_out[2]]->SimpleComputeAt(stages[reduce_out[1]], 0);
-  stages[reduce_out[1]]->Bind(0, "blockIdx.x");
-  stages[reduce_out[1]]->Bind(1, "threadIdx.x");
-  stages[reduce_out[1]]->SetBuffer("local");
-  stages[reduce_out[1]]->SimpleComputeAt(stages[reduce_out[0]], 0);
-  stages[reduce_out[0]]->Bind(0, "blockIdx.x");
+  CudaTwoStepReduceSchedule(
+      stages, reduce_out[3], reduce_out[2], reduce_out[1], reduce_out[0], common::DefaultNVGPUTarget());
 
   auto func = Lower("fn", stages, {A, reduce_out[0]});
   LOG(INFO) << "func:\n" << func;
@@ -849,16 +754,8 @@ TEST(Reduce, Reduce_Test_8) {
   CHECK_EQ(reduce_out.size(), 4) << "the output of reduce is not equal to 4!";
   auto stages = CreateStages({A, reduce_out[3], reduce_out[2], reduce_out[1], reduce_out[0]});
 
-  stages[reduce_out[3]]->ComputeInline();
-  stages[reduce_out[2]]->Bind(0, "blockIdx.x");
-  stages[reduce_out[2]]->Bind(1, "threadIdx.x");
-  stages[reduce_out[2]]->SetBuffer("local");
-  stages[reduce_out[2]]->SimpleComputeAt(stages[reduce_out[1]], 0);
-  stages[reduce_out[1]]->Bind(0, "blockIdx.x");
-  stages[reduce_out[1]]->Bind(1, "threadIdx.x");
-  stages[reduce_out[1]]->SetBuffer("local");
-  stages[reduce_out[1]]->SimpleComputeAt(stages[reduce_out[0]], 0);
-  stages[reduce_out[0]]->Bind(0, "blockIdx.x");
+  CudaTwoStepReduceSchedule(
+      stages, reduce_out[3], reduce_out[2], reduce_out[1], reduce_out[0], common::DefaultNVGPUTarget());
 
   auto func = Lower("fn", stages, {A, reduce_out[0]});
   LOG(INFO) << "func:\n" << func;
@@ -895,16 +792,8 @@ TEST(Reduce, Reduce_Test_9) {
   CHECK_EQ(reduce_out.size(), 4) << "the output of reduce is not equal to 4!";
   auto stages = CreateStages({A, reduce_out[3], reduce_out[2], reduce_out[1], reduce_out[0]});
 
-  stages[reduce_out[3]]->ComputeInline();
-  stages[reduce_out[2]]->Bind(0, "blockIdx.x");
-  stages[reduce_out[2]]->Bind(1, "threadIdx.x");
-  stages[reduce_out[2]]->SetBuffer("local");
-  stages[reduce_out[2]]->SimpleComputeAt(stages[reduce_out[1]], 0);
-  stages[reduce_out[1]]->Bind(0, "blockIdx.x");
-  stages[reduce_out[1]]->Bind(1, "threadIdx.x");
-  stages[reduce_out[1]]->SetBuffer("local");
-  stages[reduce_out[1]]->SimpleComputeAt(stages[reduce_out[0]], 0);
-  stages[reduce_out[0]]->Bind(0, "blockIdx.x");
+  CudaTwoStepReduceSchedule(
+      stages, reduce_out[3], reduce_out[2], reduce_out[1], reduce_out[0], common::DefaultNVGPUTarget());
 
   auto func = Lower("fn", stages, {A, reduce_out[0]});
   LOG(INFO) << "func:\n" << func;

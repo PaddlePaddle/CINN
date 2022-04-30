@@ -467,40 +467,37 @@ void CudaBlockReduceSchedule(poly::StageMap stages,
   stages[out]->Bind(0, "blockIdx.x");
 }
 
-void CudaBlockShuffleReduceSchedule(poly::StageMap stages,
-                                    ir::Tensor reduce_reshape,
-                                    ir::Tensor reduce_internal,
-                                    ir::Tensor reduce_out,
-                                    const common::Target &target) {
-  int fuse_times = reduce_internal->shape.size() - 2;
+void CudaBlockShuffleReduceSchedule(
+    poly::StageMap stages, ir::Tensor reshape, ir::Tensor internal, ir::Tensor out, const common::Target &target) {
+  int fuse_times = internal->shape.size() - 2;
   for (int idx = 0; idx < fuse_times; ++idx) {
-    stages[reduce_internal]->Fuse(0, 1);
-    stages[reduce_out]->Fuse(0, 1);
+    stages[internal]->Fuse(0, 1);
+    stages[out]->Fuse(0, 1);
   }
 
-  fuse_times = reduce_out->shape.size() - reduce_internal->shape.size();
+  fuse_times = out->shape.size() - internal->shape.size();
   for (int idx = 0; idx < fuse_times; ++idx) {
-    if (stages[reduce_internal]->n_out_dims() == 1) {
-      stages[reduce_out]->Fuse(0, 1);
+    if (internal->shape.size() == 1) {
+      stages[out]->Fuse(0, 1);
     } else {
-      stages[reduce_out]->Fuse(1, 2);
+      stages[out]->Fuse(1, 2);
     }
   }
 
-  if (stages[reduce_out]->n_out_dims() > 1) {
-    stages[reduce_internal]->Bind(0, "blockIdx.x");
-    stages[reduce_internal]->Bind(1, "threadIdx.x");
+  if (stages[out]->n_out_dims() > 1) {
+    stages[internal]->Bind(0, "blockIdx.x");
+    stages[internal]->Bind(1, "threadIdx.x");
 
-    stages[reduce_out]->Bind(0, "blockIdx.x");
-    stages[reduce_out]->Bind(1, "threadIdx.x");
+    stages[out]->Bind(0, "blockIdx.x");
+    stages[out]->Bind(1, "threadIdx.x");
 
-    stages[reduce_internal]->SimpleComputeAt(stages[reduce_out], 0);
+    stages[internal]->SimpleComputeAt(stages[out], 0);
   } else {
-    stages[reduce_internal]->Bind(0, "threadIdx.x");
-    stages[reduce_out]->Bind(0, "threadIdx.x");
+    stages[internal]->Bind(0, "threadIdx.x");
+    stages[out]->Bind(0, "threadIdx.x");
   }
-  stages[reduce_reshape]->ComputeInline();
-  stages[reduce_internal]->SetBuffer("shared");
+  stages[reshape]->ComputeInline();
+  stages[internal]->SetBuffer("shared");
 }
 
 void CudaTwoStepReduceSchedule(poly::StageMap stages,
@@ -510,13 +507,13 @@ void CudaTwoStepReduceSchedule(poly::StageMap stages,
                                ir::Tensor out,
                                const common::Target &target) {
   // fuse axis
-  for (int idx = 0; idx < internal->shape.size() - 2; ++idx) {
+  for (int idx = 0; idx < static_cast<int>(internal->shape.size()) - 2; ++idx) {
     stages[internal]->Fuse(0, 1);
     stages[tmp_out]->Fuse(0, 1);
     stages[out]->Fuse(0, 1);
   }
 
-  if (stages[internal]->n_out_dims() == 1) {
+  if (stages[tmp_out]->n_out_dims() == 1) {
     stages[internal]->Split(0, stages[internal]->GetDimRange(0));
     stages[tmp_out]->Split(0, stages[tmp_out]->GetDimRange(0));
     stages[out]->Split(0, stages[out]->GetDimRange(0));
