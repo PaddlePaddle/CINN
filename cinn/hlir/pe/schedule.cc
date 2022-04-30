@@ -343,7 +343,7 @@ int GetBlockBindAxis(const std::vector<ir::Expr> &shape, const int thread_axis) 
   return block_axis;
 }
 
-void CudaScheduleReduce(poly::StageMap stages,
+void CudaReduceSchedule(poly::StageMap stages,
                         ir::Tensor output,
                         int last_dimension_num,
                         const common::Target &target) {
@@ -374,7 +374,7 @@ void CudaScheduleReduce(poly::StageMap stages,
   }
 }
 
-void CudaScheduleWarpReduce(poly::StageMap stages, ir::Tensor tmp_out, ir::Tensor out, const common::Target &target) {
+void CudaWarpReduceSchedule(poly::StageMap stages, ir::Tensor tmp_out, ir::Tensor out, const common::Target &target) {
   int sum_out_dim = 1;
   for (int idx = 0; idx < static_cast<int>(tmp_out->shape.size()) - 2; ++idx) {
     stages[out]->Fuse(0, 1);
@@ -408,7 +408,7 @@ void CudaScheduleWarpReduce(poly::StageMap stages, ir::Tensor tmp_out, ir::Tenso
   }
 }
 
-void CudaScheduleBlockReduceInternal(poly::StageMap stages,
+void CudaBlockReduceInternalSchedule(poly::StageMap stages,
                                      ir::Tensor tmp_out,
                                      ir::Tensor out,
                                      const common::Target &target) {
@@ -430,7 +430,7 @@ void CudaScheduleBlockReduceInternal(poly::StageMap stages,
   stages[out]->Bind(0, "blockIdx.x");
 }
 
-void CudaScheduleBlockReduce(poly::StageMap stages,
+void CudaBlockReduceSchedule(poly::StageMap stages,
                              ir::Tensor reduce_tmp_out,
                              ir::Tensor tmp_out,
                              ir::Tensor out,
@@ -466,11 +466,12 @@ void CudaScheduleBlockReduce(poly::StageMap stages,
 
   stages[out]->Bind(0, "blockIdx.x");
 }
-void CudaScheduleShuffleReduce(poly::StageMap stages,
-                               ir::Tensor reduce_reshape,
-                               ir::Tensor reduce_internal,
-                               ir::Tensor reduce_out,
-                               const common::Target &target) {
+
+void CudaBlockShuffleReduceSchedule(poly::StageMap stages,
+                                    ir::Tensor reduce_reshape,
+                                    ir::Tensor reduce_internal,
+                                    ir::Tensor reduce_out,
+                                    const common::Target &target) {
   int fuse_times = reduce_internal->shape.size() - 2;
   for (int idx = 0; idx < fuse_times; ++idx) {
     stages[reduce_internal]->Fuse(0, 1);
@@ -500,6 +501,40 @@ void CudaScheduleShuffleReduce(poly::StageMap stages,
   }
   stages[reduce_reshape]->ComputeInline();
   stages[reduce_internal]->SetBuffer("shared");
+}
+
+void CudaTwoStepReduceSchedule(poly::StageMap stages,
+                               ir::Tensor reshape,
+                               ir::Tensor internal,
+                               ir::Tensor tmp_out,
+                               ir::Tensor out,
+                               const common::Target &target) {
+  // fuse axis
+  for (int idx = 0; idx < internal->shape.size() - 2; ++idx) {
+    stages[internal]->Fuse(0, 1);
+    stages[tmp_out]->Fuse(0, 1);
+    stages[out]->Fuse(0, 1);
+  }
+
+  if (stages[internal]->n_out_dims() == 1) {
+    stages[internal]->Split(0, stages[internal]->GetDimRange(0));
+    stages[tmp_out]->Split(0, stages[tmp_out]->GetDimRange(0));
+    stages[out]->Split(0, stages[out]->GetDimRange(0));
+  }
+
+  stages[reshape]->ComputeInline();
+
+  stages[internal]->Bind(0, "blockIdx.x");
+  stages[internal]->Bind(1, "threadIdx.x");
+  stages[internal]->SetBuffer("local");
+  stages[internal]->SimpleComputeAt(stages[tmp_out], 0);
+
+  stages[tmp_out]->Bind(0, "blockIdx.x");
+  stages[tmp_out]->Bind(1, "threadIdx.x");
+  stages[tmp_out]->SetBuffer("local");
+  stages[tmp_out]->SimpleComputeAt(stages[out], 0);
+
+  stages[out]->Bind(0, "blockIdx.x");
 }
 
 void SoftmaxScheduleCPU(poly::StageMap stage, const ir::Tensor &output, const ir::Tensor &temp, int axis) {
