@@ -34,9 +34,9 @@ DEFINE_bool(cinn_use_new_fusion_pass,
 DEFINE_bool(cinn_sync_run,
             BoolFromEnv("FLAGS_cinn_sync_run", false),
             "Whether sync all devices after each instruction run, which is used for debug.");
-DEFINE_string(cinn_graphviz_path,
-              StringFromEnv("FLAGS_cinn_graphviz_path", ""),
-              "Specify the path of dot file of graph, which is used for debug.");
+DEFINE_string(cinn_fusion_groups_graphviz_dir,
+              StringFromEnv("FLAGS_cinn_fusion_groups_graphviz_dir", ""),
+              "Specify the directory path of dot file of graph, which is used for debug.");
 
 namespace cinn {
 namespace runtime {

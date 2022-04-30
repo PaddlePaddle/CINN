@@ -13,10 +13,9 @@
 // limitations under the License.
 
 #pragma once
-#include <glog/logging.h>
 
 #include <map>
-#include <sstream>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -36,17 +35,25 @@ class DotLang {
   DotLang() = default;
 
   explicit DotLang(const std::vector<Attr>& attrs) : attrs_(attrs) {}
+
   /**
-   * Add a node ot DOT graph.
+   * Add a node to the DOT graph.
    * @param id Unique ID for this node.
    * @param attrs DOT attributes.
    * @param label Name of the node.
    */
-
   void AddNode(const std::string& id,
                const std::vector<Attr>& attrs,
-               std::string label    = "",
-               bool allow_duplicate = false);
+               std::string label      = "",
+               std::string cluster_id = "",
+               bool allow_duplicate   = false);
+
+  /**
+   * Add a subgraph to the DOT graph.
+   * @param id Unique ID for this subgraph.
+   * @param attrs DOT attributes.
+   */
+  void AddCluster(const std::string& id);
 
   /**
    * Add an edge to the DOT graph.
@@ -63,6 +70,7 @@ class DotLang {
   std::string Build() const;
 
   std::map<std::string, Node> nodes_;
+  std::map<std::string, std::set<Node*>> clusters_;
   std::vector<Edge> edges_;
   std::vector<Attr> attrs_;
 };
@@ -80,14 +88,17 @@ struct Node {
   std::string name;
   std::vector<Attr> attrs;
 
-  Node(const std::string& name, const std::vector<Attr>& attrs);
+  Node() = default;
+  Node(const std::string& name, const std::vector<Attr>& attrs, const std::string& cluster_id);
 
   std::string id() const { return id_; }
+  std::string cluster_id() const { return cluster_id_; }
 
   std::string repr() const;
 
  private:
   std::string id_;
+  std::string cluster_id_;
 };
 
 struct Edge {

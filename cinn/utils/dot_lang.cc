@@ -14,6 +14,10 @@
 
 #include "cinn/utils/dot_lang.h"
 
+#include <glog/logging.h>
+
+#include <sstream>
+
 namespace cinn {
 namespace utils {
 
@@ -23,7 +27,8 @@ std::string Attr::repr() const {
   return ss.str();
 }
 
-Node::Node(const std::string& name, const std::vector<Attr>& attrs) : name(name), attrs(attrs) {
+Node::Node(const std::string& name, const std::vector<Attr>& attrs, const std::string& cluster_id)
+    : name(name), attrs(attrs), cluster_id_(cluster_id) {
   std::stringstream ss;
   ss << "node_" << dot_node_counter++;
   id_ = ss.str();
@@ -62,7 +67,11 @@ std::string Edge::repr() const {
   return ss.str();
 }
 
-void DotLang::AddNode(const std::string& id, const std::vector<Attr>& attrs, std::string label, bool allow_duplicate) {
+void DotLang::AddNode(const std::string& id,
+                      const std::vector<Attr>& attrs,
+                      std::string label,
+                      std::string cluster_id,
+                      bool allow_duplicate) {
   if (!allow_duplicate) {
     CHECK(!nodes_.count(id)) << "duplicate Node '" << id << "'";
   }
@@ -70,8 +79,18 @@ void DotLang::AddNode(const std::string& id, const std::vector<Attr>& attrs, std
     if (label.empty()) {
       label = id;
     }
-    nodes_.emplace(id, Node{label, attrs});
+    nodes_.emplace(id, Node{label, attrs, cluster_id});
+    if (!cluster_id.empty()) {
+      CHECK(clusters_.count(cluster_id)) << "Cluster '" << cluster_id << "'"
+                                         << " is not existed";
+      clusters_[cluster_id].insert(&nodes_[id]);
+    }
   }
+}
+
+void DotLang::AddCluster(const std::string& id) {
+  CHECK(!clusters_.count(id)) << "duplicate Cluster '" << id << "'";
+  clusters_.emplace(id, std::set<Node*>{});
 }
 
 void DotLang::AddEdge(const std::string& source, const std::string& target, const std::vector<Attr>& attrs) {
@@ -93,9 +112,25 @@ std::string DotLang::Build() const {
   for (const auto& attr : attrs_) {
     ss << indent << attr.repr() << '\n';
   }
+  // add clusters
+  int cluster_counter = 0;
+  for (auto& item : clusters_) {
+    ss << indent << "subgraph cluster_" << cluster_counter << " {\n";
+    ss << indent << indent << "label=" << item.first << "\n";
+    ss << indent << indent << "color=\"#BEBEBE\""
+       << "\n";
+    cluster_counter++;
+    for (auto* node : item.second) {
+      ss << indent << indent << node->repr() << "\n";
+    }
+    ss << indent << "}\n";
+  }
+
   // add nodes
   for (auto& item : nodes_) {
-    ss << indent << item.second.repr() << '\n';
+    if (item.second.cluster_id().empty()) {
+      ss << indent << item.second.repr() << '\n';
+    }
   }
   // add edges
   for (auto& edge : edges_) {
