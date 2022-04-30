@@ -74,33 +74,78 @@ bool MakeDirectory(const std::string& dirname) {
   return true;
 }
 
-std::string SimplifyFileName(const std::string& filename) {
-  if (filename.size() <= 50) {
-    return filename;
+std::string GetFilePath(const std::vector<Node*>& group, int group_id) {
+  std::string filename = std::to_string(group_id);
+  for (auto* node : group) {
+    filename += "_" + node->id();
   }
 
-  std::unordered_map<std::string, std::string> funcname_map = {{"const_scalar", "scalar"},
-                                                               {"identity", "copy"},
-                                                               {"broadcast_to", "broadcast"},
-                                                               {"elementwise_add", "add"},
-                                                               {"substract", "sub"},
-                                                               {"elementwise_mul", "mul"},
-                                                               {"divide", "div"},
-                                                               {"reduce_sum", "reduce"}};
-  std::string simplified_filename                           = filename;
-  for (auto& item : funcname_map) {
-    size_t index = 0;
-    while (true) {
-      index = simplified_filename.find(item.first, index);
-      if (index == std::string::npos) {
-        break;
+  int max_len                     = 50;
+  std::string simplified_filename = filename;
+  if (filename.size() > max_len) {
+    std::unordered_map<std::string, std::string> funcname_map = {{"const_scalar", "scalar"},
+                                                                 {"fill_constant", "fill"},
+                                                                 {"identity", "copy"},
+                                                                 {"broadcast_to", "broadcast"},
+                                                                 {"elementwise_add", "add"},
+                                                                 {"substract", "sub"},
+                                                                 {"elementwise_mul", "mul"},
+                                                                 {"divide", "div"},
+                                                                 {"reduce_sum", "reduce"}};
+    for (auto& item : funcname_map) {
+      size_t index = 0;
+      while (true) {
+        index = simplified_filename.find(item.first, index);
+        if (index == std::string::npos) {
+          break;
+        }
+        simplified_filename.replace(index, item.first.size(), item.second);
+        index += item.second.size();
       }
-      simplified_filename.replace(index, item.first.size(), item.second);
-      index += item.second.size();
     }
   }
 
-  return simplified_filename.substr(0, 50);
+  return FLAGS_cinn_fusion_groups_graphviz_dir + "/" + simplified_filename.substr(0, 50) + ".dot";
+}
+
+std::string GenClusterId(const std::vector<Node*>& group, int group_id) {
+  return "group_" + std::to_string(group_id) + "(" + std::to_string(group.size()) + ")";
+}
+
+std::vector<utils::Attr> GetGroupOpAttrs() {
+  return std::vector<utils::Attr>{
+      utils::Attr("shape", "Mrecord"), utils::Attr("color", "#8EABFF"), utils::Attr("style", "filled")};
+}
+
+std::vector<utils::Attr> GetOutlinkOpAttrs() {
+  return std::vector<utils::Attr>{
+      utils::Attr("shape", "Mrecord"), utils::Attr("color", "#ff7f00"), utils::Attr("style", "filled")};
+}
+
+std::vector<utils::Attr> GetGroupVarAttrs() {
+  return std::vector<utils::Attr>{utils::Attr("color", "#FFDC85"), utils::Attr("style", "filled")};
+}
+
+std::vector<utils::Attr> GetFetchVarAttrs() {
+  return std::vector<utils::Attr>{
+      utils::Attr("peripheries", "2"), utils::Attr("color", "#43CD80"), utils::Attr("style", "filled")};
+}
+
+std::vector<utils::Attr> GetGroupAttrs(size_t group_size) {
+  std::string fillcolor;
+  if (group_size == 1) {
+    fillcolor = "#E8E8E8";
+  } else if (group_size <= 3) {
+    fillcolor = "#FFFFF0";
+  } else if (group_size <= 10) {
+    fillcolor = "#F0FFFF";
+  } else {
+    // group_size > 10
+    fillcolor = "#EEE5DE";
+  }
+  std::vector<utils::Attr> attrs = {
+      utils::Attr("color", "grey"), utils::Attr("style", "filled"), utils::Attr("fillcolor", fillcolor)};
+  return attrs;
 }
 
 void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
@@ -113,24 +158,24 @@ void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
     return;
   }
 
-  std::vector<utils::Attr> group_op_attrs = {
-      utils::Attr("shape", "Mrecord"), utils::Attr("color", "grey"), utils::Attr("style", "filled")};
-  std::vector<utils::Attr> fetch_var_attrs = {utils::Attr("color", "#43CD80"), utils::Attr("style", "filled")};
+  std::vector<utils::Attr> group_op_attrs  = GetGroupOpAttrs();
+  std::vector<utils::Attr> group_var_attrs = GetGroupVarAttrs();
+  std::vector<utils::Attr> fetch_var_attrs = GetFetchVarAttrs();
 
   utils::DotLang dot;
   std::unordered_set<NodeData*> nodedatas_set;
 
   int group_id = 0;
   for (auto& group : groups) {
-    std::string cluster_id = "group_" + std::to_string(group_id);
-    dot.AddCluster(cluster_id);
+    std::string cluster_id = GenClusterId(group, group_id);
+    dot.AddCluster(cluster_id, GetGroupAttrs(group.size()));
     for (auto& node : group) {
       dot.AddNode(node->id(), group_op_attrs, "", cluster_id);
       for (auto& inlink : node->inlinks()) {
         auto* innode = inlink->source()->safe_as<NodeData>();
         if (innode) {
           if (!nodedatas_set.count(innode)) {
-            dot.AddNode(innode->id(), {}, "", cluster_id, true);
+            dot.AddNode(innode->id(), group_var_attrs, "", cluster_id, true);
             nodedatas_set.insert(innode);
           }
           dot.AddEdge(innode->id(), node->id(), {});
@@ -143,7 +188,7 @@ void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
             if (fetch_var_ids.count(outnode->id())) {
               dot.AddNode(outnode->id(), fetch_var_attrs, "", cluster_id, true);
             } else {
-              dot.AddNode(outnode->id(), {}, "", cluster_id, true);
+              dot.AddNode(outnode->id(), group_var_attrs, "", cluster_id, true);
             }
             nodedatas_set.insert(outnode);
           }
@@ -153,6 +198,7 @@ void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
     }
     group_id++;
   }
+
   std::string filepath = FLAGS_cinn_fusion_groups_graphviz_dir + "/grouped_graph.dot";
   VLOG(4) << "Write to " << filepath;
   std::ofstream of(filepath);
@@ -164,27 +210,24 @@ void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
 
 void Graph::VisualizeGroups(const std::vector<std::vector<Node*>>& groups,
                             const std::unordered_set<std::string>& fetch_var_ids) {
-  std::vector<utils::Attr> group_op_attrs = {
-      utils::Attr("shape", "Mrecord"), utils::Attr("color", "grey"), utils::Attr("style", "filled")};
-  std::vector<utils::Attr> fetch_var_attrs = {utils::Attr("color", "#43CD80"), utils::Attr("style", "filled")};
-  std::vector<utils::Attr> out_op_attrs    = {
-      utils::Attr("shape", "Mrecord"), utils::Attr("color", "#ff7f00"), utils::Attr("style", "filled")};
+  std::vector<utils::Attr> group_op_attrs  = GetGroupOpAttrs();
+  std::vector<utils::Attr> group_var_attrs = GetGroupVarAttrs();
+  std::vector<utils::Attr> fetch_var_attrs = GetFetchVarAttrs();
+  std::vector<utils::Attr> out_op_attrs    = GetOutlinkOpAttrs();
 
   int group_id = 0;
   for (auto& group : groups) {
     utils::DotLang dot;
     std::unordered_set<Node*> nodes_set;
-    std::string cluster_id = "group_" + std::to_string(group_id);
-    dot.AddCluster(cluster_id);
-    std::string filename = std::to_string(group_id);
+    std::string cluster_id = GenClusterId(group, group_id);
+    dot.AddCluster(cluster_id, GetGroupAttrs(group.size()));
     for (auto& node : group) {
       nodes_set.insert(node);
       dot.AddNode(node->id(), group_op_attrs, "", cluster_id);
-      filename += "_" + node->id();
       for (auto& inlink : node->inlinks()) {
         auto* innode = inlink->source()->safe_as<NodeData>();
         if (innode) {
-          dot.AddNode(innode->id(), {}, "", cluster_id, true);
+          dot.AddNode(innode->id(), group_var_attrs, "", cluster_id, true);
           dot.AddEdge(innode->id(), node->id(), {});
         }
       }
@@ -194,7 +237,7 @@ void Graph::VisualizeGroups(const std::vector<std::vector<Node*>>& groups,
           if (fetch_var_ids.count(outnode->id())) {
             dot.AddNode(outnode->id(), fetch_var_attrs, "", cluster_id, true);
           } else {
-            dot.AddNode(outnode->id(), {}, "", cluster_id, true);
+            dot.AddNode(outnode->id(), group_var_attrs, "", cluster_id, true);
           }
           dot.AddEdge(node->id(), outnode->id(), {});
         }
@@ -228,12 +271,14 @@ void Graph::VisualizeGroups(const std::vector<std::vector<Node*>>& groups,
         }
       }
     }
-    group_id++;
-    std::string filepath = FLAGS_cinn_fusion_groups_graphviz_dir + "/" + SimplifyFileName(filename) + ".dot";
+
+    std::string filepath = GetFilePath(group, group_id);
     VLOG(4) << "Write to " << filepath;
     std::ofstream of(filepath);
     of << dot();
     of.close();
+
+    group_id++;
   }
 }
 

@@ -23,10 +23,13 @@ namespace cinn {
 namespace utils {
 
 static size_t dot_node_counter{0};
+static size_t dot_cluster_counter{0};
 
 struct Node;
+struct Cluster;
 struct Edge;
 struct Attr;
+
 /*
  * A Dot template that helps to build a DOT graph definition.
  */
@@ -53,7 +56,7 @@ class DotLang {
    * @param id Unique ID for this subgraph.
    * @param attrs DOT attributes.
    */
-  void AddCluster(const std::string& id);
+  void AddCluster(const std::string& id, const std::vector<Attr>& attrs);
 
   /**
    * Add an edge to the DOT graph.
@@ -70,7 +73,7 @@ class DotLang {
   std::string Build() const;
 
   std::map<std::string, Node> nodes_;
-  std::map<std::string, std::set<Node*>> clusters_;
+  std::map<std::string, Cluster> clusters_;
   std::vector<Edge> edges_;
   std::vector<Attr> attrs_;
 };
@@ -99,6 +102,23 @@ struct Node {
  private:
   std::string id_;
   std::string cluster_id_;
+};
+
+struct Cluster {
+  std::string name;
+  std::vector<Attr> attrs;
+
+  Cluster() = default;
+  Cluster(const std::string& name, const std::vector<Attr>& attrs);
+
+  void Insert(Node* node) { nodes_.insert(node); }
+
+  std::string id() const { return id_; }
+  std::set<Node*> nodes() const { return nodes_; }
+
+ private:
+  std::string id_;
+  std::set<Node*> nodes_;  // Not owned
 };
 
 struct Edge {

@@ -52,6 +52,12 @@ std::string Node::repr() const {
   return ss.str();
 }
 
+Cluster::Cluster(const std::string& name, const std::vector<Attr>& attrs) : name(name), attrs(attrs) {
+  std::stringstream ss;
+  ss << "cluster_" << dot_cluster_counter++;
+  id_ = ss.str();
+}
+
 std::string Edge::repr() const {
   std::stringstream ss;
   CHECK(!source.empty());
@@ -83,14 +89,14 @@ void DotLang::AddNode(const std::string& id,
     if (!cluster_id.empty()) {
       CHECK(clusters_.count(cluster_id)) << "Cluster '" << cluster_id << "'"
                                          << " is not existed";
-      clusters_[cluster_id].insert(&nodes_[id]);
+      clusters_[cluster_id].Insert(&nodes_[id]);
     }
   }
 }
 
-void DotLang::AddCluster(const std::string& id) {
+void DotLang::AddCluster(const std::string& id, const std::vector<Attr>& attrs) {
   CHECK(!clusters_.count(id)) << "duplicate Cluster '" << id << "'";
-  clusters_.emplace(id, std::set<Node*>{});
+  clusters_.emplace(id, Cluster{id, attrs});
 }
 
 void DotLang::AddEdge(const std::string& source, const std::string& target, const std::vector<Attr>& attrs) {
@@ -113,19 +119,20 @@ std::string DotLang::Build() const {
     ss << indent << attr.repr() << '\n';
   }
   // add clusters
-  int cluster_counter = 0;
   for (auto& item : clusters_) {
-    ss << indent << "subgraph cluster_" << cluster_counter << " {\n";
-    ss << indent << indent << "label=" << item.first << "\n";
-    ss << indent << indent << "color=\"#BEBEBE\""
-       << "\n";
-    cluster_counter++;
-    for (auto* node : item.second) {
+    const auto& cluster = item.second;
+    ss << indent << "subgraph " << cluster.id() << " {\n";
+    ss << indent << indent << "label=\"" << item.first << "\"\n";
+    if (!cluster.attrs.empty()) {
+      for (size_t i = 0; i < cluster.attrs.size(); i++) {
+        ss << indent << indent << cluster.attrs[i].repr() << "\n";
+      }
+    }
+    for (auto* node : cluster.nodes()) {
       ss << indent << indent << node->repr() << "\n";
     }
     ss << indent << "}\n";
   }
-
   // add nodes
   for (auto& item : nodes_) {
     if (item.second.cluster_id().empty()) {
