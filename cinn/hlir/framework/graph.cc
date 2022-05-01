@@ -18,6 +18,7 @@
 #include <unistd.h>
 
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 
 #include "cinn/utils/dot_lang.h"
@@ -74,9 +75,9 @@ bool MakeDirectory(const std::string& dirname) {
   return true;
 }
 
-std::string GetFilePath(const std::vector<Node*>& group, int group_id) {
-  std::string filename = std::to_string(group_id);
-  for (auto* node : group) {
+std::string GetFilePath(const std::vector<std::vector<Node*>>& groups, int group_id) {
+  std::string filename = "";
+  for (auto* node : groups[group_id]) {
     filename += "_" + node->id();
   }
 
@@ -105,11 +106,34 @@ std::string GetFilePath(const std::vector<Node*>& group, int group_id) {
     }
   }
 
-  return FLAGS_cinn_fusion_groups_graphviz_dir + "/" + simplified_filename.substr(0, 50) + ".dot";
+  int width = std::to_string(groups.size()).size();
+  std::stringstream ss;
+  ss << FLAGS_cinn_fusion_groups_graphviz_dir << "/";
+  ss << std::setw(width) << std::setfill('0') << group_id;
+  ss << simplified_filename.substr(0, 50) << ".dot";
+  return ss.str();
 }
 
 std::string GenClusterId(const std::vector<Node*>& group, int group_id) {
-  return "group_" + std::to_string(group_id) + "(" + std::to_string(group.size()) + ")";
+  return "group_" + std::to_string(group_id) + "(size=" + std::to_string(group.size()) + ")";
+}
+
+std::string GenNodeDataLabel(const NodeData* node, const absl::flat_hash_map<std::string, shape_t>& shape_dict) {
+  if (shape_dict.count(node->id())) {
+    shape_t node_shape = shape_dict.at(node->id());
+    std::stringstream ss;
+    ss << node->id() << "\\n{";
+    for (size_t i = 0; i < node_shape.size(); ++i) {
+      if (i > 0) {
+        ss << "x";
+      }
+      ss << node_shape[i];
+    }
+    ss << "}";
+    return ss.str();
+  } else {
+    return node->id();
+  }
 }
 
 std::vector<utils::Attr> GetGroupOpAttrs() {
@@ -158,11 +182,15 @@ void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
     return;
   }
 
+  auto& shape_dict = HasAttr("infershape") ? GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape")
+                                           : absl::flat_hash_map<std::string, shape_t>{};
+
   std::vector<utils::Attr> group_op_attrs  = GetGroupOpAttrs();
   std::vector<utils::Attr> group_var_attrs = GetGroupVarAttrs();
   std::vector<utils::Attr> fetch_var_attrs = GetFetchVarAttrs();
 
   utils::DotLang dot;
+  utils::ResetDotCounters();
   std::unordered_set<NodeData*> nodedatas_set;
 
   int group_id = 0;
@@ -175,7 +203,8 @@ void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
         auto* innode = inlink->source()->safe_as<NodeData>();
         if (innode) {
           if (!nodedatas_set.count(innode)) {
-            dot.AddNode(innode->id(), group_var_attrs, "", cluster_id, true);
+            std::string label = GenNodeDataLabel(innode, shape_dict);
+            dot.AddNode(innode->id(), group_var_attrs, label, cluster_id, true);
             nodedatas_set.insert(innode);
           }
           dot.AddEdge(innode->id(), node->id(), {});
@@ -185,10 +214,11 @@ void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
         auto* outnode = outlink->sink()->safe_as<NodeData>();
         if (outnode) {
           if (!nodedatas_set.count(outnode)) {
+            std::string label = GenNodeDataLabel(outnode, shape_dict);
             if (fetch_var_ids.count(outnode->id())) {
-              dot.AddNode(outnode->id(), fetch_var_attrs, "", cluster_id, true);
+              dot.AddNode(outnode->id(), fetch_var_attrs, label, cluster_id, true);
             } else {
-              dot.AddNode(outnode->id(), group_var_attrs, "", cluster_id, true);
+              dot.AddNode(outnode->id(), group_var_attrs, label, cluster_id, true);
             }
             nodedatas_set.insert(outnode);
           }
@@ -210,10 +240,15 @@ void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
 
 void Graph::VisualizeGroups(const std::vector<std::vector<Node*>>& groups,
                             const std::unordered_set<std::string>& fetch_var_ids) {
+  auto& shape_dict = HasAttr("infershape") ? GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape")
+                                           : absl::flat_hash_map<std::string, shape_t>{};
+
   std::vector<utils::Attr> group_op_attrs  = GetGroupOpAttrs();
   std::vector<utils::Attr> group_var_attrs = GetGroupVarAttrs();
   std::vector<utils::Attr> fetch_var_attrs = GetFetchVarAttrs();
   std::vector<utils::Attr> out_op_attrs    = GetOutlinkOpAttrs();
+
+  utils::ResetDotCounters();
 
   int group_id = 0;
   for (auto& group : groups) {
@@ -227,17 +262,19 @@ void Graph::VisualizeGroups(const std::vector<std::vector<Node*>>& groups,
       for (auto& inlink : node->inlinks()) {
         auto* innode = inlink->source()->safe_as<NodeData>();
         if (innode) {
-          dot.AddNode(innode->id(), group_var_attrs, "", cluster_id, true);
+          std::string label = GenNodeDataLabel(innode, shape_dict);
+          dot.AddNode(innode->id(), group_var_attrs, label, cluster_id, true);
           dot.AddEdge(innode->id(), node->id(), {});
         }
       }
       for (auto& outlink : node->outlinks()) {
         auto* outnode = outlink->sink()->safe_as<NodeData>();
         if (outnode) {
+          std::string label = GenNodeDataLabel(outnode, shape_dict);
           if (fetch_var_ids.count(outnode->id())) {
-            dot.AddNode(outnode->id(), fetch_var_attrs, "", cluster_id, true);
+            dot.AddNode(outnode->id(), fetch_var_attrs, label, cluster_id, true);
           } else {
-            dot.AddNode(outnode->id(), group_var_attrs, "", cluster_id, true);
+            dot.AddNode(outnode->id(), group_var_attrs, label, cluster_id, true);
           }
           dot.AddEdge(node->id(), outnode->id(), {});
         }
@@ -272,7 +309,7 @@ void Graph::VisualizeGroups(const std::vector<std::vector<Node*>>& groups,
       }
     }
 
-    std::string filepath = GetFilePath(group, group_id);
+    std::string filepath = GetFilePath(groups, group_id);
     VLOG(4) << "Write to " << filepath;
     std::ofstream of(filepath);
     of << dot();

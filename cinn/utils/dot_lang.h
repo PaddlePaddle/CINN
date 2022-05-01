@@ -22,8 +22,7 @@
 namespace cinn {
 namespace utils {
 
-static size_t dot_node_counter{0};
-static size_t dot_cluster_counter{0};
+void ResetDotCounters();
 
 struct Node;
 struct Cluster;

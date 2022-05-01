@@ -21,6 +21,14 @@
 namespace cinn {
 namespace utils {
 
+size_t dot_node_counter{0};
+size_t dot_cluster_counter{0};
+
+void ResetDotCounters() {
+  dot_node_counter    = 0;
+  dot_cluster_counter = 0;
+}
+
 std::string Attr::repr() const {
   std::stringstream ss;
   ss << key << "=" << '"' << value << '"';
