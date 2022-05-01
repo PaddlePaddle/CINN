@@ -177,6 +177,7 @@ struct _LoweredFunc_ : ExprNode<_LoweredFunc_> {
   std::vector<Expr> CudaPrepareAllocTempBufferExprs() const;
   std::vector<Expr> CudaAliasVarExprs() const;
   void PrepareBufferCastExprs();
+  void PrepareCudaAxisInfoFromBody();
 
  private:
   void CheckValid() const;

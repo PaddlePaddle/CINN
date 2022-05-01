@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "cinn/auto_schedule/search_space/search_space.h"
+#include "cinn/auto_schedule/search_space/search_state.h"
 #include "cinn/auto_schedule/task/tune_context.h"
 #include "cinn/auto_schedule/tuning.h"
 #include "cinn/ir/ir_schedule.h"
@@ -46,16 +47,16 @@ class EvolutionarySearch {
   /**
    * Run the evolutionary search for one iteration.
    *
-   * @return the best ir::ModuleExpr searched in this iteration
+   * @return SearchState containing the best ir::ModuleExpr searched in this iteration
    */
-  ir::ModuleExpr SearchModuleExpr(const TuningOptions& options);
+  SearchState SearchModuleExpr(const TuningOptions& options);
 
   /**
    * Run the evolutionary search for one iteration.
    *
-   * @return those best ir::ModuleExpr's searched in this iteration
+   * @return SearchState(s) containing best ir::ModuleExpr(s) searched in this iteration
    */
-  std::vector<ir::ModuleExpr> SearchModuleExprBests(const TuningOptions& options);
+  std::vector<SearchState> SearchModuleExprBests(const TuningOptions& options);
 
   /**
    * Run the evolutionary search for one iteration, but since evolutionary
@@ -63,11 +64,12 @@ class EvolutionarySearch {
    * "eps * total_return_size" random samples along with those best
    * ir::ModuleExpr's searched in this iteration.
    *
-   * @return those best ir::ModuleExpr's searched in this iteration and
-   *     some random samples. There are "eps * total_return_size" random
-   *     samples and "(1 - eps) * total_return_size" best searched samples.
+   * @return SearchSpace containing those best ir::ModuleExpr's searched
+   *     in this iteration and some random samples. There are
+   *     "eps * total_return_size" random samples and
+   *     "(1 - eps) * total_return_size" best searched samples.
    */
-  std::vector<ir::ModuleExpr> SearchModuleExprEpsGreedy(const TuningOptions& options);
+  std::vector<SearchState> SearchModuleExprEpsGreedy(const TuningOptions& options);
 
 #ifdef CINN_WITH_TEST
   /**
@@ -81,18 +83,18 @@ class EvolutionarySearch {
 #endif
 
  private:
-  std::vector<ir::ModuleExpr> GetTopKCandidatesFromDatabase(int topk);
+  std::vector<SearchState> GetTopKCandidatesFromDatabase(int topk);
 
-  std::vector<ir::ModuleExpr> RandomInitSketch(int num);
+  std::vector<SearchState> RandomInitSketch(int num);
 
-  ir::ModuleExpr CrossOver(const ir::ModuleExpr& mod_expr1, const ir::ModuleExpr& mod_expr2);
+  SearchState CrossOver(const SearchState& state1, const SearchState& state2);
 
-  std::vector<ir::ModuleExpr> Evolve(const std::vector<ir::ModuleExpr>& population, int cross_over_num, int ret_num);
+  std::vector<SearchState> Evolve(const std::vector<SearchState>& population, int cross_over_num, int ret_num);
 
-  std::vector<ir::ModuleExpr> PickNextGenerationEpsGreedy(const std::vector<ir::ModuleExpr>& population,
-                                                          const std::vector<ir::ModuleExpr>& random_init,
-                                                          int num,
-                                                          float eps_greedy);
+  std::vector<SearchState> PickNextGenerationEpsGreedy(const std::vector<SearchState>& population,
+                                                       const std::vector<SearchState>& random_init,
+                                                       int num,
+                                                       float eps_greedy);
 
   std::unique_ptr<SearchSpace> search_space_;
 

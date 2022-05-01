@@ -45,6 +45,13 @@ class SizedMultiSet {
     }
   }
 
+  void Push(T&& data) {
+    multi_set_.insert(data);
+    if (multi_set_.size() > capacity_) {
+      Pop();
+    }
+  }
+
   void Pop() {
     CHECK_GE(multi_set_.size(), 1UL) << "Call Pop on empty SizedMultiSet";
     if (pop_max_when_full_) {

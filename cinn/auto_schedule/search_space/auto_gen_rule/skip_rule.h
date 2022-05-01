@@ -17,6 +17,7 @@
 #include <string>
 
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
+#include "cinn/common/target.h"
 #include "cinn/ir/ir_schedule.h"
 
 namespace cinn {
@@ -24,7 +25,7 @@ namespace auto_schedule {
 
 class SkipRule : public AutoGenRule {
  public:
-  SkipRule()  = default;
+  SkipRule(const common::Target& target);
   ~SkipRule() = default;
 
   RuleApplyType Init(const ir::ModuleExpr& mod_expr) override;
@@ -32,6 +33,8 @@ class SkipRule : public AutoGenRule {
   ir::ModuleExpr Apply(int index) override;
 
   std::string GetRuleName() const override;
+
+  AutoGenRule* NewPointer() const override;
 
  private:
   ir::ModuleExpr mod_expr_;
