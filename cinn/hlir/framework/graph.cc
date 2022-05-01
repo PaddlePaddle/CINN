@@ -182,6 +182,10 @@ void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
     return;
   }
 
+  for (auto& id : fetch_var_ids) {
+    VLOG(4) << "Fetch: " << id;
+  }
+
   auto& shape_dict = HasAttr("infershape") ? GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape")
                                            : absl::flat_hash_map<std::string, shape_t>{};
 

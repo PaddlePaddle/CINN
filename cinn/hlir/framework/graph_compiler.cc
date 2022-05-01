@@ -696,7 +696,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
     this->ProcessFunction(lowered_func);
   }
 
-  graph_->VisualizeGroupedGraph(groups, fetch_var_ids);
+  graph_->VisualizeGroupedGraph(groups, fetch_var_ids_);
 
   // compile the module
   // Need to create a new compiler for every call of Build,
