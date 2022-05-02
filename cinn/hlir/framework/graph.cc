@@ -173,19 +173,21 @@ std::vector<utils::Attr> GetGroupAttrs(size_t group_size) {
 }
 
 void Summary(const std::vector<std::vector<Node*>>& groups) {
-  std::map<size_t, size_t> group_summary;
+  std::map<std::string, size_t> group_summary;
   std::map<std::string, size_t> single_group_detail;
   std::map<std::string, size_t> fusion_group_detail;
-  fusion_group_detail["reduce"] = 0;
-  fusion_group_detail["others"] = 0;
+
+  auto insert_to = [](const std::string& key, std::map<std::string, size_t>* res) {
+    if (res->count(key)) {
+      res->at(key) = res->at(key) + 1;
+    } else {
+      res->insert({key, 1});
+    }
+  };
 
   for (auto& group : groups) {
     size_t group_size = group.size();
-    if (group_summary.count(group_size)) {
-      group_summary[group_size]++;
-    } else {
-      group_summary[group_size] = 1;
-    }
+    insert_to(std::to_string(group_size), &group_summary);
     if (group_size == 1) {
       // Like "fill_constant_1", remove the "_1" at the end of the string.
       std::string node_id = group[0]->id();
@@ -202,11 +204,7 @@ void Summary(const std::vector<std::vector<Node*>>& groups) {
       }
       if (index >= 0) {
         node_id = node_id.substr(0, index + 1);
-        if (single_group_detail.count(node_id)) {
-          single_group_detail[node_id]++;
-        } else {
-          single_group_detail[node_id] = 1;
-        }
+        insert_to(node_id, &single_group_detail);
       }
     } else {
       std::string key = "others";
@@ -216,11 +214,23 @@ void Summary(const std::vector<std::vector<Node*>>& groups) {
           break;
         }
       }
-      fusion_group_detail[key]++;
+      insert_to(key, &fusion_group_detail);
     }
   }
 
   std::stringstream ss;
+
+  auto print_table = [&](const std::map<std::string, size_t>& res) {
+    int total = 0;
+    for (auto& item : res) {
+      ss << std::setw(20) << item.first << item.second << "\n";
+      total += item.second;
+    }
+    ss << "-------------------------------------------\n";
+    ss << std::setw(20) << "total" << total << "\n";
+    ss << "-------------------------------------------\n";
+  };
+
   ss << "-------------------------------------------\n";
   ss << "             Summary of Groups\n";
   ss << "-------------------------------------------\n";
@@ -228,37 +238,23 @@ void Summary(const std::vector<std::vector<Node*>>& groups) {
   ss << std::setfill(' ');
   ss << std::setw(20) << "Size"
      << "Numbers\n";
-  for (auto& item : group_summary) {
-    ss << std::setw(20) << item.first << item.second << "\n";
-  }
+  print_table(group_summary);
+
   if (single_group_detail.size()) {
     ss << "\n\n-------------------------------------------\n";
     ss << "          Detail of Single Groups\n";
     ss << "-------------------------------------------\n";
     ss << std::setw(20) << "Type"
        << "Numbers\n";
-    int total = 0;
-    for (auto& item : single_group_detail) {
-      ss << std::setw(20) << item.first << item.second << "\n";
-      total += item.second;
-    }
-    ss << "-------------------------------------------\n";
-    ss << std::setw(20) << "total" << total << "\n";
-    ss << "-------------------------------------------\n";
+    print_table(single_group_detail);
   }
+
   ss << "\n\n-------------------------------------------\n";
   ss << "          Detail of Fusion Groups\n";
   ss << "-------------------------------------------\n";
   ss << std::setw(20) << "Type"
      << "Numbers\n";
-  int total = 0;
-  for (auto& item : fusion_group_detail) {
-    ss << std::setw(20) << item.first << item.second << "\n";
-    total += item.second;
-  }
-  ss << "-------------------------------------------\n";
-  ss << std::setw(20) << "total" << total << "\n";
-  ss << "-------------------------------------------\n";
+  print_table(fusion_group_detail);
 
   std::string filepath = FLAGS_cinn_fusion_groups_graphviz_dir + "/summary.txt";
   VLOG(4) << "Write to " << filepath;
