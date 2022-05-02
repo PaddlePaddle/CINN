@@ -172,6 +172,85 @@ std::vector<utils::Attr> GetGroupAttrs(size_t group_size) {
   return attrs;
 }
 
+void Summary(const std::vector<std::vector<Node*>>& groups) {
+  std::map<size_t, size_t> group_summary;
+  std::map<std::string, size_t> single_group_detail;
+  std::map<std::string, size_t> fusion_group_detail;
+  fusion_group_detail["reduce"] = 0;
+  fusion_group_detail["others"] = 0;
+
+  for (auto& group : groups) {
+    size_t group_size = group.size();
+    if (group_summary.count(group_size)) {
+      group_summary[group_size]++;
+    } else {
+      group_summary[group_size] = 1;
+    }
+    if (group_size == 1) {
+      // Like "fill_constant_1", remove the "_1" at the end of the string.
+      std::string node_id = group[0]->id();
+      int index           = node_id.size() - 1;
+      while (index != -1) {
+        if (node_id[index] >= '0' && node_id[index] <= '9') {
+          index--;
+        } else {
+          break;
+        }
+      }
+      if (node_id[index] == '_') {
+        index--;
+      }
+      if (index >= 0) {
+        node_id = node_id.substr(0, index);
+        if (single_group_detail.count(node_id)) {
+          single_group_detail[node_id]++;
+        } else {
+          single_group_detail[node_id] = 1;
+        }
+      }
+    } else {
+      std::string key = "others";
+      for (auto* node : group) {
+        if (node->id().find("reduce") != std::string::npos) {
+          key = "reduce";
+          break;
+        }
+      }
+      fusion_group_detail[key]++;
+    }
+  }
+
+  std::stringstream ss;
+  ss << "-------->    Summary of Groups    <--------\n";
+  ss << std::setiosflags(std::ios::left);
+  ss << std::setfill(' ');
+  ss << std::setw(20) << "Size"
+     << "Numbers\n";
+  for (auto& item : group_summary) {
+    ss << std::setw(20) << item.first << item.second << "\n";
+  }
+  if (single_group_detail.size()) {
+    ss << "\n\n--------> Detail of Single Groups <--------\n";
+    ss << std::setw(20) << "Type"
+       << "Numbers\n";
+    for (auto& item : single_group_detail) {
+      ss << std::setw(20) << item.first << item.second << "\n";
+    }
+  }
+  ss << "\n\n--------> Detail of Fusion Groups <--------\n";
+  ss << std::setw(20) << "Type"
+     << "Numbers\n";
+  for (auto& item : fusion_group_detail) {
+    ss << std::setw(20) << item.first << item.second << "\n";
+  }
+
+  std::string filepath = FLAGS_cinn_fusion_groups_graphviz_dir + "/summary.txt";
+  VLOG(4) << "Write to " << filepath;
+  std::ofstream of(filepath);
+  of << ss.str();
+  of.close();
+}
+
 void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
                                   const std::unordered_set<std::string>& fetch_var_ids) {
   if (FLAGS_cinn_fusion_groups_graphviz_dir.empty()) {
@@ -185,6 +264,8 @@ void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
   for (auto& id : fetch_var_ids) {
     VLOG(4) << "Fetch: " << id;
   }
+
+  Summary(groups);
 
   auto& shape_dict = HasAttr("infershape") ? GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape")
                                            : absl::flat_hash_map<std::string, shape_t>{};
