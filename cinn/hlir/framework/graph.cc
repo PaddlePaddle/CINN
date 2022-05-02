@@ -201,7 +201,7 @@ void Summary(const std::vector<std::vector<Node*>>& groups) {
         index--;
       }
       if (index >= 0) {
-        node_id = node_id.substr(0, index);
+        node_id = node_id.substr(0, index + 1);
         if (single_group_detail.count(node_id)) {
           single_group_detail[node_id]++;
         } else {
@@ -221,7 +221,9 @@ void Summary(const std::vector<std::vector<Node*>>& groups) {
   }
 
   std::stringstream ss;
-  ss << "-------->    Summary of Groups    <--------\n";
+  ss << "-------------------------------------------\n";
+  ss << "             Summary of Groups\n";
+  ss << "-------------------------------------------\n";
   ss << std::setiosflags(std::ios::left);
   ss << std::setfill(' ');
   ss << std::setw(20) << "Size"
@@ -230,19 +232,33 @@ void Summary(const std::vector<std::vector<Node*>>& groups) {
     ss << std::setw(20) << item.first << item.second << "\n";
   }
   if (single_group_detail.size()) {
-    ss << "\n\n--------> Detail of Single Groups <--------\n";
+    ss << "\n\n-------------------------------------------\n";
+    ss << "          Detail of Single Groups\n";
+    ss << "-------------------------------------------\n";
     ss << std::setw(20) << "Type"
        << "Numbers\n";
+    int total = 0;
     for (auto& item : single_group_detail) {
       ss << std::setw(20) << item.first << item.second << "\n";
+      total += item.second;
     }
+    ss << "-------------------------------------------\n";
+    ss << std::setw(20) << "total" << total << "\n";
+    ss << "-------------------------------------------\n";
   }
-  ss << "\n\n--------> Detail of Fusion Groups <--------\n";
+  ss << "\n\n-------------------------------------------\n";
+  ss << "          Detail of Fusion Groups\n";
+  ss << "-------------------------------------------\n";
   ss << std::setw(20) << "Type"
      << "Numbers\n";
+  int total = 0;
   for (auto& item : fusion_group_detail) {
     ss << std::setw(20) << item.first << item.second << "\n";
+    total += item.second;
   }
+  ss << "-------------------------------------------\n";
+  ss << std::setw(20) << "total" << total << "\n";
+  ss << "-------------------------------------------\n";
 
   std::string filepath = FLAGS_cinn_fusion_groups_graphviz_dir + "/summary.txt";
   VLOG(4) << "Write to " << filepath;
