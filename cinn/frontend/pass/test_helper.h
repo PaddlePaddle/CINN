@@ -18,8 +18,10 @@
 
 #include "cinn/frontend/net_builder.h"
 #include "cinn/frontend/pass/use_program_pass.h"
+#include "cinn/frontend/program_pass.h"
 #include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/pass.h"
+#include "cinn/hlir/pass/use_pass.h"
 
 namespace cinn::frontend {
 
@@ -74,7 +76,12 @@ class PassTest {
 
     scope_ = hlir::framework::BuildScope(target_, graph);
     hlir::framework::GraphCompiler gc(target_, scope_, graph);
-    auto runtime_program = gc.Build();
+
+    hlir::framework::GraphCompiler::CompileOptions options;
+    options.with_instantiate_variables = true;
+    std::unordered_set<std::string> fetch_var_ids(output_names.begin(), output_names.end());
+    auto result          = gc.Build(options, std::move(fetch_var_ids));
+    auto runtime_program = std::move(result.runtime_program);
 
     for (auto& name : input_names) {
       SetInputTensor(name);

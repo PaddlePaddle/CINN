@@ -15,11 +15,9 @@
 #include <gtest/gtest.h>
 
 #include "cinn/frontend/pass/test_helper.h"
-#include "cinn/frontend/program_pass.h"
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/tensor.h"
 #include "cinn/hlir/op/use_ops.h"
-#include "cinn/hlir/pass/use_pass.h"
 
 namespace cinn::frontend {
 
