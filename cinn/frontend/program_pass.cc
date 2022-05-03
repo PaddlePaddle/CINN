@@ -33,7 +33,8 @@ void ProgramPass::Apply(Program* prog,
     int before = prog->size();
     pass->ApplyImpl(prog, fetch_ids, target);
     int after = prog->size();
-    VLOG(1) << "Apply " << passes[i] << " pass, program size: " << before << " -> " << after;
+    VLOG(1) << "Apply " << passes[i++] << " pass, program size: " << before << " -> " << after
+            << ", diff: " << after - before;
   }
 }
 

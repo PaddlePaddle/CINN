@@ -50,7 +50,7 @@ class DeadCodeEliminatePass : public ProgramPass {
         }
       }
       if (can_remove) {
-        VLOG(2) << "Remove instruction: " << instr;
+        VLOG(3) << "Remove the " << i << "-th instruction: " << instr;
         remove_idxs.insert(i);
       } else {
         for (const auto& in : instr->inputs) {
@@ -58,7 +58,7 @@ class DeadCodeEliminatePass : public ProgramPass {
         }
       }
     }
-    VLOG(2) << "Total remove " << remove_idxs.size() << " instructions.";
+    VLOG(3) << "Total remove " << remove_idxs.size() << " instructions.";
     for (int i = 0; i < program->size(); i++) {
       if (remove_idxs.end() != remove_idxs.find(i)) continue;
       builder.AppendInstruction((*program)[i]);

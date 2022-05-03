@@ -56,6 +56,7 @@ class RemoveIdentityPass : public ProgramPass {
       builder.CreateInput(var);
     }
 
+    VLOG(3) << "Total remove " << remove_idxs_.size() << " instructions.";
     for (int i = 0; i < program->size(); ++i) {
       if (remove_idxs_.count(i)) {
         continue;
@@ -107,7 +108,7 @@ class RemoveIdentityPass : public ProgramPass {
           updated = UpdateOrigin2New(output_var, input_var);
         }
         if (updated) {
-          VLOG(4) << "Add " << i << "-th instruction to removed set";
+          VLOG(3) << "Remove the " << i << "-th instruction: " << instr;
           remove_idxs_.insert(i);
         }
       }

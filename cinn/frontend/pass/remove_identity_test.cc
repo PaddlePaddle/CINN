@@ -38,9 +38,9 @@ TEST(RemoveIdentity, remove_single) {
 
   PassTest tester;
   std::vector<std::string> input_names  = {x.id().data()};
-  std::vector<std::string> output_names = {reduce_sum_1->id, reduce_sum_2->id};
-  int num_removed_ops                   = tester.ApplyProgramPass(builder, {"RemoveIdentity"}, output_names);
-  ASSERT_EQ(num_removed_ops, 2);
+  std::vector<std::string> output_names = {reduce_sum_1->id};
+  int num_removed_ops = tester.ApplyProgramPass(builder, {"RemoveIdentity", "DeadCodeEliminate"}, output_names);
+  ASSERT_EQ(num_removed_ops, 3);
   tester.Execute(input_names, output_names);
 }
 
