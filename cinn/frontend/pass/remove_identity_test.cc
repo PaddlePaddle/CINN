@@ -21,7 +21,7 @@
 
 namespace cinn::frontend {
 
-TEST(RemoveIdentity, can_remove) {
+TEST(RemoveIdentity, remove_single) {
   //              <x>
   //           /       \
   //     identity   identity
@@ -30,62 +30,89 @@ TEST(RemoveIdentity, can_remove) {
   //          |         |
   // <reduce_sum_1> <reduce_sum_2>
   NetBuilder builder("net_builder");
-  auto x            = builder.CreateInput(Float(32), {32, 16});
+  auto x            = builder.CreateInput(Float(32), {32, 16}, "x");
   auto identity_1   = builder.Identity(x);
   auto identity_2   = builder.Identity(x);
-  auto reduce_sum_1 = builder.ReduceSum(x, {0, 1});
-  auto reduce_sum_2 = builder.ReduceSum(x, {0, 1});
+  auto reduce_sum_1 = builder.ReduceSum(identity_1, {0});
+  auto reduce_sum_2 = builder.ReduceSum(identity_2, {1});
 
   PassTest tester;
   std::vector<std::string> input_names  = {x.id().data()};
   std::vector<std::string> output_names = {reduce_sum_1->id, reduce_sum_2->id};
-  int num_moved_ops                     = tester.ApplyProgramPass(builder, {"RemoveIdentity"}, output_names);
-  ASSERT_EQ(num_moved_ops, 2);
+  int num_removed_ops                   = tester.ApplyProgramPass(builder, {"RemoveIdentity"}, output_names);
+  ASSERT_EQ(num_removed_ops, 2);
   tester.Execute(input_names, output_names);
 }
 
-TEST(RemoveIdentity, cant_remove_by_fetchids) {
+TEST(RemoveIdentity, remove_branch) {
   //              <x>
-  //           /       \
-  //     identity   identity
-  //          |         |
+  //               |
+  //            identity
+  //           /        \
   //    reduce_sum  reduce_sum
-  //          |         |
+  //          |          |
   // <reduce_sum_1> <reduce_sum_2>
   NetBuilder builder("net_builder");
-  auto x            = builder.CreateInput(Float(32), {32, 16});
+  auto x            = builder.CreateInput(Float(32), {32, 16}, "x");
   auto identity_1   = builder.Identity(x);
-  auto identity_2   = builder.Identity(x);
-  auto reduce_sum_1 = builder.ReduceSum(x, {0, 1});
-  auto reduce_sum_2 = builder.ReduceSum(x, {0, 1});
+  auto reduce_sum_1 = builder.ReduceSum(identity_1, {0});
+  auto reduce_sum_2 = builder.ReduceSum(identity_1, {1});
 
   PassTest tester;
   std::vector<std::string> input_names  = {x.id().data()};
-  std::vector<std::string> output_names = {identity_1->id, reduce_sum_1->id, reduce_sum_2->id};
-  int num_moved_ops                     = tester.ApplyProgramPass(builder, {"RemoveIdentity"}, output_names);
-  ASSERT_EQ(num_moved_ops, 1);
+  std::vector<std::string> output_names = {reduce_sum_1->id, reduce_sum_2->id};
+  int num_removed_ops                   = tester.ApplyProgramPass(builder, {"RemoveIdentity"}, output_names);
+  ASSERT_EQ(num_removed_ops, 1);
   tester.Execute(input_names, output_names);
 }
 
-TEST(RemoveIdentity, cant_remove_by_pattern) {
-  //              <x>
-  //           /   |   \
-  //     identity  |  identity
-  //          \   /     |
-  //           mul    <identity_2>
+TEST(RemoveIdentity, remove_multiple) {
+  //         <x>  <y>
+  //          |    |
+  //     identity  |
+  //          |    |
+  //     identity  |
+  //           \  /
+  //           mul
   //            |
   //         <mul_1>
   NetBuilder builder("net_builder");
-  auto x          = builder.CreateInput(Float(32), {32, 16});
+  auto x          = builder.CreateInput(Float(32), {32, 16}, "x");
+  auto y          = builder.CreateInput(Float(32), {32, 16}, "y");
   auto identity_1 = builder.Identity(x);
-  auto identity_2 = builder.Identity(x);
-  auto mul_1      = builder.Mul(x, identity_1);
+  auto identity_2 = builder.Identity(identity_1);
+  auto mul_1      = builder.Mul(identity_2, y);
 
   PassTest tester;
-  std::vector<std::string> input_names  = {x.id().data()};
+  std::vector<std::string> input_names  = {x.id().data(), y.id().data()};
   std::vector<std::string> output_names = {mul_1->id};
-  int num_moved_ops                     = tester.ApplyProgramPass(builder, {"RemoveIdentity"}, output_names);
-  ASSERT_EQ(num_moved_ops, 1);
+  int num_removed_ops                   = tester.ApplyProgramPass(builder, {"RemoveIdentity"}, output_names);
+  ASSERT_EQ(num_removed_ops, 2);
+  tester.Execute(input_names, output_names);
+}
+
+TEST(RemoveIdentity, cannot_remove_fetch) {
+  //         <x>  <y>
+  //          |    |
+  //     identity  |
+  //          |    |
+  //     identity  |
+  //           \  /
+  //           mul
+  //            |
+  //         <mul_1>
+  NetBuilder builder("net_builder");
+  auto x          = builder.CreateInput(Float(32), {32, 16}, "x");
+  auto y          = builder.CreateInput(Float(32), {32, 16}, "y");
+  auto identity_1 = builder.Identity(x);
+  auto identity_2 = builder.Identity(identity_1);
+  auto mul_1      = builder.Mul(identity_2, y);
+
+  PassTest tester;
+  std::vector<std::string> input_names  = {x.id().data(), y.id().data()};
+  std::vector<std::string> output_names = {identity_2->id, mul_1->id};
+  int num_removed_ops                   = tester.ApplyProgramPass(builder, {"RemoveIdentity"}, output_names);
+  ASSERT_EQ(num_removed_ops, 1);
   tester.Execute(input_names, output_names);
 }
 

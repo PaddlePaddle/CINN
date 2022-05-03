@@ -1,4 +1,4 @@
-// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+// Copyright (c) 2022 CINN Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,7 +30,7 @@ TEST(DeadCodeEliminate, remove_single) {
   //          |         |
   // <reduce_sum_1> <reduce_sum_2>
   NetBuilder builder("net_builder");
-  auto x            = builder.CreateInput(Float(32), {32, 16});
+  auto x            = builder.CreateInput(Float(32), {32, 16}, "x");
   auto identity_1   = builder.Identity(x);
   auto identity_2   = builder.Identity(x);
   auto reduce_sum_1 = builder.ReduceSum(x, {0, 1});
@@ -54,7 +54,7 @@ TEST(DeadCodeEliminate, remove_multiple) {
   //            |
   //         <mul_1>
   NetBuilder builder("net_builder");
-  auto x            = builder.CreateInput(Float(32), {32, 16});
+  auto x            = builder.CreateInput(Float(32), {32, 16}, "x");
   auto identity_1   = builder.Identity(x);
   auto reduce_sum_1 = builder.ReduceSum(x, {0, 1});
   auto mul_1        = builder.Mul(x, identity_1);
