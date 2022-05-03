@@ -399,74 +399,11 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
 
   Node* master_reducer = op_pattern_dict[master_node->op()] == framework::kCommReduce ? master_node : nullptr;
   // find the reducer that link to master node.
-  if (!master_reducer && !group->fused_sub_groups.size()) {
+  if (!master_reducer) {
     for (auto reducer : group->master_nodes) {
       if (op_pattern_dict[reducer->op()] == framework::kCommReduce) {
         master_reducer = reducer;
         break;
-      }
-    }
-  } else if (!master_reducer) {
-    GroupPtr sub_group(nullptr);
-    std::unordered_set<GroupPtr, Hasher, Comparator> sub_group_set;
-    for (auto tmp_group : group->fused_sub_groups) {
-      if (tmp_group->master_nodes.count(master_node)) {
-        sub_group = tmp_group;
-        continue;
-      }
-      sub_group_set.insert(tmp_group);
-    }
-    if (sub_group->op_pattern_kind == framework::kCommReduce) {
-      for (auto reducer : sub_group->master_nodes) {
-        if (op_pattern_dict[reducer->op()] == framework::kCommReduce) {
-          master_reducer = reducer;
-          break;
-        }
-      }
-    } else {
-      // from consumer to producer
-      for (auto& producer : sub_group->producer_groups) {
-        if (!sub_group_set.count(producer)) {
-          continue;
-        }
-
-        if (producer->op_pattern_kind != framework::kCommReduce) {
-          continue;
-        }
-
-        for (auto reducer : producer->master_nodes) {
-          if (op_pattern_dict[reducer->op()] == framework::kCommReduce) {
-            master_reducer = reducer;
-            break;
-          }
-        }
-
-        if (master_reducer) {
-          break;
-        }
-      }
-      // from producer to consumer.
-      if (!master_reducer) {
-        for (auto& producer : sub_group_set) {
-          if (producer->op_pattern_kind != framework::kCommReduce) {
-            continue;
-          }
-
-          if (!producer->consumer_groups.count(sub_group)) {
-            continue;
-          }
-
-          for (auto reducer : producer->master_nodes) {
-            if (op_pattern_dict[reducer->op()] == framework::kCommReduce) {
-              master_reducer = reducer;
-              break;
-            }
-          }
-
-          if (master_reducer) {
-            break;
-          }
-        }
       }
     }
   }
@@ -558,6 +495,7 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
             stage_1->SimpleComputeAt(stage_2, stage_2->n_out_dims() - 1);
             // delete stage_1 compute at stage
             stage_1->GetComputeAts().erase(stage->id());
+            stage->CtrlDepend(tensor_map[master_reducer_data->id() + "_0"]);
             // comput at master stage
             stage->SimpleComputeAt(master_reducer_stage, master_reducer_stage->n_out_dims() - 1);
           }
