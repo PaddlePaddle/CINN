@@ -60,11 +60,11 @@ class FusionMergePassHelper : public FusionHelperBase {
 
  private:
   bool DoFusionMerge() {
-    VLOG(11) << "DoFusionMerge...!";
+    VLOG(3) << "DoFusionMerge...!";
     bool updated = false;
     for (int idx = 0; idx < fusion_groups_.size(); ++idx) {
       auto producer = fusion_groups_[idx];
-      VLOG(11) << "Fusion Producer Group -> " << producer->group_id;
+      VLOG(3) << "Fusion Producer Group -> " << producer->group_id;
       // if producer is sub group.
       if (producer->belong_groups.size()) {
         continue;
@@ -89,9 +89,9 @@ class FusionMergePassHelper : public FusionHelperBase {
     // update fusion_groups_
     for (auto& group : fusion_groups_) {
       if (!group->belong_groups.size()) {
-        VLOG(11) << "Fusion Group -> " << group->group_id;
+        VLOG(3) << "Fusion Group -> " << group->group_id;
         for (auto& sub_group : group->fused_sub_groups) {
-          VLOG(11) << "  Fused Sub-Group -> " << sub_group->group_id;
+          VLOG(3) << "  Fused Sub-Group -> " << sub_group->group_id;
         }
         fusion_groups.push_back(group);
         fusion_groups_set.insert(group);
@@ -130,7 +130,7 @@ class FusionMergePassHelper : public FusionHelperBase {
   }
 
   bool DoHorizontalFusion(GroupPtr& producer, std::unordered_set<GroupPtr, Hasher, Comparator>& consumers) {
-    VLOG(11) << "DoHorizontalFusion...!";
+    VLOG(3) << "DoHorizontalFusion...!";
     GroupList candidate_consumers;
     // check consumers exist depency relation
     for (auto& consumer : consumers) {
@@ -195,7 +195,7 @@ class FusionMergePassHelper : public FusionHelperBase {
     auto fused_group = std::make_shared<Graph::Group>();
     // fuse all group into fusion group.
     for (auto consumer : consumers) {
-      VLOG(11) << "fuse consumer " << consumer->group_id << " into fused_group!";
+      VLOG(3) << "fuse consumer " << consumer->group_id << " into fused_group!";
       if (fused_group->group_id.size()) {
         fused_group->group_id += "_" + consumer->group_id;
       } else {
@@ -288,7 +288,7 @@ class FusionMergePassHelper : public FusionHelperBase {
   }
 
   bool DoVerticalFusion(GroupPtr& producer, std::unordered_set<GroupPtr, Hasher, Comparator>& consumers) {
-    VLOG(11) << "DoVerticalFusion...!";
+    VLOG(3) << "DoVerticalFusion...!";
     auto& relation = fusion_relation_map_[producer->op_pattern_kind];
     // if producer can't fuse others
     if (!relation.vertical_relation.size()) {
@@ -299,18 +299,18 @@ class FusionMergePassHelper : public FusionHelperBase {
     for (auto& consumer : consumers) {
       // check consumer exist depency
       if (IsDepency(producer, consumer, consumers)) {
-        VLOG(11) << "Can't fuse consumer " << consumer->group_id << " ,As it depency others!";
+        VLOG(3) << "Can't fuse consumer " << consumer->group_id << " ,As it depency others!";
         continue;
       }
       // if can't fuse
       if (!relation.vertical_relation.count(consumer->op_pattern_kind)) {
-        VLOG(11) << "Can't fuse producer " << producer->group_id << " consumer " << consumer->group_id;
+        VLOG(3) << "Can't fuse producer " << producer->group_id << " consumer " << consumer->group_id;
         continue;
       }
 
       // if condition function is false
       if (!relation.vertical_relation[consumer->op_pattern_kind](producer, consumer)) {
-        VLOG(11) << "Can't fuse producer " << producer->group_id << " consumer " << consumer->group_id;
+        VLOG(3) << "Can't fuse producer " << producer->group_id << " consumer " << consumer->group_id;
         continue;
       }
 
@@ -336,7 +336,7 @@ class FusionMergePassHelper : public FusionHelperBase {
       auto fused_group = std::make_shared<Graph::Group>();
       // update group id
       fused_group->group_id = producer->group_id + "_" + consumer->group_id;
-      VLOG(11) << "fuse producer " << producer->group_id << " into consumer " << consumer->group_id;
+      VLOG(3) << "fuse producer " << producer->group_id << " into consumer " << consumer->group_id;
       // fuse producer into fusion group
       fused_group->op_pattern_kind =
           static_cast<int>(producer->op_pattern_kind) >= static_cast<int>(consumer->op_pattern_kind)
@@ -473,7 +473,7 @@ class FusionMergePassHelper : public FusionHelperBase {
         }
 
         if (be_output) {
-          VLOG(11) << "Insert Id " << node->id() << " Into Group " << fused_group->group_id;
+          VLOG(3) << "Insert Id " << node->id() << " Into Group " << fused_group->group_id;
           fused_group->output_nodes.insert(node);
         }
       }
@@ -530,7 +530,7 @@ class FusionMergePassHelper : public FusionHelperBase {
   }
 
   bool FuseInputToConsumers() {
-    VLOG(11) << "FuseInputToConsumers...!";
+    VLOG(3) << "FuseInputToConsumers...!";
     auto updated = false;
     UpdateInputToConsumers();
     GroupPtr producer(nullptr);
@@ -571,7 +571,7 @@ class FusionMergePassHelper : public FusionHelperBase {
   }
 
   void InitInputToConsumers() {
-    VLOG(11) << "InitInputToConsumers...!";
+    VLOG(3) << "InitInputToConsumers...!";
     // init input data node -> fusion group map.
     for (auto& group : fusion_groups_) {
       for (auto& node : group->nodes_set) {
@@ -589,7 +589,7 @@ class FusionMergePassHelper : public FusionHelperBase {
   }
 
   void InitFusionRelation() {
-    VLOG(11) << "InitFusionRelation...!";
+    VLOG(3) << "InitFusionRelation...!";
     // fuse condition function
     auto always_fuse   = [this](const GroupPtr& first, const GroupPtr& second) -> bool { return true; };
     auto is_same_shape = [this](const GroupPtr& first, const GroupPtr& second) -> bool {
@@ -629,20 +629,78 @@ class FusionMergePassHelper : public FusionHelperBase {
       auto input_shape = shape_dict_.at(reducer->inlinks_in_order()[0]->source()->id());
       auto reduce_axes = absl::get<std::vector<int>>(reducer->attrs.attr_store.at("dim"));
 
+      int loop_times      = 1;
+      bool check_bound    = true;
+      int max_num_threads = target_.max_num_threads();
+      int max_loop_timme  = max_num_threads >> 2;  // set max loop times as 256.
       // if without last dimension in reduce.
       if (WithoutLastDimInReduce(input_shape, reduce_axes)) {
-        // set it as can't fues for temp.
-        return false;
-      } else {
-        // if last axis size > 1024.
-        if (input_shape[reduce_axes.back()] > this->target_.max_num_threads()) {
-          return false;
+        int parallel_threads = 1;
+        int last_reduce_axis = input_shape[reduce_axes.back()];
+        for (int idx = 0; idx < reduce_axes.size() - 1; ++idx) {
+          loop_times *= input_shape[reduce_axes[idx]];
         }
+        for (int idx = reduce_axes.back() + 1; idx < input_shape.size(); ++idx) {
+          parallel_threads *= input_shape[reduce_axes[idx]];
+        }
+        if (parallel_threads <= max_num_threads / 2) {
+          for (int idx = max_num_threads / parallel_threads; idx > (max_num_threads / 2) / parallel_threads; --idx) {
+            if (last_reduce_axis % idx == 0) {
+              loop_times *= (last_reduce_axis / idx);
+              check_bound = false;
+            }
+          }
+        } else {
+          loop_times *= last_reduce_axis;
+          check_bound = false;
+        }
+      } else {
+        int parallel_threads = input_shape[reduce_axes.back()];
+        int index            = reduce_axes.size() - 2;
+        for (; index >= 0; --index) {
+          if (parallel_threads >= max_num_threads / 2) {
+            break;
+          }
+          if (reduce_axes[index] != reduce_axes[index + 1] - 1) {
+            break;
+          }
+          parallel_threads *= input_shape[reduce_axes[index]];
+        }
+        std::vector<int> first_axes(reduce_axes.begin(), reduce_axes.begin() + index + 1);
+        std::vector<int> second_axes(reduce_axes.begin() + index + 1, reduce_axes.end());
+        for (int axis : first_axes) {
+          loop_times *= input_shape[axis];
+        }
+        if (parallel_threads <= max_num_threads) {
+          check_bound = false;
+        } else if (second_axes.size() == 1) {
+          for (int idx = max_num_threads; idx >= max_num_threads / 2; --idx) {
+            if (parallel_threads % idx == 0) {
+              loop_times *= parallel_threads / idx;
+              check_bound = false;
+              break;
+            }
+          }
+        } else {
+          int head = input_shape[second_axes.front()];
+          int tail = parallel_threads / head;
+          for (int idx = max_num_threads / tail; idx > (max_num_threads / 2) / tail; --idx) {
+            if (head % idx == 0) {
+              loop_times *= (head / idx);
+              check_bound = false;
+            }
+          }
+        }
+      }
+
+      if (check_bound || loop_times > max_num_threads / 4) {
+        return false;
       }
 
       return true;
     };
-    auto broadcast_fuse_reduce = [this](const GroupPtr& first, const GroupPtr& second) -> bool {
+    auto broadcast_fuse_reduce = [this, elementwise_fuse_reduce](const GroupPtr& first,
+                                                                 const GroupPtr& second) -> bool {
       Node* reducer = nullptr;
       for (auto& node : second->master_nodes) {
         if (GetOpKind(node) == OpPatternKind::kCommReduce) {
@@ -655,14 +713,9 @@ class FusionMergePassHelper : public FusionHelperBase {
       auto input_shape  = shape_dict_.at(reducer->inlinks_in_order()[0]->source()->id());
       auto reduce_axes  = absl::get<std::vector<int>>(reducer->attrs.attr_store.at("dim"));
       auto output_shape = this->GetNodeDataShape(*first->master_nodes.begin());
-      if (WithoutLastDimInReduce(input_shape, reduce_axes)) {
-        // set it as can't fues for temp.
-        return false;
-      }
       if (input_shape == output_shape) {
-        return true;
+        return elementwise_fuse_reduce(first, second);
       }
-
       return false;
     };
     auto reduce_fuse_elementwise = [this, is_same_shape](const GroupPtr& first, const GroupPtr& second) -> bool {
@@ -825,9 +878,9 @@ class FusionMergePassHelper : public FusionHelperBase {
 };  // namespace pass
 
 void FusionMergePassInternal(Graph* graph) {
-  VLOG(11) << "FusionMergePass...!";
+  VLOG(3) << "FusionMergePass...!";
   if (graph->fusion_groups.size() <= 1) {
-    VLOG(11) << "Don't do Fusoin Merge Pass...!";
+    VLOG(3) << "Don't do Fusoin Merge Pass...!";
     return;
   }
 

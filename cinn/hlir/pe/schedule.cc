@@ -484,18 +484,19 @@ void CudaBlockShuffleReduceSchedule(
     }
   }
 
-  if (stages[out]->n_out_dims() > 1) {
-    stages[internal]->Bind(0, "blockIdx.x");
-    stages[internal]->Bind(1, "threadIdx.x");
-
-    stages[out]->Bind(0, "blockIdx.x");
-    stages[out]->Bind(1, "threadIdx.x");
-
-    stages[internal]->SimpleComputeAt(stages[out], 0);
-  } else {
-    stages[internal]->Bind(0, "threadIdx.x");
-    stages[out]->Bind(0, "threadIdx.x");
+  if (stages[out]->n_out_dims() == 1) {
+    stages[internal]->Split(0, stages[internal]->GetDimRange(0));
+    stages[out]->Split(0, stages[out]->GetDimRange(0));
   }
+
+  stages[internal]->Bind(0, "blockIdx.x");
+  stages[internal]->Bind(1, "threadIdx.x");
+
+  stages[out]->Bind(0, "blockIdx.x");
+  stages[out]->Bind(1, "threadIdx.x");
+
+  stages[internal]->SimpleComputeAt(stages[out], 0);
+
   stages[reshape]->ComputeInline();
   stages[internal]->SetBuffer("shared");
 }

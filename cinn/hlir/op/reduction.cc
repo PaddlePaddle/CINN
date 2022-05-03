@@ -170,7 +170,7 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
                                         common::DefaultNVGPUTarget());
         }
       } else {
-        if (arg_pack.size(), 2) {
+        if (arg_pack.size() == 2) {
           Expr reduce_out       = arg_pack[0];
           poly::StageMap stages = arg_pack.back();
           VLOG(3) << "Do CudaReduceSchedule Schedule!";
@@ -179,7 +179,7 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
         } else {
           CHECK_EQ(arg_pack.size(), 4) << "args is not equal 4!";
           Expr reduce_reshape   = arg_pack[2];
-          Expr reduce_internal  = arg_pack[2];
+          Expr reduce_internal  = arg_pack[1];
           Expr reduce_out       = arg_pack[0];
           poly::StageMap stages = arg_pack.back();
           VLOG(3) << "Do CudaBlockShuffleReduceSchedule Schedule!";

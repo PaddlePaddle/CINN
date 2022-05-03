@@ -580,31 +580,20 @@ std::vector<ir::Tensor> TwoStepBlockReduceInternal(const ir::Tensor& A,
                                                    BlockReduceFunc block_reduce_func) {
   CHECK(!WithoutLastDimInReduce(A->shape, axes)) << "Can't find last axis in reduce!";
 
-  int index = axes.size() - 2;
+  int lane             = A->shape[axes.back()].as_int32();
+  int index            = static_cast<int>(axes.size()) - 2;
+  auto max_num_threads = common::DefaultNVGPUTarget().max_num_threads();
   for (; index >= 0; --index) {
+    if (lane >= max_num_threads / 2) {
+      break;
+    }
     if (axes[index] != axes[index + 1] - 1) {
       break;
     }
+    lane *= A->shape[axes[index]].as_int32();
   }
   std::vector<int> first_axes(axes.begin(), axes.begin() + index + 1);
   std::vector<int> second_axes(axes.begin() + index + 1, axes.end());
-
-  int lane             = 1;
-  auto max_num_threads = common::DefaultNVGPUTarget().max_num_threads();
-  for (int idx = static_cast<int>(second_axes.size()) - 1; idx >= 0; --idx) {
-    lane *= A->shape[second_axes[idx]].as_int32();
-    if (lane >= max_num_threads / 2) {
-      for (int idy = 0; idy < idx; ++idy) {
-        first_axes.push_back(second_axes[idy]);
-      }
-      std::vector<int> tmp;
-      for (int idy = idx; idy < second_axes.size(); ++idy) {
-        tmp.push_back(second_axes[idy]);
-      }
-      second_axes = tmp;
-      break;
-    }
-  }
 
   bool keep_dim_first      = keep_dim;
   bool keep_dim_second     = keep_dim;
@@ -708,6 +697,7 @@ std::vector<ir::Tensor> TwoStepBlockReduceInternal(const ir::Tensor& A,
   };
   std::vector<ir::Tensor> results;
   if (lane > max_num_threads) {
+    VLOG(3) << "Do Reduce Reshape!";
     results.push_back(reduce_reshape_func());
   } else {
     if (!keep_dim) {
@@ -717,13 +707,14 @@ std::vector<ir::Tensor> TwoStepBlockReduceInternal(const ir::Tensor& A,
     }
   }
   if (first_axes.size()) {
+    VLOG(3) << "Do Reduce Internal!";
     results.push_back(
         reduce_func(results.size() ? results.back() : A, first_axes, keep_dim_first, output_name + "_internal"));
     results.back()->WithBuffer("local");
   }
   if (second_axes.size()) {
+    VLOG(3) << "Do Block Reduce!";
     auto res = block_reduce_func(results.size() ? results.back() : A, second_axes, keep_dim_second, output_name);
-    res[1]->WithBuffer("local");
     results.push_back(res[1]);
     results.push_back(res[0]);
   }
