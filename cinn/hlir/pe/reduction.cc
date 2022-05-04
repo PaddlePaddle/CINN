@@ -487,10 +487,11 @@ std::vector<ir::Tensor> ReduceInternal(const ir::Tensor& A,
 
   bool check_bound = true;
   std::vector<Expr> out_shape(A->shape.begin(), A->shape.begin() + tmp_axes.back());
-  for (int idx = 0; idx < axes.back() - out_shape.size(); ++idx) {
+  int last_stride = A->shape[tmp_axes.back()].as_int32();
+  int tail_count  = axes.back() - out_shape.size();
+  for (int idx = 0; idx < tail_count; ++idx) {
     out_shape.emplace_back(1);
   }
-  int last_stride = A->shape[tmp_axes.back()].as_int32();
   for (int idx = max_num_threads / parallel_threads; idx > ((max_num_threads / 2) / parallel_threads); --idx) {
     if (last_stride % idx == 0) {
       out_shape.emplace_back(last_stride / idx);
@@ -514,6 +515,7 @@ std::vector<ir::Tensor> ReduceInternal(const ir::Tensor& A,
   for (int idx = tmp_axes.back(); idx < A->shape.size(); ++idx) {
     tail_elements *= A->shape[idx].as_int32();
   }
+  CHECK_EQ(out_shape.size(), axes.back() + 2) << "Reshape output shape error!";
 
   auto out = Compute(
       out_shape,
@@ -536,7 +538,7 @@ std::vector<ir::Tensor> ReduceInternal(const ir::Tensor& A,
         }
       },
       UniqName(output_name + "_reshape"));
-  return {reduce_func(out, tmp_axes, keep_dim, output_name + "_internal"), out};
+  return {reduce_func(out, axes, keep_dim, output_name + "_internal"), out};
 }
 
 ir::Tensor BlockShuffleReduce(const ir::Tensor& A,

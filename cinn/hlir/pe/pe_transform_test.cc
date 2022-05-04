@@ -866,6 +866,111 @@ TEST(Reduce, Reduce_Test_10) {
 #endif
 }
 
+TEST(Reduce, Reduce_Test_11) {
+  int m = 10;
+  int n = 10;
+  Expr M(m), N(n);
+
+  Placeholder<float> A("A", {M, N, N});
+  auto reduce_out = hlir::pe::BlockShuffleReduceSum(A.tensor(), {0, 1}, false);
+  CHECK_EQ(reduce_out.size(), 3) << "the output of reduce is not equal to 4!";
+  auto stages = CreateStages({A, reduce_out[2], reduce_out[1], reduce_out[0]});
+
+  CudaBlockShuffleReduceSchedule(stages, reduce_out[2], reduce_out[1], reduce_out[0], common::DefaultNVGPUTarget());
+  auto func = Lower("fn", stages, {A, reduce_out[0]});
+  LOG(INFO) << "func:\n" << func;
+
+#ifdef CINN_WITH_CUDA
+  auto target = common::DefaultNVGPUTarget();
+  Module::Builder builder("Concat_Builder", target);
+  builder.AddFunction(func);
+
+  auto module                    = builder.Build();
+  auto host_module_device_module = backends::SplitCudaAndHostModule(module);
+  auto &host_module              = std::get<0>(host_module_device_module);
+  auto &device_module            = std::get<1>(host_module_device_module);
+
+  backends::CodeGenCUDA_Dev codegen(target);
+  auto source_code = codegen.Compile(builder.Build());
+  LOG(INFO) << "compiled code:\n\n\n" << source_code;
+
+  // nv jit compile to ptx
+  backends::NVRTC_Compiler compiler;
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty());
+#endif
+}
+
+TEST(Reduce, Reduce_Test_12) {
+  int m = 10;
+  int n = 10;
+  Expr M(m), N(n);
+
+  Placeholder<float> A("A", {M, M, N, N});
+  auto reduce_out = hlir::pe::BlockShuffleReduceSum(A.tensor(), {0, 1, 2}, false);
+  CHECK_EQ(reduce_out.size(), 3) << "the output of reduce is not equal to 4!";
+  auto stages = CreateStages({A, reduce_out[2], reduce_out[1], reduce_out[0]});
+
+  CudaBlockShuffleReduceSchedule(stages, reduce_out[2], reduce_out[1], reduce_out[0], common::DefaultNVGPUTarget());
+  auto func = Lower("fn", stages, {A, reduce_out[0]});
+  LOG(INFO) << "func:\n" << func;
+
+#ifdef CINN_WITH_CUDA
+  auto target = common::DefaultNVGPUTarget();
+  Module::Builder builder("Concat_Builder", target);
+  builder.AddFunction(func);
+
+  auto module                    = builder.Build();
+  auto host_module_device_module = backends::SplitCudaAndHostModule(module);
+  auto &host_module              = std::get<0>(host_module_device_module);
+  auto &device_module            = std::get<1>(host_module_device_module);
+
+  backends::CodeGenCUDA_Dev codegen(target);
+  auto source_code = codegen.Compile(builder.Build());
+  LOG(INFO) << "compiled code:\n\n\n" << source_code;
+
+  // nv jit compile to ptx
+  backends::NVRTC_Compiler compiler;
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty());
+#endif
+}
+
+TEST(Reduce, Reduce_Test_13) {
+  int m = 16;
+  int n = 16;
+  Expr M(m), N(n);
+
+  Placeholder<float> A("A", {M, M, N, N});
+  auto reduce_out = hlir::pe::BlockShuffleReduceSum(A.tensor(), {0, 1, 2}, false);
+  CHECK_EQ(reduce_out.size(), 3) << "the output of reduce is not equal to 4!";
+  auto stages = CreateStages({A, reduce_out[2], reduce_out[1], reduce_out[0]});
+
+  CudaBlockShuffleReduceSchedule(stages, reduce_out[2], reduce_out[1], reduce_out[0], common::DefaultNVGPUTarget());
+  auto func = Lower("fn", stages, {A, reduce_out[0]});
+  LOG(INFO) << "func:\n" << func;
+
+#ifdef CINN_WITH_CUDA
+  auto target = common::DefaultNVGPUTarget();
+  Module::Builder builder("Concat_Builder", target);
+  builder.AddFunction(func);
+
+  auto module                    = builder.Build();
+  auto host_module_device_module = backends::SplitCudaAndHostModule(module);
+  auto &host_module              = std::get<0>(host_module_device_module);
+  auto &device_module            = std::get<1>(host_module_device_module);
+
+  backends::CodeGenCUDA_Dev codegen(target);
+  auto source_code = codegen.Compile(builder.Build());
+  LOG(INFO) << "compiled code:\n\n\n" << source_code;
+
+  // nv jit compile to ptx
+  backends::NVRTC_Compiler compiler;
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty());
+#endif
+}
+
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn
