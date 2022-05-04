@@ -76,6 +76,10 @@ class CodeGenCUDA_Dev : public CodeGenC {
   void Visit(const ir::Max* op) override;
   void Visit(const ir::Alloc* op) override;
   void Visit(const ir::Call* op) override;
+  void Visit(const ir::Load* op) override;
+  void Visit(const ir::Store* op) override;
+
+  bool PrintBuiltinVectorAccess(const ir::LoadStoreAddrMnger* op, ir::Expr index);
 
   void PrintBuiltinCodes();
 

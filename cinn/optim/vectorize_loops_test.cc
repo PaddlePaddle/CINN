@@ -232,5 +232,40 @@ TEST(Vectorize, single_for) {
   LOG(INFO) << "Forloop\n" << forloop;
 }
 
+TEST(Vectorize, cudavectorize) {
+  Expr M(100);
+  Expr N(500);
+  Placeholder<float> A("A", {M, N});
+  Placeholder<float> B("B", {M, N});
+
+  Tensor C = Compute(
+      {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
+
+  auto stages = CreateStages({C});
+  stages[C]->Vectorize(1, 4);
+  Target target = common::DefaultNVGPUTarget();
+  auto func     = Lower("matmul", stages, {A, B, C}, {}, {}, nullptr, target);
+
+  auto target_expr = R"ROC(
+function matmul (_A, _B, _C)
+{
+  for (i, 0, 100)
+  {
+    for (j, 0, 125)
+    {
+      CudaVectorType::float4<4>* vectorized_C = CudaVectorType::float4<4>*(get_addr(C[i, ((j * 4) + 0)]))
+      const CudaVectorType::float4<4>* vectorized_A = const CudaVectorType::float4<4>*(get_addr(A[i, ((j * 4) + 0)]))
+      const CudaVectorType::float4<4>* vectorized_B = const CudaVectorType::float4<4>*(get_addr(B[i, ((j * 4) + 0)]))
+      vectorized_C[0] = (vectorized_A[0] * vectorized_B[0])
+      vectorized_C[1] = (vectorized_A[1] * vectorized_B[1])
+      vectorized_C[2] = (vectorized_A[2] * vectorized_B[2])
+      vectorized_C[3] = (vectorized_A[3] * vectorized_B[3])
+    }
+  }
+}
+)ROC";
+  ASSERT_EQ(Trim(target_expr), Trim(GetStreamCnt(func)));
+}
+
 }  // namespace optim
 }  // namespace cinn

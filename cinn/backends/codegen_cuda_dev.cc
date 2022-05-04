@@ -310,5 +310,43 @@ void CodeGenCUDA_Dev::Visit(const ir::Call *op) {
   os() << ")";
 }
 
+bool CodeGenCUDA_Dev::PrintBuiltinVectorAccess(const ir::LoadStoreAddrMnger *op, ir::Expr index_expr) {
+  static constexpr char index2suffix[4] = {'x', 'y', 'z', 'w'};
+
+  if (!op->is_addr_tensor() || !index_expr.As<ir::IntImm>()) {
+    return false;
+  }
+  auto *tensor = op->tensor.As<ir::_Tensor_>();
+  CHECK(tensor);
+  auto dtype = tensor->type();
+  if (!dtype.is_customized() ||
+      !utils::Startswith(dtype.customized_type(), common::customized_type::kcuda_builtin_vector_t)) {
+    return false;
+  }
+
+  int index = index_expr.As<ir::IntImm>()->value;
+  if (index < 0 || index >= dtype.lanes()) {
+    return false;
+  }
+
+  os() << tensor->name << (dtype.is_cpp_handle() ? "->" : ".") << index2suffix[index];
+  return true;
+}
+
+void CodeGenCUDA_Dev::Visit(const ir::Load *op) {
+  if (!PrintBuiltinVectorAccess(op, op->index())) {
+    CodeGenC::Visit(op);
+  }
+}
+
+void CodeGenCUDA_Dev::Visit(const ir::Store *op) {
+  if (PrintBuiltinVectorAccess(op, op->index())) {
+    os() << " = ";
+    Print(op->value);
+  } else {
+    CodeGenC::Visit(op);
+  }
+}
+
 }  // namespace backends
 }  // namespace cinn

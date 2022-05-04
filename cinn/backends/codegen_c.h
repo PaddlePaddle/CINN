@@ -64,6 +64,8 @@ class CodeGenC : public ir::IrPrinter {
 
   void GenerateHeaderFile(const ir::Module& module);
 
+  std::string GetTypeName(Type type);
+
   std::string GetTypeRepr(Type type);
   //! type cast, print like "int(x)"
   // @{
