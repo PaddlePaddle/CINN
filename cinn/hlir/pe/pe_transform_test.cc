@@ -264,6 +264,7 @@ TEST(Reduce, Reduce_Test_0) {
 #endif
 }
 
+#ifdef CINN_WITH_CUDA
 void CudaReduceReorder(poly::StageMap stages, ir::Tensor input, const std::vector<int> &axes) {
   auto &shape = input->shape;
   std::vector<int> order;
@@ -312,7 +313,6 @@ TEST(Reduce, Reduce_Test_1) {
   auto func = Lower("fn", stages, {A, B, D});
   LOG(INFO) << "func:\n" << func;
 
-#ifdef CINN_WITH_CUDA
   auto target = common::DefaultNVGPUTarget();
   Module::Builder builder("Concat_Builder", target);
   builder.AddFunction(func);
@@ -330,7 +330,6 @@ TEST(Reduce, Reduce_Test_1) {
   backends::NVRTC_Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
-#endif
 }
 
 TEST(Reduce, Reduce_Test_2) {
@@ -349,7 +348,6 @@ TEST(Reduce, Reduce_Test_2) {
   auto func = Lower("fn", stages, {A, reduce_out[0]});
   LOG(INFO) << "func:\n" << func;
 
-#ifdef CINN_WITH_CUDA
   auto target = common::DefaultNVGPUTarget();
   Module::Builder builder("Concat_Builder", target);
   builder.AddFunction(func);
@@ -367,7 +365,6 @@ TEST(Reduce, Reduce_Test_2) {
   backends::NVRTC_Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
-#endif
 }
 
 TEST(Reduce, Reduce_Test_2_1) {
@@ -386,7 +383,6 @@ TEST(Reduce, Reduce_Test_2_1) {
   auto func = Lower("fn", stages, {A, reduce_out[0]});
   LOG(INFO) << "func:\n" << func;
 
-#ifdef CINN_WITH_CUDA
   auto target = common::DefaultNVGPUTarget();
   Module::Builder builder("Concat_Builder", target);
   builder.AddFunction(func);
@@ -404,7 +400,6 @@ TEST(Reduce, Reduce_Test_2_1) {
   backends::NVRTC_Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
-#endif
 }
 
 TEST(Reduce, Reduce_Test_2_2) {
@@ -423,7 +418,6 @@ TEST(Reduce, Reduce_Test_2_2) {
   auto func = Lower("fn", stages, {A, reduce_out[0]});
   LOG(INFO) << "func:\n" << func;
 
-#ifdef CINN_WITH_CUDA
   auto target = common::DefaultNVGPUTarget();
   Module::Builder builder("Concat_Builder", target);
   builder.AddFunction(func);
@@ -441,7 +435,6 @@ TEST(Reduce, Reduce_Test_2_2) {
   backends::NVRTC_Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
-#endif
 }
 
 TEST(Reduce, Reduce_Test_2_3) {
@@ -460,7 +453,6 @@ TEST(Reduce, Reduce_Test_2_3) {
   auto func = Lower("fn", stages, {A, reduce_out[0]});
   LOG(INFO) << "func:\n" << func;
 
-#ifdef CINN_WITH_CUDA
   auto target = common::DefaultNVGPUTarget();
   Module::Builder builder("Concat_Builder", target);
   builder.AddFunction(func);
@@ -478,7 +470,6 @@ TEST(Reduce, Reduce_Test_2_3) {
   backends::NVRTC_Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
-#endif
 }
 
 TEST(Reduce, Reduce_Test_3) {
@@ -497,7 +488,6 @@ TEST(Reduce, Reduce_Test_3) {
   auto func = Lower("fn", stages, {A, reduce_out[0]});
   LOG(INFO) << "func:\n" << func;
 
-#ifdef CINN_WITH_CUDA
   auto target = common::DefaultNVGPUTarget();
   Module::Builder builder("Concat_Builder", target);
   builder.AddFunction(func);
@@ -515,7 +505,6 @@ TEST(Reduce, Reduce_Test_3) {
   backends::NVRTC_Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
-#endif
 }
 
 TEST(Reduce, Reduce_Test_3_1) {
@@ -534,7 +523,6 @@ TEST(Reduce, Reduce_Test_3_1) {
   auto func = Lower("fn", stages, {A, reduce_out[0]});
   LOG(INFO) << "func:\n" << func;
 
-#ifdef CINN_WITH_CUDA
   auto target = common::DefaultNVGPUTarget();
   Module::Builder builder("Concat_Builder", target);
   builder.AddFunction(func);
@@ -552,7 +540,6 @@ TEST(Reduce, Reduce_Test_3_1) {
   backends::NVRTC_Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
-#endif
 }
 
 TEST(Reduce, Reduce_Test_3_2) {
@@ -572,7 +559,6 @@ TEST(Reduce, Reduce_Test_3_2) {
   auto func = Lower("fn", stages, {A, reduce_out[0]});
   LOG(INFO) << "func:\n" << func;
 
-#ifdef CINN_WITH_CUDA
   auto target = common::DefaultNVGPUTarget();
   Module::Builder builder("Concat_Builder", target);
   builder.AddFunction(func);
@@ -590,7 +576,6 @@ TEST(Reduce, Reduce_Test_3_2) {
   backends::NVRTC_Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
-#endif
 }
 
 TEST(Reduce, Reduce_Test_4) {
@@ -610,7 +595,6 @@ TEST(Reduce, Reduce_Test_4) {
   auto func = Lower("fn", stages, {A, reduce_out[0]});
   LOG(INFO) << "func:\n" << func;
 
-#ifdef CINN_WITH_CUDA
   auto target = common::DefaultNVGPUTarget();
   Module::Builder builder("Concat_Builder", target);
   builder.AddFunction(func);
@@ -628,7 +612,6 @@ TEST(Reduce, Reduce_Test_4) {
   backends::NVRTC_Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
-#endif
 }
 
 TEST(Reduce, Reduce_Test_5) {
@@ -647,7 +630,6 @@ TEST(Reduce, Reduce_Test_5) {
   auto func = Lower("fn", stages, {A, reduce_out[0]});
   LOG(INFO) << "func:\n" << func;
 
-#ifdef CINN_WITH_CUDA
   auto target = common::DefaultNVGPUTarget();
   Module::Builder builder("Concat_Builder", target);
   builder.AddFunction(func);
@@ -665,7 +647,6 @@ TEST(Reduce, Reduce_Test_5) {
   backends::NVRTC_Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
-#endif
 }
 
 TEST(Reduce, Reduce_Test_6) {
@@ -684,7 +665,6 @@ TEST(Reduce, Reduce_Test_6) {
   auto func = Lower("fn", stages, {A, reduce_out[0]});
   LOG(INFO) << "func:\n" << func;
 
-#ifdef CINN_WITH_CUDA
   auto target = common::DefaultNVGPUTarget();
   Module::Builder builder("Concat_Builder", target);
   builder.AddFunction(func);
@@ -702,7 +682,6 @@ TEST(Reduce, Reduce_Test_6) {
   backends::NVRTC_Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
-#endif
 }
 
 TEST(Reduce, Reduce_Test_7) {
@@ -722,7 +701,6 @@ TEST(Reduce, Reduce_Test_7) {
   auto func = Lower("fn", stages, {A, reduce_out[0]});
   LOG(INFO) << "func:\n" << func;
 
-#ifdef CINN_WITH_CUDA
   auto target = common::DefaultNVGPUTarget();
   Module::Builder builder("Concat_Builder", target);
   builder.AddFunction(func);
@@ -740,7 +718,6 @@ TEST(Reduce, Reduce_Test_7) {
   backends::NVRTC_Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
-#endif
 }
 
 TEST(Reduce, Reduce_Test_8) {
@@ -760,7 +737,6 @@ TEST(Reduce, Reduce_Test_8) {
   auto func = Lower("fn", stages, {A, reduce_out[0]});
   LOG(INFO) << "func:\n" << func;
 
-#ifdef CINN_WITH_CUDA
   auto target = common::DefaultNVGPUTarget();
   Module::Builder builder("Concat_Builder", target);
   builder.AddFunction(func);
@@ -778,7 +754,6 @@ TEST(Reduce, Reduce_Test_8) {
   backends::NVRTC_Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
-#endif
 }
 
 TEST(Reduce, Reduce_Test_9) {
@@ -798,7 +773,6 @@ TEST(Reduce, Reduce_Test_9) {
   auto func = Lower("fn", stages, {A, reduce_out[0]});
   LOG(INFO) << "func:\n" << func;
 
-#ifdef CINN_WITH_CUDA
   auto target = common::DefaultNVGPUTarget();
   Module::Builder builder("Concat_Builder", target);
   builder.AddFunction(func);
@@ -816,7 +790,6 @@ TEST(Reduce, Reduce_Test_9) {
   backends::NVRTC_Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
-#endif
 }
 
 TEST(Reduce, Reduce_Test_10) {
@@ -845,7 +818,6 @@ TEST(Reduce, Reduce_Test_10) {
   auto func = Lower("fn", stages, {A, B, reduce_out[0]});
   LOG(INFO) << "func:\n" << func;
 
-#ifdef CINN_WITH_CUDA
   auto target = common::DefaultNVGPUTarget();
   Module::Builder builder("Concat_Builder", target);
   builder.AddFunction(func);
@@ -863,7 +835,6 @@ TEST(Reduce, Reduce_Test_10) {
   backends::NVRTC_Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
-#endif
 }
 
 TEST(Reduce, Reduce_Test_11) {
@@ -880,7 +851,6 @@ TEST(Reduce, Reduce_Test_11) {
   auto func = Lower("fn", stages, {A, reduce_out[0]});
   LOG(INFO) << "func:\n" << func;
 
-#ifdef CINN_WITH_CUDA
   auto target = common::DefaultNVGPUTarget();
   Module::Builder builder("Concat_Builder", target);
   builder.AddFunction(func);
@@ -898,7 +868,6 @@ TEST(Reduce, Reduce_Test_11) {
   backends::NVRTC_Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
-#endif
 }
 
 TEST(Reduce, Reduce_Test_12) {
@@ -915,7 +884,6 @@ TEST(Reduce, Reduce_Test_12) {
   auto func = Lower("fn", stages, {A, reduce_out[0]});
   LOG(INFO) << "func:\n" << func;
 
-#ifdef CINN_WITH_CUDA
   auto target = common::DefaultNVGPUTarget();
   Module::Builder builder("Concat_Builder", target);
   builder.AddFunction(func);
@@ -933,7 +901,6 @@ TEST(Reduce, Reduce_Test_12) {
   backends::NVRTC_Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
-#endif
 }
 
 TEST(Reduce, Reduce_Test_13) {
@@ -950,7 +917,6 @@ TEST(Reduce, Reduce_Test_13) {
   auto func = Lower("fn", stages, {A, reduce_out[0]});
   LOG(INFO) << "func:\n" << func;
 
-#ifdef CINN_WITH_CUDA
   auto target = common::DefaultNVGPUTarget();
   Module::Builder builder("Concat_Builder", target);
   builder.AddFunction(func);
@@ -968,8 +934,8 @@ TEST(Reduce, Reduce_Test_13) {
   backends::NVRTC_Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
-#endif
 }
+#endif
 
 }  // namespace pe
 }  // namespace hlir
