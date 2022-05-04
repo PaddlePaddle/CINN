@@ -326,7 +326,8 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const Node* node) {
   for (int i = 0; i < C->size() - 1; i++) {
     ir::Expr temp = C[i];
     // checkout whether the tensor is with buffer.
-    if (!temp.as_tensor_ref()->buffer.defined() || this->target_ != common::DefaultNVGPUTarget()) {
+    if ((!temp.as_tensor_ref()->buffer.defined() || this->target_ != common::DefaultNVGPUTarget()) &&
+        !stages[temp.as_tensor_ref()]->inlined()) {
       inputs.push_back(temp.as_tensor_ref());
     }
   }
@@ -498,7 +499,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
   // args order: inputs + final output + fetch outputs + other no_fused outputs
   for (auto& tensor : outputs) {
     // checkout the tensor is with buffer.
-    if (!tensor->buffer.defined() || this->target_ != common::DefaultNVGPUTarget()) {
+    if ((!tensor->buffer.defined() || this->target_ != common::DefaultNVGPUTarget()) && !stages[tensor]->inlined()) {
       inputs.push_back(tensor);
     }
   }
@@ -1276,7 +1277,8 @@ std::vector<ir::LoweredFunc> GraphCompiler::NodeToLoweredFunc(const hlir::framew
   for (int i = 0; i < C->size() - 1; ++i) {
     ir::Expr temp = C[i];
     // checkout whether the tensor is with buffer.
-    if (!temp.as_tensor_ref()->buffer.defined() || this->target_ != common::DefaultNVGPUTarget()) {
+    if ((!temp.as_tensor_ref()->buffer.defined() || this->target_ != common::DefaultNVGPUTarget()) &&
+        !stages[temp.as_tensor_ref()]->inlined()) {
       // inputs is reused as args of LowerVec, so we add output Tensor here.
       inputs.push_back(temp.as_tensor_ref());
     }
