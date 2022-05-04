@@ -35,17 +35,26 @@ using framework::OpStrategy;
 using framework::shape_t;
 using framework::StrategyFunction;
 
-using ReduceFunc = std::function<std::vector<ir::Tensor>(
+using BlockReduceFunc = std::function<std::vector<ir::Tensor>(
     const ir::Tensor &, const std::vector<int> &, const bool, const std::string &)>;
+using ReduceFunc =
+    std::function<ir::Tensor(const ir::Tensor &, const std::vector<int> &, const bool, const std::string &)>;
 
-#define StrategyForReduction(op_name_, reduce_op_, block_reduce_func_, block_shuffle_func_)                  \
-  std::shared_ptr<OpStrategy> StrategyFor##reduce_op_(const framework::NodeAttr &attrs,                      \
-                                                      const std::vector<ir::Tensor> &inputs,                 \
-                                                      const std::vector<Type> &out_type,                     \
-                                                      const std::vector<std::vector<int>> &output_shapes,    \
-                                                      const Target &target) {                                \
-    return StrategyForReduce(                                                                                \
-        attrs, inputs, out_type, output_shapes, target, #op_name_, block_reduce_func_, block_shuffle_func_); \
+#define StrategyForReduction(op_name_, reduce_op_, block_reduce_func_, block_shuffle_func_, reduce_func_) \
+  std::shared_ptr<OpStrategy> StrategyFor##reduce_op_(const framework::NodeAttr &attrs,                   \
+                                                      const std::vector<ir::Tensor> &inputs,              \
+                                                      const std::vector<Type> &out_type,                  \
+                                                      const std::vector<std::vector<int>> &output_shapes, \
+                                                      const Target &target) {                             \
+    return StrategyForReduce(attrs,                                                                       \
+                             inputs,                                                                      \
+                             out_type,                                                                    \
+                             output_shapes,                                                               \
+                             target,                                                                      \
+                             #op_name_,                                                                   \
+                             block_reduce_func_,                                                          \
+                             block_shuffle_func_,                                                         \
+                             reduce_func_);                                                               \
   }
 
 std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
@@ -54,8 +63,9 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
                                               const std::vector<std::vector<int>> &output_shapes,
                                               const Target &target,
                                               const std::string &op_name,
-                                              ReduceFunc block_reduce_func,
-                                              ReduceFunc block_shuffle_func) {
+                                              BlockReduceFunc block_reduce_func,
+                                              BlockReduceFunc block_shuffle_func,
+                                              ReduceFunc reduce_func) {
   std::vector<int> reduce_axes;
   if (attrs.attr_store.count("dim")) {
     reduce_axes = absl::get<std::vector<int>>(attrs.attr_store.at("dim"));
@@ -106,27 +116,36 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
     Expr x_expr = a[0];
     CHECK(x_expr.as_tensor());
     ir::Tensor x = x_expr.as_tensor_ref();
-    if (target == common::DefaultNVGPUTarget() && !WithoutLastDimInReduce(inputs[0]->shape, reduce_axes)) {
-      VLOG(3) << "Do Two Step Block Reduce Compute!";
-      auto res    = block_reduce_func(x, reduce_axes, keep_dim, UniqName(op_name + "_out"));
-      auto stages = CreateStages(res);
+    if (target == common::DefaultNVGPUTarget()) {
+      if (!WithoutLastDimInReduce(inputs[0]->shape, reduce_axes)) {
+        VLOG(3) << "Do Two Step Block Reduce Compute!";
+        auto res    = block_reduce_func(x, reduce_axes, keep_dim, UniqName(op_name + "_out"));
+        auto stages = CreateStages(res);
 
-      std::vector<CINNValue> cinn_values;
-      for (auto &t : res) {
-        cinn_values.emplace_back(t);
+        std::vector<CINNValue> cinn_values;
+        for (auto &t : res) {
+          cinn_values.emplace_back(t);
+        }
+        cinn_values.emplace_back(stages);
+        *ret = CINNValuePack{cinn_values};
+      } else {
+        VLOG(3) << "Do Block Shuffle Reduce Compute!";
+        auto res    = block_shuffle_func(x, reduce_axes, keep_dim, UniqName(op_name + "_out"));
+        auto stages = CreateStages(res);
+
+        std::vector<CINNValue> cinn_values;
+        for (auto &t : res) {
+          cinn_values.emplace_back(t);
+        }
+        cinn_values.emplace_back(stages);
+        *ret = CINNValuePack{cinn_values};
       }
-      cinn_values.emplace_back(stages);
-      *ret = CINNValuePack{cinn_values};
     } else {
-      VLOG(3) << "Do Block Shuffle Reduce Compute!";
-      auto res    = block_shuffle_func(x, reduce_axes, keep_dim, UniqName(op_name + "_out"));
-      auto stages = CreateStages(res);
+      VLOG(3) << "Do Reduce Compute!";
+      auto out    = reduce_func(x, reduce_axes, keep_dim, UniqName(op_name + "_out"));
+      auto stages = CreateStages({out});
 
-      std::vector<CINNValue> cinn_values;
-      for (auto &t : res) {
-        cinn_values.emplace_back(t);
-      }
-      cinn_values.emplace_back(stages);
+      std::vector<CINNValue> cinn_values{CINNValue(out), CINNValue(stages)};
       *ret = CINNValuePack{cinn_values};
     }
   });
@@ -274,10 +293,10 @@ std::vector<std::vector<std::string>> InferLayoutForBnOptimize(const std::vector
   return {{"", ""}, {"", ""}};
 }
 
-StrategyForReduction(reduce_sum, ReduceSum, pe::TwoStepBlockReduceSum, pe::BlockShuffleReduceSum);
-StrategyForReduction(reduce_prod, ReduceProd, pe::TwoStepBlockReduceProd, pe::BlockShuffleReduceProd);
-StrategyForReduction(reduce_max, ReduceMax, pe::TwoStepBlockReduceMax, pe::BlockShuffleReduceMax);
-StrategyForReduction(reduce_min, ReduceMin, pe::TwoStepBlockReduceMin, pe::BlockShuffleReduceMin);
+StrategyForReduction(reduce_sum, ReduceSum, pe::TwoStepBlockReduceSum, pe::BlockShuffleReduceSum, pe::ReduceSum);
+StrategyForReduction(reduce_prod, ReduceProd, pe::TwoStepBlockReduceProd, pe::BlockShuffleReduceProd, pe::ReduceProd);
+StrategyForReduction(reduce_max, ReduceMax, pe::TwoStepBlockReduceMax, pe::BlockShuffleReduceMax, pe::ReduceMax);
+StrategyForReduction(reduce_min, ReduceMin, pe::TwoStepBlockReduceMin, pe::BlockShuffleReduceMin, pe::ReduceMin);
 
 #undef StrategyForReduction
 
