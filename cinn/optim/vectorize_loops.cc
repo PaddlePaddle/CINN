@@ -159,7 +159,7 @@ class CudaVectorizer : public IRMutator<Expr *> {
   }
 
  private:
-  void TensorVectorized(const ir::LoadStoreAddrMnger *node, std::vector<Expr> *indices) {
+  void TensorVectorized(ir::LoadStoreAddrMnger *node, std::vector<Expr> *indices) {
     auto *tensor = node->tensor.As<ir::_Tensor_>();
     CHECK(tensor);
     if (tensor_excluder_.Contain(tensor->name)) {
