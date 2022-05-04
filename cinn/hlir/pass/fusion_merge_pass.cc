@@ -635,24 +635,42 @@ class FusionMergePassHelper : public FusionHelperBase {
       int max_loop_timme  = max_num_threads >> 2;  // set max loop times as 256.
       // if without last dimension in reduce.
       if (WithoutLastDimInReduce(input_shape, reduce_axes)) {
-        int parallel_threads = 1;
-        int last_reduce_axis = input_shape[reduce_axes.back()];
-        for (int idx = 0; idx < reduce_axes.size() - 1; ++idx) {
-          loop_times *= input_shape[reduce_axes[idx]];
+        int index = reduce_axes.size() - 1;
+        for (; index > 0;) {
+          if (reduce_axes[index] - 1 == reduce_axes[index - 1]) {
+            --index;
+            continue;
+          }
+          break;
         }
+        int parallel_threads = 1;
         for (int idx = reduce_axes.back() + 1; idx < input_shape.size(); ++idx) {
           parallel_threads *= input_shape[reduce_axes[idx]];
         }
-        if (parallel_threads <= max_num_threads / 2) {
-          for (int idx = max_num_threads / parallel_threads; idx > (max_num_threads / 2) / parallel_threads; --idx) {
-            if (last_reduce_axis % idx == 0) {
-              loop_times *= (last_reduce_axis / idx);
-              check_bound = false;
-            }
+
+        std::vector<int> tmp_axes;
+        for (int idx = reduce_axes.size() - 1; idx > index; --idx) {
+          if (parallel_threads * input_shape[reduce_axes[idx]] > max_num_threads) {
+            tmp_axes = {reduce_axes.begin(), reduce_axes.begin() + idx + 1};
+            break;
           }
-        } else {
-          loop_times *= last_reduce_axis;
-          check_bound = false;
+          parallel_threads *= input_shape[reduce_axes[idx]];
+        }
+
+        if (tmp_axes.size() == 0) {
+          tmp_axes = {reduce_axes.begin(), reduce_axes.begin() + index + 1};
+        }
+
+        for (int idx = 0; idx < tmp_axes.size() - 1; ++idx) {
+          loop_times *= input_shape[tmp_axes[idx]];
+        }
+
+        int last_stride = input_shape[tmp_axes.back()];
+        for (int idx = max_num_threads / parallel_threads; idx > (max_num_threads / 2) / parallel_threads; --idx) {
+          if (last_stride % idx == 0) {
+            loop_times *= (last_stride / idx);
+            check_bound = false;
+          }
         }
       } else {
         int parallel_threads = input_shape[reduce_axes.back()];

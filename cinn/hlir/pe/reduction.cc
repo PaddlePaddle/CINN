@@ -453,12 +453,44 @@ int GetParallelThreads(const ir::Tensor& A, const std::vector<int>& axes) {
   return parallel_threads;
 }
 
-ir::Tensor ReshapeInternal(const ir::Tensor& A, const std::vector<int>& axes, const std::string& output_name) {
-  bool check_bound     = true;
-  int last_stride      = A->shape[axes.back()].as_int32();
+using ReduceFunc =
+    std::function<ir::Tensor(const ir::Tensor&, const std::vector<int>&, const bool, const std::string&)>;
+
+std::vector<ir::Tensor> ReduceInternal(const ir::Tensor& A,
+                                       const std::vector<int>& axes,
+                                       const bool keep_dim,
+                                       const std::string& output_name,
+                                       ReduceFunc reduce_func) {
+  int index = axes.size() - 1;
+  for (; index > 0;) {
+    if (axes[index] - 1 == axes[index - 1]) {
+      --index;
+      continue;
+    }
+    break;
+  }
+
+  std::vector<int> tmp_axes;
   int parallel_threads = GetParallelThreads(A, axes);
   int max_num_threads  = common::DefaultNVGPUTarget().max_num_threads();
-  std::vector<Expr> out_shape(A->shape.begin(), A->shape.begin() + axes.back());
+  for (int idx = axes.size() - 1; idx > index; --idx) {
+    if (parallel_threads * A->shape[axes[idx]].as_int32() > max_num_threads) {
+      tmp_axes = {axes.begin(), axes.begin() + idx + 1};
+      break;
+    }
+    parallel_threads *= A->shape[axes[idx]].as_int32();
+  }
+
+  if (tmp_axes.size() == 0) {
+    tmp_axes = {axes.begin(), axes.begin() + index + 1};
+  }
+
+  bool check_bound = true;
+  std::vector<Expr> out_shape(A->shape.begin(), A->shape.begin() + tmp_axes.back());
+  for (int idx = 0; idx < axes.back() - out_shape.size(); ++idx) {
+    out_shape.emplace_back(1);
+  }
+  int last_stride = A->shape[tmp_axes.back()].as_int32();
   for (int idx = max_num_threads / parallel_threads; idx > ((max_num_threads / 2) / parallel_threads); --idx) {
     if (last_stride % idx == 0) {
       out_shape.emplace_back(last_stride / idx);
@@ -467,29 +499,29 @@ ir::Tensor ReshapeInternal(const ir::Tensor& A, const std::vector<int>& axes, co
       break;
     }
   }
-
   if (check_bound) {
     int times = max_num_threads / parallel_threads;
     out_shape.emplace_back((last_stride + times - 1) / times);
     out_shape.emplace_back(times * parallel_threads);
   }
 
-  std::vector<int> tail_strides(A->shape.size() - axes.back(), 1);
+  std::vector<int> tail_strides(A->shape.size() - tmp_axes.back(), 1);
   for (int idx = tail_strides.size() - 2, index = A->shape.size() - 1; idx >= 0; --idx, --index) {
     tail_strides[idx] = tail_strides[idx + 1] * A->shape[index].as_int32();
   }
 
   int tail_elements = 1;
-  for (int idx = axes.back(); idx < A->shape.size(); ++idx) {
+  for (int idx = tmp_axes.back(); idx < A->shape.size(); ++idx) {
     tail_elements *= A->shape[idx].as_int32();
   }
+
   auto out = Compute(
       out_shape,
       [=](const std::vector<Expr>& indexs) -> Expr {
         Expr index    = indexs[out_shape.size() - 2] * out_shape.back() + indexs.back();
         auto selected = ir::LT::Make(index, Expr(tail_elements));
 
-        std::vector<Expr> tmp_indexs(indexs.begin(), indexs.begin() + axes.back());
+        std::vector<Expr> tmp_indexs(indexs.begin(), indexs.begin() + tmp_axes.back());
         // last and the second of last.
         for (auto tail_stride : tail_strides) {
           tmp_indexs.push_back(index / Expr(tail_stride));
@@ -503,8 +535,8 @@ ir::Tensor ReshapeInternal(const ir::Tensor& A, const std::vector<int>& axes, co
           return A(tmp_indexs);
         }
       },
-      UniqName(output_name));
-  return out;
+      UniqName(output_name + "_reshape"));
+  return {reduce_func(out, tmp_axes, keep_dim, output_name + "_internal"), out};
 }
 
 ir::Tensor BlockShuffleReduce(const ir::Tensor& A,
@@ -528,25 +560,24 @@ ir::Tensor BlockShuffleReduce(const ir::Tensor& A,
   return out;
 }
 
-#define BlockShuffleReduce(name, reduce_type, init_val)                                                         \
+#define BlockShuffleReduce(name, reduce_func, reduce_type)                                                      \
   std::vector<ir::Tensor> BlockShuffleReduce##name(                                                             \
       const ir::Tensor& A, const std::vector<int>& axes, const bool keep_dim, const std::string& output_name) { \
     if (GetParallelThreads(A, axes) > common::DefaultNVGPUTarget().max_num_threads() / 2) {                     \
       return {Reduce##name(A, axes, keep_dim, output_name)};                                                    \
     } else {                                                                                                    \
-      auto reduce_reshape  = ReshapeInternal(A, axes, output_name + "_reshape");                                \
-      auto reduce_internal = Reduce##name(reduce_reshape, axes, keep_dim, output_name + "_internal");           \
-      reduce_internal->WithBuffer("shared");                                                                    \
+      auto res = ReduceInternal(A, axes, keep_dim, output_name, reduce_func);                                   \
       std::vector<Expr> tail(A->shape.begin() + axes.back() + 1, A->shape.end());                               \
-      auto reduce_out = BlockShuffleReduce(reduce_internal, tail, reduce_type, output_name);                    \
-      return {reduce_out, reduce_internal, reduce_reshape};                                                     \
+      res[0]->WithBuffer("shared");                                                                             \
+      auto reduce_out = BlockShuffleReduce(res[0], tail, reduce_type, output_name);                             \
+      return {reduce_out, res[0], res[1]};                                                                      \
     }                                                                                                           \
   }
 
-BlockShuffleReduce(Sum, "block_shuffle_sum", 0.0f);
-BlockShuffleReduce(Prod, "block_shuffle_prod", 1.0f);
-BlockShuffleReduce(Max, "block_shuffle_max", -3.402823e+38f);
-BlockShuffleReduce(Min, "block_shuffle_min", 3.402823e+38f);
+BlockShuffleReduce(Sum, ReduceSum, "block_shuffle_sum");
+BlockShuffleReduce(Prod, ReduceProd, "block_shuffle_prod");
+BlockShuffleReduce(Max, ReduceMax, "block_shuffle_max");
+BlockShuffleReduce(Min, ReduceMin, "block_shuffle_min");
 
 bool WithoutLastDimInReduce(const std::vector<ir::Expr>& inshape, const std::vector<int>& axes) {
   // if last axis is in reduce.
@@ -567,8 +598,6 @@ bool WithoutLastDimInReduce(const std::vector<ir::Expr>& inshape, const std::vec
   }
 };
 
-using ReduceFunc =
-    std::function<ir::Tensor(const ir::Tensor&, const std::vector<int>&, const bool, const std::string&)>;
 using BlockReduceFunc =
     std::function<std::vector<ir::Tensor>(const ir::Tensor&, const std::vector<int>&, const bool, const std::string&)>;
 
@@ -652,32 +681,33 @@ std::vector<ir::Tensor> TwoStepBlockReduceInternal(const ir::Tensor& A,
     }
     first_axes.push_back(out_shape.size() - 2);
 
+    int tail_count = 0;
     if (keep_dim) {
       second_axes = {static_cast<int>(out_shape.size()) - 1};
       if (out_shape.size() > A->shape.size()) {
         keep_dim_second = false;
       } else {
         keep_dim_second = true;
-      }
-      int tail_count = A->shape.size() - out_shape.size();
-      for (int idx = 0; idx < tail_count; ++idx) {
-        out_shape.push_back(Expr(1));
+        tail_count      = A->shape.size() - out_shape.size();
+        for (int idx = 0; idx < tail_count; ++idx) {
+          out_shape.push_back(Expr(1));
+        }
       }
     } else {
       second_axes = {static_cast<int>(out_shape.size()) - static_cast<int>(first_axes.size()) - 1};
     }
 
-    std::vector<int> tail_strides(A->shape.size() - (out_shape.size() - 2), 1);
+    int size_without_tail = out_shape.size() - tail_count;
+    std::vector<int> tail_strides(A->shape.size() - (size_without_tail - 2), 1);
     for (int idx = static_cast<int>(tail_strides.size()) - 2, index = static_cast<int>(A->shape.size()) - 1; idx >= 0;
          --idx, --index) {
       tail_strides[idx] = tail_strides[idx + 1] * A->shape[index].as_int32();
     }
-
     auto out = Compute(
         out_shape,
         [=](const std::vector<Expr>& indexs) -> Expr {
-          Expr index = indexs.back() + indexs[indexs.size() - 2] * out_shape.back();
-          std::vector<Expr> tmp_indexs(indexs.begin(), indexs.begin() + out_shape.size() - 2);
+          Expr index = indexs[size_without_tail - 1] + indexs[size_without_tail - 2] * out_shape[size_without_tail - 1];
+          std::vector<Expr> tmp_indexs(indexs.begin(), indexs.begin() + size_without_tail - 2);
           // last and the second of last.
           auto selected = ir::LT::Make(index, Expr(lane));
           for (auto tail_stride : tail_strides) {
