@@ -102,17 +102,19 @@ std::string CodeGenC::GetTypeName(Type type) {
   GET_SCALAR_TYPE(type.is_float(32), "float")
   GET_SCALAR_TYPE(type.is_float(64), "double")
 #undef GET_SCALAR_TYPE
+
   // customized_type
   if (type.is_customized_type()) {
     CHECK(!type.customized_type().empty()) << "customized_type can't be empty.";
     auto customized_name = type.customized_type();
+    // get name of a cuda built-in vector type, it is started with a 'CudaVectorType::' prefix
     if (utils::Startswith(customized_name, common::customized_type::kcuda_builtin_vector_t)) {
       customized_name.erase(0, strlen(common::customized_type::kcuda_builtin_vector_t));
     }
     return customized_name;
   }
 
-  // others are not implementd yet
+  // other types are not implementd yet
   CINN_NOT_IMPLEMENTED
   return "";
 }

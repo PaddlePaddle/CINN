@@ -313,17 +313,20 @@ void CodeGenCUDA_Dev::Visit(const ir::Call *op) {
 bool CodeGenCUDA_Dev::PrintBuiltinVectorAccess(const ir::LoadStoreAddrMnger *op, ir::Expr index_expr) {
   static constexpr char index2suffix[4] = {'x', 'y', 'z', 'w'};
 
+  // op should be a place of tensor and the index is simple int number
   if (!op->is_addr_tensor() || !index_expr.As<ir::IntImm>()) {
     return false;
   }
   auto *tensor = op->tensor.As<ir::_Tensor_>();
   CHECK(tensor);
   auto dtype = tensor->type();
+  // dtype of tensor shoule be a cuda built-in vector type
   if (!dtype.is_customized() ||
       !utils::Startswith(dtype.customized_type(), common::customized_type::kcuda_builtin_vector_t)) {
     return false;
   }
 
+  // the index can't exceed the range of the built-in type
   int index = index_expr.As<ir::IntImm>()->value;
   if (index < 0 || index >= dtype.lanes()) {
     return false;
@@ -334,12 +337,16 @@ bool CodeGenCUDA_Dev::PrintBuiltinVectorAccess(const ir::LoadStoreAddrMnger *op,
 }
 
 void CodeGenCUDA_Dev::Visit(const ir::Load *op) {
+  // overload this visit function to especially deal with the case when it accesses
+  // element at a cuda built-in vector, others still reslove to CodeGenC
   if (!PrintBuiltinVectorAccess(op, op->index())) {
     CodeGenC::Visit(op);
   }
 }
 
 void CodeGenCUDA_Dev::Visit(const ir::Store *op) {
+  // overload this visit function to especially deal with the case when it accesses
+  // element at a cuda built-in vector, others still reslove to CodeGenC
   if (PrintBuiltinVectorAccess(op, op->index())) {
     os() << " = ";
     Print(op->value);
