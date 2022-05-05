@@ -32,7 +32,7 @@ namespace lang {
 using ir::Tensor;
 using poly::Stage;
 
-std::vector<ir::Argument> GetArgs(ir::LoweredFunc& lowered_func, const std::vector<ir::Tensor>& input_args) {
+std::vector<ir::Argument> GetArgs(const Expr& func_body, const std::vector<ir::Tensor>& input_args) {
   std::vector<ir::Argument> res;
   std::set<std::string> arg_name;
   for (auto& i : input_args) {
@@ -41,7 +41,7 @@ std::vector<ir::Argument> GetArgs(ir::LoweredFunc& lowered_func, const std::vect
     arg_name.insert(i->buffer->name);
     res.emplace_back(i->buffer, ir::Argument::IO::kInput);
   }
-  auto all_output_tensors = ir::CollectIRNodesWithoutTensor(lowered_func->body, [&](const Expr* x) {
+  auto all_output_tensors = ir::CollectIRNodesWithoutTensor(func_body, [&](const Expr* x) {
     return x->As<ir::Store>() && x->As<ir::Store>()->tensor.as_tensor() &&
            x->As<ir::Store>()->tensor.as_tensor_ref()->buffer.defined() &&
            x->As<ir::Store>()->tensor.as_tensor_ref()->buffer->memory_type != ir::MemoryType::GPUShared &&
