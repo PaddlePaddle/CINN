@@ -40,6 +40,12 @@ void InferShapePass(Graph* graph) {
       Operator::GetAttrs<std::function<std::vector<Type>(const std::vector<Type>&, const framework::AttrMapType&)>>(
           "inferdtype");
 
+  auto product = [](const framework::shape_t& shape) {
+    framework::dim_t numel = 1;
+    std::for_each(shape.begin(), shape.end(), [&numel](framework::dim_t dim) { numel *= dim; });
+    return numel;
+  };
+
   for (auto& n : store_nodes) {
     auto node = n->safe_as<Node>();
     if (node) {
@@ -52,6 +58,10 @@ void InferShapePass(Graph* graph) {
         CHECK(dtype_dict.count(source_node->id())) << "No dtype for " << source_node->id();
         inputs_shape.push_back(shape_dict[source_node->id()]);
         inputs_dtype.push_back(dtype_dict[source_node->id()]);
+
+        CHECK(product(inputs_shape.back()))
+            << node->id() << " 's Input Node " << source_node->id() << "[" << utils::Join(inputs_shape.back(), ",")
+            << "]'s size should not zero ! Please check.";
       }
 
       auto out_shape =
@@ -76,6 +86,11 @@ void InferShapePass(Graph* graph) {
         VLOG(3) << "Infershape: " << sink_node->id() << " " << utils::Join(out_shape[counter], ",");
         shape_dict[sink_node->id()] = out_shape[counter];
         dtype_dict[sink_node->id()] = out_dtype[counter];
+
+        CHECK(product(out_shape[counter]))
+            << node->id() << " 's Output Node " << sink_node->id() << "[" << utils::Join(out_shape[counter], ",")
+            << "]'s size should not zero ! Please check.";
+
         counter++;
       }
     }

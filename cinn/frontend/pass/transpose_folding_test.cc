@@ -306,4 +306,65 @@ TEST(TransposeFolding, TransposeOutUsedByOtherInstrs) {
   }
 }
 
+TEST(TransposeFolding, TransposeTwiceWithMatmul) {
+  CinnBuilder builder("cinn_builder");
+  auto x = builder.CreateInput(Float(32), {2, 20}, "X");
+  auto y = builder.CreateInput(Float(32), {10201, 20}, "Y");
+  auto z = builder.CreateInput(Float(32), {10201, 2}, "Z");
+
+  auto x_t     = builder.Transpose(x, {1, 0});
+  auto x_t_t   = builder.Transpose(x_t, {1, 0});
+  auto dot1    = builder.Dot(y, x_t);
+  auto dot2    = builder.Dot(z, x_t_t);
+  auto program = builder.Build();
+
+  auto target = GetTarget();
+  auto graph  = std::make_shared<hlir::framework::Graph>(program, target);
+  auto scope  = hlir::framework::BuildScope(target, graph);
+
+  scope->Var<hlir::framework::Tensor>("X");
+  scope->Var<hlir::framework::Tensor>("Y");
+  scope->Var<hlir::framework::Tensor>("Z");
+  SetRandData(scope->GetTensor("X"), target);
+  SetRandData(scope->GetTensor("Y"), target);
+  SetRandData(scope->GetTensor("Z"), target);
+
+  size_t origin_size = program.size();
+  VLOG(1) << "Program:\n" << program;
+  // The origin Program should be：
+  // Program {
+  // var_51 = transpose(X, axis=[1,0])
+  // var_52 = transpose(var_51, axis=[1,0])
+  // var_53 = matmul(Y, var_51)
+  // var_54 = matmul(Z, var_52)
+  // }
+  RunWithProgram(program, target, scope);
+  auto origin_out1 = GetTensorData(scope->GetTensor(dot1->id), target);
+  auto origin_out2 = GetTensorData(scope->GetTensor(dot2->id), target);
+
+  ProgramPass::Apply(&program, {}, target, {"TransposeFolding"});
+  size_t folded_size = program.size();
+  VLOG(1) << "Program:\n" << program;
+  // The program after transpose folding pass should be:
+  // Program {
+  // var_51 = transpose(X, axis=[1,0])
+  // var_53 = matmul(Y, X, trans_b=true)
+  // var_54 = matmul(Z, var_51, trans_b=true)
+  // }
+  // the transpose of x->x_t should retain
+  RunWithProgram(program, target, scope);
+  auto folded_out1 = GetTensorData(scope->GetTensor(dot1->id), target);
+  auto folded_out2 = GetTensorData(scope->GetTensor(dot2->id), target);
+
+  ASSERT_EQ(origin_size - 1, folded_size);
+  ASSERT_EQ(origin_out1.size(), folded_out1.size());
+  for (size_t i = 0; i < origin_out1.size(); ++i) {
+    ASSERT_FLOAT_EQ(origin_out1[i], folded_out1[i]);
+  }
+  ASSERT_EQ(origin_out2.size(), folded_out2.size());
+  for (size_t i = 0; i < origin_out2.size(); ++i) {
+    ASSERT_FLOAT_EQ(origin_out2[i], folded_out2[i]);
+  }
+}
+
 }  // namespace cinn::frontend
