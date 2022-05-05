@@ -14,6 +14,7 @@
 
 #include "cinn/auto_schedule/auto_tuner.h"
 
+#include <glog/logging.h>
 #include <gtest/gtest.h>
 
 #include <iostream>
@@ -22,6 +23,7 @@
 #include "cinn/frontend/net_builder.h"
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/graph_compiler.h"
+#include "cinn/ir/ir_base.h"
 
 namespace cinn {
 namespace auto_schedule {
@@ -34,8 +36,11 @@ using ::cinn::hlir::framework::Scope;
 
 class TestAutoTuner : public ::testing::Test {
  public:
-  // TODO(CtfGo): add test on GPU once the bug of thread.idx not bound is fixed
+#ifdef CINN_WITH_CUDA
+  Target target = common::DefaultNVGPUTarget();
+#else
   Target target = common::DefaultHostTarget();
+#endif
 
   std::shared_ptr<Graph> graph;
   std::shared_ptr<Scope> compiled_scope;
@@ -76,7 +81,9 @@ class TestAutoTuner : public ::testing::Test {
     compile_options.Apply(result);
     ASSERT_EQ(2, compile_options.groups.size());
     ASSERT_EQ(2, compile_options.lowered_funcs.size());
-
+    VLOG(6) << "Print lowered_funcs before building";
+    VLOG(6) << compile_options.lowered_funcs[0][0];
+    VLOG(6) << compile_options.lowered_funcs[1][0];
     auto runtime_program = graph_compiler->Build(compile_options).runtime_program;
     ASSERT_EQ(2, runtime_program->size());
     runtime_program->Execute();

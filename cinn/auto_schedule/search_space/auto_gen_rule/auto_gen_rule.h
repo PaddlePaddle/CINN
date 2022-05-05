@@ -16,6 +16,7 @@
 
 #include <string>
 
+#include "cinn/common/target.h"
 #include "cinn/ir/ir_schedule.h"
 
 namespace cinn {
@@ -41,7 +42,7 @@ enum class RuleApplyType : int {
  */
 class AutoGenRule {
  public:
-  AutoGenRule()  = default;
+  AutoGenRule(const common::Target& target);
   ~AutoGenRule() = default;
 
   // Initailize the AutoGenRule, it must be called before further actions.
@@ -64,9 +65,15 @@ class AutoGenRule {
   // Returns the name of the rule, used for debug.
   virtual std::string GetRuleName() const = 0;
 
+  // Returns a pointer pointing to the rule. This class doesn't own the
+  // pointer, caller should manage the life time of the pointer.
+  virtual AutoGenRule* NewPointer() const = 0;
+
  protected:
   // number of ScheduleBlock that can apply this auto gen rule
   int num_applicable_ = -1;
+  // Target, not owned.
+  const common::Target* target_;
 };
 
 }  // namespace auto_schedule

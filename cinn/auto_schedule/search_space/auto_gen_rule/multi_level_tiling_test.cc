@@ -36,6 +36,49 @@
 namespace cinn {
 namespace auto_schedule {
 
+TEST(MultiLevelTile, SampleSplitTwo) {
+  srand(0);
+  Context::Global().ResetNameId();
+#ifdef CINN_WITH_CUDA
+  Target target = common::DefaultNVGPUTarget();
+#else
+  Target target = common::DefaultHostTarget();
+#endif
+
+  MultiLevelTiling multi_level_tiling(target);
+
+  for (int i = 0; i < 100; ++i) {
+    size_t number_to_split    = rand() % 65535 + 2;  // random number in [2, 2^16]
+    std::vector<size_t> split = multi_level_tiling.SampleSplitTwo<size_t>(number_to_split);
+    EXPECT_EQ(split.size(), 2UL);
+    EXPECT_EQ(split[0] * split[1], number_to_split);
+  }
+}
+
+TEST(MultiLevelTile, SampleTileSplit) {
+  srand(0);
+  Context::Global().ResetNameId();
+#ifdef CINN_WITH_CUDA
+  Target target = common::DefaultNVGPUTarget();
+#else
+  Target target = common::DefaultHostTarget();
+#endif
+
+  MultiLevelTiling multi_level_tiling(target);
+
+  for (int i = 0; i < 100; ++i) {
+    int number_to_split    = rand() % 65535 + 2;  // random number in [2, 2^16]
+    int split_size         = rand() % 5 + 1;      // random in [1, 5]
+    std::vector<int> split = multi_level_tiling.SampleTileSplit<int>(number_to_split, split_size);
+    EXPECT_EQ(split.size(), static_cast<size_t>(split_size));
+    int product = 1;
+    for (int num : split) {
+      product *= num;
+    }
+    EXPECT_EQ(product, number_to_split);
+  }
+}
+
 TEST(MultiLevelTile, SimpleLoops) {
   srand(0);
   Context::Global().ResetNameId();
@@ -62,7 +105,7 @@ TEST(MultiLevelTile, SimpleLoops) {
   VLOG(6) << "Expr before MultiLevelTiling: ";
   VLOG(6) << ast_expr;
 
-  MultiLevelTiling multi_level_tiling;
+  MultiLevelTiling multi_level_tiling(target);
   ir::ModuleExpr mod_expr_before_tile(std::vector<ir::Expr>{ast_expr});
   EXPECT_EQ(multi_level_tiling.Init(mod_expr_before_tile), RuleApplyType::kApplyAndSkipThisRule);
 
@@ -74,34 +117,8 @@ TEST(MultiLevelTile, SimpleLoops) {
   std::stringstream ss;
   ss << exprs[0];
 
-  std::string expr_str   = ss.str();
-  std::string target_str = R"ROC(
-{
-  ScheduleBlock(root)
-  {
-    for (i_0, 0, 16)
-    {
-      for (i_1, 0, 2)
-      {
-        for (j_0, 0, 32)
-        {
-          for (j_1, 0, 4)
-          {
-            ScheduleBlock(C)
-            {
-              i0, i1 = axis.bind(((2 * i_0) + i_1), ((4 * j_0) + j_1))
-              read_buffers(_A[], _B[])
-              write_buffers(_C[])
-              C[i0, i1] = (A[i0] + B[i1])
-            }
-          }
-        }
-      }
-    }
-  }
-}
-)ROC";
-  EXPECT_EQ(utils::Trim(target_str), utils::Trim(expr_str));
+  std::string expr_str = ss.str();
+  VLOG(6) << expr_str;
 }
 
 TEST(MulitLevelTile, MatrixMultiply) {
@@ -132,7 +149,7 @@ TEST(MulitLevelTile, MatrixMultiply) {
   VLOG(6) << "Expr before MultiLevelTiling: ";
   VLOG(6) << ast_expr;
 
-  MultiLevelTiling multi_level_tiling;
+  MultiLevelTiling multi_level_tiling(target);
   ir::ModuleExpr mod_expr_before_tile(std::vector<ir::Expr>{ast_expr});
   EXPECT_EQ(multi_level_tiling.Init(mod_expr_before_tile), RuleApplyType::kApplyAndSkipThisRule);
 
@@ -145,47 +162,8 @@ TEST(MulitLevelTile, MatrixMultiply) {
   std::stringstream ss;
   ss << exprs[0];
 
-  std::string expr_str   = ss.str();
-  std::string target_str = R"ROC(
-{
-  ScheduleBlock(root)
-  {
-    for (i_0, 0, 2)
-    {
-      for (i_1, 0, 16)
-      {
-        for (j_0, 0, 16)
-        {
-          for (j_1, 0, 2)
-          {
-            ScheduleBlock(C__reduce_init)
-            {
-              i0, i1 = axis.bind(((16 * i_0) + i_1), ((2 * j_0) + j_1))
-              write_buffers(_C[])
-              C__reduce_init[i0, i1] = 0
-            }
-            for (reduce_axis_k_0, 0, 16)
-            {
-              for (reduce_axis_k_1, 0, 2)
-              {
-                ScheduleBlock(C)
-                {
-                  i0, i1, i2 = axis.bind(((16 * i_0) + i_1), ((2 * j_0) + j_1), ((2 * reduce_axis_k_0) + reduce_axis_k_1))
-                  read_buffers(_A[], _B[], _C[])
-                  write_buffers(_C[])
-                  C[i0, i1] = (C[i0, i1] + (A[i0, i2] * B[i2, i1]))
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-}
-)ROC";
-
-  EXPECT_EQ(utils::Trim(target_str), utils::Trim(expr_str));
+  std::string expr_str = ss.str();
+  VLOG(6) << expr_str;
 }
 
 }  // namespace auto_schedule

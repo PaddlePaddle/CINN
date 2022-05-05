@@ -20,6 +20,7 @@
 
 #include "cinn/auto_schedule/measure/measure.h"
 #include "cinn/auto_schedule/search_strategy/evolutionary_search.h"
+#include "cinn/optim/ir_copy.h"
 
 namespace cinn {
 namespace auto_schedule {
@@ -47,19 +48,24 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
   }
 
   if (options.num_measure_trials == 0) {
-    std::vector<ir::ModuleExpr> mod_exprs = evolutionary_search_->SearchModuleExprEpsGreedy(options);
-    VLOG(4) << "TaskOptimizer run EvolutionarySearch with return size = " << mod_exprs.size();
+    std::vector<SearchState> states = evolutionary_search_->SearchModuleExprEpsGreedy(options);
+    VLOG(4) << "TaskOptimizer run EvolutionarySearch with return size = " << states.size();
     TuningResult::OptimizedComputeExpr result;
     // TODO(zhhsplendid): current a task only contains one Op or one Fused Op,
     // so we can take only first std::vector<ir::LoweredFunc>. Support the
     // TuneContext.lowered_funcs to be std::vector<std::vector<ir::LoweredFunc>>
     // in the future.
-    result.lowered_funcs.push_back(task_->tune_context().lowered_funcs);
-    std::vector<ir::Expr> best_exprs = mod_exprs[0].GetExprs();
+
+    result.lowered_funcs.emplace_back(optim::IRCopy(task_->tune_context().lowered_funcs));
+
+    std::vector<ir::Expr> best_exprs = states[0].mod_expr.GetExprs();
     CHECK_EQ(best_exprs.size(), result.lowered_funcs[0].size())
         << "RuntimeError: Expr size is not equal to LoweredFunc size in TaskOptimizer";
     for (size_t i = 0; i < best_exprs.size(); ++i) {
       result.lowered_funcs[0][i]->body = best_exprs[i];
+      if (task_->tune_context().target == common::DefaultNVGPUTarget()) {
+        result.lowered_funcs[0][i]->PrepareCudaAxisInfoFromBody();
+      }
     }
     return result;
   }
@@ -67,26 +73,29 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
   int measured_count   = 0;
   double min_exec_time = std::numeric_limits<double>().max();
   TuningResult::OptimizedComputeExpr result;
-  result.lowered_funcs.push_back(task_->tune_context().lowered_funcs);
+  result.lowered_funcs.push_back(optim::IRCopy(task_->tune_context().lowered_funcs));
 
   while (measured_count < options.num_measure_trials) {
-    std::vector<ir::ModuleExpr> mod_exprs = evolutionary_search_->SearchModuleExprEpsGreedy(options);
-    VLOG(4) << "TaskOptimizer run EvolutionarySearch with return size = " << mod_exprs.size();
-    std::vector<MeasureInput> measure_inputs(mod_exprs.size());
-    for (size_t i = 0; i < mod_exprs.size(); ++i) {
+    std::vector<SearchState> states = evolutionary_search_->SearchModuleExprEpsGreedy(options);
+    VLOG(4) << "TaskOptimizer run EvolutionarySearch with return size = " << states.size();
+    std::vector<MeasureInput> measure_inputs(states.size());
+    for (size_t i = 0; i < states.size(); ++i) {
       measure_inputs[i].task           = task_;
-      std::vector<ir::Expr> best_exprs = mod_exprs[i].GetExprs();
+      std::vector<ir::Expr> best_exprs = states[i].mod_expr.GetExprs();
       CHECK_EQ(best_exprs.size(), task_->tune_context().lowered_funcs.size())
           << "RuntimeError: Expr size is not equal to LoweredFunc size in TaskOptimizer";
 
-      measure_inputs[i].lowered_funcs.emplace_back(task_->tune_context().lowered_funcs);
+      measure_inputs[i].lowered_funcs.emplace_back(optim::IRCopy(task_->tune_context().lowered_funcs));
       for (size_t j = 0; j < best_exprs.size(); ++j) {
         measure_inputs[i].lowered_funcs.front().at(j)->body = best_exprs[j];
+        if (task_->tune_context().target == common::DefaultNVGPUTarget()) {
+          measure_inputs[i].lowered_funcs.front().at(j)->PrepareCudaAxisInfoFromBody();
+        }
       }
     }
     std::vector<MeasureResult> measure_outputs = schedule_measurer_->Measure(measure_inputs);
-    CHECK_EQ(measure_outputs.size(), mod_exprs.size())
-        << "ScheduleMeasurer didn't output same number of MeasureOutput of mod_exprs in TaskOptimizer";
+    CHECK_EQ(measure_outputs.size(), states.size())
+        << "ScheduleMeasurer didn't output same number of MeasureOutput of states in TaskOptimizer";
 
     // TODO(zhhsplendid): write measure record into cache.
 
@@ -97,7 +106,7 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
       }
     }
 
-    measured_count += mod_exprs.size();
+    measured_count += states.size();
   }
   return result;
 }

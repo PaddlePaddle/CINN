@@ -73,6 +73,33 @@ void _LoweredFunc_::CheckValid() const {
 std::vector<Expr*> _LoweredFunc_::expr_fields() { return {&body}; }
 std::vector<const Expr*> _LoweredFunc_::expr_fields() const { return {&body}; }
 
+void _LoweredFunc_::PrepareCudaAxisInfoFromBody() {
+  std::set<Expr> bound_for_exprs = ir::CollectIRNodes(body, [](const Expr* expr) {
+    const ir::For* for_expr = expr->As<ir::For>();
+    return for_expr != nullptr && for_expr->is_binded();
+  });
+
+  if (bound_for_exprs.empty()) {
+    device_api = ir::DeviceAPI::GPU;
+    cuda_axis_info.set_grid_dim(0, 1);
+    cuda_axis_info.set_block_dim(0, 1);
+    cuda_axis_info.set_valid(true);
+    return;
+  }
+
+  // bound_for_exprs.empty() is false
+  for (const Expr& expr : bound_for_exprs) {
+    const ir::For* for_expr = expr.As<ir::For>();
+    if (for_expr->for_type() == ir::ForType::GPUBlock) {
+      cuda_axis_info.set_grid_dim(for_expr->bind_info().offset, for_expr->extent.as_int32());
+    } else if (for_expr->for_type() == ir::ForType::GPUThread) {
+      cuda_axis_info.set_block_dim(for_expr->bind_info().offset, for_expr->extent.as_int32());
+    }
+  }
+  device_api = ir::DeviceAPI::GPU;
+  cuda_axis_info.set_valid(true);
+}
+
 void _LoweredFunc_::PrepareAllocOutputBufferExprs() {
   CHECK(alloc_output_buffer_exprs.empty()) << "duplicate prepare the allocate buffer for outputs";
 
