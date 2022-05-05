@@ -19,8 +19,10 @@
 
 #include "cinn/common/target.h"
 #include "cinn/hlir/framework/graph.h"
+#include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/instruction.h"
 #include "cinn/hlir/framework/op_strategy.h"
+#include "cinn/ir/ir_schedule.h"
 #include "cinn/ir/lowered_func.h"
 #include "cinn/lang/packed_func.h"
 
@@ -37,12 +39,13 @@ using GroupPtr = std::shared_ptr<Graph::Group>;
 using common::Target;
 
 class OpLowerer;
-typedef void (OpLowerer::*ComputeFunction)(poly::StageMap&,
-                                           std::vector<ir::Tensor>&,
-                                           std::unordered_map<std::string, ir::Tensor>&,
-                                           const GroupPtr&,
-                                           const GroupPtr&);
-typedef void (OpLowerer::*ScheduleFunction)(poly::StageMap&,
+typedef ir::IRSchedule (OpLowerer::*ComputeFunction)(poly::StageMap&,
+                                                     std::vector<ir::Tensor>&,
+                                                     std::unordered_map<std::string, ir::Tensor>&,
+                                                     const GroupPtr&,
+                                                     const GroupPtr&);
+typedef void (OpLowerer::*ScheduleFunction)(ir::IRSchedule& ir_sch,
+                                            poly::StageMap&,
                                             std::unordered_map<std::string, ir::Tensor>&,
                                             const GroupPtr&,
                                             const GroupPtr&);
@@ -58,15 +61,16 @@ class OpLowerer {
   std::vector<ir::LoweredFunc> LowerOp(ComputeFunction, ScheduleFunction, GroupPtr&);
   std::vector<ir::LoweredFunc> LowerOpaqueOp(GroupPtr&);
 
-#define DEFINE_COMPUTE_SCHDULE(type)                                           \
-  void type##Compute(poly::StageMap& stages,                                   \
-                     std::vector<ir::Tensor>& func_args,                       \
-                     std::unordered_map<std::string, ir::Tensor>& tensor_map,  \
-                     const GroupPtr& group,                                    \
-                     const GroupPtr& sub_group);                               \
-  void type##Schedule(poly::StageMap& stages,                                  \
-                      std::unordered_map<std::string, ir::Tensor>& tensor_map, \
-                      const GroupPtr& group,                                   \
+#define DEFINE_COMPUTE_SCHDULE(type)                                                    \
+  ir::IRSchedule type##Compute(poly::StageMap& stages,                                  \
+                               std::vector<ir::Tensor>& func_args,                      \
+                               std::unordered_map<std::string, ir::Tensor>& tensor_map, \
+                               const GroupPtr& group,                                   \
+                               const GroupPtr& sub_group);                              \
+  void type##Schedule(ir::IRSchedule& ir_sch,                                           \
+                      poly::StageMap& stages,                                           \
+                      std::unordered_map<std::string, ir::Tensor>& tensor_map,          \
+                      const GroupPtr& group,                                            \
                       const GroupPtr& sub_group);
 
   // compute and schedule

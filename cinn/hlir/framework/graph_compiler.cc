@@ -367,7 +367,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const Node* node) {
   VLOG(3) << "expr_pack.size() is : " << expr_pack.size();
   std::vector<ir::LoweredFunc> res;
   for (int i = 0; i < expr_pack.size(); i++) {
-    auto new_args      = lang::GetArgs(func[i], input_args);
+    auto new_args      = lang::GetArgs(func[i]->body, input_args);
     func[i]->args      = new_args;
     auto temp_buffers  = lang::GetTempBuffers(inputs_arg, stages, func[i]->body);
     func[i]->temp_bufs = temp_buffers;

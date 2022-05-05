@@ -56,9 +56,11 @@ std::shared_ptr<OpStrategy> StrategyForBroadcast(
   framework::CINNCompute binary_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of " << op_name << " compute is empty! Please check.";
     CINNValuePack a = args[0];
-    CHECK_GE(a.size(), 2U) << "at least 2 input tensors for " << op_name << " compute";
-    Expr A_expr = a[0];
-    Expr B_expr = a[1];
+    CHECK_GE(a.size(), 3U) << "at least 3 input tensors for " << op_name << " compute";
+    Expr A_expr               = a[0];
+    Expr B_expr               = a[1];
+    const char *out_name_char = a[2];
+    std::string out_name      = out_name_char;
     CHECK(A_expr.as_tensor());
     CHECK(B_expr.as_tensor());
     ir::Tensor A = A_expr.as_tensor_ref();
@@ -71,7 +73,7 @@ std::shared_ptr<OpStrategy> StrategyForBroadcast(
         break;
       }
     }
-    auto out    = pe_func(A, B, UniqName(op_name + "_Out"), axis);
+    auto out    = pe_func(A, B, out_name, axis);
     auto stages = CreateStages({A, B, out});
     *ret        = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
   });
@@ -184,10 +186,13 @@ std::shared_ptr<OpStrategy> StrategyForBroadcastTo(const framework::NodeAttr &at
     CHECK(!args.empty()) << "The input argument of broadcast_to compute is empty! Please check.";
     CINNValuePack a = args[0];
     CHECK(!a.empty()) << "The input tensors of broadcast_to compute is empty! Please check.";
-    Expr A_expr = a[0];
+    CHECK_GE(a.size(), 2U) << "at least 2 input tensors for broadcast_to compute";
+    Expr A_expr               = a[0];
+    const char *out_name_char = a[1];
+    std::string out_name      = out_name_char;
     CHECK(A_expr.as_tensor());
     ir::Tensor A = A_expr.as_tensor_ref();
-    auto out     = pe::BroadcastTo(A, out_shape, broadcast_axes, UniqName("broadcast_to_Out"));
+    auto out     = pe::BroadcastTo(A, out_shape, broadcast_axes, out_name);
     auto stages  = CreateStages({A, out});
     *ret         = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
   });
