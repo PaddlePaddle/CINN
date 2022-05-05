@@ -658,7 +658,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
 
       OpLowerer op_lowerer(dtype_dict, shape_dict, target_);
       for (auto& group : graph_->fusion_groups) {
-        LOG(INFO) << group->group_id;
+        VLOG(3) << group->group_id;
         groups.push_back(std::move(group->CollectNodes()));
         // set node as output node from fetch_var_ids.
         for (auto node : groups.back()) {

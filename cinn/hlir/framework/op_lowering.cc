@@ -199,16 +199,16 @@ void OpLowerer::ElementwiseCompute(poly::StageMap& stages,
     auto impl =
         OpStrategy::SelectImpl(strategy[node->op()](node->attrs, tensor_inputs, out_types, out_shapes, this->target_));
     // do compute
-    common::CINNValuePack C = impl->fcompute(common::CINNValuePack{cinn_inputs});
+    common::CINNValuePack value_pack = impl->fcompute(common::CINNValuePack{cinn_inputs});
 
     if (group->master_nodes.count(node)) {
       // do shedule
-      C = impl->fschedule(C);
+      value_pack = impl->fschedule(value_pack);
     }
 
-    CHECK(C.size() == 2);
-    Expr out                  = C[0];
-    poly::StageMap tmp_stages = C.back();
+    CHECK(value_pack.size() == 2);
+    Expr out                  = value_pack[0];
+    poly::StageMap tmp_stages = value_pack.back();
 
     tensor_map[node_data->id()] = out.as_tensor_ref();
     stages->InsertLazily(out.as_tensor_ref(), tmp_stages[out.as_tensor_ref()]);
@@ -279,17 +279,18 @@ void OpLowerer::ReduceCompute(poly::StageMap& stages,
     auto impl =
         OpStrategy::SelectImpl(cinn_strategy[node->op()](node->attrs, tensor_inputs, out_types, out_shapes, target_));
     // do compute
-    common::CINNValuePack C = impl->fcompute(common::CINNValuePack{cinn_inputs});
+    common::CINNValuePack value_pack = impl->fcompute(common::CINNValuePack{cinn_inputs});
 
-    CHECK(C.size() == 2 || C.size() == 3 || C.size() == 4 || C.size() == 5);
-    Expr out                  = C[0];
-    poly::StageMap tmp_stages = C.back();
+    CHECK_GE(value_pack.size(), 2UL);
+    CHECK_LE(value_pack.size(), 5UL);
+    Expr out                  = value_pack[0];
+    poly::StageMap tmp_stages = value_pack.back();
 
     // node is kCommReduce
     if (op_pattern_dict[node->op()] == framework::kCommReduce) {
       reducer = node;
       // do schedule
-      C = impl->fschedule(C);
+      value_pack = impl->fschedule(value_pack);
     } else if (group->master_nodes.count(node)) {
       // node is master node, copy schedule from reduce node
       if (reducer) {
@@ -309,8 +310,8 @@ void OpLowerer::ReduceCompute(poly::StageMap& stages,
     }
 
     std::string post = "";
-    for (int idx = 0; idx < C.size() - 1; ++idx) {
-      Expr expr = C[idx];
+    for (int idx = 0; idx < value_pack.size() - 1; ++idx) {
+      Expr expr = value_pack[idx];
       stages->InsertLazily(expr.as_tensor_ref(), tmp_stages[expr.as_tensor_ref()]);
       tensor_map[node_data->id() + post] = expr.as_tensor_ref();
       post                               = "_" + std::to_string(idx);
@@ -407,7 +408,7 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
       }
     }
   }
-  CHECK(master_reducer) << "Don't find Master reducer!";
+  CHECK(master_reducer) << "Can't find Master reducer!";
 
   auto master_reducer_data  = GetNodeData(master_reducer);
   auto master_reducer_stage = stages[tensor_map[master_reducer_data->id()]];
@@ -689,15 +690,15 @@ void OpLowerer::OutEWiseFusableCompute(poly::StageMap& stages,
     auto impl =
         OpStrategy::SelectImpl(cinn_strategy[node->op()](node->attrs, tensor_inputs, out_types, out_shapes, target_));
     // do compute
-    common::CINNValuePack C = impl->fcompute(common::CINNValuePack{cinn_inputs});
+    common::CINNValuePack value_pack = impl->fcompute(common::CINNValuePack{cinn_inputs});
 
-    CHECK_GE(C.size(), 2);
-    ir::Expr out              = C[0];
-    poly::StageMap tmp_stages = C.back();
+    CHECK_GE(value_pack.size(), 2);
+    ir::Expr out              = value_pack[0];
+    poly::StageMap tmp_stages = value_pack.back();
     // node is kCommReduce
     if (op_pattern_dict[node->op()] == framework::kOutEWiseFusable) {
       // do schedule
-      C = impl->fschedule(C);
+      value_pack = impl->fschedule(value_pack);
     } else if (group->master_nodes.count(node)) {
       // node is master node, copy schedule from OutEWiseFusable node
       for (auto fnode : group->master_nodes) {
@@ -711,8 +712,8 @@ void OpLowerer::OutEWiseFusableCompute(poly::StageMap& stages,
     }
 
     std::string postfix = "";
-    for (auto idx = 0; idx < C.size() - 1; ++idx) {
-      ir::Expr out                          = C[idx];
+    for (auto idx = 0; idx < value_pack.size() - 1; ++idx) {
+      ir::Expr out                          = value_pack[idx];
       tensor_map[node_data->id() + postfix] = out.as_tensor_ref();
       stages->InsertLazily(out.as_tensor_ref(), tmp_stages[out.as_tensor_ref()]);
       // update postfix
@@ -827,19 +828,19 @@ std::vector<ir::LoweredFunc> OpLowerer::LowerOpaqueOp(GroupPtr& group) {
   auto impl =
       OpStrategy::SelectImpl(cinn_strategy[node->op()](node->attrs, tensor_inputs, out_types, out_shapes, target_));
   // do compute
-  common::CINNValuePack C = impl->fcompute(common::CINNValuePack{cinn_inputs});
+  common::CINNValuePack value_pack = impl->fcompute(common::CINNValuePack{cinn_inputs});
   // do schedule
-  C = impl->fschedule(C);
+  value_pack = impl->fschedule(value_pack);
 
-  CHECK(C.size() >= 2);
-  poly::StageMap stages = C.back();
+  CHECK(value_pack.size() >= 2);
+  poly::StageMap stages = value_pack.back();
   // lazily insert input tensor.
   for (auto tensor_input : tensor_inputs) {
     stages->InsertLazily(tensor_input);
   }
 
-  for (int idx = 0; idx < C.size() - 1; ++idx) {
-    Expr out    = C[idx];
+  for (int idx = 0; idx < value_pack.size() - 1; ++idx) {
+    Expr out    = value_pack[idx];
     auto tensor = out.as_tensor_ref();
     // collect output tensor
     if (!tensor->buffer.defined() || this->target_ != common::DefaultNVGPUTarget()) {

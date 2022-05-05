@@ -562,13 +562,13 @@ ir::Tensor BlockShuffleReduce(const ir::Tensor& A,
   return out;
 }
 
-#define BlockShuffleReduce(name, reduce_func, reduce_type)                                                      \
+#define BLOCK_SHUFFLE_REDUCE(name, reduce_type)                                                                 \
   std::vector<ir::Tensor> BlockShuffleReduce##name(                                                             \
       const ir::Tensor& A, const std::vector<int>& axes, const bool keep_dim, const std::string& output_name) { \
     if (GetParallelThreads(A, axes) > common::DefaultNVGPUTarget().max_num_threads() / 2) {                     \
       return {Reduce##name(A, axes, keep_dim, output_name)};                                                    \
     } else {                                                                                                    \
-      auto res = ReduceInternal(A, axes, keep_dim, output_name, reduce_func);                                   \
+      auto res = ReduceInternal(A, axes, keep_dim, output_name, Reduce##name);                                  \
       std::vector<Expr> tail(A->shape.begin() + axes.back() + 1, A->shape.end());                               \
       res[0]->WithBuffer("shared");                                                                             \
       auto reduce_out = BlockShuffleReduce(res[0], tail, reduce_type, output_name);                             \
@@ -576,10 +576,10 @@ ir::Tensor BlockShuffleReduce(const ir::Tensor& A,
     }                                                                                                           \
   }
 
-BlockShuffleReduce(Sum, ReduceSum, "block_shuffle_sum");
-BlockShuffleReduce(Prod, ReduceProd, "block_shuffle_prod");
-BlockShuffleReduce(Max, ReduceMax, "block_shuffle_max");
-BlockShuffleReduce(Min, ReduceMin, "block_shuffle_min");
+BLOCK_SHUFFLE_REDUCE(Sum, "block_shuffle_sum");
+BLOCK_SHUFFLE_REDUCE(Prod, "block_shuffle_prod");
+BLOCK_SHUFFLE_REDUCE(Max, "block_shuffle_max");
+BLOCK_SHUFFLE_REDUCE(Min, "block_shuffle_min");
 
 bool WithoutLastDimInReduce(const std::vector<ir::Expr>& inshape, const std::vector<int>& axes) {
   // if last axis is in reduce.

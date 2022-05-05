@@ -40,21 +40,22 @@ using BlockReduceFunc = std::function<std::vector<ir::Tensor>(
 using ReduceFunc =
     std::function<ir::Tensor(const ir::Tensor &, const std::vector<int> &, const bool, const std::string &)>;
 
-#define StrategyForReduction(op_name_, reduce_op_, block_reduce_func_, block_shuffle_func_, reduce_func_) \
-  std::shared_ptr<OpStrategy> StrategyFor##reduce_op_(const framework::NodeAttr &attrs,                   \
-                                                      const std::vector<ir::Tensor> &inputs,              \
-                                                      const std::vector<Type> &out_type,                  \
-                                                      const std::vector<std::vector<int>> &output_shapes, \
-                                                      const Target &target) {                             \
-    return StrategyForReduce(attrs,                                                                       \
-                             inputs,                                                                      \
-                             out_type,                                                                    \
-                             output_shapes,                                                               \
-                             target,                                                                      \
-                             #op_name_,                                                                   \
-                             block_reduce_func_,                                                          \
-                             block_shuffle_func_,                                                         \
-                             reduce_func_);                                                               \
+#define STRATEGY_FOR_REDUCE(                                                                                  \
+    op_name_, reduce_op_, gpu_reduce_with_last_axis_func, gpu_reduce_without_last_axis_func, cpu_reduce_func) \
+  std::shared_ptr<OpStrategy> StrategyFor##reduce_op_(const framework::NodeAttr &attrs,                       \
+                                                      const std::vector<ir::Tensor> &inputs,                  \
+                                                      const std::vector<Type> &out_type,                      \
+                                                      const std::vector<std::vector<int>> &output_shapes,     \
+                                                      const Target &target) {                                 \
+    return StrategyForReduce(attrs,                                                                           \
+                             inputs,                                                                          \
+                             out_type,                                                                        \
+                             output_shapes,                                                                   \
+                             target,                                                                          \
+                             #op_name_,                                                                       \
+                             gpu_reduce_with_last_axis_func,                                                  \
+                             gpu_reduce_without_last_axis_func,                                               \
+                             cpu_reduce_func);                                                                \
   }
 
 std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
@@ -63,9 +64,9 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
                                               const std::vector<std::vector<int>> &output_shapes,
                                               const Target &target,
                                               const std::string &op_name,
-                                              BlockReduceFunc block_reduce_func,
-                                              BlockReduceFunc block_shuffle_func,
-                                              ReduceFunc reduce_func) {
+                                              BlockReduceFunc gpu_reduce_with_last_axis_func,
+                                              BlockReduceFunc gpu_reduce_without_last_axis_func,
+                                              ReduceFunc cpu_reduce_func) {
   std::vector<int> reduce_axes;
   if (attrs.attr_store.count("dim")) {
     reduce_axes = absl::get<std::vector<int>>(attrs.attr_store.at("dim"));
@@ -119,7 +120,7 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
     if (target == common::DefaultNVGPUTarget()) {
       if (!WithoutLastDimInReduce(inputs[0]->shape, reduce_axes)) {
         VLOG(3) << "Do Two Step Block Reduce Compute!";
-        auto res    = block_reduce_func(x, reduce_axes, keep_dim, UniqName(op_name + "_out"));
+        auto res    = gpu_reduce_with_last_axis_func(x, reduce_axes, keep_dim, UniqName(op_name + "_out"));
         auto stages = CreateStages(res);
 
         std::vector<CINNValue> cinn_values;
@@ -130,7 +131,7 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
         *ret = CINNValuePack{cinn_values};
       } else {
         VLOG(3) << "Do Block Shuffle Reduce Compute!";
-        auto res    = block_shuffle_func(x, reduce_axes, keep_dim, UniqName(op_name + "_out"));
+        auto res    = gpu_reduce_without_last_axis_func(x, reduce_axes, keep_dim, UniqName(op_name + "_out"));
         auto stages = CreateStages(res);
 
         std::vector<CINNValue> cinn_values;
@@ -142,7 +143,7 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
       }
     } else {
       VLOG(3) << "Do Reduce Compute!";
-      auto out    = reduce_func(x, reduce_axes, keep_dim, UniqName(op_name + "_out"));
+      auto out    = cpu_reduce_func(x, reduce_axes, keep_dim, UniqName(op_name + "_out"));
       auto stages = CreateStages({out});
 
       std::vector<CINNValue> cinn_values{CINNValue(out), CINNValue(stages)};
@@ -153,7 +154,8 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
   framework::CINNSchedule reduction_schedule([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of " << op_name << " schedule is empty! Please check.";
     CINNValuePack arg_pack = args[0];
-    CHECK(arg_pack.size() == 2UL || arg_pack.size() == 3UL || arg_pack.size() == 4UL || arg_pack.size() == 5UL);
+    CHECK_GE(arg_pack.size(), 2UL);
+    CHECK_LE(arg_pack.size(), 5UL);
     if (target.arch == Target::Arch::NVGPU) {
       if (!WithoutLastDimInReduce(inputs[0]->shape, reduce_axes)) {
         if (arg_pack.size() == 3) {
@@ -293,12 +295,12 @@ std::vector<std::vector<std::string>> InferLayoutForBnOptimize(const std::vector
   return {{"", ""}, {"", ""}};
 }
 
-StrategyForReduction(reduce_sum, ReduceSum, pe::TwoStepBlockReduceSum, pe::BlockShuffleReduceSum, pe::ReduceSum);
-StrategyForReduction(reduce_prod, ReduceProd, pe::TwoStepBlockReduceProd, pe::BlockShuffleReduceProd, pe::ReduceProd);
-StrategyForReduction(reduce_max, ReduceMax, pe::TwoStepBlockReduceMax, pe::BlockShuffleReduceMax, pe::ReduceMax);
-StrategyForReduction(reduce_min, ReduceMin, pe::TwoStepBlockReduceMin, pe::BlockShuffleReduceMin, pe::ReduceMin);
+STRATEGY_FOR_REDUCE(reduce_sum, ReduceSum, pe::TwoStepBlockReduceSum, pe::BlockShuffleReduceSum, pe::ReduceSum);
+STRATEGY_FOR_REDUCE(reduce_prod, ReduceProd, pe::TwoStepBlockReduceProd, pe::BlockShuffleReduceProd, pe::ReduceProd);
+STRATEGY_FOR_REDUCE(reduce_max, ReduceMax, pe::TwoStepBlockReduceMax, pe::BlockShuffleReduceMax, pe::ReduceMax);
+STRATEGY_FOR_REDUCE(reduce_min, ReduceMin, pe::TwoStepBlockReduceMin, pe::BlockShuffleReduceMin, pe::ReduceMin);
 
-#undef StrategyForReduction
+#undef STRATEGY_FOR_REDUCE
 
 }  // namespace op
 }  // namespace hlir
