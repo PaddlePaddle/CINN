@@ -33,18 +33,22 @@ class DeadCodeEliminatePass : public ProgramPass {
  protected:
   void ApplyImpl(Program* program,
                  const std::unordered_set<std::string>& fetch_ids,
-                 const common::Target& target) const override {
-    CinnBuilder builder("dce_builder");
+                 const common::Target& target) override {
+    if (!CheckFetchIds(*program, fetch_ids)) {
+      return;
+    }
+
+    CinnBuilder builder("dead_code_eliminate_builder");
     for (auto& var : program->GetInputs()) {
       builder.CreateInput(var);
     }
-    absl::flat_hash_set<std::string> inputs;
-    absl::flat_hash_set<int> remove_idxs;
+    std::unordered_set<std::string> inputs;
+    std::unordered_set<int> remove_idxs;
     for (int i = program->size() - 1; i >= 0; --i) {
       const auto& instr = (*program)[i];
       bool can_remove   = true;
       for (const auto& out : instr->outputs) {
-        if (inputs.end() != inputs.find(out->id) || fetch_ids.end() != fetch_ids.find(out->id)) {
+        if (inputs.count(out->id) || fetch_ids.count(out->id)) {
           can_remove = false;
           break;
         }
@@ -60,10 +64,39 @@ class DeadCodeEliminatePass : public ProgramPass {
     }
     VLOG(3) << "Total remove " << remove_idxs.size() << " instructions.";
     for (int i = 0; i < program->size(); i++) {
-      if (remove_idxs.end() != remove_idxs.find(i)) continue;
-      builder.AppendInstruction((*program)[i]);
+      if (!remove_idxs.count(i)) {
+        builder.AppendInstruction((*program)[i]);
+      }
     }
     *program = builder.Build();
+  }
+
+ private:
+  bool CheckFetchIds(const Program& program, const std::unordered_set<std::string>& fetch_ids) {
+    if (fetch_ids.empty()) {
+      // If fetch_ids is not specified, all output vars are considered as fetch vars.
+      return false;
+    }
+
+    std::unordered_set<std::string> outputs;
+    for (int i = 0; i < program.size(); i++) {
+      const auto& instr = program[i];
+      for (auto& var : instr->outputs) {
+        if (!outputs.count(var->id)) {
+          outputs.insert(var->id);
+        }
+      }
+    }
+
+    bool res = true;
+    for (auto& id : fetch_ids) {
+      if (!outputs.count(id)) {
+        LOG(WARNING) << id << " in fetch_ids is not output of any instruction in program.";
+        res = false;
+      }
+    }
+
+    return res;
   }
 };
 
