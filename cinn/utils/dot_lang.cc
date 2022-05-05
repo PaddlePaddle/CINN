@@ -29,20 +29,20 @@ void ResetDotCounters() {
   dot_cluster_counter = 0;
 }
 
-std::string Attr::repr() const {
+std::string DotAttr::repr() const {
   std::stringstream ss;
   ss << key << "=" << '"' << value << '"';
   return ss.str();
 }
 
-Node::Node(const std::string& name, const std::vector<Attr>& attrs, const std::string& cluster_id)
+DotNode::DotNode(const std::string& name, const std::vector<DotAttr>& attrs, const std::string& cluster_id)
     : name(name), attrs(attrs), cluster_id_(cluster_id) {
   std::stringstream ss;
   ss << "node_" << dot_node_counter++;
   id_ = ss.str();
 }
 
-std::string Node::repr() const {
+std::string DotNode::repr() const {
   std::stringstream ss;
   CHECK(!name.empty());
   ss << id_;
@@ -60,13 +60,13 @@ std::string Node::repr() const {
   return ss.str();
 }
 
-Cluster::Cluster(const std::string& name, const std::vector<Attr>& attrs) : name(name), attrs(attrs) {
+DotCluster::DotCluster(const std::string& name, const std::vector<DotAttr>& attrs) : name(name), attrs(attrs) {
   std::stringstream ss;
   ss << "cluster_" << dot_cluster_counter++;
   id_ = ss.str();
 }
 
-std::string Edge::repr() const {
+std::string DotEdge::repr() const {
   std::stringstream ss;
   CHECK(!source.empty());
   CHECK(!target.empty());
@@ -82,7 +82,7 @@ std::string Edge::repr() const {
 }
 
 void DotLang::AddNode(const std::string& id,
-                      const std::vector<Attr>& attrs,
+                      const std::vector<DotAttr>& attrs,
                       std::string label,
                       std::string cluster_id,
                       bool allow_duplicate) {
@@ -93,7 +93,7 @@ void DotLang::AddNode(const std::string& id,
     if (label.empty()) {
       label = id;
     }
-    nodes_.emplace(id, Node{label, attrs, cluster_id});
+    nodes_.emplace(id, DotNode{label, attrs, cluster_id});
     if (!cluster_id.empty()) {
       CHECK(clusters_.count(cluster_id)) << "Cluster '" << cluster_id << "'"
                                          << " is not existed";
@@ -102,12 +102,12 @@ void DotLang::AddNode(const std::string& id,
   }
 }
 
-void DotLang::AddCluster(const std::string& id, const std::vector<Attr>& attrs) {
+void DotLang::AddCluster(const std::string& id, const std::vector<DotAttr>& attrs) {
   CHECK(!clusters_.count(id)) << "duplicate Cluster '" << id << "'";
-  clusters_.emplace(id, Cluster{id, attrs});
+  clusters_.emplace(id, DotCluster{id, attrs});
 }
 
-void DotLang::AddEdge(const std::string& source, const std::string& target, const std::vector<Attr>& attrs) {
+void DotLang::AddEdge(const std::string& source, const std::string& target, const std::vector<DotAttr>& attrs) {
   CHECK(!source.empty());
   CHECK(!target.empty());
   CHECK(nodes_.find(source) != nodes_.end()) << "Call AddNode to add " << source << " to dot first";

@@ -24,10 +24,10 @@ namespace utils {
 
 void ResetDotCounters();
 
-struct Node;
-struct Cluster;
-struct Edge;
-struct Attr;
+struct DotNode;
+struct DotCluster;
+struct DotEdge;
+struct DotAttr;
 
 /*
  * A Dot template that helps to build a DOT graph definition.
@@ -36,7 +36,7 @@ class DotLang {
  public:
   DotLang() = default;
 
-  explicit DotLang(const std::vector<Attr>& attrs) : attrs_(attrs) {}
+  explicit DotLang(const std::vector<DotAttr>& attrs) : attrs_(attrs) {}
 
   /**
    * Add a node to the DOT graph.
@@ -45,7 +45,7 @@ class DotLang {
    * @param label Name of the node.
    */
   void AddNode(const std::string& id,
-               const std::vector<Attr>& attrs,
+               const std::vector<DotAttr>& attrs,
                std::string label      = "",
                std::string cluster_id = "",
                bool allow_duplicate   = false);
@@ -55,7 +55,7 @@ class DotLang {
    * @param id Unique ID for this subgraph.
    * @param attrs DOT attributes.
    */
-  void AddCluster(const std::string& id, const std::vector<Attr>& attrs);
+  void AddCluster(const std::string& id, const std::vector<DotAttr>& attrs);
 
   /**
    * Add an edge to the DOT graph.
@@ -63,7 +63,7 @@ class DotLang {
    * @param target The id of the sink of the edge.
    * @param attrs The attributes of the edge.
    */
-  void AddEdge(const std::string& source, const std::string& target, const std::vector<Attr>& attrs);
+  void AddEdge(const std::string& source, const std::string& target, const std::vector<DotAttr>& attrs);
 
   std::string operator()() const { return Build(); }
 
@@ -71,27 +71,27 @@ class DotLang {
   // Compile to DOT language codes.
   std::string Build() const;
 
-  std::map<std::string, Node> nodes_;
-  std::map<std::string, Cluster> clusters_;
-  std::vector<Edge> edges_;
-  std::vector<Attr> attrs_;
+  std::map<std::string, DotNode> nodes_;
+  std::map<std::string, DotCluster> clusters_;
+  std::vector<DotEdge> edges_;
+  std::vector<DotAttr> attrs_;
 };
 
-struct Attr {
+struct DotAttr {
   std::string key;
   std::string value;
 
-  Attr(const std::string& key, const std::string& value) : key(key), value(value) {}
+  DotAttr(const std::string& key, const std::string& value) : key(key), value(value) {}
 
   std::string repr() const;
 };
 
-struct Node {
+struct DotNode {
   std::string name;
-  std::vector<Attr> attrs;
+  std::vector<DotAttr> attrs;
 
-  Node() = default;
-  Node(const std::string& name, const std::vector<Attr>& attrs, const std::string& cluster_id);
+  DotNode() = default;
+  DotNode(const std::string& name, const std::vector<DotAttr>& attrs, const std::string& cluster_id);
 
   std::string id() const { return id_; }
   std::string cluster_id() const { return cluster_id_; }
@@ -103,29 +103,29 @@ struct Node {
   std::string cluster_id_;
 };
 
-struct Cluster {
+struct DotCluster {
   std::string name;
-  std::vector<Attr> attrs;
+  std::vector<DotAttr> attrs;
 
-  Cluster() = default;
-  Cluster(const std::string& name, const std::vector<Attr>& attrs);
+  DotCluster() = default;
+  DotCluster(const std::string& name, const std::vector<DotAttr>& attrs);
 
-  void Insert(Node* node) { nodes_.insert(node); }
+  void Insert(DotNode* node) { nodes_.insert(node); }
 
   std::string id() const { return id_; }
-  std::set<Node*> nodes() const { return nodes_; }
+  std::set<DotNode*> nodes() const { return nodes_; }
 
  private:
   std::string id_;
-  std::set<Node*> nodes_;  // Not owned
+  std::set<DotNode*> nodes_;  // Not owned
 };
 
-struct Edge {
+struct DotEdge {
   std::string source;
   std::string target;
-  std::vector<Attr> attrs;
+  std::vector<DotAttr> attrs;
 
-  Edge(const std::string& source, const std::string& target, const std::vector<Attr>& attrs)
+  DotEdge(const std::string& source, const std::string& target, const std::vector<DotAttr>& attrs)
       : source(source), target(target), attrs(attrs) {}
 
   std::string repr() const;

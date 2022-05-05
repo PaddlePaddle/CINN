@@ -75,7 +75,7 @@ bool MakeDirectory(const std::string& dirname) {
   return true;
 }
 
-std::string GetFilePath(const std::vector<std::vector<Node*>>& groups, int group_id) {
+std::string GetFilePathForGroup(const std::vector<std::vector<Node*>>& groups, int group_id) {
   std::string filename = "";
   for (auto* node : groups[group_id]) {
     filename += "_" + node->id();
@@ -84,15 +84,18 @@ std::string GetFilePath(const std::vector<std::vector<Node*>>& groups, int group
   int max_len                     = 50;
   std::string simplified_filename = filename;
   if (filename.size() > max_len) {
-    std::unordered_map<std::string, std::string> funcname_map = {{"const_scalar", "scalar"},
-                                                                 {"fill_constant", "fill"},
-                                                                 {"identity", "copy"},
-                                                                 {"broadcast_to", "broadcast"},
-                                                                 {"elementwise_add", "add"},
-                                                                 {"substract", "sub"},
-                                                                 {"elementwise_mul", "mul"},
-                                                                 {"divide", "div"},
-                                                                 {"reduce_sum", "reduce"}};
+    static std::unordered_map<std::string, std::string> funcname_map = {{"const_scalar", "scalar"},
+                                                                        {"fill_constant", "fill"},
+                                                                        {"identity", "copy"},
+                                                                        {"broadcast_to", "broadcast"},
+                                                                        {"elementwise_add", "add"},
+                                                                        {"substract", "sub"},
+                                                                        {"elementwise_mul", "mul"},
+                                                                        {"divide", "div"},
+                                                                        {"reduce_sum", "reduce"},
+                                                                        {"reduce_prod", "reduce"},
+                                                                        {"reduce_max", "reduce"},
+                                                                        {"reduce_min", "reduce"}};
     for (auto& item : funcname_map) {
       size_t index = 0;
       while (true) {
@@ -112,6 +115,14 @@ std::string GetFilePath(const std::vector<std::vector<Node*>>& groups, int group
   ss << std::setw(width) << std::setfill('0') << group_id;
   ss << simplified_filename.substr(0, 50) << ".dot";
   return ss.str();
+}
+
+void WriteToFile(const std::string& filepath, const std::string& content) {
+  VLOG(4) << "Write to " << filepath;
+  std::ofstream of(filepath);
+  CHECK(of.is_open()) << "Failed to open " << filepath;
+  of << content;
+  of.close();
 }
 
 std::string GenClusterId(const std::vector<Node*>& group, int group_id) {
@@ -136,26 +147,26 @@ std::string GenNodeDataLabel(const NodeData* node, const absl::flat_hash_map<std
   }
 }
 
-std::vector<utils::Attr> GetGroupOpAttrs() {
-  return std::vector<utils::Attr>{
-      utils::Attr("shape", "Mrecord"), utils::Attr("color", "#8EABFF"), utils::Attr("style", "filled")};
+std::vector<utils::DotAttr> GetGroupOpAttrs() {
+  return std::vector<utils::DotAttr>{
+      utils::DotAttr("shape", "Mrecord"), utils::DotAttr("color", "#8EABFF"), utils::DotAttr("style", "filled")};
 }
 
-std::vector<utils::Attr> GetOutlinkOpAttrs() {
-  return std::vector<utils::Attr>{
-      utils::Attr("shape", "Mrecord"), utils::Attr("color", "#ff7f00"), utils::Attr("style", "filled")};
+std::vector<utils::DotAttr> GetOutlinkOpAttrs() {
+  return std::vector<utils::DotAttr>{
+      utils::DotAttr("shape", "Mrecord"), utils::DotAttr("color", "#ff7f00"), utils::DotAttr("style", "filled")};
 }
 
-std::vector<utils::Attr> GetGroupVarAttrs() {
-  return std::vector<utils::Attr>{utils::Attr("color", "#FFDC85"), utils::Attr("style", "filled")};
+std::vector<utils::DotAttr> GetGroupVarAttrs() {
+  return std::vector<utils::DotAttr>{utils::DotAttr("color", "#FFDC85"), utils::DotAttr("style", "filled")};
 }
 
-std::vector<utils::Attr> GetFetchVarAttrs() {
-  return std::vector<utils::Attr>{
-      utils::Attr("peripheries", "2"), utils::Attr("color", "#43CD80"), utils::Attr("style", "filled")};
+std::vector<utils::DotAttr> GetFetchVarAttrs() {
+  return std::vector<utils::DotAttr>{
+      utils::DotAttr("peripheries", "2"), utils::DotAttr("color", "#43CD80"), utils::DotAttr("style", "filled")};
 }
 
-std::vector<utils::Attr> GetGroupAttrs(size_t group_size) {
+std::vector<utils::DotAttr> GetGroupAttrs(size_t group_size) {
   std::string fillcolor;
   if (group_size == 1) {
     fillcolor = "#E8E8E8";
@@ -167,8 +178,8 @@ std::vector<utils::Attr> GetGroupAttrs(size_t group_size) {
     // group_size > 10
     fillcolor = "#EEE5DE";
   }
-  std::vector<utils::Attr> attrs = {
-      utils::Attr("color", "grey"), utils::Attr("style", "filled"), utils::Attr("fillcolor", fillcolor)};
+  std::vector<utils::DotAttr> attrs = {
+      utils::DotAttr("color", "grey"), utils::DotAttr("style", "filled"), utils::DotAttr("fillcolor", fillcolor)};
   return attrs;
 }
 
@@ -177,17 +188,9 @@ void Summary(const std::vector<std::vector<Node*>>& groups) {
   std::map<std::string, size_t> single_group_detail;
   std::map<std::string, size_t> fusion_group_detail;
 
-  auto insert_to = [](const std::string& key, std::map<std::string, size_t>* res) {
-    if (res->count(key)) {
-      res->at(key) = res->at(key) + 1;
-    } else {
-      res->insert({key, 1});
-    }
-  };
-
   for (auto& group : groups) {
     size_t group_size = group.size();
-    insert_to(std::to_string(group_size), &group_summary);
+    group_summary[std::to_string(group_size)]++;
     if (group_size == 1) {
       // Like "fill_constant_1", remove the "_1" at the end of the string.
       std::string node_id = group[0]->id();
@@ -204,7 +207,7 @@ void Summary(const std::vector<std::vector<Node*>>& groups) {
       }
       if (index >= 0) {
         node_id = node_id.substr(0, index + 1);
-        insert_to(node_id, &single_group_detail);
+        single_group_detail[node_id]++;
       }
     } else {
       std::string key = "others";
@@ -214,7 +217,7 @@ void Summary(const std::vector<std::vector<Node*>>& groups) {
           break;
         }
       }
-      insert_to(key, &fusion_group_detail);
+      fusion_group_detail[key]++;
     }
   }
 
@@ -257,10 +260,7 @@ void Summary(const std::vector<std::vector<Node*>>& groups) {
   print_table(fusion_group_detail);
 
   std::string filepath = FLAGS_cinn_fusion_groups_graphviz_dir + "/summary.txt";
-  VLOG(4) << "Write to " << filepath;
-  std::ofstream of(filepath);
-  of << ss.str();
-  of.close();
+  WriteToFile(filepath, ss.str());
 }
 
 void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
@@ -282,9 +282,9 @@ void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
   auto& shape_dict = HasAttr("infershape") ? GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape")
                                            : absl::flat_hash_map<std::string, shape_t>{};
 
-  std::vector<utils::Attr> group_op_attrs  = GetGroupOpAttrs();
-  std::vector<utils::Attr> group_var_attrs = GetGroupVarAttrs();
-  std::vector<utils::Attr> fetch_var_attrs = GetFetchVarAttrs();
+  std::vector<utils::DotAttr> group_op_attrs  = GetGroupOpAttrs();
+  std::vector<utils::DotAttr> group_var_attrs = GetGroupVarAttrs();
+  std::vector<utils::DotAttr> fetch_var_attrs = GetFetchVarAttrs();
 
   utils::DotLang dot;
   utils::ResetDotCounters();
@@ -327,10 +327,7 @@ void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
   }
 
   std::string filepath = FLAGS_cinn_fusion_groups_graphviz_dir + "/grouped_graph.dot";
-  VLOG(4) << "Write to " << filepath;
-  std::ofstream of(filepath);
-  of << dot();
-  of.close();
+  WriteToFile(filepath, dot());
 
   VisualizeGroups(groups, fetch_var_ids);
 }
@@ -340,10 +337,10 @@ void Graph::VisualizeGroups(const std::vector<std::vector<Node*>>& groups,
   auto& shape_dict = HasAttr("infershape") ? GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape")
                                            : absl::flat_hash_map<std::string, shape_t>{};
 
-  std::vector<utils::Attr> group_op_attrs  = GetGroupOpAttrs();
-  std::vector<utils::Attr> group_var_attrs = GetGroupVarAttrs();
-  std::vector<utils::Attr> fetch_var_attrs = GetFetchVarAttrs();
-  std::vector<utils::Attr> out_op_attrs    = GetOutlinkOpAttrs();
+  std::vector<utils::DotAttr> group_op_attrs  = GetGroupOpAttrs();
+  std::vector<utils::DotAttr> group_var_attrs = GetGroupVarAttrs();
+  std::vector<utils::DotAttr> fetch_var_attrs = GetFetchVarAttrs();
+  std::vector<utils::DotAttr> out_op_attrs    = GetOutlinkOpAttrs();
 
   utils::ResetDotCounters();
 
@@ -406,11 +403,8 @@ void Graph::VisualizeGroups(const std::vector<std::vector<Node*>>& groups,
       }
     }
 
-    std::string filepath = GetFilePath(groups, group_id);
-    VLOG(4) << "Write to " << filepath;
-    std::ofstream of(filepath);
-    of << dot();
-    of.close();
+    std::string filepath = GetFilePathForGroup(groups, group_id);
+    WriteToFile(filepath, dot());
 
     group_id++;
   }
