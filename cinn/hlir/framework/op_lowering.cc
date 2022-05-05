@@ -327,7 +327,8 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
   VLOG(2) << "ReduceSchedule Group : " << sub_group->group_id;
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
   // assign reduce input tensor schedule, do loop transform.
-  auto OrderAssignReduce = [this, &stages](poly::Stage* stage, const std::vector<int>& axes) {
+  auto OrderAssignReduce = [this, &stages](
+                               poly::Stage* stage, const std::vector<int>& axes, const bool just_reorder = false) {
     // reorder none-last reduce axis to last.
     // like: shape = [16,16,16,16,16],axes = [1,3] -> new order = [0, 2, 4, 1, 3].
     std::vector<int> order;
@@ -342,9 +343,14 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
     }
     stage->Reorder(order);
 
+    if (just_reorder) {
+      return;
+    }
+
     // fuse others none-reduce axis.
     int last_dimension_num = n_out_dims - axes.back() - 1;
     int index              = n_out_dims - last_dimension_num - axes.size();
+
     // fuse last_dimension_num - 1 times
     for (auto idx = index; idx < index + last_dimension_num - 1; ++idx) {
       stage->Fuse(index, index + 1);
@@ -383,7 +389,7 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
       [this, OrderAssignReduce](poly::Stage* stage, const std::vector<int>& inshape, const std::vector<int>& axes) {
         int lane            = 1;
         int max_num_threads = this->target_.max_num_threads();
-        for (int idx = axes.back() + 1; idx < axes.size(); ++idx) {
+        for (int idx = axes.back() + 1; idx < inshape.size(); ++idx) {
           lane *= inshape[idx];
         }
         CHECK_LT(lane, max_num_threads / 2) << "Parallel threads must less than max_num_threads/2 on gpu!";
@@ -445,7 +451,6 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
           }
         }
         std::vector<int> first_axes(axes.begin(), axes.begin() + index + 1);
-
         if (lane > max_num_threads) {
           // last reduce axis size > 1024
           if (index == static_cast<int>(axes.size()) - 1) {
@@ -471,8 +476,14 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
               CHECK_GT(idx, (max_num_threads / 2) / tail) << "Error, it's shouldn't fuse!";
             }
           }
+          OrderAssignReduce(stage, first_axes);
+        } else {
+          int fuse_times = axes.size() - (index + 1) - 1;
+          for (int idx = 0; idx < fuse_times; ++idx) {
+            stage->Fuse(axes[index + 1], axes[index + 1] + 1);
+          }
+          OrderAssignReduce(stage, first_axes, true);
         }
-        OrderAssignReduce(stage, first_axes);
       };
 
   Node* master_node = nullptr;
@@ -571,6 +582,7 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
 
     // if node is kCommReduce
     if (op_pattern_dict[node->op()] == framework::kCommReduce) {
+      VLOG(3) << "Reduce Schedule for Reduce Type!";
       // if node is not output node, set buffer.
       if (!group->output_nodes.count(node)) {
         stage->SetBuffer("local");
@@ -623,6 +635,7 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
 
     // if node is internal node or output, try to copy schedule from fellow node
     if (group->output_nodes.count(node) || group->internal_nodes.count(node) || sub_group->internal_nodes.count(node)) {
+      VLOG(3) << "Reduce Schedule for Elementwise Type";
       // if node is not output node, set buffer.
       if (!group->output_nodes.count(node)) {
         stage->SetBuffer("local");
@@ -637,6 +650,7 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
       }
       // node is before reduce.
       if (WithoutLastDimInReduce(master_reducer_shape, master_reducer_axes)) {
+        VLOG(3) << "Reduce Schedule for WithoutLastDimInReduce";
         // if used block shuffle reduce
         if (tensor_map.count(master_reducer_data->id() + "_1")) {
           ScheduleAssignReduceWithoutLast(stage, master_reducer_shape, master_reducer_axes);
@@ -656,6 +670,7 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
           stage->SimpleComputeAt(master_reducer_stage, master_reducer_stage->n_out_dims() - 1);
         }
       } else {
+        VLOG(3) << "Reduce Schedule for WithLastDimInReduce";
         if (tensor_map.count(master_reducer_data->id() + "_1")) {
           ScheduleAssignReduceWithLast(stage, master_reducer_shape, master_reducer_axes);
           auto reducer_stage = stages[tensor_map[master_reducer_data->id() + "_1"]];
