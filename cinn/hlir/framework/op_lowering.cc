@@ -314,7 +314,8 @@ void OpLowerer::ReduceCompute(poly::StageMap& stages,
       Expr expr = value_pack[idx];
       stages->InsertLazily(expr.as_tensor_ref(), tmp_stages[expr.as_tensor_ref()]);
       tensor_map[node_data->id() + post] = expr.as_tensor_ref();
-      post                               = "_" + std::to_string(idx);
+      // As op may has more than 1 output tensor, using id + "_0"/"_1" as key.
+      post = "_" + std::to_string(idx);
     }
   }
 }
@@ -326,11 +327,11 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
   VLOG(2) << "ReduceSchedule Group : " << sub_group->group_id;
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
   // assign reduce input tensor schedule, do loop transform.
-  auto assign_reduce = [this, &stages](ir::Tensor input, const std::vector<int>& axes) {
+  auto OrderAssignReduce = [this, &stages](poly::Stage* stage, const std::vector<int>& axes) {
     // reorder none-last reduce axis to last.
     // like: shape = [16,16,16,16,16],axes = [1,3] -> new order = [0, 2, 4, 1, 3].
     std::vector<int> order;
-    int n_out_dims = stages[input]->n_out_dims();
+    int n_out_dims = stage->n_out_dims();
     for (int idx = 0; idx < n_out_dims; ++idx) {
       if (std::find(axes.begin(), axes.end(), idx) == axes.end()) {
         order.push_back(idx);
@@ -339,23 +340,23 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
     for (auto axis : axes) {
       order.push_back(axis);
     }
-    stages[input]->Reorder(order);
+    stage->Reorder(order);
 
     // fuse others none-reduce axis.
     int last_dimension_num = n_out_dims - axes.back() - 1;
     int index              = n_out_dims - last_dimension_num - axes.size();
     // fuse last_dimension_num - 1 times
     for (auto idx = index; idx < index + last_dimension_num - 1; ++idx) {
-      stages[input]->Fuse(index, index + 1);
+      stage->Fuse(index, index + 1);
     }
 
-    if (stages[input]->GetDimRange(index) > this->target_.max_num_threads()) {
-      stages[input]->Split(index, this->target_.max_num_threads());
+    if (stage->GetDimRange(index) > this->target_.max_num_threads()) {
+      stage->Split(index, this->target_.max_num_threads());
     }
 
     // fuse index - 1 times
     for (int idx = 0; idx < index - 1; ++idx) {
-      stages[input]->Fuse(0, 1);
+      stage->Fuse(0, 1);
     }
   };
 
@@ -377,6 +378,102 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
       return false;
     }
   };
+
+  auto ScheduleAssignReduceWithoutLast =
+      [this, OrderAssignReduce](poly::Stage* stage, const std::vector<int>& inshape, const std::vector<int>& axes) {
+        int lane            = 1;
+        int max_num_threads = this->target_.max_num_threads();
+        for (int idx = axes.back() + 1; idx < axes.size(); ++idx) {
+          lane *= inshape[idx];
+        }
+        CHECK_LT(lane, max_num_threads / 2) << "Parallel threads must less than max_num_threads/2 on gpu!";
+        int pos   = 0;
+        int index = axes.size() - 1;
+        for (; index >= 0; --index) {
+          if (index + 1 < axes.size() && axes[index] != axes[index + 1] - 1) {
+            pos = axes[index + 1];
+            break;
+          }
+
+          lane *= inshape[axes[index]];
+          if (lane > max_num_threads / 2) {
+            pos = axes[index];
+            break;
+          }
+
+          if (index == 0) {
+            pos = axes[0];
+          }
+        }
+
+        if (lane > max_num_threads / 2) {
+          int prefix = inshape[axes[index]];
+          int tail   = lane / prefix;
+          for (int idx = max_num_threads / tail; idx > (max_num_threads / 2) / tail; --idx) {
+            if (prefix % idx == 0) {
+              stage->Split(axes[index], idx);
+              break;
+            }
+            CHECK_GT(idx - 1, (max_num_threads / 2) / tail) << "idx should greater than (max_num_threads / 2) / tail.";
+          }
+        }
+
+        // insert 1
+        for (int idx = 0; idx < axes.size() - 1 - index; ++idx) {
+          stage->Split(pos, stage->GetDimRange(pos));
+        }
+
+        OrderAssignReduce(stage, axes);
+      };
+
+  auto ScheduleAssignReduceWithLast =
+      [this, OrderAssignReduce](poly::Stage* stage, const std::vector<int>& inshape, const std::vector<int>& axes) {
+        // find first reduce and second reduce axis.
+        int lane             = 1;
+        int index            = static_cast<int>(axes.size()) - 1;
+        auto max_num_threads = this->target_.max_num_threads();
+        for (; index >= 0; --index) {
+          if (index + 1 < axes.size() && axes[index] != axes[index + 1] - 1) {
+            break;
+          }
+          lane *= inshape[axes[index]];
+          if (index == 0 && lane <= max_num_threads) {
+            LOG(FATAL) << "Error! lane is less equal than max_num_threads, Please check!";
+          }
+          if (lane >= max_num_threads / 2) {
+            break;
+          }
+        }
+        std::vector<int> first_axes(axes.begin(), axes.begin() + index + 1);
+
+        if (lane > max_num_threads) {
+          // last reduce axis size > 1024
+          if (index == static_cast<int>(axes.size()) - 1) {
+            int idx = max_num_threads;
+            do {
+              if (lane % idx == 0) {
+                stage->Split(axes[index], idx);
+                break;
+              }
+              --idx;
+            } while (idx >= max_num_threads / 2);
+            // if can't be divide by(1024, 512), it's shouldn't be fused.
+            CHECK_GE(idx, max_num_threads / 2) << "Check bounds exist, can't fuse!";
+          } else {
+            int axis   = axes[index];
+            int prefix = inshape[axis];
+            int tail   = lane / prefix;
+            for (int idx = max_num_threads / tail; idx > (max_num_threads / 2) / tail; --idx) {
+              if (prefix % idx == 0) {
+                stage->Split(axis, idx);
+                break;
+              }
+              CHECK_GT(idx, (max_num_threads / 2) / tail) << "Error, it's shouldn't fuse!";
+            }
+          }
+        }
+        OrderAssignReduce(stage, first_axes);
+      };
 
   Node* master_node = nullptr;
   for (auto node : group->master_nodes) {
@@ -518,7 +615,7 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
         } else if (tensor_map.count(node_data->id() + "_0")) {
           stage->SimpleComputeAt(master_reducer_stage, master_reducer_stage->n_out_dims() - 1);
         } else {
-          LOG(FATAL) << "Error, !Unkown Reduce Type!";
+          LOG(FATAL) << "Error! Unkown Reduce Type, Please Check!";
         }
       }
       continue;
@@ -542,25 +639,7 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
       if (WithoutLastDimInReduce(master_reducer_shape, master_reducer_axes)) {
         // if used block shuffle reduce
         if (tensor_map.count(master_reducer_data->id() + "_1")) {
-          int parallel_threads = 1;
-          int max_num_threads  = target_.max_num_threads();
-          for (int idx = master_reducer_axes.back() + 1; idx < master_reducer_shape.size(); ++idx) {
-            parallel_threads *= master_reducer_shape[idx];
-          }
-          CHECK_LT(parallel_threads, max_num_threads / 2) << "Parallel threads must less than max_num_threads on gpu!";
-          int last_reduce_dim = master_reducer_shape[master_reducer_axes.back()];
-          for (int idx = max_num_threads / parallel_threads; idx > (max_num_threads / 2) / parallel_threads; --idx) {
-            if (last_reduce_dim % idx == 0) {
-              stage->Split(master_reducer_axes.back(), idx);
-              break;
-            }
-
-            CHECK_GT(idx, (max_num_threads / 2) / parallel_threads)
-                << "idx should greater than (max_num_threads / 2) / parallel_threads.";
-          }
-        }
-        assign_reduce(tensor_map[node_data->id()], master_reducer_axes);
-        if (tensor_map.count(master_reducer_data->id() + "_1")) {
+          ScheduleAssignReduceWithoutLast(stage, master_reducer_shape, master_reducer_axes);
           auto stage_0 = stages[tensor_map[master_reducer_data->id() + "_0"]];
           if (stage->n_out_dims() < stage_0->n_out_dims()) {
             stage->Split(0, stage->GetDimRange(0));
@@ -568,78 +647,17 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
           CHECK_EQ(stage->n_out_dims(), stage_0->n_out_dims()) << "stage and stage_0's n_out_dims must be equal!";
           stage->SimpleComputeAt(stage_0, stage_0->n_out_dims() - 1);
         } else {
+          OrderAssignReduce(stage, master_reducer_axes);
+          if (stage->n_out_dims() < master_reducer_stage->n_out_dims()) {
+            stage->Split(0, stage->GetDimRange(0));
+          }
           CHECK_EQ(stage->n_out_dims(), master_reducer_stage->n_out_dims())
               << "stage and master_reducer_stage's n_out_dims must be equal!";
           stage->SimpleComputeAt(master_reducer_stage, master_reducer_stage->n_out_dims() - 1);
         }
       } else {
-        if (tensor_map.count(master_reducer_data->id() + "_2")) {
-          int index            = 0;
-          int parallel_threads = 1;
-          for (int idx = master_reducer_axes.size() - 1; idx >= 0; --idx) {
-            parallel_threads *= master_reducer_shape[master_reducer_axes[idx]];
-            if (parallel_threads > this->target_.max_num_threads()) {
-              index = idx;
-              break;
-            }
-          }
-
-          // if last axis > 1024
-          if (index == master_reducer_axes.size() - 1) {
-            int idx = this->target_.max_num_threads();
-            do {
-              if (parallel_threads % idx == 0) {
-                stage->Split(index, idx);
-                break;
-              }
-              --idx;
-            } while (idx >= this->target_.max_num_threads() / 2);
-            // if can't be divide by(1024, 512), it's shouldn't be fused.
-            CHECK_GE(idx, this->target_.max_num_threads() / 2) << "Check bounds exist, can't fuse!";
-            assign_reduce(tensor_map[node_data->id()], master_reducer_axes);
-          } else {
-            int axis = master_reducer_axes[index];
-            int dim  = master_reducer_shape[axis];
-            int tail = parallel_threads / dim;
-            for (int idx = this->target_.max_num_threads() / tail; idx > (this->target_.max_num_threads() / 2) / tail;
-                 --idx) {
-              if (dim % idx == 0) {
-                stage->Split(axis, idx);
-                break;
-              }
-              CHECK_GT(idx, (this->target_.max_num_threads() / 2) / tail) << "Error, it's shouldn't fuse!";
-            }
-            std::vector<int> reducer_axes(master_reducer_axes.begin(), master_reducer_axes.begin() + index + 1);
-            assign_reduce(tensor_map[node_data->id()], reducer_axes);
-          }
-
-          auto reducer_stage = stages[tensor_map[master_reducer_data->id() + "_1"]];
-          if (stage->n_out_dims() < reducer_stage->n_out_dims()) {
-            stage->Split(0, stage->GetDimRange(0));
-          }
-          CHECK_EQ(stage->n_out_dims(), reducer_stage->n_out_dims()) << "n_out_dims is not equal!";
-          stage->SimpleComputeAt(reducer_stage, reducer_stage->n_out_dims() - 1);
-        } else if (tensor_map.count(master_reducer_data->id() + "_1")) {
-          int axes_num = master_reducer_shape.size() - 1;
-          // init reduce size.
-          int last_reduce_size = master_reducer_shape.back();
-          for (int idx = master_reducer_axes.size() - 2; idx >= 0; --idx) {
-            // if axis is not succesive.
-            if (master_reducer_axes[idx] != master_reducer_axes[idx + 1] - 1) {
-              break;
-            }
-            // accumulate succesive axis size.
-            last_reduce_size *= master_reducer_shape[master_reducer_axes[idx]];
-            // if succesive reduce dim size less equal than max num threads.
-            if (last_reduce_size <= this->target_.max_num_threads()) {
-              axes_num = idx + 1;
-            } else {
-              break;
-            }
-          }
-
-          std::vector<int> reducer_axes(master_reducer_axes.begin(), master_reducer_axes.begin() + axes_num);
-          assign_reduce(tensor_map[node_data->id()], reducer_axes);
+        if (tensor_map.count(master_reducer_data->id() + "_1")) {
+          ScheduleAssignReduceWithLast(stage, master_reducer_shape, master_reducer_axes);
           auto reducer_stage = stages[tensor_map[master_reducer_data->id() + "_1"]];
           if (stage->n_out_dims() < reducer_stage->n_out_dims()) {
             stage->Split(0, stage->GetDimRange(0));
