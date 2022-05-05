@@ -297,6 +297,7 @@ class FusionMergePassHelper : public FusionHelperBase {
 
     std::unordered_set<GroupPtr, Hasher, Comparator> fusionable_consumers;
     for (auto& consumer : consumers) {
+      VLOG(3) << "Check consuemr " << consumer->group_id << " can fuse to producer " << producer->group_id;
       // check consumer exist depency
       if (IsDepency(producer, consumer, consumers)) {
         VLOG(3) << "Can't fuse consumer " << consumer->group_id << " ,As it depency others!";
@@ -645,7 +646,7 @@ class FusionMergePassHelper : public FusionHelperBase {
         }
         int parallel_threads = 1;
         for (int idx = reduce_axes.back() + 1; idx < input_shape.size(); ++idx) {
-          parallel_threads *= input_shape[reduce_axes[idx]];
+          parallel_threads *= input_shape[idx];
         }
 
         std::vector<int> tmp_axes;
@@ -706,15 +707,15 @@ class FusionMergePassHelper : public FusionHelperBase {
             if (head % idx == 0) {
               loop_times *= (head / idx);
               check_bound = false;
+              break;
             }
           }
         }
       }
 
-      if (check_bound || loop_times > max_num_threads / 4) {
+      if (check_bound) {
         return false;
       }
-
       return true;
     };
     auto broadcast_fuse_reduce = [this, elementwise_fuse_reduce](const GroupPtr& first,
