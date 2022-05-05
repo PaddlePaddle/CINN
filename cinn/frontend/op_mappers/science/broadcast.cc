@@ -23,7 +23,7 @@ void FillConstantOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperCont
   CHECK_EQ(op_desc.Output("Y").size(), 1UL);
   auto y_name = op_desc.Output("Y").front();
 
-  auto shape = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "shape");
+  auto shape = utils::ToShapeType(utils::GetAttrOrDefault<std::vector<int64_t>>(op_desc, "shape"));
   // TODO(jiangcheng): value support different datatype, not just float
   auto value = utils::GetAttrOrDefault<float>(op_desc, "value");
 
@@ -70,7 +70,7 @@ void BroadcastOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
   CHECK(op_desc.HasAttr("shape")) << "The broadcast_p operator should has 'shape' attribute, but " << x_name
                                   << "'s broadcast hasn't.";
 
-  auto y_shape = op_desc.GetAttr<std::vector<int>>("shape");
+  auto y_shape = utils::ToShapeType(op_desc.GetAttr<std::vector<int64_t>>("shape"));
   auto x       = ctx.GetVar(x_name);
 
   VLOG(4) << "Broadcast " << x_name << " from shape (" << cinn::utils::Join(x->shape, ",") << ") to shape ("
