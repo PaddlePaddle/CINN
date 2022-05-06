@@ -59,7 +59,7 @@ TEST(SkipRule, Basic) {
   VLOG(6) << "Expr before SkipRule: ";
   VLOG(6) << ast_expr;
 
-  SkipRule skip_rule;
+  SkipRule skip_rule(target);
   ir::ModuleExpr mod_expr_before_skip(std::vector<ir::Expr>{ast_expr});
   EXPECT_EQ(skip_rule.Init(mod_expr_before_skip), RuleApplyType::kApply);
 

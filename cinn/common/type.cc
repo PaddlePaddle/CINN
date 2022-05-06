@@ -41,7 +41,7 @@ Type::~Type() {}
 
 std::ostream &operator<<(std::ostream &os, const Type &t) {
   if (t.is_cpp_const()) os << "const ";
-  os << type2str(t);
+  os << Type2Str(t);
 
   if (t.lanes() > 1) os << "<" << t.lanes() << ">";
   if (t.is_cpp_handle()) os << "*";
@@ -302,7 +302,7 @@ const Type &UI1() {
   return t;
 }
 
-Type str2type(const std::string &type) {
+Type Str2Type(const std::string &type) {
   static std::unordered_map<std::string, Type> str2type_map = {
       {"void", Void()},
       {"bool", Bool()},
@@ -372,7 +372,7 @@ Type str2type(const std::string &type) {
   return str2type_map.at(type);
 }
 
-std::string type2str(const Type &type) {
+std::string Type2Str(const Type &type) {
   switch (type.type()) {
     case Type::type_t::Int:
       return "int" + std::to_string(type.bits());

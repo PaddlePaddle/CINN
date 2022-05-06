@@ -17,10 +17,13 @@
 #include <string>
 
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
+#include "cinn/common/target.h"
 #include "cinn/ir/ir_schedule.h"
 
 namespace cinn {
 namespace auto_schedule {
+
+SkipRule::SkipRule(const common::Target& target) : AutoGenRule(target) {}
 
 RuleApplyType SkipRule::Init(const ir::ModuleExpr& mod_expr) {
   num_applicable_ = 1;
@@ -31,6 +34,8 @@ RuleApplyType SkipRule::Init(const ir::ModuleExpr& mod_expr) {
 ir::ModuleExpr SkipRule::Apply(int index) { return mod_expr_; }
 
 std::string SkipRule::GetRuleName() const { return "SikpRule"; }
+
+AutoGenRule* SkipRule::NewPointer() const { return new SkipRule(*target_); }
 
 }  // namespace auto_schedule
 }  // namespace cinn

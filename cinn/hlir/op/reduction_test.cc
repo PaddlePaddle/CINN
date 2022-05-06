@@ -91,11 +91,12 @@ std::pair<ir::Module, std::string> GenReduceCode(const std::vector<int>& shape,
   common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(X)}};
   common::CINNValuePack rets       = impl->fcompute(cinn_input);
   rets                             = impl->fschedule(rets);
+  poly::StageMap stages            = rets.back();
 
   // the last element is a StageMap
   for (int i = 0; i < rets->size() - 1; i++) {
     Expr temp = rets[i];
-    if (!temp.as_tensor_ref()->buffer.defined()) {
+    if (!temp.as_tensor_ref()->buffer.defined() && !stages[temp.as_tensor_ref()]->inlined()) {
       inputs.push_back(temp.as_tensor_ref());
     }
   }
@@ -114,16 +115,10 @@ std::pair<ir::Module, std::string> GenReduceCode(const std::vector<int>& shape,
   auto host_module_device_module = backends::SplitCudaAndHostModule(module);  // NOLINT
   auto& host_module              = std::get<0>(host_module_device_module);
   auto& device_module            = std::get<1>(host_module_device_module);
-  for (auto& func : host_module.functions()) {
-    LOG(INFO) << "host:\n" << func;
-  }
-  for (auto& func : device_module.functions()) {
-    LOG(INFO) << "device:\n" << func;
-  }
 
   backends::CodeGenCUDA_Dev codegen(target);
   auto source_code = codegen.Compile(builder.Build());
-  LOG(INFO) << "compiled code:\n\n\n" << source_code;
+  LOG(INFO) << "compiled code:\n" << source_code;
 
   return std::pair<ir::Module, std::string>(host_module, source_code);
 }
@@ -379,6 +374,48 @@ TEST(Operator, Operator_Reduction_Case_7) {
 
   CUDA_CALL(cudaFree(dev_x));
   CUDA_CALL(cudaFree(dev_y));
+}
+
+TEST(Operator, Operator_Reduction_Case_8) {
+  std::vector<int> shape = {128, 1};
+  std::vector<int> dim   = {0};
+
+  GenReduceCode(shape, dim, "Operator_Reduction_Case_8");
+}
+
+TEST(Operator, Operator_Reduction_Case_88) {
+  std::vector<int> shape = {128, 1};
+  std::vector<int> dim   = {0};
+
+  GenReduceCode(shape, dim, "Operator_Reduction_Case_88", true);
+}
+
+TEST(Operator, Operator_Reduction_Case_9) {
+  std::vector<int> shape = {2560, 1};
+  std::vector<int> dim   = {0};
+
+  GenReduceCode(shape, dim, "Operator_Reduction_Case_9");
+}
+
+TEST(Operator, Operator_Reduction_Case_99) {
+  std::vector<int> shape = {2560, 1};
+  std::vector<int> dim   = {0};
+
+  GenReduceCode(shape, dim, "Operator_Reduction_Case_99", true);
+}
+
+TEST(Operator, Operator_Reduction_Case_10) {
+  std::vector<int> shape = {16, 2560, 1};
+  std::vector<int> dim   = {1};
+
+  GenReduceCode(shape, dim, "Operator_Reduction_Case_10");
+}
+
+TEST(Operator, Operator_Reduction_Case_11) {
+  std::vector<int> shape = {16, 128, 128, 1};
+  std::vector<int> dim   = {1, 2};
+
+  GenReduceCode(shape, dim, "Operator_Reduction_Case_11");
 }
 
 }  // namespace framework

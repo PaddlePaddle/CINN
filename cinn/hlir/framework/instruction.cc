@@ -16,6 +16,8 @@
 
 #include "cinn/common/test_helper.h"
 
+DECLARE_bool(cinn_sync_run);
+
 namespace cinn {
 namespace hlir {
 namespace framework {
@@ -76,11 +78,11 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
     return;
   }
 
+  VLOG(2) << "Run function " << function_name_;
+
   if (name2podargs != nullptr) {
     args_cached_.clear();
   }
-
-  VLOG(2) << "Run function " << function_name_;
 
 #if defined(CINN_WITH_CUDA) && !defined(CINN_WITH_CUDNN)
   if (function_name_ == "cublas_gemm" && target_.arch == Target::Arch::NVGPU) {
@@ -88,10 +90,16 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
     VLOG(3) << "The pod_args size of cublas_gemm: " << pod_args.size();
     runtime::cuda::cinn_gpu_cublas_gemm(
         attrs, pod_args[0], pod_args[1], pod_args[2], pod_args[3], static_cast<cudaStream_t>(stream));
+  } else if (function_name_ == "cublas_matmul" && target_.arch == Target::Arch::NVGPU) {
+    auto& pod_args = PreparePodArgs(0, name2podargs);
+    VLOG(3) << "The pod_args size of cublas_matmul: " << pod_args.size();
+    runtime::cuda::cinn_gpu_cublas_matmul(
+        attrs, pod_args[0], pod_args[1], pod_args[2], static_cast<cudaStream_t>(stream));
   } else {
     int i = 0;
     VLOG(2) << "Runing extern function " << function_name_;
     for (auto& it_fn : fn_) {
+      VLOG(6) << "Runing it_fn " << fn_names_[i];
       auto& pod_args = PreparePodArgs(i, name2podargs);
       CHECK(it_fn) << "The LoweredFunc address should be set first by calling SetLoweredFunc method";
       if (!dryrun) {
@@ -145,13 +153,18 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
   } else if (function_name_ == "softmax" && target_.arch == Target::Arch::NVGPU) {
     CHECK_EQ(pod_args.size(), 3);
     runtime::cuda::cinn_gpu_cudnn_softmax(attrs, pod_args[0], pod_args[1], static_cast<cudaStream_t>(stream));
+  } else if (function_name_ == "mul" && target_.arch == Target::Arch::NVGPU) {
+    CHECK_EQ(pod_args.size(), 4);
+    runtime::cuda::cinn_gpu_cublas_mul(attrs, pod_args[0], pod_args[1], pod_args[2], static_cast<cudaStream_t>(stream));
   } else if (function_name_ == "cublas_gemm" && target_.arch == Target::Arch::NVGPU) {
     VLOG(3) << "The pod_args size of cublas_gemm: " << pod_args.size();
     runtime::cuda::cinn_gpu_cublas_gemm(
         attrs, pod_args[0], pod_args[1], pod_args[2], pod_args[3], static_cast<cudaStream_t>(stream));
-  } else if (function_name_ == "mul" && target_.arch == Target::Arch::NVGPU) {
-    CHECK_EQ(pod_args.size(), 4);
-    runtime::cuda::cinn_gpu_cublas_mul(attrs, pod_args[0], pod_args[1], pod_args[2], static_cast<cudaStream_t>(stream));
+  } else if (function_name_ == "cublas_matmul" && target_.arch == Target::Arch::NVGPU) {
+    auto& pod_args = PreparePodArgs(0, name2podargs);
+    VLOG(3) << "The pod_args size of cublas_matmul: " << pod_args.size();
+    runtime::cuda::cinn_gpu_cublas_matmul(
+        attrs, pod_args[0], pod_args[1], pod_args[2], static_cast<cudaStream_t>(stream));
   } else {
     int i = 0;
     VLOG(2) << "Runing extern function " << function_name_;
@@ -175,6 +188,12 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
       it_fn(pod_args.data(), pod_args.size());
     }
     i++;
+  }
+#endif
+
+#ifdef CINN_WITH_CUDA
+  if (FLAGS_cinn_sync_run) {
+    cudaStreamSynchronize(static_cast<cudaStream_t>(stream));
   }
 #endif
 }

@@ -23,6 +23,7 @@
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_inline.h"
 #include "cinn/auto_schedule/search_space/auto_gen_rule/multi_level_tiling.h"
 #include "cinn/auto_schedule/search_space/auto_gen_rule/skip_rule.h"
+#include "cinn/auto_schedule/search_space/search_state.h"
 #include "cinn/auto_schedule/task/tune_context.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_schedule.h"
@@ -44,28 +45,20 @@ class SearchSpace {
   SearchSpace(const TuneContext& tune_context);
 
   // Generate sketch as initial population of evolutionary search
-  virtual std::vector<ir::ModuleExpr> GetRandomInitialSketch(int num);
+  virtual std::vector<SearchState> GetRandomInitialSketch(int num);
 
   // Evolutionary search mutate, returns the mutated ModuleExpr and estimited cost
-  virtual std::pair<ir::ModuleExpr, float> GetScheduleMutate(const CostModel& cost_model,
-                                                             const ir::ModuleExpr& mod_expr);
+  virtual SearchState GetScheduleMutate(const SearchState& state, const CostModel& cost_model);
 
  private:
   // TODO(zhhsplendid): mutate by manual schedule.
-  ir::ModuleExpr ManualScheduleMutate(const ir::ModuleExpr& mod_expr);
+  SearchState ManualScheduleMutate(const SearchState& state);
 
-  ir::ModuleExpr RandomScheduleMutate(const ir::ModuleExpr& mod_expr,
-                                      std::vector<std::shared_ptr<AutoGenRule>>* candidate_rules);
+  SearchState RandomScheduleMutate(const SearchState& state);
 
   const TuneContext& tune_context_;
 
   int init_sketch_random_depth_ = 6;
-
-  // List of AutoGenRules.
-  const std::vector<std::shared_ptr<AutoGenRule>> auto_gen_rules_ = {
-      std::shared_ptr<AutoGenRule>(new SkipRule()),
-      std::shared_ptr<AutoGenRule>(new AutoInline()),
-      std::shared_ptr<AutoGenRule>(new MultiLevelTiling())};
 };
 
 }  // namespace auto_schedule

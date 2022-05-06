@@ -168,20 +168,6 @@ class NetBuilder : public BaseBuilder {
                                    const std::string& data_format       = "NCHW",
                                    const std::string& padding_algorithm = "EXPLICIT");
 
-  Variable FillConstant(const std::vector<int>& shape,
-                        float value,
-                        const std::string& name,
-                        const std::string& dtype = "float32",
-                        bool force_cpu           = false);
-
-  template <typename T>
-  inline Variable FillConstant(const std::vector<int>& shape,
-                               T value,
-                               const std::string& name,
-                               bool force_cpu = false) {
-    return FillConstant(shape, static_cast<float>(value), name, common::type2str(common::type_of<T>()), force_cpu);
-  }
-
  protected:
   Variable ElementwiseOp(const std::string& op_type, const Variable& lhs, const Variable& rhs, int axis = -1);
 };

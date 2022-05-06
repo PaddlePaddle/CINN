@@ -340,14 +340,14 @@ std::vector<Type> InferDtypeForFillConstant(const std::vector<Type> &inputs_type
   if (attrs.find("dtype") != attrs.end()) {
     // attribute [dtype] are given
     auto dtype_str = absl::get<std::string>(attrs.at("dtype"));
-    out_type       = common::str2type(dtype_str);
+    out_type       = common::Str2Type(dtype_str);
     VLOG(3) << "FillConstant output dtype (from [dtype]): " << dtype_str;
   } else {
     // attribute [dtype] no given, infered by value's type
     CHECK(attrs.count("value"));
     auto scalar = GetScalarExpr(attrs.at("value"));
     out_type    = scalar->type();
-    VLOG(3) << "FillConstant scalar type (from [vaule]): " << common::type2str(out_type);
+    VLOG(3) << "FillConstant scalar type (from [vaule]): " << common::Type2Str(out_type);
   }
   return {out_type};
 }

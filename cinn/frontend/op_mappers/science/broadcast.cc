@@ -24,13 +24,13 @@ void FillConstantOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperCont
   CHECK_EQ(op_desc.Output("Y").size(), 1UL);
   auto y_name = op_desc.Output("Y").front();
 
-  auto shape = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "shape");
+  auto shape = utils::ToShapeType(utils::GetAttrOrDefault<std::vector<int64_t>>(op_desc, "shape"));
   auto value = utils::GetAttrOrDefault<float>(op_desc, "value", 0.0f);
 
   auto dtype_id = utils::GetAttrOrDefault<int>(op_desc, "dtype", static_cast<int>(paddle::cpp::VarDescAPI::Type::FP32));
   auto dtype_pd = static_cast<paddle::cpp::VarDescAPI::Type>(dtype_id);
   auto dtype_cinn = utils::CppVarType2CommonType(dtype_pd);
-  auto dtype      = common::type2str(dtype_cinn);
+  auto dtype      = common::Type2Str(dtype_cinn);
 
   VLOG(4) << "fill constant (" << value << ") with shape (" << cinn::utils::Join(shape, ",") << ") and dtype [" << dtype
           << "]";
@@ -52,13 +52,13 @@ void FillAnyLikeOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperConte
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
   auto y_name = op_desc.Output("Out").front();
 
-  auto shape = x->shape;
+  auto shape = utils::ToShapeType(x->shape);
   auto value = utils::GetAttrOrDefault<float>(op_desc, "value");
 
   auto dtype_id = utils::GetAttrOrDefault<int>(op_desc, "dtype", static_cast<int>(paddle::cpp::VarDescAPI::Type::FP32));
   auto dtype_pd = static_cast<paddle::cpp::VarDescAPI::Type>(dtype_id);
   auto dtype_cinn = utils::CppVarType2CommonType(dtype_pd);
-  auto dtype      = common::type2str(dtype_cinn);
+  auto dtype      = common::Type2Str(dtype_cinn);
 
   VLOG(4) << "FillAnyLikeOp: fill constant (" << value << ") with shape (" << cinn::utils::Join(shape, ",")
           << ") and dtype [" << dtype << "]";
@@ -81,7 +81,7 @@ void BroadcastOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
   CHECK(op_desc.HasAttr("shape")) << "The broadcast_p operator should has 'shape' attribute, but " << x_name
                                   << "'s broadcast hasn't.";
 
-  auto y_shape = op_desc.GetAttr<std::vector<int>>("shape");
+  auto y_shape = utils::ToShapeType(op_desc.GetAttr<std::vector<int64_t>>("shape"));
   auto x       = ctx.GetVar(x_name);
 
   VLOG(4) << "Broadcast " << x_name << " from shape (" << cinn::utils::Join(x->shape, ",") << ") to shape ("

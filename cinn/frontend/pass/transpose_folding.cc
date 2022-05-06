@@ -35,18 +35,23 @@ class TransposeFoldingPass : public ProgramPass {
   void ApplyImpl(Program* program,
                  const std::unordered_set<std::string>& fetch_ids,
                  const common::Target& target) const override {
-    // `var_instrs` is used to represent the mapping of Output to Instruction.
-    absl::flat_hash_map<std::string, Instruction*> var_instrs;
+    // `out2instr` is used to represent the mapping of Output to Instruction.
+    absl::flat_hash_map<std::string, Instruction*> out2instr;
+    // `in2instr` is used to represent the mapping of Input to Instruction.
+    absl::flat_hash_map<std::string, std::unordered_set<Instruction*>> in2instr;
     // `remove_instrs` is used to represent Instructions which type is transpose to be deleted.
     absl::flat_hash_set<Instruction*> remove_instrs;
     for (size_t i = 0; i < program->size(); ++i) {
       auto& instr = (*program)[i];
       for (const auto& out : instr->outputs) {
-        var_instrs[out->id] = &instr;
+        out2instr[out->id] = &instr;
+      }
+      for (const auto& in : instr->inputs) {
+        in2instr[in->id].insert(&instr);
       }
       // Operator dot is actually operator matmul.
       if ("matmul" == instr->op_type) {
-        for (auto transpose : TryFoldIntoDot(&instr, var_instrs)) {
+        for (auto transpose : TryFoldIntoDot(&instr, out2instr, in2instr)) {
           if (fetch_ids.find((*transpose)->outputs[0]->id) == fetch_ids.end()) {
             remove_instrs.insert(transpose);
           }
@@ -54,8 +59,8 @@ class TransposeFoldingPass : public ProgramPass {
       } else {
         // The output of transpose maybe used by other operators.
         for (const auto& in : instr->inputs) {
-          auto iter = var_instrs.find(in->id);
-          if (iter != var_instrs.end()) {
+          auto iter = out2instr.find(in->id);
+          if (iter != out2instr.end()) {
             remove_instrs.erase(iter->second);
           }
         }
@@ -76,8 +81,10 @@ class TransposeFoldingPass : public ProgramPass {
   // Rules that transpose can be folded into dot:
   //   1) input operand of dot must be transpose;
   //   2) `axis` of tranpose must be consecutive in the reverse order, excluding the first dim;
-  std::vector<Instruction*> TryFoldIntoDot(Instruction* dot,
-                                           const absl::flat_hash_map<std::string, Instruction*>& var_instrs) const {
+  std::vector<Instruction*> TryFoldIntoDot(
+      Instruction* dot,
+      const absl::flat_hash_map<std::string, Instruction*>& out2instr,
+      const absl::flat_hash_map<std::string, std::unordered_set<Instruction*>>& in2instr) const {
     std::vector<Instruction*> remove_instrs;
     if (!(*dot)->attrs.empty()) return remove_instrs;
     auto is_transpose = [](const Instruction& transpose) {
@@ -87,34 +94,48 @@ class TransposeFoldingPass : public ProgramPass {
 
       // The following codes for Rule 2).
       auto axis = transpose.GetAttrs<std::vector<int>>("axis");
-      // In the batched martix multiplication, the first dim should be batch dim.
       if (axis[0] == 0) {
+        // In the batched martix multiplication, the first dim should be batch dim.
         for (size_t i = 1; i < axis.size(); ++i) {
           if (axis[i] != axis.size() - i) {
             return false;
           }
         }
-      }
-      // Otherwise, the axis should be consecutive in the reverse order.
-      if (axis[0] == axis.size() - 1) {
+        return true;
+      } else if (axis[0] == axis.size() - 1) {
+        // Otherwise, the axis should be consecutive in the reverse order.
         for (size_t i = 1; i < axis.size(); ++i) {
           if (axis[i] != axis.size() - 1 - i) {
             return false;
           }
         }
+        return true;
       }
 
-      return true;
+      // if axis[0] not 0 or -1, cannot folding
+      return false;
     };
     for (size_t i = 0; i < (*dot)->inputs.size(); ++i) {
-      auto iter = var_instrs.find((*dot)->inputs[i]->id);
-      if (iter != var_instrs.end()) {
+      auto transpose_out_name = (*dot)->inputs[i]->id;
+      auto iter               = out2instr.find(transpose_out_name);
+      if (iter != out2instr.end()) {
+        // the previous op of matmul
         const auto& operand = *(iter->second);
         if (is_transpose(operand)) {
           // x-> transpose -> out -> dot => x -> dot
           (*dot)->inputs[i] = operand->inputs[0];
           (*dot).SetAttr(i == 0 ? "trans_a" : "trans_b", true);
-          remove_instrs.push_back(iter->second);
+
+          CHECK(in2instr.find(transpose_out_name) != in2instr.end())
+              << "The var [" << transpose_out_name
+              << "] should be someone op's input, but couldn't found ! Please check.";
+          CHECK(in2instr.at(transpose_out_name).count(dot))
+              << "The var [" << transpose_out_name << "] should be matmul's input, but couldn't found ! Please check.";
+
+          if (in2instr.at(transpose_out_name).size() == 1) {
+            // the transpose is only link to matmul, should remove
+            remove_instrs.push_back(iter->second);
+          }
         }
       }
     }

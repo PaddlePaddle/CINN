@@ -96,7 +96,7 @@ void BindFramework(pybind11::module *m) {
       .def("get_tensor",
            [](Scope &self, const std::string &name, const Target &target) {
              auto t = self.GetTensor(name);
-             py::dtype dt(common::type2str(t->type()));
+             py::dtype dt(common::Type2Str(t->type()));
              py::array::ShapeContainer shape(t->shape().data().begin(), t->shape().data().end());
              py::array array(std::move(dt), std::move(shape));
              auto *mutable_data = array.mutable_data();
@@ -125,7 +125,7 @@ void BindFramework(pybind11::module *m) {
       .def("set_type", [](hlir::framework::Tensor &self, Type type) { self->set_type(type); })
       .def("numpy",
            [](hlir::framework::Tensor &self, const common::Target &target) {
-             py::dtype dt(common::type2str(self->type()));
+             py::dtype dt(common::Type2Str(self->type()));
              py::array::ShapeContainer shape(self->shape().data().begin(), self->shape().data().end());
              py::array array(std::move(dt), std::move(shape));
              void *array_data = array.mutable_data();
@@ -146,7 +146,7 @@ void BindFramework(pybind11::module *m) {
              return array;
            })
       .def("from_numpy", [](hlir::framework::Tensor &self, py::array array, const common::Target &target) {
-        CHECK(array.dtype().is(py::dtype(common::type2str(self->type()))))
+        CHECK(array.dtype().is(py::dtype(common::Type2Str(self->type()))))
             << "currently only support float32 data type as input";
         hlir::framework::shape_t shape;
         std::copy_n(array.shape(), array.ndim(), std::back_inserter(shape));

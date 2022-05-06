@@ -54,7 +54,7 @@ class Graph : public cinn::common::Graph {
     // output nodes of the group.
     std::unordered_set<Node*> output_nodes;
     // op pattern kind.
-    framework::OpPatternKind op_pattern_kind;
+    framework::OpPatternKind op_pattern_kind{framework::kElemWise};
     // internal node, the output is used by multi-node.
     // internal node can't use compute inline, should use buffer.
     std::unordered_set<Node*> internal_nodes;
@@ -80,6 +80,10 @@ class Graph : public cinn::common::Graph {
     // if as sub-group, used for belong groups.
     std::unordered_set<std::shared_ptr<Group>, SharedGroupHasher, SharedGroupComparator> belong_groups;
 
+    // for op lowering.
+    std::vector<std::string> input_names;
+    std::vector<std::string> output_names;
+
     std::vector<Node*> CollectNodes() {
       if (fused_sub_groups.size()) {
         std::vector<Node*> tmp_nodes;
@@ -91,6 +95,8 @@ class Graph : public cinn::common::Graph {
         return nodes;
       }
     }
+
+    std::string GetFuncName() { return "fn_" + group_id; }
   };
   std::vector<std::shared_ptr<Group>> fusion_groups;
 
@@ -141,7 +147,13 @@ class Graph : public cinn::common::Graph {
     return it != attrs.end();
   }
 
+  void VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
+                             const std::unordered_set<std::string>& fetch_var_ids);
+
  private:
+  void VisualizeGroups(const std::vector<std::vector<Node*>>& groups,
+                       const std::unordered_set<std::string>& fetch_var_ids);
+
   CINN_DISALLOW_COPY_AND_ASSIGN(Graph);
 };
 

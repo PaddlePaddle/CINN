@@ -167,14 +167,62 @@ __device__ inline float cinn_block_reduce_min(const float *buf, int offset, int 
       if (buf[i] == num) return i;              \
     }                                           \
     return -1;                                  \
-  } while(0)
+  } while (0)
 
-__device__ inline int cinn_cuda_find_int(const int *buf, int size, int num) {
-  __cinn_cuda_find_kernel(buf, size, num);
-}
+__device__ inline int cinn_cuda_find_int(const int *buf, int size, int num) { __cinn_cuda_find_kernel(buf, size, num); }
 
 __device__ inline int cinn_cuda_find_float(const float *buf, int size, float num) {
   __cinn_cuda_find_kernel(buf, size, num);
 }
 
 #undef __cinn_cuda_find_kernel
+
+#define __cinn_cuda_find_from_kernel(buf, size, num, begin) \
+  do {                                                      \
+    for (int i = begin; i < size; ++i) {                    \
+      if (buf[i] == num) return i;                          \
+    }                                                       \
+    return -1;                                              \
+  } while (0)
+
+__device__ inline int cinn_cuda_find_int_from(const int *buf, int size, int num, int begin) {
+  __cinn_cuda_find_from_kernel(buf, size, num, begin);
+}
+
+__device__ inline int cinn_cuda_find_float_from(const float *buf, int size, float num, int begin) {
+  __cinn_cuda_find_from_kernel(buf, size, num, begin);
+}
+
+#undef __cinn_cuda_find_from_kernel
+
+__device__ inline float cinn_cuda_index_add(const float x,
+                                            const int axis_indice,
+                                            const float *__restrict__ y,
+                                            const int offset,
+                                            const int stride,
+                                            const int *__restrict__ index,
+                                            const int index_size) {
+  float res = x;
+  int idx   = -1;
+  do {
+    idx = cinn_cuda_find_int_from(index, index_size, axis_indice, idx + 1);
+    if (idx >= 0) {
+      res += y[offset + idx * stride];
+    }
+  } while (idx != -1);
+  return res;
+}
+
+#define block_shuffle_kernel(name, op, init_value)                                       \
+  __device__ inline float block_shuffle_##name(const float *buf, int line, int stride) { \
+    float val = init_value;                                                              \
+    for (int idx = threadIdx.x; idx < line; idx += stride) {                             \
+      val = op(val, buf[idx]);                                                           \
+    }                                                                                    \
+    return val;                                                                          \
+  }
+
+block_shuffle_kernel(sum, cinn_sum, 0.0f);
+block_shuffle_kernel(prod, cinn_prod, 1.0f);
+block_shuffle_kernel(max, cinn_max, -3.402823e+38f);
+block_shuffle_kernel(min, cinn_min, 3.402823e+38f);

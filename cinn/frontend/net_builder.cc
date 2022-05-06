@@ -257,22 +257,6 @@ std::vector<Variable> NetBuilder::Conv2dGrad(const Variable& dy,
   return instr.GetOutputs();
 }
 
-Variable NetBuilder::FillConstant(
-    const std::vector<int>& shape, float value, const std::string& name, const std::string& dtype, bool force_cpu) {
-  Instruction instr("fill_constant");
-  instr.SetInputs({});
-  instr.SetAttr("shape", shape);
-  instr.SetAttr("value", value);
-  instr.SetAttr("dtype", dtype);
-  instr.SetAttr("force_cpu", force_cpu);
-
-  InferShape(instr);
-  AppendInstruction(instr);
-  auto out = instr.GetOutput(0);
-  out.set_id(name);
-  return out;
-}
-
 Variable NetBuilder::ElementwiseOp(const std::string& op_type, const Variable& lhs, const Variable& rhs, int axis) {
   Instruction instr(op_type, {lhs, rhs});
   instr.SetAttr("axis", axis);

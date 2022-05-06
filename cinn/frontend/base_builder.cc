@@ -145,6 +145,23 @@ Variable BaseBuilder::Reduce(const Variable& operand, ReduceKind kind, const std
   }
 }
 
+template <typename T>
+Variable BaseBuilder::FillConstant(
+    const std::vector<int>& shape, T value, const std::string& name, const std::string& dtype, bool force_cpu) {
+  Instruction instr("fill_constant");
+  instr.SetInputs({});
+  instr.SetAttr("shape", shape);
+  instr.SetAttr("value", value);
+  instr.SetAttr("dtype", dtype);
+  instr.SetAttr("force_cpu", force_cpu);
+
+  InferShape(instr);
+  AppendInstruction(instr);
+  auto out = instr.GetOutput(0);
+  out.set_id(name);
+  return out;
+}
+
 Variable BaseBuilder::BroadcastTo(const Variable& operand, const std::vector<int>& out_shape) {
   auto x_shape_size = operand->shape.size();
   auto y_shape_size = out_shape.size();
@@ -272,8 +289,16 @@ Variable BaseBuilder::IndexSelect(const Variable& operand, const Variable& index
   return instr.GetOutput(0);
 }
 
-Variable BaseBuilder::IndexAssign(const Variable& operand, const Variable& assign, const Variable& index, int axis) {
-  Instruction instr("index_assign", {operand, assign, index});
+Variable BaseBuilder::ScatterAssign(const Variable& operand, const Variable& updates, const Variable& index, int axis) {
+  Instruction instr("scatter_assign", {operand, updates, index});
+  instr.SetAttr("axis", axis);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
+Variable BaseBuilder::ScatterAdd(const Variable& operand, const Variable& updates, const Variable& index, int axis) {
+  Instruction instr("scatter_add", {operand, updates, index});
   instr.SetAttr("axis", axis);
   InferShape(instr);
   AppendInstruction(instr);

@@ -25,70 +25,74 @@
 #include "cinn/auto_schedule/task/tune_context.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_schedule.h"
+#include "cinn/optim/ir_copy.h"
 
 namespace cinn {
 namespace auto_schedule {
 
 SearchSpace::SearchSpace(const TuneContext& tune_context) : tune_context_(tune_context) {}
 
-std::vector<ir::ModuleExpr> SearchSpace::GetRandomInitialSketch(int num) {
+std::vector<SearchState> SearchSpace::GetRandomInitialSketch(int num) {
   VLOG(4) << "Start SearchSpace::GetRandomInitialSketch";
-  std::vector<ir::ModuleExpr> result;
+  std::vector<SearchState> result;
   while (result.size() < num) {
-    std::vector<std::shared_ptr<AutoGenRule>> candidate_rules = auto_gen_rules_;
-    ir::ModuleExpr mod_expr                                   = ir::ModuleExpr(tune_context_.GetLoweredFuncBodyExprs());
+    std::vector<ir::Expr> body_exprs = tune_context_.GetLoweredFuncBodyExprs();
+    std::vector<ir::Expr> copy_exprs;
+    for (const ir::Expr& e : body_exprs) {
+      copy_exprs.push_back(optim::IRCopy(e));
+    }
+    SearchState state(std::move(ir::ModuleExpr(copy_exprs)));
+    state.InitAutoGenRules(tune_context_.target);
     for (int i = 0; i < init_sketch_random_depth_; ++i) {
       VLOG(5) << "Generating random sketch at depth: " << i;
-      mod_expr = RandomScheduleMutate(mod_expr, &candidate_rules);
-      if (candidate_rules.empty()) {
+      state = RandomScheduleMutate(state);
+      if (state.applicable_rules.empty()) {
         break;
       }
     }
     // TODO:(zhhsplendid): De-duplication on the result after we have Expr/ModuleExpr hash;
-    result.emplace_back(std::move(mod_expr));
+    result.emplace_back(std::move(state));
   }
   return result;
 }
 
-std::pair<ir::ModuleExpr, float> SearchSpace::GetScheduleMutate(const CostModel& cost_model,
-                                                                const ir::ModuleExpr& mod_expr) {
+SearchState SearchSpace::GetScheduleMutate(const SearchState& state, const CostModel& cost_model) {
   VLOG(4) << "Start SearchSpace::GetScheduleMutate";
   // TODO(zhhsplendid): cost model predict
   bool has_manual_schedule = false;
   if (has_manual_schedule) {
-    ir::ModuleExpr manual_expr = ManualScheduleMutate(mod_expr);
-    return std::make_pair<ir::ModuleExpr, float>(std::move(manual_expr), 0.0f);
+    SearchState ret = ManualScheduleMutate(state);
+    return ret;
   }
-
-  std::vector<std::shared_ptr<AutoGenRule>> candidate_rules = auto_gen_rules_;
-  ir::ModuleExpr random_expr                                = RandomScheduleMutate(mod_expr, &candidate_rules);
-  return std::make_pair<ir::ModuleExpr, float>(std::move(random_expr), 0.0f);
+  SearchState ret = RandomScheduleMutate(state);
+  return ret;
 }
 
-ir::ModuleExpr SearchSpace::ManualScheduleMutate(const ir::ModuleExpr& mod_expr) {
+SearchState SearchSpace::ManualScheduleMutate(const SearchState& state) {
   // TODO(zhhsplendid): Add manual schedule mutate
-  return ir::ModuleExpr(mod_expr);
+  return state;
 }
 
-ir::ModuleExpr SearchSpace::RandomScheduleMutate(const ir::ModuleExpr& mod_expr,
-                                                 std::vector<std::shared_ptr<AutoGenRule>>* candidate_rules) {
+SearchState SearchSpace::RandomScheduleMutate(const SearchState& state) {
   VLOG(4) << "Start SearchSpace::RandomScheduleMutate";
 
   // 1. Found the schedules which can apply on this Expr
   // 2. Make a distribution on those schedules
   std::map<int, std::shared_ptr<AutoGenRule>> weight_to_rule;
   int cur_weight = 0;
-  for (auto iter = candidate_rules->begin(); iter != candidate_rules->end();) {
+  SearchState ret(state);
+  for (auto iter = ret.applicable_rules.begin(); iter != ret.applicable_rules.end();) {
     std::shared_ptr<AutoGenRule> rule = *iter;
-    RuleApplyType apply_type          = rule->Init(mod_expr);
+    VLOG(6) << "Rule name = " << rule->GetRuleName();
+    RuleApplyType apply_type = rule->Init(ret.mod_expr);
     if (apply_type != RuleApplyType::kCannotApply) {
       weight_to_rule[cur_weight] = rule;
       cur_weight += rule->NumberApplicable();
       if (apply_type == RuleApplyType::kApplyAndSkipThisRule) {
-        iter = candidate_rules->erase(iter);
+        iter = ret.applicable_rules.erase(iter);
         continue;
       } else if (apply_type == RuleApplyType::kApplyAndSkipAllRules) {
-        candidate_rules->clear();
+        ret.applicable_rules.clear();
         break;
       }
     }
@@ -98,7 +102,7 @@ ir::ModuleExpr SearchSpace::RandomScheduleMutate(const ir::ModuleExpr& mod_expr,
   if (weight_to_rule.empty()) {
     // No applicable rule, return the input mod_expr
     VLOG(6) << "No applicable rule";
-    return mod_expr;
+    return ret;
   }
 
   // 3. Sample a schedule on the distribution
@@ -108,7 +112,8 @@ ir::ModuleExpr SearchSpace::RandomScheduleMutate(const ir::ModuleExpr& mod_expr,
   VLOG(6) << "Sample AutoGenRule " << sample_rule->GetRuleName();
 
   // 4. Apply the schedule change
-  return sample_rule->Apply(sample_index - iter->first);
+  ret.mod_expr = sample_rule->Apply(sample_index - iter->first);
+  return ret;
 }
 
 }  // namespace auto_schedule

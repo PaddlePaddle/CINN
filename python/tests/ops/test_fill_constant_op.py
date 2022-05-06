@@ -74,5 +74,45 @@ class TestFillConstantCase3(TestFillConstantOp):
         self.dtype = "bool"
 
 
+@OpTestTool.skip_if(not is_compiled_with_cuda(),
+                    "x86 test will be skipped due to timeout.")
+class TestFillConstantByValueOp(OpTest):
+    def setUp(self):
+        self.init_case()
+
+    def init_case(self):
+        self.shape = [32]
+        self.value = float(1.0)
+
+    def build_paddle_program(self, target):
+        x = paddle.full(self.shape, self.value)
+
+        self.paddle_outputs = [x]
+
+    def build_cinn_program(self, target):
+        builder = NetBuilder("fill_constant")
+        x = builder.fill_constant(self.shape, self.value, "out")
+
+        prog = builder.build()
+        res = self.get_cinn_output(prog, target, [], [], [x])
+
+        self.cinn_outputs = [res[0]]
+
+    def test_check_results(self):
+        self.check_outputs_and_grads()
+
+
+class TestFillConstantByValueCase1(TestFillConstantByValueOp):
+    def init_case(self):
+        self.shape = [32]
+        self.value = int(1)
+
+
+class TestFillConstantByValueCase2(TestFillConstantByValueOp):
+    def init_case(self):
+        self.shape = [32]
+        self.value = bool(1)
+
+
 if __name__ == "__main__":
     unittest.main()

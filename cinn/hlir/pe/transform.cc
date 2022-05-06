@@ -908,20 +908,20 @@ ir::Tensor IndexSelect(const ir::Tensor& x,
   return output_tensor;
 }
 
-ir::Tensor IndexAssign(const ir::Tensor& input,
-                       const ir::Tensor& assign,
-                       const ir::Tensor& index,
-                       const common::Target& target,
-                       const int axis,
-                       const std::string& output_name) {
-  CHECK_EQ(index->type(), common::Int(32)) << "Param [Index] of IndexAssign only support int32 ! Please Check.\n";
+ir::Tensor ScatterAssign(const ir::Tensor& input,
+                         const ir::Tensor& updates,
+                         const ir::Tensor& index,
+                         const common::Target& target,
+                         const int axis,
+                         const std::string& output_name) {
+  CHECK_EQ(index->type(), common::Int(32)) << "Param [Index] of ScatterAssign only support int32 ! Please Check.\n";
   std::string extern_fun_name;
   if (target.arch == common::Target::Arch::NVGPU) {
     extern_fun_name.assign("cinn_cuda_find_int");
   } else if (target.arch == common::Target::Arch::X86) {
     extern_fun_name.assign("cinn_host_find_int");
   } else {
-    LOG(FATAL) << "IndexAssign only support X86 and NVGPU ! Please Check.\n";
+    LOG(FATAL) << "ScatterAssign only support X86 and NVGPU ! Please Check.\n";
   }
 
   auto pos_axis = axis;
@@ -935,14 +935,72 @@ ir::Tensor IndexAssign(const ir::Tensor& input,
         // else return -1
         auto id = lang::CallExtern(extern_fun_name, {index, index->shape[0], indice[pos_axis]});
 
-        std::vector<Expr> indice_assign = indice;
-        indice_assign[pos_axis]         = id;
+        std::vector<Expr> indice_updates = indice;
+        indice_updates[pos_axis]         = id;
 
         // check wheter Index[id] == cur_index and return by check result
-        return ir::Select::Make(ir::EQ::Make(id, Expr(-1)), input(indice), assign(indice_assign));
+        return ir::Select::Make(ir::EQ::Make(id, Expr(-1)), input(indice), updates(indice_updates));
       },
       UniqName(output_name));
   return res;
+}
+
+ir::Tensor ScatterAdd(const ir::Tensor& input,
+                      const ir::Tensor& updates,
+                      const ir::Tensor& index,
+                      const common::Target& target,
+                      const int axis,
+                      const std::string& output_name) {
+  CHECK_EQ(target.arch, common::Target::Arch::NVGPU) << "Op IndexAdd only support NVGPU now ! Please Check.\n";
+
+  CHECK_EQ(index->type(), common::Int(32)) << "Param [index] of IndexAdd only support int32 ! Please Check.\n";
+  CHECK_EQ(index->shape.size(), 1) << "The dimension of param [index] of IndexAdd should be 1 ! Please Check.\n";
+
+  auto pos_axis = axis;
+  if (pos_axis < 0) pos_axis += input->shape.size();
+  CHECK(pos_axis >= 0 && pos_axis < input->shape.size())
+      << "Param [axis] of IndexAdd should satisfy 0 <= axis < input.shape ! Please Check.\n";
+
+  // compute each dimension's stride, it is used for indice2offset.
+  // for shape=[1,2,3,4], strides=[2*3*4,3*4,4*1,1]=[24, 12, 4, 1]
+  std::vector<int> strides(updates->shape.size(), 1);
+  for (int i = updates->shape.size() - 2; i >= 0; --i) {
+    strides[i] = strides[i + 1] * updates->shape[i + 1].as_int32();
+  }
+
+  // compute multi-dimension index(without axis's) to scalar offset,
+  // offset = offset + indice[i] * strides[i];
+  auto indice2offset = [&](const std::vector<Expr>& indice) -> Expr {
+    Expr offset(0);
+    for (int i = 0; i < pos_axis; ++i) {
+      offset = offset + indice[i] * Expr(strides[i]);
+    }
+    for (int i = pos_axis + 1; i < updates->shape.size(); ++i) {
+      offset = offset + indice[i] * Expr(strides[i]);
+    }
+    return offset;
+  };
+
+  // assume shape=[1,2,3], axis=1, `cinn_cuda_index_add` extern function do following compute:
+  // out[i][j][k] = input[i][j][k]
+  // for l in range(index.size()):
+  //   if index[l] == j:
+  //      out[i][j][k] += update[i][l][k]
+  auto output = Compute(
+      input->shape,
+      [=](const std::vector<Expr>& indice) {
+        return lang::CallExtern("cinn_cuda_index_add",
+                                {input(indice),
+                                 indice[pos_axis],
+                                 updates,
+                                 indice2offset(indice),
+                                 Expr(strides[pos_axis]),
+                                 index,
+                                 index->shape[0]});
+      },
+      UniqName(output_name));
+
+  return output;
 }
 
 }  // namespace pe
