@@ -1325,7 +1325,9 @@ Expr CasSimplifyMutator::SimplifyMod(Expr u) {
       for (int i = 0; i < sum_args.size(); i++) {
         auto* arg_var = sum_args[i].As<_Var_>();
         all_positive_var =
-            all_positive_var && arg_var && var_intervals.count(arg_var->name) && var_intervals.at(arg_var->name).l >= 0;
+            all_positive_var && arg_var &&
+            ((var_intervals.count(arg_var->name) && var_intervals.at(arg_var->name).l >= 0) ||
+             (utils::Startswith(arg_var->name, "threadIdx") || utils::Startswith(arg_var->name, "blockIdx")));
         auto* arg_int    = sum_args[i].As<IntImm>();
         all_positive_int = all_positive_int && arg_int && arg_int->value >= 0;
       }

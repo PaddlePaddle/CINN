@@ -37,6 +37,9 @@ DEFINE_bool(cinn_sync_run,
 DEFINE_string(cinn_fusion_groups_graphviz_dir,
               StringFromEnv("FLAGS_cinn_fusion_groups_graphviz_dir", ""),
               "Specify the directory path of dot file of graph, which is used for debug.");
+DEFINE_bool(cinn_new_schedule,
+            BoolFromEnv("FLAGS_cinn_new_schedule", false),
+            "Whether use reconstructed schedule primitives.");
 
 namespace cinn {
 namespace runtime {
