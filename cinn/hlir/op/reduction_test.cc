@@ -91,11 +91,12 @@ std::pair<ir::Module, std::string> GenReduceCode(const std::vector<int>& shape,
   common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(X)}};
   common::CINNValuePack rets       = impl->fcompute(cinn_input);
   rets                             = impl->fschedule(rets);
+  poly::StageMap stages            = rets.back();
 
   // the last element is a StageMap
   for (int i = 0; i < rets->size() - 1; i++) {
     Expr temp = rets[i];
-    if (!temp.as_tensor_ref()->buffer.defined()) {
+    if (!temp.as_tensor_ref()->buffer.defined() && !stages[temp.as_tensor_ref()]->inlined()) {
       inputs.push_back(temp.as_tensor_ref());
     }
   }

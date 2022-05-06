@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "cinn/frontend/paddle/cpp/op_desc.h"
+#include "cinn/utils/type_defs.h"
 
 namespace cinn {
 namespace frontend {
@@ -75,6 +76,16 @@ inline bool GetAttrOrDefault(const paddle::cpp::OpDesc& op_desc, const std::stri
     }
   }
   return default_value;
+}
+
+template <typename T>
+inline cinn::utils::ShapeType ToShapeType(const std::vector<T>& shape) {
+  return cinn::utils::ShapeType(shape.begin(), shape.end());
+}
+
+template <typename T>
+inline cinn::utils::DimType ToDimType(const T& val) {
+  return static_cast<cinn::utils::DimType>(val);
 }
 
 }  // namespace utils

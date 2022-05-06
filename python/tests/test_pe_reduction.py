@@ -44,7 +44,7 @@ class TestPEReduction(unittest.TestCase):
             ("prod", pe.reduce_prod, np.prod),
         ]:
             self.compiler = cinn.Compiler.create(self.target)
-            self.reduction_tester(fn_name, pe_fn, np_fn, [], True, 2.0)
+            self.reduction_tester(fn_name, pe_fn, np_fn, [], True)
 
     def test_reduction_1(self):
         for (fn_name, pe_fn, np_fn) in [
@@ -52,7 +52,7 @@ class TestPEReduction(unittest.TestCase):
             ("prod", pe.reduce_prod, np.prod),
         ]:
             self.compiler = cinn.Compiler.create(self.target)
-            self.reduction_tester(fn_name, pe_fn, np_fn, [], False, 2.0)
+            self.reduction_tester(fn_name, pe_fn, np_fn, [], False)
 
     def test_reduction_2(self):
         for (fn_name, pe_fn, np_fn) in [
@@ -60,7 +60,7 @@ class TestPEReduction(unittest.TestCase):
             ("prod", pe.reduce_prod, np.prod),
         ]:
             self.compiler = cinn.Compiler.create(self.target)
-            self.reduction_tester(fn_name, pe_fn, np_fn, [0], False, 2.0)
+            self.reduction_tester(fn_name, pe_fn, np_fn, [0], False)
 
     def test_reduction_3(self):
         for (fn_name, pe_fn, np_fn) in [
@@ -68,7 +68,7 @@ class TestPEReduction(unittest.TestCase):
             ("prod", pe.reduce_prod, np.prod),
         ]:
             self.compiler = cinn.Compiler.create(self.target)
-            self.reduction_tester(fn_name, pe_fn, np_fn, [0], True, 2.0)
+            self.reduction_tester(fn_name, pe_fn, np_fn, [0], True)
 
     def test_reduction_4(self):
         for (fn_name, pe_fn, np_fn) in [
@@ -76,7 +76,7 @@ class TestPEReduction(unittest.TestCase):
             ("prod", pe.reduce_prod, np.prod),
         ]:
             self.compiler = cinn.Compiler.create(self.target)
-            self.reduction_tester(fn_name, pe_fn, np_fn, [1], False, 2.0)
+            self.reduction_tester(fn_name, pe_fn, np_fn, [1], False)
 
     def test_reduction_5(self):
         for (fn_name, pe_fn, np_fn) in [
@@ -84,7 +84,7 @@ class TestPEReduction(unittest.TestCase):
             ("prod", pe.reduce_prod, np.prod),
         ]:
             self.compiler = cinn.Compiler.create(self.target)
-            self.reduction_tester(fn_name, pe_fn, np_fn, [1], True, 2.0)
+            self.reduction_tester(fn_name, pe_fn, np_fn, [1], True)
 
     def test_reduction_6(self):
         for (fn_name, pe_fn, np_fn) in [
@@ -92,7 +92,7 @@ class TestPEReduction(unittest.TestCase):
             ("min", pe.reduce_min, np.min),
         ]:
             self.compiler = cinn.Compiler.create(self.target)
-            self.reduction_tester(fn_name, pe_fn, np_fn, [1], True, None)
+            self.reduction_tester(fn_name, pe_fn, np_fn, [1], True)
 
     def test_reduction_7(self):
         for (fn_name, pe_fn, np_fn) in [
@@ -100,20 +100,16 @@ class TestPEReduction(unittest.TestCase):
             ("min", pe.reduce_min, np.min),
         ]:
             self.compiler = cinn.Compiler.create(self.target)
-            self.reduction_tester(fn_name, pe_fn, np_fn, [1], False, None)
+            self.reduction_tester(fn_name, pe_fn, np_fn, [1], False)
 
-    def reduction_tester(self, fn_name, cinn_fn, np_fn, axes, keep_dims,
-                         initial):
+    def reduction_tester(self, fn_name, cinn_fn, np_fn, axes, keep_dims):
         m, n = [ir.Expr(_) for _ in (
             self.m,
             self.n,
         )]
         x = lang.Placeholder("float32", "x", [m, n])
         func_name = "test_" + fn_name
-        if initial:
-            y = cinn_fn(x.to_tensor(), axes, keep_dims, ir.Expr(initial))
-        else:
-            y = cinn_fn(x.to_tensor(), axes, keep_dims, ir.Expr(0))
+        y = cinn_fn(x.to_tensor(), axes, keep_dims)
         stages = create_stages([x.to_tensor(), y])
         func = lang.lower(func_name, stages, [x.to_tensor(), y])
 
@@ -132,17 +128,15 @@ class TestPEReduction(unittest.TestCase):
         self.assertTrue(
             np.allclose(
                 out_buf.numpy(),
-                self.create_target_data(x_data, np_fn, axes, keep_dims,
-                                        initial),
+                self.create_target_data(x_data, np_fn, axes, keep_dims),
                 atol=1e-4))
 
-    def create_target_data(self, x_data, np_target_fn, axes, keep_dims,
-                           initial):
+    def create_target_data(self, x_data, np_target_fn, axes, keep_dims):
+
         axes_tuple = tuple(axes)
         if len(axes) == 0:
             axes_tuple = None
-        return np_target_fn(
-            x_data, axis=axes_tuple, keepdims=keep_dims, initial=initial)
+        return np_target_fn(x_data, axis=axes_tuple, keepdims=keep_dims)
 
     def create_data(self, axes, keep_dims):
         if not self.reduction_data:
