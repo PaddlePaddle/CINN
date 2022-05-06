@@ -75,7 +75,9 @@ class TensorVectorizeExcluder : public ir::IRMutator<const Expr *> {
     IRMutator::Visit(&node->value, &node->value);
     auto *tensor = node->tensor.As<ir::_Tensor_>();
     CHECK(tensor);
-    if (HitBan(node->tensor, node->indices)) excluded_tensors_.insert(tensor->name);
+    if (HitBan(node->tensor, node->indices)) {
+      excluded_tensors_.insert(tensor->name);
+    }
   }
 
   void Visit(const ir::Load *expr, const Expr *op) override {
@@ -83,16 +85,17 @@ class TensorVectorizeExcluder : public ir::IRMutator<const Expr *> {
     CHECK(node);
     auto *tensor = node->tensor.As<ir::_Tensor_>();
     CHECK(tensor);
-    if (HitBan(node->tensor, node->indices)) excluded_tensors_.insert(tensor->name);
+    if (HitBan(node->tensor, node->indices)) {
+      excluded_tensors_.insert(tensor->name);
+    }
   }
 
   // return true if the tensor hit some prohibitions of vectorizing
   bool HitBan(Expr tensor, const std::vector<Expr> &indices) {
     auto find_matched_var_fn = [&](const Expr *x) { return x->As<_Var_>() && x->As<_Var_>()->name == iter_name_; };
-    auto in_last_index       = ir::CollectIRNodes(indices.back(), find_matched_var_fn);
 
     // the iter val must appear in the last index
-    if (in_last_index.empty()) {
+    if (indices.empty() || ir::CollectIRNodes(indices.back(), find_matched_var_fn).empty()) {
       VLOG(5) << "Loop var:" << iter_name_
               << " is not used in the last index, so the memory access will be not sequential";
       return true;
@@ -129,9 +132,11 @@ class CudaVectorizer : public IRMutator<Expr *> {
   std::vector<Expr> vectorized_cast_exprs_;
 
  public:
+  static constexpr int CudaVectorTypeMaxLanes = 4;
   CudaVectorizer(const Var &iter_var, const int factor)
       : iter_var_(iter_var), factor_(factor), tensor_excluder_(iter_var->name) {
-    CHECK(factor == 2 || factor == 4) << "Only support factor 2 or 4 in CUDA type vectorizing, input factor:" << factor;
+    CHECK(factor <= CudaVectorTypeMaxLanes)
+        << "The maximum lanes of valid CUDA vector types: " << CudaVectorTypeMaxLanes << ", but factor: " << factor;
   }
 
   std::vector<Expr> VectorizedTypeCastExprs() { return vectorized_cast_exprs_; }
@@ -594,6 +599,14 @@ struct VectorizeLoops_ : public IRMutator<Expr *> {
 
       vectorizable_ = true;
       IRMutator<>::Visit(&node->body, &node->body);
+
+      if (target == common::DefaultNVGPUTarget()) {
+        if (!forloop->extent.As<IntImm>() || forloop->extent.as_int32() % forloop->vectorize_info().factor != 0) {
+          vectorizable_ = false;
+          VLOG(5) << "GPU vectorize only support extent is a multiple of factor";
+        }
+      }
+
       if (extent_min || extent_max || !vectorizable_) {
         // not vectorize if has tail blocks, for llvm to optimize
         node->reset_vectorize_info();

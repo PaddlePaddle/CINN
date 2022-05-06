@@ -232,7 +232,7 @@ TEST(Vectorize, single_for) {
   LOG(INFO) << "Forloop\n" << forloop;
 }
 
-TEST(Vectorize, cudavectorize) {
+TEST(Vectorize, cuda_vectorize) {
   Expr M(100);
   Expr N(500);
   Placeholder<float> A("A", {M, N});

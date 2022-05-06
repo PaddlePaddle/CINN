@@ -338,7 +338,7 @@ bool CodeGenCUDA_Dev::PrintBuiltinVectorAccess(const ir::LoadStoreAddrMnger *op,
 
 void CodeGenCUDA_Dev::Visit(const ir::Load *op) {
   // overload this visit function to especially deal with the case when it accesses
-  // element at a cuda built-in vector, others still reslove to CodeGenC
+  // element at a cuda built-in vector, others still resolve to CodeGenC
   if (!PrintBuiltinVectorAccess(op, op->index())) {
     CodeGenC::Visit(op);
   }
@@ -346,7 +346,7 @@ void CodeGenCUDA_Dev::Visit(const ir::Load *op) {
 
 void CodeGenCUDA_Dev::Visit(const ir::Store *op) {
   // overload this visit function to especially deal with the case when it accesses
-  // element at a cuda built-in vector, others still reslove to CodeGenC
+  // element at a cuda built-in vector, others still resolve to CodeGenC
   if (PrintBuiltinVectorAccess(op, op->index())) {
     os() << " = ";
     Print(op->value);
