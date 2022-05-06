@@ -34,7 +34,8 @@ namespace frontend {
 
 OptimizeOptions DefaultTrainingOptimizeOptions() {
   OptimizeOptions options;
-  options.program_passes = {"Decomposer", "TransposeFolding", "GemmRewriter", "RemoveIdentity", "DeadCodeEliminate"};
+  options.program_passes = {
+      "Decomposer", "TransposeFolding", "GemmRewriter", "ReshapeRewriter", "RemoveIdentity", "DeadCodeEliminate"};
   if (FLAGS_cinn_use_new_fusion_pass) {
     options.graph_passes = {"OpFusionPass", "FusionMergePass"};
   } else {
