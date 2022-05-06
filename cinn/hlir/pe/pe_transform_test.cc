@@ -131,12 +131,6 @@ TEST(ScatterAssign, ScatterAssign) {
   auto host_module_device_module = backends::SplitCudaAndHostModule(module);
   auto &host_module              = std::get<0>(host_module_device_module);
   auto &device_module            = std::get<1>(host_module_device_module);
-  for (auto &func : host_module.functions()) {
-    LOG(INFO) << "host:\n" << func;
-  }
-  for (auto &func : device_module.functions()) {
-    LOG(INFO) << "device:\n" << func;
-  }
 
   backends::CodeGenCUDA_Dev codegen(target);
   auto source_code = codegen.Compile(builder.Build());
@@ -179,12 +173,6 @@ TEST(SliceAssign, SliceAssign) {
   auto host_module_device_module = backends::SplitCudaAndHostModule(module);
   auto &host_module              = std::get<0>(host_module_device_module);
   auto &device_module            = std::get<1>(host_module_device_module);
-  for (auto &func : host_module.functions()) {
-    LOG(INFO) << "host:\n" << func;
-  }
-  for (auto &func : device_module.functions()) {
-    LOG(INFO) << "device:\n" << func;
-  }
 
   backends::CodeGenCUDA_Dev codegen(target);
   auto source_code = codegen.Compile(builder.Build());
@@ -224,12 +212,6 @@ TEST(Concat, ConcatCase0) {
   auto host_module_device_module = backends::SplitCudaAndHostModule(module);
   auto &host_module              = std::get<0>(host_module_device_module);
   auto &device_module            = std::get<1>(host_module_device_module);
-  for (auto &func : host_module.functions()) {
-    LOG(INFO) << "host:\n" << func;
-  }
-  for (auto &func : device_module.functions()) {
-    LOG(INFO) << "device:\n" << func;
-  }
 
   backends::CodeGenCUDA_Dev codegen(target);
   auto source_code = codegen.Compile(builder.Build());
@@ -270,12 +252,6 @@ TEST(Reduce, Reduce_Test_0) {
   auto host_module_device_module = backends::SplitCudaAndHostModule(module);
   auto &host_module              = std::get<0>(host_module_device_module);
   auto &device_module            = std::get<1>(host_module_device_module);
-  for (auto &func : host_module.functions()) {
-    LOG(INFO) << "host:\n" << func;
-  }
-  for (auto &func : device_module.functions()) {
-    LOG(INFO) << "device:\n" << func;
-  }
 
   backends::CodeGenCUDA_Dev codegen(target);
   auto source_code = codegen.Compile(builder.Build());
@@ -288,6 +264,7 @@ TEST(Reduce, Reduce_Test_0) {
 #endif
 }
 
+#ifdef CINN_WITH_CUDA
 void CudaReduceReorder(poly::StageMap stages, ir::Tensor input, const std::vector<int> &axes) {
   auto &shape = input->shape;
   std::vector<int> order;
@@ -327,7 +304,7 @@ TEST(Reduce, Reduce_Test_1) {
   auto C      = hlir::pe::Add(A.tensor(), B.tensor());
   auto D      = hlir::pe::ReduceSum(C, {0, 2});
   auto stages = CreateStages({C, D});
-  hlir::pe::CudaScheduleReduce(stages, D, 2, common::DefaultNVGPUTarget());
+  hlir::pe::CudaReduceSchedule(stages, D, 2, common::DefaultNVGPUTarget());
   CudaReduceReorder(stages, C, {0, 2});
   stages[C]->SetBuffer("local");
   stages[C]->SimpleComputeAt(stages[D], stages[D]->n_out_dims() - 1);
@@ -336,7 +313,6 @@ TEST(Reduce, Reduce_Test_1) {
   auto func = Lower("fn", stages, {A, B, D});
   LOG(INFO) << "func:\n" << func;
 
-#ifdef CINN_WITH_CUDA
   auto target = common::DefaultNVGPUTarget();
   Module::Builder builder("Concat_Builder", target);
   builder.AddFunction(func);
@@ -345,12 +321,6 @@ TEST(Reduce, Reduce_Test_1) {
   auto host_module_device_module = backends::SplitCudaAndHostModule(module);
   auto &host_module              = std::get<0>(host_module_device_module);
   auto &device_module            = std::get<1>(host_module_device_module);
-  for (auto &func : host_module.functions()) {
-    LOG(INFO) << "host:\n" << func;
-  }
-  for (auto &func : device_module.functions()) {
-    LOG(INFO) << "device:\n" << func;
-  }
 
   backends::CodeGenCUDA_Dev codegen(target);
   auto source_code = codegen.Compile(builder.Build());
@@ -360,8 +330,612 @@ TEST(Reduce, Reduce_Test_1) {
   backends::NVRTC_Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
-#endif
 }
+
+TEST(Reduce, Reduce_Test_2) {
+  int m = 10201;
+  int n = 50;
+  Expr M(m), N(n);
+
+  Placeholder<float> A("A", {M, N});
+
+  auto reduce_out = hlir::pe::BlockShuffleReduceSum(A.tensor(), {0}, false);
+  CHECK_EQ(reduce_out.size(), 3) << "the output of reduce is not equal to 3";
+  auto stages = CreateStages({A, reduce_out[2], reduce_out[1], reduce_out[0]});
+
+  CudaBlockShuffleReduceSchedule(stages, reduce_out[2], reduce_out[1], reduce_out[0], common::DefaultNVGPUTarget());
+
+  auto func = Lower("fn", stages, {A, reduce_out[0]});
+  LOG(INFO) << "func:\n" << func;
+
+  auto target = common::DefaultNVGPUTarget();
+  Module::Builder builder("Concat_Builder", target);
+  builder.AddFunction(func);
+
+  auto module                    = builder.Build();
+  auto host_module_device_module = backends::SplitCudaAndHostModule(module);
+  auto &host_module              = std::get<0>(host_module_device_module);
+  auto &device_module            = std::get<1>(host_module_device_module);
+
+  backends::CodeGenCUDA_Dev codegen(target);
+  auto source_code = codegen.Compile(builder.Build());
+  LOG(INFO) << "compiled code:\n\n\n" << source_code;
+
+  // nv jit compile to ptx
+  backends::NVRTC_Compiler compiler;
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty());
+}
+
+TEST(Reduce, Reduce_Test_2_1) {
+  int m = 10240;
+  int n = 64;
+  Expr M(m), N(n);
+
+  Placeholder<float> A("A", {M, N});
+
+  auto reduce_out = hlir::pe::BlockShuffleReduceSum(A.tensor(), {0}, false);
+  CHECK_EQ(reduce_out.size(), 3) << "the output of reduce is not equal to 3";
+  auto stages = CreateStages({A, reduce_out[2], reduce_out[1], reduce_out[0]});
+
+  CudaBlockShuffleReduceSchedule(stages, reduce_out[2], reduce_out[1], reduce_out[0], common::DefaultNVGPUTarget());
+
+  auto func = Lower("fn", stages, {A, reduce_out[0]});
+  LOG(INFO) << "func:\n" << func;
+
+  auto target = common::DefaultNVGPUTarget();
+  Module::Builder builder("Concat_Builder", target);
+  builder.AddFunction(func);
+
+  auto module                    = builder.Build();
+  auto host_module_device_module = backends::SplitCudaAndHostModule(module);
+  auto &host_module              = std::get<0>(host_module_device_module);
+  auto &device_module            = std::get<1>(host_module_device_module);
+
+  backends::CodeGenCUDA_Dev codegen(target);
+  auto source_code = codegen.Compile(builder.Build());
+  LOG(INFO) << "compiled code:\n\n\n" << source_code;
+
+  // nv jit compile to ptx
+  backends::NVRTC_Compiler compiler;
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty());
+}
+
+TEST(Reduce, Reduce_Test_2_2) {
+  int m = 10240;
+  int n = 64;
+  Expr M(m), N(n);
+
+  Placeholder<float> A("A", {N, M, N});
+
+  auto reduce_out = hlir::pe::BlockShuffleReduceSum(A.tensor(), {1}, false);
+  CHECK_EQ(reduce_out.size(), 3) << "the output of reduce is not equal to 3";
+  auto stages = CreateStages({A, reduce_out[2], reduce_out[1], reduce_out[0]});
+
+  CudaBlockShuffleReduceSchedule(stages, reduce_out[2], reduce_out[1], reduce_out[0], common::DefaultNVGPUTarget());
+
+  auto func = Lower("fn", stages, {A, reduce_out[0]});
+  LOG(INFO) << "func:\n" << func;
+
+  auto target = common::DefaultNVGPUTarget();
+  Module::Builder builder("Concat_Builder", target);
+  builder.AddFunction(func);
+
+  auto module                    = builder.Build();
+  auto host_module_device_module = backends::SplitCudaAndHostModule(module);
+  auto &host_module              = std::get<0>(host_module_device_module);
+  auto &device_module            = std::get<1>(host_module_device_module);
+
+  backends::CodeGenCUDA_Dev codegen(target);
+  auto source_code = codegen.Compile(builder.Build());
+  LOG(INFO) << "compiled code:\n\n\n" << source_code;
+
+  // nv jit compile to ptx
+  backends::NVRTC_Compiler compiler;
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty());
+}
+
+TEST(Reduce, Reduce_Test_2_3) {
+  int m = 10240;
+  int n = 16;
+  Expr M(m), N(n);
+
+  Placeholder<float> A("A", {M, N, N});
+
+  auto reduce_out = hlir::pe::BlockShuffleReduceSum(A.tensor(), {0}, false);
+  CHECK_EQ(reduce_out.size(), 3) << "the output of reduce is not equal to 3";
+  auto stages = CreateStages({A, reduce_out[2], reduce_out[1], reduce_out[0]});
+
+  CudaBlockShuffleReduceSchedule(stages, reduce_out[2], reduce_out[1], reduce_out[0], common::DefaultNVGPUTarget());
+
+  auto func = Lower("fn", stages, {A, reduce_out[0]});
+  LOG(INFO) << "func:\n" << func;
+
+  auto target = common::DefaultNVGPUTarget();
+  Module::Builder builder("Concat_Builder", target);
+  builder.AddFunction(func);
+
+  auto module                    = builder.Build();
+  auto host_module_device_module = backends::SplitCudaAndHostModule(module);
+  auto &host_module              = std::get<0>(host_module_device_module);
+  auto &device_module            = std::get<1>(host_module_device_module);
+
+  backends::CodeGenCUDA_Dev codegen(target);
+  auto source_code = codegen.Compile(builder.Build());
+  LOG(INFO) << "compiled code:\n\n\n" << source_code;
+
+  // nv jit compile to ptx
+  backends::NVRTC_Compiler compiler;
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty());
+}
+
+TEST(Reduce, Reduce_Test_3) {
+  int m = 10201;
+  Expr M(m);
+
+  Placeholder<float> A("A", {M});
+
+  auto reduce_out = hlir::pe::TwoStepBlockReduceSum(A.tensor(), {0}, false);
+  CHECK_EQ(reduce_out.size(), 4) << "the output of reduce is not equal to 4!";
+  auto stages = CreateStages({A, reduce_out[3], reduce_out[2], reduce_out[1], reduce_out[0]});
+
+  CudaTwoStepReduceSchedule(
+      stages, reduce_out[3], reduce_out[2], reduce_out[1], reduce_out[0], common::DefaultNVGPUTarget());
+
+  auto func = Lower("fn", stages, {A, reduce_out[0]});
+  LOG(INFO) << "func:\n" << func;
+
+  auto target = common::DefaultNVGPUTarget();
+  Module::Builder builder("Concat_Builder", target);
+  builder.AddFunction(func);
+
+  auto module                    = builder.Build();
+  auto host_module_device_module = backends::SplitCudaAndHostModule(module);
+  auto &host_module              = std::get<0>(host_module_device_module);
+  auto &device_module            = std::get<1>(host_module_device_module);
+
+  backends::CodeGenCUDA_Dev codegen(target);
+  auto source_code = codegen.Compile(builder.Build());
+  LOG(INFO) << "compiled code:\n\n\n" << source_code;
+
+  // nv jit compile to ptx
+  backends::NVRTC_Compiler compiler;
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty());
+}
+
+TEST(Reduce, Reduce_Test_3_1) {
+  int m = 10240;
+  Expr M(m);
+
+  Placeholder<float> A("A", {M});
+
+  auto reduce_out = hlir::pe::TwoStepBlockReduceSum(A.tensor(), {0}, false);
+  CHECK_EQ(reduce_out.size(), 4) << "the output of reduce is not equal to 4!";
+  auto stages = CreateStages({A, reduce_out[3], reduce_out[2], reduce_out[1], reduce_out[0]});
+
+  CudaTwoStepReduceSchedule(
+      stages, reduce_out[3], reduce_out[2], reduce_out[1], reduce_out[0], common::DefaultNVGPUTarget());
+
+  auto func = Lower("fn", stages, {A, reduce_out[0]});
+  LOG(INFO) << "func:\n" << func;
+
+  auto target = common::DefaultNVGPUTarget();
+  Module::Builder builder("Concat_Builder", target);
+  builder.AddFunction(func);
+
+  auto module                    = builder.Build();
+  auto host_module_device_module = backends::SplitCudaAndHostModule(module);
+  auto &host_module              = std::get<0>(host_module_device_module);
+  auto &device_module            = std::get<1>(host_module_device_module);
+
+  backends::CodeGenCUDA_Dev codegen(target);
+  auto source_code = codegen.Compile(builder.Build());
+  LOG(INFO) << "compiled code:\n\n\n" << source_code;
+
+  // nv jit compile to ptx
+  backends::NVRTC_Compiler compiler;
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty());
+}
+
+TEST(Reduce, Reduce_Test_3_2) {
+  int m = 10240;
+  int n = 64;
+  Expr M(m), N(n);
+
+  Placeholder<float> A("A", {N, M});
+
+  auto reduce_out = hlir::pe::TwoStepBlockReduceSum(A.tensor(), {1}, false);
+  CHECK_EQ(reduce_out.size(), 4) << "the output of reduce is not equal to 4!";
+  auto stages = CreateStages({A, reduce_out[3], reduce_out[2], reduce_out[1], reduce_out[0]});
+
+  CudaTwoStepReduceSchedule(
+      stages, reduce_out[3], reduce_out[2], reduce_out[1], reduce_out[0], common::DefaultNVGPUTarget());
+
+  auto func = Lower("fn", stages, {A, reduce_out[0]});
+  LOG(INFO) << "func:\n" << func;
+
+  auto target = common::DefaultNVGPUTarget();
+  Module::Builder builder("Concat_Builder", target);
+  builder.AddFunction(func);
+
+  auto module                    = builder.Build();
+  auto host_module_device_module = backends::SplitCudaAndHostModule(module);
+  auto &host_module              = std::get<0>(host_module_device_module);
+  auto &device_module            = std::get<1>(host_module_device_module);
+
+  backends::CodeGenCUDA_Dev codegen(target);
+  auto source_code = codegen.Compile(builder.Build());
+  LOG(INFO) << "compiled code:\n\n\n" << source_code;
+
+  // nv jit compile to ptx
+  backends::NVRTC_Compiler compiler;
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty());
+}
+
+TEST(Reduce, Reduce_Test_4) {
+  int m = 10201;
+  int n = 64;
+  Expr M(m), N(n);
+
+  Placeholder<float> A("A", {N, M});
+
+  auto reduce_out = hlir::pe::TwoStepBlockReduceSum(A.tensor(), {1}, false);
+  CHECK_EQ(reduce_out.size(), 4) << "the output of reduce is not equal to 4!";
+  auto stages = CreateStages({A, reduce_out[3], reduce_out[2], reduce_out[1], reduce_out[0]});
+
+  CudaTwoStepReduceSchedule(
+      stages, reduce_out[3], reduce_out[2], reduce_out[1], reduce_out[0], common::DefaultNVGPUTarget());
+
+  auto func = Lower("fn", stages, {A, reduce_out[0]});
+  LOG(INFO) << "func:\n" << func;
+
+  auto target = common::DefaultNVGPUTarget();
+  Module::Builder builder("Concat_Builder", target);
+  builder.AddFunction(func);
+
+  auto module                    = builder.Build();
+  auto host_module_device_module = backends::SplitCudaAndHostModule(module);
+  auto &host_module              = std::get<0>(host_module_device_module);
+  auto &device_module            = std::get<1>(host_module_device_module);
+
+  backends::CodeGenCUDA_Dev codegen(target);
+  auto source_code = codegen.Compile(builder.Build());
+  LOG(INFO) << "compiled code:\n\n\n" << source_code;
+
+  // nv jit compile to ptx
+  backends::NVRTC_Compiler compiler;
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty());
+}
+
+TEST(Reduce, Reduce_Test_5) {
+  int m = 32;
+  int n = 64;
+  Expr M(m), N(n);
+
+  Placeholder<float> A("A", {N, M, M});
+
+  auto reduce_out = hlir::pe::TwoStepBlockReduceSum(A.tensor(), {1, 2}, false);
+  CHECK_EQ(reduce_out.size(), 2) << "the output of reduce is not equal to 4!";
+  auto stages = CreateStages({A, reduce_out[1], reduce_out[0]});
+
+  CudaBlockReduceInternalSchedule(stages, reduce_out[1], reduce_out[0], common::DefaultNVGPUTarget());
+
+  auto func = Lower("fn", stages, {A, reduce_out[0]});
+  LOG(INFO) << "func:\n" << func;
+
+  auto target = common::DefaultNVGPUTarget();
+  Module::Builder builder("Concat_Builder", target);
+  builder.AddFunction(func);
+
+  auto module                    = builder.Build();
+  auto host_module_device_module = backends::SplitCudaAndHostModule(module);
+  auto &host_module              = std::get<0>(host_module_device_module);
+  auto &device_module            = std::get<1>(host_module_device_module);
+
+  backends::CodeGenCUDA_Dev codegen(target);
+  auto source_code = codegen.Compile(builder.Build());
+  LOG(INFO) << "compiled code:\n\n\n" << source_code;
+
+  // nv jit compile to ptx
+  backends::NVRTC_Compiler compiler;
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty());
+}
+
+TEST(Reduce, Reduce_Test_6) {
+  int m = 32;
+  int n = 64;
+  Expr M(m), N(n);
+
+  Placeholder<float> A("A", {N, N, M, M});
+
+  auto reduce_out = hlir::pe::TwoStepBlockReduceSum(A.tensor(), {0, 2, 3}, false);
+  CHECK_EQ(reduce_out.size(), 3) << "the output of reduce is not equal to 4!";
+  auto stages = CreateStages({A, reduce_out[1], reduce_out[0]});
+
+  CudaBlockReduceSchedule(stages, reduce_out[2], reduce_out[1], reduce_out[0], common::DefaultNVGPUTarget());
+
+  auto func = Lower("fn", stages, {A, reduce_out[0]});
+  LOG(INFO) << "func:\n" << func;
+
+  auto target = common::DefaultNVGPUTarget();
+  Module::Builder builder("Concat_Builder", target);
+  builder.AddFunction(func);
+
+  auto module                    = builder.Build();
+  auto host_module_device_module = backends::SplitCudaAndHostModule(module);
+  auto &host_module              = std::get<0>(host_module_device_module);
+  auto &device_module            = std::get<1>(host_module_device_module);
+
+  backends::CodeGenCUDA_Dev codegen(target);
+  auto source_code = codegen.Compile(builder.Build());
+  LOG(INFO) << "compiled code:\n\n\n" << source_code;
+
+  // nv jit compile to ptx
+  backends::NVRTC_Compiler compiler;
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty());
+}
+
+TEST(Reduce, Reduce_Test_7) {
+  int m = 10201;
+  int n = 64;
+  Expr M(m), N(n);
+
+  Placeholder<float> A("A", {N, N, M});
+
+  auto reduce_out = hlir::pe::TwoStepBlockReduceSum(A.tensor(), {1, 2}, false);
+  CHECK_EQ(reduce_out.size(), 4) << "the output of reduce is not equal to 4!";
+  auto stages = CreateStages({A, reduce_out[3], reduce_out[2], reduce_out[1], reduce_out[0]});
+
+  CudaTwoStepReduceSchedule(
+      stages, reduce_out[3], reduce_out[2], reduce_out[1], reduce_out[0], common::DefaultNVGPUTarget());
+
+  auto func = Lower("fn", stages, {A, reduce_out[0]});
+  LOG(INFO) << "func:\n" << func;
+
+  auto target = common::DefaultNVGPUTarget();
+  Module::Builder builder("Concat_Builder", target);
+  builder.AddFunction(func);
+
+  auto module                    = builder.Build();
+  auto host_module_device_module = backends::SplitCudaAndHostModule(module);
+  auto &host_module              = std::get<0>(host_module_device_module);
+  auto &device_module            = std::get<1>(host_module_device_module);
+
+  backends::CodeGenCUDA_Dev codegen(target);
+  auto source_code = codegen.Compile(builder.Build());
+  LOG(INFO) << "compiled code:\n\n\n" << source_code;
+
+  // nv jit compile to ptx
+  backends::NVRTC_Compiler compiler;
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty());
+}
+
+TEST(Reduce, Reduce_Test_8) {
+  int m = 128;
+  int n = 112;
+  Expr M(m), N(n);
+
+  Placeholder<float> A("A", {M, M, N, N});
+
+  auto reduce_out = hlir::pe::TwoStepBlockReduceSum(A.tensor(), {0, 2, 3}, false);
+  CHECK_EQ(reduce_out.size(), 4) << "the output of reduce is not equal to 4!";
+  auto stages = CreateStages({A, reduce_out[3], reduce_out[2], reduce_out[1], reduce_out[0]});
+
+  CudaTwoStepReduceSchedule(
+      stages, reduce_out[3], reduce_out[2], reduce_out[1], reduce_out[0], common::DefaultNVGPUTarget());
+
+  auto func = Lower("fn", stages, {A, reduce_out[0]});
+  LOG(INFO) << "func:\n" << func;
+
+  auto target = common::DefaultNVGPUTarget();
+  Module::Builder builder("Concat_Builder", target);
+  builder.AddFunction(func);
+
+  auto module                    = builder.Build();
+  auto host_module_device_module = backends::SplitCudaAndHostModule(module);
+  auto &host_module              = std::get<0>(host_module_device_module);
+  auto &device_module            = std::get<1>(host_module_device_module);
+
+  backends::CodeGenCUDA_Dev codegen(target);
+  auto source_code = codegen.Compile(builder.Build());
+  LOG(INFO) << "compiled code:\n\n\n" << source_code;
+
+  // nv jit compile to ptx
+  backends::NVRTC_Compiler compiler;
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty());
+}
+
+TEST(Reduce, Reduce_Test_9) {
+  int m = 128;
+  int n = 56;
+  Expr M(m), N(n);
+
+  Placeholder<float> A("A", {M, M, N, N});
+
+  auto reduce_out = hlir::pe::TwoStepBlockReduceSum(A.tensor(), {0, 2, 3}, false);
+  CHECK_EQ(reduce_out.size(), 4) << "the output of reduce is not equal to 4!";
+  auto stages = CreateStages({A, reduce_out[3], reduce_out[2], reduce_out[1], reduce_out[0]});
+
+  CudaTwoStepReduceSchedule(
+      stages, reduce_out[3], reduce_out[2], reduce_out[1], reduce_out[0], common::DefaultNVGPUTarget());
+
+  auto func = Lower("fn", stages, {A, reduce_out[0]});
+  LOG(INFO) << "func:\n" << func;
+
+  auto target = common::DefaultNVGPUTarget();
+  Module::Builder builder("Concat_Builder", target);
+  builder.AddFunction(func);
+
+  auto module                    = builder.Build();
+  auto host_module_device_module = backends::SplitCudaAndHostModule(module);
+  auto &host_module              = std::get<0>(host_module_device_module);
+  auto &device_module            = std::get<1>(host_module_device_module);
+
+  backends::CodeGenCUDA_Dev codegen(target);
+  auto source_code = codegen.Compile(builder.Build());
+  LOG(INFO) << "compiled code:\n\n\n" << source_code;
+
+  // nv jit compile to ptx
+  backends::NVRTC_Compiler compiler;
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty());
+}
+
+TEST(Reduce, Reduce_Test_10) {
+  int m = 128;
+  int n = 128;
+  Expr M(m), N(n);
+
+  Placeholder<float> A("A", {M, N});
+  Placeholder<float> B("B", {M, N});
+
+  auto c          = hlir::pe::Add(A.tensor(), B.tensor());
+  auto reduce_out = hlir::pe::BlockShuffleReduceSum(c, {0}, false);
+  CHECK_EQ(reduce_out.size(), 3) << "the output of reduce is not equal to 4!";
+  auto stages = CreateStages({A, B, c, reduce_out[2], reduce_out[1], reduce_out[0]});
+
+  stages[c]->Split(0, 8);
+  stages[c]->Fuse(1, 2);
+  stages[c]->Reorder({1, 0});
+  stages[c]->SetBuffer("local");
+  stages[c]->SimpleComputeAt(stages[reduce_out[1]], 1);
+  stages[reduce_out[2]]->ComputeInline();
+  stages[reduce_out[1]]->Bind(0, "threadIdx.x");
+  stages[reduce_out[1]]->SetBuffer("shared");
+  stages[reduce_out[0]]->Bind(0, "threadIdx.x");
+
+  auto func = Lower("fn", stages, {A, B, reduce_out[0]});
+  LOG(INFO) << "func:\n" << func;
+
+  auto target = common::DefaultNVGPUTarget();
+  Module::Builder builder("Concat_Builder", target);
+  builder.AddFunction(func);
+
+  auto module                    = builder.Build();
+  auto host_module_device_module = backends::SplitCudaAndHostModule(module);
+  auto &host_module              = std::get<0>(host_module_device_module);
+  auto &device_module            = std::get<1>(host_module_device_module);
+
+  backends::CodeGenCUDA_Dev codegen(target);
+  auto source_code = codegen.Compile(builder.Build());
+  LOG(INFO) << "compiled code:\n\n\n" << source_code;
+
+  // nv jit compile to ptx
+  backends::NVRTC_Compiler compiler;
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty());
+}
+
+TEST(Reduce, Reduce_Test_11) {
+  int m = 10;
+  int n = 10;
+  Expr M(m), N(n);
+
+  Placeholder<float> A("A", {M, N, N});
+  auto reduce_out = hlir::pe::BlockShuffleReduceSum(A.tensor(), {0, 1}, false);
+  CHECK_EQ(reduce_out.size(), 3) << "the output of reduce is not equal to 4!";
+  auto stages = CreateStages({A, reduce_out[2], reduce_out[1], reduce_out[0]});
+
+  CudaBlockShuffleReduceSchedule(stages, reduce_out[2], reduce_out[1], reduce_out[0], common::DefaultNVGPUTarget());
+  auto func = Lower("fn", stages, {A, reduce_out[0]});
+  LOG(INFO) << "func:\n" << func;
+
+  auto target = common::DefaultNVGPUTarget();
+  Module::Builder builder("Concat_Builder", target);
+  builder.AddFunction(func);
+
+  auto module                    = builder.Build();
+  auto host_module_device_module = backends::SplitCudaAndHostModule(module);
+  auto &host_module              = std::get<0>(host_module_device_module);
+  auto &device_module            = std::get<1>(host_module_device_module);
+
+  backends::CodeGenCUDA_Dev codegen(target);
+  auto source_code = codegen.Compile(builder.Build());
+  LOG(INFO) << "compiled code:\n\n\n" << source_code;
+
+  // nv jit compile to ptx
+  backends::NVRTC_Compiler compiler;
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty());
+}
+
+TEST(Reduce, Reduce_Test_12) {
+  int m = 10;
+  int n = 10;
+  Expr M(m), N(n);
+
+  Placeholder<float> A("A", {M, M, N, N});
+  auto reduce_out = hlir::pe::BlockShuffleReduceSum(A.tensor(), {0, 1, 2}, false);
+  CHECK_EQ(reduce_out.size(), 3) << "the output of reduce is not equal to 4!";
+  auto stages = CreateStages({A, reduce_out[2], reduce_out[1], reduce_out[0]});
+
+  CudaBlockShuffleReduceSchedule(stages, reduce_out[2], reduce_out[1], reduce_out[0], common::DefaultNVGPUTarget());
+  auto func = Lower("fn", stages, {A, reduce_out[0]});
+  LOG(INFO) << "func:\n" << func;
+
+  auto target = common::DefaultNVGPUTarget();
+  Module::Builder builder("Concat_Builder", target);
+  builder.AddFunction(func);
+
+  auto module                    = builder.Build();
+  auto host_module_device_module = backends::SplitCudaAndHostModule(module);
+  auto &host_module              = std::get<0>(host_module_device_module);
+  auto &device_module            = std::get<1>(host_module_device_module);
+
+  backends::CodeGenCUDA_Dev codegen(target);
+  auto source_code = codegen.Compile(builder.Build());
+  LOG(INFO) << "compiled code:\n\n\n" << source_code;
+
+  // nv jit compile to ptx
+  backends::NVRTC_Compiler compiler;
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty());
+}
+
+TEST(Reduce, Reduce_Test_13) {
+  int m = 16;
+  int n = 16;
+  Expr M(m), N(n);
+
+  Placeholder<float> A("A", {M, M, N, N});
+  auto reduce_out = hlir::pe::BlockShuffleReduceSum(A.tensor(), {0, 1, 2}, false);
+  CHECK_EQ(reduce_out.size(), 3) << "the output of reduce is not equal to 4!";
+  auto stages = CreateStages({A, reduce_out[2], reduce_out[1], reduce_out[0]});
+
+  CudaBlockShuffleReduceSchedule(stages, reduce_out[2], reduce_out[1], reduce_out[0], common::DefaultNVGPUTarget());
+  auto func = Lower("fn", stages, {A, reduce_out[0]});
+  LOG(INFO) << "func:\n" << func;
+
+  auto target = common::DefaultNVGPUTarget();
+  Module::Builder builder("Concat_Builder", target);
+  builder.AddFunction(func);
+
+  auto module                    = builder.Build();
+  auto host_module_device_module = backends::SplitCudaAndHostModule(module);
+  auto &host_module              = std::get<0>(host_module_device_module);
+  auto &device_module            = std::get<1>(host_module_device_module);
+
+  backends::CodeGenCUDA_Dev codegen(target);
+  auto source_code = codegen.Compile(builder.Build());
+  LOG(INFO) << "compiled code:\n\n\n" << source_code;
+
+  // nv jit compile to ptx
+  backends::NVRTC_Compiler compiler;
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty());
+}
+#endif
 
 }  // namespace pe
 }  // namespace hlir
