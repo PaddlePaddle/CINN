@@ -147,7 +147,13 @@ class Graph : public cinn::common::Graph {
     return it != attrs.end();
   }
 
+  void VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
+                             const std::unordered_set<std::string>& fetch_var_ids);
+
  private:
+  void VisualizeGroups(const std::vector<std::vector<Node*>>& groups,
+                       const std::unordered_set<std::string>& fetch_var_ids);
+
   CINN_DISALLOW_COPY_AND_ASSIGN(Graph);
 };
 

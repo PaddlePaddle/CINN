@@ -326,7 +326,8 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const Node* node) {
   for (int i = 0; i < C->size() - 1; i++) {
     ir::Expr temp = C[i];
     // checkout whether the tensor is with buffer.
-    if (!temp.as_tensor_ref()->buffer.defined() || this->target_ != common::DefaultNVGPUTarget()) {
+    if ((!temp.as_tensor_ref()->buffer.defined() || this->target_ != common::DefaultNVGPUTarget()) &&
+        !stages[temp.as_tensor_ref()]->inlined()) {
       inputs.push_back(temp.as_tensor_ref());
     }
   }
@@ -498,7 +499,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
   // args order: inputs + final output + fetch outputs + other no_fused outputs
   for (auto& tensor : outputs) {
     // checkout the tensor is with buffer.
-    if (!tensor->buffer.defined() || this->target_ != common::DefaultNVGPUTarget()) {
+    if ((!tensor->buffer.defined() || this->target_ != common::DefaultNVGPUTarget()) && !stages[tensor]->inlined()) {
       inputs.push_back(tensor);
     }
   }
@@ -657,7 +658,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
 
       OpLowerer op_lowerer(dtype_dict, shape_dict, target_);
       for (auto& group : graph_->fusion_groups) {
-        VLOG(11) << group->group_id;
+        VLOG(3) << group->group_id;
         groups.push_back(std::move(group->CollectNodes()));
         // set node as output node from fetch_var_ids.
         for (auto node : groups.back()) {
@@ -674,7 +675,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
         }
         local_lowered_funcs.emplace_back(std::move(op_lowerer.Lower(group)));
         CHECK_EQ(local_lowered_funcs.back().size(), 1) << "Lowerd Function Is Not Equal 1!";
-        VLOG(11) << local_lowered_funcs.back()[0];
+        VLOG(3) << local_lowered_funcs.back()[0];
       }
     } else {
       for (int i = 0; i < groups.size(); i++) {
@@ -695,6 +696,8 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   for (auto&& lowered_func : lowered_funcs) {
     this->ProcessFunction(lowered_func);
   }
+
+  graph_->VisualizeGroupedGraph(groups, fetch_var_ids_);
 
   // compile the module
   // Need to create a new compiler for every call of Build,
@@ -1273,7 +1276,8 @@ std::vector<ir::LoweredFunc> GraphCompiler::NodeToLoweredFunc(const hlir::framew
   for (int i = 0; i < C->size() - 1; ++i) {
     ir::Expr temp = C[i];
     // checkout whether the tensor is with buffer.
-    if (!temp.as_tensor_ref()->buffer.defined() || this->target_ != common::DefaultNVGPUTarget()) {
+    if ((!temp.as_tensor_ref()->buffer.defined() || this->target_ != common::DefaultNVGPUTarget()) &&
+        !stages[temp.as_tensor_ref()]->inlined()) {
       // inputs is reused as args of LowerVec, so we add output Tensor here.
       inputs.push_back(temp.as_tensor_ref());
     }

@@ -20,6 +20,7 @@ namespace cinn {
 namespace frontend {
 
 void OpMapperContext::AddVar(const std::string& origin_name, const Variable& var, bool replace) const {
+  CHECK(!origin_name.empty()) << "Variable [" << origin_name << "]'s is empty ! Please check.";
   const auto& name = cinn::utils::TransValidVarName(origin_name);
   CheckVarNameValid(name);
   CHECK(replace || !var_map_->count(name)) << "Duplicate variable [" << name << "] found";
@@ -28,6 +29,7 @@ void OpMapperContext::AddVar(const std::string& origin_name, const Variable& var
 }
 
 void OpMapperContext::AddVarModelToProgram(const std::string& name, const std::string& id) const {
+  CHECK(!id.empty()) << "Paddle name [" << name << "]'s program id is empty ! Please check.";
   (*var_model_to_program_map_)[name] = id;
   VLOG(4) << "Paddle name [" << name << "] map to program id " << id;
 }
