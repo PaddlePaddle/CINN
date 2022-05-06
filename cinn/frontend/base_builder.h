@@ -122,9 +122,8 @@ class BaseBuilder {
                        const std::vector<int>& ends,
                        const std::vector<int>& strides = {});
 
-  template <typename T = float>
   Variable FillConstant(const std::vector<int>& shape,
-                        T value,
+                        float value,
                         const std::string& name,
                         const std::string& dtype,
                         bool force_cpu = false);

@@ -145,9 +145,8 @@ Variable BaseBuilder::Reduce(const Variable& operand, ReduceKind kind, const std
   }
 }
 
-template <typename T>
 Variable BaseBuilder::FillConstant(
-    const std::vector<int>& shape, T value, const std::string& name, const std::string& dtype, bool force_cpu) {
+    const std::vector<int>& shape, float value, const std::string& name, const std::string& dtype, bool force_cpu) {
   Instruction instr("fill_constant");
   instr.SetInputs({});
   instr.SetAttr("shape", shape);

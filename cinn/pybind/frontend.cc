@@ -336,21 +336,10 @@ void BindFrontend(pybind11::module *m) {
           py::arg("shape"),                                                   \
           py::arg("value"),                                                   \
           py::arg("name"),                                                    \
-          py::arg("force_cpu") = false)                                       \
-     .def("fill_constant",                                                    \
-          static_cast<Variable (BaseBuilder::*)(                              \
-               const std::vector<int> &, TYPE__, const std::string &, const std::string &, bool)>( \
-               &BaseBuilder::template FillConstant<TYPE__>),                           \
-          py::arg("shape"),                                                   \
-          py::arg("value"),                                                   \
-          py::arg("name"),                                                    \
-          py::arg("dtype"),                                                   \
           py::arg("force_cpu") = false)
           PY_REGISTER_FILLCONSTANT_OP(bool)
           PY_REGISTER_FILLCONSTANT_OP(float)
           PY_REGISTER_FILLCONSTANT_OP(int)
-          PY_REGISTER_FILLCONSTANT_OP(double)
-          PY_REGISTER_FILLCONSTANT_OP(int64_t)
 #undef PY_REGISTER_FILLCONSTANT_OP
           // clang-format on
           .def(py::init<const std::string &>(), py::arg("name") = "")
