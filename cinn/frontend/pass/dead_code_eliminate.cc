@@ -82,9 +82,7 @@ class DeadCodeEliminatePass : public ProgramPass {
     for (int i = 0; i < program.size(); i++) {
       const auto& instr = program[i];
       for (auto& var : instr->outputs) {
-        if (!outputs.count(var->id)) {
-          outputs.insert(var->id);
-        }
+        outputs.insert(var->id);
       }
     }
 
