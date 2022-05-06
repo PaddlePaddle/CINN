@@ -470,23 +470,24 @@ std::vector<ir::Tensor> ReduceInternal(const ir::Tensor& A,
       break;
     }
     lane *= A->shape[axes[index]].as_int32();
-    if (index == 0 && lane <= max_num_threads) {
-      --index;
-      break;
-    }
     if (lane > max_num_threads / 2) {
       break;
     }
   }
-
-  int axis = lane > max_num_threads ? axes[index] : axes[index + 1];
+  // if lane > (max_num_threads / 2),the loop break from lane > max_num_threads / 2.
+  int axis = lane > (max_num_threads / 2) ? axes[index] : axes[index + 1];
+  // collect out shape from[0, axis).
   std::vector<Expr> out_shape(A->shape.begin(), A->shape.begin() + axis);
+  // insert 1 to keep shape as tail to be fused.
   int tail_count = axes.size() - 1 - index;
   for (int idx = 0; idx < tail_count; ++idx) {
     out_shape.emplace_back(1);
   }
   bool check_bound = true;
   if (lane <= max_num_threads) {
+    if (out_shape.size() == axes.back()) {
+      out_shape.emplace_back(1);
+    }
     out_shape.emplace_back(lane);
     check_bound = false;
   } else {
