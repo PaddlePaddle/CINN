@@ -43,6 +43,9 @@ DEFINE_string(cinn_fusion_groups_graphviz_dir,
 DEFINE_bool(cinn_use_cuda_vectorize,
             BoolFromEnv("FLAGS_cinn_use_cuda_vectorize", false),
             "Whether use cuda vectroize on schedule config");
+DEFINE_bool(cinn_ir_schedule,
+            BoolFromEnv("FLAGS_cinn_ir_schedule", false),
+            "Whether use reconstructed schedule primitives.");
 
 namespace cinn {
 namespace runtime {

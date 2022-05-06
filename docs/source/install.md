@@ -43,10 +43,10 @@ $ cmake ..  -DWITH_CUDA=ON -DWITH_CUDNN=ON
 $ make 
 ```
 
-`build/dist/cinn-xxxxx.whl` is the generated python wheel package, the real file name will differ given by the build options, python version, build environments, and git tag.
+`build/python/dist/cinn-xxxxx.whl` is the generated python wheel package, the real file name will differ given by the build options, python version, build environments, and git tag.
 
 ```bash
-$ pip install build/dist/cinn.*.whl
+$ pip install build/python/dist/cinn.*.whl
 ```
 
 A demo using CINN's computation API.

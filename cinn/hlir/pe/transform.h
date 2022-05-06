@@ -111,14 +111,6 @@ std::vector<ir::Tensor> MulMKL(const ir::Tensor& A,
                                const std::string& name      = UniqName("T_Transform_MulMKL_out"),
                                const common::Target& target = common::DefaultHostTarget());
 
-std::vector<ir::Tensor> MulBias(const ir::Tensor& A,
-                                const ir::Tensor& B,
-                                const ir::Tensor& C,
-                                int x_num_col_dims,
-                                const std::vector<ir::Expr>& output_shape,
-                                const ir::Var& axis_k,
-                                const std::string& name);
-
 ir::Tensor LayoutTransform(const ir::Tensor& input,
                            const std::string& src_layout,
                            const std::string& dst_layout,

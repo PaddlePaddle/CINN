@@ -42,7 +42,7 @@ void CodeGen(ir::LoweredFunc& func) {
 
   backends::CodeGenCUDA_Dev codegen(target);
   auto source_code = codegen.Compile(builder.Build());
-  LOG(INFO) << "compiled code:\n\n\n" << source_code;
+  LOG(INFO) << "compiled code of " << func->name << "is:\n\n\n" << source_code;
 
   // nv jit compile to ptx
   backends::NVRTC_Compiler compiler;
@@ -56,7 +56,7 @@ void CodeGen(ir::LoweredFunc& func) {
   CodeGenCX86 codegen(target, CodeGenCX86::Feature::AVX512);
   codegen.SetInlineBuiltinCodes(false);
   auto source_code = codegen.Compile(builder.Build(), CodeGenC::OutputKind::CImpl);
-  LOG(INFO) << "compiled code:\n\n\n" << source_code;
+  LOG(INFO) << "compiled code of " << func->name << "is:\n\n\n" << source_code;
 #endif
 }
 
@@ -88,7 +88,7 @@ TEST(OP_LOWERING, Elementwise_Test_0) {
   for (auto& fusion_op : graph->fusion_groups) {
     auto lowered_func = op_lowerer.Lower(fusion_op);
     CHECK_EQ(lowered_func.size(), 1);
-    LOG(INFO) << lowered_func[0];
+    CodeGen(lowered_func[0]);
   }
 }
 
@@ -121,7 +121,7 @@ TEST(OP_LOWERING, Elementwise_Test_1) {
   for (auto& fusion_op : graph->fusion_groups) {
     auto lowered_func = op_lowerer.Lower(fusion_op);
     CHECK_EQ(lowered_func.size(), 1);
-    LOG(INFO) << lowered_func[0];
+    CodeGen(lowered_func[0]);
   }
 }
 
@@ -153,7 +153,7 @@ TEST(OP_LOWERING, Broadcast_Test_0) {
   for (auto& fusion_op : graph->fusion_groups) {
     auto lowered_func = op_lowerer.Lower(fusion_op);
     CHECK_EQ(lowered_func.size(), 1);
-    LOG(INFO) << lowered_func[0];
+    CodeGen(lowered_func[0]);
   }
 }
 
@@ -180,7 +180,6 @@ TEST(OP_LOWERING, Reduce_Test_0) {
   for (auto& fusion_op : graph->fusion_groups) {
     auto lowered_func = op_lowerer.Lower(fusion_op);
     CHECK_EQ(lowered_func.size(), 1);
-    LOG(INFO) << lowered_func[0];
     CodeGen(lowered_func[0]);
   }
 }
@@ -208,7 +207,6 @@ TEST(OP_LOWERING, Reduce_Test_0_0) {
   for (auto& fusion_op : graph->fusion_groups) {
     auto lowered_func = op_lowerer.Lower(fusion_op);
     CHECK_EQ(lowered_func.size(), 1);
-    LOG(INFO) << lowered_func[0];
     CodeGen(lowered_func[0]);
   }
 }
@@ -240,7 +238,6 @@ TEST(OP_LOWERING, Reduce_Test_1) {
   for (auto& fusion_op : graph->fusion_groups) {
     auto lowered_func = op_lowerer.Lower(fusion_op);
     CHECK_EQ(lowered_func.size(), 1);
-    LOG(INFO) << lowered_func[0];
     CodeGen(lowered_func[0]);
   }
 }
@@ -271,7 +268,6 @@ TEST(OP_LOWERING, Reduce_Test_2) {
   for (auto& fusion_op : graph->fusion_groups) {
     auto lowered_func = op_lowerer.Lower(fusion_op);
     CHECK_EQ(lowered_func.size(), 1);
-    LOG(INFO) << lowered_func[0];
     CodeGen(lowered_func[0]);
   }
 }
@@ -307,7 +303,6 @@ TEST(OP_LOWERING, Reduce_Test_3) {
   for (auto& fusion_op : graph->fusion_groups) {
     auto lowered_func = op_lowerer.Lower(fusion_op);
     CHECK_EQ(lowered_func.size(), 1);
-    LOG(INFO) << lowered_func[0];
     CodeGen(lowered_func[0]);
   }
 }
@@ -338,7 +333,6 @@ TEST(OP_LOWERING, Reduce_Test_4) {
   for (auto& fusion_op : graph->fusion_groups) {
     auto lowered_func = op_lowerer.Lower(fusion_op);
     CHECK_EQ(lowered_func.size(), 1);
-    LOG(INFO) << lowered_func[0];
     CodeGen(lowered_func[0]);
   }
 }
@@ -374,7 +368,6 @@ TEST(OP_LOWERING, Reduce_Test_5) {
   for (auto& fusion_op : graph->fusion_groups) {
     auto lowered_func = op_lowerer.Lower(fusion_op);
     CHECK_EQ(lowered_func.size(), 1);
-    LOG(INFO) << lowered_func[0];
     CodeGen(lowered_func[0]);
   }
 }
@@ -412,7 +405,6 @@ TEST(OP_LOWERING, Reduce_Test_6) {
   for (auto& fusion_op : graph->fusion_groups) {
     auto lowered_func = op_lowerer.Lower(fusion_op);
     CHECK_EQ(lowered_func.size(), 1);
-    LOG(INFO) << lowered_func[0];
     CodeGen(lowered_func[0]);
   }
 }
@@ -450,7 +442,6 @@ TEST(OP_LOWERING, Reduce_Test_7) {
   for (auto& fusion_op : graph->fusion_groups) {
     auto lowered_func = op_lowerer.Lower(fusion_op);
     CHECK_EQ(lowered_func.size(), 1);
-    LOG(INFO) << lowered_func[0];
     CodeGen(lowered_func[0]);
   }
 }
@@ -488,7 +479,6 @@ TEST(OP_LOWERING, Reduce_Test_8) {
   for (auto& fusion_op : graph->fusion_groups) {
     auto lowered_func = op_lowerer.Lower(fusion_op);
     CHECK_EQ(lowered_func.size(), 1);
-    LOG(INFO) << lowered_func[0];
     CodeGen(lowered_func[0]);
   }
 }
@@ -526,7 +516,6 @@ TEST(OP_LOWERING, Reduce_Test_9) {
   for (auto& fusion_op : graph->fusion_groups) {
     auto lowered_func = op_lowerer.Lower(fusion_op);
     CHECK_EQ(lowered_func.size(), 1);
-    LOG(INFO) << lowered_func[0];
     CodeGen(lowered_func[0]);
   }
 }
@@ -560,7 +549,6 @@ TEST(OP_LOWERING, Reduce_Test_10) {
   for (auto& fusion_op : graph->fusion_groups) {
     auto lowered_func = op_lowerer.Lower(fusion_op);
     CHECK_EQ(lowered_func.size(), 1);
-    LOG(INFO) << lowered_func[0];
     CodeGen(lowered_func[0]);
   }
 }
@@ -595,7 +583,6 @@ TEST(OP_LOWERING, Reduce_Test_11) {
   for (auto& fusion_op : graph->fusion_groups) {
     auto lowered_func = op_lowerer.Lower(fusion_op);
     CHECK_EQ(lowered_func.size(), 1);
-    LOG(INFO) << lowered_func[0];
     CodeGen(lowered_func[0]);
   }
 }
@@ -630,7 +617,6 @@ TEST(OP_LOWERING, Reduce_Test_12) {
   for (auto& fusion_op : graph->fusion_groups) {
     auto lowered_func = op_lowerer.Lower(fusion_op);
     CHECK_EQ(lowered_func.size(), 1);
-    LOG(INFO) << lowered_func[0];
     CodeGen(lowered_func[0]);
   }
 }

@@ -471,15 +471,6 @@ Variable Program::transpose(const Variable& a, const std::vector<int>& axis) {
   return instr.GetOutput(0);
 }
 
-Variable Program::mulbias(
-    const Variable& a, const Variable& b, const Variable& c, int x_num_col_dims, int y_num_col_dims) {
-  Instruction instr("mulbias", {a, b, c});
-  instr.SetAttr("x_num_col_dims", x_num_col_dims);
-  instr.SetAttr("y_num_col_dims", y_num_col_dims);
-  AppendInstruction(instr);
-  return instr.GetOutput(1);
-}
-
 std::string _Instruction_::debug_string() const {
   struct Visit {
     std::stringstream& s_;
