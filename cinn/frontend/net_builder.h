@@ -167,21 +167,6 @@ class NetBuilder : public BaseBuilder {
                                    const std::string& data_format       = "NCHW",
                                    const std::string& padding_algorithm = "EXPLICIT");
 
-  template <typename T>
-  Variable FillConstant(const std::vector<int>& shape, float value, const std::string& name, bool force_cpu = false) {
-    Instruction instr("fill_constant");
-    instr.SetInputs({});
-    instr.SetAttr("shape", shape);
-    instr.SetAttr("value", value);
-    instr.SetAttr("force_cpu", force_cpu);
-
-    InferShape(instr);
-    AppendInstruction(instr);
-    auto out = instr.GetOutput(0);
-    out.set_id(name);
-    return out;
-  }
-
  protected:
   Variable ElementwiseOp(const std::string& op_type, const Variable& lhs, const Variable& rhs, int axis = -1);
 };
