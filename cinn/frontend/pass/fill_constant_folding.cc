@@ -108,12 +108,6 @@ class FillConstantFoldingPass : public ProgramPass {
 
       CHECK_EQ(instr->outputs.size(), 1UL)
           << "The fill_constant op should has one, and only one output ! Please check.";
-      if (fetch_ids.find(instr->outputs[0]->id) != fetch_ids.end()) {
-        // the fill constant's output variable was fetched, skip
-        VLOG(4) << "Cannot remove fill_constant, because Var [" << instr->outputs[0]->id
-                << "] was fetched by other op ! ";
-        continue;
-      }
 
       const auto& shape = instr.GetAttrs<ShapeType>("shape");
       auto value        = instr.GetAttrs<float>("value");
@@ -126,6 +120,13 @@ class FillConstantFoldingPass : public ProgramPass {
                 << "], cannot remove because it is the first fill_costant ! ";
         // retain the first fill constant op node
         fill_constant_set.emplace(key, &instr->outputs[0]);
+        continue;
+      }
+
+      if (fetch_ids.find(instr->outputs[0]->id) != fetch_ids.end()) {
+        // the fill constant's output variable was fetched, skip
+        VLOG(4) << "Cannot remove fill_constant, because Var [" << instr->outputs[0]->id
+                << "] was fetched by other op ! ";
         continue;
       }
 
