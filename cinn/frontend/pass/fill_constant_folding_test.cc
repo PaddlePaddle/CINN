@@ -54,15 +54,17 @@ std::vector<float> GetTensorData(const hlir::framework::Tensor& tensor, Target t
   return data;
 }
 
-void RunWithProgram(const Program& program,
-                    const Target& target,
-                    const std::shared_ptr<hlir::framework::Scope>& scope) {
+std::vector<float> RunWithProgram(const Program& program, const Target& target, Variable out) {
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  auto scope = hlir::framework::BuildScope(target, graph);
+
   hlir::framework::ApplyPasses(graph.get(), {"InferShape", "OpFusion"});
   VLOG(1) << "graph:\n" << graph->Visualize();
   hlir::framework::GraphCompiler gc(target, scope, graph);
   auto runtime_program = gc.Build();
   runtime_program->Execute();
+
+  return GetTensorData(scope->GetTensor(out->id), target);
 }
 
 TEST(TransposeFolding, FoldTwoFillConstant) {
@@ -74,21 +76,31 @@ TEST(TransposeFolding, FoldTwoFillConstant) {
   auto out         = builder.Add(transpose_x, transpose_y);
   auto program     = builder.Build();
   auto target      = GetTarget();
-  auto graph       = std::make_shared<hlir::framework::Graph>(program, target);
-  auto scope       = hlir::framework::BuildScope(target, graph);
 
   size_t origin_size = program.size();
   VLOG(1) << "Program Before FillConstantFolding:\n" << program;
+  // Program {
+  //   x = fill_constant(value=1, dtype=float32, force_cpu=false, shape=[32,32])
+  //   y = fill_constant(dtype=float32, shape=[32,32], value=1, force_cpu=false)
+  //   var_1 = transpose(x, axis=[1,0])
+  //   var_2 = transpose(y, axis=[1,0])
+  //   var_3 = elementwise_add(var_1, var_2)
+  // }
 
-  RunWithProgram(program, target, scope);
-  auto origin_out = GetTensorData(scope->GetTensor(out->id), target);
+  auto origin_out = RunWithProgram(program, target, out);
 
   ProgramPass::Apply(&program, {}, target, {"FillConstantFolding"});
   size_t folded_size = program.size();
   VLOG(1) << "Program after FillConstantFolding:\n" << program;
+  // y was removed
+  // Program {
+  //   x = fill_constant(value=1, dtype=float32, force_cpu=false, shape=[32,32])
+  //   var_1 = transpose(x, axis=[1,0])
+  //   var_2 = transpose(x, axis=[1,0])
+  //   var_3 = elementwise_add(var_1, var_2)
+  // }
 
-  RunWithProgram(program, target, scope);
-  auto folded_out = GetTensorData(scope->GetTensor(out->id), target);
+  auto folded_out = RunWithProgram(program, target, out);
 
   ASSERT_EQ(origin_size, folded_size + 1);
   ASSERT_EQ(origin_out.size(), folded_out.size());
@@ -99,26 +111,34 @@ TEST(TransposeFolding, FoldTwoFillConstant) {
 
 TEST(TransposeFolding, FoldTwoFillConstantWithSameOuput) {
   CinnBuilder builder("cinn_builder");
-  auto x       = builder.FillConstant<float>({32, 32}, 1.0f, "x");
-  auto y       = builder.FillConstant<float>({32, 32}, 1.0f, "y");
-  auto out     = builder.Add(x, y);
-  auto program = builder.Build();
-  auto target  = GetTarget();
-  auto graph   = std::make_shared<hlir::framework::Graph>(program, target);
-  auto scope   = hlir::framework::BuildScope(target, graph);
+  auto x           = builder.FillConstant<float>({32, 32}, 1.0f, "x");
+  auto y           = builder.FillConstant<float>({32, 32}, 1.0f, "y");
+  auto transpose_x = builder.Transpose(x, {1, 0});
+  auto out         = builder.Add(y, y);
+  auto program     = builder.Build();
+  auto target      = GetTarget();
 
   size_t origin_size = program.size();
   VLOG(1) << "Program Before FillConstantFolding:\n" << program;
+  // Program {
+  //   x = fill_constant(dtype=float32, shape=[32,32], value=1, force_cpu=false)
+  //   y = fill_constant(shape=[32,32], dtype=float32, value=1, force_cpu=false)
+  //   var_6 = transpose(x, axis=[1,0])
+  //   var_7 = elementwise_add(y, y)
+  // }
 
-  RunWithProgram(program, target, scope);
-  auto origin_out = GetTensorData(scope->GetTensor(out->id), target);
+  auto origin_out = RunWithProgram(program, target, out);
 
   ProgramPass::Apply(&program, {}, target, {"FillConstantFolding"});
   size_t folded_size = program.size();
   VLOG(1) << "Program after FillConstantFolding:\n" << program;
+  // Program {
+  //   x = fill_constant(dtype=float32, shape=[32,32], value=1, force_cpu=false)
+  //   var_6 = transpose(x, axis=[1,0])
+  //   var_7 = elementwise_add(x, x)
+  // }
 
-  RunWithProgram(program, target, scope);
-  auto folded_out = GetTensorData(scope->GetTensor(out->id), target);
+  auto folded_out = RunWithProgram(program, target, out);
 
   ASSERT_EQ(origin_size, folded_size + 1);
   ASSERT_EQ(origin_out.size(), folded_out.size());
@@ -129,28 +149,35 @@ TEST(TransposeFolding, FoldTwoFillConstantWithSameOuput) {
 
 TEST(TransposeFolding, FoldThreeFillConstant) {
   CinnBuilder builder("cinn_builder");
-  auto x           = builder.FillConstant<float>({32, 32}, 1.0f, "x");
-  auto y           = builder.FillConstant<float>({32, 32}, 1.0f, "y");
-  auto z           = builder.FillConstant<float>({32, 32}, 1.0f, "z");
-  auto transpose_x = builder.Transpose(x, {1, 0});
-  auto out         = builder.Add(y, z);
-  auto program     = builder.Build();
-  auto target      = GetTarget();
-  auto graph       = std::make_shared<hlir::framework::Graph>(program, target);
-  auto scope       = hlir::framework::BuildScope(target, graph);
-
+  auto x             = builder.FillConstant<float>({32, 32}, 1.0f, "x");
+  auto y             = builder.FillConstant<float>({32, 32}, 1.0f, "y");
+  auto z             = builder.FillConstant<float>({32, 32}, 1.0f, "z");
+  auto transpose_x   = builder.Transpose(x, {1, 0});
+  auto out           = builder.Add(y, z);
+  auto program       = builder.Build();
+  auto target        = GetTarget();
   size_t origin_size = program.size();
   VLOG(1) << "Program Before FillConstantFolding:\n" << program;
+  // Program {
+  //   x = fill_constant(dtype=float32, shape=[32,32], value=1, force_cpu=false)
+  //   y = fill_constant(dtype=float32, shape=[32,32], value=1, force_cpu=false)
+  //   z = fill_constant(force_cpu=false, shape=[32,32], dtype=float32, value=1)
+  //   var_10 = transpose(x, axis=[1,0])
+  //   var_11 = elementwise_add(y, z)
+  // }
 
-  RunWithProgram(program, target, scope);
-  auto origin_out = GetTensorData(scope->GetTensor(out->id), target);
+  auto origin_out = RunWithProgram(program, target, out);
 
   ProgramPass::Apply(&program, {}, target, {"FillConstantFolding"});
   size_t folded_size = program.size();
   VLOG(1) << "Program after FillConstantFolding:\n" << program;
+  // Program {
+  //   x = fill_constant(dtype=float32, shape=[32,32], value=1, force_cpu=false)
+  //   var_10 = transpose(x, axis=[1,0])
+  //   var_11 = elementwise_add(x, x)
+  // }
 
-  RunWithProgram(program, target, scope);
-  auto folded_out = GetTensorData(scope->GetTensor(out->id), target);
+  auto folded_out = RunWithProgram(program, target, out);
 
   ASSERT_EQ(origin_size, folded_size + 2);
   ASSERT_EQ(origin_out.size(), folded_out.size());
@@ -173,16 +200,27 @@ TEST(TransposeFolding, FoldThreeFillConstantWithOneDiff) {
 
   size_t origin_size = program.size();
   VLOG(1) << "Program Before FillConstantFolding:\n" << program;
+  // Program {
+  //   x = fill_constant(dtype=float32, shape=[32,32], value=1, force_cpu=false)
+  //   y = fill_constant(force_cpu=false, shape=[32,32], dtype=float32, value=1)
+  //   z = fill_constant(force_cpu=false, shape=[32,32], value=0, dtype=float32)
+  //   var_15 = transpose(x, axis=[1,0])
+  //   var_16 = elementwise_add(y, z)
+  // }
 
-  RunWithProgram(program, target, scope);
-  auto origin_out = GetTensorData(scope->GetTensor(out->id), target);
+  auto origin_out = RunWithProgram(program, target, out);
 
   ProgramPass::Apply(&program, {}, target, {"FillConstantFolding"});
   size_t folded_size = program.size();
   VLOG(1) << "Program after FillConstantFolding:\n" << program;
+  // Program {
+  //   x = fill_constant(dtype=float32, shape=[32,32], value=1, force_cpu=false)
+  //   z = fill_constant(force_cpu=false, shape=[32,32], value=0, dtype=float32)
+  //   var_15 = transpose(x, axis=[1,0])
+  //   var_16 = elementwise_add(z, x)
+  // }
 
-  RunWithProgram(program, target, scope);
-  auto folded_out = GetTensorData(scope->GetTensor(out->id), target);
+  auto folded_out = RunWithProgram(program, target, out);
 
   ASSERT_EQ(origin_size, folded_size + 1);
   ASSERT_EQ(origin_out.size(), folded_out.size());

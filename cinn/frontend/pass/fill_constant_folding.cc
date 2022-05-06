@@ -164,7 +164,7 @@ class FillConstantFoldingPass : public ProgramPass {
   }
 
   static void ReLinkFillConstant(const InputToOpMap& in2instr, const std::string& input_var_name, Variable* out_var) {
-    if (in2instr.count(input_var_name)) {
+    if (!in2instr.count(input_var_name)) {
       LOG(WARNING) << "Var [" << input_var_name << "] not used by other op ! ";
       return;
     }
