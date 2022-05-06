@@ -51,6 +51,8 @@ class RemoveIdentityPass : public ProgramPass {
                  const common::Target& target) override {
     CollectInfo(*program, fetch_ids);
 
+    VLOG(5) << "origin program: " << *program;
+
     CinnBuilder builder("remove_identity_builder");
     for (auto& var : program->GetInputs()) {
       builder.CreateInput(var);
@@ -76,6 +78,8 @@ class RemoveIdentityPass : public ProgramPass {
       builder.AppendInstruction((*program)[i]);
     }
     *program = builder.Build();
+
+    VLOG(5) << "new program: " << *program;
   }
 
  private:
@@ -113,15 +117,31 @@ class RemoveIdentityPass : public ProgramPass {
         }
       }
     }
+
+    for (auto& v : origin2new_) {
+      const auto& reserved_var = v.second;
+      auto iter                = origin2new_.find(reserved_var.get());
+      if (iter != origin2new_.end()) {
+        VLOG(4) << "Update " << v.first->id << " -> " << reserved_var->id << " to " << v.first->id << " -> "
+                << iter->second->id;
+        origin2new_[v.first] = iter->second;
+      }
+    }
+
+    VLOG(4) << "origin2new_ {";
+    for (auto& iter : origin2new_) {
+      VLOG(4) << "  " << iter.first->id << " -> " << iter.second->id;
+    }
+    VLOG(4) << "}";
   }
 
   bool UpdateOrigin2New(const Variable& origin, const Variable& new_var) {
     if (!origin2new_.count(origin.get())) {
       if (origin2new_.count(new_var.get())) {
-        VLOG(4) << origin->id << " -> " << origin2new_[new_var.get()]->id;
+        VLOG(4) << "Add " << origin->id << " -> " << origin2new_[new_var.get()]->id;
         origin2new_.emplace(origin.get(), origin2new_[new_var.get()]);
       } else {
-        VLOG(4) << origin->id << " -> " << new_var->id;
+        VLOG(4) << "Add " << origin->id << " -> " << new_var->id;
         origin2new_.emplace(origin.get(), new_var);
       }
       return true;

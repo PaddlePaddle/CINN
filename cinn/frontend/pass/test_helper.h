@@ -61,11 +61,13 @@ class PassTest {
     program_        = builder.Build();
     int before_size = program_.size();
     LOG(INFO) << program_;
+    CHECK(IsValid()) << "The origin program is not valid.";
 
     std::unordered_set<std::string> fetch_var_ids(output_names.begin(), output_names.end());
     ProgramPass::Apply(&program_, fetch_var_ids, target_, program_passes);
     int after_size = program_.size();
     LOG(INFO) << program_;
+    CHECK(IsValid()) << "The transformed program is not valid.";
 
     return before_size - after_size;
   }
@@ -97,6 +99,36 @@ class PassTest {
   }
 
  protected:
+  bool IsValid() {
+    std::unordered_set<std::string> inputs;
+    for (auto& var : program_.GetInputs()) {
+      inputs.insert(var->id);
+    }
+
+    std::unordered_set<std::string> outputs;
+    for (int i = 0; i < program_.size(); ++i) {
+      const auto& instr = program_[i];
+      for (auto& var : instr->outputs) {
+        outputs.insert(var->id);
+      }
+    }
+
+    bool valid = true;
+    for (int i = 0; i < program_.size(); ++i) {
+      const auto& instr = program_[i];
+      // The inputs should be feeded, or other instructions' output.
+      for (auto& var : instr->inputs) {
+        if (!inputs.count(var->id) && !outputs.count(var->id)) {
+          LOG(INFO) << "The input " << var->id << " of " << i << "-th instrution (" << instr
+                    << ") is not the output of any other instructions.";
+          valid = false;
+        }
+      }
+    }
+
+    return valid;
+  }
+
   Target target_;
   Program program_;
   std::shared_ptr<hlir::framework::Scope> scope_;

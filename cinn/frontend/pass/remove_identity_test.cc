@@ -72,6 +72,8 @@ TEST(RemoveIdentity, remove_multiple) {
   //     identity  |
   //          |    |
   //     identity  |
+  //          |    |
+  //     identity  |
   //           \  /
   //           mul
   //            |
@@ -81,18 +83,21 @@ TEST(RemoveIdentity, remove_multiple) {
   auto y          = builder.CreateInput(Float(32), {32, 16}, "y");
   auto identity_1 = builder.Identity(x);
   auto identity_2 = builder.Identity(identity_1);
-  auto mul_1      = builder.Mul(identity_2, y);
+  auto identity_3 = builder.Identity(identity_2);
+  auto mul_1      = builder.Mul(identity_3, y);
 
   PassTest tester;
   std::vector<std::string> input_names  = {x.id().data(), y.id().data()};
   std::vector<std::string> output_names = {mul_1->id};
   int num_removed_ops                   = tester.ApplyProgramPass(builder, {"RemoveIdentity"}, output_names);
-  ASSERT_EQ(num_removed_ops, 2);
+  ASSERT_EQ(num_removed_ops, 3);
   tester.Execute(input_names, output_names);
 }
 
 TEST(RemoveIdentity, cannot_remove_fetch) {
   //         <x>  <y>
+  //          |    |
+  //        relu   |
   //          |    |
   //     identity  |
   //          |    |
@@ -104,7 +109,8 @@ TEST(RemoveIdentity, cannot_remove_fetch) {
   NetBuilder builder("net_builder");
   auto x          = builder.CreateInput(Float(32), {32, 16}, "x");
   auto y          = builder.CreateInput(Float(32), {32, 16}, "y");
-  auto identity_1 = builder.Identity(x);
+  auto relu_1     = builder.Relu(x);
+  auto identity_1 = builder.Identity(relu_1);
   auto identity_2 = builder.Identity(identity_1);
   auto mul_1      = builder.Mul(identity_2, y);
 
@@ -112,7 +118,7 @@ TEST(RemoveIdentity, cannot_remove_fetch) {
   std::vector<std::string> input_names  = {x.id().data(), y.id().data()};
   std::vector<std::string> output_names = {identity_2->id, mul_1->id};
   int num_removed_ops                   = tester.ApplyProgramPass(builder, {"RemoveIdentity"}, output_names);
-  ASSERT_EQ(num_removed_ops, 1);
+  ASSERT_EQ(num_removed_ops, 2);
   tester.Execute(input_names, output_names);
 }
 
