@@ -95,18 +95,18 @@ void BindFramework(pybind11::module *m) {
       .def(py::init<>())  //
       .def("get_tensor",
            [](Scope &self, const std::string &name, const Target &target) {
-             py::dtype dt = py::dtype::of<float>();
-             auto t       = self.GetTensor(name);
+             auto t = self.GetTensor(name);
+             py::dtype dt(common::Type2Str(t->type()));
              py::array::ShapeContainer shape(t->shape().data().begin(), t->shape().data().end());
              py::array array(std::move(dt), std::move(shape));
              auto *mutable_data = array.mutable_data();
              if (target.arch == Target::Arch::X86) {
-               std::memcpy(mutable_data, t->data<float>(), t->shape().numel() * sizeof(float));
+               std::memcpy(mutable_data, t->data<void>(), (t->shape().numel() * t->type().bits() + 7) / 8);
              } else if (target.arch == Target::Arch::NVGPU) {
 #ifdef CINN_WITH_CUDA
                CUDA_CALL(cudaMemcpy(mutable_data,
-                                    reinterpret_cast<void *>(t->mutable_data<float>(target)),
-                                    t->shape().numel() * sizeof(float),
+                                    reinterpret_cast<void *>(t->mutable_data(target, t->type())),
+                                    (t->shape().numel() * t->type().bits() + 7) / 8,
                                     cudaMemcpyDeviceToHost));
 #else
                LOG(FATAL) <<"To use CUDA backends, you need to set WITH_CUDA ON!";
@@ -125,19 +125,17 @@ void BindFramework(pybind11::module *m) {
       .def("set_type", [](hlir::framework::Tensor &self, Type type) { self->set_type(type); })
       .def("numpy",
            [](hlir::framework::Tensor &self, const common::Target &target) {
-             py::dtype dt;
-             // set float by default
-             dt = py::dtype::of<float>();
+             py::dtype dt(common::Type2Str(self->type()));
              py::array::ShapeContainer shape(self->shape().data().begin(), self->shape().data().end());
              py::array array(std::move(dt), std::move(shape));
              void *array_data = array.mutable_data();
              if (target.arch == Target::Arch::X86) {
-               std::memcpy(array_data, self->data<float>(), self->shape().numel() * sizeof(float));
+               std::memcpy(array_data, self->data<void>(), (self->shape().numel() * self->type().bits() + 7) / 8);
              } else if (target.arch == Target::Arch::NVGPU) {
 #ifdef CINN_WITH_CUDA
                CUDA_CALL(cudaMemcpy(array_data,
-                                    reinterpret_cast<void *>(self->mutable_data<float>(target)),
-                                    self->shape().numel() * sizeof(float),
+                                    reinterpret_cast<void *>(self->mutable_data(target, self->type())),
+                                    (self->shape().numel() * self->type().bits() + 7) / 8,
                                     cudaMemcpyDeviceToHost));
 #else
                LOG(FATAL) <<"To use CUDA backends, you need to set WITH_CUDA ON!";
@@ -148,21 +146,20 @@ void BindFramework(pybind11::module *m) {
              return array;
            })
       .def("from_numpy", [](hlir::framework::Tensor &self, py::array array, const common::Target &target) {
-        CHECK(array.dtype().is(py::dtype::of<float>())) << "currently only support float32 data type as input";
+        CHECK(array.dtype().is(py::dtype(common::Type2Str(self->type()))))
+            << "currently only support float32 data type as input";
         hlir::framework::shape_t shape;
         std::copy_n(array.shape(), array.ndim(), std::back_inserter(shape));
         CHECK_EQ(std::accumulate(shape.begin(), shape.end(), 1, [](int32_t a, int32_t b) { return a * b; }),
                  self->shape().numel());
-        auto *data = self->mutable_data<float>(target);
+        auto *data = self->mutable_data(target, self->type());
         if (target.arch == Target::Arch::X86) {
-          for (int i = 0; i < self->shape().numel(); i++) {
-            data[i] = reinterpret_cast<const float *>(array.data())[i];
-          }
+          std::memcpy(data, array.data(), (self->shape().numel() * self->type().bits() + 7) / 8);
         } else if (target.arch == Target::Arch::NVGPU) {
 #ifdef CINN_WITH_CUDA
           CUDA_CALL(cudaMemcpy(reinterpret_cast<void *>(data),
-                               reinterpret_cast<const float *>(array.data()),
-                               self->shape().numel() * sizeof(float),
+                               reinterpret_cast<const void *>(array.data()),
+                               (self->shape().numel() * self->type().bits() + 7) / 8,
                                cudaMemcpyHostToDevice));
 #else
                LOG(FATAL) <<"To use CUDA backends, you need to set WITH_CUDA ON!";

@@ -242,5 +242,9 @@ inline Type type_of<cinn_pod_value_t*>() {
   return Type().set_customized_type(customized_type::kpod_value_t).set_cpp_handle();
 }
 
+Type Str2Type(const std::string& type);
+
+std::string Type2Str(const Type& type);
+
 }  // namespace common
 }  // namespace cinn
