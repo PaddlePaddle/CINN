@@ -122,19 +122,15 @@ class BaseBuilder {
                        const std::vector<int>& ends,
                        const std::vector<int>& strides = {});
 
-  template <typename T>
-  Variable FillConstant(const std::vector<int>& shape, float value, const std::string& name, bool force_cpu = false) {
-    Instruction instr("fill_constant");
-    instr.SetInputs({});
-    instr.SetAttr("shape", shape);
-    instr.SetAttr("value", value);
-    instr.SetAttr("force_cpu", force_cpu);
+  Variable FillConstant(const std::vector<int>& shape,
+                        float value,
+                        const std::string& name,
+                        const std::string& dtype,
+                        bool force_cpu = false);
 
-    InferShape(instr);
-    AppendInstruction(instr);
-    auto out = instr.GetOutput(0);
-    out.set_id(name);
-    return out;
+  template <typename T = float>
+  Variable FillConstant(const std::vector<int>& shape, T value, const std::string& name, bool force_cpu = false) {
+    return FillConstant(shape, static_cast<float>(value), name, common::Type2Str(common::type_of<T>()), force_cpu);
   }
 
  protected:
