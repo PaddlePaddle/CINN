@@ -134,7 +134,7 @@ Type &Type::set_cpp_handle2(bool x) {
 
 Type Type::VectorOf(int w) const {
   CheckTypeValid();
-  return Type(type(), w, bits());
+  return Type(type(), bits(), w);
 }
 
 Type::Type(const Type &other) {

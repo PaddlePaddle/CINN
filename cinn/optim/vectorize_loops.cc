@@ -15,19 +15,24 @@
 #include "cinn/optim/vectorize_loops.h"
 
 #include <absl/container/flat_hash_map.h>
+#include <glog/logging.h>
 
 #include <algorithm>
 #include <map>
+#include <sstream>
 #include <string>
 #include <vector>
 
 #include "cinn/common/cas.h"
 #include "cinn/common/ir_util.h"
+#include "cinn/ir/collect_ir_nodes.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/optim/ir_copy.h"
 #include "cinn/optim/ir_replace.h"
 #include "cinn/optim/ir_simplify.h"
+#include "cinn/optim/tensor_write_tell.h"
+#include "cinn/optim/unroll_loops.h"
 #include "cinn/utils/functional.h"
 
 namespace cinn {
@@ -49,6 +54,182 @@ Expr Widen(Expr e, int lanes) {
   CHECK_EQ(e.type().lanes(), 1) << "Cannot broadcast lanes from " << e.type().lanes() << " to " << lanes;
   return ir::Broadcast::Make(e, lanes);
 }
+
+// tell whether a tensor can be vectorized or not on CUDA by collecting names
+// of tensors which doesn't meet all predicates of vectoring
+class TensorVectorizeExcluder : public ir::IRMutator<const Expr *> {
+ public:
+  TensorVectorizeExcluder(const std::string &iter_name) : iter_name_(iter_name) {}
+
+  void Collect(const Expr *op) { IRMutator::Visit(op, op); }
+
+  bool Contain(const std::string &tensor_name) const { return excluded_tensors_.count(tensor_name); }
+
+ private:
+  const std::string iter_name_;
+  std::set<std::string> excluded_tensors_;
+
+  void Visit(const ir::Store *expr, const Expr *op) override {
+    auto *node = op->As<ir::Store>();
+    CHECK(node);
+    IRMutator::Visit(&node->value, &node->value);
+    auto *tensor = node->tensor.As<ir::_Tensor_>();
+    CHECK(tensor);
+    if (HitBan(node->tensor, node->indices)) {
+      excluded_tensors_.insert(tensor->name);
+    }
+  }
+
+  void Visit(const ir::Load *expr, const Expr *op) override {
+    auto *node = op->As<ir::Load>();
+    CHECK(node);
+    auto *tensor = node->tensor.As<ir::_Tensor_>();
+    CHECK(tensor);
+    if (HitBan(node->tensor, node->indices)) {
+      excluded_tensors_.insert(tensor->name);
+    }
+  }
+
+  // return true if the tensor hit some prohibitions of vectorizing
+  bool HitBan(Expr tensor, const std::vector<Expr> &indices) {
+    auto find_matched_var_fn = [&](const Expr *x) { return x->As<_Var_>() && x->As<_Var_>()->name == iter_name_; };
+
+    // the iter val must appear in the last index
+    if (indices.empty() || ir::CollectIRNodes(indices.back(), find_matched_var_fn).empty()) {
+      VLOG(5) << "Loop var:" << iter_name_
+              << " is not used in the last index, so the memory access will be not sequential";
+      return true;
+    }
+
+    // the iter val can't appear in mulitple indices
+    for (int i = 0; i < indices.size() - 1; ++i) {
+      auto repeat_found = ir::CollectIRNodes(indices[i], find_matched_var_fn);
+      if (!repeat_found.empty()) {
+        VLOG(5) << "Loop var:" << iter_name_ << " is also used at the index:" << i;
+        return true;
+      }
+    }
+
+    auto dtype = tensor->type().ElementOf();
+    if (dtype.is_float(32) || dtype.is_int(32) || dtype.is_uint(32)) {
+      return false;
+    }
+    VLOG(5) << "Only support vectorizing int,uint,float";
+    return true;
+  }
+};
+
+// find tensors accessed sequentially in a for-loop to be vectorized,
+// and substitue the corresponding cuda built-in vector for them
+class CudaVectorizer : public IRMutator<Expr *> {
+  const Var iter_var_;
+  const int factor_;
+
+  TensorWriteTeller write_teller_;
+  TensorVectorizeExcluder tensor_excluder_;
+
+  absl::flat_hash_map<std::string, Var> tensor2vectorized_vars_;
+  std::vector<Expr> vectorized_cast_exprs_;
+
+ public:
+  static constexpr int CudaVectorTypeMaxLanes = 4;
+  CudaVectorizer(const Var &iter_var, const int factor)
+      : iter_var_(iter_var), factor_(factor), tensor_excluder_(iter_var->name) {
+    CHECK(factor <= CudaVectorTypeMaxLanes)
+        << "The maximum lanes of valid CUDA vector types: " << CudaVectorTypeMaxLanes << ", but factor: " << factor;
+  }
+
+  std::vector<Expr> VectorizedTypeCastExprs() { return vectorized_cast_exprs_; }
+
+  void Visit(Expr *expr) {
+    write_teller_.Collect(expr);
+    tensor_excluder_.Collect(expr);
+    IRMutator<Expr *>::Visit(expr, expr);
+  }
+
+  void Visit(const Load *op, Expr *expr) override {
+    auto *node = expr->As<Load>();
+    if (node->is_addr_tensor()) {
+      TensorVectorized(node, &node->indices);
+    }
+  }
+
+  void Visit(const Store *op, Expr *expr) override {
+    auto *node   = expr->As<Store>();
+    auto *tensor = node->tensor.As<ir::_Tensor_>();
+    CHECK(tensor);
+    TensorVectorized(node, &node->indices);
+
+    IRMutator::Visit(&node->value, &node->value);
+  }
+
+ private:
+  void TensorVectorized(ir::LoadStoreAddrMnger *node, std::vector<Expr> *indices) {
+    auto *tensor = node->tensor.As<ir::_Tensor_>();
+    CHECK(tensor);
+    if (tensor_excluder_.Contain(tensor->name)) {
+      return;
+    }
+
+    VLOG(5) << "Vectorizing tensor:" << tensor->name;
+    // save the tensor and its corresponding vector name when it first appear
+    if (!tensor2vectorized_vars_.count(tensor->name)) {
+      AppendCast(node->tensor, *indices);
+    }
+
+    auto vectorized_var = tensor2vectorized_vars_.at(tensor->name);
+    // substitue a new tensor with the vector name and dtype
+    node->tensor =
+        ir::Tensor(vectorized_var->name, vectorized_var->type(), {Expr(factor_)}, {Expr(factor_)}, tensor->operation);
+    // remain the last iterative indice
+    indices->assign({iter_var_});
+  }
+
+  std::string GetVectorTypeName(Type type) {
+    std::string name_prefix = common::customized_type::kcuda_builtin_vector_t;
+#define GET_CUDA_VECTOR_TYPE_NAME(pred_expr, scalar_name)       \
+  if (pred_expr) {                                              \
+    return name_prefix + scalar_name + std::to_string(factor_); \
+  }
+
+    GET_CUDA_VECTOR_TYPE_NAME(type.is_int(32), "int");
+    GET_CUDA_VECTOR_TYPE_NAME(type.is_uint(32), "uint");
+    GET_CUDA_VECTOR_TYPE_NAME(type.is_float(32), "float");
+#undef GET_CUDA_VECTOR_TYPE_NAME
+
+    // others are not implementd yet
+    CINN_NOT_IMPLEMENTED
+    return "";
+  }
+
+  void AppendCast(Expr tensor, const std::vector<Expr> &indices) {
+    auto *node    = tensor.As<ir::_Tensor_>();
+    bool is_const = !write_teller_.IsWrite(node->name);
+
+    // generate the corresponding vector type
+    Type scalar_type = tensor->type().ElementOf();
+    Type vector_type(Type::type_t::Customized, scalar_type.bits(), factor_);
+    vector_type.set_customized_type(GetVectorTypeName(scalar_type));
+    vector_type.set_cpp_handle();
+    vector_type.set_cpp_const(is_const);
+
+    // generate a local vector variable to be used in subsequent statements
+    std::string vectorized_name = "vectorized_" + node->name;
+    Var vectorized_var          = _Var_::Make(vectorized_name, vector_type);
+
+    // generate a get_addr expr to get the address of the tensor
+    Expr converted_tensor = Load::Make(tensor, indices);
+    optim::IrReplace(&converted_tensor, iter_var_, Expr(int32_t(0)));
+    auto get_addr = ir::intrinsics::GetAddr::Make(converted_tensor);
+
+    // generate a let expression to cast the tensor into the local vector
+    auto cast = ir::Cast::Make(vector_type, get_addr);
+    auto let  = Let::Make(vectorized_var, cast);
+    vectorized_cast_exprs_.emplace_back(let);
+    tensor2vectorized_vars_.emplace(node->name, vectorized_var);
+    VLOG(5) << "Append a vectorized expr:" << let;
+  }
+};
 
 //! Substitutes a vector for a scalar var in a Stmt.
 class Vectorizer : public IRMutator<Expr *> {
@@ -418,6 +599,14 @@ struct VectorizeLoops_ : public IRMutator<Expr *> {
 
       vectorizable_ = true;
       IRMutator<>::Visit(&node->body, &node->body);
+
+      if (target == common::DefaultNVGPUTarget()) {
+        if (!forloop->extent.As<IntImm>() || forloop->extent.as_int32() % forloop->vectorize_info().factor != 0) {
+          vectorizable_ = false;
+          VLOG(5) << "GPU vectorize only support extent is a multiple of factor";
+        }
+      }
+
       if (extent_min || extent_max || !vectorizable_) {
         // not vectorize if has tail blocks, for llvm to optimize
         node->reset_vectorize_info();
@@ -425,7 +614,8 @@ struct VectorizeLoops_ : public IRMutator<Expr *> {
         return;
       }
 
-      auto _new_forloop = SplitForLoop(node, forloop->vectorize_info().factor);
+      const int factor  = forloop->vectorize_info().factor;
+      auto _new_forloop = SplitForLoop(node, factor);
       if (!_new_forloop.defined()) {
         IRMutator<>::Visit(&node->body, &node->body);
         var_intervals.erase(forloop->loop_var->name);
@@ -451,9 +641,25 @@ struct VectorizeLoops_ : public IRMutator<Expr *> {
                           << ". Can only vectorize loops over a constant extent > 1";
 
       VLOG(2) << "Vectorizing " << new_forloop->loop_var << " extent " << extent;
-      VLOG(2) << "body:\n" << node->body;
+      VLOG(2) << "before vectorize body:\n" << node->body;
 
-      Vectorizer(new_forloop->loop_var, extent, var_intervals).Visit(&new_forloop->body);
+      if (target == common::DefaultNVGPUTarget()) {
+        CudaVectorizer cuda_vectorizer(new_forloop->loop_var, factor);
+        cuda_vectorizer.Visit(&new_forloop->body);
+        // unroll the new forloop to compute each element of the vector iteratively
+        auto copied_loop = optim::IRCopy(_new_forloop);
+        copied_loop.As<ir::For>()->set_unrolled();
+        optim::UnrollLoop(&copied_loop);
+        // add cast exprs of vector type in the front of vectorized forloop,
+        // and replace original compute statements with the correspond unrolled ones
+        auto unroll_body = copied_loop.As<ir::Block>()->stmts;
+        auto cast_exprs  = cuda_vectorizer.VectorizedTypeCastExprs();
+        auto &body_stmts = new_forloop->body.As<ir::Block>()->stmts;
+        body_stmts.assign(cast_exprs.begin(), cast_exprs.end());
+        body_stmts.insert(body_stmts.end(), unroll_body.begin(), unroll_body.end());
+      } else {
+        Vectorizer(new_forloop->loop_var, extent, var_intervals).Visit(&new_forloop->body);
+      }
 
       VLOG(2) << "after vectorize body:\n" << node->body;
 
