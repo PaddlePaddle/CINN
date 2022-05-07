@@ -72,6 +72,7 @@ class GemmRewriterPass : public ProgramPass {
       }
     }
     VLOG(4) << "-- After rewriting: " << *prog;
+    ClearResources();
   }
 
  private:
@@ -96,7 +97,7 @@ class GemmRewriterPass : public ProgramPass {
     float alpha  = 1.f;
     for (auto& var : instr->inputs) {
       auto it = output2instr_.find(var.get());
-      if (it != output2instr_.end() && it->second->op_type == "matmul") {
+      if (it != output2instr_.end() && (it->second->op_type == "matmul" || it->second->op_type == "cublas_matmul")) {
         // If the output var of matmul is consumed by more than one instruction or
         // a fetch var, just skip to fuse it.
         CHECK_GT(var_used_count_.count(var.get()), 0)
@@ -176,6 +177,14 @@ class GemmRewriterPass : public ProgramPass {
     }
   }
 
+  void ClearResources() {
+    removed_instrs_.clear();
+    origin2new_.clear();
+    output2instr_.clear();
+    var_used_count_.clear();
+  }
+
+ private:
   std::unordered_set<_Instruction_*> removed_instrs_;
   std::unordered_map<_Variable_*, Variable> origin2new_;
   std::unordered_map<_Variable_*, Instruction> output2instr_;

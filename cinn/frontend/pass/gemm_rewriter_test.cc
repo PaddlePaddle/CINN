@@ -170,7 +170,7 @@ void CompareResult(Program* program,
   auto origin_out = RunProgram(*program, target, input_ids, output_ids, seed, print_tensor);
 
   // fuse transpose + add + dot, then run and get the fused output
-  ProgramPass::Apply(program, fetch_ids, target, {"TransposeFolding", "GemmRewriter"});
+  ProgramPass::Apply(program, fetch_ids, target, {"TransposeFoldingInput", "GemmRewriter"});
 
   // get fused program size
   auto fused_size = program->size();

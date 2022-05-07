@@ -24,10 +24,10 @@
 
 namespace cinn::frontend::pass {
 
-// Pass `TransposeFolding` folds transpose into dot, then both of them can be implemented by a
+// Pass `TransposeFoldingInput` folds transpose into dot, then both of them can be implemented by a
 // GEMM kernel. For each dot operator, try folding every input that belong output of transpose.
 // If output of tranpose in `fetch_ids`, keep the operator.
-class TransposeFoldingPass : public ProgramPass {
+class TransposeFoldingInputPass : public ProgramPass {
  public:
   using ProgramPass::ProgramPass;
 
@@ -39,8 +39,6 @@ class TransposeFoldingPass : public ProgramPass {
     absl::flat_hash_map<std::string, Instruction*> out2instr;
     // `in2instr` is used to represent the mapping of Input to Instruction.
     absl::flat_hash_map<std::string, std::unordered_set<Instruction*>> in2instr;
-    // `remove_instrs` is used to represent Instructions which type is transpose to be deleted.
-    absl::flat_hash_set<Instruction*> remove_instrs;
     for (size_t i = 0; i < program->size(); ++i) {
       auto& instr = (*program)[i];
       for (const auto& out : instr->outputs) {
@@ -49,23 +47,18 @@ class TransposeFoldingPass : public ProgramPass {
       for (const auto& in : instr->inputs) {
         in2instr[in->id].insert(&instr);
       }
+    }
+
+    // `remove_instrs` is used to represent Instructions of which type is transpose to be deleted.
+    absl::flat_hash_set<Instruction*> remove_instrs;
+    for (size_t i = 0; i < program->size(); ++i) {
+      auto& instr = (*program)[i];
       // Operator dot is actually operator matmul.
       if ("matmul" == instr->op_type) {
-        for (auto transpose : TryFoldIntoDot(&instr, out2instr, in2instr)) {
-          if (fetch_ids.find((*transpose)->outputs[0]->id) == fetch_ids.end()) {
-            remove_instrs.insert(transpose);
-          }
-        }
-      } else {
-        // The output of transpose maybe used by other operators.
-        for (const auto& in : instr->inputs) {
-          auto iter = out2instr.find(in->id);
-          if (iter != out2instr.end()) {
-            remove_instrs.erase(iter->second);
-          }
-        }
+        TryFoldIntoDot(&instr, out2instr, in2instr, fetch_ids, &remove_instrs);
       }
     }
+
     CinnBuilder builder("transpose_folding_builder");
     for (auto& var : program->GetInputs()) {
       builder.CreateInput(var);
@@ -81,12 +74,14 @@ class TransposeFoldingPass : public ProgramPass {
   // Rules that transpose can be folded into dot:
   //   1) input operand of dot must be transpose;
   //   2) `axis` of tranpose must be consecutive in the reverse order, excluding the first dim;
-  std::vector<Instruction*> TryFoldIntoDot(
-      Instruction* dot,
-      const absl::flat_hash_map<std::string, Instruction*>& out2instr,
-      const absl::flat_hash_map<std::string, std::unordered_set<Instruction*>>& in2instr) const {
-    std::vector<Instruction*> remove_instrs;
-    if (!(*dot)->attrs.empty()) return remove_instrs;
+  void TryFoldIntoDot(Instruction* dot,
+                      const absl::flat_hash_map<std::string, Instruction*>& out2instr,
+                      const absl::flat_hash_map<std::string, std::unordered_set<Instruction*>>& in2instr,
+                      const std::unordered_set<std::string>& fetch_ids,
+                      absl::flat_hash_set<Instruction*>* remove_instrs) const {
+    if (!(*dot)->attrs.empty()) {
+      return;
+    }
     auto is_transpose = [](const Instruction& transpose) {
       if ("transpose" != transpose->op_type) {
         return false;
@@ -112,7 +107,7 @@ class TransposeFoldingPass : public ProgramPass {
         return true;
       }
 
-      // if axis[0] not 0 or -1, cannot folding
+      // if axis[0] not 0 or axis.size() - 1, cannot folding
       return false;
     };
     for (size_t i = 0; i < (*dot)->inputs.size(); ++i) {
@@ -132,21 +127,20 @@ class TransposeFoldingPass : public ProgramPass {
           CHECK(in2instr.at(transpose_out_name).count(dot))
               << "The var [" << transpose_out_name << "] should be matmul's input, but couldn't found ! Please check.";
 
-          if (in2instr.at(transpose_out_name).size() == 1) {
-            // the transpose is only link to matmul, should remove
-            remove_instrs.push_back(iter->second);
+          if (in2instr.at(transpose_out_name).size() == 1 && !fetch_ids.count(transpose_out_name)) {
+            // the transpose is only link to matmul and its output is not in fetch_ids, should remove
+            remove_instrs->insert(iter->second);
           }
         }
       }
     }
-    return remove_instrs;
   }
 };
 
 }  // namespace cinn::frontend::pass
 
-CINN_REGISTER_HELPER(TransposeFolding) {
-  CINN_REGISTER_PROGRAM_PASS(TransposeFolding, ::cinn::frontend::pass::TransposeFoldingPass);
+CINN_REGISTER_HELPER(TransposeFoldingInput) {
+  CINN_REGISTER_PROGRAM_PASS(TransposeFoldingInput, ::cinn::frontend::pass::TransposeFoldingInputPass);
 
   return true;
 }
