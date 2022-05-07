@@ -75,6 +75,7 @@ class TestReshape(unittest.TestCase):
             print(prog[i])
         tensor_data = [np.random.random([2, 2048, 1, 1]).astype("float32")]
         result = prog.build_and_get_output(self.target, [a], tensor_data, [h])
+        result[0].set_type(Float(32))
         result = result[0].numpy(self.target).reshape(-1)
         tensor_data.append(result)
         self.paddle_verify(tensor_data)
@@ -134,6 +135,7 @@ class TestConcat(unittest.TestCase):
         ]
         result = prog.build_and_get_output(self.target, [a, b, c], tensor_data,
                                            [h])
+        result[0].set_type(Float(32))
         result = result[0].numpy(self.target).reshape(-1)
         tensor_data.append(result)
         self.paddle_verify(tensor_data)

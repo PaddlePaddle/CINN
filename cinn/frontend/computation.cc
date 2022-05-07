@@ -180,8 +180,8 @@ void CinnComputation::SetTensorData(const std::string &tname, void *data, size_t
 }
 
 void CinnComputation::SetTensorData(hlir::framework::Tensor &t, void *data, size_t size) {
-  void *tdata = reinterpret_cast<void *>(t->mutable_data<float>(context_->target));
-  CHECK_EQ(size, t->shape().numel() * sizeof(float));
+  void *tdata = t->mutable_data(context_->target, t->type());
+  CHECK_EQ(size, (t->shape().numel() * t->type().bits() + 7) / 8);
   if (context_->target.arch == Target::Arch::NVGPU) {
 #ifdef CINN_WITH_CUDA
     CUDA_CALL(cudaMemcpy(tdata, data, size, cudaMemcpyHostToDevice));
@@ -195,8 +195,8 @@ void CinnComputation::SetTensorData(hlir::framework::Tensor &t, void *data, size
   }
 }
 void CinnComputation::GetTensorData(hlir::framework::Tensor &t, void *data, size_t size) {
-  void *tdata = reinterpret_cast<void *>(t->mutable_data<float>(context_->target));
-  CHECK_EQ(size, t->shape().numel() * sizeof(float));
+  void *tdata = t->mutable_data(context_->target, t->type());
+  CHECK_EQ(size, (t->shape().numel() * t->type().bits() + 7) / 8);
   if (context_->target.arch == Target::Arch::NVGPU) {
 #ifdef CINN_WITH_CUDA
     CUDA_CALL(cudaMemcpy(data, tdata, size, cudaMemcpyDeviceToHost));

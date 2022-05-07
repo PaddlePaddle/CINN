@@ -17,6 +17,7 @@
 #include <string>
 #include <vector>
 
+#include "cinn/common/type.h"
 #include "cinn/frontend/base_builder.h"
 #include "cinn/frontend/syntax.h"
 

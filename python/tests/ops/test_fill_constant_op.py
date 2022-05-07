@@ -26,7 +26,57 @@ from cinn.common import *
 
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
                     "x86 test will be skipped due to timeout.")
-class TestAddOp(OpTest):
+class TestFillConstantOp(OpTest):
+    def setUp(self):
+        self.init_case()
+
+    def init_case(self):
+        self.shape = [32]
+        self.value = 1.0
+        self.dtype = "float32"
+
+    def build_paddle_program(self, target):
+        x = paddle.full(self.shape, self.value, dtype=self.dtype)
+
+        self.paddle_outputs = [x]
+
+    def build_cinn_program(self, target):
+        builder = NetBuilder("fill_constant")
+        x = builder.fill_constant(self.shape, self.value, "out", self.dtype)
+
+        prog = builder.build()
+        res = self.get_cinn_output(prog, target, [], [], [x])
+
+        self.cinn_outputs = [res[0]]
+
+    def test_check_results(self):
+        self.check_outputs_and_grads()
+
+
+class TestFillConstantCase1(TestFillConstantOp):
+    def init_case(self):
+        self.shape = [10, 32, 4]
+        self.value = 1.0
+        self.dtype = "float32"
+
+
+class TestFillConstantCase2(TestFillConstantOp):
+    def init_case(self):
+        self.shape = [32]
+        self.value = 1
+        self.dtype = "int32"
+
+
+class TestFillConstantCase3(TestFillConstantOp):
+    def init_case(self):
+        self.shape = [32]
+        self.value = 1
+        self.dtype = "bool"
+
+
+@OpTestTool.skip_if(not is_compiled_with_cuda(),
+                    "x86 test will be skipped due to timeout.")
+class TestFillConstantByValueOp(OpTest):
     def setUp(self):
         self.init_case()
 
@@ -40,8 +90,8 @@ class TestAddOp(OpTest):
         self.paddle_outputs = [x]
 
     def build_cinn_program(self, target):
-        builder = NetBuilder("add")
-        x = builder.fill_constant(self.shape, self.value, "x")
+        builder = NetBuilder("fill_constant")
+        x = builder.fill_constant(self.shape, self.value, "out")
 
         prog = builder.build()
         res = self.get_cinn_output(prog, target, [], [], [x])
@@ -52,10 +102,16 @@ class TestAddOp(OpTest):
         self.check_outputs_and_grads()
 
 
-class TestAddCase1(TestAddOp):
+class TestFillConstantByValueCase1(TestFillConstantByValueOp):
     def init_case(self):
-        self.shape = [10, 32, 4]
-        self.value = float(-100.0)
+        self.shape = [32]
+        self.value = int(1)
+
+
+class TestFillConstantByValueCase2(TestFillConstantByValueOp):
+    def init_case(self):
+        self.shape = [32]
+        self.value = bool(1)
 
 
 if __name__ == "__main__":

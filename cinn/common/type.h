@@ -213,10 +213,11 @@ std::ostream& operator<<(std::ostream& os, Type::type_t t);
 
 namespace customized_type {
 
-static const char* kArgs_type_repr     = "Args";
-static const char* kArgValue_type_repr = "ArgValue";
-static const char* kbuffer_t           = "cinn_buffer_t";
-static const char* kpod_value_t        = "cinn_pod_value_t";
+static const char* kArgs_type_repr        = "Args";
+static const char* kArgValue_type_repr    = "ArgValue";
+static const char* kbuffer_t              = "cinn_buffer_t";
+static const char* kpod_value_t           = "cinn_pod_value_t";
+static const char* kcuda_builtin_vector_t = "CudaVectorType::";
 
 }  // namespace customized_type
 
@@ -240,6 +241,10 @@ template <>
 inline Type type_of<cinn_pod_value_t*>() {
   return Type().set_customized_type(customized_type::kpod_value_t).set_cpp_handle();
 }
+
+Type Str2Type(const std::string& type);
+
+std::string Type2Str(const Type& type);
 
 }  // namespace common
 }  // namespace cinn

@@ -461,58 +461,60 @@ std::vector<ir::Tensor> ReduceInternal(const ir::Tensor& A,
                                        const bool keep_dim,
                                        const std::string& output_name,
                                        ReduceFunc reduce_func) {
+  int lane            = GetParallelThreads(A, axes);
+  int max_num_threads = common::DefaultNVGPUTarget().max_num_threads();
+  CHECK_LE(lane, max_num_threads / 2) << "lane must less eqaul than mamax_num_threads / 2 !";
   int index = axes.size() - 1;
-  for (; index > 0;) {
-    if (axes[index] - 1 == axes[index - 1]) {
-      --index;
-      continue;
-    }
-    break;
-  }
-
-  std::vector<int> tmp_axes;
-  int parallel_threads = GetParallelThreads(A, axes);
-  int max_num_threads  = common::DefaultNVGPUTarget().max_num_threads();
-  for (int idx = axes.size() - 1; idx > index; --idx) {
-    if (parallel_threads * A->shape[axes[idx]].as_int32() > max_num_threads) {
-      tmp_axes = {axes.begin(), axes.begin() + idx + 1};
+  for (; index >= 0; --index) {
+    if (index + 1 < axes.size() && axes[index] != axes[index + 1] - 1) {
       break;
     }
-    parallel_threads *= A->shape[axes[idx]].as_int32();
+    lane *= A->shape[axes[index]].as_int32();
+    if (lane > max_num_threads / 2) {
+      break;
+    }
   }
-
-  if (tmp_axes.size() == 0) {
-    tmp_axes = {axes.begin(), axes.begin() + index + 1};
-  }
-
-  bool check_bound = true;
-  std::vector<Expr> out_shape(A->shape.begin(), A->shape.begin() + tmp_axes.back());
-  int last_stride = A->shape[tmp_axes.back()].as_int32();
-  int tail_count  = axes.back() - out_shape.size();
+  // if lane > (max_num_threads / 2),the loop break from lane > max_num_threads / 2.
+  int axis = lane > (max_num_threads / 2) ? axes[index] : axes[index + 1];
+  // collect out shape from[0, axis).
+  std::vector<Expr> out_shape(A->shape.begin(), A->shape.begin() + axis);
+  // insert 1 to keep shape as tail to be fused.
+  int tail_count = axes.size() - 1 - index;
   for (int idx = 0; idx < tail_count; ++idx) {
     out_shape.emplace_back(1);
   }
-  for (int idx = max_num_threads / parallel_threads; idx > ((max_num_threads / 2) / parallel_threads); --idx) {
-    if (last_stride % idx == 0) {
-      out_shape.emplace_back(last_stride / idx);
-      out_shape.emplace_back(idx * parallel_threads);
-      check_bound = false;
-      break;
+  bool check_bound = true;
+  if (lane <= max_num_threads) {
+    if (out_shape.size() == axes.back()) {
+      out_shape.emplace_back(1);
+    }
+    out_shape.emplace_back(lane);
+    check_bound = false;
+  } else {
+    int prefix = A->shape[axis].as_int32();
+    int tail   = lane / prefix;
+    for (int idx = max_num_threads / tail; idx > ((max_num_threads / 2) / tail); --idx) {
+      if (prefix % idx == 0) {
+        out_shape.emplace_back(prefix / idx);
+        out_shape.emplace_back(idx * tail);
+        check_bound = false;
+        break;
+      }
+    }
+    if (check_bound) {
+      int idx = max_num_threads / tail;
+      out_shape.emplace_back((prefix + idx - 1) / idx);
+      out_shape.emplace_back(idx * tail);
     }
   }
-  if (check_bound) {
-    int times = max_num_threads / parallel_threads;
-    out_shape.emplace_back((last_stride + times - 1) / times);
-    out_shape.emplace_back(times * parallel_threads);
-  }
 
-  std::vector<int> tail_strides(A->shape.size() - tmp_axes.back(), 1);
+  std::vector<int> tail_strides(A->shape.size() - axis, 1);
   for (int idx = tail_strides.size() - 2, index = A->shape.size() - 1; idx >= 0; --idx, --index) {
     tail_strides[idx] = tail_strides[idx + 1] * A->shape[index].as_int32();
   }
 
   int tail_elements = 1;
-  for (int idx = tmp_axes.back(); idx < A->shape.size(); ++idx) {
+  for (int idx = axis; idx < A->shape.size(); ++idx) {
     tail_elements *= A->shape[idx].as_int32();
   }
   CHECK_EQ(out_shape.size(), axes.back() + 2) << "Reshape output shape error!";
@@ -523,7 +525,7 @@ std::vector<ir::Tensor> ReduceInternal(const ir::Tensor& A,
         Expr index    = indexs[out_shape.size() - 2] * out_shape.back() + indexs.back();
         auto selected = ir::LT::Make(index, Expr(tail_elements));
 
-        std::vector<Expr> tmp_indexs(indexs.begin(), indexs.begin() + tmp_axes.back());
+        std::vector<Expr> tmp_indexs(indexs.begin(), indexs.begin() + axis);
         // last and the second of last.
         for (auto tail_stride : tail_strides) {
           tmp_indexs.push_back(index / Expr(tail_stride));
