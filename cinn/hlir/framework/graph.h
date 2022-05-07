@@ -160,7 +160,8 @@ class Graph : public cinn::common::Graph {
 
  private:
   void VisualizeGroups(const std::vector<std::vector<Node*>>& groups,
-                       const std::unordered_set<std::string>& fetch_var_ids);
+                       const std::unordered_set<std::string>& fetch_var_ids,
+                       const std::string& prefix = "");
 
   CINN_DISALLOW_COPY_AND_ASSIGN(Graph);
 };

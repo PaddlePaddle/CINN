@@ -76,6 +76,10 @@ void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
     return;
   }
 
+  static int graph_id = 0;
+  // Prefix to the filepath, which is used to distinguish different graphs.
+  std::string prefix = std::to_string(graph_id++) + "_";
+
   for (auto& id : fetch_var_ids) {
     VLOG(4) << "Fetch: " << id;
   }
@@ -89,7 +93,7 @@ void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
     VLOG(4) << "}";
   }
 
-  Summary(groups);
+  Summary(groups, prefix);
 
   auto& shape_dict = HasAttr("infershape") ? GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape")
                                            : absl::flat_hash_map<std::string, shape_t>{};
@@ -105,7 +109,6 @@ void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
 
   group_id = 0;
   for (auto& group : groups) {
-    LOG(INFO) << "group_id=" << group_id;
     std::string dot_cluster_id = GenClusterId(group, group_id);
     dot.AddCluster(dot_cluster_id, GetGroupAttrs(group.size()));
 
@@ -117,15 +120,15 @@ void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
     group_id++;
   }
 
-  std::string filepath = FLAGS_cinn_fusion_groups_graphviz_dir + "/grouped_graph.dot";
-  LOG(INFO) << dot();
+  std::string filepath = FLAGS_cinn_fusion_groups_graphviz_dir + "/" + prefix + "grouped_graph.dot";
   WriteToFile(filepath, dot());
 
-  VisualizeGroups(groups, fetch_var_ids);
+  VisualizeGroups(groups, fetch_var_ids, prefix);
 }
 
 void Graph::VisualizeGroups(const std::vector<std::vector<Node*>>& groups,
-                            const std::unordered_set<std::string>& fetch_var_ids) {
+                            const std::unordered_set<std::string>& fetch_var_ids,
+                            const std::string& prefix) {
   auto& shape_dict = HasAttr("infershape") ? GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape")
                                            : absl::flat_hash_map<std::string, shape_t>{};
 
@@ -178,8 +181,7 @@ void Graph::VisualizeGroups(const std::vector<std::vector<Node*>>& groups,
       }
     }
 
-    std::string filepath = GetFilePathForGroup(groups, group_id);
-    LOG(INFO) << dot();
+    std::string filepath = GetFilePathForGroup(groups, group_id, prefix);
     WriteToFile(filepath, dot());
 
     group_id++;
