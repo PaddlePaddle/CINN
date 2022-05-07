@@ -603,6 +603,10 @@ class FusionMergePassHelper : public FusionHelperBase {
       if (is_same_shape(first, second)) {
         return true;
       }
+      // if first is to be broadcast, check first has multi-comsumer.
+      if (first->consumer_groups.size() > 1) {
+        return false;
+      }
       // 1.compute io-size
       // 2.compute computation-size
       // 3.compute recompute-times
