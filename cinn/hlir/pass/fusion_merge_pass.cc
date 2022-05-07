@@ -630,93 +630,41 @@ class FusionMergePassHelper : public FusionHelperBase {
       auto input_shape = shape_dict_.at(reducer->inlinks_in_order()[0]->source()->id());
       auto reduce_axes = absl::get<std::vector<int>>(reducer->attrs.attr_store.at("dim"));
 
-      int loop_times      = 1;
-      bool check_bound    = true;
       int max_num_threads = target_.max_num_threads();
-      int max_loop_timme  = max_num_threads >> 2;  // set max loop times as 256.
       // if without last dimension in reduce.
+      int lane = 1;
       if (WithoutLastDimInReduce(input_shape, reduce_axes)) {
-        int index = reduce_axes.size() - 1;
-        for (; index > 0;) {
-          if (reduce_axes[index] - 1 == reduce_axes[index - 1]) {
-            --index;
-            continue;
-          }
+        for (int idx = reduce_axes.back() + 1; idx < input_shape.size(); ++idx) {
+          lane *= input_shape[idx];
+        }
+        if (lane > max_num_threads / 2) {
+          return true;
+        }
+      }
+
+      int index = reduce_axes.size() - 1;
+      for (; index >= 0; --index) {
+        if (index + 1 < reduce_axes.size() && reduce_axes[index] + 1 != reduce_axes[index + 1]) {
           break;
         }
-        int parallel_threads = 1;
-        for (int idx = reduce_axes.back() + 1; idx < input_shape.size(); ++idx) {
-          parallel_threads *= input_shape[idx];
+        lane *= input_shape[reduce_axes[index]];
+        if (lane > max_num_threads / 2) {
+          break;
         }
+      }
 
-        std::vector<int> tmp_axes;
-        for (int idx = reduce_axes.size() - 1; idx > index; --idx) {
-          if (parallel_threads * input_shape[reduce_axes[idx]] > max_num_threads) {
-            tmp_axes = {reduce_axes.begin(), reduce_axes.begin() + idx + 1};
-            break;
-          }
-          parallel_threads *= input_shape[reduce_axes[idx]];
-        }
-
-        if (tmp_axes.size() == 0) {
-          tmp_axes = {reduce_axes.begin(), reduce_axes.begin() + index + 1};
-        }
-
-        for (int idx = 0; idx < tmp_axes.size() - 1; ++idx) {
-          loop_times *= input_shape[tmp_axes[idx]];
-        }
-
-        int last_stride = input_shape[tmp_axes.back()];
-        for (int idx = max_num_threads / parallel_threads; idx > (max_num_threads / 2) / parallel_threads; --idx) {
-          if (last_stride % idx == 0) {
-            loop_times *= (last_stride / idx);
-            check_bound = false;
-          }
-        }
+      if (lane <= max_num_threads) {
+        return true;
       } else {
-        int parallel_threads = input_shape[reduce_axes.back()];
-        int index            = reduce_axes.size() - 2;
-        for (; index >= 0; --index) {
-          if (parallel_threads >= max_num_threads / 2) {
-            break;
-          }
-          if (reduce_axes[index] != reduce_axes[index + 1] - 1) {
-            break;
-          }
-          parallel_threads *= input_shape[reduce_axes[index]];
-        }
-        std::vector<int> first_axes(reduce_axes.begin(), reduce_axes.begin() + index + 1);
-        std::vector<int> second_axes(reduce_axes.begin() + index + 1, reduce_axes.end());
-        for (int axis : first_axes) {
-          loop_times *= input_shape[axis];
-        }
-        if (parallel_threads <= max_num_threads) {
-          check_bound = false;
-        } else if (second_axes.size() == 1) {
-          for (int idx = max_num_threads; idx >= max_num_threads / 2; --idx) {
-            if (parallel_threads % idx == 0) {
-              loop_times *= parallel_threads / idx;
-              check_bound = false;
-              break;
-            }
-          }
-        } else {
-          int head = input_shape[second_axes.front()];
-          int tail = parallel_threads / head;
-          for (int idx = max_num_threads / tail; idx > (max_num_threads / 2) / tail; --idx) {
-            if (head % idx == 0) {
-              loop_times *= (head / idx);
-              check_bound = false;
-              break;
-            }
+        int prefix = input_shape[reduce_axes[index]];
+        int tail   = lane / prefix;
+        for (int idx = max_num_threads / tail; idx > (max_num_threads / 2) / tail; --idx) {
+          if (prefix % idx == 0) {
+            return true;
           }
         }
       }
-
-      if (check_bound) {
-        return false;
-      }
-      return true;
+      return false;
     };
     auto broadcast_fuse_reduce = [this, elementwise_fuse_reduce](const GroupPtr& first,
                                                                  const GroupPtr& second) -> bool {
