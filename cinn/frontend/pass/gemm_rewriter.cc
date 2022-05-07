@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <ios>
+#include <string>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -95,9 +96,10 @@ class GemmRewriterPass : public ProgramPass {
     bool trans_a = false;
     bool trans_b = false;
     float alpha  = 1.f;
+    std::unordered_set<std::string> dot_instrs{"matmul", "cublas_matmul"};
     for (auto& var : instr->inputs) {
       auto it = output2instr_.find(var.get());
-      if (it != output2instr_.end() && (it->second->op_type == "matmul" || it->second->op_type == "cublas_matmul")) {
+      if (it != output2instr_.end() && dot_instrs.count(it->second->op_type)) {
         // If the output var of matmul is consumed by more than one instruction or
         // a fetch var, just skip to fuse it.
         CHECK_GT(var_used_count_.count(var.get()), 0)

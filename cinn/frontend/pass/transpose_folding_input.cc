@@ -17,8 +17,7 @@
 #include <string>
 #include <unordered_set>
 
-#include "cinn/common/target.h"
-#include "cinn/frontend/cinn_builder.h"
+#include "cinn/frontend/pass/transpose_folding_base.h"
 #include "cinn/frontend/program_pass.h"
 #include "cinn/frontend/syntax.h"
 
@@ -27,96 +26,32 @@ namespace cinn::frontend::pass {
 // Pass `TransposeFoldingInput` folds transpose into dot, then both of them can be implemented by a
 // GEMM kernel. For each dot operator, try folding every input that belong output of transpose.
 // If output of tranpose in `fetch_ids`, keep the operator.
-class TransposeFoldingInputPass : public ProgramPass {
+class TransposeFoldingInputPass : public TransposeFoldingBase {
  public:
-  using ProgramPass::ProgramPass;
+  using TransposeFoldingBase::TransposeFoldingBase;
 
  protected:
-  void ApplyImpl(Program* program,
-                 const std::unordered_set<std::string>& fetch_ids,
-                 const common::Target& target) const override {
-    // `out2instr` is used to represent the mapping of Output to Instruction.
-    absl::flat_hash_map<std::string, Instruction*> out2instr;
-    // `in2instr` is used to represent the mapping of Input to Instruction.
-    absl::flat_hash_map<std::string, std::unordered_set<Instruction*>> in2instr;
-    for (size_t i = 0; i < program->size(); ++i) {
-      auto& instr = (*program)[i];
-      for (const auto& out : instr->outputs) {
-        out2instr[out->id] = &instr;
-      }
-      for (const auto& in : instr->inputs) {
-        in2instr[in->id].insert(&instr);
-      }
-    }
+  void set_target_instrs() { TransposeFoldingBase::target_instrs_ = {"matmul"}; }
 
-    // `remove_instrs` is used to represent Instructions of which type is transpose to be deleted.
-    absl::flat_hash_set<Instruction*> remove_instrs;
-    for (size_t i = 0; i < program->size(); ++i) {
-      auto& instr = (*program)[i];
-      // Operator dot is actually operator matmul.
-      if ("matmul" == instr->op_type) {
-        TryFoldIntoDot(&instr, out2instr, in2instr, fetch_ids, &remove_instrs);
-      }
-    }
-
-    CinnBuilder builder("transpose_folding_builder");
-    for (auto& var : program->GetInputs()) {
-      builder.CreateInput(var);
-    }
-    for (int i = 0; i < program->size(); i++) {
-      if (remove_instrs.end() != remove_instrs.find(&(*program)[i])) continue;
-      builder.AppendInstruction((*program)[i]);
-    }
-    *program = builder.Build();
-  }
-
- private:
-  // Rules that transpose can be folded into dot:
+  // Rules that transpose can be folded into matmul:
   //   1) input operand of dot must be transpose;
   //   2) `axis` of tranpose must be consecutive in the reverse order, excluding the first dim;
-  void TryFoldIntoDot(Instruction* dot,
-                      const absl::flat_hash_map<std::string, Instruction*>& out2instr,
-                      const absl::flat_hash_map<std::string, std::unordered_set<Instruction*>>& in2instr,
-                      const std::unordered_set<std::string>& fetch_ids,
-                      absl::flat_hash_set<Instruction*>* remove_instrs) const {
+  void FoldTranspose(Instruction* dot,
+                     const absl::flat_hash_map<std::string, Instruction*>& out2instr,
+                     const absl::flat_hash_map<std::string, std::unordered_set<Instruction*>>& in2instr,
+                     const std::unordered_set<std::string>& fetch_ids,
+                     absl::flat_hash_set<Instruction*>* remove_instrs) const override {
     if (!(*dot)->attrs.empty()) {
       return;
     }
-    auto is_transpose = [](const Instruction& transpose) {
-      if ("transpose" != transpose->op_type) {
-        return false;
-      }
 
-      // The following codes for Rule 2).
-      auto axis = transpose.GetAttrs<std::vector<int>>("axis");
-      if (axis[0] == 0) {
-        // In the batched martix multiplication, the first dim should be batch dim.
-        for (size_t i = 1; i < axis.size(); ++i) {
-          if (axis[i] != axis.size() - i) {
-            return false;
-          }
-        }
-        return true;
-      } else if (axis[0] == axis.size() - 1) {
-        // Otherwise, the axis should be consecutive in the reverse order.
-        for (size_t i = 1; i < axis.size(); ++i) {
-          if (axis[i] != axis.size() - 1 - i) {
-            return false;
-          }
-        }
-        return true;
-      }
-
-      // if axis[0] not 0 or axis.size() - 1, cannot folding
-      return false;
-    };
     for (size_t i = 0; i < (*dot)->inputs.size(); ++i) {
       auto transpose_out_name = (*dot)->inputs[i]->id;
       auto iter               = out2instr.find(transpose_out_name);
       if (iter != out2instr.end()) {
         // the previous op of matmul
         const auto& operand = *(iter->second);
-        if (is_transpose(operand)) {
+        if (IsValidTranspose(operand)) {
           // x-> transpose -> out -> dot => x -> dot
           (*dot)->inputs[i] = operand->inputs[0];
           (*dot).SetAttr(i == 0 ? "trans_a" : "trans_b", true);

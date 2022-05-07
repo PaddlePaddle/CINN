@@ -4,6 +4,7 @@ gather_srcs(cinnapi_src SRCS
     decomposer.cc
     remove_identity.cc
     transpose_folding_input.cc
+    transpose_folding_output.cc
     gemm_rewriter.cc
     )
 
