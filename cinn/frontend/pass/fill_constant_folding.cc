@@ -50,30 +50,20 @@ class FillConstantKey {
   bool operator!=(const FillConstantKey& other) const { return !this->operator==(other); }
 
   struct Hash {
-    static size_t hash_combine(size_t seed, size_t value) {
-      return seed ^ (value + 0x9e3779b9 + (seed << 6) + (seed >> 2));
-    }
-
     size_t operator()(const FillConstantKey& key) const {
-      size_t ret = 0;
+      std::string ret;
 
-      std::hash<DimType> dim_hasher;
-      std::for_each(
-          key.shape_.begin(), key.shape_.end(), [&](const DimType& dim) { ret = hash_combine(ret, dim_hasher(dim)); });
+      std::for_each(key.shape_.begin(), key.shape_.end(), [&](const DimType& dim) { ret.append(std::to_string(dim)); });
 
-      ret = hash_combine(ret, std::hash<float>()(key.value_));
-      ret = hash_combine(ret, std::hash<bool>()(key.force_cpu_));
-      ret = hash_combine(ret, std::hash<std::string>()(key.dtype_));
+      ret.append(std::to_string(key.value_));
+      ret.append(std::to_string(key.force_cpu_));
+      ret.append(key.dtype_);
 
-      return ret;
+      return std::hash<std::string>()(ret);
     }
   };
 
  private:
-  bool ShapeEqual(const ShapeType& shape1, const ShapeType& shape2) {
-    return std::equal(shape1.begin(), shape1.end(), shape2.begin());
-  }
-
   ShapeType shape_;
   float value_;
   bool force_cpu_;
@@ -182,9 +172,11 @@ class FillConstantFoldingPass : public ProgramPass {
       auto it = find_input(input_var_name);
       // Why Loop : To avoid the op's inputs are the same variable !
       while (it != (*op)->inputs.end()) {
-        (*op)->inputs.erase(it);
-        (*op)->inputs.emplace_back(*out_var);
-
+        // erase previous fill_constant output var and replace to new fill_constant output var
+        auto next_it = (*op)->inputs.erase(it);
+        // keep the input place same, it's very important
+        (*op)->inputs.insert(next_it, *out_var);
+        // try find next var if there exist same input
         it = find_input(input_var_name);
       }
     }
