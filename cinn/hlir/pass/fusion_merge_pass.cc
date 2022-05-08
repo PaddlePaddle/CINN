@@ -319,7 +319,7 @@ class FusionMergePassHelper : public FusionHelperBase {
     }
 
     if (fusionable_consumers.size() > 1) {
-      RecomputeWithCostModel(producer, fusionable_consumers);
+      RecomputeWithCostModel(producer, consumers, fusionable_consumers);
     }
 
     // if fusionable consumers exist
@@ -493,12 +493,52 @@ class FusionMergePassHelper : public FusionHelperBase {
   }
 
   void RecomputeWithCostModel(const GroupPtr& producer,
+                              const std::unordered_set<GroupPtr, Hasher, Comparator>& consumers,
                               std::unordered_set<GroupPtr, Hasher, Comparator>& fusionable_consumers) {
     if (producer->op_pattern_kind == framework::kCommReduce) {
       auto consumer = *fusionable_consumers.begin();
       fusionable_consumers.clear();
       fusionable_consumers.insert(consumer);
       return;
+    }
+    // This step is try to remove broadcast with vertical relation.
+    // vertical relation means producer'output shape < consumer's output shape.
+    // if not all consumers is fusionable, remove broadcast with vertical relation.
+    // elif all consumers is fusionable but not allvertical relation, remove broadcast with vertical relation.
+    // else all consumers is fusionable with vertical relation, do nothing.
+    {
+      bool check_broadcast = consumers.size() > fusionable_consumers.size();
+      if (!check_broadcast) {
+        for (auto& consumer : fusionable_consumers) {
+          // consumer is not broadcast, check_broadcast.
+          if (consumer->op_pattern_kind != framework::kBroadcast) {
+            check_broadcast = true;
+            break;
+          } else {
+            // consumer is broadcast.
+            auto output_var_0 = this->GetNodeDataShape(*producer->master_nodes.begin());
+            auto output_var_1 = this->GetNodeDataShape(*consumer->master_nodes.begin());
+            // but comsumer is not vertical relation, check_broadcast.
+            if (output_var_0 == output_var_1) {
+              check_broadcast = true;
+              break;
+            }
+          }
+        }
+      }
+      if (check_broadcast) {
+        for (auto& consumer : consumers) {
+          // consumer is broadcast and fusionable.
+          if (fusionable_consumers.count(consumer) && consumer->op_pattern_kind == framework::kBroadcast) {
+            auto output_var_0 = this->GetNodeDataShape(*producer->master_nodes.begin());
+            auto output_var_1 = this->GetNodeDataShape(*consumer->master_nodes.begin());
+            // vertical relation, remove.
+            if (output_var_0 != output_var_1) {
+              fusionable_consumers.erase(consumer);
+            }
+          }
+        }
+      }
     }
   }
 
@@ -603,9 +643,11 @@ class FusionMergePassHelper : public FusionHelperBase {
       if (is_same_shape(first, second)) {
         return true;
       }
-      // if first is to be broadcast, check first has multi-comsumer.
-      if (first->consumer_groups.size() > 1) {
-        return false;
+      // if first's output is not all in second's input
+      for (auto output : first->output_nodes) {
+        if (!second->input_nodes.count(output)) {
+          return false;
+        }
       }
       // 1.compute io-size
       // 2.compute computation-size
