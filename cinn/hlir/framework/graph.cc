@@ -15,13 +15,15 @@
 #include "cinn/hlir/framework/graph.h"
 
 #include <sys/stat.h>
-#include <unistd.h>
 
+#include <atomic>
+#include <cstring>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
 
 #include "cinn/utils/dot_lang.h"
+#include "cinn/utils/string.h"
 
 DECLARE_string(cinn_fusion_groups_graphviz_dir);
 
@@ -66,16 +68,27 @@ Graph::Graph(const frontend::Program& prog, const Target& target) {
   this->attrs["inferdtype"] = std::make_shared<absl::any>(dtype_dict);
 }
 
-bool MakeDirectory(const std::string& dirname) {
-  if (access(dirname.c_str(), F_OK)) {
-    if (mkdir(dirname.c_str(), S_IRUSR | S_IWUSR | S_IXUSR | S_IRWXG | S_IRWXO) != 0) {
-      return false;
+bool MakeDirectory(const std::string& dirname, mode_t mode) {
+  auto len = dirname.length();
+  std::vector<char> dir_path(len + 1, '\0');
+  strncpy(dir_path.data(), dirname.c_str(), len);
+  char* path = dir_path.data();
+  for (char* p = strchr(path + 1, '/'); p; p = strchr(p + 1, '/')) {
+    *p = '\0';
+    if (mkdir(path, mode) == -1) {
+      if (errno != EEXIST) {
+        *p = '/';
+        return false;
+      }
     }
+    *p = '/';
   }
   return true;
 }
 
-std::string GetFilePathForGroup(const std::vector<std::vector<Node*>>& groups, int group_id) {
+std::string GetFilePathForGroup(const std::vector<std::vector<Node*>>& groups,
+                                int group_id,
+                                const std::string& viz_path) {
   std::string filename = "";
   for (auto* node : groups[group_id]) {
     filename += "_" + node->id();
@@ -111,7 +124,7 @@ std::string GetFilePathForGroup(const std::vector<std::vector<Node*>>& groups, i
 
   int width = std::to_string(groups.size()).size();
   std::stringstream ss;
-  ss << FLAGS_cinn_fusion_groups_graphviz_dir << "/";
+  ss << viz_path;
   ss << std::setw(width) << std::setfill('0') << group_id;
   ss << simplified_filename.substr(0, 50) << ".dot";
   return ss.str();
@@ -183,7 +196,7 @@ std::vector<utils::DotAttr> GetGroupAttrs(size_t group_size) {
   return attrs;
 }
 
-void Summary(const std::vector<std::vector<Node*>>& groups) {
+void Summary(const std::vector<std::vector<Node*>>& groups, const std::string& viz_path) {
   std::map<std::string, size_t> group_summary;
   std::map<std::string, size_t> single_group_detail;
   std::map<std::string, size_t> fusion_group_detail;
@@ -259,7 +272,7 @@ void Summary(const std::vector<std::vector<Node*>>& groups) {
      << "Numbers\n";
   print_table(fusion_group_detail);
 
-  std::string filepath = FLAGS_cinn_fusion_groups_graphviz_dir + "/summary.txt";
+  std::string filepath = viz_path + "summary.txt";
   WriteToFile(filepath, ss.str());
 }
 
@@ -269,7 +282,10 @@ void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
     return;
   }
 
-  if (!MakeDirectory(FLAGS_cinn_fusion_groups_graphviz_dir)) {
+  viz_path_ = utils::StringFormat(
+      "%s/fusion_groups_%d/", FLAGS_cinn_fusion_groups_graphviz_dir.c_str(), viz_count_.fetch_add(1));
+  VLOG(4) << "The visualized path of CINN fusion groups: " << viz_path_;
+  if (!MakeDirectory(viz_path_, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)) {
     return;
   }
 
@@ -277,7 +293,7 @@ void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
     VLOG(4) << "Fetch: " << id;
   }
 
-  Summary(groups);
+  Summary(groups, viz_path_);
 
   auto& shape_dict = HasAttr("infershape") ? GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape")
                                            : absl::flat_hash_map<std::string, shape_t>{};
@@ -326,7 +342,7 @@ void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
     group_id++;
   }
 
-  std::string filepath = FLAGS_cinn_fusion_groups_graphviz_dir + "/grouped_graph.dot";
+  std::string filepath = viz_path_ + "grouped_graph.dot";
   WriteToFile(filepath, dot());
 
   VisualizeGroups(groups, fetch_var_ids);
@@ -403,12 +419,14 @@ void Graph::VisualizeGroups(const std::vector<std::vector<Node*>>& groups,
       }
     }
 
-    std::string filepath = GetFilePathForGroup(groups, group_id);
+    std::string filepath = GetFilePathForGroup(groups, group_id, viz_path_);
     WriteToFile(filepath, dot());
 
     group_id++;
   }
 }
+
+std::atomic_size_t Graph::viz_count_{0};
 
 }  // namespace framework
 }  // namespace hlir
