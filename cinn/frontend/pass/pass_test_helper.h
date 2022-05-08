@@ -52,7 +52,7 @@ bool IsCompiledWithCUDA() {
 }
 
 void PrintMatrix(const std::vector<float>& mat, int bs, int m, int n) {
-  if (!VLOG_IS_ON(4)) {
+  if (!VLOG_IS_ON(5)) {
     return;
   }
   const auto min_max = std::minmax_element(mat.begin(), mat.end());
@@ -115,7 +115,7 @@ void RunGraph(std::shared_ptr<hlir::framework::Graph> graph,
   } else {
     hlir::framework::ApplyPass(graph.get(), "OpFusion");
   }
-  VLOG(4) << "Graph Viz:\n" << graph->Visualize();
+  VLOG(3) << "Graph Viz:\n" << graph->Visualize();
   hlir::framework::GraphCompiler gc(target, scope, graph);
   auto runtime_program = gc.Build();
   runtime_program->Execute();

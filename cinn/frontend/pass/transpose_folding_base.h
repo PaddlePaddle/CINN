@@ -34,6 +34,7 @@ class TransposeFoldingBase : public ProgramPass {
   void ApplyImpl(Program* program,
                  const std::unordered_set<std::string>& fetch_ids,
                  const common::Target& target) override {
+    VLOG(4) << "-- Before folding: " << *program;
     set_target_instrs();
     // `out2instr` is used to represent the mapping of Output to Instruction.
     absl::flat_hash_map<std::string, Instruction*> out2instr;
@@ -68,6 +69,7 @@ class TransposeFoldingBase : public ProgramPass {
       }
     }
     *program = builder.Build();
+    VLOG(4) << "-- After folding: " << *program;
   }
 
   virtual void FoldTranspose(Instruction* instr,

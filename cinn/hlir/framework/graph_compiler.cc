@@ -785,6 +785,11 @@ void GraphCompiler::BuildCublasInstr(const Node& node, Instruction* instr) const
     trans_b = absl::get<bool>(node.attrs.attr_store.at("trans_b"));
   }
   instr->attrs.push_back(static_cast<int>(trans_b));
+  bool trans_out = false;
+  if (node.attrs.attr_store.contains("trans_out")) {
+    trans_out = absl::get<bool>(node.attrs.attr_store.at("trans_out"));
+  }
+  instr->attrs.push_back(static_cast<int>(trans_out));
   float alpha = 1.f;
   if (node.attrs.attr_store.contains("alpha")) {
     alpha = absl::get<float>(node.attrs.attr_store.at("alpha"));

@@ -36,7 +36,7 @@ class TransposeFoldingOutputPass : public TransposeFoldingBase {
                      const std::unordered_set<std::string>& fetch_ids,
                      absl::flat_hash_set<Instruction*>* remove_instrs) const override {
     auto gemm_out_name = (*gemm)->outputs[0]->id;
-    if (in2instr.at(gemm_out_name).size() == 1 && !fetch_ids.count(gemm_out_name)) {
+    if (in2instr.contains(gemm_out_name) && in2instr.at(gemm_out_name).size() == 1 && !fetch_ids.count(gemm_out_name)) {
       auto* instr = *(in2instr.at(gemm_out_name).begin());
       if (IsValidTranspose(*instr)) {
         gemm->SetAttr("trans_out", true);

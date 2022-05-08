@@ -93,9 +93,10 @@ class GemmRewriterPass : public ProgramPass {
   bool DoGemmFusion(CinnBuilder* builder, const Instruction& instr, const std::unordered_set<std::string>& fetch_ids) {
     CHECK_EQ(instr->inputs.size(), 2) << "elementwise should have only two inputs";
     std::vector<Variable> inputs;
-    bool trans_a = false;
-    bool trans_b = false;
-    float alpha  = 1.f;
+    bool trans_a   = false;
+    bool trans_b   = false;
+    bool trans_out = false;
+    float alpha    = 1.f;
     std::unordered_set<std::string> dot_instrs{"matmul", "cublas_matmul"};
     for (auto& var : instr->inputs) {
       auto it = output2instr_.find(var.get());
@@ -134,6 +135,9 @@ class GemmRewriterPass : public ProgramPass {
         if (attrs.count("trans_b")) {
           trans_b = absl::get<bool>(attrs.at("trans_b"));
         }
+        if (attrs.count("trans_out")) {
+          trans_out = absl::get<bool>(attrs.at("trans_out"));
+        }
         if (attrs.count("alpha")) {
           alpha = absl::get<float>(attrs.at("alpha"));
         }
@@ -148,8 +152,11 @@ class GemmRewriterPass : public ProgramPass {
     if (inputs.size() == 3) {
       VLOG(4) << "-- The trans_a of GEMM: " << std::boolalpha << trans_a;
       VLOG(4) << "-- The trans_b of GEMM: " << std::boolalpha << trans_b;
-      const auto& new_outs =
-          builder->CustomInstr("cublas_gemm", inputs, {{"trans_a", trans_a}, {"trans_b", trans_b}, {"alpha", alpha}});
+      VLOG(4) << "-- The trans_out of GEMM: " << std::boolalpha << trans_out;
+      const auto& new_outs = builder->CustomInstr(
+          "cublas_gemm",
+          inputs,
+          {{"trans_a", trans_a}, {"trans_b", trans_b}, {"trans_out", trans_out}, {"alpha", alpha}});
       auto new_out = new_outs[0];
       auto old_out = instr.GetOutput(0);
       new_out.set_id(old_out->id);

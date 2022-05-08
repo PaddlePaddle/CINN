@@ -22,6 +22,7 @@
 
 #include "absl/algorithm/container.h"
 #include "absl/strings/string_view.h"
+#include "cinn/common/target.h"
 #include "cinn/frontend/net_builder.h"
 #include "cinn/frontend/pass/pass_test_helper.h"
 #include "cinn/hlir/op/use_ops.h"
@@ -41,7 +42,7 @@ TEST(GemmRwriter, BatchedTransLeft) {
   auto out     = builder.Add(d, e);
   auto program = builder.Build();
 
-  Target target = common::DefaultNVGPUTarget();
+  common::Target target = common::DefaultNVGPUTarget();
   std::vector<std::string> input_ids;
   absl::c_transform(std::vector<absl::string_view>{a.id(), c.id(), e.id()},
                     std::back_inserter(input_ids),
@@ -64,7 +65,7 @@ TEST(GemmRwriter, BatchedTransRight) {
   auto out     = builder.Add(e, f);
   auto program = builder.Build();
 
-  Target target = common::DefaultNVGPUTarget();
+  common::Target target = common::DefaultNVGPUTarget();
   std::vector<std::string> input_ids;
   absl::c_transform(std::vector<absl::string_view>{a.id(), b.id(), f.id()},
                     std::back_inserter(input_ids),
@@ -88,7 +89,7 @@ TEST(GemmRwriter, BatchedTransTwo) {
   auto out     = builder.Add(e, f);
   auto program = builder.Build();
 
-  Target target = common::DefaultNVGPUTarget();
+  common::Target target = common::DefaultNVGPUTarget();
   std::vector<std::string> input_ids;
   absl::c_transform(std::vector<absl::string_view>{a.id(), c.id(), f.id()},
                     std::back_inserter(input_ids),
@@ -110,7 +111,7 @@ TEST(GemmRwriter, BatchedNoTrans) {
   auto out     = builder.Add(e, f);
   auto program = builder.Build();
 
-  Target target = common::DefaultNVGPUTarget();
+  common::Target target = common::DefaultNVGPUTarget();
   std::vector<std::string> input_ids;
   absl::c_transform(std::vector<absl::string_view>{a.id(), b.id(), f.id()},
                     std::back_inserter(input_ids),
@@ -133,7 +134,7 @@ TEST(GemmRwriter, TransLeft) {
   auto out     = builder.Add(d, e);
   auto program = builder.Build();
 
-  Target target = common::DefaultNVGPUTarget();
+  common::Target target = common::DefaultNVGPUTarget();
   std::vector<std::string> input_ids;
   absl::c_transform(std::vector<absl::string_view>{a.id(), c.id(), e.id()},
                     std::back_inserter(input_ids),
@@ -156,7 +157,7 @@ TEST(GemmRwriter, TransRight) {
   auto out     = builder.Add(e, f);
   auto program = builder.Build();
 
-  Target target = common::DefaultNVGPUTarget();
+  common::Target target = common::DefaultNVGPUTarget();
   std::vector<std::string> input_ids;
   absl::c_transform(std::vector<absl::string_view>{a.id(), b.id(), f.id()},
                     std::back_inserter(input_ids),
@@ -180,7 +181,7 @@ TEST(GemmRwriter, TransTwo) {
   auto out     = builder.Add(e, f);
   auto program = builder.Build();
 
-  Target target = common::DefaultNVGPUTarget();
+  common::Target target = common::DefaultNVGPUTarget();
   std::vector<std::string> input_ids;
   absl::c_transform(std::vector<absl::string_view>{a.id(), c.id(), f.id()},
                     std::back_inserter(input_ids),
@@ -202,7 +203,7 @@ TEST(GemmRwriter, NoTrans) {
   auto out     = builder.Add(e, f);
   auto program = builder.Build();
 
-  Target target = common::DefaultNVGPUTarget();
+  common::Target target = common::DefaultNVGPUTarget();
   std::vector<std::string> input_ids;
   absl::c_transform(std::vector<absl::string_view>{a.id(), b.id(), f.id()},
                     std::back_inserter(input_ids),
@@ -235,7 +236,7 @@ TEST(GemmRwriter, BatchedComplex) {
   auto out     = builder.Add(p, q);
   auto program = builder.Build();
 
-  Target target = common::DefaultNVGPUTarget();
+  common::Target target = common::DefaultNVGPUTarget();
   std::vector<std::string> input_ids;
   absl::c_transform(std::vector<absl::string_view>{d.id(), z.id()},
                     std::back_inserter(input_ids),
@@ -265,7 +266,7 @@ TEST(GemmRwriter, Complex) {
   auto out     = builder.Add(p, q);
   auto program = builder.Build();
 
-  Target target = common::DefaultNVGPUTarget();
+  common::Target target = common::DefaultNVGPUTarget();
   std::vector<std::string> input_ids;
   absl::c_transform(std::vector<absl::string_view>{c.id(), z.id()},
                     std::back_inserter(input_ids),
