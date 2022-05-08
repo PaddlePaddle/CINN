@@ -179,8 +179,8 @@ class CudaVectorizer : public IRMutator<Expr *> {
 
     auto vectorized_var = tensor2vectorized_vars_.at(tensor->name);
     // substitue a new tensor with the vector name and dtype
-    node->tensor =
-        ir::Tensor(vectorized_var->name, vectorized_var->type(), {Expr(factor_)}, {Expr(factor_)}, tensor->operation);
+    node->tensor = ir::Tensor(
+        vectorized_var->name, node->tensor->type().PointerOf(), {Expr(factor_)}, {Expr(factor_)}, tensor->operation);
     // remain the last iterative indice
     indices->assign({iter_var_});
   }

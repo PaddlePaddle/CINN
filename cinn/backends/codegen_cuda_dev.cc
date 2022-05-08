@@ -310,6 +310,26 @@ void CodeGenCUDA_Dev::Visit(const ir::Call *op) {
   os() << ")";
 }
 
+void CodeGenCUDA_Dev::Visit(const ir::Block *op) {
+  vectorized_names_.clear();
+  CodeGenC::Visit(op);
+}
+
+void CodeGenCUDA_Dev::Visit(const ir::Let *op) {
+  CHECK(op->type().valid());
+  if (op->type().is_customized() &&
+      utils::Startswith(op->type().customized_type(), common::customized_type::kcuda_builtin_vector_t)) {
+    os() << GetTypeRepr(op->type());
+    os() << " ";
+    Print(op->symbol);
+    vectorized_names_.insert(utils::GetStreamCnt(op->symbol));
+    os() << " = ";
+    Print(op->body);
+  } else {
+    CodeGenC::Visit(op);
+  }
+}
+
 bool CodeGenCUDA_Dev::PrintBuiltinVectorAccess(const ir::LoadStoreAddrMnger *op, ir::Expr index_expr) {
   static constexpr char index2suffix[4] = {'x', 'y', 'z', 'w'};
 
@@ -320,15 +340,19 @@ bool CodeGenCUDA_Dev::PrintBuiltinVectorAccess(const ir::LoadStoreAddrMnger *op,
   auto *tensor = op->tensor.As<ir::_Tensor_>();
   CHECK(tensor);
   auto dtype = tensor->type();
-  // dtype of tensor shoule be a cuda built-in vector type
-  if (!dtype.is_customized() ||
-      !utils::Startswith(dtype.customized_type(), common::customized_type::kcuda_builtin_vector_t)) {
+  if (!vectorized_names_.count(tensor->name)) {
     return false;
   }
+  // dtype of tensor shoule be a cuda built-in vector type
+  // if (!dtype.is_customized() ||
+  //    !utils::Startswith(dtype.customized_type(), common::customized_type::kcuda_builtin_vector_t)) {
+  //  return false;
+  //}
 
   // the index can't exceed the range of the built-in type
   int index = index_expr.As<ir::IntImm>()->value;
-  if (index < 0 || index >= dtype.lanes()) {
+  // if (index < 0 || index >= dtype.lanes()) {
+  if (index < 0 || index >= 4) {
     return false;
   }
 
