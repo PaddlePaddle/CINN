@@ -14,6 +14,7 @@ Expr = _Module_(std::string name, Expr* buffers, Expr* functions, Expr* submodul
      | _Var_(std::string name, Expr lower_bound, Expr upper_bound)  
      | _Tensor_(std::string name, Expr* shape, Expr* domain, Var *reduce_axis, Buffer buffer)
      | _Buffer_(Expr* shape, Expr* stride, std::string name)
+     | _BufferRange_(Expr buffer, Var* ranges)
      | Block(Expr* stmts)
 
      -- unit of schedule IR which represents tensor computation
