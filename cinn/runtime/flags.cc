@@ -31,12 +31,19 @@ using ::GFLAGS_NAMESPACE::StringFromEnv;
 DEFINE_bool(cinn_use_new_fusion_pass,
             BoolFromEnv("FLAGS_cinn_use_new_fusion_pass", false),
             "Whether use the new op_fusion and fusion_merge pass.");
+
 DEFINE_bool(cinn_sync_run,
             BoolFromEnv("FLAGS_cinn_sync_run", false),
             "Whether sync all devices after each instruction run, which is used for debug.");
+
+DEFINE_bool(cinn_self_check_accuracy,
+            BoolFromEnv("FLAGS_cinn_self_check_accuracy", false),
+            "Whether self-check accuracy after each instruction run, which is used for debug.");
+
 DEFINE_string(cinn_fusion_groups_graphviz_dir,
               StringFromEnv("FLAGS_cinn_fusion_groups_graphviz_dir", ""),
               "Specify the directory path of dot file of graph, which is used for debug.");
+
 DEFINE_string(cinn_source_code_save_path,
               StringFromEnv("FLAGS_cinn_source_code_save_path", ""),
               "Specify the directory path of generated source code, which is used for debug.");

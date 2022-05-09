@@ -17,6 +17,7 @@
 #include "cinn/common/test_helper.h"
 
 DECLARE_bool(cinn_sync_run);
+DECLARE_bool(cinn_self_check_accuracy);
 
 namespace cinn {
 namespace hlir {
