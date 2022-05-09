@@ -30,7 +30,7 @@ class TestType(unittest.TestCase):
         self.assertEqual(str(Int(64)), "int64")
         self.assertEqual(str(UInt(64)), "uint64")
         self.assertEqual(str(UInt(32)), "uint32")
-        self.assertEqual(str(Bool()), "uint1")
+        self.assertEqual(str(Bool()), "bool")
 
     def test_make_const(self):
         self.assertEqual(str(make_const(Float(32), 1.23)), "1.23")
