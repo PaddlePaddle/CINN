@@ -301,7 +301,6 @@ void OpLowerer::ReduceCompute(poly::StageMap& stages,
       // do schedule
       value_pack = impl->fschedule(value_pack);
     } else if (group->master_nodes.count(node)) {
-      LOG(INFO) << node->id();
       // node is master node, copy schedule from reduce node
       if (reducer) {
         auto reducer_data = GetNodeData(reducer);
