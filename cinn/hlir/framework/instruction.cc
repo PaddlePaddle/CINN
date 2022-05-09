@@ -15,6 +15,7 @@
 #include "cinn/hlir/framework/instruction.h"
 
 #include "cinn/common/test_helper.h"
+#include "cinn/hlir/framework/accuracy_checker.h"
 
 DECLARE_bool(cinn_sync_run);
 DECLARE_bool(cinn_self_check_accuracy);
@@ -192,11 +193,28 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
   }
 #endif
 
+  if (FLAGS_cinn_self_check_accuracy) {
+    CheckResults(name2podargs, stream);
 #ifdef CINN_WITH_CUDA
-  if (FLAGS_cinn_sync_run) {
+  } else if (FLAGS_cinn_sync_run) {
     cudaStreamSynchronize(static_cast<cudaStream_t>(stream));
-  }
 #endif
+  }
+}
+
+void Instruction::CheckResults(const std::map<std::string, cinn_pod_value_t>* name2podargs, void* stream) {
+#ifdef CINN_WITH_CUDA
+  cudaStreamSynchronize(static_cast<cudaStream_t>(stream));
+#endif
+
+  if (name2podargs) {
+    CHECK(false) << "Not supported!";
+  } else {
+    for (size_t i = 0; i < in_args_.size(); ++i) {
+      AccuracyChecker checker(target_, scope_, in_args_[i], out_args_[i]);
+      checker();
+    }
+  }
 }
 
 }  // namespace framework

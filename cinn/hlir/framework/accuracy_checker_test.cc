@@ -21,6 +21,12 @@
 #include <cuda_runtime.h>
 #endif
 
+#include "cinn/backends/llvm/simple_jit.h"
+#include "cinn/hlir/framework/instruction.h"
+#include "cinn/hlir/framework/op_strategy.h"
+
+DECLARE_bool(cinn_self_check_accuracy);
+
 namespace cinn {
 namespace hlir {
 namespace framework {
@@ -33,7 +39,7 @@ Target GetTarget() {
 #endif
 }
 
-void GenerateNanTensor(Tensor tensor, Target target) {
+void SetRandomTensor(Tensor tensor, Target target, bool generate_nan) {
   size_t numel = tensor->shape().numel();
   float* dst   = tensor->mutable_data<float>(target);
 
@@ -42,7 +48,8 @@ void GenerateNanTensor(Tensor tensor, Target target) {
   std::uniform_real_distribution<float> dist(-100.f, 100.f);
   std::vector<float> random_nan_vec(numel);
   for (size_t i = 0; i < numel; i++) {
-    random_nan_vec[i] = sqrt(dist(engine));
+    float v           = dist(engine);
+    random_nan_vec[i] = generate_nan ? sqrt(v) : v;
   }
 
 #ifdef CINN_WITH_CUDA
@@ -55,13 +62,60 @@ void GenerateNanTensor(Tensor tensor, Target target) {
 TEST(AccuracyChecker, tensor) {
   Target target = GetTarget();
   Scope scope;
-  scope.Var<Tensor>("out");
-  auto out = scope.GetTensor("out");
+  scope.Var<Tensor>("y");
+  auto out = scope.GetTensor("y");
   out->Resize(Shape({16, 16}));
-  GenerateNanTensor(out, target);
+  SetRandomTensor(out, target, true);
 
-  AccuracyChecker checker(target, &scope, {}, {"out"});
+  AccuracyChecker checker(target, &scope, {}, {"y"});
   CHECK(checker());
+}
+
+std::unique_ptr<backends::SimpleJIT> GetLoweredFunc(Target target) {
+  Expr m(16);
+  Expr n(16);
+
+  lang::Placeholder<float> x("x", {m, n});
+
+  auto y = Compute(
+      {m, n}, [=](Expr i, Expr j) { return lang::CallExtern("sqrt", {x(i, j)}); }, "y");
+
+  auto stages = CreateStages({y});
+  auto fn     = Lower("fn", stages, {x, y});
+
+  ir::Module::Builder builder("some_module", target);
+  builder.AddFunction(fn);
+
+  auto jit = backends::SimpleJIT::Create();
+  jit->Link(builder.Build());
+  return std::move(jit);
+}
+
+void InstantiateScope(Scope* scope, Target target) {
+  for (auto& name : std::vector<std::string>({"x", "y"})) {
+    scope->Var<Tensor>(name);
+    auto x = scope->GetTensor(name);
+    x->Resize(Shape({16, 16}));
+    SetRandomTensor(x, target, false);
+  }
+}
+
+TEST(AccuracyChecker, instruction) {
+  Target target = common::DefaultHostTarget();
+  Scope scope;
+  InstantiateScope(&scope, target);
+
+  Instruction instr(target, &scope, {"x"}, {"y"});
+  auto jit     = GetLoweredFunc(target);
+  auto fn_addr = jit->Lookup("fn");
+  CHECK(fn_addr);
+
+  FLAGS_cinn_self_check_accuracy = true;
+  instr.SetLoweredFunc(reinterpret_cast<lower_func_ptr_t>(fn_addr));
+  // should call Finalize explicitly before Run
+  ASSERT_DEATH(instr.Run(), "");
+  instr.Finalize();
+  instr.Run();
 }
 
 }  // namespace framework
