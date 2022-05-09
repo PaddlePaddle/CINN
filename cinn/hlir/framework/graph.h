@@ -148,12 +148,21 @@ class Graph : public cinn::common::Graph {
     return it != attrs.end();
   }
 
+  /**
+   * \brief Visualize the grouped graph according to fusion_groups.
+   */
+  void VisualizeGroupedGraph(const std::unordered_set<std::string>& fetch_var_ids);
+
+  /**
+   * \brief Visualize the grouped graph according to user specified groups.
+   */
   void VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
                              const std::unordered_set<std::string>& fetch_var_ids);
 
  private:
   void VisualizeGroups(const std::vector<std::vector<Node*>>& groups,
-                       const std::unordered_set<std::string>& fetch_var_ids);
+                       const std::unordered_set<std::string>& fetch_var_ids,
+                       const std::string& prefix = "");
 
   std::string viz_path_;
   static std::atomic_size_t viz_count_;

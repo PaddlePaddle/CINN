@@ -39,8 +39,30 @@ TEST(Graph, visualize) {
   auto graph  = std::make_shared<Graph>(program, target);
   ApplyPass(graph.get(), "OpFusion");
 
-  FLAGS_cinn_fusion_groups_graphviz_dir = ".";
+  FLAGS_cinn_fusion_groups_graphviz_dir = "./visualize";
   graph->VisualizeGroupedGraph(graph->groups, {reduce_sum_1->id});
+}
+
+TEST(Graph, visualize_recompute) {
+  frontend::NetBuilder builder("test");
+  auto x              = builder.CreateInput(Float(32), {16, 32}, "x");
+  auto y              = builder.CreateInput(Float(32), {32, 16}, "y");
+  auto z              = builder.CreateInput(Float(32), {16}, "z");
+  auto constant_1     = builder.FillConstant<float>({16}, 1, "constant_1");
+  auto add_1          = builder.ElementwiseAdd(z, constant_1);
+  auto broadcast_to_1 = builder.BroadcastTo(add_1, {16, 32});
+  auto broadcast_to_2 = builder.BroadcastTo(add_1, {32, 16});
+  auto add_2          = builder.ElementwiseAdd(x, broadcast_to_1);
+  auto add_3          = builder.ElementwiseAdd(y, broadcast_to_2);
+  auto program        = builder.Build();
+
+  auto target = common::DefaultHostTarget();
+  auto graph  = std::make_shared<Graph>(program, target);
+  ApplyPass(graph.get(), "OpFusionPass");
+  ApplyPass(graph.get(), "FusionMergePass");
+
+  FLAGS_cinn_fusion_groups_graphviz_dir = "./visualize_recompute";
+  graph->VisualizeGroupedGraph({add_2->id, add_3->id});
 }
 
 }  // namespace framework
