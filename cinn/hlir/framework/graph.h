@@ -46,6 +46,7 @@ class Graph : public cinn::common::Graph {
   std::vector<std::vector<Node*>> groups;
   struct Group {
     std::string group_id{""};
+    std::string unique_id{UniqName("")};
     // node in this group
     std::vector<Node*> nodes;
     std::unordered_set<Node*> nodes_set;
@@ -96,7 +97,7 @@ class Graph : public cinn::common::Graph {
       }
     }
 
-    std::string GetFuncName() { return "fn_" + group_id; }
+    std::string GetFuncName() { return "fn_" + group_id + unique_id; }
   };
   std::vector<std::shared_ptr<Group>> fusion_groups;
 

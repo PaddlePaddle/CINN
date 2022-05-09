@@ -135,7 +135,7 @@ std::vector<ir::LoweredFunc> OpLowerer::LowerOp(ComputeFunction compute, Schedul
     }
   }
 
-  return lang::LowerVec(func_name_prefix + group->group_id, stages, func_args, {}, {}, nullptr, this->target_);
+  return lang::LowerVec(group->GetFuncName(), stages, func_args, {}, {}, nullptr, this->target_);
 }
 
 std::vector<ir::Tensor> OpLowerer::CollectInputTensor(std::vector<ir::Tensor>& func_args,
@@ -899,7 +899,7 @@ std::vector<ir::LoweredFunc> OpLowerer::LowerOpaqueOp(GroupPtr& group) {
     }
   }
 
-  return lang::LowerVec(func_name_prefix + node->id(), stages, func_args, {}, {}, nullptr, this->target_);
+  return lang::LowerVec(group->GetFuncName(), stages, func_args, {}, {}, nullptr, this->target_);
 }
 
 }  // namespace framework
