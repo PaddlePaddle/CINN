@@ -34,7 +34,7 @@ void ScaleOpMapper(const paddle::cpp::OpDesc& op_desc, const cinn::frontend::OpM
   auto out = ctx.Builder()->Scale(x, scale, bias, bias_after_scale);
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
   auto out_name = op_desc.Output("Out").front();
-  ctx.AddVar(out_name, out);
+  ctx.AddVar(out_name, out, /*replace=*/true);
   ctx.AddVarModelToProgram(out_name, out->id);
 }
 
