@@ -217,19 +217,27 @@ void cinn_gpu_cublas_gemm(const std::vector<int> &attrs,
   float *output_data     = reinterpret_cast<float *>(output->memory);
 
   CHECK_GE(attrs.size(), 13);
-  int lhs_dim_size  = attrs[attrs.size() - 7];
-  int rhs_dim_size  = attrs[attrs.size() - 6];
-  int out_dim_size  = attrs[attrs.size() - 5];
-  bool lhs_trans    = static_cast<bool>(attrs[attrs.size() - 4]);
-  bool rhs_trans    = static_cast<bool>(attrs[attrs.size() - 3]);
-  bool out_trans    = static_cast<bool>(attrs[attrs.size() - 2]);
+  int lhs_dim_size = attrs[attrs.size() - 7];
+  int rhs_dim_size = attrs[attrs.size() - 6];
+  int out_dim_size = attrs[attrs.size() - 5];
+  bool lhs_trans   = static_cast<bool>(attrs[attrs.size() - 4]);
+  bool rhs_trans   = static_cast<bool>(attrs[attrs.size() - 3]);
+  bool out_trans   = static_cast<bool>(attrs[attrs.size() - 2]);
+  // 1）C = A^T * B    -->  C^T = B^T * A
+  // 2）C = A * B^T    -->  C^T = B * A^T
+  // 3）C = A^T * B^T  -->  C^T = B * A
+  // 4）C = A * B      -->  C^T = B^T * A^T
+  if (out_trans) {
+    lhs_trans = static_cast<bool>(attrs[attrs.size() - 3]) ^ out_trans;
+    rhs_trans = static_cast<bool>(attrs[attrs.size() - 4]) ^ out_trans;
+  }
   const float alpha = *reinterpret_cast<const float *>(&attrs[attrs.size() - 1]);
   const float beta  = bias ? 1.f : 0.f;
-  VLOG(4) << "The lhs_trans value used by cublas_gemm: " << lhs_trans;
-  VLOG(4) << "The rhs_trans value used by cublas_gemm: " << rhs_trans;
-  VLOG(4) << "The out_trans value used by cublas_gemm: " << out_trans;
-  VLOG(4) << "The alpha value used by cublas_gemm: " << alpha;
-  VLOG(4) << "The beta value used by cublas_gemm: " << beta;
+  VLOG(4) << "The lhs_trans value used by cinn_gpu_cublas_gemm: " << lhs_trans;
+  VLOG(4) << "The rhs_trans value used by cinn_gpu_cublas_gemm: " << rhs_trans;
+  VLOG(4) << "The out_trans value used by cinn_gpu_cublas_gemm: " << out_trans;
+  VLOG(4) << "The alpha value used by cinn_gpu_cublas_gemm: " << alpha;
+  VLOG(4) << "The beta value used by cinn_gpu_cublas_gemm: " << beta;
   CHECK_EQ(lhs_dim_size, rhs_dim_size);
   CHECK_EQ(lhs_dim_size, out_dim_size);
   CHECK((lhs_dim_size == 2 || lhs_dim_size == 3));

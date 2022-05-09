@@ -221,7 +221,7 @@ TEST(GemmRwriter, BatchedComplex) {
   auto a       = builder.FillConstant<float>({2, 20}, 2.0f, "A");
   auto b       = builder.BroadcastTo(a, {16, 2, 20}, {1, 2});
   auto c       = builder.Transpose(b, {0, 2, 1});
-  auto d       = builder.CreateInput(Float(32), {121, 20}, "C");
+  auto d       = builder.CreateInput(Float(32), {121, 20}, "D");
   auto e       = builder.BroadcastTo(d, {16, 121, 20}, {1, 2});
   auto f       = builder.Matmul(e, c);
   auto x       = builder.FillConstant<float>({16, 2, 20}, 1.0f, "X");

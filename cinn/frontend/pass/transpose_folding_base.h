@@ -86,26 +86,29 @@ class TransposeFoldingBase : public ProgramPass {
     // `axis` of tranpose must be consecutive in the reverse order,
     // excluding the first dim
     auto axis = transpose.GetAttrs<std::vector<int>>("axis");
-    if (axis[0] == 0) {
+    if (axis.size() == 3) {
       // In the batched martix multiplication, the first dim should be batch dim.
+      if (axis[0] != 0) {
+        return false;
+      }
       for (size_t i = 1; i < axis.size(); ++i) {
         if (axis[i] != axis.size() - i) {
           return false;
         }
       }
-      return true;
-    } else if (axis[0] == axis.size() - 1) {
-      // Otherwise, the axis should be consecutive in the reverse order.
+    } else if (axis.size() == 2) {
+      // In the normal martix multiplication, the axis should be consecutive in the reverse order.
       for (size_t i = 1; i < axis.size(); ++i) {
         if (axis[i] != axis.size() - 1 - i) {
           return false;
         }
       }
-      return true;
+    } else {
+      // Otherwise, cannot folding
+      return false;
     }
 
-    // if axis[0] not 0 or axis.size() - 1, cannot folding
-    return false;
+    return true;
   }
 
   std::unordered_set<std::string> target_instrs_;
