@@ -26,8 +26,9 @@ void relu(const Instruction& instr, const DecomposerContext& context) {
   auto output   = instr->outputs[0];
   auto* builder = context.builder();
 
-  auto zero_var   = builder->ConstScalar<float>(0.f, common::UniqName("zero"));
-  auto bcast_zero = builder->BroadcastTo(zero_var, x->shape, {0});
+  // auto zero_var   = builder->ConstScalar<float>(0.f, common::UniqName("zero"));
+  // auto bcast_zero = builder->BroadcastTo(zero_var, x->shape, {0});
+  auto bcast_zero = builder->FillConstant<float>(x->shape, 0.0f, common::UniqName("zero"));
   auto out        = builder->Max(x, bcast_zero);
 
   // map the the output of decomposed operator to the original.
@@ -42,8 +43,9 @@ void relu_grad(const Instruction& instr, const DecomposerContext& context) {
   auto dx       = instr->outputs[0];
   auto* builder = context.builder();
 
-  auto zero_var   = builder->ConstScalar<float>(0.f, common::UniqName("zero"));
-  auto bcast_zero = builder->BroadcastTo(zero_var, out->shape, {0});
+  // auto zero_var   = builder->ConstScalar<float>(0.f, common::UniqName("zero"));
+  // auto bcast_zero = builder->BroadcastTo(zero_var, out->shape, {0});
+  auto bcast_zero = builder->FillConstant<float>(out->shape, 0.0f, common::UniqName("zero"));
   auto condition  = builder->Compare(out, bcast_zero, ComparisonKind::kGt);
   auto res        = builder->Select(condition, dout, bcast_zero);
 

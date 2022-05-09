@@ -193,6 +193,9 @@ class FusionMergePassHelper : public FusionHelperBase {
   void HorizontalFuse(GroupList& consumers) {
     // create fusion group
     auto fused_group = std::make_shared<Graph::Group>();
+    // As recompute exist which may case sub-group used by more than one time.
+    std::vector<GroupPtr> repeat_sub_groups;
+    std::unordered_set<GroupPtr, Hasher, Comparator> sub_group_set;
     // fuse all group into fusion group.
     for (auto consumer : consumers) {
       VLOG(3) << "fuse consumer " << consumer->group_id << " into fused_group!";
@@ -233,6 +236,16 @@ class FusionMergePassHelper : public FusionHelperBase {
       // insert sub group
       if (consumer->fused_sub_groups.size()) {
         for (auto& sub_group : consumer->fused_sub_groups) {
+          // check sub group is repeat.
+          if (sub_group_set.count(sub_group)) {
+            VLOG(3) << sub_group->group_id << " is repeated!";
+            repeat_sub_groups.push_back(sub_group);
+            continue;
+          }
+          // record sub group
+          sub_group_set.insert(sub_group);
+
+          // insert to fused sub group.
           fused_group->fused_sub_groups.push_back(sub_group);
           // update belongs group
           sub_group->belong_groups.erase(consumer);
@@ -259,7 +272,19 @@ class FusionMergePassHelper : public FusionHelperBase {
       consumer->belong_groups.insert(fused_group);
     }
 
-    for (auto consumer : consumers) {
+    // if node is output nodes of sub_group, check it can't be internal node.
+    for (auto& sub_group : repeat_sub_groups) {
+      // check each output node in sub_group.
+      for (auto& node : sub_group->output_nodes) {
+        // if node is not output node of fused_group.
+        if (!fused_group->output_nodes.count(node)) {
+          fused_group->internal_nodes.insert(node);
+        }
+      }
+    }
+
+    // update master node for lowering
+    for (auto& consumer : consumers) {
       // group is elementwise/broadcast/injective
       if (consumer->op_pattern_kind == framework::kElemWise || consumer->op_pattern_kind == framework::kBroadcast ||
           consumer->op_pattern_kind == framework::kInjective) {

@@ -301,20 +301,27 @@ void OpLowerer::ReduceCompute(poly::StageMap& stages,
       // do schedule
       value_pack = impl->fschedule(value_pack);
     } else if (group->master_nodes.count(node)) {
+      LOG(INFO) << node->id();
       // node is master node, copy schedule from reduce node
       if (reducer) {
         auto reducer_data = GetNodeData(reducer);
         tmp_stages[out.as_tensor_ref()]->CopyTransform(stages[tensor_map[reducer_data->id()]]);
         tmp_stages[out.as_tensor_ref()]->CopyLoopInfo(stages[tensor_map[reducer_data->id()]]);
       } else {
+        bool copied_transform = false;
         for (auto rnode : group->master_nodes) {
           if (op_pattern_dict[rnode->op()] == framework::kCommReduce) {
             auto rnode_data = GetNodeData(rnode);
+            if (!tensor_map.count(rnode_data->id())) {
+              continue;
+            }
             tmp_stages[out.as_tensor_ref()]->CopyTransform(stages[tensor_map[rnode_data->id()]]);
             tmp_stages[out.as_tensor_ref()]->CopyLoopInfo(stages[tensor_map[rnode_data->id()]]);
+            copied_transform = true;
             break;
           }
         }
+        CHECK(copied_transform) << "master node fail to copy transfrom from reduce node!";
       }
     }
 
@@ -456,6 +463,9 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
             LOG(FATAL) << "Error! lane is less equal than max_num_threads, Please check!";
           }
           if (lane >= max_num_threads / 2) {
+            if (lane <= max_num_threads) {
+              --index;
+            }
             break;
           }
         }
