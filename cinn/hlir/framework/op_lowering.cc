@@ -41,7 +41,7 @@ NodeData* GetNodeData(Node* node) {
 
 std::vector<NodeData*> GetAllNodeData(Node* node) {
   std::vector<NodeData*> node_datas;
-  for (auto& link : node->outlinks()) {
+  for (auto& link : node->outlinks_in_order()) {
     auto node_data = link->sink()->safe_as<NodeData>();
     CHECK(node_data);
     node_datas.push_back(node_data);
