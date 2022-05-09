@@ -966,7 +966,7 @@ Expr MakeCacheBlock(const std::vector<std::pair<Expr, Expr>>& buffer_region,
   // Create block vars, block's accessed region and accessing indices
   CHECK(new_tensor->buffer.defined());
   for (auto& dim : new_tensor->buffer->shape) {
-    Var var(Expr(0), dim, "v" + std::to_string(block_vars.size()));
+    Var var(Expr(0), dim, "v" + std::to_string(block_vars.size()), false);
     block_vars.push_back(var);
   }
   auto body                  = new_tensor->tensor_store_expanded_body();
@@ -2078,7 +2078,8 @@ std::vector<Expr> ScheduleHelper::GetAllBlocks() const {
       return x->As<ir::ScheduleBlockRealize>() && !x->As<ir::ScheduleBlockRealize>()->iter_values.empty();
     });
   }
-  CHECK(!result.empty());
+  CHECK(!result.empty()) << "Didn't find blocks in expr.";
+  for (auto& it_expr : exprs) LOG(INFO) << "it_expr is : " << it_expr;
   return result;
 }
 
@@ -2127,5 +2128,112 @@ void SetCudaAxisInfo(Expr* lowered_func) {
   });
   lowered_func->as_lowered_func_ref()->cuda_axis_info = info;
 }
+
+void IRSchedule::CopyTransformAndLoopInfo(const std::string& block_name, const std::string& block_target_name) {
+  auto block        = this->GetBlock(block_name);
+  auto block_target = this->GetBlock(block_target_name);
+  this->CopyTransformAndLoopInfo(block, block_target);
+}
+
+void IRSchedule::CopyTransformAndLoopInfo(const Expr& block, const Expr& block_target) {
+  CHECK(block.As<ir::ScheduleBlockRealize>());
+  CHECK(block_target.As<ir::ScheduleBlockRealize>());
+  auto exprs = this->GetModule().GetExprs();
+  CHECK_EQ(exprs.size(), 1U);
+  auto expr            = exprs[0];
+  auto vars            = block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->iter_vars;
+  auto vars_target     = block_target.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->iter_vars;
+  auto old_iter_values = block.As<ir::ScheduleBlockRealize>()->iter_values;
+  auto iter_values_target = block_target.As<ir::ScheduleBlockRealize>()->iter_values;
+  std::vector<Expr> new_iter_values;
+  for (int i = 0; i < vars.size() && i < vars_target.size(); i++) {
+    CHECK(vars[i]->upper_bound.defined() && vars_target[i]->upper_bound.defined());
+    if (vars[i]->upper_bound.is_constant() && vars_target[i]->upper_bound.is_constant() &&
+        vars[i]->upper_bound.get_constant() == vars_target[i]->upper_bound.get_constant() && !vars[i]->is_reduce_axis &&
+        !vars_target[i]->is_reduce_axis) {
+      new_iter_values.push_back(iter_values_target[i]);
+      LOG(INFO) << "new_iter_values.push_back " << iter_values_target[i];
+    } else
+      break;
+  }
+
+  if (new_iter_values.empty())
+    LOG(FATAL) << "Cannot CopyTransformAndLoopInfo since shape[0] of source and target is not equal! "
+               << vars[0]->upper_bound << " v.s " << vars_target[0]->upper_bound;
+
+  int changed_loop_num = new_iter_values.size();
+  std::set<std::string> used_target_loop_vars;
+  for (auto& iter_val : new_iter_values) {
+    auto find_partial_loop = ir::CollectIRNodesWithoutTensor(iter_val, [&](const Expr* x) {
+      if (x->as_var()) used_target_loop_vars.insert(x->as_var_ref()->name);
+      return x->as_var();
+    });
+  }
+  CHECK(!used_target_loop_vars.empty());
+  std::vector<Expr> used_target_loops;
+  auto expr_copy = optim::IRCopy(expr);
+  for (auto& var : used_target_loop_vars) {
+    auto find_loop_var = ir::CollectIRNodesWithoutTensor(expr_copy, [&](const Expr* x) {
+      return x->As<ir::For>() && x->As<ir::For>()->loop_var->name == var && Contains(*x, block_target);
+    });
+    CHECK(!find_loop_var.empty());
+    CHECK_EQ(find_loop_var.size(), 1U);
+    used_target_loops.push_back(*find_loop_var.begin());
+    LOG(INFO) << "used_target_loops push_back " << used_target_loops.back();
+  }
+  std::sort(used_target_loops.begin(), used_target_loops.end(), [&](Expr i, Expr j) {
+    return (utils::GetStreamCnt(i).size() > utils::GetStreamCnt(j).size());
+  });
+  for (int i = new_iter_values.size(); i < old_iter_values.size(); i++) {
+    CHECK(old_iter_values[i].as_var());
+    new_iter_values.push_back(old_iter_values[i]);
+  }
+  Expr new_loop;
+  LOG(INFO) << "changed_loop_num is : " << changed_loop_num;
+  LOG(INFO) << "old_iter_values.size() is : " << old_iter_values.size();
+  if (changed_loop_num >= (int)old_iter_values.size()) {
+    new_loop                                             = optim::IRCopy(block);
+    new_loop.As<ir::ScheduleBlockRealize>()->iter_values = new_iter_values;
+  } else {
+    CHECK(old_iter_values[changed_loop_num].as_var());
+    auto old_var           = old_iter_values[changed_loop_num].as_var_ref();
+    auto find_partial_loop = ir::CollectIRNodesWithoutTensor(expr, [&](const Expr* x) {
+      return x->As<ir::For>() && x->As<ir::For>()->loop_var->name == old_var->name && Contains(*x, block);
+    });
+    CHECK(!find_partial_loop.empty());
+    CHECK_EQ(find_partial_loop.size(), 1U);
+    new_loop = optim::IRCopy(*find_partial_loop.begin());
+    auto find_schedule_block =
+        ir::CollectIRNodesWithoutTensor(new_loop, [&](const Expr* x) { return x->As<ir::ScheduleBlockRealize>(); });
+    CHECK(!find_schedule_block.empty());
+    CHECK_EQ(find_schedule_block.size(), 1U);
+    Expr sch_block                                        = (*find_schedule_block.begin());
+    sch_block.As<ir::ScheduleBlockRealize>()->iter_values = new_iter_values;
+  }
+  LOG(INFO) << "new_loop is : " << new_loop;
+  CHECK(!used_target_loops.empty());
+  Expr res;
+  if (used_target_loops.size() == 1) {
+    auto for_loop = used_target_loops[0].As<ir::For>();
+    res           = For::Make(for_loop->loop_var,
+                    for_loop->min,
+                    for_loop->extent,
+                    for_loop->for_type(),
+                    for_loop->device_api,
+                    new_loop,
+                    for_loop->vectorize_info(),
+                    for_loop->bind_info());
+  } else {
+    Expr outer_loop                = used_target_loops.front();
+    Expr inner_loop                = used_target_loops.back();
+    inner_loop.As<ir::For>()->body = Block::Make({new_loop});
+    res                            = outer_loop;
+  }
+  LOG(INFO) << "res is : " << res;
+  std::vector<Expr> all_loops = this->GetLoops(block);
+  CHECK(!all_loops.empty());
+  helper_.Replace(all_loops[0], res);
+}
+
 }  // namespace ir
 }  // namespace cinn
