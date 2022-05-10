@@ -15,8 +15,10 @@
 #include "cinn/hlir/framework/instruction.h"
 
 #include "cinn/common/test_helper.h"
+#include "cinn/hlir/framework/accuracy_checker.h"
 
 DECLARE_bool(cinn_sync_run);
+DECLARE_bool(cinn_self_check_accuracy);
 
 namespace cinn {
 namespace hlir {
@@ -191,11 +193,45 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
   }
 #endif
 
+  if (FLAGS_cinn_self_check_accuracy) {
+    CheckResults(name2podargs, stream);
 #ifdef CINN_WITH_CUDA
-  if (FLAGS_cinn_sync_run) {
+  } else if (FLAGS_cinn_sync_run) {
     cudaStreamSynchronize(static_cast<cudaStream_t>(stream));
-  }
 #endif
+  }
+}
+
+void Instruction::CheckResults(const std::map<std::string, cinn_pod_value_t>* name2podargs, void* stream) {
+#ifdef CINN_WITH_CUDA
+  cudaStreamSynchronize(static_cast<cudaStream_t>(stream));
+#endif
+
+  if (fn_names_.size() == 1) {
+    std::unordered_set<std::string> skipped_instr_set = {"malloc_buffer_instruction", "free_buffer_instruction"};
+    for (auto& name : skipped_instr_set) {
+      if (fn_names_[0].find(name) != std::string::npos) {
+        // Skip the malloc & free buffer instructions.
+        return;
+      }
+    }
+  }
+
+  AccuracyChecker checker(target_, scope_);
+
+  LOG(WARNING) << "Instruction {";
+  for (size_t i = 0; i < fn_names_.size(); ++i) {
+    LOG(WARNING) << "  Function " << fn_names_[i] << ":";
+    for (auto& in_name : in_args_[i]) {
+      auto result_str = checker(name2podargs, in_name);
+      LOG(WARNING) << "    input: " << result_str;
+    }
+    for (auto& out_name : out_args_[i]) {
+      auto result_str = checker(name2podargs, out_name);
+      LOG(WARNING) << "    output: " << result_str;
+    }
+  }
+  LOG(WARNING) << "}";
 }
 
 }  // namespace framework

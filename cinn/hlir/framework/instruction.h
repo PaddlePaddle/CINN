@@ -123,6 +123,7 @@ class Instruction {
 
  protected:
   std::vector<cinn_pod_value_t>& PreparePodArgs(int i, const std::map<std::string, cinn_pod_value_t>* name2podargs);
+  void CheckResults(const std::map<std::string, cinn_pod_value_t>* name2podargs = nullptr, void* stream = nullptr);
 
  private:
   bool finalized_flag_ = false;
