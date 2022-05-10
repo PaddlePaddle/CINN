@@ -193,6 +193,9 @@ class FusionMergePassHelper : public FusionHelperBase {
   void HorizontalFuse(GroupList& consumers) {
     // create fusion group
     auto fused_group = std::make_shared<Graph::Group>();
+    // As recompute exist which may case sub-group used by more than one time.
+    std::vector<GroupPtr> repeat_sub_groups;
+    std::unordered_set<GroupPtr, Hasher, Comparator> sub_group_set;
     // fuse all group into fusion group.
     for (auto consumer : consumers) {
       VLOG(3) << "fuse consumer " << consumer->group_id << " into fused_group!";
@@ -233,6 +236,16 @@ class FusionMergePassHelper : public FusionHelperBase {
       // insert sub group
       if (consumer->fused_sub_groups.size()) {
         for (auto& sub_group : consumer->fused_sub_groups) {
+          // check sub group is repeat.
+          if (sub_group_set.count(sub_group)) {
+            VLOG(3) << sub_group->group_id << " is repeated!";
+            repeat_sub_groups.push_back(sub_group);
+            continue;
+          }
+          // record sub group
+          sub_group_set.insert(sub_group);
+
+          // insert to fused sub group.
           fused_group->fused_sub_groups.push_back(sub_group);
           // update belongs group
           sub_group->belong_groups.erase(consumer);
@@ -259,7 +272,19 @@ class FusionMergePassHelper : public FusionHelperBase {
       consumer->belong_groups.insert(fused_group);
     }
 
-    for (auto consumer : consumers) {
+    // if node is output nodes of sub_group, check it can't be internal node.
+    for (auto& sub_group : repeat_sub_groups) {
+      // check each output node in sub_group.
+      for (auto& node : sub_group->output_nodes) {
+        // if node is not output node of fused_group.
+        if (!fused_group->output_nodes.count(node)) {
+          fused_group->internal_nodes.insert(node);
+        }
+      }
+    }
+
+    // update master node for lowering
+    for (auto& consumer : consumers) {
       // group is elementwise/broadcast/injective
       if (consumer->op_pattern_kind == framework::kElemWise || consumer->op_pattern_kind == framework::kBroadcast ||
           consumer->op_pattern_kind == framework::kInjective) {
@@ -319,7 +344,7 @@ class FusionMergePassHelper : public FusionHelperBase {
     }
 
     if (fusionable_consumers.size() > 1) {
-      RecomputeWithCostModel(producer, fusionable_consumers);
+      RecomputeWithCostModel(producer, consumers, fusionable_consumers);
     }
 
     // if fusionable consumers exist
@@ -493,12 +518,52 @@ class FusionMergePassHelper : public FusionHelperBase {
   }
 
   void RecomputeWithCostModel(const GroupPtr& producer,
+                              const std::unordered_set<GroupPtr, Hasher, Comparator>& consumers,
                               std::unordered_set<GroupPtr, Hasher, Comparator>& fusionable_consumers) {
     if (producer->op_pattern_kind == framework::kCommReduce) {
       auto consumer = *fusionable_consumers.begin();
       fusionable_consumers.clear();
       fusionable_consumers.insert(consumer);
       return;
+    }
+    // This step is try to remove broadcast with vertical relation.
+    // vertical relation means producer'output shape < consumer's output shape.
+    // if not all consumers is fusionable, remove broadcast with vertical relation.
+    // elif all consumers is fusionable but not allvertical relation, remove broadcast with vertical relation.
+    // else all consumers is fusionable with vertical relation, do nothing.
+    {
+      bool check_broadcast = consumers.size() > fusionable_consumers.size();
+      if (!check_broadcast) {
+        for (auto& consumer : fusionable_consumers) {
+          // consumer is not broadcast, check_broadcast.
+          if (consumer->op_pattern_kind != framework::kBroadcast) {
+            check_broadcast = true;
+            break;
+          } else {
+            // consumer is broadcast.
+            auto output_var_0 = this->GetNodeDataShape(*producer->master_nodes.begin());
+            auto output_var_1 = this->GetNodeDataShape(*consumer->master_nodes.begin());
+            // but comsumer is not vertical relation, check_broadcast.
+            if (output_var_0 == output_var_1) {
+              check_broadcast = true;
+              break;
+            }
+          }
+        }
+      }
+      if (check_broadcast) {
+        for (auto& consumer : consumers) {
+          // consumer is broadcast and fusionable.
+          if (fusionable_consumers.count(consumer) && consumer->op_pattern_kind == framework::kBroadcast) {
+            auto output_var_0 = this->GetNodeDataShape(*producer->master_nodes.begin());
+            auto output_var_1 = this->GetNodeDataShape(*consumer->master_nodes.begin());
+            // vertical relation, remove.
+            if (output_var_0 != output_var_1) {
+              fusionable_consumers.erase(consumer);
+            }
+          }
+        }
+      }
     }
   }
 
@@ -602,6 +667,12 @@ class FusionMergePassHelper : public FusionHelperBase {
       // if sampe shape with horizontal relation
       if (is_same_shape(first, second)) {
         return true;
+      }
+      // if first's output is not all in second's input
+      for (auto output : first->output_nodes) {
+        if (!second->input_nodes.count(output)) {
+          return false;
+        }
       }
       // 1.compute io-size
       // 2.compute computation-size
