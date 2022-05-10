@@ -22,6 +22,54 @@ namespace cinn {
 namespace hlir {
 namespace framework {
 
+template <typename T, typename Alloc = std::allocator<T>>
+std::ostream& operator<<(std::ostream& os, const std::vector<T, Alloc>& vec) {
+  os << "{";
+  bool is_first = true;
+  for (auto e : vec) {
+    if (is_first) {
+      is_first = false;
+    } else {
+      os << ", ";
+    }
+    os << e;
+  }
+  os << "}";
+  return os;
+}
+
+template <typename T>
+std::string DebugString(const Tensor& cpu_tensor, const std::string& name) {
+  std::stringstream ss;
+  ss << "name=" << name << ", shape=" << cpu_tensor->shape().data() << ", data=[";
+  size_t numel  = cpu_tensor->shape().numel();
+  const T* data = cpu_tensor->data<T>();
+  if (numel <= 10) {
+    for (size_t i = 0; i < numel; ++i) {
+      if (i > 0) {
+        ss << ", ";
+      }
+      ss << data[i];
+    }
+  } else {
+    for (size_t i = 0; i < 5; ++i) {
+      if (i > 0) {
+        ss << ", ";
+      }
+      ss << data[i];
+    }
+    ss << " ... ";
+    for (size_t i = numel - 5; i < numel; ++i) {
+      ss << data[i];
+      if (i != numel - 1) {
+        ss << ", ";
+      }
+    }
+  }
+  ss << "]";
+  return ss.str();
+}
+
 bool AccuracyChecker::operator()(std::map<std::string, bool>* out_args_check_result) {
   bool res = false;
   for (auto& name : out_args_) {
@@ -30,9 +78,11 @@ bool AccuracyChecker::operator()(std::map<std::string, bool>* out_args_check_res
     if (tensor->type().is_float()) {
       Tensor cpu_tensor = CopyTensorToCpu<float>(tensor);
       res_cur           = CheckNanOrInf<float>(cpu_tensor);
+      VLOG(3) << DebugString<float>(cpu_tensor, name);
     } else if (tensor->type().is_int()) {
       Tensor cpu_tensor = CopyTensorToCpu<int>(tensor);
       res_cur           = CheckNanOrInf<int>(cpu_tensor);
+      VLOG(3) << DebugString<int>(cpu_tensor, name);
     } else {
       CHECK(false) << "Not supported data type.";
     }
@@ -51,12 +101,15 @@ bool AccuracyChecker::operator()(const std::map<std::string, cinn_pod_value_t>& 
     if (buffer->type == cinn_float32_t()) {
       Tensor cpu_tensor = CopyBufferToCpu<float>(buffer);
       res_cur           = CheckNanOrInf<float>(cpu_tensor);
+      VLOG(3) << DebugString<float>(cpu_tensor, name);
     } else if (buffer->type == cinn_int32_t()) {
       Tensor cpu_tensor = CopyBufferToCpu<int32_t>(buffer);
       res_cur           = CheckNanOrInf<int32_t>(cpu_tensor);
+      VLOG(3) << DebugString<int32_t>(cpu_tensor, name);
     } else if (buffer->type == cinn_int64_t()) {
       Tensor cpu_tensor = CopyBufferToCpu<int64_t>(buffer);
       res_cur           = CheckNanOrInf<int64_t>(cpu_tensor);
+      VLOG(3) << DebugString<int64_t>(cpu_tensor, name);
     } else {
       CHECK(false) << "Not supported data type.";
     }
