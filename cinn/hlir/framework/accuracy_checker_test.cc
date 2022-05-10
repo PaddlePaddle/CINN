@@ -66,14 +66,14 @@ void SetRandomTensor(Tensor tensor, Target target, bool generate_nan) {
 TEST(AccuracyChecker, tensor) {
   Target target = GetTarget();
   Scope scope;
-  scope.Var<Tensor>("y");
-  auto out = scope.GetTensor("y");
+  scope.Var<Tensor>("x");
+  auto out = scope.GetTensor("x");
   out->Resize(Shape({16, 16}));
   SetRandomTensor(out, target, true);
 
-  std::map<std::string, bool> out_args_check_result;
-  AccuracyChecker checker(target, &scope, {}, {"y"});
-  CHECK(checker(&out_args_check_result));
+  AccuracyChecker checker(target, &scope);
+  std::string result_str = checker(nullptr, "x");
+  LOG(INFO) << result_str;
 }
 
 std::unique_ptr<backends::SimpleJIT> GetLoweredFunc(Target target) {

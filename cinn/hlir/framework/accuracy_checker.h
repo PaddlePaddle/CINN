@@ -21,17 +21,13 @@ namespace cinn {
 namespace hlir {
 namespace framework {
 
+enum CheckResult { kOK = 0, kZero = 1, kNaN = 2, kInf = 3 };
+
 class AccuracyChecker {
  public:
-  AccuracyChecker(const Target& target,
-                  Scope* scope,
-                  const std::vector<std::string>& in_args,
-                  const std::vector<std::string>& out_args)
-      : target_(target), scope_(scope), in_args_({in_args}), out_args_({out_args}) {}
+  AccuracyChecker(const Target& target, Scope* scope) : target_(target), scope_(scope) {}
 
-  bool operator()(std::map<std::string, bool>* out_args_check_result);
-  bool operator()(const std::map<std::string, cinn_pod_value_t>& name2podargs,
-                  std::map<std::string, bool>* out_args_check_result);
+  std::string operator()(const std::map<std::string, cinn_pod_value_t>* name2podargs, const std::string& arg_name);
 
  private:
   template <typename T>
@@ -44,12 +40,10 @@ class AccuracyChecker {
   void MemcpyDeviceToHost(const T* src, size_t numel, T* dst);
 
   template <typename T>
-  bool CheckNanOrInf(const Tensor& cpu_tensor);
+  CheckResult CheckNanOrInf(const Tensor& cpu_tensor);
 
   Target target_;
   Scope* scope_;  // Not owned
-  std::vector<std::string> in_args_;
-  std::vector<std::string> out_args_;
 };
 
 }  // namespace framework

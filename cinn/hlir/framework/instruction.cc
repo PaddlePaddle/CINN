@@ -207,24 +207,28 @@ void Instruction::CheckResults(const std::map<std::string, cinn_pod_value_t>* na
   cudaStreamSynchronize(static_cast<cudaStream_t>(stream));
 #endif
 
-  LOG(WARNING) << "Instruction {";
-  for (size_t i = 0; i < in_args_.size(); ++i) {
-    AccuracyChecker checker(target_, scope_, in_args_[i], out_args_[i]);
-    bool res = false;
-    std::map<std::string, bool> out_args_check_result;
-    if (name2podargs) {
-      res = checker(*name2podargs, &out_args_check_result);
-    } else {
-      res = checker(&out_args_check_result);
-    }
-    if (res) {
-      LOG(WARNING) << "  Function " << fn_names_[i] << ", Nan/Inf.";
-      for (auto& iter : out_args_check_result) {
-        std::string res_str = iter.second ? "Nan/Inf" : "OK";
-        LOG(WARNING) << "    output " << iter.first << ", " << res_str;
+  if (fn_names_.size() == 1) {
+    std::unordered_set<std::string> skipped_instr_set = {"malloc_buffer_instruction", "free_buffer_instruction"};
+    for (auto& name : skipped_instr_set) {
+      if (fn_names_[0].find(name) != std::string::npos) {
+        // Skip the malloc & free buffer instructions.
+        return;
       }
-    } else {
-      LOG(WARNING) << "  Function " << fn_names_[i] << ", OK.";
+    }
+  }
+
+  AccuracyChecker checker(target_, scope_);
+
+  LOG(WARNING) << "Instruction {";
+  for (size_t i = 0; i < fn_names_.size(); ++i) {
+    LOG(WARNING) << "  Function " << fn_names_[i] << ":";
+    for (auto& in_name : in_args_[i]) {
+      auto result_str = checker(name2podargs, in_name);
+      LOG(WARNING) << "    input: " << result_str;
+    }
+    for (auto& out_name : out_args_[i]) {
+      auto result_str = checker(name2podargs, out_name);
+      LOG(WARNING) << "    output: " << result_str;
     }
   }
   LOG(WARNING) << "}";
