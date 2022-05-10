@@ -14,12 +14,16 @@
 
 #pragma once
 
+#include <absl/container/flat_hash_map.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/utils/dot_lang.h"

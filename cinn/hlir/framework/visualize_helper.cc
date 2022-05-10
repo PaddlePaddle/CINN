@@ -14,12 +14,16 @@
 
 #include "cinn/hlir/framework/visualize_helper.h"
 
+#include <errno.h>
 #include <sys/stat.h>
-#include <unistd.h>
 
+#include <cstring>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <map>
+#include <unordered_map>
+#include <vector>
 
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/utils/dot_lang.h"
