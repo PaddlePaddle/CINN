@@ -29,8 +29,11 @@ bool AccuracyChecker::operator()() {
     if (tensor->type().is_float()) {
       Tensor cpu_tensor = CopyTensorToCpu<float>(tensor);
       res |= CheckNanOrInf<float>(cpu_tensor);
+    } else if (tensor->type().is_int()) {
+      Tensor cpu_tensor = CopyTensorToCpu<int>(tensor);
+      res |= CheckNanOrInf<int>(cpu_tensor);
     } else {
-      CHECK(tensor->type().is_float()) << "Not supported data type.";
+      CHECK(false) << "Not supported data type.";
     }
   }
   return res;
@@ -43,8 +46,14 @@ bool AccuracyChecker::operator()(const std::map<std::string, cinn_pod_value_t>& 
     if (buffer->type == cinn_float32_t()) {
       Tensor cpu_tensor = CopyBufferToCpu<float>(buffer);
       res |= CheckNanOrInf<float>(cpu_tensor);
+    } else if (buffer->type == cinn_int32_t()) {
+      Tensor cpu_tensor = CopyBufferToCpu<int32_t>(buffer);
+      res |= CheckNanOrInf<int32_t>(cpu_tensor);
+    } else if (buffer->type == cinn_int64_t()) {
+      Tensor cpu_tensor = CopyBufferToCpu<int64_t>(buffer);
+      res |= CheckNanOrInf<int64_t>(cpu_tensor);
     } else {
-      CHECK(buffer->type == cinn_float32_t()) << "Not supported data type.";
+      CHECK(false) << "Not supported data type.";
     }
   }
   return res;
