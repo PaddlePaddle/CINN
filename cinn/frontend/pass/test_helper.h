@@ -74,7 +74,8 @@ class PassTest {
 
   void Execute(const std::vector<std::string>& input_names, const std::vector<std::string>& output_names) {
     auto graph = std::make_shared<hlir::framework::Graph>(program_, target_);
-    hlir::framework::ApplyPass(graph.get(), "OpFusion");
+    hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+    hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
 
     scope_ = hlir::framework::BuildScope(target_, graph);
     hlir::framework::GraphCompiler gc(target_, scope_, graph);

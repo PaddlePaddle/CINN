@@ -21,6 +21,7 @@
 
 namespace cinn::frontend {
 
+#if 0
 TEST(ReshapeRewriter, remove_single) {
   //              <x>
   //           /       \
@@ -64,6 +65,38 @@ TEST(ReshapeRewriter, remove_with_fill_constant) {
   std::vector<std::string> output_names = {add_1->id};
   int num_removed_ops = tester.ApplyProgramPass(builder, {"ReshapeRewriter", "RemoveIdentity"}, output_names);
   ASSERT_EQ(num_removed_ops, 2);
+  tester.Execute(input_names, output_names);
+}
+#endif
+
+TEST(ReshapeRewriter, bugfix) {
+  NetBuilder builder("net_builder");
+  auto var_487 = builder.CreateInput(Float(32), {10201, 50}, "var_487");
+  auto var_501 = builder.CreateInput(Float(32), {10201, 50}, "var_501");
+  auto var_503 = builder.CreateInput(Float(32), {10201, 50}, "var_503");
+
+  auto var_497 = builder.Tanh(var_487);  // fetch
+
+  auto constant_1 = builder.FillConstant<float>({10201, 50}, static_cast<float>(1.0), "constant_1");
+  auto var_513    = builder.ElementwiseMul(var_497, var_497);
+  auto var_523    = builder.Sub(constant_1, var_513);  // fetch
+
+  auto constant_2 = builder.FillConstant<float>({10201, 50}, static_cast<float>(1.0), "constant_2");
+  auto var_509    = builder.ElementwiseMul(var_497, var_497);
+  auto var_521    = builder.Sub(constant_2, var_509);  // fetch
+
+  auto constant_3 = builder.FillConstant<float>({10201, 50}, static_cast<float>(1.0), "constant_3");
+  auto var_517    = builder.ElementwiseMul(var_497, var_497);
+  auto var_527    = builder.Sub(constant_3, var_517);  // fetch
+
+  auto var_531 = builder.ElementwiseMul(var_501, var_523);  // fetch
+  auto var_533 = builder.ElementwiseMul(var_503, var_523);  // fetch
+
+  PassTest tester;
+  std::vector<std::string> input_names  = {var_487.id().data(), var_501.id().data(), var_503.id().data()};
+  std::vector<std::string> output_names = {
+      var_497->id, var_523->id, var_521->id, var_527->id, var_531->id, var_533->id};
+  int num_removed_ops = tester.ApplyProgramPass(builder, {"RemoveIdentity"}, output_names);
   tester.Execute(input_names, output_names);
 }
 
