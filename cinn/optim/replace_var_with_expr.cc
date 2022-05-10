@@ -170,15 +170,7 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
         extent_(extent),
         tensor_name_(tensor_name) {}
 
-  void Execute(Expr* expr) {
-    auto* for_     = expr->As<ir::For>();
-    auto* poly_for = expr->As<ir::PolyFor>();
-    if (for_) {
-      ir::IRMutator<>::Visit(&for_->body, &for_->body);
-    } else {
-      ir::IRMutator<>::Visit(&poly_for->body, &poly_for->body);
-    }
-  }
+  void Execute(Expr* expr) { ir::IRMutator<>::Visit(expr, expr); }
 
   void ResizeTempMemory(const std::string& tensor_name, int index, Expr* indice, const std::string& var_name) {
     if (extent_.defined()) {
