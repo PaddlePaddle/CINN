@@ -30,18 +30,27 @@ namespace cinn {
 namespace hlir {
 namespace framework {
 
-static bool MakeDirectory(const std::string& dirname) {
-  if (access(dirname.c_str(), F_OK)) {
-    if (mkdir(dirname.c_str(), S_IRUSR | S_IWUSR | S_IXUSR | S_IRWXG | S_IRWXO) != 0) {
-      return false;
+static bool MakeDirectory(const std::string& dirname, mode_t mode) {
+  auto len = dirname.length();
+  std::vector<char> dir_path(len + 1, '\0');
+  strncpy(dir_path.data(), dirname.c_str(), len);
+  char* path = dir_path.data();
+  for (char* p = strchr(path + 1, '/'); p; p = strchr(p + 1, '/')) {
+    *p = '\0';
+    if (mkdir(path, mode) == -1) {
+      if (errno != EEXIST) {
+        *p = '/';
+        return false;
+      }
     }
+    *p = '/';
   }
   return true;
 }
 
 static std::string GetFilePathForGroup(const std::vector<std::vector<Node*>>& groups,
                                        const int group_id,
-                                       const std::string& prefix) {
+                                       const std::string& viz_path) {
   std::string filename = "";
   for (auto* node : groups[group_id]) {
     filename += "_" + node->id();
@@ -77,7 +86,7 @@ static std::string GetFilePathForGroup(const std::vector<std::vector<Node*>>& gr
 
   int width = std::to_string(groups.size()).size();
   std::stringstream ss;
-  ss << FLAGS_cinn_fusion_groups_graphviz_dir << "/" << prefix;
+  ss << viz_path;
   ss << std::setw(width) << std::setfill('0') << group_id;
   ss << simplified_filename.substr(0, 50) << ".dot";
   return ss.str();
@@ -168,7 +177,7 @@ static std::vector<utils::DotAttr> GetGroupAttrs(size_t group_size) {
   return attrs;
 }
 
-static void Summary(const std::vector<std::vector<Node*>>& groups, const std::string& prefix) {
+static void Summary(const std::vector<std::vector<Node*>>& groups, const std::string& viz_path) {
   std::map<std::string, size_t> group_summary;
   std::map<std::string, size_t> single_group_detail;
   std::map<std::string, size_t> fusion_group_detail;
@@ -244,7 +253,7 @@ static void Summary(const std::vector<std::vector<Node*>>& groups, const std::st
      << "Numbers\n";
   print_table(fusion_group_detail);
 
-  std::string filepath = FLAGS_cinn_fusion_groups_graphviz_dir + "/" + prefix + "summary.txt";
+  std::string filepath = viz_path + "summary.txt";
   WriteToFile(filepath, ss.str());
 }
 

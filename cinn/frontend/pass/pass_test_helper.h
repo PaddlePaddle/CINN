@@ -41,7 +41,9 @@
 
 DECLARE_bool(cinn_use_new_fusion_pass);
 
-namespace cinn::frontend {
+namespace cinn {
+namespace frontend {
+namespace {
 
 bool IsCompiledWithCUDA() {
 #if !defined(CINN_WITH_CUDA)
@@ -200,4 +202,6 @@ void CompareResult(Program* program,
   }
 }
 
-}  // namespace cinn::frontend
+}  // namespace
+}  // namespace frontend
+}  // namespace cinn

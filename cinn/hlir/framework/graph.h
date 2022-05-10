@@ -161,8 +161,7 @@ class Graph : public cinn::common::Graph {
 
  private:
   void VisualizeGroups(const std::vector<std::vector<Node*>>& groups,
-                       const std::unordered_set<std::string>& fetch_var_ids,
-                       const std::string& prefix = "");
+                       const std::unordered_set<std::string>& fetch_var_ids);
 
   std::string viz_path_;
   static std::atomic_size_t viz_count_;
