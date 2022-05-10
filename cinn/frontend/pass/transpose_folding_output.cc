@@ -36,8 +36,15 @@ class TransposeFoldingOutputPass : public TransposeFoldingBase {
                      const absl::flat_hash_map<std::string, std::unordered_set<Instruction*>>& in2instr,
                      const std::unordered_set<std::string>& fetch_ids,
                      absl::flat_hash_set<Instruction*>* remove_instrs) const override {
+    bool has_trans_out = (*gemm)->attrs.contains("trans_out");
+    // As for cublas_matmul, if the `trans_out` attr has been set, we can not set it again because of
+    // the existence of `bias`.
+    if (has_trans_out && (*gemm)->op_type == "cublas_gemm") {
+      return;
+    }
+    // As for cublas_matmul, we can continue to set the `trans_out` attr.
     bool trans_out = false;
-    if ((*gemm)->attrs.contains("trans_out")) {
+    if (has_trans_out) {
       trans_out = absl::get<bool>((*gemm)->attrs["trans_out"]);
     }
     auto gemm_out_name = (*gemm)->outputs[0]->id;

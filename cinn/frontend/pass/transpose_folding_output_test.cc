@@ -477,11 +477,11 @@ TEST(TransposeFoldingOutput, Complex) {
   auto c       = builder.CreateInput(Float(32), {121, 20}, "C");
   auto f       = builder.Matmul(c, b);  // 121 * 2
   auto x       = builder.FillConstant<float>({2, 20}, 1.0f, "X");
-  auto y       = builder.Transpose(x, {1, 0});  // 20 * 2
-  auto z       = builder.CreateInput(Float(32), {20, 121}, "Z");
-  auto l       = builder.Transpose(z, {1, 0});  // 121 * 20
-  auto m       = builder.Matmul(l, y);          // 121 * 2
-  auto n       = builder.Mul(l, a);
+  auto z       = builder.CreateInput(Float(32), {121, 20}, "Z");
+  auto l       = builder.Transpose(z, {1, 0});  // 20 * 121
+  auto y       = builder.Matmul(x, l);          // 2 * 121
+  auto m       = builder.Transpose(y, {1, 0});  // 121 * 2
+  auto n       = builder.Mul(z, a);
   auto p       = builder.Sub(f, n);
   auto q       = builder.Transpose(f, {1, 0});
   auto u       = builder.Transpose(m, {1, 0});
@@ -499,8 +499,69 @@ TEST(TransposeFoldingOutput, Complex) {
                     [](absl::string_view id) { return std::string(id); });
   auto passes = std::make_pair(
       std::vector<std::string>{"Decomposer", "RemoveIdentity"},
-      std::vector<std::string>{"TransposeFoldingInput", "GemmRewriter", "TransposeFoldingOutput", "GemmRewriter"});
+      std::vector<std::string>{
+          "TransposeFoldingInput", "GemmRewriter", "TransposeFoldingOutput", "GemmRewriter", "TransposeFoldingOutput"});
   CompareResult(&program, target, input_ids, {out->id}, 6, passes, 123, false);
+}
+
+TEST(TransposeFoldingOutput, MultiTransCaseOne) {
+  if (!IsCompiledWithCUDA()) {
+    return;
+  }
+  NetBuilder builder("net_builder");
+  auto a       = builder.CreateInput(Float(32), {2, 10}, "A");
+  auto b       = builder.CreateInput(Float(32), {10, 50}, "B");
+  auto c       = builder.Matmul(a, b);          // 2 * 50
+  auto d       = builder.Transpose(c, {1, 0});  // 50 * 2
+  auto e       = builder.CreateInput(Float(32), {50, 2}, "E");
+  auto f       = builder.Add(d, e);
+  auto g       = builder.Transpose(f, {1, 0});
+  auto h       = builder.CreateInput(Float(32), {2, 50}, "H");
+  auto out     = builder.Add(h, g);
+  auto program = builder.Build();
+
+  common::Target target = common::DefaultNVGPUTarget();
+  std::vector<std::string> input_ids;
+  absl::c_transform(std::vector<absl::string_view>{a.id(), b.id(), e.id(), h.id()},
+                    std::back_inserter(input_ids),
+                    [](absl::string_view id) { return std::string(id); });
+  auto passes = std::make_pair(std::vector<std::string>{"Decomposer", "RemoveIdentity"},
+                               std::vector<std::string>{"TransposeFoldingInput",
+                                                        "GemmRewriter",
+                                                        "TransposeFoldingOutput",
+                                                        "GemmRewriter",
+                                                        "TransposeFoldingOutput",
+                                                        "GemmRewriter"});
+  CompareResult(&program, target, input_ids, {out->id}, 2, passes, 123, true);
+}
+
+TEST(TransposeFoldingOutput, MultiTransCaseTwo) {
+  if (!IsCompiledWithCUDA()) {
+    return;
+  }
+  NetBuilder builder("net_builder");
+  auto a       = builder.CreateInput(Float(32), {2, 10}, "A");
+  auto b       = builder.CreateInput(Float(32), {10, 50}, "B");
+  auto c       = builder.Matmul(a, b);          // 2 * 50
+  auto d       = builder.Transpose(c, {1, 0});  // 50 * 2
+  auto g       = builder.Transpose(d, {1, 0});
+  auto h       = builder.CreateInput(Float(32), {2, 50}, "H");
+  auto out     = builder.Add(h, g);
+  auto program = builder.Build();
+
+  common::Target target = common::DefaultNVGPUTarget();
+  std::vector<std::string> input_ids;
+  absl::c_transform(std::vector<absl::string_view>{a.id(), b.id(), h.id()},
+                    std::back_inserter(input_ids),
+                    [](absl::string_view id) { return std::string(id); });
+  auto passes = std::make_pair(std::vector<std::string>{"Decomposer", "RemoveIdentity"},
+                               std::vector<std::string>{"TransposeFoldingInput",
+                                                        "GemmRewriter",
+                                                        "TransposeFoldingOutput",
+                                                        "GemmRewriter",
+                                                        "TransposeFoldingOutput",
+                                                        "GemmRewriter"});
+  CompareResult(&program, target, input_ids, {out->id}, 3, passes, 123, true);
 }
 
 }  // namespace cinn::frontend
