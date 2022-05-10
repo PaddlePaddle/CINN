@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <absl/container/flat_hash_map.h>
+#include <absl/types/variant.h>
 
 #include <string>
 #include <unordered_set>
@@ -41,8 +42,13 @@ class TransposeFoldingInputPass : public TransposeFoldingBase {
                      const absl::flat_hash_map<std::string, std::unordered_set<Instruction*>>& in2instr,
                      const std::unordered_set<std::string>& fetch_ids,
                      absl::flat_hash_set<Instruction*>* remove_instrs) const override {
-    if (!(*dot)->attrs.empty()) {
-      return;
+    bool trans_a = false;
+    bool trans_b = false;
+    if ((*dot)->attrs.contains("trans_a")) {
+      trans_a = absl::get<bool>((*dot)->attrs["trans_a"]);
+    }
+    if ((*dot)->attrs.contains("trans_b")) {
+      trans_b = absl::get<bool>((*dot)->attrs["trans_b"]);
     }
 
     for (size_t i = 0; i < (*dot)->inputs.size(); ++i) {
@@ -54,7 +60,13 @@ class TransposeFoldingInputPass : public TransposeFoldingBase {
         if (IsValidTranspose(operand)) {
           // x-> transpose -> out -> dot => x -> dot
           (*dot)->inputs[i] = operand->inputs[0];
-          (*dot).SetAttr(i == 0 ? "trans_a" : "trans_b", true);
+          if (i == 0) {
+            (*dot).SetAttr("trans_a", static_cast<bool>(trans_a ^ true));
+          } else if (i == 1) {
+            (*dot).SetAttr("trans_b", static_cast<bool>(trans_b ^ true));
+          } else {
+            LOG(FATAL) << "The matmul should only have two inputs.";
+          }
 
           CHECK(in2instr.find(transpose_out_name) != in2instr.end())
               << "The var [" << transpose_out_name
