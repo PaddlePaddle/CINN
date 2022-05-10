@@ -302,10 +302,10 @@ TEST(TransposeCollapsing, FuseTwoSecTranspose) {
   CinnBuilder builder("cinn_builder");
   auto x       = builder.CreateInput(Float(32), {4, 5, 3}, "X");
   auto x_1t    = builder.Transpose(x, {0, 2, 1});
-  auto x_2t    = builder.Transpose(x_1t, {2, 0, 1});
-  auto out1    = builder.Sqrt(x_2t);
+  auto x_2t    = builder.Transpose(x_1t, {2, 1, 0});
+  auto out1    = builder.Reshape(x_2t, {5, 3, 4});
   auto x_3t    = builder.Transpose(out1, {0, 2, 1});
-  auto x_4t    = builder.Transpose(x_3t, {2, 0, 1});
+  auto x_4t    = builder.Transpose(x_3t, {2, 1, 0});
   auto out2    = builder.Sqrt(x_4t);
   auto program = builder.Build();
   auto target  = GetTarget();
