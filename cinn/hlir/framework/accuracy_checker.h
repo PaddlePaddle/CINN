@@ -30,10 +30,17 @@ class AccuracyChecker {
       : target_(target), scope_(scope), in_args_({in_args}), out_args_({out_args}) {}
 
   bool operator()();
+  bool operator()(const std::map<std::string, cinn_pod_value_t>& name2podargs);
 
  private:
   template <typename T>
-  Tensor CopyToCpu(const Tensor& tensor);
+  Tensor CopyTensorToCpu(const Tensor& tensor);
+
+  template <typename T>
+  Tensor CopyBufferToCpu(const cinn_buffer_t* buffer);
+
+  template <typename T>
+  void MemcpyDeviceToHost(const T* src, size_t numel, T* dst);
 
   template <typename T>
   bool CheckNanOrInf(const Tensor& cpu_tensor);

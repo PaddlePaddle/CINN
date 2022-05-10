@@ -27,21 +27,63 @@ bool AccuracyChecker::operator()() {
   for (auto& name : out_args_) {
     auto tensor = scope_->GetTensor(name);
     if (tensor->type().is_float()) {
-      Tensor cpu_tensor = CopyToCpu<float>(tensor);
+      Tensor cpu_tensor = CopyTensorToCpu<float>(tensor);
       res |= CheckNanOrInf<float>(cpu_tensor);
+    } else {
+      CHECK(tensor->type().is_float()) << "Not supported data type.";
+    }
+  }
+  return res;
+}
+
+bool AccuracyChecker::operator()(const std::map<std::string, cinn_pod_value_t>& name2podargs) {
+  bool res = false;
+  for (auto& name : out_args_) {
+    const cinn_buffer_t* buffer = cinn_pod_value_to_buffer_p(const_cast<cinn_pod_value_t*>(&name2podargs.at(name)));
+    if (buffer->type == cinn_float32_t()) {
+      Tensor cpu_tensor = CopyBufferToCpu<float>(buffer);
+      res |= CheckNanOrInf<float>(cpu_tensor);
+    } else {
+      CHECK(buffer->type == cinn_float32_t()) << "Not supported data type.";
     }
   }
   return res;
 }
 
 template <typename T>
-Tensor AccuracyChecker::CopyToCpu(const Tensor& tensor) {
+Tensor AccuracyChecker::CopyTensorToCpu(const Tensor& tensor) {
   Tensor cpu_tensor;
   cpu_tensor->Resize(tensor->shape());
   T* dst = cpu_tensor->mutable_data<T>(common::DefaultHostTarget());
 
   const T* src = tensor->data<T>();
   size_t numel = tensor->shape().numel();
+  MemcpyDeviceToHost(src, numel, dst);
+
+  return cpu_tensor;
+}
+
+template <typename T>
+Tensor AccuracyChecker::CopyBufferToCpu(const cinn_buffer_t* buffer) {
+  std::vector<int> shape;
+  shape.resize(buffer->dimensions);
+  for (size_t i = 0; i < shape.size(); ++i) {
+    shape[i] = buffer->dims[i];
+  }
+
+  Tensor cpu_tensor;
+  cpu_tensor->Resize(Shape(shape));
+  T* dst = cpu_tensor->mutable_data<T>(common::DefaultHostTarget());
+
+  const T* src = reinterpret_cast<const T*>(buffer->memory);
+  size_t numel = cpu_tensor->shape().numel();
+  MemcpyDeviceToHost(src, numel, dst);
+
+  return cpu_tensor;
+}
+
+template <typename T>
+void AccuracyChecker::MemcpyDeviceToHost(const T* src, size_t numel, T* dst) {
 #ifdef CINN_WITH_CUDA
   cudaMemcpy(dst, src, numel * sizeof(T), cudaMemcpyDeviceToHost);
 #else
@@ -49,8 +91,6 @@ Tensor AccuracyChecker::CopyToCpu(const Tensor& tensor) {
     dst[i] = src[i];
   }
 #endif
-
-  return cpu_tensor;
 }
 
 template <typename T>

@@ -207,14 +207,22 @@ void Instruction::CheckResults(const std::map<std::string, cinn_pod_value_t>* na
   cudaStreamSynchronize(static_cast<cudaStream_t>(stream));
 #endif
 
-  if (name2podargs) {
-    CHECK(false) << "Not supported!";
-  } else {
-    for (size_t i = 0; i < in_args_.size(); ++i) {
-      AccuracyChecker checker(target_, scope_, in_args_[i], out_args_[i]);
-      checker();
+  LOG(WARNING) << "Instruction {";
+  for (size_t i = 0; i < in_args_.size(); ++i) {
+    AccuracyChecker checker(target_, scope_, in_args_[i], out_args_[i]);
+    bool res = false;
+    if (name2podargs) {
+      res = checker(*name2podargs);
+    } else {
+      res = checker();
+    }
+    if (res) {
+      LOG(WARNING) << "  Function " << fn_names_[i] << ", Nan/Inf.";
+    } else {
+      LOG(WARNING) << "  Function " << fn_names_[i] << ", OK.";
     }
   }
+  LOG(WARNING) << "}";
 }
 
 }  // namespace framework
