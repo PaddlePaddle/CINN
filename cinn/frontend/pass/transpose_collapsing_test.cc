@@ -254,7 +254,7 @@ TEST(TransposeCollapsing, FuseTransposeWithMultiOutput) {
   auto x       = builder.CreateInput(Float(32), {4, 5, 3}, "X");
   auto x_1t    = builder.Transpose(x, {0, 2, 1});
   auto x_2t    = builder.Transpose(x_1t, {2, 0, 1});
-  auto x_3t    = builder.Transpose(x_2t, {1, 2, 0});
+  auto x_3t    = builder.Transpose(x_2t, {2, 1, 0});
   auto out1    = builder.Sqrt(x_1t);
   auto out2    = builder.Sqrt(x_2t);
   auto out3    = builder.Sqrt(x_3t);
@@ -266,7 +266,7 @@ TEST(TransposeCollapsing, FuseTransposeWithMultiOutput) {
   // Program {
   //   var_18 = transpose(X, axis=[0,2,1])
   //   var_19 = transpose(var_18, axis=[2,0,1])
-  //   var_20 = transpose(var_19, axis=[1,2,0])
+  //   var_20 = transpose(var_19, axis=[1,0,2])
   //   var_21 = sqrt(var_18)
   //   var_22 = sqrt(var_19)
   //   var_23 = sqrt(var_20)
@@ -334,6 +334,86 @@ TEST(TransposeCollapsing, FuseTwoSecTranspose) {
   // }
 
   auto folded_out = RunWithProgram(program, target, {"X"}, {out1->id, out2->id});
+
+  ASSERT_EQ(origin_size, folded_size + 2);
+  ASSERT_EQ(origin_out.size(), folded_out.size());
+  for (size_t i = 0; i < origin_out.size(); ++i) {
+    ASSERT_EQ(origin_out[i].size(), folded_out[i].size());
+    for (size_t j = 0; j < origin_out[i].size(); ++j) {
+      ASSERT_FLOAT_EQ(origin_out[i][j], folded_out[i][j]);
+    }
+  }
+}
+
+TEST(TransposeCollapsing, FuseTwoHorizontalTranspose) {
+  CinnBuilder builder("cinn_builder");
+  auto x       = builder.CreateInput(Float(32), {4, 5, 3}, "X");
+  auto y_t1    = builder.Transpose(x, {0, 2, 1});
+  auto y_t2    = builder.Transpose(x, {0, 2, 1});
+  auto out     = builder.Add(y_t1, y_t2);
+  auto program = builder.Build();
+  auto target  = GetTarget();
+
+  size_t origin_size = program.size();
+  VLOG(1) << "Program before pass:\n" << program;
+  // Program {
+  //   var_35 = transpose(X, axis=[0,2,1])
+  //   var_36 = transpose(X, axis=[0,2,1])
+  //   var_37 = elementwise_add(var_35, var_36)
+  // }
+
+  auto origin_out = RunWithProgram(program, target, {"X"}, {out->id});
+
+  ProgramPass::Apply(&program, {}, target, {"TransposeCollapsing"});
+  size_t folded_size = program.size();
+  VLOG(1) << "Program after pass:\n" << program;
+  // Program {
+  //   var_36 = transpose(X, axis=[0,2,1])
+  //   var_37 = elementwise_add(var_36, var_36)
+  // }
+
+  auto folded_out = RunWithProgram(program, target, {"X"}, {out->id});
+
+  ASSERT_EQ(origin_size, folded_size + 1);
+  ASSERT_EQ(origin_out.size(), folded_out.size());
+  for (size_t i = 0; i < origin_out.size(); ++i) {
+    ASSERT_EQ(origin_out[i].size(), folded_out[i].size());
+    for (size_t j = 0; j < origin_out[i].size(); ++j) {
+      ASSERT_FLOAT_EQ(origin_out[i][j], folded_out[i][j]);
+    }
+  }
+}
+
+TEST(TransposeCollapsing, FuseVerAndHorTranspose) {
+  CinnBuilder builder("cinn_builder");
+  auto x       = builder.CreateInput(Float(32), {4, 5, 3}, "X");
+  auto y_t1    = builder.Transpose(x, {0, 2, 1});
+  auto y_t2    = builder.Transpose(y_t1, {2, 1, 0});
+  auto y_t3    = builder.Transpose(x, {1, 2, 0});
+  auto out     = builder.Add(y_t2, y_t3);
+  auto program = builder.Build();
+  auto target  = GetTarget();
+
+  size_t origin_size = program.size();
+  VLOG(1) << "Program before pass:\n" << program;
+  // Program {
+  //   var_40 = transpose(X, axis=[0,2,1])
+  //   var_41 = transpose(var_40, axis=[2,1,0])
+  //   var_42 = transpose(X, axis=[1,2,0])
+  //   var_43 = elementwise_add(var_41, var_42)
+  // }
+
+  auto origin_out = RunWithProgram(program, target, {"X"}, {out->id});
+
+  ProgramPass::Apply(&program, {}, target, {"TransposeCollapsing"});
+  size_t folded_size = program.size();
+  VLOG(1) << "Program after pass:\n" << program;
+  // Program {
+  //   var_42 = transpose(X, axis=[1,2,0])
+  //   var_43 = elementwise_add(var_42, var_42)
+  // }
+
+  auto folded_out = RunWithProgram(program, target, {"X"}, {out->id});
 
   ASSERT_EQ(origin_size, folded_size + 2);
   ASSERT_EQ(origin_out.size(), folded_out.size());

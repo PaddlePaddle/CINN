@@ -63,19 +63,14 @@ class TransposeCollapsingPass : public ProgramPass {
 
     // the useless transpose op need to remove from program
     std::unordered_set<Instruction*> remove_instrs;
-    // the transpose op should not remove
-    std::unordered_set<Instruction*> visited_instrs;
+    FoldingTransposeVertical(all_transpose, fetch_ids, in2instr, out2instr, &remove_instrs);
 
-    for (auto transpose : all_transpose) {
-      if (remove_instrs.count(transpose) || visited_instrs.count(transpose)) {
-        // the transpose op had been fused, skip
-        continue;
+    for (auto instr : remove_instrs) {
+      if (all_transpose.count(instr)) {
+        all_transpose.erase(instr);
       }
-
-      // Fuse transpose from front to back, the fuse path is unique
-      auto first_transpose = FindFirstTranspose(transpose, out2instr);
-      TryFuseTranspose(first_transpose, fetch_ids, in2instr, &remove_instrs, &visited_instrs);
     }
+    FoldingTransposeHorizontal(all_transpose, fetch_ids, in2instr, out2instr, &remove_instrs);
 
     CinnBuilder builder("transpose_collapsing_builder");
     for (auto& var : program->GetInputs()) {
@@ -90,10 +85,29 @@ class TransposeCollapsingPass : public ProgramPass {
   }
 
  private:
+  static void FoldingTransposeVertical(const std::unordered_set<Instruction*>& all_transpose,
+                                       const std::unordered_set<std::string>& fetch_ids,
+                                       const InputToOpMap& in2instr,
+                                       const OutputToOpMap& out2instr,
+                                       std::unordered_set<Instruction*>* remove_instrs) {
+    // the transpose op should not remove
+    std::unordered_set<Instruction*> visited_instrs;
+    for (auto transpose : all_transpose) {
+      if (remove_instrs->count(transpose) || visited_instrs.count(transpose)) {
+        // the transpose op had been fused, skip
+        continue;
+      }
+
+      // Fuse transpose from front to back, the fuse path is unique
+      auto first_transpose = FindFirstTranspose(transpose, out2instr);
+      TryFuseTranspose(first_transpose, fetch_ids, in2instr, remove_instrs, &visited_instrs);
+    }
+  }
+
   static Instruction* FindFirstTranspose(Instruction* transpose, const OutputToOpMap& out2instr) {
     auto first_transpose = transpose;
 
-    auto input_name = (*first_transpose)->inputs[0]->id;
+    auto input_name = (*first_transpose)->inputs.front()->id;
     // Q: Why check whether transpose's input in out2instr ?
     // A: The input may from fetch_ids other than another op's output.
     //    Obviously, the transpose op is the first transpose in the situation.
@@ -104,7 +118,7 @@ class TransposeCollapsingPass : public ProgramPass {
         break;
       }
 
-      input_name      = (*instr)->inputs[0]->id;
+      input_name      = (*instr)->inputs.front()->id;
       first_transpose = instr;
     }
     return first_transpose;
@@ -117,10 +131,10 @@ class TransposeCollapsingPass : public ProgramPass {
                                std::unordered_set<Instruction*>* visited_instrs) {
     visited_instrs->insert(transpose);
 
-    const auto& input      = (*transpose)->inputs[0];
+    const auto& input      = (*transpose)->inputs.front();
     const auto& input_name = input->id;
 
-    const auto& output      = (*transpose)->outputs[0];
+    const auto& output      = (*transpose)->outputs.front();
     const auto& output_name = output->id;
 
     const auto& axis = transpose->GetAttrs<ShapeType>("axis");
@@ -180,10 +194,10 @@ class TransposeCollapsingPass : public ProgramPass {
       auto fused_transpose   = FuseTransposeImpl(transpose, instr, fused_axis);
 
       VLOG(4) << "Fuse transpose of {input[" << input_name << "], output[" << output_name << "], axis ["
-              << cinn::utils::Join(axis, ",") << "]} and transpose of {input[" << (*instr)->inputs[0]->id
-              << "], output[" << (*instr)->outputs[0]->id << "], axis [" << cinn::utils::Join(next_axis, ",")
-              << "]} into transpose of {input[" << input_name << "], output[" << (*instr)->outputs[0]->id << "], axis["
-              << cinn::utils::Join(fused_axis, ",") << "]}.";
+              << cinn::utils::Join(axis, ",") << "]} and transpose of {input[" << (*instr)->inputs.front()->id
+              << "], output[" << (*instr)->outputs.front()->id << "], axis [" << cinn::utils::Join(next_axis, ",")
+              << "]} into transpose of {input[" << input_name << "], output[" << (*instr)->outputs.front()->id
+              << "], axis[" << cinn::utils::Join(fused_axis, ",") << "]}.";
 
       next_fused_instrs.insert(fused_transpose);
     }
@@ -200,12 +214,12 @@ class TransposeCollapsingPass : public ProgramPass {
   }
 
   static bool CheckTransposeBorder(Instruction* transpose, const InputToOpMap& in2instr) {
-    const auto& output_name = (*transpose)->outputs[0]->id;
+    const auto& output_name = (*transpose)->outputs.front()->id;
     return !in2instr.count(output_name) || in2instr.at(output_name).empty();
   }
 
   static bool CheckOutputContainTranspose(Instruction* transpose, const InputToOpMap& in2instr) {
-    const auto& output_name = (*transpose)->outputs[0]->id;
+    const auto& output_name = (*transpose)->outputs.front()->id;
     for (auto instr : in2instr.at(output_name)) {
       if ("transpose" == (*instr)->op_type) {
         return true;
@@ -251,9 +265,78 @@ class TransposeCollapsingPass : public ProgramPass {
   }
 
   static Instruction* FuseTransposeImpl(Instruction* transpose1, Instruction* transpose2, const ShapeType& fused_axis) {
-    (*transpose2)->inputs[0] = (*transpose1)->inputs[0];
+    (*transpose2)->inputs.front() = (*transpose1)->inputs.front();
     transpose2->SetAttr("axis", fused_axis);
     return transpose2;
+  }
+
+  class TransposeKey {
+   public:
+    TransposeKey(const std::string& input_id, const ShapeType& axis) { SetKey(input_id, axis); }
+
+    void SetKey(const std::string& input_id, const ShapeType& axis) {
+      input_id_ = input_id;
+      axis_     = axis;
+    }
+
+    bool operator==(const TransposeKey& other) const {
+      return std::equal(axis_.begin(), axis_.end(), other.axis_.begin()) && input_id_ == other.input_id_;
+    }
+    bool operator!=(const TransposeKey& other) const { return !this->operator==(other); }
+
+    struct Hash {
+      size_t operator()(const TransposeKey& key) const {
+        std::string ret;
+
+        ret.append(key.input_id_);
+        std::for_each(key.axis_.begin(), key.axis_.end(), [&](const DimType& dim) { ret.append(std::to_string(dim)); });
+
+        return std::hash<std::string>()(ret);
+      }
+    };
+
+   private:
+    std::string input_id_;
+    ShapeType axis_;
+  };
+
+  static void FoldingTransposeHorizontal(const std::unordered_set<Instruction*>& all_transpose,
+                                         const std::unordered_set<std::string>& fetch_ids,
+                                         const InputToOpMap& in2instr,
+                                         const OutputToOpMap& out2instr,
+                                         std::unordered_set<Instruction*>* remove_instrs) {
+    std::unordered_map<TransposeKey, Variable*, TransposeKey::Hash> transpose_set;
+    for (auto transpose : all_transpose) {
+      if (remove_instrs->count(transpose)) {
+        continue;
+      }
+
+      const auto& input_id  = (*transpose)->inputs.front()->id;
+      const auto& output_id = (*transpose)->outputs.front()->id;
+      const auto& axis      = transpose->GetAttrs<ShapeType>("axis");
+
+      TransposeKey key(input_id, axis);
+      if (!transpose_set.count(key)) {
+        VLOG(4) << "The transpose, whose output [" << output_id
+                << "], cannot remove because it is the first transpose ! ";
+        transpose_set.emplace(key, &(*transpose)->outputs.front());
+        continue;
+      }
+
+      if (fetch_ids.find(output_id) != fetch_ids.end()) {
+        // the fill constant's output variable was fetched, skip
+        VLOG(4) << "Cannot remove transpose, because the output [" << output_id << "] was fetched by other op ! ";
+        continue;
+      }
+
+      VLOG(4) << "Try remove transpose, whose output [" << output_id << "]. ";
+      remove_instrs->insert(transpose);
+
+      const auto& output_ops = in2instr.at(output_id);
+      for (auto op : output_ops) {
+        ReplaceInputVariable(op, output_id, *transpose_set.at(key));
+      }
+    }
   }
 };
 
