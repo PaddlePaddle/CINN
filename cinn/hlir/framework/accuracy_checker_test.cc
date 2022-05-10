@@ -71,8 +71,9 @@ TEST(AccuracyChecker, tensor) {
   out->Resize(Shape({16, 16}));
   SetRandomTensor(out, target, true);
 
+  std::map<std::string, bool> out_args_check_result;
   AccuracyChecker checker(target, &scope, {}, {"y"});
-  CHECK(checker());
+  CHECK(checker(&out_args_check_result));
 }
 
 std::unique_ptr<backends::SimpleJIT> GetLoweredFunc(Target target) {
@@ -118,8 +119,8 @@ TEST(AccuracyChecker, instruction) {
   instr.SetLoweredFunc(reinterpret_cast<lower_func_ptr_t>(fn_addr), "fn_sqrt");
   // should call Finalize explicitly before Run
   instr.Finalize();
-  instr.Run();
 
+  instr.Run();
   FLAGS_cinn_self_check_accuracy = false;
 }
 
@@ -156,8 +157,8 @@ TEST(AccuracyChecker, instruction_podargs) {
   Instruction instr(target, nullptr, {"x"}, {"y"});
   instr.SetLoweredFunc(reinterpret_cast<lower_func_ptr_t>(fn_addr), "fn_sqrt");
   instr.Finalize();
-  instr.Run(&name2podargs);
 
+  instr.Run(&name2podargs);
   FLAGS_cinn_self_check_accuracy = false;
 }
 

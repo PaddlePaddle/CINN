@@ -22,39 +22,46 @@ namespace cinn {
 namespace hlir {
 namespace framework {
 
-bool AccuracyChecker::operator()() {
+bool AccuracyChecker::operator()(std::map<std::string, bool>* out_args_check_result) {
   bool res = false;
   for (auto& name : out_args_) {
-    auto tensor = scope_->GetTensor(name);
+    bool res_cur = false;
+    auto tensor  = scope_->GetTensor(name);
     if (tensor->type().is_float()) {
       Tensor cpu_tensor = CopyTensorToCpu<float>(tensor);
-      res |= CheckNanOrInf<float>(cpu_tensor);
+      res_cur           = CheckNanOrInf<float>(cpu_tensor);
     } else if (tensor->type().is_int()) {
       Tensor cpu_tensor = CopyTensorToCpu<int>(tensor);
-      res |= CheckNanOrInf<int>(cpu_tensor);
+      res_cur           = CheckNanOrInf<int>(cpu_tensor);
     } else {
       CHECK(false) << "Not supported data type.";
     }
+    out_args_check_result->emplace(name, res_cur);
+    res |= res_cur;
   }
   return res;
 }
 
-bool AccuracyChecker::operator()(const std::map<std::string, cinn_pod_value_t>& name2podargs) {
+bool AccuracyChecker::operator()(const std::map<std::string, cinn_pod_value_t>& name2podargs,
+                                 std::map<std::string, bool>* out_args_check_result) {
   bool res = false;
   for (auto& name : out_args_) {
+    bool res_cur                = false;
     const cinn_buffer_t* buffer = cinn_pod_value_to_buffer_p(const_cast<cinn_pod_value_t*>(&name2podargs.at(name)));
     if (buffer->type == cinn_float32_t()) {
       Tensor cpu_tensor = CopyBufferToCpu<float>(buffer);
-      res |= CheckNanOrInf<float>(cpu_tensor);
+      res_cur           = CheckNanOrInf<float>(cpu_tensor);
     } else if (buffer->type == cinn_int32_t()) {
       Tensor cpu_tensor = CopyBufferToCpu<int32_t>(buffer);
-      res |= CheckNanOrInf<int32_t>(cpu_tensor);
+      res_cur           = CheckNanOrInf<int32_t>(cpu_tensor);
     } else if (buffer->type == cinn_int64_t()) {
       Tensor cpu_tensor = CopyBufferToCpu<int64_t>(buffer);
-      res |= CheckNanOrInf<int64_t>(cpu_tensor);
+      res_cur           = CheckNanOrInf<int64_t>(cpu_tensor);
     } else {
       CHECK(false) << "Not supported data type.";
     }
+    out_args_check_result->emplace(name, res_cur);
+    res |= res_cur;
   }
   return res;
 }

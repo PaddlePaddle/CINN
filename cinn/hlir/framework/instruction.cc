@@ -211,13 +211,18 @@ void Instruction::CheckResults(const std::map<std::string, cinn_pod_value_t>* na
   for (size_t i = 0; i < in_args_.size(); ++i) {
     AccuracyChecker checker(target_, scope_, in_args_[i], out_args_[i]);
     bool res = false;
+    std::map<std::string, bool> out_args_check_result;
     if (name2podargs) {
-      res = checker(*name2podargs);
+      res = checker(*name2podargs, &out_args_check_result);
     } else {
-      res = checker();
+      res = checker(&out_args_check_result);
     }
     if (res) {
       LOG(WARNING) << "  Function " << fn_names_[i] << ", Nan/Inf.";
+      for (auto& iter : out_args_check_result) {
+        std::string res_str = iter.second ? "Nan/Inf" : "OK";
+        LOG(WARNING) << "    output " << iter.first << ", " << res_str;
+      }
     } else {
       LOG(WARNING) << "  Function " << fn_names_[i] << ", OK.";
     }

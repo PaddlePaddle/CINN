@@ -29,8 +29,9 @@ class AccuracyChecker {
                   const std::vector<std::string>& out_args)
       : target_(target), scope_(scope), in_args_({in_args}), out_args_({out_args}) {}
 
-  bool operator()();
-  bool operator()(const std::map<std::string, cinn_pod_value_t>& name2podargs);
+  bool operator()(std::map<std::string, bool>* out_args_check_result);
+  bool operator()(const std::map<std::string, cinn_pod_value_t>& name2podargs,
+                  std::map<std::string, bool>* out_args_check_result);
 
  private:
   template <typename T>
