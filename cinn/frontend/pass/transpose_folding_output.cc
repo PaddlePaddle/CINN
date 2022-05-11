@@ -29,7 +29,7 @@ class TransposeFoldingOutputPass : public TransposeFoldingBase {
   using TransposeFoldingBase::TransposeFoldingBase;
 
  protected:
-  void set_target_instrs() { TransposeFoldingBase::target_instrs_ = {"cublas_matmul"}; }
+  void set_target_instrs() override { TransposeFoldingBase::target_instrs_ = {"cublas_matmul"}; }
 
   void FoldTranspose(Instruction* gemm,
                      const absl::flat_hash_map<std::string, Instruction*>& out2instr,
