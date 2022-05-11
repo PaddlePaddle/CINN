@@ -35,6 +35,7 @@ namespace frontend {
 OptimizeOptions DefaultTrainingOptimizeOptions() {
   OptimizeOptions options;
   options.program_passes = {"Decomposer",
+                            "TransposeCollapsing",
                             "TransposeFoldingInput",
                             "GemmRewriter",
                             "TransposeFoldingOutput",
