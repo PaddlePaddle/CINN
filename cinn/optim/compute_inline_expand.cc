@@ -37,13 +37,25 @@ struct TensorInlineExpandMutator : public ir::IRMutator<> {
   bool inline_code{false};
   bool temp_buffer{false};
   bool memory_local{false};
+  std::unordered_set<std::string> resized_buffer;
+  std::vector<std::string> tensor_names;
+  std::vector<std::vector<Var>> replace_var;
+  std::map<std::string, Expr> var_to_extent;
 
   TensorInlineExpandMutator(const std::string &tensor_name,
                             std::map<std::string, ir::Tensor> *all_tensor_map,
                             poly::StageMap stages)
       : tensor_name_(tensor_name), all_tensor_map_(all_tensor_map), stages_(stages) {}
 
-  void operator()(Expr *expr) { ir::IRMutator<>::Visit(expr, expr); }
+  void operator()(Expr *expr) {
+    ir::IRMutator<>::Visit(expr, expr);
+    for (int i = 0; i < tensor_names.size(); i++) {
+      for (auto &var : replace_var[i]) {
+        optim::CUDAReplaceIndexOfCachePass(
+            expr, var, ir::Expr(0), all_tensor_map_, resized_buffer, false, var->upper_bound, tensor_names[i]);
+      }
+    }
+  }
 
   void Visit(const ir::_Var_ *expr, Expr *op) override {
     if (inline_code && temp_buffer) {
@@ -61,6 +73,19 @@ struct TensorInlineExpandMutator : public ir::IRMutator<> {
       CHECK(all_tensor_map_->count(no_cache_name));
       *expr = (*all_tensor_map_)[no_cache_name];
     }
+  }
+
+  void Visit(const ir::For *op, Expr *expr) override {
+    CHECK(op->extent.is_constant());
+    int cons_extent                   = (int)op->extent.get_constant();
+    var_to_extent[op->loop_var->name] = op->extent;
+    ir::IRMutator<>::Visit(op, expr);
+  }
+
+  void Visit(const ir::PolyFor *op, Expr *expr) override {
+    auto extent                       = op->ExtractExtent();
+    var_to_extent[op->iterator->name] = extent;
+    ir::IRMutator<>::Visit(op, expr);
   }
 
   void Visit(const ir::Load *op, Expr *expr) override {
@@ -101,14 +126,13 @@ struct TensorInlineExpandMutator : public ir::IRMutator<> {
           for (auto &i : compute_ats) {
             level_tmp = i.second.level;
           }
-          for (int i = 0; i < node->indices.size(); i++) {
-            for (int j = 0; j <= level_tmp; j++) {
-              auto temp = optim::IRCopy(node->indices[i]);
-              // TODO(haoze) : check how to solve it.
-              ReplaceVarWithExpr(&temp, Var(axis_names[j]), Expr(0));
-              node->indices[i] = temp;
-            }
+          std::vector<Var> replace_vars;
+          for (int j = 0; j <= level_tmp; j++) {
+            if (var_to_extent.count(axis_names[j]) == 0) continue;
+            replace_vars.push_back(Var(var_to_extent[axis_names[j]], axis_names[j]));
           }
+          replace_var.push_back(replace_vars);
+          tensor_names.push_back(tensor->buffer->name);
         }
 #endif
         bool keep_buffer       = temp_buffer;

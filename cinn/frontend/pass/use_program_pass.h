@@ -19,5 +19,6 @@
 CINN_USE_REGISTER(Decomposer)
 CINN_USE_REGISTER(RemoveIdentity)
 CINN_USE_REGISTER(TransposeCollapsing)
-CINN_USE_REGISTER(TransposeFolding)
+CINN_USE_REGISTER(TransposeFoldingInput)
 CINN_USE_REGISTER(GemmRewriter)
+CINN_USE_REGISTER(TransposeFoldingOutput)
