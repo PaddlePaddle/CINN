@@ -492,6 +492,9 @@ void CudaBlockShuffleReduceSchedule(
   stages[reshape]->ComputeInline();
   stages[internal]->SetBuffer("shared");
 
+  stages[internal]->Bind(0, "blockIdx.x");
+  stages[internal]->Bind(1, "threadIdx.x");
+
   stages[out]->Bind(0, "blockIdx.x");
   stages[out]->Bind(1, "threadIdx.x");
   stages[internal]->SimpleComputeAt(stages[out], 0);
