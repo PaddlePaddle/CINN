@@ -14,6 +14,7 @@
 
 #include <absl/container/flat_hash_map.h>
 
+#include <sstream>
 #include <string>
 #include <unordered_set>
 
@@ -27,8 +28,6 @@ namespace cinn::frontend::pass {
 
 using cinn::utils::DimType;
 using cinn::utils::ShapeType;
-
-using InputToOpMap = std::unordered_map<std::string, std::unordered_set<Instruction*>>;
 
 class FillConstantKey {
  public:
@@ -44,22 +43,21 @@ class FillConstantKey {
   }
 
   bool operator==(const FillConstantKey& other) const {
-    return std::equal(shape_.begin(), shape_.end(), other.shape_.begin()) && value_ == other.value_ &&
-           force_cpu_ == other.force_cpu_ && dtype_ == other.dtype_;
+    return shape_ == other.shape_ && value_ == other.value_ && force_cpu_ == other.force_cpu_ && dtype_ == other.dtype_;
   }
   bool operator!=(const FillConstantKey& other) const { return !this->operator==(other); }
 
   struct Hash {
     size_t operator()(const FillConstantKey& key) const {
-      std::string ret;
+      std::ostringstream hash_str;
 
-      std::for_each(key.shape_.begin(), key.shape_.end(), [&](const DimType& dim) { ret.append(std::to_string(dim)); });
+      std::for_each(key.shape_.begin(), key.shape_.end(), [&](const DimType& dim) { hash_str << dim; });
 
-      ret.append(std::to_string(key.value_));
-      ret.append(std::to_string(key.force_cpu_));
-      ret.append(key.dtype_);
+      hash_str << key.value_;
+      hash_str << key.force_cpu_;
+      hash_str << key.dtype_;
 
-      return std::hash<std::string>()(ret);
+      return std::hash<std::string>()(hash_str.str());
     }
   };
 
@@ -70,12 +68,12 @@ class FillConstantKey {
   std::string dtype_;
 };
 
-// Pass `FillConstantFolding` folds fill_constant into dot, then both of them can be implemented by a
-// GEMM kernel. For each dot operator, try folding every input that belong output of fill_constant.
-// If output of tranpose in `fetch_ids`, keep the operator.
+// Pass `FillConstantFolding` folds several same fill_constant into one.
+// If output of fill_constant in `fetch_ids`, keep the operator.
 class FillConstantFoldingPass : public ProgramPass {
  public:
   using ProgramPass::ProgramPass;
+  using InputToOpMap = std::unordered_map<std::string, std::unordered_set<Instruction*>>;
 
  protected:
   void ApplyImpl(Program* program,
@@ -83,9 +81,9 @@ class FillConstantFoldingPass : public ProgramPass {
                  const common::Target& target) const override {
     auto in2instr = GetInputToOpMap(program);
 
-    // `fill_constant_set` is used to represent the first fill_constant and its output variable
-    std::unordered_map<FillConstantKey, Variable*, FillConstantKey::Hash> fill_constant_set;
-    // `remove_instrs` is used to represent Instructions which type is fill_constant to be deleted.
+    // `fill_constant_map` is used to represent the first fill_constant and its output variable
+    std::unordered_map<FillConstantKey, Variable*, FillConstantKey::Hash> fill_constant_map;
+    // `remove_instrs` is used to represent Instructions of which type is fill_constant to be deleted.
     std::unordered_set<Instruction*> remove_instrs;
 
     for (int i = 0; i < program->size(); ++i) {
@@ -105,11 +103,11 @@ class FillConstantFoldingPass : public ProgramPass {
       auto force_cpu    = instr.GetAttrs<bool>("force_cpu");
 
       FillConstantKey key(shape, value, dtype, force_cpu);
-      if (!fill_constant_set.count(key)) {
+      if (!fill_constant_map.count(key)) {
         VLOG(4) << "The fill_constant, whose output is Var [" << instr->outputs[0]->id
                 << "], cannot remove because it is the first fill_costant ! ";
         // retain the first fill constant op node
-        fill_constant_set.emplace(key, &instr->outputs[0]);
+        fill_constant_map.emplace(key, &instr->outputs[0]);
         continue;
       }
 
@@ -124,7 +122,7 @@ class FillConstantFoldingPass : public ProgramPass {
       remove_instrs.insert(&instr);
 
       auto constant_name = instr->outputs[0]->id;
-      ReLinkFillConstant(in2instr, constant_name, fill_constant_set.at(key));
+      ReLinkFillConstant(in2instr, constant_name, fill_constant_map.at(key));
     }
 
     CinnBuilder builder("fill_constant_folding_builder");
@@ -169,15 +167,12 @@ class FillConstantFoldingPass : public ProgramPass {
             (*op)->inputs.begin(), (*op)->inputs.end(), [&](const Variable& var) { return var->id == input_name; });
       };
 
-      auto it = find_input(input_var_name);
       // Why Loop : To avoid the op's inputs are the same variable !
-      while (it != (*op)->inputs.end()) {
+      for (auto it = find_input(input_var_name); it != (*op)->inputs.end(); it = find_input(input_var_name)) {
         // erase previous fill_constant output var and replace to new fill_constant output var
         auto next_it = (*op)->inputs.erase(it);
         // keep the input place same, it's very important
         (*op)->inputs.insert(next_it, *out_var);
-        // try find next var if there exist same input
-        it = find_input(input_var_name);
       }
     }
   }
