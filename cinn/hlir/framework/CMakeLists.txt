@@ -14,6 +14,7 @@ gather_srcs(cinnapi_src SRCS
     op_strategy.cc
     op_lowering.cc
     accuracy_checker.cc
+    visualize_helper.cc
     )
 
 if(WITH_CUDA)

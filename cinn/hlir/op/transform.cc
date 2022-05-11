@@ -1054,7 +1054,7 @@ std::shared_ptr<OpStrategy> StrategyForCublasGemm(const framework::NodeAttr &att
 
 std::vector<shape_t> InferShapeForCublasGemm(const std::vector<std::vector<int>> &input_shapes,
                                              const framework::AttrMapType &attrs) {
-  CHECK_EQ(input_shapes.size(), 3U) << "cublas_gemm should have 2 input shapes";
+  CHECK_EQ(input_shapes.size(), 3U) << "cublas_gemm should have 3 input shapes";
   CHECK_EQ(input_shapes[0].size(), input_shapes[1].size());
   CHECK_EQ(input_shapes[0].size(), input_shapes[2].size());
   CHECK((input_shapes[0].size() == 2 || input_shapes[0].size() == 3));

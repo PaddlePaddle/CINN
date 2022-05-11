@@ -41,7 +41,7 @@ NodeData* GetNodeData(Node* node) {
 
 std::vector<NodeData*> GetAllNodeData(Node* node) {
   std::vector<NodeData*> node_datas;
-  for (auto& link : node->outlinks()) {
+  for (auto& link : node->outlinks_in_order()) {
     auto node_data = link->sink()->safe_as<NodeData>();
     CHECK(node_data);
     node_datas.push_back(node_data);
@@ -67,7 +67,7 @@ OpLowerer::OpLowerer(const absl::flat_hash_map<std::string, Type>& type_dict,
     : type_dict_(type_dict), shape_dict_(shape_dict), target_(target) {}
 
 std::vector<ir::LoweredFunc> OpLowerer::Lower(GroupPtr& group) {
-  VLOG(2) << "Lowering Group : " << group->group_id << " , Op Pattern : " << group->op_pattern_kind;
+  VLOG(3) << "Lowering Group : " << group->group_id << " , Op Pattern : " << group->op_pattern_kind;
   switch (group->op_pattern_kind) {
     case framework::kElemWise:
     case framework::kBroadcast:
@@ -135,7 +135,7 @@ std::vector<ir::LoweredFunc> OpLowerer::LowerOp(ComputeFunction compute, Schedul
     }
   }
 
-  return lang::LowerVec(func_name_prefix + group->group_id, stages, func_args, {}, {}, nullptr, this->target_);
+  return lang::LowerVec(group->GetFuncName(), stages, func_args, {}, {}, nullptr, this->target_);
 }
 
 std::vector<ir::Tensor> OpLowerer::CollectInputTensor(std::vector<ir::Tensor>& func_args,
@@ -179,7 +179,7 @@ void OpLowerer::ElementwiseCompute(poly::StageMap& stages,
                                    std::unordered_map<std::string, ir::Tensor>& tensor_map,
                                    const GroupPtr& group,
                                    const GroupPtr& sub_group) {
-  VLOG(2) << "ElementwiseCompute Group : " << sub_group->group_id;
+  VLOG(3) << "ElementwiseCompute Group : " << sub_group->group_id;
   auto& strategy = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
   for (auto& node : sub_group->nodes) {
     auto node_data = GetNodeData(node);
@@ -219,34 +219,43 @@ void OpLowerer::ElementwiseSchedule(poly::StageMap& stages,
                                     std::unordered_map<std::string, ir::Tensor>& tensor_map,
                                     const GroupPtr& group,
                                     const GroupPtr& sub_group) {
-  VLOG(2) << "ElementwiseSchedule Group : " << sub_group->group_id;
+  VLOG(3) << "ElementwiseSchedule Group : " << sub_group->group_id;
+  auto master_node      = *group->master_nodes.begin();
+  auto master_node_data = GetNodeData(master_node);
+  auto master_stage     = stages[tensor_map[master_node_data->id()]];
+  auto master_shape     = this->shape_dict_.at(master_node_data->id());
   for (auto& node : sub_group->nodes) {
-    auto node_data = GetNodeData(node);
+    auto node_data  = GetNodeData(node);
+    auto node_stage = stages[tensor_map[node_data->id()]];
+    auto node_shape = this->shape_dict_.at(node_data->id());
     // if group master node
     if (group->master_nodes.count(node)) {
       continue;
     }
 
+    if (master_shape != node_shape) {
+      CHECK(!group->output_nodes.count(node)) << node->id() << " is to be broadcasted, it can't be output!";
+      node_stage->ComputeInline();
+      continue;
+    }
+
+    CHECK(master_shape == node_shape) << "node data shape must be equal to master node!";
     // if node is fringe node or internal node, fringe node is output node of sub-graph
     if (group->output_nodes.count(node) || group->internal_nodes.count(node) || sub_group->internal_nodes.count(node)) {
-      auto master_node_data = GetNodeData(*group->master_nodes.begin());
-      // stage
-      auto master_node_stage = stages[tensor_map[master_node_data->id()]];
-      auto node_stage        = stages[tensor_map[node_data->id()]];
       // copy schedule from master node
-      node_stage->CopyTransform(master_node_stage);
-      node_stage->CopyLoopInfo(master_node_stage);
+      node_stage->CopyTransform(master_stage);
+      node_stage->CopyLoopInfo(master_stage);
       // internal node use buffer
-      if (group->internal_nodes.count(node) || sub_group->internal_nodes.count(node)) {
+      if (!group->output_nodes.count(node)) {
         node_stage->SetBuffer("local");
       }
       // compute at master node
-      node_stage->SimpleComputeAt(master_node_stage, master_node_stage->n_out_dims() - 1);
+      node_stage->SimpleComputeAt(master_stage, master_stage->n_out_dims() - 1);
       continue;
     }
 
     // others elemenwise internal node use compute-inline
-    stages[tensor_map[node_data->id()]]->ComputeInline();
+    node_stage->ComputeInline();
   }
 }
 
@@ -255,7 +264,7 @@ void OpLowerer::ReduceCompute(poly::StageMap& stages,
                               std::unordered_map<std::string, ir::Tensor>& tensor_map,
                               const GroupPtr& group,
                               const GroupPtr& sub_group) {
-  VLOG(2) << "ReduceCompute Group : " << sub_group->group_id;
+  VLOG(3) << "ReduceCompute Group : " << sub_group->group_id;
   auto& cinn_strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
 
@@ -298,14 +307,20 @@ void OpLowerer::ReduceCompute(poly::StageMap& stages,
         tmp_stages[out.as_tensor_ref()]->CopyTransform(stages[tensor_map[reducer_data->id()]]);
         tmp_stages[out.as_tensor_ref()]->CopyLoopInfo(stages[tensor_map[reducer_data->id()]]);
       } else {
+        bool copied_transform = false;
         for (auto rnode : group->master_nodes) {
           if (op_pattern_dict[rnode->op()] == framework::kCommReduce) {
             auto rnode_data = GetNodeData(rnode);
+            if (!tensor_map.count(rnode_data->id())) {
+              continue;
+            }
             tmp_stages[out.as_tensor_ref()]->CopyTransform(stages[tensor_map[rnode_data->id()]]);
             tmp_stages[out.as_tensor_ref()]->CopyLoopInfo(stages[tensor_map[rnode_data->id()]]);
+            copied_transform = true;
             break;
           }
         }
+        CHECK(copied_transform) << "master node fail to copy transfrom from reduce node!";
       }
     }
 
@@ -324,7 +339,7 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
                                std::unordered_map<std::string, ir::Tensor>& tensor_map,
                                const GroupPtr& group,
                                const GroupPtr& sub_group) {
-  VLOG(2) << "ReduceSchedule Group : " << sub_group->group_id;
+  VLOG(3) << "ReduceSchedule Group : " << sub_group->group_id;
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
   // assign reduce input tensor schedule, do loop transform.
   auto OrderAssignReduce = [this, &stages](
@@ -447,6 +462,9 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
             LOG(FATAL) << "Error! lane is less equal than max_num_threads, Please check!";
           }
           if (lane >= max_num_threads / 2) {
+            if (lane <= max_num_threads) {
+              --index;
+            }
             break;
           }
         }
@@ -523,9 +541,9 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
   auto master_reducer_axes  = absl::get<std::vector<int>>(master_reducer->attrs.attr_store.at("dim"));
   auto master_reducer_shape = this->shape_dict_.at(master_reducer->inlinks_in_order()[0]->source()->id());
 
-  VLOG(2) << "master node : " << master_node->id() << " ,reducer node : " << master_reducer->id();
+  VLOG(3) << "master node : " << master_node->id() << " ,reducer node : " << master_reducer->id();
   for (auto& node : sub_group->nodes) {
-    VLOG(2) << "Schedule node -> " << node->id();
+    VLOG(3) << "Schedule node -> " << node->id();
     auto node_data = GetNodeData(node);
     auto stage     = stages[tensor_map[node_data->id()]];
     // if node is kCommReduce
@@ -700,7 +718,7 @@ void OpLowerer::OutEWiseFusableCompute(poly::StageMap& stages,
                                        std::unordered_map<std::string, ir::Tensor>& tensor_map,
                                        const GroupPtr& group,
                                        const GroupPtr& sub_group) {
-  VLOG(2) << "OutEWiseFusableCompute Group : " << sub_group->group_id;
+  VLOG(3) << "OutEWiseFusableCompute Group : " << sub_group->group_id;
   auto& cinn_strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
 
@@ -759,7 +777,7 @@ void OpLowerer::OutEWiseFusableSchedule(poly::StageMap& stages,
                                         std::unordered_map<std::string, ir::Tensor>& tensor_map,
                                         const GroupPtr& group,
                                         const GroupPtr& sub_group) {
-  VLOG(2) << "OutEWiseFusableSchedule Group : " << sub_group->group_id;
+  VLOG(3) << "OutEWiseFusableSchedule Group : " << sub_group->group_id;
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
   Node* master_node     = nullptr;
   for (auto node : group->master_nodes) {
@@ -821,7 +839,7 @@ void OpLowerer::OutEWiseFusableSchedule(poly::StageMap& stages,
 }
 
 std::vector<ir::LoweredFunc> OpLowerer::LowerOpaqueOp(GroupPtr& group) {
-  VLOG(2) << "LowerOpaqueOp Group : " << group->group_id;
+  VLOG(3) << "LowerOpaqueOp Group : " << group->group_id;
   // get input tensor and output tensor
   std::vector<ir::Tensor> func_args;
   CHECK_EQ(group->nodes.size(), 1) << "fusion op exist more than 1 op.";
@@ -881,7 +899,7 @@ std::vector<ir::LoweredFunc> OpLowerer::LowerOpaqueOp(GroupPtr& group) {
     }
   }
 
-  return lang::LowerVec(func_name_prefix + node->id(), stages, func_args, {}, {}, nullptr, this->target_);
+  return lang::LowerVec(group->GetFuncName(), stages, func_args, {}, {}, nullptr, this->target_);
 }
 
 }  // namespace framework
