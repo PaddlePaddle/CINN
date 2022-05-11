@@ -94,6 +94,7 @@ std::vector<Expr> CodeGenCUDA_Dev::GenerateBufferAliasExprs(const ir::_LoweredFu
 }
 
 void CodeGenCUDA_Dev::Visit(const ir::_LoweredFunc_ *op) {
+  vectorized_names_.clear();
   os() << "__global__\n";
 
   PrintFunctionDeclaration(op);
@@ -308,11 +309,6 @@ void CodeGenCUDA_Dev::Visit(const ir::Call *op) {
   }
 
   os() << ")";
-}
-
-void CodeGenCUDA_Dev::Visit(const ir::Block *op) {
-  vectorized_names_.clear();
-  CodeGenC::Visit(op);
 }
 
 void CodeGenCUDA_Dev::Visit(const ir::Let *op) {

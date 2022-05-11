@@ -56,18 +56,24 @@ Expr Widen(Expr e, int lanes) {
 }
 
 // tell whether a tensor can be vectorized or not on CUDA by collecting names
-// of tensors which doesn't meet all predicates of vectoring
-class TensorVectorizeExcluder : public ir::IRMutator<const Expr *> {
+// of tensors which meet all check predicates of vectoring
+class TensorVectorizeTeller : public ir::IRMutator<const Expr *> {
  public:
-  TensorVectorizeExcluder(const std::string &iter_name) : iter_name_(iter_name) {}
+  TensorVectorizeTeller(const Var &iter_var, const absl::flat_hash_map<std::string, common::CasInterval> *var_intervals)
+      : iter_var_(iter_var), var_intervals_(var_intervals) {}
 
   void Collect(const Expr *op) { IRMutator::Visit(op, op); }
 
-  bool Contain(const std::string &tensor_name) const { return excluded_tensors_.count(tensor_name); }
+  // return true if input tensor can be vectorized
+  bool CanBeVectorized(const std::string &tensor_name) const {
+    auto it = tensor2flag_.find(tensor_name);
+    return it != tensor2flag_.end() && it->second;
+  }
 
  private:
-  const std::string iter_name_;
-  std::set<std::string> excluded_tensors_;
+  const Var iter_var_;
+  const absl::flat_hash_map<std::string, common::CasInterval> *var_intervals_;
+  std::unordered_map<std::string, bool> tensor2flag_;
 
   void Visit(const ir::Store *expr, const Expr *op) override {
     auto *node = op->As<ir::Store>();
@@ -75,8 +81,10 @@ class TensorVectorizeExcluder : public ir::IRMutator<const Expr *> {
     IRMutator::Visit(&node->value, &node->value);
     auto *tensor = node->tensor.As<ir::_Tensor_>();
     CHECK(tensor);
-    if (HitBan(node->tensor, node->indices)) {
-      excluded_tensors_.insert(tensor->name);
+
+    if (!tensor2flag_.count(tensor->name)) {
+      bool flag = MeetConditions(node->tensor, node->indices);
+      tensor2flag_.emplace(tensor->name, flag);
     }
   }
 
@@ -85,36 +93,53 @@ class TensorVectorizeExcluder : public ir::IRMutator<const Expr *> {
     CHECK(node);
     auto *tensor = node->tensor.As<ir::_Tensor_>();
     CHECK(tensor);
-    if (HitBan(node->tensor, node->indices)) {
-      excluded_tensors_.insert(tensor->name);
+
+    if (!tensor2flag_.count(tensor->name)) {
+      bool flag = MeetConditions(node->tensor, node->indices);
+      tensor2flag_.emplace(tensor->name, flag);
     }
   }
 
-  // return true if the tensor hit some prohibitions of vectorizing
-  bool HitBan(Expr tensor, const std::vector<Expr> &indices) {
-    auto find_matched_var_fn = [&](const Expr *x) { return x->As<_Var_>() && x->As<_Var_>()->name == iter_name_; };
+  // return true if the tensor meets all conditions of vectorizing
+  bool MeetConditions(Expr tensor, const std::vector<Expr> &indices) {
+    auto find_matched_var_fn = [&](const Expr *x) { return x->As<_Var_>() && x->As<_Var_>()->name == iter_var_->name; };
 
     // the iter val must appear in the last index
     if (indices.empty() || ir::CollectIRNodes(indices.back(), find_matched_var_fn).empty()) {
-      VLOG(5) << "Loop var:" << iter_name_
-              << " is not used in the last index, so the memory access will be not sequential";
-      return true;
+      VLOG(5) << "Loop var:" << iter_var_->name << " is not used in the last index";
+      return false;
     }
 
     // the iter val can't appear in mulitple indices
     for (int i = 0; i < indices.size() - 1; ++i) {
       auto repeat_found = ir::CollectIRNodes(indices[i], find_matched_var_fn);
       if (!repeat_found.empty()) {
-        VLOG(5) << "Loop var:" << iter_name_ << " is also used at the index:" << i;
-        return true;
+        VLOG(5) << "Loop var:" << iter_var_->name << " is used at more than last index, current:" << i;
+        return false;
       }
     }
 
-    auto dtype = tensor->type().ElementOf();
-    if (dtype.is_float(32) || dtype.is_int(32) || dtype.is_uint(32)) {
+    // check tensor accessed sequentially by comparing index one by one
+    Expr first_idx = optim::IRCopy(indices.back());
+    optim::IrReplace(&first_idx, Expr(iter_var_), Expr(0));
+    const auto &interval = var_intervals_->at(iter_var_->name);
+    for (int i = 1; i < interval.r; ++i) {
+      Expr next_idx = optim::IRCopy(indices.back());
+      optim::IrReplace(&next_idx, Expr(iter_var_), Expr(i));
+      auto gap = common::AutoSimplify(Expr(next_idx - first_idx));
+      if (!gap.As<IntImm>() || gap.as_int32() != i) {
+        VLOG(5) << "Tensor:" << tensor.as_tensor()->name << " is not accessed sequentially, next:" << next_idx
+                << ", first:" << first_idx << ", gap:" << gap;
+        return false;
+      }
+    }
+
+    auto dtype          = tensor->type().ElementOf();
+    bool type_supported = dtype.is_float(32) || dtype.is_int(32) || dtype.is_uint(32);
+    if (!type_supported) {
+      VLOG(5) << "Only support vectorizing int,uint,float";
       return false;
     }
-    VLOG(5) << "Only support vectorizing int,uint,float";
     return true;
   }
 };
@@ -126,15 +151,17 @@ class CudaVectorizer : public IRMutator<Expr *> {
   const int factor_;
 
   TensorWriteTeller write_teller_;
-  TensorVectorizeExcluder tensor_excluder_;
+  TensorVectorizeTeller vectorized_teller_;
 
   absl::flat_hash_map<std::string, Var> tensor2vectorized_vars_;
   std::vector<Expr> vectorized_cast_exprs_;
 
  public:
   static constexpr int CudaVectorTypeMaxLanes = 4;
-  CudaVectorizer(const Var &iter_var, const int factor)
-      : iter_var_(iter_var), factor_(factor), tensor_excluder_(iter_var->name) {
+  CudaVectorizer(const Var &iter_var,
+                 const int factor,
+                 const absl::flat_hash_map<std::string, common::CasInterval> *var_intervals)
+      : iter_var_(iter_var), factor_(factor), vectorized_teller_(iter_var, var_intervals) {
     CHECK(factor <= CudaVectorTypeMaxLanes)
         << "The maximum lanes of valid CUDA vector types: " << CudaVectorTypeMaxLanes << ", but factor: " << factor;
   }
@@ -143,13 +170,14 @@ class CudaVectorizer : public IRMutator<Expr *> {
 
   void Visit(Expr *expr) {
     write_teller_.Collect(expr);
-    tensor_excluder_.Collect(expr);
+    vectorized_teller_.Collect(expr);
     IRMutator<Expr *>::Visit(expr, expr);
   }
 
   void Visit(const Load *op, Expr *expr) override {
-    auto *node = expr->As<Load>();
-    if (node->is_addr_tensor()) {
+    auto *node   = expr->As<Load>();
+    auto *tensor = node->tensor.As<ir::_Tensor_>();
+    if (node->is_addr_tensor() && vectorized_teller_.CanBeVectorized(tensor->name)) {
       TensorVectorized(node, &node->indices);
     }
   }
@@ -158,7 +186,9 @@ class CudaVectorizer : public IRMutator<Expr *> {
     auto *node   = expr->As<Store>();
     auto *tensor = node->tensor.As<ir::_Tensor_>();
     CHECK(tensor);
-    TensorVectorized(node, &node->indices);
+    if (vectorized_teller_.CanBeVectorized(tensor->name)) {
+      TensorVectorized(node, &node->indices);
+    }
 
     IRMutator::Visit(&node->value, &node->value);
   }
@@ -166,11 +196,6 @@ class CudaVectorizer : public IRMutator<Expr *> {
  private:
   void TensorVectorized(ir::LoadStoreAddrMnger *node, std::vector<Expr> *indices) {
     auto *tensor = node->tensor.As<ir::_Tensor_>();
-    CHECK(tensor);
-    if (tensor_excluder_.Contain(tensor->name)) {
-      return;
-    }
-
     VLOG(5) << "Vectorizing tensor:" << tensor->name;
     // save the tensor and its corresponding vector name when it first appear
     if (!tensor2vectorized_vars_.count(tensor->name)) {
@@ -644,7 +669,7 @@ struct VectorizeLoops_ : public IRMutator<Expr *> {
       VLOG(2) << "before vectorize body:\n" << node->body;
 
       if (target == common::DefaultNVGPUTarget()) {
-        CudaVectorizer cuda_vectorizer(new_forloop->loop_var, factor);
+        CudaVectorizer cuda_vectorizer(new_forloop->loop_var, factor, &var_intervals);
         cuda_vectorizer.Visit(&new_forloop->body);
         // unroll the new forloop to compute each element of the vector iteratively
         auto copied_loop = optim::IRCopy(_new_forloop);
