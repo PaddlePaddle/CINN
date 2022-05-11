@@ -14,7 +14,12 @@
 
 #include "cinn/hlir/framework/graph.h"
 
+#include <atomic>
+
 #include "cinn/hlir/framework/visualize_helper.h"
+#include "cinn/utils/string.h"
+
+DECLARE_string(cinn_fusion_groups_graphviz_dir);
 
 namespace cinn {
 namespace hlir {
@@ -72,13 +77,12 @@ void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
     return;
   }
 
-  if (!MakeDirectory(FLAGS_cinn_fusion_groups_graphviz_dir)) {
+  viz_path_ = utils::StringFormat(
+      "%s/fusion_groups_%d/", FLAGS_cinn_fusion_groups_graphviz_dir.c_str(), viz_count_.fetch_add(1));
+  VLOG(4) << "The visualized path of CINN fusion groups: " << viz_path_;
+  if (!MakeDirectory(viz_path_, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)) {
     return;
   }
-
-  static int graph_id = 0;
-  // Prefix to the filepath, which is used to distinguish different graphs.
-  std::string prefix = std::to_string(graph_id++) + "_";
 
   for (auto& id : fetch_var_ids) {
     VLOG(4) << "Fetch: " << id;
@@ -93,7 +97,7 @@ void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
     VLOG(4) << "}";
   }
 
-  Summary(groups, prefix);
+  Summary(groups, viz_path_);
 
   auto& shape_dict = HasAttr("infershape") ? GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape")
                                            : absl::flat_hash_map<std::string, shape_t>{};
@@ -120,15 +124,14 @@ void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
     group_id++;
   }
 
-  std::string filepath = FLAGS_cinn_fusion_groups_graphviz_dir + "/" + prefix + "grouped_graph.dot";
+  std::string filepath = viz_path_ + "grouped_graph.dot";
   WriteToFile(filepath, dot());
 
-  VisualizeGroups(groups, fetch_var_ids, prefix);
+  VisualizeGroups(groups, fetch_var_ids);
 }
 
 void Graph::VisualizeGroups(const std::vector<std::vector<Node*>>& groups,
-                            const std::unordered_set<std::string>& fetch_var_ids,
-                            const std::string& prefix) {
+                            const std::unordered_set<std::string>& fetch_var_ids) {
   auto& shape_dict = HasAttr("infershape") ? GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape")
                                            : absl::flat_hash_map<std::string, shape_t>{};
 
@@ -181,12 +184,14 @@ void Graph::VisualizeGroups(const std::vector<std::vector<Node*>>& groups,
       }
     }
 
-    std::string filepath = GetFilePathForGroup(groups, group_id, prefix);
+    std::string filepath = GetFilePathForGroup(groups, group_id, viz_path_);
     WriteToFile(filepath, dot());
 
     group_id++;
   }
 }
+
+std::atomic_size_t Graph::viz_count_{0};
 
 }  // namespace framework
 }  // namespace hlir

@@ -16,6 +16,7 @@
 #include <absl/container/flat_hash_map.h>
 #include <absl/types/any.h>
 
+#include <atomic>
 #include <memory>
 #include <string>
 #include <vector>
@@ -161,8 +162,10 @@ class Graph : public cinn::common::Graph {
 
  private:
   void VisualizeGroups(const std::vector<std::vector<Node*>>& groups,
-                       const std::unordered_set<std::string>& fetch_var_ids,
-                       const std::string& prefix = "");
+                       const std::unordered_set<std::string>& fetch_var_ids);
+
+  std::string viz_path_;
+  static std::atomic_size_t viz_count_;
 
   CINN_DISALLOW_COPY_AND_ASSIGN(Graph);
 };
