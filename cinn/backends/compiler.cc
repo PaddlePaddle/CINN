@@ -14,6 +14,8 @@
 
 #include "cinn/backends/compiler.h"
 
+#include <fstream>
+
 #include "cinn/backends/llvm/runtime_symbol_registry.h"
 #ifdef CINN_WITH_CUDA
 #include "cinn/backends/codegen_cuda_dev.h"
@@ -23,6 +25,8 @@
 #include "cinn/runtime/cuda/cuda_module.h"
 #include "cinn/runtime/cuda/cuda_util.h"
 #endif
+
+DECLARE_string(cinn_source_code_save_path);
 
 namespace cinn {
 namespace backends {
@@ -77,9 +81,17 @@ void Compiler::CompileCudaModule(const Module& module, const std::string& code, 
     CodeGenCUDA_Dev codegen(target_);
     auto source_code = codegen.Compile(device_module);
     if (!code.empty()) source_code = code;
-    VLOG(3) << "[CUDA] source code:\n" << source_code;
-    using runtime::cuda::CUDAModule;
+    if (FLAGS_cinn_source_code_save_path.empty()) {
+      VLOG(3) << "[CUDA] source code:\n" << source_code;
+    } else {
+      VLOG(4) << "Write to " << FLAGS_cinn_source_code_save_path;
+      std::ofstream of(FLAGS_cinn_source_code_save_path);
+      CHECK(of.is_open()) << "Failed to open " << FLAGS_cinn_source_code_save_path;
+      of << source_code;
+      of.close();
+    }
 
+    using runtime::cuda::CUDAModule;
     backends::NVRTC_Compiler compiler;
 
     auto ptx = compiler(source_code);
