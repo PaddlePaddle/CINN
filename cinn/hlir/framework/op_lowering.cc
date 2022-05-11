@@ -212,6 +212,11 @@ void OpLowerer::ElementwiseCompute(poly::StageMap& stages,
 
     tensor_map[node_data->id()] = out.as_tensor_ref();
     stages->InsertLazily(out.as_tensor_ref(), tmp_stages[out.as_tensor_ref()]);
+
+    for (auto& single_stage : tmp_stages) {
+      auto stage_tensor = ir::Tensor(&Reference(single_stage.second->tensor()));
+      stages->InsertLazily(stage_tensor, single_stage.second.get());
+    }
   }
 }
 
@@ -331,6 +336,10 @@ void OpLowerer::ReduceCompute(poly::StageMap& stages,
       tensor_map[node_data->id() + post] = expr.as_tensor_ref();
       // As op may has more than 1 output tensor, using id + "_0"/"_1" as key.
       post = "_" + std::to_string(idx);
+    }
+    for (auto& single_stage : tmp_stages) {
+      auto stage_tensor = ir::Tensor(&Reference(single_stage.second->tensor()));
+      stages->InsertLazily(stage_tensor, single_stage.second.get());
     }
   }
 }
@@ -769,6 +778,11 @@ void OpLowerer::OutEWiseFusableCompute(poly::StageMap& stages,
       stages->InsertLazily(out.as_tensor_ref(), tmp_stages[out.as_tensor_ref()]);
       // update postfix
       postfix = "_" + std::to_string(idx);
+    }
+
+    for (auto& single_stage : tmp_stages) {
+      auto stage_tensor = ir::Tensor(&Reference(single_stage.second->tensor()));
+      stages->InsertLazily(stage_tensor, single_stage.second.get());
     }
   }
 }
