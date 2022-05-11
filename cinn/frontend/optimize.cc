@@ -39,7 +39,8 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
                             "GemmRewriter",
                             "TransposeFoldingOutput",
                             "GemmRewriter",
-                            "RemoveIdentity"};
+                            "RemoveIdentity",
+                            "FillConstantFolding"};
   if (FLAGS_cinn_use_new_fusion_pass) {
     options.graph_passes = {"OpFusionPass", "FusionMergePass"};
   } else {
