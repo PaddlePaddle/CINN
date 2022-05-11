@@ -292,37 +292,7 @@ void OpLowerer::ReduceCompute(poly::StageMap& stages,
 
     CHECK_GE(value_pack.size(), 2UL);
     CHECK_LE(value_pack.size(), 5UL);
-    Expr out                  = value_pack[0];
     poly::StageMap tmp_stages = value_pack.back();
-
-    // node is kCommReduce
-    if (op_pattern_dict[node->op()] == framework::kCommReduce) {
-      reducer = node;
-      // do schedule
-      value_pack = impl->fschedule(value_pack);
-    } else if (group->master_nodes.count(node)) {
-      // node is master node, copy schedule from reduce node
-      if (reducer) {
-        auto reducer_data = GetNodeData(reducer);
-        tmp_stages[out.as_tensor_ref()]->CopyTransform(stages[tensor_map[reducer_data->id()]]);
-        tmp_stages[out.as_tensor_ref()]->CopyLoopInfo(stages[tensor_map[reducer_data->id()]]);
-      } else {
-        bool copied_transform = false;
-        for (auto rnode : group->master_nodes) {
-          if (op_pattern_dict[rnode->op()] == framework::kCommReduce) {
-            auto rnode_data = GetNodeData(rnode);
-            if (!tensor_map.count(rnode_data->id())) {
-              continue;
-            }
-            tmp_stages[out.as_tensor_ref()]->CopyTransform(stages[tensor_map[rnode_data->id()]]);
-            tmp_stages[out.as_tensor_ref()]->CopyLoopInfo(stages[tensor_map[rnode_data->id()]]);
-            copied_transform = true;
-            break;
-          }
-        }
-        CHECK(copied_transform) << "master node fail to copy transfrom from reduce node!";
-      }
-    }
 
     std::string post = "";
     for (int idx = 0; idx < value_pack.size() - 1; ++idx) {
@@ -331,6 +301,37 @@ void OpLowerer::ReduceCompute(poly::StageMap& stages,
       tensor_map[node_data->id() + post] = expr.as_tensor_ref();
       // As op may has more than 1 output tensor, using id + "_0"/"_1" as key.
       post = "_" + std::to_string(idx);
+    }
+    value_pack.back() = CINNValue(stages);
+
+    // node is kCommReduce
+    if (op_pattern_dict[node->op()] == framework::kCommReduce) {
+      reducer = node;
+      // do schedule
+      value_pack = impl->fschedule(value_pack);
+    } else if (group->master_nodes.count(node)) {
+      Expr out = value_pack[0];
+      // node is master node, copy schedule from reduce node
+      if (reducer) {
+        auto reducer_data = GetNodeData(reducer);
+        stages[out.as_tensor_ref()]->CopyTransform(stages[tensor_map[reducer_data->id()]]);
+        stages[out.as_tensor_ref()]->CopyLoopInfo(stages[tensor_map[reducer_data->id()]]);
+      } else {
+        bool copied_transform = false;
+        for (auto rnode : group->master_nodes) {
+          if (op_pattern_dict[rnode->op()] == framework::kCommReduce) {
+            auto rnode_data = GetNodeData(rnode);
+            if (!tensor_map.count(rnode_data->id())) {
+              continue;
+            }
+            stages[out.as_tensor_ref()]->CopyTransform(stages[tensor_map[rnode_data->id()]]);
+            stages[out.as_tensor_ref()]->CopyLoopInfo(stages[tensor_map[rnode_data->id()]]);
+            copied_transform = true;
+            break;
+          }
+        }
+        CHECK(copied_transform) << "master node fail to copy transfrom from reduce node!";
+      }
     }
   }
 }
@@ -540,6 +541,12 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
   auto master_reducer_stage = stages[tensor_map[master_reducer_data->id()]];
   auto master_reducer_axes  = absl::get<std::vector<int>>(master_reducer->attrs.attr_store.at("dim"));
   auto master_reducer_shape = this->shape_dict_.at(master_reducer->inlinks_in_order()[0]->source()->id());
+  // update sync thread depend.
+  for (auto stage : stages) {
+    if (stage.first.find("syncthreads") != std::string::npos) {
+      stage.second->CtrlDepend(tensor_map[master_reducer_data->id() + "_0"]);
+    }
+  }
 
   VLOG(3) << "master node : " << master_node->id() << " ,reducer node : " << master_reducer->id();
   for (auto& node : sub_group->nodes) {
