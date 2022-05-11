@@ -40,6 +40,7 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
                             "TransposeFoldingOutput",
                             "GemmRewriter",
                             "ReshapeRewriter",
+                            "FillConstantFolding",
                             "RemoveIdentity",
                             "DeadCodeEliminate"};
   if (FLAGS_cinn_use_new_fusion_pass) {
