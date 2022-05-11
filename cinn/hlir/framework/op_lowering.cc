@@ -246,7 +246,7 @@ void OpLowerer::ElementwiseSchedule(poly::StageMap& stages,
       node_stage->CopyTransform(master_stage);
       node_stage->CopyLoopInfo(master_stage);
       // internal node use buffer
-      if (group->internal_nodes.count(node) || sub_group->internal_nodes.count(node)) {
+      if (!group->output_nodes.count(node)) {
         node_stage->SetBuffer("local");
       }
       // compute at master node
