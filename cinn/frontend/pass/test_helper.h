@@ -70,7 +70,7 @@ std::vector<T> CopyToVector(const hlir::framework::Tensor tensor) {
   cudaMemcpy(dst.data(), src, numel * sizeof(T), cudaMemcpyDeviceToHost);
 #else
   for (size_t i = 0; i < numel; ++i) {
-    dst->at(i) = src[i];
+    dst[i] = src[i];
   }
 #endif
   return dst;
