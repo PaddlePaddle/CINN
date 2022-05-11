@@ -37,11 +37,11 @@ TEST(ReshapeRewriter, remove_single) {
   auto reduce_sum_2 = builder.ReduceSum(reshape_1, {1});
 
   PassTest tester;
-  std::vector<std::string> input_names  = {x.id().data()};
-  std::vector<std::string> output_names = {reduce_sum_1->id, reduce_sum_2->id};
-  int num_removed_ops = tester.ApplyProgramPass(builder, {"ReshapeRewriter", "RemoveIdentity"}, output_names);
+  std::vector<std::string> input_names    = {x.id().data()};
+  std::vector<std::string> output_names   = {reduce_sum_1->id, reduce_sum_2->id};
+  std::vector<std::string> program_passes = {"ReshapeRewriter", "RemoveIdentity"};
+  int num_removed_ops                     = tester.RunAndCheck(builder, program_passes, input_names, output_names);
   ASSERT_EQ(num_removed_ops, 2);
-  tester.Execute(input_names, output_names);
 }
 
 TEST(ReshapeRewriter, remove_with_fill_constant) {
@@ -60,11 +60,11 @@ TEST(ReshapeRewriter, remove_with_fill_constant) {
   auto add_1      = builder.ElementwiseAdd(reshape_1, reshape_2);
 
   PassTest tester;
-  std::vector<std::string> input_names  = {x.id().data()};
-  std::vector<std::string> output_names = {add_1->id};
-  int num_removed_ops = tester.ApplyProgramPass(builder, {"ReshapeRewriter", "RemoveIdentity"}, output_names);
+  std::vector<std::string> input_names    = {x.id().data()};
+  std::vector<std::string> output_names   = {add_1->id};
+  std::vector<std::string> program_passes = {"ReshapeRewriter", "RemoveIdentity"};
+  int num_removed_ops                     = tester.RunAndCheck(builder, program_passes, input_names, output_names);
   ASSERT_EQ(num_removed_ops, 2);
-  tester.Execute(input_names, output_names);
 }
 
 }  // namespace cinn::frontend

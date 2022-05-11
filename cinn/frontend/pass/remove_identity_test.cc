@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <gtest/gtest.h>
-
 #include "cinn/frontend/pass/test_helper.h"
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/tensor.h"
@@ -37,11 +35,11 @@ TEST(RemoveIdentity, remove_single) {
   auto reduce_sum_2 = builder.ReduceSum(identity_2, {1});
 
   PassTest tester;
-  std::vector<std::string> input_names  = {x.id().data()};
-  std::vector<std::string> output_names = {reduce_sum_1->id};
-  int num_removed_ops = tester.ApplyProgramPass(builder, {"RemoveIdentity", "DeadCodeEliminate"}, output_names);
+  std::vector<std::string> input_names    = {x.id().data()};
+  std::vector<std::string> output_names   = {reduce_sum_1->id};
+  std::vector<std::string> program_passes = {"RemoveIdentity", "DeadCodeEliminate"};
+  int num_removed_ops                     = tester.RunAndCheck(builder, program_passes, input_names, output_names);
   ASSERT_EQ(num_removed_ops, 3);
-  tester.Execute(input_names, output_names);
 }
 
 TEST(RemoveIdentity, remove_branch) {
@@ -59,11 +57,11 @@ TEST(RemoveIdentity, remove_branch) {
   auto reduce_sum_2 = builder.ReduceSum(identity_1, {1});
 
   PassTest tester;
-  std::vector<std::string> input_names  = {x.id().data()};
-  std::vector<std::string> output_names = {reduce_sum_1->id, reduce_sum_2->id};
-  int num_removed_ops                   = tester.ApplyProgramPass(builder, {"RemoveIdentity"}, output_names);
+  std::vector<std::string> input_names    = {x.id().data()};
+  std::vector<std::string> output_names   = {reduce_sum_1->id, reduce_sum_2->id};
+  std::vector<std::string> program_passes = {"RemoveIdentity"};
+  int num_removed_ops                     = tester.RunAndCheck(builder, program_passes, input_names, output_names);
   ASSERT_EQ(num_removed_ops, 1);
-  tester.Execute(input_names, output_names);
 }
 
 TEST(RemoveIdentity, remove_multiple) {
@@ -87,11 +85,11 @@ TEST(RemoveIdentity, remove_multiple) {
   auto mul_1      = builder.Mul(identity_3, y);
 
   PassTest tester;
-  std::vector<std::string> input_names  = {x.id().data(), y.id().data()};
-  std::vector<std::string> output_names = {mul_1->id};
-  int num_removed_ops                   = tester.ApplyProgramPass(builder, {"RemoveIdentity"}, output_names);
+  std::vector<std::string> input_names    = {x.id().data(), y.id().data()};
+  std::vector<std::string> output_names   = {mul_1->id};
+  std::vector<std::string> program_passes = {"RemoveIdentity"};
+  int num_removed_ops                     = tester.RunAndCheck(builder, program_passes, input_names, output_names);
   ASSERT_EQ(num_removed_ops, 3);
-  tester.Execute(input_names, output_names);
 }
 
 TEST(RemoveIdentity, cannot_remove_fetch) {
@@ -115,11 +113,11 @@ TEST(RemoveIdentity, cannot_remove_fetch) {
   auto mul_1      = builder.Mul(identity_2, y);
 
   PassTest tester;
-  std::vector<std::string> input_names  = {x.id().data(), y.id().data()};
-  std::vector<std::string> output_names = {identity_2->id, mul_1->id};
-  int num_removed_ops                   = tester.ApplyProgramPass(builder, {"RemoveIdentity"}, output_names);
+  std::vector<std::string> input_names    = {x.id().data(), y.id().data()};
+  std::vector<std::string> output_names   = {identity_2->id, mul_1->id};
+  std::vector<std::string> program_passes = {"RemoveIdentity"};
+  int num_removed_ops                     = tester.RunAndCheck(builder, program_passes, input_names, output_names);
   ASSERT_EQ(num_removed_ops, 2);
-  tester.Execute(input_names, output_names);
 }
 
 }  // namespace cinn::frontend

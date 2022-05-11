@@ -14,6 +14,8 @@
 
 #pragma once
 
+#include <gtest/gtest.h>
+
 #include <random>
 
 #include "cinn/frontend/net_builder.h"
@@ -33,51 +35,87 @@ static Target GetTarget() {
 #endif
 }
 
-static void SetRandData(hlir::framework::Tensor tensor, Target target) {
-  auto* data = tensor->mutable_data<float>(target);
+template <typename T>
+std::vector<T> GeneratedRandomVector(size_t numel) {
+  std::vector<T> data(numel);
+
   std::random_device seed;
   std::default_random_engine engine(seed());
-  std::uniform_real_distribution<float> dist(0.f, 1.f);
-  size_t num_ele = tensor->shape().numel();
-  std::vector<float> random_data(num_ele);
-  for (size_t i = 0; i < num_ele; i++) {
-    random_data[i] = dist(engine);  // All random data
+  std::uniform_real_distribution<float> dist(0.f, 10.f);
+  for (size_t i = 0; i < numel; i++) {
+    data[i] = static_cast<T>(dist(engine));  // All random data
   }
+  return data;
+}
+
+template <typename T>
+void CopyFromVector(const std::vector<T>& src, hlir::framework::Tensor tensor, Target target) {
+  size_t numel = tensor->shape().numel();
+  auto* dst    = tensor->mutable_data<T>(target);
 
 #ifdef CINN_WITH_CUDA
-  cudaMemcpy(data, random_data.data(), num_ele * sizeof(float), cudaMemcpyHostToDevice);
+  cudaMemcpy(dst, src.data(), numel * sizeof(T), cudaMemcpyHostToDevice);
 #else
-  std::copy(random_data.begin(), random_data.end(), data);
+  std::copy(src.begin(), src.end(), dst);
 #endif
+}
+
+template <typename T>
+std::vector<T> CopyToVector(const hlir::framework::Tensor tensor) {
+  size_t numel = tensor->shape().numel();
+  auto* src    = tensor->data<T>();
+
+  std::vector<T> dst(numel);
+#ifdef CINN_WITH_CUDA
+  cudaMemcpy(dst.data(), src, numel * sizeof(T), cudaMemcpyDeviceToHost);
+#else
+  for (size_t i = 0; i < numel; ++i) {
+    dst->at(i) = src[i];
+  }
+#endif
+  return dst;
 }
 
 class PassTest {
  public:
   PassTest() { target_ = GetTarget(); }
 
-  int ApplyProgramPass(NetBuilder& builder,
-                       const std::vector<std::string>& program_passes,
-                       const std::vector<std::string>& output_names) {
-    program_        = builder.Build();
-    int before_size = program_.size();
-    LOG(INFO) << program_;
-    CHECK(IsValid()) << "The origin program is not valid.";
+  int RunAndCheck(NetBuilder& builder,
+                  const std::vector<std::string>& program_passes,
+                  const std::vector<std::string>& input_names,
+                  const std::vector<std::string>& output_names) {
+    auto program = builder.Build();
+    CHECK(IsValid(program)) << "The origin program is not valid.";
+    int origin_program_size = program.size();
+    LOG(INFO) << "Run origin program";
+    std::unordered_map<std::string, std::vector<float>> origin_outputs = Execute(program, input_names, output_names);
 
     std::unordered_set<std::string> fetch_var_ids(output_names.begin(), output_names.end());
-    ProgramPass::Apply(&program_, fetch_var_ids, target_, program_passes);
-    int after_size = program_.size();
-    LOG(INFO) << program_;
-    CHECK(IsValid()) << "The transformed program is not valid.";
+    ProgramPass::Apply(&program, fetch_var_ids, target_, program_passes);
+    int optimized_program_size = program.size();
+    CHECK(IsValid(program)) << "The optimized program is not valid.";
+    LOG(INFO) << "Run optimized program";
+    std::unordered_map<std::string, std::vector<float>> optimized_outputs = Execute(program, input_names, output_names);
 
-    return before_size - after_size;
+    for (auto name : output_names) {
+      LOG(INFO) << "Check output name=" << name;
+      CHECK(origin_outputs.count(name));
+      CHECK(optimized_outputs.count(name));
+      CheckOutput(optimized_outputs[name], origin_outputs[name]);
+    }
+    return origin_program_size - optimized_program_size;
   }
 
-  void Execute(const std::vector<std::string>& input_names, const std::vector<std::string>& output_names) {
-    auto graph = std::make_shared<hlir::framework::Graph>(program_, target_);
+ protected:
+  std::unordered_map<std::string, std::vector<float>> Execute(const Program& program,
+                                                              const std::vector<std::string>& input_names,
+                                                              const std::vector<std::string>& output_names) {
+    LOG(INFO) << program;
+    auto graph = std::make_shared<hlir::framework::Graph>(program, target_);
     hlir::framework::ApplyPass(graph.get(), "OpFusion");
 
-    scope_ = hlir::framework::BuildScope(target_, graph);
-    hlir::framework::GraphCompiler gc(target_, scope_, graph);
+    auto scope = hlir::framework::BuildScope(target_, graph);
+    hlir::framework::GraphCompiler gc(target_, scope, graph);
 
     hlir::framework::GraphCompiler::CompileOptions options;
     options.with_instantiate_variables = true;
@@ -86,36 +124,55 @@ class PassTest {
     auto runtime_program = std::move(result.runtime_program);
 
     for (auto& name : input_names) {
-      SetInputTensor(name);
+      SetInputTensor(name, scope);
     }
-
     runtime_program->Execute();
+
+    std::unordered_map<std::string, std::vector<float>> outputs;
+    for (auto& name : output_names) {
+      auto tensor            = scope->GetTensor(name);
+      std::vector<float> vec = CopyToVector<float>(tensor);
+      outputs.emplace(name, vec);
+    }
+    return outputs;
   }
 
-  void SetInputTensor(const std::string& name) {
-    scope_->Var<hlir::framework::Tensor>(name);
-    auto tensor = scope_->GetTensor(name);
-    SetRandData(tensor, target_);
+  void SetInputTensor(const std::string& name, std::shared_ptr<hlir::framework::Scope> scope) {
+    scope->Var<hlir::framework::Tensor>(name);
+    auto tensor = scope->GetTensor(name);
+
+    if (!inputs_.count(name)) {
+      std::vector<float> vec = GeneratedRandomVector<float>(tensor->shape().numel());
+      inputs_.emplace(name, vec);
+    }
+    auto iter = inputs_.find(name);
+    CopyFromVector<float>(iter->second, tensor, target_);
   }
 
- protected:
-  bool IsValid() {
+  void CheckOutput(const std::vector<float>& actual, const std::vector<float>& expect) {
+    CHECK_EQ(actual.size(), expect.size());
+    for (size_t i = 0; i < expect.size(); ++i) {
+      ASSERT_FLOAT_EQ(actual[i], expect[i]);
+    }
+  }
+
+  bool IsValid(const Program& program) {
     std::unordered_set<std::string> inputs;
-    for (auto& var : program_.GetInputs()) {
+    for (auto& var : program.GetInputs()) {
       inputs.insert(var->id);
     }
 
     std::unordered_set<std::string> outputs;
-    for (int i = 0; i < program_.size(); ++i) {
-      const auto& instr = program_[i];
+    for (int i = 0; i < program.size(); ++i) {
+      const auto& instr = program[i];
       for (auto& var : instr->outputs) {
         outputs.insert(var->id);
       }
     }
 
     bool valid = true;
-    for (int i = 0; i < program_.size(); ++i) {
-      const auto& instr = program_[i];
+    for (int i = 0; i < program.size(); ++i) {
+      const auto& instr = program[i];
       // The inputs should be feeded, or other instructions' output.
       for (auto& var : instr->inputs) {
         if (!inputs.count(var->id) && !outputs.count(var->id)) {
@@ -130,8 +187,7 @@ class PassTest {
   }
 
   Target target_;
-  Program program_;
-  std::shared_ptr<hlir::framework::Scope> scope_;
+  std::unordered_map<std::string, std::vector<float>> inputs_;
 };
 
 }  // namespace cinn::frontend
