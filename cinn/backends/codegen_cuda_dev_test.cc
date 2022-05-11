@@ -3081,5 +3081,63 @@ TEST(CodeGenCUDA2, test_of_slice_assign) {
   cuMemFree(output_d);
 }
 
+TEST(Cuda, type_vectorize) {
+  Context::Global().ResetNameId();
+  Expr M(128);
+  Expr N(500);
+  Placeholder<float> A("A", {M, N});
+  Placeholder<float> B("B", {M, N});
+
+  auto C = Compute(
+      {M, N}, [&](Var i, Var j) { return A(i, j) + B(i, j); }, "C");
+  auto stages = CreateStages({C});
+
+  stages[C]->Bind(0, "threadIdx.x");
+  stages[C]->Vectorize(1, 4);
+  Target target = common::DefaultNVGPUTarget();
+  auto func     = Lower("add_vectorize", stages, {A, B, C}, {}, {}, nullptr, target);
+
+  CodeGenCUDA_Dev codegen(target);
+  Module::Builder builder("module", target);
+  builder.AddFunction(func);
+
+  auto source_code = codegen.Compile(builder.Build());
+  LOG(INFO) << "CUDA source:\n" << source_code;
+
+  auto target_source = R"ROC(
+extern "C" {
+
+#include "cinn_cuda_runtime_source.cuh"
+
+#ifdef __CUDACC_RTC__
+typedef int int32_t;
+typedef char int8_t;
+#endif
+
+
+
+__global__
+void __launch_bounds__(128) add_vectorize(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
+{
+  if (((int)threadIdx.x < 128)) {
+    for (int32_t j = 0; j < 125; j += 1) {
+      float4* vectorized_C = ((float4*)(&(C[((4 * j) + (500 * (int)threadIdx.x))])));
+      const float4* vectorized_A = ((const float4*)(&(A[((4 * j) + (500 * (int)threadIdx.x))])));
+      const float4* vectorized_B = ((const float4*)(&(B[((4 * j) + (500 * (int)threadIdx.x))])));
+      vectorized_C->x = (vectorized_A->x + vectorized_B->x);
+      vectorized_C->y = (vectorized_A->y + vectorized_B->y);
+      vectorized_C->z = (vectorized_A->z + vectorized_B->z);
+      vectorized_C->w = (vectorized_A->w + vectorized_B->w);
+    };
+  };
+}
+
+}
+)ROC";
+
+  ASSERT_EQ(utils::Trim(target_source), source_code);
+  TestElementwiseAddPrecisionBasic(builder.Build(), "add_vectorize", M, N);
+}
+
 }  // namespace backends
 }  // namespace cinn

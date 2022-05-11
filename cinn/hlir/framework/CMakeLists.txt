@@ -13,6 +13,7 @@ gather_srcs(cinnapi_src SRCS
     pass.cc
     op_strategy.cc
     op_lowering.cc
+    visualize_helper.cc
     )
 
 if(WITH_CUDA)

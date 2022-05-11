@@ -84,7 +84,7 @@ void RunWithProgram(const Program& program,
   runtime_program->Execute();
 }
 
-TEST(TransposeFolding, FoldIntoDotBachedCase1) {
+TEST(TransposeFoldingInput, FoldIntoDotBachedCase1) {
   CinnBuilder builder("cinn_builder");
   auto x           = builder.CreateInput(Float(32), {4, 5, 3}, "X");
   auto y           = builder.CreateInput(Float(32), {4, 5, 6}, "Y");
@@ -102,7 +102,7 @@ TEST(TransposeFolding, FoldIntoDotBachedCase1) {
   VLOG(1) << "Program:\n" << program;
   RunWithProgram(program, target, scope);
   auto origin_out = GetTensorData(scope->GetTensor(out->id), target);
-  ProgramPass::Apply(&program, {}, target, {"TransposeFolding"});
+  ProgramPass::Apply(&program, {}, target, {"TransposeFoldingInput"});
   size_t folded_size = program.size();
   VLOG(1) << "Program:\n" << program;
   RunWithProgram(program, target, scope);
@@ -114,7 +114,7 @@ TEST(TransposeFolding, FoldIntoDotBachedCase1) {
   }
 }
 
-TEST(TransposeFolding, FoldIntoDotBachedCase2) {
+TEST(TransposeFoldingInput, FoldIntoDotBachedCase2) {
   CinnBuilder builder("cinn_builder");
   auto x           = builder.CreateInput(Float(32), {4, 3, 5}, "X");
   auto y           = builder.CreateInput(Float(32), {4, 6, 5}, "Y");
@@ -132,7 +132,7 @@ TEST(TransposeFolding, FoldIntoDotBachedCase2) {
   VLOG(1) << "Program:\n" << program;
   RunWithProgram(program, target, scope);
   auto origin_out = GetTensorData(scope->GetTensor(out->id), target);
-  ProgramPass::Apply(&program, {}, target, {"TransposeFolding"});
+  ProgramPass::Apply(&program, {}, target, {"TransposeFoldingInput"});
   size_t folded_size = program.size();
   VLOG(1) << "Program:\n" << program;
   RunWithProgram(program, target, scope);
@@ -144,7 +144,7 @@ TEST(TransposeFolding, FoldIntoDotBachedCase2) {
   }
 }
 
-TEST(TransposeFolding, FoldIntoDotBachedCase3) {
+TEST(TransposeFoldingInput, FoldIntoDotBachedCase3) {
   CinnBuilder builder("cinn_builder");
   auto x           = builder.CreateInput(Float(32), {4, 5, 3}, "X");
   auto y           = builder.CreateInput(Float(32), {4, 6, 5}, "Y");
@@ -163,7 +163,7 @@ TEST(TransposeFolding, FoldIntoDotBachedCase3) {
   VLOG(1) << "Program:\n" << program;
   RunWithProgram(program, target, scope);
   auto origin_out = GetTensorData(scope->GetTensor(out->id), target);
-  ProgramPass::Apply(&program, {}, target, {"TransposeFolding"});
+  ProgramPass::Apply(&program, {}, target, {"TransposeFoldingInput"});
   size_t folded_size = program.size();
   VLOG(1) << "Program:\n" << program;
   RunWithProgram(program, target, scope);
@@ -175,7 +175,7 @@ TEST(TransposeFolding, FoldIntoDotBachedCase3) {
   }
 }
 
-TEST(TransposeFolding, FoldIntoDotCase1) {
+TEST(TransposeFoldingInput, FoldIntoDotCase1) {
   CinnBuilder builder("cinn_builder");
   auto x           = builder.CreateInput(Float(32), {2, 3}, "X");
   auto y           = builder.CreateInput(Float(32), {2, 3}, "Y");
@@ -193,7 +193,7 @@ TEST(TransposeFolding, FoldIntoDotCase1) {
   VLOG(1) << "Program:\n" << program;
   RunWithProgram(program, target, scope);
   auto origin_out = GetTensorData(scope->GetTensor(out->id), target);
-  ProgramPass::Apply(&program, {}, target, {"TransposeFolding"});
+  ProgramPass::Apply(&program, {}, target, {"TransposeFoldingInput"});
   size_t folded_size = program.size();
   VLOG(1) << "Program:\n" << program;
   RunWithProgram(program, target, scope);
@@ -205,7 +205,7 @@ TEST(TransposeFolding, FoldIntoDotCase1) {
   }
 }
 
-TEST(TransposeFolding, FoldIntoDotCase2) {
+TEST(TransposeFoldingInput, FoldIntoDotCase2) {
   NetBuilder builder("net_builder");
   auto a             = builder.FillConstant<float>({2, 20}, 2.0f, "A");
   auto b             = builder.Transpose(a, {1, 0});
@@ -228,7 +228,7 @@ TEST(TransposeFolding, FoldIntoDotCase2) {
   SetRandData(before_scope->GetTensor("Z"), target);
   RunWithProgram(program, target, before_scope);
   auto origin_out = GetTensorData(before_scope->GetTensor(out->id), target);
-  ProgramPass::Apply(&program, {}, target, {"TransposeFolding"});
+  ProgramPass::Apply(&program, {}, target, {"TransposeFoldingInput"});
   size_t folded_size = program.size();
   VLOG(1) << "Program:\n" << program;
   auto after_scope = hlir::framework::BuildScope(target, graph);
@@ -245,7 +245,7 @@ TEST(TransposeFolding, FoldIntoDotCase2) {
   }
 }
 
-TEST(TransposeFolding, TransposeOutInFetchIds) {
+TEST(TransposeFoldingInput, TransposeOutInFetchIds) {
   CinnBuilder builder("cinn_builder");
   auto x           = builder.CreateInput(Float(32), {2, 3}, "X");
   auto y           = builder.CreateInput(Float(32), {2, 3}, "Y");
@@ -263,7 +263,7 @@ TEST(TransposeFolding, TransposeOutInFetchIds) {
   VLOG(1) << "Program:\n" << program;
   RunWithProgram(program, target, scope);
   auto origin_out = GetTensorData(scope->GetTensor(out->id), target);
-  ProgramPass::Apply(&program, {transpose_y->id}, target, {"TransposeFolding"});
+  ProgramPass::Apply(&program, {transpose_y->id}, target, {"TransposeFoldingInput"});
   size_t folded_size = program.size();
   VLOG(1) << "Program:\n" << program;
   RunWithProgram(program, target, scope);
@@ -275,7 +275,7 @@ TEST(TransposeFolding, TransposeOutInFetchIds) {
   }
 }
 
-TEST(TransposeFolding, TransposeOutUsedByOtherInstrs) {
+TEST(TransposeFoldingInput, TransposeOutUsedByOtherInstrs) {
   CinnBuilder builder("cinn_builder");
   auto x           = builder.CreateInput(Float(32), {2, 2}, "X");
   auto y           = builder.CreateInput(Float(32), {2, 2}, "Y");
@@ -294,7 +294,7 @@ TEST(TransposeFolding, TransposeOutUsedByOtherInstrs) {
   VLOG(1) << "Program:\n" << program;
   RunWithProgram(program, target, scope);
   auto origin_out = GetTensorData(scope->GetTensor(out->id), target);
-  ProgramPass::Apply(&program, {}, target, {"TransposeFolding"});
+  ProgramPass::Apply(&program, {}, target, {"TransposeFoldingInput"});
   size_t folded_size = program.size();
   VLOG(1) << "Program:\n" << program;
   RunWithProgram(program, target, scope);
@@ -306,7 +306,7 @@ TEST(TransposeFolding, TransposeOutUsedByOtherInstrs) {
   }
 }
 
-TEST(TransposeFolding, TransposeTwiceWithMatmul) {
+TEST(TransposeFoldingInput, TransposeTwiceWithMatmul) {
   CinnBuilder builder("cinn_builder");
   auto x = builder.CreateInput(Float(32), {2, 20}, "X");
   auto y = builder.CreateInput(Float(32), {10201, 20}, "Y");
@@ -342,7 +342,7 @@ TEST(TransposeFolding, TransposeTwiceWithMatmul) {
   auto origin_out1 = GetTensorData(scope->GetTensor(dot1->id), target);
   auto origin_out2 = GetTensorData(scope->GetTensor(dot2->id), target);
 
-  ProgramPass::Apply(&program, {}, target, {"TransposeFolding"});
+  ProgramPass::Apply(&program, {}, target, {"TransposeFoldingInput"});
   size_t folded_size = program.size();
   VLOG(1) << "Program:\n" << program;
   // The program after transpose folding pass should be:

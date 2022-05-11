@@ -193,6 +193,9 @@ class FusionMergePassHelper : public FusionHelperBase {
   void HorizontalFuse(GroupList& consumers) {
     // create fusion group
     auto fused_group = std::make_shared<Graph::Group>();
+    // As recompute exist which may case sub-group used by more than one time.
+    std::vector<GroupPtr> repeat_sub_groups;
+    std::unordered_set<GroupPtr, Hasher, Comparator> sub_group_set;
     // fuse all group into fusion group.
     for (auto consumer : consumers) {
       VLOG(3) << "fuse consumer " << consumer->group_id << " into fused_group!";
@@ -233,6 +236,16 @@ class FusionMergePassHelper : public FusionHelperBase {
       // insert sub group
       if (consumer->fused_sub_groups.size()) {
         for (auto& sub_group : consumer->fused_sub_groups) {
+          // check sub group is repeat.
+          if (sub_group_set.count(sub_group)) {
+            VLOG(3) << sub_group->group_id << " is repeated!";
+            repeat_sub_groups.push_back(sub_group);
+            continue;
+          }
+          // record sub group
+          sub_group_set.insert(sub_group);
+
+          // insert to fused sub group.
           fused_group->fused_sub_groups.push_back(sub_group);
           // update belongs group
           sub_group->belong_groups.erase(consumer);
@@ -259,7 +272,19 @@ class FusionMergePassHelper : public FusionHelperBase {
       consumer->belong_groups.insert(fused_group);
     }
 
-    for (auto consumer : consumers) {
+    // if node is output nodes of sub_group, check it can't be internal node.
+    for (auto& sub_group : repeat_sub_groups) {
+      // check each output node in sub_group.
+      for (auto& node : sub_group->output_nodes) {
+        // if node is not output node of fused_group.
+        if (!fused_group->output_nodes.count(node)) {
+          fused_group->internal_nodes.insert(node);
+        }
+      }
+    }
+
+    // update master node for lowering
+    for (auto& consumer : consumers) {
       // group is elementwise/broadcast/injective
       if (consumer->op_pattern_kind == framework::kElemWise || consumer->op_pattern_kind == framework::kBroadcast ||
           consumer->op_pattern_kind == framework::kInjective) {
@@ -319,7 +344,7 @@ class FusionMergePassHelper : public FusionHelperBase {
     }
 
     if (fusionable_consumers.size() > 1) {
-      RecomputeWithCostModel(producer, fusionable_consumers);
+      RecomputeWithCostModel(producer, consumers, fusionable_consumers);
     }
 
     // if fusionable consumers exist
@@ -493,12 +518,52 @@ class FusionMergePassHelper : public FusionHelperBase {
   }
 
   void RecomputeWithCostModel(const GroupPtr& producer,
+                              const std::unordered_set<GroupPtr, Hasher, Comparator>& consumers,
                               std::unordered_set<GroupPtr, Hasher, Comparator>& fusionable_consumers) {
     if (producer->op_pattern_kind == framework::kCommReduce) {
       auto consumer = *fusionable_consumers.begin();
       fusionable_consumers.clear();
       fusionable_consumers.insert(consumer);
       return;
+    }
+    // This step is try to remove broadcast with vertical relation.
+    // vertical relation means producer'output shape < consumer's output shape.
+    // if not all consumers is fusionable, remove broadcast with vertical relation.
+    // elif all consumers is fusionable but not allvertical relation, remove broadcast with vertical relation.
+    // else all consumers is fusionable with vertical relation, do nothing.
+    {
+      bool check_broadcast = consumers.size() > fusionable_consumers.size();
+      if (!check_broadcast) {
+        for (auto& consumer : fusionable_consumers) {
+          // consumer is not broadcast, check_broadcast.
+          if (consumer->op_pattern_kind != framework::kBroadcast) {
+            check_broadcast = true;
+            break;
+          } else {
+            // consumer is broadcast.
+            auto output_var_0 = this->GetNodeDataShape(*producer->master_nodes.begin());
+            auto output_var_1 = this->GetNodeDataShape(*consumer->master_nodes.begin());
+            // but comsumer is not vertical relation, check_broadcast.
+            if (output_var_0 == output_var_1) {
+              check_broadcast = true;
+              break;
+            }
+          }
+        }
+      }
+      if (check_broadcast) {
+        for (auto& consumer : consumers) {
+          // consumer is broadcast and fusionable.
+          if (fusionable_consumers.count(consumer) && consumer->op_pattern_kind == framework::kBroadcast) {
+            auto output_var_0 = this->GetNodeDataShape(*producer->master_nodes.begin());
+            auto output_var_1 = this->GetNodeDataShape(*consumer->master_nodes.begin());
+            // vertical relation, remove.
+            if (output_var_0 != output_var_1) {
+              fusionable_consumers.erase(consumer);
+            }
+          }
+        }
+      }
     }
   }
 
@@ -603,6 +668,12 @@ class FusionMergePassHelper : public FusionHelperBase {
       if (is_same_shape(first, second)) {
         return true;
       }
+      // if first's output is not all in second's input
+      for (auto output : first->output_nodes) {
+        if (!second->input_nodes.count(output)) {
+          return false;
+        }
+      }
       // 1.compute io-size
       // 2.compute computation-size
       // 3.compute recompute-times
@@ -630,93 +701,41 @@ class FusionMergePassHelper : public FusionHelperBase {
       auto input_shape = shape_dict_.at(reducer->inlinks_in_order()[0]->source()->id());
       auto reduce_axes = absl::get<std::vector<int>>(reducer->attrs.attr_store.at("dim"));
 
-      int loop_times      = 1;
-      bool check_bound    = true;
       int max_num_threads = target_.max_num_threads();
-      int max_loop_timme  = max_num_threads >> 2;  // set max loop times as 256.
       // if without last dimension in reduce.
+      int lane = 1;
       if (WithoutLastDimInReduce(input_shape, reduce_axes)) {
-        int index = reduce_axes.size() - 1;
-        for (; index > 0;) {
-          if (reduce_axes[index] - 1 == reduce_axes[index - 1]) {
-            --index;
-            continue;
-          }
+        for (int idx = reduce_axes.back() + 1; idx < input_shape.size(); ++idx) {
+          lane *= input_shape[idx];
+        }
+        if (lane > max_num_threads / 2) {
+          return true;
+        }
+      }
+
+      int index = reduce_axes.size() - 1;
+      for (; index >= 0; --index) {
+        if (index + 1 < reduce_axes.size() && reduce_axes[index] + 1 != reduce_axes[index + 1]) {
           break;
         }
-        int parallel_threads = 1;
-        for (int idx = reduce_axes.back() + 1; idx < input_shape.size(); ++idx) {
-          parallel_threads *= input_shape[idx];
+        lane *= input_shape[reduce_axes[index]];
+        if (lane > max_num_threads / 2) {
+          break;
         }
+      }
 
-        std::vector<int> tmp_axes;
-        for (int idx = reduce_axes.size() - 1; idx > index; --idx) {
-          if (parallel_threads * input_shape[reduce_axes[idx]] > max_num_threads) {
-            tmp_axes = {reduce_axes.begin(), reduce_axes.begin() + idx + 1};
-            break;
-          }
-          parallel_threads *= input_shape[reduce_axes[idx]];
-        }
-
-        if (tmp_axes.size() == 0) {
-          tmp_axes = {reduce_axes.begin(), reduce_axes.begin() + index + 1};
-        }
-
-        for (int idx = 0; idx < tmp_axes.size() - 1; ++idx) {
-          loop_times *= input_shape[tmp_axes[idx]];
-        }
-
-        int last_stride = input_shape[tmp_axes.back()];
-        for (int idx = max_num_threads / parallel_threads; idx > (max_num_threads / 2) / parallel_threads; --idx) {
-          if (last_stride % idx == 0) {
-            loop_times *= (last_stride / idx);
-            check_bound = false;
-          }
-        }
+      if (lane <= max_num_threads) {
+        return true;
       } else {
-        int parallel_threads = input_shape[reduce_axes.back()];
-        int index            = reduce_axes.size() - 2;
-        for (; index >= 0; --index) {
-          if (parallel_threads >= max_num_threads / 2) {
-            break;
-          }
-          if (reduce_axes[index] != reduce_axes[index + 1] - 1) {
-            break;
-          }
-          parallel_threads *= input_shape[reduce_axes[index]];
-        }
-        std::vector<int> first_axes(reduce_axes.begin(), reduce_axes.begin() + index + 1);
-        std::vector<int> second_axes(reduce_axes.begin() + index + 1, reduce_axes.end());
-        for (int axis : first_axes) {
-          loop_times *= input_shape[axis];
-        }
-        if (parallel_threads <= max_num_threads) {
-          check_bound = false;
-        } else if (second_axes.size() == 1) {
-          for (int idx = max_num_threads; idx >= max_num_threads / 2; --idx) {
-            if (parallel_threads % idx == 0) {
-              loop_times *= parallel_threads / idx;
-              check_bound = false;
-              break;
-            }
-          }
-        } else {
-          int head = input_shape[second_axes.front()];
-          int tail = parallel_threads / head;
-          for (int idx = max_num_threads / tail; idx > (max_num_threads / 2) / tail; --idx) {
-            if (head % idx == 0) {
-              loop_times *= (head / idx);
-              check_bound = false;
-              break;
-            }
+        int prefix = input_shape[reduce_axes[index]];
+        int tail   = lane / prefix;
+        for (int idx = max_num_threads / tail; idx > (max_num_threads / 2) / tail; --idx) {
+          if (prefix % idx == 0) {
+            return true;
           }
         }
       }
-
-      if (check_bound) {
-        return false;
-      }
-      return true;
+      return false;
     };
     auto broadcast_fuse_reduce = [this, elementwise_fuse_reduce](const GroupPtr& first,
                                                                  const GroupPtr& second) -> bool {

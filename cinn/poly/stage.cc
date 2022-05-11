@@ -706,6 +706,12 @@ void Stage::SimpleComputeAt(Stage *other, int level) {
 
   CHECK(relation.IsCompatible(this));
   compute_ats_[other->id()] = relation;
+  auto other_expr           = other->expr();
+  auto find_tensors         = ir::CollectIRNodesWithoutTensor(
+      other_expr, [&](const Expr *x) { return x->as_tensor() && x->as_tensor_ref()->name == tensor()->name; });
+  if (!find_tensors.empty()) {
+    for (int i = 0; i <= level; i++) AddForloopInfo(i, StageForloopInfo{ir::ForType::Default, DeviceAPI::UNK, 0});
+  }
 }
 
 std::tuple<Iterator, Iterator> Stage::Skew(const Iterator &i, const Iterator &j, int factor) {
