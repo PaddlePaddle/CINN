@@ -38,10 +38,6 @@ class DeadCodeEliminatePass : public ProgramPass {
       return;
     }
 
-    CinnBuilder builder("dead_code_eliminate_builder");
-    for (auto& var : program->GetInputs()) {
-      builder.CreateInput(var);
-    }
     std::unordered_set<std::string> inputs;
     std::unordered_set<int> remove_idxs;
     for (int i = program->size() - 1; i >= 0; --i) {
@@ -62,7 +58,16 @@ class DeadCodeEliminatePass : public ProgramPass {
         }
       }
     }
+
     VLOG(3) << "Total remove " << remove_idxs.size() << " instructions.";
+    if (remove_idxs.size() == 0) {
+      return;
+    }
+
+    CinnBuilder builder("dead_code_eliminate_builder");
+    for (auto& var : program->GetInputs()) {
+      builder.CreateInput(var);
+    }
     for (int i = 0; i < program->size(); i++) {
       if (!remove_idxs.count(i)) {
         builder.AppendInstruction((*program)[i]);

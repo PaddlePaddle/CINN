@@ -44,6 +44,12 @@ class ReshapeRewriterPass : public ProgramPass {
                  const common::Target& target) override {
     CollectInfo(*program, fetch_ids);
 
+    VLOG(3) << "Total remove " << remove_idxs_.size() << " instructions; replace " << replace_idxs_.size()
+            << " instructions (reshape -> identity).";
+    if (remove_idxs_.size() == 0 && replace_idxs_.size() == 0) {
+      return;
+    }
+
     CinnBuilder builder("reshape_rewritter_builder");
     for (auto& var : program->GetInputs()) {
       builder.CreateInput(var);

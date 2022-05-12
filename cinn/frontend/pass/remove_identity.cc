@@ -51,14 +51,16 @@ class RemoveIdentityPass : public ProgramPass {
                  const common::Target& target) override {
     CollectInfo(*program, fetch_ids);
 
-    VLOG(5) << "origin program: " << *program;
+    VLOG(5) << "Origin program: " << *program;
+    VLOG(3) << "Total remove " << remove_idxs_.size() << " instructions.";
+    if (remove_idxs_.size() == 0) {
+      return;
+    }
 
     CinnBuilder builder("remove_identity_builder");
     for (auto& var : program->GetInputs()) {
       builder.CreateInput(var);
     }
-
-    VLOG(3) << "Total remove " << remove_idxs_.size() << " instructions.";
     for (int i = 0; i < program->size(); ++i) {
       if (remove_idxs_.count(i)) {
         continue;
@@ -78,8 +80,7 @@ class RemoveIdentityPass : public ProgramPass {
       builder.AppendInstruction((*program)[i]);
     }
     *program = builder.Build();
-
-    VLOG(5) << "new program: " << *program;
+    VLOG(5) << "Optimized program: " << *program;
   }
 
  private:
