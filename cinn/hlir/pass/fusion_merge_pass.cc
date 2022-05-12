@@ -343,7 +343,7 @@ class FusionMergePassHelper : public FusionHelperBase {
       fusionable_consumers.insert(consumer);
     }
 
-    if (fusionable_consumers.size() > 1) {
+    if (fusionable_consumers.size()) {
       RecomputeWithCostModel(producer, consumers, fusionable_consumers);
     }
 
