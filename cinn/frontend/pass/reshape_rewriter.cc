@@ -26,14 +26,14 @@ namespace pass {
 
 // ReshapeRewriterPass simplify instructions in following patterns:
 //
-// 1. Change reshape to identity, if the shape of input and output is the same. The identity can be removed by
-// RemoveIdentityPass.
-// 2. Simplify fill_constant + reshape to a single fill_constant, if varA/varB is not in fetch_ids.
+// 1. Simplify fill_constant + reshape to a single fill_constant, if varA/varB is not in fetch_ids.
 //        fill_constant              fill_constant
 //              | varA                     |
 //           reshape           =>          | varA/varB
 //              | varB                     |
 //            instrX                     instrX
+// 2. Change reshape to identity, if the shape of input and output is the same. The identity can be removed by
+// RemoveIdentityPass.
 class ReshapeRewriterPass : public ProgramPass {
  public:
   using ProgramPass::ProgramPass;
@@ -42,7 +42,7 @@ class ReshapeRewriterPass : public ProgramPass {
   void ApplyImpl(Program* program,
                  const std::unordered_set<std::string>& fetch_ids,
                  const common::Target& target) override {
-    CollectInfo(*program, fetch_ids);
+    CollectRemoveOrReplaceInstrInfo(*program, fetch_ids);
 
     VLOG(3) << "Total remove " << remove_idxs_.size() << " instructions; replace " << replace_idxs_.size()
             << " instructions (reshape -> identity).";
@@ -74,14 +74,12 @@ class ReshapeRewriterPass : public ProgramPass {
       }
     }
     *program = builder.Build();
+
+    Clear();
   }
 
  private:
-  void CollectInfo(const Program& program, const std::unordered_set<std::string>& fetch_ids) {
-    replace_idxs_.clear();
-    remove_idxs_.clear();
-    outputs2instr_.clear();
-
+  void CollectRemoveOrReplaceInstrInfo(const Program& program, const std::unordered_set<std::string>& fetch_ids) {
     std::unordered_map<_Variable_*, int> var_used_count;
     for (int i = 0; i < program.size(); ++i) {
       auto& instr = program[i];
@@ -119,10 +117,17 @@ class ReshapeRewriterPass : public ProgramPass {
         }
       }
       if (!matched && (input_var->id != output_var->id) && (input_var->shape == output_var->shape)) {
+        // Replace the reshape with the same input and output shape to identity.
         VLOG(3) << "Replace the " << i << "-th instruction to identity: " << instr;
         replace_idxs_.insert(i);
       }
     }
+  }
+
+  void Clear() {
+    replace_idxs_.clear();
+    remove_idxs_.clear();
+    outputs2instr_.clear();
   }
 
   std::unordered_set<int> replace_idxs_;

@@ -81,13 +81,12 @@ class RemoveIdentityPass : public ProgramPass {
     }
     *program = builder.Build();
     VLOG(5) << "Optimized program: " << *program;
+
+    Clear();
   }
 
  private:
   void CollectInfo(const Program& program, const std::unordered_set<std::string>& fetch_ids) {
-    remove_idxs_.clear();
-    origin2new_.clear();
-
     std::unordered_set<std::string> feed_ids;
     for (auto& var : program.GetInputs()) {
       feed_ids.insert(var->id);
@@ -148,6 +147,11 @@ class RemoveIdentityPass : public ProgramPass {
       return true;
     }
     return false;
+  }
+
+  void Clear() {
+    remove_idxs_.clear();
+    origin2new_.clear();
   }
 
   std::unordered_set<int> remove_idxs_;
