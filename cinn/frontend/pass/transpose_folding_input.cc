@@ -32,7 +32,7 @@ class TransposeFoldingInputPass : public TransposeFoldingBase {
   using TransposeFoldingBase::TransposeFoldingBase;
 
  protected:
-  void set_target_instrs() { TransposeFoldingBase::target_instrs_ = {"matmul"}; }
+  void set_target_instrs() override { TransposeFoldingBase::target_instrs_ = {"matmul"}; }
 
   // Rules that transpose can be folded into matmul:
   //   1) input operand of dot must be transpose;
