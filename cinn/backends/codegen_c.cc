@@ -495,10 +495,6 @@ void CodeGenC::Visit(const ir::Let *op) {
     // broadcast's type is hard to print, so use c++11 auto instead.
     os() << "auto";
     is_vec = true;
-  } else if (op->type().is_customized() &&
-             utils::Startswith(op->type().customized_type(), common::customized_type::kcuda_builtin_vector_t)) {
-    is_vec = true;
-    os() << GetTypeRepr(op->type());
   } else {
     os() << GetTypeRepr(op->type());
   }
