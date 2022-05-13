@@ -120,7 +120,7 @@ class TransposeCollapsingPass : public ProgramPass {
     // the transpose op should not remove
     std::unordered_set<Instruction*> visited_instrs;
     for (auto transpose : all_transpose) {
-      if (visited_instrs.count(transpose)) {
+      if (("transpose" != (*transpose)->op_type) || visited_instrs.count(transpose)) {
         // the transpose op had been fused, skip
         continue;
       }
@@ -169,27 +169,49 @@ class TransposeCollapsingPass : public ProgramPass {
         << "The transpose's axis size should equal with input variable's shape size, but the transpose of ["
         << input->id << "] not ! Please check.";
 
+    bool can_remove = !fetch_ids.count(output_name);
+
     if (CheckTransposeBorder(transpose, in2instr)) {
-      VLOG(4) << "The transpose op {input[" << input_name << "], output[" << output_name << "], axis["
-              << cinn::utils::Join(axis, ",") << "]} is a output op of graph, connot fuse, skip.";
+      if (can_remove) {
+        VLOG(4) << "The transpose op {input[" << input_name << "], output[" << output_name << "], axis["
+                << cinn::utils::Join(axis, ",") << "]} is a output op of graph, connot fuse, remove.";
+        // this transpose not used by any other op, remove
+        remove_instrs->insert(transpose);
+      } else {
+        if (CheckTransposeUseless(axis)) {
+          VLOG(4) << "The transpose op {input[" << input_name << "], output[" << output_name << "], axis["
+                  << cinn::utils::Join(axis, ",") << "]} is fetched but useless, replace with identity.";
+          // cannot remove, however, the transpsoe is useless, we can replace the transpose with indentiy for more
+          // fusion opportunity
+          ReplaceWithIdentity(transpose);
+        }
+        // else the transpsoe is fetched and helpful, ignore
+      }
       return;
     }
 
     // CheckTransposeBorder ensure `output_name` existed in `in2instr`
     const auto& out_instrs = in2instr.at(output_name);
-    if (CheckTransposeUseless(axis) && !fetch_ids.count(output_name)) {
-      VLOG(4) << "The transpose op {input[" << input_name << "], output[" << output_name << "], axis["
-              << cinn::utils::Join(axis, ",") << "]} is useless, remove.";
-      for (auto instr : out_instrs) {
-        // replace the input to transpose's input
-        ReplaceInputVariable(instr, output_name, input);
-      }
-      remove_instrs->insert(transpose);
+    if (CheckTransposeUseless(axis)) {
+      if (!can_remove) {
+        VLOG(4) << "The transpose op {input[" << input_name << "], output[" << output_name << "], axis["
+                << cinn::utils::Join(axis, ",") << "]} is useless but fetched, replace with identity.";
+        // cannot remove, but we can replace the transpose with indentiy for more fusion opportunity
+        ReplaceWithIdentity(transpose);
+      } else {
+        VLOG(4) << "The transpose op {input[" << input_name << "], output[" << output_name << "], axis["
+                << cinn::utils::Join(axis, ",") << "]} is useless, remove.";
+        for (auto instr : out_instrs) {
+          // replace the input to transpose's input
+          ReplaceInputVariable(instr, output_name, input);
+        }
+        remove_instrs->insert(transpose);
 
-      for (auto instr : out_instrs) {
-        if ("transpose" == (*instr)->op_type) {
-          // if the next instruction is transpose op, continue fuse
-          TryFuseTranspose(instr, fetch_ids, in2instr, remove_instrs, visited_instrs);
+        for (auto instr : out_instrs) {
+          if ("transpose" == (*instr)->op_type) {
+            // if the next instruction is transpose op, continue fuse
+            TryFuseTranspose(instr, fetch_ids, in2instr, remove_instrs, visited_instrs);
+          }
         }
       }
       return;
@@ -201,7 +223,6 @@ class TransposeCollapsingPass : public ProgramPass {
       return;
     }
 
-    bool can_remove = true;
     std::unordered_set<Instruction*> next_fused_instrs;
 
     for (auto instr : out_instrs) {
@@ -229,7 +250,7 @@ class TransposeCollapsingPass : public ProgramPass {
       next_fused_instrs.insert(fused_transpose);
     }
 
-    if (can_remove && !fetch_ids.count(output_name)) {
+    if (can_remove) {
       VLOG(4) << "Remove transpose of {input[" << input_name << "], output[" << output_name << "], axis ["
               << cinn::utils::Join(axis, ",") << "]}.";
       remove_instrs->insert(transpose);
@@ -282,6 +303,13 @@ class TransposeCollapsingPass : public ProgramPass {
     }
   }
 
+  Instruction* ReplaceWithIdentity(Instruction* op) const {
+    (*op)->op_type = "identity";
+    (*op)->attrs.clear();
+    (*op)->attrs_ordered.clear();
+    return op;
+  }
+
   // compute the fused axis of `old_axis` and `new_axis`, like [0, 2, 1] + [2, 1, 0] = [1, 2, 0]
   ShapeType FuseTransposeAxis(const ShapeType& old_axis, const ShapeType& new_axis) const {
     CHECK_EQ(old_axis.size(), new_axis.size())
@@ -309,7 +337,7 @@ class TransposeCollapsingPass : public ProgramPass {
                                   std::unordered_set<Instruction*>* remove_instrs) const {
     std::unordered_map<TransposeKey, Variable*, TransposeKey::Hash> first_transpose_map;
     for (auto transpose : all_transpose) {
-      if (remove_instrs->count(transpose)) {
+      if (("transpose" != (*transpose)->op_type) || remove_instrs->count(transpose)) {
         continue;
       }
 
