@@ -2128,11 +2128,10 @@ void CudaScheduleInjectiveWithVectorize(poly::Stage *stage,
 
   // the first bind position from tail
   int bind_idx = stage->n_out_dims() - 1;
-  // vectorize on the last dim, it will add a new dim by split but the new dim will
-  // be eleminated when vectorizng, so the bind_idx does't need to change
+  // it will add a new dim by split before vectorize, but the new dim will
+  // be eleminated when vectorizng, so the bind_idx does't need to increase
   if (vector_width > 1) {
-    stage->Split(stage->n_out_dims() - 1, vector_width);
-    stage->Vectorize(stage->n_out_dims() - 1, vector_width);
+    stage->Split(bind_idx, vector_width);
   }
   VLOG(5) << "vectorize result:" << range_str_fn();
 
@@ -2144,6 +2143,10 @@ void CudaScheduleInjectiveWithVectorize(poly::Stage *stage,
   while (bind_idx > 0 && stage->GetDimRange(bind_idx - 1) * stage->GetDimRange(bind_idx) < num_thread) {
     stage->Fuse(bind_idx - 1, bind_idx);
     --bind_idx;
+  }
+  // call vectorize on the last dim
+  if (vector_width > 1) {
+    stage->Vectorize(stage->n_out_dims() - 1, vector_width);
   }
   stage->Bind(bind_idx, "threadIdx.x");
   --bind_idx;
