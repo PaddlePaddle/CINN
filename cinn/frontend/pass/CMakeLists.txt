@@ -8,6 +8,8 @@ gather_srcs(cinnapi_src SRCS
     transpose_folding_output.cc
     gemm_rewriter.cc
     fill_constant_folding.cc
+    pattern.cc
+    dot_merger.cc
     )
 
 
@@ -18,3 +20,5 @@ cc_test(test_transpose_folding_input_pass SRCS transpose_folding_input_test.cc D
 cc_test(test_gemm_rewriter_pass SRCS gemm_rewriter_test.cc DEPS cinncore)
 cc_test(test_transpose_folding_output_pass SRCS transpose_folding_output_test.cc DEPS cinncore)
 cc_test(test_fill_constant_folding_pass SRCS fill_constant_folding_test.cc DEPS cinncore)
+cc_test(test_pattern SRCS pattern_test.cc DEPS cinncore)
+cc_test(test_dot_merger_pass SRCS dot_merger_test.cc DEPS cinncore)

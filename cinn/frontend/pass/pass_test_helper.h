@@ -174,7 +174,7 @@ void CompareResult(Program* program,
                    const common::Target& target,
                    const std::vector<std::string>& input_ids,
                    const std::vector<std::string>& output_ids,
-                   size_t size_diff,
+                   int size_diff,
                    const std::pair<std::vector<std::string>, std::vector<std::string>>& passes,
                    int seed          = -1,
                    bool print_tensor = false) {
