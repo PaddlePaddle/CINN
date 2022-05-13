@@ -67,7 +67,7 @@ class TransposeCollapsingPass : public ProgramPass {
   void ApplyImpl(Program* program,
                  const std::unordered_set<std::string>& fetch_ids,
                  const common::Target& target) const override {
-    VLOG(4) << "Run TransposeCollapsingPass";
+    VLOG(3) << "-- Before TransposeCollapsingPass:\n" << *program;
     // `out2instr` is used to represent the mapping of Output to Instruction.
     OutputToOpMap out2instr;
     // `in2instr` is used to represent the mapping of Input to Instruction.
@@ -109,6 +109,7 @@ class TransposeCollapsingPass : public ProgramPass {
       }
     }
     *program = builder.Build();
+    VLOG(3) << "-- After TransposeCollapsingPass:\n" << *program;
   }
 
  private:
@@ -229,6 +230,8 @@ class TransposeCollapsingPass : public ProgramPass {
       if ("transpose" != (*instr)->op_type) {
         // the transpose was used by other non-transpose op, cannot remove, skip
         can_remove = false;
+        VLOG(4) << "Fuse transpose of {input[" << input_name << "], output[" << output_name << "], axis ["
+                << cinn::utils::Join(axis, ",") << "]} was used by " << (*instr)->op_type << ", cannot remove.";
         continue;
       }
 
@@ -239,13 +242,14 @@ class TransposeCollapsingPass : public ProgramPass {
       //  2   | [2, 1, 0] | [1, 2, 0]
       // so we can fuse tranpose([0, 2, 1]) and tranpose([2, 1, 0]) into tranpose([1, 2, 0])
       const auto& fused_axis = FuseTransposeAxis(axis, next_axis);
-      auto fused_transpose   = FuseTransposeImpl(transpose, instr, fused_axis);
 
       VLOG(4) << "Fuse transpose of {input[" << input_name << "], output[" << output_name << "], axis ["
               << cinn::utils::Join(axis, ",") << "]} and transpose of {input[" << (*instr)->inputs.front()->id
               << "], output[" << (*instr)->outputs.front()->id << "], axis [" << cinn::utils::Join(next_axis, ",")
               << "]} into transpose of {input[" << input_name << "], output[" << (*instr)->outputs.front()->id
               << "], axis[" << cinn::utils::Join(fused_axis, ",") << "]}.";
+
+      auto fused_transpose = FuseTransposeImpl(transpose, instr, fused_axis);
 
       next_fused_instrs.insert(fused_transpose);
     }
