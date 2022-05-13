@@ -367,4 +367,47 @@ TEST(TransposeFoldingInput, TransposeTwiceWithMatmul) {
   }
 }
 
+TEST(TransposeFoldingInput, TransposeWithMultiMamtul) {
+  CinnBuilder builder("cinn_builder");
+  auto x           = builder.CreateInput(Float(32), {2, 2}, "X");
+  auto y           = builder.CreateInput(Float(32), {2, 2}, "Y");
+  auto transpose_y = builder.Transpose(y, {1, 0});
+  auto dot1        = builder.Dot(x, transpose_y);
+  auto dot2        = builder.Dot(transpose_y, x);
+  auto out         = builder.Add(dot1, dot2);
+  auto program     = builder.Build();
+  auto target      = GetTarget();
+  auto graph       = std::make_shared<hlir::framework::Graph>(program, target);
+  auto scope       = hlir::framework::BuildScope(target, graph);
+  scope->Var<hlir::framework::Tensor>("X");
+  scope->Var<hlir::framework::Tensor>("Y");
+  SetRandData(scope->GetTensor("X"), target);
+  SetRandData(scope->GetTensor("Y"), target);
+  size_t origin_size = program.size();
+  VLOG(1) << "Program:\n" << program;
+  // Program {
+  //   var_60 = transpose(Y, axis=[1,0])
+  //   var_61 = matmul(X, var_60)
+  //   var_62 = matmul(var_60, X)
+  //   var_63 = elementwise_add(var_61, var_62)
+  // }
+  RunWithProgram(program, target, scope);
+  auto origin_out = GetTensorData(scope->GetTensor(out->id), target);
+  ProgramPass::Apply(&program, {}, target, {"TransposeFoldingInput"});
+  size_t folded_size = program.size();
+  VLOG(1) << "Program:\n" << program;
+  // Program {
+  //   var_61 = matmul(X, Y, trans_b=true)
+  //   var_62 = matmul(Y, X, trans_a=true)
+  //   var_63 = elementwise_add(var_61, var_62)
+  // }
+  RunWithProgram(program, target, scope);
+  auto folded_out = GetTensorData(scope->GetTensor(out->id), target);
+  ASSERT_EQ(origin_size, folded_size + 1);
+  ASSERT_EQ(origin_out.size(), folded_out.size());
+  for (size_t i = 0; i < origin_out.size(); ++i) {
+    ASSERT_FLOAT_EQ(origin_out[i], folded_out[i]);
+  }
+}
+
 }  // namespace cinn::frontend
