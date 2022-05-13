@@ -30,7 +30,7 @@
 #include "cinn/poly/isl_utils.h"
 #include "cinn/utils/string.h"
 
-DECLARE_bool(cinn_use_gpu_vectorize);
+DECLARE_bool(cinn_use_cuda_vectorize);
 namespace cinn {
 namespace hlir {
 namespace pe {
@@ -2103,22 +2103,19 @@ int gcd(int a, int b) {
 void CudaScheduleInjectiveWithVectorize(poly::Stage *stage,
                                         const std::vector<int> &output_shape,
                                         const common::Target &target) {
-  CHECK_EQ(stage->n_out_dims(), stage->n_in_dims()) << "The dims of op are not equal";
-  LOG(INFO) << "CudaScheduleInjectiveWithVectorize on tensor:" << stage->tensor()->name;
-
-  int dims         = stage->n_out_dims();
-  int prod_size    = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int>());
-  int num_thread   = target.max_num_threads();
+  int dims       = stage->n_out_dims();
+  int prod_size  = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int>());
+  int num_thread = target.max_num_threads();
+  int last_shape = stage->GetDimRange(stage->n_out_dims() - 1);
+  // determine the factor of vectorize
   int vector_width = 1;
-  int last_shape   = output_shape.back();
   if (last_shape % 4 == 0) {
     vector_width = 4;
   } else if (last_shape % 2 == 0) {
     vector_width = 2;
   }
-  if (!FLAGS_cinn_use_gpu_vectorize) {
-    vector_width = 1;
-  }
+
+  // print range of stage for debug
   auto range_str_fn = [stage]() {
     std::vector<int> dim_ranges;
     for (int i = 0; i < stage->n_out_dims(); ++i) {
@@ -2128,19 +2125,17 @@ void CudaScheduleInjectiveWithVectorize(poly::Stage *stage,
     return res;
   };
 
-  if (vector_width > 1) {
-    while (stage->n_out_dims() > 1 && (stage->GetDimRange(stage->n_out_dims() - 1) % vector_width) != 0) {
-      stage->Fuse(stage->n_out_dims() - 2, stage->n_out_dims() - 1);
-    }
-    stage->Split(stage->n_out_dims() - 1, vector_width);
-  }
-  VLOG(5) << "vectorize factorize result:" << range_str_fn();
-
-  // Bind from last 2
+  // the first bind position from tail
   int bind_idx = stage->n_out_dims() - 1;
-  if (vector_width > 1) --bind_idx;
+  // vectorize on the last dim, it will add a new dim by split but the new dim will
+  // be eleminated when vectorizng, so the bind_idx does't need to change
+  if (vector_width > 1) {
+    stage->Split(stage->n_out_dims() - 1, vector_width);
+    stage->Vectorize(stage->n_out_dims() - 1, vector_width);
+  }
+  VLOG(5) << "vectorize result:" << range_str_fn();
 
-  // thread revise
+  // revise dim for binding threadIdx.x, here only use the x of threadIdx
   if (stage->GetDimRange(bind_idx) > num_thread) {
     stage->Split(bind_idx, gcd(stage->GetDimRange(bind_idx), num_thread));
     ++bind_idx;
@@ -2149,34 +2144,33 @@ void CudaScheduleInjectiveWithVectorize(poly::Stage *stage,
     stage->Fuse(bind_idx - 1, bind_idx);
     --bind_idx;
   }
-  VLOG(5) << "thread revise result:" << range_str_fn() << ", bind_idx:" << bind_idx;
-
-  // vectorize on the last 1
-  if (vector_width > 1) {
-    stage->Vectorize(stage->n_out_dims() - 1, vector_width);
-  }
-
   stage->Bind(bind_idx, "threadIdx.x");
   --bind_idx;
-  std::string block_idx_str = "blockIdx.x";
-  for (int j = 0; bind_idx >= 0; ++j) {
-    block_idx_str.back() = 'x' + j;
-    VLOG(5) << "block bind offset:" << block_idx_str;
-    stage->Bind(bind_idx, block_idx_str);
+  VLOG(5) << "bind threadIdx.x result:" << range_str_fn();
+
+  // revise dim for binding blockIdx, at most 3 indexes can be used
+  while (bind_idx > 2) {
+    stage->Fuse(bind_idx - 1, bind_idx);
     --bind_idx;
   }
-
-  LOG(INFO) << "GPU vectorizing, tensor:" << stage->tensor()->name << ", factor:" << vector_width
-            << ", prod_size:" << prod_size << ", shape:[" << utils::Join(output_shape, ",") << "]"
-            << ", range:" << range_str_fn();
+  std::string block_idx = "blockIdx.x";
+  for (int j = 0; bind_idx >= 0; ++j) {
+    block_idx.back() = 'x' + j;
+    stage->Bind(bind_idx, block_idx);
+    --bind_idx;
+  }
+  VLOG(5) << "CudaScheduleInjectiveWithVectorize tensor:" << stage->tensor()->name << ", vector_width:" << vector_width
+          << ", prod_size:" << prod_size << ", shape:[" << utils::Join(output_shape, ",") << "]"
+          << ", range:" << range_str_fn();
 }
 
 void CudaScheduleInjective(poly::Stage *stage, const std::vector<int> &output_shape, const common::Target &target) {
-  if (FLAGS_cinn_use_gpu_vectorize) {
+  CHECK_EQ(stage->n_out_dims(), stage->n_in_dims()) << "The dims of op are not equal";
+  if (FLAGS_cinn_use_cuda_vectorize) {
     CudaScheduleInjectiveWithVectorize(stage, output_shape, target);
     return;
   }
-  CHECK_EQ(stage->n_out_dims(), stage->n_in_dims()) << "The dims of op are not equal";
+
   int dims = stage->n_out_dims();
   for (int i = 1; i < dims; i++) {
     stage->Fuse(0, 1);
