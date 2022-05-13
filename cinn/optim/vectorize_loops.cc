@@ -71,8 +71,9 @@ class TensorVectorizeTeller : public ir::IRMutator<const Expr *> {
   }
 
  private:
-  const Var iter_var_;
+  const Var iter_var_;  // loop var of new for-loop split from the vectorized loop
   const absl::flat_hash_map<std::string, common::CasInterval> *var_intervals_;
+  // save (tensor name) -> (bool flag) to indentify whether tensors can be vectorized or not
   std::unordered_map<std::string, bool> tensor2flag_;
 
   void Visit(const ir::Store *expr, const Expr *op) override {
@@ -166,6 +167,7 @@ class CudaVectorizer : public IRMutator<Expr *> {
         << "The maximum lanes of valid CUDA vector types: " << CudaVectorTypeMaxLanes << ", but factor: " << factor;
   }
 
+  // return all cast statements collected through vectorizing
   std::vector<Expr> VectorizedTypeCastExprs() { return vectorized_cast_exprs_; }
 
   void Visit(Expr *expr) {

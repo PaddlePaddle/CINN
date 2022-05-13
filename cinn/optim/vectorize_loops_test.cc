@@ -267,7 +267,7 @@ function matmul (_A, _B, _C)
   ASSERT_EQ(Trim(target_expr), Trim(GetStreamCnt(func)));
 }
 
-TEST(Vectorize, constant) {
+TEST(Vectorize, cuda_vectorize_with_constant) {
   Expr M(100);
   Expr N(500);
   Placeholder<float> A("A", {M, N});
@@ -279,7 +279,7 @@ TEST(Vectorize, constant) {
   auto stages = CreateStages({C});
   stages[C]->Vectorize(1, 4);
   Target target = common::DefaultNVGPUTarget();
-  auto func     = Lower("matmul", stages, {A, C}, {}, {}, nullptr, target);
+  auto func     = Lower("mul_const", stages, {A, C}, {}, {}, nullptr, target);
 }
 
 }  // namespace optim

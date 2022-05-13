@@ -94,7 +94,8 @@ std::vector<Expr> CodeGenCUDA_Dev::GenerateBufferAliasExprs(const ir::_LoweredFu
 }
 
 void CodeGenCUDA_Dev::Visit(const ir::_LoweredFunc_ *op) {
-  vectorized_names_.clear();
+  // clear names valid within scope when enter a new function
+  vectorized_tensor_names_.clear();
   os() << "__global__\n";
 
   PrintFunctionDeclaration(op);
@@ -313,12 +314,15 @@ void CodeGenCUDA_Dev::Visit(const ir::Call *op) {
 
 void CodeGenCUDA_Dev::Visit(const ir::Let *op) {
   CHECK(op->type().valid());
+
+  // identify vectorized tensors by checking their dtypes are customized_type
+  // with customized_type::kcuda_builtin_vector_t prefix, and save their names
   if (op->type().is_customized() &&
       utils::Startswith(op->type().customized_type(), common::customized_type::kcuda_builtin_vector_t)) {
     os() << GetTypeRepr(op->type());
     os() << " ";
     Print(op->symbol);
-    vectorized_names_.insert(utils::GetStreamCnt(op->symbol));
+    vectorized_tensor_names_.insert(utils::GetStreamCnt(op->symbol));
     os() << " = ";
     Print(op->body);
   } else {
@@ -329,30 +333,25 @@ void CodeGenCUDA_Dev::Visit(const ir::Let *op) {
 bool CodeGenCUDA_Dev::PrintBuiltinVectorAccess(const ir::LoadStoreAddrMnger *op, ir::Expr index_expr) {
   static constexpr char index2suffix[4] = {'x', 'y', 'z', 'w'};
 
-  // op should be a place of tensor and the index is simple int number
+  // addr of op should be a place of tensor and the index is simple int number
   if (!op->is_addr_tensor() || !index_expr.As<ir::IntImm>()) {
     return false;
   }
   auto *tensor = op->tensor.As<ir::_Tensor_>();
   CHECK(tensor);
-  auto dtype = tensor->type();
-  if (!vectorized_names_.count(tensor->name)) {
+
+  // identify vectorized tensors by their names
+  if (!vectorized_tensor_names_.count(tensor->name)) {
     return false;
   }
-  // dtype of tensor shoule be a cuda built-in vector type
-  // if (!dtype.is_customized() ||
-  //    !utils::Startswith(dtype.customized_type(), common::customized_type::kcuda_builtin_vector_t)) {
-  //  return false;
-  //}
 
-  // the index can't exceed the range of the built-in type
+  // the index can't exceed the range of cuda built-in vector type
   int index = index_expr.As<ir::IntImm>()->value;
-  // if (index < 0 || index >= dtype.lanes()) {
   if (index < 0 || index >= 4) {
     return false;
   }
 
-  os() << tensor->name << (dtype.is_cpp_handle() ? "->" : ".") << index2suffix[index];
+  os() << tensor->name << (tensor->type().is_cpp_handle() ? "->" : ".") << index2suffix[index];
   return true;
 }
 

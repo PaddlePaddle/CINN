@@ -103,7 +103,9 @@ class CodeGenCUDA_Dev : public CodeGenC {
  private:
   Target target_;
   bool for_nvrtc_{false};
-  std::unordered_set<std::string> vectorized_names_;
+  // names of vectorized tensors from `Let` statments where dtypes of the tensors
+  // are customized_type with customized_type::kcuda_builtin_vector_t prefix
+  std::unordered_set<std::string> vectorized_tensor_names_;
 };
 
 }  // namespace backends
