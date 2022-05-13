@@ -28,6 +28,8 @@ namespace cinn {
 namespace backends {
 using ir::Module;
 
+static constexpr int DebugLogMaxLen = 30000;
+
 void Compiler::Build(const Module& module, const std::string& code, void* stream) {
   if (target_.arch == Target::Arch::NVGPU) {
     CompileCudaModule(module, code, stream);
@@ -77,7 +79,14 @@ void Compiler::CompileCudaModule(const Module& module, const std::string& code, 
     CodeGenCUDA_Dev codegen(target_);
     auto source_code = codegen.Compile(device_module);
     if (!code.empty()) source_code = code;
-    VLOG(3) << "[CUDA] source code:\n" << source_code;
+    if (source_code.size() > DebugLogMaxLen) {
+      VLOG(3) << "[CUDA] source code-0:\n" << source_code.substr(0, DebugLogMaxLen);
+      for (int i = 1; i * DebugLogMaxLen < source_code.size(); ++i) {
+        VLOG(3) << "[CUDA] source code-" << i << ":\n" << source_code.substr(DebugLogMaxLen * i, DebugLogMaxLen);
+      }
+    } else {
+      VLOG(3) << "[CUDA] source code:\n" << source_code;
+    }
     using runtime::cuda::CUDAModule;
 
     backends::NVRTC_Compiler compiler;
