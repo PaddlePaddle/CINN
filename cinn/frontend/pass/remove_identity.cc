@@ -49,9 +49,10 @@ class RemoveIdentityPass : public ProgramPass {
   void ApplyImpl(Program* program,
                  const std::unordered_set<std::string>& fetch_ids,
                  const common::Target& target) override {
-    CollectInfo(*program, fetch_ids);
-
     VLOG(5) << "Origin program: " << *program;
+
+    CollectIdentityInstrInfo(*program);
+    FindRemoveIdentityInstr(*program, fetch_ids);
     VLOG(3) << "Total remove " << remove_idxs_.size() << " instructions.";
     if (remove_idxs_.size() == 0) {
       return;
@@ -86,11 +87,16 @@ class RemoveIdentityPass : public ProgramPass {
   }
 
  private:
-  void CollectInfo(const Program& program, const std::unordered_set<std::string>& fetch_ids) {
-    std::unordered_set<std::string> feed_ids;
-    for (auto& var : program.GetInputs()) {
-      feed_ids.insert(var->id);
+  void CollectIdentityInstrInfo(const Program& program) {
+    std::unordered_map<_Variable_*, Instruction> outputs2instr;
+    for (int i = 0; i < program.size(); ++i) {
+      auto& instr = program[i];
+      for (auto& var : instr->outputs) {
+        outputs2instr.emplace(var.get(), instr);
+      }
     }
+
+    std::unordered_map<_Instruction_*, int> identity_instr_idx;
     for (int i = 0; i < program.size(); ++i) {
       const auto& instr = program[i];
       if (instr->op_type != "identity") {
@@ -99,32 +105,81 @@ class RemoveIdentityPass : public ProgramPass {
       CHECK_EQ(instr->inputs.size(), 1) << "identity should have only 1 input.";
       CHECK_EQ(instr->outputs.size(), 1) << "identity should have only 1 output.";
 
-      auto& input_var             = instr->inputs[0];
-      auto& output_var            = instr->outputs[0];
-      bool can_input_var_removed  = !feed_ids.count(input_var->id) && !fetch_ids.count(input_var->id);
-      bool can_output_var_removed = !fetch_ids.count(output_var->id);
-      if (can_input_var_removed || can_output_var_removed) {
-        bool updated = false;
-        if (can_input_var_removed) {
-          updated = UpdateOrigin2New(input_var, output_var);
-        }
-        if (!updated && can_output_var_removed) {
-          updated = UpdateOrigin2New(output_var, input_var);
-        }
-        if (updated) {
-          VLOG(3) << "Remove the " << i << "-th instruction: " << instr;
-          remove_idxs_.insert(i);
+      // Record the index of all identity instructions.
+      identity_instr_idx.emplace(instr.get(), i);
+
+      auto& input_var = instr->inputs[0];
+      auto iter       = outputs2instr.find(input_var.get());
+      bool inserted   = false;
+      // Whether input_var is the output of another instruction.
+      if (iter != outputs2instr.end()) {
+        auto& prev_instr = iter->second;
+        if (prev_instr->op_type == "identity") {
+          // There are multiple continuous identity instructions, insert the current identity instruction to an existing
+          // set.
+          for (auto& group : identity_instr_groups_) {
+            if (group.count(identity_instr_idx[prev_instr.get()])) {
+              group.insert(i);
+              inserted = true;
+              break;
+            }
+          }
+          CHECK(inserted) << "The previous identity instruction has not be inserted to the identity groups";
         }
       }
+      if (!inserted) {
+        // Add a new identity group.
+        identity_instr_groups_.push_back(std::set<int>{i});
+      }
+    }
+  }
+
+  void FindRemoveIdentityInstr(const Program& program, const std::unordered_set<std::string>& fetch_ids) {
+    std::unordered_set<std::string> feed_ids;
+    for (auto& var : program.GetInputs()) {
+      feed_ids.insert(var->id);
     }
 
-    for (auto& v : origin2new_) {
-      const auto& reserved_var = v.second;
-      auto iter                = origin2new_.find(reserved_var.get());
-      if (iter != origin2new_.end()) {
-        VLOG(4) << "Update " << v.first->id << " -> " << reserved_var->id << " to " << v.first->id << " -> "
-                << iter->second->id;
-        origin2new_[v.first] = iter->second;
+    auto can_var_removed = [&](const Variable& var) { return !feed_ids.count(var->id) && !fetch_ids.count(var->id); };
+
+    for (auto& group : identity_instr_groups_) {
+      int i = 0;
+      Variable first_input_var;
+      std::vector<Variable> cannot_remove_vars;
+      for (int instr_idx : group) {
+        auto& instr = program[instr_idx];
+        if (i == 0) {
+          first_input_var = instr->inputs[0];
+          if (!can_var_removed(instr->inputs[0])) {
+            cannot_remove_vars.emplace_back(instr->inputs[0]);
+          }
+        }
+        if (!can_var_removed(instr->outputs[0])) {
+          cannot_remove_vars.emplace_back(instr->outputs[0]);
+        }
+        i++;
+      }
+
+      if (cannot_remove_vars.size() <= 1) {
+        auto& reserved_var = cannot_remove_vars.size() == 1 ? cannot_remove_vars[0] : first_input_var;
+        for (auto& instr_idx : group) {
+          AddRemovedInstr(program, reserved_var, instr_idx);
+        }
+      } else {
+        int j                      = 0;
+        int num_cannot_remove_vars = cannot_remove_vars.size();
+        for (auto& instr_idx : group) {
+          auto& instr = program[instr_idx];
+          // Reserve the front cannot_remove_vars.size - 1 identity instructions.
+          if (j < num_cannot_remove_vars - 1) {
+            origin2new_.emplace(instr->inputs[0].get(), cannot_remove_vars[j]);
+            origin2new_.emplace(instr->outputs[0].get(), cannot_remove_vars[j + 1]);
+          } else {
+            Variable reserved_var = cannot_remove_vars[num_cannot_remove_vars - 1];
+            AddRemovedInstr(program, reserved_var, instr_idx);
+          }
+          j++;
+        }
       }
     }
 
@@ -135,27 +190,27 @@ class RemoveIdentityPass : public ProgramPass {
     VLOG(4) << "}";
   }
 
-  bool UpdateOrigin2New(const Variable& origin, const Variable& new_var) {
-    if (!origin2new_.count(origin.get())) {
-      if (origin2new_.count(new_var.get())) {
-        VLOG(4) << "Add " << origin->id << " -> " << origin2new_[new_var.get()]->id;
-        origin2new_.emplace(origin.get(), origin2new_[new_var.get()]);
-      } else {
-        VLOG(4) << "Add " << origin->id << " -> " << new_var->id;
-        origin2new_.emplace(origin.get(), new_var);
+  void AddRemovedInstr(const Program& program, const Variable& reserved_var, int instr_idx) {
+    auto& instr = program[instr_idx];
+    VLOG(3) << "Remove the " << instr_idx << "-th instruction: " << instr;
+    remove_idxs_.insert(instr_idx);
+
+    for (auto& var : std::vector<Variable>{instr->inputs[0], instr->outputs[0]}) {
+      if (var->id != reserved_var->id) {
+        origin2new_.emplace(var.get(), reserved_var);
       }
-      return true;
     }
-    return false;
   }
 
   void Clear() {
     remove_idxs_.clear();
     origin2new_.clear();
+    identity_instr_groups_.clear();
   }
 
   std::unordered_set<int> remove_idxs_;
   std::unordered_map<_Variable_*, Variable> origin2new_;
+  std::vector<std::set<int>> identity_instr_groups_;
 };
 
 }  // namespace pass

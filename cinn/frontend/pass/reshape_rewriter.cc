@@ -59,11 +59,11 @@ class ReshapeRewriterPass : public ProgramPass {
       const auto& instr = (*program)[i];
       if (remove_idxs_.count(i)) {
         // Change the attr shape of the previous fill_constant.
-        auto iter         = outputs2instr_.find(instr->inputs[0].get());
-        auto& input_instr = iter->second;
-        CHECK(input_instr->op_type == "fill_constant") << "The previous op's type is not fill_constant, please check.";
-        input_instr->outputs[0]     = instr->outputs[0];
-        input_instr->attrs["shape"] = instr->outputs[0]->shape;
+        auto iter        = outputs2instr_.find(instr->inputs[0].get());
+        auto& prev_instr = iter->second;
+        CHECK(prev_instr->op_type == "fill_constant") << "The previous op's type is not fill_constant, please check.";
+        prev_instr->outputs[0]     = instr->outputs[0];
+        prev_instr->attrs["shape"] = instr->outputs[0]->shape;
       } else {
         if (replace_idxs_.count(i)) {
           instr->op_type = "identity";
@@ -104,19 +104,20 @@ class ReshapeRewriterPass : public ProgramPass {
 
       bool matched = false;
       auto iter    = outputs2instr_.find(input_var.get());
+      // Whether input_var is the output of another instruction.
       if (iter != outputs2instr_.end()) {
-        auto& input_instr = iter->second;
+        auto& prev_instr = iter->second;
         // Match the pattern is fill_constant -> reshape
         // reshape should be the only output instruction of fill_constant, and the output variable of fill_constant
         // cannot be in the fetch_ids.
-        if (input_instr->op_type == "fill_constant" && var_used_count[input_var.get()] == 1 &&
+        if (prev_instr->op_type == "fill_constant" && var_used_count[input_var.get()] == 1 &&
             !fetch_ids.count(input_var->id)) {
           matched = true;
           remove_idxs_.insert(i);
           VLOG(3) << "Remove the " << i << "-th instruction: " << instr;
         }
       }
-      if (!matched && (input_var->id != output_var->id) && (input_var->shape == output_var->shape)) {
+      if (!matched && (input_var->shape == output_var->shape)) {
         // Replace the reshape with the same input and output shape to identity.
         VLOG(3) << "Replace the " << i << "-th instruction to identity: " << instr;
         replace_idxs_.insert(i);
