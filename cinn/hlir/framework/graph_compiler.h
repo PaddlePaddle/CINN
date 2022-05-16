@@ -60,7 +60,7 @@ class Program {
    */
   void Execute(const std::map<std::string, cinn_pod_value_t>* name2podargs = nullptr,
                void* stream                                                = nullptr,
-               bool use_cache                                              = false);
+               bool use_cache                                              = true);
 
   void ExecuteTest(int repeat_);
 

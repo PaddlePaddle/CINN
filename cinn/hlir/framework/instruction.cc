@@ -23,7 +23,7 @@ namespace hlir {
 namespace framework {
 
 void Instruction::UpdateArgsCache(const std::map<std::string, cinn_pod_value_t>* name2podargs) {
-  int cache_size = std::max(1, size());
+  int cache_size = size();
   args_cached_.resize(cache_size);
 
   for (int i = 0; i < cache_size; ++i) {
@@ -81,7 +81,7 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
 
   VLOG(2) << "Run function " << function_name_;
 
-  if (!use_cache || args_cached_.size() != std::max(1, size())) {
+  if (!use_cache || args_cached_.size() != size()) {
     UpdateArgsCache(name2podargs);
   }
 

@@ -74,7 +74,7 @@ class Instruction {
   void Run(const std::map<std::string, cinn_pod_value_t>* name2podargs = nullptr,
            bool dryrun                                                 = false,
            void* stream                                                = nullptr,
-           bool use_cache                                              = false);
+           bool use_cache                                              = true);
 
   void PreRun(const std::map<std::string, cinn_pod_value_t>* name2podargs = nullptr) {
     CHECK_EQ(fn_.size(), 4);

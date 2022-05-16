@@ -139,7 +139,7 @@ TEST(Instruction, RunWithRawPodArgs) {
   };
 
   // run with a arguments map passed
-  instr.Run(&name2podargs);
+  instr.Run(&name2podargs, false, nullptr, false);
   // check instruction run correctly
   check_equal_by_element();
 
@@ -152,7 +152,7 @@ TEST(Instruction, RunWithRawPodArgs) {
     auto&& tensor = scope.GetTensor(name);
     name2podargs.emplace(name, tensor->buffer());
   }
-  instr.Run(&name2podargs);
+  instr.Run(&name2podargs, false, nullptr, false);
   // check instruction run correctly
   check_equal_by_element();
 }
