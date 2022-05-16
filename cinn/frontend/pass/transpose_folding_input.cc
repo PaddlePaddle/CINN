@@ -71,10 +71,16 @@ class TransposeFoldingInputPass : public TransposeFoldingBase {
           CHECK(in2instr.find(transpose_out_name) != in2instr.end())
               << "The var [" << transpose_out_name
               << "] should be someone op's input, but couldn't found ! Please check.";
-          CHECK(in2instr.at(transpose_out_name).count(dot))
-              << "The var [" << transpose_out_name << "] should be matmul's input, but couldn't found ! Please check.";
+          const auto& out_instrs = in2instr.at(transpose_out_name);
+          CHECK(out_instrs.count(dot)) << "The var [" << transpose_out_name
+                                       << "] should be matmul's input, but couldn't found ! Please check.";
 
-          if (in2instr.at(transpose_out_name).size() == 1 && !fetch_ids.count(transpose_out_name)) {
+          bool can_remove = std::all_of(out_instrs.begin(), out_instrs.end(), [&](Instruction* instr) {
+            // the transpose had linked to not matmul op, cannot remove
+            return target_instrs_.find((*instr)->op_type) != target_instrs_.end();
+          });
+
+          if (can_remove && !fetch_ids.count(transpose_out_name)) {
             // the transpose is only link to matmul and its output is not in fetch_ids, should remove
             remove_instrs->insert(iter->second);
           }
