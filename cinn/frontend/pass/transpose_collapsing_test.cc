@@ -106,6 +106,8 @@ TEST(TransposeCollapsing, FuseTwoTranspose) {
   auto program = builder.Build();
   auto target  = GetTarget();
 
+  std::initializer_list<std::string> fetch_list = {out->id};
+
   size_t origin_size = program.size();
   VLOG(1) << "Program before pass:\n" << program;
   // Program {
@@ -113,16 +115,16 @@ TEST(TransposeCollapsing, FuseTwoTranspose) {
   //   var_1 = transpose(var_0, axis=[2,1,0])
   // }
 
-  auto origin_out = RunWithProgram(program, target, {"X"}, {out->id});
+  auto origin_out = RunWithProgram(program, target, {"X"}, fetch_list);
 
-  ProgramPass::Apply(&program, {}, target, {"TransposeCollapsing"});
+  ProgramPass::Apply(&program, fetch_list, target, {"TransposeCollapsing"});
   size_t folded_size = program.size();
   VLOG(1) << "Program after pass:\n" << program;
   // Program {
   //   var_1 = transpose(X, axis=[1,2,0])
   // }
 
-  auto folded_out = RunWithProgram(program, target, {"X"}, {out->id});
+  auto folded_out = RunWithProgram(program, target, {"X"}, fetch_list);
 
   ASSERT_EQ(origin_size, folded_size + 1);
   ASSERT_EQ(origin_out.size(), folded_out.size());
@@ -143,6 +145,8 @@ TEST(TransposeCollapsing, FuseThreeTranspose) {
   auto program = builder.Build();
   auto target  = GetTarget();
 
+  std::initializer_list<std::string> fetch_list = {out->id};
+
   size_t origin_size = program.size();
   VLOG(1) << "Program before pass:\n" << program;
   // Program {
@@ -151,16 +155,16 @@ TEST(TransposeCollapsing, FuseThreeTranspose) {
   //   var_6 = transpose(var_5, axis=[1,2,0])
   // }
 
-  auto origin_out = RunWithProgram(program, target, {"X"}, {out->id});
+  auto origin_out = RunWithProgram(program, target, {"X"}, fetch_list);
 
-  ProgramPass::Apply(&program, {}, target, {"TransposeCollapsing"});
+  ProgramPass::Apply(&program, fetch_list, target, {"TransposeCollapsing"});
   size_t folded_size = program.size();
   VLOG(1) << "Program after pass:\n" << program;
   // Program {
   //   var_6 = transpose(X, axis=[2,0,1])
   // }
 
-  auto folded_out = RunWithProgram(program, target, {"X"}, {out->id});
+  auto folded_out = RunWithProgram(program, target, {"X"}, fetch_list);
 
   ASSERT_EQ(origin_size, folded_size + 2);
   ASSERT_EQ(origin_out.size(), folded_out.size());
@@ -180,6 +184,8 @@ TEST(TransposeCollapsing, RemoveUselessTranspose) {
   auto program = builder.Build();
   auto target  = GetTarget();
 
+  std::initializer_list<std::string> fetch_list = {out->id};
+
   size_t origin_size = program.size();
   VLOG(1) << "Program before pass:\n" << program;
   // Program {
@@ -187,18 +193,55 @@ TEST(TransposeCollapsing, RemoveUselessTranspose) {
   //   var_10 = elementwise_add(X, var_9)
   // }
 
-  auto origin_out = RunWithProgram(program, target, {"X"}, {out->id});
+  auto origin_out = RunWithProgram(program, target, {"X"}, fetch_list);
 
-  ProgramPass::Apply(&program, {}, target, {"TransposeCollapsing"});
+  ProgramPass::Apply(&program, fetch_list, target, {"TransposeCollapsing"});
   size_t folded_size = program.size();
   VLOG(1) << "Program after pass:\n" << program;
   // Program {
   //   var_10 = elementwise_add(X, X)
   // }
 
-  auto folded_out = RunWithProgram(program, target, {"X"}, {out->id});
+  auto folded_out = RunWithProgram(program, target, {"X"}, fetch_list);
 
   ASSERT_EQ(origin_size, folded_size + 1);
+  ASSERT_EQ(origin_out.size(), folded_out.size());
+  for (size_t i = 0; i < origin_out.size(); ++i) {
+    ASSERT_EQ(origin_out[i].size(), folded_out[i].size());
+    for (size_t j = 0; j < origin_out[i].size(); ++j) {
+      ASSERT_FLOAT_EQ(origin_out[i][j], folded_out[i][j]);
+    }
+  }
+}
+
+TEST(TransposeCollapsing, ReplaceUselessTransposeWithIndentity) {
+  CinnBuilder builder("cinn_builder");
+  auto x       = builder.CreateInput(Float(32), {4, 5, 3}, "X");
+  auto out     = builder.Transpose(x, {0, 1, 2});
+  auto program = builder.Build();
+  auto target  = GetTarget();
+
+  std::initializer_list<std::string> fetch_list = {out->id};
+
+  size_t origin_size = program.size();
+  VLOG(1) << "Program before pass:\n" << program;
+  // Program {
+  //   var_9 = transpose(X, axis=[0,1,2])
+  //   var_10 = elementwise_add(X, var_9)
+  // }
+
+  auto origin_out = RunWithProgram(program, target, {"X"}, fetch_list);
+
+  ProgramPass::Apply(&program, fetch_list, target, {"TransposeCollapsing"});
+  size_t folded_size = program.size();
+  VLOG(1) << "Program after pass:\n" << program;
+  // Program {
+  //   var_10 = elementwise_add(X, X)
+  // }
+
+  auto folded_out = RunWithProgram(program, target, {"X"}, fetch_list);
+
+  ASSERT_EQ(origin_size, folded_size);
   ASSERT_EQ(origin_out.size(), folded_out.size());
   for (size_t i = 0; i < origin_out.size(); ++i) {
     ASSERT_EQ(origin_out[i].size(), folded_out[i].size());
@@ -218,6 +261,8 @@ TEST(TransposeCollapsing, FuseTransposeToUseless) {
   auto program = builder.Build();
   auto target  = GetTarget();
 
+  std::initializer_list<std::string> fetch_list = {out->id};
+
   size_t origin_size = program.size();
   VLOG(1) << "Program before pass:\n" << program;
   // Program {
@@ -227,9 +272,9 @@ TEST(TransposeCollapsing, FuseTransposeToUseless) {
   //   var_16 = elementwise_add(var_15, var_15)
   // }
 
-  auto origin_out = RunWithProgram(program, target, {"X"}, {out->id});
+  auto origin_out = RunWithProgram(program, target, {"X"}, fetch_list);
 
-  ProgramPass::Apply(&program, {}, target, {"TransposeCollapsing"});
+  ProgramPass::Apply(&program, fetch_list, target, {"TransposeCollapsing"});
   size_t folded_size = program.size();
   VLOG(1) << "Program after pass:\n" << program;
   // Program {
@@ -237,7 +282,7 @@ TEST(TransposeCollapsing, FuseTransposeToUseless) {
   //   var_16 = elementwise_add(var_15, var_15)
   // }
 
-  auto folded_out = RunWithProgram(program, target, {"X"}, {out->id});
+  auto folded_out = RunWithProgram(program, target, {"X"}, fetch_list);
 
   ASSERT_EQ(origin_size, folded_size + 2);
   ASSERT_EQ(origin_out.size(), folded_out.size());
@@ -261,6 +306,8 @@ TEST(TransposeCollapsing, FuseTransposeWithMultiOutput) {
   auto program = builder.Build();
   auto target  = GetTarget();
 
+  std::initializer_list<std::string> fetch_list = {out1->id, out2->id, out3->id};
+
   size_t origin_size = program.size();
   VLOG(1) << "Program before pass:\n" << program;
   // Program {
@@ -272,9 +319,9 @@ TEST(TransposeCollapsing, FuseTransposeWithMultiOutput) {
   //   var_23 = sqrt(var_20)
   // }
 
-  auto origin_out = RunWithProgram(program, target, {"X"}, {out1->id, out2->id, out3->id});
+  auto origin_out = RunWithProgram(program, target, {"X"}, fetch_list);
 
-  ProgramPass::Apply(&program, {}, target, {"TransposeCollapsing"});
+  ProgramPass::Apply(&program, fetch_list, target, {"TransposeCollapsing"});
   size_t folded_size = program.size();
   VLOG(1) << "Program after pass:\n" << program;
   // Program {
@@ -286,7 +333,7 @@ TEST(TransposeCollapsing, FuseTransposeWithMultiOutput) {
   //   var_23 = sqrt(var_20)
   // }
 
-  auto folded_out = RunWithProgram(program, target, {"X"}, {out1->id, out2->id, out3->id});
+  auto folded_out = RunWithProgram(program, target, {"X"}, fetch_list);
 
   ASSERT_EQ(origin_size, folded_size);
   ASSERT_EQ(origin_out.size(), folded_out.size());
@@ -310,6 +357,8 @@ TEST(TransposeCollapsing, FuseTwoSecTranspose) {
   auto program = builder.Build();
   auto target  = GetTarget();
 
+  std::initializer_list<std::string> fetch_list = {out1->id, out2->id};
+
   size_t origin_size = program.size();
   VLOG(1) << "Program before pass:\n" << program;
   // Program {
@@ -321,9 +370,9 @@ TEST(TransposeCollapsing, FuseTwoSecTranspose) {
   //   var_31 = sqrt(var_30)
   // }
 
-  auto origin_out = RunWithProgram(program, target, {"X"}, {out1->id, out2->id});
+  auto origin_out = RunWithProgram(program, target, {"X"}, fetch_list);
 
-  ProgramPass::Apply(&program, {}, target, {"TransposeCollapsing"});
+  ProgramPass::Apply(&program, fetch_list, target, {"TransposeCollapsing"});
   size_t folded_size = program.size();
   VLOG(1) << "Program after pass:\n" << program;
   // Program {
@@ -333,7 +382,7 @@ TEST(TransposeCollapsing, FuseTwoSecTranspose) {
   //   var_31 = sqrt(var_30)
   // }
 
-  auto folded_out = RunWithProgram(program, target, {"X"}, {out1->id, out2->id});
+  auto folded_out = RunWithProgram(program, target, {"X"}, fetch_list);
 
   ASSERT_EQ(origin_size, folded_size + 2);
   ASSERT_EQ(origin_out.size(), folded_out.size());
@@ -354,6 +403,8 @@ TEST(TransposeCollapsing, FuseTwoHorizontalTranspose) {
   auto program = builder.Build();
   auto target  = GetTarget();
 
+  std::initializer_list<std::string> fetch_list = {out->id};
+
   size_t origin_size = program.size();
   VLOG(1) << "Program before pass:\n" << program;
   // Program {
@@ -362,9 +413,9 @@ TEST(TransposeCollapsing, FuseTwoHorizontalTranspose) {
   //   var_37 = elementwise_add(var_35, var_36)
   // }
 
-  auto origin_out = RunWithProgram(program, target, {"X"}, {out->id});
+  auto origin_out = RunWithProgram(program, target, {"X"}, fetch_list);
 
-  ProgramPass::Apply(&program, {}, target, {"TransposeCollapsing"});
+  ProgramPass::Apply(&program, fetch_list, target, {"TransposeCollapsing"});
   size_t folded_size = program.size();
   VLOG(1) << "Program after pass:\n" << program;
   // Program {
@@ -372,7 +423,7 @@ TEST(TransposeCollapsing, FuseTwoHorizontalTranspose) {
   //   var_37 = elementwise_add(var_36, var_36)
   // }
 
-  auto folded_out = RunWithProgram(program, target, {"X"}, {out->id});
+  auto folded_out = RunWithProgram(program, target, {"X"}, fetch_list);
 
   ASSERT_EQ(origin_size, folded_size + 1);
   ASSERT_EQ(origin_out.size(), folded_out.size());
@@ -394,6 +445,8 @@ TEST(TransposeCollapsing, FuseVerAndHorTranspose) {
   auto program = builder.Build();
   auto target  = GetTarget();
 
+  std::initializer_list<std::string> fetch_list = {out->id};
+
   size_t origin_size = program.size();
   VLOG(1) << "Program before pass:\n" << program;
   // Program {
@@ -403,9 +456,9 @@ TEST(TransposeCollapsing, FuseVerAndHorTranspose) {
   //   var_43 = elementwise_add(var_41, var_42)
   // }
 
-  auto origin_out = RunWithProgram(program, target, {"X"}, {out->id});
+  auto origin_out = RunWithProgram(program, target, {"X"}, fetch_list);
 
-  ProgramPass::Apply(&program, {}, target, {"TransposeCollapsing"});
+  ProgramPass::Apply(&program, fetch_list, target, {"TransposeCollapsing"});
   size_t folded_size = program.size();
   VLOG(1) << "Program after pass:\n" << program;
   // Program {
@@ -413,7 +466,7 @@ TEST(TransposeCollapsing, FuseVerAndHorTranspose) {
   //   var_43 = elementwise_add(var_42, var_42)
   // }
 
-  auto folded_out = RunWithProgram(program, target, {"X"}, {out->id});
+  auto folded_out = RunWithProgram(program, target, {"X"}, fetch_list);
 
   ASSERT_EQ(origin_size, folded_size + 2);
   ASSERT_EQ(origin_out.size(), folded_out.size());
