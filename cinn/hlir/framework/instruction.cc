@@ -24,29 +24,30 @@ namespace framework {
 
 std::vector<cinn_pod_value_t>& Instruction::PreparePodArgs(
     int i, const std::map<std::string, cinn_pod_value_t>* name2podargs) {
-  if (args_cached_.size() > i)
+  auto cache_size = args_cached_.size();
+  if (cache_size > i) {
     return args_cached_[i];
-  else if (args_cached_.size() < i)
-    PreparePodArgs(i - 1, name2podargs);
+  }
+
   common::ArgsBuilder builder;
   // Remove duplicate input arguments
-  std::set<std::string> in_args_set;
+  std::unordered_set<std::string> in_args_set;
   std::vector<std::string> all_args;
-  for (auto& arg : in_args_[i]) {
+  for (const auto& arg : in_args_[cache_size]) {
     if (in_args_set.count(arg) != 0) continue;
     all_args.push_back(arg);
     in_args_set.insert(arg);
   }
 
-  all_args.insert(std::end(all_args), out_args_[i].begin(), out_args_[i].end());
+  all_args.insert(std::end(all_args), out_args_[cache_size].begin(), out_args_[cache_size].end());
 
   if (name2podargs != nullptr) {
-    for (auto& arg : all_args) {
+    for (const auto& arg : all_args) {
       CHECK_NE(name2podargs->count(arg), 0) << "Argument [" << arg << "] not found in the name2podargs";
       builder.Add(name2podargs->at(arg));
     }
   } else {
-    for (auto& arg : all_args) {
+    for (const auto& arg : all_args) {
       auto* var = scope_->FindVar(arg);
       CHECK(var) << "Argument [" << arg << "] not found in the scope";
 
@@ -57,8 +58,8 @@ std::vector<cinn_pod_value_t>& Instruction::PreparePodArgs(
   }
 
   args_cached_.emplace_back(builder.Build());
-  CHECK_GT(args_cached_.size(), i);
-  return args_cached_[i];
+  CHECK_GT(args_cached_.size(), cache_size);
+  return args_cached_[cache_size];
 }
 
 void Instruction::Finalize() {
