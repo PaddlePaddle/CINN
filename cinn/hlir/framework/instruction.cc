@@ -22,44 +22,41 @@ namespace cinn {
 namespace hlir {
 namespace framework {
 
-std::vector<cinn_pod_value_t>& Instruction::PreparePodArgs(
-    int i, const std::map<std::string, cinn_pod_value_t>* name2podargs) {
-  auto cache_size = args_cached_.size();
-  if (cache_size > i) {
-    return args_cached_[i];
-  }
+void Instruction::UpdateArgsCache(const std::map<std::string, cinn_pod_value_t>* name2podargs) {
+  int cache_size = std::max(1, size());
+  args_cached_.resize(cache_size);
 
-  common::ArgsBuilder builder;
-  // Remove duplicate input arguments
-  std::unordered_set<std::string> in_args_set;
-  std::vector<std::string> all_args;
-  for (const auto& arg : in_args_[cache_size]) {
-    if (in_args_set.count(arg) != 0) continue;
-    all_args.push_back(arg);
-    in_args_set.insert(arg);
-  }
-
-  all_args.insert(std::end(all_args), out_args_[cache_size].begin(), out_args_[cache_size].end());
-
-  if (name2podargs != nullptr) {
-    for (const auto& arg : all_args) {
-      CHECK_NE(name2podargs->count(arg), 0) << "Argument [" << arg << "] not found in the name2podargs";
-      builder.Add(name2podargs->at(arg));
+  for (int i = 0; i < cache_size; ++i) {
+    common::ArgsBuilder builder;
+    // Remove duplicate input arguments
+    std::unordered_set<std::string> in_args_set;
+    std::vector<std::string> all_args;
+    for (const auto& arg : in_args_[i]) {
+      if (in_args_set.count(arg) != 0) continue;
+      all_args.push_back(arg);
+      in_args_set.insert(arg);
     }
-  } else {
-    for (const auto& arg : all_args) {
-      auto* var = scope_->FindVar(arg);
-      CHECK(var) << "Argument [" << arg << "] not found in the scope";
 
-      // TODO(Superjomn) Support other types.
-      auto& tensor = absl::get<Tensor>(*var);
-      builder.Add(tensor->buffer());
+    all_args.insert(std::end(all_args), out_args_[i].begin(), out_args_[i].end());
+
+    if (name2podargs != nullptr) {
+      for (const auto& arg : all_args) {
+        CHECK_NE(name2podargs->count(arg), 0) << "Argument [" << arg << "] not found in the name2podargs";
+        builder.Add(name2podargs->at(arg));
+      }
+    } else {
+      for (const auto& arg : all_args) {
+        auto* var = scope_->FindVar(arg);
+        CHECK(var) << "Argument [" << arg << "] not found in the scope";
+
+        // TODO(Superjomn) Support other types.
+        auto& tensor = absl::get<Tensor>(*var);
+        builder.Add(tensor->buffer());
+      }
     }
-  }
 
-  args_cached_.emplace_back(builder.Build());
-  CHECK_GT(args_cached_.size(), cache_size);
-  return args_cached_[cache_size];
+    args_cached_[i] = builder.Build();
+  }
 }
 
 void Instruction::Finalize() {
@@ -72,7 +69,10 @@ void Instruction::Finalize() {
   finalized_flag_ = true;
 }
 
-void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podargs, bool dryrun, void* stream) {
+void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podargs,
+                      bool dryrun,
+                      void* stream,
+                      bool use_cache) {
   CHECK(finalized_flag_) << "Instruction must be finalized before run";
   if (function_name_ == "no_run") {
     VLOG(2) << "skip instruction";
@@ -81,18 +81,18 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
 
   VLOG(2) << "Run function " << function_name_;
 
-  if (name2podargs != nullptr) {
-    args_cached_.clear();
+  if (!use_cache || args_cached_.size() != std::max(1, size())) {
+    UpdateArgsCache(name2podargs);
   }
 
 #if defined(CINN_WITH_CUDA) && !defined(CINN_WITH_CUDNN)
   if (function_name_ == "cublas_gemm" && target_.arch == Target::Arch::NVGPU) {
-    auto& pod_args = PreparePodArgs(0, name2podargs);
+    auto& pod_args = args_cached_[0];
     VLOG(3) << "The pod_args size of cublas_gemm: " << pod_args.size();
     runtime::cuda::cinn_gpu_cublas_gemm(
         attrs, pod_args[0], pod_args[1], pod_args[2], pod_args[3], static_cast<cudaStream_t>(stream));
   } else if (function_name_ == "cublas_matmul" && target_.arch == Target::Arch::NVGPU) {
-    auto& pod_args = PreparePodArgs(0, name2podargs);
+    auto& pod_args = args_cached_[0];
     VLOG(3) << "The pod_args size of cublas_matmul: " << pod_args.size();
     runtime::cuda::cinn_gpu_cublas_gemm(
         attrs, pod_args[0], pod_args[1], nullptr, pod_args[2], static_cast<cudaStream_t>(stream));
@@ -101,7 +101,7 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
     VLOG(2) << "Runing extern function " << function_name_;
     for (auto& it_fn : fn_) {
       VLOG(6) << "Runing it_fn " << fn_names_[i];
-      auto& pod_args = PreparePodArgs(i, name2podargs);
+      auto& pod_args = args_cached_[i];
       CHECK(it_fn) << "The LoweredFunc address should be set first by calling SetLoweredFunc method";
       if (!dryrun) {
         it_fn(pod_args.data(), pod_args.size());
@@ -110,7 +110,7 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
     }
   }
 #elif defined(CINN_WITH_CUDNN)
-  auto& pod_args = PreparePodArgs(0, name2podargs);
+  auto& pod_args = args_cached_[0];
   // Here conv2d and depthwise_conv2d are implemented by one cudnn api cudnnConvolutionForward
   if ((function_name_ == "conv2d" || function_name_ == "depthwise_conv2d") && target_.arch == Target::Arch::NVGPU) {
     if (str_attrs[0] == "forward") {
@@ -162,7 +162,7 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
     runtime::cuda::cinn_gpu_cublas_gemm(
         attrs, pod_args[0], pod_args[1], pod_args[2], pod_args[3], static_cast<cudaStream_t>(stream));
   } else if (function_name_ == "cublas_matmul" && target_.arch == Target::Arch::NVGPU) {
-    auto& pod_args = PreparePodArgs(0, name2podargs);
+    auto& pod_args = args_cached_[0];
     VLOG(3) << "The pod_args size of cublas_matmul: " << pod_args.size();
     runtime::cuda::cinn_gpu_cublas_gemm(
         attrs, pod_args[0], pod_args[1], nullptr, pod_args[2], static_cast<cudaStream_t>(stream));
@@ -170,7 +170,7 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
     int i = 0;
     VLOG(2) << "Runing extern function " << function_name_;
     for (auto& it_fn : fn_) {
-      auto& pod_args = PreparePodArgs(i, name2podargs);
+      auto& pod_args = args_cached_[i];
       CHECK(it_fn) << "The LoweredFunc address should be set first by calling SetLoweredFunc method";
       if (!dryrun) {
         it_fn(pod_args.data(), pod_args.size());
@@ -183,7 +183,7 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
   CHECK_EQ(fn_names_.size(), fn_.size());
   VLOG(3) << "fn_ size is " << fn_.size() << ", function_name_ is : " << function_name_;
   for (auto& it_fn : fn_) {
-    auto& pod_args = PreparePodArgs(i, name2podargs);
+    auto& pod_args = args_cached_[i];
     CHECK(it_fn) << "The LoweredFunc address should be set first by calling SetLoweredFunc method";
     if (!dryrun) {
       it_fn(pod_args.data(), pod_args.size());
