@@ -28,19 +28,26 @@
 #include "cinn/hlir/pass/use_pass.h"
 
 DECLARE_bool(cinn_use_new_fusion_pass);
+DECLARE_bool(cinn_use_fill_constant_folding);
 
 namespace cinn {
 namespace frontend {
 
 OptimizeOptions DefaultTrainingOptimizeOptions() {
   OptimizeOptions options;
-  options.program_passes = {"Decomposer",
-                            "TransposeFoldingInput",
-                            "GemmRewriter",
-                            "TransposeFoldingOutput",
-                            "GemmRewriter",
-                            "RemoveIdentity",
-                            "FillConstantFolding"};
+  options.program_passes.emplace_back("Decomposer");
+  options.program_passes.emplace_back("TransposeCollapsing");
+  options.program_passes.emplace_back("TransposeFoldingInput");
+  options.program_passes.emplace_back("GemmRewriter");
+  options.program_passes.emplace_back("TransposeFoldingOutput");
+  options.program_passes.emplace_back("GemmRewriter");
+  options.program_passes.emplace_back("ReshapeRewriter");
+  if (FLAGS_cinn_use_fill_constant_folding) {
+    options.program_passes.emplace_back("FillConstantFolding");
+  }
+  options.program_passes.emplace_back("RemoveIdentity");
+  options.program_passes.emplace_back("DeadCodeEliminate");
+
   if (FLAGS_cinn_use_new_fusion_pass) {
     options.graph_passes = {"OpFusionPass", "FusionMergePass"};
   } else {

@@ -28,10 +28,20 @@ DEFINE_bool(cinn_cudnn_deterministic,
 using ::GFLAGS_NAMESPACE::BoolFromEnv;
 using ::GFLAGS_NAMESPACE::StringFromEnv;
 
+// FLAGS to switch optimization status
 DEFINE_bool(cinn_use_new_fusion_pass,
             BoolFromEnv("FLAGS_cinn_use_new_fusion_pass", false),
             "Whether use the new op_fusion and fusion_merge pass.");
 
+DEFINE_bool(cinn_use_fill_constant_folding,
+            BoolFromEnv("FLAGS_cinn_use_fill_constant_folding", false),
+            "Whether use the FillConstantFolding pass.");
+
+DEFINE_bool(cinn_use_cuda_vectorize,
+            BoolFromEnv("FLAGS_cinn_use_cuda_vectorize", false),
+            "Whether use cuda vectroize on schedule config");
+
+// FLAGS for performance analysis and accuracy debug
 DEFINE_bool(cinn_sync_run,
             BoolFromEnv("FLAGS_cinn_sync_run", false),
             "Whether sync all devices after each instruction run, which is used for debug.");

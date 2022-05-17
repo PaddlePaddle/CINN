@@ -267,5 +267,20 @@ function matmul (_A, _B, _C)
   ASSERT_EQ(Trim(target_expr), Trim(GetStreamCnt(func)));
 }
 
+TEST(Vectorize, cuda_vectorize_with_constant) {
+  Expr M(100);
+  Expr N(500);
+  Placeholder<float> A("A", {M, N});
+  Expr const_value(float(2.11));
+
+  Tensor C = Compute(
+      {M, N}, [&](Var i, Var j) { return const_value * A(i, j); }, "C");
+
+  auto stages = CreateStages({C});
+  stages[C]->Vectorize(1, 4);
+  Target target = common::DefaultNVGPUTarget();
+  auto func     = Lower("mul_const", stages, {A, C}, {}, {}, nullptr, target);
+}
+
 }  // namespace optim
 }  // namespace cinn
