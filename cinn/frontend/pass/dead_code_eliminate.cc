@@ -22,7 +22,7 @@ namespace cinn {
 namespace frontend {
 namespace pass {
 
-// Program maybe has some unused instructions. `DeadCodeEliminate` will remove
+// Program may have some unused instructions. `DeadCodeEliminate` will remove
 // these instructions. The way to find unused instructions is to traverse all
 // instructions to determine whether its output is used by other instructions in the
 // same subgraph or in the `fetch_ids`.
