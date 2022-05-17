@@ -200,9 +200,9 @@ void Program::Export(const std::vector<std::string>& persistent_vars, const std:
   fclose(f);
 }
 
-void Program::Execute(const std::map<std::string, cinn_pod_value_t>* name2podargs, void* stream) {
+void Program::Execute(const std::map<std::string, cinn_pod_value_t>* name2podargs, void* stream, bool use_cache) {
   for (auto& ins : instrs_) {
-    ins->Run(name2podargs, false, stream);
+    ins->Run(name2podargs, false, stream, use_cache);
   }
 #ifdef CINN_WITH_CUDA
   VLOG(4) << "-- The value of the used stream: " << stream;

@@ -58,7 +58,9 @@ class Program {
   /**
    * Execute the program -- that is running all the instructions inside it.
    */
-  void Execute(const std::map<std::string, cinn_pod_value_t>* name2podargs = nullptr, void* stream = nullptr);
+  void Execute(const std::map<std::string, cinn_pod_value_t>* name2podargs = nullptr,
+               void* stream                                                = nullptr,
+               bool use_cache                                              = true);
 
   void ExecuteTest(int repeat_);
 
