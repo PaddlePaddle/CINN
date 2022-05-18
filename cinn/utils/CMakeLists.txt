@@ -9,6 +9,7 @@ gather_srcs(cinnapi_src SRCS
   small_vector.cc
   string.cc
   timer.cc
+  profiler.cc
   )
 
 cc_test(test_string SRCS string_test.cc DEPS cinncore)
