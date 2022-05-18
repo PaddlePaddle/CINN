@@ -74,7 +74,7 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
                       bool dryrun,
                       void* stream,
                       bool use_cache) {
-  utils::RecordEvent record_run("Instruction::Run");
+  utils::RecordEvent record_run(function_name_ + "::Run");
   CHECK(finalized_flag_) << "Instruction must be finalized before run";
   if (function_name_ == "no_run") {
     VLOG(2) << "skip instruction";
