@@ -1,4 +1,6 @@
 cmake_minimum_required(VERSION 3.0)
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
 project(CINN)
 
 set(CMAKE_CXX_STANDARD 14)
@@ -73,6 +75,7 @@ include(cmake/external/glog.cmake)
 include(cmake/external/gtest.cmake)
 include(cmake/external/absl.cmake)
 include(cmake/nvrtc.cmake)
+include(cmake/nvtx.cmake)
 include(cmake/external/llvm.cmake)
 include(cmake/external/isl.cmake)
 include(cmake/external/ginac.cmake)
@@ -120,6 +123,9 @@ endif()
 
 if (WITH_CUDA)
   target_link_libraries(cinnapi ${CUDA_NVRTC_LIB} ${CUDA_LIBRARIES} ${CUDASTUB} ${CUBLAS} ${CUDNN})
+  if (NVTX_FOUND)
+    target_link_libraries(cinnapi ${CUDA_NVTX_LIB})
+  endif()
 endif()
 
 function(gen_cinncore LINKTYPE)
@@ -145,6 +151,9 @@ function(gen_cinncore LINKTYPE)
 
   if (WITH_CUDA)
     target_link_libraries(${CINNCORE_TARGET} ${CUDA_NVRTC_LIB} ${CUDA_LIBRARIES} ${CUDASTUB} ${CUBLAS} ${CUDNN})
+    if (NVTX_FOUND)
+      target_link_libraries(${CINNCORE_TARGET} ${CUDA_NVTX_LIB})
+    endif()
   endif()
 endfunction()
 

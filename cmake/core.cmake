@@ -154,6 +154,9 @@ function(nv_test TARGET_NAME)
     target_link_libraries(${TARGET_NAME} Threads::Threads ${CUDA_NVRTC_LIB} ${CUDA_LIBRARIES} ${CUDA_cudart_static_LIBRARY}
       ${CUDA_TOOLKIT_ROOT_DIR}/lib64/stubs/libcuda.so
       )
+    if (NVTX_FOUND)
+      target_link_libraries(${TARGET_NAME} ${CUDA_NVTX_LIB})
+    endif()
     remove_gflags(${TARGET_NAME})
   endif()
 endfunction(nv_test)
