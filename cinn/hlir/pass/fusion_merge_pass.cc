@@ -47,6 +47,7 @@ class FusionMergePassHelper : public FusionHelperBase {
   FusionMergePassHelper(Graph* graph)
       : FusionHelperBase(graph->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape"), graph->target_) {
     fusion_groups_ = graph->fusion_groups;
+    InitFusionGroupsIndex();
     InitInputToConsumers();
     InitFusionRelation();
   }
@@ -70,9 +71,14 @@ class FusionMergePassHelper : public FusionHelperBase {
         continue;
       }
       // do horizontal fusion.
-      updated |= DoHorizontalFusion(producer, producer->consumer_groups);
+      bool h_updated = DoHorizontalFusion(producer, producer->consumer_groups);
       // do vertical fusion.
-      updated |= DoVerticalFusion(producer, producer->consumer_groups);
+      bool v_updated = DoVerticalFusion(producer, producer->consumer_groups);
+      // if updated do it again
+      if (h_updated | v_updated) {
+        --idx;
+      }
+      updated |= (h_updated | v_updated);
     }
     // fuse input consumers
     updated |= FuseInputToConsumers();
@@ -196,9 +202,12 @@ class FusionMergePassHelper : public FusionHelperBase {
     // As recompute exist which may case sub-group used by more than one time.
     std::vector<GroupPtr> repeat_sub_groups;
     std::unordered_set<GroupPtr, Hasher, Comparator> sub_group_set;
+    // find the first consumer.
+    GroupPtr first_consumer(nullptr);
     // fuse all group into fusion group.
-    for (auto consumer : consumers) {
+    for (auto& consumer : consumers) {
       VLOG(3) << "fuse consumer " << consumer->group_id << " into fused_group!";
+      // update group id
       if (fused_group->group_id.size()) {
         fused_group->group_id += "_" + consumer->group_id;
       } else {
@@ -270,6 +279,16 @@ class FusionMergePassHelper : public FusionHelperBase {
       }
       // belongs group
       consumer->belong_groups.insert(fused_group);
+
+      // find the first consumer.
+      CHECK(fusion_groups_index_.count(consumer)) << "Don't find group index in fusion_groups_index_!";
+      if (first_consumer.get()) {
+        if (fusion_groups_index_[consumer] < fusion_groups_index_[first_consumer]) {
+          first_consumer = consumer;
+        }
+      } else {
+        first_consumer = consumer;
+      }
     }
 
     // if node is output nodes of sub_group, check it can't be internal node.
@@ -302,6 +321,7 @@ class FusionMergePassHelper : public FusionHelperBase {
           }
         }
         if (master_node) {
+          VLOG(3) << "Insert Master node : " << master_node->id() << " into group : " << fused_group->group_id;
           fused_group->master_nodes.insert(master_node);
           break;
         }
@@ -309,7 +329,9 @@ class FusionMergePassHelper : public FusionHelperBase {
     }
 
     // push group to back.
-    fusion_groups_.push_back(fused_group);
+    // fusion_groups_.push_back(fused_group);
+    fusion_groups_[fusion_groups_index_[first_consumer]] = fused_group;
+    fusion_groups_index_[fused_group]                    = fusion_groups_index_[first_consumer];
   }
 
   bool DoVerticalFusion(GroupPtr& producer, std::unordered_set<GroupPtr, Hasher, Comparator>& consumers) {
@@ -343,8 +365,8 @@ class FusionMergePassHelper : public FusionHelperBase {
       fusionable_consumers.insert(consumer);
     }
 
-    if (fusionable_consumers.size() > 1) {
-      RecomputeWithCostModel(producer, consumers, fusionable_consumers);
+    if (fusionable_consumers.size()) {
+      RecomputeWithCostModel(producer, fusionable_consumers);
     }
 
     // if fusionable consumers exist
@@ -358,6 +380,8 @@ class FusionMergePassHelper : public FusionHelperBase {
 
   void VerticalFuse(GroupPtr& producer, std::unordered_set<GroupPtr, Hasher, Comparator>& fusionable_consumers) {
     GroupList fused_groups;
+    GroupPtr first_consumer(nullptr);
+    GroupPtr first_fuesd_group(nullptr);
     for (auto& consumer : fusionable_consumers) {
       auto fused_group = std::make_shared<Graph::Group>();
       // update group id
@@ -474,12 +498,23 @@ class FusionMergePassHelper : public FusionHelperBase {
       consumer->belong_groups.insert(fused_group);
 
       fused_groups.push_back(fused_group);
-      fusion_groups_.push_back(fused_group);
+      // fusion_groups_.push_back(fused_group);
+      CHECK(fusion_groups_index_.count(consumer));
+      fusion_groups_[fusion_groups_index_[consumer]] = fused_group;
+      fusion_groups_index_[fused_group]              = fusion_groups_index_[consumer];
+
+      if (first_consumer.get()) {
+        if (fusion_groups_index_[consumer] < fusion_groups_index_[first_consumer]) {
+          first_consumer    = consumer;
+          first_fuesd_group = fused_group;
+        }
+      } else {
+        first_consumer    = consumer;
+        first_fuesd_group = fused_group;
+      }
     }
 
-    // update output nodes
-    if (fused_groups.size()) {
-      auto& fused_group = fused_groups.front();
+    if (producer->consumer_groups.size() > fusionable_consumers.size()) {
       // update output for others consumer.
       for (auto& node : producer->output_nodes) {
         bool be_output = true;
@@ -499,8 +534,8 @@ class FusionMergePassHelper : public FusionHelperBase {
         }
 
         if (be_output) {
-          VLOG(3) << "Insert Id " << node->id() << " Into Group " << fused_group->group_id;
-          fused_group->output_nodes.insert(node);
+          VLOG(3) << "Insert Id " << node->id() << " Into Group " << first_fuesd_group->group_id;
+          first_fuesd_group->output_nodes.insert(node);
         }
       }
 
@@ -508,17 +543,21 @@ class FusionMergePassHelper : public FusionHelperBase {
       for (auto& consumer : producer->consumer_groups) {
         // if consumer is not fusinable.
         if (!fusionable_consumers.count(consumer)) {
-          fused_group->consumer_groups.insert(consumer);
+          first_fuesd_group->consumer_groups.insert(consumer);
           // update consumer's producer
           consumer->producer_groups.erase(producer);
-          consumer->producer_groups.insert(fused_group);
+          consumer->producer_groups.insert(first_fuesd_group);
         }
       }
+
+      // update groups
+      fusion_groups_[fusion_groups_index_[producer]]       = first_fuesd_group;
+      fusion_groups_[fusion_groups_index_[first_consumer]] = first_consumer;
+      fusion_groups_index_[first_fuesd_group]              = fusion_groups_index_[producer];
     }
   }
 
   void RecomputeWithCostModel(const GroupPtr& producer,
-                              const std::unordered_set<GroupPtr, Hasher, Comparator>& consumers,
                               std::unordered_set<GroupPtr, Hasher, Comparator>& fusionable_consumers) {
     if (producer->op_pattern_kind == framework::kCommReduce) {
       auto consumer = *fusionable_consumers.begin();
@@ -532,6 +571,7 @@ class FusionMergePassHelper : public FusionHelperBase {
     // elif all consumers is fusionable but not allvertical relation, remove broadcast with vertical relation.
     // else all consumers is fusionable with vertical relation, do nothing.
     {
+      auto consumers       = producer->consumer_groups;
       bool check_broadcast = consumers.size() > fusionable_consumers.size();
       if (!check_broadcast) {
         for (auto& consumer : fusionable_consumers) {
@@ -651,6 +691,14 @@ class FusionMergePassHelper : public FusionHelperBase {
           }
         }
       }
+    }
+  }
+
+  void InitFusionGroupsIndex() {
+    VLOG(3) << "InitFusionGroupsIndex...!";
+    // init the postion of groups in fusion groups.
+    for (int idx = 0; idx < fusion_groups_.size(); ++idx) {
+      fusion_groups_index_[fusion_groups_[idx]] = idx;
     }
   }
 
@@ -906,6 +954,7 @@ class FusionMergePassHelper : public FusionHelperBase {
   }
 
   GroupList fusion_groups_;
+  std::unordered_map<GroupPtr, int, Hasher, Comparator> fusion_groups_index_;
   std::unordered_map<NodeData*, std::unordered_set<GroupPtr, Hasher, Comparator>> input_to_consumers_;
 
   struct Relation {
