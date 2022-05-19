@@ -37,7 +37,7 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
   OptimizeOptions options;
   options.program_passes.emplace_back("Decomposer");
   options.program_passes.emplace_back("TransposeCollapsing");
-  options.program_passes.emplace_back("MatmulMergePass");
+  options.program_passes.emplace_back("MatmulMerge");
   options.program_passes.emplace_back("TransposeFoldingInput");
   options.program_passes.emplace_back("GemmRewriter");
   options.program_passes.emplace_back("TransposeFoldingOutput");
