@@ -10,6 +10,7 @@ gather_srcs(cinnapi_src SRCS
     gemm_rewriter.cc
     reshape_rewriter.cc
     fill_constant_folding.cc
+    matmul_merge.cc
     )
 
 
