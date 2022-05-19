@@ -20,7 +20,7 @@
 namespace cinn::frontend::pass {
 
 TEST(Pattern, match) {
-  auto generate_src_pattern = []() -> Digraph {
+  auto generate_src_pattern = [] {
     PatternBuilder builder;
     auto* input_0  = builder.AddVar();
     auto* input_1  = builder.AddVar();
@@ -34,13 +34,13 @@ TEST(Pattern, match) {
         "elementwise_add", std::vector<PatternVar*>{input_0, input_1}, std::vector<PatternVar*>{output_1});
     CHECK_EQ(builder.cur_id(), 6);
 
-    Digraph graph = builder.release();
-    CHECK_EQ(graph.nodes().size(), 7u);
-    CHECK_EQ(graph.adj().size(), 5u);
+    std::unique_ptr<Digraph> graph = builder.release();
+    CHECK_EQ(graph->nodes().size(), 7u);
+    CHECK_EQ(graph->adj().size(), 7u);
     return graph;
   };
 
-  auto generate_program = []() -> Program {
+  auto generate_program = [] {
     NetBuilder builder("net_builder");
     auto a       = builder.CreateInput(Float(32), {1, 2}, "A");
     auto b       = builder.CreateInput(Float(32), {1, 2}, "B");
@@ -51,12 +51,12 @@ TEST(Pattern, match) {
     return program;
   };
 
-  Digraph src_pattern = generate_src_pattern();
-  Digraph program     = ProgramGraphBuilder(generate_program()).release();
-  VLOG(5) << program;
-  CHECK_EQ(program.nodes().size(), 7u);
+  std::unique_ptr<Digraph> src_pattern = generate_src_pattern();
+  std::unique_ptr<Digraph> program     = ProgramGraphBuilder(generate_program()).release();
+  VLOG(5) << *program;
+  CHECK_EQ(program->nodes().size(), 7u);
   PatternMatcher matcher;
-  matcher.Init(src_pattern, program);
+  matcher.Init(*src_pattern, *program);
   auto matches = matcher.DetectPatterns();
   CHECK_EQ(matches.size(), 1u);
 }

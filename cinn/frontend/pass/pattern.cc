@@ -31,12 +31,12 @@ std::ostream& operator<<(std::ostream& os, const Node& node) {
   return os;
 }
 
-bool PatternVar::Tell(const Node* var) const {
-  bool ret          = true;
-  const auto* p_var = dynamic_cast<ProgramVar const*>(var);
+bool PatternVar::Tell(Node* var) const {
+  bool ret    = true;
+  auto* p_var = dynamic_cast<ProgramVar*>(var);
   if (p_var) {
     for (const auto& teller : tellers_) {
-      ret = ret && teller(p_var->raw());
+      ret = ret && teller(p_var);
     }
   } else {
     ret = false;
@@ -44,12 +44,12 @@ bool PatternVar::Tell(const Node* var) const {
   return ret;
 }
 
-bool PatternInstr::Tell(const Node* instr) const {
-  bool ret            = true;
-  const auto* p_instr = dynamic_cast<ProgramInstr const*>(instr);
+bool PatternInstr::Tell(Node* instr) const {
+  bool ret      = true;
+  auto* p_instr = dynamic_cast<ProgramInstr*>(instr);
   if (p_instr) {
     for (const auto& teller : tellers_) {
-      ret = ret && teller(p_instr->raw());
+      ret = ret && teller(p_instr);
     }
   } else {
     ret = false;
@@ -94,7 +94,7 @@ PatternVar* PatternBuilder::AddVar() {
   auto var = std::make_unique<PatternVar>();
   var->set_id(++cur_id_);
   PatternVar* ret = var.get();
-  graph_.AddNode(std::move(var));
+  graph_->AddNode(std::move(var));
   return ret;
 }
 
@@ -104,13 +104,13 @@ PatternInstr* PatternBuilder::AddInstr(const char* type,
   auto instr = std::make_unique<PatternInstr>(type);
   instr->set_id(++cur_id_);
   PatternInstr* ret = instr.get();
-  graph_.AddNode(std::move(instr));
+  graph_->AddNode(std::move(instr));
 
   for (size_t i = 0; i < inputs.size(); ++i) {
-    graph_.AddEdge(inputs[i], ret, i);
+    graph_->AddEdge(inputs[i], ret, i);
   }
   for (size_t i = 0; i < outputs.size(); ++i) {
-    graph_.AddEdge(ret, outputs[i], i);
+    graph_->AddEdge(ret, outputs[i], i);
   }
   return ret;
 }
@@ -118,6 +118,13 @@ PatternInstr* PatternBuilder::AddInstr(const char* type,
 std::ostream& operator<<(std::ostream& os, const Digraph& graph) {
   for (auto& a : graph.adj().edges()) {
     std::cout << *(a.first) << " -> " << *(a.second) << '\n';
+  }
+  return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const PatternMatcher::HitGroup& group) {
+  for (auto& role : group.roles_) {
+    os << "pat: " << *role.first << ", prog: " << *role.second << '\n';
   }
   return os;
 }
@@ -132,30 +139,30 @@ void ProgramGraphBuilder::AddInstr(const Instruction& instr) {
   auto p_instr    = std::make_unique<ProgramInstr>(instr);
   auto* raw_instr = p_instr.get();
   p_instr->set_id(++cur_id_);
-  graph_.AddNode(std::move(p_instr));
+  graph_->AddNode(std::move(p_instr));
 
   for (size_t i = 0; i < instr->inputs.size(); ++i) {
     const auto& var = instr->inputs[i];
     if (!VarExists(var)) {
       AddVar(var);
     }
-    graph_.AddEdge(var_map_.at(var.get()), raw_instr, i);
+    graph_->AddEdge(var_map_.at(var.get()), raw_instr, i);
   }
   for (size_t i = 0; i < instr->outputs.size(); ++i) {
     const auto& var = instr->outputs[i];
     if (!VarExists(var)) {
       AddVar(var);
     }
-    graph_.AddEdge(raw_instr, var_map_.at(var.get()), i);
+    graph_->AddEdge(raw_instr, var_map_.at(var.get()), i);
   }
 }
 
 void ProgramGraphBuilder::AddVar(const Variable& var) {
   CHECK(!VarExists(var)) << "Repeated addition of variables is not allowed.";
-  auto p_var = std::make_unique<ProgramVar>(var);
+  auto p_var = std::make_unique<ProgramVar>(*graph_, var);
   auto* raw  = p_var.get();
   p_var->set_id(++cur_id_);
-  graph_.AddNode(std::move(p_var));
+  graph_->AddNode(std::move(p_var));
   var_map_[var.get()] = raw;
 }
 
@@ -163,9 +170,9 @@ void PatternMatcher::Init(const Digraph& pattern, const Digraph& program) {
   program_       = &program;
   pattern_       = &pattern;
   pattern_edges_ = pattern_->adj().edges();
-  NodeMatch();
   VLOG(5) << "[Program Graph] " << program;
   VLOG(5) << "[Pattern Graph] " << pattern;
+  NodeMatch();
 }
 
 std::vector<PatternMatcher::pattern_map_t> PatternMatcher::DetectPatterns() {
@@ -210,7 +217,8 @@ std::vector<PatternMatcher::pattern_map_t> PatternMatcher::DetectPatterns() {
     std::map<pattern_node_t const*, program_node_t const*> subgraph;
     bool overlapped{false};
     for (auto& role : group.roles()) {
-      if (visited.find(role.second) == visited.end()) {
+      auto* var = dynamic_cast<PatternVar const*>(role.first);
+      if ((var && var->external()) || visited.find(role.second) == visited.end()) {
         subgraph.emplace(role.first, role.second);
       } else {
         overlapped = true;
@@ -227,6 +235,7 @@ std::vector<PatternMatcher::pattern_map_t> PatternMatcher::DetectPatterns() {
       res.emplace_back(std::move(subgraph));
     }
   }
+  VLOG(5) << "res.size = " << res.size();
   return res;
 }
 
@@ -250,25 +259,23 @@ void PatternMatcher::NodeMatch() {
   }
 }
 
-const cinn::frontend::Instruction* GetMatchedInstr(const PatternMatcher::pattern_map_t& matches, const char* label) {
+ProgramInstr const* get_mapped_instr(const PatternMatcher::pattern_map_t& matches, const char* label) {
   for (auto& match : matches) {
     if (!std::strcmp(label, match.first->label())) {
       const auto* program_node = dynamic_cast<ProgramInstr const*>(match.second);
-      if (program_node) {
-        return program_node->raw();
-      }
+      CHECK(program_node) << "The pointer to the program node can not be null.";
+      return program_node;
     }
   }
   return {};
 }
 
-const cinn::frontend::Variable* GetMatchedVar(const PatternMatcher::pattern_map_t& matches, const char* label) {
+ProgramVar const* get_mapped_var(const PatternMatcher::pattern_map_t& matches, const char* label) {
   for (auto& match : matches) {
     if (!std::strcmp(label, match.first->label())) {
       const auto* var_node = dynamic_cast<ProgramVar const*>(match.second);
-      if (var_node) {
-        return var_node->raw();
-      }
+      CHECK(var_node) << "The pointer to the program node can not be null.";
+      return var_node;
     }
   }
   return {};
