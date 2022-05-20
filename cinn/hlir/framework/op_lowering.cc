@@ -283,6 +283,7 @@ ir::IRSchedule OpLowerer::NewElementwiseCompute(poly::StageMap& stages,
                                                 std::unordered_map<std::string, ir::Tensor>& tensor_map,
                                                 const GroupPtr& group,
                                                 const GroupPtr& sub_group) {
+  LOG(INFO) << "Begin NewElementwiseCompute";
   VLOG(11) << "ElementwiseCompute Group : " << sub_group->group_id;
   auto& strategy = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
   std::vector<std::vector<common::CINNValue>> res;
@@ -383,6 +384,7 @@ void OpLowerer::NewElementwiseSchedule(ir::IRSchedule& ir_sch,
 }
 
 std::vector<ir::LoweredFunc> OpLowerer::NewLowerOpaqueOp(GroupPtr& group) {
+  LOG(INFO) << "Begin NewLowerOpaqueOp";
   VLOG(11) << "LowerOpaqueOp Group : " << group->group_id;
   // get input tensor and output tensor
   std::vector<ir::Tensor> func_args;
@@ -566,6 +568,7 @@ ir::IRSchedule OpLowerer::NewReduceCompute(poly::StageMap& stages,
                                            std::unordered_map<std::string, ir::Tensor>& tensor_map,
                                            const GroupPtr& group,
                                            const GroupPtr& sub_group) {
+  LOG(INFO) << "Begin NewReduceCompute";
   VLOG(2) << "ReduceCompute Group : " << sub_group->group_id;
   auto& cinn_strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
@@ -619,6 +622,7 @@ ir::IRSchedule OpLowerer::NewReduceCompute(poly::StageMap& stages,
       post = "_" + std::to_string(idx);
     }
     auto func = lang::LowerVec("fn_" + node->id(), tmp_stages, tensor_inputs, {}, {}, nullptr, this->target_, true);
+    LOG(INFO) << "In reduction, func size is : " << func.size();
     for (int i = func.size() - 1; i >= 0; i--) {
       auto ast_expr = func[i]->body;
       // schedule_inputs.insert(schedule_inputs.begin(), common::CINNValue(ast_expr));
@@ -1089,6 +1093,7 @@ void OpLowerer::ReduceCompute(poly::StageMap& stages,
 
     std::vector<common::CINNValue> cinn_inputs;
     std::vector<ir::Tensor> tensor_inputs = std::move(CollectInputTensor(func_args, tensor_map, node));
+    LOG(INFO) << "tensor_inputs size is : " << tensor_inputs.size();
     for (auto& tensor : tensor_inputs) {
       stages->InsertLazily(tensor);
       cinn_inputs.push_back(common::CINNValue(ir::Expr(tensor)));

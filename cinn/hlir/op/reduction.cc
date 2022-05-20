@@ -21,9 +21,11 @@
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
 #include "cinn/hlir/pe/broadcast.h"
+#include "cinn/hlir/pe/new_schedule.h"
 #include "cinn/hlir/pe/schedule.h"
 #include "cinn/hlir/pe/transform.h"
 #include "cinn/ir/ir_operators.h"
+#include "cinn/ir/ir_schedule.h"
 
 DECLARE_bool(cinn_new_schedule);
 
@@ -164,63 +166,33 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
     CINNValuePack arg_pack = args[0];
 
     if (FLAGS_cinn_new_schedule) {
-/*       CHECK_EQ(arg_pack.size(), 2UL);
-      Expr ast_expr = arg_pack[0];
-      std::vector<Expr> vec_ast{ast_expr};
-      ir::ModuleExpr mod_expr(vec_ast);
-      ir::IRSchedule ir_sch(mod_expr);
-      if (target.arch == Target::Arch::NVGPU) {
-        pe::NewCudaScheduleInjective(ir_sch, output_shapes.front(), target);
-      } else if (target.arch == Target::Arch::X86) {
-        pe::NewScheduleInjectiveCPU(ir_sch, output_shapes.front(), target);
-      }
 
-
-
-    CHECK_GE(arg_pack.size(), 2UL);
-    CHECK_LE(arg_pack.size(), 5UL);
+    CHECK_GE(arg_pack.size(), 4UL);
+    CHECK_LE(arg_pack.size(), 7UL);
     std::vector<Expr> vec_ast;
-    for (int i = 0; i < arg_pack.size() - 1; i++) {
-      Expr temp = arg_pack[0];
-      vec_ast.push_back(temp);
-    }
+    vec_ast.push_back(arg_pack[arg_pack.size() - 2]);
+    vec_ast.push_back(arg_pack.back());
     ir::ModuleExpr mod_expr(vec_ast);
     ir::IRSchedule ir_sch(mod_expr);
 
     if (target.arch == Target::Arch::NVGPU) {
       if (!WithoutLastDimInReduce(inputs[0]->shape, reduce_axes)) {
-        if (arg_pack.size() == 3) {
+        if (arg_pack.size() == 5) {
           Expr out              = arg_pack[0];
           Expr tmp_out          = arg_pack[1];
-          poly::StageMap stages = arg_pack.back();
+          poly::StageMap stages = arg_pack[2];
           VLOG(3) << "Do CudaBlockReduceInternalSchedule Schedule!";
 
+          pe::NewCudaScheduleBlockReduceInternal(ir_sch, tmp_out.as_tensor_ref(), out.as_tensor_ref(), target);
 
-void NewCudaScheduleBlockReduceInternal(ir::IRSchedule &ir_sch,
-                                        ir::Tensor tmp_out,
-                                        ir::Tensor out,
-                                        const common::Target &target);
-
-
-
-        } else if (arg_pack.size() == 4) {
+        } else if (arg_pack.size() == 6) {
           Expr out              = arg_pack[0];
           Expr tmp_out          = arg_pack[1];
           Expr reduce_tmp_out   = arg_pack[2];
-          poly::StageMap stages = arg_pack.back();
+          poly::StageMap stages = arg_pack[3];
           VLOG(3) << "Do CudaBlockReduceSchedule Schedule!";
-          pe::CudaBlockReduceSchedule(stages,
-                                      reduce_tmp_out.as_tensor_ref(),
-                                      tmp_out.as_tensor_ref(),
-                                      out.as_tensor_ref(),
-                                      common::DefaultNVGPUTarget());
 
-
-void NewCudaScheduleReduce(ir::IRSchedule &ir_sch,
-                           const std::vector<int> &output_shape,
-                           int last_dimension_num,
-                           const common::Target &target);
-
+          pe::NewCudaScheduleBlockReduce(ir_sch, reduce_tmp_out.as_tensor_ref(), tmp_out.as_tensor_ref(), out.as_tensor_ref(), target);
 
         } else {
           LOG(FATAL) << "Not implemented!";
@@ -228,7 +200,7 @@ void NewCudaScheduleReduce(ir::IRSchedule &ir_sch,
           Expr tmp_out          = arg_pack[1];
           Expr reduce_tmp_out   = arg_pack[2];
           Expr reshape          = arg_pack[3];
-          poly::StageMap stages = arg_pack.back();
+          poly::StageMap stages = arg_pack[4];
           VLOG(3) << "Do CudaTwoStepReduceSchedule Schedule!";
           pe::CudaTwoStepReduceSchedule(stages,
                                         reshape.as_tensor_ref(),
@@ -238,22 +210,16 @@ void NewCudaScheduleReduce(ir::IRSchedule &ir_sch,
                                         common::DefaultNVGPUTarget());
         }
       } else {
-        if (arg_pack.size() == 2) {
+        if (arg_pack.size() == 4) {
           Expr reduce_out       = arg_pack[0];
-          poly::StageMap stages = arg_pack.back();
+          poly::StageMap stages = arg_pack[1];
           VLOG(3) << "Do CudaReduceSchedule Schedule!";
-          pe::CudaReduceSchedule(
-              stages, reduce_out.as_tensor_ref(), inputs[0]->shape.size() - reduce_axes.back() - 1, target);
-        
-        
-void NewCudaScheduleReduce(ir::IRSchedule &ir_sch,
-                           const std::vector<int> &output_shape,
-                           int last_dimension_num,
-                           const common::Target &target);
-        
+
+          pe::NewCudaScheduleReduce(ir_sch, output_shapes[0], inputs[0]->shape.size() - reduce_axes.back() - 1, target);
         
         } else {
-          CHECK_EQ(arg_pack.size(), 4) << "args is not equal 4!";
+          CHECK_EQ(arg_pack.size(), 6) << "args is not equal 6!";
+          LOG(FATAL) << "Not Implemented yet!";
           Expr reduce_reshape   = arg_pack[2];
           Expr reduce_internal  = arg_pack[1];
           Expr reduce_out       = arg_pack[0];
@@ -270,7 +236,6 @@ void NewCudaScheduleReduce(ir::IRSchedule &ir_sch,
     std::vector<CINNValue> res;
     res.push_back(arg_pack[0]);
     *ret = CINNValuePack{res};
-    *ret = arg_pack; */
     } else {
     CHECK_GE(arg_pack.size(), 2UL);
     CHECK_LE(arg_pack.size(), 5UL);
