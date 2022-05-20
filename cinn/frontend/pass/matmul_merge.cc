@@ -49,7 +49,7 @@ class MatmulKey {
     } else {
       trans_b = false;
     }
-    if (attrs.count("trans_a")) {
+    if (attrs.count("alpha")) {
       alpha = absl::get<float>(attrs.at("alpha"));
     } else {
       alpha = 1.0f;
