@@ -118,12 +118,16 @@ class MatmulMergePass : public ProgramPass {
       }
     }
 
+    VLOG(4) << "Step1: get entrance instructions";
     auto entry_instrs = GetEntryInstrs(program, out2instr);
 
+    VLOG(4) << "Step2: get each instruction's ancestor node list";
     auto ancestor_map = GetAncestorNodeMap(in2instr, entry_instrs);
 
+    VLOG(4) << "Step3: gather the input shape same matmul";
     auto same_matmul_map = GatherMatmul(program);
 
+    VLOG(4) << "Step4: get the group of input shape same and not-ancestor matmul";
     auto groups = GetFusionGroups(same_matmul_map, ancestor_map);
 
     // CinnBuilder builder("matmul_merge_builder");
@@ -219,7 +223,17 @@ class MatmulMergePass : public ProgramPass {
   std::vector<std::vector<Instruction*>> GetFusionGroups(const MatmulKeyMap& same_matmul_map,
                                                          const OpToAncestorsMap& ancestor_map) const {
     auto is_ancestor = [&](Instruction* instr1, Instruction* instr2) -> bool {
-      return ancestor_map.at(instr1).count(instr2) || ancestor_map.at(instr2).count(instr1);
+      bool instr1_has_ancestor = ancestor_map.count(instr1);
+      bool instr2_has_ancestor = ancestor_map.count(instr2);
+
+      if (instr1_has_ancestor && instr2_has_ancestor) {
+        return ancestor_map.at(instr1).count(instr2) || ancestor_map.at(instr2).count(instr1);
+      } else if (instr1_has_ancestor) {
+        return ancestor_map.at(instr1).count(instr2);
+      } else if (instr2_has_ancestor) {
+        return ancestor_map.at(instr2).count(instr1);
+      }
+      return true;
     };
 
     auto debug_output_names = [](const std::vector<Instruction*>& group) -> std::string {
