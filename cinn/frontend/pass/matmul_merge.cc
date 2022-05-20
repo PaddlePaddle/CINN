@@ -103,31 +103,40 @@ class MatmulMergePass : public ProgramPass {
                  const std::unordered_set<std::string>& fetch_ids,
                  const common::Target& target) const override {
     VLOG(3) << "-- Before MatmulMergePass:\n" << *program;
+    std::vector<Instruction*> all_instrs;
     // `out2instr` is used to represent the mapping of Output to Instruction.
     OutputToOpMap out2instr;
     // `in2instr` is used to represent the mapping of Input to Instruction.
     InputToOpMap in2instr;
+    // the same matmul op will gather together
+    // in detail, the matmul same means the value of A.shape,B.shape,trans_a,trans_b,alpha are all same
+    MatmulKeyMap same_matmul_map;
 
     for (size_t i = 0; i < program->size(); ++i) {
-      auto& instr = (*program)[i];
-      for (const auto& out : instr->outputs) {
-        out2instr[out->id] = &instr;
+      auto instr = &((*program)[i]);
+
+      all_instrs.emplace_back(instr);
+
+      for (const auto& out : (*instr)->outputs) {
+        out2instr[out->id] = instr;
       }
-      for (const auto& in : instr->inputs) {
-        in2instr[in->id].insert(&instr);
+      for (const auto& in : (*instr)->inputs) {
+        in2instr[in->id].insert(instr);
+      }
+
+      if ("matmul" == (*instr)->op_type) {
+        MatmulKey key(instr);
+        same_matmul_map[key].emplace_back(instr);
       }
     }
 
     VLOG(4) << "Step1: get entrance instructions";
-    auto entry_instrs = GetEntryInstrs(program, out2instr);
+    auto entry_instrs = GetEntryInstrs(all_instrs, out2instr);
 
     VLOG(4) << "Step2: get each instruction's ancestor node list";
     auto ancestor_map = GetAncestorNodeMap(in2instr, entry_instrs);
 
-    VLOG(4) << "Step3: gather the input shape same matmul";
-    auto same_matmul_map = GatherMatmul(program);
-
-    VLOG(4) << "Step4: get the group of input shape same and not-ancestor matmul";
+    VLOG(4) << "Step3: get the group of input shape same and not-ancestor matmul";
     auto groups = GetFusionGroups(same_matmul_map, ancestor_map);
 
     // CinnBuilder builder("matmul_merge_builder");
@@ -145,12 +154,13 @@ class MatmulMergePass : public ProgramPass {
   }
 
   // get the entrance instruction, whose inputs are all from out-graph
-  std::unordered_set<Instruction*> GetEntryInstrs(Program* program, const OutputToOpMap& out2instr) const {
+  std::unordered_set<Instruction*> GetEntryInstrs(const std::vector<Instruction*>& all_instrs,
+                                                  const OutputToOpMap& out2instr) const {
     std::unordered_set<Instruction*> entry_instrs;
-    for (size_t i = 0; i < program->size(); ++i) {
-      auto& instr      = (*program)[i];
+    for (size_t i = 0; i < all_instrs.size(); ++i) {
+      auto instr       = all_instrs[i];
       bool is_entrance = true;
-      for (const auto& in : instr->inputs) {
+      for (const auto& in : (*instr)->inputs) {
         if (out2instr.count(in->id)) {
           // if the instruction's input are some instruction's output, it's not entrance.
           is_entrance = false;
@@ -158,7 +168,7 @@ class MatmulMergePass : public ProgramPass {
         }
       }
       if (is_entrance) {
-        entry_instrs.insert(&instr);
+        entry_instrs.insert(instr);
       }
     }
     return entry_instrs;
@@ -206,20 +216,6 @@ class MatmulMergePass : public ProgramPass {
     return ancestor_map;
   }
 
-  // the same matmul op will gather together
-  // in detail, the matmul same means the value of A.shape,B.shape,trans_a,trans_b,alpha are all same
-  MatmulKeyMap GatherMatmul(Program* program) const {
-    MatmulKeyMap same_matmul_map;
-    for (size_t i = 0; i < program->size(); ++i) {
-      auto& instr = (*program)[i];
-
-      if ("matmul" != instr->op_type) continue;
-      MatmulKey key(&instr);
-      same_matmul_map[key].emplace_back(&instr);
-    }
-    return same_matmul_map;
-  }
-
   std::vector<std::vector<Instruction*>> GetFusionGroups(const MatmulKeyMap& same_matmul_map,
                                                          const OpToAncestorsMap& ancestor_map) const {
     auto is_ancestor = [&](Instruction* instr1, Instruction* instr2) -> bool {
@@ -233,7 +229,7 @@ class MatmulMergePass : public ProgramPass {
       } else if (instr2_has_ancestor) {
         return ancestor_map.at(instr2).count(instr1);
       }
-      return true;
+      return false;
     };
 
     auto debug_output_names = [](const std::vector<Instruction*>& group) -> std::string {
