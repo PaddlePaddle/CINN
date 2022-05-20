@@ -31,12 +31,18 @@ using ::GFLAGS_NAMESPACE::StringFromEnv;
 DEFINE_bool(cinn_use_new_fusion_pass,
             BoolFromEnv("FLAGS_cinn_use_new_fusion_pass", false),
             "Whether use the new op_fusion and fusion_merge pass.");
+DEFINE_bool(cinn_use_fill_constant_folding,
+            BoolFromEnv("FLAGS_cinn_use_fill_constant_folding", false),
+            "Whether use the FillConstantFolding pass.");
 DEFINE_bool(cinn_sync_run,
             BoolFromEnv("FLAGS_cinn_sync_run", false),
             "Whether sync all devices after each instruction run, which is used for debug.");
 DEFINE_string(cinn_fusion_groups_graphviz_dir,
               StringFromEnv("FLAGS_cinn_fusion_groups_graphviz_dir", ""),
               "Specify the directory path of dot file of graph, which is used for debug.");
+DEFINE_bool(cinn_use_cuda_vectorize,
+            BoolFromEnv("FLAGS_cinn_use_cuda_vectorize", false),
+            "Whether use cuda vectroize on schedule config");
 
 namespace cinn {
 namespace runtime {

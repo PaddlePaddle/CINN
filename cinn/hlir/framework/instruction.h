@@ -67,12 +67,14 @@ class Instruction {
   // explicitly finalize the instruction, and can't append function again after call it
   void Finalize();
 
+  void UpdateArgsCache(const std::map<std::string, cinn_pod_value_t>* name2podargs);
   /**
    * Run the Instruction.
    */
   void Run(const std::map<std::string, cinn_pod_value_t>* name2podargs = nullptr,
            bool dryrun                                                 = false,
-           void* stream                                                = nullptr);
+           void* stream                                                = nullptr,
+           bool use_cache                                              = true);
 
   void PreRun(const std::map<std::string, cinn_pod_value_t>* name2podargs = nullptr) {
     CHECK_EQ(fn_.size(), 4);
@@ -81,9 +83,8 @@ class Instruction {
       out_args_.erase(out_args_.begin());
       in_args_.erase(in_args_.begin());
     }
-    if (name2podargs != nullptr) {
-      args_cached_.clear();
-    }
+    UpdateArgsCache(name2podargs);
+
     CHECK_EQ(fn_.size(), in_args_.size());
     CHECK_EQ(fn_.size(), out_args_.size());
     int flag = -1;
@@ -91,7 +92,7 @@ class Instruction {
       if (utils::Startswith(out_args_[i][0], "kernel_pack")) {
         VLOG(3) << "PreRun " << i << "-th function of fn_:" << fn_names_[i];
         flag           = i;
-        auto& pod_args = PreparePodArgs(i, name2podargs);
+        auto& pod_args = args_cached_[i];
         auto it_fn     = fn_[i];
         CHECK(it_fn) << "The LoweredFunc address should be set first by calling SetLoweredFunc method";
         it_fn(pod_args.data(), pod_args.size());
@@ -120,9 +121,6 @@ class Instruction {
   std::vector<std::string> str_attrs;
   bool pre_run = false;
   Target target_;
-
- protected:
-  std::vector<cinn_pod_value_t>& PreparePodArgs(int i, const std::map<std::string, cinn_pod_value_t>* name2podargs);
 
  private:
   bool finalized_flag_ = false;

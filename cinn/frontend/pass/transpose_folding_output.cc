@@ -29,28 +29,22 @@ class TransposeFoldingOutputPass : public TransposeFoldingBase {
   using TransposeFoldingBase::TransposeFoldingBase;
 
  protected:
-  void set_target_instrs() { TransposeFoldingBase::target_instrs_ = {"cublas_gemm", "cublas_matmul"}; }
+  void set_target_instrs() override { TransposeFoldingBase::target_instrs_ = {"cublas_matmul"}; }
 
   void FoldTranspose(Instruction* gemm,
                      const absl::flat_hash_map<std::string, Instruction*>& out2instr,
                      const absl::flat_hash_map<std::string, std::unordered_set<Instruction*>>& in2instr,
                      const std::unordered_set<std::string>& fetch_ids,
                      absl::flat_hash_set<Instruction*>* remove_instrs) const override {
-    bool has_trans_out = (*gemm)->attrs.contains("trans_out");
-    // As for cublas_matmul, if the `trans_out` attr has been set, we can not set it again because of
-    // the existence of `bias`.
-    if (has_trans_out && (*gemm)->op_type == "cublas_gemm") {
-      return;
-    }
-    // As for cublas_matmul, we can continue to set the `trans_out` attr.
     bool trans_out = false;
-    if (has_trans_out) {
+    if ((*gemm)->attrs.contains("trans_out")) {
       trans_out = absl::get<bool>((*gemm)->attrs["trans_out"]);
     }
     auto gemm_out_name = (*gemm)->outputs[0]->id;
     if (in2instr.contains(gemm_out_name) && in2instr.at(gemm_out_name).size() == 1 && !fetch_ids.count(gemm_out_name)) {
       auto* instr = *(in2instr.at(gemm_out_name).begin());
       if (IsValidTranspose(*instr)) {
+        // As for cublas_matmul, we can continue to set the `trans_out` attr.
         gemm->SetAttr("trans_out", static_cast<bool>(trans_out ^ true));
         (*gemm)->outputs[0] = (*instr)->outputs[0];
         remove_instrs->insert(instr);

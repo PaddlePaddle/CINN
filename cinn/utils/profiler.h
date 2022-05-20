@@ -1,4 +1,4 @@
-// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+// Copyright (c) 2022 CINN Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,15 +14,38 @@
 
 #pragma once
 
-#include "cinn/common/macros.h"
+#include <string>
 
-CINN_USE_REGISTER(Decomposer)
-CINN_USE_REGISTER(DeadCodeEliminate)
-CINN_USE_REGISTER(RemoveIdentity)
-CINN_USE_REGISTER(TransposeCollapsing)
-CINN_USE_REGISTER(TransposeFoldingInput)
-CINN_USE_REGISTER(GemmRewriter)
-CINN_USE_REGISTER(TransposeFoldingOutput)
-CINN_USE_REGISTER(ReshapeRewriter)
-CINN_USE_REGISTER(FillConstantFolding)
-CINN_USE_REGISTER(DotMerger)
+#ifdef CINN_WITH_NVTX
+#include <nvToolsExt.h>
+#endif
+
+namespace cinn {
+namespace utils {
+
+class RecordEvent {
+ public:
+  RecordEvent(const std::string& name) {
+#ifdef CINN_WITH_NVTX
+    nvtxRangePushA(name.c_str());
+#endif
+  }
+  ~RecordEvent() {
+#ifdef CINN_WITH_NVTX
+    nvtxRangePop();
+#endif
+  }
+};
+
+void SynchronizeAllDevice();
+
+void ProfilerStart();
+
+void ProfilerStop();
+
+void ProfilerRangePush(const std::string& name);
+
+void ProfilerRangePop();
+
+}  // namespace utils
+}  // namespace cinn

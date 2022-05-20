@@ -12,138 +12,112 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <gtest/gtest.h>
-
-#include <random>
-
-#include "cinn/frontend/decomposer/use_decomposer.h"
-#include "cinn/frontend/decomposer_registry.h"
-#include "cinn/frontend/net_builder.h"
-#include "cinn/frontend/pass/use_program_pass.h"
-#include "cinn/frontend/program_pass.h"
+#include "cinn/frontend/pass/test_helper.h"
 #include "cinn/hlir/framework/graph.h"
-#include "cinn/hlir/framework/graph_compiler.h"
-#include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/framework/tensor.h"
 #include "cinn/hlir/op/use_ops.h"
-#include "cinn/hlir/pass/use_pass.h"
 
 namespace cinn::frontend {
 
-void SetRandData(hlir::framework::Tensor tensor, Target target) {
-  auto* data = tensor->mutable_data<float>(target);
-  std::random_device seed;
-  std::default_random_engine engine(seed());
-  std::uniform_real_distribution<float> dist(0.f, 1.f);
-  size_t num_ele = tensor->shape().numel();
-  std::vector<float> random_data(num_ele);
-  for (size_t i = 0; i < num_ele; i++) {
-    random_data[i] = dist(engine);  // All random data
-  }
+TEST(RemoveIdentity, remove_single) {
+  //              <x>
+  //           /       \
+  //     identity   identity
+  //          |         |
+  //    reduce_sum  reduce_sum
+  //          |         |
+  // <reduce_sum_1> <reduce_sum_2>
+  NetBuilder builder("net_builder");
+  auto x            = builder.CreateInput(Float(32), {32, 16}, "x");
+  auto identity_1   = builder.Identity(x);
+  auto identity_2   = builder.Identity(x);
+  auto reduce_sum_1 = builder.ReduceSum(identity_1, {0});
+  auto reduce_sum_2 = builder.ReduceSum(identity_2, {1});
 
-#ifdef CINN_WITH_CUDA
-  cudaMemcpy(data, random_data.data(), num_ele * sizeof(float), cudaMemcpyHostToDevice);
-#else
-  std::copy(random_data.begin(), random_data.end(), data);
-#endif
+  PassTest tester;
+  std::vector<std::string> input_names    = {x.id().data()};
+  std::vector<std::string> output_names   = {reduce_sum_1->id};
+  std::vector<std::string> program_passes = {"RemoveIdentity", "DeadCodeEliminate"};
+  int num_removed_ops                     = tester.RunAndCheck(builder, program_passes, input_names, output_names);
+  ASSERT_EQ(num_removed_ops, 3);
 }
 
-TEST(RemoveIdentity, can_remove) {
+TEST(RemoveIdentity, remove_branch) {
+  //              <x>
+  //               |
+  //            identity
+  //           /        \
+  //    reduce_sum  reduce_sum
+  //          |          |
+  // <reduce_sum_1> <reduce_sum_2>
   NetBuilder builder("net_builder");
-  auto x          = builder.CreateInput(Float(32), {32, 16});
-  auto identity_1 = builder.Identity(x);
-  auto identity_2 = builder.Identity(x);
-  auto relu_1     = builder.ReduceSum(x, {0, 1});
-  auto relu_2     = builder.ReduceSum(x, {0, 1});
-  auto program    = builder.Build();
-#ifdef CINN_WITH_CUDA
-  Target target = common::DefaultNVGPUTarget();
-#else
-  Target target = common::DefaultHostTarget();
-#endif
-  LOG(INFO) << program;
-  size_t before_size = program.size();
-  ProgramPass::Apply(&program, {}, target, {"RemoveIdentity"});
-  size_t after_size = program.size();
-  ASSERT_EQ(before_size, after_size + 2);
-  LOG(INFO) << program;
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusion");
-  auto scope = hlir::framework::BuildScope(target, graph);
-  hlir::framework::GraphCompiler gc(target, scope, graph);
-  auto runtime_program = gc.Build();
+  auto x            = builder.CreateInput(Float(32), {32, 16}, "x");
+  auto identity_1   = builder.Identity(x);
+  auto reduce_sum_1 = builder.ReduceSum(identity_1, {0});
+  auto reduce_sum_2 = builder.ReduceSum(identity_1, {1});
 
-  scope->Var<hlir::framework::Tensor>("X");
-
-  auto X = scope->GetTensor("X");
-  SetRandData(X, target);
-
-  runtime_program->Execute();
+  PassTest tester;
+  std::vector<std::string> input_names    = {x.id().data()};
+  std::vector<std::string> output_names   = {reduce_sum_1->id, reduce_sum_2->id};
+  std::vector<std::string> program_passes = {"RemoveIdentity"};
+  int num_removed_ops                     = tester.RunAndCheck(builder, program_passes, input_names, output_names);
+  ASSERT_EQ(num_removed_ops, 1);
 }
 
-TEST(RemoveIdentity, cant_remove_by_fetchids) {
+TEST(RemoveIdentity, remove_multiple) {
+  //         <x>  <y>
+  //          |    |
+  //     identity  |
+  //          |    |
+  //     identity  |
+  //          |    |
+  //     identity  |
+  //           \  /
+  //           mul
+  //            |
+  //         <mul_1>
   NetBuilder builder("net_builder");
-  auto x          = builder.CreateInput(Float(32), {32, 16});
+  auto x          = builder.CreateInput(Float(32), {32, 16}, "x");
+  auto y          = builder.CreateInput(Float(32), {32, 16}, "y");
   auto identity_1 = builder.Identity(x);
-  auto identity_2 = builder.Identity(x);
-  auto relu_1     = builder.ReduceSum(x, {0, 1});
-  auto relu_2     = builder.ReduceSum(x, {0, 1});
-  auto program    = builder.Build();
-#ifdef CINN_WITH_CUDA
-  Target target = common::DefaultNVGPUTarget();
-#else
-  Target target = common::DefaultHostTarget();
-#endif
-  LOG(INFO) << program;
-  size_t before_size = program.size();
-  ProgramPass::Apply(&program, {identity_1->id}, target, {"RemoveIdentity"});
-  size_t after_size = program.size();
-  ASSERT_EQ(before_size, after_size + 1);
-  LOG(INFO) << program;
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusion");
-  auto scope = hlir::framework::BuildScope(target, graph);
-  hlir::framework::GraphCompiler gc(target, scope, graph);
-  auto runtime_program = gc.Build();
+  auto identity_2 = builder.Identity(identity_1);
+  auto identity_3 = builder.Identity(identity_2);
+  auto mul_1      = builder.Mul(identity_3, y);
 
-  scope->Var<hlir::framework::Tensor>("X");
-
-  auto X = scope->GetTensor("X");
-  SetRandData(X, target);
-
-  runtime_program->Execute();
+  PassTest tester;
+  std::vector<std::string> input_names    = {x.id().data(), y.id().data()};
+  std::vector<std::string> output_names   = {mul_1->id};
+  std::vector<std::string> program_passes = {"RemoveIdentity"};
+  int num_removed_ops                     = tester.RunAndCheck(builder, program_passes, input_names, output_names);
+  ASSERT_EQ(num_removed_ops, 3);
 }
 
-TEST(RemoveIdentity, cant_remove_by_pattern) {
+TEST(RemoveIdentity, cannot_remove_fetch) {
+  //         <x>  <y>
+  //          |    |
+  //        relu   |
+  //          |    |
+  //     identity  |
+  //          |    |
+  //     identity  |
+  //           \  /
+  //           mul
+  //            |
+  //         <mul_1>
   NetBuilder builder("net_builder");
-  auto x          = builder.CreateInput(Float(32), {32, 16});
-  auto identity_1 = builder.Identity(x);
-  auto identity_2 = builder.Identity(x);
-  auto mul        = builder.Mul(x, identity_1);
-  auto program    = builder.Build();
-#ifdef CINN_WITH_CUDA
-  Target target = common::DefaultNVGPUTarget();
-#else
-  Target target = common::DefaultHostTarget();
-#endif
-  LOG(INFO) << program;
-  size_t before_size = program.size();
-  ProgramPass::Apply(&program, {}, target, {"RemoveIdentity"});
-  size_t after_size = program.size();
-  ASSERT_EQ(before_size, after_size + 1);
-  LOG(INFO) << program;
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusion");
-  auto scope = hlir::framework::BuildScope(target, graph);
-  hlir::framework::GraphCompiler gc(target, scope, graph);
-  auto runtime_program = gc.Build();
+  auto x          = builder.CreateInput(Float(32), {32, 16}, "x");
+  auto y          = builder.CreateInput(Float(32), {32, 16}, "y");
+  auto relu_1     = builder.Relu(x);
+  auto identity_1 = builder.Identity(relu_1);
+  auto identity_2 = builder.Identity(identity_1);
+  auto mul_1      = builder.Mul(identity_2, y);
 
-  scope->Var<hlir::framework::Tensor>("X");
-
-  auto X = scope->GetTensor("X");
-  SetRandData(X, target);
-
-  runtime_program->Execute();
+  PassTest tester;
+  std::vector<std::string> input_names    = {x.id().data(), y.id().data()};
+  std::vector<std::string> output_names   = {identity_2->id, mul_1->id};
+  std::vector<std::string> program_passes = {"RemoveIdentity"};
+  int num_removed_ops                     = tester.RunAndCheck(builder, program_passes, input_names, output_names);
+  ASSERT_EQ(num_removed_ops, 2);
 }
 
 }  // namespace cinn::frontend

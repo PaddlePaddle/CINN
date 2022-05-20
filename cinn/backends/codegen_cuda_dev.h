@@ -14,6 +14,7 @@
 
 #pragma once
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 #include "cinn/backends/codegen_c.h"
@@ -78,6 +79,7 @@ class CodeGenCUDA_Dev : public CodeGenC {
   void Visit(const ir::Call* op) override;
   void Visit(const ir::Load* op) override;
   void Visit(const ir::Store* op) override;
+  void Visit(const ir::Let* op) override;
 
   // Print element access at a cuda built-in vector on a load/store node
   bool PrintBuiltinVectorAccess(const ir::LoadStoreAddrMnger* op, ir::Expr index);
@@ -101,6 +103,9 @@ class CodeGenCUDA_Dev : public CodeGenC {
  private:
   Target target_;
   bool for_nvrtc_{false};
+  // names of vectorized tensors from `Let` statments where dtypes of the tensors
+  // are customized_type with customized_type::kcuda_builtin_vector_t prefix
+  std::unordered_set<std::string> vectorized_tensor_names_;
 };
 
 }  // namespace backends
