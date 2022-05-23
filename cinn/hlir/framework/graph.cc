@@ -50,11 +50,19 @@ Graph::Graph(const frontend::Program& prog, const Target& target) {
     }
     int out_idx = 0;
     for (auto& output_v : temp->outputs) {
-      dtype_dict[output_v->id] = output_v->type;
-      shape_dict[output_v->id] = output_v->shape;
-      auto* output_data        = new NodeData(node_ptr, out_idx++, 0, output_v->id);
-      node_tmp->LinkTo(output_data);
-      this->RegisterNode(output_v->id, output_data);
+      common::GraphNode* graph_node = this->RetrieveNode(output_v->id);
+      if (!graph_node) {
+        dtype_dict[output_v->id] = output_v->type;
+        shape_dict[output_v->id] = output_v->shape;
+        auto* output_data        = new NodeData(node_ptr, out_idx++, 0, output_v->id);
+        node_tmp->LinkTo(output_data);
+        this->RegisterNode(output_v->id, output_data);
+      } else {
+        node_tmp->LinkTo(graph_node->as<NodeData>());
+        graph_node->as<NodeData>()->set_const(false);
+        graph_node->as<NodeData>()->output_index = out_idx++;
+        graph_node->as<NodeData>()->source_node  = node_ptr;
+      }
     }
     this->RegisterNode(node_tmp->id(), node_tmp);
   }
