@@ -130,14 +130,14 @@ class MatmulMergePass : public ProgramPass {
       }
     }
 
-    VLOG(4) << "Step1: get entrance instructions";
-    auto entry_instrs = GetEntryInstrs(all_instrs, out2instr);
+    VLOG(4) << "Step1: Get entrance instructions";
+    auto out_instrs = GetGraphOutInstrs(all_instrs, in2instr);
 
-    VLOG(4) << "Step2: get each instruction's ancestor node list";
-    auto ancestor_map = GetAncestorNodeMap(in2instr, entry_instrs);
+    VLOG(4) << "Step2: Get each instruction's ancestor nodes list";
+    auto no_link_matmul_map = GetNoLinkMatmulNodeMap(all_instrs, out2instr, out_instrs);
 
-    VLOG(4) << "Step3: get the group of input shape same and not-ancestor matmul";
-    auto groups = GetFusionGroups(same_matmul_map, ancestor_map);
+    VLOG(4) << "Step3: Get the matmul group of whose inputs shape are all same and no ancestor relationship";
+    auto groups = GetFusionGroups(same_matmul_map, no_link_matmul_map);
 
     // CinnBuilder builder("matmul_merge_builder");
     // for (auto& var : program->GetInputs()) {
@@ -151,39 +151,48 @@ class MatmulMergePass : public ProgramPass {
     //   builder.AppendInstruction((*program)[i]);
     // }
     // *program = builder.Build();
+
+    VLOG(3) << "-- After MatmulMergePass:\n" << *program;
   }
 
   // get the entrance instruction, whose inputs are all from out-graph
-  std::unordered_set<Instruction*> GetEntryInstrs(const std::vector<Instruction*>& all_instrs,
-                                                  const OutputToOpMap& out2instr) const {
-    std::unordered_set<Instruction*> entry_instrs;
+  std::unordered_set<Instruction*> GetGraphOutInstrs(const std::vector<Instruction*>& all_instrs,
+                                                     const InputToOpMap& in2instr) const {
+    std::unordered_set<Instruction*> out_instrs;
     for (size_t i = 0; i < all_instrs.size(); ++i) {
-      auto instr       = all_instrs[i];
-      bool is_entrance = true;
-      for (const auto& in : (*instr)->inputs) {
-        if (out2instr.count(in->id)) {
+      auto instr   = all_instrs[i];
+      bool is_exit = true;
+      for (const auto& out : (*instr)->outputs) {
+        if (in2instr.count(out->id)) {
           // if the instruction's input are some instruction's output, it's not entrance.
-          is_entrance = false;
+          is_exit = false;
           break;
         }
       }
-      if (is_entrance) {
-        entry_instrs.insert(instr);
+      if (is_exit) {
+        out_instrs.insert(instr);
       }
     }
-    return entry_instrs;
+
+    std::string res;
+    for (auto instr : out_instrs) {
+      res += (*instr)->op_type + ", ";
+    }
+    VLOG(3) << "Graph's output instruction: " << res;
+    return out_instrs;
   }
 
   // get each instruction's ancestor list
-  OpToAncestorsMap GetAncestorNodeMap(const InputToOpMap& in2instr,
-                                      const std::unordered_set<Instruction*>& entry_instrs) const {
+  OpToAncestorsMap GetAllAncestorNodeMap(const OutputToOpMap& out2instr,
+                                         const std::unordered_set<Instruction*>& out_instrs) const {
     OpToAncestorsMap ancestor_map;
     std::unordered_set<Instruction*> visited_instr;
 
     std::queue<Instruction*> next_instr;
-    for (auto instr : entry_instrs) {
-      visited_instr.insert(instr);
+    for (auto instr : out_instrs) {
       next_instr.push(instr);
+      // create a empty ancestor list
+      ancestor_map[instr].clear();
     }
 
     // level traversal
@@ -192,46 +201,98 @@ class MatmulMergePass : public ProgramPass {
       next_instr.pop();
 
       if (visited_instr.count(cur_instr)) continue;
+      visited_instr.insert(cur_instr);
 
-      const auto& outputs = cur_instr->GetOutputs();
-      for (const auto& out : outputs) {
-        if (!in2instr.count(out->id)) continue;
+      for (const auto& in : (*cur_instr)->inputs) {
+        if (!out2instr.count(in->id)) continue;
 
-        const auto& out_instrs = in2instr.at(out->id);
-        for (auto instr : out_instrs) {
-          ancestor_map[instr].insert(cur_instr);
-          if (ancestor_map.count(cur_instr)) {
-            // the instruction's ancestor contain its father node and its father's ancestor nodes
-            ancestor_map[instr].insert(ancestor_map.at(cur_instr).begin(), ancestor_map.at(cur_instr).end());
-          }
+        auto in_instr = out2instr.at(in->id);
+        // the input instr's son nodes contain the current node and its son nodes
+        ancestor_map[in_instr].insert(cur_instr);
+        ancestor_map[in_instr].insert(ancestor_map.at(cur_instr).begin(), ancestor_map.at(cur_instr).end());
 
-          if (!visited_instr.count(instr)) {
-            // if not visited, push into queue for traversal
-            next_instr.push(instr);
-          }
+        if (!visited_instr.count(in_instr)) {
+          // if not visited, push into queue for traversal
+          next_instr.push(in_instr);
         }
       }
     }
+    return ancestor_map;
+  }
+
+  OpToAncestorsMap GetMatmulAncestorNodeMap(const std::unordered_set<Instruction*>& not_matmul_set,
+                                            const OutputToOpMap& out2instr,
+                                            const std::unordered_set<Instruction*>& out_instrs) const {
+    auto ancestor_map = GetAllAncestorNodeMap(out2instr, out_instrs);
+
+    for (auto instr : not_matmul_set) {
+      ancestor_map.erase(instr);
+    }
+
+    for (const auto& instr_pair : ancestor_map) {
+      for (auto instr : not_matmul_set) {
+        instr_pair.second.erase(instr);
+      }
+    }
+
+    auto debug_info = [](const OpToAncestorsMap& node_map) {
+      std::string res;
+      for (const auto& pair : node_map) {
+        res += (*pair.first)->op_type + "/" + pair.first->GetOutput(0)->id + ": ";
+        for (auto instr : pair.second) {
+          res += (*instr)->op_type + "/" + instr->GetOutput(0)->id + ", ";
+        }
+        res += "\n";
+      }
+      return res;
+    };
+    VLOG(5) << "Matmul and its ancestor list:\n" << debug_info(ancestor_map);
 
     return ancestor_map;
   }
 
-  std::vector<std::vector<Instruction*>> GetFusionGroups(const MatmulKeyMap& same_matmul_map,
-                                                         const OpToAncestorsMap& ancestor_map) const {
-    auto is_ancestor = [&](Instruction* instr1, Instruction* instr2) -> bool {
-      bool instr1_has_ancestor = ancestor_map.count(instr1);
-      bool instr2_has_ancestor = ancestor_map.count(instr2);
-
-      if (instr1_has_ancestor && instr2_has_ancestor) {
-        return ancestor_map.at(instr1).count(instr2) || ancestor_map.at(instr2).count(instr1);
-      } else if (instr1_has_ancestor) {
-        return ancestor_map.at(instr1).count(instr2);
-      } else if (instr2_has_ancestor) {
-        return ancestor_map.at(instr2).count(instr1);
+  OpToAncestorsMap GetNoLinkMatmulNodeMap(const std::vector<Instruction*>& all_instrs,
+                                          const OutputToOpMap& out2instr,
+                                          const std::unordered_set<Instruction*>& out_instrs) const {
+    std::unordered_set<Instruction*> matmul_set, not_matmul_set;
+    for (auto instr : all_instrs) {
+      if ("matmul" != (*instr)->op_type) {
+        not_matmul_set.insert(instr);
+        continue;
+      } else {
+        matmul_set.insert(instr);
       }
-      return false;
-    };
+    }
 
+    auto ancestor_map = GetMatmulAncestorNodeMap(not_matmul_set, out2instr, out_instrs);
+
+    OpToAncestorsMap no_link_matmul_map;
+    for (const auto& instr_pair : ancestor_map) {
+      std::set_difference(matmul_set.begin(),
+                          matmul_set.end(),
+                          instr_pair.second.begin(),
+                          instr_pair.second.end(),
+                          std::inserter(no_link_matmul_map[instr_pair.first].begin()));
+    }
+
+    auto debug_info = [](const OpToAncestorsMap& node_map) {
+      std::string res;
+      for (const auto& pair : node_map) {
+        res += (*pair.first)->op_type + "/" + pair.first->GetOutput(0)->id + ": ";
+        for (auto instr : pair.second) {
+          res += (*instr)->op_type + "/" + instr->GetOutput(0)->id + ", ";
+        }
+        res += "\n";
+      }
+      return res;
+    };
+    VLOG(5) << "Matmul and its not-link brother matmul list:\n" << debug_info(no_link_matmul_map);
+
+    return no_link_matmul_map;
+  }
+
+  std::vector<std::vector<Instruction*>> GetFusionGroups(const MatmulKeyMap& same_matmul_map,
+                                                         const OpToAncestorsMap& no_link_matmul_map) const {
     auto debug_output_names = [](const std::vector<Instruction*>& group) -> std::string {
       std::string output_names;
       for (auto instr : group) {
@@ -255,14 +316,12 @@ class MatmulMergePass : public ProgramPass {
         instrs_has_group.insert(candidate[i]);
 
         for (int j = i + 1; j < candidate.size(); ++j) {
-          if (instrs_has_group.count(candidate[j])) continue;
+          if (instrs_has_group.count(candidate[j]) || is_ancestor(candidate[i], candidate[j])) continue;
 
-          if (!is_ancestor(candidate[i], candidate[j])) {
-            // they are not link, can fuse
-            fusion_groups.back().emplace_back(candidate[j]);
-            // the instruction is in group now
-            instrs_has_group.insert(candidate[j]);
-          }
+          // they are not link, can fuse
+          fusion_groups.back().emplace_back(candidate[j]);
+          // the instruction is in group now
+          instrs_has_group.insert(candidate[j]);
         }
 
         VLOG(3) << "Group of " << instr_pair.first.to_string() << " size is " << fusion_groups.back().size();
