@@ -119,7 +119,7 @@ void CodeGen(ir::LoweredFunc& func) {
   }
 } */
 
-TEST(OP_LOWERING, Reduce_Test_2) {
+/* TEST(OP_LOWERING, Reduce_Test_2) {
   int h = 32, w = 32;
   NetBuilder net_builder("Reduce_Test_2");
   // create model
@@ -147,7 +147,7 @@ TEST(OP_LOWERING, Reduce_Test_2) {
     CHECK_EQ(lowered_func.size(), 1);
     CodeGen(lowered_func[0]);
   }
-}
+} */
 
 TEST(OP_LOWERING, Reduce_Test_3) {
   int h = 32, w = 32;

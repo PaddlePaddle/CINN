@@ -247,37 +247,50 @@ void NewCudaScheduleBlockReduceInternal(ir::IRSchedule &ir_sch,
     ir_sch.Fuse(all_blocks[1], {0, 1});
     LOG(INFO) << "NewCudaScheduleBlockReduceInternal Stage 6";
   }
-
+  LOG(INFO) << "tmp_out shape is : " << tmp_out->name << " : " << tmp_out->shape.size();
+  LOG(INFO) << "out shape is : " << out->name << " : " << out->shape.size();
   if (tmp_out->shape.size() == 1) {
     LOG(INFO) << "NewCudaScheduleBlockReduceInternal Stage 7";
     all_blocks = ir_sch.GetAllBlocks();
-    loops      = ir_sch.GetLoops(all_blocks[0]);
+    auto all_block0 = ir_sch.GetBlock(tmp_out->name);
+    loops      = ir_sch.GetLoops(all_block0);
     ir_sch.Bind(loops[0], "threadIdx.x");
-    ir_sch.SetBuffer(all_blocks[0], "local");
-    loops = ir_sch.GetLoops(all_blocks[1]);
+    all_block0 = ir_sch.GetBlock(tmp_out->name);
+    ir_sch.SetBuffer(all_block0, "local");
+    auto all_block1 = ir_sch.GetBlock(out->name);
+    loops = ir_sch.GetLoops(all_block1);
     ir_sch.Bind(loops[0], "threadIdx.x");
   } else {
     LOG(INFO) << "NewCudaScheduleBlockReduceInternal Stage 8";
     all_blocks = ir_sch.GetAllBlocks();
     LOG(INFO) << "NewCudaScheduleBlockReduceInternal Stage 8.1";
-    loops      = ir_sch.GetLoops(all_blocks[0]);
+    auto all_block0 = ir_sch.GetBlock(tmp_out->name);
+    loops      = ir_sch.GetLoops(all_block0);
+    LOG(INFO) << "NewCudaScheduleBlockReduceInternal Stage 8.2";
+    LOG(INFO) << "loops size is : " << loops.size();
+    LOG(INFO) << "NewCudaScheduleBlockReduceInternal Stage 8.3";
+    LOG(INFO) << "NewCudaScheduleBlockReduceInternal Stage 8.4";
+    all_block0 = ir_sch.GetBlock(tmp_out->name);
+    ir_sch.SetBuffer(all_block0, "local");
+    LOG(INFO) << "NewCudaScheduleBlockReduceInternal Stage 9";
+    all_blocks = ir_sch.GetAllBlocks();
+    all_block0 = ir_sch.GetBlock(tmp_out->name);
+    loops = ir_sch.GetLoops(all_block0);
+    ir_sch.Bind(loops[0], "blockIdx.x");
+    all_blocks = ir_sch.GetAllBlocks();
+    auto all_block1 = ir_sch.GetBlock(out->name);
+    loops = ir_sch.GetLoops(all_block1);
+    LOG(INFO) << "NewCudaScheduleBlockReduceInternal Stage 10";
+    all_block0 = ir_sch.GetBlock(tmp_out->name);
+    ir_sch.SimpleComputeAt(all_block0, loops[0]);
+    all_blocks = ir_sch.GetAllBlocks();
+    all_block0 = ir_sch.GetBlock(tmp_out->name);
+    loops      = ir_sch.GetLoops(all_block0);
     LOG(INFO) << "NewCudaScheduleBlockReduceInternal Stage 8.2";
     LOG(INFO) << "loops size is : " << loops.size();
     ir_sch.Bind(loops[1], "threadIdx.x");
-    LOG(INFO) << "NewCudaScheduleBlockReduceInternal Stage 8.3";
-    all_blocks = ir_sch.GetAllBlocks();
-    LOG(INFO) << "NewCudaScheduleBlockReduceInternal Stage 8.4";
-    ir_sch.SetBuffer(all_blocks[0], "local");
-    LOG(INFO) << "NewCudaScheduleBlockReduceInternal Stage 9";
-    all_blocks = ir_sch.GetAllBlocks();
-    loops = ir_sch.GetLoops(all_blocks[1]);
-    ir_sch.Bind(loops[0], "blockIdx.x");
-    ir_sch.Bind(loops[1], "threadIdx.x");
-    all_blocks = ir_sch.GetAllBlocks();
-    loops = ir_sch.GetLoops(all_blocks[1]);
-    LOG(INFO) << "NewCudaScheduleBlockReduceInternal Stage 10";
-    ir_sch.SimpleComputeAt(all_blocks[0], loops[0]);
   }
+  LOG(INFO) << "After all, it has result : " << ir_sch.GetModule().GetExprs().at(0);
 }
 
 void NewCudaScheduleBlockReduce(ir::IRSchedule &ir_sch,

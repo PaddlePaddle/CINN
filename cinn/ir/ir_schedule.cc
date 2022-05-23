@@ -2078,7 +2078,8 @@ std::vector<Expr> ScheduleHelper::GetAllBlocks() const {
       return x->As<ir::ScheduleBlockRealize>() && !x->As<ir::ScheduleBlockRealize>()->iter_values.empty();
     });
   }
-  CHECK(!result.empty());
+  CHECK(!result.empty()) << "Didn't find blocks in expr.";
+  for (auto& it_expr : exprs) LOG(INFO) << "it_expr is : " << it_expr;
   return result;
 }
 
