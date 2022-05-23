@@ -232,11 +232,21 @@ void Instruction::CheckResults(const std::map<std::string, cinn_pod_value_t>* na
   for (size_t i = 0; i < fn_names_.size(); ++i) {
     LOG(WARNING) << "  Function " << fn_names_[i] << ":";
     for (auto& in_name : in_args_[i]) {
-      auto result_str = checker(name2podargs, in_name);
+      std::string result_str;
+      if (name2podargs) {
+        result_str = checker(name2podargs, in_name);
+      } else {
+        result_str = checker(in_name);
+      }
       LOG(WARNING) << "    input: " << result_str;
     }
     for (auto& out_name : out_args_[i]) {
-      auto result_str = checker(name2podargs, out_name);
+      std::string result_str;
+      if (name2podargs) {
+        result_str = checker(name2podargs, out_name);
+      } else {
+        result_str = checker(out_name);
+      }
       LOG(WARNING) << "    output: " << result_str;
     }
   }

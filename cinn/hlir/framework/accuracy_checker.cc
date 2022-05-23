@@ -39,12 +39,23 @@ std::ostream& operator<<(std::ostream& os, const std::vector<T, Alloc>& vec) {
 }
 
 template <typename T>
-std::string DebugString(const Tensor& cpu_tensor,
-                        const std::string& name,
-                        const std::string& dtype_str,
-                        const CheckResult& res) {
+std::string GetTypeString() {
+  if (std::is_same<T, float>::value) {
+    return "float";
+  } else if (std::is_same<T, int32_t>::value) {
+    return "int32_t";
+  } else if (std::is_same<T, int64_t>::value) {
+    return "int64_t";
+  } else {
+    CHECK(false) << "Not supported data type.";
+    return "";
+  }
+}
+
+template <typename T>
+std::string DebugString(const Tensor& cpu_tensor, const std::string& name, const CheckResult& res) {
   std::stringstream ss;
-  ss << "name=" << name << ", dtype=" << dtype_str << ", shape=" << cpu_tensor->shape().data() << ", data=[";
+  ss << "name=" << name << ", dtype=" << GetTypeString<T>() << ", shape=" << cpu_tensor->shape().data() << ", data=[";
   size_t numel  = cpu_tensor->shape().numel();
   const T* data = cpu_tensor->data<T>();
   if (numel <= 10) {
@@ -82,46 +93,36 @@ std::string DebugString(const Tensor& cpu_tensor,
   return ss.str();
 }
 
+std::string AccuracyChecker::operator()(const std::string& arg_name) {
+  auto tensor = scope_->GetTensor(arg_name);
+  if (tensor->type().is_float()) {
+    return CheckTensor<float>(tensor, arg_name);
+  } else if (tensor->type().is_int()) {
+    return CheckTensor<int32_t>(tensor, arg_name);
+  } else {
+    CHECK(false) << "Not supported data type.";
+    return "";
+  }
+}
+
 std::string AccuracyChecker::operator()(const std::map<std::string, cinn_pod_value_t>* name2podargs,
                                         const std::string& arg_name) {
-  std::string result_str;
-  if (!name2podargs) {
-    auto tensor = scope_->GetTensor(arg_name);
-    if (tensor->type().is_float()) {
-      Tensor cpu_tensor = CopyTensorToCpu<float>(tensor);
-      auto res          = CheckNanOrInf<float>(cpu_tensor);
-      result_str        = DebugString<float>(cpu_tensor, arg_name, "float", res);
-    } else if (tensor->type().is_int()) {
-      Tensor cpu_tensor = CopyTensorToCpu<int>(tensor);
-      auto res          = CheckNanOrInf<int>(cpu_tensor);
-      result_str        = DebugString<int>(cpu_tensor, arg_name, "int", res);
-    } else {
-      CHECK(false) << "Not supported data type.";
-    }
+  CHECK(name2podargs) << "name2podargs should not be nullptr.";
+  const cinn_buffer_t* buffer = cinn_pod_value_to_buffer_p(const_cast<cinn_pod_value_t*>(&name2podargs->at(arg_name)));
+  if (buffer->type == cinn_float32_t()) {
+    return CheckBuffer<float>(buffer, arg_name);
+  } else if (buffer->type == cinn_int32_t()) {
+    return CheckBuffer<int32_t>(buffer, arg_name);
+  } else if (buffer->type == cinn_int64_t()) {
+    return CheckBuffer<int64_t>(buffer, arg_name);
   } else {
-    const cinn_buffer_t* buffer =
-        cinn_pod_value_to_buffer_p(const_cast<cinn_pod_value_t*>(&name2podargs->at(arg_name)));
-    if (buffer->type == cinn_float32_t()) {
-      Tensor cpu_tensor = CopyBufferToCpu<float>(buffer);
-      auto res          = CheckNanOrInf<float>(cpu_tensor);
-      result_str        = DebugString<float>(cpu_tensor, arg_name, "float", res);
-    } else if (buffer->type == cinn_int32_t()) {
-      Tensor cpu_tensor = CopyBufferToCpu<int32_t>(buffer);
-      auto res          = CheckNanOrInf<int32_t>(cpu_tensor);
-      result_str        = DebugString<int32_t>(cpu_tensor, arg_name, "int32_t", res);
-    } else if (buffer->type == cinn_int64_t()) {
-      Tensor cpu_tensor = CopyBufferToCpu<int64_t>(buffer);
-      auto res          = CheckNanOrInf<int64_t>(cpu_tensor);
-      result_str        = DebugString<int64_t>(cpu_tensor, arg_name, "int64_t", res);
-    } else {
-      CHECK(false) << "Not supported data type.";
-    }
+    CHECK(false) << "Not supported data type.";
+    return "";
   }
-  return result_str;
 }
 
 template <typename T>
-Tensor AccuracyChecker::CopyTensorToCpu(const Tensor& tensor) {
+std::string AccuracyChecker::CheckTensor(const Tensor& tensor, const std::string& arg_name) {
   Tensor cpu_tensor;
   cpu_tensor->Resize(tensor->shape());
   T* dst = cpu_tensor->mutable_data<T>(common::DefaultHostTarget());
@@ -130,11 +131,13 @@ Tensor AccuracyChecker::CopyTensorToCpu(const Tensor& tensor) {
   size_t numel = tensor->shape().numel();
   MemcpyDeviceToHost(src, numel, dst);
 
-  return cpu_tensor;
+  auto res        = CheckNanOrInf<T>(cpu_tensor);
+  auto result_str = DebugString<T>(cpu_tensor, arg_name, res);
+  return result_str;
 }
 
 template <typename T>
-Tensor AccuracyChecker::CopyBufferToCpu(const cinn_buffer_t* buffer) {
+std::string AccuracyChecker::CheckBuffer(const cinn_buffer_t* buffer, const std::string& arg_name) {
   std::vector<int> shape;
   shape.resize(buffer->dimensions);
   for (size_t i = 0; i < shape.size(); ++i) {
@@ -149,18 +152,26 @@ Tensor AccuracyChecker::CopyBufferToCpu(const cinn_buffer_t* buffer) {
   size_t numel = cpu_tensor->shape().numel();
   MemcpyDeviceToHost(src, numel, dst);
 
-  return cpu_tensor;
+  auto res        = CheckNanOrInf<T>(cpu_tensor);
+  auto result_str = DebugString<T>(cpu_tensor, arg_name, res);
+  return result_str;
 }
 
 template <typename T>
 void AccuracyChecker::MemcpyDeviceToHost(const T* src, size_t numel, T* dst) {
 #ifdef CINN_WITH_CUDA
-  cudaMemcpy(dst, src, numel * sizeof(T), cudaMemcpyDeviceToHost);
-#else
-  for (size_t i = 0; i < numel; ++i) {
-    dst[i] = src[i];
+  if (target_ == common::DefaultNVGPUTarget()) {
+    cudaMemcpy(dst, src, numel * sizeof(T), cudaMemcpyDeviceToHost);
+    return;
   }
 #endif
+  if (target_ == common::DefaultHostTarget()) {
+    for (size_t i = 0; i < numel; ++i) {
+      dst[i] = src[i];
+    }
+  } else {
+    CHECK(false) << "Not supported target type.";
+  }
 }
 
 template <typename T>

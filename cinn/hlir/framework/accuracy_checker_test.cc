@@ -57,10 +57,13 @@ void SetRandomTensor(Tensor tensor, Target target, bool generate_nan) {
   GenerateRandomData(random_nan_vec.data(), numel, generate_nan);
 
 #ifdef CINN_WITH_CUDA
-  cudaMemcpy(dst, random_nan_vec.data(), numel * sizeof(float), cudaMemcpyHostToDevice);
-#else
-  std::copy(random_nan_vec.begin(), random_nan_vec.end(), dst);
+  if (target == common::DefaultNVGPUTarget()) {
+    cudaMemcpy(dst, random_nan_vec.data(), numel * sizeof(float), cudaMemcpyHostToDevice);
+  }
 #endif
+  if (target == common::DefaultHostTarget()) {
+    std::copy(random_nan_vec.begin(), random_nan_vec.end(), dst);
+  }
 }
 
 TEST(AccuracyChecker, tensor) {
@@ -72,7 +75,7 @@ TEST(AccuracyChecker, tensor) {
   SetRandomTensor(out, target, true);
 
   AccuracyChecker checker(target, &scope);
-  std::string result_str = checker(nullptr, "x");
+  std::string result_str = checker("x");
   LOG(INFO) << result_str;
 }
 

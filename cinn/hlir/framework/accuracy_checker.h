@@ -27,14 +27,15 @@ class AccuracyChecker {
  public:
   AccuracyChecker(const Target& target, Scope* scope) : target_(target), scope_(scope) {}
 
+  std::string operator()(const std::string& arg_name);
   std::string operator()(const std::map<std::string, cinn_pod_value_t>* name2podargs, const std::string& arg_name);
 
  private:
   template <typename T>
-  Tensor CopyTensorToCpu(const Tensor& tensor);
+  std::string CheckTensor(const Tensor& tensor, const std::string& arg_name);
 
   template <typename T>
-  Tensor CopyBufferToCpu(const cinn_buffer_t* buffer);
+  std::string CheckBuffer(const cinn_buffer_t* buffer, const std::string& arg_name);
 
   template <typename T>
   void MemcpyDeviceToHost(const T* src, size_t numel, T* dst);
