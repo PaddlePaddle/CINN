@@ -281,12 +281,6 @@ struct Program {
 
   Variable transpose(const Variable& input_vars, const std::vector<int>& axis);
 
-  /**
-   * Multiply two matrix and add a bias.
-   */
-  Variable mulbias(
-      const Variable& a, const Variable& b, const Variable& c, int x_num_col_dims = 1, int y_num_col_dims = 1);
-
 #define SYNTAX_PRIM_UNARY_DECL(name__) Variable primitive_##name__(const Variable& a);
 
   SYNTAX_PRIM_UNARY_DECL(exp);
