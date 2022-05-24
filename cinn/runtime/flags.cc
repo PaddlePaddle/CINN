@@ -41,6 +41,10 @@ DEFINE_bool(cinn_use_cuda_vectorize,
             BoolFromEnv("FLAGS_cinn_use_cuda_vectorize", false),
             "Whether use cuda vectroize on schedule config");
 
+DEFINE_bool(cinn_ir_schedule,
+            BoolFromEnv("FLAGS_cinn_ir_schedule", false),
+            "Whether use reconstructed schedule primitives.");
+
 // FLAGS for performance analysis and accuracy debug
 DEFINE_bool(cinn_sync_run,
             BoolFromEnv("FLAGS_cinn_sync_run", false),

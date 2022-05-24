@@ -48,15 +48,7 @@ namespace optim {
  */
 void RemoveGpuForloopsAxis(Expr *expr) {
   struct Mutator : public ir::IRMutator<Expr *> {
-    void operator()(Expr *expr) {
-      if (!expr->As<ir::_LoweredFunc_>()) {
-        LOG(ERROR) << "The outermost should be a _LoweredFunc_ node, so that we can register "
-                      "the GPU kernal dimension information there.";
-        return;
-      }
-      cur_func_ = expr->As<ir::_LoweredFunc_>();
-      ir::IRMutator<>::Visit(expr, expr);
-    }
+    void operator()(Expr *expr) { ir::IRMutator<>::Visit(expr, expr); }
 
    private:
     void Visit(const ir::For *op, Expr *expr) override {
@@ -134,8 +126,6 @@ void RemoveGpuForloopsAxis(Expr *expr) {
       CHECK(op->for_type() != ir::ForType::GPUThread) << msg;
       CHECK(op->for_type() != ir::ForType::GPULane) << msg;
     }
-
-    ir::_LoweredFunc_ *cur_func_{};
   };
 
   Mutator mutator;
@@ -339,6 +329,7 @@ void TransformGpuForloops(const forloop_infos_t &forloop_infos,
                           Expr *expr) {
   std::set<std::string> gpu_launch_axis;
   for (auto &i : traverse_order) {
+    if (forloop_infos.count(i) == 0) continue;
     for (auto &f : forloop_infos.at(i)) {
       if (f.second.for_type == ir::ForType::GPUThread) {
         gpu_launch_axis.insert(backends::cuda_thread_axis_name(f.second.offset));
@@ -348,6 +339,7 @@ void TransformGpuForloops(const forloop_infos_t &forloop_infos,
     }
   }
   for (auto &i : traverse_order) {
+    if (forloop_infos.count(i) == 0) continue;
     MarkGpuForloop(i, forloop_infos.at(i), gpu_launch_axis, global_tensor_map, resized_buffer, expr);
   }
 }
@@ -417,6 +409,39 @@ void CudaSyncThreadsDropIfThenElse(Expr *expr) {
   };
 
   Mutator()(expr);
+}
+
+void OptimizeExprGPU(Expr *expr) {
+  std::vector<std::string> tensor_traverse_order;
+  std::map<std::string, ir::Tensor> global_tensor_map;
+  auto find_expr = ir::CollectIRNodesWithoutTensor(*expr, [&](const Expr *x) {
+    if (x->As<ir::Store>() && global_tensor_map.count(x->As<ir::Store>()->tensor.as_tensor_ref()->name) == 0) {
+      tensor_traverse_order.push_back(x->As<ir::Store>()->tensor.as_tensor_ref()->name);
+      global_tensor_map[x->As<ir::Store>()->tensor.as_tensor_ref()->name] = x->As<ir::Store>()->tensor.as_tensor_ref();
+    }
+    return x->As<ir::Store>();
+  });
+  std::reverse(tensor_traverse_order.begin(), tensor_traverse_order.end());
+  forloop_infos_t forloop_infos;
+
+  auto find_bind_forloops = ir::CollectIRNodesWithoutTensor(
+      *expr, [&](const Expr *x) { return x->As<ir::For>() && x->As<ir::For>()->bind_info().valid(); });
+  for (auto &for_loop : find_bind_forloops) {
+    std::string for_iter = for_loop.As<ir::For>()->loop_var->name;
+    poly::StageForloopInfo for_loop_info;
+    for_loop_info.for_type = for_loop.As<ir::For>()->bind_info().for_type;
+    for_loop_info.offset   = for_loop.As<ir::For>()->bind_info().offset;
+    for_loop_info.device   = for_loop.As<ir::For>()->bind_info().device;
+    auto find_store        = ir::CollectIRNodesWithoutTensor(for_loop, [&](const Expr *x) {
+      if (x->As<ir::Store>()) {
+        forloop_infos[x->As<ir::Store>()->tensor.as_tensor_ref()->name][for_iter] = for_loop_info;
+      }
+      return x->As<ir::Store>();
+    });
+  }
+  std::unordered_set<std::string> resized_buffer;
+  VLOG(3) << "Expr is : " << *expr;
+  TransformGpuForloops(forloop_infos, tensor_traverse_order, &global_tensor_map, resized_buffer, expr);
 }
 
 }  // namespace optim

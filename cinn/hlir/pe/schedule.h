@@ -54,6 +54,8 @@ class ScheduleParam {
 
 int GetInnerSplitter(int origin, int other_axis);
 
+int GetVectorizeFactor(int shape, int split_factor);
+
 int SplitEven(int origin);
 
 int GetBasicFactor(const Type &type, const common::Target &target);
