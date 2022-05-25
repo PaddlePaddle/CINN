@@ -127,6 +127,8 @@ class GraphCompiler final {
       const std::vector<std::vector<hlir::framework::Node*>>& graph);
 
  private:
+  void LowerAllNodes(const std::vector<std::vector<Node*>>& groups);
+
   std::vector<ir::LoweredFunc> NodeToLoweredFunc(const hlir::framework::Node& node);
 
   std::vector<ir::LoweredFunc> FusedNodeGroupToLoweredFunc(const std::vector<hlir::framework::Node*>& node_group);

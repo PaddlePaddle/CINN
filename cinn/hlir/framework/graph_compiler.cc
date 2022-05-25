@@ -604,6 +604,17 @@ void GraphCompiler::ProcessFunction(const std::vector<ir::LoweredFunc>& lowered_
   }
 }
 
+void GraphCompiler::LowerAllNodes(const std::vector<std::vector<Node*>>& groups) {
+  for (auto& group : groups) {
+    if (group.size() > 1) {
+      for (auto node : group) {
+        // generate code for each node
+        ProcessFunction(GetOpFunc(node));
+      }
+    }
+  }
+}
+
 std::unique_ptr<Program> GraphCompiler::Build(const std::string& code) {
   GraphCompiler::CompileOptions options;
   options.attached_code              = code;
@@ -695,6 +706,11 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   CHECK_EQ(groups.size(), lowered_funcs.size()) << "The size of groups and lowered_funcs shoule be equal";
   for (auto&& lowered_func : lowered_funcs) {
     this->ProcessFunction(lowered_func);
+  }
+
+  // if check fusion fusion pass
+  if (FLAGS_cinn_check_fusion_pass) {
+    LowerAllNodes(groups);
   }
 
   graph_->VisualizeGroupedGraph(groups, fetch_var_ids_);
