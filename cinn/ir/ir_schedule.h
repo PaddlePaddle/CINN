@@ -288,7 +288,7 @@ class IRSchedule {
    */
   void Bind(const Expr& loop, const std::string& thread_axis);
 
-  //! Copy other block's schedule transform.
+  //! Copy another block's schedule transform.
   void CopyTransformAndLoopInfo(const Expr& block, const Expr& block_target);
 
   void CopyTransformAndLoopInfo(const std::string& block_name, const std::string& block_target_name);

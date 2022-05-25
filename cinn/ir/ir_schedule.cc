@@ -181,7 +181,7 @@ void ReplaceExpr(Expr* source, const std::vector<Var>& replaced, const std::vect
       << "In ReplaceExpr, the size of Vars to be replaced must be equal to the size of cadidate Exprs! Please check.";
   if (replaced.empty()) return;
   std::map<Var, Expr, CompVar> replacing_map;
-  for (int i = 0; i < replaced.size(); i++) {
+  for (int i = 0; i < replaced.size(); ++i) {
     // If the Var to be replaced is equal to the candidate, we skip it.
     if (candidates[i].is_var() && candidates[i].as_var_ref() == replaced[i]) continue;
     replacing_map[replaced[i]] = candidates[i];
@@ -220,7 +220,7 @@ std::vector<int> ValidateFactors(const std::vector<int>& factors, int total_exte
     CHECK_LE(product, total_extent) << "In Split, when there is -1 in factors, the other factors' product should be <= "
                                        "original loop's extent! Please check.";
     int minus_one_candidate = (int)ceil((double)total_extent / (double)product);
-    for (int i = 0; i < validated_factors.size(); i++) {
+    for (int i = 0; i < validated_factors.size(); ++i) {
       if (validated_factors[i] == -1) {
         validated_factors[i] = minus_one_candidate;
       }
@@ -239,7 +239,7 @@ std::vector<Expr> IRSchedule::Split(const Expr& loop, const std::vector<int>& fa
   int prod_size = std::accumulate(processed_factors.begin(), processed_factors.end(), 1, std::multiplies<int>());
   std::vector<Var> new_loop_vars;
   Expr substitute_value(0);
-  for (int i = 0; i < processed_factors.size(); i++) {
+  for (int i = 0; i < processed_factors.size(); ++i) {
     Var temp_var(for_node->loop_var->name + "_" + std::to_string(i));
     substitute_value = Expr(temp_var) + substitute_value * Expr(processed_factors[i]);
     new_loop_vars.push_back(temp_var);
@@ -290,7 +290,7 @@ Expr IRSchedule::Fuse(const std::vector<Expr>& loops) {
   std::string suffix;
   suffix           = for_nodes[0]->loop_var->name;
   int loops_number = for_nodes.size();
-  for (int i = 1; i < loops_number; i++) {
+  for (int i = 1; i < loops_number; ++i) {
     suffix += "_" + for_nodes[i]->loop_var->name;
   }
   suffix += "_fused";
@@ -308,7 +308,7 @@ Expr IRSchedule::Fuse(const std::vector<Expr>& loops) {
   ReplaceExpr(&fused_body, loop_vars, substitute_value);
   optim::Simplify(&fused_body);
   Expr fused_extent(1);
-  for (int i = 0; i < loops_number; i++) {
+  for (int i = 0; i < loops_number; ++i) {
     fused_extent = fused_extent * for_nodes[i]->extent;
   }
   fused_extent = common::AutoSimplify(fused_extent);
@@ -324,7 +324,7 @@ Expr IRSchedule::Fuse(const std::string& block_name, const std::vector<int>& loo
   std::vector<Expr> all_loops = this->GetLoops(block_name);
   std::vector<Expr> loops_expr;
   loops_expr.reserve(loops_index.size());
-  for (int i = 0; i < loops_index.size(); i++) {
+  for (int i = 0; i < loops_index.size(); ++i) {
     if (i > 0) CHECK_EQ(loops_index[i - 1] + 1, loops_index[i]) << "Loops index in Fuse shoule be continuous!";
   }
   for (int i : loops_index) {
@@ -339,7 +339,7 @@ Expr IRSchedule::Fuse(const Expr& block, const std::vector<int>& loops_index) {
   std::vector<Expr> all_loops = this->GetLoops(block);
   std::vector<Expr> loops_expr;
   loops_expr.reserve(loops_index.size());
-  for (int i = 0; i < loops_index.size(); i++) {
+  for (int i = 0; i < loops_index.size(); ++i) {
     if (i > 0) CHECK_EQ(loops_index[i - 1] + 1, loops_index[i]) << "Loops index in Fuse shoule be continuous!";
   }
   for (int i : loops_index) {
@@ -428,7 +428,7 @@ struct RfMutator : public ir::IRMutator<> {
     CHECK(new_rf_loop_var_.defined());
     CHECK_EQ(iter_values.size(), block_vars.size());
     int rf_index = -1;
-    for (int i = 0; i < iter_values.size(); i++) {
+    for (int i = 0; i < iter_values.size(); ++i) {
       // substitute the old rfactor loop var to new rfactor loop var
       if (ContainVar({iter_values[i]}, old_rf_loop_var_->name)) {
         CHECK_EQ(rf_index, -1) << "only one block var can bind the rfactor loop var";
@@ -566,7 +566,7 @@ struct FinalMutator : public ir::IRMutator<> {
     output_name_      = schedule_block->name;
     visit_init_block_ = output_name_.rfind("_init") != std::string::npos;
     if (!visit_init_block_) {
-      for (int i = 0; i < iter_values.size(); i++) {
+      for (int i = 0; i < iter_values.size(); ++i) {
         if (ContainVar({iter_values[i]}, old_rf_loop_var_->name)) {
           // record the rfactor loop var's block var
           CHECK(iter_values[i].As<_Var_>()) << "not support complex reduce bindings: " << iter_values[i];
@@ -730,7 +730,7 @@ void CHECKRfactorValidation(const Expr& rf_loop, int rf_axis) {
   CHECK_EQ(iter_values.size(), iter_vars.size());
   auto rf_loop_var = rf_for->loop_var;
   Var rf_block_var;
-  for (int i = 0; i < iter_values.size(); i++) {
+  for (int i = 0; i < iter_values.size(); ++i) {
     if (ContainVar({iter_values[i]}, rf_loop_var->name)) {
       CHECK(!rf_block_var.defined()) << "rfactor loop var can only be binded to one block var";
       auto iter_value = iter_values[i].As<_Var_>();
@@ -819,7 +819,7 @@ std::vector<std::pair<Expr, Expr>> GetRange(const std::vector<Expr>& tensor_indi
                                             const Tensor& tensor) {
   CHECK_EQ(iter_vars.size(), iter_range.size());
   std::vector<std::pair<Expr, Expr>> result;
-  for (int i = 0; i < (int)tensor_indices.size(); i++) {
+  for (int i = 0; i < (int)tensor_indices.size(); ++i) {
     auto range = GetRange(tensor_indices[i], iter_vars, iter_range, 0);
     CHECK(range.first.is_constant());
     if ((int)range.first.get_constant() == (-1)) {
@@ -972,7 +972,7 @@ Expr MakeCacheBlock(const std::vector<std::pair<Expr, Expr>>& buffer_region,
   auto body                  = new_tensor->tensor_store_expanded_body();
   std::vector<Var> axis_vars = common::GenDefaultAxis(new_tensor->domain.size());
   axis_vars.insert(axis_vars.end(), new_tensor->reduce_axis.begin(), new_tensor->reduce_axis.end());
-  for (int i = 0; i < axis_vars.size(); i++) {
+  for (int i = 0; i < axis_vars.size(); ++i) {
     optim::ReplaceVarWithExpr(&body, axis_vars[i], block_vars[i]);
   }
   Expr block = ir::ScheduleBlockRealize::Make(
@@ -1136,7 +1136,7 @@ void FindInsertionPoint(Expr& root, CacheBlockInfo* info, bool is_write) {
   CHECK(root.As<ScheduleBlockRealize>()->schedule_block.As<ScheduleBlock>());
   CHECK(root.As<ScheduleBlockRealize>()->schedule_block.As<ScheduleBlock>()->body.As<Block>());
   info->loc_block = root.As<ScheduleBlockRealize>()->schedule_block.As<ScheduleBlock>()->body;
-  for (int i = 0; i < (int)info->loc_block.As<Block>()->stmts.size(); i++) {
+  for (int i = 0; i < (int)info->loc_block.As<Block>()->stmts.size(); ++i) {
     if (Contains(info->loc_block.As<Block>()->stmts[i], producer)) {
       info->loc_pos = i + 1;
       break;
@@ -1371,7 +1371,7 @@ Expr ConstructNewLoopChain(const std::vector<Expr>& chain,
     }
     Expr original_temp = temp;
     // Here we handle the IfThenElse nodes.
-    for (int i = 0; i < static_cast<int>(if_nodes.size()); i++) {
+    for (int i = 0; i < static_cast<int>(if_nodes.size()); ++i) {
       if (condition_vars[i].count(original_temp.As<ir::For>()->loop_var->name)) {
         Expr temp_body = temp.As<ir::For>()->body;
         if (temp_body.As<Block>() && temp_body.As<Block>()->stmts.size() == 1U)
@@ -1599,7 +1599,7 @@ struct LeafBlockRemovalPlan : public ir::IRMutator<> {
   void Visit(const ir::Block* expr, Expr* op) override {
     if (expr->stmts.size() > 1U) {
       int block_index = -1;
-      for (int i = 0; i < expr->stmts.size(); i++) {
+      for (int i = 0; i < expr->stmts.size(); ++i) {
         auto keep_flag = find_block;
         find_block     = false;
         auto* node     = op->As<ir::Block>();
@@ -1615,7 +1615,7 @@ struct LeafBlockRemovalPlan : public ir::IRMutator<> {
       }
       if (block_index != -1) {
         std::vector<Expr> new_stmts;
-        for (int i = 0; i < expr->stmts.size(); i++) {
+        for (int i = 0; i < expr->stmts.size(); ++i) {
           if (i == block_index)
             continue;
           else
@@ -1667,7 +1667,7 @@ void IRSchedule::MergeExprs() {
   merged_block.push_back(
       exprs[0].As<ir::Block>()->stmts[0].As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->body);
   LOG(INFO) << "Before merging, exprs[0] is : " << exprs[0];
-  for (int i = 1; i < exprs.size(); i++) {
+  for (int i = 1; i < exprs.size(); ++i) {
     auto root_block = ir::CollectIRNodes(exprs[i], [&](const Expr* x) {
       return x->As<ir::ScheduleBlockRealize>() && x->As<ir::ScheduleBlockRealize>()->iter_values.empty();
     });
@@ -1747,14 +1747,14 @@ std::vector<std::pair<Expr, Expr>> CalculateRequiredRegions(const Expr& block,
       CHECK(load.As<ir::Load>());
       auto indices = load.As<ir::Load>()->indices;
       if (find_loops.empty()) {
-        for (int i = 0; i < indices.size(); i++) {
+        for (int i = 0; i < indices.size(); ++i) {
           if (i >= required_buffer_range.size())
             required_buffer_range.push_back(std::make_pair(indices[i], Expr(1)));
           else
             required_buffer_range[i] = RangeUnion(required_buffer_range[i], std::make_pair(indices[i], Expr(1)));
         }
       } else {
-        for (int i = 0; i < indices.size(); i++) {
+        for (int i = 0; i < indices.size(); ++i) {
           Expr indice_min = optim::IRCopy(indices[i]);
           Expr indice_max = optim::IRCopy(indices[i]);
           std::vector<Var> loop_vars;
@@ -1795,7 +1795,7 @@ std::vector<std::pair<Expr, Expr>> CalculateRequiredRegions(const Expr& block,
   }
   int iter_size = block.As<ir::ScheduleBlockRealize>()->iter_values.size();
   if (iter_size > required_buffer_range.size()) {
-    for (int i = required_buffer_range.size(); i < iter_size; i++) {
+    for (int i = required_buffer_range.size(); i < iter_size; ++i) {
       CHECK(block.As<ir::ScheduleBlockRealize>()->iter_values[i].as_var() ||
             block.As<ir::ScheduleBlockRealize>()->iter_values[i].is_constant());
       if (block.As<ir::ScheduleBlockRealize>()->iter_values[i].as_var()) {
@@ -1843,7 +1843,7 @@ void IRSchedule::SimpleComputeAt(const Expr& block, const Expr& loop) {
   Expr result = loops.size() < block_loops.size() ? optim::IRCopy(block_loops[loops.size()]) : optim::IRCopy(block);
   std::vector<Var> replaced_var;
   std::vector<Expr> substitute_expr;
-  for (int i = 0; i < loops.size(); i++) {
+  for (int i = 0; i < loops.size(); ++i) {
     CHECK_EQ(GetLoopExtent(loops[i]), GetLoopExtent(block_loops[i]));
     replaced_var.push_back(block_loops[i].As<ir::For>()->loop_var);
     substitute_expr.push_back(Expr(loops[i].As<ir::For>()->loop_var));
@@ -1909,7 +1909,7 @@ class BaseInliner : public ir::IRMutator<> {
       idx_vars_ = std::move(result);
     } else {
       if (idx_vars_.size() != result.size()) return false;
-      for (int i = 0; i < result.size(); i++) {
+      for (int i = 0; i < result.size(); ++i) {
         if (Expr(idx_vars_[i]) != Expr(result[i])) return false;
       }
     }
@@ -2146,7 +2146,7 @@ void IRSchedule::CopyTransformAndLoopInfo(const Expr& block, const Expr& block_t
   auto old_iter_values = block.As<ir::ScheduleBlockRealize>()->iter_values;
   auto iter_values_target = block_target.As<ir::ScheduleBlockRealize>()->iter_values;
   std::vector<Expr> new_iter_values;
-  for (int i = 0; i < vars.size() && i < vars_target.size(); i++) {
+  for (int i = 0; i < vars.size() && i < vars_target.size(); ++i) {
     CHECK(vars[i]->upper_bound.defined() && vars_target[i]->upper_bound.defined());
     if (vars[i]->upper_bound.is_constant() && vars_target[i]->upper_bound.is_constant() &&
         vars[i]->upper_bound.get_constant() == vars_target[i]->upper_bound.get_constant() && !vars[i]->is_reduce_axis &&
@@ -2184,7 +2184,7 @@ void IRSchedule::CopyTransformAndLoopInfo(const Expr& block, const Expr& block_t
   std::sort(used_target_loops.begin(), used_target_loops.end(), [&](Expr i, Expr j) {
     return (utils::GetStreamCnt(i).size() > utils::GetStreamCnt(j).size());
   });
-  for (int i = new_iter_values.size(); i < old_iter_values.size(); i++) {
+  for (int i = new_iter_values.size(); i < old_iter_values.size(); ++i) {
     CHECK(old_iter_values[i].as_var());
     new_iter_values.push_back(old_iter_values[i]);
   }
