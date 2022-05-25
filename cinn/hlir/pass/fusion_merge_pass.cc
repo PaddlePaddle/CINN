@@ -386,8 +386,8 @@ class FusionMergePassHelper : public FusionHelperBase {
     GroupPtr first_fuesd_group(nullptr);
     for (auto& consumer : fusionable_consumers) {
       auto fused_group = std::make_shared<Graph::Group>();
-      // update depth
-      fused_group->depth = producer->depth;
+      // update depth using consumer depth.
+      fused_group->depth = consumer->depth;
       // update group id
       fused_group->group_id = producer->group_id + "_" + consumer->group_id;
       VLOG(3) << "fuse producer " << producer->group_id << " into consumer " << consumer->group_id;
@@ -519,6 +519,9 @@ class FusionMergePassHelper : public FusionHelperBase {
     }
 
     if (producer->consumer_groups.size() > fusionable_consumers.size()) {
+      // update depth using producer depth.
+      // TODO: this may cause check ring error.
+      first_fuesd_group->depth = producer->depth;
       // update output for others consumer.
       for (auto& node : producer->output_nodes) {
         bool be_output = true;
@@ -530,11 +533,12 @@ class FusionMergePassHelper : public FusionHelperBase {
             }
             continue;
           }
-          // if node is in consumer input node.
+          // if consumer is not in fusionable.
           if (consumer->input_nodes.count(node)) {
             be_output = true;
             break;
           }
+          // others node is as graph output.
         }
 
         if (be_output) {
@@ -626,11 +630,11 @@ class FusionMergePassHelper : public FusionHelperBase {
       candidates.pop();
 
       for (auto& producer : candidate->producer_groups) {
-        if (producer->depth >= check_upper_depth) {
-          continue;
-        }
         if (consumers.count(producer)) {
           return true;
+        }
+        if (producer->depth >= check_upper_depth) {
+          continue;
         }
         if (!visited_set.count(producer)) {
           candidates.push(producer);
