@@ -420,8 +420,11 @@ class OpFusionPassHelper : public FusionHelperBase {
 
   bool CanFuse(const Node* producer, const Node* consumer) {
     auto& relation = fusion_relation_map_[GetOpKind(producer)];
+    // first step: check producer can be fused into consumer
     if (relation.op_kind.count(GetOpKind(consumer))) {
-      return relation.fusion_op_kind[GetOpKind(consumer)](producer, consumer);
+      auto& consumer_group = fusion_groups_[consumer];
+      // second step: check producer can be fused into consumer group
+      return relation.fusion_op_kind[consumer_group->op_pattern_kind](producer, consumer);
     }
 
     return false;
