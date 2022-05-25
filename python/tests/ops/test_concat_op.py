@@ -31,8 +31,8 @@ class TestConcatOp1(OpTest):
 
     def init_case(self):
         self.inputs = {
-            "x1": np.random.random([2, 3]).astype("float32"),
-            "x2": np.random.random((2, 3)).astype("float32")
+            "x1": np.random.random([10201, 50]).astype("float32"),
+            "x2": np.random.random((10201, 50)).astype("float32")
         }
         self.axis = 0
 
@@ -62,6 +62,7 @@ class TestConcatOp1(OpTest):
         self.check_outputs_and_grads()
 
 
+"""
 class TestConcat2Case1(TestConcatOp1):
     def init_case(self):
         self.inputs = {
@@ -134,7 +135,7 @@ class TestConcatOp2(OpTest):
 
     def test_check_results(self):
         self.check_outputs_and_grads()
-
+"""
 
 if __name__ == "__main__":
     unittest.main()
