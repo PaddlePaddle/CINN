@@ -105,8 +105,17 @@ class OpFusionPassHelper : public FusionHelperBase {
       }
     }
 
+    // init group depth.
+    for (auto& group : fusion_groups) {
+      for (auto& consumer : group->consumer_groups) {
+        // update depth.
+        group->depth = std::max(group->depth, consumer->depth + 1);
+      }
+    }
+
     // reverse to keep fusion group in order.
     std::reverse(fusion_groups.begin(), fusion_groups.end());
+
     return fusion_groups;
   }
 

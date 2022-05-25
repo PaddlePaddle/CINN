@@ -207,6 +207,8 @@ class FusionMergePassHelper : public FusionHelperBase {
     // fuse all group into fusion group.
     for (auto& consumer : consumers) {
       VLOG(3) << "fuse consumer " << consumer->group_id << " into fused_group!";
+      // update depth
+      fused_group->depth = std::max(fused_group->depth, consumer->depth);
       // update group id
       if (fused_group->group_id.size()) {
         fused_group->group_id += "_" + consumer->group_id;
@@ -384,6 +386,8 @@ class FusionMergePassHelper : public FusionHelperBase {
     GroupPtr first_fuesd_group(nullptr);
     for (auto& consumer : fusionable_consumers) {
       auto fused_group = std::make_shared<Graph::Group>();
+      // update depth
+      fused_group->depth = producer->depth;
       // update group id
       fused_group->group_id = producer->group_id + "_" + consumer->group_id;
       VLOG(3) << "fuse producer " << producer->group_id << " into consumer " << consumer->group_id;
@@ -608,10 +612,12 @@ class FusionMergePassHelper : public FusionHelperBase {
   }
 
   bool IsDepency(const GroupPtr& producer_g,
-                 const GroupPtr consumer,
+                 const GroupPtr& consumer,
                  const std::unordered_set<GroupPtr, Hasher, Comparator>& consumers) {
     std::queue<GroupPtr> candidates;
     candidates.push(consumer);
+    // check upper.
+    int check_upper_depth = producer_g.get() ? producer_g->depth : INT_MAX;
 
     std::unordered_set<GroupPtr, Hasher, Comparator> visited_set;
     while (!candidates.empty()) {
@@ -620,7 +626,7 @@ class FusionMergePassHelper : public FusionHelperBase {
       candidates.pop();
 
       for (auto& producer : candidate->producer_groups) {
-        if (producer.get() == producer_g.get()) {
+        if (producer->depth >= check_upper_depth) {
           continue;
         }
         if (consumers.count(producer)) {
