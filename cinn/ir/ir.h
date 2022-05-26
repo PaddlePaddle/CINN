@@ -384,7 +384,7 @@ struct _Var_ : public ExprNode<_Var_> {
 
   static Expr Make(const std::string& name, const Type& type);
   //! Make a reduce axis.
-  static Expr Make(Expr lower_bound, Expr upper_bound, const std::string& name, bool is_reduce = true);
+  static Expr Make(Expr lower_bound, Expr upper_bound, const std::string& name, bool is_reduce);
 
   void Verify() const override;
 
@@ -398,9 +398,10 @@ struct Var : public IrNodeRef {
   Var() = default;
   explicit Var(IrNode* n) : IrNodeRef(n) {}
   explicit Var(const std::string& name_hint, Type t = type_of<int>()) : Var(_Var_::Make(name_hint, t).ptr()) {}
-  Var(Expr lower_bound, Expr upper_bound, const std::string& name) : Var(_Var_::Make(lower_bound, upper_bound, name)) {}
-  Var(int upper_bound, const std::string& name) : Var(_Var_::Make(Expr(0), Expr(upper_bound), name)) {}
-  Var(Expr upper_bound, const std::string& name) : Var(_Var_::Make(Expr(0), upper_bound, name)) {}
+  Var(Expr lower_bound, Expr upper_bound, const std::string& name, bool is_reduce = false)
+      : Var(_Var_::Make(lower_bound, upper_bound, name, is_reduce)) {}
+  Var(int upper_bound, const std::string& name) : Var(_Var_::Make(Expr(0), Expr(upper_bound), name, false)) {}
+  Var(Expr upper_bound, const std::string& name) : Var(_Var_::Make(Expr(0), upper_bound, name, false)) {}
 
   operator Expr() { return Expr(get()); }
   operator Expr() const {
