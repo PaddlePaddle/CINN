@@ -61,6 +61,16 @@ class _Tensor_ : public Object {
     buffer_->data()->resize(reinterpret_cast<const cinn_dimension_t*>(shape.data().data()), shape.size());
   }
 
+  inline void* mutable_data(const Target& target, const Type& type) {
+    set_type(type);
+    if (target == common::DefaultHostTarget()) {
+      buffer_->ResizeLazy(1024, (shape_.numel() * type.bits() + 7) / 8, target);
+    } else {
+      buffer_->ResizeLazy((shape_.numel() * type.bits() + 7) / 8, target);
+    }
+    return reinterpret_cast<void*>(buffer_->data()->memory);
+  }
+
   template <typename T>
   inline T* mutable_data(const Target& target) {
     set_type(type_of<T>());

@@ -103,8 +103,7 @@ void BindPE(py::module* m) {
          py::arg("x"),                 \
          py::arg("axes"),              \
          py::arg("keep_dims") = false, \
-         py::arg("initial"),           \
-         py::arg("out") = "T_" #name__ "_out")
+         py::arg("out")       = "T_" #name__ "_out")
   BIND_REDUCE(reduce_sum, ReduceSum);
   BIND_REDUCE(reduce_prod, ReduceProd);
   BIND_REDUCE(reduce_max, ReduceMax);

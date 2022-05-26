@@ -14,6 +14,7 @@
 
 #pragma once
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 #include "cinn/backends/codegen_c.h"
@@ -54,11 +55,6 @@ class CodeGenCUDA_Dev : public CodeGenC {
   std::string Compile(const ir::LoweredFunc& func);
 
   /**
-   * Generate the kernel function's name given a function.
-   */
-  static std::string GenKernelName(const std::string& func_name) { return func_name + "_kernel"; }
-
-  /**
    * \brief Print a function argument in CUDA syntax. Currently, just some decoration of __restrict__.
    * @param arg the argument.
    * @return the representation in CUDA syntax.
@@ -76,6 +72,12 @@ class CodeGenCUDA_Dev : public CodeGenC {
   void Visit(const ir::Max* op) override;
   void Visit(const ir::Alloc* op) override;
   void Visit(const ir::Call* op) override;
+  void Visit(const ir::Load* op) override;
+  void Visit(const ir::Store* op) override;
+  void Visit(const ir::Let* op) override;
+
+  // Print element access at a cuda built-in vector on a load/store node
+  bool PrintBuiltinVectorAccess(const ir::LoadStoreAddrMnger* op, ir::Expr index);
 
   void PrintBuiltinCodes();
 
@@ -96,6 +98,9 @@ class CodeGenCUDA_Dev : public CodeGenC {
  private:
   Target target_;
   bool for_nvrtc_{false};
+  // names of vectorized tensors from `Let` statments where dtypes of the tensors
+  // are customized_type with customized_type::kcuda_builtin_vector_t prefix
+  std::unordered_set<std::string> vectorized_tensor_names_;
 };
 
 }  // namespace backends

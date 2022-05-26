@@ -122,6 +122,17 @@ class BaseBuilder {
                        const std::vector<int>& ends,
                        const std::vector<int>& strides = {});
 
+  Variable FillConstant(const std::vector<int>& shape,
+                        float value,
+                        const std::string& name,
+                        const std::string& dtype,
+                        bool force_cpu = false);
+
+  template <typename T = float>
+  Variable FillConstant(const std::vector<int>& shape, T value, const std::string& name, bool force_cpu = false) {
+    return FillConstant(shape, static_cast<float>(value), name, common::Type2Str(common::type_of<T>()), force_cpu);
+  }
+
  protected:
   void InferShape(Instruction instr) const;
 

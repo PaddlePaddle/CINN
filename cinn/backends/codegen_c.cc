@@ -87,34 +87,45 @@ std::string CodeGenC::Compile(const ir::LoweredFunc &function) {
   return ss_.str();
 }
 
+std::string CodeGenC::GetTypeName(Type type) {
+  // common scalar type
+#define GET_SCALAR_TYPE(pred_expr, scalar_name) \
+  if (pred_expr) {                              \
+    return scalar_name;                         \
+  }
+
+  GET_SCALAR_TYPE(type.is_void(), "void");
+  GET_SCALAR_TYPE(type.is_bool(), "bool");
+  GET_SCALAR_TYPE(type.is_int(8), "int8_t");
+  GET_SCALAR_TYPE(type.is_int(32), "int32_t");
+  GET_SCALAR_TYPE(type.is_int(64), "int64_t");
+  GET_SCALAR_TYPE(type.is_float(32), "float")
+  GET_SCALAR_TYPE(type.is_float(64), "double")
+#undef GET_SCALAR_TYPE
+
+  // customized_type
+  if (type.is_customized_type()) {
+    CHECK(!type.customized_type().empty()) << "customized_type can't be empty.";
+    auto customized_name = type.customized_type();
+    // get name of a cuda built-in vector type, it is started with a 'CudaVectorType::' prefix
+    if (utils::Startswith(customized_name, common::customized_type::kcuda_builtin_vector_t)) {
+      customized_name.erase(0, strlen(common::customized_type::kcuda_builtin_vector_t));
+    }
+    return customized_name;
+  }
+
+  // other types are not implementd yet
+  CINN_NOT_IMPLEMENTED
+  return "";
+}
+
 std::string CodeGenC::GetTypeRepr(Type type) {
   std::string str;
   if (type.is_cpp_const()) {
     str = "const ";
   }
 
-  if (type.is_int(8)) {
-    str += "int8_t";
-  } else if (type.is_int(32)) {
-    str += "int32_t";
-  } else if (type.is_int(64)) {
-    str += "int64_t";
-  } else if (type.is_bool()) {
-    str += "bool";
-  } else if (type.is_float(32)) {
-    str += "float";
-  } else if (type.is_float(64)) {
-    str += "double";
-  } else if (type.is_void()) {
-    str += "void";
-  } else if (type.is_customized_type()) {
-    CHECK(!type.customized_type().empty());
-    str += type.customized_type();
-  } else {
-    LOG(ERROR) << type;
-    CINN_NOT_IMPLEMENTED
-  }
-
+  str += GetTypeName(type);
   if (type.is_cpp_handle()) {
     str += "*";
   } else if (type.is_cpp_handle2()) {
@@ -487,6 +498,7 @@ void CodeGenC::Visit(const ir::Let *op) {
   } else {
     os() << GetTypeRepr(op->type());
   }
+
   os() << " ";
   Print(op->symbol);
 

@@ -200,9 +200,9 @@ void Program::Export(const std::vector<std::string>& persistent_vars, const std:
   fclose(f);
 }
 
-void Program::Execute(const std::map<std::string, cinn_pod_value_t>* name2podargs, void* stream) {
+void Program::Execute(const std::map<std::string, cinn_pod_value_t>* name2podargs, void* stream, bool use_cache) {
   for (auto& ins : instrs_) {
-    ins->Run(name2podargs, false, stream);
+    ins->Run(name2podargs, false, stream, use_cache);
   }
 #ifdef CINN_WITH_CUDA
   VLOG(4) << "-- The value of the used stream: " << stream;
@@ -326,7 +326,8 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const Node* node) {
   for (int i = 0; i < C->size() - 1; i++) {
     ir::Expr temp = C[i];
     // checkout whether the tensor is with buffer.
-    if (!temp.as_tensor_ref()->buffer.defined() || this->target_ != common::DefaultNVGPUTarget()) {
+    if ((!temp.as_tensor_ref()->buffer.defined() || this->target_ != common::DefaultNVGPUTarget()) &&
+        !stages[temp.as_tensor_ref()]->inlined()) {
       inputs.push_back(temp.as_tensor_ref());
     }
   }
@@ -498,7 +499,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
   // args order: inputs + final output + fetch outputs + other no_fused outputs
   for (auto& tensor : outputs) {
     // checkout the tensor is with buffer.
-    if (!tensor->buffer.defined() || this->target_ != common::DefaultNVGPUTarget()) {
+    if ((!tensor->buffer.defined() || this->target_ != common::DefaultNVGPUTarget()) && !stages[tensor]->inlined()) {
       inputs.push_back(tensor);
     }
   }
@@ -657,7 +658,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
 
       OpLowerer op_lowerer(dtype_dict, shape_dict, target_);
       for (auto& group : graph_->fusion_groups) {
-        VLOG(11) << group->group_id;
+        VLOG(3) << group->group_id;
         groups.push_back(std::move(group->CollectNodes()));
         // set node as output node from fetch_var_ids.
         for (auto node : groups.back()) {
@@ -674,7 +675,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
         }
         local_lowered_funcs.emplace_back(std::move(op_lowerer.Lower(group)));
         CHECK_EQ(local_lowered_funcs.back().size(), 1) << "Lowerd Function Is Not Equal 1!";
-        VLOG(11) << local_lowered_funcs.back()[0];
+        VLOG(3) << local_lowered_funcs.back()[0];
       }
     } else {
       for (int i = 0; i < groups.size(); i++) {
@@ -696,13 +697,14 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
     this->ProcessFunction(lowered_func);
   }
 
+  graph_->VisualizeGroupedGraph(groups, fetch_var_ids_);
+
   // compile the module
   // Need to create a new compiler for every call of Build,
   // because the underneath jit engine does't support addIRModule repeatedly now.
   compiler_ = backends::Compiler::Create(target_);
 
   auto build_module = m_builder_.Build();
-
   if (this->target_.arch == Target::Arch::X86) {
     CodeGenCX86 codegen(this->target_, CodeGenCX86::Feature::AVX512);
     codegen.SetInlineBuiltinCodes(false);
@@ -730,14 +732,12 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
         auto src_var_name = reuse_vars_map_.at(name);
         auto* src_var     = scope_->Var<Tensor>(src_var_name);
         auto& src_tensor  = absl::get<Tensor>(*src_var);
-        VLOG(3) << name << " shares buffer with " << src_var_name;
         tensor->set_buffer(src_tensor->get_buffer());
       } else {
         tensor->mutable_data<float>(target_);
       }
     }
   }
-
   GraphCompiler::CompilationResult result;
   result.runtime_program.reset(new Program(scope_, std::move(instructions)));
   return result;
@@ -764,16 +764,25 @@ void GraphCompiler::SetSubKernels(Instruction* instr, const std::string& func_na
 
 void GraphCompiler::BuildCublasInstr(const Node& node, Instruction* instr) const {
   auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-  std::vector<int> input_sizes;
-  // input info
-  input_sizes.reserve(node.inlinks_in_order().size());
+  // shape info
+  std::vector<int> shape_sizes;
   for (auto& in_node : node.inlinks_in_order()) {
     std::string in_id = in_node->source()->safe_as<NodeData>()->id();
     auto in_shape     = shape_dict.at(in_id);
     instr->attrs.insert(instr->attrs.end(), in_shape.begin(), in_shape.end());
-    input_sizes.push_back(in_shape.size());
+    shape_sizes.push_back(in_shape.size());
   }
-  instr->attrs.insert(instr->attrs.end(), input_sizes.begin(), input_sizes.end());
+  // cublas_gemm has three input vars, and its output shape is equal to the input bias.
+  // cublas_matmul only has two input vars, so we should get its output shape from shape_dict.
+  if (node.op()->name == "cublas_matmul") {
+    for (auto& out_node : node.outlinks_in_order()) {
+      std::string out_id = out_node->sink()->safe_as<NodeData>()->id();
+      auto out_shape     = shape_dict.at(out_id);
+      instr->attrs.insert(instr->attrs.end(), out_shape.begin(), out_shape.end());
+      shape_sizes.push_back(out_shape.size());
+    }
+  }
+  instr->attrs.insert(instr->attrs.end(), shape_sizes.begin(), shape_sizes.end());
   // attribute info
   bool trans_a = false;
   if (node.attrs.attr_store.contains("trans_a")) {
@@ -785,6 +794,11 @@ void GraphCompiler::BuildCublasInstr(const Node& node, Instruction* instr) const
     trans_b = absl::get<bool>(node.attrs.attr_store.at("trans_b"));
   }
   instr->attrs.push_back(static_cast<int>(trans_b));
+  bool trans_out = false;
+  if (node.attrs.attr_store.contains("trans_out")) {
+    trans_out = absl::get<bool>(node.attrs.attr_store.at("trans_out"));
+  }
+  instr->attrs.push_back(static_cast<int>(trans_out));
   float alpha = 1.f;
   if (node.attrs.attr_store.contains("alpha")) {
     alpha = absl::get<float>(node.attrs.attr_store.at("alpha"));
@@ -1276,7 +1290,8 @@ std::vector<ir::LoweredFunc> GraphCompiler::NodeToLoweredFunc(const hlir::framew
   for (int i = 0; i < C->size() - 1; ++i) {
     ir::Expr temp = C[i];
     // checkout whether the tensor is with buffer.
-    if (!temp.as_tensor_ref()->buffer.defined() || this->target_ != common::DefaultNVGPUTarget()) {
+    if ((!temp.as_tensor_ref()->buffer.defined() || this->target_ != common::DefaultNVGPUTarget()) &&
+        !stages[temp.as_tensor_ref()]->inlined()) {
       // inputs is reused as args of LowerVec, so we add output Tensor here.
       inputs.push_back(temp.as_tensor_ref());
     }

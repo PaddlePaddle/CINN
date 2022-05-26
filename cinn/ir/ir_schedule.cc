@@ -41,6 +41,39 @@
 namespace cinn {
 namespace ir {
 
+Tensor GetTensor(const Expr& block) {
+  CHECK(block.As<ir::ScheduleBlockRealize>());
+  auto find_tensor = ir::CollectIRNodesWithoutTensor(block, [&](const Expr* x) { return x->As<ir::Store>(); });
+  CHECK(!find_tensor.empty()) << "Didn't find Store in block!";
+  CHECK_EQ(find_tensor.size(), 1U) << "One block should only have one Store node!(except for root block)";
+  CHECK((*find_tensor.begin()).As<ir::Store>()->tensor.as_tensor());
+  Tensor tensor = (*find_tensor.begin()).As<ir::Store>()->tensor.as_tensor_ref();
+  return tensor;
+}
+
+Tensor GetReadTensor(const Expr& block, int index) {
+  CHECK(block.As<ir::ScheduleBlockRealize>());
+  auto find_tensor = ir::CollectIRNodesWithoutTensor(block, [&](const Expr* x) { return x->As<ir::Store>(); });
+  CHECK(!find_tensor.empty()) << "Didn't find Store in block!";
+  CHECK_EQ(find_tensor.size(), 1U) << "One block should only have one Store node!(except for root block)";
+  std::vector<Tensor> res;
+  auto find_read_tensor = ir::CollectIRNodesWithoutTensor(block, [&](const Expr* x) {
+    if (x->As<ir::Load>()) res.push_back(x->As<ir::Load>()->tensor.as_tensor_ref());
+    return x->As<ir::Load>();
+  });
+  CHECK_EQ(find_read_tensor.size(), res.size());
+  CHECK(!find_read_tensor.empty()) << "Didn't find Load tensor in block!";
+  CHECK_LT(index, (int)find_read_tensor.size()) << "Index is not < read tensor's size!";
+  return res[index];
+}
+
+int GetLoopExtent(const Expr& loop) {
+  CHECK(loop.As<ir::For>());
+  CHECK(common::is_zero(loop.As<ir::For>()->min));
+  CHECK(loop.As<ir::For>()->extent.is_constant());
+  return (int)loop.As<ir::For>()->extent.get_constant();
+}
+
 // Self-defined operator to support std::set<Expr>
 struct CompExpr {
   bool operator()(const Expr& left, const Expr& right) const {
@@ -148,7 +181,7 @@ void ReplaceExpr(Expr* source, const std::vector<Var>& replaced, const std::vect
       << "In ReplaceExpr, the size of Vars to be replaced must be equal to the size of cadidate Exprs! Please check.";
   if (replaced.empty()) return;
   std::map<Var, Expr, CompVar> replacing_map;
-  for (int i = 0; i < replaced.size(); i++) {
+  for (int i = 0; i < replaced.size(); ++i) {
     // If the Var to be replaced is equal to the candidate, we skip it.
     if (candidates[i].is_var() && candidates[i].as_var_ref() == replaced[i]) continue;
     replacing_map[replaced[i]] = candidates[i];
@@ -187,7 +220,7 @@ std::vector<int> ValidateFactors(const std::vector<int>& factors, int total_exte
     CHECK_LE(product, total_extent) << "In Split, when there is -1 in factors, the other factors' product should be <= "
                                        "original loop's extent! Please check.";
     int minus_one_candidate = (int)ceil((double)total_extent / (double)product);
-    for (int i = 0; i < validated_factors.size(); i++) {
+    for (int i = 0; i < validated_factors.size(); ++i) {
       if (validated_factors[i] == -1) {
         validated_factors[i] = minus_one_candidate;
       }
@@ -206,7 +239,7 @@ std::vector<Expr> IRSchedule::Split(const Expr& loop, const std::vector<int>& fa
   int prod_size = std::accumulate(processed_factors.begin(), processed_factors.end(), 1, std::multiplies<int>());
   std::vector<Var> new_loop_vars;
   Expr substitute_value(0);
-  for (int i = 0; i < processed_factors.size(); i++) {
+  for (int i = 0; i < processed_factors.size(); ++i) {
     Var temp_var(for_node->loop_var->name + "_" + std::to_string(i));
     substitute_value = Expr(temp_var) + substitute_value * Expr(processed_factors[i]);
     new_loop_vars.push_back(temp_var);
@@ -257,7 +290,7 @@ Expr IRSchedule::Fuse(const std::vector<Expr>& loops) {
   std::string suffix;
   suffix           = for_nodes[0]->loop_var->name;
   int loops_number = for_nodes.size();
-  for (int i = 1; i < loops_number; i++) {
+  for (int i = 1; i < loops_number; ++i) {
     suffix += "_" + for_nodes[i]->loop_var->name;
   }
   suffix += "_fused";
@@ -275,7 +308,7 @@ Expr IRSchedule::Fuse(const std::vector<Expr>& loops) {
   ReplaceExpr(&fused_body, loop_vars, substitute_value);
   optim::Simplify(&fused_body);
   Expr fused_extent(1);
-  for (int i = 0; i < loops_number; i++) {
+  for (int i = 0; i < loops_number; ++i) {
     fused_extent = fused_extent * for_nodes[i]->extent;
   }
   fused_extent = common::AutoSimplify(fused_extent);
@@ -291,7 +324,22 @@ Expr IRSchedule::Fuse(const std::string& block_name, const std::vector<int>& loo
   std::vector<Expr> all_loops = this->GetLoops(block_name);
   std::vector<Expr> loops_expr;
   loops_expr.reserve(loops_index.size());
-  for (int i = 0; i < loops_index.size(); i++) {
+  for (int i = 0; i < loops_index.size(); ++i) {
+    if (i > 0) CHECK_EQ(loops_index[i - 1] + 1, loops_index[i]) << "Loops index in Fuse shoule be continuous!";
+  }
+  for (int i : loops_index) {
+    CHECK_LT(i, (int)all_loops.size()) << "The loop index in Fuse should be less than total loop's number.";
+    CHECK_GE(i, 0) << "The loop index in Fuse should be >= 0.";
+    loops_expr.emplace_back(all_loops[i]);
+  }
+  return this->Fuse(loops_expr);
+}
+
+Expr IRSchedule::Fuse(const Expr& block, const std::vector<int>& loops_index) {
+  std::vector<Expr> all_loops = this->GetLoops(block);
+  std::vector<Expr> loops_expr;
+  loops_expr.reserve(loops_index.size());
+  for (int i = 0; i < loops_index.size(); ++i) {
     if (i > 0) CHECK_EQ(loops_index[i - 1] + 1, loops_index[i]) << "Loops index in Fuse shoule be continuous!";
   }
   for (int i : loops_index) {
@@ -380,7 +428,7 @@ struct RfMutator : public ir::IRMutator<> {
     CHECK(new_rf_loop_var_.defined());
     CHECK_EQ(iter_values.size(), block_vars.size());
     int rf_index = -1;
-    for (int i = 0; i < iter_values.size(); i++) {
+    for (int i = 0; i < iter_values.size(); ++i) {
       // substitute the old rfactor loop var to new rfactor loop var
       if (ContainVar({iter_values[i]}, old_rf_loop_var_->name)) {
         CHECK_EQ(rf_index, -1) << "only one block var can bind the rfactor loop var";
@@ -518,7 +566,7 @@ struct FinalMutator : public ir::IRMutator<> {
     output_name_      = schedule_block->name;
     visit_init_block_ = output_name_.rfind("_init") != std::string::npos;
     if (!visit_init_block_) {
-      for (int i = 0; i < iter_values.size(); i++) {
+      for (int i = 0; i < iter_values.size(); ++i) {
         if (ContainVar({iter_values[i]}, old_rf_loop_var_->name)) {
           // record the rfactor loop var's block var
           CHECK(iter_values[i].As<_Var_>()) << "not support complex reduce bindings: " << iter_values[i];
@@ -682,7 +730,7 @@ void CHECKRfactorValidation(const Expr& rf_loop, int rf_axis) {
   CHECK_EQ(iter_values.size(), iter_vars.size());
   auto rf_loop_var = rf_for->loop_var;
   Var rf_block_var;
-  for (int i = 0; i < iter_values.size(); i++) {
+  for (int i = 0; i < iter_values.size(); ++i) {
     if (ContainVar({iter_values[i]}, rf_loop_var->name)) {
       CHECK(!rf_block_var.defined()) << "rfactor loop var can only be binded to one block var";
       auto iter_value = iter_values[i].As<_Var_>();
@@ -735,9 +783,10 @@ std::pair<Expr, Expr> GetRange(Expr index,
                                const std::vector<Var>& iter_vars,
                                const std::vector<std::pair<Expr, Expr>>& iter_range,
                                int i) {
-  if (index.is_constant())
+  if (index.is_constant()) {
+    if (index.get_constant() == 0.f) return std::make_pair(index, common::AutoSimplify(index + Expr(1)));
     return std::make_pair(index, index);
-  else if (i >= (int)iter_vars.size()) {
+  } else if (i >= (int)iter_vars.size()) {
     return std::make_pair(Expr(-1), Expr(-1));
   } else {
     Expr index2 = index;
@@ -770,7 +819,7 @@ std::vector<std::pair<Expr, Expr>> GetRange(const std::vector<Expr>& tensor_indi
                                             const Tensor& tensor) {
   CHECK_EQ(iter_vars.size(), iter_range.size());
   std::vector<std::pair<Expr, Expr>> result;
-  for (int i = 0; i < (int)tensor_indices.size(); i++) {
+  for (int i = 0; i < (int)tensor_indices.size(); ++i) {
     auto range = GetRange(tensor_indices[i], iter_vars, iter_range, 0);
     CHECK(range.first.is_constant());
     if ((int)range.first.get_constant() == (-1)) {
@@ -854,20 +903,24 @@ Expr GetNthAccessExpr(const Expr& block, int index, bool is_write) {
   CHECK(block.As<ScheduleBlockRealize>());
   auto compute_body = block.As<ScheduleBlockRealize>()->schedule_block.As<ScheduleBlock>()->body;
   if (is_write) {
-    auto find_store = ir::CollectIRNodesWithoutTensor(compute_body, [&](const Expr* x) { return x->As<ir::Store>(); });
+    std::vector<Expr> find_store_vec;
+    auto find_store = ir::CollectIRNodesWithoutTensor(compute_body, [&](const Expr* x) {
+      if (x->As<ir::Store>()) find_store_vec.push_back(*x);
+      return x->As<ir::Store>();
+    });
+    CHECK_EQ(find_store.size(), find_store_vec.size());
     CHECK_LT(index, (int)find_store.size());
-    std::vector<Expr> store_vec(find_store.begin(), find_store.end());
-    Expr store_index = store_vec[index];
-    CHECK(store_index.As<ir::Store>());
-    CHECK(store_index.As<ir::Store>()->tensor.as_tensor());
+    Expr store_index = find_store_vec[index];
     return store_index;
   } else {
-    auto find_load = ir::CollectIRNodesWithoutTensor(compute_body, [&](const Expr* x) { return x->As<ir::Load>(); });
+    std::vector<Expr> find_load_vec;
+    auto find_load = ir::CollectIRNodesWithoutTensor(compute_body, [&](const Expr* x) {
+      if (x->As<ir::Load>()) find_load_vec.push_back(*x);
+      return x->As<ir::Load>();
+    });
+    CHECK_EQ(find_load.size(), find_load_vec.size());
     CHECK_LT(index, (int)find_load.size());
-    std::vector<Expr> load_vec(find_load.begin(), find_load.end());
-    Expr load_index = load_vec[index];
-    CHECK(load_index.As<ir::Load>());
-    CHECK(load_index.As<ir::Load>()->tensor.as_tensor());
+    Expr load_index = find_load_vec[index];
     return load_index;
   }
 }
@@ -913,13 +966,13 @@ Expr MakeCacheBlock(const std::vector<std::pair<Expr, Expr>>& buffer_region,
   // Create block vars, block's accessed region and accessing indices
   CHECK(new_tensor->buffer.defined());
   for (auto& dim : new_tensor->buffer->shape) {
-    Var var(Expr(0), dim, "v" + std::to_string(block_vars.size()));
+    Var var(Expr(0), dim, "v" + std::to_string(block_vars.size()), false);
     block_vars.push_back(var);
   }
   auto body                  = new_tensor->tensor_store_expanded_body();
   std::vector<Var> axis_vars = common::GenDefaultAxis(new_tensor->domain.size());
   axis_vars.insert(axis_vars.end(), new_tensor->reduce_axis.begin(), new_tensor->reduce_axis.end());
-  for (int i = 0; i < axis_vars.size(); i++) {
+  for (int i = 0; i < axis_vars.size(); ++i) {
     optim::ReplaceVarWithExpr(&body, axis_vars[i], block_vars[i]);
   }
   Expr block = ir::ScheduleBlockRealize::Make(
@@ -1083,7 +1136,7 @@ void FindInsertionPoint(Expr& root, CacheBlockInfo* info, bool is_write) {
   CHECK(root.As<ScheduleBlockRealize>()->schedule_block.As<ScheduleBlock>());
   CHECK(root.As<ScheduleBlockRealize>()->schedule_block.As<ScheduleBlock>()->body.As<Block>());
   info->loc_block = root.As<ScheduleBlockRealize>()->schedule_block.As<ScheduleBlock>()->body;
-  for (int i = 0; i < (int)info->loc_block.As<Block>()->stmts.size(); i++) {
+  for (int i = 0; i < (int)info->loc_block.As<Block>()->stmts.size(); ++i) {
     if (Contains(info->loc_block.As<Block>()->stmts[i], producer)) {
       info->loc_pos = i + 1;
       break;
@@ -1139,8 +1192,8 @@ Expr IRSchedule::CacheWrite(const Expr& block, int write_buffer_index, const std
                   new_root.As<ScheduleBlockRealize>()->schedule_block.As<ScheduleBlock>()->body);
 
   auto find_cache_block = ir::CollectIRNodesWithoutTensor(root, [&](const Expr* x) {
-    return x->As<ir::ScheduleBlockRealize>() &&
-           x->As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->name == info.read_tensor->name;
+    return x->As<ir::ScheduleBlockRealize>() && !x->As<ir::ScheduleBlockRealize>()->iter_values.empty() &&
+           GetTensor(*x)->name == info.read_tensor->name;
   });
 
   CHECK_EQ(find_cache_block.size(), 1U);
@@ -1318,7 +1371,7 @@ Expr ConstructNewLoopChain(const std::vector<Expr>& chain,
     }
     Expr original_temp = temp;
     // Here we handle the IfThenElse nodes.
-    for (int i = 0; i < static_cast<int>(if_nodes.size()); i++) {
+    for (int i = 0; i < static_cast<int>(if_nodes.size()); ++i) {
       if (condition_vars[i].count(original_temp.As<ir::For>()->loop_var->name)) {
         Expr temp_body = temp.As<ir::For>()->body;
         if (temp_body.As<Block>() && temp_body.As<Block>()->stmts.size() == 1U)
@@ -1352,6 +1405,18 @@ void IRSchedule::Reorder(const std::vector<Expr>& loops) {
 
 void IRSchedule::Reorder(const std::string& block_name, const std::vector<int>& loops_index) {
   std::vector<Expr> all_loops = this->GetLoops(block_name);
+  std::vector<Expr> loops_expr;
+  loops_expr.reserve(loops_index.size());
+  for (int i : loops_index) {
+    CHECK_LT(i, (int)all_loops.size()) << "The loop index in Reorder should be less than total loop's number.";
+    CHECK_GE(i, 0) << "The loop index in Reorder should be >= 0.";
+    loops_expr.emplace_back(all_loops[i]);
+  }
+  this->Reorder(loops_expr);
+}
+
+void IRSchedule::Reorder(const Expr& block, const std::vector<int>& loops_index) {
+  std::vector<Expr> all_loops = this->GetLoops(block);
   std::vector<Expr> loops_expr;
   loops_expr.reserve(loops_index.size());
   for (int i : loops_index) {
@@ -1402,7 +1467,7 @@ std::vector<Expr> GetConsumers(const Expr& block, const Expr& root) {
   CHECK(block.As<ir::ScheduleBlockRealize>());
   CHECK(root.As<ir::ScheduleBlockRealize>());
   std::vector<Expr> consumers;
-  std::string block_tensor = block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->name;
+  std::string block_tensor = GetTensor(block)->name;
   auto find_block          = ir::CollectIRNodesWithoutTensor(
       root, [&](const Expr* x) { return x->As<ir::ScheduleBlockRealize>() && *x != block && *x != root; });
   for (auto& i : find_block) {
@@ -1534,7 +1599,7 @@ struct LeafBlockRemovalPlan : public ir::IRMutator<> {
   void Visit(const ir::Block* expr, Expr* op) override {
     if (expr->stmts.size() > 1U) {
       int block_index = -1;
-      for (int i = 0; i < expr->stmts.size(); i++) {
+      for (int i = 0; i < expr->stmts.size(); ++i) {
         auto keep_flag = find_block;
         find_block     = false;
         auto* node     = op->As<ir::Block>();
@@ -1550,7 +1615,7 @@ struct LeafBlockRemovalPlan : public ir::IRMutator<> {
       }
       if (block_index != -1) {
         std::vector<Expr> new_stmts;
-        for (int i = 0; i < expr->stmts.size(); i++) {
+        for (int i = 0; i < expr->stmts.size(); ++i) {
           if (i == block_index)
             continue;
           else
@@ -1572,13 +1637,53 @@ struct LeafBlockRemovalPlan : public ir::IRMutator<> {
   Expr* target_expr_;
 };
 
-void IRSchedule::SetBuffer(const Expr& block, const std::string& memory_type) const {
+void IRSchedule::SetBuffer(Expr& block, const std::string& memory_type) {
   CHECK(block.As<ir::ScheduleBlockRealize>());
   auto find_tensor = ir::CollectIRNodesWithoutTensor(block, [&](const Expr* x) { return x->As<ir::Store>(); });
   CHECK(!find_tensor.empty()) << "Didn't find Store in block!";
   CHECK_EQ(find_tensor.size(), 1U) << "One block should only have one Store node!(except for root block)";
-  Tensor tensor = (*find_tensor.begin()).As<ir::Store>()->tensor.as_tensor_ref();
-  tensor->WithBuffer(memory_type, "_" + tensor->name + "_temp_buffer");
+  auto& tensor = (*find_tensor.begin()).As<ir::Store>()->tensor;
+  tensor.as_tensor_ref()->WithBuffer(memory_type, "_" + tensor.as_tensor_ref()->name + "_temp_buffer");
+
+  auto exprs = this->GetModule().GetExprs();
+  for (auto& it_expr : exprs) {
+    auto find_tensor = ir::CollectIRNodes(
+        it_expr, [&](const Expr* x) { return x->as_tensor() && x->as_tensor()->name == tensor.as_tensor_ref()->name; });
+    for (auto& t : find_tensor) {
+      CHECK(t.as_tensor());
+      t.as_tensor_ref()->Bind(tensor.as_tensor_ref()->buffer);
+    }
+  }
+}
+
+void IRSchedule::MergeExprs() {
+  auto exprs = this->GetModule().GetExprs();
+  if (exprs.size() == 1U) return;
+  CHECK(exprs[0].As<ir::Block>());
+  CHECK_EQ(exprs[0].As<ir::Block>()->stmts.size(), 1U);
+  CHECK(exprs[0].As<ir::Block>()->stmts[0].As<ir::ScheduleBlockRealize>());
+  CHECK(exprs[0].As<ir::Block>()->stmts[0].As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>());
+  std::vector<Expr> merged_block;
+  merged_block.push_back(
+      exprs[0].As<ir::Block>()->stmts[0].As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->body);
+  LOG(INFO) << "Before merging, exprs[0] is : " << exprs[0];
+  for (int i = 1; i < exprs.size(); ++i) {
+    auto root_block = ir::CollectIRNodes(exprs[i], [&](const Expr* x) {
+      return x->As<ir::ScheduleBlockRealize>() && x->As<ir::ScheduleBlockRealize>()->iter_values.empty();
+    });
+    CHECK_EQ(root_block.size(), 1U);
+    for (auto& it_block : root_block) {
+      auto& block_body = it_block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->body;
+      merged_block.push_back(block_body);
+    }
+  }
+  for (auto& i : merged_block) LOG(INFO) << "in merged_block, it has " << i;
+  auto merged_expr = ir::Block::Make(merged_block);
+  exprs[0].As<ir::Block>()->stmts[0].As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->body =
+      merged_expr;
+  LOG(INFO) << "After merging, exprs[0] is : " << exprs[0];
+  exprs.erase(exprs.begin() + 1, exprs.end());
+  this->SetExprs(exprs);
 }
 
 /*!
@@ -1620,9 +1725,10 @@ std::pair<Expr, Expr> RangeUnion(const std::pair<Expr, Expr>& range1, const std:
  */
 std::vector<std::pair<Expr, Expr>> CalculateRequiredRegions(const Expr& block,
                                                             const Expr& loop,
-                                                            const std::vector<Expr>& consumers) {
+                                                            const std::vector<Expr>& consumers,
+                                                            const Expr& root) {
   CHECK(block.As<ir::ScheduleBlockRealize>());
-  std::string block_tensor = block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->name;
+  std::string block_tensor = GetTensor(block)->name;
   std::vector<std::pair<Expr, Expr>> required_buffer_range;
   CHECK(loop.As<ir::For>());
   for (auto& i : consumers) {
@@ -1641,14 +1747,14 @@ std::vector<std::pair<Expr, Expr>> CalculateRequiredRegions(const Expr& block,
       CHECK(load.As<ir::Load>());
       auto indices = load.As<ir::Load>()->indices;
       if (find_loops.empty()) {
-        for (int i = 0; i < indices.size(); i++) {
+        for (int i = 0; i < indices.size(); ++i) {
           if (i >= required_buffer_range.size())
             required_buffer_range.push_back(std::make_pair(indices[i], Expr(1)));
           else
             required_buffer_range[i] = RangeUnion(required_buffer_range[i], std::make_pair(indices[i], Expr(1)));
         }
       } else {
-        for (int i = 0; i < indices.size(); i++) {
+        for (int i = 0; i < indices.size(); ++i) {
           Expr indice_min = optim::IRCopy(indices[i]);
           Expr indice_max = optim::IRCopy(indices[i]);
           std::vector<Var> loop_vars;
@@ -1665,22 +1771,44 @@ std::vector<std::pair<Expr, Expr>> CalculateRequiredRegions(const Expr& block,
           ReplaceExpr(&indice_max, loop_vars, vars_max);
           Expr indice_extent;
           // If a index keeps constant, its extent should be 1.
-          if (common::AutoSimplify(indice_min) == common::AutoSimplify(indice_max))
-            if (common::is_zero(mod_extent))
+          if (common::AutoSimplify(indice_min) == common::AutoSimplify(indice_max)) {
+            if (common::is_zero(mod_extent)) {
               indice_extent = Expr(1);
-            else
+            } else {
               indice_extent = mod_extent;
-          else
+            }
+          } else {
             indice_extent = common::AutoSimplify(common::AutoSimplify(indice_max) - common::AutoSimplify(indice_min));
+          }
           if (indice_extent.is_constant() && indice_extent.get_constant() < 0) {
             indice_min    = common::AutoSimplify(indice_max);
             indice_extent = Expr(-indice_extent.get_constant());
           }
-          if (i >= required_buffer_range.size())
+          if (i >= required_buffer_range.size()) {
             required_buffer_range.push_back(std::make_pair(indice_min, indice_extent));
-          else
+          } else {
             required_buffer_range[i] = RangeUnion(required_buffer_range[i], std::make_pair(indice_min, indice_extent));
+          }
         }
+      }
+    }
+  }
+  int iter_size = block.As<ir::ScheduleBlockRealize>()->iter_values.size();
+  if (iter_size > required_buffer_range.size()) {
+    for (int i = required_buffer_range.size(); i < iter_size; ++i) {
+      CHECK(block.As<ir::ScheduleBlockRealize>()->iter_values[i].as_var() ||
+            block.As<ir::ScheduleBlockRealize>()->iter_values[i].is_constant());
+      if (block.As<ir::ScheduleBlockRealize>()->iter_values[i].as_var()) {
+        auto find_for_loops = ir::CollectIRNodesWithoutTensor(root, [&](const Expr* x) {
+          return x->As<ir::For>() && x->As<ir::For>()->loop_var->name ==
+                                         block.As<ir::ScheduleBlockRealize>()->iter_values[i].as_var_ref()->name;
+        });
+        CHECK_EQ(find_for_loops.size(), 1U);
+        required_buffer_range.push_back(std::make_pair((*find_for_loops.begin()).As<ir::For>()->min,
+                                                       (*find_for_loops.begin()).As<ir::For>()->extent));
+      } else {
+        int cons = (int)block.As<ir::ScheduleBlockRealize>()->iter_values[i].is_constant();
+        required_buffer_range.push_back(std::make_pair(Expr(cons), Expr(1)));
       }
     }
   }
@@ -1697,11 +1825,38 @@ void IRSchedule::ComputeAt(const Expr& block, const Expr& loop) {
   LoopReconstructor reconstructor(root, block, loop);
   LeafBlockRemovalPlan remove_plan(block, &reconstructor.source_expr, &reconstructor.target_expr);
   remove_plan(&root);
-  auto iter_doms = CalculateRequiredRegions(block, loop, consumers);
+  auto iter_doms = CalculateRequiredRegions(block, loop, consumers, root);
   for (auto& i : iter_doms) VLOG(3) << "CalculateRequiredRegions is : " << i.first << " to " << i.second;
   reconstructor.MakeNewLoop(iter_doms);
   helper_.Replace(reconstructor.source_expr, reconstructor.target_expr);
   helper_.Replace(reconstructor.loop_, reconstructor.new_loop_);
+  return;
+}
+
+void IRSchedule::SimpleComputeAt(const Expr& block, const Expr& loop) {
+  CHECK(block.As<ir::ScheduleBlockRealize>());
+  CHECK(loop.As<ir::For>());
+  std::vector<Expr> block_loops = this->GetLoops(block);
+  Expr root                     = this->GetRootBlock(block);
+  auto loops                    = GetLoopsOfExpr(loop, root);
+  CHECK_LE(loops.size(), block_loops.size());
+  Expr result = loops.size() < block_loops.size() ? optim::IRCopy(block_loops[loops.size()]) : optim::IRCopy(block);
+  std::vector<Var> replaced_var;
+  std::vector<Expr> substitute_expr;
+  for (int i = 0; i < loops.size(); ++i) {
+    CHECK_EQ(GetLoopExtent(loops[i]), GetLoopExtent(block_loops[i]));
+    replaced_var.push_back(block_loops[i].As<ir::For>()->loop_var);
+    substitute_expr.push_back(Expr(loops[i].As<ir::For>()->loop_var));
+  }
+  ReplaceExpr(&result, replaced_var, substitute_expr);
+  Expr new_loop                = loop;
+  new_loop.As<ir::For>()->body = ir::Block::Make({result, new_loop.As<ir::For>()->body});
+  Expr source_expr{nullptr};
+  Expr target_expr{nullptr};
+  LeafBlockRemovalPlan remove_plan(block, &source_expr, &target_expr);
+  remove_plan(&root);
+  helper_.Replace(source_expr, target_expr);
+  helper_.Replace(loop, new_loop);
   return;
 }
 
@@ -1754,7 +1909,7 @@ class BaseInliner : public ir::IRMutator<> {
       idx_vars_ = std::move(result);
     } else {
       if (idx_vars_.size() != result.size()) return false;
-      for (int i = 0; i < result.size(); i++) {
+      for (int i = 0; i < result.size(); ++i) {
         if (Expr(idx_vars_[i]) != Expr(result[i])) return false;
       }
     }
@@ -1876,6 +2031,13 @@ std::vector<Expr> ScheduleHelper::GetLoops(const Expr& block) const {
   CHECK(block.As<ir::ScheduleBlockRealize>());
   CHECK(block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>());
   std::string block_name = block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->name;
+
+  std::set<std::string> loops_name;
+  for (auto& iter_val : block.As<ir::ScheduleBlockRealize>()->iter_values) {
+    auto vars = ir::CollectIRNodes(iter_val, [&](const Expr* x) { return x->is_var(); });
+    for (auto& iter_var : vars) loops_name.insert(iter_var.as_var_ref()->name);
+  }
+
   for (auto& it_expr : exprs) {
     auto find_block = ir::CollectIRNodes(it_expr, [&](const Expr* x) {
       return x->As<ir::ScheduleBlockRealize>() &&
@@ -1884,11 +2046,6 @@ std::vector<Expr> ScheduleHelper::GetLoops(const Expr& block) const {
     });
     if (!find_block.empty()) {
       if (!result.empty()) LOG(FATAL) << "Find block with name: \n" << block_name << " appeared in more than one AST!";
-      std::set<std::string> loops_name;
-      for (auto& iter_val : block.As<ir::ScheduleBlockRealize>()->iter_values) {
-        auto vars = ir::CollectIRNodes(iter_val, [&](const Expr* x) { return x->is_var(); });
-        for (auto& iter_var : vars) loops_name.insert(iter_var.as_var_ref()->name);
-      }
       auto loop_nodes = ir::CollectIRNodes(it_expr, [&](const Expr* x) {
         return x->As<ir::For>() && loops_name.count(x->As<ir::For>()->loop_var->name) != 0;
       });
@@ -1916,11 +2073,13 @@ std::vector<Expr> ScheduleHelper::GetAllBlocks() const {
   auto exprs = module_expr_.GetExprs();
   for (auto& it_expr : exprs) {
     auto block_nodes = ir::CollectIRNodes(it_expr, [&](const Expr* x) {
+      if (x->As<ir::ScheduleBlockRealize>() && !x->As<ir::ScheduleBlockRealize>()->iter_values.empty())
+        result.push_back(*x);
       return x->As<ir::ScheduleBlockRealize>() && !x->As<ir::ScheduleBlockRealize>()->iter_values.empty();
     });
-    for (auto& it_block : block_nodes) result.push_back(it_block);
   }
-  CHECK(!result.empty());
+  CHECK(!result.empty()) << "Didn't find blocks in expr.";
+  for (auto& it_expr : exprs) LOG(INFO) << "it_expr is : " << it_expr;
   return result;
 }
 
@@ -1928,11 +2087,152 @@ Expr ScheduleHelper::GetBlock(const std::string& block_name) const {
   Expr result;
   std::vector<Expr> all_blocks = this->GetAllBlocks();
   for (auto& it_block : all_blocks) {
-    if (it_block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->name == block_name)
-      result = it_block;
+    if (GetTensor(it_block)->name == block_name) result = it_block;
   }
   if (!result.defined()) LOG(FATAL) << "Didn't find a block with name " << block_name << " in this ModuleExpr!";
   return result;
+}
+
+void SetCudaAxisInfo(Expr* lowered_func) {
+  if (!lowered_func->as_lowered_func()) {
+    LOG(ERROR) << "The input of SetCudaAxisInfo should be lowered_func!";
+    return;
+  }
+
+  auto func_body = lowered_func->as_lowered_func_ref()->body;
+  CudaAxisInfo info;
+
+  auto block_nodes                                    = ir::CollectIRNodes(func_body, [&](const Expr* x) {
+    if (x->As<ir::For>() && x->As<ir::For>()->bind_info().valid()) {
+      auto bind_info = x->As<ir::For>()->bind_info();
+      info.set_valid(true);
+      if (bind_info.for_type == ForType::GPUThread) {
+        CHECK(common::is_zero(x->As<ir::For>()->min));
+        CHECK(x->As<ir::For>()->extent.is_constant());
+        int range = x->As<ir::For>()->extent.get_constant();
+        range     = range > info.block_dim(bind_info.offset) ? range : info.block_dim(bind_info.offset);
+        VLOG(3) << "Set block dim[" << bind_info.offset << "] with range " << range;
+        info.set_block_dim(bind_info.offset, range);
+      } else if (bind_info.for_type == ForType::GPUBlock) {
+        CHECK(common::is_zero(x->As<ir::For>()->min));
+        CHECK(x->As<ir::For>()->extent.is_constant());
+        int range = x->As<ir::For>()->extent.get_constant();
+        range     = range > info.grid_dim(bind_info.offset) ? range : info.grid_dim(bind_info.offset);
+        info.set_grid_dim(bind_info.offset, range);
+        VLOG(3) << "Set grid dim[" << bind_info.offset << "] with range " << range;
+      } else {
+        LOG(FATAL) << "The for loop's bind info should be gpu block or thread!";
+      }
+    }
+    return (x->As<ir::For>() && x->As<ir::For>()->bind_info().valid());
+  });
+  lowered_func->as_lowered_func_ref()->cuda_axis_info = info;
+}
+
+void IRSchedule::CopyTransformAndLoopInfo(const std::string& block_name, const std::string& block_target_name) {
+  auto block        = this->GetBlock(block_name);
+  auto block_target = this->GetBlock(block_target_name);
+  this->CopyTransformAndLoopInfo(block, block_target);
+}
+
+void IRSchedule::CopyTransformAndLoopInfo(const Expr& block, const Expr& block_target) {
+  CHECK(block.As<ir::ScheduleBlockRealize>());
+  CHECK(block_target.As<ir::ScheduleBlockRealize>());
+  auto exprs = this->GetModule().GetExprs();
+  CHECK_EQ(exprs.size(), 1U);
+  auto expr            = exprs[0];
+  auto vars            = block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->iter_vars;
+  auto vars_target     = block_target.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->iter_vars;
+  auto old_iter_values = block.As<ir::ScheduleBlockRealize>()->iter_values;
+  auto iter_values_target = block_target.As<ir::ScheduleBlockRealize>()->iter_values;
+  std::vector<Expr> new_iter_values;
+  for (int i = 0; i < vars.size() && i < vars_target.size(); ++i) {
+    CHECK(vars[i]->upper_bound.defined() && vars_target[i]->upper_bound.defined());
+    if (vars[i]->upper_bound.is_constant() && vars_target[i]->upper_bound.is_constant() &&
+        vars[i]->upper_bound.get_constant() == vars_target[i]->upper_bound.get_constant() && !vars[i]->is_reduce_axis &&
+        !vars_target[i]->is_reduce_axis) {
+      new_iter_values.push_back(iter_values_target[i]);
+      LOG(INFO) << "new_iter_values.push_back " << iter_values_target[i];
+    } else
+      break;
+  }
+
+  if (new_iter_values.empty())
+    LOG(FATAL) << "Cannot CopyTransformAndLoopInfo since shape[0] of source and target is not equal! "
+               << vars[0]->upper_bound << " v.s " << vars_target[0]->upper_bound;
+
+  int changed_loop_num = new_iter_values.size();
+  std::set<std::string> used_target_loop_vars;
+  for (auto& iter_val : new_iter_values) {
+    auto find_partial_loop = ir::CollectIRNodesWithoutTensor(iter_val, [&](const Expr* x) {
+      if (x->as_var()) used_target_loop_vars.insert(x->as_var_ref()->name);
+      return x->as_var();
+    });
+  }
+  CHECK(!used_target_loop_vars.empty());
+  std::vector<Expr> used_target_loops;
+  auto expr_copy = optim::IRCopy(expr);
+  for (auto& var : used_target_loop_vars) {
+    auto find_loop_var = ir::CollectIRNodesWithoutTensor(expr_copy, [&](const Expr* x) {
+      return x->As<ir::For>() && x->As<ir::For>()->loop_var->name == var && Contains(*x, block_target);
+    });
+    CHECK(!find_loop_var.empty());
+    CHECK_EQ(find_loop_var.size(), 1U);
+    used_target_loops.push_back(*find_loop_var.begin());
+    LOG(INFO) << "used_target_loops push_back " << used_target_loops.back();
+  }
+  std::sort(used_target_loops.begin(), used_target_loops.end(), [&](Expr i, Expr j) {
+    return (utils::GetStreamCnt(i).size() > utils::GetStreamCnt(j).size());
+  });
+  for (int i = new_iter_values.size(); i < old_iter_values.size(); ++i) {
+    CHECK(old_iter_values[i].as_var());
+    new_iter_values.push_back(old_iter_values[i]);
+  }
+  Expr new_loop;
+  LOG(INFO) << "changed_loop_num is : " << changed_loop_num;
+  LOG(INFO) << "old_iter_values.size() is : " << old_iter_values.size();
+  if (changed_loop_num >= (int)old_iter_values.size()) {
+    new_loop                                             = optim::IRCopy(block);
+    new_loop.As<ir::ScheduleBlockRealize>()->iter_values = new_iter_values;
+  } else {
+    CHECK(old_iter_values[changed_loop_num].as_var());
+    auto old_var           = old_iter_values[changed_loop_num].as_var_ref();
+    auto find_partial_loop = ir::CollectIRNodesWithoutTensor(expr, [&](const Expr* x) {
+      return x->As<ir::For>() && x->As<ir::For>()->loop_var->name == old_var->name && Contains(*x, block);
+    });
+    CHECK(!find_partial_loop.empty());
+    CHECK_EQ(find_partial_loop.size(), 1U);
+    new_loop = optim::IRCopy(*find_partial_loop.begin());
+    auto find_schedule_block =
+        ir::CollectIRNodesWithoutTensor(new_loop, [&](const Expr* x) { return x->As<ir::ScheduleBlockRealize>(); });
+    CHECK(!find_schedule_block.empty());
+    CHECK_EQ(find_schedule_block.size(), 1U);
+    Expr sch_block                                        = (*find_schedule_block.begin());
+    sch_block.As<ir::ScheduleBlockRealize>()->iter_values = new_iter_values;
+  }
+  LOG(INFO) << "new_loop is : " << new_loop;
+  CHECK(!used_target_loops.empty());
+  Expr res;
+  if (used_target_loops.size() == 1) {
+    auto for_loop = used_target_loops[0].As<ir::For>();
+    res           = For::Make(for_loop->loop_var,
+                    for_loop->min,
+                    for_loop->extent,
+                    for_loop->for_type(),
+                    for_loop->device_api,
+                    new_loop,
+                    for_loop->vectorize_info(),
+                    for_loop->bind_info());
+  } else {
+    Expr outer_loop                = used_target_loops.front();
+    Expr inner_loop                = used_target_loops.back();
+    inner_loop.As<ir::For>()->body = Block::Make({new_loop});
+    res                            = outer_loop;
+  }
+  LOG(INFO) << "res is : " << res;
+  std::vector<Expr> all_loops = this->GetLoops(block);
+  CHECK(!all_loops.empty());
+  helper_.Replace(all_loops[0], res);
 }
 
 }  // namespace ir

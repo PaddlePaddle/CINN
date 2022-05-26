@@ -145,6 +145,22 @@ Variable BaseBuilder::Reduce(const Variable& operand, ReduceKind kind, const std
   }
 }
 
+Variable BaseBuilder::FillConstant(
+    const std::vector<int>& shape, float value, const std::string& name, const std::string& dtype, bool force_cpu) {
+  Instruction instr("fill_constant");
+  instr.SetInputs({});
+  instr.SetAttr("shape", shape);
+  instr.SetAttr("value", value);
+  instr.SetAttr("dtype", dtype);
+  instr.SetAttr("force_cpu", force_cpu);
+
+  InferShape(instr);
+  AppendInstruction(instr);
+  auto out = instr.GetOutput(0);
+  out.set_id(name);
+  return out;
+}
+
 Variable BaseBuilder::BroadcastTo(const Variable& operand, const std::vector<int>& out_shape) {
   auto x_shape_size = operand->shape.size();
   auto y_shape_size = out_shape.size();

@@ -170,18 +170,10 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
         extent_(extent),
         tensor_name_(tensor_name) {}
 
-  void Execute(Expr* expr) {
-    auto* for_     = expr->As<ir::For>();
-    auto* poly_for = expr->As<ir::PolyFor>();
-    if (for_) {
-      ir::IRMutator<>::Visit(&for_->body, &for_->body);
-    } else {
-      ir::IRMutator<>::Visit(&poly_for->body, &poly_for->body);
-    }
-  }
+  void Execute(Expr* expr) { ir::IRMutator<>::Visit(expr, expr); }
 
   void ResizeTempMemory(const std::string& tensor_name, int index, Expr* indice, const std::string& var_name) {
-    if (extent_.defined()) {
+    if (extent_.defined() && extent_.is_constant()) {
       // To avoid duplicate resizing of the same buffer, we use a string of buffer name + var name + shape's index as
       // ID. If an ID already exists, which means we have already edited the buffer's shape, we will just return.
       VLOG(2) << "ResizeTempMemory tensor_name [" << tensor_name << "], index [" << index << "], indice [" << *indice
@@ -396,6 +388,9 @@ void CUDAReplaceIndexOfCachePass(Expr* source,
                                  bool blockidx,
                                  const Expr& extent,
                                  std::string tensor_name) {
+  if (extent.defined() && !extent.is_constant()) {
+    VLOG(3) << "Warning! The extent " << extent << " is not constant in CUDAReplaceIndexOfCachePass!";
+  }
   ReplaceVarIndexOfCacheMutator mutator(var, expr, global_tensor_map, resized_buffer, blockidx, extent, tensor_name);
   mutator.Execute(source);
 }

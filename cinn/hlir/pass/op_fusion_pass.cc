@@ -129,7 +129,7 @@ class OpFusionPassHelper : public FusionHelperBase {
         auto producer = producer_data->source_node.get();
         // if producer is fused.
         if (consumer_fusion->nodes_set.count(producer)) {
-          VLOG(11) << "Op " << producer->id() << " is fused.";
+          VLOG(3) << "Op " << producer->id() << " is fused.";
           continue;
         }
         // if producer data is placeholder
@@ -141,8 +141,8 @@ class OpFusionPassHelper : public FusionHelperBase {
         if (GetOpKind(producer) == framework::kOpaque) {
           continue;
         }
-        VLOG(11) << "Producer Op: " << producer->id() << ", Op Pattern: " << GetOpKind(producer)
-                 << " -> Consumer Op: " << consumer->id() << ", Op Pattern: " << GetOpKind(consumer);
+        VLOG(3) << "Producer Op: " << producer->id() << ", Op Pattern: " << GetOpKind(producer)
+                << " -> Consumer Op: " << consumer->id() << ", Op Pattern: " << GetOpKind(consumer);
         bool can_fuse = true;
         // checkout producer node outputs are all in fusion op
         for (auto& link : producer_data->outlinks()) {
@@ -156,7 +156,7 @@ class OpFusionPassHelper : public FusionHelperBase {
         }
 
         if (!can_fuse || !CanFuse(producer, consumer)) continue;
-        VLOG(11) << "Fuse Op " << producer->id() << " into Op " << consumer->id();
+        VLOG(3) << "Fuse Op " << producer->id() << " into Op " << consumer->id();
 
         // fuse producer to fusion group
         consumer_fusion->group_id = producer->id() + "_" + consumer_fusion->group_id;
@@ -420,8 +420,11 @@ class OpFusionPassHelper : public FusionHelperBase {
 
   bool CanFuse(const Node* producer, const Node* consumer) {
     auto& relation = fusion_relation_map_[GetOpKind(producer)];
+    // first step: check producer can be fused into consumer
     if (relation.op_kind.count(GetOpKind(consumer))) {
-      return relation.fusion_op_kind[GetOpKind(consumer)](producer, consumer);
+      auto& consumer_group = fusion_groups_[consumer];
+      // second step: check producer can be fused into consumer group
+      return relation.fusion_op_kind[consumer_group->op_pattern_kind](producer, consumer);
     }
 
     return false;
@@ -518,12 +521,12 @@ void OpFusionPassInternal(Graph* graph) {
   graph->fusion_groups  = op_fusion_helper();
 
   for (auto& group : graph->fusion_groups) {
-    VLOG(11) << "Group Id : " << group->group_id;
+    VLOG(3) << "Group Id : " << group->group_id;
     for (auto& producer : group->producer_groups) {
-      VLOG(11) << "  producer group -> " << producer->group_id;
+      VLOG(3) << "  producer group -> " << producer->group_id;
     }
     for (auto& consumer : group->consumer_groups) {
-      VLOG(11) << "  consumer group -> " << consumer->group_id;
+      VLOG(3) << "  consumer group -> " << consumer->group_id;
     }
   }
 }

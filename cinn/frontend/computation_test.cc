@@ -267,7 +267,7 @@ TEST(cinn_computation, decomposer_cpu) {
     options.use_decomposer = true;
     auto compute           = CinnComputation::Compile(target, prog, options);
     auto names             = compute->GetAllTensorNames();
-    ASSERT_EQ(names.size(), 5);
+    ASSERT_EQ(names.size(), 4);
     ASSERT_NE(std::find(names.begin(), names.end(), "zero"), names.end());
   }
 }

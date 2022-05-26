@@ -16,6 +16,7 @@
 #include <absl/container/flat_hash_map.h>
 #include <absl/types/any.h>
 
+#include <atomic>
 #include <memory>
 #include <string>
 #include <vector>
@@ -46,6 +47,7 @@ class Graph : public cinn::common::Graph {
   std::vector<std::vector<Node*>> groups;
   struct Group {
     std::string group_id{""};
+    std::string unique_id{UniqName("")};
     // node in this group
     std::vector<Node*> nodes;
     std::unordered_set<Node*> nodes_set;
@@ -96,7 +98,7 @@ class Graph : public cinn::common::Graph {
       }
     }
 
-    std::string GetFuncName() { return "fn_" + group_id; }
+    std::string GetFuncName() { return "fn_" + group_id + unique_id; }
   };
   std::vector<std::shared_ptr<Group>> fusion_groups;
 
@@ -147,7 +149,24 @@ class Graph : public cinn::common::Graph {
     return it != attrs.end();
   }
 
+  /**
+   * \brief Visualize the grouped graph according to fusion_groups.
+   */
+  void VisualizeGroupedGraph(const std::unordered_set<std::string>& fetch_var_ids);
+
+  /**
+   * \brief Visualize the grouped graph according to user specified groups.
+   */
+  void VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
+                             const std::unordered_set<std::string>& fetch_var_ids);
+
  private:
+  void VisualizeGroups(const std::vector<std::vector<Node*>>& groups,
+                       const std::unordered_set<std::string>& fetch_var_ids);
+
+  std::string viz_path_;
+  static std::atomic_size_t viz_count_;
+
   CINN_DISALLOW_COPY_AND_ASSIGN(Graph);
 };
 

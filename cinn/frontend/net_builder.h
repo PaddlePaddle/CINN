@@ -17,6 +17,7 @@
 #include <string>
 #include <vector>
 
+#include "cinn/common/type.h"
 #include "cinn/frontend/base_builder.h"
 #include "cinn/frontend/syntax.h"
 
@@ -65,12 +66,6 @@ class NetBuilder : public BaseBuilder {
    * Multiply two matrix.
    */
   Variable Mul(const Variable& a, const Variable& b, int x_num_col_dims = 1, int y_num_col_dims = 1);
-
-  /**
-   * Multiply two matrix and add a bias.
-   */
-  Variable MulBias(
-      const Variable& a, const Variable& b, const Variable& c, int x_num_col_dims = 1, int y_num_col_dims = 1);
 
   /**
    * The gradient of elementwise_add.
@@ -166,21 +161,6 @@ class NetBuilder : public BaseBuilder {
                                    const int groups                     = 1,
                                    const std::string& data_format       = "NCHW",
                                    const std::string& padding_algorithm = "EXPLICIT");
-
-  template <typename T>
-  Variable FillConstant(const std::vector<int>& shape, float value, const std::string& name, bool force_cpu = false) {
-    Instruction instr("fill_constant");
-    instr.SetInputs({});
-    instr.SetAttr("shape", shape);
-    instr.SetAttr("value", value);
-    instr.SetAttr("force_cpu", force_cpu);
-
-    InferShape(instr);
-    AppendInstruction(instr);
-    auto out = instr.GetOutput(0);
-    out.set_id(name);
-    return out;
-  }
 
  protected:
   Variable ElementwiseOp(const std::string& op_type, const Variable& lhs, const Variable& rhs, int axis = -1);

@@ -21,10 +21,13 @@
 #include "cinn/hlir/framework/op_strategy.h"
 #include "cinn/hlir/pe/broadcast.h"
 #include "cinn/hlir/pe/elementwise.h"
+#include "cinn/hlir/pe/ir_schedule_pe.h"
 #include "cinn/hlir/pe/schedule.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/layout.h"
 #include "cinn/poly/stage.h"
+
+DECLARE_bool(cinn_ir_schedule);
 
 namespace cinn {
 namespace hlir {
@@ -977,12 +980,17 @@ std::shared_ptr<OpStrategy> StrategyForBatchNorm(const framework::NodeAttr &attr
     CHECK(!args.empty()) << "The input argument of batchnorm compute is empty! Please check.\n";
     CINNValuePack a = args[0];
     CHECK_GE(a.size(), 5U) << "at least 5 input tensors for batchnorm compute\n";
-    Expr A        = a[0];
-    Expr Scale    = a[1];
-    Expr Bias     = a[2];
-    Expr Mean     = a[3];
-    Expr Variance = a[4];
-
+    Expr A               = a[0];
+    Expr Scale           = a[1];
+    Expr Bias            = a[2];
+    Expr Mean            = a[3];
+    Expr Variance        = a[4];
+    std::string out_name = UniqName("BatchNorm_output");
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK_EQ(a.size(), 6U);
+      const char *out_name_char = a[5];
+      out_name                  = out_name_char;
+    }
     CHECK(A.as_tensor());
     CHECK(Scale.as_tensor());
     CHECK(Bias.as_tensor());
@@ -1002,7 +1010,7 @@ std::shared_ptr<OpStrategy> StrategyForBatchNorm(const framework::NodeAttr &attr
                                 Mean.as_tensor_ref(),
                                 Variance.as_tensor_ref(),
                                 epsilon,
-                                UniqName("BatchNorm_NCHWc_output"));
+                                out_name);
     } else {
       out = pe::BatchNorm_NCHW(tensor_input,
                                Scale.as_tensor_ref(),
@@ -1010,25 +1018,43 @@ std::shared_ptr<OpStrategy> StrategyForBatchNorm(const framework::NodeAttr &attr
                                Mean.as_tensor_ref(),
                                Variance.as_tensor_ref(),
                                epsilon,
-                               UniqName("BatchNorm_output"));
+                               out_name);
     }
     auto stages = CreateStages({out});
     *ret        = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
   });
 
   framework::CINNSchedule batchnorm_schedule([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input argument of batchnorm schedule is empty! Please check.\n";
-    CINNValuePack arg_pack = args[0];
-    CHECK_EQ(arg_pack.size(), 2UL);
-    Expr Out              = arg_pack[0];
-    poly::StageMap stages = arg_pack[1];
-    CHECK(Out.as_tensor());
-    if (target.arch == Target::Arch::NVGPU) {
-      pe::CudaScheduleInjective(stages[Out.as_tensor_ref()], output_shapes.front(), target);
-    } else if (target.arch == Target::Arch::X86) {
-      pe::ScheduleInjectiveCPU(stages[Out.as_tensor_ref()], output_shapes.front(), target);
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK(!args.empty()) << "The input argument of batchnorm schedule is empty! Please check.\n";
+      CINNValuePack arg_pack = args[0];
+      CHECK_EQ(arg_pack.size(), 2UL);
+      Expr ast_expr = arg_pack[0];
+      std::vector<Expr> vec_ast{ast_expr};
+      ir::ModuleExpr mod_expr(vec_ast);
+      ir::IRSchedule ir_sch(mod_expr);
+      if (target.arch == Target::Arch::NVGPU) {
+        pe::IRCudaScheduleInjective(ir_sch, output_shapes.front(), target);
+      } else if (target.arch == Target::Arch::X86) {
+        pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target);
+      }
+      std::vector<CINNValue> res;
+      res.push_back(arg_pack[0]);
+      *ret = CINNValuePack{res};
+    } else {
+      CHECK(!args.empty()) << "The input argument of batchnorm schedule is empty! Please check.\n";
+      CINNValuePack arg_pack = args[0];
+      CHECK_EQ(arg_pack.size(), 2UL);
+      Expr Out              = arg_pack[0];
+      poly::StageMap stages = arg_pack[1];
+      CHECK(Out.as_tensor());
+      if (target.arch == Target::Arch::NVGPU) {
+        pe::CudaScheduleInjective(stages[Out.as_tensor_ref()], output_shapes.front(), target);
+      } else if (target.arch == Target::Arch::X86) {
+        pe::ScheduleInjectiveCPU(stages[Out.as_tensor_ref()], output_shapes.front(), target);
+      }
+      *ret = arg_pack;
     }
-    *ret = arg_pack;
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();

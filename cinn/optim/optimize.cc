@@ -15,6 +15,7 @@
 #include "cinn/optim/optimize.h"
 
 #include "cinn/ir/ir_printer.h"
+#include "cinn/ir/ir_schedule.h"
 #include "cinn/optim/call_arg_list_to_pod_value.h"
 #include "cinn/optim/cast_bool_to_int8.h"
 #include "cinn/optim/cast_simplify.h"
@@ -36,6 +37,8 @@
 #include "cinn/optim/unroll_loops.h"
 #include "cinn/optim/vectorize_loops.h"
 
+DECLARE_bool(cinn_ir_schedule);
+
 namespace cinn {
 namespace optim {
 
@@ -49,8 +52,9 @@ Expr Optimize(Expr e, Target target, bool runtime_debug_info) {
   CastSimplify(&copied);
   Simplify(&copied);
   UnrollLoop(&copied);
-  VectorizeLoops(&copied, Target());
+  VectorizeLoops(&copied, target);
 #ifdef CINN_WITH_CUDA
+  if (FLAGS_cinn_ir_schedule) ir::SetCudaAxisInfo(&copied);
   RemoveGpuForloopsAxis(&copied);
   CudaSyncThreadsDropIfThenElse(&copied);
 #endif
@@ -73,7 +77,10 @@ Expr Optimize(Expr e, Target target, bool runtime_debug_info) {
 
 ir::Module Optimize(const ir::Module& module, const Target& target) {
   auto copied = IRCopy(Expr(module));
-
+  if (FLAGS_cinn_ir_schedule) {
+    UnrollLoop(&copied);
+    VectorizeLoops(&copied, Target());
+  }
   RemoveScheduleBlock(&copied);
   LowerFunctionCallBindVars(&copied);
   CallArgListToPodValue(&copied);

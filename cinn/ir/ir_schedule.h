@@ -20,9 +20,16 @@
 
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_base.h"
+#include "cinn/ir/tensor.h"
 
 namespace cinn {
 namespace ir {
+
+Tensor GetTensor(const Expr& block);
+
+Tensor GetReadTensor(const Expr& block, int index);
+
+int GetLoopExtent(const Expr& loop);
 
 /**
  * A struct representing a module that contains Expr. This struct is only used in Schedule process.
@@ -36,11 +43,14 @@ class ModuleExpr {
   ModuleExpr& operator=(const ModuleExpr& mod_expr) = default;
 
   explicit ModuleExpr(const std::vector<Expr>& exprs) : exprs_(exprs) {}
+  explicit ModuleExpr(std::vector<Expr>&& exprs) : exprs_(std::move(exprs)) {}
 
   //! Get all the Expr in this ModuleExpr.
   std::vector<Expr> GetExprs() { return exprs_; }
 
   std::vector<Expr> GetExprs() const { return exprs_; }
+
+  void SetExprs(const std::vector<Expr>& exprs) { exprs_ = exprs; }
 
  private:
   //! Exprs stored in ModuleExpr. Each one is an AST, representing a computation kernel.
@@ -89,6 +99,8 @@ class ScheduleHelper {
   //! Get the ModuleExpr stored in ScheduleHelper.
   ModuleExpr GetModule() const { return module_expr_; }
 
+  void SetExprs(const std::vector<Expr>& exprs) { module_expr_.SetExprs(exprs); }
+
  private:
   ModuleExpr module_expr_;
   bool debug_flag_{false};
@@ -102,6 +114,8 @@ class IRSchedule {
  public:
   IRSchedule() = default;
   explicit IRSchedule(const ModuleExpr& modexpr, bool debug_flag = false);
+
+  void SetExprs(const std::vector<Expr>& exprs) { helper_.SetExprs(exprs); }
 
   /**
    * \brief Get all the loops of specific Block stored in ModuleExpr.
@@ -156,11 +170,26 @@ class IRSchedule {
   Expr Fuse(const std::string& block_name, const std::vector<int>& loops_index);
 
   /**
+   * \brief Fuse for loops and return the fused loop.
+   * @param block The block we want to modify.
+   * @param loops_index Indices of the loops to be fused, stored in ascending order.
+   * @return The fused loop.
+   */
+  Expr Fuse(const Expr& block, const std::vector<int>& loops_index);
+
+  /**
    * \brief Move a block's location under a loop.
    * @param block The block we want to move its computation location.
    * @param loop The loop we will move the block to.
    */
   void ComputeAt(const Expr& block, const Expr& loop);
+
+  /**
+   * \brief Move a block's location under a loop without considering their dependency.
+   * @param block The block we want to move its computation location.
+   * @param loop The loop we will move the block to.
+   */
+  void SimpleComputeAt(const Expr& block, const Expr& loop);
 
   /**
    * \brief Find an expr's root ScheduleBlockRealize node
@@ -192,7 +221,7 @@ class IRSchedule {
    * \param block The ScheduleBlockRealize corresponding to an unique tensor.
    * \param memory_type The memory type we want to set. Should be "local", "shared" or "global".
    */
-  void SetBuffer(const Expr& block, const std::string& memory_type) const;
+  void SetBuffer(Expr& block, const std::string& memory_type);
 
   /**
    * \brief Reorder the loops in the order of vector.
@@ -206,6 +235,13 @@ class IRSchedule {
    * @param loops_index Indices of loops to be reordered.
    */
   void Reorder(const std::string& block_name, const std::vector<int>& loops_index);
+
+  /**
+   * \brief Reorder the loops in the order of vector elements.
+   * @param block The block we want to modify.
+   * @param loops_index Indices of loops to be reordered.
+   */
+  void Reorder(const Expr& block, const std::vector<int>& loops_index);
 
   /**
    * Get the device api of this IRSchedule.
@@ -252,6 +288,11 @@ class IRSchedule {
    */
   void Bind(const Expr& loop, const std::string& thread_axis);
 
+  //! Copy another block's schedule transform.
+  void CopyTransformAndLoopInfo(const Expr& block, const Expr& block_target);
+
+  void CopyTransformAndLoopInfo(const std::string& block_name, const std::string& block_target_name);
+
   /**
    * \brief Factorize the reduction block by the given loop. The block will be split into two blocks: rfactor block and
    * final write-back block.
@@ -292,9 +333,12 @@ class IRSchedule {
   //! Get the ModuleExpr stored in ScheduleHelper.
   ModuleExpr GetModule() const { return helper_.GetModule(); }
 
+  void MergeExprs();
+
  private:
   ScheduleHelper helper_;
 };
 
+void SetCudaAxisInfo(Expr* lowered_func);
 }  // namespace ir
 }  // namespace cinn

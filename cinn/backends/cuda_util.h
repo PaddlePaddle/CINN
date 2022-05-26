@@ -18,6 +18,7 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <cudnn.h>
+#include <glog/logging.h>
 
 #include <string>
 #include <tuple>
