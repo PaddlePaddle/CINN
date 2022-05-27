@@ -522,8 +522,6 @@ class FusionMergePassHelper : public FusionHelperBase {
     }
 
     if (producer->consumer_groups.size() > fusionable_consumers.size()) {
-      // update depth using producer depth.
-      first_fuesd_group->depth = producer->depth;
       // update output for others consumer.
       for (auto& node : producer->output_nodes) {
         bool be_output = true;
@@ -552,11 +550,16 @@ class FusionMergePassHelper : public FusionHelperBase {
       // consumer groups
       for (auto& consumer : producer->consumer_groups) {
         // if consumer is not fusinable.
-        if (!fusionable_consumers.count(consumer)) {
-          first_fuesd_group->consumer_groups.insert(consumer);
-          // update consumer's producer
-          consumer->producer_groups.erase(producer);
-          consumer->producer_groups.insert(first_fuesd_group);
+        if (fusionable_consumers.count(consumer)) {
+          continue;
+        }
+        first_fuesd_group->consumer_groups.insert(consumer);
+        // update consumer's producer
+        consumer->producer_groups.erase(producer);
+        consumer->producer_groups.insert(first_fuesd_group);
+        // update depth using producer depth.
+        if (first_consumer.get() != consumer.get()) {
+          first_fuesd_group->depth = std::max(first_fuesd_group->depth, consumer->depth + 1);
         }
       }
 
