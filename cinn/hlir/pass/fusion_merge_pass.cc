@@ -140,17 +140,15 @@ class FusionMergePassHelper : public FusionHelperBase {
 
   bool DoHorizontalFusion(GroupPtr& producer, std::unordered_set<GroupPtr, Hasher, Comparator>& consumers) {
     VLOG(3) << "DoHorizontalFusion...!";
-    GroupList candidate_consumers;
-    // check consumers exist depency relation
-    for (auto& consumer : consumers) {
-      if (!IsDepency(consumer, consumers)) {
-        candidate_consumers.push_back(consumer);
-      }
-    }
-
     std::vector<GroupList> fusionable_consumers;
     // fuse consumer groups
-    for (auto& consumer : candidate_consumers) {
+    for (auto& consumer : consumers) {
+      // check consumer depency consumers
+      if (IsDepency(consumer, consumers)) {
+        VLOG(3) << "Can't fuse consumer " << consumer->group_id << " to others, As it depency others!";
+        continue;
+      }
+
       // if fusionable consumers is not exist
       if (!fusionable_consumers.size()) {
         fusionable_consumers.push_back({consumer});
