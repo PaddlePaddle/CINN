@@ -52,6 +52,7 @@ struct Buffer final {
   void ResizeLazy(uint32_t alignment, uint32_t size, const common::Target& target);
 
   void SetTarget(const common::Target& target);
+  common::Target GetTarget() { return target_; }
 
   const cinn_buffer_t* data() const { return &data_; }
   cinn_buffer_t* data() { return &data_; }

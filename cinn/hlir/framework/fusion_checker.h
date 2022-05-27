@@ -27,23 +27,33 @@ namespace framework {
 
 class FusionChecker {
  public:
-  FusionChecker(const Instruction& target_instr, const Graph::Group group, const common::Target target);
+  FusionChecker(const Instruction& target_instr,
+                const Graph& graph_,
+                const Graph::Group group,
+                const common::Target target);
   bool operator()();
 
  private:
   bool RunChecker();
   void InitInputTensor();
+  template <class T>
+  void GetRandom(T* data, size_t size);
   std::unordered_map<Tensor> RunSubInstructions();
   std::unordered_map<Tensor> RunTargetInstruction();
   bool CheckTensorValue(const Tensor& src, const Tensor& dst);
+  Tensor FusionChecker::TensorHostToDevice(Tensor& src,
+                                           void* stream) Tensor FusionChecker::TensorDeviceToHost(Tensor& src,
+                                                                                                  void* stream)
 
-  void BuildSubInstrution();
+      void BuildSubInstrution();
   // input values
   std::unordered_map<Tensor> input_tensors;
 
   // target and instruction
-  common::Target target_;
+  Graph graph_;
   Graph::Group group_;
+  common::Target target_;
+
   Instruction target_instr_;
   std::vector<Instruction> sub_instrs_;
 };
