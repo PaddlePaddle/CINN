@@ -47,9 +47,12 @@ class FusionMergePassHelper : public FusionHelperBase {
   FusionMergePassHelper(Graph* graph)
       : FusionHelperBase(graph->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape"), graph->target_) {
     fusion_groups_ = graph->fusion_groups;
-    InitFusionGroupsIndex();
-    InitInputToConsumers();
+    // init fusion relation.
     InitFusionRelation();
+    // init input to consumers.
+    InitInputToConsumers();
+    // init fusion group index.
+    InitFusionGroupsIndex();
   }
 
   GroupList operator()() {
@@ -140,7 +143,7 @@ class FusionMergePassHelper : public FusionHelperBase {
     GroupList candidate_consumers;
     // check consumers exist depency relation
     for (auto& consumer : consumers) {
-      if (!IsDepency(producer, consumer, consumers)) {
+      if (!IsDepency(consumer, consumers)) {
         candidate_consumers.push_back(consumer);
       }
     }
@@ -348,7 +351,7 @@ class FusionMergePassHelper : public FusionHelperBase {
     for (auto& consumer : consumers) {
       VLOG(3) << "Check consuemr " << consumer->group_id << " can fuse to producer " << producer->group_id;
       // check consumer exist depency
-      if (IsDepency(producer, consumer, consumers)) {
+      if (IsDepency(consumer, consumers)) {
         VLOG(3) << "Can't fuse consumer " << consumer->group_id << " ,As it depency others!";
         continue;
       }
@@ -520,7 +523,6 @@ class FusionMergePassHelper : public FusionHelperBase {
 
     if (producer->consumer_groups.size() > fusionable_consumers.size()) {
       // update depth using producer depth.
-      // TODO: this may cause check ring error.
       first_fuesd_group->depth = producer->depth;
       // update output for others consumer.
       for (auto& node : producer->output_nodes) {
@@ -615,13 +617,14 @@ class FusionMergePassHelper : public FusionHelperBase {
     }
   }
 
-  bool IsDepency(const GroupPtr& producer_g,
-                 const GroupPtr& consumer,
-                 const std::unordered_set<GroupPtr, Hasher, Comparator>& consumers) {
+  bool IsDepency(const GroupPtr& consumer, const std::unordered_set<GroupPtr, Hasher, Comparator>& consumers) {
     std::queue<GroupPtr> candidates;
     candidates.push(consumer);
     // check upper.
-    int check_upper_depth = producer_g.get() ? producer_g->depth : INT_MAX;
+    int check_upper_depth = 0;
+    for (auto& consumer : consumers) {
+      check_upper_depth = std::max(check_upper_depth, consumer->depth);
+    }
 
     std::unordered_set<GroupPtr, Hasher, Comparator> visited_set;
     while (!candidates.empty()) {
@@ -708,7 +711,23 @@ class FusionMergePassHelper : public FusionHelperBase {
     VLOG(3) << "InitFusionGroupsIndex...!";
     // init the postion of groups in fusion groups.
     for (int idx = 0; idx < fusion_groups_.size(); ++idx) {
-      fusion_groups_index_[fusion_groups_[idx]] = idx;
+      auto& group       = fusion_groups_[idx];
+      auto belong_group = std::make_shared<Graph::Group>();
+      // copy from group.
+      belong_group->depth           = group->depth;
+      belong_group->group_id        = group->group_id;
+      belong_group->input_nodes     = group->input_nodes;
+      belong_group->output_nodes    = group->output_nodes;
+      belong_group->op_pattern_kind = group->op_pattern_kind;
+      belong_group->master_nodes    = group->master_nodes;
+      belong_group->producer_groups = group->producer_groups;
+      belong_group->consumer_groups = group->consumer_groups;
+      belong_group->fused_sub_groups.push_back(group);
+      group->belong_groups.insert(belong_group);
+      // replace group to fused_group
+      fusion_groups_[idx] = belong_group;
+      // recored index.
+      fusion_groups_index_[belong_group] = idx;
     }
   }
 
