@@ -67,6 +67,11 @@ class TestLoadResnet50Model(unittest.TestCase):
         # True means load combined model
         self.executor.load_paddle_model(self.model_dir, self.target, True,
                                         "resnet50")
+        prog = self.executor.get_program()
+        # print program
+        print("resnet50 program is:\n")
+        for i in range(prog.size()):
+            print(prog[i])
         end1 = time.time()
         print("load_paddle_model time is: %.3f sec" % (end1 - start))
         a_t = self.executor.get_tensor(self.input_tensor)
