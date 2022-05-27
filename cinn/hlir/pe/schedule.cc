@@ -2174,11 +2174,7 @@ void CudaScheduleInjective(poly::Stage *stage, const std::vector<int> &output_sh
     CudaScheduleInjectiveWithVectorize(stage, output_shape, target);
     return;
   }
-  std::vector<int> origin_shapes;
-  int dims = stage->n_out_dims() - 1;
-  for (int i = 0; i <= dims; i++) {
-    origin_shapes.push_back(stage->GetDimRange(i));
-  }
+  int dims       = stage->n_out_dims() - 1;
   int num_thread = target.max_num_threads();
   if (stage->GetDimRange(dims) > num_thread) {
     stage->Split(dims, gcd(stage->GetDimRange(dims), num_thread));
