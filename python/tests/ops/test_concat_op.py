@@ -31,8 +31,8 @@ class TestConcatOp1(OpTest):
 
     def init_case(self):
         self.inputs = {
-            "x1": np.random.random([2, 3]).astype("float32"),
-            "x2": np.random.random((2, 3)).astype("float32")
+            "x1": np.random.random([10201, 50]).astype("float32"),
+            "x2": np.random.random((10201, 50)).astype("float32")
         }
         self.axis = 0
 
