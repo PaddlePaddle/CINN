@@ -72,6 +72,11 @@ void Interpreter::LoadPaddleModel(const std::string& model_dir,
   impl_->Build(impl_->input_names_, impl_->input_shapes_, target, model_name);
 }
 
+frontend::Program Interpreter::GetProgram() {
+  frontend::Program* res = impl_->program_.get();
+  return *res;
+}
+
 void Interpreter::Run() { impl_->runtime_program_->Execute(); }
 
 hlir::framework::Tensor Interpreter::GetTensor(const std::string& name) {
@@ -132,7 +137,7 @@ void Interpreter::Impl::Build(const std::vector<std::string>& input_names,
   runtime_program_->PreRun();
 }
 
-std::shared_ptr<hlir::framework::Scope> Interpreter::scope() {
+std::shared_ptr<hlir::framework::Scope> Interpreter::GetScope() {
   CHECK(impl_->scope_);
   return impl_->scope_;
 }
