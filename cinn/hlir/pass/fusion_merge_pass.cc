@@ -333,8 +333,10 @@ class FusionMergePassHelper : public FusionHelperBase {
 
     // push group to back.
     // fusion_groups_.push_back(fused_group);
-    fusion_groups_[fusion_groups_index_[first_consumer]] = fused_group;
-    fusion_groups_index_[fused_group]                    = fusion_groups_index_[first_consumer];
+    CHECK(fusion_groups_index_.count(first_consumer)) << "Don't find first_consumer index in fusion_groups_index_!";
+    auto postion                      = fusion_groups_index_[first_consumer];
+    fusion_groups_[postion]           = fused_group;
+    fusion_groups_index_[fused_group] = postion;
   }
 
   bool DoVerticalFusion(GroupPtr& producer, std::unordered_set<GroupPtr, Hasher, Comparator>& consumers) {
@@ -505,8 +507,9 @@ class FusionMergePassHelper : public FusionHelperBase {
       fused_groups.push_back(fused_group);
       // fusion_groups_.push_back(fused_group);
       CHECK(fusion_groups_index_.count(consumer));
-      fusion_groups_[fusion_groups_index_[consumer]] = fused_group;
-      fusion_groups_index_[fused_group]              = fusion_groups_index_[consumer];
+      auto postion                      = fusion_groups_index_[consumer];
+      fusion_groups_[postion]           = fused_group;
+      fusion_groups_index_[fused_group] = postion;
 
       if (first_consumer.get()) {
         if (fusion_groups_index_[consumer] < fusion_groups_index_[first_consumer]) {
@@ -561,10 +564,14 @@ class FusionMergePassHelper : public FusionHelperBase {
         }
       }
 
-      // update groups
-      fusion_groups_[fusion_groups_index_[producer]]       = first_fuesd_group;
-      fusion_groups_[fusion_groups_index_[first_consumer]] = first_consumer;
-      fusion_groups_index_[first_fuesd_group]              = fusion_groups_index_[producer];
+      // update first fused group to producer
+      CHECK(fusion_groups_index_.count(producer));
+      auto position                           = fusion_groups_index_[producer];
+      fusion_groups_[position]                = first_fuesd_group;
+      fusion_groups_index_[first_fuesd_group] = position;
+      // update first consumer.
+      position                 = fusion_groups_index_[first_consumer];
+      fusion_groups_[position] = first_consumer;
     }
   }
 
@@ -712,7 +719,7 @@ class FusionMergePassHelper : public FusionHelperBase {
     VLOG(3) << "InitFusionGroupsIndex...!";
     // init the postion of groups in fusion groups.
     for (int idx = 0; idx < fusion_groups_.size(); ++idx) {
-      auto& group       = fusion_groups_[idx];
+      auto group        = fusion_groups_[idx];
       auto belong_group = std::make_shared<Graph::Group>();
       // copy from group.
       belong_group->depth           = group->depth;
@@ -729,6 +736,34 @@ class FusionMergePassHelper : public FusionHelperBase {
       fusion_groups_[idx] = belong_group;
       // recored index.
       fusion_groups_index_[belong_group] = idx;
+    }
+
+    // update producer and consumer.
+    for (auto& group : fusion_groups_) {
+      std::unordered_set<GroupPtr, Hasher, Comparator> producers;
+      std::unordered_set<GroupPtr, Hasher, Comparator> consumers;
+
+      for (auto& producer : group->producer_groups) {
+        if (!producer->belong_groups.size()) {
+          producers.insert(producer);
+          continue;
+        }
+        producers.insert(*producer->belong_groups.begin());
+        (*producer->belong_groups.begin())->consumer_groups.insert(group);
+        (*producer->belong_groups.begin())->consumer_groups.erase(group->fused_sub_groups[0]);
+      }
+      for (auto& consumer : group->consumer_groups) {
+        if (!consumer->belong_groups.size()) {
+          consumers.insert(consumer);
+          continue;
+        }
+        consumers.insert(*consumer->belong_groups.begin());
+        (*consumer->belong_groups.begin())->producer_groups.insert(group);
+        (*consumer->belong_groups.begin())->producer_groups.erase(group->fused_sub_groups[0]);
+      }
+
+      group->producer_groups = producers;
+      group->consumer_groups = consumers;
     }
   }
 
