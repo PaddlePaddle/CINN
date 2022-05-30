@@ -22,7 +22,7 @@ namespace cinn {
 namespace hlir {
 namespace framework {
 
-FusionChecker::FusionChecker(const Instruction& target_instr,
+FusionChecker::FusionChecker(const Instruction* target_instr,
                              const Graph& graph,
                              const GroupPtr& group,
                              const common::Target& target)
@@ -30,9 +30,41 @@ FusionChecker::FusionChecker(const Instruction& target_instr,
   BuildSubInstrution();
 }
 
+std::vector<std::string> FusionChecker::OpGetInputNames(const Node* node) {
+  std::vector<std::string> res;
+  for (auto& i : node->inlinks_in_order()) {
+    res.push_back(i->source()->as<NodeData>()->id());
+  }
+  return res;
+}
+
+std::vector<std::string> FusionChecker::OpGetOutputNames(const Node* node) {
+  std::vector<std::string> res;
+  for (auto& i : node->outlinks_in_order()) {
+    res.push_back(i->sink()->as<NodeData>()->id());
+  }
+  return res;
+}
+
+const std::string& GraphCompiler::GetOrGenFullFuncName(const std::string& prefix) {
+  // try_emplace only insert once, so the same function
+  // can get a consistent name next time
+  prefix2full_namemap_.try_emplace(prefix, Context::Global().NewName(prefix));
+  return prefix2full_namemap_.at(prefix);
+}
+
 FusionChecker::BuildSubInstrutions() {
   auto nodes = group_->CollectNodes();
   for (auto node : nodes) {
+    auto instr_name = node->op()->name;
+
+    auto instr =
+        std::make_shared<Instruction>(target_, nullptr, OpGetInputNames(node), OpGetOutputNames(node), instr_name);
+    std::string op_func_name = GetOrGenFullFuncName(GenOpFuncName(node));
+    auto* fn                 = compiler_->Lookup(op_func_name);
+    CHECK(fn);
+    instr->SetLoweredFunc(fn, op_func_name);
+    sub_instrs_.push_back(instr);
   }
 }
 
@@ -74,7 +106,7 @@ void FusionChecker::InitInputTensor() {
     } else {
       LOG(FATAL) << "Not Support Now!";
     }
-    input_tensors[name] = tensor;
+    input_tensors_[name] = tensor;
   }
 }
 
@@ -123,9 +155,107 @@ Tensor FusionChecker::TensorDeviceToHost(Tensor& src, void* stream) {
   return dst;
 }
 
-std::unordered_map<Tensor> FusionChecker::RunSubInstructions() {}
+std::unordered_map<Tensor> FusionChecker::RunSubInstructions(void* stream) {
+  auto& dtype_dict = graph_->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
+  auto& shape_dict = graph_->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
 
-std::unordered_map<Tensor> FusionChecker::RunTargetInstruction() {}
+  std::unordered_map<std::string, Tensor> tensor_map;
+  for (auto& input : input_tensors) {
+    tensor_map[input.first] = TensorHostToDevice(input.second, stream);
+  }
+
+  for (auto& instr : sub_instrs_) {
+    std::map<std::string, cinn_pod_value_t> run_args;
+    for (auto& arg : instr->GetInArgs()) {
+      if (!tensor_map.count(arg)) {
+        Tensor tensor;
+        tensor->Resize(shape_dict.at(arg));
+        tensor->set_type(dtype_dict.at(arg));
+        if (tensor->type() == Float(32)) {
+          tensor->mutable_data<float>(target_);
+        } else {
+          LOG(FATAL) << "Not Support Now!";
+        }
+        input_tensors_[arg] = tensor;
+        tensor_map[arg]     = tensor;
+      }
+
+      run_args[arg] = cinn_pod_value_t(tensor_map[arg]->buffer());
+    }
+
+    for (auto& arg : instr->GetOutArgs()) {
+      if (!tensor_map.count(arg)) {
+        Tensor tensor;
+        tensor->Resize(shape_dict.at(arg));
+        tensor->set_type(dtype_dict.at(arg));
+        if (tensor->type() == Float(32)) {
+          tensor->mutable_data<float>(target_);
+        } else {
+          LOG(FATAL) << "Not Support Now!";
+        }
+        input_tensors_[arg] = tensor;
+        tensor_map[arg]     = tensor;
+      }
+      run_args[arg] = cinn_pod_value_t(tensor_map[arg]->buffer());
+    }
+
+    instr->run(run_args);
+  }
+
+  std::unordered_map<std::string, Tensor> output_tensors;
+  for (auto& arg : target_instr_->GetOutArgs()) {
+    output_tensors[arg] = TensorDeviceToHost(tensor_map[arg]);
+  }
+  return output_tensors;
+}
+
+std::unordered_map<std::string, Tensor> FusionChecker::RunTargetInstruction() {
+  auto& dtype_dict = graph_->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
+  auto& shape_dict = graph_->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
+
+  std::map<std::string, cinn_pod_value_t> run_args;
+  for (auto& arg : target_instr_->GetInArgs()) {
+    if (!tensor_map.count(arg)) {
+      Tensor tensor;
+      tensor->Resize(shape_dict.at(arg));
+      tensor->set_type(dtype_dict.at(arg));
+      if (tensor->type() == Float(32)) {
+        tensor->mutable_data<float>(target_);
+      } else {
+        LOG(FATAL) << "Not Support Now!";
+      }
+      input_tensors_[arg] = tensor;
+      tensor_map[arg]     = tensor;
+    }
+
+    run_args[arg] = cinn_pod_value_t(tensor_map[arg]->buffer());
+  }
+
+  std::unordered_map<std::string, Tensor> output_tensors;
+  for (auto& arg : target_instr_->GetOutArgs()) {
+    if (!tensor_map.count(arg)) {
+      Tensor tensor;
+      tensor->Resize(shape_dict.at(arg));
+      tensor->set_type(dtype_dict.at(arg));
+      if (tensor->type() == Float(32)) {
+        tensor->mutable_data<float>(target_);
+      } else {
+        LOG(FATAL) << "Not Support Now!";
+      }
+      input_tensors_[arg] = tensor;
+      tensor_map[arg]     = tensor;
+    }
+    run_args[arg]       = cinn_pod_value_t(tensor_map[arg]->buffer());
+    output_tensors[arg] = tensor_map[arg];
+  }
+
+  target_instr_->run(run_args);
+  std::unordered_map<std::string, Tensor> output_tensors;
+  for (auto& arg : target_instr_->GetOutArgs()) {
+    output_tensors[arg] = TensorDeviceToHost(output_tensors[arg]);
+  }
+  return output_tensors;
+}
 
 bool CheckTensorValue(const Tensor& src, const Tensor& dst) {
   CHECK_EQ(src->get_buffer()->GetTarget(), common::DefaultHostTarget()) << "data is not on host!";
