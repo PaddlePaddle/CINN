@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <functional>
+#include <numeric>
+
 #include "cinn/frontend/op_mapper_registry.h"
 #include "cinn/frontend/op_mappers/common_utils.h"
 
@@ -206,7 +209,21 @@ void ReduceOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
           << cinn::utils::Join(axis, ",") << ", keepdim " << keepdim;
 
   // now paddle science only need reduce sum
-  auto out = ctx.Builder()->ReduceSum(x, axis, keepdim);
+  Variable out;
+  if (std::accumulate(x->shape.begin(), x->shape.end(), 1, std::multiplies<cinn::utils::DimType>()) == 1) {
+    out = ctx.Builder()->Identity(x);
+    if (!keepdim) {
+      cinn::utils::ShapeType new_out_shape;
+      for (int i = 0; i < x->shape.size(); ++i) {
+        if (std::find(axis.begin(), axis.end(), static_cast<cinn::utils::DimType>(i)) == axis.end()) {
+          new_out_shape.emplace_back(x->shape[i]);
+        }
+      }
+      out->shape = new_out_shape;
+    }
+  } else {
+    out = ctx.Builder()->ReduceSum(x, axis, keepdim);
+  }
 
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);
