@@ -709,9 +709,9 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   }
 
   // if check fusion fusion pass
-  if (FLAGS_cinn_check_fusion_pass) {
+  /*if (FLAGS_cinn_check_fusion_pass) {
     LowerAllNodes(groups);
-  }
+  }*/
 
   graph_->VisualizeGroupedGraph(groups, fetch_var_ids_);
 
