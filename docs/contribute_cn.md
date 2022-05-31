@@ -181,6 +181,8 @@ upstream
 
 PR 全称为 Pull Request，是从您的 repo 向项目 repo ，在本例子中也就是CINN repo，提交相应更改请求的基本单位。
 
+我们建议 PR 为一个完整的小功能，它不要代码太多，比如小于500行，以免未来检查代码不方便
+
 在完成上节的 `git push` 后，您的代码修改在自己 repo 下有一个新分支，在 Github 的分支选择切换到所建分支，然后点击 `Compare & pull request`。或者也可以通过点击 `Contribute` 然后点击 `Open pull request`
 
 选择PR的目标分支，在 CINN 项目往往是 `develop` 分支。如果是对release 修改的 cherry-pick，则使用相应 release 分支
