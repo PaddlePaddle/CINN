@@ -86,8 +86,9 @@ bool FusionChecker::RunChecker() {
   auto src_tensors = RunSubInstructions();
   auto dst_tensors = RunTargetInstruction();
   for (auto& src : src_tensors) {
-    CHECK(dst_tensors.count(src.first));
-    CHECK(CheckTensorValue(src.second, dst_tensors[src.first]));
+    CHECK(dst_tensors.count(src.first)) << "Can't find output var: " << src.first << " in other set!";
+    CHECK(CheckTensorValue(src.second, dst_tensors[src.first]))
+        << "fusion group's output var: " << src.first << " in group: " << group_->group_id << " is not equal!";
   }
   return true;
 }
@@ -259,7 +260,9 @@ bool FusionChecker::CheckTensorValue(const Tensor& src, const Tensor& dst) {
   auto src_data = src->data<float>();
   auto dst_data = dst->data<float>();
   for (int idx = 0; idx < size; ++idx) {
-    CHECK_LT(fabsf((*src_data - *dst_data) / *src_data), 1e-5);
+    if (fabsf((*src_data - *dst_data) / *src_data) >= 1e-5) {
+      return false;
+    }
     ++src_data;
     ++dst_data;
   }
