@@ -34,6 +34,7 @@ class FusionChecker {
  public:
   FusionChecker(Instruction* target_instr,
                 backends::Compiler* compiler,
+                absl::flat_hash_map<std::string, std::string>& prefix2full_namemap,
                 Graph* graph,
                 std::shared_ptr<Graph::Group>& group,
                 common::Target& target);

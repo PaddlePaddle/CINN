@@ -28,10 +28,16 @@ namespace framework {
 
 FusionChecker::FusionChecker(Instruction* target_instr,
                              backends::Compiler* compiler,
+                             absl::flat_hash_map<std::string, std::string>& prefix2full_namemap,
                              Graph* graph,
                              std::shared_ptr<Graph::Group>& group,
                              common::Target& target)
-    : target_instr_(target_instr), compiler_(compiler), graph_(graph), group_(group), target_(target) {
+    : target_instr_(target_instr),
+      compiler_(compiler),
+      prefix2full_namemap_(prefix2full_namemap),
+      graph_(graph),
+      group_(group),
+      target_(target) {
   BuildSubInstructions();
 }
 
@@ -62,13 +68,13 @@ void FusionChecker::BuildSubInstructions() {
   auto nodes = group_->CollectNodes();
   for (auto node : nodes) {
     auto instr_name = node->op()->name;
-
     auto instr =
         std::make_shared<Instruction>(target_, nullptr, OpGetInputNames(node), OpGetOutputNames(node), instr_name);
     std::string op_func_name = GetOrGenFullFuncName(GenOpFuncName(node));
     auto* fn                 = compiler_->Lookup(op_func_name);
     CHECK(fn);
     instr->SetLoweredFunc(fn, op_func_name);
+    instr->Finalize();
     sub_instrs_.push_back(instr);
   }
 }
@@ -123,17 +129,13 @@ Tensor FusionChecker::TensorHostToDevice(Tensor& src) {
   if (src->get_buffer()->GetTarget() == common::DefaultNVGPUTarget()) {
     return src;
   }
-
   Tensor dst;
-  dst->Resize(dst->shape());
+  dst->Resize(src->shape());
   auto src_data = src->data<void>();
   auto dst_data = dst->mutable_data(common::DefaultNVGPUTarget(), src->type());
-
 #ifdef CINN_WITH_CUDA
   int width = src->type().bits() / 8;
-  cudaMemcpyAsync(
-      dst_data, src_data, src->shape().numel() * width, cudaMemcpyHostToDevice, static_cast<cudaStream_t>(stream_));
-  auto st = cudaStreamSynchronize(static_cast<cudaStream_t>(stream_));
+  auto st   = cudaMemcpy(dst_data, src_data, src->shape().numel() * width, cudaMemcpyHostToDevice);
   if (st) {
     LOG(FATAL) << "Error Ocurs -> " << cudaGetErrorString(st);
   }
@@ -147,15 +149,13 @@ Tensor FusionChecker::TensorDeviceToHost(Tensor& src) {
     return src;
   }
   Tensor dst;
-  dst->Resize(dst->shape());
+  dst->Resize(src->shape());
   auto src_data = src->data<void>();
   auto dst_data = dst->mutable_data(common::DefaultHostTarget(), src->type());
 
 #ifdef CINN_WITH_CUDA
   int width = src->type().bits() / 8;
-  cudaMemcpyAsync(
-      dst_data, src_data, src->shape().numel() * width, cudaMemcpyDeviceToHost, static_cast<cudaStream_t>(stream_));
-  auto st = cudaStreamSynchronize(static_cast<cudaStream_t>(stream_));
+  auto st   = cudaMemcpy(dst_data, src_data, src->shape().numel() * width, cudaMemcpyDeviceToHost);
   if (st) {
     LOG(FATAL) << "Error Ocurs -> " << cudaGetErrorString(st);
   }
@@ -175,52 +175,41 @@ std::unordered_map<std::string, Tensor> FusionChecker::RunSubInstructions() {
 
   for (auto& instr : sub_instrs_) {
     std::map<std::string, cinn_pod_value_t> run_args;
-    for (auto& arg : instr->GetInArgs().front()) {
-      if (!tensor_map.count(arg)) {
-        Tensor tensor;
-        tensor->Resize(Shape(shape_dict.at(arg)));
-        tensor->set_type(dtype_dict.at(arg));
-        if (tensor->type() == Float(32)) {
-          tensor->mutable_data<float>(target_);
-        } else {
-          LOG(FATAL) << "Not Support Now!";
-        }
-        tensor_map[arg] = tensor;
-      }
-
+    auto in_args = instr->GetInArgs().front();
+    for (auto& arg : in_args) {
+      CHECK(tensor_map.count(arg));
       run_args[arg] = cinn_pod_value_t(tensor_map[arg]->buffer());
     }
 
-    for (auto& arg : instr->GetOutArgs().front()) {
-      if (!tensor_map.count(arg)) {
-        Tensor tensor;
-        tensor->Resize(Shape(shape_dict.at(arg)));
-        tensor->set_type(dtype_dict.at(arg));
-        if (tensor->type() == Float(32)) {
-          tensor->mutable_data<float>(target_);
-        } else {
-          LOG(FATAL) << "Not Support Now!";
-        }
-        tensor_map[arg] = tensor;
+    auto out_args = instr->GetOutArgs().front();
+    for (auto& arg : out_args) {
+      CHECK(!tensor_map.count(arg));
+      Tensor tensor;
+      tensor->Resize(Shape(shape_dict.at(arg)));
+      tensor->set_type(dtype_dict.at(arg));
+      if (tensor->type() == Float(32)) {
+        tensor->mutable_data<float>(target_);
+      } else {
+        LOG(FATAL) << "Not Support Now!";
       }
-      run_args[arg] = cinn_pod_value_t(tensor_map[arg]->buffer());
+      tensor_map[arg] = tensor;
+      run_args[arg]   = cinn_pod_value_t(tensor->buffer());
     }
-#ifdef CINN_WITH_CUDA
-    instr->Run(&run_args, false, static_cast<cudaStream_t>(stream_));
-#else
     instr->Run(&run_args);
-#endif
   }
 
   std::unordered_map<std::string, Tensor> output_tensors;
-  for (auto& arg : target_instr_->GetOutArgs().front()) {
+  auto out_args = target_instr_->GetOutArgs().front();
+  for (auto& arg : out_args) {
+    CHECK(tensor_map.count(arg));
     auto tensor = tensor_map[arg];
     if (target_ == common::DefaultNVGPUTarget()) {
-      output_tensors[arg] = TensorDeviceToHost(tensor);
+      output_tensors[arg] = std::move(TensorDeviceToHost(tensor));
     } else {
       output_tensors[arg] = tensor;
     }
   }
+
   return output_tensors;
 }
 
@@ -229,14 +218,15 @@ std::unordered_map<std::string, Tensor> FusionChecker::RunTargetInstruction() {
   auto& shape_dict = graph_->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
 
   std::map<std::string, cinn_pod_value_t> run_args;
-  for (auto& arg : target_instr_->GetInArgs()[0]) {
+  auto in_args = target_instr_->GetInArgs().front();
+  for (auto& arg : in_args) {
     CHECK(input_tensors_.count(arg)) << "Can't find data in input tensors map";
-    auto tensor   = input_tensors_[arg];
-    run_args[arg] = cinn_pod_value_t(tensor->buffer());
+    run_args[arg] = cinn_pod_value_t(input_tensors_[arg]->buffer());
   }
 
   std::unordered_map<std::string, Tensor> output_tensors;
-  for (auto& arg : target_instr_->GetOutArgs().front()) {
+  auto out_args = target_instr_->GetOutArgs().front();
+  for (auto& arg : out_args) {
     Tensor tensor;
     tensor->Resize(Shape(shape_dict.at(arg)));
     tensor->set_type(dtype_dict.at(arg));
@@ -249,14 +239,11 @@ std::unordered_map<std::string, Tensor> FusionChecker::RunTargetInstruction() {
     output_tensors[arg] = tensor;
   }
 
-#ifdef CINN_WITH_CUDA
-  target_instr_->Run(&run_args, false, static_cast<cudaStream_t>(stream_));
-#else
   target_instr_->Run(&run_args);
-#endif
 
   if (target_ == common::DefaultNVGPUTarget()) {
-    for (auto& arg : target_instr_->GetOutArgs().front()) {
+    auto out_args = target_instr_->GetOutArgs().front();
+    for (auto& arg : out_args) {
       auto tensor         = output_tensors[arg];
       output_tensors[arg] = TensorDeviceToHost(tensor);
     }
@@ -268,7 +255,7 @@ bool FusionChecker::CheckTensorValue(const Tensor& src, const Tensor& dst) {
   CHECK_EQ(src->get_buffer()->GetTarget(), common::DefaultHostTarget()) << "data is not on host!";
   CHECK_EQ(dst->get_buffer()->GetTarget(), common::DefaultHostTarget()) << "data is not on host!";
 
-  int size      = src->shape().size();
+  int size      = src->shape().numel();
   auto src_data = src->data<float>();
   auto dst_data = dst->data<float>();
   for (int idx = 0; idx < size; ++idx) {
