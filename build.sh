@@ -260,7 +260,7 @@ function run_test {
     if [ ${TESTING_DEBUG_MODE:-OFF} == "ON" ] ; then
         ctest --parallel 10 -V
     else
-        ctest --parallel 10 --output-on-failure
+        ctest --parallel 10 -V
     fi
 }
 

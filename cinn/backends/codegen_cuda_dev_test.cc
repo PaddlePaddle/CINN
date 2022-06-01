@@ -644,6 +644,44 @@ TEST(GlobalPool, pool2d_avg_1_32_7_7) {
   }
 }
 
+TEST(CodeGenCUDA2, test_no_schedule_conv2d) {
+  Context::Global().ResetNameId();
+  Expr N(1);
+  Expr C(128);
+  Expr H(28);
+  Expr W(256);
+
+  Target target = common::DefaultNVGPUTarget();
+
+  Placeholder<float> A("X", {N, C, H, H});
+  Placeholder<float> B("Y", {W, C, N, N});
+
+  auto res = hlir::pe::Conv2d_NCHW(A, B, 0, 0, 2, 2, 1, 1, "COD");
+
+  auto stages = CreateStages(res);
+
+  auto pad_data = res[1];
+  auto conv     = res[0];
+  auto B_t      = B.tensor();
+
+  // hlir::pe::CudaScheduleConv(stages, pad_data, B_t, conv, target);
+
+  CodeGenCUDA_Dev codegen(target);
+
+  auto funcs = cinn::lang::LowerVec("schedule_conv2d_0", stages, {A, B, pad_data, conv}, {}, {}, nullptr, target);
+
+  LOG(INFO) << "func number is : " << funcs.size();
+  Module::Builder builder("module", target);
+  for (auto& i : funcs) {
+    LOG(INFO) << "func is : \n" << i;
+    builder.AddFunction(i);
+  }
+
+  auto source_code = codegen.Compile(builder.Build());
+
+  LOG(INFO) << "compiled test_no_schedule_conv2d code:\n\n\n" << source_code;
+}
+
 TEST(CodeGenCUDA2, test_schedule_conv2d_0) {
   Context::Global().ResetNameId();
   Expr N(1);
