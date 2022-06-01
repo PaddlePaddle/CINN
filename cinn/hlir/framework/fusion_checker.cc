@@ -22,6 +22,8 @@
 #include <cuda_runtime.h>
 #endif
 
+DECLARE_double(cinn_check_fusion_pass_threshold);
+
 namespace cinn {
 namespace hlir {
 namespace framework {
@@ -260,7 +262,7 @@ bool FusionChecker::CheckTensorValue(const Tensor& src, const Tensor& dst) {
   auto src_data = src->data<float>();
   auto dst_data = dst->data<float>();
   for (int idx = 0; idx < size; ++idx) {
-    if (fabsf((*src_data - *dst_data) / *src_data) >= 1e-5) {
+    if (fabsf((*src_data - *dst_data) / *src_data) >= FLAGS_cinn_check_fusion_pass_threshold) {
       return false;
     }
     ++src_data;
