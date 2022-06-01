@@ -22,8 +22,6 @@
 #include <cuda_runtime.h>
 #endif
 
-DECLARE_double(cinn_check_fusion_pass_threshold);
-
 namespace cinn {
 namespace hlir {
 namespace framework {
@@ -89,8 +87,9 @@ bool FusionChecker::RunChecker() {
   auto dst_tensors = RunTargetInstruction();
   for (auto& src : src_tensors) {
     CHECK(dst_tensors.count(src.first)) << "Can't find output var: " << src.first << " in other set!";
-    CHECK(CheckTensorValue(src.second, dst_tensors[src.first]))
-        << "fusion group's output var: " << src.first << " in group: " << group_->group_id << " is not equal!";
+    auto max_diff = CheckTensorValue(src.second, dst_tensors[src.first]);
+    LOG(WARNING) << "The max relative diff of output var: " << src.first << " in group: " << group_->group_id
+                 << " is: " << max_diff;
   }
   return true;
 }
@@ -254,21 +253,20 @@ std::unordered_map<std::string, Tensor> FusionChecker::RunTargetInstruction() {
   return output_tensors;
 }
 
-bool FusionChecker::CheckTensorValue(const Tensor& src, const Tensor& dst) {
+float FusionChecker::CheckTensorValue(const Tensor& src, const Tensor& dst) {
   CHECK_EQ(src->get_buffer()->GetTarget(), common::DefaultHostTarget()) << "data is not on host!";
   CHECK_EQ(dst->get_buffer()->GetTarget(), common::DefaultHostTarget()) << "data is not on host!";
 
-  int size      = src->shape().numel();
-  auto src_data = src->data<float>();
-  auto dst_data = dst->data<float>();
+  int size       = src->shape().numel();
+  auto src_data  = src->data<float>();
+  auto dst_data  = dst->data<float>();
+  float max_diff = 0.0f;
   for (int idx = 0; idx < size; ++idx) {
-    if (fabsf((*src_data - *dst_data) / *src_data) >= FLAGS_cinn_check_fusion_pass_threshold) {
-      return false;
-    }
+    max_diff = std::max(fabsf((*src_data - *dst_data) / *src_data), max_diff);
     ++src_data;
     ++dst_data;
   }
-  return true;
+  return max_diff;
 }
 
 }  // namespace framework

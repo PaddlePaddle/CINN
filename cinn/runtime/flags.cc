@@ -26,7 +26,6 @@ DEFINE_bool(cinn_cudnn_deterministic,
 #endif
 
 using ::GFLAGS_NAMESPACE::BoolFromEnv;
-using ::GFLAGS_NAMESPACE::DoubleFromEnv;
 using ::GFLAGS_NAMESPACE::StringFromEnv;
 
 // FLAGS to switch optimization status
@@ -37,10 +36,6 @@ DEFINE_bool(cinn_use_new_fusion_pass,
 DEFINE_bool(cinn_check_fusion_pass,
             BoolFromEnv("FLAGS_cinn_check_fusion_pass", false),
             "Whether use the new op_fusion and fusion_merge pass.");
-
-DEFINE_double(cinn_check_fusion_pass_threshold,
-              DoubleFromEnv("FLAGS_cinn_check_fusion_pass_threshold", 1e-5),
-              "The threshold is used to check float number!");
 
 DEFINE_bool(cinn_use_fill_constant_folding,
             BoolFromEnv("FLAGS_cinn_use_fill_constant_folding", false),
