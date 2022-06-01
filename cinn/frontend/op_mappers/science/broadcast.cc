@@ -81,7 +81,7 @@ void BroadcastOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
   CHECK(op_desc.HasAttr("shape")) << "The broadcast_p operator should has 'shape' attribute, but " << x_name
                                   << "'s broadcast hasn't.";
 
-  auto y_shape = utils::ToShapeType(op_desc.GetAttr<std::vector<int64_t>>("shape"));
+  auto y_shape = utils::ToShapeType(utils::GetAttrOrDefault<std::vector<int64_t>>(op_desc, "shape"));
   auto x       = ctx.GetVar(x_name);
 
   VLOG(4) << "Broadcast " << x_name << " from shape (" << cinn::utils::Join(x->shape, ",") << ") to shape ("
