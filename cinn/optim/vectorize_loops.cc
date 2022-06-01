@@ -59,8 +59,10 @@ Expr Widen(Expr e, int lanes) {
 // of tensors which meet all check predicates of vectoring
 class TensorVectorizeTeller : public ir::IRMutator<const Expr *> {
  public:
-  TensorVectorizeTeller(const Var &iter_var, const absl::flat_hash_map<std::string, common::CasInterval> *var_intervals)
-      : iter_var_(iter_var), var_intervals_(var_intervals) {}
+  TensorVectorizeTeller(const Var &iter_var,
+                        const int factor,
+                        const absl::flat_hash_map<std::string, common::CasInterval> *var_intervals)
+      : iter_var_(iter_var), factor_(factor), var_intervals_(var_intervals) {}
 
   void Collect(const Expr *op) { IRMutator::Visit(op, op); }
 
@@ -72,6 +74,7 @@ class TensorVectorizeTeller : public ir::IRMutator<const Expr *> {
 
  private:
   const Var iter_var_;  // loop var of new for-loop split from the vectorized loop
+  const int factor_;
   const absl::flat_hash_map<std::string, common::CasInterval> *var_intervals_;
   // save (tensor name) -> (bool flag) to indentify whether tensors can be vectorized or not
   std::unordered_map<std::string, bool> tensor2flag_;
@@ -83,9 +86,10 @@ class TensorVectorizeTeller : public ir::IRMutator<const Expr *> {
     auto *tensor = node->tensor.As<ir::_Tensor_>();
     CHECK(tensor);
 
-    if (!tensor2flag_.count(tensor->name)) {
-      bool flag = MeetConditions(node->tensor, node->indices);
-      tensor2flag_.emplace(tensor->name, flag);
+    // a tensor should pass all check of pre-conditions in every time it appears
+    if (!tensor2flag_.count(tensor->name) || tensor2flag_.at(tensor->name)) {
+      bool flag                  = MeetConditions(node->tensor, node->indices);
+      tensor2flag_[tensor->name] = flag;
     }
   }
 
@@ -95,15 +99,25 @@ class TensorVectorizeTeller : public ir::IRMutator<const Expr *> {
     auto *tensor = node->tensor.As<ir::_Tensor_>();
     CHECK(tensor);
 
-    if (!tensor2flag_.count(tensor->name)) {
-      bool flag = MeetConditions(node->tensor, node->indices);
-      tensor2flag_.emplace(tensor->name, flag);
+    // a tensor should pass all check of pre-conditions in every time it appears
+    if (!tensor2flag_.count(tensor->name) || tensor2flag_.at(tensor->name)) {
+      bool flag                  = MeetConditions(node->tensor, node->indices);
+      tensor2flag_[tensor->name] = flag;
     }
   }
 
   // return true if the tensor meets all conditions of vectorizing
-  bool MeetConditions(Expr tensor, const std::vector<Expr> &indices) {
+  bool MeetConditions(const Expr &expr, const std::vector<Expr> &indices) {
+    const ir::_Tensor_ *tensor = expr.As<ir::_Tensor_>();
     auto find_matched_var_fn = [&](const Expr *x) { return x->As<_Var_>() && x->As<_Var_>()->name == iter_var_->name; };
+
+    // the size of the last dim should be divisible by factor
+    Expr last_size = tensor->shape.back();
+    if (tensor->shape.empty() || !tensor->shape.back().As<IntImm>() || tensor->shape.back().as_int32() % factor_ != 0) {
+      VLOG(5) << "Size of the last dim of tensor:" << tensor->name << " can't be divisible by factor:" << factor_
+              << ", shape:" << utils::Join(tensor->shape, ",");
+      return false;
+    }
 
     // the iter val must appear in the last index
     if (indices.empty() || ir::CollectIRNodes(indices.back(), find_matched_var_fn).empty()) {
@@ -129,13 +143,13 @@ class TensorVectorizeTeller : public ir::IRMutator<const Expr *> {
       optim::IrReplace(&next_idx, Expr(iter_var_), Expr(i));
       auto gap = common::AutoSimplify(Expr(next_idx - first_idx));
       if (!gap.As<IntImm>() || gap.as_int32() != i) {
-        VLOG(5) << "Tensor:" << tensor.as_tensor()->name << " is not accessed sequentially, next:" << next_idx
+        VLOG(5) << "Tensor:" << tensor->name << " is not accessed sequentially, next:" << next_idx
                 << ", first:" << first_idx << ", gap:" << gap;
         return false;
       }
     }
 
-    auto dtype          = tensor->type().ElementOf();
+    auto dtype          = expr->type().ElementOf();
     bool type_supported = dtype.is_float(32) || dtype.is_int(32) || dtype.is_uint(32);
     if (!type_supported) {
       VLOG(5) << "Only support vectorizing int,uint,float";
@@ -148,8 +162,8 @@ class TensorVectorizeTeller : public ir::IRMutator<const Expr *> {
 // find tensors accessed sequentially in a for-loop to be vectorized,
 // and substitue the corresponding cuda built-in vector for them
 class CudaVectorizer : public IRMutator<Expr *> {
-  const Var iter_var_;
-  const int factor_;
+  const Var iter_var_;  // the loop var of the vecotrized loop
+  const int factor_;    // the factor for vectorize
 
   TensorWriteTeller write_teller_;
   TensorVectorizeTeller vectorized_teller_;
@@ -162,7 +176,7 @@ class CudaVectorizer : public IRMutator<Expr *> {
   CudaVectorizer(const Var &iter_var,
                  const int factor,
                  const absl::flat_hash_map<std::string, common::CasInterval> *var_intervals)
-      : iter_var_(iter_var), factor_(factor), vectorized_teller_(iter_var, var_intervals) {
+      : iter_var_(iter_var), factor_(factor), vectorized_teller_(iter_var, factor, var_intervals) {
     CHECK(factor <= CudaVectorTypeMaxLanes)
         << "The maximum lanes of valid CUDA vector types: " << CudaVectorTypeMaxLanes << ", but factor: " << factor;
   }
