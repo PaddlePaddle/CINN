@@ -71,6 +71,8 @@ class SerialData {
 void cinn_call_cuda_kernel(void* kernel_fn,
                            cinn_pod_value_t* args,
                            int num_args,
+                           void* str_ptr,
+                           int str_len,
                            int grid_x,
                            int grid_y,
                            int grid_z,

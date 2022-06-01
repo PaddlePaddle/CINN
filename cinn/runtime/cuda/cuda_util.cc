@@ -148,6 +148,8 @@ SerialData::~SerialData() {}
 void cinn_call_cuda_kernel(void *kernel_fn,
                            cinn_pod_value_t *args,
                            int num_args,
+                           void *str_ptr,
+                           int str_len,
                            int grid_x,
                            int grid_y,
                            int grid_z,
@@ -158,6 +160,13 @@ void cinn_call_cuda_kernel(void *kernel_fn,
   // prepare void**
   VLOG(3) << "In cinn_call_cuda_kernel, grid_dim={" << grid_x << ", " << grid_y << ", " << grid_z << "}, block_dim={"
           << block_x << ", " << block_y << ", " << block_z << "}, num_args=" << num_args << ", stream=" << stream;
+  std::string test_string;
+  int8_t *cast_str_ptr = static_cast<int8_t *>(str_ptr);
+  for (int i = 0; i < str_len; i++) {
+    test_string += (*cast_str_ptr - 48 + '0');
+    cast_str_ptr++;
+  }
+  LOG(INFO) << "test_string is : " << test_string;
   std::vector<void *> arr;
   for (int i = 0; i < num_args; i++) {
     if (args[i].type_code() == ::cinn_type_code<cinn_buffer_t *>()) {

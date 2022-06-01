@@ -207,6 +207,8 @@ CINN_REGISTER_HELPER(cinn_call_cuda_kernel) {
       .AddInputType<void *>()              // kernel_fn
       .AddInputType<cinn_pod_value_t *>()  // args
       .AddInputType<int>()                 // num_args
+      .AddInputType<void *>()              // str_ptr
+      .AddInputType<int>()                 // str_len
       .AddInputType<int>()                 // grid_x
       .AddInputType<int>()                 // grid_y
       .AddInputType<int>()                 // grid_z
