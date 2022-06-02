@@ -262,7 +262,10 @@ float FusionChecker::CheckTensorValue(const Tensor& src, const Tensor& dst) {
   auto dst_data  = dst->data<float>();
   float max_diff = 0.0f;
   for (int idx = 0; idx < size; ++idx) {
-    max_diff = std::max(fabsf((*src_data - *dst_data) / *src_data), max_diff);
+    auto diff = fabsf(*src_data - *dst_data);
+    if (diff > 0.0f) {
+      max_diff = std::max(diff / std::max(fabsf(*src_data), fabsf(*dst_data)), max_diff);
+    }
     ++src_data;
     ++dst_data;
   }
