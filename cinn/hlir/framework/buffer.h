@@ -33,6 +33,7 @@ namespace framework {
  */
 struct Buffer final {
   Buffer() = default;
+  ~Buffer() { Free(); };
   explicit Buffer(const common::Target& target) { SetTarget(target); }
 
   //! Resize the memory hold by this buffer *exactlly* to \p size.
