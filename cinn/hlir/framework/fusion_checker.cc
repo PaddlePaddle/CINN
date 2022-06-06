@@ -241,7 +241,7 @@ std::unordered_map<std::string, Tensor> FusionChecker::RunTargetInstruction() {
     output_tensors[arg] = tensor;
   }
 
-  target_instr_->Run(&run_args);
+  target_instr_->Run(&run_args, false, nullptr, false);
 
   if (target_ == common::DefaultNVGPUTarget()) {
     auto out_args = target_instr_->GetOutArgs().front();

@@ -209,6 +209,10 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
     cudaStreamSynchronize(static_cast<cudaStream_t>(stream));
 #endif
   }
+
+  if (!use_cache) {
+    args_cached_.clear();
+  }
 }
 
 void Instruction::CheckResults(const std::map<std::string, cinn_pod_value_t>* name2podargs, void* stream) {
