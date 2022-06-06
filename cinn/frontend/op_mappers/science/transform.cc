@@ -52,7 +52,7 @@ void SplitOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ct
   auto out_name = op_desc.Output("YS");
 
   CHECK(op_desc.HasAttr("num_or_sections"));
-  auto num_or_sections = utils::ToShapeType(op_desc.GetAttr<std::vector<int64_t>>("num_or_sections"));
+  auto num_or_sections = utils::ToShapeType(utils::GetAttrOrDefault<std::vector<int64_t>>(op_desc, "num_or_sections"));
 
   CHECK(!num_or_sections.empty()) << "The Split op cannot found [num_or_sections] attrbute!  ! Please check.";
 
@@ -141,11 +141,11 @@ void SliceSelectOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperConte
   auto out_name = op_desc.Output("Y").front();
 
   CHECK(op_desc.HasAttr("starts"));
-  auto starts = utils::ToShapeType(op_desc.GetAttr<std::vector<int64_t>>("starts"));
+  auto starts = utils::ToShapeType(utils::GetAttrOrDefault<std::vector<int64_t>>(op_desc, "starts"));
   CHECK(op_desc.HasAttr("ends"));
-  auto ends = utils::ToShapeType(op_desc.GetAttr<std::vector<int64_t>>("ends"));
+  auto ends = utils::ToShapeType(utils::GetAttrOrDefault<std::vector<int64_t>>(op_desc, "ends"));
   CHECK(op_desc.HasAttr("axis"));
-  auto axes = utils::ToShapeType(op_desc.GetAttr<std::vector<int64_t>>("axis"));
+  auto axes = utils::ToShapeType(utils::GetAttrOrDefault<std::vector<int64_t>>(op_desc, "axis"));
   CHECK(op_desc.HasAttr("strides"));
   auto strides = utils::ToShapeType(utils::GetAttrOrDefault<std::vector<int64_t>>(op_desc, "strides"));
 
@@ -170,13 +170,13 @@ void SliceAssignOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperConte
   auto out_name = op_desc.Output("Z").front();
 
   CHECK(op_desc.HasAttr("starts"));
-  auto starts = utils::ToShapeType(op_desc.GetAttr<std::vector<int64_t>>("starts"));
+  auto starts = utils::ToShapeType(utils::GetAttrOrDefault<std::vector<int64_t>>(op_desc, "starts"));
   CHECK(op_desc.HasAttr("ends"));
-  auto ends = utils::ToShapeType(op_desc.GetAttr<std::vector<int64_t>>("ends"));
+  auto ends = utils::ToShapeType(utils::GetAttrOrDefault<std::vector<int64_t>>(op_desc, "ends"));
   CHECK(op_desc.HasAttr("axis"));
-  auto axes = utils::ToShapeType(op_desc.GetAttr<std::vector<int64_t>>("axis"));
+  auto axes = utils::ToShapeType(utils::GetAttrOrDefault<std::vector<int64_t>>(op_desc, "axis"));
   CHECK(op_desc.HasAttr("strides"));
-  auto strides = utils::ToShapeType(op_desc.GetAttr<std::vector<int64_t>>("strides"));
+  auto strides = utils::ToShapeType(utils::GetAttrOrDefault<std::vector<int64_t>>(op_desc, "strides"));
 
   auto x      = ctx.GetVar(x_name);
   auto assign = ctx.GetVar(y_name);
