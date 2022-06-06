@@ -96,7 +96,7 @@ bool FusionChecker::RunChecker() {
 
 template <class T>
 void FusionChecker::GetRandom(T* data, size_t size) {
-  std::default_random_engine engine(time(NULL));
+  static std::default_random_engine engine(time(NULL));
   std::uniform_real_distribution<float> generator(-1, 1);
   for (size_t idx = 0; idx < size; ++idx) {
     *(data++) = generator(engine);
