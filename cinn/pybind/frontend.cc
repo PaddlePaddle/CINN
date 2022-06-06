@@ -305,7 +305,8 @@ void BindFrontend(pybind11::module *m) {
            py::arg("model_name") = "")
       .def("run", &frontend::Interpreter::Run)
       .def("get_tensor", &frontend::Interpreter::GetTensor)
-      .def("scope", &frontend::Interpreter::scope);
+      .def("get_program", &frontend::Interpreter::GetProgram)
+      .def("get_scope", &frontend::Interpreter::GetScope);
 
   py::enum_<ComparisonKind>(*m, "ComparisonKind")
       .value("kUnk", ComparisonKind::kUnk)

@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <functional>
+#include <numeric>
+
 #include "cinn/frontend/op_mapper_registry.h"
 #include "cinn/frontend/op_mappers/common_utils.h"
 
@@ -52,7 +55,7 @@ void SplitOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ct
   auto out_name = op_desc.Output("YS");
 
   CHECK(op_desc.HasAttr("num_or_sections"));
-  auto num_or_sections = utils::ToShapeType(op_desc.GetAttr<std::vector<int64_t>>("num_or_sections"));
+  auto num_or_sections = utils::ToShapeType(utils::GetAttrOrDefault<std::vector<int64_t>>(op_desc, "num_or_sections"));
 
   CHECK(!num_or_sections.empty()) << "The Split op cannot found [num_or_sections] attrbute!  ! Please check.";
 
@@ -141,11 +144,11 @@ void SliceSelectOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperConte
   auto out_name = op_desc.Output("Y").front();
 
   CHECK(op_desc.HasAttr("starts"));
-  auto starts = utils::ToShapeType(op_desc.GetAttr<std::vector<int64_t>>("starts"));
+  auto starts = utils::ToShapeType(utils::GetAttrOrDefault<std::vector<int64_t>>(op_desc, "starts"));
   CHECK(op_desc.HasAttr("ends"));
-  auto ends = utils::ToShapeType(op_desc.GetAttr<std::vector<int64_t>>("ends"));
+  auto ends = utils::ToShapeType(utils::GetAttrOrDefault<std::vector<int64_t>>(op_desc, "ends"));
   CHECK(op_desc.HasAttr("axis"));
-  auto axes = utils::ToShapeType(op_desc.GetAttr<std::vector<int64_t>>("axis"));
+  auto axes = utils::ToShapeType(utils::GetAttrOrDefault<std::vector<int64_t>>(op_desc, "axis"));
   CHECK(op_desc.HasAttr("strides"));
   auto strides = utils::ToShapeType(utils::GetAttrOrDefault<std::vector<int64_t>>(op_desc, "strides"));
 
@@ -170,13 +173,13 @@ void SliceAssignOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperConte
   auto out_name = op_desc.Output("Z").front();
 
   CHECK(op_desc.HasAttr("starts"));
-  auto starts = utils::ToShapeType(op_desc.GetAttr<std::vector<int64_t>>("starts"));
+  auto starts = utils::ToShapeType(utils::GetAttrOrDefault<std::vector<int64_t>>(op_desc, "starts"));
   CHECK(op_desc.HasAttr("ends"));
-  auto ends = utils::ToShapeType(op_desc.GetAttr<std::vector<int64_t>>("ends"));
+  auto ends = utils::ToShapeType(utils::GetAttrOrDefault<std::vector<int64_t>>(op_desc, "ends"));
   CHECK(op_desc.HasAttr("axis"));
-  auto axes = utils::ToShapeType(op_desc.GetAttr<std::vector<int64_t>>("axis"));
+  auto axes = utils::ToShapeType(utils::GetAttrOrDefault<std::vector<int64_t>>(op_desc, "axis"));
   CHECK(op_desc.HasAttr("strides"));
-  auto strides = utils::ToShapeType(op_desc.GetAttr<std::vector<int64_t>>("strides"));
+  auto strides = utils::ToShapeType(utils::GetAttrOrDefault<std::vector<int64_t>>(op_desc, "strides"));
 
   auto x      = ctx.GetVar(x_name);
   auto assign = ctx.GetVar(y_name);
@@ -206,7 +209,21 @@ void ReduceOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
           << cinn::utils::Join(axis, ",") << ", keepdim " << keepdim;
 
   // now paddle science only need reduce sum
-  auto out = ctx.Builder()->ReduceSum(x, axis, keepdim);
+  Variable out;
+  if (std::accumulate(x->shape.begin(), x->shape.end(), 1, std::multiplies<cinn::utils::DimType>()) == 1) {
+    out = ctx.Builder()->Identity(x);
+    if (!keepdim) {
+      cinn::utils::ShapeType new_out_shape;
+      for (int i = 0; i < x->shape.size(); ++i) {
+        if (std::find(axis.begin(), axis.end(), static_cast<cinn::utils::DimType>(i)) == axis.end()) {
+          new_out_shape.emplace_back(x->shape[i]);
+        }
+      }
+      out->shape = new_out_shape;
+    }
+  } else {
+    out = ctx.Builder()->ReduceSum(x, axis, keepdim);
+  }
 
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);

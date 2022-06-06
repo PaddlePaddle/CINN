@@ -29,6 +29,8 @@
 namespace cinn {
 namespace hlir {
 namespace pe {
+void IRCudaScheduleBlockShuffleReduce(
+    ir::IRSchedule &ir_sch, ir::Tensor reshape, ir::Tensor internal, ir::Tensor out, const common::Target &target);
 
 void IRScheduleInjectiveCPU(ir::IRSchedule &ir_sch,
                             const std::vector<int> &output_shape,

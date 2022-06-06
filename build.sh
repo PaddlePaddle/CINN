@@ -87,7 +87,7 @@ function prepare_ci {
 
   # NVIDIA update GPG key on 04/29/2022. Fetch the public key for CI machine
   # Reference: https://developer.nvidia.com/blog/updating-the-cuda-linux-gpg-repository-key/
-  apt-key adv --fetch-keys http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/3bf863cc.pub
+  apt-key adv --keyserver-options http-proxy=$http_proxy --fetch-keys http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/3bf863cc.pub
 
   apt update
   echo "the current user EUID=$EUID: $(whoami)"

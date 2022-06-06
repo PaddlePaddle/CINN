@@ -49,9 +49,11 @@ class Interpreter final {
    */
   void Run();
 
+  frontend::Program GetProgram();
+
   hlir::framework::Tensor GetTensor(const std::string& name);
 
-  std::shared_ptr<hlir::framework::Scope> scope();
+  std::shared_ptr<hlir::framework::Scope> GetScope();
 
   ~Interpreter();
 
