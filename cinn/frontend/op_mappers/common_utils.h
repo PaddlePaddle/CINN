@@ -41,13 +41,15 @@ inline T GetAttrOrDefault(const paddle::cpp::OpDesc& op_desc, const std::string&
       const paddle::cpp::OpDesc& op_desc, const std::string& name, const std::vector<DATA_TYPE>& default_value) { \
     if (op_desc.HasAttr(name)) {                                                                                  \
       auto attr_type = op_desc.GetAttrType(name);                                                                 \
-      if (attr_type == paddle::cpp::OpDescAPI::AttrType::ATTR_TYPE##S) {                                          \
-        return op_desc.GetAttr<std::vector<DATA_TYPE>>(name);                                                     \
-      } else if (attr_type == paddle::cpp::OpDescAPI::AttrType::ATTR_TYPE) {                                      \
-        return std::vector<DATA_TYPE>{op_desc.GetAttr<DATA_TYPE>(name)};                                          \
-      } else {                                                                                                    \
-        LOG(FATAL) << "Op " << op_desc.Type() << "'s attribute " << name << " should be " << #ATTR_TYPE           \
-                   << "S. Please Check!";                                                                         \
+      using AttrType = paddle::cpp::OpDescAPI::AttrType;                                                          \
+      switch (attr_type) {                                                                                        \
+        case AttrType::ATTR_TYPE##S:                                                                              \
+          return op_desc.GetAttr<std::vector<DATA_TYPE>>(name);                                                   \
+        case AttrType::ATTR_TYPE:                                                                                 \
+          return std::vector<DATA_TYPE>{op_desc.GetAttr<DATA_TYPE>(name)};                                        \
+        default:                                                                                                  \
+          LOG(FATAL) << "Op " << op_desc.Type() << "'s attribute " << name << " should be " << #ATTR_TYPE         \
+                     << "S. Please Check!";                                                                       \
       }                                                                                                           \
     }                                                                                                             \
     return default_value;                                                                                         \
@@ -57,7 +59,6 @@ EXPAND_SINGLE_NUM_TO_VECTOR(int, INT)
 EXPAND_SINGLE_NUM_TO_VECTOR(float, FLOAT)
 EXPAND_SINGLE_NUM_TO_VECTOR(std::string, STRING)
 EXPAND_SINGLE_NUM_TO_VECTOR(bool, BOOLEAN)
-EXPAND_SINGLE_NUM_TO_VECTOR(int64_t, LONG)
 
 #undef EXPAND_SINGLE_NUM_TO_VECTOR
 
@@ -65,14 +66,60 @@ template <>
 inline bool GetAttrOrDefault(const paddle::cpp::OpDesc& op_desc, const std::string& name, const bool& default_value) {
   if (op_desc.HasAttr(name)) {
     auto attr_type = op_desc.GetAttrType(name);
-    if (attr_type == paddle::cpp::OpDescAPI::AttrType::BOOLEAN) {
-      return op_desc.GetAttr<bool>(name);
-    } else if (attr_type == paddle::cpp::OpDescAPI::AttrType::INT) {
-      return static_cast<bool>(op_desc.GetAttr<int>(name));
-    } else if (attr_type == paddle::cpp::OpDescAPI::AttrType::LONG) {
-      return static_cast<bool>(op_desc.GetAttr<int64_t>(name));
-    } else {
-      LOG(FATAL) << "Op " << op_desc.Type() << "'s attribute " << name << " should be BOOLEAN. Please Check!";
+    using AttrType = paddle::cpp::OpDescAPI::AttrType;
+    switch (attr_type) {
+      case AttrType::BOOLEAN:
+        return op_desc.GetAttr<bool>(name);
+      case AttrType::INT:
+        return static_cast<bool>(op_desc.GetAttr<int>(name));
+      case AttrType::LONG:
+        return static_cast<bool>(op_desc.GetAttr<int64_t>(name));
+      default:
+        LOG(FATAL) << "Op " << op_desc.Type() << "'s attribute " << name << " should be BOOLEAN. Please Check!";
+    }
+  }
+  return default_value;
+}
+
+template <>
+inline int64_t GetAttrOrDefault(const paddle::cpp::OpDesc& op_desc,
+                                const std::string& name,
+                                const int64_t& default_value) {
+  if (op_desc.HasAttr(name)) {
+    auto attr_type = op_desc.GetAttrType(name);
+    using AttrType = paddle::cpp::OpDescAPI::AttrType;
+    switch (attr_type) {
+      case AttrType::LONG:
+        return op_desc.GetAttr<int64_t>(name);
+      case AttrType::INT:
+        return static_cast<int64_t>(op_desc.GetAttr<int>(name));
+      default:
+        LOG(FATAL) << "Op " << op_desc.Type() << "'s attribute " << name << " should be LONG. Please Check!";
+    }
+  }
+  return default_value;
+}
+
+template <>
+inline std::vector<int64_t> GetAttrOrDefault(const paddle::cpp::OpDesc& op_desc,
+                                             const std::string& name,
+                                             const std::vector<int64_t>& default_value) {
+  if (op_desc.HasAttr(name)) {
+    auto attr_type = op_desc.GetAttrType(name);
+    using AttrType = paddle::cpp::OpDescAPI::AttrType;
+    switch (attr_type) {
+      case AttrType::LONGS:
+        return op_desc.GetAttr<std::vector<int64_t>>(name);
+      case AttrType::LONG:
+        return std::vector<int64_t>{GetAttrOrDefault<int64_t>(op_desc, name)};
+      case AttrType::INTS: {
+        const auto& ints_val = GetAttrOrDefault<std::vector<int>>(op_desc, name);
+        return std::vector<int64_t>{ints_val.begin(), ints_val.end()};
+      }
+      case AttrType::INT:
+        return std::vector<int64_t>{GetAttrOrDefault<int>(op_desc, name)};
+      default:
+        LOG(FATAL) << "Op " << op_desc.Type() << "'s attribute " << name << " should be LONGS. Please Check!";
     }
   }
   return default_value;
