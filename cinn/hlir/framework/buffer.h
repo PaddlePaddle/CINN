@@ -33,7 +33,7 @@ namespace framework {
  */
 struct Buffer final {
   Buffer() = default;
-  ~Buffer() { Free(); };
+  ~Buffer() { Free(); }
   explicit Buffer(const common::Target& target) { SetTarget(target); }
 
   //! Resize the memory hold by this buffer *exactlly* to \p size.
@@ -62,6 +62,7 @@ struct Buffer final {
   void Free() {
     if (!data_.memory) return;
     memory_mng_cache_->free(data_.memory);
+    data_.memory = nullptr;
   }
 
  private:

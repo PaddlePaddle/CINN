@@ -50,7 +50,7 @@ class FusionChecker {
 
   Tensor TensorHostToDevice(Tensor& src);
   Tensor TensorDeviceToHost(Tensor& src);
-  float CheckTensorValue(const Tensor& src, const Tensor& dst);
+  std::pair<float, float> CheckTensorValue(const Tensor& src, const Tensor& dst);
 
   void BuildSubInstructions();
   std::vector<std::string> OpGetOutputNames(const Node* node);

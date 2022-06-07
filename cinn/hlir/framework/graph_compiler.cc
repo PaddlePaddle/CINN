@@ -611,6 +611,9 @@ void GraphCompiler::LowerAllNodes(const std::vector<std::vector<Node*>>& groups)
   for (auto& group : groups) {
     if (group.size() > 1) {
       for (auto node : group) {
+        if (prefix2full_namemap_.count(GenOpFuncName(node))) {
+          continue;
+        }
         // generate code for each node
         ProcessFunction(GetOpFunc(node));
       }

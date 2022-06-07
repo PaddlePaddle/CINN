@@ -87,9 +87,9 @@ bool FusionChecker::RunChecker() {
   auto dst_tensors = RunTargetInstruction();
   for (auto& src : src_tensors) {
     CHECK(dst_tensors.count(src.first)) << "Can't find output var: " << src.first << " in other set!";
-    auto max_diff = CheckTensorValue(src.second, dst_tensors[src.first]);
-    LOG(WARNING) << "The max relative diff of output var: " << src.first << " in group: " << group_->group_id
-                 << " is: " << max_diff;
+    auto diff = CheckTensorValue(src.second, dst_tensors[src.first]);
+    LOG(WARNING) << "The diff output var: " << src.first << " in group: " << group_->group_id
+                 << ", absolute diff: " << diff.first << " relative diff: " << diff.second;
   }
   return true;
 }
@@ -97,7 +97,7 @@ bool FusionChecker::RunChecker() {
 template <class T>
 void FusionChecker::GetRandom(T* data, size_t size) {
   static std::default_random_engine engine(time(NULL));
-  std::uniform_real_distribution<float> generator(-1, 1);
+  static std::uniform_real_distribution<float> generator(-10, 10);
   for (size_t idx = 0; idx < size; ++idx) {
     *(data++) = generator(engine);
   }
@@ -253,23 +253,28 @@ std::unordered_map<std::string, Tensor> FusionChecker::RunTargetInstruction() {
   return output_tensors;
 }
 
-float FusionChecker::CheckTensorValue(const Tensor& src, const Tensor& dst) {
+std::pair<float, float> FusionChecker::CheckTensorValue(const Tensor& src, const Tensor& dst) {
   CHECK_EQ(src->get_buffer()->GetTarget(), common::DefaultHostTarget()) << "data is not on host!";
   CHECK_EQ(dst->get_buffer()->GetTarget(), common::DefaultHostTarget()) << "data is not on host!";
 
-  int size       = src->shape().numel();
-  auto src_data  = src->data<float>();
-  auto dst_data  = dst->data<float>();
-  float max_diff = 0.0f;
+  int size                = src->shape().numel();
+  auto src_data           = src->data<float>();
+  auto dst_data           = dst->data<float>();
+  float max_absolute_diff = 0.0f;
+  float max_relative_diff = 0.0f;
   for (int idx = 0; idx < size; ++idx) {
-    auto diff = fabsf(*src_data - *dst_data);
-    if (diff > 0.0f) {
-      max_diff = std::max(diff / std::max(fabsf(*src_data), fabsf(*dst_data)), max_diff);
+    auto absolute_diff = fabsf(*src_data - *dst_data);
+    if (absolute_diff > 0.0f) {
+      auto relative_diff = absolute_diff / std::max(fabsf(*src_data), fabsf(*dst_data));
+      if (relative_diff > max_relative_diff) {
+        max_absolute_diff = absolute_diff;
+        max_relative_diff = relative_diff;
+      }
     }
     ++src_data;
     ++dst_data;
   }
-  return max_diff;
+  return std::pair<float, float>(max_absolute_diff, max_relative_diff);
 }
 
 }  // namespace framework

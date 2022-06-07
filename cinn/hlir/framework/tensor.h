@@ -53,6 +53,10 @@ struct Shape {
 class _Tensor_ : public Object {
  public:
   _Tensor_() : buffer_(std::make_shared<Buffer>()) {}
+  ~_Tensor_() {
+    // free buffer by hand.
+    buffer_->Free();
+  }
 
   Shape& shape() { return shape_; }
 
@@ -93,7 +97,7 @@ class _Tensor_ : public Object {
   const Type& type() const { return type_; }
 
   cinn_buffer_t* buffer() { return buffer_->data(); }
-  std::shared_ptr<Buffer> get_buffer() { return buffer_; }
+  std::shared_ptr<Buffer>& get_buffer() { return buffer_; }
   void set_buffer(std::shared_ptr<Buffer> buffer) { buffer_ = buffer; }
 
   const char* type_info() const override { return __type_info__; }
