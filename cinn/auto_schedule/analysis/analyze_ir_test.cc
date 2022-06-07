@@ -16,6 +16,7 @@
 
 #include <gtest/gtest.h>
 
+#include "cinn/common/context.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_schedule.h"
@@ -23,7 +24,30 @@
 namespace cinn {
 namespace auto_schedule {
 
-TEST(AnalyzeIr, AnalyzeScheduleBlockReadWriteBuffer) { int x = 1; }
+TEST(AnalyzeIr, AnalyzeScheduleBlockReadWriteBuffer) {
+  Context::Global().ResetNameId();
+  Expr M(32);
+  Expr N(32);
+
+  Target target = common::DefaultHostTarget();
+
+  Placeholder<float> A("A", {M, N});
+  ir::Tensor B = Compute(
+      {M, N}, [&](Var i, Var j) { return A(i, j); }, "B");
+
+  poly::StageMap stages = CreateStages({A, B});
+  std::vector<ir::LoweredFunc> funcs =
+      cinn::lang::LowerVec("test_vectorize", stages, {A, B}, {}, {}, nullptr, target, true);
+
+  ASSERT_FALSE(funcs.empty());
+  ir::Expr ast_expr = func[0]->body;
+  // std::vector<Expr> vec_ast{ast_expr};
+  // ir::ModuleExpr mod_expr(vec_ast);
+  // ir::IRSchedule ir_sch(mod_expr);
+
+  std::string origin = utils::GetStreamCnt(func[0]);
+  std::cout << origin << std::endl;
+}
 
 }  // namespace auto_schedule
 }  // namespace cinn

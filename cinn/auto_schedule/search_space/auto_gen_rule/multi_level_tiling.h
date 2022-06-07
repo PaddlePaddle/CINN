@@ -56,9 +56,6 @@ class MultiLevelTiling : public AutoGenRule {
   // Returns true if sche_block_realize is applicable by MultiLevelTiling
   bool MeetCondition(const ir::ScheduleBlockRealize& sche_block_realize) const;
 
-  // Set ScheduleBlock's read_buffers and write_buffers
-  void AnalyzeScheduleBlockReadWriteBuffer(ir::ScheduleBlock* sche_block) const;
-
   // Sample pair of integer type (a, b) such as a * b = extent
   template <typename T>
   std::vector<T> SampleSplitTwo(T extent) const {

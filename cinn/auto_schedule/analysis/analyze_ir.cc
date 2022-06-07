@@ -14,6 +14,8 @@
 
 #include "cinn/auto_schedule/analysis/analyze_ir.h"
 
+#include <algorithm>
+
 #include "cinn/ir/buffer.h"
 #include "cinn/ir/collect_ir_nodes.h"
 #include "cinn/ir/ir.h"
