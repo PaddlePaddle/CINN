@@ -25,6 +25,7 @@
 #include "cinn/ir/ir_printer.h"
 #include "cinn/lang/lower_impl.h"
 #include "cinn/optim/optimize.h"
+#include "cinn/utils/string.h"
 
 namespace cinn {
 namespace lang {
@@ -35,9 +36,17 @@ using poly::Stage;
 std::vector<ir::Argument> GetArgs(const Expr& func_body, const std::vector<ir::Tensor>& input_args) {
   std::vector<ir::Argument> res;
   std::set<std::string> arg_name;
+  std::set<std::string> appearing_tensor_names;
+  auto all_appearing_tensors = ir::CollectIRNodesWithoutTensor(func_body, [&](const Expr* x) {
+    if (x->as_tensor()) appearing_tensor_names.insert(x->as_tensor()->name);
+    return x->as_tensor();
+  });
+
   for (auto& i : input_args) {
     CHECK(i->buffer.defined());
     if (arg_name.count(i->buffer->name)) continue;
+    if (!appearing_tensor_names.count(i->name)) continue;
+    if (utils::Endswith(i->buffer->name, "temp_buffer")) continue;
     arg_name.insert(i->buffer->name);
     res.emplace_back(i->buffer, ir::Argument::IO::kInput);
   }
@@ -73,7 +82,8 @@ std::vector<ir::Buffer> GetTempBuffers(const std::vector<Tensor>& tensor_args,
   auto all_temp_tensors = ir::CollectIRNodesWithoutTensor(body, [&](const Expr* x) {
     return x->as_tensor() && x->as_tensor()->buffer.defined() &&
            (!stage_map->Lookup(x->as_tensor()->name) || !stage_map[x->as_tensor()]->inlined()) &&
-           !buffer_arg_names.count(x->as_tensor()->buffer->name) && !tensor_arg_names.count(x->as_tensor()->name);
+           ((!buffer_arg_names.count(x->as_tensor()->buffer->name) && !tensor_arg_names.count(x->as_tensor()->name)) ||
+            utils::Endswith(x->as_tensor()->buffer->name, "temp_buffer"));
   });
   for (auto& e : all_temp_tensors) {
     if (!temp_buffer_names.count(e.as_tensor()->buffer->name)) {

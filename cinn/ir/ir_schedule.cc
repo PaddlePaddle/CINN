@@ -2054,7 +2054,7 @@ std::vector<Expr> ScheduleHelper::GetLoops(const Expr& block) const {
       }
     }
   }
-  if (result.empty()) LOG(FATAL) << "Didn't find block with name: \n" << block_name << " in ModuleExepr.";
+  if (result.empty()) LOG(FATAL) << "Didn't find ScheduleBlock with name: \n" << block_name << " in ModuleExepr.";
   std::sort(result.begin(), result.end(), [&](Expr i, Expr j) {
     return (utils::GetStreamCnt(i).size() > utils::GetStreamCnt(j).size());
   });
