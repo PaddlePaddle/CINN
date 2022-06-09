@@ -651,8 +651,9 @@ ir::IRSchedule OpLowerer::IRReduceCompute(poly::StageMap& stages,
       // do schedule
       common::CINNValuePack expr_pack = impl->fschedule(common::CINNValuePack{schedule_inputs});
       VLOG(3) << "expr_pack size is : " << expr_pack.size();
-      for (int i = expr_pack.size(); i > 0; --i)
-        new_schedule_inputs.push_back(schedule_inputs[schedule_inputs.size() - i]);
+      for (int i = 0; i < expr_pack.size(); i++) {
+        new_schedule_inputs.push_back(expr_pack[i]);
+      }
     } else if (group->master_nodes.count(node)) {
       for (int i = value_pack.size(); i < schedule_inputs.size(); ++i)
         new_schedule_inputs.push_back(schedule_inputs[i]);

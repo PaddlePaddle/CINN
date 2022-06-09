@@ -180,7 +180,7 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
           if (arg_pack.size() == 5) {
             Expr out     = arg_pack[0];
             Expr tmp_out = arg_pack[1];
-            VLOG(3) << "Do CudaBlockReduceInternalSchedule Schedule!";
+            VLOG(3) << "Do IRCudaScheduleBlockReduceInternal Schedule!";
 
             pe::IRCudaScheduleBlockReduceInternal(ir_sch, tmp_out.as_tensor_ref(), out.as_tensor_ref(), target);
 
@@ -188,7 +188,7 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
             Expr out            = arg_pack[0];
             Expr tmp_out        = arg_pack[1];
             Expr reduce_tmp_out = arg_pack[2];
-            VLOG(3) << "Do CudaBlockReduceSchedule Schedule!";
+            VLOG(3) << "Do IRCudaScheduleBlockReduce Schedule!";
 
             pe::IRCudaScheduleBlockReduce(
                 ir_sch, reduce_tmp_out.as_tensor_ref(), tmp_out.as_tensor_ref(), out.as_tensor_ref(), target);
@@ -212,7 +212,7 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
           if (arg_pack.size() == 4) {
             Expr reduce_out       = arg_pack[0];
             poly::StageMap stages = arg_pack[1];
-            VLOG(3) << "Do CudaReduceSchedule Schedule!";
+            VLOG(3) << "Do IRCudaScheduleReduce Schedule!";
             pe::IRCudaScheduleReduce(
                 ir_sch, output_shapes[0], inputs[0]->shape.size() - reduce_axes.back() - 1, target);
           } else {
@@ -220,7 +220,7 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
             Expr reduce_reshape  = arg_pack[2];
             Expr reduce_internal = arg_pack[1];
             Expr reduce_out      = arg_pack[0];
-            VLOG(3) << "Do CudaBlockShuffleReduceSchedule Schedule!";
+            VLOG(3) << "Do IRCudaScheduleBlockShuffleReduce Schedule!";
             pe::IRCudaScheduleBlockShuffleReduce(ir_sch,
                                                  reduce_reshape.as_tensor_ref(),
                                                  reduce_internal.as_tensor_ref(),
@@ -230,7 +230,7 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
         }
       }
       std::vector<CINNValue> res;
-      res.push_back(arg_pack[0]);
+      res.push_back(CINNValue(ir_sch.GetModule().GetExprs().at(0)));
       *ret = CINNValuePack{res};
     } else {
       CHECK_GE(arg_pack.size(), 2UL);

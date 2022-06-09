@@ -1596,6 +1596,14 @@ struct LeafBlockRemovalPlan : public ir::IRMutator<> {
     IRMutator::Visit(expr, op);
   }
 
+  void Visit(const ir::For* expr, Expr* op) override {
+    if (*op == block_) {
+      find_block = true;
+      return;
+    }
+    IRMutator::Visit(expr, op);
+  }
+
   void Visit(const ir::Block* expr, Expr* op) override {
     if (expr->stmts.size() > 1U) {
       int block_index = -1;
@@ -1834,29 +1842,50 @@ void IRSchedule::ComputeAt(const Expr& block, const Expr& loop) {
 }
 
 void IRSchedule::SimpleComputeAt(const Expr& block, const Expr& loop) {
+  LOG(INFO) << "Begin SimpleComputeAt of block:\n" << block << " and loop:\n" << loop;
   CHECK(block.As<ir::ScheduleBlockRealize>());
   CHECK(loop.As<ir::For>());
   std::vector<Expr> block_loops = this->GetLoops(block);
   Expr root                     = this->GetRootBlock(block);
   auto loops                    = GetLoopsOfExpr(loop, root);
+  auto this_loop                = loop;
+  auto block_name               = GetTensor(block)->name;
+  auto this_block               = block;
+  if (GetLoopExtent(loops[0]) == 1 && GetLoopExtent(block_loops[0]) != 1) {
+    this->Split(block_loops[0], {1, -1});
+    this_block = this->GetBlock(block_name);
+  } else if (GetLoopExtent(loops[0]) != 1 && GetLoopExtent(block_loops[0]) == 1) {
+    auto splited = this->Split(loops[0], {1, -1});
+    this_loop    = splited[1];
+  }
+
+  block_loops = this->GetLoops(this_block);
+  root        = this->GetRootBlock(this_block);
+  loops       = GetLoopsOfExpr(this_loop, root);
+
   CHECK_LE(loops.size(), block_loops.size());
-  Expr result = loops.size() < block_loops.size() ? optim::IRCopy(block_loops[loops.size()]) : optim::IRCopy(block);
+
   std::vector<Var> replaced_var;
   std::vector<Expr> substitute_expr;
   for (int i = 0; i < loops.size(); ++i) {
     CHECK_EQ(GetLoopExtent(loops[i]), GetLoopExtent(block_loops[i]));
+    if (block_loops[i].As<ir::For>()->bind_info().valid() && !loops[i].As<ir::For>()->bind_info().valid()) {
+      loops[i].As<ir::For>()->set_bind_info(block_loops[i].As<ir::For>()->bind_info());
+    }
     replaced_var.push_back(block_loops[i].As<ir::For>()->loop_var);
     substitute_expr.push_back(Expr(loops[i].As<ir::For>()->loop_var));
   }
+  Expr result =
+      loops.size() < block_loops.size() ? optim::IRCopy(block_loops[loops.size()]) : optim::IRCopy(this_block);
   ReplaceExpr(&result, replaced_var, substitute_expr);
-  Expr new_loop                = loop;
+  Expr new_loop                = optim::IRCopy(this_loop);
   new_loop.As<ir::For>()->body = ir::Block::Make({result, new_loop.As<ir::For>()->body});
   Expr source_expr{nullptr};
   Expr target_expr{nullptr};
-  LeafBlockRemovalPlan remove_plan(block, &source_expr, &target_expr);
+  LeafBlockRemovalPlan remove_plan(result, &source_expr, &target_expr);
   remove_plan(&root);
   helper_.Replace(source_expr, target_expr);
-  helper_.Replace(loop, new_loop);
+  helper_.Replace(this_loop, new_loop);
   return;
 }
 
@@ -2054,7 +2083,8 @@ std::vector<Expr> ScheduleHelper::GetLoops(const Expr& block) const {
       }
     }
   }
-  if (result.empty()) LOG(FATAL) << "Didn't find ScheduleBlock with name: \n" << block_name << " in ModuleExepr.";
+  if (result.empty())
+    LOG(FATAL) << "Didn't find Loops containing ScheduleBlock with name: \n" << block_name << " in ModuleExepr.";
   std::sort(result.begin(), result.end(), [&](Expr i, Expr j) {
     return (utils::GetStreamCnt(i).size() > utils::GetStreamCnt(j).size());
   });
