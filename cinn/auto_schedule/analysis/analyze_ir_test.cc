@@ -50,6 +50,7 @@ TEST(AnalyzeIr, AnalyzeScheduleBlockReadWriteBuffer) {
 
   ASSERT_FALSE(funcs.empty());
   ir::Expr ast_expr = funcs[0]->body;
+
   VLOG(6) << "Analyzing for Expr:";
   VLOG(6) << ast_expr;
 
@@ -74,8 +75,10 @@ TEST(AnalyzeIr, AnalyzeScheduleBlockReadWriteBuffer) {
    *   B[i0, i1] = A[i0, i1]
    * }
    */
-  ASSERT_EQ(sche_block->read_buffers.size(), 1UL);
+  VLOG(6) << "ScheduleBlock: ";
+  VLOG(6) << all_block_realizes[0];
 
+  ASSERT_EQ(sche_block->read_buffers.size(), 1UL);
   ASSERT_EQ(sche_block->write_buffers.size(), 1UL);
 }
 
