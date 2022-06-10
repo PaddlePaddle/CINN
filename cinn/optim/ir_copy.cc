@@ -180,6 +180,7 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
     tensor->operation   = operaion;
     tensor->name        = name;
     tensor->set_type(op->type());
+    tensor->axis_ = op->axis_;
 
     tensor_map[tensor->name] = tensor;
 

@@ -14,6 +14,8 @@
 
 #include "cinn/ir/collect_ir_nodes.h"
 
+#include <glog/logging.h>
+
 #include "cinn/ir/ir_mutator.h"
 #include "cinn/ir/ir_printer.h"
 
@@ -119,7 +121,12 @@ std::set<Expr> CollectLoadTensors(Expr x, std::function<bool(const Expr*)>&& tel
     void operator()(const Expr* expr) { ir::IRMutator<const Expr*>::Visit(expr, expr); }
 
     void Visit(const Load* op, const Expr* expr) override {
-      if (teller(&op->tensor)) exprs.insert(op->tensor);
+      if (teller(&op->tensor)) {
+        // VLOG(6) << op->tensor;
+        // ir::Tensor t = op->tensor.as_tensor_ref();
+        // VLOG(6) << t->axis().size();
+        exprs.insert(op->tensor);
+      }
     }
   };
 
