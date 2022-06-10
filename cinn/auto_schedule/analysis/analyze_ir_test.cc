@@ -17,6 +17,7 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
+#include <sstream>
 #include <vector>
 
 #include "cinn/common/context.h"
@@ -79,7 +80,14 @@ TEST(AnalyzeIr, AnalyzeScheduleBlockReadWriteBuffer) {
   VLOG(6) << all_block_realizes[0];
 
   ASSERT_EQ(sche_block->read_buffers.size(), 1UL);
+  std::stringstream read_ss;
+  read_ss << sche_block->read_buffers[0];
+  ASSERT_EQ(read_ss.str(), "_A[undefined:undefined, undefined:undefined]");
+
   ASSERT_EQ(sche_block->write_buffers.size(), 1UL);
+  std::stringstream write_ss;
+  write_ss << sche_block->write_buffers[0];
+  ASSERT_EQ(write_ss.str(), "_B[undefined:undefined, undefined:undefined]");
 }
 
 }  // namespace auto_schedule
