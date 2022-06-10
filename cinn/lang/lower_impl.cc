@@ -111,30 +111,7 @@ Expr LowerGroup(const poly::ScheduleGroup& group,
     Expr statement_candi_expr = tuple_to_expr.at(statement.first);
 
     VLOG(3) << "replacing " << statement.first << " to " << statement_candi_expr;
-    std::set<ir::Expr> before_replace_tensors =
-        ir::CollectLoadTensors(statement_candi_expr, [&](const Expr* x) { return true; });
-    for (const ir::Expr& e : before_replace_tensors) {
-      VLOG(6) << "Before raplace load tensors" << e;
-      ir::Tensor t = e.as_tensor_ref();
-      for (const auto& var : t->domain) {
-        VLOG(6) << var;
-      }
-      VLOG(6) << t->domain_without_reduce_axis().size();
-      VLOG(6) << t->axis().size();
-      VLOG(6) << t->axis_with_reduce().size();
-    }
     optim::ReplaceIslCallWithExpr(&e, statement.first, statement_candi_expr, axis_expr_map);
-    std::set<ir::Expr> after_replace_tensors = ir::CollectLoadTensors(e, [&](const Expr* x) { return true; });
-    for (const ir::Expr& e : after_replace_tensors) {
-      VLOG(6) << "After raplace load tensors" << e;
-      ir::Tensor t = e.as_tensor_ref();
-      for (const auto& var : t->domain) {
-        VLOG(6) << var;
-      }
-      VLOG(6) << t->domain_without_reduce_axis().size();
-      VLOG(6) << t->axis().size();
-      VLOG(6) << t->axis_with_reduce().size();
-    }
   }
   CheckNoIslCallRemains(&e);
 

@@ -14,8 +14,6 @@
 
 #include "cinn/auto_schedule/analysis/analyze_ir.h"
 
-#include <glog/logging.h>
-
 #include <algorithm>
 
 #include "cinn/ir/buffer.h"
@@ -30,31 +28,19 @@ namespace cinn {
 namespace auto_schedule {
 
 void AnalyzeScheduleBlockReadWriteBuffer(ir::ScheduleBlock* sche_block) {
-  VLOG(4) << "Into AnalyzeScheduleBlockReadWriteBuffer";
   if (!sche_block->read_buffers.empty() || !sche_block->write_buffers.empty()) {
     return;
   }
 
   std::set<ir::Expr> load_tensors = ir::CollectLoadTensors(sche_block->body, [&](const Expr* x) { return true; });
   for (const ir::Expr& e : load_tensors) {
-    VLOG(6) << e;
     ir::Tensor t = e.as_tensor_ref();
-    for (const auto& var : t->domain) {
-      VLOG(6) << var;
-    }
-    VLOG(6) << t->domain_without_reduce_axis().size();
-    VLOG(6) << t->axis().size();
-    VLOG(6) << t->axis_with_reduce().size();
     sche_block->read_buffers.emplace_back(ir::BufferRange(t->buffer, t->axis_with_reduce()));
   }
 
   std::set<ir::Expr> store_tensors = ir::CollectStoreTensors(sche_block->body, [&](const Expr* x) { return true; });
   for (const ir::Expr& e : store_tensors) {
-    VLOG(6) << e;
     ir::Tensor t = e.as_tensor_ref();
-    for (const auto& var : t->axis_with_reduce()) {
-      VLOG(6) << var;
-    }
     sche_block->write_buffers.emplace_back(ir::BufferRange(t->buffer, t->axis_with_reduce()));
   }
 

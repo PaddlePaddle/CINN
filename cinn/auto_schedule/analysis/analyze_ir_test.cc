@@ -76,10 +76,11 @@ TEST(AnalyzeIr, AnalyzeScheduleBlockReadWriteBuffer) {
    *   B[i0, i1] = A[i0, i1]
    * }
    */
+
+  ASSERT_EQ(sche_block->read_buffers.size(), 1UL);
   VLOG(6) << "ScheduleBlock: ";
   VLOG(6) << all_block_realizes[0];
 
-  ASSERT_EQ(sche_block->read_buffers.size(), 1UL);
   std::stringstream read_ss;
   read_ss << sche_block->read_buffers[0];
   ASSERT_EQ(read_ss.str(), "_A[undefined:undefined, undefined:undefined]");

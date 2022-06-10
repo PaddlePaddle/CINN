@@ -122,9 +122,6 @@ std::set<Expr> CollectLoadTensors(Expr x, std::function<bool(const Expr*)>&& tel
 
     void Visit(const Load* op, const Expr* expr) override {
       if (teller(&op->tensor)) {
-        // VLOG(6) << op->tensor;
-        // ir::Tensor t = op->tensor.as_tensor_ref();
-        // VLOG(6) << t->axis().size();
         exprs.insert(op->tensor);
       }
     }
@@ -144,7 +141,9 @@ std::set<Expr> CollectStoreTensors(Expr x, std::function<bool(const Expr*)>&& te
     void operator()(const Expr* expr) { ir::IRMutator<const Expr*>::Visit(expr, expr); }
 
     void Visit(const Store* op, const Expr* expr) override {
-      if (teller(&op->tensor)) exprs.insert(op->tensor);
+      if (teller(&op->tensor)) {
+        exprs.insert(op->tensor);
+      }
     }
   };
 
