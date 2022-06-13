@@ -17,71 +17,66 @@
 #include <glog/logging.h>
 
 #include <functional>
+#include <map>
 #include <memory>
-#include <set>
+#include <utility>
 
 namespace cinn {
 namespace utils {
 
 /**
- * A data structure stores limited size ordered duplicatable elements.
+ * A data structure stores limited size ordered duplicatable keys and mapped
+ * values.
  *
  * The default implementation would pop maximal element when size reaches
  * capacity. Users could change pop_max_when_full parameter of constructor
  * to false to pop minimal element.
  *
- * The underneath implementation uses std::multiset
+ * The underneath implementation uses std::multimap
  */
-template <class T, class Compare = std::less<T>, class Alloc = std::allocator<T>>
-class SizedMultiSet {
+template <class Key, class T, class Compare = std::less<Key>, class Alloc = std::allocator<std::pair<const Key, T>>>
+class SizedMultiMap {
  public:
-  SizedMultiSet(size_t capacity, bool pop_max_when_full = true)
+  SizedMultiMap(size_t capacity, bool pop_max_when_full = true)
       : capacity_(capacity), pop_max_when_full_(pop_max_when_full) {}
 
-  void Push(const T& data) {
-    multi_set_.insert(data);
-    if (multi_set_.size() > capacity_) {
-      Pop();
-    }
-  }
-
-  void Push(T&& data) {
-    multi_set_.insert(data);
-    if (multi_set_.size() > capacity_) {
+  void Push(const Key& key, const T& data) {
+    multi_map_.insert({key, data});
+    if (multi_map_.size() > capacity_) {
       Pop();
     }
   }
 
   void Pop() {
-    CHECK_GE(multi_set_.size(), 1UL) << "Call Pop on empty SizedMultiSet";
+    CHECK_GE(multi_map_.size(), 1UL) << "Call Pop on empty SizedMultiMap";
     if (pop_max_when_full_) {
-      multi_set_.erase(--multi_set_.end());
+      multi_map_.erase(--multi_map_.end());
     } else {
-      multi_set_.erase(multi_set_.begin());
+      multi_map_.erase(multi_map_.begin());
     }
   }
 
-  T MaxValue() const {
-    CHECK(!multi_set_.empty()) << "Get value from empty SizedMultiSet";
-    return *(multi_set_.rbegin());
+  std::pair<Key, T> MaxKeyValuePair() const {
+    CHECK(!multi_map_.empty()) << "Get value from empty SizedMultiMap";
+    return *(multi_map_.rbegin());
   }
 
-  T MinValue() const {
-    CHECK(!multi_set_.empty()) << "Get value from empty SizedMultiSet";
-    return *(multi_set_.begin());
+  std::pair<Key, T> MinKeyValuePair() const {
+    CHECK(!multi_map_.empty()) << "Get value from empty SizedMultiMap";
+    return *(multi_map_.begin());
   }
 
-  size_t Size() const { return multi_set_.size(); }
+  size_t Size() const { return multi_map_.size(); }
 
   template <class ContainerType>
   ContainerType ReturnAsContainer() const {
-    return ContainerType(multi_set_.begin(), multi_set_.end());
+    return ContainerType(multi_map_.begin(), multi_map_.end());
   }
 
  private:
   size_t capacity_;
   bool pop_max_when_full_;
-  std::multiset<T, Compare, Alloc> multi_set_;
+  std::multimap<Key, T, Compare, Alloc> multi_map_;
 };
 
 }  // namespace utils

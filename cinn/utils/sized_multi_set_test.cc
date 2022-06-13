@@ -45,8 +45,8 @@ TEST(SizedMultiSet, PopMax) {
   for (int i = 0; i < 4; ++i) {
     sized_multi_set.Pop();
     EXPECT_EQ(sized_multi_set.Size(), static_cast<size_t>(4 - i));
-    EXPECT_EQ(sized_multi_set.MaxValue(), static_cast<size_t>(3 - i));
-    EXPECT_EQ(sized_multi_set.MinValue(), static_cast<size_t>(0));
+    EXPECT_EQ(sized_multi_set.MaxValue(), 3 - i);
+    EXPECT_EQ(sized_multi_set.MinValue(), 0);
   }
 }
 
@@ -73,8 +73,8 @@ TEST(SizedMultiSet, PopMin) {
   for (int i = 0; i < 4; ++i) {
     sized_multi_set.Pop();
     EXPECT_EQ(sized_multi_set.Size(), static_cast<size_t>(4 - i));
-    EXPECT_EQ(sized_multi_set.MaxValue(), static_cast<size_t>(9));
-    EXPECT_EQ(sized_multi_set.MinValue(), static_cast<size_t>(6 + i));
+    EXPECT_EQ(sized_multi_set.MaxValue(), 9);
+    EXPECT_EQ(sized_multi_set.MinValue(), 6 + i);
   }
 }
 

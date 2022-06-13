@@ -1,3 +1,4 @@
+add_subdirectory(cache)
 add_subdirectory(cost_model)
 add_subdirectory(measure)
 add_subdirectory(search_space)
