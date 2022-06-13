@@ -365,6 +365,9 @@ void OpLowerer::IRElementwiseSchedule(ir::IRSchedule& ir_sch,
                                       std::unordered_map<std::string, ir::Tensor>& tensor_map,
                                       const GroupPtr& group,
                                       const GroupPtr& sub_group) {
+  auto master_node      = *group->master_nodes.begin();
+  auto master_node_data = GetNodeData(master_node);
+
   for (auto& node : sub_group->nodes) {
     auto node_data = GetNodeData(node);
     if (group->master_nodes.count(node)) {
@@ -373,10 +376,14 @@ void OpLowerer::IRElementwiseSchedule(ir::IRSchedule& ir_sch,
 
     // if node is fringe node or internal node, fringe node is output node of sub-graph
     if (group->output_nodes.count(node) || group->internal_nodes.count(node) || sub_group->internal_nodes.count(node)) {
+      auto tensor_block = ir_sch.GetBlock(node_data->id());
       if (group->internal_nodes.count(node) || sub_group->internal_nodes.count(node)) {
-        auto tensor_block = ir_sch.GetBlock(node_data->id());
         ir_sch.SetBuffer(tensor_block, "local");
       }
+      ir_sch.CopyTransformAndLoopInfo(node_data->id(), master_node_data->id());
+      tensor_block      = ir_sch.GetBlock(node_data->id());
+      auto master_loops = ir_sch.GetLoops(master_node_data->id());
+      ir_sch.SimpleComputeAt(tensor_block, master_loops.back());
       continue;
     }
 
@@ -644,8 +651,9 @@ ir::IRSchedule OpLowerer::IRReduceCompute(poly::StageMap& stages,
       // do schedule
       common::CINNValuePack expr_pack = impl->fschedule(common::CINNValuePack{schedule_inputs});
       VLOG(3) << "expr_pack size is : " << expr_pack.size();
-      for (int i = expr_pack.size(); i > 0; --i)
-        new_schedule_inputs.push_back(schedule_inputs[schedule_inputs.size() - i]);
+      for (int i = 0; i < expr_pack.size(); i++) {
+        new_schedule_inputs.push_back(expr_pack[i]);
+      }
     } else if (group->master_nodes.count(node)) {
       for (int i = value_pack.size(); i < schedule_inputs.size(); ++i)
         new_schedule_inputs.push_back(schedule_inputs[i]);
