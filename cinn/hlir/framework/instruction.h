@@ -122,6 +122,9 @@ class Instruction {
   bool pre_run = false;
   Target target_;
 
+ protected:
+  void CheckResults(const std::map<std::string, cinn_pod_value_t>* name2podargs = nullptr, void* stream = nullptr);
+
  private:
   bool finalized_flag_ = false;
   Scope* scope_{};

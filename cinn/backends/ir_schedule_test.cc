@@ -2270,5 +2270,183 @@ void test_compute_inline4(const float* __restrict__ A, float* __restrict__ C)
 }
 #endif
 
+TEST(IrSchedule, copytransform1) {
+  Context::Global().ResetNameId();
+  Expr M(32);
+  Expr N(32);
+  Expr P(32);
+
+  Target target = common::DefaultHostTarget();
+
+  Placeholder<float> A("A", {M, N, P});
+  auto B = Compute(
+      {M, N, P}, [&](Var i, Var j, Var k) { return A(i, j, k) + Expr(1.f); }, "B");
+  auto C = Compute(
+      {M, N, P}, [&](Var i, Var j, Var k) { return B(j, i, k) * Expr(2.f); }, "C");
+
+  auto stages = CreateStages({A, B, C});
+
+  auto func = cinn::lang::LowerVec("test_copytransform1", stages, {A, C}, {}, {}, nullptr, target, true);
+
+  auto ast_expr = func[0]->body;
+  std::vector<Expr> vec_ast{ast_expr};
+  ir::ModuleExpr mod_expr(vec_ast);
+  ir::IRSchedule ir_sch(mod_expr);
+
+  auto block_c = ir_sch.GetBlock("C");
+  auto loops_c = ir_sch.GetLoops(block_c);
+  auto splited = ir_sch.Split(loops_c[1], {-1, 4});
+  block_c      = ir_sch.GetBlock("C");
+  loops_c      = ir_sch.GetLoops(block_c);
+  splited      = ir_sch.Split(loops_c[0], {-1, 8});
+
+  auto block_b = ir_sch.GetBlock("B");
+  block_c      = ir_sch.GetBlock("C");
+
+  LOG(INFO) << "Before CopyTransformAndLoopInfo, IR is : " << ir_sch.GetModule().GetExprs().at(0);
+  ir_sch.CopyTransformAndLoopInfo(block_b, block_c);
+  LOG(INFO) << "After CopyTransformAndLoopInfo, IR is : " << ir_sch.GetModule().GetExprs().at(0);
+  Module::Builder builder("module1", target);
+  for (auto& i : func) {
+    builder.AddFunction(i);
+  }
+  auto module = builder.Build();
+  CodeGenC codegen(target);
+  codegen.SetInlineBuiltinCodes(false);
+  auto source_code = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
+
+  LOG(INFO) << "copytransform1 source code is :\n" << source_code;
+
+  std::string target_code = R"ROC(
+#include <cinn_runtime.h>
+#include <stdio.h>
+
+void test_copytransform1(void* _args, int32_t num_args)
+{
+  const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
+  cinn_buffer_t* _C = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[1]));
+  cinn_buffer_t* _B = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 32, 32, 32 });
+  cinn_buffer_malloc((void*)(0), _C);
+  cinn_buffer_malloc((void*)(0), _B);
+  const float* A = ((const float*)(_A->memory));
+  float* B = ((float*)(_B->memory));
+  float* C = ((float*)(_C->memory));
+  {
+    for (int32_t i_0 = 0; i_0 < 4; i_0 += 1) {
+      for (int32_t i_1 = 0; i_1 < 8; i_1 += 1) {
+        for (int32_t j_0 = 0; j_0 < 8; j_0 += 1) {
+          for (int32_t j_1 = 0; j_1 < 4; j_1 += 1) {
+            for (int32_t k = 0; k < 32; k += 1) {
+              B[((8192 * i_0) + ((1024 * i_1) + ((128 * j_0) + ((32 * j_1) + k))))] = (1 + A[((8192 * i_0) + ((1024 * i_1) + ((128 * j_0) + ((32 * j_1) + k))))]);
+            };
+          };
+        };
+      };
+    };
+    for (int32_t i_0 = 0; i_0 < 4; i_0 += 1) {
+      for (int32_t i_1 = 0; i_1 < 8; i_1 += 1) {
+        for (int32_t j_0 = 0; j_0 < 8; j_0 += 1) {
+          for (int32_t j_1 = 0; j_1 < 4; j_1 += 1) {
+            for (int32_t k = 0; k < 32; k += 1) {
+              C[((8192 * i_0) + ((1024 * i_1) + ((128 * j_0) + ((32 * j_1) + k))))] = (2 * B[((256 * i_0) + ((32 * i_1) + ((4096 * j_0) + ((1024 * j_1) + k))))]);
+            };
+          };
+        };
+      };
+    };
+  };
+  cinn_buffer_free((void*)(0), _B);
+  cinn_buffer_free((void*)(0), _C);
+}
+)ROC";
+  ASSERT_EQ(utils::Trim(target_code), utils::Trim(source_code));
+}
+
+TEST(IrSchedule, copytransform2) {
+  Context::Global().ResetNameId();
+  Expr M(32);
+  Expr N(64);
+  Expr P(128);
+
+  Target target = common::DefaultHostTarget();
+
+  Placeholder<float> A("A", {M, N, P});
+  auto B = Compute(
+      {M, N, P}, [&](Var i, Var j, Var k) { return A(i, j, k) + Expr(1.f); }, "B");
+  auto C = Compute(
+      {M, M, P}, [&](Var i, Var j, Var k) { return B(i, j, k) * Expr(2.f); }, "C");
+
+  auto stages = CreateStages({A, B, C});
+
+  auto func = cinn::lang::LowerVec("test_copytransform2", stages, {A, C}, {}, {}, nullptr, target, true);
+
+  auto ast_expr = func[0]->body;
+  std::vector<Expr> vec_ast{ast_expr};
+  ir::ModuleExpr mod_expr(vec_ast);
+  ir::IRSchedule ir_sch(mod_expr);
+
+  auto block_c = ir_sch.GetBlock("C");
+  auto loops_c = ir_sch.GetLoops(block_c);
+  auto splited = ir_sch.Split(loops_c[1], {-1, 4});
+  block_c      = ir_sch.GetBlock("C");
+  loops_c      = ir_sch.GetLoops(block_c);
+  splited      = ir_sch.Split(loops_c[0], {-1, 8});
+
+  auto block_b = ir_sch.GetBlock("B");
+  block_c      = ir_sch.GetBlock("C");
+  ir_sch.CopyTransformAndLoopInfo(block_b, block_c);
+  Module::Builder builder("module1", target);
+  for (auto& i : func) {
+    builder.AddFunction(i);
+  }
+  auto module = builder.Build();
+  CodeGenC codegen(target);
+  codegen.SetInlineBuiltinCodes(false);
+  auto source_code = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
+
+  LOG(INFO) << "copytransform2 source code is :\n" << source_code;
+
+  std::string target_code = R"ROC(
+#include <cinn_runtime.h>
+#include <stdio.h>
+
+void test_copytransform2(void* _args, int32_t num_args)
+{
+  const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
+  cinn_buffer_t* _C = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[1]));
+  cinn_buffer_t* _B = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 32, 64, 128 });
+  cinn_buffer_malloc((void*)(0), _C);
+  cinn_buffer_malloc((void*)(0), _B);
+  const float* A = ((const float*)(_A->memory));
+  float* B = ((float*)(_B->memory));
+  float* C = ((float*)(_C->memory));
+  {
+    for (int32_t i_0 = 0; i_0 < 4; i_0 += 1) {
+      for (int32_t i_1 = 0; i_1 < 8; i_1 += 1) {
+        for (int32_t j = 0; j < 64; j += 1) {
+          for (int32_t k = 0; k < 128; k += 1) {
+            B[((65536 * i_0) + ((8192 * i_1) + ((128 * j) + k)))] = (1 + A[((65536 * i_0) + ((8192 * i_1) + ((128 * j) + k)))]);
+          };
+        };
+      };
+    };
+    for (int32_t i_0 = 0; i_0 < 4; i_0 += 1) {
+      for (int32_t i_1 = 0; i_1 < 8; i_1 += 1) {
+        for (int32_t j_0 = 0; j_0 < 8; j_0 += 1) {
+          for (int32_t j_1 = 0; j_1 < 4; j_1 += 1) {
+            for (int32_t k = 0; k < 128; k += 1) {
+              C[((32768 * i_0) + ((4096 * i_1) + ((512 * j_0) + ((128 * j_1) + k))))] = (2 * B[((65536 * i_0) + ((8192 * i_1) + ((512 * j_0) + ((128 * j_1) + k))))]);
+            };
+          };
+        };
+      };
+    };
+  };
+  cinn_buffer_free((void*)(0), _B);
+  cinn_buffer_free((void*)(0), _C);
+}
+)ROC";
+  ASSERT_EQ(utils::Trim(target_code), utils::Trim(source_code));
+}
 }  // namespace backends
 }  // namespace cinn

@@ -1246,6 +1246,34 @@ bool CasSimplifyMutator::SimplifySpecificSumMod(Expr* result, Expr a, Expr b) {
 #endif
 }
 
+// Return if the var's interval is nonnegative.
+inline bool IsVarNonnegative(const absl::flat_hash_map<std::string, CasInterval>& var_intervals,
+                             const std::string& var_name) {
+  return var_intervals.count(var_name) && var_intervals.at(var_name).l >= 0;
+}
+
+// Return if the var is binded with thread or block in cuda(which implies it is non-negative).
+inline bool IsVarBinded(const std::string& var_name) {
+  return utils::Startswith(var_name, "threadIdx") || utils::Startswith(var_name, "blockIdx");
+}
+
+/**
+ * Return if exprs are still all nonnegative vars.
+ * @param all_nonnegative_var is previous exprs all nonnegative vars.
+ * @param arg_var the pointer of this var.
+ * @param var_intervals intervals of each var.
+ * @return if exprs are still all nonnegative vars.
+ */
+inline bool IsVarAllNonnegative(bool all_nonnegative_var,
+                                _Var_* arg_var,
+                                const absl::flat_hash_map<std::string, CasInterval>& var_intervals) {
+  // All exprs all nonnegative vars if previous exprs are nonnegative vars(all_nonnegative_var == true) and this expr is
+  // a var (arg_var != nullptr) and (this var's interval is nonnegative or this var is binded to thread or block in
+  // cuda).
+  return all_nonnegative_var && arg_var &&
+         (IsVarNonnegative(var_intervals, arg_var->name) || IsVarBinded(arg_var->name));
+}
+
 Expr CasSimplifyMutator::SimplifyMod(Expr u) {
   auto* node = u.As<Mod>();
   CHECK(node);
@@ -1320,17 +1348,16 @@ Expr CasSimplifyMutator::SimplifyMod(Expr u) {
     if (sum_args.empty()) return make_const(b_i->type(), 0);
     // handle the case: (2x+y+z) % 2 = (y+z) % 2 when y>=0 and z>=0
     if (sum_args.size() < a_sum->operands().size()) {
-      bool all_positive_var = true;
-      bool all_positive_int = true;
+      bool all_nonnegative_var = true;
+      bool all_nonnegative_int = true;
       for (int i = 0; i < sum_args.size(); i++) {
-        auto* arg_var = sum_args[i].As<_Var_>();
-        all_positive_var =
-            all_positive_var && arg_var && var_intervals.count(arg_var->name) && var_intervals.at(arg_var->name).l >= 0;
-        auto* arg_int    = sum_args[i].As<IntImm>();
-        all_positive_int = all_positive_int && arg_int && arg_int->value >= 0;
+        auto* arg_var       = sum_args[i].As<_Var_>();
+        all_nonnegative_var = IsVarAllNonnegative(all_nonnegative_var, arg_var, var_intervals);
+        auto* arg_int       = sum_args[i].As<IntImm>();
+        all_nonnegative_int = all_nonnegative_int && arg_int && arg_int->value >= 0;
       }
-      if (all_positive_var) return SimplifyMod(Mod::Make(Sum::Make(sum_args), b));
-      if (all_positive_int) {
+      if (all_nonnegative_var) return SimplifyMod(Mod::Make(Sum::Make(sum_args), b));
+      if (all_nonnegative_int) {
         int sum_value = 0;
         for (auto& i : sum_args) sum_value += i.As<IntImm>()->value;
         return make_const(a_sum->type(), sum_value % b_i->value);

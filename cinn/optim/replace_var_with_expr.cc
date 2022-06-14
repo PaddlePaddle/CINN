@@ -173,7 +173,7 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
   void Execute(Expr* expr) { ir::IRMutator<>::Visit(expr, expr); }
 
   void ResizeTempMemory(const std::string& tensor_name, int index, Expr* indice, const std::string& var_name) {
-    if (extent_.defined()) {
+    if (extent_.defined() && extent_.is_constant()) {
       // To avoid duplicate resizing of the same buffer, we use a string of buffer name + var name + shape's index as
       // ID. If an ID already exists, which means we have already edited the buffer's shape, we will just return.
       VLOG(2) << "ResizeTempMemory tensor_name [" << tensor_name << "], index [" << index << "], indice [" << *indice
@@ -226,7 +226,7 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
 
       resized_buffer_.insert(buffer_id);
       (*global_tensor_map_)[tensor_name]->buffer->shape = IRCopy(tensor_shape);
-      VLOG(3) << tensor_name << " tensor's New Shape is : ";
+      VLOG(3) << tensor_name << " tensor and buffer's New Shape is : ";
       for (auto& i : tensor_shape) {
         VLOG(3) << i;
       }
@@ -236,6 +236,27 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
   }
 
  private:
+  void Visit(const ir::ScheduleBlockRealize* op, Expr* expr) override {
+    auto* node = expr->As<ir::ScheduleBlockRealize>();
+    CHECK(node->schedule_block.As<ir::ScheduleBlock>());
+    auto iter_values = node->iter_values;
+    auto& body_copy  = node->schedule_block.As<ir::ScheduleBlock>()->body;
+    auto iter_vars   = node->schedule_block.As<ir::ScheduleBlock>()->iter_vars;
+
+    CHECK_EQ(iter_values.size(), iter_vars.size());
+    for (int i = 0; i < iter_values.size(); i++) {
+      ReplaceVarWithExpr(&body_copy, iter_vars[i], iter_values[i]);
+    }
+
+    for (auto& value : node->iter_values) {
+      ir::IRMutator<>::Visit(&value, &value);
+    }
+
+    bool temp_find_replace = find_replace_;
+    ir::IRMutator<>::Visit(&body_copy, &body_copy);
+    find_replace_ = temp_find_replace;
+  }
+
   void Visit(const ir::_Var_* expr, Expr* op) override {
     if (do_replace_) {
       if (expr->name != utils::GetStreamCnt(var_->name)) return;
@@ -388,6 +409,9 @@ void CUDAReplaceIndexOfCachePass(Expr* source,
                                  bool blockidx,
                                  const Expr& extent,
                                  std::string tensor_name) {
+  if (extent.defined() && !extent.is_constant()) {
+    VLOG(3) << "Warning! The extent " << extent << " is not constant in CUDAReplaceIndexOfCachePass!";
+  }
   ReplaceVarIndexOfCacheMutator mutator(var, expr, global_tensor_map, resized_buffer, blockidx, extent, tensor_name);
   mutator.Execute(source);
 }

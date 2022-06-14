@@ -117,7 +117,6 @@ void BindFrontend(pybind11::module *m) {
       .def("__getitem__", [](Program &self, int idx) { return self[idx]; })
       .def("add", &Program::add)
       .def("mul", &Program::mul)
-      .def("mulbias", &Program::mulbias)
       .def("elementwise_add", &Program::elementwise_add)
       .def("relu", &Program::relu)
       .def("relu6", &Program::relu6)
@@ -306,7 +305,8 @@ void BindFrontend(pybind11::module *m) {
            py::arg("model_name") = "")
       .def("run", &frontend::Interpreter::Run)
       .def("get_tensor", &frontend::Interpreter::GetTensor)
-      .def("scope", &frontend::Interpreter::scope);
+      .def("get_program", &frontend::Interpreter::GetProgram)
+      .def("get_scope", &frontend::Interpreter::GetScope);
 
   py::enum_<ComparisonKind>(*m, "ComparisonKind")
       .value("kUnk", ComparisonKind::kUnk)
@@ -437,13 +437,6 @@ void BindFrontend(pybind11::module *m) {
            &NetBuilder::Mul,
            py::arg("a"),
            py::arg("b"),
-           py::arg("x_num_col_dims") = 1,
-           py::arg("y_num_col_dims") = 1)
-      .def("mulbias",
-           &NetBuilder::MulBias,
-           py::arg("a"),
-           py::arg("b"),
-           py::arg("c"),
            py::arg("x_num_col_dims") = 1,
            py::arg("y_num_col_dims") = 1)
       .def("elementwise_add_grad",

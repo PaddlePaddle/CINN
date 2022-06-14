@@ -55,16 +55,6 @@ Variable NetBuilder::Mul(const Variable& a, const Variable& b, int x_num_col_dim
   return instr.GetOutput(0);
 }
 
-Variable NetBuilder::MulBias(
-    const Variable& a, const Variable& b, const Variable& c, int x_num_col_dims, int y_num_col_dims) {
-  Instruction instr("mulbias", {a, b, c});
-  instr.SetAttr("x_num_col_dims", x_num_col_dims);
-  instr.SetAttr("y_num_col_dims", y_num_col_dims);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(1);
-}
-
 const std::vector<Variable>& NetBuilder::ElementwiseAddGrad(const Variable& dout,
                                                             const Variable& x,
                                                             const Variable& y,

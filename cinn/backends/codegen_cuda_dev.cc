@@ -157,7 +157,6 @@ void CodeGenCUDA_Dev::Visit(const ir::Max *op) {
 }
 
 void CodeGenCUDA_Dev::PrintFunctionDeclaration(const ir::_LoweredFunc_ *op) {
-  // os() << "void " << GenKernelName(op->name) << "(";
   os() << "void ";
   if (op->cuda_axis_info.valid()) {
     int thread_num = 1;

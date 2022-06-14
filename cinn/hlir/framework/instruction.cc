@@ -15,8 +15,11 @@
 #include "cinn/hlir/framework/instruction.h"
 
 #include "cinn/common/test_helper.h"
+#include "cinn/hlir/framework/accuracy_checker.h"
+#include "cinn/utils/profiler.h"
 
 DECLARE_bool(cinn_sync_run);
+DECLARE_bool(cinn_self_check_accuracy);
 
 namespace cinn {
 namespace hlir {
@@ -73,6 +76,7 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
                       bool dryrun,
                       void* stream,
                       bool use_cache) {
+  utils::RecordEvent record_run(function_name_);
   CHECK(finalized_flag_) << "Instruction must be finalized before run";
   if (function_name_ == "no_run") {
     VLOG(2) << "skip instruction";
@@ -81,10 +85,14 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
 
   VLOG(2) << "Run function " << function_name_;
 
-  if (!use_cache || args_cached_.size() != size()) {
-    UpdateArgsCache(name2podargs);
+  {
+    utils::RecordEvent record_args("PrepareArgs");
+    if (!use_cache || args_cached_.size() != size()) {
+      UpdateArgsCache(name2podargs);
+    }
   }
 
+  utils::ProfilerRangePush("Compute");
 #if defined(CINN_WITH_CUDA) && !defined(CINN_WITH_CUDNN)
   if (function_name_ == "cublas_gemm" && target_.arch == Target::Arch::NVGPU) {
     auto& pod_args = args_cached_[0];
@@ -191,12 +199,58 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
     i++;
   }
 #endif
+  utils::ProfilerRangePop();
 
+  if (FLAGS_cinn_self_check_accuracy) {
+    CheckResults(name2podargs, stream);
 #ifdef CINN_WITH_CUDA
-  if (FLAGS_cinn_sync_run) {
+  } else if (FLAGS_cinn_sync_run) {
+    utils::RecordEvent record_sync("Synchronize");
     cudaStreamSynchronize(static_cast<cudaStream_t>(stream));
-  }
 #endif
+  }
+}
+
+void Instruction::CheckResults(const std::map<std::string, cinn_pod_value_t>* name2podargs, void* stream) {
+#ifdef CINN_WITH_CUDA
+  cudaStreamSynchronize(static_cast<cudaStream_t>(stream));
+#endif
+
+  if (fn_names_.size() == 1) {
+    std::unordered_set<std::string> skipped_instr_set = {"malloc_buffer_instruction", "free_buffer_instruction"};
+    for (auto& name : skipped_instr_set) {
+      if (fn_names_[0].find(name) != std::string::npos) {
+        // Skip the malloc & free buffer instructions.
+        return;
+      }
+    }
+  }
+
+  AccuracyChecker checker(target_, scope_);
+
+  LOG(WARNING) << "Instruction {";
+  for (size_t i = 0; i < fn_names_.size(); ++i) {
+    LOG(WARNING) << "  Function " << fn_names_[i] << ":";
+    for (auto& in_name : in_args_[i]) {
+      std::string result_str;
+      if (name2podargs) {
+        result_str = checker(name2podargs, in_name);
+      } else {
+        result_str = checker(in_name);
+      }
+      LOG(WARNING) << "    input: " << result_str;
+    }
+    for (auto& out_name : out_args_[i]) {
+      std::string result_str;
+      if (name2podargs) {
+        result_str = checker(name2podargs, out_name);
+      } else {
+        result_str = checker(out_name);
+      }
+      LOG(WARNING) << "    output: " << result_str;
+    }
+  }
+  LOG(WARNING) << "}";
 }
 
 }  // namespace framework

@@ -238,7 +238,9 @@ void Stage::ComputeAtSchedule(Stage *other, int level, ComputeAtKind kind) {
   relation.stage = other;
   relation.level = level;
 
-  CHECK(relation.IsCompatible(this));
+  CHECK(relation.IsCompatible(this)) << "Cannot apply ComputeAtSchedule with level: " << level << " from \n"
+                                     << isl_set_to_str(this->transformed_domain().get()) << "\n to \n"
+                                     << isl_set_to_str(other->transformed_domain().get());
   compute_ats_[other->id()] = relation;
 
   // Consider the order if provide.
@@ -648,7 +650,9 @@ void Stage::ComputeAt(Stage *other, int level) {
   relation.level = level;
   other->CtrlDepend(ir::Tensor(tensor()));
 
-  CHECK(relation.IsCompatible(this));
+  CHECK(relation.IsCompatible(this)) << "Cannot apply ComputeAt with level: " << level << " from \n"
+                                     << isl_set_to_str(this->transformed_domain().get()) << "\n to \n"
+                                     << isl_set_to_str(other->transformed_domain().get());
   compute_ats_[other->id()] = relation;
   for (int i = 0; i <= level; i++) AddForloopInfo(i, StageForloopInfo{ir::ForType::Default, DeviceAPI::UNK, 0});
 }
@@ -672,7 +676,9 @@ void Stage::ComputeAt2(Stage *other, int level) {
   relation.level = level;
   other->CtrlDepend(ir::Tensor(tensor()));
 
-  CHECK(relation.IsCompatible(this));
+  CHECK(relation.IsCompatible(this)) << "Cannot apply ComputeAt2 with level: " << level << " from \n"
+                                     << isl_set_to_str(this->transformed_domain().get()) << "\n to \n"
+                                     << isl_set_to_str(other->transformed_domain().get());
   compute_ats_[other->id()] = relation;
 }
 
@@ -704,7 +710,9 @@ void Stage::SimpleComputeAt(Stage *other, int level) {
   relation.level = level;
   other->CtrlDepend(ir::Tensor(tensor()));
 
-  CHECK(relation.IsCompatible(this));
+  CHECK(relation.IsCompatible(this)) << "Cannot apply SimpleComputeAt with level: " << level << " from \n"
+                                     << isl_set_to_str(this->transformed_domain().get()) << "\n to \n"
+                                     << isl_set_to_str(other->transformed_domain().get());
   compute_ats_[other->id()] = relation;
   auto other_expr           = other->expr();
   auto find_tensors         = ir::CollectIRNodesWithoutTensor(
@@ -1149,7 +1157,10 @@ void Stage::SyncThreads(StageMap stages) {
     relation.level = compute_at.level;
     relation.stage->CtrlDepend(sync_threads);
 
-    CHECK(relation.IsCompatible(stages[sync_threads]));
+    CHECK(relation.IsCompatible(this)) << "Cannot create ComputeAtRelation in SyncThreads with level: "
+                                       << relation.level << " from \n"
+                                       << isl_set_to_str(stages[sync_threads]->transformed_domain().get()) << "\n to \n"
+                                       << isl_set_to_str(relation.stage->transformed_domain().get());
     stages[sync_threads]->compute_ats_[relation.stage->id()] = relation;
   }
 

@@ -68,12 +68,6 @@ class NetBuilder : public BaseBuilder {
   Variable Mul(const Variable& a, const Variable& b, int x_num_col_dims = 1, int y_num_col_dims = 1);
 
   /**
-   * Multiply two matrix and add a bias.
-   */
-  Variable MulBias(
-      const Variable& a, const Variable& b, const Variable& c, int x_num_col_dims = 1, int y_num_col_dims = 1);
-
-  /**
    * The gradient of elementwise_add.
    */
   const std::vector<Variable>& ElementwiseAddGrad(const Variable& dout,
