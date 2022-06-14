@@ -74,17 +74,16 @@ bool MultiLevelTiling::MeetCondition(const ir::ScheduleBlockRealize& sche_block_
       continue;
     }
     // Collect the vars in schedule block that are used to index the read region
-    std::unordered_set<const ir::Expr*> vars_index_read;
+    std::unordered_set<std::string> vars_index_read;
     for (const Var& range : read_buffer->ranges) {
-      vars_index_read.insert(&(range->lower_bound));
-      vars_index_read.insert(&(range->upper_bound));
+      vars_index_read.insert(range->name);
     }
     // Check the block iter vars are not used to index the read region
     int n_unused_block_vars = 0;
     for (const ir::Var& block_iter_var : sche_block->iter_vars) {
       bool iter_var_in_read = false;
-      for (const ir::Expr* expr : vars_index_read) {
-        if ((*expr) == static_cast<Expr>(block_iter_var)) {
+      for (const std::string& var : vars_index_read) {
+        if (var == block_iter_var->name) {
           iter_var_in_read = true;
           break;
         }
@@ -106,14 +105,11 @@ RuleApplyType MultiLevelTiling::Init(const ir::ModuleExpr& mod_expr) {
   num_applicable_ = 0;
   for (size_t i = 0; i < all_block_realizes_.size(); ++i) {
     ir::ScheduleBlockRealize* sche_block_realize = all_block_realizes_[i].As<ir::ScheduleBlockRealize>();
-    VLOG(6) << "Before Analyze";
     AnalyzeScheduleBlockReadWriteBuffer(sche_block_realize->schedule_block.As<ir::ScheduleBlock>());
-    VLOG(6) << "After Analyze";
     if (MeetCondition(*sche_block_realize)) {
       ++num_applicable_;
       applicable_indices_.push_back(i);
     }
-    VLOG(6) << "After MeetCondition";
   }
 
   return num_applicable_ > 0 ? RuleApplyType::kApplyAndSkipThisRule : RuleApplyType::kCannotApply;
