@@ -48,12 +48,9 @@ void AnalyzeScheduleBlockReadWriteBuffer(ir::ScheduleBlock* sche_block) {
     return;
   }
 
-  VLOG(6) << sche_block->body;
-  VLOG(6) << "Checking CollectIRNodes";
   std::set<ir::Expr> load_nodes =
       ir::CollectIRNodesWithoutTensor(sche_block->body, [&](const Expr* x) { return x->As<ir::Load>() != nullptr; });
   for (const ir::Expr& e : load_nodes) {
-    VLOG(6) << e;
     const ir::Load* load_expr = e.As<ir::Load>();
     const ir::Tensor t        = load_expr->tensor.as_tensor_ref();
     sche_block->read_buffers.emplace_back(ir::BufferRange(t->buffer, IndicesToVars(load_expr->indices)));
@@ -62,7 +59,6 @@ void AnalyzeScheduleBlockReadWriteBuffer(ir::ScheduleBlock* sche_block) {
   std::set<ir::Expr> store_nodes =
       ir::CollectIRNodesWithoutTensor(sche_block->body, [&](const Expr* x) { return x->As<ir::Store>() != nullptr; });
   for (const ir::Expr& e : store_nodes) {
-    VLOG(6) << e;
     const ir::Store* store_expr = e.As<ir::Store>();
     const ir::Tensor t          = store_expr->tensor.as_tensor_ref();
     sche_block->write_buffers.emplace_back(ir::BufferRange(t->buffer, IndicesToVars(store_expr->indices)));
@@ -74,31 +70,6 @@ void AnalyzeScheduleBlockReadWriteBuffer(ir::ScheduleBlock* sche_block) {
   sort(sche_block->read_buffers.begin(), sche_block->read_buffers.end(), buffer_range_cmp);
   sort(sche_block->write_buffers.begin(), sche_block->write_buffers.end(), buffer_range_cmp);
 }
-
-/*
-void AnalyzeScheduleBlockReadWriteBuffer_old(ir::ScheduleBlock* sche_block) {
-  if (!sche_block->read_buffers.empty() || !sche_block->write_buffers.empty()) {
-    return;
-  }
-
-  std::set<ir::Expr> load_tensors = ir::CollectLoadTensors(sche_block->body, [&](const Expr* x) { return true; });
-  for (const ir::Expr& e : load_tensors) {
-    ir::Tensor t = e.as_tensor_ref();
-    sche_block->read_buffers.emplace_back(ir::BufferRange(t->buffer, t->axis_with_reduce()));
-  }
-
-  std::set<ir::Expr> store_tensors = ir::CollectStoreTensors(sche_block->body, [&](const Expr* x) { return true; });
-  for (const ir::Expr& e : store_tensors) {
-    ir::Tensor t = e.as_tensor_ref();
-    sche_block->write_buffers.emplace_back(ir::BufferRange(t->buffer, t->axis_with_reduce()));
-  }
-
-  auto buffer_range_cmp = [](const Expr& lhs, const Expr& rhs) {
-    return lhs.As<ir::_BufferRange_>()->buffer.as_buffer_ref() < rhs.As<ir::_BufferRange_>()->buffer.as_buffer_ref();
-  };
-  sort(sche_block->read_buffers.begin(), sche_block->read_buffers.end(), buffer_range_cmp);
-  sort(sche_block->write_buffers.begin(), sche_block->write_buffers.end(), buffer_range_cmp);
-}*/
 
 }  // namespace auto_schedule
 }  // namespace cinn

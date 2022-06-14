@@ -37,9 +37,6 @@ struct IrNodesCollector : public IRVisitor {
     if (!expr->defined()) return;
     if (visited_.count(expr->get())) return;
 
-    VLOG(6) << "Visiting: " << expr;
-    VLOG(6) << *expr;
-    VLOG(6) << expr->node_type();
     if (teller(expr)) {
       handler(expr);
     }
@@ -59,14 +56,13 @@ struct IrNodesCollector : public IRVisitor {
     }
   }
 
-#define __m(t__)                                                                     \
-  void Visit(const t__* x) override {                                                \
-    for (auto* n : x->expr_fields()) {                                               \
-      if (n->defined()) {                                                            \
-        VLOG(6) << "This node " << x->node_type() << "`Sub node " << n->node_type(); \
-        Visit(n);                                                                    \
-      }                                                                              \
-    }                                                                                \
+#define __m(t__)                       \
+  void Visit(const t__* x) override {  \
+    for (auto* n : x->expr_fields()) { \
+      if (n->defined()) {              \
+        Visit(n);                      \
+      }                                \
+    }                                  \
   }
 
   NODETY_FORALL(__m)
