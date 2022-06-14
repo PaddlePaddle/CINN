@@ -87,12 +87,12 @@ TEST(AnalyzeIr, AnalyzeScheduleBlockReadWriteBuffer_SimpleAssign) {
 
   std::stringstream read_ss;
   read_ss << sche_block->read_buffers[0];
-  ASSERT_EQ(read_ss.str(), "_A[i0(undefined:undefined), i1(undefined:undefined)]");
+  ASSERT_EQ(read_ss.str(), "_A[i0(0:32), i1(0:32)]");
 
   ASSERT_EQ(sche_block->write_buffers.size(), 1UL);
   std::stringstream write_ss;
   write_ss << sche_block->write_buffers[0];
-  ASSERT_EQ(write_ss.str(), "_B[i0(undefined:undefined), i1(undefined:undefined)]");
+  ASSERT_EQ(write_ss.str(), "_B[i0(0:32), i1(0:32)]");
 }
 
 TEST(AnalyzeIr, AnalyzeScheduleBlockReadWriteBuffer_AddDiffShape) {
@@ -133,7 +133,7 @@ TEST(AnalyzeIr, AnalyzeScheduleBlockReadWriteBuffer_AddDiffShape) {
   VLOG(6) << "ScheduleBlockRealize: ";
   VLOG(6) << all_block_realizes[0];
   ASSERT_EQ(sche_block->read_buffers.size(), 2UL);
-  std::vector<std::string> expect_read = {"_A[i0(undefined:undefined)]", "_B[i1(undefined:undefined)]"};
+  std::vector<std::string> expect_read = {"_A[i0(0:32)]", "_B[i1(0:128)]"};
 
   ASSERT_EQ(sche_block->read_buffers.size(), expect_read.size());
   for (size_t i = 0; i < expect_read.size(); ++i) {
@@ -145,7 +145,7 @@ TEST(AnalyzeIr, AnalyzeScheduleBlockReadWriteBuffer_AddDiffShape) {
   ASSERT_EQ(sche_block->write_buffers.size(), 1UL);
   std::stringstream write_ss;
   write_ss << sche_block->write_buffers[0];
-  ASSERT_EQ(write_ss.str(), "_C[i0(undefined:undefined), i1(undefined:undefined)]");
+  ASSERT_EQ(write_ss.str(), "_C[i0(0:32), i1(0:128)]");
 }
 
 }  // namespace auto_schedule
