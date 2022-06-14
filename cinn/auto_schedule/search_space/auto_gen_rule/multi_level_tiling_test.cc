@@ -107,12 +107,15 @@ TEST(MultiLevelTile, SimpleLoops) {
 
   MultiLevelTiling multi_level_tiling(target);
   ir::ModuleExpr mod_expr_before_tile(std::vector<ir::Expr>{ast_expr});
+  VLOG(6) << "After  ir::ModuleExpr";
   EXPECT_EQ(multi_level_tiling.Init(mod_expr_before_tile), RuleApplyType::kApplyAndSkipThisRule);
 
+  VLOG(6) << "After  multi_level_tiling.Init";
   EXPECT_EQ(multi_level_tiling.NumberApplicable(), 1);
   ir::ModuleExpr mod_expr_after_tile = multi_level_tiling.ApplyRandomly();
   std::vector<ir::Expr> exprs        = mod_expr_after_tile.GetExprs();
   EXPECT_EQ(exprs.size(), 1UL);
+  VLOG(6) << "After  multi_level_tiling.ApplyRandomly";
 
   std::stringstream ss;
   ss << exprs[0];

@@ -14,6 +14,8 @@
 
 #include "cinn/auto_schedule/analysis/analyze_ir.h"
 
+#include <glog/logging.h>
+
 #include <algorithm>
 
 #include "cinn/ir/buffer.h"
@@ -23,11 +25,58 @@
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_schedule.h"
 #include "cinn/ir/tensor.h"
+#include "cinn/optim/ir_copy.h"
 
 namespace cinn {
 namespace auto_schedule {
 
+std::vector<ir::Var> IndicesToVars(const std::vector<ir::Expr>& indices) {
+  std::vector<ir::Var> result;
+  for (const ir::Expr& e : indices) {
+    // Whether we have to convert other types, like const numbers to Var?
+    if (e.As<ir::_Var_>() != nullptr) {
+      ir::Expr copy_e    = optim::IRCopy(e);
+      ir::_Var_* var_ref = copy_e.As<ir::_Var_>();
+      result.emplace_back(ir::Var(var_ref));
+    }
+  }
+  return result;
+}
+
 void AnalyzeScheduleBlockReadWriteBuffer(ir::ScheduleBlock* sche_block) {
+  if (!sche_block->read_buffers.empty() || !sche_block->write_buffers.empty()) {
+    return;
+  }
+
+  VLOG(6) << sche_block->body;
+  VLOG(6) << "Checking CollectIRNodes";
+  std::set<ir::Expr> load_nodes =
+      ir::CollectIRNodesWithoutTensor(sche_block->body, [&](const Expr* x) { return x->As<ir::Load>() != nullptr; });
+  for (const ir::Expr& e : load_nodes) {
+    VLOG(6) << e;
+    const ir::Load* load_expr = e.As<ir::Load>();
+    const ir::Tensor t        = load_expr->tensor.as_tensor_ref();
+    sche_block->read_buffers.emplace_back(ir::BufferRange(t->buffer, IndicesToVars(load_expr->indices)));
+  }
+
+  std::set<ir::Expr> store_nodes =
+      ir::CollectIRNodesWithoutTensor(sche_block->body, [&](const Expr* x) { return x->As<ir::Store>() != nullptr; });
+  for (const ir::Expr& e : store_nodes) {
+    VLOG(6) << e;
+    const ir::Store* store_expr = e.As<ir::Store>();
+    const ir::Tensor t          = store_expr->tensor.as_tensor_ref();
+    sche_block->write_buffers.emplace_back(ir::BufferRange(t->buffer, IndicesToVars(store_expr->indices)));
+  }
+
+  auto buffer_range_cmp = [](const Expr& lhs, const Expr& rhs) {
+    return lhs.As<ir::_BufferRange_>()->buffer.as_buffer_ref() < rhs.As<ir::_BufferRange_>()->buffer.as_buffer_ref();
+  };
+  sort(sche_block->read_buffers.begin(), sche_block->read_buffers.end(), buffer_range_cmp);
+  sort(sche_block->write_buffers.begin(), sche_block->write_buffers.end(), buffer_range_cmp);
+}
+
+/*
+void AnalyzeScheduleBlockReadWriteBuffer_old(ir::ScheduleBlock* sche_block) {
   if (!sche_block->read_buffers.empty() || !sche_block->write_buffers.empty()) {
     return;
   }
@@ -49,7 +98,7 @@ void AnalyzeScheduleBlockReadWriteBuffer(ir::ScheduleBlock* sche_block) {
   };
   sort(sche_block->read_buffers.begin(), sche_block->read_buffers.end(), buffer_range_cmp);
   sort(sche_block->write_buffers.begin(), sche_block->write_buffers.end(), buffer_range_cmp);
-}
+}*/
 
 }  // namespace auto_schedule
 }  // namespace cinn

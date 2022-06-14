@@ -34,20 +34,23 @@
 namespace cinn {
 namespace auto_schedule {
 
-TEST(AnalyzeIr, AnalyzeScheduleBlockReadWriteBuffer) {
+TEST(AnalyzeIr, AnalyzeScheduleBlockReadWriteBuffer_SimpleAssign) {
   Context::Global().ResetNameId();
-  Expr M(32);
-  Expr N(32);
-
+#ifdef CINN_WITH_CUDA
+  Target target = common::DefaultNVGPUTarget();
+#else
   Target target = common::DefaultHostTarget();
+#endif
+
+  ir::Expr M(32);
+  ir::Expr N(32);
 
   lang::Placeholder<float> A("A", {M, N});
   ir::Tensor B = lang::Compute(
       {M, N}, [&](Var i, Var j) { return A(i, j); }, "B");
 
-  poly::StageMap stages = poly::CreateStages({A, B});
-  std::vector<ir::LoweredFunc> funcs =
-      cinn::lang::LowerVec("test_vectorize", stages, {A, B}, {}, {}, nullptr, target, true);
+  poly::StageMap stages              = poly::CreateStages({A, B});
+  std::vector<ir::LoweredFunc> funcs = lang::LowerVec("SimpleAssign", stages, {A, B}, {}, {}, nullptr, target, true);
 
   ASSERT_FALSE(funcs.empty());
   ir::Expr ast_expr = funcs[0]->body;
@@ -71,24 +74,78 @@ TEST(AnalyzeIr, AnalyzeScheduleBlockReadWriteBuffer) {
    * ScheduleBlock(B)
    * {
    *   i0, i1 = axis.bind(i, j)
-   *   read_buffers(_A[])
-   *   write_buffers(_B[])
+   *   read_buffers(_A[i0(undefined:undefined), i1(undefined:undefined)])
+   *   write_buffers(_B[i0(undefined:undefined), i1(undefined:undefined)])
    *   B[i0, i1] = A[i0, i1]
    * }
    */
 
-  ASSERT_EQ(sche_block->read_buffers.size(), 1UL);
-  VLOG(6) << "ScheduleBlock: ";
+  VLOG(6) << "ScheduleBlockRealize: ";
   VLOG(6) << all_block_realizes[0];
+
+  ASSERT_EQ(sche_block->read_buffers.size(), 1UL);
 
   std::stringstream read_ss;
   read_ss << sche_block->read_buffers[0];
-  ASSERT_EQ(read_ss.str(), "_A[undefined:undefined, undefined:undefined]");
+  ASSERT_EQ(read_ss.str(), "_A[i0(undefined:undefined), i1(undefined:undefined)]");
 
   ASSERT_EQ(sche_block->write_buffers.size(), 1UL);
   std::stringstream write_ss;
   write_ss << sche_block->write_buffers[0];
-  ASSERT_EQ(write_ss.str(), "_B[undefined:undefined, undefined:undefined]");
+  ASSERT_EQ(write_ss.str(), "_B[i0(undefined:undefined), i1(undefined:undefined)]");
+}
+
+TEST(AnalyzeIr, AnalyzeScheduleBlockReadWriteBuffer_AddDiffShape) {
+  Context::Global().ResetNameId();
+#ifdef CINN_WITH_CUDA
+  Target target = common::DefaultNVGPUTarget();
+#else
+  Target target = common::DefaultHostTarget();
+#endif
+
+  ir::Expr M(32);
+  ir::Expr N(128);
+
+  lang::Placeholder<float> A("A", {M});
+  lang::Placeholder<float> B("B", {N});
+
+  ir::Tensor C = lang::Compute(
+      {M, N}, [&](Var i, Var j) { return A(i) + B(j); }, "C");
+
+  poly::StageMap stages              = poly::CreateStages({C});
+  std::vector<ir::LoweredFunc> funcs = lang::LowerVec("AddDiffShape", stages, {C}, {}, {}, nullptr, target, true);
+
+  ir::Expr ast_expr = funcs[0]->body;
+  VLOG(6) << "Expr before MultiLevelTiling: ";
+  VLOG(6) << ast_expr;
+
+  std::vector<Expr> vec_ast{ast_expr};
+  ir::ModuleExpr mod_expr(vec_ast);
+  ir::IRSchedule ir_sch(mod_expr);
+
+  std::vector<ir::Expr> all_block_realizes = ir_sch.GetAllBlocks();
+  ASSERT_EQ(all_block_realizes.size(), 1UL);
+
+  ir::ScheduleBlockRealize* sche_block_realize = all_block_realizes[0].As<ir::ScheduleBlockRealize>();
+  ir::ScheduleBlock* sche_block                = sche_block_realize->schedule_block.As<ir::ScheduleBlock>();
+  AnalyzeScheduleBlockReadWriteBuffer(sche_block);
+
+  VLOG(6) << "ScheduleBlockRealize: ";
+  VLOG(6) << all_block_realizes[0];
+  ASSERT_EQ(sche_block->read_buffers.size(), 2UL);
+  std::vector<std::string> expect_read = {"_A[i0(undefined:undefined)]", "_B[i1(undefined:undefined)]"};
+
+  ASSERT_EQ(sche_block->read_buffers.size(), expect_read.size());
+  for (size_t i = 0; i < expect_read.size(); ++i) {
+    std::stringstream read_ss;
+    read_ss << sche_block->read_buffers[i];
+    ASSERT_EQ(read_ss.str(), expect_read[i]);
+  }
+
+  ASSERT_EQ(sche_block->write_buffers.size(), 1UL);
+  std::stringstream write_ss;
+  write_ss << sche_block->write_buffers[0];
+  ASSERT_EQ(write_ss.str(), "_C[i0(undefined:undefined), i1(undefined:undefined)]");
 }
 
 }  // namespace auto_schedule

@@ -106,11 +106,14 @@ RuleApplyType MultiLevelTiling::Init(const ir::ModuleExpr& mod_expr) {
   num_applicable_ = 0;
   for (size_t i = 0; i < all_block_realizes_.size(); ++i) {
     ir::ScheduleBlockRealize* sche_block_realize = all_block_realizes_[i].As<ir::ScheduleBlockRealize>();
+    VLOG(6) << "Before Analyze";
     AnalyzeScheduleBlockReadWriteBuffer(sche_block_realize->schedule_block.As<ir::ScheduleBlock>());
+    VLOG(6) << "After Analyze";
     if (MeetCondition(*sche_block_realize)) {
       ++num_applicable_;
       applicable_indices_.push_back(i);
     }
+    VLOG(6) << "After MeetCondition";
   }
 
   return num_applicable_ > 0 ? RuleApplyType::kApplyAndSkipThisRule : RuleApplyType::kCannotApply;
