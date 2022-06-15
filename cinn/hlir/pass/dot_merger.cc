@@ -1,0 +1,336 @@
+// Copyright (c) 2022 CINN Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include "cinn/hlir/pass/dot_merger.h"
+
+#include "cinn/common/graph_utils.h"
+#include "cinn/hlir/framework/graph.h"
+#include "cinn/hlir/framework/pass.h"
+
+namespace cinn {
+namespace hlir {
+namespace pass {
+namespace {
+
+using common::GraphNode;
+using framework::Node;
+using framework::NodeData;
+using framework::Operator;
+
+template <typename T>
+using OpValueType  = cinn::hlir::framework::OpValueType<T>;
+using infershape_t = std::function<std::vector<framework::shape_t>(const std::vector<framework::shape_t>&,
+                                                                   const framework::AttrMapType&)>;
+using inferdtype_t = std::function<std::vector<Type>(const std::vector<Type>&, const framework::AttrMapType&)>;
+using dtype_dict_t = absl::flat_hash_map<std::string, cinn::common::Type>;
+using shape_dict_t = absl::flat_hash_map<std::string, cinn::utils::ShapeType>;
+
+bool accessible(GraphNode* start, GraphNode* end) {
+  std::set<GraphNode const*> marked;
+  std::function<void(GraphNode const*)> dfs = [&](GraphNode const* node) {
+    marked.emplace(node);
+    for (const auto& edge : node->outlinks()) {
+      if (!marked.count(edge->sink())) {
+        dfs(edge->sink());
+      }
+    }
+  };
+  dfs(start);
+  return marked.count(end);
+}
+
+template <typename T>
+T get_attr(Node* instr, const std::string& attr) {
+  return absl::get<T>(instr->attrs.attr_store.at(attr));
+}
+
+NodeData* input_operand(Node* instr, int idx) { return instr->inlinks_in_order()[idx]->source()->safe_as<NodeData>(); }
+NodeData* output_operand(Node* instr, int idx) {
+  return instr->outlinks_in_order()[idx]->source()->safe_as<NodeData>();
+}
+
+void remove_node(framework::Graph* graph, GraphNode* node) {
+  for (auto& link : node->inlinks()) {
+    link->source()->UnLinkSingleTo(link->sink());
+  }
+  for (auto& link : node->outlinks()) {
+    link->source()->UnLinkSingleTo(link->sink());
+  }
+  graph->DropNode(node);
+}
+
+void InferShape(Node* node, dtype_dict_t& dtype_dict, shape_dict_t& shape_dict) {
+  auto op_infershape = Operator::GetAttrs<infershape_t>("infershape");
+  auto op_inferdtype = Operator::GetAttrs<inferdtype_t>("inferdtype");
+  CHECK(node) << "The node can not be nullptr.";
+
+  auto product = [](const framework::shape_t& shape) {
+    framework::dim_t numel = 1;
+    std::for_each(shape.begin(), shape.end(), [&numel](framework::dim_t dim) { numel *= dim; });
+    return numel;
+  };
+
+  std::vector<framework::shape_t> inputs_shape;
+  std::vector<Type> inputs_dtype;
+  for (auto& in_edge : node->inlinks_in_order()) {
+    auto* source_node = in_edge->source()->safe_as<NodeData>();
+    CHECK(source_node);
+    CHECK(shape_dict.count(source_node->id())) << "No shape for " << source_node->id();
+    CHECK(dtype_dict.count(source_node->id())) << "No dtype for " << source_node->id();
+    inputs_shape.push_back(shape_dict[source_node->id()]);
+    inputs_dtype.push_back(dtype_dict[source_node->id()]);
+
+    CHECK(product(inputs_shape.back())) << node->id() << " 's Input Node " << source_node->id() << "["
+                                        << utils::Join(inputs_shape.back(), ",")
+                                        << "]'s size should not zero ! Please check.";
+  }
+
+  auto out_shape = op_infershape[node->op()](inputs_shape, node->attrs.attr_store);
+  auto out_dtype = op_inferdtype[node->op()](inputs_dtype, node->attrs.attr_store);
+
+  CHECK_GE(node->outlinks_in_order().size(), out_shape.size())
+      << "The output number of node " << node->id() << " is " << node->outlinks_in_order().size()
+      << " , which is smaller than the output shape size " << out_shape.size() << " . And the op type is "
+      << node->op()->name;
+  CHECK_GE(node->outlinks_in_order().size(), out_dtype.size())
+      << "The output number of node " << node->id() << " is " << node->outlinks_in_order().size()
+      << " , which is smaller than the output dtype size " << out_dtype.size() << " . And the op type is "
+      << node->op()->name;
+
+  int counter = 0;
+  for (auto& out_edge : node->outlinks_in_order()) {
+    auto* sink_node = out_edge->sink()->safe_as<NodeData>();
+    CHECK(sink_node);
+
+    VLOG(3) << "Infershape: " << sink_node->id() << " " << utils::Join(out_shape[counter], ",");
+    shape_dict[sink_node->id()] = out_shape[counter];
+    dtype_dict[sink_node->id()] = out_dtype[counter];
+
+    CHECK(product(out_shape[counter])) << node->id() << " 's Output Node " << sink_node->id() << "["
+                                       << utils::Join(out_shape[counter], ",")
+                                       << "]'s size should not zero ! Please check.";
+
+    counter++;
+  }
+}
+
+class DotBuilder {
+ public:
+  explicit DotBuilder(framework::Graph* graph)
+      : graph_{graph},
+        dtype_dict_{graph_->GetMutableAttrs<dtype_dict_t>("inferdtype")},
+        shape_dict_{graph_->GetMutableAttrs<shape_dict_t>("infershape")} {}
+
+  framework::Graph* graph() const { return graph_; }
+  const dtype_dict_t& dtype_dict() const { return dtype_dict_; };
+  const shape_dict_t& shape_dict() const { return shape_dict_; };
+
+  NodeData* Var(std::shared_ptr<Node>& producer) {
+    auto* res = new NodeData(producer, 0, 0, gen_name("var"), false);
+    graph_->RegisterNode(res->id(), res);
+    producer->LinkTo(res);
+    InferShape(producer.get(), dtype_dict_, shape_dict_);
+    return res;
+  }
+
+  NodeData* Concat(int axis, std::vector<NodeData*> inputs) {
+    const std::string type{"concat"};
+    auto instr                      = std::make_shared<Node>(framework::Operator::Get(type), gen_name(type));
+    instr->attrs.attr_store["axis"] = axis;
+    for (auto* in : inputs) {
+      in->LinkTo(instr.get());
+    }
+    auto* output = Var(instr);
+    return output;
+  }
+
+  NodeData* CublasGemm(bool trans_a, bool trans_b, bool trans_out, float alpha, NodeData* lhs, NodeData* rhs) {
+    const std::string type{"cublas_gemm"};
+    auto instr                           = std::make_shared<Node>(framework::Operator::Get(type), gen_name(type));
+    matmul_                              = instr.get();
+    instr->attrs.attr_store["trans_a"]   = trans_a;
+    instr->attrs.attr_store["trans_b"]   = trans_b;
+    instr->attrs.attr_store["trans_out"] = trans_out;
+    instr->attrs.attr_store["alpha"]     = alpha;
+    lhs->LinkTo(instr.get());
+    rhs->LinkTo(instr.get());
+    auto* output = Var(instr);
+    return output;
+  }
+
+  NodeData* Slice(
+      std::vector<int> axes, std::vector<int> starts, std::vector<int> ends, NodeData* input, NodeData* output) {
+    const std::string type{"slice"};
+    auto instr                             = std::make_shared<Node>(framework::Operator::Get(type), gen_name(type));
+    instr->attrs.attr_store["axes"]        = std::move(axes);
+    instr->attrs.attr_store["starts"]      = std::move(starts);
+    instr->attrs.attr_store["ends"]        = std::move(ends);
+    instr->attrs.attr_store["infer_flags"] = {};
+    instr->attrs.attr_store["strides"]     = {};
+    input->LinkTo(instr.get());
+    instr->LinkTo(output);
+    InferShape(instr.get(), dtype_dict_, shape_dict_);
+    return output;
+  }
+
+  Node* matmul_op() const { return matmul_; }
+
+  std::string gen_name(std::string prefix) { return std::move(prefix) + "_create_" + std::to_string(idx_++); }
+
+ private:
+  static int idx_;
+  dtype_dict_t& dtype_dict_;
+  shape_dict_t& shape_dict_;
+  framework::Graph* graph_;
+  Node* matmul_{};
+};
+
+int DotBuilder::idx_;
+
+class DotMergerPass {
+ public:
+  void Apply(framework::Graph* graph) {
+    auto clusters = GetClusters(graph, "cublas_gemm");
+    std::set<Node*> nodes_to_remove;
+    for (auto& c : clusters) {
+      LOG(INFO) << "cluster first: " << c.first->id();
+      auto& dots = c.second;
+      for (size_t i = 0; i < dots.size(); ++i) {
+        auto*& a = dots[i];
+        if (!a) {
+          continue;
+        }
+        for (size_t j = i + 1; j < dots.size(); ++j) {
+          auto* b = dots[j];
+          if (!b) {
+            continue;
+          }
+          if (nodes_to_remove.count(a) || nodes_to_remove.count(b) || accessible(a, b) || accessible(b, a)) {
+            continue;
+          }
+          DotBuilder builder(graph);
+          auto* merged = MergeDots(&builder, a, b);
+          if (merged) {
+            nodes_to_remove.insert(a);
+            nodes_to_remove.insert(b);
+            dots[i] = merged;
+            dots[j] = nullptr;
+          }
+        }
+      }
+    }
+    for (auto* n : nodes_to_remove) {
+      remove_node(graph, n);
+    }
+  }
+
+ private:
+  static std::map<NodeData*, std::vector<Node*>> GetClusters(framework::Graph* graph, const std::string& op_type) {
+    std::map<NodeData*, std::vector<Node*>> clusters;
+    auto nodes = std::get<0>(graph->topological_order());
+    for (auto* n : nodes) {
+      auto* op_node = n->safe_as<Node>();
+      if (op_node && op_node->op()->name == op_type) {
+        for (auto& edge : n->inlinks()) {
+          auto* var_node = edge->source()->safe_as<NodeData>();
+          CHECK(var_node) << "The variable node can not be null.";
+          clusters[var_node].push_back(op_node);
+        }
+      }
+    }
+    std::vector<std::map<NodeData*, std::vector<Node*>>::iterator> del;
+    for (auto it = clusters.begin(); it != clusters.end(); ++it) {
+      if (it->second.size() < 2) {
+        del.push_back(it);
+      }
+    }
+    for (auto& it : del) {
+      clusters.erase(it);
+    }
+    return clusters;
+  }
+
+  template <typename T>
+  static bool EqualOr(const T& arg) {
+    return arg[0] == arg[1];
+  }
+
+  template <typename T, typename... Args>
+  static bool EqualOr(const T& arg, const Args&... args) {
+    return EqualOr(arg) || EqualOr(args...);
+  }
+
+  static Node* MergeDots(DotBuilder* builder, Node* a, Node* b) {
+    CHECK(a && b) << "The pointer of node is illegal.";
+    const std::array<bool, 2> trans_a{get_attr<bool>(a, "trans_a"), get_attr<bool>(b, "trans_a")};
+    const std::array<bool, 2> trans_b{get_attr<bool>(a, "trans_b"), get_attr<bool>(b, "trans_b")};
+    const std::array<bool, 2> trans_out{get_attr<bool>(a, "trans_out"), get_attr<bool>(b, "trans_out")};
+    const std::array<float, 2> alpha{get_attr<float>(a, "alpha"), get_attr<float>(b, "alpha")};
+    if (!EqualOr(trans_a, trans_b, trans_out, alpha)) {
+      return nullptr;
+    }
+    bool lhs{true};
+    int axis{1};
+    NodeData *shared_input{}, *input_a{}, *input_b{};
+    if (input_operand(a, 1) == input_operand(b, 1)) {
+      shared_input = input_operand(a, 1);
+      input_a      = input_operand(a, 0);
+      input_b      = input_operand(b, 0);
+      lhs          = false;
+      if (!trans_a[0]) {
+        axis = 0;
+      } else if (trans_b[0]) {
+        axis = 0;
+      }
+    } else if (input_operand(a, 0) == input_operand(b, 0)) {
+      shared_input = input_operand(a, 0);
+      input_a      = input_operand(a, 1);
+      input_b      = input_operand(b, 1);
+    } else {
+      return nullptr;
+    }
+    CHECK(shared_input && input_a && input_b) << "The input node type must be variable.";
+    auto shape_a = builder->shape_dict().at(input_a->id());
+    auto shape_b = builder->shape_dict().at(input_b->id());
+    CHECK_EQ(shape_a[1 - axis], shape_b[1 - axis]) << "The shape of matmul is error.";
+    auto* concat_out = builder->Concat(axis, {input_a, input_b});
+    NodeData* matmul_out{};
+    if (!lhs) {
+      matmul_out = builder->CublasGemm(trans_a[0], trans_b[0], trans_out[0], alpha[0], concat_out, shared_input);
+    } else {
+      matmul_out = builder->CublasGemm(trans_a[0], trans_b[0], trans_out[0], alpha[0], shared_input, concat_out);
+    }
+    auto* output_a = output_operand(a, 0);
+    auto* output_b = output_operand(b, 0);
+    builder->Slice({axis}, {0}, {shape_a[axis]}, matmul_out, output_a);
+    builder->Slice({axis}, {shape_a[axis]}, {shape_a[axis] + shape_b[axis]}, matmul_out, output_b);
+    return builder->matmul_op();
+  }
+};
+
+}  // namespace
+
+void DotMergerPassFunc(framework::Graph* graph) {
+  DotMergerPass pass;
+  pass.Apply(graph);
+}
+
+}  // namespace pass
+}  // namespace hlir
+}  // namespace cinn
+
+CINN_REGISTER_HELPER(DotMerger) {
+  CINN_REGISTER_PASS(DotMerger).describe("").set_change_structure(false).set_body(cinn::hlir::pass::DotMergerPassFunc);
+  return true;
+}
