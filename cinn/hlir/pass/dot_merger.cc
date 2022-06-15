@@ -14,6 +14,8 @@
 
 #include "cinn/hlir/pass/dot_merger.h"
 
+#include <fstream>
+
 #include "cinn/common/graph_utils.h"
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/pass.h"
@@ -33,8 +35,8 @@ using OpValueType  = cinn::hlir::framework::OpValueType<T>;
 using infershape_t = std::function<std::vector<framework::shape_t>(const std::vector<framework::shape_t>&,
                                                                    const framework::AttrMapType&)>;
 using inferdtype_t = std::function<std::vector<Type>(const std::vector<Type>&, const framework::AttrMapType&)>;
-using dtype_dict_t = absl::flat_hash_map<std::string, cinn::common::Type>;
-using shape_dict_t = absl::flat_hash_map<std::string, cinn::utils::ShapeType>;
+using dtype_dict_t = absl::flat_hash_map<std::string, common::Type>;
+using shape_dict_t = absl::flat_hash_map<std::string, framework::shape_t>;
 
 bool accessible(GraphNode* start, GraphNode* end) {
   std::set<GraphNode const*> marked;
@@ -129,8 +131,8 @@ class DotBuilder {
  public:
   explicit DotBuilder(framework::Graph* graph)
       : graph_{graph},
-        dtype_dict_{graph_->GetMutableAttrs<dtype_dict_t>("inferdtype")},
-        shape_dict_{graph_->GetMutableAttrs<shape_dict_t>("infershape")} {}
+        dtype_dict_{graph->GetMutableAttrs<dtype_dict_t>("inferdtype")},
+        shape_dict_{graph->GetMutableAttrs<shape_dict_t>("infershape")} {}
 
   framework::Graph* graph() const { return graph_; }
   const dtype_dict_t& dtype_dict() const { return dtype_dict_; };
@@ -219,7 +221,10 @@ class DotMergerPass {
           if (nodes_to_remove.count(a) || nodes_to_remove.count(b) || accessible(a, b) || accessible(b, a)) {
             continue;
           }
+          LOG(INFO) << "here!1";
+          CHECK(graph);
           DotBuilder builder(graph);
+          LOG(INFO) << "here!2";
           auto* merged = MergeDots(&builder, a, b);
           if (merged) {
             nodes_to_remove.insert(a);
@@ -272,6 +277,7 @@ class DotMergerPass {
   }
 
   static Node* MergeDots(DotBuilder* builder, Node* a, Node* b) {
+    LOG(INFO) << "MergeDots: " << a->id() << ", " << b->id();
     CHECK(a && b) << "The pointer of node is illegal.";
     const std::array<bool, 2> trans_a{get_attr<bool>(a, "trans_a"), get_attr<bool>(b, "trans_a")};
     const std::array<bool, 2> trans_b{get_attr<bool>(a, "trans_b"), get_attr<bool>(b, "trans_b")};
@@ -322,8 +328,28 @@ class DotMergerPass {
 }  // namespace
 
 void DotMergerPassFunc(framework::Graph* graph) {
+  {
+    std::string str = graph->Visualize();
+    std::stringstream ss;
+    ss << str;
+    std::string myString = ss.str();
+
+    std::ofstream file("before.txt", std::ofstream::out | std::ofstream::trunc);
+    file << myString;
+  }
+
   DotMergerPass pass;
   pass.Apply(graph);
+
+  {
+    std::string str = graph->Visualize();
+    std::stringstream ss;
+    ss << str;
+    std::string myString = ss.str();
+
+    std::ofstream file("after.txt", std::ofstream::out | std::ofstream::trunc);
+    file << myString;
+  }
 }
 
 }  // namespace pass
@@ -331,6 +357,11 @@ void DotMergerPassFunc(framework::Graph* graph) {
 }  // namespace cinn
 
 CINN_REGISTER_HELPER(DotMerger) {
-  CINN_REGISTER_PASS(DotMerger).describe("").set_change_structure(false).set_body(cinn::hlir::pass::DotMergerPassFunc);
+  CINN_REGISTER_PASS(DotMerger)
+      .describe("")
+      .set_change_structure(false)
+      .provide_graph_attr("infershape")
+      .provide_graph_attr("inferdtype")
+      .set_body(cinn::hlir::pass::DotMergerPassFunc);
   return true;
 }

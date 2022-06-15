@@ -17,6 +17,7 @@
 #include <glog/logging.h>
 
 #include <deque>
+#include <fstream>
 #include <functional>
 #include <set>
 #include <stack>
