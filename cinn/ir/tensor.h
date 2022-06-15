@@ -140,6 +140,8 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   std::string name;
   //! The bound buffer, for each tensor if it is not inline.
   Buffer buffer;
+  //! Normal axis.
+  mutable std::vector<Var> axis_;
 
   std::vector<Expr> new_indices{};
   std::vector<Expr> domain_with_reduce_axis() const;
@@ -284,9 +286,6 @@ class _Tensor_ : public ExprNode<_Tensor_> {
 
   //! The names of the tensors depend the same buffer and should schedule before this.
   std::set<std::string> buffer_depended_tensor_names_;
-
-  //! Normal axis.
-  mutable std::vector<Var> axis_;
 
   friend Shared<poly::Stage> CreateStage(Tensor tensor);
 

@@ -14,6 +14,8 @@
 
 #include "cinn/ir/collect_ir_nodes.h"
 
+#include <glog/logging.h>
+
 #include "cinn/ir/ir_mutator.h"
 #include "cinn/ir/ir_printer.h"
 
@@ -57,7 +59,9 @@ struct IrNodesCollector : public IRVisitor {
 #define __m(t__)                       \
   void Visit(const t__* x) override {  \
     for (auto* n : x->expr_fields()) { \
-      if (n->defined()) Visit(n);      \
+      if (n->defined()) {              \
+        Visit(n);                      \
+      }                                \
     }                                  \
   }
 
@@ -119,7 +123,9 @@ std::set<Expr> CollectLoadTensors(Expr x, std::function<bool(const Expr*)>&& tel
     void operator()(const Expr* expr) { ir::IRMutator<const Expr*>::Visit(expr, expr); }
 
     void Visit(const Load* op, const Expr* expr) override {
-      if (teller(&op->tensor)) exprs.insert(op->tensor);
+      if (teller(&op->tensor)) {
+        exprs.insert(op->tensor);
+      }
     }
   };
 
@@ -137,7 +143,9 @@ std::set<Expr> CollectStoreTensors(Expr x, std::function<bool(const Expr*)>&& te
     void operator()(const Expr* expr) { ir::IRMutator<const Expr*>::Visit(expr, expr); }
 
     void Visit(const Store* op, const Expr* expr) override {
-      if (teller(&op->tensor)) exprs.insert(op->tensor);
+      if (teller(&op->tensor)) {
+        exprs.insert(op->tensor);
+      }
     }
   };
 
