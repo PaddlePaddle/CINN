@@ -225,8 +225,8 @@ function build {
     cd $build_dir
 
     if [[ $cuda_config == "ON" ]]; then
-        make test_codegen_cuda_dev -j $JOBS
-        ctest -R test_codegen_cuda_dev -V
+        make test_codegen_generate_test -j $JOBS
+        ctest -R test_codegen_generate_test -V
     fi
 
     make test01_elementwise_add_main -j $JOBS

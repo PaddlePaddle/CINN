@@ -38,13 +38,14 @@ endif()
 
 
 if (WITH_CUDA)
+  nv_test(test_codegen_generate_test SRCS codegen_cuda_generate_test.cc DEPS cinncore)
   nv_test(test_codegen_cuda_dev SRCS codegen_cuda_dev_test.cc ../common/cuda_test_helper.cc DEPS cinncore)
   nv_test(test_nvrtc_util SRCS nvrtc_util_test.cc DEPS cinncore)
   nv_test(test_codegen_debug SRCS codegen_debug_test.cc DEPS cinncore)
 
   if (WITH_TESTING)
     cc_library(generated1_cuda SRCS generated1.cu DEPS cinncore)
-    add_dependencies(generated1_cuda test_codegen_cuda_dev)
+    add_dependencies(generated1_cuda test_codegen_generate_test)
   endif()
 
   nv_test(test_compiler SRCS compiler_test.cc DEPS cinncore)
