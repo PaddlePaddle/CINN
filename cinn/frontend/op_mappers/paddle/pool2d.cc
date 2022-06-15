@@ -26,9 +26,9 @@ void Pool2dOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
   auto out_name = op_desc.Output("Out").front();
 
   CHECK(op_desc.HasAttr("pooling_type"));
-  auto pooling_type = op_desc.GetAttr<std::string>("pooling_type");
+  auto pooling_type = utils::GetAttrOrDefault<std::string>(op_desc, "pooling_type");
   CHECK(op_desc.HasAttr("ksize"));
-  auto ksize = op_desc.GetAttr<std::vector<int>>("ksize");
+  auto ksize = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "ksize");
 
   auto strides      = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "strides", {1, 1});
   auto padding_size = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "paddings", {0, 0});

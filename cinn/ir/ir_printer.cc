@@ -407,6 +407,7 @@ void IrPrinter::Visit(const _BufferRange_ *x) {
   for (int i = 0; i < x->ranges.size(); i++) {
     if (i) os() << ", ";
     auto &range = x->ranges[i];
+    os() << range->name << "(";
     if (range->lower_bound.defined()) {
       os() << range->lower_bound << ":";
     } else {
@@ -418,6 +419,7 @@ void IrPrinter::Visit(const _BufferRange_ *x) {
     } else {
       os() << "undefined";
     }
+    os() << ")";
   }
   os() << "]";
 }

@@ -34,6 +34,72 @@ namespace cinn {
 namespace hlir {
 namespace pe {
 
+void IRCudaScheduleBlockShuffleReduce(
+    ir::IRSchedule &ir_sch, ir::Tensor reshape, ir::Tensor internal, ir::Tensor out, const common::Target &target) {
+  ir_sch.MergeExprs();
+  int fuse_times = internal->shape.size() - 2;
+  for (int idx = 0; idx < fuse_times; ++idx) {
+    auto internal_block = ir_sch.GetBlock(internal->name);
+    auto internal_loops = ir_sch.GetLoops(internal_block);
+    CHECK_GE(internal_loops.size(), 2U);
+    ir_sch.Fuse({internal_loops[0], internal_loops[1]});
+    auto out_block = ir_sch.GetBlock(out->name);
+    auto out_loops = ir_sch.GetLoops(out_block);
+    CHECK_GE(out_loops.size(), 2U);
+    ir_sch.Fuse({out_loops[0], out_loops[1]});
+  }
+
+  fuse_times = out->shape.size() - internal->shape.size();
+  for (int idx = 0; idx < fuse_times; ++idx) {
+    if (internal->shape.size() == 1) {
+      auto out_block = ir_sch.GetBlock(out->name);
+      auto out_loops = ir_sch.GetLoops(out_block);
+      CHECK_GE(out_loops.size(), 2U);
+      ir_sch.Fuse({out_loops[0], out_loops[1]});
+    } else {
+      auto out_block = ir_sch.GetBlock(out->name);
+      auto out_loops = ir_sch.GetLoops(out_block);
+      CHECK_GE(out_loops.size(), 3U);
+      ir_sch.Fuse({out_loops[1], out_loops[2]});
+    }
+  }
+
+  auto out_block = ir_sch.GetBlock(out->name);
+  auto out_loops = ir_sch.GetLoops(out_block);
+
+  if (out_loops.size() == 1) {
+    auto internal_block = ir_sch.GetBlock(internal->name);
+    auto internal_loops = ir_sch.GetLoops(internal_block);
+    ir_sch.Split(internal_loops[0], {-1, ir::GetLoopExtent(internal_loops[0])});
+    ir_sch.Split(out_loops[0], {-1, ir::GetLoopExtent(out_loops[0])});
+  }
+
+  auto reshape_block = ir_sch.GetBlock(reshape->name);
+  ir_sch.ComputeInline(reshape_block);
+
+  auto internal_block = ir_sch.GetBlock(internal->name);
+  ir_sch.SetBuffer(internal_block, "shared");
+  internal_block      = ir_sch.GetBlock(internal->name);
+  auto internal_loops = ir_sch.GetLoops(internal_block);
+  CHECK_GE(internal_loops.size(), 2U);
+  ir_sch.Bind(internal_loops[0], "blockIdx.x");
+  ir_sch.Bind(internal_loops[1], "threadIdx.x");
+
+  out_block = ir_sch.GetBlock(out->name);
+  out_loops = ir_sch.GetLoops(out_block);
+  CHECK_GE(out_loops.size(), 2U);
+  ir_sch.Bind(out_loops[0], "blockIdx.x");
+  ir_sch.Bind(out_loops[1], "threadIdx.x");
+
+  internal_block = ir_sch.GetBlock(internal->name);
+  out_block      = ir_sch.GetBlock(out->name);
+  out_loops      = ir_sch.GetLoops(out_block);
+  ir_sch.SimpleComputeAt(internal_block, out_loops[0]);
+
+  // stages[out]->SyncThreads(0, {internal}, stages);
+  VLOG(3) << "IRCudaScheduleBlockShuffleReduce result expr is: " << ir_sch.GetModule().GetExprs().at(0);
+}
+
 void IRScheduleInjectiveCPU(ir::IRSchedule &ir_sch,
                             const std::vector<int> &output_shape,
                             const common::Target &target,
@@ -186,6 +252,7 @@ void IRCudaScheduleReduce(ir::IRSchedule &ir_sch,
                           const std::vector<int> &output_shape,
                           int last_dimension_num,
                           const common::Target &target) {
+  ir_sch.MergeExprs();
   int parallel_thread_num = 1;
   for (int idx = output_shape.size() - 1; idx >= static_cast<int>(output_shape.size()) - last_dimension_num; --idx) {
     parallel_thread_num *= output_shape[idx];
@@ -243,23 +310,45 @@ void IRCudaScheduleBlockReduceInternal(ir::IRSchedule &ir_sch,
   }
 
   if (tmp_out->shape.size() == 1) {
-    all_blocks = ir_sch.GetAllBlocks();
-    loops      = ir_sch.GetLoops(all_blocks[0]);
-    ir_sch.Bind(loops[0], "threadIdx.x");
-    ir_sch.SetBuffer(all_blocks[0], "local");
-    loops = ir_sch.GetLoops(all_blocks[1]);
-    ir_sch.Bind(loops[0], "threadIdx.x");
+    if (out->shape.size() == 1 && out->shape[0] == Expr(1)) {
+      all_blocks      = ir_sch.GetAllBlocks();
+      auto all_block0 = ir_sch.GetBlock(tmp_out->name);
+      loops           = ir_sch.GetLoops(all_block0);
+      ir_sch.Bind(loops[0], "threadIdx.x");
+      all_block0 = ir_sch.GetBlock(tmp_out->name);
+      ir_sch.SetBuffer(all_block0, "local");
+    } else {
+      all_blocks      = ir_sch.GetAllBlocks();
+      auto all_block0 = ir_sch.GetBlock(tmp_out->name);
+      loops           = ir_sch.GetLoops(all_block0);
+      ir_sch.Bind(loops[0], "threadIdx.x");
+      all_block0 = ir_sch.GetBlock(tmp_out->name);
+      ir_sch.SetBuffer(all_block0, "local");
+      auto all_block1 = ir_sch.GetBlock(out->name);
+      loops           = ir_sch.GetLoops(all_block1);
+      ir_sch.Bind(loops[0], "threadIdx.x");
+    }
   } else {
+    all_blocks      = ir_sch.GetAllBlocks();
+    auto all_block0 = ir_sch.GetBlock(tmp_out->name);
+    loops           = ir_sch.GetLoops(all_block0);
+    all_block0      = ir_sch.GetBlock(tmp_out->name);
+    ir_sch.SetBuffer(all_block0, "local");
     all_blocks = ir_sch.GetAllBlocks();
-    loops      = ir_sch.GetLoops(all_blocks[0]);
-    ir_sch.Bind(loops[1], "threadIdx.x");
-    ir_sch.SetBuffer(all_blocks[0], "local");
-    loops = ir_sch.GetLoops(all_blocks[1]);
+    all_block0 = ir_sch.GetBlock(tmp_out->name);
+    loops      = ir_sch.GetLoops(all_block0);
     ir_sch.Bind(loops[0], "blockIdx.x");
+    all_blocks      = ir_sch.GetAllBlocks();
+    auto all_block1 = ir_sch.GetBlock(out->name);
+    loops           = ir_sch.GetLoops(all_block1);
+    all_block0      = ir_sch.GetBlock(tmp_out->name);
+    ir_sch.SimpleComputeAt(all_block0, loops[0]);
+    all_blocks = ir_sch.GetAllBlocks();
+    all_block0 = ir_sch.GetBlock(tmp_out->name);
+    loops      = ir_sch.GetLoops(all_block0);
     ir_sch.Bind(loops[1], "threadIdx.x");
-    loops = ir_sch.GetLoops(all_blocks[1]);
-    ir_sch.SimpleComputeAt(all_blocks[0], loops[0]);
   }
+  VLOG(3) << "IRCudaScheduleBlockReduceInternal result expr is: " << ir_sch.GetModule().GetExprs().at(0);
 }
 
 void IRCudaScheduleBlockReduce(ir::IRSchedule &ir_sch,
@@ -316,6 +405,7 @@ void IRCudaScheduleBlockReduce(ir::IRSchedule &ir_sch,
     loops = ir_sch.GetLoops(all_blocks[2]);
     ir_sch.SimpleComputeAt(all_blocks[1], loops[0]);
   }
+  VLOG(3) << "IRCudaScheduleBlockReduce result expr is: " << ir_sch.GetModule().GetExprs().at(0);
 }
 
 void IRSoftmaxScheduleCPU(ir::IRSchedule &ir_sch, int axis) {

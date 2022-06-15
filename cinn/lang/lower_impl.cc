@@ -703,6 +703,19 @@ std::vector<Expr> LowerImpl::GenerateFunctionBody(const poly::Schedule* schedule
       if (support_ir_schedule_) {
         // add schedule block of tensor computation for schedule IR
         int var_counts = tensor->domain.size() + tensor->reduce_axis.size();
+        CHECK_EQ(tensor->domain.size(), tensor->shape.size());
+        std::vector<int> int_shape;
+        for (auto& expr : tensor->shape) {
+          CHECK(expr.is_constant());
+          int_shape.push_back((int)expr.get_constant());
+        }
+        for (auto& var : tensor->reduce_axis) {
+          CHECK(var->lower_bound.defined());
+          CHECK(var->upper_bound.defined());
+          CHECK(common::is_zero(var->lower_bound));
+          CHECK(var->upper_bound.is_constant());
+          int_shape.push_back((int)var->upper_bound.get_constant());
+        }
         // create block itervars, i0,i1...
         std::vector<Var> block_vars;
         std::vector<Expr> iter_values;
@@ -710,7 +723,7 @@ std::vector<Expr> LowerImpl::GenerateFunctionBody(const poly::Schedule* schedule
         // bind var_values
         axis_vars.insert(axis_vars.end(), tensor->reduce_axis.begin(), tensor->reduce_axis.end());
         for (int i = 0; i < var_counts; i++) {
-          block_vars.push_back(Var("i" + std::to_string(i)));
+          block_vars.push_back(Var(Expr(0), Expr(int_shape[i]), "i" + std::to_string(i), false));
           if (i >= tensor->domain.size()) {
             block_vars[i]->is_reduce_axis = true;
             axis_vars[i]->is_reduce_axis  = true;
