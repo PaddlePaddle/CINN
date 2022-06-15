@@ -26,6 +26,7 @@ cinn_whl_path=python/dist/cinn-0.0.0-py3-none-any.whl
 JOBS=8
 cuda_config=OFF
 cudnn_config=OFF
+test_config=OFF
 
 mklcblas_config=ON
 mkldnn_config=ON
@@ -45,6 +46,7 @@ function gpu_on {
 }
 
 function test_doc {
+    test_config=ON
     mkdir -p $build_dir
     cd $build_dir
     export runtime_include_dir=$workspace/cinn/runtime/cuda
@@ -164,7 +166,7 @@ function cmake_ {
     echo "set(WITH_MKL_CBLAS $mklcblas_config)" >> $build_dir/config.cmake
     echo "set(WITH_MKLDNN $mkldnn_config)" >> $build_dir/config.cmake
     cd $build_dir
-    cmake ${workspace} -DPUBLISH_LIBS=ON -DWITH_TESTING=ON -DPY_VERSION=${py_version}
+    cmake ${workspace} -DPUBLISH_LIBS=ON -DWITH_TESTING=$test_config -DPY_VERSION=${py_version}
 }
 
 function _download_and_untar {
@@ -265,6 +267,7 @@ function run_test {
 }
 
 function CI {
+    test_config=ON
     mkdir -p $build_dir
     cd $build_dir
     export runtime_include_dir=$workspace/cinn/runtime/cuda
