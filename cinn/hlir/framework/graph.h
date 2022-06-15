@@ -48,6 +48,8 @@ class Graph : public cinn::common::Graph {
   struct Group {
     // distance to last group.
     int depth{0};
+    int max_depth{0};
+    int min_depth{10000};
     // group id, consisted of node's id.
     std::string group_id{""};
     // global unique id.
