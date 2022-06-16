@@ -66,7 +66,6 @@ class FusionMergePassHelper : public FusionHelperBase {
     VLOG(3) << "DoFusionMerge...!";
     bool updated = false;
     for (int idx = fusion_groups_.size() - 1; idx >= 0; --idx) {
-      // for (int idx = 0; idx < fusion_groups_.size(); ++idx) {
       auto producer = fusion_groups_[idx];
       VLOG(3) << "Fusion Producer Group -> " << producer->group_id;
       // if producer is sub group.
@@ -139,110 +138,6 @@ class FusionMergePassHelper : public FusionHelperBase {
     }
   }
 
-  void CheckRing(GroupList& consumers) {
-    VLOG(3) << "CheckRing...";
-    GroupList fusion_groups;
-    std::unordered_set<GroupPtr, Hasher, Comparator> fusion_groups_set;
-    // update fusion_groups_
-    for (auto& group : fusion_groups_) {
-      if (!group->belong_groups.size()) {
-        fusion_groups.push_back(group);
-        fusion_groups_set.insert(group);
-      }
-    }
-    // keep group in order
-    while (!fusion_groups_set.empty()) {
-      bool is_ring = true;
-      for (int idx = 0; idx < fusion_groups.size(); ++idx) {
-        auto& group = fusion_groups[idx];
-        if (!group.get()) {
-          continue;
-        }
-
-        bool exist = false;
-        for (auto& producer : group->producer_groups) {
-          if (fusion_groups_set.count(producer)) {
-            exist = true;
-            break;
-          }
-        }
-
-        if (!exist) {
-          fusion_groups_set.erase(group);
-          group.reset();
-          is_ring = false;
-          continue;
-        }
-      }
-      if (is_ring) {
-        for (auto& group : fusion_groups_) {
-          if (!group->belong_groups.size()) {
-            LOG(INFO) << "group -> " << group->group_id << " " << group->max_depth << " " << group->min_depth;
-            for (auto& producer : group->producer_groups) {
-              LOG(INFO) << "    producer -> " << producer->group_id << " " << producer->max_depth << " "
-                        << producer->min_depth;
-            }
-            for (auto& consumer : group->consumer_groups) {
-              LOG(INFO) << "    consumer -> " << consumer->group_id << " " << consumer->max_depth << " "
-                        << consumer->min_depth;
-            }
-          }
-        }
-        int count = 0;
-        std::unordered_set<GroupPtr, Hasher, Comparator> visited_set;
-        // DFS
-        GroupPtr root(nullptr);
-        for (int idx = 0; idx < fusion_groups.size(); ++idx) {
-          auto& group = fusion_groups[idx];
-          if (group.get()) {
-            root = group;
-            break;
-          }
-        }
-        while (true) {
-          count++;
-          for (auto& producer : root->producer_groups) {
-            if (fusion_groups_set.count(producer)) {
-              root = producer;
-              break;
-            }
-          }
-
-          if (count > 10000) {
-            if (visited_set.count(root)) {
-              break;
-            }
-            visited_set.insert(root);
-          }
-        }
-        for (auto& t : visited_set) {
-          LOG(INFO) << t->group_id << "is in ring!";
-        }
-        /*
-        for(int idx = 0; idx < fusion_groups.size(); ++idx) {
-          auto& group = fusion_groups[idx];
-          if (!group.get()) {
-            continue;
-          }
-          LOG(INFO) << group->group_id;
-        }
-        */
-        for (auto& _consumer : consumers) {
-          LOG(INFO) << "group -> " << _consumer->group_id << " " << _consumer->max_depth << " " << _consumer->min_depth;
-          for (auto& producer : _consumer->producer_groups) {
-            LOG(INFO) << "    producer -> " << producer->group_id << " " << producer->max_depth << " "
-                      << producer->min_depth;
-          }
-          for (auto& consumer : _consumer->consumer_groups) {
-            LOG(INFO) << "    consumer -> " << consumer->group_id << " " << consumer->max_depth << " "
-                      << consumer->min_depth;
-          }
-        }
-        LOG(FATAL) << "Exists Ring, Please Check!";
-      }
-    }
-  }
-
   bool DoHorizontalFusion(GroupPtr& producer, std::unordered_set<GroupPtr, Hasher, Comparator>& consumers) {
     VLOG(3) << "DoHorizontalFusion...!";
     if (consumers.size() <= 1) {
@@ -251,7 +146,6 @@ class FusionMergePassHelper : public FusionHelperBase {
 
     std::unordered_set<GroupPtr, Hasher, Comparator> candidates;
     for (auto& consumer : consumers) {
-      VLOG(3) << "Check fusion candidates -> " << consumer->group_id;
       // relation
       auto& relation = fusion_relation_map_[consumer->op_pattern_kind];
       // check horizontal relation exist
@@ -714,7 +608,6 @@ class FusionMergePassHelper : public FusionHelperBase {
     while (!candidates.empty()) {
       auto& candidate = candidates.front();
       candidates.pop();
-      // LOG(INFO) << "candidate -> " << candidate->group_id;
       for (auto& producer : candidate->producer_groups) {
         if (producer.get() == producer_g.get()) {
           continue;
@@ -742,7 +635,6 @@ class FusionMergePassHelper : public FusionHelperBase {
     while (!candidates.empty()) {
       auto& candidate = candidates.front();
       candidates.pop();
-      // LOG(INFO) << "candidate -> " << candidate->group_id;
       for (auto& producer : candidate->producer_groups) {
         if (producer.get() == producer_g.get()) {
           continue;
@@ -1135,7 +1027,7 @@ class FusionMergePassHelper : public FusionHelperBase {
     std::unordered_map<framework::OpPatternKind, ConditionFunction> horizontal_relation;
   };
   std::unordered_map<framework::OpPatternKind, Relation> fusion_relation_map_;
-};  // namespace hlir
+};
 
 void FusionMergePassInternal(Graph* graph) {
   VLOG(3) << "FusionMergePass...!";
