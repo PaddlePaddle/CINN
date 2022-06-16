@@ -15,6 +15,7 @@
 #include <gtest/gtest.h>
 #include <stdlib.h>
 
+#include <fstream>
 #include <tuple>
 #include <vector>
 
