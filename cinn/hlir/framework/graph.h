@@ -37,9 +37,15 @@ class Graph : public cinn::common::Graph {
  public:
   Graph(const frontend::Program& prog, const Target& target) {
     std::unordered_set<std::string> fetch_var_ids;
-    Graph(prog, fetch_var_ids, target);
+    Initialize(prog, fetch_var_ids, target);
   }
-  Graph(const frontend::Program& prog, const std::unordered_set<std::string>& fetch_var_ids, const Target& target);
+  Graph(const frontend::Program& prog, const std::unordered_set<std::string>& fetch_var_ids, const Target& target) {
+    Initialize(prog, fetch_var_ids, target);
+  }
+
+  void Initialize(const frontend::Program& prog,
+                  const std::unordered_set<std::string>& fetch_var_ids,
+                  const Target& target);
 
   Target target_;
   /** \brief outputs of the computation graph. */
