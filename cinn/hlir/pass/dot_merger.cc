@@ -154,7 +154,8 @@ class DotBuilder {
   NodeData* Var(std::shared_ptr<Node>& producer) {
     LOG(INFO) << "DotBuilder::Var";
     auto* res = new NodeData(producer, 0, 0, "var___dot_merger_" + std::to_string(idx_++), false);
-    graph_->RegisterNode(res->id(), res);
+    graph_->RegisterNode(producer->id(), res);
+    graph_->RegisterNode(res->id(), producer.get());
     producer->LinkTo(res);
     InferShape(producer.get(), dtype_dict_, shape_dict_);
     return res;
@@ -164,7 +165,8 @@ class DotBuilder {
     LOG(INFO) << "DotBuilder::Concat";
     const std::string type{"concat"};
     LOG(INFO) << "DotBuilder::Concat";
-    Node* tmp = new Node(framework::Operator::Get(type), type + "__dot_merger_", std::to_string(idx_++));
+    Node* tmp = new Node(
+        framework::Operator::Get(type), type + "__dot_merger_", type + "__dot_merger_" + std::to_string(idx_++));
     LOG(INFO) << "DotBuilder::Concat";
     std::shared_ptr<Node> instr(tmp);
     LOG(INFO) << "DotBuilder::Concat";
@@ -180,8 +182,9 @@ class DotBuilder {
   NodeData* Matmul(bool trans_a, bool trans_b, bool trans_out, float alpha, NodeData* lhs, NodeData* rhs) {
     LOG(INFO) << "DotBuilder::Matmul";
     const std::string type{"matmul"};
-    auto instr = std::make_shared<Node>(framework::Operator::Get(type), type + "__dot_merger_", std::to_string(idx_++));
-    matmul_    = instr.get();
+    auto instr = std::make_shared<Node>(
+        framework::Operator::Get(type), type + "__dot_merger_", type + "__dot_merger_" + std::to_string(idx_++));
+    matmul_                            = instr.get();
     instr->attrs.attr_store["trans_a"] = trans_a;
     instr->attrs.attr_store["trans_b"] = trans_b;
     // instr->attrs.attr_store["trans_out"] = trans_out;
@@ -196,7 +199,8 @@ class DotBuilder {
       std::vector<int> axes, std::vector<int> starts, std::vector<int> ends, NodeData* input, NodeData* output) {
     LOG(INFO) << "DotBuilder::Slice";
     const std::string type{"slice"};
-    Node* tmp = new Node(framework::Operator::Get(type), type + "__dot_merger_", std::to_string(idx_++));
+    Node* tmp = new Node(
+        framework::Operator::Get(type), type + "__dot_merger_", type + "__dot_merger_" + std::to_string(idx_++));
     std::shared_ptr<Node> instr(tmp);
     // auto instr                             = std::make_shared<Node>(framework::Operator::Get(type), gen_name(type));
     instr->attrs.attr_store["axes"]        = std::move(axes);
@@ -206,7 +210,9 @@ class DotBuilder {
     instr->attrs.attr_store["strides"]     = std::vector<int>{};
     input->LinkTo(instr.get());
     instr->LinkTo(output);
+    graph_->RegisterNode(instr->id(), instr.get());
     InferShape(instr.get(), dtype_dict_, shape_dict_);
+    output->source_node = instr;
     return output;
   }
 
@@ -259,6 +265,7 @@ class DotMergerPass {
           DotBuilder builder(graph);
           auto* merged = MergeDots(&builder, a, b);
           if (merged) {
+            LOG(INFO) << "--- nodes_to_remove: " << a->id() << ", " << b->id();
             nodes_to_remove.insert(a);
             nodes_to_remove.insert(b);
             dots[i] = merged;
@@ -268,7 +275,7 @@ class DotMergerPass {
       }
     }
     for (auto* n : nodes_to_remove) {
-      remove_node(graph, n);
+      // remove_node(graph, n);
     }
   }
 
