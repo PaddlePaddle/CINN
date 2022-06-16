@@ -53,14 +53,17 @@ bool accessible(GraphNode* start, GraphNode* end) {
 }
 
 template <typename T>
-T get_attr(Node* instr, const std::string& attr) {
+T get_attr(Node* instr, const std::string& attr, T def) {
+  if (!instr->attrs.attr_store.count(attr)) {
+    LOG(INFO) << "not find attr: " << attr;
+    return def;
+  }
+  LOG(INFO) << "found attr: " << attr << " = " << absl::get<T>(instr->attrs.attr_store.at(attr));
   return absl::get<T>(instr->attrs.attr_store.at(attr));
 }
 
 NodeData* input_operand(Node* instr, int idx) { return instr->inlinks_in_order()[idx]->source()->safe_as<NodeData>(); }
-NodeData* output_operand(Node* instr, int idx) {
-  return instr->outlinks_in_order()[idx]->source()->safe_as<NodeData>();
-}
+NodeData* output_operand(Node* instr, int idx) { return instr->outlinks_in_order()[idx]->sink()->safe_as<NodeData>(); }
 
 void remove_node(framework::Graph* graph, GraphNode* node) {
   for (auto& link : node->inlinks()) {
@@ -70,6 +73,16 @@ void remove_node(framework::Graph* graph, GraphNode* node) {
     link->source()->UnLinkSingleTo(link->sink());
   }
   graph->DropNode(node);
+}
+
+template <typename T>
+bool all_equal(const T& arg) {
+  return arg[0] == arg[1];
+}
+
+template <typename T, typename... Args>
+bool all_equal(const T& arg, const Args&... args) {
+  return all_equal(arg) && all_equal(args...);
 }
 
 void InferShape(Node* node, dtype_dict_t& dtype_dict, shape_dict_t& shape_dict) {
@@ -131,14 +144,15 @@ class DotBuilder {
  public:
   explicit DotBuilder(framework::Graph* graph)
       : graph_{graph},
-        dtype_dict_{graph->GetMutableAttrs<dtype_dict_t>("inferdtype")},
-        shape_dict_{graph->GetMutableAttrs<shape_dict_t>("infershape")} {}
+        dtype_dict_{graph_->GetMutableAttrs<dtype_dict_t>("inferdtype")},
+        shape_dict_{graph_->GetMutableAttrs<shape_dict_t>("infershape")} {}
 
   framework::Graph* graph() const { return graph_; }
   const dtype_dict_t& dtype_dict() const { return dtype_dict_; };
   const shape_dict_t& shape_dict() const { return shape_dict_; };
 
   NodeData* Var(std::shared_ptr<Node>& producer) {
+    LOG(INFO) << "DotBuilder::Var";
     auto* res = new NodeData(producer, 0, 0, gen_name("var"), false);
     graph_->RegisterNode(res->id(), res);
     producer->LinkTo(res);
@@ -147,6 +161,7 @@ class DotBuilder {
   }
 
   NodeData* Concat(int axis, std::vector<NodeData*> inputs) {
+    LOG(INFO) << "DotBuilder::Concat";
     const std::string type{"concat"};
     auto instr                      = std::make_shared<Node>(framework::Operator::Get(type), gen_name(type));
     instr->attrs.attr_store["axis"] = axis;
@@ -157,14 +172,15 @@ class DotBuilder {
     return output;
   }
 
-  NodeData* CublasGemm(bool trans_a, bool trans_b, bool trans_out, float alpha, NodeData* lhs, NodeData* rhs) {
-    const std::string type{"cublas_gemm"};
-    auto instr                           = std::make_shared<Node>(framework::Operator::Get(type), gen_name(type));
-    matmul_                              = instr.get();
-    instr->attrs.attr_store["trans_a"]   = trans_a;
-    instr->attrs.attr_store["trans_b"]   = trans_b;
-    instr->attrs.attr_store["trans_out"] = trans_out;
-    instr->attrs.attr_store["alpha"]     = alpha;
+  NodeData* Matmul(bool trans_a, bool trans_b, bool trans_out, float alpha, NodeData* lhs, NodeData* rhs) {
+    LOG(INFO) << "DotBuilder::Matmul";
+    const std::string type{"matmul"};
+    auto instr                         = std::make_shared<Node>(framework::Operator::Get(type), gen_name(type));
+    matmul_                            = instr.get();
+    instr->attrs.attr_store["trans_a"] = trans_a;
+    instr->attrs.attr_store["trans_b"] = trans_b;
+    // instr->attrs.attr_store["trans_out"] = trans_out;
+    instr->attrs.attr_store["alpha"] = alpha;
     lhs->LinkTo(instr.get());
     rhs->LinkTo(instr.get());
     auto* output = Var(instr);
@@ -173,6 +189,7 @@ class DotBuilder {
 
   NodeData* Slice(
       std::vector<int> axes, std::vector<int> starts, std::vector<int> ends, NodeData* input, NodeData* output) {
+    LOG(INFO) << "DotBuilder::Slice";
     const std::string type{"slice"};
     auto instr                             = std::make_shared<Node>(framework::Operator::Get(type), gen_name(type));
     instr->attrs.attr_store["axes"]        = std::move(axes);
@@ -192,9 +209,9 @@ class DotBuilder {
 
  private:
   static int idx_;
+  framework::Graph* graph_;
   dtype_dict_t& dtype_dict_;
   shape_dict_t& shape_dict_;
-  framework::Graph* graph_;
   Node* matmul_{};
 };
 
@@ -203,28 +220,38 @@ int DotBuilder::idx_;
 class DotMergerPass {
  public:
   void Apply(framework::Graph* graph) {
-    auto clusters = GetClusters(graph, "cublas_gemm");
+    auto clusters = GetClusters(graph, "matmul");
     std::set<Node*> nodes_to_remove;
     for (auto& c : clusters) {
-      LOG(INFO) << "cluster first: " << c.first->id();
+      LOG(INFO) << "cluster: " << c.first->id() << ", size = " << c.second.size();
       auto& dots = c.second;
       for (size_t i = 0; i < dots.size(); ++i) {
         auto*& a = dots[i];
         if (!a) {
+          LOG(INFO) << "a is null!";
           continue;
         }
         for (size_t j = i + 1; j < dots.size(); ++j) {
           auto* b = dots[j];
+          LOG(INFO) << "i =" << i << ", j = " << j << "(" << a->id() << "," << b->id() << ")";
           if (!b) {
+            LOG(INFO) << "b is null!";
             continue;
           }
-          if (nodes_to_remove.count(a) || nodes_to_remove.count(b) || accessible(a, b) || accessible(b, a)) {
+          if (nodes_to_remove.count(a) || nodes_to_remove.count(b)) {
+            LOG(INFO) << "remove!!";
             continue;
           }
-          LOG(INFO) << "here!1";
-          CHECK(graph);
+          if (accessible(a, b)) {
+            LOG(INFO) << "1 access : " << a->id() << ", " << b->id();
+            continue;
+          }
+          if (accessible(b, a)) {
+            LOG(INFO) << "2 access : " << a->id() << ", " << b->id();
+            continue;
+          }
+          LOG(INFO) << "fuse: " << a->id() << ", " << b->id();
           DotBuilder builder(graph);
-          LOG(INFO) << "here!2";
           auto* merged = MergeDots(&builder, a, b);
           if (merged) {
             nodes_to_remove.insert(a);
@@ -266,30 +293,20 @@ class DotMergerPass {
     return clusters;
   }
 
-  template <typename T>
-  static bool EqualOr(const T& arg) {
-    return arg[0] == arg[1];
-  }
-
-  template <typename T, typename... Args>
-  static bool EqualOr(const T& arg, const Args&... args) {
-    return EqualOr(arg) || EqualOr(args...);
-  }
-
   static Node* MergeDots(DotBuilder* builder, Node* a, Node* b) {
-    LOG(INFO) << "MergeDots: " << a->id() << ", " << b->id();
     CHECK(a && b) << "The pointer of node is illegal.";
-    const std::array<bool, 2> trans_a{get_attr<bool>(a, "trans_a"), get_attr<bool>(b, "trans_a")};
-    const std::array<bool, 2> trans_b{get_attr<bool>(a, "trans_b"), get_attr<bool>(b, "trans_b")};
-    const std::array<bool, 2> trans_out{get_attr<bool>(a, "trans_out"), get_attr<bool>(b, "trans_out")};
-    const std::array<float, 2> alpha{get_attr<float>(a, "alpha"), get_attr<float>(b, "alpha")};
-    if (!EqualOr(trans_a, trans_b, trans_out, alpha)) {
+    const std::array<bool, 2> trans_a{get_attr<bool>(a, "trans_a", false), get_attr<bool>(b, "trans_a", false)};
+    const std::array<bool, 2> trans_b{get_attr<bool>(a, "trans_b", false), get_attr<bool>(b, "trans_b", false)};
+    // const std::array<bool, 2> trans_out{get_attr<bool>(a, "trans_out"), get_attr<bool>(b, "trans_out")};
+    const std::array<float, 2> alpha{get_attr<float>(a, "alpha", 1.f), get_attr<float>(b, "alpha", 1.f)};
+    if (!all_equal(trans_a, trans_b, alpha)) {
       return nullptr;
     }
     bool lhs{true};
     int axis{1};
     NodeData *shared_input{}, *input_a{}, *input_b{};
     if (input_operand(a, 1) == input_operand(b, 1)) {
+      LOG(INFO) << "input_operand(a, 1) == input_operand(b, 1)";
       shared_input = input_operand(a, 1);
       input_a      = input_operand(a, 0);
       input_b      = input_operand(b, 0);
@@ -300,22 +317,31 @@ class DotMergerPass {
         axis = 0;
       }
     } else if (input_operand(a, 0) == input_operand(b, 0)) {
+      LOG(INFO) << "input_operand(a, 0) == input_operand(b, 0)";
       shared_input = input_operand(a, 0);
       input_a      = input_operand(a, 1);
       input_b      = input_operand(b, 1);
     } else {
+      LOG(INFO) << "not fuse!!";
       return nullptr;
     }
+    LOG(INFO) << shared_input->id() << ", " << input_a->id() << ", " << input_b->id() << ", axis=" << axis;
     CHECK(shared_input && input_a && input_b) << "The input node type must be variable.";
-    auto shape_a = builder->shape_dict().at(input_a->id());
+    // CHECK(builder->shape_dict().count(input_a->id())) << "not found " << input_a->id();
+    auto shape_shared = builder->shape_dict().at(shared_input->id());
+    auto shape_a      = builder->shape_dict().at(input_a->id());
+    // CHECK(builder->shape_dict().count(input_b->id())) << "not found " << input_b->id();
     auto shape_b = builder->shape_dict().at(input_b->id());
-    CHECK_EQ(shape_a[1 - axis], shape_b[1 - axis]) << "The shape of matmul is error.";
+    LOG(INFO) << "shape_shared: " << shape_shared[0] << "," << shape_shared[1];
+    LOG(INFO) << "shape_a : " << shape_a[0] << ", " << shape_a[1] << ";" << shape_b[0] << ", " << shape_b[1];
+    CHECK_EQ(shape_a[1 - axis], shape_b[1 - axis])
+        << "The shape of matmul is error. " << shape_a.size() << ", " << shape_b.size();
     auto* concat_out = builder->Concat(axis, {input_a, input_b});
     NodeData* matmul_out{};
     if (!lhs) {
-      matmul_out = builder->CublasGemm(trans_a[0], trans_b[0], trans_out[0], alpha[0], concat_out, shared_input);
+      matmul_out = builder->Matmul(trans_a[0], trans_b[0], false, alpha[0], concat_out, shared_input);
     } else {
-      matmul_out = builder->CublasGemm(trans_a[0], trans_b[0], trans_out[0], alpha[0], shared_input, concat_out);
+      matmul_out = builder->Matmul(trans_a[0], trans_b[0], false, alpha[0], shared_input, concat_out);
     }
     auto* output_a = output_operand(a, 0);
     auto* output_b = output_operand(b, 0);

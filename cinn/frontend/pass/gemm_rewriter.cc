@@ -41,6 +41,7 @@ class GemmRewriterPass : public ProgramPass {
 
     CollectInfo(*prog);
 
+    /*
     CinnBuilder builder("gemm_rewriter_builder");
     for (auto& var : prog->GetInputs()) {
       builder.CreateInput(var);
@@ -59,6 +60,7 @@ class GemmRewriterPass : public ProgramPass {
       }
     }
     *prog = builder.Build(true);
+    */
 
     // Use the cublas call instead of the single matmul
     RewriteSingleMatmul(prog);
