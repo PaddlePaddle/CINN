@@ -153,6 +153,7 @@ std::vector<float> RunProgram(const Program& program,
     }
   }
 
+  hlir::framework::ApplyPasses(graph.get(), {"DotMerger", "OpFusionPass", "FusionMergePass"});
   RunGraph(graph, target, scope, output_ids);
 
   auto output_tensor = scope->GetTensor(output_ids.front());

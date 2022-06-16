@@ -153,7 +153,7 @@ class DotBuilder {
 
   NodeData* Var(std::shared_ptr<Node>& producer) {
     LOG(INFO) << "DotBuilder::Var";
-    auto* res = new NodeData(producer, 0, 0, gen_name("var"), false);
+    auto* res = new NodeData(producer, 0, 0, "var___dot_merger_" + std::to_string(idx_++), false);
     graph_->RegisterNode(res->id(), res);
     producer->LinkTo(res);
     InferShape(producer.get(), dtype_dict_, shape_dict_);
@@ -163,7 +163,12 @@ class DotBuilder {
   NodeData* Concat(int axis, std::vector<NodeData*> inputs) {
     LOG(INFO) << "DotBuilder::Concat";
     const std::string type{"concat"};
-    auto instr                      = std::make_shared<Node>(framework::Operator::Get(type), gen_name(type));
+    LOG(INFO) << "DotBuilder::Concat";
+    Node* tmp = new Node(framework::Operator::Get(type), type + "__dot_merger_", std::to_string(idx_++));
+    LOG(INFO) << "DotBuilder::Concat";
+    std::shared_ptr<Node> instr(tmp);
+    LOG(INFO) << "DotBuilder::Concat";
+    // auto instr                      = std::make_shared<Node>(framework::Operator::Get(type), gen_name(type));
     instr->attrs.attr_store["axis"] = axis;
     for (auto* in : inputs) {
       in->LinkTo(instr.get());
@@ -175,8 +180,8 @@ class DotBuilder {
   NodeData* Matmul(bool trans_a, bool trans_b, bool trans_out, float alpha, NodeData* lhs, NodeData* rhs) {
     LOG(INFO) << "DotBuilder::Matmul";
     const std::string type{"matmul"};
-    auto instr                         = std::make_shared<Node>(framework::Operator::Get(type), gen_name(type));
-    matmul_                            = instr.get();
+    auto instr = std::make_shared<Node>(framework::Operator::Get(type), type + "__dot_merger_", std::to_string(idx_++));
+    matmul_    = instr.get();
     instr->attrs.attr_store["trans_a"] = trans_a;
     instr->attrs.attr_store["trans_b"] = trans_b;
     // instr->attrs.attr_store["trans_out"] = trans_out;
@@ -191,12 +196,14 @@ class DotBuilder {
       std::vector<int> axes, std::vector<int> starts, std::vector<int> ends, NodeData* input, NodeData* output) {
     LOG(INFO) << "DotBuilder::Slice";
     const std::string type{"slice"};
-    auto instr                             = std::make_shared<Node>(framework::Operator::Get(type), gen_name(type));
+    Node* tmp = new Node(framework::Operator::Get(type), type + "__dot_merger_", std::to_string(idx_++));
+    std::shared_ptr<Node> instr(tmp);
+    // auto instr                             = std::make_shared<Node>(framework::Operator::Get(type), gen_name(type));
     instr->attrs.attr_store["axes"]        = std::move(axes);
     instr->attrs.attr_store["starts"]      = std::move(starts);
     instr->attrs.attr_store["ends"]        = std::move(ends);
-    instr->attrs.attr_store["infer_flags"] = {};
-    instr->attrs.attr_store["strides"]     = {};
+    instr->attrs.attr_store["infer_flags"] = std::vector<int>{};
+    instr->attrs.attr_store["strides"]     = std::vector<int>{};
     input->LinkTo(instr.get());
     instr->LinkTo(output);
     InferShape(instr.get(), dtype_dict_, shape_dict_);
@@ -204,8 +211,6 @@ class DotBuilder {
   }
 
   Node* matmul_op() const { return matmul_; }
-
-  std::string gen_name(std::string prefix) { return std::move(prefix) + "_create_" + std::to_string(idx_++); }
 
  private:
   static int idx_;

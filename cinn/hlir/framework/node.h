@@ -68,7 +68,7 @@ std::ostream &operator<<(std::ostream &os, const NodeAttr &node_attr);
 class Node : public common::GraphNode {
  public:
   Node() = default;
-  Node(const Operator *op, const std::string &name, std::string id = nullptr) {
+  Node(const Operator *op, const std::string &name, std::string id = {}) {
     this->attrs.op        = op;
     this->attrs.node_name = name;
     this->id_             = std::move(id);
