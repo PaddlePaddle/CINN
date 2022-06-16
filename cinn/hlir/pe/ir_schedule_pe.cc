@@ -36,6 +36,7 @@ namespace pe {
 
 void IRCudaScheduleBlockShuffleReduce(
     ir::IRSchedule &ir_sch, ir::Tensor reshape, ir::Tensor internal, ir::Tensor out, const common::Target &target) {
+  ir_sch.MergeExprs();
   int fuse_times = internal->shape.size() - 2;
   for (int idx = 0; idx < fuse_times; ++idx) {
     auto internal_block = ir_sch.GetBlock(internal->name);
@@ -251,6 +252,7 @@ void IRCudaScheduleReduce(ir::IRSchedule &ir_sch,
                           const std::vector<int> &output_shape,
                           int last_dimension_num,
                           const common::Target &target) {
+  ir_sch.MergeExprs();
   int parallel_thread_num = 1;
   for (int idx = output_shape.size() - 1; idx >= static_cast<int>(output_shape.size()) - last_dimension_num; --idx) {
     parallel_thread_num *= output_shape[idx];
@@ -308,15 +310,24 @@ void IRCudaScheduleBlockReduceInternal(ir::IRSchedule &ir_sch,
   }
 
   if (tmp_out->shape.size() == 1) {
-    all_blocks      = ir_sch.GetAllBlocks();
-    auto all_block0 = ir_sch.GetBlock(tmp_out->name);
-    loops           = ir_sch.GetLoops(all_block0);
-    ir_sch.Bind(loops[0], "threadIdx.x");
-    all_block0 = ir_sch.GetBlock(tmp_out->name);
-    ir_sch.SetBuffer(all_block0, "local");
-    auto all_block1 = ir_sch.GetBlock(out->name);
-    loops           = ir_sch.GetLoops(all_block1);
-    ir_sch.Bind(loops[0], "threadIdx.x");
+    if (out->shape.size() == 1 && out->shape[0] == Expr(1)) {
+      all_blocks      = ir_sch.GetAllBlocks();
+      auto all_block0 = ir_sch.GetBlock(tmp_out->name);
+      loops           = ir_sch.GetLoops(all_block0);
+      ir_sch.Bind(loops[0], "threadIdx.x");
+      all_block0 = ir_sch.GetBlock(tmp_out->name);
+      ir_sch.SetBuffer(all_block0, "local");
+    } else {
+      all_blocks      = ir_sch.GetAllBlocks();
+      auto all_block0 = ir_sch.GetBlock(tmp_out->name);
+      loops           = ir_sch.GetLoops(all_block0);
+      ir_sch.Bind(loops[0], "threadIdx.x");
+      all_block0 = ir_sch.GetBlock(tmp_out->name);
+      ir_sch.SetBuffer(all_block0, "local");
+      auto all_block1 = ir_sch.GetBlock(out->name);
+      loops           = ir_sch.GetLoops(all_block1);
+      ir_sch.Bind(loops[0], "threadIdx.x");
+    }
   } else {
     all_blocks      = ir_sch.GetAllBlocks();
     auto all_block0 = ir_sch.GetBlock(tmp_out->name);

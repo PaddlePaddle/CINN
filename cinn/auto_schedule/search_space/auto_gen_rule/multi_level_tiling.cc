@@ -22,6 +22,7 @@
 #include <utility>
 #include <vector>
 
+#include "cinn/auto_schedule/analysis/analyze_ir.h"
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
 #include "cinn/common/target.h"
 #include "cinn/ir/buffer.h"
@@ -73,17 +74,16 @@ bool MultiLevelTiling::MeetCondition(const ir::ScheduleBlockRealize& sche_block_
       continue;
     }
     // Collect the vars in schedule block that are used to index the read region
-    std::unordered_set<const ir::Expr*> vars_index_read;
+    std::unordered_set<std::string> vars_index_read;
     for (const Var& range : read_buffer->ranges) {
-      vars_index_read.insert(&(range->lower_bound));
-      vars_index_read.insert(&(range->upper_bound));
+      vars_index_read.insert(range->name);
     }
     // Check the block iter vars are not used to index the read region
     int n_unused_block_vars = 0;
     for (const ir::Var& block_iter_var : sche_block->iter_vars) {
       bool iter_var_in_read = false;
-      for (const ir::Expr* expr : vars_index_read) {
-        if ((*expr) == static_cast<Expr>(block_iter_var)) {
+      for (const std::string& var : vars_index_read) {
+        if (var == block_iter_var->name) {
           iter_var_in_read = true;
           break;
         }
@@ -96,30 +96,6 @@ bool MultiLevelTiling::MeetCondition(const ir::ScheduleBlockRealize& sche_block_
   }
 
   return total_unused_iter_vars >= 1;
-}
-
-void MultiLevelTiling::AnalyzeScheduleBlockReadWriteBuffer(ir::ScheduleBlock* sche_block) const {
-  if (!sche_block->read_buffers.empty() || !sche_block->write_buffers.empty()) {
-    return;
-  }
-
-  std::set<ir::Expr> load_tensors = ir::CollectLoadTensors(sche_block->body, [&](const Expr* x) { return true; });
-  for (const ir::Expr& e : load_tensors) {
-    ir::Tensor t = e.as_tensor_ref();
-    sche_block->read_buffers.emplace_back(ir::BufferRange(t->buffer, t->axis_with_reduce()));
-  }
-
-  std::set<ir::Expr> store_tensors = ir::CollectStoreTensors(sche_block->body, [&](const Expr* x) { return true; });
-  for (const ir::Expr& e : store_tensors) {
-    ir::Tensor t = e.as_tensor_ref();
-    sche_block->write_buffers.emplace_back(ir::BufferRange(t->buffer, t->axis_with_reduce()));
-  }
-
-  auto buffer_range_cmp = [](const Expr& lhs, const Expr& rhs) {
-    return lhs.As<ir::_BufferRange_>()->buffer.as_buffer_ref() < rhs.As<ir::_BufferRange_>()->buffer.as_buffer_ref();
-  };
-  sort(sche_block->read_buffers.begin(), sche_block->read_buffers.end(), buffer_range_cmp);
-  sort(sche_block->write_buffers.begin(), sche_block->write_buffers.end(), buffer_range_cmp);
 }
 
 RuleApplyType MultiLevelTiling::Init(const ir::ModuleExpr& mod_expr) {
