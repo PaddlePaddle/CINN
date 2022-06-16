@@ -44,8 +44,7 @@ using ConditionFunction = std::function<bool(const GroupPtr&, const GroupPtr&)>;
 // code generation.
 class FusionMergePassHelper : public FusionHelperBase {
  public:
-  FusionMergePassHelper(Graph* graph)
-      : FusionHelperBase(graph->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape"), graph->target_) {
+  FusionMergePassHelper(const Graph* graph) : FusionHelperBase(graph) {
     fusion_groups_ = graph->fusion_groups;
     // init fusion relation.
     InitFusionRelation();
@@ -703,46 +702,6 @@ class FusionMergePassHelper : public FusionHelperBase {
       fusionable_consumers.insert(consumer);
       return;
     }
-    // This step is try to remove broadcast with vertical relation.
-    // vertical relation means producer'output shape < consumer's output shape.
-    // if not all consumers is fusionable, remove broadcast with vertical relation.
-    // elif all consumers is fusionable but not allvertical relation, remove broadcast with vertical relation.
-    // else all consumers is fusionable with vertical relation, do nothing.
-    {
-      auto consumers       = producer->consumer_groups;
-      bool check_broadcast = consumers.size() > fusionable_consumers.size();
-      if (!check_broadcast) {
-        for (auto& consumer : fusionable_consumers) {
-          // consumer is not broadcast, check_broadcast.
-          if (consumer->op_pattern_kind != framework::kBroadcast) {
-            check_broadcast = true;
-            break;
-          } else {
-            // consumer is broadcast.
-            auto output_var_0 = this->GetNodeDataShape(*producer->master_nodes.begin());
-            auto output_var_1 = this->GetNodeDataShape(*consumer->master_nodes.begin());
-            // but comsumer is not vertical relation, check_broadcast.
-            if (output_var_0 == output_var_1) {
-              check_broadcast = true;
-              break;
-            }
-          }
-        }
-      }
-      if (check_broadcast) {
-        for (auto& consumer : consumers) {
-          // consumer is broadcast and fusionable.
-          if (fusionable_consumers.count(consumer) && consumer->op_pattern_kind == framework::kBroadcast) {
-            auto output_var_0 = this->GetNodeDataShape(*producer->master_nodes.begin());
-            auto output_var_1 = this->GetNodeDataShape(*consumer->master_nodes.begin());
-            // vertical relation, remove.
-            if (output_var_0 != output_var_1) {
-              fusionable_consumers.erase(consumer);
-            }
-          }
-        }
-      }
-    }
   }
 
   bool IsDependency(const GroupPtr& producer_g,
@@ -930,6 +889,9 @@ class FusionMergePassHelper : public FusionHelperBase {
       // if first's output is not all in second's input
       for (auto output : first->output_nodes) {
         if (!second->input_nodes.count(output)) {
+          return false;
+        }
+        if (this->output_nodes_set_.count(output)) {
           return false;
         }
       }

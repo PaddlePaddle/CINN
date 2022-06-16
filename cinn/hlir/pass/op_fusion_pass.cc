@@ -39,14 +39,11 @@ using ConditionFunction = std::function<bool(const Node*, const Node*)>;
 // code generation.
 class OpFusionPassHelper : public FusionHelperBase {
  public:
-  OpFusionPassHelper(const std::vector<GraphNode*>& graph_nodes,
-                     const absl::flat_hash_map<std::string, shape_t>& shape_dict,
-                     const common::Target target)
-      : FusionHelperBase(shape_dict, target) {
+  OpFusionPassHelper(const Graph* graph) : FusionHelperBase(graph) {
     // init fusion relation
     InitFusionRelation();
     // filter node data, create group for each node
-    for (auto graph_node : graph_nodes) {
+    for (auto graph_node : std::get<0>(graph->topological_order())) {
       auto node = graph_node->safe_as<Node>();
       if (node) {
         nodes_.push_back(node);
@@ -181,8 +178,10 @@ class OpFusionPassHelper : public FusionHelperBase {
           consumer_fusion->master_nodes.insert(producer);
         }
 
-        // producer is not a const value node.
-        if (producer_data->outlinks().size() > 1 && producer->inlinks().size() > 0) {
+        if (this->output_nodes_set_.count(producer)) {
+          consumer_fusion->output_nodes.insert(producer);
+        } else if (producer_data->outlinks().size() > 1 && producer->inlinks().size() > 0) {
+          // producer is not a const value node.
           consumer_fusion->internal_nodes.insert(producer);
         }
 
@@ -521,12 +520,7 @@ void InsertBroadcastTo(Graph* graph) {
 
 void OpFusionPassInternal(Graph* graph) {
   InsertBroadcastTo(graph);
-  // nodes include(node, data node)
-  auto nodes = std::get<0>(graph->topological_order());
-  // shape
-  auto& shape_dict = graph->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  auto op_fusion_helper = OpFusionPassHelper(nodes, shape_dict, graph->target_);
+  auto op_fusion_helper = OpFusionPassHelper(graph);
   graph->fusion_groups  = op_fusion_helper();
 
   for (auto& group : graph->fusion_groups) {
