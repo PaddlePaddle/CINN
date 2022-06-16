@@ -43,7 +43,8 @@ class OpFusionPassHelper : public FusionHelperBase {
     // init fusion relation
     InitFusionRelation();
     // filter node data, create group for each node
-    for (auto graph_node : std::get<0>(graph->topological_order())) {
+    auto nodes_inorder = std::get<0>(graph->topological_order());
+    for (auto graph_node : nodes_inorder) {
       auto node = graph_node->safe_as<Node>();
       if (node) {
         nodes_.push_back(node);
@@ -519,6 +520,7 @@ void InsertBroadcastTo(Graph* graph) {
 }
 
 void OpFusionPassInternal(Graph* graph) {
+  VLOG(3) << "OpFusionPass...!";
   InsertBroadcastTo(graph);
   auto op_fusion_helper = OpFusionPassHelper(graph);
   graph->fusion_groups  = op_fusion_helper();
@@ -532,6 +534,7 @@ void OpFusionPassInternal(Graph* graph) {
       VLOG(3) << "  consumer group -> " << consumer->group_id;
     }
   }
+  VLOG(3) << "OpFusionPass Finish...!";
 }
 
 }  // namespace pass
