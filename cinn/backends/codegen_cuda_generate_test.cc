@@ -21,13 +21,10 @@
 #include "cinn/backends/codegen_cuda_dev.h"
 #include "cinn/backends/codegen_cuda_host.h"
 #include "cinn/backends/codegen_cuda_util.h"
-#include "cinn/backends/cuda_util.h"
 #include "cinn/backends/extern_func_jit_register.h"
 #include "cinn/backends/llvm/execution_engine.h"
 #include "cinn/backends/llvm/simple_jit.h"
-#include "cinn/backends/nvrtc_util.h"
 #include "cinn/cinn.h"
-#include "cinn/common/cuda_test_helper.h"
 #include "cinn/common/ir_util.h"
 #include "cinn/common/test_helper.h"
 #include "cinn/hlir/pe/nn.h"
@@ -36,42 +33,38 @@
 #include "cinn/ir/ir_schedule.h"
 #include "cinn/lang/lower.h"
 #include "cinn/optim/ir_simplify.h"
-#include "cinn/runtime/cpu/use_extern_funcs.h"
-#include "cinn/runtime/cuda/cuda_module.h"
-#include "cinn/runtime/cuda/cuda_util.h"
-#include "cinn/runtime/use_extern_funcs.h"
 #include "cinn/utils/timer.h"
 
 namespace cinn {
 namespace backends {
 
-TEST(CodeGenCUDA, Module_output) {
-  Expr M(100);
-  Expr N(200);
+TEST(CUDAFile, Module_output) {
+  std::string cuda_source_name = "_generated1.cu";
+  std::string cuda_source_code = R"ROC(
+#include "cinn_cuda_runtime_source.cuh"
 
-  Target target = common::DefaultNVGPUTarget();
+#ifdef __CUDACC_RTC__
+typedef int int32_t;
+typedef char int8_t;
+#endif
 
-  Placeholder<float> A("A", {M, N});
-  Placeholder<float> B("B", {M, N});
 
-  auto C = Compute(
-      {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
 
-  auto stages = CreateStages({C});
-
-  stages[C]->Bind(0, "blockIdx.x");
-  stages[C]->Bind(1, "threadIdx.x");
-
-  CodeGenCUDA_Dev codegen(target);
-
-  auto func = Lower("elementwise_mul", stages, {A, B, C});
-
-  Module::Builder builder("module", target);
-  builder.AddFunction(func);
-
-  Outputs outputs;
-  outputs = outputs.cuda_source("_generated1.cu");
-  codegen.Compile(builder.Build(), outputs);
+__global__
+void __launch_bounds__(200) elementwise_mul(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
+{
+  if (((int)blockIdx.x < 100)) {
+    if (((int)threadIdx.x < 200)) {
+      C[((200 * (int)blockIdx.x) + (int)threadIdx.x)] = (A[((200 * (int)blockIdx.x) + (int)threadIdx.x)] * B[((200 * (int)blockIdx.x) + (int)threadIdx.x)]);
+    };
+  };
+}
+  )ROC";
+  std::ofstream file(cuda_source_name);
+  CHECK(file.is_open()) << "failed to open file " << cuda_source_name;
+  file << cuda_source_code;
+  file.close();
+  LOG(WARNING) << "Output C source to file " << cuda_source_name;
 }
 
 }  // namespace backends
