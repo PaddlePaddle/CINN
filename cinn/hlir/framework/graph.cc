@@ -58,7 +58,7 @@ void Graph::Initialize(const frontend::Program& prog,
         shape_dict[output_v->id] = output_v->shape;
         auto* output_data        = new NodeData(node_ptr, out_idx++, 0, output_v->id);
         if (fetch_var_ids.count(output_v->id)) {
-          // outputs.push_back(output_data);
+          outputs.push_back(output_data);
         }
         node_tmp->LinkTo(output_data);
         this->RegisterNode(output_v->id, output_data);
