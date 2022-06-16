@@ -97,35 +97,6 @@ TEST(CodeGenCUDA, basic) {
   std::cout << "test cout: " << compiled << std::endl;
 }
 
-TEST(CodeGenCUDA, Module_output) {
-  Expr M(100);
-  Expr N(200);
-
-  Target target = common::DefaultNVGPUTarget();
-
-  Placeholder<float> A("A", {M, N});
-  Placeholder<float> B("B", {M, N});
-
-  auto C = Compute(
-      {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
-
-  auto stages = CreateStages({C});
-
-  stages[C]->Bind(0, "blockIdx.x");
-  stages[C]->Bind(1, "threadIdx.x");
-
-  CodeGenCUDA_Dev codegen(target);
-
-  auto func = Lower("elementwise_mul", stages, {A, B, C});
-
-  Module::Builder builder("module", target);
-  builder.AddFunction(func);
-
-  Outputs outputs;
-  outputs = outputs.cuda_source("_generated1.cu");
-  codegen.Compile(builder.Build(), outputs);
-}
-
 TEST(CodeGenCUDA2, test_of_cacheread) {
   Context::Global().ResetNameId();
   Expr M(100);
