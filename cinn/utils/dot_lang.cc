@@ -110,7 +110,6 @@ void DotLang::AddCluster(const std::string& id, const std::vector<DotAttr>& attr
 void DotLang::AddEdge(const std::string& source, const std::string& target, const std::vector<DotAttr>& attrs) {
   CHECK(!source.empty());
   CHECK(!target.empty());
-  LOG(INFO) << "DotLang::AddEdge :  " << source << " -> " << target;
   CHECK(nodes_.find(source) != nodes_.end()) << "Call AddNode to add " << source << " to dot first";
   CHECK(nodes_.find(target) != nodes_.end()) << "Call AddNode to add " << target << " to dot first";
   auto sid = nodes_.at(source).id();

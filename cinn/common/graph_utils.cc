@@ -17,7 +17,6 @@
 #include <glog/logging.h>
 
 #include <deque>
-#include <fstream>
 #include <functional>
 #include <set>
 #include <stack>
@@ -151,9 +150,6 @@ std::string Graph::Visualize() const {
 
   // 1. create nodes
   for (auto &node : nodes_) {
-    if (!node.get()) {
-      LOG(INFO) << node.get() << " is nullptr";
-    }
     dot.AddNode(node->id(), {});
   }
 
