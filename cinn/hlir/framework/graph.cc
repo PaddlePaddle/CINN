@@ -25,7 +25,9 @@ namespace cinn {
 namespace hlir {
 namespace framework {
 
-Graph::Graph(const frontend::Program& prog, const Target& target) {
+void Graph::Initialize(const frontend::Program& prog,
+                       const std::unordered_set<std::string>& fetch_var_ids,
+                       const Target& target) {
   target_ = target;
   absl::flat_hash_map<std::string, shape_t> shape_dict;
   absl::flat_hash_map<std::string, common::Type> dtype_dict;
@@ -55,6 +57,9 @@ Graph::Graph(const frontend::Program& prog, const Target& target) {
         dtype_dict[output_v->id] = output_v->type;
         shape_dict[output_v->id] = output_v->shape;
         auto* output_data        = new NodeData(node_ptr, out_idx++, 0, output_v->id);
+        if (fetch_var_ids.count(output_v->id)) {
+          outputs.push_back(output_data);
+        }
         node_tmp->LinkTo(output_data);
         this->RegisterNode(output_v->id, output_data);
       } else {
