@@ -34,7 +34,7 @@ Graph::Graph(const frontend::Program& prog, const Target& target) {
     auto temp = prog[i];
     Node* node_tmp =
         new Node(Operator::Get(temp->op_type), temp->op_type, temp->op_type + "_" + std::to_string(counter++));
-    std::shared_ptr<Node> node_ptr(node_tmp);
+    Shared<Node> node_ptr(node_tmp);
     node_tmp->attrs.attr_store = temp->attrs;
     for (auto& input_v : temp->inputs) {
       common::GraphNode* graph_node = this->RetrieveNode(input_v->id);

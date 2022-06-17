@@ -153,7 +153,7 @@ class DotBuilder {
   const dtype_dict_t& dtype_dict() const { return dtype_dict_; };
   const shape_dict_t& shape_dict() const { return shape_dict_; };
 
-  NodeData* Var(std::shared_ptr<Node>& producer) {
+  NodeData* Var(common::Shared<Node>& producer) {
     LOG(INFO) << "DotBuilder::Var";
     auto* res = new NodeData(producer, 0, 0, "var___dot_merger_" + std::to_string(idx_++), false);
     graph_->RegisterNode(producer->id(), res);
@@ -170,7 +170,7 @@ class DotBuilder {
     Node* tmp = new Node(
         framework::Operator::Get(type), type + "__dot_merger_", type + "__dot_merger_" + std::to_string(idx_++));
     LOG(INFO) << "DotBuilder::Concat";
-    std::shared_ptr<Node> instr(tmp);
+    common::Shared<Node> instr(tmp);
     LOG(INFO) << "DotBuilder::Concat";
     // auto instr                      = std::make_shared<Node>(framework::Operator::Get(type), gen_name(type));
     instr->attrs.attr_store["axis"] = axis;
@@ -184,13 +184,13 @@ class DotBuilder {
   NodeData* Matmul(bool trans_a, bool trans_b, bool trans_out, float alpha, NodeData* lhs, NodeData* rhs) {
     LOG(INFO) << "DotBuilder::Matmul";
     const std::string type{"matmul"};
-    auto instr = std::make_shared<Node>(
-        framework::Operator::Get(type), type + "__dot_merger_", type + "__dot_merger_" + std::to_string(idx_++));
-    matmul_                            = instr.get();
-    instr->attrs.attr_store["trans_a"] = trans_a;
-    instr->attrs.attr_store["trans_b"] = trans_b;
-    // instr->attrs.attr_store["trans_out"] = trans_out;
-    instr->attrs.attr_store["alpha"] = alpha;
+    auto instr                           = common::Shared<Node>(new Node(
+        framework::Operator::Get(type), type + "__dot_merger_", type + "__dot_merger_" + std::to_string(idx_++)));
+    matmul_                              = instr.get();
+    instr->attrs.attr_store["trans_a"]   = trans_a;
+    instr->attrs.attr_store["trans_b"]   = trans_b;
+    instr->attrs.attr_store["trans_out"] = trans_out;
+    instr->attrs.attr_store["alpha"]     = alpha;
     lhs->LinkTo(instr.get());
     rhs->LinkTo(instr.get());
     auto* output = Var(instr);
@@ -201,7 +201,7 @@ class DotBuilder {
       std::vector<int> axes, std::vector<int> starts, std::vector<int> ends, NodeData* input, NodeData* output) {
     LOG(INFO) << "DotBuilder::Slice";
     const std::string type{"slice"};
-    std::shared_ptr<Node> instr(std::make_shared<Node>(
+    common::Shared<Node> instr(new Node(
         framework::Operator::Get(type), type + "__dot_merger_", type + "__dot_merger_" + std::to_string(idx_++)));
     // auto instr                             = std::make_shared<Node>(framework::Operator::Get(type), gen_name(type));
     instr->attrs.attr_store["axes"]        = std::move(axes);
@@ -226,11 +226,11 @@ class DotBuilder {
   dtype_dict_t& dtype_dict_;
   shape_dict_t& shape_dict_;
   Node* matmul_{};
-  static std::vector<framework::NodePtr> cache_;
+  std::vector<framework::NodePtr> cache_;
 };
 
 int DotBuilder::idx_;
-std::vector<framework::NodePtr> DotBuilder::cache_;
+// std::vector<framework::NodePtr> DotBuilder::cache_;
 
 class DotMergerPass {
  public:
