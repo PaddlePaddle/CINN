@@ -365,16 +365,16 @@ class FusionMergePassHelper : public FusionHelperBase {
 
     std::unordered_set<GroupPtr, Hasher, Comparator> fusionable_consumers;
     for (auto& consumer : consumers) {
-      // VLOG(3) << "Check consuemr " << consumer->group_id << " can fuse to producer " << producer->group_id;
+      VLOG(4) << "Check consuemr " << consumer->group_id << " can fuse to producer " << producer->group_id;
       // if can't fuse
       if (!relation.vertical_relation.count(consumer->op_pattern_kind)) {
-        // VLOG(3) << "Can't fuse producer " << producer->group_id << " consumer " << consumer->group_id;
+        VLOG(4) << "Can't fuse producer " << producer->group_id << " consumer " << consumer->group_id;
         continue;
       }
 
       // if condition function is false
       if (!relation.vertical_relation[consumer->op_pattern_kind](producer, consumer)) {
-        // VLOG(3) << "Can't fuse producer " << producer->group_id << " consumer " << consumer->group_id;
+        VLOG(4) << "Can't fuse producer " << producer->group_id << " consumer " << consumer->group_id;
         continue;
       }
 
@@ -395,6 +395,7 @@ class FusionMergePassHelper : public FusionHelperBase {
   }
 
   void VerticalFuse(GroupPtr& producer, std::unordered_set<GroupPtr, Hasher, Comparator>& fusionable_consumers) {
+    VLOG(3) << "VerticalFuse...!";
     GroupList fused_groups;
     GroupPtr master_fuesd_group(nullptr);
     std::unordered_set<GroupPtr, Hasher, Comparator> unfusionable_consumers;
@@ -609,7 +610,7 @@ class FusionMergePassHelper : public FusionHelperBase {
         }
       }
 
-      if (fusionable_consumers.size() > candidates.size()) {
+      if (candidates.size() && fusionable_consumers.size() > candidates.size()) {
         fusionable_consumers = candidates;
       }
     }
