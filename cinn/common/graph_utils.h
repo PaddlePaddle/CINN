@@ -46,6 +46,7 @@ class GraphNode;
  */
 class GraphEdge : public Object {
  public:
+  virtual ~GraphEdge() { LOG(INFO) << "edge dtor " << this; }
   GraphEdge(GraphNode* source, GraphNode* sink, int index = -1) : source_(source), sink_(sink), index_(index) {}
 
   GraphNode* source() const { return source_; }
@@ -74,6 +75,7 @@ struct GraphEdgeCompare {
  */
 class GraphNode : public Object {
  public:
+  virtual ~GraphNode() { LOG(INFO) << "release : " << this; }
   //! The unique identifier of the node.
   virtual std::string id() const = 0;
   inline int get_index() { return index; }

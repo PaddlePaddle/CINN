@@ -151,6 +151,9 @@ std::string Graph::Visualize() const {
 
   // 1. create nodes
   for (auto &node : nodes_) {
+    if (!node.get()) {
+      LOG(INFO) << node.get() << " is nullptr";
+    }
     dot.AddNode(node->id(), {});
   }
 

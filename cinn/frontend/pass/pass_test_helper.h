@@ -114,11 +114,12 @@ void RunGraph(std::shared_ptr<hlir::framework::Graph> graph,
               const std::shared_ptr<hlir::framework::Scope>& scope,
               const std::vector<std::string>& output_ids) {
   if (FLAGS_cinn_use_new_fusion_pass) {
-    hlir::framework::ApplyPasses(graph.get(), {"OpFusionPass", "FusionMergePass"});
+    hlir::framework::ApplyPasses(graph.get(), {"DotMerger", "OpFusionPass", "FusionMergePass"});
   } else {
-    hlir::framework::ApplyPass(graph.get(), "OpFusion");
+    hlir::framework::ApplyPasses(graph.get(), {"DotMerger", "OpFusion"});
   }
   VLOG(3) << "Graph Viz:\n" << graph->Visualize();
+  BuildScope(target, graph, scope);
   hlir::framework::GraphCompiler::CompileOptions options;
   options.attached_code              = "";
   options.with_instantiate_variables = true;
@@ -153,7 +154,6 @@ std::vector<float> RunProgram(const Program& program,
     }
   }
 
-  hlir::framework::ApplyPasses(graph.get(), {"DotMerger", "OpFusionPass", "FusionMergePass"});
   RunGraph(graph, target, scope, output_ids);
 
   auto output_tensor = scope->GetTensor(output_ids.front());

@@ -66,10 +66,12 @@ NodeData* input_operand(Node* instr, int idx) { return instr->inlinks_in_order()
 NodeData* output_operand(Node* instr, int idx) { return instr->outlinks_in_order()[idx]->sink()->safe_as<NodeData>(); }
 
 void remove_node(framework::Graph* graph, GraphNode* node) {
-  for (auto& link : node->inlinks()) {
+  auto inlinks = node->inlinks();
+  for (auto& link : inlinks) {
     link->source()->UnLinkSingleTo(link->sink());
   }
-  for (auto& link : node->outlinks()) {
+  auto outlinks = node->outlinks();
+  for (auto& link : outlinks) {
     link->source()->UnLinkSingleTo(link->sink());
   }
   graph->DropNode(node);
@@ -199,9 +201,8 @@ class DotBuilder {
       std::vector<int> axes, std::vector<int> starts, std::vector<int> ends, NodeData* input, NodeData* output) {
     LOG(INFO) << "DotBuilder::Slice";
     const std::string type{"slice"};
-    Node* tmp = new Node(
-        framework::Operator::Get(type), type + "__dot_merger_", type + "__dot_merger_" + std::to_string(idx_++));
-    std::shared_ptr<Node> instr(tmp);
+    std::shared_ptr<Node> instr(std::make_shared<Node>(
+        framework::Operator::Get(type), type + "__dot_merger_", type + "__dot_merger_" + std::to_string(idx_++)));
     // auto instr                             = std::make_shared<Node>(framework::Operator::Get(type), gen_name(type));
     instr->attrs.attr_store["axes"]        = std::move(axes);
     instr->attrs.attr_store["starts"]      = std::move(starts);
@@ -212,6 +213,7 @@ class DotBuilder {
     instr->LinkTo(output);
     graph_->RegisterNode(instr->id(), instr.get());
     InferShape(instr.get(), dtype_dict_, shape_dict_);
+    cache_.emplace_back(output->source_node);
     output->source_node = instr;
     return output;
   }
@@ -224,15 +226,18 @@ class DotBuilder {
   dtype_dict_t& dtype_dict_;
   shape_dict_t& shape_dict_;
   Node* matmul_{};
+  static std::vector<framework::NodePtr> cache_;
 };
 
 int DotBuilder::idx_;
+std::vector<framework::NodePtr> DotBuilder::cache_;
 
 class DotMergerPass {
  public:
   void Apply(framework::Graph* graph) {
     auto clusters = GetClusters(graph, "matmul");
     std::set<Node*> nodes_to_remove;
+    DotBuilder builder(graph);
     for (auto& c : clusters) {
       LOG(INFO) << "cluster: " << c.first->id() << ", size = " << c.second.size();
       auto& dots = c.second;
@@ -261,11 +266,11 @@ class DotMergerPass {
             LOG(INFO) << "2 access : " << a->id() << ", " << b->id();
             continue;
           }
-          LOG(INFO) << "fuse: " << a->id() << ", " << b->id();
-          DotBuilder builder(graph);
+          LOG(INFO) << "fuse: " << a->id() << " (" << a << "), " << b->id() << " (" << b << "), ";
           auto* merged = MergeDots(&builder, a, b);
           if (merged) {
-            LOG(INFO) << "--- nodes_to_remove: " << a->id() << ", " << b->id();
+            LOG(INFO) << "--- nodes_to_remove: " << a << ", " << b;
+            LOG(INFO) << "--- nodes_to_remove: " << a->id() << " (" << a << "), " << b->id() << " (" << b << "), ";
             nodes_to_remove.insert(a);
             nodes_to_remove.insert(b);
             dots[i] = merged;
@@ -275,7 +280,7 @@ class DotMergerPass {
       }
     }
     for (auto* n : nodes_to_remove) {
-      // remove_node(graph, n);
+      remove_node(graph, n);
     }
   }
 
