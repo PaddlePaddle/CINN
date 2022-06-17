@@ -51,7 +51,7 @@ class FusionMergePassHelper : public FusionHelperBase {
     // init input to consumers.
     InitInputToConsumers();
     // init fusion group index.
-    InitFusionGroupsIndex();
+    InitFusionGroupsAndIndex();
   }
 
   GroupList operator()() {
@@ -65,6 +65,7 @@ class FusionMergePassHelper : public FusionHelperBase {
   bool DoFusionMerge() {
     VLOG(3) << "DoFusionMerge...!";
     bool updated = false;
+    // for (int idx = 0; idx < fusion_groups_.size(); ++idx) {
     for (int idx = fusion_groups_.size() - 1; idx >= 0; --idx) {
       auto producer = fusion_groups_[idx];
       VLOG(3) << "Fusion Producer Group -> " << producer->group_id;
@@ -108,6 +109,7 @@ class FusionMergePassHelper : public FusionHelperBase {
     }
     // keep group in order
     fusion_groups_.clear();
+    fusion_groups_index_.clear();
     while (!fusion_groups_set.empty()) {
       bool is_ring = true;
       for (int idx = 0; idx < fusion_groups.size(); ++idx) {
@@ -125,6 +127,7 @@ class FusionMergePassHelper : public FusionHelperBase {
         }
 
         if (!exist) {
+          fusion_groups_index_[group] = fusion_groups_.size();
           fusion_groups_.push_back(group);
           fusion_groups_set.erase(group);
           group.reset();
@@ -159,12 +162,12 @@ class FusionMergePassHelper : public FusionHelperBase {
     for (auto& candidate : candidates) {
       // check dependency
       if (IsDependencySimplify(producer, candidate, candidates)) {
-        VLOG(3) << "IsDependencySimplify, Can't fuse " << candidate->group_id << ", As it depency others!";
+        VLOG(4) << "IsDependencySimplify, Can't fuse " << candidate->group_id << ", As it depency others!";
         continue;
       }
 
       if (IsDependency(producer, candidate, candidates)) {
-        VLOG(3) << "IsDependency, Can't fuse " << candidate->group_id << ", As it depency others!";
+        VLOG(4) << "IsDependency, Can't fuse " << candidate->group_id << ", As it depency others!";
         continue;
       }
 
@@ -362,16 +365,16 @@ class FusionMergePassHelper : public FusionHelperBase {
 
     std::unordered_set<GroupPtr, Hasher, Comparator> fusionable_consumers;
     for (auto& consumer : consumers) {
-      VLOG(3) << "Check consuemr " << consumer->group_id << " can fuse to producer " << producer->group_id;
+      // VLOG(3) << "Check consuemr " << consumer->group_id << " can fuse to producer " << producer->group_id;
       // if can't fuse
       if (!relation.vertical_relation.count(consumer->op_pattern_kind)) {
-        VLOG(3) << "Can't fuse producer " << producer->group_id << " consumer " << consumer->group_id;
+        // VLOG(3) << "Can't fuse producer " << producer->group_id << " consumer " << consumer->group_id;
         continue;
       }
 
       // if condition function is false
       if (!relation.vertical_relation[consumer->op_pattern_kind](producer, consumer)) {
-        VLOG(3) << "Can't fuse producer " << producer->group_id << " consumer " << consumer->group_id;
+        // VLOG(3) << "Can't fuse producer " << producer->group_id << " consumer " << consumer->group_id;
         continue;
       }
 
@@ -529,12 +532,12 @@ class FusionMergePassHelper : public FusionHelperBase {
       // choose fused group to be producer for unfusionable consumers.
       if (!master_fuesd_group.get() && unfusionable_consumers.size()) {
         if (IsDependencySimplify(producer, consumer, unfusionable_consumers)) {
-          VLOG(3) << "IsDependencySimplify, Consumer " << fused_group->group_id << " can't be master fused group!";
+          VLOG(4) << "IsDependencySimplify, Consumer " << fused_group->group_id << " can't be master fused group!";
           continue;
         }
 
         if (IsDependency(producer, consumer, unfusionable_consumers)) {
-          VLOG(3) << "IsDependency, Consumer " << fused_group->group_id << " can't be master fused group!";
+          VLOG(4) << "IsDependency, Consumer " << fused_group->group_id << " can't be master fused group!";
           continue;
         }
 
@@ -563,7 +566,7 @@ class FusionMergePassHelper : public FusionHelperBase {
         }
 
         if (be_output) {
-          VLOG(3) << "Insert Id " << node->id() << " Into Group " << producer->group_id;
+          VLOG(4) << "Insert Id " << node->id() << " Into Group " << producer->group_id;
           output_nodes.insert(node);
         }
       }
@@ -595,6 +598,20 @@ class FusionMergePassHelper : public FusionHelperBase {
       fusionable_consumers.clear();
       fusionable_consumers.insert(consumer);
       return;
+    }
+
+    // if fusionable consumers contains elementwise, others to be removed.
+    {
+      std::unordered_set<GroupPtr, Hasher, Comparator> candidates;
+      for (auto& consumer : fusionable_consumers) {
+        if (consumer->op_pattern_kind == framework::kElemWise) {
+          candidates.insert(consumer);
+        }
+      }
+
+      if (fusionable_consumers.size() > candidates.size()) {
+        fusionable_consumers = candidates;
+      }
     }
   }
 
@@ -713,8 +730,8 @@ class FusionMergePassHelper : public FusionHelperBase {
     }
   }
 
-  void InitFusionGroupsIndex() {
-    VLOG(3) << "InitFusionGroupsIndex...!";
+  void InitFusionGroupsAndIndex() {
+    VLOG(3) << "InitFusionGroupsAndIndex...!";
     // init the postion of groups in fusion groups.
     for (int idx = 0; idx < fusion_groups_.size(); ++idx) {
       auto group        = fusion_groups_[idx];
@@ -733,7 +750,7 @@ class FusionMergePassHelper : public FusionHelperBase {
       group->belong_groups.insert(belong_group);
       // replace group to fused_group
       fusion_groups_[idx] = belong_group;
-      // recored index.
+      // record idx
       fusion_groups_index_[belong_group] = idx;
     }
 
