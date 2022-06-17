@@ -249,11 +249,11 @@ class DotMergerPass {
         }
         for (size_t j = i + 1; j < dots.size(); ++j) {
           auto* b = dots[j];
-          LOG(INFO) << "i =" << i << ", j = " << j << "(" << a->id() << "," << b->id() << ")";
           if (!b) {
             LOG(INFO) << "b is null!";
             continue;
           }
+          LOG(INFO) << "i =" << i << ", j = " << j << "(" << a->id() << "," << b->id() << ")";
           if (nodes_to_remove.count(a) || nodes_to_remove.count(b)) {
             LOG(INFO) << "remove!!";
             continue;
