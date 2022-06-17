@@ -601,17 +601,25 @@ class FusionMergePassHelper : public FusionHelperBase {
       return;
     }
 
-    // if fusionable consumers contains elementwise, others to be removed.
+    // if fusionable consumers contains elementwise/horizontal, others to be removed.
     {
       std::unordered_set<GroupPtr, Hasher, Comparator> candidates;
       for (auto& consumer : fusionable_consumers) {
         if (consumer->op_pattern_kind == framework::kElemWise) {
           candidates.insert(consumer);
+        } else {
+          auto inshape  = this->GetNodeDataShape(*producer->output_nodes.begin());
+          auto outshape = this->GetNodeDataShape(*consumer->output_nodes.begin());
+          // horizontal fusion
+          if (inshape == outshape) {
+            candidates.insert(consumer);
+          }
         }
       }
 
       if (candidates.size() && fusionable_consumers.size() > candidates.size()) {
         fusionable_consumers = candidates;
+        return;
       }
     }
   }
