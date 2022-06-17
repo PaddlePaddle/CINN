@@ -1658,6 +1658,72 @@ TEST(Conv, basic) {
   LOG(INFO) << "Conv2d_basic:\n" << fn;
 }
 
+TEST(CodeGenCUDA, test_of_cacheread_vectorize) {
+  Context::Global().ResetNameId();
+  Expr M(100);
+  Expr N(200);
+
+  Target target = common::DefaultNVGPUTarget();
+
+  Placeholder<float> A("X", {M, N});
+
+  auto C = Compute(
+      {M, N}, [&](Var i, Var j) { return A(i, j) + 1.f; }, "C");
+
+  auto stages = CreateStages({C});
+  std::vector<ir::Tensor> readers{C};
+
+  auto CC = stages[C]->CacheWrite("local", stages, C);
+  std::vector<ir::Tensor> temp{CC};
+  auto AA = stages[A]->CacheRead("local", temp, stages);
+
+  stages[CC]->ComputeAt(stages[C], 0);
+  stages[AA]->ComputeAt(stages[CC], 0);
+  stages[AA]->Vectorize(1, 200);
+  stages[C]->Vectorize(1, 200);
+  CodeGenCUDA_Dev codegen(target);
+
+  auto func = Lower("elementwise_mul", stages, {A, C});
+
+  Module::Builder builder("module", target);
+  builder.AddFunction(func);
+
+  auto source_code = codegen.Compile(builder.Build());
+
+  LOG(INFO) << "compiled test_of_datatrans code:\n\n\n" << source_code;
+
+  std::string target_code = R"ROC(
+extern "C" {
+
+#include "cinn_cuda_runtime_source.cuh"
+
+#ifdef __CUDACC_RTC__
+typedef int int32_t;
+typedef char int8_t;
+#endif
+
+
+
+__global__
+void __launch_bounds__(1) elementwise_mul(const float* __restrict__ X, float* __restrict__ C)
+{
+  float _X_read_cache [ 200 ];
+  float _C_write_cache [ 200 ];
+  float* C_write_cache = _C_write_cache;
+  float* X_read_cache = _X_read_cache;
+  for (int32_t i = 0; i < 100; i += 1) {
+    X_read_cache[StackVec<200,int32_t>::Ramp(0, 1, 200)] = StackedVec<float,200>::Load(X,(200 * i));
+    for (int32_t j = 0; j < 200; j += 1) {
+      C_write_cache[j] = (1 + X_read_cache[j]);
+    };
+    C[StackVec<200,int32_t>::Ramp((200 * i), 1, 200)] = StackedVec<float,200>::Load(C_write_cache,0);
+  };
+}
+
+}
+)ROC";
+}
+
 TEST(elementwise_add1, share_local_cache) {
   Context::Global().ResetNameId();
   Expr M(100);
