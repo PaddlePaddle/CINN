@@ -2174,30 +2174,20 @@ void CudaScheduleInjective(poly::Stage *stage, const std::vector<int> &output_sh
     CudaScheduleInjectiveWithVectorize(stage, output_shape, target);
     return;
   }
-  int dims       = stage->n_out_dims() - 1;
+  LOG(INFO) << "Begin CudaScheduleInjective of " << stage->id();
+  int dims = stage->n_out_dims();
+  for (int i = 1; i < dims; i++) {
+    stage->Fuse(0, 1);
+  }
+
   int num_thread = target.max_num_threads();
-  if (stage->GetDimRange(dims) > num_thread) {
-    stage->Split(dims, gcd(stage->GetDimRange(dims), num_thread));
-    ++dims;
-  }
-
-  while (dims > 0 && stage->GetDimRange(dims - 1) * stage->GetDimRange(dims) < num_thread) {
-    stage->Fuse(dims - 1, dims);
-    --dims;
-  }
-
-  stage->Bind(dims, "threadIdx.x");
-  --dims;
-
-  while (dims > 2) {
-    stage->Fuse(dims - 1, dims);
-    --dims;
-  }
-  std::string block_idx = "blockIdx.x";
-  for (int j = 0; dims >= 0; ++j) {
-    block_idx.back() = 'x' + j;
-    stage->Bind(dims, block_idx);
-    --dims;
+  int prod_size  = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int>());
+  if (prod_size > num_thread) {
+    stage->Split(0, gcd(stage->GetDimRange(0), num_thread));
+    stage->Bind(0, "blockIdx.x");
+    stage->Bind(1, "threadIdx.x");
+  } else {
+    stage->Bind(0, "threadIdx.x");
   }
 }
 
