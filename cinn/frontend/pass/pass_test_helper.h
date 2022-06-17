@@ -135,7 +135,8 @@ std::vector<float> RunProgram(const Program& program,
                               const std::vector<std::string>& output_ids,
                               int seed          = -1,
                               bool print_tensor = false) {
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  std::unordered_set<std::string> outputs_set{output_ids.begin(), output_ids.end()};
+  auto graph = std::make_shared<hlir::framework::Graph>(program, outputs_set, target);
   auto scope = hlir::framework::BuildScope(target, graph);
   for (auto& input_id : input_ids) {
     scope->Var<hlir::framework::Tensor>(input_id);

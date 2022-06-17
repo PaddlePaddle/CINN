@@ -342,6 +342,19 @@ class DotMergerPass {
       LOG(INFO) << "not fuse!!";
       return nullptr;
     }
+    auto* output_a   = output_operand(a, 0);
+    auto* output_b   = output_operand(b, 0);
+    auto& graph_outs = builder->graph()->outputs;
+    LOG(INFO) << "graph_outs.size = " << graph_outs.size();
+    for (auto* out : graph_outs) {
+      LOG(INFO) << "graph outputs: " << out->id();
+    }
+    for (auto* n : {shared_input, input_a, input_b, output_a, output_b}) {
+      if (std::find(graph_outs.begin(), graph_outs.end(), n) != graph_outs.end()) {
+        LOG(INFO) << " -- EXIT: graph_out : " << n->id();
+        return nullptr;
+      }
+    }
     LOG(INFO) << shared_input->id() << ", " << input_a->id() << ", " << input_b->id() << ", axis=" << axis;
     CHECK(shared_input && input_a && input_b) << "The input node type must be variable.";
     // CHECK(builder->shape_dict().count(input_a->id())) << "not found " << input_a->id();
@@ -360,8 +373,6 @@ class DotMergerPass {
     } else {
       matmul_out = builder->Matmul(trans_a[0], trans_b[0], false, alpha[0], shared_input, concat_out);
     }
-    auto* output_a = output_operand(a, 0);
-    auto* output_b = output_operand(b, 0);
     builder->Slice({axis}, {0}, {shape_a[axis]}, matmul_out, output_a);
     builder->Slice({axis}, {shape_a[axis]}, {shape_a[axis] + shape_b[axis]}, matmul_out, output_b);
     return builder->matmul_op();
