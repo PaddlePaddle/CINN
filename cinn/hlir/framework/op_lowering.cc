@@ -215,6 +215,9 @@ std::vector<ir::LoweredFunc> OpLowerer::LowerOp(ComputeFunction compute, Schedul
     std::string post   = "";
     std::string prefix = GetNodeData(node)->id();
     for (int idx = 0;; ++idx) {
+      if (idx == 0) {
+        CHECK(tensor_map.count(prefix)) << "Don't find output tensor " << prefix;
+      }
       if (!tensor_map.count(prefix + post)) {
         break;
       }
