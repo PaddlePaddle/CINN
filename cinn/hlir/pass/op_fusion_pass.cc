@@ -336,7 +336,7 @@ class OpFusionPassHelper : public FusionHelperBase {
           {framework::kInjective,
            [this, is_same_shape](const Node* producer, const Node* consumer) -> bool {
              return is_same_shape(producer, consumer) || (this->GetNodeData(producer)->outlinks().size() == 1 &&
-                                                          this->output_nodes_set_.count(const_cast<Node*>(producer)));
+                                                          !this->output_nodes_set_.count(const_cast<Node*>(producer)));
            }},
           // must be horizontal, check with same output shape.
           {framework::kOutEWiseFusable, is_same_shape}};
@@ -359,7 +359,7 @@ class OpFusionPassHelper : public FusionHelperBase {
           {framework::kInjective,
            [this, is_same_shape](const Node* producer, const Node* consumer) -> bool {
              return is_same_shape(producer, consumer) || (this->GetNodeData(producer)->outlinks().size() == 1 &&
-                                                          this->output_nodes_set_.count(const_cast<Node*>(producer)));
+                                                          !this->output_nodes_set_.count(const_cast<Node*>(producer)));
            }},
           // must be horizontal, check with same output shape.
           {framework::kOutEWiseFusable, is_same_shape}};
