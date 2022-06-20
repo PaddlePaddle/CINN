@@ -319,7 +319,7 @@ class FusionMergePassHelper : public FusionHelperBase {
 
       // find the first consumer.
       CHECK(fusion_groups_index_.count(consumer))
-          << "Don't find consumer " << consumer->group_id << " index in fusion_groups_index_!";
+          << "Can't find consumer " << consumer->group_id << " index in fusion_groups_index_!";
       if (first_consumer.get()) {
         if (fusion_groups_index_[consumer] < fusion_groups_index_[first_consumer]) {
           first_consumer = consumer;
@@ -366,14 +366,11 @@ class FusionMergePassHelper : public FusionHelperBase {
       }
     }
 
-    // push group to back.
-    // fusion_groups_.push_back(fused_group);
-    CHECK(fusion_groups_index_.count(first_consumer)) << "Don't find first_consumer index in fusion_groups_index_!";
     auto postion                      = fusion_groups_index_[first_consumer];
     fusion_groups_[postion]           = fused_group;
     fusion_groups_index_[fused_group] = postion;
 
-    CHECK(fused_group->output_nodes.size()) << "No Output Node is find, " << fused_group->group_id;
+    CHECK(fused_group->output_nodes.size()) << "No output node is found, " << fused_group->group_id;
   }
 
   bool VerticalFusion(GroupPtr& producer, std::unordered_set<GroupPtr, Hasher, Comparator>& consumers) {
@@ -549,8 +546,8 @@ class FusionMergePassHelper : public FusionHelperBase {
       consumer->belong_groups.insert(fused_group);
 
       fused_groups.push_back(fused_group);
-      // fusion_groups_.push_back(fused_group);
-      CHECK(fusion_groups_index_.count(consumer));
+      CHECK(fusion_groups_index_.count(consumer))
+          << "Can't find consumer " << consumer->group_id << " index in fusion_groups_index_!";
       auto postion                      = fusion_groups_index_[consumer];
       fusion_groups_[postion]           = fused_group;
       fusion_groups_index_[fused_group] = postion;
@@ -558,7 +555,7 @@ class FusionMergePassHelper : public FusionHelperBase {
       if (!master_fuesd_group.get()) {
         master_fuesd_group = fused_group;
       }
-      CHECK(fused_group->output_nodes.size()) << "No Output Node is find, " << fused_group->group_id;
+      CHECK(fused_group->output_nodes.size()) << "No output node is found, " << fused_group->group_id;
     }
 
     if (producer->consumer_groups.size() > fusionable_consumers.size()) {
@@ -601,7 +598,7 @@ class FusionMergePassHelper : public FusionHelperBase {
   void RecomputeWithCostModel(const GroupPtr& producer,
                               std::unordered_set<GroupPtr, Hasher, Comparator>& fusionable_consumers) {
     if (producer->op_pattern_kind == framework::kCommReduce) {
-      CHECK_EQ(fusionable_consumers.size(), 1) << "Find more than consumer can fuse to " << producer->group_id;
+      CHECK_EQ(fusionable_consumers.size(), 1) << "Find more than one consumer can fuse to " << producer->group_id;
     }
 
     // if fusionable consumers contains elementwise/horizontal, others to be removed.
@@ -831,7 +828,7 @@ class FusionMergePassHelper : public FusionHelperBase {
           break;
         }
       }
-      CHECK(reducer) << "Don't find reduce op in group " << second->group_id;
+      CHECK(reducer) << "Can't find reduce op in group " << second->group_id;
       auto input_shape = shape_dict_.at(reducer->inlinks_in_order()[0]->source()->id());
       auto reduce_axes = absl::get<std::vector<int>>(reducer->attrs.attr_store.at("dim"));
 
@@ -880,7 +877,7 @@ class FusionMergePassHelper : public FusionHelperBase {
           break;
         }
       }
-      CHECK(reducer) << "Don't find reduce op in group " << second->group_id;
+      CHECK(reducer) << "Can't find reduce op in group " << second->group_id;
 
       auto input_shape  = shape_dict_.at(reducer->inlinks_in_order()[0]->source()->id());
       auto reduce_axes  = absl::get<std::vector<int>>(reducer->attrs.attr_store.at("dim"));
@@ -907,7 +904,7 @@ class FusionMergePassHelper : public FusionHelperBase {
           break;
         }
       }
-      CHECK(reducer_0) << "Don't find reduce op in group " << first->group_id;
+      CHECK(reducer_0) << "Can't find reduce op in group " << first->group_id;
 
       Node* reducer_1 = nullptr;
       for (auto& reducer : second->master_nodes) {
@@ -916,7 +913,7 @@ class FusionMergePassHelper : public FusionHelperBase {
           break;
         }
       }
-      CHECK(reducer_1) << "Don't find reduce op in group " << second->group_id;
+      CHECK(reducer_1) << "Can't find reduce op in group " << second->group_id;
 
       // check reduce has same input shape and output shape
       auto reducer_0_input_shape  = shape_dict_.at(reducer_0->inlinks_in_order()[0]->source()->id());
