@@ -495,8 +495,7 @@ void InsertBroadcastTo(Graph* graph) {
           input_data->LinkTo(tmp_node);
           graph->RegisterNode(tmp_node->id(), tmp_node);
           // create node data
-          auto tmp_node_data =
-              new NodeData(std::shared_ptr<Node>(tmp_node), 0, 0, "var_" + std::to_string(index), false);
+          auto tmp_node_data = new NodeData(Shared<Node>(tmp_node), 0, 0, "var_" + std::to_string(index), false);
           tmp_node->LinkTo(tmp_node_data);
           tmp_node_data->LinkTo(node);
           graph->RegisterNode(tmp_node_data->id(), tmp_node_data);
