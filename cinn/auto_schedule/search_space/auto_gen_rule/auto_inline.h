@@ -14,7 +14,11 @@
 
 #pragma once
 
+#include <map>
+#include <memory>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
 #include "cinn/common/target.h"
@@ -23,7 +27,18 @@
 namespace cinn {
 namespace auto_schedule {
 
-// TODO(zhhsplendid): develop this class.
+/**
+ * The types of the AutoInline
+ */
+enum class AutoInlineType : int {
+  // The block cannot be inlined
+  kCannotInline = 0,
+  // Inline this block into the consumer
+  kInlineIntoConsumer,
+  // Inline this block into the producer
+  kInlineIntoProducer,
+};
+
 class AutoInline : public AutoGenRule {
  public:
   AutoInline(const common::Target& target);
@@ -36,6 +51,15 @@ class AutoInline : public AutoGenRule {
   std::string GetRuleName() const override;
 
   AutoGenRule* NewPointer() const override;
+
+  AutoInlineType AnalyzeInlineType(const ir::ScheduleBlockRealize& sche_block_realize) const;
+
+  bool CanInlineIntoConsumer(const ir::ScheduleBlockRealize& sche_block_realize) const;
+
+ private:
+  std::unique_ptr<ir::IRSchedule> ir_schedule_;
+  std::vector<ir::Expr> all_block_realizes_;
+  std::vector<std::pair<int, AutoInlineType>> apply_indices_and_type_;
 };
 
 }  // namespace auto_schedule

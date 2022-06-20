@@ -12,12 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <unordered_set>
+
+#include "cinn/ir/ir.h"
+#include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_schedule.h"
 
 namespace cinn {
 namespace auto_schedule {
 
 void AnalyzeScheduleBlockReadWriteBuffer(ir::ScheduleBlock* sche_block);
+
+bool ContainsNodeType(ir::Expr expr, const std::unordered_set<ir::IrNodeTy>& node_types);
 
 }  // namespace auto_schedule
 }  // namespace cinn

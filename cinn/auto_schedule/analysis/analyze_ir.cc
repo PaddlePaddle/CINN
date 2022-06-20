@@ -71,5 +71,11 @@ void AnalyzeScheduleBlockReadWriteBuffer(ir::ScheduleBlock* sche_block) {
   sort(sche_block->write_buffers.begin(), sche_block->write_buffers.end(), buffer_range_cmp);
 }
 
+bool ContainsNodeType(ir::Expr expr, const std::unordered_set<ir::IrNodeTy>& node_types) {
+  std::set<ir::Expr> collection = ir::CollectIRNodesWithoutTensor(
+      expr, [&](const Expr* x) { return node_types.find(x->node_type()) != node_types.end(); });
+  return !collection.empty();
+}
+
 }  // namespace auto_schedule
 }  // namespace cinn
