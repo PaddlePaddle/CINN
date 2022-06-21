@@ -14,7 +14,6 @@
 
 #include "cinn/frontend/net_builder.h"
 #include "cinn/frontend/pass/pass_test_helper.h"
-#include "cinn/runtime/cuda/cuda_util.h"
 #include "gtest/gtest.h"
 
 namespace cinn::frontend::pass {
@@ -37,7 +36,6 @@ TEST(DotMerger, lhs) {
     // because op def changes with the macro
     return;
   }
-  cinn::runtime::cuda::CublasHandle::get_instance();
   int m = 2, k = 10201, n1 = 50, n2 = 50, n3 = 50, axis = 1;
   NetBuilder builder("net_builder");
   auto a  = builder.CreateInput(Float(32), {m, k}, "A");
@@ -58,8 +56,8 @@ TEST(DotMerger, lhs) {
   absl::c_transform(std::vector<absl::string_view>{a.id(), b.id(), c.id(), c1.id()},
                     std::back_inserter(input_ids),
                     [](absl::string_view id) { return std::string(id); });
-  PassConfig passes({{"Decomposer", "RemoveIdentity", "TransposeFoldingInput"}, {}},
-                    {{"OpFusionPass", "FusionMergePass"}, {"DotMerger", "OpFusionPass", "FusionMergePass"}});
+  OptimizeConfig passes({{"Decomposer", "RemoveIdentity", "TransposeFoldingInput"}, {}},
+                        {{"OpFusionPass", "FusionMergePass"}, {"DotMerger", "OpFusionPass", "FusionMergePass"}});
   CompareResult(&p, target, input_ids, {h1->id}, 0, std::move(passes), 123, true);
 }
 
@@ -94,8 +92,8 @@ TEST(DotMerger, rhs) {
   absl::c_transform(std::vector<absl::string_view>{a.id(), b.id(), c.id()},
                     std::back_inserter(input_ids),
                     [](absl::string_view id) { return std::string(id); });
-  PassConfig passes({{"Decomposer", "RemoveIdentity", "TransposeFoldingInput", "GemmRewriter"}, {}},
-                    {{"OpFusionPass", "FusionMergePass"}, {"DotMerger", "OpFusionPass", "FusionMergePass"}});
+  OptimizeConfig passes({{"Decomposer", "RemoveIdentity", "TransposeFoldingInput", "GemmRewriter"}, {}},
+                        {{"OpFusionPass", "FusionMergePass"}, {"DotMerger", "OpFusionPass", "FusionMergePass"}});
   CompareResult(&p, target, input_ids, {f->id}, 0, std::move(passes), 123, true);
 }
 }  // namespace cinn::frontend::pass

@@ -122,6 +122,7 @@ class DotBuilder {
   const dtype_dict_t& dtype_dict() const { return dtype_dict_; };
   const shape_dict_t& shape_dict() const { return shape_dict_; };
 
+  // Currently the constructor of `NodeData` needs to pass in `Shared<Node>`.
   NodeData* Var(common::Shared<Node>& producer) {
     auto* res = new NodeData(producer, 0, 0, node_name("var"), false);
     graph_->RegisterNode(producer->id(), res);
@@ -181,20 +182,22 @@ class DotBuilder {
 
  private:
   static int idx_;
-  framework::Graph* graph_;
+  framework::Graph* graph_{};
   const std::string dot_type_;
   dtype_dict_t& dtype_dict_;
   shape_dict_t& shape_dict_;
   Node* matmul_{};
 };
 
-int DotBuilder::idx_;
+int DotBuilder::idx_ = 0;
 
 class DotMergerPass {
  public:
   // Find the same input for matrix multiplication and recursively fuse.
   static int Apply(framework::Graph* graph, const std::string& dot_type) {
     int cnt{};
+    // In the return map, the key is a shared variable, and the values
+    // are the dot operators to be fused.
     auto clusters = GetClusters(graph, dot_type);
     std::set<Node*> nodes_to_remove;
     DotBuilder builder(graph, dot_type);
@@ -204,11 +207,14 @@ class DotMergerPass {
       for (size_t i = 0; i < dots.size(); ++i) {
         auto*& a = dots[i];
         if (!a) {
+          VLOG(5) << "The node has been fused and removed, skipped.";
           continue;
         }
         for (size_t j = i + 1; j < dots.size(); ++j) {
           auto* b = dots[j];
           if (!b || nodes_to_remove.count(a) || nodes_to_remove.count(b) || accessible(a, b) || accessible(b, a)) {
+            VLOG(5) << "Because nodes `" << a->id() << "` and `" << b->id()
+                    << " have data dependencies or have been deleted, they cannot be merged.";
             continue;
           }
           auto* merged = MergeDots(&builder, a, b);
@@ -288,7 +294,7 @@ class DotMergerPass {
     auto* output_a   = output_operand(a, 0);
     auto* output_b   = output_operand(b, 0);
     auto& graph_outs = builder->graph()->outputs;
-    for (auto* n : {shared_input, input_a, input_b, output_a, output_b}) {
+    for (auto* n : {shared_input, input_a, input_b}) {
       if (std::find(graph_outs.begin(), graph_outs.end(), n) != graph_outs.end()) {
         return nullptr;
       }
