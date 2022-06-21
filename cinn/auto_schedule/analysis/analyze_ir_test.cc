@@ -148,5 +148,34 @@ TEST(AnalyzeIr, AnalyzeScheduleBlockReadWriteBuffer_AddDiffShape) {
   ASSERT_EQ(write_ss.str(), "_C[i0(0:32), i1(0:128)]");
 }
 
+TEST(AnalyzeIr, ContainsNodeType) {
+  Context::Global().ResetNameId();
+#ifdef CINN_WITH_CUDA
+  Target target = common::DefaultNVGPUTarget();
+#else
+  Target target = common::DefaultHostTarget();
+#endif
+
+  ir::Expr M(32);
+  ir::Expr N(32);
+
+  lang::Placeholder<float> A("A", {M, N});
+  ir::Tensor B = lang::Compute(
+      {M, N}, [&](Var i, Var j) { return A(i, j); }, "B");
+
+  poly::StageMap stages              = poly::CreateStages({A, B});
+  std::vector<ir::LoweredFunc> funcs = lang::LowerVec("SimpleAssign", stages, {A, B}, {}, {}, nullptr, target, true);
+
+  ASSERT_FALSE(funcs.empty());
+  ir::Expr ast_expr = funcs[0]->body;
+
+  VLOG(6) << "Analyzing for Expr:";
+  VLOG(6) << ast_expr;
+
+  ASSERT_TRUE(ContainsNodeType(ast_expr, {ir::IrNodeTy::Load, ir::IrNodeTy::Store}));
+  ASSERT_TRUE(ContainsNodeType(ast_expr, {ir::IrNodeTy::Load, ir::IrNodeTy::IfThenElse}));
+  ASSERT_FALSE(ContainsNodeType(ast_expr, {ir::IrNodeTy::IfThenElse, ir::IrNodeTy::Sum}));
+}
+
 }  // namespace auto_schedule
 }  // namespace cinn
