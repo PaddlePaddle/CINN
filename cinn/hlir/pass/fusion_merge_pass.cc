@@ -940,12 +940,19 @@ class FusionMergePassHelper : public FusionHelperBase {
       }
 
       // check shape is same
-      if (reducer_0_input_shape != reducer_1_input_shape || reducer_0_output_shape != reducer_1_output_shape ||
-          reducer_0_reduce_dim != reducer_1_reduce_dim) {
-        return false;
+      if (reducer_0_input_shape == reducer_1_input_shape && reducer_0_output_shape == reducer_1_output_shape &&
+          reducer_0_reduce_dim == reducer_1_reduce_dim) {
+        return true;
       }
 
-      return true;
+      if (this->WithoutLastDimInReduce(reducer_0_input_shape, reducer_0_reduce_dim) &&
+          this->WithoutLastDimInReduce(reducer_1_input_shape, reducer_1_reduce_dim) &&
+          reducer_0_output_shape == reducer_1_output_shape && reducer_0_reduce_dim == reducer_1_reduce_dim) {
+        // fuse the reduce that has different.
+        return true;
+      }
+
+      return false;
     };
 
     // kElemWise

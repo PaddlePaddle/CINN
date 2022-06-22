@@ -1335,7 +1335,6 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
     }
   }
   CHECK(master_reducer) << "Can't find Master reducer!";
-
   auto master_reducer_data  = GetNodeData(master_reducer);
   auto master_reducer_stage = stages[tensor_map[master_reducer_data->id()]];
   auto master_reducer_axes  = absl::get<std::vector<int>>(master_reducer->attrs.attr_store.at("dim"));

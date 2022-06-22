@@ -253,13 +253,21 @@ class OpFusionPassHelper : public FusionHelperBase {
           dim = reducer_input_shape.size() - 1;
         }
       }
+
       // check shape is same
-      if (producer_input_shape != reducer_input_shape || producer_output_shape != reducer_output_shape ||
-          producer_reduce_dim != reducer_reduce_dim) {
-        return false;
+      if (producer_input_shape == reducer_input_shape && producer_output_shape == reducer_output_shape &&
+          producer_reduce_dim == reducer_reduce_dim) {
+        return true;
       }
 
-      return true;
+      if (this->WithoutLastDimInReduce(producer_input_shape, producer_reduce_dim) &&
+          this->WithoutLastDimInReduce(reducer_input_shape, reducer_reduce_dim) &&
+          producer_output_shape == reducer_output_shape && producer_reduce_dim == reducer_reduce_dim) {
+        // fuse the reduce that has different.
+        return true;
+      }
+
+      return false;
     };
     // 6.check with same shape or with last successive reduce is less than max threads
     auto is_same_shape_or_vertical_reduce_relation = [this, is_same_shape](const Node* producer,
