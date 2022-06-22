@@ -31,10 +31,15 @@ using namespace framework;
 
 class FusionHelperBase {
  public:
-  FusionHelperBase(const absl::flat_hash_map<std::string, shape_t>& shape_dict, const common::Target target)
-      : shape_dict_(shape_dict), target_(target) {
+  FusionHelperBase(const framework::Graph* graph)
+      : shape_dict_(graph->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape")), target_(graph->target_) {
     // get op pattern dict
     op_pattern_dict_ = &framework::Operator::GetAttrs<OpPatternKind>("OpPattern");
+    // output node set
+    for (auto node_data : graph->outputs) {
+      CHECK(node_data->source_node.get());
+      output_nodes_set_.insert(node_data->source_node.get());
+    }
   }
 
  protected:
@@ -96,7 +101,9 @@ class FusionHelperBase {
     }
   }
   // target
-  common::Target target_;
+  const common::Target& target_;
+  // output node set
+  std::unordered_set<Node*> output_nodes_set_;
   // shape dict
   const absl::flat_hash_map<std::string, shape_t>& shape_dict_;
   // op pattern dict

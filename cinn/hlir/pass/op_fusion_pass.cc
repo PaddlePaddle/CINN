@@ -39,14 +39,12 @@ using ConditionFunction = std::function<bool(const Node*, const Node*)>;
 // code generation.
 class OpFusionPassHelper : public FusionHelperBase {
  public:
-  OpFusionPassHelper(const std::vector<GraphNode*>& graph_nodes,
-                     const absl::flat_hash_map<std::string, shape_t>& shape_dict,
-                     const common::Target target)
-      : FusionHelperBase(shape_dict, target) {
+  OpFusionPassHelper(const Graph* graph) : FusionHelperBase(graph) {
     // init fusion relation
     InitFusionRelation();
     // filter node data, create group for each node
-    for (auto graph_node : graph_nodes) {
+    auto nodes_inorder = std::get<0>(graph->topological_order());
+    for (auto graph_node : nodes_inorder) {
       auto node = graph_node->safe_as<Node>();
       if (node) {
         nodes_.push_back(node);
@@ -105,8 +103,17 @@ class OpFusionPassHelper : public FusionHelperBase {
       }
     }
 
+    // init group depth.
+    for (auto& group : fusion_groups) {
+      for (auto& consumer : group->consumer_groups) {
+        // update depth.
+        group->depth = std::max(group->depth, consumer->depth + 1);
+      }
+    }
+
     // reverse to keep fusion group in order.
     std::reverse(fusion_groups.begin(), fusion_groups.end());
+
     return fusion_groups;
   }
 
@@ -172,8 +179,10 @@ class OpFusionPassHelper : public FusionHelperBase {
           consumer_fusion->master_nodes.insert(producer);
         }
 
-        // producer is not a const value node.
-        if (producer_data->outlinks().size() > 1 && producer->inlinks().size() > 0) {
+        if (this->output_nodes_set_.count(producer)) {
+          consumer_fusion->output_nodes.insert(producer);
+        } else if (producer_data->outlinks().size() > 1 && producer->inlinks().size() > 0) {
+          // producer is not a const value node.
           consumer_fusion->internal_nodes.insert(producer);
         }
 
@@ -326,7 +335,8 @@ class OpFusionPassHelper : public FusionHelperBase {
           // can be horizontal or can compute inline, check with same output shape or can compute inline.
           {framework::kInjective,
            [this, is_same_shape](const Node* producer, const Node* consumer) -> bool {
-             return is_same_shape(producer, consumer) || this->GetNodeData(producer)->outlinks().size() == 1;
+             return is_same_shape(producer, consumer) || (this->GetNodeData(producer)->outlinks().size() == 1 &&
+                                                          !this->output_nodes_set_.count(const_cast<Node*>(producer)));
            }},
           // must be horizontal, check with same output shape.
           {framework::kOutEWiseFusable, is_same_shape}};
@@ -348,7 +358,8 @@ class OpFusionPassHelper : public FusionHelperBase {
           // can be horizontal or can compute inline, check with same output shape or just one consumer.
           {framework::kInjective,
            [this, is_same_shape](const Node* producer, const Node* consumer) -> bool {
-             return is_same_shape(producer, consumer) || this->GetNodeData(producer)->outlinks().size() == 1;
+             return is_same_shape(producer, consumer) || (this->GetNodeData(producer)->outlinks().size() == 1 &&
+                                                          !this->output_nodes_set_.count(const_cast<Node*>(producer)));
            }},
           // must be horizontal, check with same output shape.
           {framework::kOutEWiseFusable, is_same_shape}};
@@ -511,13 +522,9 @@ void InsertBroadcastTo(Graph* graph) {
 }
 
 void OpFusionPassInternal(Graph* graph) {
+  VLOG(3) << "OpFusionPass...!";
   InsertBroadcastTo(graph);
-  // nodes include(node, data node)
-  auto nodes = std::get<0>(graph->topological_order());
-  // shape
-  auto& shape_dict = graph->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
-  auto op_fusion_helper = OpFusionPassHelper(nodes, shape_dict, graph->target_);
+  auto op_fusion_helper = OpFusionPassHelper(graph);
   graph->fusion_groups  = op_fusion_helper();
 
   for (auto& group : graph->fusion_groups) {
@@ -529,6 +536,7 @@ void OpFusionPassInternal(Graph* graph) {
       VLOG(3) << "  consumer group -> " << consumer->group_id;
     }
   }
+  VLOG(3) << "OpFusionPass Finish...!";
 }
 
 }  // namespace pass
