@@ -346,7 +346,7 @@ void AlterLayoutPass(Graph* graph) {
           }
           std::vector<Node*> next_ops;
           int count = 0;
-          std::shared_ptr<Node> node_ptr(new_node);
+          Shared<Node> node_ptr(new_node);
           for (auto& link : old_outlinks) {
             auto sink = link->sink();
             node->UnLinkSingleTo(sink);

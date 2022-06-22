@@ -1,4 +1,4 @@
-// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+// Copyright (c) 2022 CINN Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,15 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#pragma once
+#include "cinn/common/graph_utils.h"
+#include "cinn/hlir/framework/graph.h"
+#include "cinn/hlir/framework/pass.h"
 
-#include "cinn/common/macros.h"
+namespace cinn {
+namespace hlir {
+namespace pass {
 
-CINN_USE_REGISTER(InferShape)
-CINN_USE_REGISTER(OpFusion)
-CINN_USE_REGISTER(AlterLayout)
-CINN_USE_REGISTER(ConstPropagate)
+void InferShape(framework::Node* node,
+                absl::flat_hash_map<std::string, common::Type>& dtype_dict,
+                absl::flat_hash_map<std::string, framework::shape_t>& shape_dict);
 
-CINN_USE_REGISTER(DotMerger)
-CINN_USE_REGISTER(OpFusionPass)
-CINN_USE_REGISTER(FusionMergePass)
+}  // namespace pass
+}  // namespace hlir
+}  // namespace cinn
