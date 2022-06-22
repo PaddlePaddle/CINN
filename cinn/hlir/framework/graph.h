@@ -56,7 +56,13 @@ class Graph : public cinn::common::Graph {
 
   std::vector<std::vector<Node*>> groups;
   struct Group {
+    // distance to last group.
+    int depth{0};
+    int max_depth{0};
+    int min_depth{INT_MAX};
+    // group id, consisted of node's id.
     std::string group_id{""};
+    // global unique id.
     std::string unique_id{UniqName("")};
     // node in this group
     std::vector<Node*> nodes;
