@@ -36,7 +36,7 @@ std::vector<float> operator+(const std::vector<float>& first, const std::vector<
 float FusionGroupComparator::Predict(const GroupList& src, const GroupPtr& dst) {
   CHECK(srcc.size()) << "src groups is null!";
   auto src_kf = ExtractKernelFeature(src);
-  auto dst_kf = ExtractKernelFeature(dst[0]);
+  auto dst_kf = ExtractKernelFeature(dst);
 
   Device device;
   auto src_feature = src_kf.GetModelFeature(device);
