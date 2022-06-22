@@ -59,7 +59,7 @@ class Graph : public cinn::common::Graph {
     // distance to last group.
     int depth{0};
     int max_depth{0};
-    int min_depth{10000};
+    int min_depth{INT_MAX};
     // group id, consisted of node's id.
     std::string group_id{""};
     // global unique id.

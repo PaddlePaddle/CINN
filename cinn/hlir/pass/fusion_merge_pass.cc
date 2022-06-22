@@ -655,7 +655,7 @@ class FusionMergePassHelper : public FusionHelperBase {
     std::queue<GroupPtr> candidates;
     candidates.push(consumer);
     // check upper.
-    int check_upper_depth = producer_g.get() ? producer_g->max_depth : 10000;
+    int check_upper_depth = producer_g.get() ? producer_g->max_depth : INT_MAX;
     std::unordered_set<GroupPtr, Hasher, Comparator> visited_set;
     while (!candidates.empty()) {
       auto& candidate = candidates.front();
