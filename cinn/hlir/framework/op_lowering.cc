@@ -1339,6 +1339,20 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
   auto master_reducer_stage = stages[tensor_map[master_reducer_data->id()]];
   auto master_reducer_axes  = absl::get<std::vector<int>>(master_reducer->attrs.attr_store.at("dim"));
   auto master_reducer_shape = this->shape_dict_.at(master_reducer->inlinks_in_order()[0]->source()->id());
+
+  bool reduce_with_same_shape = true;
+  if (WithoutLastDimInReduce(master_reducer_shape, master_reducer_axes)) {
+    // check each reduce has same input shape.
+    for (auto reducer : group->master_nodes) {
+      if (op_pattern_dict[reducer->op()] != framework::kCommReduce) {
+        continue;
+      }
+      if (this->shape_dict_.at(reducer->inlinks_in_order()[0]->source()->id()) != master_reducer_shape) {
+        reduce_with_same_shape = false;
+        break;
+      }
+    }
+  }
   // update sync thread depend.
   for (auto stage : stages) {
     if (stage.first.find("syncthreads") != std::string::npos) {
@@ -1418,14 +1432,26 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
         } else {
           // if don't use block shuffle reduce.
           if (!tensor_map.count(node_data->id() + "_1")) {
-            if (master_reducer_stage->n_out_dims() > 1) {
-              stage->SimpleComputeAt(master_reducer_stage, master_reducer_stage->n_out_dims() - 1);
+            if (reduce_with_same_shape) {
+              if (master_reducer_stage->n_out_dims() > 1) {
+                stage->SimpleComputeAt(master_reducer_stage, master_reducer_stage->n_out_dims() - 1);
+              }
+            } else {
+              int num_reduce_axis = master_reducer_stage->tensor()->reduce_axis.size();
+              if (master_reducer_stage->n_out_dims() > num_reduce_axis) {
+                stage->SimpleComputeAt(master_reducer_stage, master_reducer_stage->n_out_dims() - num_reduce_axis - 1);
+              }
             }
           } else {
             auto stage_1 = stages[tensor_map[node_data->id() + "_0"]];
             auto stage_2 = stages[tensor_map[master_reducer_data->id() + "_0"]];
             // compute at master reducer
-            stage_1->SimpleComputeAt(stage_2, stage_2->n_out_dims() - 1);
+            if (reduce_with_same_shape) {
+              stage_1->SimpleComputeAt(stage_2, stage_2->n_out_dims() - 1);
+            } else {
+              int num_reduce_axis = stage_2->tensor()->reduce_axis.size();
+              stage_1->SimpleComputeAt(stage_2, stage_2->n_out_dims() - num_reduce_axis - 1);
+            }
             // delete stage_1 compute at stage
             stage_1->GetComputeAts().erase(stage->id());
             stage->CtrlDepend(tensor_map[master_reducer_data->id() + "_0"]);
