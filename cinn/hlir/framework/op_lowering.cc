@@ -1207,7 +1207,7 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
         for (int idx = axes.back() + 1; idx < inshape.size(); ++idx) {
           lane *= inshape[idx];
         }
-        CHECK_LT(lane, max_num_threads / 2) << "Parallel threads must less than max_num_threads/2 on gpu!";
+        CHECK_LE(lane, max_num_threads / 2) << "Parallel threads must less equal max_num_threads/2 on gpu!";
         int pos   = 0;
         int index = axes.size() - 1;
         for (; index >= 0; --index) {
