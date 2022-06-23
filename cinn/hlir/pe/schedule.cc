@@ -2174,7 +2174,6 @@ void CudaScheduleInjective(poly::Stage *stage, const std::vector<int> &output_sh
     CudaScheduleInjectiveWithVectorize(stage, output_shape, target);
     return;
   }
-  LOG(INFO) << "Begin CudaScheduleInjective of " << stage->id();
   int dims = stage->n_out_dims();
   for (int i = 1; i < dims; i++) {
     stage->Fuse(0, 1);
