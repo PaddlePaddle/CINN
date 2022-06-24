@@ -2179,12 +2179,16 @@ void CudaScheduleInjective(poly::Stage *stage, const std::vector<int> &output_sh
     stage->Fuse(0, 1);
   }
 
-  int num_thread        = target.max_num_threads();
-  int num_block         = 1024;
-  int vector_width      = 1;
-  int prod_size         = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int>());
+  int num_thread   = target.max_num_threads();
+  int num_block    = 1024;
+  int vector_width = 1;
+  int prod_size    = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int>());
+  LOG(INFO) << "Total prod_size of [" << stage->id() << "] is : " << prod_size << "\n[";
+  for (auto i : output_shape) LOG(INFO) << i << ", ";
+  LOG(INFO) << "]";
   bool need_block_split = prod_size > num_thread * num_block * vector_width ? true : false;
   if (need_block_split) {
+    LOG(INFO) << "Need block split!";
     auto x_outer_inner = stage->Split(0, num_thread * num_block);
     auto &X_outer      = std::get<0>(x_outer_inner);
     auto &X_inner      = std::get<1>(x_outer_inner);
@@ -2198,7 +2202,9 @@ void CudaScheduleInjective(poly::Stage *stage, const std::vector<int> &output_sh
     stage->Bind(1, "threadIdx.x");
   } else {
     if (prod_size > num_thread) {
-      stage->Split(0, num_thread);
+      // stage->Split(0, num_thread);
+      LOG(INFO) << "stage->Split " << gcd(prod_size, num_thread);
+      stage->Split(0, gcd(prod_size, num_thread));
       stage->Bind(0, "blockIdx.x");
       stage->Bind(1, "threadIdx.x");
     } else {
