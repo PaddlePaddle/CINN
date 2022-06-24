@@ -16,6 +16,7 @@
 
 #include <absl/container/flat_hash_map.h>
 #include <isl/cpp.h>
+#include <math.h>
 
 #include <algorithm>
 #include <fstream>
@@ -2101,6 +2102,18 @@ int gcd(int a, int b) {
   return a;
 }
 
+int MaxFactorLessThan(int a, int b) {
+  CHECK_GT(a, b);
+  int res = 1;
+  for (int i = 2; i <= (int)sqrt((double)a); i++) {
+    if (a % i == 0) {
+      if (i <= b) res = std::max(res, i);
+      if (a / i <= b) res = std::max(res, a / i);
+    }
+  }
+  return res;
+}
+
 void CudaScheduleInjectiveWithVectorize(poly::Stage *stage,
                                         const std::vector<int> &output_shape,
                                         const common::Target &target) {
@@ -2180,36 +2193,31 @@ void CudaScheduleInjective(poly::Stage *stage, const std::vector<int> &output_sh
   }
 
   int num_thread   = target.max_num_threads();
-  int num_block    = 1024;
+  int num_block    = 65535;
   int vector_width = 1;
   int prod_size    = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int>());
   LOG(INFO) << "Total prod_size of [" << stage->id() << "] is : " << prod_size << "\n[";
   for (auto i : output_shape) LOG(INFO) << i << ", ";
   LOG(INFO) << "]";
-  bool need_block_split = prod_size > num_thread * num_block * vector_width ? true : false;
-  if (need_block_split) {
-    LOG(INFO) << "Need block split!";
-    auto x_outer_inner = stage->Split(0, num_thread * num_block);
-    auto &X_outer      = std::get<0>(x_outer_inner);
-    auto &X_inner      = std::get<1>(x_outer_inner);
+  if (prod_size <= num_thread) {
+    stage->Bind(0, "threadIdx.x");
+    return;
+  }
+  int new_num_thread = gcd(prod_size, num_thread);
+  if (new_num_thread % 32 != 0) {
+    new_num_thread = MaxFactorLessThan(prod_size, num_thread);
+  }
+  if (new_num_thread == 1) LOG(FATAL) << "prod_size out of range: " << prod_size;
 
-    auto Block_x_Thread_x = stage->Split(X_inner, num_thread);
-    auto &Block_x         = std::get<0>(Block_x_Thread_x);
-    auto &Thread_x        = std::get<1>(Block_x_Thread_x);
-
-    stage->Reorder({Block_x, Thread_x, X_outer});
+  bool need_more_split = prod_size > new_num_thread * num_block ? true : false;
+  if (need_more_split) {
+    LOG(FATAL) << "prod_size out of range: " << prod_size << ", and new_num_thread is : " << new_num_thread;
+  } else {
+    CHECK_GT(prod_size, new_num_thread);
+    LOG(INFO) << "Split new_num_thread : " << new_num_thread << " of prod_size: " << prod_size;
+    stage->Split(0, new_num_thread);
     stage->Bind(0, "blockIdx.x");
     stage->Bind(1, "threadIdx.x");
-  } else {
-    if (prod_size > num_thread) {
-      // stage->Split(0, num_thread);
-      LOG(INFO) << "stage->Split " << gcd(prod_size, num_thread);
-      stage->Split(0, gcd(prod_size, num_thread));
-      stage->Bind(0, "blockIdx.x");
-      stage->Bind(1, "threadIdx.x");
-    } else {
-      stage->Bind(0, "threadIdx.x");
-    }
   }
 }
 
