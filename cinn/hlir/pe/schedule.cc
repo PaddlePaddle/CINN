@@ -2192,13 +2192,9 @@ void CudaScheduleInjective(poly::Stage *stage, const std::vector<int> &output_sh
     stage->Fuse(0, 1);
   }
 
-  int num_thread   = target.max_num_threads();
-  int num_block    = 65535;
-  int vector_width = 1;
-  int prod_size    = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int>());
-  LOG(INFO) << "Total prod_size of [" << stage->id() << "] is : " << prod_size << "\n[";
-  for (auto i : output_shape) LOG(INFO) << i << ", ";
-  LOG(INFO) << "]";
+  int num_thread = target.max_num_threads();
+  int num_block  = 65535;
+  int prod_size  = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int>());
   if (prod_size <= num_thread) {
     stage->Bind(0, "threadIdx.x");
     return;
@@ -2214,7 +2210,6 @@ void CudaScheduleInjective(poly::Stage *stage, const std::vector<int> &output_sh
     LOG(FATAL) << "prod_size out of range: " << prod_size << ", and new_num_thread is : " << new_num_thread;
   } else {
     CHECK_GT(prod_size, new_num_thread);
-    LOG(INFO) << "Split new_num_thread : " << new_num_thread << " of prod_size: " << prod_size;
     stage->Split(0, new_num_thread);
     stage->Bind(0, "blockIdx.x");
     stage->Bind(1, "threadIdx.x");
