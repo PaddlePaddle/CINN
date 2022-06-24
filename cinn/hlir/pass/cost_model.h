@@ -23,15 +23,16 @@ namespace cinn {
 namespace hlir {
 namespace pass {
 
+using namespace framework;
 using GroupPtr  = std::shared_ptr<Graph::Group>;
 using GroupList = std::vector<GroupPtr>;
 
 class FusionGroupComparator {
  public:
   FusionGroupComparator(const std::string& model_type, const std::string& model_path = "");
-  float Predict(const GroupList& src, const GroupPtr& dst);
+  float Predict(const GroupPtr& producer, const GroupPtr& consumer, const GroupPtr& fusion);
 
-  void Train(const std::vector<GroupList>& src, const GroupList& dst, const std::vector<float>& labels);
+  void Train(const std::vector<GroupList>& src, const std::vector<float>& labels);
   void SaveModel(const std::string& model_path);
 
  private:
@@ -42,7 +43,12 @@ class FusionGroupComparator {
     int Max_Parallel;
     // device max clock.
     int Max_Clock;
-  }
+  };
+  /*
+  1. element-wise fuse reduce.
+  2. element-wise fuse broadcast.
+  3. producer recompute.
+  */
   // kernel feature
   struct KernelFeature {
     // the number of ops.
@@ -55,12 +61,10 @@ class FusionGroupComparator {
     int num_writer_ios;
     // the size of parallel.
     int parallel_size;
-    // kernel launch times
-    int launch_times;
 
     KernelFeature operator+(const GroupPtr& others) {
-      KernelFeature new_kf;
-      return kf;
+      KernelFeature n_kf;
+      return n_kf;
     }
 
     void operator+=(const GroupPtr& others) {}
@@ -74,14 +78,6 @@ class FusionGroupComparator {
   // extract kernel feature.
   KernelFeature ExtractKernelFeature(const GroupPtr& group) {
     KernelFeature kf;
-    return kf;
-  }
-
-  KernelFeature ExtractKernelFeature(const std::vector<GroupList>& groups) {
-    KernelFeature kf = ExtractKernelFeature(groups[0]);
-    for (int idx = 1; idx < groups.size(); ++idx) {
-      src_kf += ExtractKernelFeature(groups[idx]);
-    }
     return kf;
   }
 

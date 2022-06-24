@@ -30,43 +30,35 @@ FusionGroupComparator::FusionGroupComparator(const std::string& model_type, cons
 std::vector<float> operator+(const std::vector<float>& first, const std::vector<float>& second) {
   std::vector<float> res(first);
   res.insert(res.end(), second.begin(), second.end());
-  return rs;
+  return res;
 }
 
-float FusionGroupComparator::Predict(const GroupList& src, const GroupPtr& dst) {
-  CHECK(srcc.size()) << "src groups is null!";
-  auto src_kf = ExtractKernelFeature(src);
-  auto dst_kf = ExtractKernelFeature(dst);
+float FusionGroupComparator::Predict(const GroupPtr& producer, const GroupPtr& consumer, const GroupPtr& fusion) {
+  auto producer_kf = ExtractKernelFeature(producer);
+  auto consumer_kf = ExtractKernelFeature(consumer);
+  auto fusion_kf   = ExtractKernelFeature(fusion);
 
   Device device;
-  auto src_feature = src_kf.GetModelFeature(device);
-  auto dst_feature = dst_kf.GetModelFeature(device);
+  auto produer_feature  = producer_kf.GetModelFeature(device);
+  auto consumer_feature = consumer_kf.GetModelFeature(device);
+  auto fusion_feature   = fusion_kf.GetModelFeature(device);
 
-  auto pred = cost_model_->Predict({src_feature + dst_feature});
+  auto pred = cost_model_->Predict({produer_feature + consumer_feature + fusion_feature});
   return pred[0];
 }
 
-void FusionGroupComparator::Train(const std::vector<GroupList>& src,
-                                  const std::vector<GroupList>& dst,
-                                  const vector<float>& labels) {
+void FusionGroupComparator::Train(const std::vector<GroupList>& groups_list, const std::vector<float>& labels) {
   Device device;
   std::vector<std::vector<float>> n_features;
-  std::vector<float> n_labels;
-  for (int idx = 0; idx < src.size(); ++idx) {
-    auto src_kf = ExtractKernelFeature(src[idx]);
-    auto dst_kf = ExtractKernelFeature(dst[idx]);
-
-    auto src_feature = src_kf.GetModelFeature(device);
-    auto dst_feature = dst_kf.GetModelFeature(device);
-
-    n_features.push_back(std::move(src_feature + dst_feature));
-    n_labels.push_back(labels[idx]);
-
-    n_features.push_back(std::move(dst_feature + src_feature));
-    n_labels.push_back(1.0f - labels[idx]);
+  for (auto& groups : groups_list) {
+    std::vector<float> feature;
+    for (auto& group : groups) {
+      auto kf = ExtractKernelFeature(group);
+      feature = std::move(feature + kf.GetModelFeature(device));
+    }
+    n_features.push_back(std::move(feature));
   }
-
-  cost_model_->Train(n_features, n_labels);
+  cost_model_->Train(n_features, labels);
 }
 
 void FusionGroupComparator::SaveModel(const std::string& model_path) { cost_model_->Save(model_path); }
