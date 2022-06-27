@@ -36,7 +36,7 @@ TEST(DotMerger, lhs) {
     // because op def changes with the macro
     return;
   }
-  int m = 2, k = 10201, n1 = 50, n2 = 50, n3 = 50, axis = 1;
+  int m = 2, k = 10201, n1 = 100, n2 = 100, n3 = 100, axis = 1;
   NetBuilder builder("net_builder");
   auto a  = builder.CreateInput(Float(32), {m, k}, "A");
   auto b  = builder.CreateInput(Float(32), {k, n1}, "B");
