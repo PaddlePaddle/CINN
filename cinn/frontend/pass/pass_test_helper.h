@@ -225,7 +225,7 @@ void CompareResult(Program* program,
 
   ASSERT_EQ(origin_out.size(), fused_out.size());
   for (size_t i = 0; i < origin_out.size(); ++i) {
-    ASSERT_FLOAT_EQ(origin_out[i], fused_out[i]);
+    ASSERT_FLOAT_EQ(origin_out[i], fused_out[i]) << " i is " << i;
   }
 }
 
