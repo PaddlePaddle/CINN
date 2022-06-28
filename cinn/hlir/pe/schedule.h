@@ -203,7 +203,10 @@ void CudaScheduleConv2(poly::StageMap stages,
                        const common::Target &target,
                        const std::string &key);
 
-void CudaScheduleInjective(poly::Stage *stage, const std::vector<int> &output_shape, const common::Target &target);
+void CudaScheduleInjective(poly::Stage *stage,
+                           const std::vector<int> &output_shape,
+                           const common::Target &target,
+                           bool vectorizable = true);
 
 void CudaSplitSchedule(common::CINNValuePack *arg_pack,
                        const std::vector<std::vector<int>> &output_shapes,

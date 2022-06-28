@@ -2103,18 +2103,12 @@ int gcd(int a, int b) {
 
 void CudaScheduleInjectiveWithVectorize(poly::Stage *stage,
                                         const std::vector<int> &output_shape,
-                                        const common::Target &target) {
+                                        const common::Target &target,
+                                        const int vector_factor) {
+  CHECK(vector_factor == 2 || vector_factor == 4) << "factor of vectorize must be either 2 or 4";
   int dims       = stage->n_out_dims();
   int prod_size  = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int>());
   int num_thread = target.max_num_threads();
-  int last_shape = stage->GetDimRange(stage->n_out_dims() - 1);
-  // determine the factor of vectorize
-  int vector_width = 1;
-  if (last_shape % 4 == 0) {
-    vector_width = 4;
-  } else if (last_shape % 2 == 0) {
-    vector_width = 2;
-  }
 
   // print range of stage for debug
   auto range_str_fn = [stage]() {
@@ -2130,9 +2124,7 @@ void CudaScheduleInjectiveWithVectorize(poly::Stage *stage,
   int bind_idx = stage->n_out_dims() - 1;
   // it will add a new dim by split before vectorize, but the new dim will
   // be eleminated when vectorizng, so the bind_idx does't need to increase
-  if (vector_width > 1) {
-    stage->Split(bind_idx, vector_width);
-  }
+  stage->Split(bind_idx, vector_factor);
   VLOG(5) << "vectorize result:" << range_str_fn();
 
   // revise dim for binding threadIdx.x, here only use the x of threadIdx
@@ -2143,10 +2135,6 @@ void CudaScheduleInjectiveWithVectorize(poly::Stage *stage,
   while (bind_idx > 0 && stage->GetDimRange(bind_idx - 1) * stage->GetDimRange(bind_idx) < num_thread) {
     stage->Fuse(bind_idx - 1, bind_idx);
     --bind_idx;
-  }
-  // call vectorize on the last dim
-  if (vector_width > 1) {
-    stage->Vectorize(stage->n_out_dims() - 1, vector_width);
   }
   stage->Bind(bind_idx, "threadIdx.x");
   --bind_idx;
@@ -2163,17 +2151,28 @@ void CudaScheduleInjectiveWithVectorize(poly::Stage *stage,
     stage->Bind(bind_idx, block_idx);
     --bind_idx;
   }
-  VLOG(5) << "CudaScheduleInjectiveWithVectorize tensor:" << stage->tensor()->name << ", vector_width:" << vector_width
-          << ", prod_size:" << prod_size << ", shape:[" << utils::Join(output_shape, ",") << "]"
+  // call vectorize on the last dim
+  stage->Vectorize(stage->n_out_dims() - 1, vector_factor);
+  VLOG(5) << "CudaScheduleInjectiveWithVectorize tensor:" << stage->tensor()->name
+          << ", vector_factor:" << vector_factor << ", prod_size:" << prod_size << ", shape:["
+          << utils::Join(output_shape, ",") << "]"
           << ", range:" << range_str_fn();
 }
 
-void CudaScheduleInjective(poly::Stage *stage, const std::vector<int> &output_shape, const common::Target &target) {
+void CudaScheduleInjective(poly::Stage *stage,
+                           const std::vector<int> &output_shape,
+                           const common::Target &target,
+                           bool vectorizable) {
   CHECK_EQ(stage->n_out_dims(), stage->n_in_dims()) << "The dims of op are not equal";
-  if (FLAGS_cinn_use_cuda_vectorize) {
-    CudaScheduleInjectiveWithVectorize(stage, output_shape, target);
-    return;
+  if (vectorizable && FLAGS_cinn_use_cuda_vectorize) {
+    // determine the factor of vectorize
+    const int last_shape = stage->GetDimRange(stage->n_out_dims() - 1);
+    int factor           = last_shape % 4 == 0 ? 4 : (last_shape % 2 == 0 ? 2 : 1);
+    if (factor > 1) {
+      return CudaScheduleInjectiveWithVectorize(stage, output_shape, target, factor);
+    }
   }
+
   int dims       = stage->n_out_dims() - 1;
   int num_thread = target.max_num_threads();
   if (stage->GetDimRange(dims) > num_thread) {

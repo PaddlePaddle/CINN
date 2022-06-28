@@ -111,6 +111,7 @@ class TensorVectorizeTeller : public ir::IRMutator<const Expr *> {
     const ir::_Tensor_ *tensor = expr.As<ir::_Tensor_>();
     auto find_matched_var_fn = [&](const Expr *x) { return x->As<_Var_>() && x->As<_Var_>()->name == iter_var_->name; };
 
+    LOG(INFO) << "Tensor:" << tensor->name << ", indices:" << utils::Join(indices, ",");
     // the size of the last dim should be divisible by factor
     Expr last_size = tensor->shape.back();
     if (tensor->shape.empty() || !tensor->shape.back().As<IntImm>() || tensor->shape.back().as_int32() % factor_ != 0) {
