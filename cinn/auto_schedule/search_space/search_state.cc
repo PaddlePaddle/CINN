@@ -54,7 +54,8 @@ SearchState& SearchState::operator=(const SearchState& src) {
 bool operator<(const SearchState& left, const SearchState& right) { return left.predicted_cost < right.predicted_cost; }
 
 void SearchState::InitAutoGenRules(const common::Target& target) {
-  applicable_rules = {std::shared_ptr<AutoGenRule>(new AutoInline(target)),
+  // TODO(zhhsplendid): pass correct output names to AutoInline
+  applicable_rules = {std::shared_ptr<AutoGenRule>(new AutoInline(target, {})),
                       std::shared_ptr<AutoGenRule>(new MultiLevelTiling(target)),
                       std::shared_ptr<AutoGenRule>(new SkipRule(target))};
 }
