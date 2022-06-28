@@ -22,6 +22,7 @@
 #include "cinn/common/common.h"
 #include "cinn/common/ir_util.h"
 #include "cinn/ir/ir_operators.h"
+#include "cinn/lang/lower.h"
 #include "cinn/optim/ir_simplify.h"
 #include "cinn/optim/optimize.h"
 #include "cinn/optim/transform_polyfor_to_for.h"
