@@ -952,8 +952,12 @@ bool ComputeAtRelation::IsCompatible(Stage *self) {
   CHECK_LE(level, isl_set_dim(self->transformed_domain().get(), isl_dim_set));
   CHECK_LE(level, isl_set_dim(stage->transformed_domain().get(), isl_dim_set));
 
+  int level_without_reduce_axis = level;
+  if (self->tensor()) {
+    level_without_reduce_axis = self->tensor()->domain.size() - 1;
+  }
   std::vector<int> selected_dims;
-  for (int i = 0; i <= level; i++) {
+  for (int i = 0; i <= std::min(level, level_without_reduce_axis); i++) {
     selected_dims.push_back(i);
   }
 
