@@ -18,6 +18,7 @@
 
 #include <vector>
 
+#include "cinn/auto_schedule/analysis/analyze_ir.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/lowered_func.h"
@@ -40,6 +41,11 @@ void TuneContext::SetLoweredFuncBodyExprs(const std::vector<ir::Expr>& exprs) {
   for (size_t i = 0; i < exprs_size; ++i) {
     lowered_funcs[i]->body = exprs[i];
   }
+}
+
+void TuneContext::SetLoweredFuncsAndAnalyzeOutput(const std::vector<ir::LoweredFunc>& lowered_funcs) {
+  this->lowered_funcs = lowered_funcs;
+  this->output_names  = GetOutputNamesFromLoweredFunc(this->lowered_funcs);
 }
 
 }  // namespace auto_schedule

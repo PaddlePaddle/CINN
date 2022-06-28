@@ -35,7 +35,7 @@ void TuneTask::TaskGraphToUnoptLoweredFunc() {
   // so we can take only first std::vector<ir::LoweredFunc>. Support the
   // tune_context_.lowered_funcs to be std::vector<std::vector<ir::LoweredFunc>>
   // in the future.
-  tune_context_.lowered_funcs = graph_compiler_->FusedGraphToLoweredFunc(task_graph_)[0];
+  tune_context_.SetLoweredFuncsAndAnalyzeOutput(graph_compiler_->FusedGraphToLoweredFunc(task_graph_)[0]);
 }
 
 }  // namespace auto_schedule

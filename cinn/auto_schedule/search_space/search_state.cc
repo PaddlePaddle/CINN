@@ -15,6 +15,7 @@
 #include "cinn/auto_schedule/search_space/search_state.h"
 
 #include <memory>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -53,9 +54,9 @@ SearchState& SearchState::operator=(const SearchState& src) {
 
 bool operator<(const SearchState& left, const SearchState& right) { return left.predicted_cost < right.predicted_cost; }
 
-void SearchState::InitAutoGenRules(const common::Target& target) {
+void SearchState::InitAutoGenRules(const common::Target& target, const std::unordered_set<std::string>& output_names) {
   // TODO(zhhsplendid): pass correct output names to AutoInline
-  applicable_rules = {std::shared_ptr<AutoGenRule>(new AutoInline(target, {})),
+  applicable_rules = {std::shared_ptr<AutoGenRule>(new AutoInline(target, output_names)),
                       std::shared_ptr<AutoGenRule>(new MultiLevelTiling(target)),
                       std::shared_ptr<AutoGenRule>(new SkipRule(target))};
 }

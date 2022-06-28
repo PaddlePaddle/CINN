@@ -15,6 +15,7 @@
 #pragma once
 
 #include <memory>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -58,7 +59,7 @@ class SearchState {
 
   // Not all ModuleExpr has to be mutated AutoGenRule. For those states which
   // have ModuleExpr to random mutated by AutoGenRule, initialize it.
-  void InitAutoGenRules(const common::Target& target);
+  void InitAutoGenRules(const common::Target& target, const std::unordered_set<std::string>& output_names);
 };
 
 }  // namespace auto_schedule
