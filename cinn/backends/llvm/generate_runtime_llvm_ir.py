@@ -21,6 +21,7 @@ import subprocess
 def main():
     path = sys.argv[1]
     out_path = sys.argv[2]
+    llvm_config = sys.argv[3]
 
     srcs = []
     srcs.append('#include <absl/strings/string_view.h>')
@@ -34,12 +35,13 @@ def main():
     srcs.append(')ROC"')
     srcs.append(');\n')
 
-    cmd = "llvm-config --version"
+    cmd = "{} --version".format(llvm_config)
     version = subprocess.check_output(
         cmd, shell=True).decode('utf-8').strip().split('.')
     srcs.append("struct llvm_version {")
     for v, n in zip(["major", "minor", "micro"], version):
-        srcs.append("  static constexpr int k{} = {};".format(v.title(), n))
+        srcs.append("  static constexpr int k{} = {};".format(
+            v.title(), ''.join(filter(str.isdigit, n))))
     srcs.append("};")
 
     srcs.append('}  // namespace cinn::backends')
