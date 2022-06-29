@@ -543,10 +543,10 @@ std::vector<ir::Tensor> ReduceInternal(const ir::Tensor& A,
   return {reduce_func(out, axes, keep_dim, output_name + "_internal"), out};
 }
 
-ir::Tensor BlockShuffleReduce(const ir::Tensor& A,
-                              std::vector<Expr>& tail,
-                              const std::string& reduce_type,
-                              const std::string& output_name) {
+std::vector<ir::Tensor> BlockShuffleReduce(const ir::Tensor& A,
+                                           std::vector<Expr>& tail,
+                                           const std::string& reduce_type,
+                                           const std::string& output_name) {
   std::vector<Expr> out_shape(A->shape.begin(), A->shape.begin() + A->shape.size() - 1);
   int stride = 1;
   for (auto& t : tail) {
@@ -554,6 +554,20 @@ ir::Tensor BlockShuffleReduce(const ir::Tensor& A,
     out_shape.push_back(t);
   }
 
+  auto block_shuffle = [reduce_type](const ir::Tensor& input,
+                                     const std::vector<Expr> output_shape,
+                                     const int stride,
+                                     const std::string& output_name) -> ir::Tensor {
+    CHECK(input->buffer.defined()) << "Buffer is not defined!";
+    return Compute(
+        output_shape,
+        [=](const std::vector<Expr>& indexs) -> Expr {
+          return lang::CallExtern(reduce_type, {input, input->shape.back(), Expr(stride)});
+        },
+        UniqName(output_name));
+  };
+
+  /*
   CHECK(A->buffer.defined()) << "Buffer is not defined!";
   auto out = Compute(
       out_shape,
@@ -561,7 +575,24 @@ ir::Tensor BlockShuffleReduce(const ir::Tensor& A,
         return lang::CallExtern(reduce_type, {A, A->shape.back(), Expr(stride)});
       },
       UniqName(output_name));
-  return out;
+  */
+
+  if (A->shape.back().as_int32() / stride < 16) {
+    return {block_shuffle(A, out_shape, stride, output_name)};
+  } else {
+    // if line / stride >= 16, Do two step block shuffle.
+    // first : line -> patition * stride.
+    // second : patition * stride -> stride.
+    // x * y = c, while x = y = c^(1/2), get the minimize value of (x + y).
+    int patition = sqrtf(A->shape.back().as_int32() / float(stride));
+    // Do first step : [?, ?, line] -> [?, ?, patition* stride]
+    std::vector<Expr> tmp_shape(A->shape.begin(), A->shape.begin() + A->shape.size() - 1);
+    tmp_shape.push_back(Expr(patition * stride));
+    auto first_step = block_shuffle(A, tmp_shape, patition * stride, output_name + "_block_shuffle");
+    // do second step : [?, ?, patition* stride] -> out_shape
+    first_step->WithBuffer("shared");
+    return {block_shuffle(first_step, out_shape, stride, output_name), first_step};
+  }
 }
 
 #define BLOCK_SHUFFLE_REDUCE(name, reduce_type)                                                                 \
@@ -574,7 +605,11 @@ ir::Tensor BlockShuffleReduce(const ir::Tensor& A,
       std::vector<Expr> tail(A->shape.begin() + axes.back() + 1, A->shape.end());                               \
       res[0]->WithBuffer("shared");                                                                             \
       auto reduce_out = BlockShuffleReduce(res[0], tail, reduce_type, output_name);                             \
-      return {reduce_out, res[0], res[1]};                                                                      \
+      if (reduce_out.size() == 1) {                                                                             \
+        return {reduce_out[0], res[0], res[1]};                                                                 \
+      } else {                                                                                                  \
+        return {reduce_out[0], reduce_out[1], res[0], res[1]};                                                  \
+      }                                                                                                         \
     }                                                                                                           \
   }
 

@@ -177,6 +177,13 @@ void CudaBlockShuffleReduceSchedule(poly::StageMap stages,
                                     ir::Tensor reduce_out,
                                     const common::Target &target);
 
+void CudaBlockShuffleReduceSchedule(poly::StageMap stages,
+                                    ir::Tensor reduce_reshape,
+                                    ir::Tensor reduce_internal,
+                                    ir::Tensor reduce_tmp_out,
+                                    ir::Tensor reduce_out,
+                                    const common::Target &target);
+
 void CudaTwoStepReduceSchedule(poly::StageMap stages,
                                ir::Tensor reshape,
                                ir::Tensor internal,

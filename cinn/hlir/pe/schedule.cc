@@ -505,6 +505,51 @@ void CudaBlockShuffleReduceSchedule(
   stages[out]->SyncThreads(0, {internal}, stages);
 }
 
+void CudaBlockShuffleReduceSchedule(poly::StageMap stages,
+                                    ir::Tensor reshape,
+                                    ir::Tensor internal,
+                                    ir::Tensor tmp_out,
+                                    ir::Tensor out,
+                                    const common::Target &target) {
+  int fuse_times = internal->shape.size() - 2;
+  for (int idx = 0; idx < fuse_times; ++idx) {
+    stages[internal]->Fuse(0, 1);
+    stages[tmp_out]->Fuse(0, 1);
+    stages[out]->Fuse(0, 1);
+  }
+
+  fuse_times = out->shape.size() - internal->shape.size();
+  for (int idx = 0; idx < fuse_times; ++idx) {
+    if (internal->shape.size() == 1) {
+      stages[out]->Fuse(0, 1);
+    } else {
+      stages[out]->Fuse(1, 2);
+    }
+  }
+
+  if (stages[out]->n_out_dims() == 1) {
+    stages[internal]->Split(0, stages[internal]->GetDimRange(0));
+    stages[tmp_out]->Split(0, stages[tmp_out]->GetDimRange(0));
+    stages[out]->Split(0, stages[out]->GetDimRange(0));
+  }
+
+  stages[reshape]->ComputeInline();
+  stages[internal]->SetBuffer("shared");
+
+  stages[internal]->Bind(0, "blockIdx.x");
+  stages[internal]->Bind(1, "threadIdx.x");
+
+  stages[tmp_out]->Bind(0, "blockIdx.x");
+  stages[tmp_out]->Bind(1, "threadIdx.x");
+  stages[internal]->SimpleComputeAt(stages[tmp_out], 0);
+  stages[tmp_out]->SyncThreads(0, {internal}, stages);
+
+  stages[out]->Bind(0, "blockIdx.x");
+  stages[out]->Bind(1, "threadIdx.x");
+  stages[tmp_out]->SimpleComputeAt(stages[out], 0);
+  stages[out]->SyncThreads(0, {tmp_out}, stages);
+}
+
 void CudaTwoStepReduceSchedule(poly::StageMap stages,
                                ir::Tensor reshape,
                                ir::Tensor internal,

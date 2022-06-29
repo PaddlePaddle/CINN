@@ -276,8 +276,7 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
             VLOG(3) << "Do CudaReduceSchedule Schedule!";
             pe::CudaReduceSchedule(
                 stages, reduce_out.as_tensor_ref(), inputs[0]->shape.size() - reduce_axes.back() - 1, target);
-          } else {
-            CHECK_EQ(arg_pack.size(), 4) << "args is not equal 4!";
+          } else if (arg_pack.size() == 4) {
             Expr reduce_reshape   = arg_pack[2];
             Expr reduce_internal  = arg_pack[1];
             Expr reduce_out       = arg_pack[0];
@@ -286,6 +285,20 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
             pe::CudaBlockShuffleReduceSchedule(stages,
                                                reduce_reshape.as_tensor_ref(),
                                                reduce_internal.as_tensor_ref(),
+                                               reduce_out.as_tensor_ref(),
+                                               target);
+          } else {
+            CHECK_EQ(arg_pack.size(), 5);
+            Expr reduce_reshape   = arg_pack[3];
+            Expr reduce_internal  = arg_pack[2];
+            Expr reduce_tmp_out   = arg_pack[1];
+            Expr reduce_out       = arg_pack[0];
+            poly::StageMap stages = arg_pack.back();
+            VLOG(3) << "Do CudaBlockShuffleReduceSchedule Schedule!";
+            pe::CudaBlockShuffleReduceSchedule(stages,
+                                               reduce_reshape.as_tensor_ref(),
+                                               reduce_internal.as_tensor_ref(),
+                                               reduce_tmp_out.as_tensor_ref(),
                                                reduce_out.as_tensor_ref(),
                                                target);
           }
