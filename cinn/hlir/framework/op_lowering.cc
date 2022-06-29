@@ -1356,7 +1356,11 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
   // update sync thread depend.
   for (auto stage : stages) {
     if (stage.first.find("syncthreads") != std::string::npos) {
-      stage.second->CtrlDepend(tensor_map[master_reducer_data->id() + "_0"]);
+      if (!tensor_map.count(master_reducer_data->id() + "_2")) {
+        stage.second->CtrlDepend(tensor_map[master_reducer_data->id() + "_0"]);
+      } else {
+        stage.second->CtrlDepend(tensor_map[master_reducer_data->id() + "_1"]);
+      }
     }
   }
 
