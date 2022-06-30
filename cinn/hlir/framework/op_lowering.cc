@@ -1363,9 +1363,8 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
   VLOG(3) << "master node : " << master_node->id() << " ,reducer node : " << master_reducer->id();
   for (auto& node : sub_group->nodes) {
     VLOG(3) << "Schedule node -> " << node->id();
-    auto node_data  = GetNodeData(node);
-    auto stage      = stages[tensor_map[node_data->id()]];
-    auto node_shape = this->shape_dict_.at(node_data->id());
+    auto node_data = GetNodeData(node);
+    auto stage     = stages[tensor_map[node_data->id()]];
     // if node is kCommReduce
     if (node == master_node) {
       continue;
@@ -1434,6 +1433,8 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
           auto reducer_stage = master_reducer_stage;
           auto reducer_shape = master_reducer_shape;
           auto reducer_data  = master_reducer_data;
+          auto node_shape    = this->shape_dict_.at(node->inlinks_in_order()[0]->source()->id());
+
           // find reducer with same shape.
           if (!reduce_with_same_shape && node_shape != reducer_shape) {
             for (auto _reducer : group->master_nodes) {
@@ -1473,8 +1474,8 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
             if (node_shape == reducer_shape) {
               stage_1->SimpleComputeAt(stage_2, stage_2->n_out_dims() - 1);
             } else {
-              int num_reduce_axis = stage_2->tensor()->reduce_axis.size();
-              stage_1->SimpleComputeAt(stage_2, stage_2->n_out_dims() - num_reduce_axis - 1);
+              // int num_reduce_axis = stage_2->tensor()->reduce_axis.size();
+              // stage_1->SimpleComputeAt(stage_2, stage_2->n_out_dims() - num_reduce_axis - 2);
             }
             // delete stage_1 compute at stage
             stage_1->GetComputeAts().erase(stage->id());
@@ -1527,6 +1528,7 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
         auto reducer_stage = master_reducer_stage;
         auto reducer_shape = master_reducer_shape;
         auto reducer_data  = master_reducer_data;
+        auto node_shape    = this->shape_dict_.at(node_data->id());
 
         if (!reduce_with_same_shape) {
           for (auto reducer : group->master_nodes) {
