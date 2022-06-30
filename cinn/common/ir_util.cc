@@ -84,11 +84,6 @@ Expr RampRelatedAdd(Expr a, Expr b) {
   auto *b_ramp      = b.As<ir::Ramp>();
   auto *a_broadcast = a.As<ir::Broadcast>();
   auto *b_broadcast = b.As<ir::Broadcast>();
-  if (a.As<ir::Add>() && (a.As<ir::Add>()->a().As<ir::Ramp>() || a.As<ir::Add>()->b().As<ir::Ramp>())) {
-    return RampRelatedAdd(RampRelatedAdd(a.As<ir::Add>()->a(), a.As<ir::Add>()->b()), b);
-  } else if (b.As<ir::Add>() && (b.As<ir::Add>()->a().As<ir::Ramp>() || b.As<ir::Add>()->b().As<ir::Ramp>())) {
-    return RampRelatedAdd(RampRelatedAdd(b.As<ir::Add>()->a(), b.As<ir::Add>()->b()), a);
-  }
   if (a_ramp && !b_ramp && (b->type().lanes() == 1 || b_broadcast)) {
     return RampRelatedAdd(a_ramp, b);
   } else if (!a_ramp && b_ramp && (a->type().lanes() == 1 || a_broadcast)) {
@@ -105,6 +100,11 @@ Expr RampRelatedAdd(Expr a, Expr b) {
     CHECK_EQ(a_broadcast->lanes, b_broadcast->lanes);
     return ir::Broadcast::Make(a_broadcast->value + b_broadcast->value, a_broadcast->lanes);
   } else {
+    if (a.As<ir::Add>() && (a.As<ir::Add>()->a().As<ir::Ramp>() || a.As<ir::Add>()->b().As<ir::Ramp>())) {
+      return RampRelatedAdd(RampRelatedAdd(a.As<ir::Add>()->a(), a.As<ir::Add>()->b()), b);
+    } else if (b.As<ir::Add>() && (b.As<ir::Add>()->a().As<ir::Ramp>() || b.As<ir::Add>()->b().As<ir::Ramp>())) {
+      return RampRelatedAdd(a, RampRelatedAdd(b.As<ir::Add>()->a(), b.As<ir::Add>()->b()));
+    }
     VLOG(3) << "a is : " << a << " \n and b is : " << b;
     CINN_NOT_IMPLEMENTED
   }
@@ -115,11 +115,6 @@ Expr RampRelatedMul(Expr a, Expr b) {
   auto *b_ramp      = b.As<ir::Ramp>();
   auto *a_broadcast = a.As<ir::Broadcast>();
   auto *b_broadcast = b.As<ir::Broadcast>();
-  if (a.As<ir::Add>()) {
-    return RampRelatedMul(a.As<ir::Add>()->a(), b) + RampRelatedMul(a.As<ir::Add>()->b(), b);
-  } else if (b.As<ir::Add>()) {
-    return RampRelatedMul(a, b.As<ir::Add>()->a()) + RampRelatedMul(a, b.As<ir::Add>()->b());
-  }
   if (a_ramp && !b_ramp && (!b->type().is_vector() || b_broadcast)) {
     return RampRelatedMul(a_ramp, b);
   } else if (!a_ramp && b_ramp && (a->type().is_vector() || a_broadcast)) {
@@ -136,6 +131,11 @@ Expr RampRelatedMul(Expr a, Expr b) {
     CHECK_EQ(a_broadcast->lanes, b_broadcast->lanes);
     return ir::Broadcast::Make(a_broadcast->value * b_broadcast->value, a_broadcast->lanes);
   } else {
+    if (a.As<ir::Add>()) {
+      return RampRelatedMul(a.As<ir::Add>()->a(), b) + RampRelatedMul(a.As<ir::Add>()->b(), b);
+    } else if (b.As<ir::Add>()) {
+      return RampRelatedMul(a, b.As<ir::Add>()->a()) + RampRelatedMul(a, b.As<ir::Add>()->b());
+    }
     VLOG(3) << "a is : " << a << " \n and b is : " << b;
     CINN_NOT_IMPLEMENTED
   }
