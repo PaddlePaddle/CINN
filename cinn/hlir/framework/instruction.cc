@@ -206,7 +206,10 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
 #ifdef CINN_WITH_CUDA
   } else if (FLAGS_cinn_sync_run) {
     utils::RecordEvent record_sync("Synchronize");
-    cudaStreamSynchronize(static_cast<cudaStream_t>(stream));
+    auto st = cudaStreamSynchronize(static_cast<cudaStream_t>(stream));
+    if (st) {
+      LOG(FATAL) << "cuda error -> " << cudaGetErrorString(st);
+    }
 #endif
   }
 }
