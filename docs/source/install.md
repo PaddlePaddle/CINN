@@ -25,7 +25,7 @@ $ docker pull registry.baidubce.com/paddlepaddle/paddle:latest-dev-cuda11.2-cudn
 Start the container.
 
 ```bash
-$ docker run --gpus=all -it -v $PWD/CINN:/CINN /registry.baidubce.com/paddlepaddle/paddle:latest-dev-cuda11.2-cudnn8-gcc82 bin/bash
+$ docker run --gpus=all -it -v $PWD/CINN:/CINN registry.baidubce.com/paddlepaddle/paddle:latest-dev-cuda11.2-cudnn8-gcc82 /bin/bash
 ```
 
 Build CINN in the created container.
