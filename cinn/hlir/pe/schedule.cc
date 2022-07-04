@@ -2140,7 +2140,7 @@ void CudaScheduleInjectiveWithVectorize(poly::Stage *stage,
   stage->Split(bind_idx, vector_factor);
   VLOG(5) << "vectorize result:" << range_str_fn();
 
-  // revise dim for binding threadIdx.x, here only use the x of threadIdx
+  // revise dim for binding threadIdx.x, here only use threadIdx.x
   if (stage->GetDimRange(bind_idx) > num_thread) {
     stage->Split(bind_idx, gcd(stage->GetDimRange(bind_idx), num_thread));
     ++bind_idx;
@@ -2149,23 +2149,22 @@ void CudaScheduleInjectiveWithVectorize(poly::Stage *stage,
     stage->Fuse(bind_idx - 1, bind_idx);
     --bind_idx;
   }
-  stage->Bind(bind_idx, "threadIdx.x");
-  --bind_idx;
-  VLOG(5) << "bind threadIdx.x result:" << range_str_fn();
 
-  // revise dim for binding blockIdx, at most 3 indexes can be used
-  while (bind_idx > 2) {
-    stage->Fuse(bind_idx - 1, bind_idx);
+  // revise dim for binding blockIdx, here only use blockIdx.x
+  while (bind_idx > 1) {
+    stage->Fuse(0, 1);
     --bind_idx;
   }
-  std::string block_idx = "blockIdx.x";
-  for (int j = 0; bind_idx >= 0; ++j) {
-    block_idx.back() = 'x' + j;
-    stage->Bind(bind_idx, block_idx);
-    --bind_idx;
+
+  // bind threadIdx.x and blockIdx.x if needed
+  stage->Bind(bind_idx, "threadIdx.x");
+  if (bind_idx > 0) {
+    stage->Bind(0, "blockIdx.x");
   }
+  VLOG(5) << "bind threadIdx.x result:" << range_str_fn();
   // call vectorize on the last dim
   stage->Vectorize(stage->n_out_dims() - 1, vector_factor);
+
   VLOG(5) << "CudaScheduleInjectiveWithVectorize tensor:" << stage->tensor()->name
           << ", vector_factor:" << vector_factor << ", prod_size:" << prod_size << ", shape:["
           << utils::Join(output_shape, ",") << "]"
@@ -2206,13 +2205,13 @@ void CudaScheduleInjective(poly::Stage *stage,
 
   bool need_more_split = prod_size > new_num_thread * num_block ? true : false;
   if (need_more_split) {
-    LOG(FATAL) << "prod_size out of range: " << prod_size << ", and new_num_thread is : " << new_num_thread;
-  } else {
-    CHECK_GT(prod_size, new_num_thread);
-    stage->Split(0, new_num_thread);
-    stage->Bind(0, "blockIdx.x");
-    stage->Bind(1, "threadIdx.x");
+    LOG(WARNING) << "prod_size out of range, prod_size:" << prod_size << ", new_num_thread:" << new_num_thread
+                 << ", num_block:" << num_block;
   }
+  CHECK_GT(prod_size, new_num_thread);
+  stage->Split(0, new_num_thread);
+  stage->Bind(0, "blockIdx.x");
+  stage->Bind(1, "threadIdx.x");
 }
 
 void CudaSplitSchedule(common::CINNValuePack *arg_pack,
