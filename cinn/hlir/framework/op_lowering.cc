@@ -1207,7 +1207,7 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
         for (int idx = axes.back() + 1; idx < inshape.size(); ++idx) {
           lane *= inshape[idx];
         }
-        CHECK_LT(lane, max_num_threads / 2) << "Parallel threads must less than max_num_threads/2 on gpu!";
+        CHECK_LE(lane, max_num_threads / 2) << "Parallel threads must less equal max_num_threads/2 on gpu!";
         int pos   = 0;
         int index = axes.size() - 1;
         for (; index >= 0; --index) {
@@ -1335,11 +1335,24 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
     }
   }
   CHECK(master_reducer) << "Can't find Master reducer!";
-
   auto master_reducer_data  = GetNodeData(master_reducer);
   auto master_reducer_stage = stages[tensor_map[master_reducer_data->id()]];
   auto master_reducer_axes  = absl::get<std::vector<int>>(master_reducer->attrs.attr_store.at("dim"));
   auto master_reducer_shape = this->shape_dict_.at(master_reducer->inlinks_in_order()[0]->source()->id());
+
+  bool reduce_with_same_shape = true;
+  if (WithoutLastDimInReduce(master_reducer_shape, master_reducer_axes)) {
+    // check each reduce has same input shape.
+    for (auto reducer : group->master_nodes) {
+      if (op_pattern_dict[reducer->op()] != framework::kCommReduce) {
+        continue;
+      }
+      if (this->shape_dict_.at(reducer->inlinks_in_order()[0]->source()->id()) != master_reducer_shape) {
+        reduce_with_same_shape = false;
+        break;
+      }
+    }
+  }
   // update sync thread depend.
   for (auto stage : stages) {
     if (stage.first.find("syncthreads") != std::string::npos) {
@@ -1419,14 +1432,26 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
         } else {
           // if don't use block shuffle reduce.
           if (!tensor_map.count(node_data->id() + "_1")) {
-            if (master_reducer_stage->n_out_dims() > 1) {
-              stage->SimpleComputeAt(master_reducer_stage, master_reducer_stage->n_out_dims() - 1);
+            if (reduce_with_same_shape) {
+              if (master_reducer_stage->n_out_dims() > 1) {
+                stage->SimpleComputeAt(master_reducer_stage, master_reducer_stage->n_out_dims() - 1);
+              }
+            } else {
+              int num_reduce_axis = master_reducer_stage->tensor()->reduce_axis.size();
+              if (master_reducer_stage->n_out_dims() > num_reduce_axis) {
+                stage->SimpleComputeAt(master_reducer_stage, master_reducer_stage->n_out_dims() - num_reduce_axis - 1);
+              }
             }
           } else {
             auto stage_1 = stages[tensor_map[node_data->id() + "_0"]];
             auto stage_2 = stages[tensor_map[master_reducer_data->id() + "_0"]];
             // compute at master reducer
-            stage_1->SimpleComputeAt(stage_2, stage_2->n_out_dims() - 1);
+            if (reduce_with_same_shape) {
+              stage_1->SimpleComputeAt(stage_2, stage_2->n_out_dims() - 1);
+            } else {
+              int num_reduce_axis = stage_2->tensor()->reduce_axis.size();
+              stage_1->SimpleComputeAt(stage_2, stage_2->n_out_dims() - num_reduce_axis - 1);
+            }
             // delete stage_1 compute at stage
             stage_1->GetComputeAts().erase(stage->id());
             stage->CtrlDepend(tensor_map[master_reducer_data->id() + "_0"]);
@@ -1475,23 +1500,79 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
       // node is before reduce.
       if (WithoutLastDimInReduce(master_reducer_shape, master_reducer_axes)) {
         VLOG(3) << "Reduce Schedule for WithoutLastDimInReduce";
+        auto reducer_stage = master_reducer_stage;
+        auto reducer_shape = master_reducer_shape;
+        auto reducer_data  = master_reducer_data;
+        auto node_shape    = this->shape_dict_.at(node_data->id());
+
+        if (!reduce_with_same_shape) {
+          // find reducer for current node to assign
+          GroupPtr reducer_group = sub_group;
+          if (sub_group->op_pattern_kind != framework::kCommReduce) {
+            for (auto& consumer : sub_group->consumer_groups) {
+              if (!consumer->belong_groups.count(group)) {
+                continue;
+              }
+              if (consumer->op_pattern_kind == framework::kCommReduce) {
+                reducer_group = consumer;
+                break;
+              }
+            }
+          }
+
+          if (reducer_group->op_pattern_kind == framework::kCommReduce) {
+            for (auto reducer : reducer_group->master_nodes) {
+              if (op_pattern_dict[reducer->op()] == framework::kCommReduce) {
+                reducer_shape = this->shape_dict_.at(reducer->inlinks_in_order()[0]->source()->id());
+                if (node_shape == reducer_shape) {
+                  reducer_data  = GetNodeData(reducer);
+                  reducer_stage = stages[tensor_map[reducer_data->id()]];
+                  break;
+                }
+              }
+            }
+          } else {
+            for (auto reducer : group->master_nodes) {
+              if (op_pattern_dict[reducer->op()] == framework::kCommReduce) {
+                reducer_shape = this->shape_dict_.at(reducer->inlinks_in_order()[0]->source()->id());
+                if (node_shape == reducer_shape) {
+                  reducer_data  = GetNodeData(reducer);
+                  reducer_stage = stages[tensor_map[reducer_data->id()]];
+                  break;
+                }
+              }
+            }
+          }
+        }
+        CHECK(node_shape == reducer_shape);
+
         // if used block shuffle reduce
-        if (tensor_map.count(master_reducer_data->id() + "_1")) {
-          ScheduleAssignReduceWithoutLast(stage, master_reducer_shape, master_reducer_axes);
-          auto stage_0 = stages[tensor_map[master_reducer_data->id() + "_0"]];
+        if (tensor_map.count(reducer_data->id() + "_1")) {
+          ScheduleAssignReduceWithoutLast(stage, reducer_shape, master_reducer_axes);
+          auto stage_0 = stages[tensor_map[reducer_data->id() + "_0"]];
           if (stage->n_out_dims() < stage_0->n_out_dims()) {
             stage->Split(0, stage->GetDimRange(0));
           }
           CHECK_EQ(stage->n_out_dims(), stage_0->n_out_dims()) << "stage and stage_0's n_out_dims must be equal!";
-          stage->SimpleComputeAt(stage_0, stage_0->n_out_dims() - 1);
+          if (reduce_with_same_shape) {
+            stage->SimpleComputeAt(stage_0, stage_0->n_out_dims() - 1);
+          } else {
+            int num_reduce_axis = stage_0->tensor()->reduce_axis.size();
+            stage->SimpleComputeAt(stage_0, stage_0->n_out_dims() - num_reduce_axis - 1);
+          }
         } else {
           OrderAssignReduce(stage, master_reducer_axes);
-          if (stage->n_out_dims() < master_reducer_stage->n_out_dims()) {
+          if (stage->n_out_dims() < reducer_stage->n_out_dims()) {
             stage->Split(0, stage->GetDimRange(0));
           }
-          CHECK_EQ(stage->n_out_dims(), master_reducer_stage->n_out_dims())
+          CHECK_EQ(stage->n_out_dims(), reducer_stage->n_out_dims())
               << "stage and master_reducer_stage's n_out_dims must be equal!";
-          stage->SimpleComputeAt(master_reducer_stage, master_reducer_stage->n_out_dims() - 1);
+          if (reduce_with_same_shape) {
+            stage->SimpleComputeAt(reducer_stage, reducer_stage->n_out_dims() - 1);
+          } else {
+            int num_reduce_axis = reducer_stage->tensor()->reduce_axis.size();
+            stage->SimpleComputeAt(reducer_stage, reducer_stage->n_out_dims() - num_reduce_axis - 1);
+          }
         }
       } else {
         VLOG(3) << "Reduce Schedule for WithLastDimInReduce";
