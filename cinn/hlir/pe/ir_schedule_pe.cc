@@ -447,10 +447,6 @@ void IRGlobalPoolScheduleGPU(ir::IRSchedule &ir_sch, const common::Target &targe
 void IRCudaScheduleConv(ir::IRSchedule &ir_sch, const common::Target &target) {
   LOG(INFO) << "After Merge, expr is : " << ir_sch.GetModule().GetExprs().at(0);
   auto &res = ScheduleParam::get_cuda_instance().GetParam();
-  if (res.empty()) {
-    /*     CreateCudaSerialData();
-        LoadSerialData(&res); */
-  }
 
   auto all_blocks = ir_sch.GetAllBlocks();
   CHECK_EQ(all_blocks.size(), 3U);
