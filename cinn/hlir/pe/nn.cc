@@ -240,11 +240,7 @@ std::vector<ir::Tensor> Conv2d_NCHW(const ir::Tensor &input,
   int kw = weights->shape[3].as_int32();
   if (!choose_direct_compute && stride_h == 1 && stride_w == 1 && dilation_h == 1 && dilation_w == 1 && 2 < kh &&
       kh < 8 && 2 < kw && kw < 8) {
-    auto &res = ScheduleParam::get_cuda_instance().GetParam();
-    if (res.empty()) {
-      CreateCudaSerialData();
-      LoadSerialData(&res);
-    }
+    auto &res       = ScheduleParam::get_cuda_instance().GetParam();
     std::string key = "CudaWinogradConvSchedule " + std::to_string(input_pad_shape_int[0]) + " " +
                       std::to_string(input_pad_shape_int[1]) + " " + std::to_string(input_pad_shape_int[2]) + " " +
                       std::to_string(input_pad_shape_int[3]) + " " + std::to_string(new_weights_shape_int[0]) + " " +
@@ -1142,7 +1138,10 @@ std::vector<Tensor> GlobalPool2d(const Tensor &tensor, const std::string &pool_t
         },
         UniqName(output_name));
     return {ret, temp};
+  } else {
+    LOG(FATAL) << "unsupported pooling type.";
   }
+  return {};
 }
 
 std::vector<Tensor> Pool2d(const Tensor &tensor,
