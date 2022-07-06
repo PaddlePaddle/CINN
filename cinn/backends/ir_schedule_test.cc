@@ -1464,6 +1464,10 @@ TEST(IrSchedule, cache_read3) {
   auto a_cache = ir_sch.CacheRead(block_b, 0, "local");
   auto block_c = ir_sch.GetBlock("C");
   auto b_cache = ir_sch.CacheRead(block_c, 0, "local");
+  auto loops_c = ir_sch.GetLoops("C");
+  ir_sch.SyncThreads(loops_c[1], false);
+  auto loops_b = ir_sch.GetLoops("B");
+  ir_sch.SyncThreads(loops_b[1]);
 
   VLOG(1) << "After CacheRead, IR is : " << ir_sch.GetModule().GetExprs().at(0);
 
@@ -1503,6 +1507,7 @@ void test_cache_read3(const float* __restrict__ A, float* __restrict__ C)
       for (int32_t j = 0; j < 32; j += 1) {
         B[((32 * i) + j)] = (2 * A_local[((64 * i) + j)]);
       };
+      __syncthreads();
     };
     for (int32_t ax0 = 0; ax0 < 16; ax0 += 1) {
       for (int32_t ax1 = 0; ax1 < 16; ax1 += 1) {
@@ -1510,6 +1515,7 @@ void test_cache_read3(const float* __restrict__ A, float* __restrict__ C)
       };
     };
     for (int32_t i = 0; i < 16; i += 1) {
+      __syncthreads();
       for (int32_t j = 0; j < 16; j += 1) {
         C[((16 * i) + j)] = (1 + B_local[((32 * i) + j)]);
       };
@@ -1550,6 +1556,10 @@ TEST(IrSchedule, cache_write3) {
   auto b_cache = ir_sch.CacheWrite(block_b, 0, "local");
   auto block_c = ir_sch.GetBlock("C");
   auto c_cache = ir_sch.CacheWrite(block_c, 0, "local");
+  auto loops_c = ir_sch.GetLoops("C");
+  ir_sch.SyncThreads(loops_c[0], false);
+  auto loops_b = ir_sch.GetLoops("B");
+  ir_sch.SyncThreads(loops_b[0]);
 
   VLOG(1) << "After CacheWrite, IR is : " << ir_sch.GetModule().GetExprs().at(0);
 
@@ -1590,11 +1600,13 @@ void test_cache_write3(const float* __restrict__ A, float* __restrict__ C)
         B[((32 * ax0) + ax1)] = B_local[((32 * ax0) + ax1)];
       };
     };
+    __syncthreads();
     for (int32_t i = 0; i < 64; i += 1) {
       for (int32_t j = 0; j < 32; j += 1) {
         C_local[((32 * i) + j)] = (1 + B[((32 * i) + j)]);
       };
     };
+    __syncthreads();
     for (int32_t ax0 = 0; ax0 < 64; ax0 += 1) {
       for (int32_t ax1 = 0; ax1 < 32; ax1 += 1) {
         C[((32 * ax0) + ax1)] = C_local[((32 * ax0) + ax1)];

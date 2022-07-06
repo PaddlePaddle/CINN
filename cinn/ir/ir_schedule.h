@@ -216,6 +216,13 @@ class IRSchedule {
    */
   Expr CacheWrite(const Expr& block, int write_buffer_index, const std::string& memory_type);
 
+  /**
+   * \brief Add SyncThreads statements in AST.
+   * @param ir_node The insertion point in AST.
+   * @param after_node Whether to insert the statement after the insertion point.
+   */
+  void SyncThreads(const Expr& ir_node, bool after_node = true);
+
   /*!
    * \brief Set a tensor's buffer type(memory_type)
    * \param block The ScheduleBlockRealize corresponding to an unique tensor.
