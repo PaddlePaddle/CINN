@@ -57,6 +57,18 @@ class FusionMergePassHelper : public FusionHelperBase {
   GroupList operator()() {
     // run fusion merge untill no update.
     DoFusionMerge();
+    for (auto& group : fusion_groups_) {
+      VLOG(3) << "Fusion Group -> " << group->group_id;
+      for (auto& sub_group : group->fused_sub_groups) {
+        VLOG(3) << "  Fused Sub-Group -> " << sub_group->group_id;
+      }
+      for (auto& producer : group->producer_groups) {
+        VLOG(3) << "  Producer -> " << producer->group_id;
+      }
+      for (auto& consumer : group->consumer_groups) {
+        VLOG(3) << "  Consumer -> " << consumer->group_id;
+      }
+    }
     return fusion_groups_;
   }
 
@@ -102,6 +114,7 @@ class FusionMergePassHelper : public FusionHelperBase {
         continue;
       }
       // do horizontal fusion.
+      updated |= HorizontalFusion(producer, producer->consumer_groups);
       updated |= VerticalFusion(producer, producer->consumer_groups);
     }
     if (updated) {
@@ -117,10 +130,6 @@ class FusionMergePassHelper : public FusionHelperBase {
     // update fusion_groups_
     for (auto& group : fusion_groups_) {
       if (!group->belong_groups.size()) {
-        VLOG(3) << "Fusion Group -> " << group->group_id;
-        for (auto& sub_group : group->fused_sub_groups) {
-          VLOG(3) << "  Fused Sub-Group -> " << sub_group->group_id;
-        }
         fusion_groups.push_back(group);
         fusion_groups_set.insert(group);
       }
@@ -620,6 +629,12 @@ class FusionMergePassHelper : public FusionHelperBase {
       if (candidates.size() && fusionable_consumers.size() > candidates.size()) {
         fusionable_consumers = std::move(candidates);
       }
+    }
+
+    if (fusionable_consumers.size() > 1) {
+      auto first = *fusionable_consumers.begin();
+      fusionable_consumers.clear();
+      fusionable_consumers.insert(first);
     }
   }
 
