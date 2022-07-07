@@ -784,9 +784,30 @@ class FusionMergePassHelper : public FusionHelperBase {
 
   void InitFusionRelation() {
     VLOG(3) << "InitFusionRelation...!";
+    // limit the group args number to less equal 512, as args stack size is 4K.
+    auto limit_args = [this](const GroupPtr& first, const GroupPtr& second) -> bool {
+      std::unordered_set<Node*> args;
+      for (auto& group : {first, second}) {
+        for (auto node : group->input_nodes) {
+          args.insert(node.first);
+        }
+        for (auto node : group->output_nodes) {
+          args.insert(node);
+        }
+      }
+
+      if (args.size() > 512) {
+        return false;
+      } else {
+        return true;
+      }
+    };
     // fuse condition function
     auto always_fuse   = [this](const GroupPtr& first, const GroupPtr& second) -> bool { return true; };
-    auto is_same_shape = [this](const GroupPtr& first, const GroupPtr& second) -> bool {
+    auto is_same_shape = [this, limit_args](const GroupPtr& first, const GroupPtr& second) -> bool {
+      if (!limit_args(first, second)) {
+        return false;
+      }
       auto output_var_0 = this->GetNodeDataShape(*first->master_nodes.begin());
       auto output_var_1 = this->GetNodeDataShape(*second->master_nodes.begin());
       return output_var_0 == output_var_1;
@@ -896,7 +917,10 @@ class FusionMergePassHelper : public FusionHelperBase {
       // TODO(sunli) : cost-model.
       return true;
     };
-    auto reduce_fuse_reduce = [this](const GroupPtr& first, const GroupPtr& second) -> bool {
+    auto reduce_fuse_reduce = [this, limit_args](const GroupPtr& first, const GroupPtr& second) -> bool {
+      if (!limit_args(first, second)) {
+        return false;
+      }
       Node* reducer_0 = nullptr;
       for (auto& reducer : first->master_nodes) {
         if (GetOpKind(reducer) == OpPatternKind::kCommReduce) {
