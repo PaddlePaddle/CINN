@@ -630,6 +630,12 @@ class FusionMergePassHelper : public FusionHelperBase {
         fusionable_consumers = std::move(candidates);
       }
     }
+
+    if (fusionable_consumers.size() > 1) {
+      auto first = *fusionable_consumers.begin();
+      fusionable_consumers.clear();
+      fusionable_consumers.insert(first);
+    }
   }
 
   bool IsDependency(const GroupPtr& producer_g,
