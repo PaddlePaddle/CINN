@@ -150,6 +150,49 @@ ir::Tensor Reshape(const ir::Tensor& A, const std::vector<int>& new_shape, const
   return res;
 }
 
+ir::Tensor Squeeze(const ir::Tensor& A,
+                   poly::StageMap stages,
+                   const std::string& name) {
+  std::vector<Expr> new_expr_shape;
+  std::vector<Expr> A_expr_shape = A->shape;
+  for (auto& i : A_expr_shape) {
+    CHECK(i.is_constant()) << "Input tensor's shape should be constant value.";
+    if(i != Expr(1)){
+      new_expr_shape.push_back(i);
+    }
+  }
+  auto out = Identity(A->Reshape(new_expr_shape, stages), name).front();
+  return out;
+}
+
+ir::Tensor Squeeze(const ir::Tensor& A,
+                   const std::string& name) {
+  std::vector<Expr> new_expr_shape;
+  std::vector<Expr> A_expr_shape = A->shape;
+  for (auto& i : A_expr_shape) {
+    CHECK(i.is_constant()) << "Input tensor's shape should be constant value.";
+    if(i != Expr(1)){
+      new_expr_shape.push_back(i);
+    }
+  }
+  auto res = Compute(
+      new_expr_shape,
+      [=](const std::vector<Expr>& indice) {
+        Expr offset = Expr(0);
+        for (int i = 0; i < indice.size(); i++) {
+          offset = offset * new_expr_shape[i] + indice[i];
+        }
+        std::vector<Expr> indice_a;
+        for (int i = A_expr_shape.size() - 1; i >= 0; i--) {
+          auto temp = offset % A_expr_shape[i];
+          indice_a.insert(indice_a.begin(), common::AutoSimplify(temp));
+          offset = (offset - temp) / A_expr_shape[i];
+        }
+        return A(indice_a);
+      },
+      name);
+  return res;
+}
 std::vector<ir::Tensor> Split(const ir::Tensor& A,
                               int axis,
                               const std::vector<std::vector<int>>& output_shapes,

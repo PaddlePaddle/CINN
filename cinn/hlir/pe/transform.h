@@ -52,6 +52,10 @@ ir::Tensor Reshape(const ir::Tensor& A,
                    poly::StageMap stages,
                    const std::string& name);
 
+ir::Tensor Squeeze(const ir::Tensor& A,
+                   poly::StageMap stages,
+                   const std::string& name);
+
 ir::Tensor Reshape(const ir::Tensor& A,
                    const std::vector<int>& new_shape,
                    const std::string& name = UniqName("T_Transform_Matmul_out"));

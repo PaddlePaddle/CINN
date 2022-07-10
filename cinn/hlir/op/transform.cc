@@ -414,6 +414,114 @@ std::vector<std::vector<std::string>> InferLayoutForReshape(const std::vector<fr
   }
 }
 
+std::shared_ptr<OpStrategy> StrategyForSqueeze(const framework::NodeAttr &attrs,
+                                               const std::vector<ir::Tensor> &inputs,
+                                               const std::vector<Type> &out_type,
+                                               const std::vector<std::vector<int>> &output_shapes,
+                                               const Target &target) {
+  framework::CINNCompute squeeze_compute([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input arguments of Squeeze compute is empty! Please check.\n";
+    CINNValuePack a = args[0];
+    CHECK_GE(a.size(), 1U) << "at least 1 input tensors for Squeeze compute\n";
+    Expr A = a[0];
+    CHECK(A.as_tensor());
+    CHECK(!output_shapes.empty());
+//    auto attr_store = attrs.attr_store;
+//    CHECK(attr_store.count("shape")) << "find no attr of shape";
+//    std::vector<int> new_shape = absl::get<std::vector<int>>(attr_store.at("shape"));
+    auto tensor_A              = A.as_tensor_ref();
+    auto stages                = CreateStages({tensor_A});
+    VLOG(3) << "A shape: " << utils::Join(tensor_A->shape, ", ")
+            << ", output_shapes: " << utils::Join(output_shapes[0], ", ");
+    ir::Tensor out = pe::Squeeze(tensor_A, stages, UniqName("Squeeze_out"));
+    std::vector<CINNValue> res;
+    stages->InsertLazily(out);
+    res.push_back(CINNValue(out));
+    CHECK(!out_type.empty()) << "Output type of Squeeze is empty! Please check.\n";
+    res.push_back(CINNValue(stages));
+    *ret = CINNValuePack{res};
+  });
+
+  framework::CINNSchedule squeeze_schedule([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of reshape schedule is empty! Please check.\n";
+    CINNValuePack arg_pack = args[0];
+    int arg_size           = arg_pack.size();
+    poly::StageMap stages  = arg_pack.back();
+    Expr out               = arg_pack[0];
+    CHECK(out.as_tensor());
+    if (target.arch == Target::Arch::NVGPU) {
+      pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes[0], target);
+    } else if (target.arch == Target::Arch::X86) {
+      pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes[0], target);
+    }
+    *ret = arg_pack;
+  });
+
+  auto strategy = std::make_shared<framework::OpStrategy>();
+  strategy->AddImpl(squeeze_compute, squeeze_schedule, "strategy.squeeze.x86", 1);
+  return strategy;
+}
+
+std::vector<std::vector<int>> InferShapeForSqueeze(const std::vector<std::vector<int>> &inputs_shape,
+                                                   const framework::AttrMapType &attrs) {
+  CHECK_EQ(inputs_shape.size(), 1U) << "The input's shape size should be 1! Please check again.";
+  std::vector<int> output_shape;
+  int tensor_size = 1;
+  for (auto s : inputs_shape[0]) {
+    if (s != 1) {
+      output_shape.push_back(s);
+    }
+    tensor_size *= s;
+  }
+  CHECK(!output_shape.empty()) << "infer_shape for squeeze turns out to be empty. Please check\n";
+  int flag_index = -1;
+  for (int i = 0; i < output_shape.size(); i++) {
+    if (output_shape[i] > 0) {
+      CHECK_EQ(tensor_size % output_shape[i], 0)
+          << "Incompatible input shape and output shape in op reshape: " << tensor_size << ", " << output_shape[i];
+      tensor_size /= output_shape[i];
+    } else if (output_shape[i] == 0) {
+      CHECK_LT(i, inputs_shape[0].size())
+          << "In op reshape, when attribute shape[i] == 0, shape[i] = input_shape[i]. But now the size of input_shape "
+             "<= i, which is incompatible. Please check!";
+      output_shape[i] = inputs_shape[0][i];
+      CHECK_EQ(tensor_size % output_shape[i], 0)
+          << "Incompatible input shape and output shape in op reshape: " << tensor_size << ", " << output_shape[i];
+      tensor_size /= output_shape[i];
+    } else if (output_shape[i] == -1 && flag_index == -1) {
+      flag_index = i;
+    } else if (output_shape[i] == -1) {
+      LOG(FATAL) << "More than one -1 in output_shape of op reshape.";
+    } else {
+      LOG(FATAL) << "Unsupported output_shape " << output_shape[i];
+    }
+  }
+  if (flag_index >= 0) output_shape[flag_index] = tensor_size;
+  std::vector<std::vector<int>> res{output_shape};
+  return res;
+}
+
+std::vector<Type> InferDtypeForSqueeze(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
+  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
+  std::vector<Type> res{inputs_type[0]};
+  return res;
+}
+
+std::vector<std::vector<std::string>> InferLayoutForSqueeze(const std::vector<framework::shape_t> &input_shapes,
+                                                            const std::vector<std::string> &input_layouts,
+                                                            const framework::NodeAttr &attrs,
+                                                            const Target &target) {
+  CHECK_EQ(input_shapes.size(), 1U) << "The input's shape size is not 1! Please check again.";
+  CHECK_EQ(input_layouts.size(), 1U) << "The input's layout size is not 1! Please check again.";
+  std::vector<std::string> new_input_layouts = input_layouts;
+  if (input_shapes[0].size() > 4) {
+    // alter input layout back
+    new_input_layouts[0] = "NCHW";
+    VLOG(3) << "alter input layout from " << input_layouts[0] << " to " << new_input_layouts[0];
+  }
+  return {new_input_layouts, new_input_layouts};
+}
+
 std::shared_ptr<OpStrategy> StrategyForSplit(const framework::NodeAttr &attrs,
                                              const std::vector<ir::Tensor> &inputs,
                                              const std::vector<Type> &out_type,
@@ -1888,6 +1996,19 @@ CINN_REGISTER_HELPER(transform_ops) {
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForReshape))
 #ifndef CINN_WITH_CUDA
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForReshape))
+#endif
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
+      .set_support_level(4);
+
+  CINN_REGISTER_OP(squeeze)
+      .describe("This operator is used to squeeze input tensor X.")
+      .set_num_inputs(1)
+      .set_num_outputs(1)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForSqueeze)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForSqueeze))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForSqueeze))
+#ifndef CINN_WITH_CUDA
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForSqueeze))
 #endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
