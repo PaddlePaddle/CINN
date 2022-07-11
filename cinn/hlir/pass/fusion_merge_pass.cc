@@ -601,11 +601,6 @@ class FusionMergePassHelper : public FusionHelperBase {
         consumer->producer_groups.erase(producer);
         consumer->producer_groups.insert(master_fuesd_group);
       }
-
-      // update groups
-      fusion_groups_[fusion_groups_index_[producer]]       = first_fuesd_group;
-      fusion_groups_[fusion_groups_index_[first_consumer]] = first_consumer;
-      fusion_groups_index_[first_fuesd_group]              = fusion_groups_index_[producer];
     }
   }
 
@@ -640,46 +635,6 @@ class FusionMergePassHelper : public FusionHelperBase {
       auto first = *fusionable_consumers.begin();
       fusionable_consumers.clear();
       fusionable_consumers.insert(first);
-    }
-    // This step is try to remove broadcast with vertical relation.
-    // vertical relation means producer'output shape < consumer's output shape.
-    // if not all consumers is fusionable, remove broadcast with vertical relation.
-    // elif all consumers is fusionable but not allvertical relation, remove broadcast with vertical relation.
-    // else all consumers is fusionable with vertical relation, do nothing.
-    {
-      auto consumers       = producer->consumer_groups;
-      bool check_broadcast = consumers.size() > fusionable_consumers.size();
-      if (!check_broadcast) {
-        for (auto& consumer : fusionable_consumers) {
-          // consumer is not broadcast, check_broadcast.
-          if (consumer->op_pattern_kind != framework::kBroadcast) {
-            check_broadcast = true;
-            break;
-          } else {
-            // consumer is broadcast.
-            auto output_var_0 = this->GetNodeDataShape(*producer->master_nodes.begin());
-            auto output_var_1 = this->GetNodeDataShape(*consumer->master_nodes.begin());
-            // but comsumer is not vertical relation, check_broadcast.
-            if (output_var_0 == output_var_1) {
-              check_broadcast = true;
-              break;
-            }
-          }
-        }
-      }
-      if (check_broadcast) {
-        for (auto& consumer : consumers) {
-          // consumer is broadcast and fusionable.
-          if (fusionable_consumers.count(consumer) && consumer->op_pattern_kind == framework::kBroadcast) {
-            auto output_var_0 = this->GetNodeDataShape(*producer->master_nodes.begin());
-            auto output_var_1 = this->GetNodeDataShape(*consumer->master_nodes.begin());
-            // vertical relation, remove.
-            if (output_var_0 != output_var_1) {
-              fusionable_consumers.erase(consumer);
-            }
-          }
-        }
-      }
     }
   }
 
