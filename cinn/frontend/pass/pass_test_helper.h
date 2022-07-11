@@ -112,13 +112,11 @@ std::vector<float> GetTensorData(const hlir::framework::Tensor& tensor, const co
 void RunGraph(std::shared_ptr<hlir::framework::Graph> graph,
               const common::Target& target,
               const std::shared_ptr<hlir::framework::Scope>& scope,
-              const std::vector<std::string>& output_ids) {
-  if (FLAGS_cinn_use_new_fusion_pass) {
-    hlir::framework::ApplyPasses(graph.get(), {"OpFusionPass", "FusionMergePass"});
-  } else {
-    hlir::framework::ApplyPass(graph.get(), "OpFusion");
-  }
+              const std::vector<std::string>& output_ids,
+              const std::vector<std::string>& graph_passes) {
+  hlir::framework::ApplyPasses(graph.get(), graph_passes);
   VLOG(3) << "Graph Viz:\n" << graph->Visualize();
+  BuildScope(target, graph, scope);
   hlir::framework::GraphCompiler::CompileOptions options;
   options.attached_code              = "";
   options.with_instantiate_variables = true;
@@ -132,9 +130,11 @@ std::vector<float> RunProgram(const Program& program,
                               const common::Target& target,
                               const std::vector<std::string>& input_ids,
                               const std::vector<std::string>& output_ids,
+                              const std::vector<std::string>& graph_passes,
                               int seed          = -1,
                               bool print_tensor = false) {
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  std::unordered_set<std::string> outputs_set{output_ids.begin(), output_ids.end()};
+  auto graph = std::make_shared<hlir::framework::Graph>(program, outputs_set, target);
   auto scope = hlir::framework::BuildScope(target, graph);
   for (auto& input_id : input_ids) {
     scope->Var<hlir::framework::Tensor>(input_id);
@@ -153,7 +153,7 @@ std::vector<float> RunProgram(const Program& program,
     }
   }
 
-  RunGraph(graph, target, scope, output_ids);
+  RunGraph(graph, target, scope, output_ids, graph_passes);
 
   auto output_tensor = scope->GetTensor(output_ids.front());
   auto output_data   = GetTensorData(output_tensor, target);
@@ -170,35 +170,62 @@ std::vector<float> RunProgram(const Program& program,
   return output_data;
 }
 
+struct OptimizeConfig {
+  struct PassGroup;
+  OptimizeConfig(const PassGroup& program_passes) : program_passes{program_passes} {
+    if (FLAGS_cinn_use_new_fusion_pass) {
+      graph_passes = {{"OpFusionPass", "FusionMergePass"}, {"OpFusionPass", "FusionMergePass"}};
+    } else {
+      graph_passes = {{"OpFusion"}, {"OpFusion"}};
+    }
+  }
+  OptimizeConfig(const PassGroup& program_passes, const PassGroup& graph_passes)
+      : program_passes{program_passes}, graph_passes{graph_passes} {}
+
+  OptimizeConfig(const std::pair<std::vector<std::string>, std::vector<std::string>>& program_passes) {
+    this->program_passes.ctrl = program_passes.first;
+    this->program_passes.exp  = program_passes.second;
+  }
+
+  struct PassGroup {
+    // control group
+    std::vector<std::string> ctrl;
+    // experimental group
+    std::vector<std::string> exp;
+  };
+  PassGroup program_passes;
+  PassGroup graph_passes;
+};
+
 void CompareResult(Program* program,
                    const common::Target& target,
                    const std::vector<std::string>& input_ids,
                    const std::vector<std::string>& output_ids,
                    size_t size_diff,
-                   const std::pair<std::vector<std::string>, std::vector<std::string>>& passes,
+                   const OptimizeConfig& passes,
                    int seed          = -1,
                    bool print_tensor = false) {
   std::unordered_set<std::string> fetch_ids(output_ids.begin(), output_ids.end());
   // apply common passes
-  ProgramPass::Apply(program, fetch_ids, target, passes.first);
+  ProgramPass::Apply(program, fetch_ids, target, passes.program_passes.ctrl);
 
   // get original program size
   auto origin_size = program->size();
   // get original output
-  auto origin_out = RunProgram(*program, target, input_ids, output_ids, seed, print_tensor);
+  auto origin_out = RunProgram(*program, target, input_ids, output_ids, passes.graph_passes.ctrl, seed, print_tensor);
 
   // apply fused passes
-  ProgramPass::Apply(program, fetch_ids, target, passes.second);
+  ProgramPass::Apply(program, fetch_ids, target, passes.program_passes.exp);
 
   // get fused program size
   auto fused_size = program->size();
   ASSERT_EQ(size_diff, origin_size - fused_size);
   // get fused output
-  auto fused_out = RunProgram(*program, target, input_ids, output_ids, seed, print_tensor);
+  auto fused_out = RunProgram(*program, target, input_ids, output_ids, passes.graph_passes.exp, seed, print_tensor);
 
   ASSERT_EQ(origin_out.size(), fused_out.size());
   for (size_t i = 0; i < origin_out.size(); ++i) {
-    ASSERT_FLOAT_EQ(origin_out[i], fused_out[i]);
+    ASSERT_FLOAT_EQ(origin_out[i], fused_out[i]) << " i is " << i;
   }
 }
 

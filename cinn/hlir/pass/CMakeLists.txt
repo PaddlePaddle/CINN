@@ -8,6 +8,7 @@ gather_srcs(cinnapi_src SRCS
     const_propagate.cc
     op_fusion_pass.cc
     fusion_merge_pass.cc
+    dot_merger.cc
     )
 
 cc_test(test_opfusion SRCS opfusion_test.cc DEPS cinncore)
@@ -18,3 +19,4 @@ if (NOT WITH_CUDA)
 cc_test(test_alterlayout SRCS alterlayout_test.cc DEPS cinncore)
 endif()
 cc_test(test_const_propagate SRCS const_propagate_test.cc DEPS cinncore)
+cc_test(test_dot_merger SRCS test_dot_merger.cc DEPS cinncore)

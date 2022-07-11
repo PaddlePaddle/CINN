@@ -112,7 +112,7 @@ NodeData* InsertGraphOpNodeAfter(
   CHECK(insert_node);
   CHECK(input_nodedata);
   input_nodedata->Controls(insert_node);
-  std::shared_ptr<Node> node_ptr(insert_node);
+  common::Shared<Node> node_ptr(insert_node);
   auto* out_nodedata = new NodeData(node_ptr, 0, 0, common::UniqName(insert_node->id() + "_out"));
   insert_node->Controls(out_nodedata);
   std::vector<common::GraphNode*> old_sources;
@@ -146,8 +146,8 @@ NodeData* InsertGraphOpNodeBefore(
   CHECK(insert_node);
   CHECK(input_node);
   CHECK(dst_data);
-  std::shared_ptr<Node> node_ptr = dst_data->source_node;
-  auto* input_node_out           = new NodeData(node_ptr, 0, 0, common::UniqName(input_node->id() + "_out"));
+  auto node_ptr        = dst_data->source_node;
+  auto* input_node_out = new NodeData(node_ptr, 0, 0, common::UniqName(input_node->id() + "_out"));
   std::vector<common::GraphNode*> old_sinks;
   auto& old_outlinks = input_node->outlinks_in_order(true);
   for (auto& link : old_outlinks) {
@@ -158,7 +158,7 @@ NodeData* InsertGraphOpNodeBefore(
   }
   input_node_out->Controls(insert_node);
   insert_node->Controls(dst_data);
-  dst_data->source_node = std::shared_ptr<Node>(insert_node);
+  dst_data->source_node = common::Shared<Node>(insert_node);
 
   for (int i = 0; i < old_sinks.size(); i++) {
     if (i == pos) {

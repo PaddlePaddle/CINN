@@ -16,6 +16,7 @@
 
 #include <absl/container/flat_hash_map.h>
 #include <isl/cpp.h>
+#include <math.h>
 
 #include <algorithm>
 #include <fstream>
@@ -35,7 +36,21 @@ namespace cinn {
 namespace hlir {
 namespace pe {
 
-ScheduleParam::ScheduleParam() {}
+ScheduleParam::ScheduleParam(common::Target::Arch arch) {
+  switch (arch) {
+    case common::Target::Arch::X86: {
+      param_data = CreateX86Params();
+      break;
+    }
+    case common::Target::Arch::NVGPU: {
+      param_data = CreateCudaParams();
+      break;
+    }
+    default: {
+      LOG(FATAL) << "Schedule params must be initialized with target x86 or nvgpu.";
+    }
+  }
+}
 
 ScheduleParam::~ScheduleParam() {}
 
@@ -588,10 +603,6 @@ void GetConv2dFactors(absl::flat_hash_map<std::string, int> *factors,
                       bool import_params) {
   if (import_params) {
     auto &params = ScheduleParam::get_x86_instance().GetParam();
-    if (params.empty()) {
-      CreateX86SerialData();
-      LoadSerialData(&params);
-    }
     if (params.count(key)) {
       VLOG(3) << "find saved param, key is: " << key;
       CHECK(!params[key]["oc_bn"].empty());
@@ -802,13 +813,11 @@ std::string GenerateX86ConvKey(const std::vector<int> &input_shape,
 }
 
 void CreateX86SerialData(const std::string &file_name) {
-  absl::flat_hash_map<std::string, absl::flat_hash_map<std::string, std::vector<int>>> model_data;
   /** The format of serial data is:
    * hash_key: schedule_name + shape of input + shape of weights + stride + padding + dilation
    * value: vector of params
    */
-  CreateX86Params(&model_data);
-  SaveSerialData(model_data, file_name);
+  SaveSerialData(CreateX86Params(), file_name);
 }
 
 void Conv2d_NCHWc_1X1_Schedule_CPU(poly::StageMap stages,
@@ -1384,7 +1393,7 @@ inline void InputWinogradConvCudaParam(
   model_data[key]     = schedule_data;
 }
 
-void CreateCudaSerialData(const std::string &file_name) {
+absl::flat_hash_map<std::string, absl::flat_hash_map<std::string, std::vector<int>>> CreateCudaParams() {
   absl::flat_hash_map<std::string, absl::flat_hash_map<std::string, std::vector<int>>> model_data;
   // The format of serial data is:
   // hash_key: string = name of schedule + shape of input_pad + shape of weights + shape of output
@@ -1685,9 +1694,10 @@ void CreateCudaSerialData(const std::string &file_name) {
                              "CudaWinogradConvSchedule 1 8 32 42 16 8 3 3 1 16 30 40",
                              {{-1, 4}, {-1, 2, 30, 1}, {-1, 1, 4, 4}, {-1, 1, 1, 1}});
 #endif
-
-  SaveSerialData(model_data, file_name);
+  return model_data;
 }
+
+void CreateCudaSerialData(const std::string &file_name) { SaveSerialData(CreateCudaParams(), file_name); }
 
 int GetMaxSplitter(int a, int b) {
   while (a % b > 0) {
@@ -1768,13 +1778,8 @@ void CudaScheduleConv(poly::StageMap stages,
                       ir::Tensor &output,
                       const common::Target &target) {
   auto &res = ScheduleParam::get_cuda_instance().GetParam();
-  if (res.empty()) {
-    CreateCudaSerialData();
-    LoadSerialData(&res);
-  }
-
-  int n = output->shape[0].as_int32();
-  int c = output->shape[1].as_int32();
+  int n     = output->shape[0].as_int32();
+  int c     = output->shape[1].as_int32();
   optim::Simplify(&(output->shape[2]));
   int h = output->shape[2].as_int32();
   optim::Simplify(&(output->shape[3]));
@@ -1961,11 +1966,7 @@ void CudaScheduleConv2(poly::StageMap stages,
 void CudaScheduleWinogradConv(poly::StageMap wino_stages,
                               std::vector<ir::Tensor> &all_tensors,
                               const common::Target &target) {
-  auto &res = ScheduleParam::get_cuda_instance().GetParam();
-  if (res.empty()) {
-    CreateCudaSerialData();
-    LoadSerialData(&res);
-  }
+  auto &res                   = ScheduleParam::get_cuda_instance().GetParam();
   auto &wino_weights_dilation = all_tensors[0];
   auto &wino_input_pad        = all_tensors[1];
   auto &wino_A                = all_tensors[2];
@@ -2101,6 +2102,18 @@ int gcd(int a, int b) {
   return a;
 }
 
+int MaxFactorLessThan(int a, int b) {
+  CHECK_GT(a, b);
+  int res = 1;
+  for (int i = 2; i <= (int)sqrt((double)a); i++) {
+    if (a % i == 0) {
+      if (i <= b) res = std::max(res, i);
+      if (a / i <= b) res = std::max(res, a / i);
+    }
+  }
+  return res;
+}
+
 void CudaScheduleInjectiveWithVectorize(poly::Stage *stage,
                                         const std::vector<int> &output_shape,
                                         const common::Target &target) {
@@ -2174,30 +2187,32 @@ void CudaScheduleInjective(poly::Stage *stage, const std::vector<int> &output_sh
     CudaScheduleInjectiveWithVectorize(stage, output_shape, target);
     return;
   }
-  int dims       = stage->n_out_dims() - 1;
+  int dims = stage->n_out_dims();
+  for (int i = 1; i < dims; i++) {
+    stage->Fuse(0, 1);
+  }
+
   int num_thread = target.max_num_threads();
-  if (stage->GetDimRange(dims) > num_thread) {
-    stage->Split(dims, gcd(stage->GetDimRange(dims), num_thread));
-    ++dims;
+  int num_block  = 65535;
+  int prod_size  = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int>());
+  if (prod_size <= num_thread) {
+    stage->Bind(0, "threadIdx.x");
+    return;
   }
-
-  while (dims > 0 && stage->GetDimRange(dims - 1) * stage->GetDimRange(dims) < num_thread) {
-    stage->Fuse(dims - 1, dims);
-    --dims;
+  int new_num_thread = gcd(prod_size, num_thread);
+  if (new_num_thread % 32 != 0) {
+    new_num_thread = MaxFactorLessThan(prod_size, num_thread);
   }
+  if (new_num_thread == 1) LOG(FATAL) << "prod_size out of range: " << prod_size;
 
-  stage->Bind(dims, "threadIdx.x");
-  --dims;
-
-  while (dims > 2) {
-    stage->Fuse(dims - 1, dims);
-    --dims;
-  }
-  std::string block_idx = "blockIdx.x";
-  for (int j = 0; dims >= 0; ++j) {
-    block_idx.back() = 'x' + j;
-    stage->Bind(dims, block_idx);
-    --dims;
+  bool need_more_split = prod_size > new_num_thread * num_block ? true : false;
+  if (need_more_split) {
+    LOG(FATAL) << "prod_size out of range: " << prod_size << ", and new_num_thread is : " << new_num_thread;
+  } else {
+    CHECK_GT(prod_size, new_num_thread);
+    stage->Split(0, new_num_thread);
+    stage->Bind(0, "blockIdx.x");
+    stage->Bind(1, "threadIdx.x");
   }
 }
 

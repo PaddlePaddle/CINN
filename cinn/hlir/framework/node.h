@@ -32,7 +32,7 @@ namespace framework {
 class Node;
 class NodeData;
 
-using NodePtr     = std::shared_ptr<Node>;
+using NodePtr     = common::Shared<Node>;
 using AttrType    = utils::Attribute;
 using AttrMapType = utils::AttributeMap;
 
@@ -68,7 +68,7 @@ std::ostream &operator<<(std::ostream &os, const NodeAttr &node_attr);
 class Node : public common::GraphNode {
  public:
   Node() = default;
-  Node(const Operator *op, const std::string &name, std::string id = nullptr) {
+  Node(const Operator *op, const std::string &name, std::string id = {}) {
     this->attrs.op        = op;
     this->attrs.node_name = name;
     this->id_             = std::move(id);
@@ -116,7 +116,7 @@ class Node : public common::GraphNode {
 
   template <class... Args>
   static NodePtr Create(Args &&... args) {
-    return std::make_shared<Node>(std::forward<Args>(args)...);
+    return common::Shared<Node>(new Node(std::forward<Args>(args)...));
   }
 
   static constexpr char *__type_info__ = "hlir_framework_node";
