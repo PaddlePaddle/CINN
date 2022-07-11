@@ -22,7 +22,11 @@ namespace pe {
 using ir::Tensor;
 
 TEST(load_x86_params, load_x86_params) {
-  auto &res       = ScheduleParam::get_x86_instance().GetParam();
+  auto &res = ScheduleParam::get_x86_instance().GetParam();
+  if (res.empty()) {
+    CreateX86SerialData();
+    LoadSerialData(&res);
+  }
   std::string key = "X86ScheduleConv input 1 3 224 224 weight 64 3 7 7 stride 2 2 padding 3 3 dilation 1 1";
   ASSERT_EQ(res.count(key), 1);
 
