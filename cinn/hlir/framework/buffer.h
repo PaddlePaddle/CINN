@@ -34,7 +34,11 @@ namespace framework {
 struct Buffer final {
   Buffer() = default;
   explicit Buffer(const common::Target& target) { SetTarget(target); }
-
+  ~Buffer() {
+    Free();
+    data_.~cinn_buffer_t();
+    target_.~Target();
+  }
   //! Resize the memory hold by this buffer *exactlly* to \p size.
   void Resize(uint32_t size);
   void Resize(uint32_t alignment, uint32_t size);

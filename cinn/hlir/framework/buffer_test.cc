@@ -27,7 +27,7 @@ namespace framework {
 TEST(Buffer, basic) {
   Buffer buffer(common::DefaultHostTarget());
   buffer.Resize(10 * sizeof(float));
-  auto* data = reinterpret_cast<float*>(buffer.data());
+  auto* data = reinterpret_cast<float*>(buffer.data()->memory);
   for (int i = 0; i < 10; i++) data[i] = i;
 }
 
@@ -36,7 +36,7 @@ TEST(Buffer, nvgpu) {
   const int num_elements = 10;
   Buffer buffer(common::DefaultNVGPUTarget());
   buffer.Resize(num_elements * sizeof(float));
-  auto* data = reinterpret_cast<float*>(buffer.data());
+  auto* data = reinterpret_cast<float*>(buffer.data()->memory);
   std::vector<float> host_data(num_elements);
   std::vector<float> host_target(num_elements, 0);
 
