@@ -1339,6 +1339,12 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
   auto master_reducer_stage = stages[tensor_map[master_reducer_data->id()]];
   auto master_reducer_axes  = absl::get<std::vector<int>>(master_reducer->attrs.attr_store.at("dim"));
   auto master_reducer_shape = this->shape_dict_.at(master_reducer->inlinks_in_order()[0]->source()->id());
+  // update sync thread depend.
+  for (auto stage : stages) {
+    if (stage.first.find("syncthreads") != std::string::npos) {
+      stage.second->CtrlDepend(tensor_map[master_reducer_data->id() + "_0"]);
+    }
+  }
 
   bool reduce_with_same_shape = true;
   if (WithoutLastDimInReduce(master_reducer_shape, master_reducer_axes)) {

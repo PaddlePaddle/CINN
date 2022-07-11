@@ -102,6 +102,12 @@ void InferShapePass(Graph* graph) {
     return numel;
   };
 
+  auto product = [](const framework::shape_t& shape) {
+    framework::dim_t numel = 1;
+    std::for_each(shape.begin(), shape.end(), [&numel](framework::dim_t dim) { numel *= dim; });
+    return numel;
+  };
+
   for (auto& n : store_nodes) {
     auto node = n->safe_as<Node>();
     if (node) {
