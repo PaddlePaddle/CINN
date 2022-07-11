@@ -29,6 +29,14 @@
 namespace cinn {
 namespace hlir {
 namespace pe {
+
+void IRCudaTwoStepReduceSchedule(ir::IRSchedule &ir_sch,
+                                 ir::Tensor reshape,
+                                 ir::Tensor internal,
+                                 ir::Tensor tmp_out,
+                                 ir::Tensor out,
+                                 const common::Target &target);
+
 void IRCudaScheduleBlockShuffleReduce(
     ir::IRSchedule &ir_sch, ir::Tensor reshape, ir::Tensor internal, ir::Tensor out, const common::Target &target);
 

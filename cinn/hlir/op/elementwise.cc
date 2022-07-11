@@ -82,8 +82,7 @@ std::shared_ptr<OpStrategy> StrategyForElementwise(const framework::NodeAttr &at
     if (FLAGS_cinn_ir_schedule) {
       CHECK(!args.empty()) << "The input argument of " << op_name << " schedule is empty! Please check.";
       CINNValuePack arg_pack = args[0];
-      CHECK_EQ(arg_pack.size(), 2UL);
-      Expr ast_expr = arg_pack[0];
+      Expr ast_expr          = arg_pack[0];
       std::vector<Expr> vec_ast{ast_expr};
       ir::ModuleExpr mod_expr(vec_ast);
       ir::IRSchedule ir_sch(mod_expr);

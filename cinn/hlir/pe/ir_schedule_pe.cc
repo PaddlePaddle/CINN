@@ -34,6 +34,53 @@ namespace cinn {
 namespace hlir {
 namespace pe {
 
+void IRCudaTwoStepReduceSchedule(ir::IRSchedule &ir_sch,
+                                 ir::Tensor reshape,
+                                 ir::Tensor internal,
+                                 ir::Tensor tmp_out,
+                                 ir::Tensor out,
+                                 const common::Target &target) {
+  ir_sch.MergeExprs();
+  // fuse axis
+  for (int idx = 0; idx < static_cast<int>(internal->shape.size()) - 2; ++idx) {
+    for (auto tensor : {internal, tmp_out, out}) {
+      auto block = ir_sch.GetBlock(tensor->name);
+      auto loops = ir_sch.GetLoops(block);
+      CHECK_GE(loops.size(), 2U);
+      ir_sch.Fuse({loops[0], loops[1]});
+    }
+  }
+
+  if (stages[tmp_out]->n_out_dims() == 1) {
+    for (auto tensor : {internal, tmp_out, out}) {
+      auto block = ir_sch.GetBlock(tensor->name);
+      auto loops = ir_sch.GetLoops(block);
+      ir_sch.Split(loops[0], {-1, ir::GetLoopExtent(loops[0])});
+    }
+  }
+
+  auto reshape_block = ir_sch.GetBlock(reshape->name);
+  ir_sch.ComputeInline(reshape_block);
+
+  auto internal_block = ir_sch.GetBlock(internal->name);
+  ir_sch.SetBuffer(internal_block, "shared");
+
+  auto tmp_out_block = ir_sch.GetBlock(internal->name);
+  ir_sch.SetBuffer(tmp_out_block, "shared");
+
+  auto out_block = ir_sch.GetBlock(out->name);
+
+  auto internal_loops = ir_sch.GetLoops(internal_block);
+  ir_sch.Bind(internal_loops[1], "threadIdx.x");
+  auto tmp_out_loops = ir_sch.GetLoops(tmp_out_block);
+  ir_sch.Bind(tmp_out_loops[1], "threadIdx.x");
+  auto out_loops = ir_sch.GetLoops(out_block);
+  ir_sch.Bind(out_loops[0], "blockIdx.x");
+
+  ir_sch.SimpleComputeAt(tmp_out_block, out_loops[0]);
+  ir_sch.SimpleComputeAt(internal_block, out_loops[0]);
+}
+
 void IRCudaScheduleBlockShuffleReduce(
     ir::IRSchedule &ir_sch, ir::Tensor reshape, ir::Tensor internal, ir::Tensor out, const common::Target &target) {
   ir_sch.MergeExprs();

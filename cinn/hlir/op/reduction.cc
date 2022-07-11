@@ -116,16 +116,16 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
 
   framework::CINNCompute reduction_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of " << op_name << " compute is empty! Please check.";
-    CINNValuePack a      = args[0];
-    std::string out_name = UniqName(op_name + "_out");
+    CINNValuePack arg_packs = args[0];
+    std::string out_name    = UniqName(op_name + "_out");
     if (FLAGS_cinn_ir_schedule) {
-      CHECK_EQ(a.size(), 2U) << "There should be 2 input args for " << op_name << " compute";
-      const char *out_name_char = a[1];
-      out_name                  = out_name_char;
+      CHECK_EQ(arg_packs.size(), 2U) << "There should be 2 input args for " << op_name << " compute";
+      const char *out_name_str = arg_packs[1];
+      out_name                 = out_name_str;
     } else {
-      CHECK_EQ(a.size(), 1U) << "There should be 1 input args for " << op_name << " compute";
+      CHECK_EQ(arg_packs.size(), 1U) << "There should be 1 input args for " << op_name << " compute";
     }
-    Expr x_expr = a[0];
+    Expr x_expr = arg_packs[0];
     CHECK(x_expr.as_tensor());
     ir::Tensor x = x_expr.as_tensor_ref();
     if (target == common::DefaultNVGPUTarget()) {
@@ -167,46 +167,40 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
     CINNValuePack arg_pack = args[0];
 
     if (FLAGS_cinn_ir_schedule) {
-      CHECK_GE(arg_pack.size(), 4UL);
-      CHECK_LE(arg_pack.size(), 7UL);
-      std::vector<Expr> vec_ast;
-      vec_ast.push_back(arg_pack[arg_pack.size() - 2]);
-      vec_ast.push_back(arg_pack.back());
+      CHECK_GE(arg_pack.size(), 2UL);
+      CHECK_LE(arg_pack.size(), 5UL);
+
+      Expr ast_expr = arg_pack.back();
+      std::vector<Expr> vec_ast{ast_expr};
       ir::ModuleExpr mod_expr(vec_ast);
       ir::IRSchedule ir_sch(mod_expr);
 
       if (target.arch == Target::Arch::NVGPU) {
         if (!WithoutLastDimInReduce(inputs[0]->shape, reduce_axes)) {
-          if (arg_pack.size() == 5) {
+          if (arg_pack.size() == 3) {
             Expr out     = arg_pack[0];
             Expr tmp_out = arg_pack[1];
             VLOG(3) << "Do IRCudaScheduleBlockReduceInternal Schedule!";
-
             pe::IRCudaScheduleBlockReduceInternal(ir_sch, tmp_out.as_tensor_ref(), out.as_tensor_ref(), target);
-
-          } else if (arg_pack.size() == 6) {
+          } else if (arg_pack.size() == 4) {
             Expr out            = arg_pack[0];
             Expr tmp_out        = arg_pack[1];
             Expr reduce_tmp_out = arg_pack[2];
             VLOG(3) << "Do IRCudaScheduleBlockReduce Schedule!";
-
             pe::IRCudaScheduleBlockReduce(
                 ir_sch, reduce_tmp_out.as_tensor_ref(), tmp_out.as_tensor_ref(), out.as_tensor_ref(), target);
-
           } else {
-            LOG(FATAL) << "Not implemented!";
-            Expr out              = arg_pack[0];
-            Expr tmp_out          = arg_pack[1];
-            Expr reduce_tmp_out   = arg_pack[2];
-            Expr reshape          = arg_pack[3];
-            poly::StageMap stages = arg_pack[4];
+            Expr out            = arg_pack[0];
+            Expr tmp_out        = arg_pack[1];
+            Expr reduce_tmp_out = arg_pack[2];
+            Expr reshape        = arg_pack[3];
             VLOG(3) << "Do CudaTwoStepReduceSchedule Schedule!";
-            pe::CudaTwoStepReduceSchedule(stages,
-                                          reshape.as_tensor_ref(),
-                                          reduce_tmp_out.as_tensor_ref(),
-                                          tmp_out.as_tensor_ref(),
-                                          out.as_tensor_ref(),
-                                          common::DefaultNVGPUTarget());
+            pe::IRCudaTwoStepReduceSchedule(ir_sch,
+                                            reshape.as_tensor_ref(),
+                                            reduce_tmp_out.as_tensor_ref(),
+                                            tmp_out.as_tensor_ref(),
+                                            out.as_tensor_ref(),
+                                            common::DefaultNVGPUTarget());
           }
         } else {
           if (arg_pack.size() == 4) {
