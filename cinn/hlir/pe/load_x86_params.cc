@@ -1291,17 +1291,16 @@ void LoadEfficientNetParams(
       {{"ic_bn", {-1, 4}}, {"oc_bn", {-1, 16}}, {"ow_bn", {-1, 7}}, {"oh_bn", {2}}});
 }
 
-absl::flat_hash_map<std::string, absl::flat_hash_map<std::string, std::vector<int>>> CreateX86Params() {
-  absl::flat_hash_map<std::string, absl::flat_hash_map<std::string, std::vector<int>>> model_data;
-  LoadX86DefaultParams(&model_data);
-  LoadResNet18Params(&model_data);
-  LoadResNet50Params(&model_data);
-  LoadMobileNetV1Params(&model_data);
+void CreateX86Params(absl::flat_hash_map<std::string, absl::flat_hash_map<std::string, std::vector<int>>> *model_data) {
+  CHECK(model_data);
+  LoadX86DefaultParams(model_data);
+  LoadResNet18Params(model_data);
+  LoadResNet50Params(model_data);
+  LoadMobileNetV1Params(model_data);
   // LoadMobileNetV2Params(model_data);
   // LoadFaceDetParams(model_data);
-  LoadEfficientNetParams(&model_data);
-  LoadSqueezeNetParams(&model_data);
-  return model_data;
+  LoadEfficientNetParams(model_data);
+  LoadSqueezeNetParams(model_data);
 }
 }  // namespace pe
 }  // namespace hlir

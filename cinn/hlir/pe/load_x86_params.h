@@ -27,7 +27,8 @@ void InputX86Param(absl::flat_hash_map<std::string, absl::flat_hash_map<std::str
                    const std::string &key,
                    const absl::flat_hash_map<std::string, std::vector<int>> &schedule_data);
 
-absl::flat_hash_map<std::string, absl::flat_hash_map<std::string, std::vector<int>>> CreateX86Params();
+void LoadX86DefaultParams(
+    absl::flat_hash_map<std::string, absl::flat_hash_map<std::string, std::vector<int>>> *model_data);
 void LoadResNet18Params(
     absl::flat_hash_map<std::string, absl::flat_hash_map<std::string, std::vector<int>>> *model_data);
 void LoadResNet50Params(
