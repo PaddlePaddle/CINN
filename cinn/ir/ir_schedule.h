@@ -219,7 +219,9 @@ class IRSchedule {
   /**
    * \brief Add SyncThreads statements in AST.
    * @param ir_node The insertion point in AST.
-   * @param after_node Whether to insert the statement after the insertion point.
+   * @param after_node Whether to insert the statement after the insertion point. When it is True, we will insert the
+   * SyncThreads statement after the insertion IR. When it is False, we will insert the SyncThreads statement before the
+   * insertion IR.
    */
   void SyncThreads(const Expr& ir_node, bool after_node = true);
 

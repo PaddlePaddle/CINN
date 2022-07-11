@@ -1203,7 +1203,7 @@ Expr IRSchedule::CacheWrite(const Expr& block, int write_buffer_index, const std
 
 struct InsertExpr : public ir::IRMutator<> {
  public:
-  static void Insert(Expr* expr, const Expr& ir_node, const Expr& insert_node, bool after_node) {
+  static void Insert(const Expr& ir_node, const Expr& insert_node, bool after_node, Expr* expr) {
     InsertExpr mutator(ir_node, insert_node, after_node);
     mutator(expr);
   }
@@ -1217,10 +1217,11 @@ struct InsertExpr : public ir::IRMutator<> {
   void Visit(const ir::Block* expr, Expr* op) override {
     for (int i = 0; i < expr->stmts.size(); i++) {
       if (expr->stmts[i] == ir_node_) {
-        if (after_node_)
+        if (after_node_) {
           op->As<ir::Block>()->stmts.insert(op->As<ir::Block>()->stmts.begin() + i + 1, insert_node_);
-        else
+        } else {
           op->As<ir::Block>()->stmts.insert(op->As<ir::Block>()->stmts.begin() + i, insert_node_);
+        }
         return;
       }
     }
@@ -1249,7 +1250,7 @@ void IRSchedule::SyncThreads(const Expr& ir_node, bool after_node) {
   auto root = GetRootBlock(ir_node);
   ChangeBodyToBlock::Change(&root);
   Expr sync_threads = runtime::IntrinsicCall(Void(), "__syncthreads", {});
-  InsertExpr::Insert(&root, ir_node, sync_threads, after_node);
+  InsertExpr::Insert(ir_node, sync_threads, after_node, &root);
   return;
 }
 
