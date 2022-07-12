@@ -84,8 +84,8 @@ class OpLowerer {
                           std::unordered_map<std::string, ir::Tensor>& tensor_map,             \
                           const GroupPtr& group,                                               \
                           const GroupPtr& sub_group,                                           \
-                          Node*& first  = nullptr,                                             \
-                          Node*& second = nullptr);
+                          Node*& first,                                                        \
+                          Node*& second);
 
 #define DEFINE_COMPUTE_SCHDULE(type)                                           \
   void type##Compute(poly::StageMap& stages,                                   \

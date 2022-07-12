@@ -51,7 +51,7 @@ void IRCudaTwoStepReduceSchedule(ir::IRSchedule &ir_sch,
     }
   }
 
-  if (stages[tmp_out]->n_out_dims() == 1) {
+  if (ir_sch.GetLoops(tmp_out->name).size() == 1) {
     for (auto tensor : {internal, tmp_out, out}) {
       auto block = ir_sch.GetBlock(tensor->name);
       auto loops = ir_sch.GetLoops(block);
