@@ -1201,6 +1201,59 @@ Expr IRSchedule::CacheWrite(const Expr& block, int write_buffer_index, const std
   return *find_cache_block.begin();
 }
 
+struct InsertExpr : public ir::IRMutator<> {
+ public:
+  static void Insert(const Expr& ir_node, const Expr& insert_node, bool after_node, Expr* expr) {
+    InsertExpr mutator(ir_node, insert_node, after_node);
+    mutator(expr);
+  }
+
+  void operator()(Expr* expr) { IRMutator::Visit(expr, expr); }
+
+ private:
+  explicit InsertExpr(const Expr& ir_node, const Expr& insert_node, bool after_node)
+      : ir_node_(ir_node), insert_node_(insert_node), after_node_(after_node) {}
+
+  void Visit(const ir::Block* expr, Expr* op) override {
+    for (int i = 0; i < expr->stmts.size(); i++) {
+      if (expr->stmts[i] == ir_node_) {
+        if (after_node_) {
+          op->As<ir::Block>()->stmts.insert(op->As<ir::Block>()->stmts.begin() + i + 1, insert_node_);
+        } else {
+          op->As<ir::Block>()->stmts.insert(op->As<ir::Block>()->stmts.begin() + i, insert_node_);
+        }
+        return;
+      }
+    }
+    IRMutator::Visit(expr, op);
+  }
+
+  void Visit(const ir::For* expr, Expr* op) override {
+    if (expr->body == ir_node_) {
+      if (after_node_)
+        op->As<ir::For>()->body = ir::Block::Make({op->As<ir::For>()->body, insert_node_});
+      else
+        op->As<ir::For>()->body = ir::Block::Make({insert_node_, op->As<ir::For>()->body});
+      return;
+    }
+    IRMutator::Visit(expr, op);
+  }
+
+ private:
+  const Expr& ir_node_;
+  const Expr& insert_node_;
+  bool after_node_;
+};
+
+void IRSchedule::SyncThreads(const Expr& ir_node, bool after_node) {
+  CHECK(ir_node.As<ScheduleBlockRealize>() || ir_node.As<ir::For>());
+  auto root = GetRootBlock(ir_node);
+  ChangeBodyToBlock::Change(&root);
+  Expr sync_threads = runtime::IntrinsicCall(Void(), "__syncthreads", {});
+  InsertExpr::Insert(ir_node, sync_threads, after_node, &root);
+  return;
+}
+
 IRSchedule::IRSchedule(const ModuleExpr& module_expr, bool debug_flag) {
   ScheduleHelper sch_helper(module_expr, debug_flag);
   helper_ = sch_helper;
