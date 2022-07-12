@@ -117,11 +117,11 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
   framework::CINNCompute reduction_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of " << op_name << " compute is empty! Please check.";
     CINNValuePack arg_packs = args[0];
-    std::string out_name    = UniqName(op_name + "_out");
+    std::string tensor_name = UniqName(op_name + "_out");
     if (FLAGS_cinn_ir_schedule) {
       CHECK_EQ(arg_packs.size(), 2U) << "There should be 2 input args for " << op_name << " compute";
-      const char *out_name_str = arg_packs[1];
-      out_name                 = out_name_str;
+      const char *str = arg_packs[1];
+      tensor_name     = str;
     } else {
       CHECK_EQ(arg_packs.size(), 1U) << "There should be 1 input args for " << op_name << " compute";
     }
@@ -131,7 +131,7 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
     if (target == common::DefaultNVGPUTarget()) {
       if (!WithoutLastDimInReduce(inputs[0]->shape, reduce_axes)) {
         VLOG(3) << "Do Two Step Block Reduce Compute!";
-        auto res    = gpu_reduce_with_last_axis_func(x, reduce_axes, keep_dim, out_name);
+        auto res    = gpu_reduce_with_last_axis_func(x, reduce_axes, keep_dim, tensor_name);
         auto stages = CreateStages(res);
 
         std::vector<CINNValue> cinn_values;
@@ -142,7 +142,7 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
         *ret = CINNValuePack{cinn_values};
       } else {
         VLOG(3) << "Do Block Shuffle Reduce Compute!";
-        auto res    = gpu_reduce_without_last_axis_func(x, reduce_axes, keep_dim, out_name);
+        auto res    = gpu_reduce_without_last_axis_func(x, reduce_axes, keep_dim, tensor_name);
         auto stages = CreateStages(res);
 
         std::vector<CINNValue> cinn_values;
@@ -154,7 +154,7 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
       }
     } else {
       VLOG(3) << "Do Reduce Compute!";
-      auto out    = cpu_reduce_func(x, reduce_axes, keep_dim, out_name);
+      auto out    = cpu_reduce_func(x, reduce_axes, keep_dim, tensor_name);
       auto stages = CreateStages({out});
 
       std::vector<CINNValue> cinn_values{CINNValue(out), CINNValue(stages)};
@@ -194,7 +194,7 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
             Expr tmp_out        = arg_pack[1];
             Expr reduce_tmp_out = arg_pack[2];
             Expr reshape        = arg_pack[3];
-            VLOG(3) << "Do CudaTwoStepReduceSchedule Schedule!";
+            VLOG(3) << "Do IRCudaTwoStepReduceSchedule Schedule!";
             pe::IRCudaTwoStepReduceSchedule(ir_sch,
                                             reshape.as_tensor_ref(),
                                             reduce_tmp_out.as_tensor_ref(),
@@ -203,14 +203,13 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
                                             common::DefaultNVGPUTarget());
           }
         } else {
-          if (arg_pack.size() == 4) {
-            Expr reduce_out       = arg_pack[0];
-            poly::StageMap stages = arg_pack[1];
+          if (arg_pack.size() == 2) {
+            Expr reduce_out = arg_pack[0];
             VLOG(3) << "Do IRCudaScheduleReduce Schedule!";
             pe::IRCudaScheduleReduce(
                 ir_sch, output_shapes[0], inputs[0]->shape.size() - reduce_axes.back() - 1, target);
           } else {
-            CHECK_EQ(arg_pack.size(), 6) << "args is not equal 6!";
+            CHECK_EQ(arg_pack.size(), 4) << "args is not equal 6!";
             Expr reduce_reshape  = arg_pack[2];
             Expr reduce_internal = arg_pack[1];
             Expr reduce_out      = arg_pack[0];
