@@ -21,12 +21,15 @@
 
 #include "cinn/backends/codegen_cuda_dev.h"
 #include "cinn/common/context.h"
+#include "cinn/hlir/framework/fusion_checker.h"
 #include "cinn/hlir/framework/instruction.h"
 #include "cinn/hlir/framework/op_lowering.h"
 #include "cinn/hlir/framework/tensor.h"
 #include "cinn/hlir/pe/schedule.h"
 #include "cinn/lang/lower.h"
 #include "cinn/poly/stage.h"
+
+DECLARE_bool(cinn_check_fusion_pass);
 
 namespace cinn {
 namespace hlir {
@@ -604,6 +607,20 @@ void GraphCompiler::ProcessFunction(const std::vector<ir::LoweredFunc>& lowered_
   }
 }
 
+void GraphCompiler::LowerAllNodes(const std::vector<std::vector<Node*>>& groups) {
+  for (auto& group : groups) {
+    if (group.size() > 1) {
+      for (auto node : group) {
+        if (prefix2full_namemap_.count(GenOpFuncName(node))) {
+          continue;
+        }
+        // generate code for each node
+        ProcessFunction(GetOpFunc(node));
+      }
+    }
+  }
+}
+
 std::unique_ptr<Program> GraphCompiler::Build(const std::string& code) {
   GraphCompiler::CompileOptions options;
   options.attached_code              = code;
@@ -695,6 +712,11 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   CHECK_EQ(groups.size(), lowered_funcs.size()) << "The size of groups and lowered_funcs shoule be equal";
   for (auto&& lowered_func : lowered_funcs) {
     this->ProcessFunction(lowered_func);
+  }
+
+  // if check fusion fusion pass
+  if (FLAGS_cinn_check_fusion_pass) {
+    LowerAllNodes(groups);
   }
 
   graph_->VisualizeGroupedGraph(groups, fetch_var_ids_);
@@ -1062,6 +1084,13 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions(
       }
       // explicitly call Finalize of the instruction after all assignments on it were done
       instr->Finalize();
+      if (FLAGS_cinn_check_fusion_pass && fusion_group.get()) {
+        FusionChecker fusion_checker(
+            instr.get(), compiler_.get(), prefix2full_namemap_, graph_.get(), fusion_group, target_);
+        // do result check.
+        fusion_checker();
+      }
+
       instructions.push_back(std::move(instr));
     }
   }

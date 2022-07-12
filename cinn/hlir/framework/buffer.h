@@ -33,6 +33,7 @@ namespace framework {
  */
 struct Buffer final {
   Buffer() = default;
+  ~Buffer() { Free(); }
   explicit Buffer(const common::Target& target) { SetTarget(target); }
 
   //! Resize the memory hold by this buffer *exactlly* to \p size.
@@ -52,6 +53,7 @@ struct Buffer final {
   void ResizeLazy(uint32_t alignment, uint32_t size, const common::Target& target);
 
   void SetTarget(const common::Target& target);
+  common::Target GetTarget() { return target_; }
 
   const cinn_buffer_t* data() const { return &data_; }
   cinn_buffer_t* data() { return &data_; }
@@ -60,6 +62,7 @@ struct Buffer final {
   void Free() {
     if (!data_.memory) return;
     memory_mng_cache_->free(data_.memory);
+    data_.memory = nullptr;
   }
 
  private:

@@ -33,6 +33,10 @@ DEFINE_bool(cinn_use_new_fusion_pass,
             BoolFromEnv("FLAGS_cinn_use_new_fusion_pass", false),
             "Whether use the new op_fusion and fusion_merge pass.");
 
+DEFINE_bool(cinn_check_fusion_pass,
+            BoolFromEnv("FLAGS_cinn_check_fusion_pass", false),
+            "Whether use the new op_fusion and fusion_merge pass.");
+
 DEFINE_bool(cinn_use_fill_constant_folding,
             BoolFromEnv("FLAGS_cinn_use_fill_constant_folding", false),
             "Whether use the FillConstantFolding pass.");

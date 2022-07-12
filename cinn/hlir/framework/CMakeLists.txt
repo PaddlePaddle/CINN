@@ -15,6 +15,7 @@ gather_srcs(cinnapi_src SRCS
     op_lowering.cc
     accuracy_checker.cc
     visualize_helper.cc
+    fusion_checker.cc
     )
 
 if(WITH_CUDA)
@@ -36,3 +37,4 @@ cc_test(test_hlir_framework_program SRCS program_test.cc DEPS cinncore)
 cc_test(test_hlir_framework_graph SRCS graph_test.cc DEPS cinncore)
 cc_test(test_hlir_framework_graph_compiler SRCS graph_compiler_test.cc DEPS cinncore)
 cc_test(test_hlir_framework_accuracy_checker SRCS accuracy_checker_test.cc DEPS cinncore)
+cc_test(test_hlir_framework_fusion_checker SRCS fusion_checker_test.cc DEPS cinncore)
