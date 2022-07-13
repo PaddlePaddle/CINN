@@ -83,6 +83,14 @@ bool AutoInline::CanInlineIntoConsumer(const Expr& sche_block_realize_expr) cons
   if (!inliner.BodyPatternAllowInline()) {
     return false;
   }
+
+  ir::LeafBlockRemovalPlan remove_plan(sche_block_realize_expr, &inliner.src_stmt, &inliner.tgt_stmt);
+  remove_plan(&root);
+  if (!inliner.src_stmt.defined() || !inliner.tgt_stmt.defined()) {
+    return false;
+  }
+
+  VLOG(6) << "Found store Expr " << store << ", which CanInlineIntoConsumer";
   return true;
 }
 
@@ -142,6 +150,7 @@ ir::ModuleExpr AutoInline::Apply(int index) {
   if (type == AutoInlineType::kInlineIntoConsumer) {
     VLOG(6) << "Apply ComputeInline on " << all_block_realizes_[apply_index];
     ir_schedule_->ComputeInline(all_block_realizes_[apply_index]);
+    VLOG(6) << "After ComputeInline: " << all_block_realizes_[apply_index];
 
   } else if (type == AutoInlineType::kInlineIntoProducer) {
     // TODO(zhhsplendid): We don't have ReverseComputeInline in IRSchedule now,

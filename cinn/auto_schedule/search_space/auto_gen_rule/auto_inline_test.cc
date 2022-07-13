@@ -85,8 +85,7 @@ TEST(AutoInline, SingleLoopInline) {
   VLOG(6) << "After AutoInline:";
   VLOG(6) << expr_str;
 
-  std::string target_str = R"ROC(
-{
+  std::string target_str = R"ROC({
   ScheduleBlock(root)
   {
     {
@@ -102,9 +101,7 @@ TEST(AutoInline, SingleLoopInline) {
       }
     }
   }
-}
-
-)ROC";
+})ROC";
   EXPECT_EQ(expr_str, target_str);
 
   // Cannot inline above expr again

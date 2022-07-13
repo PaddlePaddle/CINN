@@ -404,5 +404,71 @@ class ComputeInliner : public BaseInliner {
   Expr ReplaceInlinedTensor(Expr* load);
 };
 
+// The struct used to remove the original block in ComputeAt.
+class LeafBlockRemovalPlan : public ir::IRMutator<> {
+ public:
+  LeafBlockRemovalPlan(const Expr& block, Expr* source_expr, Expr* target_expr)
+      : block_(block), source_expr_(source_expr), target_expr_(target_expr) {}
+
+  void operator()(Expr* expr) { IRMutator::Visit(expr, expr); }
+
+ private:
+  void Visit(const ir::ScheduleBlockRealize* expr, Expr* op) override {
+    if (*op == block_) {
+      find_block = true;
+      return;
+    }
+    IRMutator::Visit(expr, op);
+  }
+
+  void Visit(const ir::For* expr, Expr* op) override {
+    if (*op == block_) {
+      find_block = true;
+      return;
+    }
+    IRMutator::Visit(expr, op);
+  }
+
+  void Visit(const ir::Block* expr, Expr* op) override {
+    if (expr->stmts.size() > 1U) {
+      int block_index = -1;
+      for (int i = 0; i < expr->stmts.size(); ++i) {
+        auto keep_flag = find_block;
+        find_block     = false;
+        auto* node     = op->As<ir::Block>();
+        IRMutator::Visit(&node->stmts[i], &node->stmts[i]);
+        if (find_block) {
+          if (depth == 0) {
+            *source_expr_ = *op;
+            block_index   = i;
+          }
+          depth++;
+        }
+        find_block = find_block || keep_flag;
+      }
+      if (block_index != -1) {
+        std::vector<Expr> new_stmts;
+        for (int i = 0; i < expr->stmts.size(); ++i) {
+          if (i == block_index)
+            continue;
+          else
+            new_stmts.push_back(expr->stmts[i]);
+        }
+        auto target_block = ir::Block::Make(new_stmts);
+        *target_expr_     = target_block;
+      }
+    } else {
+      IRMutator::Visit(expr, op);
+    }
+  }
+
+ private:
+  bool find_block{false};
+  int depth{0};
+  const Expr& block_;
+  Expr* source_expr_;
+  Expr* target_expr_;
+};
+
 }  // namespace ir
 }  // namespace cinn
