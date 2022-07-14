@@ -88,7 +88,7 @@ class BaseBuilder {
 
   Variable Reshape(const Variable& operand, const std::vector<int>& shape);
 
-  Variable Squeeze(const Variable& operand);
+  Variable Squeeze(const Variable& operand, const std::vector<int>& axis);
 
   Variable Transpose(const Variable& operand, const std::vector<int>& axis);
 

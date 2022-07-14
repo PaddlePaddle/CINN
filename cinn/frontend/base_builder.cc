@@ -224,8 +224,9 @@ Variable BaseBuilder::Reshape(const Variable& operand, const std::vector<int>& s
   return instr.GetOutput(0);
 }
 
-Variable BaseBuilder::Squeeze(const Variable& operand) {
+Variable BaseBuilder::Squeeze(const Variable& operand, const std::vector<int>& axis) {
   Instruction instr("squeeze", {operand});
+  instr.SetAttr("axis", axis);
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(0);

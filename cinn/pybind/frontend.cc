@@ -381,7 +381,7 @@ void BindFrontend(pybind11::module *m) {
                py::arg("out_shape"),
                py::arg("broadcast_axes"))
           .def("reshape", &BaseBuilder::Reshape, py::arg("a"), py::arg("shape"))
-          .def("squeeze", &BaseBuilder::Squeeze, py::arg("a"))
+          .def("squeeze", &BaseBuilder::Squeeze, py::arg("a"), py::arg("axis"))
           .def("transpose", &BaseBuilder::Transpose, py::arg("a"), py::arg("axis"))
           .def("slice",
                &BaseBuilder::Slice,

@@ -151,16 +151,32 @@ ir::Tensor Reshape(const ir::Tensor& A, const std::vector<int>& new_shape, const
 }
 
 ir::Tensor Squeeze(const ir::Tensor& A,
+                   const std::vector<int>& axis,
                    poly::StageMap stages,
                    const std::string& name) {
   std::vector<Expr> new_expr_shape;
   std::vector<Expr> A_expr_shape = A->shape;
-  for (auto& i : A_expr_shape) {
-    CHECK(i.is_constant()) << "Input tensor's shape should be constant value.";
-    if(i != Expr(1)){
-      new_expr_shape.push_back(i);
+  CHECK_EQ(axis.size(), A_expr_shape.size());
+  if (axis){
+    for (auto& a : axis) {
+      CHECK_EQ(A_expr_shape[a], Expr(1));
+      A_expr_shape[a] = Expr(0);
+    }
+    for (auto& i : A_expr_shape) {
+      CHECK(i.is_constant()) << "Input tensor's shape should be constant value.";
+      if(i != Expr(0)){
+        new_expr_shape.push_back(i);
+      }
+    }
+  }else{
+    for (auto& i : A_expr_shape) {
+      CHECK(i.is_constant()) << "Input tensor's shape should be constant value.";
+      if(i != Expr(1)){
+        new_expr_shape.push_back(i);
+      }
     }
   }
+
   auto out = Identity(A->Reshape(new_expr_shape, stages), name).front();
   return out;
 }
