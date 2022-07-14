@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 
+#include "cinn/common/target.h"
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/pe/schedule_param.pb.h"
 #include "cinn/ir/ir.h"
@@ -34,12 +35,12 @@ class ScheduleParam {
   ScheduleParam(const ScheduleParam &) = delete;
   ScheduleParam &operator=(const ScheduleParam &) = delete;
   static ScheduleParam &get_cuda_instance() {
-    static ScheduleParam cuda_instance;
-    return cuda_instance;
+    static ScheduleParam instance{common::Target::Arch::NVGPU};
+    return instance;
   }
   static ScheduleParam &get_x86_instance() {
-    static ScheduleParam x86_instance;
-    return x86_instance;
+    static ScheduleParam instance{common::Target::Arch::X86};
+    return instance;
   }
   absl::flat_hash_map<std::string, absl::flat_hash_map<std::string, std::vector<int>>> &GetParam() {
     return param_data;
@@ -48,7 +49,7 @@ class ScheduleParam {
   int Count(const std::string &key) { return param_data.count(key); }
 
  private:
-  ScheduleParam();
+  ScheduleParam(common::Target::Arch arch);
   absl::flat_hash_map<std::string, absl::flat_hash_map<std::string, std::vector<int>>> param_data;
 };
 
@@ -237,6 +238,8 @@ void SaveSerialData(
     const std::string &file_name = "default_serial.log");
 
 int GetMaxSplitter(int a, int b);
+
+absl::flat_hash_map<std::string, absl::flat_hash_map<std::string, std::vector<int>>> CreateCudaParams();
 
 }  // namespace pe
 }  // namespace hlir
