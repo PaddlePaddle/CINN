@@ -65,20 +65,22 @@ void IRCudaTwoStepReduceSchedule(ir::IRSchedule &ir_sch,
   auto internal_block = ir_sch.GetBlock(internal->name);
   ir_sch.SetBuffer(internal_block, "shared");
 
-  auto tmp_out_block = ir_sch.GetBlock(internal->name);
-  ir_sch.SetBuffer(tmp_out_block, "shared");
+  auto tmp_out_block = ir_sch.GetBlock(tmp_out->name);
+  ir_sch.SetBuffer(tmp_out_block, "local");
 
   auto out_block = ir_sch.GetBlock(out->name);
 
-  auto internal_loops = ir_sch.GetLoops(internal_block);
+  auto internal_loops = ir_sch.GetLoops(internal->name);
   ir_sch.Bind(internal_loops[1], "threadIdx.x");
-  auto tmp_out_loops = ir_sch.GetLoops(tmp_out_block);
+
+  auto tmp_out_loops = ir_sch.GetLoops(tmp_out->name);
   ir_sch.Bind(tmp_out_loops[1], "threadIdx.x");
-  auto out_loops = ir_sch.GetLoops(out_block);
+
+  auto out_loops = ir_sch.GetLoops(out->name);
   ir_sch.Bind(out_loops[0], "blockIdx.x");
 
-  ir_sch.SimpleComputeAt(tmp_out_block, out_loops[0]);
-  ir_sch.SimpleComputeAt(internal_block, out_loops[0]);
+  ir_sch.SimpleComputeAt(ir_sch.GetBlock(tmp_out->name), ir_sch.GetLoops(out->name)[0]);
+  ir_sch.SimpleComputeAt(ir_sch.GetBlock(internal->name), ir_sch.GetLoops(out->name)[0]);
 }
 
 void IRCudaScheduleBlockShuffleReduce(
@@ -203,7 +205,7 @@ void IRCudaScheduleInjective(ir::IRSchedule &ir_sch,
       ir_sch.Bind(fused, "threadIdx.x");
     }
   }
-  LOG(INFO) << "After IRCudaScheduleInjective, new ir is : " << ir_sch.GetModule().GetExprs().at(0);
+  VLOG(3) << "After IRCudaScheduleInjective, new ir is : " << ir_sch.GetModule().GetExprs().at(0);
 }
 
 void IRCudaScheduleMul(ir::IRSchedule &ir_sch, const std::vector<int> &output_shape, const common::Target &target) {

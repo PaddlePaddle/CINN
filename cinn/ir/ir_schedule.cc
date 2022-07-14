@@ -1674,7 +1674,7 @@ void IRSchedule::MergeExprs() {
   std::vector<Expr> merged_block;
   merged_block.push_back(
       exprs[0].As<ir::Block>()->stmts[0].As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->body);
-  LOG(INFO) << "Before merging, exprs[0] is : " << exprs[0];
+  VLOG(3) << "Before merging, exprs[0] is : " << exprs[0];
   for (int i = 1; i < exprs.size(); ++i) {
     auto root_block = ir::CollectIRNodes(exprs[i], [&](const Expr* x) {
       return x->As<ir::ScheduleBlockRealize>() && x->As<ir::ScheduleBlockRealize>()->iter_values.empty();
@@ -1685,11 +1685,13 @@ void IRSchedule::MergeExprs() {
       merged_block.push_back(block_body);
     }
   }
-  for (auto& i : merged_block) LOG(INFO) << "in merged_block, it has " << i;
+  for (auto& block : merged_block) {
+    VLOG(3) << "in merged_block, it has " << block;
+  }
   auto merged_expr = ir::Block::Make(merged_block);
   exprs[0].As<ir::Block>()->stmts[0].As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->body =
       merged_expr;
-  LOG(INFO) << "After merging, exprs[0] is : " << exprs[0];
+  VLOG(3) << "After merging, exprs[0] is : " << exprs[0];
   exprs.erase(exprs.begin() + 1, exprs.end());
   this->SetExprs(exprs);
 }
@@ -1842,7 +1844,7 @@ void IRSchedule::ComputeAt(const Expr& block, const Expr& loop) {
 }
 
 void IRSchedule::SimpleComputeAt(const Expr& block, const Expr& loop) {
-  LOG(INFO) << "Begin SimpleComputeAt of block:\n" << block << " and loop:\n" << loop;
+  VLOG(3) << "Begin SimpleComputeAt of block:\n" << block << " and loop:\n" << loop;
   CHECK(block.As<ir::ScheduleBlockRealize>());
   CHECK(loop.As<ir::For>());
   std::vector<Expr> block_loops = this->GetLoops(block);
@@ -2109,7 +2111,9 @@ std::vector<Expr> ScheduleHelper::GetAllBlocks() const {
     });
   }
   CHECK(!result.empty()) << "Didn't find blocks in expr.";
-  for (auto& it_expr : exprs) LOG(INFO) << "it_expr is : " << it_expr;
+  for (auto& it_expr : exprs) {
+    VLOG(3) << "it_expr is : " << it_expr;
+  }
   return result;
 }
 
@@ -2182,7 +2186,7 @@ void IRSchedule::CopyTransformAndLoopInfo(const Expr& block, const Expr& block_t
         vars[i]->upper_bound.get_constant() == vars_target[i]->upper_bound.get_constant() && !vars[i]->is_reduce_axis &&
         !vars_target[i]->is_reduce_axis) {
       new_iter_values.push_back(iter_values_target[i]);
-      LOG(INFO) << "new_iter_values.push_back " << iter_values_target[i];
+      VLOG(3) << "new_iter_values.push_back " << iter_values_target[i];
     } else
       break;
   }
@@ -2209,7 +2213,7 @@ void IRSchedule::CopyTransformAndLoopInfo(const Expr& block, const Expr& block_t
     CHECK(!find_loop_var.empty());
     CHECK_EQ(find_loop_var.size(), 1U);
     used_target_loops.push_back(*find_loop_var.begin());
-    LOG(INFO) << "used_target_loops push_back " << used_target_loops.back();
+    VLOG(3) << "used_target_loops push_back " << used_target_loops.back();
   }
   std::sort(used_target_loops.begin(), used_target_loops.end(), [&](Expr i, Expr j) {
     return (utils::GetStreamCnt(i).size() > utils::GetStreamCnt(j).size());
@@ -2219,8 +2223,8 @@ void IRSchedule::CopyTransformAndLoopInfo(const Expr& block, const Expr& block_t
     new_iter_values.push_back(old_iter_values[i]);
   }
   Expr new_loop;
-  LOG(INFO) << "changed_loop_num is : " << changed_loop_num;
-  LOG(INFO) << "old_iter_values.size() is : " << old_iter_values.size();
+  VLOG(3) << "changed_loop_num is : " << changed_loop_num;
+  VLOG(3) << "old_iter_values.size() is : " << old_iter_values.size();
   if (changed_loop_num >= (int)old_iter_values.size()) {
     new_loop                                             = optim::IRCopy(block);
     new_loop.As<ir::ScheduleBlockRealize>()->iter_values = new_iter_values;
@@ -2240,7 +2244,7 @@ void IRSchedule::CopyTransformAndLoopInfo(const Expr& block, const Expr& block_t
     Expr sch_block                                        = (*find_schedule_block.begin());
     sch_block.As<ir::ScheduleBlockRealize>()->iter_values = new_iter_values;
   }
-  LOG(INFO) << "new_loop is : " << new_loop;
+  VLOG(3) << "new_loop is : " << new_loop;
   CHECK(!used_target_loops.empty());
   Expr res;
   if (used_target_loops.size() == 1) {
@@ -2259,7 +2263,7 @@ void IRSchedule::CopyTransformAndLoopInfo(const Expr& block, const Expr& block_t
     inner_loop.As<ir::For>()->body = Block::Make({new_loop});
     res                            = outer_loop;
   }
-  LOG(INFO) << "res is : " << res;
+  VLOG(3) << "res is : " << res;
   std::vector<Expr> all_loops = this->GetLoops(block);
   CHECK(!all_loops.empty());
   helper_.Replace(all_loops[0], res);

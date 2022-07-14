@@ -45,7 +45,6 @@ typedef std::vector<Expr> (OpLowerer::*IRComputeFunction)(poly::StageMap&,
                                                           const GroupPtr&,
                                                           const GroupPtr&);
 typedef void (OpLowerer::*IRScheduleFunction)(ir::IRSchedule& ir_sch,
-                                              poly::StageMap&,
                                               std::unordered_map<std::string, ir::Tensor>&,
                                               const GroupPtr&,
                                               const GroupPtr&,
@@ -80,7 +79,6 @@ class OpLowerer {
                                       const GroupPtr& group,                                   \
                                       const GroupPtr& sub_group);                              \
   void IR##type##Schedule(ir::IRSchedule& ir_sch,                                              \
-                          poly::StageMap& stages,                                              \
                           std::unordered_map<std::string, ir::Tensor>& tensor_map,             \
                           const GroupPtr& group,                                               \
                           const GroupPtr& sub_group,                                           \
