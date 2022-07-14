@@ -63,6 +63,7 @@ class PaddleModelToProgram {
     AddOpMapper_dropout_infer();
     AddOpMapper_matmul();
     AddOpMapper_reshape2();
+    AddOpMapper_squeeze2();
     AddOpMapper_concat();
     AddOpMapper_assign();
     AddOpMapper_fill_constant();
@@ -96,6 +97,7 @@ class PaddleModelToProgram {
   void AddOpMapper_dropout_infer();
   void AddOpMapper_matmul();
   void AddOpMapper_reshape2();
+  void AddOpMapper_squeeze2();
   void AddOpMapper_concat();
   void AddOpMapper_assign();
   void AddOpMapper_fill_constant();

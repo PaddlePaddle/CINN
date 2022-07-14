@@ -272,6 +272,13 @@ struct Program {
   Variable reshape(const Variable& a, const std::vector<int>& shape);
 
   /**
+   * Squeeze a tensor.
+   * @param a The input tensor.
+   * @return The squeezed output tensor.
+   */
+  Variable squeeze(const Variable& a);
+
+  /**
    * Concat tensors.
    * @param input_vars The input tensors.
    * @param axis The axis specified to do the concat operation.

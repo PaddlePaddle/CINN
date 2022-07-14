@@ -457,6 +457,12 @@ Variable Program::reshape(const Variable& a, const std::vector<int>& shape) {
   return instr.GetOutput(0);
 }
 
+Variable Program::squeeze(const Variable& a) {
+  Instruction instr("squeeze", {a});
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
 Variable Program::concat(const std::vector<Variable>& input_vars, int axis) {
   Instruction instr("concat", input_vars);
   instr.SetAttr("axis", axis);
