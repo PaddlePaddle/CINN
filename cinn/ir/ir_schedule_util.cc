@@ -107,22 +107,11 @@ void SetCudaAxisInfo(Expr* lowered_func) {
   lowered_func->as_lowered_func_ref()->cuda_axis_info = info;
 }
 
-/*!
- * \brief Check if a Expr node contains a ScheduleBlockRealize node.
- * \param container The container Expr node.
- * \param expr The node we want to find.
- * \return If the container contains the expr.
- */
 bool Contains(const Expr& container, const Expr& expr) {
   auto find_expr = ir::CollectIRNodesWithoutTensor(container, [&](const Expr* x) { return *x == expr; });
   return (!find_expr.empty());
 }
 
-/**
- * \brief Given a For loop, return the next For loop in its body.
- * @param for_loop The given For loop.
- * @return The next For loop.
- */
 Expr GetNextForLoop(const Expr& for_loop) {
   Expr result;
   CHECK(for_loop.As<ir::For>()) << "The input of GetNextForLoop should be ir::For!";
@@ -144,12 +133,6 @@ Expr GetNextForLoop(const Expr& for_loop) {
   }
 }
 
-/**
- * \brief Given two For loops, return all ir::IfThenElse nodes between them.
- * @param top The given top For loop.
- * @param bottom The given bottom For loop.
- * @return All ir::IfThenElse nodes between them.
- */
 std::vector<Expr> GetIfThenElseInRange(const Expr& top, const Expr& bottom) {
   std::vector<Expr> if_nodes;
   CHECK(top.As<ir::For>());
@@ -175,12 +158,6 @@ std::vector<Expr> GetIfThenElseInRange(const Expr& top, const Expr& bottom) {
   return if_nodes;
 }
 
-/**
- * Replace Vars in replaced to Exprs in candidates in source. Vars -> Exprs is one-to-one correspondence.
- * @param source The Expr we will implement the change.
- * @param replaced The Vars to be replaced.
- * @param candidates The Exprs to replace Vars in replaced.
- */
 void ReplaceExpr(Expr* source, const std::vector<Var>& replaced, const std::vector<Expr>& candidates) {
   CHECK_EQ(replaced.size(), candidates.size())
       << "In ReplaceExpr, the size of Vars to be replaced must be equal to the size of cadidate Exprs! Please check.";
@@ -196,12 +173,6 @@ void ReplaceExpr(Expr* source, const std::vector<Var>& replaced, const std::vect
   return;
 }
 
-/**
- * Validate the factors param of Split. We will check if factors are validate and change -1 to positive integer.
- * @param factors The original factors.
- * @param total_extent The extent of the loop to be splitted.
- * @param return The valiated factors.
- */
 std::vector<int> ValidateFactors(const std::vector<int>& factors, int total_extent) {
   CHECK(!factors.empty()) << "The factors param of Split should not be empty! Please check.";
   bool has_minus_one = false;
@@ -268,12 +239,6 @@ void CHECKRfactorValidation(const Expr& rf_loop, int rf_axis) {
   }
 }
 
-/**
- * Return loops that contain the expr.
- * @param expr The expr.
- * @param root The root of the whole AST.
- * @param return Loops in AST that contain the expr.
- */
 std::vector<Expr> GetLoopsOfExpr(const Expr& expr, const Expr& root) {
   auto loop_nodes = ir::CollectIRNodes(root, [&](const Expr* x) { return x->As<ir::For>() && Contains(*x, expr); });
   std::vector<Expr> result(loop_nodes.begin(), loop_nodes.end());
@@ -284,15 +249,6 @@ std::vector<Expr> GetLoopsOfExpr(const Expr& expr, const Expr& root) {
   return result;
 }
 
-/**
- * Given an Expr and all vars' range, return the Expr's range(min and max).
- * @param index The Expr we want to calculate its range.
- * @param iter_vars The vars in expr.
- * @param iter_range Each var's range.
- * @param i The index indicating we are replacing i-th var to its range.
- * @param return The <min, max> of index after replacing i-th var to its range. If the range is not constant, return
- * <-1, -1>.
- */
 std::pair<Expr, Expr> GetRange(Expr index,
                                const std::vector<Var>& iter_vars,
                                const std::vector<std::pair<Expr, Expr>>& iter_range,
@@ -319,14 +275,6 @@ std::pair<Expr, Expr> GetRange(Expr index,
   }
 }
 
-/**
- * Given a vector of Expr and all vars' range, return the vector of Expr's ranges(min and max).
- * @param tensor_indices The vector of Expr. We want to calculate each Expr's range.
- * @param iter_vars The vars in expr.
- * @param iter_range Each var's range.
- * @param tensor The tensor. tensor_indices is its index.
- * @param return The <min, max> of tensor_indices. If it is not constant, return corresponding tensor's shape.
- */
 std::vector<std::pair<Expr, Expr>> GetRange(const std::vector<Expr>& tensor_indices,
                                             const std::vector<Var>& iter_vars,
                                             const std::vector<std::pair<Expr, Expr>>& iter_range,
@@ -352,15 +300,6 @@ std::vector<std::pair<Expr, Expr>> GetRange(const std::vector<Expr>& tensor_indi
   return result;
 }
 
-/**
- * Given a ScheduleBlockRealize, an AST root, a tensor and its tensor_indices, return the accessed buffer region of the
- * tensor in block.
- * @param block The ScheduleBlockRealize.
- * @param tensor_indices The tensor's indices.
- * @param tensor The tensor.
- * @param root The root of whole AST.
- * @param return The accessed buffer region of the tensor in block.
- */
 std::vector<std::pair<Expr, Expr>> CalculateTensorRegions(const Expr& block,
                                                           const std::vector<Expr>& tensor_indices,
                                                           const Tensor& tensor,
@@ -392,13 +331,6 @@ std::vector<std::pair<Expr, Expr>> CalculateTensorRegions(const Expr& block,
   return result;
 }
 
-/**
- * Return n-th access tensor in block
- * @param block The ScheduleBlockRealize.
- * @param index The index indicating which tensor we want to get.
- * @param is_write We want to get write tensor or read tensor.
- * @param return The n-th access tensor in block. Should be ir::Store(is_write) or ir::Load(!is_write).
- */
 Expr GetNthAccessExpr(const Expr& block, int index, bool is_write) {
   CHECK(block.As<ScheduleBlockRealize>());
   auto compute_body = block.As<ScheduleBlockRealize>()->schedule_block.As<ScheduleBlock>()->body;
@@ -425,12 +357,6 @@ Expr GetNthAccessExpr(const Expr& block, int index, bool is_write) {
   }
 }
 
-/**
- * Make a tensor's cache tensor.
- * @param tensor The original tensor.
- * @param memory_type The memory type of the cache tensor.
- * @param return The tensor's cache tensor.
- */
 Tensor MakeCacheTensor(const Tensor& tensor, const std::string& memory_type) {
   auto cache_tensor = lang::Compute(
       tensor->shape, [=](const std::vector<Expr>& dims) { return tensor(dims); }, tensor->name + "_" + memory_type);
@@ -438,14 +364,6 @@ Tensor MakeCacheTensor(const Tensor& tensor, const std::string& memory_type) {
   return cache_tensor;
 }
 
-/**
- * Make a the cache tensor's block.
- * @param buffer_region The accessed region of cache tensor.
- * @param info The information of cache block.
- * @param memory_type The memory type of cache tensor.
- * @param device_api The device api of this Expr.
- * @param return ScheduleBlockRealize of the cache tensor.
- */
 Expr MakeCacheBlock(const std::vector<std::pair<Expr, Expr>>& buffer_region,
                     CacheBlockInfo* info,
                     const std::string& memory_type,
@@ -491,12 +409,6 @@ Expr MakeCacheBlock(const std::vector<std::pair<Expr, Expr>>& buffer_region,
   return block;
 }
 
-/**
- * Fidn cache tensor block's insertion point in the whole AST(root).
- * @param root The whole AST.
- * @param info The information of cache block.
- * @param is_write Are we inserting a write cache tensor or a read cache tensor.
- */
 void FindInsertionPoint(Expr& root, CacheBlockInfo* info, bool is_write) {
   Expr find_tensor       = is_write ? Expr(info->write_tensor) : Expr(info->read_tensor);
   auto find_produce_read = ir::CollectIRNodesWithoutTensor(
@@ -524,11 +436,6 @@ void FindInsertionPoint(Expr& root, CacheBlockInfo* info, bool is_write) {
   }
 }
 
-/**
- * \brief Given a vector of For loops, return a set of them.
- * @param loops The given vector of For loops.
- * @return A set containing all the For loops in loops.
- */
 const std::set<Expr, CompExpr> CollectLoopsToSet(const std::vector<Expr>& loops) {
   std::set<Expr, CompExpr> for_loops;
   for (auto& i : loops) {
@@ -541,11 +448,6 @@ const std::set<Expr, CompExpr> CollectLoopsToSet(const std::vector<Expr>& loops)
   return for_loops;
 }
 
-/**
- * \brief Given a set of For loops, return the boundary among them.
- * @param loop_set The given set of For loops.
- * @return A pair of the boundary among For loops.(The top For and bottom For)
- */
 std::pair<Expr, Expr> GetBoundaryOfReorderRange(const std::set<Expr, CompExpr>& loop_set) {
   Expr top = *loop_set.begin();
   Expr bottom;
@@ -578,12 +480,6 @@ std::pair<Expr, Expr> GetBoundaryOfReorderRange(const std::set<Expr, CompExpr>& 
   return std::make_pair(top, bottom);
 }
 
-/**
- * \brief Given two For loops, return all loops between them.
- * @param top The top For loop.
- * @param bottom The bottom For loop.
- * @return A vector containing all For loops between the boundary, stored in ascending order.
- */
 std::vector<Expr> GetLoopsInRange(const Expr& top, const Expr& bottom) {
   std::vector<Expr> chain;
   CHECK(top.As<ir::For>());
@@ -598,9 +494,6 @@ std::vector<Expr> GetLoopsInRange(const Expr& top, const Expr& bottom) {
   return chain;
 }
 
-/**
- * \brief Given params, construct a new loop.
- */
 Expr ConstructNewLoopChain(const std::vector<Expr>& chain,
                            const std::vector<Expr>& ordered_loops,
                            const std::set<Expr, CompExpr>& loop_set,
@@ -656,12 +549,6 @@ Expr ConstructNewLoopChain(const std::vector<Expr>& chain,
   return new_loop;
 }
 
-/*!
- * \brief Find producers of block in root.
- * \param block The ScheduleBlockRealize node we want to find its producers.
- * \param root The root ScheduleBlockRealize node.
- * \return block's producers(Load nodes) in root.
- */
 std::vector<Expr> GetProducers(const Expr& block, const Expr& root) {
   CHECK(block.As<ir::ScheduleBlockRealize>());
   CHECK(root.As<ir::ScheduleBlockRealize>());
@@ -672,12 +559,6 @@ std::vector<Expr> GetProducers(const Expr& block, const Expr& root) {
   return producers;
 }
 
-/*!
- * \brief Find consumers of block in root.
- * \param block The ScheduleBlockRealize node we want to find its consumers.
- * \param root The root ScheduleBlockRealize node.
- * \return block's consumers(ScheduleBlockRealize nodes) in root.
- */
 std::vector<Expr> GetConsumers(const Expr& block, const Expr& root) {
   CHECK(block.As<ir::ScheduleBlockRealize>());
   CHECK(root.As<ir::ScheduleBlockRealize>());
@@ -696,12 +577,6 @@ std::vector<Expr> GetConsumers(const Expr& block, const Expr& root) {
   return consumers;
 }
 
-/*!
- * \brief Check if the params of ComputeAt is validate.
- * \param block The block node we want to move in ComputeAt.
- * \param loop The for node we want to put the block under in ComputeAt.
- * \param root The root ScheduleBlockRealize node of block and loop.
- */
 void CheckComputeAtValidation(const Expr& block, const Expr& loop, const Expr& root) {
   auto find_block = ir::CollectIRNodesWithoutTensor(root, [&](const Expr* x) { return *x == block; });
   CHECK(!find_block.empty()) << "Didn't find block in root!";
@@ -713,11 +588,6 @@ void CheckComputeAtValidation(const Expr& block, const Expr& loop, const Expr& r
   CHECK(find_block_in_loop.empty()) << "loop should not be block's ancestor!";
 }
 
-/*!
- * \brief Insert a new ScheduleBlockRealize in a loop's body(under its IfThenElse Node, if any)
- * \param for_loop The for loop whose body we want to modify
- * \param insertion The ScheduleBlockRealize we want to insert
- */
 void InsertBlock(Expr& for_loop, const Expr& insertion) {
   CHECK(for_loop.As<ir::For>());
   CHECK(for_loop.As<ir::For>()->body.As<Block>());
@@ -731,15 +601,6 @@ void InsertBlock(Expr& for_loop, const Expr& insertion) {
   }
 }
 
-/*!
- * \brief Make a union of two range. The detailed function is :
- * new_range.min = min(range1.min, range2.min)
- * new_range.extent = max(range1.min + range1.extent, range2.min + range2.extent) - new_range.min
- * Notice that the pair<Expr, Expr> indicates a range's min and extent.
- * \param range1 The first range
- * \param range2 The second range
- * \return The union of these two ranges
- */
 std::pair<Expr, Expr> RangeUnion(const std::pair<Expr, Expr>& range1, const std::pair<Expr, Expr>& range2) {
   Expr new_min    = common::AutoSimplify(Min::Make(range1.first, range2.first));
   Expr new_extent = common::AutoSimplify(
@@ -747,27 +608,6 @@ std::pair<Expr, Expr> RangeUnion(const std::pair<Expr, Expr>& range1, const std:
   return std::make_pair(new_min, new_extent);
 }
 
-/*!
- * \brief Calculate the required buffer region given a block and its consumers.
- * For example, if block is :
- * B[i0, j0] = A[i0, j0]
- * loop is :
- * for (i, 0, 64) {
- *   for (j, 0, 64) {
- *     C[i, j] = B[i, j]
- *   }
- * }
- * And consumers is :
- * C[i, j] = B[i, j]
- * Then we get the consumer requires B's region:
- * B[i, j], where:
- * i : [i, i]
- * j : [0, 64]
- * \param block The ScheduleBlockRealize node begin required
- * \param loop The loop where we will insert the block under it
- * \param consumers Vector of ScheduleBlockRealize nodes that require the block
- * \return Each index's range of block's tensor. Indicating the buffer region being required.
- */
 std::vector<std::pair<Expr, Expr>> CalculateRequiredRegions(const Expr& block,
                                                             const Expr& loop,
                                                             const std::vector<Expr>& consumers,
@@ -880,7 +720,6 @@ Expr CheckComputeInlineValidationAndGetStore(const Expr& schedule_block, const E
   return (*find_store.begin());
 }
 
-// check whether or not have the var with the same name
 bool ContainVar(const std::vector<Expr>& exprs, const std::string& var_name) {
   for (auto& expr : exprs) {
     auto find_expr = ir::CollectIRNodesWithoutTensor(
