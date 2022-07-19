@@ -15,7 +15,7 @@
 #include "cinn/optim/optimize.h"
 
 #include "cinn/ir/ir_printer.h"
-#include "cinn/ir/ir_schedule.h"
+#include "cinn/ir/ir_schedule_util.h"
 #include "cinn/optim/call_arg_list_to_pod_value.h"
 #include "cinn/optim/cast_bool_to_int8.h"
 #include "cinn/optim/cast_simplify.h"
