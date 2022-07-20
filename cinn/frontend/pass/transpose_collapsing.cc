@@ -60,8 +60,9 @@ class TransposeKey {
 class TransposeCollapsingPass : public ProgramPass {
  public:
   using ProgramPass::ProgramPass;
-  using OutputToOpMap = std::unordered_map<std::string, Instruction*>;
-  using InputToOpMap  = std::unordered_map<std::string, std::unordered_set<Instruction*>>;
+  using OutputToOpMap                 = std::unordered_map<std::string, Instruction*>;
+  using InputToOpMap                  = std::unordered_map<std::string, std::unordered_set<Instruction*>>;
+  const std::string transpose_op_type = "transpose";
 
  protected:
   void ApplyImpl(Program* program,
@@ -83,7 +84,7 @@ class TransposeCollapsingPass : public ProgramPass {
       for (const auto& in : instr->inputs) {
         in2instr[in->id].insert(&instr);
       }
-      if ("transpose" == instr->op_type) {
+      if (transpose_op_type == instr->op_type) {
         all_transpose.insert(&instr);
       }
     }
@@ -121,7 +122,7 @@ class TransposeCollapsingPass : public ProgramPass {
     // the transpose op should not remove
     std::unordered_set<Instruction*> visited_instrs;
     for (auto transpose : all_transpose) {
-      if (("transpose" != (*transpose)->op_type) || visited_instrs.count(transpose)) {
+      if ((transpose_op_type != (*transpose)->op_type) || visited_instrs.count(transpose)) {
         // the transpose op had been fused, skip
         continue;
       }
@@ -141,7 +142,7 @@ class TransposeCollapsingPass : public ProgramPass {
     //    Obviously, the transpose op is the first transpose in the situation.
     while (out2instr.count(input_name)) {
       auto instr = out2instr.at(input_name);
-      if ("transpose" != (*instr)->op_type) {
+      if (transpose_op_type != (*instr)->op_type) {
         // if input of transpose is not output of another transpose, it is the first transpose.
         break;
       }
@@ -165,29 +166,22 @@ class TransposeCollapsingPass : public ProgramPass {
     const auto& output      = (*transpose)->outputs.front();
     const auto& output_name = output->id;
 
-    const auto& axis = transpose->GetAttrs<ShapeType>("axis");
+    const auto& axis = ValidAxis(transpose->GetAttrs<ShapeType>("axis"), input->shape.size());
     CHECK_EQ(axis.size(), input->shape.size())
         << "The transpose's axis size should equal with input variable's shape size, but the transpose of ["
         << input->id << "] not ! Please check.";
 
-    bool can_remove = !fetch_ids.count(output_name);
+    bool can_remove = (fetch_ids.find(output_name) == fetch_ids.end());
 
     if (CheckTransposeBorder(transpose, in2instr)) {
-      if (can_remove) {
+      if (!can_remove && CheckTransposeUseless(axis)) {
         VLOG(4) << "The transpose op {input[" << input_name << "], output[" << output_name << "], axis["
-                << cinn::utils::Join(axis, ",") << "]} is a output op of graph, connot fuse, remove.";
-        // this transpose not used by any other op, remove
-        remove_instrs->insert(transpose);
-      } else {
-        if (CheckTransposeUseless(axis)) {
-          VLOG(4) << "The transpose op {input[" << input_name << "], output[" << output_name << "], axis["
-                  << cinn::utils::Join(axis, ",") << "]} is fetched but useless, replace with identity.";
-          // cannot remove, however, the transpsoe is useless, we can replace the transpose with indentiy for more
-          // fusion opportunity
-          ReplaceWithIdentity(transpose);
-        }
-        // else the transpsoe is fetched and helpful, ignore
+                << cinn::utils::Join(axis, ",") << "]} is fetched but useless, replace with identity.";
+        // cannot remove, however, the transpsoe is useless, we can replace the transpose with indentiy for more
+        // fusion opportunity
+        ReplaceWithIdentity(transpose);
       }
+      // else ignore
       return;
     }
 
@@ -206,10 +200,11 @@ class TransposeCollapsingPass : public ProgramPass {
           // replace the input to transpose's input
           ReplaceInputVariable(instr, output_name, input);
         }
+        (*transpose)->inputs.clear();
         remove_instrs->insert(transpose);
 
         for (auto instr : out_instrs) {
-          if ("transpose" == (*instr)->op_type) {
+          if (transpose_op_type == (*instr)->op_type) {
             // if the next instruction is transpose op, continue fuse
             TryFuseTranspose(instr, fetch_ids, in2instr, remove_instrs, visited_instrs);
           }
@@ -218,7 +213,7 @@ class TransposeCollapsingPass : public ProgramPass {
       return;
     }
 
-    if (!CheckOutputContainTranspose(transpose, in2instr)) {
+    if (!CheckOutputContainTranspose(transpose, out_instrs)) {
       VLOG(4) << "The transpose op {input[" << input_name << "], output[" << output_name << "], axis["
               << cinn::utils::Join(axis, ",") << "]} doesn't has output link to transpose, skip.";
       return;
@@ -227,7 +222,7 @@ class TransposeCollapsingPass : public ProgramPass {
     std::unordered_set<Instruction*> next_fused_instrs;
 
     for (auto instr : out_instrs) {
-      if ("transpose" != (*instr)->op_type) {
+      if (transpose_op_type != (*instr)->op_type) {
         // the transpose was used by other non-transpose op, cannot remove, skip
         can_remove = false;
         VLOG(4) << "Fuse transpose of {input[" << input_name << "], output[" << output_name << "], axis ["
@@ -235,7 +230,7 @@ class TransposeCollapsingPass : public ProgramPass {
         continue;
       }
 
-      const auto& next_axis = instr->GetAttrs<ShapeType>("axis");
+      const auto& next_axis = ValidAxis(instr->GetAttrs<ShapeType>("axis"), (*instr)->inputs.front()->shape.size());
       // we can fuse two transpose by fuse the two axes like:
       // step |    axis   | after_transpose
       //  1   | [0, 2, 1] | [0, 2, 1]
@@ -265,6 +260,17 @@ class TransposeCollapsingPass : public ProgramPass {
     }
   }
 
+  // make the axis vaikld
+  ShapeType ValidAxis(const ShapeType& axis, DimType dim) const {
+    auto valid_axis = axis;
+    for (auto& v : valid_axis) {
+      if (v < 0) v += dim;
+      CHECK(v >= 0 && v < dim) << "The axis of transpose should 0 <= axis < dimension, but here "
+                               << cinn::utils::Join(axis, ",");
+    }
+    return valid_axis;
+  }
+
   // check whether the op is the border op of graph, in other words, its output var was not
   // used by any op in graph.
   bool CheckTransposeBorder(Instruction* transpose, const InputToOpMap& in2instr) const {
@@ -273,10 +279,9 @@ class TransposeCollapsingPass : public ProgramPass {
   }
 
   // check whether the op's output ops has transpose, if not, no transpose need folding
-  bool CheckOutputContainTranspose(Instruction* transpose, const InputToOpMap& in2instr) const {
-    const auto& output_name = (*transpose)->outputs.front()->id;
-    for (auto instr : in2instr.at(output_name)) {
-      if ("transpose" == (*instr)->op_type) {
+  bool CheckOutputContainTranspose(Instruction* transpose, const std::unordered_set<Instruction*>& out_instrs) const {
+    for (auto instr : out_instrs) {
+      if (transpose_op_type == (*instr)->op_type) {
         return true;
       }
     }
@@ -293,17 +298,18 @@ class TransposeCollapsingPass : public ProgramPass {
   // replace the op's input variable whose name is `old_input_name` to `new_input`, note we need keep the input list
   // order
   void ReplaceInputVariable(Instruction* op, const std::string& old_input_name, const Variable& new_input) const {
-    auto find_input = [&](const std::string& input_name) {
-      return std::find_if(
-          (*op)->inputs.begin(), (*op)->inputs.end(), [&](const Variable& v) { return input_name == v->id; });
+    auto find_input = [&](const std::vector<Variable>::iterator& begin, const std::string& input_name) {
+      return std::find_if(begin, (*op)->inputs.end(), [&](const Variable& v) { return input_name == v->id; });
     };
 
     // Why Loop : To avoid the op's inputs are the same variable !
-    for (auto it = find_input(old_input_name); it != (*op)->inputs.end(); it = find_input(old_input_name)) {
+    for (auto it = find_input((*op)->inputs.begin(), old_input_name); it != (*op)->inputs.end();
+         it      = find_input(it, old_input_name)) {
       // erase previous fill_constant output var and replace to new fill_constant output var
       auto next_it = (*op)->inputs.erase(it);
       // keep the input place same, it's very important
-      (*op)->inputs.insert(next_it, new_input);
+      it = (*op)->inputs.insert(next_it, new_input);
+      ++it;
     }
   }
 
@@ -341,13 +347,13 @@ class TransposeCollapsingPass : public ProgramPass {
                                   std::unordered_set<Instruction*>* remove_instrs) const {
     std::unordered_map<TransposeKey, Variable*, TransposeKey::Hash> first_transpose_map;
     for (auto transpose : all_transpose) {
-      if (("transpose" != (*transpose)->op_type) || remove_instrs->count(transpose)) {
+      if ((transpose_op_type != (*transpose)->op_type) || remove_instrs->count(transpose)) {
         continue;
       }
 
       const auto& input_id  = (*transpose)->inputs.front()->id;
       const auto& output_id = (*transpose)->outputs.front()->id;
-      const auto& axis      = transpose->GetAttrs<ShapeType>("axis");
+      const auto& axis = ValidAxis(transpose->GetAttrs<ShapeType>("axis"), (*transpose)->inputs.front()->shape.size());
 
       TransposeKey key(input_id, axis);
       if (!first_transpose_map.count(key)) {
