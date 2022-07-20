@@ -60,7 +60,10 @@ struct UnrollMutator : public ir::IRMutator<Expr*> {
   // predicate whether a for-loop can be unrolled and do it
   void Visit(const ir::For* op, Expr* expr) override {
     IRMutator<>::Visit(op, expr);
-    CHECK(op->extent.As<ir::IntImm>() != nullptr) << "loop should have a contant extent";
+    if (op->extent.As<ir::IntImm>() == nullptr) {
+      VLOG(5) << "loop to be unrolled should have a contant extent";
+      return;
+    }
     int extent = op->extent.as_int32();
 
     // predicate this for-loop can be unrolled by auto-unroll conditions
