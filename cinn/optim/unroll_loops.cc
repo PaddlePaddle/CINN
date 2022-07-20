@@ -14,6 +14,7 @@
 
 #include "cinn/optim/unroll_loops.h"
 
+#include <utility>
 #include <vector>
 
 #include "cinn/ir/ir_mutator.h"
@@ -31,18 +32,50 @@ struct UnrollMutator : public ir::IRMutator<Expr*> {
   void operator()(Expr* expr) { ir::IRMutator<>::Visit(expr, expr); }
 
  private:
-  void Visit(const ir::For* op, Expr* expr) override {
-    if (is_unrollable(op)) {
-      Unroll(op, expr);
-      IRMutator<>::Visit(expr, expr);
-    } else {
-      auto* node = expr->As<ir::For>();
-      ir::IRMutator<>::Visit(&node->body, &node->body);
+  // update auto_max_step_ from the specific attribute of ScheduleBlock
+  void Visit(const ir::ScheduleBlock* op, Expr* expr) override {
+    auto attr_it = op->attrs.find(ir::attr::auto_unroll_max_step);
+    if (attr_it != op->attrs.end()) {
+      const int* attr_v = absl::get_if<int>(&attr_it->second);
+      if (attr_v) {
+        int value = *attr_v;
+        std::swap(auto_max_step_, value);
+        VLOG(5) << "auto_max_step is updated:" << auto_max_step_;
+        ir::IRMutator<>::Visit(op, expr);
+        std::swap(auto_max_step_, value);
+        return;
+      } else {
+        LOG(WARNING) << "Get invalid value of attr:" << ir::attr::auto_unroll_max_step;
+      }
     }
+    ir::IRMutator<>::Visit(op, expr);
   }
 
-  bool is_unrollable(const ir::For* op) const {
-    return op->is_unrolled() && op->extent.is_constant() && op->extent.as_int32() < 50;
+  // count a Store node as plain statement
+  void Visit(const ir::Store* op, Expr* expr) override {
+    IRMutator<>::Visit(op, expr);
+    ++flat_step_;
+  }
+
+  // predicate whether a for-loop can be unrolled and do it
+  void Visit(const ir::For* op, Expr* expr) override {
+    IRMutator<>::Visit(op, expr);
+    CHECK(op->extent.As<ir::IntImm>() != nullptr) << "loop should have a contant extent";
+    int extent = op->extent.as_int32();
+
+    // predicate this for-loop can be unrolled by auto-unroll conditions
+    bool unrollable =
+        (op->is_serial() && extent >= 0 && not_unrolled_depth_ == 0 && extent * flat_step_ <= auto_max_step_);
+
+    // predicate this for-loop can be unrolled by the unrolled tag
+    unrollable = (unrollable || op->is_unrolled()) && extent <= max_unroll_extent_;
+
+    if (unrollable) {
+      Unroll(op, expr);
+      flat_step_ *= extent;
+    } else {
+      ++not_unrolled_depth_;
+    }
   }
 
   //! Unroll a forloop.
@@ -61,6 +94,17 @@ struct UnrollMutator : public ir::IRMutator<Expr*> {
 
     *expr = ir::Block::Make(body);
   }
+
+ private:
+  // max permitted steps to be automatically unrolled in total
+  int auto_max_step_ = 0;
+  // max permitted extent of a loop to be unrolled
+  int max_unroll_extent_ = 50;
+
+  // the number of steps that have been unrolled or plain statement
+  int flat_step_ = 0;
+  // the number of nested loops not to be unrolled
+  int not_unrolled_depth_ = 0;
 };
 
 }  // namespace
