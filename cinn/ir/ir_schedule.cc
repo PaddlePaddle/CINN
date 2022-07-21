@@ -1932,13 +1932,16 @@ void IRSchedule::SimpleComputeAt(const Expr& block, const Expr& loop) {
   }
   Expr result =
       loops.size() < block_loops.size() ? optim::IRCopy(block_loops[loops.size()]) : optim::IRCopy(this_block);
+
   ReplaceExpr(&result, replaced_var, substitute_expr);
   Expr new_loop                = optim::IRCopy(this_loop);
   new_loop.As<ir::For>()->body = ir::Block::Make({result, new_loop.As<ir::For>()->body});
   Expr source_expr{nullptr};
   Expr target_expr{nullptr};
+
   LeafBlockRemovalPlan remove_plan(result, &source_expr, &target_expr);
   remove_plan(&root);
+
   helper_.Replace(source_expr, target_expr);
   helper_.Replace(this_loop, new_loop);
   return;

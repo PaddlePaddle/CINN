@@ -234,6 +234,28 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
 
             std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
             *ret = CINNValuePack{res};
+          } else if (arg_pack.size() == 5) {
+            Expr out            = arg_pack[0];
+            Expr tmp_out        = arg_pack[1];
+            Expr reduce_tmp_out = arg_pack[2];
+
+            Expr expr0 = arg_pack[3];
+            Expr expr1 = arg_pack[4];
+
+            std::vector<Expr> vec_ast{expr0, expr1};
+            ir::ModuleExpr model_expr(vec_ast);
+            ir::IRSchedule ir_sch(model_expr);
+            ir_sch.MergeExprs();
+
+            VLOG(3) << "Do IRCudaScheduleBlockReduce Schedule!";
+            pe::IRCudaScheduleBlockReduce(ir_sch,
+                                          reduce_tmp_out.as_tensor_ref(),
+                                          tmp_out.as_tensor_ref(),
+                                          out.as_tensor_ref(),
+                                          common::DefaultNVGPUTarget());
+
+            std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
+            *ret = CINNValuePack{res};
           } else {
             LOG(FATAL) << "Unkown Reduce Type!";
           }
@@ -250,7 +272,7 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
 
             VLOG(3) << "Do IRCudaScheduleReduce Schedule!";
             pe::IRCudaScheduleReduce(
-                ir_sch, output_shapes[0], inputs[0]->shape.size() - reduce_axes.back() - 1, target);
+                ir_sch, reduce_out.as_tensor_ref(), inputs[0]->shape.size() - reduce_axes.back() - 1, target);
 
             std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
             *ret = CINNValuePack{res};

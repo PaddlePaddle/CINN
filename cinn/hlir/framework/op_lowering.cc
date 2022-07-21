@@ -137,14 +137,7 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOp(IRComputeFunction compute,
     for (int idx = group->fused_sub_groups.size() - 1; idx >= 0; --idx) {
       (this->*schedule)(ir_sch, tensor_map, group, group->fused_sub_groups[idx], first, second);
     }
-    // reducer compute at master
-    if (first != second) {
-      auto reducer_block = ir_sch.GetBlock(GetNodeData(second)->id());
-      auto master_loops  = ir_sch.GetLoops(GetNodeData(first)->id());
-      ir_sch.SimpleComputeAt(reducer_block, master_loops.back());
-    }
   }
-
   for (auto& args : func_tensors) {
     // input node data name.
     group->input_names.push_back(args->name);
@@ -473,9 +466,7 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
     // reorder none-last reduce axis to last.
     // like: shape = [16,16,16,16,16],axes = [1,3] -> new order = [0, 2, 4, 1, 3].
     std::vector<int> order;
-    auto block     = ir_sch.GetBlock(block_name);
-    auto all_loops = ir_sch.GetLoops(block);
-    int n_out_dims = all_loops.size();
+    int n_out_dims = ir_sch.GetLoops(block_name).size();
     for (int idx = 0; idx < n_out_dims; ++idx) {
       if (std::find(axes.begin(), axes.end(), idx) == axes.end()) {
         order.push_back(idx);
@@ -484,12 +475,11 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
     for (auto axis : axes) {
       order.push_back(axis);
     }
-    ir_sch.Reorder(block, order);
+    ir_sch.Reorder(ir_sch.GetBlock(block_name), order);
 
     if (just_reorder) {
       return;
     }
-
     // fuse others none-reduce axis.
     int last_dimension_num = n_out_dims - axes.back() - 1;
     int index              = n_out_dims - last_dimension_num - axes.size();
@@ -499,10 +489,9 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
       ir_sch.Fuse(block_name, {index, index + 1});
     }
 
-    block     = ir_sch.GetBlock(block_name);
-    all_loops = ir_sch.GetLoops(block);
+    auto loops = ir_sch.GetLoops(block_name);
 
-    if (ir::GetLoopExtent(all_loops[index]) > this->target_.max_num_threads()) {
+    if (ir::GetLoopExtent(loops[index]) > this->target_.max_num_threads()) {
       ir_sch.Split(block_name, index, {-1, this->target_.max_num_threads()});
     }
 
@@ -574,12 +563,20 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
 
     // insert 1
     for (int idx = 0; idx < axes.size() - 1 - index; ++idx) {
-      auto block     = ir_sch.GetBlock(block_name);
-      auto all_loops = ir_sch.GetLoops(block);
-      ir_sch.Split(block_name, pos, {-1, ir::GetLoopExtent(all_loops[pos])});
+      auto loops = ir_sch.GetLoops(block_name);
+      ir_sch.Split(block_name, pos, {-1, ir::GetLoopExtent(loops[pos])});
     }
-
     OrderAssignReduce(ir_sch, block_name, axes);
+    // return insert 1
+    int start_index = ir_sch.GetLoops(block_name).size() - axes.size();
+    for (int idx = 0; idx < axes.size(); ++idx) {
+      auto loops = ir_sch.GetLoops(block_name);
+      if (ir::GetLoopExtent(loops[start_index]) == 1) {
+        ir_sch.Fuse({loops[start_index - 1], loops[start_index]});
+      } else {
+        ++start_index;
+      }
+    }
   };
 
   auto ScheduleAssignReduceWithLast = [this, OrderAssignReduce](ir::IRSchedule& ir_sch,
@@ -599,6 +596,9 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
         LOG(FATAL) << "Error! lane is less equal than max_num_threads, Please check!";
       }
       if (lane >= max_num_threads / 2) {
+        if (lane <= max_num_threads) {
+          --index;
+        }
         break;
       }
     }
@@ -638,7 +638,73 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
     }
   };
 
+  auto insert_for_node = [](ir::IRSchedule& ir_sch, std::string& block_name) {
+    auto block      = ir_sch.GetBlock(block_name);
+    auto root_block = ir_sch.GetRootBlock(block);
+
+    CHECK(block->as<ir::ScheduleBlockRealize>());
+    CHECK(block->as<ir::ScheduleBlockRealize>()->schedule_block->as<ir::ScheduleBlock>());
+
+    // create var
+    auto var = ir::Var(ir::Expr(0), ir::Expr(1), "i_0");
+    block->as<ir::ScheduleBlockRealize>()->iter_values.push_back(var);
+    block->as<ir::ScheduleBlockRealize>()->schedule_block->as<ir::ScheduleBlock>()->iter_vars.push_back(var);
+
+    CHECK(block->as<ir::ScheduleBlockRealize>());
+    CHECK(block->as<ir::ScheduleBlockRealize>()->schedule_block->as<ir::ScheduleBlock>());
+    // create for and block node
+    auto for_node =
+        ir::For::Make(var, Expr(0), Expr(1), ir::ForType::Serial, ir::DeviceAPI::UNK, ir::Block::Make({block}));
+
+    auto stmts = root_block->as<ir::ScheduleBlockRealize>()
+                     ->schedule_block->as<ir::ScheduleBlock>()
+                     ->body->as<ir::Block>()
+                     ->stmts;
+    std::vector<ir::Expr> n_stmts;
+    for (auto expr : stmts) {
+      if (!expr.As<ir::ScheduleBlockRealize>()) {
+        n_stmts.push_back(expr);
+        continue;
+      }
+      CHECK(expr.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>());
+      if (expr.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->name == block_name) {
+        n_stmts.push_back(for_node);
+        continue;
+      }
+      n_stmts.push_back(expr);
+    }
+    root_block->as<ir::ScheduleBlockRealize>()->schedule_block->as<ir::ScheduleBlock>()->body->as<ir::Block>()->stmts =
+        n_stmts;
+  };
+
   if (master == nullptr && reducer == nullptr) {
+    auto blocks = ir_sch.GetAllBlocks();
+    for (int idx = blocks.size() - 1; idx >= 0; --idx) {
+      auto block = blocks[idx];
+      CHECK(block->as<ir::ScheduleBlockRealize>());
+      CHECK(block->as<ir::ScheduleBlockRealize>()->schedule_block->as<ir::ScheduleBlock>());
+      if (!tensor_map.count(block->as<ir::ScheduleBlockRealize>()->schedule_block->as<ir::ScheduleBlock>()->name)) {
+        continue;
+      }
+      for (auto node : group->master_nodes) {
+        if (GetNodeData(node)->id() ==
+            block->as<ir::ScheduleBlockRealize>()->schedule_block->as<ir::ScheduleBlock>()->name) {
+          if (op_pattern_dict[node->op()] != framework::kCommReduce) {
+            master = node;
+            break;
+          }
+
+          if (op_pattern_dict[node->op()] == framework::kCommReduce) {
+            reducer = node;
+            break;
+          }
+        }
+      }
+
+      if (master && reducer) {
+        break;
+      }
+    }
     // find master node.
     for (auto node : group->master_nodes) {
       if (op_pattern_dict[node->op()] != framework::kCommReduce) {
@@ -680,9 +746,12 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
     CHECK(reducer) << "Can't find Master reducer!";
 
     if (reducer != master) {
-      // master copy schedule from reducer.
+      auto master_tensor = tensor_map[GetNodeData(master)->id()];
+      // if master tensor shape = [1], insert for in ast tree
+      if (master_tensor->shape[0] == ir::Expr(1)) {
+        insert_for_node(ir_sch, master_tensor->name);
+      }
       {
-        auto master_tensor  = tensor_map[GetNodeData(master)->id()];
         auto master_block   = ir_sch.GetBlock(master_tensor->name);
         auto reducer_tensor = tensor_map[GetNodeData(reducer)->id()];
         auto reducer_block  = ir_sch.GetBlock(reducer_tensor->name);
@@ -698,6 +767,7 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
 
       std::unordered_set<Node*> visited_nodes;
       for (auto node : group->master_nodes) {
+        VLOG(2) << "Schedule reduce node -> " << node->id();
         if (op_pattern_dict[node->op()] != framework::kCommReduce) {
           continue;
         }
@@ -713,6 +783,7 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
         }
         auto node_shape = this->shape_dict_.at(node->inlinks_in_order()[0]->source()->id());
         if (WithoutLastDimInReduce(reducer_shape, reducer_axes)) {
+          VLOG(2) << "Reduce Schedule WithoutLastDimInReduce";
           // find a shape to do simple compute at.
           auto tmp_reducer       = reducer;
           auto tmp_reducer_shape = reducer_shape;
@@ -742,10 +813,21 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
             if (tmp_reducer_shape == node_shape) {
               ir_sch.SimpleComputeAt(node_0_block, tmp_reducer_0_loops.back());
             } else {
-              int num_reduce_axis = tmp_reducer_0_tensor->reduce_axis.size();
-              CHECK_GE(tmp_reducer_0_loops.size() - num_reduce_axis - 2, 0);
-              ir_sch.SimpleComputeAt(node_0_block,
-                                     tmp_reducer_0_loops[tmp_reducer_0_loops.size() - num_reduce_axis - 2]);
+              if (tmp_reducer_0_tensor->shape.back() == node_0_tensor->shape.back()) {
+                int num_reduce_axis = tmp_reducer_0_tensor->reduce_axis.size();
+                CHECK_GE(static_cast<int>(tmp_reducer_0_loops.size()) - num_reduce_axis - 1, 0);
+                ir_sch.SimpleComputeAt(node_0_block,
+                                       tmp_reducer_0_loops[tmp_reducer_0_loops.size() - num_reduce_axis - 1]);
+                // init compute at reduce
+                int loop_depth = ir_sch.GetLoops(node_0_tensor->name + "__reduce_init").size();
+                ir_sch.SimpleComputeAt(ir_sch.GetBlock(node_0_tensor->name + "__reduce_init"),
+                                       ir_sch.GetLoops(node_0_tensor->name)[loop_depth - 1]);
+              } else {
+                int num_reduce_axis = tmp_reducer_0_tensor->reduce_axis.size();
+                CHECK_GE(static_cast<int>(tmp_reducer_0_loops.size()) - num_reduce_axis - 2, 0);
+                ir_sch.SimpleComputeAt(node_0_block,
+                                       tmp_reducer_0_loops[tmp_reducer_0_loops.size() - num_reduce_axis - 2]);
+              }
             }
             ir_sch.SimpleComputeAt(ir_sch.GetBlock(node_tensor->name),
                                    ir_sch.GetLoops(tmp_reducer_tensor->name).back());
@@ -756,12 +838,17 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
             } else {
               int num_reduce_axis    = tmp_reducer_tensor->reduce_axis.size();
               auto tmp_reducer_loops = ir_sch.GetLoops(tmp_reducer_tensor->name);
-              CHECK_LE(tmp_reducer_loops.size() - num_reduce_axis - 2, 0);
+              CHECK_GE(static_cast<int>(tmp_reducer_loops.size()) - num_reduce_axis - 1, 0);
               ir_sch.SimpleComputeAt(ir_sch.GetBlock(node_tensor->name),
-                                     tmp_reducer_loops[tmp_reducer_loops.size() - num_reduce_axis - 2]);
+                                     tmp_reducer_loops[tmp_reducer_loops.size() - num_reduce_axis - 1]);
             }
+            // init compute at reduce
+            int loop_depth = ir_sch.GetLoops(node_tensor->name + "__reduce_init").size();
+            ir_sch.SimpleComputeAt(ir_sch.GetBlock(node_tensor->name + "__reduce_init"),
+                                   ir_sch.GetLoops(node_tensor->name)[loop_depth - 1]);
           }
         } else {
+          VLOG(2) << "Reduce Schedule WithLastDimInReduce";
           // if with column reduce behind.
           if (tensor_map.count(node_data->id() + "_1")) {
             auto reducer_1_tensor = tensor_map[reducer_data->id() + "_1"];
@@ -774,24 +861,28 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
             auto node_block_0 = ir_sch.GetBlock(node_0_tensor->name);
             auto node_block   = ir_sch.GetBlock(node_tensor->name);
 
-            ir_sch.SimpleComputeAt(node_block_1, ir_sch.GetLoops(reducer_1_tensor->name).back());
-            ir_sch.SimpleComputeAt(node_block_0, ir_sch.GetLoops(reducer_0_tensor->name).back());
             ir_sch.SimpleComputeAt(node_block, ir_sch.GetLoops(reducer_tensor->name).back());
+            ir_sch.SimpleComputeAt(node_block_0, ir_sch.GetLoops(reducer_0_tensor->name).back());
+            ir_sch.SimpleComputeAt(node_block_1, ir_sch.GetLoops(reducer_1_tensor->name).back());
+            // init compute at reduce
+            int loop_depth = ir_sch.GetLoops(node_1_tensor->name + "__reduce_init").size();
+            ir_sch.SimpleComputeAt(ir_sch.GetBlock(node_1_tensor->name + "__reduce_init"),
+                                   ir_sch.GetLoops(node_1_tensor->name)[loop_depth - 1]);
           } else if (tensor_map.count(node_data->id() + "_0")) {
             auto reducer_0_tensor = tensor_map[reducer_data->id() + "_0"];
             auto node_0_tensor    = tensor_map[node_data->id() + "_0"];
 
-            auto node_block_0 = ir_sch.GetBlock(node_0_tensor->name);
+            auto node_0_block = ir_sch.GetBlock(node_0_tensor->name);
             auto node_block   = ir_sch.GetBlock(node_tensor->name);
-
-            ir_sch.SimpleComputeAt(node_block_0, ir_sch.GetLoops(reducer_0_tensor->name).back());
             ir_sch.SimpleComputeAt(node_block, ir_sch.GetLoops(reducer_tensor->name).back());
+            ir_sch.SimpleComputeAt(node_0_block, ir_sch.GetLoops(reducer_0_tensor->name).back());
           } else {
             LOG(FATAL) << "Error! Unkown Reduce Type, Please Check!";
           }
         }
       }
     }
+    VLOG(2) << ir_sch.GetModule().GetExprs().at(0);
   }
 
   auto master_data   = GetNodeData(master);
@@ -807,6 +898,10 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
     if (node == master) {
       continue;
     }
+    if (op_pattern_dict[node->op()] == framework::kCommReduce) {
+      continue;
+    }
+
     auto node_data   = GetNodeData(node);
     auto node_tensor = tensor_map[node_data->id()];
     // for x86 schedule.
@@ -815,7 +910,7 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
     }
     // if node is internal node or output, try to copy schedule from fellow node
     if (group->output_nodes.count(node) || group->internal_nodes.count(node) || sub_group->internal_nodes.count(node)) {
-      VLOG(3) << "Reduce Schedule for Elementwise Type";
+      VLOG(2) << "Reduce Schedule for Elementwise Type";
       // if node is not output node, set buffer.
       if (!group->output_nodes.count(node)) {
         auto node_block = ir_sch.GetBlock(node_tensor->name);
@@ -823,6 +918,9 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
       }
       // node is after reduce
       if (this->shape_dict_.at(node_data->id()) == this->shape_dict_.at(master_data->id())) {
+        if (node_tensor->shape[0] == ir::Expr(1)) {
+          insert_for_node(ir_sch, node_tensor->name);
+        }
         ir_sch.CopyTransformAndLoopInfo(node_tensor->name, master_tensor->name);
         auto node_block   = ir_sch.GetBlock(node_tensor->name);
         auto master_loops = ir_sch.GetLoops(master_tensor->name);
@@ -831,7 +929,7 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
       }
       // node is before reduce.
       if (WithoutLastDimInReduce(reducer_shape, reducer_axes)) {
-        VLOG(3) << "Reduce Schedule for WithoutLastDimInReduce";
+        VLOG(2) << "Reduce Schedule for WithoutLastDimInReduce";
         // find a shape to do simple compute at.
         auto tmp_reducer       = reducer;
         auto tmp_reducer_shape = reducer_shape;
@@ -857,33 +955,30 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
         // if used block shuffle reduce
         if (tensor_map.count(tmp_reducer_data->id() + "_1")) {
           ScheduleAssignReduceWithoutLast(ir_sch, node_tensor->name, tmp_reducer_shape, reducer_axes);
-          auto tensor_0 = tensor_map[reducer_data->id() + "_0"];
-          auto block_0  = ir_sch.GetBlock(tensor_0->name);
-          auto loops_0  = ir_sch.GetLoops(block_0);
-
-          auto node_loops = ir_sch.GetLoops(node_tensor->name);
-          if (node_loops.size() < loops_0.size()) {
+          auto tmp_reducer_tensor_0 = tensor_map[tmp_reducer_data->id() + "_0"];
+          auto tmp_reducer_loops_0  = ir_sch.GetLoops(tmp_reducer_tensor_0->name);
+          auto node_loops           = ir_sch.GetLoops(node_tensor->name);
+          if (node_loops.size() < tmp_reducer_loops_0.size()) {
             ir_sch.Split(node_tensor->name, 0, {-1, ir::GetLoopExtent(node_loops[0])});
           }
-          CHECK_EQ(ir_sch.GetLoops(node_tensor->name).size(), ir_sch.GetLoops(block_0).size())
+          CHECK_EQ(ir_sch.GetLoops(node_tensor->name).size(), tmp_reducer_loops_0.size())
               << "node loops and reduce loops must be equal!";
           auto node_block = ir_sch.GetBlock(node_tensor->name);
-          ir_sch.SimpleComputeAt(node_block, loops_0.back());
+          ir_sch.SimpleComputeAt(node_block, tmp_reducer_loops_0.back());
         } else {
           OrderAssignReduce(ir_sch, node_tensor->name, reducer_axes);
+
           auto node_block = ir_sch.GetBlock(node_tensor->name);
           auto node_loops = ir_sch.GetLoops(node_tensor->name);
-
           if (node_loops.size() < ir_sch.GetLoops(tmp_reducer_tensor->name).size()) {
             ir_sch.Split(node_tensor->name, 0, {-1, ir::GetLoopExtent(node_loops[0])});
           }
           CHECK_EQ(ir_sch.GetLoops(node_tensor->name).size(), ir_sch.GetLoops(tmp_reducer_tensor->name).size())
               << "node loop size and reduce loop size must be equal!";
-          auto reducer_loops = ir_sch.GetLoops(tmp_reducer_tensor->name);
-          ir_sch.SimpleComputeAt(node_block, reducer_loops.back());
+          ir_sch.SimpleComputeAt(node_block, ir_sch.GetLoops(tmp_reducer_tensor->name).back());
         }
       } else {
-        VLOG(3) << "Reduce Schedule for WithLastDimInReduce";
+        VLOG(2) << "Reduce Schedule for WithLastDimInReduce";
         if (tensor_map.count(reducer_data->id() + "_1")) {
           ScheduleAssignReduceWithLast(ir_sch, node_tensor->name, reducer_shape, reducer_axes);
           auto reducer_1_tensor = tensor_map[reducer_data->id() + "_1"];

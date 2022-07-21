@@ -30,16 +30,6 @@ namespace cinn {
 namespace hlir {
 namespace pe {
 
-void IRCudaTwoStepReduceSchedule(ir::IRSchedule &ir_sch,
-                                 ir::Tensor reshape,
-                                 ir::Tensor internal,
-                                 ir::Tensor tmp_out,
-                                 ir::Tensor out,
-                                 const common::Target &target);
-
-void IRCudaScheduleBlockShuffleReduce(
-    ir::IRSchedule &ir_sch, ir::Tensor reshape, ir::Tensor internal, ir::Tensor out, const common::Target &target);
-
 void IRScheduleInjectiveCPU(ir::IRSchedule &ir_sch,
                             const std::vector<int> &output_shape,
                             const common::Target &target,
@@ -58,10 +48,7 @@ void IRCudaSplitSchedule(ir::IRSchedule &ir_sch,
                          int axis,
                          const common::Target &target);
 
-void IRCudaScheduleReduce(ir::IRSchedule &ir_sch,
-                          const std::vector<int> &output_shape,
-                          int last_dimension_num,
-                          const common::Target &target);
+void IRCudaScheduleReduce(ir::IRSchedule &ir_sch, ir::Tensor out, int last_dimension_num, const common::Target &target);
 
 void IRCudaScheduleBlockReduce(ir::IRSchedule &ir_sch,
                                ir::Tensor reduce_tmp_out,
@@ -73,6 +60,16 @@ void IRCudaScheduleBlockReduceInternal(ir::IRSchedule &ir_sch,
                                        ir::Tensor tmp_out,
                                        ir::Tensor out,
                                        const common::Target &target);
+
+void IRCudaScheduleBlockShuffleReduce(
+    ir::IRSchedule &ir_sch, ir::Tensor reshape, ir::Tensor internal, ir::Tensor out, const common::Target &target);
+
+void IRCudaTwoStepReduceSchedule(ir::IRSchedule &ir_sch,
+                                 ir::Tensor reshape,
+                                 ir::Tensor internal,
+                                 ir::Tensor tmp_out,
+                                 ir::Tensor out,
+                                 const common::Target &target);
 
 void IRSoftmaxScheduleCPU(ir::IRSchedule &ir_sch, int axis = -1);
 

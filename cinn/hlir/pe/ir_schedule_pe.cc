@@ -27,127 +27,14 @@
 #include "cinn/common/cas.h"
 #include "cinn/hlir/pe/load_x86_params.h"
 #include "cinn/hlir/pe/schedule.h"
+#include "cinn/ir/ir.h"
+#include "cinn/ir/ir_base.h"
 #include "cinn/optim/ir_simplify.h"
 #include "cinn/poly/isl_utils.h"
 
 namespace cinn {
 namespace hlir {
 namespace pe {
-
-void IRCudaTwoStepReduceSchedule(ir::IRSchedule &ir_sch,
-                                 ir::Tensor reshape,
-                                 ir::Tensor internal,
-                                 ir::Tensor tmp_out,
-                                 ir::Tensor out,
-                                 const common::Target &target) {
-  ir_sch.MergeExprs();
-  // fuse axis
-  for (int idx = 0; idx < static_cast<int>(internal->shape.size()) - 2; ++idx) {
-    for (auto tensor : {internal, tmp_out, out}) {
-      auto block = ir_sch.GetBlock(tensor->name);
-      auto loops = ir_sch.GetLoops(block);
-      CHECK_GE(loops.size(), 2U);
-      ir_sch.Fuse({loops[0], loops[1]});
-    }
-  }
-
-  if (ir_sch.GetLoops(tmp_out->name).size() == 1) {
-    for (auto tensor : {internal, tmp_out, out}) {
-      auto block = ir_sch.GetBlock(tensor->name);
-      auto loops = ir_sch.GetLoops(block);
-      ir_sch.Split(loops[0], {-1, ir::GetLoopExtent(loops[0])});
-    }
-  }
-
-  auto reshape_block = ir_sch.GetBlock(reshape->name);
-  ir_sch.ComputeInline(reshape_block);
-
-  auto internal_block = ir_sch.GetBlock(internal->name);
-  ir_sch.SetBuffer(internal_block, "shared");
-
-  auto tmp_out_block = ir_sch.GetBlock(tmp_out->name);
-  ir_sch.SetBuffer(tmp_out_block, "local");
-
-  auto out_block = ir_sch.GetBlock(out->name);
-
-  auto internal_loops = ir_sch.GetLoops(internal->name);
-  ir_sch.Bind(internal_loops[1], "threadIdx.x");
-
-  auto tmp_out_loops = ir_sch.GetLoops(tmp_out->name);
-  ir_sch.Bind(tmp_out_loops[1], "threadIdx.x");
-
-  auto out_loops = ir_sch.GetLoops(out->name);
-  ir_sch.Bind(out_loops[0], "blockIdx.x");
-
-  ir_sch.SimpleComputeAt(ir_sch.GetBlock(tmp_out->name), ir_sch.GetLoops(out->name)[0]);
-  ir_sch.SimpleComputeAt(ir_sch.GetBlock(internal->name), ir_sch.GetLoops(out->name)[0]);
-}
-
-void IRCudaScheduleBlockShuffleReduce(
-    ir::IRSchedule &ir_sch, ir::Tensor reshape, ir::Tensor internal, ir::Tensor out, const common::Target &target) {
-  ir_sch.MergeExprs();
-  int fuse_times = internal->shape.size() - 2;
-  for (int idx = 0; idx < fuse_times; ++idx) {
-    auto internal_block = ir_sch.GetBlock(internal->name);
-    auto internal_loops = ir_sch.GetLoops(internal_block);
-    CHECK_GE(internal_loops.size(), 2U);
-    ir_sch.Fuse({internal_loops[0], internal_loops[1]});
-    auto out_block = ir_sch.GetBlock(out->name);
-    auto out_loops = ir_sch.GetLoops(out_block);
-    CHECK_GE(out_loops.size(), 2U);
-    ir_sch.Fuse({out_loops[0], out_loops[1]});
-  }
-
-  fuse_times = out->shape.size() - internal->shape.size();
-  for (int idx = 0; idx < fuse_times; ++idx) {
-    if (internal->shape.size() == 1) {
-      auto out_block = ir_sch.GetBlock(out->name);
-      auto out_loops = ir_sch.GetLoops(out_block);
-      CHECK_GE(out_loops.size(), 2U);
-      ir_sch.Fuse({out_loops[0], out_loops[1]});
-    } else {
-      auto out_block = ir_sch.GetBlock(out->name);
-      auto out_loops = ir_sch.GetLoops(out_block);
-      CHECK_GE(out_loops.size(), 3U);
-      ir_sch.Fuse({out_loops[1], out_loops[2]});
-    }
-  }
-
-  auto out_block = ir_sch.GetBlock(out->name);
-  auto out_loops = ir_sch.GetLoops(out_block);
-
-  if (out_loops.size() == 1) {
-    auto internal_block = ir_sch.GetBlock(internal->name);
-    auto internal_loops = ir_sch.GetLoops(internal_block);
-    ir_sch.Split(internal_loops[0], {-1, ir::GetLoopExtent(internal_loops[0])});
-    ir_sch.Split(out_loops[0], {-1, ir::GetLoopExtent(out_loops[0])});
-  }
-
-  auto reshape_block = ir_sch.GetBlock(reshape->name);
-  ir_sch.ComputeInline(reshape_block);
-
-  auto internal_block = ir_sch.GetBlock(internal->name);
-  ir_sch.SetBuffer(internal_block, "shared");
-  internal_block      = ir_sch.GetBlock(internal->name);
-  auto internal_loops = ir_sch.GetLoops(internal_block);
-  CHECK_GE(internal_loops.size(), 2U);
-  ir_sch.Bind(internal_loops[0], "blockIdx.x");
-  ir_sch.Bind(internal_loops[1], "threadIdx.x");
-
-  out_block = ir_sch.GetBlock(out->name);
-  out_loops = ir_sch.GetLoops(out_block);
-  CHECK_GE(out_loops.size(), 2U);
-  ir_sch.Bind(out_loops[0], "blockIdx.x");
-  ir_sch.Bind(out_loops[1], "threadIdx.x");
-
-  internal_block = ir_sch.GetBlock(internal->name);
-  out_block      = ir_sch.GetBlock(out->name);
-  out_loops      = ir_sch.GetLoops(out_block);
-  ir_sch.SimpleComputeAt(internal_block, out_loops[0]);
-
-  // stages[out]->SyncThreads(0, {internal}, stages);
-  VLOG(3) << "IRCudaScheduleBlockShuffleReduce result expr is: " << ir_sch.GetModule().GetExprs().at(0);
-}
 
 void IRScheduleInjectiveCPU(ir::IRSchedule &ir_sch,
                             const std::vector<int> &output_shape,
@@ -298,47 +185,40 @@ void IRCudaSplitSchedule(ir::IRSchedule &ir_sch,
 }
 
 void IRCudaScheduleReduce(ir::IRSchedule &ir_sch,
-                          const std::vector<int> &output_shape,
+                          ir::Tensor output,
                           int last_dimension_num,
                           const common::Target &target) {
-  ir_sch.MergeExprs();
   int parallel_thread_num = 1;
+  auto &output_shape      = output->shape;
   for (int idx = output_shape.size() - 1; idx >= static_cast<int>(output_shape.size()) - last_dimension_num; --idx) {
-    parallel_thread_num *= output_shape[idx];
+    parallel_thread_num *= output_shape[idx].as_int32();
   }
 
   int index = output_shape.size() - last_dimension_num;
-
-  auto all_blocks = ir_sch.GetAllBlocks();
-  auto loops      = ir_sch.GetLoops(all_blocks.back());
-
   for (int idx = output_shape.size() - last_dimension_num; idx < static_cast<int>(output_shape.size()) - 1; ++idx) {
-    all_blocks = ir_sch.GetAllBlocks();
-    loops      = ir_sch.GetLoops(all_blocks.back());
+    auto loops = ir_sch.GetLoops(output->name);
     ir_sch.Fuse({loops[index], loops[index + 1]});
   }
 
-  int max_block_size = 1024;
+  int max_block_size = target.max_num_threads();
   if (parallel_thread_num > max_block_size) {
-    all_blocks   = ir_sch.GetAllBlocks();
-    loops        = ir_sch.GetLoops(all_blocks.back());
-    auto splited = ir_sch.Split(loops[index], {-1, max_block_size});
-    ir_sch.Bind(splited[1], "threadIdx.x");
+    auto loops  = ir_sch.GetLoops(output->name);
+    auto nloops = ir_sch.Split(loops[index], {-1, max_block_size});
+
+    ++index;
+    ir_sch.Bind(nloops.back(), "threadIdx.x");
   } else {
-    all_blocks = ir_sch.GetAllBlocks();
-    loops      = ir_sch.GetLoops(all_blocks.back());
+    auto loops = ir_sch.GetLoops(output->name);
     ir_sch.Bind(loops[index], "threadIdx.x");
   }
 
   for (int idx = 0; idx < index - 1; ++idx) {
-    all_blocks = ir_sch.GetAllBlocks();
-    loops      = ir_sch.GetLoops(all_blocks.back());
+    auto loops = ir_sch.GetLoops(output->name);
     ir_sch.Fuse({loops[0], loops[1]});
   }
 
   if (index > 0) {
-    all_blocks = ir_sch.GetAllBlocks();
-    loops      = ir_sch.GetLoops(all_blocks.back());
+    auto loops = ir_sch.GetLoops(output->name);
     ir_sch.Bind(loops[0], "blockIdx.x");
   }
 }
@@ -347,56 +227,62 @@ void IRCudaScheduleBlockReduceInternal(ir::IRSchedule &ir_sch,
                                        ir::Tensor tmp_out,
                                        ir::Tensor out,
                                        const common::Target &target) {
-  ir_sch.MergeExprs();
-  auto all_blocks = ir_sch.GetAllBlocks();
-  auto loops      = ir_sch.GetLoops(all_blocks[0]);
-  CHECK_EQ(all_blocks.size(), 2U);
-
   for (int idx = 0; idx < static_cast<int>(tmp_out->shape.size()) - 2; ++idx) {
-    all_blocks = ir_sch.GetAllBlocks();
-    ir_sch.Fuse(all_blocks[0], {0, 1});
-    ir_sch.Fuse(all_blocks[1], {0, 1});
+    for (auto &tensor : {tmp_out, out}) {
+      auto loops = ir_sch.GetLoops(tensor->name);
+      ir_sch.Fuse({loops[0], loops[1]});
+    }
   }
 
+  // as out shape size = [1], insert for in ast tree.
   if (tmp_out->shape.size() == 1) {
-    if (out->shape.size() == 1 && out->shape[0] == Expr(1)) {
-      all_blocks      = ir_sch.GetAllBlocks();
-      auto all_block0 = ir_sch.GetBlock(tmp_out->name);
-      loops           = ir_sch.GetLoops(all_block0);
-      ir_sch.Bind(loops[0], "threadIdx.x");
-      all_block0 = ir_sch.GetBlock(tmp_out->name);
-      ir_sch.SetBuffer(all_block0, "local");
-    } else {
-      all_blocks      = ir_sch.GetAllBlocks();
-      auto all_block0 = ir_sch.GetBlock(tmp_out->name);
-      loops           = ir_sch.GetLoops(all_block0);
-      ir_sch.Bind(loops[0], "threadIdx.x");
-      all_block0 = ir_sch.GetBlock(tmp_out->name);
-      ir_sch.SetBuffer(all_block0, "local");
-      auto all_block1 = ir_sch.GetBlock(out->name);
-      loops           = ir_sch.GetLoops(all_block1);
-      ir_sch.Bind(loops[0], "threadIdx.x");
+    CHECK_EQ(out->shape[0], Expr(1));
+
+    // block and root
+    auto out_block  = ir_sch.GetBlock(out->name);
+    auto root_block = ir_sch.GetRootBlock(out_block);
+
+    CHECK(out_block->as<ir::ScheduleBlockRealize>());
+    CHECK(out_block->as<ir::ScheduleBlockRealize>()->schedule_block->as<ir::ScheduleBlock>());
+
+    // create var
+    auto var = ir::Var(ir::Expr(0), ir::Expr(1), "i_0");
+    out_block->as<ir::ScheduleBlockRealize>()->iter_values.push_back(var);
+    out_block->as<ir::ScheduleBlockRealize>()->schedule_block->as<ir::ScheduleBlock>()->iter_vars.push_back(var);
+
+    CHECK(root_block->as<ir::ScheduleBlockRealize>());
+    CHECK(root_block->as<ir::ScheduleBlockRealize>()->schedule_block->as<ir::ScheduleBlock>());
+
+    // create for and block node
+    auto for_node =
+        ir::For::Make(var, Expr(0), Expr(1), ir::ForType::Serial, ir::DeviceAPI::UNK, ir::Block::Make({out_block}));
+    auto block_node = ir::Block::Make({root_block->as<ir::ScheduleBlockRealize>()
+                                           ->schedule_block->as<ir::ScheduleBlock>()
+                                           ->body->as<ir::Block>()
+                                           ->stmts[0],
+                                       for_node});
+
+    root_block->as<ir::ScheduleBlockRealize>()->schedule_block->as<ir::ScheduleBlock>()->body = block_node;
+
+    for (auto &tensor : {tmp_out, out}) {
+      auto loops = ir_sch.GetLoops(tensor->name);
+      ir_sch.Split(loops[0], {-1, ir::GetLoopExtent(loops[0])});
     }
-  } else {
-    all_blocks      = ir_sch.GetAllBlocks();
-    auto all_block0 = ir_sch.GetBlock(tmp_out->name);
-    loops           = ir_sch.GetLoops(all_block0);
-    all_block0      = ir_sch.GetBlock(tmp_out->name);
-    ir_sch.SetBuffer(all_block0, "local");
-    all_blocks = ir_sch.GetAllBlocks();
-    all_block0 = ir_sch.GetBlock(tmp_out->name);
-    loops      = ir_sch.GetLoops(all_block0);
-    ir_sch.Bind(loops[0], "blockIdx.x");
-    all_blocks      = ir_sch.GetAllBlocks();
-    auto all_block1 = ir_sch.GetBlock(out->name);
-    loops           = ir_sch.GetLoops(all_block1);
-    all_block0      = ir_sch.GetBlock(tmp_out->name);
-    ir_sch.SimpleComputeAt(all_block0, loops[0]);
-    all_blocks = ir_sch.GetAllBlocks();
-    all_block0 = ir_sch.GetBlock(tmp_out->name);
-    loops      = ir_sch.GetLoops(all_block0);
-    ir_sch.Bind(loops[1], "threadIdx.x");
   }
+
+  for (auto &tensor : {tmp_out, out}) {
+    auto loops = ir_sch.GetLoops(tensor->name);
+    ir_sch.Bind(loops[0], "blockIdx.x");
+    if (loops.size() > 1) {
+      ir_sch.Bind(loops[1], "threadIdx.x");
+    }
+  }
+
+  for (auto &tensor : {tmp_out}) {
+    auto block = ir_sch.GetBlock(tensor->name);
+    ir_sch.SetBuffer(block, "local");
+  }
+
   VLOG(3) << "IRCudaScheduleBlockReduceInternal result expr is: " << ir_sch.GetModule().GetExprs().at(0);
 }
 
@@ -405,56 +291,197 @@ void IRCudaScheduleBlockReduce(ir::IRSchedule &ir_sch,
                                ir::Tensor tmp_out,
                                ir::Tensor out,
                                const common::Target &target) {
-  ir_sch.MergeExprs();
-  auto all_blocks = ir_sch.GetAllBlocks();
-  auto loops      = ir_sch.GetLoops(all_blocks[0]);
-  CHECK_EQ(all_blocks.size(), 3U);
-
   int output_shape_size_without_reduce = tmp_out->shape.size() - 1;
   // fuse last parallel dimension
   for (int idx = 0; idx < reduce_tmp_out->shape.size() - tmp_out->shape.size(); ++idx) {
-    auto all_blocks = ir_sch.GetAllBlocks();
-    ir_sch.Fuse(all_blocks[0], {output_shape_size_without_reduce, output_shape_size_without_reduce + 1});
+    auto loops = ir_sch.GetLoops(reduce_tmp_out->name);
+    ir_sch.Fuse({loops[output_shape_size_without_reduce], loops[output_shape_size_without_reduce + 1]});
   }
 
   // fuse parallel dimension
   for (int idx = 0; idx < output_shape_size_without_reduce - 1; ++idx) {
-    auto all_blocks = ir_sch.GetAllBlocks();
-    ir_sch.Fuse(all_blocks[0], {0, 1});
-    ir_sch.Fuse(all_blocks[1], {0, 1});
-    ir_sch.Fuse(all_blocks[2], {0, 1});
+    for (auto &tensor : {reduce_tmp_out, tmp_out, out}) {
+      auto loops = ir_sch.GetLoops(tensor->name);
+      ir_sch.Fuse({loops[0], loops[1]});
+    }
   }
 
   if (tmp_out->shape.size() == 1) {
-    all_blocks = ir_sch.GetAllBlocks();
-    loops      = ir_sch.GetLoops(all_blocks[0]);
-    ir_sch.Bind(loops[0], "threadIdx.x");
-    ir_sch.SetBuffer(all_blocks[0], "local");
-    loops = ir_sch.GetLoops(all_blocks[1]);
-    ir_sch.Bind(loops[0], "threadIdx.x");
-    ir_sch.SetBuffer(all_blocks[1], "local");
-    loops = ir_sch.GetLoops(all_blocks[2]);
-    ir_sch.Bind(loops[0], "threadIdx.x");
+    CHECK_EQ(out->shape[0], Expr(1));
 
-  } else {
-    all_blocks = ir_sch.GetAllBlocks();
-    loops      = ir_sch.GetLoops(all_blocks[0]);
-    ir_sch.Bind(loops[1], "threadIdx.x");
-    ir_sch.SetBuffer(all_blocks[0], "local");
-    all_blocks = ir_sch.GetAllBlocks();
-    loops      = ir_sch.GetLoops(all_blocks[1]);
-    ir_sch.Bind(loops[1], "threadIdx.x");
-    ir_sch.SetBuffer(all_blocks[1], "local");
-    loops = ir_sch.GetLoops(all_blocks[1]);
-    ir_sch.SimpleComputeAt(all_blocks[0], loops[0]);
-    all_blocks = ir_sch.GetAllBlocks();
-    loops      = ir_sch.GetLoops(all_blocks[2]);
-    ir_sch.Bind(loops[0], "blockIdx.x");
-    ir_sch.Bind(loops[1], "threadIdx.x");
-    loops = ir_sch.GetLoops(all_blocks[2]);
-    ir_sch.SimpleComputeAt(all_blocks[1], loops[0]);
+    // block and root
+    auto out_block  = ir_sch.GetBlock(out->name);
+    auto root_block = ir_sch.GetRootBlock(out_block);
+
+    CHECK(out_block->as<ir::ScheduleBlockRealize>());
+    CHECK(out_block->as<ir::ScheduleBlockRealize>()->schedule_block->as<ir::ScheduleBlock>());
+
+    // create var
+    auto var = ir::Var(ir::Expr(0), ir::Expr(1), "i_0");
+    out_block->as<ir::ScheduleBlockRealize>()->iter_values.push_back(var);
+    out_block->as<ir::ScheduleBlockRealize>()->schedule_block->as<ir::ScheduleBlock>()->iter_vars.push_back(var);
+
+    CHECK(root_block->as<ir::ScheduleBlockRealize>());
+    CHECK(root_block->as<ir::ScheduleBlockRealize>()->schedule_block->as<ir::ScheduleBlock>());
+
+    // create for and block node
+    auto for_node =
+        ir::For::Make(var, Expr(0), Expr(1), ir::ForType::Serial, ir::DeviceAPI::UNK, ir::Block::Make({out_block}));
+    auto block_node = ir::Block::Make({root_block->as<ir::ScheduleBlockRealize>()
+                                           ->schedule_block->as<ir::ScheduleBlock>()
+                                           ->body->as<ir::Block>()
+                                           ->stmts[0],
+                                       for_node});
+
+    root_block->as<ir::ScheduleBlockRealize>()->schedule_block->as<ir::ScheduleBlock>()->body = block_node;
+
+    for (auto &tensor : {reduce_tmp_out, tmp_out, out}) {
+      auto loops = ir_sch.GetLoops(tensor->name);
+      ir_sch.Split(loops[0], {-1, ir::GetLoopExtent(loops[0])});
+    }
   }
+
+  for (auto &tensor : {reduce_tmp_out, tmp_out, out}) {
+    auto loops = ir_sch.GetLoops(tensor->name);
+    ir_sch.Bind(loops[0], "blockIdx.x");
+    if (loops.size() > 1) {
+      ir_sch.Bind(loops[1], "threadIdx.x");
+    }
+  }
+
+  for (auto &tensor : {reduce_tmp_out, tmp_out}) {
+    auto block = ir_sch.GetBlock(tensor->name);
+    ir_sch.SetBuffer(block, "local");
+  }
+
   VLOG(3) << "IRCudaScheduleBlockReduce result expr is: " << ir_sch.GetModule().GetExprs().at(0);
+}
+
+void IRCudaScheduleBlockShuffleReduce(
+    ir::IRSchedule &ir_sch, ir::Tensor reshape, ir::Tensor internal, ir::Tensor out, const common::Target &target) {
+  int fuse_times = internal->shape.size() - 2;
+  for (int idx = 0; idx < fuse_times; ++idx) {
+    for (auto &tensor : {internal, out}) {
+      auto loops = ir_sch.GetLoops(tensor->name);
+      ir_sch.Fuse({loops[0], loops[1]});
+    }
+  }
+
+  fuse_times = out->shape.size() - internal->shape.size();
+  for (int idx = 0; idx < fuse_times; ++idx) {
+    auto loops = ir_sch.GetLoops(out->name);
+    if (internal->shape.size() == 1) {
+      ir_sch.Fuse({loops[0], loops[1]});
+    } else {
+      ir_sch.Fuse({loops[1], loops[2]});
+    }
+  }
+
+  if (ir_sch.GetLoops(out->name).size() == 1) {
+    auto internal_loops = ir_sch.GetLoops(internal->name);
+    ir_sch.Split(internal_loops[0], {-1, ir::GetLoopExtent(internal_loops[0])});
+
+    auto out_loops = ir_sch.GetLoops(out->name);
+    ir_sch.Split(out_loops[0], {-1, ir::GetLoopExtent(out_loops[0])});
+  }
+
+  auto reshape_block = ir_sch.GetBlock(reshape->name);
+  ir_sch.ComputeInline(reshape_block);
+  auto internal_block = ir_sch.GetBlock(internal->name);
+  ir_sch.SetBuffer(internal_block, "shared");
+
+  auto internal_loops = ir_sch.GetLoops(internal->name);
+  CHECK_GE(internal_loops.size(), 2U);
+  ir_sch.Bind(internal_loops[0], "blockIdx.x");
+  ir_sch.Bind(internal_loops[1], "threadIdx.x");
+
+  auto out_loops = ir_sch.GetLoops(out->name);
+  CHECK_GE(out_loops.size(), 2U);
+  ir_sch.Bind(out_loops[0], "blockIdx.x");
+  ir_sch.Bind(out_loops[1], "threadIdx.x");
+
+  // internal_block = ir_sch.GetBlock(internal->name);
+  // out_block      = ir_sch.GetBlock(out->name);
+  // out_loops      = ir_sch.GetLoops(out_block);
+  // ir_sch.SimpleComputeAt(internal_block, out_loops[0]);
+  // stages[out]->SyncThreads(0, {internal}, stages);
+  VLOG(3) << "IRCudaScheduleBlockShuffleReduce result expr is: " << ir_sch.GetModule().GetExprs().at(0);
+}
+
+void IRCudaTwoStepReduceSchedule(ir::IRSchedule &ir_sch,
+                                 ir::Tensor reshape,
+                                 ir::Tensor internal,
+                                 ir::Tensor tmp_out,
+                                 ir::Tensor out,
+                                 const common::Target &target) {
+  // fuse axis
+  for (int idx = 0; idx < static_cast<int>(internal->shape.size()) - 2; ++idx) {
+    for (auto &tensor : {internal, tmp_out, out}) {
+      auto block = ir_sch.GetBlock(tensor->name);
+      auto loops = ir_sch.GetLoops(block);
+      CHECK_GE(loops.size(), 2U);
+      ir_sch.Fuse({loops[0], loops[1]});
+    }
+  }
+
+  if (ir_sch.GetLoops(tmp_out->name).size() == 1) {
+    // block and root
+    auto out_block  = ir_sch.GetBlock(out->name);
+    auto root_block = ir_sch.GetRootBlock(out_block);
+
+    CHECK(out_block->as<ir::ScheduleBlockRealize>());
+    CHECK(out_block->as<ir::ScheduleBlockRealize>()->schedule_block->as<ir::ScheduleBlock>());
+
+    // create var
+    // auto var = ir::Var(ir::Expr(0), ir::Expr(1), "i_0");
+    auto var = ir::Var(ir::Expr(0), ir::Expr(1), "i_0");
+    out_block->as<ir::ScheduleBlockRealize>()->iter_values.push_back(var);
+    out_block->as<ir::ScheduleBlockRealize>()->schedule_block->as<ir::ScheduleBlock>()->iter_vars.push_back(var);
+
+    CHECK(root_block->as<ir::ScheduleBlockRealize>());
+    CHECK(root_block->as<ir::ScheduleBlockRealize>()->schedule_block->as<ir::ScheduleBlock>());
+
+    // create for and block node
+    auto for_node =
+        ir::For::Make(var, Expr(0), Expr(1), ir::ForType::Serial, ir::DeviceAPI::UNK, ir::Block::Make({out_block}));
+
+    auto block_node = ir::Block::Make({root_block->as<ir::ScheduleBlockRealize>()
+                                           ->schedule_block->as<ir::ScheduleBlock>()
+                                           ->body->as<ir::Block>()
+                                           ->stmts[0],
+                                       root_block->as<ir::ScheduleBlockRealize>()
+                                           ->schedule_block->as<ir::ScheduleBlock>()
+                                           ->body->as<ir::Block>()
+                                           ->stmts[1],
+                                       for_node});
+
+    root_block->as<ir::ScheduleBlockRealize>()->schedule_block->as<ir::ScheduleBlock>()->body = block_node;
+
+    for (auto &tensor : {internal, tmp_out, out}) {
+      auto block = ir_sch.GetBlock(tensor->name);
+      auto loops = ir_sch.GetLoops(block);
+      ir_sch.Split(loops[0], {-1, ir::GetLoopExtent(loops[0])});
+    }
+  }
+  auto reshape_block = ir_sch.GetBlock(reshape->name);
+  ir_sch.ComputeInline(reshape_block);
+
+  auto internal_block = ir_sch.GetBlock(internal->name);
+  ir_sch.SetBuffer(internal_block, "local");
+
+  auto tmp_out_block = ir_sch.GetBlock(tmp_out->name);
+  ir_sch.SetBuffer(tmp_out_block, "local");
+
+  for (auto &tensor : {internal, tmp_out, out}) {
+    auto loops = ir_sch.GetLoops(tensor->name);
+    ir_sch.Bind(loops[0], "blockIdx.x");
+    if (loops.size() > 1) {
+      ir_sch.Bind(loops[1], "threadIdx.x");
+    }
+  }
+
+  // ir_sch.SimpleComputeAt(ir_sch.GetBlock(tmp_out->name), ir_sch.GetLoops(out->name)[0]);
+  // ir_sch.SimpleComputeAt(ir_sch.GetBlock(internal->name), ir_sch.GetLoops(out->name)[0]);
 }
 
 void IRSoftmaxScheduleCPU(ir::IRSchedule &ir_sch, int axis) {
