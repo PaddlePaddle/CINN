@@ -9,3 +9,4 @@ gather_srcs(cinnapi_src SRCS
 
 cc_test(test_multi_level_tiling SRCS multi_level_tiling_test.cc DEPS cinncore)
 cc_test(test_skip_rule SRCS skip_rule_test.cc DEPS cinncore)
+cc_test(test_auto_unroll SRCS auto_unroll_test.cc DEPS cinncore)
