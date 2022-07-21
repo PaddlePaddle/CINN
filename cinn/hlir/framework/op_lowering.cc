@@ -881,6 +881,13 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
           }
         }
       }
+      if (WithoutLastDimInReduce(reducer_shape, reducer_axes)) {
+        if (tensor_map.count(reducer_data->id() + "_1")) {
+          auto reducer_tensor = tensor_map[GetNodeData(reducer)->id()];
+          auto reducer_loops  = ir_sch.GetLoops(reducer_tensor->name);
+          ir_sch.SyncThreads(reducer_loops[0], false);
+        }
+      }
     }
     VLOG(2) << ir_sch.GetModule().GetExprs().at(0);
   }

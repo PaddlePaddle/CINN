@@ -1939,7 +1939,7 @@ void IRSchedule::SimpleComputeAt(const Expr& block, const Expr& loop) {
   Expr source_expr{nullptr};
   Expr target_expr{nullptr};
 
-  LeafBlockRemovalPlan remove_plan(result, &source_expr, &target_expr);
+  LeafBlockRemovalPlan remove_plan(result.As<ir::For>() ? result : this_block, &source_expr, &target_expr);
   remove_plan(&root);
 
   helper_.Replace(source_expr, target_expr);
