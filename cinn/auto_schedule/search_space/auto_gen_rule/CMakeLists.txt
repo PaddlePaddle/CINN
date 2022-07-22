@@ -3,6 +3,7 @@ core_gather_headers()
 gather_srcs(cinnapi_src SRCS
 	auto_gen_rule.cc
 	auto_inline.cc
+	auto_unroll.cc
 	multi_level_tiling.cc
 	skip_rule.cc
 	)
