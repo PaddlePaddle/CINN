@@ -97,7 +97,7 @@ ir::ModuleExpr AutoUnroll::Apply(int index) {
   CHECK_LT(index, applicable_schedule_blocks_.size()) << "invalid apply index:" << index;
   auto* schedule_block = applicable_schedule_blocks_.at(index);
   int max_step         = auto_unroll_options[std::rand() % auto_unroll_options.size()];
-  // schedule_block->attrs.emplace(ir::attr::auto_unroll_max_step, max_step);
+  schedule_block->attrs.emplace(ir::attr::auto_unroll_max_step, max_step);
   return ir_schedule_->GetModule();
 }
 

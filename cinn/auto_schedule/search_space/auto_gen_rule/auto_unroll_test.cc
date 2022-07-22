@@ -72,7 +72,7 @@ TEST(AutoUnroll, UnrollableApply) {
   auto* block_realize  = ast_expr.As<ir::Block>()->stmts.front().As<ir::ScheduleBlockRealize>();
   auto* schedule_block = block_realize->schedule_block.As<ir::ScheduleBlock>();
   ASSERT_NE(schedule_block, nullptr);
-  // ASSERT_TRUE(schedule_block->attrs.empty());
+  ASSERT_TRUE(schedule_block->attrs.empty());
   ir::ModuleExpr mod_expr({ast_expr});
   VLOG(6) << "Before auto-unroll:\n" << ast_expr;
 
@@ -81,13 +81,13 @@ TEST(AutoUnroll, UnrollableApply) {
   EXPECT_EQ(test_rule.NumberApplicable(), 1);
   test_rule.ApplyRandomly();
 
-  // ASSERT_FALSE(schedule_block->attrs.empty());
-  // EXPECT_EQ(schedule_block->attrs.count(ir::attr::auto_unroll_max_step), 1);
-  // const auto& attr_value = schedule_block->attrs.at(ir::attr::auto_unroll_max_step);
-  // int* max_step = absl::get_if<int>(&attr_value);
-  // EXPECT_NE(max_step, NULL);
-  // EXPECT_LE(*max_step, 128);
-  VLOG(6) << "After auto-unroll:\n" << ast_expr;
+  ASSERT_FALSE(schedule_block->attrs.empty());
+  EXPECT_EQ(schedule_block->attrs.count(ir::attr::auto_unroll_max_step), 1);
+  const auto& attr_value = schedule_block->attrs.at(ir::attr::auto_unroll_max_step);
+  const int* max_step    = absl::get_if<int>(&attr_value);
+  EXPECT_NE(max_step, nullptr);
+  EXPECT_LE(*max_step, 128);
+  VLOG(6) << "After auto-unroll:max_step=" << *max_step << ", Ast:\n" << ast_expr;
 }
 
 }  // namespace auto_schedule
