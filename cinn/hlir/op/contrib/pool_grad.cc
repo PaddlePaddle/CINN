@@ -17,8 +17,12 @@
 #include <string>
 #include <vector>
 
+#include "cinn/common/cas.h"
+#include "cinn/common/context.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_base.h"
+#include "cinn/lang/builtin.h"
+#include "cinn/lang/compute.h"
 
 namespace cinn {
 namespace hlir {
@@ -68,31 +72,37 @@ std::vector<ir::Tensor> Pool2dGrad(const ir::Tensor& in_tensor,
 
   if (pool_type == "max") {
     LOG(ERROR) << "Unimplemented pool_type: " << pool_type;
+    return {};
   } else if (pool_type == "avg") {
     float factor = 1.0f / (kernel_size[0] * kernel_size[1]);
     ir::Expr factor_expr(factor);
-    res = Compute(in_grad_shape, [=](const std::vector<ir::Expr>& output) {
-      // Find that x * stride <= y + padding < x * stride + kernel
-      // the miminal x would be in start
-      // the maximal x would be in end
-      // Then it construct the mapping for the indices from output_tensor to in_tensor
-      std::vector<ir::Expr> start(ksize);
-      std::vector<ir::Expr> end(ksize);
-      std::vector<ir::Var> vars(ksize);
+    ir::Tensor res = lang::Compute(
+        in_grad_shape,
+        [=](const std::vector<ir::Expr>& output) {
+          // Find that x * stride <= y + padding < x * stride + kernel
+          // the miminal x would be in start
+          // the maximal x would be in end
+          // Then it construct the mapping for the indices from output_tensor to in_tensor
+          std::vector<ir::Expr> start(ksize);
+          std::vector<ir::Expr> end(ksize);
+          std::vector<ir::Var> vars(ksize);
 
-      std::vector<ir::Expr> indices(output);
-      for (int i = 0; i < ksize; ++i) {
-        int axis = hw_axis[i];
-        start[i] = common::AutoSimplify((output[axis] + paddings[i] - kernel_size[i]) / strides[i] + 1);
-        end[i]   = common::AutoSimplify((output[axis] + paddings[i]) / strides[i]);
-        vars.emplace_back(ir::Var(start[i], end[i], UniqName("kernel_idx")));
-        indices[axis] = vars;
-      }
+          std::vector<ir::Expr> indices(output);
+          for (int i = 0; i < ksize; ++i) {
+            int axis      = hw_axis[i];
+            start[i]      = common::AutoSimplify((output[axis] + paddings[i] - kernel_size[i]) / strides[i] + 1);
+            end[i]        = common::AutoSimplify((output[axis] + paddings[i]) / strides[i]);
+            vars[i]       = ir::Var(start[i], end[i], common::UniqName("kernel_idx"));
+            indices[axis] = vars[i];
+          }
 
-      return lang::ReduceSum(ir::Mul::Make(output_grad(indices), factor_expr), vars);
-    } UniqName(output_name));
+          return lang::ReduceSum(ir::Mul::Make(output_grad(indices), factor_expr), vars);
+        },
+        common::UniqName(output_name));
+    return {res};
   } else {
     LOG(ERROR) << "Unrecognized pool_type: " << pool_type;
+    return {};
   }
 }
 
