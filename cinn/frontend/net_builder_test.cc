@@ -17,8 +17,10 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <cstring>
 #include <memory>
 #include <random>
+#include <string>
 #include <vector>
 
 #include "cinn/common/target.h"
@@ -187,6 +189,92 @@ TEST(net_build, program_execute_reverse) {
   auto input_tensor = scope->GetTensor(std::string(input.id()));
   SetRandData(input_tensor, target);
   runtime_program->Execute();
+}
+
+TEST(net_build, program_execute_pool2d_grad) {
+  const int B        = 4;
+  const int C        = 3;
+  const int IN_H     = 7;
+  const int IN_W     = 7;
+  const int OUT_H    = 3;
+  const int OUT_W    = 3;
+  const int KERNEL_H = 5;
+  const int KERNEL_W = 5;
+
+  NetBuilder builder("net_builder");
+  Placeholder input    = builder.CreateInput(Float(32), {B, C, IN_H, IN_W}, "In");
+  Placeholder output   = builder.CreateInput(Float(32), {B, C, OUT_H, OUT_W}, "Out");
+  Placeholder out_grad = builder.CreateInput(Float(32), {B, C, OUT_H, OUT_W}, "OutGrad");
+  Variable in_grad     = builder.Pool2dGrad(input, output, out_grad, {KERNEL_H, KERNEL_W});
+  auto program         = builder.Build();
+
+  Target target = common::DefaultHostTarget();
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  auto scope = BuildScope(target, graph);
+  hlir::framework::GraphCompiler gc(target, scope, graph);
+  auto runtime_program = gc.Build();
+
+  scope->Var<hlir::framework::Tensor>(std::string(input.id()));
+  scope->Var<hlir::framework::Tensor>(std::string(output.id()));
+  scope->Var<hlir::framework::Tensor>(std::string(out_grad.id()));
+  scope->Var<hlir::framework::Tensor>(std::string(in_grad->id));
+
+  auto out_grad_tensor = scope->GetTensor(std::string(out_grad.id()));
+  float* out_grad_data = out_grad_tensor->mutable_data<float>(target);
+  memset(out_grad_data, 0, sizeof(float) * B * C * OUT_H * OUT_W);
+  out_grad_data[0] = static_cast<float>(KERNEL_H * KERNEL_W);
+  out_grad_data[1] = static_cast<float>(KERNEL_H * KERNEL_W);
+
+  VLOG(6) << "Visualize out_grad_data";
+  for (int b = 0; b < B; ++b) {
+    for (int c = 0; c < C; ++c) {
+      VLOG(6) << "b = " << b << ", c = " << c;
+      for (int h = 0; h < OUT_H; ++h) {
+        std::string line;
+        for (int w = 0; w < OUT_W; ++w) {
+          int index = w + OUT_W * (h + OUT_H * (c + C * b));
+          line += (std::to_string(out_grad_data[index]) + ", ");
+        }
+        VLOG(6) << line;
+      }
+    }
+  }
+  runtime_program->Execute();
+
+  auto in_grad_tensor                   = scope->GetTensor(std::string(in_grad->id));
+  const std::vector<int>& in_grad_shape = in_grad_tensor->shape().data();
+  EXPECT_EQ(in_grad_shape.size(), 4UL);
+  EXPECT_EQ(in_grad_shape[0], B);
+  EXPECT_EQ(in_grad_shape[1], C);
+  EXPECT_EQ(in_grad_shape[2], IN_H);
+  EXPECT_EQ(in_grad_shape[3], IN_W);
+
+  float* in_grad_data = in_grad_tensor->mutable_data<float>(target);
+  VLOG(6) << "Visualize in_grad_data";
+  for (int b = 0; b < B; ++b) {
+    for (int c = 0; c < C; ++c) {
+      VLOG(6) << "b = " << b << ", c = " << c;
+      for (int h = 0; h < IN_H; ++h) {
+        std::string line;
+        for (int w = 0; w < IN_W; ++w) {
+          int index  = w + IN_W * (h + IN_H * (c + C * b));
+          float data = in_grad_data[index];
+          line += (std::to_string(data) + ", ");
+          if (b == 0 && c == 0 && h < KERNEL_H) {
+            if (w == 0 || w == KERNEL_W) {
+              EXPECT_EQ(data, 1.0f);
+            } else if (w > 0 && w < KERNEL_W) {
+              EXPECT_EQ(data, 2.0f);
+            } else {
+              EXPECT_EQ(data, 0.0f);
+            }
+          }
+        }
+        VLOG(6) << line;
+      }
+    }
+  }
 }
 
 }  // namespace frontend

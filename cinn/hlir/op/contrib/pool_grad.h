@@ -19,6 +19,7 @@
 
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_base.h"
+#include "cinn/ir/tensor.h"
 
 namespace cinn {
 namespace hlir {
@@ -27,7 +28,7 @@ namespace op {
 std::vector<ir::Tensor> Pool2dGrad(const ir::Tensor& in_tensor,
                                    const ir::Tensor& output_tensor,
                                    const ir::Tensor& output_grad,
-                                   const std::vector<int>& ksize,
+                                   const std::vector<int>& kernel_size,
                                    const std::vector<int>& strides,
                                    const std::vector<int>& paddings,
                                    const std::string& pool_type,

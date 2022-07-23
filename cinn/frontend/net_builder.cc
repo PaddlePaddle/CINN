@@ -148,6 +148,32 @@ Variable NetBuilder::Pool2d(const Variable& a,
   return instr.GetOutput(0);
 }
 
+Variable NetBuilder::Pool2dGrad(const Variable& in,
+                                const Variable& out,
+                                const Variable& out_grad,
+                                const std::vector<int>& ksize,
+                                const std::vector<int>& strides,
+                                const std::vector<int>& paddings,
+                                const std::string& pooling_type,
+                                bool ceil_mode,
+                                bool exclusive,
+                                bool adaptive,
+                                const std::string& data_format) {
+  Instruction instr("pool2d_grad");
+  instr.SetInputs({in, out, out_grad});
+  instr.SetAttr("pool_type", pooling_type);
+  instr.SetAttr("kernel_size", ksize);
+  instr.SetAttr("stride_size", strides);
+  instr.SetAttr("padding_size", paddings);
+  instr.SetAttr("ceil_mode", ceil_mode);
+  instr.SetAttr("exclusive", exclusive);
+  instr.SetAttr("adaptive", adaptive);
+  instr.SetAttr("data_format", data_format);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
 std::vector<Variable> NetBuilder::BatchNorm(const Variable& a,
                                             const Variable& scale,
                                             const Variable& bias,

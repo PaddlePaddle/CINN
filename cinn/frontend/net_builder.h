@@ -116,6 +116,18 @@ class NetBuilder : public BaseBuilder {
                   bool adaptive                        = false,
                   const std::string& padding_algorithm = "EXPLICIT");
 
+  Variable Pool2dGrad(const Variable& in,
+                      const Variable& out,
+                      const Variable& out_grad,
+                      const std::vector<int>& ksize,
+                      const std::vector<int>& strides  = {1, 1},
+                      const std::vector<int>& paddings = {0, 0, 0, 0},
+                      const std::string& pooling_type  = "avg",
+                      bool ceil_mode                   = false,
+                      bool exclusive                   = false,
+                      bool adaptive                    = false,
+                      const std::string& data_format   = "NCHW");
+
   /**
    * The batchnorm layer can be used as a normalizer function
    * for convolution or fully_connected operations.

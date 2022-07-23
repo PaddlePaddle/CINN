@@ -553,6 +553,7 @@ ir::Tensor _Tensor_::ReshapeCopied(const std::vector<Expr> &shape, poly::StageMa
 
 Shared<poly::Stage> CreateStage(Tensor tensor) {
   auto isl_domain = tensor->GenerateIslDomain();
+  VLOG(6) << "Generated isl_domain";
   return poly::Stage::New(isl_domain, tensor->body(), tensor.self());
 }
 
