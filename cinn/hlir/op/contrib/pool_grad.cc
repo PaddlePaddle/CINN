@@ -85,8 +85,7 @@ std::vector<ir::Tensor> Pool2dGrad(const ir::Tensor &in_tensor,
   int ksize                            = kernel_size.size();
 
   std::vector<ir::Var> pool_vars;
-  std::vector<ir::Expr> out_grad_pad_front(out_grad_shape.size(), Expr(0));
-  std::vector<ir::Expr> out_grad_pad_back(out_grad_shape.size(), Expr(0));
+  std::vector<ir::Expr> out_grad_pad(out_grad_shape.size(), Expr(0));
   for (int i = 0; i < ksize; ++i) {
     CHECK(kernel_size[i] >= strides[i]) << "This is just an example op so we require kernel_size > stride";
     CHECK_EQ(kernel_size[i] % strides[i], 0) << "This is just an example op so we require kernel_size % stride == 0";
@@ -94,11 +93,10 @@ std::vector<ir::Tensor> Pool2dGrad(const ir::Tensor &in_tensor,
     int axis = hw_axis[i];
     pool_vars.push_back(ir::Var(kernel_size[i] / strides[i], common::UniqName("pool_grad_idx")));
 
-    out_grad_pad_front[axis] = ir::Expr(kernel_size[i] - 1);
-    out_grad_pad_back[axis]  = ir::Expr(kernel_size[i] - 1);
+    out_grad_pad[axis] = ir::Expr(kernel_size[i] - 1);
   }
   ir::Tensor padding_out_grad =
-      pe::Pad(output_grad, out_grad_pad_front, out_grad_pad_back, 0, common::UniqName("padding_out_grad"));
+      pe::Pad(output_grad, out_grad_pad, out_grad_pad, 0, common::UniqName("padding_out_grad"));
   if (pool_type == "max") {
     CHECK(false) << "Unimplemented pool_type: " << pool_type;
   } else if (pool_type == "avg") {
@@ -107,31 +105,29 @@ std::vector<ir::Tensor> Pool2dGrad(const ir::Tensor &in_tensor,
     ir::Tensor res = lang::Compute(
         in_grad_shape,
         [=](const std::vector<ir::Expr> &output) {
-          // Find that x * stride <= y + padding < x * stride + kernel
-          // the miminal x would be in start (inclusive)
-          // the maximal x would be in end (inclusive)
-          // Then it construct the mapping for the indices from output_tensor to in_tensor
+          // in_gard <- pool2grad <- out_grad
+          // For each in_grad index, we should find that
+          //   out_grad_index * stride <= in_grad_index + padding < out_grad_index * stride + kernel
+          // the minimal out_grad_index (inclusive) would be:
+          //   out_grad_index = (in_grad_index + padding - kernel) / stride + 1
+          //
+          // Since above calculate would get negative out_grad_index, we do padding (kernel_size - 1)
+          // on the front and back of out_grad as padding_out_grad. Then map the start in
+          // padding_out_grad.
+          //   padding_out_grad_index = out_grad_index + kernel_size - 1
+          //
+          // Then the minimal padding_out_grad_index (inclusive) would be:
+          //   padding_out_grad_index = (in_grad_index + padding - kernel) / stride + kernel_size
 
           std::vector<ir::Expr> start(ksize);
-          std::vector<ir::Expr> end(ksize);
-          // std::vector<ir::Var> vars(ksize);
-
           std::vector<ir::Expr> indices(output);
           for (int i = 0; i < ksize; ++i) {
             int axis = hw_axis[i];
             start[i] =
                 common::AutoSimplify((output[axis] + paddings[i] - kernel_size[i]) / strides[i] + kernel_size[i]);
-            // start[i]      = common::AutoSimplify((output[axis] + paddings[i] - kernel_size[i]) / strides[i] + 1);
-            // start[i]      = ir::Max::Make(start[i], make_const(Int(32), 0));
-            // end[i]        = common::AutoSimplify((output[axis] + paddings[i]) / strides[i]);
-            // end[i]        = ir::Min::Make(end[i], out_grad_shape[axis]);
-
-            // vars[i]       = ir::Var(common::AutoSimplify(end[i] - start[i] + 1), common::UniqName("pool_grad_idx"));
             indices[axis] = start[i] + pool_vars[i];
           }
 
-          // return factor_expr;
-          // return lang::ReduceSum(output_grad(indices), pool_vars);
           return lang::ReduceSum(ir::Mul::Make(padding_out_grad(indices), factor_expr), pool_vars);
         },
         common::UniqName(output_name));
