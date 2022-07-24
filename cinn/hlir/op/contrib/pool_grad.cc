@@ -212,12 +212,6 @@ std::vector<std::vector<int>> InferShapeForPool2dGrad(const std::vector<std::vec
         << "inputs of pool2d_grad should have same batch size and channels";
   }
 
-  // if (data_format == "AnyLayout") {
-  //   data_format = "NCHW";
-  // } else if (data_format != "NCHW" && data_format != "NHWC") {
-  //   LOG(ERROR) << "unsupported data_format: " << data_format << std::endl;
-  // }
-
   std::vector<std::vector<int>> res = {inputs_shape[0]};
   return res;
 }
