@@ -65,19 +65,14 @@ std::vector<Iterator> NamesToIterators(const std::vector<std::string> &names) {
 }
 
 void Stage::InitTransform() {
-  VLOG(6) << "Huihuang debug, init transform";
   std::string id = isl_set_get_tuple_name(domain_.get());
 
-  VLOG(6) << "Huihuang debug, get dim names";
   auto dims      = isl_get_dim_names(domain_);
   auto dims_repr = utils::Join(dims, ", ");
-  VLOG(6) << "Huihuang debug dims_repr = " << dims_repr;
 
   auto repr = utils::StringFormat("{ %s[%s] -> %s[%s] }", id.c_str(), dims_repr.c_str(), id.c_str(), dims_repr.c_str());
-  VLOG(6) << "Huihuang debug repr = " << repr;
   transform_ = isl::map(domain_.ctx(), repr);
 
-  VLOG(6) << "Huihuang debug, set dimension names";
   // set dimension names
   for (int i = 0; i < dims.size(); i++) {
     transform_ = isl::manage(isl_map_set_dim_name(transform_.release(), isl_dim_in, i, dims[i].c_str()));
@@ -1655,7 +1650,6 @@ StageMap CreateStages(const std::vector<ir::Tensor> &tensors) {
   }
 
   for (auto &t : all_tensors) {
-    VLOG(6) << "Huihuang debug tensor " << t;
     stages->Insert(t, ir::CreateStage(t).get());
   }
 
