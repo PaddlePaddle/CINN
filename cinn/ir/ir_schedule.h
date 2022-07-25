@@ -25,12 +25,6 @@
 namespace cinn {
 namespace ir {
 
-Tensor GetTensor(const Expr& block);
-
-Tensor GetReadTensor(const Expr& block, int index);
-
-int GetLoopExtent(const Expr& loop);
-
 /**
  * A struct representing a module that contains Expr. This struct is only used in Schedule process.
  */
@@ -348,6 +342,5 @@ class IRSchedule {
   ScheduleHelper helper_;
 };
 
-void SetCudaAxisInfo(Expr* lowered_func);
 }  // namespace ir
 }  // namespace cinn
