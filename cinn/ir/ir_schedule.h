@@ -279,6 +279,12 @@ class IRSchedule {
   void Vectorize(const Expr& loop, int factor);
 
   /**
+   * \brief Set the given temp tensor's size to 1.
+   * @param block ScheduleBlock whose Store tensor is the temp tensor to modified.
+   */
+  void SetBufferSizeToOne(const Expr& block);
+
+  /**
    * \brief Unroll the given loop.
    * @param loop the loop to unroll.
    */

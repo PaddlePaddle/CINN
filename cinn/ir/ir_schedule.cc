@@ -376,6 +376,44 @@ void IRSchedule::Vectorize(const Expr& loop, int factor) {
   MutateForType(loop, ForType::Vectorized, factor);
 }
 
+struct ChangeTensorIndex : public ir::IRMutator<> {
+ public:
+  ChangeTensorIndex(const std::string& tensor_name) : tensor_name_(tensor_name) {}
+
+  void operator()(Expr* expr) { IRMutator::Visit(expr, expr); }
+
+ private:
+  void Visit(const ir::Store* expr, Expr* op) override {
+    if (op->As<Store>()->tensor.As<_Tensor_>()->name == tensor_name_) {
+      op->As<Store>()->indices = {Expr(0)};
+    }
+    IRMutator::Visit(expr, op);
+  }
+
+  void Visit(const ir::Load* expr, Expr* op) override {
+    if (op->As<Load>()->tensor.As<_Tensor_>()->name == tensor_name_) {
+      op->As<Load>()->indices = {Expr(0)};
+    }
+    IRMutator::Visit(expr, op);
+  }
+  std::string tensor_name_;
+};
+
+void IRSchedule::SetBufferSizeToOne(const Expr& block) {
+  auto temp_tensor           = GetTensor(block);
+  temp_tensor->shape         = {Expr(1)};
+  temp_tensor->domain        = {Expr(1)};
+  temp_tensor->buffer->shape = {Expr(1)};
+  LOG(INFO) << "temp_tensor name is : " << temp_tensor->name;
+  LOG(INFO) << "temp_tensor buffer name is : " << temp_tensor->buffer->name;
+  ChangeTensorIndex mutator(temp_tensor->name);
+  CHECK(block.As<ScheduleBlockRealize>());
+  auto root = GetRootBlock(block);
+  LOG(INFO) << "root 1 is : " << root;
+  mutator(&root);
+  return;
+}
+
 void IRSchedule::Unroll(const Expr& loop) { MutateForType(loop, ForType::Unrolled); }
 
 void IRSchedule::Bind(const Expr& loop, const std::string& thread_axis) {
