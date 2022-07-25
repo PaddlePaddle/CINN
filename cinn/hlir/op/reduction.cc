@@ -116,22 +116,22 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
 
   framework::CINNCompute reduction_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of " << op_name << " compute is empty! Please check.";
-    CINNValuePack a      = args[0];
-    std::string out_name = UniqName(op_name + "_out");
+    CINNValuePack arg_packs = args[0];
+    std::string tensor_name = UniqName(op_name + "_out");
     if (FLAGS_cinn_ir_schedule) {
-      CHECK_EQ(a.size(), 2U) << "There should be 2 input args for " << op_name << " compute";
-      const char *out_name_char = a[1];
-      out_name                  = out_name_char;
+      CHECK_EQ(arg_packs.size(), 2U) << "There should be 2 input args for " << op_name << " compute";
+      const char *str = arg_packs[1];
+      tensor_name     = str;
     } else {
-      CHECK_EQ(a.size(), 1U) << "There should be 1 input args for " << op_name << " compute";
+      CHECK_EQ(arg_packs.size(), 1U) << "There should be 1 input args for " << op_name << " compute";
     }
-    Expr x_expr = a[0];
+    Expr x_expr = arg_packs[0];
     CHECK(x_expr.as_tensor());
     ir::Tensor x = x_expr.as_tensor_ref();
     if (target == common::DefaultNVGPUTarget()) {
       if (!WithoutLastDimInReduce(inputs[0]->shape, reduce_axes)) {
         VLOG(3) << "Do Two Step Block Reduce Compute!";
-        auto res    = gpu_reduce_with_last_axis_func(x, reduce_axes, keep_dim, out_name);
+        auto res    = gpu_reduce_with_last_axis_func(x, reduce_axes, keep_dim, tensor_name);
         auto stages = CreateStages(res);
 
         std::vector<CINNValue> cinn_values;
@@ -142,7 +142,7 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
         *ret = CINNValuePack{cinn_values};
       } else {
         VLOG(3) << "Do Block Shuffle Reduce Compute!";
-        auto res    = gpu_reduce_without_last_axis_func(x, reduce_axes, keep_dim, out_name);
+        auto res    = gpu_reduce_without_last_axis_func(x, reduce_axes, keep_dim, tensor_name);
         auto stages = CreateStages(res);
 
         std::vector<CINNValue> cinn_values;
@@ -154,7 +154,7 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
       }
     } else {
       VLOG(3) << "Do Reduce Compute!";
-      auto out    = cpu_reduce_func(x, reduce_axes, keep_dim, out_name);
+      auto out    = cpu_reduce_func(x, reduce_axes, keep_dim, tensor_name);
       auto stages = CreateStages({out});
 
       std::vector<CINNValue> cinn_values{CINNValue(out), CINNValue(stages)};
@@ -167,71 +167,142 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
     CINNValuePack arg_pack = args[0];
 
     if (FLAGS_cinn_ir_schedule) {
-      CHECK_GE(arg_pack.size(), 4UL);
-      CHECK_LE(arg_pack.size(), 7UL);
-      std::vector<Expr> vec_ast;
-      vec_ast.push_back(arg_pack[arg_pack.size() - 2]);
-      vec_ast.push_back(arg_pack.back());
-      ir::ModuleExpr mod_expr(vec_ast);
-      ir::IRSchedule ir_sch(mod_expr);
+      CHECK_GE(arg_pack.size(), 2UL);
+      CHECK_LE(arg_pack.size(), 8UL);
 
       if (target.arch == Target::Arch::NVGPU) {
         if (!WithoutLastDimInReduce(inputs[0]->shape, reduce_axes)) {
-          if (arg_pack.size() == 5) {
+          if (arg_pack.size() == 4) {
             Expr out     = arg_pack[0];
             Expr tmp_out = arg_pack[1];
-            VLOG(3) << "Do IRCudaScheduleBlockReduceInternal Schedule!";
 
+            Expr expr0 = arg_pack[2];
+            Expr expr1 = arg_pack[3];
+
+            std::vector<Expr> vec_ast{expr0, expr1};
+            ir::ModuleExpr model_expr(vec_ast);
+            ir::IRSchedule ir_sch(model_expr);
+            ir_sch.MergeExprs();
+
+            VLOG(3) << "Do IRCudaScheduleBlockReduceInternal Schedule!";
             pe::IRCudaScheduleBlockReduceInternal(ir_sch, tmp_out.as_tensor_ref(), out.as_tensor_ref(), target);
 
+            std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
+            *ret = CINNValuePack{res};
           } else if (arg_pack.size() == 6) {
             Expr out            = arg_pack[0];
             Expr tmp_out        = arg_pack[1];
             Expr reduce_tmp_out = arg_pack[2];
-            VLOG(3) << "Do IRCudaScheduleBlockReduce Schedule!";
 
+            Expr expr0 = arg_pack[3];
+            Expr expr1 = arg_pack[4];
+            Expr expr2 = arg_pack[5];
+
+            std::vector<Expr> vec_ast{expr0, expr1, expr2};
+            ir::ModuleExpr model_expr(vec_ast);
+            ir::IRSchedule ir_sch(model_expr);
+            ir_sch.MergeExprs();
+
+            VLOG(3) << "Do IRCudaScheduleBlockReduce Schedule!";
             pe::IRCudaScheduleBlockReduce(
                 ir_sch, reduce_tmp_out.as_tensor_ref(), tmp_out.as_tensor_ref(), out.as_tensor_ref(), target);
 
-          } else {
-            LOG(FATAL) << "Not implemented!";
-            Expr out              = arg_pack[0];
-            Expr tmp_out          = arg_pack[1];
-            Expr reduce_tmp_out   = arg_pack[2];
-            Expr reshape          = arg_pack[3];
-            poly::StageMap stages = arg_pack[4];
-            VLOG(3) << "Do CudaTwoStepReduceSchedule Schedule!";
-            pe::CudaTwoStepReduceSchedule(stages,
-                                          reshape.as_tensor_ref(),
+            std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
+            *ret = CINNValuePack{res};
+          } else if (arg_pack.size() == 7) {
+            Expr out            = arg_pack[0];
+            Expr tmp_out        = arg_pack[1];
+            Expr reduce_tmp_out = arg_pack[2];
+            Expr reshape        = arg_pack[3];
+
+            Expr expr0 = arg_pack[4];
+            Expr expr1 = arg_pack[5];
+            Expr expr2 = arg_pack[6];
+
+            std::vector<Expr> vec_ast{expr0, expr1, expr2};
+            ir::ModuleExpr model_expr(vec_ast);
+            ir::IRSchedule ir_sch(model_expr);
+            ir_sch.MergeExprs();
+
+            VLOG(3) << "Do IRCudaTwoStepReduceSchedule Schedule!";
+            pe::IRCudaTwoStepReduceSchedule(ir_sch,
+                                            reshape.as_tensor_ref(),
+                                            reduce_tmp_out.as_tensor_ref(),
+                                            tmp_out.as_tensor_ref(),
+                                            out.as_tensor_ref(),
+                                            common::DefaultNVGPUTarget());
+
+            std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
+            *ret = CINNValuePack{res};
+          } else if (arg_pack.size() == 5) {
+            Expr out            = arg_pack[0];
+            Expr tmp_out        = arg_pack[1];
+            Expr reduce_tmp_out = arg_pack[2];
+
+            Expr expr0 = arg_pack[3];
+            Expr expr1 = arg_pack[4];
+
+            std::vector<Expr> vec_ast{expr0, expr1};
+            ir::ModuleExpr model_expr(vec_ast);
+            ir::IRSchedule ir_sch(model_expr);
+            ir_sch.MergeExprs();
+
+            VLOG(3) << "Do IRCudaScheduleBlockReduce Schedule!";
+            pe::IRCudaScheduleBlockReduce(ir_sch,
                                           reduce_tmp_out.as_tensor_ref(),
                                           tmp_out.as_tensor_ref(),
                                           out.as_tensor_ref(),
                                           common::DefaultNVGPUTarget());
+
+            std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
+            *ret = CINNValuePack{res};
+          } else {
+            LOG(FATAL) << "Unkown Reduce Type!";
           }
         } else {
-          if (arg_pack.size() == 4) {
-            Expr reduce_out       = arg_pack[0];
-            poly::StageMap stages = arg_pack[1];
+          if (arg_pack.size() == 2) {
+            Expr reduce_out = arg_pack[0];
+
+            Expr expr0 = arg_pack[1];
+            std::vector<Expr> vec_ast{expr0};
+
+            ir::ModuleExpr model_expr(vec_ast);
+            ir::IRSchedule ir_sch(model_expr);
+            ir_sch.MergeExprs();
+
             VLOG(3) << "Do IRCudaScheduleReduce Schedule!";
             pe::IRCudaScheduleReduce(
-                ir_sch, output_shapes[0], inputs[0]->shape.size() - reduce_axes.back() - 1, target);
-          } else {
-            CHECK_EQ(arg_pack.size(), 6) << "args is not equal 6!";
-            Expr reduce_reshape  = arg_pack[2];
-            Expr reduce_internal = arg_pack[1];
+                ir_sch, reduce_out.as_tensor_ref(), inputs[0]->shape.size() - reduce_axes.back() - 1, target);
+
+            std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
+            *ret = CINNValuePack{res};
+          } else if (arg_pack.size() == 5) {
             Expr reduce_out      = arg_pack[0];
+            Expr reduce_internal = arg_pack[1];
+            Expr reduce_reshape  = arg_pack[2];
+
+            Expr expr0 = arg_pack[3];
+            Expr expr1 = arg_pack[4];
+
+            std::vector<Expr> vec_ast{expr0, expr1};
+            ir::ModuleExpr model_expr(vec_ast);
+            ir::IRSchedule ir_sch(model_expr);
+            ir_sch.MergeExprs();
+
             VLOG(3) << "Do IRCudaScheduleBlockShuffleReduce Schedule!";
             pe::IRCudaScheduleBlockShuffleReduce(ir_sch,
                                                  reduce_reshape.as_tensor_ref(),
                                                  reduce_internal.as_tensor_ref(),
                                                  reduce_out.as_tensor_ref(),
                                                  target);
+
+            std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
+            *ret = CINNValuePack{res};
+          } else {
+            LOG(FATAL) << "Unkown Reduce Type!";
           }
         }
       }
-      std::vector<CINNValue> res;
-      res.push_back(CINNValue(ir_sch.GetModule().GetExprs().at(0)));
-      *ret = CINNValuePack{res};
     } else {
       CHECK_GE(arg_pack.size(), 2UL);
       CHECK_LE(arg_pack.size(), 5UL);
