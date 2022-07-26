@@ -56,18 +56,18 @@ std::shared_ptr<OpStrategy> StrategyForElementwise(const framework::NodeAttr &at
                                                    const PeFunc &pe_func) {
   framework::CINNCompute unary_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of " << op_name << " compute is empty! Please check.";
-    CINNValuePack a = args[0];
-    CHECK_GE(a.size(), 1U) << "1 input tensor for " << op_name << " compute";
-    std::string out_name = UniqName(op_name + "_Out");
+    CINNValuePack pack_args = args[0];
+    CHECK_GE(pack_args.size(), 1U) << "1 input tensor for " << op_name << " compute";
+    std::string tensor_name = UniqName(op_name + "_Out");
     if (FLAGS_cinn_ir_schedule) {
-      CHECK_EQ(a.size(), 2U);
-      const char *out_name_char = a[1];
-      out_name                  = out_name_char;
+      CHECK_EQ(pack_args.size(), 2U);
+      const char *str = pack_args[1];
+      tensor_name     = str;
     }
-    Expr A_expr = a[0];
+    Expr A_expr = pack_args[0];
     CHECK(A_expr.as_tensor());
     ir::Tensor A = A_expr.as_tensor_ref();
-    auto out     = pe_func(A, out_name);
+    auto out     = pe_func(A, tensor_name);
     auto stages  = CreateStages({A});
     std::vector<CINNValue> res;
     for (auto &t : out) {
@@ -82,8 +82,7 @@ std::shared_ptr<OpStrategy> StrategyForElementwise(const framework::NodeAttr &at
     if (FLAGS_cinn_ir_schedule) {
       CHECK(!args.empty()) << "The input argument of " << op_name << " schedule is empty! Please check.";
       CINNValuePack arg_pack = args[0];
-      CHECK_EQ(arg_pack.size(), 2UL);
-      Expr ast_expr = arg_pack[0];
+      Expr ast_expr          = arg_pack[0];
       std::vector<Expr> vec_ast{ast_expr};
       ir::ModuleExpr mod_expr(vec_ast);
       ir::IRSchedule ir_sch(mod_expr);

@@ -350,7 +350,9 @@ class FusionMergePassHelper : public FusionHelperBase {
     }
 
     // update master node for lowering
-    for (auto& consumer : consumers) {
+    auto iter = --consumers.end();
+    for (int idx = 0; idx < consumers.size(); ++idx) {
+      auto consumer = *iter;
       // group is elementwise/broadcast/injective
       if (consumer->op_pattern_kind == framework::kElemWise || consumer->op_pattern_kind == framework::kBroadcast ||
           consumer->op_pattern_kind == framework::kInjective) {
