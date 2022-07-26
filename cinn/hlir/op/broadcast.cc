@@ -62,7 +62,7 @@ std::shared_ptr<OpStrategy> StrategyForBroadcast(
     std::string tensor_name = UniqName(op_name + "_Out");
     if (FLAGS_cinn_ir_schedule) {
       CHECK_GE(pack_args.size(), 3U);
-      const char *str = pack_args[2];
+      std::string str = pack_args[2];
       tensor_name     = str;
     }
     Expr A_expr = pack_args[0];
@@ -210,7 +210,7 @@ std::shared_ptr<OpStrategy> StrategyForBroadcastTo(const framework::NodeAttr &at
     std::string tensor_name = UniqName("broadcast_to_Out");
     if (FLAGS_cinn_ir_schedule) {
       CHECK_GE(pack_args.size(), 2U);
-      const char *str = pack_args[1];
+      std::string str = pack_args[1];
       tensor_name     = str;
     }
     Expr A_expr = pack_args[0];

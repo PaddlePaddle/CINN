@@ -120,7 +120,7 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
     std::string tensor_name = UniqName(op_name + "_out");
     if (FLAGS_cinn_ir_schedule) {
       CHECK_EQ(arg_packs.size(), 2U) << "There should be 2 input args for " << op_name << " compute";
-      const char *str = arg_packs[1];
+      std::string str = arg_packs[1];
       tensor_name     = str;
     } else {
       CHECK_EQ(arg_packs.size(), 1U) << "There should be 1 input args for " << op_name << " compute";

@@ -61,7 +61,7 @@ std::shared_ptr<OpStrategy> StrategyForElementwise(const framework::NodeAttr &at
     std::string tensor_name = UniqName(op_name + "_Out");
     if (FLAGS_cinn_ir_schedule) {
       CHECK_EQ(pack_args.size(), 2U);
-      const char *str = pack_args[1];
+      std::string str = pack_args[1];
       tensor_name     = str;
     }
     Expr A_expr = pack_args[0];
@@ -320,12 +320,12 @@ std::shared_ptr<OpStrategy> StrategyForFillConstant(const framework::NodeAttr &a
     force_cpu = absl::get<bool>(attrs.attr_store.at("force_cpu"));
 
     if (force_cpu) CINN_NOT_IMPLEMENTED
-    CINNValuePack a      = args[0];
+    CINNValuePack pack   = args[0];
     std::string out_name = UniqName("fill_constant_Out");
     if (FLAGS_cinn_ir_schedule) {
-      CHECK_EQ(a.size(), 1U);
-      const char *out_name_char = a[0];
-      out_name                  = out_name_char;
+      CHECK_EQ(pack.size(), 1U);
+      std::string str = pack[0];
+      out_name        = str;
     }
     CHECK(!shape.empty()) << "shape attr is empty!";
     auto shape_exprs = ToCinnExprs(shape);
