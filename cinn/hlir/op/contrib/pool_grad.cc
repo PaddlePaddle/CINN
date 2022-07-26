@@ -14,6 +14,8 @@
 
 #include "cinn/hlir/op/contrib/pool_grad.h"
 
+#include <gflags/gflags.h>
+
 #include <memory>
 #include <string>
 #include <utility>
@@ -32,6 +34,8 @@
 #include "cinn/ir/tensor.h"
 #include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"
+
+DECLARE_bool(cinn_ir_schedule);
 
 namespace cinn {
 namespace hlir {
@@ -287,27 +291,38 @@ std::shared_ptr<framework::OpStrategy> StrategyForPool2dGrad(const framework::No
                                              adaptive,
                                              data_format,
                                              common::UniqName("T_Pool2d_Grad_out"));
-
-    auto stages = CreateStages({in_tensor, out_tensor, out_grad});
     CHECK(out.size() == 2U) << "The size of Pool2dGrad's output should be 1";
-    std::vector<common::CINNValue> res;
-    for (auto &t : out) {
-      stages->InsertLazily(t);
-      res.push_back(common::CINNValue(t));
-    }
     CHECK(!out_type.empty()) << "Output type of Pool2dGrad is empty! Please check.\n";
-    res.push_back(common::CINNValue(stages));
+    std::vector<common::CINNValue> res;
+    if (FLAGS_cinn_ir_schedule) {
+      res.push_back(common::CINNValue(out[0]));
+      res.push_back(common::CINNValue(out[1]));
+    } else {
+      auto stages = CreateStages({in_tensor, out_tensor, out_grad});
+      for (auto &t : out) {
+        stages->InsertLazily(t);
+        res.push_back(common::CINNValue(t));
+      }
+      res.push_back(common::CINNValue(stages));
+    }
     *ret = common::CINNValuePack{res};
   });
 
   framework::CINNSchedule pool2d_grad_schedule([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of pool2d_grad schedule is empty! Please check.\n";
     common::CINNValuePack arg_pack = args[0];
-    CHECK_EQ(arg_pack.size(), 3UL);
-    Expr Out = arg_pack[0];
-    CHECK(Out.as_tensor());
-    poly::StageMap stages = arg_pack[arg_pack.size() - 1];
-    *ret                  = common::CINNValuePack{{common::CINNValue(Out), common::CINNValue(stages)}};
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK_EQ(arg_pack.size(), 2UL);
+      Expr Out = arg_pack[0];
+      CHECK(Out.as_tensor());
+      *ret = common::CINNValuePack{{common::CINNValue(Out)}};
+    } else {
+      CHECK_EQ(arg_pack.size(), 3UL);
+      Expr Out = arg_pack[0];
+      CHECK(Out.as_tensor());
+      poly::StageMap stages = arg_pack[arg_pack.size() - 1];
+      *ret                  = common::CINNValuePack{{common::CINNValue(Out), common::CINNValue(stages)}};
+    }
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
