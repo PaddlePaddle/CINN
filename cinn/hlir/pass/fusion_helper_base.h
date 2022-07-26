@@ -100,6 +100,49 @@ class FusionHelperBase {
       return false;
     }
   }
+
+  int GetSharedSize(const Node* node) {
+    auto producers = GetProducerNodeData(node);
+    CHECK_LT(producers.size(), 0);
+    auto inshape = shape_dict_.at(producers[0]->id());
+    auto axes    = absl::get<std::vector<int>>(node->attrs.attr_store.at("dim"));
+    if (WithoutLastDimInReduce(inshape, axes)) {
+      int lane = 1;
+      for (int idx = axes.back() + 1; idx < inshape.size(); ++idx) {
+        lane = inshape[idx];
+      }
+      int max_num_threads = common::DefaultNVGPUTarget().max_num_threads();
+      if (lane > max_num_threads / 2) {
+        return 0;
+      }
+      int index = axes.size() - 1;
+      for (; index >= 0; --index) {
+        if (index + 1 < axes.size() && axes[index] != axes[index + 1] - 1) {
+          break;
+        }
+        lane *= inshape[axes[index]];
+        if (lane > max_num_threads / 2) {
+          break;
+        }
+      }
+      // if lane > (max_num_threads / 2),the loop break from lane > max_num_threads / 2.
+      int axis = lane > (max_num_threads / 2) ? axes[index] : axes[index + 1];
+      if (lane <= max_num_threads) {
+        return lane * sizeof(float);
+      } else {
+        int prefix = inshape[axis];
+        int tail   = lane / prefix;
+        for (int idx = max_num_threads / tail; idx > ((max_num_threads / 2) / tail); --idx) {
+          if (prefix % idx == 0) {
+            return idx * tail * sizeof(float);
+          }
+        }
+        int num = max_num_threads / tail;
+        return num * tail * sizeof(float);
+      }
+    }
+    return 0;
+  }
   // target
   const common::Target& target_;
   // output node set
