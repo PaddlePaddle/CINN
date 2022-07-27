@@ -53,7 +53,7 @@ struct CollectHostFunctionVisitor : public ir::IRMutator<> {
 
  private:
   void Visit(const ir::_LoweredFunc_* op, Expr* expr) override {
-    if (IsCudaFunction(op)) {
+    if (op->cuda_axis_info.valid()) {
       CHECK(op->cuda_axis_info.valid());
 
       auto host_func = CreateHostFunctionGivenDeviceKernel(op);

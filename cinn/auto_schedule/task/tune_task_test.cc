@@ -98,7 +98,7 @@ TEST(TuneTask, GraphToUnoptLoweredFunc_NoPass) {
     {
       for (j, 0, 24)
       {
-        ScheduleBlock(elementwise_add_Out_0)
+        ScheduleBlock(elementwise_add_Out)
         {
           i0, i1 = axis.bind(i, j)
           elementwise_add_Out[i0, i1] = (A[i0, i1] + B[i0, i1])
@@ -114,10 +114,10 @@ TEST(TuneTask, GraphToUnoptLoweredFunc_NoPass) {
     {
       for (j, 0, 24)
       {
-        ScheduleBlock(elementwise_add_Out_1)
+        ScheduleBlock(elementwise_add_Out_0)
         {
           i0, i1 = axis.bind(i, j)
-          elementwise_add_Out_1[i0, i1] = (A[i0, i1] + var_1[i0, i1])
+          elementwise_add_Out_0[i0, i1] = (A[i0, i1] + var_1[i0, i1])
         }
       }
     }
@@ -171,7 +171,7 @@ TEST(TuneTask, GraphToUnoptLoweredFunc_ApplyPass) {
     {
       for (j, 0, 24)
       {
-        ScheduleBlock(elementwise_add_Out_1)
+        ScheduleBlock(elementwise_add_Out)
         {
           i0, i1 = axis.bind(i, j)
           elementwise_add_Out[i0, i1] = (A[i0, i1] + B[i0, i1])
@@ -207,7 +207,7 @@ TEST(TuneTask, GraphToUnoptLoweredFunc_ApplyPass) {
       {
         for (j, 0, 24)
         {
-          ScheduleBlock(elementwise_add_Out_1)
+          ScheduleBlock(elementwise_add_Out)
           {
             i0, i1 = axis.bind(i, j)
             elementwise_add_Out[i0, i1] = (A[i0, i1] + B[i0, i1])
@@ -231,6 +231,8 @@ TEST(TuneTask, GraphToUnoptLoweredFunc_ApplyPass) {
 )ROC";
 #endif
 
+  LOG(INFO) << target_str;
+  LOG(INFO) << expr_str;
   EXPECT_EQ(utils::Trim(target_str), utils::Trim(expr_str));
 }
 

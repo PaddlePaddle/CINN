@@ -734,7 +734,8 @@ std::vector<Expr> LowerImpl::GenerateFunctionBody(const poly::Schedule* schedule
           optim::ReplaceVarWithExpr(&store_body, axis_vars[i], block_vars[i]);
         }
         store_body = ir::ScheduleBlockRealize::Make(
-            iter_values, ir::ScheduleBlock::Make(block_vars, {}, {}, common::UniqName(tensor->name), store_body));
+            iter_values, ir::ScheduleBlock::Make(block_vars, {}, {}, tensor->name, store_body));
+        // iter_values, ir::ScheduleBlock::Make(block_vars, {}, {}, common::UniqName(tensor->name), store_body));
         VLOG(3) << "store body\n" << store_body;
       }
       tuple_to_expr[tensor->name] = store_body;

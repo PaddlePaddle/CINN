@@ -25,12 +25,6 @@
 namespace cinn {
 namespace ir {
 
-Tensor GetTensor(const Expr& block);
-
-Tensor GetReadTensor(const Expr& block, int index);
-
-int GetLoopExtent(const Expr& loop);
-
 /**
  * A struct representing a module that contains Expr. This struct is only used in Schedule process.
  */
@@ -216,6 +210,15 @@ class IRSchedule {
    */
   Expr CacheWrite(const Expr& block, int write_buffer_index, const std::string& memory_type);
 
+  /**
+   * \brief Add SyncThreads statements in AST.
+   * @param ir_node The insertion point in AST.
+   * @param after_node Whether to insert the statement after the insertion point. When it is True, we will insert the
+   * SyncThreads statement after the insertion IR. When it is False, we will insert the SyncThreads statement before the
+   * insertion IR.
+   */
+  void SyncThreads(const Expr& ir_node, bool after_node = true);
+
   /*!
    * \brief Set a tensor's buffer type(memory_type)
    * \param block The ScheduleBlockRealize corresponding to an unique tensor.
@@ -339,6 +342,5 @@ class IRSchedule {
   ScheduleHelper helper_;
 };
 
-void SetCudaAxisInfo(Expr* lowered_func);
 }  // namespace ir
 }  // namespace cinn

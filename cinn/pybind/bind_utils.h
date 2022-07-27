@@ -76,7 +76,7 @@ inline ValueVar ConvertToVar(const CINNValue &value) {
   } else if (type_code == ::cinn_type_code<float>()) {
     var = static_cast<float>(value);
   } else if (type_code == CINNValue::TypeCode<ir::Var>()) {
-    var = ir::Var(value);
+    var = value.operator ir::Var();
   } else if (type_code == CINNValue::TypeCode<ir::Expr>()) {
     var = ir::Expr(value.operator ir::Expr());
   } else {
