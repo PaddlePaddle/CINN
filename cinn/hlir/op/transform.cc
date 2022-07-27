@@ -419,6 +419,9 @@ std::shared_ptr<OpStrategy> StrategyForSqueeze(const framework::NodeAttr &attrs,
                                                const std::vector<Type> &out_type,
                                                const std::vector<std::vector<int>> &output_shapes,
                                                const Target &target) {
+  CHECK(attrs.attr_store.count("axes")) << "find no attr of axes";
+  std::vector<int> axes = absl::get<std::vector<int>>(attrs.attr_store.at("axes"));
+
   framework::CINNCompute squeeze_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input arguments of Squeeze compute is empty! Please check.\n";
     CINNValuePack a = args[0];
@@ -426,14 +429,11 @@ std::shared_ptr<OpStrategy> StrategyForSqueeze(const framework::NodeAttr &attrs,
     Expr A = a[0];
     CHECK(A.as_tensor());
     CHECK(!output_shapes.empty());
-//    auto attr_store = attrs.attr_store;
-//    CHECK(attr_store.count("shape")) << "find no attr of shape";
-//    std::vector<int> new_shape = absl::get<std::vector<int>>(attr_store.at("shape"));
     auto tensor_A              = A.as_tensor_ref();
     auto stages                = CreateStages({tensor_A});
     VLOG(3) << "A shape: " << utils::Join(tensor_A->shape, ", ")
             << ", output_shapes: " << utils::Join(output_shapes[0], ", ");
-    ir::Tensor out = pe::Squeeze(tensor_A, stages, UniqName("Squeeze_out"));
+    ir::Tensor out = pe::Squeeze(tensor_A, axes, stages, UniqName("Squeeze_out"));
     std::vector<CINNValue> res;
     stages->InsertLazily(out);
     res.push_back(CINNValue(out));
@@ -465,14 +465,37 @@ std::shared_ptr<OpStrategy> StrategyForSqueeze(const framework::NodeAttr &attrs,
 std::vector<std::vector<int>> InferShapeForSqueeze(const std::vector<std::vector<int>> &inputs_shape,
                                                    const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 1U) << "The input's shape size should be 1! Please check again.";
+  std::vector<int> axes;
+  for (auto &iter : attrs) {
+    if (iter.first == "axes") {
+      axes = absl::get<std::vector<int>>(iter.second);
+      break;
+    }
+  }
+
   std::vector<int> output_shape;
   int tensor_size = 1;
-  for (auto s : inputs_shape[0]) {
-    if (s != 1) {
-      output_shape.push_back(s);
+  if (axes.size()!=0){
+    std::vector<int> temp_shape = inputs_shape[0];
+    for (auto& a : axes) {
+      CHECK(a<temp_shape.size());
+      temp_shape[a] = 0;
     }
-    tensor_size *= s;
+    for (auto& i : temp_shape) {
+      if(i != 0){
+        output_shape.push_back(i);
+        tensor_size *= i;
+      }
+    }
+  }else{
+    for (auto& i : inputs_shape[0]) {
+      if(i != 1){
+        output_shape.push_back(i);
+        tensor_size *= i;
+      }
+    }
   }
+
   CHECK(!output_shape.empty()) << "infer_shape for squeeze turns out to be empty. Please check\n";
   int flag_index = -1;
   for (int i = 0; i < output_shape.size(); i++) {

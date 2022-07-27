@@ -151,14 +151,14 @@ ir::Tensor Reshape(const ir::Tensor& A, const std::vector<int>& new_shape, const
 }
 
 ir::Tensor Squeeze(const ir::Tensor& A,
-                   const std::vector<int>& axis,
+                   const std::vector<int>& axes,
                    poly::StageMap stages,
                    const std::string& name) {
   std::vector<Expr> new_expr_shape;
   std::vector<Expr> A_expr_shape = A->shape;
-  CHECK_EQ(axis.size(), A_expr_shape.size());
-  if (axis){
-    for (auto& a : axis) {
+  if (axes.size()!=0){
+    for (auto& a : axes) {
+      CHECK(a<A_expr_shape.size());
       CHECK_EQ(A_expr_shape[a], Expr(1));
       A_expr_shape[a] = Expr(0);
     }
@@ -182,6 +182,7 @@ ir::Tensor Squeeze(const ir::Tensor& A,
 }
 
 ir::Tensor Squeeze(const ir::Tensor& A,
+                   const std::vector<int>& axes,
                    const std::string& name) {
   std::vector<Expr> new_expr_shape;
   std::vector<Expr> A_expr_shape = A->shape;
