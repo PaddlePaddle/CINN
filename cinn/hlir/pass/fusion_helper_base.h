@@ -103,7 +103,7 @@ class FusionHelperBase {
 
   int GetSharedSize(const Node* node) {
     auto producers = GetProducerNodeData(node);
-    CHECK_LT(producers.size(), 0);
+    CHECK_GT(producers.size(), 0);
     auto inshape = shape_dict_.at(producers[0]->id());
     auto axes    = absl::get<std::vector<int>>(node->attrs.attr_store.at("dim"));
     if (WithoutLastDimInReduce(inshape, axes)) {
