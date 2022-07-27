@@ -457,8 +457,9 @@ Variable Program::reshape(const Variable& a, const std::vector<int>& shape) {
   return instr.GetOutput(0);
 }
 
-Variable Program::squeeze(const Variable& a) {
+Variable Program::squeeze(const Variable& a, const std::vector<int>& axes) {
   Instruction instr("squeeze", {a});
+  instr.SetAttr("axes", axes);
   AppendInstruction(instr);
   return instr.GetOutput(0);
 }

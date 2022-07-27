@@ -274,9 +274,10 @@ struct Program {
   /**
    * Squeeze a tensor.
    * @param a The input tensor.
+   * @param axis The tensor's axis we specified.
    * @return The squeezed output tensor.
    */
-  Variable squeeze(const Variable& a);
+  Variable squeeze(const Variable& a, const std::vector<int>& axes);
 
   /**
    * Concat tensors.
