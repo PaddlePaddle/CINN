@@ -46,31 +46,54 @@ std::shared_ptr<OpStrategy> StrategyForRelu(const framework::NodeAttr &attrs,
                                             const Target &target) {
   framework::CINNCompute relu_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of relu compute is empty! Please check.\n";
-    CINNValuePack a = args[0];
-    CHECK(!a.empty()) << "at least one input tensor for relu compute\n";
-    Expr A = a[0];
+    CINNValuePack pack_args = args[0];
+    CHECK(!pack_args.empty()) << "at least one input tensor for relu compute\n";
+    Expr A = pack_args[0];
     CHECK(A.as_tensor());
-    auto out    = pe::Relu<float>(A.as_tensor_ref(), 0.0, UniqName("Relu_output"));
+    std::string tensor_name = UniqName("Relu_output");
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK_EQ(pack_args.size(), 2);
+      tensor_name = pack_args[1].operator std::string();
+    }
+    auto out    = pe::Relu<float>(A.as_tensor_ref(), 0.0, tensor_name);
     auto stages = CreateStages({out});
     *ret        = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
   });
 
   framework::CINNSchedule relu_schedule([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input argument of relu schedule is empty! Please check.\n";
-    CINNValuePack arg_pack = args[0];
-    CHECK_EQ(arg_pack.size(), 2UL);
-    if (target.arch == Target::Arch::NVGPU) {
-      Expr out              = arg_pack[0];
-      poly::StageMap stages = arg_pack[1];
-      CHECK(out.as_tensor());
-      pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes.front(), target);
-    } else if (target.arch == Target::Arch::X86) {
-      Expr out              = arg_pack[0];
-      poly::StageMap stages = arg_pack[1];
-      CHECK(out.as_tensor());
-      pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes.front(), target);
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK(!args.empty()) << "The input argument of relu schedule is empty! Please check.\n";
+      CINNValuePack arg_pack = args[0];
+      CHECK_EQ(arg_pack.size(), 1UL);
+      Expr ast_expr = arg_pack[0];
+      std::vector<Expr> vec_ast{ast_expr};
+      ir::ModuleExpr mod_expr(vec_ast);
+      ir::IRSchedule ir_sch(mod_expr);
+      if (target.arch == Target::Arch::NVGPU) {
+        pe::IRCudaScheduleInjective(ir_sch, output_shapes.front(), target);
+      } else if (target.arch == Target::Arch::X86) {
+        pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target);
+      }
+      std::vector<CINNValue> res;
+      res.push_back(arg_pack[0]);
+      *ret = CINNValuePack{res};
+    } else {
+      CHECK(!args.empty()) << "The input argument of relu schedule is empty! Please check.\n";
+      CINNValuePack arg_pack = args[0];
+      CHECK_EQ(arg_pack.size(), 2UL);
+      if (target.arch == Target::Arch::NVGPU) {
+        Expr out              = arg_pack[0];
+        poly::StageMap stages = arg_pack[1];
+        CHECK(out.as_tensor());
+        pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes.front(), target);
+      } else if (target.arch == Target::Arch::X86) {
+        Expr out              = arg_pack[0];
+        poly::StageMap stages = arg_pack[1];
+        CHECK(out.as_tensor());
+        pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes.front(), target);
+      }
+      *ret = arg_pack;
     }
-    *ret = arg_pack;
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -101,39 +124,62 @@ std::shared_ptr<OpStrategy> StrategyForRelu6(const framework::NodeAttr &attrs,
                                              const std::vector<Type> &out_type,
                                              const std::vector<std::vector<int>> &output_shapes,
                                              const Target &target) {
-  framework::CINNCompute relu_compute([](lang::Args args, lang::RetValue *ret) {
+  framework::CINNCompute relu6_compute([](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of relu6 compute is empty! Please check.\n";
-    CINNValuePack a = args[0];
-    CHECK(!a.empty()) << "at least one input tensor for relu6 compute\n";
-    Expr A = a[0];
+    CINNValuePack pack_args = args[0];
+    CHECK(!pack_args.empty()) << "at least one input tensor for relu6 compute\n";
+    Expr A = pack_args[0];
     CHECK(A.as_tensor());
-    auto out    = pe::Relu6<float>(A.as_tensor_ref(), 0.0, UniqName("Relu6_output"));
+    std::string tensor_name = UniqName("Relu6_output");
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK_EQ(pack_args.size(), 2);
+      tensor_name = pack_args[1].operator std::string();
+    }
+    auto out    = pe::Relu6<float>(A.as_tensor_ref(), 0.0, tensor_name);
     auto stages = CreateStages({out});
     *ret        = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
   });
 
-  framework::CINNSchedule relu_schedule([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input argument of relu6 schedule is empty! Please check.\n";
-    CINNValuePack arg_pack = args[0];
-    CHECK_EQ(arg_pack.size(), 2UL);
-    if (target.arch == Target::Arch::NVGPU) {
-      Expr out              = arg_pack[0];
-      poly::StageMap stages = arg_pack[1];
-      CHECK(out.as_tensor());
-      pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes.front(), target);
-    } else if (target.arch == Target::Arch::X86) {
-      Expr out              = arg_pack[0];
-      poly::StageMap stages = arg_pack[1];
-      CHECK(out.as_tensor());
-      pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes.front(), target);
+  framework::CINNSchedule relu6_schedule([=](lang::Args args, lang::RetValue *ret) {
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK(!args.empty()) << "The input argument of relu schedule is empty! Please check.\n";
+      CINNValuePack arg_pack = args[0];
+      CHECK_EQ(arg_pack.size(), 1UL);
+      Expr ast_expr = arg_pack[0];
+      std::vector<Expr> vec_ast{ast_expr};
+      ir::ModuleExpr mod_expr(vec_ast);
+      ir::IRSchedule ir_sch(mod_expr);
+      if (target.arch == Target::Arch::NVGPU) {
+        pe::IRCudaScheduleInjective(ir_sch, output_shapes.front(), target);
+      } else if (target.arch == Target::Arch::X86) {
+        pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target);
+      }
+      std::vector<CINNValue> res;
+      res.push_back(arg_pack[0]);
+      *ret = CINNValuePack{res};
+    } else {
+      CHECK(!args.empty()) << "The input argument of relu6 schedule is empty! Please check.\n";
+      CINNValuePack arg_pack = args[0];
+      CHECK_EQ(arg_pack.size(), 2UL);
+      if (target.arch == Target::Arch::NVGPU) {
+        Expr out              = arg_pack[0];
+        poly::StageMap stages = arg_pack[1];
+        CHECK(out.as_tensor());
+        pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes.front(), target);
+      } else if (target.arch == Target::Arch::X86) {
+        Expr out              = arg_pack[0];
+        poly::StageMap stages = arg_pack[1];
+        CHECK(out.as_tensor());
+        pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes.front(), target);
+      }
+      *ret = arg_pack;
     }
-    *ret = arg_pack;
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
   CHECK(out_type.size()) << "Out_type of relu6 op is empty! Please check.";
   if (out_type[0] == Float(32)) {
-    strategy->AddImpl(relu_compute, relu_schedule, "strategy.relu6.x86", 1);
+    strategy->AddImpl(relu6_compute, relu6_schedule, "strategy.relu6.x86", 1);
   } else {
     LOG(FATAL) << "Relu6 op with dtype != float32 is not implemented yet!";
   }
@@ -188,10 +234,10 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
   framework::CINNCompute conv2d_compute([=](lang::Args args, lang::RetValue *ret) {
     std::vector<CINNValue> res;
     CHECK(!args.empty()) << "The input argument of conv2d compute is empty! Please check.\n";
-    CINNValuePack a = args[0];
-    CHECK_GE(a.size(), 2U) << "at least 2 input tensors for conv2d compute\n";
-    Expr A = a[0];
-    Expr B = a[1];
+    CINNValuePack pack_args = args[0];
+    CHECK_GE(pack_args.size(), 2U) << "at least 2 input tensors for conv2d compute\n";
+    Expr A = pack_args[0];
+    Expr B = pack_args[1];
     CHECK(A.as_tensor());
     CHECK(B.as_tensor());
     CHECK_EQ(padding.size(), 2) << "The size of padding in conv2d op is not 2! Please check.";
@@ -200,6 +246,11 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
     std::vector<ir::Tensor> out;
     VLOG(3) << "input shape: " << utils::Join(A.as_tensor_ref()->shape, ", ");
     VLOG(3) << "weight shape: " << utils::Join(B.as_tensor_ref()->shape, ", ");
+    std::string tensor_name = UniqName("Conv2d_out");
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK_EQ(pack_args.size(), 3);
+      tensor_name = pack_args[2].operator std::string();
+    }
     if (data_format == "NCHW") {
       // A is input: [N, C, H, W], B is filter: [C_out, C_in/group, filter_h, filter_w]
       if (target.arch == Target::Arch::X86) {
@@ -213,7 +264,7 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
                                    dilation[0],
                                    dilation[1],
                                    key,
-                                   UniqName("Conv2d_nchw_5d_out"),
+                                   tensor_name,
                                    target);
         } else {
 #ifdef CINN_WITH_MKLDNN
@@ -225,7 +276,7 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
                                        stride[1],
                                        dilation[0],
                                        dilation[1],
-                                       UniqName("Conv2d_nchw_mkldnn_out"));
+                                       tensor_name);
 #else
           out = pe::Conv2d_NCHW_5D(A.as_tensor_ref(),
                                    B.as_tensor_ref(),
@@ -236,7 +287,7 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
                                    dilation[0],
                                    dilation[1],
                                    key,
-                                   UniqName("Conv2d_nchw_5D_out"));
+                                   tensor_name);
 #endif
         }
       } else {
@@ -249,7 +300,7 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
                                 stride[1],
                                 dilation[0],
                                 dilation[1],
-                                UniqName("Conv2d_nchw_out"));
+                                tensor_name);
           out.push_back(B.as_tensor_ref());
         } else {
 #ifdef CINN_WITH_CUDNN
@@ -272,7 +323,7 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
                             stride[1],
                             dilation[0],
                             dilation[1],
-                            UniqName("Conv2d_nhwc_out"));
+                            tensor_name);
     } else {
       LOG(FATAL) << "Only support NCHW and NHWC data layout\n";
     }
@@ -802,16 +853,21 @@ std::shared_ptr<OpStrategy> StrategyForDepthwiseConv2d(const framework::NodeAttr
 
   framework::CINNCompute depthwise_conv2d_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of depthwise_conv compute is empty! Please check.\n";
-    CINNValuePack a = args[0];
-    CHECK_GE(a.size(), 2U) << "at least 2 input tensors for depthwise_conv compute\n";
-    Expr A = a[0];
-    Expr B = a[1];
+    CINNValuePack pack_args = args[0];
+    CHECK_GE(pack_args.size(), 2U) << "at least 2 input tensors for depthwise_conv compute\n";
+    Expr A = pack_args[0];
+    Expr B = pack_args[1];
     CHECK(A.as_tensor());
     CHECK(B.as_tensor());
     CHECK_EQ(padding.size(), 2) << "The size of padding in depthwise_conv op is not 2! Please check.\n";
     CHECK_EQ(stride.size(), 2) << "The size of stride in depthwise_conv op is not 2! Please check.\n";
     CHECK(data_format == "NCHW" || data_format == "NHWC") << "only support NCHW/NHWC data_format.\n";
     std::vector<ir::Tensor> out;
+    std::string tensor_name = UniqName("Depthwise_Conv2d_out");
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK_EQ(pack_args.size(), 3);
+      tensor_name = pack_args[1].operator std::string();
+    }
     if (data_format == "NCHW") {
       if (target.arch == Target::Arch::X86) {
         out = pe::Conv2d_NCHW_5D(A.as_tensor_ref(),
@@ -823,25 +879,15 @@ std::shared_ptr<OpStrategy> StrategyForDepthwiseConv2d(const framework::NodeAttr
                                  dilation[0],
                                  dilation[1],
                                  key,
-                                 UniqName("T_depthwise_conv2d_nchw_5d_out"),
+                                 tensor_name,
                                  target);
       } else {
-        out = pe::Depthwise_Conv2d_NCHW(A.as_tensor_ref(),
-                                        B.as_tensor_ref(),
-                                        padding[0],
-                                        padding[1],
-                                        stride[0],
-                                        stride[1],
-                                        UniqName("T_depthwise_conv2d_nchw_out"));
+        out = pe::Depthwise_Conv2d_NCHW(
+            A.as_tensor_ref(), B.as_tensor_ref(), padding[0], padding[1], stride[0], stride[1], tensor_name);
       }
     } else if (data_format == "NHWC") {
-      out = pe::Depthwise_Conv2d_NHWC(A.as_tensor_ref(),
-                                      B.as_tensor_ref(),
-                                      padding[0],
-                                      padding[1],
-                                      stride[0],
-                                      stride[1],
-                                      UniqName("T_depthwise_conv2d_nhwc_out"));
+      out = pe::Depthwise_Conv2d_NHWC(
+          A.as_tensor_ref(), B.as_tensor_ref(), padding[0], padding[1], stride[0], stride[1], tensor_name);
     } else {
       LOG(FATAL) << "Only support NCHW and NHWC data layout\n";
     }
@@ -1028,7 +1074,7 @@ std::shared_ptr<OpStrategy> StrategyForBatchNorm(const framework::NodeAttr &attr
     if (FLAGS_cinn_ir_schedule) {
       CHECK(!args.empty()) << "The input argument of batchnorm schedule is empty! Please check.\n";
       CINNValuePack arg_pack = args[0];
-      CHECK_EQ(arg_pack.size(), 2UL);
+      CHECK_EQ(arg_pack.size(), 1UL);
       Expr ast_expr = arg_pack[0];
       std::vector<Expr> vec_ast{ast_expr};
       ir::ModuleExpr mod_expr(vec_ast);
@@ -1097,9 +1143,9 @@ std::shared_ptr<OpStrategy> StrategyForPool1d(const framework::NodeAttr &attrs,
                                               const Target &target) {
   framework::CINNCompute pool1d_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of pool1d compute is empty! Please check.\n";
-    CINNValuePack a = args[0];
-    CHECK(!a.empty()) << "The input tensor of pool1d compute is empty! Please check.\n";
-    Expr A = a[0];
+    CINNValuePack pack_args = args[0];
+    CHECK(!pack_args.empty()) << "The input tensor of pool1d compute is empty! Please check.\n";
+    Expr A = pack_args[0];
     CHECK(A.as_tensor());
     auto attr_store = attrs.attr_store;
     std::vector<int> kernel_size;   // [kernel_w]
@@ -1132,6 +1178,12 @@ std::shared_ptr<OpStrategy> StrategyForPool1d(const framework::NodeAttr &attrs,
     CHECK(!stride_size.empty()) << "stride_size for pool1d is empty. Please check.\n";
     CHECK(!padding_size.empty()) << "padding_size for pool1d is empty. Please check.\n";
 
+    std::string tensor_name = UniqName("Pool1d_out");
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK_EQ(pack_args.size(), 2);
+      tensor_name = pack_args[1].operator std::string();
+    }
+
     auto out = pe::Pool1d(A.as_tensor_ref(),
                           kernel_size,
                           stride_size,
@@ -1140,7 +1192,7 @@ std::shared_ptr<OpStrategy> StrategyForPool1d(const framework::NodeAttr &attrs,
                           ceil_mode,
                           exclusive,
                           data_format,
-                          UniqName("T_Pool1d_out"));
+                          tensor_name);
 
     auto stages = CreateStages(out);
     CHECK(out.size() == 1U || out.size() == 2U) << "The size of pe::Pool1d's output should be 1 or 2.";
@@ -1154,24 +1206,52 @@ std::shared_ptr<OpStrategy> StrategyForPool1d(const framework::NodeAttr &attrs,
   });
 
   framework::CINNSchedule pool1d_schedule([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input argument of pool1d schedule is empty! Please check.\n";
-    CINNValuePack arg_pack = args[0];
-    CHECK(arg_pack.size() == 2UL || arg_pack.size() == 3UL);
-    Expr Out              = arg_pack[0];
-    poly::StageMap stages = arg_pack[arg_pack.size() - 1];
-    if (arg_pack.size() == 3UL) {
-      Expr input_pad = arg_pack[1];
-      CHECK(input_pad.as_tensor());
-      stages[input_pad.as_tensor_ref()]->ComputeInline();
-    }
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK(!args.empty()) << "The input argument of pool1d schedule is empty! Please check.\n";
+      CINNValuePack arg_pack = args[0];
+      CHECK_GE(arg_pack.size(), 2UL);
+      Expr Out      = arg_pack[0];
+      Expr ast_expr = arg_pack[arg_pack.size() - 1];
+      std::vector<Expr> vec_ast{ast_expr};
+      ir::ModuleExpr mod_expr(vec_ast);
+      ir::IRSchedule ir_sch(mod_expr);
+      if (arg_pack.size() == 3UL) {
+        Expr input_pad = arg_pack[1];
+        CHECK(input_pad.as_tensor());
+        auto block_input_pad = ir_sch.GetBlock(input_pad.as_tensor()->name);
+        ir_sch.ComputeInline(block_input_pad);
+      }
+      if (target.arch == Target::Arch::NVGPU) {
+        CHECK(Out.as_tensor());
+        auto loops = ir_sch.GetLoops(Out.as_tensor()->name);
+        ir_sch.Split(loops[1], {-1, 2});
+        loops = ir_sch.GetLoops(Out.as_tensor()->name);
+        ir_sch.Bind(loops[0], "blockIdx.x");
+        ir_sch.Bind(loops[1], "threadIdx.x");
+      }
+      std::vector<CINNValue> res;
+      res.push_back(arg_pack[arg_pack.size() - 1]);
+      *ret = CINNValuePack{res};
+    } else {
+      CHECK(!args.empty()) << "The input argument of pool1d schedule is empty! Please check.\n";
+      CINNValuePack arg_pack = args[0];
+      CHECK(arg_pack.size() == 2UL || arg_pack.size() == 3UL);
+      Expr Out              = arg_pack[0];
+      poly::StageMap stages = arg_pack[arg_pack.size() - 1];
+      if (arg_pack.size() == 3UL) {
+        Expr input_pad = arg_pack[1];
+        CHECK(input_pad.as_tensor());
+        stages[input_pad.as_tensor_ref()]->ComputeInline();
+      }
 
-    if (target.arch == Target::Arch::NVGPU) {
-      CHECK(Out.as_tensor());
-      stages[Out.as_tensor_ref()]->Split(1, 2);
-      stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
-      stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
+      if (target.arch == Target::Arch::NVGPU) {
+        CHECK(Out.as_tensor());
+        stages[Out.as_tensor_ref()]->Split(1, 2);
+        stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
+        stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
+      }
+      *ret = CINNValuePack{{CINNValue(Out), CINNValue(stages)}};
     }
-    *ret = CINNValuePack{{CINNValue(Out), CINNValue(stages)}};
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -1304,11 +1384,18 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
 
   framework::CINNCompute global_pool2d_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of pool2d compute is empty! Please check.\n";
-    CINNValuePack a = args[0];
-    Expr A          = a[0];
+    CINNValuePack pack_args = args[0];
+    Expr A                  = pack_args[0];
     CHECK(A.as_tensor());
     ir::Tensor A_tensor = A.as_tensor_ref();
-    auto out            = pe::GlobalPool2d(A_tensor, pool_type, UniqName("T_GlobalPool2d_out"));
+
+    std::string tensor_name = UniqName("GlobalPool2d_out");
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK_EQ(pack_args.size(), 2);
+      tensor_name = pack_args[1].operator std::string();
+    }
+
+    auto out = pe::GlobalPool2d(A_tensor, pool_type, tensor_name);
     CHECK(out.size() == 2U) << "The size of pe::GlobalPool2d's output should be 2.";
     auto stages = CreateStages({A_tensor, out[0], out[1]});
     *ret        = CINNValuePack{{CINNValue(out[0]), CINNValue(out[1]), CINNValue(stages)}};
@@ -1328,10 +1415,16 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
 
   framework::CINNCompute pool2d_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of pool2d compute is empty! Please check.\n";
-    CINNValuePack a = args[0];
-    Expr A          = a[0];
+    CINNValuePack pack_args = args[0];
+    Expr A                  = pack_args[0];
     CHECK(A.as_tensor());
     ir::Tensor A_tensor = A.as_tensor_ref();
+
+    std::string tensor_name = UniqName("Pool2d_out");
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK_EQ(pack_args.size(), 2);
+      tensor_name = pack_args[1].operator std::string();
+    }
 
     auto out = pe::Pool2d(A_tensor,
                           kernel_size,
@@ -1342,7 +1435,7 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
                           exclusive,
                           data_format,
                           adaptive,
-                          UniqName("T_Pool2d_out"));
+                          tensor_name);
 
     auto stages = CreateStages({A_tensor});
     CHECK(out.size() == 1U || out.size() == 2U) << "The size of pe::Pool2d's output should be 1 or 2.";
@@ -1357,23 +1450,46 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
   });
 
   framework::CINNSchedule pool2d_schedule([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input argument of pool2d schedule is empty! Please check.\n";
-    CINNValuePack arg_pack = args[0];
-    CHECK(arg_pack.size() == 2UL || arg_pack.size() == 3UL);
-    Expr Out = arg_pack[0];
-    CHECK(Out.as_tensor());
-    poly::StageMap stages = arg_pack[arg_pack.size() - 1];
-    if (arg_pack.size() == 3UL) {
-      Expr input_pad = arg_pack[1];
-      CHECK(input_pad.as_tensor());
-      stages[input_pad.as_tensor_ref()]->ComputeInline();
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK(!args.empty()) << "The input argument of pool2d schedule is empty! Please check.\n";
+      CINNValuePack arg_pack = args[0];
+      CHECK_GE(arg_pack.size(), 2UL);
+      Expr Out      = arg_pack[0];
+      Expr ast_expr = arg_pack[arg_pack.size() - 1];
+      std::vector<Expr> vec_ast{ast_expr};
+      ir::ModuleExpr mod_expr(vec_ast);
+      ir::IRSchedule ir_sch(mod_expr);
+      if (arg_pack.size() == 3UL) {
+        Expr input_pad = arg_pack[1];
+        CHECK(input_pad.as_tensor());
+        auto block_input_pad = ir_sch.GetBlock(input_pad.as_tensor()->name);
+        ir_sch.ComputeInline(block_input_pad);
+      }
+      if (target.arch == Target::Arch::NVGPU) {
+        pe::IRPoolScheduleGPU(ir_sch, target);
+      }
+      std::vector<CINNValue> res;
+      res.push_back(arg_pack[arg_pack.size() - 1]);
+      *ret = CINNValuePack{res};
+    } else {
+      CHECK(!args.empty()) << "The input argument of pool2d schedule is empty! Please check.\n";
+      CINNValuePack arg_pack = args[0];
+      CHECK(arg_pack.size() == 2UL || arg_pack.size() == 3UL);
+      Expr Out = arg_pack[0];
+      CHECK(Out.as_tensor());
+      poly::StageMap stages = arg_pack[arg_pack.size() - 1];
+      if (arg_pack.size() == 3UL) {
+        Expr input_pad = arg_pack[1];
+        CHECK(input_pad.as_tensor());
+        stages[input_pad.as_tensor_ref()]->ComputeInline();
+      }
+      ir::Tensor temp_out = Out.as_tensor_ref();
+      if (target.arch == Target::Arch::NVGPU) {
+        pe::PoolScheduleGPU(stages, temp_out, target);
+        arg_pack[arg_pack.size() - 2] = Expr(temp_out);
+      }
+      *ret = CINNValuePack{{CINNValue(Out), CINNValue(stages)}};
     }
-    ir::Tensor temp_out = Out.as_tensor_ref();
-    if (target.arch == Target::Arch::NVGPU) {
-      pe::PoolScheduleGPU(stages, temp_out, target);
-      arg_pack[arg_pack.size() - 2] = Expr(temp_out);
-    }
-    *ret = CINNValuePack{{CINNValue(Out), CINNValue(stages)}};
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -1485,9 +1601,9 @@ std::shared_ptr<OpStrategy> StrategyForPool3d(const framework::NodeAttr &attrs,
                                               const Target &target) {
   framework::CINNCompute pool3d_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of pool3d compute is empty! Please check.\n";
-    CINNValuePack a = args[0];
-    CHECK(!a.empty()) << "The input tensor of pool3d compute is empty! Please check.\n";
-    Expr A = a[0];
+    CINNValuePack pack_args = args[0];
+    CHECK(!pack_args.empty()) << "The input tensor of pool3d compute is empty! Please check.\n";
+    Expr A = pack_args[0];
     CHECK(A.as_tensor());
     auto attr_store = attrs.attr_store;
     std::vector<int> kernel_size;  // [kernel_d, kernel_h, kernel_w]
@@ -1521,6 +1637,12 @@ std::shared_ptr<OpStrategy> StrategyForPool3d(const framework::NodeAttr &attrs,
     CHECK(!stride_size.empty()) << "stride_size for pool3d is empty. Please check.\n";
     CHECK(!padding_size.empty()) << "padding_size for pool3d is empty. Please check.\n";
 
+    std::string tensor_name = UniqName("Pool3d_out");
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK_EQ(pack_args.size(), 2);
+      tensor_name = pack_args[1].operator std::string();
+    }
+
     auto out = pe::Pool3d(A.as_tensor_ref(),
                           kernel_size,
                           stride_size,
@@ -1529,7 +1651,7 @@ std::shared_ptr<OpStrategy> StrategyForPool3d(const framework::NodeAttr &attrs,
                           ceil_mode,
                           exclusive,
                           data_format,
-                          UniqName("T_Pool3d_out"));
+                          tensor_name);
 
     auto stages = CreateStages(out);
     CHECK(out.size() == 1U || out.size() == 2U) << "The size of pe::Pool3d's output should be 1 or 2.";
@@ -1544,23 +1666,52 @@ std::shared_ptr<OpStrategy> StrategyForPool3d(const framework::NodeAttr &attrs,
   });
 
   framework::CINNSchedule pool3d_schedule([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input argument of pool3d schedule is empty! Please check.\n";
-    CINNValuePack arg_pack = args[0];
-    CHECK(arg_pack.size() == 2UL || arg_pack.size() == 3UL);
-    Expr Out              = arg_pack[0];
-    poly::StageMap stages = arg_pack[arg_pack.size() - 1];
-    if (arg_pack.size() == 3UL) {
-      Expr input_pad = arg_pack[1];
-      CHECK(input_pad.as_tensor());
-      stages[input_pad.as_tensor_ref()]->ComputeInline();
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK(!args.empty()) << "The input argument of pool3d schedule is empty! Please check.\n";
+      CINNValuePack arg_pack = args[0];
+      CHECK_GE(arg_pack.size(), 2UL);
+      Expr Out      = arg_pack[0];
+      Expr ast_expr = arg_pack[arg_pack.size() - 1];
+      std::vector<Expr> vec_ast{ast_expr};
+      ir::ModuleExpr mod_expr(vec_ast);
+      ir::IRSchedule ir_sch(mod_expr);
+      if (arg_pack.size() == 3UL) {
+        Expr input_pad = arg_pack[1];
+        CHECK(input_pad.as_tensor());
+        auto block_input_pad = ir_sch.GetBlock(input_pad.as_tensor()->name);
+        ir_sch.ComputeInline(block_input_pad);
+      }
+      if (target.arch == Target::Arch::NVGPU) {
+        CHECK(Out.as_tensor());
+        auto loops = ir_sch.GetLoops(Out.as_tensor()->name);
+        ir_sch.Split(loops[1], {-1, 2});
+        loops = ir_sch.GetLoops(Out.as_tensor()->name);
+        ir_sch.Bind(loops[0], "blockIdx.x");
+        ir_sch.Bind(loops[1], "threadIdx.x");
+      }
+      std::vector<CINNValue> res;
+      res.push_back(arg_pack[arg_pack.size() - 1]);
+      *ret = CINNValuePack{res};
+    } else {
+      CHECK(!args.empty()) << "The input argument of pool3d schedule is empty! Please check.\n";
+      CINNValuePack arg_pack = args[0];
+      CHECK(arg_pack.size() == 2UL || arg_pack.size() == 3UL);
+      Expr Out              = arg_pack[0];
+      poly::StageMap stages = arg_pack[arg_pack.size() - 1];
+      if (arg_pack.size() == 3UL) {
+        Expr input_pad = arg_pack[1];
+        CHECK(input_pad.as_tensor());
+        stages[input_pad.as_tensor_ref()]->ComputeInline();
+      }
+
+      if (target.arch == Target::Arch::NVGPU) {
+        CHECK(Out.as_tensor());
+        stages[Out.as_tensor_ref()]->Split(1, 2);
+        stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
+        stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
+      }
+      *ret = CINNValuePack{{CINNValue(Out), CINNValue(stages)}};
     }
-    if (target.arch == Target::Arch::NVGPU) {
-      CHECK(Out.as_tensor());
-      stages[Out.as_tensor_ref()]->Split(1, 2);
-      stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
-      stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
-    }
-    *ret = CINNValuePack{{CINNValue(Out), CINNValue(stages)}};
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -1671,9 +1822,9 @@ std::shared_ptr<OpStrategy> StrategyForSoftmax(const framework::NodeAttr &attrs,
   }
   framework::CINNCompute softmax_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input arguments of softmax compute is empty! Please check.";
-    CINNValuePack a = args[0];
-    CHECK(!a.empty()) << "The input tensors of softmax compute is empty! Please check.";
-    Expr A_expr = a[0];
+    CINNValuePack pack_args = args[0];
+    CHECK(!pack_args.empty()) << "The input tensors of softmax compute is empty! Please check.";
+    Expr A_expr = pack_args[0];
     CHECK(A_expr.as_tensor());
     ir::Tensor A = A_expr.as_tensor_ref();
     auto stages  = CreateStages({A});
@@ -1682,14 +1833,21 @@ std::shared_ptr<OpStrategy> StrategyForSoftmax(const framework::NodeAttr &attrs,
       new_axis = A->shape.size() - 1;
     }
     std::vector<ir::Tensor> out;
+
+    std::string tensor_name = UniqName("Softmax_out");
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK_EQ(pack_args.size(), 2);
+      tensor_name = pack_args[1].operator std::string();
+    }
+
 #ifdef CINN_WITH_MKLDNN
     if (use_mkldnn) {
-      out = pe::SoftmaxMKLDNN(A, new_axis, UniqName("Softmax_mkldnn_output"));
+      out = pe::SoftmaxMKLDNN(A, new_axis, tensor_name);
     } else {
-      out = pe::Softmax(A, new_axis, UniqName("Softmax_output"));
+      out = pe::Softmax(A, new_axis, tensor_name);
     }
 #else
-    out = pe::Softmax(A, new_axis, UniqName("Softmax_output"));
+    out = pe::Softmax(A, new_axis, tensor_name);
 #endif
     std::vector<CINNValue> res;
     for (auto &t : out) {
@@ -1775,31 +1933,55 @@ std::shared_ptr<OpStrategy> StrategyForDropoutInfer(const framework::NodeAttr &a
 
   framework::CINNCompute dropout_infer_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input arguments of dropout_infer compute is empty! Please check.";
-    CINNValuePack a = args[0];
-    CHECK(!a.empty()) << "The input tensors of dropout_infer compute is empty! Please check.";
-    Expr A_expr = a[0];
+    CINNValuePack pack_args = args[0];
+    CHECK(!pack_args.empty()) << "The input tensors of dropout_infer compute is empty! Please check.";
+    Expr A_expr = pack_args[0];
     CHECK(A_expr.as_tensor());
     ir::Tensor A = A_expr.as_tensor_ref();
 
-    auto out    = pe::DropoutInfer(A, dropout_prob, dropout_implementation, UniqName("T_dropout_infer_out"));
+    std::string tensor_name = UniqName("dropout_infer_out");
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK_EQ(pack_args.size(), 2);
+      tensor_name = pack_args[1].operator std::string();
+    }
+
+    auto out    = pe::DropoutInfer(A, dropout_prob, dropout_implementation, tensor_name);
     auto stages = CreateStages({A, out});
     *ret        = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
   });
 
   framework::CINNSchedule dropout_infer_schedule([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input arguments of dropout_infer schedule is empty! Please check.";
-    CINNValuePack arg_pack = args[0];
-    CHECK_EQ(arg_pack.size(), 2UL) << "The input tensor's size of dropout_infer schedule is " << arg_pack.size()
-                                   << "and it should be equal to 2! Please check.";
-    Expr Out              = arg_pack[0];
-    poly::StageMap stages = arg_pack[1];
-    CHECK(Out.as_tensor());
-    if (target.arch == Target::Arch::NVGPU) {
-      pe::CudaScheduleInjective(stages[Out.as_tensor_ref()], output_shapes.front(), target);
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK(!args.empty()) << "The input argument of dropout_infer schedule is empty! Please check.\n";
+      CINNValuePack arg_pack = args[0];
+      CHECK_EQ(arg_pack.size(), 1UL);
+      Expr ast_expr = arg_pack[0];
+      std::vector<Expr> vec_ast{ast_expr};
+      ir::ModuleExpr mod_expr(vec_ast);
+      ir::IRSchedule ir_sch(mod_expr);
+      if (target.arch == Target::Arch::NVGPU) {
+        pe::IRCudaScheduleInjective(ir_sch, output_shapes.front(), target);
+      } else if (target.arch == Target::Arch::X86) {
+        pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target);
+      }
+      std::vector<CINNValue> res;
+      res.push_back(arg_pack[0]);
+      *ret = CINNValuePack{res};
     } else {
-      pe::ScheduleInjectiveCPU(stages[Out.as_tensor_ref()], output_shapes.front(), target);
+      CHECK(!args.empty()) << "The input arguments of dropout_infer schedule is empty! Please check.";
+      CINNValuePack arg_pack = args[0];
+      CHECK_EQ(arg_pack.size(), 2UL) << "The input tensor's size of dropout_infer schedule is " << arg_pack.size()
+                                     << "and it should be equal to 2! Please check.";
+      Expr Out              = arg_pack[0];
+      poly::StageMap stages = arg_pack[1];
+      CHECK(Out.as_tensor());
+      if (target.arch == Target::Arch::NVGPU) {
+        pe::CudaScheduleInjective(stages[Out.as_tensor_ref()], output_shapes.front(), target);
+      } else {
+        pe::ScheduleInjectiveCPU(stages[Out.as_tensor_ref()], output_shapes.front(), target);
+      }
+      *ret = arg_pack;
     }
-    *ret = arg_pack;
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -1840,35 +2022,60 @@ std::shared_ptr<OpStrategy> StrategyForSelect(const framework::NodeAttr &attrs,
                                               const Target &target) {
   framework::CINNCompute select_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of select compute is empty! Please check.\n";
-    CINNValuePack arg = args[0];
-    CHECK(arg.size() >= 3) << "at least three input tensor for select compute\n";
-    Expr condition   = arg[0];
-    Expr true_value  = arg[1];
-    Expr false_value = arg[2];
+    CINNValuePack pack_args = args[0];
+    CHECK_GE(pack_args.size(), 3U) << "at least three input tensor for select compute\n";
+    Expr condition   = pack_args[0];
+    Expr true_value  = pack_args[1];
+    Expr false_value = pack_args[2];
     CHECK(condition.as_tensor());
     CHECK(true_value.as_tensor());
     CHECK(false_value.as_tensor());
-    auto out = pe::Select(
-        condition.as_tensor_ref(), true_value.as_tensor_ref(), false_value.as_tensor_ref(), UniqName("Select_output"));
+
+    std::string tensor_name = UniqName("Select_output");
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK_EQ(pack_args.size(), 4U);
+      tensor_name = pack_args[3].operator std::string();
+    }
+
+    auto out =
+        pe::Select(condition.as_tensor_ref(), true_value.as_tensor_ref(), false_value.as_tensor_ref(), tensor_name);
     auto stages =
         CreateStages({condition.as_tensor_ref(), true_value.as_tensor_ref(), false_value.as_tensor_ref(), out});
     *ret = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
   });
 
   framework::CINNSchedule select_schedule([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input argument of select schedule is empty! Please check.\n";
-    CINNValuePack arg_pack = args[0];
-    CHECK_EQ(arg_pack.size(), 2UL);
-    Expr out              = arg_pack[0];
-    poly::StageMap stages = arg_pack[1];
-    CHECK(out.as_tensor());
-    CHECK_GE(output_shapes.size(), 1);
-    if (target.arch == Target::Arch::NVGPU) {
-      pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes[0], target);
-    } else if (target.arch == Target::Arch::X86) {
-      pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes[0], target, false);
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK(!args.empty()) << "The input argument of select schedule is empty! Please check.\n";
+      CINNValuePack arg_pack = args[0];
+      CHECK_EQ(arg_pack.size(), 1UL);
+      Expr ast_expr = arg_pack[0];
+      std::vector<Expr> vec_ast{ast_expr};
+      ir::ModuleExpr mod_expr(vec_ast);
+      ir::IRSchedule ir_sch(mod_expr);
+      if (target.arch == Target::Arch::NVGPU) {
+        pe::IRCudaScheduleInjective(ir_sch, output_shapes.front(), target);
+      } else if (target.arch == Target::Arch::X86) {
+        pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target);
+      }
+      std::vector<CINNValue> res;
+      res.push_back(arg_pack[0]);
+      *ret = CINNValuePack{res};
+    } else {
+      CHECK(!args.empty()) << "The input argument of select schedule is empty! Please check.\n";
+      CINNValuePack arg_pack = args[0];
+      CHECK_EQ(arg_pack.size(), 2UL);
+      Expr out              = arg_pack[0];
+      poly::StageMap stages = arg_pack[1];
+      CHECK(out.as_tensor());
+      CHECK_GE(output_shapes.size(), 1);
+      if (target.arch == Target::Arch::NVGPU) {
+        pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes[0], target);
+      } else if (target.arch == Target::Arch::X86) {
+        pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes[0], target, false);
+      }
+      *ret = arg_pack;
     }
-    *ret = arg_pack;
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
