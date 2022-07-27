@@ -175,8 +175,9 @@ void PaddleModelToProgram::AddOpMapper_squeeze2() {
     CHECK_EQ(op_desc.Input("X").size(), 1UL);
     auto x_name            = op_desc.Input("X").front();
     auto x                 = GetVar(utils::TransValidVarName(x_name));
+    std::vector<int> axes = op_desc.GetAttr<std::vector<int>>("axes");
     VLOG(4) << "x shape: " << utils::Join(x->shape, ",");
-    auto out = program_->squeeze(x);
+    auto out = program_->squeeze(x, axes);
     CHECK_EQ(op_desc.Output("Out").size(), 1UL);
     auto out_name = op_desc.Output("Out").front();
     AddVar(utils::TransValidVarName(out_name), out);
