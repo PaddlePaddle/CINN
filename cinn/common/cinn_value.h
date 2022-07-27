@@ -125,6 +125,7 @@ class CINNValue : public cinn_pod_value_t {
   explicit CINNValue(cinn_buffer_t* value) : cinn_pod_value_t(value) {}
   explicit CINNValue(void* value) : cinn_pod_value_t(value) {}
   explicit CINNValue(const char* value) : cinn_pod_value_t(value) {}
+  explicit CINNValue(const std::string&);
   explicit CINNValue(const ir::Var& value);
   explicit CINNValue(const ir::Expr& value);
   explicit CINNValue(const CINNValuePack& value);
@@ -141,6 +142,7 @@ class CINNValue : public cinn_pod_value_t {
   using cinn_pod_value_t::operator void*;
   using cinn_pod_value_t::operator cinn_buffer_t*;
   using cinn_pod_value_t::operator char*;
+  operator std::string() const;
   operator ir::Var() const;
   operator ir::Expr() const;
   operator CINNValuePack() const;
@@ -154,6 +156,7 @@ class CINNValue : public cinn_pod_value_t {
   CINNValue& operator=(float value);
   CINNValue& operator=(double value);
   CINNValue& operator=(char* value);
+  CINNValue& operator=(const std::string& value);
   CINNValue& operator=(const ir::Var& value);
   CINNValue& operator=(const ir::Expr& value);
   CINNValue& operator=(cinn_buffer_t* value);

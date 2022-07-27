@@ -44,6 +44,7 @@ __m(ir::Expr, 22);
 __m(ir::Var, 23);
 __m(CINNValuePack, 24);
 __m(poly::StageMap, 25);
+__m(std::string, 26);
 #undef __m
 //@}
 
@@ -87,6 +88,10 @@ cinn_value_t ToValue<char const *>(char const *v) {
 }
 // @}
 
+CINNValue::operator std::string() const {
+  CHECK_EQ(type_code_, TypeCode<std::string>());
+  return absl::any_cast<std::string>(shared_);
+}
 CINNValue::operator ir::Var() const {
   CHECK_EQ(type_code_, TypeCode<ir::Var>());
   return absl::any_cast<ir::Var>(shared_);
@@ -105,6 +110,9 @@ CINNValue::operator poly::StageMap() const {
 }
 CINNValue::CINNValue(char *value) : cinn_pod_value_t(ToValue(value), TypeCode<char *>()) {}
 
+CINNValue::CINNValue(const std::string &value) : cinn_pod_value_t(cinn_value_t(), TypeCode<std::string>()) {
+  shared_ = value;
+}
 CINNValue::CINNValue(const Var &value) : cinn_pod_value_t(cinn_value_t(), TypeCode<Var>()) {
   CHECK(value.defined());
   shared_ = value;
@@ -175,6 +183,10 @@ CINNValue &CINNValue::operator=(const char *value) {
   return *this;
 }
 CINNValue &CINNValue::operator=(const CINNValuePack &value) {
+  *this = CINNValue(value);
+  return *this;
+}
+CINNValue &CINNValue::operator=(const std::string &value) {
   *this = CINNValue(value);
   return *this;
 }

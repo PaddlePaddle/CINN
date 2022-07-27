@@ -1130,11 +1130,11 @@ TEST(OP_LOWERING, Reduce_Test_21) {
   // create model
   {
     auto A0  = net_builder.CreateInput(Float(32), {256, w}, "A0");
-    auto B0  = net_builder.CreateInput(Float(32), {2052, w}, "B0");
+    auto B0  = net_builder.CreateInput(Float(32), {256, w}, "B0");
     auto C0  = net_builder.CreateInput(Float(32), {55200, w}, "C0");
     auto D0  = net_builder.CreateInput(Float(32), {2750, w}, "D0");
     auto A1  = net_builder.CreateInput(Float(32), {256, w}, "A1");
-    auto B1  = net_builder.CreateInput(Float(32), {2052, w}, "B1");
+    auto B1  = net_builder.CreateInput(Float(32), {256, w}, "B1");
     auto C1  = net_builder.CreateInput(Float(32), {55200, w}, "C1");
     auto D1  = net_builder.CreateInput(Float(32), {2750, w}, "D1");
     auto AA  = net_builder.ElementwiseAdd(A0, A1);
