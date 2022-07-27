@@ -990,7 +990,36 @@ struct LeafBlockRemovalPlan : public ir::IRMutator<> {
   Expr* target_expr_;
 };
 
-void IRSchedule::SetBuffer(Expr& block, const std::string& memory_type) {
+struct FixLocalBufferSize : public ir::IRMutator<> {
+ public:
+  FixLocalBufferSize(const std::string& tensor_name) : tensor_name_(tensor_name) {}
+
+  void operator()(Expr* expr) { IRMutator::Visit(expr, expr); }
+
+ private:
+  void Visit(const ir::Store* expr, Expr* op) override {
+    if (op->As<Store>()->tensor.As<_Tensor_>()->name == tensor_name_) {
+      op->As<Store>()->tensor.As<_Tensor_>()->shape         = {Expr(1)};
+      op->As<Store>()->tensor.As<_Tensor_>()->domain        = {Expr(1)};
+      op->As<Store>()->tensor.As<_Tensor_>()->buffer->shape = {Expr(1)};
+      op->As<Store>()->indices                              = {Expr(0)};
+    }
+    IRMutator::Visit(expr, op);
+  }
+
+  void Visit(const ir::Load* expr, Expr* op) override {
+    if (op->As<Load>()->tensor.As<_Tensor_>()->name == tensor_name_) {
+      op->As<Load>()->tensor.As<_Tensor_>()->shape         = {Expr(1)};
+      op->As<Load>()->tensor.As<_Tensor_>()->domain        = {Expr(1)};
+      op->As<Load>()->tensor.As<_Tensor_>()->buffer->shape = {Expr(1)};
+      op->As<Load>()->indices                              = {Expr(0)};
+    }
+    IRMutator::Visit(expr, op);
+  }
+  std::string tensor_name_;
+};
+
+void IRSchedule::SetBuffer(Expr& block, const std::string& memory_type, bool fixed) {
   CHECK(block.As<ir::ScheduleBlockRealize>());
   auto find_tensor = ir::CollectIRNodesWithoutTensor(block, [&](const Expr* x) { return x->As<ir::Store>(); });
   CHECK(!find_tensor.empty()) << "Didn't find Store in block!";
@@ -1006,6 +1035,13 @@ void IRSchedule::SetBuffer(Expr& block, const std::string& memory_type) {
       CHECK(t.as_tensor());
       t.as_tensor_ref()->Bind(tensor.as_tensor_ref()->buffer);
     }
+  }
+
+  // if buffer type == "local"
+  if (memory_type == "local" && fixed) {
+    FixLocalBufferSize mutator(block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->name);
+    auto root = GetRootBlock(block);
+    mutator(&root);
   }
 }
 
