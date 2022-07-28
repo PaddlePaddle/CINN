@@ -15,6 +15,7 @@
 #pragma once
 
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 #include "cinn/common/target.h"
@@ -34,11 +35,14 @@ namespace auto_schedule {
 class TuneContext {
  public:
   std::vector<ir::LoweredFunc> lowered_funcs;
+  std::unordered_set<std::string> output_names;
   common::Target target;
 
   std::vector<ir::Expr> GetLoweredFuncBodyExprs() const;
 
   void SetLoweredFuncBodyExprs(const std::vector<ir::Expr>& exprs);
+
+  void SetLoweredFuncsAndAnalyzeOutput(const std::vector<ir::LoweredFunc>& lowered_funcs);
 };
 
 }  // namespace auto_schedule

@@ -17,6 +17,8 @@
 #include <glog/logging.h>
 
 #include <algorithm>
+#include <string>
+#include <unordered_set>
 
 #include "cinn/ir/buffer.h"
 #include "cinn/ir/collect_ir_nodes.h"
@@ -24,6 +26,7 @@
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_schedule.h"
+#include "cinn/ir/lowered_func.h"
 #include "cinn/ir/tensor.h"
 #include "cinn/optim/ir_copy.h"
 
@@ -69,6 +72,24 @@ void AnalyzeScheduleBlockReadWriteBuffer(ir::ScheduleBlock* sche_block) {
   };
   sort(sche_block->read_buffers.begin(), sche_block->read_buffers.end(), buffer_range_cmp);
   sort(sche_block->write_buffers.begin(), sche_block->write_buffers.end(), buffer_range_cmp);
+}
+
+bool ContainsNodeType(ir::Expr expr, const std::unordered_set<ir::IrNodeTy>& node_types) {
+  std::set<ir::Expr> collection = ir::CollectIRNodesWithoutTensor(
+      expr, [&](const Expr* x) { return node_types.find(x->node_type()) != node_types.end(); });
+  return !collection.empty();
+}
+
+std::unordered_set<std::string> GetOutputNamesFromLoweredFunc(const std::vector<ir::LoweredFunc>& lowered_funcs) {
+  std::unordered_set<std::string> result;
+  for (const ir::LoweredFunc& func : lowered_funcs) {
+    for (const ir::Argument& arg : func->args) {
+      if (arg.is_output()) {
+        result.insert(arg.name());
+      }
+    }
+  }
+  return result;
 }
 
 }  // namespace auto_schedule

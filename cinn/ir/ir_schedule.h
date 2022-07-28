@@ -20,6 +20,7 @@
 
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_base.h"
+#include "cinn/ir/ir_mutator.h"
 #include "cinn/ir/tensor.h"
 
 namespace cinn {
@@ -340,6 +341,134 @@ class IRSchedule {
 
  private:
   ScheduleHelper helper_;
+};
+
+/*!
+ * \brief The base class of the inliner, which handles:
+ * 1) Remove the block to be lined
+ * 2) Maintain a list of index variables and their substition of the buffer being inlined
+ */
+class BaseInliner : public ir::IRMutator<> {
+ protected:
+  explicit BaseInliner(const Tensor& inlined_tensor, const Expr& inlined_store)
+      : inlined_tensor_(inlined_tensor), inlined_store_(inlined_store) {}
+
+ public:
+  void operator()(Expr* expr);
+
+ private:
+  void Visit(const ir::Block* expr, Expr* op) override;
+
+ protected:
+  //! Check if indices are validate. If so, set idx_vars_ properly.
+  bool UpdateAndCheckIndexVars(const std::vector<Expr>& indices, int expected_ndim);
+
+  void SetIndexSubstitution(const std::vector<Expr>& indices);
+
+ protected:
+  //! The tensor to be inlined
+  Tensor inlined_tensor_{nullptr};
+  //! The body of the block to be inlined
+  Expr inlined_store_{nullptr};
+  //! The indices used for indexing the buffer to be inlined
+  std::vector<Var> idx_vars_;
+  //! Replacing vars(idx_sub_var_) in indices to corresponding expr(idx_sub_expr_)
+  std::vector<Var> idx_sub_var_;
+  std::vector<Expr> idx_sub_expr_;
+
+ public:
+  /*!
+   * \brief The Expr to be replaced when removing the block
+   * \note The pair (src_stmt, tgt_stmt) are produced by LeafBlockRemovalPlan
+   */
+  Expr src_stmt{nullptr};
+  //! The Expr to replace the original one when removing the block
+  Expr tgt_stmt{nullptr};
+};
+
+/*!
+ * \brief Helper to inline the producer block into its consumer(s)
+ * The derived class implements:
+ * Substitute `Load` on the tensor to be inlined to its value calculation in the producer block
+ */
+class ComputeInliner : public BaseInliner {
+ public:
+  explicit ComputeInliner(const Tensor& inlined_tensor, const Expr& inlined_store)
+      : BaseInliner(inlined_tensor, inlined_store) {}
+
+  bool BodyPatternAllowInline();
+
+ private:
+  void Visit(const ir::Load* expr, Expr* op) override;
+
+  //! Replace the 'Load' node on the tensor to 'Load' node of its producers.
+  Expr ReplaceInlinedTensor(Expr* load);
+};
+
+// The struct used to remove the original block in ComputeAt.
+class LeafBlockRemovalPlan : public ir::IRMutator<> {
+ public:
+  LeafBlockRemovalPlan(const Expr& block, Expr* source_expr, Expr* target_expr)
+      : block_(block), source_expr_(source_expr), target_expr_(target_expr) {}
+
+  void operator()(Expr* expr) { IRMutator::Visit(expr, expr); }
+
+ private:
+  void Visit(const ir::ScheduleBlockRealize* expr, Expr* op) override {
+    if (*op == block_) {
+      find_block = true;
+      return;
+    }
+    IRMutator::Visit(expr, op);
+  }
+
+  void Visit(const ir::For* expr, Expr* op) override {
+    if (*op == block_) {
+      find_block = true;
+      return;
+    }
+    IRMutator::Visit(expr, op);
+  }
+
+  void Visit(const ir::Block* expr, Expr* op) override {
+    if (expr->stmts.size() > 1U) {
+      int block_index = -1;
+      for (int i = 0; i < expr->stmts.size(); ++i) {
+        auto keep_flag = find_block;
+        find_block     = false;
+        auto* node     = op->As<ir::Block>();
+        IRMutator::Visit(&node->stmts[i], &node->stmts[i]);
+        if (find_block) {
+          if (depth == 0) {
+            *source_expr_ = *op;
+            block_index   = i;
+          }
+          depth++;
+        }
+        find_block = find_block || keep_flag;
+      }
+      if (block_index != -1) {
+        std::vector<Expr> new_stmts;
+        for (int i = 0; i < expr->stmts.size(); ++i) {
+          if (i == block_index)
+            continue;
+          else
+            new_stmts.push_back(expr->stmts[i]);
+        }
+        auto target_block = ir::Block::Make(new_stmts);
+        *target_expr_     = target_block;
+      }
+    } else {
+      IRMutator::Visit(expr, op);
+    }
+  }
+
+ private:
+  bool find_block{false};
+  int depth{0};
+  const Expr& block_;
+  Expr* source_expr_;
+  Expr* target_expr_;
 };
 
 }  // namespace ir

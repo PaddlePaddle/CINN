@@ -33,7 +33,9 @@ enum class RuleApplyType : int {
   // to apply on the module again.
   kApplyAndSkipThisRule = 2,
   // This rule can be applied, but after applying, we should skip all rules
-  kApplyAndSkipAllRules = 3
+  kApplyAndSkipAllRules = 3,
+  // This rule can be applied, but after applying, we need to re-initialize
+  kApplyAndNeedInit = 4
 };
 
 /**

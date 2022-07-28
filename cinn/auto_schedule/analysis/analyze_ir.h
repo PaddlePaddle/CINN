@@ -12,12 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <string>
+#include <unordered_set>
+
+#include "cinn/ir/ir.h"
+#include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_schedule.h"
+#include "cinn/ir/lowered_func.h"
 
 namespace cinn {
 namespace auto_schedule {
 
 void AnalyzeScheduleBlockReadWriteBuffer(ir::ScheduleBlock* sche_block);
+
+bool ContainsNodeType(ir::Expr expr, const std::unordered_set<ir::IrNodeTy>& node_types);
+
+/**
+ * Collects all input lowered_funcs and return names of all output arguments
+ */
+std::unordered_set<std::string> GetOutputNamesFromLoweredFunc(const std::vector<ir::LoweredFunc>& lowered_funcs);
 
 }  // namespace auto_schedule
 }  // namespace cinn
