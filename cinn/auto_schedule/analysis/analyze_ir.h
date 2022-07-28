@@ -27,6 +27,9 @@ void AnalyzeScheduleBlockReadWriteBuffer(ir::ScheduleBlock* sche_block);
 
 bool ContainsNodeType(ir::Expr expr, const std::unordered_set<ir::IrNodeTy>& node_types);
 
+/**
+ * Collects all input lowered_funcs and return names of all output arguments
+ */
 std::unordered_set<std::string> GetOutputNamesFromLoweredFunc(const std::vector<ir::LoweredFunc>& lowered_funcs);
 
 }  // namespace auto_schedule

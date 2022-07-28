@@ -114,7 +114,7 @@ AutoInlineType AutoInline::AnalyzeInlineType(const Expr& sche_block_realize_expr
   }
 
   // TODO(zhhsplendid): We don't have ReverseComputeInline in IRSchedule now,
-  // so we just do kInlineIntoConsumer here. Add CanInlineIntoConsumer
+  // so we just do kInlineIntoConsumer here. Add CanInlineIntoProducer
   // once ReverseComputeInline is ready.
   return AutoInlineType::kCannotInline;
 }
