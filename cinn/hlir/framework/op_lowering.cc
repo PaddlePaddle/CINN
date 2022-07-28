@@ -360,7 +360,7 @@ void OpLowerer::IRElementwiseSchedule(ir::IRSchedule& ir_sch,
       // internal node use buffer
       if (!group->output_nodes.count(node)) {
         auto node_block = ir_sch.GetBlock(node_tensor->name);
-        ir_sch.SetBuffer(node_block, "local");
+        ir_sch.SetBuffer(node_block, "local", true);
       }
       ir_sch.CopyTransformAndLoopInfo(node_tensor->name, manster_tensor->name);
 
@@ -776,7 +776,7 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
 
         if (!group->output_nodes.count(node)) {
           auto node_block = ir_sch.GetBlock(node_tensor->name);
-          ir_sch.SetBuffer(node_block, "local");
+          ir_sch.SetBuffer(node_block, "local", true);
         }
         if (node == reducer) {
           continue;
@@ -923,7 +923,7 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
       // if node is not output node, set buffer.
       if (!group->output_nodes.count(node)) {
         auto node_block = ir_sch.GetBlock(node_tensor->name);
-        ir_sch.SetBuffer(node_block, "local");
+        ir_sch.SetBuffer(node_block, "local", true);
       }
       // node is after reduce
       if (this->shape_dict_.at(node_data->id()) == this->shape_dict_.at(master_data->id())) {

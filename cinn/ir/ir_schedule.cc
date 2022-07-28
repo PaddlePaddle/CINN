@@ -925,7 +925,101 @@ struct LoopReconstructor : public ir::IRMutator<> {
   Expr target_expr{nullptr};
 };
 
-void IRSchedule::SetBuffer(Expr& block, const std::string& memory_type) {
+// The struct used to remove the original block in ComputeAt.
+struct LeafBlockRemovalPlan : public ir::IRMutator<> {
+  LeafBlockRemovalPlan(const Expr& block, Expr* source_expr, Expr* target_expr)
+      : block_(block), source_expr_(source_expr), target_expr_(target_expr) {}
+
+  void operator()(Expr* expr) { IRMutator::Visit(expr, expr); }
+
+ private:
+  void Visit(const ir::ScheduleBlockRealize* expr, Expr* op) override {
+    if (*op == block_) {
+      find_block = true;
+      return;
+    }
+    IRMutator::Visit(expr, op);
+  }
+
+  void Visit(const ir::For* expr, Expr* op) override {
+    if (*op == block_) {
+      find_block = true;
+      return;
+    }
+    IRMutator::Visit(expr, op);
+  }
+
+  void Visit(const ir::Block* expr, Expr* op) override {
+    if (expr->stmts.size() > 1U) {
+      int block_index = -1;
+      for (int i = 0; i < expr->stmts.size(); ++i) {
+        auto keep_flag = find_block;
+        find_block     = false;
+        auto* node     = op->As<ir::Block>();
+        IRMutator::Visit(&node->stmts[i], &node->stmts[i]);
+        if (find_block) {
+          if (depth == 0) {
+            *source_expr_ = *op;
+            block_index   = i;
+          }
+          depth++;
+        }
+        find_block = find_block || keep_flag;
+      }
+      if (block_index != -1) {
+        std::vector<Expr> new_stmts;
+        for (int i = 0; i < expr->stmts.size(); ++i) {
+          if (i == block_index)
+            continue;
+          else
+            new_stmts.push_back(expr->stmts[i]);
+        }
+        auto target_block = ir::Block::Make(new_stmts);
+        *target_expr_     = target_block;
+      }
+    } else {
+      IRMutator::Visit(expr, op);
+    }
+  }
+
+ private:
+  bool find_block{false};
+  int depth{0};
+  const Expr& block_;
+  Expr* source_expr_;
+  Expr* target_expr_;
+};
+
+struct FixLocalBufferSize : public ir::IRMutator<> {
+ public:
+  FixLocalBufferSize(const std::string& tensor_name) : tensor_name_(tensor_name) {}
+
+  void operator()(Expr* expr) { IRMutator::Visit(expr, expr); }
+
+ private:
+  void Visit(const ir::Store* expr, Expr* op) override {
+    if (op->As<Store>()->tensor.As<_Tensor_>()->name == tensor_name_) {
+      op->As<Store>()->tensor.As<_Tensor_>()->shape         = {Expr(1)};
+      op->As<Store>()->tensor.As<_Tensor_>()->domain        = {Expr(1)};
+      op->As<Store>()->tensor.As<_Tensor_>()->buffer->shape = {Expr(1)};
+      op->As<Store>()->indices                              = {Expr(0)};
+    }
+    IRMutator::Visit(expr, op);
+  }
+
+  void Visit(const ir::Load* expr, Expr* op) override {
+    if (op->As<Load>()->tensor.As<_Tensor_>()->name == tensor_name_) {
+      op->As<Load>()->tensor.As<_Tensor_>()->shape         = {Expr(1)};
+      op->As<Load>()->tensor.As<_Tensor_>()->domain        = {Expr(1)};
+      op->As<Load>()->tensor.As<_Tensor_>()->buffer->shape = {Expr(1)};
+      op->As<Load>()->indices                              = {Expr(0)};
+    }
+    IRMutator::Visit(expr, op);
+  }
+  std::string tensor_name_;
+};
+
+void IRSchedule::SetBuffer(Expr& block, const std::string& memory_type, bool fixed) {
   CHECK(block.As<ir::ScheduleBlockRealize>());
   auto find_tensor = ir::CollectIRNodesWithoutTensor(block, [&](const Expr* x) { return x->As<ir::Store>(); });
   CHECK(!find_tensor.empty()) << "Didn't find Store in block!";
@@ -941,6 +1035,13 @@ void IRSchedule::SetBuffer(Expr& block, const std::string& memory_type) {
       CHECK(t.as_tensor());
       t.as_tensor_ref()->Bind(tensor.as_tensor_ref()->buffer);
     }
+  }
+
+  // if buffer type == "local"
+  if (memory_type == "local" && fixed) {
+    FixLocalBufferSize mutator(block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->name);
+    auto root = GetRootBlock(block);
+    mutator(&root);
   }
 }
 

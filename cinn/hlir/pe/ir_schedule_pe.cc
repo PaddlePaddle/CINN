@@ -280,7 +280,7 @@ void IRCudaScheduleBlockReduceInternal(ir::IRSchedule &ir_sch,
 
   for (auto &tensor : {tmp_out}) {
     auto block = ir_sch.GetBlock(tensor->name);
-    ir_sch.SetBuffer(block, "local");
+    ir_sch.SetBuffer(block, "local", true);
   }
 
   VLOG(3) << "IRCudaScheduleBlockReduceInternal result expr is: " << ir_sch.GetModule().GetExprs().at(0);
@@ -351,7 +351,7 @@ void IRCudaScheduleBlockReduce(ir::IRSchedule &ir_sch,
 
   for (auto &tensor : {reduce_tmp_out, tmp_out}) {
     auto block = ir_sch.GetBlock(tensor->name);
-    ir_sch.SetBuffer(block, "local");
+    ir_sch.SetBuffer(block, "local", true);
   }
 
   VLOG(3) << "IRCudaScheduleBlockReduce result expr is: " << ir_sch.GetModule().GetExprs().at(0);
@@ -467,10 +467,10 @@ void IRCudaTwoStepReduceSchedule(ir::IRSchedule &ir_sch,
   ir_sch.ComputeInline(reshape_block);
 
   auto internal_block = ir_sch.GetBlock(internal->name);
-  ir_sch.SetBuffer(internal_block, "local");
+  ir_sch.SetBuffer(internal_block, "local", true);
 
   auto tmp_out_block = ir_sch.GetBlock(tmp_out->name);
-  ir_sch.SetBuffer(tmp_out_block, "local");
+  ir_sch.SetBuffer(tmp_out_block, "local", true);
 
   for (auto &tensor : {internal, tmp_out, out}) {
     auto loops = ir_sch.GetLoops(tensor->name);
@@ -526,7 +526,7 @@ void IRGlobalPoolScheduleGPU(ir::IRSchedule &ir_sch, const common::Target &targe
   all_blocks = ir_sch.GetAllBlocks();
   ir_sch.SimpleComputeAt(all_blocks[0], splited[1]);
   all_blocks = ir_sch.GetAllBlocks();
-  ir_sch.SetBuffer(all_blocks[0], "local");
+  ir_sch.SetBuffer(all_blocks[0], "local", true);
   auto loops = ir_sch.GetLoops(all_blocks[0]);
   ir_sch.Bind(loops[2], "threadIdx.x");
 }

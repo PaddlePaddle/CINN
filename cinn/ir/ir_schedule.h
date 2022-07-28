@@ -225,7 +225,7 @@ class IRSchedule {
    * \param block The ScheduleBlockRealize corresponding to an unique tensor.
    * \param memory_type The memory type we want to set. Should be "local", "shared" or "global".
    */
-  void SetBuffer(Expr& block, const std::string& memory_type);
+  void SetBuffer(Expr& block, const std::string& memory_type, bool fixed = false);
 
   /**
    * \brief Reorder the loops in the order of vector.
