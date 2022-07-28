@@ -19,10 +19,13 @@
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
 #include "cinn/hlir/pe/elementwise.h"
+#include "cinn/hlir/pe/ir_schedule_pe.h"
 #include "cinn/hlir/pe/nn.h"
 #include "cinn/hlir/pe/schedule.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/utils/string.h"
+
+DECLARE_bool(cinn_ir_schedule);
 
 namespace cinn {
 namespace hlir {
@@ -303,9 +306,9 @@ std::shared_ptr<OpStrategy> StrategyForReshape(const framework::NodeAttr &attrs,
                                                const Target &target) {
   framework::CINNCompute reshape_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input arguments of Matmul compute is empty! Please check.\n";
-    CINNValuePack a = args[0];
-    CHECK_GE(a.size(), 1U) << "at least 1 input tensors for Reshape compute\n";
-    Expr A = a[0];
+    CINNValuePack pack_args = args[0];
+    CHECK_GE(pack_args.size(), 1U) << "at least 1 input tensors for Reshape compute\n";
+    Expr A = pack_args[0];
     CHECK(A.as_tensor());
     CHECK(!output_shapes.empty());
     auto attr_store = attrs.attr_store;
@@ -315,7 +318,14 @@ std::shared_ptr<OpStrategy> StrategyForReshape(const framework::NodeAttr &attrs,
     auto stages                = CreateStages({tensor_A});
     VLOG(3) << "A shape: " << utils::Join(tensor_A->shape, ", ")
             << ", output_shapes: " << utils::Join(output_shapes[0], ", ");
-    ir::Tensor out = pe::Reshape(tensor_A, output_shapes[0], stages, UniqName("Reshape_out"));
+
+    std::string tensor_name = UniqName("Reshape_out");
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK_EQ(pack_args.size(), 2);
+      tensor_name = pack_args[1].operator std::string();
+    }
+
+    ir::Tensor out = pe::Reshape(tensor_A, output_shapes[0], stages, tensor_name);
     std::vector<CINNValue> res;
     stages->InsertLazily(out);
     res.push_back(CINNValue(out));
@@ -325,18 +335,35 @@ std::shared_ptr<OpStrategy> StrategyForReshape(const framework::NodeAttr &attrs,
   });
 
   framework::CINNSchedule reshape_schedule([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input argument of reshape schedule is empty! Please check.\n";
-    CINNValuePack arg_pack = args[0];
-    int arg_size           = arg_pack.size();
-    poly::StageMap stages  = arg_pack.back();
-    Expr out               = arg_pack[0];
-    CHECK(out.as_tensor());
-    if (target.arch == Target::Arch::NVGPU) {
-      pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes[0], target);
-    } else if (target.arch == Target::Arch::X86) {
-      pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes[0], target);
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK(!args.empty()) << "The input argument of reshape schedule is empty! Please check.";
+      CINNValuePack arg_pack = args[0];
+      Expr ast_expr          = arg_pack[0];
+      std::vector<Expr> vec_ast{ast_expr};
+      ir::ModuleExpr mod_expr(vec_ast);
+      ir::IRSchedule ir_sch(mod_expr);
+      if (target.arch == Target::Arch::NVGPU) {
+        pe::IRCudaScheduleInjective(ir_sch, output_shapes.front(), target);
+      } else if (target.arch == Target::Arch::X86) {
+        pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target);
+      }
+      std::vector<CINNValue> res;
+      res.push_back(arg_pack[0]);
+      *ret = CINNValuePack{res};
+    } else {
+      CHECK(!args.empty()) << "The input argument of reshape schedule is empty! Please check.";
+      CINNValuePack arg_pack = args[0];
+      CHECK_EQ(arg_pack.size(), 2UL);
+      Expr Out              = arg_pack[0];
+      poly::StageMap stages = arg_pack[1];
+      CHECK(Out.as_tensor());
+      if (target.arch == Target::Arch::NVGPU) {
+        pe::CudaScheduleInjective(stages[Out.as_tensor_ref()], output_shapes.front(), target);
+      } else if (target.arch == Target::Arch::X86) {
+        pe::ScheduleInjectiveCPU(stages[Out.as_tensor_ref()], output_shapes.front(), target);
+      }
+      *ret = arg_pack;
     }
-    *ret = arg_pack;
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -437,13 +464,19 @@ std::shared_ptr<OpStrategy> StrategyForSplit(const framework::NodeAttr &attrs,
 
   framework::CINNCompute split_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input arguments of split compute is empty! Please check.";
-    CINNValuePack a = args[0];
-    CHECK(!a.empty()) << "The input tensors of split compute is empty! Please check.";
-    Expr A_expr = a[0];
+    CINNValuePack pack_args = args[0];
+    CHECK(!pack_args.empty()) << "The input tensors of split compute is empty! Please check.";
+    Expr A_expr = pack_args[0];
     CHECK(A_expr.as_tensor());
     ir::Tensor A = A_expr.as_tensor_ref();
 
-    auto out    = pe::Split(A, axis, output_shapes, UniqName("Split_output"));
+    std::string tensor_name = UniqName("Split_output");
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK_EQ(pack_args.size(), 2);
+      tensor_name = pack_args[1].operator std::string();
+    }
+
+    auto out    = pe::Split(A, axis, output_shapes, tensor_name);
     auto stages = CreateStages(out);
 
     std::vector<CINNValue> res;
@@ -455,12 +488,25 @@ std::shared_ptr<OpStrategy> StrategyForSplit(const framework::NodeAttr &attrs,
   });
 
   framework::CINNSchedule split_schedule([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input arguments of split schedule is empty! Please check.";
-    CINNValuePack arg_pack = args[0];
-    CHECK_GE(arg_pack.size(), 2UL) << "The input tensor's size of split schedule is " << arg_pack.size()
-                                   << "and it should be greater equal to 2! Please check.";
-    pe::CudaSplitSchedule(&arg_pack, output_shapes, axis, target);
-    *ret = arg_pack;
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK(!args.empty()) << "The input argument of split schedule is empty! Please check.";
+      CINNValuePack arg_pack = args[0];
+      Expr ast_expr          = arg_pack[0];
+      std::vector<Expr> vec_ast{ast_expr};
+      ir::ModuleExpr mod_expr(vec_ast);
+      ir::IRSchedule ir_sch(mod_expr);
+      pe::IRCudaSplitSchedule(ir_sch, output_shapes, axis, target);
+      std::vector<CINNValue> res;
+      res.push_back(arg_pack[0]);
+      *ret = CINNValuePack{res};
+    } else {
+      CHECK(!args.empty()) << "The input arguments of split schedule is empty! Please check.";
+      CINNValuePack arg_pack = args[0];
+      CHECK_GE(arg_pack.size(), 2UL) << "The input tensor's size of split schedule is " << arg_pack.size()
+                                     << "and it should be greater equal to 2! Please check.";
+      pe::CudaSplitSchedule(&arg_pack, output_shapes, axis, target);
+      *ret = arg_pack;
+    }
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -590,8 +636,8 @@ std::shared_ptr<OpStrategy> StrategyForConcat(const framework::NodeAttr &attrs,
                                               const Target &target) {
   framework::CINNCompute concat_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input arguments of Concat compute is empty! Please check.\n";
-    CINNValuePack a = args[0];
-    int input_size  = a.size();
+    CINNValuePack pack_args = args[0];
+    int input_size          = pack_args.size();
     CHECK_GE(input_size, 2U) << "at least 2 input tensors for Concat compute\n";
     CHECK(!output_shapes.empty());
     int axis = 0;
@@ -601,14 +647,21 @@ std::shared_ptr<OpStrategy> StrategyForConcat(const framework::NodeAttr &attrs,
 
     std::vector<ir::Tensor> input_tensors;
     for (int i = 0; i < input_size; i++) {
-      Expr tensor = a[i];
+      Expr tensor = pack_args[i];
       CHECK(tensor.as_tensor());
       input_tensors.push_back(tensor.as_tensor_ref());
     }
 
     auto stages = CreateStages(input_tensors);
     ir::Tensor out;
-    out = pe::Concat(input_tensors, axis, UniqName("Concat_output"));
+
+    std::string tensor_name = UniqName("Concat_output");
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK_EQ(pack_args.size(), 2);
+      tensor_name = pack_args[1].operator std::string();
+    }
+
+    out = pe::Concat(input_tensors, axis, tensor_name);
     std::vector<CINNValue> res;
     stages->InsertLazily(out);
     res.push_back(CINNValue(out));
@@ -618,18 +671,35 @@ std::shared_ptr<OpStrategy> StrategyForConcat(const framework::NodeAttr &attrs,
   });
 
   framework::CINNSchedule concat_schedule([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input argument of concat schedule is empty! Please check.\n";
-    CINNValuePack arg_pack = args[0];
-    int arg_size           = arg_pack.size();
-    poly::StageMap stages  = arg_pack.back();
-    Expr out               = arg_pack[0];
-    CHECK(out.as_tensor());
-    if (target.arch == Target::Arch::NVGPU) {
-      pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes.back(), target);
-    } else if (target.arch == Target::Arch::X86) {
-      pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes.back(), target, false);
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK(!args.empty()) << "The input argument of concat schedule is empty! Please check.";
+      CINNValuePack arg_pack = args[0];
+      Expr ast_expr          = arg_pack[0];
+      std::vector<Expr> vec_ast{ast_expr};
+      ir::ModuleExpr mod_expr(vec_ast);
+      ir::IRSchedule ir_sch(mod_expr);
+      if (target.arch == Target::Arch::NVGPU) {
+        pe::IRCudaScheduleInjective(ir_sch, output_shapes.front(), target);
+      } else if (target.arch == Target::Arch::X86) {
+        pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target, false);
+      }
+      std::vector<CINNValue> res;
+      res.push_back(arg_pack[0]);
+      *ret = CINNValuePack{res};
+    } else {
+      CHECK(!args.empty()) << "The input argument of concat schedule is empty! Please check.";
+      CINNValuePack arg_pack = args[0];
+      CHECK_EQ(arg_pack.size(), 2UL);
+      Expr Out              = arg_pack[0];
+      poly::StageMap stages = arg_pack[1];
+      CHECK(Out.as_tensor());
+      if (target.arch == Target::Arch::NVGPU) {
+        pe::CudaScheduleInjective(stages[Out.as_tensor_ref()], output_shapes.front(), target);
+      } else if (target.arch == Target::Arch::X86) {
+        pe::ScheduleInjectiveCPU(stages[Out.as_tensor_ref()], output_shapes.front(), target, false);
+      }
+      *ret = arg_pack;
     }
-    *ret = arg_pack;
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -871,7 +941,7 @@ std::shared_ptr<OpStrategy> StrategyForCublasGemm(const framework::NodeAttr &att
     CHECK(!args.empty()) << "The input `args` of cublas_gemm is empty! Please check.";
 
     CINNValuePack input_args = args[0];
-    CHECK_EQ(input_args.size(), 3U) << "The input number of cublas_gemm should be equal to 3.";
+    CHECK_GE(input_args.size(), 3U) << "The input number of cublas_gemm should be equal to 3.";
     Expr lhs  = input_args[0];
     Expr rhs  = input_args[1];
     Expr bias = input_args[2];
@@ -880,7 +950,13 @@ std::shared_ptr<OpStrategy> StrategyForCublasGemm(const framework::NodeAttr &att
     CHECK(bias.as_tensor());
     auto bias_tensor = bias.as_tensor_ref();
     // dummy gemm computation, which will be replaced by cinn_gpu_cublas_gemm in the GemmRewriter pass.
-    auto out    = pe::Identity(bias_tensor, UniqName("cublas_gemm_output")).front();
+
+    std::string tensor_name = UniqName("cublas_gemm_output");
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK_EQ(input_args.size(), 4);
+      tensor_name = input_args[3].operator std::string();
+    }
+    auto out    = pe::Identity(bias_tensor, tensor_name).front();
     auto stages = CreateStages({lhs.as_tensor_ref(), rhs.as_tensor_ref(), bias_tensor});
     stages->InsertLazily(out);
     std::vector<CINNValue> res{CINNValue(out), CINNValue(stages)};
@@ -889,18 +965,35 @@ std::shared_ptr<OpStrategy> StrategyForCublasGemm(const framework::NodeAttr &att
 
   framework::CINNSchedule gemm_schedule(
       [output_shape = output_shapes[0], target](lang::Args args, lang::RetValue *ret) {
-        CHECK(!args.empty()) << "The input `args` is empty! Please check again.";
-        CINNValuePack input_args = args[0];
-        CHECK_EQ(input_args.size(), 2U) << "Expected 2 values in args[0] for gemm_schedule.";
-        Expr out              = input_args[0];
-        poly::StageMap stages = input_args[1];
-        CHECK(out.as_tensor());
-        if (target.arch == Target::Arch::NVGPU) {
-          pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shape, target);
-        } else if (target.arch == Target::Arch::X86) {
-          pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shape, target);
+        if (FLAGS_cinn_ir_schedule) {
+          CHECK(!args.empty()) << "The input argument of CublasGemm schedule is empty! Please check.";
+          CINNValuePack input_args = args[0];
+          Expr ast_expr            = input_args[0];
+          std::vector<Expr> vec_ast{ast_expr};
+          ir::ModuleExpr mod_expr(vec_ast);
+          ir::IRSchedule ir_sch(mod_expr);
+          if (target.arch == Target::Arch::NVGPU) {
+            pe::IRCudaScheduleInjective(ir_sch, output_shape, target);
+          } else if (target.arch == Target::Arch::X86) {
+            pe::IRScheduleInjectiveCPU(ir_sch, output_shape, target);
+          }
+          std::vector<CINNValue> res;
+          res.push_back(input_args[0]);
+          *ret = CINNValuePack{res};
+        } else {
+          CHECK(!args.empty()) << "The input `args` of CublasGemm is empty! Please check again.";
+          CINNValuePack input_args = args[0];
+          CHECK_EQ(input_args.size(), 2U) << "Expected 2 values in args[0] for gemm_schedule.";
+          Expr out              = input_args[0];
+          poly::StageMap stages = input_args[1];
+          CHECK(out.as_tensor());
+          if (target.arch == Target::Arch::NVGPU) {
+            pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shape, target);
+          } else if (target.arch == Target::Arch::X86) {
+            pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shape, target);
+          }
+          *ret = input_args;
         }
-        *ret = input_args;
       });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -938,12 +1031,18 @@ std::shared_ptr<OpStrategy> StrategyForLayoutTransform(const framework::NodeAttr
       dst_layout = absl::get<std::string>(attrs.attr_store.at("dst_layout"));
     }
     CHECK(!args.empty()) << "The input argument of layout_transform compute is empty! Please check.\n";
-    CINNValuePack a = args[0];
-    CHECK(!a.empty()) << "at least one input tensor for layout_transform compute\n";
-    Expr A = a[0];
+    CINNValuePack input_args = args[0];
+    CHECK(!input_args.empty()) << "at least one input tensor for layout_transform compute\n";
+    Expr A = input_args[0];
     CHECK(A.as_tensor());
 
-    auto out    = pe::LayoutTransform(A.as_tensor_ref(), src_layout, dst_layout, UniqName("layout_transform_output"));
+    std::string tensor_name = UniqName("layout_transform_output");
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK_EQ(input_args.size(), 2);
+      tensor_name = input_args[1].operator std::string();
+    }
+
+    auto out    = pe::LayoutTransform(A.as_tensor_ref(), src_layout, dst_layout, tensor_name);
     auto stages = CreateStages({A.as_tensor_ref()});
     std::vector<CINNValue> res;
     stages->InsertLazily(out);
@@ -952,21 +1051,41 @@ std::shared_ptr<OpStrategy> StrategyForLayoutTransform(const framework::NodeAttr
   });
 
   framework::CINNSchedule layout_transform_schedule([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input argument of layout_transform schedule is empty! Please check.\n";
-    CINNValuePack arg_pack = args[0];
-    CHECK_EQ(arg_pack.size(), 2UL);
-    Expr out              = arg_pack[0];
-    poly::StageMap stages = arg_pack[1];
-    CHECK(out.as_tensor());
-    auto tensor_out = out.as_tensor_ref();
-    std::vector<int> out_shape;
-    for (auto shape : tensor_out->shape) {
-      out_shape.push_back(shape.as_int32());
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK(!args.empty()) << "The input argument of CublasGemm schedule is empty! Please check.";
+      CINNValuePack arg_pack = args[0];
+      Expr ast_expr          = arg_pack[0];
+      std::vector<Expr> vec_ast{ast_expr};
+      ir::ModuleExpr mod_expr(vec_ast);
+      ir::IRSchedule ir_sch(mod_expr);
+
+      if (target.arch == Target::Arch::X86) {
+        pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target);
+      } else {
+        CINN_NOT_IMPLEMENTED
+      }
+      std::vector<CINNValue> res;
+      res.push_back(arg_pack[0]);
+      *ret = CINNValuePack{res};
+    } else {
+      CHECK(!args.empty()) << "The input argument of layout_transform schedule is empty! Please check.\n";
+      CINNValuePack arg_pack = args[0];
+      CHECK_EQ(arg_pack.size(), 2UL);
+      Expr out              = arg_pack[0];
+      poly::StageMap stages = arg_pack[1];
+      CHECK(out.as_tensor());
+      auto tensor_out = out.as_tensor_ref();
+      std::vector<int> out_shape;
+      for (auto shape : tensor_out->shape) {
+        out_shape.push_back(shape.as_int32());
+      }
+      if (target.arch == Target::Arch::X86) {
+        pe::ScheduleInjectiveCPU(stages[tensor_out], out_shape, target);
+      } else {
+        CINN_NOT_IMPLEMENTED
+      }
+      *ret = arg_pack;
     }
-    if (target.arch == Target::Arch::X86) {
-      pe::ScheduleInjectiveCPU(stages[tensor_out], out_shape, target);
-    }
-    *ret = arg_pack;
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -1039,28 +1158,52 @@ std::shared_ptr<OpStrategy> StrategyForReverse(const framework::NodeAttr &attrs,
 
   framework::CINNCompute reverse_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of reverse compute is empty! Please check.\n";
-    CINNValuePack a = args[0];
-    CHECK(!a.empty()) << "at least one input tensor for reverse compute\n";
-    Expr A = a[0];
+    CINNValuePack input_args = args[0];
+    CHECK(!input_args.empty()) << "at least one input tensor for reverse compute\n";
+    Expr A = input_args[0];
     CHECK(A.as_tensor());
-    auto out    = pe::Reverse(A.as_tensor_ref(), axis, UniqName("Reverse_output"));
+
+    std::string tensor_name = UniqName("Reverse_output");
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK_EQ(input_args.size(), 2);
+      tensor_name = input_args[1].operator std::string();
+    }
+
+    auto out    = pe::Reverse(A.as_tensor_ref(), axis, tensor_name);
     auto stages = CreateStages({A.as_tensor_ref(), out});
     *ret        = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
   });
 
   framework::CINNSchedule reverse_schedule([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input argument of reverse schedule is empty! Please check.\n";
-    CINNValuePack arg_pack = args[0];
-    CHECK_EQ(arg_pack.size(), 2UL);
-    Expr out              = arg_pack[0];
-    poly::StageMap stages = arg_pack[1];
-    CHECK(out.as_tensor());
-    if (target.arch == Target::Arch::NVGPU) {
-      pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes[0], target);
-    } else if (target.arch == Target::Arch::X86) {
-      pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes[0], target);
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK(!args.empty()) << "The input argument of reverse schedule is empty! Please check.";
+      CINNValuePack arg_pack = args[0];
+      Expr ast_expr          = arg_pack[0];
+      std::vector<Expr> vec_ast{ast_expr};
+      ir::ModuleExpr mod_expr(vec_ast);
+      ir::IRSchedule ir_sch(mod_expr);
+      if (target.arch == Target::Arch::NVGPU) {
+        pe::IRCudaScheduleInjective(ir_sch, output_shapes.front(), target);
+      } else if (target.arch == Target::Arch::X86) {
+        pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target);
+      }
+      std::vector<CINNValue> res;
+      res.push_back(arg_pack[0]);
+      *ret = CINNValuePack{res};
+    } else {
+      CHECK(!args.empty()) << "The input argument of reverse schedule is empty! Please check.\n";
+      CINNValuePack arg_pack = args[0];
+      CHECK_EQ(arg_pack.size(), 2UL);
+      Expr out              = arg_pack[0];
+      poly::StageMap stages = arg_pack[1];
+      CHECK(out.as_tensor());
+      if (target.arch == Target::Arch::NVGPU) {
+        pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes[0], target);
+      } else if (target.arch == Target::Arch::X86) {
+        pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes[0], target);
+      }
+      *ret = arg_pack;
     }
-    *ret = arg_pack;
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -1158,26 +1301,47 @@ std::shared_ptr<OpStrategy> StrategyForTranspose(const framework::NodeAttr &attr
 
   framework::CINNCompute transpose_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of transpose compute is empty! Please check.\n";
-    CINNValuePack a = args[0];
-    CHECK(!a.empty()) << "at least one input tensor for transpose compute\n";
-    Expr A = a[0];
+    CINNValuePack input_args = args[0];
+    CHECK(!input_args.empty()) << "at least one input tensor for transpose compute\n";
+    Expr A = input_args[0];
     CHECK(A.as_tensor());
-    auto out    = pe::Transpose(A.as_tensor_ref(), axis, UniqName("Transpose_output"));
+    std::string tensor_name = UniqName("Transpose_output");
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK_EQ(input_args.size(), 2);
+      tensor_name = input_args[1].operator std::string();
+    }
+
+    auto out    = pe::Transpose(A.as_tensor_ref(), axis, tensor_name);
     auto stages = CreateStages({out});
     *ret        = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
   });
 
   framework::CINNSchedule transpose_schedule([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input argument of transpose schedule is empty! Please check.\n";
-    CINNValuePack arg_pack = args[0];
-    CHECK_EQ(arg_pack.size(), 2UL);
-    Expr out              = arg_pack[0];
-    poly::StageMap stages = arg_pack[1];
-    CHECK(out.as_tensor());
-    if (target.arch == Target::Arch::NVGPU) {
-      pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes[0], target);
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK(!args.empty()) << "The input argument of transpose schedule is empty! Please check.";
+      CINNValuePack arg_pack = args[0];
+      Expr ast_expr          = arg_pack[0];
+      std::vector<Expr> vec_ast{ast_expr};
+      ir::ModuleExpr mod_expr(vec_ast);
+      ir::IRSchedule ir_sch(mod_expr);
+      if (target.arch == Target::Arch::NVGPU) {
+        pe::IRCudaScheduleInjective(ir_sch, output_shapes.front(), target);
+      }
+      std::vector<CINNValue> res;
+      res.push_back(arg_pack[0]);
+      *ret = CINNValuePack{res};
+    } else {
+      CHECK(!args.empty()) << "The input argument of transpose schedule is empty! Please check.\n";
+      CINNValuePack arg_pack = args[0];
+      CHECK_EQ(arg_pack.size(), 2UL);
+      Expr out              = arg_pack[0];
+      poly::StageMap stages = arg_pack[1];
+      CHECK(out.as_tensor());
+      if (target.arch == Target::Arch::NVGPU) {
+        pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes[0], target);
+      }
+      *ret = arg_pack;
     }
-    *ret = arg_pack;
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -1269,39 +1433,62 @@ std::shared_ptr<OpStrategy> StrategyForIndexSelect(const framework::NodeAttr &at
     output_shape.emplace_back(i);
   }
 
-  framework::CINNCompute index_select_compute{[axis, output_shape = std::move(output_shape)](lang::Args args,
-                                                                                             lang::RetValue *ret) {
-    VLOG(4) << "The axis value used in index_select_compute: " << axis;
-    CHECK(!args.empty()) << "The input args are empty! Please check again.";
-    CINNValuePack arg_pack = args[0];
-    int input_size         = arg_pack.size();
-    CHECK_EQ(input_size, 2U) << "Require 2 input tensors for IndexSelect compute.";
-    Expr x = arg_pack[0];
-    CHECK(x.as_tensor());
-    Expr index = arg_pack[1];
-    CHECK(index.as_tensor());
-    auto out =
-        pe::IndexSelect(x.as_tensor_ref(), index.as_tensor_ref(), output_shape, axis, UniqName("index_select_output"));
-    auto stages = CreateStages({x.as_tensor_ref(), index.as_tensor_ref()});
-    stages->InsertLazily(out);
-    std::vector<CINNValue> res{CINNValue(out), CINNValue(stages)};
-    *ret = CINNValuePack{res};
-  }};
+  framework::CINNCompute index_select_compute{
+      [axis, output_shape = std::move(output_shape)](lang::Args args, lang::RetValue *ret) {
+        VLOG(4) << "The axis value used in index_select_compute: " << axis;
+        CHECK(!args.empty()) << "The input args are empty! Please check again.";
+        CINNValuePack input_args = args[0];
+        int input_size           = input_args.size();
+        CHECK_GE(input_size, 2U) << "Require 2 input tensors for IndexSelect compute.";
+        Expr x = input_args[0];
+        CHECK(x.as_tensor());
+        Expr index = input_args[1];
+        CHECK(index.as_tensor());
+
+        std::string tensor_name = UniqName("index_select_output");
+        if (FLAGS_cinn_ir_schedule) {
+          CHECK_EQ(input_args.size(), 3U);
+          tensor_name = input_args[2].operator std::string();
+        }
+
+        auto out    = pe::IndexSelect(x.as_tensor_ref(), index.as_tensor_ref(), output_shape, axis, tensor_name);
+        auto stages = CreateStages({x.as_tensor_ref(), index.as_tensor_ref()});
+        stages->InsertLazily(out);
+        std::vector<CINNValue> res{CINNValue(out), CINNValue(stages)};
+        *ret = CINNValuePack{res};
+      }};
 
   framework::CINNSchedule index_select_schedule{
       [output_shape = output_shapes[0], target](lang::Args args, lang::RetValue *ret) {
-        CHECK(!args.empty()) << "The input args are empty! Please check again.";
-        CINNValuePack arg_pack = args[0];
-        CHECK_EQ(arg_pack.size(), 2U) << "Expected 2 values in args[0] for index_select_schedule.";
-        Expr out              = arg_pack[0];
-        poly::StageMap stages = arg_pack[1];
-        CHECK(out.as_tensor());
-        if (target.arch == Target::Arch::NVGPU) {
-          pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shape, target);
-        } else if (target.arch == Target::Arch::X86) {
-          pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shape, target);
+        if (FLAGS_cinn_ir_schedule) {
+          CHECK(!args.empty()) << "The input argument of index_select schedule is empty! Please check.";
+          CINNValuePack arg_pack = args[0];
+          Expr ast_expr          = arg_pack[0];
+          std::vector<Expr> vec_ast{ast_expr};
+          ir::ModuleExpr mod_expr(vec_ast);
+          ir::IRSchedule ir_sch(mod_expr);
+          if (target.arch == Target::Arch::NVGPU) {
+            pe::IRCudaScheduleInjective(ir_sch, output_shape, target);
+          } else if (target.arch == Target::Arch::X86) {
+            pe::IRScheduleInjectiveCPU(ir_sch, output_shape, target);
+          }
+          std::vector<CINNValue> res;
+          res.push_back(arg_pack[0]);
+          *ret = CINNValuePack{res};
+        } else {
+          CHECK(!args.empty()) << "The input args are empty! Please check again.";
+          CINNValuePack arg_pack = args[0];
+          CHECK_EQ(arg_pack.size(), 2U) << "Expected 2 values in args[0] for index_select_schedule.";
+          Expr out              = arg_pack[0];
+          poly::StageMap stages = arg_pack[1];
+          CHECK(out.as_tensor());
+          if (target.arch == Target::Arch::NVGPU) {
+            pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shape, target);
+          } else if (target.arch == Target::Arch::X86) {
+            pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shape, target);
+          }
+          *ret = arg_pack;
         }
-        *ret = arg_pack;
       }};
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -1377,8 +1564,14 @@ std::shared_ptr<OpStrategy> StrategyForScatterAssign(const framework::NodeAttr &
     auto tensor_index = expr_index.as_tensor_ref();
 
     auto stages = CreateStages({tensor_input, tensor_updates, tensor_index});
-    auto out =
-        pe::ScatterAssign(tensor_input, tensor_updates, tensor_index, target, axis, UniqName("scatter_assign_output"));
+
+    std::string tensor_name = UniqName("scatter_assign_output");
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK_EQ(arg_pack.size(), 4U);
+      tensor_name = arg_pack[3].operator std::string();
+    }
+
+    auto out = pe::ScatterAssign(tensor_input, tensor_updates, tensor_index, target, axis, tensor_name);
 
     std::vector<CINNValue> res;
     stages->InsertLazily(out);
@@ -1389,18 +1582,35 @@ std::shared_ptr<OpStrategy> StrategyForScatterAssign(const framework::NodeAttr &
   });
 
   framework::CINNSchedule scatter_assign_schedule([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input argument of ScatterAssign schedule is empty! Please check.\n";
-    CINNValuePack arg_pack = args[0];
-    int arg_size           = arg_pack.size();
-    poly::StageMap stages  = arg_pack.back();
-    Expr out               = arg_pack[0];
-    CHECK(out.as_tensor());
-    if (target.arch == Target::Arch::NVGPU) {
-      pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes.back(), target);
-    } else if (target.arch == Target::Arch::X86) {
-      pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes.back(), target, false);
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK(!args.empty()) << "The input argument of ScatterAssign schedule is empty! Please check.";
+      CINNValuePack arg_pack = args[0];
+      Expr ast_expr          = arg_pack[0];
+      std::vector<Expr> vec_ast{ast_expr};
+      ir::ModuleExpr mod_expr(vec_ast);
+      ir::IRSchedule ir_sch(mod_expr);
+      if (target.arch == Target::Arch::NVGPU) {
+        pe::IRCudaScheduleInjective(ir_sch, output_shapes.front(), target);
+      } else if (target.arch == Target::Arch::X86) {
+        pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target, false);
+      }
+      std::vector<CINNValue> res;
+      res.push_back(arg_pack[0]);
+      *ret = CINNValuePack{res};
+    } else {
+      CHECK(!args.empty()) << "The input argument of ScatterAssign schedule is empty! Please check.\n";
+      CINNValuePack arg_pack = args[0];
+      int arg_size           = arg_pack.size();
+      poly::StageMap stages  = arg_pack.back();
+      Expr out               = arg_pack[0];
+      CHECK(out.as_tensor());
+      if (target.arch == Target::Arch::NVGPU) {
+        pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes.back(), target);
+      } else if (target.arch == Target::Arch::X86) {
+        pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes.back(), target, false);
+      }
+      *ret = arg_pack;
     }
-    *ret = arg_pack;
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -1489,7 +1699,14 @@ std::shared_ptr<OpStrategy> StrategyForScatterAdd(const framework::NodeAttr &att
     auto tensor_index = expr_index.as_tensor_ref();
 
     auto stages = CreateStages({tensor_input, tensor_updates, tensor_index});
-    auto out = pe::ScatterAdd(tensor_input, tensor_updates, tensor_index, target, axis, UniqName("scatter_add_output"));
+
+    std::string tensor_name = UniqName("scatter_add_output");
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK_EQ(arg_pack.size(), 4U);
+      tensor_name = arg_pack[3].operator std::string();
+    }
+
+    auto out = pe::ScatterAdd(tensor_input, tensor_updates, tensor_index, target, axis, tensor_name);
 
     std::vector<CINNValue> res;
     stages->InsertLazily(out);
@@ -1500,18 +1717,35 @@ std::shared_ptr<OpStrategy> StrategyForScatterAdd(const framework::NodeAttr &att
   });
 
   framework::CINNSchedule scatter_add_schedule([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input argument of ScatterAdd schedule is empty! Please check.\n";
-    CINNValuePack arg_pack = args[0];
-    int arg_size           = arg_pack.size();
-    poly::StageMap stages  = arg_pack.back();
-    Expr out               = arg_pack[0];
-    CHECK(out.as_tensor());
-    if (target.arch == Target::Arch::NVGPU) {
-      pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes.back(), target);
-    } else if (target.arch == Target::Arch::X86) {
-      pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes.back(), target, false);
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK(!args.empty()) << "The input argument of ScatterAdd schedule is empty! Please check.";
+      CINNValuePack arg_pack = args[0];
+      Expr ast_expr          = arg_pack[0];
+      std::vector<Expr> vec_ast{ast_expr};
+      ir::ModuleExpr mod_expr(vec_ast);
+      ir::IRSchedule ir_sch(mod_expr);
+      if (target.arch == Target::Arch::NVGPU) {
+        pe::IRCudaScheduleInjective(ir_sch, output_shapes.front(), target);
+      } else if (target.arch == Target::Arch::X86) {
+        pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target, false);
+      }
+      std::vector<CINNValue> res;
+      res.push_back(arg_pack[0]);
+      *ret = CINNValuePack{res};
+    } else {
+      CHECK(!args.empty()) << "The input argument of ScatterAdd schedule is empty! Please check.\n";
+      CINNValuePack arg_pack = args[0];
+      int arg_size           = arg_pack.size();
+      poly::StageMap stages  = arg_pack.back();
+      Expr out               = arg_pack[0];
+      CHECK(out.as_tensor());
+      if (target.arch == Target::Arch::NVGPU) {
+        pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes.back(), target);
+      } else if (target.arch == Target::Arch::X86) {
+        pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes.back(), target, false);
+      }
+      *ret = arg_pack;
     }
-    *ret = arg_pack;
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -1613,31 +1847,54 @@ std::shared_ptr<OpStrategy> StrategyForSlice(const framework::NodeAttr &attrs,
 
   framework::CINNCompute slice_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input arguments of slice compute is empty! Please check.";
-    CINNValuePack a = args[0];
-    CHECK(!a.empty()) << "The input tensors of slice compute is empty! Please check.";
-    Expr A_expr = a[0];
+    CINNValuePack arg_pack = args[0];
+    CHECK(!arg_pack.empty()) << "The input tensors of slice compute is empty! Please check.";
+    Expr A_expr = arg_pack[0];
     CHECK(A_expr.as_tensor());
     ir::Tensor A = A_expr.as_tensor_ref();
 
-    auto out    = pe::Slice(A, starts, axes, strides, output_shape, UniqName("Slice_output"));
+    std::string tensor_name = UniqName("Slice_output");
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK_EQ(arg_pack.size(), 2U);
+      tensor_name = arg_pack[1].operator std::string();
+    }
+
+    auto out    = pe::Slice(A, starts, axes, strides, output_shape, tensor_name);
     auto stages = CreateStages({out});
     *ret        = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
   });
 
   framework::CINNSchedule slice_schedule([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input arguments of slice schedule is empty! Please check.";
-    CINNValuePack arg_pack = args[0];
-    CHECK_EQ(arg_pack.size(), 2UL) << "The input tensor's size of slice schedule is " << arg_pack.size()
-                                   << "and it should be equal to 2! Please check.";
-    Expr Out              = arg_pack[0];
-    poly::StageMap stages = arg_pack[1];
-    CHECK(Out.as_tensor());
-    if (target.arch == Target::Arch::NVGPU) {
-      pe::CudaScheduleInjective(stages[Out.as_tensor_ref()], output_shapes.front(), target);
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK(!args.empty()) << "The input argument of ScatterAdd schedule is empty! Please check.";
+      CINNValuePack arg_pack = args[0];
+      Expr ast_expr          = arg_pack[0];
+      std::vector<Expr> vec_ast{ast_expr};
+      ir::ModuleExpr mod_expr(vec_ast);
+      ir::IRSchedule ir_sch(mod_expr);
+      if (target.arch == Target::Arch::NVGPU) {
+        pe::IRCudaScheduleInjective(ir_sch, output_shapes.front(), target);
+      } else if (target.arch == Target::Arch::X86) {
+        pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target);
+      }
+      std::vector<CINNValue> res;
+      res.push_back(arg_pack[0]);
+      *ret = CINNValuePack{res};
     } else {
-      pe::ScheduleInjectiveCPU(stages[Out.as_tensor_ref()], output_shapes.front(), target);
+      CHECK(!args.empty()) << "The input arguments of slice schedule is empty! Please check.";
+      CINNValuePack arg_pack = args[0];
+      CHECK_EQ(arg_pack.size(), 2UL) << "The input tensor's size of slice schedule is " << arg_pack.size()
+                                     << "and it should be equal to 2! Please check.";
+      Expr Out              = arg_pack[0];
+      poly::StageMap stages = arg_pack[1];
+      CHECK(Out.as_tensor());
+      if (target.arch == Target::Arch::NVGPU) {
+        pe::CudaScheduleInjective(stages[Out.as_tensor_ref()], output_shapes.front(), target);
+      } else {
+        pe::ScheduleInjectiveCPU(stages[Out.as_tensor_ref()], output_shapes.front(), target);
+      }
+      *ret = arg_pack;
     }
-    *ret = arg_pack;
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -1804,31 +2061,54 @@ std::shared_ptr<OpStrategy> StrategyForSliceAssign(const framework::NodeAttr &at
     CHECK(!args.empty()) << "The input args are empty! Please check again.";
     CINNValuePack arg_pack = args[0];
     int input_size         = arg_pack.size();
-    CHECK_EQ(input_size, 2U) << "Require 2 input tensors for SliceAssign compute.";
+    CHECK_GE(input_size, 2U) << "Require 2 input tensors for SliceAssign compute.";
     Expr input = arg_pack[0];
     CHECK(input.as_tensor());
     Expr assign = arg_pack[1];
     CHECK(assign.as_tensor());
-    auto out = pe::SliceAssign(
-        input.as_tensor_ref(), assign.as_tensor_ref(), axes, starts, ends, strides, UniqName("slice_assign_output"));
+
+    std::string tensor_name = UniqName("slice_assign_output");
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK_EQ(arg_pack.size(), 3U);
+      tensor_name = arg_pack[2].operator std::string();
+    }
+
+    auto out = pe::SliceAssign(input.as_tensor_ref(), assign.as_tensor_ref(), axes, starts, ends, strides, tensor_name);
     auto stages = CreateStages({out});
     std::vector<CINNValue> res{CINNValue(out), CINNValue(stages)};
     *ret = CINNValuePack{res};
   }};
 
   framework::CINNSchedule slice_assign_schedule{[=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input args are empty! Please check again.";
-    CINNValuePack arg_pack = args[0];
-    CHECK_EQ(arg_pack.size(), 2U) << "Expected 2 values in args[0] for slice_assign_schedule.";
-    Expr out              = arg_pack[0];
-    poly::StageMap stages = arg_pack[1];
-    CHECK(out.as_tensor());
-    if (target.arch == Target::Arch::NVGPU) {
-      pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes[0], target);
-    } else if (target.arch == Target::Arch::X86) {
-      pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes[0], target);
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK(!args.empty()) << "The input argument of slice_assign schedule is empty! Please check.";
+      CINNValuePack arg_pack = args[0];
+      Expr ast_expr          = arg_pack[0];
+      std::vector<Expr> vec_ast{ast_expr};
+      ir::ModuleExpr mod_expr(vec_ast);
+      ir::IRSchedule ir_sch(mod_expr);
+      if (target.arch == Target::Arch::NVGPU) {
+        pe::IRCudaScheduleInjective(ir_sch, output_shapes.front(), target);
+      } else if (target.arch == Target::Arch::X86) {
+        pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target);
+      }
+      std::vector<CINNValue> res;
+      res.push_back(arg_pack[0]);
+      *ret = CINNValuePack{res};
+    } else {
+      CHECK(!args.empty()) << "The input args are empty! Please check again.";
+      CINNValuePack arg_pack = args[0];
+      CHECK_EQ(arg_pack.size(), 2U) << "Expected 2 values in args[0] for slice_assign_schedule.";
+      Expr out              = arg_pack[0];
+      poly::StageMap stages = arg_pack[1];
+      CHECK(out.as_tensor());
+      if (target.arch == Target::Arch::NVGPU) {
+        pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes[0], target);
+      } else if (target.arch == Target::Arch::X86) {
+        pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes[0], target);
+      }
+      *ret = arg_pack;
     }
-    *ret = arg_pack;
   }};
 
   auto strategy = std::make_shared<framework::OpStrategy>();
