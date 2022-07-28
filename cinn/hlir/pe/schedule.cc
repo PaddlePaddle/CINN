@@ -2207,13 +2207,12 @@ void CudaScheduleInjective(poly::Stage *stage, const std::vector<int> &output_sh
 
   bool need_more_split = prod_size > new_num_thread * num_block ? true : false;
   if (need_more_split) {
-    LOG(FATAL) << "prod_size out of range: " << prod_size << ", and new_num_thread is : " << new_num_thread;
-  } else {
-    CHECK_GT(prod_size, new_num_thread);
-    stage->Split(0, new_num_thread);
-    stage->Bind(0, "blockIdx.x");
-    stage->Bind(1, "threadIdx.x");
+    LOG(WARNING) << "prod_size out of range: " << prod_size << ", and new_num_thread is : " << new_num_thread;
   }
+  CHECK_GT(prod_size, new_num_thread);
+  stage->Split(0, new_num_thread);
+  stage->Bind(0, "blockIdx.x");
+  stage->Bind(1, "threadIdx.x");
 }
 
 void CudaSplitSchedule(common::CINNValuePack *arg_pack,

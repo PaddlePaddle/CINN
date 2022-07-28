@@ -917,6 +917,12 @@ struct ScheduleBlock : public ExprNode<ScheduleBlock> {
   std::string name;
   Expr body;
 
+  /*!
+   * \brief Additional attributes about this schedulable block,
+   * which take some auxiliary hints for future transformations.
+   */
+  std::map<std::string, attr_t> attrs;
+
   static Expr Make(const std::vector<Var>& iter_vars,
                    const std::vector<Expr>& read_buffers,
                    const std::vector<Expr>& write_buffers,
@@ -982,6 +988,14 @@ struct PrimitiveNode : public ExprNode<PrimitiveNode> {
 
   static const IrNodeTy _node_type_ = IrNodeTy::PrimitiveNode;
 };
+
+// possiable keys of attributes in ir nodes with are listed in the following namespace
+namespace attr {
+
+// max permitted steps for auto_unroll, used in unroll_loop pass
+constexpr const char* auto_unroll_max_step = "auto_unroll_max_step";
+
+}  // namespace attr
 
 }  // namespace ir
 

@@ -57,16 +57,15 @@ std::shared_ptr<OpStrategy> StrategyForBroadcast(
     ir::Tensor (*pe_func)(const ir::Tensor &A, const ir::Tensor &B, const std::string &output_name, const Expr &axis)) {
   framework::CINNCompute binary_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of " << op_name << " compute is empty! Please check.";
-    CINNValuePack a = args[0];
-    CHECK_GE(a.size(), 2U) << "at least 2 input tensors for " << op_name << " compute";
-    std::string out_name = UniqName(op_name + "_Out");
+    CINNValuePack pack_args = args[0];
+    CHECK_GE(pack_args.size(), 2U) << "at least 2 input tensors for " << op_name << " compute";
+    std::string tensor_name = UniqName(op_name + "_Out");
     if (FLAGS_cinn_ir_schedule) {
-      CHECK_GE(a.size(), 3U);
-      const char *out_name_char = a[2];
-      out_name                  = out_name_char;
+      CHECK_GE(pack_args.size(), 3U);
+      tensor_name = pack_args[2].operator std::string();
     }
-    Expr A_expr = a[0];
-    Expr B_expr = a[1];
+    Expr A_expr = pack_args[0];
+    Expr B_expr = pack_args[1];
     CHECK(A_expr.as_tensor());
     CHECK(B_expr.as_tensor());
     ir::Tensor A = A_expr.as_tensor_ref();
@@ -79,7 +78,7 @@ std::shared_ptr<OpStrategy> StrategyForBroadcast(
         break;
       }
     }
-    auto out    = pe_func(A, B, out_name, axis);
+    auto out    = pe_func(A, B, tensor_name, axis);
     auto stages = CreateStages({A, B, out});
     *ret        = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
   });
@@ -88,7 +87,7 @@ std::shared_ptr<OpStrategy> StrategyForBroadcast(
     if (FLAGS_cinn_ir_schedule) {
       CHECK(!args.empty()) << "The input argument of " << op_name << " schedule is empty! Please check.";
       CINNValuePack arg_pack = args[0];
-      CHECK_EQ(arg_pack.size(), 2UL);
+      CHECK_EQ(arg_pack.size(), 1UL);
       Expr ast_expr = arg_pack[0];
       std::vector<Expr> vec_ast{ast_expr};
       ir::ModuleExpr mod_expr(vec_ast);
@@ -205,18 +204,17 @@ std::shared_ptr<OpStrategy> StrategyForBroadcastTo(const framework::NodeAttr &at
 
   framework::CINNCompute broadcast_to_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of broadcast_to compute is empty! Please check.";
-    CINNValuePack a = args[0];
-    CHECK(!a.empty()) << "The input tensors of broadcast_to compute is empty! Please check.";
-    std::string out_name = UniqName("broadcast_to_Out");
+    CINNValuePack pack_args = args[0];
+    CHECK(!pack_args.empty()) << "The input tensors of broadcast_to compute is empty! Please check.";
+    std::string tensor_name = UniqName("broadcast_to_Out");
     if (FLAGS_cinn_ir_schedule) {
-      CHECK_GE(a.size(), 2U);
-      const char *out_name_char = a[1];
-      out_name                  = out_name_char;
+      CHECK_GE(pack_args.size(), 2U);
+      tensor_name = pack_args[1].operator std::string();
     }
-    Expr A_expr = a[0];
+    Expr A_expr = pack_args[0];
     CHECK(A_expr.as_tensor());
     ir::Tensor A = A_expr.as_tensor_ref();
-    auto out     = pe::BroadcastTo(A, out_shape, broadcast_axes, out_name);
+    auto out     = pe::BroadcastTo(A, out_shape, broadcast_axes, tensor_name);
     auto stages  = CreateStages({A, out});
     *ret         = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
   });

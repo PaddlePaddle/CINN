@@ -988,8 +988,8 @@ std::shared_ptr<OpStrategy> StrategyForBatchNorm(const framework::NodeAttr &attr
     std::string out_name = UniqName("BatchNorm_output");
     if (FLAGS_cinn_ir_schedule) {
       CHECK_EQ(a.size(), 6U);
-      const char *out_name_char = a[5];
-      out_name                  = out_name_char;
+      std::string str = a[5];
+      out_name        = str;
     }
     CHECK(A.as_tensor());
     CHECK(Scale.as_tensor());

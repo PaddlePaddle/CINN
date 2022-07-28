@@ -56,18 +56,17 @@ std::shared_ptr<OpStrategy> StrategyForElementwise(const framework::NodeAttr &at
                                                    const PeFunc &pe_func) {
   framework::CINNCompute unary_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of " << op_name << " compute is empty! Please check.";
-    CINNValuePack a = args[0];
-    CHECK_GE(a.size(), 1U) << "1 input tensor for " << op_name << " compute";
-    std::string out_name = UniqName(op_name + "_Out");
+    CINNValuePack pack_args = args[0];
+    CHECK_GE(pack_args.size(), 1U) << "1 input tensor for " << op_name << " compute";
+    std::string tensor_name = UniqName(op_name + "_Out");
     if (FLAGS_cinn_ir_schedule) {
-      CHECK_EQ(a.size(), 2U);
-      const char *out_name_char = a[1];
-      out_name                  = out_name_char;
+      CHECK_EQ(pack_args.size(), 2U);
+      tensor_name = pack_args[1].operator std::string();
     }
-    Expr A_expr = a[0];
+    Expr A_expr = pack_args[0];
     CHECK(A_expr.as_tensor());
     ir::Tensor A = A_expr.as_tensor_ref();
-    auto out     = pe_func(A, out_name);
+    auto out     = pe_func(A, tensor_name);
     auto stages  = CreateStages({A});
     std::vector<CINNValue> res;
     for (auto &t : out) {
@@ -82,8 +81,7 @@ std::shared_ptr<OpStrategy> StrategyForElementwise(const framework::NodeAttr &at
     if (FLAGS_cinn_ir_schedule) {
       CHECK(!args.empty()) << "The input argument of " << op_name << " schedule is empty! Please check.";
       CINNValuePack arg_pack = args[0];
-      CHECK_EQ(arg_pack.size(), 2UL);
-      Expr ast_expr = arg_pack[0];
+      Expr ast_expr          = arg_pack[0];
       std::vector<Expr> vec_ast{ast_expr};
       ir::ModuleExpr mod_expr(vec_ast);
       ir::IRSchedule ir_sch(mod_expr);
@@ -321,17 +319,16 @@ std::shared_ptr<OpStrategy> StrategyForFillConstant(const framework::NodeAttr &a
     force_cpu = absl::get<bool>(attrs.attr_store.at("force_cpu"));
 
     if (force_cpu) CINN_NOT_IMPLEMENTED
-    CINNValuePack a      = args[0];
-    std::string out_name = UniqName("fill_constant_Out");
+    CINNValuePack pack      = args[0];
+    std::string tensor_name = UniqName("fill_constant_Out");
     if (FLAGS_cinn_ir_schedule) {
-      CHECK_EQ(a.size(), 1U);
-      const char *out_name_char = a[0];
-      out_name                  = out_name_char;
+      CHECK_EQ(pack.size(), 1U);
+      tensor_name = pack[0].operator std::string();
     }
     CHECK(!shape.empty()) << "shape attr is empty!";
     auto shape_exprs = ToCinnExprs(shape);
     auto out         = lang::Compute(
-        shape_exprs, [=](const std::vector<Expr> &indice) { return ir::Cast::Make(out_type[0], value); }, out_name);
+        shape_exprs, [=](const std::vector<Expr> &indice) { return ir::Cast::Make(out_type[0], value); }, tensor_name);
     CHECK(out.defined()) << "can't create fill_constant with the given type " << out_type[0];
     auto stages = CreateStages({out});
     *ret        = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
