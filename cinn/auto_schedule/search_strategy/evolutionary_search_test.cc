@@ -21,7 +21,6 @@
 
 #include "cinn/auto_schedule/search_space/search_space.h"
 #include "cinn/auto_schedule/search_space/search_state.h"
-#include "cinn/auto_schedule/task/tune_context.h"
 #include "cinn/auto_schedule/task/tune_task.h"
 #include "cinn/auto_schedule/tuning.h"
 #include "cinn/ir/ir_base.h"
@@ -39,7 +38,7 @@ namespace auto_schedule {
  */
 class MockSearchSpace : public SearchSpace {
  public:
-  MockSearchSpace(const TuneContext& tune_context) : SearchSpace(tune_context) {}
+  MockSearchSpace(const TuneTask& tune_task) : SearchSpace(tune_task) {}
 
   int GetMinExprValue() const { return min_expr_value_; }
 
@@ -77,9 +76,9 @@ class MockSearchSpace : public SearchSpace {
 TEST(EvolutionarySearch, GetOneBest) {
   TuneTask mock_tune_task;
   TuningOptions options;
-  EvolutionarySearch evolutionary_search(mock_tune_task.tune_context());
+  EvolutionarySearch evolutionary_search(mock_tune_task);
 
-  MockSearchSpace* mock_search_space = new MockSearchSpace(mock_tune_task.tune_context());
+  MockSearchSpace* mock_search_space = new MockSearchSpace(mock_tune_task);
   // Ownership is transferred so don't delete mock_search_space
   evolutionary_search.SetSearchSpace(mock_search_space);
 
@@ -95,9 +94,9 @@ TEST(EvolutionarySearch, GetOneBest) {
 TEST(EvolutionarySearch, GetEpsGreedy) {
   TuneTask mock_tune_task;
   TuningOptions options;
-  EvolutionarySearch evolutionary_search(mock_tune_task.tune_context());
+  EvolutionarySearch evolutionary_search(mock_tune_task);
 
-  MockSearchSpace* mock_search_space = new MockSearchSpace(mock_tune_task.tune_context());
+  MockSearchSpace* mock_search_space = new MockSearchSpace(mock_tune_task);
   // Ownership is transferred so don't delete mock_search_space
   evolutionary_search.SetSearchSpace(mock_search_space);
   std::vector<SearchState> search_states = evolutionary_search.SearchModuleExprEpsGreedy(options);

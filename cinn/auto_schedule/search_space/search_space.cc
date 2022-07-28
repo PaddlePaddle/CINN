@@ -22,7 +22,7 @@
 
 #include "cinn/auto_schedule/cost_model/cost_model.h"
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
-#include "cinn/auto_schedule/task/tune_context.h"
+#include "cinn/auto_schedule/task/tune_task.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_schedule.h"
 #include "cinn/optim/ir_copy.h"
@@ -30,19 +30,19 @@
 namespace cinn {
 namespace auto_schedule {
 
-SearchSpace::SearchSpace(const TuneContext& tune_context) : tune_context_(tune_context) {}
+SearchSpace::SearchSpace(const TuneTask& tune_task) : tune_task_(tune_task) {}
 
 std::vector<SearchState> SearchSpace::GetRandomInitialSketch(int num) {
   VLOG(4) << "Start SearchSpace::GetRandomInitialSketch";
   std::vector<SearchState> result;
   while (result.size() < num) {
-    std::vector<ir::Expr> body_exprs = tune_context_.GetLoweredFuncBodyExprs();
+    std::vector<ir::Expr> body_exprs = tune_task_.GetLoweredFuncBodyExprs();
     std::vector<ir::Expr> copy_exprs;
     for (const ir::Expr& e : body_exprs) {
       copy_exprs.push_back(optim::IRCopy(e));
     }
     SearchState state(std::move(ir::ModuleExpr(copy_exprs)));
-    state.InitAutoGenRules(tune_context_.target, tune_context_.output_names);
+    state.InitAutoGenRules(tune_task_.GetTarget(), tune_task_.output_names());
     for (int i = 0; i < init_sketch_random_depth_; ++i) {
       VLOG(5) << "Generating random sketch at depth: " << i;
       state = RandomScheduleMutate(state);
