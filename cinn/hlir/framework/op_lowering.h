@@ -23,6 +23,7 @@
 #include "cinn/hlir/framework/instruction.h"
 #include "cinn/hlir/framework/op_strategy.h"
 #include "cinn/ir/ir_schedule.h"
+#include "cinn/ir/ir_schedule_util.h"
 #include "cinn/ir/lowered_func.h"
 #include "cinn/lang/packed_func.h"
 

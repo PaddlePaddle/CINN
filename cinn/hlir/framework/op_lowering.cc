@@ -166,15 +166,14 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOp(IRComputeFunction compute,
   auto func_body    = ir_sch.GetModule().GetExprs().at(0);
   auto temp_buffers = lang::GetTempBuffers(func_tensors, stages, func_body);
   auto func_args    = lang::GetArgs(func_body, func_input_tensors);
-  auto func         = ir::_LoweredFunc_::Make(
-      func_name_prefix + group->group_id, func_args, ir_sch.GetModule().GetExprs().at(0), temp_buffers);
+  auto func =
+      ir::_LoweredFunc_::Make(group->GetFuncName(), func_args, ir_sch.GetModule().GetExprs().at(0), temp_buffers);
   func->PrepareBufferCastExprs();
 #ifdef CINN_WITH_CUDA
   optim::OptimizeExprGPU(&(func->body));
 #endif
   func = optim::Optimize(Expr(func), target_, false).as_lowered_func_ref();
   return {func};
-  // return lang::LowerVec(func_name_prefix + group->group_id, stages, func_args, {}, {}, nullptr, this->target_);
 }
 
 // fusion op lowering
@@ -307,7 +306,7 @@ std::vector<Expr> OpLowerer::IRElementwiseCompute(poly::StageMap& stages,
       cinn_inputs.push_back(common::CINNValue(ir::Expr(tensor)));
     }
     // set tensor name = node data name
-    cinn_inputs.push_back(common::CINNValue(node_data->id().c_str()));
+    cinn_inputs.push_back(common::CINNValue(node_data->id()));
 
     std::vector<Type> out_types;
     std::vector<std::vector<int>> out_shapes;
@@ -361,7 +360,7 @@ void OpLowerer::IRElementwiseSchedule(ir::IRSchedule& ir_sch,
       // internal node use buffer
       if (!group->output_nodes.count(node)) {
         auto node_block = ir_sch.GetBlock(node_tensor->name);
-        ir_sch.SetBuffer(node_block, "local");
+        ir_sch.SetBuffer(node_block, "local", true);
       }
       ir_sch.CopyTransformAndLoopInfo(node_tensor->name, manster_tensor->name);
 
@@ -389,13 +388,14 @@ std::vector<Expr> OpLowerer::IRReduceCompute(poly::StageMap& stages,
   std::vector<Expr> ast_exprs;
   for (auto& node : sub_group->nodes) {
     auto node_data = GetNodeData(node);
+    VLOG(3) << node->id();
 
     std::vector<common::CINNValue> cinn_inputs;
     std::vector<ir::Tensor> tensor_inputs = std::move(CollectInputTensor(func_args, tensor_map, node));
     for (auto& tensor : tensor_inputs) {
       cinn_inputs.push_back(common::CINNValue(ir::Expr(tensor)));
     }
-    cinn_inputs.push_back(common::CINNValue(node_data->id().c_str()));
+    cinn_inputs.push_back(common::CINNValue(node_data->id()));
 
     std::vector<Type> out_types;
     std::vector<std::vector<int>> out_shapes;
@@ -776,7 +776,7 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
 
         if (!group->output_nodes.count(node)) {
           auto node_block = ir_sch.GetBlock(node_tensor->name);
-          ir_sch.SetBuffer(node_block, "local");
+          ir_sch.SetBuffer(node_block, "local", true);
         }
         if (node == reducer) {
           continue;
@@ -812,6 +812,10 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
 
             if (tmp_reducer_shape == node_shape) {
               ir_sch.SimpleComputeAt(node_0_block, tmp_reducer_0_loops.back());
+              // init compute at reduce
+              int loop_depth = ir_sch.GetLoops(node_0_tensor->name + "__reduce_init").size();
+              ir_sch.SimpleComputeAt(ir_sch.GetBlock(node_0_tensor->name + "__reduce_init"),
+                                     ir_sch.GetLoops(node_0_tensor->name)[loop_depth - 1]);
             } else {
               if (tmp_reducer_0_tensor->shape.back() == node_0_tensor->shape.back()) {
                 int num_reduce_axis = tmp_reducer_0_tensor->reduce_axis.size();
@@ -823,10 +827,8 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
                 ir_sch.SimpleComputeAt(ir_sch.GetBlock(node_0_tensor->name + "__reduce_init"),
                                        ir_sch.GetLoops(node_0_tensor->name)[loop_depth - 1]);
               } else {
-                int num_reduce_axis = tmp_reducer_0_tensor->reduce_axis.size();
-                CHECK_GE(static_cast<int>(tmp_reducer_0_loops.size()) - num_reduce_axis - 2, 0);
-                ir_sch.SimpleComputeAt(node_0_block,
-                                       tmp_reducer_0_loops[tmp_reducer_0_loops.size() - num_reduce_axis - 2]);
+                CHECK_GE(static_cast<int>(tmp_reducer_0_loops.size()), 2);
+                ir_sch.SimpleComputeAt(node_0_block, tmp_reducer_0_loops[0]);
               }
             }
             ir_sch.SimpleComputeAt(ir_sch.GetBlock(node_tensor->name),
@@ -921,7 +923,7 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
       // if node is not output node, set buffer.
       if (!group->output_nodes.count(node)) {
         auto node_block = ir_sch.GetBlock(node_tensor->name);
-        ir_sch.SetBuffer(node_block, "local");
+        ir_sch.SetBuffer(node_block, "local", true);
       }
       // node is after reduce
       if (this->shape_dict_.at(node_data->id()) == this->shape_dict_.at(master_data->id())) {
@@ -1052,7 +1054,7 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpaqueOp(GroupPtr& group) {
     inputs.push_back(temp);
     cinn_inputs.push_back(common::CINNValue(temp));
   }
-  cinn_inputs.push_back(common::CINNValue(node_data->id().c_str()));
+  cinn_inputs.push_back(common::CINNValue(node_data->id()));
   std::vector<Type> out_types;
   for (auto& out : node->outlinks_in_order(true)) {
     std::string out_id = out->sink()->safe_as<NodeData>()->id();

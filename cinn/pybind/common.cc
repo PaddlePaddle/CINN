@@ -278,7 +278,7 @@ void BindCinnValue(py::module *m) {
       .def("to_void_p", [](CINNValue &self) { return static_cast<void *>(self); })
       .def("to_cinn_buffer_p", [](CINNValue &self) { return static_cast<cinn_buffer_t *>(self); })
       .def("to_str", [](CINNValue &self) { return static_cast<char *>(self); })
-      .def("to_var", [](CINNValue &self) { return ir::Var(self); })
+      .def("to_var", [](CINNValue &self) { return self.operator ir::Var(); })
       .def("to_expr", [](CINNValue &self) { return ir::Expr(self.operator ir::Expr()); })
       .def("set", &CINNValue::Set<int32_t>)
       .def("set", &CINNValue::Set<int64_t>)

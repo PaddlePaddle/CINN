@@ -25,12 +25,6 @@
 namespace cinn {
 namespace ir {
 
-Tensor GetTensor(const Expr& block);
-
-Tensor GetReadTensor(const Expr& block, int index);
-
-int GetLoopExtent(const Expr& loop);
-
 /**
  * A struct representing a module that contains Expr. This struct is only used in Schedule process.
  */
@@ -230,7 +224,7 @@ class IRSchedule {
    * \param block The ScheduleBlockRealize corresponding to an unique tensor.
    * \param memory_type The memory type we want to set. Should be "local", "shared" or "global".
    */
-  void SetBuffer(Expr& block, const std::string& memory_type);
+  void SetBuffer(Expr& block, const std::string& memory_type, bool fixed = false);
 
   /**
    * \brief Reorder the loops in the order of vector.
@@ -348,6 +342,5 @@ class IRSchedule {
   ScheduleHelper helper_;
 };
 
-void SetCudaAxisInfo(Expr* lowered_func);
 }  // namespace ir
 }  // namespace cinn

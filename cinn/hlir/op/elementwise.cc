@@ -61,8 +61,7 @@ std::shared_ptr<OpStrategy> StrategyForElementwise(const framework::NodeAttr &at
     std::string tensor_name = UniqName(op_name + "_Out");
     if (FLAGS_cinn_ir_schedule) {
       CHECK_EQ(pack_args.size(), 2U);
-      const char *str = pack_args[1];
-      tensor_name     = str;
+      tensor_name = pack_args[1].operator std::string();
     }
     Expr A_expr = pack_args[0];
     CHECK(A_expr.as_tensor());
@@ -320,17 +319,16 @@ std::shared_ptr<OpStrategy> StrategyForFillConstant(const framework::NodeAttr &a
     force_cpu = absl::get<bool>(attrs.attr_store.at("force_cpu"));
 
     if (force_cpu) CINN_NOT_IMPLEMENTED
-    CINNValuePack a      = args[0];
-    std::string out_name = UniqName("fill_constant_Out");
+    CINNValuePack pack      = args[0];
+    std::string tensor_name = UniqName("fill_constant_Out");
     if (FLAGS_cinn_ir_schedule) {
-      CHECK_EQ(a.size(), 1U);
-      const char *out_name_char = a[0];
-      out_name                  = out_name_char;
+      CHECK_EQ(pack.size(), 1U);
+      tensor_name = pack[0].operator std::string();
     }
     CHECK(!shape.empty()) << "shape attr is empty!";
     auto shape_exprs = ToCinnExprs(shape);
     auto out         = lang::Compute(
-        shape_exprs, [=](const std::vector<Expr> &indice) { return ir::Cast::Make(out_type[0], value); }, out_name);
+        shape_exprs, [=](const std::vector<Expr> &indice) { return ir::Cast::Make(out_type[0], value); }, tensor_name);
     CHECK(out.defined()) << "can't create fill_constant with the given type " << out_type[0];
     auto stages = CreateStages({out});
     *ret        = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
