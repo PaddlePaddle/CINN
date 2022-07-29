@@ -31,58 +31,34 @@ namespace auto_schedule {
 
 class TuneTask {
  public:
-  /* constructors */
-
   TuneTask() = default;
-
   TuneTask(hlir::framework::GraphCompiler* compiler) : graph_compiler_(compiler) {}
 
-  /* getters and setters */
-
-  std::vector<std::vector<hlir::framework::Node*>>& task_graph() { return task_graph_; }
-
-  const std::vector<std::vector<hlir::framework::Node*>>& task_graph() const { return task_graph_; }
-
   void SetGraphCompiler(hlir::framework::GraphCompiler* compiler);
-
-  const common::Target& GetTarget() const;
-
-  void SetTarget(const common::Target& target);
-
-  std::vector<ir::LoweredFunc>& lowered_funcs() { return lowered_funcs_; };
-
-  const std::vector<ir::LoweredFunc>& lowered_funcs() const { return lowered_funcs_; };
-
-  std::unordered_set<std::string>& output_names() { return output_names_; };
-
-  const std::unordered_set<std::string>& output_names() const { return output_names_; };
-
   // Set lowered_funcs and analyze output names.
   void SetLoweredFuncsAndAnalyzeOutput(const std::vector<ir::LoweredFunc>& lowered_funcs);
   // Extract bodies in lowered_funcs() and return
   std::vector<ir::Expr> GetLoweredFuncBodyExprs() const;
   // Set bodies in lowered_funcs() by exprs
   void SetLoweredFuncBodyExprs(const std::vector<ir::Expr>& exprs);
-
-  /* methods */
-
   // When you set GraphCompiler and task_graph, lower the task graph to
   // un-optimized LoweredFunc and store in lowered_funcs().
   void TaskGraphToUnoptLoweredFunc();
 
- private:
   // In CINN, we use std::vector<hlir::framework::Node*> to represent a fused
   // sub-graph (if an op won't be fused, it will be a vector with size=1). So
   // the task_graph_ consist of multiple "fused sub-graph" / "unfused op"
-  std::vector<std::vector<hlir::framework::Node*>> task_graph_;
+  std::vector<std::vector<hlir::framework::Node*>> task_graph;
+  // target of this task
+  common::Target target;
+  // stores the initial (un-optimized) LoweredFuncs
+  std::vector<ir::LoweredFunc> lowered_funcs;
+  // names of the output arguments of lowered_funcs_
+  std::unordered_set<std::string> output_names;
+
+ private:
   // Not owned
   hlir::framework::GraphCompiler* graph_compiler_;
-  // target of this task
-  common::Target target_;
-  // stores the initial (un-optimized) LoweredFuncs
-  std::vector<ir::LoweredFunc> lowered_funcs_;
-  // names of the output arguments of lowered_funcs_
-  std::unordered_set<std::string> output_names_;
 };
 
 }  // namespace auto_schedule

@@ -89,7 +89,7 @@ std::map<std::string, cinn_pod_value_t> SimpleRunner::PrepareArgs(const MeasureI
                                                                   hlir::framework::Scope* temp_scope) {
   std::map<std::string, cinn_pod_value_t> result;
 
-  const auto& target         = input.task->GetTarget();
+  const auto& target         = input.task->target;
   const auto* input_args     = input.execution_args;
   const auto* compiled_scope = build_result.compiled_scope;
   const auto& instructions   = build_result.runtime_program->GetRunInstructions();

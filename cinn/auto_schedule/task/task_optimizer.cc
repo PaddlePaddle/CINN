@@ -35,10 +35,10 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
       << "TuningOptions.num_measure_trials % TuningOptions.num_samples_per_iteration must be 0.";
 
   VLOG(4) << "TuneTask LoweredFunc before optimization is:";
-  VLOG(4) << "task_.lowered_funcs().size() = " << task_->lowered_funcs().size();
-  for (size_t i = 0; i < task_->lowered_funcs().size(); ++i) {
+  VLOG(4) << "task_.lowered_funcs().size() = " << task_->lowered_funcs.size();
+  for (size_t i = 0; i < task_->lowered_funcs.size(); ++i) {
     VLOG(4) << "lowered_funcs[" << i << "] = ";
-    VLOG(4) << task_->lowered_funcs()[i];
+    VLOG(4) << task_->lowered_funcs[i];
   }
 
   if (evolutionary_search_ == nullptr) {
@@ -56,14 +56,14 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
     // lowered_funcs to be std::vector<std::vector<ir::LoweredFunc>>
     // in the future.
 
-    result.lowered_funcs.emplace_back(optim::IRCopy(task_->lowered_funcs()));
+    result.lowered_funcs.emplace_back(optim::IRCopy(task_->lowered_funcs));
 
     std::vector<ir::Expr> best_exprs = states[0].mod_expr.GetExprs();
     CHECK_EQ(best_exprs.size(), result.lowered_funcs[0].size())
         << "RuntimeError: Expr size is not equal to LoweredFunc size in TaskOptimizer";
     for (size_t i = 0; i < best_exprs.size(); ++i) {
       result.lowered_funcs[0][i]->body = best_exprs[i];
-      if (task_->GetTarget() == common::DefaultNVGPUTarget()) {
+      if (task_->target == common::DefaultNVGPUTarget()) {
         result.lowered_funcs[0][i]->PrepareCudaAxisInfoFromBody();
       }
     }
@@ -73,7 +73,7 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
   int measured_count   = 0;
   double min_exec_time = std::numeric_limits<double>().max();
   TuningResult::OptimizedComputeExpr result;
-  result.lowered_funcs.push_back(optim::IRCopy(task_->lowered_funcs()));
+  result.lowered_funcs.push_back(optim::IRCopy(task_->lowered_funcs));
 
   while (measured_count < options.num_measure_trials) {
     std::vector<SearchState> states = evolutionary_search_->SearchModuleExprEpsGreedy(options);
@@ -82,13 +82,13 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
     for (size_t i = 0; i < states.size(); ++i) {
       measure_inputs[i].task           = task_;
       std::vector<ir::Expr> best_exprs = states[i].mod_expr.GetExprs();
-      CHECK_EQ(best_exprs.size(), task_->lowered_funcs().size())
+      CHECK_EQ(best_exprs.size(), task_->lowered_funcs.size())
           << "RuntimeError: Expr size is not equal to LoweredFunc size in TaskOptimizer";
 
-      measure_inputs[i].lowered_funcs.emplace_back(optim::IRCopy(task_->lowered_funcs()));
+      measure_inputs[i].lowered_funcs.emplace_back(optim::IRCopy(task_->lowered_funcs));
       for (size_t j = 0; j < best_exprs.size(); ++j) {
         measure_inputs[i].lowered_funcs.front().at(j)->body = best_exprs[j];
-        if (task_->GetTarget() == common::DefaultNVGPUTarget()) {
+        if (task_->target == common::DefaultNVGPUTarget()) {
           measure_inputs[i].lowered_funcs.front().at(j)->PrepareCudaAxisInfoFromBody();
         }
       }

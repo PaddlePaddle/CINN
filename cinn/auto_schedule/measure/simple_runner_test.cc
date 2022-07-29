@@ -63,9 +63,9 @@ class TestSimpleRunner : public ::testing::Test {
 
     task = std::make_unique<TuneTask>();
 #ifdef CINN_WITH_CUDA
-    task->SetTarget(common::DefaultNVGPUTarget());
+    task->target = common::DefaultNVGPUTarget();
 #else
-    task->SetTarget(common::DefaultHostTarget());
+    task->target = common::DefaultHostTarget();
 #endif
     input.task = task.get();
   }
