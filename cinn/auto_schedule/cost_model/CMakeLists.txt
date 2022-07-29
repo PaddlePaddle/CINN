@@ -1,6 +1,6 @@
 core_gather_headers()
 
-gather_srcs(cinnapi_src SRCS cost_model.cc)
+gather_srcs(cinnapi_src SRCS cost_model.cc feature.cc feature_extractor.cc)
 
 set(Python_VIRTUALENV FIRST)
 find_package(PythonInterp ${PY_VERSION} REQUIRED)
