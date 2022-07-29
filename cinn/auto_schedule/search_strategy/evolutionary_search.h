@@ -19,7 +19,7 @@
 
 #include "cinn/auto_schedule/search_space/search_space.h"
 #include "cinn/auto_schedule/search_space/search_state.h"
-#include "cinn/auto_schedule/task/tune_context.h"
+#include "cinn/auto_schedule/task/tune_task.h"
 #include "cinn/auto_schedule/tuning.h"
 #include "cinn/ir/ir_schedule.h"
 
@@ -32,12 +32,12 @@ namespace auto_schedule {
 class EvolutionarySearch {
  public:
   /**
-   * constutor with TuneContext.
+   * constutor with TuneTask.
    *
-   * @param tune_context: the TuneContext this class works on. This class doesn't
+   * @param tune_task: the TuneTask this class works on. This class doesn't
    *     take ownership of the pointer.
    */
-  EvolutionarySearch(const TuneContext& tune_context);
+  EvolutionarySearch(const TuneTask& tune_task);
 
   /**
    * Destructor
@@ -98,7 +98,7 @@ class EvolutionarySearch {
 
   std::unique_ptr<SearchSpace> search_space_;
 
-  const TuneContext& tune_context_;
+  const TuneTask& tune_task_;
 
   CostModel* cost_model_;  // not owned
 };

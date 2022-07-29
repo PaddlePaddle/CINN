@@ -18,6 +18,7 @@
 
 #include <vector>
 
+#include "cinn/auto_schedule/analysis/analyze_ir.h"
 #include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/node.h"
 #include "cinn/ir/ir_base.h"
@@ -29,13 +30,35 @@ namespace auto_schedule {
 
 void TuneTask::SetGraphCompiler(hlir::framework::GraphCompiler* compiler) { graph_compiler_ = compiler; }
 
+std::vector<ir::Expr> TuneTask::GetLoweredFuncBodyExprs() const {
+  std::vector<ir::Expr> result;
+  for (const ir::LoweredFunc& func : lowered_funcs) {
+    result.push_back(func->body);
+  }
+  return result;
+}
+
+void TuneTask::SetLoweredFuncBodyExprs(const std::vector<ir::Expr>& exprs) {
+  size_t exprs_size = exprs.size();
+  CHECK_EQ(exprs_size, lowered_funcs.size())
+      << "SetLoweredFuncBodyExprs must have same number of Expr(s) and LoweredFunc(s)";
+  for (size_t i = 0; i < exprs_size; ++i) {
+    lowered_funcs[i]->body = exprs[i];
+  }
+}
+
+void TuneTask::SetLoweredFuncsAndAnalyzeOutput(const std::vector<ir::LoweredFunc>& lowered_funcs) {
+  this->lowered_funcs = lowered_funcs;
+  this->output_names  = GetOutputNamesFromLoweredFunc(this->lowered_funcs);
+}
+
 void TuneTask::TaskGraphToUnoptLoweredFunc() {
   CHECK(graph_compiler_ != nullptr) << "graph_compiler_ must be set before processing graph";
   // TODO(zhhsplendid): current a task only contains one Op or one Fused Op,
   // so we can take only first std::vector<ir::LoweredFunc>. Support the
-  // tune_context_.lowered_funcs to be std::vector<std::vector<ir::LoweredFunc>>
+  // lowered_funcs to be std::vector<std::vector<ir::LoweredFunc>>
   // in the future.
-  tune_context_.SetLoweredFuncsAndAnalyzeOutput(graph_compiler_->FusedGraphToLoweredFunc(task_graph_)[0]);
+  SetLoweredFuncsAndAnalyzeOutput(graph_compiler_->FusedGraphToLoweredFunc(task_graph)[0]);
 }
 
 }  // namespace auto_schedule

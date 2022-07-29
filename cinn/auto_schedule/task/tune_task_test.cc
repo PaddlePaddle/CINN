@@ -81,7 +81,7 @@ TEST(TuneTask, GraphToUnoptLoweredFunc_NoPass) {
     task.SetGraphCompiler(&graph_compiler);
     task.TaskGraphToUnoptLoweredFunc();
 
-    std::vector<ir::Expr> exprs = task.tune_context().GetLoweredFuncBodyExprs();
+    std::vector<ir::Expr> exprs = task.GetLoweredFuncBodyExprs();
     VLOG(6) << "ir:Expr is: ";
     for (const ir::Expr& e : exprs) {
       VLOG(6) << e;
@@ -153,7 +153,7 @@ TEST(TuneTask, GraphToUnoptLoweredFunc_ApplyPass) {
     task.SetGraphCompiler(&graph_compiler);
     task.TaskGraphToUnoptLoweredFunc();
 
-    std::vector<ir::Expr> exprs = task.tune_context().GetLoweredFuncBodyExprs();
+    std::vector<ir::Expr> exprs = task.GetLoweredFuncBodyExprs();
     VLOG(6) << "ir:Expr is: ";
     for (const ir::Expr& e : exprs) {
       VLOG(6) << e;

@@ -67,7 +67,7 @@ TuningResult AutoTuner::Tune(const TuningOptions& options) {
   // once we support graph tuning.
   for (auto i = 0; i < tasks_.size(); ++i) {
     auto&& task                  = tasks_.at(i);
-    result.tuned_graph[i].groups = task.task_graph();
+    result.tuned_graph[i].groups = task.task_graph;
   }
 
   for (int r = 0; r < options.num_tuning_rounds; ++r) {
