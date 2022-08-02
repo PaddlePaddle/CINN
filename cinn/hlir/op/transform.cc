@@ -126,10 +126,10 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
                                               const Target &target) {
   framework::CINNCompute matmul_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input arguments of Matmul compute is empty! Please check.\n";
-    CINNValuePack a = args[0];
-    CHECK_GE(a.size(), 2U) << "at least 2 input tensors for Matmul compute\n";
-    Expr A = a[0];
-    Expr B = a[1];
+    CINNValuePack pack_args = args[0];
+    CHECK_GE(pack_args.size(), 2U) << "at least 2 input tensors for Matmul compute\n";
+    Expr A = pack_args[0];
+    Expr B = pack_args[1];
     CHECK(A.as_tensor());
     CHECK(B.as_tensor());
     auto attr_store = attrs.attr_store;
@@ -144,6 +144,11 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
     }
     if (attr_store.count("alpha")) {
       alpha = absl::get<float>(attr_store.at("alpha"));
+    }
+
+    std::string tensor_name = UniqName("MatMul");
+    if (FLAGS_cinn_ir_schedule) {
+      tensor_name = pack_args[2].operator std::string();
     }
 
     auto tensor_A = A.as_tensor_ref();
@@ -185,7 +190,7 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
       out = pe::MatmulV2(new_A, new_B, trans_a, trans_b, alpha, UniqName("MatmulV2_output"), target);
 #endif
     } else {
-      out = pe::Matmul(new_A, new_B, trans_a, trans_b, alpha, UniqName("Matmul_output"));
+      out = pe::Matmul(new_A, new_B, trans_a, trans_b, alpha, tensor_name);
     }
     std::vector<CINNValue> res;
     for (auto &t : out) {
@@ -200,28 +205,41 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
   framework::CINNSchedule matmul_schedule([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of matmul schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
-    int arg_size           = arg_pack.size();
-    CHECK(arg_size == 2UL || arg_size == 3UL);
-    poly::StageMap stages = arg_pack.back();
-    if (target.arch == Target::Arch::NVGPU) {
-      Expr out = arg_pack[0];
-      CHECK(out.as_tensor());
-      stages[out.as_tensor_ref()]->Split(1, 2);
-      stages[out.as_tensor_ref()]->Bind(0, "blockIdx.x");
-      stages[out.as_tensor_ref()]->Bind(1, "threadIdx.x");
-    } else if (target.arch == Target::Arch::X86) {
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK(arg_pack.size() == 2UL);
+      Expr ast_expr           = arg_pack[0];
+      std::string tensor_name = arg_pack[1].operator std::string();
+      std::vector<Expr> vec_ast{ast_expr};
+      ir::ModuleExpr mod_expr(vec_ast);
+      ir::IRSchedule ir_sch(mod_expr);
+
+      ir_sch.Bind(ir_sch.GetLoops(tensor_name)[0], "blockIdx.x");
+      ir_sch.Bind(ir_sch.GetLoops(tensor_name)[1], "threadIdx.x");
+      std::vector<CINNValue> results = {CINNValue(ir_sch.GetModule().GetExprs().at(0))};
+      *ret                           = CINNValuePack({results});
+    } else {
+      CHECK(arg_pack.size() == 2UL || arg_pack.size() == 3UL);
+      poly::StageMap stages = arg_pack.back();
+      if (target.arch == Target::Arch::NVGPU) {
+        Expr out = arg_pack[0];
+        CHECK(out.as_tensor());
+        stages[out.as_tensor_ref()]->Split(1, 2);
+        stages[out.as_tensor_ref()]->Bind(0, "blockIdx.x");
+        stages[out.as_tensor_ref()]->Bind(1, "threadIdx.x");
+      } else if (target.arch == Target::Arch::X86) {
 #ifdef CINN_WITH_MKL_CBLAS
-      CHECK_EQ(arg_pack.size(), 3UL);
+        CHECK_EQ(arg_pack.size(), 3UL);
 #else
-      CHECK(arg_pack.size() == 3UL);
-      Expr out     = arg_pack[0];
-      Expr packedB = arg_pack[1];
-      CHECK(packedB.as_tensor());
-      CHECK(out.as_tensor());
-      pe::MatmulScheduleCPU(stages, out.as_tensor_ref(), packedB.as_tensor_ref(), target);
+        CHECK(arg_pack.size() == 3UL);
+        Expr out     = arg_pack[0];
+        Expr packedB = arg_pack[1];
+        CHECK(packedB.as_tensor());
+        CHECK(out.as_tensor());
+        pe::MatmulScheduleCPU(stages, out.as_tensor_ref(), packedB.as_tensor_ref(), target);
 #endif
+      }
+      *ret = arg_pack;
     }
-    *ret = arg_pack;
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();

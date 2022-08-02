@@ -223,7 +223,7 @@ std::shared_ptr<OpStrategy> StrategyForBroadcastTo(const framework::NodeAttr &at
     if (FLAGS_cinn_ir_schedule) {
       CHECK(!args.empty()) << "The input argument of broadcast_to schedule is empty! Please check.";
       CINNValuePack arg_pack = args[0];
-      CHECK_EQ(arg_pack.size(), 2UL);
+      CHECK_GE(arg_pack.size(), 1UL);
       Expr ast_expr = arg_pack[0];
       std::vector<Expr> vec_ast{ast_expr};
       ir::ModuleExpr mod_expr(vec_ast);
@@ -234,7 +234,7 @@ std::shared_ptr<OpStrategy> StrategyForBroadcastTo(const framework::NodeAttr &at
         pe::IRScheduleInjectiveCPU(ir_sch, out_shape, target);
       }
       std::vector<CINNValue> res;
-      res.push_back(arg_pack[0]);
+      res.push_back(CINNValue(ir_sch.GetModule().GetExprs().at(0)));
       *ret = CINNValuePack{res};
     } else {
       CHECK(!args.empty()) << "The input argument of broadcast_to schedule is empty! Please check.";

@@ -1029,7 +1029,7 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
 }
 
 std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpaqueOp(GroupPtr& group) {
-  VLOG(11) << "LowerOpaqueOp Group : " << group->group_id;
+  VLOG(3) << "LowerOpaqueOp Group : " << group->group_id;
   // get input tensor and output tensor
   std::vector<ir::Tensor> func_args;
   CHECK_EQ(group->nodes.size(), 1) << "fusion op exist more than 1 op.";
@@ -1079,9 +1079,7 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpaqueOp(GroupPtr& group) {
     ir::Expr temp = C[i];
     stages->InsertLazily(temp.as_tensor_ref());
   }
-  std::vector<common::CINNValue> schedule_inputs;
-  schedule_inputs.push_back(common::CINNValue(C.back()));
-  // C = impl->fschedule(C);
+
   auto inputs_arg = inputs;
   for (int i = 0; i < C->size() - 1; i++) {
     ir::Expr temp = C[i];
@@ -1091,16 +1089,19 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpaqueOp(GroupPtr& group) {
     }
   }
 
-  auto func = lang::LowerVec(func_name_prefix + node->id(), stages, inputs, {}, {}, nullptr, this->target_, true);
+  auto func = lang::LowerVec(group->GetFuncName(), stages, inputs, {}, {}, nullptr, this->target_, true);
+  CHECK_EQ(func.size(), 1);
 
-  // CHECK_EQ(func.size(), 1UL);
-  for (int i = func.size() - 1; i >= 0; i--) {
-    auto ast_expr = func[i]->body;
-    schedule_inputs.insert(schedule_inputs.begin(), common::CINNValue(ast_expr));
+  std::vector<common::CINNValue> schedule_inputs;
+  for (auto& f : func) {
+    schedule_inputs.push_back(common::CINNValue(f->body));
+  }
+  for (int i = 0; i < C->size() - 1; i++) {
+    ir::Expr temp = C[i];
+    schedule_inputs.push_back(common::CINNValue(temp.as_tensor_ref()->name));
   }
 
   common::CINNValuePack expr_pack = impl->fschedule(common::CINNValuePack{schedule_inputs});
-
   {
     ir::Expr temp = C[0];
     if (!temp.as_tensor_ref()->buffer.defined() || this->target_ != common::DefaultNVGPUTarget() ||
@@ -1115,8 +1116,6 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpaqueOp(GroupPtr& group) {
   VLOG(3) << "expr_pack.size() is : " << expr_pack.size();
   std::vector<ir::LoweredFunc> res;
   for (int i = 0; i < expr_pack.size(); i++) {
-    auto new_args      = lang::GetArgs(func[i]->body, input_args);
-    func[i]->args      = new_args;
     auto temp_buffers  = lang::GetTempBuffers(inputs_arg, stages, func[i]->body);
     func[i]->temp_bufs = temp_buffers;
     func[i]->PrepareBufferCastExprs();
