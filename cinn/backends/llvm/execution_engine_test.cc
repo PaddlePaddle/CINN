@@ -55,7 +55,7 @@ namespace backends {
 
 namespace {
 bool RegisterKnownSymbols() {
-  decltype(auto) registry = RuntimeSymbolRegistry::Global();
+  decltype(auto) registry = GlobalSymbolRegistry::Global();
 
   registry.RegisterFn("sinf", reinterpret_cast<void *>(&sinf));
   registry.RegisterFn("sin", reinterpret_cast<void *>(static_cast<double (*)(double)>(&sin)));
@@ -251,7 +251,7 @@ TEST(ExecutionEngine, custom_runtime_symbols) {
   int random_x = dis(mt);
   int random_y = dis(mt);
 
-  decltype(auto) registry = RuntimeSymbolRegistry::Global();
+  decltype(auto) registry = GlobalSymbolRegistry::Global();
   // registry.Register("dereference_f64_ptr", (void *)+[](double *x) { return *x; });
 
   for (size_t i = 0; i < angle.size(); i++) {

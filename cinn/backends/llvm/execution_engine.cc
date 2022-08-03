@@ -221,7 +221,7 @@ void *ExecutionEngine::Lookup(absl::string_view name) {
 }
 
 void ExecutionEngine::RegisterRuntimeSymbols() {
-  const auto &registry = RuntimeSymbolRegistry::Global();
+  const auto &registry = GlobalSymbolRegistry::Global();
   auto *session        = &jit_->getExecutionSession();
   for (const auto &_name_addr_ : registry.All()) {
     auto &name = std::get<0>(_name_addr_);

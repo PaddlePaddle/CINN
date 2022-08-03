@@ -114,10 +114,10 @@ void Compiler::CompileCudaModule(const Module& module, const std::string& code, 
       auto fn_kernel             = cuda_module_->GetFunction(0, kernel_fn_name);
       CHECK(fn_kernel);
 
-      backends::RuntimeSymbolRegistry::Global().RegisterVar(kernel_fn_name + "_ptr_",
-                                                            reinterpret_cast<void*>(fn_kernel));
-      backends::RuntimeSymbolRegistry::Global().RegisterVar(kernel_fn_name + "_stream_ptr_",
-                                                            static_cast<cudaStream_t>(stream));
+      backends::GlobalSymbolRegistry::Global().RegisterVar(kernel_fn_name + "_ptr_",
+                                                           reinterpret_cast<void*>(fn_kernel));
+      backends::GlobalSymbolRegistry::Global().RegisterVar(kernel_fn_name + "_stream_ptr_",
+                                                           static_cast<cudaStream_t>(stream));
     }
   }
 

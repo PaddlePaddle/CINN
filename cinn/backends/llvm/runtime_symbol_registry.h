@@ -29,13 +29,8 @@
 namespace cinn {
 namespace backends {
 
-/**
- * Registry for runtime symbols, these symbols will be inserted into JIT.
- */
-class RuntimeSymbolRegistry {
+class RuntimeSymbols {
  public:
-  static RuntimeSymbolRegistry &Global();
-
   /**
    * Register function address.
    * @param name Name of the symbol.
@@ -49,7 +44,7 @@ class RuntimeSymbolRegistry {
    * @param name Name of the symbol.
    * @param val Scalar value.
    */
-  template <typename T>
+  template <typename T, typename = std::enable_if<std::is_pod<T>::value>>
   void RegisterVar(const std::string &name, T val) {
     void *data_ptr = nullptr;
     {
@@ -87,12 +82,22 @@ class RuntimeSymbolRegistry {
    */
   void Register(const std::string &name, void *address);
 
-  RuntimeSymbolRegistry() = default;
-  CINN_DISALLOW_COPY_AND_ASSIGN(RuntimeSymbolRegistry);
-
   mutable std::mutex mu_;
   std::map<std::string, void *> symbols_;
   std::map<std::string, std::vector<int8_t>> scalar_holder_;
+};
+
+/**
+ * Registry for runtime symbols, these symbols will be inserted into JIT.
+ */
+
+class GlobalSymbolRegistry {
+ public:
+  static RuntimeSymbols &Global();
+
+ private:
+  GlobalSymbolRegistry() = default;
+  CINN_DISALLOW_COPY_AND_ASSIGN(GlobalSymbolRegistry);
 };
 
 }  // namespace backends
