@@ -103,6 +103,11 @@ std::unique_ptr<llvm::MemoryBuffer> NaiveObjectCache::getObject(const llvm::Modu
 }
 
 /*static*/ std::unique_ptr<ExecutionEngine> ExecutionEngine::Create(const ExecutionOptions &config) {
+  return Create(config, {});
+}
+
+/*static*/ std::unique_ptr<ExecutionEngine> ExecutionEngine::Create(const ExecutionOptions &config,
+                                                                    RuntimeSymbols &&module_symbols) {
   VLOG(1) << "===================== Create CINN ExecutionEngine begin ====================";
   VLOG(1) << "initialize llvm config";
   VLOG(1) << "llvm version: " << LLVM_VERSION_STRING;
@@ -111,7 +116,7 @@ std::unique_ptr<llvm::MemoryBuffer> NaiveObjectCache::getObject(const llvm::Modu
   llvm::InitializeNativeTargetAsmPrinter();
   InitializeLLVMPasses();
 
-  auto engine = std::make_unique<ExecutionEngine>(/*enable_object_cache=*/true);
+  auto engine = std::make_unique<ExecutionEngine>(/*enable_object_cache=*/true, std::move(module_symbols));
 
   auto compile_layer_creator = [&engine](llvm::orc::JITTargetMachineBuilder jtmb)
       -> llvm::Expected<std::unique_ptr<llvm::orc::IRCompileLayer::IRCompiler>> {
@@ -221,13 +226,15 @@ void *ExecutionEngine::Lookup(absl::string_view name) {
 }
 
 void ExecutionEngine::RegisterRuntimeSymbols() {
-  const auto &registry = RuntimeSymbolRegistry::Global();
+  const auto &registry = GlobalSymbolRegistry::Global();
   auto *session        = &jit_->getExecutionSession();
-  for (const auto &_name_addr_ : registry.All()) {
-    auto &name = std::get<0>(_name_addr_);
-    auto &addr = std::get<1>(_name_addr_);
+  for (const auto &sym : registry.All()) {
     llvm::cantFail(jit_->define(llvm::orc::absoluteSymbols(
-        {{session->intern(name), {llvm::pointerToJITTargetAddress(addr), llvm::JITSymbolFlags::None}}})));
+        {{session->intern(sym.first), {llvm::pointerToJITTargetAddress(sym.second), llvm::JITSymbolFlags::None}}})));
+  }
+  for (const auto &sym : module_symbols_.All()) {
+    llvm::cantFail(jit_->define(llvm::orc::absoluteSymbols(
+        {{session->intern(sym.first), {llvm::pointerToJITTargetAddress(sym.second), llvm::JITSymbolFlags::None}}})));
   }
 }
 

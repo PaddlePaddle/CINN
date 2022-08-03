@@ -1492,8 +1492,8 @@ TEST(CodeGenCUDA, jit_host_call_cuda_kernel) {
 
   LOG(INFO) << "fn_kernel: " << fn_kernel;
 
-  RuntimeSymbolRegistry::Global().RegisterFn("fn_kernel_ptr_", reinterpret_cast<void*>(&fn_kernel));
-  RuntimeSymbolRegistry::Global().RegisterVar("fn_kernel_stream_ptr_", stream);
+  GlobalSymbolRegistry::Global().RegisterFn("fn_kernel_ptr_", reinterpret_cast<void*>(&fn_kernel));
+  GlobalSymbolRegistry::Global().RegisterVar("fn_kernel_stream_ptr_", stream);
 
   // compile host
   {
