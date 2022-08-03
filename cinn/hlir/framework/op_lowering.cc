@@ -380,7 +380,6 @@ void OpLowerer::IRElementwiseSchedule(ir::IRSchedule& ir_sch,
     // others elemenwise internal node use compute-inline
     ir_sch.ComputeInline(ir_sch.GetBlock(node_tensor->name));
   }
-  VLOG(3) << "After group scheduling, AST is: " << ir_sch.GetModule().GetExprs().at(0);
 }
 
 std::vector<Expr> OpLowerer::IRReduceCompute(poly::StageMap& stages,
@@ -898,7 +897,6 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
         }
       }
     }
-    VLOG(2) << ir_sch.GetModule().GetExprs().at(0);
   }
 
   auto master_data   = GetNodeData(master);
