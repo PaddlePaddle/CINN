@@ -1033,14 +1033,13 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpaqueOp(GroupPtr& group) {
   // get input tensor and output tensor
   std::vector<ir::Tensor> func_args;
   CHECK(group->nodes.size() || group->fused_sub_groups.size());
+  auto& cinn_strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
+  auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
 
-  auto node      = *group->nodes.begin();
-  auto node_data = GetNodeData(node);
-  auto& strategy = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
+  auto node = group->fused_sub_groups.size() ? group->fused_sub_groups[0]->nodes.front() : group->nodes.front();
   std::vector<ir::Tensor> inputs;
   std::vector<common::CINNValue> cinn_inputs;
-  std::vector<std::vector<int>> output_shapes;
-  std::vector<ir::Tensor> input_args;
+
   VLOG(3) << "GetOpFunc of op " << node->id();
   for (auto& i : node->inlinks_in_order(true)) {
     std::string input_id = i->source()->as<NodeData>()->id();
@@ -1056,12 +1055,15 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpaqueOp(GroupPtr& group) {
     } else if (dtype == Int(32)) {
       temp = lang::Placeholder<int>(input_id, in_shape);
     }
-    input_args.push_back(temp);
     inputs.push_back(temp);
     cinn_inputs.push_back(common::CINNValue(temp));
   }
+
+  auto node_data = GetNodeData(node);
   cinn_inputs.push_back(common::CINNValue(node_data->id()));
+
   std::vector<Type> out_types;
+  std::vector<std::vector<int>> output_shapes;
   for (auto& out : node->outlinks_in_order(true)) {
     std::string out_id = out->sink()->safe_as<NodeData>()->id();
     auto out_shape     = shape_dict_.at(out_id);
@@ -1070,7 +1072,7 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpaqueOp(GroupPtr& group) {
     out_types.push_back(dtype);
   }
 
-  auto impl = OpStrategy::SelectImpl(strategy[node->op()](node->attrs, inputs, out_types, output_shapes, target_));
+  auto impl = OpStrategy::SelectImpl(cinn_strategy[node->op()](node->attrs, inputs, out_types, output_shapes, target_));
 
   common::CINNValuePack C = impl->fcompute(common::CINNValuePack{cinn_inputs});
   poly::StageMap stages   = C.back();
