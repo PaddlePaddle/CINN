@@ -22,12 +22,12 @@
 namespace cinn {
 namespace backends {
 
-RuntimeSymbolRegistry &RuntimeSymbolRegistry::Global() {
-  static RuntimeSymbolRegistry registry;
-  return registry;
+RuntimeSymbols &GlobalSymbolRegistry::Global() {
+  static RuntimeSymbols symbols;
+  return symbols;
 }
 
-void *RuntimeSymbolRegistry::Lookup(absl::string_view name) const {
+void *RuntimeSymbols::Lookup(absl::string_view name) const {
   std::lock_guard<std::mutex> lock(mu_);
   auto it = symbols_.find(std::string(name));
   if (it != symbols_.end()) {
@@ -37,7 +37,7 @@ void *RuntimeSymbolRegistry::Lookup(absl::string_view name) const {
   return nullptr;
 }
 
-void RuntimeSymbolRegistry::Register(const std::string &name, void *address) {
+void RuntimeSymbols::Register(const std::string &name, void *address) {
 #ifdef CINN_WITH_DEBUG
   RAW_LOG_INFO("JIT Register function [%s]: %p", name.c_str(), address);
 #endif  // CINN_WITH_DEBUG
@@ -51,7 +51,7 @@ void RuntimeSymbolRegistry::Register(const std::string &name, void *address) {
   symbols_.insert({name, reinterpret_cast<void *>(address)});
 }
 
-void RuntimeSymbolRegistry::Clear() {
+void RuntimeSymbols::Clear() {
   std::lock_guard<std::mutex> lock(mu_);
   symbols_.clear();
   scalar_holder_.clear();

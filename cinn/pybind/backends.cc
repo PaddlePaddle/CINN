@@ -49,8 +49,12 @@ void BindExecutionEngine(py::module *m) {
   };
 
   py::class_<ExecutionEngine> engine(*m, "ExecutionEngine");
-  engine.def_static("create", &ExecutionEngine::Create, py::arg("options") = ExecutionOptions())
-      .def(py::init(&ExecutionEngine::Create), py::arg("options") = ExecutionOptions())
+  engine
+      .def_static("create",
+                  py::overload_cast<const ExecutionOptions &>(&ExecutionEngine::Create),
+                  py::arg("options") = ExecutionOptions())
+      .def(py::init(py::overload_cast<const ExecutionOptions &>(&ExecutionEngine::Create)),
+           py::arg("options") = ExecutionOptions())
       .def("lookup", lookup)
       .def("link", &ExecutionEngine::Link);
 
