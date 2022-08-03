@@ -1013,10 +1013,13 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
           auto reducer_0_block  = ir_sch.GetBlock(reducer_0_tensor->name);
           auto reducer_0_loops  = ir_sch.GetLoops(reducer_0_block);
 
+          auto node_loops = ir_sch.GetLoops(node_tensor->name);
+          if (ir_sch.GetLoops(node_tensor->name).size() < ir_sch.GetLoops(reducer_0_block).size()) {
+            ir_sch.Split(node_tensor->name, 0, {-1, ir::GetLoopExtent(node_loops[0])});
+          }
+          CHECK_EQ(ir_sch.GetLoops(node_tensor->name).size(), ir_sch.GetLoops(reducer_0_block).size())
+              << "node loop size and reduce loop size must be equal!";
           auto node_block = ir_sch.GetBlock(node_tensor->name);
-          ir_sch.CopyTransformAndLoopInfo(node_block, reducer_0_block);
-
-          node_block = ir_sch.GetBlock(node_tensor->name);
           ir_sch.SimpleComputeAt(node_block, reducer_0_loops.back());
         }
       }
