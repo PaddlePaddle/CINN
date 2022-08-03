@@ -45,6 +45,7 @@
 
 #include "cinn/backends/llvm/codegen_x86.h"
 #include "cinn/backends/llvm/llvm_util.h"
+#include "cinn/backends/llvm/runtime_symbol_registry.h"
 #include "cinn/ir/module.h"
 
 namespace cinn::backends {
@@ -68,7 +69,7 @@ struct ExecutionOptions {
 
 class ExecutionEngine {
  public:
-  static std::unique_ptr<ExecutionEngine> Create(const ExecutionOptions &config);
+  static std::unique_ptr<ExecutionEngine> Create(const ExecutionOptions &config, RuntimeSymbols &&module_symbols = {});
 
   void *Lookup(absl::string_view name);
 
@@ -80,19 +81,22 @@ class ExecutionEngine {
   bool AddModule(std::unique_ptr<llvm::Module> module, std::unique_ptr<llvm::LLVMContext> context);
 
  protected:
-  explicit ExecutionEngine(bool enable_object_cache) : cache_(std::make_unique<NaiveObjectCache>()) {}
+  explicit ExecutionEngine(bool enable_object_cache, RuntimeSymbols &&module_symbols)
+      : cache_(std::make_unique<NaiveObjectCache>()), module_symbols_(std::move(module_symbols)) {}
 
   void RegisterRuntimeSymbols();
 
   bool SetupTargetTriple(llvm::Module *module);
 
-  friend std::unique_ptr<ExecutionEngine> std::make_unique<ExecutionEngine>(bool &&);
+  // This may not be a compatible implementation.
+  friend std::unique_ptr<ExecutionEngine> std::make_unique<ExecutionEngine>(bool &&, cinn::backends::RuntimeSymbols &&);
 
  private:
   mutable std::mutex mu_;
   llvm::SmallString<0> buffer_;
   std::unique_ptr<llvm::orc::LLJIT> jit_;
   std::unique_ptr<NaiveObjectCache> cache_;
+  RuntimeSymbols module_symbols_;
 };
 
 }  // namespace cinn::backends

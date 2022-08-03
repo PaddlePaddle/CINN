@@ -31,6 +31,15 @@ namespace backends {
 
 class RuntimeSymbols {
  public:
+  RuntimeSymbols() = default;
+
+  RuntimeSymbols(const RuntimeSymbols &) = delete;
+
+  RuntimeSymbols(RuntimeSymbols &&rhs) {
+    symbols_       = std::move(rhs.symbols_);
+    scalar_holder_ = std::move(rhs.scalar_holder_);
+  }
+
   /**
    * Register function address.
    * @param name Name of the symbol.
