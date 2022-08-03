@@ -102,6 +102,10 @@ std::unique_ptr<llvm::MemoryBuffer> NaiveObjectCache::getObject(const llvm::Modu
   return llvm::MemoryBuffer::getMemBuffer(it->second->getMemBufferRef());
 }
 
+/*static*/ std::unique_ptr<ExecutionEngine> ExecutionEngine::Create(const ExecutionOptions &config) {
+  return Create(config, {});
+}
+
 /*static*/ std::unique_ptr<ExecutionEngine> ExecutionEngine::Create(const ExecutionOptions &config,
                                                                     RuntimeSymbols &&module_symbols) {
   VLOG(1) << "===================== Create CINN ExecutionEngine begin ====================";

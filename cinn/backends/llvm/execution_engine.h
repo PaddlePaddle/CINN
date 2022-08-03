@@ -69,7 +69,9 @@ struct ExecutionOptions {
 
 class ExecutionEngine {
  public:
-  static std::unique_ptr<ExecutionEngine> Create(const ExecutionOptions &config, RuntimeSymbols &&module_symbols = {});
+  static std::unique_ptr<ExecutionEngine> Create(const ExecutionOptions &config);
+
+  static std::unique_ptr<ExecutionEngine> Create(const ExecutionOptions &config, RuntimeSymbols &&module_symbols);
 
   void *Lookup(absl::string_view name);
 
