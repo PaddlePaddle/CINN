@@ -1032,7 +1032,7 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpaqueOp(GroupPtr& group) {
   VLOG(3) << "LowerOpaqueOp Group : " << group->group_id;
   // get input tensor and output tensor
   std::vector<ir::Tensor> func_args;
-  CHECK_EQ(group->nodes.size(), 1) << "fusion op exist more than 1 op.";
+  CHECK(group->nodes.size() || group->fused_sub_groups.size());
 
   auto node      = *group->nodes.begin();
   auto node_data = GetNodeData(node);
