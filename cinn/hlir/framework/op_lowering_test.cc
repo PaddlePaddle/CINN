@@ -115,6 +115,36 @@ TEST(OP_LOWERING, OpaqueOp_TEST_1) {
   }
 }
 
+TEST(OP_LOWERING, Transform_TEST_0) {
+  NetBuilder net_builder("Transform_TEST_0");
+  {
+    auto A = net_builder.CreateInput(Float(32), {128, 128}, "A");
+    auto B = net_builder.CreateInput(Float(32), {128, 128}, "B");
+    auto C = net_builder.CreateInput(Float(32), {128, 128}, "C");
+    auto D = net_builder.Concat({A, B, C}, 1);
+  }
+
+  auto program = net_builder.Build();
+  auto target  = GetTarget();
+  RunDecomposer(&program, target);
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+
+  LOG(INFO) << graph->Visualize();
+  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
+  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
+
+  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
+  for (auto& fusion_op : graph->fusion_groups) {
+    auto lowered_func = op_lowerer.Lower(fusion_op);
+    CHECK_EQ(lowered_func.size(), 1);
+    LOG(INFO) << lowered_func[0];
+    CodeGen(lowered_func[0]);
+  }
+  exit(0);
+}
+
 TEST(OP_LOWERING, Elementwise_Test_0) {
   int h = 32, w = 32;
   NetBuilder net_builder("Elementwise_Test_0");

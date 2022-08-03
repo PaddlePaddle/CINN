@@ -654,8 +654,9 @@ std::shared_ptr<OpStrategy> StrategyForConcat(const framework::NodeAttr &attrs,
                                               const Target &target) {
   framework::CINNCompute concat_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input arguments of Concat compute is empty! Please check.\n";
+    CHECK(!out_type.empty()) << "Output type of Concat is empty! Please check.\n";
     CINNValuePack pack_args = args[0];
-    int input_size          = pack_args.size();
+    int input_size          = FLAGS_cinn_ir_schedule ? pack_args.size() - 1 : pack_args.size();
     CHECK_GE(input_size, 2U) << "at least 2 input tensors for Concat compute\n";
     CHECK(!output_shapes.empty());
     int axis = 0;
@@ -670,22 +671,16 @@ std::shared_ptr<OpStrategy> StrategyForConcat(const framework::NodeAttr &attrs,
       input_tensors.push_back(tensor.as_tensor_ref());
     }
 
-    auto stages = CreateStages(input_tensors);
-    ir::Tensor out;
-
     std::string tensor_name = UniqName("Concat_output");
     if (FLAGS_cinn_ir_schedule) {
-      CHECK_EQ(pack_args.size(), 2);
-      tensor_name = pack_args[1].operator std::string();
+      tensor_name = pack_args[input_size].operator std::string();
     }
 
-    out = pe::Concat(input_tensors, axis, tensor_name);
-    std::vector<CINNValue> res;
+    auto stages = CreateStages(input_tensors);
+    auto out    = pe::Concat(input_tensors, axis, tensor_name);
     stages->InsertLazily(out);
-    res.push_back(CINNValue(out));
-    CHECK(!out_type.empty()) << "Output type of Concat is empty! Please check.\n";
-    res.push_back(CINNValue(stages));
-    *ret = CINNValuePack{res};
+
+    *ret = CINNValuePack({CINNValue(out), CINNValue(stages)});
   });
 
   framework::CINNSchedule concat_schedule([=](lang::Args args, lang::RetValue *ret) {

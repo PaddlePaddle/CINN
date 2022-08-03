@@ -299,7 +299,7 @@ std::vector<Expr> OpLowerer::IRElementwiseCompute(poly::StageMap& stages,
                                                   std::unordered_map<std::string, ir::Tensor>& tensor_map,
                                                   const GroupPtr& group,
                                                   const GroupPtr& sub_group) {
-  VLOG(11) << "ElementwiseCompute Group : " << sub_group->group_id;
+  VLOG(3) << "ElementwiseCompute Group : " << sub_group->group_id;
   auto& strategy = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
 
   std::vector<Expr> ast_exprs;
@@ -351,6 +351,7 @@ void OpLowerer::IRElementwiseSchedule(ir::IRSchedule& ir_sch,
                                       const GroupPtr& sub_group,
                                       Node*&,
                                       Node*&) {
+  VLOG(3) << "IRElementwiseSchedule Group : " << sub_group->group_id;
   auto master_node    = *group->master_nodes.begin();
   auto manster_tensor = tensor_map[GetNodeData(master_node)->id()];
 
