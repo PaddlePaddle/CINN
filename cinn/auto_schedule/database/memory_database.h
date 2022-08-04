@@ -25,15 +25,18 @@ namespace auto_schedule {
 // A concrete database that save/load underlying data in memory
 class MemoryDatabase : public Database {
  public:
-  MemoryDatabase()  = default;
+  MemoryDatabase(int capacity_per_task);
   ~MemoryDatabase() = default;
   bool AddRecord(TuningRecord&& record) override;
   std::vector<TuningRecord> LookUp(const std::string& task_key) override;
   std::vector<SearchState> GetTopK(const std::string& task_key, int k) override;
+  size_t Size() override;
 
  private:
   // map task_key to its records
   std::unordered_map<std::string, std::multiset<TuningRecord, TuningRecord::Compare>> key2record_;
+  // the max number of candidates stored
+  const int capacity_per_task_;
 };
 
 }  // namespace auto_schedule

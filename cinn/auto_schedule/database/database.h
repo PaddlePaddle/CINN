@@ -49,6 +49,8 @@ class Database {
   virtual std::vector<TuningRecord> LookUp(const std::string& task_key) = 0;
   // return the states of the top k in sorted candidates
   virtual std::vector<SearchState> GetTopK(const std::string& task_key, int k) = 0;
+  // return the total number of stored candidates
+  virtual size_t Size() = 0;
 };
 
 }  // namespace auto_schedule
