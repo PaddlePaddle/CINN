@@ -1049,16 +1049,16 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpaqueOp(GroupPtr& group) {
     Type dtype     = type_dict_.at(id);
     CHECK(dtype == Float(32) || dtype.is_bool() || dtype == Int(32))
         << "The dtype of node " << id << " is not float or bool or int! Other dtype is not implemented yet.";
-    ir::Tensor temp;
+    ir::Tensor input;
     if (dtype == Float(32)) {
-      temp = lang::Placeholder<float>(id, shape);
+      input = lang::Placeholder<float>(id, shape);
     } else if (dtype.is_bool()) {
-      temp = lang::Placeholder<bool>(id, shape);
+      input = lang::Placeholder<bool>(id, shape);
     } else if (dtype == Int(32)) {
-      temp = lang::Placeholder<int>(id, shape);
+      input = lang::Placeholder<int>(id, shape);
     }
-    inputs.push_back(temp);
-    cinn_inputs.push_back(common::CINNValue(temp));
+    inputs.push_back(input);
+    cinn_inputs.push_back(common::CINNValue(input));
     group->input_names.push_back(id);
   }
 
@@ -1077,14 +1077,7 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpaqueOp(GroupPtr& group) {
 
   auto impl = OpStrategy::SelectImpl(cinn_strategy[node->op()](node->attrs, inputs, out_types, out_shapes, target_));
   common::CINNValuePack C = impl->fcompute(common::CINNValuePack{cinn_inputs});
-  poly::StageMap stages   = C.back();
-  // make sure all the tensors in the stages before schedule launch.
-  for (int i = 0; i < C->size() - 1; i++) {
-    ir::Expr temp = C[i];
-    stages->InsertLazily(temp.as_tensor_ref());
-  }
 
-  auto inputs_arg = inputs;
   for (int i = 0; i < C->size() - 1; i++) {
     ir::Expr temp = C[i];
     // checkout whether the tensor is with buffer.
@@ -1093,7 +1086,8 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpaqueOp(GroupPtr& group) {
     }
   }
 
-  auto func = lang::LowerVec(group->GetFuncName(), stages, inputs, {}, {}, nullptr, this->target_, true);
+  poly::StageMap stages = C.back();
+  auto func             = lang::LowerVec(group->GetFuncName(), stages, inputs, {}, {}, nullptr, this->target_, true);
   CHECK_EQ(func.size(), 1);
 
   std::vector<common::CINNValue> schedule_inputs;
@@ -1106,21 +1100,11 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpaqueOp(GroupPtr& group) {
   }
 
   common::CINNValuePack expr_pack = impl->fschedule(common::CINNValuePack{schedule_inputs});
-  {
-    ir::Expr temp = C[0];
-    if (!temp.as_tensor_ref()->buffer.defined() || this->target_ != common::DefaultNVGPUTarget() ||
-        temp.as_tensor_ref()->buffer->memory_type == ir::MemoryType::Heap) {
-      VLOG(3) << "inputs_arg push back " << temp.as_tensor_ref()->name
-              << " with buffer name : " << temp.as_tensor_ref()->buffer->name << " with mem type "
-              << temp.as_tensor_ref()->buffer->memory_type;
-      inputs_arg.push_back(temp.as_tensor_ref());
-    }
-  }
 
   VLOG(3) << "expr_pack.size() is : " << expr_pack.size();
   std::vector<ir::LoweredFunc> res;
   for (int i = 0; i < expr_pack.size(); i++) {
-    auto temp_buffers  = lang::GetTempBuffers(inputs_arg, stages, func[i]->body);
+    auto temp_buffers  = lang::GetTempBuffers(inputs, stages, func[i]->body);
     func[i]->temp_bufs = temp_buffers;
     func[i]->PrepareBufferCastExprs();
     res.push_back(func[i]);
