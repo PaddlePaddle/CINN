@@ -19,6 +19,7 @@
 #include <memory>
 //
 #include "cinn/cinn.h"
+#include "cinn/frontend/optimize.h"
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/pass.h"

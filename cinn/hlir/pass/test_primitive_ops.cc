@@ -17,6 +17,7 @@
 #include <memory>
 
 #include "cinn/cinn.h"
+#include "cinn/frontend/optimize.h"
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/graph_compiler.h"
@@ -86,7 +87,7 @@ TEST(batch_norm_meta, batch_norm_meta) {
 #ifndef CINN_WITH_CUDA
   hlir::framework::ApplyPass(graph.get(), "AlterLayout");
 #endif
-  hlir::framework::ApplyPass(graph.get(), "OpFusion");
+  hlir::framework::ApplyPasses(graph.get(), frontend::DefaultOpFusionPasses());
   auto scope = BuildScope(target, graph);
   LOG(INFO) << "graph:\n" << graph->Visualize();
 
@@ -124,7 +125,7 @@ TEST(reduction, reduce) {
 #ifndef CINN_WITH_CUDA
   hlir::framework::ApplyPass(graph.get(), "AlterLayout");
 #endif
-  hlir::framework::ApplyPass(graph.get(), "OpFusion");
+  hlir::framework::ApplyPasses(graph.get(), frontend::DefaultOpFusionPasses());
   auto scope = BuildScope(target, graph);
   LOG(INFO) << "graph:\n" << graph->Visualize();
 
@@ -156,7 +157,7 @@ TEST(Compare, Compare) {
 #ifndef CINN_WITH_CUDA
   hlir::framework::ApplyPass(graph.get(), "AlterLayout");
 #endif
-  hlir::framework::ApplyPass(graph.get(), "OpFusion");
+  hlir::framework::ApplyPasses(graph.get(), frontend::DefaultOpFusionPasses());
   auto scope = BuildScope(target, graph);
   LOG(INFO) << "graph:\n" << graph->Visualize();
 

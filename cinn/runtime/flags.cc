@@ -28,6 +28,10 @@ DEFINE_bool(cinn_cudnn_deterministic,
 using ::GFLAGS_NAMESPACE::BoolFromEnv;
 using ::GFLAGS_NAMESPACE::StringFromEnv;
 
+DEFINE_bool(cinn_open_fusion_optimize,
+            BoolFromEnv("FLAGS_cinn_open_fusion_optimize", true),
+            "Whether use the op_fusion optimization.");
+
 // FLAGS to switch optimization status
 DEFINE_bool(cinn_use_new_fusion_pass,
             BoolFromEnv("FLAGS_cinn_use_new_fusion_pass", false),

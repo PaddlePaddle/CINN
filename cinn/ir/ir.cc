@@ -365,7 +365,9 @@ Expr Store::Make(Expr tensor, Expr value, const std::vector<Expr> &indices) {
 Expr Store::index() const {
   auto *tensor_n = tensor.As<ir::_Tensor_>();
   CHECK(tensor_n);
+  VLOG(3) << "Begin Store::index IndiceToAbsOffset";
   Expr res = common::IndiceToAbsOffset(tensor_n->shape, indices);
+  VLOG(3) << "Begin Store::index Simplify";
   optim::Simplify(&res);
   return res;
 }
@@ -575,7 +577,9 @@ Expr Load::index() const {
   if (is_addr_tensor()) {
     auto *tensor_n = tensor.As<_Tensor_>();
     CHECK(tensor_n);
+    VLOG(3) << "Begin Load::index IndiceToAbsOffset";
     Expr res = common::IndiceToAbsOffset(tensor_n->shape, indices);
+    VLOG(3) << "Begin Load::index Simplify";
     optim::Simplify(&res);
     return res;
   } else {

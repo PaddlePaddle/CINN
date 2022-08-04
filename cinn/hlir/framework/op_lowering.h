@@ -60,7 +60,9 @@ typedef void (OpLowerer::*ScheduleFunction)(poly::StageMap&,
                                             std::unordered_map<std::string, ir::Tensor>&,
                                             const GroupPtr&,
                                             const GroupPtr&);
+NodeData* GetNodeData(const Node* node);
 
+std::vector<NodeData*> GetAllNodeData(const Node* node);
 class OpLowerer {
  public:
   OpLowerer(const absl::flat_hash_map<std::string, Type>&,
