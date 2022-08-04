@@ -45,7 +45,7 @@ NodeData* GetNodeData(Node* node) {
 
 std::vector<NodeData*> GetAllNodeData(Node* node) {
   std::vector<NodeData*> node_datas;
-  for (auto& link : node->outlinks_in_order()) {
+  for (auto& link : node->outlinks_in_order(true)) {
     auto node_data = link->sink()->safe_as<NodeData>();
     CHECK(node_data);
     node_datas.push_back(node_data);
@@ -1044,37 +1044,38 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpaqueOp(GroupPtr& group) {
 
   VLOG(3) << "GetOpFunc of op " << node->id();
   for (auto& i : node->inlinks_in_order(true)) {
-    std::string input_id = i->source()->as<NodeData>()->id();
-    auto in_shape        = shape_dict_.at(input_id);
-    Type dtype           = type_dict_.at(input_id);
+    std::string id = i->source()->as<NodeData>()->id();
+    auto shape     = shape_dict_.at(input_id);
+    Type dtype     = type_dict_.at(input_id);
     CHECK(dtype == Float(32) || dtype.is_bool() || dtype == Int(32))
         << "The dtype of node " << input_id << " is not float or bool or int! Other dtype is not implemented yet.";
     ir::Tensor temp;
     if (dtype == Float(32)) {
-      temp = lang::Placeholder<float>(input_id, in_shape);
+      temp = lang::Placeholder<float>(input_id, shape);
     } else if (dtype.is_bool()) {
-      temp = lang::Placeholder<bool>(input_id, in_shape);
+      temp = lang::Placeholder<bool>(input_id, shape);
     } else if (dtype == Int(32)) {
-      temp = lang::Placeholder<int>(input_id, in_shape);
+      temp = lang::Placeholder<int>(input_id, shape);
     }
     inputs.push_back(temp);
     cinn_inputs.push_back(common::CINNValue(temp));
+    group->input_names.push_back(input_id);
   }
 
   auto node_data = GetNodeData(node);
   cinn_inputs.push_back(common::CINNValue(node_data->id()));
 
   std::vector<Type> out_types;
-  std::vector<std::vector<int>> output_shapes;
-  for (auto& out : node->outlinks_in_order(true)) {
-    std::string out_id = out->sink()->safe_as<NodeData>()->id();
-    auto out_shape     = shape_dict_.at(out_id);
-    Type dtype         = type_dict_.at(out_id);
-    output_shapes.push_back(out_shape);
-    out_types.push_back(dtype);
+  std::vector<std::vector<int>> out_shapes;
+  auto node_datas = GetAllNodeData(node);
+  for (auto node_data : node_datas) {
+    // collect output node data name.
+    group->output_names.push_back(node_data->id());
+    out_types.push_back(this->type_dict_.at(node_data->id()));
+    out_shapes.push_back(this->shape_dict_.at(node_data->id()));
   }
 
-  auto impl = OpStrategy::SelectImpl(cinn_strategy[node->op()](node->attrs, inputs, out_types, output_shapes, target_));
+  auto impl = OpStrategy::SelectImpl(cinn_strategy[node->op()](node->attrs, inputs, out_types, out_shapes, target_));
 
   common::CINNValuePack C = impl->fcompute(common::CINNValuePack{cinn_inputs});
   poly::StageMap stages   = C.back();
