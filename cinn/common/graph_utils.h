@@ -215,6 +215,19 @@ class GraphNode : public Object {
   int index{0};
 };
 
+// get start_points of nodes list
+std::vector<GraphNode*> FindStartPoints(const std::vector<GraphNode*>& nodes);
+std::vector<const GraphNode*> FindStartPoints(const std::vector<const GraphNode*>& nodes);
+
+// topological order nodes list
+std::tuple<std::vector<GraphNode*>, std::vector<GraphEdge*>> TopologicalOrder(const std::vector<GraphNode*>& nodes);
+std::tuple<std::vector<GraphNode*>, std::vector<GraphEdge*>> TopologicalOrder(
+    const std::vector<const GraphNode*>& nodes);
+
+// visualize graph by DotLang
+std::string VisualizeGraph(const std::vector<GraphNode*>& nodes);
+std::string VisualizeGraph(const std::vector<const GraphNode*>& nodes);
+
 /**
  * @brief The base class of all the graph.
  */

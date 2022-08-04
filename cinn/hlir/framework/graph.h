@@ -186,6 +186,10 @@ class Graph : public cinn::common::Graph {
   CINN_DISALLOW_COPY_AND_ASSIGN(Graph);
 };
 
+// topological order nodes list
+std::vector<Node*> TopologicalOrder(const std::vector<Node*>& nodes);
+std::vector<const Node*> TopologicalOrder(const std::vector<const Node*>& nodes);
+
 }  // namespace framework
 }  // namespace hlir
 }  // namespace cinn

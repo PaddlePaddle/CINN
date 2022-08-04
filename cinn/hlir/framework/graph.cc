@@ -206,6 +206,37 @@ void Graph::VisualizeGroups(const std::vector<std::vector<Node*>>& groups,
 
 std::atomic_size_t Graph::viz_count_{0};
 
+// topological order nodes list
+std::vector<Node*> TopologicalOrderImpl(const std::vector<const Node*>& nodes) {
+  std::vector<const cinn::common::GraphNode*> graph_nodes(nodes.size());
+  std::copy(nodes.begin(), nodes.end(), graph_nodes.begin());
+  auto ordered_graph              = cinn::common::TopologicalOrder(graph_nodes);
+  const auto& ordered_graph_nodes = std::get<0>(ordered_graph);
+
+  CHECK_EQ(ordered_graph_nodes.size(), nodes.size())
+      << "The GraphNode number after TopologicalOrder not equal with Node number! Please check.";
+
+  std::vector<Node*> ordered_nodes(ordered_graph_nodes.size());
+  std::transform(ordered_graph_nodes.begin(),
+                 ordered_graph_nodes.end(),
+                 ordered_nodes.begin(),
+                 [](cinn::common::GraphNode* graph_node) { return dynamic_cast<Node*>(graph_node); });
+  return ordered_nodes;
+}
+
+std::vector<Node*> TopologicalOrder(const std::vector<Node*>& nodes) {
+  std::vector<const Node*> const_nodes(nodes.size());
+  std::copy(nodes.begin(), nodes.end(), const_nodes.begin());
+  return TopologicalOrderImpl(const_nodes);
+}
+
+std::vector<const Node*> TopologicalOrder(const std::vector<const Node*>& nodes) {
+  const auto& ordered_nodes = TopologicalOrderImpl(nodes);
+  std::vector<const Node*> const_nodes(ordered_nodes.size());
+  std::copy(ordered_nodes.begin(), ordered_nodes.end(), const_nodes.begin());
+  return const_nodes;
+}
+
 }  // namespace framework
 }  // namespace hlir
 }  // namespace cinn
