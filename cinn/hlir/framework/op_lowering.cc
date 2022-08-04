@@ -1045,21 +1045,21 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpaqueOp(GroupPtr& group) {
   VLOG(3) << "GetOpFunc of op " << node->id();
   for (auto& i : node->inlinks_in_order(true)) {
     std::string id = i->source()->as<NodeData>()->id();
-    auto shape     = shape_dict_.at(input_id);
-    Type dtype     = type_dict_.at(input_id);
+    auto shape     = shape_dict_.at(id);
+    Type dtype     = type_dict_.at(id);
     CHECK(dtype == Float(32) || dtype.is_bool() || dtype == Int(32))
-        << "The dtype of node " << input_id << " is not float or bool or int! Other dtype is not implemented yet.";
+        << "The dtype of node " << id << " is not float or bool or int! Other dtype is not implemented yet.";
     ir::Tensor temp;
     if (dtype == Float(32)) {
-      temp = lang::Placeholder<float>(input_id, shape);
+      temp = lang::Placeholder<float>(id, shape);
     } else if (dtype.is_bool()) {
-      temp = lang::Placeholder<bool>(input_id, shape);
+      temp = lang::Placeholder<bool>(id, shape);
     } else if (dtype == Int(32)) {
-      temp = lang::Placeholder<int>(input_id, shape);
+      temp = lang::Placeholder<int>(id, shape);
     }
     inputs.push_back(temp);
     cinn_inputs.push_back(common::CINNValue(temp));
-    group->input_names.push_back(input_id);
+    group->input_names.push_back(id);
   }
 
   auto node_data = GetNodeData(node);
@@ -1076,7 +1076,6 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpaqueOp(GroupPtr& group) {
   }
 
   auto impl = OpStrategy::SelectImpl(cinn_strategy[node->op()](node->attrs, inputs, out_types, out_shapes, target_));
-
   common::CINNValuePack C = impl->fcompute(common::CINNValuePack{cinn_inputs});
   poly::StageMap stages   = C.back();
   // make sure all the tensors in the stages before schedule launch.
