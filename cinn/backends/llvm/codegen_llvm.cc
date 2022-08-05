@@ -76,7 +76,7 @@ llvm::Value *EmitComparison(llvm::CmpInst::Predicate predicate,
                             llvm::Value *rhs,
                             llvm::IRBuilder<> *b) {
   llvm::Value *comparison_result{nullptr};
-  if (lhs->getType()->isIntegerTy()) {
+  if (lhs->getType()->isIntOrIntVectorTy()) {
     comparison_result = b->CreateICmp(predicate, lhs, rhs);
   } else {
     comparison_result = b->CreateFCmp(predicate, lhs, rhs);

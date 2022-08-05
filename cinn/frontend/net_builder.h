@@ -175,6 +175,13 @@ class NetBuilder : public BaseBuilder {
 
   Variable Arange(const float start, const float stop, const float step, const std::string& dtype);
 
+  Variable OneHot(const Variable& indices,
+                  const Variable& on_value,
+                  const Variable& off_value,
+                  const int depth,
+                  const int axis           = -1,
+                  const std::string& dtype = "float32");
+
   // conv2d grad, output(grad_x, grad_w)
   std::vector<Variable> Conv2dGrad(const Variable& dy,
                                    const Variable& x,

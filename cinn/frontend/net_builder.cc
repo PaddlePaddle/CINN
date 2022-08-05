@@ -270,6 +270,21 @@ Variable NetBuilder::Arange(const float start, const float stop, const float ste
   return instr.GetOutput(0);
 }
 
+Variable NetBuilder::OneHot(const Variable& indices,
+                            const Variable& on_value,
+                            const Variable& off_value,
+                            const int depth,
+                            const int axis,
+                            const std::string& dtype) {
+  Instruction instr("one_hot", {indices, on_value, off_value});
+  instr.SetAttr("depth", depth);
+  instr.SetAttr("axis", axis);
+  instr.SetAttr("dtype", dtype);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
 // conv2d grad, output(grad_x, grad_w)
 std::vector<Variable> NetBuilder::Conv2dGrad(const Variable& dy,
                                              const Variable& x,
