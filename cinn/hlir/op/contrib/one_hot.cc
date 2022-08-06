@@ -45,7 +45,6 @@ ir::Tensor OneHot(const ir::Tensor& indices,
                   const ir::Tensor& off_value,
                   const int depth,
                   const int axis,
-                  // const Type& dtype,
                   const std::string& dtype,
                   const std::string& output_name) {
   CHECK(axis == -1 || (axis >= 0 && axis <= indices->shape.size()))
@@ -80,7 +79,7 @@ ir::Tensor OneHot(const ir::Tensor& indices,
         }
 
         auto idx = output_indices[true_axis];
-        return ir::Select::Make(indices(indices_indices), on_value_cast, off_value_cast);
+        return ir::Select::Make(Expr(indices(indices_indices) == idx), on_value_cast, off_value_cast);
       },
 
       common::UniqName(output_name));
