@@ -334,9 +334,9 @@ TEST(Operator, Operator_Reduction_Case_7) {
 
   // register cufunction and stream
   void* stream = nullptr;
-  backends::RuntimeSymbolRegistry::Global().RegisterFn(func_name + "_kernel_ptr_",
-                                                       reinterpret_cast<void*>(&reduce_sum_kernel));
-  backends::RuntimeSymbolRegistry::Global().RegisterVar(func_name + "_kernel_stream_ptr_", stream);
+  backends::GlobalSymbolRegistry::Global().RegisterFn(func_name + "_kernel_ptr_",
+                                                      reinterpret_cast<void*>(&reduce_sum_kernel));
+  backends::GlobalSymbolRegistry::Global().RegisterVar(func_name + "_kernel_stream_ptr_", stream);
 
   // gen host code
   auto jit = backends::SimpleJIT::Create();

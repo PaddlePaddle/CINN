@@ -257,13 +257,36 @@ class OpFusionPassHelper : public FusionHelperBase {
       // check shape is same
       if (producer_input_shape == reducer_input_shape && producer_output_shape == reducer_output_shape &&
           producer_reduce_dim == reducer_reduce_dim) {
+        auto shared_size = GetSharedSize(producer);
+        for (auto* master : fusion_op->master_nodes) {
+          if (this->GetOpKind(master) == framework::kCommReduce) {
+            shared_size += GetSharedSize(master);
+          }
+        }
+
+#define MAX_AVAILABLE_SHREAD 32 * 1024
+        if (shared_size > MAX_AVAILABLE_SHREAD) {
+          return false;
+        }
+#undef MAX_AVAILABLE_SHREAD
         return true;
       }
 
       if (this->WithoutLastDimInReduce(producer_input_shape, producer_reduce_dim) &&
           this->WithoutLastDimInReduce(reducer_input_shape, reducer_reduce_dim) &&
           producer_output_shape == reducer_output_shape && producer_reduce_dim == reducer_reduce_dim) {
-        // fuse the reduce that has different.
+        auto shared_size = GetSharedSize(producer);
+        for (auto* master : fusion_op->master_nodes) {
+          if (this->GetOpKind(master) == framework::kCommReduce) {
+            shared_size += GetSharedSize(master);
+          }
+        }
+
+#define MAX_AVAILABLE_SHREAD 32 * 1024
+        if (shared_size > MAX_AVAILABLE_SHREAD) {
+          return false;
+        }
+#undef MAX_AVAILABLE_SHREAD
         return true;
       }
 

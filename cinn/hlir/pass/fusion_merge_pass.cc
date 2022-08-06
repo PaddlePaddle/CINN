@@ -983,13 +983,40 @@ class FusionMergePassHelper : public FusionHelperBase {
       // check shape is same
       if (reducer_0_input_shape == reducer_1_input_shape && reducer_0_output_shape == reducer_1_output_shape &&
           reducer_0_reduce_dim == reducer_1_reduce_dim) {
+        auto shared_size = 0;
+        for (auto& fusion_group : {first, second}) {
+          for (auto* master : fusion_group->master_nodes) {
+            if (this->GetOpKind(master) == framework::kCommReduce) {
+              shared_size += GetSharedSize(master);
+            }
+          }
+        }
+
+#define MAX_AVAILABLE_SHREAD 32 * 1024
+        if (shared_size > MAX_AVAILABLE_SHREAD) {
+          return false;
+        }
+#undef MAX_AVAILABLE_SHREAD
         return true;
       }
 
       if (this->WithoutLastDimInReduce(reducer_0_input_shape, reducer_0_reduce_dim) &&
           this->WithoutLastDimInReduce(reducer_1_input_shape, reducer_1_reduce_dim) &&
           reducer_0_output_shape == reducer_1_output_shape && reducer_0_reduce_dim == reducer_1_reduce_dim) {
-        // fuse the reduce that has different.
+        auto shared_size = 0;
+        for (auto& fusion_group : {first, second}) {
+          for (auto* master : fusion_group->master_nodes) {
+            if (this->GetOpKind(master) == framework::kCommReduce) {
+              shared_size += GetSharedSize(master);
+            }
+          }
+        }
+
+#define MAX_AVAILABLE_SHREAD 32 * 1024
+        if (shared_size > MAX_AVAILABLE_SHREAD) {
+          return false;
+        }
+#undef MAX_AVAILABLE_SHREAD
         return true;
       }
 
