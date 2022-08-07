@@ -83,6 +83,16 @@ class NetBuilder : public BaseBuilder {
   Variable ReduceSum(const Variable& x, const std::vector<int>& dim, bool keep_dim = false);
 
   /**
+   * Compute the argmax of Variable x along the given axis.
+   */
+  Variable Argmax(const Variable& x, const int axis, bool keep_dim = false);
+
+  /**
+   * Compute the argmin of Variable x along the given axis.
+   */
+  Variable Argmin(const Variable& x, const int axis, bool keep_dim = false);
+
+  /**
    * The convolution2D layer calculates the output based on the input, filter
    * and strides, paddings, dilations, groups parameters.
    */
