@@ -230,8 +230,7 @@ Variable NetBuilder::OneHot(const Variable& indices,
                             const int depth,
                             const int axis,
                             const std::string& dtype) {
-  Instruction instr("one_hot");
-  instr.SetInputs({indices, on_value, off_value});
+  Instruction instr("one_hot", {indices, on_value, off_value});
   instr.SetAttr("depth", depth);
   instr.SetAttr("axis", axis);
   instr.SetAttr("dtype", dtype);

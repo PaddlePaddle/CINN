@@ -122,6 +122,7 @@ void BindFrontend(pybind11::module *m) {
       .def("relu6", &Program::relu6)
       .def("sigmoid", &Program::sigmoid)
       .def("dropout_infer", &Program::dropout_infer)
+      .def("one_hot", &Program::one_hot)
       .def("scale", &Program::scale)
       .def("slice", &Program::slice)
       .def("conv2d", &Program::conv2d)
@@ -523,7 +524,15 @@ void BindFrontend(pybind11::module *m) {
            py::arg("groups")            = 1,
            py::arg("data_format")       = "NCHW",
            py::arg("padding_algorithm") = "EXPLICIT")
-      .def("sum", &NetBuilder::Sum, py::arg("inputs"));
+      .def("sum", &NetBuilder::Sum, py::arg("inputs"))
+      .def("one_hot",
+           &NetBuilder::OneHot,
+           py::arg("indices"),
+           py::arg("on_value"),
+           py::arg("off_value"),
+           py::arg("depth"),
+           py::arg("axis")  = -1,
+           py::arg("dtype") = "float32");
 
   py::class_<CinnBuilder, BaseBuilder>(*m, "CinnBuilder")
       .def(py::init<const std::string &>(), py::arg("name") = "")

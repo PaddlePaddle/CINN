@@ -455,6 +455,11 @@ struct Program {
 
   Variable dropout_infer(const Variable& a, const absl::flat_hash_map<std::string, attr_t>& attr_store);
 
+  Variable one_hot(const Variable& indices,
+                   const Variable& on_value,
+                   const Variable& off_value,
+                   const absl::flat_hash_map<std::string, attr_t>& attr_store);
+
   /**
    * Get \p i-th instruction.
    */
