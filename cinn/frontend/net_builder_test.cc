@@ -189,5 +189,83 @@ TEST(net_build, program_execute_reverse) {
   runtime_program->Execute();
 }
 
+TEST(net_build, program_argmax) {
+  const int N        = 4;
+  const int IN_C     = 3;
+  const int OUT_C    = 1;
+  const int H        = 7;
+  const int W        = 7;
+
+  NetBuilder builder("net_builder");
+  Placeholder input    = builder.CreateInput(Float(32), {N, IN_C, H, W}, "In");
+  Placeholder output   = builder.CreateInput(Float(32), {N, OUT_C, H, W}, "Out");
+  auto program         = builder.Build();
+
+  Target target = common::DefaultHostTarget();
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  auto scope = BuildScope(target, graph);
+  hlir::framework::GraphCompiler gc(target, scope, graph);
+  auto runtime_program = gc.Build();
+
+  scope->Var<hlir::framework::Tensor>(std::string(input.id()));
+  scope->Var<hlir::framework::Tensor>(std::string(output.id()));
+
+  auto out_tensor = scope->GetTensor(std::string(output.id()));
+  float* out_data = out_tensor->mutable_data<float>(target);
+  memset(out_data, 0, sizeof(float) * N * OUT_C * H * W);
+//  out_data[0] = static_cast<float>(KERNEL_H * KERNEL_W);
+//  out_data[1] = static_cast<float>(KERNEL_H * KERNEL_W);
+
+  VLOG(6) << "Visualize out_data";
+  for (int n = 0; n < N; ++n) {
+    for (int c = 0; c < OUT_C; ++c) {
+      VLOG(6) << "n = " << n << ", c = " << c;
+      for (int h = 0; h < H; ++h) {
+        std::string line;
+        for (int w = 0; w < W; ++w) {
+          int index = w + W * (h + H * (c + OUT_C * n));
+          line += (std::to_string(out_data[index]) + ", ");
+        }
+        VLOG(6) << line;
+      }
+    }
+  }
+  runtime_program->Execute();
+
+  auto in_tensor                   = scope->GetTensor(std::string(input->id));
+  const std::vector<int>& in_shape = in_tensor->shape().data();
+  EXPECT_EQ(in_shape.size(), 4UL);
+  EXPECT_EQ(in_shape[0], N);
+  EXPECT_EQ(in_shape[1], IN_C);
+  EXPECT_EQ(in_shape[2], H);
+  EXPECT_EQ(in_shape[3], W);
+
+  float* in_data = in_grad_tensor->mutable_data<float>(target);
+  VLOG(6) << "Visualize in_data";
+  for (int n = 0; n < N; ++n) {
+    for (int c = 0; c < IN_C; ++c) {
+      VLOG(6) << "n = " << n << ", c = " << c;
+      for (int h = 0; h < H; ++h) {
+        std::string line;
+        for (int w = 0; w < W; ++w) {
+          int index  = w + W * (h + H * (c + IN_C * n));
+          float data = in_data[index];
+          line += (std::to_string(data) + ", ");
+          if (n == 0 && c == 0 && h < KERNEL_H) {
+            if (w == 0 || w == KERNEL_W) {
+              EXPECT_EQ(data, 1.0f);
+            } else if (w > 0 && w < KERNEL_W) {
+              EXPECT_EQ(data, 2.0f);
+            } else {
+              EXPECT_EQ(data, 0.0f);
+            }
+          }
+        }
+        VLOG(6) << line;
+      }
+    }
+  }
+}
 }  // namespace frontend
 }  // namespace cinn
