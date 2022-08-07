@@ -242,6 +242,18 @@ Variable Program::dropout_infer(const Variable& a, const absl::flat_hash_map<std
   return instr.GetOutput(0);
 }
 
+Variable Program::one_hot(const Variable& indices,
+                          const Variable& on_value,
+                          const Variable& off_value,
+                          const absl::flat_hash_map<std::string, attr_t>& attr_store) {
+  Instruction instr("one_hot", {indices, on_value, off_value});
+  for (auto& iter : attr_store) {
+    instr.SetAttr(iter.first, iter.second);
+  }
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
 Instruction& Program::operator[](size_t i) {
   CHECK_LT(i, instrs_.size());
   return instrs_[i];

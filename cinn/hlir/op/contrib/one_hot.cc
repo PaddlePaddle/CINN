@@ -29,6 +29,7 @@
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
 #include "cinn/hlir/pe/nn.h"
+#include "cinn/hlir/pe/schedule.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/tensor.h"
@@ -78,8 +79,9 @@ ir::Tensor OneHot(const ir::Tensor& indices,
           indices_indices.push_back(output_indices[i]);
         }
 
-        auto idx = output_indices[true_axis];
-        return ir::Select::Make(Expr(indices(indices_indices) == idx), on_value_cast, off_value_cast);
+        auto idx           = output_indices[true_axis];
+        auto indices_value = ir::Cast::Make(idx.type(), indices(indices_indices));
+        return ir::Select::Make(ir::EQ::Make(indices_value, idx), on_value_cast, off_value_cast);
       },
 
       common::UniqName(output_name));
@@ -176,14 +178,16 @@ std::shared_ptr<framework::OpStrategy> StrategyForOneHot(const framework::NodeAt
 
     auto out = OneHot(indices, on_value, off_value, depth, axis, dtype, tensor_name);
     CHECK(!out_type.empty()) << "Output type of Pool2dGrad is empty! Please check.\n";
-    auto stages = CreateStages({out});
-    *ret        = common::CINNValuePack{{common::CINNValue(out), common::CINNValue(stages)}};
+    auto stages = CreateStages({indices, on_value, off_value});
+    stages->InsertLazily(out);
+    *ret = common::CINNValuePack{{common::CINNValue(out), common::CINNValue(stages)}};
   });
 
   framework::CINNSchedule one_hot_schedule([=](lang::Args args, lang::RetValue* ret) {
     CHECK(!args.empty()) << "The input argument of one_hot schedule is empty! Please check.";
     common::CINNValuePack arg_pack = args[0];
-    CHECK_EQ(arg_pack.size(), 1UL);
+    // TODO: FLAGS_cinn_ir_schedule
+    CHECK_EQ(arg_pack.size(), 2UL);
     Expr out = arg_pack[0];
     CHECK(out.as_tensor());
 
@@ -194,7 +198,12 @@ std::shared_ptr<framework::OpStrategy> StrategyForOneHot(const framework::NodeAt
     //   *ret = common::CINNValuePack{{common::CINNValue(out), common::CINNValue(padding_out)}};
     // } else {
     poly::StageMap stages = arg_pack[arg_pack.size() - 1];
-    *ret                  = common::CINNValuePack{{common::CINNValue(out), common::CINNValue(stages)}};
+    if (target.arch == Target::Arch::NVGPU) {
+      pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes[0], target);
+    } else if (target.arch == Target::Arch::X86) {
+      pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes[0], target);
+    }
+    *ret = common::CINNValuePack{{common::CINNValue(out), common::CINNValue(stages)}};
     // }
   });
 
@@ -216,6 +225,7 @@ CINN_REGISTER_HELPER(one_hot_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForOneHot)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForOneHot))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForOneHot))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
 
   return true;

@@ -37,7 +37,7 @@ TEST(GenerateCode_Cpu, Pool2dGrad_Avg) {
 
   common::Target target = common::DefaultHostTarget();
 
-  int depth                           = 5;
+  int depth                           = 9;
   int axis                            = -1;
   const std::string dtype             = "float32";
   std::vector<ir::Expr> indices_shape = {Expr(2), Expr(3), Expr(4), Expr(5)};
