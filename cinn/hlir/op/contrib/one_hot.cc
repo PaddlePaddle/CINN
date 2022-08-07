@@ -51,20 +51,19 @@ ir::Tensor OneHot(const ir::Tensor& indices,
   CHECK(axis == -1 || (axis >= 0 && axis <= indices->shape.size()))
       << "axis must be -1 or between 0 and " << indices->shape.size();
   CHECK_GT(depth, 0) << "Depth must be positive.";
-  // TODO: For now, CINN does not support 0-D tensors, we use a 1-D tensor only has one element instead.
+  // TODO(SigureMo): Currently CINN does not support 0-D tensors, we use a 1-D tensor only has one element instead.
   CHECK(on_value->shape.size() == 1U && on_value->shape[0].as_int32() == 1U) << "On value must be a scalar.";
   CHECK(off_value->shape.size() == 1U && off_value->shape[0].as_int32() == 1U) << "Off value must be a scalar.";
 
   int true_axis = (axis == -1) ? indices->shape.size() : axis;
 
-  // TODO: Get the value from 1-D tensor, it can be removed after CINN supports 0-D tensors.
+  // TODO(SigureMo): Get the value from 1-D tensor, it can be removed after CINN supports 0-D tensors.
   ir::Expr on_value_value  = on_value(Expr(0));
   ir::Expr off_value_value = off_value(Expr(0));
   ir::Expr on_value_cast   = ir::Cast::Make(common::Str2Type(dtype), on_value_value);
   ir::Expr off_value_cast  = ir::Cast::Make(common::Str2Type(dtype), off_value_value);
 
   std::vector<Expr> out_shape(indices->shape);
-  // Why TVM use this?
   out_shape.insert(out_shape.begin() + true_axis, Expr(depth));
 
   ir::Tensor res = lang::Compute(
