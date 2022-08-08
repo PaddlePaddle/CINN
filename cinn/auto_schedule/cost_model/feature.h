@@ -22,66 +22,77 @@ namespace cinn {
 namespace auto_schedule {
 
 /* Loop feature enums */
-enum class LoopPositionFeatureEnum : int { kNone; kInnerMost; kMiddle; kOuterMost; };
-
-enum class LoopReduceFeatureEnum : int { kNone; kIsReduce; kNonReduce; kMix; };
-
-enum class ForOptimizeFeatureEnum : int { kNone; kVectorize; kParallel; kUnroll; };
-
-/* Buffer memory feature enums */
-enum class BufferOperationFeatureEnum : int {
-  kUnknown; kRead; kWrite; kReadWrite;  // read and write at same time, such as a[i] = a[i + 1]
-  kAlloc;
-  kDelete;
-};
+enum class ForOptimizeFeatureEnum : int { kNone, kGpuBind, kParallel, kUnroll, kVectorize };
 
 class LoopBlockFeature {
  public:
+  // TODO(zhhsplendid): distinguish more types such as float16, float32,
+  // float64, etc. However speed the gap between float and int are larger than
+  // different bits, so we just distinguished int and float here
   /* Arithmetic features */
-  int float_add_or_sub   = 0;
-  int float_mul          = 0;
-  int float_div_or_mod   = 0;
-  int float_cmp          = 0;
-  int float_multiply_add = 0;  // number of float Multiply-add ops
-  int float_math_func    = 0;
-  int float_other_call   = 0;  // like simple assign, cast, etc.
+  int float_add_or_sub = 0;
+  int float_mul        = 0;
+  int float_div_or_mod = 0;
+  int float_cmp        = 0;
+  int float_math_func  = 0;
+  int float_other_call = 0;  // like simple assign, cast, etc.
 
-  int int_add_or_sub   = 0;
-  int int_mul          = 0;
-  int int_div_or_mod   = 0;
-  int int_cmp          = 0;
-  int int_multiply_add = 0;  // number of float Multiply-add ops
-  int int_math_func    = 0;
-  int int_other_call   = 0;  // like simple assign, cast, etc.
+  int int_add_or_sub = 0;
+  int int_mul        = 0;
+  int int_div_or_mod = 0;
+  int int_cmp        = 0;
+  int int_math_func  = 0;
+  int int_other_call = 0;  // like simple assign, cast, etc.
 
   int bool_op   = 0;
   int select_op = 0;
 
-  /* Buffer memory features */
+  /**
+   * Buffer memory features, which is the number of memory operations.
+   * Note that different size of memory operation can have various speed,
+   * however the speed difference would be small in OS. A meticulous TODO
+   * may be collect oprand sizes (like alloc size, write size, or so)
+   */
+  int mem_alloc = 0;
+  int mem_free  = 0;
+  int mem_read  = 0;
+  int mem_write = 0;
 
-  // Buffer operation types
-  std::vector<BufferOperationFeatureEnum> buffer_op_types;
-  // The size of buffer operation, the vector size must be same as buffer_op_types
-  std::vector<int> buffer_op_size;
+  /**
+   * Reduce and Broadcast features
+   */
+  int float_reduce_sum_or_sub = 0;
+  int float_reduce_mul        = 0;
+  int float_reduce_div        = 0;
+  int float_reduce_max_or_min = 0;
+  int float_broadcast         = 0;
+
+  int int_reduce_sum_or_sub = 0;
+  int int_reduce_mul        = 0;
+  int int_reduce_div        = 0;
+  int int_reduce_max_or_min = 0;
+  int int_broadcast         = 0;
 
   /* Loop type features */
-  LoopPositionFeatureEnum loop_pos_type  = LoopPositionEnum::kNone;
-  LoopReduceFeatureEnum loop_reduce_type = LoopReduceEnum::kNone;
-  ForOptimizeFeatureEnum loop_opt_type   = ForOptimizeKindEnum::kNone;
+  ForOptimizeFeatureEnum loop_opt_type = ForOptimizeFeatureEnum::kNone;
 
   /* Thread features if loop is optimized by GPU or CPU parallelism.
    * Useless in other cases.
    */
-  int len_blockIdx_x  = 1;
-  int len_blockIdx_y  = 1;
-  int len_blockIdx_z  = 1;
-  int len_threadIdx_x = 1;
-  int len_threadIdx_y = 1;
-  int len_threadIdx_z = 1;
-  int len_vthread     = 1;  // length of virtual thread
+  int len_blockIdx_x   = 0;
+  int len_blockIdx_y   = 0;
+  int len_blockIdx_z   = 0;
+  int len_threadIdx_x  = 0;
+  int len_threadIdx_y  = 0;
+  int len_threadIdx_z  = 0;
+  int len_vthread      = 0;  // length of virtual thread
+  int vectorize_factor = 0;
 
   // Number to indicate the loop block inside current one
   int num_sub_loops = 0;
+
+  // Number of repeats of this loop, -1 represents unknown
+  int loop_length = 1;
 };
 
 /**
@@ -91,6 +102,15 @@ class Feature {
  public:
   Feature();
   std::vector<float> ToVector();
+
+  // Call when visit into a loop block to collect LoopBlockFeature
+  void IntoLoopBlock();
+  // Call when exit a loop block to collect LoopBlockFeature
+  void ExitLoopBlock();
+  // The current loop block which we should collect feature on
+  LoopBlockFeature& CurrentLoopBlock();
+  // The current loop block which we should collect feature on
+  const LoopBlockFeature& CurrentLoopBlock() const;
 
  public:
   // We treat a computation feature to be encoded as variable-length vector.
@@ -121,7 +141,9 @@ class Feature {
   // loop_block_feature_1.num_sub_loops = 1
   // loop_block_feature_2.num_sub_loops = 0
   // loop_block_feature_3.num_sub_loops = 0
-  std::vector<LoopBlockFeature> stack_encoded_feature;
+  std::vector<LoopBlockFeature> stack_encoded_feature_;
+  int current_loop_block_index_;
+  std::vector<int> parent_indices_;
 };
 
 }  // namespace auto_schedule

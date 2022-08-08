@@ -32,20 +32,21 @@
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_schedule.h"
+#include "cinn/ir/ir_visitor.h"
 
 namespace cinn {
 namespace auto_schedule {
 
-class FeatureExtractor : public IRVisitor {
+class FeatureExtractor : public ir::IRVisitor {
  public:
   FeatureExtractor();
   Feature Extract(const ir::ModuleExpr& mod_expr, const common::Target& target);
 
-#define __(op__) void Visit(const op__* x) override;
+#define __(op__) void Visit(const ir::op__* x) override;
   NODETY_FORALL(__)
 #undef __
 
-#define __(op__) virtual void Visit(const intrinsics::op__* x);
+#define __(op__) virtual void Visit(const ir::intrinsics::op__* x);
   INTRINSIC_KIND_FOR_EACH(__)
 #undef __
 

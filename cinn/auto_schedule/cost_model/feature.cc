@@ -25,19 +25,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#pragma once
+#include "cinn/auto_schedule/cost_model/feature.h"
+
+#include <glog/logging.h>
 
 #include <vector>
-
-#include "cinn/auto_schedule/cost_model/feature_extractor.h"
-#include "cinn/ir/ir_schedule.h"
 
 namespace cinn {
 namespace auto_schedule {
 
-Feature::Feature() {}
+Feature::Feature()
+    : stack_encoded_feature_(1),  // initialze a LoopBlockFeature as root block
+      current_loop_block_index_(0),
+      parent_indices_(1, -1) {}
 
 std::vector<float> Feature::ToVector() { return std::vector<float>(); }
+
+void Feature::IntoLoopBlock() {
+  stack_encoded_feature_.emplace_back(LoopBlockFeature());
+  stack_encoded_feature_[current_loop_block_index_].num_sub_loops += 1;
+  parent_indices_.push_back(current_loop_block_index_);
+  current_loop_block_index_ = stack_encoded_feature_.size() - 1;
+}
+
+void Feature::ExitLoopBlock() { current_loop_block_index_ = parent_indices_[current_loop_block_index_]; }
+
+LoopBlockFeature& Feature::CurrentLoopBlock() { return stack_encoded_feature_[current_loop_block_index_]; }
+
+const LoopBlockFeature& Feature::CurrentLoopBlock() const { return stack_encoded_feature_[current_loop_block_index_]; }
 
 }  // namespace auto_schedule
 }  // namespace cinn
