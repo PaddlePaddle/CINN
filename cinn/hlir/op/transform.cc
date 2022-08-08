@@ -206,7 +206,7 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
     CHECK(!args.empty()) << "The input argument of matmul schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
     if (FLAGS_cinn_ir_schedule) {
-      CHECK(arg_pack.size() == 2UL);
+      CHECK_EQ(arg_pack.size(), 2UL);
       Expr ast_expr           = arg_pack[0];
       std::string tensor_name = arg_pack[1].operator std::string();
       std::vector<Expr> vec_ast{ast_expr};
@@ -230,7 +230,7 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
 #ifdef CINN_WITH_MKL_CBLAS
         CHECK_EQ(arg_pack.size(), 3UL);
 #else
-        CHECK(arg_pack.size() == 3UL);
+        CHECK_EQ(arg_pack.size(), 3UL);
         Expr out     = arg_pack[0];
         Expr packedB = arg_pack[1];
         CHECK(packedB.as_tensor());

@@ -1013,10 +1013,10 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
           auto reducer_0_loops  = ir_sch.GetLoops(reducer_0_block);
 
           auto node_loops = ir_sch.GetLoops(node_tensor->name);
-          if (ir_sch.GetLoops(node_tensor->name).size() < ir_sch.GetLoops(reducer_0_block).size()) {
+          if (node_loops.size() < reducer_0_loops.size()) {
             ir_sch.Split(node_tensor->name, 0, {-1, ir::GetLoopExtent(node_loops[0])});
           }
-          CHECK_EQ(ir_sch.GetLoops(node_tensor->name).size(), ir_sch.GetLoops(reducer_0_block).size())
+          CHECK_EQ(ir_sch.GetLoops(node_tensor->name).size(), reducer_0_loops.size())
               << "node loop size and reduce loop size must be equal!";
           auto node_block = ir_sch.GetBlock(node_tensor->name);
           ir_sch.SimpleComputeAt(node_block, reducer_0_loops.back());
@@ -1062,8 +1062,7 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpaqueOp(GroupPtr& group) {
     group->input_names.push_back(id);
   }
 
-  auto node_data = GetNodeData(node);
-  cinn_inputs.push_back(common::CINNValue(node_data->id()));
+  cinn_inputs.push_back(common::CINNValue(GetNodeData(node)->id()));
 
   std::vector<Type> out_types;
   std::vector<std::vector<int>> out_shapes;
