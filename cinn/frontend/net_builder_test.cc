@@ -189,5 +189,137 @@ TEST(net_build, program_execute_reverse) {
   runtime_program->Execute();
 }
 
+void SetIntRandData(hlir::framework::Tensor tensor, Target target) {
+  auto* data = tensor->mutable_data<int>(target);
+  std::random_device seed;
+  std::default_random_engine engine(seed());
+  std::uniform_int_distribution<int> dist(1, 128);
+  size_t num_ele = tensor->shape().numel();
+  std::vector<int> random_data(num_ele);
+  for (size_t i = 0; i < num_ele; i++) {
+    random_data[i] = dist(engine);  // All random data
+  }
+  std::copy(random_data.begin(), random_data.end(), data);
+}
+
+void SetFloatRandData(hlir::framework::Tensor tensor, Target target) {
+  auto* data = tensor->mutable_data<int>(target);
+  std::random_device seed;
+  std::default_random_engine engine(seed());
+  std::uniform_real_distribution<float> dist(0.f, 1.f);
+  size_t num_ele = tensor->shape().numel();
+  std::vector<float> random_data(num_ele);
+  for (size_t i = 0; i < num_ele; i++) {
+    random_data[i] = dist(engine);  // All random data
+  }
+  std::copy(random_data.begin(), random_data.end(), data);
+}
+
+TEST(net_build, program_execute_gather) {
+  const int B     = 4;
+  const int H_IN1 = 7;
+  const int H_IN2 = 14;
+
+  NetBuilder builder("net_builder");
+  Placeholder input1 = builder.CreateInput(Float(32), {B, H_IN1}, "In1");
+  Placeholder input2 = builder.CreateInput(Int(32), {B, H_IN2}, "In2");
+  Variable output    = builder.Gather(input1, input2, 1);
+  auto program       = builder.Build();
+
+  Target target = common::DefaultHostTarget();
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  auto scope = BuildScope(target, graph);
+  hlir::framework::GraphCompiler gc(target, scope, graph);
+  auto runtime_program = gc.Build();
+
+  scope->Var<hlir::framework::Tensor>(std::string(input.id()));
+  scope->Var<hlir::framework::Tensor>(std::string(output->id));
+
+  auto input1_tensor = scope->GetTensor(std::string(input1.id()));
+  SetIntRandData(input1_tensor, target);
+  int* input1_data = input1_tensor->mutable_data<float>(target);
+
+  auto input2_tensor = scope->GetTensor(std::string(input2.id()));
+  SetIntRandData(input2_tensor, target);
+  int* input2_data = input2_tensor->mutable_data<int>(target);
+
+  runtime_program->Execute();
+
+  auto output_tensor                   = scope->GetTensor(std::string(output->id));
+  const std::vector<int>& output_shape = output_tensor->shape().data();
+  EXPECT_EQ(output_tensor->type(), Float(32));
+  EXPECT_EQ(output_shape.size(), 2UL);
+  EXPECT_EQ(output_shape[0], B);
+  EXPECT_EQ(output_shape[1], H_IN2);
+
+  float* output_data = output_tensor->mutable_data<float>(target);
+  VLOG(6) << "Visualize output_data";
+  for (int b = 0; b < B; ++b) {
+    for (int h = 0; h < H; ++h) {
+      std::string line;
+      int index      = h + H * b;
+      float in_data  = input1_data[input2_data[index] + H * b];
+      float out_data = output_data[index];
+      line += (std::to_string(out_data) + ", ");
+      EXPECT_EQ(in_data, out_data);
+      VLOG(6) << line;
+    }
+  }
+}
+
+TEST(net_build, program_execute_gather_nd) {
+  const int B     = 4;
+  const int H_IN1 = 7;
+  const int H_IN2 = 14;
+
+  NetBuilder builder("net_builder");
+  Placeholder input1 = builder.CreateInput(Float(32), {B, H_IN1}, "In1");
+  Placeholder input2 = builder.CreateInput(Int(32), {B, H_IN2}, "In2");
+  Variable output    = builder.GatherNd(input1, input2, [1]);
+  auto program       = builder.Build();
+
+  Target target = common::DefaultHostTarget();
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  auto scope = BuildScope(target, graph);
+  hlir::framework::GraphCompiler gc(target, scope, graph);
+  auto runtime_program = gc.Build();
+
+  scope->Var<hlir::framework::Tensor>(std::string(input.id()));
+  scope->Var<hlir::framework::Tensor>(std::string(output->id));
+
+  auto input1_tensor = scope->GetTensor(std::string(input1.id()));
+  SetIntRandData(input1_tensor, target);
+  int* input1_data = input1_tensor->mutable_data<float>(target);
+
+  auto input2_tensor = scope->GetTensor(std::string(input2.id()));
+  SetIntRandData(input2_tensor, target);
+  int* input2_data = input2_tensor->mutable_data<int>(target);
+
+  runtime_program->Execute();
+
+  auto output_tensor                   = scope->GetTensor(std::string(output->id));
+  const std::vector<int>& output_shape = output_tensor->shape().data();
+  EXPECT_EQ(output_tensor->type(), Float(32));
+  EXPECT_EQ(output_shape.size(), 2UL);
+  EXPECT_EQ(output_shape[0], B);
+  EXPECT_EQ(output_shape[1], H_IN2);
+
+  float* output_data = output_tensor->mutable_data<float>(target);
+  VLOG(6) << "Visualize output_data";
+  for (int b = 0; b < B; ++b) {
+    for (int h = 0; h < H; ++h) {
+      std::string line;
+      int index      = h + H * b;
+      float in_data  = input1_data[input2_data[index] + H * b];
+      float out_data = output_data[index];
+      line += (std::to_string(out_data) + ", ");
+      EXPECT_EQ(in_data, out_data);
+      VLOG(6) << line;
+    }
+  }
+}
+
 }  // namespace frontend
 }  // namespace cinn

@@ -36,20 +36,28 @@ void __cinn_host_tanh_v(const cinn_buffer_t* x, cinn_buffer_t* out) {
   }
 }
 
-#define __cinn_host_find_kernel(buf, size, num, type)               \
+#define __cinn_host_find_kernel(buf, size, num, type, start)        \
   do {                                                              \
-    for (int i = size - 1; i >= 0; --i) {                           \
+    for (int i = size - 1; i >= start; --i) {                       \
       if (reinterpret_cast<type*>(buf->memory)[i] == num) return i; \
     }                                                               \
     return -1;                                                      \
   } while (0)
 
 inline int cinn_host_find_int(const cinn_buffer_t* buf, int size, int num) {
-  __cinn_host_find_kernel(buf, size, num, int);
+  __cinn_host_find_kernel(buf, size, num, int, 0);
 }
 
 inline int cinn_host_find_float(const cinn_buffer_t* buf, int size, float num) {
-  __cinn_host_find_kernel(buf, size, num, float);
+  __cinn_host_find_kernel(buf, size, num, float, 0);
+}
+
+inline int cinn_host_find_int_from_start(const cinn_buffer_t* buf, int size, int num, int start) {
+  __cinn_host_find_kernel(buf, size, num, int, start);
+}
+
+inline int cinn_host_find_float_from_start(const cinn_buffer_t* buf, int size, float num, int start) {
+  __cinn_host_find_kernel(buf, size, num, float, start);
 }
 
 #undef __cinn_host_find_kernel
@@ -84,6 +92,22 @@ CINN_REGISTER_HELPER(host_intrinsics) {
       .AddInputType<cinn_buffer_t*>()
       .AddInputType<int>()
       .AddInputType<float>()
+      .End();
+
+  REGISTER_EXTERN_FUNC_HELPER(cinn_host_find_int_from_start, host_target)
+      .SetRetType<int>()
+      .AddInputType<cinn_buffer_t*>()
+      .AddInputType<int>()
+      .AddInputType<int>()
+      .AddInputType<int>()
+      .End();
+
+  REGISTER_EXTERN_FUNC_HELPER(cinn_host_find_float_from_start, host_target)
+      .SetRetType<int>()
+      .AddInputType<cinn_buffer_t*>()
+      .AddInputType<int>()
+      .AddInputType<float>()
+      .AddInputType<int>()
       .End();
 
   return true;
