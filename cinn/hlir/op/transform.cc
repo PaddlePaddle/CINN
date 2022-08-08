@@ -213,8 +213,12 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
       ir::IRSchedule ir_sch(mod_expr);
       ir_sch.MergeExprs();
       auto blocks = ir_sch.GetAllBlocks();
-      ir_sch.Bind(ir_sch.GetLoops(blocks[0])[0], "blockIdx.x");
-      ir_sch.Bind(ir_sch.GetLoops(blocks[0])[1], "threadIdx.x");
+      if (ir_sch.GetLoops(blocks[0]).size() == 1) {
+        ir_sch.Bind(ir_sch.GetLoops(blocks[0])[0], "threadIdx.x");
+      } else {
+        ir_sch.Bind(ir_sch.GetLoops(blocks[0])[0], "blockIdx.x");
+        ir_sch.Bind(ir_sch.GetLoops(blocks[0])[1], "threadIdx.x");
+      }
       std::vector<CINNValue> results = {CINNValue(ir_sch.GetModule().GetExprs().at(0))};
       *ret                           = CINNValuePack({results});
     } else {
