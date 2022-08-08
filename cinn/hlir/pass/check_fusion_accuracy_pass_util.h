@@ -16,10 +16,7 @@
 
 #include <string>
 
-namespace cinn {
-namespace hlir {
-namespace pass {
-namespace utils {
+namespace cinn::hlir::pass::utils {
 
 std::string GenerateCheckFusionAccuracyNodeId(const std::string& node_id);
 
@@ -27,7 +24,4 @@ bool IsCheckFusionAccuracyNode(const std::string& node_id);
 
 bool IsCheckFusionAccuracyNodeGenerated(const std::string& check_node_id, const std::string& node_id);
 
-}  // namespace utils
-}  // namespace pass
-}  // namespace hlir
-}  // namespace cinn
+}  // namespace cinn::hlir::pass::utils

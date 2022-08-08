@@ -16,8 +16,7 @@
 
 #include "cinn/common/context.h"
 
-namespace cinn {
-namespace utils {
+namespace cinn::hlir::pass::utils {
 
 namespace {
 constexpr char check_node_suffix[] = "_acc_check";
@@ -35,5 +34,4 @@ bool IsCheckFusionAccuracyNodeGenerated(const std::string& check_node_id, const 
   return check_node_id.find(node_id + check_node_suffix) != std::string::npos;
 }
 
-}  // namespace utils
-}  // namespace cinn
+}  // namespace cinn::hlir::pass::utils

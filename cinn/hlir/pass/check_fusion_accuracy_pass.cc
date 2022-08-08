@@ -12,14 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <queue>
+#include <absl/container/flat_hash_map.h>
+
+#include <deque>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
 
 #include "cinn/hlir/framework/graph.h"
+#include "cinn/hlir/framework/node.h"
+#include "cinn/hlir/framework/op.h"
+#include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/pass/check_fusion_accuracy_pass_util.h"
 
-namespace cinn {
-namespace hlir {
-namespace pass {
+namespace cinn::hlir::pass {
 
 using framework::Graph;
 using framework::Node;
@@ -32,47 +38,243 @@ using common::GraphNode;
 using GroupPtr  = std::shared_ptr<Graph::Group>;
 using GroupList = std::vector<GroupPtr>;
 
-namespace {
-constexpr char check_node_suffix[] = "_acc_check";
-}
+using ShapeDict = absl::flat_hash_map<std::string, framework::shape_t>;
+using DtypeDict = absl::flat_hash_map<std::string, common::Type>;
 
-std::vector<NodeData*> CreateNodeInputs(const std::unordered_map<Node*, int> group_inputs, Graph* graph, Node* node) {
-  const auto& inlinks = node->inlinks_in_order();
-  for (const auto& in_edge : inlinks) {
-    auto in_node = in_edge->source();
-  }
-}
+class CheckFusionAccuracyPass {
+ public:
+  CheckFusionAccuracyPass(Graph* graph_) : graph_(graph_) {}
 
-GroupPtr CreateCheckGroup(Graph* graph, Node* node) {
-  CHECK_NOTNULL(node->op()) << "Node " << node->id() << " is not operator! Please check.";
+  GroupList Apply();
 
-  auto check_node =
-      Node::Create(node->op(), node->attrs.node_name, utils::GenerateCheckFusionAccuracyNodeId(node->id()));
-}
+  GroupPtr CreateCheckGroup(NodePtr node_ptr);
 
-void CheckFusionAccuracyPassImpl(Graph* graph) {
-  GroupList check_fusion_group;
+  NodePtr CreateCheckNode(Node* node);
 
-  for (auto& group : graph->fusion_groups) {
-    check_fusion_group.emplace_back(group);
-    // fusion group only has one node, do not need check, skip
-    if (group->nodes_set.size() <= 1) continue;
+  void CreateNodeOutputs(Node* old_node, NodePtr new_node);
 
-    std::unordered_set<Node*> check_group_outputs;
-    for (auto* node : TopologicalOrder(group->nodes)) {
-      if (node->is_variable()) continue;
+  void RelinkNodeInputs(Node* old_node, NodePtr new_node);
+
+ private:
+  std::vector<Node*> TopologicalOrder(const std::vector<Node*>& nodes);
+
+  Graph* graph_;
+  std::unordered_map<NodeData*, NodeData*> old2new_node_map_;
+};
+
+void CheckFusionAccuracyPass::CreateNodeOutputs(Node* old_node, NodePtr new_node) {
+  auto& shape_dict = graph_->GetMutableAttrs<ShapeDict>("infershape");
+  auto& dtype_dict = graph_->GetMutableAttrs<DtypeDict>("inferdtype");
+
+  const auto& outlinks = old_node->outlinks_in_order();
+  for (const auto& out_edge : outlinks) {
+    auto out_node = out_edge->sink()->safe_as<NodeData>();
+    CHECK(out_node) << "Node " << old_node->id() << "'s output node is nullptr! Please check.";
+
+    const auto& out_node_id = out_node->id();
+    // If the check node's output variable node not created
+    if (!old2new_node_map_.count(out_node)) {
+      std::string check_out_node_id = utils::GenerateCheckFusionAccuracyNodeId(out_node_id);
+
+      auto graph_node = graph_->RetrieveNode(check_out_node_id);
+      CHECK(graph_node == nullptr) << "The check fusion accuracy node " << check_out_node_id
+                                   << " existed in graph_ but not recorded in old2new_node_map_! Please check.";
+
+      auto check_out_node = new NodeData(new_node, out_node->output_index, 0, check_out_node_id);
+
+      CHECK(shape_dict.count(out_node_id))
+          << "Node " << out_node_id << "'s shape not recorded in graph_'s 'infershape' dict! Please check.";
+      // why assign twice? only assign once may cause useless assign, a puzzling bug
+      shape_dict[check_out_node_id] = shape_dict.at(out_node_id);
+      shape_dict[check_out_node_id] = shape_dict.at(out_node_id);
+
+      CHECK(dtype_dict.count(out_node_id))
+          << "Node " << out_node_id << "'s dtype not recorded in graph_'s 'inferdtype' dict! Please check.";
+      dtype_dict[check_out_node_id] = dtype_dict.at(out_node_id);
+      dtype_dict[check_out_node_id] = dtype_dict.at(out_node_id);
+
+      graph_->RegisterNode(check_out_node_id, check_out_node);
+
+      // link new node to its output node
+      new_node->LinkTo(check_out_node);
+
+      VLOG(4) << "Create the check fusion accuracy node of node " << old_node->id() << "'s output node " << out_node_id
+              << "[" << cinn::utils::Join(shape_dict.at(out_node_id), ",") << "] success, whose id is "
+              << check_out_node_id << "[" << cinn::utils::Join(shape_dict.at(check_out_node_id), ",") << "]";
+      old2new_node_map_[out_node] = check_out_node;
+    } else {
+      VLOG(4) << "The check fusion accuracy node of node " << old_node->id() << "'s output node " << out_node_id << "["
+              << cinn::utils::Join(shape_dict.at(out_node_id), ",") << "] has created, whose id is "
+              << old2new_node_map_[out_node]->id() << "["
+              << cinn::utils::Join(shape_dict.at(old2new_node_map_[out_node]->id()), ",") << "]";
     }
   }
 }
 
-}  // namespace pass
-}  // namespace hlir
-}  // namespace cinn
+void CheckFusionAccuracyPass::RelinkNodeInputs(Node* old_node, NodePtr new_node) {
+  const auto& inlinks = old_node->inlinks_in_order();
+  for (const auto& in_edge : inlinks) {
+    auto in_node = in_edge->source()->safe_as<NodeData>();
+    CHECK(in_node) << "Node " << old_node->id() << "'s input node is nullptr! Please check.";
+
+    if (old2new_node_map_.count(in_node)) {
+      old2new_node_map_[in_node]->LinkTo(new_node.get());
+    } else {
+      in_node->LinkTo(new_node.get());
+    }
+  }
+}
+
+NodePtr CheckFusionAccuracyPass::CreateCheckNode(Node* node) {
+  CHECK(node->op()) << "Node " << node->id() << " is not operator! Please check.";
+
+  const auto& check_node_id = utils::GenerateCheckFusionAccuracyNodeId(node->id());
+
+  VLOG(4) << "Try create node " << node->id() << "'s check fusion accuracy node, whose id is " << check_node_id;
+  auto check_node              = Node::Create(node->op(), node->attrs.node_name, check_node_id);
+  check_node->attrs.attr_store = node->attrs.attr_store;
+
+  graph_->RegisterNode(check_node_id, check_node.get());
+
+  CreateNodeOutputs(node, check_node);
+  RelinkNodeInputs(node, check_node);
+
+  return check_node;
+}
+
+GroupPtr CheckFusionAccuracyPass::CreateCheckGroup(NodePtr node_ptr) {
+  auto node = node_ptr.get();
+
+  VLOG(4) << "Try create check fusion accuracy node " << node->id() << "'s unique group";
+
+  // init group
+  auto group = std::make_shared<Graph::Group>();
+
+  group->nodes.push_back(node);
+  group->nodes_set.insert(node);
+  group->output_nodes.insert(node);
+
+  // input node
+  for (auto& edge : node->inlinks_in_order()) {
+    auto input_node_data = edge->source()->safe_as<NodeData>();
+    CHECK(input_node_data) << "Node " << node->id() << "'s input node is nullptr! Please check.";
+
+    // input data has source node
+    if (input_node_data->source_node.get()) {
+      group->input_nodes[input_node_data->source_node.get()] = 1;
+    }
+  }
+
+  // group type
+  group->op_pattern_kind = framework::kOpaque;
+
+  // use current node as master node for schedule
+  group->master_nodes.insert(node);
+  group->internal_nodes.insert(node);
+  group->group_id = node->id();
+
+  return group;
+}
+
+std::vector<Node*> CheckFusionAccuracyPass::TopologicalOrder(const std::vector<Node*>& nodes) {
+  std::vector<Node*> ordered_nodes;
+
+  // count all node's output to find the group's start node
+  std::unordered_set<NodeData*> all_outputs;
+  for (auto node : nodes) {
+    for (auto& out_edge : node->outlinks_in_order()) {
+      all_outputs.insert(out_edge->sink()->safe_as<NodeData>());
+    }
+  }
+
+  // if the node's input is not any group node's output, it's start node
+  std::deque<Node*> queue;
+  std::unordered_map<Node*, int> indegree;
+  for (auto node : nodes) {
+    bool is_start = true;
+    for (auto& in_edge : node->inlinks_in_order()) {
+      if (all_outputs.count(in_edge->source()->safe_as<NodeData>())) {
+        // if the node's input is some group node's output, it's not start node
+        is_start = false;
+        indegree[node]++;
+      }
+    }
+    if (is_start) {
+      queue.emplace_back(node);
+    }
+  }
+
+  // start to visit
+  while (!queue.empty()) {
+    auto top_node = queue.front();
+    ordered_nodes.push_back(top_node);
+
+    queue.pop_front();
+
+    for (auto& out_edge : top_node->outlinks_in_order()) {
+      // the output of node is a variable node, not op node
+      auto out_data = out_edge->sink()->safe_as<NodeData>();
+
+      for (auto out_data_edge : out_data->outlinks()) {
+        // the variable node's output are the required output nodes
+        auto out_node = out_data_edge->sink()->safe_as<Node>();
+        if (indegree.count(out_node) && (--indegree[out_node]) == 0) {
+          // if the output node in group and its input nodes are all visited, push
+          queue.push_back(out_node);
+        }
+      }
+    }
+  }
+
+  CHECK_EQ(ordered_nodes.size(), nodes.size()) << "There has circle in group! Please check.";
+
+  return ordered_nodes;
+}
+
+GroupList CheckFusionAccuracyPass::Apply() {
+  GroupList check_fusion_groups;
+
+  for (auto& group : graph_->fusion_groups) {
+    check_fusion_groups.emplace_back(group);
+
+    const auto& group_nodes = group->CollectNodes();
+    VLOG(4) << "Group " << group->GetFuncName() << " has " << group_nodes.size() << " nodes.";
+
+    // fusion group only has one node, do not need check, skip
+    if (group_nodes.size() <= 1) {
+      VLOG(4) << "The Group " << group->GetFuncName() << " just has one node, skip.";
+      continue;
+    }
+
+    const auto& ordered_nodes = TopologicalOrder(group_nodes);
+
+    for (auto* node : ordered_nodes) {
+      if (node->is_variable()) {
+        VLOG(4) << "The node " << node->id() << " is variable, skip check fusion accuracy.";
+        continue;
+      }
+
+      auto check_node = CreateCheckNode(node);
+      check_fusion_groups.push_back(CreateCheckGroup(check_node));
+    }
+  }
+  return check_fusion_groups;
+}
+
+void CheckFusionAccuracyPassImpl(Graph* graph) {
+  VLOG(3) << "Before CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
+
+  graph->fusion_groups = CheckFusionAccuracyPass(graph).Apply();
+
+  VLOG(3) << "After CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
+}
+
+}  // namespace cinn::hlir::pass
 
 CINN_REGISTER_HELPER(CheckFusionAccuracyPass) {
   CINN_REGISTER_PASS(CheckFusionAccuracyPass)
       .describe("Check Fusion Accuracy Pass.")
-      .set_change_structure(false)
+      .set_change_structure(true)
       .set_body(cinn::hlir::pass::CheckFusionAccuracyPassImpl);
 
   return true;

@@ -166,6 +166,17 @@ class Graph : public cinn::common::Graph {
   }
 
   /**
+   * \brief Debug the grouped graph according to fusion_groups.
+   */
+  std::string DebugGroupedGraph(const std::unordered_set<std::string>& fetch_var_ids);
+
+  /**
+   * \brief Debug the grouped graph according to user specified groups.
+   */
+  std::string DebugGroupedGraph(const std::vector<std::vector<Node*>>& groups,
+                                const std::unordered_set<std::string>& fetch_var_ids);
+
+  /**
    * \brief Visualize the grouped graph according to fusion_groups.
    */
   void VisualizeGroupedGraph(const std::unordered_set<std::string>& fetch_var_ids);
@@ -180,15 +191,13 @@ class Graph : public cinn::common::Graph {
   void VisualizeGroups(const std::vector<std::vector<Node*>>& groups,
                        const std::unordered_set<std::string>& fetch_var_ids);
 
+  std::vector<std::vector<Node*>> FusionGroupsToGroups();
+
   std::string viz_path_;
   static std::atomic_size_t viz_count_;
 
   CINN_DISALLOW_COPY_AND_ASSIGN(Graph);
 };
-
-// topological order nodes list
-std::vector<Node*> TopologicalOrder(const std::vector<Node*>& nodes);
-std::vector<const Node*> TopologicalOrder(const std::vector<const Node*>& nodes);
 
 }  // namespace framework
 }  // namespace hlir

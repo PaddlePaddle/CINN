@@ -15,6 +15,7 @@
 #include "cinn/hlir/framework/graph.h"
 
 #include <atomic>
+#include <sstream>
 
 #include "cinn/hlir/framework/visualize_helper.h"
 #include "cinn/utils/string.h"
@@ -75,17 +76,46 @@ void Graph::Initialize(const frontend::Program& prog,
   this->attrs["inferdtype"] = std::make_shared<absl::any>(dtype_dict);
 }
 
-void Graph::VisualizeGroupedGraph(const std::unordered_set<std::string>& fetch_var_ids) {
+std::vector<std::vector<Node*>> Graph::FusionGroupsToGroups() {
   std::vector<std::vector<Node*>> groups;
   groups.resize(fusion_groups.size());
   for (size_t i = 0; i < fusion_groups.size(); ++i) {
     groups[i] = fusion_groups[i]->CollectNodes();
   }
-  VisualizeGroupedGraph(groups, fetch_var_ids);
+  return groups;
+}
+
+std::string Graph::DebugGroupedGraph(const std::unordered_set<std::string>& fetch_var_ids) {
+  return DebugGroupedGraph(FusionGroupsToGroups(), fetch_var_ids);
+}
+
+std::string Graph::DebugGroupedGraph(const std::vector<std::vector<Node*>>& groups,
+                                     const std::unordered_set<std::string>& fetch_var_ids) {
+  std::stringstream debug_str;
+  for (auto& id : fetch_var_ids) {
+    debug_str << "Fetch: " << id << "\n";
+  }
+
+  int group_id = 0;
+  for (auto& group : groups) {
+    debug_str << "Group " << group_id++ << " {\n";
+    for (auto* node : group) {
+      debug_str << "  " << DebugString(node) << "\n";
+    }
+    debug_str << "}"
+              << "\n";
+  }
+  return debug_str.str();
+}
+
+void Graph::VisualizeGroupedGraph(const std::unordered_set<std::string>& fetch_var_ids) {
+  VisualizeGroupedGraph(FusionGroupsToGroups(), fetch_var_ids);
 }
 
 void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
                                   const std::unordered_set<std::string>& fetch_var_ids) {
+  VLOG(4) << DebugGroupedGraph(groups, fetch_var_ids);
+
   if (FLAGS_cinn_fusion_groups_graphviz_dir.empty()) {
     return;
   }
@@ -95,19 +125,6 @@ void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
   VLOG(4) << "The visualized path of CINN fusion groups: " << viz_path_;
   if (!MakeDirectory(viz_path_, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)) {
     return;
-  }
-
-  for (auto& id : fetch_var_ids) {
-    VLOG(4) << "Fetch: " << id;
-  }
-
-  int group_id = 0;
-  for (auto& group : groups) {
-    VLOG(4) << "Group " << group_id++ << " {";
-    for (auto* node : group) {
-      VLOG(4) << "  " << DebugString(node);
-    }
-    VLOG(4) << "}";
   }
 
   Summary(groups, viz_path_);
@@ -124,7 +141,7 @@ void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
   // Record the NodeData's actually ids.
   std::unordered_set<std::string> nodedatas_set;
 
-  group_id = 0;
+  int group_id = 0;
   for (auto& group : groups) {
     std::string dot_cluster_id = GenClusterId(group, group_id);
     dot.AddCluster(dot_cluster_id, GetGroupAttrs(group.size()));
@@ -205,37 +222,6 @@ void Graph::VisualizeGroups(const std::vector<std::vector<Node*>>& groups,
 }
 
 std::atomic_size_t Graph::viz_count_{0};
-
-// topological order nodes list
-std::vector<Node*> TopologicalOrderImpl(const std::vector<const Node*>& nodes) {
-  std::vector<const cinn::common::GraphNode*> graph_nodes(nodes.size());
-  std::copy(nodes.begin(), nodes.end(), graph_nodes.begin());
-  auto ordered_graph              = cinn::common::TopologicalOrder(graph_nodes);
-  const auto& ordered_graph_nodes = std::get<0>(ordered_graph);
-
-  CHECK_EQ(ordered_graph_nodes.size(), nodes.size())
-      << "The GraphNode number after TopologicalOrder not equal with Node number! Please check.";
-
-  std::vector<Node*> ordered_nodes(ordered_graph_nodes.size());
-  std::transform(ordered_graph_nodes.begin(),
-                 ordered_graph_nodes.end(),
-                 ordered_nodes.begin(),
-                 [](cinn::common::GraphNode* graph_node) { return dynamic_cast<Node*>(graph_node); });
-  return ordered_nodes;
-}
-
-std::vector<Node*> TopologicalOrder(const std::vector<Node*>& nodes) {
-  std::vector<const Node*> const_nodes(nodes.size());
-  std::copy(nodes.begin(), nodes.end(), const_nodes.begin());
-  return TopologicalOrderImpl(const_nodes);
-}
-
-std::vector<const Node*> TopologicalOrder(const std::vector<const Node*>& nodes) {
-  const auto& ordered_nodes = TopologicalOrderImpl(nodes);
-  std::vector<const Node*> const_nodes(ordered_nodes.size());
-  std::copy(ordered_nodes.begin(), ordered_nodes.end(), const_nodes.begin());
-  return const_nodes;
-}
 
 }  // namespace framework
 }  // namespace hlir

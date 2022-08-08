@@ -69,27 +69,19 @@ std::vector<GraphNode *> Graph::nodes() {
   return res;
 }
 
-// topological order nodes list
-std::tuple<std::vector<GraphNode *>, std::vector<GraphEdge *>> TopologicalOrder(const std::vector<GraphNode *> &nodes) {
-  std::vector<const GraphNode *> const_nodes(nodes.size());
-  std::copy(nodes.begin(), nodes.end(), const_nodes.begin());
-  return TopologicalOrder(const_nodes);
-}
-
-std::tuple<std::vector<GraphNode *>, std::vector<GraphEdge *>> TopologicalOrder(
-    const std::vector<const GraphNode *> &nodes) {
+std::tuple<std::vector<GraphNode *>, std::vector<GraphEdge *>> Graph::topological_order() const {
   std::vector<GraphNode *> node_order;
   std::vector<GraphEdge *> edge_order;
   std::deque<GraphNode *> queue;
 
   // collect indegreee.
   std::map<std::string, int> indegree;
-  for (auto *n : nodes) {
+  for (auto *n : nodes()) {
     indegree[n->id()] = n->inlinks().size();
   }
 
   // insert start points first.
-  for (auto *n : FindStartPoints(nodes)) {
+  for (auto *n : start_points()) {
     queue.push_back(&Reference(n));
   }
 
@@ -113,37 +105,28 @@ std::tuple<std::vector<GraphNode *>, std::vector<GraphEdge *>> TopologicalOrder(
     }
   }
 
-  CHECK_EQ(node_order.size(), nodes.size()) << "circle detected in the schedule graph:\n\n" << VisualizeGraph(nodes);
+  CHECK_EQ(node_order.size(), nodes().size()) << "circle detected in the schedule graph:\n\n" << Visualize();
 
   return std::make_tuple(node_order, edge_order);
 }
 
-std::tuple<std::vector<GraphNode *>, std::vector<GraphEdge *>> Graph::topological_order() const {
-  return TopologicalOrder(nodes());
-}
-
 std::vector<GraphNode *> Graph::dfs_order() { return std::vector<GraphNode *>(); }
 
-// get start_points of nodes list
-std::vector<GraphNode *> FindStartPoints(const std::vector<GraphNode *> &nodes) {
-  std::vector<GraphNode *> res;
-  for (auto *node : nodes) {
-    if (node->inlinks().empty()) res.push_back(node);
-  }
-  return res;
-}
-
-std::vector<const GraphNode *> FindStartPoints(const std::vector<const GraphNode *> &nodes) {
+std::vector<const GraphNode *> Graph::start_points() const {
   std::vector<const GraphNode *> res;
-  for (auto *node : nodes) {
+  for (auto *node : nodes()) {
     if (node->inlinks().empty()) res.push_back(node);
   }
   return res;
 }
 
-std::vector<const GraphNode *> Graph::start_points() const { return FindStartPoints(nodes()); }
-
-std::vector<GraphNode *> Graph::start_points() { return FindStartPoints(nodes()); }
+std::vector<GraphNode *> Graph::start_points() {
+  std::vector<GraphNode *> res;
+  for (auto *node : nodes()) {
+    if (node->inlinks().empty()) res.push_back(node);
+  }
+  return res;
+}
 
 GraphNode *Graph::RegisterNode(size_t key, GraphNode *node) {
   registry_.emplace(key, node);
@@ -162,22 +145,16 @@ GraphNode *Graph::RetrieveNode(size_t key) const {
 
 GraphNode *Graph::RetrieveNode(const std::string &key) const { return RetrieveNode(std::hash<std::string>()(key)); }
 
-std::string VisualizeGraph(const std::vector<GraphNode *> &nodes) {
-  std::vector<const GraphNode *> const_nodes(nodes.size());
-  std::copy(nodes.begin(), nodes.end(), const_nodes.begin());
-  return VisualizeGraph(const_nodes);
-}
-
-std::string VisualizeGraph(const std::vector<const GraphNode *> &nodes) {
+std::string Graph::Visualize() const {
   utils::DotLang dot;
 
   // 1. create nodes
-  for (auto &node : nodes) {
+  for (auto &node : nodes_) {
     dot.AddNode(node->id(), {});
   }
 
   // 2. link each other
-  for (auto &source : nodes) {
+  for (auto &source : nodes_) {
     for (auto &sink : source->outlinks()) {
       dot.AddEdge(source->id(), sink->sink()->id(), {});
     }
@@ -185,8 +162,6 @@ std::string VisualizeGraph(const std::vector<const GraphNode *> &nodes) {
 
   return dot();
 }
-
-std::string Graph::Visualize() const { return VisualizeGraph(nodes()); }
 
 void Graph::ClearUnlinkedNodes(absl::flat_hash_map<std::string, std::vector<int>> *shape_dict,
                                absl::flat_hash_map<std::string, Type> *type_dict,
