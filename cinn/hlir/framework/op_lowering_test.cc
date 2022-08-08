@@ -60,6 +60,109 @@ void CodeGen(ir::LoweredFunc& func) {
 #endif
 }
 
+TEST(OP_LOWERING, OpaqueOp_TEST_0) {
+  CinnBuilder cinn_builder("OpaqueOp_TEST_0");
+  {
+    auto A = cinn_builder.CreateInput(Float(32), {9801, 2}, "A");
+    auto B = cinn_builder.Reshape(A, {9801, 2});
+  }
+
+  auto program = cinn_builder.Build();
+  auto target  = GetTarget();
+  RunDecomposer(&program, target);
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+
+  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
+  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
+
+  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
+  for (auto& fusion_op : graph->fusion_groups) {
+    auto lowered_func = op_lowerer.Lower(fusion_op);
+    CHECK_EQ(lowered_func.size(), 1);
+    CodeGen(lowered_func[0]);
+  }
+}
+
+TEST(OP_LOWERING, OpaqueOp_TEST_1) {
+  NetBuilder net_builder("OpaqueOp_TEST_1");
+  {
+    auto A = net_builder.CreateInput(Float(32), {128, 128}, "A");
+    auto B = net_builder.CreateInput(Float(32), {128, 128}, "B");
+    auto C = net_builder.Matmul(A, B);
+  }
+
+  auto program = net_builder.Build();
+  auto target  = GetTarget();
+  RunDecomposer(&program, target);
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+
+  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
+  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
+
+  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
+  for (auto& fusion_op : graph->fusion_groups) {
+    auto lowered_func = op_lowerer.Lower(fusion_op);
+    CHECK_EQ(lowered_func.size(), 1);
+    CodeGen(lowered_func[0]);
+  }
+}
+
+TEST(OP_LOWERING, OpaqueOp_TEST_2) {
+  NetBuilder net_builder("OpaqueOp_TEST_2");
+  {
+    auto A = net_builder.CreateInput(Float(32), {128, 256}, "A");
+    auto C = net_builder.Split(A, {4}, 1);
+  }
+
+  auto program = net_builder.Build();
+  auto target  = GetTarget();
+  RunDecomposer(&program, target);
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+
+  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
+  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
+
+  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
+  for (auto& fusion_op : graph->fusion_groups) {
+    auto lowered_func = op_lowerer.Lower(fusion_op);
+    CHECK_EQ(lowered_func.size(), 1);
+    CodeGen(lowered_func[0]);
+  }
+}
+
+TEST(OP_LOWERING, Transform_TEST_0) {
+  NetBuilder net_builder("Transform_TEST_0");
+  {
+    auto A = net_builder.CreateInput(Float(32), {128, 128}, "A");
+    auto B = net_builder.CreateInput(Float(32), {128, 128}, "B");
+    auto C = net_builder.CreateInput(Float(32), {128, 128}, "C");
+    auto D = net_builder.Concat({A, B, C}, 1);
+  }
+
+  auto program = net_builder.Build();
+  auto target  = GetTarget();
+  RunDecomposer(&program, target);
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+
+  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
+  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
+
+  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
+  for (auto& fusion_op : graph->fusion_groups) {
+    auto lowered_func = op_lowerer.Lower(fusion_op);
+    CHECK_EQ(lowered_func.size(), 1);
+    CodeGen(lowered_func[0]);
+  }
+}
+
 TEST(OP_LOWERING, Elementwise_Test_0) {
   int h = 32, w = 32;
   NetBuilder net_builder("Elementwise_Test_0");
@@ -1124,9 +1227,9 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_20) {
   }
 }
 
-TEST(OP_LOWERING, Reduce_Test_21) {
+TEST(OP_LOWERING, Reduce_Fusion_Test_21) {
   int h = 128, w = 4;
-  NetBuilder net_builder("Reduce_Test_21");
+  NetBuilder net_builder("Reduce_Fusion_Test_21");
   // create model
   {
     auto A0  = net_builder.CreateInput(Float(32), {256, w}, "A0");
