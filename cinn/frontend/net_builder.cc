@@ -78,6 +78,14 @@ Variable NetBuilder::ReduceSum(const Variable& x, const std::vector<int>& dim, b
   return Reduce(x, ReduceKind::kSum, dim, keep_dim);
 }
 
+Variable BaseBuilder::Squeeze(const Variable& operand, const std::vector<int>& axes) {
+  Instruction instr("squeeze", {operand});
+  instr.SetAttr("axes", axes);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
 Variable NetBuilder::Conv2d(const Variable& a,
                             const Variable& b,
                             const std::vector<int>& strides,

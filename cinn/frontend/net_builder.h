@@ -83,6 +83,11 @@ class NetBuilder : public BaseBuilder {
   Variable ReduceSum(const Variable& x, const std::vector<int>& dim, bool keep_dim = false);
 
   /**
+   * Squeeze Variable x along the given axes.
+   */
+  Variable Squeeze(const Variable& operand, const std::vector<int>& axes);
+
+  /**
    * The convolution2D layer calculates the output based on the input, filter
    * and strides, paddings, dilations, groups parameters.
    */
