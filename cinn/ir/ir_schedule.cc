@@ -1064,8 +1064,8 @@ void IRSchedule::SimpleComputeAt(const Expr& block, const Expr& loop) {
     replaced_var.push_back(block_loops[i].As<ir::For>()->loop_var);
     substitute_expr.push_back(Expr(loops[i].As<ir::For>()->loop_var));
   }
-  Expr result =
-      loops.size() < block_loops.size() ? optim::IRCopy(block_loops[loops.size()]) : optim::IRCopy(this_block);
+  Expr result = loops.size() < block_loops.size() ? optim::IRCopy(block_loops[loops.size()])
+                                                  : optim::IRCopy(block_loops.back().As<ir::For>()->body);
 
   ReplaceExpr(&result, replaced_var, substitute_expr);
   Expr new_loop                = optim::IRCopy(this_loop);

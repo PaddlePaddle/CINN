@@ -122,7 +122,6 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOp(IRComputeFunction compute,
       ast_exprs.insert(ast_exprs.end(), exprs.begin(), exprs.end());
     }
   }
-
   ir::ModuleExpr mod_expr(ast_exprs);
   ir::IRSchedule ir_sch(mod_expr);
   ir_sch.MergeExprs();
@@ -332,14 +331,10 @@ std::vector<Expr> OpLowerer::IRElementwiseCompute(poly::StageMap& stages,
     auto func = lang::LowerVec("fn_" + node->id(), node_stages, tensor_inputs, {}, {}, nullptr, this->target_, true);
     CHECK_EQ(func.size(), 1);
 
-    if (group->master_nodes.count(node)) {
-      common::CINNValuePack expr_pack = impl->fschedule(common::CINNValuePack{{common::CINNValue(func[0]->body)}});
-      CHECK_EQ(expr_pack.size(), 1);
-      Expr ast_expr = expr_pack[0];
-      ast_exprs.push_back(ast_expr);
-    } else {
-      ast_exprs.push_back(func[0]->body);
-    }
+    common::CINNValuePack expr_pack = impl->fschedule(common::CINNValuePack{{common::CINNValue(func[0]->body)}});
+    CHECK_EQ(expr_pack.size(), 1);
+    Expr ast_expr = expr_pack[0];
+    ast_exprs.push_back(ast_expr);
   }
 
   return ast_exprs;
@@ -369,7 +364,6 @@ void OpLowerer::IRElementwiseSchedule(ir::IRSchedule& ir_sch,
         auto node_block = ir_sch.GetBlock(node_tensor->name);
         ir_sch.SetBuffer(node_block, "local", true);
       }
-      ir_sch.CopyTransformAndLoopInfo(node_tensor->name, manster_tensor->name);
 
       auto node_block   = ir_sch.GetBlock(node_tensor->name);
       auto master_loops = ir_sch.GetLoops(manster_tensor->name);
