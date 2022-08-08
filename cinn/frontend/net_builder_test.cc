@@ -189,5 +189,65 @@ TEST(net_build, program_execute_reverse) {
   runtime_program->Execute();
 }
 
+void SetIntRandData(hlir::framework::Tensor tensor, Target target) {
+  auto* data = tensor->mutable_data<int>(target);
+  std::random_device seed;
+  std::default_random_engine engine(seed());
+  std::uniform_int_distribution<int> dist(1, 128);
+  size_t num_ele = tensor->shape().numel();
+  std::vector<int> random_data(num_ele);
+  for (size_t i = 0; i < num_ele; i++) {
+    random_data[i] = dist(engine);  // All random data
+  }
+  std::copy(random_data.begin(), random_data.end(), data);
+}
+
+TEST(net_build, program_execute_cast) {
+  const int B = 4;
+  const int H = 7;
+
+  NetBuilder builder("net_builder");
+  Placeholder input = builder.CreateInput(Int(32), {B, H}, "In");
+  Variable output   = builder.Cast(input, "float");
+  auto program      = builder.Build();
+
+  Target target = common::DefaultHostTarget();
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  auto scope = BuildScope(target, graph);
+  hlir::framework::GraphCompiler gc(target, scope, graph);
+  auto runtime_program = gc.Build();
+
+  scope->Var<hlir::framework::Tensor>(std::string(input.id()));
+  scope->Var<hlir::framework::Tensor>(std::string(output->id));
+
+  auto input_tensor = scope->GetTensor(std::string(input.id()));
+  SetIntRandData(input_tensor, target);
+  int* input_data = input_tensor->mutable_data<int>(target);
+
+  runtime_program->Execute();
+
+  auto output_tensor                   = scope->GetTensor(std::string(output->id));
+  const std::vector<int>& output_shape = output_tensor->shape().data();
+  EXPECT_EQ(output_tensor->type(), Float(32));
+  EXPECT_EQ(output_shape.size(), 2UL);
+  EXPECT_EQ(output_shape[0], B);
+  EXPECT_EQ(output_shape[1], H);
+
+  float* output_data = output_tensor->mutable_data<float>(target);
+  VLOG(6) << "Visualize output_data";
+  for (int b = 0; b < B; ++b) {
+    for (int h = 0; h < H; ++h) {
+      std::string line;
+      int index      = h + H * b;
+      float in_data  = (float)input_data[index];
+      float out_data = output_data[index];
+      line += (std::to_string(out_data) + ", ");
+      EXPECT_EQ(in_data, out_data);
+      VLOG(6) << line;
+    }
+  }
+}
+
 }  // namespace frontend
 }  // namespace cinn
