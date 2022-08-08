@@ -27,36 +27,39 @@ namespace cinn {
 namespace hlir {
 namespace op {
 
-ir::Tensor Squeeze(const ir::Tensor& A,
-                   const std::vector<int>& axes,
-                   poly::StageMap stages,
-                   const std::string& name) {
-  std::vector<Expr> new_expr_shape;
-  std::vector<Expr> A_expr_shape = A->shape;
-  if (axes.size()!=0){
-    for (auto& a : axes) {
-      CHECK(a<A_expr_shape.size());
-      CHECK_EQ(A_expr_shape[a], Expr(1));
-      A_expr_shape[a] = Expr(0);
-    }
-    for (auto& i : A_expr_shape) {
-      CHECK(i.is_constant()) << "Input tensor's shape should be constant value.";
-      if(i != Expr(0)){
-        new_expr_shape.push_back(i);
-      }
-    }
-  }else{
-    for (auto& i : A_expr_shape) {
-      CHECK(i.is_constant()) << "Input tensor's shape should be constant value.";
-      if(i != Expr(1)){
-        new_expr_shape.push_back(i);
-      }
-    }
-  }
+using common::CINNValue;
+using common::CINNValuePack;
 
-  auto out = Identity(A->Reshape(new_expr_shape, stages), name).front();
-  return out;
-}
+//ir::Tensor Squeeze(const ir::Tensor& A,
+//                   const std::vector<int>& axes,
+//                   poly::StageMap stages,
+//                   const std::string& name) {
+//  std::vector<Expr> new_expr_shape;
+//  std::vector<Expr> A_expr_shape = A->shape;
+//  if (axes.size()!=0){
+//    for (auto& a : axes) {
+//      CHECK(a<A_expr_shape.size());
+//      CHECK_EQ(A_expr_shape[a], Expr(1));
+//      A_expr_shape[a] = Expr(0);
+//    }
+//    for (auto& i : A_expr_shape) {
+//      CHECK(i.is_constant()) << "Input tensor's shape should be constant value.";
+//      if(i != Expr(0)){
+//        new_expr_shape.push_back(i);
+//      }
+//    }
+//  }else{
+//    for (auto& i : A_expr_shape) {
+//      CHECK(i.is_constant()) << "Input tensor's shape should be constant value.";
+//      if(i != Expr(1)){
+//        new_expr_shape.push_back(i);
+//      }
+//    }
+//  }
+//
+//  auto out = lang::Identity(A->Reshape(new_expr_shape, stages), name).front();
+//  return out;
+//}
 
 ir::Tensor Squeeze(const ir::Tensor& A,
                    const std::vector<int>& axes,
@@ -89,7 +92,7 @@ ir::Tensor Squeeze(const ir::Tensor& A,
 }
 
 
-std::shared_ptr<OpStrategy> StrategyForSqueeze(const framework::NodeAttr &attrs,
+std::shared_ptr<framework::OpStrategy> StrategyForSqueeze(const framework::NodeAttr &attrs,
                                                const std::vector<ir::Tensor> &inputs,
                                                const std::vector<Type> &out_type,
                                                const std::vector<std::vector<int>> &output_shapes,
@@ -108,7 +111,7 @@ std::shared_ptr<OpStrategy> StrategyForSqueeze(const framework::NodeAttr &attrs,
     auto stages                = CreateStages({tensor_A});
     VLOG(3) << "A shape: " << utils::Join(tensor_A->shape, ", ")
             << ", output_shapes: " << utils::Join(output_shapes[0], ", ");
-    ir::Tensor out = pe::Squeeze(tensor_A, axes, stages, UniqName("Squeeze_out"));
+    ir::Tensor out = Squeeze(tensor_A, axes, UniqName("Squeeze_out"));
     std::vector<CINNValue> res;
     stages->InsertLazily(out);
     res.push_back(CINNValue(out));
@@ -120,15 +123,8 @@ std::shared_ptr<OpStrategy> StrategyForSqueeze(const framework::NodeAttr &attrs,
   framework::CINNSchedule squeeze_schedule([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of reshape schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
-    int arg_size           = arg_pack.size();
-    poly::StageMap stages  = arg_pack.back();
     Expr out               = arg_pack[0];
     CHECK(out.as_tensor());
-    if (target.arch == Target::Arch::NVGPU) {
-      pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes[0], target);
-    } else if (target.arch == Target::Arch::X86) {
-      pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes[0], target);
-    }
     *ret = arg_pack;
   });
 
