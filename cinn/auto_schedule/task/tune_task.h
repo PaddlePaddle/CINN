@@ -14,10 +14,14 @@
 
 #pragma once
 
+#include <absl/container/flat_hash_map.h>
+
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "cinn/common/target.h"
+#include "cinn/common/type.h"
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/node.h"
@@ -44,6 +48,9 @@ class TuneTask {
   // When you set GraphCompiler and task_graph, lower the task graph to
   // un-optimized LoweredFunc and store in lowered_funcs().
   void TaskGraphToUnoptLoweredFunc();
+  // Serialize this task as a string contains specific fields of it
+  const std::string& SerializeToString(const absl::flat_hash_map<std::string, hlir::framework::shape_t>& shape_dict,
+                                       const absl::flat_hash_map<std::string, cinn::common::Type>& dtype_dict);
 
   // In CINN, we use std::vector<hlir::framework::Node*> to represent a fused
   // sub-graph (if an op won't be fused, it will be a vector with size=1). So
@@ -55,6 +62,9 @@ class TuneTask {
   std::vector<ir::LoweredFunc> lowered_funcs;
   // names of the output arguments of lowered_funcs_
   std::unordered_set<std::string> output_names;
+  // serialized string of this task, it contain struct,shape,dtype informat
+  // and can be further used to hash
+  std::string serialized_key;
 
  private:
   // Not owned
