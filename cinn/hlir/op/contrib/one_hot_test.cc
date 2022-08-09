@@ -199,7 +199,7 @@ void GenOneHotCode(std::vector<ir::Expr> indices_shape,
   }
 }
 
-TEST(OneHotOpTest, OneHotTest_1) {
+TEST(OneHotOpTest, OneHotTest_Base) {
   std::vector<ir::Expr> indices_shape = {Expr(2), Expr(3), Expr(4), Expr(5)};
   int axis                            = -1;
   int depth                           = 9;
@@ -212,13 +212,52 @@ TEST(OneHotOpTest, OneHotTest_1) {
 #endif
 }
 
-TEST(OneHotOpTest, OneHotTest_2) {
+TEST(OneHotOpTest, OneHotTest_Axis_1) {
   std::vector<ir::Expr> indices_shape = {Expr(2), Expr(3), Expr(4), Expr(5)};
   int axis                            = 1;
   int depth                           = 9;
   const std::string dtype             = "float32";
   std::vector<int> out_shape          = {2, 9, 3, 4, 5};
   Type out_type                       = Float(32);
+  GenOneHotCode(indices_shape, axis, depth, dtype, out_shape, out_type, "cpu");
+#ifdef CINN_WITH_CUDA
+  GenOneHotCode(indices_shape, axis, depth, dtype, out_shape, out_type, "cuda");
+#endif
+}
+
+TEST(OneHotOpTest, OneHotTest_Axis_Ndim) {
+  std::vector<ir::Expr> indices_shape = {Expr(2), Expr(3), Expr(4), Expr(5)};
+  int axis                            = 4;
+  int depth                           = 9;
+  const std::string dtype             = "float32";
+  std::vector<int> out_shape          = {2, 3, 4, 5, 9};
+  Type out_type                       = Float(32);
+  GenOneHotCode(indices_shape, axis, depth, dtype, out_shape, out_type, "cpu");
+#ifdef CINN_WITH_CUDA
+  GenOneHotCode(indices_shape, axis, depth, dtype, out_shape, out_type, "cuda");
+#endif
+}
+
+TEST(OneHotOpTest, OneHotTest_Depth) {
+  std::vector<ir::Expr> indices_shape = {Expr(2), Expr(3), Expr(4), Expr(5)};
+  int axis                            = -1;
+  int depth                           = 20;
+  const std::string dtype             = "float32";
+  std::vector<int> out_shape          = {2, 3, 4, 5, 20};
+  Type out_type                       = Float(32);
+  GenOneHotCode(indices_shape, axis, depth, dtype, out_shape, out_type, "cpu");
+#ifdef CINN_WITH_CUDA
+  GenOneHotCode(indices_shape, axis, depth, dtype, out_shape, out_type, "cuda");
+#endif
+}
+
+TEST(OneHotOpTest, OneHotTest_Dtype) {
+  std::vector<ir::Expr> indices_shape = {Expr(2), Expr(3), Expr(4), Expr(5)};
+  int axis                            = -1;
+  int depth                           = 9;
+  const std::string dtype             = "int32";
+  std::vector<int> out_shape          = {2, 3, 4, 5, 9};
+  Type out_type                       = Int(32);
   GenOneHotCode(indices_shape, axis, depth, dtype, out_shape, out_type, "cpu");
 #ifdef CINN_WITH_CUDA
   GenOneHotCode(indices_shape, axis, depth, dtype, out_shape, out_type, "cuda");
