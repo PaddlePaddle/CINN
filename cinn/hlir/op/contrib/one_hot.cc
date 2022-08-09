@@ -170,12 +170,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForOneHot(const framework::NodeAt
     ir::Tensor off_value = off_value_expr.as_tensor_ref();
 
     std::string tensor_name = UniqName("T_OneHot_out");
-    // if (FLAGS_cinn_ir_schedule) {
-    //   CHECK_EQ(input_args.size(), 2);
-    //   tensor_name = input_args[1].operator std::string();
-    // }
-
-    auto out = OneHot(indices, on_value, off_value, depth, axis, dtype, tensor_name);
+    auto out                = OneHot(indices, on_value, off_value, depth, axis, dtype, tensor_name);
     CHECK(!out_type.empty()) << "Output type of Pool2dGrad is empty! Please check.\n";
     auto stages = CreateStages({indices, on_value, off_value});
     stages->InsertLazily(out);
@@ -185,17 +180,10 @@ std::shared_ptr<framework::OpStrategy> StrategyForOneHot(const framework::NodeAt
   framework::CINNSchedule one_hot_schedule([=](lang::Args args, lang::RetValue* ret) {
     CHECK(!args.empty()) << "The input argument of one_hot schedule is empty! Please check.";
     common::CINNValuePack arg_pack = args[0];
-    // TODO: FLAGS_cinn_ir_schedule
     CHECK_EQ(arg_pack.size(), 2UL);
     Expr out = arg_pack[0];
     CHECK(out.as_tensor());
 
-    // TODO: implements this
-    // if (FLAGS_cinn_ir_schedule) {
-    //   Expr padding_out = arg_pack[1];
-    //   CHECK(padding_out.as_tensor());
-    //   *ret = common::CINNValuePack{{common::CINNValue(out), common::CINNValue(padding_out)}};
-    // } else {
     poly::StageMap stages = arg_pack[arg_pack.size() - 1];
     if (target.arch == Target::Arch::NVGPU) {
       pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes[0], target);
@@ -203,7 +191,6 @@ std::shared_ptr<framework::OpStrategy> StrategyForOneHot(const framework::NodeAt
       pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes[0], target);
     }
     *ret = common::CINNValuePack{{common::CINNValue(out), common::CINNValue(stages)}};
-    // }
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
