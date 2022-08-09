@@ -17,6 +17,7 @@
 #include <gtest/gtest.h>
 
 #include "cinn/frontend/net_builder.h"
+#include "cinn/frontend/optimize.h"
 #include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/framework/scope.h"
 #include "cinn/hlir/op/use_ops.h"
@@ -40,7 +41,7 @@ TEST(GraphCompilerTest, TestRemoveInvaildVariables) {
   auto graph  = std::make_shared<Graph>(builder.Build(), target);
 
   // OpFusion will fuse add+relu, and the intermediate variable 'c' is eliminated
-  ApplyPass(graph.get(), "OpFusion");
+  ApplyPasses(graph.get(), frontend::DefaultOpFusionPasses());
   auto scope = BuildScope(target, graph);
   ASSERT_EQ(scope->var_names().size(), 4);
   EXPECT_NE(scope->FindVar(c->id), nullptr);
@@ -62,7 +63,7 @@ TEST(GraphCompilerTest, TestInsertBufferHandlers) {
   auto d      = builder.Relu(c);
   auto target = common::DefaultHostTarget();
   auto graph  = std::make_shared<Graph>(builder.Build(), target);
-  ApplyPass(graph.get(), "OpFusion");
+  ApplyPasses(graph.get(), frontend::DefaultOpFusionPasses());
   auto scope = BuildScope(target, graph);
 
   GraphCompiler gc_disable(target, scope, graph);

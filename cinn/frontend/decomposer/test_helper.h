@@ -21,6 +21,7 @@
 #include "cinn/frontend/decomposer/use_decomposer.h"
 #include "cinn/frontend/decomposer_registry.h"
 #include "cinn/frontend/net_builder.h"
+#include "cinn/frontend/optimize.h"
 #include "cinn/frontend/pass/use_program_pass.h"
 #include "cinn/frontend/program_pass.h"
 #include "cinn/hlir/framework/graph.h"
@@ -183,7 +184,7 @@ void RunAndCheckShape(NetBuilder& builder,
   Target target = GetTarget();
   RunDecomposer(&prog, target);
   auto graph = std::make_shared<hlir::framework::Graph>(prog, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusion");
+  hlir::framework::ApplyPasses(graph.get(), DefaultOpFusionPasses());
   auto scope = BuildScope(target, graph);
   hlir::framework::GraphCompiler gc(target, scope, graph);
 

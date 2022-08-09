@@ -134,6 +134,10 @@ class GraphCompiler final {
   std::vector<ir::LoweredFunc> GetOpFunc(const std::vector<Node*>& nodes);
 
   std::vector<ir::LoweredFunc> GetOpFunc(const Node* node);
+  // Given a node, lower it to LoweredFunc using new ir schedule
+  std::vector<ir::LoweredFunc> GetOpFuncWithIRSchedule(const Node* node,
+                                                       const absl::flat_hash_map<std::string, Type>& type_dict_,
+                                                       const absl::flat_hash_map<std::string, shape_t>& shape_dict_);
 
   std::string GenOpFuncName(const Node* node) const { return "fn_" + node->id(); }
 

@@ -239,7 +239,11 @@ bool Type::operator==(const Type &other) const {
 bool Type::is_string() const { return type() == type_t::String; }
 
 Type &Type::operator=(const Type &other) {
-  if (other.storage_) storage_.reset(new Storage(*other.storage_));
+  if (other.storage_) {
+    storage_.reset(new Storage(other.GetStorage().type_, other.GetStorage().bits_, other.GetStorage().lanes_));
+    storage_->cpp_type_        = other.GetStorage().cpp_type_;
+    storage_->customized_type_ = other.GetStorage().customized_type_;
+  }
   return *this;
 }
 
