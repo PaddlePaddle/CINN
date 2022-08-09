@@ -494,11 +494,14 @@ std::shared_ptr<OpStrategy> StrategyForSplit(const framework::NodeAttr &attrs,
 
     std::vector<std::string> tensor_names;
     if (FLAGS_cinn_ir_schedule) {
+      CHECK_EQ(pack_args.size(), output_shapes.size() + 1);
       for (int idx = 1; idx < pack_args.size(); ++idx) {
         tensor_names.push_back(pack_args[idx].operator std::string());
       }
     } else {
-      tensor_names.push_back(UniqName("Split_Out_"));
+      for (int idx = 0; idx < output_shapes.size(); ++idx) {
+        tensor_names.push_back(UniqName("T_Split_Out"));
+      }
     }
 
     auto out    = pe::Split(A, axis, output_shapes, tensor_names);
