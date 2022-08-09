@@ -89,14 +89,14 @@ ir::Tensor OneHot(const ir::Tensor& indices,
 
 std::vector<framework::shape_t> InferShapeForOneHot(const std::vector<framework::shape_t>& inputs_shape,
                                                     const framework::AttrMapType& attrs) {
-  CHECK_EQ(inputs_shape.size(), 3UL) << "The number of pool2d_grad's input should be 3";
+  CHECK_EQ(inputs_shape.size(), 3UL) << "The number of one_hot's input should be 3";
 
   auto indices_shape   = inputs_shape[0];
   auto on_value_shape  = inputs_shape[1];
   auto off_value_shape = inputs_shape[2];
 
-  CHECK_EQ(on_value_shape.size(), 1U) << "On value must be a scalar.";
-  CHECK_EQ(off_value_shape.size(), 1U) << "Off value must be a scalar.";
+  CHECK(on_value_shape.size() == 1U && on_value_shape[0] == 1U) << "On value must be a scalar.";
+  CHECK(off_value_shape.size() == 1U && off_value_shape[0] == 1U) << "Off value must be a scalar.";
 
   int depth;
   int axis;
@@ -112,9 +112,10 @@ std::vector<framework::shape_t> InferShapeForOneHot(const std::vector<framework:
     }
   }
 
-  int true_axis = (axis == -1) ? indices_shape.size() : axis;
+  CHECK(axis == -1 || (axis >= 0 && axis <= indices_shape.size()))
+      << "axis must be -1 or between 0 and " << indices_shape.size();
 
-  // TODO: more checks
+  int true_axis = (axis == -1) ? indices_shape.size() : axis;
 
   framework::shape_t out_shape(indices_shape);
   out_shape.insert(out_shape.begin() + true_axis, depth);
@@ -171,7 +172,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForOneHot(const framework::NodeAt
 
     std::string tensor_name = UniqName("T_OneHot_out");
     auto out                = OneHot(indices, on_value, off_value, depth, axis, dtype, tensor_name);
-    CHECK(!out_type.empty()) << "Output type of Pool2dGrad is empty! Please check.\n";
+    CHECK(!out_type.empty()) << "Output type of OneHot is empty! Please check.\n";
     auto stages = CreateStages({indices, on_value, off_value});
     stages->InsertLazily(out);
     *ret = common::CINNValuePack{{common::CINNValue(out), common::CINNValue(stages)}};
