@@ -19,6 +19,7 @@
 #include <random>
 
 #include "cinn/frontend/net_builder.h"
+#include "cinn/frontend/optimize.h"
 #include "cinn/frontend/pass/use_program_pass.h"
 #include "cinn/frontend/program_pass.h"
 #include "cinn/hlir/framework/graph_compiler.h"
@@ -112,7 +113,7 @@ class PassTest {
                                                               const std::vector<std::string>& output_names) {
     LOG(INFO) << program;
     auto graph = std::make_shared<hlir::framework::Graph>(program, target_);
-    hlir::framework::ApplyPass(graph.get(), "OpFusion");
+    hlir::framework::ApplyPasses(graph.get(), DefaultOpFusionPasses());
 
     auto scope = hlir::framework::BuildScope(target_, graph);
     hlir::framework::GraphCompiler gc(target_, scope, graph);

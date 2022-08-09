@@ -19,6 +19,7 @@
 #include "cinn/cinn.h"
 #include "cinn/frontend/cinn_builder.h"
 #include "cinn/frontend/net_builder.h"
+#include "cinn/frontend/optimize.h"
 #include "cinn/frontend/pass/use_program_pass.h"
 #include "cinn/frontend/program_pass.h"
 #include "cinn/frontend/syntax.h"
@@ -58,7 +59,8 @@ std::vector<float> RunWithProgram(const Program& program, const Target& target, 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
   auto scope = hlir::framework::BuildScope(target, graph);
 
-  hlir::framework::ApplyPasses(graph.get(), {"InferShape", "OpFusion"});
+  hlir::framework::ApplyPasses(graph.get(), {"InferShape"});
+  hlir::framework::ApplyPasses(graph.get(), DefaultOpFusionPasses());
   VLOG(1) << "graph:\n" << graph->Visualize();
   hlir::framework::GraphCompiler gc(target, scope, graph);
   auto runtime_program = gc.Build();

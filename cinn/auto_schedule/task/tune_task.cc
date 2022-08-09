@@ -16,6 +16,7 @@
 
 #include <glog/logging.h>
 
+#include <iostream>
 #include <vector>
 
 #include "cinn/auto_schedule/analysis/analyze_ir.h"
@@ -24,6 +25,7 @@
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_schedule.h"
 #include "cinn/ir/lowered_func.h"
+#include "cinn/utils/string.h"
 
 namespace cinn {
 namespace auto_schedule {
@@ -59,6 +61,50 @@ void TuneTask::TaskGraphToUnoptLoweredFunc() {
   // lowered_funcs to be std::vector<std::vector<ir::LoweredFunc>>
   // in the future.
   SetLoweredFuncsAndAnalyzeOutput(graph_compiler_->FusedGraphToLoweredFunc(task_graph)[0]);
+}
+
+const std::string& TuneTask::SerializeToString(
+    const absl::flat_hash_map<std::string, hlir::framework::shape_t>& shape_dict,
+    const absl::flat_hash_map<std::string, cinn::common::Type>& dtype_dict) {
+  std::stringstream ss;
+  ss << target << "\n\n";  // print target
+
+  // local function to print dtype,shape of out/in variables of the specified node
+  auto print_node_links_fn = [&](const std::vector<common::Shared<common::GraphEdge>>& links, bool is_input) {
+    int printed_num = 0;
+    for (auto&& edge : links) {
+      const auto* var_node = is_input ? edge->source()->safe_as<hlir::framework::NodeData>()
+                                      : edge->sink()->safe_as<hlir::framework::NodeData>();
+      CHECK(var_node) << "var node invalid";
+      auto sit = shape_dict.find(var_node->id());
+      CHECK(sit != shape_dict.end()) << "can't find shape of variable:" << var_node->id();
+      auto dit = dtype_dict.find(var_node->id());
+      CHECK(dit != dtype_dict.end()) << "can't find dtype of variable:" << var_node->id();
+      if (printed_num > 0) {
+        ss << ", ";
+      }
+      ++printed_num;
+      ss << cinn::common::Type2Str(dit->second) << "[" + utils::Join(sit->second, ",") << "]";
+    }
+  };
+
+  // print each group of the task_graph
+  for (auto p = 0; p < task_graph.size(); ++p) {
+    const std::vector<hlir::framework::Node*>& group = task_graph.at(p);
+    ss << "Group " << p << " {\n";
+    for (auto i = 0; i < group.size(); ++i) {
+      const hlir::framework::Node* node = group.at(i);
+      ss << "  (";
+      print_node_links_fn(node->outlinks_in_order(), false);
+      ss << ") = " << node->op()->name << "(";
+      print_node_links_fn(node->inlinks_in_order(), true);
+      ss << ")\n";
+    }
+    ss << "}\n";
+  }
+
+  serialized_key = ss.str();
+  return serialized_key;
 }
 
 }  // namespace auto_schedule

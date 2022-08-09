@@ -14,6 +14,7 @@
 
 #include "cinn/frontend/interpreter.h"
 
+#include "cinn/frontend/optimize.h"
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/pass.h"
@@ -120,7 +121,7 @@ void Interpreter::Impl::Build(const std::vector<std::string>& input_names,
   }
 #endif
   hlir::framework::ApplyPass(graph.get(), "ConstPropagate");
-  hlir::framework::ApplyPass(graph.get(), "OpFusion");
+  hlir::framework::ApplyPasses(graph.get(), DefaultOpFusionPasses());
   // Target target = common::DefaultHostTarget();
   scope_ = hlir::framework::BuildScope(target, graph, scope_);
 

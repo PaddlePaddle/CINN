@@ -26,8 +26,9 @@
 #include "cinn/hlir/framework/tensor.h"
 #include "cinn/hlir/pe/schedule.h"
 #include "cinn/lang/lower.h"
+#include "cinn/optim/transform_gpu_forloop.h"
 #include "cinn/poly/stage.h"
-
+DECLARE_bool(cinn_ir_schedule);
 namespace cinn {
 namespace hlir {
 namespace framework {
@@ -276,6 +277,99 @@ const std::string& GraphCompiler::GetOrGenFullFuncName(const std::string& prefix
   // can get a consistent name next time
   prefix2full_namemap_.try_emplace(prefix, Context::Global().NewName(prefix));
   return prefix2full_namemap_.at(prefix);
+}
+
+std::vector<ir::LoweredFunc> GraphCompiler::GetOpFuncWithIRSchedule(
+    const Node* node,
+    const absl::flat_hash_map<std::string, Type>& type_dict_,
+    const absl::flat_hash_map<std::string, shape_t>& shape_dict_) {
+  // get input tensor and output tensor
+  auto& cinn_strategy = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
+  std::vector<ir::Tensor> tensor_inputs;
+  std::vector<common::CINNValue> cinn_inputs;
+  VLOG(3) << "GetOpFunc of op " << node->id();
+
+  // 1.Collect inputs info and outputs info
+  for (auto& i : node->inlinks_in_order(true)) {
+    std::string id = i->source()->as<NodeData>()->id();
+    auto shape     = shape_dict_.at(id);
+    Type dtype     = type_dict_.at(id);
+    CHECK(dtype == Float(32) || dtype.is_bool() || dtype == Int(32))
+        << "The dtype of node " << id << " is not float or bool or int! Other dtype is not implemented yet.";
+    ir::Tensor input;
+    if (dtype == Float(32)) {
+      input = lang::Placeholder<float>(id, shape);
+    } else if (dtype.is_bool()) {
+      input = lang::Placeholder<bool>(id, shape);
+    } else if (dtype == Int(32)) {
+      input = lang::Placeholder<int>(id, shape);
+    }
+    tensor_inputs.push_back(input);
+    cinn_inputs.push_back(common::CINNValue(input));
+  }
+  VLOG(3) << "cinn_inputs.push_back " << GetNodeData(node)->id();
+  cinn_inputs.push_back(common::CINNValue(GetNodeData(node)->id()));
+
+  std::vector<Type> out_types;
+  std::vector<std::vector<int>> out_shapes;
+  auto node_datas = GetAllNodeData(node);
+  for (auto node_data : node_datas) {
+    // collect output node data name.
+    out_types.push_back(type_dict_.at(node_data->id()));
+    out_shapes.push_back(shape_dict_.at(node_data->id()));
+  }
+
+  // 2.Call Op's Compute function, using the default stages and LowerVec to get IR tree.
+  auto impl =
+      OpStrategy::SelectImpl(cinn_strategy[node->op()](node->attrs, tensor_inputs, out_types, out_shapes, target_));
+  common::CINNValuePack C = impl->fcompute(common::CINNValuePack{cinn_inputs});
+  auto all_arg_tensors    = tensor_inputs;
+
+  // 3. Collect tensors and arguments
+  // Add output tensors to all_arg_tensors
+  for (int i = 0; i < C->size() - 1; i++) {
+    ir::Expr temp = C[i];
+    // checkout whether the tensor is with buffer.
+    if (!temp.as_tensor_ref()->buffer.defined() || target_ != common::DefaultNVGPUTarget()) {
+      all_arg_tensors.push_back(temp.as_tensor_ref());
+    }
+  }
+
+  poly::StageMap stages        = C.back();
+  std::string func_name_prefix = "fn_";
+  auto func = lang::LowerVec(func_name_prefix + node->id(), stages, all_arg_tensors, {}, {}, nullptr, target_, true);
+  CHECK_EQ(func.size(), 1);
+
+  std::vector<common::CINNValue> schedule_inputs;
+  for (auto& f : func) {
+    schedule_inputs.push_back(common::CINNValue(f->body));
+  }
+  for (int i = 0; i < C->size() - 1; i++) {
+    ir::Expr temp = C[i];
+    schedule_inputs.push_back(common::CINNValue(temp.as_tensor_ref()->name));
+  }
+
+  // 4. Call Op's Schedule function, optimizing the IR tree by new IR schedule
+  common::CINNValuePack expr_pack = impl->fschedule(common::CINNValuePack{schedule_inputs});
+
+  // 5. Optimize the LoweredFunc
+  VLOG(3) << "expr_pack.size() is : " << expr_pack.size();
+  std::vector<ir::LoweredFunc> res;
+  for (int i = 0; i < expr_pack.size(); i++) {
+    auto temp_buffers  = lang::GetTempBuffers(all_arg_tensors, stages, func[i]->body);
+    func[i]->temp_bufs = temp_buffers;
+    func[i]->PrepareBufferCastExprs();
+    res.push_back(func[i]);
+  }
+  for (int i = 0; i < res.size(); i++) {
+#ifdef CINN_WITH_CUDA
+    optim::OptimizeExprGPU(&(res[i]->body));
+#endif
+    res[i] = optim::Optimize(Expr(res[i]), target_, false).as_lowered_func_ref();
+  }
+
+  // 6. Return the result.
+  return res;
 }
 
 std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const Node* node) {
@@ -632,7 +726,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   fetch_var_ids_   = std::move(fetch_var_ids);
   auto topo_order  = graph_->topological_order();
   auto& nodes      = std::get<0>(topo_order);
-
+  VLOG(3) << "Begin GraphCompiler::Build";
   m_builder_.Clear();
   // if there are no avaiable groups, we will take each node as a group
   if (options.groups.empty() && graph_->groups.empty() && graph_->fusion_groups.empty()) {
@@ -658,7 +752,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
 
       OpLowerer op_lowerer(dtype_dict, shape_dict, target_);
       for (auto& group : graph_->fusion_groups) {
-        VLOG(3) << group->group_id;
+        VLOG(3) << "group_id is : " << group->group_id << ", and its number is : " << group->nodes.size();
         groups.push_back(std::move(group->CollectNodes()));
         // set node as output node from fetch_var_ids.
         for (auto node : groups.back()) {
@@ -678,25 +772,35 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
         VLOG(3) << local_lowered_funcs.back()[0];
       }
     } else {
-      for (int i = 0; i < groups.size(); i++) {
-        std::vector<ir::LoweredFunc> lowered_func;
-        if (groups[i].size() == 1) {
-          lowered_func = GetOpFunc(groups[i][0]);
-        } else {
-          lowered_func = GetOpFunc(groups[i]);
+      VLOG(3) << "fusion_groups is empty";
+      std::vector<ir::LoweredFunc> lowered_func;
+      if (FLAGS_cinn_ir_schedule) {
+        auto& dtype_dict = graph_->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
+        auto& shape_dict = graph_->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
+        for (int i = 0; i < groups.size(); i++) {
+          for (int j = 0; j < groups[i].size(); j++) {
+            lowered_func = GetOpFuncWithIRSchedule(groups[i][j], dtype_dict, shape_dict);
+            local_lowered_funcs.emplace_back(std::move(lowered_func));
+          }
         }
-        local_lowered_funcs.emplace_back(std::move(lowered_func));
+      } else {
+        for (int i = 0; i < groups.size(); i++) {
+          if (groups[i].size() == 1) {
+            lowered_func = GetOpFunc(groups[i][0]);
+          } else {
+            lowered_func = GetOpFunc(groups[i]);
+          }
+          local_lowered_funcs.emplace_back(std::move(lowered_func));
+        }
       }
     }
   }
-
   // use the input lowered_funcs in options firstly if exists
   const auto& lowered_funcs = options.lowered_funcs.empty() ? local_lowered_funcs : options.lowered_funcs;
   CHECK_EQ(groups.size(), lowered_funcs.size()) << "The size of groups and lowered_funcs shoule be equal";
   for (auto&& lowered_func : lowered_funcs) {
     this->ProcessFunction(lowered_func);
   }
-
   graph_->VisualizeGroupedGraph(groups, fetch_var_ids_);
 
   // compile the module
@@ -705,6 +809,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   compiler_ = backends::Compiler::Create(target_);
 
   auto build_module = m_builder_.Build();
+  VLOG(3) << "End of m_builder_.Build()";
   if (this->target_.arch == Target::Arch::X86) {
     CodeGenCX86 codegen(this->target_, CodeGenCX86::Feature::AVX512);
     codegen.SetInlineBuiltinCodes(false);
@@ -713,7 +818,9 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   }
 
   compiler_->Build(build_module, options.attached_code, stream);
+  VLOG(3) << "End of compiler_->Build";
   auto instructions = BuildInstructions(groups, graph_->fusion_groups);
+  VLOG(3) << "End of BuildInstructions";
   if (options.remove_unused_variables) {
     RemoveInvalidVariables(instructions);
   }
@@ -812,7 +919,7 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions(
   auto topo_order = graph_->topological_order();
   auto& nodes     = std::get<0>(topo_order);
   auto& edges     = std::get<1>(topo_order);
-
+  VLOG(3) << "Begin GraphCompiler::BuildInstructions";
   CHECK_GT(groups.size(), 0);
   CHECK_EQ(fusion_groups.size() != 0, groups.size() == fusion_groups.size())
       << "fusion_groups's size must be 0 or equal to groups.";
@@ -1228,9 +1335,11 @@ std::shared_ptr<Scope> BuildScope(Target target, const std::shared_ptr<Graph>& g
     }
     VLOG(3) << "Tensor [" << iter.first << "] resize to " << utils::Join(shape, ",");
     tensor->Resize(Shape{shape});
+    CHECK(dtype_dict.count(iter.first));
     CHECK(dtype_dict.at(iter.first) == Float(32) || dtype_dict.at(iter.first).is_bool() ||
           dtype_dict.at(iter.first) == Int(32))
-        << "The dtype of node " << iter.first << " is not float or bool or int! Other dtype is not implemented yet.";
+        << "The dtype of node " << iter.first << " is not float or bool or int! Its type "
+        << dtype_dict.at(iter.first).type() << ", " << dtype_dict.at(iter.first).bits() << " is not implemented yet.";
     tensor->set_type(dtype_dict.at(iter.first));
   }
   return scope;

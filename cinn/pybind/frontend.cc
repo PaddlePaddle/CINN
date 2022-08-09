@@ -24,6 +24,7 @@
 #include "cinn/frontend/decomposer_registry.h"
 #include "cinn/frontend/interpreter.h"
 #include "cinn/frontend/net_builder.h"
+#include "cinn/frontend/optimize.h"
 #include "cinn/frontend/pass/use_program_pass.h"
 #include "cinn/frontend/program_pass.h"
 #include "cinn/frontend/syntax.h"
@@ -140,7 +141,7 @@ void BindFrontend(pybind11::module *m) {
               const std::vector<Variable> &tensor_outputs) {
              std::shared_ptr<hlir::framework::Graph> g(new hlir::framework::Graph(self, target));
              hlir::framework::ApplyPass(g.get(), "InferShape");
-             hlir::framework::ApplyPass(g.get(), "OpFusion");
+             hlir::framework::ApplyPasses(g.get(), frontend::DefaultOpFusionPasses());
              std::shared_ptr<hlir::framework::Scope> scope = hlir::framework::BuildScope(target, g);
              hlir::framework::GraphCompiler gc(target, scope, g);
              auto program = gc.Build();

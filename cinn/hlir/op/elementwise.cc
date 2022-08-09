@@ -383,7 +383,7 @@ std::shared_ptr<OpStrategy> StrategyForFillConstant(const framework::NodeAttr &a
     if (FLAGS_cinn_ir_schedule) {
       CHECK(!args.empty()) << "The input argument of create_const_float schedule is empty! Please check.";
       CINNValuePack arg_pack = args[0];
-      CHECK_EQ(arg_pack.size(), 2UL);
+      CHECK_EQ(arg_pack.size(), 1UL);
       Expr ast_expr = arg_pack[0];
       std::vector<Expr> vec_ast{ast_expr};
       ir::ModuleExpr mod_expr(vec_ast);

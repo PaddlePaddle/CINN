@@ -244,6 +244,7 @@ struct ReplaceFracWithDivMutator : public ir::IRMutator<> {
 }  // namespace
 
 void Simplify(Expr* expr) {
+  VLOG(3) << "Begin Simplify " << *expr;
   SimplifyRampMutator()(expr);
   SimplifyLoadMutator()(expr);
   SimplifyStoreMutator()(expr);
