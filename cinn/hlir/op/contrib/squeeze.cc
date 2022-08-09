@@ -14,7 +14,7 @@
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
-#include "cinn/hlir/pe/nn.h"
+#include "cinn/hlir/pe/elementwise.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/tensor.h"
@@ -30,62 +30,42 @@ namespace op {
 using common::CINNValue;
 using common::CINNValuePack;
 
-//ir::Tensor Squeeze(const ir::Tensor& A,
-//                   const std::vector<int>& axes,
-//                   poly::StageMap stages,
-//                   const std::string& name) {
-//  std::vector<Expr> new_expr_shape;
-//  std::vector<Expr> A_expr_shape = A->shape;
-//  if (axes.size()!=0){
-//    for (auto& a : axes) {
-//      CHECK(a<A_expr_shape.size());
-//      CHECK_EQ(A_expr_shape[a], Expr(1));
-//      A_expr_shape[a] = Expr(0);
-//    }
-//    for (auto& i : A_expr_shape) {
-//      CHECK(i.is_constant()) << "Input tensor's shape should be constant value.";
-//      if(i != Expr(0)){
-//        new_expr_shape.push_back(i);
-//      }
-//    }
-//  }else{
-//    for (auto& i : A_expr_shape) {
-//      CHECK(i.is_constant()) << "Input tensor's shape should be constant value.";
-//      if(i != Expr(1)){
-//        new_expr_shape.push_back(i);
-//      }
-//    }
-//  }
-//
-//  auto out = lang::Identity(A->Reshape(new_expr_shape, stages), name).front();
-//  return out;
-//}
-
 ir::Tensor Squeeze(const ir::Tensor& A,
                    const std::vector<int>& axes,
                    const std::string& name) {
   std::vector<Expr> new_expr_shape;
   std::vector<Expr> A_expr_shape = A->shape;
-  for (auto& i : A_expr_shape) {
-    CHECK(i.is_constant()) << "Input tensor's shape should be constant value.";
-    if(i != Expr(1)){
-      new_expr_shape.push_back(i);
+  if (axes.size()!=0){
+    for (int i = 0; i < A_expr_shape.size(); ++i) {
+      CHECK(A_expr_shape[i].is_constant()) << "Input tensor's shape should be constant value.";
+      if (std::find(axes.begin(), axes.end(), i)!=axes.end()){
+        CHECK_EQ(A_expr_shape[i], Expr(1));
+      }else{
+        new_expr_shape.push_back(A_expr_shape[i]);
+      }
+    }
+  }else{
+    for (auto& i : A_expr_shape) {
+      CHECK(i.is_constant()) << "Input tensor's shape should be constant value.";
+      if(i != Expr(1)){
+        new_expr_shape.push_back(i);
+      }
     }
   }
   auto res = Compute(
       new_expr_shape,
-      [=](const std::vector<Expr>& indice) {
+      [=](const std::vector<Expr>& indices) {
         Expr offset = Expr(0);
-        for (int i = 0; i < indice.size(); i++) {
-          offset = offset * new_expr_shape[i] + indice[i];
+        for (int i = 0; i < indices.size(); i++) {
+          offset = offset * new_expr_shape[i] + indices[i];
         }
-        std::vector<Expr> indice_a;
+        std::vector<Expr> indices_a;
         for (int i = A_expr_shape.size() - 1; i >= 0; i--) {
           auto temp = offset % A_expr_shape[i];
-          indice_a.insert(indice_a.begin(), common::AutoSimplify(temp));
+          indices_a.insert(indices_a.begin(), common::AutoSimplify(temp));
           offset = (offset - temp) / A_expr_shape[i];
         }
-        return A(indice_a);
+        return lang::Identity(A(indices_a));
       },
       name);
   return res;
@@ -228,6 +208,9 @@ CINN_REGISTER_HELPER(squeeze_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForSqueeze)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForSqueeze))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForSqueeze))
+#ifndef CINN_WITH_CUDA
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForSqueeze))
+#endif
       .set_support_level(4);
 
   return true;

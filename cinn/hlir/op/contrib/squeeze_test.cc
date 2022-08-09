@@ -19,40 +19,35 @@ namespace hlir {
 namespace op {
 
 TEST(Squeeze, SqueezeCase0) {
-  int m = 128;
-  int n = 32;
-  int k = 32;
-  Expr M(m), N(n), K(k);
+  common::Context::Global().ResetNameId();
 
-  Placeholder<float> input("A", {1, 1, M, 1, N, K});
-  std::vector<int> axis;
+  common::Target target = common::DefaultHostTarget();
 
-  auto output = hlir::pe::Squeeze(input.tensor(), axis);
-  auto stages = CreateStages({input, output});
-  auto func   = Lower("fn", stages, {input, output});
-  LOG(INFO) << "func:\n" << func;
+  ir::Expr n(4);
+  ir::Expr c(1);
+  ir::Expr h(28);
+  ir::Expr w(1);
 
-#ifdef CINN_WITH_CUDA
-  auto target = common::DefaultNVGPUTarget();
-  Module::Builder builder("Squeeze_Builder", target);
-  builder.AddFunction(func);
+  lang::Placeholder<float> in("in", {n, c, h, w});
+  ir::Tensor res = Squeeze(in, {1, 3}, "test_squeeze_out");
 
-  auto module                    = builder.Build();
-  auto host_module_device_module = backends::SplitCudaAndHostModule(module);
-  auto &host_module              = std::get<0>(host_module_device_module);
-  auto &device_module            = std::get<1>(host_module_device_module);
+  poly::StageMap stages = poly::CreateStages({res});
+  std::vector<ir::LoweredFunc> funcs =
+      lang::LowerVec("TestGenerateCodeCpu_Squeeze", stages, res, {}, {}, nullptr, target, true);
 
-  backends::CodeGenCUDA_Dev codegen(target);
-  auto source_code = codegen.Compile(builder.Build());
-  LOG(INFO) << "compiled code:\n\n\n" << source_code;
+  VLOG(6) << "Expr before CPU codegen:";
+  VLOG(6) << funcs[0]->body;
 
-  // nv jit compile to ptx
-  backends::NVRTC_Compiler compiler;
-  auto ptx = compiler(source_code);
-  CHECK(!ptx.empty());
-  // cuda_module load ptx
-  runtime::cuda::CUDAModule cuda_module(ptx, runtime::cuda::CUDAModule::Kind::PTX);
-#endif  // CINN_WITH_CUDA
+  ir::Module::Builder builder("Squeeze_Module", target);
+  for (auto& f : funcs) {
+    builder.AddFunction(f);
+  }
+
+  backends::CodeGenCX86 codegen(target, backends::CodeGenCX86::Feature::AVX512);
+  codegen.SetInlineBuiltinCodes(false);
+  std::string code = codegen.Compile(builder.Build(), backends::CodeGenC::OutputKind::CImpl);
+  VLOG(6) << "Cpu Codegen result:";
+  VLOG(6) << code << std::endl;
 }
 
 }  // namespace op
