@@ -190,15 +190,15 @@ TEST(net_build, program_execute_reverse) {
 }
 
 TEST(net_build, program_execute_pool2d_grad) {
-  const int B        = 4;
-  const int C        = 1;
-  const int H        = 7;
-  const int W        = 1;
+  const int B = 4;
+  const int C = 1;
+  const int H = 7;
+  const int W = 1;
 
   NetBuilder builder("net_builder");
-  Placeholder input    = builder.CreateInput(Float(32), {B, C, H, W}, "In");
-  Variable output      = builder.Squeeze(Float(32), {1, 3});
-  auto program         = builder.Build();
+  Placeholder input = builder.CreateInput(Float(32), {B, C, H, W}, "In");
+  Variable output   = builder.Squeeze(Float(32), {1, 3});
+  auto program      = builder.Build();
 
   Target target = common::DefaultHostTarget();
 
@@ -229,8 +229,8 @@ TEST(net_build, program_execute_pool2d_grad) {
       for (int h = 0; h < H; ++h) {
         std::string line;
         for (int w = 0; w < W; ++w) {
-          int index  = w + W * (h + H * (c + C * b));
-          float in_data = input_data[index];
+          int index      = w + W * (h + H * (c + C * b));
+          float in_data  = input_data[index];
           float out_data = output_data[index];
           line += (std::to_string(data) + ", ");
           EXPECT_EQ(in_data, out_data);

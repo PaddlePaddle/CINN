@@ -30,31 +30,29 @@ namespace op {
 using common::CINNValue;
 using common::CINNValuePack;
 
-ir::Tensor Squeeze(const ir::Tensor& A,
-                   const std::vector<int>& axes,
-                   const std::string& name) {
+ir::Tensor Squeeze(const ir::Tensor &A, const std::vector<int> &axes, const std::string &name) {
   std::vector<Expr> new_expr_shape;
   std::vector<Expr> A_expr_shape = A->shape;
-  if (axes.size()!=0){
+  if (axes.size() != 0) {
     for (int i = 0; i < A_expr_shape.size(); ++i) {
       CHECK(A_expr_shape[i].is_constant()) << "Input tensor's shape should be constant value.";
-      if (std::find(axes.begin(), axes.end(), i)!=axes.end()){
+      if (std::find(axes.begin(), axes.end(), i) != axes.end()) {
         CHECK_EQ(A_expr_shape[i], Expr(1));
-      }else{
+      } else {
         new_expr_shape.push_back(A_expr_shape[i]);
       }
     }
-  }else{
-    for (auto& i : A_expr_shape) {
+  } else {
+    for (auto &i : A_expr_shape) {
       CHECK(i.is_constant()) << "Input tensor's shape should be constant value.";
-      if(i != Expr(1)){
+      if (i != Expr(1)) {
         new_expr_shape.push_back(i);
       }
     }
   }
   auto res = Compute(
       new_expr_shape,
-      [=](const std::vector<Expr>& indices) {
+      [=](const std::vector<Expr> &indices) {
         Expr offset = Expr(0);
         for (int i = 0; i < indices.size(); i++) {
           offset = offset * new_expr_shape[i] + indices[i];
@@ -71,12 +69,11 @@ ir::Tensor Squeeze(const ir::Tensor& A,
   return res;
 }
 
-
 std::shared_ptr<framework::OpStrategy> StrategyForSqueeze(const framework::NodeAttr &attrs,
-                                               const std::vector<ir::Tensor> &inputs,
-                                               const std::vector<Type> &out_type,
-                                               const std::vector<std::vector<int>> &output_shapes,
-                                               const Target &target) {
+                                                          const std::vector<ir::Tensor> &inputs,
+                                                          const std::vector<Type> &out_type,
+                                                          const std::vector<std::vector<int>> &output_shapes,
+                                                          const Target &target) {
   CHECK(attrs.attr_store.count("axes")) << "find no attr of axes";
   std::vector<int> axes = absl::get<std::vector<int>>(attrs.attr_store.at("axes"));
 
@@ -87,8 +84,8 @@ std::shared_ptr<framework::OpStrategy> StrategyForSqueeze(const framework::NodeA
     Expr A = a[0];
     CHECK(A.as_tensor());
     CHECK(!output_shapes.empty());
-    auto tensor_A              = A.as_tensor_ref();
-    auto stages                = CreateStages({tensor_A});
+    auto tensor_A = A.as_tensor_ref();
+    auto stages   = CreateStages({tensor_A});
     VLOG(3) << "A shape: " << utils::Join(tensor_A->shape, ", ")
             << ", output_shapes: " << utils::Join(output_shapes[0], ", ");
     ir::Tensor out = Squeeze(tensor_A, axes, UniqName("Squeeze_out"));
@@ -126,21 +123,21 @@ std::vector<std::vector<int>> InferShapeForSqueeze(const std::vector<std::vector
 
   std::vector<int> output_shape;
   int tensor_size = 1;
-  if (axes.size()!=0){
+  if (axes.size() != 0) {
     std::vector<int> temp_shape = inputs_shape[0];
-    for (auto& a : axes) {
-      CHECK(a<temp_shape.size());
+    for (auto &a : axes) {
+      CHECK(a < temp_shape.size());
       temp_shape[a] = 0;
     }
-    for (auto& i : temp_shape) {
-      if(i != 0){
+    for (auto &i : temp_shape) {
+      if (i != 0) {
         output_shape.push_back(i);
         tensor_size *= i;
       }
     }
-  }else{
-    for (auto& i : inputs_shape[0]) {
-      if(i != 1){
+  } else {
+    for (auto &i : inputs_shape[0]) {
+      if (i != 1) {
         output_shape.push_back(i);
         tensor_size *= i;
       }
