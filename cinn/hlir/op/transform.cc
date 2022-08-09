@@ -206,15 +206,19 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
     CHECK(!args.empty()) << "The input argument of matmul schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
     if (FLAGS_cinn_ir_schedule) {
-      CHECK_EQ(arg_pack.size(), 2UL);
-      Expr ast_expr           = arg_pack[0];
-      std::string tensor_name = arg_pack[1].operator std::string();
+      CHECK_EQ(arg_pack.size(), 1UL);
+      Expr ast_expr = arg_pack[0];
       std::vector<Expr> vec_ast{ast_expr};
       ir::ModuleExpr mod_expr(vec_ast);
       ir::IRSchedule ir_sch(mod_expr);
-
-      ir_sch.Bind(ir_sch.GetLoops(tensor_name)[0], "blockIdx.x");
-      ir_sch.Bind(ir_sch.GetLoops(tensor_name)[1], "threadIdx.x");
+      ir_sch.MergeExprs();
+      auto blocks = ir_sch.GetAllBlocks();
+      if (ir_sch.GetLoops(blocks[0]).size() == 1) {
+        ir_sch.Bind(ir_sch.GetLoops(blocks[0])[0], "threadIdx.x");
+      } else {
+        ir_sch.Bind(ir_sch.GetLoops(blocks[0])[0], "blockIdx.x");
+        ir_sch.Bind(ir_sch.GetLoops(blocks[0])[1], "threadIdx.x");
+      }
       std::vector<CINNValue> results = {CINNValue(ir_sch.GetModule().GetExprs().at(0))};
       *ret                           = CINNValuePack({results});
     } else {
@@ -488,13 +492,19 @@ std::shared_ptr<OpStrategy> StrategyForSplit(const framework::NodeAttr &attrs,
     CHECK(A_expr.as_tensor());
     ir::Tensor A = A_expr.as_tensor_ref();
 
-    std::string tensor_name = UniqName("Split_output");
+    std::vector<std::string> tensor_names;
     if (FLAGS_cinn_ir_schedule) {
-      CHECK_EQ(pack_args.size(), 2);
-      tensor_name = pack_args[1].operator std::string();
+      CHECK_EQ(pack_args.size(), output_shapes.size() + 1);
+      for (int idx = 1; idx < pack_args.size(); ++idx) {
+        tensor_names.push_back(pack_args[idx].operator std::string());
+      }
+    } else {
+      for (int idx = 0; idx < output_shapes.size(); ++idx) {
+        tensor_names.push_back(UniqName("T_Split_Out"));
+      }
     }
 
-    auto out    = pe::Split(A, axis, output_shapes, tensor_name);
+    auto out    = pe::Split(A, axis, output_shapes, tensor_names);
     auto stages = CreateStages(out);
 
     std::vector<CINNValue> res;
@@ -509,13 +519,16 @@ std::shared_ptr<OpStrategy> StrategyForSplit(const framework::NodeAttr &attrs,
     if (FLAGS_cinn_ir_schedule) {
       CHECK(!args.empty()) << "The input argument of split schedule is empty! Please check.";
       CINNValuePack arg_pack = args[0];
-      Expr ast_expr          = arg_pack[0];
-      std::vector<Expr> vec_ast{ast_expr};
+      std::vector<Expr> vec_ast;
+      for (int idx = 0; idx < arg_pack.size(); ++idx) {
+        Expr ast_expr = arg_pack[idx];
+        vec_ast.push_back(ast_expr);
+      }
       ir::ModuleExpr mod_expr(vec_ast);
       ir::IRSchedule ir_sch(mod_expr);
+      ir_sch.MergeExprs();
       pe::IRCudaSplitSchedule(ir_sch, output_shapes, axis, target);
-      std::vector<CINNValue> res;
-      res.push_back(arg_pack[0]);
+      std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
       *ret = CINNValuePack{res};
     } else {
       CHECK(!args.empty()) << "The input arguments of split schedule is empty! Please check.";

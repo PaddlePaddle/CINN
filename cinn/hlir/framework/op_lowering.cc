@@ -122,7 +122,6 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOp(IRComputeFunction compute,
       ast_exprs.insert(ast_exprs.end(), exprs.begin(), exprs.end());
     }
   }
-
   ir::ModuleExpr mod_expr(ast_exprs);
   ir::IRSchedule ir_sch(mod_expr);
   ir_sch.MergeExprs();
@@ -333,14 +332,10 @@ std::vector<Expr> OpLowerer::IRElementwiseCompute(poly::StageMap& stages,
     auto func = lang::LowerVec("fn_" + node->id(), node_stages, tensor_inputs, {}, {}, nullptr, this->target_, true);
     CHECK_EQ(func.size(), 1);
 
-    if (group->master_nodes.count(node)) {
-      common::CINNValuePack expr_pack = impl->fschedule(common::CINNValuePack{{common::CINNValue(func[0]->body)}});
-      CHECK_EQ(expr_pack.size(), 1);
-      Expr ast_expr = expr_pack[0];
-      ast_exprs.push_back(ast_expr);
-    } else {
-      ast_exprs.push_back(func[0]->body);
-    }
+    common::CINNValuePack expr_pack = impl->fschedule(common::CINNValuePack{{common::CINNValue(func[0]->body)}});
+    CHECK_EQ(expr_pack.size(), 1);
+    Expr ast_expr = expr_pack[0];
+    ast_exprs.push_back(ast_expr);
   }
 
   return ast_exprs;
@@ -370,7 +365,6 @@ void OpLowerer::IRElementwiseSchedule(ir::IRSchedule& ir_sch,
         auto node_block = ir_sch.GetBlock(node_tensor->name);
         ir_sch.SetBuffer(node_block, "local", true);
       }
-      ir_sch.CopyTransformAndLoopInfo(node_tensor->name, manster_tensor->name);
 
       auto node_block   = ir_sch.GetBlock(node_tensor->name);
       auto master_loops = ir_sch.GetLoops(manster_tensor->name);
@@ -1040,10 +1034,11 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpaqueOp(GroupPtr& group) {
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
 
   auto node = group->fused_sub_groups.size() ? group->fused_sub_groups[0]->nodes.front() : group->nodes.front();
+  VLOG(3) << "GetOpFunc of op " << node->id();
   std::vector<ir::Tensor> inputs;
   std::vector<common::CINNValue> cinn_inputs;
 
-  VLOG(3) << "GetOpFunc of op " << node->id();
+  std::vector<ir::Argument> args;
   for (auto& i : node->inlinks_in_order(true)) {
     std::string id = i->source()->as<NodeData>()->id();
     auto shape     = shape_dict_.at(id);
@@ -1061,9 +1056,8 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpaqueOp(GroupPtr& group) {
     inputs.push_back(input);
     cinn_inputs.push_back(common::CINNValue(input));
     group->input_names.push_back(id);
+    args.emplace_back(input->buffer, ir::Argument::IO::kInput);
   }
-
-  cinn_inputs.push_back(common::CINNValue(GetNodeData(node)->id()));
 
   std::vector<Type> out_types;
   std::vector<std::vector<int>> out_shapes;
@@ -1073,6 +1067,7 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpaqueOp(GroupPtr& group) {
     group->output_names.push_back(node_data->id());
     out_types.push_back(this->type_dict_.at(node_data->id()));
     out_shapes.push_back(this->shape_dict_.at(node_data->id()));
+    cinn_inputs.push_back(common::CINNValue(node_data->id()));
   }
 
   auto impl = OpStrategy::SelectImpl(cinn_strategy[node->op()](node->attrs, inputs, out_types, out_shapes, target_));
@@ -1083,31 +1078,28 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpaqueOp(GroupPtr& group) {
     // checkout whether the tensor is with buffer.
     if (!temp.as_tensor_ref()->buffer.defined() || this->target_ != common::DefaultNVGPUTarget()) {
       inputs.push_back(temp.as_tensor_ref());
+      temp.as_tensor_ref()->WithBuffer();
+      args.emplace_back(temp.as_tensor_ref()->buffer, ir::Argument::IO::kOutput);
     }
   }
 
   poly::StageMap stages = C.back();
   auto func             = lang::LowerVec(group->GetFuncName(), stages, inputs, {}, {}, nullptr, this->target_, true);
-  CHECK_EQ(func.size(), 1);
 
   std::vector<common::CINNValue> schedule_inputs;
   for (auto& f : func) {
     schedule_inputs.push_back(common::CINNValue(f->body));
   }
-  for (int i = 0; i < C->size() - 1; i++) {
-    ir::Expr temp = C[i];
-    schedule_inputs.push_back(common::CINNValue(temp.as_tensor_ref()->name));
-  }
 
   common::CINNValuePack expr_pack = impl->fschedule(common::CINNValuePack{schedule_inputs});
 
-  VLOG(3) << "expr_pack.size() is : " << expr_pack.size();
   std::vector<ir::LoweredFunc> res;
   for (int i = 0; i < expr_pack.size(); i++) {
-    auto temp_buffers  = lang::GetTempBuffers(inputs, stages, func[i]->body);
-    func[i]->temp_bufs = temp_buffers;
-    func[i]->PrepareBufferCastExprs();
-    res.push_back(func[i]);
+    ir::Expr func_body = expr_pack[0];
+    auto temp_buffers  = lang::GetTempBuffers(inputs, stages, func_body);
+    auto function      = ir::_LoweredFunc_::Make(group->GetFuncName(), args, func_body, temp_buffers);
+    function->PrepareBufferCastExprs();
+    res.push_back(function);
   }
   for (auto& i : res) {
 #ifdef CINN_WITH_CUDA

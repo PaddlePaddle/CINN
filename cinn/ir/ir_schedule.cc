@@ -1068,7 +1068,25 @@ void IRSchedule::SimpleComputeAt(const Expr& block, const Expr& loop) {
       loops.size() < block_loops.size() ? optim::IRCopy(block_loops[loops.size()]) : optim::IRCopy(this_block);
 
   ReplaceExpr(&result, replaced_var, substitute_expr);
-  Expr new_loop                = optim::IRCopy(this_loop);
+  Expr new_loop = optim::IRCopy(this_loop);
+
+  if (loops.size() >= block_loops.size()) {
+    auto body = block_loops.back().As<ir::For>()->body;
+    // collect if
+    auto if_checker = [](const Expr* x) { return x->As<ir::IfThenElse>(); };
+    auto if_set     = ir::CollectIRNodesWithoutTensor(body, if_checker);
+    for (auto if_expr : if_set) {
+      auto checker = [block_name](const Expr* x) {
+        return x->As<ir::ScheduleBlockRealize>() &&
+               x->As<ir::ScheduleBlockRealize>()->schedule_block.As<ScheduleBlock>()->name == block_name;
+      };
+      if (ir::CollectIRNodesWithoutTensor(if_expr, checker).size() > 0) {
+        result = IfThenElse::Make(if_expr.As<ir::IfThenElse>()->condition, result);
+        break;
+      }
+    }
+  }
+
   new_loop.As<ir::For>()->body = ir::Block::Make({result, new_loop.As<ir::For>()->body});
   Expr source_expr{nullptr};
   Expr target_expr{nullptr};
