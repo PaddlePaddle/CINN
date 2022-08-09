@@ -14,6 +14,7 @@
 
 #include "cinn/frontend/computation.h"
 
+#include "cinn/frontend/optimize.h"
 #include "cinn/frontend/program_pass.h"
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/graph_compiler.h"
@@ -63,7 +64,7 @@ std::shared_ptr<ComputationContext> CompileProgram(const Target &target,
     }
 #endif
     hlir::framework::ApplyPass(ctx->graph.get(), "ConstPropagate");
-    hlir::framework::ApplyPass(ctx->graph.get(), "OpFusion");
+    hlir::framework::ApplyPasses(ctx->graph.get(), DefaultOpFusionPasses());
   }
   for (auto &pass_name : ctx->compile_options.passes) {
     hlir::framework::ApplyPass(ctx->graph.get(), pass_name);

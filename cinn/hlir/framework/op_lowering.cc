@@ -37,13 +37,13 @@ using namespace lang;
 using Comparator = Graph::Group::SharedGroupComparator;
 using Hasher     = Graph::Group::SharedGroupHasher;
 
-NodeData* GetNodeData(Node* node) {
+NodeData* GetNodeData(const Node* node) {
   auto node_data = (*node->outlinks().begin())->sink()->safe_as<NodeData>();
   CHECK(node_data);
   return node_data;
 }
 
-std::vector<NodeData*> GetAllNodeData(Node* node) {
+std::vector<NodeData*> GetAllNodeData(const Node* node) {
   std::vector<NodeData*> node_datas;
   for (auto& link : node->outlinks_in_order(true)) {
     auto node_data = link->sink()->safe_as<NodeData>();
@@ -130,6 +130,7 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOp(IRComputeFunction compute,
   Node* first  = nullptr;
   Node* second = nullptr;
   // do schedule.
+  VLOG(3) << "Before IRLowerOp schedule";
   if (group->fused_sub_groups.size() == 0) {
     (this->*schedule)(ir_sch, tensor_map, group, group, first, second);
   } else {
@@ -138,7 +139,7 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOp(IRComputeFunction compute,
       (this->*schedule)(ir_sch, tensor_map, group, group->fused_sub_groups[idx], first, second);
     }
   }
-
+  VLOG(3) << "After IRLowerOp schedule";
   // function args
   std::vector<ir::Argument> func_args;
   for (auto& args : arg_tensors) {

@@ -34,6 +34,7 @@ namespace common {
 using namespace ir;  // NOLINT
 
 Expr AutoSimplify(Expr u, const absl::flat_hash_map<std::string, CasInterval>& var_intervals) {
+  VLOG(3) << "Begin AutoSimplify: " << u;
   u = detail::ConvertCinnToCAS(u);
   absl::flat_hash_map<std::string, CasInterval> s_var_intervals;
   for (auto& item : var_intervals) {
@@ -47,6 +48,7 @@ Expr AutoSimplify(Expr u, const absl::flat_hash_map<std::string, CasInterval>& v
   }
   u = CasSimplify(u, s_var_intervals);
   u = detail::ConvertCasToCinn(u);
+  VLOG(3) << "End AutoSimplify " << u;
   return u;
 }
 
@@ -405,6 +407,7 @@ double EvaluatePower(Expr u) {
 // Order, reference to Page 85.
 bool ExprPosCmp::operator()(const Expr& a, const Expr& b) {
   // O-1, 1 <| 2
+  VLOG(3) << "Begin ExprPosCmp, a: " << a << ", b: " << b;
   if (a.is_constant() && b.is_constant()) {
     return a.get_constant() < b.get_constant();
   }
@@ -504,7 +507,7 @@ bool ExprPosCmp::operator()(const Expr& a, const Expr& b) {
   {
     if (a.As<Sum>()) {
       if (b.As<_Var_>()) {
-        return operator()(a, Sum::Make({b}));
+        return operator()(a.As<Sum>()->operand(0), {b});
       }
     }
   }
@@ -1646,6 +1649,7 @@ bool CASasSymbol(Expr expr) {
 }
 
 Expr ConvertCinnToCAS(Expr expr) {
+  VLOG(3) << "Begin ConvertCinnToCAS " << expr;
   Expr copied = optim::IRCopy(expr);
   struct Mutator : public ir::IRMutator<ir::Expr*> {
     void operator()(Expr* expr) { Visit(expr); }
@@ -1838,6 +1842,7 @@ Expr ReplaceMaxToConstant(Expr expr) {
 }
 
 Expr ConvertCasToCinn(Expr expr) {
+  VLOG(3) << "Begin ConvertCasToCinn : " << expr;
   Expr copied = optim::IRCopy(expr);
 
   struct Mutator : ir::IRMutator<Expr*> {
