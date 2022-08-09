@@ -32,7 +32,7 @@ namespace cinn {
 namespace hlir {
 namespace op {
 
-TEST(Squeeze, SqueezeCase0) {
+TEST(GenerateCode_Cpu, Squeeze) {
   common::Context::Global().ResetNameId();
 
   common::Target target = common::DefaultHostTarget();
@@ -47,7 +47,7 @@ TEST(Squeeze, SqueezeCase0) {
 
   poly::StageMap stages = poly::CreateStages({res});
   std::vector<ir::LoweredFunc> funcs =
-      lang::LowerVec("TestGenerateCodeCpu_Squeeze", stages, res, {}, {}, nullptr, target, true);
+      lang::LowerVec("TestGenerateCodeCpu_Squeeze", stages, {res}, {}, {}, nullptr, target, true);
 
   VLOG(6) << "Expr before CPU codegen:";
   VLOG(6) << funcs[0]->body;

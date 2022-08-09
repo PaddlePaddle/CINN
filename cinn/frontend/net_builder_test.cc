@@ -197,7 +197,7 @@ TEST(net_build, program_execute_pool2d_grad) {
 
   NetBuilder builder("net_builder");
   Placeholder input = builder.CreateInput(Float(32), {B, C, H, W}, "In");
-  Variable output   = builder.Squeeze(Float(32), {1, 3});
+  Variable output   = builder.Squeeze(input, {1, 3});
   auto program      = builder.Build();
 
   Target target = common::DefaultHostTarget();
@@ -232,7 +232,7 @@ TEST(net_build, program_execute_pool2d_grad) {
           int index      = w + W * (h + H * (c + C * b));
           float in_data  = input_data[index];
           float out_data = output_data[index];
-          line += (std::to_string(data) + ", ");
+          line += (std::to_string(out_data) + ", ");
           EXPECT_EQ(in_data, out_data);
         }
         VLOG(6) << line;
