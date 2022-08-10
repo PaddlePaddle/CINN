@@ -1061,6 +1061,7 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpaqueOp(GroupPtr& group) {
   std::vector<Type> out_types;
   std::vector<std::vector<int>> out_shapes;
 
+  auto node_datas = GetAllNodeData(node);
   for (auto node_data : node_datas) {
     VLOG(3) << "cinn_inputs.push_back " << node_data->id();
     cinn_inputs.push_back(common::CINNValue(node_data->id()));
