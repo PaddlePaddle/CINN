@@ -34,12 +34,117 @@
 namespace cinn {
 namespace auto_schedule {
 
+inline float slog(float x) { return x < 0 ? std::log2(-x + 1) : std::log2(x + 1); }
+
 Feature::Feature()
     : stack_encoded_feature_(1),  // initialze a LoopBlockFeature as root block
       current_loop_block_index_(0),
       parent_indices_(1, -1) {}
 
-std::vector<float> Feature::ToVector() { return std::vector<float>(); }
+std::vector<float> Feature::ToFixedSizeVector() {
+  std::vector<float> ret(LoopBlockFeature::kTotalSize, 0);
+
+  // loop[i] feature count should multiply iter_multi_num[i]
+  std::vector<int> iter_multi_num;
+
+  int j = 0;
+  for (size_t i = 0; i < stack_encoded_feature_.size(); ++i) {
+    const LoopBlockFeature& loop_feature = stack_encoded_feature_[i];
+    int loop_prod                        = 1;
+    if (i != 0) {
+      loop_prod = iter_multi_num[parent_indices_[i]] * loop_feature.loop_length;
+    }
+    iter_multi_num.push_back(loop_prod);
+
+    ret[j] += (loop_feature.float_add_or_sub * loop_prod);
+    ++j;
+    ret[j] += (loop_feature.float_mul * loop_prod);
+    ++j;
+    ret[j] += (loop_feature.float_div_or_mod * loop_prod);
+    ++j;
+    ret[j] += (loop_feature.float_cmp * loop_prod);
+    ++j;
+    ret[j] += (loop_feature.float_math_func * loop_prod);
+    ++j;
+    ret[j] += (loop_feature.float_other_call * loop_prod);
+    ++j;
+
+    ret[j] += (loop_feature.int_add_or_sub * loop_prod);
+    ++j;
+    ret[j] += (loop_feature.int_mul * loop_prod);
+    ++j;
+    ret[j] += (loop_feature.int_div_or_mod * loop_prod);
+    ++j;
+    ret[j] += (loop_feature.int_cmp * loop_prod);
+    ++j;
+    ret[j] += (loop_feature.int_math_func * loop_prod);
+    ++j;
+    ret[j] += (loop_feature.int_other_call * loop_prod);
+    ++j;
+
+    ret[j] += (loop_feature.bool_op * loop_prod);
+    ++j;
+    ret[j] += (loop_feature.select_op * loop_prod);
+    ++j;
+
+    ret[j] += (loop_feature.mem_alloc * loop_prod);
+    ++j;
+    ret[j] += (loop_feature.mem_free * loop_prod);
+    ++j;
+    ret[j] += (loop_feature.mem_read * loop_prod);
+    ++j;
+    ret[j] += (loop_feature.mem_write * loop_prod);
+    ++j;
+
+    ret[j] += (loop_feature.float_reduce_sum_or_sub * loop_prod);
+    ++j;
+    ret[j] += (loop_feature.float_reduce_mul * loop_prod);
+    ++j;
+    ret[j] += (loop_feature.float_reduce_div * loop_prod);
+    ++j;
+    ret[j] += (loop_feature.float_reduce_max_or_min * loop_prod);
+    ++j;
+    ret[j] += (loop_feature.float_broadcast * loop_prod);
+    ++j;
+
+    ret[j] += (loop_feature.int_reduce_sum_or_sub * loop_prod);
+    ++j;
+    ret[j] += (loop_feature.int_reduce_mul * loop_prod);
+    ++j;
+    ret[j] += (loop_feature.int_reduce_div * loop_prod);
+    ++j;
+    ret[j] += (loop_feature.int_reduce_max_or_min * loop_prod);
+    ++j;
+    ret[j] += (loop_feature.int_broadcast * loop_prod);
+    ++j;
+
+    ret[j + static_cast<int>(loop_feature.loop_opt_type)] += 1;
+    j += LoopBlockFeature::kOptApplySize;
+
+    ret[j] += (loop_feature.len_blockIdx_x * loop_prod);
+    ++j;
+    ret[j] += (loop_feature.len_blockIdx_y * loop_prod);
+    ++j;
+    ret[j] += (loop_feature.len_blockIdx_z * loop_prod);
+    ++j;
+    ret[j] += (loop_feature.len_threadIdx_x * loop_prod);
+    ++j;
+    ret[j] += (loop_feature.len_threadIdx_y * loop_prod);
+    ++j;
+    ret[j] += (loop_feature.len_threadIdx_z * loop_prod);
+    ++j;
+    ret[j] += (loop_feature.len_vthread * loop_prod);
+    ++j;
+    ret[j] += (loop_feature.vectorize_factor * loop_prod);
+    ++j;
+  }
+
+  for (size_t i = 0; i < ret.size(); ++i) {
+    ret[i] = slog(ret[i]);
+  }
+
+  return ret;
+}
 
 void Feature::IntoLoopBlock() {
   stack_encoded_feature_.emplace_back(LoopBlockFeature());

@@ -47,6 +47,8 @@ class LoopBlockFeature {
   int bool_op   = 0;
   int select_op = 0;
 
+  static constexpr int kArithSize = 6 * 2 + 2;
+
   /**
    * Buffer memory features, which is the number of memory operations.
    * Note that different size of memory operation can have various speed,
@@ -57,6 +59,8 @@ class LoopBlockFeature {
   int mem_free  = 0;
   int mem_read  = 0;
   int mem_write = 0;
+
+  static constexpr int kMemSize = 4;
 
   /**
    * Reduce and Broadcast features
@@ -73,8 +77,15 @@ class LoopBlockFeature {
   int int_reduce_max_or_min = 0;
   int int_broadcast         = 0;
 
+  static constexpr int kReduceBroadcastSize = 10;
+
   /* Loop type features */
+
+  // A TODO mayby add loop position (Inner, Outer, Middle) feature
+
   ForOptimizeFeatureEnum loop_opt_type = ForOptimizeFeatureEnum::kNone;
+
+  static constexpr int kOptApplySize = 5;
 
   /* Thread features if loop is optimized by GPU or CPU parallelism.
    * Useless in other cases.
@@ -87,6 +98,12 @@ class LoopBlockFeature {
   int len_threadIdx_z  = 0;
   int len_vthread      = 0;  // length of virtual thread
   int vectorize_factor = 0;
+
+  static constexpr int kThreadFeatureSize = 5;
+
+  static constexpr int kTotalSize = kArithSize + kMemSize + kReduceBroadcastSize + kOptApplySize + kThreadFeatureSize;
+
+  /* Non-feature attributes, used to maintain during feature_extractor */
 
   // Number to indicate the loop block inside current one
   int num_sub_loops = 0;
@@ -101,7 +118,9 @@ class LoopBlockFeature {
 class Feature {
  public:
   Feature();
-  std::vector<float> ToVector();
+
+  // Convert the various-length loop block features to fixed-size vector
+  std::vector<float> ToFixedSizeVector();
 
   // Call when visit into a loop block to collect LoopBlockFeature
   void IntoLoopBlock();
