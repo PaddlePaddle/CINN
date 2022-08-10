@@ -414,7 +414,14 @@ void BindFrontend(pybind11::module *m) {
                py::arg("x"),
                py::arg("updates"),
                py::arg("index"),
-               py::arg("axis") = 0);
+               py::arg("axis") = 0)
+          .def("isclose",
+               &BaseBuilder::IsClose,
+               py::arg("x"),
+               py::arg("y"),
+               py::arg("rtol")      = 1e-05f,
+               py::arg("atol")      = 1e-08f,
+               py::arg("equal_nan") = false);
   ;
 
   py::class_<NetBuilder, BaseBuilder>(*m, "NetBuilder")

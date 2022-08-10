@@ -133,6 +133,9 @@ class BaseBuilder {
     return FillConstant(shape, static_cast<float>(value), name, common::Type2Str(common::type_of<T>()), force_cpu);
   }
 
+  Variable IsClose(
+      const Variable& x, const Variable& y, float rtol = 1e-05f, float atol = 1e-08f, bool equal_nan = false);
+
  protected:
   void InferShape(Instruction instr) const;
 

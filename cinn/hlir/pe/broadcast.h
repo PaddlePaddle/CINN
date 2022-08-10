@@ -102,6 +102,13 @@ ir::Tensor BroadcastTo(const ir::Tensor& A,
                        const std::vector<int>& broadcast_axes,
                        const std::string& out_name = common::UniqName("T_broadcast_to_out"));
 
+ir::Tensor IsClose(const ir::Tensor& x,
+                   const ir::Tensor& y,
+                   float rtol                  = 1e-05f,
+                   float atol                  = 1e-08f,
+                   bool equal_nan              = false,
+                   const std::string& out_name = common::UniqName("IsClose_output"));
+
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn
