@@ -38,19 +38,32 @@ struct TuningRecord {
 
 // A database supports insert or lookup historial tuning result with sepecified traits.
 // It can be implemented with a concrete storage to save/load underlying data,
-// such as memory, file, database server.
+// such as memory, file, database server and so on, this base class can be regarded as
+// one using memory as its underlying storage medium.
 class Database {
  public:
-  Database()  = default;
+  explicit Database(int capacity_per_task);
   ~Database() = default;
+
   // add a record into the database
-  virtual bool AddRecord(TuningRecord&& record) = 0;
+  bool AddRecord(TuningRecord&& record);
   // return all records whose task_keys are equal to the specified key
-  virtual std::vector<TuningRecord> LookUp(const std::string& task_key) = 0;
+  std::vector<TuningRecord> LookUp(const std::string& task_key);
   // return the states of the top k in sorted candidates
-  virtual std::vector<SearchState> GetTopK(const std::string& task_key, int k) = 0;
+  std::vector<SearchState> GetTopK(const std::string& task_key, int k);
   // return the total number of stored candidates
-  virtual size_t Size() = 0;
+  size_t Size();
+  // return the number of stored candidates with specified key
+  size_t Count(const std::string& task_key);
+
+ protected:
+  // commit the newly added record into underlying storage
+  virtual bool Commit(const TuningRecord& record) { return true; }
+
+  // map task_key to its records
+  std::unordered_map<std::string, std::multiset<TuningRecord, TuningRecord::Compare>> key2record_;
+  // the max number of candidates stored
+  const int capacity_per_task_;
 };
 
 }  // namespace auto_schedule

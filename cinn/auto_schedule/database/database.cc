@@ -21,5 +21,70 @@ bool TuningRecord::Compare::operator()(const TuningRecord& lhs, const TuningReco
   return lhs.execution_cost < rhs.execution_cost;
 }
 
+Database::Database(int capacity_per_task) : capacity_per_task_(capacity_per_task) {
+  CHECK_GT(capacity_per_task_, 0) << "capacity_per_task_ should be greater than 0";
+}
+
+bool Database::AddRecord(TuningRecord&& record) {
+  CHECK(!record.task_key.empty()) << "task_key of TuningRecord can't be empty";
+  Commit(record);
+
+  auto& records = key2record_[record.task_key];
+  records.emplace(record);
+  if (records.size() > capacity_per_task_) {
+    records.erase(std::prev(records.end()));
+  }
+  return true;
+}
+
+std::vector<TuningRecord> Database::LookUp(const std::string& task_key) {
+  auto fit = key2record_.find(task_key);
+  if (fit == key2record_.end()) {
+    return {};
+  }
+
+  std::vector<TuningRecord> results;
+  results.reserve(fit->second.size());
+  results.assign(fit->second.begin(), fit->second.end());
+  return results;
+}
+
+std::vector<SearchState> Database::GetTopK(const std::string& task_key, int k) {
+  auto fit = key2record_.find(task_key);
+  if (fit == key2record_.end() || k <= 0) {
+    return {};
+  }
+  if (k > capacity_per_task_) {
+    LOG(WARNING) << "Input k:" << k << " is greater than the capacity";
+    k = capacity_per_task_;
+  }
+
+  std::vector<SearchState> results;
+  results.reserve(k);
+  for (const TuningRecord& record : fit->second) {
+    results.emplace_back(record.state);
+    if (results.size() == k) {
+      break;
+    }
+  }
+  return results;
+}
+
+size_t Database::Size() {
+  auto res =
+      std::accumulate(key2record_.begin(), key2record_.end(), size_t(0), [](size_t res, const auto& kv) -> size_t {
+        return std::move(res) + kv.second.size();
+      });
+  return res;
+}
+
+size_t Database::Count(const std::string& task_key) {
+  auto fit = key2record_.find(task_key);
+  if (fit == key2record_.end()) {
+    return 0;
+  }
+  return fit->second.size();
+}
+
 }  // namespace auto_schedule
 }  // namespace cinn
