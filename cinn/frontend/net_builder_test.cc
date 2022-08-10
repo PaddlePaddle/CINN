@@ -190,17 +190,17 @@ TEST(net_build, program_execute_reverse) {
 }
 
 TEST(net_build, program_execute_clip) {
-  const int M        = 4;
-  const int N        = 3;
-  const int K        = 7;
+  const int M = 4;
+  const int N = 3;
+  const int K = 7;
 
   const float max_val = 0.8;
   const float min_val = 0.2;
 
   NetBuilder builder("net_builder");
-  Placeholder input    = builder.CreateInput(Float(32), {M, N, K}, "In");
-  Variable output      = builder.Clip({input}, max_val, min_val);
-  auto program         = builder.Build();
+  Placeholder input = builder.CreateInput(Float(32), {M, N, K}, "In");
+  Variable output   = builder.Clip({input}, max_val, min_val);
+  auto program      = builder.Build();
 
   Target target = common::DefaultHostTarget();
 
@@ -216,15 +216,15 @@ TEST(net_build, program_execute_clip) {
   float* input_data = input_tensor->mutable_data<float>(target);
 
   memset(input_data, 0, sizeof(float) * M * N * K);
-  
+
   VLOG(6) << "Visualize input_data";
-  
+
   for (int m = 0; m < M; ++m) {
     for (int n = 0; n < N; ++n) {
       VLOG(6) << "m = " << m << ", n = " << n;
       std::string line;
       for (int k = 0; k < K; ++k) {
-        int index = m * (N + K) + n * K + k;
+        int index         = m * (N + K) + n * K + k;
         input_data[index] = rand() % 1000 / 1000.f;
         line += (std::to_string(input_data[index]) + ", ");
       }
@@ -232,10 +232,9 @@ TEST(net_build, program_execute_clip) {
     }
   }
 
-
   runtime_program->Execute();
 
-  auto output_tensor = scope->GetTensor(std::string(output->id));
+  auto output_tensor                   = scope->GetTensor(std::string(output->id));
   const std::vector<int>& output_shape = output_tensor->shape().data();
   EXPECT_EQ(output_shape.size(), 3UL);
   EXPECT_EQ(output_shape[0], M);
@@ -251,11 +250,11 @@ TEST(net_build, program_execute_clip) {
       VLOG(6) << "m = " << m << ", n = " << n;
       std::string line;
       for (int k = 0; k < K; ++k) {
-        int index = m * (N + K) + n * K + k;
+        int index      = m * (N + K) + n * K + k;
         float in_data  = input_data[index];
         float out_data = output_data[index];
-        in_data = in_data < min_val ? min_val : in_data;
-        in_data = in_data > max_val ? max_val : in_data;
+        in_data        = in_data < min_val ? min_val : in_data;
+        in_data        = in_data > max_val ? max_val : in_data;
         EXPECT_EQ(in_data, out_data);
         line += (std::to_string(out_data) + ", ");
       }

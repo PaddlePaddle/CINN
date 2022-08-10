@@ -60,8 +60,8 @@ std::vector<ir::Tensor> Clip(const ir::Tensor &in_tensor,
       [=](const std::vector<Expr> &indice) {
         ir::Tensor out_tensor(in_tensor);
         auto e = out_tensor(indice);
-        return ir::Max::Make(ir::Min::Make(e, ir::Cast::Make(e->type(), Expr(max_val))), 
-                                           ir::Cast::Make(e->type(), Expr(min_val)));
+        return ir::Max::Make(ir::Min::Make(e, ir::Cast::Make(e->type(), Expr(max_val))),
+                             ir::Cast::Make(e->type(), Expr(min_val)));
       },
       output_name)};
 }
