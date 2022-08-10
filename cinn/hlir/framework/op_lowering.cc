@@ -1028,7 +1028,6 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
 std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpaqueOp(GroupPtr& group) {
   VLOG(3) << "LowerOpaqueOp Group : " << group->group_id;
   // get input tensor and output tensor
-  std::vector<ir::Tensor> func_args;
   CHECK(group->nodes.size() || group->fused_sub_groups.size());
   auto& cinn_strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
@@ -1061,9 +1060,10 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpaqueOp(GroupPtr& group) {
 
   std::vector<Type> out_types;
   std::vector<std::vector<int>> out_shapes;
-  auto node_datas = GetAllNodeData(node);
+
   for (auto node_data : node_datas) {
-    // collect output node data name.
+    VLOG(3) << "cinn_inputs.push_back " << node_data->id();
+    cinn_inputs.push_back(common::CINNValue(node_data->id()));
     group->output_names.push_back(node_data->id());
     out_types.push_back(this->type_dict_.at(node_data->id()));
     out_shapes.push_back(this->shape_dict_.at(node_data->id()));

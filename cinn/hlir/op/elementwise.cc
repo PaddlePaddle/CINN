@@ -61,6 +61,7 @@ std::shared_ptr<OpStrategy> StrategyForElementwise(const framework::NodeAttr &at
     std::string tensor_name = UniqName(op_name + "_Out");
     if (FLAGS_cinn_ir_schedule) {
       CHECK_EQ(pack_args.size(), 2U);
+      CHECK(pack_args[1].is_string());
       tensor_name = pack_args[1].operator std::string();
     }
     Expr A_expr = pack_args[0];
@@ -81,7 +82,8 @@ std::shared_ptr<OpStrategy> StrategyForElementwise(const framework::NodeAttr &at
     if (FLAGS_cinn_ir_schedule) {
       CHECK(!args.empty()) << "The input argument of " << op_name << " schedule is empty! Please check.";
       CINNValuePack arg_pack = args[0];
-      Expr ast_expr          = arg_pack[0];
+      CHECK(arg_pack[0].is_expr());
+      Expr ast_expr = arg_pack[0];
       std::vector<Expr> vec_ast{ast_expr};
       ir::ModuleExpr mod_expr(vec_ast);
       ir::IRSchedule ir_sch(mod_expr);
@@ -164,6 +166,7 @@ std::shared_ptr<OpStrategy> StrategyForScale(const framework::NodeAttr &attrs,
     std::string tensor_name = UniqName("Scale_out");
     if (FLAGS_cinn_ir_schedule) {
       CHECK_EQ(pack_args.size(), 2);
+      CHECK(pack_args[1].is_string());
       tensor_name = pack_args[1].operator std::string();
     }
     if (bias_after_scale) {
@@ -181,7 +184,8 @@ std::shared_ptr<OpStrategy> StrategyForScale(const framework::NodeAttr &attrs,
     if (FLAGS_cinn_ir_schedule) {
       CHECK(!args.empty()) << "The input argument of scale schedule is empty! Please check.";
       CINNValuePack arg_pack = args[0];
-      Expr ast_expr          = arg_pack[0];
+      CHECK(arg_pack[0].is_expr());
+      Expr ast_expr = arg_pack[0];
       std::vector<Expr> vec_ast{ast_expr};
       ir::ModuleExpr mod_expr(vec_ast);
       ir::IRSchedule ir_sch(mod_expr);
@@ -245,6 +249,7 @@ std::shared_ptr<OpStrategy> StrategyForConstScalar(const framework::NodeAttr &at
     std::string tensor_name = UniqName("const_scalar_Out");
     if (FLAGS_cinn_ir_schedule) {
       CHECK_EQ(pack_args.size(), 2U);
+      CHECK(pack_args[1].is_string());
       tensor_name = pack_args[1].operator std::string();
     }
 
@@ -259,7 +264,8 @@ std::shared_ptr<OpStrategy> StrategyForConstScalar(const framework::NodeAttr &at
     if (FLAGS_cinn_ir_schedule) {
       CHECK(!args.empty()) << "The input argument of create_const_float schedule is empty! Please check.";
       CINNValuePack arg_pack = args[0];
-      Expr ast_expr          = arg_pack[0];
+      CHECK(arg_pack[0].is_expr());
+      Expr ast_expr = arg_pack[0];
       std::vector<Expr> vec_ast{ast_expr};
       ir::ModuleExpr mod_expr(vec_ast);
       ir::IRSchedule ir_sch(mod_expr);
@@ -368,6 +374,7 @@ std::shared_ptr<OpStrategy> StrategyForFillConstant(const framework::NodeAttr &a
     std::string tensor_name = UniqName("fill_constant_Out");
     if (FLAGS_cinn_ir_schedule) {
       CHECK_EQ(arg_pack.size(), 1U);
+      CHECK(arg_pack[0].is_string());
       tensor_name = arg_pack[0].operator std::string();
     }
     CHECK(!shape.empty()) << "shape attr is empty!";
@@ -384,6 +391,7 @@ std::shared_ptr<OpStrategy> StrategyForFillConstant(const framework::NodeAttr &a
       CHECK(!args.empty()) << "The input argument of create_const_float schedule is empty! Please check.";
       CINNValuePack arg_pack = args[0];
       CHECK_EQ(arg_pack.size(), 1UL);
+      CHECK(arg_pack[0].is_expr());
       Expr ast_expr = arg_pack[0];
       std::vector<Expr> vec_ast{ast_expr};
       ir::ModuleExpr mod_expr(vec_ast);

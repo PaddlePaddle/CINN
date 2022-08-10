@@ -148,6 +148,8 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
 
     std::string tensor_name = UniqName("MatMul");
     if (FLAGS_cinn_ir_schedule) {
+      CHECK_GE(pack_args.size(), 3);
+      CHECK(pack_args[2].is_string());
       tensor_name = pack_args[2].operator std::string();
     }
 
@@ -207,6 +209,7 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
     CINNValuePack arg_pack = args[0];
     if (FLAGS_cinn_ir_schedule) {
       CHECK_EQ(arg_pack.size(), 1UL);
+      CHECK(arg_pack[0].is_expr());
       Expr ast_expr = arg_pack[0];
       std::vector<Expr> vec_ast{ast_expr};
       ir::ModuleExpr mod_expr(vec_ast);
@@ -344,6 +347,7 @@ std::shared_ptr<OpStrategy> StrategyForReshape(const framework::NodeAttr &attrs,
     std::string tensor_name = UniqName("Reshape_out");
     if (FLAGS_cinn_ir_schedule) {
       CHECK_EQ(pack_args.size(), 2);
+      CHECK(pack_args[1].is_string());
       tensor_name = pack_args[1].operator std::string();
     }
 
@@ -360,7 +364,8 @@ std::shared_ptr<OpStrategy> StrategyForReshape(const framework::NodeAttr &attrs,
     if (FLAGS_cinn_ir_schedule) {
       CHECK(!args.empty()) << "The input argument of reshape schedule is empty! Please check.";
       CINNValuePack arg_pack = args[0];
-      Expr ast_expr          = arg_pack[0];
+      CHECK(arg_pack[0].is_expr());
+      Expr ast_expr = arg_pack[0];
       std::vector<Expr> vec_ast{ast_expr};
       ir::ModuleExpr mod_expr(vec_ast);
       ir::IRSchedule ir_sch(mod_expr);
@@ -496,6 +501,7 @@ std::shared_ptr<OpStrategy> StrategyForSplit(const framework::NodeAttr &attrs,
     if (FLAGS_cinn_ir_schedule) {
       CHECK_EQ(pack_args.size(), output_shapes.size() + 1);
       for (int idx = 1; idx < pack_args.size(); ++idx) {
+        CHECK(pack_args[idx].is_string());
         tensor_names.push_back(pack_args[idx].operator std::string());
       }
     } else {
@@ -521,6 +527,7 @@ std::shared_ptr<OpStrategy> StrategyForSplit(const framework::NodeAttr &attrs,
       CINNValuePack arg_pack = args[0];
       std::vector<Expr> vec_ast;
       for (int idx = 0; idx < arg_pack.size(); ++idx) {
+        CHECK(arg_pack[idx].is_expr());
         Expr ast_expr = arg_pack[idx];
         vec_ast.push_back(ast_expr);
       }
@@ -686,6 +693,7 @@ std::shared_ptr<OpStrategy> StrategyForConcat(const framework::NodeAttr &attrs,
 
     std::string tensor_name = UniqName("Concat_output");
     if (FLAGS_cinn_ir_schedule) {
+      CHECK(pack_args[input_size].is_string());
       tensor_name = pack_args[input_size].operator std::string();
     }
 
@@ -700,7 +708,8 @@ std::shared_ptr<OpStrategy> StrategyForConcat(const framework::NodeAttr &attrs,
     if (FLAGS_cinn_ir_schedule) {
       CHECK(!args.empty()) << "The input argument of concat schedule is empty! Please check.";
       CINNValuePack arg_pack = args[0];
-      Expr ast_expr          = arg_pack[0];
+      CHECK(arg_pack[0].is_expr());
+      Expr ast_expr = arg_pack[0];
       std::vector<Expr> vec_ast{ast_expr};
       ir::ModuleExpr mod_expr(vec_ast);
       ir::IRSchedule ir_sch(mod_expr);
@@ -980,6 +989,7 @@ std::shared_ptr<OpStrategy> StrategyForCublasGemm(const framework::NodeAttr &att
     std::string tensor_name = UniqName("cublas_gemm_output");
     if (FLAGS_cinn_ir_schedule) {
       CHECK_EQ(input_args.size(), 4);
+      CHECK(input_args[3].is_string());
       tensor_name = input_args[3].operator std::string();
     }
     auto out    = pe::Identity(bias_tensor, tensor_name).front();
@@ -994,7 +1004,8 @@ std::shared_ptr<OpStrategy> StrategyForCublasGemm(const framework::NodeAttr &att
         if (FLAGS_cinn_ir_schedule) {
           CHECK(!args.empty()) << "The input argument of CublasGemm schedule is empty! Please check.";
           CINNValuePack input_args = args[0];
-          Expr ast_expr            = input_args[0];
+          CHECK(input_args[0].is_expr());
+          Expr ast_expr = input_args[0];
           std::vector<Expr> vec_ast{ast_expr};
           ir::ModuleExpr mod_expr(vec_ast);
           ir::IRSchedule ir_sch(mod_expr);
@@ -1065,6 +1076,7 @@ std::shared_ptr<OpStrategy> StrategyForLayoutTransform(const framework::NodeAttr
     std::string tensor_name = UniqName("layout_transform_output");
     if (FLAGS_cinn_ir_schedule) {
       CHECK_EQ(input_args.size(), 2);
+      CHECK(input_args[1].is_string());
       tensor_name = input_args[1].operator std::string();
     }
 
@@ -1080,7 +1092,8 @@ std::shared_ptr<OpStrategy> StrategyForLayoutTransform(const framework::NodeAttr
     if (FLAGS_cinn_ir_schedule) {
       CHECK(!args.empty()) << "The input argument of CublasGemm schedule is empty! Please check.";
       CINNValuePack arg_pack = args[0];
-      Expr ast_expr          = arg_pack[0];
+      CHECK(arg_pack[0].is_expr());
+      Expr ast_expr = arg_pack[0];
       std::vector<Expr> vec_ast{ast_expr};
       ir::ModuleExpr mod_expr(vec_ast);
       ir::IRSchedule ir_sch(mod_expr);
@@ -1192,6 +1205,7 @@ std::shared_ptr<OpStrategy> StrategyForReverse(const framework::NodeAttr &attrs,
     std::string tensor_name = UniqName("Reverse_output");
     if (FLAGS_cinn_ir_schedule) {
       CHECK_EQ(input_args.size(), 2);
+      CHECK(input_args[1].is_string());
       tensor_name = input_args[1].operator std::string();
     }
 
@@ -1204,7 +1218,8 @@ std::shared_ptr<OpStrategy> StrategyForReverse(const framework::NodeAttr &attrs,
     if (FLAGS_cinn_ir_schedule) {
       CHECK(!args.empty()) << "The input argument of reverse schedule is empty! Please check.";
       CINNValuePack arg_pack = args[0];
-      Expr ast_expr          = arg_pack[0];
+      CHECK(arg_pack[0].is_expr());
+      Expr ast_expr = arg_pack[0];
       std::vector<Expr> vec_ast{ast_expr};
       ir::ModuleExpr mod_expr(vec_ast);
       ir::IRSchedule ir_sch(mod_expr);
@@ -1334,6 +1349,7 @@ std::shared_ptr<OpStrategy> StrategyForTranspose(const framework::NodeAttr &attr
     std::string tensor_name = UniqName("Transpose_output");
     if (FLAGS_cinn_ir_schedule) {
       CHECK_EQ(input_args.size(), 2);
+      CHECK(input_args[1].is_string());
       tensor_name = input_args[1].operator std::string();
     }
 
@@ -1346,7 +1362,8 @@ std::shared_ptr<OpStrategy> StrategyForTranspose(const framework::NodeAttr &attr
     if (FLAGS_cinn_ir_schedule) {
       CHECK(!args.empty()) << "The input argument of transpose schedule is empty! Please check.";
       CINNValuePack arg_pack = args[0];
-      Expr ast_expr          = arg_pack[0];
+      CHECK(arg_pack[0].is_expr());
+      Expr ast_expr = arg_pack[0];
       std::vector<Expr> vec_ast{ast_expr};
       ir::ModuleExpr mod_expr(vec_ast);
       ir::IRSchedule ir_sch(mod_expr);
@@ -1474,6 +1491,7 @@ std::shared_ptr<OpStrategy> StrategyForIndexSelect(const framework::NodeAttr &at
         std::string tensor_name = UniqName("index_select_output");
         if (FLAGS_cinn_ir_schedule) {
           CHECK_EQ(input_args.size(), 3U);
+          CHECK(input_args[2].is_string());
           tensor_name = input_args[2].operator std::string();
         }
 
@@ -1489,7 +1507,8 @@ std::shared_ptr<OpStrategy> StrategyForIndexSelect(const framework::NodeAttr &at
         if (FLAGS_cinn_ir_schedule) {
           CHECK(!args.empty()) << "The input argument of index_select schedule is empty! Please check.";
           CINNValuePack arg_pack = args[0];
-          Expr ast_expr          = arg_pack[0];
+          CHECK(arg_pack[0].is_expr());
+          Expr ast_expr = arg_pack[0];
           std::vector<Expr> vec_ast{ast_expr};
           ir::ModuleExpr mod_expr(vec_ast);
           ir::IRSchedule ir_sch(mod_expr);
@@ -1594,6 +1613,7 @@ std::shared_ptr<OpStrategy> StrategyForScatterAssign(const framework::NodeAttr &
     std::string tensor_name = UniqName("scatter_assign_output");
     if (FLAGS_cinn_ir_schedule) {
       CHECK_EQ(arg_pack.size(), 4U);
+      CHECK(arg_pack[3].is_string());
       tensor_name = arg_pack[3].operator std::string();
     }
 
@@ -1611,7 +1631,8 @@ std::shared_ptr<OpStrategy> StrategyForScatterAssign(const framework::NodeAttr &
     if (FLAGS_cinn_ir_schedule) {
       CHECK(!args.empty()) << "The input argument of ScatterAssign schedule is empty! Please check.";
       CINNValuePack arg_pack = args[0];
-      Expr ast_expr          = arg_pack[0];
+      CHECK(arg_pack[0].is_expr());
+      Expr ast_expr = arg_pack[0];
       std::vector<Expr> vec_ast{ast_expr};
       ir::ModuleExpr mod_expr(vec_ast);
       ir::IRSchedule ir_sch(mod_expr);
@@ -1729,6 +1750,7 @@ std::shared_ptr<OpStrategy> StrategyForScatterAdd(const framework::NodeAttr &att
     std::string tensor_name = UniqName("scatter_add_output");
     if (FLAGS_cinn_ir_schedule) {
       CHECK_EQ(arg_pack.size(), 4U);
+      CHECK(arg_pack[3].is_string());
       tensor_name = arg_pack[3].operator std::string();
     }
 
@@ -1746,7 +1768,8 @@ std::shared_ptr<OpStrategy> StrategyForScatterAdd(const framework::NodeAttr &att
     if (FLAGS_cinn_ir_schedule) {
       CHECK(!args.empty()) << "The input argument of ScatterAdd schedule is empty! Please check.";
       CINNValuePack arg_pack = args[0];
-      Expr ast_expr          = arg_pack[0];
+      CHECK(arg_pack[0].is_expr());
+      Expr ast_expr = arg_pack[0];
       std::vector<Expr> vec_ast{ast_expr};
       ir::ModuleExpr mod_expr(vec_ast);
       ir::IRSchedule ir_sch(mod_expr);
@@ -1882,6 +1905,7 @@ std::shared_ptr<OpStrategy> StrategyForSlice(const framework::NodeAttr &attrs,
     std::string tensor_name = UniqName("Slice_output");
     if (FLAGS_cinn_ir_schedule) {
       CHECK_EQ(arg_pack.size(), 2U);
+      CHECK(arg_pack[1].is_string());
       tensor_name = arg_pack[1].operator std::string();
     }
 
@@ -1894,7 +1918,8 @@ std::shared_ptr<OpStrategy> StrategyForSlice(const framework::NodeAttr &attrs,
     if (FLAGS_cinn_ir_schedule) {
       CHECK(!args.empty()) << "The input argument of ScatterAdd schedule is empty! Please check.";
       CINNValuePack arg_pack = args[0];
-      Expr ast_expr          = arg_pack[0];
+      CHECK(arg_pack[0].is_expr());
+      Expr ast_expr = arg_pack[0];
       std::vector<Expr> vec_ast{ast_expr};
       ir::ModuleExpr mod_expr(vec_ast);
       ir::IRSchedule ir_sch(mod_expr);
@@ -2096,6 +2121,7 @@ std::shared_ptr<OpStrategy> StrategyForSliceAssign(const framework::NodeAttr &at
     std::string tensor_name = UniqName("slice_assign_output");
     if (FLAGS_cinn_ir_schedule) {
       CHECK_EQ(arg_pack.size(), 3U);
+      CHECK(arg_pack[2].is_string());
       tensor_name = arg_pack[2].operator std::string();
     }
 
@@ -2109,7 +2135,8 @@ std::shared_ptr<OpStrategy> StrategyForSliceAssign(const framework::NodeAttr &at
     if (FLAGS_cinn_ir_schedule) {
       CHECK(!args.empty()) << "The input argument of slice_assign schedule is empty! Please check.";
       CINNValuePack arg_pack = args[0];
-      Expr ast_expr          = arg_pack[0];
+      CHECK(arg_pack[0].is_expr());
+      Expr ast_expr = arg_pack[0];
       std::vector<Expr> vec_ast{ast_expr};
       ir::ModuleExpr mod_expr(vec_ast);
       ir::IRSchedule ir_sch(mod_expr);
