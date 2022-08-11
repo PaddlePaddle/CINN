@@ -258,6 +258,58 @@ Tensor BroadcastTo(const Tensor& A,
       out_name);
 }
 
+ir::Tensor IsClose(
+    const ir::Tensor& x, const ir::Tensor& y, float rtol, float atol, bool equal_nan, const std::string& out_name) {
+  CHECK_EQ(x->shape.size(), y->shape.size())
+      << "The two inputs shape dimension of is close should be equal! Please check.";
+
+  std::vector<int> x_shape, y_shape;
+  for (int i = 0; i < x->shape.size(); ++i) {
+    x_shape.emplace_back(x->shape[i].as_int32());
+    y_shape.emplace_back(y->shape[i].as_int32());
+  }
+
+  CHECK(x_shape == y_shape) << "The two inputs shape of isclose should be equal, but here x:["
+                            << cinn::utils::Join(x_shape, ",") << "] != y:[" << cinn::utils::Join(y_shape, ",")
+                            << "] ! Please check.";
+
+  // For each a=x[i], b=y[i]:
+  // ```
+  // if (isnan(a) || isnan(b)) {
+  //   out = equal_nan && isnan(a) == isnan(b);
+  // } else {
+  //   T left = (a > b ? a - b : b - a);
+  //   T right = atol + (b > 0 ? rtol * b : (-rtol) * b);
+  //   T diff = (left > right ? left - right : right - left);
+  //   out = a == b || left <= right || diff <= 1e-15;
+  // }
+  // ```
+  return Compute(
+      x->shape,
+      [=](const std::vector<Expr>& indice) {
+        // check whether x or y is nan
+        auto a = x(indice), b = y(indice);
+        auto check_x_nan = lang::IsNan(a);
+        auto check_y_nan = lang::IsNan(b);
+
+        // out = equal_nan && isnan(a) == isnan(b);
+        auto check_nan_same = Expr(equal_nan) && ir::EQ::Make(check_x_nan, check_y_nan);
+
+        // check whether x and y are close
+        // T left = (a > b ? a - b : b - a);
+        auto left = ir::IfThenElse::Make(a > b, a - b, b - a);
+        // T right = atol + (b > 0 ? rtol * b : (-rtol) * b);
+        auto right = atol + ir::IfThenElse::Make(b > 0, rtol * b, (-rtol) * b);
+        // T diff = (left > right ? left - right : right - left);
+        auto diff = ir::IfThenElse::Make(left > right, left - right, right - left);
+        // out = a == b || left <= right || diff <= 1e-15;
+        auto check_diff = ir::EQ::Make(a, b) || (left <= right) || (diff <= 1e-15f);
+
+        return ir::IfThenElse::Make(check_x_nan || check_y_nan, check_nan_same, check_diff);
+      },
+      out_name);
+}
+
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn
