@@ -252,7 +252,7 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
     VLOG(3) << "weight shape: " << utils::Join(B.as_tensor_ref()->shape, ", ");
     std::string tensor_name = UniqName("Conv2d_out");
     if (FLAGS_cinn_ir_schedule) {
-      CHECK_EQ(pack_args.size(), 3);
+      CHECK_GE(pack_args.size(), 3);
       CHECK(pack_args[2].is_string());
       tensor_name = pack_args[2].operator std::string();
     }

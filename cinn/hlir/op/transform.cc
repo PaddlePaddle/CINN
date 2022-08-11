@@ -208,7 +208,7 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
     CHECK(!args.empty()) << "The input argument of matmul schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
     if (FLAGS_cinn_ir_schedule) {
-      CHECK_EQ(arg_pack.size(), 1UL);
+      CHECK_GE(arg_pack.size(), 1UL);
       CHECK(arg_pack[0].is_expr());
       Expr ast_expr = arg_pack[0];
       std::vector<Expr> vec_ast{ast_expr};
@@ -527,9 +527,10 @@ std::shared_ptr<OpStrategy> StrategyForSplit(const framework::NodeAttr &attrs,
       CINNValuePack arg_pack = args[0];
       std::vector<Expr> vec_ast;
       for (int idx = 0; idx < arg_pack.size(); ++idx) {
-        CHECK(arg_pack[idx].is_expr());
-        Expr ast_expr = arg_pack[idx];
-        vec_ast.push_back(ast_expr);
+        if (arg_pack[idx].is_expr()) {
+          Expr ast_expr = arg_pack[idx];
+          vec_ast.push_back(ast_expr);
+        }
       }
       ir::ModuleExpr mod_expr(vec_ast);
       ir::IRSchedule ir_sch(mod_expr);

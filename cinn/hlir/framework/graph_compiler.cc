@@ -358,7 +358,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFuncWithIRSchedule(
   common::CINNValuePack expr_pack = impl->fschedule(common::CINNValuePack{schedule_inputs});
 
   // 5. Optimize the LoweredFunc
-  LOG(INFO) << "expr_pack.size() is : " << expr_pack.size();
+  VLOG(3) << "expr_pack.size() is : " << expr_pack.size();
   std::vector<ir::LoweredFunc> res;
   for (int i = 0; i < expr_pack.size(); i++) {
     if (func.size() > expr_pack.size()) {
