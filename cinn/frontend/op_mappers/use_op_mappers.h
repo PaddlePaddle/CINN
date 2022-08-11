@@ -30,6 +30,8 @@ CINN_USE_REGISTER(paddle_pool2d)
 CINN_USE_REGISTER(paddle_conv2d)
 CINN_USE_REGISTER(paddle_transpose)
 CINN_USE_REGISTER(paddle_reshape)
+CINN_USE_REGISTER(paddle_tanh)
+CINN_USE_REGISTER(paddle_matmul)
 
 CINN_USE_REGISTER(science_broadcast)
 CINN_USE_REGISTER(science_transform)

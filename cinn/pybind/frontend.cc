@@ -524,7 +524,14 @@ void BindFrontend(pybind11::module *m) {
            py::arg("groups")            = 1,
            py::arg("data_format")       = "NCHW",
            py::arg("padding_algorithm") = "EXPLICIT")
-      .def("sum", &NetBuilder::Sum, py::arg("inputs"));
+      .def("sum", &NetBuilder::Sum, py::arg("inputs"))
+      .def("matmul",
+           &NetBuilder::Matmul,
+           py::arg("x"),
+           py::arg("y"),
+           py::arg("transpose_x") = false,
+           py::arg("transpose_y") = false,
+           py::arg("alpha")       = 1.0f);
 
   py::class_<CinnBuilder, BaseBuilder>(*m, "CinnBuilder")
       .def(py::init<const std::string &>(), py::arg("name") = "")
