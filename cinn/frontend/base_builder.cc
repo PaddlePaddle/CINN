@@ -304,16 +304,6 @@ Variable BaseBuilder::ScatterAdd(const Variable& operand, const Variable& update
   return instr.GetOutput(0);
 }
 
-Variable BaseBuilder::IsClose(const Variable& x, const Variable& y, float rtol, float atol, bool equal_nan) {
-  Instruction instr("isclose", {x, y});
-  instr.SetAttr("rtol", rtol);
-  instr.SetAttr("atol", atol);
-  instr.SetAttr("equal_nan", equal_nan);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
-}
-
 Variable BaseBuilder::UnaryOp(const std::string& op_type, const Variable& operand) {
   Instruction instr(op_type, {operand});
   InferShape(instr);
