@@ -36,7 +36,6 @@ NETBUILDER_UNARY_OP_DEF(Identity, identity)
 NETBUILDER_BINARY_OP_DEF(Add, elementwise_add)
 NETBUILDER_BINARY_OP_DEF(Sub, substract)
 NETBUILDER_BINARY_OP_DEF(Div, divide)
-NETBUILDER_BINARY_OP_DEF(Matmul, matmul)
 NETBUILDER_BINARY_OP_DEF(ReluGrad, relu_grad)
 
 #define NETBUILDER_ELEMENTWISE_OP_DEF(func_name__, op_type__)                            \
@@ -245,6 +244,16 @@ std::vector<Variable> NetBuilder::Conv2dGrad(const Variable& dy,
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutputs();
+}
+
+Variable NetBuilder::Matmul(const Variable& x, const Variable& y, bool trans_x, bool trans_y, float alpha) {
+  Instruction instr("matmul", {x, y});
+  instr.SetAttr("trans_a", trans_x);
+  instr.SetAttr("trans_b", trans_y);
+  instr.SetAttr("alpha", alpha);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
 }
 
 Variable NetBuilder::ElementwiseOp(const std::string& op_type, const Variable& lhs, const Variable& rhs, int axis) {
