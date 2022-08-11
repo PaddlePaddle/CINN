@@ -287,6 +287,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFuncWithIRSchedule(
   auto& cinn_strategy = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
   std::vector<ir::Tensor> tensor_inputs;
   std::vector<common::CINNValue> cinn_inputs;
+  std::vector<std::string> input_output_nodes;
   VLOG(3) << "GetOpFunc of op " << node->id();
 
   // 1.Collect inputs info and outputs info
@@ -306,9 +307,13 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFuncWithIRSchedule(
     }
     tensor_inputs.push_back(input);
     cinn_inputs.push_back(common::CINNValue(input));
+    input_output_nodes.push_back(id);
   }
-  VLOG(3) << "cinn_inputs.push_back " << GetNodeData(node)->id();
-  cinn_inputs.push_back(common::CINNValue(GetNodeData(node)->id()));
+
+  for (auto& i : GetAllNodeData(node)) {
+    VLOG(3) << "cinn_inputs.push_back " << i->id();
+    cinn_inputs.push_back(common::CINNValue(i->id()));
+  }
 
   std::vector<Type> out_types;
   std::vector<std::vector<int>> out_shapes;
@@ -317,6 +322,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFuncWithIRSchedule(
     // collect output node data name.
     out_types.push_back(type_dict_.at(node_data->id()));
     out_shapes.push_back(shape_dict_.at(node_data->id()));
+    input_output_nodes.push_back(node_data->id());
   }
 
   // 2.Call Op's Compute function, using the default stages and LowerVec to get IR tree.
@@ -338,7 +344,6 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFuncWithIRSchedule(
   poly::StageMap stages        = C.back();
   std::string func_name_prefix = "fn_";
   auto func = lang::LowerVec(func_name_prefix + node->id(), stages, all_arg_tensors, {}, {}, nullptr, target_, true);
-  CHECK_EQ(func.size(), 1);
 
   std::vector<common::CINNValue> schedule_inputs;
   for (auto& f : func) {
@@ -356,6 +361,10 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFuncWithIRSchedule(
   VLOG(3) << "expr_pack.size() is : " << expr_pack.size();
   std::vector<ir::LoweredFunc> res;
   for (int i = 0; i < expr_pack.size(); i++) {
+    if (func.size() > expr_pack.size()) {
+      auto new_args = lang::GetArgs(func[i]->body, input_output_nodes);
+      func[i]->args = new_args;
+    }
     auto temp_buffers  = lang::GetTempBuffers(all_arg_tensors, stages, func[i]->body);
     func[i]->temp_bufs = temp_buffers;
     func[i]->PrepareBufferCastExprs();
@@ -722,6 +731,7 @@ void GraphCompiler::CompileOptions::Apply(const auto_schedule::TuningResult& tun
 GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::CompileOptions& options,
                                                       std::unordered_set<std::string>&& fetch_var_ids,
                                                       void* stream) {
+  Context::Global().ResetNameId();
   compile_options_ = options;
   fetch_var_ids_   = std::move(fetch_var_ids);
   auto topo_order  = graph_->topological_order();
