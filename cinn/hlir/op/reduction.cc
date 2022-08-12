@@ -169,23 +169,28 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
     if (FLAGS_cinn_ir_schedule) {
       CHECK_GE(arg_pack.size(), 2UL);
       CHECK_LE(arg_pack.size(), 8UL);
-
+      CINNValuePack arg_pack = args[0];
+      std::vector<Expr> vec_ast;
+      std::vector<Expr> vec_tensor;
+      for (int i = 0; i < arg_pack.size(); i++) {
+        if (arg_pack[i].is_expr()) {
+          Expr temp = arg_pack[i];
+          vec_ast.emplace_back(temp);
+        } else if (arg_pack[i].is_tensor()) {
+          Expr temp = arg_pack[i];
+          vec_tensor.emplace_back(temp);
+        }
+      }
+      CHECK(!vec_ast.empty());
+      ir::ModuleExpr mod_expr(vec_ast);
+      ir::IRSchedule ir_sch(mod_expr);
+      ir_sch.MergeExprs();
       if (target.arch == Target::Arch::NVGPU) {
         if (!WithoutLastDimInReduce(inputs[0]->shape, reduce_axes)) {
           if (arg_pack.size() == 4) {
-            CHECK(arg_pack[0].is_expr());
-            Expr out = arg_pack[0];
-            CHECK(arg_pack[1].is_expr());
-            Expr tmp_out = arg_pack[1];
-            CHECK(arg_pack[2].is_expr());
-            Expr expr0 = arg_pack[2];
-            CHECK(arg_pack[3].is_expr());
-            Expr expr1 = arg_pack[3];
-
-            std::vector<Expr> vec_ast{expr0, expr1};
-            ir::ModuleExpr model_expr(vec_ast);
-            ir::IRSchedule ir_sch(model_expr);
-            ir_sch.MergeExprs();
+            CHECK_EQ(vec_tensor.size(), 2);
+            Expr out     = vec_tensor[0];
+            Expr tmp_out = vec_tensor[1];
 
             VLOG(3) << "Do IRCudaScheduleBlockReduceInternal Schedule!";
             pe::IRCudaScheduleBlockReduceInternal(ir_sch, tmp_out.as_tensor_ref(), out.as_tensor_ref(), target);
@@ -193,23 +198,10 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
             std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
             *ret = CINNValuePack{res};
           } else if (arg_pack.size() == 6) {
-            CHECK(arg_pack[0].is_expr());
-            Expr out = arg_pack[0];
-            CHECK(arg_pack[1].is_expr());
-            Expr tmp_out = arg_pack[1];
-            CHECK(arg_pack[2].is_expr());
-            Expr reduce_tmp_out = arg_pack[2];
-            CHECK(arg_pack[3].is_expr());
-            Expr expr0 = arg_pack[3];
-            CHECK(arg_pack[4].is_expr());
-            Expr expr1 = arg_pack[4];
-            CHECK(arg_pack[5].is_expr());
-            Expr expr2 = arg_pack[5];
-
-            std::vector<Expr> vec_ast{expr0, expr1, expr2};
-            ir::ModuleExpr model_expr(vec_ast);
-            ir::IRSchedule ir_sch(model_expr);
-            ir_sch.MergeExprs();
+            CHECK_EQ(vec_tensor.size(), 3);
+            Expr out            = vec_tensor[0];
+            Expr tmp_out        = vec_tensor[1];
+            Expr reduce_tmp_out = vec_tensor[2];
 
             VLOG(3) << "Do IRCudaScheduleBlockReduce Schedule!";
             pe::IRCudaScheduleBlockReduce(
@@ -218,25 +210,11 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
             std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
             *ret = CINNValuePack{res};
           } else if (arg_pack.size() == 7) {
-            CHECK(arg_pack[0].is_expr());
-            Expr out = arg_pack[0];
-            CHECK(arg_pack[1].is_expr());
-            Expr tmp_out = arg_pack[1];
-            CHECK(arg_pack[2].is_expr());
-            Expr reduce_tmp_out = arg_pack[2];
-            CHECK(arg_pack[3].is_expr());
-            Expr reshape = arg_pack[3];
-            CHECK(arg_pack[4].is_expr());
-            Expr expr0 = arg_pack[4];
-            CHECK(arg_pack[5].is_expr());
-            Expr expr1 = arg_pack[5];
-            CHECK(arg_pack[6].is_expr());
-            Expr expr2 = arg_pack[6];
-
-            std::vector<Expr> vec_ast{expr0, expr1, expr2};
-            ir::ModuleExpr model_expr(vec_ast);
-            ir::IRSchedule ir_sch(model_expr);
-            ir_sch.MergeExprs();
+            CHECK_EQ(vec_tensor.size(), 4);
+            Expr out            = vec_tensor[0];
+            Expr tmp_out        = vec_tensor[1];
+            Expr reduce_tmp_out = vec_tensor[2];
+            Expr reshape        = vec_tensor[3];
 
             VLOG(3) << "Do IRCudaTwoStepReduceSchedule Schedule!";
             pe::IRCudaTwoStepReduceSchedule(ir_sch,
@@ -249,21 +227,10 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
             std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
             *ret = CINNValuePack{res};
           } else if (arg_pack.size() == 5) {
-            CHECK(arg_pack[0].is_expr());
-            Expr out = arg_pack[0];
-            CHECK(arg_pack[1].is_expr());
-            Expr tmp_out = arg_pack[1];
-            CHECK(arg_pack[2].is_expr());
-            Expr reduce_tmp_out = arg_pack[2];
-            CHECK(arg_pack[3].is_expr());
-            Expr expr0 = arg_pack[3];
-            CHECK(arg_pack[4].is_expr());
-            Expr expr1 = arg_pack[4];
-
-            std::vector<Expr> vec_ast{expr0, expr1};
-            ir::ModuleExpr model_expr(vec_ast);
-            ir::IRSchedule ir_sch(model_expr);
-            ir_sch.MergeExprs();
+            CHECK_EQ(vec_tensor.size(), 3);
+            Expr out            = vec_tensor[0];
+            Expr tmp_out        = vec_tensor[1];
+            Expr reduce_tmp_out = vec_tensor[2];
 
             VLOG(3) << "Do IRCudaScheduleBlockReduce Schedule!";
             pe::IRCudaScheduleBlockReduce(ir_sch,
@@ -279,15 +246,8 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
           }
         } else {
           if (arg_pack.size() == 2) {
-            CHECK(arg_pack[0].is_expr());
-            Expr reduce_out = arg_pack[0];
-            CHECK(arg_pack[1].is_expr());
-            Expr expr0 = arg_pack[1];
-            std::vector<Expr> vec_ast{expr0};
-
-            ir::ModuleExpr model_expr(vec_ast);
-            ir::IRSchedule ir_sch(model_expr);
-            ir_sch.MergeExprs();
+            CHECK_EQ(vec_tensor.size(), 1);
+            Expr reduce_out = vec_tensor[0];
 
             VLOG(3) << "Do IRCudaScheduleReduce Schedule!";
             pe::IRCudaScheduleReduce(
@@ -296,21 +256,10 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
             std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
             *ret = CINNValuePack{res};
           } else if (arg_pack.size() == 5) {
-            CHECK(arg_pack[0].is_expr());
-            Expr reduce_out = arg_pack[0];
-            CHECK(arg_pack[1].is_expr());
-            Expr reduce_internal = arg_pack[1];
-            CHECK(arg_pack[2].is_expr());
-            Expr reduce_reshape = arg_pack[2];
-            CHECK(arg_pack[3].is_expr());
-            Expr expr0 = arg_pack[3];
-            CHECK(arg_pack[4].is_expr());
-            Expr expr1 = arg_pack[4];
-
-            std::vector<Expr> vec_ast{expr0, expr1};
-            ir::ModuleExpr model_expr(vec_ast);
-            ir::IRSchedule ir_sch(model_expr);
-            ir_sch.MergeExprs();
+            CHECK_EQ(vec_tensor.size(), 3);
+            Expr reduce_out      = vec_tensor[0];
+            Expr reduce_internal = vec_tensor[1];
+            Expr reduce_reshape  = vec_tensor[2];
 
             VLOG(3) << "Do IRCudaScheduleBlockShuffleReduce Schedule!";
             pe::IRCudaScheduleBlockShuffleReduce(ir_sch,
