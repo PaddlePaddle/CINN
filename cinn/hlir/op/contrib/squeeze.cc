@@ -1,4 +1,4 @@
-// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+// Copyright (c) 2022 CINN Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -48,9 +48,13 @@ ir::Tensor Squeeze(const ir::Tensor &A, const std::vector<int> &axes, const std:
   std::vector<Expr> new_expr_shape;
   std::vector<Expr> A_expr_shape = A->shape;
   if (axes.size() != 0) {
+    std::unordered_set axes_index;
+    for (int i = 0; i < axes.size(); ++i) {
+      axes_index.insert(axes[i]);
+    }
     for (int i = 0; i < A_expr_shape.size(); ++i) {
       CHECK(A_expr_shape[i].is_constant()) << "Input tensor's shape should be constant value.";
-      if (std::find(axes.begin(), axes.end(), i) != axes.end()) {
+      if (axes_index.count(i)) {
         CHECK_EQ(A_expr_shape[i], Expr(1));
       } else {
         new_expr_shape.push_back(A_expr_shape[i]);
@@ -165,14 +169,6 @@ std::vector<std::vector<int>> InferShapeForSqueeze(const std::vector<std::vector
       CHECK_EQ(tensor_size % output_shape[i], 0)
           << "Incompatible input shape and output shape in op reshape: " << tensor_size << ", " << output_shape[i];
       tensor_size /= output_shape[i];
-    } else if (output_shape[i] == 0) {
-      CHECK_LT(i, inputs_shape[0].size())
-          << "In op reshape, when attribute shape[i] == 0, shape[i] = input_shape[i]. But now the size of input_shape "
-             "<= i, which is incompatible. Please check!";
-      output_shape[i] = inputs_shape[0][i];
-      CHECK_EQ(tensor_size % output_shape[i], 0)
-          << "Incompatible input shape and output shape in op reshape: " << tensor_size << ", " << output_shape[i];
-      tensor_size /= output_shape[i];
     } else if (output_shape[i] == -1 && flag_index == -1) {
       flag_index = i;
     } else if (output_shape[i] == -1) {
@@ -192,21 +188,6 @@ std::vector<Type> InferDtypeForSqueeze(const std::vector<Type> &inputs_type, con
   return res;
 }
 
-std::vector<std::vector<std::string>> InferLayoutForSqueeze(const std::vector<framework::shape_t> &input_shapes,
-                                                            const std::vector<std::string> &input_layouts,
-                                                            const framework::NodeAttr &attrs,
-                                                            const Target &target) {
-  CHECK_EQ(input_shapes.size(), 1U) << "The input's shape size is not 1! Please check again.";
-  CHECK_EQ(input_layouts.size(), 1U) << "The input's layout size is not 1! Please check again.";
-  std::vector<std::string> new_input_layouts = input_layouts;
-  if (input_shapes[0].size() > 4) {
-    // alter input layout back
-    new_input_layouts[0] = "NCHW";
-    VLOG(3) << "alter input layout from " << input_layouts[0] << " to " << new_input_layouts[0];
-  }
-  return {new_input_layouts, new_input_layouts};
-}
-
 }  // namespace op
 }  // namespace hlir
 }  // namespace cinn
@@ -219,9 +200,6 @@ CINN_REGISTER_HELPER(squeeze_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForSqueeze)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForSqueeze))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForSqueeze))
-#ifndef CINN_WITH_CUDA
-      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForSqueeze))
-#endif
       .set_support_level(4);
 
   return true;
