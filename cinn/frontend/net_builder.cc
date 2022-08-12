@@ -78,7 +78,7 @@ Variable NetBuilder::ReduceSum(const Variable& x, const std::vector<int>& dim, b
   return Reduce(x, ReduceKind::kSum, dim, keep_dim);
 }
 
-Variable NetBuilder::Argmax(const Variable& x, const int axis, bool keep_dim){
+Variable NetBuilder::Argmax(const Variable& x, const int axis, bool keep_dim) {
   Instruction instr("argmax");
   instr.SetInputs({x});
   instr.SetAttr("axis", axis);
@@ -88,7 +88,7 @@ Variable NetBuilder::Argmax(const Variable& x, const int axis, bool keep_dim){
   return instr.GetOutput(0);
 }
 
-Variable NetBuilder::Argmin(const Variable& x, const int axis, bool keep_dim){
+Variable NetBuilder::Argmin(const Variable& x, const int axis, bool keep_dim) {
   Instruction instr("argmin");
   instr.SetInputs({x});
   instr.SetAttr("axis", axis);

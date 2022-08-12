@@ -37,9 +37,24 @@ Tensor Argmax(const Tensor &in_tensor, const int &axis, const bool keep_dims, co
   CHECK_LT(real_axis, ndim) << "Axis must be less than tensor's dim";
   CHECK_GE(real_axis, 0) << "Axis must be more than 0";
 
+  std::vector<Expr> output_shape;
+  for (int i = 0; i < shape.size(); ++i) {
+    CHECK(shape[i].is_constant()) << "Input tensor's shape should be constant value.";
+    if (axis == i) {
+      if (keep_dims) {
+        output_shape.push_back(Expr(1));
+      }
+    } else {
+      output_shape.push_back(shape[i]);
+    }
+  }
+  if (output_shape.empty()) {
+    output_shape.push_back(Expr(1));
+  }
+
   auto compute = [=](const std::vector<Expr> &indices) -> Expr {
-    //    const Expr current[2] = {Expr(0), Expr(-3.402823e+38f)};
     std::vector<Expr> eval_indices(indices);
+
     if (!keep_dims) {
       eval_indices.insert(eval_indices.begin() + real_axis, Expr(1));
     }
@@ -55,39 +70,42 @@ Tensor Argmax(const Tensor &in_tensor, const int &axis, const bool keep_dims, co
     //    current[1] = c2;
     //    auto for_loop = ir::For::Make(i, Expr(0), current[0]);
 
-    //    Placeholder<float> max_value("max_value", {shape[real_axis]});
-    //    Placeholder<float> max_index("max_index", {shape[real_axis]});
-    //    Var loop_var("k0", Int(32));
-    //    eval_indices[real_axis] = Expr(loop_var);
-    //    auto value = in_tensor(eval_indices);
-    //    auto update = ir::LT::Make(value, ir::Load::Make(ir::Tensor(max_value), {Expr(loop_var)}));
-    //    auto c_v = ir::Select::Make(update, value, ir::Load::Make(ir::Tensor(max_value), {Expr(loop_var)}));
-    //    auto c_i = ir::Select::Make(update, Expr(loop_var), ir::Load::Make(ir::Tensor(max_index), {Expr(loop_var)}));
-    //
-    //    Expr body1 = ir::Store::Make(ir::Tensor(max_value), c_v, {Expr(loop_var)+1});
-    //    Expr body2 = ir::Store::Make(ir::Tensor(max_index), c_i, {Expr(loop_var)+1});
-    //
-    //    Expr body = ir::Block::Make({body1, body2});
-    //
-    //    auto output = ir::For::Make(loop_var, common::make_const(0), shape[real_axis]-1,
-    //                          ir::ForType::Serial, ir::DeviceAPI::Host, body);
+    Placeholder<float> p_max_value("max_value", {shape[real_axis]});
+    Placeholder<int32_t> p_max_index("max_index", {shape[real_axis]});
+    auto max_value = ir::Tensor(p_max_value);
+    auto max_index = ir::Tensor(p_max_index);
+
+    //    max_value = lang::Identity(ir::Store::Make(min_value, Expr(-3.402823e+38f), {Expr(0)}));
+
+    Var loop_var("k0", Int(32));
+    Expr loop_expr          = Expr(loop_var);
+    eval_indices[real_axis] = Expr(loop_var);
+
+    auto value = lang::Identity(in_tensor(eval_indices));
+
+    CHECK_EQ(value->type(), Expr(0.0f)->type());
+    auto update = ir::LT::Make(value, Expr(0.0f));
+    //    auto update             = ir::LT::Make(value, ir::Load::Make(max_value, {Expr(loop_var)}));
+    auto c_v = ir::Select::Make(update, value, Expr(0.0f));
+    auto c_i = ir::Select::Make(update, Expr(loop_var), Expr(0));
+    //    auto c_v                = ir::Select::Make(update, value, ir::Load::Make(max_value, {Expr(loop_var)}));
+    //    auto c_i = ir::Select::Make(update, Expr(loop_var), ir::Load::Make(max_index, {Expr(loop_var)}));
+
+    Expr body1 = ir::Store::Make(max_value, c_v, {Expr(loop_var) + 1});
+    // Expr body2 = ir::Store::Make(max_index, c_i, {Expr(loop_var)+1});
+
+    Expr body = ir::Block::Make({body1});
+
+    auto output = ir::For::Make(
+        loop_var, common::make_const(0), shape[real_axis] - 1, ir::ForType::Serial, ir::DeviceAPI::Host, body);
 
     //    for (int i = 0; i<shape[real_axis]; i++){
     //    }
 
-    return in_tensor(eval_indices);
+    return ir::Load::Make(output, {shape[real_axis] - 1});
+    //    return lang::Identity(eval_indices[0]);
     //    return ir::Load::Make(output, {shape[real_axis]-1});
   };
-
-  std::vector<Expr> output_shape(shape);
-  if (keep_dims) {
-    output_shape.at(real_axis) = Expr(1);
-  } else {
-    output_shape.erase(output_shape.begin() + real_axis);
-  }
-  if (output_shape.empty()) {
-    output_shape.push_back(Expr(1));
-  }
 
   Tensor res = Compute(output_shape, compute, output_name);
   return res;
@@ -113,15 +131,16 @@ std::shared_ptr<framework::OpStrategy> StrategyForArgmax(const framework::NodeAt
   framework::CINNCompute argmax_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of argmax compute is empty! Please check.";
     common::CINNValuePack arg_packs = args[0];
-    std::string tensor_name         = UniqName("T_Argmax_out");
+    std::string tensor_name         = UniqName("Argmax_out");
     CHECK_EQ(arg_packs.size(), 1U) << "There should be 1 input args for argmax compute";
     Expr in_expr = arg_packs[0];
     CHECK(in_expr.as_tensor());
     Tensor in_tensor = in_expr.as_tensor_ref();
-    auto out         = Argmax(in_tensor, axis, keep_dims, tensor_name);
-    auto stages      = CreateStages({out});
+    auto stages      = CreateStages({in_tensor});
+    auto out_tensor  = Argmax(in_tensor, axis, keep_dims, tensor_name);
 
-    std::vector<CINNValue> cinn_values{CINNValue(out), CINNValue(stages)};
+    stages->InsertLazily(out_tensor);
+    std::vector<CINNValue> cinn_values{CINNValue(out_tensor), CINNValue(stages)};
     *ret = common::CINNValuePack{cinn_values};
   });
 
@@ -167,7 +186,7 @@ std::vector<shape_t> InferShapeForArgmax(const std::vector<shape_t> &inputs_shap
   CHECK(attrs.find("keep_dim") != attrs.end());
   keep_dim = absl::get<bool>(attrs.at("keep_dim"));
 
-  std::vector<int> out_shapes(inputs_shape[0]);
+  std::vector<int> out_shapes;
   for (size_t i = 0; i < ndim; ++i) {
     if (axis == i) {
       if (keep_dim) {
@@ -192,8 +211,7 @@ std::vector<shape_t> InferShapeForArgmax(const std::vector<shape_t> &inputs_shap
 
 std::vector<Type> InferDtypeForArgmax(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
-  std::vector<Type> res{inputs_type[0]};
-  return res;
+  return {Int(32)};
 }
 
 std::vector<std::vector<std::string>> InferLayoutForArgmax(const std::vector<framework::shape_t> &input_shapes,
