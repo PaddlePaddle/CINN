@@ -224,7 +224,7 @@ TEST(net_build, program_execute_clip) {
       VLOG(6) << "m = " << m << ", n = " << n;
       std::string line;
       for (int k = 0; k < K; ++k) {
-        int index         = m * (N + K) + n * K + k;
+        int index         = m * (N * K) + n * K + k;
         input_data[index] = rand() % 1000 / 1000.f;
         line += (std::to_string(input_data[index]) + ", ");
       }
@@ -250,7 +250,7 @@ TEST(net_build, program_execute_clip) {
       VLOG(6) << "m = " << m << ", n = " << n;
       std::string line;
       for (int k = 0; k < K; ++k) {
-        int index      = m * (N + K) + n * K + k;
+        int index      = m * (N * K) + n * K + k;
         float in_data  = input_data[index];
         float out_data = output_data[index];
         in_data        = in_data < min_val ? min_val : in_data;
