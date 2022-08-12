@@ -14,29 +14,56 @@
 
 #include "cinn/auto_schedule/measure/schedule_measurer.h"
 
+#include <exception>
+
 namespace cinn {
 namespace auto_schedule {
 
-ScheduleMeasurer::ScheduleMeasurer(ScheduleBuilder* builder, ScheduleRunner* runner)
-    : builder_(builder), runner_(runner) {}
+ScheduleMeasurer::ScheduleMeasurer(ScheduleBuilder* builder, ScheduleRunner* runner, int num_threads)
+    : builder_(builder), runner_(runner), num_threads_(num_threads) {}
 
 std::vector<MeasureResult> ScheduleMeasurer::Measure(const std::vector<MeasureInput>& inputs) {
-  std::vector<MeasureResult> results;
-  for (auto i = 0; i < inputs.size(); ++i) {
+  if (inputs.empty()) {
+    LOG(WARNING) << "inputs is empty";
+    return {};
+  }
+  std::vector<BuildResult> build_results(inputs.size());
+  std::vector<MeasureResult> results(inputs.size());
+
+  auto build_fn = [builder = builder_, &inputs, &build_results, &results](int index) {
+    VLOG(6) << "Build candidate:" << index;
     auto m_start = std::chrono::steady_clock::now();
-    auto&& input = inputs.at(i);
-
-    BuildResult build_res = builder_->Build(input);
-    MeasureResult res     = runner_->Run(input, build_res);
-
+    try {
+      build_results[index] = builder->Build(inputs[index]);
+    } catch (std::exception& e) {
+      results[index].error_msg = utils::StringFormat("Build failed, error:%s\n", e.what());
+    }
     auto time_span = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - m_start);
-    // use the time span counted in measurer
-    res.elapsed_time = static_cast<double>(time_span.count());
-    VLOG(5) << "Measurement-" << i << " cost " << res.elapsed_time << "us";
-    results.emplace_back(std::move(res));
+    results[index].elapsed_time += static_cast<double>(time_span.count());
+  };
+
+  auto run_fn = [runner = runner_, &inputs, &build_results, &results](int index) {
+    VLOG(6) << "Run candidate:" << index;
+    auto m_start = std::chrono::steady_clock::now();
+    try {
+      results[index] = runner->Run(inputs[index], build_results[index]);
+    } catch (std::exception& e) {
+      results[index].error_msg = utils::StringFormat("Run failed, error:%s\n", e.what());
+    }
+    auto time_span = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - m_start);
+    results[index].elapsed_time += static_cast<double>(time_span.count());
+  };
+
+  if (num_threads_ > 1) {
+    // TODO
+  } else {
+    for (int i = 0; i < inputs.size(); ++i) {
+      build_fn(i);
+      run_fn(i);
+    }
   }
 
-  VLOG(4) << "Measure " << inputs.size() << " tests";
+  VLOG(4) << "Measure " << inputs.size() << " candidates";
   return results;
 }
 
