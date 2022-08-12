@@ -189,6 +189,12 @@ std::vector<shape_t> InferShapeForArgmin(const std::vector<shape_t> &inputs_shap
     }
   }
 
+  if (keep_dim) {
+    CHECK_EQ(ndim, out_shapes.size());
+  } else {
+    CHECK_EQ(ndim - 1, out_shapes.size());
+  }
+
   if (out_shapes.empty()) {
     out_shapes.push_back(1);
   }
