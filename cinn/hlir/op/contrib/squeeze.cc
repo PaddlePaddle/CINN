@@ -48,7 +48,7 @@ ir::Tensor Squeeze(const ir::Tensor &A, const std::vector<int> &axes, const std:
   std::vector<Expr> new_expr_shape;
   std::vector<Expr> A_expr_shape = A->shape;
   if (axes.size() != 0) {
-    std::unordered_set axes_index;
+    std::unordered_set<int> axes_index;
     for (int i = 0; i < axes.size(); ++i) {
       axes_index.insert(axes[i]);
     }
@@ -188,6 +188,21 @@ std::vector<Type> InferDtypeForSqueeze(const std::vector<Type> &inputs_type, con
   return res;
 }
 
+std::vector<std::vector<std::string>> InferLayoutForSqueeze(const std::vector<framework::shape_t> &input_shapes,
+                                                            const std::vector<std::string> &input_layouts,
+                                                            const framework::NodeAttr &attrs,
+                                                            const Target &target) {
+  CHECK_EQ(input_shapes.size(), 1U) << "The input's shape size is not 1! Please check again.";
+  CHECK_EQ(input_layouts.size(), 1U) << "The input's layout size is not 1! Please check again.";
+  std::vector<std::string> new_input_layouts = input_layouts;
+  if (input_shapes[0].size() > 4) {
+    // alter input layout back
+    new_input_layouts[0] = "NCHW";
+    VLOG(3) << "alter input layout from " << input_layouts[0] << " to " << new_input_layouts[0];
+  }
+  return {new_input_layouts, new_input_layouts};
+}
+
 }  // namespace op
 }  // namespace hlir
 }  // namespace cinn
@@ -200,6 +215,9 @@ CINN_REGISTER_HELPER(squeeze_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForSqueeze)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForSqueeze))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForSqueeze))
+#ifndef CINN_WITH_CUDA
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForSqueeze))
+#endif
       .set_support_level(4);
 
   return true;

@@ -189,6 +189,19 @@ TEST(net_build, program_execute_reverse) {
   runtime_program->Execute();
 }
 
+void SetSqueezeRandData(hlir::framework::Tensor tensor, Target target) {
+  auto* data = tensor->mutable_data<float>(target);
+  std::random_device seed;
+  std::default_random_engine engine(seed());
+  std::uniform_real_distribution<float> dist(0.f, 1.f);
+  size_t num_ele = tensor->shape().numel();
+  std::vector<float> random_data(num_ele);
+  for (size_t i = 0; i < num_ele; i++) {
+    random_data[i] = dist(engine);  // All random data
+  }
+  std::copy(random_data.begin(), random_data.end(), data);
+}
+
 TEST(net_build, program_execute_squeeze_case1) {
   const int B = 4;
   const int C = 1;
@@ -211,7 +224,7 @@ TEST(net_build, program_execute_squeeze_case1) {
   scope->Var<hlir::framework::Tensor>(std::string(output->id));
 
   auto input_tensor = scope->GetTensor(std::string(input.id()));
-  SetRandData(input_tensor, target);
+  SetSqueezeRandData(input_tensor, target);
   float* input_data = input_tensor->mutable_data<float>(target);
 
   runtime_program->Execute();
@@ -264,7 +277,7 @@ TEST(net_build, program_execute_squeeze_case2) {
   scope->Var<hlir::framework::Tensor>(std::string(output->id));
 
   auto input_tensor = scope->GetTensor(std::string(input.id()));
-  SetRandData(input_tensor, target);
+  SetSqueezeRandData(input_tensor, target);
   float* input_data = input_tensor->mutable_data<float>(target);
 
   runtime_program->Execute();
@@ -316,7 +329,7 @@ TEST(net_build, program_execute_squeeze_case3) {
   scope->Var<hlir::framework::Tensor>(std::string(output->id));
 
   auto input_tensor = scope->GetTensor(std::string(input.id()));
-  SetRandData(input_tensor, target);
+  SetSqueezeRandData(input_tensor, target);
   float* input_data = input_tensor->mutable_data<float>(target);
 
   runtime_program->Execute();

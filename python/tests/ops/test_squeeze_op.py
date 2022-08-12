@@ -24,10 +24,8 @@ from cinn.common import *
 from op_test import OpTest, OpTestTool
 
 
-@OpTestTool.skip_if(not is_compiled_with_cuda(),
-                    "x86 test will be skipped due to timeout.")
+@OpTestTool.skip_if(is_compiled_with_cuda(), "cuda test will be skipped")
 class TestSqueezeOp(OpTest):
-    # 指定多个维度
     def setUp(self):
         self.init_case()
 
@@ -43,7 +41,7 @@ class TestSqueezeOp(OpTest):
     def build_cinn_program(self, target):
         builder = NetBuilder("squeeze_test")
         x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
-        out = builder.squeeze(x, self.axis)
+        out = builder.squeeze(x, self.axes)
 
         prog = builder.build()
         res = self.get_cinn_output(prog, target, [x], [self.inputs["x"]],
@@ -55,14 +53,12 @@ class TestSqueezeOp(OpTest):
 
 
 class TestSqueezeCase1(TestSqueezeOp):
-    # 指定单个维度
     def init_case(self):
         self.inputs = {"x": np.random.random([2, 3, 1, 1]).astype("float32")}
         self.axes = [2]
 
 
 class TestSqueezeCase2(TestSqueezeOp):
-    # 不指定维度
     def init_case(self):
         self.inputs = {"x": np.random.random([2, 3, 1, 1]).astype("float32")}
         self.axes = []
