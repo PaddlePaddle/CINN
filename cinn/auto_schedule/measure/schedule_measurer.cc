@@ -60,8 +60,8 @@ std::vector<MeasureResult> ScheduleMeasurer::Measure(const std::vector<MeasureIn
 
   // measure a candidate by calling build and run successively
   auto measure_fn = [&build_fn, &run_fn](int index) {
-      build_fn(index);
-      run_fn(index);
+    build_fn(index);
+    run_fn(index);
   };
   // default num_threads_ is 1 and in that case it will perform all measurements sequentially inplace.
   utils::parallel_run(measure_fn, utils::SequenceDispatcher(0, inputs.size()), num_threads_);
