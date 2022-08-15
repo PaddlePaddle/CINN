@@ -44,33 +44,75 @@ frontend::Program CreateAddReluProgram() {
   return builder.Build();
 }
 
-TEST(ScheduleMeasurer, Basic) {
+class TestMeasurer : public ::testing::Test {
+ public:
+  std::unique_ptr<GraphCompiler> graph_compiler;
+  std::vector<TuneTask> tasks;
+  std::vector<MeasureInput> inputs;
+
+  void SetUp() override {
 #ifdef CINN_WITH_CUDA
-  Target target = common::DefaultNVGPUTarget();
+    Target target = common::DefaultNVGPUTarget();
 #else
-  Target target = common::DefaultHostTarget();
+    Target target = common::DefaultHostTarget();
 #endif
-  auto graph          = std::make_shared<Graph>(CreateAddReluProgram(), target);
-  auto scope          = BuildScope(target, graph);
-  auto graph_compiler = std::make_unique<GraphCompiler>(target, scope, graph);
-  TaskCreator task_creator;
-  std::vector<TuneTask> tasks = task_creator.CreateTuneTaskOpLevel(graph.get());
-  ASSERT_EQ(2, tasks.size());
-
-  std::vector<MeasureInput> inputs(tasks.size());
-  for (int i = 0; i < tasks.size(); ++i) {
-    auto* task     = &tasks[i];
-    inputs[i].task = task;
-    // TODO(CtfGo): currently FusedGraphToLoweredFunc doesn't work well on NVGPU target,
-    // this setting of lowered_funcs will be enabled once we fix the bug
-    // inputs[i].lowered_funcs = graph_compiler->FusedGraphToLoweredFunc(task->task_graph);
+    auto graph     = std::make_shared<Graph>(CreateAddReluProgram(), target);
+    auto scope     = BuildScope(target, graph);
+    graph_compiler = std::make_unique<GraphCompiler>(target, scope, graph);
+    TaskCreator task_creator;
+    tasks = task_creator.CreateTuneTaskOpLevel(graph.get());
+    inputs.reserve(tasks.size());
+    for (int i = 0; i < tasks.size(); ++i) {
+      auto* task = &tasks[i];
+      MeasureInput input;
+      input.task = task;
+      // TODO(CtfGo): currently FusedGraphToLoweredFunc doesn't work well on NVGPU target,
+      // this setting of lowered_funcs will be enabled once we fix the bug
+      // input.lowered_funcs = graph_compiler->FusedGraphToLoweredFunc(task->task_graph);
+      inputs.emplace_back(input);
+    }
   }
+};
 
+class ThrowExceptionBuilder : public ScheduleBuilder {
+  struct Exception : public std::exception {
+    const char* what() const throw() { return "BuildError"; }
+  };
+  BuildResult Build(const MeasureInput& input) override { throw Exception(); }
+};
+
+class ThrowExceptionRunner : public ScheduleRunner {
+  struct Exception : public std::exception {
+    const char* what() const throw() { return "RunError"; }
+  };
+  MeasureResult Run(const MeasureInput& input, const BuildResult& build_result) override { throw Exception(); }
+};
+
+TEST_F(TestMeasurer, Basic) {
   auto builder                       = std::make_unique<SimpleBuilder>(graph_compiler.get());
   auto runner                        = std::make_unique<SimpleRunner>(1);
   auto measurer                      = std::make_unique<ScheduleMeasurer>(builder.get(), runner.get());
   std::vector<MeasureResult> results = measurer->Measure(inputs);
   ASSERT_EQ(inputs.size(), results.size());
+}
+
+TEST_F(TestMeasurer, CatchException) {
+  auto builder                       = std::make_unique<SimpleBuilder>(graph_compiler.get());
+  auto runner                        = std::make_unique<SimpleRunner>(1);
+  auto throw_builder                 = std::make_unique<ThrowExceptionBuilder>();
+  auto throw_runner                  = std::make_unique<ThrowExceptionRunner>();
+  auto measurer_with_build_error     = std::make_unique<ScheduleMeasurer>(throw_builder.get(), runner.get(), 2);
+  std::vector<MeasureResult> results = measurer_with_build_error->Measure(inputs);
+  ASSERT_EQ(inputs.size(), results.size());
+  EXPECT_EQ(results[0].error_msg, "Build failed, error:BuildError\n");
+  EXPECT_EQ(results[1].error_msg, "Build failed, error:BuildError\n");
+
+  // TODO(CtfGo): test parallel build after we support thread-safe compilation
+  auto measurer_with_run_error = std::make_unique<ScheduleMeasurer>(builder.get(), throw_runner.get(), 1);
+  results                      = measurer_with_run_error->Measure(inputs);
+  ASSERT_EQ(inputs.size(), results.size());
+  EXPECT_EQ(results[0].error_msg, "Run failed, error:RunError\n");
+  EXPECT_EQ(results[1].error_msg, "Run failed, error:RunError\n");
 }
 
 }  // namespace auto_schedule

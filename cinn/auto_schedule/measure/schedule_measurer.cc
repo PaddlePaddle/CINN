@@ -50,7 +50,10 @@ std::vector<MeasureResult> ScheduleMeasurer::Measure(const std::vector<MeasureIn
     VLOG(6) << "Run candidate:" << index;
     auto m_start = std::chrono::steady_clock::now();
     try {
-      results[index] = runner->Run(inputs[index], build_results[index]);
+      // if error occured in building, then skip running
+      if (results[index].error_msg.empty()) {
+        results[index] = runner->Run(inputs[index], build_results[index]);
+      }
     } catch (std::exception& e) {
       results[index].error_msg = utils::StringFormat("Run failed, error:%s\n", e.what());
     }
