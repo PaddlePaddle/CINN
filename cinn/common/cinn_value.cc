@@ -92,9 +92,15 @@ bool CINNValue::is_string() const { return type_code_ == TypeCode<std::string>()
 
 bool CINNValue::is_var() const { return type_code_ == TypeCode<ir::Var>(); }
 
-bool CINNValue::is_expr() const { return type_code_ == TypeCode<ir::Expr>(); }
+bool CINNValue::is_expr() const {
+  return type_code_ == TypeCode<ir::Expr>() && !absl::any_cast<Expr>(shared_).as_tensor();
+}
 
 bool CINNValue::is_stagemap() const { return type_code_ == TypeCode<poly::StageMap>(); }
+
+bool CINNValue::is_tensor() const {
+  return type_code_ == TypeCode<ir::Expr>() && absl::any_cast<Expr>(shared_).as_tensor();
+}
 
 CINNValue::operator std::string() const {
   CHECK_EQ(type_code_, TypeCode<std::string>());

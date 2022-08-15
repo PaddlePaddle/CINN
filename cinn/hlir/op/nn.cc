@@ -65,19 +65,23 @@ std::shared_ptr<OpStrategy> StrategyForRelu(const framework::NodeAttr &attrs,
     if (FLAGS_cinn_ir_schedule) {
       CHECK(!args.empty()) << "The input argument of relu schedule is empty! Please check.\n";
       CINNValuePack arg_pack = args[0];
-      CHECK_GE(arg_pack.size(), 1UL);
-      CHECK(arg_pack[0].is_expr());
-      Expr ast_expr = arg_pack[0];
-      std::vector<Expr> vec_ast{ast_expr};
+      std::vector<Expr> vec_ast;
+      for (int i = 0; i < arg_pack.size(); i++) {
+        if (arg_pack[i].is_expr()) {
+          Expr temp = arg_pack[i];
+          vec_ast.emplace_back(temp);
+        }
+      }
+      CHECK(!vec_ast.empty());
       ir::ModuleExpr mod_expr(vec_ast);
       ir::IRSchedule ir_sch(mod_expr);
+      ir_sch.MergeExprs();
       if (target.arch == Target::Arch::NVGPU) {
         pe::IRCudaScheduleInjective(ir_sch, output_shapes.front(), target);
       } else if (target.arch == Target::Arch::X86) {
         pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target);
       }
-      std::vector<CINNValue> res;
-      res.push_back(arg_pack[0]);
+      std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
       *ret = CINNValuePack{res};
     } else {
       CHECK(!args.empty()) << "The input argument of relu schedule is empty! Please check.\n";
@@ -147,19 +151,23 @@ std::shared_ptr<OpStrategy> StrategyForRelu6(const framework::NodeAttr &attrs,
     if (FLAGS_cinn_ir_schedule) {
       CHECK(!args.empty()) << "The input argument of relu schedule is empty! Please check.\n";
       CINNValuePack arg_pack = args[0];
-      CHECK_GE(arg_pack.size(), 1UL);
-      CHECK(arg_pack[0].is_expr());
-      Expr ast_expr = arg_pack[0];
-      std::vector<Expr> vec_ast{ast_expr};
+      std::vector<Expr> vec_ast;
+      for (int i = 0; i < arg_pack.size(); i++) {
+        if (arg_pack[i].is_expr()) {
+          Expr temp = arg_pack[i];
+          vec_ast.emplace_back(temp);
+        }
+      }
+      CHECK(!vec_ast.empty());
       ir::ModuleExpr mod_expr(vec_ast);
       ir::IRSchedule ir_sch(mod_expr);
+      ir_sch.MergeExprs();
       if (target.arch == Target::Arch::NVGPU) {
         pe::IRCudaScheduleInjective(ir_sch, output_shapes.front(), target);
       } else if (target.arch == Target::Arch::X86) {
         pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target);
       }
-      std::vector<CINNValue> res;
-      res.push_back(arg_pack[0]);
+      std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
       *ret = CINNValuePack{res};
     } else {
       CHECK(!args.empty()) << "The input argument of relu6 schedule is empty! Please check.\n";
@@ -349,49 +357,35 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
     if (FLAGS_cinn_ir_schedule) {
       CHECK(!args.empty()) << "The input argument of conv2d schedule is empty! Please check.\n";
       CINNValuePack arg_pack = args[0];
-      CHECK_GE(arg_pack.size(), 1UL);
-      std::vector<Expr> vec_ast{};
+      std::vector<Expr> vec_ast;
+      for (int i = 0; i < arg_pack.size(); i++) {
+        if (arg_pack[i].is_expr()) {
+          Expr temp = arg_pack[i];
+          vec_ast.emplace_back(temp);
+        }
+      }
+      CHECK(!vec_ast.empty());
+      ir::ModuleExpr mod_expr(vec_ast);
+      ir::IRSchedule ir_sch(mod_expr);
+      ir_sch.MergeExprs();
       if (target.arch == Target::Arch::NVGPU) {
 #ifdef CINN_WITH_CUDNN
         // If conv_type is backward_filter or backward_data, we built a fake op.
         // As runtime use cudnn to compute conv2d, this fake op is not to be called.
         // When cinn support backward_filter/backward_data code gen, this code is to be removed.
         if (conv_type != "forward") {
-          CHECK(arg_pack[0].is_expr());
-          Expr temp = arg_pack[0];
-          vec_ast.push_back(temp);
-          ir::ModuleExpr mod_expr(vec_ast);
-          ir::IRSchedule ir_sch(mod_expr);
+          CHECK_EQ(vec_ast.size(), 1);
           pe::IRCudaScheduleInjective(ir_sch, output_shapes.front(), target);
-          std::vector<CINNValue> res;
-          res.push_back(arg_pack[0]);
+          std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
           *ret = CINNValuePack{res};
           return;
         }
 #endif
-        LOG(INFO) << "arg_pack size is : " << arg_pack.size();
-        int expr_size = 0;
-        for (int i = 0; i < arg_pack.size(); i++) {
-          if (arg_pack[i].type_code() == 22) {
-            Expr temp = arg_pack[i];
-            expr_size++;
-          }
-        }
+        int expr_size = vec_ast.size();
         if (expr_size == 2) {
-          CHECK(arg_pack[0].is_expr());
-          Expr temp = arg_pack[0];
-          vec_ast.push_back(temp);
-          CHECK(arg_pack[1].is_expr());
-          temp = arg_pack[1];
-          vec_ast.push_back(temp);
-          ir::ModuleExpr mod_expr(vec_ast);
-          ir::IRSchedule ir_sch(mod_expr);
-          ir_sch.MergeExprs();
           pe::IRCudaScheduleConv(ir_sch, target);
-          std::vector<CINNValue> res;
-          temp = arg_pack[0];
-          VLOG(3) << "After IRCudaScheduleConv, arg_pack[0] is : " << temp;
-          res.push_back(arg_pack[0]);
+          VLOG(3) << "After IRCudaScheduleConv, arg_pack[0] is : " << ir_sch.GetModule().GetExprs().at(0);
+          std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
           *ret = CINNValuePack{res};
           return;
         } else {
@@ -1138,19 +1132,23 @@ std::shared_ptr<OpStrategy> StrategyForBatchNorm(const framework::NodeAttr &attr
     if (FLAGS_cinn_ir_schedule) {
       CHECK(!args.empty()) << "The input argument of batchnorm schedule is empty! Please check.\n";
       CINNValuePack arg_pack = args[0];
-      CHECK_GE(arg_pack.size(), 1UL);
-      CHECK(arg_pack[0].is_expr());
-      Expr ast_expr = arg_pack[0];
-      std::vector<Expr> vec_ast{ast_expr};
+      std::vector<Expr> vec_ast;
+      for (int i = 0; i < arg_pack.size(); i++) {
+        if (arg_pack[i].is_expr()) {
+          Expr temp = arg_pack[i];
+          vec_ast.emplace_back(temp);
+        }
+      }
+      CHECK(!vec_ast.empty());
       ir::ModuleExpr mod_expr(vec_ast);
       ir::IRSchedule ir_sch(mod_expr);
+      ir_sch.MergeExprs();
       if (target.arch == Target::Arch::NVGPU) {
         pe::IRCudaScheduleInjective(ir_sch, output_shapes.front(), target);
       } else if (target.arch == Target::Arch::X86) {
         pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target);
       }
-      std::vector<CINNValue> res;
-      res.push_back(arg_pack[0]);
+      std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
       *ret = CINNValuePack{res};
     } else {
       CHECK(!args.empty()) << "The input argument of batchnorm schedule is empty! Please check.\n";
@@ -1275,21 +1273,31 @@ std::shared_ptr<OpStrategy> StrategyForPool1d(const framework::NodeAttr &attrs,
     if (FLAGS_cinn_ir_schedule) {
       CHECK(!args.empty()) << "The input argument of pool1d schedule is empty! Please check.\n";
       CINNValuePack arg_pack = args[0];
-      CHECK_GE(arg_pack.size(), 2UL);
-      CHECK(arg_pack[0].is_expr());
-      CHECK(arg_pack[arg_pack.size() - 1].is_expr());
-      Expr Out      = arg_pack[0];
-      Expr ast_expr = arg_pack[arg_pack.size() - 1];
-      std::vector<Expr> vec_ast{ast_expr};
+      std::vector<Expr> vec_ast;
+      std::vector<Expr> vec_tensor;
+      for (int i = 0; i < arg_pack.size(); i++) {
+        if (arg_pack[i].is_expr()) {
+          Expr temp = arg_pack[i];
+          vec_ast.emplace_back(temp);
+        } else if (arg_pack[i].is_tensor()) {
+          Expr temp = arg_pack[i];
+          vec_tensor.emplace_back(temp);
+        }
+      }
+      CHECK(!vec_ast.empty());
       ir::ModuleExpr mod_expr(vec_ast);
       ir::IRSchedule ir_sch(mod_expr);
+      ir_sch.MergeExprs();
       if (arg_pack.size() == 3UL) {
-        Expr input_pad = arg_pack[1];
+        CHECK_EQ(vec_tensor.size(), 2);
+        Expr input_pad = vec_tensor[1];
         CHECK(input_pad.as_tensor());
         auto block_input_pad = ir_sch.GetBlock(input_pad.as_tensor()->name);
         ir_sch.ComputeInline(block_input_pad);
       }
       if (target.arch == Target::Arch::NVGPU) {
+        CHECK(!vec_tensor.empty());
+        Expr Out = vec_tensor[0];
         CHECK(Out.as_tensor());
         auto loops = ir_sch.GetLoops(Out.as_tensor()->name);
         ir_sch.Split(loops[1], {-1, 2});
@@ -1297,8 +1305,7 @@ std::shared_ptr<OpStrategy> StrategyForPool1d(const framework::NodeAttr &attrs,
         ir_sch.Bind(loops[0], "blockIdx.x");
         ir_sch.Bind(loops[1], "threadIdx.x");
       }
-      std::vector<CINNValue> res;
-      res.push_back(arg_pack[arg_pack.size() - 1]);
+      std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
       *ret = CINNValuePack{res};
     } else {
       CHECK(!args.empty()) << "The input argument of pool1d schedule is empty! Please check.\n";
@@ -1523,16 +1530,24 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
     if (FLAGS_cinn_ir_schedule) {
       CHECK(!args.empty()) << "The input argument of pool2d schedule is empty! Please check.\n";
       CINNValuePack arg_pack = args[0];
-      CHECK_GE(arg_pack.size(), 2UL);
-      CHECK(arg_pack[0].is_expr());
-      Expr Out = arg_pack[0];
-      CHECK(arg_pack[arg_pack.size() - 1].is_expr());
-      Expr ast_expr = arg_pack[arg_pack.size() - 1];
-      std::vector<Expr> vec_ast{ast_expr};
+      std::vector<Expr> vec_ast;
+      std::vector<Expr> vec_tensor;
+      for (int i = 0; i < arg_pack.size(); i++) {
+        if (arg_pack[i].is_expr()) {
+          Expr temp = arg_pack[i];
+          vec_ast.emplace_back(temp);
+        } else if (arg_pack[i].is_tensor()) {
+          Expr temp = arg_pack[i];
+          vec_tensor.emplace_back(temp);
+        }
+      }
+      CHECK(!vec_ast.empty());
       ir::ModuleExpr mod_expr(vec_ast);
       ir::IRSchedule ir_sch(mod_expr);
+      ir_sch.MergeExprs();
       if (arg_pack.size() == 3UL) {
-        Expr input_pad = arg_pack[1];
+        CHECK_EQ(vec_tensor.size(), 2);
+        Expr input_pad = vec_tensor[1];
         CHECK(input_pad.as_tensor());
         auto block_input_pad = ir_sch.GetBlock(input_pad.as_tensor()->name);
         ir_sch.ComputeInline(block_input_pad);
@@ -1540,8 +1555,7 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
       if (target.arch == Target::Arch::NVGPU) {
         pe::IRPoolScheduleGPU(ir_sch, target);
       }
-      std::vector<CINNValue> res;
-      res.push_back(arg_pack[arg_pack.size() - 1]);
+      std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
       *ret = CINNValuePack{res};
     } else {
       CHECK(!args.empty()) << "The input argument of pool2d schedule is empty! Please check.\n";
@@ -1742,21 +1756,31 @@ std::shared_ptr<OpStrategy> StrategyForPool3d(const framework::NodeAttr &attrs,
     if (FLAGS_cinn_ir_schedule) {
       CHECK(!args.empty()) << "The input argument of pool3d schedule is empty! Please check.\n";
       CINNValuePack arg_pack = args[0];
-      CHECK_GE(arg_pack.size(), 2UL);
-      CHECK(arg_pack[0].is_expr());
-      Expr Out = arg_pack[0];
-      CHECK(arg_pack[arg_pack.size() - 1].is_expr());
-      Expr ast_expr = arg_pack[arg_pack.size() - 1];
-      std::vector<Expr> vec_ast{ast_expr};
+      std::vector<Expr> vec_ast;
+      std::vector<Expr> vec_tensor;
+      for (int i = 0; i < arg_pack.size(); i++) {
+        if (arg_pack[i].is_expr()) {
+          Expr temp = arg_pack[i];
+          vec_ast.emplace_back(temp);
+        } else if (arg_pack[i].is_tensor()) {
+          Expr temp = arg_pack[i];
+          vec_tensor.emplace_back(temp);
+        }
+      }
+      CHECK(!vec_ast.empty());
       ir::ModuleExpr mod_expr(vec_ast);
       ir::IRSchedule ir_sch(mod_expr);
+      ir_sch.MergeExprs();
       if (arg_pack.size() == 3UL) {
-        Expr input_pad = arg_pack[1];
+        CHECK_EQ(vec_tensor.size(), 2);
+        Expr input_pad = vec_tensor[1];
         CHECK(input_pad.as_tensor());
         auto block_input_pad = ir_sch.GetBlock(input_pad.as_tensor()->name);
         ir_sch.ComputeInline(block_input_pad);
       }
       if (target.arch == Target::Arch::NVGPU) {
+        CHECK(!vec_tensor.empty());
+        Expr Out = vec_tensor[0];
         CHECK(Out.as_tensor());
         auto loops = ir_sch.GetLoops(Out.as_tensor()->name);
         ir_sch.Split(loops[1], {-1, 2});
@@ -1764,8 +1788,7 @@ std::shared_ptr<OpStrategy> StrategyForPool3d(const framework::NodeAttr &attrs,
         ir_sch.Bind(loops[0], "blockIdx.x");
         ir_sch.Bind(loops[1], "threadIdx.x");
       }
-      std::vector<CINNValue> res;
-      res.push_back(arg_pack[arg_pack.size() - 1]);
+      std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
       *ret = CINNValuePack{res};
     } else {
       CHECK(!args.empty()) << "The input argument of pool3d schedule is empty! Please check.\n";
@@ -1940,15 +1963,14 @@ std::shared_ptr<OpStrategy> StrategyForSoftmax(const framework::NodeAttr &attrs,
     if (FLAGS_cinn_ir_schedule) {
       CHECK(!args.empty()) << "The input arguments of softmax schedule is empty! Please check.";
       CINNValuePack arg_pack = args[0];
-      CHECK_GE(arg_pack.size(), 3UL) << "The input tensor's size of softmax schedule is " << arg_pack.size()
-                                     << "and it should be equal to 3! Please check.";
-      CHECK(arg_pack[0].is_expr());
-      Expr out1 = arg_pack[0];
-      CHECK(arg_pack[1].is_expr());
-      Expr out2 = arg_pack[1];
-      std::vector<Expr> vec_ast{};
-      vec_ast.push_back(out1);
-      vec_ast.push_back(out2);
+      std::vector<Expr> vec_ast;
+      for (int i = 0; i < arg_pack.size(); i++) {
+        if (arg_pack[i].is_expr()) {
+          Expr temp = arg_pack[i];
+          vec_ast.emplace_back(temp);
+        }
+      }
+      CHECK(!vec_ast.empty());
       ir::ModuleExpr mod_expr(vec_ast);
       ir::IRSchedule ir_sch(mod_expr);
       ir_sch.MergeExprs();
@@ -1964,17 +1986,11 @@ std::shared_ptr<OpStrategy> StrategyForSoftmax(const framework::NodeAttr &attrs,
           loops      = ir_sch.GetLoops(all_blocks[1]);
           ir_sch.ComputeAt(all_blocks[0], loops.back());
         }
-        std::vector<CINNValue> res;
-        Expr temp = arg_pack[0];
-        VLOG(3) << "After softmax_schedule, arg_pack[0] is : " << temp;
-        res.push_back(arg_pack[0]);
+        std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
         *ret = CINNValuePack{res};
       } else if (target.arch == Target::Arch::X86) {
         pe::IRSoftmaxScheduleCPU(ir_sch, axis);
-        std::vector<CINNValue> res;
-        Expr temp = arg_pack[0];
-        VLOG(3) << "After IRSoftmaxScheduleCPU, arg_pack[0] is : " << temp;
-        res.push_back(arg_pack[0]);
+        std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
         *ret = CINNValuePack{res};
       }
     } else {
@@ -2073,19 +2089,23 @@ std::shared_ptr<OpStrategy> StrategyForDropoutInfer(const framework::NodeAttr &a
     if (FLAGS_cinn_ir_schedule) {
       CHECK(!args.empty()) << "The input argument of dropout_infer schedule is empty! Please check.\n";
       CINNValuePack arg_pack = args[0];
-      CHECK_EQ(arg_pack.size(), 1UL);
-      CHECK(arg_pack[0].is_expr());
-      Expr ast_expr = arg_pack[0];
-      std::vector<Expr> vec_ast{ast_expr};
+      std::vector<Expr> vec_ast;
+      for (int i = 0; i < arg_pack.size(); i++) {
+        if (arg_pack[i].is_expr()) {
+          Expr temp = arg_pack[i];
+          vec_ast.emplace_back(temp);
+        }
+      }
+      CHECK(!vec_ast.empty());
       ir::ModuleExpr mod_expr(vec_ast);
       ir::IRSchedule ir_sch(mod_expr);
+      ir_sch.MergeExprs();
       if (target.arch == Target::Arch::NVGPU) {
         pe::IRCudaScheduleInjective(ir_sch, output_shapes.front(), target);
       } else if (target.arch == Target::Arch::X86) {
         pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target);
       }
-      std::vector<CINNValue> res;
-      res.push_back(arg_pack[0]);
+      std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
       *ret = CINNValuePack{res};
     } else {
       CHECK(!args.empty()) << "The input arguments of dropout_infer schedule is empty! Please check.";
@@ -2169,19 +2189,23 @@ std::shared_ptr<OpStrategy> StrategyForSelect(const framework::NodeAttr &attrs,
     if (FLAGS_cinn_ir_schedule) {
       CHECK(!args.empty()) << "The input argument of select schedule is empty! Please check.\n";
       CINNValuePack arg_pack = args[0];
-      CHECK_EQ(arg_pack.size(), 1UL);
-      CHECK(arg_pack[0].is_expr());
-      Expr ast_expr = arg_pack[0];
-      std::vector<Expr> vec_ast{ast_expr};
+      std::vector<Expr> vec_ast;
+      for (int i = 0; i < arg_pack.size(); i++) {
+        if (arg_pack[i].is_expr()) {
+          Expr temp = arg_pack[i];
+          vec_ast.emplace_back(temp);
+        }
+      }
+      CHECK(!vec_ast.empty());
       ir::ModuleExpr mod_expr(vec_ast);
       ir::IRSchedule ir_sch(mod_expr);
+      ir_sch.MergeExprs();
       if (target.arch == Target::Arch::NVGPU) {
         pe::IRCudaScheduleInjective(ir_sch, output_shapes.front(), target);
       } else if (target.arch == Target::Arch::X86) {
         pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target);
       }
-      std::vector<CINNValue> res;
-      res.push_back(arg_pack[0]);
+      std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
       *ret = CINNValuePack{res};
     } else {
       CHECK(!args.empty()) << "The input argument of select schedule is empty! Please check.\n";
