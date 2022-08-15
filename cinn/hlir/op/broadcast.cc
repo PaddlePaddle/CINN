@@ -62,6 +62,7 @@ std::shared_ptr<OpStrategy> StrategyForBroadcast(
     std::string tensor_name = UniqName(op_name + "_Out");
     if (FLAGS_cinn_ir_schedule) {
       CHECK_GE(pack_args.size(), 3U);
+      CHECK(pack_args[2].is_string());
       tensor_name = pack_args[2].operator std::string();
     }
     Expr A_expr = pack_args[0];
@@ -88,6 +89,7 @@ std::shared_ptr<OpStrategy> StrategyForBroadcast(
       CHECK(!args.empty()) << "The input argument of " << op_name << " schedule is empty! Please check.";
       CINNValuePack arg_pack = args[0];
       CHECK_GE(arg_pack.size(), 1UL);
+      CHECK(arg_pack[0].is_expr());
       Expr ast_expr = arg_pack[0];
       std::vector<Expr> vec_ast{ast_expr};
       ir::ModuleExpr mod_expr(vec_ast);
@@ -209,6 +211,7 @@ std::shared_ptr<OpStrategy> StrategyForBroadcastTo(const framework::NodeAttr &at
     std::string tensor_name = UniqName("broadcast_to_Out");
     if (FLAGS_cinn_ir_schedule) {
       CHECK_GE(pack_args.size(), 2U);
+      CHECK(pack_args[1].is_string());
       tensor_name = pack_args[1].operator std::string();
     }
     Expr A_expr = pack_args[0];
@@ -224,6 +227,7 @@ std::shared_ptr<OpStrategy> StrategyForBroadcastTo(const framework::NodeAttr &at
       CHECK(!args.empty()) << "The input argument of broadcast_to schedule is empty! Please check.";
       CINNValuePack arg_pack = args[0];
       CHECK_GE(arg_pack.size(), 1UL);
+      CHECK(arg_pack[0].is_expr());
       Expr ast_expr = arg_pack[0];
       std::vector<Expr> vec_ast{ast_expr};
       ir::ModuleExpr mod_expr(vec_ast);

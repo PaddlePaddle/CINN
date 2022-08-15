@@ -120,6 +120,7 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
     std::string tensor_name = UniqName(op_name + "_out");
     if (FLAGS_cinn_ir_schedule) {
       CHECK_EQ(arg_packs.size(), 2U) << "There should be 2 input args for " << op_name << " compute";
+      CHECK(arg_packs[1].is_string());
       tensor_name = arg_packs[1].operator std::string();
     } else {
       CHECK_EQ(arg_packs.size(), 1U) << "There should be 1 input args for " << op_name << " compute";
@@ -172,10 +173,13 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
       if (target.arch == Target::Arch::NVGPU) {
         if (!WithoutLastDimInReduce(inputs[0]->shape, reduce_axes)) {
           if (arg_pack.size() == 4) {
-            Expr out     = arg_pack[0];
+            CHECK(arg_pack[0].is_expr());
+            Expr out = arg_pack[0];
+            CHECK(arg_pack[1].is_expr());
             Expr tmp_out = arg_pack[1];
-
+            CHECK(arg_pack[2].is_expr());
             Expr expr0 = arg_pack[2];
+            CHECK(arg_pack[3].is_expr());
             Expr expr1 = arg_pack[3];
 
             std::vector<Expr> vec_ast{expr0, expr1};
@@ -189,12 +193,17 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
             std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
             *ret = CINNValuePack{res};
           } else if (arg_pack.size() == 6) {
-            Expr out            = arg_pack[0];
-            Expr tmp_out        = arg_pack[1];
+            CHECK(arg_pack[0].is_expr());
+            Expr out = arg_pack[0];
+            CHECK(arg_pack[1].is_expr());
+            Expr tmp_out = arg_pack[1];
+            CHECK(arg_pack[2].is_expr());
             Expr reduce_tmp_out = arg_pack[2];
-
+            CHECK(arg_pack[3].is_expr());
             Expr expr0 = arg_pack[3];
+            CHECK(arg_pack[4].is_expr());
             Expr expr1 = arg_pack[4];
+            CHECK(arg_pack[5].is_expr());
             Expr expr2 = arg_pack[5];
 
             std::vector<Expr> vec_ast{expr0, expr1, expr2};
@@ -209,13 +218,19 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
             std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
             *ret = CINNValuePack{res};
           } else if (arg_pack.size() == 7) {
-            Expr out            = arg_pack[0];
-            Expr tmp_out        = arg_pack[1];
+            CHECK(arg_pack[0].is_expr());
+            Expr out = arg_pack[0];
+            CHECK(arg_pack[1].is_expr());
+            Expr tmp_out = arg_pack[1];
+            CHECK(arg_pack[2].is_expr());
             Expr reduce_tmp_out = arg_pack[2];
-            Expr reshape        = arg_pack[3];
-
+            CHECK(arg_pack[3].is_expr());
+            Expr reshape = arg_pack[3];
+            CHECK(arg_pack[4].is_expr());
             Expr expr0 = arg_pack[4];
+            CHECK(arg_pack[5].is_expr());
             Expr expr1 = arg_pack[5];
+            CHECK(arg_pack[6].is_expr());
             Expr expr2 = arg_pack[6];
 
             std::vector<Expr> vec_ast{expr0, expr1, expr2};
@@ -234,11 +249,15 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
             std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
             *ret = CINNValuePack{res};
           } else if (arg_pack.size() == 5) {
-            Expr out            = arg_pack[0];
-            Expr tmp_out        = arg_pack[1];
+            CHECK(arg_pack[0].is_expr());
+            Expr out = arg_pack[0];
+            CHECK(arg_pack[1].is_expr());
+            Expr tmp_out = arg_pack[1];
+            CHECK(arg_pack[2].is_expr());
             Expr reduce_tmp_out = arg_pack[2];
-
+            CHECK(arg_pack[3].is_expr());
             Expr expr0 = arg_pack[3];
+            CHECK(arg_pack[4].is_expr());
             Expr expr1 = arg_pack[4];
 
             std::vector<Expr> vec_ast{expr0, expr1};
@@ -260,8 +279,9 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
           }
         } else {
           if (arg_pack.size() == 2) {
+            CHECK(arg_pack[0].is_expr());
             Expr reduce_out = arg_pack[0];
-
+            CHECK(arg_pack[1].is_expr());
             Expr expr0 = arg_pack[1];
             std::vector<Expr> vec_ast{expr0};
 
@@ -276,11 +296,15 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
             std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
             *ret = CINNValuePack{res};
           } else if (arg_pack.size() == 5) {
-            Expr reduce_out      = arg_pack[0];
+            CHECK(arg_pack[0].is_expr());
+            Expr reduce_out = arg_pack[0];
+            CHECK(arg_pack[1].is_expr());
             Expr reduce_internal = arg_pack[1];
-            Expr reduce_reshape  = arg_pack[2];
-
+            CHECK(arg_pack[2].is_expr());
+            Expr reduce_reshape = arg_pack[2];
+            CHECK(arg_pack[3].is_expr());
             Expr expr0 = arg_pack[3];
+            CHECK(arg_pack[4].is_expr());
             Expr expr1 = arg_pack[4];
 
             std::vector<Expr> vec_ast{expr0, expr1};

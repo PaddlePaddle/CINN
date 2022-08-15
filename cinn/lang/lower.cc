@@ -33,34 +33,39 @@ namespace lang {
 using ir::Tensor;
 using poly::Stage;
 
-std::vector<ir::Argument> GetArgs(const Expr& func_body, const std::vector<ir::Tensor>& input_args) {
+std::vector<ir::Argument> GetArgs(const Expr& func_body, const std::vector<std::string>& input_output_nodes) {
   std::vector<ir::Argument> res;
-  std::set<std::string> arg_name;
-  std::set<std::string> appearing_tensor_names;
-  auto all_appearing_tensors = ir::CollectIRNodesWithoutTensor(func_body, [&](const Expr* x) {
-    if (x->as_tensor()) appearing_tensor_names.insert(x->as_tensor()->name);
-    return x->as_tensor();
+  std::set<std::string> load_tensors;
+  std::set<std::string> store_tensors;
+  auto store_nodes = ir::CollectIRNodesWithoutTensor(func_body, [&](const Expr* x) {
+    if (x->As<ir::Store>()) store_tensors.insert(x->As<ir::Store>()->tensor.as_tensor_ref()->name);
+    return x->As<ir::Store>();
+  });
+  auto load_nodes  = ir::CollectIRNodesWithoutTensor(func_body, [&](const Expr* x) {
+    if (x->As<ir::Load>()) load_tensors.insert(x->As<ir::Load>()->tensor.as_tensor_ref()->name);
+    return x->As<ir::Load>();
   });
 
-  for (auto& i : input_args) {
-    CHECK(i->buffer.defined());
-    if (arg_name.count(i->buffer->name)) continue;
-    if (!appearing_tensor_names.count(i->name)) continue;
-    if (utils::Endswith(i->buffer->name, "temp_buffer")) continue;
-    arg_name.insert(i->buffer->name);
-    res.emplace_back(i->buffer, ir::Argument::IO::kInput);
+  for (auto& i : input_output_nodes) {
+    if (load_tensors.count(i) && !store_tensors.count(i)) {
+      for (auto& j : load_nodes) {
+        auto load_tensor = j.As<ir::Load>()->tensor.as_tensor_ref();
+        if (load_tensor->buffer.defined() && load_tensor->name == i) {
+          res.emplace_back(load_tensor->buffer, ir::Argument::IO::kInput);
+          break;
+        }
+      }
+    } else if (store_tensors.count(i) && !load_tensors.count(i)) {
+      for (auto& j : store_nodes) {
+        auto store_tensor = j.As<ir::Store>()->tensor.as_tensor_ref();
+        if (store_tensor->buffer.defined() && store_tensor->name == i) {
+          res.emplace_back(store_tensor->buffer, ir::Argument::IO::kOutput);
+          break;
+        }
+      }
+    }
   }
-  auto all_output_tensors = ir::CollectIRNodesWithoutTensor(func_body, [&](const Expr* x) {
-    return x->As<ir::Store>() && x->As<ir::Store>()->tensor.as_tensor() &&
-           x->As<ir::Store>()->tensor.as_tensor_ref()->buffer.defined() &&
-           x->As<ir::Store>()->tensor.as_tensor_ref()->buffer->memory_type != ir::MemoryType::GPUShared &&
-           x->As<ir::Store>()->tensor.as_tensor_ref()->buffer->memory_type != ir::MemoryType::GPULocal;
-  });
-  for (auto i : all_output_tensors) {
-    if (arg_name.count(i.As<ir::Store>()->tensor.as_tensor_ref()->buffer->name)) continue;
-    res.emplace_back(i.As<ir::Store>()->tensor.as_tensor_ref()->buffer, ir::Argument::IO::kOutput);
-    arg_name.insert(i.As<ir::Store>()->tensor.as_tensor_ref()->buffer->name);
-  }
+  for (auto& i : input_output_nodes) VLOG(3) << "In input_output_nodes, arg has : " << i;
   for (auto& i : res) VLOG(3) << "In res, arg has : " << i.name();
   return res;
 }
