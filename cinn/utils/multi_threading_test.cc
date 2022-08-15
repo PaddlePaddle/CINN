@@ -14,14 +14,43 @@
 
 #include "cinn/utils/multi_threading.h"
 
+#include <glog/logging.h>
 #include <gtest/gtest.h>
+
+#include <memory>
+#include <vector>
 
 namespace cinn {
 namespace utils {
 
-TEST(JobDispatcher, SequenceDispatcher) {}
+TEST(JobDispatcher, SequenceDispatcher) {
+  std::unique_ptr<JobDispatcher> dispatcher = std::make_unique<SequenceDispatcher>(1, 3);
+  ASSERT_EQ(1, dispatcher->Next());
+  ASSERT_EQ(2, dispatcher->Next());
+  ASSERT_EQ(-1, dispatcher->Next());
+}
 
-TEST(parallel_run, Basic) {}
+TEST(parallel_run, Basic) {
+  std::vector<int> results(100, -1);
+  auto woker_fn = [&results](int index) {
+    CHECK_LT(index, results.size()) << "index invalid";
+    results[index] = index;
+  };
+  parallel_run(woker_fn, SequenceDispatcher(0, 100), 2);
+  for (int i = 0; i < 100; ++i) {
+    ASSERT_EQ(results[i], i);
+  }
+
+  results.assign(100, -1);
+  parallel_run(woker_fn, SequenceDispatcher(0, 100, 3), 3);
+  for (int i = 0; i < 100; ++i) {
+    if (i % 3 == 0) {
+      ASSERT_EQ(results[i], i);
+    } else {
+      ASSERT_EQ(results[i], -1);
+    }
+  }
+}
 
 }  // namespace utils
 }  // namespace cinn

@@ -16,6 +16,8 @@
 
 #include <exception>
 
+#include "cinn/utils/multi_threading.h"
+
 namespace cinn {
 namespace auto_schedule {
 
@@ -55,7 +57,8 @@ std::vector<MeasureResult> ScheduleMeasurer::Measure(const std::vector<MeasureIn
   };
 
   if (num_threads_ > 1) {
-    // TODO
+    utils::parallel_run(build_fn, utils::SequenceDispatcher(0, inputs.size()), num_threads_);
+    utils::parallel_run(run_fn, utils::SequenceDispatcher(0, inputs.size()), num_threads_);
   } else {
     for (int i = 0; i < inputs.size(); ++i) {
       build_fn(i);

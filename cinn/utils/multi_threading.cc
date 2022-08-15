@@ -48,14 +48,17 @@ void parallel_run(const WorkerFuncType& fn, JobDispatcher&& dispatcher, int num_
   CHECK_GT(num_threads, 0) << "num_threads should be greater than 0";
 
   // worker function of a thread
-  auto worker = [&fn, &dispatcher](int tid) -> void {
-    int index = -1;
+  auto worker = [&fn, &dispatcher](int tid) -> int {
+    int index = -1, counter = 0;
     while ((index = dispatcher.Next()) != -1) {
+      VLOG(5) << "Thread-" << tid << " process at index:" << index;
       fn(index);
+      ++counter;
     }
+    return counter;
   };
 
-  std::vector<std::future<void>> futures;
+  std::vector<std::future<int>> futures;
   std::vector<std::thread> threads;
   // The first thread runs inplace, and other `num_threads - 1` threads launched
   // with std::future to run asynchronously
@@ -63,7 +66,7 @@ void parallel_run(const WorkerFuncType& fn, JobDispatcher&& dispatcher, int num_
     futures.reserve(num_threads - 1);
     threads.reserve(num_threads - 1);
     for (int tid = 1; tid < num_threads; ++tid) {
-      std::packaged_task<void(int)> task(worker);
+      std::packaged_task<int(int)> task(worker);
       futures.emplace_back(task.get_future());
       threads.emplace_back(std::move(task), tid);
     }
@@ -71,9 +74,14 @@ void parallel_run(const WorkerFuncType& fn, JobDispatcher&& dispatcher, int num_
 
   // wait results and catch exceptions
   try {
-    worker(0);
+    int tid     = 0;
+    int counter = worker(tid);
+    VLOG(4) << "Thread-0  process " << counter << " tasks.";
+
     for (auto&& future : futures) {
-      future.get();
+      counter = future.get();
+      ++tid;
+      VLOG(4) << "Thread-" << tid << " process " << counter << " tasks.";
     }
   } catch (const std::exception& e) {
     LOG(FATAL) << "parallel_run incurs error:" << e.what();
