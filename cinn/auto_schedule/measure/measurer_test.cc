@@ -63,7 +63,7 @@ TEST(ScheduleMeasurer, Basic) {
     inputs[i].task = task;
     // TODO(CtfGo): currently FusedGraphToLoweredFunc doesn't work well on NVGPU target,
     // this setting of lowered_funcs will be enabled once we fix the bug
-    // inputs[i].lowered_funcs = graph_compiler->FusedGraphToLoweredFunc(task->task_graph());
+    // inputs[i].lowered_funcs = graph_compiler->FusedGraphToLoweredFunc(task->task_graph);
   }
 
   auto builder                       = std::make_unique<SimpleBuilder>(graph_compiler.get());

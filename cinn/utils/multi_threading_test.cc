@@ -27,6 +27,7 @@ TEST(JobDispatcher, SequenceDispatcher) {
   std::unique_ptr<JobDispatcher> dispatcher = std::make_unique<SequenceDispatcher>(1, 3);
   ASSERT_EQ(1, dispatcher->Next());
   ASSERT_EQ(2, dispatcher->Next());
+  // check reach the end
   ASSERT_EQ(-1, dispatcher->Next());
 }
 
@@ -36,11 +37,13 @@ TEST(parallel_run, Basic) {
     CHECK_LT(index, results.size()) << "index invalid";
     results[index] = index;
   };
+  // check process every index in the extent of [0, 100) with step 1
   parallel_run(woker_fn, SequenceDispatcher(0, 100), 2);
   for (int i = 0; i < 100; ++i) {
     ASSERT_EQ(results[i], i);
   }
 
+  // check only indexes in the extent of [0, 100) with step 3 are processed
   results.assign(100, -1);
   parallel_run(woker_fn, SequenceDispatcher(0, 100, 3), 3);
   for (int i = 0; i < 100; ++i) {

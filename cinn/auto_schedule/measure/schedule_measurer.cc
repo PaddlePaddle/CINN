@@ -32,6 +32,7 @@ std::vector<MeasureResult> ScheduleMeasurer::Measure(const std::vector<MeasureIn
   std::vector<BuildResult> build_results(inputs.size());
   std::vector<MeasureResult> results(inputs.size());
 
+  // define how to build a candidate with the specified index
   auto build_fn = [builder = builder_, &inputs, &build_results, &results](int index) {
     VLOG(6) << "Build candidate:" << index;
     auto m_start = std::chrono::steady_clock::now();
@@ -44,6 +45,7 @@ std::vector<MeasureResult> ScheduleMeasurer::Measure(const std::vector<MeasureIn
     results[index].elapsed_time += static_cast<double>(time_span.count());
   };
 
+  // define how to run a candidate with the specified index
   auto run_fn = [runner = runner_, &inputs, &build_results, &results](int index) {
     VLOG(6) << "Run candidate:" << index;
     auto m_start = std::chrono::steady_clock::now();
@@ -56,15 +58,13 @@ std::vector<MeasureResult> ScheduleMeasurer::Measure(const std::vector<MeasureIn
     results[index].elapsed_time += static_cast<double>(time_span.count());
   };
 
-  if (num_threads_ > 1) {
-    utils::parallel_run(build_fn, utils::SequenceDispatcher(0, inputs.size()), num_threads_);
-    utils::parallel_run(run_fn, utils::SequenceDispatcher(0, inputs.size()), num_threads_);
-  } else {
-    for (int i = 0; i < inputs.size(); ++i) {
-      build_fn(i);
-      run_fn(i);
-    }
-  }
+  // measure a candidate by calling build and run successively
+  auto measure_fn = [&build_fn, &run_fn](int index) {
+      build_fn(index);
+      run_fn(index);
+  };
+  // default num_threads_ is 1 and in that case it will perform all measurements sequentially inplace.
+  utils::parallel_run(measure_fn, utils::SequenceDispatcher(0, inputs.size()), num_threads_);
 
   VLOG(4) << "Measure " << inputs.size() << " candidates";
   return results;
