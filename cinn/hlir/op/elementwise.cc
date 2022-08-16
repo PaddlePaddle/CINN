@@ -82,18 +82,23 @@ std::shared_ptr<OpStrategy> StrategyForElementwise(const framework::NodeAttr &at
     if (FLAGS_cinn_ir_schedule) {
       CHECK(!args.empty()) << "The input argument of " << op_name << " schedule is empty! Please check.";
       CINNValuePack arg_pack = args[0];
-      CHECK(arg_pack[0].is_expr());
-      Expr ast_expr = arg_pack[0];
-      std::vector<Expr> vec_ast{ast_expr};
+      std::vector<Expr> vec_ast;
+      for (int i = 0; i < arg_pack.size(); i++) {
+        if (arg_pack[i].is_expr()) {
+          Expr temp = arg_pack[i];
+          vec_ast.emplace_back(temp);
+        }
+      }
+      CHECK(!vec_ast.empty());
       ir::ModuleExpr mod_expr(vec_ast);
       ir::IRSchedule ir_sch(mod_expr);
+      ir_sch.MergeExprs();
       if (target.arch == Target::Arch::NVGPU) {
         pe::IRCudaScheduleInjective(ir_sch, output_shapes.front(), target);
       } else if (target.arch == Target::Arch::X86) {
         pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target);
       }
-      std::vector<CINNValue> res;
-      res.push_back(arg_pack[0]);
+      std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
       *ret = CINNValuePack{res};
     } else {
       CHECK(!args.empty()) << "The input argument of " << op_name << " schedule is empty! Please check.";
@@ -184,18 +189,23 @@ std::shared_ptr<OpStrategy> StrategyForScale(const framework::NodeAttr &attrs,
     if (FLAGS_cinn_ir_schedule) {
       CHECK(!args.empty()) << "The input argument of scale schedule is empty! Please check.";
       CINNValuePack arg_pack = args[0];
-      CHECK(arg_pack[0].is_expr());
-      Expr ast_expr = arg_pack[0];
-      std::vector<Expr> vec_ast{ast_expr};
+      std::vector<Expr> vec_ast;
+      for (int i = 0; i < arg_pack.size(); i++) {
+        if (arg_pack[i].is_expr()) {
+          Expr temp = arg_pack[i];
+          vec_ast.emplace_back(temp);
+        }
+      }
+      CHECK(!vec_ast.empty());
       ir::ModuleExpr mod_expr(vec_ast);
       ir::IRSchedule ir_sch(mod_expr);
+      ir_sch.MergeExprs();
       if (target.arch == Target::Arch::NVGPU) {
         pe::IRCudaScheduleInjective(ir_sch, output_shapes.front(), target);
       } else if (target.arch == Target::Arch::X86) {
         pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target);
       }
-      std::vector<CINNValue> res;
-      res.push_back(arg_pack[0]);
+      std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
       *ret = CINNValuePack{res};
     } else {
       CHECK(!args.empty()) << "The input argument of scale schedule is empty! Please check.";
@@ -264,18 +274,23 @@ std::shared_ptr<OpStrategy> StrategyForConstScalar(const framework::NodeAttr &at
     if (FLAGS_cinn_ir_schedule) {
       CHECK(!args.empty()) << "The input argument of create_const_float schedule is empty! Please check.";
       CINNValuePack arg_pack = args[0];
-      CHECK(arg_pack[0].is_expr());
-      Expr ast_expr = arg_pack[0];
-      std::vector<Expr> vec_ast{ast_expr};
+      std::vector<Expr> vec_ast;
+      for (int i = 0; i < arg_pack.size(); i++) {
+        if (arg_pack[i].is_expr()) {
+          Expr temp = arg_pack[i];
+          vec_ast.emplace_back(temp);
+        }
+      }
+      CHECK(!vec_ast.empty());
       ir::ModuleExpr mod_expr(vec_ast);
       ir::IRSchedule ir_sch(mod_expr);
+      ir_sch.MergeExprs();
       if (target.arch == Target::Arch::NVGPU) {
         pe::IRCudaScheduleInjective(ir_sch, output_shapes.front(), target);
       } else if (target.arch == Target::Arch::X86) {
         pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target);
       }
-      std::vector<CINNValue> res;
-      res.push_back(arg_pack[0]);
+      std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
       *ret = CINNValuePack{res};
     } else {
       CHECK(!args.empty()) << "The input argument of create_const_float schedule is empty! Please check.";
@@ -390,19 +405,23 @@ std::shared_ptr<OpStrategy> StrategyForFillConstant(const framework::NodeAttr &a
     if (FLAGS_cinn_ir_schedule) {
       CHECK(!args.empty()) << "The input argument of create_const_float schedule is empty! Please check.";
       CINNValuePack arg_pack = args[0];
-      CHECK_GE(arg_pack.size(), 1UL);
-      CHECK(arg_pack[0].is_expr());
-      Expr ast_expr = arg_pack[0];
-      std::vector<Expr> vec_ast{ast_expr};
+      std::vector<Expr> vec_ast;
+      for (int i = 0; i < arg_pack.size(); i++) {
+        if (arg_pack[i].is_expr()) {
+          Expr temp = arg_pack[i];
+          vec_ast.emplace_back(temp);
+        }
+      }
+      CHECK(!vec_ast.empty());
       ir::ModuleExpr mod_expr(vec_ast);
       ir::IRSchedule ir_sch(mod_expr);
+      ir_sch.MergeExprs();
       if (target.arch == Target::Arch::NVGPU) {
         pe::IRCudaScheduleInjective(ir_sch, output_shapes.front(), target);
       } else if (target.arch == Target::Arch::X86) {
         pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target);
       }
-      std::vector<CINNValue> res;
-      res.push_back(arg_pack[0]);
+      std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
       *ret = CINNValuePack{res};
     } else {
       CHECK(!args.empty()) << "The input argument of create_const_float schedule is empty! Please check.";
