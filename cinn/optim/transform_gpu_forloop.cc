@@ -137,13 +137,15 @@ void MarkGpuForloop(const std::string &statement,
                     const std::set<std::string> gpu_launch_axis,
                     std::map<std::string, ir::Tensor> *global_tensor_map,
                     std::unordered_set<std::string> &resized_buffer,
-                    Expr *expr) {
+                    Expr *expr,
+                    bool handle_bind_info) {
   struct Mutator : public ir::IRMutator<Expr *> {
     const std::string &statement;
     const std::map<std::string, poly::StageForloopInfo> forloop_infos;
     std::map<std::string, ir::Tensor> *global_tensor_map;
     std::set<std::string> gpu_launch_axis;
     std::unordered_set<std::string> &resized_buffer;
+    bool handle_bind_info;
     /**
      * @param statement the tuple name.
      * @param forloop_infos the axis.
@@ -152,12 +154,14 @@ void MarkGpuForloop(const std::string &statement,
             const std::map<std::string, poly::StageForloopInfo> &forloop_infos,
             std::set<std::string> gpu_launch_axis,
             std::map<std::string, ir::Tensor> *global_tensor_map,
-            std::unordered_set<std::string> &resized_buffer)
+            std::unordered_set<std::string> &resized_buffer,
+            bool handle_bind_info)
         : statement(statement),
           forloop_infos(forloop_infos),
           gpu_launch_axis(gpu_launch_axis),
           global_tensor_map(global_tensor_map),
-          resized_buffer(resized_buffer) {}
+          resized_buffer(resized_buffer),
+          handle_bind_info(handle_bind_info) {}
 
     void operator()(Expr *expr) { ir::IRMutator<>::Visit(expr, expr); }
 
@@ -215,33 +219,35 @@ void MarkGpuForloop(const std::string &statement,
         //    }
         //  }
         // }
-        std::set<std::string> gpu_axis = {
-            "blockIdx.x", "blockIdx.y", "blockIdx.z", "threadIdx.x", "threadIdx.y", "threadIdx.z"};
-        std::set<std::string> loop_gpu_axis;
-        for (auto *expr : forloop_stack) {
-          auto *for_     = expr->As<ir::For>();
-          auto *poly_for = expr->As<ir::PolyFor>();
-          Var axis_var   = for_ ? for_->loop_var : poly_for->iterator;
-          if (gpu_axis.find(axis_var->name) != gpu_axis.end()) {
-            loop_gpu_axis.insert(axis_var->name);
+        if (handle_bind_info) {
+          std::set<std::string> gpu_axis = {
+              "blockIdx.x", "blockIdx.y", "blockIdx.z", "threadIdx.x", "threadIdx.y", "threadIdx.z"};
+          std::set<std::string> loop_gpu_axis;
+          for (auto *expr : forloop_stack) {
+            auto *for_     = expr->As<ir::For>();
+            auto *poly_for = expr->As<ir::PolyFor>();
+            Var axis_var   = for_ ? for_->loop_var : poly_for->iterator;
+            if (gpu_axis.find(axis_var->name) != gpu_axis.end()) {
+              loop_gpu_axis.insert(axis_var->name);
+            }
           }
-        }
-        Expr condition;
-        auto condition_append = [&](Expr new_cond) {
+          Expr condition;
+          auto condition_append = [&](Expr new_cond) {
+            if (condition.defined()) {
+              condition = ir::And::Make(condition, new_cond);
+            } else {
+              condition = new_cond;
+            }
+          };
+          for (auto &axis : gpu_launch_axis) {
+            if (loop_gpu_axis.find(axis) == loop_gpu_axis.end()) {
+              Var cuda_var(axis);
+              condition_append(ir::EQ::Make(Expr(cuda_var), Expr(0)));
+            }
+          }
           if (condition.defined()) {
-            condition = ir::And::Make(condition, new_cond);
-          } else {
-            condition = new_cond;
+            *expr = ir::IfThenElse::Make(condition, *expr);
           }
-        };
-        for (auto &axis : gpu_launch_axis) {
-          if (loop_gpu_axis.find(axis) == loop_gpu_axis.end()) {
-            Var cuda_var(axis);
-            condition_append(ir::EQ::Make(Expr(cuda_var), Expr(0)));
-          }
-        }
-        if (condition.defined()) {
-          *expr = ir::IfThenElse::Make(condition, *expr);
         }
       }
     }
@@ -249,6 +255,7 @@ void MarkGpuForloop(const std::string &statement,
     void MarkForloop(const std::string &tensor_name) {
       // start from 0, threadIdx.x
       for (auto *expr : forloop_stack) {
+        VLOG(3) << "statement is : " << statement;
         VLOG(2) << "expr in forloop_stack is : \n" << *expr;
         auto *for_     = expr->As<ir::For>();
         auto *poly_for = expr->As<ir::PolyFor>();
@@ -272,7 +279,7 @@ void MarkGpuForloop(const std::string &statement,
           }
 
           auto &forloop_info = forloop_infos.at(iterator_name);
-          if (it->second.for_type == ir::ForType::GPUThread) {
+          if (it->second.for_type == ir::ForType::GPUThread && handle_bind_info) {
             Var cuda_var(backends::cuda_thread_axis_name(forloop_info.offset));
             Expr var_expr(cuda_var);
             VLOG(2) << "gpu replacing var " << axis_var->name << " to " << cuda_var->name;
@@ -281,7 +288,7 @@ void MarkGpuForloop(const std::string &statement,
             VLOG(2) << "gpu replacing var " << cuda_var->name << " to Expr(0)";
             optim::CUDAReplaceIndexOfCachePass(
                 expr, var_expr, ir::Expr(0), global_tensor_map, resized_buffer, false, extent);
-          } else if (it->second.for_type == ir::ForType::GPUBlock) {
+          } else if (it->second.for_type == ir::ForType::GPUBlock && handle_bind_info) {
             Var cuda_var(backends::cuda_block_axis_name(forloop_info.offset));
             Expr var_expr(cuda_var);
             VLOG(2) << "gpu replacing var " << axis_var->name << " to " << cuda_var->name;
@@ -292,13 +299,11 @@ void MarkGpuForloop(const std::string &statement,
             optim::CUDAReplaceIndexOfCachePass(
                 expr, var_expr, ir::Expr(0), global_tensor_map, resized_buffer, true, extent);
             VLOG(2) << "After that, expr is : " << *expr;
-          } else if (it->second.for_type == ir::ForType::Default) {
+          } else if (it->second.for_type == ir::ForType::Default && !handle_bind_info) {
             Expr extent = for_ ? for_->extent : poly_for->ExtractExtent();
             VLOG(2) << "ComputeAt replacing var " << axis_var->name << " to Expr(0) in tensor " << tensor_name;
             optim::CUDAReplaceIndexOfCachePass(
                 expr, axis_var, ir::Expr(0), global_tensor_map, resized_buffer, false, extent, tensor_name);
-          } else {
-            CINN_NOT_IMPLEMENTED
           }
         }
       }
@@ -318,7 +323,7 @@ void MarkGpuForloop(const std::string &statement,
     std::vector<Expr *> forloop_stack;
   };
 
-  Mutator mutator(statement, forloop_infos, gpu_launch_axis, global_tensor_map, resized_buffer);
+  Mutator mutator(statement, forloop_infos, gpu_launch_axis, global_tensor_map, resized_buffer, handle_bind_info);
   mutator(expr);
 }
 
@@ -340,7 +345,12 @@ void TransformGpuForloops(const forloop_infos_t &forloop_infos,
   }
   for (auto &i : traverse_order) {
     if (forloop_infos.count(i) == 0) continue;
-    MarkGpuForloop(i, forloop_infos.at(i), gpu_launch_axis, global_tensor_map, resized_buffer, expr);
+    MarkGpuForloop(i, forloop_infos.at(i), gpu_launch_axis, global_tensor_map, resized_buffer, expr, false);
+  }
+
+  for (auto &i : traverse_order) {
+    if (forloop_infos.count(i) == 0) continue;
+    MarkGpuForloop(i, forloop_infos.at(i), gpu_launch_axis, global_tensor_map, resized_buffer, expr, true);
   }
 }
 
