@@ -44,24 +44,6 @@ using BlockReduceFunc = std::function<std::vector<ir::Tensor>(
 using ReduceFunc =
     std::function<ir::Tensor(const ir::Tensor &, const std::vector<int> &, const bool, const std::string &)>;
 
-#define STRATEGY_FOR_REDUCE(                                                                                  \
-    op_name_, reduce_op_, gpu_reduce_with_last_axis_func, gpu_reduce_without_last_axis_func, cpu_reduce_func) \
-  std::shared_ptr<OpStrategy> StrategyFor##reduce_op_(const framework::NodeAttr &attrs,                       \
-                                                      const std::vector<ir::Tensor> &inputs,                  \
-                                                      const std::vector<Type> &out_type,                      \
-                                                      const std::vector<std::vector<int>> &output_shapes,     \
-                                                      const Target &target) {                                 \
-    return StrategyForReduce(attrs,                                                                           \
-                             inputs,                                                                          \
-                             out_type,                                                                        \
-                             output_shapes,                                                                   \
-                             target,                                                                          \
-                             #op_name_,                                                                       \
-                             gpu_reduce_with_last_axis_func,                                                  \
-                             gpu_reduce_without_last_axis_func,                                               \
-                             cpu_reduce_func);                                                                \
-  }
-
 std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
                                               const std::vector<ir::Tensor> &inputs,
                                               const std::vector<Type> &out_type,
@@ -344,6 +326,33 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
   return strategy;
 }
 
+#define STRATEGY_FOR_REDUCE(                                                                                  \
+    op_name_, reduce_op_, gpu_reduce_with_last_axis_func, gpu_reduce_without_last_axis_func, cpu_reduce_func) \
+  std::shared_ptr<OpStrategy> StrategyFor##reduce_op_(const framework::NodeAttr &attrs,                       \
+                                                      const std::vector<ir::Tensor> &inputs,                  \
+                                                      const std::vector<Type> &out_type,                      \
+                                                      const std::vector<std::vector<int>> &output_shapes,     \
+                                                      const Target &target) {                                 \
+    return StrategyForReduce(attrs,                                                                           \
+                             inputs,                                                                          \
+                             out_type,                                                                        \
+                             output_shapes,                                                                   \
+                             target,                                                                          \
+                             #op_name_,                                                                       \
+                             gpu_reduce_with_last_axis_func,                                                  \
+                             gpu_reduce_without_last_axis_func,                                               \
+                             cpu_reduce_func);                                                                \
+  }
+
+STRATEGY_FOR_REDUCE(reduce_sum, ReduceSum, pe::TwoStepBlockReduceSum, pe::BlockShuffleReduceSum, pe::ReduceSum);
+STRATEGY_FOR_REDUCE(reduce_prod, ReduceProd, pe::TwoStepBlockReduceProd, pe::BlockShuffleReduceProd, pe::ReduceProd);
+STRATEGY_FOR_REDUCE(reduce_max, ReduceMax, pe::TwoStepBlockReduceMax, pe::BlockShuffleReduceMax, pe::ReduceMax);
+STRATEGY_FOR_REDUCE(reduce_min, ReduceMin, pe::TwoStepBlockReduceMin, pe::BlockShuffleReduceMin, pe::ReduceMin);
+STRATEGY_FOR_REDUCE(reduce_all, ReduceAll, pe::TwoStepBlockReduceAll, pe::BlockShuffleReduceAll, pe::ReduceAll);
+STRATEGY_FOR_REDUCE(reduce_any, ReduceAny, pe::TwoStepBlockReduceAny, pe::BlockShuffleReduceAny, pe::ReduceAny);
+
+#undef STRATEGY_FOR_REDUCE
+
 std::vector<shape_t> InferShapeForReduction(const std::vector<shape_t> &inputs_shape,
                                             const framework::AttrMapType &attrs) {
   CHECK(inputs_shape.size() == 1UL || inputs_shape.size() == 3UL);
@@ -418,13 +427,6 @@ std::vector<std::vector<std::string>> InferLayoutForBnOptimize(const std::vector
   return {{"", ""}, {"", ""}};
 }
 
-STRATEGY_FOR_REDUCE(reduce_sum, ReduceSum, pe::TwoStepBlockReduceSum, pe::BlockShuffleReduceSum, pe::ReduceSum);
-STRATEGY_FOR_REDUCE(reduce_prod, ReduceProd, pe::TwoStepBlockReduceProd, pe::BlockShuffleReduceProd, pe::ReduceProd);
-STRATEGY_FOR_REDUCE(reduce_max, ReduceMax, pe::TwoStepBlockReduceMax, pe::BlockShuffleReduceMax, pe::ReduceMax);
-STRATEGY_FOR_REDUCE(reduce_min, ReduceMin, pe::TwoStepBlockReduceMin, pe::BlockShuffleReduceMin, pe::ReduceMin);
-
-#undef STRATEGY_FOR_REDUCE
-
 }  // namespace op
 }  // namespace hlir
 }  // namespace cinn
@@ -446,6 +448,8 @@ CINN_REGISTER_HELPER(reduce_ops) {
   CINN_REGISTER_REDUCTION(reduce_prod, ReduceProd);
   CINN_REGISTER_REDUCTION(reduce_max, ReduceMax);
   CINN_REGISTER_REDUCTION(reduce_min, ReduceMin);
+  CINN_REGISTER_REDUCTION(reduce_all, ReduceAll);
+  CINN_REGISTER_REDUCTION(reduce_any, ReduceAny);
 
 #undef CINN_REGISTER_REDUCTION
 

@@ -108,6 +108,8 @@ void BindPE(py::module* m) {
   BIND_REDUCE(reduce_prod, ReduceProd);
   BIND_REDUCE(reduce_max, ReduceMax);
   BIND_REDUCE(reduce_min, ReduceMin);
+  BIND_REDUCE(reduce_all, ReduceAll);
+  BIND_REDUCE(reduce_any, ReduceAny);
 
   m->def("matmul",
          &hlir::pe::Matmul,

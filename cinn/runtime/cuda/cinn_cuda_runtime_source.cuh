@@ -41,9 +41,11 @@ __device__ inline float cinn_sum(const float left, const float right) { return l
 __device__ inline float cinn_prod(const float left, const float right) { return left * right; }
 __device__ inline float cinn_max(const float left, const float right) { return max(left, right); }
 __device__ inline float cinn_min(const float left, const float right) { return min(left, right); }
+__device__ inline bool cinn_all(const bool left, const bool right) { return left && right; }
+__device__ inline bool cinn_any(const bool left, const bool right) { return left || right; }
 
-#define cinn_warp_shuffle_internal_kernel(value, op)                        \
-  float tmp_val     = value;                                                \
+#define cinn_warp_shuffle_internal_kernel(TYPE, value, op)                        \
+  TYPE tmp_val     = value;                                                \
   unsigned int mask = __activemask();                                       \
   tmp_val           = op(tmp_val, __shfl_down_sync(mask, tmp_val, 16, 32)); \
   tmp_val           = op(tmp_val, __shfl_down_sync(mask, tmp_val, 8, 32));  \
@@ -54,17 +56,25 @@ __device__ inline float cinn_min(const float left, const float right) { return m
   return tmp_val;
 
 __device__ inline float cinn_warp_shuffle_sum_internal(const float value) {
-  cinn_warp_shuffle_internal_kernel(value, cinn_sum);
+  cinn_warp_shuffle_internal_kernel(float, value, cinn_sum);
 }
 __device__ inline float cinn_warp_shuffle_prod_internal(const float value) {
-  cinn_warp_shuffle_internal_kernel(value, cinn_prod);
+  cinn_warp_shuffle_internal_kernel(float, value, cinn_prod);
 }
 __device__ inline float cinn_warp_shuffle_max_internal(const float value) {
-  cinn_warp_shuffle_internal_kernel(value, cinn_max);
+  cinn_warp_shuffle_internal_kernel(float, value, cinn_max);
 }
 __device__ inline float cinn_warp_shuffle_min_internal(const float value) {
-  cinn_warp_shuffle_internal_kernel(value, cinn_min);
+  cinn_warp_shuffle_internal_kernel(float, value, cinn_min);
 }
+__device__ inline bool cinn_warp_shuffle_all_internal(const bool value) {
+  cinn_warp_shuffle_internal_kernel(bool, value, cinn_all);
+}
+__device__ inline bool cinn_warp_shuffle_any_internal(const bool value) {
+  cinn_warp_shuffle_internal_kernel(bool, value, cinn_any);
+}
+
+#undef cinn_warp_shuffle_internal_kernel
 
 __device__ inline float cinn_warp_reduce_max(const float *buf, int offset, int extend) {
   float tmp_val = -3.402823e+38f;
@@ -86,13 +96,13 @@ __device__ inline float cinn_warp_reduce_avg(const float *buf, int offset, int e
   return cinn_warp_reduce_sum(buf, offset, extend) / extend;
 }
 
-#define cinn_block_reduce_internal_kernel(value, init_value, cinn_warp_shuffle_internal) \
+#define cinn_block_reduce_internal_kernel(TYPE, value, init_value, cinn_warp_shuffle_internal) \
   int warp_id = threadIdx.x / 32;                                                        \
-  __shared__ float tmp[32];                                                              \
+  __shared__ TYPE tmp[32];                                                    \
   if (warp_id == 0) {                                                                    \
     tmp[threadIdx.x] = init_value;                                                       \
   }                                                                                      \
-  float tmp_val = cinn_warp_shuffle_internal(value);                                     \
+  TYPE tmp_val = cinn_warp_shuffle_internal(value);                                     \
   if (blockDim.x <= 32) {                                                                \
     return tmp_val;                                                                      \
   }                                                                                      \
@@ -113,20 +123,30 @@ __device__ inline float cinn_warp_reduce_avg(const float *buf, int offset, int e
 
 // block reduce sum internal
 __device__ inline float cinn_block_reduce_sum_internal(const float value) {
-  cinn_block_reduce_internal_kernel(value, 0.0f, cinn_warp_shuffle_sum_internal);
+  cinn_block_reduce_internal_kernel(float, value, 0.0f, cinn_warp_shuffle_sum_internal);
 }
 // block reduce prod internal
 __device__ inline float cinn_block_reduce_prod_internal(const float value) {
-  cinn_block_reduce_internal_kernel(value, 1.0f, cinn_warp_shuffle_prod_internal);
+  cinn_block_reduce_internal_kernel(float, value, 1.0f, cinn_warp_shuffle_prod_internal);
 }
 // block reduce max internal
 __device__ inline float cinn_block_reduce_max_internal(const float value) {
-  cinn_block_reduce_internal_kernel(value, -1e38f, cinn_warp_shuffle_max_internal);
+  cinn_block_reduce_internal_kernel(float, value, -1e38f, cinn_warp_shuffle_max_internal);
 }
 // block reduce min internal
 __device__ inline float cinn_block_reduce_min_internal(const float value) {
-  cinn_block_reduce_internal_kernel(value, 1e38f, cinn_warp_shuffle_min_internal);
+  cinn_block_reduce_internal_kernel(float, value, 1e38f, cinn_warp_shuffle_min_internal);
 }
+// block reduce all internal
+__device__ inline bool cinn_block_reduce_all_internal(const bool value) {
+  cinn_block_reduce_internal_kernel(bool, value, true, cinn_warp_shuffle_all_internal);
+}
+// block reduce any internal
+__device__ inline bool cinn_block_reduce_any_internal(const bool value) {
+  cinn_block_reduce_internal_kernel(bool, value, false, cinn_warp_shuffle_any_internal);
+}
+
+#undef cinn_block_reduce_internal_kernel
 
 // block reduce sum
 __device__ inline float cinn_block_reduce_sum(const float *buf, int offset, int extend) {
@@ -159,6 +179,22 @@ __device__ inline float cinn_block_reduce_min(const float *buf, int offset, int 
     tmp_val = min(tmp_val, buf[offset + i]);
   }
   return cinn_block_reduce_min_internal(tmp_val);
+}
+// block reduce all
+__device__ inline bool cinn_block_reduce_all(const bool *buf, int offset, int extend) {
+  bool tmp_val = true;
+  for (int i = threadIdx.x; i < extend; i += blockDim.x) {
+    tmp_val = tmp_val && buf[offset + i];
+  }
+  return cinn_block_reduce_all_internal(tmp_val);
+}
+// block reduce any
+__device__ inline bool cinn_block_reduce_any(const bool *buf, int offset, int extend) {
+  bool tmp_val = false;
+  for (int i = threadIdx.x; i < extend; i += blockDim.x) {
+    tmp_val = tmp_val || buf[offset + i];
+  }
+  return cinn_block_reduce_any_internal(tmp_val);
 }
 
 #define __cinn_cuda_find_kernel(buf, size, num) \
@@ -213,16 +249,20 @@ __device__ inline float cinn_cuda_index_add(const float x,
   return res;
 }
 
-#define block_shuffle_kernel(name, op, init_value)                                       \
-  __device__ inline float block_shuffle_##name(const float *buf, int line, int stride) { \
-    float val = init_value;                                                              \
+#define block_shuffle_kernel(TYPE, name, op, init_value)                               \
+  __device__ inline TYPE block_shuffle_##name(const TYPE *buf, int line, int stride) { \
+    TYPE val = init_value;                                                              \
     for (int idx = threadIdx.x; idx < line; idx += stride) {                             \
       val = op(val, buf[idx]);                                                           \
     }                                                                                    \
     return val;                                                                          \
   }
 
-block_shuffle_kernel(sum, cinn_sum, 0.0f);
-block_shuffle_kernel(prod, cinn_prod, 1.0f);
-block_shuffle_kernel(max, cinn_max, -3.402823e+38f);
-block_shuffle_kernel(min, cinn_min, 3.402823e+38f);
+block_shuffle_kernel(float, sum, cinn_sum, 0.0f);
+block_shuffle_kernel(float, prod, cinn_prod, 1.0f);
+block_shuffle_kernel(float, max, cinn_max, -3.402823e+38f);
+block_shuffle_kernel(float, min, cinn_min, 3.402823e+38f);
+block_shuffle_kernel(bool, all, cinn_all, true);
+block_shuffle_kernel(bool, any, cinn_any, false);
+
+#undef block_shuffle_kernel

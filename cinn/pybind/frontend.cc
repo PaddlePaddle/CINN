@@ -325,6 +325,8 @@ void BindFrontend(pybind11::module *m) {
       .value("kProd", ReduceKind::kProd)
       .value("kMax", ReduceKind::kMax)
       .value("kMin", ReduceKind::kMin)
+      .value("kAll", ReduceKind::kAll)
+      .value("kAny", ReduceKind::kAny)
       .export_values();
 
   py::class_<BaseBuilder>(*m, "BaseBuilder")
@@ -448,6 +450,8 @@ void BindFrontend(pybind11::module *m) {
            py::arg("axis") = -1)
       .def("relu6", &NetBuilder::Relu6, py::arg("a"), py::arg("threshold") = 6.0f)
       .def("reduce_sum", &NetBuilder::ReduceSum, py::arg("x"), py::arg("dim"), py::arg("keep_dim") = false)
+      .def("all", &NetBuilder::All, py::arg("x"), py::arg("dim"), py::arg("keep_dim") = false)
+      .def("any", &NetBuilder::Any, py::arg("x"), py::arg("dim"), py::arg("keep_dim") = false)
       .def("conv2d",
            &NetBuilder::Conv2d,
            py::arg("a"),

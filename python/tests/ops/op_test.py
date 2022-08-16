@@ -133,6 +133,26 @@ class OpTest(unittest.TestCase):
                 actual.flatten()[offset], max_diff, absolute_diff[offset])
             return error_message
 
+        def _compute_bool_error(output_id, expect, actual):
+            expect_flatten = expect.flatten()
+            actual_flatten = actual.flatten()
+            self.assertEqual(
+                len(expect_flatten), len(actual_flatten),
+                "[{}] The {}-th output size different, which expect shape is {} but actual is {}."
+                .format(self._get_device(), output_id, expect.shape,
+                        actual.shape))
+            num_diffs = 0
+            offset = -1
+            for i in range(len(expect_flatten)):
+                if expect_flatten[i] != actual_flatten[i]:
+                    num_diffs = num_diffs + 1
+                    offset = i if offset == -1 else offset
+
+            error_message = "[{}] The {}-th output: total {} different results, the first different result's offset={}, where expect value is {} but actual is {}.".format(
+                self._get_device(), output_id, num_diffs, offset,
+                expect_flatten[offset], actual_flatten[offset])
+            return error_message
+
         self.assertEqual(len(expect_res), len(actual_res))
         for i in range(len(expect_res)):
             if expect_res[i] is None:
@@ -143,13 +163,31 @@ class OpTest(unittest.TestCase):
             else:
                 expect = expect_res[i]
             actual = actual_res[i]
-            is_allclose = np.allclose(
-                expect, actual, atol=1e-6, rtol=max_relative_error)
-            if not is_allclose:
-                error_message = _compute_max_relative_error(i, expect, actual)
+
+            self.assertEqual(expect.dtype, actual.dtype)
+            if actual.dtype is np.dtype('float32') or actual.dtype is np.dtype(
+                    'float64'):
+                is_allclose = np.allclose(
+                    expect, actual, atol=1e-6, rtol=max_relative_error)
+                if not is_allclose:
+                    error_message = _compute_max_relative_error(
+                        i, expect, actual)
+                else:
+                    error_message = "np.allclose(expect, actual, atol=1e-6, rtol={}) checks succeed!".format(
+                        max_relative_error)
+            elif actual.dtype is np.dtype('bool'):
+                is_allclose = np.all(expect == actual)
+
+                if not is_allclose:
+                    error_message = _compute_bool_error(i, expect, actual)
+                else:
+                    error_message = "(expect == actual) checks succeed!"
             else:
-                error_message = "np.allclose(expect, actual, atol=1e-6, rtol={}) checks succeed!".format(
-                    max_relative_error)
+                self.assertRaises(
+                    NotImplementedError,
+                    "Only support float/double/bool now, type {} not support.".
+                    format(actual.dtype))
+
             logger.debug("{} {}".format(is_allclose, error_message))
             self.assertTrue(is_allclose, error_message)
 
