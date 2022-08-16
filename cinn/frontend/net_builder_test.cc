@@ -478,6 +478,5 @@ TEST(net_build, program_argmin_case2) {
   }
 }
 
-
 }  // namespace frontend
 }  // namespace cinn

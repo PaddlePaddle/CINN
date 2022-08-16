@@ -52,9 +52,10 @@ Tensor Argmin(const Tensor &in_tensor, const int &axis, const bool keep_dims, co
     output_shape.push_back(Expr(1));
   }
 
-  auto temp_tensor = Compute({shape[real_axis]+1}, [=](const std::vector<Expr> &indices) -> Expr {
-    return lang::Identity(Expr(-3.402823e+38f));
-  }, output_name + "_temp");
+  auto temp_tensor = Compute(
+      {shape[real_axis] + 1},
+      [=](const std::vector<Expr> &indices) -> Expr { return lang::Identity(Expr(-3.402823e+38f)); },
+      output_name + "_temp");
 
   auto compute = [=](const std::vector<Expr> &indices) -> Expr {
     std::vector<Expr> cur_indices(indices);
@@ -70,16 +71,16 @@ Tensor Argmin(const Tensor &in_tensor, const int &axis, const bool keep_dims, co
     Var loop_var("k0", Int(32));
     cur_indices[real_axis]  = Expr(loop_var);
     last_indices[real_axis] = Expr(loop_var) - 1;
-    auto value      = in_tensor(cur_indices);
-    auto last_value = in_tensor(last_indices);
+    auto value              = in_tensor(cur_indices);
+    auto last_value         = in_tensor(last_indices);
 
-    auto update     = ir::GT::Make(value, last_value);
-    auto c_v = ir::Select::Make(update, value, last_value);
-    auto c_i = ir::Select::Make(update, Expr(loop_var), Expr(0));
+    auto update = ir::GT::Make(value, last_value);
+    auto c_v    = ir::Select::Make(update, value, last_value);
+    auto c_i    = ir::Select::Make(update, Expr(loop_var), Expr(0));
 
     Expr body1 = ir::Store::Make(temp_tensor, c_v, {Expr(loop_var)});
     Expr body2 = ir::Store::Make(temp_tensor, c_i, {Expr(0)});
-    Expr body = ir::Block::Make({body1, body2});
+    Expr body  = ir::Block::Make({body1, body2});
 
     auto forloop = ir::For::Make(
         loop_var, common::make_const(1), shape[real_axis], ir::ForType::Serial, ir::DeviceAPI::Host, body);
@@ -99,9 +100,9 @@ Tensor Argmin(const Tensor &in_tensor, const int &axis, const bool keep_dims, co
     //    auto min_value = ir::Tensor(p_min_value);
     //    auto min_index = ir::Tensor(p_min_index);
     //
-//        Var loop_var("k0", Int(32));
-//        Expr loop_expr          = Expr(loop_var);
-//        eval_indices[real_axis] = loop_expr;
+    //        Var loop_var("k0", Int(32));
+    //        Expr loop_expr          = Expr(loop_var);
+    //        eval_indices[real_axis] = loop_expr;
     //
     //    auto value  = lang::Identity(in_tensor(eval_indices));
     //    CHECK_EQ(min_value->type(), Float(32));
@@ -123,9 +124,9 @@ Tensor Argmin(const Tensor &in_tensor, const int &axis, const bool keep_dims, co
     //        loop_var, common::make_const(0), shape[real_axis], ir::ForType::Serial, ir::DeviceAPI::Host, body);
     //
     //    return ir::Load::Make(output, {shape[real_axis]});
-//    CHECK_EQ(lang::Identity(Expr(1)), Expr(10));
-//        return lang::Identity(temp_tensor({Expr(0)}));
-//    return ir::Cast::Make(int32_t , GetScalarExpr(10));
+    //    CHECK_EQ(lang::Identity(Expr(1)), Expr(10));
+    //        return lang::Identity(temp_tensor({Expr(0)}));
+    //    return ir::Cast::Make(int32_t , GetScalarExpr(10));
   };
 
   Tensor res = Compute(output_shape, compute, output_name);

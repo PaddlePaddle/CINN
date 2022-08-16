@@ -103,7 +103,7 @@ Tensor Argmax(const Tensor &in_tensor, const int &axis, const bool keep_dims, co
 
     Expr body1 = ir::Store::Make(temp_tensor, c_v, {Expr(loop_var)});
     Expr body2 = ir::Store::Make(temp_tensor, c_i, {Expr(0)});
-    Expr body = ir::Block::Make({body1, body2});
+    Expr body  = ir::Block::Make({body1, body2});
 
     auto forloop = ir::For::Make(
         loop_var, common::make_const(1), shape[real_axis], ir::ForType::Serial, ir::DeviceAPI::Host, body);
