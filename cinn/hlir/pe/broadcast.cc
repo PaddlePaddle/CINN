@@ -297,15 +297,15 @@ ir::Tensor IsClose(
 
         // check whether x and y are close
         // T left = (a > b ? a - b : b - a);
-        auto left = ir::IfThenElse::Make(a > b, a - b, b - a);
+        auto left = ir::Select::Make(a > b, a - b, b - a);
         // T right = atol + (b > 0 ? rtol * b : (-rtol) * b);
-        auto right = atol + ir::IfThenElse::Make(b > 0, rtol * b, (-rtol) * b);
+        auto right = atol + ir::Select::Make(b > 0.0f, rtol * b, (-rtol) * b);
         // T diff = (left > right ? left - right : right - left);
-        auto diff = ir::IfThenElse::Make(left > right, left - right, right - left);
+        auto diff = ir::Select::Make(left > right, left - right, right - left);
         // out = a == b || left <= right || diff <= 1e-15;
-        auto check_diff = ir::EQ::Make(a, b) || (left <= right) || (diff <= 1e-15f);
+        auto check_diff = (ir::EQ::Make(a, b) || (left <= right)) || (diff <= 1e-15f);
 
-        return ir::IfThenElse::Make(check_x_nan || check_y_nan, check_nan_same, check_diff);
+        return ir::Select::Make(check_x_nan || check_y_nan, check_nan_same, check_diff);
       },
       out_name);
 }
