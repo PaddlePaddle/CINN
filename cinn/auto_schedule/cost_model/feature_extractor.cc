@@ -33,6 +33,7 @@
 #include "cinn/common/type.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_base.h"
+#include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_schedule.h"
 #include "cinn/optim/ir_copy.h"
 #include "cinn/optim/transform_polyfor_to_for.h"
@@ -44,11 +45,15 @@ using namespace ::cinn::ir;
 
 FeatureExtractor::FeatureExtractor() {}
 
-Feature FeatureExtractor::Extract(const ir::ModuleExpr &mod_expr, const common::Target &target) {
+void FeatureExtractor::Visit(const Expr *x) {
+  // VLOG(6) << "Huihuang debug visiting: " << *x;
+  IRVisitor::Visit(x);
+}
+
+Feature FeatureExtractor::Extract(const ir::ModuleExpr &mod_expr) {
   feature_ = Feature();
-  target_  = &target;
   for (const ir::Expr &e : mod_expr.GetExprs()) {
-    IRVisitor::Visit(&e);
+    Visit(&e);
   }
   return feature_;
 }
@@ -57,7 +62,7 @@ Feature FeatureExtractor::Extract(const ir::ModuleExpr &mod_expr, const common::
   void FeatureExtractor::Visit(const NodeType *x) {         \
     std::vector<const Expr *> sub_exprs = x->expr_fields(); \
     for (const Expr *e : sub_exprs) {                       \
-      IRVisitor::Visit(e);                                  \
+      Visit(e);                                             \
     }                                                       \
   }
 
@@ -75,7 +80,11 @@ VisitDoNothing(ScheduleBlockRealize);
 VisitDoNothing(Ramp);
 VisitDoNothing(_Buffer_);
 VisitDoNothing(_BufferRange_);
-VisitDoNothing(_Tensor_);
+
+#define NotVisitExprFields(NodeType) \
+  void FeatureExtractor::Visit(const NodeType *x) {}
+
+NotVisitExprFields(_Tensor_)
 
 #define VisitForDtypePattern(NodeType, member)                                                    \
   void FeatureExtractor::Visit(const NodeType *x) {                                               \
@@ -86,11 +95,11 @@ VisitDoNothing(_Tensor_);
     }                                                                                             \
     std::vector<const Expr *> sub_exprs = x->expr_fields();                                       \
     for (const Expr *e : sub_exprs) {                                                             \
-      IRVisitor::Visit(e);                                                                        \
+      Visit(e);                                                                                   \
     }                                                                                             \
   }
 
-VisitForDtypePattern(Add, add_or_sub);
+    VisitForDtypePattern(Add, add_or_sub);
 VisitForDtypePattern(Sub, add_or_sub);
 VisitForDtypePattern(Minus, add_or_sub);
 VisitForDtypePattern(Mul, mul);
@@ -118,7 +127,7 @@ VisitForDtypePattern(Let, other_call);
     }                                                                                             \
     std::vector<const Expr *> sub_exprs = x->expr_fields();                                       \
     for (const Expr *e : sub_exprs) {                                                             \
-      IRVisitor::Visit(e);                                                                        \
+      Visit(e);                                                                                   \
     }                                                                                             \
   }
 
@@ -130,7 +139,7 @@ VisitForMultiOperandsDtypePattern(Product, mul);
     feature_.CurrentLoopBlock().member += 1;                \
     std::vector<const Expr *> sub_exprs = x->expr_fields(); \
     for (const Expr *e : sub_exprs) {                       \
-      IRVisitor::Visit(e);                                  \
+      Visit(e);                                             \
     }                                                       \
   }
 
@@ -167,10 +176,11 @@ void FeatureExtractor::Visit(const For *x) {
     loop_feature.loop_opt_type    = ForOptimizeFeatureEnum::kVectorize;
     loop_feature.vectorize_factor = x->vectorize_info().factor;
   } else if (x->is_binded()) {
-    const BindInfo &bind_info = x->bind_info();
-    int offset                = bind_info.offset;
+    loop_feature.loop_opt_type = ForOptimizeFeatureEnum::kGpuBind;
+    const BindInfo &bind_info  = x->bind_info();
+    int offset                 = bind_info.offset;
     if (bind_info.for_type == ForType::GPUBlock) {
-      if (offset = 0) {
+      if (offset == 0) {
         loop_feature.len_blockIdx_x = loop_feature.loop_length;
       } else if (offset == 1) {
         loop_feature.len_blockIdx_y = loop_feature.loop_length;
@@ -178,7 +188,7 @@ void FeatureExtractor::Visit(const For *x) {
         loop_feature.len_blockIdx_z = loop_feature.loop_length;
       }
     } else if (bind_info.for_type == ForType::GPUThread) {
-      if (offset = 0) {
+      if (offset == 0) {
         loop_feature.len_threadIdx_x = loop_feature.loop_length;
       } else if (offset == 1) {
         loop_feature.len_threadIdx_y = loop_feature.loop_length;
@@ -190,7 +200,7 @@ void FeatureExtractor::Visit(const For *x) {
 
   std::vector<const Expr *> sub_exprs = x->expr_fields();
   for (const Expr *e : sub_exprs) {
-    IRVisitor::Visit(e);
+    Visit(e);
   }
 
   feature_.ExitLoopBlock();
@@ -254,13 +264,12 @@ void FeatureExtractor::Visit(const Reduce *x) {
   }
   std::vector<const Expr *> sub_exprs = x->expr_fields();
   for (const Expr *e : sub_exprs) {
-    IRVisitor::Visit(e);
+    Visit(e);
   }
 }
 VisitForDtypePattern(Broadcast, broadcast);
 
 /* Visit for IntrinsicOp */
-
 void FeatureExtractor::Visit(const IntrinsicOp *x) {
   switch (x->getKind()) {
 #define __(op__)                                \

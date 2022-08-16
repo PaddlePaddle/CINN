@@ -31,32 +31,33 @@
 
 #include <vector>
 
+#include "cinn/common/target.h"
+
 namespace cinn {
 namespace auto_schedule {
 
-inline float slog(float x) { return x < 0 ? std::log2(-x + 1) : std::log2(x + 1); }
-
 Feature::Feature()
-    : target_(&target),
-      stack_encoded_feature_(1),  // initialze a LoopBlockFeature as root block
+    : stack_encoded_feature_(1),  // initialze a LoopBlockFeature as root block
       current_loop_block_index_(0),
       parent_indices_(1, -1) {}
 
-std::vector<float> Feature::ToFixedSizeVector() {
+std::vector<float> Feature::ToFixedSizeVector(const common::Target& target) {
   std::vector<float> ret(LoopBlockFeature::kTotalSize + 1, 0);  // LoopBlockFeature::kTotalSize plus 1 for target
 
-  if (*target == common::DefaultNVGPUTarget()) {
+  if (target == common::DefaultNVGPUTarget()) {
     ret[0] = 1;
   }  // else 0 for other cases
 
   // loop[i] feature count should multiply iter_multi_num[i]
   std::vector<int> iter_multi_num;
-  int j = 1;
   for (size_t i = 0; i < stack_encoded_feature_.size(); ++i) {
+    int j                                = 1;
     const LoopBlockFeature& loop_feature = stack_encoded_feature_[i];
     int loop_prod                        = 1;
+    int parent_prod                      = 1;
     if (i != 0) {
-      loop_prod = iter_multi_num[parent_indices_[i]] * loop_feature.loop_length;
+      parent_prod = iter_multi_num[parent_indices_[i]];
+      loop_prod   = parent_prod * loop_feature.loop_length;
     }
     iter_multi_num.push_back(loop_prod);
 
@@ -125,21 +126,21 @@ std::vector<float> Feature::ToFixedSizeVector() {
     ret[j + static_cast<int>(loop_feature.loop_opt_type)] += 1;
     j += LoopBlockFeature::kOptApplySize;
 
-    ret[j] += (loop_feature.len_blockIdx_x * loop_prod);
+    ret[j] += (loop_feature.len_blockIdx_x * parent_prod);
     ++j;
-    ret[j] += (loop_feature.len_blockIdx_y * loop_prod);
+    ret[j] += (loop_feature.len_blockIdx_y * parent_prod);
     ++j;
-    ret[j] += (loop_feature.len_blockIdx_z * loop_prod);
+    ret[j] += (loop_feature.len_blockIdx_z * parent_prod);
     ++j;
-    ret[j] += (loop_feature.len_threadIdx_x * loop_prod);
+    ret[j] += (loop_feature.len_threadIdx_x * parent_prod);
     ++j;
-    ret[j] += (loop_feature.len_threadIdx_y * loop_prod);
+    ret[j] += (loop_feature.len_threadIdx_y * parent_prod);
     ++j;
-    ret[j] += (loop_feature.len_threadIdx_z * loop_prod);
+    ret[j] += (loop_feature.len_threadIdx_z * parent_prod);
     ++j;
-    ret[j] += (loop_feature.len_vthread * loop_prod);
+    ret[j] += (loop_feature.len_vthread * parent_prod);
     ++j;
-    ret[j] += (loop_feature.vectorize_factor * loop_prod);
+    ret[j] += (loop_feature.vectorize_factor * parent_prod);
     ++j;
   }
 

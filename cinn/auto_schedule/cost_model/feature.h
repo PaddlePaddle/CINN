@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <cmath>
 #include <vector>
 
 #include "cinn/ir/ir_schedule.h"
@@ -23,6 +24,9 @@ namespace auto_schedule {
 
 /* Loop feature enums */
 enum class ForOptimizeFeatureEnum : int { kNone, kGpuBind, kParallel, kUnroll, kVectorize };
+
+/* function to scale feature numbers */
+inline float slog(float x) { return x < 0 ? std::log2(-x + 1) : std::log2(x + 1); }
 
 class LoopBlockFeature {
  public:
@@ -99,7 +103,7 @@ class LoopBlockFeature {
   int len_vthread      = 0;  // length of virtual thread
   int vectorize_factor = 0;
 
-  static constexpr int kThreadFeatureSize = 5;
+  static constexpr int kThreadFeatureSize = 8;
 
   static constexpr int kTotalSize = kArithSize + kMemSize + kReduceBroadcastSize + kOptApplySize + kThreadFeatureSize;
 
@@ -117,10 +121,10 @@ class LoopBlockFeature {
  */
 class Feature {
  public:
-  Feature(const common::Target& target);
+  Feature();
 
   // Convert the various-length loop block features to fixed-size vector
-  std::vector<float> ToFixedSizeVector();
+  std::vector<float> ToFixedSizeVector(const common::Target& target);
 
   // Call when visit into a loop block to collect LoopBlockFeature
   void IntoLoopBlock();
@@ -163,7 +167,6 @@ class Feature {
   std::vector<LoopBlockFeature> stack_encoded_feature_;
   int current_loop_block_index_;
   std::vector<int> parent_indices_;
-  const common::Target* target_{nullptr};  // Not owned
 };
 
 }  // namespace auto_schedule

@@ -20,7 +20,9 @@
 namespace cinn {
 namespace auto_schedule {
 
-TEST(CostModel, Basic) {}
+TEST(Feature, Basic) {
+  // TODO(zhhsplendid): add some basic tests
+}
 
 }  // namespace auto_schedule
 }  // namespace cinn

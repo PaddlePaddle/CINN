@@ -40,7 +40,9 @@ namespace auto_schedule {
 class FeatureExtractor : public ir::IRVisitor {
  public:
   FeatureExtractor();
-  Feature Extract(const ir::ModuleExpr& mod_expr, const common::Target& target);
+  Feature Extract(const ir::ModuleExpr& mod_expr);
+
+  void Visit(const Expr* x) override;
 
 #define __(op__) void Visit(const ir::op__* x) override;
   NODETY_FORALL(__)
@@ -52,7 +54,6 @@ class FeatureExtractor : public ir::IRVisitor {
 
  private:
   Feature feature_;
-  const common::Target* target_{nullptr};  // Not owned
 };
 
 }  // namespace auto_schedule
