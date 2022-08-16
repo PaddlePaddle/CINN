@@ -210,9 +210,9 @@ TEST(net_build, program_argmax_case1) {
   const int W     = 7;
 
   NetBuilder builder("net_builder");
-  Placeholder input  = builder.CreateInput(Float(32), {N, IN_C, H, W}, "In");
-  Placeholder output = builder.Argmax(input, 0, true);
-  auto program       = builder.Build();
+  Placeholder input = builder.CreateInput(Float(32), {N, IN_C, H, W}, "In");
+  Variable output   = builder.Argmax(input, 1, true);
+  auto program      = builder.Build();
 
   Target target = common::DefaultHostTarget();
 
@@ -225,7 +225,7 @@ TEST(net_build, program_argmax_case1) {
   scope->Var<hlir::framework::Tensor>(std::string(output->id));
 
   auto input_tensor = scope->GetTensor(std::string(input.id()));
-  SetSqueezeRandData(input_tensor, target);
+  SetRandCPUData(input_tensor, target);
   float* input_data = input_tensor->mutable_data<float>(target);
   VLOG(6) << "Visualize input_data";
   for (int n = 0; n < N; ++n) {
@@ -251,17 +251,20 @@ TEST(net_build, program_argmax_case1) {
   EXPECT_EQ(output_shape[2], H);
   EXPECT_EQ(output_shape[3], W);
 
-  float* output_data = output_tensor->mutable_data<float>(target);
+  int* output_data = output_tensor->mutable_data<int>(target);
   VLOG(6) << "Visualize output_data";
   for (int n = 0; n < N; ++n) {
-    for (int c = 0; c < OUT_C; ++c) {
+    for (int c = 0; c < IN_C; ++c) {
       VLOG(6) << "n = " << n << ", c = " << c;
       for (int h = 0; h < H; ++h) {
         std::string line;
         for (int w = 0; w < W; ++w) {
-          int index       = w + W * (h + H * (c + OUT_C * n));
-          float in_data   = input_data[index];
-          int out_data    = output_data[index];
+          int index     = w + W * (h + H * (c + IN_C * n));
+          float in_data = input_data[index];
+          int out_index = w + W * (h + H * n);
+          int out_data  = output_data[out_index];
+          EXPECT_LE(0, out_data);
+          EXPECT_LT(out_data, IN_C);
           int max_index   = w + W * (h + H * (out_data + OUT_C * n));
           float max_value = input_data[max_index];
           line += (std::to_string(out_data) + ", ");
@@ -280,9 +283,9 @@ TEST(net_build, program_argmax_case2) {
   const int W    = 7;
 
   NetBuilder builder("net_builder");
-  Placeholder input  = builder.CreateInput(Float(32), {N, IN_C, H, W}, "In");
-  Placeholder output = builder.Argmax(input, 0, false);
-  auto program       = builder.Build();
+  Placeholder input = builder.CreateInput(Float(32), {N, IN_C, H, W}, "In");
+  Variable output   = builder.Argmax(input, 1, false);
+  auto program      = builder.Build();
 
   Target target = common::DefaultHostTarget();
 
@@ -295,7 +298,7 @@ TEST(net_build, program_argmax_case2) {
   scope->Var<hlir::framework::Tensor>(std::string(output->id));
 
   auto input_tensor = scope->GetTensor(std::string(input.id()));
-  SetSqueezeRandData(input_tensor, target);
+  SetRandCPUData(input_tensor, target);
   float* input_data = input_tensor->mutable_data<float>(target);
   VLOG(6) << "Visualize input_data";
   for (int n = 0; n < N; ++n) {
@@ -320,22 +323,27 @@ TEST(net_build, program_argmax_case2) {
   EXPECT_EQ(output_shape[1], H);
   EXPECT_EQ(output_shape[2], W);
 
-  float* output_data = output_tensor->mutable_data<float>(target);
+  int* output_data = output_tensor->mutable_data<int>(target);
   VLOG(6) << "Visualize output_data";
   for (int n = 0; n < N; ++n) {
-    VLOG(6) << "n = " << n << ", c = " << c;
-    for (int h = 0; h < H; ++h) {
-      std::string line;
-      for (int w = 0; w < W; ++w) {
-        int index       = w + W * (h + H * n);
-        float in_data   = input_data[index];
-        int out_data    = output_data[index];
-        int max_index   = w + W * (h + H * (out_data + n));
-        float max_value = input_data[max_index];
-        line += (std::to_string(out_data) + ", ");
-        EXPECT_LE(in_data, max_value);
+    for (int c = 0; c < IN_C; ++c) {
+      VLOG(6) << "n = " << n << ", c = " << c;
+      for (int h = 0; h < H; ++h) {
+        std::string line;
+        for (int w = 0; w < W; ++w) {
+          int index     = w + W * (h + H * (c + IN_C * n));
+          float in_data = input_data[index];
+          int out_index = w + W * (h + H * n);
+          int out_data  = output_data[index];
+          EXPECT_LE(0, out_data);
+          EXPECT_LT(out_data, IN_C);
+          int max_index   = w + W * (h + H * (out_data + n));
+          float max_value = input_data[max_index];
+          line += (std::to_string(out_data) + ", ");
+          EXPECT_LE(in_data, max_value);
+        }
+        VLOG(6) << line;
       }
-      VLOG(6) << line;
     }
   }
 }
@@ -348,9 +356,9 @@ TEST(net_build, program_argmin_case1) {
   const int W     = 7;
 
   NetBuilder builder("net_builder");
-  Placeholder input  = builder.CreateInput(Float(32), {N, IN_C, H, W}, "In");
-  Placeholder output = builder.Argmin(input, 0, true);
-  auto program       = builder.Build();
+  Placeholder input = builder.CreateInput(Float(32), {N, IN_C, H, W}, "In");
+  Variable output   = builder.Argmin(input, 1, true);
+  auto program      = builder.Build();
 
   Target target = common::DefaultHostTarget();
 
@@ -363,7 +371,7 @@ TEST(net_build, program_argmin_case1) {
   scope->Var<hlir::framework::Tensor>(std::string(output->id));
 
   auto input_tensor = scope->GetTensor(std::string(input.id()));
-  SetSqueezeRandData(input_tensor, target);
+  SetRandCPUData(input_tensor, target);
   float* input_data = input_tensor->mutable_data<float>(target);
   VLOG(6) << "Visualize input_data";
   for (int n = 0; n < N; ++n) {
@@ -389,17 +397,21 @@ TEST(net_build, program_argmin_case1) {
   EXPECT_EQ(output_shape[2], H);
   EXPECT_EQ(output_shape[3], W);
 
-  float* output_data = output_tensor->mutable_data<float>(target);
+  int* output_data = output_tensor->mutable_data<int>(target);
   VLOG(6) << "Visualize output_data";
   for (int n = 0; n < N; ++n) {
-    for (int c = 0; c < OUT_C; ++c) {
+    for (int c = 0; c < IN_C; ++c) {
       VLOG(6) << "n = " << n << ", c = " << c;
       for (int h = 0; h < H; ++h) {
         std::string line;
         for (int w = 0; w < W; ++w) {
-          int index       = w + W * (h + H * (c + OUT_C * n));
-          float in_data   = input_data[index];
-          int out_data    = output_data[index];
+          int index     = w + W * (h + H * (c + IN_C * n));
+          float in_data = input_data[index];
+          int out_index = w + W * (h + H * n);
+          int out_data  = output_data[index];
+
+          EXPECT_LE(0, out_data);
+          EXPECT_LT(out_data, IN_C);
           int max_index   = w + W * (h + H * (out_data + OUT_C * n));
           float max_value = input_data[max_index];
           line += (std::to_string(out_data) + ", ");
@@ -418,9 +430,9 @@ TEST(net_build, program_argmin_case2) {
   const int W    = 7;
 
   NetBuilder builder("net_builder");
-  Placeholder input  = builder.CreateInput(Float(32), {N, IN_C, H, W}, "In");
-  Placeholder output = builder.Argmin(input, 0, false);
-  auto program       = builder.Build();
+  Placeholder input = builder.CreateInput(Float(32), {N, IN_C, H, W}, "In");
+  Variable output   = builder.Argmin(input, 1, false);
+  auto program      = builder.Build();
 
   Target target = common::DefaultHostTarget();
 
@@ -433,7 +445,7 @@ TEST(net_build, program_argmin_case2) {
   scope->Var<hlir::framework::Tensor>(std::string(output->id));
 
   auto input_tensor = scope->GetTensor(std::string(input.id()));
-  SetSqueezeRandData(input_tensor, target);
+  SetRandCPUData(input_tensor, target);
   float* input_data = input_tensor->mutable_data<float>(target);
   VLOG(6) << "Visualize input_data";
   for (int n = 0; n < N; ++n) {
@@ -458,25 +470,29 @@ TEST(net_build, program_argmin_case2) {
   EXPECT_EQ(output_shape[1], H);
   EXPECT_EQ(output_shape[2], W);
 
-  float* output_data = output_tensor->mutable_data<float>(target);
+  int* output_data = output_tensor->mutable_data<int>(target);
   VLOG(6) << "Visualize output_data";
   for (int n = 0; n < N; ++n) {
-    VLOG(6) << "n = " << n << ", c = " << c;
-    for (int h = 0; h < H; ++h) {
-      std::string line;
-      for (int w = 0; w < W; ++w) {
-        int index       = w + W * (h + H * n);
-        float in_data   = input_data[index];
-        int out_data    = output_data[index];
-        int max_index   = w + W * (h + H * (out_data + n));
-        float max_value = input_data[max_index];
-        line += (std::to_string(out_data) + ", ");
-        EXPECT_GE(in_data, max_value);
+    for (int c = 0; c < IN_C; ++c) {
+      VLOG(6) << "n = " << n << ", c = " << c;
+      for (int h = 0; h < H; ++h) {
+        std::string line;
+        for (int w = 0; w < W; ++w) {
+          int index     = w + W * (h + H * (c + IN_C * n));
+          float in_data = input_data[index];
+          int out_index = w + W * (h + H * n);
+          int out_data  = output_data[index];
+          EXPECT_LE(0, out_data);
+          EXPECT_LT(out_data, IN_C);
+          int max_index   = w + W * (h + H * (out_data + n));
+          float max_value = input_data[max_index];
+          line += (std::to_string(out_data) + ", ");
+          EXPECT_GE(in_data, max_value);
+        }
+        VLOG(6) << line;
       }
-      VLOG(6) << line;
     }
   }
-}
 
 }  // namespace frontend
 }  // namespace cinn

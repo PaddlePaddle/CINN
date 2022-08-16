@@ -1,3 +1,17 @@
+// Copyright (c) 2022 CINN Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #include "cinn/hlir/op/contrib/argmin.h"
 
 #include <iostream>
@@ -23,7 +37,11 @@ using common::CINNValue;
 using framework::shape_t;
 using ir::Tensor;
 
-Tensor Argmin(const Tensor &in_tensor, const int &axis, const bool keep_dims, const std::string &output_name) {
+Tensor Argmin(const Tensor &in_tensor,
+              const int &axis,
+              const bool keep_dims,
+              poly::StageMap stages,
+              const std::string &output_name) {
   auto shape = in_tensor->shape;
   auto ndim  = shape.size();
   CHECK_GT(ndim, 0) << "tensor's dim must be more than 0";
@@ -54,29 +72,26 @@ Tensor Argmin(const Tensor &in_tensor, const int &axis, const bool keep_dims, co
 
   auto temp_tensor = Compute(
       {shape[real_axis] + 1},
-      [=](const std::vector<Expr> &indices) -> Expr { return lang::Identity(Expr(-3.402823e+38f)); },
+      [=](const std::vector<Expr> &indices) -> Expr { return lang::Identity(Expr(3.402823e+38f)); },
       output_name + "_temp");
+  stages->InsertLazily(temp_tensor);
 
   auto compute = [=](const std::vector<Expr> &indices) -> Expr {
     std::vector<Expr> cur_indices(indices);
-    std::vector<Expr> last_indices(indices);
 
     if (!keep_dims) {
       cur_indices.insert(cur_indices.begin() + real_axis, Expr(0));
-      last_indices.insert(last_indices.begin() + real_axis, Expr(0));
     }
     CHECK_EQ(cur_indices.size(), ndim);
-    CHECK_EQ(last_indices.size(), ndim);
 
     Var loop_var("k0", Int(32));
-    cur_indices[real_axis]  = Expr(loop_var);
-    last_indices[real_axis] = Expr(loop_var) - 1;
-    auto value              = in_tensor(cur_indices);
-    auto last_value         = in_tensor(last_indices);
+    cur_indices[real_axis] = Expr(loop_var);
+    auto value             = in_tensor(cur_indices);
+    auto last_value        = temp_tensor(Expr(loop_var) - 1);
 
     auto update = ir::GT::Make(value, last_value);
     auto c_v    = ir::Select::Make(update, value, last_value);
-    auto c_i    = ir::Select::Make(update, Expr(loop_var), Expr(0));
+    auto c_i    = ir::Select::Make(update, ir::Cast::Make(Float(32), Expr(loop_var)), temp_tensor({Expr(0)}));
 
     Expr body1 = ir::Store::Make(temp_tensor, c_v, {Expr(loop_var)});
     Expr body2 = ir::Store::Make(temp_tensor, c_i, {Expr(0)});
@@ -84,49 +99,8 @@ Tensor Argmin(const Tensor &in_tensor, const int &axis, const bool keep_dims, co
 
     auto forloop = ir::For::Make(
         loop_var, common::make_const(1), shape[real_axis], ir::ForType::Serial, ir::DeviceAPI::Host, body);
-    return ir::Cast::Make(Int(32), ir::Load::Make(temp_tensor, {Expr(0)}));
-    //    Var loop_var("k0");
-    //    eval_indices[real_axis] = i;
-    //    auto value              = in_tensor(eval_indices);
-    //    auto update             = ir::LT::Make(value, current[1]);
-    //    auto c1                 = ir::Select::Make(update, Expr(i), current[0]);
-    //    auto c2                 = ir::Select::Make(update, value, current[1]);
-    //    current[0]              = c1;
-    //    current[1]              = c2;
-    //    auto for_loop           = ir::For::Make(i, Expr(0), current[0]);
 
-    //    Placeholder<float> p_min_value("min_value", {shape[real_axis]+1});
-    //    Placeholder<int32_t> p_min_index("min_index", {shape[real_axis]+1});
-    //    auto min_value = ir::Tensor(p_min_value);
-    //    auto min_index = ir::Tensor(p_min_index);
-    //
-    //        Var loop_var("k0", Int(32));
-    //        Expr loop_expr          = Expr(loop_var);
-    //        eval_indices[real_axis] = loop_expr;
-    //
-    //    auto value  = lang::Identity(in_tensor(eval_indices));
-    //    CHECK_EQ(min_value->type(), Float(32));
-    ////    ir::Store::Make(min_value, Expr(-3.402823e+38f), {Expr(int32_t(0))});
-    //
-    ////    auto update = ir::GT::Make(value, Expr(0));
-    //    auto update = ir::GT::Make(value, ir::Load::Make(min_value, {loop_expr}));
-    //    CHECK_EQ(min_index->type(), Int(32));
-    //    auto c_v    = ir::Select::Make(update, value, ir::Load::Make(min_value, {loop_expr}));
-    //    auto c_i    = ir::Select::Make(update, loop_expr, ir::Load::Make(min_index, {loop_expr}));
-    //
-    //    Expr init = ir::Store::Make(min_value, Expr(-3.402823e+38f), {Expr(int32_t(0))});
-    //    Expr body1 = ir::Store::Make(min_value, c_v, {loop_expr + 1});
-    //    Expr body2 = ir::Store::Make(min_index, c_i, {loop_expr + 1});
-    //
-    //    Expr body = ir::Block::Make({init, body1, body2});
-    //
-    //    auto output = ir::For::Make(
-    //        loop_var, common::make_const(0), shape[real_axis], ir::ForType::Serial, ir::DeviceAPI::Host, body);
-    //
-    //    return ir::Load::Make(output, {shape[real_axis]});
-    //    CHECK_EQ(lang::Identity(Expr(1)), Expr(10));
-    //        return lang::Identity(temp_tensor({Expr(0)}));
-    //    return ir::Cast::Make(int32_t , GetScalarExpr(10));
+    return ir::Cast::Make(Int(32), temp_tensor({Expr(0)}));
   };
 
   Tensor res = Compute(output_shape, compute, output_name);
@@ -158,8 +132,9 @@ std::shared_ptr<framework::OpStrategy> StrategyForArgmin(const framework::NodeAt
     Expr in_expr = arg_packs[0];
     CHECK(in_expr.as_tensor());
     Tensor in_tensor = in_expr.as_tensor_ref();
-    auto out_tensor  = Argmin(in_tensor, axis, keep_dims, tensor_name);
-    auto stages      = CreateStages({out_tensor});
+    auto stages      = CreateStages({in_tensor});
+    auto out_tensor  = Argmin(in_tensor, axis, keep_dims, stages, tensor_name);
+    stages->InsertLazily(out_tensor);
 
     std::vector<CINNValue> cinn_values{CINNValue(out_tensor), CINNValue(stages)};
     *ret = common::CINNValuePack{cinn_values};
