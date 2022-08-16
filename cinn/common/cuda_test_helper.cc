@@ -52,9 +52,9 @@ void CudaModuleTester::Compile(const ir::Module& m, const std::string& rewrite_c
     CHECK(fn_kernel);
     kernel_handles_.push_back(fn_kernel);
 
-    backends::RuntimeSymbolRegistry::Global().RegisterFn(kernel_fn_name + "_ptr_",
-                                                         reinterpret_cast<void*>(&kernel_handles_.back()));
-    backends::RuntimeSymbolRegistry::Global().RegisterVar(kernel_fn_name + "_stream_ptr_", stream_);
+    backends::GlobalSymbolRegistry::Global().RegisterFn(kernel_fn_name + "_ptr_",
+                                                        reinterpret_cast<void*>(&kernel_handles_.back()));
+    backends::GlobalSymbolRegistry::Global().RegisterVar(kernel_fn_name + "_stream_ptr_", stream_);
   }
 
   jit_ = backends::SimpleJIT::Create();

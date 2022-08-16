@@ -17,6 +17,7 @@
 #include <fstream>
 
 #include "cinn/backends/llvm/runtime_symbol_registry.h"
+#include "cinn/common/context.h"
 #ifdef CINN_WITH_CUDA
 #include "cinn/backends/codegen_cuda_dev.h"
 #include "cinn/backends/codegen_cuda_host.h"
@@ -78,53 +79,49 @@ void Compiler::CompileCudaModule(const Module& module, const std::string& code, 
   auto& device_module              = std::get<1>(_host_module_device_module_);
   VLOG(3) << "[CUDA] host module:\n" << host_module;
 
-  {  // compile cuda device
-    VLOG(3) << "[CUDA] device module:\n" << device_module;
-    CodeGenCUDA_Dev codegen(target_);
-    auto source_code = codegen.Compile(device_module);
-    if (!code.empty()) source_code = code;
-    if (FLAGS_cinn_source_code_save_path.empty()) {
-      if (source_code.size() > DebugLogMaxLen) {
-        VLOG(3) << "[CUDA] source code-0:\n" << source_code.substr(0, DebugLogMaxLen);
-        for (int i = 1; i * DebugLogMaxLen < source_code.size(); ++i) {
-          VLOG(3) << "[CUDA] source code-" << i << ":\n" << source_code.substr(DebugLogMaxLen * i, DebugLogMaxLen);
-        }
-      } else {
-        VLOG(3) << "[CUDA] source code:\n" << source_code;
+  VLOG(3) << "[CUDA] device module:\n" << device_module;
+  CodeGenCUDA_Dev codegen(target_);
+  auto source_code = codegen.Compile(device_module);
+  if (!code.empty()) source_code = code;
+  if (FLAGS_cinn_source_code_save_path.empty()) {
+    if (source_code.size() > DebugLogMaxLen) {
+      VLOG(3) << "[CUDA] source code-0:\n" << source_code.substr(0, DebugLogMaxLen);
+      for (int i = 1; i * DebugLogMaxLen < source_code.size(); ++i) {
+        VLOG(3) << "[CUDA] source code-" << i << ":\n" << source_code.substr(DebugLogMaxLen * i, DebugLogMaxLen);
       }
     } else {
-      VLOG(4) << "Write to " << FLAGS_cinn_source_code_save_path;
-      std::ofstream of(FLAGS_cinn_source_code_save_path, std::ofstream::out | std::ofstream::app);
-      CHECK(of.is_open()) << "Failed to open " << FLAGS_cinn_source_code_save_path;
-      of << source_code << std::endl;
-      of.close();
+      VLOG(3) << "[CUDA] source code:\n" << source_code;
     }
-    using runtime::cuda::CUDAModule;
+  } else {
+    VLOG(4) << "Write to " << FLAGS_cinn_source_code_save_path;
+    std::ofstream of(FLAGS_cinn_source_code_save_path, std::ofstream::out | std::ofstream::app);
+    CHECK(of.is_open()) << "Failed to open " << FLAGS_cinn_source_code_save_path;
+    of << source_code << std::endl;
+    of.close();
+  }
+  using runtime::cuda::CUDAModule;
 
-    backends::NVRTC_Compiler compiler;
+  backends::NVRTC_Compiler compiler;
 
-    auto ptx = compiler(source_code);
-    CHECK(!ptx.empty());
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty());
 
-    // TODO(Superjomn) Whether to support multiple CUDA modules?
-    cuda_module_.reset(new CUDAModule(ptx, CUDAModule::Kind::PTX));
+  // TODO(Superjomn) Whether to support multiple CUDA modules?
+  cuda_module_.reset(new CUDAModule(ptx, CUDAModule::Kind::PTX));
 
-    for (auto& fn : device_module.functions()) {
-      std::string kernel_fn_name = fn->name;
-      auto fn_kernel             = cuda_module_->GetFunction(0, kernel_fn_name);
-      CHECK(fn_kernel);
+  RuntimeSymbols symbols;
 
-      backends::RuntimeSymbolRegistry::Global().RegisterVar(kernel_fn_name + "_ptr_",
-                                                            reinterpret_cast<void*>(fn_kernel));
-      backends::RuntimeSymbolRegistry::Global().RegisterVar(kernel_fn_name + "_stream_ptr_",
-                                                            static_cast<cudaStream_t>(stream));
-    }
+  for (auto& fn : device_module.functions()) {
+    std::string kernel_fn_name = fn->name;
+    auto fn_kernel             = cuda_module_->GetFunction(0, kernel_fn_name);
+    CHECK(fn_kernel);
+
+    symbols.RegisterVar(kernel_fn_name + "_ptr_", reinterpret_cast<void*>(fn_kernel));
+    symbols.RegisterVar(kernel_fn_name + "_stream_ptr_", static_cast<cudaStream_t>(stream));
   }
 
-  {  // compile host jit
-    engine_ = ExecutionEngine::Create(ExecutionOptions());
-    engine_->Link<CodeGenCUDA_Host>(host_module);
-  }
+  engine_ = ExecutionEngine::Create(ExecutionOptions(), std::move(symbols));
+  engine_->Link<CodeGenCUDA_Host>(host_module);
 
 #else
   CINN_NOT_IMPLEMENTED

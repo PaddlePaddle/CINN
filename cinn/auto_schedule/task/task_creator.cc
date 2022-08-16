@@ -37,8 +37,8 @@ std::vector<TuneTask> TaskCreator::CreateTuneTaskOpLevel(hlir::framework::Graph*
   if (!groups.empty()) {
     for (const std::vector<Node*>& sub_graph : groups) {
       ret_tasks.emplace_back(TuneTask());
-      ret_tasks.back().task_graph().push_back(sub_graph);
-      ret_tasks.back().tune_context().target = graph->target_;
+      ret_tasks.back().task_graph.push_back(sub_graph);
+      ret_tasks.back().target = graph->target_;
     }
     return ret_tasks;
   }
@@ -51,8 +51,8 @@ std::vector<TuneTask> TaskCreator::CreateTuneTaskOpLevel(hlir::framework::Graph*
     if (op_node) {
       // n must be an op node
       ret_tasks.emplace_back(TuneTask());
-      ret_tasks.back().task_graph().push_back(std::vector<Node*>(1, op_node));
-      ret_tasks.back().tune_context().target = graph->target_;
+      ret_tasks.back().task_graph.push_back(std::vector<Node*>(1, op_node));
+      ret_tasks.back().target = graph->target_;
     }
   }
 

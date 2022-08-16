@@ -24,6 +24,7 @@
 #include "cinn/frontend/decomposer_registry.h"
 #include "cinn/frontend/interpreter.h"
 #include "cinn/frontend/net_builder.h"
+#include "cinn/frontend/optimize.h"
 #include "cinn/frontend/pass/use_program_pass.h"
 #include "cinn/frontend/program_pass.h"
 #include "cinn/frontend/syntax.h"
@@ -139,7 +140,7 @@ void BindFrontend(pybind11::module *m) {
               const std::vector<Variable> &tensor_outputs) {
              std::shared_ptr<hlir::framework::Graph> g(new hlir::framework::Graph(self, target));
              hlir::framework::ApplyPass(g.get(), "InferShape");
-             hlir::framework::ApplyPass(g.get(), "OpFusion");
+             hlir::framework::ApplyPasses(g.get(), frontend::DefaultOpFusionPasses());
              std::shared_ptr<hlir::framework::Scope> scope = hlir::framework::BuildScope(target, g);
              hlir::framework::GraphCompiler gc(target, scope, g);
              auto program = gc.Build();
@@ -523,7 +524,14 @@ void BindFrontend(pybind11::module *m) {
            py::arg("groups")            = 1,
            py::arg("data_format")       = "NCHW",
            py::arg("padding_algorithm") = "EXPLICIT")
-      .def("sum", &NetBuilder::Sum, py::arg("inputs"));
+      .def("sum", &NetBuilder::Sum, py::arg("inputs"))
+      .def("matmul",
+           &NetBuilder::Matmul,
+           py::arg("x"),
+           py::arg("y"),
+           py::arg("transpose_x") = false,
+           py::arg("transpose_y") = false,
+           py::arg("alpha")       = 1.0f);
 
   py::class_<CinnBuilder, BaseBuilder>(*m, "CinnBuilder")
       .def(py::init<const std::string &>(), py::arg("name") = "")

@@ -62,7 +62,7 @@ TEST(TuneTask, GraphToUnoptLoweredFunc_NoPass) {
 #ifdef CINN_WITH_CUDA
   Target target = common::DefaultNVGPUTarget();
 #else
-  Target target          = common::DefaultHostTarget();
+  Target target                  = common::DefaultHostTarget();
 #endif
   Program prog = CreateAddProgram();
   auto graph   = std::make_shared<hlir::framework::Graph>(prog, target);
@@ -81,7 +81,7 @@ TEST(TuneTask, GraphToUnoptLoweredFunc_NoPass) {
     task.SetGraphCompiler(&graph_compiler);
     task.TaskGraphToUnoptLoweredFunc();
 
-    std::vector<ir::Expr> exprs = task.tune_context().GetLoweredFuncBodyExprs();
+    std::vector<ir::Expr> exprs = task.GetLoweredFuncBodyExprs();
     VLOG(6) << "ir:Expr is: ";
     for (const ir::Expr& e : exprs) {
       VLOG(6) << e;
@@ -133,7 +133,7 @@ TEST(TuneTask, GraphToUnoptLoweredFunc_ApplyPass) {
 #ifdef CINN_WITH_CUDA
   Target target = common::DefaultNVGPUTarget();
 #else
-  Target target          = common::DefaultHostTarget();
+  Target target                  = common::DefaultHostTarget();
 #endif
   Program prog = CreateAddProgram();
   auto graph   = std::make_shared<hlir::framework::Graph>(prog, target);
@@ -153,7 +153,7 @@ TEST(TuneTask, GraphToUnoptLoweredFunc_ApplyPass) {
     task.SetGraphCompiler(&graph_compiler);
     task.TaskGraphToUnoptLoweredFunc();
 
-    std::vector<ir::Expr> exprs = task.tune_context().GetLoweredFuncBodyExprs();
+    std::vector<ir::Expr> exprs = task.GetLoweredFuncBodyExprs();
     VLOG(6) << "ir:Expr is: ";
     for (const ir::Expr& e : exprs) {
       VLOG(6) << e;
@@ -198,7 +198,7 @@ TEST(TuneTask, GraphToUnoptLoweredFunc_ApplyPass) {
 }
 )ROC";
 #else
-  std::string target_str = R"ROC(
+  std::string target_str         = R"ROC(
 {
   ScheduleBlock(root)
   {
@@ -234,6 +234,69 @@ TEST(TuneTask, GraphToUnoptLoweredFunc_ApplyPass) {
   LOG(INFO) << target_str;
   LOG(INFO) << expr_str;
   EXPECT_EQ(utils::Trim(target_str), utils::Trim(expr_str));
+}
+
+TEST(TuneTask, SerializeToString) {
+  Context::Global().ResetNameId();
+#ifdef CINN_WITH_CUDA
+  Target target = common::DefaultNVGPUTarget();
+#else
+  Target target                  = common::DefaultHostTarget();
+#endif
+  Program prog = CreateAddProgram();
+  auto graph   = std::make_shared<hlir::framework::Graph>(prog, target);
+
+  TaskCreator task_creator;
+  std::vector<TuneTask> single_tasks = task_creator.CreateTuneTaskOpLevel(graph.get());
+  ASSERT_EQ(single_tasks.size(), 2UL);
+  for (auto&& task : single_tasks) {
+    task.SerializeToString(graph->GetAttrs<absl::flat_hash_map<std::string, hlir::framework::shape_t>>("infershape"),
+                           graph->GetAttrs<absl::flat_hash_map<std::string, common::Type>>("inferdtype"));
+  }
+
+#ifdef CINN_WITH_CUDA
+  std::string single_add_str = R"ROC(Target<linux,nvgpu,64>
+
+Group 0 {
+  (float32[32,24]) = elementwise_add(float32[32,24], float32[32,24])
+}
+)ROC";
+#else
+  std::string single_add_str     = R"ROC(Target<linux,x86,64>
+
+Group 0 {
+  (float32[32,24]) = elementwise_add(float32[32,24], float32[32,24])
+}
+)ROC";
+#endif
+  EXPECT_EQ(single_tasks[0].serialized_key, single_add_str);
+  EXPECT_EQ(single_tasks[1].serialized_key, single_add_str);
+
+  ApplyPass(graph.get(), "OpFusion");
+  std::vector<TuneTask> fused_tasks = task_creator.CreateTuneTaskOpLevel(graph.get());
+  ASSERT_EQ(fused_tasks.size(), 1UL);
+  fused_tasks[0].SerializeToString(
+      graph->GetAttrs<absl::flat_hash_map<std::string, hlir::framework::shape_t>>("infershape"),
+      graph->GetAttrs<absl::flat_hash_map<std::string, common::Type>>("inferdtype"));
+
+#ifdef CINN_WITH_CUDA
+  std::string fused_expected_str = R"ROC(Target<linux,nvgpu,64>
+
+Group 0 {
+  (float32[32,24]) = elementwise_add(float32[32,24], float32[32,24])
+  (float32[32,24]) = elementwise_add(float32[32,24], float32[32,24])
+}
+)ROC";
+#else
+  std::string fused_expected_str = R"ROC(Target<linux,x86,64>
+
+Group 0 {
+  (float32[32,24]) = elementwise_add(float32[32,24], float32[32,24])
+  (float32[32,24]) = elementwise_add(float32[32,24], float32[32,24])
+}
+)ROC";
+#endif
+  EXPECT_EQ(fused_tasks[0].serialized_key, fused_expected_str);
 }
 
 }  // namespace auto_schedule

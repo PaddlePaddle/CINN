@@ -32,6 +32,7 @@
 #include "cinn/common/cuda_test_helper.h"
 #include "cinn/common/ir_util.h"
 #include "cinn/common/test_helper.h"
+#include "cinn/frontend/optimize.h"
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/node.h"
