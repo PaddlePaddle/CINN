@@ -37,17 +37,21 @@ namespace auto_schedule {
 inline float slog(float x) { return x < 0 ? std::log2(-x + 1) : std::log2(x + 1); }
 
 Feature::Feature()
-    : stack_encoded_feature_(1),  // initialze a LoopBlockFeature as root block
+    : target_(&target),
+      stack_encoded_feature_(1),  // initialze a LoopBlockFeature as root block
       current_loop_block_index_(0),
       parent_indices_(1, -1) {}
 
 std::vector<float> Feature::ToFixedSizeVector() {
-  std::vector<float> ret(LoopBlockFeature::kTotalSize, 0);
+  std::vector<float> ret(LoopBlockFeature::kTotalSize + 1, 0);  // LoopBlockFeature::kTotalSize plus 1 for target
+
+  if (*target == common::DefaultNVGPUTarget()) {
+    ret[0] = 1;
+  }  // else 0 for other cases
 
   // loop[i] feature count should multiply iter_multi_num[i]
   std::vector<int> iter_multi_num;
-
-  int j = 0;
+  int j = 1;
   for (size_t i = 0; i < stack_encoded_feature_.size(); ++i) {
     const LoopBlockFeature& loop_feature = stack_encoded_feature_[i];
     int loop_prod                        = 1;

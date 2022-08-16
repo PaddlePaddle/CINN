@@ -20,7 +20,7 @@
 namespace cinn {
 namespace auto_schedule {
 
-TEST(CostModel, Basic) {}
+TEST(FeatureExtractor, Basic) {}
 
 }  // namespace auto_schedule
 }  // namespace cinn

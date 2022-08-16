@@ -117,7 +117,7 @@ class LoopBlockFeature {
  */
 class Feature {
  public:
-  Feature();
+  Feature(const common::Target& target);
 
   // Convert the various-length loop block features to fixed-size vector
   std::vector<float> ToFixedSizeVector();
@@ -131,7 +131,7 @@ class Feature {
   // The current loop block which we should collect feature on
   const LoopBlockFeature& CurrentLoopBlock() const;
 
- public:
+ private:
   // We treat a computation feature to be encoded as variable-length vector.
   // The root compute block is not a loop, but we treat it as a size-1 loop.
   // Blocks are encoded like a stack. Each LoopBlockFeature contains a
@@ -163,6 +163,7 @@ class Feature {
   std::vector<LoopBlockFeature> stack_encoded_feature_;
   int current_loop_block_index_;
   std::vector<int> parent_indices_;
+  const common::Target* target_{nullptr};  // Not owned
 };
 
 }  // namespace auto_schedule
