@@ -20,6 +20,7 @@
 
 #include "cinn/auto_schedule/measure/measure.h"
 #include "cinn/auto_schedule/search_strategy/evolutionary_search.h"
+#include "cinn/ir/ir_schedule.h"
 #include "cinn/optim/ir_copy.h"
 
 namespace cinn {
@@ -79,7 +80,9 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
     std::vector<SearchState> states = evolutionary_search_->SearchModuleExprEpsGreedy(options);
     VLOG(4) << "TaskOptimizer run EvolutionarySearch with return size = " << states.size();
     std::vector<MeasureInput> measure_inputs(states.size());
+    std::vector<const ir::ModuleExpr*> cost_model_samples(states.size());
     for (size_t i = 0; i < states.size(); ++i) {
+      cost_model_samples[i]            = &(states[i].mod_expr);
       measure_inputs[i].task           = task_;
       std::vector<ir::Expr> best_exprs = states[i].mod_expr.GetExprs();
       CHECK_EQ(best_exprs.size(), task_->lowered_funcs.size())
@@ -96,6 +99,13 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
     std::vector<MeasureResult> measure_outputs = schedule_measurer_->Measure(measure_inputs);
     CHECK_EQ(measure_outputs.size(), states.size())
         << "ScheduleMeasurer didn't output same number of MeasureOutput of states in TaskOptimizer";
+
+    std::vector<float> cost_model_labels(states.size());
+    for (size_t i = 0; i < states.size(); ++i) {
+      cost_model_labels[i] = measure_outputs[i].execution_cost;
+    }
+
+    cost_model_.Train(cost_model_samples, cost_model_labels, task_->target);
 
     // TODO(zhhsplendid): write measure record into cache.
 
