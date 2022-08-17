@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cinn/hlir/op/contrib/cast.h"
-
 #include <gflags/gflags.h>
 
 #include <memory>
@@ -28,6 +26,7 @@
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
+#include "cinn/hlir/op/contrib/cast.h"
 #include "cinn/hlir/pe/elementwise.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_base.h"
@@ -44,21 +43,30 @@ namespace op {
 using common::CINNValue;
 using common::CINNValuePack;
 
-ir::Tensor Cast(const ir::Tensor &A, const Type &dtype, const std::string &name) {
+ir::Tensor Sort(const ir::Tensor &A, const int &axis, const bool &is_ascend, const std::string &name) {
   auto res = Compute(
-      A->shape, [=](const std::vector<Expr> &indices) { return ir::Cast::Make(dtype, A(indices)); }, name);
+      A->shape, [=](const std::vector<Expr> &indices) { return ir::Sort::Make(dtype, A(indices)); }, name);
   return res;
 }
 
-std::shared_ptr<framework::OpStrategy> StrategyForCast(const framework::NodeAttr &attrs,
+std::shared_ptr<framework::OpStrategy> StrategyForSort(const framework::NodeAttr &attrs,
                                                        const std::vector<ir::Tensor> &inputs,
                                                        const std::vector<Type> &out_type,
                                                        const std::vector<std::vector<int>> &output_shapes,
                                                        const Target &target) {
-  framework::CINNCompute squeeze_compute([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input arguments of Cast compute is empty! Please check.\n";
+  auto attr_store = attrs.attr_store;
+  
+  CHECK(attr_store.count("axis")) << "find no attr of axis";
+  int axis       = absl::get<int>(attr_store.at("axis"));
+  bool is_ascend = true;
+  if (attr_store.count("is_ascend")) {
+    is_ascend = absl::get<bool>(attr_store.at("is_ascend"));
+  }
+
+  framework::CINNCompute sort_compute([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input arguments of Sort compute is empty! Please check.\n";
     CINNValuePack a = args[0];
-    CHECK_GE(a.size(), 1U) << "at least 1 input tensors for Cast compute\n";
+    CHECK_GE(a.size(), 1U) << "At least 1 input tensors for Sort compute\n";
     Expr A = a[0];
     CHECK(A.as_tensor());
     CHECK(!output_shapes.empty());
@@ -66,16 +74,16 @@ std::shared_ptr<framework::OpStrategy> StrategyForCast(const framework::NodeAttr
     auto stages   = CreateStages({tensor_A});
     VLOG(3) << "A shape: " << utils::Join(tensor_A->shape, ", ")
             << ", output_shapes: " << utils::Join(output_shapes[0], ", ");
-    ir::Tensor out = Cast(tensor_A, out_type[0], UniqName("Cast_out"));
+    ir::Tensor out = Sort(tensor_A, axis, is_ascend, UniqName("Sort_out"));
     std::vector<CINNValue> res;
     stages->InsertLazily(out);
     res.push_back(CINNValue(out));
-    CHECK(!out_type.empty()) << "Output type of Cast is empty! Please check.\n";
+    CHECK(!out_type.empty()) << "Output type of Sort is empty! Please check.\n";
     res.push_back(CINNValue(stages));
     *ret = CINNValuePack{res};
   });
 
-  framework::CINNSchedule squeeze_schedule([=](lang::Args args, lang::RetValue *ret) {
+  framework::CINNSchedule sort_schedule([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of reshape schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
     Expr out               = arg_pack[0];
@@ -84,25 +92,20 @@ std::shared_ptr<framework::OpStrategy> StrategyForCast(const framework::NodeAttr
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(squeeze_compute, squeeze_schedule, "strategy.squeeze.x86", 1);
+  strategy->AddImpl(sort_compute, sort_schedule, "strategy.sort.x86", 1);
   return strategy;
 }
 
-std::vector<std::vector<int>> InferShapeForCast(const std::vector<std::vector<int>> &inputs_shape,
+std::vector<std::vector<int>> InferShapeForSort(const std::vector<std::vector<int>> &inputs_shape,
                                                 const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 1U) << "The input's shape size should be 1! Please check again.";
   std::vector<std::vector<int>> res{inputs_shape[0]};
   return res;
 }
 
-std::vector<Type> InferDtypeForCast(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
+std::vector<Type> InferDtypeForSort(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
-  std::vector<Type> res;
-  if (attrs.find("dtype") != attrs.end()) {
-    auto dtype_str = absl::get<std::string>(attrs.at("dtype"));
-    res.push_back(common::Str2Type(dtype_str));
-  }
-  CHECK(!res.empty()) << "The cast should have an attr named 'dtype'.";
+  std::vector<Type> res{inputs_type[0]};
   return res;
 }
 
@@ -112,12 +115,12 @@ std::vector<Type> InferDtypeForCast(const std::vector<Type> &inputs_type, const 
 
 CINN_REGISTER_HELPER(cast_ops) {
   CINN_REGISTER_OP(cast)
-      .describe("Cast.")
+      .describe("Sort.")
       .set_num_inputs(1)
       .set_num_outputs(1)
-      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForCast)
-      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForCast))
-      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForCast))
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForSort)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForSort))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForSort))
       .set_support_level(4);
 
   return true;

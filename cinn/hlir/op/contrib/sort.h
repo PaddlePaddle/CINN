@@ -25,7 +25,7 @@ namespace cinn {
 namespace hlir {
 namespace op {
 
-ir::Tensor Cast(const ir::Tensor& A, const Type& dtype, const std::string& name);
+ir::Tensor Sort(const ir::Tensor& A, const int& axis, const bool& is_ascend, const std::string& name);
 
 }  // namespace op
 }  // namespace hlir
