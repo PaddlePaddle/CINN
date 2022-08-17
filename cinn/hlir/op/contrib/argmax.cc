@@ -89,9 +89,9 @@ Tensor Argmax(const Tensor &in_tensor,
   auto compute = [=](const std::vector<Expr> &indices) -> Expr {
     std::vector<Expr> eval_indices(indices);
     if (!keep_dims) {
-      eval_indices.insert(eval_indices.begin() + real_axis, max_index);
+      eval_indices.insert(eval_indices.begin() + real_axis, max_index[0]);
     } else {
-      eval_indices[axis] = max_index;
+      eval_indices[axis] = max_index[0];
     }
     CHECK_EQ(eval_indices.size(), ndim);
     return temp_tensor(eval_indices);
