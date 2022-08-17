@@ -79,8 +79,8 @@ Tensor Argmax(const Tensor &in_tensor,
         auto cur_value = in_tensor(indices);
         auto max_value = in_tensor(max_indices);
         auto update    = ir::GT::Make(cur_value, max_value);
-
-        max_index.push_back(ir::Select::Make(update, indices[axis], max_index[-1]));
+        auto max_i     = ir::Select::Make(update, indices[axis], max_index[-1]);
+        max_index.push_back(Expr(max_i));
         return max_index[-1];
       },
       output_name + "_temp_tensor");
