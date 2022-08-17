@@ -74,14 +74,14 @@ Tensor Argmax(const Tensor &in_tensor,
       {shape},
       [=](const std::vector<Expr> &indices) -> Expr {
         std::vector<Expr> max_indices(indices);
-        max_indices[axis] = max_index[0];
+        max_indices[axis] = max_index[-1];
 
         auto cur_value = in_tensor(indices);
         auto max_value = in_tensor(max_indices);
         auto update    = ir::GT::Make(cur_value, max_value);
 
-        max_index[0] = ir::Select::Make(update, indices[axis], max_index[0]);
-        return max_index[0];
+        max_index.push_back(ir::Select::Make(update, indices[axis], max_index[-1]));
+        return max_index[-1];
       },
       output_name + "_temp_tensor");
   stages->InsertLazily(temp_tensor);
@@ -89,9 +89,9 @@ Tensor Argmax(const Tensor &in_tensor,
   auto compute = [=](const std::vector<Expr> &indices) -> Expr {
     std::vector<Expr> eval_indices(indices);
     if (!keep_dims) {
-      eval_indices.insert(eval_indices.begin() + real_axis, max_index[0]);
+      eval_indices.insert(eval_indices.begin() + real_axis, max_index[-1]);
     } else {
-      eval_indices[axis] = max_index[0];
+      eval_indices[axis] = max_index[-1];
     }
     CHECK_EQ(eval_indices.size(), ndim);
     return temp_tensor(eval_indices);
