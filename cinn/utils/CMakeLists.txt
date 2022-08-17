@@ -10,7 +10,9 @@ gather_srcs(cinnapi_src SRCS
   string.cc
   timer.cc
   profiler.cc
+  multi_threading.cc
   )
 
 cc_test(test_string SRCS string_test.cc DEPS cinncore)
 cc_test(test_sized_multi_set SRCS sized_multi_set_test.cc DEPS cinncore)
+cc_test(test_multi_threading SRCS multi_threading_test.cc DEPS cinncore)
