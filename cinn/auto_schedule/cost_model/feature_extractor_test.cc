@@ -58,9 +58,9 @@ TEST(FeatureExtractor, SimpleAssign) {
 
   FeatureExtractor extractor;
 
-  Feature feature = extractor.Extract(mod_expr);
+  Feature feature = extractor.Extract(mod_expr, target);
 
-  std::vector<float> to_check = feature.ToFixedSizeVector(target);
+  std::vector<float> to_check = feature.ToFixedSizeVector();
 
   ASSERT_EQ(to_check.size(), static_cast<size_t>(LoopBlockFeature::kTotalSize + 1));
   VLOG(6) << "Feature data before slog:";
@@ -117,9 +117,9 @@ TEST(FeatureExtractor, MatrixMultiply) {
   VLOG(6) << "Expr to test: " << ast_expr;
 
   FeatureExtractor extractor;
-  Feature feature = extractor.Extract(mod_expr);
+  Feature feature = extractor.Extract(mod_expr, target);
 
-  std::vector<float> to_check = feature.ToFixedSizeVector(target);
+  std::vector<float> to_check = feature.ToFixedSizeVector();
 
   ASSERT_EQ(to_check.size(), static_cast<size_t>(LoopBlockFeature::kTotalSize + 1));
   std::unordered_set<size_t> non_zero_indice = {0, 1, 2, 17, 18, 29, 30, 37};

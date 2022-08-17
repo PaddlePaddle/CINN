@@ -23,9 +23,12 @@
 #include "cinn/auto_schedule/cost_model/cost_model.h"
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
 #include "cinn/auto_schedule/task/tune_task.h"
+#include "cinn/common/flags.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_schedule.h"
 #include "cinn/optim/ir_copy.h"
+
+DECLARE_bool(auto_schedule_use_cost_model);
 
 namespace cinn {
 namespace auto_schedule {
@@ -56,15 +59,17 @@ std::vector<SearchState> SearchSpace::GetRandomInitialSketch(int num) {
   return result;
 }
 
-SearchState SearchSpace::GetScheduleMutate(const SearchState& state, const CostModel& cost_model) {
+SearchState SearchSpace::GetScheduleMutate(const SearchState& state, const ExprCostModel& cost_model) {
   VLOG(4) << "Start SearchSpace::GetScheduleMutate";
-  // TODO(zhhsplendid): cost model predict
   bool has_manual_schedule = false;
   if (has_manual_schedule) {
     SearchState ret = ManualScheduleMutate(state);
     return ret;
   }
   SearchState ret = RandomScheduleMutate(state);
+  if (FLAGS_auto_schedule_use_cost_model) {
+    ret.predicted_cost = cost_model.Predict(ret.mod_expr, tune_task_.target);
+  }
   return ret;
 }
 

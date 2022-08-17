@@ -50,8 +50,8 @@ void FeatureExtractor::Visit(const Expr *x) {
   IRVisitor::Visit(x);
 }
 
-Feature FeatureExtractor::Extract(const ir::ModuleExpr &mod_expr) {
-  feature_ = Feature();
+Feature FeatureExtractor::Extract(const ir::ModuleExpr &mod_expr, const common::Target &target) {
+  feature_ = Feature(target);
   for (const ir::Expr &e : mod_expr.GetExprs()) {
     Visit(&e);
   }

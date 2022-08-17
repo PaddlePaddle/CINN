@@ -35,13 +35,15 @@ namespace auto_schedule {
  */
 class CostModel {
   // TODO(zhhsplendid): add CostModelType for C++ interface
+  // TODO(SunNy820828449): move this class as a common tool which can be used
+  // in auto fusion
  public:
   CostModel();
   ~CostModel();
 
   void Train(const std::vector<std::vector<float>>& samples, const std::vector<float>& labels);
 
-  std::vector<float> Predict(const std::vector<std::vector<float>>& samples);
+  std::vector<float> Predict(const std::vector<std::vector<float>>& samples) const;
 
   void Update(const std::vector<std::vector<float>>& samples, const std::vector<float>& labels);
 

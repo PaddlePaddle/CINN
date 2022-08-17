@@ -44,7 +44,7 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
   if (evolutionary_search_ == nullptr) {
     // TODO(zhhsplendid): check whether the options is same as previous,
     // if not, we should create new EvolutionarySearch
-    evolutionary_search_ = std::make_unique<EvolutionarySearch>(*task_);
+    evolutionary_search_ = std::make_unique<EvolutionarySearch>(*task_, cost_model_);
   }
 
   if (options.num_measure_trials == 0) {

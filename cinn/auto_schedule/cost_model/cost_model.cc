@@ -101,7 +101,7 @@ void CostModel::Train(const std::vector<std::vector<float>>& samples, const std:
   python_member_.attr("train")(np_samples, np_labels);
 }
 
-std::vector<float> CostModel::Predict(const std::vector<std::vector<float>>& samples) {
+std::vector<float> CostModel::Predict(const std::vector<std::vector<float>>& samples) const {
   pybind11::array np_samples = VectorToNumpy<float>(samples);
 
   pybind11::array py_result = python_member_.attr("predict")(np_samples);

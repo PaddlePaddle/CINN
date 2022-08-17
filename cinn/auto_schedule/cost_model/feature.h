@@ -17,6 +17,7 @@
 #include <cmath>
 #include <vector>
 
+#include "cinn/common/target.h"
 #include "cinn/ir/ir_schedule.h"
 
 namespace cinn {
@@ -123,8 +124,10 @@ class Feature {
  public:
   Feature();
 
+  Feature(const common::Target& target);
+
   // Convert the various-length loop block features to fixed-size vector
-  std::vector<float> ToFixedSizeVector(const common::Target& target);
+  std::vector<float> ToFixedSizeVector();
 
   // Call when visit into a loop block to collect LoopBlockFeature
   void IntoLoopBlock();
@@ -167,6 +170,8 @@ class Feature {
   std::vector<LoopBlockFeature> stack_encoded_feature_;
   int current_loop_block_index_;
   std::vector<int> parent_indices_;
+
+  common::Target target_;
 };
 
 }  // namespace auto_schedule
