@@ -2035,7 +2035,7 @@ std::shared_ptr<OpStrategy> StrategyForSelect(const framework::NodeAttr &attrs,
   CHECK(out_type.size()) << "Out_type of select op is empty! Please check.";
   if (out_type[0] == Float(32)) {
     strategy->AddImpl(
-        select_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.select.x86", 1);
+        select_compute, framework::GetInjectiveScheduleFunc(output_shapes, target, false), "strategy.select.x86", 1);
   } else {
     LOG(FATAL) << "Select op with dtype != float32 is not implemented yet!";
   }

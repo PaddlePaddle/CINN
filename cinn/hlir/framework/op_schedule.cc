@@ -46,7 +46,7 @@ CINNSchedule GetInjectiveScheduleFunc(const std::vector<std::vector<int>>& outpu
       if (target.arch == Target::Arch::NVGPU) {
         pe::IRCudaScheduleInjective(ir_sch, output_shapes.front(), target);
       } else if (target.arch == Target::Arch::X86) {
-        pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target);
+        pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target, vectorizable);
       }
       std::vector<common::CINNValue> res{common::CINNValue(ir_sch.GetModule().GetExprs().at(0))};
       *ret = common::CINNValuePack{res};
@@ -60,7 +60,7 @@ CINNSchedule GetInjectiveScheduleFunc(const std::vector<std::vector<int>>& outpu
       if (target.arch == Target::Arch::NVGPU) {
         pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes.front(), target);
       } else if (target.arch == Target::Arch::X86) {
-        pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes.front(), target);
+        pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes.front(), target, vectorizable);
       }
       *ret = arg_pack;
     }
