@@ -365,24 +365,34 @@ std::vector<shape_t> InferShapeForReduction(const std::vector<shape_t> &inputs_s
   if (attrs.find("keep_dim") != attrs.end()) {
     keep_dim = absl::get<bool>(attrs.at("keep_dim"));
   }
+
+  auto ndim = inputs_shape[0].size();
+  CHECK_LE(dim.size(), ndim) << "reduce dim should no more than the input size";
+
+  if (dim.empty()) {
+    for (int i = 0; i < ndim; ++i) {
+      dim.emplace_back(i);
+    }
+  }
+
   std::vector<int> out_shapes;
-  if (!dim.empty()) {
-    CHECK_LE(dim.size(), inputs_shape[0].size()) << "reduce dim should no more than the input size";
-    auto ndim = inputs_shape[0].size();
-    for (size_t i = 0; i < ndim; ++i) {
-      if (std::find(dim.begin(), dim.end(), i) != dim.end()) {
-        if (keep_dim) {
-          out_shapes.push_back(1);
-        }
-      } else {
-        out_shapes.push_back(inputs_shape[0][i]);
+  for (size_t i = 0; i < ndim; ++i) {
+    if (std::find(dim.begin(), dim.end(), i) != dim.end()) {
+      if (keep_dim) {
+        out_shapes.push_back(1);
       }
+    } else {
+      out_shapes.push_back(inputs_shape[0][i]);
     }
   }
 
   if (out_shapes.empty()) {
     out_shapes.push_back(1);
   }
+
+  VLOG(4) << "Reduce from input shape [" << cinn::utils::Join(inputs_shape[0], ",") << "] to output shape ["
+          << cinn::utils::Join(out_shapes, ",") << "] with reduce dim [" << cinn::utils::Join(dim, ",")
+          << "] and keep_dim is " << keep_dim;
 
   return {out_shapes};
 }

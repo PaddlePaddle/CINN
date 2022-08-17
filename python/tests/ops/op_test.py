@@ -133,7 +133,7 @@ class OpTest(unittest.TestCase):
                 actual.flatten()[offset], max_diff, absolute_diff[offset])
             return error_message
 
-        def _compute_bool_error(output_id, expect, actual):
+        def _check_error_message(output_id, expect, actual):
             expect_flatten = expect.flatten()
             actual_flatten = actual.flatten()
             self.assertEqual(
@@ -164,7 +164,21 @@ class OpTest(unittest.TestCase):
                 expect = expect_res[i]
             actual = actual_res[i]
 
-            self.assertEqual(expect.dtype, actual.dtype)
+            self.assertEqual(
+                expect.dtype,
+                actual.dtype,
+                msg=
+                "[{}] The {}-th output dtype different, which expect shape is {} but actual is {}."
+                .format(self._get_device(), i, expect.dtype, actual.dtype))
+            self.assertEqual(
+                expect.shape,
+                actual.shape,
+                msg=
+                "[{}] The {}-th output shape different, which expect shape is {} but actual is {}."
+                .format(self._get_device(), i, expect.shape, actual.shape))
+
+            is_allclose = True
+            error_message = ""
             if actual.dtype is np.dtype('float32') or actual.dtype is np.dtype(
                     'float64'):
                 is_allclose = np.allclose(
@@ -175,21 +189,23 @@ class OpTest(unittest.TestCase):
                 else:
                     error_message = "np.allclose(expect, actual, atol=1e-6, rtol={}) checks succeed!".format(
                         max_relative_error)
-            elif actual.dtype is np.dtype('bool'):
+            elif actual.dtype is np.dtype('bool') or actual.dtype is np.dtype(
+                    'int32') or actual.dtype is np.dtype('int64'):
                 is_allclose = np.all(expect == actual)
 
                 if not is_allclose:
-                    error_message = _compute_bool_error(i, expect, actual)
+                    error_message = _check_error_message(i, expect, actual)
                 else:
                     error_message = "(expect == actual) checks succeed!"
             else:
                 self.assertRaises(
                     NotImplementedError,
-                    "Only support float/double/bool now, type {} not support.".
-                    format(actual.dtype))
+                    msg=
+                    "Only support float32/float64/int32/int64/bool now, type {} not support."
+                    .format(actual.dtype))
 
             logger.debug("{} {}".format(is_allclose, error_message))
-            self.assertTrue(is_allclose, error_message)
+            self.assertTrue(is_allclose, msg=error_message)
 
 
 class OpTestTool:

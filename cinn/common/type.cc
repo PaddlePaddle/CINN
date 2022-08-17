@@ -14,6 +14,8 @@
 
 #include "cinn/common/type.h"
 
+#include <functional>
+#include <string>
 #include <unordered_map>
 #include <utility>
 
@@ -304,6 +306,60 @@ const Type &I1() {
 const Type &UI1() {
   static auto t = UInt(1);
   return t;
+}
+
+size_t Type::Hash::operator()(const Type &type) const {
+  std::string hash_str;
+  hash_str += std::to_string(static_cast<int>(type.type()));
+  hash_str += std::to_string(type.bits());
+  hash_str += std::to_string(type.lanes());
+  hash_str += std::to_string(static_cast<int>(type.cpp_type()));
+  if (type.is_customized_type()) {
+    hash_str += type.customized_type();
+  }
+
+  return std::hash<std::string>()(hash_str);
+}
+
+int Type::bytes() const {
+  // if the type is a pointer
+  auto cpp_type = this->cpp_type();
+  if (cpp_type == Type::cpp_type_t::Handle || cpp_type == Type::cpp_type_t::HandleHandle) {
+    return sizeof(void *);
+  }
+
+// if the type is an known pod type
+#define GET_TYPE_SIZE_PAIR(TYPE) \
+  { type_of<TYPE>(), sizeof(TYPE) }
+  static std::unordered_map<Type, int, Type::Hash> type_bytes = {
+      GET_TYPE_SIZE_PAIR(float),
+      GET_TYPE_SIZE_PAIR(double),
+      GET_TYPE_SIZE_PAIR(unsigned char),
+      GET_TYPE_SIZE_PAIR(int16_t),
+      GET_TYPE_SIZE_PAIR(int32_t),
+      GET_TYPE_SIZE_PAIR(uint32_t),
+      GET_TYPE_SIZE_PAIR(bool),
+      GET_TYPE_SIZE_PAIR(char),
+      GET_TYPE_SIZE_PAIR(int64_t),
+      GET_TYPE_SIZE_PAIR(uint64_t),
+      GET_TYPE_SIZE_PAIR(signed char),
+      GET_TYPE_SIZE_PAIR(void),
+      GET_TYPE_SIZE_PAIR(int8_t),
+      GET_TYPE_SIZE_PAIR(uint8_t),
+  };
+#undef GET_TYPE_SIZE_PAIR
+
+  if (type_bytes.count(*this)) {
+    return type_bytes.at(*this);
+  }
+
+  // else get size by bits size
+  auto bit_size = this->bits();
+  if (bit_size % 8 == 0) {
+    return bit_size / 8;
+  }
+  // if the bit size is not the multiple of bytes, padding
+  return (bit_size + 7) / 8;
 }
 
 Type Str2Type(const std::string &type) {

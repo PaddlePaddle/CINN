@@ -31,14 +31,14 @@ class TestReduceBaseOp(OpTest):
 
     def init_case(self):
         self.inputs = {"x": np.random.random([10, 10, 10]).astype("float32")}
-        self.dim = [0]
+        self.dim = []
         self.keep_dim = False
 
     def paddle_func(self, x):
-        return paddle.sum(x)
+        return paddle.sum(x, axis=self.dim, keepdim=self.keep_dim)
 
     def cinn_func(self, builder, x):
-        return builder.reduce(x)
+        return builder.reduce(x, ReduceKind.kSum, self.dim, self.keep_dim)
 
     def cinn_create_input(self, builder, shape, name):
         return builder.create_input(Float(32), shape, name)

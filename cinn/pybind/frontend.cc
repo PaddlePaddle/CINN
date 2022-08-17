@@ -153,17 +153,14 @@ void BindFrontend(pybind11::module *m) {
                    << "] is different with the input data's size! Please check.";
                if (target.arch == Target::Arch::NVGPU) {
 #ifdef CINN_WITH_CUDA
-                 CUDA_CALL(cudaMemcpy(data,
-                                      input_data[i].data(),
-                                      (in_tensor->shape().numel() * dtype.bits() + 7) / 8,
-                                      cudaMemcpyHostToDevice));
+                 CUDA_CALL(cudaMemcpy(
+                     data, input_data[i].data(), in_tensor->shape().numel() * dtype.bytes(), cudaMemcpyHostToDevice));
 #else
                  LOG(FATAL) <<"To use CUDA backends, you need to set WITH_CUDA ON!";
 #endif
                } else if (target.arch == Target::Arch::X86) {
-                 memcpy(data,
-                        input_data[i].data(),
-                        (in_tensor->shape().numel() * dtype.bits() + 7) / 8);  // All random data
+                 memcpy(data, input_data[i].data(),
+                        in_tensor->shape().numel() * dtype.bytes());  // All random data
                } else {
                  CINN_NOT_IMPLEMENTED
                }
