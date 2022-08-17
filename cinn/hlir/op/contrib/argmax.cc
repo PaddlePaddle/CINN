@@ -69,19 +69,19 @@ Tensor Argmax(const Tensor &in_tensor,
   if (output_shape.empty()) {
     output_shape.push_back(Expr(1));
   }
-  Expr max_index   = Expr(0);
-  auto temp_tensor = Compute(
+  std::vector<Expr> max_index = Expr(0);
+  auto temp_tensor            = Compute(
       {shape},
       [=](const std::vector<Expr> &indices) -> Expr {
         std::vector<Expr> max_indices(indices);
-        max_indices[axis] = max_index;
+        max_indices[axis] = max_index[0];
 
         auto cur_value = in_tensor(indices);
         auto max_value = in_tensor(max_indices);
         auto update    = ir::GT::Make(cur_value, max_value);
 
-        max_index = ir::Select::Make(update, indices[axis], max_index);
-        return max_index;
+        max_index[0] = ir::Select::Make(update, indices[axis], max_index[0]);
+        return max_index[0];
       },
       output_name + "_temp_tensor");
   stages->InsertLazily(temp_tensor);
