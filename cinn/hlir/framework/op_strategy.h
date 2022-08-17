@@ -26,8 +26,7 @@ namespace cinn {
 namespace hlir {
 namespace framework {
 
-using CINNCompute  = lang::PackedFunc;
-using CINNSchedule = lang::PackedFunc;
+using CINNCompute = lang::PackedFunc;
 
 class OpStrategy;
 

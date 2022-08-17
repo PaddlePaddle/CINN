@@ -15,7 +15,8 @@ gather_srcs(cinnapi_src SRCS
     op_lowering.cc
     accuracy_checker.cc
     visualize_helper.cc
-    )
+    schedule.cc
+)
 
 if(WITH_CUDA)
   nv_test(test_hlir_framework_buffer SRCS buffer_test.cc DEPS cinncore)
