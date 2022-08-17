@@ -167,7 +167,8 @@ void IRSchedule::MutateForType(const Expr& loop, ForType for_type, int factor) {
   auto* for_node = loop.As<ir::For>();
   CHECK(for_node) << "loop param must be For node! Please check.";
   CHECK(for_node->is_serial()) << "loop is not serial, current forloop type is "
-                               << static_cast<int>(for_node->for_type());
+                               << static_cast<int>(for_node->for_type()) << ", and it cannot become "
+                               << static_cast<int>(for_type);
   auto loop_copy     = optim::IRCopy(loop);
   auto* new_for_node = loop_copy.As<ir::For>();
   CHECK(new_for_node);
