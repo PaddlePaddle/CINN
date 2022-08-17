@@ -324,10 +324,10 @@ void IrPrinter::Visit(const Reduce *f) {
       os() << "Min";
       break;
     case Reduce::ReduceType::kAll:
-      os() << "And";
+      os() << "&&";
       break;
     case Reduce::ReduceType::kAny:
-      os() << "Or";
+      os() << "||";
       break;
   }
   os() << ", ";
