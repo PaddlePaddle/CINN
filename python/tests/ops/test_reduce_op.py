@@ -248,17 +248,12 @@ class TestAllCase4(TestAllOp):
 
 
 class TestAnyOp(TestReduceBaseOp):
-    # def init_case(self):
-    #     self.inputs = {"x": np.random.choice(a=[False, True], size=(10, 10, 10)).astype("bool")}
-    #     self.dim = []
-    #     self.keep_dim = False
-
     def init_case(self):
         self.inputs = {
             "x":
             np.random.choice(a=[False, True], size=(10, 10, 10)).astype("bool")
         }
-        self.dim = [0]
+        self.dim = []
         self.keep_dim = False
 
     def paddle_func(self, x):
