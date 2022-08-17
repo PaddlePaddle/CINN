@@ -23,6 +23,8 @@
 #include "cinn/ir/ir_schedule.h"
 #include "cinn/optim/ir_copy.h"
 
+DECLARE_bool(auto_schedule_use_cost_model);
+
 namespace cinn {
 namespace auto_schedule {
 
@@ -105,8 +107,9 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
       cost_model_labels[i] = measure_outputs[i].execution_cost;
     }
 
-    cost_model_.Train(cost_model_samples, cost_model_labels, task_->target);
-
+    if (FLAGS_auto_schedule_use_cost_model) {
+      cost_model_.Train(cost_model_samples, cost_model_labels, task_->target);
+    }
     // TODO(zhhsplendid): write measure record into cache.
 
     for (size_t i = 0; i < measure_outputs.size(); ++i) {
