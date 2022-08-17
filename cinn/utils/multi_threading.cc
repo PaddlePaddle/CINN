@@ -51,7 +51,7 @@ void parallel_run(const WorkerFuncType& fn, JobDispatcher&& dispatcher, int num_
   auto worker = [&fn, &dispatcher](int tid) -> int {
     int index = -1, counter = 0;
     while ((index = dispatcher.Next()) != -1) {
-      VLOG(5) << "Thread-" << tid << " process at index:" << index;
+      VLOG(5) << "Thread-" << tid << " process at index: " << index;
       fn(index);
       ++counter;
     }
@@ -84,7 +84,7 @@ void parallel_run(const WorkerFuncType& fn, JobDispatcher&& dispatcher, int num_
       VLOG(4) << "Thread-" << tid << " process " << counter << " tasks.";
     }
   } catch (const std::exception& e) {
-    LOG(FATAL) << "parallel_run incurs error:" << e.what();
+    LOG(FATAL) << "parallel_run incurs error: " << e.what();
   }
 
   // join threads

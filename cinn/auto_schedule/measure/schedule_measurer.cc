@@ -34,12 +34,12 @@ std::vector<MeasureResult> ScheduleMeasurer::Measure(const std::vector<MeasureIn
 
   // define how to build a candidate with the specified index
   auto build_fn = [builder = builder_, &inputs, &build_results, &results](int index) {
-    VLOG(6) << "Build candidate:" << index;
+    VLOG(6) << "Build candidate: " << index;
     auto m_start = std::chrono::steady_clock::now();
     try {
       build_results[index] = builder->Build(inputs[index]);
     } catch (std::exception& e) {
-      results[index].error_msg = utils::StringFormat("Build failed, error:%s\n", e.what());
+      results[index].error_msg = utils::StringFormat("Build failed, error: %s\n", e.what());
     }
     auto time_span = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - m_start);
     results[index].elapsed_time += static_cast<double>(time_span.count());
@@ -47,7 +47,7 @@ std::vector<MeasureResult> ScheduleMeasurer::Measure(const std::vector<MeasureIn
 
   // define how to run a candidate with the specified index
   auto run_fn = [runner = runner_, &inputs, &build_results, &results](int index) {
-    VLOG(6) << "Run candidate:" << index;
+    VLOG(6) << "Run candidate: " << index;
     auto m_start = std::chrono::steady_clock::now();
     try {
       // if error occured in building, then skip running
@@ -55,7 +55,7 @@ std::vector<MeasureResult> ScheduleMeasurer::Measure(const std::vector<MeasureIn
         results[index] = runner->Run(inputs[index], build_results[index]);
       }
     } catch (std::exception& e) {
-      results[index].error_msg = utils::StringFormat("Run failed, error:%s\n", e.what());
+      results[index].error_msg = utils::StringFormat("Run failed, error: %s\n", e.what());
     }
     auto time_span = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - m_start);
     results[index].elapsed_time += static_cast<double>(time_span.count());

@@ -104,15 +104,15 @@ TEST_F(TestMeasurer, CatchException) {
   auto measurer_with_build_error     = std::make_unique<ScheduleMeasurer>(throw_builder.get(), runner.get(), 2);
   std::vector<MeasureResult> results = measurer_with_build_error->Measure(inputs);
   ASSERT_EQ(inputs.size(), results.size());
-  EXPECT_EQ(results[0].error_msg, "Build failed, error:BuildError\n");
-  EXPECT_EQ(results[1].error_msg, "Build failed, error:BuildError\n");
+  EXPECT_EQ(results[0].error_msg, "Build failed, error: BuildError\n");
+  EXPECT_EQ(results[1].error_msg, "Build failed, error: BuildError\n");
 
   // TODO(CtfGo): test parallel build after we support thread-safe compilation
   auto measurer_with_run_error = std::make_unique<ScheduleMeasurer>(builder.get(), throw_runner.get(), 1);
   results                      = measurer_with_run_error->Measure(inputs);
   ASSERT_EQ(inputs.size(), results.size());
-  EXPECT_EQ(results[0].error_msg, "Run failed, error:RunError\n");
-  EXPECT_EQ(results[1].error_msg, "Run failed, error:RunError\n");
+  EXPECT_EQ(results[0].error_msg, "Run failed, error: RunError\n");
+  EXPECT_EQ(results[1].error_msg, "Run failed, error: RunError\n");
 }
 
 }  // namespace auto_schedule
