@@ -78,46 +78,9 @@ std::shared_ptr<OpStrategy> StrategyForElementwise(const framework::NodeAttr &at
     *ret = CINNValuePack{res};
   });
 
-  framework::CINNSchedule unary_schedule([=](lang::Args args, lang::RetValue *ret) {
-    if (FLAGS_cinn_ir_schedule) {
-      CHECK(!args.empty()) << "The input argument of " << op_name << " schedule is empty! Please check.";
-      CINNValuePack arg_pack = args[0];
-      std::vector<Expr> vec_ast;
-      for (int i = 0; i < arg_pack.size(); i++) {
-        if (arg_pack[i].is_expr()) {
-          Expr temp = arg_pack[i];
-          vec_ast.emplace_back(temp);
-        }
-      }
-      CHECK(!vec_ast.empty());
-      ir::ModuleExpr mod_expr(vec_ast);
-      ir::IRSchedule ir_sch(mod_expr);
-      ir_sch.MergeExprs();
-      if (target.arch == Target::Arch::NVGPU) {
-        pe::IRCudaScheduleInjective(ir_sch, output_shapes.front(), target);
-      } else if (target.arch == Target::Arch::X86) {
-        pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target);
-      }
-      std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
-      *ret = CINNValuePack{res};
-    } else {
-      CHECK(!args.empty()) << "The input argument of " << op_name << " schedule is empty! Please check.";
-      CINNValuePack arg_pack = args[0];
-      CHECK_EQ(arg_pack.size(), 2UL);
-      Expr Out              = arg_pack[0];
-      poly::StageMap stages = arg_pack[1];
-      CHECK(Out.as_tensor());
-      if (target.arch == Target::Arch::NVGPU) {
-        pe::CudaScheduleInjective(stages[Out.as_tensor_ref()], output_shapes.front(), target);
-      } else if (target.arch == Target::Arch::X86) {
-        pe::ScheduleInjectiveCPU(stages[Out.as_tensor_ref()], output_shapes.front(), target);
-      }
-      *ret = arg_pack;
-    }
-  });
-
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(unary_compute, unary_schedule, "strategy." + op_name + ".x86", 1);
+  strategy->AddImpl(
+      unary_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy." + op_name + ".x86", 1);
 
   return strategy;
 }
@@ -185,46 +148,8 @@ std::shared_ptr<OpStrategy> StrategyForScale(const framework::NodeAttr &attrs,
     *ret        = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
   });
 
-  framework::CINNSchedule scale_schedule([=](lang::Args args, lang::RetValue *ret) {
-    if (FLAGS_cinn_ir_schedule) {
-      CHECK(!args.empty()) << "The input argument of scale schedule is empty! Please check.";
-      CINNValuePack arg_pack = args[0];
-      std::vector<Expr> vec_ast;
-      for (int i = 0; i < arg_pack.size(); i++) {
-        if (arg_pack[i].is_expr()) {
-          Expr temp = arg_pack[i];
-          vec_ast.emplace_back(temp);
-        }
-      }
-      CHECK(!vec_ast.empty());
-      ir::ModuleExpr mod_expr(vec_ast);
-      ir::IRSchedule ir_sch(mod_expr);
-      ir_sch.MergeExprs();
-      if (target.arch == Target::Arch::NVGPU) {
-        pe::IRCudaScheduleInjective(ir_sch, output_shapes.front(), target);
-      } else if (target.arch == Target::Arch::X86) {
-        pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target);
-      }
-      std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
-      *ret = CINNValuePack{res};
-    } else {
-      CHECK(!args.empty()) << "The input argument of scale schedule is empty! Please check.";
-      CINNValuePack arg_pack = args[0];
-      CHECK_EQ(arg_pack.size(), 2UL);
-      Expr Out              = arg_pack[0];
-      poly::StageMap stages = arg_pack[1];
-      CHECK(Out.as_tensor());
-      if (target.arch == Target::Arch::NVGPU) {
-        pe::CudaScheduleInjective(stages[Out.as_tensor_ref()], output_shapes.front(), target);
-      } else if (target.arch == Target::Arch::X86) {
-        pe::ScheduleInjectiveCPU(stages[Out.as_tensor_ref()], output_shapes.front(), target);
-      }
-      *ret = arg_pack;
-    }
-  });
-
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(scale_compute, scale_schedule, "strategy.scale.x86", 1);
+  strategy->AddImpl(scale_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.scale.x86", 1);
 
   return strategy;
 }
@@ -270,46 +195,9 @@ std::shared_ptr<OpStrategy> StrategyForConstScalar(const framework::NodeAttr &at
     *ret        = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
   });
 
-  framework::CINNSchedule const_scalar_schedule([=](lang::Args args, lang::RetValue *ret) {
-    if (FLAGS_cinn_ir_schedule) {
-      CHECK(!args.empty()) << "The input argument of create_const_float schedule is empty! Please check.";
-      CINNValuePack arg_pack = args[0];
-      std::vector<Expr> vec_ast;
-      for (int i = 0; i < arg_pack.size(); i++) {
-        if (arg_pack[i].is_expr()) {
-          Expr temp = arg_pack[i];
-          vec_ast.emplace_back(temp);
-        }
-      }
-      CHECK(!vec_ast.empty());
-      ir::ModuleExpr mod_expr(vec_ast);
-      ir::IRSchedule ir_sch(mod_expr);
-      ir_sch.MergeExprs();
-      if (target.arch == Target::Arch::NVGPU) {
-        pe::IRCudaScheduleInjective(ir_sch, output_shapes.front(), target);
-      } else if (target.arch == Target::Arch::X86) {
-        pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target);
-      }
-      std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
-      *ret = CINNValuePack{res};
-    } else {
-      CHECK(!args.empty()) << "The input argument of create_const_float schedule is empty! Please check.";
-      CINNValuePack arg_pack = args[0];
-      CHECK_EQ(arg_pack.size(), 2UL);
-      Expr Out              = arg_pack[0];
-      poly::StageMap stages = arg_pack[1];
-      CHECK(Out.as_tensor());
-      if (target.arch == Target::Arch::NVGPU) {
-        pe::CudaScheduleInjective(stages[Out.as_tensor_ref()], output_shapes.front(), target);
-      } else if (target.arch == Target::Arch::X86) {
-        pe::ScheduleInjectiveCPU(stages[Out.as_tensor_ref()], output_shapes.front(), target);
-      }
-      *ret = arg_pack;
-    }
-  });
-
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(const_scalar_compute, const_scalar_schedule, "strategy.const_scalar.x86", 1);
+  strategy->AddImpl(
+      const_scalar_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.const_scalar.x86", 1);
 
   return strategy;
 }
@@ -401,46 +289,11 @@ std::shared_ptr<OpStrategy> StrategyForFillConstant(const framework::NodeAttr &a
     *ret        = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
   });
 
-  framework::CINNSchedule fill_constant_schedule([=](lang::Args args, lang::RetValue *ret) {
-    if (FLAGS_cinn_ir_schedule) {
-      CHECK(!args.empty()) << "The input argument of create_const_float schedule is empty! Please check.";
-      CINNValuePack arg_pack = args[0];
-      std::vector<Expr> vec_ast;
-      for (int i = 0; i < arg_pack.size(); i++) {
-        if (arg_pack[i].is_expr()) {
-          Expr temp = arg_pack[i];
-          vec_ast.emplace_back(temp);
-        }
-      }
-      CHECK(!vec_ast.empty());
-      ir::ModuleExpr mod_expr(vec_ast);
-      ir::IRSchedule ir_sch(mod_expr);
-      ir_sch.MergeExprs();
-      if (target.arch == Target::Arch::NVGPU) {
-        pe::IRCudaScheduleInjective(ir_sch, output_shapes.front(), target);
-      } else if (target.arch == Target::Arch::X86) {
-        pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target);
-      }
-      std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
-      *ret = CINNValuePack{res};
-    } else {
-      CHECK(!args.empty()) << "The input argument of create_const_float schedule is empty! Please check.";
-      CINNValuePack arg_pack = args[0];
-      CHECK_EQ(arg_pack.size(), 2UL);
-      Expr Out              = arg_pack[0];
-      poly::StageMap stages = arg_pack.back();
-      CHECK(Out.as_tensor());
-      if (target.arch == Target::Arch::NVGPU) {
-        pe::CudaScheduleInjective(stages[Out.as_tensor_ref()], output_shapes.front(), target);
-      } else if (target.arch == Target::Arch::X86) {
-        pe::ScheduleInjectiveCPU(stages[Out.as_tensor_ref()], output_shapes.front(), target);
-      }
-      *ret = arg_pack;
-    }
-  });
-
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(fill_constant_compute, fill_constant_schedule, "strategy.fill_constant.x86", 1);
+  strategy->AddImpl(fill_constant_compute,
+                    framework::GetInjectiveScheduleFunc(output_shapes, target),
+                    "strategy.fill_constant.x86",
+                    1);
 
   return strategy;
 }
