@@ -93,9 +93,9 @@ Tensor Argmin(const Tensor &in_tensor,
     auto c_v    = ir::Select::Make(update, value, last_value);
     auto c_i    = ir::Select::Make(update, ir::Cast::Make(Float(32), Expr(loop_var)), temp_tensor({Expr(0)}));
 
-    Expr body1 = ir::Store::Make(temp_tensor, c_v, {Expr(loop_var)});
-    Expr body2 = ir::Store::Make(temp_tensor, c_i, {Expr(0)});
-    Expr body  = ir::Block::Make({body1, body2});
+    auto body1 = ir::Store::Make(temp_tensor, c_v, {Expr(loop_var)});
+    auto body2 = ir::Store::Make(temp_tensor, c_i, {Expr(0)});
+    auto body  = ir::Block::Make({body1, body2});
 
     Expr forloop = ir::For::Make(
         loop_var, common::make_const(1), shape[real_axis], ir::ForType::Serial, ir::DeviceAPI::Host, body);
