@@ -18,15 +18,20 @@
 
 #include <limits>
 
+#include "cinn/auto_schedule/cost_model/expr_cost_model.h"
 #include "cinn/auto_schedule/measure/measure.h"
 #include "cinn/auto_schedule/search_strategy/evolutionary_search.h"
 #include "cinn/ir/ir_schedule.h"
 #include "cinn/optim/ir_copy.h"
+#include "cinn/runtime/flags.h"
 
 DECLARE_bool(auto_schedule_use_cost_model);
 
 namespace cinn {
 namespace auto_schedule {
+
+TaskOptimizer::TaskOptimizer(const TuneTask& task, ScheduleMeasurer* schedule_measurer)
+    : task_(&task), schedule_measurer_(schedule_measurer), cost_model_() {}
 
 TuningResult::OptimizedComputeExpr TaskOptimizer::Optimize(const TuningOptions& options) {
   // TODO(zhhsplendid): develop other optimize methods and configure the method by options.

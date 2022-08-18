@@ -15,6 +15,7 @@
 #include "cinn/auto_schedule/auto_tuner.h"
 
 #include <glog/logging.h>
+#include <pybind11/embed.h>
 
 #include <algorithm>
 #include <memory>
@@ -31,7 +32,12 @@
 namespace cinn {
 namespace auto_schedule {
 
-AutoTuner::AutoTuner(const common::Target& target, hlir::framework::Graph* graph) : target_(target), graph_(graph) {}
+AutoTuner::AutoTuner(const common::Target& target, hlir::framework::Graph* graph) : target_(target), graph_(graph) {
+  // CostModel in TaskOptimizer calls Python, manage pybind interpreter here
+  pybind11::initialize_interpreter();
+}
+
+AutoTuner::~AutoTuner() { pybind11::finalize_interpreter(); }
 
 void AutoTuner::Initialize(const Config& config, hlir::framework::GraphCompiler* graph_compiler) {
   // create builder, runner, and schedule measurer

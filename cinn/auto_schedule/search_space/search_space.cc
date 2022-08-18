@@ -23,10 +23,10 @@
 #include "cinn/auto_schedule/cost_model/cost_model.h"
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
 #include "cinn/auto_schedule/task/tune_task.h"
-#include "cinn/common/flags.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_schedule.h"
 #include "cinn/optim/ir_copy.h"
+#include "cinn/runtime/flags.h"
 
 DECLARE_bool(auto_schedule_use_cost_model);
 

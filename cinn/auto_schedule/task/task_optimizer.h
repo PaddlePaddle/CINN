@@ -30,8 +30,7 @@ namespace auto_schedule {
 // optimal schedule for the task.
 class TaskOptimizer {
  public:
-  TaskOptimizer(const TuneTask& task, ScheduleMeasurer* schedule_measurer)
-      : task_(&task), schedule_measurer_(schedule_measurer) {}
+  TaskOptimizer(const TuneTask& task, ScheduleMeasurer* schedule_measurer);
 
   TuningResult::OptimizedComputeExpr Optimize(const TuningOptions& options);
 
