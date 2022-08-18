@@ -30,7 +30,7 @@ class TestReduceBaseOp(OpTest):
         self.init_case()
 
     def init_case(self):
-        self.inputs = {"x": np.random.random([10, 10, 10]).astype("float32")}
+        self.inputs = {"x": self.random([10, 10, 10], "float32", -1.0, 1.0)}
         self.dim = []
         self.keep_dim = False
 
@@ -75,28 +75,28 @@ class TestReduceSumOp(TestReduceBaseOp):
 
 class TestReduceSumCase1(TestReduceSumOp):
     def init_case(self):
-        self.inputs = {"x": np.random.random([10, 10, 10]).astype("float32")}
+        self.inputs = {"x": self.random([10, 10, 10], "float32", -1.0, 1.0)}
         self.dim = []
         self.keep_dim = False
 
 
 class TestReduceSumCase2(TestReduceSumOp):
     def init_case(self):
-        self.inputs = {"x": np.random.random([10, 10, 10]).astype("float32")}
+        self.inputs = {"x": self.random([10, 10, 10], "float32", -1.0, 1.0)}
         self.dim = [0, 1]
         self.keep_dim = False
 
 
 class TestReduceSumCase3(TestReduceSumOp):
     def init_case(self):
-        self.inputs = {"x": np.random.random([10, 10, 10]).astype("float32")}
+        self.inputs = {"x": self.random([10, 10, 10], "float32", -1.0, 1.0)}
         self.dim = [0, 1, 2]
         self.keep_dim = False
 
 
 class TestReduceSumCase4(TestReduceSumOp):
     def init_case(self):
-        self.inputs = {"x": np.random.random([10, 10, 10]).astype("float32")}
+        self.inputs = {"x": self.random([10, 10, 10], "float32", -1.0, 1.0)}
         self.dim = [0]
         self.keep_dim = True
 
@@ -111,21 +111,21 @@ class TestReduceProdOp(TestReduceBaseOp):
 
 class TestReduceProdCase1(TestReduceProdOp):
     def init_case(self):
-        self.inputs = {"x": np.random.random([10, 10, 10]).astype("float32")}
+        self.inputs = {"x": self.random([10, 10, 10], "float32", -1.0, 1.0)}
         self.dim = [0, 1]
         self.keep_dim = False
 
 
 class TestReduceProdCase2(TestReduceProdOp):
     def init_case(self):
-        self.inputs = {"x": np.random.random([10, 10, 10]).astype("float32")}
+        self.inputs = {"x": self.random([10, 10, 10], "float32", -1.0, 1.0)}
         self.dim = [0, 1]
         self.keep_dim = True
 
 
 class TestReduceProdCase3(TestReduceProdOp):
     def init_case(self):
-        self.inputs = {"x": np.random.random([10, 10, 10]).astype("float32")}
+        self.inputs = {"x": self.random([10, 10, 10], "float32", -1.0, 1.0)}
         self.dim = [0]
         self.keep_dim = False
 
@@ -137,24 +137,27 @@ class TestReduceMaxOp(TestReduceBaseOp):
     def cinn_func(self, builder, x):
         return builder.reduce(x, ReduceKind.kMax, self.dim, self.keep_dim)
 
+    def test_check_results(self):
+        self.check_outputs_and_grads(all_equal=True)
+
 
 class TestReduceMaxCase1(TestReduceMaxOp):
     def init_case(self):
-        self.inputs = {"x": np.random.random([10, 10, 10]).astype("float32")}
+        self.inputs = {"x": self.random([10, 10, 10], "float32", -1.0, 1.0)}
         self.dim = [0, 1]
         self.keep_dim = False
 
 
 class TestReduceMaxCase2(TestReduceMaxOp):
     def init_case(self):
-        self.inputs = {"x": np.random.random([10, 10, 10]).astype("float32")}
+        self.inputs = {"x": self.random([10, 10, 10], "float32", -1.0, 1.0)}
         self.dim = [0, 1]
         self.keep_dim = True
 
 
 class TestReduceMaxCase3(TestReduceMaxOp):
     def init_case(self):
-        self.inputs = {"x": np.random.random([10, 10, 10]).astype("float32")}
+        self.inputs = {"x": self.random([10, 10, 10], "float32", -1.0, 1.0)}
         self.dim = [0]
         self.keep_dim = False
 
@@ -166,34 +169,34 @@ class TestReduceMinOp(TestReduceBaseOp):
     def cinn_func(self, builder, x):
         return builder.reduce(x, ReduceKind.kMin, self.dim, self.keep_dim)
 
+    def test_check_results(self):
+        self.check_outputs_and_grads(all_equal=True)
+
 
 class TestReduceMinCase1(TestReduceMinOp):
     def init_case(self):
-        self.inputs = {"x": np.random.random([10, 10, 10]).astype("float32")}
+        self.inputs = {"x": self.random([10, 10, 10], "float32", -1.0, 1.0)}
         self.dim = [0, 1]
         self.keep_dim = False
 
 
 class TestReduceMinCase2(TestReduceMinOp):
     def init_case(self):
-        self.inputs = {"x": np.random.random([10, 10, 10]).astype("float32")}
+        self.inputs = {"x": self.random([10, 10, 10], "float32", -1.0, 1.0)}
         self.dim = [0, 1]
         self.keep_dim = True
 
 
 class TestReduceMinCase3(TestReduceMinOp):
     def init_case(self):
-        self.inputs = {"x": np.random.random([10, 10, 10]).astype("float32")}
+        self.inputs = {"x": self.random([10, 10, 10], "float32", -1.0, 1.0)}
         self.dim = [0]
         self.keep_dim = False
 
 
 class TestAllOp(TestReduceBaseOp):
     def init_case(self):
-        self.inputs = {
-            "x":
-            np.random.choice(a=[False, True], size=(10, 10, 10)).astype("bool")
-        }
+        self.inputs = {"x": self.random([10, 10, 10], "bool")}
         self.dim = []
         self.keep_dim = False
 
@@ -206,53 +209,41 @@ class TestAllOp(TestReduceBaseOp):
     def cinn_create_input(self, builder, shape, name):
         return builder.create_input(Bool(), shape, name)
 
+    def test_check_results(self):
+        self.check_outputs_and_grads(all_equal=True)
+
 
 class TestAllCase1(TestAllOp):
     def init_case(self):
-        self.inputs = {
-            "x":
-            np.random.choice(a=[False, True], size=(10, 10, 10)).astype("bool")
-        }
+        self.inputs = {"x": self.random([10, 10, 10], "bool")}
         self.dim = []
         self.keep_dim = True
 
 
 class TestAllCase2(TestAllOp):
     def init_case(self):
-        self.inputs = {
-            "x":
-            np.random.choice(a=[False, True], size=(10, 10, 10)).astype("bool")
-        }
+        self.inputs = {"x": self.random([10, 10, 10], "bool")}
         self.dim = [0, 1]
         self.keep_dim = False
 
 
 class TestAllCase3(TestAllOp):
     def init_case(self):
-        self.inputs = {
-            "x":
-            np.random.choice(a=[False, True], size=(10, 10, 10)).astype("bool")
-        }
+        self.inputs = {"x": self.random([10, 10, 10], "bool")}
         self.dim = [0, 1]
         self.keep_dim = True
 
 
 class TestAllCase4(TestAllOp):
     def init_case(self):
-        self.inputs = {
-            "x":
-            np.random.choice(a=[False, True], size=(10, 10, 10)).astype("bool")
-        }
+        self.inputs = {"x": self.random([10, 10, 10], "bool")}
         self.dim = [0]
         self.keep_dim = False
 
 
 class TestAnyOp(TestReduceBaseOp):
     def init_case(self):
-        self.inputs = {
-            "x":
-            np.random.choice(a=[False, True], size=(10, 10, 10)).astype("bool")
-        }
+        self.inputs = {"x": self.random([10, 10, 10], "bool")}
         self.dim = []
         self.keep_dim = False
 
@@ -265,43 +256,34 @@ class TestAnyOp(TestReduceBaseOp):
     def cinn_create_input(self, builder, shape, name):
         return builder.create_input(Bool(), shape, name)
 
+    def test_check_results(self):
+        self.check_outputs_and_grads(all_equal=True)
+
 
 class TestAnyCase1(TestAnyOp):
     def init_case(self):
-        self.inputs = {
-            "x":
-            np.random.choice(a=[False, True], size=(10, 10, 10)).astype("bool")
-        }
+        self.inputs = {"x": self.random([10, 10, 10], "bool")}
         self.dim = []
         self.keep_dim = True
 
 
 class TestAnyCase2(TestAnyOp):
     def init_case(self):
-        self.inputs = {
-            "x":
-            np.random.choice(a=[False, True], size=(10, 10, 10)).astype("bool")
-        }
+        self.inputs = {"x": self.random([10, 10, 10], "bool")}
         self.dim = [0, 1]
         self.keep_dim = False
 
 
 class TestAnyCase3(TestAnyOp):
     def init_case(self):
-        self.inputs = {
-            "x":
-            np.random.choice(a=[False, True], size=(10, 10, 10)).astype("bool")
-        }
+        self.inputs = {"x": self.random([10, 10, 10], "bool")}
         self.dim = [0, 1]
         self.keep_dim = True
 
 
 class TestAnyCase4(TestAnyOp):
     def init_case(self):
-        self.inputs = {
-            "x":
-            np.random.choice(a=[False, True], size=(10, 10, 10)).astype("bool")
-        }
+        self.inputs = {"x": self.random([10, 10, 10], "bool")}
         self.dim = [0]
         self.keep_dim = False
 

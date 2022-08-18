@@ -50,7 +50,7 @@ class TestFillConstantOp(OpTest):
         self.cinn_outputs = [res[0]]
 
     def test_check_results(self):
-        self.check_outputs_and_grads()
+        self.check_outputs_and_grads(all_equal=True)
 
 
 class TestFillConstantCase1(TestFillConstantOp):
@@ -100,13 +100,14 @@ class TestFillConstantByValueOp(OpTest):
         self.cinn_outputs = [res[0]]
 
     def test_check_results(self):
-        self.check_outputs_and_grads()
+        self.check_outputs_and_grads(all_equal=True)
 
 
 class TestFillConstantByValueCase1(TestFillConstantByValueOp):
     def init_case(self):
         self.shape = [32]
         self.value = int(1)
+        # only for paddle.full
         self.dtype = "int32"
 
 
@@ -114,6 +115,7 @@ class TestFillConstantByValueCase2(TestFillConstantByValueOp):
     def init_case(self):
         self.shape = [32]
         self.value = bool(True)
+        # only for paddle.full
         self.dtype = "bool"
 
 

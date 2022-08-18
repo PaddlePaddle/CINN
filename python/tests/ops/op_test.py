@@ -26,13 +26,6 @@ logging.basicConfig(level=os.environ.get('LOG_LEVEL', 'INFO').upper())
 logger = logging.getLogger(name="op_test")
 
 
-def random(shape, dtype="float32", low=0.0, high=1.0):
-    if dtype == "float32":
-        return np.random.uniform(low, high, shape).astype(dtype)
-    else:
-        raise Exception("Not supported yet.")
-
-
 class OpTest(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(OpTest, self).__init__(*args, **kwargs)
@@ -98,20 +91,25 @@ class OpTest(unittest.TestCase):
         logger.debug("============ After Decomposer Pass ============")
         print_program(prog)
 
-    def check_outputs_and_grads(self, max_relative_error=1e-5):
+    def check_outputs_and_grads(self, max_relative_error=1e-5,
+                                all_equal=False):
         self.build_paddle_program(self.target)
         self.build_cinn_program(self.target)
 
         logger.debug("============ Check Outputs ============")
         self.check_results(self.paddle_outputs, self.cinn_outputs,
-                           max_relative_error)
+                           max_relative_error, all_equal)
 
         if len(self.cinn_grads) != 0:
             logger.debug("============ Check Grads ============")
             self.check_results(self.paddle_grads, self.cinn_grads,
-                               max_relative_error)
+                               max_relative_error, all_equal)
 
-    def check_results(self, expect_res, actual_res, max_relative_error):
+    def check_results(self,
+                      expect_res,
+                      actual_res,
+                      max_relative_error,
+                      all_equal=False):
         def _compute_max_relative_error(output_id, expect, actual):
             absolute_diff = np.abs(expect - actual).flatten()
             relative_diff = absolute_diff / np.abs(expect).flatten()
@@ -177,35 +175,39 @@ class OpTest(unittest.TestCase):
                 "[{}] The {}-th output shape different, which expect shape is {} but actual is {}."
                 .format(self._get_device(), i, expect.shape, actual.shape))
 
+            should_all_equal = all_equal or (actual.dtype in [
+                np.dtype('bool'),
+                np.dtype('int32'),
+                np.dtype('int64')
+            ])
+
             is_allclose = True
             error_message = ""
-            if actual.dtype is np.dtype('float32') or actual.dtype is np.dtype(
-                    'float64'):
+            if not should_all_equal:
                 is_allclose = np.allclose(
                     expect, actual, atol=1e-6, rtol=max_relative_error)
-                if not is_allclose:
-                    error_message = _compute_max_relative_error(
-                        i, expect, actual)
-                else:
-                    error_message = "np.allclose(expect, actual, atol=1e-6, rtol={}) checks succeed!".format(
-                        max_relative_error)
-            elif actual.dtype is np.dtype('bool') or actual.dtype is np.dtype(
-                    'int32') or actual.dtype is np.dtype('int64'):
-                is_allclose = np.all(expect == actual)
-
-                if not is_allclose:
-                    error_message = _check_error_message(i, expect, actual)
-                else:
-                    error_message = "(expect == actual) checks succeed!"
+                error_message = "np.allclose(expect, actual, atol=1e-6, rtol={}) checks succeed!".format(
+                    max_relative_error
+                ) if is_allclose else _compute_max_relative_error(
+                    i, expect, actual)
             else:
-                self.assertRaises(
-                    NotImplementedError,
-                    msg=
-                    "Only support float32/float64/int32/int64/bool now, type {} not support."
-                    .format(actual.dtype))
+                is_allclose = np.all(expect == actual)
+                error_message = "(expect == actual) checks succeed!" if is_allclose else _check_error_message(
+                    i, expect, actual)
 
             logger.debug("{} {}".format(is_allclose, error_message))
             self.assertTrue(is_allclose, msg=error_message)
+
+    @staticmethod
+    def random(shape, dtype="float32", low=0.0, high=1.0):
+        if dtype in ["float32", "float64"]:
+            return np.random.uniform(low, high, shape).astype(dtype)
+        elif dtype == "bool":
+            return np.random.choice(a=[False, True], size=shape).astype(dtype)
+        elif dtype in ["int32", "int64"]:
+            return np.random.randint(low, high, shape).astype(dtype)
+        else:
+            raise Exception("Not supported yet.")
 
 
 class OpTestTool:

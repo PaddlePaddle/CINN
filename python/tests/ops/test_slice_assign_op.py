@@ -97,7 +97,7 @@ class TestSliceAssignOp(OpTest):
         self.cinn_outputs = res
 
     def test_check_results(self):
-        self.check_outputs_and_grads()
+        self.check_outputs_and_grads(all_equal=True)
 
 
 class TestSliceAssignCase1(TestSliceAssignOp):
