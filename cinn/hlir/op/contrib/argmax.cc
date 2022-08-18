@@ -71,7 +71,7 @@ Tensor Argmax(const Tensor &in_tensor,
   }
   std::vector<Expr> max_index = {Expr(0)};
   auto temp_tensor            = Compute(
-      {shape},
+      shape,
       [&](const std::vector<Expr> &indices) -> Expr {
         std::vector<Expr> max_indices(indices);
         max_indices[axis] = max_index[-1];
