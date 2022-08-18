@@ -55,7 +55,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForCast(const framework::NodeAttr
                                                        const std::vector<Type> &out_type,
                                                        const std::vector<std::vector<int>> &output_shapes,
                                                        const Target &target) {
-  framework::CINNCompute squeeze_compute([=](lang::Args args, lang::RetValue *ret) {
+  framework::CINNCompute cast_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input arguments of Cast compute is empty! Please check.\n";
     CINNValuePack a = args[0];
     CHECK_GE(a.size(), 1U) << "at least 1 input tensors for Cast compute\n";
@@ -75,7 +75,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForCast(const framework::NodeAttr
     *ret = CINNValuePack{res};
   });
 
-  framework::CINNSchedule squeeze_schedule([=](lang::Args args, lang::RetValue *ret) {
+  framework::CINNSchedule cast_schedule([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of reshape schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
     Expr out               = arg_pack[0];
@@ -84,7 +84,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForCast(const framework::NodeAttr
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(squeeze_compute, squeeze_schedule, "strategy.squeeze.x86", 1);
+  strategy->AddImpl(cast_compute, cast_schedule, "strategy.cast.x86", 1);
   return strategy;
 }
 
