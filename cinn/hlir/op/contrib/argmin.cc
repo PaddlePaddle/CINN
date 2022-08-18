@@ -97,10 +97,10 @@ Tensor Argmin(const Tensor &in_tensor,
     auto body2 = ir::Store::Make(temp_tensor, c_i, {Expr(0)});
     auto body  = ir::Block::Make({body1, body2});
 
-    Expr forloop = ir::For::Make(
+    auto forloop = ir::For::Make(
         loop_var, common::make_const(1), shape[real_axis], ir::ForType::Serial, ir::DeviceAPI::Host, body);
 
-    return ir::Cast::Make(Int(32), forloop({Expr(0)}));
+    return ir::Cast::Make(Int(32), forloop);
   };
 
   Tensor res = Compute(output_shape, compute, output_name);
