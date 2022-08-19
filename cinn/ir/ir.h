@@ -429,6 +429,8 @@ struct Reduce : public ExprNode<Reduce> {
     kDiv,
     kMax,
     kMin,
+    kArgmax,
+    kArgmin
   };
 
   //! The initial value.
@@ -436,6 +438,9 @@ struct Reduce : public ExprNode<Reduce> {
 
   // ! The body.
   Expr body;
+
+  // ! The max_index
+  Expr max_index;
 
   utils::SmallVector<Var, 4> reduce_axis;
 

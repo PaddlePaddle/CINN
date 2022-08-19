@@ -42,47 +42,7 @@ Tensor Argmax(const Tensor &in_tensor,
               const bool keep_dims,
               poly::StageMap stages,
               const std::string &output_name) {
-  auto shape = in_tensor->shape;
-  auto ndim  = shape.size();
-  CHECK_GT(ndim, 0) << "tensor's dim must be more than 0";
-
-  int real_axis;
-  if (axis < 0) {
-    real_axis = static_cast<int>(ndim) + axis;
-  } else {
-    real_axis = axis;
-  }
-  CHECK_LT(real_axis, ndim) << "Axis must be less than tensor's dim";
-  CHECK_GE(real_axis, 0) << "Axis must be more than 0";
-
-  std::vector<Expr> output_shape;
-  for (int i = 0; i < shape.size(); ++i) {
-    CHECK(shape[i].is_constant()) << "Input tensor's shape should be constant value.";
-    if (axis == i) {
-      if (keep_dims) {
-        output_shape.push_back(Expr(1));
-      }
-    } else {
-      output_shape.push_back(shape[i]);
-    }
-  }
-  if (output_shape.empty()) {
-    output_shape.push_back(Expr(1));
-  }
-
-  auto compute = [=](const std::vector<Expr> &indices) -> Expr {
-    std::vector<Expr> eval_indices(indices);
-    if (!keep_dims) {
-      eval_indices.insert(eval_indices.begin() + real_axis, max_index[-1]);
-    } else {
-      eval_indices[axis] = max_index[-1];
-    }
-    CHECK_EQ(eval_indices.size(), ndim);
-    return temp_tensor(eval_indices);
-  };
-
-  Tensor res = Compute(output_shape, compute, output_name);
-  return res;
+  return Reduce(A, {axis}, lang::ReduceArgmax, keep_dims, ir::Expr(0), output_name);
 }
 
 std::shared_ptr<framework::OpStrategy> StrategyForArgmax(const framework::NodeAttr &attrs,

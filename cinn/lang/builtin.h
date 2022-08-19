@@ -129,6 +129,12 @@ inline Expr ReduceMin(Expr e, const std::vector<Var>& reduce_axis, Expr initial 
   }
   return ir::Reduce::Make(ir::Reduce::kMin, initial, e, reduce_axis);
 }
+inline Expr ReduceArgmax(Expr e, const std::vector<Var>& reduce_axis, Expr initial = Expr()) {
+  if (!initial.defined()) {
+    initial = max_value(e.type());
+  }
+  return ir::Reduce::Make(ir::Reduce::kArgmax, initial, e, reduce_axis);
+}
 
 Expr IsNan(Expr e);
 
