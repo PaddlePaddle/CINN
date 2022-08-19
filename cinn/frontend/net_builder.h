@@ -30,7 +30,8 @@ namespace frontend {
     macro__(Tanh)                               \
     macro__(Relu)                               \
     macro__(Sigmoid)                            \
-    macro__(Identity)
+    macro__(Identity)                           \
+    macro__(AssertTrue)
 
 #define NETBUILDER_BINARY_OP_FOREACH(macro__)   \
     macro__(Add)                                \

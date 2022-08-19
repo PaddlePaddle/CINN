@@ -1097,6 +1097,23 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions(
           BuildCublasInstr(*node, instr.get());
         }
       }
+
+      if (node->op()->name == "assert_true") {
+        const auto& attr_map = node->attrs.attr_store;
+
+        bool only_warning = false;
+        if (attr_map.count("only_warning")) {
+          only_warning = absl::get<bool>(attr_map.at("only_warning"));
+        }
+        instr->attrs.push_back(only_warning);
+
+        std::string msg;
+        if (attr_map.count("msg")) {
+          msg = absl::get<std::string>(attr_map.at("msg"));
+        }
+        instr->str_attrs.push_back(msg);
+      }
+
       std::string op_func_name =
           fusion_group.get() ? fusion_group->GetFuncName() : GetOrGenFullFuncName(GenOpFuncName(node));
       auto* fn = compiler_->Lookup(op_func_name);

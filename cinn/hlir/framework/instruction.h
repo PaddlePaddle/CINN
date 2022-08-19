@@ -125,6 +125,10 @@ class Instruction {
  protected:
   void CheckResults(const std::map<std::string, cinn_pod_value_t>* name2podargs = nullptr, void* stream = nullptr);
 
+  bool RunFuncWithCUDA(bool dryrun, void* stream);
+  bool RunFuncWithCUDNN(bool dryrun, void* stream);
+  bool RunFunc(bool dryrun, void* stream);
+
  private:
   bool finalized_flag_ = false;
   Scope* scope_{};

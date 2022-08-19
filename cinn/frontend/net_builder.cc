@@ -30,6 +30,7 @@ NETBUILDER_UNARY_OP_DEF(Tanh, tanh)
 NETBUILDER_UNARY_OP_DEF(Relu, relu)
 NETBUILDER_UNARY_OP_DEF(Sigmoid, sigmoid)
 NETBUILDER_UNARY_OP_DEF(Identity, identity)
+NETBUILDER_UNARY_OP_DEF(AssertTrue, assert_true)
 
 #define NETBUILDER_BINARY_OP_DEF(func_name__, op_type__) \
   Variable NetBuilder::func_name__(const Variable& lhs, const Variable& rhs) { return BinaryOp(#op_type__, lhs, rhs); }

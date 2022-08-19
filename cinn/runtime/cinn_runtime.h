@@ -379,6 +379,7 @@ struct cinn_pod_value_t {
 
   cinn_pod_value_t(cinn_value_t value, int type_code);
   explicit cinn_pod_value_t(cinn_buffer_t* value);
+  explicit cinn_pod_value_t(bool value);
   explicit cinn_pod_value_t(int8_t value);
   explicit cinn_pod_value_t(int32_t value);
   explicit cinn_pod_value_t(int64_t value);
@@ -391,6 +392,7 @@ struct cinn_pod_value_t {
   //@{
   operator double() const;
   operator float() const;
+  operator bool() const;
   operator int8_t() const;
   operator int32_t() const;
   operator int64_t() const;
@@ -433,6 +435,7 @@ __m(char*, 5);
 __m(char const*, 6);
 __m(cinn_buffer_t*, 7);
 __m(int8_t, 8);
+__m(bool, 9);
 #undef __m
 //@}
 #endif  // __cplusplus
@@ -452,6 +455,7 @@ double cinn_pod_value_to_double(cinn_pod_value_t* value);
 int64_t cinn_pod_value_to_int64(cinn_pod_value_t* value);
 int32_t cinn_pod_value_to_int32(cinn_pod_value_t* value);
 int8_t cinn_pod_value_to_int8(cinn_pod_value_t* value);
+bool cinn_pod_value_to_bool(cinn_pod_value_t* value);
 void* cinn_pod_value_to_void_p(cinn_pod_value_t* value);
 cinn_buffer_t* cinn_pod_value_to_buffer_p(cinn_pod_value_t* value);
 // @}
