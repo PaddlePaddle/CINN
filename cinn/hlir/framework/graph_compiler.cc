@@ -1340,7 +1340,10 @@ std::vector<ir::LoweredFunc> GraphCompiler::NodeToLoweredFunc(const hlir::framew
   std::vector<Type> out_types;
   std::vector<std::vector<int>> output_shapes;
   for (const common::Shared<common::GraphEdge>& out : node.outlinks_in_order(true)) {
-    std::string out_id       = out->sink()->safe_as<NodeData>()->id();
+    std::string out_id = out->sink()->safe_as<NodeData>()->id();
+    if (FLAGS_cinn_ir_schedule) {
+      cinn_value_inputs.push_back(common::CINNValue(out_id));
+    }
     const shape_t& out_shape = shape_dict.at(out_id);
     Type dtype               = dtype_dict.at(out_id);
     output_shapes.push_back(out_shape);
@@ -1440,8 +1443,11 @@ std::vector<ir::LoweredFunc> GraphCompiler::FusedNodeGroupToLoweredFunc(
 
       temp_outvars.push_back(out_var);
       std::string out_id = out_var->id();
-      shape_t out_shape  = shape_dict.at(out_id);
-      Type dtype         = dtype_dict.at(out_id);
+      if (FLAGS_cinn_ir_schedule) {
+        cinn_value_inputs.push_back(common::CINNValue(out_id));
+      }
+      shape_t out_shape = shape_dict.at(out_id);
+      Type dtype        = dtype_dict.at(out_id);
       output_shapes.push_back(out_shape);
       out_types.push_back(dtype);
     }
@@ -1518,10 +1524,10 @@ std::vector<ir::LoweredFunc> GetFuncFromImpl(const std::shared_ptr<OpImpl>& impl
 
   poly::StageMap stages        = C.back();
   std::string func_name_prefix = "fn_";
-  auto func = lang::LowerVec(func_name_prefix + node_id, stages, all_arg_tensors, {}, {}, nullptr, target, true);
+  auto funcs = lang::LowerVec(func_name_prefix + node_id, stages, all_arg_tensors, {}, {}, nullptr, target, true);
 
   std::vector<common::CINNValue> schedule_inputs;
-  for (auto& f : func) {
+  for (auto& f : funcs) {
     schedule_inputs.push_back(common::CINNValue(f->body));
   }
   for (int i = 0; i < C->size() - 1; i++) {
@@ -1536,14 +1542,14 @@ std::vector<ir::LoweredFunc> GetFuncFromImpl(const std::shared_ptr<OpImpl>& impl
   VLOG(3) << "expr_pack.size() is : " << expr_pack.size();
   std::vector<ir::LoweredFunc> res;
   for (int i = 0; i < expr_pack.size(); i++) {
-    if (func.size() > expr_pack.size()) {
-      auto new_args = lang::GetArgs(func[i]->body, input_output_nodes);
-      func[i]->args = new_args;
+    if (funcs.size() > expr_pack.size()) {
+      auto new_args  = lang::GetArgs(funcs[i]->body, input_output_nodes);
+      funcs[i]->args = new_args;
     }
-    auto temp_buffers  = lang::GetTempBuffers(all_arg_tensors, stages, func[i]->body);
-    func[i]->temp_bufs = temp_buffers;
-    func[i]->PrepareBufferCastExprs();
-    res.push_back(func[i]);
+    auto temp_buffers   = lang::GetTempBuffers(all_arg_tensors, stages, funcs[i]->body);
+    funcs[i]->temp_bufs = temp_buffers;
+    funcs[i]->PrepareBufferCastExprs();
+    res.push_back(funcs[i]);
   }
   for (int i = 0; i < res.size(); i++) {
 #ifdef CINN_WITH_CUDA

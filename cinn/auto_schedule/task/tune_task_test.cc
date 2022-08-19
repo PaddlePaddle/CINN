@@ -35,6 +35,8 @@
 #include "cinn/ir/ir_schedule.h"
 #include "cinn/utils/string.h"
 
+DECLARE_bool(cinn_ir_schedule);
+
 namespace cinn {
 namespace auto_schedule {
 
@@ -62,7 +64,7 @@ TEST(TuneTask, GraphToUnoptLoweredFunc_NoPass) {
 #ifdef CINN_WITH_CUDA
   Target target = common::DefaultNVGPUTarget();
 #else
-  Target target                  = common::DefaultHostTarget();
+  Target target          = common::DefaultHostTarget();
 #endif
   Program prog = CreateAddProgram();
   auto graph   = std::make_shared<hlir::framework::Graph>(prog, target);
@@ -125,6 +127,43 @@ TEST(TuneTask, GraphToUnoptLoweredFunc_NoPass) {
 }
 )ROC";
 
+  if (FLAGS_cinn_ir_schedule) {
+    target_str = R"ROC(
+{
+  ScheduleBlock(root)
+  {
+    for (i, 0, 32)
+    {
+      for (j, 0, 24)
+      {
+        ScheduleBlock(var_1)
+        {
+          i0, i1 = axis.bind(i, j)
+          var_1[i0, i1] = (A[i0, i1] + B[i0, i1])
+        }
+      }
+    }
+  }
+}
+{
+  ScheduleBlock(root_0)
+  {
+    for (i, 0, 32)
+    {
+      for (j, 0, 24)
+      {
+        ScheduleBlock(var_2)
+        {
+          i0, i1 = axis.bind(i, j)
+          var_2[i0, i1] = (A[i0, i1] + var_1[i0, i1])
+        }
+      }
+    }
+  }
+}
+)ROC";
+  }
+
   EXPECT_EQ(utils::Trim(target_str), utils::Trim(expr_str));
 }
 
@@ -133,7 +172,7 @@ TEST(TuneTask, GraphToUnoptLoweredFunc_ApplyPass) {
 #ifdef CINN_WITH_CUDA
   Target target = common::DefaultNVGPUTarget();
 #else
-  Target target                  = common::DefaultHostTarget();
+  Target target          = common::DefaultHostTarget();
 #endif
   Program prog = CreateAddProgram();
   auto graph   = std::make_shared<hlir::framework::Graph>(prog, target);
@@ -197,8 +236,45 @@ TEST(TuneTask, GraphToUnoptLoweredFunc_ApplyPass) {
   }
 }
 )ROC";
+  if (FLAGS_cinn_ir_schedule) {
+    target_str = R"ROC(
+{
+  ScheduleBlock(root)
+  {
+    for (i, 0, 32)
+    {
+      for (j, 0, 24)
+      {
+        ScheduleBlock(var_1)
+        {
+          i0, i1 = axis.bind(i, j)
+          var_1[i0, i1] = (A[i0, i1] + B[i0, i1])
+        }
+      }
+    }
+  }
+}
+{
+  ScheduleBlock(root_0)
+  {
+    for (i, 0, 32)
+    {
+      for (j, 0, 24)
+      {
+        ScheduleBlock(var_2)
+        {
+          i0, i1 = axis.bind(i, j)
+          var_2[i0, i1] = (A[i0, i1] + var_1[i0, i1])
+        }
+      }
+    }
+  }
+}
+)ROC";
+  }
+
 #else
-  std::string target_str         = R"ROC(
+  std::string target_str = R"ROC(
 {
   ScheduleBlock(root)
   {
@@ -229,6 +305,41 @@ TEST(TuneTask, GraphToUnoptLoweredFunc_ApplyPass) {
   }
 }
 )ROC";
+
+  if (FLAGS_cinn_ir_schedule) {
+    target_str = R"ROC(
+{
+  ScheduleBlock(root)
+  {
+    {
+      for (i, 0, 32)
+      {
+        for (j, 0, 24)
+        {
+          ScheduleBlock(var_1)
+          {
+            i0, i1 = axis.bind(i, j)
+            var_1[i0, i1] = (A[i0, i1] + B[i0, i1])
+          }
+        }
+      }
+      for (i, 0, 32)
+      {
+        for (j, 0, 24)
+        {
+          ScheduleBlock(var_2)
+          {
+            i0, i1 = axis.bind(i, j)
+            var_2[i0, i1] = (A[i0, i1] + var_1[i0, i1])
+          }
+        }
+      }
+    }
+  }
+}
+)ROC";
+  }
+
 #endif
 
   LOG(INFO) << target_str;
