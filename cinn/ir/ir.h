@@ -422,16 +422,7 @@ struct Var : public IrNodeRef {
 };
 
 struct Reduce : public ExprNode<Reduce> {
-  enum ReduceType {
-    kSum = 0,
-    kSub,
-    kMul,
-    kDiv,
-    kMax,
-    kMin,
-    kArgmax,
-    kArgmin
-  };
+  enum ReduceType { kSum = 0, kSub, kMul, kDiv, kMax, kMin, kArgmax, kArgmin };
 
   //! The initial value.
   Expr init;
