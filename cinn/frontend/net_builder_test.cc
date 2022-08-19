@@ -239,7 +239,7 @@ TEST(net_build, program_execute_cast) {
   for (int b = 0; b < B; ++b) {
     for (int h = 0; h < H; ++h) {
       std::string line;
-      int index      = h + H * b;
+      int index    = h + H * b;
       int in_data  = input_data[index];
       int out_data = output_data[index];
       line += (std::to_string(out_data) + ", ");
