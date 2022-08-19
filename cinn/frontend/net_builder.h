@@ -30,8 +30,7 @@ namespace frontend {
     macro__(Tanh)                               \
     macro__(Relu)                               \
     macro__(Sigmoid)                            \
-    macro__(Identity)                           \
-    macro__(AssertTrue)
+    macro__(Identity)
 
 #define NETBUILDER_BINARY_OP_FOREACH(macro__)   \
     macro__(Add)                                \
@@ -163,6 +162,8 @@ class NetBuilder : public BaseBuilder {
 
   // Matmul not MatMul is not mistake, the SnakeName function in pybind need this name type
   Variable Matmul(const Variable& x, const Variable& y, bool trans_x = false, bool trans_y = false, float alpha = 1.0f);
+
+  Variable AssertTrue(const Variable& x, const std::string& msg = "", bool only_warning = false);
 
  protected:
   Variable ElementwiseOp(const std::string& op_type, const Variable& lhs, const Variable& rhs, int axis = -1);

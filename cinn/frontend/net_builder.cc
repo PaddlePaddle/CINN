@@ -30,7 +30,6 @@ NETBUILDER_UNARY_OP_DEF(Tanh, tanh)
 NETBUILDER_UNARY_OP_DEF(Relu, relu)
 NETBUILDER_UNARY_OP_DEF(Sigmoid, sigmoid)
 NETBUILDER_UNARY_OP_DEF(Identity, identity)
-NETBUILDER_UNARY_OP_DEF(AssertTrue, assert_true)
 
 #define NETBUILDER_BINARY_OP_DEF(func_name__, op_type__) \
   Variable NetBuilder::func_name__(const Variable& lhs, const Variable& rhs) { return BinaryOp(#op_type__, lhs, rhs); }
@@ -252,6 +251,15 @@ Variable NetBuilder::Matmul(const Variable& x, const Variable& y, bool trans_x, 
   instr.SetAttr("trans_a", trans_x);
   instr.SetAttr("trans_b", trans_y);
   instr.SetAttr("alpha", alpha);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
+Variable NetBuilder::AssertTrue(const Variable& x, const std::string& msg, bool only_warning) {
+  Instruction instr("assert_true", {x});
+  instr.SetAttr("msg", msg);
+  instr.SetAttr("only_warning", only_warning);
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(0);

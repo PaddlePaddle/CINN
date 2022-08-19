@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#pragma once
-
 #include <string.h>
 
 #ifdef CINN_WITH_CUDA
@@ -110,8 +108,10 @@ void CinnAssertTrue(const std::vector<int>& attrs,
                     cinn_buffer_t* output,
                     const Target& target,
                     void* stream) {
-  CHECK(x->type == cinn_bool_t()) << "The input type of AssertTrue should be bool! Please check.";
-  CHECK(output->type == cinn_bool_t()) << "The output type of AssertTrue should be bool! Please check.";
+  CHECK(x->type == cinn_bool_t()) << "The input type of AssertTrue should be bool, but here " << x->type.bits
+                                  << "! Please check.";
+  CHECK(output->type == cinn_bool_t()) << "The output type of AssertTrue should be bool, but here " << output->type.bits
+                                       << "! Please check.";
 
   CHECK_EQ(attrs.size(), 1UL) << "The AssertTrue should has 'only_warning' attribute! Please check.";
   bool only_warning = attrs.front();

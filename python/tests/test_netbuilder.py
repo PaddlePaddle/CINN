@@ -30,8 +30,7 @@ import paddle.fluid as fluid
 import sys
 
 enable_gpu = sys.argv.pop()
-
-
+'''
 class TestNetBuilder(unittest.TestCase):
     def setUp(self):
         if enable_gpu == "ON":
@@ -109,6 +108,36 @@ class TestNetBuilderOp(unittest.TestCase):
         tensor_data = [np.random.random([4, 4]).astype("float32")]
         print(tensor_data[0])
         b = builder.elementwise_add(a, a)
+        prog = builder.build()
+        result = prog.build_and_get_output(self.target, [a], tensor_data, [b])
+        res = result[0].numpy(self.target)
+        print(res)
+'''
+
+
+class TestAssertTrueOp(unittest.TestCase):
+    def setUp(self):
+        if enable_gpu == "ON":
+            self.target = DefaultNVGPUTarget()
+        else:
+            self.target = DefaultHostTarget()
+
+    def test_assert_true(self):
+        builder = NetBuilder("assert_true")
+        a = builder.create_input(type=Bool(), shape=[1], id_hint="A")
+        tensor_data = [np.array([True]).astype("bool")]
+        b = builder.AssertTrue(a, msg="Test builder.AssertTrue(True)")
+        prog = builder.build()
+        result = prog.build_and_get_output(self.target, [a], tensor_data, [b])
+        res = result[0].numpy(self.target)
+        print(res)
+
+    def test_assert_false(self):
+        builder = NetBuilder("assert_true")
+        a = builder.create_input(type=Bool(), shape=[1], id_hint="A")
+        tensor_data = [np.array([False]).astype("bool")]
+        b = builder.AssertTrue(
+            a, msg="Test builder.AssertTrue(True)", only_warning=True)
         prog = builder.build()
         result = prog.build_and_get_output(self.target, [a], tensor_data, [b])
         res = result[0].numpy(self.target)

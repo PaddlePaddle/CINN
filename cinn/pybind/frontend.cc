@@ -531,7 +531,12 @@ void BindFrontend(pybind11::module *m) {
            py::arg("y"),
            py::arg("transpose_x") = false,
            py::arg("transpose_y") = false,
-           py::arg("alpha")       = 1.0f);
+           py::arg("alpha")       = 1.0f)
+      .def("AssertTrue",
+           &NetBuilder::AssertTrue,
+           py::arg("x"),
+           py::arg("msg")          = std::string(""),
+           py::arg("only_warning") = false);
 
   py::class_<CinnBuilder, BaseBuilder>(*m, "CinnBuilder")
       .def(py::init<const std::string &>(), py::arg("name") = "")
