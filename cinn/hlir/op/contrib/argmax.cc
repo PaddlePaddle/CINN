@@ -87,6 +87,7 @@ Tensor Argmax(const Tensor &in_tensor,
   stages->InsertLazily(temp_tensor);
 
   auto compute = [=](const std::vector<Expr> &indices) -> Expr {
+    //    common::axis_name(axis);
     std::vector<Expr> eval_indices(indices);
     if (!keep_dims) {
       eval_indices.insert(eval_indices.begin() + real_axis, max_index[-1]);

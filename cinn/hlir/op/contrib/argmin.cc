@@ -99,8 +99,10 @@ Tensor Argmin(const Tensor &in_tensor,
 
     auto forloop = ir::For::Make(
         loop_var, common::make_const(1), shape[real_axis], ir::ForType::Serial, ir::DeviceAPI::Host, body);
-
-    return ir::Cast::Make(Int(32), forloop[2][1]);
+    CHECK_EQ(forloop->shape.size(), ndim);
+    CHECK_EQ(forloop->shape[0], in_tensor->shape[0]);
+    CHECK_EQ(forloop->shape[0], Expr(0));
+    return ir::Cast::Make(Int(32), Expr(0));
   };
 
   Tensor res = Compute(output_shape, compute, output_name);
