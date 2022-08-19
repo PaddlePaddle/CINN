@@ -208,7 +208,7 @@ TEST(net_build, program_execute_cast) {
 
   NetBuilder builder("net_builder");
   Placeholder input = builder.CreateInput(Int(32), {B, H}, "In");
-  Variable output   = builder.Cast(input, "float");
+  Variable output   = builder.Sort(input, 0, true);
   auto program      = builder.Build();
 
   Target target = common::DefaultHostTarget();
@@ -240,8 +240,8 @@ TEST(net_build, program_execute_cast) {
     for (int h = 0; h < H; ++h) {
       std::string line;
       int index      = h + H * b;
-      float in_data  = (float)input_data[index];
-      float out_data = output_data[index];
+      int in_data  = input_data[index];
+      int out_data = output_data[index];
       line += (std::to_string(out_data) + ", ");
       EXPECT_EQ(in_data, out_data);
       VLOG(6) << line;

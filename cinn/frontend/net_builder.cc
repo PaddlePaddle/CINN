@@ -78,9 +78,10 @@ Variable NetBuilder::ReduceSum(const Variable& x, const std::vector<int>& dim, b
   return Reduce(x, ReduceKind::kSum, dim, keep_dim);
 }
 
-Variable NetBuilder::Cast(const Variable& operand, const std::string& dtype) {
-  Instruction instr("cast", {operand});
-  instr.SetAttr("dtype", dtype);
+Variable NetBuilder::Sort(const Variable& operand, const int& axis, const bool& is_ascend){
+  Instruction instr("sort", {operand});
+  instr.SetAttr("axis", axis);
+  instr.SetAttr("is_ascend", is_ascend);
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(0);

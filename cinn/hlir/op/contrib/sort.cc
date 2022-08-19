@@ -45,7 +45,12 @@ using common::CINNValuePack;
 
 ir::Tensor Sort(const ir::Tensor &A, const int &axis, const bool &is_ascend, const std::string &name) {
   auto res = Compute(
-      A->shape, [=](const std::vector<Expr> &indices) { return ir::Sort::Make(dtype, A(indices)); }, name);
+      A->shape,
+      [=](const std::vector<Expr> &indices) {
+        auto out = ir::Store::Make(A, Expr(0), indices);
+        return out;
+      },
+      name);
   return res;
 }
 
@@ -55,7 +60,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForSort(const framework::NodeAttr
                                                        const std::vector<std::vector<int>> &output_shapes,
                                                        const Target &target) {
   auto attr_store = attrs.attr_store;
-  
+
   CHECK(attr_store.count("axis")) << "find no attr of axis";
   int axis       = absl::get<int>(attr_store.at("axis"));
   bool is_ascend = true;

@@ -83,9 +83,9 @@ class NetBuilder : public BaseBuilder {
   Variable ReduceSum(const Variable& x, const std::vector<int>& dim, bool keep_dim = false);
 
   /**
-   * Cast Variable x to dtype.
+   * Sort Variable x along the given axis.
    */
-  Variable Cast(const Variable& operand, const std::string& dtype);
+  Variable Sort(const Variable& operand, const int& axis, const bool& is_ascend = true);
 
   /**
    * The convolution2D layer calculates the output based on the input, filter
