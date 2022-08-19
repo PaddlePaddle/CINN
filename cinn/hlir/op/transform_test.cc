@@ -30,6 +30,7 @@
 #include "cinn/cinn.h"
 #include "cinn/common/target.h"
 #include "cinn/common/test_helper.h"
+#include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
@@ -37,6 +38,9 @@
 #include "cinn/hlir/pe/nn.h"
 #include "cinn/runtime/cinn_runtime.h"
 #include "cinn/runtime/cuda/cuda_module.h"
+#include "cinn/runtime/flags.h"
+
+DECLARE_bool(cinn_ir_schedule);
 
 namespace cinn {
 namespace hlir {
@@ -78,22 +82,37 @@ TEST(SliceAssign, SliceAssign_Op) {
 #endif
   auto impl = OpStrategy::SelectImpl(strategy(attrs, inputs, out_type, {output_shape}, target));
 
-  common::CINNValuePack cinn_input =
-      common::CINNValuePack{{common::CINNValue(input.tensor()), common::CINNValue(assign.tensor())}};
-  common::CINNValuePack rets = impl->fcompute(cinn_input);
-  rets                       = impl->fschedule(rets);
+  std::string func_name = "slice_assign";
 
-  // the last element is a StageMap
-  for (int i = 0; i < rets->size() - 1; i++) {
-    Expr temp = rets[i];
-    if (!temp.as_tensor_ref()->buffer.defined()) {
-      inputs.push_back(temp.as_tensor_ref());
+  if (FLAGS_cinn_ir_schedule) {
+    std::string out_name             = "output";
+    common::CINNValuePack cinn_input = common::CINNValuePack{
+        {common::CINNValue(input.tensor()), common::CINNValue(assign.tensor()), common::CINNValue(out_name)}};
+    std::vector<std::string> input_output_names{"input", "assign", out_name};
+
+    auto funcs = framework::GetFuncFromImpl(impl, cinn_input, inputs, input_output_names, func_name, target);
+
+    for (auto func : funcs) {
+      LOG(INFO) << "Test Operator_BroadcastTo's Strategy, func is :\n" << func;
     }
-  }
+  } else {
+    common::CINNValuePack cinn_input =
+        common::CINNValuePack{{common::CINNValue(input.tensor()), common::CINNValue(assign.tensor())}};
+    common::CINNValuePack rets = impl->fcompute(cinn_input);
+    rets                       = impl->fschedule(rets);
 
-  auto func = lang::LowerVec("slice_assign", rets.back(), inputs, {}, {}, nullptr, target);
-  for (auto& f : func) {
-    LOG(INFO) << "Test Strategy Codegen:\n" << f;
+    // the last element is a StageMap
+    for (int i = 0; i < rets->size() - 1; i++) {
+      Expr temp = rets[i];
+      if (!temp.as_tensor_ref()->buffer.defined()) {
+        inputs.push_back(temp.as_tensor_ref());
+      }
+    }
+
+    auto func = lang::LowerVec("slice_assign", rets.back(), inputs, {}, {}, nullptr, target);
+    for (auto& f : func) {
+      LOG(INFO) << "Test Strategy Codegen:\n" << f;
+    }
   }
 }
 
