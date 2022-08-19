@@ -100,7 +100,7 @@ Tensor Argmin(const Tensor &in_tensor,
     auto forloop = ir::For::Make(
         loop_var, common::make_const(1), shape[real_axis], ir::ForType::Serial, ir::DeviceAPI::Host, body);
 
-    return ir::Cast::Make(Int(32), forloop);
+    return ir::Cast::Make(Int(32), forloop[2][1]);
   };
 
   Tensor res = Compute(output_shape, compute, output_name);
