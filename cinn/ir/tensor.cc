@@ -341,13 +341,13 @@ Expr _Tensor_::tensor_store_expanded_body() {
         break;
       case ir::Reduce::kArgmax:
         auto cur_value = Tensor(this)(g_axis);
-        auto max_value = Tensor(this)(final_body);
+        auto max_value = Tensor(this)({final_body});
         auto update    = ir::GT::Make(cur_value, max_value);
         final_body     = ir::Select::Make(update, g_axis, final_body);
         break;
       case ir::Reduce::kArgmin:
         auto cur_value = Tensor(this)(g_axis);
-        auto max_value = Tensor(this)(final_body);
+        auto max_value = Tensor(this)({final_body});
         auto update    = ir::LT::Make(cur_value, max_value);
         final_body     = ir::Select::Make(update, g_axis, final_body);
         break;
