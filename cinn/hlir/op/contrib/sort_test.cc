@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cinn/hlir/op/contrib/cast.h"
+#include "cinn/hlir/op/contrib/sort.h"
 
 #include <glog/logging.h>
 #include <gtest/gtest.h>
@@ -32,7 +32,7 @@ namespace cinn {
 namespace hlir {
 namespace op {
 
-TEST(GenerateCode_Cpu, Cast) {
+TEST(GenerateCode_Cpu, Sort) {
   common::Context::Global().ResetNameId();
 
   common::Target target = common::DefaultHostTarget();
@@ -41,16 +41,16 @@ TEST(GenerateCode_Cpu, Cast) {
   ir::Expr h(28);
 
   lang::Placeholder<int32_t> in("in", {n, h});
-  ir::Tensor res = Cast(in, Float(32), "test_Cast_out");
+  ir::Tensor res = Sort(in, Float(32), "test_sort_out");
 
   poly::StageMap stages = poly::CreateStages({res});
   std::vector<ir::LoweredFunc> funcs =
-      lang::LowerVec("TestGenerateCodeCpu_Cast", stages, {res}, {}, {}, nullptr, target, true);
+      lang::LowerVec("TestGenerateCodeCpu_Sort", stages, {res}, {}, {}, nullptr, target, true);
 
   VLOG(6) << "Expr before CPU codegen:";
   VLOG(6) << funcs[0]->body;
 
-  ir::Module::Builder builder("Cast_Module", target);
+  ir::Module::Builder builder("Sort_Module", target);
   for (auto& f : funcs) {
     builder.AddFunction(f);
   }
