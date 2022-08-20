@@ -340,12 +340,14 @@ Expr _Tensor_::tensor_store_expanded_body() {
         final_body = Min::Make(Tensor(this)(g_axis), final_body);
         break;
       case ir::Reduce::kArgmax:
-        auto cur_value = Tensor(this)(g_axis);
-        auto max_value = Tensor(this)({final_body});
-        auto update    = ir::GT::Make(cur_value, max_value);
-        final_body     = ir::Select::Make(update, g_axis, final_body);
+        auto max_index = reduce_node->max_index;
+        auto cur_value  = Tensor(this)(g_axis);
+        auto update     = ir::GT::Make(Tensor(this)(g_axis), final_body);
+        final_body      = ir::Select::Make(update, g_axis, final_body);
+        reduce_node->max_index = ir::Select::Make(update, g_axis, max_index);
         break;
       case ir::Reduce::kArgmin:
+        auto max_index = reduce_node->max_index;
         auto cur_value = Tensor(this)(g_axis);
         auto max_value = Tensor(this)({final_body});
         auto update    = ir::LT::Make(cur_value, max_value);

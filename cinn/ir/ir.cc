@@ -739,7 +739,7 @@ void Reduce::Verify() const {
   CHECK_EQ(init.type(), body.type());
 }
 
-void Select::Verify() const {
+void Select::Verify() const {\
   CHECK(condition.defined());
   CHECK(true_value.defined());
   CHECK(false_value.defined());
