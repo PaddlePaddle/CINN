@@ -183,9 +183,9 @@ std::shared_ptr<OpStrategy> StrategyForConstScalar(const framework::NodeAttr &at
     CINNValuePack pack_args = args[0];
     std::string tensor_name = UniqName("const_scalar_Out");
     if (FLAGS_cinn_ir_schedule) {
-      CHECK_EQ(pack_args.size(), 2U);
-      CHECK(pack_args[1].is_string());
-      tensor_name = pack_args[1].operator std::string();
+      CHECK_EQ(pack_args.size(), 1U);
+      CHECK(pack_args[0].is_string());
+      tensor_name = pack_args[0].operator std::string();
     }
 
     auto out = lang::Compute(

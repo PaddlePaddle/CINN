@@ -61,7 +61,7 @@ std::shared_ptr<OpStrategy> StrategyForBroadcast(
     CHECK_GE(pack_args.size(), 2U) << "at least 2 input tensors for " << op_name << " compute";
     std::string tensor_name = UniqName(op_name + "_Out");
     if (FLAGS_cinn_ir_schedule) {
-      CHECK_GE(pack_args.size(), 3U);
+      CHECK_GE(pack_args.size(), 3U) << op_name << " 's input is not enough!";
       CHECK(pack_args[2].is_string());
       tensor_name = pack_args[2].operator std::string();
     }
@@ -207,7 +207,7 @@ std::shared_ptr<OpStrategy> StrategyForBroadcastTo(const framework::NodeAttr &at
       if (target.arch == Target::Arch::NVGPU) {
         pe::IRCudaScheduleInjective(ir_sch, out_shape, target);
       } else if (target.arch == Target::Arch::X86) {
-        pe::IRScheduleInjectiveCPU(ir_sch, out_shape, target);
+        pe::IRScheduleInjectiveCPU(ir_sch, out_shape, target, false);
       }
       std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
       *ret = CINNValuePack{res};
