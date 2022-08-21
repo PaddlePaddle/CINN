@@ -130,7 +130,7 @@ class TestAssertTrueOp(unittest.TestCase):
         prog = builder.build()
         result = prog.build_and_get_output(self.target, [a], tensor_data, [b])
         res = result[0].numpy(self.target)
-        print(res)
+        self.assertEqual(res[0], tensor_data[0][0])
 
     def test_assert_false(self):
         builder = NetBuilder("assert_true")
@@ -141,7 +141,7 @@ class TestAssertTrueOp(unittest.TestCase):
         prog = builder.build()
         result = prog.build_and_get_output(self.target, [a], tensor_data, [b])
         res = result[0].numpy(self.target)
-        print(res)
+        self.assertEqual(res[0], tensor_data[0][0])
 
 
 if __name__ == "__main__":

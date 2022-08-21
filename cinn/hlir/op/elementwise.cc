@@ -330,6 +330,12 @@ std::vector<std::vector<std::string>> InferLayoutForFillConstant(const std::vect
   return {{""}, input_layouts};
 }
 
+std::vector<Type> InferDtypeForAssertTrue(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
+  CHECK_EQ(inputs_type.size(), 1UL) << "The input size of AssertTrue should be 1! Please check again.";
+  CHECK(inputs_type.front().is_bool()) << "The input type of AssertTrue should be bool! Please check again.";
+  return inputs_type;
+}
+
 StrategyForUnary(exp, Exp);
 StrategyForUnary(erf, Erf);
 StrategyForUnary(sqrt, Sqrt);
@@ -470,6 +476,17 @@ CINN_REGISTER_HELPER(elementwise_ops) {
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForFillConstant))
 #endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
+      .set_support_level(4);
+
+  CINN_REGISTER_OP(assert_true)
+      .describe("Assert whether the input value is true")
+      .set_num_inputs(1)
+      .set_num_outputs(1)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForIdentity)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForElementwise))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForAssertTrue))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForElementwise))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
 
   return true;
