@@ -38,10 +38,46 @@ TEST(GenerateCode_Cpu, Scatter) {
   common::Target target = common::DefaultHostTarget();
 
   ir::Expr n(4);
-  ir::Expr h(28);
+  ir::Expr h_in(8);
+  ir::Expr h_out(14);
 
-  lang::Placeholder<int32_t> in("in", {n, h});
-  ir::Tensor res = Scatter(in, Float(32), "test_Scatter_out");
+  lang::Placeholder<float> in1("in1", {n, h_in});
+  lang::Placeholder<int32_t> in2("in2", {n, h_in});
+  lang::Placeholder<int32_t> out("out", {n, h_out});
+  ir::Tensor res = Scatter(in1, in2, out, 1, "test_Scatter_out");
+
+  poly::StageMap stages = poly::CreateStages({res});
+  std::vector<ir::LoweredFunc> funcs =
+      lang::LowerVec("TestGenerateCodeCpu_Scatter", stages, {res}, {}, {}, nullptr, target, true);
+
+  VLOG(6) << "Expr before CPU codegen:";
+  VLOG(6) << funcs[0]->body;
+
+  ir::Module::Builder builder("Scatter_Module", target);
+  for (auto& f : funcs) {
+    builder.AddFunction(f);
+  }
+
+  backends::CodeGenCX86 codegen(target, backends::CodeGenCX86::Feature::AVX512);
+  codegen.SetInlineBuiltinCodes(false);
+  std::string code = codegen.Compile(builder.Build(), backends::CodeGenC::OutputKind::CImpl);
+  VLOG(6) << "Cpu Codegen result:";
+  VLOG(6) << code << std::endl;
+}
+
+TEST(GenerateCode_Cpu, ScatterNd) {
+  common::Context::Global().ResetNameId();
+
+  common::Target target = common::DefaultHostTarget();
+
+  ir::Expr n(4);
+  ir::Expr h_in(8);
+  ir::Expr h_out(14);
+
+  lang::Placeholder<float> in1("in1", {n, h_in});
+  lang::Placeholder<int32_t> in2("in2", {n, h_in});
+  lang::Placeholder<int32_t> out("out", {n, h_out, Expr(1)});
+  ir::Tensor res = ScatterNd(in1, in2, out, {1}, "test_scatter_out");
 
   poly::StageMap stages = poly::CreateStages({res});
   std::vector<ir::LoweredFunc> funcs =

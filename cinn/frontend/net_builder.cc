@@ -87,7 +87,7 @@ Variable NetBuilder::Gather(const Variable& x, const Variable& index, const int&
 }
 
 Variable NetBuilder::GatherNd(const Variable& x, const Variable& index, const std::vector<int>& axes) {
-  Instruction instr("gather", {x, index});
+  Instruction instr("gather_nd", {x, index});
   instr.SetAttr("axes", axes);
   InferShape(instr);
   AppendInstruction(instr);

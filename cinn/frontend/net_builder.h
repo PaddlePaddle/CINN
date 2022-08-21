@@ -86,21 +86,21 @@ class NetBuilder : public BaseBuilder {
 
   Variable GatherNd(const Variable& x, const Variable& index, const std::vector<int>& axes = {});
 
+  Variable Scatter(const Variable& src, const Variable& index, const Variable& out, const int& axis = 0);
   Variable Scatter(const Variable& src,
                    const Variable& index,
                    const std::vector<int>& shape,
                    const float& default_value = 0,
                    const int& axis            = 0);
-  Variable Scatter(const Variable& src, const Variable& index, const Variable& out, const int& axis = 0);
 
+  Variable ScatterNd(const Variable& src,
+                     const Variable& index,
+                     const Variable& out,
+                     const std::vector<int>& axes = {});
   Variable ScatterNd(const Variable& src,
                      const Variable& index,
                      const std::vector<int>& shape,
                      const float& default_value   = 0,
-                     const std::vector<int>& axes = {});
-  Variable ScatterNd(const Variable& src,
-                     const Variable& index,
-                     const Variable& out,
                      const std::vector<int>& axes = {});
 
   /**

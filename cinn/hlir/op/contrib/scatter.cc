@@ -29,6 +29,7 @@
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
 #include "cinn/hlir/pe/elementwise.h"
+#include "cinn/hlir/pe/transform.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/tensor.h"
@@ -45,21 +46,13 @@ using common::CINNValue;
 using common::CINNValuePack;
 
 ir::Tensor Scatter(
-    const ir::Tensor &A, const ir::Tensor &B, const ir::Tensor &C, const Type &axis, const std::string &name) {
-  std::string extern_fun_name;
-  if (target.arch == common::Target::Arch::NVGPU) {
-    extern_fun_name.assign("cinn_host_find_int_from_start");
-  } else if (target.arch == common::Target::Arch::X86) {
-    extern_fun_name.assign("cinn_host_find_int_from_start");
-  } else {
-    LOG(FATAL) << "ScatterAssign only support X86 and NVGPU ! Please Check.\n";
-  }
-
-  auto pos_axis = axis;
-  if (pos_axis < 0) pos_axis += input->shape.size();
+    const ir::Tensor &A, const ir::Tensor &B, const ir::Tensor &C, const int &axis, const std::string &name) {
+  std::string extern_fun_name = "cinn_host_find_int_from_start";
+  auto pos_axis               = axis;
+  if (pos_axis < 0) pos_axis += C->shape.size();
   std::vector<int> new_axes;
   for (int i = 0; i < C->shape.size(); ++i) {
-    if (i != axis) {
+    if (i != pos_axis) {
       new_axes.push_back(i);
     }
   }
@@ -70,16 +63,61 @@ ir::Tensor Scatter(
       C->shape,
       [=](const std::vector<Expr> &indices) {
         auto start = Expr(0);
-        for (auto s : new_B->shape) {
-          start = common::AutoSimplify(start * s);
+        for (int i = 0; i < new_B->shape.size() - 1; ++i) {
+          start = common::AutoSimplify(start * new_B->shape[i]);
         }
         auto id = lang::CallExtern(extern_fun_name, {B, B->shape[-1], indices[pos_axis], start});
 
-        std::vector<Expr> src_indices(indices);
-        src_indices[pos_axis] = id;
+        std::vector<Expr> A_indices(indices);
+        A_indices[pos_axis] = id;
 
         auto update = ir::EQ::Make(id, Expr(-1));
-        return ir::Select::Make(update, C(indice), A(src_indices));
+        return ir::Select::Make(update, C(indices), A(A_indices));
+      },
+      name);
+  return res;
+}
+
+ir::Tensor ScatterNd(const ir::Tensor &A,
+                     const ir::Tensor &B,
+                     const ir::Tensor &C,
+                     const std::vector<int> &axes,
+                     const std::string &name) {
+  std::string extern_fun_name = "cinn_host_find_int_from_start";
+
+  std::vector<int> pos_axes;
+  for (auto axis : axes) {
+    if (axis < 0) {
+      pos_axes.push_back(axis + C->shape.size());
+    } else {
+      pos_axes.push_back(axis);
+    }
+  }
+  std::vector<int> new_axes;
+  for (int i = 0; i < C->shape.size(); ++i) {
+    if (std::find(pos_axes.begin(), pos_axes.end(), i) != pos_axes.end()) {
+      new_axes.push_back(i);
+    }
+  }
+  new_axes.insert(new_axes.end(), axes.begin(), axes.end());
+  auto new_B = pe::Transpose(B, new_axes, name + "_index_transpose");
+
+  auto res = Compute(
+      C->shape,
+      [=](const std::vector<Expr> &indices) {
+        auto start = Expr(0);
+        for (int i = 0; i < new_B->shape.size() - axes.size(); ++i) {
+          start = common::AutoSimplify(start * new_B->shape[i]);
+        }
+        auto update = Expr(true);
+        std::vector<Expr> A_indices(indices);
+        for (int i = 0; i < pos_axes.size(); ++i) {
+          auto pos_axis       = pos_axes[i];
+          auto id             = lang::CallExtern(extern_fun_name, {B, B->shape[-1], indices[pos_axis], start});
+          A_indices[pos_axis] = id;
+          update              = common::AutoSimplify(ir::And::Make(update, ir::EQ::Make(id, Expr(-1))));
+        }
+        return ir::Select::Make(update, C(indices), A(A_indices));
       },
       name);
   return res;
@@ -139,8 +177,8 @@ std::shared_ptr<framework::OpStrategy> StrategyForScatterNd(const framework::Nod
                                                             const std::vector<std::vector<int>> &output_shapes,
                                                             const Target &target) {
   auto attr_store = attrs.attr_store;
-  CHECK(attr_store.count("axis")) << "find no attr of axis";
-  int axis = absl::get<int>(attr_store.at("axis"));
+  CHECK(attr_store.count("axes")) << "find no attr of axis";
+  std::vector<int> axes = absl::get<std::vector<int>>(attr_store.at("axes"));
 
   framework::CINNCompute scatter_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input arguments of Scatter compute is empty! Please check.\n";
@@ -159,7 +197,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForScatterNd(const framework::Nod
     auto stages   = CreateStages({tensor_A, tensor_B, tensor_C});
     VLOG(3) << "A shape: " << utils::Join(tensor_A->shape, ", ") << ", B shape: " << utils::Join(tensor_B->shape, ", ")
             << ", output_shapes: " << utils::Join(output_shapes[0], ", ");
-    ir::Tensor out = Scatter(tensor_A, tensor_B, tensor_C, axis, UniqName("Scatter_out"));
+    ir::Tensor out = ScatterNd(tensor_A, tensor_B, tensor_C, axes, UniqName("Scatter_out"));
     std::vector<CINNValue> res;
     stages->InsertLazily(out);
     res.push_back(CINNValue(out));
@@ -177,7 +215,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForScatterNd(const framework::Nod
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(scatter_compute, scatter_schedule, "strategy.scatter.x86", 1);
+  strategy->AddImpl(scatter_compute, scatter_schedule, "strategy.scatter_nd.x86", 1);
   return strategy;
 }
 
@@ -209,7 +247,7 @@ std::vector<Type> InferDtypeForScatter(const std::vector<Type> &inputs_type, con
 CINN_REGISTER_HELPER(scatter_ops) {
   CINN_REGISTER_OP(scatter)
       .describe("Scatter.")
-      .set_num_inputs(1)
+      .set_num_inputs(3)
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForScatter)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForScatter))
@@ -218,7 +256,7 @@ CINN_REGISTER_HELPER(scatter_ops) {
 
   CINN_REGISTER_OP(scatter_nd)
       .describe("ScatterNd.")
-      .set_num_inputs(1)
+      .set_num_inputs(3)
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForScatterNd)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForScatterNd))

@@ -74,8 +74,8 @@ TEST(GenerateCode_Cpu, GatherNd) {
   ir::Expr h_in2(14);
 
   lang::Placeholder<float> in1("in1", {n, h_in1});
-  lang::Placeholder<int32_t> in2("in2", {n, h_in2, 1});
-  ir::Tensor res = GatherNd(in1, in2, [1], "test_Gather_out");
+  lang::Placeholder<int32_t> in2("in2", {n, h_in2, Expr(1)});
+  ir::Tensor res = GatherNd(in1, in2, {1}, "test_Gather_out");
 
   poly::StageMap stages = poly::CreateStages({res});
   std::vector<ir::LoweredFunc> funcs =

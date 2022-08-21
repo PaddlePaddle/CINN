@@ -48,15 +48,9 @@ ir::Tensor Gather(const ir::Tensor &A, const ir::Tensor &B, const int &axis, con
   auto res = Compute(
       B->shape,
       [=](const std::vector<Expr> &indices) {
-        std::vector<Expr> eval_indices(indices);
-        for (int i = 0; i < indices.size(); ++i) {
-          if (i == axis) {
-            eval_indices.push_back(B(indices));
-          } else {
-            eval_indices.push_back(indices[i]);
-          }
-        }
-        return lang::Identity(A(eval_indices));
+        std::vector<Expr> A_indices(indices);
+        A_indices[axis] = B(indices);
+        return lang::Identity(A(A_indices));
       },
       name);
   return res;
@@ -165,7 +159,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForGatherNd(const framework::Node
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(gather_compute, gather_schedule, "strategy.gather.x86", 1);
+  strategy->AddImpl(gather_compute, gather_schedule, "strategy.gather_nd.x86", 1);
   return strategy;
 }
 

@@ -233,12 +233,13 @@ TEST(net_build, program_execute_gather) {
   hlir::framework::GraphCompiler gc(target, scope, graph);
   auto runtime_program = gc.Build();
 
-  scope->Var<hlir::framework::Tensor>(std::string(input.id()));
+  scope->Var<hlir::framework::Tensor>(std::string(input1.id()));
+  scope->Var<hlir::framework::Tensor>(std::string(input2.id()));
   scope->Var<hlir::framework::Tensor>(std::string(output->id));
 
   auto input1_tensor = scope->GetTensor(std::string(input1.id()));
-  SetIntRandData(input1_tensor, target);
-  int* input1_data = input1_tensor->mutable_data<float>(target);
+  SetFloatRandData(input1_tensor, target);
+  float* input1_data = input1_tensor->mutable_data<float>(target);
 
   auto input2_tensor = scope->GetTensor(std::string(input2.id()));
   SetIntRandData(input2_tensor, target);
@@ -256,10 +257,10 @@ TEST(net_build, program_execute_gather) {
   float* output_data = output_tensor->mutable_data<float>(target);
   VLOG(6) << "Visualize output_data";
   for (int b = 0; b < B; ++b) {
-    for (int h = 0; h < H; ++h) {
+    for (int h = 0; h < H_IN2; ++h) {
       std::string line;
-      int index      = h + H * b;
-      float in_data  = input1_data[input2_data[index] + H * b];
+      int index      = h + H_IN2 * b;
+      float in_data  = input1_data[input2_data[index] + H_IN2 * b];
       float out_data = output_data[index];
       line += (std::to_string(out_data) + ", ");
       EXPECT_EQ(in_data, out_data);
@@ -276,7 +277,7 @@ TEST(net_build, program_execute_gather_nd) {
   NetBuilder builder("net_builder");
   Placeholder input1 = builder.CreateInput(Float(32), {B, H_IN1}, "In1");
   Placeholder input2 = builder.CreateInput(Int(32), {B, H_IN2}, "In2");
-  Variable output    = builder.GatherNd(input1, input2, [1]);
+  Variable output    = builder.GatherNd(input1, input2, {1});
   auto program       = builder.Build();
 
   Target target = common::DefaultHostTarget();
@@ -286,12 +287,13 @@ TEST(net_build, program_execute_gather_nd) {
   hlir::framework::GraphCompiler gc(target, scope, graph);
   auto runtime_program = gc.Build();
 
-  scope->Var<hlir::framework::Tensor>(std::string(input.id()));
+  scope->Var<hlir::framework::Tensor>(std::string(input1.id()));
+  scope->Var<hlir::framework::Tensor>(std::string(input2.id()));
   scope->Var<hlir::framework::Tensor>(std::string(output->id));
 
   auto input1_tensor = scope->GetTensor(std::string(input1.id()));
-  SetIntRandData(input1_tensor, target);
-  int* input1_data = input1_tensor->mutable_data<float>(target);
+  SetFloatRandData(input1_tensor, target);
+  float* input1_data = input1_tensor->mutable_data<float>(target);
 
   auto input2_tensor = scope->GetTensor(std::string(input2.id()));
   SetIntRandData(input2_tensor, target);
@@ -309,10 +311,10 @@ TEST(net_build, program_execute_gather_nd) {
   float* output_data = output_tensor->mutable_data<float>(target);
   VLOG(6) << "Visualize output_data";
   for (int b = 0; b < B; ++b) {
-    for (int h = 0; h < H; ++h) {
+    for (int h = 0; h < H_IN2; ++h) {
       std::string line;
-      int index      = h + H * b;
-      float in_data  = input1_data[input2_data[index] + H * b];
+      int index      = h + H_IN2 * b;
+      float in_data  = input1_data[input2_data[index] + H_IN2 * b];
       float out_data = output_data[index];
       line += (std::to_string(out_data) + ", ");
       EXPECT_EQ(in_data, out_data);
