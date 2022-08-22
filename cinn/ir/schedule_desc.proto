@@ -1,0 +1,57 @@
+// Copyright (c) 2022 CINN Authors. All Rights Reserved.
+// 
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+// 
+//     http://www.apache.org/licenses/LICENSE-2.0
+// 
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax ="proto3";
+
+package cinn.ir.proto;
+
+message ScheduleDesc {
+  message Expr {
+    string parameter = 1;
+    repeated string arguments = 2;
+  };
+
+  message Attr {
+    enum DataType {
+        BOOLEAN = 0;
+        INT = 1;
+        FLOAT = 2;
+        STRING = 3;
+        INTS = 4;
+        FLOATS = 5;
+        STRINGS = 6;
+        BOOLEANS = 7;
+    };
+
+    string name = 1;
+    DataType dtype = 2;
+    bool b = 3;
+    int32 i = 4;
+    float f = 5;
+    string s = 6;
+    repeated bool bools = 7;
+    repeated int32 ints = 8;
+    repeated float floats = 9;
+    repeated string strings = 10;
+  };
+
+  message Step {
+      string type = 1;
+      repeated Expr inputs = 2;
+      repeated Expr outputs = 3;
+      repeated Attr attrs = 4;
+  };
+
+  repeated Step steps = 1;
+};
