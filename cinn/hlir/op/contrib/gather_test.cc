@@ -43,7 +43,7 @@ TEST(GenerateCode_Cpu, Gather) {
 
   lang::Placeholder<float> in1("in1", {n, h_in1});
   lang::Placeholder<int32_t> in2("in2", {n, h_in2});
-  ir::Tensor res = Gather(in1, in2, 1, "test_Gather_out");
+  ir::Tensor res = Gather(in1, in2, 1, "test_gather_out");
 
   poly::StageMap stages = poly::CreateStages({res});
   std::vector<ir::LoweredFunc> funcs =
@@ -72,19 +72,20 @@ TEST(GenerateCode_Cpu, GatherNd) {
   ir::Expr n(4);
   ir::Expr h_in1(28);
   ir::Expr h_in2(14);
+  ir::Expr w(1);
 
   lang::Placeholder<float> in1("in1", {n, h_in1});
-  lang::Placeholder<int32_t> in2("in2", {n, h_in2, Expr(1)});
-  ir::Tensor res = GatherNd(in1, in2, {1}, "test_Gather_out");
+  lang::Placeholder<int32_t> in2("in2", {n, h_in2, w});
+  ir::Tensor res = GatherNd(in1, in2, {1}, "test_gather_nd_out");
 
   poly::StageMap stages = poly::CreateStages({res});
   std::vector<ir::LoweredFunc> funcs =
-      lang::LowerVec("TestGenerateCodeCpu_Gather", stages, {res}, {}, {}, nullptr, target, true);
+      lang::LowerVec("TestGenerateCodeCpu_GatherNd", stages, {res}, {}, {}, nullptr, target, true);
 
   VLOG(6) << "Expr before CPU codegen:";
   VLOG(6) << funcs[0]->body;
 
-  ir::Module::Builder builder("Gather_Module", target);
+  ir::Module::Builder builder("GatherNd_Module", target);
   for (auto& f : funcs) {
     builder.AddFunction(f);
   }

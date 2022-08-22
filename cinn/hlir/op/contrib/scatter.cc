@@ -47,32 +47,42 @@ using common::CINNValuePack;
 
 ir::Tensor Scatter(
     const ir::Tensor &A, const ir::Tensor &B, const ir::Tensor &C, const int &axis, const std::string &name) {
-  std::string extern_fun_name = "cinn_host_find_int_from_start";
-  auto pos_axis               = axis;
-  if (pos_axis < 0) pos_axis += C->shape.size();
+  CHECK_EQ(A->shape.size(), B->shape.size());
+  CHECK_EQ(A->shape.size(), C->shape.size());
+
+  std::string extern_fun_name = "cinn_host_find_int_nd";
+
+  int pos_axis = axis;
+  if (pos_axis < 0) {
+    pos_axis += C->shape.size();
+  }
+
   std::vector<int> new_axes;
-  for (int i = 0; i < C->shape.size(); ++i) {
+  for (int i = 0; i < A->shape.size(); ++i) {
     if (i != pos_axis) {
       new_axes.push_back(i);
     }
   }
   new_axes.push_back(axis);
-  auto new_B = pe::Transpose(B, new_axes, name + "_index_transpose");
-
+  //  auto new_B = pe::Transpose(B, new_axes, name + "_index_transpose");
   auto res = Compute(
       C->shape,
       [=](const std::vector<Expr> &indices) {
-        auto start = Expr(0);
-        for (int i = 0; i < new_B->shape.size() - 1; ++i) {
-          start = common::AutoSimplify(start * new_B->shape[i]);
-        }
-        auto id = lang::CallExtern(extern_fun_name, {B, B->shape[-1], indices[pos_axis], start});
-
-        std::vector<Expr> A_indices(indices);
-        A_indices[pos_axis] = id;
-
-        auto update = ir::EQ::Make(id, Expr(-1));
-        return ir::Select::Make(update, C(indices), A(A_indices));
+        //        auto offset = Expr(0);
+        //        for (int i = 0; i < indices.size(); i++) {
+        //          if (i != pos_axis) {
+        //            offset = offset * C->shape[i] + indices[i];
+        //          }
+        //        }
+        //        offset   = common::AutoSimplify(offset);
+        //        auto idx = lang::CallExtern(extern_fun_name, {B, B->shape[-1], indices[pos_axis], offset, Expr(1)});
+        //        auto idx = lang::CallExtern(extern_fun_name, {new_B, new_B->shape[-1], indices[pos_axis], offset,
+        //        Expr(1)});
+        //        std::vector<Expr> A_indices(indices);
+        //        A_indices[pos_axis] = idx;
+        //        auto keep           = ir::EQ::Make(idx, Expr(-1));
+        //        return ir::Select::Make(keep, C(indices), A(A_indices));
+        return C(indices);
       },
       name);
   return res;
@@ -83,7 +93,9 @@ ir::Tensor ScatterNd(const ir::Tensor &A,
                      const ir::Tensor &C,
                      const std::vector<int> &axes,
                      const std::string &name) {
-  std::string extern_fun_name = "cinn_host_find_int_from_start";
+  CHECK_EQ(A->shape.size() + 1, B->shape.size());
+  CHECK_EQ(A->shape.size() + axes.size() - 1, C->shape.size());
+  std::string extern_fun_name = "cinn_host_find_int_nd";
 
   std::vector<int> pos_axes;
   for (auto axis : axes) {
@@ -93,31 +105,36 @@ ir::Tensor ScatterNd(const ir::Tensor &A,
       pos_axes.push_back(axis);
     }
   }
-  std::vector<int> new_axes;
-  for (int i = 0; i < C->shape.size(); ++i) {
-    if (std::find(pos_axes.begin(), pos_axes.end(), i) != pos_axes.end()) {
-      new_axes.push_back(i);
-    }
-  }
-  new_axes.insert(new_axes.end(), axes.begin(), axes.end());
-  auto new_B = pe::Transpose(B, new_axes, name + "_index_transpose");
 
   auto res = Compute(
       C->shape,
       [=](const std::vector<Expr> &indices) {
-        auto start = Expr(0);
-        for (int i = 0; i < new_B->shape.size() - axes.size(); ++i) {
-          start = common::AutoSimplify(start * new_B->shape[i]);
+        auto offset = Expr(0);
+        std::vector<Expr> A_indices;
+        for (int i = 0; i < indices.size(); i++) {
+          if (std::find(pos_axes.begin(), pos_axes.end(), i) == pos_axes.end()) {
+            offset = offset * C->shape[i] + indices[i];
+            A_indices.push_back(indices[i]);
+          }
         }
-        auto update = Expr(true);
-        std::vector<Expr> A_indices(indices);
+        offset = common::AutoSimplify(offset);
+
+        auto keep = Expr(true);
+        std::vector<Expr> idx;
         for (int i = 0; i < pos_axes.size(); ++i) {
-          auto pos_axis       = pos_axes[i];
-          auto id             = lang::CallExtern(extern_fun_name, {B, B->shape[-1], indices[pos_axis], start});
-          A_indices[pos_axis] = id;
-          update              = common::AutoSimplify(ir::And::Make(update, ir::EQ::Make(id, Expr(-1))));
+          auto cur_idx = lang::CallExtern(extern_fun_name, {B, B->shape[-2], indices[pos_axes[i]]});
+          //              extern_fun_name, {B, B->shape[-2], indices[pos_axes[i]], offset + Expr(i),
+          //              Expr(pos_axes.size())});
+          if (idx.empty()) {
+            idx.push_back(cur_idx);
+            A_indices.push_back(cur_idx);
+          } else {
+            keep   = ir::And::Make(keep, ir::EQ::Make(idx[0], cur_idx));
+            idx[0] = cur_idx;
+          }
         }
-        return ir::Select::Make(update, C(indices), A(A_indices));
+        keep = common::AutoSimplify(ir::And::Make(keep, ir::EQ::Make(idx[0], Expr(-1))));
+        return ir::Select::Make(keep, C(indices), A(A_indices));
       },
       name);
   return res;
@@ -236,6 +253,7 @@ std::vector<std::vector<int>> InferShapeForScatterNd(const std::vector<std::vect
 
 std::vector<Type> InferDtypeForScatter(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_type.size(), 3U) << "The input's type size should be 3! Please check again.";
+  CHECK_EQ(inputs_type[1], Int(32)) << "The index's type should be int! Please check again.";
   std::vector<Type> res{inputs_type[2]};
   return res;
 }

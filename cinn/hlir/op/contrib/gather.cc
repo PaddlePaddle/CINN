@@ -45,6 +45,7 @@ using common::CINNValue;
 using common::CINNValuePack;
 
 ir::Tensor Gather(const ir::Tensor &A, const ir::Tensor &B, const int &axis, const std::string &name) {
+  CHECK_EQ(A->shape.size(), B->shape.size());
   auto res = Compute(
       B->shape,
       [=](const std::vector<Expr> &indices) {
@@ -55,17 +56,18 @@ ir::Tensor Gather(const ir::Tensor &A, const ir::Tensor &B, const int &axis, con
       name);
   return res;
 }
-
 ir::Tensor GatherNd(const ir::Tensor &A, const ir::Tensor &B, const std::vector<int> &axes, const std::string &name) {
+  std::vector<Expr> out_shape = B->shape;
+  out_shape.pop_back();
   auto res = Compute(
-      B->shape,
+      out_shape,
       [=](const std::vector<Expr> &indices) {
-        std::vector<Expr> A_indices(indices);
+        std::vector<Expr> A_indices(indices.begin(), indices.begin() + A->shape.size());
         std::vector<Expr> B_indices(indices);
         for (int i = 0; i < axes.size(); ++i) {
-          int axis        = axes[i];
-          B_indices[-1]   = Expr(i);
-          A_indices[axis] = B(B_indices);
+          B_indices.push_back(Expr(i));
+          A_indices[axes[i]] = B(B_indices);
+          B_indices.pop_back();
         }
         return lang::Identity(A(A_indices));
       },
@@ -106,7 +108,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForGather(const framework::NodeAt
   });
 
   framework::CINNSchedule gather_schedule([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input argument of reshape schedule is empty! Please check.\n";
+    CHECK(!args.empty()) << "The input argument of gather schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
     Expr out               = arg_pack[0];
     CHECK(out.as_tensor());
@@ -124,7 +126,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForGatherNd(const framework::Node
                                                            const std::vector<std::vector<int>> &output_shapes,
                                                            const Target &target) {
   auto attr_store = attrs.attr_store;
-  CHECK(attr_store.count("axes")) << "find no attr of axis";
+  CHECK(attr_store.count("axes")) << "find no attr of axes";
   std::vector<int> axes = absl::get<std::vector<int>>(attr_store.at("axes"));
 
   framework::CINNCompute gather_compute([=](lang::Args args, lang::RetValue *ret) {
@@ -151,7 +153,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForGatherNd(const framework::Node
   });
 
   framework::CINNSchedule gather_schedule([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input argument of reshape schedule is empty! Please check.\n";
+    CHECK(!args.empty()) << "The input argument of gather_nd schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
     Expr out               = arg_pack[0];
     CHECK(out.as_tensor());
@@ -174,7 +176,6 @@ std::vector<std::vector<int>> InferShapeForGather(const std::vector<std::vector<
 std::vector<std::vector<int>> InferShapeForGatherNd(const std::vector<std::vector<int>> &inputs_shape,
                                                     const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 2U) << "The input's shape size should be 2! Please check again.";
-  CHECK_EQ(inputs_shape[0].size(), inputs_shape[1].size()) << "The inputs' dims should be equal.";
   std::vector<int> output_shape(inputs_shape[1].begin(), inputs_shape[1].end() - 1);
   std::vector<std::vector<int>> res{output_shape};
   return res;

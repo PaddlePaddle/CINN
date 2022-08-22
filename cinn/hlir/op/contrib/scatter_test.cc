@@ -34,7 +34,6 @@ namespace op {
 
 TEST(GenerateCode_Cpu, Scatter) {
   common::Context::Global().ResetNameId();
-
   common::Target target = common::DefaultHostTarget();
 
   ir::Expr n(4);
@@ -43,8 +42,8 @@ TEST(GenerateCode_Cpu, Scatter) {
 
   lang::Placeholder<float> in1("in1", {n, h_in});
   lang::Placeholder<int32_t> in2("in2", {n, h_in});
-  lang::Placeholder<int32_t> out("out", {n, h_out});
-  ir::Tensor res = Scatter(in1, in2, out, 1, "test_Scatter_out");
+  lang::Placeholder<float> out("out", {n, h_out});
+  ir::Tensor res = Scatter(in1, in2, out, 1, "test_scatter_out");
 
   poly::StageMap stages = poly::CreateStages({res});
   std::vector<ir::LoweredFunc> funcs =
@@ -75,8 +74,8 @@ TEST(GenerateCode_Cpu, ScatterNd) {
   ir::Expr h_out(14);
 
   lang::Placeholder<float> in1("in1", {n, h_in});
-  lang::Placeholder<int32_t> in2("in2", {n, h_in});
-  lang::Placeholder<int32_t> out("out", {n, h_out, Expr(1)});
+  lang::Placeholder<int32_t> in2("in2", {n, h_in, ir::Expr(1)});
+  lang::Placeholder<float> out("out", {n, h_out});
   ir::Tensor res = ScatterNd(in1, in2, out, {1}, "test_scatter_out");
 
   poly::StageMap stages = poly::CreateStages({res});
