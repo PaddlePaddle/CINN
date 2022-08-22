@@ -127,6 +127,7 @@ void IRCudaSplitSchedule(ir::IRSchedule &ir_sch,
                          int axis,
                          const common::Target &target) {
   ir_sch.MergeExprs();
+  LOG(INFO) << "In IRCudaSplitSchedule, Before schedule expr is : " << ir_sch.GetModule().GetExprs().at(0);
   int dims = output_shapes[0].size();
   std::vector<int> reorders;
   for (int i = 0; i < dims; ++i) {
@@ -182,6 +183,7 @@ void IRCudaSplitSchedule(ir::IRSchedule &ir_sch,
       ir_sch.SimpleComputeAt(all_blocks[i], loops[0]);
     }
   }
+  LOG(INFO) << "In IRCudaSplitSchedule, After schedule expr is : " << ir_sch.GetModule().GetExprs().at(0);
 }
 
 void IRCudaScheduleReduce(ir::IRSchedule &ir_sch,
@@ -532,7 +534,7 @@ void IRGlobalPoolScheduleGPU(ir::IRSchedule &ir_sch, const common::Target &targe
 }
 
 void IRCudaScheduleConv(ir::IRSchedule &ir_sch, const common::Target &target) {
-  LOG(INFO) << "After Merge, expr is : " << ir_sch.GetModule().GetExprs().at(0);
+  LOG(INFO) << "In IRCudaScheduleConv, After Merge expr is : " << ir_sch.GetModule().GetExprs().at(0);
   auto &res = ScheduleParam::get_cuda_instance().GetParam();
 
   auto all_blocks = ir_sch.GetAllBlocks();

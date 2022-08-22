@@ -332,7 +332,18 @@ std::vector<Expr> OpLowerer::IRElementwiseCompute(poly::StageMap& stages,
     auto func = lang::LowerVec("fn_" + node->id(), node_stages, tensor_inputs, {}, {}, nullptr, this->target_, true);
     CHECK_EQ(func.size(), 1);
 
-    common::CINNValuePack expr_pack = impl->fschedule(common::CINNValuePack{{common::CINNValue(func[0]->body)}});
+    std::vector<common::CINNValue> schedule_inputs;
+    // collect tensor
+    for (int idx = 0; idx < pack.size() - 1; ++idx) {
+      CHECK(pack[idx].is_tensor());
+      schedule_inputs.push_back(common::CINNValue(pack[idx]));
+    }
+    for (auto& f : func) {
+      schedule_inputs.push_back(common::CINNValue(f->body));
+    }
+    // do ast tree schedule
+    common::CINNValuePack expr_pack = impl->fschedule(common::CINNValuePack{schedule_inputs});
+
     CHECK_EQ(expr_pack.size(), 1);
     Expr ast_expr = expr_pack[0];
     ast_exprs.push_back(ast_expr);
@@ -432,6 +443,7 @@ std::vector<Expr> OpLowerer::IRReduceCompute(poly::StageMap& stages,
       std::vector<common::CINNValue> schedule_inputs;
       // collect tensor
       for (int idx = 0; idx < pack.size() - 1; ++idx) {
+        CHECK(pack[idx].is_tensor());
         schedule_inputs.push_back(common::CINNValue(pack[idx]));
       }
       for (auto& f : func) {
@@ -1028,7 +1040,6 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
 std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpaqueOp(GroupPtr& group) {
   VLOG(3) << "LowerOpaqueOp Group : " << group->group_id;
   // get input tensor and output tensor
-  std::vector<ir::Tensor> func_args;
   CHECK(group->nodes.size() || group->fused_sub_groups.size());
   auto& cinn_strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
@@ -1061,9 +1072,10 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpaqueOp(GroupPtr& group) {
 
   std::vector<Type> out_types;
   std::vector<std::vector<int>> out_shapes;
+
   auto node_datas = GetAllNodeData(node);
   for (auto node_data : node_datas) {
-    // collect output node data name.
+    VLOG(3) << "cinn_inputs.push_back " << node_data->id();
     group->output_names.push_back(node_data->id());
     out_types.push_back(this->type_dict_.at(node_data->id()));
     out_shapes.push_back(this->shape_dict_.at(node_data->id()));
@@ -1071,10 +1083,10 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpaqueOp(GroupPtr& group) {
   }
 
   auto impl = OpStrategy::SelectImpl(cinn_strategy[node->op()](node->attrs, inputs, out_types, out_shapes, target_));
-  common::CINNValuePack C = impl->fcompute(common::CINNValuePack{cinn_inputs});
+  common::CINNValuePack pack = impl->fcompute(common::CINNValuePack{cinn_inputs});
 
-  for (int i = 0; i < C->size() - 1; i++) {
-    ir::Expr temp = C[i];
+  for (int i = 0; i < pack->size() - 1; i++) {
+    ir::Expr temp = pack[i];
     // checkout whether the tensor is with buffer.
     if (!temp.as_tensor_ref()->buffer.defined() || this->target_ != common::DefaultNVGPUTarget()) {
       inputs.push_back(temp.as_tensor_ref());
@@ -1083,14 +1095,19 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpaqueOp(GroupPtr& group) {
     }
   }
 
-  poly::StageMap stages = C.back();
+  poly::StageMap stages = pack.back();
   auto func             = lang::LowerVec(group->GetFuncName(), stages, inputs, {}, {}, nullptr, this->target_, true);
 
   std::vector<common::CINNValue> schedule_inputs;
+  // collect tensor
+  for (int idx = 0; idx < pack.size() - 1; ++idx) {
+    CHECK(pack[idx].is_tensor());
+    schedule_inputs.push_back(common::CINNValue(pack[idx]));
+  }
   for (auto& f : func) {
     schedule_inputs.push_back(common::CINNValue(f->body));
   }
-
+  // do ast tree schedule
   common::CINNValuePack expr_pack = impl->fschedule(common::CINNValuePack{schedule_inputs});
 
   std::vector<ir::LoweredFunc> res;

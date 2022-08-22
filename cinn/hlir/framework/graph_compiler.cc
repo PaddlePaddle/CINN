@@ -287,6 +287,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFuncWithIRSchedule(
   auto& cinn_strategy = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
   std::vector<ir::Tensor> tensor_inputs;
   std::vector<common::CINNValue> cinn_inputs;
+  std::vector<std::string> input_output_nodes;
   VLOG(3) << "GetOpFunc of op " << node->id();
 
   // 1.Collect inputs info and outputs info
@@ -306,69 +307,27 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFuncWithIRSchedule(
     }
     tensor_inputs.push_back(input);
     cinn_inputs.push_back(common::CINNValue(input));
+    input_output_nodes.push_back(id);
   }
-  VLOG(3) << "cinn_inputs.push_back " << GetNodeData(node)->id();
-  cinn_inputs.push_back(common::CINNValue(GetNodeData(node)->id()));
 
   std::vector<Type> out_types;
   std::vector<std::vector<int>> out_shapes;
   auto node_datas = GetAllNodeData(node);
   for (auto node_data : node_datas) {
     // collect output node data name.
-    out_types.push_back(type_dict_.at(node_data->id()));
-    out_shapes.push_back(shape_dict_.at(node_data->id()));
+    std::string out_name = node_data->id();
+    VLOG(3) << "cinn_inputs.push_back " << out_name;
+    cinn_inputs.push_back(common::CINNValue(out_name));
+    out_types.push_back(type_dict_.at(out_name));
+    out_shapes.push_back(shape_dict_.at(out_name));
+    input_output_nodes.push_back(out_name);
   }
 
-  // 2.Call Op's Compute function, using the default stages and LowerVec to get IR tree.
   auto impl =
       OpStrategy::SelectImpl(cinn_strategy[node->op()](node->attrs, tensor_inputs, out_types, out_shapes, target_));
-  common::CINNValuePack C = impl->fcompute(common::CINNValuePack{cinn_inputs});
-  auto all_arg_tensors    = tensor_inputs;
 
-  // 3. Collect tensors and arguments
-  // Add output tensors to all_arg_tensors
-  for (int i = 0; i < C->size() - 1; i++) {
-    ir::Expr temp = C[i];
-    // checkout whether the tensor is with buffer.
-    if (!temp.as_tensor_ref()->buffer.defined() || target_ != common::DefaultNVGPUTarget()) {
-      all_arg_tensors.push_back(temp.as_tensor_ref());
-    }
-  }
-
-  poly::StageMap stages        = C.back();
-  std::string func_name_prefix = "fn_";
-  auto func = lang::LowerVec(func_name_prefix + node->id(), stages, all_arg_tensors, {}, {}, nullptr, target_, true);
-  CHECK_EQ(func.size(), 1);
-
-  std::vector<common::CINNValue> schedule_inputs;
-  for (auto& f : func) {
-    schedule_inputs.push_back(common::CINNValue(f->body));
-  }
-  for (int i = 0; i < C->size() - 1; i++) {
-    ir::Expr temp = C[i];
-    schedule_inputs.push_back(common::CINNValue(temp.as_tensor_ref()->name));
-  }
-
-  // 4. Call Op's Schedule function, optimizing the IR tree by new IR schedule
-  common::CINNValuePack expr_pack = impl->fschedule(common::CINNValuePack{schedule_inputs});
-
-  // 5. Optimize the LoweredFunc
-  VLOG(3) << "expr_pack.size() is : " << expr_pack.size();
-  std::vector<ir::LoweredFunc> res;
-  for (int i = 0; i < expr_pack.size(); i++) {
-    auto temp_buffers  = lang::GetTempBuffers(all_arg_tensors, stages, func[i]->body);
-    func[i]->temp_bufs = temp_buffers;
-    func[i]->PrepareBufferCastExprs();
-    res.push_back(func[i]);
-  }
-  for (int i = 0; i < res.size(); i++) {
-#ifdef CINN_WITH_CUDA
-    optim::OptimizeExprGPU(&(res[i]->body));
-#endif
-    res[i] = optim::Optimize(Expr(res[i]), target_, false).as_lowered_func_ref();
-  }
-
-  // 6. Return the result.
+  auto res =
+      GetFuncFromImpl(impl, common::CINNValuePack{cinn_inputs}, tensor_inputs, input_output_nodes, node->id(), target_);
   return res;
 }
 
@@ -722,6 +681,7 @@ void GraphCompiler::CompileOptions::Apply(const auto_schedule::TuningResult& tun
 GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::CompileOptions& options,
                                                       std::unordered_set<std::string>&& fetch_var_ids,
                                                       void* stream) {
+  Context::Global().ResetNameId();
   compile_options_ = options;
   fetch_var_ids_   = std::move(fetch_var_ids);
   auto topo_order  = graph_->topological_order();
@@ -1380,7 +1340,10 @@ std::vector<ir::LoweredFunc> GraphCompiler::NodeToLoweredFunc(const hlir::framew
   std::vector<Type> out_types;
   std::vector<std::vector<int>> output_shapes;
   for (const common::Shared<common::GraphEdge>& out : node.outlinks_in_order(true)) {
-    std::string out_id       = out->sink()->safe_as<NodeData>()->id();
+    std::string out_id = out->sink()->safe_as<NodeData>()->id();
+    if (FLAGS_cinn_ir_schedule) {
+      cinn_value_inputs.push_back(common::CINNValue(out_id));
+    }
     const shape_t& out_shape = shape_dict.at(out_id);
     Type dtype               = dtype_dict.at(out_id);
     output_shapes.push_back(out_shape);
@@ -1480,8 +1443,11 @@ std::vector<ir::LoweredFunc> GraphCompiler::FusedNodeGroupToLoweredFunc(
 
       temp_outvars.push_back(out_var);
       std::string out_id = out_var->id();
-      shape_t out_shape  = shape_dict.at(out_id);
-      Type dtype         = dtype_dict.at(out_id);
+      if (FLAGS_cinn_ir_schedule) {
+        cinn_value_inputs.push_back(common::CINNValue(out_id));
+      }
+      shape_t out_shape = shape_dict.at(out_id);
+      Type dtype        = dtype_dict.at(out_id);
       output_shapes.push_back(out_shape);
       out_types.push_back(dtype);
     }
@@ -1535,6 +1501,65 @@ std::vector<ir::LoweredFunc> GraphCompiler::FusedNodeGroupToLoweredFunc(
   }
 
   return funcs;
+}
+
+std::vector<ir::LoweredFunc> GetFuncFromImpl(const std::shared_ptr<OpImpl>& impl,
+                                             const common::CINNValuePack& cinn_inputs,
+                                             std::vector<ir::Tensor>& all_arg_tensors,
+                                             const std::vector<std::string>& input_output_nodes,
+                                             const std::string& node_id,
+                                             const Target& target) {
+  // 1.Call Op's Compute function, using the default stages and LowerVec to get IR tree.
+  common::CINNValuePack C = impl->fcompute(cinn_inputs);
+
+  // 2. Collect tensors and arguments
+  // Add output tensors to all_arg_tensors
+  for (int i = 0; i < C->size() - 1; i++) {
+    ir::Expr temp = C[i];
+    // checkout whether the tensor is with buffer.
+    if (!temp.as_tensor_ref()->buffer.defined() || target != common::DefaultNVGPUTarget()) {
+      all_arg_tensors.push_back(temp.as_tensor_ref());
+    }
+  }
+
+  poly::StageMap stages        = C.back();
+  std::string func_name_prefix = "fn_";
+  auto funcs = lang::LowerVec(func_name_prefix + node_id, stages, all_arg_tensors, {}, {}, nullptr, target, true);
+
+  std::vector<common::CINNValue> schedule_inputs;
+  for (auto& f : funcs) {
+    schedule_inputs.push_back(common::CINNValue(f->body));
+  }
+  for (int i = 0; i < C->size() - 1; i++) {
+    ir::Expr temp = C[i];
+    schedule_inputs.push_back(common::CINNValue(temp.as_tensor_ref()->name));
+  }
+
+  // 3. Call Op's Schedule function, optimizing the IR tree by new IR schedule
+  common::CINNValuePack expr_pack = impl->fschedule(common::CINNValuePack{schedule_inputs});
+
+  // 4. Optimize the LoweredFunc
+  VLOG(3) << "expr_pack.size() is : " << expr_pack.size();
+  std::vector<ir::LoweredFunc> res;
+  for (int i = 0; i < expr_pack.size(); i++) {
+    if (funcs.size() > expr_pack.size()) {
+      auto new_args  = lang::GetArgs(funcs[i]->body, input_output_nodes);
+      funcs[i]->args = new_args;
+    }
+    auto temp_buffers   = lang::GetTempBuffers(all_arg_tensors, stages, funcs[i]->body);
+    funcs[i]->temp_bufs = temp_buffers;
+    funcs[i]->PrepareBufferCastExprs();
+    res.push_back(funcs[i]);
+  }
+  for (int i = 0; i < res.size(); i++) {
+#ifdef CINN_WITH_CUDA
+    optim::OptimizeExprGPU(&(res[i]->body));
+#endif
+    res[i] = optim::Optimize(Expr(res[i]), target, false).as_lowered_func_ref();
+  }
+
+  // 5. Return the result.
+  return res;
 }
 
 }  // namespace framework

@@ -173,6 +173,7 @@ std::vector<ir::Tensor> Split(const ir::Tensor& A,
   }
 
   std::vector<ir::Tensor> res(output_size);
+  CHECK_EQ(output_size, names.size());
   for (int i = 0; i < output_size; ++i) {
     res[i] = Compute(
         out_shape[i],
