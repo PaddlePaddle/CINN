@@ -115,10 +115,7 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
 }
 
 bool Instruction::RunFuncWithCUDA(bool dryrun, void* stream) {
-#ifndef CINN_WITH_CUDA
-  return false;
-#endif
-
+#ifdef CINN_WITH_CUDA
   if (target_.arch != Target::Arch::NVGPU) {
     return false;
   }
@@ -139,14 +136,12 @@ bool Instruction::RunFuncWithCUDA(bool dryrun, void* stream) {
     runtime::cuda::cinn_gpu_cublas_mul(attrs, pod_args[0], pod_args[1], pod_args[2], static_cast<cudaStream_t>(stream));
     return true;
   }
+#endif
   return false;
 }
 
 bool Instruction::RunFuncWithCUDNN(bool dryrun, void* stream) {
-#ifndef CINN_WITH_CUDNN
-  return false;
-#endif
-
+#if defined(CINN_WITH_CUDA) && defined(CINN_WITH_CUDNN)
   if (target_.arch != Target::Arch::NVGPU) {
     return false;
   }
@@ -199,6 +194,7 @@ bool Instruction::RunFuncWithCUDNN(bool dryrun, void* stream) {
     runtime::cuda::cinn_gpu_cudnn_softmax(attrs, pod_args[0], pod_args[1], static_cast<cudaStream_t>(stream));
     return true;
   }
+#endif
   return false;
 }
 
