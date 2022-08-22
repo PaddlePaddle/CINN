@@ -31,6 +31,7 @@
 #include "cinn/cinn.h"
 #include "cinn/common/target.h"
 #include "cinn/common/test_helper.h"
+#include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
@@ -38,6 +39,9 @@
 #include "cinn/hlir/pe/nn.h"
 #include "cinn/runtime/cinn_runtime.h"
 #include "cinn/runtime/cuda/cuda_module.h"
+#include "cinn/runtime/flags.h"
+
+DECLARE_bool(cinn_ir_schedule);
 
 namespace cinn {
 namespace hlir {
@@ -88,27 +92,41 @@ std::pair<ir::Module, std::string> GenReduceCode(const std::vector<int>& shape,
   auto target = common::DefaultNVGPUTarget();
   auto impl   = OpStrategy::SelectImpl(strategy(attrs, inputs, out_type, {output_shape}, target));
 
-  common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(X)}};
-  common::CINNValuePack rets       = impl->fcompute(cinn_input);
-  rets                             = impl->fschedule(rets);
-  poly::StageMap stages            = rets.back();
-
-  // the last element is a StageMap
-  for (int i = 0; i < rets->size() - 1; i++) {
-    Expr temp = rets[i];
-    if (!temp.as_tensor_ref()->buffer.defined() && !stages[temp.as_tensor_ref()]->inlined()) {
-      inputs.push_back(temp.as_tensor_ref());
-    }
-  }
-
-  auto func = lang::LowerVec(func_name, rets.back(), inputs, {}, {}, nullptr, target);
-  for (auto& f : func) {
-    LOG(INFO) << "Test Strategy Codegen:\n" << f;
-  }
-
   Module::Builder builder(func_name + "_builder", target);
-  for (auto& f : func) {
-    builder.AddFunction(f);
+
+  if (FLAGS_cinn_ir_schedule) {
+    std::string out_name             = "Y";
+    common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(X), common::CINNValue(out_name)}};
+    std::vector<std::string> input_output_names{"X", out_name};
+
+    auto funcs = framework::GetFuncFromImpl(impl, cinn_input, inputs, input_output_names, func_name, target);
+
+    for (auto func : funcs) {
+      LOG(INFO) << "Test" << func_name << "'s Strategy, func is :\n" << func;
+      builder.AddFunction(func);
+    }
+  } else {
+    common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(X)}};
+    common::CINNValuePack rets       = impl->fcompute(cinn_input);
+    rets                             = impl->fschedule(rets);
+    poly::StageMap stages            = rets.back();
+
+    // the last element is a StageMap
+    for (int i = 0; i < rets->size() - 1; i++) {
+      Expr temp = rets[i];
+      if (!temp.as_tensor_ref()->buffer.defined() && !stages[temp.as_tensor_ref()]->inlined()) {
+        inputs.push_back(temp.as_tensor_ref());
+      }
+    }
+
+    auto func = lang::LowerVec("fn_" + func_name, rets.back(), inputs, {}, {}, nullptr, target);
+    for (auto& f : func) {
+      LOG(INFO) << "Test Strategy Codegen:\n" << f;
+    }
+
+    for (auto& f : func) {
+      builder.AddFunction(f);
+    }
   }
 
   auto module                    = builder.Build();
