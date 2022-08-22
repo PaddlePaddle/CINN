@@ -45,12 +45,23 @@ namespace op {
 using common::CINNValue;
 using common::CINNValuePack;
 
-ir::Tensor Scatter(
-    const ir::Tensor &A, const ir::Tensor &B, const ir::Tensor &C, const int &axis, const std::string &name) {
+ir::Tensor Scatter(const ir::Tensor &A,
+                   const ir::Tensor &B,
+                   const ir::Tensor &C,
+                   const common::Target &target,
+                   const int &axis,
+                   const std::string &name) {
   CHECK_EQ(A->shape.size(), B->shape.size());
   CHECK_EQ(A->shape.size(), C->shape.size());
 
-  std::string extern_fun_name = "cinn_host_find_int_nd";
+  std::string extern_fun_name;
+  if (target.arch == common::Target::Arch::NVGPU) {
+    extern_fun_name.assign("cinn_cuda_find_int_nd");
+  } else if (target.arch == common::Target::Arch::X86) {
+    extern_fun_name.assign("cinn_host_find_int_nd");
+  } else {
+    LOG(FATAL) << "Scatter only support X86 and NVGPU ! Please Check.\n";
+  }
 
   int pos_axis = axis;
   if (pos_axis < 0) {
@@ -64,25 +75,25 @@ ir::Tensor Scatter(
     }
   }
   new_axes.push_back(axis);
-  //  auto new_B = pe::Transpose(B, new_axes, name + "_index_transpose");
-  auto res = Compute(
+  auto new_B = pe::Transpose(B, new_axes, name + "_index_transpose");
+  auto res   = Compute(
       C->shape,
       [=](const std::vector<Expr> &indices) {
-        //        auto offset = Expr(0);
-        //        for (int i = 0; i < indices.size(); i++) {
-        //          if (i != pos_axis) {
-        //            offset = offset * C->shape[i] + indices[i];
-        //          }
-        //        }
-        //        offset   = common::AutoSimplify(offset);
-        //        auto idx = lang::CallExtern(extern_fun_name, {B, B->shape[-1], indices[pos_axis], offset, Expr(1)});
+        Expr offset(0);
+        for (int i = 0; i < indices.size(); i++) {
+          if (i != pos_axis) {
+            offset = offset * C->shape[i] + indices[i];
+          }
+        }
+        offset   = common::AutoSimplify(offset);
+        auto idx = lang::CallExtern(extern_fun_name, {B, Expr(10), Expr(0), Expr(0), Expr(1)});
         //        auto idx = lang::CallExtern(extern_fun_name, {new_B, new_B->shape[-1], indices[pos_axis], offset,
         //        Expr(1)});
-        //        std::vector<Expr> A_indices(indices);
-        //        A_indices[pos_axis] = idx;
-        //        auto keep           = ir::EQ::Make(idx, Expr(-1));
-        //        return ir::Select::Make(keep, C(indices), A(A_indices));
-        return C(indices);
+        std::vector<Expr> A_indices(indices);
+        A_indices[pos_axis] = idx;
+        auto keep           = ir::EQ::Make(idx, Expr(-1));
+        return ir::Select::Make(keep, C(indices), A(A_indices));
+        //        return C(indices);
       },
       name);
   return res;
@@ -91,11 +102,20 @@ ir::Tensor Scatter(
 ir::Tensor ScatterNd(const ir::Tensor &A,
                      const ir::Tensor &B,
                      const ir::Tensor &C,
+                     const common::Target &target,
                      const std::vector<int> &axes,
                      const std::string &name) {
   CHECK_EQ(A->shape.size() + 1, B->shape.size());
   CHECK_EQ(A->shape.size() + axes.size() - 1, C->shape.size());
-  std::string extern_fun_name = "cinn_host_find_int_nd";
+
+  std::string extern_fun_name;
+  if (target.arch == common::Target::Arch::NVGPU) {
+    extern_fun_name.assign("cinn_cuda_find_int_nd");
+  } else if (target.arch == common::Target::Arch::X86) {
+    extern_fun_name.assign("cinn_host_find_int_nd");
+  } else {
+    LOG(FATAL) << "ScatterNd only support X86 and NVGPU ! Please Check.\n";
+  }
 
   std::vector<int> pos_axes;
   for (auto axis : axes) {
@@ -117,14 +137,14 @@ ir::Tensor ScatterNd(const ir::Tensor &A,
             A_indices.push_back(indices[i]);
           }
         }
-        offset = common::AutoSimplify(offset);
 
         auto keep = Expr(true);
         std::vector<Expr> idx;
         for (int i = 0; i < pos_axes.size(); ++i) {
-          auto cur_idx = lang::CallExtern(extern_fun_name, {B, B->shape[-2], indices[pos_axes[i]]});
-          //              extern_fun_name, {B, B->shape[-2], indices[pos_axes[i]], offset + Expr(i),
-          //              Expr(pos_axes.size())});
+          auto cur_idx = lang::CallExtern(
+              extern_fun_name,
+              {B, B->shape[-2], indices[0], common::AutoSimplify(offset + Expr(i)), Expr(pos_axes.size())});
+          //          auto cur_idx = lang::CallExtern(extern_fun_name, {B, B->shape[-2], indices[0], Expr(i), Expr(1)});
           if (idx.empty()) {
             idx.push_back(cur_idx);
             A_indices.push_back(cur_idx);
@@ -166,7 +186,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForScatter(const framework::NodeA
     auto stages   = CreateStages({tensor_A, tensor_B, tensor_C});
     VLOG(3) << "A shape: " << utils::Join(tensor_A->shape, ", ") << ", B shape: " << utils::Join(tensor_B->shape, ", ")
             << ", output_shapes: " << utils::Join(output_shapes[0], ", ");
-    ir::Tensor out = Scatter(tensor_A, tensor_B, tensor_C, axis, UniqName("Scatter_out"));
+    ir::Tensor out = Scatter(tensor_A, tensor_B, tensor_C, target, axis, UniqName("Scatter_out"));
     std::vector<CINNValue> res;
     stages->InsertLazily(out);
     res.push_back(CINNValue(out));
@@ -214,7 +234,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForScatterNd(const framework::Nod
     auto stages   = CreateStages({tensor_A, tensor_B, tensor_C});
     VLOG(3) << "A shape: " << utils::Join(tensor_A->shape, ", ") << ", B shape: " << utils::Join(tensor_B->shape, ", ")
             << ", output_shapes: " << utils::Join(output_shapes[0], ", ");
-    ir::Tensor out = ScatterNd(tensor_A, tensor_B, tensor_C, axes, UniqName("Scatter_out"));
+    ir::Tensor out = ScatterNd(tensor_A, tensor_B, tensor_C, target, axes, UniqName("Scatter_out"));
     std::vector<CINNValue> res;
     stages->InsertLazily(out);
     res.push_back(CINNValue(out));

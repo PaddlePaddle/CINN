@@ -25,12 +25,17 @@ namespace cinn {
 namespace hlir {
 namespace op {
 
-ir::Tensor Scatter(
-    const ir::Tensor& A, const ir::Tensor& B, const ir::Tensor& out, const int& axis, const std::string& name);
+ir::Tensor Scatter(const ir::Tensor& A,
+                   const ir::Tensor& B,
+                   const ir::Tensor& out,
+                   const common::Target& target,
+                   const int& axis,
+                   const std::string& name);
 
 ir::Tensor ScatterNd(const ir::Tensor& A,
                      const ir::Tensor& B,
                      const ir::Tensor& out,
+                     const common::Target& target,
                      const std::vector<int>& axes,
                      const std::string& name);
 

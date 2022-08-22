@@ -65,6 +65,46 @@ TEST(tanh, basic) {
   }
 }
 
+TEST(find_value_nd, basic) {
+  Expr M(10), N(20);
+  Placeholder<float> x("x", {M, N});
+  auto y = Compute({N}, [&](Expr i) {
+    return CallExtern("cinn_host_find_float_nd", {x, M, x({Expr(5), Expr(3)}), i, N});
+  });
+
+  auto stages = CreateStages({y});
+
+  auto jit = backends::SimpleJIT::Create();
+
+  ir::Module::Builder builder("module1", common::DefaultHostTarget());
+
+  auto fn = Lower("fn", stages, {x, y});
+  LOG(INFO) << "fn:\n" << fn;
+
+  builder.AddFunction(fn);
+
+  jit->Link(builder.Build());
+
+  auto fn_ptr = jit->Lookup("fn");
+  auto fnp    = reinterpret_cast<lower_func_ptr_t>(fn_ptr);
+  ASSERT_TRUE(fnp);
+
+  auto* x_buf   = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_random().Build();
+  auto* out_buf = common::BufferBuilder(Int(32), {N.as_int32()}).set_zero().Build();
+  auto args     = common::ArgsBuilder().Add(x_buf).Add(out_buf).Build();
+  fnp(args.data(), args.size());
+
+  auto* x_buf_data   = reinterpret_cast<float*>(x_buf->memory);
+  auto* out_buf_data = reinterpret_cast<int*>(out_buf->memory);
+
+  for (int i = 0; i < out_buf->num_elements(); i++) {
+    LOG_FIRST_N(INFO, 3) << out_buf_data[i];
+    if (out_buf_data[i] != -1) {
+      ASSERT_NEAR(x_buf_data[out_buf_data[i] * 20 + i], x_buf_data[5 * 20 + 3], 1e-5);
+    }
+  }
+}
+
 }  // namespace cpu
 }  // namespace runtime
 }  // namespace cinn

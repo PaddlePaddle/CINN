@@ -36,12 +36,12 @@ void __cinn_host_tanh_v(const cinn_buffer_t* x, cinn_buffer_t* out) {
   }
 }
 
-#define __cinn_host_find_kernel(buf, size, num, type, start, stride)        \
-  do {                                                                      \
-    for (int i = size - 1; i >= start; i -= stride) {                       \
-      if (reinterpret_cast<type*>(buf->memory)[i] == num) return i - start; \
-    }                                                                       \
-    return -1;                                                              \
+#define __cinn_host_find_kernel(buf, size, num, type, begin, stride)                   \
+  do {                                                                                 \
+    for (int i = (size - 1) * stride; i >= begin; i -= stride) {                       \
+      if (reinterpret_cast<type*>(buf->memory)[i] == num) return (i - begin) / stride; \
+    }                                                                                  \
+    return -1;                                                                         \
   } while (0)
 
 inline int cinn_host_find_int(const cinn_buffer_t* buf, int size, int num) {
@@ -52,12 +52,12 @@ inline int cinn_host_find_float(const cinn_buffer_t* buf, int size, float num) {
   __cinn_host_find_kernel(buf, size, num, float, 0, 1);
 }
 
-inline int cinn_host_find_int_nd(const cinn_buffer_t* buf, int size, int num, int start, int stride) {
-  __cinn_host_find_kernel(buf, size, num, int, start, stride);
+inline int cinn_host_find_int_nd(const cinn_buffer_t* buf, int size, int num, int begin, int stride) {
+  __cinn_host_find_kernel(buf, size, num, int, begin, stride);
 }
 
-inline int cinn_host_find_float_nd(const cinn_buffer_t* buf, int size, float num, int start, int stride) {
-  __cinn_host_find_kernel(buf, size, num, float, start, stride);
+inline int cinn_host_find_float_nd(const cinn_buffer_t* buf, int size, float num, int begin, int stride) {
+  __cinn_host_find_kernel(buf, size, num, float, begin, stride);
 }
 
 #undef __cinn_host_find_kernel
