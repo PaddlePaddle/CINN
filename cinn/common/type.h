@@ -51,10 +51,6 @@ struct Type {
     HandleHandle = 1 << 2,  // pointer of pointer, such as `cinn_buffer_t**`.
   };
 
-  struct Hash {
-    size_t operator()(const Type& type) const;
-  };
-
   Type();
   Type(type_t t, int b, int w);
   Type(const Type& other);

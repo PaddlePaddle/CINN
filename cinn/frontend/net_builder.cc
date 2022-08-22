@@ -77,11 +77,11 @@ Variable NetBuilder::ReduceSum(const Variable& x, const std::vector<int>& dim, b
   return Reduce(x, ReduceKind::kSum, dim, keep_dim);
 }
 
-Variable NetBuilder::All(const Variable& x, const std::vector<int>& dim, bool keep_dim) {
+Variable NetBuilder::ReduceAll(const Variable& x, const std::vector<int>& dim, bool keep_dim) {
   return Reduce(x, ReduceKind::kAll, dim, keep_dim);
 }
 
-Variable NetBuilder::Any(const Variable& x, const std::vector<int>& dim, bool keep_dim) {
+Variable NetBuilder::ReduceAny(const Variable& x, const std::vector<int>& dim, bool keep_dim) {
   return Reduce(x, ReduceKind::kAny, dim, keep_dim);
 }
 

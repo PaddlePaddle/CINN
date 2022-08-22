@@ -451,8 +451,10 @@ void BindFrontend(pybind11::module *m) {
            py::arg("x"),
            py::arg("axis")    = std::vector<int>{},
            py::arg("keepdim") = false)
-      .def("all", &NetBuilder::All, py::arg("x"), py::arg("axis") = std::vector<int>{}, py::arg("keepdim") = false)
-      .def("any", &NetBuilder::Any, py::arg("x"), py::arg("axis") = std::vector<int>{}, py::arg("keepdim") = false)
+      .def(
+          "all", &NetBuilder::ReduceAll, py::arg("x"), py::arg("axis") = std::vector<int>{}, py::arg("keepdim") = false)
+      .def(
+          "any", &NetBuilder::ReduceAny, py::arg("x"), py::arg("axis") = std::vector<int>{}, py::arg("keepdim") = false)
       .def("conv2d",
            &NetBuilder::Conv2d,
            py::arg("a"),

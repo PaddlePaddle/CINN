@@ -83,12 +83,12 @@ class NetBuilder : public BaseBuilder {
   /**
    * Compute the logic add of Variable x along the given dim.
    */
-  Variable All(const Variable& x, const std::vector<int>& dim, bool keep_dim = false);
+  Variable ReduceAll(const Variable& x, const std::vector<int>& dim, bool keep_dim = false);
 
   /**
    * Compute the sum of Variable x along the given dim.
    */
-  Variable Any(const Variable& x, const std::vector<int>& dim, bool keep_dim = false);
+  Variable ReduceAny(const Variable& x, const std::vector<int>& dim, bool keep_dim = false);
 
   /**
    * The convolution2D layer calculates the output based on the input, filter
