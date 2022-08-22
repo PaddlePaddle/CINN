@@ -177,10 +177,6 @@ cinn_pod_value_t::operator float() const {
   CINN_CHECK_EQ(type_code_, ::cinn_type_code<float>());
   return value_.v_float64;
 }
-cinn_pod_value_t::operator bool() const {
-  CINN_CHECK_EQ(type_code_, ::cinn_type_code<bool>());
-  return value_.v_int64;
-}
 cinn_pod_value_t::operator int8_t() const {
   CINN_CHECK_EQ(type_code_, ::cinn_type_code<int8_t>());
   return value_.v_int64;
@@ -210,7 +206,6 @@ cinn_pod_value_t::cinn_pod_value_t(cinn_value_t value, int type_code) : value_(v
 cinn_pod_value_t::cinn_pod_value_t(cinn_buffer_t* value) : type_code_(::cinn_type_code<cinn_buffer_t*>()) {
   value_.v_handle = value;
 }
-cinn_pod_value_t::cinn_pod_value_t(bool value) : type_code_(::cinn_type_code<bool>()) { value_.v_int64 = value; }
 cinn_pod_value_t::cinn_pod_value_t(int8_t value) : type_code_(::cinn_type_code<int8_t>()) { value_.v_int64 = value; }
 cinn_pod_value_t::cinn_pod_value_t(int32_t value) : type_code_(::cinn_type_code<int32_t>()) { value_.v_int64 = value; }
 cinn_pod_value_t::cinn_pod_value_t(int64_t value) : type_code_(::cinn_type_code<int64_t>()) { value_.v_int64 = value; }
@@ -227,7 +222,6 @@ double cinn_pod_value_to_double(cinn_pod_value_t* value) { return *value; }
 int64_t cinn_pod_value_to_int64(cinn_pod_value_t* value) { return *value; }
 int32_t cinn_pod_value_to_int32(cinn_pod_value_t* value) { return *value; }
 int8_t cinn_pod_value_to_int8(cinn_pod_value_t* value) { return *value; }
-bool cinn_pod_value_to_bool(cinn_pod_value_t* value) { return *value; }
 void* cinn_pod_value_to_void_p(cinn_pod_value_t* value) { return *value; }
 cinn_buffer_t* cinn_pod_value_to_buffer_p(cinn_pod_value_t* value) { return *value; }
 // @}
@@ -305,7 +299,6 @@ void cinn_args_construct(cinn_pod_value_t* arr, int count, ...) {
 
 void* cinn_pod_value_t::data_addr() const {
   switch (type_code()) {
-    case ::cinn_type_code<bool>():
     case ::cinn_type_code<int8_t>():
     case ::cinn_type_code<int32_t>():
     case ::cinn_type_code<int64_t>():
@@ -321,11 +314,6 @@ void* cinn_pod_value_t::data_addr() const {
       CINN_RUNTIME_NOT_IMPLEMENTED
   }
   return nullptr;
-}
-
-template <>
-cinn_type_t cinn_type_of<bool>() {
-  return cinn_bool_t();
 }
 
 template <>

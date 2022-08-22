@@ -427,8 +427,6 @@ CINN_REGISTER_HELPER(elementwise_ops) {
   CINN_REGISTER_UNARY(rsqrt, Rsqrt)
   CINN_REGISTER_UNARY(sigmoid, Sigmoid)
 
-  CINN_REGISTER_UNARY(assert_true, Identity);
-
 #undef CINN_REGISTER_UNARY
 
   CINN_REGISTER_OP(scale)
