@@ -52,19 +52,20 @@ void IRScheduleInjectiveCPU(ir::IRSchedule &ir_sch,
     fused = ir_sch.Fuse({loops[0], loops[1]});
     dims  = dims - 1;
   }
-  ir_sch.Parallel(fused);
-
-  if (vectorizable) {
-    auto all_blocks = ir_sch.GetAllBlocks();
-    auto loops      = ir_sch.GetLoops(all_blocks[0]);
-    int last_shape  = ir::GetLoopExtent(loops[dims - 1]);
-    factor          = GetVectorizeFactor(last_shape, factor);
-    auto splited    = ir_sch.Split(loops[dims - 1], {-1, factor});
-    ir_sch.Vectorize(splited[1], factor);
-    if (dims == 1) {
-      ir_sch.Parallel(splited[0]);
-    }
-  }
+  // This part needs to be fixed. @Haoze
+  /*   ir_sch.Parallel(fused);
+    if (vectorizable) {
+      auto all_blocks = ir_sch.GetAllBlocks();
+      auto loops      = ir_sch.GetLoops(all_blocks[0]);
+      int last_shape  = ir::GetLoopExtent(loops.back());
+      factor          = GetVectorizeFactor(last_shape, factor);
+      auto splited    = ir_sch.Split(loops.back(), {-1, factor});
+      ir_sch.Vectorize(splited[1], factor);
+      if (dims == 1) {
+        ir_sch.Parallel(splited[0]);
+      }
+    } */
+  VLOG(3) << "After IRScheduleInjectiveCPU, new ir is : " << ir_sch.GetModule().GetExprs().at(0);
 }
 
 void IRCudaScheduleInjective(ir::IRSchedule &ir_sch,
