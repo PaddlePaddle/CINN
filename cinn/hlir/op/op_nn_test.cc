@@ -22,17 +22,59 @@
 #include "cinn/cinn.h"
 #include "cinn/common/target.h"
 #include "cinn/common/test_helper.h"
+#include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
 #include "cinn/hlir/op/use_ops.h"
 #include "cinn/hlir/pe/nn.h"
+#include "cinn/runtime/flags.h"
+
+DECLARE_bool(cinn_ir_schedule);
 
 namespace cinn {
 namespace hlir {
 namespace framework {
 
 using CCompute = std::function<std::shared_ptr<ir::Tensor>(const std::vector<ir::Tensor>)>;
+
+void GetLoweredFunc(const std::string test_name,
+                    const std::string func_name,
+                    const std::shared_ptr<OpImpl> &impl,
+                    std::vector<std::string> &input_names,
+                    const std::string &output_name,
+                    std::vector<ir::Tensor> &inputs,
+                    std::vector<common::CINNValue> &cinn_inputs,
+                    const Target &target,
+                    Module::Builder &builder) {
+  if (FLAGS_cinn_ir_schedule) {
+    cinn_inputs.emplace_back(output_name);
+    common::CINNValuePack cinn_input = common::CINNValuePack{cinn_inputs};
+
+    input_names.push_back(output_name);
+
+    auto funcs = framework::GetFuncFromImpl(impl, cinn_input, inputs, input_names, func_name, target);
+
+    for (auto func : funcs) {
+      LOG(INFO) << "Test" << test_name << "'s Strategy, func is :\n" << func;
+      builder.AddFunction(func);
+    }
+  } else {
+    common::CINNValuePack cinn_input = common::CINNValuePack{cinn_inputs};
+    common::CINNValuePack rets       = impl->fcompute(cinn_input);
+    rets                             = impl->fschedule(rets);
+    ASSERT_EQ(rets.size(), 2UL);
+    // the last element is a StageMap
+    for (int i = 0; i < rets->size() - 1; i++) {
+      Expr temp = rets[i];
+      inputs.push_back(temp.as_tensor_ref());
+    }
+    auto func = Lower("fn_" + func_name, rets.back(), inputs);
+    LOG(INFO) << "Test Strategy Codegen:\n" << func;
+
+    builder.AddFunction(func);
+  }
+}
 
 TEST(Operator, Operator_Pool2d_Test0) {
   auto pool2d   = Operator::Get("pool2d");
@@ -55,25 +97,19 @@ TEST(Operator, Operator_Pool2d_Test0) {
   std::vector<Type> type{Float(32)};
   common::Target target = common::DefaultHostTarget();
   auto impl = OpStrategy::SelectImpl(strategy[pool2d](attrs, inputs, type, {{1, 3, 10, 10}, {1, 3, 5, 5}}, target));
-  common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(A)}};
-  common::CINNValuePack rets       = impl->fcompute(cinn_input);
-  rets                             = impl->fschedule(rets);
-  ASSERT_EQ(rets.size(), 2UL);
-  // the last element is a StageMap
-  for (int i = 0; i < rets->size() - 1; i++) {
-    Expr temp = rets[i];
-    inputs.push_back(temp.as_tensor_ref());
-  }
-  auto func = Lower("pool2d", rets.back(), inputs);
-  LOG(INFO) << "Test Strategy Codegen:\n" << func;
 
+  std::string func_name                      = "pool2d";
+  std::vector<std::string> input_names       = {"A"};
+  std::vector<common::CINNValue> cinn_inputs = {common::CINNValue(A)};
   Module::Builder builder("module0", target);
-  builder.AddFunction(func);
+
+  GetLoweredFunc("Operator_Pool2d_Test0", func_name, impl, input_names, "B", inputs, cinn_inputs, target, builder);
+
   auto jit    = backends::ExecutionEngine::Create({});
   auto module = builder.Build();
 
   jit->Link(module);
-  auto fn = jit->Lookup("pool2d");
+  auto fn = jit->Lookup("fn_" + func_name);
   CHECK(fn);
   auto fn_ = reinterpret_cast<void (*)(void *, int32_t)>(fn);
 
@@ -111,25 +147,19 @@ TEST(Operator, Operator_Pool2d_Test1) {
   std::vector<Type> type{Float(32)};
   common::Target target = common::DefaultHostTarget();
   auto impl = OpStrategy::SelectImpl(strategy[pool2d](attrs, inputs, type, {{1, 3, 11, 11}, {1, 3, 5, 5}}, target));
-  common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(A)}};
-  common::CINNValuePack rets       = impl->fcompute(cinn_input);
-  rets                             = impl->fschedule(rets);
-  ASSERT_EQ(rets.size(), 2UL);
-  // the last element is a StageMap
-  for (int i = 0; i < rets->size() - 1; i++) {
-    Expr temp = rets[i];
-    inputs.push_back(temp.as_tensor_ref());
-  }
-  auto func = Lower("pool2d", rets.back(), inputs);
-  LOG(INFO) << "Test Strategy Codegen:\n" << func;
 
+  std::string func_name                      = "pool2d";
+  std::vector<std::string> input_names       = {"A"};
+  std::vector<common::CINNValue> cinn_inputs = {common::CINNValue(A)};
   Module::Builder builder("module0", target);
-  builder.AddFunction(func);
+
+  GetLoweredFunc("Operator_Pool2d_Test1", func_name, impl, input_names, "B", inputs, cinn_inputs, target, builder);
+
   auto jit    = backends::ExecutionEngine::Create({});
   auto module = builder.Build();
 
   jit->Link(module);
-  auto fn = jit->Lookup("pool2d");
+  auto fn = jit->Lookup("fn_" + func_name);
   CHECK(fn);
   auto fn_ = reinterpret_cast<void (*)(void *, int32_t)>(fn);
 
@@ -169,25 +199,19 @@ TEST(Operator, Operator_Pool2d_Test2) {
   std::vector<Type> type{Float(32)};
   common::Target target = common::DefaultHostTarget();
   auto impl = OpStrategy::SelectImpl(strategy[pool2d](attrs, inputs, type, {{1, 11, 11, 3}, {1, 5, 5, 3}}, target));
-  common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(A)}};
-  common::CINNValuePack rets       = impl->fcompute(cinn_input);
-  rets                             = impl->fschedule(rets);
-  ASSERT_EQ(rets.size(), 2UL);
-  // the last element is a StageMap
-  for (int i = 0; i < rets->size() - 1; i++) {
-    Expr temp = rets[i];
-    inputs.push_back(temp.as_tensor_ref());
-  }
-  auto func = Lower("pool2d", rets.back(), inputs);
-  LOG(INFO) << "Test Strategy Codegen:\n" << func;
 
+  std::string func_name                      = "pool2d";
+  std::vector<std::string> input_names       = {"A"};
+  std::vector<common::CINNValue> cinn_inputs = {common::CINNValue(A)};
   Module::Builder builder("module0", target);
-  builder.AddFunction(func);
+
+  GetLoweredFunc("Operator_Pool2d_Test2", func_name, impl, input_names, "B", inputs, cinn_inputs, target, builder);
+
   auto jit    = backends::ExecutionEngine::Create({});
   auto module = builder.Build();
 
   jit->Link(module);
-  auto fn = jit->Lookup("pool2d");
+  auto fn = jit->Lookup("fn_" + func_name);
   CHECK(fn);
   auto fn_ = reinterpret_cast<void (*)(void *, int32_t)>(fn);
 
@@ -228,25 +252,19 @@ TEST(Operator, Operator_Pool3d_Test0) {
   common::Target target = common::DefaultHostTarget();
   auto impl =
       OpStrategy::SelectImpl(strategy[pool3d](attrs, inputs, type, {{1, 11, 11, 11, 3}, {1, 5, 5, 5, 3}}, target));
-  common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(A)}};
-  common::CINNValuePack rets       = impl->fcompute(cinn_input);
-  rets                             = impl->fschedule(rets);
-  ASSERT_EQ(rets.size(), 2UL);
-  // the last element is a StageMap
-  for (int i = 0; i < rets->size() - 1; i++) {
-    Expr temp = rets[i];
-    inputs.push_back(temp.as_tensor_ref());
-  }
-  auto func = Lower("pool3d", rets.back(), inputs);
-  LOG(INFO) << "Test Strategy Codegen:\n" << func;
 
+  std::string func_name                      = "pool3d";
+  std::vector<std::string> input_names       = {"A"};
+  std::vector<common::CINNValue> cinn_inputs = {common::CINNValue(A)};
   Module::Builder builder("module0", target);
-  builder.AddFunction(func);
+
+  GetLoweredFunc("Operator_Pool3d_Test0", func_name, impl, input_names, "B", inputs, cinn_inputs, target, builder);
+
   auto jit    = backends::ExecutionEngine::Create({});
   auto module = builder.Build();
 
   jit->Link(module);
-  auto fn = jit->Lookup("pool3d");
+  auto fn = jit->Lookup("fn_" + func_name);
   CHECK(fn);
   auto fn_ = reinterpret_cast<void (*)(void *, int32_t)>(fn);
 
@@ -286,25 +304,19 @@ TEST(Operator, Operator_Pool1d_Test0) {
   std::vector<Type> type{Float(32)};
   common::Target target = common::DefaultHostTarget();
   auto impl = OpStrategy::SelectImpl(strategy[pool1d](attrs, inputs, type, {{1, 11, 3}, {1, 5, 3}}, target));
-  common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(A)}};
-  common::CINNValuePack rets       = impl->fcompute(cinn_input);
-  rets                             = impl->fschedule(rets);
-  ASSERT_EQ(rets.size(), 2UL);
-  // the last element is a StageMap
-  for (int i = 0; i < rets->size() - 1; i++) {
-    Expr temp = rets[i];
-    inputs.push_back(temp.as_tensor_ref());
-  }
-  auto func = Lower("pool1d", rets.back(), inputs);
-  LOG(INFO) << "Test Strategy Codegen:\n" << func;
 
+  std::string func_name                      = "pool1d";
+  std::vector<std::string> input_names       = {"A"};
+  std::vector<common::CINNValue> cinn_inputs = {common::CINNValue(A)};
   Module::Builder builder("module0", target);
-  builder.AddFunction(func);
+
+  GetLoweredFunc("Operator_Pool1d_Test0", func_name, impl, input_names, "B", inputs, cinn_inputs, target, builder);
+
   auto jit    = backends::ExecutionEngine::Create({});
   auto module = builder.Build();
 
   jit->Link(module);
-  auto fn = jit->Lookup("pool1d");
+  auto fn = jit->Lookup("fn_" + func_name);
   CHECK(fn);
   auto fn_ = reinterpret_cast<void (*)(void *, int32_t)>(fn);
 
@@ -342,26 +354,22 @@ TEST(Operator, Operator_Select_Test0) {
   ASSERT_EQ(infer_shape[0][2], 64);
 
   auto impl = OpStrategy::SelectImpl(strategy[select](attrs, inputs, type, {{16, 64, 64}}, target));
-  common::CINNValuePack cinn_input = common::CINNValuePack{
-      {common::CINNValue(condition), common::CINNValue(true_value), common::CINNValue(false_value)}};
-  common::CINNValuePack rets = impl->fcompute(cinn_input);
-  rets                       = impl->fschedule(rets);
-  ASSERT_EQ(rets.size(), 2UL);
-  // the last element is a StageMap
-  for (int i = 0; i < rets->size() - 1; i++) {
-    Expr temp = rets[i];
-    inputs.push_back(temp.as_tensor_ref());
-  }
-  auto func = Lower("select", rets.back(), inputs);
-  LOG(INFO) << "Test Strategy Codegen:\n" << func;
 
+  std::string func_name                      = "select";
+  std::vector<std::string> input_names       = {"condition", "true_value", "false_value"};
+  std::string output_name                    = "output";
+  std::vector<common::CINNValue> cinn_inputs = {
+      common::CINNValue(condition), common::CINNValue(true_value), common::CINNValue(false_value)};
   Module::Builder builder("module0", target);
-  builder.AddFunction(func);
+
+  GetLoweredFunc(
+      "Operator_Select_Test0", func_name, impl, input_names, output_name, inputs, cinn_inputs, target, builder);
+
   auto jit    = backends::ExecutionEngine::Create({});
   auto module = builder.Build();
 
   jit->Link(module);
-  auto fn = jit->Lookup("select");
+  auto fn = jit->Lookup("fn_" + func_name);
   CHECK(fn);
   auto fn_ = reinterpret_cast<void (*)(void *, int32_t)>(fn);
 
@@ -408,26 +416,21 @@ TEST(Operator, Operator_Reverse_Test0) {
   common::Target target = common::DefaultHostTarget();
 
   auto impl = OpStrategy::SelectImpl(strategy[reverse](attrs, inputs, type, {{c, h, w}}, target));
-  common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(A)}};
-  common::CINNValuePack rets       = impl->fcompute(cinn_input);
-  rets                             = impl->fschedule(rets);
-  ASSERT_EQ(rets.size(), 2UL);
 
-  // the last element is a StageMap
-  for (int i = 0; i < rets->size() - 1; i++) {
-    Expr temp = rets[i];
-    inputs.push_back(temp.as_tensor_ref());
-  }
-  auto func = Lower("reverse", rets.back(), inputs);
-  LOG(INFO) << "Test Strategy Codegen:\n" << func;
-
+  std::string func_name                      = "reverse";
+  std::vector<std::string> input_names       = {"A"};
+  std::string output_name                    = "B";
+  std::vector<common::CINNValue> cinn_inputs = {common::CINNValue(A)};
   Module::Builder builder("module0", target);
-  builder.AddFunction(func);
+
+  GetLoweredFunc(
+      "Operator_Reverse_Test0", func_name, impl, input_names, output_name, inputs, cinn_inputs, target, builder);
+
   auto jit    = backends::ExecutionEngine::Create({});
   auto module = builder.Build();
 
   jit->Link(module);
-  auto fn = jit->Lookup("reverse");
+  auto fn = jit->Lookup("fn_" + func_name);
   CHECK(fn);
   auto fn_ = reinterpret_cast<void (*)(void *, int32_t)>(fn);
 
@@ -492,26 +495,21 @@ TEST(Operator, Operator_Transpose_Test0) {
   auto output_shape = {n, h, w, c};
 
   auto impl = OpStrategy::SelectImpl(strategy[transpose](attrs, inputs, type, {output_shape}, target));
-  common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(A)}};
-  common::CINNValuePack rets       = impl->fcompute(cinn_input);
-  rets                             = impl->fschedule(rets);
-  ASSERT_EQ(rets.size(), 2UL);
 
-  // the last element is a StageMap
-  for (int i = 0; i < rets->size() - 1; i++) {
-    Expr temp = rets[i];
-    inputs.push_back(temp.as_tensor_ref());
-  }
-  auto func = Lower("transpose", rets.back(), inputs);
-  LOG(INFO) << "Test Strategy Codegen:\n" << func;
-
+  std::string func_name                      = "transpose";
+  std::vector<std::string> input_names       = {"A"};
+  std::string output_name                    = "B";
+  std::vector<common::CINNValue> cinn_inputs = {common::CINNValue(A)};
   Module::Builder builder("module0", target);
-  builder.AddFunction(func);
+
+  GetLoweredFunc(
+      "Operator_Transpose_Test0", func_name, impl, input_names, output_name, inputs, cinn_inputs, target, builder);
+
   auto jit    = backends::ExecutionEngine::Create({});
   auto module = builder.Build();
 
   jit->Link(module);
-  auto fn = jit->Lookup("transpose");
+  auto fn = jit->Lookup("fn_" + func_name);
   CHECK(fn);
   auto fn_ = reinterpret_cast<void (*)(void *, int32_t)>(fn);
 
