@@ -160,7 +160,7 @@ TEST(syntax, program_execute_fc) {
 TEST(load_paddle_model, fc_execute) {
   auto scope = std::make_shared<Scope>();
 
-  auto programTuple               = LoadPaddleProgram(FLAGS_model_dir, scope.get(), false /*is_combined*/);
+  auto programTuple               = LoadPaddleProgram(FLAGS_model_dir, scope.get(), false);
   auto& program                   = std::get<0>(programTuple);
   auto& var_map                   = std::get<1>(programTuple);
   auto& var_map_paddle_to_program = std::get<2>(programTuple);
@@ -171,7 +171,7 @@ TEST(load_paddle_model, fc_execute) {
 
   LOG(INFO) << "program:\n" << *program;
 
-  Target target = GetTarget();
+  Target target = common::DefaultHostTarget();
   auto graph    = std::make_shared<hlir::framework::Graph>(*program, target);
 
   hlir::framework::ApplyPass(graph.get(), "InferShape");
