@@ -27,6 +27,7 @@
 #include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/op/use_ops.h"
 #include "cinn/hlir/pass/use_pass.h"
+#include "cinn/utils/data_util.h"
 
 namespace cinn::frontend {
 
@@ -39,40 +40,20 @@ Target GetTarget() {
 }
 
 void SetInputData(const hlir::framework::Tensor& tensor, Target target) {
-#ifdef CINN_WITH_CUDA
   auto* data = tensor->mutable_data<float>(target);
   std::vector<float> host_memory(tensor->shape().numel(), 0);
   for (size_t i = 0; i < tensor->shape().numel(); ++i) {
     host_memory[i] = static_cast<float>(i);
   }
-  CUDA_CALL(cudaMemcpy(reinterpret_cast<void*>(data),
-                       host_memory.data(),
-                       tensor->shape().numel() * sizeof(float),
-                       cudaMemcpyHostToDevice));
-#else
-  auto* data = tensor->mutable_data<float>(target);
-  for (size_t j = 0; j < tensor->shape().numel(); j++) {
-    data[j] = static_cast<float>(j);  // All random data
-  }
-#endif
-}
-
-std::vector<float> GetTensorData(const hlir::framework::Tensor& tensor, Target target) {
-  std::vector<float> data;
 #ifdef CINN_WITH_CUDA
-  data.resize(tensor->shape().numel());
-  CUDA_CALL(cudaMemcpy(data.data(),
-                       reinterpret_cast<void*>(tensor->mutable_data<float>(target)),
-                       tensor->shape().numel() * sizeof(float),
-                       cudaMemcpyDeviceToHost));
-#else
-  for (size_t i = 0; i < tensor->shape().numel(); ++i) {
-    data.push_back(tensor->data<float>()[i]);
+  if (target == common::DefaultNVGPUTarget()) {
+    cudaMemcpy(data, host_memory.data(), tensor->shape().numel() * sizeof(float), cudaMemcpyHostToDevice);
+    return;
   }
 #endif
-  return data;
+  CHECK(target == common::DefaultHostTarget());
+  std::copy(host_memory.begin(), host_memory.end(), data);
 }
-
 std::vector<std::vector<float>> RunWithProgram(const Program& program,
                                                const Target& target,
                                                const std::vector<std::string>& input_names,
@@ -93,7 +74,7 @@ std::vector<std::vector<float>> RunWithProgram(const Program& program,
 
   std::vector<std::vector<float>> outputs;
   for (const auto& out_id : out_ids) {
-    outputs.emplace_back(GetTensorData(scope->GetTensor(out_id), target));
+    outputs.emplace_back(GetTensorData<float>(scope->GetTensor(out_id), target));
   }
   return outputs;
 }

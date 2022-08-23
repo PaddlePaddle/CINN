@@ -24,6 +24,7 @@
 #include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/op/use_ops.h"
 #include "cinn/hlir/pass/use_pass.h"
+#include "cinn/utils/data_util.h"
 
 DEFINE_string(model_dir, "", "");
 
@@ -38,25 +39,6 @@ Target GetTarget() {
   return common::DefaultNVGPUTarget();
 #else
   return common::DefaultHostTarget();
-#endif
-}
-
-void SetRandData(const hlir::framework::Tensor& tensor, Target target) {
-#ifdef CINN_WITH_CUDA
-  auto* data = tensor->mutable_data<float>(target);
-  std::vector<float> host_memory(tensor->shape().numel(), 0);
-  for (float& v : host_memory) {
-    v = (rand() * 1.f) / RAND_MAX;  // All random data
-  }
-  CUDA_CALL(cudaMemcpy(reinterpret_cast<void*>(data),
-                       host_memory.data(),
-                       tensor->shape().numel() * sizeof(float),
-                       cudaMemcpyHostToDevice));
-#else
-  auto* data = tensor->mutable_data<float>(target);
-  for (size_t j = 0; j < tensor->shape().numel(); j++) {
-    data[j] = (rand() * 1.f) / RAND_MAX;  // All random data
-  }
 #endif
 }
 
@@ -97,7 +79,7 @@ TEST(batch_norm_meta, batch_norm_meta) {
   scope->Var<hlir::framework::Tensor>("A");
 
   auto A1 = scope->GetTensor("A");
-  SetRandData(A1, target);
+  SetRandData<float>(A1, target);
 
   runtime_program->Execute();
 }
@@ -135,7 +117,7 @@ TEST(reduction, reduce) {
   scope->Var<hlir::framework::Tensor>("A");
 
   auto A1 = scope->GetTensor("A");
-  SetRandData(A1, target);
+  SetRandData<float>(A1, target);
 
   runtime_program->Execute();
 }
@@ -169,8 +151,8 @@ TEST(Compare, Compare) {
 
   auto A1 = scope->GetTensor("A");
   auto B1 = scope->GetTensor("B");
-  SetRandData(A1, target);
-  SetRandData(B1, target);
+  SetRandData<float>(A1, target);
+  SetRandData<float>(B1, target);
 
   runtime_program->Execute();
 }

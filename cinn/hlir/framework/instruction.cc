@@ -78,7 +78,7 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
                       bool use_cache) {
   utils::RecordEvent record_run(function_name_);
   CHECK(finalized_flag_) << "Instruction must be finalized before run";
-  if (function_name_ == "no_run") {
+  if (function_name_ == "no_run" || function_name_ == "const_scalar") {
     VLOG(2) << "skip instruction";
     return;
   }
@@ -176,7 +176,7 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
         attrs, pod_args[0], pod_args[1], nullptr, pod_args[2], static_cast<cudaStream_t>(stream));
   } else {
     int i = 0;
-    VLOG(2) << "Runing extern function " << function_name_;
+    VLOG(3) << "Runing extern function " << function_name_;
     for (auto& it_fn : fn_) {
       auto& pod_args = args_cached_[i];
       CHECK(it_fn) << "The LoweredFunc address should be set first by calling SetLoweredFunc method";
@@ -185,6 +185,7 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
       }
       i++;
     }
+    VLOG(3) << "Done Runing extern function " << function_name_;
   }
 #else
   int i = 0;

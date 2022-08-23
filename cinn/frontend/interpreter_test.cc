@@ -22,9 +22,17 @@ DEFINE_string(model_dir, "", "");
 
 namespace cinn::frontend {
 
+Target GetTarget() {
+#ifdef CINN_WITH_CUDA
+  return common::DefaultNVGPUTarget();
+#else
+  return common::DefaultHostTarget();
+#endif
+}
+
 TEST(Interpreter, basic) {
   Interpreter executor({"A"}, {{1, 30}});
-  executor.LoadPaddleModel(FLAGS_model_dir, common::DefaultHostTarget());
+  executor.LoadPaddleModel(FLAGS_model_dir, GetTarget());
   executor.Run();
   // fc_0.tmp_2 is eliminated by OpFusion, so here
   // change to get tenor of the out variable

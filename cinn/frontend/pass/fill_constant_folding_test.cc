@@ -28,6 +28,7 @@
 #include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/op/use_ops.h"
 #include "cinn/hlir/pass/use_pass.h"
+#include "cinn/utils/data_util.h"
 
 namespace cinn::frontend {
 
@@ -37,22 +38,6 @@ Target GetTarget() {
 #else
   return common::DefaultHostTarget();
 #endif
-}
-
-std::vector<float> GetTensorData(const hlir::framework::Tensor& tensor, Target target) {
-  std::vector<float> data;
-#ifdef CINN_WITH_CUDA
-  data.resize(tensor->shape().numel());
-  CUDA_CALL(cudaMemcpy(data.data(),
-                       reinterpret_cast<void*>(tensor->mutable_data<float>(target)),
-                       tensor->shape().numel() * sizeof(float),
-                       cudaMemcpyDeviceToHost));
-#else
-  for (size_t i = 0; i < tensor->shape().numel(); ++i) {
-    data.push_back(tensor->data<float>()[i]);
-  }
-#endif
-  return data;
 }
 
 std::vector<float> RunWithProgram(const Program& program, const Target& target, Variable out) {
@@ -66,7 +51,7 @@ std::vector<float> RunWithProgram(const Program& program, const Target& target, 
   auto runtime_program = gc.Build();
   runtime_program->Execute();
 
-  return GetTensorData(scope->GetTensor(out->id), target);
+  return GetTensorData<float>(scope->GetTensor(out->id), target);
 }
 
 TEST(TransposeFolding, FoldTwoFillConstant) {

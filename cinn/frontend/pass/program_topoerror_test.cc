@@ -28,6 +28,7 @@
 #include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/op/use_ops.h"
 #include "cinn/hlir/pass/use_pass.h"
+#include "cinn/utils/data_util.h"
 
 namespace cinn::frontend {
 
@@ -37,41 +38,6 @@ Target GetTarget() {
 #else
   return common::DefaultHostTarget();
 #endif
-}
-
-void SetRandData(const hlir::framework::Tensor& tensor, Target target) {
-#ifdef CINN_WITH_CUDA
-  auto* data = tensor->mutable_data<float>(target);
-  std::vector<float> host_memory(tensor->shape().numel(), 0);
-  for (float& v : host_memory) {
-    v = (rand() * 1.f) / RAND_MAX;  // All random data
-  }
-  CUDA_CALL(cudaMemcpy(reinterpret_cast<void*>(data),
-                       host_memory.data(),
-                       tensor->shape().numel() * sizeof(float),
-                       cudaMemcpyHostToDevice));
-#else
-  auto* data = tensor->mutable_data<float>(target);
-  for (size_t j = 0; j < tensor->shape().numel(); j++) {
-    data[j] = (rand() * 1.f) / RAND_MAX;  // All random data
-  }
-#endif
-}
-
-std::vector<float> GetTensorData(const hlir::framework::Tensor& tensor, Target target) {
-  std::vector<float> data;
-#ifdef CINN_WITH_CUDA
-  data.resize(tensor->shape().numel());
-  CUDA_CALL(cudaMemcpy(data.data(),
-                       reinterpret_cast<void*>(tensor->mutable_data<float>(target)),
-                       tensor->shape().numel() * sizeof(float),
-                       cudaMemcpyDeviceToHost));
-#else
-  for (size_t i = 0; i < tensor->shape().numel(); ++i) {
-    data.push_back(tensor->data<float>()[i]);
-  }
-#endif
-  return data;
 }
 
 void RunWithProgram(const Program& program,
@@ -103,20 +69,20 @@ TEST(TransposeFoldingInput, TransposeWithMultiMamtul) {
 
   scope->Var<hlir::framework::Tensor>("X");
   scope->Var<hlir::framework::Tensor>("Y");
-  SetRandData(scope->GetTensor("X"), target);
-  SetRandData(scope->GetTensor("Y"), target);
+  SetRandData<float>(scope->GetTensor("X"), target);
+  SetRandData<float>(scope->GetTensor("Y"), target);
 
   size_t origin_size = program.size();
   VLOG(1) << "Program:\n" << program;
   RunWithProgram(program, target, scope);
-  auto origin_out = GetTensorData(scope->GetTensor(out->id), target);
+  auto origin_out = GetTensorData<float>(scope->GetTensor(out->id), target);
 
   std::swap(program[0], program[program.size() - 1]);
 
   size_t folded_size = program.size();
   VLOG(1) << "Program:\n" << program;
   RunWithProgram(program, target, scope);
-  auto folded_out = GetTensorData(scope->GetTensor(out->id), target);
+  auto folded_out = GetTensorData<float>(scope->GetTensor(out->id), target);
 
   ASSERT_EQ(origin_out.size(), folded_out.size());
   for (size_t i = 0; i < origin_out.size(); ++i) {
