@@ -114,6 +114,9 @@ class Graph : public cinn::common::Graph {
       }
     }
 
+    std::unordered_set<NodeData*> GetInputNodeDatas();
+    std::unordered_set<NodeData*> GetOutputNodeDatas();
+
     std::string GetFuncName() { return "fn_" + group_id + unique_id; }
   };
   std::vector<std::shared_ptr<Group>> fusion_groups;

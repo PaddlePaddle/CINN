@@ -223,6 +223,61 @@ void Graph::VisualizeGroups(const std::vector<std::vector<Node*>>& groups,
 
 std::atomic_size_t Graph::viz_count_{0};
 
+std::unordered_set<NodeData*> Graph::Group::GetInputNodeDatas() {
+  std::unordered_set<NodeData*> group_inputs;
+
+  // count all node's input data
+  for (auto node : this->CollectNodes()) {
+    for (auto& in_edge : node->inlinks_in_order()) {
+      auto input_data = in_edge->source()->safe_as<NodeData>();
+      if (!input_data) {
+        continue;
+      }
+
+      if (!input_data->source_node.get()) {
+        // if the input data hasn't input op, it's the group's input
+        group_inputs.insert(input_data);
+      } else if (this->input_nodes.count(input_data->source_node.get())) {
+        // if the input data' input op in group.input_nodes, the node data is the group's input
+        group_inputs.insert(input_data);
+      }
+    }
+  }
+
+  return group_inputs;
+}
+
+std::unordered_set<NodeData*> Graph::Group::GetOutputNodeDatas() {
+  std::unordered_set<NodeData*> group_outputs;
+
+  // count all node's output data
+  for (auto node : this->CollectNodes()) {
+    for (auto& out_edge : node->outlinks_in_order()) {
+      auto output_data = out_edge->sink()->safe_as<NodeData>();
+      if (!output_data) {
+        continue;
+      }
+
+      if (output_data->outlinks().empty()) {
+        // if the output data hasn't ouput op, it's the group's output
+        group_outputs.insert(output_data);
+      }
+
+      for (auto out_edge : output_data->outlinks()) {
+        auto out_node = out_edge->sink()->safe_as<Node>();
+
+        // check whether the output data's output op in group.output_nodes,
+        // if true, the output data is the group's output data
+        if (this->output_nodes.count(out_node)) {
+          group_outputs.insert(output_data);
+        }
+      }
+    }
+  }
+
+  return group_outputs;
+}
+
 }  // namespace framework
 }  // namespace hlir
 }  // namespace cinn

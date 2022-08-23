@@ -34,4 +34,12 @@ bool IsCheckFusionAccuracyNodeGenerated(const std::string& check_node_id, const 
   return check_node_id.find(node_id + check_node_suffix) != std::string::npos;
 }
 
+std::string AssertMsg::str() const {
+  std::string format_str = introduction_ + "\n";
+  for (const auto& msg_pair : msg_info_) {
+    format_str += "\t\t- " + msg_pair.first + ": " + msg_pair.second + "\n";
+  }
+  return format_str;
+}
+
 }  // namespace cinn::hlir::pass::utils
