@@ -94,8 +94,8 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
   }
 
   utils::ProfilerRangePush("Compute");
-  bool has_run = RunFuncWithCUDNN(dryrun, stream);
-  has_run      = has_run || RunFuncWithCUDA(dryrun, stream);
+  bool has_run = RunExternCudnnFunc(dryrun, stream);
+  has_run      = has_run || RunExternCudaFunc(dryrun, stream);
   has_run      = has_run || RunFunc(dryrun, stream);
   utils::ProfilerRangePop();
 
@@ -114,33 +114,7 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
   }
 }
 
-bool Instruction::RunFuncWithCUDA(bool dryrun, void* stream) {
-#ifdef CINN_WITH_CUDA
-  if (target_.arch != Target::Arch::NVGPU) {
-    return false;
-  }
-
-  auto& pod_args = args_cached_[0];
-  if (function_name_ == "cublas_gemm") {
-    VLOG(3) << "The pod_args size of cublas_gemm: " << pod_args.size();
-    runtime::cuda::cinn_gpu_cublas_gemm(
-        attrs, pod_args[0], pod_args[1], pod_args[2], pod_args[3], static_cast<cudaStream_t>(stream));
-    return true;
-  } else if (function_name_ == "cublas_matmul") {
-    VLOG(3) << "The pod_args size of cublas_matmul: " << pod_args.size();
-    runtime::cuda::cinn_gpu_cublas_gemm(
-        attrs, pod_args[0], pod_args[1], nullptr, pod_args[2], static_cast<cudaStream_t>(stream));
-    return true;
-  } else if (function_name_ == "mul") {
-    CHECK_EQ(pod_args.size(), 4);
-    runtime::cuda::cinn_gpu_cublas_mul(attrs, pod_args[0], pod_args[1], pod_args[2], static_cast<cudaStream_t>(stream));
-    return true;
-  }
-#endif
-  return false;
-}
-
-bool Instruction::RunFuncWithCUDNN(bool dryrun, void* stream) {
+bool Instruction::RunExternCudnnFunc(bool dryrun, void* stream) {
 #if defined(CINN_WITH_CUDA) && defined(CINN_WITH_CUDNN)
   if (target_.arch != Target::Arch::NVGPU) {
     return false;
@@ -192,6 +166,32 @@ bool Instruction::RunFuncWithCUDNN(bool dryrun, void* stream) {
   } else if (function_name_ == "softmax") {
     CHECK_EQ(pod_args.size(), 3);
     runtime::cuda::cinn_gpu_cudnn_softmax(attrs, pod_args[0], pod_args[1], static_cast<cudaStream_t>(stream));
+    return true;
+  } else if (function_name_ == "mul") {
+    CHECK_EQ(pod_args.size(), 4);
+    runtime::cuda::cinn_gpu_cublas_mul(attrs, pod_args[0], pod_args[1], pod_args[2], static_cast<cudaStream_t>(stream));
+    return true;
+  }
+#endif
+  return false;
+}
+
+bool Instruction::RunExternCudaFunc(bool dryrun, void* stream) {
+#ifdef CINN_WITH_CUDA
+  if (target_.arch != Target::Arch::NVGPU) {
+    return false;
+  }
+
+  auto& pod_args = args_cached_[0];
+  if (function_name_ == "cublas_gemm") {
+    VLOG(3) << "The pod_args size of cublas_gemm: " << pod_args.size();
+    runtime::cuda::cinn_gpu_cublas_gemm(
+        attrs, pod_args[0], pod_args[1], pod_args[2], pod_args[3], static_cast<cudaStream_t>(stream));
+    return true;
+  } else if (function_name_ == "cublas_matmul") {
+    VLOG(3) << "The pod_args size of cublas_matmul: " << pod_args.size();
+    runtime::cuda::cinn_gpu_cublas_gemm(
+        attrs, pod_args[0], pod_args[1], nullptr, pod_args[2], static_cast<cudaStream_t>(stream));
     return true;
   }
 #endif
