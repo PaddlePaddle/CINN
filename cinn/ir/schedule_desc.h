@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 
+#include "cinn/ir/ir_schedule.h"
 #include "cinn/ir/schedule_desc.pb.h"
 #include "cinn/utils/type_defs.h"
 
@@ -27,23 +28,26 @@ namespace ir {
 
 class ScheduleDesc {
  public:
-  using ExprNameMap = absl::flat_hash_map<std::string, Expr>;
   struct Step {
     std::string type;
-    absl::flat_hash_map<std::string, std::vector<std::string>> inputs;
-    absl::flat_hash_map<std::string, std::vector<std::string>> outputs;
+    absl::flat_hash_map<std::string, std::vector<Expr>> inputs;
+    absl::flat_hash_map<std::string, std::vector<Expr>> outputs;
     AttributeMap attrs;
   };
 
+  std::vector<Expr> TranslateInputExprs(const std::vector<std::string>& expr_names);
+  void TranslateAddOutputExprs(const std::vector<Exprs>& exprs);
+
   ScheduleDesc() = default;
-  explicit ScheduleDesc(const proto::ScheduleDesc& desc_proto);
+  // explicit ScheduleDesc(const proto::ScheduleDesc& desc_proto);
   void Append(Step&& step);
-  void Replay(IRSchedule* schedule);
+  // void Replay(IRSchedule* schedule);
   proto::ScheduleDesc ToProto() const;
 
  private:
   std::vector<Step> steps_;
-  ExprNameMap name2expr_;
+  absl::flat_hash_map<std::string, Expr> name2expr_;
+  absl::flat_hash_map<Expr, std::string> expr2name_;
 };
 
 }  // namespace ir
