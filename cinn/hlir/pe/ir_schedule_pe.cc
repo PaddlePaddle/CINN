@@ -196,7 +196,7 @@ void IRCudaScheduleReduce(ir::IRSchedule &ir_sch,
     parallel_thread_num *= output_shape[idx].as_int32();
   }
 
-  int index = output_shape.size() - last_dimension_num;
+  int index = ir_sch.GetLoops(output->name + "__reduce_init").size() - last_dimension_num;
   for (int idx = output_shape.size() - last_dimension_num; idx < static_cast<int>(output_shape.size()) - 1; ++idx) {
     auto loops = ir_sch.GetLoops(output->name);
     ir_sch.Fuse({loops[index], loops[index + 1]});

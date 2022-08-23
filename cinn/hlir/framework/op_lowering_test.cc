@@ -531,6 +531,33 @@ TEST(OP_LOWERING, Reduce_Test_9) {
   }
 }
 
+TEST(OP_LOWERING, Reduce_Test_10) {
+  int n = 16, c = 16, h = 32, w = 32;
+  NetBuilder net_builder("Reduce_Test_10");
+  // create model
+  {
+    auto A = net_builder.CreateInput(Float(32), {n, c, h, w}, "A");
+    auto B = net_builder.Reduce(A, ReduceKind::kSum, {1});
+  }
+
+  auto program = net_builder.Build();
+  auto target  = GetTarget();
+  RunDecomposer(&program, target);
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+
+  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
+  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
+
+  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
+  for (auto& fusion_op : graph->fusion_groups) {
+    auto lowered_func = op_lowerer.Lower(fusion_op);
+    CHECK_EQ(lowered_func.size(), 1);
+    CodeGen(lowered_func[0]);
+  }
+}
+
 TEST(OP_LOWERING, Reduce_Fusion_Test_0) {
   int h = 32, w = 32;
   NetBuilder net_builder("Reduce_Fusion_Test_0");
