@@ -96,7 +96,7 @@ std::vector<std::vector<int>> InferShapeForCast(const std::vector<std::vector<in
 }
 
 std::vector<Type> InferDtypeForCast(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
-  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
+  CHECK_EQ(inputs_type.size(), 1U) << "The input's type size should be 1! Please check again.";
   std::vector<Type> res;
   if (attrs.find("dtype") != attrs.end()) {
     auto dtype_str = absl::get<std::string>(attrs.at("dtype"));
