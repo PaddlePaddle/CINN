@@ -30,6 +30,7 @@
 DECLARE_bool(cinn_open_fusion_optimize);
 DECLARE_bool(cinn_use_new_fusion_pass);
 DECLARE_bool(cinn_use_fill_constant_folding);
+DECLARE_bool(cinn_check_fusion_accuracy_pass);
 
 namespace cinn {
 namespace frontend {
@@ -54,6 +55,13 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
     } else {
       options.graph_passes = {"OpFusion"};
     }
+  }
+
+  // WARNING: the pass must be the last pass !!!
+  if (FLAGS_cinn_check_fusion_accuracy_pass) {
+    // Check the correct of fusion kernels, if the results not satisfied 'allclose(rtol=1e-05f, atol=1e-08f)', report
+    // error and exited.
+    options.graph_passes.emplace_back("CheckFusionAccuracyPass");
   }
 
   return options;

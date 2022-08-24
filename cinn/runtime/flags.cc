@@ -41,6 +41,11 @@ DEFINE_bool(cinn_use_fill_constant_folding,
             BoolFromEnv("FLAGS_cinn_use_fill_constant_folding", false),
             "Whether use the FillConstantFolding pass.");
 
+DEFINE_bool(cinn_check_fusion_accuracy_pass,
+            BoolFromEnv("FLAGS_cinn_check_fusion_accuracy_pass", false),
+            "Check the correct of fusion kernels, if the results not satisfied 'allclose(rtol=1e-05f, atol=1e-08f)', "
+            "report error and exited.");
+
 DEFINE_bool(cinn_use_cuda_vectorize,
             BoolFromEnv("FLAGS_cinn_use_cuda_vectorize", false),
             "Whether use cuda vectroize on schedule config");
