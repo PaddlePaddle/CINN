@@ -55,6 +55,79 @@ struct MappingVarToExprMutator : public ir::IRMutator<> {
   const std::map<Var, Expr, CompVar>& replacing_map_;
 };
 
+struct FindLoopsVisitor {
+  FindLoopsVisitor(const Expr& block) : block_(block) {}
+
+  std::vector<Expr> operator()(const Expr* expr) {
+    CHECK(block_.As<ir::ScheduleBlockRealize>());
+    visit_end = false;
+    Visit(expr);
+    return result;
+  }
+
+ private:
+  void Visit(const Expr* expr) {
+    if (visit_end || !expr->defined()) return;
+    if (expr->As<ir::For>()) {
+      father_loops.emplace_back(*expr);
+      Visit(&(expr->As<ir::For>()->body));
+      father_loops.pop_back();
+    } else if (expr->As<ir::ScheduleBlockRealize>()) {
+      if (!expr->As<ir::ScheduleBlockRealize>()->iter_values.empty() && (*expr == block_)) {
+        result    = father_loops;
+        visit_end = true;
+        return;
+      } else {
+        Visit(&(expr->As<ir::ScheduleBlockRealize>()->schedule_block));
+      }
+    } else if (expr->As<ir::ScheduleBlock>()) {
+      Visit(&(expr->As<ir::ScheduleBlock>()->body));
+    } else if (expr->As<ir::Block>()) {
+      for (auto& n : expr->As<ir::Block>()->stmts) Visit(&n);
+    } else if (expr->As<ir::IfThenElse>()) {
+      Visit(&(expr->As<ir::IfThenElse>()->true_case));
+      Visit(&(expr->As<ir::IfThenElse>()->false_case));
+    }
+  }
+
+  std::vector<Expr> father_loops{};
+  std::vector<Expr> result{};
+  bool visit_end{false};
+  const Expr& block_;
+};
+
+struct FindBlocksVisitor {
+  FindBlocksVisitor() {}
+
+  std::vector<Expr> operator()(const Expr* expr) {
+    Visit(expr);
+    return result;
+  }
+
+ private:
+  void Visit(const Expr* expr) {
+    if (!expr->defined()) return;
+    if (expr->As<ir::For>()) {
+      Visit(&(expr->As<ir::For>()->body));
+    } else if (expr->As<ir::ScheduleBlockRealize>()) {
+      if (!expr->As<ir::ScheduleBlockRealize>()->iter_values.empty()) {
+        result.emplace_back(*expr);
+      } else {
+        Visit(&(expr->As<ir::ScheduleBlockRealize>()->schedule_block));
+      }
+    } else if (expr->As<ir::ScheduleBlock>()) {
+      Visit(&(expr->As<ir::ScheduleBlock>()->body));
+    } else if (expr->As<ir::Block>()) {
+      for (auto& n : expr->As<ir::Block>()->stmts) Visit(&n);
+    } else if (expr->As<ir::IfThenElse>()) {
+      Visit(&(expr->As<ir::IfThenElse>()->true_case));
+      Visit(&(expr->As<ir::IfThenElse>()->false_case));
+    }
+  }
+
+  std::vector<Expr> result{};
+};
+
 struct CacheBlockInfo {
   /*! \brief The tensor to be read. */
   Tensor read_tensor;
