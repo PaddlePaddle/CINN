@@ -202,7 +202,7 @@ void SetIntRandData(hlir::framework::Tensor tensor, Target target) {
   std::copy(random_data.begin(), random_data.end(), data);
 }
 
-TEST(net_build, program_execute_cast) {
+TEST(net_build, program_execute_sort) {
   const int B = 4;
   const int H = 7;
 
