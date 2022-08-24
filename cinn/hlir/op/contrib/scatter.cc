@@ -68,15 +68,20 @@ ir::Tensor Scatter(const ir::Tensor &A,
     pos_axis += C->shape.size();
   }
 
-  std::vector<int> new_axes;
-  for (int i = 0; i < A->shape.size(); ++i) {
-    if (i != pos_axis) {
-      new_axes.push_back(i);
+  ir::Tensor transpose_B;
+  if (pos_axis == A->shape.size() - 1) {
+    transpose_B = B;
+  } else {
+    std::vector<int> new_axes;
+    for (int i = 0; i < A->shape.size(); ++i) {
+      if (i != pos_axis) {
+        new_axes.push_back(i);
+      }
     }
+    new_axes.push_back(pos_axis);
+    transpose_B = pe::Transpose(B, new_axes, B->name + "_index_transpose");
   }
-  new_axes.push_back(axis);
-  auto new_B = pe::Transpose(B, new_axes, name + "_index_transpose");
-  auto res   = Compute(
+  auto res = Compute(
       C->shape,
       [=](const std::vector<Expr> &indices) {
         Expr offset(0);
@@ -86,9 +91,9 @@ ir::Tensor Scatter(const ir::Tensor &A,
           }
         }
         //        offset   = common::AutoSimplify(offset);
-        auto idx = lang::CallExtern(extern_fun_name, {new_B, Expr(5), Expr(0), Expr(0), Expr(1)});
-        //        auto idx = lang::CallExtern(extern_fun_name, {new_B, new_B->shape[-1], indices[pos_axis], offset,
-        //        Expr(1)});
+        auto idx = lang::CallExtern(extern_fun_name, {transpose_B, Expr(5), Expr(0), Expr(0), Expr(1)});
+        //        auto idx = lang::CallExtern(extern_fun_name, {transpose_B, transpose_B->shape[-1], indices[pos_axis],
+        //        offset, Expr(1)});
         std::vector<Expr> A_indices(indices);
         A_indices[pos_axis] = idx;
         auto keep           = ir::EQ::Make(idx, Expr(-1));
