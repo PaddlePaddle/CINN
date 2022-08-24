@@ -90,10 +90,9 @@ ir::Tensor Scatter(const ir::Tensor &A,
             offset = offset * C->shape[i] + indices[i];
           }
         }
-        offset   = common::AutoSimplify(offset);
-        auto idx = lang::CallExtern(
-            extern_fun_name,
-            {transpose_B, transpose_B->shape[transpose_B->shape.size() - 1], indices[pos_axis], offset, Expr(1)});
+        auto B_shape_last = transpose_B->shape[transpose_B->shape.size() - 1];
+        offset            = common::AutoSimplify(offset * B_shape_last);
+        auto idx = lang::CallExtern(extern_fun_name, {transpose_B, B_shape_last, indices[pos_axis], offset, Expr(1)});
         std::vector<Expr> A_indices(indices);
         A_indices[pos_axis] = idx;
         auto keep           = ir::EQ::Make(idx, Expr(-1));
@@ -142,7 +141,7 @@ ir::Tensor ScatterNd(const ir::Tensor &A,
             A_indices.push_back(indices[i]);
           }
         }
-
+        offset    = offset * B->shape[B->shape.size() - 2] * B->shape[B->shape.size() - 1];
         auto keep = Expr(true);
         std::vector<Expr> idx;
         for (int i = 0; i < pos_axes.size(); ++i) {
@@ -270,14 +269,6 @@ std::vector<std::vector<int>> InferShapeForScatter(const std::vector<std::vector
   return res;
 }
 
-std::vector<std::vector<int>> InferShapeForScatterNd(const std::vector<std::vector<int>> &inputs_shape,
-                                                     const framework::AttrMapType &attrs) {
-  CHECK_EQ(inputs_shape.size(), 3U) << "The input's shape size should be 3! Please check again.";
-  std::vector<int> output_shape(inputs_shape[2].begin(), inputs_shape[2].end() - 1);
-  std::vector<std::vector<int>> res{output_shape};
-  return res;
-}
-
 std::vector<Type> InferDtypeForScatter(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_type.size(), 3U) << "The input's type size should be 3! Please check again.";
   CHECK_EQ(inputs_type[1], Int(32)) << "The index's type should be int! Please check again.";
@@ -304,7 +295,7 @@ CINN_REGISTER_HELPER(scatter_ops) {
       .set_num_inputs(3)
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForScatterNd)
-      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForScatterNd))
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForScatter))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForScatter))
       .set_support_level(4);
 
