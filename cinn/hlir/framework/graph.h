@@ -115,7 +115,7 @@ class Graph : public cinn::common::Graph {
     }
 
     std::unordered_set<NodeData*> GetInputNodeDatas();
-    std::unordered_set<NodeData*> GetOutputNodeDatas();
+    std::unordered_set<NodeData*> GetOutputNodeDatas(const std::vector<NodeData*>& graph_outputs = {});
 
     std::string GetFuncName() { return "fn_" + group_id + unique_id; }
   };

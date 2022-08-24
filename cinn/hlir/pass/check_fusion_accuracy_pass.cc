@@ -15,6 +15,7 @@
 #include <absl/container/flat_hash_map.h>
 
 #include <deque>
+#include <sstream>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -52,6 +53,9 @@ class CheckFusionAccuracyPass {
   GroupList Apply();
 
  protected:
+  // a helper find to get node data's debug information
+  std::string DebugNodeData(NodeData* node);
+
   // create node's output node, whose name is output_id
   NodeData* CreateOutputNode(NodePtr node, const std::string& output_id = "");
 
@@ -92,6 +96,13 @@ class CheckFusionAccuracyPass {
   DtypeDict& dtype_dict_;
 };
 
+std::string CheckFusionAccuracyPass::DebugNodeData(NodeData* node) {
+  std::stringstream ss;
+  ss << node->id() << "{shape=[" << cinn::utils::Join(shape_dict_.at(node->id()), ", ")
+     << "], dtype=" << dtype_dict_.at(node->id()) << "}";
+  return ss.str();
+}
+
 NodeData* CheckFusionAccuracyPass::CreateOutputNode(NodePtr node, const std::string& output_id) {
   // create node's output data node
   auto node_id = output_id;
@@ -131,16 +142,10 @@ void CheckFusionAccuracyPass::CreateCheckNodeOutputs(Node* old_node, NodePtr new
       dtype_dict_[check_out_node_id] = dtype_dict_.at(out_node_id);
       dtype_dict_[check_out_node_id] = dtype_dict_.at(out_node_id);
 
-      VLOG(4) << "Create the check fusion accuracy node of node " << old_node->id() << "'s output node " << out_node_id
-              << "[" << cinn::utils::Join(shape_dict_.at(out_node_id), ",") << "] success, whose id is "
-              << check_out_node_id << "[" << cinn::utils::Join(shape_dict_.at(check_out_node_id), ",") << "]";
+      VLOG(4) << "Create the check fusion accuracy node of node " << old_node->id() << "'s output node "
+              << DebugNodeData(out_node) << " success, which is " << DebugNodeData(check_out_node);
 
       old2new_nodedata_map_[out_node] = check_out_node;
-    } else {
-      VLOG(4) << "The check fusion accuracy node of node " << old_node->id() << "'s output node " << out_node_id << "["
-              << cinn::utils::Join(shape_dict_.at(out_node_id), ",") << "] has created, whose id is "
-              << old2new_nodedata_map_[out_node]->id() << "["
-              << cinn::utils::Join(shape_dict_.at(old2new_nodedata_map_[out_node]->id()), ",") << "]";
     }
   }
 }
@@ -219,9 +224,8 @@ GroupPtr CheckFusionAccuracyPass::CreateSingleNodeGroup(NodePtr node_ptr) {
 }
 
 std::pair<NodePtr, NodeData*> CheckFusionAccuracyPass::CreateIsCloseNode(const std::string& node_id) {
-  const auto& is_close_node_id = "is_close_" + node_id;
+  const auto& is_close_node_id = "isclose_" + node_id;
 
-  VLOG(4) << "Try create node " << node_id << "'s isclose node, whose id is " << is_close_node_id;
   auto is_close_node                      = Node::Create(Operator::Get("isclose"), is_close_node_id, is_close_node_id);
   is_close_node->attrs.attr_store["rtol"] = 1e-05f;
   is_close_node->attrs.attr_store["atol"] = 1e-08f;
@@ -238,13 +242,15 @@ std::pair<NodePtr, NodeData*> CheckFusionAccuracyPass::CreateIsCloseNode(const s
   dtype_dict_[output_data->id()] = common::Bool();
   dtype_dict_[output_data->id()] = common::Bool();
 
+  VLOG(4) << "Create node " << node_id << "'s isclose node success, whose id is " << is_close_node_id
+          << ", whose output is " << DebugNodeData(output_data);
+
   return {is_close_node, output_data};
 }
 
 std::pair<NodePtr, NodeData*> CheckFusionAccuracyPass::CreateAllNode(const std::string& node_id) {
   const auto& all_node_id = "all_" + node_id;
 
-  VLOG(4) << "Try create node " << node_id << "'s all node, whose id is " << all_node_id;
   auto all_node                          = Node::Create(Operator::Get("reduce_all"), all_node_id, all_node_id);
   all_node->attrs.attr_store["dim"]      = std::vector<int>{};
   all_node->attrs.attr_store["keep_dim"] = false;
@@ -260,6 +266,9 @@ std::pair<NodePtr, NodeData*> CheckFusionAccuracyPass::CreateAllNode(const std::
   dtype_dict_[output_data->id()] = common::Bool();
   dtype_dict_[output_data->id()] = common::Bool();
 
+  VLOG(4) << "Create node " << node_id << "'s all node success, whose id is " << all_node_id << ", whose output is "
+          << DebugNodeData(output_data);
+
   return {all_node, output_data};
 }
 
@@ -267,7 +276,6 @@ std::pair<NodePtr, NodeData*> CheckFusionAccuracyPass::CreateAssertNode(const st
                                                                         const std::string& assert_msg) {
   const auto& assert_node_id = "assert_" + node_id;
 
-  VLOG(4) << "Try create node " << node_id << "'s AssertTrue node, whose id is " << assert_node_id;
   auto assert_node                     = Node::Create(Operator::Get("assert_true"), assert_node_id, assert_node_id);
   assert_node->attrs.attr_store["msg"] = assert_msg;
   assert_node->attrs.attr_store["only_warning"] = false;
@@ -282,6 +290,9 @@ std::pair<NodePtr, NodeData*> CheckFusionAccuracyPass::CreateAssertNode(const st
 
   dtype_dict_[output_data->id()] = common::Bool();
   dtype_dict_[output_data->id()] = common::Bool();
+
+  VLOG(4) << "Create node " << node_id << "'s assert node success, whose id is " << assert_node_id
+          << ", whose output is " << DebugNodeData(output_data);
 
   return {assert_node, output_data};
 }
@@ -381,15 +392,9 @@ std::vector<Node*> CheckFusionAccuracyPass::TopologicalOrder(const std::vector<N
 GroupList CheckFusionAccuracyPass::Apply() {
   GroupList check_fusion_groups;
 
-  auto serial_name = [](const std::unordered_set<NodeData*>& nodes) {
+  auto serial_name = [&](const std::unordered_set<NodeData*>& nodes) {
     std::string res;
-    std::for_each(nodes.begin(), nodes.end(), [&res](NodeData* node) { res += node->id() + ", "; });
-    return res;
-  };
-
-  auto list_name = [](const std::unordered_set<NodeData*>& nodes) {
-    std::unordered_set<std::string> res;
-    std::for_each(nodes.begin(), nodes.end(), [&res](NodeData* node) { res.insert(node->id()); });
+    std::for_each(nodes.begin(), nodes.end(), [&](NodeData* node) { res += DebugNodeData(node) + ", "; });
     return res;
   };
 
@@ -419,18 +424,14 @@ GroupList CheckFusionAccuracyPass::Apply() {
 
     // get group's output data node list
     auto input_datas  = group->GetInputNodeDatas();
-    auto output_datas = group->GetOutputNodeDatas();
-
-    output_datas.insert(graph_->outputs.begin(), graph_->outputs.end());
+    auto output_datas = group->GetOutputNodeDatas(graph_->outputs);
 
     // set assert debug info
     utils::AssertMsg msg("check accuracy of kernel " + group->GetFuncName());
     msg.SetMsg("Kernel name", group->GetFuncName());
     msg.SetMsg("Input list", serial_name(input_datas));
     msg.SetMsg("Output list", serial_name(output_datas));
-    msg.SetMsg("Group graph", graph_->DebugGroupedGraph({ordered_nodes}, list_name(output_datas)));
-
-    VLOG(4) << "Set assert debug info " << msg.str();
+    msg.SetMsg("Group graph", graph_->DebugGroupedGraph({ordered_nodes}));
 
     // link the group's output data node to assert all close node
     const auto& assert_group = LinkToAssertAllClose(output_datas, &msg);
@@ -440,11 +441,11 @@ GroupList CheckFusionAccuracyPass::Apply() {
 }
 
 void CheckFusionAccuracyPassImpl(Graph* graph) {
-  VLOG(3) << "Before CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
+  VLOG(3) << "Before CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph();
 
   graph->fusion_groups = CheckFusionAccuracyPass(graph).Apply();
 
-  VLOG(3) << "After CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
+  VLOG(3) << "After CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph();
 }
 
 }  // namespace cinn::hlir::pass

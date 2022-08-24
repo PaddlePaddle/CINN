@@ -247,7 +247,7 @@ std::unordered_set<NodeData*> Graph::Group::GetInputNodeDatas() {
   return group_inputs;
 }
 
-std::unordered_set<NodeData*> Graph::Group::GetOutputNodeDatas() {
+std::unordered_set<NodeData*> Graph::Group::GetOutputNodeDatas(const std::vector<NodeData*>& graph_outputs) {
   std::unordered_set<NodeData*> group_outputs;
 
   // count all node's output data
@@ -255,6 +255,12 @@ std::unordered_set<NodeData*> Graph::Group::GetOutputNodeDatas() {
     for (auto& out_edge : node->outlinks_in_order()) {
       auto output_data = out_edge->sink()->safe_as<NodeData>();
       if (!output_data) {
+        continue;
+      }
+
+      if (std::find(graph_outputs.begin(), graph_outputs.end(), output_data) != graph_outputs.end()) {
+        // if the output data is the graph's output data, it's also the group's output
+        group_outputs.insert(output_data);
         continue;
       }
 
