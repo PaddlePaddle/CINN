@@ -112,7 +112,7 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
     ir::Tensor x = x_expr.as_tensor_ref();
 
     std::unordered_set<std::string> bool_reduce_op = {"reduce_all", "reduce_any"};
-    CHECK(bool_reduce_op.count(op_name) && x->type().is_bool())
+    CHECK(!bool_reduce_op.count(op_name) || x->type().is_bool())
         << "The type of input argument " << x->name << " of " << op_name << " should be bool, but get " << x->type()
         << "! Please check.";
 
