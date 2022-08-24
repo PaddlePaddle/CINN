@@ -86,7 +86,7 @@ ir::Tensor Scatter(const ir::Tensor &A,
           }
         }
         offset   = common::AutoSimplify(offset);
-        auto idx = lang::CallExtern(extern_fun_name, {new_B, new_B->shape[-1], indices[pos_axis], Expr(0), Expr(1)});
+        auto idx = lang::CallExtern(extern_fun_name, {new_B, new_B->shape[-1], Expr(0), offset, Expr(1)});
         //        auto idx = lang::CallExtern(extern_fun_name, {new_B, new_B->shape[-1], indices[pos_axis], offset,
         //        Expr(1)});
         std::vector<Expr> A_indices(indices);
