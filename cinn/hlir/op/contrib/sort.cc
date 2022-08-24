@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cinn/hlir/op/contrib/sort.h"
+
 #include <gflags/gflags.h>
 
 #include <memory>
@@ -26,8 +28,8 @@
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
-#include "cinn/hlir/op/contrib/sort.h"
 #include "cinn/hlir/pe/elementwise.h"
+#include "cinn/hlir/pe/transform.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/tensor.h"
