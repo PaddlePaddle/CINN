@@ -90,12 +90,10 @@ ir::Tensor Scatter(const ir::Tensor &A,
             offset = offset * C->shape[i] + indices[i];
           }
         }
-        //        offset   = common::AutoSimplify(offset);
+        offset   = common::AutoSimplify(offset);
         auto idx = lang::CallExtern(
             extern_fun_name,
             {transpose_B, transpose_B->shape[transpose_B->shape.size() - 1], indices[pos_axis], offset, Expr(1)});
-        //        auto idx = lang::CallExtern(extern_fun_name, {transpose_B, transpose_B->shape[-1], indices[pos_axis],
-        //        offset, Expr(1)});
         std::vector<Expr> A_indices(indices);
         A_indices[pos_axis] = idx;
         auto keep           = ir::EQ::Make(idx, Expr(-1));
@@ -111,6 +109,7 @@ ir::Tensor ScatterNd(const ir::Tensor &A,
                      const common::Target &target,
                      const std::vector<int> &axes,
                      const std::string &name) {
+  CHECK(!A->shape.empty());
   CHECK_EQ(A->shape.size() + 1, B->shape.size());
   CHECK_EQ(A->shape.size() + axes.size() - 1, C->shape.size());
 
@@ -147,9 +146,6 @@ ir::Tensor ScatterNd(const ir::Tensor &A,
         auto keep = Expr(true);
         std::vector<Expr> idx;
         for (int i = 0; i < pos_axes.size(); ++i) {
-          //          auto cur_idx = lang::CallExtern(
-          //              extern_fun_name,
-          //              {B, B->shape[-2], indices[0], common::AutoSimplify(offset + Expr(i)), Expr(pos_axes.size())});
           auto cur_idx = lang::CallExtern(extern_fun_name,
                                           {B,
                                            B->shape[B->shape.size() - 2],

@@ -324,8 +324,8 @@ TEST(net_build, program_execute_gather_nd) {
 }
 
 TEST(net_build, program_execute_scatter) {
-  const int B     = 4;
-  const int H_IN  = 14;
+  const int B     = 3;
+  const int H_IN  = 4;
   const int H_OUT = 7;
 
   NetBuilder builder("net_builder");
@@ -378,8 +378,8 @@ TEST(net_build, program_execute_scatter) {
 }
 
 TEST(net_build, program_execute_scatter_nd) {
-  const int B     = 4;
-  const int H_IN  = 14;
+  const int B     = 3;
+  const int H_IN  = 4;
   const int H_OUT = 7;
 
   NetBuilder builder("net_builder");
