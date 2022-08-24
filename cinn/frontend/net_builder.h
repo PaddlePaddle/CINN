@@ -39,8 +39,10 @@ namespace frontend {
     macro__(ReluGrad)
 
 #define NETBUILDER_ELEMENTWISE_OP_FOREACH(macro__)   \
-    macro__(ElementwiseAdd)                                \
-    macro__(ElementwiseMul)
+    macro__(ElementwiseAdd)                          \
+    macro__(ElementwiseMul)                          \
+    macro__(ElementwiseDiv)                          \
+    macro__(ElementwiseSub)
 // clang-format on
 
 class NetBuilder : public BaseBuilder {
