@@ -233,6 +233,9 @@ std::pair<NodePtr, NodeData*> CheckFusionAccuracyPass::CreateIsCloseNode(const s
   auto output_data = CreateOutputNode(is_close_node);
 
   shape_dict_[output_data->id()] = shape_dict_.at(node_id);
+  shape_dict_[output_data->id()] = shape_dict_.at(node_id);
+
+  dtype_dict_[output_data->id()] = common::Bool();
   dtype_dict_[output_data->id()] = common::Bool();
 
   return {is_close_node, output_data};
@@ -242,9 +245,9 @@ std::pair<NodePtr, NodeData*> CheckFusionAccuracyPass::CreateAllNode(const std::
   const auto& all_node_id = "all_" + node_id;
 
   VLOG(4) << "Try create node " << node_id << "'s all node, whose id is " << all_node_id;
-  auto all_node                         = Node::Create(Operator::Get("reduce_all"), all_node_id, all_node_id);
-  all_node->attrs.attr_store["axis"]    = std::vector<int>{};
-  all_node->attrs.attr_store["keepdim"] = false;
+  auto all_node                          = Node::Create(Operator::Get("reduce_all"), all_node_id, all_node_id);
+  all_node->attrs.attr_store["dim"]      = std::vector<int>{};
+  all_node->attrs.attr_store["keep_dim"] = false;
 
   graph_->RegisterNode(all_node_id, all_node.get());
 
@@ -252,6 +255,9 @@ std::pair<NodePtr, NodeData*> CheckFusionAccuracyPass::CreateAllNode(const std::
   auto output_data = CreateOutputNode(all_node);
 
   shape_dict_[output_data->id()] = framework::shape_t{1};
+  shape_dict_[output_data->id()] = framework::shape_t{1};
+
+  dtype_dict_[output_data->id()] = common::Bool();
   dtype_dict_[output_data->id()] = common::Bool();
 
   return {all_node, output_data};
@@ -272,6 +278,9 @@ std::pair<NodePtr, NodeData*> CheckFusionAccuracyPass::CreateAssertNode(const st
   auto output_data = CreateOutputNode(assert_node);
 
   shape_dict_[output_data->id()] = framework::shape_t{1};
+  shape_dict_[output_data->id()] = framework::shape_t{1};
+
+  dtype_dict_[output_data->id()] = common::Bool();
   dtype_dict_[output_data->id()] = common::Bool();
 
   return {assert_node, output_data};
