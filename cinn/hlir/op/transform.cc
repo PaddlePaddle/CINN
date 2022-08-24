@@ -301,6 +301,9 @@ std::vector<std::vector<int>> InferShapeForMatMul(const std::vector<std::vector<
     CHECK_EQ(new_shape_A.size(), output_shape.size());
     packedB_shape.insert(packedB_shape.begin(), new_shape_A.front());
   }
+  VLOG(4) << "During the matmul shape inference, new_shape_A: " << utils::Join(new_shape_A, ", ");
+  VLOG(4) << "During the matmul shape inference, new_shape_B: " << utils::Join(new_shape_B, ", ");
+  VLOG(4) << "During the matmul shape inference, output_shape: " << utils::Join(output_shape, ", ");
 #ifdef CINN_WITH_CUDA
   std::vector<std::vector<int>> res{output_shape};
 #else

@@ -42,7 +42,7 @@ inline common::Type CppVarType2CommonType(paddle::cpp::VarDescAPI::Type type) {
     SET_TYPE_CASE_ITEM(UINT8, UI8)
     SET_TYPE_CASE_ITEM(INT8, I8)
     default:
-      CINN_NOT_IMPLEMENTED
+      LOG(FATAL) << "Unknown VarDesc type: " << static_cast<int>(type);
   }
 #undef SET_DATA_TYPE_CASE_ITEM
   return common::Void();

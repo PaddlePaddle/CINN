@@ -14,6 +14,7 @@
 
 #include "cinn/frontend/op_mapper_registry.h"
 #include "cinn/frontend/op_mappers/common_utils.h"
+#include "cinn/utils/string.h"
 
 namespace cinn {
 namespace frontend {

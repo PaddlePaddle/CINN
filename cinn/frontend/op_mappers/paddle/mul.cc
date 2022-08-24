@@ -47,11 +47,11 @@ void MulOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx)
     VLOG(4) << "Run with CUDNN and reshape y to" << cinn::utils::Join(tran_y->shape, ",");
 #else
     tran_y = ctx.Builder()->Transpose(y, {1, 0});
-    VLOG(4) << "Run Not with CUDNN and transpose y to" << cinn::utils::Join(tran_y->shape, ",");
+    VLOG(4) << "Run Not with CUDNN and transpose y to " << cinn::utils::Join(tran_y->shape, ",");
 #endif
   } else {
     tran_y = ctx.Builder()->Transpose(y, {1, 0});
-    VLOG(4) << "Run Not with CUDNN and transpose y to" << cinn::utils::Join(tran_y->shape, ",");
+    VLOG(4) << "Run Not with CUDNN and transpose y to " << cinn::utils::Join(tran_y->shape, ",");
   }
 
   auto x_num_col_dims = utils::GetAttrOrDefault<int>(op_desc, "x_num_col_dims", 1);
@@ -62,6 +62,26 @@ void MulOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx)
   VLOG(4) << "x shape: " << cinn::utils::Join(x->shape, ",");
   VLOG(4) << "y shape: " << cinn::utils::Join(tran_y->shape, ",");
   auto out = ctx.Builder()->Mul(x, tran_y, x_num_col_dims, y_num_col_dims);
+  VLOG(4) << "The shape of cinn mul output "
+          << " = " << cinn::utils::Join(out->shape, ", ");
+
+  // compute the real output shape
+  std::vector<int> output_shape;
+  output_shape.reserve(static_cast<size_t>(x_num_col_dims + y->shape.size() - y_num_col_dims));
+  for (int i = 0; i < x_num_col_dims; ++i) {
+    output_shape.push_back(x->shape[i]);
+  }
+
+  for (int i = y_num_col_dims; i < y->shape.size(); ++i) {
+    output_shape.push_back(y->shape[i]);
+  }
+  VLOG(4) << "The shape of final output "
+          << " = " << cinn::utils::Join(output_shape, ", ");
+
+  if (output_shape.size() != out->shape.size()) {
+    out = ctx.Builder()->Reshape(out, output_shape);
+  }
+
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
   auto out_name = op_desc.Output("Out").front();
   ctx.AddVar(out_name, out);
