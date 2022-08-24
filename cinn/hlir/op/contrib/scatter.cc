@@ -146,12 +146,14 @@ ir::Tensor ScatterNd(const ir::Tensor &A,
         auto keep = Expr(true);
         std::vector<Expr> idx;
         for (int i = 0; i < pos_axes.size(); ++i) {
-          auto cur_idx = lang::CallExtern(extern_fun_name,
-                                          {B,
-                                           B->shape[B->shape.size() - 2],
-                                           indices[0],
-                                           common::AutoSimplify(offset + Expr(i)),
-                                           Expr(pos_axes.size())});
+          auto cur_idx =
+              lang::CallExtern(extern_fun_name,
+                               {B,
+                                B->shape[B->shape.size() - 2],
+                                indices[pos_axes[i]],
+                                Expr(i),
+                                //                                           common::AutoSimplify(offset + Expr(i)),
+                                Expr(pos_axes.size())});
           if (idx.empty()) {
             idx.push_back(cur_idx);
             A_indices.push_back(cur_idx);

@@ -324,14 +324,15 @@ TEST(net_build, program_execute_gather_nd) {
 }
 
 TEST(net_build, program_execute_scatter) {
-  const int B     = 3;
-  const int H_IN  = 4;
-  const int H_OUT = 7;
+  const float default_value = 3.14;
+  const int B               = 3;
+  const int H_IN            = 4;
+  const int H_OUT           = 7;
 
   NetBuilder builder("net_builder");
   Placeholder input1 = builder.CreateInput(Float(32), {B, H_IN}, "In1");
   Placeholder input2 = builder.CreateInput(Int(32), {B, H_IN}, "In2");
-  Variable output    = builder.Scatter(input1, input2, {B, H_OUT}, 0, 1);
+  Variable output    = builder.Scatter(input1, input2, {B, H_OUT}, default_value, 1);
   auto program       = builder.Build();
 
   Target target = common::DefaultHostTarget();
@@ -366,7 +367,7 @@ TEST(net_build, program_execute_scatter) {
   for (int b = 0; b < B; ++b) {
     for (int h = 0; h < H_OUT; ++h) {
       int index        = h + H_OUT * b;
-      true_data[index] = 0;
+      true_data[index] = default_value;
     }
   }
   for (int b = 0; b < B; ++b) {
@@ -386,20 +387,22 @@ TEST(net_build, program_execute_scatter) {
       float out_data = output_data[index];
       line += (std::to_string(out_data) + ", ");
       EXPECT_EQ(t_data, out_data);
+      EXPECT_EQ(index, -1);
       VLOG(6) << line;
     }
   }
 }
 
 TEST(net_build, program_execute_scatter_nd) {
-  const int B     = 3;
-  const int H_IN  = 4;
-  const int H_OUT = 7;
+  const float default_value = 3.14;
+  const int B               = 3;
+  const int H_IN            = 4;
+  const int H_OUT           = 7;
 
   NetBuilder builder("net_builder");
   Placeholder input1 = builder.CreateInput(Float(32), {B, H_IN}, "In1");
   Placeholder input2 = builder.CreateInput(Int(32), {B, H_IN, 1}, "In2");
-  Variable output    = builder.ScatterNd(input1, input2, {B, H_OUT}, 0, {1});
+  Variable output    = builder.ScatterNd(input1, input2, {B, H_OUT}, default_value, {1});
   auto program       = builder.Build();
 
   Target target = common::DefaultHostTarget();
@@ -430,16 +433,30 @@ TEST(net_build, program_execute_scatter_nd) {
   EXPECT_EQ(output_shape[0], B);
   EXPECT_EQ(output_shape[1], H_OUT);
 
+  float true_data[B * H_OUT];
+  for (int b = 0; b < B; ++b) {
+    for (int h = 0; h < H_OUT; ++h) {
+      int index        = h + H_OUT * b;
+      true_data[index] = default_value;
+    }
+  }
+  for (int b = 0; b < B; ++b) {
+    for (int h = 0; h < H_IN; ++h) {
+      int index                                 = h + H_IN * b;
+      true_data[input2_data[index] + H_OUT * b] = input1_data[index];
+    }
+  }
+
   float* output_data = output_tensor->mutable_data<float>(target);
   VLOG(6) << "Visualize output_data";
   for (int b = 0; b < B; ++b) {
-    for (int h = 0; h < H_IN; ++h) {
+    for (int h = 0; h < H_OUT; ++h) {
       std::string line;
-      int index      = h + H_IN * b;
-      float in_data  = input1_data[index];
-      float out_data = output_data[input2_data[index] + H_OUT * b];
+      int index      = h + H_OUT * b;
+      float t_data   = true_data[index];
+      float out_data = output_data[index];
       line += (std::to_string(out_data) + ", ");
-      EXPECT_EQ(in_data, out_data);
+      EXPECT_EQ(t_data, out_data);
       VLOG(6) << line;
     }
   }
