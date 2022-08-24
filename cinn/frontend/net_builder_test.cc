@@ -374,6 +374,8 @@ TEST(net_build, program_execute_scatter) {
     for (int h = 0; h < H_IN; ++h) {
       int index                                 = h + H_IN * b;
       true_data[input2_data[index] + H_OUT * b] = input1_data[index];
+
+      EXPECT_EQ(index, -1);
     }
   }
 

@@ -90,9 +90,9 @@ ir::Tensor Scatter(const ir::Tensor &A,
             offset = offset * C->shape[i] + indices[i];
           }
         }
-        auto B_shape_last = transpose_B->shape[transpose_B->shape.size() - 1];
-        offset            = common::AutoSimplify(offset * B_shape_last);
-        auto idx = lang::CallExtern(extern_fun_name, {transpose_B, B_shape_last, indices[pos_axis], offset, Expr(1)});
+        auto B_shape_axis = B->shape[pos_axis];
+        offset            = common::AutoSimplify(offset * B_shape_axis);
+        auto idx = lang::CallExtern(extern_fun_name, {transpose_B, B_shape_axis, indices[pos_axis], offset, Expr(1)});
         std::vector<Expr> A_indices(indices);
         A_indices[pos_axis] = idx;
         auto keep           = ir::EQ::Make(idx, Expr(-1));
