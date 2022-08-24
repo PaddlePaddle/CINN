@@ -110,6 +110,12 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
     Expr x_expr = arg_packs[0];
     CHECK(x_expr.as_tensor());
     ir::Tensor x = x_expr.as_tensor_ref();
+
+    std::unordered_set<std::string> bool_reduce_op = {"reduce_all", "reduce_any"};
+    CHECK(bool_reduce_op.count(op_name) && x->type().is_bool())
+        << "The type of input argument " << x->name << " of " << op_name << " should be bool, but get " << x->type()
+        << "! Please check.";
+
     if (target == common::DefaultNVGPUTarget()) {
       if (!WithoutLastDimInReduce(inputs[0]->shape, reduce_axes)) {
         VLOG(3) << "Do Two Step Block Reduce Compute!";
@@ -403,6 +409,13 @@ std::vector<Type> InferDtypeForReduction(const std::vector<Type> &inputs_type, c
   return res;
 }
 
+std::vector<Type> InferDtypeForReductionBool(const std::vector<Type> &inputs_type,
+                                             const framework::AttrMapType &attrs) {
+  CHECK_EQ(inputs_type.size(), 1UL) << "The reduce should only has one input! Please check again.";
+  CHECK(inputs_type[0].is_bool()) << "The input's type should be bool! Please check.";
+  return inputs_type;
+}
+
 std::vector<std::vector<std::string>> InferLayoutForReduction(const std::vector<framework::shape_t> &input_shapes,
                                                               const std::vector<std::string> &input_layouts,
                                                               const framework::NodeAttr &attrs,
@@ -442,26 +455,31 @@ std::vector<std::vector<std::string>> InferLayoutForBnOptimize(const std::vector
 }  // namespace cinn
 
 CINN_REGISTER_HELPER(reduce_ops) {
-#define CINN_REGISTER_REDUCTION(op__, op_stragegy__)                                                                  \
+#define CINN_REGISTER_REDUCTION_WITH_DTYPE(op__, op_stragegy__, dtype__)                                              \
   CINN_REGISTER_OP(op__)                                                                                              \
       .describe(#op__ " function")                                                                                    \
       .set_num_inputs(1)                                                                                              \
       .set_num_outputs(1)                                                                                             \
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyFor##op_stragegy__)  \
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForReduction))                                 \
-      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForReduction))                                 \
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForReduction##dtype__))                        \
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForReduction))                               \
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kCommReduce) \
       .set_support_level(4);
+
+#define CINN_REGISTER_REDUCTION(op__, op_stragegy__) CINN_REGISTER_REDUCTION_WITH_DTYPE(op__, op_stragegy__, )
 
   CINN_REGISTER_REDUCTION(reduce_sum, ReduceSum);
   CINN_REGISTER_REDUCTION(reduce_prod, ReduceProd);
   CINN_REGISTER_REDUCTION(reduce_max, ReduceMax);
   CINN_REGISTER_REDUCTION(reduce_min, ReduceMin);
-  CINN_REGISTER_REDUCTION(reduce_all, ReduceAll);
-  CINN_REGISTER_REDUCTION(reduce_any, ReduceAny);
 
 #undef CINN_REGISTER_REDUCTION
+
+  CINN_REGISTER_REDUCTION_WITH_DTYPE(reduce_all, ReduceAll, Bool);
+  CINN_REGISTER_REDUCTION_WITH_DTYPE(reduce_any, ReduceAny, Bool);
+
+#undef CINN_REGISTER_REDUCTION_WITH_DTYPE
 
   return true;
 }
