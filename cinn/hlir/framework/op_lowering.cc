@@ -1897,7 +1897,18 @@ std::vector<ir::LoweredFunc> OpLowerer::LowerOpaqueOp(GroupPtr& group) {
     auto source_data = source->safe_as<NodeData>();
     CHECK(source_data);
 
-    auto tensor = lang::Placeholder<float>(source_data->id(), this->shape_dict_.at(source_data->id()));
+    auto id    = source_data->id();
+    auto shape = this->shape_dict_.at(id);
+    auto dtype = this->type_dict_.at(id);
+
+    ir::Tensor tensor;
+    if (dtype == Float(32)) {
+      tensor = lang::Placeholder<float>(id, shape);
+    } else if (dtype.is_bool()) {
+      tensor = lang::Placeholder<bool>(id, shape);
+    } else if (dtype == Int(32)) {
+      tensor = lang::Placeholder<int>(id, shape);
+    }
     tensor_inputs.push_back(tensor);
 
     cinn_inputs.push_back(common::CINNValue(ir::Expr(tensor)));
