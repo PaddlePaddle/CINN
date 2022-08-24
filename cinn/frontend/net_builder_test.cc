@@ -362,16 +362,30 @@ TEST(net_build, program_execute_scatter) {
   EXPECT_EQ(output_shape[0], B);
   EXPECT_EQ(output_shape[1], H_OUT);
 
+  float true_data[B * H_OUT];
+  for (int b = 0; b < B; ++b) {
+    for (int h = 0; h < H_OUT; ++h) {
+      int index        = h + H_OUT * b;
+      true_data[index] = 0;
+    }
+  }
+  for (int b = 0; b < B; ++b) {
+    for (int h = 0; h < H_IN; ++h) {
+      int index                                 = h + H_IN * b;
+      true_data[input2_data[index] + H_OUT * b] = input1_data[index];
+    }
+  }
+
   float* output_data = output_tensor->mutable_data<float>(target);
   VLOG(6) << "Visualize output_data";
   for (int b = 0; b < B; ++b) {
-    for (int h = 0; h < H_IN; ++h) {
+    for (int h = 0; h < H_OUT; ++h) {
       std::string line;
-      int index      = h + H_IN * b;
-      float in_data  = input1_data[index];
-      float out_data = output_data[input2_data[index] + H_OUT * b];
+      int index      = h + H_OUT * b;
+      float t_data   = true_data[index];
+      float out_data = output_data[index];
       line += (std::to_string(out_data) + ", ");
-      EXPECT_EQ(in_data, out_data);
+      EXPECT_EQ(t_data, out_data);
       VLOG(6) << line;
     }
   }
