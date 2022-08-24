@@ -151,7 +151,7 @@ ir::Tensor ScatterNd(const ir::Tensor &A,
                                            B->shape[B->shape.size() - 2],
                                            indices[pos_axes[i]],
                                            common::AutoSimplify(offset + Expr(i)),
-                                           Expr(reinterpret_cast<int>(pos_axes.size()))});
+                                           Expr(static_cast<int>(pos_axes.size()))});
           if (idx.empty()) {
             idx.push_back(cur_idx);
             A_indices.push_back(cur_idx);
