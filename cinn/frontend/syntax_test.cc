@@ -39,14 +39,6 @@ using ::cinn::hlir::framework::Scope;
 // using hlir::framework::Scope;
 using utils::Join;
 
-Target GetTarget() {
-#ifdef CINN_WITH_CUDA
-  return common::DefaultNVGPUTarget();
-#else
-  return common::DefaultHostTarget();
-#endif
-}
-
 std::unique_ptr<Program> CreateAddProgram() {
   const int M = 32;
   const int N = 24;
@@ -74,7 +66,7 @@ TEST(syntax, basic) {
 
 TEST(syntax, program_execute_multi_elementwise_add) {
   auto program  = CreateAddProgram();
-  Target target = GetTarget();
+  Target target = common::DefaultTarget();
   auto graph    = std::make_shared<hlir::framework::Graph>(*program, target);
   LOG(INFO) << "graph:\n" << graph->Visualize();
 
@@ -93,7 +85,7 @@ TEST(syntax, program_execute_multi_elementwise_add) {
 
 TEST(syntax, program_execute_multi_elementwise_add2) {
   auto program  = CreateAddProgram();
-  Target target = GetTarget();
+  Target target = common::DefaultTarget();
   auto graph    = std::make_shared<hlir::framework::Graph>(*program, target);
   LOG(INFO) << "graph:\n" << graph->Visualize();
 
@@ -130,7 +122,7 @@ TEST(syntax, program_execute_fc) {
   program.SetInputs({a, w, b});
   program.Validate();
 
-  Target target = GetTarget();
+  Target target = common::DefaultTarget();
   auto graph    = std::make_shared<hlir::framework::Graph>(program, target);
 
   hlir::framework::ApplyPass(graph.get(), "InferShape");
@@ -225,7 +217,7 @@ TEST(Frontend, conv) {
   program.SetInputs({A, B, E});
   program.Validate();
 
-  Target target = GetTarget();
+  Target target = common::DefaultTarget();
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
 
   hlir::framework::ApplyPass(graph.get(), "InferShape");

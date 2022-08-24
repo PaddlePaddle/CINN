@@ -33,14 +33,6 @@ namespace frontend {
 using hlir::framework::Scope;
 using utils::Join;
 
-Target GetTarget() {
-#ifdef CINN_WITH_CUDA
-  return common::DefaultNVGPUTarget();
-#else
-  return common::DefaultHostTarget();
-#endif
-}
-
 TEST(const_conv, const_conv) {
   Placeholder A(Float(32), {1, 3, 224, 224}, "A");
   Placeholder B(Float(32), {64, 3, 7, 7}, "B", true);
@@ -55,7 +47,7 @@ TEST(const_conv, const_conv) {
 
   auto c = program.conv2d(A, B, attrs);
 
-  Target target = GetTarget();
+  Target target = common::DefaultTarget();
   program.SetInputs({A, B});
   program.Validate();
   LOG(INFO) << "Program:\n" << program;
@@ -99,7 +91,7 @@ TEST(const_bn, const_bn) {
 
   auto a = program.fused_batchnorm_inference(A, Scale, Bias, Mean, Variance, attrs);
 
-  Target target = GetTarget();
+  Target target = common::DefaultTarget();
   program.SetInputs({A, Scale, Bias, Mean, Variance});
   program.Validate();
   LOG(INFO) << "Program:\n" << program;

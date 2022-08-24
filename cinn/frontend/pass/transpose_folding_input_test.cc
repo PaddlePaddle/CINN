@@ -31,14 +31,6 @@
 
 namespace cinn::frontend {
 
-Target GetTarget() {
-#ifdef CINN_WITH_CUDA
-  return common::DefaultNVGPUTarget();
-#else
-  return common::DefaultHostTarget();
-#endif
-}
-
 void RunWithProgram(const Program& program,
                     const Target& target,
                     const std::shared_ptr<hlir::framework::Scope>& scope) {
@@ -57,7 +49,7 @@ TEST(TransposeFoldingInput, FoldIntoDotBachedCase1) {
   auto transpose_x = builder.Transpose(x, {0, 2, 1});
   auto out         = builder.Dot(transpose_x, y);
   auto program     = builder.Build();
-  auto target      = GetTarget();
+  auto target      = common::DefaultTarget();
   auto graph       = std::make_shared<hlir::framework::Graph>(program, target);
   auto scope       = hlir::framework::BuildScope(target, graph);
   scope->Var<hlir::framework::Tensor>("X");
@@ -87,7 +79,7 @@ TEST(TransposeFoldingInput, FoldIntoDotBachedCase2) {
   auto transpose_y = builder.Transpose(y, {0, 2, 1});
   auto out         = builder.Dot(x, transpose_y);
   auto program     = builder.Build();
-  auto target      = GetTarget();
+  auto target      = common::DefaultTarget();
   auto graph       = std::make_shared<hlir::framework::Graph>(program, target);
   auto scope       = hlir::framework::BuildScope(target, graph);
   scope->Var<hlir::framework::Tensor>("X");
@@ -118,7 +110,7 @@ TEST(TransposeFoldingInput, FoldIntoDotBachedCase3) {
   auto transpose_y = builder.Transpose(y, {0, 2, 1});
   auto out         = builder.Dot(transpose_x, transpose_y);
   auto program     = builder.Build();
-  auto target      = GetTarget();
+  auto target      = common::DefaultTarget();
   auto graph       = std::make_shared<hlir::framework::Graph>(program, target);
   auto scope       = hlir::framework::BuildScope(target, graph);
   scope->Var<hlir::framework::Tensor>("X");
@@ -148,7 +140,7 @@ TEST(TransposeFoldingInput, FoldIntoDotCase1) {
   auto transpose_y = builder.Transpose(y, {1, 0});
   auto out         = builder.Dot(x, transpose_y);
   auto program     = builder.Build();
-  auto target      = GetTarget();
+  auto target      = common::DefaultTarget();
   auto graph       = std::make_shared<hlir::framework::Graph>(program, target);
   auto scope       = hlir::framework::BuildScope(target, graph);
   scope->Var<hlir::framework::Tensor>("X");
@@ -183,7 +175,7 @@ TEST(TransposeFoldingInput, FoldIntoDotCase2) {
   auto q             = builder.Matmul(z, y);
   auto out           = builder.Add(d, q);
   auto program       = builder.Build();
-  auto target        = GetTarget();
+  auto target        = common::DefaultTarget();
   auto graph         = std::make_shared<hlir::framework::Graph>(program, target);
   size_t origin_size = program.size();
   VLOG(1) << "Program:\n" << program;
@@ -218,7 +210,7 @@ TEST(TransposeFoldingInput, TransposeOutInFetchIds) {
   auto transpose_y = builder.Transpose(y, {1, 0});
   auto out         = builder.Dot(x, transpose_y);
   auto program     = builder.Build();
-  auto target      = GetTarget();
+  auto target      = common::DefaultTarget();
   auto graph       = std::make_shared<hlir::framework::Graph>(program, target);
   auto scope       = hlir::framework::BuildScope(target, graph);
   scope->Var<hlir::framework::Tensor>("X");
@@ -249,7 +241,7 @@ TEST(TransposeFoldingInput, TransposeOutUsedByOtherInstrs) {
   auto dot         = builder.Dot(x, transpose_y);
   auto out         = builder.Add(transpose_y, dot);
   auto program     = builder.Build();
-  auto target      = GetTarget();
+  auto target      = common::DefaultTarget();
   auto graph       = std::make_shared<hlir::framework::Graph>(program, target);
   auto scope       = hlir::framework::BuildScope(target, graph);
   scope->Var<hlir::framework::Tensor>("X");
@@ -284,7 +276,7 @@ TEST(TransposeFoldingInput, TransposeTwiceWithMatmul) {
   auto dot2    = builder.Dot(z, x_t_t);
   auto program = builder.Build();
 
-  auto target = GetTarget();
+  auto target = common::DefaultTarget();
   auto graph  = std::make_shared<hlir::framework::Graph>(program, target);
   auto scope  = hlir::framework::BuildScope(target, graph);
 
@@ -342,7 +334,7 @@ TEST(TransposeFoldingInput, TransposeWithMultiMamtul) {
   auto dot2        = builder.Dot(transpose_y, x);
   auto out         = builder.Add(dot1, dot2);
   auto program     = builder.Build();
-  auto target      = GetTarget();
+  auto target      = common::DefaultTarget();
   auto graph       = std::make_shared<hlir::framework::Graph>(program, target);
   auto scope       = hlir::framework::BuildScope(target, graph);
   scope->Var<hlir::framework::Tensor>("X");

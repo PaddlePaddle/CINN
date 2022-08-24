@@ -32,14 +32,6 @@
 
 namespace cinn::frontend {
 
-Target GetTarget() {
-#ifdef CINN_WITH_CUDA
-  return common::DefaultNVGPUTarget();
-#else
-  return common::DefaultHostTarget();
-#endif
-}
-
 void RunWithProgram(const Program& program,
                     const Target& target,
                     const std::shared_ptr<hlir::framework::Scope>& scope) {
@@ -62,7 +54,7 @@ TEST(TransposeFoldingInput, TransposeWithMultiMamtul) {
   auto out         = builder.Add(dot1, dot2);
   auto program     = builder.Build();
 
-  auto target = GetTarget();
+  auto target = common::DefaultTarget();
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
   auto scope = hlir::framework::BuildScope(target, graph);
