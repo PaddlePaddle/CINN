@@ -60,59 +60,32 @@ void elementwise_add(const Instruction& instr, const DecomposerContext& context)
   if (instr->attrs.find("axis") != instr->attrs.end()) {
     axis = instr.GetAttrs<int>("axis");
   }
+  axis          = axis >= 0 ? axis : x->shape.size() - y->shape.size();
+  auto* builder = context.builder();
 
-  if (x->shape.size() >= y->shape.size()) {
-    axis          = axis >= 0 ? axis : x->shape.size() - y->shape.size();
-    auto* builder = context.builder();
+  Variable out;
+  Variable bcast_x = x;
+  Variable bcast_y = y;
 
-    Variable out;
-    Variable bcast_x = x;
-    Variable bcast_y = y;
-
-    // e.g., x.shape = [4, 1, 3], y.shape = [2, 3], aixs = 1 out.shape = [4, 2, 3]
-    // bcast_axes_x = [0, 1, 2], bcast_axes_y = [1, 2]
-    if (x->shape != output->shape) {
-      std::vector<int> bcast_axes_x(x->shape.size());
-      std::iota(bcast_axes_x.begin(), bcast_axes_x.end(), 0);
-      bcast_x = builder->BroadcastTo(x, output->shape, bcast_axes_x);
-    }
-
-    // if y.shape=[1], y does not need to be broadcast
-    if (y->shape != output->shape && y->shape != std::vector<int>(1, 1)) {
-      std::vector<int> bcast_axes_y(y->shape.size());
-      std::iota(bcast_axes_y.begin(), bcast_axes_y.end(), axis);
-      bcast_y = builder->BroadcastTo(y, output->shape, bcast_axes_y);
-    }
-
-    out = builder->Add(bcast_x, bcast_y);
-
-    // map the the output of decomposed operator to the original.
-    context.MapOutToOrigin(out, output);
-  } else {
-    axis          = axis >= 0 ? axis : y->shape.size() - x->shape.size();
-    auto* builder = context.builder();
-
-    Variable out;
-    Variable bcast_x = x;
-    Variable bcast_y = y;
-
-    if (y->shape != output->shape) {
-      std::vector<int> bcast_axes_y(y->shape.size());
-      std::iota(bcast_axes_y.begin(), bcast_axes_y.end(), 0);
-      bcast_y = builder->BroadcastTo(y, output->shape, bcast_axes_y);
-    }
-
-    if (x->shape != output->shape && x->shape != std::vector<int>(1, 1)) {
-      std::vector<int> bcast_axes_x(x->shape.size());
-      std::iota(bcast_axes_x.begin(), bcast_axes_x.end(), axis);
-      bcast_x = builder->BroadcastTo(x, output->shape, bcast_axes_x);
-    }
-
-    out = builder->Add(bcast_x, bcast_y);
-
-    // map the the output of decomposed operator to the original.
-    context.MapOutToOrigin(out, output);
+  // e.g., x.shape = [4, 1, 3], y.shape = [2, 3], aixs = 1 out.shape = [4, 2, 3]
+  // bcast_axes_x = [0, 1, 2], bcast_axes_y = [1, 2]
+  if (x->shape != output->shape) {
+    std::vector<int> bcast_axes_x(x->shape.size());
+    std::iota(bcast_axes_x.begin(), bcast_axes_x.end(), 0);
+    bcast_x = builder->BroadcastTo(x, output->shape, bcast_axes_x);
   }
+
+  // if y.shape=[1], y does not need to be broadcast
+  if (y->shape != output->shape && y->shape != std::vector<int>(1, 1)) {
+    std::vector<int> bcast_axes_y(y->shape.size());
+    std::iota(bcast_axes_y.begin(), bcast_axes_y.end(), axis);
+    bcast_y = builder->BroadcastTo(y, output->shape, bcast_axes_y);
+  }
+
+  out = builder->Add(bcast_x, bcast_y);
+
+  // map the the output of decomposed operator to the original.
+  context.MapOutToOrigin(out, output);
 }
 
 void elementwise_add_grad(const Instruction& instr, const DecomposerContext& context) {
