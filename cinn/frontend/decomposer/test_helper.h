@@ -51,14 +51,6 @@ std::ostream& operator<<(std::ostream& os, const std::vector<T, Alloc>& vec) {
   return os;
 }
 
-Target GetTarget() {
-#ifdef CINN_WITH_CUDA
-  return common::DefaultNVGPUTarget();
-#else
-  return common::DefaultHostTarget();
-#endif
-}
-
 template <typename T>
 void InitRandomVector(std::vector<T>* vec, size_t numel, T low = 0, T high = 1, T precision = 1e-5) {
   std::random_device seed;
@@ -181,7 +173,7 @@ void RunAndCheckShape(NetBuilder& builder,
                       T low                                    = 0,
                       T high                                   = 1) {
   auto prog     = builder.Build();
-  Target target = GetTarget();
+  Target target = common::DefaultTarget();
   RunDecomposer(&prog, target);
   auto graph = std::make_shared<hlir::framework::Graph>(prog, target);
   hlir::framework::ApplyPasses(graph.get(), DefaultOpFusionPasses());
