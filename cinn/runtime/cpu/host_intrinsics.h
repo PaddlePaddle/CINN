@@ -28,4 +28,16 @@ void __cinn_host_tanh_v(const cinn_buffer_t* x, cinn_buffer_t* out);
 inline int cinn_host_find_int(const cinn_buffer_t* buf, int size, int num);
 
 inline int cinn_host_find_float(const cinn_buffer_t* buf, int size, float num);
+
+inline int cinn_host_lt_num_float(
+    const cinn_buffer_t* buf, const float size, const float num, const float offset, const float stride);
+
+inline int cinn_host_lt_num_int(
+    const cinn_buffer_t* buf, const float size, const int num, const float offset, const float stride);
+
+inline int cinn_host_gt_num_float(
+    const cinn_buffer_t* buf, const float size, const float num, const float offset, const float stride);
+
+inline int cinn_host_gt_num_int(
+    const cinn_buffer_t* buf, const float size, const int num, const float offset, const float stride);
 }
