@@ -24,6 +24,7 @@
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/pass.h"
+#include "cinn/hlir/framework/visualize_helper.h"
 #include "cinn/hlir/pass/check_fusion_accuracy_pass_util.h"
 
 namespace cinn::hlir::pass {
@@ -169,7 +170,6 @@ NodePtr CheckFusionAccuracyPass::CreateCheckNode(Node* node) {
 
   const auto& check_node_id = utils::GenerateCheckFusionAccuracyNodeId(node->id());
 
-  VLOG(4) << "Try create node " << node->id() << "'s check fusion accuracy node, whose id is " << check_node_id;
   auto check_node              = Node::Create(node->op(), node->attrs.node_name, check_node_id);
   check_node->attrs.attr_store = node->attrs.attr_store;
 
@@ -178,13 +178,14 @@ NodePtr CheckFusionAccuracyPass::CreateCheckNode(Node* node) {
   CreateCheckNodeOutputs(node, check_node);
   RelinkNodeInputs(node, check_node);
 
+  VLOG(4) << "Create node " << framework::DebugString(node) << "'s check fusion accuracy node success, which is "
+          << framework::DebugString(check_node.get());
+
   return check_node;
 }
 
 GroupPtr CheckFusionAccuracyPass::CreateSingleNodeGroup(NodePtr node_ptr) {
   auto node = node_ptr.get();
-
-  VLOG(4) << "Try create check fusion accuracy node " << node->id() << "'s unique group";
 
   // init group
   auto group = std::make_shared<Graph::Group>();
@@ -251,8 +252,14 @@ std::pair<NodePtr, NodeData*> CheckFusionAccuracyPass::CreateIsCloseNode(const s
 std::pair<NodePtr, NodeData*> CheckFusionAccuracyPass::CreateAllNode(const std::string& node_id) {
   const auto& all_node_id = "all_" + node_id;
 
-  auto all_node                          = Node::Create(Operator::Get("reduce_all"), all_node_id, all_node_id);
-  all_node->attrs.attr_store["dim"]      = std::vector<int>{};
+  auto all_node = Node::Create(Operator::Get("reduce_all"), all_node_id, all_node_id);
+
+  int shape_size = shape_dict_[node_id].size();
+  std::vector<int> axes(shape_size);
+  for (int i = 0; i < shape_size; ++i) {
+    axes[i] = i;
+  }
+  all_node->attrs.attr_store["dim"]      = axes;
   all_node->attrs.attr_store["keep_dim"] = false;
 
   graph_->RegisterNode(all_node_id, all_node.get());
@@ -402,7 +409,6 @@ GroupList CheckFusionAccuracyPass::Apply() {
     check_fusion_groups.emplace_back(group);
 
     const auto& group_nodes = group->CollectNodes();
-    VLOG(4) << "Group " << group->GetFuncName() << " has " << group_nodes.size() << " nodes.";
 
     // fusion group only has one node, do not need check, skip
     if (group_nodes.size() <= 1) {
@@ -412,6 +418,8 @@ GroupList CheckFusionAccuracyPass::Apply() {
 
     // split orign group and create group for each node
     const auto& ordered_nodes = TopologicalOrder(group_nodes);
+    VLOG(4) << "Check the accuracy of group " << graph_->DebugGroupedGraph({ordered_nodes});
+
     for (auto* node : ordered_nodes) {
       if (node->is_variable()) {
         VLOG(4) << "The node " << node->id() << " is variable, skip check fusion accuracy.";
