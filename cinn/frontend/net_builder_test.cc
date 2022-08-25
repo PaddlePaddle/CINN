@@ -374,8 +374,6 @@ TEST(net_build, program_execute_scatter) {
     for (int h = 0; h < H_IN; ++h) {
       int index                                 = h + H_IN * b;
       true_data[input2_data[index] + H_OUT * b] = input1_data[index];
-
-      EXPECT_EQ(input2_data[index], -1);
     }
   }
 
@@ -389,7 +387,6 @@ TEST(net_build, program_execute_scatter) {
       float out_data = output_data[index];
       line += (std::to_string(out_data) + ", ");
       EXPECT_EQ(t_data, out_data);
-      EXPECT_EQ(index, -1);
       VLOG(6) << line;
     }
   }
@@ -446,8 +443,6 @@ TEST(net_build, program_execute_scatter_nd) {
     for (int h = 0; h < H_IN; ++h) {
       int index                                 = h + H_IN * b;
       true_data[input2_data[index] + H_OUT * b] = input1_data[index];
-
-      EXPECT_EQ(input2_data[index], -1);
     }
   }
 
@@ -461,7 +456,6 @@ TEST(net_build, program_execute_scatter_nd) {
       float out_data = output_data[index];
       line += (std::to_string(out_data) + ", ");
       EXPECT_EQ(t_data, out_data);
-      EXPECT_EQ(index, -1);
       VLOG(6) << line;
     }
   }
