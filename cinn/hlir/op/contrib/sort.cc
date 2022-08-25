@@ -214,7 +214,7 @@ std::vector<Type> InferDtypeForArgSort(const std::vector<Type> &inputs_type, con
 }  // namespace hlir
 }  // namespace cinn
 
-CINN_REGISTER_HELPER(cast_ops) {
+CINN_REGISTER_HELPER(sort_ops) {
   CINN_REGISTER_OP(sort)
       .describe("Sort.")
       .set_num_inputs(1)
