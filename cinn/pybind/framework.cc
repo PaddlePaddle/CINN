@@ -101,12 +101,12 @@ void BindFramework(pybind11::module *m) {
              py::array array(std::move(dt), std::move(shape));
              auto *mutable_data = array.mutable_data();
              if (target.arch == Target::Arch::X86) {
-               std::memcpy(mutable_data, t->data<void>(), (t->shape().numel() * t->type().bits() + 7) / 8);
+               std::memcpy(mutable_data, t->data<void>(), t->shape().numel() * t->type().bytes());
              } else if (target.arch == Target::Arch::NVGPU) {
 #ifdef CINN_WITH_CUDA
                CUDA_CALL(cudaMemcpy(mutable_data,
                                     reinterpret_cast<void *>(t->mutable_data(target, t->type())),
-                                    (t->shape().numel() * t->type().bits() + 7) / 8,
+                                    t->shape().numel() * t->type().bytes(),
                                     cudaMemcpyDeviceToHost));
 #else
                LOG(FATAL) <<"To use CUDA backends, you need to set WITH_CUDA ON!";
@@ -130,12 +130,12 @@ void BindFramework(pybind11::module *m) {
              py::array array(std::move(dt), std::move(shape));
              void *array_data = array.mutable_data();
              if (target.arch == Target::Arch::X86) {
-               std::memcpy(array_data, self->data<void>(), (self->shape().numel() * self->type().bits() + 7) / 8);
+               std::memcpy(array_data, self->data<void>(), self->shape().numel() * self->type().bytes());
              } else if (target.arch == Target::Arch::NVGPU) {
 #ifdef CINN_WITH_CUDA
                CUDA_CALL(cudaMemcpy(array_data,
-                                    reinterpret_cast<void *>(self->mutable_data(target, self->type())),
-                                    (self->shape().numel() * self->type().bits() + 7) / 8,
+                                    self->data<void>(),
+                                    self->shape().numel() * self->type().bytes(),
                                     cudaMemcpyDeviceToHost));
 #else
                LOG(FATAL) <<"To use CUDA backends, you need to set WITH_CUDA ON!";
@@ -154,12 +154,12 @@ void BindFramework(pybind11::module *m) {
                  self->shape().numel());
         auto *data = self->mutable_data(target, self->type());
         if (target.arch == Target::Arch::X86) {
-          std::memcpy(data, array.data(), (self->shape().numel() * self->type().bits() + 7) / 8);
+          std::memcpy(data, array.data(), self->shape().numel() * self->type().bytes());
         } else if (target.arch == Target::Arch::NVGPU) {
 #ifdef CINN_WITH_CUDA
           CUDA_CALL(cudaMemcpy(reinterpret_cast<void *>(data),
                                reinterpret_cast<const void *>(array.data()),
-                               (self->shape().numel() * self->type().bits() + 7) / 8,
+                               self->shape().numel() * self->type().bytes(),
                                cudaMemcpyHostToDevice));
 #else
                LOG(FATAL) <<"To use CUDA backends, you need to set WITH_CUDA ON!";
