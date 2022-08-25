@@ -38,7 +38,7 @@ void __cinn_host_tanh_v(const cinn_buffer_t* x, cinn_buffer_t* out) {
 
 #define __cinn_host_find_kernel(buf, size, num, type, begin, stride)                   \
   do {                                                                                 \
-    for (int i = (size - 1) * stride; i >= begin; i -= stride) {                       \
+    for (int i = (size - 1) * stride + begin; i >= begin; i -= stride) {               \
       if (reinterpret_cast<type*>(buf->memory)[i] == num) return (i - begin) / stride; \
     }                                                                                  \
     return -1;                                                                         \
