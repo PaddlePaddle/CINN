@@ -87,6 +87,15 @@ Variable NetBuilder::Sort(const Variable& operand, const int& axis, const bool& 
   return instr.GetOutput(0);
 }
 
+Variable NetBuilder::ArgSort(const Variable& operand, const int& axis, const bool& is_ascend) {
+  Instruction instr("argsort", {operand});
+  instr.SetAttr("axis", axis);
+  instr.SetAttr("is_ascend", is_ascend);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
 Variable NetBuilder::Conv2d(const Variable& a,
                             const Variable& b,
                             const std::vector<int>& strides,

@@ -236,14 +236,21 @@ TEST(net_build, program_execute_sort) {
 
   float* output_data = output_tensor->mutable_data<float>(target);
   VLOG(6) << "Visualize output_data";
-  for (int b = 0; b < B; ++b) {
-    for (int h = 0; h < H; ++h) {
+  for (int h = 0; h < H; ++h) {
+    std::vector<int> sorted_data;
+    for (int b = 0; b < B; ++b) {
+      int index = h + H * b;
+      sorted_data.push_back(input_data[index])
+    }
+    std::sort(sorted_data.begin(), sorted_data.begin() + B);
+
+    for (int b = 0; b < B; ++b) {
       std::string line;
       int index    = h + H * b;
-      int in_data  = input_data[index];
+      int true_data  = sorted_data[index];
       int out_data = output_data[index];
       line += (std::to_string(out_data) + ", ");
-      EXPECT_EQ(in_data, out_data);
+      EXPECT_EQ(true_data, out_data);
       VLOG(6) << line;
     }
   }
