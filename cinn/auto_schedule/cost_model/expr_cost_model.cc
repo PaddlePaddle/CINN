@@ -30,7 +30,7 @@ float ExprCostModel::Predict(const ir::ModuleExpr& sample, const common::Target&
   FeatureExtractor extractor;
   Feature feature                    = extractor.Extract(sample, target);
   std::vector<float> feature_numbers = feature.ToFixedSizeVector();
-  std::vector<float> pred            = CostModel::Predict({feature_numbers});
+  std::vector<float> pred            = XgbCostModel::Predict({feature_numbers});
   return pred[0];
 }
 
@@ -47,7 +47,7 @@ void ExprCostModel::Train(const std::vector<const ir::ModuleExpr*>& samples,
     train_feature_numbers[i] = feature.ToFixedSizeVector();
   }
 
-  CostModel::Train(train_feature_numbers, labels);
+  XgbCostModel::Train(train_feature_numbers, labels);
 }
 
 }  // namespace auto_schedule

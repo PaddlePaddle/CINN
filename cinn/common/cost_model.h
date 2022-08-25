@@ -14,24 +14,26 @@
 
 #pragma once
 
+#include <string>
 #include <vector>
-
-#include "cinn/auto_schedule/cost_model/xgb_cost_model.h"
-#include "cinn/ir/ir_schedule.h"
 
 namespace cinn {
 namespace auto_schedule {
 
 /**
- * A C++ cost model which trains and predicts on ir::Expr
- *
+ * A C++ cost model virtual base class
  */
-class ExprCostModel : public XgbCostModel {
+class CostModel {
  public:
-  float Predict(const ir::ModuleExpr& sample, const common::Target& target) const;
-  void Train(const std::vector<const ir::ModuleExpr*>& samples,
-             const std::vector<float>& labels,
-             const common::Target& target);
+  virtual void Train(const std::vector<std::vector<float>>& samples, const std::vector<float>& labels) = 0;
+
+  virtual std::vector<float> Predict(const std::vector<std::vector<float>>& samples) const = 0;
+
+  virtual void Update(const std::vector<std::vector<float>>& samples, const std::vector<float>& labels) = 0;
+
+  virtual void Save(const std::string& path) = 0;
+
+  virtual void Load(const std::string& path) = 0;
 };
 
 }  // namespace auto_schedule

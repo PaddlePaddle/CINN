@@ -20,7 +20,7 @@
 #include <utility>
 #include <vector>
 
-#include "cinn/auto_schedule/cost_model/cost_model.h"
+#include "cinn/auto_schedule/cost_model/expr_cost_model.h"
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
 #include "cinn/auto_schedule/task/tune_task.h"
 #include "cinn/ir/ir_base.h"
