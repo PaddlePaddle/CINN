@@ -96,8 +96,15 @@ struct FindLoopsVisitor {
   const Expr& block_;
 };
 
+/**
+ * \brief Given a ScheduleBlockRealize node, return the Store tensor in its body.
+ * @param block The given ScheduleBlockRealize node
+ * @return The Store tensor in block
+ */
+Tensor GetTensor(const Expr& block);
+
 struct FindBlocksVisitor {
-  FindBlocksVisitor() {}
+  FindBlocksVisitor(const std::string& block_name = "") : block_name_(block_name) {}
 
   std::vector<Expr> operator()(const Expr* expr) {
     Visit(expr);
@@ -107,11 +114,14 @@ struct FindBlocksVisitor {
  private:
   void Visit(const Expr* expr) {
     if (!expr->defined()) return;
+    if (!block_name_.empty() && !result.empty()) return;
     if (expr->As<ir::For>()) {
       Visit(&(expr->As<ir::For>()->body));
     } else if (expr->As<ir::ScheduleBlockRealize>()) {
       if (!expr->As<ir::ScheduleBlockRealize>()->iter_values.empty()) {
-        result.emplace_back(*expr);
+        if (block_name_.empty() || GetTensor(*expr)->name == block_name_) {
+          result.emplace_back(*expr);
+        }
       } else {
         Visit(&(expr->As<ir::ScheduleBlockRealize>()->schedule_block));
       }
@@ -124,7 +134,7 @@ struct FindBlocksVisitor {
       Visit(&(expr->As<ir::IfThenElse>()->false_case));
     }
   }
-
+  std::string block_name_;
   std::vector<Expr> result{};
 };
 
@@ -142,13 +152,6 @@ struct CacheBlockInfo {
   /*! \brief The cache_read/cache_write stage to be inserted. */
   Expr cache_block;
 };
-
-/**
- * \brief Given a ScheduleBlockRealize node, return the Store tensor in its body.
- * @param block The given ScheduleBlockRealize node
- * @return The Store tensor in block
- */
-Tensor GetTensor(const Expr& block);
 
 /**
  * \brief Given a ScheduleBlockRealize node, return the index-th Load tensor in its body.

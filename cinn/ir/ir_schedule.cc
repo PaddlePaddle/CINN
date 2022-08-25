@@ -1253,12 +1253,17 @@ std::vector<Expr> ScheduleHelper::GetAllBlocks() const {
 
 Expr ScheduleHelper::GetBlock(const std::string& block_name) const {
   Expr result;
-  std::vector<Expr> all_blocks = this->GetAllBlocks();
-  for (auto& it_block : all_blocks) {
-    if (GetTensor(it_block)->name == block_name) result = it_block;
+  auto exprs = module_expr_.GetExprs();
+  for (auto& it_expr : exprs) {
+    ir::FindBlocksVisitor visitor(block_name);
+    auto find_blocks = visitor(&it_expr);
+    if (!find_blocks.empty()) {
+      CHECK_EQ(find_blocks.size(), 1U) << "There should not be more than 1 block with identical name!";
+      result = find_blocks[0];
+      return result;
+    }
   }
-  if (!result.defined()) LOG(FATAL) << "Didn't find a block with name " << block_name << " in this ModuleExpr!";
-  return result;
+  LOG(FATAL) << "Didn't find a block with name " << block_name << " in this ModuleExpr!";
 }
 
 void IRSchedule::CopyTransformAndLoopInfo(const std::string& block_name, const std::string& block_target_name) {
