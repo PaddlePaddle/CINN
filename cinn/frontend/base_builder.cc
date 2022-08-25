@@ -140,6 +140,10 @@ Variable BaseBuilder::Reduce(const Variable& operand, ReduceKind kind, const std
       return reduce_func("reduce_max");
     case ReduceKind::kMin:
       return reduce_func("reduce_min");
+    case ReduceKind::kAll:
+      return reduce_func("reduce_all");
+    case ReduceKind::kAny:
+      return reduce_func("reduce_any");
     default:
       LOG(FATAL) << "unknown reduction kind";
   }

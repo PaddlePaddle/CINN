@@ -164,7 +164,7 @@ void CodeGenC::Visit(const ir::LE *op) { IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::GT *op) { IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::GE *op) { IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::And *op) { PrintBinaryOp("&&", op); }
-void CodeGenC::Visit(const ir::Or *op) { IrPrinter::Visit(op); }
+void CodeGenC::Visit(const ir::Or *op) { PrintBinaryOp("||", op); }
 void CodeGenC::Visit(const ir::Min *op) { IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::Max *op) { IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::Minus *op) { IrPrinter::Visit(op); }

@@ -51,6 +51,8 @@ struct Mutator : ir::IRMutator<> {
         __CAST_TO_TYPE(float)
       } else if (op->type() == type_of<double>()) {
         __CAST_TO_TYPE(double)
+      } else if (op->type() == type_of<bool>()) {
+        __CAST_TO_TYPE(bool)
       }
     }
   }
