@@ -312,6 +312,8 @@ void _LoweredFunc_::PrepareArgumentExprs() {
       pod_cast_expr = ir::intrinsics::PodValueToX::Make(load_expr, type_of<float>());
     } else if (arg.type() == type_of<double>()) {
       pod_cast_expr = ir::intrinsics::PodValueToX::Make(load_expr, type_of<double>());
+    } else if (arg.type() == type_of<void*>()) {
+      pod_cast_expr = ir::intrinsics::PodValueToX::Make(load_expr, type_of<void*>());
     } else {
       LOG(ERROR) << "Not supported type [" << arg.type() << "]";
       CINN_NOT_IMPLEMENTED

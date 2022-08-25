@@ -101,7 +101,8 @@ class OpValueType {
 class Operator {
  public:
   std::string name;
-  std::string description;
+  std::string extern_api{""};
+  std::string description{""};
   uint32_t num_inputs{1};
   uint32_t num_outputs{1};
   uint32_t support_level{10};
@@ -123,6 +124,11 @@ class Operator {
 
   inline Operator& set_support_level(uint32_t n) {
     this->support_level = n;
+    return *this;
+  }
+
+  inline Operator& set_extern_api(std::string api) {
+    this->extern_api = api;
     return *this;
   }
   /**

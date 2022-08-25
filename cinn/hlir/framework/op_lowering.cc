@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "cinn/hlir/framework/op_lowering.h"
-
+#include "cinn/ir/lowered_func.h"
 #include "cinn/optim/transform_gpu_forloop.h"
 
 DECLARE_bool(cinn_ir_schedule);
@@ -1039,6 +1039,7 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
 
 std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpaqueOp(GroupPtr& group) {
   VLOG(3) << "LowerOpaqueOp Group : " << group->group_id;
+
   // get input tensor and output tensor
   CHECK(group->nodes.size() || group->fused_sub_groups.size());
   auto& cinn_strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
@@ -1084,6 +1085,11 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpaqueOp(GroupPtr& group) {
 
   auto impl = OpStrategy::SelectImpl(cinn_strategy[node->op()](node->attrs, inputs, out_types, out_shapes, target_));
   common::CINNValuePack pack = impl->fcompute(common::CINNValuePack{cinn_inputs});
+  // if node op is custom call, return compute.
+  if (node->op()->name == "custom_call") {
+    CHECK_EQ(pack.size(), 1UL);
+    return {pack[0] ir::Expr().as_lowered_func_ref()};
+  }
 
   for (int i = 0; i < pack->size() - 1; i++) {
     ir::Expr temp = pack[i];
@@ -1298,7 +1304,7 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
   // assign reduce input tensor schedule, do loop transform.
   auto OrderAssignReduce = [this, &stages](
-                               poly::Stage* stage, const std::vector<int>& axes, const bool just_reorder = false) {
+      poly::Stage* stage, const std::vector<int>& axes, const bool just_reorder = false) {
     // reorder none-last reduce axis to last.
     // like: shape = [16,16,16,16,16],axes = [1,3] -> new order = [0, 2, 4, 1, 3].
     std::vector<int> order;
@@ -1355,109 +1361,109 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
     }
   };
 
-  auto ScheduleAssignReduceWithoutLast =
-      [this, OrderAssignReduce](poly::Stage* stage, const std::vector<int>& inshape, const std::vector<int>& axes) {
-        int lane            = 1;
-        int max_num_threads = this->target_.max_num_threads();
-        for (int idx = axes.back() + 1; idx < inshape.size(); ++idx) {
-          lane *= inshape[idx];
+  auto ScheduleAssignReduceWithoutLast = [this, OrderAssignReduce](
+      poly::Stage* stage, const std::vector<int>& inshape, const std::vector<int>& axes) {
+    int lane            = 1;
+    int max_num_threads = this->target_.max_num_threads();
+    for (int idx = axes.back() + 1; idx < inshape.size(); ++idx) {
+      lane *= inshape[idx];
+    }
+    CHECK_LE(lane, max_num_threads / 2) << "Parallel threads must less equal max_num_threads/2 on gpu!";
+    int pos   = 0;
+    int index = axes.size() - 1;
+    for (; index >= 0; --index) {
+      if (index + 1 < axes.size() && axes[index] != axes[index + 1] - 1) {
+        pos = axes[index + 1];
+        break;
+      }
+
+      lane *= inshape[axes[index]];
+      if (lane > max_num_threads / 2) {
+        pos = axes[index];
+        break;
+      }
+
+      if (index == 0) {
+        pos = axes[0];
+      }
+    }
+
+    if (lane > max_num_threads / 2) {
+      int prefix = inshape[axes[index]];
+      int tail   = lane / prefix;
+      for (int idx = max_num_threads / tail; idx > (max_num_threads / 2) / tail; --idx) {
+        if (prefix % idx == 0) {
+          stage->Split(axes[index], idx);
+          break;
         }
-        CHECK_LE(lane, max_num_threads / 2) << "Parallel threads must less equal max_num_threads/2 on gpu!";
-        int pos   = 0;
-        int index = axes.size() - 1;
-        for (; index >= 0; --index) {
-          if (index + 1 < axes.size() && axes[index] != axes[index + 1] - 1) {
-            pos = axes[index + 1];
+        CHECK_GT(idx - 1, (max_num_threads / 2) / tail) << "idx should greater than (max_num_threads / 2) / tail.";
+      }
+    }
+
+    // insert 1
+    for (int idx = 0; idx < axes.size() - 1 - index; ++idx) {
+      stage->Split(pos, stage->GetDimRange(pos));
+    }
+
+    OrderAssignReduce(stage, axes);
+  };
+
+  auto ScheduleAssignReduceWithLast = [this, OrderAssignReduce](
+      poly::Stage* stage, const std::vector<int>& inshape, const std::vector<int>& axes) {
+    // find first reduce and second reduce axis.
+    int lane             = 1;
+    int index            = static_cast<int>(axes.size()) - 1;
+    auto max_num_threads = this->target_.max_num_threads();
+    for (; index >= 0; --index) {
+      if (index + 1 < axes.size() && axes[index] != axes[index + 1] - 1) {
+        break;
+      }
+      lane *= inshape[axes[index]];
+      if (index == 0 && lane <= max_num_threads) {
+        LOG(FATAL) << "Error! lane is less equal than max_num_threads, Please check!";
+      }
+      if (lane >= max_num_threads / 2) {
+        if (lane <= max_num_threads) {
+          --index;
+        }
+        break;
+      }
+    }
+    std::vector<int> first_axes(axes.begin(), axes.begin() + index + 1);
+    if (lane > max_num_threads) {
+      // last reduce axis size > 1024
+      if (index == static_cast<int>(axes.size()) - 1) {
+        int idx = max_num_threads;
+        do {
+          if (lane % idx == 0) {
+            stage->Split(axes[index], idx);
             break;
           }
-
-          lane *= inshape[axes[index]];
-          if (lane > max_num_threads / 2) {
-            pos = axes[index];
+          --idx;
+        } while (idx >= max_num_threads / 2);
+        // if can't be divide by(1024, 512), it's shouldn't be fused.
+        CHECK_GE(idx, max_num_threads / 2) << "Check bounds exist, can't fuse!";
+      } else {
+        int axis   = axes[index];
+        int prefix = inshape[axis];
+        int tail   = lane / prefix;
+        for (int idx = max_num_threads / tail; idx > (max_num_threads / 2) / tail; --idx) {
+          if (prefix % idx == 0) {
+            stage->Split(axis, idx);
             break;
           }
-
-          if (index == 0) {
-            pos = axes[0];
-          }
+          CHECK_GT(idx, (max_num_threads / 2) / tail) << "Error, it's shouldn't fuse!";
         }
-
-        if (lane > max_num_threads / 2) {
-          int prefix = inshape[axes[index]];
-          int tail   = lane / prefix;
-          for (int idx = max_num_threads / tail; idx > (max_num_threads / 2) / tail; --idx) {
-            if (prefix % idx == 0) {
-              stage->Split(axes[index], idx);
-              break;
-            }
-            CHECK_GT(idx - 1, (max_num_threads / 2) / tail) << "idx should greater than (max_num_threads / 2) / tail.";
-          }
-        }
-
-        // insert 1
-        for (int idx = 0; idx < axes.size() - 1 - index; ++idx) {
-          stage->Split(pos, stage->GetDimRange(pos));
-        }
-
-        OrderAssignReduce(stage, axes);
-      };
-
-  auto ScheduleAssignReduceWithLast =
-      [this, OrderAssignReduce](poly::Stage* stage, const std::vector<int>& inshape, const std::vector<int>& axes) {
-        // find first reduce and second reduce axis.
-        int lane             = 1;
-        int index            = static_cast<int>(axes.size()) - 1;
-        auto max_num_threads = this->target_.max_num_threads();
-        for (; index >= 0; --index) {
-          if (index + 1 < axes.size() && axes[index] != axes[index + 1] - 1) {
-            break;
-          }
-          lane *= inshape[axes[index]];
-          if (index == 0 && lane <= max_num_threads) {
-            LOG(FATAL) << "Error! lane is less equal than max_num_threads, Please check!";
-          }
-          if (lane >= max_num_threads / 2) {
-            if (lane <= max_num_threads) {
-              --index;
-            }
-            break;
-          }
-        }
-        std::vector<int> first_axes(axes.begin(), axes.begin() + index + 1);
-        if (lane > max_num_threads) {
-          // last reduce axis size > 1024
-          if (index == static_cast<int>(axes.size()) - 1) {
-            int idx = max_num_threads;
-            do {
-              if (lane % idx == 0) {
-                stage->Split(axes[index], idx);
-                break;
-              }
-              --idx;
-            } while (idx >= max_num_threads / 2);
-            // if can't be divide by(1024, 512), it's shouldn't be fused.
-            CHECK_GE(idx, max_num_threads / 2) << "Check bounds exist, can't fuse!";
-          } else {
-            int axis   = axes[index];
-            int prefix = inshape[axis];
-            int tail   = lane / prefix;
-            for (int idx = max_num_threads / tail; idx > (max_num_threads / 2) / tail; --idx) {
-              if (prefix % idx == 0) {
-                stage->Split(axis, idx);
-                break;
-              }
-              CHECK_GT(idx, (max_num_threads / 2) / tail) << "Error, it's shouldn't fuse!";
-            }
-          }
-          OrderAssignReduce(stage, first_axes);
-        } else {
-          int fuse_times = axes.size() - (index + 1) - 1;
-          for (int idx = 0; idx < fuse_times; ++idx) {
-            stage->Fuse(axes[index + 1], axes[index + 1] + 1);
-          }
-          OrderAssignReduce(stage, first_axes, true);
-        }
-      };
+      }
+      OrderAssignReduce(stage, first_axes);
+    } else {
+      int fuse_times = axes.size() - (index + 1) - 1;
+      for (int idx = 0; idx < fuse_times; ++idx) {
+        stage->Fuse(axes[index + 1], axes[index + 1] + 1);
+      }
+      OrderAssignReduce(stage, first_axes, true);
+    }
+  };
 
   Node* master_node = nullptr;
   for (auto node : group->master_nodes) {

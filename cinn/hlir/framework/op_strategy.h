@@ -39,6 +39,10 @@ using StrategyFunction = std::function<std::shared_ptr<OpStrategy>(const NodeAtt
 using InferShapeFunction =
     std::function<std::vector<std::vector<int>>(const std::vector<std::vector<int>>&, const AttrMapType&)>;
 
+using ExternApiArgsFunction = std::function<std::vector<ir::Expr>(const NodeAttr&,
+                                                                  const std::vector<ir::Tensor>&,
+                                                                  const common::Target&)>;
+
 //! Operator implementation that includes compute and schedule function.
 class OpImpl : public common::Object {
  public:

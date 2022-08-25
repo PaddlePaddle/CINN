@@ -26,35 +26,46 @@
 
 #include "cinn/runtime/cinn_runtime.h"
 
-#define CUDA_DRIVER_CALL(x)                                             \
+#define CUDA_DRIVER_CALL(func)                     \
+  {                                                \
+    auto status = func;                            \
+    if (status != CUDA_SUCCESS) {                  \
+      const char* msg;                             \
+      cuGetErrorName(status, &msg);                \
+      LOG(FATAL) << "CUDA DRIVER Error : " << msg; \
+    }                                              \
+  }
+
+#define CUDA_CALL(func)                                            \
+  {                                                                \
+    auto status = func;                                            \
+    if (status != cudaSuccess) {                                   \
+      LOG(FATAL) << "CUDA Error : " << cudaGetErrorString(status); \
+    }                                                              \
+  }
+
+#define CUBLAS_CALL(func)                                               \
   {                                                                     \
-    CUresult result = x;                                                \
-    if (result != CUDA_SUCCESS && result != CUDA_ERROR_DEINITIALIZED) { \
-      const char* msg;                                                  \
-      cuGetErrorName(result, &msg);                                     \
-      LOG(FATAL) << "CUDAError: " #x " failed with error: " << msg;     \
+    auto status = func;                                                 \
+    if (status != CUBLAS_STATUS_SUCCESS) {                              \
+      LOG(FATAL) << "CUBLAS Error : " << cublasGetStatusString(status); \
     }                                                                   \
   }
 
-#define CUDA_CALL(func)                                                                            \
-  {                                                                                                \
-    cudaError_t e = (func);                                                                        \
-    CHECK(e == cudaSuccess || e == cudaErrorCudartUnloading) << "CUDA: " << cudaGetErrorString(e); \
+#define CUDNN_CALL(func)                                             \
+  {                                                                  \
+    auto status = func;                                              \
+    if (status != CUDNN_STATUS_SUCCESS) {                            \
+      LOG(FATAL) << "CUDNN Error : " << cudnnGetErrorString(status); \
+    }                                                                \
   }
 
-#define CUDNN_CALL(f)                                                                                       \
-  {                                                                                                         \
-    cudnnStatus_t err = (f);                                                                                \
-    CHECK(err == CUDNN_STATUS_SUCCESS) << "    Error occurred: " << cudnnGetErrorString(err) << " on line " \
-                                       << __LINE__ << std::endl;                                            \
-  }
-
-#define NVRTC_CALL(x)                                                                         \
-  {                                                                                           \
-    nvrtcResult result = x;                                                                   \
-    if (result != NVRTC_SUCCESS) {                                                            \
-      LOG(FATAL) << "NVRTC error: " #x " failed with error: " << nvrtcGetErrorString(result); \
-    }                                                                                         \
+#define NVRTC_CALL(func)                                             \
+  {                                                                  \
+    auto status = func;                                              \
+    if (result != NVRTC_SUCCESS) {                                   \
+      LOG(FATAL) << "NVRTC Error : " << nvrtcGetErrorString(result); \
+    }                                                                \
   }
 
 namespace cinn {

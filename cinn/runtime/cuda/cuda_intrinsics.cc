@@ -200,21 +200,176 @@ CINN_REGISTER_HELPER(cuda_intrinsics) {
   return true;
 }
 
-CINN_REGISTER_HELPER(cinn_call_cuda_kernel) {
+CINN_REGISTER_HELPER(cinn_cuda_host_api) {
   using cinn::runtime::cuda::cinn_call_cuda_kernel;
   REGISTER_EXTERN_FUNC_HELPER(cinn_call_cuda_kernel, cinn::common::DefaultHostTarget())
       .SetRetType<void>()
-      .AddInputType<void *>()              // kernel_fn
-      .AddInputType<cinn_pod_value_t *>()  // args
-      .AddInputType<int>()                 // num_args
-      .AddInputType<int>()                 // grid_x
-      .AddInputType<int>()                 // grid_y
-      .AddInputType<int>()                 // grid_z
-      .AddInputType<int>()                 // block_x
-      .AddInputType<int>()                 // block_y
-      .AddInputType<int>()                 // block_z
-      .AddInputType<void *>()              // stream
+      .AddInputType<void *>()  // kernel_fn
+      .AddInputType<void *>()  // args
+      .AddInputType<int>()     // num_args
+      .AddInputType<int>()     // grid_x
+      .AddInputType<int>()     // grid_y
+      .AddInputType<int>()     // grid_z
+      .AddInputType<int>()     // block_x
+      .AddInputType<int>()     // block_y
+      .AddInputType<int>()     // block_z
+      .AddInputType<void *>()  // stream
       .End();
+
+  using cinn::runtime::cuda::cinn_call_cublas;
+  REGISTER_EXTERN_FUNC_HELPER(cinn_call_cublas, cinn::common::DefaultHostTarget())
+      .SetRetType<void>()
+      .AddInputType<void *>()  // args
+      .AddInputType<int>()     // num_args
+      .AddInputType<bool>()    // trans_a
+      .AddInputType<bool>()    // trans_b
+      .AddInputType<float>()   // alpha
+      .AddInputType<float>()   // beta
+      .AddInputType<int>()     // b0
+      .AddInputType<int>()     // b1
+      .AddInputType<int>()     // m
+      .AddInputType<int>()     // n
+      .AddInputType<int>()     // k
+      .AddInputType<void *>()  // stream
+      .End();
+#ifdef CINN_WITH_CUDNN
+  using cinn::runtime::cuda::cinn_call_cudnn_conv2d_forward;
+  REGISTER_EXTERN_FUNC_HELPER(cinn_call_cudnn_conv2d_forward, cinn::common::DefaultHostTarget())
+      .SetRetType<void>()
+      .AddInputType<void *>()  // args
+      .AddInputType<int>()     // num_args
+      .AddInputType<float>()   // alpha
+      .AddInputType<float>()   // beta
+      .AddInputType<int>()     // in
+      .AddInputType<int>()     // ic
+      .AddInputType<int>()     // ih
+      .AddInputType<int>()     // iw
+      .AddInputType<int>()     // fn
+      .AddInputType<int>()     // fc
+      .AddInputType<int>()     // fh
+      .AddInputType<int>()     // fw
+      .AddInputType<int>()     // ph
+      .AddInputType<int>()     // pw
+      .AddInputType<int>()     // sh
+      .AddInputType<int>()     // sw
+      .AddInputType<int>()     // dh
+      .AddInputType<int>()     // dw
+      .AddInputType<int>()     // g
+      .AddInputType<int>()     // on
+      .AddInputType<int>()     // oc
+      .AddInputType<int>()     // oh
+      .AddInputType<int>()     // ow
+      .AddInputType<void *>()  // stream
+      .End();
+
+  using cinn::runtime::cuda::cinn_call_cudnn_conv2d_backward_data;
+  REGISTER_EXTERN_FUNC_HELPER(cinn_call_cudnn_conv2d_backward_data, cinn::common::DefaultHostTarget())
+      .SetRetType<void>()
+      .AddInputType<void *>()  // args
+      .AddInputType<int>()     // num_args
+      .AddInputType<float>()   // alpha
+      .AddInputType<float>()   // beta
+      .AddInputType<int>()     // in
+      .AddInputType<int>()     // ic
+      .AddInputType<int>()     // ih
+      .AddInputType<int>()     // iw
+      .AddInputType<int>()     // fn
+      .AddInputType<int>()     // fc
+      .AddInputType<int>()     // fh
+      .AddInputType<int>()     // fw
+      .AddInputType<int>()     // ph
+      .AddInputType<int>()     // pw
+      .AddInputType<int>()     // sh
+      .AddInputType<int>()     // sw
+      .AddInputType<int>()     // dh
+      .AddInputType<int>()     // dw
+      .AddInputType<int>()     // g
+      .AddInputType<int>()     // on
+      .AddInputType<int>()     // oc
+      .AddInputType<int>()     // oh
+      .AddInputType<int>()     // ow
+      .AddInputType<void *>()  // stream
+      .End();
+
+  using cinn::runtime::cuda::cinn_gpu_cudnn_conv2d_backward_filter;
+  REGISTER_EXTERN_FUNC_HELPER(cinn_gpu_cudnn_conv2d_backward_filter, cinn::common::DefaultHostTarget())
+      .SetRetType<void>()
+      .AddInputType<void *>()  // args
+      .AddInputType<int>()     // num_args
+      .AddInputType<float>()   // alpha
+      .AddInputType<float>()   // beta
+      .AddInputType<int>()     // in
+      .AddInputType<int>()     // ic
+      .AddInputType<int>()     // ih
+      .AddInputType<int>()     // iw
+      .AddInputType<int>()     // fn
+      .AddInputType<int>()     // fc
+      .AddInputType<int>()     // fh
+      .AddInputType<int>()     // fw
+      .AddInputType<int>()     // ph
+      .AddInputType<int>()     // pw
+      .AddInputType<int>()     // sh
+      .AddInputType<int>()     // sw
+      .AddInputType<int>()     // dh
+      .AddInputType<int>()     // dw
+      .AddInputType<int>()     // g
+      .AddInputType<int>()     // on
+      .AddInputType<int>()     // oc
+      .AddInputType<int>()     // oh
+      .AddInputType<int>()     // ow
+      .AddInputType<void *>()  // stream
+      .End();
+
+  using cinn::runtime::cuda::cinn_call_cudnn_pool2d_forward;
+  REGISTER_EXTERN_FUNC_HELPER(cinn_call_cudnn_pool2d_forward, cinn::common::DefaultHostTarget())
+      .SetRetType<void>()
+      .AddInputType<void *>()  // args
+      .AddInputType<int>()     // num_args
+      .AddInputType<int>()     // pool_type
+      .AddInputType<int>()     // in
+      .AddInputType<int>()     // ic
+      .AddInputType<int>()     // ih
+      .AddInputType<int>()     // iw
+      .AddInputType<int>()     // kh
+      .AddInputType<int>()     // kw
+      .AddInputType<int>()     // ph
+      .AddInputType<int>()     // pw
+      .AddInputType<int>()     // sh
+      .AddInputType<int>()     // sw
+      .AddInputType<int>()     // on
+      .AddInputType<int>()     // oc
+      .AddInputType<int>()     // oh
+      .AddInputType<int>()     // ow
+      .AddInputType<void *>()  // stream
+      .End();
+
+  using cinn::runtime::cuda::cinn_call_cudnn_pool2d_backward;
+  REGISTER_EXTERN_FUNC_HELPER(cinn_call_cudnn_pool2d_backward, cinn::common::DefaultHostTarget())
+      .SetRetType<void>()
+      .AddInputType<void *>()  // args
+      .AddInputType<int>()     // num_args
+      .AddInputType<int>()     // pool_type
+      .AddInputType<int>()     // in
+      .AddInputType<int>()     // ic
+      .AddInputType<int>()     // ih
+      .AddInputType<int>()     // iw
+      .AddInputType<int>()     // kh
+      .AddInputType<int>()     // kw
+      .AddInputType<int>()     // ph
+      .AddInputType<int>()     // pw
+      .AddInputType<int>()     // sh
+      .AddInputType<int>()     // sw
+      .AddInputType<int>()     // on
+      .AddInputType<int>()     // oc
+      .AddInputType<int>()     // oh
+      .AddInputType<int>()     // ow
+      .AddInputType<void *>()  // stream
+      .End();
+#endif
+
+#ifdef CINN_WITH_MKL_CBLAS
+
+#endif
 
   return true;
 }

@@ -35,9 +35,9 @@ using ir::Module;
 
 static constexpr int DebugLogMaxLen = 30000;
 
-void Compiler::Build(const Module& module, const std::string& code, void* stream) {
+void Compiler::Build(const Module& module, const std::string& code) {
   if (target_.arch == Target::Arch::NVGPU) {
-    CompileCudaModule(module, code, stream);
+    CompileCudaModule(module, code);
   } else if (target_.arch == Target::Arch::X86) {
     CompileX86Module(module);
   } else {
@@ -72,7 +72,7 @@ void Compiler::BuildDefault(const Module& module) {
   }
 }
 
-void Compiler::CompileCudaModule(const Module& module, const std::string& code, void* stream) {
+void Compiler::CompileCudaModule(const Module& module, const std::string& code) {
 #ifdef CINN_WITH_CUDA
   auto _host_module_device_module_ = SplitCudaAndHostModule(module);  // NOLINT
   auto& host_module                = std::get<0>(_host_module_device_module_);
@@ -117,7 +117,6 @@ void Compiler::CompileCudaModule(const Module& module, const std::string& code, 
     CHECK(fn_kernel);
 
     symbols.RegisterVar(kernel_fn_name + "_ptr_", reinterpret_cast<void*>(fn_kernel));
-    symbols.RegisterVar(kernel_fn_name + "_stream_ptr_", static_cast<cudaStream_t>(stream));
   }
 
   engine_ = ExecutionEngine::Create(ExecutionOptions(), std::move(symbols));
