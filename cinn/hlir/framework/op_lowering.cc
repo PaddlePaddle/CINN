@@ -775,8 +775,19 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
     {
       auto reducer_data   = GetNodeData(reducer);
       auto reducer_tensor = tensor_map[reducer_data->id()];
-      auto reducer_axes   = absl::get<std::vector<int>>(reducer->attrs.attr_store.at("dim"));
-      auto reducer_shape  = this->shape_dict_.at(reducer->inlinks_in_order()[0]->source()->id());
+      CHECK(reducer->attrs.attr_store.count("dim"));
+      auto reducer_axes = absl::get<std::vector<int>>(reducer->attrs.attr_store.at("dim"));
+      CHECK(reducer->inlinks_in_order().size());
+      CHECK(this->shape_dict_.count(reducer->inlinks_in_order()[0]->source()->id()));
+      auto reducer_shape = this->shape_dict_.at(reducer->inlinks_in_order()[0]->source()->id());
+
+      if (reducer_axes.empty()) {
+        for (int i = 0; i < reducer_shape.size(); ++i) {
+          reducer_axes.emplace_back(i);
+        }
+      }
+
+      bool without_last_dim = WithoutLastDimInReduce(reducer_shape, reducer_axes);
 
       std::unordered_set<Node*> visited_nodes;
       for (auto node : group->master_nodes) {
@@ -795,7 +806,7 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
           continue;
         }
         auto node_shape = this->shape_dict_.at(node->inlinks_in_order()[0]->source()->id());
-        if (WithoutLastDimInReduce(reducer_shape, reducer_axes)) {
+        if (without_last_dim) {
           VLOG(2) << "Reduce Schedule WithoutLastDimInReduce";
           // find a shape to do simple compute at.
           auto tmp_reducer       = reducer;
@@ -896,7 +907,8 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
           }
         }
       }
-      if (WithoutLastDimInReduce(reducer_shape, reducer_axes)) {
+
+      if (without_last_dim) {
         if (tensor_map.count(reducer_data->id() + "_1")) {
           auto reducer_tensor = tensor_map[GetNodeData(reducer)->id()];
           auto reducer_loops  = ir_sch.GetLoops(reducer_tensor->name);
@@ -906,11 +918,23 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
     }
   }
 
-  auto master_data   = GetNodeData(master);
+  auto master_data = GetNodeData(master);
+  CHECK(master_data);
+  CHECK(tensor_map.count(master_data->id()));
   auto master_tensor = tensor_map[master_data->id()];
   auto reducer_data  = GetNodeData(reducer);
-  auto reducer_axes  = absl::get<std::vector<int>>(reducer->attrs.attr_store.at("dim"));
+  CHECK(reducer_data);
+  CHECK(reducer->attrs.attr_store.count("dim"));
+  auto reducer_axes = absl::get<std::vector<int>>(reducer->attrs.attr_store.at("dim"));
+  CHECK(reducer->inlinks_in_order().size());
+  CHECK(this->shape_dict_.count(reducer->inlinks_in_order()[0]->source()->id()));
   auto reducer_shape = this->shape_dict_.at(reducer->inlinks_in_order()[0]->source()->id());
+
+  if (reducer_axes.empty()) {
+    for (int i = 0; i < reducer_shape.size(); ++i) {
+      reducer_axes.emplace_back(i);
+    }
+  }
 
   VLOG(2) << "master node : " << master->id() << " ,reducer node : " << reducer->id();
   for (int idx = sub_group->nodes.size() - 1; idx >= 0; --idx) {
@@ -1492,11 +1516,21 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
   CHECK(master_reducer) << "Can't find Master reducer!";
   auto master_reducer_data  = GetNodeData(master_reducer);
   auto master_reducer_stage = stages[tensor_map[master_reducer_data->id()]];
-  auto master_reducer_axes  = absl::get<std::vector<int>>(master_reducer->attrs.attr_store.at("dim"));
+  CHECK(master_reducer->attrs.attr_store.count("dim"));
+  auto master_reducer_axes = absl::get<std::vector<int>>(master_reducer->attrs.attr_store.at("dim"));
+  CHECK(master_reducer->inlinks_in_order().size());
+  CHECK(this->shape_dict_.count(master_reducer->inlinks_in_order()[0]->source()->id()));
   auto master_reducer_shape = this->shape_dict_.at(master_reducer->inlinks_in_order()[0]->source()->id());
 
+  if (master_reducer_axes.empty()) {
+    for (int i = 0; i < master_reducer_shape.size(); ++i) {
+      master_reducer_axes.emplace_back(i);
+    }
+  }
+
   bool reduce_with_same_shape = true;
-  if (WithoutLastDimInReduce(master_reducer_shape, master_reducer_axes)) {
+  bool without_last_dim       = WithoutLastDimInReduce(master_reducer_shape, master_reducer_axes);
+  if (without_last_dim) {
     // check each reduce has same input shape.
     for (auto reducer : group->master_nodes) {
       if (op_pattern_dict[reducer->op()] != framework::kCommReduce) {
@@ -1580,7 +1614,7 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
         stage->SetBuffer("local");
       }
       // last dimension is not in reduce.
-      if (WithoutLastDimInReduce(master_reducer_shape, master_reducer_axes)) {
+      if (without_last_dim) {
         // compute at last dimension
         if (node == master_reducer) {
           stage->SimpleComputeAt(master_stage, master_stage->n_out_dims() - 1);
@@ -1653,7 +1687,7 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
         continue;
       }
       // node is before reduce.
-      if (WithoutLastDimInReduce(master_reducer_shape, master_reducer_axes)) {
+      if (without_last_dim) {
         VLOG(3) << "Reduce Schedule for WithoutLastDimInReduce";
         auto reducer_stage = master_reducer_stage;
         auto reducer_shape = master_reducer_shape;
