@@ -97,7 +97,7 @@ TEST(cinn_host_lt_num_float, basic) {
 
   for (int j = 0; j < 20; j++) {
     int out = 0;
-    for (int i = 0; i < 10, i++) {
+    for (int i = 0; i < 10; i++) {
       int index = i * 20 + j;
       if (x_buf_data[j] < x_buf_data[index]) {
         out++;

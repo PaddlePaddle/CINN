@@ -75,7 +75,7 @@ ir::Tensor ArgSort(const ir::Tensor &A, const int &axis, const bool &is_ascend, 
         offset            = common::AutoSimplify(offset);
         stride            = common::AutoSimplify(stride);
         auto A_shape_axis = A->shape[pos_axis];
-        return lang::CallExtern(extern_fun_name, {A, A->shape[axis], A(indices), offset, stride});
+        return lang::CallExtern(extern_fun_name, {A, A_shape_axis, A(indices), offset, stride});
       },
       name);
   return res;
@@ -170,7 +170,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForArgSort(const framework::NodeA
     auto stages   = CreateStages({tensor_A});
     VLOG(3) << "A shape: " << utils::Join(tensor_A->shape, ", ")
             << ", output_shapes: " << utils::Join(output_shapes[0], ", ");
-    ir::Tensor out = Sort(tensor_A, axis, is_ascend, UniqName("Sort_out"));
+    ir::Tensor out = ArgSort(tensor_A, axis, is_ascend, UniqName("Sort_out"));
     std::vector<CINNValue> res;
     stages->InsertLazily(out);
     res.push_back(CINNValue(out));
