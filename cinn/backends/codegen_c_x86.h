@@ -100,7 +100,7 @@ class CodeGenCX86 : public CodeGenC {
 
 template <typename Op>
 void CodeGenCX86::VisitBinaryOp(const Op *op, Expr a, Expr b, const std::string &op_repr) {
-  CHECK_EQ(a.type(), b.type()) << " a is : " << a << ", and b is : " << b << ". op_repr is : " << op_repr;
+  CHECK_EQ(a.type(), b.type());
 
   // scalar.
   if (a.type().lanes() == 1) {
