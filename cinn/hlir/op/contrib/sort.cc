@@ -52,7 +52,7 @@ ir::Tensor ArgSort(const ir::Tensor &A, const int &axis, const bool &is_ascend, 
 
   int pos_axis = axis;
   if (pos_axis < 0) {
-    pos_axis += C->shape.size();
+    pos_axis += A->shape.size();
   }
   auto res = Compute(
       A->shape,
@@ -81,7 +81,7 @@ ir::Tensor ArgSort(const ir::Tensor &A, const int &axis, const bool &is_ascend, 
 ir::Tensor Sort(const ir::Tensor &A, const int &axis, const bool &is_ascend, const std::string &name) {
   int pos_axis = axis;
   if (pos_axis < 0) {
-    pos_axis += C->shape.size();
+    pos_axis += A->shape.size();
   }
   auto sort_index = ArgSort(A, axis, is_ascend, name + "_index");
   auto res        = Compute(
