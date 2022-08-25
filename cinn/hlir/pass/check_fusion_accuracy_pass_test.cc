@@ -19,7 +19,9 @@
 
 namespace cinn::frontend {
 
-int CountAfterPassNodeSize(hlir::framework::Graph* graph) {
+using hlir::framework::Graph;
+
+int CountAfterPassNodeSize(Graph* graph) {
   int node_size = 0, output_size = 0;
   for (auto group : graph->fusion_groups) {
     int group_size = group->CollectNodes().size();
@@ -34,6 +36,23 @@ int CountAfterPassNodeSize(hlir::framework::Graph* graph) {
 
   // CheckFusionAccuracyPass will split each group, and add isclose+all+assert node for each output
   return node_size + output_size * 3;
+}
+
+void RunTest(const Target& target, const std::shared_ptr<Graph>& graph, const std::vector<std::string>& input_names) {
+  auto scope = BuildScope(target, graph);
+  hlir::framework::GraphCompiler gc(target, scope, graph);
+
+  for (size_t i = 0; i < input_names.size(); ++i) {
+    scope->Var<hlir::framework::Tensor>(input_names[i]);
+    auto tensor = scope->GetTensor(input_names[i]);
+
+    std::vector<float> vec;
+    InitRandomVector<float>(&vec, tensor->shape().numel(), 0.0f, 1.0f);
+    CopyFromVector<float>(vec, tensor, target);
+  }
+
+  auto runtime_program = gc.Build();
+  runtime_program->Execute();
 }
 
 TEST(CheckFusionAccuracyPass, ElementWise_Fusion) {
@@ -57,7 +76,7 @@ TEST(CheckFusionAccuracyPass, ElementWise_Fusion) {
   auto target  = GetTarget();
   RunDecomposer(&program, target);
 
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  auto graph = std::make_shared<Graph>(program, target);
   hlir::framework::ApplyPasses(graph.get(), {"OpFusionPass", "FusionMergePass"});
 
   int group_size_affter = graph->fusion_groups.size() + CountAfterPassNodeSize(graph.get());
@@ -67,6 +86,8 @@ TEST(CheckFusionAccuracyPass, ElementWise_Fusion) {
   VLOG(1) << "After CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
 
   CHECK_EQ(graph->fusion_groups.size(), group_size_affter);
+
+  RunTest(target, graph, {"A", "B", "C", "D"});
 }
 
 TEST(FusionMergePass, ElementWise_Fusion_1) {
@@ -88,7 +109,7 @@ TEST(FusionMergePass, ElementWise_Fusion_1) {
   auto target  = GetTarget();
   RunDecomposer(&program, target);
 
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  auto graph = std::make_shared<Graph>(program, target);
 
   hlir::framework::ApplyPasses(graph.get(), {"OpFusionPass", "FusionMergePass"});
 
@@ -99,6 +120,8 @@ TEST(FusionMergePass, ElementWise_Fusion_1) {
   VLOG(1) << "After CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
 
   CHECK_EQ(graph->fusion_groups.size(), group_size_affter);
+
+  RunTest(target, graph, {"A", "B", "C", "D"});
 }
 
 TEST(FusionMergePass, ElementWise_Fusion_2) {
@@ -123,7 +146,7 @@ TEST(FusionMergePass, ElementWise_Fusion_2) {
   auto target  = GetTarget();
   RunDecomposer(&program, target);
 
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  auto graph = std::make_shared<Graph>(program, target);
 
   hlir::framework::ApplyPasses(graph.get(), {"OpFusionPass", "FusionMergePass"});
 
@@ -134,6 +157,8 @@ TEST(FusionMergePass, ElementWise_Fusion_2) {
   VLOG(1) << "After CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
 
   CHECK_EQ(graph->fusion_groups.size(), group_size_affter);
+
+  RunTest(target, graph, {"A", "B", "C", "D", "E", "F"});
 }
 
 TEST(FusionMergePass, ElementWise_Fusion_3) {
@@ -158,7 +183,7 @@ TEST(FusionMergePass, ElementWise_Fusion_3) {
   auto target  = GetTarget();
   RunDecomposer(&program, target);
 
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  auto graph = std::make_shared<Graph>(program, target);
 
   hlir::framework::ApplyPasses(graph.get(), {"OpFusionPass", "FusionMergePass"});
 
@@ -169,6 +194,8 @@ TEST(FusionMergePass, ElementWise_Fusion_3) {
   VLOG(1) << "After CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
 
   CHECK_EQ(graph->fusion_groups.size(), group_size_affter);
+
+  RunTest(target, graph, {"A", "B", "C", "D", "E", "F"});
 }
 
 TEST(FusionMergePass, ElementWise_Fusion_4) {
@@ -193,7 +220,7 @@ TEST(FusionMergePass, ElementWise_Fusion_4) {
   auto target  = GetTarget();
   RunDecomposer(&program, target);
 
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  auto graph = std::make_shared<Graph>(program, target);
 
   hlir::framework::ApplyPasses(graph.get(), {"OpFusionPass", "FusionMergePass"});
 
@@ -204,6 +231,8 @@ TEST(FusionMergePass, ElementWise_Fusion_4) {
   VLOG(1) << "After CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
 
   CHECK_EQ(graph->fusion_groups.size(), group_size_affter);
+
+  RunTest(target, graph, {"A", "B", "C", "D", "E", "F"});
 }
 
 TEST(FusionMergePass, ElementWise_Fusion_5) {
@@ -221,7 +250,7 @@ TEST(FusionMergePass, ElementWise_Fusion_5) {
   auto target  = GetTarget();
   RunDecomposer(&program, target);
 
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  auto graph = std::make_shared<Graph>(program, target);
 
   hlir::framework::ApplyPasses(graph.get(), {"OpFusionPass", "FusionMergePass"});
 
@@ -232,6 +261,8 @@ TEST(FusionMergePass, ElementWise_Fusion_5) {
   VLOG(1) << "After CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
 
   CHECK_EQ(graph->fusion_groups.size(), group_size_affter);
+
+  RunTest(target, graph, {"A", "B"});
 }
 
 TEST(FusionMergePass, Broadcast_Test_0) {
@@ -252,7 +283,7 @@ TEST(FusionMergePass, Broadcast_Test_0) {
   auto target  = GetTarget();
   RunDecomposer(&program, target);
 
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  auto graph = std::make_shared<Graph>(program, target);
 
   hlir::framework::ApplyPasses(graph.get(), {"OpFusionPass", "FusionMergePass"});
 
@@ -263,6 +294,8 @@ TEST(FusionMergePass, Broadcast_Test_0) {
   VLOG(1) << "After CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
 
   CHECK_EQ(graph->fusion_groups.size(), group_size_affter);
+
+  RunTest(target, graph, {"A", "B", "C", "D"});
 }
 
 TEST(FusionMergePass, Broadcast_Test_1) {
@@ -283,7 +316,7 @@ TEST(FusionMergePass, Broadcast_Test_1) {
   auto target  = GetTarget();
   RunDecomposer(&program, target);
 
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  auto graph = std::make_shared<Graph>(program, target);
 
   hlir::framework::ApplyPasses(graph.get(), {"OpFusionPass", "FusionMergePass"});
 
@@ -294,6 +327,8 @@ TEST(FusionMergePass, Broadcast_Test_1) {
   VLOG(1) << "After CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
 
   CHECK_EQ(graph->fusion_groups.size(), group_size_affter);
+
+  RunTest(target, graph, {"A", "B", "C", "D"});
 }
 
 TEST(FusionMergePass, Broadcast_Test_2) {
@@ -314,7 +349,7 @@ TEST(FusionMergePass, Broadcast_Test_2) {
   auto target  = GetTarget();
   RunDecomposer(&program, target);
 
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  auto graph = std::make_shared<Graph>(program, target);
 
   hlir::framework::ApplyPasses(graph.get(), {"OpFusionPass", "FusionMergePass"});
 
@@ -325,6 +360,8 @@ TEST(FusionMergePass, Broadcast_Test_2) {
   VLOG(1) << "After CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
 
   CHECK_EQ(graph->fusion_groups.size(), group_size_affter);
+
+  RunTest(target, graph, {"A", "B", "C", "D"});
 }
 
 TEST(FusionMergePass, Broadcast_Test_3) {
@@ -345,7 +382,7 @@ TEST(FusionMergePass, Broadcast_Test_3) {
   auto target  = GetTarget();
   RunDecomposer(&program, target);
 
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  auto graph = std::make_shared<Graph>(program, target);
 
   hlir::framework::ApplyPasses(graph.get(), {"OpFusionPass", "FusionMergePass"});
 
@@ -356,6 +393,8 @@ TEST(FusionMergePass, Broadcast_Test_3) {
   VLOG(1) << "After CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
 
   CHECK_EQ(graph->fusion_groups.size(), group_size_affter);
+
+  RunTest(target, graph, {"A", "B", "C", "D"});
 }
 
 TEST(FusionMergePass, Broadcast_Test_4) {
@@ -378,7 +417,7 @@ TEST(FusionMergePass, Broadcast_Test_4) {
   auto target  = GetTarget();
   RunDecomposer(&program, target);
 
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  auto graph = std::make_shared<Graph>(program, target);
 
   hlir::framework::ApplyPasses(graph.get(), {"OpFusionPass", "FusionMergePass"});
 
@@ -389,6 +428,8 @@ TEST(FusionMergePass, Broadcast_Test_4) {
   VLOG(1) << "After CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
 
   CHECK_EQ(graph->fusion_groups.size(), group_size_affter);
+
+  RunTest(target, graph, {"A", "B", "C", "D", "E"});
 }
 
 TEST(FusionMergePass, Broadcast_Test_5) {
@@ -411,7 +452,7 @@ TEST(FusionMergePass, Broadcast_Test_5) {
   auto target  = GetTarget();
   RunDecomposer(&program, target);
 
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  auto graph = std::make_shared<Graph>(program, target);
 
   hlir::framework::ApplyPasses(graph.get(), {"OpFusionPass", "FusionMergePass"});
 
@@ -422,6 +463,8 @@ TEST(FusionMergePass, Broadcast_Test_5) {
   VLOG(1) << "After CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
 
   CHECK_EQ(graph->fusion_groups.size(), group_size_affter);
+
+  RunTest(target, graph, {"A", "B", "C", "D", "E"});
 }
 
 TEST(FusionMergePass, Reduce_Test_0) {
@@ -441,7 +484,7 @@ TEST(FusionMergePass, Reduce_Test_0) {
   auto target  = GetTarget();
   RunDecomposer(&program, target);
 
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  auto graph = std::make_shared<Graph>(program, target);
 
   hlir::framework::ApplyPasses(graph.get(), {"OpFusionPass", "FusionMergePass"});
 
@@ -452,6 +495,8 @@ TEST(FusionMergePass, Reduce_Test_0) {
   VLOG(1) << "After CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
 
   CHECK_EQ(graph->fusion_groups.size(), group_size_affter);
+
+  RunTest(target, graph, {"A", "B"});
 }
 
 TEST(FusionMergePass, Reduce_Test_1) {
@@ -470,7 +515,7 @@ TEST(FusionMergePass, Reduce_Test_1) {
   auto target  = GetTarget();
   RunDecomposer(&program, target);
 
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  auto graph = std::make_shared<Graph>(program, target);
 
   hlir::framework::ApplyPasses(graph.get(), {"OpFusionPass", "FusionMergePass"});
 
@@ -481,6 +526,8 @@ TEST(FusionMergePass, Reduce_Test_1) {
   VLOG(1) << "After CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
 
   CHECK_EQ(graph->fusion_groups.size(), group_size_affter);
+
+  RunTest(target, graph, {"A", "B"});
 }
 
 TEST(FusionMergePass, Reduce_Test_2) {
@@ -502,7 +549,7 @@ TEST(FusionMergePass, Reduce_Test_2) {
   auto target  = GetTarget();
   RunDecomposer(&program, target);
 
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  auto graph = std::make_shared<Graph>(program, target);
 
   hlir::framework::ApplyPasses(graph.get(), {"OpFusionPass", "FusionMergePass"});
 
@@ -513,6 +560,8 @@ TEST(FusionMergePass, Reduce_Test_2) {
   VLOG(1) << "After CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
 
   CHECK_EQ(graph->fusion_groups.size(), group_size_affter);
+
+  RunTest(target, graph, {"A", "B", "C"});
 }
 
 TEST(FusionMergePass, Reduce_Test_3) {
@@ -534,7 +583,7 @@ TEST(FusionMergePass, Reduce_Test_3) {
   auto target  = GetTarget();
   RunDecomposer(&program, target);
 
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  auto graph = std::make_shared<Graph>(program, target);
 
   hlir::framework::ApplyPasses(graph.get(), {"OpFusionPass", "FusionMergePass"});
 
@@ -545,6 +594,8 @@ TEST(FusionMergePass, Reduce_Test_3) {
   VLOG(1) << "After CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
 
   CHECK_EQ(graph->fusion_groups.size(), group_size_affter);
+
+  RunTest(target, graph, {"A", "B", "C", "D"});
 }
 
 TEST(FusionMergePass, Reduce_Test_4) {
@@ -567,7 +618,7 @@ TEST(FusionMergePass, Reduce_Test_4) {
   auto target  = GetTarget();
   RunDecomposer(&program, target);
 
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  auto graph = std::make_shared<Graph>(program, target);
 
   hlir::framework::ApplyPasses(graph.get(), {"OpFusionPass", "FusionMergePass"});
 
@@ -578,6 +629,8 @@ TEST(FusionMergePass, Reduce_Test_4) {
   VLOG(1) << "After CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
 
   CHECK_EQ(graph->fusion_groups.size(), group_size_affter);
+
+  RunTest(target, graph, {"A", "B", "C", "D"});
 }
 
 TEST(FusionMergePass, Reduce_Test_5) {
@@ -597,7 +650,7 @@ TEST(FusionMergePass, Reduce_Test_5) {
   auto target  = GetTarget();
   RunDecomposer(&program, target);
 
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  auto graph = std::make_shared<Graph>(program, target);
 
   hlir::framework::ApplyPasses(graph.get(), {"OpFusionPass", "FusionMergePass"});
 
@@ -608,6 +661,8 @@ TEST(FusionMergePass, Reduce_Test_5) {
   VLOG(1) << "After CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
 
   CHECK_EQ(graph->fusion_groups.size(), group_size_affter);
+
+  RunTest(target, graph, {"A", "B"});
 }
 
 }  // namespace cinn::frontend
