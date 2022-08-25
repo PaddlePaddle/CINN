@@ -95,7 +95,7 @@ std::pair<ir::Module, std::string> GenReduceCode(const std::vector<int>& shape,
   Module::Builder builder(func_name + "_builder", target);
 
   if (FLAGS_cinn_ir_schedule) {
-    std::string out_name             = "Y";
+    std::string out_name             = func_name + "_out";
     common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(X), common::CINNValue(out_name)}};
     std::vector<std::string> input_output_names{"X", out_name};
 
@@ -345,9 +345,9 @@ TEST(Operator, Operator_Reduction_Case_7) {
   CHECK(!ptx.empty());
 
   // load ptx
+  func_name = "fn_" + func_name;
   CUDA_CALL(cudaSetDevice(0));
   runtime::cuda::CUDAModule cuda_module(ptx, runtime::cuda::CUDAModule::Kind::PTX);
-  func_name               = "fn_" + func_name;
   void* reduce_sum_kernel = cuda_module.GetFunction(0, func_name);
   CHECK(reduce_sum_kernel);
 

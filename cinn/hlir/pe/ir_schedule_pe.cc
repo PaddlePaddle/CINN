@@ -200,6 +200,7 @@ void IRCudaScheduleReduce(ir::IRSchedule &ir_sch,
   int index = ir_sch.GetLoops(output->name + "__reduce_init").size() - last_dimension_num;
   for (int idx = output_shape.size() - last_dimension_num; idx < static_cast<int>(output_shape.size()) - 1; ++idx) {
     auto loops = ir_sch.GetLoops(output->name);
+    CHECK_GT(loops.size(), index + 1);
     ir_sch.Fuse({loops[index], loops[index + 1]});
   }
 
@@ -233,6 +234,7 @@ void IRCudaScheduleBlockReduceInternal(ir::IRSchedule &ir_sch,
   for (int idx = 0; idx < static_cast<int>(tmp_out->shape.size()) - 2; ++idx) {
     for (auto &tensor : {tmp_out, out}) {
       auto loops = ir_sch.GetLoops(tensor->name);
+      CHECK_GE(loops.size(), 2U);
       ir_sch.Fuse({loops[0], loops[1]});
     }
   }
@@ -298,6 +300,7 @@ void IRCudaScheduleBlockReduce(ir::IRSchedule &ir_sch,
   // fuse last parallel dimension
   for (int idx = 0; idx < reduce_tmp_out->shape.size() - tmp_out->shape.size(); ++idx) {
     auto loops = ir_sch.GetLoops(reduce_tmp_out->name);
+    CHECK_GT(loops.size(), output_shape_size_without_reduce + 1);
     ir_sch.Fuse({loops[output_shape_size_without_reduce], loops[output_shape_size_without_reduce + 1]});
   }
 
@@ -366,6 +369,7 @@ void IRCudaScheduleBlockShuffleReduce(
   for (int idx = 0; idx < fuse_times; ++idx) {
     for (auto &tensor : {internal, out}) {
       auto loops = ir_sch.GetLoops(tensor->name);
+      CHECK_GE(loops.size(), 2U);
       ir_sch.Fuse({loops[0], loops[1]});
     }
   }
