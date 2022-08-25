@@ -189,46 +189,9 @@ std::shared_ptr<OpStrategy> StrategyForBroadcastTo(const framework::NodeAttr &at
     *ret         = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
   });
 
-  framework::CINNSchedule broadcast_to_schedule([=](lang::Args args, lang::RetValue *ret) {
-    if (FLAGS_cinn_ir_schedule) {
-      CHECK(!args.empty()) << "The input argument of broadcast_to schedule is empty! Please check.";
-      CINNValuePack arg_pack = args[0];
-      std::vector<Expr> vec_ast;
-      for (int i = 0; i < arg_pack.size(); i++) {
-        if (arg_pack[i].is_expr()) {
-          Expr temp = arg_pack[i];
-          vec_ast.emplace_back(temp);
-        }
-      }
-      CHECK(!vec_ast.empty());
-      ir::ModuleExpr mod_expr(vec_ast);
-      ir::IRSchedule ir_sch(mod_expr);
-      ir_sch.MergeExprs();
-      if (target.arch == Target::Arch::NVGPU) {
-        pe::IRCudaScheduleInjective(ir_sch, out_shape, target);
-      } else if (target.arch == Target::Arch::X86) {
-        pe::IRScheduleInjectiveCPU(ir_sch, out_shape, target, false);
-      }
-      std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
-      *ret = CINNValuePack{res};
-    } else {
-      CHECK(!args.empty()) << "The input argument of broadcast_to schedule is empty! Please check.";
-      CINNValuePack arg_pack = args[0];
-      CHECK_EQ(arg_pack.size(), 2UL);
-      Expr Out              = arg_pack[0];
-      poly::StageMap stages = arg_pack.back();
-      CHECK(Out.as_tensor());
-      if (target.arch == Target::Arch::NVGPU) {
-        pe::CudaScheduleInjective(stages[Out.as_tensor_ref()], out_shape, target);
-      } else if (target.arch == Target::Arch::X86) {
-        pe::ScheduleInjectiveCPU(stages[Out.as_tensor_ref()], out_shape, target);
-      }
-      *ret = arg_pack;
-    }
-  });
-
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(broadcast_to_compute, broadcast_to_schedule, "strategy.broadcast_to.x86", 1);
+  strategy->AddImpl(
+      broadcast_to_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.broadcast_to.x86", 1);
 
   return strategy;
 }
@@ -333,40 +296,9 @@ std::shared_ptr<OpStrategy> StrategyForIsClose(const framework::NodeAttr &attrs,
     *ret        = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
   });
 
-  framework::CINNSchedule isclose_schedule([=](lang::Args args, lang::RetValue *ret) {
-    if (FLAGS_cinn_ir_schedule) {
-      CHECK(!args.empty()) << "The input argument of isclose schedule is empty! Please check.";
-      CINNValuePack arg_pack = args[0];
-      CHECK_GE(arg_pack.size(), 1UL);
-      Expr ast_expr = arg_pack[0];
-      std::vector<Expr> vec_ast{ast_expr};
-      ir::ModuleExpr mod_expr(vec_ast);
-      ir::IRSchedule ir_sch(mod_expr);
-      if (target.arch == Target::Arch::NVGPU) {
-        pe::IRCudaScheduleInjective(ir_sch, output_shapes.front(), target);
-      } else if (target.arch == Target::Arch::X86) {
-        pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target);
-      }
-      std::vector<CINNValue> res = {arg_pack[0]};
-      *ret                       = CINNValuePack{res};
-    } else {
-      CHECK(!args.empty()) << "The input argument of isclose schedule is empty! Please check.";
-      CINNValuePack arg_pack = args[0];
-      CHECK_EQ(arg_pack.size(), 2UL);
-      Expr Out              = arg_pack[0];
-      poly::StageMap stages = arg_pack[1];
-      CHECK(Out.as_tensor());
-      if (target.arch == Target::Arch::NVGPU) {
-        pe::CudaScheduleInjective(stages[Out.as_tensor_ref()], output_shapes.front(), target);
-      } else if (target.arch == Target::Arch::X86) {
-        pe::ScheduleInjectiveCPU(stages[Out.as_tensor_ref()], output_shapes.front(), target);
-      }
-      *ret = arg_pack;
-    }
-  });
-
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(isclose_compute, isclose_schedule, "strategy.assertisclose", 1);
+  strategy->AddImpl(
+      isclose_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.assertisclose", 1);
 
   return strategy;
 }
@@ -509,7 +441,7 @@ CINN_REGISTER_HELPER(broadcast_ops) {
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForIsClose))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForIsClose))
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForIsClose))
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kBroadcast)
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
       .set_support_level(4);
 
   return true;
