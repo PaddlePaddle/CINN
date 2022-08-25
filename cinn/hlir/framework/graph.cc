@@ -15,6 +15,7 @@
 #include "cinn/hlir/framework/graph.h"
 
 #include <atomic>
+#include <sstream>
 
 #include "cinn/hlir/framework/visualize_helper.h"
 #include "cinn/utils/string.h"
@@ -75,17 +76,46 @@ void Graph::Initialize(const frontend::Program& prog,
   this->attrs["inferdtype"] = std::make_shared<absl::any>(dtype_dict);
 }
 
-void Graph::VisualizeGroupedGraph(const std::unordered_set<std::string>& fetch_var_ids) {
+std::vector<std::vector<Node*>> Graph::FusionGroupsToGroups() {
   std::vector<std::vector<Node*>> groups;
   groups.resize(fusion_groups.size());
   for (size_t i = 0; i < fusion_groups.size(); ++i) {
     groups[i] = fusion_groups[i]->CollectNodes();
   }
-  VisualizeGroupedGraph(groups, fetch_var_ids);
+  return groups;
+}
+
+std::string Graph::DebugGroupedGraph(const std::unordered_set<std::string>& fetch_var_ids) {
+  return DebugGroupedGraph(FusionGroupsToGroups(), fetch_var_ids);
+}
+
+std::string Graph::DebugGroupedGraph(const std::vector<std::vector<Node*>>& groups,
+                                     const std::unordered_set<std::string>& fetch_var_ids) {
+  std::stringstream debug_str;
+  for (auto& id : fetch_var_ids) {
+    debug_str << "Fetch: " << id << "\n";
+  }
+
+  int group_id = 0;
+  for (auto& group : groups) {
+    debug_str << "Group " << group_id++ << " {\n";
+    for (auto* node : group) {
+      debug_str << "  " << DebugString(node) << "\n";
+    }
+    debug_str << "}"
+              << "\n";
+  }
+  return debug_str.str();
+}
+
+void Graph::VisualizeGroupedGraph(const std::unordered_set<std::string>& fetch_var_ids) {
+  VisualizeGroupedGraph(FusionGroupsToGroups(), fetch_var_ids);
 }
 
 void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
                                   const std::unordered_set<std::string>& fetch_var_ids) {
+  VLOG(4) << DebugGroupedGraph(groups, fetch_var_ids);
+
   if (FLAGS_cinn_fusion_groups_graphviz_dir.empty()) {
     return;
   }
@@ -95,19 +125,6 @@ void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
   VLOG(4) << "The visualized path of CINN fusion groups: " << viz_path_;
   if (!MakeDirectory(viz_path_, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)) {
     return;
-  }
-
-  for (auto& id : fetch_var_ids) {
-    VLOG(4) << "Fetch: " << id;
-  }
-
-  int group_id = 0;
-  for (auto& group : groups) {
-    VLOG(4) << "Group " << group_id++ << " {";
-    for (auto* node : group) {
-      VLOG(4) << "  " << DebugString(node);
-    }
-    VLOG(4) << "}";
   }
 
   Summary(groups, viz_path_);
@@ -124,7 +141,7 @@ void Graph::VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
   // Record the NodeData's actually ids.
   std::unordered_set<std::string> nodedatas_set;
 
-  group_id = 0;
+  int group_id = 0;
   for (auto& group : groups) {
     std::string dot_cluster_id = GenClusterId(group, group_id);
     dot.AddCluster(dot_cluster_id, GetGroupAttrs(group.size()));
@@ -205,6 +222,67 @@ void Graph::VisualizeGroups(const std::vector<std::vector<Node*>>& groups,
 }
 
 std::atomic_size_t Graph::viz_count_{0};
+
+std::unordered_set<NodeData*> Graph::Group::GetInputNodeDatas() {
+  std::unordered_set<NodeData*> group_inputs;
+
+  // count all node's input data
+  for (auto node : this->CollectNodes()) {
+    for (auto& in_edge : node->inlinks_in_order()) {
+      auto input_data = in_edge->source()->safe_as<NodeData>();
+      if (!input_data) {
+        continue;
+      }
+
+      if (!input_data->source_node.get()) {
+        // if the input data hasn't input op, it's the group's input
+        group_inputs.insert(input_data);
+      } else if (this->input_nodes.count(input_data->source_node.get())) {
+        // if the input data' input op in group.input_nodes, the node data is the group's input
+        group_inputs.insert(input_data);
+      }
+    }
+  }
+
+  return group_inputs;
+}
+
+std::unordered_set<NodeData*> Graph::Group::GetOutputNodeDatas(const std::vector<NodeData*>& graph_outputs) {
+  std::unordered_set<NodeData*> group_outputs;
+
+  // count all node's output data
+  for (auto node : this->CollectNodes()) {
+    for (auto& out_edge : node->outlinks_in_order()) {
+      auto output_data = out_edge->sink()->safe_as<NodeData>();
+      if (!output_data) {
+        continue;
+      }
+
+      if (std::find(graph_outputs.begin(), graph_outputs.end(), output_data) != graph_outputs.end()) {
+        // if the output data is the graph's output data, it's also the group's output
+        group_outputs.insert(output_data);
+        continue;
+      }
+
+      if (output_data->outlinks().empty()) {
+        // if the output data hasn't ouput op, it's the group's output
+        group_outputs.insert(output_data);
+      }
+
+      for (auto out_edge : output_data->outlinks()) {
+        auto out_node = out_edge->sink()->safe_as<Node>();
+
+        // check whether the output data's output op in group.output_nodes,
+        // if true, the output data is the group's output data
+        if (this->output_nodes.count(out_node)) {
+          group_outputs.insert(output_data);
+        }
+      }
+    }
+  }
+
+  return group_outputs;
+}
 
 }  // namespace framework
 }  // namespace hlir

@@ -80,11 +80,15 @@ void CopyFromVector(const std::vector<T>& vec, hlir::framework::Tensor tensor, T
   size_t numel = tensor->shape().numel();
   EXPECT_EQ(vec.size(), numel);
 
+  if (target == common::DefaultNVGPUTarget()) {
 #ifdef CINN_WITH_CUDA
-  cudaMemcpy(data, vec.data(), numel * sizeof(T), cudaMemcpyHostToDevice);
+    cudaMemcpy(data, vec.data(), numel * sizeof(T), cudaMemcpyHostToDevice);
 #else
-  std::copy(vec.begin(), vec.end(), data);
+    LOG(FATAL) << "NVGPU Target only support on flag CINN_WITH_CUDA ON! Please check.";
 #endif
+  } else {
+    std::copy(vec.begin(), vec.end(), data);
+  }
 }
 
 template <typename T>
