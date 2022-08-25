@@ -46,8 +46,11 @@ using common::CINNValue;
 using common::CINNValuePack;
 
 ir::Tensor ArgSort(const ir::Tensor &A, const int &axis, const bool &is_ascend, const std::string &name) {
+  std::string extern_fun_name;
   if (is_ascend) {
+    extern_fun_name.assign("cinn_host_lt_num_float");
   } else {
+    extern_fun_name.assign("cinn_host_gt_num_float");
   }
 
   int pos_axis = axis;
@@ -72,7 +75,7 @@ ir::Tensor ArgSort(const ir::Tensor &A, const int &axis, const bool &is_ascend, 
         offset            = common::AutoSimplify(offset);
         stride            = common::AutoSimplify(stride);
         auto A_shape_axis = A->shape[pos_axis];
-        return lang::CallExtern("cinn_host_lt_num_float", {A, A->shape[axis], A(indices), offset, stride});
+        return lang::CallExtern(extern_fun_name, {A, A->shape[axis], A(indices), offset, stride});
       },
       name);
   return res;
@@ -88,7 +91,7 @@ ir::Tensor Sort(const ir::Tensor &A, const int &axis, const bool &is_ascend, con
       A->shape,
       [=](const std::vector<Expr> &indices) {
         std::vector<Expr> A_indices(indices);
-        indices[pos_axis] = sort_index(indices);
+        A_indices[pos_axis] = sort_index(indices);
         return A(A_indices);
       },
       name);

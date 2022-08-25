@@ -79,7 +79,7 @@ inline int cinn_host_lt_num_int(
   do {                                                                  \
     int out = 0;                                                        \
     for (int i = size - 1; i >= 0; --i) {                               \
-      if (num < reinterpret_cast<type*>(buf->memory)[i]) out++;         \
+      if (num > reinterpret_cast<type*>(buf->memory)[i]) out++;         \
     }                                                                   \
     return out;                                                         \
   } while (0)
