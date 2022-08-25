@@ -14,25 +14,21 @@
 
 #pragma once
 
-#include <string>
-#include <unordered_set>
+#include <vector>
 
-#include "cinn/ir/ir.h"
-#include "cinn/ir/ir_base.h"
-#include "cinn/ir/ir_schedule.h"
-#include "cinn/ir/lowered_func.h"
+#include "cinn/common/target.h"
+#include "cinn/lang/packed_func.h"
 
 namespace cinn {
-namespace auto_schedule {
+namespace hlir {
+namespace framework {
 
-void AnalyzeScheduleBlockReadWriteBuffer(ir::ScheduleBlock* sche_block);
+using CINNSchedule = lang::PackedFunc;
 
-bool ContainsNodeType(ir::Expr expr, const std::unordered_set<ir::IrNodeTy>& node_types);
+CINNSchedule GetInjectiveScheduleFunc(const std::vector<std::vector<int>>& output_shapes,
+                                      const Target& target,
+                                      bool vectorizable = true);
 
-/**
- * Collects all input lowered_funcs and return names of all output arguments
- */
-std::unordered_set<std::string> GetOutputNamesFromLoweredFunc(const std::vector<ir::LoweredFunc>& lowered_funcs);
-
-}  // namespace auto_schedule
+}  // namespace framework
+}  // namespace hlir
 }  // namespace cinn

@@ -28,6 +28,7 @@
 #include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/tensor.h"
 #include "cinn/hlir/op/use_ops.h"
+#include "cinn/utils/data_util.h"
 #ifdef CINN_WITH_CUDA
 #include <cuda_runtime.h>
 #endif
@@ -65,24 +66,6 @@ Program CreateTestProgram() {
   return program;
 }
 
-void SetRandData(hlir::framework::Tensor tensor, Target target) {
-  auto* data = tensor->mutable_data<float>(target);
-  std::random_device seed;
-  std::default_random_engine engine(seed());
-  std::uniform_real_distribution<float> dist(1.f, 2.f);
-  size_t num_ele = tensor->shape().numel();
-  std::vector<float> random_data(num_ele);
-  for (size_t i = 0; i < num_ele; i++) {
-    random_data[i] = dist(engine);  // All random data
-  }
-
-#ifdef CINN_WITH_CUDA
-  cudaMemcpy(data, random_data.data(), num_ele * sizeof(float), cudaMemcpyHostToDevice);
-#else
-  std::copy(random_data.begin(), random_data.end(), data);
-#endif
-}
-
 }  // namespace
 
 TEST(cinn_build, basic) {
@@ -113,8 +96,8 @@ TEST(cinn_build, execution) {
 
   auto A = scope->GetTensor("A");
   auto B = scope->GetTensor("B");
-  SetRandData(A, target);
-  SetRandData(B, target);
+  SetRandData<int>(A, target);
+  SetRandData<int>(B, target);
 
   runtime_program->Execute();
 }

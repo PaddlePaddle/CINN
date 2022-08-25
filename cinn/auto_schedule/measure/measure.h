@@ -16,6 +16,7 @@
 
 #include <map>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "cinn/auto_schedule/task/tune_task.h"
@@ -41,10 +42,13 @@ struct MeasureInput {
 struct MeasureResult {
   // The time cost of execution in average of running
   // with a specific repeated times.
-  double execution_cost;  // unit: us
+  double execution_cost = 0.0;  // unit: us
   // The time cost of the whole measurement process including
   // building and running
-  double elapsed_time;  // unit: us
+  double elapsed_time = 0.0;  // unit: us
+  // used to return detail messages once an error occurr during measurement,
+  // empty if nothing goes wrong
+  std::string error_msg;
 };
 
 // The result of building with input schedule

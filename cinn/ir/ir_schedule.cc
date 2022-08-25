@@ -167,7 +167,8 @@ void IRSchedule::MutateForType(const Expr& loop, ForType for_type, int factor) {
   auto* for_node = loop.As<ir::For>();
   CHECK(for_node) << "loop param must be For node! Please check.";
   CHECK(for_node->is_serial()) << "loop is not serial, current forloop type is "
-                               << static_cast<int>(for_node->for_type());
+                               << static_cast<int>(for_node->for_type()) << ", and it cannot become "
+                               << static_cast<int>(for_type);
   auto loop_copy     = optim::IRCopy(loop);
   auto* new_for_node = loop_copy.As<ir::For>();
   CHECK(new_for_node);
@@ -1226,8 +1227,10 @@ std::vector<Expr> ScheduleHelper::GetLoops(const Expr& block) const {
       }
     }
   }
-  if (result.empty())
+  if (result.empty()) {
+    LOG(INFO) << "exprs size is : " << exprs.size() << "\n and exprs[0] is : " << exprs[0];
     LOG(FATAL) << "Didn't find Loops containing ScheduleBlock with name: \n" << block_name << " in ModuleExepr.";
+  }
   std::sort(result.begin(), result.end(), [&](Expr i, Expr j) {
     return (utils::GetStreamCnt(i).size() > utils::GetStreamCnt(j).size());
   });

@@ -91,20 +91,13 @@ struct Target {
   friend std::ostream& operator<<(std::ostream& os, const Target& target);
 };
 
-static const Target& UnkTarget() {
-  static Target target(Target::OS::Unk, Target::Arch::Unk, Target::Bit::Unk, {}, {});
-  return target;
-}
+const Target& UnkTarget();
 
-static const Target& DefaultHostTarget() {
-  static Target target(Target::OS::Linux, Target::Arch::X86, Target::Bit::k64, {}, {});
-  return target;
-}
+const Target& DefaultHostTarget();
 
-static const Target& DefaultNVGPUTarget() {
-  static Target target(Target::OS::Linux, Target::Arch::NVGPU, Target::Bit::k64, {}, {});
-  return target;
-}
+const Target& DefaultNVGPUTarget();
+
+const Target& DefaultTarget();
 
 std::ostream& operator<<(std::ostream& os, Target::Arch arch);
 
