@@ -851,7 +851,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
         auto& src_tensor  = absl::get<Tensor>(*src_var);
         tensor->set_buffer(src_tensor->get_buffer());
       } else {
-        tensor->mutable_data<float>(target_);
+        tensor->mutable_data(target_, tensor->type());
       }
     }
   }
