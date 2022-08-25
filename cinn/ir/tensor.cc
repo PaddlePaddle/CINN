@@ -328,25 +328,23 @@ Expr _Tensor_::tensor_store_expanded_body() {
     final_body = reduce_node->body;
     switch (reduce_node->reduce_type) {
       case ir::Reduce::kSum:
-        final_body = Tensor(this)(g_axis) + final_body;
+        final_body[0] = Tensor(this)(g_axis) + final_body[0];
         break;
       case ir::Reduce::kMul:
-        final_body = Tensor(this)(g_axis) * final_body;
+        final_body[0] = Tensor(this)(g_axis) * final_body[0];
         break;
       case ir::Reduce::kMax:
-        final_body = Max::Make(Tensor(this)(g_axis), final_body);
+        final_body[0] = Max::Make(Tensor(this)(g_axis), final_body[0]);
         break;
       case ir::Reduce::kMin:
-        final_body = Min::Make(Tensor(this)(g_axis), final_body);
+        final_body[0] = Min::Make(Tensor(this)(g_axis), final_body[0]);
         break;
       case ir::Reduce::kArgmax:
-        auto axis = reduce_node->reduce_axis[0];
-        std::vector<Expr> max_index(g_axis);
-        max_index[axis] = final_body;
-        auto cur_value  = Tensor(this)(g_axis);
-        auto max_value  = Tensor(this)(max_index);
-        auto update     = ir::GT::Make(cur_value, final_body);
-        final_body      = ir::Select::Make(update, final_body, axis);
+        auto cur_value = Tensor(this)(g_axis);
+        auto max_value = final_body[0];
+
+        auto update   = ir::GT::Make(cur_value, max_value);
+        final_body[1] = ir::Select::Make(update, axis, final_body[1]);
         break;
       case ir::Reduce::kArgmin:
         final_body = Min::Make(Tensor(this)(g_axis), final_body);

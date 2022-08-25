@@ -425,17 +425,17 @@ struct Reduce : public ExprNode<Reduce> {
   enum ReduceType { kSum = 0, kSub, kMul, kDiv, kMax, kMin, kArgmax, kArgmin };
 
   //! The initial value.
-  Expr init;
+  std::vector<Expr> init;
 
   // ! The body.
-  Expr body;
+  std::vector<Expr> body;
 
   utils::SmallVector<Var, 4> reduce_axis;
 
   //! The type of the reduce operation.
   ReduceType reduce_type;
 
-  static Expr Make(ReduceType reduce_type, Expr init, Expr body, const std::vector<Var>& reduce_aixs);
+  static Expr Make(ReduceType reduce_type,  std::vector<Expr> init,  std::vector<Expr> body, const std::vector<Var>& reduce_aixs);
 
   Type type() const override { return body.type().ElementOf(); }
 
