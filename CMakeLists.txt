@@ -106,7 +106,7 @@ message(STATUS "PYTHON_LIBRARIES: ${PYTHON_LIBRARIES}")
 message(STATUS "PYTHON_INCLUDE_DIR: ${PYTHON_INCLUDE_DIR}")
 
 INCLUDE_DIRECTORIES(${PYTHON_INCLUDE_DIR})
-cc_library(cinnapi SHARED SRCS ${cinnapi_src} DEPS glog ${llvm_libs} framework_proto param_proto framework_proto absl isl ginac pybind)
+cc_library(cinnapi SHARED SRCS ${cinnapi_src} DEPS glog ${llvm_libs} framework_proto param_proto schedule_desc_proto absl isl ginac pybind)
 add_dependencies(cinnapi GEN_LLVM_RUNTIME_IR_HEADER ZLIB::ZLIB)
 add_dependencies(cinnapi GEN_LLVM_RUNTIME_IR_HEADER ${core_deps})
 
@@ -133,7 +133,7 @@ function(gen_cinncore LINKTYPE)
   if (${LINKTYPE} STREQUAL "STATIC")
     set(CINNCORE_TARGET cinncore_static)
   endif()
-  cc_library(${CINNCORE_TARGET} ${LINKTYPE} SRCS ${core_src} DEPS glog ${llvm_libs} framework_proto param_proto framework_proto absl isl ginac)
+  cc_library(${CINNCORE_TARGET} ${LINKTYPE} SRCS ${core_src} DEPS glog ${llvm_libs} framework_proto param_proto schedule_desc_proto absl isl ginac)
   add_dependencies(${CINNCORE_TARGET} GEN_LLVM_RUNTIME_IR_HEADER ZLIB::ZLIB)
   add_dependencies(${CINNCORE_TARGET} GEN_LLVM_RUNTIME_IR_HEADER ${core_deps})
 

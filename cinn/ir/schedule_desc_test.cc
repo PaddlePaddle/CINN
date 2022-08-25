@@ -12,36 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#pragma once
-#include <absl/container/flat_hash_map.h>
+#include "cinn/ir/schedule_desc.h"
 
-#include <map>
-#include <string>
-#include <vector>
-
-#include "cinn/ir/ir_schedule.h"
-#include "cinn/ir/schedule_desc.pb.h"
-#include "cinn/utils/type_defs.h"
+#include <glog/logging.h>
+#include <gtest/gtest.h>
 
 namespace cinn {
 namespace ir {
 
-class ScheduleDesc {
- public:
-  struct Step {
-    std::string type;
-    absl::flat_hash_map<std::string, std::vector<Expr>> inputs;
-    std::vector<Expr> outputs;
-    utils::AttributeMap attrs;
-  };
-  std::vector<Step> steps;
-
-  ScheduleDesc() = default;
-  void Append(Step&& step);
-  void Replay(IRSchedule* schedule);
-  proto::ScheduleDesc ToProto() const;
-  static void ReplayWithProto(const proto::ScheduleDesc& desc_proto, IRSchedule* sch);
-};
+TEST(ScheduleDesc, Append) {}
 
 }  // namespace ir
 }  // namespace cinn
