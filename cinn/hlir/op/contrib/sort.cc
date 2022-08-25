@@ -45,12 +45,51 @@ namespace op {
 using common::CINNValue;
 using common::CINNValuePack;
 
-ir::Tensor Sort(const ir::Tensor &A, const int &axis, const bool &is_ascend, const std::string &name) {
+ir::Tensor ArgSort(const ir::Tensor &A, const int &axis, const bool &is_ascend, const std::string &name) {
+  if (is_ascend) {
+  } else {
+  }
+
+  int pos_axis = axis;
+  if (pos_axis < 0) {
+    pos_axis += C->shape.size();
+  }
   auto res = Compute(
       A->shape,
       [=](const std::vector<Expr> &indices) {
-        auto out = ir::Store::Make(A, Expr(0), indices);
-        return out;
+        Expr offset(0);
+        Expr stride(1);
+        for (int i = 0; i < indices.size(); i++) {
+          if (i < pos_axis) {
+            offset = offset * A->shape[i] + indices[i];
+          } else if (i == pos_axis) {
+            offset = offset * A->shape[i];
+          } else {
+            offset = offset * A->shape[i] + indices[i];
+            stride = stride * A->shape[i];
+          }
+        }
+        offset            = common::AutoSimplify(offset);
+        stride            = common::AutoSimplify(stride);
+        auto A_shape_axis = A->shape[pos_axis];
+        return lang::CallExtern("cinn_host_lt_num_float", {A, A->shape[axis], A(indices), offset, stride});
+      },
+      name);
+  return res;
+}
+
+ir::Tensor Sort(const ir::Tensor &A, const int &axis, const bool &is_ascend, const std::string &name) {
+  int pos_axis = axis;
+  if (pos_axis < 0) {
+    pos_axis += C->shape.size();
+  }
+  auto sort_index = ArgSort(A, axis, is_ascend, name + "_index");
+  auto res        = Compute(
+      A->shape,
+      [=](const std::vector<Expr> &indices) {
+        std::vector<Expr> A_indices(indices);
+        indices[pos_axis] = sort_index(indices);
+        return A(A_indices);
       },
       name);
   return res;
