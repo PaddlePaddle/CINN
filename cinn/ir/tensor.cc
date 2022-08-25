@@ -340,18 +340,16 @@ Expr _Tensor_::tensor_store_expanded_body() {
         final_body = Min::Make(Tensor(this)(g_axis), final_body);
         break;
       case ir::Reduce::kArgmax:
-        auto max_index = reduce_node->max_index;
+        auto axis = reduce_node->reduce_axis[0];
+        std::vector<Expr> max_index(g_axis);
+        max_index[axis] = final_body;
         auto cur_value  = Tensor(this)(g_axis);
-        auto update     = ir::GT::Make(Tensor(this)(g_axis), final_body);
-        final_body      = ir::Select::Make(update, g_axis, final_body);
-        reduce_node->max_index = ir::Select::Make(update, g_axis, max_index);
+        auto max_value  = Tensor(this)(max_index);
+        auto update     = ir::GT::Make(cur_value, final_body);
+        final_body      = ir::Select::Make(update, final_body, axis);
         break;
       case ir::Reduce::kArgmin:
-        auto max_index = reduce_node->max_index;
-        auto cur_value = Tensor(this)(g_axis);
-        auto max_value = Tensor(this)({final_body});
-        auto update    = ir::LT::Make(cur_value, max_value);
-        final_body     = ir::Select::Make(update, g_axis, final_body);
+        final_body = Min::Make(Tensor(this)(g_axis), final_body);
         break;
       default:
         CINN_NOT_IMPLEMENTED
