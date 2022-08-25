@@ -49,7 +49,7 @@ class TestTransposeOp(OpTest):
         self.cinn_outputs = [res[0]]
 
     def test_check_results(self):
-        self.check_outputs_and_grads()
+        self.check_outputs_and_grads(all_equal=True)
 
 
 if __name__ == "__main__":
