@@ -229,9 +229,9 @@ TEST(net_build, program_execute_sort) {
 
     for (int b = 0; b < B; ++b) {
       std::string line;
-      int index    = h + H * b;
-      int true_data  = sorted_data[index];
-      int out_data = output_data[index];
+      int index     = h + H * b;
+      int true_data = sorted_data[index];
+      int out_data  = output_data[index];
       line += (std::to_string(out_data) + ", ");
       EXPECT_EQ(true_data, out_data);
       VLOG(6) << line;
