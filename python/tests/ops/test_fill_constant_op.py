@@ -50,7 +50,7 @@ class TestFillConstantOp(OpTest):
         self.cinn_outputs = [res[0]]
 
     def test_check_results(self):
-        self.check_outputs_and_grads()
+        self.check_outputs_and_grads(all_equal=True)
 
 
 class TestFillConstantCase1(TestFillConstantOp):
@@ -70,7 +70,7 @@ class TestFillConstantCase2(TestFillConstantOp):
 class TestFillConstantCase3(TestFillConstantOp):
     def init_case(self):
         self.shape = [32]
-        self.value = 1
+        self.value = True
         self.dtype = "bool"
 
 
@@ -83,9 +83,10 @@ class TestFillConstantByValueOp(OpTest):
     def init_case(self):
         self.shape = [32]
         self.value = float(1.0)
+        self.dtype = "float32"
 
     def build_paddle_program(self, target):
-        x = paddle.full(self.shape, self.value)
+        x = paddle.full(self.shape, self.value, dtype=self.dtype)
 
         self.paddle_outputs = [x]
 
@@ -99,19 +100,23 @@ class TestFillConstantByValueOp(OpTest):
         self.cinn_outputs = [res[0]]
 
     def test_check_results(self):
-        self.check_outputs_and_grads()
+        self.check_outputs_and_grads(all_equal=True)
 
 
 class TestFillConstantByValueCase1(TestFillConstantByValueOp):
     def init_case(self):
         self.shape = [32]
         self.value = int(1)
+        # only for paddle.full
+        self.dtype = "int32"
 
 
 class TestFillConstantByValueCase2(TestFillConstantByValueOp):
     def init_case(self):
         self.shape = [32]
-        self.value = bool(1)
+        self.value = bool(True)
+        # only for paddle.full
+        self.dtype = "bool"
 
 
 if __name__ == "__main__":

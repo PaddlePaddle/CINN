@@ -31,14 +31,6 @@ namespace cinn {
 namespace hlir {
 namespace framework {
 
-Target GetTarget() {
-#ifdef CINN_WITH_CUDA
-  return common::DefaultNVGPUTarget();
-#else
-  return common::DefaultHostTarget();
-#endif
-}
-
 void GenerateRandomData(float* data, size_t numel, bool generate_nan) {
   std::random_device seed;
   std::default_random_engine engine(seed());
@@ -67,7 +59,7 @@ void SetRandomTensor(Tensor tensor, Target target, bool generate_nan) {
 }
 
 TEST(AccuracyChecker, tensor) {
-  Target target = GetTarget();
+  Target target = common::DefaultTarget();
   Scope scope;
   scope.Var<Tensor>("x");
   auto out = scope.GetTensor("x");

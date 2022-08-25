@@ -46,6 +46,8 @@ std::string GetTypeString() {
     return "int32_t";
   } else if (std::is_same<T, int64_t>::value) {
     return "int64_t";
+  } else if (std::is_same<T, bool>::value) {
+    return "bool";
   } else {
     CHECK(false) << "Not supported data type.";
     return "";
@@ -99,6 +101,8 @@ std::string AccuracyChecker::operator()(const std::string& arg_name) {
     return CheckTensor<float>(tensor, arg_name);
   } else if (tensor->type().is_int()) {
     return CheckTensor<int32_t>(tensor, arg_name);
+  } else if (tensor->type().is_bool()) {
+    return CheckTensor<bool>(tensor, arg_name);
   } else {
     CHECK(false) << "Not supported data type.";
     return "";
@@ -115,6 +119,8 @@ std::string AccuracyChecker::operator()(const std::map<std::string, cinn_pod_val
     return CheckBuffer<int32_t>(buffer, arg_name);
   } else if (buffer->type == cinn_int64_t()) {
     return CheckBuffer<int64_t>(buffer, arg_name);
+  } else if (buffer->type == cinn_bool_t()) {
+    return CheckBuffer<bool>(buffer, arg_name);
   } else {
     CHECK(false) << "Not supported data type.";
     return "";

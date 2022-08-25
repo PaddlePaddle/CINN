@@ -215,6 +215,7 @@ bool Instruction::RunFunc(bool dryrun, void* stream) {
       }
       i++;
     }
+    VLOG(3) << "Done Runing extern function " << function_name_;
     return true;
   }
   return false;

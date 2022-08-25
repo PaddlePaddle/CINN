@@ -15,6 +15,7 @@
 #include <gtest/gtest.h>
 
 #include "cinn/cinn.h"
+#include "cinn/common/target.h"
 
 namespace cinn {
 
@@ -50,7 +51,7 @@ TEST(test03_conv, basic) {
       },
       "B");
 
-  Target target(Target::OS::Linux, Target::Arch::X86, Target::Bit::k64);
+  Target target = common::DefaultHostTarget();
 
   Module::Builder builder("conv", target);
 

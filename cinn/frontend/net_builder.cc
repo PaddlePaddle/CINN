@@ -44,6 +44,8 @@ NETBUILDER_BINARY_OP_DEF(ReluGrad, relu_grad)
   }
 NETBUILDER_ELEMENTWISE_OP_DEF(ElementwiseAdd, elementwise_add)
 NETBUILDER_ELEMENTWISE_OP_DEF(ElementwiseMul, elementwise_mul)
+NETBUILDER_ELEMENTWISE_OP_DEF(ElementwiseDiv, divide)
+NETBUILDER_ELEMENTWISE_OP_DEF(ElementwiseSub, substract)
 
 Variable NetBuilder::Mul(const Variable& a, const Variable& b, int x_num_col_dims, int y_num_col_dims) {
   Instruction instr("mul", {a, b});
@@ -75,6 +77,14 @@ Variable NetBuilder::Relu6(const Variable& a, float threshold) {
 
 Variable NetBuilder::ReduceSum(const Variable& x, const std::vector<int>& dim, bool keep_dim) {
   return Reduce(x, ReduceKind::kSum, dim, keep_dim);
+}
+
+Variable NetBuilder::ReduceAll(const Variable& x, const std::vector<int>& dim, bool keep_dim) {
+  return Reduce(x, ReduceKind::kAll, dim, keep_dim);
+}
+
+Variable NetBuilder::ReduceAny(const Variable& x, const std::vector<int>& dim, bool keep_dim) {
+  return Reduce(x, ReduceKind::kAny, dim, keep_dim);
 }
 
 Variable NetBuilder::Conv2d(const Variable& a,

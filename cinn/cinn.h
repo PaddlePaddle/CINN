@@ -39,6 +39,8 @@ using lang::CallLowered;
 using lang::Compute;
 using lang::Lower;
 using lang::Placeholder;
+using lang::ReduceAll;
+using lang::ReduceAny;
 using lang::ReduceMax;
 using lang::ReduceMin;
 using lang::ReduceMul;
