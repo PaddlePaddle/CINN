@@ -149,6 +149,12 @@ class CINNValue : public cinn_pod_value_t {
   operator poly::StageMap() const;
   // @}
 
+  bool is_string() const;
+  bool is_var() const;
+  bool is_expr() const;
+  bool is_stagemap() const;
+  bool is_tensor() const;
+
   //! Assign operators
   // @{
   CINNValue& operator=(int32_t value);

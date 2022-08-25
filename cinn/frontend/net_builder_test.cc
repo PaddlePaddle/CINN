@@ -27,6 +27,7 @@
 #include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/tensor.h"
 #include "cinn/hlir/op/use_ops.h"
+#include "cinn/utils/data_util.h"
 #ifdef CINN_WITH_CUDA
 #include <cuda_runtime.h>
 #endif
@@ -49,24 +50,6 @@ Program CreateAddProgram() {
   auto program = builder.Build();
 
   return program;
-}
-
-void SetRandData(hlir::framework::Tensor tensor, Target target) {
-  auto* data = tensor->mutable_data<float>(target);
-  std::random_device seed;
-  std::default_random_engine engine(seed());
-  std::uniform_real_distribution<float> dist(0.f, 1.f);
-  size_t num_ele = tensor->shape().numel();
-  std::vector<float> random_data(num_ele);
-  for (size_t i = 0; i < num_ele; i++) {
-    random_data[i] = dist(engine);  // All random data
-  }
-
-#ifdef CINN_WITH_CUDA
-  cudaMemcpy(data, random_data.data(), num_ele * sizeof(float), cudaMemcpyHostToDevice);
-#else
-  std::copy(random_data.begin(), random_data.end(), data);
-#endif
 }
 
 template <typename T, typename Alloc = std::allocator<T>>
@@ -110,8 +93,8 @@ TEST(net_build, program_execute_multi_elementwise_add) {
 
   auto A = scope->GetTensor("A");
   auto B = scope->GetTensor("B");
-  SetRandData(A, target);
-  SetRandData(B, target);
+  SetRandData<float>(A, target);
+  SetRandData<float>(B, target);
 
   runtime_program->Execute();
 }
@@ -152,9 +135,9 @@ TEST(net_build, program_execute_fc) {
   auto b_ten        = scope->GetTensor(std::string(b.id()));
   auto fake_out_ten = scope->GetTensor(std::string(mul_out->id));
   auto add_out_ten  = scope->GetTensor(std::string(add_out->id));
-  SetRandData(a_ten, target);
-  SetRandData(w_ten, target);
-  SetRandData(b_ten, target);
+  SetRandData<float>(a_ten, target);
+  SetRandData<float>(w_ten, target);
+  SetRandData<float>(b_ten, target);
 
   runtime_program->Execute();
 }
@@ -185,7 +168,7 @@ TEST(net_build, program_execute_reverse) {
   scope->Var<hlir::framework::Tensor>(std::string(reverse_out->id));
 
   auto input_tensor = scope->GetTensor(std::string(input.id()));
-  SetRandData(input_tensor, target);
+  SetRandData<float>(input_tensor, target);
   runtime_program->Execute();
 }
 

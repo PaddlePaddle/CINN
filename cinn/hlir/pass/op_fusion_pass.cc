@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cinn/common/type.h"
 #include "cinn/hlir/pass/fusion_helper_base.h"
-
 namespace cinn {
 namespace hlir {
 namespace pass {
@@ -544,7 +544,7 @@ void InsertBroadcastTo(Graph* graph) {
           // update shape_dict
           shape_dict[tmp_node_data->id()] = output_shape;
           // update dtype_dict
-          dtype_dict[tmp_node_data->id()] = dtype_dict[node_data->id()];
+          dtype_dict[tmp_node_data->id()] = common::Str2Type(common::Type2Str(dtype_dict[node_data->id()]));
         }
       }
     }

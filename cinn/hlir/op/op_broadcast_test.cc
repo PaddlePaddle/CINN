@@ -17,14 +17,19 @@
 #include <functional>
 #include <string>
 
+#include "cinn/backends/codegen_cuda_dev.h"
 #include "cinn/backends/llvm/execution_engine.h"
 #include "cinn/cinn.h"
 #include "cinn/common/test_helper.h"
+#include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
 #include "cinn/hlir/op/use_ops.h"
 #include "cinn/hlir/pe/broadcast.h"
+#include "cinn/runtime/flags.h"
+
+DECLARE_bool(cinn_ir_schedule);
 
 namespace cinn {
 namespace hlir {
@@ -46,29 +51,45 @@ TEST(Operator, Operator_ElementWise_Add_Test0) {
   std::vector<Type> type{Float(32)};
   common::Target target = common::DefaultHostTarget();
   auto impl = OpStrategy::SelectImpl(strategy[add](attrs, inputs, type, {{M.as_int32(), N.as_int32()}}, target));
-  common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(A), common::CINNValue(B)}};
-  common::CINNValuePack rets       = impl->fcompute(cinn_input);
-  ASSERT_EQ(rets.size(), 2UL);
-  rets = impl->fschedule(rets);
-  ASSERT_EQ(rets.size(), 2UL);
-  // the last element is a StageMap
-  for (int i = 0; i < rets->size() - 1; i++) {
-    Expr temp = rets[i];
-    inputs.push_back(temp.as_tensor_ref());
-  }
-  Module::Builder builder("module0", target);
-  auto func = Lower("add1", rets.back(), inputs);
-  LOG(INFO) << "Test Strategy Codegen:\n" << func;
-  builder.AddFunction(func);
-  LOG(INFO) << "func:\n" << func;
-
   ASSERT_EQ(impl->name, "strategy.elementwise_add.x86");
   ASSERT_EQ(add->description, "elementwise_add function");
+
+  std::string func_name = "add1";
+  Module::Builder builder("module0", target);
+
+  if (FLAGS_cinn_ir_schedule) {
+    std::string out_name = "C";
+    common::CINNValuePack cinn_input =
+        common::CINNValuePack{{common::CINNValue(A), common::CINNValue(B), common::CINNValue(out_name)}};
+    std::vector<std::string> input_output_names{"A", "B", out_name};
+
+    auto funcs = framework::GetFuncFromImpl(impl, cinn_input, inputs, input_output_names, func_name, target);
+
+    for (auto func : funcs) {
+      LOG(INFO) << "Test Operator_ElementWise_Add_Test0's Strategy, func is :\n" << func;
+      builder.AddFunction(func);
+    }
+
+  } else {
+    common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(A), common::CINNValue(B)}};
+    common::CINNValuePack rets       = impl->fcompute(cinn_input);
+    ASSERT_EQ(rets.size(), 2UL);
+    rets = impl->fschedule(rets);
+    ASSERT_EQ(rets.size(), 2UL);
+    // the last element is a StageMap
+    for (int i = 0; i < rets->size() - 1; i++) {
+      Expr temp = rets[i];
+      inputs.push_back(temp.as_tensor_ref());
+    }
+    auto func = Lower("fn_" + func_name, rets.back(), inputs);
+    LOG(INFO) << "Test Strategy Codegen:\n" << func;
+    builder.AddFunction(func);
+  }
 
   auto jit    = backends::ExecutionEngine::Create({});
   auto module = builder.Build();
   jit->Link(module);
-  auto fn = jit->Lookup("add1");
+  auto fn = jit->Lookup("fn_" + func_name);
   CHECK(fn);
   auto fn_ = reinterpret_cast<void (*)(void *, int32_t)>(fn);
   cinn_buffer_t *A_buf;
@@ -94,7 +115,7 @@ TEST(Operator, Operator_ElementWise_Add_Test0) {
     ASSERT_NEAR(cd[i], ad[i] + bd[i], 1e-5);
   }
 }
-
+#ifdef CINN_WITH_CUDA
 TEST(Operator, Operator_ElementWise_Add_Test1) {
   auto add      = Operator::Get("elementwise_add");
   Operator temp = *add;
@@ -108,24 +129,79 @@ TEST(Operator, Operator_ElementWise_Add_Test1) {
   attrs.attr_store["axis"] = 1;
   std::vector<ir::Tensor> inputs{A.tensor(), B.tensor()};
   std::vector<Type> type{Float(32)};
-  common::Target target            = common::DefaultHostTarget();
-  auto impl                        = OpStrategy::SelectImpl(strategy[add](attrs, inputs, type, {{100, 32}}, target));
-  common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(A), common::CINNValue(B)}};
-  common::CINNValuePack rets       = impl->fcompute(cinn_input);
-  ASSERT_EQ(rets.size(), 2UL);
-  rets = impl->fschedule(rets);
-  ASSERT_EQ(rets.size(), 2UL);
-  // the last element is a StageMap
-  for (int i = 0; i < rets->size() - 1; i++) {
-    Expr temp = rets[i];
-    inputs.push_back(temp.as_tensor_ref());
-  }
-  auto func = Lower("add1", rets.back(), inputs);
-  LOG(INFO) << "Test Strategy Codegen:\n" << func;
-
+  common::Target target = common::DefaultNVGPUTarget();
+  auto impl             = OpStrategy::SelectImpl(strategy[add](attrs, inputs, type, {{100, 32}}, target));
   ASSERT_EQ(impl->name, "strategy.elementwise_add.x86");
   ASSERT_EQ(add->description, "elementwise_add function");
+
+  std::string func_name = "add2";
+  Module::Builder builder("module", target);
+
+  if (FLAGS_cinn_ir_schedule) {
+    std::string out_name = "C";
+    common::CINNValuePack cinn_input =
+        common::CINNValuePack{{common::CINNValue(A), common::CINNValue(B), common::CINNValue(out_name)}};
+    std::vector<std::string> input_output_names{"A", "B", out_name};
+
+    auto funcs = framework::GetFuncFromImpl(impl, cinn_input, inputs, input_output_names, func_name, target);
+
+    for (auto func : funcs) {
+      builder.AddFunction(func);
+      LOG(INFO) << "Test Operator_ElementWise_Add_Test1's Strategy, func is :\n" << func;
+    }
+  } else {
+    common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(A), common::CINNValue(B)}};
+    common::CINNValuePack rets       = impl->fcompute(cinn_input);
+    ASSERT_EQ(rets.size(), 2UL);
+    rets = impl->fschedule(rets);
+    ASSERT_EQ(rets.size(), 2UL);
+    // the last element is a StageMap
+    for (int i = 0; i < rets->size() - 1; i++) {
+      Expr temp = rets[i];
+      inputs.push_back(temp.as_tensor_ref());
+    }
+    auto func = Lower("fn_" + func_name, rets.back(), inputs);
+    LOG(INFO) << "Test Strategy Codegen:\n" << func;
+    builder.AddFunction(func);
+  }
+
+  backends::CodeGenCUDA_Dev codegen(target);
+
+  auto module      = builder.Build();
+  auto source_code = codegen.Compile(module);
+  LOG(INFO) << "Operator_ElementWise_Add_Test1 source code:\n" << source_code;
+
+  std::string target_code = R"ROC(
+extern "C" {
+
+#include "cinn_cuda_runtime_source.cuh"
+
+#ifdef __CUDACC_RTC__
+typedef int int32_t;
+typedef char int8_t;
+#endif
+
+
+
+__global__
+void __launch_bounds__(1024) fn_add2(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
+{
+  if (((int)blockIdx.x < 4)) {
+    if (((int)threadIdx.x < 1024)) {
+      if ((((1024 * (int)blockIdx.x) + (int)threadIdx.x) < 3200)) {
+        C[((1024 * (int)blockIdx.x) + (int)threadIdx.x)] = (A[((1024 * (int)blockIdx.x) + (int)threadIdx.x)] + B[((int)threadIdx.x & 31)]);
+      };
+    };
+  };
 }
+
+}
+)ROC";
+  if (FLAGS_cinn_ir_schedule) {
+    ASSERT_EQ(utils::Trim(target_code), source_code);
+  }
+}
+#endif
 
 TEST(Operator, Operator_BroadcastTo) {
   auto broadcast_to = Operator::Get("broadcast_to");
@@ -147,20 +223,35 @@ TEST(Operator, Operator_BroadcastTo) {
   common::Target target = common::DefaultHostTarget();
 
   auto impl = OpStrategy::SelectImpl(strategy[broadcast_to](attrs, inputs, type, {out_shape}, target));
-  common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(B)}};
-  common::CINNValuePack rets       = impl->fcompute(cinn_input);
 
-  ASSERT_EQ(rets.size(), 2UL);
-  rets = impl->fschedule(rets);
-  ASSERT_EQ(rets.size(), 2UL);
-  // the last element is a StageMap
-  for (int i = 0; i < rets->size() - 1; i++) {
-    Expr temp = rets[i];
-    inputs.push_back(temp.as_tensor_ref());
+  std::string func_name = "broadcast_to";
+
+  if (FLAGS_cinn_ir_schedule) {
+    std::string out_name             = "C";
+    common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(B), common::CINNValue(out_name)}};
+    std::vector<std::string> input_output_names{"B", out_name};
+
+    auto funcs = framework::GetFuncFromImpl(impl, cinn_input, inputs, input_output_names, func_name, target);
+
+    for (auto func : funcs) {
+      LOG(INFO) << "Test Operator_BroadcastTo's Strategy, func is :\n" << func;
+    }
+  } else {
+    common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(B)}};
+    common::CINNValuePack rets       = impl->fcompute(cinn_input);
+
+    ASSERT_EQ(rets.size(), 2UL);
+    rets = impl->fschedule(rets);
+    ASSERT_EQ(rets.size(), 2UL);
+    // the last element is a StageMap
+    for (int i = 0; i < rets->size() - 1; i++) {
+      Expr temp = rets[i];
+      inputs.push_back(temp.as_tensor_ref());
+    }
+
+    auto func = Lower("func" + func_name, rets.back(), inputs);
+    LOG(INFO) << "Test Operator_BroadcastTo's Strategy, func is :\n" << func;
   }
-
-  auto func = Lower("broadcast_to", rets.back(), inputs);
-  LOG(INFO) << "Test Strategy Codegen:\n" << func;
 }
 
 TEST(Operator, Operator_BroadcastTo_0) {
