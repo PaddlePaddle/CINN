@@ -40,8 +40,7 @@ std::unique_ptr<backends::SimpleJIT> GetLoweredFunc(int M, int N) {
   Placeholder<float> x("x", {m, n});
   Placeholder<float> y("y", {m, n});
 
-  auto z = Compute(
-      {m, n}, [=](Expr i, Expr j) { return x(i, j) + y(i, j); }, "z");
+  auto z = Compute({m, n}, [=](Expr i, Expr j) { return x(i, j) + y(i, j); }, "z");
 
   auto stages = CreateStages({z});
   auto fn     = Lower("fn", stages, {x, y, z});
@@ -78,7 +77,7 @@ TEST(Instruction, basic) {
   auto fn_addr = jit->Lookup("fn");
   CHECK(fn_addr);
 
-  instr.SetLoweredFunc(reinterpret_cast<lower_func_ptr_t>(fn_addr));
+  instr.SetLoweredFunc(reinterpret_cast<void*>(fn_addr));
   // should call Finalize explicitly before Run
   ASSERT_DEATH(instr.Run(), "");
   instr.Finalize();
@@ -125,7 +124,7 @@ TEST(Instruction, RunWithRawPodArgs) {
   CHECK(fn_addr);
 
   Instruction instr(common::DefaultHostTarget(), nullptr, {"x", "y"}, {"z"});  // empty scope
-  instr.SetLoweredFunc(reinterpret_cast<lower_func_ptr_t>(fn_addr));
+  instr.SetLoweredFunc(reinterpret_cast<void*>(fn_addr));
   instr.Finalize();
 
   auto check_equal_by_element = [&]() {
@@ -171,27 +170,90 @@ class TestInstruction : public Instruction {
   void SetStrAttr(const std::vector<std::string>& _str_attrs) { str_attrs = _str_attrs; }
   void SetArgs(const std::vector<cinn_pod_value_t>& _args) { pod_args = _args; }
 
-  void RunX() {
-    absl::flat_hash_map<std::string, int> attrs_map = {
-        {"input_n", attrs[0]},     {"input_c", attrs[1]},     {"input_h", attrs[2]},   {"input_w", attrs[3]},
-        {"weights_n", attrs[4]},   {"weights_c", attrs[5]},   {"weights_h", attrs[6]}, {"weights_w", attrs[7]},
-        {"pad_h", attrs[8]},       {"pad_w", attrs[9]},       {"stride_h", attrs[10]}, {"stride_w", attrs[11]},
-        {"dilation_h", attrs[12]}, {"dilation_w", attrs[13]}, {"groups", attrs[14]},   {"output_n", attrs[15]},
-        {"output_c", attrs[16]},   {"output_h", attrs[17]},   {"output_w", attrs[18]},
-    };
+  void RunX(std::vector<int> i_args) {
     if (str_attrs[0] == "forward") {
       // input weight output
-      runtime::cuda::cinn_gpu_cudnn_conv2d(attrs_map, pod_args[0], pod_args[1], pod_args[2]);
+      runtime::cuda::cinn_call_cudnn_conv2d_forward(pod_args.data(),
+                                                    3,
+                                                    1.0f,
+                                                    0.0f,
+                                                    i_args[0],
+                                                    i_args[1],
+                                                    i_args[2],
+                                                    i_args[3],
+                                                    i_args[4],
+                                                    i_args[5],
+                                                    i_args[6],
+                                                    i_args[7],
+                                                    i_args[8],
+                                                    i_args[9],
+                                                    i_args[10],
+                                                    i_args[11],
+                                                    i_args[12],
+                                                    i_args[13],
+                                                    i_args[14],
+                                                    i_args[15],
+                                                    i_args[16],
+                                                    i_args[17],
+                                                    i_args[18],
+                                                    stream);
     } else if (str_attrs[0] == "backward_data") {
       // weight dy dx
-      runtime::cuda::cinn_gpu_cudnn_conv2d_backward_data(attrs_map, pod_args[0], pod_args[1], pod_args[2]);
+      runtime::cuda::cinn_call_cudnn_conv2d_backward_data(pod_args.data(),
+                                                          3,
+                                                          1.0f,
+                                                          0.0f,
+                                                          i_args[0],
+                                                          i_args[1],
+                                                          i_args[2],
+                                                          i_args[3],
+                                                          i_args[4],
+                                                          i_args[5],
+                                                          i_args[6],
+                                                          i_args[7],
+                                                          i_args[8],
+                                                          i_args[9],
+                                                          i_args[10],
+                                                          i_args[11],
+                                                          i_args[12],
+                                                          i_args[13],
+                                                          i_args[14],
+                                                          i_args[15],
+                                                          i_args[16],
+                                                          i_args[17],
+                                                          i_args[18],
+                                                          stream);
     } else {
       // input dy dx
-      runtime::cuda::cinn_gpu_cudnn_conv2d_backward_filter(attrs_map, pod_args[0], pod_args[1], pod_args[2]);
+      runtime::cuda::cinn_call_cudnn_conv2d_backward_filter(pod_args.data(),
+                                                            3,
+                                                            1.0f,
+                                                            0.0f,
+                                                            i_args[0],
+                                                            i_args[1],
+                                                            i_args[2],
+                                                            i_args[3],
+                                                            i_args[4],
+                                                            i_args[5],
+                                                            i_args[6],
+                                                            i_args[7],
+                                                            i_args[8],
+                                                            i_args[9],
+                                                            i_args[10],
+                                                            i_args[11],
+                                                            i_args[12],
+                                                            i_args[13],
+                                                            i_args[14],
+                                                            i_args[15],
+                                                            i_args[16],
+                                                            i_args[17],
+                                                            i_args[18],
+                                                            stream);
     }
   }
 
  private:
+  cudaStream_t stream{nullptr};
   std::vector<cinn_pod_value_t> pod_args;
 };
 
@@ -267,7 +329,7 @@ TEST(Instruction, CONV_FORWARD) {
   instr.SetStrAttr(str_attrs);
   instr.SetArgs(args);
 
-  instr.RunX();
+  instr.RunX(attrs);
 
   CUDA_CALL(cudaFree(dev_x));
   CUDA_CALL(cudaFree(dev_w));
@@ -346,7 +408,7 @@ TEST(Instruction, CONV_BACKWARD_DATA) {
   instr.SetStrAttr(str_attrs);
   instr.SetArgs(args);
 
-  instr.RunX();
+  instr.RunX(attrs);
 
   CUDA_CALL(cudaFree(dev_x));
   CUDA_CALL(cudaFree(dev_w));
@@ -425,7 +487,7 @@ TEST(Instruction, CONV_BACKWARD_FILTER) {
   instr.SetStrAttr(str_attrs);
   instr.SetArgs(args);
 
-  instr.RunX();
+  instr.RunX(attrs);
 
   CUDA_CALL(cudaFree(dev_x));
   CUDA_CALL(cudaFree(dev_w));

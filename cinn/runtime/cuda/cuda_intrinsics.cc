@@ -219,7 +219,7 @@ CINN_REGISTER_HELPER(cinn_cuda_host_api) {
   using cinn::runtime::cuda::cinn_call_cublas;
   REGISTER_EXTERN_FUNC_HELPER(cinn_call_cublas, cinn::common::DefaultHostTarget())
       .SetRetType<void>()
-      .AddInputType<void *>()  // args
+      .AddInputType<void *>()  // v_args
       .AddInputType<int>()     // num_args
       .AddInputType<bool>()    // trans_a
       .AddInputType<bool>()    // trans_b
@@ -236,7 +236,7 @@ CINN_REGISTER_HELPER(cinn_cuda_host_api) {
   using cinn::runtime::cuda::cinn_call_cudnn_conv2d_forward;
   REGISTER_EXTERN_FUNC_HELPER(cinn_call_cudnn_conv2d_forward, cinn::common::DefaultHostTarget())
       .SetRetType<void>()
-      .AddInputType<void *>()  // args
+      .AddInputType<void *>()  // v_args
       .AddInputType<int>()     // num_args
       .AddInputType<float>()   // alpha
       .AddInputType<float>()   // beta
@@ -265,7 +265,7 @@ CINN_REGISTER_HELPER(cinn_cuda_host_api) {
   using cinn::runtime::cuda::cinn_call_cudnn_conv2d_backward_data;
   REGISTER_EXTERN_FUNC_HELPER(cinn_call_cudnn_conv2d_backward_data, cinn::common::DefaultHostTarget())
       .SetRetType<void>()
-      .AddInputType<void *>()  // args
+      .AddInputType<void *>()  // v_args
       .AddInputType<int>()     // num_args
       .AddInputType<float>()   // alpha
       .AddInputType<float>()   // beta
@@ -291,10 +291,10 @@ CINN_REGISTER_HELPER(cinn_cuda_host_api) {
       .AddInputType<void *>()  // stream
       .End();
 
-  using cinn::runtime::cuda::cinn_gpu_cudnn_conv2d_backward_filter;
-  REGISTER_EXTERN_FUNC_HELPER(cinn_gpu_cudnn_conv2d_backward_filter, cinn::common::DefaultHostTarget())
+  using cinn::runtime::cuda::cinn_call_cudnn_conv2d_backward_filter;
+  REGISTER_EXTERN_FUNC_HELPER(cinn_call_cudnn_conv2d_backward_filter, cinn::common::DefaultHostTarget())
       .SetRetType<void>()
-      .AddInputType<void *>()  // args
+      .AddInputType<void *>()  // v_args
       .AddInputType<int>()     // num_args
       .AddInputType<float>()   // alpha
       .AddInputType<float>()   // beta
@@ -323,7 +323,7 @@ CINN_REGISTER_HELPER(cinn_cuda_host_api) {
   using cinn::runtime::cuda::cinn_call_cudnn_pool2d_forward;
   REGISTER_EXTERN_FUNC_HELPER(cinn_call_cudnn_pool2d_forward, cinn::common::DefaultHostTarget())
       .SetRetType<void>()
-      .AddInputType<void *>()  // args
+      .AddInputType<void *>()  // v_args
       .AddInputType<int>()     // num_args
       .AddInputType<int>()     // pool_type
       .AddInputType<int>()     // in
@@ -343,22 +343,37 @@ CINN_REGISTER_HELPER(cinn_cuda_host_api) {
       .AddInputType<void *>()  // stream
       .End();
 
-  using cinn::runtime::cuda::cinn_call_cudnn_pool2d_backward;
-  REGISTER_EXTERN_FUNC_HELPER(cinn_call_cudnn_pool2d_backward, cinn::common::DefaultHostTarget())
+  using cinn::runtime::cuda::cinn_call_cudnn_softmax_forward;
+  REGISTER_EXTERN_FUNC_HELPER(cinn_call_cudnn_softmax_forward, cinn::common::DefaultHostTarget())
       .SetRetType<void>()
       .AddInputType<void *>()  // args
       .AddInputType<int>()     // num_args
-      .AddInputType<int>()     // pool_type
+      .AddInputType<int>()     // softmax_type
+      .AddInputType<float>()   // alpha
+      .AddInputType<float>()   // beta
       .AddInputType<int>()     // in
       .AddInputType<int>()     // ic
       .AddInputType<int>()     // ih
       .AddInputType<int>()     // iw
-      .AddInputType<int>()     // kh
-      .AddInputType<int>()     // kw
-      .AddInputType<int>()     // ph
-      .AddInputType<int>()     // pw
-      .AddInputType<int>()     // sh
-      .AddInputType<int>()     // sw
+      .AddInputType<int>()     // on
+      .AddInputType<int>()     // oc
+      .AddInputType<int>()     // oh
+      .AddInputType<int>()     // ow
+      .AddInputType<void *>()  // stream
+      .End();
+
+  using cinn::runtime::cuda::cinn_call_cudnn_softmax_backward;
+  REGISTER_EXTERN_FUNC_HELPER(cinn_call_cudnn_softmax_backward, cinn::common::DefaultHostTarget())
+      .SetRetType<void>()
+      .AddInputType<void *>()  // args
+      .AddInputType<int>()     // num_args
+      .AddInputType<int>()     // softmax_type
+      .AddInputType<float>()   // alpha
+      .AddInputType<float>()   // beta
+      .AddInputType<int>()     // in
+      .AddInputType<int>()     // ic
+      .AddInputType<int>()     // ih
+      .AddInputType<int>()     // iw
       .AddInputType<int>()     // on
       .AddInputType<int>()     // oc
       .AddInputType<int>()     // oh

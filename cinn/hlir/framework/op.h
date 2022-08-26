@@ -101,7 +101,6 @@ class OpValueType {
 class Operator {
  public:
   std::string name;
-  std::string extern_api{""};
   std::string description{""};
   uint32_t num_inputs{1};
   uint32_t num_outputs{1};
@@ -127,10 +126,6 @@ class Operator {
     return *this;
   }
 
-  inline Operator& set_extern_api(std::string api) {
-    this->extern_api = api;
-    return *this;
-  }
   /**
    * \brief Get an Op for a given operator name.
    *  Will raise an error if the op has not been registered.

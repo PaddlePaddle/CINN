@@ -42,7 +42,7 @@ class GraphAlterHelper {
         auto node = graph_node->safe_as<Node>();
         if (node->op()->name == "matmul" || node->op()->name == "mul" || node->op()->name == "cublas_gemm" ||
             node->op()->name == "cublas_matmul") {
-          reutrn true;
+          return true;
         }
       }
 
@@ -63,7 +63,7 @@ class GraphAlterHelper {
       if (graph_node->safe_as<Node>()) {
         auto node = graph_node->safe_as<Node>();
         if (node->op()->name == "conv2d") {
-          reutrn true;
+          return true;
         }
       }
 
@@ -75,20 +75,16 @@ class GraphAlterHelper {
       CHECK(node);
       auto dst = GetCustomCallNode(node);
       CHECK(dst->attrs.attr_store.count("conv_type"));
-      auto type = dst->attrs.attr_store.count("conv_type") ? std::get<std::string>(dst->attrs.attr_store["conv_type"])
+      std::string type = dst->attrs.attr_store.count("conv_type") ? absl::get<std::string>(dst->attrs.attr_store["conv_type"])
                                                            : "forward";
-      switch (type) {
-        case "forward":
-          dst->attrs.attr_store["custom_call"] = "cinn_call_cudnn_conv2d_forward";
-          break;
-        case "backward_data":
-          dst->attrs.attr_store["custom_call"] = "cinn_call_cudnn_conv2d_backward_data";
-          break;
-        case "backward_filter":
-          dst->attrs.attr_store["custom_call"] = "cinn_gpu_cudnn_conv2d_backward_filter";
-          break;
-        default:
-          LOG(FATAL) << "conv type is unkown!";
+      if(type == "forward") {
+        dst->attrs.attr_store["custom_call"] = "cinn_call_cudnn_conv2d_forward";
+      } else if(type == "backward_data") {
+        dst->attrs.attr_store["custom_call"] = "cinn_call_cudnn_conv2d_backward_data";
+      } else if(type == "backward_filter") {
+        dst->attrs.attr_store["custom_call"] = "cinn_gpu_cudnn_conv2d_backward_filter";
+      } else {
+        LOG(FATAL) << "conv type is unkown!";
       }
       Alter(node, dst);
     }
@@ -101,8 +97,8 @@ class GraphAlterHelper {
       auto input_data = edge->source()->safe_as<NodeData>();
       CHECK(input_data);
 
-      input_data.UnLinkSingleTo(src);
-      input_data.LinkTo(dst);
+      input_data->UnLinkSingleTo(src);
+      input_data->LinkTo(dst);
     }
 
     // src to output
@@ -110,8 +106,8 @@ class GraphAlterHelper {
       auto output_data = edge->sink()->safe_as<NodeData>();
       CHECK(output_data);
 
-      src.UnLinkSingleTo(output_data);
-      dst.LinkTo(output_data);
+      src->UnLinkSingleTo(output_data);
+      dst->LinkTo(output_data);
     }
   }
   Node* GetCustomCallNode(Node* src) {

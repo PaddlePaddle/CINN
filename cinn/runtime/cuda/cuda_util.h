@@ -23,6 +23,7 @@ namespace cinn {
 namespace runtime {
 namespace cuda {
 
+const int kCUDAMaxCards{8};
 /**
  * Call a CUDA compiled kernel.
  *
@@ -105,30 +106,30 @@ void cinn_call_cudnn_conv2d_backward_data(void* v_args,
                                           int output_w,
                                           void* stream);
 
-void cinn_gpu_cudnn_conv2d_backward_filter(void* v_args,
-                                           int num_args,
-                                           float alpha,
-                                           float beta,
-                                           int input_n,
-                                           int input_c,
-                                           int input_h,
-                                           int input_w,
-                                           int filter_n,
-                                           int filter_c,
-                                           int filter_h,
-                                           int filter_w,
-                                           int pad_h,
-                                           int pad_w,
-                                           int stride_h,
-                                           int stride_w,
-                                           int dilation_h,
-                                           int dilation_w,
-                                           int groups,
-                                           int output_n,
-                                           int output_c,
-                                           int output_h,
-                                           int output_w,
-                                           void* stream);
+void cinn_call_cudnn_conv2d_backward_filter(void* v_args,
+                                            int num_args,
+                                            float alpha,
+                                            float beta,
+                                            int input_n,
+                                            int input_c,
+                                            int input_h,
+                                            int input_w,
+                                            int filter_n,
+                                            int filter_c,
+                                            int filter_h,
+                                            int filter_w,
+                                            int pad_h,
+                                            int pad_w,
+                                            int stride_h,
+                                            int stride_w,
+                                            int dilation_h,
+                                            int dilation_w,
+                                            int groups,
+                                            int output_n,
+                                            int output_c,
+                                            int output_h,
+                                            int output_w,
+                                            void* stream);
 
 void cinn_call_cudnn_pool2d_forward(void* v_args,
                                     int num_args,
@@ -167,6 +168,36 @@ void cinn_call_cudnn_pool2d_backward(void* v_args,
                                      int output_h,
                                      int output_w,
                                      void* stream);
+
+void cinn_call_cudnn_softmax_forward(void* v_args,
+                                     int num_args,
+                                     int softmax_type,
+                                     float alpha,
+                                     float beta,
+                                     int input_n,
+                                     int input_c,
+                                     int input_h,
+                                     int input_w,
+                                     int output_n,
+                                     int output_c,
+                                     int output_h,
+                                     int output_w,
+                                     void* stream);
+
+void cinn_call_cudnn_softmax_backward(void* v_args,
+                                      int num_args,
+                                      int softmax_type,
+                                      float alpha,
+                                      float beta,
+                                      int input_n,
+                                      int input_c,
+                                      int input_h,
+                                      int input_w,
+                                      int output_n,
+                                      int output_c,
+                                      int output_h,
+                                      int output_w,
+                                      void* stream);
 
 #endif
 

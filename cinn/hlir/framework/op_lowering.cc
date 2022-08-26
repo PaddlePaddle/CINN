@@ -1088,7 +1088,7 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpaqueOp(GroupPtr& group) {
   // if node op is custom call, return compute.
   if (node->op()->name == "custom_call") {
     CHECK_EQ(pack.size(), 1UL);
-    return {pack[0] ir::Expr().as_lowered_func_ref()};
+    return {pack[0].operator ir::Expr().as_lowered_func_ref()};
   }
 
   for (int i = 0; i < pack->size() - 1; i++) {

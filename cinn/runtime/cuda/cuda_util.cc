@@ -37,7 +37,7 @@ class CublasHandle {
  public:
   CublasHandle(const CublasHandle &) = delete;
   CublasHandle &operator=(const CublasHandle &) = delete;
-  ~CublasHandle() { CUBLAS_CALL(cublasDestroy(cublas)); }
+  ~CublasHandle() { CUBLAS_CALL(cublasDestroy(cuhandle)); }
   static CublasHandle &GetInstance() {
     static CublasHandle instance;
     return instance;
@@ -102,9 +102,9 @@ void cinn_call_cublas(void *v_args,
   cudaStream_t custream    = static_cast<cudaStream_t>(stream);
   CUBLAS_CALL(cublasSetStream(cuhandle, custream));
 
-  void *A = args[0] cinn_buffer_t * ()->memory;
-  void *B = args[1] cinn_buffer_t * ()->memory;
-  void *C = args[2] cinn_buffer_t * ()->memory;
+  float *A = reinterpret_cast<float *>(args[0].operator cinn_buffer_t *()->memory);
+  float *B = reinterpret_cast<float *>(args[1].operator cinn_buffer_t *()->memory);
+  float *C = reinterpret_cast<float *>(args[2].operator cinn_buffer_t *()->memory);
   if (b0 == 1 && b1 == 1) {
     if (!trans_a && !trans_b) {
       CUBLAS_CALL(cublasSgemm(cuhandle, CUBLAS_OP_N, CUBLAS_OP_N, n, m, k, &alpha, B, n, A, k, &beta, C, n));
@@ -283,11 +283,11 @@ void cinn_call_cudnn_conv2d_forward(void *v_args,
                                     void *stream) {
   CHECK_EQ(num_args, 3);
   cudnnHandle_t &handle = CudnnHandle::GetInstance().GetCudnnHandle();
-  CUDNN_CALL(cudnnSetStream(handle, static_cast<stream_t>(stream)));
+  CUDNN_CALL(cudnnSetStream(handle, static_cast<cudaStream_t>(stream)));
   cinn_pod_value_t *args = static_cast<cinn_pod_value_t *>(v_args);
-  float *_x              = reinterpret_cast<float *>(args[0] cinn_buffer_t * ()->memory);
-  float *_w              = reinterpret_cast<float *>(args[1] cinn_buffer_t * ()->memory);
-  float *_y              = reinterpret_cast<float *>(args[2] cinn_buffer_t * ()->memory);
+  float *_x              = reinterpret_cast<float *>(args[0].operator cinn_buffer_t *()->memory);
+  float *_w              = reinterpret_cast<float *>(args[1].operator cinn_buffer_t *()->memory);
+  float *_y              = reinterpret_cast<float *>(args[2].operator cinn_buffer_t *()->memory);
 
   cudnnTensorDescriptor_t x_desc;
   CUDNN_CALL(cudnnCreateTensorDescriptor(&x_desc));
@@ -296,8 +296,8 @@ void cinn_call_cudnn_conv2d_forward(void *v_args,
 
   cudnnFilterDescriptor_t w_desc;
   CUDNN_CALL(cudnnCreateFilterDescriptor(&w_desc));
-  CUDNN_CALL(cudnnSetFilter4dDescriptor(
-      w_desc, CUDNN_DATA_FLOAT, CUDNN_TENSOR_NCHW, weights_n, weights_c, weights_h, weights_w));
+  CUDNN_CALL(
+      cudnnSetFilter4dDescriptor(w_desc, CUDNN_DATA_FLOAT, CUDNN_TENSOR_NCHW, filter_n, filter_c, filter_h, filter_w));
 
   cudnnConvolutionDescriptor_t conv_desc;
   CUDNN_CALL(cudnnCreateConvolutionDescriptor(&conv_desc));
@@ -313,9 +313,9 @@ void cinn_call_cudnn_conv2d_forward(void *v_args,
 
   auto &conv_algo_map  = ConvAlgoMap::GetInstance();
   std::string hash_key = "conv2d forward," + std::to_string(input_n) + "," + std::to_string(input_c) + "," +
-                         std::to_string(input_h) + "," + std::to_string(input_w) + "," + std::to_string(weights_n) +
-                         "," + std::to_string(weights_c) + "," + std::to_string(weights_h) + "," +
-                         std::to_string(weights_w) + "," + std::to_string(output_n) + "," + std::to_string(output_c) +
+                         std::to_string(input_h) + "," + std::to_string(input_w) + "," + std::to_string(filter_n) +
+                         "," + std::to_string(filter_c) + "," + std::to_string(filter_h) + "," +
+                         std::to_string(filter_w) + "," + std::to_string(output_n) + "," + std::to_string(output_c) +
                          "," + std::to_string(output_h) + "," + std::to_string(output_w);
 
   cudnnConvolutionFwdAlgo_t algo;
@@ -328,7 +328,7 @@ void cinn_call_cudnn_conv2d_forward(void *v_args,
     CUDNN_CALL(cudnnFindConvolutionForwardAlgorithm(handle, x_desc, w_desc, conv_desc, y_desc, 1, &count, &algo_perf));
 
     algo = algo_perf.algo;
-    GetInstance.InsertAlgo(hash_key, static_cast<int>(algo_perf.algo));
+    conv_algo_map.InsertAlgo(hash_key, static_cast<int>(algo_perf.algo));
   }
 
   if (GetCinnCudnnDeterministic()) {
@@ -338,7 +338,7 @@ void cinn_call_cudnn_conv2d_forward(void *v_args,
   size_t workspace_size = 0;
   CUDNN_CALL(cudnnGetConvolutionForwardWorkspaceSize(handle, x_desc, w_desc, conv_desc, y_desc, algo, &workspace_size));
 
-  float *workspace_data = CudnnHandle::get_instance().GetWorkSpace(workspace_size);
+  float *workspace_data = CudnnHandle::GetInstance().GetWorkSpace(workspace_size);
   CUDNN_CALL(cudnnConvolutionForward(
       handle, &alpha, x_desc, _x, w_desc, _w, conv_desc, algo, workspace_data, workspace_size, &beta, y_desc, _y));
 
@@ -348,37 +348,37 @@ void cinn_call_cudnn_conv2d_forward(void *v_args,
   CUDNN_CALL(cudnnDestroyTensorDescriptor(y_desc));
 }
 
-void cinn_gpu_cudnn_conv2d_backward_data(void *v_args,
-                                         int num_args,
-                                         float alpha,
-                                         float beta,
-                                         int input_n,
-                                         int input_c,
-                                         int input_h,
-                                         int input_w,
-                                         int filter_n,
-                                         int filter_c,
-                                         int filter_h,
-                                         int filter_w,
-                                         int pad_h,
-                                         int pad_w,
-                                         int stride_h,
-                                         int stride_w,
-                                         int dilation_h,
-                                         int dilation_w,
-                                         int groups,
-                                         int output_n,
-                                         int output_c,
-                                         int output_h,
-                                         int output_w,
-                                         void *stream) {
+void cinn_call_cudnn_conv2d_backward_data(void *v_args,
+                                          int num_args,
+                                          float alpha,
+                                          float beta,
+                                          int input_n,
+                                          int input_c,
+                                          int input_h,
+                                          int input_w,
+                                          int filter_n,
+                                          int filter_c,
+                                          int filter_h,
+                                          int filter_w,
+                                          int pad_h,
+                                          int pad_w,
+                                          int stride_h,
+                                          int stride_w,
+                                          int dilation_h,
+                                          int dilation_w,
+                                          int groups,
+                                          int output_n,
+                                          int output_c,
+                                          int output_h,
+                                          int output_w,
+                                          void *stream) {
   CHECK_EQ(num_args, 3);
   cudnnHandle_t &handle = CudnnHandle::GetInstance().GetCudnnHandle();
-  CUDNN_CALL(cudnnSetStream(handle, static_cast<stream_t>(stream)));
+  CUDNN_CALL(cudnnSetStream(handle, static_cast<cudaStream_t>(stream)));
   cinn_pod_value_t *args = static_cast<cinn_pod_value_t *>(v_args);
-  float *_dy             = reinterpret_cast<float *>(args[0] cinn_buffer_t * ()->memory);
-  float *_w              = reinterpret_cast<float *>(args[1] cinn_buffer_t * ()->memory);
-  float *_dx             = reinterpret_cast<float *>(args[2] cinn_buffer_t * ()->memory);
+  float *_dy             = reinterpret_cast<float *>(args[0].operator cinn_buffer_t *()->memory);
+  float *_w              = reinterpret_cast<float *>(args[1].operator cinn_buffer_t *()->memory);
+  float *_dx             = reinterpret_cast<float *>(args[2].operator cinn_buffer_t *()->memory);
 
   cudnnTensorDescriptor_t x_desc;
   CUDNN_CALL(cudnnCreateTensorDescriptor(&x_desc));
@@ -387,8 +387,8 @@ void cinn_gpu_cudnn_conv2d_backward_data(void *v_args,
 
   cudnnFilterDescriptor_t w_desc;
   CUDNN_CALL(cudnnCreateFilterDescriptor(&w_desc));
-  CUDNN_CALL(cudnnSetFilter4dDescriptor(
-      w_desc, CUDNN_DATA_FLOAT, CUDNN_TENSOR_NCHW, weights_n, weights_c, weights_h, weights_w));
+  CUDNN_CALL(
+      cudnnSetFilter4dDescriptor(w_desc, CUDNN_DATA_FLOAT, CUDNN_TENSOR_NCHW, filter_n, filter_c, filter_h, filter_w));
 
   cudnnConvolutionDescriptor_t conv_desc;
   CUDNN_CALL(cudnnCreateConvolutionDescriptor(&conv_desc));
@@ -404,9 +404,9 @@ void cinn_gpu_cudnn_conv2d_backward_data(void *v_args,
 
   auto &conv_algo_map  = ConvAlgoMap::GetInstance();
   std::string hash_key = "conv2d backward data," + std::to_string(input_n) + "," + std::to_string(input_c) + "," +
-                         std::to_string(input_h) + "," + std::to_string(input_w) + "," + std::to_string(weights_n) +
-                         "," + std::to_string(weights_c) + "," + std::to_string(weights_h) + "," +
-                         std::to_string(weights_w) + "," + std::to_string(output_n) + "," + std::to_string(output_c) +
+                         std::to_string(input_h) + "," + std::to_string(input_w) + "," + std::to_string(filter_n) +
+                         "," + std::to_string(filter_c) + "," + std::to_string(filter_h) + "," +
+                         std::to_string(filter_w) + "," + std::to_string(output_n) + "," + std::to_string(output_c) +
                          "," + std::to_string(output_h) + "," + std::to_string(output_w);
 
   int algo_int                       = conv_algo_map.GetAlgo(hash_key);
@@ -431,10 +431,10 @@ void cinn_gpu_cudnn_conv2d_backward_data(void *v_args,
   CUDNN_CALL(
       cudnnGetConvolutionBackwardDataWorkspaceSize(handle, w_desc, y_desc, conv_desc, x_desc, algo, &workspace_size));
 
-  float *workspace_data = CudnnHandle::get_instance().GetWorkSpace(workspace_size);
+  float *workspace_data = CudnnHandle::GetInstance().GetWorkSpace(workspace_size);
 
   CUDNN_CALL(cudnnConvolutionBackwardData(
-      handle, alpha, w_desc, _w, y_desc, _dy, conv_desc, &algo, workspace_data, workspace_size, &beta, x_desc, _dx));
+      handle, &alpha, w_desc, _w, y_desc, _dy, conv_desc, algo, workspace_data, workspace_size, &beta, x_desc, _dx));
 
   CUDNN_CALL(cudnnDestroyTensorDescriptor(x_desc));
   CUDNN_CALL(cudnnDestroyFilterDescriptor(w_desc));
@@ -442,38 +442,38 @@ void cinn_gpu_cudnn_conv2d_backward_data(void *v_args,
   CUDNN_CALL(cudnnDestroyTensorDescriptor(y_desc));
 }
 
-void cinn_gpu_cudnn_conv2d_backward_filter(void *v_args,
-                                           int num_args,
-                                           float alpha,
-                                           float beta,
-                                           int input_n,
-                                           int input_c,
-                                           int input_h,
-                                           int input_w,
-                                           int filter_n,
-                                           int filter_c,
-                                           int filter_h,
-                                           int filter_w,
-                                           int pad_h,
-                                           int pad_w,
-                                           int stride_h,
-                                           int stride_w,
-                                           int dilation_h,
-                                           int dilation_w,
-                                           int groups,
-                                           int output_n,
-                                           int output_c,
-                                           int output_h,
-                                           int output_w,
-                                           void *stream) {
+void cinn_call_cudnn_conv2d_backward_filter(void *v_args,
+                                            int num_args,
+                                            float alpha,
+                                            float beta,
+                                            int input_n,
+                                            int input_c,
+                                            int input_h,
+                                            int input_w,
+                                            int filter_n,
+                                            int filter_c,
+                                            int filter_h,
+                                            int filter_w,
+                                            int pad_h,
+                                            int pad_w,
+                                            int stride_h,
+                                            int stride_w,
+                                            int dilation_h,
+                                            int dilation_w,
+                                            int groups,
+                                            int output_n,
+                                            int output_c,
+                                            int output_h,
+                                            int output_w,
+                                            void *stream) {
   CHECK_EQ(num_args, 3);
   cudnnHandle_t &handle = CudnnHandle::GetInstance().GetCudnnHandle();
-  CUDNN_CALL(cudnnSetStream(handle, static_cast<stream_t>(stream)));
+  CUDNN_CALL(cudnnSetStream(handle, static_cast<cudaStream_t>(stream)));
   cinn_pod_value_t *args = static_cast<cinn_pod_value_t *>(v_args);
 
-  float *_x  = reinterpret_cast<float *>(args[0] cinn_buffer_t * ()->memory);
-  float *_dy = reinterpret_cast<float *>(args[1] cinn_buffer_t * ()->memory);
-  float *_dw = reinterpret_cast<float *>(args[2] cinn_buffer_t * ()->memory);
+  float *_x  = reinterpret_cast<float *>(args[0].operator cinn_buffer_t *()->memory);
+  float *_dy = reinterpret_cast<float *>(args[1].operator cinn_buffer_t *()->memory);
+  float *_dw = reinterpret_cast<float *>(args[2].operator cinn_buffer_t *()->memory);
 
   cudnnTensorDescriptor_t x_desc;
   CUDNN_CALL(cudnnCreateTensorDescriptor(&x_desc));
@@ -482,8 +482,8 @@ void cinn_gpu_cudnn_conv2d_backward_filter(void *v_args,
 
   cudnnFilterDescriptor_t w_desc;
   CUDNN_CALL(cudnnCreateFilterDescriptor(&w_desc));
-  CUDNN_CALL(cudnnSetFilter4dDescriptor(
-      w_desc, CUDNN_DATA_FLOAT, CUDNN_TENSOR_NCHW, weights_n, weights_c, weights_h, weights_w));
+  CUDNN_CALL(
+      cudnnSetFilter4dDescriptor(w_desc, CUDNN_DATA_FLOAT, CUDNN_TENSOR_NCHW, filter_n, filter_c, filter_h, filter_w));
 
   cudnnConvolutionDescriptor_t conv_desc;
   CUDNN_CALL(cudnnCreateConvolutionDescriptor(&conv_desc));
@@ -497,23 +497,25 @@ void cinn_gpu_cudnn_conv2d_backward_filter(void *v_args,
   CUDNN_CALL(
       cudnnSetTensor4dDescriptor(y_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, output_n, output_c, output_h, output_w));
 
-  absl::flat_hash_map<std::string, int> &algo_map = SerialData::get_instance().GetMap();
-  std::string hash_str = "conv2d backward filter," + std::to_string(input_n) + "," + std::to_string(input_c) + "," +
-                         std::to_string(input_h) + "," + std::to_string(input_w) + "," + std::to_string(weights_n) +
-                         "," + std::to_string(weights_c) + "," + std::to_string(weights_h) + "," +
-                         std::to_string(weights_w) + "," + std::to_string(output_n) + "," + std::to_string(output_c) +
+  auto &algo_map       = ConvAlgoMap::GetInstance();
+  std::string hash_key = "conv2d backward filter," + std::to_string(input_n) + "," + std::to_string(input_c) + "," +
+                         std::to_string(input_h) + "," + std::to_string(input_w) + "," + std::to_string(filter_n) +
+                         "," + std::to_string(filter_c) + "," + std::to_string(filter_h) + "," +
+                         std::to_string(filter_w) + "," + std::to_string(output_n) + "," + std::to_string(output_c) +
                          "," + std::to_string(output_h) + "," + std::to_string(output_w);
 
+  int algo_int                         = algo_map.GetAlgo(hash_key);
   cudnnConvolutionBwdFilterAlgo_t algo = CUDNN_CONVOLUTION_BWD_FILTER_ALGO_0;
-  if (algo_map.count(hash_str) != 0) {
-    algo = cudnnConvolutionBwdFilterAlgo_t(algo_map[hash_str]);
+  if (algo_int >= 0) {
+    algo = cudnnConvolutionBwdFilterAlgo_t(algo_int);
   } else {
     int count = 0;
     cudnnConvolutionBwdFilterAlgoPerf_t algo_perf;
     CUDNN_CALL(
         cudnnFindConvolutionBackwardFilterAlgorithm(handle, x_desc, y_desc, conv_desc, w_desc, 1, &count, &algo_perf));
-    algo_map[hash_str] = static_cast<int>(algo_perf.algo);
-    algo               = algo_perf.algo;
+
+    algo = algo_perf.algo;
+    algo_map.InsertAlgo(hash_key, static_cast<int>(algo_perf.algo));
   }
 
   if (GetCinnCudnnDeterministic()) {
@@ -524,7 +526,7 @@ void cinn_gpu_cudnn_conv2d_backward_filter(void *v_args,
   CUDNN_CALL(
       cudnnGetConvolutionBackwardFilterWorkspaceSize(handle, x_desc, y_desc, conv_desc, w_desc, algo, &workspace_size));
 
-  float *workspace_data = CudnnHandle::get_instance().GetWorkSpace(workspace_size);
+  float *workspace_data = CudnnHandle::GetInstance().GetWorkSpace(workspace_size);
 
   CUDNN_CALL(cudnnConvolutionBackwardFilter(
       handle, &alpha, x_desc, _x, y_desc, _dy, conv_desc, algo, workspace_data, workspace_size, &beta, w_desc, _dw));
@@ -555,11 +557,11 @@ void cinn_call_cudnn_pool2d_forward(void *v_args,
                                     void *stream) {
   CHECK_EQ(num_args, 2);
   cudnnHandle_t &handle = CudnnHandle::GetInstance().GetCudnnHandle();
-  CUDNN_CALL(cudnnSetStream(handle, static_cast<stream_t>(stream)));
+  CUDNN_CALL(cudnnSetStream(handle, static_cast<cudaStream_t>(stream)));
   cinn_pod_value_t *args = static_cast<cinn_pod_value_t *>(v_args);
 
-  float *_x = reinterpret_cast<float *>(args[0] cinn_buffer_t * ()->memory);
-  float *_y = reinterpret_cast<float *>(args[1] cinn_buffer_t * ()->memory);
+  float *_x = reinterpret_cast<float *>(args[0].operator cinn_buffer_t *()->memory);
+  float *_y = reinterpret_cast<float *>(args[1].operator cinn_buffer_t *()->memory);
 
   cudnnPoolingMode_t pool_mode;
   switch (pool_type) {
@@ -590,11 +592,11 @@ void cinn_call_cudnn_pool2d_forward(void *v_args,
   float alpha = 1.0f;
   float beta  = 0.0f;
 
-  CUDNN_CALL(cudnnPoolingForward(cudnn, pool_desc, &alpha, x_desc, x, &beta, y_desc, y));
+  CUDNN_CALL(cudnnPoolingForward(handle, pool_desc, &alpha, x_desc, _x, &beta, y_desc, _y));
 
-  cudnnDestroyPoolingDescriptor(pool_desc);
-  cudnnDestroyTensorDescriptor(x_desc);
-  cudnnDestroyTensorDescriptor(y_desc);
+  CUDNN_CALL(cudnnDestroyPoolingDescriptor(pool_desc));
+  CUDNN_CALL(cudnnDestroyTensorDescriptor(x_desc));
+  CUDNN_CALL(cudnnDestroyTensorDescriptor(y_desc));
 }
 
 void cinn_call_cudnn_pool2d_backward(void *v_args,
@@ -615,14 +617,15 @@ void cinn_call_cudnn_pool2d_backward(void *v_args,
                                      int output_h,
                                      int output_w,
                                      void *stream) {
-  CHECK_EQ(num_args, 3);
+  CHECK_EQ(num_args, 4);
   cudnnHandle_t &handle = CudnnHandle::GetInstance().GetCudnnHandle();
-  CUDNN_CALL(cudnnSetStream(handle, static_cast<stream_t>(stream)));
+  CUDNN_CALL(cudnnSetStream(handle, static_cast<cudaStream_t>(stream)));
   cinn_pod_value_t *args = static_cast<cinn_pod_value_t *>(v_args);
 
-  float *_y  = reinterpret_cast<float *>(args[0] cinn_buffer_t * ()->memory);
-  float *_dy = reinterpret_cast<float *>(args[1] cinn_buffer_t * ()->memory);
-  float *_dx = reinterpret_cast<float *>(args[2] cinn_buffer_t * ()->memory);
+  float *_x  = reinterpret_cast<float *>((args[0].operator cinn_buffer_t *())->memory);
+  float *_y  = reinterpret_cast<float *>((args[1].operator cinn_buffer_t *())->memory);
+  float *_dy = reinterpret_cast<float *>((args[2].operator cinn_buffer_t *())->memory);
+  float *_dx = reinterpret_cast<float *>((args[3].operator cinn_buffer_t *())->memory);
 
   cudnnPoolingMode_t pool_mode;
   switch (pool_type) {
@@ -654,12 +657,113 @@ void cinn_call_cudnn_pool2d_backward(void *v_args,
   float alpha = 1.f;
   float beta  = 0.f;
 
-  CUDNN_CALL(cudnnPoolingBackward(handle, pool_desc, &alpha, y_desc, _y, y_desc, _dy, &beta, x_desc, _dx));
+  CUDNN_CALL(cudnnPoolingBackward(handle, pool_desc, &alpha, y_desc, _y, y_desc, _dy, x_desc, _x, &beta, x_desc, _dx));
 
-  cudnnDestroyPoolingDescriptor(pool_desc);
-  cudnnDestroyTensorDescriptor(x_desc);
-  cudnnDestroyTensorDescriptor(y_desc);
+  CUDNN_CALL(cudnnDestroyPoolingDescriptor(pool_desc));
+  CUDNN_CALL(cudnnDestroyTensorDescriptor(x_desc));
+  CUDNN_CALL(cudnnDestroyTensorDescriptor(y_desc));
 }
+
+void cinn_call_cudnn_softmax_forward(void *v_args,
+                                     int num_args,
+                                     int softmax_type,
+                                     float alpha,
+                                     float beta,
+                                     int input_n,
+                                     int input_c,
+                                     int input_h,
+                                     int input_w,
+                                     int output_n,
+                                     int output_c,
+                                     int output_h,
+                                     int output_w,
+                                     void *stream) {
+  CHECK_EQ(num_args, 2);
+  cudnnHandle_t &handle = CudnnHandle::GetInstance().GetCudnnHandle();
+  CUDNN_CALL(cudnnSetStream(handle, static_cast<cudaStream_t>(stream)));
+  cinn_pod_value_t *args = static_cast<cinn_pod_value_t *>(v_args);
+
+  float *_x = reinterpret_cast<float *>((args[0].operator cinn_buffer_t *())->memory);
+  float *_y = reinterpret_cast<float *>((args[1].operator cinn_buffer_t *())->memory);
+
+  cudnnSoftmaxMode_t softmax_mode;
+  switch (softmax_type) {
+    case 0:
+      softmax_mode = CUDNN_SOFTMAX_MODE_INSTANCE;
+      break;
+    case 1:
+      softmax_mode = CUDNN_SOFTMAX_MODE_CHANNEL;
+    default:
+      break;
+  }
+
+  cudnnTensorDescriptor_t x_desc;
+  CUDNN_CALL(cudnnCreateTensorDescriptor(&x_desc));
+  CUDNN_CALL(
+      cudnnSetTensor4dDescriptor(x_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, input_n, input_c, input_h, input_w));
+
+  cudnnTensorDescriptor_t y_desc;
+  CUDNN_CALL(cudnnCreateTensorDescriptor(&y_desc));
+  CUDNN_CALL(
+      cudnnSetTensor4dDescriptor(y_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, output_n, output_c, output_h, output_w));
+
+  CUDNN_CALL(cudnnSoftmaxForward(handle, CUDNN_SOFTMAX_LOG, softmax_mode, &alpha, x_desc, _x, &beta, y_desc, _y));
+
+  CUDNN_CALL(cudnnDestroyTensorDescriptor(x_desc));
+  CUDNN_CALL(cudnnDestroyTensorDescriptor(y_desc));
+}
+
+void cinn_call_cudnn_softmax_backward(void *v_args,
+                                      int num_args,
+                                      int softmax_type,
+                                      float alpha,
+                                      float beta,
+                                      int input_n,
+                                      int input_c,
+                                      int input_h,
+                                      int input_w,
+                                      int output_n,
+                                      int output_c,
+                                      int output_h,
+                                      int output_w,
+                                      void *stream) {
+  CHECK_EQ(num_args, 3);
+  cudnnHandle_t &handle = CudnnHandle::GetInstance().GetCudnnHandle();
+  CUDNN_CALL(cudnnSetStream(handle, static_cast<cudaStream_t>(stream)));
+  cinn_pod_value_t *args = static_cast<cinn_pod_value_t *>(v_args);
+
+  float *_y  = reinterpret_cast<float *>((args[0].operator cinn_buffer_t *())->memory);
+  float *_dy = reinterpret_cast<float *>((args[1].operator cinn_buffer_t *())->memory);
+  float *_dx = reinterpret_cast<float *>((args[2].operator cinn_buffer_t *())->memory);
+
+  cudnnSoftmaxMode_t softmax_mode;
+  switch (softmax_type) {
+    case 0:
+      softmax_mode = CUDNN_SOFTMAX_MODE_INSTANCE;
+      break;
+    case 1:
+      softmax_mode = CUDNN_SOFTMAX_MODE_CHANNEL;
+    default:
+      break;
+  }
+
+  cudnnTensorDescriptor_t x_desc;
+  CUDNN_CALL(cudnnCreateTensorDescriptor(&x_desc));
+  CUDNN_CALL(
+      cudnnSetTensor4dDescriptor(x_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, input_n, input_c, input_h, input_w));
+
+  cudnnTensorDescriptor_t y_desc;
+  CUDNN_CALL(cudnnCreateTensorDescriptor(&y_desc));
+  CUDNN_CALL(
+      cudnnSetTensor4dDescriptor(y_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, output_n, output_c, output_h, output_w));
+
+  CUDNN_CALL(cudnnSoftmaxBackward(
+      handle, CUDNN_SOFTMAX_LOG, softmax_mode, &alpha, y_desc, _y, y_desc, _dy, &beta, x_desc, _dx));
+
+  CUDNN_CALL(cudnnDestroyTensorDescriptor(x_desc));
+  CUDNN_CALL(cudnnDestroyTensorDescriptor(y_desc));
+}
+
 #endif
 
 }  // namespace cuda

@@ -111,7 +111,7 @@ TEST(AccuracyChecker, instruction) {
 
   FLAGS_cinn_self_check_accuracy = true;
   Instruction instr(target, &scope, {"x"}, {"y"});
-  instr.SetLoweredFunc(reinterpret_cast<lower_func_ptr_t>(fn_addr), "fn_sqrt");
+  instr.SetLoweredFunc(reinterpret_cast<void*>(fn_addr), "fn_sqrt");
   // should call Finalize explicitly before Run
   instr.Finalize();
 
@@ -150,7 +150,7 @@ TEST(AccuracyChecker, instruction_podargs) {
 
   FLAGS_cinn_self_check_accuracy = true;
   Instruction instr(target, nullptr, {"x"}, {"y"});
-  instr.SetLoweredFunc(reinterpret_cast<lower_func_ptr_t>(fn_addr), "fn_sqrt");
+  instr.SetLoweredFunc(reinterpret_cast<void*>(fn_addr), "fn_sqrt");
   instr.Finalize();
 
   instr.Run(&name2podargs);

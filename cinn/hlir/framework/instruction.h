@@ -59,8 +59,8 @@ class Instruction {
    * Set compiled function address.
    * @param fn The JIT compiled function address.
    */
-  void SetLoweredFunc(lower_func_ptr_t fn, const std::string& name = "") {
-    fn_.push_back(fn);
+  void SetLoweredFunc(void* fn_ptr, const std::string& name = "") {
+    fn_ptrs_.push_back(fn_ptr);
     fn_names_.push_back(name);
   }
 
@@ -77,40 +77,9 @@ class Instruction {
            bool use_cache                                              = true);
 
   void PreRun(const std::map<std::string, cinn_pod_value_t>* name2podargs = nullptr) {
-    CHECK_EQ(fn_.size(), 4);
-    if (fn_.size() > 1 && fn_.size() != in_args_.size()) {
-      out_args_.back()[0] = out_args_.front()[0];
-      out_args_.erase(out_args_.begin());
-      in_args_.erase(in_args_.begin());
-    }
-    UpdateArgsCache(name2podargs);
-
-    CHECK_EQ(fn_.size(), in_args_.size());
-    CHECK_EQ(fn_.size(), out_args_.size());
-    int flag = -1;
-    for (int i = 0; i < 4; i++) {
-      if (utils::Startswith(out_args_[i][0], "kernel_pack")) {
-        VLOG(3) << "PreRun " << i << "-th function of fn_:" << fn_names_[i];
-        flag           = i;
-        auto& pod_args = args_cached_[i];
-        auto it_fn     = fn_[i];
-        CHECK(it_fn) << "The LoweredFunc address should be set first by calling SetLoweredFunc method";
-        it_fn(pod_args.data(), pod_args.size());
-#ifdef CINN_WITH_CUDA
-        CUDA_CALL(cudaDeviceSynchronize());
-#endif
-      }
-    }
-    if (flag >= 0) {
-      args_cached_.erase(args_cached_.begin() + flag);
-      in_args_.erase(in_args_.begin() + flag);
-      out_args_.erase(out_args_.begin() + flag);
-      fn_.erase(fn_.begin() + flag);
-      fn_names_.erase(fn_names_.begin() + flag);
-    }
   }
 
-  int size() { return fn_.size(); }
+  int size() { return fn_ptrs_.size(); }
 
   std::vector<std::vector<std::string>> GetInArgs() { return in_args_; }
   std::vector<std::vector<std::string>> GetOutArgs() { return out_args_; }
@@ -131,10 +100,9 @@ class Instruction {
   std::string function_name_;
   std::vector<std::vector<std::string>> in_args_;
   std::vector<std::vector<std::string>> out_args_;
-
   std::vector<std::vector<cinn_pod_value_t>> args_cached_;
 
-  std::vector<lower_func_ptr_t> fn_{};
+  std::vector<void*> fn_ptrs_{};
   std::vector<std::string> fn_names_;
 };
 

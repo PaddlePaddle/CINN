@@ -48,7 +48,7 @@
   {                                                                     \
     auto status = func;                                                 \
     if (status != CUBLAS_STATUS_SUCCESS) {                              \
-      LOG(FATAL) << "CUBLAS Error : " << cublasGetStatusString(status); \
+      LOG(FATAL) << "CUBLAS Error!";                                    \
     }                                                                   \
   }
 
@@ -63,8 +63,8 @@
 #define NVRTC_CALL(func)                                             \
   {                                                                  \
     auto status = func;                                              \
-    if (result != NVRTC_SUCCESS) {                                   \
-      LOG(FATAL) << "NVRTC Error : " << nvrtcGetErrorString(result); \
+    if (status != NVRTC_SUCCESS) {                                   \
+      LOG(FATAL) << "NVRTC Error : " << nvrtcGetErrorString(status); \
     }                                                                \
   }
 
