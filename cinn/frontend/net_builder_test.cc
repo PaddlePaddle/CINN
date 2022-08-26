@@ -190,7 +190,7 @@ TEST(net_build, program_execute_sort) {
   const int H = 7;
 
   NetBuilder builder("net_builder");
-  Placeholder input = builder.CreateInput(Int(32), {B, H}, "In");
+  Placeholder input = builder.CreateInput(Float(32), {B, H}, "In");
   Variable output   = builder.Sort(input, 0, true);
   auto program      = builder.Build();
 
@@ -206,7 +206,7 @@ TEST(net_build, program_execute_sort) {
 
   auto input_tensor = scope->GetTensor(std::string(input.id()));
   SetIntRandData(input_tensor, target);
-  int* input_data = input_tensor->mutable_data<int>(target);
+  auto* input_data = input_tensor->mutable_data<float>(target);
 
   runtime_program->Execute();
 
@@ -220,7 +220,7 @@ TEST(net_build, program_execute_sort) {
   float* output_data = output_tensor->mutable_data<float>(target);
   VLOG(6) << "Visualize output_data";
   for (int h = 0; h < H; ++h) {
-    std::vector<int> sorted_data;
+    std::vector<float> sorted_data;
     for (int b = 0; b < B; ++b) {
       int index = h + H * b;
       sorted_data.push_back(input_data[index]);
@@ -229,9 +229,9 @@ TEST(net_build, program_execute_sort) {
 
     for (int b = 0; b < B; ++b) {
       std::string line;
-      int index     = h + H * b;
-      int true_data = sorted_data[index];
-      int out_data  = output_data[index];
+      int index      = h + H * b;
+      int true_data  = sorted_data[index];
+      float out_data = output_data[index];
       line += (std::to_string(out_data) + ", ");
       EXPECT_EQ(true_data, out_data);
       VLOG(6) << line;

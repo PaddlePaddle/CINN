@@ -45,14 +45,24 @@ namespace op {
 using common::CINNValue;
 using common::CINNValuePack;
 
-ir::Tensor ArgSort(const ir::Tensor &A, const int &axis, const bool &is_ascend, const std::string &name) {
+ir::Tensor ArgSort(const ir::Tensor &A,
+                   const common::Target &target,
+                   const int &axis,
+                   const bool &is_ascend,
+                   const std::string &name) {
   std::string extern_fun_name;
-  if (is_ascend) {
-    extern_fun_name.assign("cinn_host_gt_num_float");
+  if (target.arch == common::Target::Arch::NVGPU) {
+    extern_fun_name.assign("cinn_cuda_");
+  } else if (target.arch == common::Target::Arch::X86) {
+    extern_fun_name.assign("cinn_host_");
   } else {
-    extern_fun_name.assign("cinn_host_lt_num_float");
+    LOG(FATAL) << "ArgSort only support X86 and NVGPU ! Please Check.\n";
   }
-
+  if (is_ascend) {
+    extern_fun_name.append("gt_num_float");
+  } else {
+    extern_fun_name.append("lt_num_float");
+  }
   int pos_axis = axis;
   if (pos_axis < 0) {
     pos_axis += A->shape.size();
@@ -81,12 +91,16 @@ ir::Tensor ArgSort(const ir::Tensor &A, const int &axis, const bool &is_ascend, 
   return res;
 }
 
-std::vector<ir::Tensor> Sort(const ir::Tensor &A, const int &axis, const bool &is_ascend, const std::string &name) {
+std::vector<ir::Tensor> Sort(const ir::Tensor &A,
+                             const common::Target &target,
+                             const int &axis,
+                             const bool &is_ascend,
+                             const std::string &name) {
   int pos_axis = axis;
   if (pos_axis < 0) {
     pos_axis += A->shape.size();
   }
-  auto sort_index = ArgSort(A, axis, is_ascend, name + "_index");
+  auto sort_index = ArgSort(A, target, axis, is_ascend, name + "_index");
   auto res        = Compute(
       A->shape,
       [=](const std::vector<Expr> &indices) {
@@ -123,7 +137,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForSort(const framework::NodeAttr
     auto stages   = CreateStages({tensor_A});
     VLOG(3) << "A shape: " << utils::Join(tensor_A->shape, ", ")
             << ", output_shapes: " << utils::Join(output_shapes[0], ", ");
-    std::vector<ir::Tensor> outputs = Sort(tensor_A, axis, is_ascend, UniqName("Sort_out"));
+    std::vector<ir::Tensor> outputs = Sort(tensor_A, target, axis, is_ascend, UniqName("Sort_out"));
     ir::Tensor sort_index           = outputs[0];
     ir::Tensor out                  = outputs[1];
     std::vector<CINNValue> res;
@@ -173,7 +187,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForArgSort(const framework::NodeA
     auto stages   = CreateStages({tensor_A});
     VLOG(3) << "A shape: " << utils::Join(tensor_A->shape, ", ")
             << ", output_shapes: " << utils::Join(output_shapes[0], ", ");
-    ir::Tensor out = ArgSort(tensor_A, axis, is_ascend, UniqName("Sort_out"));
+    ir::Tensor out = ArgSort(tensor_A, target, axis, is_ascend, UniqName("Sort_out"));
     std::vector<CINNValue> res;
     stages->InsertLazily(out);
     res.push_back(CINNValue(out));
