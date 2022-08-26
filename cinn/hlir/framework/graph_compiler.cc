@@ -801,7 +801,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
         auto& src_tensor  = absl::get<Tensor>(*src_var);
         tensor->set_buffer(src_tensor->get_buffer());
       } else {
-        tensor->mutable_data<float>(target_);
+        tensor->mutable_data(target_, tensor->type());
       }
     }
   }
@@ -828,7 +828,6 @@ void GraphCompiler::SetSubKernels(Instruction* instr, const std::string& func_na
     new_op_func = func_name + "_" + std::to_string(i);
   }
 }
-
 
 std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions(
     const std::vector<std::vector<Node*>>& groups, const std::vector<std::shared_ptr<Graph::Group>>& fusion_groups) {

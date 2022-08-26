@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "cinn/hlir/framework/op_lowering.h"
+
 #include "cinn/ir/lowered_func.h"
 #include "cinn/optim/transform_gpu_forloop.h"
 
@@ -775,8 +776,19 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
     {
       auto reducer_data   = GetNodeData(reducer);
       auto reducer_tensor = tensor_map[reducer_data->id()];
-      auto reducer_axes   = absl::get<std::vector<int>>(reducer->attrs.attr_store.at("dim"));
-      auto reducer_shape  = this->shape_dict_.at(reducer->inlinks_in_order()[0]->source()->id());
+      CHECK(reducer->attrs.attr_store.count("dim"));
+      auto reducer_axes = absl::get<std::vector<int>>(reducer->attrs.attr_store.at("dim"));
+      CHECK(reducer->inlinks_in_order().size());
+      CHECK(this->shape_dict_.count(reducer->inlinks_in_order()[0]->source()->id()));
+      auto reducer_shape = this->shape_dict_.at(reducer->inlinks_in_order()[0]->source()->id());
+
+      if (reducer_axes.empty()) {
+        for (int i = 0; i < reducer_shape.size(); ++i) {
+          reducer_axes.emplace_back(i);
+        }
+      }
+
+      bool without_last_dim = WithoutLastDimInReduce(reducer_shape, reducer_axes);
 
       std::unordered_set<Node*> visited_nodes;
       for (auto node : group->master_nodes) {
@@ -795,7 +807,7 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
           continue;
         }
         auto node_shape = this->shape_dict_.at(node->inlinks_in_order()[0]->source()->id());
-        if (WithoutLastDimInReduce(reducer_shape, reducer_axes)) {
+        if (without_last_dim) {
           VLOG(2) << "Reduce Schedule WithoutLastDimInReduce";
           // find a shape to do simple compute at.
           auto tmp_reducer       = reducer;
@@ -896,7 +908,8 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
           }
         }
       }
-      if (WithoutLastDimInReduce(reducer_shape, reducer_axes)) {
+
+      if (without_last_dim) {
         if (tensor_map.count(reducer_data->id() + "_1")) {
           auto reducer_tensor = tensor_map[GetNodeData(reducer)->id()];
           auto reducer_loops  = ir_sch.GetLoops(reducer_tensor->name);
@@ -906,11 +919,23 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
     }
   }
 
-  auto master_data   = GetNodeData(master);
+  auto master_data = GetNodeData(master);
+  CHECK(master_data);
+  CHECK(tensor_map.count(master_data->id()));
   auto master_tensor = tensor_map[master_data->id()];
   auto reducer_data  = GetNodeData(reducer);
-  auto reducer_axes  = absl::get<std::vector<int>>(reducer->attrs.attr_store.at("dim"));
+  CHECK(reducer_data);
+  CHECK(reducer->attrs.attr_store.count("dim"));
+  auto reducer_axes = absl::get<std::vector<int>>(reducer->attrs.attr_store.at("dim"));
+  CHECK(reducer->inlinks_in_order().size());
+  CHECK(this->shape_dict_.count(reducer->inlinks_in_order()[0]->source()->id()));
   auto reducer_shape = this->shape_dict_.at(reducer->inlinks_in_order()[0]->source()->id());
+
+  if (reducer_axes.empty()) {
+    for (int i = 0; i < reducer_shape.size(); ++i) {
+      reducer_axes.emplace_back(i);
+    }
+  }
 
   VLOG(2) << "master node : " << master->id() << " ,reducer node : " << reducer->id();
   for (int idx = sub_group->nodes.size() - 1; idx >= 0; --idx) {
@@ -1306,7 +1331,7 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
   // assign reduce input tensor schedule, do loop transform.
   auto OrderAssignReduce = [this, &stages](
-      poly::Stage* stage, const std::vector<int>& axes, const bool just_reorder = false) {
+                               poly::Stage* stage, const std::vector<int>& axes, const bool just_reorder = false) {
     // reorder none-last reduce axis to last.
     // like: shape = [16,16,16,16,16],axes = [1,3] -> new order = [0, 2, 4, 1, 3].
     std::vector<int> order;
@@ -1363,109 +1388,109 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
     }
   };
 
-  auto ScheduleAssignReduceWithoutLast = [this, OrderAssignReduce](
-      poly::Stage* stage, const std::vector<int>& inshape, const std::vector<int>& axes) {
-    int lane            = 1;
-    int max_num_threads = this->target_.max_num_threads();
-    for (int idx = axes.back() + 1; idx < inshape.size(); ++idx) {
-      lane *= inshape[idx];
-    }
-    CHECK_LE(lane, max_num_threads / 2) << "Parallel threads must less equal max_num_threads/2 on gpu!";
-    int pos   = 0;
-    int index = axes.size() - 1;
-    for (; index >= 0; --index) {
-      if (index + 1 < axes.size() && axes[index] != axes[index + 1] - 1) {
-        pos = axes[index + 1];
-        break;
-      }
-
-      lane *= inshape[axes[index]];
-      if (lane > max_num_threads / 2) {
-        pos = axes[index];
-        break;
-      }
-
-      if (index == 0) {
-        pos = axes[0];
-      }
-    }
-
-    if (lane > max_num_threads / 2) {
-      int prefix = inshape[axes[index]];
-      int tail   = lane / prefix;
-      for (int idx = max_num_threads / tail; idx > (max_num_threads / 2) / tail; --idx) {
-        if (prefix % idx == 0) {
-          stage->Split(axes[index], idx);
-          break;
+  auto ScheduleAssignReduceWithoutLast =
+      [this, OrderAssignReduce](poly::Stage* stage, const std::vector<int>& inshape, const std::vector<int>& axes) {
+        int lane            = 1;
+        int max_num_threads = this->target_.max_num_threads();
+        for (int idx = axes.back() + 1; idx < inshape.size(); ++idx) {
+          lane *= inshape[idx];
         }
-        CHECK_GT(idx - 1, (max_num_threads / 2) / tail) << "idx should greater than (max_num_threads / 2) / tail.";
-      }
-    }
-
-    // insert 1
-    for (int idx = 0; idx < axes.size() - 1 - index; ++idx) {
-      stage->Split(pos, stage->GetDimRange(pos));
-    }
-
-    OrderAssignReduce(stage, axes);
-  };
-
-  auto ScheduleAssignReduceWithLast = [this, OrderAssignReduce](
-      poly::Stage* stage, const std::vector<int>& inshape, const std::vector<int>& axes) {
-    // find first reduce and second reduce axis.
-    int lane             = 1;
-    int index            = static_cast<int>(axes.size()) - 1;
-    auto max_num_threads = this->target_.max_num_threads();
-    for (; index >= 0; --index) {
-      if (index + 1 < axes.size() && axes[index] != axes[index + 1] - 1) {
-        break;
-      }
-      lane *= inshape[axes[index]];
-      if (index == 0 && lane <= max_num_threads) {
-        LOG(FATAL) << "Error! lane is less equal than max_num_threads, Please check!";
-      }
-      if (lane >= max_num_threads / 2) {
-        if (lane <= max_num_threads) {
-          --index;
-        }
-        break;
-      }
-    }
-    std::vector<int> first_axes(axes.begin(), axes.begin() + index + 1);
-    if (lane > max_num_threads) {
-      // last reduce axis size > 1024
-      if (index == static_cast<int>(axes.size()) - 1) {
-        int idx = max_num_threads;
-        do {
-          if (lane % idx == 0) {
-            stage->Split(axes[index], idx);
+        CHECK_LE(lane, max_num_threads / 2) << "Parallel threads must less equal max_num_threads/2 on gpu!";
+        int pos   = 0;
+        int index = axes.size() - 1;
+        for (; index >= 0; --index) {
+          if (index + 1 < axes.size() && axes[index] != axes[index + 1] - 1) {
+            pos = axes[index + 1];
             break;
           }
-          --idx;
-        } while (idx >= max_num_threads / 2);
-        // if can't be divide by(1024, 512), it's shouldn't be fused.
-        CHECK_GE(idx, max_num_threads / 2) << "Check bounds exist, can't fuse!";
-      } else {
-        int axis   = axes[index];
-        int prefix = inshape[axis];
-        int tail   = lane / prefix;
-        for (int idx = max_num_threads / tail; idx > (max_num_threads / 2) / tail; --idx) {
-          if (prefix % idx == 0) {
-            stage->Split(axis, idx);
+
+          lane *= inshape[axes[index]];
+          if (lane > max_num_threads / 2) {
+            pos = axes[index];
             break;
           }
-          CHECK_GT(idx, (max_num_threads / 2) / tail) << "Error, it's shouldn't fuse!";
+
+          if (index == 0) {
+            pos = axes[0];
+          }
         }
-      }
-      OrderAssignReduce(stage, first_axes);
-    } else {
-      int fuse_times = axes.size() - (index + 1) - 1;
-      for (int idx = 0; idx < fuse_times; ++idx) {
-        stage->Fuse(axes[index + 1], axes[index + 1] + 1);
-      }
-      OrderAssignReduce(stage, first_axes, true);
-    }
-  };
+
+        if (lane > max_num_threads / 2) {
+          int prefix = inshape[axes[index]];
+          int tail   = lane / prefix;
+          for (int idx = max_num_threads / tail; idx > (max_num_threads / 2) / tail; --idx) {
+            if (prefix % idx == 0) {
+              stage->Split(axes[index], idx);
+              break;
+            }
+            CHECK_GT(idx - 1, (max_num_threads / 2) / tail) << "idx should greater than (max_num_threads / 2) / tail.";
+          }
+        }
+
+        // insert 1
+        for (int idx = 0; idx < axes.size() - 1 - index; ++idx) {
+          stage->Split(pos, stage->GetDimRange(pos));
+        }
+
+        OrderAssignReduce(stage, axes);
+      };
+
+  auto ScheduleAssignReduceWithLast =
+      [this, OrderAssignReduce](poly::Stage* stage, const std::vector<int>& inshape, const std::vector<int>& axes) {
+        // find first reduce and second reduce axis.
+        int lane             = 1;
+        int index            = static_cast<int>(axes.size()) - 1;
+        auto max_num_threads = this->target_.max_num_threads();
+        for (; index >= 0; --index) {
+          if (index + 1 < axes.size() && axes[index] != axes[index + 1] - 1) {
+            break;
+          }
+          lane *= inshape[axes[index]];
+          if (index == 0 && lane <= max_num_threads) {
+            LOG(FATAL) << "Error! lane is less equal than max_num_threads, Please check!";
+          }
+          if (lane >= max_num_threads / 2) {
+            if (lane <= max_num_threads) {
+              --index;
+            }
+            break;
+          }
+        }
+        std::vector<int> first_axes(axes.begin(), axes.begin() + index + 1);
+        if (lane > max_num_threads) {
+          // last reduce axis size > 1024
+          if (index == static_cast<int>(axes.size()) - 1) {
+            int idx = max_num_threads;
+            do {
+              if (lane % idx == 0) {
+                stage->Split(axes[index], idx);
+                break;
+              }
+              --idx;
+            } while (idx >= max_num_threads / 2);
+            // if can't be divide by(1024, 512), it's shouldn't be fused.
+            CHECK_GE(idx, max_num_threads / 2) << "Check bounds exist, can't fuse!";
+          } else {
+            int axis   = axes[index];
+            int prefix = inshape[axis];
+            int tail   = lane / prefix;
+            for (int idx = max_num_threads / tail; idx > (max_num_threads / 2) / tail; --idx) {
+              if (prefix % idx == 0) {
+                stage->Split(axis, idx);
+                break;
+              }
+              CHECK_GT(idx, (max_num_threads / 2) / tail) << "Error, it's shouldn't fuse!";
+            }
+          }
+          OrderAssignReduce(stage, first_axes);
+        } else {
+          int fuse_times = axes.size() - (index + 1) - 1;
+          for (int idx = 0; idx < fuse_times; ++idx) {
+            stage->Fuse(axes[index + 1], axes[index + 1] + 1);
+          }
+          OrderAssignReduce(stage, first_axes, true);
+        }
+      };
 
   Node* master_node = nullptr;
   for (auto node : group->master_nodes) {
@@ -1500,11 +1525,21 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
   CHECK(master_reducer) << "Can't find Master reducer!";
   auto master_reducer_data  = GetNodeData(master_reducer);
   auto master_reducer_stage = stages[tensor_map[master_reducer_data->id()]];
-  auto master_reducer_axes  = absl::get<std::vector<int>>(master_reducer->attrs.attr_store.at("dim"));
+  CHECK(master_reducer->attrs.attr_store.count("dim"));
+  auto master_reducer_axes = absl::get<std::vector<int>>(master_reducer->attrs.attr_store.at("dim"));
+  CHECK(master_reducer->inlinks_in_order().size());
+  CHECK(this->shape_dict_.count(master_reducer->inlinks_in_order()[0]->source()->id()));
   auto master_reducer_shape = this->shape_dict_.at(master_reducer->inlinks_in_order()[0]->source()->id());
 
+  if (master_reducer_axes.empty()) {
+    for (int i = 0; i < master_reducer_shape.size(); ++i) {
+      master_reducer_axes.emplace_back(i);
+    }
+  }
+
   bool reduce_with_same_shape = true;
-  if (WithoutLastDimInReduce(master_reducer_shape, master_reducer_axes)) {
+  bool without_last_dim       = WithoutLastDimInReduce(master_reducer_shape, master_reducer_axes);
+  if (without_last_dim) {
     // check each reduce has same input shape.
     for (auto reducer : group->master_nodes) {
       if (op_pattern_dict[reducer->op()] != framework::kCommReduce) {
@@ -1588,7 +1623,7 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
         stage->SetBuffer("local");
       }
       // last dimension is not in reduce.
-      if (WithoutLastDimInReduce(master_reducer_shape, master_reducer_axes)) {
+      if (without_last_dim) {
         // compute at last dimension
         if (node == master_reducer) {
           stage->SimpleComputeAt(master_stage, master_stage->n_out_dims() - 1);
@@ -1661,7 +1696,7 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
         continue;
       }
       // node is before reduce.
-      if (WithoutLastDimInReduce(master_reducer_shape, master_reducer_axes)) {
+      if (without_last_dim) {
         VLOG(3) << "Reduce Schedule for WithoutLastDimInReduce";
         auto reducer_stage = master_reducer_stage;
         auto reducer_shape = master_reducer_shape;
@@ -1905,7 +1940,18 @@ std::vector<ir::LoweredFunc> OpLowerer::LowerOpaqueOp(GroupPtr& group) {
     auto source_data = source->safe_as<NodeData>();
     CHECK(source_data);
 
-    auto tensor = lang::Placeholder<float>(source_data->id(), this->shape_dict_.at(source_data->id()));
+    auto id    = source_data->id();
+    auto shape = this->shape_dict_.at(id);
+    auto dtype = this->type_dict_.at(id);
+
+    ir::Tensor tensor;
+    if (dtype == Float(32)) {
+      tensor = lang::Placeholder<float>(id, shape);
+    } else if (dtype.is_bool()) {
+      tensor = lang::Placeholder<bool>(id, shape);
+    } else if (dtype == Int(32)) {
+      tensor = lang::Placeholder<int>(id, shape);
+    }
     tensor_inputs.push_back(tensor);
 
     cinn_inputs.push_back(common::CINNValue(ir::Expr(tensor)));

@@ -104,6 +104,16 @@ CINN_REGISTER_HELPER(cuda_intrinsics) {
       .AddInputType<float>()
       .End();
 
+  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_block_reduce_all_internal, target)
+      .SetRetType<bool>()
+      .AddInputType<bool>()
+      .End();
+
+  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_block_reduce_any_internal, target)
+      .SetRetType<bool>()
+      .AddInputType<bool>()
+      .End();
+
   REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_block_reduce_sum, target)
       .SetRetType<float>()
       .AddInputType<cinn_buffer_t *>()
@@ -127,6 +137,20 @@ CINN_REGISTER_HELPER(cuda_intrinsics) {
 
   REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_block_reduce_min, target)
       .SetRetType<float>()
+      .AddInputType<cinn_buffer_t *>()
+      .AddInputType<int>()
+      .AddInputType<int>()
+      .End();
+
+  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_block_reduce_all, target)
+      .SetRetType<bool>()
+      .AddInputType<cinn_buffer_t *>()
+      .AddInputType<int>()
+      .AddInputType<int>()
+      .End();
+
+  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_block_reduce_any, target)
+      .SetRetType<bool>()
       .AddInputType<cinn_buffer_t *>()
       .AddInputType<int>()
       .AddInputType<int>()
@@ -193,6 +217,18 @@ CINN_REGISTER_HELPER(cuda_intrinsics) {
 
   REGISTER_FACKED_EXTERN_FUNC_HELPER(block_shuffle_min, target)
       .SetRetType<float>()
+      .AddInputType<cinn_buffer_t *>()
+      .AddInputType<int>()
+      .End();
+
+  REGISTER_FACKED_EXTERN_FUNC_HELPER(block_shuffle_all, target)
+      .SetRetType<bool>()
+      .AddInputType<cinn_buffer_t *>()
+      .AddInputType<int>()
+      .End();
+
+  REGISTER_FACKED_EXTERN_FUNC_HELPER(block_shuffle_any, target)
+      .SetRetType<bool>()
       .AddInputType<cinn_buffer_t *>()
       .AddInputType<int>()
       .End();
