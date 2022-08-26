@@ -14,6 +14,7 @@
 
 #include "cinn/hlir/framework/op_lowering.h"
 
+#include "cinn/backends/compiler.h"
 #include "cinn/backends/codegen_c_x86.h"
 #include "cinn/backends/codegen_cuda_dev.h"
 #include "cinn/backends/codegen_cuda_util.h"
@@ -29,25 +30,29 @@ namespace framework {
 
 using namespace frontend;
 
+void Compile(ir::LoweredFunc& func) {
+  auto target = common::DefaultNVGPUTarget();
+  Module::Builder builder("module_builder", target);
+
+  builder.AddFunction(func);
+  auto module = builder.Build();
+  auto compiler = backends::Compiler::Create(target);
+
+  std::string code = "";
+  compiler->Build(module, code);
+}
+
 void CodeGen(ir::LoweredFunc& func) {
 #ifdef CINN_WITH_CUDA
   auto target = common::DefaultNVGPUTarget();
-  Module::Builder builder("Module_Builder", target);
+  Module::Builder builder("module_builder", target);
+
   builder.AddFunction(func);
+  auto module = builder.Build();
+  auto compiler = backends::Compiler::Create(target);
 
-  auto module                    = builder.Build();
-  auto host_module_device_module = backends::SplitCudaAndHostModule(module);
-  auto& host_module              = std::get<0>(host_module_device_module);
-  auto& device_module            = std::get<1>(host_module_device_module);
-
-  backends::CodeGenCUDA_Dev codegen(target);
-  auto source_code = codegen.Compile(builder.Build());
-  LOG(INFO) << "compiled code of " << func->name << "is:\n\n\n" << source_code;
-
-  // nv jit compile to ptx
-  backends::NVRTC_Compiler compiler;
-  auto ptx = compiler(source_code);
-  CHECK(!ptx.empty());
+  std::string code = "";
+  compiler->Build(module, code);
 #else
   auto target = common::DefaultHostTarget();
   ir::Module::Builder builder("Module_Builder", target);
@@ -98,6 +103,7 @@ TEST(OP_LOWERING, OpaqueOp_TEST_1) {
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  hlir::framework::ApplyPass(graph.get(), "MatmulToCustomCallPass");
   hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
 
   auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");

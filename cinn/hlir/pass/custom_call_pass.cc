@@ -50,11 +50,11 @@ class GraphAlterHelper {
     });
 
     for (auto gnode : nodes) {
-      auto node = gnode->safe_as<Node>();
-      CHECK(node);
-      auto dst                             = GetCustomCallNode(node);
-      dst->attrs.attr_store["custom_call"] = "cinn_call_cublas";
-      Alter(node, dst);
+      auto src = gnode->safe_as<Node>();
+      CHECK(src);
+      auto dst                             = GetCustomCallNode(src);
+      dst->attrs.attr_store["custom_call"] = std::string("cinn_call_cublas");
+      Alter(src, dst);
     }
   }
 
@@ -71,22 +71,22 @@ class GraphAlterHelper {
     });
 
     for (auto gnode : nodes) {
-      auto node = gnode->safe_as<Node>();
-      CHECK(node);
-      auto dst = GetCustomCallNode(node);
+      auto src = gnode->safe_as<Node>();
+      CHECK(src);
+      auto dst = GetCustomCallNode(src);
       CHECK(dst->attrs.attr_store.count("conv_type"));
       std::string type = dst->attrs.attr_store.count("conv_type") ? absl::get<std::string>(dst->attrs.attr_store["conv_type"])
                                                            : "forward";
       if(type == "forward") {
-        dst->attrs.attr_store["custom_call"] = "cinn_call_cudnn_conv2d_forward";
+        dst->attrs.attr_store["custom_call"] = std::string("cinn_call_cudnn_conv2d_forward");
       } else if(type == "backward_data") {
-        dst->attrs.attr_store["custom_call"] = "cinn_call_cudnn_conv2d_backward_data";
+        dst->attrs.attr_store["custom_call"] = std::string("cinn_call_cudnn_conv2d_backward_data");
       } else if(type == "backward_filter") {
-        dst->attrs.attr_store["custom_call"] = "cinn_gpu_cudnn_conv2d_backward_filter";
+        dst->attrs.attr_store["custom_call"] = std::string("cinn_gpu_cudnn_conv2d_backward_filter");
       } else {
         LOG(FATAL) << "conv type is unkown!";
       }
-      Alter(node, dst);
+      Alter(src, dst);
     }
   }
 
@@ -109,10 +109,13 @@ class GraphAlterHelper {
       src->UnLinkSingleTo(output_data);
       dst->LinkTo(output_data);
     }
+
+    graph_->DropNode(src);
   }
   Node* GetCustomCallNode(Node* src) {
     auto dst   = new Node(framework::Operator::Get("custom_call"), src->attrs.node_name, src->id());
-    dst->attrs = src->attrs;
+    graph_->RegisterNode(dst->id(), dst);
+    dst->attrs.attr_store = src->attrs.attr_store;
     return dst;
   }
 

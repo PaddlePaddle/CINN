@@ -70,14 +70,14 @@ std::shared_ptr<OpStrategy> StrategyForCustomCall(const framework::NodeAttr &att
   framework::CINNCompute compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK_EQ(args.size(), 1UL);
     CINNValuePack pack_args = args[0];
-    CHECK_EQ(pack_args.size(), 1UL);
+    CHECK(pack_args.back().is_string());
 
-    auto attr_store = attrs.attr_store;
+    auto& attr_store = attrs.attr_store;
     CHECK(attr_store.count("custom_call"));
     std::string custom_call_api = absl::get<std::string>(attr_store.at("custom_call"));
-    auto args_func              = CustomCallArgsFuncRegistry::Global().Lookup(custom_call_api, target);
+    auto args_func = CustomCallArgsFuncRegistry::Global().Lookup(custom_call_api, target);
 
-    std::string node_id = pack_args[0].operator std::string();
+    std::string func_name = pack_args.back().operator std::string();
     // create call function.
     ir::Var kernel_args(KERNEL_ARGS, type_of<void *>());
     ir::Var kernel_args_num(KERNEL_ARGS_NUM, type_of<int>());
@@ -96,8 +96,9 @@ std::shared_ptr<OpStrategy> StrategyForCustomCall(const framework::NodeAttr &att
     }
     auto call_extern_api =
         ir::Call::Make(Void(), custom_call_api, host_args, {}, ir::CallType::Extern, ir::FunctionRef(), 0);
-    auto func = ir::_LoweredFunc_::Make("func_" + node_id, arguments, call_extern_api, {});
+    auto func = ir::_LoweredFunc_::Make(func_name, arguments, call_extern_api, {});
 
+    VLOG(3) << func;
     *ret = CINNValuePack{{CINNValue(ir::Expr(func))}};
   });
 
