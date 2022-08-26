@@ -26,7 +26,6 @@
 namespace cinn {
 namespace backends {
 
-
 /**
  * CodeGenCUDA takes a CINN Module with host functions and output a LLVM module.
  */
@@ -36,9 +35,7 @@ class CodeGenCUDA_Host : public CodeGenLLVM {
       : CodeGenLLVM(m, b, vars) {}
 
   using CodeGenLLVM::Visit;
-  llvm::Value *Visit(const ir::_LoweredFunc_ *func) override {
-    return LowerGPUKernelLauncher(func);
-  }
+  llvm::Value *Visit(const ir::_LoweredFunc_ *func) override { return LowerGPUKernelLauncher(func); }
 
  private:
   /**

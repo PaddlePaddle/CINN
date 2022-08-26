@@ -13,12 +13,13 @@
 // limitations under the License.
 
 #include "cinn/runtime/cuda/cuda_util.h"
-#include <cuda_runtime.h>
-#include <glog/logging.h>
-#include <algorithm>
 
 #include <absl/container/flat_hash_map.h>
 #include <cublas_v2.h>
+#include <cuda_runtime.h>
+#include <glog/logging.h>
+
+#include <algorithm>
 #ifdef CINN_WITH_CUDNN
 #include <cudnn.h>
 #endif

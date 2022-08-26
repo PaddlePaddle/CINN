@@ -13,12 +13,12 @@
 // limitations under the License.
 
 #include "cinn/backends/codegen_cuda_host.h"
-#include "cinn/backends/codegen_cuda_util.h"
 
 #include <algorithm>
 #include <string>
 #include <unordered_map>
 
+#include "cinn/backends/codegen_cuda_util.h"
 #include "cinn/backends/extern_func_emitter_builtin.h"
 #include "cinn/backends/extern_func_jit_register.h"
 #include "cinn/backends/llvm/llvm_util.h"

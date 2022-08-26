@@ -93,12 +93,12 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
   }
 
   utils::ProfilerRangePush("Compute");
-  for(int idx = 0 ; idx < fn_ptrs_.size() ; ++idx) {
+  for (int idx = 0; idx < fn_ptrs_.size(); ++idx) {
     VLOG(6) << "Runing func name: " << fn_names_[idx];
     auto& pod_args = args_cached_[idx];
     CHECK(fn_ptrs_[idx]) << "The LoweredFunc address should be set first by calling SetLoweredFunc method";
     if (!dryrun) {
-      if(target_ == common::DefaultNVGPUTarget()) {
+      if (target_ == common::DefaultNVGPUTarget()) {
         ((lower_func_ptr_g)fn_ptrs_[idx])(static_cast<void*>(pod_args.data()), pod_args.size(), stream);
       } else {
         ((lower_func_ptr_t)fn_ptrs_[idx])(static_cast<void*>(pod_args.data()), pod_args.size());

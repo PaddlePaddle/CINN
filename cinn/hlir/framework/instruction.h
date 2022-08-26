@@ -76,8 +76,7 @@ class Instruction {
            void* stream                                                = nullptr,
            bool use_cache                                              = true);
 
-  void PreRun(const std::map<std::string, cinn_pod_value_t>* name2podargs = nullptr) {
-  }
+  void PreRun(const std::map<std::string, cinn_pod_value_t>* name2podargs = nullptr) {}
 
   int size() { return fn_ptrs_.size(); }
 
