@@ -137,5 +137,27 @@ std::ostream &operator<<(std::ostream &os, Target::Arch arch) {
   return os;
 }
 
+const Target &UnkTarget() {
+  static Target target(Target::OS::Unk, Target::Arch::Unk, Target::Bit::Unk, {}, {});
+  return target;
+}
+const Target &DefaultHostTarget() {
+  static Target target(Target::OS::Linux, Target::Arch::X86, Target::Bit::k64, {}, {});
+  return target;
+}
+
+const Target &DefaultNVGPUTarget() {
+  static Target target(Target::OS::Linux, Target::Arch::NVGPU, Target::Bit::k64, {}, {});
+  return target;
+}
+
+const Target &DefaultTarget() {
+#ifdef CINN_WITH_CUDA
+  return DefaultNVGPUTarget();
+#else
+  return DefaultHostTarget();
+#endif
+}
+
 }  // namespace common
 }  // namespace cinn

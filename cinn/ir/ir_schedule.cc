@@ -167,7 +167,8 @@ void IRSchedule::MutateForType(const Expr& loop, ForType for_type, int factor) {
   auto* for_node = loop.As<ir::For>();
   CHECK(for_node) << "loop param must be For node! Please check.";
   CHECK(for_node->is_serial()) << "loop is not serial, current forloop type is "
-                               << static_cast<int>(for_node->for_type());
+                               << static_cast<int>(for_node->for_type()) << ", and it cannot become "
+                               << static_cast<int>(for_type);
   auto loop_copy     = optim::IRCopy(loop);
   auto* new_for_node = loop_copy.As<ir::For>();
   CHECK(new_for_node);
@@ -1068,7 +1069,25 @@ void IRSchedule::SimpleComputeAt(const Expr& block, const Expr& loop) {
       loops.size() < block_loops.size() ? optim::IRCopy(block_loops[loops.size()]) : optim::IRCopy(this_block);
 
   ReplaceExpr(&result, replaced_var, substitute_expr);
-  Expr new_loop                = optim::IRCopy(this_loop);
+  Expr new_loop = optim::IRCopy(this_loop);
+
+  if (loops.size() >= block_loops.size()) {
+    auto body = block_loops.back().As<ir::For>()->body;
+    // collect if
+    auto if_checker = [](const Expr* x) { return x->As<ir::IfThenElse>(); };
+    auto if_set     = ir::CollectIRNodesWithoutTensor(body, if_checker);
+    for (auto if_expr : if_set) {
+      auto checker = [block_name](const Expr* x) {
+        return x->As<ir::ScheduleBlockRealize>() &&
+               x->As<ir::ScheduleBlockRealize>()->schedule_block.As<ScheduleBlock>()->name == block_name;
+      };
+      if (ir::CollectIRNodesWithoutTensor(if_expr, checker).size() > 0) {
+        result = IfThenElse::Make(if_expr.As<ir::IfThenElse>()->condition, result);
+        break;
+      }
+    }
+  }
+
   new_loop.As<ir::For>()->body = ir::Block::Make({result, new_loop.As<ir::For>()->body});
   Expr source_expr{nullptr};
   Expr target_expr{nullptr};
@@ -1208,8 +1227,10 @@ std::vector<Expr> ScheduleHelper::GetLoops(const Expr& block) const {
       }
     }
   }
-  if (result.empty())
+  if (result.empty()) {
+    LOG(INFO) << "exprs size is : " << exprs.size() << "\n and exprs[0] is : " << exprs[0];
     LOG(FATAL) << "Didn't find Loops containing ScheduleBlock with name: \n" << block_name << " in ModuleExepr.";
+  }
   std::sort(result.begin(), result.end(), [&](Expr i, Expr j) {
     return (utils::GetStreamCnt(i).size() > utils::GetStreamCnt(j).size());
   });

@@ -38,7 +38,7 @@ TEST(Program, ExecuteWithRawArgs) {
   auto d   = prog.add(c, b);
   auto e   = prog.add(c, d);
   ASSERT_EQ(prog.size(), 3UL);
-  Target target(Target::OS::Linux, Target::Arch::X86, Target::Bit::k64, {});
+  Target target = common::DefaultHostTarget();
 
   // transform to graph and run pass
   auto g = std::make_shared<Graph>(prog, target);

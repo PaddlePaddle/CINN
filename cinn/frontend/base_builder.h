@@ -41,6 +41,8 @@ enum class ReduceKind : std::int8_t {
   kProd,
   kMax,
   kMin,
+  kAll,
+  kAny,
 };
 
 // WARNING: In BaseBuilder, you should only place the meta op, which are also the common op between NetBuilder and

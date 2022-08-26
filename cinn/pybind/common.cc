@@ -56,6 +56,8 @@ bool IsCompiledWithCUDNN() {
 #endif
 }
 
+void ResetGlobalNameID() { common::Context::Global().ResetNameId(); }
+
 void BindTarget(py::module *m) {
   py::class_<Target> target(*m, "Target");
   target.def_readwrite("os", &Target::os)
@@ -86,6 +88,7 @@ void BindTarget(py::module *m) {
 
   m->def("is_compiled_with_cuda", IsCompiledWithCUDA);
   m->def("is_compiled_with_cudnn", IsCompiledWithCUDNN);
+  m->def("reset_name_id", ResetGlobalNameID);
 }
 
 void BindType(py::module *m) {

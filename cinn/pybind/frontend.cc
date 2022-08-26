@@ -24,6 +24,7 @@
 #include "cinn/frontend/decomposer_registry.h"
 #include "cinn/frontend/interpreter.h"
 #include "cinn/frontend/net_builder.h"
+#include "cinn/frontend/optimize.h"
 #include "cinn/frontend/pass/use_program_pass.h"
 #include "cinn/frontend/program_pass.h"
 #include "cinn/frontend/syntax.h"
@@ -139,7 +140,7 @@ void BindFrontend(pybind11::module *m) {
               const std::vector<Variable> &tensor_outputs) {
              std::shared_ptr<hlir::framework::Graph> g(new hlir::framework::Graph(self, target));
              hlir::framework::ApplyPass(g.get(), "InferShape");
-             hlir::framework::ApplyPass(g.get(), "OpFusion");
+             hlir::framework::ApplyPasses(g.get(), frontend::DefaultOpFusionPasses());
              std::shared_ptr<hlir::framework::Scope> scope = hlir::framework::BuildScope(target, g);
              hlir::framework::GraphCompiler gc(target, scope, g);
              auto program = gc.Build();
@@ -152,17 +153,14 @@ void BindFrontend(pybind11::module *m) {
                    << "] is different with the input data's size! Please check.";
                if (target.arch == Target::Arch::NVGPU) {
 #ifdef CINN_WITH_CUDA
-                 CUDA_CALL(cudaMemcpy(data,
-                                      input_data[i].data(),
-                                      (in_tensor->shape().numel() * dtype.bits() + 7) / 8,
-                                      cudaMemcpyHostToDevice));
+                 CUDA_CALL(cudaMemcpy(
+                     data, input_data[i].data(), in_tensor->shape().numel() * dtype.bytes(), cudaMemcpyHostToDevice));
 #else
                  LOG(FATAL) <<"To use CUDA backends, you need to set WITH_CUDA ON!";
 #endif
                } else if (target.arch == Target::Arch::X86) {
-                 memcpy(data,
-                        input_data[i].data(),
-                        (in_tensor->shape().numel() * dtype.bits() + 7) / 8);  // All random data
+                 memcpy(data, input_data[i].data(),
+                        in_tensor->shape().numel() * dtype.bytes());  // All random data
                } else {
                  CINN_NOT_IMPLEMENTED
                }
@@ -324,6 +322,8 @@ void BindFrontend(pybind11::module *m) {
       .value("kProd", ReduceKind::kProd)
       .value("kMax", ReduceKind::kMax)
       .value("kMin", ReduceKind::kMin)
+      .value("kAll", ReduceKind::kAll)
+      .value("kAny", ReduceKind::kAny)
       .export_values();
 
   py::class_<BaseBuilder>(*m, "BaseBuilder")
@@ -446,7 +446,15 @@ void BindFrontend(pybind11::module *m) {
            py::arg("y"),
            py::arg("axis") = -1)
       .def("relu6", &NetBuilder::Relu6, py::arg("a"), py::arg("threshold") = 6.0f)
-      .def("reduce_sum", &NetBuilder::ReduceSum, py::arg("x"), py::arg("dim"), py::arg("keep_dim") = false)
+      .def("reduce_sum",
+           &NetBuilder::ReduceSum,
+           py::arg("x"),
+           py::arg("axis")    = std::vector<int>{},
+           py::arg("keepdim") = false)
+      .def(
+          "all", &NetBuilder::ReduceAll, py::arg("x"), py::arg("axis") = std::vector<int>{}, py::arg("keepdim") = false)
+      .def(
+          "any", &NetBuilder::ReduceAny, py::arg("x"), py::arg("axis") = std::vector<int>{}, py::arg("keepdim") = false)
       .def("conv2d",
            &NetBuilder::Conv2d,
            py::arg("a"),
@@ -523,7 +531,14 @@ void BindFrontend(pybind11::module *m) {
            py::arg("groups")            = 1,
            py::arg("data_format")       = "NCHW",
            py::arg("padding_algorithm") = "EXPLICIT")
-      .def("sum", &NetBuilder::Sum, py::arg("inputs"));
+      .def("sum", &NetBuilder::Sum, py::arg("inputs"))
+      .def("matmul",
+           &NetBuilder::Matmul,
+           py::arg("x"),
+           py::arg("y"),
+           py::arg("transpose_x") = false,
+           py::arg("transpose_y") = false,
+           py::arg("alpha")       = 1.0f);
 
   py::class_<CinnBuilder, BaseBuilder>(*m, "CinnBuilder")
       .def(py::init<const std::string &>(), py::arg("name") = "")

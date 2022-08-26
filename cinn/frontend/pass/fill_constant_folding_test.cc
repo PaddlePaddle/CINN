@@ -19,6 +19,7 @@
 #include "cinn/cinn.h"
 #include "cinn/frontend/cinn_builder.h"
 #include "cinn/frontend/net_builder.h"
+#include "cinn/frontend/optimize.h"
 #include "cinn/frontend/pass/use_program_pass.h"
 #include "cinn/frontend/program_pass.h"
 #include "cinn/frontend/syntax.h"
@@ -27,44 +28,22 @@
 #include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/op/use_ops.h"
 #include "cinn/hlir/pass/use_pass.h"
+#include "cinn/utils/data_util.h"
 
 namespace cinn::frontend {
-
-Target GetTarget() {
-#ifdef CINN_WITH_CUDA
-  return common::DefaultNVGPUTarget();
-#else
-  return common::DefaultHostTarget();
-#endif
-}
-
-std::vector<float> GetTensorData(const hlir::framework::Tensor& tensor, Target target) {
-  std::vector<float> data;
-#ifdef CINN_WITH_CUDA
-  data.resize(tensor->shape().numel());
-  CUDA_CALL(cudaMemcpy(data.data(),
-                       reinterpret_cast<void*>(tensor->mutable_data<float>(target)),
-                       tensor->shape().numel() * sizeof(float),
-                       cudaMemcpyDeviceToHost));
-#else
-  for (size_t i = 0; i < tensor->shape().numel(); ++i) {
-    data.push_back(tensor->data<float>()[i]);
-  }
-#endif
-  return data;
-}
 
 std::vector<float> RunWithProgram(const Program& program, const Target& target, Variable out) {
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
   auto scope = hlir::framework::BuildScope(target, graph);
 
-  hlir::framework::ApplyPasses(graph.get(), {"InferShape", "OpFusion"});
+  hlir::framework::ApplyPasses(graph.get(), {"InferShape"});
+  hlir::framework::ApplyPasses(graph.get(), DefaultOpFusionPasses());
   VLOG(1) << "graph:\n" << graph->Visualize();
   hlir::framework::GraphCompiler gc(target, scope, graph);
   auto runtime_program = gc.Build();
   runtime_program->Execute();
 
-  return GetTensorData(scope->GetTensor(out->id), target);
+  return GetTensorData<float>(scope->GetTensor(out->id), target);
 }
 
 TEST(TransposeFolding, FoldTwoFillConstant) {
@@ -75,7 +54,7 @@ TEST(TransposeFolding, FoldTwoFillConstant) {
   auto transpose_y = builder.Transpose(y, {1, 0});
   auto out         = builder.Add(transpose_x, transpose_y);
   auto program     = builder.Build();
-  auto target      = GetTarget();
+  auto target      = common::DefaultTarget();
 
   size_t origin_size = program.size();
   VLOG(1) << "Program Before FillConstantFolding:\n" << program;
@@ -116,7 +95,7 @@ TEST(TransposeFolding, FoldTwoFillConstantWithSameOuput) {
   auto transpose_x = builder.Transpose(x, {1, 0});
   auto out         = builder.Add(y, y);
   auto program     = builder.Build();
-  auto target      = GetTarget();
+  auto target      = common::DefaultTarget();
 
   size_t origin_size = program.size();
   VLOG(1) << "Program Before FillConstantFolding:\n" << program;
@@ -155,7 +134,7 @@ TEST(TransposeFolding, FoldThreeFillConstant) {
   auto transpose_x   = builder.Transpose(x, {1, 0});
   auto out           = builder.Add(y, z);
   auto program       = builder.Build();
-  auto target        = GetTarget();
+  auto target        = common::DefaultTarget();
   size_t origin_size = program.size();
   VLOG(1) << "Program Before FillConstantFolding:\n" << program;
   // Program {
@@ -194,7 +173,7 @@ TEST(TransposeFolding, FoldThreeFillConstantWithOneDiff) {
   auto transpose_x = builder.Transpose(x, {1, 0});
   auto out         = builder.Add(y, z);
   auto program     = builder.Build();
-  auto target      = GetTarget();
+  auto target      = common::DefaultTarget();
   auto graph       = std::make_shared<hlir::framework::Graph>(program, target);
   auto scope       = hlir::framework::BuildScope(target, graph);
 

@@ -23,6 +23,7 @@
 #include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/op/use_ops.h"
 #include "cinn/hlir/pass/use_pass.h"
+#include "cinn/utils/data_util.h"
 
 DEFINE_string(model_dir, "", "");
 
@@ -31,33 +32,6 @@ namespace frontend {
 
 using hlir::framework::Scope;
 using utils::Join;
-
-Target GetTarget() {
-#ifdef CINN_WITH_CUDA
-  return common::DefaultNVGPUTarget();
-#else
-  return common::DefaultHostTarget();
-#endif
-}
-
-void SetRandData(const hlir::framework::Tensor& tensor, Target target) {
-#ifdef CINN_WITH_CUDA
-  auto* data = tensor->mutable_data<float>(target);
-  std::vector<float> host_memory(tensor->shape().numel(), 0);
-  for (float& v : host_memory) {
-    v = (rand() * 1.f) / RAND_MAX;  // All random data
-  }
-  CUDA_CALL(cudaMemcpy(reinterpret_cast<void*>(data),
-                       host_memory.data(),
-                       tensor->shape().numel() * sizeof(float),
-                       cudaMemcpyHostToDevice));
-#else
-  auto* data = tensor->mutable_data<float>(target);
-  for (size_t j = 0; j < tensor->shape().numel(); j++) {
-    data[j] = (rand() * 1.f) / RAND_MAX;  // All random data
-  }
-#endif
-}
 
 TEST(const_conv, const_conv) {
   Placeholder A(Float(32), {1, 3, 224, 224}, "A");
@@ -73,7 +47,7 @@ TEST(const_conv, const_conv) {
 
   auto c = program.conv2d(A, B, attrs);
 
-  Target target = GetTarget();
+  Target target = common::DefaultTarget();
   program.SetInputs({A, B});
   program.Validate();
   LOG(INFO) << "Program:\n" << program;
@@ -96,8 +70,8 @@ TEST(const_conv, const_conv) {
 
   auto A1 = scope->GetTensor("A");
   auto B1 = scope->GetTensor("B");
-  SetRandData(A1, target);
-  SetRandData(B1, target);
+  SetRandData<float>(A1, target);
+  SetRandData<float>(B1, target);
 
   runtime_program->Execute();
 }
@@ -117,7 +91,7 @@ TEST(const_bn, const_bn) {
 
   auto a = program.fused_batchnorm_inference(A, Scale, Bias, Mean, Variance, attrs);
 
-  Target target = GetTarget();
+  Target target = common::DefaultTarget();
   program.SetInputs({A, Scale, Bias, Mean, Variance});
   program.Validate();
   LOG(INFO) << "Program:\n" << program;
@@ -146,11 +120,11 @@ TEST(const_bn, const_bn) {
   auto Bias1     = scope->GetTensor("Bias");
   auto Mean1     = scope->GetTensor("Mean");
   auto Variance1 = scope->GetTensor("Variance");
-  SetRandData(A1, target);
-  SetRandData(Scale1, target);
-  SetRandData(Bias1, target);
-  SetRandData(Mean1, target);
-  SetRandData(Variance1, target);
+  SetRandData<float>(A1, target);
+  SetRandData<float>(Scale1, target);
+  SetRandData<float>(Bias1, target);
+  SetRandData<float>(Mean1, target);
+  SetRandData<float>(Variance1, target);
 
   runtime_program->Execute();
 }

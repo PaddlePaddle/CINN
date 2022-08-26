@@ -153,7 +153,7 @@ ir::Tensor Reshape(const ir::Tensor& A, const std::vector<int>& new_shape, const
 std::vector<ir::Tensor> Split(const ir::Tensor& A,
                               int axis,
                               const std::vector<std::vector<int>>& output_shapes,
-                              const std::string& name) {
+                              const std::vector<std::string>& names) {
   if (axis < 0) axis += A->shape.size();
   auto output_size = output_shapes.size();
 
@@ -173,6 +173,7 @@ std::vector<ir::Tensor> Split(const ir::Tensor& A,
   }
 
   std::vector<ir::Tensor> res(output_size);
+  CHECK_EQ(output_size, names.size());
   for (int i = 0; i < output_size; ++i) {
     res[i] = Compute(
         out_shape[i],
@@ -181,7 +182,7 @@ std::vector<ir::Tensor> Split(const ir::Tensor& A,
           temp[axis] = common::AutoSimplify(temp[axis] + Expr(start[i]));
           return A(temp);
         },
-        name + std::to_string(i));
+        names[i]);
   }
   return res;
 }

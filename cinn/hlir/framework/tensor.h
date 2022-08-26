@@ -64,9 +64,9 @@ class _Tensor_ : public Object {
   inline void* mutable_data(const Target& target, const Type& type) {
     set_type(type);
     if (target == common::DefaultHostTarget()) {
-      buffer_->ResizeLazy(1024, (shape_.numel() * type.bits() + 7) / 8, target);
+      buffer_->ResizeLazy(1024, shape_.numel() * type.bytes(), target);
     } else {
-      buffer_->ResizeLazy((shape_.numel() * type.bits() + 7) / 8, target);
+      buffer_->ResizeLazy(shape_.numel() * type.bytes(), target);
     }
     return reinterpret_cast<void*>(buffer_->data()->memory);
   }
