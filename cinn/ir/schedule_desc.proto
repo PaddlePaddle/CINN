@@ -28,10 +28,10 @@ message ScheduleDesc {
         INT = 1;
         FLOAT = 2;
         STRING = 3;
-        INTS = 4;
-        FLOATS = 5;
-        STRINGS = 6;
-        BOOLEANS = 7;
+        BOOLEANS = 4;
+        INTS = 5;
+        FLOATS = 6;
+        STRINGS = 7;
     };
 
     string name = 1;
@@ -49,7 +49,7 @@ message ScheduleDesc {
   message Step {
       string type = 1;
       repeated Expr inputs = 2;
-      repeated Expr outputs = 3;
+      repeated string outputs = 3;
       repeated Attr attrs = 4;
   };
 
