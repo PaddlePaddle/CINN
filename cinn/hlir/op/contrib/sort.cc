@@ -48,9 +48,9 @@ using common::CINNValuePack;
 ir::Tensor ArgSort(const ir::Tensor &A, const int &axis, const bool &is_ascend, const std::string &name) {
   std::string extern_fun_name;
   if (is_ascend) {
-    extern_fun_name.assign("cinn_host_lt_num_float");
-  } else {
     extern_fun_name.assign("cinn_host_gt_num_float");
+  } else {
+    extern_fun_name.assign("cinn_host_lt_num_float");
   }
 
   int pos_axis = axis;
@@ -81,7 +81,7 @@ ir::Tensor ArgSort(const ir::Tensor &A, const int &axis, const bool &is_ascend, 
   return res;
 }
 
-ir::Tensor Sort(const ir::Tensor &A, const int &axis, const bool &is_ascend, const std::string &name) {
+std::vector<ir::Tensor> Sort(const ir::Tensor &A, const int &axis, const bool &is_ascend, const std::string &name) {
   int pos_axis = axis;
   if (pos_axis < 0) {
     pos_axis += A->shape.size();
@@ -95,7 +95,7 @@ ir::Tensor Sort(const ir::Tensor &A, const int &axis, const bool &is_ascend, con
         return A(A_indices);
       },
       name);
-  return res;
+  return {sort_index, res};
 }
 
 std::shared_ptr<framework::OpStrategy> StrategyForSort(const framework::NodeAttr &attrs,
@@ -123,8 +123,11 @@ std::shared_ptr<framework::OpStrategy> StrategyForSort(const framework::NodeAttr
     auto stages   = CreateStages({tensor_A});
     VLOG(3) << "A shape: " << utils::Join(tensor_A->shape, ", ")
             << ", output_shapes: " << utils::Join(output_shapes[0], ", ");
-    ir::Tensor out = Sort(tensor_A, axis, is_ascend, UniqName("Sort_out"));
+    std::vector<ir::Tensor> outputs = Sort(tensor_A, axis, is_ascend, UniqName("Sort_out"));
+    ir::Tensor sort_index           = outputs[0];
+    ir::Tensor out                  = outputs[1];
     std::vector<CINNValue> res;
+    stages->InsertLazily(sort_index);
     stages->InsertLazily(out);
     res.push_back(CINNValue(out));
     CHECK(!out_type.empty()) << "Output type of Sort is empty! Please check.\n";

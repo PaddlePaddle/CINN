@@ -41,7 +41,8 @@ TEST(GenerateCode_Cpu, Sort) {
   ir::Expr h(28);
 
   lang::Placeholder<int32_t> in("in", {n, h});
-  ir::Tensor res = Sort(in, Float(32), "test_sort_out");
+  std::vector<ir::Tensor> outputs = Sort(in, 1, true, "test_sort_out");
+  ir::Tensor res                  = outputs[1];
 
   poly::StageMap stages = poly::CreateStages({res});
   std::vector<ir::LoweredFunc> funcs =

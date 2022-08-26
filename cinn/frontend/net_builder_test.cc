@@ -223,7 +223,7 @@ TEST(net_build, program_execute_sort) {
     std::vector<int> sorted_data;
     for (int b = 0; b < B; ++b) {
       int index = h + H * b;
-      sorted_data.push_back(input_data[index])
+      sorted_data.push_back(input_data[index]);
     }
     std::sort(sorted_data.begin(), sorted_data.begin() + B);
 

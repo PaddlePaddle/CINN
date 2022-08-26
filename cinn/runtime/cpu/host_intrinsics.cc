@@ -57,8 +57,8 @@ inline int cinn_host_find_float(const cinn_buffer_t* buf, int size, float num) {
 #define __cinn_host_lt_num_kernel(buf, size, num, offset, stride, type) \
   do {                                                                  \
     int out = 0;                                                        \
-    for (int i = size - 1; i >= 0; --i) {                               \
-      if (num < reinterpret_cast<type*>(buf->memory)[i]) out++;         \
+    for (int i = (size - 1) * stride + offset; i >= offset; --i) {      \
+      if (reinterpret_cast<type*>(buf->memory)[i] < num) out++;         \
     }                                                                   \
     return out;                                                         \
   } while (0)
@@ -78,8 +78,8 @@ inline int cinn_host_lt_num_int(
 #define __cinn_host_gt_num_kernel(buf, size, num, offset, stride, type) \
   do {                                                                  \
     int out = 0;                                                        \
-    for (int i = size - 1; i >= 0; --i) {                               \
-      if (num > reinterpret_cast<type*>(buf->memory)[i]) out++;         \
+    for (int i = (size - 1) * stride + offset; i >= offset; --i) {      \
+      if (reinterpret_cast<type*>(buf->memory)[i] > num) out++;         \
     }                                                                   \
     return out;                                                         \
   } while (0)
