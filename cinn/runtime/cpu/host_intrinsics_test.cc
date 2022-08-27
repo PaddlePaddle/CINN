@@ -88,7 +88,7 @@ TEST(cinn_host_lt_num_float, basic) {
   ASSERT_TRUE(fnp);
 
   auto* x_buf   = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_random().Build();
-  auto* out_buf = common::BufferBuilder(Int(32), {M.as_int32(), N.as_int32()}).set_zero().Build();
+  auto* out_buf = common::BufferBuilder(Int(32), {N.as_int32()}).set_zero().Build();
   auto args     = common::ArgsBuilder().Add(x_buf).Add(out_buf).Build();
   fnp(args.data(), args.size());
 
@@ -130,7 +130,7 @@ TEST(cinn_host_gt_num_float, basic) {
   ASSERT_TRUE(fnp);
 
   auto* x_buf   = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_random().Build();
-  auto* out_buf = common::BufferBuilder(Int(32), {M.as_int32(), N.as_int32()}).set_zero().Build();
+  auto* out_buf = common::BufferBuilder(Int(32), {N.as_int32()}).set_zero().Build();
   auto args     = common::ArgsBuilder().Add(x_buf).Add(out_buf).Build();
   fnp(args.data(), args.size());
 

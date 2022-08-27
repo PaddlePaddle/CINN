@@ -244,12 +244,12 @@ __device__ inline int cinn_cuda_find_float_from(const float *buf, int size, floa
   } while (0)
 
 __device__ inline int cinn_cuda_lt_num_float(
-    const float *buf, const float size, const float num, const float offset, const float stride) {
+    const float *buf, const float size, const float num, const int offset, const int stride) {
   __cinn_cuda_lt_num_kernel(buf, size, num, offset, stride);
 }
 
 __device__ inline int cinn_cuda_lt_num_int(
-    const int *buf, const float size, const int num, const float offset, const float stride) {
+    const int *buf, const float size, const int num, const int offset, const int stride) {
   __cinn_cuda_lt_num_kernel(buf, size, num, offset, stride);
 }
 
@@ -265,12 +265,12 @@ __device__ inline int cinn_cuda_lt_num_int(
   } while (0)
 
 __device__ inline int cinn_cuda_gt_num_float(
-    const float *buf, const float size, const float num, const float offset, const float stride) {
+    const float *buf, const float size, const float num, const int offset, const int stride) {
   __cinn_cuda_gt_num_kernel(buf, size, num, offset, stride);
 }
 
 __device__ inline int cinn_cuda_gt_num_int(
-    const int *buf, const float size, const int num, const float offset, const float stride) {
+    const int *buf, const float size, const int num, const int offset, const int stride) {
   __cinn_cuda_gt_num_kernel(buf, size, num, offset, stride);
 }
 
