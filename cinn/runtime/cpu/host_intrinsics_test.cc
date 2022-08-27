@@ -103,7 +103,6 @@ TEST(cinn_host_lt_num_float, basic) {
         out++;
       }
     }
-    ASSERT_NEAR(x_buf_data[j], 1.0, 1e-5);
     ASSERT_NEAR(out_buf_data[j], out, 1e-5);
   }
 }
@@ -146,7 +145,6 @@ TEST(cinn_host_gt_num_float, basic) {
         out++;
       }
     }
-    ASSERT_NEAR(x_buf_data[j], 1.0, 1e-5);
     ASSERT_NEAR(out_buf_data[j], out, 1e-5);
   }
 }
