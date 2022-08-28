@@ -193,13 +193,12 @@ TEST(net_build, program_execute_argsort) {
   Placeholder input = builder.CreateInput(Float(32), {B, H}, "In");
   Variable output   = builder.ArgSort(input, 0, true);
   auto program      = builder.Build();
-  Target target     = common::DefaultHostTarget();
 
-  // #ifdef CINN_WITH_CUDA
-  //     Target target = common::DefaultNVGPUTarget();
-  //   #else
-  //     Target target = common::DefaultHostTarget();
-  //   #endif
+#ifdef CINN_WITH_CUDA
+  Target target = common::DefaultNVGPUTarget();
+#else
+  Target target = common::DefaultHostTarget();
+#endif
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
   auto scope = BuildScope(target, graph);
@@ -226,9 +225,11 @@ TEST(net_build, program_execute_argsort) {
   VLOG(6) << "Visualize output_data";
   for (int h = 0; h < H; ++h) {
     std::vector<float> sorted_data;
+    std::vector<float> out_sorted_data(H);
     for (int b = 0; b < B; ++b) {
       int index = h + H * b;
       sorted_data.push_back(input_data[index]);
+      out_sorted_data[output_data[index]]=input_data[index];
     }
     std::sort(sorted_data.begin(), sorted_data.begin() + B);
 
@@ -236,7 +237,7 @@ TEST(net_build, program_execute_argsort) {
       std::string line;
       int index       = h + H * b;
       float true_data = sorted_data[b];
-      float out_data  = input_data[h + H * output_data[index]];
+      float out_data  = out_sorted_data[b];
       line += (std::to_string(out_data) + ", ");
       EXPECT_EQ(output_data[index], -1);
       EXPECT_EQ(true_data, out_data);

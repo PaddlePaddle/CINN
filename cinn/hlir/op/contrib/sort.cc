@@ -105,6 +105,8 @@ std::vector<ir::Tensor> Sort(const ir::Tensor &A,
       A->shape,
       [=](const std::vector<Expr> &indices) {
         std::vector<Expr> A_indices(indices);
+
+
         A_indices[pos_axis] = sort_index(indices);
         return A(A_indices);
       },
