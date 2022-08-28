@@ -98,17 +98,24 @@ llvm::Value* CodeGenCUDA_Host::LowerGPUKernelLauncher(const ir::_LoweredFunc_* f
   SetVar(kernel_ptr_global_var_name, m_->getOrInsertGlobal(kernel_ptr_global_var_name, ll_void_p_ty()));
   SetVar(kernel_stream_global_var_name, m_->getOrInsertGlobal(kernel_stream_global_var_name, ll_void_p_ty()));
 
+  std::string var_name     = func->name + "_str_var__ptr";
+  std::string string_value = func->name + "_test_string";
+  SetVar(var_name, b_->CreateGlobalStringPtr(llvm::StringRef(string_value)));
+
   {  // create a new Call node for the ExternFunctionEmitter
     Var args_var(func->args[0].var_arg()->name, type_of<cinn_pod_value_t*>());  // pass *args directly to kernel
     Var kernel_fn_ptr_var(kernel_ptr_global_var_name, type_of<void*>());
     Var kernel_stream_var(kernel_stream_global_var_name, type_of<void*>());
-
+    Var str_var(var_name, type_of<void*>());
+    Expr str_len((int)string_value.size());
     auto new_call_node = ir::Call::Make(Void(),
                                         runtime::intrinsic::call_cuda_kernel,
                                         {
                                             kernel_fn_ptr_var,  // kernel_fn
                                             args_var,           // args
                                             Var(std::string(ll_num_args_copied->getName()), type_of<int32_t>()),
+                                            str_var,
+                                            str_len,
                                             Expr(func->cuda_axis_info.grid_dim(0)),   // grid_x
                                             Expr(func->cuda_axis_info.grid_dim(1)),   // grid_y
                                             Expr(func->cuda_axis_info.grid_dim(2)),   // grid_z
