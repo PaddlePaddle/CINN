@@ -29,6 +29,10 @@ inline int cinn_host_find_int(const cinn_buffer_t* buf, int size, int num);
 
 inline int cinn_host_find_float(const cinn_buffer_t* buf, int size, float num);
 
+inline int cinn_host_find_int_nd(const cinn_buffer_t* buf, int size, int num, int begin, int stride);
+
+inline int cinn_host_find_float_nd(const cinn_buffer_t* buf, int size, float num, int begin, int stride);
+
 inline int cinn_host_lt_num_float(
     const cinn_buffer_t* buf, const int size, const float num, const int offset, const int stride);
 

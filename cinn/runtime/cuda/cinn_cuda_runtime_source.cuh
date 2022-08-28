@@ -200,18 +200,28 @@ __device__ inline bool cinn_block_reduce_any(const bool *buf, int offset, int ex
   return cinn_block_reduce_any_internal(tmp_val);
 }
 
-#define __cinn_cuda_find_kernel(buf, size, num) \
-  do {                                          \
-    for (int i = size - 1; i >= 0; --i) {       \
-      if (buf[i] == num) return i;              \
-    }                                           \
-    return -1;                                  \
+#define __cinn_cuda_find_kernel(buf, size, num, begin, stride)           \
+  do {                                                                   \
+    for (int i = (size - 1) * stride + begin; i >= begin; i -= stride) { \
+      if (buf[i] == num) return (i - begin) / stride;                    \
+    }                                                                    \
+    return -1;                                                           \
   } while (0)
 
-__device__ inline int cinn_cuda_find_int(const int *buf, int size, int num) { __cinn_cuda_find_kernel(buf, size, num); }
+__device__ inline int cinn_cuda_find_int(const int *buf, int size, int num) {
+  __cinn_cuda_find_kernel(buf, size, num, 0, 1);
+}
 
 __device__ inline int cinn_cuda_find_float(const float *buf, int size, float num) {
-  __cinn_cuda_find_kernel(buf, size, num);
+  __cinn_cuda_find_kernel(buf, size, num, 0, 1);
+}
+
+__device__ inline int cinn_cuda_find_int_nd(const int *buf, int size, int num, int begin, int stride) {
+  __cinn_cuda_find_kernel(buf, size, num, begin, stride);
+}
+
+__device__ inline int cinn_cuda_find_float_nd(const float *buf, int size, float num, int begin, int stride) {
+  __cinn_cuda_find_kernel(buf, size, num, begin, stride);
 }
 
 #undef __cinn_cuda_find_kernel

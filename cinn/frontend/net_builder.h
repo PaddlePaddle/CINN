@@ -82,6 +82,27 @@ class NetBuilder : public BaseBuilder {
    */
   Variable ReduceSum(const Variable& x, const std::vector<int>& dim, bool keep_dim = false);
 
+  Variable Gather(const Variable& x, const Variable& index, const int& axis = 0);
+
+  Variable GatherNd(const Variable& x, const Variable& index, const std::vector<int>& axes = {});
+
+  Variable Scatter(const Variable& src, const Variable& index, const Variable& out, const int& axis = 0);
+  Variable Scatter(const Variable& src,
+                   const Variable& index,
+                   const std::vector<int>& shape,
+                   const float& default_value = 0,
+                   const int& axis            = 0);
+
+  Variable ScatterNd(const Variable& src,
+                     const Variable& index,
+                     const Variable& out,
+                     const std::vector<int>& axes = {});
+  Variable ScatterNd(const Variable& src,
+                     const Variable& index,
+                     const std::vector<int>& shape,
+                     const float& default_value   = 0,
+                     const std::vector<int>& axes = {});
+
   /**
    * Compute the logic add of Variable x along the given dim.
    */
