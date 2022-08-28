@@ -96,6 +96,14 @@ std::vector<ir::Tensor> Sort(const ir::Tensor &A,
                              const int &axis,
                              const bool &is_ascend,
                              const std::string &name) {
+  std::string extern_fun_name;
+  if (target.arch == common::Target::Arch::NVGPU) {
+    extern_fun_name.assign("cinn_cuda_find_int_nd");
+  } else if (target.arch == common::Target::Arch::X86) {
+    extern_fun_name.assign("cinn_host_find_int_nd");
+  } else {
+    LOG(FATAL) << "ArgSort only support X86 and NVGPU ! Please Check.\n";
+  }
   int pos_axis = axis;
   if (pos_axis < 0) {
     pos_axis += A->shape.size();
@@ -104,10 +112,25 @@ std::vector<ir::Tensor> Sort(const ir::Tensor &A,
   auto res        = Compute(
       A->shape,
       [=](const std::vector<Expr> &indices) {
+        Expr offset(0);
+        Expr stride(1);
+        for (int i = 0; i < indices.size(); i++) {
+          if (i < pos_axis) {
+            offset = offset * A->shape[i] + indices[i];
+          } else if (i == pos_axis) {
+            offset = offset * A->shape[i];
+          } else {
+            offset = offset * A->shape[i] + indices[i];
+            stride = stride * A->shape[i];
+          }
+        }
+        offset = common::AutoSimplify(offset);
+        stride = common::AutoSimplify(stride);
+
+        auto A_shape_axis = A->shape[pos_axis];
+        auto idx = lang::CallExtern(extern_fun_name, {sort_index, A_shape_axis, indices[pos_axis], offset, stride});
         std::vector<Expr> A_indices(indices);
-
-
-        A_indices[pos_axis] = sort_index(indices);
+        A_indices[pos_axis] = idx;
         return A(A_indices);
       },
       name);

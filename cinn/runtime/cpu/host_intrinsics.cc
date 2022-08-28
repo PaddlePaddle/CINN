@@ -171,6 +171,7 @@ CINN_REGISTER_HELPER(host_intrinsics) {
       .AddInputType<int>()
       .AddInputType<int>()
       .End();
+
   REGISTER_EXTERN_FUNC_HELPER(cinn_host_gt_num_int, host_target)
       .SetRetType<int>()
       .AddInputType<cinn_buffer_t*>()
