@@ -172,13 +172,13 @@ TEST(net_build, program_execute_reverse) {
   runtime_program->Execute();
 }
 
-void SetIntRandData(hlir::framework::Tensor tensor, Target target) {
-  auto* data = tensor->mutable_data<int>(target);
+void SetFloatRandData(hlir::framework::Tensor tensor, Target target) {
+  auto* data = tensor->mutable_data<float>(target);
   std::random_device seed;
   std::default_random_engine engine(seed());
-  std::uniform_int_distribution<int> dist(1, 128);
+  std::uniform_real_distribution<float> dist(0.f, 1.f);
   size_t num_ele = tensor->shape().numel();
-  std::vector<int> random_data(num_ele);
+  std::vector<float> random_data(num_ele);
   for (size_t i = 0; i < num_ele; i++) {
     random_data[i] = dist(engine);  // All random data
   }
@@ -209,14 +209,14 @@ TEST(net_build, program_execute_argsort) {
   scope->Var<hlir::framework::Tensor>(std::string(output->id));
 
   auto input_tensor = scope->GetTensor(std::string(input.id()));
-  SetIntRandData(input_tensor, target);
+  SetFloatRandData(input_tensor, target);
   auto* input_data = input_tensor->mutable_data<float>(target);
 
   runtime_program->Execute();
 
   auto output_tensor                   = scope->GetTensor(std::string(output->id));
   const std::vector<int>& output_shape = output_tensor->shape().data();
-  EXPECT_EQ(output_tensor->type(), Float(32));
+  EXPECT_EQ(output_tensor->type(), Int(32));
   EXPECT_EQ(output_shape.size(), 2UL);
   EXPECT_EQ(output_shape[0], B);
   EXPECT_EQ(output_shape[1], H);
@@ -234,7 +234,7 @@ TEST(net_build, program_execute_argsort) {
     for (int b = 0; b < B; ++b) {
       std::string line;
       int index       = h + H * b;
-      float true_data = sorted_data[index];
+      float true_data = sorted_data[b];
       float out_data  = input_data[h + H * output_data[index]];
       line += (std::to_string(out_data) + ", ");
       EXPECT_EQ(true_data, out_data);
@@ -267,7 +267,7 @@ TEST(net_build, program_execute_sort) {
   scope->Var<hlir::framework::Tensor>(std::string(output->id));
 
   auto input_tensor = scope->GetTensor(std::string(input.id()));
-  SetIntRandData(input_tensor, target);
+  SetFloatRandData(input_tensor, target);
   auto* input_data = input_tensor->mutable_data<float>(target);
 
   runtime_program->Execute();
@@ -292,7 +292,7 @@ TEST(net_build, program_execute_sort) {
     for (int b = 0; b < B; ++b) {
       std::string line;
       int index       = h + H * b;
-      float true_data = sorted_data[index];
+      float true_data = sorted_data[b];
       float out_data  = output_data[index];
       line += (std::to_string(out_data) + ", ");
       EXPECT_EQ(true_data, out_data);

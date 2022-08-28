@@ -59,9 +59,9 @@ ir::Tensor ArgSort(const ir::Tensor &A,
     LOG(FATAL) << "ArgSort only support X86 and NVGPU ! Please Check.\n";
   }
   if (is_ascend) {
-    extern_fun_name.append("gt_num_float");
-  } else {
     extern_fun_name.append("lt_num_float");
+  } else {
+    extern_fun_name.append("gt_num_float");
   }
   int pos_axis = axis;
   if (pos_axis < 0) {

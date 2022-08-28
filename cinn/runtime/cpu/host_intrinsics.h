@@ -30,14 +30,14 @@ inline int cinn_host_find_int(const cinn_buffer_t* buf, int size, int num);
 inline int cinn_host_find_float(const cinn_buffer_t* buf, int size, float num);
 
 inline int cinn_host_lt_num_float(
-    const cinn_buffer_t* buf, const float size, const float num, const int offset, const int stride);
+    const cinn_buffer_t* buf, const int size, const float num, const int offset, const int stride);
 
 inline int cinn_host_lt_num_int(
-    const cinn_buffer_t* buf, const float size, const int num, const int offset, const int stride);
+    const cinn_buffer_t* buf, const int size, const int num, const int offset, const int stride);
 
 inline int cinn_host_gt_num_float(
-    const cinn_buffer_t* buf, const float size, const float num, const int offset, const int stride);
+    const cinn_buffer_t* buf, const int size, const float num, const int offset, const int stride);
 
 inline int cinn_host_gt_num_int(
-    const cinn_buffer_t* buf, const float size, const int num, const int offset, const int stride);
+    const cinn_buffer_t* buf, const int size, const int num, const int offset, const int stride);
 }

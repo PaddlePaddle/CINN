@@ -64,12 +64,12 @@ inline int cinn_host_find_float(const cinn_buffer_t* buf, int size, float num) {
   } while (0)
 
 inline int cinn_host_lt_num_float(
-    const cinn_buffer_t* buf, const float size, const float num, const int offset, const int stride) {
+    const cinn_buffer_t* buf, const int size, const float num, const int offset, const int stride) {
   __cinn_host_lt_num_kernel(buf, size, num, offset, stride, float);
 }
 
 inline int cinn_host_lt_num_int(
-    const cinn_buffer_t* buf, const float size, const int num, const int offset, const int stride) {
+    const cinn_buffer_t* buf, const int size, const int num, const int offset, const int stride) {
   __cinn_host_lt_num_kernel(buf, size, num, offset, stride, int);
 }
 
@@ -85,12 +85,12 @@ inline int cinn_host_lt_num_int(
   } while (0)
 
 inline int cinn_host_gt_num_float(
-    const cinn_buffer_t* buf, const float size, const float num, const int offset, const int stride) {
+    const cinn_buffer_t* buf, const int size, const float num, const int offset, const int stride) {
   __cinn_host_gt_num_kernel(buf, size, num, offset, stride, float);
 }
 
 inline int cinn_host_gt_num_int(
-    const cinn_buffer_t* buf, const float size, const int num, const int offset, const int stride) {
+    const cinn_buffer_t* buf, const int size, const int num, const int offset, const int stride) {
   __cinn_host_gt_num_kernel(buf, size, num, offset, stride, int);
 }
 
