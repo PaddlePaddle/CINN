@@ -22,7 +22,6 @@ from cinn.common import *
 from op_test import OpTest, OpTestTool
 
 
-@OpTestTool.skip_if(is_compiled_with_cuda(), "cuda test will be skipped")
 class TestSqueezeOp(OpTest):
     def setUp(self):
         self.init_case()

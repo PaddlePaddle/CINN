@@ -188,6 +188,15 @@ std::vector<Type> InferDtypeForSqueeze(const std::vector<Type> &inputs_type, con
   return res;
 }
 
+std::vector<std::vector<std::string>> InferLayoutForSqueeze(const std::vector<framework::shape_t> &input_shapes,
+                                                            const std::vector<std::string> &input_layouts,
+                                                            const framework::NodeAttr &attrs,
+                                                            const Target &target) {
+  CHECK_EQ(input_shapes.size(), 1U) << "The input's shape size is not 1! Please check again.";
+  CHECK_EQ(input_layouts.size(), 1U) << "The input's layout size is not 1! Please check again.";
+  return {input_layouts, input_layouts};
+}
+
 }  // namespace op
 }  // namespace hlir
 }  // namespace cinn
@@ -200,6 +209,9 @@ CINN_REGISTER_HELPER(squeeze_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForSqueeze)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForSqueeze))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForSqueeze))
+#ifndef CINN_WITH_CUDA
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForSqueeze))
+#endif
       .set_support_level(4);
 
   return true;
