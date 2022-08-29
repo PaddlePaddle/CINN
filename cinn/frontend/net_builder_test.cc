@@ -189,5 +189,71 @@ TEST(net_build, program_execute_reverse) {
   runtime_program->Execute();
 }
 
+TEST(net_build, program_execute_flip) {
+  const int M        = 4;
+
+  std::vector<int> axis={0};
+
+  NetBuilder builder("net_builder");
+  Placeholder input    = builder.CreateInput(Float(32), {M}, "In");
+  Variable output      = builder.Flip({input}, axis);
+  auto program         = builder.Build();
+
+  Target target = common::DefaultHostTarget();
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  auto scope = BuildScope(target, graph);
+  hlir::framework::GraphCompiler gc(target, scope, graph);
+  auto runtime_program = gc.Build();
+
+  scope->Var<hlir::framework::Tensor>(std::string(input.id()));
+  scope->Var<hlir::framework::Tensor>(std::string(output->id));
+
+  auto input_tensor = scope->GetTensor(std::string(input.id()));
+  float* input_data = input_tensor->mutable_data<float>(target);
+
+  memset(input_data, 0, sizeof(float) * M);
+
+  VLOG(6) << "Visualize input_data";
+  std::string line;
+  for (int m = 0; m < M; ++m) {
+   
+      
+      
+        int index = m ;
+        input_data[index] = rand() % 1000 / 1000.f;
+        line += (std::to_string(input_data[index]) + ", ");
+      
+     
+    
+  }
+  VLOG(6) << line;
+
+  runtime_program->Execute();
+
+  auto output_tensor = scope->GetTensor(std::string(output->id));
+  const std::vector<int>& output_shape = output_tensor->shape().data();
+  EXPECT_EQ(output_shape.size(), 3UL);
+  EXPECT_EQ(output_shape[0], M);
+
+
+  float* output_data = output_tensor->mutable_data<float>(target);
+
+  VLOG(6) << "Visualize output_data";
+  std::string line2;
+  for (int m = M-1; m >=0; --m) {
+    
+        int index = m ;
+        float in_data  = input_data[index];
+        float out_data = output_data[index];
+       
+        line2 += (std::to_string(out_data) + ", ");
+      
+     
+    
+  }
+  VLOG(6) << line2;
+}
+
 }  // namespace frontend
 }  // namespace cinn

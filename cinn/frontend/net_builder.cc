@@ -224,6 +224,15 @@ Variable NetBuilder::Sum(const std::vector<Variable>& inputs) {
   return instr.GetOutput(0);
 }
 
+Variable NetBuilder::Flip(const std::vector<Variable>& inputs, const std::vector<int>& axis) {
+  Instruction instr("Flip", inputs);
+  instr.SetAttr("axis", axis);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
+
 // conv2d grad, output(grad_x, grad_w)
 std::vector<Variable> NetBuilder::Conv2dGrad(const Variable& dy,
                                              const Variable& x,

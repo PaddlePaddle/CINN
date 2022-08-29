@@ -150,6 +150,7 @@ class NetBuilder : public BaseBuilder {
                         const std::string& dropout_implementation = "downgrade_in_infer");
 
   Variable Sum(const std::vector<Variable>& inputs);
+  Variable Flip(const std::vector<Variable>& inputs, const std::vector<int>& axis);
 
   // conv2d grad, output(grad_x, grad_w)
   std::vector<Variable> Conv2dGrad(const Variable& dy,
