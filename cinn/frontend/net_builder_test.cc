@@ -246,84 +246,84 @@ TEST(net_build, program_execute_clip) {
   }
 }
 
-// TEST(net_build, program_execute_one_hot) {
-//   const std::vector<int> indices_shape = {3};
-//   const int ON_VALUE                   = 9;
-//   const int OFF_VALUE                  = 1;
-//   const int DEPTH                      = 5;
-//   const int AXIS                       = -1;
-//   const std::string& DTYPE             = "float32";
+TEST(net_build, program_execute_one_hot) {
+  const std::vector<int> indices_shape = {3};
+  const int ON_VALUE                   = 9;
+  const int OFF_VALUE                  = 1;
+  const int DEPTH                      = 5;
+  const int AXIS                       = -1;
+  const std::string& DTYPE             = "float32";
 
-//   NetBuilder builder("net_builder");
-//   Placeholder indices   = builder.CreateInput(Float(32), indices_shape, "indices");
-//   Placeholder on_value  = builder.CreateInput(Float(32), {1}, "on_value");
-//   Placeholder off_value = builder.CreateInput(Float(32), {1}, "off_value");
-//   Variable out          = builder.OneHot(indices, on_value, off_value, DEPTH, AXIS, DTYPE);
-//   auto program          = builder.Build();
+  NetBuilder builder("net_builder");
+  Placeholder indices   = builder.CreateInput(Float(32), indices_shape, "indices");
+  Placeholder on_value  = builder.CreateInput(Float(32), {1}, "on_value");
+  Placeholder off_value = builder.CreateInput(Float(32), {1}, "off_value");
+  Variable out          = builder.OneHot(indices, on_value, off_value, DEPTH, AXIS, DTYPE);
+  auto program          = builder.Build();
 
-//   Target target = common::DefaultHostTarget();
+  Target target = common::DefaultHostTarget();
 
-//   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-//   auto scope = BuildScope(target, graph);
-//   hlir::framework::GraphCompiler gc(target, scope, graph);
-//   auto runtime_program = gc.Build();
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  auto scope = BuildScope(target, graph);
+  hlir::framework::GraphCompiler gc(target, scope, graph);
+  auto runtime_program = gc.Build();
 
-//   scope->Var<hlir::framework::Tensor>(std::string(indices.id()));
-//   scope->Var<hlir::framework::Tensor>(std::string(on_value.id()));
-//   scope->Var<hlir::framework::Tensor>(std::string(off_value.id()));
-//   scope->Var<hlir::framework::Tensor>(std::string(out->id));
+  scope->Var<hlir::framework::Tensor>(std::string(indices.id()));
+  scope->Var<hlir::framework::Tensor>(std::string(on_value.id()));
+  scope->Var<hlir::framework::Tensor>(std::string(off_value.id()));
+  scope->Var<hlir::framework::Tensor>(std::string(out->id));
 
-//   auto indices_tensor   = scope->GetTensor(std::string(indices.id()));
-//   auto on_value_tensor  = scope->GetTensor(std::string(on_value.id()));
-//   auto off_value_tensor = scope->GetTensor(std::string(off_value.id()));
-//   float* indices_data   = indices_tensor->mutable_data<float>(target);
-//   float* on_value_data  = on_value_tensor->mutable_data<float>(target);
-//   float* off_value_data = off_value_tensor->mutable_data<float>(target);
+  auto indices_tensor   = scope->GetTensor(std::string(indices.id()));
+  auto on_value_tensor  = scope->GetTensor(std::string(on_value.id()));
+  auto off_value_tensor = scope->GetTensor(std::string(off_value.id()));
+  float* indices_data   = indices_tensor->mutable_data<float>(target);
+  float* on_value_data  = on_value_tensor->mutable_data<float>(target);
+  float* off_value_data = off_value_tensor->mutable_data<float>(target);
 
-//   // set indices data -> [0, 2, 2]
-//   memset(indices_data, 0, sizeof(float) * indices_shape[0]);
-//   indices_data[1] = static_cast<float>(2);
-//   indices_data[2] = static_cast<float>(2);
-//   // set on_value data -> [ON_VALUE]
-//   on_value_data[0] = static_cast<float>(ON_VALUE);
-//   // set off_value data -> [OFF_VALUE]
-//   off_value_data[0] = static_cast<float>(OFF_VALUE);
+  // set indices data -> [0, 2, 2]
+  memset(indices_data, 0, sizeof(float) * indices_shape[0]);
+  indices_data[1] = static_cast<float>(2);
+  indices_data[2] = static_cast<float>(2);
+  // set on_value data -> [ON_VALUE]
+  on_value_data[0] = static_cast<float>(ON_VALUE);
+  // set off_value data -> [OFF_VALUE]
+  off_value_data[0] = static_cast<float>(OFF_VALUE);
 
-//   VLOG(6) << "Visualize indices_data";
-//   {
-//     std::string line;
-//     for (int i = 0; i < indices_shape[0]; i++) {
-//       int index = i;
-//       line += (std::to_string(indices_data[index]) + ", ");
-//     }
-//     VLOG(6) << line;
-//   }
-//   runtime_program->Execute();
+  VLOG(6) << "Visualize indices_data";
+  {
+    std::string line;
+    for (int i = 0; i < indices_shape[0]; i++) {
+      int index = i;
+      line += (std::to_string(indices_data[index]) + ", ");
+    }
+    VLOG(6) << line;
+  }
+  runtime_program->Execute();
 
-//   auto out_tensor                   = scope->GetTensor(std::string(out->id));
-//   const std::vector<int>& out_shape = out_tensor->shape().data();
-//   EXPECT_EQ(out_shape.size(), indices_shape.size() + 1);
-//   EXPECT_EQ(out_shape[0], indices_shape[0]);
-//   EXPECT_EQ(out_shape[1], DEPTH);
+  auto out_tensor                   = scope->GetTensor(std::string(out->id));
+  const std::vector<int>& out_shape = out_tensor->shape().data();
+  EXPECT_EQ(out_shape.size(), indices_shape.size() + 1);
+  EXPECT_EQ(out_shape[0], indices_shape[0]);
+  EXPECT_EQ(out_shape[1], DEPTH);
 
-//   float* out_data = out_tensor->mutable_data<float>(target);
-//   VLOG(6) << "Visualize out_data";
-//   for (int i = 0; i < out_shape[0]; i++) {
-//     std::string line;
-//     for (int j = 0; j < out_shape[1]; j++) {
-//       int index           = i * out_shape[1] + j;
-//       int indices_indices = i;
-//       float data          = out_data[index];
-//       line += (std::to_string(data) + ", ");
-//       if (j == static_cast<int>(indices_data[indices_indices])) {
-//         EXPECT_EQ(static_cast<int>(data), ON_VALUE);
-//       } else {
-//         EXPECT_EQ(static_cast<int>(data), OFF_VALUE);
-//       }
-//     }
-//     VLOG(6) << line;
-//   }
-// }
+  float* out_data = out_tensor->mutable_data<float>(target);
+  VLOG(6) << "Visualize out_data";
+  for (int i = 0; i < out_shape[0]; i++) {
+    std::string line;
+    for (int j = 0; j < out_shape[1]; j++) {
+      int index           = i * out_shape[1] + j;
+      int indices_indices = i;
+      float data          = out_data[index];
+      line += (std::to_string(data) + ", ");
+      if (j == static_cast<int>(indices_data[indices_indices])) {
+        EXPECT_EQ(static_cast<int>(data), ON_VALUE);
+      } else {
+        EXPECT_EQ(static_cast<int>(data), OFF_VALUE);
+      }
+    }
+    VLOG(6) << line;
+  }
+}
 
 }  // namespace frontend
 }  // namespace cinn
