@@ -29,6 +29,9 @@
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
 #include "cinn/hlir/pe/elementwise.h"
+#include "cinn/hlir/pe/ir_schedule_pe.h"
+#include "cinn/hlir/pe/nn.h"
+#include "cinn/hlir/pe/schedule.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/tensor.h"
@@ -83,11 +86,12 @@ std::shared_ptr<framework::OpStrategy> StrategyForGather(const framework::NodeAt
   auto attr_store = attrs.attr_store;
   CHECK(attr_store.count("axis")) << "find no attr of axis";
   int axis = absl::get<int>(attr_store.at("axis"));
+  std::string op_name("gather");
 
   framework::CINNCompute gather_compute([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input arguments of Gather compute is empty! Please check.\n";
+    CHECK(!args.empty()) << "The input arguments of " << op_name << " compute is empty! Please check.\n";
     CINNValuePack a = args[0];
-    CHECK_EQ(a.size(), 2U) << "2 input tensors for Gather compute\n";
+    CHECK_EQ(a.size(), 2U) << "2 input tensors for " << op_name << " compute\n";
     Expr A = a[0];
     Expr B = a[1];
     CHECK(A.as_tensor());
@@ -102,21 +106,14 @@ std::shared_ptr<framework::OpStrategy> StrategyForGather(const framework::NodeAt
     std::vector<CINNValue> res;
     stages->InsertLazily(out);
     res.push_back(CINNValue(out));
-    CHECK(!out_type.empty()) << "Output type of Gather is empty! Please check.\n";
+    CHECK(!out_type.empty()) << "Output type of " << op_name << " is empty! Please check.\n";
     res.push_back(CINNValue(stages));
     *ret = CINNValuePack{res};
   });
 
-  framework::CINNSchedule gather_schedule([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input argument of gather schedule is empty! Please check.\n";
-    CINNValuePack arg_pack = args[0];
-    Expr out               = arg_pack[0];
-    CHECK(out.as_tensor());
-    *ret = arg_pack;
-  });
-
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(gather_compute, gather_schedule, "strategy.gather.x86", 1);
+  strategy->AddImpl(
+      gather_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.gather.x86", 1);
   return strategy;
 }
 
@@ -128,11 +125,12 @@ std::shared_ptr<framework::OpStrategy> StrategyForGatherNd(const framework::Node
   auto attr_store = attrs.attr_store;
   CHECK(attr_store.count("axes")) << "find no attr of axes";
   std::vector<int> axes = absl::get<std::vector<int>>(attr_store.at("axes"));
+  std::string op_name("gather_nd");
 
-  framework::CINNCompute gather_compute([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input arguments of Gather compute is empty! Please check.\n";
+  framework::CINNCompute gather_nd_compute([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input arguments of " << op_name << " compute is empty! Please check.\n";
     CINNValuePack a = args[0];
-    CHECK_EQ(a.size(), 2U) << "2 input tensors for Gather compute\n";
+    CHECK_EQ(a.size(), 2U) << "2 input tensors for " << op_name << " compute\n";
     Expr A = a[0];
     Expr B = a[1];
     CHECK(A.as_tensor());
@@ -147,21 +145,14 @@ std::shared_ptr<framework::OpStrategy> StrategyForGatherNd(const framework::Node
     std::vector<CINNValue> res;
     stages->InsertLazily(out);
     res.push_back(CINNValue(out));
-    CHECK(!out_type.empty()) << "Output type of Gather is empty! Please check.\n";
+    CHECK(!out_type.empty()) << "Output type of " << op_name << " is empty! Please check.\n";
     res.push_back(CINNValue(stages));
     *ret = CINNValuePack{res};
   });
 
-  framework::CINNSchedule gather_schedule([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input argument of gather_nd schedule is empty! Please check.\n";
-    CINNValuePack arg_pack = args[0];
-    Expr out               = arg_pack[0];
-    CHECK(out.as_tensor());
-    *ret = arg_pack;
-  });
-
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(gather_compute, gather_schedule, "strategy.gather_nd.x86", 1);
+  strategy->AddImpl(
+      gather_nd_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.gather_nd.x86", 1);
   return strategy;
 }
 

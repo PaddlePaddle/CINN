@@ -246,35 +246,9 @@ TEST(net_build, program_execute_clip) {
   }
 }
 
-void SetIntRandData(hlir::framework::Tensor tensor, Target target, int min = 0, int max = 127) {
-  auto* data = tensor->mutable_data<int>(target);
-  std::random_device seed;
-  std::default_random_engine engine(seed());
-  std::uniform_int_distribution<int> dist(min, max);
-  size_t num_ele = tensor->shape().numel();
-  std::vector<int> random_data(num_ele);
-  for (size_t i = 0; i < num_ele; i++) {
-    random_data[i] = dist(engine);  // All random data
-  }
-  std::copy(random_data.begin(), random_data.end(), data);
-}
-
-void SetFloatRandData(hlir::framework::Tensor tensor, Target target) {
-  auto* data = tensor->mutable_data<float>(target);
-  std::random_device seed;
-  std::default_random_engine engine(seed());
-  std::uniform_real_distribution<float> dist(0.f, 1.f);
-  size_t num_ele = tensor->shape().numel();
-  std::vector<float> random_data(num_ele);
-  for (size_t i = 0; i < num_ele; i++) {
-    random_data[i] = dist(engine);  // All random data
-  }
-  std::copy(random_data.begin(), random_data.end(), data);
-}
-
 TEST(net_build, program_execute_gather) {
   const int B     = 4;
-  const int H_IN1 = 7;
+  const int H_IN1 = 11;
   const int H_IN2 = 14;
 
   NetBuilder builder("net_builder");
@@ -283,7 +257,11 @@ TEST(net_build, program_execute_gather) {
   Variable output    = builder.Gather(input1, input2, 1);
   auto program       = builder.Build();
 
+#ifdef CINN_WITH_CUDA
+  Target target = common::DefaultNVGPUTarget();
+#else
   Target target = common::DefaultHostTarget();
+#endif
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
   auto scope = BuildScope(target, graph);
@@ -295,11 +273,11 @@ TEST(net_build, program_execute_gather) {
   scope->Var<hlir::framework::Tensor>(std::string(output->id));
 
   auto input1_tensor = scope->GetTensor(std::string(input1.id()));
-  SetFloatRandData(input1_tensor, target);
+  SetRandData<float>(input1_tensor, target);
   float* input1_data = input1_tensor->mutable_data<float>(target);
 
   auto input2_tensor = scope->GetTensor(std::string(input2.id()));
-  SetIntRandData(input2_tensor, target, 0, 6);
+  SetRandData<int>(input2_tensor, target);
   int* input2_data = input2_tensor->mutable_data<int>(target);
 
   runtime_program->Execute();
@@ -328,7 +306,7 @@ TEST(net_build, program_execute_gather) {
 
 TEST(net_build, program_execute_gather_nd) {
   const int B     = 4;
-  const int H_IN1 = 7;
+  const int H_IN1 = 11;
   const int H_IN2 = 14;
 
   NetBuilder builder("net_builder");
@@ -337,7 +315,11 @@ TEST(net_build, program_execute_gather_nd) {
   Variable output    = builder.GatherNd(input1, input2, {1});
   auto program       = builder.Build();
 
+#ifdef CINN_WITH_CUDA
+  Target target = common::DefaultNVGPUTarget();
+#else
   Target target = common::DefaultHostTarget();
+#endif
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
   auto scope = BuildScope(target, graph);
@@ -349,11 +331,11 @@ TEST(net_build, program_execute_gather_nd) {
   scope->Var<hlir::framework::Tensor>(std::string(output->id));
 
   auto input1_tensor = scope->GetTensor(std::string(input1.id()));
-  SetFloatRandData(input1_tensor, target);
+  SetRandData<float>(input1_tensor, target);
   float* input1_data = input1_tensor->mutable_data<float>(target);
 
   auto input2_tensor = scope->GetTensor(std::string(input2.id()));
-  SetIntRandData(input2_tensor, target, 0, 6);
+  SetRandData<int>(input2_tensor, target);
   int* input2_data = input2_tensor->mutable_data<int>(target);
 
   runtime_program->Execute();
@@ -384,7 +366,7 @@ TEST(net_build, program_execute_scatter) {
   const float default_value = 3.14;
   const int B               = 3;
   const int H_IN            = 4;
-  const int H_OUT           = 7;
+  const int H_OUT           = 11;
 
   NetBuilder builder("net_builder");
   Placeholder input1 = builder.CreateInput(Float(32), {B, H_IN}, "In1");
@@ -392,7 +374,11 @@ TEST(net_build, program_execute_scatter) {
   Variable output    = builder.Scatter(input1, input2, {B, H_OUT}, default_value, 1);
   auto program       = builder.Build();
 
+#ifdef CINN_WITH_CUDA
+  Target target = common::DefaultNVGPUTarget();
+#else
   Target target = common::DefaultHostTarget();
+#endif
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
   auto scope = BuildScope(target, graph);
@@ -404,11 +390,11 @@ TEST(net_build, program_execute_scatter) {
   scope->Var<hlir::framework::Tensor>(std::string(output->id));
 
   auto input1_tensor = scope->GetTensor(std::string(input1.id()));
-  SetFloatRandData(input1_tensor, target);
+  SetRandData<float>(input1_tensor, target);
   float* input1_data = input1_tensor->mutable_data<float>(target);
 
   auto input2_tensor = scope->GetTensor(std::string(input2.id()));
-  SetIntRandData(input2_tensor, target, 0, 6);
+  SetRandData<int>(input2_tensor, target);
   int* input2_data = input2_tensor->mutable_data<int>(target);
 
   runtime_program->Execute();
@@ -453,7 +439,7 @@ TEST(net_build, program_execute_scatter_nd) {
   const float default_value = 3.14;
   const int B               = 3;
   const int H_IN            = 4;
-  const int H_OUT           = 7;
+  const int H_OUT           = 11;
 
   NetBuilder builder("net_builder");
   Placeholder input1 = builder.CreateInput(Float(32), {B, H_IN}, "In1");
@@ -461,7 +447,11 @@ TEST(net_build, program_execute_scatter_nd) {
   Variable output    = builder.ScatterNd(input1, input2, {B, H_OUT}, default_value, {1});
   auto program       = builder.Build();
 
+#ifdef CINN_WITH_CUDA
+  Target target = common::DefaultNVGPUTarget();
+#else
   Target target = common::DefaultHostTarget();
+#endif
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
   auto scope = BuildScope(target, graph);
@@ -473,11 +463,11 @@ TEST(net_build, program_execute_scatter_nd) {
   scope->Var<hlir::framework::Tensor>(std::string(output->id));
 
   auto input1_tensor = scope->GetTensor(std::string(input1.id()));
-  SetFloatRandData(input1_tensor, target);
+  SetRandData<float>(input1_tensor, target);
   float* input1_data = input1_tensor->mutable_data<float>(target);
 
   auto input2_tensor = scope->GetTensor(std::string(input2.id()));
-  SetIntRandData(input2_tensor, target, 0, 6);
+  SetRandData<int>(input2_tensor, target);
   int* input2_data = input2_tensor->mutable_data<int>(target);
 
   runtime_program->Execute();

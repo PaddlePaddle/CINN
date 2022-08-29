@@ -29,6 +29,9 @@
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
 #include "cinn/hlir/pe/elementwise.h"
+#include "cinn/hlir/pe/ir_schedule_pe.h"
+#include "cinn/hlir/pe/nn.h"
+#include "cinn/hlir/pe/schedule.h"
 #include "cinn/hlir/pe/transform.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_base.h"
@@ -174,11 +177,12 @@ std::shared_ptr<framework::OpStrategy> StrategyForScatter(const framework::NodeA
   auto attr_store = attrs.attr_store;
   CHECK(attr_store.count("axis")) << "find no attr of axis";
   int axis = absl::get<int>(attr_store.at("axis"));
+  std::string op_name("scatter");
 
   framework::CINNCompute scatter_compute([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input arguments of Scatter compute is empty! Please check.\n";
+    CHECK(!args.empty()) << "The input arguments of " << op_name << " compute is empty! Please check.\n";
     CINNValuePack a = args[0];
-    CHECK_EQ(a.size(), 3U) << "3 input tensors for Scatter compute\n";
+    CHECK_EQ(a.size(), 3U) << "3 input tensors for " << op_name << " compute\n";
     Expr A = a[0];
     Expr B = a[1];
     Expr C = a[2];
@@ -196,21 +200,14 @@ std::shared_ptr<framework::OpStrategy> StrategyForScatter(const framework::NodeA
     std::vector<CINNValue> res;
     stages->InsertLazily(out);
     res.push_back(CINNValue(out));
-    CHECK(!out_type.empty()) << "Output type of Scatter is empty! Please check.\n";
+    CHECK(!out_type.empty()) << "Output type of " << op_name << " is empty! Please check.\n";
     res.push_back(CINNValue(stages));
     *ret = CINNValuePack{res};
   });
 
-  framework::CINNSchedule scatter_schedule([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input argument of reshape schedule is empty! Please check.\n";
-    CINNValuePack arg_pack = args[0];
-    Expr out               = arg_pack[0];
-    CHECK(out.as_tensor());
-    *ret = arg_pack;
-  });
-
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(scatter_compute, scatter_schedule, "strategy.scatter.x86", 1);
+  strategy->AddImpl(
+      scatter_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.scatter.x86", 1);
   return strategy;
 }
 
@@ -222,11 +219,12 @@ std::shared_ptr<framework::OpStrategy> StrategyForScatterNd(const framework::Nod
   auto attr_store = attrs.attr_store;
   CHECK(attr_store.count("axes")) << "find no attr of axis";
   std::vector<int> axes = absl::get<std::vector<int>>(attr_store.at("axes"));
+  std::string op_name("scatter_nd");
 
-  framework::CINNCompute scatter_compute([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input arguments of Scatter compute is empty! Please check.\n";
+  framework::CINNCompute scatter_nd_compute([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input arguments of " << op_name << " compute is empty! Please check.\n";
     CINNValuePack a = args[0];
-    CHECK_EQ(a.size(), 3U) << "3 input tensors for Scatter compute\n";
+    CHECK_EQ(a.size(), 3U) << "3 input tensors for " << op_name << " compute\n";
     Expr A = a[0];
     Expr B = a[1];
     Expr C = a[2];
@@ -244,21 +242,14 @@ std::shared_ptr<framework::OpStrategy> StrategyForScatterNd(const framework::Nod
     std::vector<CINNValue> res;
     stages->InsertLazily(out);
     res.push_back(CINNValue(out));
-    CHECK(!out_type.empty()) << "Output type of Scatter is empty! Please check.\n";
+    CHECK(!out_type.empty()) << "Output type of " << op_name << " is empty! Please check.\n";
     res.push_back(CINNValue(stages));
     *ret = CINNValuePack{res};
   });
 
-  framework::CINNSchedule scatter_schedule([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input argument of reshape schedule is empty! Please check.\n";
-    CINNValuePack arg_pack = args[0];
-    Expr out               = arg_pack[0];
-    CHECK(out.as_tensor());
-    *ret = arg_pack;
-  });
-
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(scatter_compute, scatter_schedule, "strategy.scatter_nd.x86", 1);
+  strategy->AddImpl(
+      scatter_nd_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.scatter_nd.x86", 1);
   return strategy;
 }
 
