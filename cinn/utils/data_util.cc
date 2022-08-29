@@ -17,13 +17,13 @@
 namespace cinn {
 
 template <>
-void SetRandData<int>(hlir::framework::Tensor tensor, const common::Target& target, int seed) {
+void SetRandData<int>(hlir::framework::Tensor tensor, const common::Target& target, int min, int max, int seed) {
   if (seed == -1) {
     std::random_device rd;
     seed = rd();
   }
   std::default_random_engine engine(seed);
-  std::uniform_int_distribution<int> dist(1, 10);
+  std::uniform_int_distribution<int> dist(min, max);
   size_t num_ele = tensor->shape().numel();
   std::vector<float> random_data(num_ele);
   for (size_t i = 0; i < num_ele; i++) {
@@ -42,13 +42,13 @@ void SetRandData<int>(hlir::framework::Tensor tensor, const common::Target& targ
 }
 
 template <>
-void SetRandData<float>(hlir::framework::Tensor tensor, const common::Target& target, int seed) {
+void SetRandData<float>(hlir::framework::Tensor tensor, const common::Target& target, float mean, float std, int seed) {
   if (seed == -1) {
     std::random_device rd;
     seed = rd();
   }
   std::default_random_engine engine(seed);
-  std::uniform_real_distribution<float> dist(0.f, 1.f);
+  std::uniform_real_distribution<float> dist(mean, std);
   size_t num_ele = tensor->shape().numel();
   std::vector<float> random_data(num_ele);
   for (size_t i = 0; i < num_ele; i++) {
