@@ -514,8 +514,9 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
     }
   };
 
-  auto WithoutLastDimInReduce = [](const std::vector<int>& inshape, const std::vector<int>& axes) {
+  auto WithoutLastDimInReduce = [](const std::vector<int>& inshape, std::vector<int>& axes) {
     // if last axis is in reduce.
+    axes = axes.empty() ? inshape : axes;
     if (std::find(axes.begin(), axes.end(), inshape.size() - 1) != axes.end() ||
         std::find(axes.begin(), axes.end(), -1) != axes.end()) {
       return false;
@@ -536,7 +537,8 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
   auto ScheduleAssignReduceWithoutLast = [this, OrderAssignReduce](ir::IRSchedule& ir_sch,
                                                                    const std::string& block_name,
                                                                    const std::vector<int>& inshape,
-                                                                   const std::vector<int>& axes) {
+                                                                   std::vector<int>& axes) {
+    axes                = axes.empty() ? inshape : axes;
     int lane            = 1;
     int max_num_threads = this->target_.max_num_threads();
     for (int idx = axes.back() + 1; idx < inshape.size(); ++idx) {
@@ -595,8 +597,9 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
   auto ScheduleAssignReduceWithLast = [this, OrderAssignReduce](ir::IRSchedule& ir_sch,
                                                                 const std::string& block_name,
                                                                 const std::vector<int>& inshape,
-                                                                const std::vector<int>& axes) {
+                                                                std::vector<int>& axes) {
     // find first reduce and second reduce axis.
+    axes                 = axes.empty() ? inshape : axes;
     int lane             = 1;
     int index            = static_cast<int>(axes.size()) - 1;
     auto max_num_threads = this->target_.max_num_threads();
@@ -1360,8 +1363,9 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
     }
   };
 
-  auto WithoutLastDimInReduce = [](const std::vector<int>& inshape, const std::vector<int>& axes) {
+  auto WithoutLastDimInReduce = [](const std::vector<int>& inshape, std::vector<int>& axes) {
     // if last axis is in reduce.
+    axes = axes.empty() ? inshape : axes;
     if (std::find(axes.begin(), axes.end(), inshape.size() - 1) != axes.end() ||
         std::find(axes.begin(), axes.end(), -1) != axes.end()) {
       return false;
@@ -1380,7 +1384,8 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
   };
 
   auto ScheduleAssignReduceWithoutLast =
-      [this, OrderAssignReduce](poly::Stage* stage, const std::vector<int>& inshape, const std::vector<int>& axes) {
+      [this, OrderAssignReduce](poly::Stage* stage, const std::vector<int>& inshape, std::vector<int>& axes) {
+        axes                = axes.empty() ? inshape : axes;
         int lane            = 1;
         int max_num_threads = this->target_.max_num_threads();
         for (int idx = axes.back() + 1; idx < inshape.size(); ++idx) {
@@ -1426,62 +1431,63 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
         OrderAssignReduce(stage, axes);
       };
 
-  auto ScheduleAssignReduceWithLast =
-      [this, OrderAssignReduce](poly::Stage* stage, const std::vector<int>& inshape, const std::vector<int>& axes) {
-        // find first reduce and second reduce axis.
-        int lane             = 1;
-        int index            = static_cast<int>(axes.size()) - 1;
-        auto max_num_threads = this->target_.max_num_threads();
-        for (; index >= 0; --index) {
-          if (index + 1 < axes.size() && axes[index] != axes[index + 1] - 1) {
+  auto ScheduleAssignReduceWithLast = [this, OrderAssignReduce](
+                                          poly::Stage* stage, const std::vector<int>& inshape, std::vector<int>& axes) {
+    // find first reduce and second reduce axis.
+    axes                 = axes.empty() ? inshape : axes;
+    int lane             = 1;
+    int index            = static_cast<int>(axes.size()) - 1;
+    auto max_num_threads = this->target_.max_num_threads();
+    for (; index >= 0; --index) {
+      if (index + 1 < axes.size() && axes[index] != axes[index + 1] - 1) {
+        break;
+      }
+      lane *= inshape[axes[index]];
+      if (index == 0 && lane <= max_num_threads) {
+        LOG(FATAL) << "Error! lane is less equal than max_num_threads, Please check!";
+      }
+      if (lane >= max_num_threads / 2) {
+        if (lane <= max_num_threads) {
+          --index;
+        }
+        break;
+      }
+    }
+    std::vector<int> first_axes(axes.begin(), axes.begin() + index + 1);
+    if (lane > max_num_threads) {
+      // last reduce axis size > 1024
+      if (index == static_cast<int>(axes.size()) - 1) {
+        int idx = max_num_threads;
+        do {
+          if (lane % idx == 0) {
+            stage->Split(axes[index], idx);
             break;
           }
-          lane *= inshape[axes[index]];
-          if (index == 0 && lane <= max_num_threads) {
-            LOG(FATAL) << "Error! lane is less equal than max_num_threads, Please check!";
-          }
-          if (lane >= max_num_threads / 2) {
-            if (lane <= max_num_threads) {
-              --index;
-            }
+          --idx;
+        } while (idx >= max_num_threads / 2);
+        // if can't be divide by(1024, 512), it's shouldn't be fused.
+        CHECK_GE(idx, max_num_threads / 2) << "Check bounds exist, can't fuse!";
+      } else {
+        int axis   = axes[index];
+        int prefix = inshape[axis];
+        int tail   = lane / prefix;
+        for (int idx = max_num_threads / tail; idx > (max_num_threads / 2) / tail; --idx) {
+          if (prefix % idx == 0) {
+            stage->Split(axis, idx);
             break;
           }
+          CHECK_GT(idx, (max_num_threads / 2) / tail) << "Error, it's shouldn't fuse!";
         }
-        std::vector<int> first_axes(axes.begin(), axes.begin() + index + 1);
-        if (lane > max_num_threads) {
-          // last reduce axis size > 1024
-          if (index == static_cast<int>(axes.size()) - 1) {
-            int idx = max_num_threads;
-            do {
-              if (lane % idx == 0) {
-                stage->Split(axes[index], idx);
-                break;
-              }
-              --idx;
-            } while (idx >= max_num_threads / 2);
-            // if can't be divide by(1024, 512), it's shouldn't be fused.
-            CHECK_GE(idx, max_num_threads / 2) << "Check bounds exist, can't fuse!";
-          } else {
-            int axis   = axes[index];
-            int prefix = inshape[axis];
-            int tail   = lane / prefix;
-            for (int idx = max_num_threads / tail; idx > (max_num_threads / 2) / tail; --idx) {
-              if (prefix % idx == 0) {
-                stage->Split(axis, idx);
-                break;
-              }
-              CHECK_GT(idx, (max_num_threads / 2) / tail) << "Error, it's shouldn't fuse!";
-            }
-          }
-          OrderAssignReduce(stage, first_axes);
-        } else {
-          int fuse_times = axes.size() - (index + 1) - 1;
-          for (int idx = 0; idx < fuse_times; ++idx) {
-            stage->Fuse(axes[index + 1], axes[index + 1] + 1);
-          }
-          OrderAssignReduce(stage, first_axes, true);
-        }
-      };
+      }
+      OrderAssignReduce(stage, first_axes);
+    } else {
+      int fuse_times = axes.size() - (index + 1) - 1;
+      for (int idx = 0; idx < fuse_times; ++idx) {
+        stage->Fuse(axes[index + 1], axes[index + 1] + 1);
+      }
+      OrderAssignReduce(stage, first_axes, true);
+    }
+  };
 
   Node* master_node = nullptr;
   for (auto node : group->master_nodes) {
