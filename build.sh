@@ -257,11 +257,13 @@ function run_demo {
 
 function run_test {
     cd $build_dir
-    if [ ${TESTING_DEBUG_MODE:-OFF} == "ON" ] ; then
-        ctest --parallel 10 -V
-    else
-        ctest --parallel 10 --output-on-failure
-    fi
+    # if [ ${TESTING_DEBUG_MODE:-OFF} == "ON" ] ; then
+    #     ctest --parallel 10 -V
+    # else
+    #     ctest --parallel 10 --output-on-failure
+    # fi
+    GLOG_vmodule=one_hot_test=10 ctest -R test_one_hot -VV
+    GLOG_vmodule=one_net_builder=10 ctest -R test_net_builder -VV
 }
 
 function CI {
