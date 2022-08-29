@@ -104,6 +104,7 @@ struct Type {
   int bits() const;
   int lanes() const;
   cpp_type_t cpp_type() const;
+  int bytes() const;
   // @}
 
   //! Compare two types for equality.

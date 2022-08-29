@@ -23,6 +23,7 @@
 #include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/op/use_ops.h"
 #include "cinn/hlir/pass/use_pass.h"
+#include "cinn/utils/data_util.h"
 
 DEFINE_string(model_dir, "", "");
 
@@ -47,13 +48,6 @@ std::unique_ptr<Program> CreateAddProgram() {
   program->Validate();
 
   return program;
-}
-
-void SetRandData(const hlir::framework::Tensor& tensor, Target target) {
-  auto* data = tensor->mutable_data<float>(target);
-  for (size_t j = 0; j < tensor->shape().numel(); j++) {
-    data[j] = (rand() * 1.f) / RAND_MAX;  // All random data
-  }
 }
 
 TEST(conv, conv) {
@@ -92,9 +86,9 @@ TEST(conv, conv) {
   auto A1 = scope->GetTensor("A");
   auto B1 = scope->GetTensor("B");
   auto C1 = scope->GetTensor("C");
-  SetRandData(A1, target);
-  SetRandData(B1, target);
-  SetRandData(C1, target);
+  SetRandData<float>(A1, target);
+  SetRandData<float>(B1, target);
+  SetRandData<float>(C1, target);
 
   runtime_program->Execute();
 }
@@ -140,10 +134,10 @@ TEST(conv_relu_conv, conv_relu_conv) {
   auto B1 = scope->GetTensor("B");
   auto C1 = scope->GetTensor("C");
   auto D1 = scope->GetTensor("D");
-  SetRandData(A1, target);
-  SetRandData(B1, target);
-  SetRandData(C1, target);
-  SetRandData(D1, target);
+  SetRandData<float>(A1, target);
+  SetRandData<float>(B1, target);
+  SetRandData<float>(C1, target);
+  SetRandData<float>(D1, target);
 
   runtime_program->Execute();
 }
@@ -189,10 +183,10 @@ TEST(conv_add_conv, conv_add_conv) {
   auto B1 = scope->GetTensor("B");
   auto C1 = scope->GetTensor("C");
   auto D1 = scope->GetTensor("D");
-  SetRandData(A1, target);
-  SetRandData(B1, target);
-  SetRandData(C1, target);
-  SetRandData(D1, target);
+  SetRandData<float>(A1, target);
+  SetRandData<float>(B1, target);
+  SetRandData<float>(C1, target);
+  SetRandData<float>(D1, target);
 
   runtime_program->Execute();
 }
@@ -245,10 +239,10 @@ TEST(conv_bn_conv, conv_bn_conv) {
   auto B1 = scope->GetTensor("B");
   auto C1 = scope->GetTensor("C");
   auto D1 = scope->GetTensor("D");
-  SetRandData(A1, target);
-  SetRandData(B1, target);
-  SetRandData(C1, target);
-  SetRandData(D1, target);
+  SetRandData<float>(A1, target);
+  SetRandData<float>(B1, target);
+  SetRandData<float>(C1, target);
+  SetRandData<float>(D1, target);
 
   runtime_program->Execute();
 }
@@ -301,10 +295,10 @@ TEST(conv_pool2d_conv, conv_pool2d_conv) {
   auto B1 = scope->GetTensor("B");
   auto C1 = scope->GetTensor("C");
   auto D1 = scope->GetTensor("D");
-  SetRandData(A1, target);
-  SetRandData(B1, target);
-  SetRandData(C1, target);
-  SetRandData(D1, target);
+  SetRandData<float>(A1, target);
+  SetRandData<float>(B1, target);
+  SetRandData<float>(C1, target);
+  SetRandData<float>(D1, target);
 
   runtime_program->Execute();
 }
@@ -352,10 +346,10 @@ TEST(conv_softmax_conv, conv_softmax_conv) {
   auto B1 = scope->GetTensor("B");
   auto C1 = scope->GetTensor("C");
   auto D1 = scope->GetTensor("D");
-  SetRandData(A1, target);
-  SetRandData(B1, target);
-  SetRandData(C1, target);
-  SetRandData(D1, target);
+  SetRandData<float>(A1, target);
+  SetRandData<float>(B1, target);
+  SetRandData<float>(C1, target);
+  SetRandData<float>(D1, target);
 
   runtime_program->Execute();
 }
@@ -400,10 +394,10 @@ TEST(conv_sigmoid_conv, conv_sigmoid_conv) {
   auto B1 = scope->GetTensor("B");
   auto C1 = scope->GetTensor("C");
   auto D1 = scope->GetTensor("D");
-  SetRandData(A1, target);
-  SetRandData(B1, target);
-  SetRandData(C1, target);
-  SetRandData(D1, target);
+  SetRandData<float>(A1, target);
+  SetRandData<float>(B1, target);
+  SetRandData<float>(C1, target);
+  SetRandData<float>(D1, target);
 
   runtime_program->Execute();
 }
@@ -452,10 +446,10 @@ TEST(conv_mul_conv, conv_mul_conv) {
   auto B1 = scope->GetTensor("B");
   auto C1 = scope->GetTensor("C");
   auto D1 = scope->GetTensor("D");
-  SetRandData(A1, target);
-  SetRandData(B1, target);
-  SetRandData(C1, target);
-  SetRandData(D1, target);
+  SetRandData<float>(A1, target);
+  SetRandData<float>(B1, target);
+  SetRandData<float>(C1, target);
+  SetRandData<float>(D1, target);
 
   runtime_program->Execute();
 }

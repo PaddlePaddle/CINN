@@ -13,26 +13,20 @@
 // limitations under the License.
 
 #pragma once
+#include <random>
+#include <vector>
 
-#include <string>
-#include <unordered_set>
-
-#include "cinn/ir/ir.h"
-#include "cinn/ir/ir_base.h"
-#include "cinn/ir/ir_schedule.h"
-#include "cinn/ir/lowered_func.h"
+#include "cinn/common/target.h"
+#include "cinn/hlir/framework/tensor.h"
+#ifdef CINN_WITH_CUDA
+#include <cuda_runtime.h>
+#endif
 
 namespace cinn {
-namespace auto_schedule {
+template <typename T>
+void SetRandData(hlir::framework::Tensor tensor, const common::Target& target, int seed = -1);
 
-void AnalyzeScheduleBlockReadWriteBuffer(ir::ScheduleBlock* sche_block);
+template <typename T>
+std::vector<T> GetTensorData(const hlir::framework::Tensor& tensor, const common::Target& target);
 
-bool ContainsNodeType(ir::Expr expr, const std::unordered_set<ir::IrNodeTy>& node_types);
-
-/**
- * Collects all input lowered_funcs and return names of all output arguments
- */
-std::unordered_set<std::string> GetOutputNamesFromLoweredFunc(const std::vector<ir::LoweredFunc>& lowered_funcs);
-
-}  // namespace auto_schedule
 }  // namespace cinn
