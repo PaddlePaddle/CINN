@@ -233,6 +233,15 @@ Variable NetBuilder::Sum(const std::vector<Variable>& inputs) {
   return instr.GetOutput(0);
 }
 
+Variable NetBuilder::Clip(const std::vector<Variable>& inputs, const float& max_val, const float& min_val) {
+  Instruction instr("clip", inputs);
+  instr.SetAttr("max_val", max_val);
+  instr.SetAttr("min_val", min_val);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
 // conv2d grad, output(grad_x, grad_w)
 std::vector<Variable> NetBuilder::Conv2dGrad(const Variable& dy,
                                              const Variable& x,

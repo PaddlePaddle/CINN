@@ -161,6 +161,8 @@ class NetBuilder : public BaseBuilder {
 
   Variable Sum(const std::vector<Variable>& inputs);
 
+  Variable Clip(const std::vector<Variable>& inputs, const float& max_val, const float& min_val);
+
   // conv2d grad, output(grad_x, grad_w)
   std::vector<Variable> Conv2dGrad(const Variable& dy,
                                    const Variable& x,
