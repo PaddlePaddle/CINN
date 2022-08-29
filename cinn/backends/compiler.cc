@@ -17,6 +17,7 @@
 #include <fstream>
 
 #include "cinn/backends/llvm/runtime_symbol_registry.h"
+#include "cinn/common/context.h"
 #ifdef CINN_WITH_CUDA
 #include "cinn/backends/codegen_cuda_dev.h"
 #include "cinn/backends/codegen_cuda_host.h"

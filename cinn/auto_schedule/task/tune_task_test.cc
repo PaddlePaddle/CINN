@@ -35,6 +35,8 @@
 #include "cinn/ir/ir_schedule.h"
 #include "cinn/utils/string.h"
 
+DECLARE_bool(cinn_ir_schedule);
+
 namespace cinn {
 namespace auto_schedule {
 
@@ -125,6 +127,43 @@ TEST(TuneTask, GraphToUnoptLoweredFunc_NoPass) {
 }
 )ROC";
 
+  if (FLAGS_cinn_ir_schedule) {
+    target_str = R"ROC(
+{
+  ScheduleBlock(root)
+  {
+    for (i, 0, 32)
+    {
+      for (j, 0, 24)
+      {
+        ScheduleBlock(var_1)
+        {
+          i0, i1 = axis.bind(i, j)
+          var_1[i0, i1] = (A[i0, i1] + B[i0, i1])
+        }
+      }
+    }
+  }
+}
+{
+  ScheduleBlock(root_0)
+  {
+    for (i, 0, 32)
+    {
+      for (j, 0, 24)
+      {
+        ScheduleBlock(var_2)
+        {
+          i0, i1 = axis.bind(i, j)
+          var_2[i0, i1] = (A[i0, i1] + var_1[i0, i1])
+        }
+      }
+    }
+  }
+}
+)ROC";
+  }
+
   EXPECT_EQ(utils::Trim(target_str), utils::Trim(expr_str));
 }
 
@@ -197,6 +236,43 @@ TEST(TuneTask, GraphToUnoptLoweredFunc_ApplyPass) {
   }
 }
 )ROC";
+  if (FLAGS_cinn_ir_schedule) {
+    target_str = R"ROC(
+{
+  ScheduleBlock(root)
+  {
+    for (i, 0, 32)
+    {
+      for (j, 0, 24)
+      {
+        ScheduleBlock(var_1)
+        {
+          i0, i1 = axis.bind(i, j)
+          var_1[i0, i1] = (A[i0, i1] + B[i0, i1])
+        }
+      }
+    }
+  }
+}
+{
+  ScheduleBlock(root_0)
+  {
+    for (i, 0, 32)
+    {
+      for (j, 0, 24)
+      {
+        ScheduleBlock(var_2)
+        {
+          i0, i1 = axis.bind(i, j)
+          var_2[i0, i1] = (A[i0, i1] + var_1[i0, i1])
+        }
+      }
+    }
+  }
+}
+)ROC";
+  }
+
 #else
   std::string target_str = R"ROC(
 {
@@ -229,11 +305,109 @@ TEST(TuneTask, GraphToUnoptLoweredFunc_ApplyPass) {
   }
 }
 )ROC";
+
+  if (FLAGS_cinn_ir_schedule) {
+    target_str = R"ROC(
+{
+  ScheduleBlock(root)
+  {
+    {
+      for (i, 0, 32)
+      {
+        for (j, 0, 24)
+        {
+          ScheduleBlock(var_1)
+          {
+            i0, i1 = axis.bind(i, j)
+            var_1[i0, i1] = (A[i0, i1] + B[i0, i1])
+          }
+        }
+      }
+      for (i, 0, 32)
+      {
+        for (j, 0, 24)
+        {
+          ScheduleBlock(var_2)
+          {
+            i0, i1 = axis.bind(i, j)
+            var_2[i0, i1] = (A[i0, i1] + var_1[i0, i1])
+          }
+        }
+      }
+    }
+  }
+}
+)ROC";
+  }
+
 #endif
 
   LOG(INFO) << target_str;
   LOG(INFO) << expr_str;
   EXPECT_EQ(utils::Trim(target_str), utils::Trim(expr_str));
+}
+
+TEST(TuneTask, SerializeToString) {
+  Context::Global().ResetNameId();
+#ifdef CINN_WITH_CUDA
+  Target target = common::DefaultNVGPUTarget();
+#else
+  Target target                  = common::DefaultHostTarget();
+#endif
+  Program prog = CreateAddProgram();
+  auto graph   = std::make_shared<hlir::framework::Graph>(prog, target);
+
+  TaskCreator task_creator;
+  std::vector<TuneTask> single_tasks = task_creator.CreateTuneTaskOpLevel(graph.get());
+  ASSERT_EQ(single_tasks.size(), 2UL);
+  for (auto&& task : single_tasks) {
+    task.SerializeToString(graph->GetAttrs<absl::flat_hash_map<std::string, hlir::framework::shape_t>>("infershape"),
+                           graph->GetAttrs<absl::flat_hash_map<std::string, common::Type>>("inferdtype"));
+  }
+
+#ifdef CINN_WITH_CUDA
+  std::string single_add_str = R"ROC(Target<linux,nvgpu,64>
+
+Group 0 {
+  (float32[32,24]) = elementwise_add(float32[32,24], float32[32,24])
+}
+)ROC";
+#else
+  std::string single_add_str     = R"ROC(Target<linux,x86,64>
+
+Group 0 {
+  (float32[32,24]) = elementwise_add(float32[32,24], float32[32,24])
+}
+)ROC";
+#endif
+  EXPECT_EQ(single_tasks[0].serialized_key, single_add_str);
+  EXPECT_EQ(single_tasks[1].serialized_key, single_add_str);
+
+  ApplyPass(graph.get(), "OpFusion");
+  std::vector<TuneTask> fused_tasks = task_creator.CreateTuneTaskOpLevel(graph.get());
+  ASSERT_EQ(fused_tasks.size(), 1UL);
+  fused_tasks[0].SerializeToString(
+      graph->GetAttrs<absl::flat_hash_map<std::string, hlir::framework::shape_t>>("infershape"),
+      graph->GetAttrs<absl::flat_hash_map<std::string, common::Type>>("inferdtype"));
+
+#ifdef CINN_WITH_CUDA
+  std::string fused_expected_str = R"ROC(Target<linux,nvgpu,64>
+
+Group 0 {
+  (float32[32,24]) = elementwise_add(float32[32,24], float32[32,24])
+  (float32[32,24]) = elementwise_add(float32[32,24], float32[32,24])
+}
+)ROC";
+#else
+  std::string fused_expected_str = R"ROC(Target<linux,x86,64>
+
+Group 0 {
+  (float32[32,24]) = elementwise_add(float32[32,24], float32[32,24])
+  (float32[32,24]) = elementwise_add(float32[32,24], float32[32,24])
+}
+)ROC";
+#endif
+  EXPECT_EQ(fused_tasks[0].serialized_key, fused_expected_str);
 }
 
 }  // namespace auto_schedule

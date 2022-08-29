@@ -27,23 +27,11 @@
 #include "cinn/hlir/pass/use_pass.h"
 #include "cinn/hlir/pe/broadcast.h"
 #include "cinn/lang/packed_func.h"
+#include "cinn/utils/data_util.h"
 
 namespace cinn {
 namespace hlir {
 namespace framework {
-
-Tensor GetTensor(const std::shared_ptr<Scope>& scope, const std::string& name) {
-  auto* var    = scope->Var<Tensor>(name);
-  auto& tensor = absl::get<Tensor>(*var);
-  return tensor;
-}
-
-void SetRandData(Tensor tensor, Target target) {
-  auto* data = tensor->mutable_data<float>(target);
-  for (size_t j = 0; j < tensor->shape().numel(); j++) {
-    data[j] = (rand() * 1.f) / RAND_MAX;  // All random data
-  }
-}
 
 TEST(Operator, GetAttrs) {
   frontend::Program prog;
@@ -59,8 +47,8 @@ TEST(Operator, GetAttrs) {
   auto d   = prog.add(c, b);
   auto e   = prog.add(c, d);
   ASSERT_EQ(prog.size(), 3UL);
-  Target target(Target::OS::Linux, Target::Arch::X86, Target::Bit::k64, {});
-  auto g = std::make_shared<Graph>(prog, target);
+  Target target = common::DefaultHostTarget();
+  auto g        = std::make_shared<Graph>(prog, target);
   ApplyPass(g.get(), "InferShape");
 
   auto scope = BuildScope(target, g);
@@ -68,16 +56,16 @@ TEST(Operator, GetAttrs) {
   GraphCompiler gc(target, scope, g);
   std::unique_ptr<Program> program = gc.Build();
 
-  auto A = GetTensor(scope, "A");
-  auto B = GetTensor(scope, "B");
-  SetRandData(A, target);
-  SetRandData(B, target);
+  auto A = scope->GetTensor("A");
+  auto B = scope->GetTensor("B");
+  SetRandData<float>(A, target);
+  SetRandData<float>(B, target);
 
   program->Execute();
 
   auto A_data = A->data<float>();
   auto B_data = B->data<float>();
-  auto E_data = GetTensor(scope, e->id)->data<float>();
+  auto E_data = scope->GetTensor(e->id)->data<float>();
   for (int i = 0; i < 100 * 32; i++) {
     LOG_FIRST_N(INFO, 3) << "data: " << 2 * A_data[i] << " + " << 3 * B_data[i] << " = " << E_data[i];
     ASSERT_NEAR(2 * A_data[i] + 3 * B_data[i], E_data[i], 1e-5);

@@ -27,52 +27,25 @@
 #include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/op/use_ops.h"
 #include "cinn/hlir/pass/use_pass.h"
+#include "cinn/utils/data_util.h"
 
 namespace cinn::frontend {
 
-Target GetTarget() {
-#ifdef CINN_WITH_CUDA
-  return common::DefaultNVGPUTarget();
-#else
-  return common::DefaultHostTarget();
-#endif
-}
-
 void SetInputData(const hlir::framework::Tensor& tensor, Target target) {
-#ifdef CINN_WITH_CUDA
   auto* data = tensor->mutable_data<float>(target);
   std::vector<float> host_memory(tensor->shape().numel(), 0);
   for (size_t i = 0; i < tensor->shape().numel(); ++i) {
     host_memory[i] = static_cast<float>(i);
   }
-  CUDA_CALL(cudaMemcpy(reinterpret_cast<void*>(data),
-                       host_memory.data(),
-                       tensor->shape().numel() * sizeof(float),
-                       cudaMemcpyHostToDevice));
-#else
-  auto* data = tensor->mutable_data<float>(target);
-  for (size_t j = 0; j < tensor->shape().numel(); j++) {
-    data[j] = static_cast<float>(j);  // All random data
-  }
-#endif
-}
-
-std::vector<float> GetTensorData(const hlir::framework::Tensor& tensor, Target target) {
-  std::vector<float> data;
 #ifdef CINN_WITH_CUDA
-  data.resize(tensor->shape().numel());
-  CUDA_CALL(cudaMemcpy(data.data(),
-                       reinterpret_cast<void*>(tensor->mutable_data<float>(target)),
-                       tensor->shape().numel() * sizeof(float),
-                       cudaMemcpyDeviceToHost));
-#else
-  for (size_t i = 0; i < tensor->shape().numel(); ++i) {
-    data.push_back(tensor->data<float>()[i]);
+  if (target == common::DefaultNVGPUTarget()) {
+    cudaMemcpy(data, host_memory.data(), tensor->shape().numel() * sizeof(float), cudaMemcpyHostToDevice);
+    return;
   }
 #endif
-  return data;
+  CHECK(target == common::DefaultHostTarget());
+  std::copy(host_memory.begin(), host_memory.end(), data);
 }
-
 std::vector<std::vector<float>> RunWithProgram(const Program& program,
                                                const Target& target,
                                                const std::vector<std::string>& input_names,
@@ -93,7 +66,7 @@ std::vector<std::vector<float>> RunWithProgram(const Program& program,
 
   std::vector<std::vector<float>> outputs;
   for (const auto& out_id : out_ids) {
-    outputs.emplace_back(GetTensorData(scope->GetTensor(out_id), target));
+    outputs.emplace_back(GetTensorData<float>(scope->GetTensor(out_id), target));
   }
   return outputs;
 }
@@ -104,7 +77,7 @@ TEST(TransposeCollapsing, FuseTwoTranspose) {
   auto x_t     = builder.Transpose(x, {0, 2, 1});
   auto out     = builder.Transpose(x_t, {2, 1, 0});
   auto program = builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
 
   std::initializer_list<std::string> fetch_list = {out->id};
 
@@ -143,7 +116,7 @@ TEST(TransposeCollapsing, FuseThreeTranspose) {
   auto x_2t    = builder.Transpose(x_1t, {2, 1, 0});
   auto out     = builder.Transpose(x_2t, {1, 2, 0});
   auto program = builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
 
   std::initializer_list<std::string> fetch_list = {out->id};
 
@@ -182,7 +155,7 @@ TEST(TransposeCollapsing, RemoveUselessTranspose) {
   auto x_t     = builder.Transpose(x, {0, 1, 2});
   auto out     = builder.Add(x, x_t);
   auto program = builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
 
   std::initializer_list<std::string> fetch_list = {out->id};
 
@@ -219,7 +192,7 @@ TEST(TransposeCollapsing, ReplaceUselessTransposeWithIndentity) {
   auto x       = builder.CreateInput(Float(32), {4, 5, 3}, "X");
   auto out     = builder.Transpose(x, {0, 1, 2});
   auto program = builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
 
   std::initializer_list<std::string> fetch_list = {out->id};
 
@@ -259,7 +232,7 @@ TEST(TransposeCollapsing, FuseTransposeToUseless) {
   auto x_3t    = builder.Transpose(x_2t, {0, 2, 1});
   auto out     = builder.Add(x_3t, x_3t);
   auto program = builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
 
   std::initializer_list<std::string> fetch_list = {out->id};
 
@@ -304,7 +277,7 @@ TEST(TransposeCollapsing, FuseTransposeWithMultiOutput) {
   auto out2    = builder.Sqrt(x_2t);
   auto out3    = builder.Sqrt(x_3t);
   auto program = builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
 
   std::initializer_list<std::string> fetch_list = {out1->id, out2->id, out3->id};
 
@@ -355,7 +328,7 @@ TEST(TransposeCollapsing, FuseTwoSecTranspose) {
   auto x_4t    = builder.Transpose(x_3t, {2, 1, 0});
   auto out2    = builder.Sqrt(x_4t);
   auto program = builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
 
   std::initializer_list<std::string> fetch_list = {out1->id, out2->id};
 
@@ -401,7 +374,7 @@ TEST(TransposeCollapsing, FuseTwoHorizontalTranspose) {
   auto y_t2    = builder.Transpose(x, {0, 2, 1});
   auto out     = builder.Add(y_t1, y_t2);
   auto program = builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
 
   std::initializer_list<std::string> fetch_list = {out->id};
 
@@ -443,7 +416,7 @@ TEST(TransposeCollapsing, FuseVerAndHorTranspose) {
   auto y_t3    = builder.Transpose(x, {1, 2, 0});
   auto out     = builder.Add(y_t2, y_t3);
   auto program = builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
 
   std::initializer_list<std::string> fetch_list = {out->id};
 

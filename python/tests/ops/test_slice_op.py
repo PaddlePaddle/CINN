@@ -40,8 +40,7 @@ class TestSliceOp(OpTest):
         x = paddle.to_tensor(self.inputs["inputs"], stop_gradient=True)
         res = paddle.strided_slice(x, self.axes, self.starts, self.ends,
                                    self.strides)
-        pd_res = paddle.to_tensor(res, stop_gradient=True)
-        self.paddle_outputs = [pd_res]
+        self.paddle_outputs = [res]
 
     def build_cinn_program(self, target):
         builder = NetBuilder("slice")
@@ -57,10 +56,10 @@ class TestSliceOp(OpTest):
         prog = builder.build()
         res = self.get_cinn_output(prog, target, [inputs],
                                    [self.inputs["inputs"]], [out])
-        self.cinn_outputs = [res]
+        self.cinn_outputs = res
 
     def test_check_results(self):
-        self.check_outputs_and_grads()
+        self.check_outputs_and_grads(all_equal=True)
 
 
 class TestSliceCase1(TestSliceOp):

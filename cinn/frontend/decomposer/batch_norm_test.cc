@@ -165,7 +165,7 @@ TEST(Decomposer, BatchNormTrain) {
   }
   auto program = net_builder.Build();
 
-  auto target = GetTarget();
+  auto target = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
@@ -346,7 +346,7 @@ TEST(Decomposer, BatchNormGrad) {
   }
   auto program = net_builder.Build();
 
-  auto target = GetTarget();
+  auto target = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);

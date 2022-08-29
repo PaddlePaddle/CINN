@@ -36,7 +36,6 @@ NETBUILDER_UNARY_OP_DEF(Identity, identity)
 NETBUILDER_BINARY_OP_DEF(Add, elementwise_add)
 NETBUILDER_BINARY_OP_DEF(Sub, substract)
 NETBUILDER_BINARY_OP_DEF(Div, divide)
-NETBUILDER_BINARY_OP_DEF(Matmul, matmul)
 NETBUILDER_BINARY_OP_DEF(ReluGrad, relu_grad)
 
 #define NETBUILDER_ELEMENTWISE_OP_DEF(func_name__, op_type__)                            \
@@ -45,6 +44,8 @@ NETBUILDER_BINARY_OP_DEF(ReluGrad, relu_grad)
   }
 NETBUILDER_ELEMENTWISE_OP_DEF(ElementwiseAdd, elementwise_add)
 NETBUILDER_ELEMENTWISE_OP_DEF(ElementwiseMul, elementwise_mul)
+NETBUILDER_ELEMENTWISE_OP_DEF(ElementwiseDiv, divide)
+NETBUILDER_ELEMENTWISE_OP_DEF(ElementwiseSub, substract)
 
 Variable NetBuilder::Mul(const Variable& a, const Variable& b, int x_num_col_dims, int y_num_col_dims) {
   Instruction instr("mul", {a, b});
@@ -76,6 +77,14 @@ Variable NetBuilder::Relu6(const Variable& a, float threshold) {
 
 Variable NetBuilder::ReduceSum(const Variable& x, const std::vector<int>& dim, bool keep_dim) {
   return Reduce(x, ReduceKind::kSum, dim, keep_dim);
+}
+
+Variable NetBuilder::ReduceAll(const Variable& x, const std::vector<int>& dim, bool keep_dim) {
+  return Reduce(x, ReduceKind::kAll, dim, keep_dim);
+}
+
+Variable NetBuilder::ReduceAny(const Variable& x, const std::vector<int>& dim, bool keep_dim) {
+  return Reduce(x, ReduceKind::kAny, dim, keep_dim);
 }
 
 Variable NetBuilder::Gather(const Variable& x, const Variable& index, const int& axis) {
@@ -275,6 +284,15 @@ Variable NetBuilder::Sum(const std::vector<Variable>& inputs) {
   return instr.GetOutput(0);
 }
 
+Variable NetBuilder::Clip(const std::vector<Variable>& inputs, const float& max_val, const float& min_val) {
+  Instruction instr("clip", inputs);
+  instr.SetAttr("max_val", max_val);
+  instr.SetAttr("min_val", min_val);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
 // conv2d grad, output(grad_x, grad_w)
 std::vector<Variable> NetBuilder::Conv2dGrad(const Variable& dy,
                                              const Variable& x,
@@ -296,6 +314,16 @@ std::vector<Variable> NetBuilder::Conv2dGrad(const Variable& dy,
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutputs();
+}
+
+Variable NetBuilder::Matmul(const Variable& x, const Variable& y, bool trans_x, bool trans_y, float alpha) {
+  Instruction instr("matmul", {x, y});
+  instr.SetAttr("trans_a", trans_x);
+  instr.SetAttr("trans_b", trans_y);
+  instr.SetAttr("alpha", alpha);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
 }
 
 Variable NetBuilder::ElementwiseOp(const std::string& op_type, const Variable& lhs, const Variable& rhs, int axis) {
