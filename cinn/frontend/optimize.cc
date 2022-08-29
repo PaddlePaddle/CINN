@@ -27,6 +27,7 @@
 #include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/pass/use_pass.h"
 
+DECLARE_bool(cinn_open_fusion_optimize);
 DECLARE_bool(cinn_use_new_fusion_pass);
 DECLARE_bool(cinn_use_fill_constant_folding);
 
@@ -47,13 +48,27 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
   }
   options.program_passes.emplace_back("RemoveIdentity");
   options.program_passes.emplace_back("DeadCodeEliminate");
-
-  if (FLAGS_cinn_use_new_fusion_pass) {
-    options.graph_passes = {"OpFusionPass", "FusionMergePass"};
-  } else {
-    options.graph_passes = {"OpFusion"};
+  if (FLAGS_cinn_open_fusion_optimize) {
+    if (FLAGS_cinn_use_new_fusion_pass) {
+      options.graph_passes = {"OpFusionPass", "FusionMergePass"};
+    } else {
+      options.graph_passes = {"OpFusion"};
+    }
   }
+
   return options;
+}
+
+std::vector<std::string> DefaultOpFusionPasses() {
+  std::vector<std::string> passes;
+  if (FLAGS_cinn_open_fusion_optimize) {
+    if (FLAGS_cinn_use_new_fusion_pass) {
+      passes = {"OpFusionPass", "FusionMergePass"};
+    } else {
+      passes = {"OpFusion"};
+    }
+  }
+  return passes;
 }
 
 std::shared_ptr<hlir::framework::Graph> Optimize(frontend::Program* program,

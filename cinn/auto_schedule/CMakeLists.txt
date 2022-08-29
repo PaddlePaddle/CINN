@@ -1,5 +1,6 @@
 add_subdirectory(analysis)
 add_subdirectory(cost_model)
+add_subdirectory(database)
 add_subdirectory(measure)
 add_subdirectory(search_space)
 add_subdirectory(search_strategy)

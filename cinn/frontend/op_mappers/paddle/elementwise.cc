@@ -19,6 +19,22 @@ namespace cinn {
 namespace frontend {
 namespace paddle_mappers {
 
+enum class EltwiseType { kUnk = 0, kAdd, kDiv, kMul, kSub };
+
+template <EltwiseType Type>
+struct OpBuilder {};
+
+#define ELTWISE_SPEC(enum_t, function)                                                               \
+  template <>                                                                                        \
+  struct OpBuilder<enum_t> {                                                                         \
+    constexpr static Variable (NetBuilder::*func)(const Variable&, const Variable&, int){&function}; \
+  }
+ELTWISE_SPEC(EltwiseType::kAdd, NetBuilder::ElementwiseAdd);
+ELTWISE_SPEC(EltwiseType::kDiv, NetBuilder::ElementwiseDiv);
+ELTWISE_SPEC(EltwiseType::kMul, NetBuilder::ElementwiseMul);
+ELTWISE_SPEC(EltwiseType::kSub, NetBuilder::ElementwiseSub);
+#undef ELTWISE_SPEC
+
 void AddOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
   auto x_name = op_desc.Input("X").front();
@@ -35,7 +51,9 @@ void AddOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx)
   ctx.AddVarModelToProgram(out_name, out->id);
 }
 
-void ElementwiseAddOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+template <EltwiseType Type>
+void ElementwiseOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+  VLOG(5) << "Elementwise operator mapping type: " << static_cast<int>(Type);
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
   auto x_name = op_desc.Input("X").front();
   CHECK_EQ(op_desc.Input("Y").size(), 1UL);
@@ -47,7 +65,7 @@ void ElementwiseAddOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperCo
 
   auto x   = ctx.GetVar(x_name);
   auto y   = ctx.GetVar(y_name);
-  auto out = ctx.Builder()->ElementwiseAdd(x, y, axis);
+  auto out = (ctx.Builder()->*OpBuilder<Type>::func)(x, y, axis);
 
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);
@@ -122,10 +140,13 @@ void SumOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx)
 }  // namespace cinn
 
 CINN_REGISTER_HELPER(paddle_elementwise) {
-  CINN_REGISTER_OP_MAPPER(add, cinn::frontend::paddle_mappers::AddOpMapper)
-  CINN_REGISTER_OP_MAPPER(elementwise_add, cinn::frontend::paddle_mappers::ElementwiseAddOpMapper)
-  CINN_REGISTER_OP_MAPPER(elementwise_add_grad, cinn::frontend::paddle_mappers::ElementwiseAddGradOpMapper)
-  CINN_REGISTER_OP_MAPPER(elementwise_mul, cinn::frontend::paddle_mappers::ElementwiseMulOpMapper)
-  CINN_REGISTER_OP_MAPPER(sum, cinn::frontend::paddle_mappers::SumOpMapper)
+  using namespace cinn::frontend::paddle_mappers;
+  CINN_REGISTER_OP_MAPPER(add, AddOpMapper)
+  CINN_REGISTER_OP_MAPPER(elementwise_add, ElementwiseOpMapper<EltwiseType::kAdd>)
+  CINN_REGISTER_OP_MAPPER(elementwise_add_grad, ElementwiseAddGradOpMapper)
+  CINN_REGISTER_OP_MAPPER(elementwise_mul, ElementwiseOpMapper<EltwiseType::kMul>)
+  CINN_REGISTER_OP_MAPPER(elementwise_div, ElementwiseOpMapper<EltwiseType::kDiv>)
+  CINN_REGISTER_OP_MAPPER(elementwise_sub, ElementwiseOpMapper<EltwiseType::kSub>)
+  CINN_REGISTER_OP_MAPPER(sum, SumOpMapper)
   return true;
 }

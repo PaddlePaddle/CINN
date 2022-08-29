@@ -134,6 +134,10 @@ class GraphCompiler final {
   std::vector<ir::LoweredFunc> GetOpFunc(const std::vector<Node*>& nodes);
 
   std::vector<ir::LoweredFunc> GetOpFunc(const Node* node);
+  // Given a node, lower it to LoweredFunc using new ir schedule
+  std::vector<ir::LoweredFunc> GetOpFuncWithIRSchedule(const Node* node,
+                                                       const absl::flat_hash_map<std::string, Type>& type_dict_,
+                                                       const absl::flat_hash_map<std::string, shape_t>& shape_dict_);
 
   std::string GenOpFuncName(const Node* node) const { return "fn_" + node->id(); }
 
@@ -195,6 +199,14 @@ class GraphCompiler final {
 std::shared_ptr<Scope> BuildScope(Target target,
                                   const std::shared_ptr<Graph>& graph,
                                   std::shared_ptr<Scope> scope = nullptr);
+
+// Given params, lower the op to LoweredFunc using new IR Schedule
+std::vector<ir::LoweredFunc> GetFuncFromImpl(const std::shared_ptr<OpImpl>& impl,
+                                             const common::CINNValuePack& cinn_inputs,
+                                             std::vector<ir::Tensor>& tensor_inputs,
+                                             const std::vector<std::string>& input_output_nodes,
+                                             const std::string& node_id,
+                                             const Target& target);
 
 }  // namespace framework
 }  // namespace hlir
