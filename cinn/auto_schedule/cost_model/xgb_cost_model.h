@@ -31,9 +31,11 @@ namespace auto_schedule {
  * A C++ cost model which calls Python xgboost via pybind
  *
  * Note: this class handles Python interpreter life time in class.
- * If you have to call Python functions out of this class and would like to
- * handle the interpreter life time by yourself, delete those interpreter life code
- * in constructor and desctructor.
+ * If you have to call other Python functions out of this class so that meet
+ * life time conflict, you can check cinn::common::PythonInterpreterGuard
+ *
+ * For cinn::common::PythonInterpreterGuard, see:
+ *   cinn/common/python_interpreter_guard.h .cc
  *
  * For pybind interpreter lifetime management, see:
  *
@@ -43,7 +45,7 @@ namespace auto_schedule {
 class XgbCostModel : public CostModel {
  public:
   XgbCostModel();
-  ~XgbCostModel();
+  ~XgbCostModel() = default;
 
   void Train(const std::vector<std::vector<float>>& samples, const std::vector<float>& labels) override;
 
@@ -57,10 +59,10 @@ class XgbCostModel : public CostModel {
 
  private:
   // Python xgboost module
-  std::unique_ptr<pybind11::module> xgb_module_;
+  pybind11::module xgb_module_;
   // Object points to Python xgb.Booster()
-  std::unique_ptr<pybind11::object> xgb_booster_;
-  // atomic int to handle python interpreter life time
+  pybind11::object xgb_booster_;
+  // atomic int to handle python interpreter life time and package dependency
   static std::atomic<int> xgb_cost_model_count_;
   // Default train rounds
   static constexpr int kTrainRound_ = 10;

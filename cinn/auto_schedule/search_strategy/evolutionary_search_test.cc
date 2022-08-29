@@ -73,7 +73,7 @@ class MockSearchSpace : public SearchSpace {
   int module_expr_size_ = 10;
   int min_expr_value_   = 0;
 };
-/*
+
 TEST(EvolutionarySearch, GetOneBest) {
   TuneTask mock_tune_task;
   ExprCostModel cost_model;
@@ -83,35 +83,30 @@ TEST(EvolutionarySearch, GetOneBest) {
   MockSearchSpace* mock_search_space = new MockSearchSpace(mock_tune_task);
   // Ownership is transferred so don't delete mock_search_space
   evolutionary_search.SetSearchSpace(mock_search_space);
-  SearchState best_state = evolutionary_search.SearchModuleExpr(options);
+  SearchState best_state      = evolutionary_search.SearchModuleExpr(options);
   std::vector<ir::Expr> exprs = best_state.mod_expr.GetExprs();
   EXPECT_GE(exprs.size(), 1UL);
   for (const ir::Expr& e : exprs) {
     EXPECT_EQ(e.as_int32(), mock_search_space->GetMinExprValue());
   }
-}*/
+}
 
 TEST(EvolutionarySearch, GetEpsGreedy) {
   TuneTask mock_tune_task;
-  std::cout << "before cost model" << std::endl;
   ExprCostModel cost_model;
   TuningOptions options;
-  std::cout << "before init" << std::endl;
   EvolutionarySearch evolutionary_search(mock_tune_task, cost_model);
 
   MockSearchSpace* mock_search_space = new MockSearchSpace(mock_tune_task);
   // Ownership is transferred so don't delete mock_search_space
   evolutionary_search.SetSearchSpace(mock_search_space);
-  std::cout << "before search" << std::endl;
   std::vector<SearchState> search_states = evolutionary_search.SearchModuleExprEpsGreedy(options);
 
-  std::cout << "after search" << std::endl;
   EXPECT_GE(search_states.size(), 1UL);
   size_t expr_size = static_cast<size_t>(mock_search_space->GetModuleExprSize());
   for (const SearchState& state : search_states) {
     EXPECT_EQ(state.mod_expr.GetExprs().size(), expr_size);
   }
-  std::cout << "finish" << std::endl;
 }
 
 }  // namespace auto_schedule

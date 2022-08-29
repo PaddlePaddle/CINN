@@ -32,12 +32,9 @@
 namespace cinn {
 namespace auto_schedule {
 
-AutoTuner::AutoTuner(const common::Target& target, hlir::framework::Graph* graph) : target_(target), graph_(graph) {
-  // CostModel in TaskOptimizer calls Python, manage pybind interpreter here
-  pybind11::initialize_interpreter();
-}
+AutoTuner::AutoTuner(const common::Target& target, hlir::framework::Graph* graph) : target_(target), graph_(graph) {}
 
-AutoTuner::~AutoTuner() { pybind11::finalize_interpreter(); }
+AutoTuner::~AutoTuner() {}
 
 void AutoTuner::Initialize(const Config& config, hlir::framework::GraphCompiler* graph_compiler) {
   // create builder, runner, and schedule measurer

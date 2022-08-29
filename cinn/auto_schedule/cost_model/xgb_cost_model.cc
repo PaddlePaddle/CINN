@@ -31,6 +31,8 @@
 #include <utility>
 #include <vector>
 
+#include "cinn/common/python_interpreter_guard.h"
+
 namespace cinn {
 namespace auto_schedule {
 
@@ -88,22 +90,13 @@ void AddDistPkgToPythonSysPath() {
 }
 
 XgbCostModel::XgbCostModel() {
+  common::PythonInterpreterGuard::Guard();
   int previous = xgb_cost_model_count_.fetch_add(1);
   if (previous == 0) {
-    pybind11::initialize_interpreter();
     AddDistPkgToPythonSysPath();
   }
-  xgb_module_  = std::make_unique<pybind11::module>(std::move(pybind11::module::import("xgboost")));
-  xgb_booster_ = std::make_unique<pybind11::object>(std::move(xgb_module_->attr("Booster")()));
-}
-
-XgbCostModel::~XgbCostModel() {
-  xgb_module_.reset(nullptr);
-  xgb_booster_.reset(nullptr);
-  int previous = xgb_cost_model_count_.fetch_sub(1);
-  if (previous == 1) {
-    pybind11::finalize_interpreter();
-  }
+  xgb_module_  = pybind11::module::import("xgboost");
+  xgb_booster_ = xgb_module_.attr("Booster")();
 }
 
 void XgbCostModel::Train(const std::vector<std::vector<float>>& samples, const std::vector<float>& labels) {
@@ -112,15 +105,14 @@ void XgbCostModel::Train(const std::vector<std::vector<float>>& samples, const s
   pybind11::array np_samples = VectorToNumpy<float>(samples);
   pybind11::array np_labels  = VectorToNumpy<float>(labels);
 
-  pybind11::object dmatrix = xgb_module_->attr("DMatrix")(np_samples, np_labels);
-  xgb_booster_             = std::make_unique<pybind11::object>(
-      std::move(xgb_module_->attr("train")(pybind11::dict(), dmatrix, pybind11::int_(kTrainRound_))));
+  pybind11::object dmatrix = xgb_module_.attr("DMatrix")(np_samples, np_labels);
+  xgb_booster_             = xgb_module_.attr("train")(pybind11::dict(), dmatrix, pybind11::int_(kTrainRound_));
 }
 
 std::vector<float> XgbCostModel::Predict(const std::vector<std::vector<float>>& samples) const {
   pybind11::array np_samples = VectorToNumpy<float>(samples);
-  pybind11::object dmatrix   = xgb_module_->attr("DMatrix")(np_samples);
-  pybind11::array py_result  = xgb_booster_->attr("predict")(dmatrix);
+  pybind11::object dmatrix   = xgb_module_.attr("DMatrix")(np_samples);
+  pybind11::array py_result  = xgb_booster_.attr("predict")(dmatrix);
   return py_result.cast<std::vector<float>>();
 }
 
@@ -130,14 +122,13 @@ void XgbCostModel::Update(const std::vector<std::vector<float>>& samples, const 
   pybind11::array np_samples = VectorToNumpy<float>(update_samples_);
   pybind11::array np_labels  = VectorToNumpy<float>(update_labels_);
 
-  pybind11::object dmatrix = xgb_module_->attr("DMatrix")(np_samples, np_labels);
-  xgb_booster_             = std::make_unique<pybind11::object>(
-      std::move(xgb_module_->attr("train")(pybind11::dict(), dmatrix, pybind11::int_(kTrainRound_))));
+  pybind11::object dmatrix = xgb_module_.attr("DMatrix")(np_samples, np_labels);
+  xgb_booster_             = xgb_module_.attr("train")(pybind11::dict(), dmatrix, pybind11::int_(kTrainRound_));
 }
 
-void XgbCostModel::Save(const std::string& path) { xgb_booster_->attr("save_model")(pybind11::str(path)); }
+void XgbCostModel::Save(const std::string& path) { xgb_booster_.attr("save_model")(pybind11::str(path)); }
 
-void XgbCostModel::Load(const std::string& path) { xgb_booster_->attr("load_model")(pybind11::str(path)); }
+void XgbCostModel::Load(const std::string& path) { xgb_booster_.attr("load_model")(pybind11::str(path)); }
 
 }  // namespace auto_schedule
 }  // namespace cinn
