@@ -124,7 +124,8 @@ std::shared_ptr<framework::OpStrategy> StrategyForSqueeze(const framework::NodeA
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(squeeze_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.squeeze.x86", 1);
+  strategy->AddImpl(
+      squeeze_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.squeeze.x86", 1);
   return strategy;
 }
 
