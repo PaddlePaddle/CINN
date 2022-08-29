@@ -14,11 +14,36 @@
 
 #include "cinn/auto_schedule/database/database.h"
 
+#include <google/protobuf/message.h>
+#include <google/protobuf/text_format.h>
+#include <google/protobuf/util/json_util.h>
+
+#include "cinn/ir/ir_schedule.h"
+
 namespace cinn {
 namespace auto_schedule {
 
 bool TuningRecord::Compare::operator()(const TuningRecord& lhs, const TuningRecord& rhs) const {
   return lhs.execution_cost < rhs.execution_cost;
+}
+
+proto::TuningRecord TuningRecord::ToProto() const {
+  proto::TuningRecord record_proto;
+  record_proto.set_task_key(task_key);
+  record_proto.set_execution_cost(execution_cost);
+
+  return record_proto;
+}
+
+std::string TuningRecord::ToJSON() const {
+  auto record_proto = ToProto();
+
+  std::string json_string;
+  auto status = google::protobuf::util::MessageToJsonString(record_proto, &json_string);
+  CHECK(status.ok()) << "Failed to serialize record to JSON, task key = " << task_key;
+  VLOG(0) << "json_string = \n" << json_string;
+
+  return json_string;
 }
 
 Database::Database(int capacity_per_task) : capacity_per_task_(capacity_per_task) {

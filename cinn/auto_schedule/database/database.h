@@ -14,8 +14,14 @@
 
 #pragma once
 
+#include <google/protobuf/message.h>
+#include <google/protobuf/text_format.h>
+#include <google/protobuf/util/json_util.h>
+
+#include "cinn/auto_schedule/database/tuning_record.pb.h"
 #include "cinn/auto_schedule/measure/measure.h"
 #include "cinn/auto_schedule/search_space/search_state.h"
+#include "cinn/ir/ir_schedule.h"
 
 namespace cinn {
 namespace auto_schedule {
@@ -34,7 +40,33 @@ struct TuningRecord {
   struct Compare {
     bool operator()(const TuningRecord& lhs, const TuningRecord& rhs) const;
   };
+
+  // TuningRecord(const proto::TuningRecord& record_proto)
+  //           : task_key(record_proto.task_key()),
+  //             execution_cost(record_proto.execution_cost()),
+  //             state(ir::ModuleExpr()) {}
+
+  // convert to proto object
+  proto::TuningRecord ToProto() const;
+  // convert to string in JSON format
+  std::string ToJSON() const;
 };
+
+// create a TuningRecord object from a proto object
+static std::shared_ptr<TuningRecord> BuildTuningRecord(const proto::TuningRecord& record_proto) {
+  std::shared_ptr<TuningRecord> record(
+      new TuningRecord({record_proto.task_key(), record_proto.execution_cost(), SearchState(ir::ModuleExpr())}));
+  return record;
+}
+
+// create a TuningRecord object from string in JSON format
+static std::shared_ptr<TuningRecord> BuildTuningRecord(const std::string& json_string) {
+  proto::TuningRecord record_proto;
+  auto status = google::protobuf::util::JsonStringToMessage(json_string, &record_proto);
+  CHECK(status.ok()) << "Failed to parse JSON: " << json_string;
+
+  return BuildTuningRecord(record_proto);
+}
 
 // A database supports insert or lookup historial tuning result with sepecified traits.
 // It can be implemented with a concrete storage to save/load underlying data,

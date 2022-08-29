@@ -18,6 +18,7 @@
 
 #include <vector>
 
+#include "cinn/auto_schedule/database/tuning_record.pb.h"
 #include "cinn/auto_schedule/search_space/search_state.h"
 #include "cinn/ir/ir_schedule.h"
 
