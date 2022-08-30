@@ -115,14 +115,6 @@ std::shared_ptr<framework::OpStrategy> StrategyForSqueeze(const framework::NodeA
     *ret = CINNValuePack{res};
   });
 
-  framework::CINNSchedule squeeze_schedule([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input argument of reshape schedule is empty! Please check.\n";
-    CINNValuePack arg_pack = args[0];
-    Expr out               = arg_pack[0];
-    CHECK(out.as_tensor());
-    *ret = arg_pack;
-  });
-
   auto strategy = std::make_shared<framework::OpStrategy>();
   strategy->AddImpl(
       squeeze_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.squeeze.x86", 1);
