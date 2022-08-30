@@ -32,22 +32,14 @@ using namespace frontend;
 void CodeGen(ir::LoweredFunc& func) {
 #ifdef CINN_WITH_CUDA
   auto target = common::DefaultNVGPUTarget();
-  Module::Builder builder("Module_Builder", target);
+  Module::Builder builder("module_builder", target);
+
   builder.AddFunction(func);
+  auto module   = builder.Build();
+  auto compiler = backends::Compiler::Create(target);
 
-  auto module                    = builder.Build();
-  auto host_module_device_module = backends::SplitCudaAndHostModule(module);
-  auto& host_module              = std::get<0>(host_module_device_module);
-  auto& device_module            = std::get<1>(host_module_device_module);
-
-  backends::CodeGenCUDA_Dev codegen(target);
-  auto source_code = codegen.Compile(builder.Build());
-  LOG(INFO) << "compiled code of " << func->name << "is:\n\n\n" << source_code;
-
-  // nv jit compile to ptx
-  backends::NVRTC_Compiler compiler;
-  auto ptx = compiler(source_code);
-  CHECK(!ptx.empty());
+  std::string code = "";
+  compiler->Build(module, code);
 #else
   auto target = common::DefaultHostTarget();
   ir::Module::Builder builder("Module_Builder", target);
