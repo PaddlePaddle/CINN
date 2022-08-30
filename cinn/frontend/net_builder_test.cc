@@ -464,13 +464,28 @@ TEST(net_build, program_execute_scatter_nd) {
 
   auto input1_tensor = scope->GetTensor(std::string(input1.id()));
   SetRandData<float>(input1_tensor, target);
-  float* input1_data = input1_tensor->mutable_data<float>(target);
 
   auto input2_tensor = scope->GetTensor(std::string(input2.id()));
   SetRandData<int>(input2_tensor, target);
-  int* input2_data = input2_tensor->mutable_data<int>(target);
 
   runtime_program->Execute();
+
+  int* input2_data;
+  float* input1_data;
+  if (target == common::DefaultNVGPUTarget()) {
+#ifdef CINN_WITH_CUDA
+    size_t num_ele1 = input1_tensor->shape().numel();
+    size_t num_ele2 = input2_tensor->shape().numel();
+    input1_data     = (float*)malloc(num_ele1 * sizeof(float));
+    input2_data     = (int*)malloc(num_ele2 * sizeof(int));
+    cudaMemcpy(
+        input1_data, input1_tensor->mutable_data<float>(target), num_ele1 * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(input2_data, input2_tensor->mutable_data<int>(target), num_ele2 * sizeof(int), cudaMemcpyDeviceToHost);
+#endif
+  } else {
+    input2_data = input2_tensor->mutable_data<int>(target);
+    input1_data = input1_tensor->mutable_data<float>(target);
+  }
 
   auto output_tensor                   = scope->GetTensor(std::string(output->id));
   const std::vector<int>& output_shape = output_tensor->shape().data();

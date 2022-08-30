@@ -413,7 +413,14 @@ void BindFrontend(pybind11::module *m) {
                py::arg("x"),
                py::arg("updates"),
                py::arg("index"),
+               py::arg("axis") = 0)
+          .def("scatter_add",
+               &BaseBuilder::ScatterAdd,
+               py::arg("x"),
+               py::arg("updates"),
+               py::arg("index"),
                py::arg("axis") = 0);
+
   ;
 
   py::class_<NetBuilder, BaseBuilder>(*m, "NetBuilder")
