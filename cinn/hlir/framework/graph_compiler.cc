@@ -1527,12 +1527,12 @@ std::vector<ir::LoweredFunc> GetFuncFromImpl(const std::shared_ptr<OpImpl>& impl
   auto funcs = lang::LowerVec(func_name_prefix + node_id, stages, all_arg_tensors, {}, {}, nullptr, target, true);
 
   std::vector<common::CINNValue> schedule_inputs;
+  for (int i = 0; i < C.size() - 1; ++i) {
+    CHECK(C[i].is_tensor());
+    schedule_inputs.push_back(common::CINNValue(C[i]));
+  }
   for (auto& f : funcs) {
     schedule_inputs.push_back(common::CINNValue(f->body));
-  }
-  for (int i = 0; i < C->size() - 1; i++) {
-    ir::Expr temp = C[i];
-    schedule_inputs.push_back(common::CINNValue(temp.as_tensor_ref()->name));
   }
 
   // 3. Call Op's Schedule function, optimizing the IR tree by new IR schedule
