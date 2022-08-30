@@ -35,17 +35,6 @@ proto::TuningRecord TuningRecord::ToProto() const {
   return record_proto;
 }
 
-std::string TuningRecord::ToJSON() const {
-  auto record_proto = ToProto();
-
-  std::string json_string;
-  auto status = google::protobuf::util::MessageToJsonString(record_proto, &json_string);
-  CHECK(status.ok()) << "Failed to serialize record to JSON, task key = " << task_key;
-  VLOG(0) << "json_string = \n" << json_string;
-
-  return json_string;
-}
-
 Database::Database(int capacity_per_task) : capacity_per_task_(capacity_per_task) {
   CHECK_GT(capacity_per_task_, 0) << "capacity_per_task_ should be greater than 0";
 }

@@ -19,34 +19,37 @@
 namespace cinn {
 namespace auto_schedule {
 
-// JSONDatabase is a database implemented by JSON file to save/load underlying data.
-class JSONDatabase : public Database {
+// JSONFileDatabase is a database implemented by JSON file to save/load underlying data.
+class JSONFileDatabase : public Database {
  public:
   /*!
-   * \brief Build a JSONDatabase object from a json file.
+   * \brief Build a JSONFileDatabase object from a json file.
    * \param capacity_per_task The max number of candidates stored.
-   * \param tuning_record_file The name of the json file.
+   * \param record_file_path The path of the json file.
    * \param allow_new_file Whether to create new file when the given path is not found.
    */
-  explicit JSONDatabase(int capacity_per_task, const std::string& tuning_record_file, bool allow_new_file);
-  ~JSONDatabase() = default;
+  explicit JSONFileDatabase(int capacity_per_task, const std::string& record_file_path, bool allow_new_file);
+  ~JSONFileDatabase() = default;
 
-  /*!
-   * \brief Reinitialize the JSONDatabase object from a json file.
-   * \param tuning_record_file The name of the json file.
-   * \param allow_new_file Whether to create new file when the given path is not found.
-   */
-  void ReInit(const std::string& tuning_record_file, bool allow_new_file);
+  // convert a TuningRecord object to string in JSON format
+  std::string RecordToJSON(const TuningRecord& record);
+
+  // convert a line of string in JSON format to a TuningRecord object
+  TuningRecord JSONToRecord(const std::string& json_string);
 
  protected:
   // commit the newly added record into json file
   bool Commit(const TuningRecord& record) override;
 
   // the name of the json file to save tuning records.
-  std::string tuning_record_file_;
-
-  std::mutex mtx_;
+  std::string record_file_path_;
 };
+
+// append a line to file
+void AppendLineToFile(const std::string& file_path, const std::string& line);
+
+// read lines from a json file
+std::vector<std::string> ReadLinesFromFile(const std::string& file_path, bool allow_new_file = true);
 
 }  // namespace auto_schedule
 }  // namespace cinn

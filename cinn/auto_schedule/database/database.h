@@ -18,7 +18,7 @@
 #include <google/protobuf/text_format.h>
 #include <google/protobuf/util/json_util.h>
 
-#include "cinn/auto_schedule/database/tuning_record.pb.h"
+#include "cinn/auto_schedule/auto_schedule.pb.h"
 #include "cinn/auto_schedule/measure/measure.h"
 #include "cinn/auto_schedule/search_space/search_state.h"
 #include "cinn/ir/ir_schedule.h"
@@ -41,32 +41,18 @@ struct TuningRecord {
     bool operator()(const TuningRecord& lhs, const TuningRecord& rhs) const;
   };
 
-  // TuningRecord(const proto::TuningRecord& record_proto)
-  //           : task_key(record_proto.task_key()),
-  //             execution_cost(record_proto.execution_cost()),
-  //             state(ir::ModuleExpr()) {}
+  TuningRecord() = default;
+
+  // initialize a TuningRecord object from a proto object
+  TuningRecord(const proto::TuningRecord& record_proto)
+      : task_key(record_proto.task_key()), execution_cost(record_proto.execution_cost()), state(ir::ModuleExpr()) {}
+
+  TuningRecord(const std::string& task_key, double execution_cost, const SearchState& state)
+      : task_key(task_key), execution_cost(execution_cost), state(state) {}
 
   // convert to proto object
   proto::TuningRecord ToProto() const;
-  // convert to string in JSON format
-  std::string ToJSON() const;
 };
-
-// create a TuningRecord object from a proto object
-static std::shared_ptr<TuningRecord> BuildTuningRecord(const proto::TuningRecord& record_proto) {
-  std::shared_ptr<TuningRecord> record(
-      new TuningRecord({record_proto.task_key(), record_proto.execution_cost(), SearchState(ir::ModuleExpr())}));
-  return record;
-}
-
-// create a TuningRecord object from string in JSON format
-static std::shared_ptr<TuningRecord> BuildTuningRecord(const std::string& json_string) {
-  proto::TuningRecord record_proto;
-  auto status = google::protobuf::util::JsonStringToMessage(json_string, &record_proto);
-  CHECK(status.ok()) << "Failed to parse JSON: " << json_string;
-
-  return BuildTuningRecord(record_proto);
-}
 
 // A database supports insert or lookup historial tuning result with sepecified traits.
 // It can be implemented with a concrete storage to save/load underlying data,
