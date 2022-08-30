@@ -295,7 +295,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFuncWithIRSchedule(
     std::string id = i->source()->as<NodeData>()->id();
     auto shape     = shape_dict_.at(id);
     Type dtype     = type_dict_.at(id);
-    CHECK(dtype == Float(32) || dtype.is_bool() || dtype == Int(32))
+    CHECK(dtype == Float(32) || dtype.is_bool() || dtype == Int(32) || dtype == Int(64))
         << "The dtype of node " << id << " is not float or bool or int! Other dtype is not implemented yet.";
     ir::Tensor input;
     if (dtype == Float(32)) {
