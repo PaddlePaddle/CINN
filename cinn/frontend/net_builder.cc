@@ -138,6 +138,14 @@ Variable NetBuilder::ScatterNd(const Variable& src,
   return ScatterNd(src, index, out, axes);
 }
 
+Variable NetBuilder::Cast(const Variable& operand, const std::string& dtype) {
+  Instruction instr("cast", {operand});
+  instr.SetAttr("dtype", dtype);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
 Variable NetBuilder::Conv2d(const Variable& a,
                             const Variable& b,
                             const std::vector<int>& strides,
