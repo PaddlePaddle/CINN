@@ -40,8 +40,8 @@ namespace ir {
 
 Tensor GetTensor(const Expr& block) {
   CHECK(block.As<ir::ScheduleBlockRealize>());
-  auto find_tensor = ir::CollectIRNodesWithoutTensor(block, [&](const Expr* x) { return x->As<ir::Store>(); });
-  CHECK(!find_tensor.empty()) << "Didn't find Store in block!";
+  auto find_tensor = ir::CollectIRNodesWithoutTensor(
+      block, [&](const Expr* x) { return x->As<ir::Store>(); }, true);
   CHECK_EQ(find_tensor.size(), 1U) << "One block should only have one Store node!(except for root block)";
   CHECK((*find_tensor.begin()).As<ir::Store>()->tensor.as_tensor());
   Tensor tensor = (*find_tensor.begin()).As<ir::Store>()->tensor.as_tensor_ref();
@@ -50,8 +50,8 @@ Tensor GetTensor(const Expr& block) {
 
 Tensor GetReadTensor(const Expr& block, int index) {
   CHECK(block.As<ir::ScheduleBlockRealize>());
-  auto find_tensor = ir::CollectIRNodesWithoutTensor(block, [&](const Expr* x) { return x->As<ir::Store>(); });
-  CHECK(!find_tensor.empty()) << "Didn't find Store in block!";
+  auto find_tensor = ir::CollectIRNodesWithoutTensor(
+      block, [&](const Expr* x) { return x->As<ir::Store>(); }, true);
   CHECK_EQ(find_tensor.size(), 1U) << "One block should only have one Store node!(except for root block)";
   std::vector<Tensor> res;
   auto find_read_tensor = ir::CollectIRNodesWithoutTensor(block, [&](const Expr* x) {
@@ -108,7 +108,8 @@ void SetCudaAxisInfo(Expr* lowered_func) {
 }
 
 bool Contains(const Expr& container, const Expr& expr) {
-  auto find_expr = ir::CollectIRNodesWithoutTensor(container, [&](const Expr* x) { return *x == expr; });
+  auto find_expr = ir::CollectIRNodesWithoutTensor(
+      container, [&](const Expr* x) { return (x->node_type() == expr.node_type() && *x == expr); }, true);
   return (!find_expr.empty());
 }
 
@@ -209,9 +210,11 @@ void CHECKRfactorValidation(const Expr& rf_loop, int rf_axis) {
   auto* rf_for = rf_loop.As<ir::For>();
   CHECK(rf_for) << "Expr param of Rfactor must be For node! Please check.";
   // check the rf_loop only has one schedule block
-  auto block_nodes = ir::CollectIRNodes(rf_loop, [&](const Expr* x) { return x->As<ScheduleBlockRealize>(); });
+  auto block_nodes = ir::CollectIRNodesWithoutTensor(
+      rf_loop, [&](const Expr* x) { return x->As<ScheduleBlockRealize>(); }, true);
   CHECK_EQ(block_nodes.size(), 1U) << "Rfactor Loop should only have one schedule block";
-  auto find_store = ir::CollectIRNodes(rf_loop, [&](const Expr* x) { return x->As<Store>(); });
+  auto find_store = ir::CollectIRNodesWithoutTensor(
+      rf_loop, [&](const Expr* x) { return x->As<Store>(); }, true);
   CHECK_EQ(find_store.size(), 1U);
   auto indice = find_store.begin()->As<Store>()->indices;
   // check rf_axis
@@ -240,7 +243,8 @@ void CHECKRfactorValidation(const Expr& rf_loop, int rf_axis) {
 }
 
 std::vector<Expr> GetLoopsOfExpr(const Expr& expr, const Expr& root) {
-  auto loop_nodes = ir::CollectIRNodes(root, [&](const Expr* x) { return x->As<ir::For>() && Contains(*x, expr); });
+  auto loop_nodes =
+      ir::CollectIRNodesWithoutTensor(root, [&](const Expr* x) { return x->As<ir::For>() && Contains(*x, expr); });
   std::vector<Expr> result(loop_nodes.begin(), loop_nodes.end());
   if (result.empty()) LOG(FATAL) << "Didn't find expr's loops in root.";
   std::sort(result.begin(), result.end(), [&](Expr i, Expr j) {
@@ -578,13 +582,16 @@ std::vector<Expr> GetConsumers(const Expr& block, const Expr& root) {
 }
 
 void CheckComputeAtValidation(const Expr& block, const Expr& loop, const Expr& root) {
-  auto find_block = ir::CollectIRNodesWithoutTensor(root, [&](const Expr* x) { return *x == block; });
+  auto find_block = ir::CollectIRNodesWithoutTensor(
+      root, [&](const Expr* x) { return x->As<ir::ScheduleBlockRealize>() && *x == block; }, true);
   CHECK(!find_block.empty()) << "Didn't find block in root!";
 
-  auto find_loop = ir::CollectIRNodesWithoutTensor(root, [&](const Expr* x) { return *x == loop; });
+  auto find_loop = ir::CollectIRNodesWithoutTensor(
+      root, [&](const Expr* x) { return x->As<ir::For>() && *x == loop; }, true);
   CHECK(!find_loop.empty()) << "Didn't find loop in root!";
 
-  auto find_block_in_loop = ir::CollectIRNodesWithoutTensor(loop, [&](const Expr* x) { return *x == block; });
+  auto find_block_in_loop = ir::CollectIRNodesWithoutTensor(
+      loop, [&](const Expr* x) { return x->As<ir::ScheduleBlockRealize>() && *x == block; }, true);
   CHECK(find_block_in_loop.empty()) << "loop should not be block's ancestor!";
 }
 
@@ -704,14 +711,18 @@ Expr CheckComputeInlineValidationAndGetStore(const Expr& schedule_block, const E
   CHECK(schedule_block.As<ir::ScheduleBlockRealize>());
   auto compute_body = schedule_block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->body;
   // 1. Check the schedule block to be inlined is not a reduce tensor.
-  auto find_store = ir::CollectIRNodesWithoutTensor(compute_body, [&](const Expr* x) { return x->As<ir::Store>(); });
+  auto find_store = ir::CollectIRNodesWithoutTensor(
+      compute_body, [&](const Expr* x) { return x->As<ir::Store>(); }, true);
   CHECK_EQ(find_store.size(), 1U);
   Expr tensor = (*find_store.begin()).As<ir::Store>()->tensor;
   CHECK(!tensor.as_tensor_ref()->is_reduce_tensor());
   // 2. Check this schedule block is the only writer of the tensor.
-  find_store = ir::CollectIRNodesWithoutTensor(root, [&](const Expr* x) {
-    return x->As<ir::Store>() && (x->As<ir::Store>()->tensor).as_tensor_ref()->name == tensor.as_tensor_ref()->name;
-  });
+  find_store = ir::CollectIRNodesWithoutTensor(
+      root,
+      [&](const Expr* x) {
+        return x->As<ir::Store>() && (x->As<ir::Store>()->tensor).as_tensor_ref()->name == tensor.as_tensor_ref()->name;
+      },
+      true);
   CHECK_EQ(find_store.size(), 1U);
   // 3. Check there is no overlap between the buffers the schedule block reads and writes.
   auto find_load = ir::CollectIRNodesWithoutTensor(
@@ -723,7 +734,7 @@ Expr CheckComputeInlineValidationAndGetStore(const Expr& schedule_block, const E
 bool ContainVar(const std::vector<Expr>& exprs, const std::string& var_name) {
   for (auto& expr : exprs) {
     auto find_expr = ir::CollectIRNodesWithoutTensor(
-        expr, [&](const Expr* x) { return x->As<_Var_>() && x->As<_Var_>()->name == var_name; });
+        expr, [&](const Expr* x) { return x->As<_Var_>() && x->As<_Var_>()->name == var_name; }, true);
     if (!find_expr.empty()) return true;
   }
   return false;
