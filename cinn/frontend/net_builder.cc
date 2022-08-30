@@ -232,7 +232,6 @@ Variable NetBuilder::Flip(const std::vector<Variable>& inputs, const std::vector
   return instr.GetOutput(0);
 }
 
-
 // conv2d grad, output(grad_x, grad_w)
 std::vector<Variable> NetBuilder::Conv2dGrad(const Variable& dy,
                                              const Variable& x,

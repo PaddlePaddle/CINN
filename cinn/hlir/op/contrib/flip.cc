@@ -31,13 +31,13 @@
 #include "cinn/hlir/pe/ir_schedule_pe.h"
 #include "cinn/hlir/pe/nn.h"
 #include "cinn/hlir/pe/schedule.h"
+#include "cinn/hlir/pe/transform.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/tensor.h"
 #include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"
-#include "cinn/hlir/pe/transform.h"
 
 DECLARE_bool(cinn_ir_schedule);
 
@@ -52,20 +52,18 @@ using framework::OpStrategy;
 using framework::shape_t;
 using framework::StrategyFunction;
 
-ir::Tensor Flip(const ir::Tensor &in_tensor,
-                             const std::vector<int>& axis,
-                             const std::string& output_name) {
- for (auto& val : axis) {
+ir::Tensor Flip(const ir::Tensor &in_tensor, const std::vector<int> &axis, const std::string &output_name) {
+  for (auto &val : axis) {
     CHECK(val >= 0 && val < static_cast<int>(in_tensor->shape.size())) << "axis should be [0,n_dim)";
   }
-    std::vector<Expr> shape = in_tensor->shape;
+  std::vector<Expr> shape = in_tensor->shape;
   return {Compute(
       in_tensor->shape,
-      
+
       [=](const std::vector<Expr> &indice) {
         // ir::Tensor out_tensor(in_tensor);
         // auto e = out_tensor(indice);
-        // return ir::Max::Make(ir::Min::Make(e, ir::Cast::Make(e->type(), Expr(max_val))), 
+        // return ir::Max::Make(ir::Min::Make(e, ir::Cast::Make(e->type(), Expr(max_val))),
         //                                    ir::Cast::Make(e->type(), Expr(min_val)));
         std::vector<Expr> indexs(indice.begin(), indice.end());
         for (auto idx : axis) {
@@ -85,11 +83,11 @@ std::vector<std::vector<std::string>> InferLayoutForFlip(const std::vector<frame
 }
 
 std::vector<shape_t> InferShapeForFlip(const std::vector<shape_t> &inputs_shape, const framework::AttrMapType &attrs) {
-//   CHECK_EQ(inputs_shape.size(), 1UL);
-//   std::vector<shape_t> res{inputs_shape[0]};
-//   return res;
+  //   CHECK_EQ(inputs_shape.size(), 1UL);
+  //   std::vector<shape_t> res{inputs_shape[0]};
+  //   return res;
 
-    CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
+  CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
   std::vector<framework::shape_t> res{inputs_shape[0]};
   if (attrs.find("axis") != attrs.end()) {
     auto axis = absl::get<std::vector<int>>(attrs.at("axis"));
@@ -106,7 +104,6 @@ std::vector<shape_t> InferShapeForFlip(const std::vector<shape_t> &inputs_shape,
     LOG(FATAL) << "axis is not be set! Please check.";
   }
   return res;
-  
 }
 
 std::vector<Type> InferDtypeForFlip(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
@@ -120,9 +117,9 @@ std::shared_ptr<OpStrategy> StrategyForFlip(const framework::NodeAttr &attrs,
                                             const std::vector<Type> &out_type,
                                             const std::vector<std::vector<int>> &output_shapes,
                                             const Target &target) {
-    // check output shape
+  // check output shape
   CHECK(!output_shapes.empty() && !output_shapes[0].empty()) << "Output shape is empty! Please check.\n";
-    // get axis[0, n_dim)
+  // get axis[0, n_dim)
   std::vector<int> axis;
   if (attrs.attr_store.find("axis") != attrs.attr_store.end()) {
     axis = absl::get<std::vector<int>>(attrs.attr_store.at("axis"));
@@ -146,18 +143,18 @@ std::shared_ptr<OpStrategy> StrategyForFlip(const framework::NodeAttr &attrs,
     CINNValuePack pack_args = args[0];
     CHECK(!pack_args.empty()) << "at least one input tensor for flip compute\n";
     CINNValuePack input_args = args[0];
-    Expr A = input_args[0];
+    Expr A                   = input_args[0];
     CHECK(A.as_tensor());
     std::string tensor_name = UniqName(op_name + "_Out");
     if (FLAGS_cinn_ir_schedule) {
       CHECK_EQ(pack_args.size(), 2U);
       tensor_name = pack_args[1].operator std::string();
     }
-    
+
     ir::Tensor AA = A.as_tensor_ref();
-    auto out     = Flip(AA, axis, tensor_name);
-    auto stages  = CreateStages({AA,out});
-    *ret        = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
+    auto out      = Flip(AA, axis, tensor_name);
+    auto stages   = CreateStages({AA, out});
+    *ret          = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
   });
 
   framework::CINNSchedule flip_schedule([=](lang::Args args, lang::RetValue *ret) {

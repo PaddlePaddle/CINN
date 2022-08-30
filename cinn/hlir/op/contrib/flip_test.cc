@@ -37,7 +37,7 @@ TEST(GenerateCode_Cpu, Flip) {
 
   common::Target target = common::DefaultHostTarget();
 
-  std::vector<int> axis={0};
+  std::vector<int> axis = {0};
 
   lang::Placeholder<float> in("in", {4, 16, 32});
   ir::Tensor res = Flip(in, axis, "test_flip");
@@ -65,8 +65,8 @@ TEST(GenerateCode_Cuda, Flip) {
   common::Context::Global().ResetNameId();
 
   common::Target target = common::DefaultNVGPUTarget();
-  
-  std::vector<int> axis={0};
+
+  std::vector<int> axis = {0};
   lang::Placeholder<float> in("in", {4, 16, 32});
   ir::Tensor res = Flip(in, axis, "test_flip");
 
@@ -89,4 +89,4 @@ TEST(GenerateCode_Cuda, Flip) {
 
 }  // namespace op
 }  // namespace hlir
-}  // namespace cinn 
+}  // namespace cinn

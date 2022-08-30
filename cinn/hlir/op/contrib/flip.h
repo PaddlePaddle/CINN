@@ -25,9 +25,7 @@ namespace cinn {
 namespace hlir {
 namespace op {
 
-ir::Tensor Flip(const ir::Tensor& in_tensor,
-                             const std::vector<int>& axis,
-                             const std::string& output_name);
+ir::Tensor Flip(const ir::Tensor& in_tensor, const std::vector<int>& axis, const std::string& output_name);
 
 }  // namespace op
 }  // namespace hlir
