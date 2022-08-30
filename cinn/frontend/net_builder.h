@@ -39,8 +39,10 @@ namespace frontend {
     macro__(ReluGrad)
 
 #define NETBUILDER_ELEMENTWISE_OP_FOREACH(macro__)   \
-    macro__(ElementwiseAdd)                                \
-    macro__(ElementwiseMul)
+    macro__(ElementwiseAdd)                          \
+    macro__(ElementwiseMul)                          \
+    macro__(ElementwiseDiv)                          \
+    macro__(ElementwiseSub)
 // clang-format on
 
 class NetBuilder : public BaseBuilder {
@@ -79,6 +81,16 @@ class NetBuilder : public BaseBuilder {
    * Compute the sum of Variable x along the given dim.
    */
   Variable ReduceSum(const Variable& x, const std::vector<int>& dim, bool keep_dim = false);
+
+  /**
+   * Compute the logic add of Variable x along the given dim.
+   */
+  Variable ReduceAll(const Variable& x, const std::vector<int>& dim, bool keep_dim = false);
+
+  /**
+   * Compute the sum of Variable x along the given dim.
+   */
+  Variable ReduceAny(const Variable& x, const std::vector<int>& dim, bool keep_dim = false);
 
   /**
    * The convolution2D layer calculates the output based on the input, filter
@@ -148,6 +160,8 @@ class NetBuilder : public BaseBuilder {
                         const std::string& dropout_implementation = "downgrade_in_infer");
 
   Variable Sum(const std::vector<Variable>& inputs);
+
+  Variable Clip(const std::vector<Variable>& inputs, const float& max_val, const float& min_val);
 
   // conv2d grad, output(grad_x, grad_w)
   std::vector<Variable> Conv2dGrad(const Variable& dy,

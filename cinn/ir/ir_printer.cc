@@ -323,6 +323,12 @@ void IrPrinter::Visit(const Reduce *f) {
     case Reduce::ReduceType::kMin:
       os() << "Min";
       break;
+    case Reduce::ReduceType::kAll:
+      os() << "&&";
+      break;
+    case Reduce::ReduceType::kAny:
+      os() << "||";
+      break;
   }
   os() << ", ";
   Print(f->body);

@@ -429,6 +429,8 @@ struct Reduce : public ExprNode<Reduce> {
     kDiv,
     kMax,
     kMin,
+    kAll,
+    kAny,
   };
 
   //! The initial value.

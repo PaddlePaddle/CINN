@@ -27,6 +27,7 @@
 #include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/tensor.h"
 #include "cinn/hlir/op/use_ops.h"
+#include "cinn/utils/data_util.h"
 #ifdef CINN_WITH_CUDA
 #include <cuda_runtime.h>
 #endif
@@ -49,24 +50,6 @@ Program CreateAddProgram() {
   auto program = builder.Build();
 
   return program;
-}
-
-void SetRandData(hlir::framework::Tensor tensor, Target target) {
-  auto* data = tensor->mutable_data<float>(target);
-  std::random_device seed;
-  std::default_random_engine engine(seed());
-  std::uniform_real_distribution<float> dist(0.f, 1.f);
-  size_t num_ele = tensor->shape().numel();
-  std::vector<float> random_data(num_ele);
-  for (size_t i = 0; i < num_ele; i++) {
-    random_data[i] = dist(engine);  // All random data
-  }
-
-#ifdef CINN_WITH_CUDA
-  cudaMemcpy(data, random_data.data(), num_ele * sizeof(float), cudaMemcpyHostToDevice);
-#else
-  std::copy(random_data.begin(), random_data.end(), data);
-#endif
 }
 
 template <typename T, typename Alloc = std::allocator<T>>
@@ -110,8 +93,8 @@ TEST(net_build, program_execute_multi_elementwise_add) {
 
   auto A = scope->GetTensor("A");
   auto B = scope->GetTensor("B");
-  SetRandData(A, target);
-  SetRandData(B, target);
+  SetRandData<float>(A, target);
+  SetRandData<float>(B, target);
 
   runtime_program->Execute();
 }
@@ -152,9 +135,9 @@ TEST(net_build, program_execute_fc) {
   auto b_ten        = scope->GetTensor(std::string(b.id()));
   auto fake_out_ten = scope->GetTensor(std::string(mul_out->id));
   auto add_out_ten  = scope->GetTensor(std::string(add_out->id));
-  SetRandData(a_ten, target);
-  SetRandData(w_ten, target);
-  SetRandData(b_ten, target);
+  SetRandData<float>(a_ten, target);
+  SetRandData<float>(w_ten, target);
+  SetRandData<float>(b_ten, target);
 
   runtime_program->Execute();
 }
@@ -185,8 +168,82 @@ TEST(net_build, program_execute_reverse) {
   scope->Var<hlir::framework::Tensor>(std::string(reverse_out->id));
 
   auto input_tensor = scope->GetTensor(std::string(input.id()));
-  SetRandData(input_tensor, target);
+  SetRandData<float>(input_tensor, target);
   runtime_program->Execute();
+}
+
+TEST(net_build, program_execute_clip) {
+  const int M = 4;
+  const int N = 3;
+  const int K = 7;
+
+  const float max_val = 0.8;
+  const float min_val = 0.2;
+
+  NetBuilder builder("net_builder");
+  Placeholder input = builder.CreateInput(Float(32), {M, N, K}, "In");
+  Variable output   = builder.Clip({input}, max_val, min_val);
+  auto program      = builder.Build();
+
+  Target target = common::DefaultHostTarget();
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  auto scope = BuildScope(target, graph);
+  hlir::framework::GraphCompiler gc(target, scope, graph);
+  auto runtime_program = gc.Build();
+
+  scope->Var<hlir::framework::Tensor>(std::string(input.id()));
+  scope->Var<hlir::framework::Tensor>(std::string(output->id));
+
+  auto input_tensor = scope->GetTensor(std::string(input.id()));
+  float* input_data = input_tensor->mutable_data<float>(target);
+
+  memset(input_data, 0, sizeof(float) * M * N * K);
+
+  VLOG(6) << "Visualize input_data";
+
+  for (int m = 0; m < M; ++m) {
+    for (int n = 0; n < N; ++n) {
+      VLOG(6) << "m = " << m << ", n = " << n;
+      std::string line;
+      for (int k = 0; k < K; ++k) {
+        int index         = m * (N * K) + n * K + k;
+        input_data[index] = rand() % 1000 / 1000.f;
+        line += (std::to_string(input_data[index]) + ", ");
+      }
+      VLOG(6) << line;
+    }
+  }
+
+  runtime_program->Execute();
+
+  auto output_tensor                   = scope->GetTensor(std::string(output->id));
+  const std::vector<int>& output_shape = output_tensor->shape().data();
+  EXPECT_EQ(output_shape.size(), 3UL);
+  EXPECT_EQ(output_shape[0], M);
+  EXPECT_EQ(output_shape[1], N);
+  EXPECT_EQ(output_shape[2], K);
+
+  float* output_data = output_tensor->mutable_data<float>(target);
+
+  VLOG(6) << "Visualize output_data";
+
+  for (int m = 0; m < M; ++m) {
+    for (int n = 0; n < N; ++n) {
+      VLOG(6) << "m = " << m << ", n = " << n;
+      std::string line;
+      for (int k = 0; k < K; ++k) {
+        int index      = m * (N * K) + n * K + k;
+        float in_data  = input_data[index];
+        float out_data = output_data[index];
+        in_data        = in_data < min_val ? min_val : in_data;
+        in_data        = in_data > max_val ? max_val : in_data;
+        EXPECT_EQ(in_data, out_data);
+        line += (std::to_string(out_data) + ", ");
+      }
+      VLOG(6) << line;
+    }
+  }
 }
 
 }  // namespace frontend

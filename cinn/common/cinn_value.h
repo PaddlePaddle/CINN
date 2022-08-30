@@ -153,6 +153,7 @@ class CINNValue : public cinn_pod_value_t {
   bool is_var() const;
   bool is_expr() const;
   bool is_stagemap() const;
+  bool is_tensor() const;
 
   //! Assign operators
   // @{

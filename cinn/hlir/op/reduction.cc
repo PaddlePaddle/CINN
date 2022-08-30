@@ -44,24 +44,6 @@ using BlockReduceFunc = std::function<std::vector<ir::Tensor>(
 using ReduceFunc =
     std::function<ir::Tensor(const ir::Tensor &, const std::vector<int> &, const bool, const std::string &)>;
 
-#define STRATEGY_FOR_REDUCE(                                                                                  \
-    op_name_, reduce_op_, gpu_reduce_with_last_axis_func, gpu_reduce_without_last_axis_func, cpu_reduce_func) \
-  std::shared_ptr<OpStrategy> StrategyFor##reduce_op_(const framework::NodeAttr &attrs,                       \
-                                                      const std::vector<ir::Tensor> &inputs,                  \
-                                                      const std::vector<Type> &out_type,                      \
-                                                      const std::vector<std::vector<int>> &output_shapes,     \
-                                                      const Target &target) {                                 \
-    return StrategyForReduce(attrs,                                                                           \
-                             inputs,                                                                          \
-                             out_type,                                                                        \
-                             output_shapes,                                                                   \
-                             target,                                                                          \
-                             #op_name_,                                                                       \
-                             gpu_reduce_with_last_axis_func,                                                  \
-                             gpu_reduce_without_last_axis_func,                                               \
-                             cpu_reduce_func);                                                                \
-  }
-
 std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
                                               const std::vector<ir::Tensor> &inputs,
                                               const std::vector<Type> &out_type,
@@ -128,6 +110,12 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
     Expr x_expr = arg_packs[0];
     CHECK(x_expr.as_tensor());
     ir::Tensor x = x_expr.as_tensor_ref();
+
+    std::unordered_set<std::string> bool_reduce_op = {"reduce_all", "reduce_any"};
+    CHECK(!bool_reduce_op.count(op_name) || x->type().is_bool())
+        << "The type of input argument " << x->name << " of " << op_name << " should be bool, but get " << x->type()
+        << "! Please check.";
+
     if (target == common::DefaultNVGPUTarget()) {
       if (!WithoutLastDimInReduce(inputs[0]->shape, reduce_axes)) {
         VLOG(3) << "Do Two Step Block Reduce Compute!";
@@ -169,23 +157,28 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
     if (FLAGS_cinn_ir_schedule) {
       CHECK_GE(arg_pack.size(), 2UL);
       CHECK_LE(arg_pack.size(), 8UL);
-
+      CINNValuePack arg_pack = args[0];
+      std::vector<Expr> vec_ast;
+      std::vector<Expr> vec_tensor;
+      for (int i = 0; i < arg_pack.size(); i++) {
+        if (arg_pack[i].is_expr()) {
+          Expr temp = arg_pack[i];
+          vec_ast.emplace_back(temp);
+        } else if (arg_pack[i].is_tensor()) {
+          Expr temp = arg_pack[i];
+          vec_tensor.emplace_back(temp);
+        }
+      }
+      CHECK(!vec_ast.empty());
+      ir::ModuleExpr mod_expr(vec_ast);
+      ir::IRSchedule ir_sch(mod_expr);
+      ir_sch.MergeExprs();
       if (target.arch == Target::Arch::NVGPU) {
         if (!WithoutLastDimInReduce(inputs[0]->shape, reduce_axes)) {
           if (arg_pack.size() == 4) {
-            CHECK(arg_pack[0].is_expr());
-            Expr out = arg_pack[0];
-            CHECK(arg_pack[1].is_expr());
-            Expr tmp_out = arg_pack[1];
-            CHECK(arg_pack[2].is_expr());
-            Expr expr0 = arg_pack[2];
-            CHECK(arg_pack[3].is_expr());
-            Expr expr1 = arg_pack[3];
-
-            std::vector<Expr> vec_ast{expr0, expr1};
-            ir::ModuleExpr model_expr(vec_ast);
-            ir::IRSchedule ir_sch(model_expr);
-            ir_sch.MergeExprs();
+            CHECK_EQ(vec_tensor.size(), 2);
+            Expr out     = vec_tensor[0];
+            Expr tmp_out = vec_tensor[1];
 
             VLOG(3) << "Do IRCudaScheduleBlockReduceInternal Schedule!";
             pe::IRCudaScheduleBlockReduceInternal(ir_sch, tmp_out.as_tensor_ref(), out.as_tensor_ref(), target);
@@ -193,23 +186,10 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
             std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
             *ret = CINNValuePack{res};
           } else if (arg_pack.size() == 6) {
-            CHECK(arg_pack[0].is_expr());
-            Expr out = arg_pack[0];
-            CHECK(arg_pack[1].is_expr());
-            Expr tmp_out = arg_pack[1];
-            CHECK(arg_pack[2].is_expr());
-            Expr reduce_tmp_out = arg_pack[2];
-            CHECK(arg_pack[3].is_expr());
-            Expr expr0 = arg_pack[3];
-            CHECK(arg_pack[4].is_expr());
-            Expr expr1 = arg_pack[4];
-            CHECK(arg_pack[5].is_expr());
-            Expr expr2 = arg_pack[5];
-
-            std::vector<Expr> vec_ast{expr0, expr1, expr2};
-            ir::ModuleExpr model_expr(vec_ast);
-            ir::IRSchedule ir_sch(model_expr);
-            ir_sch.MergeExprs();
+            CHECK_EQ(vec_tensor.size(), 3);
+            Expr out            = vec_tensor[0];
+            Expr tmp_out        = vec_tensor[1];
+            Expr reduce_tmp_out = vec_tensor[2];
 
             VLOG(3) << "Do IRCudaScheduleBlockReduce Schedule!";
             pe::IRCudaScheduleBlockReduce(
@@ -218,25 +198,11 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
             std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
             *ret = CINNValuePack{res};
           } else if (arg_pack.size() == 7) {
-            CHECK(arg_pack[0].is_expr());
-            Expr out = arg_pack[0];
-            CHECK(arg_pack[1].is_expr());
-            Expr tmp_out = arg_pack[1];
-            CHECK(arg_pack[2].is_expr());
-            Expr reduce_tmp_out = arg_pack[2];
-            CHECK(arg_pack[3].is_expr());
-            Expr reshape = arg_pack[3];
-            CHECK(arg_pack[4].is_expr());
-            Expr expr0 = arg_pack[4];
-            CHECK(arg_pack[5].is_expr());
-            Expr expr1 = arg_pack[5];
-            CHECK(arg_pack[6].is_expr());
-            Expr expr2 = arg_pack[6];
-
-            std::vector<Expr> vec_ast{expr0, expr1, expr2};
-            ir::ModuleExpr model_expr(vec_ast);
-            ir::IRSchedule ir_sch(model_expr);
-            ir_sch.MergeExprs();
+            CHECK_EQ(vec_tensor.size(), 4);
+            Expr out            = vec_tensor[0];
+            Expr tmp_out        = vec_tensor[1];
+            Expr reduce_tmp_out = vec_tensor[2];
+            Expr reshape        = vec_tensor[3];
 
             VLOG(3) << "Do IRCudaTwoStepReduceSchedule Schedule!";
             pe::IRCudaTwoStepReduceSchedule(ir_sch,
@@ -249,21 +215,10 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
             std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
             *ret = CINNValuePack{res};
           } else if (arg_pack.size() == 5) {
-            CHECK(arg_pack[0].is_expr());
-            Expr out = arg_pack[0];
-            CHECK(arg_pack[1].is_expr());
-            Expr tmp_out = arg_pack[1];
-            CHECK(arg_pack[2].is_expr());
-            Expr reduce_tmp_out = arg_pack[2];
-            CHECK(arg_pack[3].is_expr());
-            Expr expr0 = arg_pack[3];
-            CHECK(arg_pack[4].is_expr());
-            Expr expr1 = arg_pack[4];
-
-            std::vector<Expr> vec_ast{expr0, expr1};
-            ir::ModuleExpr model_expr(vec_ast);
-            ir::IRSchedule ir_sch(model_expr);
-            ir_sch.MergeExprs();
+            CHECK_EQ(vec_tensor.size(), 3);
+            Expr out            = vec_tensor[0];
+            Expr tmp_out        = vec_tensor[1];
+            Expr reduce_tmp_out = vec_tensor[2];
 
             VLOG(3) << "Do IRCudaScheduleBlockReduce Schedule!";
             pe::IRCudaScheduleBlockReduce(ir_sch,
@@ -279,15 +234,8 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
           }
         } else {
           if (arg_pack.size() == 2) {
-            CHECK(arg_pack[0].is_expr());
-            Expr reduce_out = arg_pack[0];
-            CHECK(arg_pack[1].is_expr());
-            Expr expr0 = arg_pack[1];
-            std::vector<Expr> vec_ast{expr0};
-
-            ir::ModuleExpr model_expr(vec_ast);
-            ir::IRSchedule ir_sch(model_expr);
-            ir_sch.MergeExprs();
+            CHECK_EQ(vec_tensor.size(), 1);
+            Expr reduce_out = vec_tensor[0];
 
             VLOG(3) << "Do IRCudaScheduleReduce Schedule!";
             pe::IRCudaScheduleReduce(
@@ -296,21 +244,10 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
             std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
             *ret = CINNValuePack{res};
           } else if (arg_pack.size() == 5) {
-            CHECK(arg_pack[0].is_expr());
-            Expr reduce_out = arg_pack[0];
-            CHECK(arg_pack[1].is_expr());
-            Expr reduce_internal = arg_pack[1];
-            CHECK(arg_pack[2].is_expr());
-            Expr reduce_reshape = arg_pack[2];
-            CHECK(arg_pack[3].is_expr());
-            Expr expr0 = arg_pack[3];
-            CHECK(arg_pack[4].is_expr());
-            Expr expr1 = arg_pack[4];
-
-            std::vector<Expr> vec_ast{expr0, expr1};
-            ir::ModuleExpr model_expr(vec_ast);
-            ir::IRSchedule ir_sch(model_expr);
-            ir_sch.MergeExprs();
+            CHECK_EQ(vec_tensor.size(), 3);
+            Expr reduce_out      = vec_tensor[0];
+            Expr reduce_internal = vec_tensor[1];
+            Expr reduce_reshape  = vec_tensor[2];
 
             VLOG(3) << "Do IRCudaScheduleBlockShuffleReduce Schedule!";
             pe::IRCudaScheduleBlockShuffleReduce(ir_sch,
@@ -395,6 +332,33 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
   return strategy;
 }
 
+#define STRATEGY_FOR_REDUCE(                                                                                  \
+    op_name_, reduce_op_, gpu_reduce_with_last_axis_func, gpu_reduce_without_last_axis_func, cpu_reduce_func) \
+  std::shared_ptr<OpStrategy> StrategyFor##reduce_op_(const framework::NodeAttr &attrs,                       \
+                                                      const std::vector<ir::Tensor> &inputs,                  \
+                                                      const std::vector<Type> &out_type,                      \
+                                                      const std::vector<std::vector<int>> &output_shapes,     \
+                                                      const Target &target) {                                 \
+    return StrategyForReduce(attrs,                                                                           \
+                             inputs,                                                                          \
+                             out_type,                                                                        \
+                             output_shapes,                                                                   \
+                             target,                                                                          \
+                             #op_name_,                                                                       \
+                             gpu_reduce_with_last_axis_func,                                                  \
+                             gpu_reduce_without_last_axis_func,                                               \
+                             cpu_reduce_func);                                                                \
+  }
+
+STRATEGY_FOR_REDUCE(reduce_sum, ReduceSum, pe::TwoStepBlockReduceSum, pe::BlockShuffleReduceSum, pe::ReduceSum);
+STRATEGY_FOR_REDUCE(reduce_prod, ReduceProd, pe::TwoStepBlockReduceProd, pe::BlockShuffleReduceProd, pe::ReduceProd);
+STRATEGY_FOR_REDUCE(reduce_max, ReduceMax, pe::TwoStepBlockReduceMax, pe::BlockShuffleReduceMax, pe::ReduceMax);
+STRATEGY_FOR_REDUCE(reduce_min, ReduceMin, pe::TwoStepBlockReduceMin, pe::BlockShuffleReduceMin, pe::ReduceMin);
+STRATEGY_FOR_REDUCE(reduce_all, ReduceAll, pe::TwoStepBlockReduceAll, pe::BlockShuffleReduceAll, pe::ReduceAll);
+STRATEGY_FOR_REDUCE(reduce_any, ReduceAny, pe::TwoStepBlockReduceAny, pe::BlockShuffleReduceAny, pe::ReduceAny);
+
+#undef STRATEGY_FOR_REDUCE
+
 std::vector<shape_t> InferShapeForReduction(const std::vector<shape_t> &inputs_shape,
                                             const framework::AttrMapType &attrs) {
   CHECK(inputs_shape.size() == 1UL || inputs_shape.size() == 3UL);
@@ -407,24 +371,34 @@ std::vector<shape_t> InferShapeForReduction(const std::vector<shape_t> &inputs_s
   if (attrs.find("keep_dim") != attrs.end()) {
     keep_dim = absl::get<bool>(attrs.at("keep_dim"));
   }
+
+  auto ndim = inputs_shape[0].size();
+  CHECK_LE(dim.size(), ndim) << "reduce dim should no more than the input size";
+
+  if (dim.empty()) {
+    for (int i = 0; i < ndim; ++i) {
+      dim.emplace_back(i);
+    }
+  }
+
   std::vector<int> out_shapes;
-  if (!dim.empty()) {
-    CHECK_LE(dim.size(), inputs_shape[0].size()) << "reduce dim should no more than the input size";
-    auto ndim = inputs_shape[0].size();
-    for (size_t i = 0; i < ndim; ++i) {
-      if (std::find(dim.begin(), dim.end(), i) != dim.end()) {
-        if (keep_dim) {
-          out_shapes.push_back(1);
-        }
-      } else {
-        out_shapes.push_back(inputs_shape[0][i]);
+  for (size_t i = 0; i < ndim; ++i) {
+    if (std::find(dim.begin(), dim.end(), i) != dim.end()) {
+      if (keep_dim) {
+        out_shapes.push_back(1);
       }
+    } else {
+      out_shapes.push_back(inputs_shape[0][i]);
     }
   }
 
   if (out_shapes.empty()) {
     out_shapes.push_back(1);
   }
+
+  VLOG(4) << "Reduce from input shape [" << cinn::utils::Join(inputs_shape[0], ",") << "] to output shape ["
+          << cinn::utils::Join(out_shapes, ",") << "] with reduce dim [" << cinn::utils::Join(dim, ",")
+          << "] and keep_dim is " << keep_dim;
 
   return {out_shapes};
 }
@@ -433,6 +407,13 @@ std::vector<Type> InferDtypeForReduction(const std::vector<Type> &inputs_type, c
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0]};
   return res;
+}
+
+std::vector<Type> InferDtypeForReductionBool(const std::vector<Type> &inputs_type,
+                                             const framework::AttrMapType &attrs) {
+  CHECK_EQ(inputs_type.size(), 1UL) << "The reduce should only has one input! Please check again.";
+  CHECK(inputs_type[0].is_bool()) << "The input's type should be bool! Please check.";
+  return inputs_type;
 }
 
 std::vector<std::vector<std::string>> InferLayoutForReduction(const std::vector<framework::shape_t> &input_shapes,
@@ -469,29 +450,24 @@ std::vector<std::vector<std::string>> InferLayoutForBnOptimize(const std::vector
   return {{"", ""}, {"", ""}};
 }
 
-STRATEGY_FOR_REDUCE(reduce_sum, ReduceSum, pe::TwoStepBlockReduceSum, pe::BlockShuffleReduceSum, pe::ReduceSum);
-STRATEGY_FOR_REDUCE(reduce_prod, ReduceProd, pe::TwoStepBlockReduceProd, pe::BlockShuffleReduceProd, pe::ReduceProd);
-STRATEGY_FOR_REDUCE(reduce_max, ReduceMax, pe::TwoStepBlockReduceMax, pe::BlockShuffleReduceMax, pe::ReduceMax);
-STRATEGY_FOR_REDUCE(reduce_min, ReduceMin, pe::TwoStepBlockReduceMin, pe::BlockShuffleReduceMin, pe::ReduceMin);
-
-#undef STRATEGY_FOR_REDUCE
-
 }  // namespace op
 }  // namespace hlir
 }  // namespace cinn
 
 CINN_REGISTER_HELPER(reduce_ops) {
-#define CINN_REGISTER_REDUCTION(op__, op_stragegy__)                                                                  \
+#define CINN_REGISTER_REDUCTION_WITH_DTYPE(op__, op_stragegy__, dtype__)                                              \
   CINN_REGISTER_OP(op__)                                                                                              \
       .describe(#op__ " function")                                                                                    \
       .set_num_inputs(1)                                                                                              \
       .set_num_outputs(1)                                                                                             \
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyFor##op_stragegy__)  \
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForReduction))                                 \
-      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForReduction))                                 \
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForReduction##dtype__))                        \
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForReduction))                               \
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kCommReduce) \
       .set_support_level(4);
+
+#define CINN_REGISTER_REDUCTION(op__, op_stragegy__) CINN_REGISTER_REDUCTION_WITH_DTYPE(op__, op_stragegy__, )
 
   CINN_REGISTER_REDUCTION(reduce_sum, ReduceSum);
   CINN_REGISTER_REDUCTION(reduce_prod, ReduceProd);
@@ -499,6 +475,11 @@ CINN_REGISTER_HELPER(reduce_ops) {
   CINN_REGISTER_REDUCTION(reduce_min, ReduceMin);
 
 #undef CINN_REGISTER_REDUCTION
+
+  CINN_REGISTER_REDUCTION_WITH_DTYPE(reduce_all, ReduceAll, Bool);
+  CINN_REGISTER_REDUCTION_WITH_DTYPE(reduce_any, ReduceAny, Bool);
+
+#undef CINN_REGISTER_REDUCTION_WITH_DTYPE
 
   return true;
 }
