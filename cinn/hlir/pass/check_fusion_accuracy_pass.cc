@@ -307,19 +307,36 @@ std::pair<NodePtr, NodeData*> CheckFusionAccuracyPass::CreateAssertNode(const st
 std::vector<NodePtr> CheckFusionAccuracyPass::CreateAssertAllClose(const std::string& node_id,
                                                                    const std::string& assert_msg,
                                                                    const std::vector<NodeData*>& inputs) {
+  std::vector<NodePtr> group_nodes;
   // create isclose + all + assert nodes
+  // create isclose node and link inputs to the node
   const auto& is_close_node = CreateIsCloseNode(node_id);
-  const auto& all_node      = CreateAllNode(node_id);
-  const auto& assert_node   = CreateAssertNode(node_id, assert_msg);
-
-  // link each nodes, each node only has one output
   for (auto in_data : inputs) {
     in_data->LinkTo(is_close_node.first.get());
   }
-  is_close_node.second->LinkTo(all_node.first.get());
-  all_node.second->LinkTo(assert_node.first.get());
+  group_nodes.emplace_back(is_close_node.first);
 
-  return {is_close_node.first, all_node.first, assert_node.first};
+  // create assert node
+  const auto& assert_node = CreateAssertNode(node_id, assert_msg);
+
+  // check and create all node
+  auto in_shape = shape_dict_[node_id];
+  int prod_size = std::accumulate(in_shape.begin(), in_shape.end(), 1, std::multiplies<int>());
+  if (prod_size > 1) {
+    // need reduce
+    const auto& all_node = CreateAllNode(node_id);
+
+    is_close_node.second->LinkTo(all_node.first.get());
+    all_node.second->LinkTo(assert_node.first.get());
+
+    group_nodes.emplace_back(all_node.first);
+  } else {
+    // do not need reduce
+    is_close_node.second->LinkTo(assert_node.first.get());
+  }
+  group_nodes.emplace_back(assert_node.first);
+
+  return group_nodes;
 }
 
 GroupList CheckFusionAccuracyPass::LinkToAssertAllClose(const std::unordered_set<NodeData*>& group_outputs,
