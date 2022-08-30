@@ -87,6 +87,14 @@ Variable NetBuilder::ReduceAny(const Variable& x, const std::vector<int>& dim, b
   return Reduce(x, ReduceKind::kAny, dim, keep_dim);
 }
 
+Variable NetBuilder::Cast(const Variable& operand, const std::string& dtype) {
+  Instruction instr("cast", {operand});
+  instr.SetAttr("dtype", dtype);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
 Variable NetBuilder::Conv2d(const Variable& a,
                             const Variable& b,
                             const std::vector<int>& strides,

@@ -93,6 +93,11 @@ class NetBuilder : public BaseBuilder {
   Variable ReduceAny(const Variable& x, const std::vector<int>& dim, bool keep_dim = false);
 
   /**
+   * Cast Variable x to dtype.
+   */
+  Variable Cast(const Variable& operand, const std::string& dtype);
+
+  /**
    * The convolution2D layer calculates the output based on the input, filter
    * and strides, paddings, dilations, groups parameters.
    */
