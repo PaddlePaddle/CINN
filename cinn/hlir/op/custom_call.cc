@@ -72,10 +72,10 @@ std::shared_ptr<OpStrategy> StrategyForCustomCall(const framework::NodeAttr &att
     CINNValuePack pack_args = args[0];
     CHECK(pack_args.back().is_string());
 
-    auto& attr_store = attrs.attr_store;
+    auto &attr_store = attrs.attr_store;
     CHECK(attr_store.count("custom_call"));
     std::string custom_call_api = absl::get<std::string>(attr_store.at("custom_call"));
-    auto args_func = CustomCallArgsFuncRegistry::Global().Lookup(custom_call_api, target);
+    auto args_func              = CustomCallArgsFuncRegistry::Global().Lookup(custom_call_api, target);
 
     std::string func_name = pack_args.back().operator std::string();
     // create call function.
@@ -129,8 +129,15 @@ std::vector<ir::Expr> CustomCallArgsForCublas(const framework::NodeAttr &attrs,
   int n = trans_b ? inputs[1]->shape[0].as_int32() : inputs[1]->shape[1].as_int32();
   int k = trans_a ? inputs[0]->shape[0].as_int32() : inputs[0]->shape[1].as_int32();
   // func args
-  std::vector<ir::Expr> args = {
-      ir::Expr(trans_a), ir::Expr(trans_b), ir::Expr(alpha), ir::Expr(beta), ir::Expr(b0), ir::Expr(b1), ir::Expr(m), ir::Expr(n), ir::Expr(k)};
+  std::vector<ir::Expr> args = {ir::Expr(trans_a),
+                                ir::Expr(trans_b),
+                                ir::Expr(alpha),
+                                ir::Expr(beta),
+                                ir::Expr(b0),
+                                ir::Expr(b1),
+                                ir::Expr(m),
+                                ir::Expr(n),
+                                ir::Expr(k)};
   return args;
 }
 
@@ -179,10 +186,11 @@ std::vector<ir::Expr> CustomCallArgsForCudnnConvBackwardData(const framework::No
   float beta      = attr_store.count("beta") ? absl::get<float>(attr_store.at("beta")) : 0.0f;
 
   CHECK(attr_store.count("padding"));
-  auto padding  = absl::get<std::vector<int>>(attr_store.at("padding"));
+  auto padding = absl::get<std::vector<int>>(attr_store.at("padding"));
   CHECK(attr_store.count("stride"));
-  auto stride   = absl::get<std::vector<int>>(attr_store.at("stride"));
-  auto dilation = attr_store.count("dilation") ? absl::get<std::vector<int>>(attr_store.at("dilation")) : std::vector<int>({1, 1});
+  auto stride = absl::get<std::vector<int>>(attr_store.at("stride"));
+  auto dilation =
+      attr_store.count("dilation") ? absl::get<std::vector<int>>(attr_store.at("dilation")) : std::vector<int>({1, 1});
   std::string data_format =
       attr_store.count("data_format") ? absl::get<std::string>(attr_store.at("data_format")) : "NCHW";
   int groups = attr_store.count("groups") ? absl::get<int>(attr_store.at("groups")) : 1;
@@ -213,10 +221,11 @@ std::vector<ir::Expr> CustomCallArgsForCudnnConvBackwardFilter(const framework::
   float beta      = attr_store.count("beta") ? absl::get<float>(attr_store.at("beta")) : 0.0f;
 
   CHECK(attr_store.count("padding"));
-  auto padding  = absl::get<std::vector<int>>(attr_store.at("padding"));
+  auto padding = absl::get<std::vector<int>>(attr_store.at("padding"));
   CHECK(attr_store.count("stride"));
-  auto stride   = absl::get<std::vector<int>>(attr_store.at("stride"));
-  auto dilation = attr_store.count("dilation") ? absl::get<std::vector<int>>(attr_store.at("dilation")) : std::vector<int>({1, 1});
+  auto stride = absl::get<std::vector<int>>(attr_store.at("stride"));
+  auto dilation =
+      attr_store.count("dilation") ? absl::get<std::vector<int>>(attr_store.at("dilation")) : std::vector<int>({1, 1});
   std::string data_format =
       attr_store.count("data_format") ? absl::get<std::string>(attr_store.at("data_format")) : "NCHW";
   int groups = attr_store.count("groups") ? absl::get<int>(attr_store.at("groups")) : 1;
@@ -251,7 +260,7 @@ std::vector<ir::Expr> CustomCallArgsForCudnnPoolForward(const framework::NodeAtt
   CHECK(attr_store.count("stride_size"));
   auto stride = absl::get<std::vector<int>>(attr_store.at("stride_size"));
   CHECK(attr_store.count("pool_type"));
-  int pool_type =  absl::get<std::string>(attrs.attr_store.at("pool_type")) == "max" ? 0 : 1;
+  int pool_type = absl::get<std::string>(attrs.attr_store.at("pool_type")) == "max" ? 0 : 1;
   std::string data_format =
       attr_store.count("data_format") ? absl::get<std::string>(attrs.attr_store.at("data_format")) : "NCHW";
 
@@ -283,7 +292,7 @@ std::vector<ir::Expr> CustomCallArgsForCudnnPoolBackward(const framework::NodeAt
   CHECK(attr_store.count("stride_size"));
   auto stride = absl::get<std::vector<int>>(attr_store.at("stride_size"));
   CHECK(attr_store.count("pool_type"));
-  int pool_type =  absl::get<std::string>(attrs.attr_store.at("pool_type")) == "max" ? 0 : 1;
+  int pool_type = absl::get<std::string>(attrs.attr_store.at("pool_type")) == "max" ? 0 : 1;
   std::string data_format =
       attr_store.count("data_format") ? absl::get<std::string>(attrs.attr_store.at("data_format")) : "NCHW";
 

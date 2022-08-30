@@ -47,8 +47,8 @@ __device__ inline float cinn_min(const float left, const float right) { return m
 __device__ inline bool cinn_all(const bool left, const bool right) { return left && right; }
 __device__ inline bool cinn_any(const bool left, const bool right) { return left || right; }
 
-#define cinn_warp_shuffle_internal_kernel(TYPE, value, op)                        \
-  TYPE tmp_val     = value;                                                \
+#define cinn_warp_shuffle_internal_kernel(TYPE, value, op)                  \
+  TYPE tmp_val      = value;                                                \
   unsigned int mask = __activemask();                                       \
   tmp_val           = op(tmp_val, __shfl_down_sync(mask, tmp_val, 16, 32)); \
   tmp_val           = op(tmp_val, __shfl_down_sync(mask, tmp_val, 8, 32));  \
@@ -100,28 +100,28 @@ __device__ inline float cinn_warp_reduce_avg(const float *buf, int offset, int e
 }
 
 #define cinn_block_reduce_internal_kernel(TYPE, value, init_value, cinn_warp_shuffle_internal) \
-  int warp_id = threadIdx.x / 32;                                                        \
-  __shared__ TYPE tmp[32];                                                    \
-  if (warp_id == 0) {                                                                    \
-    tmp[threadIdx.x] = init_value;                                                       \
-  }                                                                                      \
-  TYPE tmp_val = cinn_warp_shuffle_internal(value);                                     \
-  if (blockDim.x <= 32) {                                                                \
-    return tmp_val;                                                                      \
-  }                                                                                      \
-  __syncthreads();                                                                       \
-  if (threadIdx.x % 32 == 0) {                                                           \
-    tmp[warp_id] = tmp_val;                                                              \
-  }                                                                                      \
-  __syncthreads();                                                                       \
-  if (warp_id == 0) {                                                                    \
-    tmp_val = tmp[threadIdx.x];                                                          \
-    tmp_val = cinn_warp_shuffle_internal(tmp_val);                                       \
-    if (threadIdx.x == 0) {                                                              \
-      tmp[0] = tmp_val;                                                                  \
-    }                                                                                    \
-  }                                                                                      \
-  __syncthreads();                                                                       \
+  int warp_id = threadIdx.x / 32;                                                              \
+  __shared__ TYPE tmp[32];                                                                     \
+  if (warp_id == 0) {                                                                          \
+    tmp[threadIdx.x] = init_value;                                                             \
+  }                                                                                            \
+  TYPE tmp_val = cinn_warp_shuffle_internal(value);                                            \
+  if (blockDim.x <= 32) {                                                                      \
+    return tmp_val;                                                                            \
+  }                                                                                            \
+  __syncthreads();                                                                             \
+  if (threadIdx.x % 32 == 0) {                                                                 \
+    tmp[warp_id] = tmp_val;                                                                    \
+  }                                                                                            \
+  __syncthreads();                                                                             \
+  if (warp_id == 0) {                                                                          \
+    tmp_val = tmp[threadIdx.x];                                                                \
+    tmp_val = cinn_warp_shuffle_internal(tmp_val);                                             \
+    if (threadIdx.x == 0) {                                                                    \
+      tmp[0] = tmp_val;                                                                        \
+    }                                                                                          \
+  }                                                                                            \
+  __syncthreads();                                                                             \
   return tmp[0];
 
 // block reduce sum internal
@@ -254,11 +254,11 @@ __device__ inline float cinn_cuda_index_add(const float x,
 
 #define block_shuffle_kernel(TYPE, name, op, init_value)                               \
   __device__ inline TYPE block_shuffle_##name(const TYPE *buf, int line, int stride) { \
-    TYPE val = init_value;                                                              \
-    for (int idx = threadIdx.x; idx < line; idx += stride) {                             \
-      val = op(val, buf[idx]);                                                           \
-    }                                                                                    \
-    return val;                                                                          \
+    TYPE val = init_value;                                                             \
+    for (int idx = threadIdx.x; idx < line; idx += stride) {                           \
+      val = op(val, buf[idx]);                                                         \
+    }                                                                                  \
+    return val;                                                                        \
   }
 
 block_shuffle_kernel(float, sum, cinn_sum, 0.0f);

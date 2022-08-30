@@ -96,7 +96,7 @@ struct CollectHostFunctionVisitor : public ir::IRMutator<> {
     ir::Var kernel_args_num(KERNEL_ARGS_NUM, type_of<int>());
     ir::Var kernel_stream(KERNEL_STREAM, type_of<void*>());
 
-    auto call_extern_api = ir::Call::Make(Void(),
+    auto call_extern_api                = ir::Call::Make(Void(),
                                           runtime::intrinsic::call_cuda_kernel,
                                           {kernel_ptr,
                                            kernel_args,
