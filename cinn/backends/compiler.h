@@ -51,7 +51,7 @@ class Compiler final {
    * Retrieve a function by \p fn_name.
    * @return function address or null if not exists.
    */
-  lower_func_ptr_t Lookup(absl::string_view fn_name);
+  void* Lookup(absl::string_view fn_name);
 
  private:
   void CompileCudaModule(const ir::Module& module, const std::string& code = "");
