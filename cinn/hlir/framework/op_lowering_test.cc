@@ -14,10 +14,10 @@
 
 #include "cinn/hlir/framework/op_lowering.h"
 
-#include "cinn/backends/compiler.h"
 #include "cinn/backends/codegen_c_x86.h"
 #include "cinn/backends/codegen_cuda_dev.h"
 #include "cinn/backends/codegen_cuda_util.h"
+#include "cinn/backends/compiler.h"
 #include "cinn/backends/cuda_util.h"
 #include "cinn/backends/llvm/execution_engine.h"
 #include "cinn/backends/nvrtc_util.h"
@@ -35,7 +35,7 @@ void Compile(ir::LoweredFunc& func) {
   Module::Builder builder("module_builder", target);
 
   builder.AddFunction(func);
-  auto module = builder.Build();
+  auto module   = builder.Build();
   auto compiler = backends::Compiler::Create(target);
 
   std::string code = "";
@@ -48,7 +48,7 @@ void CodeGen(ir::LoweredFunc& func) {
   Module::Builder builder("module_builder", target);
 
   builder.AddFunction(func);
-  auto module = builder.Build();
+  auto module   = builder.Build();
   auto compiler = backends::Compiler::Create(target);
 
   std::string code = "";

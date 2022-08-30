@@ -40,7 +40,8 @@ std::unique_ptr<backends::SimpleJIT> GetLoweredFunc(int M, int N) {
   Placeholder<float> x("x", {m, n});
   Placeholder<float> y("y", {m, n});
 
-  auto z = Compute({m, n}, [=](Expr i, Expr j) { return x(i, j) + y(i, j); }, "z");
+  auto z = Compute(
+      {m, n}, [=](Expr i, Expr j) { return x(i, j) + y(i, j); }, "z");
 
   auto stages = CreateStages({z});
   auto fn     = Lower("fn", stages, {x, y, z});

@@ -44,12 +44,12 @@
     }                                                              \
   }
 
-#define CUBLAS_CALL(func)                                               \
-  {                                                                     \
-    auto status = func;                                                 \
-    if (status != CUBLAS_STATUS_SUCCESS) {                              \
-      LOG(FATAL) << "CUBLAS Error!";                                    \
-    }                                                                   \
+#define CUBLAS_CALL(func)                  \
+  {                                        \
+    auto status = func;                    \
+    if (status != CUBLAS_STATUS_SUCCESS) { \
+      LOG(FATAL) << "CUBLAS Error!";       \
+    }                                      \
   }
 
 #define CUDNN_CALL(func)                                             \

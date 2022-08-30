@@ -80,7 +80,8 @@ TEST(CodeGenCUDA, basic) {
   Placeholder<float> A("A", {M, N});
   Placeholder<float> B("B", {M, N});
 
-  auto C = Compute({M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
+  auto C = Compute(
+      {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
 
   auto stages = CreateStages({C});
 
@@ -106,7 +107,8 @@ TEST(CodeGenCUDA2, test_of_cacheread) {
   Placeholder<float> A("X", {M, N});
   Placeholder<float> B("Y", {M, N});
 
-  auto C = Compute({M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
+  auto C = Compute(
+      {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
 
   auto stages = CreateStages({C});
   std::vector<ir::Tensor> readers{C};
@@ -176,9 +178,11 @@ TEST(CodeGenCUDA2, test_of_splitcudakernel) {
   Placeholder<float> A("X", {M, N});
   Placeholder<float> B("Y", {M, N});
 
-  auto C = Compute({M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
+  auto C = Compute(
+      {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
 
-  auto D = Compute({M, N}, [&](Var i, Var j) { return C(i, j) + B(i, j); }, "D");
+  auto D = Compute(
+      {M, N}, [&](Var i, Var j) { return C(i, j) + B(i, j); }, "D");
 
   auto stages = CreateStages({C, D});
 
@@ -251,7 +255,8 @@ TEST(CodeGenCUDA2, test_of_splitouter) {
   Placeholder<float> A("X", {M, N});
   Placeholder<float> B("Y", {M, N});
 
-  auto C = Compute({M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
+  auto C = Compute(
+      {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
 
   auto stages = CreateStages({C});
   std::vector<ir::Tensor> readers{C};
@@ -1000,7 +1005,8 @@ TEST(CodeGenCUDA, test_of_syncthreads) {
   Placeholder<float> A("A", {M, N});
   Placeholder<float> B("B", {M, N});
 
-  auto C = Compute({M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
+  auto C = Compute(
+      {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
 
   auto stages = CreateStages({C});
   std::vector<ir::Tensor> readers{C};
@@ -1106,7 +1112,8 @@ TEST(CodeGenCUDA3, test_of_mul_cachewrite) {
   Placeholder<float> B("B1", {N, K});
 
   auto k1 = Var(K.as_int32(), "k1");
-  auto C  = Compute({M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k1) * B(j, k1), {k1}); }, "C1");
+  auto C  = Compute(
+      {M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k1) * B(j, k1), {k1}); }, "C1");
 
   auto stages = CreateStages({C});
 
@@ -1221,7 +1228,8 @@ class ElementwiseTester {
     Placeholder<float> A("A", {M, N});
     Placeholder<float> B("B", {M, N});
 
-    auto C = Compute({M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
+    auto C = Compute(
+        {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
 
     return std::make_tuple(A, B, C);
   }
@@ -1339,7 +1347,9 @@ TEST(CodeGenCUDA, jit_dynamic_shape0) {
   auto& M_outer          = std::get<0>(_M_outer_M_inner_);
   auto& M_inner          = std::get<1>(_M_outer_M_inner_);
   stages[C]->Reorder({
-      M_inner, stages[C]->axis(2), M_outer,
+      M_inner,
+      stages[C]->axis(2),
+      M_outer,
   });
 
   stages[C]->Bind(0, "blockIdx.x");
@@ -1364,7 +1374,10 @@ TEST(CodeGenCUDA, jit_dynamic_shape1) {
   auto& N_outer          = std::get<0>(_N_outer_N_inner_);
   auto& N_inner          = std::get<1>(_N_outer_N_inner_);
   stages[C]->Reorder({
-      M_inner, N_inner, M_outer, N_outer,
+      M_inner,
+      N_inner,
+      M_outer,
+      N_outer,
   });
 
   stages[C]->Bind(0, "blockIdx.x");
@@ -1390,7 +1403,10 @@ TEST(CodeGenCUDA, jit_dynamic_shape2) {
   auto& N_outer          = std::get<0>(_N_outer_N_inner_);
   auto& N_inner          = std::get<1>(_N_outer_N_inner_);
   stages[C]->Reorder({
-      M_inner, N_inner, M_outer, N_outer,
+      M_inner,
+      N_inner,
+      M_outer,
+      N_outer,
   });
 
   stages[C]->Bind(0, "blockIdx.x");
@@ -1422,7 +1438,10 @@ TEST(CodeGenCUDA, jit_host_call_cuda_kernel) {
   auto& N_outer          = std::get<0>(_N_outer_N_inner_);
   auto& N_inner          = std::get<1>(_N_outer_N_inner_);
   stages[C]->Reorder({
-      M_inner, N_inner, M_outer, N_outer,
+      M_inner,
+      N_inner,
+      M_outer,
+      N_outer,
   });
 
   stages[C]->Bind(0, "blockIdx.x");
@@ -1549,35 +1568,41 @@ TEST(depthwise_conv, test) {
   Placeholder<float> input("input", {Expr(batch), Expr(in_channel), Expr(in_height), Expr(in_width)});
   Placeholder<float> filter("filter", {Expr(in_channel), Expr(in_channel), Expr(filter_size), Expr(filter_size)});
 
-  auto padded_input =
-      Compute({Expr(batch), Expr(in_channel), Expr(height_padded), Expr(width_padded)},
-              [=](Expr b, Expr c, Expr i, Expr j) {
-                return common::select(common::and_all({
-                                          i >= pad_top, i - pad_top < in_height, j >= pad_left, j - pad_left < in_width,
-                                      }),
-                                      input(b, c, i, j),  // true value
-                                      Expr(0.f)           // false value
-                                      );                  // NOLINT
-              },
-              "padded_input");
+  auto padded_input = Compute(
+      {Expr(batch), Expr(in_channel), Expr(height_padded), Expr(width_padded)},
+      [=](Expr b, Expr c, Expr i, Expr j) {
+        return common::select(common::and_all({
+                                  i >= pad_top,
+                                  i - pad_top < in_height,
+                                  j >= pad_left,
+                                  j - pad_left < in_width,
+                              }),
+                              input(b, c, i, j),  // true value
+                              Expr(0.f)           // false value
+        );                                        // NOLINT
+      },
+      "padded_input");
 
   Var di(Expr(filter_size), "di");
   Var dj(Expr(filter_size), "dj");
 
   // cache
-  auto IS = Compute(padded_input->shape,
-                    [=](Expr b, Expr c, Expr i, Expr j) -> Expr { return padded_input(b, c, i, j); },
-                    "cache_paded_input");
-  auto FS = Compute(ir::Tensor(filter)->shape,
-                    [=](Expr c0, Expr c1, Expr w, Expr h) -> Expr { return filter(c0, c1, w, h); },
-                    "cache_filter");
+  auto IS = Compute(
+      padded_input->shape,
+      [=](Expr b, Expr c, Expr i, Expr j) -> Expr { return padded_input(b, c, i, j); },
+      "cache_paded_input");
+  auto FS = Compute(
+      ir::Tensor(filter)->shape,
+      [=](Expr c0, Expr c1, Expr w, Expr h) -> Expr { return filter(c0, c1, w, h); },
+      "cache_filter");
 
-  auto output = Compute({Expr(batch), Expr(in_channel), Expr(out_height), Expr(out_width)},
-                        [=](Var b, Var c, Var i, Var j) -> Expr {
-                          auto expr = IS(b, c, i * stride + di, j * stride + dj) * FS(c, c, di, dj);
-                          return lang::ReduceSum(expr, {di, dj});
-                        },
-                        "output");
+  auto output = Compute(
+      {Expr(batch), Expr(in_channel), Expr(out_height), Expr(out_width)},
+      [=](Var b, Var c, Var i, Var j) -> Expr {
+        auto expr = IS(b, c, i * stride + di, j * stride + dj) * FS(c, c, di, dj);
+        return lang::ReduceSum(expr, {di, dj});
+      },
+      "output");
 
   auto stages = CreateStages({output});
 
@@ -1605,14 +1630,14 @@ TEST(Conv, basic) {
   Placeholder<float> A("A", {in_size, in_size, in_channel, batch});
   Placeholder<float> W("W", {kernel, kernel, in_channel, out_channel});
 
-  auto Apad =
-      Compute({in_size + 2 * pad, in_size + 2 * pad, in_channel, batch},
-              [=](Expr yy, Expr xx, Expr cc, Expr nn) -> Expr {
-                return common::select(common::and_all({yy >= pad, yy - pad < in_size, xx >= pad, xx - pad < in_size}),
-                                      A(yy - pad, xx - pad, cc, nn),
-                                      common::make_const(Float(32), 0));
-              },
-              "Apad");
+  auto Apad = Compute(
+      {in_size + 2 * pad, in_size + 2 * pad, in_channel, batch},
+      [=](Expr yy, Expr xx, Expr cc, Expr nn) -> Expr {
+        return common::select(common::and_all({yy >= pad, yy - pad < in_size, xx >= pad, xx - pad < in_size}),
+                              A(yy - pad, xx - pad, cc, nn),
+                              common::make_const(Float(32), 0));
+      },
+      "Apad");
 
   Var rc(in_channel, "rc");
   Var ry(kernel, "ry");
@@ -1643,7 +1668,8 @@ TEST(elementwise_add1, share_local_cache) {
   Placeholder<float> A("A", {M, N});
   Placeholder<float> B("B", {M, N});
 
-  auto C = Compute({M, N}, [&](Expr i, Expr j) { return A(i, j) + B(i, j); }, "C");
+  auto C = Compute(
+      {M, N}, [&](Expr i, Expr j) { return A(i, j) + B(i, j); }, "C");
 
   auto stages = CreateStages({C});
 
@@ -1683,10 +1709,10 @@ TEST(elementwise_add1, share_local_cache) {
 
   cinn_buffer_t* dev_bufs[3];
   for (int i = 0; i < 3; i++) dev_bufs[i] = new cinn_buffer_t;
-  dev_bufs[0]->memory                     = reinterpret_cast<uint8_t*>(A_dev);
-  dev_bufs[1]->memory                     = reinterpret_cast<uint8_t*>(B_dev);
-  dev_bufs[2]->memory                     = reinterpret_cast<uint8_t*>(C_dev);
-  auto args = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Add(dev_bufs[2]).Build();
+  dev_bufs[0]->memory = reinterpret_cast<uint8_t*>(A_dev);
+  dev_bufs[1]->memory = reinterpret_cast<uint8_t*>(B_dev);
+  dev_bufs[2]->memory = reinterpret_cast<uint8_t*>(C_dev);
+  auto args           = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Add(dev_bufs[2]).Build();
 
   CUDA_CALL(cudaDeviceSynchronize());
   tester("elementwise_add", args.data(), args.size());
@@ -1721,7 +1747,8 @@ TEST(elementwise_add0, share_local_cache) {
   Placeholder<float> A("A", {M, N});
   Placeholder<float> B("B", {M, N});
 
-  auto C = Compute({M, N}, [&](Expr i, Expr j) { return A(i, j) + B(i, j); }, "C");
+  auto C = Compute(
+      {M, N}, [&](Expr i, Expr j) { return A(i, j) + B(i, j); }, "C");
 
   auto stages = CreateStages({C});
 
@@ -1776,10 +1803,10 @@ TEST(elementwise_add0, share_local_cache) {
 
   cinn_buffer_t* dev_bufs[3];
   for (int i = 0; i < 3; i++) dev_bufs[i] = new cinn_buffer_t;
-  dev_bufs[0]->memory                     = reinterpret_cast<uint8_t*>(A_dev);
-  dev_bufs[1]->memory                     = reinterpret_cast<uint8_t*>(B_dev);
-  dev_bufs[2]->memory                     = reinterpret_cast<uint8_t*>(C_dev);
-  auto args = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Add(dev_bufs[2]).Build();
+  dev_bufs[0]->memory = reinterpret_cast<uint8_t*>(A_dev);
+  dev_bufs[1]->memory = reinterpret_cast<uint8_t*>(B_dev);
+  dev_bufs[2]->memory = reinterpret_cast<uint8_t*>(C_dev);
+  auto args           = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Add(dev_bufs[2]).Build();
 
   CUDA_CALL(cudaDeviceSynchronize());
   tester("elementwise_add0", args.data(), args.size());
@@ -1818,13 +1845,13 @@ TEST(Conv, optimize) {
 
   Expr out_size((in_size.as_int32() - kernel.as_int32() + 2 * pad.as_int32()) / stride.as_int32() + 1);
 
-  auto Apad =
-      Compute({in_size + 2 * pad, in_size + 2 * pad, in_channel, batch},
-              [&](Expr yy, Expr xx, Expr cc, Expr nn) {
-                auto condition = common::and_all({yy >= pad, xx - pad < in_size, xx >= pad, xx - pad < in_size});
-                return common::select(condition, A(yy - pad, xx - pad, cc, nn), common::make_const(0.f));
-              },
-              "Apad");
+  auto Apad = Compute(
+      {in_size + 2 * pad, in_size + 2 * pad, in_channel, batch},
+      [&](Expr yy, Expr xx, Expr cc, Expr nn) {
+        auto condition = common::and_all({yy >= pad, xx - pad < in_size, xx >= pad, xx - pad < in_size});
+        return common::select(condition, A(yy - pad, xx - pad, cc, nn), common::make_const(0.f));
+      },
+      "Apad");
 
   auto rc = Var(in_channel, "rc");
   auto ry = Var(kernel, "ry");
@@ -1883,7 +1910,8 @@ TEST(ElementwiseAdd, cache_read_local) {
   Placeholder<float> A("A", {M, N});
   Placeholder<float> B("B", {M, N});
 
-  auto C = Compute({M, N}, [&](Expr i, Expr j) { return A(i, j) + B(i, j); }, "C");
+  auto C = Compute(
+      {M, N}, [&](Expr i, Expr j) { return A(i, j) + B(i, j); }, "C");
 
   auto stages = CreateStages({C});
 
@@ -1958,10 +1986,10 @@ void __launch_bounds__(10) fn0(const float* __restrict__ A, const float* __restr
 
   cinn_buffer_t* dev_bufs[3];
   for (int i = 0; i < 3; i++) dev_bufs[i] = new cinn_buffer_t;
-  dev_bufs[0]->memory                     = reinterpret_cast<uint8_t*>(A_dev);
-  dev_bufs[1]->memory                     = reinterpret_cast<uint8_t*>(B_dev);
-  dev_bufs[2]->memory                     = reinterpret_cast<uint8_t*>(C_dev);
-  auto args = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Add(dev_bufs[2]).Build();
+  dev_bufs[0]->memory = reinterpret_cast<uint8_t*>(A_dev);
+  dev_bufs[1]->memory = reinterpret_cast<uint8_t*>(B_dev);
+  dev_bufs[2]->memory = reinterpret_cast<uint8_t*>(C_dev);
+  auto args           = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Add(dev_bufs[2]).Build();
 
   CUDA_CALL(cudaDeviceSynchronize());
   tester("fn0", args.data(), args.size());
@@ -1995,7 +2023,8 @@ TEST(ElementwiseAdd, cache_read1) {
     Placeholder<float> A("A", {M, N});
     Placeholder<float> B("B", {M, N});
 
-    auto C = Compute({M - 2, N}, [&](Expr i, Expr j) { return A(i, j) + A(i + 1, j) + A(i + 2, j) + B(i, j); }, "C");
+    auto C = Compute(
+        {M - 2, N}, [&](Expr i, Expr j) { return A(i, j) + A(i + 1, j) + A(i + 2, j) + B(i, j); }, "C");
 
     std::vector<ir::Tensor> temp{C};
     auto stages = CreateStages(temp);
@@ -2090,10 +2119,10 @@ void __launch_bounds__(98) fn1(const float* __restrict__ A, const float* __restr
 
   cinn_buffer_t* dev_bufs[3];
   for (int i = 0; i < 3; i++) dev_bufs[i] = new cinn_buffer_t;
-  dev_bufs[0]->memory                     = reinterpret_cast<uint8_t*>(A_dev);
-  dev_bufs[1]->memory                     = reinterpret_cast<uint8_t*>(B_dev);
-  dev_bufs[2]->memory                     = reinterpret_cast<uint8_t*>(C_dev);
-  auto args = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Add(dev_bufs[2]).Build();
+  dev_bufs[0]->memory = reinterpret_cast<uint8_t*>(A_dev);
+  dev_bufs[1]->memory = reinterpret_cast<uint8_t*>(B_dev);
+  dev_bufs[2]->memory = reinterpret_cast<uint8_t*>(C_dev);
+  auto args           = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Add(dev_bufs[2]).Build();
 
   CUDA_CALL(cudaDeviceSynchronize());
   tester("fn1", args.data(), args.size());
@@ -2127,7 +2156,8 @@ TEST(ElementwiseAdd, cache_read_compute_at1) {
   Expr N(95);
   Placeholder<float> A("AA", {M, M});
 
-  auto C = Compute({N, N}, [&](Expr i, Expr j) { return A(i, j) + A(i + 2, j + 2) + A(i + 5, j + 5); }, "C");
+  auto C = Compute(
+      {N, N}, [&](Expr i, Expr j) { return A(i, j) + A(i + 2, j + 2) + A(i + 5, j + 5); }, "C");
 
   auto stages = CreateStages({A, C});
   std::vector<ir::Tensor> temp{C};
@@ -2194,9 +2224,9 @@ void __launch_bounds__(95) fn_cacheread_computeat1(const float* __restrict__ AA,
 
   cinn_buffer_t* dev_bufs[2];
   for (int i = 0; i < 2; i++) dev_bufs[i] = new cinn_buffer_t;
-  dev_bufs[0]->memory                     = reinterpret_cast<uint8_t*>(A_dev);
-  dev_bufs[1]->memory                     = reinterpret_cast<uint8_t*>(C_dev);
-  auto args                               = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Build();
+  dev_bufs[0]->memory = reinterpret_cast<uint8_t*>(A_dev);
+  dev_bufs[1]->memory = reinterpret_cast<uint8_t*>(C_dev);
+  auto args           = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Build();
 
   CUDA_CALL(cudaDeviceSynchronize());
   tester("fn_cacheread_computeat1", args.data(), args.size());
@@ -2227,7 +2257,8 @@ TEST(ElementwiseAdd, cache_read_compute_at2) {
   Context::Global().ResetNameId();
   Placeholder<float> A("AA", {M, M});
 
-  auto C = Compute({N, N}, [&](Expr i, Expr j) { return A(i + 5, j) + A(i, j + 5); }, "C");
+  auto C = Compute(
+      {N, N}, [&](Expr i, Expr j) { return A(i + 5, j) + A(i, j + 5); }, "C");
 
   auto stages = CreateStages({A, C});
   std::vector<ir::Tensor> temp{C};
@@ -2295,9 +2326,9 @@ void __launch_bounds__(5) fn_cacheread_computeat2(const float* __restrict__ AA, 
 
   cinn_buffer_t* dev_bufs[2];
   for (int i = 0; i < 2; i++) dev_bufs[i] = new cinn_buffer_t;
-  dev_bufs[0]->memory                     = reinterpret_cast<uint8_t*>(A_dev);
-  dev_bufs[1]->memory                     = reinterpret_cast<uint8_t*>(C_dev);
-  auto args                               = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Build();
+  dev_bufs[0]->memory = reinterpret_cast<uint8_t*>(A_dev);
+  dev_bufs[1]->memory = reinterpret_cast<uint8_t*>(C_dev);
+  auto args           = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Build();
 
   CUDA_CALL(cudaDeviceSynchronize());
   tester("fn_cacheread_computeat2", args.data(), args.size());
@@ -2322,13 +2353,12 @@ void __launch_bounds__(5) fn_cacheread_computeat2(const float* __restrict__ AA, 
 }
 
 // JIT test precision for the basic elementwise add
-void TestElementwiseAddPrecisionBasic(const ir::Module& module,
-                                      const std::string& fn_name,
-                                      Expr M,
-                                      Expr N,
-                                      std::function<float(float, float)> elem_cal = [](float a, float b) {
-                                        return a + b;
-                                      }) {
+void TestElementwiseAddPrecisionBasic(
+    const ir::Module& module,
+    const std::string& fn_name,
+    Expr M,
+    Expr N,
+    std::function<float(float, float)> elem_cal = [](float a, float b) { return a + b; }) {
   common::CudaModuleTester tester;
   tester.Compile(module);
 
@@ -2343,10 +2373,10 @@ void TestElementwiseAddPrecisionBasic(const ir::Module& module,
 
   cinn_buffer_t* dev_bufs[3];
   for (int i = 0; i < 3; i++) dev_bufs[i] = new cinn_buffer_t;
-  dev_bufs[0]->memory                     = reinterpret_cast<uint8_t*>(A_dev);
-  dev_bufs[1]->memory                     = reinterpret_cast<uint8_t*>(B_dev);
-  dev_bufs[2]->memory                     = reinterpret_cast<uint8_t*>(C_dev);
-  auto args = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Add(dev_bufs[2]).Build();
+  dev_bufs[0]->memory = reinterpret_cast<uint8_t*>(A_dev);
+  dev_bufs[1]->memory = reinterpret_cast<uint8_t*>(B_dev);
+  dev_bufs[2]->memory = reinterpret_cast<uint8_t*>(C_dev);
+  auto args           = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Add(dev_bufs[2]).Build();
 
   CUDA_CALL(cudaDeviceSynchronize());
   tester(fn_name, args.data(), args.size());
@@ -2382,7 +2412,8 @@ TEST(ElementwiseAdd, cache_read_shared) {
     Placeholder<float> A("A", {M, N});
     Placeholder<float> B("B", {M, N});
 
-    auto C      = Compute({M, N}, [&](Expr i, Expr j) { return A(i, j) + B(i, j); }, "C");
+    auto C = Compute(
+        {M, N}, [&](Expr i, Expr j) { return A(i, j) + B(i, j); }, "C");
     auto stages = CreateStages({A, B, C});
     std::vector<ir::Tensor> temp{C};
     auto AL = stages[A]->CacheRead("shared", temp, stages);
@@ -2457,7 +2488,8 @@ TEST(ElementwiseAdd, cache_write_local) {
     Placeholder<float> A("A", {M, N});
     Placeholder<float> B("B", {M, N});
 
-    auto C = Compute({M, N}, [&](Expr i, Expr j) { return A(i, j) + B(i, j); }, "C");
+    auto C = Compute(
+        {M, N}, [&](Expr i, Expr j) { return A(i, j) + B(i, j); }, "C");
 
     auto stages = CreateStages({A, B, C});
 
@@ -2651,7 +2683,7 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
 
   auto wino_module = wino_builder.Build();
 
-  auto[host_module, device_module] = SplitCudaAndHostModule(wino_module);
+  auto [host_module, device_module] = SplitCudaAndHostModule(wino_module);
 
   auto wino_source_code = wino_codegen.Compile(wino_module);
 
@@ -2856,9 +2888,9 @@ TEST(Cudnn, external_function_cudnn) {
 
   cinn_buffer_t* dev_bufs[3];
   for (int i = 0; i < 3; i++) dev_bufs[i] = new cinn_buffer_t;
-  dev_bufs[0]->memory                     = reinterpret_cast<uint8_t*>(A_dev);
-  dev_bufs[1]->memory                     = reinterpret_cast<uint8_t*>(B_dev);
-  dev_bufs[2]->memory                     = reinterpret_cast<uint8_t*>(C_dev);
+  dev_bufs[0]->memory = reinterpret_cast<uint8_t*>(A_dev);
+  dev_bufs[1]->memory = reinterpret_cast<uint8_t*>(B_dev);
+  dev_bufs[2]->memory = reinterpret_cast<uint8_t*>(C_dev);
 
   cudaStream_t stream(nullptr);
   std::vector<cinn_pod_value_t> args = {
@@ -2880,8 +2912,8 @@ TEST(Cudnn, external_function_cudnn2) {
 
   cinn_buffer_t* dev_bufs[2];
   for (int i = 0; i < 2; i++) dev_bufs[i] = new cinn_buffer_t;
-  dev_bufs[0]->memory                     = reinterpret_cast<uint8_t*>(A_dev);
-  dev_bufs[1]->memory                     = reinterpret_cast<uint8_t*>(B_dev);
+  dev_bufs[0]->memory = reinterpret_cast<uint8_t*>(A_dev);
+  dev_bufs[1]->memory = reinterpret_cast<uint8_t*>(B_dev);
   cudaStream_t stream(nullptr);
   std::vector<cinn_pod_value_t> args = {cinn_pod_value_t(dev_bufs[0]), cinn_pod_value_t(dev_bufs[1])};
   runtime::cuda::cinn_call_cudnn_pool2d_forward(
@@ -2902,8 +2934,8 @@ TEST(Cudnn, external_function_cudnn3) {
 
   cinn_buffer_t* dev_bufs[2];
   for (int i = 0; i < 2; i++) dev_bufs[i] = new cinn_buffer_t;
-  dev_bufs[0]->memory                     = reinterpret_cast<uint8_t*>(A_dev);
-  dev_bufs[1]->memory                     = reinterpret_cast<uint8_t*>(B_dev);
+  dev_bufs[0]->memory = reinterpret_cast<uint8_t*>(A_dev);
+  dev_bufs[1]->memory = reinterpret_cast<uint8_t*>(B_dev);
 
   cudaStream_t stream(nullptr);
   std::vector<cinn_pod_value_t> args = {cinn_pod_value_t(dev_bufs[0]), cinn_pod_value_t(dev_bufs[1])};
@@ -2927,38 +2959,39 @@ TEST(CodeGenCUDA2, test_of_slice_assign) {
   std::vector<int> strides     = {1};
   std::vector<int> new_strides = {1};
 
-  auto output = Compute(input->shape,
-                        [=](const std::vector<Expr>& indice) {
-                          ir::Expr is_assigned             = ir::Expr(true);
-                          std::vector<ir::Expr> tmp_indice = indice;
-                          for (int idx = 0; idx < axes.size(); ++idx) {
-                            // get input axis to be assigned
-                            auto tmp_axis = indice[axes[idx]];
-                            // get assign axis
-                            Expr out_axis;
-                            if (strides[idx] > 0) {
-                              out_axis = tmp_axis - ir::Expr(new_starts[idx]);
-                            } else {
-                              // when strides < 0, reverse input to output.
-                              // the value of ends is not contained in slice, so `ends - 1`
-                              out_axis = ir::Expr(new_ends[idx] - 1) - tmp_axis;
-                            }
-                            // axis >= start
-                            auto ge = ir::GE::Make(tmp_axis, ir::Expr(new_starts[idx]));
-                            // axis < ends
-                            auto lt = ir::LT::Make(tmp_axis, ir::Expr(new_ends[idx]));
-                            // check start <= axis < ends
-                            auto inside = ir::And::Make(ge, lt);
-                            // check (axis - starts) % strides == 0
-                            auto mod = ir::EQ::Make(ir::Mod::Make(out_axis, Expr(new_strides[idx])), Expr(0));
-                            // check start <= axis < ends and (axis - starts) % strides == 0
-                            is_assigned = ir::And::Make(is_assigned, ir::And::Make(inside, mod));
-                            // update axis for assign tensor
-                            tmp_indice[axes[idx]] = out_axis / Expr(new_strides[idx]);
-                          }
-                          return ir::Select::Make(is_assigned, assign(tmp_indice), input(indice));
-                        },
-                        "output");
+  auto output = Compute(
+      input->shape,
+      [=](const std::vector<Expr>& indice) {
+        ir::Expr is_assigned             = ir::Expr(true);
+        std::vector<ir::Expr> tmp_indice = indice;
+        for (int idx = 0; idx < axes.size(); ++idx) {
+          // get input axis to be assigned
+          auto tmp_axis = indice[axes[idx]];
+          // get assign axis
+          Expr out_axis;
+          if (strides[idx] > 0) {
+            out_axis = tmp_axis - ir::Expr(new_starts[idx]);
+          } else {
+            // when strides < 0, reverse input to output.
+            // the value of ends is not contained in slice, so `ends - 1`
+            out_axis = ir::Expr(new_ends[idx] - 1) - tmp_axis;
+          }
+          // axis >= start
+          auto ge = ir::GE::Make(tmp_axis, ir::Expr(new_starts[idx]));
+          // axis < ends
+          auto lt = ir::LT::Make(tmp_axis, ir::Expr(new_ends[idx]));
+          // check start <= axis < ends
+          auto inside = ir::And::Make(ge, lt);
+          // check (axis - starts) % strides == 0
+          auto mod = ir::EQ::Make(ir::Mod::Make(out_axis, Expr(new_strides[idx])), Expr(0));
+          // check start <= axis < ends and (axis - starts) % strides == 0
+          is_assigned = ir::And::Make(is_assigned, ir::And::Make(inside, mod));
+          // update axis for assign tensor
+          tmp_indice[axes[idx]] = out_axis / Expr(new_strides[idx]);
+        }
+        return ir::Select::Make(is_assigned, assign(tmp_indice), input(indice));
+      },
+      "output");
 
   auto stages = CreateStages({output});
 
@@ -3022,7 +3055,8 @@ TEST(Cuda, type_vectorize) {
   Placeholder<float> A("A", {M, N});
   Placeholder<float> B("B", {M, N});
 
-  auto C      = Compute({M, N}, [&](Var i, Var j) { return A(i, j) + B(i, j); }, "C");
+  auto C = Compute(
+      {M, N}, [&](Var i, Var j) { return A(i, j) + B(i, j); }, "C");
   auto stages = CreateStages({C});
 
   stages[C]->Bind(0, "threadIdx.x");
