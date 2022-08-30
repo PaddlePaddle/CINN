@@ -646,7 +646,9 @@ struct ChangeBodyToBlock : public ir::IRMutator<> {
 
 DeviceAPI IRSchedule::GetDeviceAPI() const {
   auto exprs          = this->GetModule().GetExprs();
-  auto find_for_nodes = ir::CollectIRNodesWithoutTensor(exprs.front(), [&](const Expr* x) { return x->As<ir::For>(); });
+  auto find_for_nodes = ir::CollectIRNodesWithoutTensor(
+      exprs.front(), [&](const Expr* x) { return x->As<ir::For>(); }, true);
+  CHECK(!find_for_nodes.empty());
   return (*find_for_nodes.begin()).As<ir::For>()->device_api;
 }
 
@@ -691,10 +693,13 @@ Expr IRSchedule::CacheWrite(const Expr& block, int write_buffer_index, const std
   helper_.Replace(root.As<ScheduleBlockRealize>()->schedule_block.As<ScheduleBlock>()->body,
                   new_root.As<ScheduleBlockRealize>()->schedule_block.As<ScheduleBlock>()->body);
 
-  auto find_cache_block = ir::CollectIRNodesWithoutTensor(root, [&](const Expr* x) {
-    return x->As<ir::ScheduleBlockRealize>() && !x->As<ir::ScheduleBlockRealize>()->iter_values.empty() &&
-           GetTensor(*x)->name == info.read_tensor->name;
-  });
+  auto find_cache_block = ir::CollectIRNodesWithoutTensor(
+      root,
+      [&](const Expr* x) {
+        return x->As<ir::ScheduleBlockRealize>() && !x->As<ir::ScheduleBlockRealize>()->iter_values.empty() &&
+               GetTensor(*x)->name == info.read_tensor->name;
+      },
+      true);
 
   CHECK_EQ(find_cache_block.size(), 1U);
 
@@ -851,7 +856,8 @@ void IRSchedule::Reorder(const Expr& block, const std::vector<int>& loops_index)
 Expr IRSchedule::GetRootBlock(const Expr& expr) const {
   auto exprs = this->GetModule().GetExprs();
   for (auto& it_expr : exprs) {
-    auto find_expr = ir::CollectIRNodesWithoutTensor(it_expr, [&](const Expr* x) { return *x == expr; });
+    auto find_expr = ir::CollectIRNodesWithoutTensor(
+        it_expr, [&](const Expr* x) { return x->node_type() == expr.node_type() && *x == expr; }, true);
     if (!find_expr.empty()) {
       CHECK(it_expr.As<ir::Block>());
       CHECK_EQ(it_expr.As<ir::Block>()->stmts.size(), 1U);
@@ -957,15 +963,15 @@ struct FixLocalBufferSize : public ir::IRMutator<> {
 
 void IRSchedule::SetBuffer(Expr& block, const std::string& memory_type, bool fixed) {
   CHECK(block.As<ir::ScheduleBlockRealize>());
-  auto find_tensor = ir::CollectIRNodesWithoutTensor(block, [&](const Expr* x) { return x->As<ir::Store>(); });
-  CHECK(!find_tensor.empty()) << "Didn't find Store in block!";
+  auto find_tensor = ir::CollectIRNodesWithoutTensor(
+      block, [&](const Expr* x) { return x->As<ir::Store>(); }, true);
   CHECK_EQ(find_tensor.size(), 1U) << "One block should only have one Store node!(except for root block)";
   auto& tensor = (*find_tensor.begin()).As<ir::Store>()->tensor;
   tensor.as_tensor_ref()->WithBuffer(memory_type, "_" + tensor.as_tensor_ref()->name + "_temp_buffer");
 
   auto exprs = this->GetModule().GetExprs();
   for (auto& it_expr : exprs) {
-    auto find_tensor = ir::CollectIRNodes(
+    auto find_tensor = ir::CollectIRNodesWithoutTensor(
         it_expr, [&](const Expr* x) { return x->as_tensor() && x->as_tensor()->name == tensor.as_tensor_ref()->name; });
     for (auto& t : find_tensor) {
       CHECK(t.as_tensor());
@@ -993,9 +999,12 @@ void IRSchedule::MergeExprs() {
       exprs[0].As<ir::Block>()->stmts[0].As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->body);
   VLOG(3) << "Before merging, exprs[0] is : " << exprs[0];
   for (int i = 1; i < exprs.size(); ++i) {
-    auto root_block = ir::CollectIRNodes(exprs[i], [&](const Expr* x) {
-      return x->As<ir::ScheduleBlockRealize>() && x->As<ir::ScheduleBlockRealize>()->iter_values.empty();
-    });
+    auto root_block = ir::CollectIRNodesWithoutTensor(
+        exprs[i],
+        [&](const Expr* x) {
+          return x->As<ir::ScheduleBlockRealize>() && x->As<ir::ScheduleBlockRealize>()->iter_values.empty();
+        },
+        true);
     CHECK_EQ(root_block.size(), 1U);
     for (auto& it_block : root_block) {
       auto& block_body = it_block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->body;
@@ -1081,7 +1090,7 @@ void IRSchedule::SimpleComputeAt(const Expr& block, const Expr& loop) {
         return x->As<ir::ScheduleBlockRealize>() &&
                x->As<ir::ScheduleBlockRealize>()->schedule_block.As<ScheduleBlock>()->name == block_name;
       };
-      if (ir::CollectIRNodesWithoutTensor(if_expr, checker).size() > 0) {
+      if (ir::CollectIRNodesWithoutTensor(if_expr, checker, true).size() > 0) {
         result = IfThenElse::Make(if_expr.As<ir::IfThenElse>()->condition, result);
         break;
       }
@@ -1205,35 +1214,18 @@ std::vector<Expr> ScheduleHelper::GetLoops(const Expr& block) const {
   CHECK(block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>());
   std::string block_name = block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->name;
 
-  std::set<std::string> loops_name;
-  for (auto& iter_val : block.As<ir::ScheduleBlockRealize>()->iter_values) {
-    auto vars = ir::CollectIRNodes(iter_val, [&](const Expr* x) { return x->is_var(); });
-    for (auto& iter_var : vars) loops_name.insert(iter_var.as_var_ref()->name);
-  }
-
   for (auto& it_expr : exprs) {
-    auto find_block = ir::CollectIRNodes(it_expr, [&](const Expr* x) {
-      return x->As<ir::ScheduleBlockRealize>() &&
-             x->As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>() &&
-             x->As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->name == block_name;
-    });
-    if (!find_block.empty()) {
+    ir::FindLoopsVisitor visitor(block);
+    auto find_loops = visitor(&it_expr);
+    if (!find_loops.empty()) {
       if (!result.empty()) LOG(FATAL) << "Find block with name: \n" << block_name << " appeared in more than one AST!";
-      auto loop_nodes = ir::CollectIRNodes(it_expr, [&](const Expr* x) {
-        return x->As<ir::For>() && loops_name.count(x->As<ir::For>()->loop_var->name) != 0;
-      });
-      for (auto& it_for : loop_nodes) {
-        if (Contains(it_for, block)) result.push_back(it_for);
-      }
+      result = find_loops;
     }
   }
   if (result.empty()) {
     LOG(INFO) << "exprs size is : " << exprs.size() << "\n and exprs[0] is : " << exprs[0];
     LOG(FATAL) << "Didn't find Loops containing ScheduleBlock with name: \n" << block_name << " in ModuleExepr.";
   }
-  std::sort(result.begin(), result.end(), [&](Expr i, Expr j) {
-    return (utils::GetStreamCnt(i).size() > utils::GetStreamCnt(j).size());
-  });
   for (auto& it_for : result) VLOG(3) << "Get Loops :\n" << it_for;
   return result;
 }
@@ -1248,11 +1240,9 @@ std::vector<Expr> ScheduleHelper::GetAllBlocks() const {
   std::vector<Expr> result;
   auto exprs = module_expr_.GetExprs();
   for (auto& it_expr : exprs) {
-    auto block_nodes = ir::CollectIRNodes(it_expr, [&](const Expr* x) {
-      if (x->As<ir::ScheduleBlockRealize>() && !x->As<ir::ScheduleBlockRealize>()->iter_values.empty())
-        result.push_back(*x);
-      return x->As<ir::ScheduleBlockRealize>() && !x->As<ir::ScheduleBlockRealize>()->iter_values.empty();
-    });
+    ir::FindBlocksVisitor visitor;
+    auto find_blocks = visitor(&it_expr);
+    result.insert(result.end(), find_blocks.begin(), find_blocks.end());
   }
   CHECK(!result.empty()) << "Didn't find blocks in expr.";
   for (auto& it_expr : exprs) {
@@ -1263,12 +1253,17 @@ std::vector<Expr> ScheduleHelper::GetAllBlocks() const {
 
 Expr ScheduleHelper::GetBlock(const std::string& block_name) const {
   Expr result;
-  std::vector<Expr> all_blocks = this->GetAllBlocks();
-  for (auto& it_block : all_blocks) {
-    if (GetTensor(it_block)->name == block_name) result = it_block;
+  auto exprs = module_expr_.GetExprs();
+  for (auto& it_expr : exprs) {
+    ir::FindBlocksVisitor visitor(block_name);
+    auto find_blocks = visitor(&it_expr);
+    if (!find_blocks.empty()) {
+      CHECK_EQ(find_blocks.size(), 1U) << "There should not be more than 1 block with identical name!";
+      result = find_blocks[0];
+      return result;
+    }
   }
-  if (!result.defined()) LOG(FATAL) << "Didn't find a block with name " << block_name << " in this ModuleExpr!";
-  return result;
+  LOG(FATAL) << "Didn't find a block with name " << block_name << " in this ModuleExpr!";
 }
 
 void IRSchedule::CopyTransformAndLoopInfo(const std::string& block_name, const std::string& block_target_name) {
@@ -1315,10 +1310,12 @@ void IRSchedule::CopyTransformAndLoopInfo(const Expr& block, const Expr& block_t
   std::vector<Expr> used_target_loops;
   auto expr_copy = optim::IRCopy(expr);
   for (auto& var : used_target_loop_vars) {
-    auto find_loop_var = ir::CollectIRNodesWithoutTensor(expr_copy, [&](const Expr* x) {
-      return x->As<ir::For>() && x->As<ir::For>()->loop_var->name == var && Contains(*x, block_target);
-    });
-    CHECK(!find_loop_var.empty());
+    auto find_loop_var = ir::CollectIRNodesWithoutTensor(
+        expr_copy,
+        [&](const Expr* x) {
+          return x->As<ir::For>() && x->As<ir::For>()->loop_var->name == var && Contains(*x, block_target);
+        },
+        true);
     CHECK_EQ(find_loop_var.size(), 1U);
     used_target_loops.push_back(*find_loop_var.begin());
     VLOG(3) << "used_target_loops push_back " << used_target_loops.back();
@@ -1339,15 +1336,16 @@ void IRSchedule::CopyTransformAndLoopInfo(const Expr& block, const Expr& block_t
   } else {
     CHECK(old_iter_values[changed_loop_num].as_var());
     auto old_var           = old_iter_values[changed_loop_num].as_var_ref();
-    auto find_partial_loop = ir::CollectIRNodesWithoutTensor(expr, [&](const Expr* x) {
-      return x->As<ir::For>() && x->As<ir::For>()->loop_var->name == old_var->name && Contains(*x, block);
-    });
-    CHECK(!find_partial_loop.empty());
+    auto find_partial_loop = ir::CollectIRNodesWithoutTensor(
+        expr,
+        [&](const Expr* x) {
+          return x->As<ir::For>() && x->As<ir::For>()->loop_var->name == old_var->name && Contains(*x, block);
+        },
+        true);
     CHECK_EQ(find_partial_loop.size(), 1U);
-    new_loop = optim::IRCopy(*find_partial_loop.begin());
-    auto find_schedule_block =
-        ir::CollectIRNodesWithoutTensor(new_loop, [&](const Expr* x) { return x->As<ir::ScheduleBlockRealize>(); });
-    CHECK(!find_schedule_block.empty());
+    new_loop                 = optim::IRCopy(*find_partial_loop.begin());
+    auto find_schedule_block = ir::CollectIRNodesWithoutTensor(
+        new_loop, [&](const Expr* x) { return x->As<ir::ScheduleBlockRealize>(); }, true);
     CHECK_EQ(find_schedule_block.size(), 1U);
     Expr sch_block                                        = (*find_schedule_block.begin());
     sch_block.As<ir::ScheduleBlockRealize>()->iter_values = new_iter_values;
