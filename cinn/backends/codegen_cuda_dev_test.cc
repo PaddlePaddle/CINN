@@ -2154,7 +2154,6 @@ TEST(ElementwiseAdd, cache_read_compute_at1) {
   Context::Global().ResetNameId();
   Expr M(100);
   Expr N(95);
-  Context::Global().ResetNameId();
   Placeholder<float> A("AA", {M, M});
 
   auto C = Compute(

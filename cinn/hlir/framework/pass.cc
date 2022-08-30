@@ -23,7 +23,7 @@ namespace framework {
 void ApplyPasses(Graph* g, const std::vector<std::string>& passes) {
   std::vector<const PassFunctionRegister*> fpass;
   for (auto& name : passes) {
-    VLOG(11) << "Run Pass -> " << name;
+    VLOG(3) << "Run Pass -> " << name;
     auto* reg = Registry<PassFunctionRegister>::Global()->Find(name);
     CHECK(reg) << "Cannot find pass " << name << " in the registry";
     fpass.push_back(reg);

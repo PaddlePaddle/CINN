@@ -37,15 +37,15 @@ using namespace lang;
 using Comparator = Graph::Group::SharedGroupComparator;
 using Hasher     = Graph::Group::SharedGroupHasher;
 
-NodeData* GetNodeData(Node* node) {
+NodeData* GetNodeData(const Node* node) {
   auto node_data = (*node->outlinks().begin())->sink()->safe_as<NodeData>();
   CHECK(node_data);
   return node_data;
 }
 
-std::vector<NodeData*> GetAllNodeData(Node* node) {
+std::vector<NodeData*> GetAllNodeData(const Node* node) {
   std::vector<NodeData*> node_datas;
-  for (auto& link : node->outlinks_in_order()) {
+  for (auto& link : node->outlinks_in_order(true)) {
     auto node_data = link->sink()->safe_as<NodeData>();
     CHECK(node_data);
     node_datas.push_back(node_data);
@@ -122,7 +122,6 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOp(IRComputeFunction compute,
       ast_exprs.insert(ast_exprs.end(), exprs.begin(), exprs.end());
     }
   }
-
   ir::ModuleExpr mod_expr(ast_exprs);
   ir::IRSchedule ir_sch(mod_expr);
   ir_sch.MergeExprs();
@@ -130,6 +129,7 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOp(IRComputeFunction compute,
   Node* first  = nullptr;
   Node* second = nullptr;
   // do schedule.
+  VLOG(3) << "Before IRLowerOp schedule";
   if (group->fused_sub_groups.size() == 0) {
     (this->*schedule)(ir_sch, tensor_map, group, group, first, second);
   } else {
@@ -138,7 +138,7 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOp(IRComputeFunction compute,
       (this->*schedule)(ir_sch, tensor_map, group, group->fused_sub_groups[idx], first, second);
     }
   }
-
+  VLOG(3) << "After IRLowerOp schedule";
   // function args
   std::vector<ir::Argument> func_args;
   for (auto& args : arg_tensors) {
@@ -299,7 +299,7 @@ std::vector<Expr> OpLowerer::IRElementwiseCompute(poly::StageMap& stages,
                                                   std::unordered_map<std::string, ir::Tensor>& tensor_map,
                                                   const GroupPtr& group,
                                                   const GroupPtr& sub_group) {
-  VLOG(11) << "ElementwiseCompute Group : " << sub_group->group_id;
+  VLOG(3) << "ElementwiseCompute Group : " << sub_group->group_id;
   auto& strategy = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
 
   std::vector<Expr> ast_exprs;
@@ -332,14 +332,21 @@ std::vector<Expr> OpLowerer::IRElementwiseCompute(poly::StageMap& stages,
     auto func = lang::LowerVec("fn_" + node->id(), node_stages, tensor_inputs, {}, {}, nullptr, this->target_, true);
     CHECK_EQ(func.size(), 1);
 
-    if (group->master_nodes.count(node)) {
-      common::CINNValuePack expr_pack = impl->fschedule(common::CINNValuePack{{common::CINNValue(func[0]->body)}});
-      CHECK_EQ(expr_pack.size(), 1);
-      Expr ast_expr = expr_pack[0];
-      ast_exprs.push_back(ast_expr);
-    } else {
-      ast_exprs.push_back(func[0]->body);
+    std::vector<common::CINNValue> schedule_inputs;
+    // collect tensor
+    for (int idx = 0; idx < pack.size() - 1; ++idx) {
+      CHECK(pack[idx].is_tensor());
+      schedule_inputs.push_back(common::CINNValue(pack[idx]));
     }
+    for (auto& f : func) {
+      schedule_inputs.push_back(common::CINNValue(f->body));
+    }
+    // do ast tree schedule
+    common::CINNValuePack expr_pack = impl->fschedule(common::CINNValuePack{schedule_inputs});
+
+    CHECK_EQ(expr_pack.size(), 1);
+    Expr ast_expr = expr_pack[0];
+    ast_exprs.push_back(ast_expr);
   }
 
   return ast_exprs;
@@ -351,6 +358,7 @@ void OpLowerer::IRElementwiseSchedule(ir::IRSchedule& ir_sch,
                                       const GroupPtr& sub_group,
                                       Node*&,
                                       Node*&) {
+  VLOG(3) << "IRElementwiseSchedule Group : " << sub_group->group_id;
   auto master_node    = *group->master_nodes.begin();
   auto manster_tensor = tensor_map[GetNodeData(master_node)->id()];
 
@@ -368,7 +376,6 @@ void OpLowerer::IRElementwiseSchedule(ir::IRSchedule& ir_sch,
         auto node_block = ir_sch.GetBlock(node_tensor->name);
         ir_sch.SetBuffer(node_block, "local", true);
       }
-      ir_sch.CopyTransformAndLoopInfo(node_tensor->name, manster_tensor->name);
 
       auto node_block   = ir_sch.GetBlock(node_tensor->name);
       auto master_loops = ir_sch.GetLoops(manster_tensor->name);
@@ -379,7 +386,6 @@ void OpLowerer::IRElementwiseSchedule(ir::IRSchedule& ir_sch,
     // others elemenwise internal node use compute-inline
     ir_sch.ComputeInline(ir_sch.GetBlock(node_tensor->name));
   }
-  VLOG(3) << "After group scheduling, AST is: " << ir_sch.GetModule().GetExprs().at(0);
 }
 
 std::vector<Expr> OpLowerer::IRReduceCompute(poly::StageMap& stages,
@@ -437,6 +443,7 @@ std::vector<Expr> OpLowerer::IRReduceCompute(poly::StageMap& stages,
       std::vector<common::CINNValue> schedule_inputs;
       // collect tensor
       for (int idx = 0; idx < pack.size() - 1; ++idx) {
+        CHECK(pack[idx].is_tensor());
         schedule_inputs.push_back(common::CINNValue(pack[idx]));
       }
       for (auto& f : func) {
@@ -507,8 +514,9 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
     }
   };
 
-  auto WithoutLastDimInReduce = [](const std::vector<int>& inshape, const std::vector<int>& axes) {
+  auto WithoutLastDimInReduce = [](const std::vector<int>& inshape, std::vector<int>& axes) {
     // if last axis is in reduce.
+    axes = axes.empty() ? inshape : axes;
     if (std::find(axes.begin(), axes.end(), inshape.size() - 1) != axes.end() ||
         std::find(axes.begin(), axes.end(), -1) != axes.end()) {
       return false;
@@ -529,7 +537,8 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
   auto ScheduleAssignReduceWithoutLast = [this, OrderAssignReduce](ir::IRSchedule& ir_sch,
                                                                    const std::string& block_name,
                                                                    const std::vector<int>& inshape,
-                                                                   const std::vector<int>& axes) {
+                                                                   std::vector<int>& axes) {
+    axes                = axes.empty() ? inshape : axes;
     int lane            = 1;
     int max_num_threads = this->target_.max_num_threads();
     for (int idx = axes.back() + 1; idx < inshape.size(); ++idx) {
@@ -588,8 +597,9 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
   auto ScheduleAssignReduceWithLast = [this, OrderAssignReduce](ir::IRSchedule& ir_sch,
                                                                 const std::string& block_name,
                                                                 const std::vector<int>& inshape,
-                                                                const std::vector<int>& axes) {
+                                                                std::vector<int>& axes) {
     // find first reduce and second reduce axis.
+    axes                 = axes.empty() ? inshape : axes;
     int lane             = 1;
     int index            = static_cast<int>(axes.size()) - 1;
     auto max_num_threads = this->target_.max_num_threads();
@@ -768,8 +778,19 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
     {
       auto reducer_data   = GetNodeData(reducer);
       auto reducer_tensor = tensor_map[reducer_data->id()];
-      auto reducer_axes   = absl::get<std::vector<int>>(reducer->attrs.attr_store.at("dim"));
-      auto reducer_shape  = this->shape_dict_.at(reducer->inlinks_in_order()[0]->source()->id());
+      CHECK(reducer->attrs.attr_store.count("dim"));
+      auto reducer_axes = absl::get<std::vector<int>>(reducer->attrs.attr_store.at("dim"));
+      CHECK(reducer->inlinks_in_order().size());
+      CHECK(this->shape_dict_.count(reducer->inlinks_in_order()[0]->source()->id()));
+      auto reducer_shape = this->shape_dict_.at(reducer->inlinks_in_order()[0]->source()->id());
+
+      if (reducer_axes.empty()) {
+        for (int i = 0; i < reducer_shape.size(); ++i) {
+          reducer_axes.emplace_back(i);
+        }
+      }
+
+      bool without_last_dim = WithoutLastDimInReduce(reducer_shape, reducer_axes);
 
       std::unordered_set<Node*> visited_nodes;
       for (auto node : group->master_nodes) {
@@ -788,7 +809,7 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
           continue;
         }
         auto node_shape = this->shape_dict_.at(node->inlinks_in_order()[0]->source()->id());
-        if (WithoutLastDimInReduce(reducer_shape, reducer_axes)) {
+        if (without_last_dim) {
           VLOG(2) << "Reduce Schedule WithoutLastDimInReduce";
           // find a shape to do simple compute at.
           auto tmp_reducer       = reducer;
@@ -889,7 +910,8 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
           }
         }
       }
-      if (WithoutLastDimInReduce(reducer_shape, reducer_axes)) {
+
+      if (without_last_dim) {
         if (tensor_map.count(reducer_data->id() + "_1")) {
           auto reducer_tensor = tensor_map[GetNodeData(reducer)->id()];
           auto reducer_loops  = ir_sch.GetLoops(reducer_tensor->name);
@@ -897,14 +919,25 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
         }
       }
     }
-    VLOG(2) << ir_sch.GetModule().GetExprs().at(0);
   }
 
-  auto master_data   = GetNodeData(master);
+  auto master_data = GetNodeData(master);
+  CHECK(master_data);
+  CHECK(tensor_map.count(master_data->id()));
   auto master_tensor = tensor_map[master_data->id()];
   auto reducer_data  = GetNodeData(reducer);
-  auto reducer_axes  = absl::get<std::vector<int>>(reducer->attrs.attr_store.at("dim"));
+  CHECK(reducer_data);
+  CHECK(reducer->attrs.attr_store.count("dim"));
+  auto reducer_axes = absl::get<std::vector<int>>(reducer->attrs.attr_store.at("dim"));
+  CHECK(reducer->inlinks_in_order().size());
+  CHECK(this->shape_dict_.count(reducer->inlinks_in_order()[0]->source()->id()));
   auto reducer_shape = this->shape_dict_.at(reducer->inlinks_in_order()[0]->source()->id());
+
+  if (reducer_axes.empty()) {
+    for (int i = 0; i < reducer_shape.size(); ++i) {
+      reducer_axes.emplace_back(i);
+    }
+  }
 
   VLOG(2) << "master node : " << master->id() << " ,reducer node : " << reducer->id();
   for (int idx = sub_group->nodes.size() - 1; idx >= 0; --idx) {
@@ -1013,10 +1046,13 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
           auto reducer_0_block  = ir_sch.GetBlock(reducer_0_tensor->name);
           auto reducer_0_loops  = ir_sch.GetLoops(reducer_0_block);
 
+          auto node_loops = ir_sch.GetLoops(node_tensor->name);
+          if (node_loops.size() < reducer_0_loops.size()) {
+            ir_sch.Split(node_tensor->name, 0, {-1, ir::GetLoopExtent(node_loops[0])});
+          }
+          CHECK_EQ(ir_sch.GetLoops(node_tensor->name).size(), reducer_0_loops.size())
+              << "node loop size and reduce loop size must be equal!";
           auto node_block = ir_sch.GetBlock(node_tensor->name);
-          ir_sch.CopyTransformAndLoopInfo(node_block, reducer_0_block);
-
-          node_block = ir_sch.GetBlock(node_tensor->name);
           ir_sch.SimpleComputeAt(node_block, reducer_0_loops.back());
         }
       }
@@ -1029,98 +1065,85 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
 }
 
 std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpaqueOp(GroupPtr& group) {
-  VLOG(11) << "LowerOpaqueOp Group : " << group->group_id;
+  VLOG(3) << "LowerOpaqueOp Group : " << group->group_id;
   // get input tensor and output tensor
-  std::vector<ir::Tensor> func_args;
-  CHECK_EQ(group->nodes.size(), 1) << "fusion op exist more than 1 op.";
+  CHECK(group->nodes.size() || group->fused_sub_groups.size());
+  auto& cinn_strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
+  auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
 
-  auto node      = *group->nodes.begin();
-  auto node_data = GetNodeData(node);
-  auto& strategy = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
+  auto node = group->fused_sub_groups.size() ? group->fused_sub_groups[0]->nodes.front() : group->nodes.front();
+  VLOG(3) << "GetOpFunc of op " << node->id();
   std::vector<ir::Tensor> inputs;
   std::vector<common::CINNValue> cinn_inputs;
-  std::vector<std::vector<int>> output_shapes;
-  std::vector<ir::Tensor> input_args;
-  VLOG(3) << "GetOpFunc of op " << node->id();
+
+  std::vector<ir::Argument> args;
   for (auto& i : node->inlinks_in_order(true)) {
-    std::string input_id = i->source()->as<NodeData>()->id();
-    auto in_shape        = shape_dict_.at(input_id);
-    Type dtype           = type_dict_.at(input_id);
+    std::string id = i->source()->as<NodeData>()->id();
+    auto shape     = shape_dict_.at(id);
+    Type dtype     = type_dict_.at(id);
     CHECK(dtype == Float(32) || dtype.is_bool() || dtype == Int(32))
-        << "The dtype of node " << input_id << " is not float or bool or int! Other dtype is not implemented yet.";
-    ir::Tensor temp;
+        << "The dtype of node " << id << " is not float or bool or int! Other dtype is not implemented yet.";
+    ir::Tensor input;
     if (dtype == Float(32)) {
-      temp = lang::Placeholder<float>(input_id, in_shape);
+      input = lang::Placeholder<float>(id, shape);
     } else if (dtype.is_bool()) {
-      temp = lang::Placeholder<bool>(input_id, in_shape);
+      input = lang::Placeholder<bool>(id, shape);
     } else if (dtype == Int(32)) {
-      temp = lang::Placeholder<int>(input_id, in_shape);
+      input = lang::Placeholder<int>(id, shape);
     }
-    input_args.push_back(temp);
-    inputs.push_back(temp);
-    cinn_inputs.push_back(common::CINNValue(temp));
+    inputs.push_back(input);
+    cinn_inputs.push_back(common::CINNValue(input));
+    group->input_names.push_back(id);
+    args.emplace_back(input->buffer, ir::Argument::IO::kInput);
   }
-  cinn_inputs.push_back(common::CINNValue(node_data->id()));
+
   std::vector<Type> out_types;
-  for (auto& out : node->outlinks_in_order(true)) {
-    std::string out_id = out->sink()->safe_as<NodeData>()->id();
-    auto out_shape     = shape_dict_.at(out_id);
-    Type dtype         = type_dict_.at(out_id);
-    output_shapes.push_back(out_shape);
-    out_types.push_back(dtype);
+  std::vector<std::vector<int>> out_shapes;
+
+  auto node_datas = GetAllNodeData(node);
+  for (auto node_data : node_datas) {
+    VLOG(3) << "cinn_inputs.push_back " << node_data->id();
+    group->output_names.push_back(node_data->id());
+    out_types.push_back(this->type_dict_.at(node_data->id()));
+    out_shapes.push_back(this->shape_dict_.at(node_data->id()));
+    cinn_inputs.push_back(common::CINNValue(node_data->id()));
   }
 
-  auto impl = OpStrategy::SelectImpl(strategy[node->op()](node->attrs, inputs, out_types, output_shapes, target_));
+  auto impl = OpStrategy::SelectImpl(cinn_strategy[node->op()](node->attrs, inputs, out_types, out_shapes, target_));
+  common::CINNValuePack pack = impl->fcompute(common::CINNValuePack{cinn_inputs});
 
-  common::CINNValuePack C = impl->fcompute(common::CINNValuePack{cinn_inputs});
-  poly::StageMap stages   = C.back();
-  // make sure all the tensors in the stages before schedule launch.
-  for (int i = 0; i < C->size() - 1; i++) {
-    ir::Expr temp = C[i];
-    stages->InsertLazily(temp.as_tensor_ref());
-  }
-  std::vector<common::CINNValue> schedule_inputs;
-  schedule_inputs.push_back(common::CINNValue(C.back()));
-  // C = impl->fschedule(C);
-  auto inputs_arg = inputs;
-  for (int i = 0; i < C->size() - 1; i++) {
-    ir::Expr temp = C[i];
+  for (int i = 0; i < pack->size() - 1; i++) {
+    ir::Expr temp = pack[i];
     // checkout whether the tensor is with buffer.
     if (!temp.as_tensor_ref()->buffer.defined() || this->target_ != common::DefaultNVGPUTarget()) {
       inputs.push_back(temp.as_tensor_ref());
+      temp.as_tensor_ref()->WithBuffer();
+      args.emplace_back(temp.as_tensor_ref()->buffer, ir::Argument::IO::kOutput);
     }
   }
 
-  auto func = lang::LowerVec(func_name_prefix + node->id(), stages, inputs, {}, {}, nullptr, this->target_, true);
+  poly::StageMap stages = pack.back();
+  auto func             = lang::LowerVec(group->GetFuncName(), stages, inputs, {}, {}, nullptr, this->target_, true);
 
-  // CHECK_EQ(func.size(), 1UL);
-  for (int i = func.size() - 1; i >= 0; i--) {
-    auto ast_expr = func[i]->body;
-    schedule_inputs.insert(schedule_inputs.begin(), common::CINNValue(ast_expr));
+  std::vector<common::CINNValue> schedule_inputs;
+  // collect tensor
+  for (int idx = 0; idx < pack.size() - 1; ++idx) {
+    CHECK(pack[idx].is_tensor());
+    schedule_inputs.push_back(common::CINNValue(pack[idx]));
   }
-
+  for (auto& f : func) {
+    schedule_inputs.push_back(common::CINNValue(f->body));
+  }
+  // do ast tree schedule
   common::CINNValuePack expr_pack = impl->fschedule(common::CINNValuePack{schedule_inputs});
 
-  {
-    ir::Expr temp = C[0];
-    if (!temp.as_tensor_ref()->buffer.defined() || this->target_ != common::DefaultNVGPUTarget() ||
-        temp.as_tensor_ref()->buffer->memory_type == ir::MemoryType::Heap) {
-      VLOG(3) << "inputs_arg push back " << temp.as_tensor_ref()->name
-              << " with buffer name : " << temp.as_tensor_ref()->buffer->name << " with mem type "
-              << temp.as_tensor_ref()->buffer->memory_type;
-      inputs_arg.push_back(temp.as_tensor_ref());
-    }
-  }
-
-  VLOG(3) << "expr_pack.size() is : " << expr_pack.size();
   std::vector<ir::LoweredFunc> res;
   for (int i = 0; i < expr_pack.size(); i++) {
-    auto new_args      = lang::GetArgs(func[i]->body, input_args);
-    func[i]->args      = new_args;
-    auto temp_buffers  = lang::GetTempBuffers(inputs_arg, stages, func[i]->body);
-    func[i]->temp_bufs = temp_buffers;
-    func[i]->PrepareBufferCastExprs();
-    res.push_back(func[i]);
+    ir::Expr func_body = expr_pack[0];
+    auto temp_buffers  = lang::GetTempBuffers(inputs, stages, func_body);
+    auto function      = ir::_LoweredFunc_::Make(group->GetFuncName(), args, func_body, temp_buffers);
+    function->PrepareBufferCastExprs();
+    res.push_back(function);
   }
   for (auto& i : res) {
 #ifdef CINN_WITH_CUDA
@@ -1340,8 +1363,9 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
     }
   };
 
-  auto WithoutLastDimInReduce = [](const std::vector<int>& inshape, const std::vector<int>& axes) {
+  auto WithoutLastDimInReduce = [](const std::vector<int>& inshape, std::vector<int>& axes) {
     // if last axis is in reduce.
+    axes = axes.empty() ? inshape : axes;
     if (std::find(axes.begin(), axes.end(), inshape.size() - 1) != axes.end() ||
         std::find(axes.begin(), axes.end(), -1) != axes.end()) {
       return false;
@@ -1360,7 +1384,8 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
   };
 
   auto ScheduleAssignReduceWithoutLast =
-      [this, OrderAssignReduce](poly::Stage* stage, const std::vector<int>& inshape, const std::vector<int>& axes) {
+      [this, OrderAssignReduce](poly::Stage* stage, const std::vector<int>& inshape, std::vector<int>& axes) {
+        axes                = axes.empty() ? inshape : axes;
         int lane            = 1;
         int max_num_threads = this->target_.max_num_threads();
         for (int idx = axes.back() + 1; idx < inshape.size(); ++idx) {
@@ -1406,62 +1431,63 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
         OrderAssignReduce(stage, axes);
       };
 
-  auto ScheduleAssignReduceWithLast =
-      [this, OrderAssignReduce](poly::Stage* stage, const std::vector<int>& inshape, const std::vector<int>& axes) {
-        // find first reduce and second reduce axis.
-        int lane             = 1;
-        int index            = static_cast<int>(axes.size()) - 1;
-        auto max_num_threads = this->target_.max_num_threads();
-        for (; index >= 0; --index) {
-          if (index + 1 < axes.size() && axes[index] != axes[index + 1] - 1) {
+  auto ScheduleAssignReduceWithLast = [this, OrderAssignReduce](
+                                          poly::Stage* stage, const std::vector<int>& inshape, std::vector<int>& axes) {
+    // find first reduce and second reduce axis.
+    axes                 = axes.empty() ? inshape : axes;
+    int lane             = 1;
+    int index            = static_cast<int>(axes.size()) - 1;
+    auto max_num_threads = this->target_.max_num_threads();
+    for (; index >= 0; --index) {
+      if (index + 1 < axes.size() && axes[index] != axes[index + 1] - 1) {
+        break;
+      }
+      lane *= inshape[axes[index]];
+      if (index == 0 && lane <= max_num_threads) {
+        LOG(FATAL) << "Error! lane is less equal than max_num_threads, Please check!";
+      }
+      if (lane >= max_num_threads / 2) {
+        if (lane <= max_num_threads) {
+          --index;
+        }
+        break;
+      }
+    }
+    std::vector<int> first_axes(axes.begin(), axes.begin() + index + 1);
+    if (lane > max_num_threads) {
+      // last reduce axis size > 1024
+      if (index == static_cast<int>(axes.size()) - 1) {
+        int idx = max_num_threads;
+        do {
+          if (lane % idx == 0) {
+            stage->Split(axes[index], idx);
             break;
           }
-          lane *= inshape[axes[index]];
-          if (index == 0 && lane <= max_num_threads) {
-            LOG(FATAL) << "Error! lane is less equal than max_num_threads, Please check!";
-          }
-          if (lane >= max_num_threads / 2) {
-            if (lane <= max_num_threads) {
-              --index;
-            }
+          --idx;
+        } while (idx >= max_num_threads / 2);
+        // if can't be divide by(1024, 512), it's shouldn't be fused.
+        CHECK_GE(idx, max_num_threads / 2) << "Check bounds exist, can't fuse!";
+      } else {
+        int axis   = axes[index];
+        int prefix = inshape[axis];
+        int tail   = lane / prefix;
+        for (int idx = max_num_threads / tail; idx > (max_num_threads / 2) / tail; --idx) {
+          if (prefix % idx == 0) {
+            stage->Split(axis, idx);
             break;
           }
+          CHECK_GT(idx, (max_num_threads / 2) / tail) << "Error, it's shouldn't fuse!";
         }
-        std::vector<int> first_axes(axes.begin(), axes.begin() + index + 1);
-        if (lane > max_num_threads) {
-          // last reduce axis size > 1024
-          if (index == static_cast<int>(axes.size()) - 1) {
-            int idx = max_num_threads;
-            do {
-              if (lane % idx == 0) {
-                stage->Split(axes[index], idx);
-                break;
-              }
-              --idx;
-            } while (idx >= max_num_threads / 2);
-            // if can't be divide by(1024, 512), it's shouldn't be fused.
-            CHECK_GE(idx, max_num_threads / 2) << "Check bounds exist, can't fuse!";
-          } else {
-            int axis   = axes[index];
-            int prefix = inshape[axis];
-            int tail   = lane / prefix;
-            for (int idx = max_num_threads / tail; idx > (max_num_threads / 2) / tail; --idx) {
-              if (prefix % idx == 0) {
-                stage->Split(axis, idx);
-                break;
-              }
-              CHECK_GT(idx, (max_num_threads / 2) / tail) << "Error, it's shouldn't fuse!";
-            }
-          }
-          OrderAssignReduce(stage, first_axes);
-        } else {
-          int fuse_times = axes.size() - (index + 1) - 1;
-          for (int idx = 0; idx < fuse_times; ++idx) {
-            stage->Fuse(axes[index + 1], axes[index + 1] + 1);
-          }
-          OrderAssignReduce(stage, first_axes, true);
-        }
-      };
+      }
+      OrderAssignReduce(stage, first_axes);
+    } else {
+      int fuse_times = axes.size() - (index + 1) - 1;
+      for (int idx = 0; idx < fuse_times; ++idx) {
+        stage->Fuse(axes[index + 1], axes[index + 1] + 1);
+      }
+      OrderAssignReduce(stage, first_axes, true);
+    }
+  };
 
   Node* master_node = nullptr;
   for (auto node : group->master_nodes) {
@@ -1496,11 +1522,21 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
   CHECK(master_reducer) << "Can't find Master reducer!";
   auto master_reducer_data  = GetNodeData(master_reducer);
   auto master_reducer_stage = stages[tensor_map[master_reducer_data->id()]];
-  auto master_reducer_axes  = absl::get<std::vector<int>>(master_reducer->attrs.attr_store.at("dim"));
+  CHECK(master_reducer->attrs.attr_store.count("dim"));
+  auto master_reducer_axes = absl::get<std::vector<int>>(master_reducer->attrs.attr_store.at("dim"));
+  CHECK(master_reducer->inlinks_in_order().size());
+  CHECK(this->shape_dict_.count(master_reducer->inlinks_in_order()[0]->source()->id()));
   auto master_reducer_shape = this->shape_dict_.at(master_reducer->inlinks_in_order()[0]->source()->id());
 
+  if (master_reducer_axes.empty()) {
+    for (int i = 0; i < master_reducer_shape.size(); ++i) {
+      master_reducer_axes.emplace_back(i);
+    }
+  }
+
   bool reduce_with_same_shape = true;
-  if (WithoutLastDimInReduce(master_reducer_shape, master_reducer_axes)) {
+  bool without_last_dim       = WithoutLastDimInReduce(master_reducer_shape, master_reducer_axes);
+  if (without_last_dim) {
     // check each reduce has same input shape.
     for (auto reducer : group->master_nodes) {
       if (op_pattern_dict[reducer->op()] != framework::kCommReduce) {
@@ -1584,7 +1620,7 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
         stage->SetBuffer("local");
       }
       // last dimension is not in reduce.
-      if (WithoutLastDimInReduce(master_reducer_shape, master_reducer_axes)) {
+      if (without_last_dim) {
         // compute at last dimension
         if (node == master_reducer) {
           stage->SimpleComputeAt(master_stage, master_stage->n_out_dims() - 1);
@@ -1657,7 +1693,7 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
         continue;
       }
       // node is before reduce.
-      if (WithoutLastDimInReduce(master_reducer_shape, master_reducer_axes)) {
+      if (without_last_dim) {
         VLOG(3) << "Reduce Schedule for WithoutLastDimInReduce";
         auto reducer_stage = master_reducer_stage;
         auto reducer_shape = master_reducer_shape;
@@ -1901,7 +1937,18 @@ std::vector<ir::LoweredFunc> OpLowerer::LowerOpaqueOp(GroupPtr& group) {
     auto source_data = source->safe_as<NodeData>();
     CHECK(source_data);
 
-    auto tensor = lang::Placeholder<float>(source_data->id(), this->shape_dict_.at(source_data->id()));
+    auto id    = source_data->id();
+    auto shape = this->shape_dict_.at(id);
+    auto dtype = this->type_dict_.at(id);
+
+    ir::Tensor tensor;
+    if (dtype == Float(32)) {
+      tensor = lang::Placeholder<float>(id, shape);
+    } else if (dtype.is_bool()) {
+      tensor = lang::Placeholder<bool>(id, shape);
+    } else if (dtype == Int(32)) {
+      tensor = lang::Placeholder<int>(id, shape);
+    }
     tensor_inputs.push_back(tensor);
 
     cinn_inputs.push_back(common::CINNValue(ir::Expr(tensor)));

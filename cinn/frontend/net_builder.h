@@ -32,17 +32,17 @@ namespace frontend {
     macro__(Sigmoid)                            \
     macro__(Identity)
 
-// Matmul not MatMul is not mistake, the SnakeName function in pybind need this name type
 #define NETBUILDER_BINARY_OP_FOREACH(macro__)   \
     macro__(Add)                                \
     macro__(Sub)                                \
     macro__(Div)                                \
-    macro__(Matmul)                             \
     macro__(ReluGrad)
 
 #define NETBUILDER_ELEMENTWISE_OP_FOREACH(macro__)   \
-    macro__(ElementwiseAdd)                                \
-    macro__(ElementwiseMul)
+    macro__(ElementwiseAdd)                          \
+    macro__(ElementwiseMul)                          \
+    macro__(ElementwiseDiv)                          \
+    macro__(ElementwiseSub)
 // clang-format on
 
 class NetBuilder : public BaseBuilder {
@@ -81,6 +81,21 @@ class NetBuilder : public BaseBuilder {
    * Compute the sum of Variable x along the given dim.
    */
   Variable ReduceSum(const Variable& x, const std::vector<int>& dim, bool keep_dim = false);
+
+  /**
+   * Compute the logic add of Variable x along the given dim.
+   */
+  Variable ReduceAll(const Variable& x, const std::vector<int>& dim, bool keep_dim = false);
+
+  /**
+   * Compute the sum of Variable x along the given dim.
+   */
+  Variable ReduceAny(const Variable& x, const std::vector<int>& dim, bool keep_dim = false);
+
+  /**
+   * Cast Variable x to dtype.
+   */
+  Variable Cast(const Variable& operand, const std::string& dtype);
 
   /**
    * The convolution2D layer calculates the output based on the input, filter
@@ -152,6 +167,8 @@ class NetBuilder : public BaseBuilder {
   Variable Sum(const std::vector<Variable>& inputs);
   Variable Flip(const std::vector<Variable>& inputs, const std::vector<int>& axis);
 
+  Variable Clip(const std::vector<Variable>& inputs, const float& max_val, const float& min_val);
+
   // conv2d grad, output(grad_x, grad_w)
   std::vector<Variable> Conv2dGrad(const Variable& dy,
                                    const Variable& x,
@@ -162,6 +179,9 @@ class NetBuilder : public BaseBuilder {
                                    const int groups                     = 1,
                                    const std::string& data_format       = "NCHW",
                                    const std::string& padding_algorithm = "EXPLICIT");
+
+  // Matmul not MatMul is not mistake, the SnakeName function in pybind need this name type
+  Variable Matmul(const Variable& x, const Variable& y, bool trans_x = false, bool trans_y = false, float alpha = 1.0f);
 
  protected:
   Variable ElementwiseOp(const std::string& op_type, const Variable& lhs, const Variable& rhs, int axis = -1);

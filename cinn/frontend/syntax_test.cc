@@ -19,12 +19,14 @@
 #include <memory>
 //
 #include "cinn/cinn.h"
+#include "cinn/frontend/optimize.h"
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/framework/scope.h"
 #include "cinn/hlir/op/use_ops.h"
 #include "cinn/hlir/pass/use_pass.h"
+#include "cinn/utils/data_util.h"
 
 DEFINE_string(model_dir, "", "");
 
@@ -62,39 +64,28 @@ TEST(syntax, basic) {
   }
 }
 
-void SetRandData(const hlir::framework::Tensor& tensor, Target target) {
-  auto* data = tensor->mutable_data<float>(target);
-  for (size_t j = 0; j < tensor->shape().numel(); j++) {
-    data[j] = (rand() * 1.f) / RAND_MAX;  // All random data
-  }
-}
-
 TEST(syntax, program_execute_multi_elementwise_add) {
   auto program  = CreateAddProgram();
-  Target target = common::DefaultHostTarget();
+  Target target = common::DefaultTarget();
   auto graph    = std::make_shared<hlir::framework::Graph>(*program, target);
   LOG(INFO) << "graph:\n" << graph->Visualize();
 
   hlir::framework::ApplyPass(graph.get(), "InferShape");
   auto scope = BuildScope(target, graph);
-  //
   hlir::framework::GraphCompiler gc(target, scope, graph);
   auto runtime_program = gc.Build();
-
   scope->Var<hlir::framework::Tensor>("A");
   scope->Var<hlir::framework::Tensor>("B");
-
   auto A = scope->GetTensor("A");
   auto B = scope->GetTensor("B");
-  SetRandData(A, target);
-  SetRandData(B, target);
-
+  SetRandData<float>(A, target);
+  SetRandData<float>(B, target);
   runtime_program->Execute();
 }
 
 TEST(syntax, program_execute_multi_elementwise_add2) {
   auto program  = CreateAddProgram();
-  Target target = common::DefaultHostTarget();
+  Target target = common::DefaultTarget();
   auto graph    = std::make_shared<hlir::framework::Graph>(*program, target);
   LOG(INFO) << "graph:\n" << graph->Visualize();
 
@@ -109,8 +100,8 @@ TEST(syntax, program_execute_multi_elementwise_add2) {
 
   auto A = scope->GetTensor("A");
   auto B = scope->GetTensor("B");
-  SetRandData(A, target);
-  SetRandData(B, target);
+  SetRandData<float>(A, target);
+  SetRandData<float>(B, target);
 
   runtime_program->Execute();
 }
@@ -131,7 +122,7 @@ TEST(syntax, program_execute_fc) {
   program.SetInputs({a, w, b});
   program.Validate();
 
-  Target target = common::DefaultHostTarget();
+  Target target = common::DefaultTarget();
   auto graph    = std::make_shared<hlir::framework::Graph>(program, target);
 
   hlir::framework::ApplyPass(graph.get(), "InferShape");
@@ -150,9 +141,9 @@ TEST(syntax, program_execute_fc) {
   auto bt        = scope->GetTensor(std::string(b.id()));
   auto fake_outt = scope->GetTensor(std::string(mul_out->id));
   auto add_outt  = scope->GetTensor(std::string(add_out->id));
-  SetRandData(at, target);
-  SetRandData(wt, target);
-  SetRandData(bt, target);
+  SetRandData<float>(at, target);
+  SetRandData<float>(wt, target);
+  SetRandData<float>(bt, target);
 
   runtime_program->Execute();
 }
@@ -161,7 +152,7 @@ TEST(syntax, program_execute_fc) {
 TEST(load_paddle_model, fc_execute) {
   auto scope = std::make_shared<Scope>();
 
-  auto programTuple               = LoadPaddleProgram(FLAGS_model_dir, scope.get(), false /*is_combined*/);
+  auto programTuple               = LoadPaddleProgram(FLAGS_model_dir, scope.get(), false);
   auto& program                   = std::get<0>(programTuple);
   auto& var_map                   = std::get<1>(programTuple);
   auto& var_map_paddle_to_program = std::get<2>(programTuple);
@@ -181,9 +172,9 @@ TEST(load_paddle_model, fc_execute) {
   hlir::framework::GraphCompiler gc(target, scope, graph);
   auto runtime_program = gc.Build();
 
-  auto at       = scope->GetTensor("A");
-  auto* at_data = at->mutable_data<float>(common::DefaultHostTarget());
-  for (int i = 0; i < at->shape().numel(); i++) at_data[i] = 1.f;
+  auto at = scope->GetTensor("A");
+  SetRandData<float>(at, target);
+  LOG(INFO) << "Before Execute";
 
   runtime_program->Execute();
 
@@ -192,7 +183,7 @@ TEST(load_paddle_model, fc_execute) {
   const std::string output_name = "fc_0.tmp_2";
   auto tensor                   = scope->GetTensor(var_map_paddle_to_program.at(output_name));
   LOG(INFO) << "tensor.shape: " << utils::Join(tensor->shape().data(), ",");
-  auto* data = tensor->data<float>();
+  auto data = GetTensorData<float>(tensor, target);
   for (int i = 0; i < 10; i++) LOG(INFO) << "data: " << data[i];
 }
 
@@ -226,7 +217,7 @@ TEST(Frontend, conv) {
   program.SetInputs({A, B, E});
   program.Validate();
 
-  Target target = common::DefaultHostTarget();
+  Target target = common::DefaultTarget();
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
 
   hlir::framework::ApplyPass(graph.get(), "InferShape");
