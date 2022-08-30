@@ -541,7 +541,7 @@ TEST(OP_LOWERING, Reduce_Test_10) {
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
