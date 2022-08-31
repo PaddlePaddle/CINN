@@ -293,5 +293,36 @@ TEST(net_build, program_execute_cast) {
   }
 }
 
+TEST(net_build, program_execute_arange) {
+  float start       = 1.5F;
+  float stop        = 31.5F;
+  float step        = 2.0F;
+  std::string dtype = "float32";
+
+  NetBuilder builder("net_builder");
+  Variable out = builder.Arange(start, stop, step, dtype);
+  auto program = builder.Build();
+
+  Target target = common::DefaultHostTarget();
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  auto scope = BuildScope(target, graph);
+  hlir::framework::GraphCompiler gc(target, scope, graph);
+  auto runtime_program = gc.Build();
+
+  scope->Var<hlir::framework::Tensor>(std::string(out->id));
+
+  runtime_program->Execute();
+
+  auto out_tensor                          = scope->GetTensor(std::string(out->id));
+  const std::vector<int>& out_tensor_shape = out_tensor->shape().data();
+  float* out_data                          = out_tensor->mutable_data<float>(target);
+
+  for (int i = 0; i < out_tensor_shape[0]; ++i) {
+    VLOG(6) << out_data[i];
+    LOG(INFO) << out_data[i];
+  }
+}
+
 }  // namespace frontend
 }  // namespace cinn
