@@ -27,6 +27,8 @@
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_schedule.h"
 
+DECLARE_bool(auto_schedule_use_cost_model);
+
 namespace cinn {
 namespace auto_schedule {
 
@@ -74,7 +76,7 @@ class MockSearchSpace : public SearchSpace {
   int min_expr_value_   = 0;
 };
 
-TEST(EvolutionarySearch, GetOneBest) {
+void GetOneBest() {
   TuneTask mock_tune_task;
   ExprCostModel cost_model;
   TuningOptions options;
@@ -91,7 +93,17 @@ TEST(EvolutionarySearch, GetOneBest) {
   }
 }
 
-TEST(EvolutionarySearch, GetEpsGreedy) {
+TEST(EvolutionarySearch, GetOneBest) {
+  FLAGS_auto_schedule_use_cost_model = false;
+  GetOneBest();
+}
+
+TEST(EvolutionarySearch, GetOneBest_EnableCostModel) {
+  FLAGS_auto_schedule_use_cost_model = true;
+  GetOneBest();
+}
+
+void GetEpsGreedy() {
   TuneTask mock_tune_task;
   ExprCostModel cost_model;
   TuningOptions options;
@@ -107,6 +119,16 @@ TEST(EvolutionarySearch, GetEpsGreedy) {
   for (const SearchState& state : search_states) {
     EXPECT_EQ(state.mod_expr.GetExprs().size(), expr_size);
   }
+}
+
+TEST(EvolutionarySearch, GetEpsGreedy) {
+  FLAGS_auto_schedule_use_cost_model = false;
+  GetEpsGreedy();
+}
+
+TEST(EvolutionarySearch, GetEpsGreedy_EnableCostModel) {
+  FLAGS_auto_schedule_use_cost_model = true;
+  GetEpsGreedy();
 }
 
 }  // namespace auto_schedule
