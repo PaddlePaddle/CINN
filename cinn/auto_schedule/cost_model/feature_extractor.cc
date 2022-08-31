@@ -45,10 +45,7 @@ using namespace ::cinn::ir;
 
 FeatureExtractor::FeatureExtractor() {}
 
-void FeatureExtractor::Visit(const Expr *x) {
-  // VLOG(6) << "Huihuang debug visiting: " << *x;
-  IRVisitor::Visit(x);
-}
+void FeatureExtractor::Visit(const Expr *x) { IRVisitor::Visit(x); }
 
 Feature FeatureExtractor::Extract(const ir::ModuleExpr &mod_expr, const common::Target &target) {
   feature_ = Feature(target);
