@@ -34,8 +34,6 @@ namespace auto_schedule {
 
 AutoTuner::AutoTuner(const common::Target& target, hlir::framework::Graph* graph) : target_(target), graph_(graph) {}
 
-AutoTuner::~AutoTuner() {}
-
 void AutoTuner::Initialize(const Config& config, hlir::framework::GraphCompiler* graph_compiler) {
   // create builder, runner, and schedule measurer
   builder_           = std::make_unique<SimpleBuilder>(graph_compiler);
