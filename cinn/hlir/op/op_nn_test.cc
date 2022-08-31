@@ -38,19 +38,19 @@ namespace framework {
 
 using CCompute = std::function<std::shared_ptr<ir::Tensor>(const std::vector<ir::Tensor>)>;
 
-void GetLoweredFunc(const std::string test_name,
-                    const std::string func_name,
-                    const std::shared_ptr<OpImpl> &impl,
-                    std::vector<std::string> &input_names,
-                    const std::string &output_name,
-                    std::vector<ir::Tensor> &inputs,
-                    std::vector<common::CINNValue> &cinn_inputs,
-                    const Target &target,
-                    Module::Builder &builder) {
+Module LowerToModule(const std::string test_name,
+                     const std::string func_name,
+                     const std::shared_ptr<OpImpl> &impl,
+                     std::vector<std::string> input_names,
+                     const std::string &output_name,
+                     std::vector<ir::Tensor> &inputs,
+                     std::vector<common::CINNValue> cinn_inputs,
+                     const Target &target) {
+  Module::Builder builder("module", target);
+
   if (FLAGS_cinn_ir_schedule) {
     cinn_inputs.emplace_back(output_name);
     common::CINNValuePack cinn_input = common::CINNValuePack{cinn_inputs};
-
     input_names.push_back(output_name);
 
     auto funcs = framework::GetFuncFromImpl(impl, cinn_input, inputs, input_names, func_name, target);
@@ -63,7 +63,6 @@ void GetLoweredFunc(const std::string test_name,
     common::CINNValuePack cinn_input = common::CINNValuePack{cinn_inputs};
     common::CINNValuePack rets       = impl->fcompute(cinn_input);
     rets                             = impl->fschedule(rets);
-    ASSERT_EQ(rets.size(), 2UL);
     // the last element is a StageMap
     for (int i = 0; i < rets->size() - 1; i++) {
       Expr temp = rets[i];
@@ -74,6 +73,8 @@ void GetLoweredFunc(const std::string test_name,
 
     builder.AddFunction(func);
   }
+
+  return builder.Build();
 }
 
 TEST(Operator, Operator_Pool2d_Test0) {
@@ -98,15 +99,11 @@ TEST(Operator, Operator_Pool2d_Test0) {
   common::Target target = common::DefaultHostTarget();
   auto impl = OpStrategy::SelectImpl(strategy[pool2d](attrs, inputs, type, {{1, 3, 10, 10}, {1, 3, 5, 5}}, target));
 
-  std::string func_name                      = "pool2d";
-  std::vector<std::string> input_names       = {"A"};
-  std::vector<common::CINNValue> cinn_inputs = {common::CINNValue(A)};
-  Module::Builder builder("module0", target);
+  std::string func_name = "pool2d";
+  auto module =
+      LowerToModule("Operator_Pool2d_Test0", func_name, impl, {"A"}, "B", inputs, {common::CINNValue(A)}, target);
 
-  GetLoweredFunc("Operator_Pool2d_Test0", func_name, impl, input_names, "B", inputs, cinn_inputs, target, builder);
-
-  auto jit    = backends::ExecutionEngine::Create({});
-  auto module = builder.Build();
+  auto jit = backends::ExecutionEngine::Create({});
 
   jit->Link(module);
   auto fn = jit->Lookup("fn_" + func_name);
@@ -148,15 +145,12 @@ TEST(Operator, Operator_Pool2d_Test1) {
   common::Target target = common::DefaultHostTarget();
   auto impl = OpStrategy::SelectImpl(strategy[pool2d](attrs, inputs, type, {{1, 3, 11, 11}, {1, 3, 5, 5}}, target));
 
-  std::string func_name                      = "pool2d";
-  std::vector<std::string> input_names       = {"A"};
-  std::vector<common::CINNValue> cinn_inputs = {common::CINNValue(A)};
-  Module::Builder builder("module0", target);
+  std::string func_name = "pool2d";
 
-  GetLoweredFunc("Operator_Pool2d_Test1", func_name, impl, input_names, "B", inputs, cinn_inputs, target, builder);
+  auto module =
+      LowerToModule("Operator_Pool2d_Test1", func_name, impl, {"A"}, "B", inputs, {common::CINNValue(A)}, target);
 
-  auto jit    = backends::ExecutionEngine::Create({});
-  auto module = builder.Build();
+  auto jit = backends::ExecutionEngine::Create({});
 
   jit->Link(module);
   auto fn = jit->Lookup("fn_" + func_name);
@@ -200,15 +194,12 @@ TEST(Operator, Operator_Pool2d_Test2) {
   common::Target target = common::DefaultHostTarget();
   auto impl = OpStrategy::SelectImpl(strategy[pool2d](attrs, inputs, type, {{1, 11, 11, 3}, {1, 5, 5, 3}}, target));
 
-  std::string func_name                      = "pool2d";
-  std::vector<std::string> input_names       = {"A"};
-  std::vector<common::CINNValue> cinn_inputs = {common::CINNValue(A)};
-  Module::Builder builder("module0", target);
+  std::string func_name = "pool2d";
 
-  GetLoweredFunc("Operator_Pool2d_Test2", func_name, impl, input_names, "B", inputs, cinn_inputs, target, builder);
+  auto module =
+      LowerToModule("Operator_Pool2d_Test2", func_name, impl, {"A"}, "B", inputs, {common::CINNValue(A)}, target);
 
-  auto jit    = backends::ExecutionEngine::Create({});
-  auto module = builder.Build();
+  auto jit = backends::ExecutionEngine::Create({});
 
   jit->Link(module);
   auto fn = jit->Lookup("fn_" + func_name);
@@ -253,15 +244,11 @@ TEST(Operator, Operator_Pool3d_Test0) {
   auto impl =
       OpStrategy::SelectImpl(strategy[pool3d](attrs, inputs, type, {{1, 11, 11, 11, 3}, {1, 5, 5, 5, 3}}, target));
 
-  std::string func_name                      = "pool3d";
-  std::vector<std::string> input_names       = {"A"};
-  std::vector<common::CINNValue> cinn_inputs = {common::CINNValue(A)};
-  Module::Builder builder("module0", target);
+  std::string func_name = "pool3d";
+  auto module =
+      LowerToModule("Operator_Pool3d_Test0", func_name, impl, {"A"}, "B", inputs, {common::CINNValue(A)}, target);
 
-  GetLoweredFunc("Operator_Pool3d_Test0", func_name, impl, input_names, "B", inputs, cinn_inputs, target, builder);
-
-  auto jit    = backends::ExecutionEngine::Create({});
-  auto module = builder.Build();
+  auto jit = backends::ExecutionEngine::Create({});
 
   jit->Link(module);
   auto fn = jit->Lookup("fn_" + func_name);
@@ -305,15 +292,11 @@ TEST(Operator, Operator_Pool1d_Test0) {
   common::Target target = common::DefaultHostTarget();
   auto impl = OpStrategy::SelectImpl(strategy[pool1d](attrs, inputs, type, {{1, 11, 3}, {1, 5, 3}}, target));
 
-  std::string func_name                      = "pool1d";
-  std::vector<std::string> input_names       = {"A"};
-  std::vector<common::CINNValue> cinn_inputs = {common::CINNValue(A)};
-  Module::Builder builder("module0", target);
+  std::string func_name = "pool1d";
+  auto module =
+      LowerToModule("Operator_Pool1d_Test0", func_name, impl, {"A"}, "B", inputs, {common::CINNValue(A)}, target);
 
-  GetLoweredFunc("Operator_Pool1d_Test0", func_name, impl, input_names, "B", inputs, cinn_inputs, target, builder);
-
-  auto jit    = backends::ExecutionEngine::Create({});
-  auto module = builder.Build();
+  auto jit = backends::ExecutionEngine::Create({});
 
   jit->Link(module);
   auto fn = jit->Lookup("fn_" + func_name);
@@ -357,16 +340,13 @@ TEST(Operator, Operator_Select_Test0) {
 
   std::string func_name                      = "select";
   std::vector<std::string> input_names       = {"condition", "true_value", "false_value"};
-  std::string output_name                    = "output";
   std::vector<common::CINNValue> cinn_inputs = {
       common::CINNValue(condition), common::CINNValue(true_value), common::CINNValue(false_value)};
-  Module::Builder builder("module0", target);
 
-  GetLoweredFunc(
-      "Operator_Select_Test0", func_name, impl, input_names, output_name, inputs, cinn_inputs, target, builder);
+  auto module = LowerToModule(
+      "Operator_Select_Test0", func_name, impl, std::move(input_names), "output", inputs, cinn_inputs, target);
 
-  auto jit    = backends::ExecutionEngine::Create({});
-  auto module = builder.Build();
+  auto jit = backends::ExecutionEngine::Create({});
 
   jit->Link(module);
   auto fn = jit->Lookup("fn_" + func_name);
@@ -417,17 +397,11 @@ TEST(Operator, Operator_Reverse_Test0) {
 
   auto impl = OpStrategy::SelectImpl(strategy[reverse](attrs, inputs, type, {{c, h, w}}, target));
 
-  std::string func_name                      = "reverse";
-  std::vector<std::string> input_names       = {"A"};
-  std::string output_name                    = "B";
-  std::vector<common::CINNValue> cinn_inputs = {common::CINNValue(A)};
-  Module::Builder builder("module0", target);
+  std::string func_name = "reverse";
+  auto module =
+      LowerToModule("Operator_Reverse_Test0", func_name, impl, {"A"}, "B", inputs, {common::CINNValue(A)}, target);
 
-  GetLoweredFunc(
-      "Operator_Reverse_Test0", func_name, impl, input_names, output_name, inputs, cinn_inputs, target, builder);
-
-  auto jit    = backends::ExecutionEngine::Create({});
-  auto module = builder.Build();
+  auto jit = backends::ExecutionEngine::Create({});
 
   jit->Link(module);
   auto fn = jit->Lookup("fn_" + func_name);
@@ -496,17 +470,11 @@ TEST(Operator, Operator_Transpose_Test0) {
 
   auto impl = OpStrategy::SelectImpl(strategy[transpose](attrs, inputs, type, {output_shape}, target));
 
-  std::string func_name                      = "transpose";
-  std::vector<std::string> input_names       = {"A"};
-  std::string output_name                    = "B";
-  std::vector<common::CINNValue> cinn_inputs = {common::CINNValue(A)};
-  Module::Builder builder("module0", target);
+  std::string func_name = "transpose";
+  auto module =
+      LowerToModule("Operator_Transpose_Test0", func_name, impl, {"A"}, "B", inputs, {common::CINNValue(A)}, target);
 
-  GetLoweredFunc(
-      "Operator_Transpose_Test0", func_name, impl, input_names, output_name, inputs, cinn_inputs, target, builder);
-
-  auto jit    = backends::ExecutionEngine::Create({});
-  auto module = builder.Build();
+  auto jit = backends::ExecutionEngine::Create({});
 
   jit->Link(module);
   auto fn = jit->Lookup("fn_" + func_name);
