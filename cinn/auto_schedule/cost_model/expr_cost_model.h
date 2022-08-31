@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <vector>
 
 #include "cinn/auto_schedule/cost_model/xgb_cost_model.h"
@@ -32,6 +33,12 @@ class ExprCostModel : public XgbCostModel {
   void Train(const std::vector<const ir::ModuleExpr*>& samples,
              const std::vector<float>& labels,
              const common::Target& target);
+  void Update(const std::vector<const ir::ModuleExpr*>& samples,
+              const std::vector<float>& labels,
+              const common::Target& target);
+
+ private:
+  std::atomic<int> trained_times_{0};
 };
 
 }  // namespace auto_schedule

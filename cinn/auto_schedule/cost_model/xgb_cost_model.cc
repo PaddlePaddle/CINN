@@ -15,6 +15,7 @@
 #include "cinn/auto_schedule/cost_model/xgb_cost_model.h"
 
 #include <dirent.h>
+#include <glog/logging.h>
 #include <pybind11/embed.h>
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>

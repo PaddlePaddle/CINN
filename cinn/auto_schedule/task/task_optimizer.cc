@@ -113,7 +113,9 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
     }
 
     if (FLAGS_auto_schedule_use_cost_model) {
-      cost_model_.Train(cost_model_samples, cost_model_labels, task_->target);
+      VLOG(6) << "cost_model_samples.size() = " << cost_model_samples.size();
+      VLOG(6) << "cost_model_labels.size() = " << cost_model_labels.size();
+      cost_model_.Update(cost_model_samples, cost_model_labels, task_->target);
     }
     // TODO(zhhsplendid): write measure record into cache.
 
