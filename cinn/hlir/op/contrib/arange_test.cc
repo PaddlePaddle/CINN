@@ -23,13 +23,9 @@
 #include "cinn/backends/codegen_c.h"
 #include "cinn/backends/codegen_c_x86.h"
 #include "cinn/backends/codegen_cuda_dev.h"
-// #include "cinn/common/cas.h"
 #include "cinn/common/context.h"
-#include "cinn/lang/builtin.h"
-#include "cinn/lang/compute.h"
 #include "cinn/lang/lower.h"
 #include "cinn/lang/placeholder.h"
-#include "cinn/optim/cast_simplify.h"
 #include "cinn/poly/stage.h"
 
 namespace cinn {
