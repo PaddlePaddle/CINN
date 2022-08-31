@@ -218,6 +218,7 @@ extern "C" {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -283,6 +284,7 @@ extern "C" {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -656,6 +658,7 @@ extern "C" {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -801,6 +804,7 @@ extern "C" {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -915,6 +919,7 @@ void __launch_bounds__(128) schedule_conv2d_1(const float* __restrict__ X, const
   #ifdef __CUDACC_RTC__
   typedef int int32_t;
   typedef char int8_t;
+  typedef long int int64_t;
   #endif
 
 
@@ -1035,6 +1040,7 @@ extern "C" {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -1143,6 +1149,7 @@ extern "C" {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -1943,6 +1950,7 @@ extern "C" {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -2079,6 +2087,7 @@ extern "C" {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -2184,6 +2193,7 @@ extern "C" {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -2286,6 +2296,7 @@ extern "C" {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -2449,6 +2460,7 @@ extern "C" {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -2532,6 +2544,7 @@ extern "C" {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -2617,6 +2630,7 @@ extern "C" {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -2699,6 +2713,7 @@ extern "C" {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -3082,6 +3097,7 @@ extern "C" {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 

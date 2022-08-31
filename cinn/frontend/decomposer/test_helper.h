@@ -52,7 +52,7 @@ std::ostream& operator<<(std::ostream& os, const std::vector<T, Alloc>& vec) {
 }
 
 template <typename T>
-void InitRandomVector(std::vector<T>* vec, size_t numel, T low = 0, T high = 1, T precision = 1e-5) {
+void InitRandomVector(std::vector<T>* vec, size_t numel, T low = 0, T high = 1, float precision = 1e-5) {
   std::random_device seed;
   std::default_random_engine engine(seed());
   std::uniform_real_distribution<double> dist(low, high);
