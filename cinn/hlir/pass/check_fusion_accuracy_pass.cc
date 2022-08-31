@@ -108,7 +108,7 @@ NodeData* CheckFusionAccuracyPass::CreateOutputNode(NodePtr node, const std::str
   // create node's output data node
   auto node_id = output_id;
   if (node_id.empty()) {
-    node_id = "var_" + node->id();
+    node_id = cinn::common::UniqName("var_" + node->id());
   }
 
   auto graph_node = graph_->RetrieveNode(node_id);
