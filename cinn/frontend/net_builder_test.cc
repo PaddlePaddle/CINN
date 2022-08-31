@@ -320,7 +320,6 @@ TEST(net_build, program_execute_arange) {
 
   for (int i = 0; i < out_tensor_shape[0]; ++i) {
     VLOG(6) << out_data[i];
-    LOG(INFO) << out_data[i];
   }
 }
 
