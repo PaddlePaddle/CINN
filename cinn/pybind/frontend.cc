@@ -455,6 +455,8 @@ void BindFrontend(pybind11::module *m) {
           "all", &NetBuilder::ReduceAll, py::arg("x"), py::arg("axis") = std::vector<int>{}, py::arg("keepdim") = false)
       .def(
           "any", &NetBuilder::ReduceAny, py::arg("x"), py::arg("axis") = std::vector<int>{}, py::arg("keepdim") = false)
+      .def("reduce_sum", &NetBuilder::ReduceSum, py::arg("x"), py::arg("dim"), py::arg("keep_dim") = false)
+      .def("squeeze", &NetBuilder::Squeeze, py::arg("a"), py::arg("axes"))
       .def("conv2d",
            &NetBuilder::Conv2d,
            py::arg("a"),

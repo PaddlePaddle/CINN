@@ -87,6 +87,22 @@ Variable NetBuilder::ReduceAny(const Variable& x, const std::vector<int>& dim, b
   return Reduce(x, ReduceKind::kAny, dim, keep_dim);
 }
 
+Variable NetBuilder::Cast(const Variable& operand, const std::string& dtype) {
+  Instruction instr("cast", {operand});
+  instr.SetAttr("dtype", dtype);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
+Variable NetBuilder::Squeeze(const Variable& operand, const std::vector<int>& axes) {
+  Instruction instr("squeeze", {operand});
+  instr.SetAttr("axes", axes);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
 Variable NetBuilder::Conv2d(const Variable& a,
                             const Variable& b,
                             const std::vector<int>& strides,
@@ -228,6 +244,15 @@ Variable NetBuilder::DropoutInfer(const Variable& a, float dropout_prob, const s
 
 Variable NetBuilder::Sum(const std::vector<Variable>& inputs) {
   Instruction instr("sum", inputs);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
+Variable NetBuilder::Clip(const std::vector<Variable>& inputs, const float& max_val, const float& min_val) {
+  Instruction instr("clip", inputs);
+  instr.SetAttr("max_val", max_val);
+  instr.SetAttr("min_val", min_val);
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(0);

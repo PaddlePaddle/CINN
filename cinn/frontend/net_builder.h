@@ -93,6 +93,16 @@ class NetBuilder : public BaseBuilder {
   Variable ReduceAny(const Variable& x, const std::vector<int>& dim, bool keep_dim = false);
 
   /**
+   * Cast Variable x to dtype.
+   */
+  Variable Cast(const Variable& operand, const std::string& dtype);
+
+  /**
+   * Squeeze Variable x along the given axes.
+   */
+  Variable Squeeze(const Variable& operand, const std::vector<int>& axes);
+
+  /**
    * The convolution2D layer calculates the output based on the input, filter
    * and strides, paddings, dilations, groups parameters.
    */
@@ -160,6 +170,8 @@ class NetBuilder : public BaseBuilder {
                         const std::string& dropout_implementation = "downgrade_in_infer");
 
   Variable Sum(const std::vector<Variable>& inputs);
+
+  Variable Clip(const std::vector<Variable>& inputs, const float& max_val, const float& min_val);
 
   // conv2d grad, output(grad_x, grad_w)
   std::vector<Variable> Conv2dGrad(const Variable& dy,

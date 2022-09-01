@@ -34,19 +34,8 @@ class CodeGenCUDA_Host : public CodeGenLLVM {
   explicit CodeGenCUDA_Host(llvm::Module *m, llvm::IRBuilder<> *b, const std::shared_ptr<SymbolTable> &vars = nullptr)
       : CodeGenLLVM(m, b, vars) {}
 
-  static std::string GenKernelPtrVarName(const std::string &kernel_name) { return kernel_name + "_kernel_ptr_"; }
-  static std::string GenKernelStreamVarName(const std::string &kernel_name) {
-    return kernel_name + "_kernel_stream_ptr_";
-  }
-
   using CodeGenLLVM::Visit;
-
-  llvm::Value *Visit(const ir::_LoweredFunc_ *func) override {
-    if (func->is_gpu_host()) {
-      return LowerGPUKernelLauncher(func);
-    }
-    return CodeGenLLVM::Visit(func);
-  }
+  llvm::Value *Visit(const ir::_LoweredFunc_ *func) override { return LowerGPUKernelLauncher(func); }
 
  private:
   /**
