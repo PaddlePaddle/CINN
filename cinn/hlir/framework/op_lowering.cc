@@ -400,7 +400,7 @@ std::vector<Expr> OpLowerer::IRReduceCompute(poly::StageMap& stages,
   std::vector<Expr> ast_exprs;
   for (auto& node : sub_group->nodes) {
     auto node_data = GetNodeData(node);
-    VLOG(3) << node->id();
+    VLOG(3) << "In ReduceCompute, process node: " << node->id() << " with op type: " << node->op()->name;
 
     std::vector<common::CINNValue> cinn_inputs;
     std::vector<ir::Tensor> tensor_inputs = std::move(CollectInputTensor(func_args, tensor_map, node));
