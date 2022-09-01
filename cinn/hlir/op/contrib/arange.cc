@@ -73,7 +73,7 @@ std::vector<std::vector<int>> InferShapeForArange(const std::vector<std::vector<
   CHECK_NE(step, 0) << "The value of step cann't be 0!";
 
   int num_elem = static_cast<int>(std::ceil((stop - start) / step));
-  CHECK_GT(num_elem, 0) << "Invalid arange parameters, start = " << start << ", stop=" << stop << ", step=" << step
+  CHECK_GT(num_elem, 0) << "Invalid arange parameters, start = " << start << ", stop = " << stop << ", step = " << step
                         << ", causes num_elem = " << num_elem << " which is negative.";
 
   std::vector<std::vector<int>> res = {{num_elem}};
