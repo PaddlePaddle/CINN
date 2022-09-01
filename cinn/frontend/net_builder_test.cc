@@ -316,9 +316,15 @@ TEST(net_build, program_execute_arange) {
 
   auto out_tensor                          = scope->GetTensor(std::string(out->id));
   const std::vector<int>& out_tensor_shape = out_tensor->shape().data();
-  float* out_data                          = out_tensor->mutable_data<float>(target);
+  EXPECT_EQ(out_tensor->type(), Float(32));
+  EXPECT_EQ(out_tensor_shape.size(), 1UL);
 
+  int num_elem = static_cast<int>(std::ceil((stop - start) / step));
+  EXPECT_EQ(out_tensor_shape[0], num_elem);
+
+  float* out_data = out_tensor->mutable_data<float>(target);
   for (int i = 0; i < out_tensor_shape[0]; ++i) {
+    EXPECT_NEAR(out_data[i], start + step * i, 1e-5);
     VLOG(6) << out_data[i];
   }
 }

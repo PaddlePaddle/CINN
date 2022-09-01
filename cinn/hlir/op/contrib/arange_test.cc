@@ -82,6 +82,11 @@ TEST(GenerateCode_Cuda, Arange) {
   for (auto &f : funcs) {
     builder.AddFunction(f);
   }
+
+  backends::CodeGenCUDA_Dev codegen(target);
+  std::string code = codegen.Compile(builder.Build());
+  VLOG(6) << "Cuda Codegen result:";
+  VLOG(6) << code << std::endl;
 }
 
 }  // namespace op

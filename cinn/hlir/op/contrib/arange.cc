@@ -58,6 +58,7 @@ std::vector<std::vector<int>> InferShapeForArange(const std::vector<std::vector<
   float start = 0.0F;
   float stop  = 0.0F;
   float step  = 1.0F;
+  CHECK(attrs.find("stop") != attrs.end()) << "Please set the stop parameter of arange.";
 
   if (attrs.find("start") != attrs.end()) {
     start = absl::get<float>(attrs.at("start"));
@@ -69,8 +70,11 @@ std::vector<std::vector<int>> InferShapeForArange(const std::vector<std::vector<
     step = absl::get<float>(attrs.at("step"));
   }
 
+  CHECK_NE(step, 0) << "The value of step cann't be 0!";
+
   int num_elem = static_cast<int>(std::ceil((stop - start) / step));
-  CHECK_GT(num_elem, 0) << "Invalid arange attributes.";
+  CHECK_GT(num_elem, 0) << "Invalid arange parameters, start = " << start << ", stop=" << stop << ", step=" << step
+                        << ", causes num_elem = " << num_elem << " which is negative.";
 
   std::vector<std::vector<int>> res = {{num_elem}};
   return res;
@@ -107,14 +111,12 @@ std::shared_ptr<framework::OpStrategy> StrategyForArange(const framework::NodeAt
     }
   }
 
-  CHECK_GT(step, 0) << "Invalid arange attributes.";
-
   framework::CINNCompute arange_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of arange compute is empty! Please check.\n";
 
     std::vector<ir::Tensor> out = Arange(start, stop, step, common::Str2Type(dtype), common::UniqName("T_Arange_out"));
-
     CHECK(out.size() == 1U) << "The size of Arange's output should be 1";
+
     std::vector<common::CINNValue> res;
     auto stages = CreateStages({});
     for (auto &t : out) {
