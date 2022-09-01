@@ -211,13 +211,10 @@ TEST(Graph, add_reduce_node) {
   auto graph  = std::make_shared<Graph>(program, target);
   ApplyPasses(graph.get(), {"OpFusionPass", "FusionMergePass"});
 
-  LOG(INFO) << "Before insert reduce node:\n" << graph->DebugGroupedGraph({add_1->id});
   CHECK_EQ(graph->fusion_groups.size(), 1UL);
 
   TestAddReduceNode add_reduce_node(graph.get());
   auto output = add_reduce_node.Apply(add_1->id);
-
-  LOG(INFO) << "After insert reduce node:\n" << graph->DebugGroupedGraph({add_1->id, output});
 
   RunTest(target, graph, {"x", "y"});
 }
