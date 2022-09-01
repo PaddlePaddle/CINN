@@ -178,6 +178,7 @@ template <> inline Type type_of<int64_t>() { return I64(); }
 template <> inline Type type_of<uint64_t>() { return UI64(); }
 template <> inline Type type_of<signed char>() { return I8(); }
 template <> inline Type type_of<void>() { return Void(); }
+template <> inline Type type_of<std::string>() { return String(); }
 // clang-format on
 template <>
 inline Type type_of<int8_t*>() {

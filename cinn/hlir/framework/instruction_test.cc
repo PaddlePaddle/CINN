@@ -74,11 +74,10 @@ TEST(Instruction, basic) {
   InstantiateScope(M, N, &scope);
   // create Instruction
   Instruction instr(common::DefaultHostTarget(), &scope, {"x", "y"}, {"z"});
-  auto jit     = GetLoweredFunc(M, N);
-  auto fn_addr = jit->Lookup("fn");
-  CHECK(fn_addr);
-
-  instr.SetLoweredFunc(reinterpret_cast<lower_func_ptr_t>(fn_addr));
+  auto jit    = GetLoweredFunc(M, N);
+  auto fn_ptr = jit->Lookup("fn");
+  CHECK(fn_ptr);
+  instr.SetLoweredFunc(reinterpret_cast<void*>(fn_ptr));
   // should call Finalize explicitly before Run
   ASSERT_DEATH(instr.Run(), "");
   instr.Finalize();
@@ -120,12 +119,11 @@ TEST(Instruction, RunWithRawPodArgs) {
   }
 
   // create Instruction
-  auto jit     = GetLoweredFunc(M, N);
-  auto fn_addr = jit->Lookup("fn");
-  CHECK(fn_addr);
-
+  auto jit    = GetLoweredFunc(M, N);
+  auto fn_ptr = jit->Lookup("fn");
+  CHECK(fn_ptr);
   Instruction instr(common::DefaultHostTarget(), nullptr, {"x", "y"}, {"z"});  // empty scope
-  instr.SetLoweredFunc(reinterpret_cast<lower_func_ptr_t>(fn_addr));
+  instr.SetLoweredFunc(reinterpret_cast<void*>(fn_ptr));
   instr.Finalize();
 
   auto check_equal_by_element = [&]() {

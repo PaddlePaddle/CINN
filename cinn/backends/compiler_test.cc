@@ -64,7 +64,7 @@ TEST(Compiler, x86) {
     auto* Cb = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_zero().Build();
 
     auto args = common::ArgsBuilder().Add(Ab).Add(Bb).Add(Cb).Build();
-    fnp(args.data(), args.size());
+    reinterpret_cast<void (*)(void*, int)>(fnp)(args.data(), args.size());
 
     // test result
     auto* Ad = reinterpret_cast<float*>(Ab->memory);
@@ -136,8 +136,9 @@ TEST(Compiler, cuda) {
 
     utils::Timer timer;
     timer.Start();
+    void* stream = nullptr;
     for (int i = 0; i < 1000; i++) {
-      fnp(args.data(), args.size());
+      reinterpret_cast<void (*)(void*, int, void*)>(fnp)(args.data(), args.size(), stream);
     }
 
     CUDA_CALL(cudaDeviceSynchronize());
