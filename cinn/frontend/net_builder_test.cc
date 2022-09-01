@@ -300,7 +300,7 @@ TEST(net_build, program_execute_flip) {
 
   NetBuilder builder("net_builder");
   Placeholder input = builder.CreateInput(Float(32), {M}, "In");
-  Variable output   = builder.Flip({input}, axis);
+  Variable output   = builder.Flip(input, axis);
   auto program      = builder.Build();
 
   Target target = common::DefaultHostTarget();

@@ -241,8 +241,8 @@ Variable NetBuilder::Sum(const std::vector<Variable>& inputs) {
   return instr.GetOutput(0);
 }
 
-Variable NetBuilder::Flip(const std::vector<Variable>& inputs, const std::vector<int>& axis) {
-  Instruction instr("Flip", inputs);
+Variable NetBuilder::Flip(const Variable& inputs, const std::vector<int>& axis) {
+  Instruction instr("Flip", {inputs});
   instr.SetAttr("axis", axis);
   InferShape(instr);
   AppendInstruction(instr);
