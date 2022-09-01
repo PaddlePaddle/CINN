@@ -34,6 +34,7 @@ using framework::Node;
 using framework::NodeData;
 using framework::NodePtr;
 using framework::Operator;
+using framework::OpPatternKind;
 
 using common::GraphEdge;
 using common::GraphNode;
@@ -59,6 +60,9 @@ class CheckFusionAccuracyPass {
 
   // create node's output node, whose name is output_id
   NodeData* CreateOutputNode(NodePtr node, const std::string& output_id = "");
+
+  // get group's op kind
+  OpPatternKind GetOpKind(const framework::Node* node);
 
   // create a group, the group only has one node
   GroupPtr CreateSingleNodeGroup(NodePtr node_ptr);
@@ -184,41 +188,44 @@ NodePtr CheckFusionAccuracyPass::CreateCheckNode(Node* node) {
   return check_node;
 }
 
-GroupPtr CheckFusionAccuracyPass::CreateSingleNodeGroup(NodePtr node_ptr) {
-  auto node = node_ptr.get();
+OpPatternKind CheckFusionAccuracyPass::GetOpKind(const framework::Node* node) {
+  auto op_pattern_dict_ = &framework::Operator::GetAttrs<OpPatternKind>("OpPattern");
+  CHECK(op_pattern_dict_->Find(node->op())) << "Don't find the pattern of op : " << node->id();
+  auto kind = op_pattern_dict_[0][node->op()];
 
-  // init group
-  auto group = std::make_shared<Graph::Group>();
-
-  group->nodes.push_back(node);
-  group->nodes_set.insert(node);
-
-  // output nodes
-  for (auto& edge : node->outlinks_in_order()) {
-    auto output_node_data = edge->sink()->safe_as<NodeData>();
-    CHECK(output_node_data) << "Node " << node->id() << "'s output node is nullptr! Please check.";
-    for (auto& data_edge : output_node_data->outlinks()) {
-      group->output_nodes.insert(data_edge->sink()->safe_as<Node>());
+  CHECK_NE(kind, framework::kTuple) << "kTuple is not support now!";
+  if (kind == framework::kBroadcast) {
+    // As binary op was defined as broadcast, actually it should be element-wise.
+    if (node->op()->name != "broadcast_to") {
+      return framework::kElemWise;
     }
   }
 
-  // input nodes
-  for (auto& edge : node->inlinks_in_order()) {
-    auto input_node_data = edge->source()->safe_as<NodeData>();
-    CHECK(input_node_data) << "Node " << node->id() << "'s input node is nullptr! Please check.";
+  return kind;
+}
 
-    // input data has source node
+GroupPtr CheckFusionAccuracyPass::CreateSingleNodeGroup(NodePtr node_ptr) {
+  auto node  = node_ptr.get();
+  auto group = std::make_shared<Graph::Group>();
+  // init group
+  group->nodes.push_back(node);
+  group->nodes_set.insert(node);
+  group->output_nodes.insert(node);
+  // input node
+  for (auto& edge : node->inlinks()) {
+    auto input_graph_node = edge->source();
+    auto input_node_data  = input_graph_node->safe_as<NodeData>();
+    CHECK(input_node_data);
+    // input data has no source node
     if (input_node_data->source_node.get()) {
       group->input_nodes[input_node_data->source_node.get()] = 1;
     }
   }
 
   // group type
-  group->op_pattern_kind = framework::kOpaque;
-
+  group->op_pattern_kind = GetOpKind(node);
   // use current node as master node for schedule
   group->master_nodes.insert(node);
-  group->internal_nodes.insert(node);
   group->group_id = node->id();
 
   return group;
