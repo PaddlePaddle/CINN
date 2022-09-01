@@ -237,9 +237,13 @@ std::unordered_set<NodeData*> Graph::Group::GetInputNodeDatas() {
       if (!input_data->source_node.get()) {
         // if the input data hasn't input op, it's the group's input
         group_inputs.insert(input_data);
-      } else if (this->input_nodes.count(input_data->source_node.get())) {
-        // if the input data' input op in group.input_nodes, the node data is the group's input
+        continue;
+      }
+
+      if (std::find(this->input_names.begin(), this->input_names.end(), input_data->id()) != this->input_names.end()) {
+        // if the input data in group's input_names
         group_inputs.insert(input_data);
+        continue;
       }
     }
   }
@@ -266,9 +270,11 @@ std::unordered_set<NodeData*> Graph::Group::GetOutputNodeDatas(const std::vector
         continue;
       }
 
-      if (output_data->outlinks().empty()) {
-        // if the output data hasn't ouput op, it's the group's output
+      if (std::find(this->output_names.begin(), this->output_names.end(), output_data->id()) !=
+          this->output_names.end()) {
+        // if the output data in group's output_names
         group_outputs.insert(output_data);
+        continue;
       }
 
       for (auto out_edge : output_data->outlinks()) {

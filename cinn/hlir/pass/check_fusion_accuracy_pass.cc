@@ -458,14 +458,21 @@ GroupList CheckFusionAccuracyPass::Apply() {
     }
 
     // get group's output data node list
-    auto input_datas  = group->GetInputNodeDatas();
+    auto input_datas = group->GetInputNodeDatas();
+
+    auto input_list = serial_name(input_datas);
+    VLOG(4) << "Group " << group->GetFuncName() << "'s input is [" << input_list << "]";
+
     auto output_datas = group->GetOutputNodeDatas(graph_->outputs);
+
+    auto output_list = serial_name(output_datas);
+    VLOG(4) << "Group " << group->GetFuncName() << "'s output is [" << output_list << "]";
 
     // set assert debug info
     utils::AssertMsg msg("check accuracy of kernel " + group->GetFuncName());
     msg.SetMsg("Kernel name", group->GetFuncName());
-    msg.SetMsg("Input list", serial_name(input_datas));
-    msg.SetMsg("Output list", serial_name(output_datas));
+    msg.SetMsg("Input list", input_list);
+    msg.SetMsg("Output list", output_list);
     msg.SetMsg("Group graph", graph_->DebugGroupedGraph({ordered_nodes}));
 
     // link the group's output data node to assert all close node
