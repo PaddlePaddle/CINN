@@ -960,6 +960,7 @@ TEST(IrSchedule, compute_at4) {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -1031,6 +1032,7 @@ TEST(IrSchedule, compute_at5) {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -1108,6 +1110,7 @@ TEST(IrSchedule, compute_at6) {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -1488,6 +1491,7 @@ TEST(IrSchedule, cache_read3) {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -1580,6 +1584,7 @@ TEST(IrSchedule, cache_write3) {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -1672,6 +1677,7 @@ TEST(IrSchedule, sync_threads) {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -2284,6 +2290,7 @@ TEST(IrSchedule, compute_inline3) {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -2352,6 +2359,7 @@ TEST(IrSchedule, compute_inline4) {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 

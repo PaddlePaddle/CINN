@@ -105,13 +105,13 @@ TEST(AccuracyChecker, instruction) {
   Scope scope;
   InstantiateScope(&scope, target);
 
-  auto jit     = GetLoweredFunc(target);
-  auto fn_addr = jit->Lookup("fn_sqrt");
-  CHECK(fn_addr);
+  auto jit    = GetLoweredFunc(target);
+  auto fn_ptr = jit->Lookup("fn_sqrt");
+  CHECK(fn_ptr);
 
   FLAGS_cinn_self_check_accuracy = true;
   Instruction instr(target, &scope, {"x"}, {"y"});
-  instr.SetLoweredFunc(reinterpret_cast<lower_func_ptr_t>(fn_addr), "fn_sqrt");
+  instr.SetLoweredFunc(reinterpret_cast<void*>(fn_ptr), "fn_sqrt");
   // should call Finalize explicitly before Run
   instr.Finalize();
 
@@ -144,13 +144,13 @@ TEST(AccuracyChecker, instruction_podargs) {
   std::map<std::string, cinn_pod_value_t> name2podargs;
   InitName2PodArgs(target, &args_buffer, &name2podargs);
 
-  auto jit     = GetLoweredFunc(target);
-  auto fn_addr = jit->Lookup("fn_sqrt");
-  CHECK(fn_addr);
+  auto jit    = GetLoweredFunc(target);
+  auto fn_ptr = jit->Lookup("fn_sqrt");
+  CHECK(fn_ptr);
 
   FLAGS_cinn_self_check_accuracy = true;
   Instruction instr(target, nullptr, {"x"}, {"y"});
-  instr.SetLoweredFunc(reinterpret_cast<lower_func_ptr_t>(fn_addr), "fn_sqrt");
+  instr.SetLoweredFunc(reinterpret_cast<void*>(fn_ptr), "fn_sqrt");
   instr.Finalize();
 
   instr.Run(&name2podargs);

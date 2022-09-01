@@ -98,6 +98,11 @@ class NetBuilder : public BaseBuilder {
   Variable Cast(const Variable& operand, const std::string& dtype);
 
   /**
+   * Squeeze Variable x along the given axes.
+   */
+  Variable Squeeze(const Variable& operand, const std::vector<int>& axes);
+
+  /**
    * Sort Variable x along the given axis and return index.
    */
   Variable ArgSort(const Variable& operand, const int& axis, const bool& is_ascend = true);

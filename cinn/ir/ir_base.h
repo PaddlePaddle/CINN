@@ -306,6 +306,7 @@ struct Expr : public IrNodeRef {
 
   // primitive types
   // @{
+  bool as_bool() const;
   int32_t as_int32() const;
   int64_t as_int64() const;
   float as_float() const;

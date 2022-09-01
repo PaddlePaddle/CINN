@@ -95,6 +95,14 @@ Variable NetBuilder::Cast(const Variable& operand, const std::string& dtype) {
   return instr.GetOutput(0);
 }
 
+Variable NetBuilder::Squeeze(const Variable& operand, const std::vector<int>& axes) {
+  Instruction instr("squeeze", {operand});
+  instr.SetAttr("axes", axes);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
 Variable NetBuilder::ArgSort(const Variable& operand, const int& axis, const bool& is_ascend) {
   Instruction instr("argsort", {operand});
   instr.SetAttr("axis", axis);

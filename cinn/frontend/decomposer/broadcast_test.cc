@@ -179,6 +179,31 @@ TEST(Decomposer, elementwise_add_bcast2_2) {
   RunAndCheck<float>(builder, input_names, output_names, output_shapes, add_cpu);
 }
 
+TEST(Decomposer, elementwise_add_bcast2_3) {
+  constexpr int kLength = 64;
+  using int_ty          = int64_t;
+  NetBuilder builder("elementwise_add");
+  auto x   = builder.CreateInput(Int(kLength), {32, 16});
+  auto y   = builder.CreateInput(Int(kLength), {1});
+  auto out = builder.ElementwiseAdd(x, y);
+
+  auto add_cpu = [](const std::vector<size_t>& lengths, const std::vector<void*>& ptrs) {
+    size_t n      = lengths[0];
+    int_ty* x     = static_cast<int_ty*>(ptrs[0]);
+    int_ty* y     = static_cast<int_ty*>(ptrs[1]);
+    int_ty* out   = static_cast<int_ty*>(ptrs[2]);
+    int_ty y_data = y[0];
+    for (size_t i = 0; i < n; ++i) {
+      out[i] = x[i] + y_data;
+    }
+  };
+
+  std::vector<std::string> input_names        = {x.id().data(), y.id().data()};
+  std::vector<std::string> output_names       = {out->id};
+  std::vector<std::vector<int>> output_shapes = {{32, 16}};
+  RunAndCheck<int_ty>(builder, input_names, output_names, output_shapes, add_cpu);
+}
+
 TEST(Decomposer, elementwise_add_grad_bcast2) {
   NetBuilder builder("elementwise_add_grad");
   auto dout      = builder.CreateInput(Float(32), {32, 16});
