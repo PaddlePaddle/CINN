@@ -293,19 +293,6 @@ TEST(net_build, program_execute_cast) {
   }
 }
 
-void SetFloatRandData(hlir::framework::Tensor tensor, Target target) {
-  auto* data = tensor->mutable_data<float>(target);
-  std::random_device seed;
-  std::default_random_engine engine(seed());
-  std::uniform_real_distribution<float> dist(0.f, 1.f);
-  size_t num_ele = tensor->shape().numel();
-  std::vector<float> random_data(num_ele);
-  for (size_t i = 0; i < num_ele; i++) {
-    random_data[i] = dist(engine);  // All random data
-  }
-  std::copy(random_data.begin(), random_data.end(), data);
-}
-
 TEST(net_build, program_execute_argsort) {
   const int B = 4;
   const int H = 7;
@@ -326,7 +313,7 @@ TEST(net_build, program_execute_argsort) {
   scope->Var<hlir::framework::Tensor>(std::string(output->id));
 
   auto input_tensor = scope->GetTensor(std::string(input.id()));
-  SetFloatRandData(input_tensor, target);
+  SetRandData<float>(input_tensor, target);
   auto* input_data = input_tensor->mutable_data<float>(target);
 
   runtime_program->Execute();
@@ -382,7 +369,7 @@ TEST(net_build, program_execute_sort) {
   scope->Var<hlir::framework::Tensor>(std::string(output->id));
 
   auto input_tensor = scope->GetTensor(std::string(input.id()));
-  SetFloatRandData(input_tensor, target);
+  SetRandData<float>(input_tensor, target);
   auto* input_data = input_tensor->mutable_data<float>(target);
 
   runtime_program->Execute();
