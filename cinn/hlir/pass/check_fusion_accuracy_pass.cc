@@ -115,9 +115,8 @@ NodeData* CheckFusionAccuracyPass::CreateOutputNode(NodePtr node, const std::str
     node_id = cinn::common::UniqName("var_" + node->id());
   }
 
-  auto graph_node = graph_->RetrieveNode(node_id);
-  CHECK(graph_node == nullptr) << "The node " << node->op()->name << "'s output" << node_id
-                               << " had been registered in graph! Please check.";
+  CHECK(graph_->RetrieveNode(node_id) == nullptr)
+      << "The node " << node->op()->name << "'s output " << node_id << " had been registered in graph! Please check.";
 
   auto* output_data = new NodeData(node, 0, 0, node_id);
   node->LinkTo(output_data);
@@ -173,6 +172,10 @@ NodePtr CheckFusionAccuracyPass::CreateCheckNode(Node* node) {
   CHECK(node->op()) << "Node " << node->id() << " is not operator! Please check.";
 
   const auto& check_node_id = utils::GenerateCheckFusionAccuracyNodeId(node->id());
+
+  CHECK(graph_->RetrieveNode(check_node_id) == nullptr)
+      << "The node " << node->id() << "'s check fusion accuracy node" << check_node_id
+      << " had been registered in graph! Please check.";
 
   auto check_node              = Node::Create(node->op(), node->attrs.node_name, check_node_id);
   check_node->attrs.attr_store = node->attrs.attr_store;

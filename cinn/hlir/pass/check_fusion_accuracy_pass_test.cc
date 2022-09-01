@@ -91,7 +91,7 @@ TEST(CheckFusionAccuracyPass, ElementWise_Fusion) {
   RunTest(target, graph, {"A", "B", "C", "D"});
 }
 
-TEST(FusionMergePass, ElementWise_Fusion_1) {
+TEST(CheckFusionAccuracyPass, ElementWise_Fusion_1) {
   int h = 32, w = 32;
   NetBuilder net_builder("ElementWise_Fusion_1");
   // create model
@@ -125,7 +125,7 @@ TEST(FusionMergePass, ElementWise_Fusion_1) {
   RunTest(target, graph, {"A", "B", "C", "D"});
 }
 
-TEST(FusionMergePass, ElementWise_Fusion_2) {
+TEST(CheckFusionAccuracyPass, ElementWise_Fusion_2) {
   int h = 32, w = 32;
   NetBuilder net_builder("ElementWise_Fusion_2");
   // create model
@@ -162,7 +162,7 @@ TEST(FusionMergePass, ElementWise_Fusion_2) {
   RunTest(target, graph, {"A", "B", "C", "D", "E", "F"});
 }
 
-TEST(FusionMergePass, ElementWise_Fusion_3) {
+TEST(CheckFusionAccuracyPass, ElementWise_Fusion_3) {
   int h = 32, w = 32;
   NetBuilder net_builder("ElementWise_Fusion_3");
   // create model
@@ -199,7 +199,7 @@ TEST(FusionMergePass, ElementWise_Fusion_3) {
   RunTest(target, graph, {"A", "B", "C", "D", "E", "F"});
 }
 
-TEST(FusionMergePass, ElementWise_Fusion_4) {
+TEST(CheckFusionAccuracyPass, ElementWise_Fusion_4) {
   int h = 32, w = 32;
   NetBuilder net_builder("ElementWise_Fusion_4");
   // create model
@@ -236,7 +236,7 @@ TEST(FusionMergePass, ElementWise_Fusion_4) {
   RunTest(target, graph, {"A", "B", "C", "D", "E", "F"});
 }
 
-TEST(FusionMergePass, ElementWise_Fusion_5) {
+TEST(CheckFusionAccuracyPass, ElementWise_Fusion_5) {
   int h = 32, w = 32;
   NetBuilder net_builder("ElementWise_Fusion_5");
   // create model
@@ -266,7 +266,7 @@ TEST(FusionMergePass, ElementWise_Fusion_5) {
   RunTest(target, graph, {"A", "B"});
 }
 
-TEST(FusionMergePass, Broadcast_Test_0) {
+TEST(CheckFusionAccuracyPass, Broadcast_Test_0) {
   int h = 32, w = 32;
   NetBuilder net_builder("Broadcast_Test_0");
   // create model
@@ -299,40 +299,7 @@ TEST(FusionMergePass, Broadcast_Test_0) {
   RunTest(target, graph, {"A", "B", "C", "D"});
 }
 
-TEST(FusionMergePass, Broadcast_Test_1) {
-  int h = 32, w = 32;
-  NetBuilder net_builder("Broadcast_Test_1");
-  // create model
-  {
-    auto A = net_builder.CreateInput(Float(32), {w}, "A");
-    auto B = net_builder.CreateInput(Float(32), {w}, "B");
-    auto C = net_builder.CreateInput(Float(32), {h, w}, "C");
-    auto D = net_builder.CreateInput(Float(32), {h, w}, "D");
-    auto E = net_builder.ElementwiseAdd(A, B);
-    auto F = net_builder.ElementwiseAdd(C, E);
-    auto G = net_builder.ElementwiseAdd(D, E);
-  }
-
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<Graph>(program, target);
-
-  hlir::framework::ApplyPasses(graph.get(), {"OpFusionPass", "FusionMergePass"});
-
-  int group_size_affter = graph->fusion_groups.size() + CountAfterPassNodeSize(graph.get());
-
-  VLOG(1) << "Before CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
-  hlir::framework::ApplyPass(graph.get(), "CheckFusionAccuracyPass");
-  VLOG(1) << "After CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
-
-  CHECK_EQ(graph->fusion_groups.size(), group_size_affter);
-
-  RunTest(target, graph, {"A", "B", "C", "D"});
-}
-
-TEST(FusionMergePass, Broadcast_Test_2) {
+TEST(CheckFusionAccuracyPass, Broadcast_Test_2) {
   int h = 32, w = 32;
   NetBuilder net_builder("Broadcast_Test_2");
   // create model
@@ -365,40 +332,7 @@ TEST(FusionMergePass, Broadcast_Test_2) {
   RunTest(target, graph, {"A", "B", "C", "D"});
 }
 
-TEST(FusionMergePass, Broadcast_Test_3) {
-  int h = 32, w = 32;
-  NetBuilder net_builder("Broadcast_Test_3");
-  // create model
-  {
-    auto A = net_builder.CreateInput(Float(32), {w}, "A");
-    auto B = net_builder.CreateInput(Float(32), {w}, "B");
-    auto C = net_builder.CreateInput(Float(32), {h * w, w}, "C");
-    auto D = net_builder.CreateInput(Float(32), {h, w}, "D");
-    auto E = net_builder.ElementwiseAdd(A, B);
-    auto F = net_builder.ElementwiseAdd(C, E);
-    auto G = net_builder.ElementwiseAdd(D, E);
-  }
-
-  auto program = net_builder.Build();
-  auto target  = common::DefaultTarget();
-  RunDecomposer(&program, target);
-
-  auto graph = std::make_shared<Graph>(program, target);
-
-  hlir::framework::ApplyPasses(graph.get(), {"OpFusionPass", "FusionMergePass"});
-
-  int group_size_affter = graph->fusion_groups.size() + CountAfterPassNodeSize(graph.get());
-
-  VLOG(1) << "Before CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
-  hlir::framework::ApplyPass(graph.get(), "CheckFusionAccuracyPass");
-  VLOG(1) << "After CheckFusionAccuracyPass:\n" << graph->DebugGroupedGraph(std::unordered_set<std::string>{});
-
-  CHECK_EQ(graph->fusion_groups.size(), group_size_affter);
-
-  RunTest(target, graph, {"A", "B", "C", "D"});
-}
-
-TEST(FusionMergePass, Broadcast_Test_4) {
+TEST(CheckFusionAccuracyPass, Broadcast_Test_4) {
   int h = 32, w = 32;
   NetBuilder net_builder("Broadcast_Test_4");
   // create model
@@ -433,7 +367,7 @@ TEST(FusionMergePass, Broadcast_Test_4) {
   RunTest(target, graph, {"A", "B", "C", "D", "E"});
 }
 
-TEST(FusionMergePass, Broadcast_Test_5) {
+TEST(CheckFusionAccuracyPass, Broadcast_Test_5) {
   int h = 32, w = 32;
   NetBuilder net_builder("Broadcast_Test_5");
   // create model
@@ -468,7 +402,7 @@ TEST(FusionMergePass, Broadcast_Test_5) {
   RunTest(target, graph, {"A", "B", "C", "D", "E"});
 }
 
-TEST(FusionMergePass, Reduce_Test_0) {
+TEST(CheckFusionAccuracyPass, Reduce_Test_0) {
   int h = 32, w = 32;
   NetBuilder net_builder("Reduce_Test_0");
   // create model
@@ -500,7 +434,7 @@ TEST(FusionMergePass, Reduce_Test_0) {
   RunTest(target, graph, {"A", "B"});
 }
 
-TEST(FusionMergePass, Reduce_Test_1) {
+TEST(CheckFusionAccuracyPass, Reduce_Test_1) {
   int h = 32, w = 32;
   NetBuilder net_builder("Reduce_Test_1");
   // create model
@@ -531,7 +465,7 @@ TEST(FusionMergePass, Reduce_Test_1) {
   RunTest(target, graph, {"A", "B"});
 }
 
-TEST(FusionMergePass, Reduce_Test_2) {
+TEST(CheckFusionAccuracyPass, Reduce_Test_2) {
   int h = 32, w = 32;
   NetBuilder net_builder("Reduce_Test_2");
   // create model
@@ -565,7 +499,7 @@ TEST(FusionMergePass, Reduce_Test_2) {
   RunTest(target, graph, {"A", "B", "C"});
 }
 
-TEST(FusionMergePass, Reduce_Test_3) {
+TEST(CheckFusionAccuracyPass, Reduce_Test_3) {
   int h = 32, w = 32;
   NetBuilder net_builder("Reduce_Test_3");
   // create model
@@ -599,7 +533,7 @@ TEST(FusionMergePass, Reduce_Test_3) {
   RunTest(target, graph, {"A", "B", "C", "D"});
 }
 
-TEST(FusionMergePass, Reduce_Test_4) {
+TEST(CheckFusionAccuracyPass, Reduce_Test_4) {
   int h = 32, w = 32;
   NetBuilder net_builder("Reduce_Test_4");
   // create model
@@ -634,7 +568,7 @@ TEST(FusionMergePass, Reduce_Test_4) {
   RunTest(target, graph, {"A", "B", "C", "D"});
 }
 
-TEST(FusionMergePass, Reduce_Test_5) {
+TEST(CheckFusionAccuracyPass, Reduce_Test_5) {
   int h = 128, w = 128;
   NetBuilder net_builder("Reduce_Test_5");
   // create model
