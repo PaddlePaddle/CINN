@@ -289,6 +289,17 @@ std::unordered_set<NodeData*> Graph::Group::GetOutputNodeDatas(const std::vector
     }
   }
 
+  for (auto node : this->output_nodes) {
+    for (auto& link : node->outlinks_in_order(true)) {
+      auto node_data = link->sink()->safe_as<NodeData>();
+      if (!node_data) {
+        continue;
+      }
+
+      group_outputs.insert(node_data);
+    }
+  }
+
   return group_outputs;
 }
 
