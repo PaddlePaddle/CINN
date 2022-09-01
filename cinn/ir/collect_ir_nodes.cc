@@ -30,15 +30,22 @@ struct IrNodesCollector : public IRVisitor {
 
   teller_t teller;
   handler_t handler;
+  bool uniq_target_;
+  bool find_target_{false};
 
-  IrNodesCollector(teller_t&& teller, handler_t&& handler) : teller(teller), handler(handler) {}
+  IrNodesCollector(teller_t&& teller, handler_t&& handler, bool uniq_target)
+      : teller(teller), handler(handler), uniq_target_(uniq_target) {}
 
   void Visit(const Expr* expr) override {
-    if (!expr->defined()) return;
+    if (!expr->defined() || find_target_) return;
     if (visited_.count(expr->get())) return;
 
     if (teller(expr)) {
       handler(expr);
+      if (uniq_target_) {
+        find_target_ = true;
+        return;
+      }
     }
     visited_.insert(expr->get());
 
@@ -73,8 +80,8 @@ struct IrNodesCollector : public IRVisitor {
 struct IrNodesWithoutTensorCollector : public IrNodesCollector {
   using teller_t  = std::function<bool(const Expr*)>;
   using handler_t = std::function<void(const Expr*)>;
-  IrNodesWithoutTensorCollector(teller_t teller, handler_t handler)
-      : IrNodesCollector(std::move(teller), std::move(handler)) {}
+  IrNodesWithoutTensorCollector(teller_t teller, handler_t handler, bool uniq_target)
+      : IrNodesCollector(std::move(teller), std::move(handler), uniq_target) {}
 
   void Visit(const _Tensor_* expr) override {
     for (auto& e : expr->shape) {
@@ -86,18 +93,18 @@ struct IrNodesWithoutTensorCollector : public IrNodesCollector {
 
 }  // namespace
 
-std::set<Expr> CollectIRNodes(Expr expr, std::function<bool(const Expr*)>&& teller) {
+std::set<Expr> CollectIRNodes(Expr expr, std::function<bool(const Expr*)>&& teller, bool uniq_target) {
   std::set<Expr> exprs;
   IrNodesCollector::handler_t handler = [&](const Expr* x) { exprs.insert(*x); };
-  IrNodesCollector collector(std::move(teller), std::move(handler));
+  IrNodesCollector collector(std::move(teller), std::move(handler), uniq_target);
   collector.Visit(&expr);
   return exprs;
 }
 
-std::set<Expr> CollectIRNodesWithoutTensor(Expr expr, std::function<bool(const Expr*)>&& teller) {
+std::set<Expr> CollectIRNodesWithoutTensor(Expr expr, std::function<bool(const Expr*)>&& teller, bool uniq_target) {
   std::set<Expr> exprs;
   IrNodesWithoutTensorCollector::handler_t handler = [&](const Expr* x) { exprs.insert(*x); };
-  IrNodesWithoutTensorCollector collector(teller, handler);
+  IrNodesWithoutTensorCollector collector(std::move(teller), std::move(handler), uniq_target);
   collector.Visit(&expr);
   return exprs;
 }

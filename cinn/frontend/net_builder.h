@@ -93,6 +93,11 @@ class NetBuilder : public BaseBuilder {
   Variable ReduceAny(const Variable& x, const std::vector<int>& dim, bool keep_dim = false);
 
   /**
+   * Cast Variable x to dtype.
+   */
+  Variable Cast(const Variable& operand, const std::string& dtype);
+
+  /**
    * Sort Variable x along the given axis and return index.
    */
   Variable ArgSort(const Variable& operand, const int& axis, const bool& is_ascend = true);
@@ -170,6 +175,8 @@ class NetBuilder : public BaseBuilder {
                         const std::string& dropout_implementation = "downgrade_in_infer");
 
   Variable Sum(const std::vector<Variable>& inputs);
+
+  Variable Clip(const std::vector<Variable>& inputs, const float& max_val, const float& min_val);
 
   // conv2d grad, output(grad_x, grad_w)
   std::vector<Variable> Conv2dGrad(const Variable& dy,
