@@ -189,6 +189,12 @@ class NetBuilder : public BaseBuilder {
 
  protected:
   Variable ElementwiseOp(const std::string& op_type, const Variable& lhs, const Variable& rhs, int axis = -1);
+
+ private:
+  // the helper function of Matmul
+  std::pair<Variable, Variable> BroadcastMatmulInput(
+      const Variable& x, const Variable& y, bool trans_x, bool trans_y, float alpha);
+  std::vector<int> GetMatmulOutputShape(const Variable& x, const Variable& y, bool trans_x, bool trans_y, float alpha);
 };
 
 }  // namespace frontend
