@@ -295,7 +295,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFuncWithIRSchedule(
     std::string id = i->source()->as<NodeData>()->id();
     auto shape     = shape_dict_.at(id);
     Type dtype     = type_dict_.at(id);
-    CHECK(dtype == Float(32) || dtype.is_bool() || dtype == Int(32))
+    CHECK(dtype == Float(32) || dtype.is_bool() || dtype == Int(32) || dtype == Int(64))
         << "The dtype of node " << id << " is not float or bool or int! Other dtype is not implemented yet.";
     ir::Tensor input;
     if (dtype == Float(32)) {
@@ -303,7 +303,9 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFuncWithIRSchedule(
     } else if (dtype.is_bool()) {
       input = lang::Placeholder<bool>(id, shape);
     } else if (dtype == Int(32)) {
-      input = lang::Placeholder<int>(id, shape);
+      input = lang::Placeholder<int32_t>(id, shape);
+    } else if (dtype == Int(64)) {
+      input = lang::Placeholder<int64_t>(id, shape);
     }
     tensor_inputs.push_back(input);
     cinn_inputs.push_back(common::CINNValue(input));
@@ -343,7 +345,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const Node* node) {
     std::string input_id = i->source()->as<NodeData>()->id();
     auto in_shape        = shape_dict.at(input_id);
     Type dtype           = dtype_dict.at(input_id);
-    CHECK(dtype == Float(32) || dtype.is_bool() || dtype == Int(32))
+    CHECK(dtype == Float(32) || dtype.is_bool() || dtype == Int(32) || dtype == Int(64))
         << "The dtype of node " << input_id << " is not float or bool or int! Other dtype is not implemented yet.";
     ir::Tensor temp;
     if (dtype == Float(32)) {
@@ -351,7 +353,9 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const Node* node) {
     } else if (dtype.is_bool()) {
       temp = lang::Placeholder<bool>(input_id, in_shape);
     } else if (dtype == Int(32)) {
-      temp = lang::Placeholder<int>(input_id, in_shape);
+      temp = lang::Placeholder<int32_t>(input_id, in_shape);
+    } else if (dtype == Int(64)) {
+      temp = lang::Placeholder<int64_t>(input_id, in_shape);
     }
     inputs.push_back(temp);
     cinn_inputs.push_back(common::CINNValue(temp));
@@ -445,7 +449,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
         std::string input_id = source_data->id();
         auto in_shape        = shape_dict.at(input_id);
         Type dtype           = dtype_dict.at(input_id);
-        CHECK(dtype == Float(32) || dtype.is_bool() || dtype == Int(32))
+        CHECK(dtype == Float(32) || dtype.is_bool() || dtype == Int(32) || dtype == Int(64))
             << "The dtype of node " << input_id << " is not float or bool or int! Other dtype is not implemented yet.";
         ir::Tensor temp_in;
         if (dtype == Float(32)) {
@@ -453,7 +457,9 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
         } else if (dtype.is_bool()) {
           temp_in = lang::Placeholder<bool>(input_id, in_shape);
         } else if (dtype == Int(32)) {
-          temp_in = lang::Placeholder<int>(input_id, in_shape);
+          temp_in = lang::Placeholder<int32_t>(input_id, in_shape);
+        } else if (dtype == Int(64)) {
+          temp_in = lang::Placeholder<int64_t>(input_id, in_shape);
         }
         inputs.push_back(temp_in);
         temp_inputs.push_back(temp_in);
@@ -777,7 +783,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
     VLOG(3) << "[X86] C Code is:\n" << out;
   }
 
-  compiler_->Build(build_module, options.attached_code, stream);
+  compiler_->Build(build_module, options.attached_code);
   VLOG(3) << "End of compiler_->Build";
   auto instructions = BuildInstructions(groups, graph_->fusion_groups);
   VLOG(3) << "End of BuildInstructions";
@@ -819,9 +825,9 @@ void GraphCompiler::SetSubKernels(Instruction* instr, const std::string& func_na
     instr->AddOutArgs(function2output_args_[func_name]);
   }
   while (function2input_args_.count(new_op_func) != 0) {
-    auto* fn2 = compiler_->Lookup(new_op_func);
-    CHECK(fn2);
-    instr->SetLoweredFunc(fn2, new_op_func);
+    auto* fn_ptr = compiler_->Lookup(new_op_func);
+    CHECK(fn_ptr);
+    instr->SetLoweredFunc(reinterpret_cast<void*>(fn_ptr), new_op_func);
     instr->AddInArgs(function2input_args_[new_op_func]);
     instr->AddOutArgs(function2output_args_[new_op_func]);
     i++;
@@ -1049,9 +1055,9 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions(
       }
       std::string op_func_name =
           fusion_group.get() ? fusion_group->GetFuncName() : GetOrGenFullFuncName(GenOpFuncName(node));
-      auto* fn = compiler_->Lookup(op_func_name);
-      CHECK(fn);
-      instr->SetLoweredFunc(fn, op_func_name);
+      auto* fn_ptr = compiler_->Lookup(op_func_name);
+      CHECK(fn_ptr);
+      instr->SetLoweredFunc(reinterpret_cast<void*>(fn_ptr), op_func_name);
 
       // As some instruction like reduce, will generate more than one kernel.
       // So try to find the rest kernel, if it exist.
@@ -1114,9 +1120,9 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions(
                                                        fusion_group.get() ? fusion_group->output_names : outputNames,
                                                        fuse_name));
 
-      auto* fn = compiler_->Lookup(fuse_name);
-      CHECK(fn);
-      instr->SetLoweredFunc(fn, fuse_name);
+      auto* fn_ptr = compiler_->Lookup(fuse_name);
+      CHECK(fn_ptr);
+      instr->SetLoweredFunc(reinterpret_cast<void*>(fn_ptr), fuse_name);
       // As some situation like reduce,will generate more than one kernel.
       // So try to find the rest kernel, if it exist.
       SetSubKernels(instr.get(), fuse_name);
@@ -1239,8 +1245,8 @@ void GraphCompiler::InsertBufferHandlers(std::vector<std::unique_ptr<Instruction
       const auto& malloc_var_names = m_it->second;
       auto function_name           = "malloc_buffer_instruction_" + std::to_string(step);
       auto malloc_instr            = std::make_unique<Instruction>(
-          target_, scope_.get(), malloc_var_names, std::vector<std::string>({}), function_name);
-      malloc_instr->SetLoweredFunc(BufferMallocWithCallback, function_name);
+          common::DefaultHostTarget(), scope_.get(), malloc_var_names, std::vector<std::string>({}), function_name);
+      malloc_instr->SetLoweredFunc(reinterpret_cast<void*>(BufferMallocWithCallback), function_name);
       malloc_instr->Finalize();
       results.emplace_back(std::move(malloc_instr));
     }
@@ -1255,8 +1261,8 @@ void GraphCompiler::InsertBufferHandlers(std::vector<std::unique_ptr<Instruction
       const auto& free_var_names = f_it->second;
       auto function_name         = "free_buffer_instruction_" + std::to_string(step);
       auto free_instr            = std::make_unique<Instruction>(
-          target_, scope_.get(), std::vector<std::string>({}), free_var_names, function_name);
-      free_instr->SetLoweredFunc(BufferFreeWithCallback, function_name);
+          common::DefaultHostTarget(), scope_.get(), std::vector<std::string>({}), free_var_names, function_name);
+      free_instr->SetLoweredFunc(reinterpret_cast<void*>(BufferFreeWithCallback), function_name);
       free_instr->Finalize();
       results.emplace_back(std::move(free_instr));
     }
@@ -1297,7 +1303,7 @@ std::shared_ptr<Scope> BuildScope(Target target, const std::shared_ptr<Graph>& g
     tensor->Resize(Shape{shape});
     CHECK(dtype_dict.count(iter.first));
     CHECK(dtype_dict.at(iter.first) == Float(32) || dtype_dict.at(iter.first).is_bool() ||
-          dtype_dict.at(iter.first) == Int(32))
+          dtype_dict.at(iter.first) == Int(32) || dtype_dict.at(iter.first) == Int(64))
         << "The dtype of node " << iter.first << " is not float or bool or int! Its type "
         << dtype_dict.at(iter.first).type() << ", " << dtype_dict.at(iter.first).bits() << " is not implemented yet.";
     tensor->set_type(dtype_dict.at(iter.first));

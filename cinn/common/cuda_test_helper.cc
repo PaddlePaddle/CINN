@@ -54,7 +54,6 @@ void CudaModuleTester::Compile(const ir::Module& m, const std::string& rewrite_c
 
     backends::GlobalSymbolRegistry::Global().RegisterFn(kernel_fn_name + "_ptr_",
                                                         reinterpret_cast<void*>(&kernel_handles_.back()));
-    backends::GlobalSymbolRegistry::Global().RegisterVar(kernel_fn_name + "_stream_ptr_", stream_);
   }
 
   jit_ = backends::SimpleJIT::Create();
@@ -77,8 +76,8 @@ CudaModuleTester::CudaModuleTester() {}
 
 void CudaModuleTester::operator()(const std::string& fn_name, void* args, int arg_num) {
   auto fn  = jit_->Lookup(fn_name);
-  auto fnp = reinterpret_cast<lower_func_ptr_t>(fn);
-  (*fnp)(args, arg_num);
+  auto fnp = reinterpret_cast<lower_func_ptr_g>(fn);
+  (*fnp)(args, arg_num, stream_);
 }
 
 void* CudaModuleTester::LookupKernel(const std::string& name) {

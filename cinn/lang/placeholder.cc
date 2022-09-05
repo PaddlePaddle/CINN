@@ -34,6 +34,8 @@ ir::Tensor CreatePlaceHolder(const std::vector<Expr> &shape, Type type, const st
     return Placeholder<double>(name, shape);
   } else if (type == Int(32)) {
     return Placeholder<int32_t>(name, shape);
+  } else if (type == Int(64)) {
+    return Placeholder<int64_t>(name, shape);
   } else if (type == Bool()) {
     return Placeholder<bool>(name, shape);
   }
