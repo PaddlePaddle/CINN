@@ -58,7 +58,8 @@ class TestSignOp(OpTest):
 class TestSignOp1(TestSignOp):
     def init_case(self):
         self.inputs = {
-            "x": np.array([1, -1, np.nan, np.inf, -np.inf]).astype("float32")
+            "x": np.array([1, 0, -1, np.nan, np.inf,
+                           -np.inf]).astype("float32")
         }
 
 
