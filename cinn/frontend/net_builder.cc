@@ -327,7 +327,7 @@ std::pair<Variable, Variable> NetBuilder::BroadcastMatmulInput(
     // broadcast vector y to the same batch size
     // [a, b, c, m] * [m] -> [a, b, c, m] * [a, b, m, 1]
     new_y_shape              = x_shape;
-    new_y_shape[max_dim - 2] = y_shape[0];
+    new_y_shape[max_dim - 1] = y_shape[0];
     new_y_shape[max_dim - 1] = 1;
   } else {
     // matrix * matrix
@@ -369,7 +369,7 @@ std::pair<Variable, Variable> NetBuilder::BroadcastMatmulInput(
   }
 
   auto broad_x = x, broad_y = y;
-  if (!new_x_shape.empty()) {
+  if (!new_x_shape.empty() && new_x_shape != x_shape) {
     int new_size = std::accumulate(new_x_shape.begin(), new_x_shape.end(), 1, std::multiplies<int>());
     int old_size = std::accumulate(x_shape.begin(), x_shape.end(), 1, std::multiplies<int>());
 
@@ -384,7 +384,7 @@ std::pair<Variable, Variable> NetBuilder::BroadcastMatmulInput(
     }
   }
 
-  if (!new_y_shape.empty()) {
+  if (!new_y_shape.empty() && new_y_shape != y_shape) {
     int new_size = std::accumulate(new_y_shape.begin(), new_y_shape.end(), 1, std::multiplies<int>());
     int old_size = std::accumulate(y_shape.begin(), y_shape.end(), 1, std::multiplies<int>());
 
@@ -429,13 +429,23 @@ std::vector<int> NetBuilder::GetMatmulOutputShape(
   } else if (x_dim == 1) {
     // vector * matrix
     out_shape = y_shape;
-    // [m] * [a, b, m, d] -> [a, b, d]
-    out_shape.erase(out_shape.end() - 2);
+    if (trans_y) {
+      // [m] * [a, b, d, m] -> [a, b, d]
+      out_shape.erase(out_shape.end() - 1);
+    } else {
+      // [m] * [a, b, m, d] -> [a, b, d]
+      out_shape.erase(out_shape.end() - 2);
+    }
   } else if (y_dim == 1) {
     // matrix * vector
     out_shape = x_shape;
-    // [a, b, c, m] * [m] -> [a, b, c]
-    out_shape.erase(out_shape.end() - 1);
+    if (trans_x) {
+      // [a, b, m, c] * [m] -> [a, b, c]
+      out_shape.erase(out_shape.end() - 2);
+    } else {
+      // [a, b, c, m] * [m] -> [a, b, c]
+      out_shape.erase(out_shape.end() - 1);
+    }
   } else {
     // matrix * matrix
     int M = trans_x ? x_shape[x_dim - 1] : x_shape[x_dim - 2];

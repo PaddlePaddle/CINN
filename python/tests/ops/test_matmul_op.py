@@ -164,5 +164,25 @@ class TestMatmulCase10(TestMatmulOp):
         self.transpose_y = False
 
 
+class TestMatmulCase11(TestMatmulOp):
+    def init_case(self):
+        self.inputs = {
+            "x": np.random.random([2, 8, 4, 16]).astype("float32"),
+            "y": np.random.random([4, 16]).astype("float32")
+        }
+        self.transpose_x = True
+        self.transpose_y = False
+
+
+class TestMatmulCase12(TestMatmulOp):
+    def init_case(self):
+        self.inputs = {
+            "x": np.random.random([2, 8, 16, 4]).astype("float32"),
+            "y": np.random.random([16]).astype("float32")
+        }
+        self.transpose_x = True
+        self.transpose_y = False
+
+
 if __name__ == "__main__":
     unittest.main()
