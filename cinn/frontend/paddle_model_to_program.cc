@@ -566,6 +566,21 @@ void PaddleModelToProgram::AddOpMapper_sigmoid() {
   };
 }
 
+void PaddleModelToProgram::AddOpMapper_sign() {
+  op_mappers_["sign"] = [&](const paddle::cpp::OpDesc& op_desc) {
+    CHECK_EQ(op_desc.Input("X").size(), 1UL);
+    auto x_name = op_desc.Input("X").front();
+    CHECK_EQ(op_desc.Output("Out").size(), 1UL);
+    auto out_name = op_desc.Output("Out").front();
+
+    auto x   = GetVar(TransValidVarName(x_name));
+    auto out = program_->sign(x);
+
+    AddVar(TransValidVarName(out_name), out);
+    var_model_to_program_map_[out_name] = out->id;
+  };
+}
+
 void PaddleModelToProgram::AddOpMapper_slice() {
   op_mappers_["slice"] = [&](const paddle::cpp::OpDesc& op_desc) {
     CHECK_EQ(op_desc.Input("Input").size(), 1UL);

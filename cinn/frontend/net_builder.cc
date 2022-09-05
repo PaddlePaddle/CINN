@@ -29,6 +29,7 @@ NETBUILDER_UNARY_OP_DEF(Sqrt, sqrt)
 NETBUILDER_UNARY_OP_DEF(Tanh, tanh)
 NETBUILDER_UNARY_OP_DEF(Relu, relu)
 NETBUILDER_UNARY_OP_DEF(Sigmoid, sigmoid)
+NETBUILDER_UNARY_OP_DEF(Sign, sign)
 NETBUILDER_UNARY_OP_DEF(Identity, identity)
 
 #define NETBUILDER_BINARY_OP_DEF(func_name__, op_type__) \

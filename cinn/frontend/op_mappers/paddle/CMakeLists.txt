@@ -1,6 +1,7 @@
 core_gather_headers()
 gather_srcs(cinnapi_src SRCS
     sigmoid.cc
+    sign.cc
     fetch_feed.cc
     scale.cc
     mul.cc

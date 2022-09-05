@@ -59,6 +59,7 @@ class PaddleModelToProgram {
     AddOpMapper_relu6();
     AddOpMapper_depthwise_conv2d();
     AddOpMapper_sigmoid();
+    AddOpMapper_sign();
     AddOpMapper_slice();
     AddOpMapper_dropout_infer();
     AddOpMapper_matmul();
@@ -92,6 +93,7 @@ class PaddleModelToProgram {
   void AddOpMapper_relu6();
   void AddOpMapper_depthwise_conv2d();
   void AddOpMapper_sigmoid();
+  void AddOpMapper_sign();
   void AddOpMapper_slice();
   void AddOpMapper_dropout_infer();
   void AddOpMapper_matmul();

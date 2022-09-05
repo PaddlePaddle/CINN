@@ -451,6 +451,8 @@ struct Program {
 
   Variable sigmoid(const Variable& a);
 
+  Variable sign(const Variable& a);
+
   Variable slice(const Variable& a, const absl::flat_hash_map<std::string, attr_t>& attr_store);
 
   Variable dropout_infer(const Variable& a, const absl::flat_hash_map<std::string, attr_t>& attr_store);

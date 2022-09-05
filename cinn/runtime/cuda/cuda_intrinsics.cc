@@ -51,6 +51,9 @@ CINN_REGISTER_HELPER(cuda_intrinsics) {
   REGISTER_EXTERN_FUNC_1_IN_1_OUT_FLOAT(tanh);
   REGISTER_EXTERN_FUNC_1_IN_1_OUT_FLOAT(isfinite);
   REGISTER_EXTERN_FUNC_1_IN_1_OUT_FLOAT(isinf);
+  REGISTER_EXTERN_FUNC_1_IN_1_OUT_FLOAT(sign);
+
+#undef REGISTER_EXTERN_FUNC_1_IN_1_OUT_FLOAT
 
   FunctionProto::shape_inference_t inference_shape_globalpool = [](const std::vector<cinn::ir::Expr> &args,
                                                                    int offset) {

@@ -59,13 +59,16 @@ inline Expr Sigmoid(Expr e) {
   return one / (one + Exp(-e));
 }
 
+Expr IsNan(Expr e);
+
 inline Expr Sign(Expr e) {
   auto zero    = make_const(e->type(), 0);
   auto one     = make_const(e->type(), 1);
   auto neg_one = make_const(e->type(), -1);
   auto ret1    = ir::Select::Make(e > zero, one, zero);
   auto ret2    = ir::Select::Make(e < zero, neg_one, ret1);
-  return ret2;
+  auto ret3    = ir::Select::Make(!!IsNan(e), e, ret2);
+  return ret3;
 }
 
 Expr Abs(Expr e);
@@ -141,8 +144,6 @@ inline Expr ReduceAny(Expr e, const std::vector<Var>& reduce_axis, Expr initial 
   }
   return ir::Reduce::Make(ir::Reduce::kAny, initial, e, reduce_axis);
 }
-
-Expr IsNan(Expr e);
 
 Expr Infinity(const Type& type);
 
