@@ -249,6 +249,13 @@ Variable NetBuilder::Sum(const std::vector<Variable>& inputs) {
   return instr.GetOutput(0);
 }
 
+Variable NetBuilder::Flip(const Variable& inputs, const std::vector<int>& axis) {
+  Instruction instr("Flip", {inputs});
+  instr.SetAttr("axis", axis);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
 Variable NetBuilder::Clip(const std::vector<Variable>& inputs, const float& max_val, const float& min_val) {
   Instruction instr("clip", inputs);
   instr.SetAttr("max_val", max_val);

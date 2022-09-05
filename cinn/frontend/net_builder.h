@@ -170,6 +170,7 @@ class NetBuilder : public BaseBuilder {
                         const std::string& dropout_implementation = "downgrade_in_infer");
 
   Variable Sum(const std::vector<Variable>& inputs);
+  Variable Flip(const Variable& inputs, const std::vector<int>& axis);
 
   Variable Clip(const std::vector<Variable>& inputs, const float& max_val, const float& min_val);
 
