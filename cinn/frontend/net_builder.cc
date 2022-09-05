@@ -327,7 +327,7 @@ std::pair<Variable, Variable> NetBuilder::BroadcastMatmulInput(
     // broadcast vector y to the same batch size
     // [a, b, c, m] * [m] -> [a, b, c, m] * [a, b, m, 1]
     new_y_shape              = x_shape;
-    new_y_shape[max_dim - 1] = y_shape[0];
+    new_y_shape[max_dim - 2] = y_shape[0];
     new_y_shape[max_dim - 1] = 1;
   } else {
     // matrix * matrix
@@ -425,7 +425,7 @@ std::vector<int> NetBuilder::GetMatmulOutputShape(
     CHECK(x_shape == y_shape)
         << "The matmul input X's numbers must be equal to Y's numbers,when X/Y's dims =1. But here " << matmul_info();
 
-    out_shape = x_shape;
+    out_shape = {1};
   } else if (x_dim == 1) {
     // vector * matrix
     out_shape = y_shape;

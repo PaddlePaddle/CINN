@@ -28,10 +28,10 @@ void MatMulOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
   auto out_name = op_desc.Output("Out").front();
 
   auto trans_x = utils::GetAttrOrDefault<bool>(op_desc, "trans_x", false);
-  trans_x      = trans_x || utils::GetAttrOrDefault<bool>(op_desc, "transpose_X", false);
+  trans_x      = utils::GetAttrOrDefault<bool>(op_desc, "transpose_X", trans_x);
 
   auto trans_y = utils::GetAttrOrDefault<bool>(op_desc, "trans_y", false);
-  trans_y      = trans_y || utils::GetAttrOrDefault<bool>(op_desc, "transpose_Y", false);
+  trans_y      = utils::GetAttrOrDefault<bool>(op_desc, "transpose_Y", trans_y);
 
   auto alpha = utils::GetAttrOrDefault<float>(op_desc, "alpha", 1.0f);
 
