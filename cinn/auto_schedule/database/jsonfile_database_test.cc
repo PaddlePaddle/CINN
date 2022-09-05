@@ -16,6 +16,7 @@
 
 #include <gtest/gtest.h>
 
+#include <fstream>
 #include <vector>
 
 #include "cinn/auto_schedule/search_space/search_state.h"
@@ -43,13 +44,31 @@ void AddTestRecords(JSONFileDatabase& test_db) {
 
 class TestJSONFileDatabase : public ::testing::Test {
  public:
-  TestJSONFileDatabase() : test_db(2, "./test_record.json", true) {
+  TestJSONFileDatabase() : record_file_path("/tmp/test_record.json"), test_db(2, record_file_path, true) {
     if (0 == test_db.Size()) {
       AddTestRecords(test_db);
     }
   }
 
   void SetUp() override {}
+
+  void TearDown() override {
+    auto isFileExists = [](const std::string& file_path) -> bool {
+      std::ifstream f(file_path.c_str());
+      return f.good();
+    };
+    if (isFileExists(record_file_path)) {
+      if (remove(record_file_path.c_str()) == 0) {
+        LOG(INFO) << "Successfully deleted file: " << record_file_path;
+      } else {
+        LOG(INFO) << "failed to delete file: " << record_file_path;
+      }
+    } else {
+      LOG(INFO) << "file: " << record_file_path << "does not exist.";
+    }
+  }
+
+  std::string record_file_path;
   JSONFileDatabase test_db;
 };
 
@@ -64,7 +83,7 @@ TEST_F(TestJSONFileDatabase, SerializeAndDeserialize) {
 }
 
 TEST_F(TestJSONFileDatabase, SaveLoad) {
-  std::vector<std::string> strs = ReadLinesFromFile("./test_record.json");
+  std::vector<std::string> strs = ReadLinesFromFile(record_file_path);
   ASSERT_EQ(strs.size(), 9);
   EXPECT_EQ(strs[0], "{\"taskKey\":\"k1\",\"executionCost\":1}");
   EXPECT_EQ(strs[1], "{\"taskKey\":\"k2\",\"executionCost\":2}");
@@ -93,10 +112,9 @@ TEST_F(TestJSONFileDatabase, GetTopK) {
 
   auto states = test_db.GetTopK("k4", 3);
   ASSERT_EQ(states.size(), 2);
-  // Because the save/load of SearchState has not been added,
-  // the predicted_cost is temporarily -1
-  EXPECT_FLOAT_EQ(states[0].predicted_cost, -1);
-  EXPECT_FLOAT_EQ(states[1].predicted_cost, -1);
+
+  EXPECT_FLOAT_EQ(states[0].predicted_cost, 1.2);
+  EXPECT_FLOAT_EQ(states[1].predicted_cost, 1);
 }
 
 }  // namespace auto_schedule
