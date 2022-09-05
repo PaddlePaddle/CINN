@@ -47,13 +47,19 @@ CINN_REGISTER_HELPER(cuda_intrinsics) {
   REGISTER_EXTERN_FUNC_1_IN_1_OUT_FLOAT(asinh);
   REGISTER_EXTERN_FUNC_1_IN_1_OUT_FLOAT(atan);
   REGISTER_EXTERN_FUNC_1_IN_1_OUT_FLOAT(atanh);
-  REGISTER_EXTERN_FUNC_1_IN_1_OUT_FLOAT(isnan);
   REGISTER_EXTERN_FUNC_1_IN_1_OUT_FLOAT(tanh);
-  REGISTER_EXTERN_FUNC_1_IN_1_OUT_FLOAT(isfinite);
-  REGISTER_EXTERN_FUNC_1_IN_1_OUT_FLOAT(isinf);
   REGISTER_EXTERN_FUNC_1_IN_1_OUT_FLOAT(sign);
 
 #undef REGISTER_EXTERN_FUNC_1_IN_1_OUT_FLOAT
+
+#define REGISTER_EXTERN_FUNC_1_IN_1_OUT_BOOL(func__) \
+  REGISTER_EXTERN_SOURCE_FUNC_1_IN_1_OUT(cinn_nvgpu_##func__##_fp32, target, float, bool);
+
+  REGISTER_EXTERN_FUNC_1_IN_1_OUT_BOOL(isnan);
+  REGISTER_EXTERN_FUNC_1_IN_1_OUT_BOOL(isfinite);
+  REGISTER_EXTERN_FUNC_1_IN_1_OUT_BOOL(isinf);
+
+#undef REGISTER_EXTERN_FUNC_1_IN_1_OUT_BOOL
 
   FunctionProto::shape_inference_t inference_shape_globalpool = [](const std::vector<cinn::ir::Expr> &args,
                                                                    int offset) {

@@ -99,6 +99,11 @@ class NetBuilder : public BaseBuilder {
   Variable Cast(const Variable& operand, const std::string& dtype);
 
   /**
+   * Squeeze Variable x along the given axes.
+   */
+  Variable Squeeze(const Variable& operand, const std::vector<int>& axes);
+
+  /**
    * The convolution2D layer calculates the output based on the input, filter
    * and strides, paddings, dilations, groups parameters.
    */
