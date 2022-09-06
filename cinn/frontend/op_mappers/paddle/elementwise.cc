@@ -135,6 +135,20 @@ void SumOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx)
   ctx.AddVarModelToProgram(out_name, out->id);
 }
 
+void SignOpMapper(const paddle::cpp::OpDesc& op_desc, const cinn::frontend::OpMapperContext& ctx) {
+  CHECK_EQ(op_desc.Input("X").size(), 1UL);
+  auto x_name = op_desc.Input("X").front();
+
+  CHECK_EQ(op_desc.Output("Out").size(), 1UL);
+  auto out_name = op_desc.Output("Out").front();
+
+  auto x   = ctx.GetVar(x_name);
+  auto out = ctx.Builder()->Sign(x);
+
+  ctx.AddVar(out_name, out);
+  ctx.AddVarModelToProgram(out_name, out->id);
+}
+
 }  // namespace paddle_mappers
 }  // namespace frontend
 }  // namespace cinn
@@ -148,5 +162,6 @@ CINN_REGISTER_HELPER(paddle_elementwise) {
   CINN_REGISTER_OP_MAPPER(elementwise_div, ElementwiseOpMapper<EltwiseType::kDiv>)
   CINN_REGISTER_OP_MAPPER(elementwise_sub, ElementwiseOpMapper<EltwiseType::kSub>)
   CINN_REGISTER_OP_MAPPER(sum, SumOpMapper)
+  CINN_REGISTER_OP_MAPPER(sign, SignOpMapper)
   return true;
 }

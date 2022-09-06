@@ -17,7 +17,6 @@
 #include "cinn/common/macros.h"
 
 CINN_USE_REGISTER(paddle_sigmoid)
-CINN_USE_REGISTER(paddle_sign)
 CINN_USE_REGISTER(paddle_fetch_feed)
 CINN_USE_REGISTER(paddle_mul)
 CINN_USE_REGISTER(paddle_slice)
