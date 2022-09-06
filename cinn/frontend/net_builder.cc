@@ -282,14 +282,228 @@ std::vector<Variable> NetBuilder::Conv2dGrad(const Variable& dy,
   return instr.GetOutputs();
 }
 
+std::pair<Variable, Variable> NetBuilder::BroadcastMatmulInput(
+    const Variable& x, const Variable& y, bool trans_x, bool trans_y, float alpha) {
+  const auto &x_shape = x->shape, &y_shape = y->shape;
+
+  auto matmul_info = [&]() {
+    std::stringstream ss;
+    ss << "matmul(X:" << x->id << "[" << cinn::utils::Join(x_shape, ", ") << "], Y:" << y->id << "["
+       << cinn::utils::Join(y_shape, ", ") << "]"
+       << ", trans_x=" << trans_x << ", trans_y=" << trans_y << ", alpha=" << alpha << ")";
+    return ss.str();
+  };
+
+  CHECK(!x_shape.empty()) << "The input X:" << x->id << " of matmul should not empty! Please check.";
+  CHECK(!y_shape.empty()) << "The input Y:" << y->id << " of matmul should not empty! Please check.";
+
+  int x_dim = x_shape.size(), y_dim = y_shape.size();
+  int max_dim = std::max(x_shape.size(), y_shape.size());
+
+  std::vector<int> new_x_shape, new_y_shape;
+  if (max_dim == 1) {
+    // vector * vector
+    CHECK(x_shape == y_shape)
+        << "The matmul input X's numbers must be equal to Y's numbers,when X/Y's dims =1. But here " << matmul_info();
+
+    // do not need broadcast
+    return {x, y};
+  } else if (x_dim == 1) {
+    // vector * matrix
+    int y_K = trans_y ? y_shape[max_dim - 1] : y_shape[max_dim - 2];
+    CHECK_EQ(y_K, x_shape[0]) << "The K dimension of Y:" << y_K << " should equal to X.shape[0]:" << x_shape[0]
+                              << ". But here " << matmul_info();
+
+    // broadcast vector x to the same batch size
+    // [m] * [a, b, m, d] -> [a, b, 1, m] * [a, b, m, d]
+    new_x_shape              = y_shape;
+    new_x_shape[max_dim - 2] = 1;
+    new_x_shape[max_dim - 1] = x_shape[0];
+  } else if (y_dim == 1) {
+    // matrix * vector
+    int x_K = trans_x ? x_shape[max_dim - 2] : x_shape[max_dim - 1];
+    CHECK_EQ(x_K, y_shape[0]) << "The K dimension of X:" << x_K << " should equal to Y.shape[0]:" << y_shape[0]
+                              << ". But here " << matmul_info();
+
+    // broadcast vector y to the same batch size
+    // [a, b, c, m] * [m] -> [a, b, c, m] * [a, b, m, 1]
+    new_y_shape              = x_shape;
+    new_y_shape[max_dim - 2] = y_shape[0];
+    new_y_shape[max_dim - 1] = 1;
+  } else {
+    // matrix * matrix
+    int x_K = trans_x ? x_shape[x_dim - 2] : x_shape[x_dim - 1];
+    int y_K = trans_y ? y_shape[y_dim - 1] : y_shape[y_dim - 2];
+    CHECK_EQ(x_K, y_K) << "The K dimension of matmul not equal. Where " << matmul_info();
+
+    // if dimension of A or B greater than 2, broadcast input to the same shape
+    auto gen_new_shape = [max_dim](const std::vector<int>& old_shape) {
+      std::vector<int> new_shape;
+      if (old_shape.size() != max_dim) {
+        // if dim not equal, full 1
+        new_shape.resize(max_dim - old_shape.size(), 1);
+        new_shape.insert(new_shape.end(), old_shape.begin(), old_shape.end());
+      } else {
+        new_shape = old_shape;
+      }
+      return new_shape;
+    };
+    new_x_shape = gen_new_shape(x_shape);
+    new_y_shape = gen_new_shape(y_shape);
+
+    // keep the front batch dimension same
+    for (int i = 0; i < max_dim - 2; ++i) {
+      if (new_x_shape[i] == new_y_shape[i]) {
+        continue;
+      }
+
+      CHECK(new_x_shape[i] == 1 || new_y_shape[i] == 1)
+          << "Input X and Y's batch dimension should be same or 1. But here " << matmul_info();
+
+      // broadcast the value 1 dimension
+      if (new_x_shape[i] == 1) {
+        new_x_shape[i] = new_y_shape[i];
+      } else {
+        new_y_shape[i] = new_x_shape[i];
+      }
+    }
+  }
+
+  auto broad_x = x, broad_y = y;
+  if (!new_x_shape.empty() && new_x_shape != x_shape) {
+    int new_size = std::accumulate(new_x_shape.begin(), new_x_shape.end(), 1, std::multiplies<int>());
+    int old_size = std::accumulate(x_shape.begin(), x_shape.end(), 1, std::multiplies<int>());
+
+    if (new_size == old_size) {
+      VLOG(4) << "Reshape matmul's input X from [" << cinn::utils::Join(x_shape, ", ") << "] to ["
+              << cinn::utils::Join(new_x_shape, ", ") << "]. Where " << matmul_info();
+      broad_x = Reshape(x, new_x_shape);
+    } else {
+      VLOG(4) << "Broadcast matmul's input X from [" << cinn::utils::Join(x_shape, ", ") << "] to ["
+              << cinn::utils::Join(new_x_shape, ", ") << "]. Where " << matmul_info();
+      broad_x = BroadcastTo(x, new_x_shape);
+    }
+  }
+
+  if (!new_y_shape.empty() && new_y_shape != y_shape) {
+    int new_size = std::accumulate(new_y_shape.begin(), new_y_shape.end(), 1, std::multiplies<int>());
+    int old_size = std::accumulate(y_shape.begin(), y_shape.end(), 1, std::multiplies<int>());
+
+    if (new_size == old_size) {
+      // only need reshape
+      VLOG(4) << "Reshape matmul's input Y from [" << cinn::utils::Join(y_shape, ", ") << "] to ["
+              << cinn::utils::Join(new_y_shape, ", ") << "]. Where " << matmul_info();
+      broad_y = Reshape(y, new_y_shape);
+    } else {
+      // need broadcast
+      VLOG(4) << "Broadcast matmul's input Y from [" << cinn::utils::Join(y_shape, ", ") << "] to ["
+              << cinn::utils::Join(new_y_shape, ", ") << "]. Where " << matmul_info();
+      broad_y = BroadcastTo(y, new_y_shape);
+    }
+  }
+
+  return {broad_x, broad_y};
+}
+
+std::vector<int> NetBuilder::GetMatmulOutputShape(
+    const Variable& x, const Variable& y, bool trans_x, bool trans_y, float alpha) {
+  const auto &x_shape = x->shape, &y_shape = y->shape;
+
+  auto matmul_info = [&]() {
+    std::stringstream ss;
+    ss << "matmul(X:" << x->id << "[" << cinn::utils::Join(x_shape, ", ") << "], Y:" << y->id << "["
+       << cinn::utils::Join(y_shape, ", ") << "]"
+       << ", trans_x=" << trans_x << ", trans_y=" << trans_y << ", alpha=" << alpha << ")";
+    return ss.str();
+  };
+
+  int x_dim = x_shape.size(), y_dim = y_shape.size();
+  int max_dim = std::max(x_shape.size(), y_shape.size());
+
+  std::vector<int> out_shape;
+  if (max_dim == 1) {
+    // vector * vector
+    CHECK(x_shape == y_shape)
+        << "The matmul input X's numbers must be equal to Y's numbers,when X/Y's dims =1. But here " << matmul_info();
+
+    out_shape = {1};
+  } else if (x_dim == 1) {
+    // vector * matrix
+    out_shape = y_shape;
+    if (trans_y) {
+      // [m] * [a, b, d, m] -> [a, b, d]
+      out_shape.erase(out_shape.end() - 1);
+    } else {
+      // [m] * [a, b, m, d] -> [a, b, d]
+      out_shape.erase(out_shape.end() - 2);
+    }
+  } else if (y_dim == 1) {
+    // matrix * vector
+    out_shape = x_shape;
+    if (trans_x) {
+      // [a, b, m, c] * [m] -> [a, b, c]
+      out_shape.erase(out_shape.end() - 2);
+    } else {
+      // [a, b, c, m] * [m] -> [a, b, c]
+      out_shape.erase(out_shape.end() - 1);
+    }
+  } else {
+    // matrix * matrix
+    int M = trans_x ? x_shape[x_dim - 1] : x_shape[x_dim - 2];
+    int N = trans_y ? y_shape[y_dim - 2] : y_shape[y_dim - 1];
+
+    out_shape.resize(max_dim, 1);
+    out_shape[max_dim - 2] = M;
+    out_shape[max_dim - 1] = N;
+
+    // get the batch dimension after broadcast
+    int x_pos = x_dim - 3, y_pos = y_dim - 3, out_pos = max_dim - 3;
+    while (x_pos >= 0 && y_pos >= 0) {
+      CHECK(x_shape[x_pos] == y_shape[y_pos] || x_shape[x_pos] == 1 || y_shape[y_pos] == 1)
+          << "Input X and Y's batch dimension should be same or 1. But here " << matmul_info();
+      out_shape[out_pos] = (x_shape[x_pos] == 1) ? y_shape[y_pos] : x_shape[x_pos];
+
+      out_pos--;
+      x_pos--;
+      y_pos--;
+    }
+
+    while (x_pos >= 0) {
+      out_shape[out_pos--] = x_shape[x_pos--];
+    }
+    while (y_pos >= 0) {
+      out_shape[out_pos--] = x_shape[y_pos--];
+    }
+  }
+  return out_shape;
+}
+
 Variable NetBuilder::Matmul(const Variable& x, const Variable& y, bool trans_x, bool trans_y, float alpha) {
-  Instruction instr("matmul", {x, y});
+  const auto& inputs = BroadcastMatmulInput(x, y, trans_x, trans_y, alpha);
+
+  Instruction instr("matmul", {inputs.first, inputs.second});
   instr.SetAttr("trans_a", trans_x);
   instr.SetAttr("trans_b", trans_y);
   instr.SetAttr("alpha", alpha);
   InferShape(instr);
   AppendInstruction(instr);
-  return instr.GetOutput(0);
+  auto out = instr.GetOutput(0);
+
+  const auto& should_out_shape = GetMatmulOutputShape(x, y, trans_x, trans_y, alpha);
+  if (should_out_shape != out->shape) {
+    int should_out_size = std::accumulate(should_out_shape.begin(), should_out_shape.end(), 1, std::multiplies<int>());
+    int real_out_size   = std::accumulate(out->shape.begin(), out->shape.end(), 1, std::multiplies<int>());
+    CHECK_EQ(should_out_size, real_out_size)
+        << "Cannot reshape the output:[" << out->id << "] of matmul from [" << cinn::utils::Join(out->shape, ", ")
+        << "] to [" << cinn::utils::Join(should_out_shape, ", ") << "]."
+        << " Whose input is "
+        << "matmul(X:" << x->id << "[" << cinn::utils::Join(x->shape, ", ") << "], Y:" << y->id << "["
+        << cinn::utils::Join(y->shape, ", ") << "]"
+        << ", trans_x=" << trans_x << ", trans_y=" << trans_y << ", alpha=" << alpha << ")";
+    out = Reshape(out, should_out_shape);
+  }
+
+  return out;
 }
 
 Variable NetBuilder::ElementwiseOp(const std::string& op_type, const Variable& lhs, const Variable& rhs, int axis) {
