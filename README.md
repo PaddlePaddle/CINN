@@ -62,7 +62,7 @@ computation = Computation.build_and_compile(target, builder)
 ```
 
 ### Build a Network by NetBuilder
-You can also build and run a model by using NetCinnBuilderBuilder APIs. Note that NetBuilder's APIs have much finer granularity than NetBuilder's.
+You can also build and run a model by using NetBuilder APIs. Note that NetBuilder's APIs have much finer granularity than NetBuilder's.
 ```python
 # Define the NetBuilder.
 builder = frontend.NetBuilder(name="network")

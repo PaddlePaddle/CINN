@@ -33,7 +33,7 @@ enable_gpu = sys.argv.pop()
 naive_model_dir = sys.argv.pop()
 
 
-class TestCinnBuilder(unittest.TestCase):
+class TestNetBuilder(unittest.TestCase):
     def setUp(self):
         if enable_gpu == "ON":
             self.target = DefaultNVGPUTarget()

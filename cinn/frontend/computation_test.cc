@@ -135,8 +135,9 @@ TEST(cinn_computation, basic_gpu) {
 }
 #endif
 
-TEST(cinn_computation, cinn_builder_cpu) {
+TEST(cinn_computation, net_builder_cpu) {
   auto program = CreateTestProgram();
+  LOG(INFO) << program;
   auto target  = common::DefaultHostTarget();
   auto compute = CinnComputation::Compile(target, program);
   auto inputs  = compute->GetInputTensors();
@@ -169,7 +170,7 @@ TEST(cinn_computation, cinn_builder_cpu) {
 }
 
 #ifdef CINN_WITH_CUDA
-TEST(cinn_computation, cinn_builder_gpu) {
+TEST(cinn_computation, net_builder_gpu) {
   auto program = CreateTestProgram();
   auto target  = common::DefaultNVGPUTarget();
   auto compute = CinnComputation::Compile(target, program);
