@@ -173,6 +173,8 @@ class NetBuilder : public BaseBuilder {
 
   Variable Clip(const std::vector<Variable>& inputs, const float& max_val, const float& min_val);
 
+  Variable Arange(const float start, const float stop, const float step, const std::string& dtype);
+
   // conv2d grad, output(grad_x, grad_w)
   std::vector<Variable> Conv2dGrad(const Variable& dy,
                                    const Variable& x,
