@@ -392,6 +392,8 @@ class NetBuilder {
                                            const std::vector<Variable>& inputs,
                                            const AttributeMap& attrs);
 
+  Variable Arange(const float start, const float stop, const float step, const std::string& dtype);
+
   // This operator checks if all x and y satisfy the condition: |x - y| <= atol + rtol * |y|
   Variable IsClose(
       const Variable& x, const Variable& y, float rtol = 1e-05f, float atol = 1e-08f, bool equal_nan = false);

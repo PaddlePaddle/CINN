@@ -45,6 +45,8 @@ class SearchState {
   // Negative constant standing for a cost not being initialized
   static constexpr float NOT_INIT_COST = -1.0;
 
+  SearchState() = default;
+
   SearchState(const ir::ModuleExpr& mod_expr);
 
   SearchState(ir::ModuleExpr&& mod_expr);

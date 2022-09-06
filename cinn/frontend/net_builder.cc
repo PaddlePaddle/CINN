@@ -671,6 +671,18 @@ Variable NetBuilder::Clip(const std::vector<Variable>& inputs, const float& max_
   return instr.GetOutput(0);
 }
 
+Variable NetBuilder::Arange(const float start, const float stop, const float step, const std::string& dtype) {
+  Instruction instr("arange");
+  instr.SetInputs({});
+  instr.SetAttr("start", start);
+  instr.SetAttr("stop", stop);
+  instr.SetAttr("step", step);
+  instr.SetAttr("dtype", dtype);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
 // conv2d grad, output(grad_x, grad_w)
 std::vector<Variable> NetBuilder::Conv2dGrad(const Variable& dy,
                                              const Variable& x,
