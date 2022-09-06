@@ -20,7 +20,7 @@ namespace frontend {
 namespace decomposer {
 
 struct BatchNormHelper {
-  BatchNormHelper(CinnBuilder* cinn_builder,
+  BatchNormHelper(NetBuilder* cinn_builder,
                   const std::vector<int>& arg_x_shape,
                   const std::vector<int>& arg_param_shape,
                   std::string data_layout,
@@ -118,7 +118,7 @@ struct BatchNormHelper {
 
   Variable Reduce(Variable x) { return builder->Reduce(x, ReduceKind::kSum, reduce_dim); }
 
-  CinnBuilder* builder{nullptr};
+  NetBuilder* builder{nullptr};
   std::vector<int> x_shape;
   std::vector<int> param_shape;
   std::vector<int> reduce_dim;
@@ -144,7 +144,7 @@ void batch_norm_train(const Instruction& instr, const DecomposerContext& context
   float momentum     = instr.GetAttrs<float>("momentum");
   std::string layout = instr.GetAttrs<std::string>("data_layout");
 
-  CinnBuilder* builder = context.builder();
+  NetBuilder* builder = context.builder();
   BatchNormHelper helper(builder, x->shape, scale->shape, layout, "batch_norm_train");
 
   auto mean_variance = helper.MeanAndVariance(x);
@@ -190,7 +190,7 @@ void batch_norm_grad(const Instruction& instr, const DecomposerContext& context)
   auto epsilon = instr.GetAttrs<float>("epsilon");
   auto layout  = instr.GetAttrs<std::string>("data_layout");
 
-  CinnBuilder* builder = context.builder();
+  NetBuilder* builder = context.builder();
   BatchNormHelper helper(builder, x->shape, scale->shape, layout, "batch_norm_grad");
 
   auto vars                          = helper.GradBiasAndScale(x, save_mean, y_grad);

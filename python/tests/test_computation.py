@@ -66,7 +66,7 @@ class TestCinnBuilder(unittest.TestCase):
         return np.array(output)
 
     def test_build_and_compile(self):
-        builder = CinnBuilder("test_basic")
+        builder = NetBuilder("test_basic")
         a = builder.create_input(Float(32), (1, 24, 56, 56), "A")
         b = builder.create_input(Float(32), (1, 24, 56, 56), "B")
         c = builder.add(a, b)

@@ -64,7 +64,7 @@ class DeadCodeEliminatePass : public ProgramPass {
       return;
     }
 
-    CinnBuilder builder("dead_code_eliminate_builder");
+    NetBuilder builder("dead_code_eliminate_builder");
     for (auto& var : program->GetInputs()) {
       builder.CreateInput(var);
     }

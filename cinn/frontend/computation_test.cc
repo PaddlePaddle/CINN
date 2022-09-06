@@ -34,7 +34,7 @@ Program CreateTestProgram() {
   constexpr int M = 32;
   constexpr int N = 24;
 
-  CinnBuilder builder("cinn_builder");
+  NetBuilder builder("cinn_builder");
   auto a = builder.CreateInput(Float(32), {M, N / 2}, "A");
   auto b = builder.CreateInput(Float(32), {M, N / 2}, "B");
   auto t = builder.Transpose(b, {1, 0});

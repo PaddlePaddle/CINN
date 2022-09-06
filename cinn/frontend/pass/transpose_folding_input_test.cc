@@ -43,7 +43,7 @@ void RunWithProgram(const Program& program,
 }
 
 TEST(TransposeFoldingInput, FoldIntoDotBachedCase1) {
-  CinnBuilder builder("cinn_builder");
+  NetBuilder builder("cinn_builder");
   auto x           = builder.CreateInput(Float(32), {4, 5, 3}, "X");
   auto y           = builder.CreateInput(Float(32), {4, 5, 6}, "Y");
   auto transpose_x = builder.Transpose(x, {0, 2, 1});
@@ -73,7 +73,7 @@ TEST(TransposeFoldingInput, FoldIntoDotBachedCase1) {
 }
 
 TEST(TransposeFoldingInput, FoldIntoDotBachedCase2) {
-  CinnBuilder builder("cinn_builder");
+  NetBuilder builder("cinn_builder");
   auto x           = builder.CreateInput(Float(32), {4, 3, 5}, "X");
   auto y           = builder.CreateInput(Float(32), {4, 6, 5}, "Y");
   auto transpose_y = builder.Transpose(y, {0, 2, 1});
@@ -103,7 +103,7 @@ TEST(TransposeFoldingInput, FoldIntoDotBachedCase2) {
 }
 
 TEST(TransposeFoldingInput, FoldIntoDotBachedCase3) {
-  CinnBuilder builder("cinn_builder");
+  NetBuilder builder("cinn_builder");
   auto x           = builder.CreateInput(Float(32), {4, 5, 3}, "X");
   auto y           = builder.CreateInput(Float(32), {4, 6, 5}, "Y");
   auto transpose_x = builder.Transpose(x, {0, 2, 1});
@@ -134,7 +134,7 @@ TEST(TransposeFoldingInput, FoldIntoDotBachedCase3) {
 }
 
 TEST(TransposeFoldingInput, FoldIntoDotCase1) {
-  CinnBuilder builder("cinn_builder");
+  NetBuilder builder("cinn_builder");
   auto x           = builder.CreateInput(Float(32), {2, 3}, "X");
   auto y           = builder.CreateInput(Float(32), {2, 3}, "Y");
   auto transpose_y = builder.Transpose(y, {1, 0});
@@ -204,7 +204,7 @@ TEST(TransposeFoldingInput, FoldIntoDotCase2) {
 }
 
 TEST(TransposeFoldingInput, TransposeOutInFetchIds) {
-  CinnBuilder builder("cinn_builder");
+  NetBuilder builder("cinn_builder");
   auto x           = builder.CreateInput(Float(32), {2, 3}, "X");
   auto y           = builder.CreateInput(Float(32), {2, 3}, "Y");
   auto transpose_y = builder.Transpose(y, {1, 0});
@@ -234,7 +234,7 @@ TEST(TransposeFoldingInput, TransposeOutInFetchIds) {
 }
 
 TEST(TransposeFoldingInput, TransposeOutUsedByOtherInstrs) {
-  CinnBuilder builder("cinn_builder");
+  NetBuilder builder("cinn_builder");
   auto x           = builder.CreateInput(Float(32), {2, 2}, "X");
   auto y           = builder.CreateInput(Float(32), {2, 2}, "Y");
   auto transpose_y = builder.Transpose(y, {1, 0});
@@ -265,7 +265,7 @@ TEST(TransposeFoldingInput, TransposeOutUsedByOtherInstrs) {
 }
 
 TEST(TransposeFoldingInput, TransposeTwiceWithMatmul) {
-  CinnBuilder builder("cinn_builder");
+  NetBuilder builder("cinn_builder");
   auto x = builder.CreateInput(Float(32), {2, 20}, "X");
   auto y = builder.CreateInput(Float(32), {10201, 20}, "Y");
   auto z = builder.CreateInput(Float(32), {10201, 2}, "Z");
@@ -326,7 +326,7 @@ TEST(TransposeFoldingInput, TransposeTwiceWithMatmul) {
 }
 
 TEST(TransposeFoldingInput, TransposeWithMultiMamtul) {
-  CinnBuilder builder("cinn_builder");
+  NetBuilder builder("cinn_builder");
   auto x           = builder.CreateInput(Float(32), {2, 2}, "X");
   auto y           = builder.CreateInput(Float(32), {2, 2}, "Y");
   auto transpose_y = builder.Transpose(y, {1, 0});

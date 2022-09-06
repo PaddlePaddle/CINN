@@ -125,7 +125,7 @@ class FillConstantFoldingPass : public ProgramPass {
       ReLinkFillConstant(in2instr, constant_name, fill_constant_map.at(key));
     }
 
-    CinnBuilder builder("fill_constant_folding_builder");
+    NetBuilder builder("fill_constant_folding_builder");
     for (auto& var : program->GetInputs()) {
       builder.CreateInput(var);
     }

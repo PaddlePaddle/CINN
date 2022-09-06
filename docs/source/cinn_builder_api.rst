@@ -10,11 +10,11 @@
    :depth: 3
 ..
 
-CinnBuilder Primitive Semantics
+NetBuilder Primitive Semantics
 ===============================
 
 The following describes the semantics of operations defined in the
-CinnBuilder interface.
+NetBuilder interface.
 
 1. Scalar Primitive APIs
 ------------------------

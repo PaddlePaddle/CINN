@@ -53,7 +53,7 @@ void CodeGen(ir::LoweredFunc& func) {
 }
 
 TEST(OP_LOWERING, OpaqueOp_TEST_0) {
-  CinnBuilder cinn_builder("OpaqueOp_TEST_0");
+  NetBuilder cinn_builder("OpaqueOp_TEST_0");
   {
     auto A = cinn_builder.CreateInput(Float(32), {9801, 2}, "A");
     auto B = cinn_builder.Reshape(A, {9801, 2});

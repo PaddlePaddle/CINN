@@ -50,7 +50,7 @@ class ReshapeRewriterPass : public ProgramPass {
       return;
     }
 
-    CinnBuilder builder("reshape_rewritter_builder");
+    NetBuilder builder("reshape_rewritter_builder");
     for (auto& var : program->GetInputs()) {
       builder.CreateInput(var);
     }

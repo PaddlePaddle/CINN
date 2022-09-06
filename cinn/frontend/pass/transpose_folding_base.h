@@ -59,7 +59,7 @@ class TransposeFoldingBase : public ProgramPass {
       }
     }
 
-    CinnBuilder builder("transpose_folding_builder");
+    NetBuilder builder("transpose_folding_builder");
     for (auto& var : program->GetInputs()) {
       builder.CreateInput(var);
     }

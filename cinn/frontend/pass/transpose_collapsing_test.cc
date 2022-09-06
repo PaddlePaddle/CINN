@@ -72,7 +72,7 @@ std::vector<std::vector<float>> RunWithProgram(const Program& program,
 }
 
 TEST(TransposeCollapsing, FuseTwoTranspose) {
-  CinnBuilder builder("cinn_builder");
+  NetBuilder builder("cinn_builder");
   auto x       = builder.CreateInput(Float(32), {4, 5, 3}, "X");
   auto x_t     = builder.Transpose(x, {0, 2, 1});
   auto out     = builder.Transpose(x_t, {2, 1, 0});
@@ -110,7 +110,7 @@ TEST(TransposeCollapsing, FuseTwoTranspose) {
 }
 
 TEST(TransposeCollapsing, FuseThreeTranspose) {
-  CinnBuilder builder("cinn_builder");
+  NetBuilder builder("cinn_builder");
   auto x       = builder.CreateInput(Float(32), {4, 5, 3}, "X");
   auto x_1t    = builder.Transpose(x, {0, 2, 1});
   auto x_2t    = builder.Transpose(x_1t, {2, 1, 0});
@@ -150,7 +150,7 @@ TEST(TransposeCollapsing, FuseThreeTranspose) {
 }
 
 TEST(TransposeCollapsing, RemoveUselessTranspose) {
-  CinnBuilder builder("cinn_builder");
+  NetBuilder builder("cinn_builder");
   auto x       = builder.CreateInput(Float(32), {4, 5, 3}, "X");
   auto x_t     = builder.Transpose(x, {0, 1, 2});
   auto out     = builder.Add(x, x_t);
@@ -188,7 +188,7 @@ TEST(TransposeCollapsing, RemoveUselessTranspose) {
 }
 
 TEST(TransposeCollapsing, ReplaceUselessTransposeWithIndentity) {
-  CinnBuilder builder("cinn_builder");
+  NetBuilder builder("cinn_builder");
   auto x       = builder.CreateInput(Float(32), {4, 5, 3}, "X");
   auto out     = builder.Transpose(x, {0, 1, 2});
   auto program = builder.Build();
@@ -225,7 +225,7 @@ TEST(TransposeCollapsing, ReplaceUselessTransposeWithIndentity) {
 }
 
 TEST(TransposeCollapsing, FuseTransposeToUseless) {
-  CinnBuilder builder("cinn_builder");
+  NetBuilder builder("cinn_builder");
   auto x       = builder.CreateInput(Float(32), {4, 5, 3}, "X");
   auto x_1t    = builder.Transpose(x, {0, 2, 1});
   auto x_2t    = builder.Transpose(x_1t, {0, 2, 1});
@@ -268,7 +268,7 @@ TEST(TransposeCollapsing, FuseTransposeToUseless) {
 }
 
 TEST(TransposeCollapsing, FuseTransposeWithMultiOutput) {
-  CinnBuilder builder("cinn_builder");
+  NetBuilder builder("cinn_builder");
   auto x       = builder.CreateInput(Float(32), {4, 5, 3}, "X");
   auto x_1t    = builder.Transpose(x, {0, 2, 1});
   auto x_2t    = builder.Transpose(x_1t, {2, 0, 1});
@@ -319,7 +319,7 @@ TEST(TransposeCollapsing, FuseTransposeWithMultiOutput) {
 }
 
 TEST(TransposeCollapsing, FuseTwoSecTranspose) {
-  CinnBuilder builder("cinn_builder");
+  NetBuilder builder("cinn_builder");
   auto x       = builder.CreateInput(Float(32), {4, 5, 3}, "X");
   auto x_1t    = builder.Transpose(x, {0, 2, 1});
   auto x_2t    = builder.Transpose(x_1t, {2, 1, 0});
@@ -368,7 +368,7 @@ TEST(TransposeCollapsing, FuseTwoSecTranspose) {
 }
 
 TEST(TransposeCollapsing, FuseTwoHorizontalTranspose) {
-  CinnBuilder builder("cinn_builder");
+  NetBuilder builder("cinn_builder");
   auto x       = builder.CreateInput(Float(32), {4, 5, 3}, "X");
   auto y_t1    = builder.Transpose(x, {0, 2, 1});
   auto y_t2    = builder.Transpose(x, {0, 2, 1});
@@ -409,7 +409,7 @@ TEST(TransposeCollapsing, FuseTwoHorizontalTranspose) {
 }
 
 TEST(TransposeCollapsing, FuseVerAndHorTranspose) {
-  CinnBuilder builder("cinn_builder");
+  NetBuilder builder("cinn_builder");
   auto x       = builder.CreateInput(Float(32), {4, 5, 3}, "X");
   auto y_t1    = builder.Transpose(x, {0, 2, 1});
   auto y_t2    = builder.Transpose(y_t1, {2, 1, 0});

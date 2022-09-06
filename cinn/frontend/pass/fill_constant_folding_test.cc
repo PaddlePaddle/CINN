@@ -47,7 +47,7 @@ std::vector<float> RunWithProgram(const Program& program, const Target& target, 
 }
 
 TEST(TransposeFolding, FoldTwoFillConstant) {
-  CinnBuilder builder("cinn_builder");
+  NetBuilder builder("cinn_builder");
   auto x           = builder.FillConstant<float>({32, 32}, 1.0f, "x");
   auto y           = builder.FillConstant<float>({32, 32}, 1.0f, "y");
   auto transpose_x = builder.Transpose(x, {1, 0});
@@ -89,7 +89,7 @@ TEST(TransposeFolding, FoldTwoFillConstant) {
 }
 
 TEST(TransposeFolding, FoldTwoFillConstantWithSameOuput) {
-  CinnBuilder builder("cinn_builder");
+  NetBuilder builder("cinn_builder");
   auto x           = builder.FillConstant<float>({32, 32}, 1.0f, "x");
   auto y           = builder.FillConstant<float>({32, 32}, 1.0f, "y");
   auto transpose_x = builder.Transpose(x, {1, 0});
@@ -127,7 +127,7 @@ TEST(TransposeFolding, FoldTwoFillConstantWithSameOuput) {
 }
 
 TEST(TransposeFolding, FoldThreeFillConstant) {
-  CinnBuilder builder("cinn_builder");
+  NetBuilder builder("cinn_builder");
   auto x             = builder.FillConstant<float>({32, 32}, 1.0f, "x");
   auto y             = builder.FillConstant<float>({32, 32}, 1.0f, "y");
   auto z             = builder.FillConstant<float>({32, 32}, 1.0f, "z");
@@ -166,7 +166,7 @@ TEST(TransposeFolding, FoldThreeFillConstant) {
 }
 
 TEST(TransposeFolding, FoldThreeFillConstantWithOneDiff) {
-  CinnBuilder builder("cinn_builder");
+  NetBuilder builder("cinn_builder");
   auto x           = builder.FillConstant<float>({32, 32}, 1.0f, "x");
   auto y           = builder.FillConstant<float>({32, 32}, 1.0f, "y");
   auto z           = builder.FillConstant<float>({32, 32}, 0.0f, "z");

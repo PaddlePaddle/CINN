@@ -57,7 +57,7 @@ class RemoveIdentityPass : public ProgramPass {
       return;
     }
 
-    CinnBuilder builder("remove_identity_builder");
+    NetBuilder builder("remove_identity_builder");
     for (auto& var : program->GetInputs()) {
       builder.CreateInput(var);
     }

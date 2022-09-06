@@ -45,7 +45,7 @@ void RunWithProgram(const Program& program,
 }
 
 TEST(TransposeFoldingInput, TransposeWithMultiMamtul) {
-  CinnBuilder builder("cinn_builder");
+  NetBuilder builder("cinn_builder");
   auto x           = builder.CreateInput(Float(32), {2, 2}, "X");
   auto y           = builder.CreateInput(Float(32), {2, 2}, "Y");
   auto transpose_y = builder.Transpose(y, {1, 0});

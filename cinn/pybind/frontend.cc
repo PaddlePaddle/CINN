@@ -18,7 +18,6 @@
 #include <pybind11/pybind11.h>
 
 #include "cinn/common/common.h"
-#include "cinn/frontend/cinn_builder.h"
 #include "cinn/frontend/computation.h"
 #include "cinn/frontend/decomposer/use_decomposer.h"
 #include "cinn/frontend/decomposer_registry.h"
@@ -326,13 +325,14 @@ void BindFrontend(pybind11::module *m) {
       .value("kAny", ReduceKind::kAny)
       .export_values();
 
-  py::class_<BaseBuilder>(*m, "BaseBuilder")
-// clang-format off
+  py::class_<NetBuilder, NetBuilder>(*m, "NetBuilder")
+      .def(py::init<const std::string &>(), py::arg("name") = "")
+  // clang-format off
 #define PY_REGISTER_FILLCONSTANT_OP(TYPE__)                                   \
      .def("fill_constant",                                                    \
-          static_cast<Variable (BaseBuilder::*)(                              \
+          static_cast<Variable (NetBuilder::*)(                              \
                const std::vector<int> &, TYPE__, const std::string &, bool)>( \
-               &BaseBuilder::template FillConstant<TYPE__>),                  \
+               &NetBuilder::template FillConstant<TYPE__>),                  \
           py::arg("shape"),                                                   \
           py::arg("value"),                                                   \
           py::arg("name"),                                                    \
@@ -341,91 +341,6 @@ void BindFrontend(pybind11::module *m) {
           PY_REGISTER_FILLCONSTANT_OP(float)
           PY_REGISTER_FILLCONSTANT_OP(int)
 #undef PY_REGISTER_FILLCONSTANT_OP
-          // clang-format on
-          .def(py::init<const std::string &>(), py::arg("name") = "")
-          .def("create_input",
-               static_cast<Placeholder (BaseBuilder::*)(
-                   const common::Type &, const std::vector<int> &, const std::string &)>(&BaseBuilder::CreateInput),
-               py::arg("type"),
-               py::arg("shape"),
-               py::arg("id_hint") = "")
-          .def("create_input", static_cast<Placeholder (BaseBuilder::*)(const Variable &)>(&BaseBuilder::CreateInput))
-          .def("build", &BaseBuilder::Build, py::arg("in_reverse") = false)
-          .def("name", &BaseBuilder::name)
-          .def("append_instruction", &BaseBuilder::AppendInstruction)
-          .def("concat", &BaseBuilder::Concat, py::arg("inputs"), py::arg("axis") = 0)
-          .def("reduce",
-               &BaseBuilder::Reduce,
-               py::arg("a"),
-               py::arg("kind")     = ReduceKind::kSum,
-               py::arg("dim")      = std::vector<int>{},
-               py::arg("keep_dim") = false)
-          .def("fill_constant",
-               static_cast<Variable (BaseBuilder::*)(
-                   const std::vector<int> &, float, const std::string &, const std::string &, bool)>(
-                   &BaseBuilder::FillConstant),
-               py::arg("shape"),
-               py::arg("value"),
-               py::arg("name"),
-               py::arg("dtype"),
-               py::arg("force_cpu") = false)
-          .def("broadcast_to",
-               static_cast<Variable (BaseBuilder::*)(const Variable &, const std::vector<int> &)>(
-                   &BaseBuilder::BroadcastTo),
-               py::arg("a"),
-               py::arg("out_shape"))
-          .def("broadcast_to",
-               static_cast<Variable (BaseBuilder::*)(
-                   const Variable &, const std::vector<int> &, const std::vector<int> &)>(&BaseBuilder::BroadcastTo),
-               py::arg("a"),
-               py::arg("out_shape"),
-               py::arg("broadcast_axes"))
-          .def("reshape", &BaseBuilder::Reshape, py::arg("a"), py::arg("shape"))
-          .def("transpose", &BaseBuilder::Transpose, py::arg("a"), py::arg("axis"))
-          .def("slice",
-               &BaseBuilder::Slice,
-               py::arg("a"),
-               py::arg("axes"),
-               py::arg("starts"),
-               py::arg("ends"),
-               py::arg("infer_flags") = std::vector<int>{},
-               py::arg("strides")     = std::vector<int>{})
-          .def("reverse", &BaseBuilder::Reverse, py::arg("x"), py::arg("axis"))
-          .def("select", &BaseBuilder::Select, py::arg("condition"), py::arg("true_value"), py::arg("false_value"))
-          .def("split", &BaseBuilder::Split, py::arg("a"), py::arg("num_or_sections"), py::arg("axis") = 0)
-          .def("index_select", &BaseBuilder::IndexSelect, py::arg("x"), py::arg("index"), py::arg("axis") = 0)
-          .def("slice_assign",
-               &BaseBuilder::SliceAssign,
-               py::arg("input"),
-               py::arg("assign"),
-               py::arg("axes"),
-               py::arg("starts"),
-               py::arg("ends"),
-               py::arg("strides") = std::vector<int>{})
-          .def("scatter_assign",
-               &BaseBuilder::ScatterAssign,
-               py::arg("x"),
-               py::arg("updates"),
-               py::arg("index"),
-               py::arg("axis") = 0)
-          .def("scatter_add",
-               &BaseBuilder::ScatterAdd,
-               py::arg("x"),
-               py::arg("updates"),
-               py::arg("index"),
-               py::arg("axis") = 0)
-          .def("isclose",
-               &BaseBuilder::IsClose,
-               py::arg("x"),
-               py::arg("y"),
-               py::arg("rtol")      = 1e-05f,
-               py::arg("atol")      = 1e-08f,
-               py::arg("equal_nan") = false);
-  ;
-
-  py::class_<NetBuilder, BaseBuilder>(*m, "NetBuilder")
-      .def(py::init<const std::string &>(), py::arg("name") = "")
-  // clang-format off
 #define PY_REGISTER_UNARY_FUNC(func_name__) \
   .def(SnakeName(#func_name__), &NetBuilder::func_name__, py::arg("a"))
       NETBUILDER_UNARY_OP_FOREACH(PY_REGISTER_UNARY_FUNC)
@@ -439,6 +354,89 @@ void BindFrontend(pybind11::module *m) {
       NETBUILDER_ELEMENTWISE_OP_FOREACH(PY_REGISTER_ELEMENTWISE_FUNC)
 #undef PY_REGISTER_ELEMENTWISE_FUNC
       // clang-format on
+      .def(py::init<const std::string &>(), py::arg("name") = "")
+      .def(
+          "create_input",
+          static_cast<Placeholder (NetBuilder::*)(const common::Type &, const std::vector<int> &, const std::string &)>(
+              &NetBuilder::CreateInput),
+          py::arg("type"),
+          py::arg("shape"),
+          py::arg("id_hint") = "")
+      .def("create_input", static_cast<Placeholder (NetBuilder::*)(const Variable &)>(&NetBuilder::CreateInput))
+      .def("build", &NetBuilder::Build, py::arg("in_reverse") = false)
+      .def("name", &NetBuilder::name)
+      .def("__str__", [](NetBuilder &self) { return self.name(); })
+      .def("append_instruction", &NetBuilder::AppendInstruction)
+      .def("const_scalar", &NetBuilder::ConstScalar<bool>)
+      .def("const_scalar", &NetBuilder::ConstScalar<float>)
+      .def("const_scalar", &NetBuilder::ConstScalar<int>)
+      .def("concat", &NetBuilder::Concat, py::arg("inputs"), py::arg("axis") = 0)
+      .def("reduce",
+           &NetBuilder::Reduce,
+           py::arg("a"),
+           py::arg("kind")     = ReduceKind::kSum,
+           py::arg("dim")      = std::vector<int>{},
+           py::arg("keep_dim") = false)
+      .def("fill_constant",
+           static_cast<Variable (NetBuilder::*)(
+               const std::vector<int> &, float, const std::string &, const std::string &, bool)>(
+               &NetBuilder::FillConstant),
+           py::arg("shape"),
+           py::arg("value"),
+           py::arg("name"),
+           py::arg("dtype"),
+           py::arg("force_cpu") = false)
+      .def("broadcast_to",
+           static_cast<Variable (NetBuilder::*)(const Variable &, const std::vector<int> &)>(&NetBuilder::BroadcastTo),
+           py::arg("a"),
+           py::arg("out_shape"))
+      .def("broadcast_to",
+           static_cast<Variable (NetBuilder::*)(const Variable &, const std::vector<int> &, const std::vector<int> &)>(
+               &NetBuilder::BroadcastTo),
+           py::arg("a"),
+           py::arg("out_shape"),
+           py::arg("broadcast_axes"))
+      .def("reshape", &NetBuilder::Reshape, py::arg("a"), py::arg("shape"))
+      .def("transpose", &NetBuilder::Transpose, py::arg("a"), py::arg("axis"))
+      .def("slice",
+           &NetBuilder::Slice,
+           py::arg("a"),
+           py::arg("axes"),
+           py::arg("starts"),
+           py::arg("ends"),
+           py::arg("infer_flags") = std::vector<int>{},
+           py::arg("strides")     = std::vector<int>{})
+      .def("reverse", &NetBuilder::Reverse, py::arg("x"), py::arg("axis"))
+      .def("select", &NetBuilder::Select, py::arg("condition"), py::arg("true_value"), py::arg("false_value"))
+      .def("split", &NetBuilder::Split, py::arg("a"), py::arg("num_or_sections"), py::arg("axis") = 0)
+      .def("index_select", &NetBuilder::IndexSelect, py::arg("x"), py::arg("index"), py::arg("axis") = 0)
+      .def("slice_assign",
+           &NetBuilder::SliceAssign,
+           py::arg("input"),
+           py::arg("assign"),
+           py::arg("axes"),
+           py::arg("starts"),
+           py::arg("ends"),
+           py::arg("strides") = std::vector<int>{})
+      .def("scatter_assign",
+           &NetBuilder::ScatterAssign,
+           py::arg("x"),
+           py::arg("updates"),
+           py::arg("index"),
+           py::arg("axis") = 0)
+      .def("scatter_add",
+           &NetBuilder::ScatterAdd,
+           py::arg("x"),
+           py::arg("updates"),
+           py::arg("index"),
+           py::arg("axis") = 0)
+      .def("isclose",
+           &NetBuilder::IsClose,
+           py::arg("x"),
+           py::arg("y"),
+           py::arg("rtol")      = 1e-05f,
+           py::arg("atol")      = 1e-08f,
+           py::arg("equal_nan") = false)
       .def("add", &NetBuilder::Add, py::arg("a"), py::arg("b"))
       .def("mul",
            &NetBuilder::Mul,
@@ -547,21 +545,9 @@ void BindFrontend(pybind11::module *m) {
            py::arg("y"),
            py::arg("transpose_x") = false,
            py::arg("transpose_y") = false,
-           py::arg("alpha")       = 1.0f);
-
-  py::class_<CinnBuilder, BaseBuilder>(*m, "CinnBuilder")
-      .def(py::init<const std::string &>(), py::arg("name") = "")
-      .def("const_scalar", &CinnBuilder::ConstScalar<bool>)
-      .def("const_scalar", &CinnBuilder::ConstScalar<float>)
-      .def("const_scalar", &CinnBuilder::ConstScalar<int>)
-  // clang-format off
-#define PY_REGISTER_FUNC(func_name__) .def(SnakeName(#func_name__), &CinnBuilder::func_name__)
-          UNARY_OP_FOREACH(PY_REGISTER_FUNC)
-          BINARY_OP_FOREACH(PY_REGISTER_FUNC)
-#undef PY_REGISTER_FUNC
-      // clang-format on
+           py::arg("alpha")       = 1.0f)
       .def("conv",
-           &CinnBuilder::Conv,
+           &NetBuilder::Conv,
            py::arg("lhs"),
            py::arg("rhs"),
            py::arg("strides")           = std::vector<int>{1, 1},
@@ -572,8 +558,8 @@ void BindFrontend(pybind11::module *m) {
            py::arg("data_format")       = "NCHW",
            py::arg("padding_algorithm") = "EXPLICIT",
            py::arg("output_shape")      = std::vector<int>{})
-      .def("compare", &CinnBuilder::Compare, py::arg("lhs"), py::arg("rhs"), py::arg("kind") = ComparisonKind::kEq)
-      .def("__str__", [](CinnBuilder &self) { return self.name(); });
+      .def("compare", &NetBuilder::Compare, py::arg("lhs"), py::arg("rhs"), py::arg("kind") = ComparisonKind::kEq)
+      .def("__str__", [](NetBuilder &self) { return self.name(); });
 
   auto computation = py::class_<CinnComputation, std::shared_ptr<CinnComputation>>(*m, "Computation");
   py::class_<CinnComputation::CompileOptions>(computation, "CompileOptions")
@@ -587,7 +573,7 @@ void BindFrontend(pybind11::module *m) {
       // currently stream param is not exported to python, the default stream is used always
       .def_static(
           "build_and_compile",
-          [](const common::Target &target, BaseBuilder &builder, const CinnComputation::CompileOptions &options) {
+          [](const common::Target &target, NetBuilder &builder, const CinnComputation::CompileOptions &options) {
             return CinnComputation::BuildAndCompile(target, builder, options);
           },
           py::arg("target"),
