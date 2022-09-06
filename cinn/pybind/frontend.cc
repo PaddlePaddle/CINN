@@ -122,7 +122,6 @@ void BindFrontend(pybind11::module *m) {
       .def("relu", &Program::relu)
       .def("relu6", &Program::relu6)
       .def("sigmoid", &Program::sigmoid)
-      .def("sign", &Program::sign)
       .def("dropout_infer", &Program::dropout_infer)
       .def("scale", &Program::scale)
       .def("slice", &Program::slice)

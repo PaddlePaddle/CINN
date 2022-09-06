@@ -224,12 +224,6 @@ Variable Program::sigmoid(const Variable& a) {
   return instr.GetOutput(0);
 }
 
-Variable Program::sign(const Variable& a) {
-  Instruction instr("sign", {a});
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
-}
-
 Variable Program::slice(const Variable& a, const absl::flat_hash_map<std::string, attr_t>& attr_store) {
   Instruction instr("slice", {a});
   for (auto& iter : attr_store) {
