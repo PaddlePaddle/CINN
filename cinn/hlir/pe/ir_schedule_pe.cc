@@ -77,23 +77,15 @@ void IRCudaScheduleInjective(ir::IRSchedule &ir_sch,
   auto loops      = ir_sch.GetLoops(all_blocks[0]);
   auto fused      = ir_sch.Fuse(loops);
 
-  int num_thread        = target.max_num_threads();
-  int num_block         = 1024;
-  int vector_width      = 1;
-  int prod_size         = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int>());
-  bool need_block_split = prod_size > num_thread * num_block * vector_width ? true : false;
-  if (need_block_split) {
-    auto splited = ir_sch.Split(fused, {num_block, num_thread, -1});
+  int num_thread   = target.max_num_threads();
+  int vector_width = 1;
+  int prod_size    = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int>());
+  if (prod_size > num_thread) {
+    auto splited = ir_sch.Split(fused, {-1, num_thread});
     ir_sch.Bind(splited[0], "blockIdx.x");
     ir_sch.Bind(splited[1], "threadIdx.x");
   } else {
-    if (prod_size > num_thread) {
-      auto splited = ir_sch.Split(fused, {-1, num_thread});
-      ir_sch.Bind(splited[0], "blockIdx.x");
-      ir_sch.Bind(splited[1], "threadIdx.x");
-    } else {
-      ir_sch.Bind(fused, "threadIdx.x");
-    }
+    ir_sch.Bind(fused, "threadIdx.x");
   }
   VLOG(3) << "After IRCudaScheduleInjective, new ir is : " << ir_sch.GetModule().GetExprs().at(0);
 }
@@ -319,15 +311,16 @@ void IRCudaScheduleBlockReduce(ir::IRSchedule &ir_sch,
 
   int tmp_out_shape_size = tmp_put_shape_size_without_reduce + 1;
   for (int idx = 0; idx < reduce_temp_out_shape_size - tmp_out_shape_size; ++idx) {
-    auto loops = ir_sch.GetLoops(reduce_tmp_out->name);
+    auto loops      = ir_sch.GetLoops(reduce_tmp_out->name);
     int reduce_axis = reduce_tmp_out->reduce_axis.size();
-    if (loops.size() >= tmp_put_shape_size_without_reduce + 2 + reduce_axis) ir_sch.Fuse({loops[tmp_put_shape_size_without_reduce], loops[tmp_put_shape_size_without_reduce + 1]});
+    if (loops.size() >= tmp_put_shape_size_without_reduce + 2 + reduce_axis)
+      ir_sch.Fuse({loops[tmp_put_shape_size_without_reduce], loops[tmp_put_shape_size_without_reduce + 1]});
   }
 
   // fuse parallel dimension
   for (int idx = 0; idx < tmp_put_shape_size_without_reduce - 1; ++idx) {
     for (auto &tensor : {reduce_tmp_out, tmp_out, out}) {
-      auto loops = ir_sch.GetLoops(tensor->name);
+      auto loops      = ir_sch.GetLoops(tensor->name);
       int reduce_axis = tensor->reduce_axis.size();
       if (loops.size() >= 2 + reduce_axis) ir_sch.Fuse({loops[0], loops[1]});
     }
@@ -454,10 +447,10 @@ void IRCudaTwoStepReduceSchedule(ir::IRSchedule &ir_sch,
   // fuse axis
   for (int idx = 0; idx < static_cast<int>(internal->shape.size()) - 2; ++idx) {
     for (auto &tensor : {internal, tmp_out, out}) {
-      auto block = ir_sch.GetBlock(tensor->name);
-      auto loops = ir_sch.GetLoops(block);
+      auto block      = ir_sch.GetBlock(tensor->name);
+      auto loops      = ir_sch.GetLoops(block);
       int reduce_axis = tensor->reduce_axis.size();
-      if (loops.size() >= 2+reduce_axis) ir_sch.Fuse({loops[0], loops[1]});
+      if (loops.size() >= 2 + reduce_axis) ir_sch.Fuse({loops[0], loops[1]});
     }
   }
 

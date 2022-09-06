@@ -1860,10 +1860,10 @@ std::shared_ptr<OpStrategy> StrategyForSoftmax(const framework::NodeAttr &attrs,
         if (output_shapes[0].size() > 1) {
           auto all_blocks = ir_sch.GetAllBlocks();
           CHECK_EQ(all_blocks.size(), 3);
-          auto loops         = ir_sch.GetLoops(all_blocks[2]);
+          auto loops     = ir_sch.GetLoops(all_blocks[2]);
           int loop_index = 1;
           if (output_shapes[0][0] == 1) loop_index--;
-          CHECK_GE(loops.size(), loop_index+1);
+          CHECK_GE(loops.size(), loop_index + 1);
           auto splited_loops = ir_sch.Split(loops[loop_index], {-1, 5});
           ir_sch.Bind(splited_loops[0], "blockIdx.z");
           ir_sch.Bind(splited_loops[1], "threadIdx.z");
