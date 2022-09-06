@@ -19,7 +19,7 @@
 #include <unordered_map>
 
 #include "cinn/common/target.h"
-#include "cinn/frontend/cinn_builder.h"
+#include "cinn/frontend/net_builder.h"
 #include "cinn/frontend/syntax.h"
 
 namespace cinn {

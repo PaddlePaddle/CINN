@@ -17,7 +17,6 @@
 #include <cfloat>
 
 #include "cinn/cinn.h"
-#include "cinn/frontend/cinn_builder.h"
 #include "cinn/frontend/net_builder.h"
 #include "cinn/frontend/optimize.h"
 #include "cinn/frontend/pass/use_program_pass.h"
@@ -45,7 +44,7 @@ void RunWithProgram(const Program& program,
 }
 
 TEST(TransposeFoldingInput, TransposeWithMultiMamtul) {
-  NetBuilder builder("cinn_builder");
+  NetBuilder builder("net_builder");
   auto x           = builder.CreateInput(Float(32), {2, 2}, "X");
   auto y           = builder.CreateInput(Float(32), {2, 2}, "Y");
   auto transpose_y = builder.Transpose(y, {1, 0});

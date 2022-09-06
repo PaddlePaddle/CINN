@@ -20,7 +20,7 @@ namespace frontend {
 namespace decomposer {
 
 struct BatchNormHelper {
-  BatchNormHelper(NetBuilder* cinn_builder,
+  BatchNormHelper(NetBuilder* net_builder,
                   const std::vector<int>& arg_x_shape,
                   const std::vector<int>& arg_param_shape,
                   std::string data_layout,
@@ -28,7 +28,7 @@ struct BatchNormHelper {
     CHECK_EQ(arg_x_shape.size(), 4UL) << "Only 4-D input tensor is supported, but get " << arg_x_shape.size()
                                       << "-D input tensor.";
 
-    builder     = cinn_builder;
+    builder     = net_builder;
     x_shape     = arg_x_shape;
     param_shape = arg_param_shape;
 

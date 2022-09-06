@@ -17,7 +17,6 @@
 #include <gtest/gtest.h>
 
 #include "cinn/common/target.h"
-#include "cinn/frontend/cinn_builder.h"
 #include "cinn/frontend/decomposer/use_decomposer.h"
 #include "cinn/frontend/decomposer_registry.h"
 #include "cinn/frontend/net_builder.h"
@@ -34,7 +33,7 @@ Program CreateTestProgram() {
   constexpr int M = 32;
   constexpr int N = 24;
 
-  NetBuilder builder("cinn_builder");
+  NetBuilder builder("net_builder");
   auto a = builder.CreateInput(Float(32), {M, N / 2}, "A");
   auto b = builder.CreateInput(Float(32), {M, N / 2}, "B");
   auto t = builder.Transpose(b, {1, 0});

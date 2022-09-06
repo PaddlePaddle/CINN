@@ -17,7 +17,6 @@
 #include <cfloat>
 
 #include "cinn/cinn.h"
-#include "cinn/frontend/cinn_builder.h"
 #include "cinn/frontend/net_builder.h"
 #include "cinn/frontend/pass/use_program_pass.h"
 #include "cinn/frontend/program_pass.h"
@@ -43,7 +42,7 @@ void RunWithProgram(const Program& program,
 }
 
 TEST(TransposeFoldingInput, FoldIntoDotBachedCase1) {
-  NetBuilder builder("cinn_builder");
+  NetBuilder builder("net_builder");
   auto x           = builder.CreateInput(Float(32), {4, 5, 3}, "X");
   auto y           = builder.CreateInput(Float(32), {4, 5, 6}, "Y");
   auto transpose_x = builder.Transpose(x, {0, 2, 1});
@@ -73,7 +72,7 @@ TEST(TransposeFoldingInput, FoldIntoDotBachedCase1) {
 }
 
 TEST(TransposeFoldingInput, FoldIntoDotBachedCase2) {
-  NetBuilder builder("cinn_builder");
+  NetBuilder builder("net_builder");
   auto x           = builder.CreateInput(Float(32), {4, 3, 5}, "X");
   auto y           = builder.CreateInput(Float(32), {4, 6, 5}, "Y");
   auto transpose_y = builder.Transpose(y, {0, 2, 1});
@@ -103,7 +102,7 @@ TEST(TransposeFoldingInput, FoldIntoDotBachedCase2) {
 }
 
 TEST(TransposeFoldingInput, FoldIntoDotBachedCase3) {
-  NetBuilder builder("cinn_builder");
+  NetBuilder builder("net_builder");
   auto x           = builder.CreateInput(Float(32), {4, 5, 3}, "X");
   auto y           = builder.CreateInput(Float(32), {4, 6, 5}, "Y");
   auto transpose_x = builder.Transpose(x, {0, 2, 1});
@@ -134,7 +133,7 @@ TEST(TransposeFoldingInput, FoldIntoDotBachedCase3) {
 }
 
 TEST(TransposeFoldingInput, FoldIntoDotCase1) {
-  NetBuilder builder("cinn_builder");
+  NetBuilder builder("net_builder");
   auto x           = builder.CreateInput(Float(32), {2, 3}, "X");
   auto y           = builder.CreateInput(Float(32), {2, 3}, "Y");
   auto transpose_y = builder.Transpose(y, {1, 0});
@@ -204,7 +203,7 @@ TEST(TransposeFoldingInput, FoldIntoDotCase2) {
 }
 
 TEST(TransposeFoldingInput, TransposeOutInFetchIds) {
-  NetBuilder builder("cinn_builder");
+  NetBuilder builder("net_builder");
   auto x           = builder.CreateInput(Float(32), {2, 3}, "X");
   auto y           = builder.CreateInput(Float(32), {2, 3}, "Y");
   auto transpose_y = builder.Transpose(y, {1, 0});
@@ -234,7 +233,7 @@ TEST(TransposeFoldingInput, TransposeOutInFetchIds) {
 }
 
 TEST(TransposeFoldingInput, TransposeOutUsedByOtherInstrs) {
-  NetBuilder builder("cinn_builder");
+  NetBuilder builder("net_builder");
   auto x           = builder.CreateInput(Float(32), {2, 2}, "X");
   auto y           = builder.CreateInput(Float(32), {2, 2}, "Y");
   auto transpose_y = builder.Transpose(y, {1, 0});
@@ -265,7 +264,7 @@ TEST(TransposeFoldingInput, TransposeOutUsedByOtherInstrs) {
 }
 
 TEST(TransposeFoldingInput, TransposeTwiceWithMatmul) {
-  NetBuilder builder("cinn_builder");
+  NetBuilder builder("net_builder");
   auto x = builder.CreateInput(Float(32), {2, 20}, "X");
   auto y = builder.CreateInput(Float(32), {10201, 20}, "Y");
   auto z = builder.CreateInput(Float(32), {10201, 2}, "Z");
@@ -326,7 +325,7 @@ TEST(TransposeFoldingInput, TransposeTwiceWithMatmul) {
 }
 
 TEST(TransposeFoldingInput, TransposeWithMultiMamtul) {
-  NetBuilder builder("cinn_builder");
+  NetBuilder builder("net_builder");
   auto x           = builder.CreateInput(Float(32), {2, 2}, "X");
   auto y           = builder.CreateInput(Float(32), {2, 2}, "Y");
   auto transpose_y = builder.Transpose(y, {1, 0});

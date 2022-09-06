@@ -325,7 +325,7 @@ void BindFrontend(pybind11::module *m) {
       .value("kAny", ReduceKind::kAny)
       .export_values();
 
-  py::class_<NetBuilder, NetBuilder>(*m, "NetBuilder")
+  py::class_<NetBuilder>(*m, "NetBuilder")
       .def(py::init<const std::string &>(), py::arg("name") = "")
   // clang-format off
 #define PY_REGISTER_FILLCONSTANT_OP(TYPE__)                                   \

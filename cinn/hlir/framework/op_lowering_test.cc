@@ -53,13 +53,13 @@ void CodeGen(ir::LoweredFunc& func) {
 }
 
 TEST(OP_LOWERING, OpaqueOp_TEST_0) {
-  NetBuilder cinn_builder("OpaqueOp_TEST_0");
+  NetBuilder net_builder("OpaqueOp_TEST_0");
   {
-    auto A = cinn_builder.CreateInput(Float(32), {9801, 2}, "A");
-    auto B = cinn_builder.Reshape(A, {9801, 2});
+    auto A = net_builder.CreateInput(Float(32), {9801, 2}, "A");
+    auto B = net_builder.Reshape(A, {9801, 2});
   }
 
-  auto program = cinn_builder.Build();
+  auto program = net_builder.Build();
   auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
