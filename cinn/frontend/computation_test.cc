@@ -47,7 +47,7 @@ Program CreateTestProgram() {
   auto h = builder.Sub(e, g);
   auto i = builder.Max(e, h);
   auto j = builder.Min(e, h);
-  auto k = builder.Mul(i, j);
+  auto k = builder.ElementwiseMul(i, j);
   auto l = builder.ConstScalar<bool>(1, "condition");
   auto m = builder.BroadcastTo(l, {B, M, N}, {0});
   auto n = builder.Select(m, j, k);
@@ -137,7 +137,6 @@ TEST(cinn_computation, basic_gpu) {
 
 TEST(cinn_computation, net_builder_cpu) {
   auto program = CreateTestProgram();
-  LOG(INFO) << program;
   auto target  = common::DefaultHostTarget();
   auto compute = CinnComputation::Compile(target, program);
   auto inputs  = compute->GetInputTensors();
