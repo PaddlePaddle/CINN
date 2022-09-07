@@ -30,8 +30,9 @@ namespace ir {
 std::vector<ir::LoweredFunc> ElementwiseCopyExpr(const std::vector<int>& shape,
                                                  const Target& target,
                                                  const std::string& func_name) {
-  Expr M(32);
-  Expr N(32);
+  CHECK_EQ(shape.size(), 2) << "size of shape shoule be 2";
+  Expr M(shape[0]);
+  Expr N(shape[1]);
 
   Placeholder<float> A("A", {M, N});
   auto B = Compute(
@@ -43,30 +44,52 @@ std::vector<ir::LoweredFunc> ElementwiseCopyExpr(const std::vector<int>& shape,
 
 class TestScheduleDesc : public ::testing::Test {
  public:
-  void SetUp() override {}
-  void TearDown() override {}
+  void SetUp() override { Context::Global().ResetNameId(); }
+  // void TearDown() override {}
+
+ private:
+  IRSchedule MakeIRSchedule(const std::vector<ir::LoweredFunc>& lowered_funcs) {
+    std::vector<Expr> exprs;
+    for (auto&& func : lowered_funcs) {
+      exprs.emplace_back(optim::IRCopy(func->body));
+    }
+    return ir::IRSchedule(ir::ModuleExpr(exprs));
+  }
+
+  void CheckExpr(const ModuleExpr& lfs, const ModuleExpr& rhs) {
+    lfs_exprs = lfs.GetExprs();
+    rfs_exprs = rfs.GetExprs();
+    ASSERT_EQ(lfs_exprs.size(), rfs_exprs.size());
+    for (auto i = 0; i < lfs_exprs.size(); ++i) {
+      ASSERT_EQ(utils::GetStreamCnt(lfs_exprs.at(i)), utils::GetStreamCnt(rfs_exprs.at(i)));
+    }
+  }
+
+  std::string SourceCodeGen(const ModuleExpr& module_expr,
+                            const Target& target,
+                            std::vector<ir::LoweredFunc>& lowered_funcs) {
+    auto exprs = module_expr.GetExprs();
+    ASSERT_EQ(exprs.size(), lowered_funcs.size());
+    Module::Builder builder("test_module", target);
+    for (auto i = 0; i < lowered_funcs.size(); ++i) {
+      auto&& func = lowered_funcs.at(i);
+      func->body  = exprs.at(i);
+      builder.AddFunction(func);
+    }
+    auto module = builder.Build();
+    CodeGenC codegen(target);
+    codegen.SetInlineBuiltinCodes(false);
+    std::string source_code = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
+  }
 };
 
-// matmul example
-//
-TEST(ScheduleDesc, Append) {
-  Context::Global().ResetNameId();
-  Expr M(32);
-  Expr N(32);
-  Expr P(32);
-
+TEST_F(TestScheduleDesc, Append) {
   Target target = common::DefaultHostTarget();
-  Placeholder<float> A("A", {M, N});
-  auto B = Compute(
-      {M, N}, [&](Var i, Var j) { return A(i, j); }, "B");
-
-  auto stages   = CreateStages({A, B});
-  auto func     = cinn::lang::LowerVec("test_split_and_fuse1", stages, {A, B}, {}, {}, nullptr, target, true);
-  auto ast_expr = func[0]->body;
+  auto funcs    = ElementwiseCopyExpr({32, 32}, target, "test_split_and_fuse1");
   VLOG(3) << "Initial IR:" << ast_expr;
 
-  ir::IRSchedule ir_sch(ir::ModuleExpr({ast_expr}));
-  ir::IRSchedule replay_sch(ir::ModuleExpr({optim::IRCopy(ast_expr)}));
+  ir::IRSchedule ir_sch     = MakeIRSchedule(funcs);
+  ir::IRSchedule replay_sch = MakeIRSchedule(funcs);
   ScheduleDesc desc;
 
   auto fused = ir_sch.Fuse("B", {0, 1});
@@ -84,41 +107,13 @@ TEST(ScheduleDesc, Append) {
   desc.Append(ScheduleDesc::Step(
       "Split", {{"loop", std::vector<Expr>({fused})}}, {{"factors", std::vector<int>({256, -1})}}, splited));
 
-  Module::Builder builder("module1", target);
-  for (auto& i : func) {
-    builder.AddFunction(i);
-  }
-  auto module = builder.Build();
-  CodeGenC codegen(target);
-  codegen.SetInlineBuiltinCodes(false);
-  auto source_code = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
-
-  std::string target_code = R"ROC(
-#include <cinn_runtime.h>
-#include <stdio.h>
-
-void test_split_and_fuse1(void* _args, int32_t num_args)
-{
-  const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
-  cinn_buffer_t* _B = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[1]));
-  cinn_buffer_malloc((void*)(0), _B);
-  const float* A = ((const float*)(_A->memory));
-  float* B = ((float*)(_B->memory));
-  for (int32_t i_j_fused_0_i_j_fused_1_fused_0 = 0; i_j_fused_0_i_j_fused_1_fused_0 < 256; i_j_fused_0_i_j_fused_1_fused_0 += 1) {
-    for (int32_t i_j_fused_0_i_j_fused_1_fused_1 = 0; i_j_fused_0_i_j_fused_1_fused_1 < 4; i_j_fused_0_i_j_fused_1_fused_1 += 1) {
-      B[((4 * i_j_fused_0_i_j_fused_1_fused_0) + i_j_fused_0_i_j_fused_1_fused_1)] = A[((4 * i_j_fused_0_i_j_fused_1_fused_0) + i_j_fused_0_i_j_fused_1_fused_1)];
-    };
-  };
-  cinn_buffer_free((void*)(0), _B);
-}
-
-)ROC";
-  ASSERT_EQ(utils::Trim(target_code), utils::Trim(source_code));
   desc.Replay(&replay_sch);
-  VLOG(3) << "After Replay, IR is : " << replay_sch.GetModule().GetExprs().at(0);
-  ASSERT_EQ(utils::GetStreamCnt(ir_sch.GetModule().GetExprs().at(0)),
-            utils::GetStreamCnt(replay_sch.GetModule().GetExprs().at(0)));
-  // compare source code
+  VLOG(3) << "Scheduled IR:" << ir_sch.GetModule().GetExprs().at(0)
+          << "\nReplay IR: " << replay_sch.GetModule().GetExprs().at(0);
+
+  CheckExpr(ir_sch.GetModule(), replay_sch.GetModule());
+  ASSERT_EQ(utils::Trim(SourceCodeGen(ir_sch.GetModule(), target, funcs)),
+            utils::Trim(SourceCodeGen(replay_sch.GetModule(), target, funcs)));
 }
 
 }  // namespace ir
