@@ -16,6 +16,7 @@
 
 #include <glog/logging.h>
 
+#include <functional>
 #include <typeinfo>
 #include <utility>
 
@@ -138,25 +139,39 @@ class PackedStepContext {
   std::vector<utils::Attribute> attrs_;
 };
 
-#define CINN_SPECIALIZE_ApplyCallHelper(attr_type)                                                        \
-  template <typename... Tail>                                                                             \
-  struct ApplyCallHelper<attr_type, Tail...> {                                                            \
-    template <int in_idx, int attr_idx, int out_idx, typename... PreviousArgs>                            \
-    static std::vector<Expr> Apply(PackedStepContext* ctx, const PreviousArgs&... pargs) {                \
-      using rf_attr_type = std::remove_reference<attr_type>::type;                                        \
-      using rc_attr_type = std::remove_const<rf_attr_type>::type;                                         \
-      const auto& arg    = ctx->AttrAt<rc_attr_type>(attr_idx);                                           \
-      return ApplyCallHelper<Tail...>::template Apply<in_idx, attr_idx + 1, out_idx>(ctx, pargs..., arg); \
-    }                                                                                                     \
+#define CINN_SPECIALIZE_ApplyCallHelper(attr_type)                                    \
+  template <typename... Tail>                                                         \
+  struct ApplyCallHelper<attr_type, Tail...> {                                        \
+    template <int in_idx, int attr_idx, int out_idx, typename... PreviousArgs>        \
+    static std::vector<Expr> Apply(PackedStepContext* ctx, PreviousArgs... pargs) {   \
+      using rf_attr_type = std::remove_reference<attr_type>::type;                    \
+      using rc_attr_type = std::remove_const<rf_attr_type>::type;                     \
+      const auto& arg    = ctx->AttrAt<rc_attr_type>(attr_idx);                       \
+      return ApplyCallHelper<Tail...>::template Apply<in_idx, attr_idx + 1, out_idx>( \
+          ctx, std::forward<PreviousArgs>(pargs)..., arg);                            \
+    }                                                                                 \
   }
 
 template <typename T>
 struct TypeTag {};
 
 template <typename F, F f>
+struct FreeFuncConverter;
+
+template <typename Return, typename... Args, Return (IRSchedule::*impl_fn)(Args...)>
+struct FreeFuncConverter<Return (IRSchedule::*)(Args...), impl_fn> {
+  static Return Apply(IRSchedule* sch, Args... args) { return (sch->*impl_fn)(std::forward<Args>(args)...); }
+};
+
+template <typename Return, typename... Args, Return (IRSchedule::*impl_fn)(Args...) const>
+struct FreeFuncConverter<Return (IRSchedule::*)(Args...) const, impl_fn> {
+  static Return Apply(IRSchedule* sch, Args... args) { return (sch->*impl_fn)(std::forward<Args>(args)...); }
+};
+
+template <typename F, F f>
 struct ApplyFuncImpl;
 
-template <typename Return, typename... Args, Return (*impl_fn)(Args...)>
+template <typename Return, typename... Args, Return(impl_fn)(Args...)>
 struct ApplyFuncImpl<Return (*)(Args...), impl_fn> {
   static std::vector<Expr> Apply(PackedStepContext* ctx) {
     return ApplyCallHelper<Args..., TypeTag<int>>::template Apply<0, 0, 0>(ctx);
@@ -178,22 +193,32 @@ struct ApplyFuncImpl<Return (*)(Args...), impl_fn> {
   };
 
   template <typename... Tail>
+  struct ApplyCallHelper<Expr&, Tail...> {
+    template <int in_idx, int attr_idx, int out_idx, typename... PreviousArgs>
+    static std::vector<Expr> Apply(PackedStepContext* ctx, PreviousArgs... pargs) {
+      auto arg = ctx->InputAt(in_idx - 1);
+      return ApplyCallHelper<Tail...>::template Apply<in_idx + 1, attr_idx, out_idx>(
+          ctx, std::forward<PreviousArgs>(pargs)..., arg);
+    }
+  };
+
+  template <typename... Tail>
   struct ApplyCallHelper<const Expr&, Tail...> {
     template <int in_idx, int attr_idx, int out_idx, typename... PreviousArgs>
-    static std::vector<Expr> Apply(PackedStepContext* ctx, const PreviousArgs&... pargs) {
-      static_assert(in_idx > 0, "Other arguments should be right behind IRSchedule*");
+    static std::vector<Expr> Apply(PackedStepContext* ctx, PreviousArgs... pargs) {
       auto arg = ctx->InputAt(in_idx - 1);
-      return ApplyCallHelper<Tail...>::template Apply<in_idx + 1, attr_idx, out_idx>(ctx, pargs..., arg);
+      return ApplyCallHelper<Tail...>::template Apply<in_idx + 1, attr_idx, out_idx>(
+          ctx, std::forward<PreviousArgs>(pargs)..., arg);
     }
   };
 
   template <typename... Tail>
   struct ApplyCallHelper<const std::vector<Expr>&, Tail...> {
     template <int in_idx, int attr_idx, int out_idx, typename... PreviousArgs>
-    static std::vector<Expr> Apply(PackedStepContext* ctx, const PreviousArgs&... pargs) {
-      static_assert(in_idx > 0, "Other arguments should be right behind IRSchedule*");
+    static std::vector<Expr> Apply(PackedStepContext* ctx, PreviousArgs... pargs) {
       auto arg = ctx->InputsAt(in_idx - 1);
-      return ApplyCallHelper<Tail...>::template Apply<in_idx + 1, attr_idx, out_idx>(ctx, pargs..., arg);
+      return ApplyCallHelper<Tail...>::template Apply<in_idx + 1, attr_idx, out_idx>(
+          ctx, std::forward<PreviousArgs>(pargs)..., arg);
     }
   };
 
@@ -211,164 +236,165 @@ struct ApplyFuncImpl<Return (*)(Args...), impl_fn> {
 
   template <int out_idx>
   struct ApplyReturnHelper<out_idx, void> {
-    static std::vector<Expr> Apply(PackedStepContext* ctx, const Args&... args) {
-      impl_fn(args...);
+    static std::vector<Expr> Apply(Args... args) {
+      impl_fn(std::forward<Args>(args)...);
       return {};
     }
   };
 
   template <int out_idx>
   struct ApplyReturnHelper<out_idx, Expr> {
-    static std::vector<Expr> Apply(PackedStepContext* ctx, const Args&... args) {
-      auto ret = impl_fn(args...);
+    static std::vector<Expr> Apply(Args... args) {
+      auto ret = impl_fn(std::forward<Args>(args)...);
       return {ret};
     }
   };
 
   template <int out_idx>
   struct ApplyReturnHelper<out_idx, std::vector<Expr>> {
-    static std::vector<Expr> Apply(PackedStepContext* ctx, const Args&... args) { return impl_fn(args...); }
+    static std::vector<Expr> Apply(Args... args) { return impl_fn(std::forward<Args>(args)...); }
   };
 
   // end: base template
   template <typename T>
   struct ApplyCallHelper<TypeTag<T>> {
     template <int in_idx, int attr_idx, int out_idx, typename... PreviousArgs>
-    static std::vector<Expr> Apply(PackedStepContext* ctx, const PreviousArgs&... pargs) {
+    static std::vector<Expr> Apply(PackedStepContext* ctx, PreviousArgs... pargs) {
       static_assert(out_idx == 0, "Output is exported from return value");
-      return ApplyReturnHelper<out_idx, Return>::Apply(ctx, pargs...);
+      return ApplyReturnHelper<out_idx, Return>::Apply(std::forward<Args>(pargs)...);
     }
   };
 };
 
-#define STEP_APPLY_FUNC_WARPPER(...) ::cinn::ir::ApplyFuncImpl<decltype(&__VA_ARGS__), &__VA_ARGS__>::Apply
+#define APPLY_FUNC_UNIFORM(...) ::cinn::ir::ApplyFuncImpl<decltype(&__VA_ARGS__), &__VA_ARGS__>::Apply
+#define FREE_FUNCTION_CONVERTER(...) ::cinn::ir::FreeFuncConverter<decltype(__VA_ARGS__), __VA_ARGS__>::Apply
 
 // implement demo step kind
 // clang-format off
-std::vector<Expr> GetLoops(IRSchedule* sch, const Expr& block) {
-    return sch->GetLoops(block);
-}
 CINN_BUILD_STEP_KIND(GetLoops)
     .Inputs({"block"})
-    .SetApplyFn(STEP_APPLY_FUNC_WARPPER(GetLoops));
+    .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(
+                static_cast<std::vector<Expr> (IRSchedule::*)(const Expr&) const>(&IRSchedule::GetLoops))));
 
-std::vector<Expr> GetLoopsWithName(IRSchedule* sch, const std::string& block_name) {
-    return sch->GetLoops(block_name);
-}
 CINN_BUILD_STEP_KIND(GetLoopsWithName)
     .Attrs({"block_name"})
-    .SetApplyFn(STEP_APPLY_FUNC_WARPPER(GetLoopsWithName));
+    .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(
+                static_cast<std::vector<Expr> (IRSchedule::*)(const std::string&) const>(&IRSchedule::GetLoops))));
 
-std::vector<Expr> GetAllBlocks(IRSchedule* sch) {
-    return sch->GetAllBlocks();
-}
 CINN_BUILD_STEP_KIND(GetAllBlocks)
-    .SetApplyFn(STEP_APPLY_FUNC_WARPPER(GetAllBlocks));
+    .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(
+                static_cast<std::vector<Expr> (IRSchedule::*)() const>(&IRSchedule::GetAllBlocks))));
 
-Expr GetBlock(IRSchedule* sch, const std::string& block_name) {
-    return sch->GetBlock(block_name);
-}
 CINN_BUILD_STEP_KIND(GetBlock)
     .Attrs({"block_name"})
-    .SetApplyFn(STEP_APPLY_FUNC_WARPPER(GetBlock));
+    .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(
+                static_cast<Expr (IRSchedule::*)(const std::string&) const>(&IRSchedule::GetBlock))));
 
-std::vector<Expr> Split(IRSchedule* sch, const Expr& loop, const std::vector<int>& factors) {
-    return sch->Split(loop, factors);
-}
 CINN_BUILD_STEP_KIND(Split)
     .Inputs({"loop"})
     .Attrs({"factors"})
-    .SetApplyFn(STEP_APPLY_FUNC_WARPPER(Split));
+    .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(
+                static_cast<std::vector<Expr> (IRSchedule::*)(const Expr&, const std::vector<int>&)>(&IRSchedule::Split))));
 
-std::vector<Expr> SplitWithName(IRSchedule* sch,
-                        const std::string& block_name,
-                        int loop_index,
-                        const std::vector<int>& factors) {
-    return sch->Split(block_name, loop_index, factors);
-}
 CINN_BUILD_STEP_KIND(SplitWithName)
     .Attrs({"block_name", "loop_index", "factors"})
-    .SetApplyFn(STEP_APPLY_FUNC_WARPPER(SplitWithName));
+    .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(
+                    static_cast<std::vector<Expr> (IRSchedule::*)(const std::string&, int, const std::vector<int>&)>(&IRSchedule::Split))));
 
-Expr Fuse(IRSchedule* sch, const std::vector<Expr>& loops) {
-    return sch->Fuse(loops);
-}
 CINN_BUILD_STEP_KIND(Fuse)
     .Inputs({"loops"})
-    .SetApplyFn(STEP_APPLY_FUNC_WARPPER(Fuse));
+    .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(
+                static_cast<Expr (IRSchedule::*)(const std::vector<Expr>&)>(&IRSchedule::Fuse))));
 
-Expr FuseWithBlockName(IRSchedule* sch, const std::string& block_name,
-          const std::vector<int>& loops_index) {
-    return sch->Fuse(block_name, loops_index);
-}
 CINN_BUILD_STEP_KIND(FuseWithBlockName)
     .Attrs({"block_name", "loops_index"})
-    .SetApplyFn(STEP_APPLY_FUNC_WARPPER(FuseWithBlockName));
+    .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(
+                static_cast<Expr (IRSchedule::*)(const std::string&, const std::vector<int>&)>(&IRSchedule::Fuse))));
 
-Expr FuseWithBlock(IRSchedule* sch, const Expr& block,
-                   const std::vector<int>& loops_index) {
-    return sch->Fuse(block, loops_index);
-}
 CINN_BUILD_STEP_KIND(FuseWithBlock)
     .Inputs({"block"})
     .Attrs({"loops_index"})
-    .SetApplyFn(STEP_APPLY_FUNC_WARPPER(FuseWithBlock));
+    .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(
+                    static_cast<Expr (IRSchedule::*)(const Expr&, const std::vector<int>&)>(&IRSchedule::Fuse))));
 
-/*
-void ComputeAt(IRSchedule* sch, const Expr& block, const Expr& loop) {
+CINN_BUILD_STEP_KIND(ComputeAt)
+    .Inputs({"block", "loop"})
+    .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(&IRSchedule::ComputeAt)));
 
-}
-void SimpleComputeAt(IRSchedule* sch, const Expr& block, const Expr& loop) {
+CINN_BUILD_STEP_KIND(SimpleComputeAt)
+    .Inputs({"block", "loop"})
+    .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(&IRSchedule::SimpleComputeAt)));
 
-}
-Expr GetRootBlock(IRSchedule* sch, const Expr& expr) {
+CINN_BUILD_STEP_KIND(GetRootBlock)
+    .Inputs({"expr"})
+    .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(&IRSchedule::GetRootBlock)));
 
-}
-Expr CacheRead(IRSchedule* sch, const Expr& block, int read_buffer_index, const std::string& memory_type) {
+CINN_BUILD_STEP_KIND(CacheRead)
+    .Inputs({"block"})
+    .Attrs({"read_buffer_index", "memory_type"})
+    .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(&IRSchedule::CacheRead)));
 
-}
-Expr CacheWrite(IRSchedule* sch, const Expr& block, int write_buffer_index, const std::string& memory_type) {
+CINN_BUILD_STEP_KIND(CacheWrite)
+    .Inputs({"block"})
+    .Attrs({"read_buffer_index", "memory_type"})
+    .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(&IRSchedule::CacheWrite)));
 
-}
-void SyncThreads(IRSchedule* sch, const Expr& ir_node, bool after_node = true) {
+CINN_BUILD_STEP_KIND(SyncThreads)
+    .Inputs({"ir_node"})
+    .Attrs({"after_node"})
+    .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(&IRSchedule::SyncThreads)));
 
-}
-void SetBuffer(IRSchedule* sch, Expr& block, const std::string& memory_type, bool fixed = false) {
+CINN_BUILD_STEP_KIND(SetBuffer)
+    .Inputs({"block"})
+    .Attrs({"memory_type", "fixed"})
+    .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(&IRSchedule::SetBuffer)));
 
-}
+CINN_BUILD_STEP_KIND(Reorder)
+    .Inputs({"loops"})
+    .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(
+                    static_cast<void (IRSchedule::*)(const std::vector<Expr>&)>(&IRSchedule::Reorder))));
 
-void Reorder(IRSchedule* sch, const std::vector<Expr>& loops) {
+CINN_BUILD_STEP_KIND(ReorderWithBlock)
+    .Inputs({"block"})
+    .Attrs({"loop_index"})
+    .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(
+                    static_cast<void (IRSchedule::*)(const Expr&, const std::vector<int>&)>(&IRSchedule::Reorder))));
 
-}
-void ReorderWithBlockName(IRSchedule* sch, const std::string& block_name, const std::vector<int>& loops_index) {
+CINN_BUILD_STEP_KIND(ReorderWithBlockName)
+    .Inputs({"block_name"})
+    .Attrs({"loop_index"})
+    .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(
+                    static_cast<void (IRSchedule::*)(const std::string&, const std::vector<int>&)>(&IRSchedule::Reorder))));
 
-}
+CINN_BUILD_STEP_KIND(Parallel)
+    .Inputs({"loop"})
+    .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(&IRSchedule::Parallel)));
 
-void ReorderWithBlock(IRSchedule* sch, const Expr& block, const std::vector<int>& loops_index) {
-}
+CINN_BUILD_STEP_KIND(Vectorize)
+    .Inputs({"loop"})
+    .Attrs({"factor"})
+    .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(&IRSchedule::Vectorize)));
 
-void Parallel(IRSchedule* sch, const Expr& loop) {
+CINN_BUILD_STEP_KIND(Unroll)
+    .Inputs({"loop"})
+    .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(&IRSchedule::Unroll)));
 
-}
-void Vectorize(IRSchedule* sch, const Expr& loop, int factor) {
+CINN_BUILD_STEP_KIND(ComputeInline)
+    .Inputs({"schedule_block"})
+    .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(&IRSchedule::ComputeInline)));
 
-}
-void Unroll(IRSchedule* sch, const Expr& loop) {
+CINN_BUILD_STEP_KIND(Bind)
+    .Inputs({"loop"})
+    .Attrs({"thread_axis"})
+    .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(&IRSchedule::Bind)));
 
-}
-void ComputeInline(IRSchedule* sch, const Expr& schedule_block) {
+CINN_BUILD_STEP_KIND(Rfactor)
+    .Inputs({"rf_loop"})
+    .Attrs({"rf_axis"})
+    .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(&IRSchedule::Rfactor)));
 
-}
-void Bind(IRSchedule* sch, const Expr& loop, const std::string& thread_axis) {
-
-}
-Expr Rfactor(IRSchedule* sch, const Expr& rf_loop, int rf_axis) {
-    return sch->Rfactor(rf_loop, rf_axis);
-}
-void MergeExprs(IRSchedule* sch) {
-    return sch->MergeExprs();
-}
-*/
+CINN_BUILD_STEP_KIND(MergeExprs)
+    .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(&IRSchedule::MergeExprs)));
 
 // clang-format on
 
@@ -436,6 +462,7 @@ utils::Attribute AttrProtoToVariant(const proto::ScheduleDesc_Attr& attr) {
   return value;
 }
 
+// Expr hash functor
 struct ExprHash {
   size_t operator()(const Expr& e) const { return std::hash<IrNode*>()(e.ptr()); }
 };
