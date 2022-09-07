@@ -20,7 +20,6 @@ namespace frontend {
 namespace paddle_mappers {
 
 void WhereOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
-  LOG(WARNING) << "------------------------------";
   CHECK_EQ(op_desc.Input("Condition").size(), 1UL);
   auto c_name = op_desc.Input("Condition").front();
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
@@ -35,7 +34,6 @@ void WhereOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ct
   auto x = ctx.GetVar(x_name);
   auto y = ctx.GetVar(y_name);
 
-  LOG(WARNING) << "######## " << c_name << " " << c->type;
   auto out = ctx.Builder()->Select(c, x, y);
 
   ctx.AddVar(out_name, out);

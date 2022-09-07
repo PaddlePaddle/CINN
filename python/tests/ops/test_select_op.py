@@ -77,14 +77,18 @@ class TestSelectOp(OpTest):
         self.check_outputs_and_grads(all_equal=True)
 
 
-# broadcast?
-class TestSelectOpCase1(TestSelectOp):
-    def init_case(self):
-        self.inputs = {
-            "Condition": np.zeros(100).astype('bool'),
-            "X": np.random.uniform((-3), 5, 100).astype('float32'),
-            "Y": np.random.uniform((-3), 5, 100).astype('float32')
-        }
+class TestSelectOp1(TestSelectOp):
+    def init_config(self):
+        self.x = np.random.uniform((-5), 5, (60, 2)).astype('float32')
+        self.y = np.random.uniform((-5), 5, (60, 2)).astype('float32')
+        self.cond = np.ones((60, 2)).astype('bool')
+
+
+class TestSelectOp2(TestSelectOp):
+    def init_config(self):
+        self.x = np.random.uniform((-3), 5, (20, 2, 4)).astype('float32')
+        self.y = np.random.uniform((-3), 5, (20, 2, 4)).astype('float32')
+        self.cond = np.array(np.random.randint(2, size=(20, 2, 4)), dtype=bool)
 
 
 if __name__ == "__main__":
