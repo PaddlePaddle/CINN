@@ -21,6 +21,7 @@
 
 #include "cinn/ir/ir_schedule.h"
 #include "cinn/ir/schedule_desc.pb.h"
+#include "cinn/utils/registry.h"
 #include "cinn/utils/type_defs.h"
 
 namespace cinn {
@@ -44,9 +45,9 @@ class ScheduleDesc {
 
   ScheduleDesc() = default;
   void Append(Step&& step);
-  void Replay(IRSchedule* schedule);
+  void Replay(IRSchedule* schedule) const;
   proto::ScheduleDesc ToProto() const;
-  static void ReplayWithProto(const proto::ScheduleDesc& desc_proto, IRSchedule* sch);
+  static std::vector<Expr> ReplayWithProto(const proto::ScheduleDesc& desc_proto, IRSchedule* sch);
 };
 
 }  // namespace ir

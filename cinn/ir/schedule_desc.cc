@@ -21,7 +21,6 @@
 #include <utility>
 
 #include "cinn/common/macros.h"
-#include "cinn/utils/registry.h"
 #include "cinn/utils/string.h"
 
 namespace cinn {
@@ -32,6 +31,9 @@ using StepApplyFunc = std::vector<Expr> (*)(PackedStepContext*);
 
 class StepKindInfo {
  public:
+  // compatible for Registry::EntryType
+  std::string name;
+
   // format: {"<name1>", "<name2>", ...}
   StepKindInfo& Inputs(std::vector<std::string>&& inputs) {
     inputs_ = inputs;
@@ -50,9 +52,6 @@ class StepKindInfo {
 
   std::vector<Expr> Apply(PackedStepContext* context) const { return apply_func_(context); }
 
-  // compatible for Registry::EntryType
-  std::string name;
-
  private:
   friend class PackedStepContext;
 
@@ -68,10 +67,6 @@ class StepKindRegistry : public Registry<StepKindInfo> {
  private:
   CINN_DISALLOW_COPY_AND_ASSIGN(StepKindRegistry);
 };
-
-#define CINN_BUILD_STEP_KIND(TypeName)                                \
-  static ::cinn::ir::StepKindInfo& __step_kind_registrar_##TypeName = \
-      ::cinn::ir::StepKindRegistry::Global()->__REGISTER_OR_GET__(#TypeName)
 
 class PackedStepContext {
  public:
@@ -269,8 +264,16 @@ struct ApplyFuncImpl<Return (*)(Args...), impl_fn> {
 #define APPLY_FUNC_UNIFORM(...) ::cinn::ir::ApplyFuncImpl<decltype(&__VA_ARGS__), &__VA_ARGS__>::Apply
 #define FREE_FUNCTION_CONVERTER(...) ::cinn::ir::FreeFuncConverter<decltype(__VA_ARGS__), __VA_ARGS__>::Apply
 
+#define CINN_BUILD_STEP_KIND(TypeName)                                \
+  static ::cinn::ir::StepKindInfo& __step_kind_registrar_##TypeName = \
+      ::cinn::ir::StepKindRegistry::Global()->__REGISTER_OR_GET__(#TypeName)
+
 // implement demo step kind
 // clang-format off
+CINN_BUILD_STEP_KIND(GetAllBlocks)
+    .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(
+                static_cast<std::vector<Expr> (IRSchedule::*)() const>(&IRSchedule::GetAllBlocks))));
+
 CINN_BUILD_STEP_KIND(GetLoops)
     .Inputs({"block"})
     .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(
@@ -280,10 +283,6 @@ CINN_BUILD_STEP_KIND(GetLoopsWithName)
     .Attrs({"block_name"})
     .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(
                 static_cast<std::vector<Expr> (IRSchedule::*)(const std::string&) const>(&IRSchedule::GetLoops))));
-
-CINN_BUILD_STEP_KIND(GetAllBlocks)
-    .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(
-                static_cast<std::vector<Expr> (IRSchedule::*)() const>(&IRSchedule::GetAllBlocks))));
 
 CINN_BUILD_STEP_KIND(GetBlock)
     .Attrs({"block_name"})
@@ -473,7 +472,7 @@ struct ExprEqual {
 
 void ScheduleDesc::Append(Step&& step) { steps.emplace_back(step); }
 
-void ScheduleDesc::Replay(IRSchedule* schedule) { return ReplayWithProto(this->ToProto(), schedule); }
+void ScheduleDesc::Replay(IRSchedule* schedule) const { ReplayWithProto(this->ToProto(), schedule); }
 
 proto::ScheduleDesc ScheduleDesc::ToProto() const {
   proto::ScheduleDesc desc_proto;
@@ -487,6 +486,7 @@ proto::ScheduleDesc ScheduleDesc::ToProto() const {
       expr_desc->set_parameter(param_name);
       for (auto&& expr : param2exprs.second) {
         auto expr_it = expr2name.find(expr);
+        // annotation refer to last
         CHECK(expr_it != expr2name.end()) << "Can't find expr of param_name: " << param_name;
         expr_desc->add_arguments(expr_it->second);
       }
@@ -509,14 +509,15 @@ proto::ScheduleDesc ScheduleDesc::ToProto() const {
   return desc_proto;
 }
 
-void ScheduleDesc::ReplayWithProto(const proto::ScheduleDesc& desc_proto, IRSchedule* sch) {
+std::vector<Expr> ScheduleDesc::ReplayWithProto(const proto::ScheduleDesc& desc_proto, IRSchedule* sch) {
   // VLOG(4) << "proto::ScheduleDesc:\n" << desc_proto.DebugString();
   LOG(INFO) << "proto::ScheduleDesc:\n" << desc_proto.DebugString();
   if (desc_proto.steps().empty()) {
     LOG(WARNING) << "Input proto::ScheduleDesc is empty";
-    return;
+    return {};
   }
 
+  std::vector<Expr> last_outputs;
   absl::flat_hash_map<std::string, Expr> name2expr;
   for (auto&& step_proto : desc_proto.steps()) {
     // VLOG(4) << "Replay step:\n" << step_proto.DebugString();
@@ -544,7 +545,9 @@ void ScheduleDesc::ReplayWithProto(const proto::ScheduleDesc& desc_proto, IRSche
     for (size_t i = 0; i < step.outputs.size(); ++i) {
       name2expr[step_proto.outputs(i)] = step.outputs.at(i);
     }
+    last_outputs = std::move(step.outputs);
   }
+  return last_outputs;
 }
 
 }  // namespace ir
