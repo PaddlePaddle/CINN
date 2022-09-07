@@ -288,7 +288,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFuncWithIRSchedule(
   std::vector<ir::Tensor> tensor_inputs;
   std::vector<common::CINNValue> cinn_inputs;
   std::vector<std::string> input_output_nodes;
-  VLOG(3) << "GetOpFunc of op " << node->id();
+  VLOG(3) << "GetOpFunc of op " << node->id() << " with op type " << node->op()->name;
 
   // 1.Collect inputs info and outputs info
   for (auto& i : node->inlinks_in_order(true)) {

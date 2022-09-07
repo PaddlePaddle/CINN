@@ -1246,10 +1246,10 @@ std::vector<Expr> ScheduleHelper::GetAllBlocks() const {
     auto find_blocks = visitor(&it_expr);
     result.insert(result.end(), find_blocks.begin(), find_blocks.end());
   }
-  CHECK(!result.empty()) << "Didn't find blocks in expr.";
   for (auto& it_expr : exprs) {
     VLOG(3) << "it_expr is : " << it_expr;
   }
+  CHECK(!result.empty()) << "Didn't find blocks in expr.";
   return result;
 }
 

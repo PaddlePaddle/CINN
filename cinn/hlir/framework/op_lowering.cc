@@ -138,7 +138,7 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOp(IRComputeFunction compute,
       (this->*schedule)(ir_sch, tensor_map, group, group->fused_sub_groups[idx], first, second);
     }
   }
-  VLOG(3) << "After IRLowerOp schedule";
+  VLOG(3) << "After IRLowerOp schedule, ir is: \n" << ir_sch.GetModule().GetExprs().at(0);
   // function args
   std::vector<ir::Argument> func_args;
   for (auto& args : arg_tensors) {

@@ -33,8 +33,8 @@ TEST(matmul, basic) {
   Placeholder<float> B("B", {K, N});
 
   //! Define a computation to get the result tensor C.
-  auto C =
-      Compute({M, N} /*domain*/, [=](Expr i, Expr j) { return ReduceSum(A(i, k) * B(k, j), {k} /*reduce axis*/); });
+  auto C = Compute(
+      {M, N} /*domain*/, [=](Expr i, Expr j) { return ReduceSum(A(i, k) * B(k, j), {k} /*reduce axis*/); }, "C");
 
   //! Generate the stages to get the default schedules.
   auto stages = CreateStages({C} /*the endpoints*/);
@@ -45,16 +45,16 @@ TEST(matmul, basic) {
   //! This will generate the code like
   //! @ROC[c++]
   auto target_source = R"ROC(
-function fn0 (_A, _B, _tensor)
+function fn0 (_A, _B, _C)
 {
   for (i, 0, 100)
   {
     for (j, 0, 200)
     {
-      tensor__reduce_init[i, j] = 0
+      C__reduce_init[i, j] = 0
       for (k0, 0, 50)
       {
-        tensor[i, j] = (tensor[i, j] + (A[i, k0] * B[k0, j]))
+        C[i, j] = (C[i, j] + (A[i, k0] * B[k0, j]))
       }
     }
   }

@@ -57,16 +57,21 @@ std::shared_ptr<framework::OpStrategy> StrategyForCast(const framework::NodeAttr
                                                        const Target &target) {
   framework::CINNCompute cast_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input arguments of Cast compute is empty! Please check.\n";
-    CINNValuePack a = args[0];
-    CHECK_GE(a.size(), 1U) << "at least 1 input tensors for Cast compute\n";
-    Expr A = a[0];
+    CINNValuePack pack_args = args[0];
+    CHECK_GE(pack_args.size(), 1U) << "at least 1 input tensors for Cast compute\n";
+    Expr A = pack_args[0];
     CHECK(A.as_tensor());
     CHECK(!output_shapes.empty());
     auto tensor_A = A.as_tensor_ref();
     auto stages   = CreateStages({tensor_A});
     VLOG(3) << "A shape: " << utils::Join(tensor_A->shape, ", ")
             << ", output_shapes: " << utils::Join(output_shapes[0], ", ");
-    ir::Tensor out = Cast(tensor_A, out_type[0], UniqName("Cast_out"));
+    std::string tensor_name = UniqName("Cast_out");
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK_EQ(pack_args.size(), 2U);
+      tensor_name = pack_args[1].operator std::string();
+    }
+    ir::Tensor out = Cast(tensor_A, out_type[0], tensor_name);
     std::vector<CINNValue> res;
     stages->InsertLazily(out);
     res.push_back(CINNValue(out));
@@ -75,16 +80,9 @@ std::shared_ptr<framework::OpStrategy> StrategyForCast(const framework::NodeAttr
     *ret = CINNValuePack{res};
   });
 
-  framework::CINNSchedule cast_schedule([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input argument of reshape schedule is empty! Please check.\n";
-    CINNValuePack arg_pack = args[0];
-    Expr out               = arg_pack[0];
-    CHECK(out.as_tensor());
-    *ret = arg_pack;
-  });
-
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(cast_compute, cast_schedule, "strategy.cast.x86", 1);
+  strategy->AddImpl(cast_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.cast.x86", 1);
+
   return strategy;
 }
 

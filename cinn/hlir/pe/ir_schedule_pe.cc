@@ -40,6 +40,7 @@ void IRScheduleInjectiveCPU(ir::IRSchedule &ir_sch,
                             const std::vector<int> &output_shape,
                             const common::Target &target,
                             bool vectorizable) {
+  VLOG(3) << "Begin IRScheduleInjectiveCPU";
   auto all_blocks = ir_sch.GetAllBlocks();
   auto loops      = ir_sch.GetLoops(all_blocks[0]);
   int dims        = output_shape.size();
@@ -73,6 +74,7 @@ void IRScheduleInjectiveCPU(ir::IRSchedule &ir_sch,
 void IRCudaScheduleInjective(ir::IRSchedule &ir_sch,
                              const std::vector<int> &output_shape,
                              const common::Target &target) {
+  VLOG(3) << "Begin IRCudaScheduleInjective ";
   auto all_blocks = ir_sch.GetAllBlocks();
   auto loops      = ir_sch.GetLoops(all_blocks[0]);
   auto fused      = ir_sch.Fuse(loops);
