@@ -32,7 +32,8 @@
 namespace cinn {
 namespace auto_schedule {
 
-EvolutionarySearch::EvolutionarySearch(const TuneTask& tune_task) : tune_task_(tune_task) {
+EvolutionarySearch::EvolutionarySearch(const TuneTask& tune_task, const ExprCostModel& cost_model)
+    : tune_task_(tune_task), cost_model_(cost_model) {
   search_space_ = std::make_unique<SearchSpace>(tune_task);
 }
 
@@ -116,7 +117,7 @@ std::vector<SearchState> EvolutionarySearch::Evolve(const std::vector<SearchStat
 
   utils::SizedMultiSet<SearchState> evolution_with_cost(ret_num);
   for (size_t i = 0; i < evolution.size(); ++i) {
-    evolution_with_cost.Push(search_space_->GetScheduleMutate(evolution[i], *cost_model_));
+    evolution_with_cost.Push(search_space_->GetScheduleMutate(evolution[i], cost_model_));
   }
 
   return evolution_with_cost.ReturnAsContainer<std::vector<SearchState>>();

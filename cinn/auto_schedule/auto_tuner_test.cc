@@ -24,6 +24,9 @@
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/ir/ir_base.h"
+#include "cinn/runtime/flags.h"
+
+DECLARE_bool(auto_schedule_use_cost_model);
 
 namespace cinn {
 namespace auto_schedule {
@@ -88,6 +91,32 @@ class TestAutoTuner : public ::testing::Test {
     ASSERT_EQ(2, runtime_program->size());
     runtime_program->Execute();
   }
+
+  void ZeroMeasure() {
+    // set config and options
+    AutoTuner::Config tuning_config;
+    tuning_config.task_schedule_strategy = "round_robin";
+
+    TuningOptions tuning_options;
+    tuning_options.num_measure_trials = 0;
+    auto result                       = InitializeAndTune(tuning_config, tuning_options);
+    BasicCheckResult(result);
+    ApplyTunedAndRun(result);
+  }
+
+  void NonZeroMeasure() {
+    // set config and options
+    AutoTuner::Config tuning_config;
+    tuning_config.task_schedule_strategy = "round_robin";
+
+    TuningOptions tuning_options;
+    tuning_options.num_measure_trials        = 4;
+    tuning_options.num_samples_per_iteration = 2;
+
+    auto result = InitializeAndTune(tuning_config, tuning_options);
+    BasicCheckResult(result);
+    ApplyTunedAndRun(result);
+  }
 };
 
 frontend::Program TestAutoTuner::CreateAddReluProgram() {
@@ -101,30 +130,24 @@ frontend::Program TestAutoTuner::CreateAddReluProgram() {
   return builder.Build();
 }
 
-TEST_F(TestAutoTuner, ZeroMeasure) {
-  // set config and options
-  AutoTuner::Config tuning_config;
-  tuning_config.task_schedule_strategy = "round_robin";
-
-  TuningOptions tuning_options;
-  tuning_options.num_measure_trials = 0;
-  auto result                       = InitializeAndTune(tuning_config, tuning_options);
-  BasicCheckResult(result);
-  ApplyTunedAndRun(result);
+TEST_F(TestAutoTuner, ZeroMeasure_DisableCostModel) {
+  FLAGS_auto_schedule_use_cost_model = false;
+  ZeroMeasure();
 }
 
-TEST_F(TestAutoTuner, NonZeroMeasure) {
-  // set config and options
-  AutoTuner::Config tuning_config;
-  tuning_config.task_schedule_strategy = "round_robin";
+TEST_F(TestAutoTuner, ZeroMeasure_EnableCostModel) {
+  FLAGS_auto_schedule_use_cost_model = true;
+  ZeroMeasure();
+}
 
-  TuningOptions tuning_options;
-  tuning_options.num_measure_trials        = 4;
-  tuning_options.num_samples_per_iteration = 2;
+TEST_F(TestAutoTuner, NonZeroMeasure_DisableCostModel) {
+  FLAGS_auto_schedule_use_cost_model = false;
+  NonZeroMeasure();
+}
 
-  auto result = InitializeAndTune(tuning_config, tuning_options);
-  BasicCheckResult(result);
-  ApplyTunedAndRun(result);
+TEST_F(TestAutoTuner, NonZeroMeasure_EnableCostModel) {
+  FLAGS_auto_schedule_use_cost_model = true;
+  NonZeroMeasure();
 }
 
 }  // namespace auto_schedule

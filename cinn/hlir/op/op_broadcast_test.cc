@@ -254,6 +254,15 @@ TEST(Operator, Operator_BroadcastTo) {
   }
 }
 
+common::CINNValuePack GetComputeResult(const std::shared_ptr<OpImpl> &impl,
+                                       std::vector<common::CINNValue> &cinn_inputs,
+                                       const std::string &output_name = "") {
+  if (FLAGS_cinn_ir_schedule) {
+    cinn_inputs.emplace_back(output_name);
+  }
+  return impl->fcompute(common::CINNValuePack{cinn_inputs});
+}
+
 TEST(Operator, Operator_BroadcastTo_0) {
   auto const_scalar    = Operator::Get("const_scalar");
   auto broadcast_to    = Operator::Get("broadcast_to");
@@ -283,37 +292,37 @@ TEST(Operator, Operator_BroadcastTo_0) {
   auto impl_0 =
       OpStrategy::SelectImpl(strategy[const_scalar](attrs, std::vector<ir::Tensor>{}, type, {out_shape}, target));
   std::vector<common::CINNValue> cinn_inputs;
-  common::CINNValuePack rets_0 = impl_0->fcompute(common::CINNValuePack{cinn_inputs});
+  common::CINNValuePack rets_0 = GetComputeResult(impl_0, cinn_inputs, "out_0");
   ir::Expr out_0               = rets_0[0];
   auto tensor_0                = out_0.as_tensor_ref();
   poly::StageMap stages_0      = rets_0.back();
 
-  auto impl_1  = OpStrategy::SelectImpl(strategy[broadcast_to](attrs, {tensor_0}, type, {out_shape}, target));
-  auto input_1 = common::CINNValuePack{{{common::CINNValue(tensor_0)}}};
-  common::CINNValuePack rets_1 = impl_1->fcompute(input_1);
+  auto impl_1 = OpStrategy::SelectImpl(strategy[broadcast_to](attrs, {tensor_0}, type, {out_shape}, target));
+  std::vector<common::CINNValue> cinn_inputs_1 = {{common::CINNValue(tensor_0)}};
+  common::CINNValuePack rets_1                 = GetComputeResult(impl_1, cinn_inputs_1, "out_1");
 
   ir::Expr out_1          = rets_1[0];
   auto tensor_1           = out_1.as_tensor_ref();
   poly::StageMap stages_1 = rets_1.back();
 
-  auto impl_2  = OpStrategy::SelectImpl(strategy[reduce_sum](attrs, {A.tensor()}, type, {out_shape}, target));
-  auto input_2 = common::CINNValuePack{{{common::CINNValue(A.tensor())}}};
-  common::CINNValuePack rets_2 = impl_2->fcompute(input_2);
+  auto impl_2 = OpStrategy::SelectImpl(strategy[reduce_sum](attrs, {A.tensor()}, type, {out_shape}, target));
+  std::vector<common::CINNValue> cinn_inputs_2 = {{common::CINNValue(A.tensor())}};
+  common::CINNValuePack rets_2                 = GetComputeResult(impl_2, cinn_inputs_2, "out_2");
 
   ir::Expr out_2          = rets_2[0];
   auto tensor_2           = out_2.as_tensor_ref();
   poly::StageMap stages_2 = rets_2.back();
 
-  auto input_4                 = common::CINNValuePack{{{common::CINNValue(A.tensor())}}};
-  common::CINNValuePack rets_4 = impl_2->fcompute(input_4);
-  ir::Expr out_4               = rets_4[0];
-  auto tensor_4                = out_4.as_tensor_ref();
-  poly::StageMap stages_4      = rets_4.back();
+  std::vector<common::CINNValue> cinn_inputs_4 = {{common::CINNValue(A.tensor())}};
+  common::CINNValuePack rets_4                 = GetComputeResult(impl_2, cinn_inputs_4, "out_4");
+  ir::Expr out_4                               = rets_4[0];
+  auto tensor_4                                = out_4.as_tensor_ref();
+  poly::StageMap stages_4                      = rets_4.back();
 
   auto impl_3 =
       OpStrategy::SelectImpl(strategy[elementwise_add](attrs, {tensor_1, tensor_2}, type, {out_shape}, target));
-  auto input_3                 = common::CINNValuePack{{{common::CINNValue(tensor_1), common::CINNValue(tensor_2)}}};
-  common::CINNValuePack rets_3 = impl_3->fcompute(input_3);
+  std::vector<common::CINNValue> cinn_inputs_3 = {{common::CINNValue(tensor_1), common::CINNValue(tensor_2)}};
+  common::CINNValuePack rets_3                 = GetComputeResult(impl_3, cinn_inputs_3, "out_3");
 
   ir::Expr out_3          = rets_3[0];
   auto tensor_3           = out_3.as_tensor_ref();

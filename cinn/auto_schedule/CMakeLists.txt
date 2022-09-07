@@ -7,8 +7,14 @@ add_subdirectory(search_strategy)
 add_subdirectory(task)
 add_subdirectory(task_scheduler)
 
+proto_library(auto_schedule_proto SRCS auto_schedule.proto)
+
 core_gather_headers()
 
 gather_srcs(cinnapi_src SRCS auto_tuner.cc)
 
 cc_test(test_auto_tuner SRCS auto_tuner_test.cc DEPS cinncore)
+
+foreach(header ${auto_schedule_proto_HDRS})
+  set(core_proto_includes "${core_proto_includes};${header}" CACHE INTERNAL "")
+endforeach()
