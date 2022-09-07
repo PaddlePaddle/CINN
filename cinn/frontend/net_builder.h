@@ -103,12 +103,12 @@ class NetBuilder : public BaseBuilder {
   Variable Squeeze(const Variable& operand, const std::vector<int>& axes);
 
   /**
-   * Sort Variable x along the given axis and return index.
+   * Sort Variable x along the given axis and return index. The original Variable x will not be changed.
    */
   Variable ArgSort(const Variable& operand, const int& axis, const bool& is_ascend = true);
 
   /**
-   * Sort Variable x along the given axis.
+   * Sort Variable x along the given axis and return sorted Variable. The original Variable x will not be changed.
    */
   Variable Sort(const Variable& operand, const int& axis, const bool& is_ascend = true);
 

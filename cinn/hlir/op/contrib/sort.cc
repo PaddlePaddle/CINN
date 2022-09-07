@@ -56,7 +56,7 @@ ir::Tensor ArgSort(const ir::Tensor &A,
   } else if (target.arch == common::Target::Arch::X86) {
     extern_fun_name.assign("cinn_host_");
   } else {
-    LOG(FATAL) << "ArgSort only support X86 and NVGPU ! Please Check.\n";
+    LOG(FATAL) << "ArgSort only supports X86 and NVGPU ! Please Check.\n";
   }
   if (is_ascend) {
     extern_fun_name.append("lt_num_float");
@@ -102,13 +102,13 @@ std::vector<ir::Tensor> Sort(const ir::Tensor &A,
   } else if (target.arch == common::Target::Arch::X86) {
     extern_fun_name.assign("cinn_host_find_int_nd");
   } else {
-    LOG(FATAL) << "ArgSort only support X86 and NVGPU ! Please Check.\n";
+    LOG(FATAL) << "Sort only supports X86 and NVGPU ! Please Check.\n";
   }
   int pos_axis = axis;
   if (pos_axis < 0) {
     pos_axis += A->shape.size();
   }
-  auto sort_index = ArgSort(A, target, axis, is_ascend, name + "_index");
+  auto sort_index = ArgSort(A, target, pos_axis, is_ascend, name + "_index");
   auto res        = Compute(
       A->shape,
       [=](const std::vector<Expr> &indices) {
@@ -193,7 +193,6 @@ std::shared_ptr<framework::OpStrategy> StrategyForArgSort(const framework::NodeA
                                                           const std::vector<std::vector<int>> &output_shapes,
                                                           const Target &target) {
   auto attr_store = attrs.attr_store;
-
   CHECK(attr_store.count("axis")) << "find no attr of axis";
   int axis       = absl::get<int>(attr_store.at("axis"));
   bool is_ascend = true;
@@ -237,6 +236,9 @@ std::shared_ptr<framework::OpStrategy> StrategyForArgSort(const framework::NodeA
 std::vector<std::vector<int>> InferShapeForSort(const std::vector<std::vector<int>> &inputs_shape,
                                                 const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 1UL) << "The input's shape size should be 1! Please check again.";
+  CHECK(attr_store.count("axis")) << "find no attr of axis";
+  int axis = absl::get<int>(attr_store.at("axis"));
+  CHECK_GT(inputs_shape[0].size(), axis) << "The input's dim should be greater than axis! ";
   std::vector<std::vector<int>> res{inputs_shape[0]};
   return res;
 }
