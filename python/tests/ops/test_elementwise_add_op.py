@@ -67,7 +67,7 @@ class TestElementwiseAddOp(OpTest):
         builder = NetBuilder("add")
         x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
         y = builder.create_input(Float(32), self.inputs["y"].shape, "y")
-        out = builder.elementwise_add(x, y, axis=self.axis)
+        out = builder.add(x, y, axis=self.axis)
 
         dout = builder.create_input(
             Float(32), self.inputs["dout"].shape, "dout")

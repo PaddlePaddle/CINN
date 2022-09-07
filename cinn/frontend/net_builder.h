@@ -29,93 +29,30 @@
 namespace cinn {
 namespace frontend {
 
-enum class ComparisonKind : std::int8_t {
-  kUnk = -1,
-  kEq,
-  kNe,
-  kGe,
-  kGt,
-  kLe,
-  kLt,
-};
+#define NETBUILDER_UNARY_OP_FOREACH(macro__)                                                                 \
+  macro__(Sqrt) macro__(Tanh) macro__(Relu) macro__(Sigmoid) macro__(Identity) macro__(Exp) macro__(Erf)     \
+      macro__(Rsqrt) macro__(Log) macro__(Log2) macro__(Log10) macro__(Floor) macro__(Ceil) macro__(Round)   \
+          macro__(Trunc) macro__(Sin) macro__(Cos) macro__(Tan) macro__(Sinh) macro__(Cosh) macro__(Asin)    \
+              macro__(Acos) macro__(Atan) macro__(Asinh) macro__(Acosh) macro__(Atanh) macro__(IsNan)        \
+                  macro__(IsFinite) macro__(IsInf) macro__(LogicalNot) macro__(BitwiseNot) macro__(Negative) \
+                      macro__(Sign) macro__(Abs)
 
-enum class ReduceKind : std::int8_t {
-  kUnk = -1,
-  kSum,
-  kProd,
-  kMax,
-  kMin,
-  kAll,
-  kAny,
-};
+#define NETBUILDER_BINARY_OP_FOREACH(macro__)                                                               \
+  macro__(Add) macro__(Sub) macro__(Div) macro__(Multiply) macro__(FloorDiv) macro__(Mod) macro__(FloorMod) \
+      macro__(Max) macro__(Min) macro__(Power) macro__(LogicalAnd) macro__(LogicalOr) macro__(LogicalXor)   \
+          macro__(BitwiseAnd) macro__(BitwiseOr) macro__(BitwiseXor) macro__(LeftShift) macro__(RightShift) \
+              macro__(Equal) macro__(NotEqual) macro__(Greater) macro__(Less) macro__(GreaterEqual) macro__(LessEqual)
 
-// clang-format off
-#define NETBUILDER_UNARY_OP_FOREACH(macro__)    \
-    macro__(Sqrt)                               \
-    macro__(Tanh)                               \
-    macro__(Relu)                               \
-    macro__(Sigmoid)                            \
-    macro__(Identity)                            \
-    macro__(Exp)                            \
-    macro__(Erf)                            \
-    macro__(Rsqrt)                            \
-    macro__(Log)                            \
-    macro__(Log2)                            \
-    macro__(Log10)                            \
-    macro__(Floor)                            \
-    macro__(Ceil)                            \
-    macro__(Round)                            \
-    macro__(Trunc)                            \
-    macro__(Sin)                            \
-    macro__(Cos)                            \
-    macro__(Tan)                            \
-    macro__(Sinh)                            \
-    macro__(Cosh)                            \
-    macro__(Asin)                            \
-    macro__(Acos)                            \
-    macro__(Atan)                            \
-    macro__(Asinh)                            \
-    macro__(Acosh)                            \
-    macro__(Atanh)                            \
-    macro__(IsNan)                            \
-    macro__(IsFinite)                            \
-    macro__(IsInf)                            \
-    macro__(LogicalNot)                            \
-    macro__(BitwiseNot)                            \
-    macro__(Negative)                            \
-    macro__(Sign)                            \
-    macro__(Abs)
-
-#define NETBUILDER_BINARY_OP_FOREACH(macro__)   \
-    macro__(Add)                                \
-    macro__(Sub)                                \
-    macro__(Div)                                \
-    macro__(ReluGrad)                           \
-    macro__(Dot)                                \
-    macro__(FloorDiv)                                \
-    macro__(Mod)                                \
-    macro__(FloorMod)                                \
-    macro__(Max)                                \
-    macro__(Min)                                \
-    macro__(Power)                                \
-    macro__(LogicalAnd)                                \
-    macro__(LogicalOr)                                \
-    macro__(LogicalXor)                                \
-    macro__(BitwiseAnd)                                \
-    macro__(BitwiseOr)                                \
-    macro__(BitwiseXor)                                \
-    macro__(LeftShift)                                \
-    macro__(RightShift)
-
-#define NETBUILDER_ELEMENTWISE_OP_FOREACH(macro__)   \
-    macro__(ElementwiseAdd)                          \
-    macro__(ElementwiseMul)                          \
-    macro__(ElementwiseDiv)                          \
-    macro__(ElementwiseSub)
-// clang-format on
+#define NETBUILDER_REDUCE_OP_FOREACH(macro__) \
+  macro__(ReduceSum) macro__(ReduceProd) macro__(ReduceMax) macro__(ReduceMin) macro__(ReduceAll) macro__(ReduceAny)
 
 class NetBuilder {
   using AttributeMap = utils::AttributeMap;
+
+ private:
+  std::string name_;
+  std::vector<Instruction> instrs_;
+  std::vector<Variable> inputs_;
 
  public:
   // class base API
@@ -136,29 +73,63 @@ class NetBuilder {
 
   void AppendInstruction(const Instruction& instr) { instrs_.push_back(instr); }
 
- protected:
-  Variable ElementwiseOp(const std::string& op_type, const Variable& lhs, const Variable& rhs, int axis = -1);
-
   void InferShape(Instruction instr) const;
 
+ protected:
+  /**
+   * @brief The op only has one input and one output.
+   *
+   * @param operand The input variable.
+   *
+   * @return The result variable.
+   */
   Variable UnaryOp(const std::string& op_type, const Variable& operand);
 
-  Variable BinaryOp(const std::string& op_type, const Variable& lhs, const Variable& rhs);
+  Variable BinaryOp(const std::string& op_type, const Variable& lhs, const Variable& rhs, int axis = -1);
+
+  /**
+   * @brief Reduce array elements over the given dims.
+   *
+   * @param operand The input variable.
+   * @param dim The dims along which a sum is performed. If dim is empty, the operation will sum over all elements
+   * of the input array. If the dim has negative value, it should count from the last dim to the first.
+   * @param keep_dim If it is set true, the axes which are reduced are left in the result as dimensions with size one.
+   * With this option, the result will broadcast correctly against the input array.
+   *
+   * @return The result variable.
+   */
+  Variable Reduce(const std::string& op_type,
+                  const Variable& operand,
+                  const std::vector<int>& dim = {},
+                  bool keep_dim               = false);
+
+ private:
+  // the helper function of Matmul
+  std::pair<Variable, Variable> BroadcastMatmulInput(
+      const Variable& x, const Variable& y, bool trans_x, bool trans_y, float alpha);
+  std::vector<int> GetMatmulOutputShape(const Variable& x, const Variable& y, bool trans_x, bool trans_y, float alpha);
 
  public:
+  const std::vector<Variable>& CustomInstr(const std::string& type,
+                                           const std::vector<Variable>& inputs,
+                                           const AttributeMap& attrs);
+
   // algorithm API
 #define NETBUILDER_UNARY_OP_DECL(func_name__) Variable func_name__(const Variable& operand);
   NETBUILDER_UNARY_OP_FOREACH(NETBUILDER_UNARY_OP_DECL)
 #undef NETBUILDER_UNARY_OP_DECL
 
-#define NETBUILDER_BINARY_OP_DECL(func_name__) Variable func_name__(const Variable& lhs, const Variable& rhs);
-  NETBUILDER_BINARY_OP_FOREACH(NETBUILDER_BINARY_OP_DECL)
-#undef NETBUILDER_BINARY_OP_DECL
-
 #define NETBUILDER_ELEMENTWISE_OP_DECL(func_name__) \
   Variable func_name__(const Variable& lhs, const Variable& rhs, int axis = -1);
   NETBUILDER_ELEMENTWISE_OP_FOREACH(NETBUILDER_ELEMENTWISE_OP_DECL)
 #undef NETBUILDER_ELEMENTWISE_OP_DECL
+
+#define NETBUILDER_REDUCE_OP_DECL(func_name__) \
+  Variable func_name__(const Variable& x, const std::vector<int>& dim = {}, bool keep_dim = false);
+  NETBUILDER_REDUCE_OP_FOREACH(NETBUILDER_REDUCE_OP_DECL)
+#undef NETBUILDER_REDUCE_OP_DECL
+
+  Variable ConstScalar(float value, const std::string& name, const std::string& dtype);
 
   /**
    * @brief Create scalar with the specific value and type.
@@ -168,17 +139,7 @@ class NetBuilder {
    */
   template <typename T>
   Variable ConstScalar(T value, const std::string& name) {
-    Instruction instr("const_scalar");
-    instr.SetInputs({});
-    instr.SetAttr<T>("value", value);
-    InferShape(instr);
-    AppendInstruction(instr);
-    auto out = instr.GetOutput(0);
-    out.set_id(name);
-    auto out_type = type_of<T>();
-    CHECK(out_type.is_float() || out_type.is_int() || out_type.is_bool()) << "no supported type: " << out_type;
-    out->type = out_type;
-    return out;
+    return ConstScalar(static_cast<float>(value), name, common::Type2Str(common::type_of<T>()));
   }
 
   Variable FillConstant(const std::vector<int>& shape,
@@ -222,8 +183,6 @@ class NetBuilder {
                  const std::vector<int>& infer_flags = {},
                  const std::vector<int>& strides     = {});
 
-  Variable Compare(const Variable& lhs, const Variable& rhs, ComparisonKind kind);
-
   Variable Select(const Variable& condition, const Variable& true_value, const Variable& false_value);
 
   Variable IndexSelect(const Variable& operand, const Variable& index, int axis = 0);
@@ -261,33 +220,7 @@ class NetBuilder {
 
   Variable Relu6(const Variable& a, float threshold = 6.0f);
 
-  /**
-   * @brief Reduce array elements over the given dims.
-   *
-   * @param operand The input variable.
-   * @param dim The dims along which a sum is performed. If dim is empty, the operation will sum over all elements
-   * of the input array. If the dim has negative value, it should count from the last dim to the first.
-   * @param keep_dim If it is set true, the axes which are reduced are left in the result as dimensions with size one.
-   * With this option, the result will broadcast correctly against the input array.
-   *
-   * @return The result variable.
-   */
-  Variable Reduce(const Variable& operand, ReduceKind kind, const std::vector<int>& dim, bool keep_dim = false);
-
-  /**
-   * Compute the sum of Variable x along the given dim.
-   */
-  Variable ReduceSum(const Variable& x, const std::vector<int>& dim, bool keep_dim = false);
-
-  /**
-   * Compute the logic add of Variable x along the given dim.
-   */
-  Variable ReduceAll(const Variable& x, const std::vector<int>& dim, bool keep_dim = false);
-
-  /**
-   * Compute the sum of Variable x along the given dim.
-   */
-  Variable ReduceAny(const Variable& x, const std::vector<int>& dim, bool keep_dim = false);
+  Variable ReluGrad(const Variable& lhs, const Variable& rhs);
 
   /**
    * Cast Variable x to dtype.
@@ -388,10 +321,6 @@ class NetBuilder {
 
   Variable Clip(const std::vector<Variable>& inputs, const float& max_val, const float& min_val);
 
-  const std::vector<Variable>& CustomInstr(const std::string& type,
-                                           const std::vector<Variable>& inputs,
-                                           const AttributeMap& attrs);
-
   Variable Arange(const float start, const float stop, const float step, const std::string& dtype);
 
   // This operator checks if all x and y satisfy the condition: |x - y| <= atol + rtol * |y|
@@ -399,15 +328,6 @@ class NetBuilder {
       const Variable& x, const Variable& y, float rtol = 1e-05f, float atol = 1e-08f, bool equal_nan = false);
 
  private:
-  // the helper function of Matmul
-  std::pair<Variable, Variable> BroadcastMatmulInput(
-      const Variable& x, const Variable& y, bool trans_x, bool trans_y, float alpha);
-  std::vector<int> GetMatmulOutputShape(const Variable& x, const Variable& y, bool trans_x, bool trans_y, float alpha);
-
-  std::string name_;
-  std::vector<Instruction> instrs_;
-  std::vector<Variable> inputs_;
-
   CINN_DISALLOW_COPY_AND_ASSIGN(NetBuilder);
 };
 

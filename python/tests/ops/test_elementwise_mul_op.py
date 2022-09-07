@@ -64,7 +64,7 @@ class TestElementwiseMulOp(OpTest):
         builder = NetBuilder("add")
         x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
         y = builder.create_input(Float(32), self.inputs["y"].shape, "y")
-        out = builder.elementwise_mul(x, y, axis=self.axis)
+        out = builder.multiply(x, y, axis=self.axis)
 
         prog = builder.build()
         res = self.get_cinn_output(prog, target, [x, y],

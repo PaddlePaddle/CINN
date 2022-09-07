@@ -97,7 +97,7 @@ void NetBuilder::InferShape(Instruction instr) const {
   }
 }
 
-Variable NetBuilder::ElementwiseOp(const std::string& op_type, const Variable& lhs, const Variable& rhs, int axis) {
+Variable NetBuilder::BinaryOp(const std::string& op_type, const Variable& lhs, const Variable& rhs, int axis) {
   Instruction instr(op_type, {lhs, rhs});
   instr.SetAttr("axis", axis);
   InferShape(instr);
@@ -112,8 +112,10 @@ Variable NetBuilder::UnaryOp(const std::string& op_type, const Variable& operand
   return instr.GetOutput(0);
 }
 
-Variable NetBuilder::BinaryOp(const std::string& op_type, const Variable& lhs, const Variable& rhs) {
-  Instruction instr(op_type, {lhs, rhs});
+Variable NetBuilder::Reduce(const std::string& op_type, const Variable& x, const std::vector<int>& dim, bool keep_dim) {
+  Instruction instr(op_type, {x});
+  instr.SetAttr("dim", dim);
+  instr.SetAttr("keep_dim", keep_dim);
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(0);
@@ -156,13 +158,14 @@ NETBUILDER_UNARY_OP_DEF(Negative, negative)
 NETBUILDER_UNARY_OP_DEF(Sign, sign)
 NETBUILDER_UNARY_OP_DEF(Abs, abs)
 
-#define NETBUILDER_BINARY_OP_DEF(func_name__, op_type__) \
-  Variable NetBuilder::func_name__(const Variable& lhs, const Variable& rhs) { return BinaryOp(#op_type__, lhs, rhs); }
+#define NETBUILDER_BINARY_OP_DEF(func_name__, op_type__)                                 \
+  Variable NetBuilder::func_name__(const Variable& lhs, const Variable& rhs, int axis) { \
+    return BinaryOp(#op_type__, lhs, rhs, axis);                                         \
+  }
 NETBUILDER_BINARY_OP_DEF(Add, elementwise_add)
-NETBUILDER_BINARY_OP_DEF(Sub, substract)
+NETBUILDER_BINARY_OP_DEF(Multiply, elementwise_mul)
 NETBUILDER_BINARY_OP_DEF(Div, divide)
-NETBUILDER_BINARY_OP_DEF(ReluGrad, relu_grad)
-NETBUILDER_BINARY_OP_DEF(Dot, matmul)
+NETBUILDER_BINARY_OP_DEF(Sub, substract)
 NETBUILDER_BINARY_OP_DEF(FloorDiv, floor_divide)
 NETBUILDER_BINARY_OP_DEF(Mod, mod)
 NETBUILDER_BINARY_OP_DEF(FloorMod, floor_mod)
@@ -177,15 +180,24 @@ NETBUILDER_BINARY_OP_DEF(BitwiseOr, bitwise_or)
 NETBUILDER_BINARY_OP_DEF(BitwiseXor, bitwise_xor)
 NETBUILDER_BINARY_OP_DEF(LeftShift, left_shift)
 NETBUILDER_BINARY_OP_DEF(RightShift, right_shift)
+NETBUILDER_BINARY_OP_DEF(Greater, greater);
+NETBUILDER_BINARY_OP_DEF(Less, less);
+NETBUILDER_BINARY_OP_DEF(Equal, equal);
+NETBUILDER_BINARY_OP_DEF(NotEqual, not_equal);
+NETBUILDER_BINARY_OP_DEF(GreaterEqual, greater_equal);
+NETBUILDER_BINARY_OP_DEF(LessEqual, less_equal);
 
-#define NETBUILDER_ELEMENTWISE_OP_DEF(func_name__, op_type__)                            \
-  Variable NetBuilder::func_name__(const Variable& lhs, const Variable& rhs, int axis) { \
-    return ElementwiseOp(#op_type__, lhs, rhs, axis);                                    \
+#define NETBUILDER_REDUCE_OP_DEF(func_name__, op_type__)                                            \
+  Variable NetBuilder::func_name__(const Variable& x, const std::vector<int>& dim, bool keep_dim) { \
+    return Reduce(#op_type__, x, dim, keep_dim);                                                    \
   }
-NETBUILDER_ELEMENTWISE_OP_DEF(ElementwiseAdd, elementwise_add)
-NETBUILDER_ELEMENTWISE_OP_DEF(ElementwiseMul, elementwise_mul)
-NETBUILDER_ELEMENTWISE_OP_DEF(ElementwiseDiv, divide)
-NETBUILDER_ELEMENTWISE_OP_DEF(ElementwiseSub, substract)
+
+NETBUILDER_REDUCE_OP_DEF(ReduceSum, reduce_sum)
+NETBUILDER_REDUCE_OP_DEF(ReduceProd, reduce_prod)
+NETBUILDER_REDUCE_OP_DEF(ReduceMax, reduce_max)
+NETBUILDER_REDUCE_OP_DEF(ReduceMin, reduce_min)
+NETBUILDER_REDUCE_OP_DEF(ReduceAll, reduce_all)
+NETBUILDER_REDUCE_OP_DEF(ReduceAny, reduce_any)
 
 const std::vector<Variable>& NetBuilder::CustomInstr(const std::string& type,
                                                      const std::vector<Variable>& inputs,
@@ -199,25 +211,6 @@ const std::vector<Variable>& NetBuilder::CustomInstr(const std::string& type,
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutputs();
-}
-
-Variable NetBuilder::Compare(const Variable& lhs, const Variable& rhs, ComparisonKind kind) {
-  switch (kind) {
-    case ComparisonKind::kEq:
-      return BinaryOp("equal", lhs, rhs);
-    case ComparisonKind::kNe:
-      return BinaryOp("not_equal", lhs, rhs);
-    case ComparisonKind::kGe:
-      return BinaryOp("greater_equal", lhs, rhs);
-    case ComparisonKind::kGt:
-      return BinaryOp("greater", lhs, rhs);
-    case ComparisonKind::kLe:
-      return BinaryOp("less_equal", lhs, rhs);
-    case ComparisonKind::kLt:
-      return BinaryOp("less", lhs, rhs);
-    default:
-      LOG(FATAL) << "unknown comparison kind";
-  }
 }
 
 std::vector<Variable> NetBuilder::Split(const Variable& operand, const std::vector<int>& num_or_sections, int axis) {
@@ -237,32 +230,14 @@ Variable NetBuilder::Concat(const std::vector<Variable>& input_vars, int axis) {
   return instr.GetOutput(0);
 }
 
-Variable NetBuilder::Reduce(const Variable& operand, ReduceKind kind, const std::vector<int>& dim, bool keep_dim) {
-  auto reduce_func = [&](const std::string& op_type) {
-    Instruction instr(op_type, {operand});
-    instr.SetAttr("dim", dim);
-    instr.SetAttr("keep_dim", keep_dim);
-    InferShape(instr);
-    AppendInstruction(instr);
-    return instr.GetOutput(0);
-  };
-
-  switch (kind) {
-    case ReduceKind::kSum:
-      return reduce_func("reduce_sum");
-    case ReduceKind::kProd:
-      return reduce_func("reduce_prod");
-    case ReduceKind::kMax:
-      return reduce_func("reduce_max");
-    case ReduceKind::kMin:
-      return reduce_func("reduce_min");
-    case ReduceKind::kAll:
-      return reduce_func("reduce_all");
-    case ReduceKind::kAny:
-      return reduce_func("reduce_any");
-    default:
-      LOG(FATAL) << "unknown reduction kind";
-  }
+Variable NetBuilder::ConstScalar(float value, const std::string& name, const std::string& dtype) {
+  auto out = CustomInstr("const_scalar", {}, {{"value", value}})[0];
+  out.set_id(name);
+  auto out_type = common::Str2Type(dtype);
+  CHECK(out_type.is_float() || out_type.is_int() || out_type.is_bool() || out_type.is_int(64))
+      << "no supported type: " << out_type;
+  out->type = out_type;
+  return out;
 }
 
 Variable NetBuilder::FillConstant(
@@ -462,16 +437,11 @@ Variable NetBuilder::Relu6(const Variable& a, float threshold) {
   return instr.GetOutput(0);
 }
 
-Variable NetBuilder::ReduceSum(const Variable& x, const std::vector<int>& dim, bool keep_dim) {
-  return Reduce(x, ReduceKind::kSum, dim, keep_dim);
-}
-
-Variable NetBuilder::ReduceAll(const Variable& x, const std::vector<int>& dim, bool keep_dim) {
-  return Reduce(x, ReduceKind::kAll, dim, keep_dim);
-}
-
-Variable NetBuilder::ReduceAny(const Variable& x, const std::vector<int>& dim, bool keep_dim) {
-  return Reduce(x, ReduceKind::kAny, dim, keep_dim);
+Variable NetBuilder::ReluGrad(const Variable& lhs, const Variable& rhs) {
+  Instruction instr("relu_grad", {lhs, rhs});
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
 }
 
 Variable NetBuilder::Cast(const Variable& operand, const std::string& dtype) {
