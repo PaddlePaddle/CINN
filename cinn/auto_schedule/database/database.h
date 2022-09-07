@@ -14,8 +14,14 @@
 
 #pragma once
 
+#include <google/protobuf/message.h>
+#include <google/protobuf/text_format.h>
+#include <google/protobuf/util/json_util.h>
+
+#include "cinn/auto_schedule/auto_schedule.pb.h"
 #include "cinn/auto_schedule/measure/measure.h"
 #include "cinn/auto_schedule/search_space/search_state.h"
+#include "cinn/ir/ir_schedule.h"
 
 namespace cinn {
 namespace auto_schedule {
@@ -34,6 +40,18 @@ struct TuningRecord {
   struct Compare {
     bool operator()(const TuningRecord& lhs, const TuningRecord& rhs) const;
   };
+
+  TuningRecord() = default;
+
+  // initialize a TuningRecord object from a proto object
+  TuningRecord(const proto::TuningRecord& record_proto)
+      : task_key(record_proto.task_key()), execution_cost(record_proto.execution_cost()), state(ir::ModuleExpr()) {}
+
+  TuningRecord(const std::string& task_key, double execution_cost, const SearchState& state)
+      : task_key(task_key), execution_cost(execution_cost), state(state) {}
+
+  // convert to proto object
+  proto::TuningRecord ToProto() const;
 };
 
 // A database supports insert or lookup historial tuning result with sepecified traits.
