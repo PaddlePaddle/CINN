@@ -85,6 +85,8 @@ std::vector<Expr> IRSchedule::Split(const std::string& block_name, int loop_inde
 }
 
 Expr IRSchedule::Fuse(const std::vector<Expr>& loops) {
+  LOG(INFO) << "Tring to fuse : ";
+  for (auto& i : loops) LOG(INFO) << i;
   std::vector<const ir::For*> for_nodes;
   std::vector<Var> loop_vars;
   CHECK(!loops.empty()) << "The loops param of Fuse should not be empty! Please check.";
@@ -1224,7 +1226,7 @@ std::vector<Expr> ScheduleHelper::GetLoops(const Expr& block) const {
   }
   if (result.empty()) {
     LOG(INFO) << "exprs size is : " << exprs.size() << "\n and exprs[0] is : " << exprs[0];
-    LOG(FATAL) << "Didn't find Loops containing ScheduleBlock with name: \n" << block_name << " in ModuleExepr.";
+    LOG(ERROR) << "Didn't find Loops containing ScheduleBlock with name: \n" << block_name << " in ModuleExepr.";
   }
   for (auto& it_for : result) VLOG(3) << "Get Loops :\n" << it_for;
   return result;
