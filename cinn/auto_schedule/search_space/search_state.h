@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <limits>
 #include <memory>
 #include <unordered_set>
 #include <utility>
@@ -42,8 +43,8 @@ class SearchState {
   // Cost model predicted cost
   float predicted_cost = NOT_INIT_COST;
 
-  // Negative constant standing for a cost not being initialized
-  static constexpr float NOT_INIT_COST = -1.0;
+  // Constant standing for a cost not being initialized
+  static constexpr float NOT_INIT_COST = std::numeric_limits<float>::max();
 
   SearchState() = default;
 

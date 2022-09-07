@@ -19,6 +19,7 @@
 #include <memory>
 #include <utility>
 
+#include "cinn/auto_schedule/cost_model/expr_cost_model.h"
 #include "cinn/auto_schedule/search_space/search_space.h"
 #include "cinn/auto_schedule/search_space/search_state.h"
 #include "cinn/auto_schedule/task/tune_task.h"
@@ -57,7 +58,7 @@ class MockSearchSpace : public SearchSpace {
     return ret;
   }
 
-  SearchState GetScheduleMutate(const SearchState& state, const CostModel& cost_model) override {
+  SearchState GetScheduleMutate(const SearchState& state, const ExprCostModel& cost_model) override {
     float cost                  = 0.0f;
     std::vector<ir::Expr> exprs = state.mod_expr.GetExprs();
     for (const ir::Expr& expr : exprs) {
@@ -75,15 +76,14 @@ class MockSearchSpace : public SearchSpace {
 
 TEST(EvolutionarySearch, GetOneBest) {
   TuneTask mock_tune_task;
+  ExprCostModel cost_model;
   TuningOptions options;
-  EvolutionarySearch evolutionary_search(mock_tune_task);
+  EvolutionarySearch evolutionary_search(mock_tune_task, cost_model);
 
   MockSearchSpace* mock_search_space = new MockSearchSpace(mock_tune_task);
   // Ownership is transferred so don't delete mock_search_space
   evolutionary_search.SetSearchSpace(mock_search_space);
-
-  SearchState best_state = evolutionary_search.SearchModuleExpr(options);
-
+  SearchState best_state      = evolutionary_search.SearchModuleExpr(options);
   std::vector<ir::Expr> exprs = best_state.mod_expr.GetExprs();
   EXPECT_GE(exprs.size(), 1UL);
   for (const ir::Expr& e : exprs) {
@@ -93,8 +93,9 @@ TEST(EvolutionarySearch, GetOneBest) {
 
 TEST(EvolutionarySearch, GetEpsGreedy) {
   TuneTask mock_tune_task;
+  ExprCostModel cost_model;
   TuningOptions options;
-  EvolutionarySearch evolutionary_search(mock_tune_task);
+  EvolutionarySearch evolutionary_search(mock_tune_task, cost_model);
 
   MockSearchSpace* mock_search_space = new MockSearchSpace(mock_tune_task);
   // Ownership is transferred so don't delete mock_search_space
