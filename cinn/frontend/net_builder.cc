@@ -47,26 +47,6 @@ Program NetBuilder::Build(bool in_reverse) {
   return program;
 }
 
-Placeholder NetBuilder::CreateInput(const Type& type, const std::vector<int>& shape, const std::string& id_hint) {
-  if (!id_hint.empty()) {
-    CheckVarNameValid(id_hint);
-  }
-  std::string id = id_hint.empty() ? Context::Global().NewName("placeholder") : id_hint;
-
-  inputs_.emplace_back(id);
-  auto& var  = inputs_.back();
-  var->type  = type;
-  var->shape = shape;
-  return Placeholder(var);
-}
-
-Placeholder NetBuilder::CreateInput(const Variable& var) {
-  CHECK(!var->shape.empty()) << "The input's shape is not set yet";
-  CHECK(!var->type.is_unk()) << "The input's type is not set yet";
-  inputs_.push_back(var);
-  return Placeholder(var);
-}
-
 void NetBuilder::InferShape(Instruction instr) const {
   using ShapeFunc           = std::function<std::vector<ShapeType>(const std::vector<ShapeType>&, const AttributeMap&)>;
   using TypeFunc            = std::function<std::vector<Type>(const std::vector<Type>&, const AttributeMap&)>;
@@ -97,28 +77,29 @@ void NetBuilder::InferShape(Instruction instr) const {
   }
 }
 
-Variable NetBuilder::BinaryOp(const std::string& op_type, const Variable& lhs, const Variable& rhs, int axis) {
-  Instruction instr(op_type, {lhs, rhs});
-  instr.SetAttr("axis", axis);
+const std::vector<Variable>& NetBuilder::CustomInstr(const std::string& type,
+                                                     const std::vector<Variable>& inputs,
+                                                     const AttributeMap& attrs) {
+  Instruction instr(type, inputs);
+  for (auto& kv : attrs) {
+    instr.SetAttr(kv.first, kv.second);
+  }
+
   InferShape(instr);
   AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return instr.GetOutputs();
+}
+
+Variable NetBuilder::BinaryOp(const std::string& op_type, const Variable& lhs, const Variable& rhs, int axis) {
+  return CustomInstr(op_type, {lhs, rhs}, {{"axis", axis}}).front();
 }
 
 Variable NetBuilder::UnaryOp(const std::string& op_type, const Variable& operand) {
-  Instruction instr(op_type, {operand});
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return CustomInstr(op_type, {operand}, {}).front();
 }
 
 Variable NetBuilder::Reduce(const std::string& op_type, const Variable& x, const std::vector<int>& dim, bool keep_dim) {
-  Instruction instr(op_type, {x});
-  instr.SetAttr("dim", dim);
-  instr.SetAttr("keep_dim", keep_dim);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return CustomInstr(op_type, {x}, {{"dim", dim}, {"keep_dim", keep_dim}}).front();
 }
 
 #define NETBUILDER_UNARY_OP_DEF(func_name__, op_type__) \
@@ -158,6 +139,8 @@ NETBUILDER_UNARY_OP_DEF(Negative, negative)
 NETBUILDER_UNARY_OP_DEF(Sign, sign)
 NETBUILDER_UNARY_OP_DEF(Abs, abs)
 
+#undef NETBUILDER_UNARY_OP_DEF
+
 #define NETBUILDER_BINARY_OP_DEF(func_name__, op_type__)                                 \
   Variable NetBuilder::func_name__(const Variable& lhs, const Variable& rhs, int axis) { \
     return BinaryOp(#op_type__, lhs, rhs, axis);                                         \
@@ -187,6 +170,8 @@ NETBUILDER_BINARY_OP_DEF(NotEqual, not_equal);
 NETBUILDER_BINARY_OP_DEF(GreaterEqual, greater_equal);
 NETBUILDER_BINARY_OP_DEF(LessEqual, less_equal);
 
+#undef NETBUILDER_BINARY_OP_DEF
+
 #define NETBUILDER_REDUCE_OP_DEF(func_name__, op_type__)                                            \
   Variable NetBuilder::func_name__(const Variable& x, const std::vector<int>& dim, bool keep_dim) { \
     return Reduce(#op_type__, x, dim, keep_dim);                                                    \
@@ -199,39 +184,30 @@ NETBUILDER_REDUCE_OP_DEF(ReduceMin, reduce_min)
 NETBUILDER_REDUCE_OP_DEF(ReduceAll, reduce_all)
 NETBUILDER_REDUCE_OP_DEF(ReduceAny, reduce_any)
 
-const std::vector<Variable>& NetBuilder::CustomInstr(const std::string& type,
-                                                     const std::vector<Variable>& inputs,
-                                                     const AttributeMap& attrs) {
-  Instruction instr(type);
-  instr.SetInputs(inputs);
-  for (auto& kv : attrs) {
-    instr.SetAttr(kv.first, kv.second);
+#undef NETBUILDER_REDUCE_OP_DEF
+
+Placeholder NetBuilder::CreateInput(const Type& type, const std::vector<int>& shape, const std::string& id_hint) {
+  if (!id_hint.empty()) {
+    CheckVarNameValid(id_hint);
   }
+  std::string id = id_hint.empty() ? Context::Global().NewName("placeholder") : id_hint;
 
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutputs();
+  inputs_.emplace_back(id);
+  auto& var  = inputs_.back();
+  var->type  = type;
+  var->shape = shape;
+  return Placeholder(var);
 }
 
-std::vector<Variable> NetBuilder::Split(const Variable& operand, const std::vector<int>& num_or_sections, int axis) {
-  Instruction instr("split", {operand});
-  instr.SetAttr("num_or_sections", num_or_sections);
-  instr.SetAttr("axis", axis);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutputs();
-}
-
-Variable NetBuilder::Concat(const std::vector<Variable>& input_vars, int axis) {
-  Instruction instr("concat", input_vars);
-  instr.SetAttr("axis", axis);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+Placeholder NetBuilder::CreateInput(const Variable& var) {
+  CHECK(!var->shape.empty()) << "The input's shape is not set yet";
+  CHECK(!var->type.is_unk()) << "The input's type is not set yet";
+  inputs_.push_back(var);
+  return Placeholder(var);
 }
 
 Variable NetBuilder::ConstScalar(float value, const std::string& name, const std::string& dtype) {
-  auto out = CustomInstr("const_scalar", {}, {{"value", value}})[0];
+  auto out = CustomInstr("const_scalar", {}, {{"value", value}}).front();
   out.set_id(name);
   auto out_type = common::Str2Type(dtype);
   CHECK(out_type.is_float() || out_type.is_int() || out_type.is_bool() || out_type.is_int(64))
@@ -242,18 +218,19 @@ Variable NetBuilder::ConstScalar(float value, const std::string& name, const std
 
 Variable NetBuilder::FillConstant(
     const std::vector<int>& shape, float value, const std::string& name, const std::string& dtype, bool force_cpu) {
-  Instruction instr("fill_constant");
-  instr.SetInputs({});
-  instr.SetAttr("shape", shape);
-  instr.SetAttr("value", value);
-  instr.SetAttr("dtype", dtype);
-  instr.SetAttr("force_cpu", force_cpu);
-
-  InferShape(instr);
-  AppendInstruction(instr);
-  auto out = instr.GetOutput(0);
+  auto out =
+      CustomInstr("fill_constant", {}, {{"shape", shape}, {"value", value}, {"dtype", dtype}, {"force_cpu", force_cpu}})
+          .front();
   out.set_id(name);
   return out;
+}
+
+std::vector<Variable> NetBuilder::Split(const Variable& operand, const std::vector<int>& num_or_sections, int axis) {
+  return CustomInstr("split", {operand}, {{"num_or_sections", num_or_sections}, {"axis", axis}});
+}
+
+Variable NetBuilder::Concat(const std::vector<Variable>& input_vars, int axis) {
+  return CustomInstr("concat", input_vars, {{"axis", axis}}).front();
 }
 
 Variable NetBuilder::BroadcastTo(const Variable& operand, const std::vector<int>& out_shape) {
@@ -303,28 +280,15 @@ Variable NetBuilder::BroadcastTo(const Variable& operand, const std::vector<int>
 Variable NetBuilder::BroadcastTo(const Variable& operand,
                                  const std::vector<int>& out_shape,
                                  const std::vector<int>& broadcast_axes) {
-  Instruction instr("broadcast_to", {operand});
-  instr.SetAttr("out_shape", out_shape);
-  instr.SetAttr("broadcast_axes", broadcast_axes);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return CustomInstr("broadcast_to", {operand}, {{"out_shape", out_shape}, {"broadcast_axes", broadcast_axes}}).front();
 }
 
 Variable NetBuilder::Reshape(const Variable& operand, const std::vector<int>& shape) {
-  Instruction instr("reshape", {operand});
-  instr.SetAttr("shape", shape);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return CustomInstr("reshape", {operand}, {{"shape", shape}}).front();
 }
 
 Variable NetBuilder::Transpose(const Variable& operand, const std::vector<int>& axis) {
-  Instruction instr("transpose", {operand});
-  instr.SetAttr("axis", axis);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return CustomInstr("transpose", {operand}, {{"axis", axis}}).front();
 }
 
 Variable NetBuilder::Slice(const Variable& operand,
@@ -333,15 +297,11 @@ Variable NetBuilder::Slice(const Variable& operand,
                            const std::vector<int>& ends,
                            const std::vector<int>& infer_flags,
                            const std::vector<int>& strides) {
-  Instruction instr("slice", {operand});
-  instr.SetAttr("axes", axes);
-  instr.SetAttr("starts", starts);
-  instr.SetAttr("ends", ends);
-  instr.SetAttr("infer_flags", infer_flags);
-  instr.SetAttr("strides", strides);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return CustomInstr(
+             "slice",
+             {operand},
+             {{"axes", axes}, {"starts", starts}, {"ends", ends}, {"infer_flags", infer_flags}, {"strides", strides}})
+      .front();
 }
 
 Variable NetBuilder::SliceAssign(const Variable& input,
@@ -350,72 +310,38 @@ Variable NetBuilder::SliceAssign(const Variable& input,
                                  const std::vector<int>& starts,
                                  const std::vector<int>& ends,
                                  const std::vector<int>& strides) {
-  Instruction instr("slice_assign", {input, assign});
-  instr.SetAttr("axes", axes);
-  instr.SetAttr("starts", starts);
-  instr.SetAttr("ends", ends);
-  instr.SetAttr("strides", strides);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return CustomInstr("slice_assign",
+                     {input, assign},
+                     {{"axes", axes}, {"starts", starts}, {"ends", ends}, {"strides", strides}})
+      .front();
 }
 
 Variable NetBuilder::Reverse(const Variable& operand, const std::vector<int>& axis) {
-  Instruction instr("reverse", {operand});
-  instr.SetAttr("axis", axis);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return CustomInstr("reverse", {operand}), {{"axis", axis}}).front();
 }
 
 Variable NetBuilder::Select(const Variable& condition, const Variable& true_value, const Variable& false_value) {
-  Instruction instr("select", {condition, true_value, false_value});
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return CustomInstr("select", {condition, true_value, false_value}, {}).front();
 }
 
 Variable NetBuilder::IndexSelect(const Variable& operand, const Variable& index, int axis) {
-  Instruction instr("index_select", {operand, index});
-  instr.SetAttr("axis", axis);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return CustomInstr("index_select", {operand, index}, {{"axis", axis}}).front();
 }
 
 Variable NetBuilder::ScatterAssign(const Variable& operand, const Variable& updates, const Variable& index, int axis) {
-  Instruction instr("scatter_assign", {operand, updates, index});
-  instr.SetAttr("axis", axis);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return CustomInstr("scatter_assign", {operand, updates, index}, {{"axis", axis}}).front();
 }
 
 Variable NetBuilder::ScatterAdd(const Variable& operand, const Variable& updates, const Variable& index, int axis) {
-  Instruction instr("scatter_add", {operand, updates, index});
-  instr.SetAttr("axis", axis);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return CustomInstr("scatter_add", {operand, updates, index}, {{"axis", axis}}).front();
 }
 
 Variable NetBuilder::IsClose(const Variable& x, const Variable& y, float rtol, float atol, bool equal_nan) {
-  Instruction instr("isclose", {x, y});
-  instr.SetAttr("rtol", rtol);
-  instr.SetAttr("atol", atol);
-  instr.SetAttr("equal_nan", equal_nan);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return CustomInstr("isclose", {x, y}, {{"rtol", rtol}, {"atol", atol}, {"equal_nan", equal_nan}}).front();
 }
 
 Variable NetBuilder::Mul(const Variable& a, const Variable& b, int x_num_col_dims, int y_num_col_dims) {
-  Instruction instr("mul", {a, b});
-  instr.SetAttr("x_num_col_dims", x_num_col_dims);
-  instr.SetAttr("y_num_col_dims", y_num_col_dims);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return CustomInstr("mul", {a, b}, {{"x_num_col_dims", x_num_col_dims}, {"y_num_col_dims", y_num_col_dims}}).front();
 }
 
 const std::vector<Variable>& NetBuilder::ElementwiseAddGrad(const Variable& dout,
