@@ -125,6 +125,9 @@ Module OpBenchmarkTester::CreateCinnModule(const std::vector<Tensor>& input_tens
       // 4. Optimize the LoweredFunc
       std::vector<ir::LoweredFunc> res;
       for (int i = 0; i < expr_pack.size(); i++) {
+#ifdef CINN_WITH_CUDA
+        optim::OptimizeExprGPU(&(funcs[i]->body));
+#endif
         if (funcs.size() > expr_pack.size()) {
           auto new_args  = lang::GetArgs(funcs[i]->body, input_output_names);
           funcs[i]->args = new_args;
@@ -135,9 +138,6 @@ Module OpBenchmarkTester::CreateCinnModule(const std::vector<Tensor>& input_tens
         res.push_back(funcs[i]);
       }
       for (int i = 0; i < res.size(); i++) {
-#ifdef CINN_WITH_CUDA
-        optim::OptimizeExprGPU(&(funcs[i]->body));
-#endif
         res[i] = optim::Optimize(Expr(funcs[i]), target_, false).as_lowered_func_ref();
       }
 

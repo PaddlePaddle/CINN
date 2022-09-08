@@ -30,7 +30,7 @@ CINNSchedule GetInjectiveScheduleFunc(const std::vector<std::vector<int>>& outpu
                                       bool vectorizable) {
   return CINNSchedule([=](lang::Args args, lang::RetValue* ret) {
     if (FLAGS_cinn_ir_schedule) {
-      CHECK(!args.empty()) << "The input argument of schedule is empty! Please check.\n";
+      CHECK(!args.empty()) << "The input argument of InjectiveSchedule is empty! Please check.\n";
       common::CINNValuePack arg_pack = args[0];
       std::vector<Expr> vec_ast;
       for (int i = 0; i < arg_pack.size(); i++) {
@@ -54,7 +54,7 @@ CINNSchedule GetInjectiveScheduleFunc(const std::vector<std::vector<int>>& outpu
       std::vector<common::CINNValue> res{common::CINNValue(ir_sch.GetModule().GetExprs().at(0))};
       *ret = common::CINNValuePack{res};
     } else {
-      CHECK(!args.empty()) << "The input argument of schedule is empty! Please check.\n";
+      CHECK(!args.empty()) << "The input argument of InjectiveSchedule is empty! Please check.\n";
       common::CINNValuePack arg_pack = args[0];
       Expr out                       = arg_pack[0];
       poly::StageMap stages          = arg_pack[1];

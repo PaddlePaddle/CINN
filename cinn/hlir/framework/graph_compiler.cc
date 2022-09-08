@@ -1552,15 +1552,15 @@ std::vector<ir::LoweredFunc> GetFuncFromImpl(const std::shared_ptr<OpImpl>& impl
       auto new_args  = lang::GetArgs(funcs[i]->body, input_output_nodes);
       funcs[i]->args = new_args;
     }
+#ifdef CINN_WITH_CUDA
+    optim::OptimizeExprGPU(&(funcs[i]->body));
+#endif
     auto temp_buffers   = lang::GetTempBuffers(all_arg_tensors, stages, funcs[i]->body);
     funcs[i]->temp_bufs = temp_buffers;
     funcs[i]->PrepareBufferCastExprs();
     res.push_back(funcs[i]);
   }
   for (int i = 0; i < res.size(); i++) {
-#ifdef CINN_WITH_CUDA
-    optim::OptimizeExprGPU(&(res[i]->body));
-#endif
     res[i] = optim::Optimize(Expr(res[i]), target, false).as_lowered_func_ref();
   }
 

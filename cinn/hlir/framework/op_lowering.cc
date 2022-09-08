@@ -169,15 +169,15 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOp(IRComputeFunction compute,
       post = "_" + std::to_string(idx);
     }
   }
+  auto func_body = ir_sch.GetModule().GetExprs().at(0);
+#ifdef CINN_WITH_CUDA
+  optim::OptimizeExprGPU(&(func_body));
+#endif
 
-  auto func_body    = ir_sch.GetModule().GetExprs().at(0);
   auto temp_buffers = lang::GetTempBuffers(arg_tensors, stages, func_body);
   auto func =
       ir::_LoweredFunc_::Make(group->GetFuncName(), func_args, ir_sch.GetModule().GetExprs().at(0), temp_buffers);
   func->PrepareBufferCastExprs();
-#ifdef CINN_WITH_CUDA
-  optim::OptimizeExprGPU(&(func->body));
-#endif
   func = optim::Optimize(Expr(func), target_, false).as_lowered_func_ref();
   return {func};
 }
@@ -1153,15 +1153,15 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpaqueOp(GroupPtr& group) {
   std::vector<ir::LoweredFunc> res;
   for (int i = 0; i < expr_pack.size(); i++) {
     ir::Expr func_body = expr_pack[0];
-    auto temp_buffers  = lang::GetTempBuffers(inputs, stages, func_body);
-    auto function      = ir::_LoweredFunc_::Make(group->GetFuncName(), args, func_body, temp_buffers);
+#ifdef CINN_WITH_CUDA
+    optim::OptimizeExprGPU(&(func_body));
+#endif
+    auto temp_buffers = lang::GetTempBuffers(inputs, stages, func_body);
+    auto function     = ir::_LoweredFunc_::Make(group->GetFuncName(), args, func_body, temp_buffers);
     function->PrepareBufferCastExprs();
     res.push_back(function);
   }
   for (auto& i : res) {
-#ifdef CINN_WITH_CUDA
-    optim::OptimizeExprGPU(&(i->body));
-#endif
     i = optim::Optimize(Expr(i), target_, false).as_lowered_func_ref();
   }
   return res;

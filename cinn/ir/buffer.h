@@ -133,6 +133,8 @@ class _Buffer_ : public ExprNode<_Buffer_> {
 
   void Verify() const override;
 
+  int numel() const;
+
   static const IrNodeTy _node_type_ = IrNodeTy::_Buffer_;
 
   // Copy the meta infos to other.
