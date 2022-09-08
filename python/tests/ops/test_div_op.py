@@ -48,7 +48,7 @@ class TestDivOp(OpTest):
         builder = NetBuilder("div")
         x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
         y = builder.create_input(Float(32), self.inputs["y"].shape, "y")
-        out = builder.div(x, y)
+        out = builder.divide(x, y)
 
         prog = builder.build()
         res = self.get_cinn_output(prog, target, [x, y],

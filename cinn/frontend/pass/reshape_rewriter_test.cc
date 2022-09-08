@@ -57,7 +57,7 @@ TEST(ReshapeRewriter, remove_with_fill_constant) {
   auto constant_1 = builder.FillConstant<float>({16, 32}, static_cast<float>(1.0), "constant_1");
   auto reshape_1  = builder.Reshape(constant_1, {32, 16});
   auto reshape_2  = builder.Reshape(x, {32, 16});
-  auto add_1      = builder.ElementwiseAdd(reshape_1, reshape_2);
+  auto add_1      = builder.Add(reshape_1, reshape_2);
 
   PassTest tester;
   std::vector<std::string> input_names    = {x.id().data()};

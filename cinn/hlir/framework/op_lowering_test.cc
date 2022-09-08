@@ -164,9 +164,9 @@ TEST(OP_LOWERING, Elementwise_Test_0) {
     auto B = net_builder.CreateInput(Float(32), {h, w}, "B");
     auto C = net_builder.CreateInput(Float(32), {h, w}, "C");
     auto D = net_builder.CreateInput(Float(32), {h, w}, "D");
-    auto E = net_builder.ElementwiseAdd(A, B);
-    auto F = net_builder.ElementwiseAdd(C, D);
-    auto G = net_builder.ElementwiseAdd(E, F);
+    auto E = net_builder.Add(A, B);
+    auto F = net_builder.Add(C, D);
+    auto G = net_builder.Add(E, F);
   }
 
   auto program = net_builder.Build();
@@ -196,10 +196,10 @@ TEST(OP_LOWERING, Elementwise_Test_1) {
     auto B = net_builder.CreateInput(Float(32), {h, w}, "B");
     auto C = net_builder.CreateInput(Float(32), {h, w}, "C");
     auto D = net_builder.CreateInput(Float(32), {h, w}, "D");
-    auto E = net_builder.ElementwiseAdd(A, B);
-    auto F = net_builder.ElementwiseAdd(E, C);
-    auto G = net_builder.ElementwiseAdd(E, D);
-    auto H = net_builder.ElementwiseAdd(F, G);
+    auto E = net_builder.Add(A, B);
+    auto F = net_builder.Add(E, C);
+    auto G = net_builder.Add(E, D);
+    auto H = net_builder.Add(F, G);
   }
 
   auto program = net_builder.Build();
@@ -229,10 +229,10 @@ TEST(OP_LOWERING, Elementwise_Test_2) {
     auto B = net_builder.CreateInput(Float(32), {h, w}, "B");
     auto C = net_builder.CreateInput(Float(32), {h, w}, "C");
     auto D = net_builder.CreateInput(Float(32), {h, w}, "D");
-    auto E = net_builder.ElementwiseAdd(A, B);
-    auto F = net_builder.ElementwiseAdd(E, C);
-    auto G = net_builder.ElementwiseAdd(E, D);
-    auto H = net_builder.ElementwiseAdd(F, G);
+    auto E = net_builder.Add(A, B);
+    auto F = net_builder.Add(E, C);
+    auto G = net_builder.Add(E, D);
+    auto H = net_builder.Add(F, G);
   }
 
   auto program = net_builder.Build();
@@ -259,7 +259,7 @@ TEST(OP_LOWERING, Reduce_Test_0) {
   // create model
   {
     auto A = net_builder.CreateInput(Float(32), {w, h}, "A");
-    auto B = net_builder.Reduce(A, ReduceKind::kSum, {0, 1});
+    auto B = net_builder.ReduceSum(A, {0, 1});
   }
 
   auto program = net_builder.Build();
@@ -286,7 +286,7 @@ TEST(OP_LOWERING, Reduce_Test_1) {
   // create model
   {
     auto A = net_builder.CreateInput(Float(32), {c, h, w}, "A");
-    auto B = net_builder.Reduce(A, ReduceKind::kSum, {0, 1, 2});
+    auto B = net_builder.ReduceSum(A, {0, 1, 2});
   }
 
   auto program = net_builder.Build();
@@ -313,7 +313,7 @@ TEST(OP_LOWERING, Reduce_Test_2) {
   // create model
   {
     auto A = net_builder.CreateInput(Float(32), {c, h, w}, "A");
-    auto B = net_builder.Reduce(A, ReduceKind::kSum, {0, 1});
+    auto B = net_builder.ReduceSum(A, {0, 1});
   }
 
   auto program = net_builder.Build();
@@ -340,7 +340,7 @@ TEST(OP_LOWERING, Reduce_Test_3) {
   // create model
   {
     auto A = net_builder.CreateInput(Float(32), {c, h, w}, "A");
-    auto B = net_builder.Reduce(A, ReduceKind::kSum, {0, 1, 2});
+    auto B = net_builder.ReduceSum(A, {0, 1, 2});
   }
 
   auto program = net_builder.Build();
@@ -367,7 +367,7 @@ TEST(OP_LOWERING, Reduce_Test_4) {
   // create model
   {
     auto A = net_builder.CreateInput(Float(32), {w, h}, "A");
-    auto B = net_builder.Reduce(A, ReduceKind::kSum, {0});
+    auto B = net_builder.ReduceSum(A, {0});
   }
 
   auto program = net_builder.Build();
@@ -394,7 +394,7 @@ TEST(OP_LOWERING, Reduce_Test_5) {
   // create model
   {
     auto A = net_builder.CreateInput(Float(32), {h, w}, "A");
-    auto B = net_builder.Reduce(A, ReduceKind::kSum, {0});
+    auto B = net_builder.ReduceSum(A, {0});
   }
 
   auto program = net_builder.Build();
@@ -421,7 +421,7 @@ TEST(OP_LOWERING, Reduce_Test_6) {
   // create model
   {
     auto A = net_builder.CreateInput(Float(32), {h, w}, "A");
-    auto B = net_builder.Reduce(A, ReduceKind::kSum, {0});
+    auto B = net_builder.ReduceSum(A, {0});
   }
 
   auto program = net_builder.Build();
@@ -448,7 +448,7 @@ TEST(OP_LOWERING, Reduce_Test_7) {
   // create model
   {
     auto A = net_builder.CreateInput(Float(32), {h, w}, "A");
-    auto B = net_builder.Reduce(A, ReduceKind::kSum, {1});
+    auto B = net_builder.ReduceSum(A, {1});
   }
 
   auto program = net_builder.Build();
@@ -475,7 +475,7 @@ TEST(OP_LOWERING, Reduce_Test_8) {
   // create model
   {
     auto A = net_builder.CreateInput(Float(32), {h, w, w}, "A");
-    auto B = net_builder.Reduce(A, ReduceKind::kSum, {1, 2});
+    auto B = net_builder.ReduceSum(A, {1, 2});
   }
 
   auto program = net_builder.Build();
@@ -502,7 +502,7 @@ TEST(OP_LOWERING, Reduce_Test_9) {
   // create model
   {
     auto A = net_builder.CreateInput(Float(32), {n, c, h, w}, "A");
-    auto B = net_builder.Reduce(A, ReduceKind::kSum, {0, 2, 3});
+    auto B = net_builder.ReduceSum(A, {0, 2, 3});
   }
 
   auto program = net_builder.Build();
@@ -529,7 +529,7 @@ TEST(OP_LOWERING, Reduce_Test_10) {
   // create model
   {
     auto A = net_builder.CreateInput(Float(32), {n, c, h, w}, "A");
-    auto B = net_builder.Reduce(A, ReduceKind::kSum, {1});
+    auto B = net_builder.ReduceSum(A, {1});
   }
 
   auto program = net_builder.Build();
@@ -558,8 +558,8 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_0) {
     auto A = net_builder.CreateInput(Float(32), {h, w}, "A");
     auto B = net_builder.CreateInput(Float(32), {w}, "B");
 
-    auto C = net_builder.Reduce(A, ReduceKind::kSum, {0});
-    auto D = net_builder.ElementwiseAdd(B, C);
+    auto C = net_builder.ReduceSum(A, {0});
+    auto D = net_builder.Add(B, C);
   }
 
   auto program = net_builder.Build();
@@ -588,8 +588,8 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_1) {
   {
     auto A = net_builder.CreateInput(Float(32), {h, w}, "A");
     auto B = net_builder.CreateInput(Float(32), {h, w}, "B");
-    auto D = net_builder.ElementwiseAdd(A, B);
-    auto E = net_builder.Reduce(D, ReduceKind::kSum, {1});
+    auto D = net_builder.Add(A, B);
+    auto E = net_builder.ReduceSum(D, {1});
   }
 
   auto program = net_builder.Build();
@@ -621,10 +621,10 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_2) {
     auto C = net_builder.CreateInput(Float(32), {w}, "C");
     auto D = net_builder.CreateInput(Float(32), {w}, "D");
 
-    auto E = net_builder.Reduce(A, ReduceKind::kSum, {0});
-    auto F = net_builder.ElementwiseAdd(B, C);
-    auto G = net_builder.ElementwiseAdd(D, F);
-    auto H = net_builder.ElementwiseAdd(E, G);
+    auto E = net_builder.ReduceSum(A, {0});
+    auto F = net_builder.Add(B, C);
+    auto G = net_builder.Add(D, F);
+    auto H = net_builder.Add(E, G);
   }
 
   auto program = net_builder.Build();
@@ -652,9 +652,9 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_3) {
   // create model
   {
     auto A = net_builder.CreateInput(Float(32), {h, w}, "A");
-    auto B = net_builder.Reduce(A, ReduceKind::kSum, {0});
-    auto C = net_builder.Reduce(A, ReduceKind::kSum, {0});
-    auto D = net_builder.ElementwiseAdd(B, C);
+    auto B = net_builder.ReduceSum(A, {0});
+    auto C = net_builder.ReduceSum(A, {0});
+    auto D = net_builder.Add(B, C);
   }
 
   auto program = net_builder.Build();
@@ -683,10 +683,10 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_4) {
   {
     auto A = net_builder.CreateInput(Float(32), {h, w}, "A");
     auto B = net_builder.CreateInput(Float(32), {h, w}, "B");
-    auto C = net_builder.ElementwiseAdd(A, B);
+    auto C = net_builder.Add(A, B);
 
-    auto D = net_builder.Reduce(C, ReduceKind::kSum, {0});
-    auto E = net_builder.Reduce(C, ReduceKind::kSum, {0});
+    auto D = net_builder.ReduceSum(C, {0});
+    auto E = net_builder.ReduceSum(C, {0});
   }
 
   auto program = net_builder.Build();
@@ -718,10 +718,10 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_5) {
   {
     auto A = net_builder.CreateInput(Float(32), {h, w}, "A");
     auto B = net_builder.CreateInput(Float(32), {h, w}, "B");
-    auto C = net_builder.ElementwiseAdd(A, B);
+    auto C = net_builder.Add(A, B);
 
-    auto D = net_builder.Reduce(C, ReduceKind::kSum, {1});
-    auto E = net_builder.Reduce(C, ReduceKind::kSum, {1});
+    auto D = net_builder.ReduceSum(C, {1});
+    auto E = net_builder.ReduceSum(C, {1});
   }
 
   auto program = net_builder.Build();
@@ -754,11 +754,11 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_6) {
     auto A = net_builder.CreateInput(Float(32), {h, w}, "A");
     auto B = net_builder.CreateInput(Float(32), {h, w}, "B");
     auto C = net_builder.CreateInput(Float(32), {w}, "C");
-    auto D = net_builder.ElementwiseAdd(A, B);
-    auto E = net_builder.Reduce(D, ReduceKind::kSum, {0});
-    auto F = net_builder.Reduce(D, ReduceKind::kSum, {0});
-    auto G = net_builder.ElementwiseAdd(E, C);
-    auto I = net_builder.ElementwiseAdd(F, C);
+    auto D = net_builder.Add(A, B);
+    auto E = net_builder.ReduceSum(D, {0});
+    auto F = net_builder.ReduceSum(D, {0});
+    auto G = net_builder.Add(E, C);
+    auto I = net_builder.Add(F, C);
   }
 
   auto program = net_builder.Build();
@@ -791,11 +791,11 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_7) {
     auto A = net_builder.CreateInput(Float(32), {h, w}, "A");
     auto B = net_builder.CreateInput(Float(32), {h, w}, "B");
     auto C = net_builder.CreateInput(Float(32), {w}, "C");
-    auto D = net_builder.ElementwiseAdd(A, B);
-    auto E = net_builder.Reduce(D, ReduceKind::kSum, {1});
-    auto F = net_builder.Reduce(D, ReduceKind::kSum, {1});
-    auto G = net_builder.ElementwiseAdd(E, C);
-    auto I = net_builder.ElementwiseAdd(F, C);
+    auto D = net_builder.Add(A, B);
+    auto E = net_builder.ReduceSum(D, {1});
+    auto F = net_builder.ReduceSum(D, {1});
+    auto G = net_builder.Add(E, C);
+    auto I = net_builder.Add(F, C);
   }
 
   auto program = net_builder.Build();
@@ -828,11 +828,11 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_8) {
     auto A = net_builder.CreateInput(Float(32), {h, w}, "A");
     auto B = net_builder.CreateInput(Float(32), {h, w}, "B");
     auto C = net_builder.CreateInput(Float(32), {1}, "C");
-    auto D = net_builder.ElementwiseAdd(A, B);
-    auto E = net_builder.Reduce(D, ReduceKind::kSum, {0, 1});
-    auto F = net_builder.Reduce(D, ReduceKind::kSum, {0, 1});
-    auto G = net_builder.ElementwiseAdd(E, C);
-    auto I = net_builder.ElementwiseAdd(F, C);
+    auto D = net_builder.Add(A, B);
+    auto E = net_builder.ReduceSum(D, {0, 1});
+    auto F = net_builder.ReduceSum(D, {0, 1});
+    auto G = net_builder.Add(E, C);
+    auto I = net_builder.Add(F, C);
   }
 
   auto program = net_builder.Build();
@@ -865,11 +865,11 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_9) {
     auto A = net_builder.CreateInput(Float(32), {c, h, w}, "A");
     auto B = net_builder.CreateInput(Float(32), {c, h, w}, "B");
     auto C = net_builder.CreateInput(Float(32), {h}, "C");
-    auto D = net_builder.ElementwiseAdd(A, B);
-    auto E = net_builder.Reduce(D, ReduceKind::kSum, {0, 2});
-    auto F = net_builder.Reduce(D, ReduceKind::kSum, {0, 2});
-    auto G = net_builder.ElementwiseAdd(E, C);
-    auto I = net_builder.ElementwiseAdd(F, C);
+    auto D = net_builder.Add(A, B);
+    auto E = net_builder.ReduceSum(D, {0, 2});
+    auto F = net_builder.ReduceSum(D, {0, 2});
+    auto G = net_builder.Add(E, C);
+    auto I = net_builder.Add(F, C);
   }
 
   auto program = net_builder.Build();
@@ -901,8 +901,8 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_10) {
   {
     auto A = net_builder.CreateInput(Float(32), {h, w}, "A");
     auto B = net_builder.CreateInput(Float(32), {w}, "B");
-    auto C = net_builder.Reduce(A, ReduceKind::kSum, {0});
-    auto D = net_builder.ElementwiseAdd(B, C);
+    auto C = net_builder.ReduceSum(A, {0});
+    auto D = net_builder.Add(B, C);
   }
 
   auto program = net_builder.Build();
@@ -934,9 +934,9 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_11) {
   {
     auto A = net_builder.CreateInput(Float(32), {n, c, h, w}, "A");
     auto B = net_builder.CreateInput(Float(32), {n, c, h, w}, "B");
-    auto D = net_builder.ElementwiseAdd(A, B);
-    auto E = net_builder.Reduce(D, ReduceKind::kSum, {0, 2, 3});
-    auto F = net_builder.Reduce(D, ReduceKind::kSum, {0, 2, 3});
+    auto D = net_builder.Add(A, B);
+    auto E = net_builder.ReduceSum(D, {0, 2, 3});
+    auto F = net_builder.ReduceSum(D, {0, 2, 3});
   }
 
   auto program = net_builder.Build();
@@ -968,9 +968,9 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_12) {
   {
     auto A = net_builder.CreateInput(Float(32), {n, c, h, w}, "A");
     auto B = net_builder.CreateInput(Float(32), {n, c, h, w}, "B");
-    auto D = net_builder.ElementwiseAdd(A, B);
-    auto E = net_builder.Reduce(D, ReduceKind::kSum, {0, 2, 3});
-    auto F = net_builder.Reduce(D, ReduceKind::kSum, {0, 2, 3});
+    auto D = net_builder.Add(A, B);
+    auto E = net_builder.ReduceSum(D, {0, 2, 3});
+    auto F = net_builder.ReduceSum(D, {0, 2, 3});
   }
 
   auto program = net_builder.Build();
@@ -1003,9 +1003,9 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_13) {
   {
     auto A = net_builder.CreateInput(Float(32), {n, c, h, w}, "A");
     auto B = net_builder.CreateInput(Float(32), {n, c, h, w}, "B");
-    auto D = net_builder.ElementwiseAdd(A, B);
-    auto E = net_builder.Reduce(D, ReduceKind::kSum, {0, 1, 2});
-    auto F = net_builder.Reduce(D, ReduceKind::kSum, {0, 1, 2});
+    auto D = net_builder.Add(A, B);
+    auto E = net_builder.ReduceSum(D, {0, 1, 2});
+    auto F = net_builder.ReduceSum(D, {0, 1, 2});
   }
 
   auto program = net_builder.Build();
@@ -1039,9 +1039,9 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_14) {
   {
     auto A = net_builder.CreateInput(Float(32), {n, n, n, c, h, w}, "A");
     auto B = net_builder.CreateInput(Float(32), {n, n, n, c, h, w}, "B");
-    auto D = net_builder.ElementwiseAdd(A, B);
-    auto E = net_builder.Reduce(D, ReduceKind::kSum, {0, 3, 4});
-    auto F = net_builder.Reduce(D, ReduceKind::kSum, {0, 3, 4});
+    auto D = net_builder.Add(A, B);
+    auto E = net_builder.ReduceSum(D, {0, 3, 4});
+    auto F = net_builder.ReduceSum(D, {0, 3, 4});
   }
 
   auto program = net_builder.Build();
@@ -1074,9 +1074,9 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_15) {
   {
     auto A = net_builder.CreateInput(Float(32), {h, w}, "A");
     auto B = net_builder.CreateInput(Float(32), {h, w}, "B");
-    auto D = net_builder.ElementwiseAdd(A, B);
-    auto E = net_builder.Reduce(D, ReduceKind::kSum, {0});
-    auto F = net_builder.Reduce(D, ReduceKind::kSum, {0});
+    auto D = net_builder.Add(A, B);
+    auto E = net_builder.ReduceSum(D, {0});
+    auto F = net_builder.ReduceSum(D, {0});
   }
 
   auto program = net_builder.Build();
@@ -1108,9 +1108,9 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_16) {
   {
     auto A = net_builder.CreateInput(Float(32), {n, c, h, w}, "A");
     auto B = net_builder.CreateInput(Float(32), {n, c, h, w}, "B");
-    auto D = net_builder.ElementwiseAdd(A, B);
-    auto E = net_builder.Reduce(D, ReduceKind::kSum, {0, 2, 3});
-    auto F = net_builder.Reduce(D, ReduceKind::kSum, {0, 2, 3});
+    auto D = net_builder.Add(A, B);
+    auto E = net_builder.ReduceSum(D, {0, 2, 3});
+    auto F = net_builder.ReduceSum(D, {0, 2, 3});
   }
 
   auto program = net_builder.Build();
@@ -1143,9 +1143,9 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_17) {
   {
     auto A = net_builder.CreateInput(Float(32), {h, w}, "A");
     auto B = net_builder.CreateInput(Float(32), {h * 2, w}, "B");
-    auto E = net_builder.Reduce(A, ReduceKind::kSum, {0});
-    auto F = net_builder.Reduce(B, ReduceKind::kSum, {0});
-    auto G = net_builder.ElementwiseAdd(E, F);
+    auto E = net_builder.ReduceSum(A, {0});
+    auto F = net_builder.ReduceSum(B, {0});
+    auto G = net_builder.Add(E, F);
   }
 
   auto program = net_builder.Build();
@@ -1175,9 +1175,9 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_18) {
   {
     auto A = net_builder.CreateInput(Float(32), {16, h, w}, "A");
     auto B = net_builder.CreateInput(Float(32), {16, h * 2, w}, "B");
-    auto E = net_builder.Reduce(A, ReduceKind::kSum, {1});
-    auto F = net_builder.Reduce(B, ReduceKind::kSum, {1});
-    auto G = net_builder.ElementwiseAdd(E, F);
+    auto E = net_builder.ReduceSum(A, {1});
+    auto F = net_builder.ReduceSum(B, {1});
+    auto G = net_builder.Add(E, F);
   }
 
   auto program = net_builder.Build();
@@ -1210,9 +1210,9 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_19) {
   {
     auto A = net_builder.CreateInput(Float(32), {h, w}, "A");
     auto B = net_builder.CreateInput(Float(32), {h * 2, w}, "B");
-    auto E = net_builder.Reduce(A, ReduceKind::kSum, {0});
-    auto F = net_builder.Reduce(B, ReduceKind::kSum, {0});
-    auto G = net_builder.ElementwiseAdd(E, F);
+    auto E = net_builder.ReduceSum(A, {0});
+    auto F = net_builder.ReduceSum(B, {0});
+    auto G = net_builder.Add(E, F);
   }
 
   auto program = net_builder.Build();
@@ -1247,13 +1247,13 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_20) {
     auto B = net_builder.CreateInput(Float(32), {h * 2, w}, "B");
     auto C = net_builder.CreateInput(Float(32), {h * 3, w}, "C");
     auto D = net_builder.CreateInput(Float(32), {h * 4, w}, "D");
-    auto E = net_builder.Reduce(A, ReduceKind::kSum, {0});
-    auto F = net_builder.Reduce(B, ReduceKind::kSum, {0});
-    auto G = net_builder.Reduce(C, ReduceKind::kSum, {0});
-    auto H = net_builder.Reduce(D, ReduceKind::kSum, {0});
-    auto I = net_builder.ElementwiseAdd(E, F);
-    auto J = net_builder.ElementwiseAdd(G, I);
-    auto K = net_builder.ElementwiseAdd(H, J);
+    auto E = net_builder.ReduceSum(A, {0});
+    auto F = net_builder.ReduceSum(B, {0});
+    auto G = net_builder.ReduceSum(C, {0});
+    auto H = net_builder.ReduceSum(D, {0});
+    auto I = net_builder.Add(E, F);
+    auto J = net_builder.Add(G, I);
+    auto K = net_builder.Add(H, J);
   }
 
   auto program = net_builder.Build();
@@ -1292,21 +1292,21 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_21) {
     auto B1  = net_builder.CreateInput(Float(32), {256, w}, "B1");
     auto C1  = net_builder.CreateInput(Float(32), {55200, w}, "C1");
     auto D1  = net_builder.CreateInput(Float(32), {2750, w}, "D1");
-    auto AA  = net_builder.ElementwiseAdd(A0, A1);
-    auto BB  = net_builder.ElementwiseAdd(B0, B1);
-    auto CC  = net_builder.ElementwiseAdd(C0, C1);
-    auto DD  = net_builder.ElementwiseAdd(D0, D1);
-    auto E   = net_builder.Reduce(AA, ReduceKind::kSum, {0});
-    auto F   = net_builder.Reduce(BB, ReduceKind::kSum, {0});
-    auto G   = net_builder.Reduce(CC, ReduceKind::kSum, {0});
-    auto H   = net_builder.Reduce(DD, ReduceKind::kSum, {0});
-    auto I   = net_builder.ElementwiseAdd(E, F);
-    auto J   = net_builder.ElementwiseAdd(G, I);
-    auto K   = net_builder.ElementwiseAdd(H, J);
-    auto AAA = net_builder.ElementwiseAdd(AA, A1);
-    auto BBB = net_builder.ElementwiseAdd(BB, B1);
-    auto CCC = net_builder.ElementwiseAdd(CC, C1);
-    auto DDD = net_builder.ElementwiseAdd(DD, D1);
+    auto AA  = net_builder.Add(A0, A1);
+    auto BB  = net_builder.Add(B0, B1);
+    auto CC  = net_builder.Add(C0, C1);
+    auto DD  = net_builder.Add(D0, D1);
+    auto E   = net_builder.ReduceSum(AA, {0});
+    auto F   = net_builder.ReduceSum(BB, {0});
+    auto G   = net_builder.ReduceSum(CC, {0});
+    auto H   = net_builder.ReduceSum(DD, {0});
+    auto I   = net_builder.Add(E, F);
+    auto J   = net_builder.Add(G, I);
+    auto K   = net_builder.Add(H, J);
+    auto AAA = net_builder.Add(AA, A1);
+    auto BBB = net_builder.Add(BB, B1);
+    auto CCC = net_builder.Add(CC, C1);
+    auto DDD = net_builder.Add(DD, D1);
   }
 
   auto program = net_builder.Build();

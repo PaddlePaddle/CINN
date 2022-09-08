@@ -48,7 +48,7 @@ class TestSubOp(OpTest):
         builder = NetBuilder("sub")
         x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
         y = builder.create_input(Float(32), self.inputs["y"].shape, "y")
-        out = builder.sub(x, y)
+        out = builder.subtract(x, y)
 
         prog = builder.build()
         res = self.get_cinn_output(prog, target, [x, y],

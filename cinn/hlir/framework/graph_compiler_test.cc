@@ -35,7 +35,7 @@ TEST(GraphCompilerTest, TestRemoveInvaildVariables) {
   auto a = builder.CreateInput(Float(32), {1, 64, 112, 112}, "A");
   auto b = builder.CreateInput(Float(32), {64}, "B");
 
-  auto c      = builder.ElementwiseAdd(a, b, 1);
+  auto c      = builder.Add(a, b, 1);
   auto d      = builder.Relu(c);
   auto target = common::DefaultHostTarget();
   auto graph  = std::make_shared<Graph>(builder.Build(), target);
@@ -59,7 +59,7 @@ TEST(GraphCompilerTest, TestInsertBufferHandlers) {
   auto a = builder.CreateInput(Float(32), {1, 64, 112, 112}, "A");
   auto b = builder.CreateInput(Float(32), {64}, "B");
 
-  auto c      = builder.ElementwiseAdd(a, b, 1);
+  auto c      = builder.Add(a, b, 1);
   auto d      = builder.Relu(c);
   auto target = common::DefaultHostTarget();
   auto graph  = std::make_shared<Graph>(builder.Build(), target);

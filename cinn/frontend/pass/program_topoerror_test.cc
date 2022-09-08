@@ -48,8 +48,8 @@ TEST(TransposeFoldingInput, TransposeWithMultiMamtul) {
   auto x           = builder.CreateInput(Float(32), {2, 2}, "X");
   auto y           = builder.CreateInput(Float(32), {2, 2}, "Y");
   auto transpose_y = builder.Transpose(y, {1, 0});
-  auto dot1        = builder.Dot(x, transpose_y);
-  auto dot2        = builder.Dot(transpose_y, x);
+  auto dot1        = builder.Matmul(x, transpose_y);
+  auto dot2        = builder.Matmul(transpose_y, x);
   auto out         = builder.Add(dot1, dot2);
   auto program     = builder.Build();
 

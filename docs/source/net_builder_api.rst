@@ -596,7 +596,7 @@ Convolution operation with input tensor lhs and rhs.
     // grad_filter = [32, 16, 3, 3]
     grad_filte = net_builder.Conv(x, grad_y, {1, 1}, {1, 1}, {1, 1}, 1, "backward_filter", "NCHW", "EXPLICIT", {32, 16, 3, 3});
 
-Reduce
+ReduceSum
 ~~~~~~
 
 ``Reduce(input, kind, dim, keep_dim)`` Reduce on input tensors along the
@@ -620,13 +620,13 @@ given dimensions.
     // x = [128, 128, 16, 16]
     // kind = sum, dim = {2, 3}
     // out = [128, 128] when keep_dim = false
-    out = net_builder.Reduce(x, ReduceKind::kSum, {2, 3}, false);
+    out = net_builder.ReduceSum(x, {2, 3}, false);
 
     // Case 2
     // x = [128, 128, 16, 16]
     // kind = sum, dim = {2, 3}
     // out = [128, 128, 1, 1] when keep_dim = true
-    out = net_builder.Reduce(x, ReduceKind::kSum, {2, 3}, true);
+    out = net_builder.ReduceSum(x, {2, 3}, true);
 
 Reshape
 ~~~~~~~

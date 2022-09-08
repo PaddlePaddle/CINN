@@ -46,7 +46,7 @@ TEST(TransposeFoldingInput, FoldIntoDotBachedCase1) {
   auto x           = builder.CreateInput(Float(32), {4, 5, 3}, "X");
   auto y           = builder.CreateInput(Float(32), {4, 5, 6}, "Y");
   auto transpose_x = builder.Transpose(x, {0, 2, 1});
-  auto out         = builder.Dot(transpose_x, y);
+  auto out         = builder.Matmul(transpose_x, y);
   auto program     = builder.Build();
   auto target      = common::DefaultTarget();
   auto graph       = std::make_shared<hlir::framework::Graph>(program, target);
@@ -76,7 +76,7 @@ TEST(TransposeFoldingInput, FoldIntoDotBachedCase2) {
   auto x           = builder.CreateInput(Float(32), {4, 3, 5}, "X");
   auto y           = builder.CreateInput(Float(32), {4, 6, 5}, "Y");
   auto transpose_y = builder.Transpose(y, {0, 2, 1});
-  auto out         = builder.Dot(x, transpose_y);
+  auto out         = builder.Matmul(x, transpose_y);
   auto program     = builder.Build();
   auto target      = common::DefaultTarget();
   auto graph       = std::make_shared<hlir::framework::Graph>(program, target);
@@ -107,7 +107,7 @@ TEST(TransposeFoldingInput, FoldIntoDotBachedCase3) {
   auto y           = builder.CreateInput(Float(32), {4, 6, 5}, "Y");
   auto transpose_x = builder.Transpose(x, {0, 2, 1});
   auto transpose_y = builder.Transpose(y, {0, 2, 1});
-  auto out         = builder.Dot(transpose_x, transpose_y);
+  auto out         = builder.Matmul(transpose_x, transpose_y);
   auto program     = builder.Build();
   auto target      = common::DefaultTarget();
   auto graph       = std::make_shared<hlir::framework::Graph>(program, target);
@@ -137,7 +137,7 @@ TEST(TransposeFoldingInput, FoldIntoDotCase1) {
   auto x           = builder.CreateInput(Float(32), {2, 3}, "X");
   auto y           = builder.CreateInput(Float(32), {2, 3}, "Y");
   auto transpose_y = builder.Transpose(y, {1, 0});
-  auto out         = builder.Dot(x, transpose_y);
+  auto out         = builder.Matmul(x, transpose_y);
   auto program     = builder.Build();
   auto target      = common::DefaultTarget();
   auto graph       = std::make_shared<hlir::framework::Graph>(program, target);
@@ -207,7 +207,7 @@ TEST(TransposeFoldingInput, TransposeOutInFetchIds) {
   auto x           = builder.CreateInput(Float(32), {2, 3}, "X");
   auto y           = builder.CreateInput(Float(32), {2, 3}, "Y");
   auto transpose_y = builder.Transpose(y, {1, 0});
-  auto out         = builder.Dot(x, transpose_y);
+  auto out         = builder.Matmul(x, transpose_y);
   auto program     = builder.Build();
   auto target      = common::DefaultTarget();
   auto graph       = std::make_shared<hlir::framework::Graph>(program, target);
@@ -237,7 +237,7 @@ TEST(TransposeFoldingInput, TransposeOutUsedByOtherInstrs) {
   auto x           = builder.CreateInput(Float(32), {2, 2}, "X");
   auto y           = builder.CreateInput(Float(32), {2, 2}, "Y");
   auto transpose_y = builder.Transpose(y, {1, 0});
-  auto dot         = builder.Dot(x, transpose_y);
+  auto dot         = builder.Matmul(x, transpose_y);
   auto out         = builder.Add(transpose_y, dot);
   auto program     = builder.Build();
   auto target      = common::DefaultTarget();
@@ -271,8 +271,8 @@ TEST(TransposeFoldingInput, TransposeTwiceWithMatmul) {
 
   auto x_t     = builder.Transpose(x, {1, 0});
   auto x_t_t   = builder.Transpose(x_t, {1, 0});
-  auto dot1    = builder.Dot(y, x_t);
-  auto dot2    = builder.Dot(z, x_t_t);
+  auto dot1    = builder.Matmul(y, x_t);
+  auto dot2    = builder.Matmul(z, x_t_t);
   auto program = builder.Build();
 
   auto target = common::DefaultTarget();
@@ -329,8 +329,8 @@ TEST(TransposeFoldingInput, TransposeWithMultiMamtul) {
   auto x           = builder.CreateInput(Float(32), {2, 2}, "X");
   auto y           = builder.CreateInput(Float(32), {2, 2}, "Y");
   auto transpose_y = builder.Transpose(y, {1, 0});
-  auto dot1        = builder.Dot(x, transpose_y);
-  auto dot2        = builder.Dot(transpose_y, x);
+  auto dot1        = builder.Matmul(x, transpose_y);
+  auto dot2        = builder.Matmul(transpose_y, x);
   auto out         = builder.Add(dot1, dot2);
   auto program     = builder.Build();
   auto target      = common::DefaultTarget();

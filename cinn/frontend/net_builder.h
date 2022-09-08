@@ -75,8 +75,8 @@ namespace frontend {
 // Variable BINARY_OP(const Variable& lhs, const Variable& rhs, int axis = -1);
 #define NETBUILDER_BINARY_OP_FOREACH(macro__) \
   macro__(Add) \
-  macro__(Sub) \
-  macro__(Div) \
+  macro__(Subtract) \
+  macro__(Divide) \
   macro__(Multiply) \
   macro__(FloorDiv) \
   macro__(Mod) \
@@ -189,7 +189,7 @@ class NetBuilder {
 
  public:
   // ******************************************* //
-  // Elementwise Operator and Reduce Operator
+  // Elementwise Operator
   /**
    * @brief Elementwise compute each element in `input` variable, and return the result Variable.
    * @param x The input variable.
@@ -256,11 +256,11 @@ class NetBuilder {
   /**
    * @brief The clip operator limits the value of given input within an interval `[min, max]`.
    * @param x Input N-D variable of scale operator.
-   * @param max_val The minimum value to clip by.
-   * @param min_val The maximum value to clip by
+   * @param max The minimum value to clip by.
+   * @param min The maximum value to clip by
    * @return Output of clip with the same shape and data type as input.
    */
-  Variable Clip(const std::vector<Variable>& x, const float& max_val, const float& min_val);
+  Variable Clip(const std::vector<Variable>& x, const float& max, const float& min);
 
   /**
    * @brief This operator checks if all `x` and `y` satisfy the condition: `|x - y| <= atol + rtol * |y|`
@@ -309,15 +309,6 @@ class NetBuilder {
   Placeholder CreateInput(const common::Type& type, const std::vector<int>& shape, const std::string& id_hint = "");
 
   /**
-   * @brief Create scalar with the specific value and type.
-   * @param value The scalar value to be set, the value should be float in this situation.
-   * @param name The name of output variable.
-   * @param dtype The data type string of output variable.
-   * @return The result variable.
-   */
-  Variable ConstScalar(float value, const std::string& name, const std::string& dtype);
-
-  /**
    * @brief Create scalar with the specific value and type, the type is infered from value.
    * @param value The scalar value to be set.
    * @param name The name of output variable.
@@ -325,7 +316,17 @@ class NetBuilder {
    */
   template <typename T>
   Variable ConstScalar(T value, const std::string& name) {
-    return ConstScalar(static_cast<float>(value), name, common::Type2Str(common::type_of<T>()));
+    Instruction instr("const_scalar");
+    instr.SetInputs({});
+    instr.SetAttr<T>("value", value);
+
+    InferShape(instr);
+    AppendInstruction(instr);
+
+    auto out = instr.GetOutput(0);
+    out.set_id(name);
+    out->type = common::type_of<T>();
+    return out;
   }
 
   /**
@@ -367,7 +368,7 @@ class NetBuilder {
    * @param dtype The data type of the output. Default: "float32".
    * @return A 1-D variable which is evenly spaced values within a given interval. Its data type is set by dtype.
    */
-  Variable Arange(const float start, const float stop, const float step, const std::string& dtype = "float32");
+  Variable Arange(const float start, const float stop, const float step, const std::string& dtype);
 
   /**
    * @brief This operator is used to perform matrix multiplication for input x and y.

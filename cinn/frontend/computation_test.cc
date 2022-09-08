@@ -39,19 +39,19 @@ Program CreateTestProgram() {
   auto t = builder.Transpose(b, {1, 0});
   auto r = builder.Reshape(t, {M, N / 2});
   auto c = builder.Add(a, r);
-  auto x = builder.Div(a, b);
+  auto x = builder.Divide(a, b);
   auto d = builder.Concat({c, x}, 1);
   auto e = builder.BroadcastTo(d, {B, M, N}, {1, 2});
   auto f = builder.Concat({a, b}, 1);
   auto g = builder.BroadcastTo(f, {B, M, N}, {1, 2});
-  auto h = builder.Sub(e, g);
+  auto h = builder.Subtract(e, g);
   auto i = builder.Max(e, h);
   auto j = builder.Min(e, h);
-  auto k = builder.ElementwiseMul(i, j);
+  auto k = builder.Multiply(i, j);
   auto l = builder.ConstScalar<bool>(1, "condition");
   auto m = builder.BroadcastTo(l, {B, M, N}, {0});
   auto n = builder.Select(m, j, k);
-  auto o = builder.Reduce(n, ReduceKind::kSum, {0, 1, 2});
+  auto o = builder.ReduceSum(n, {0, 1, 2});
 
   auto program = builder.Build();
   return program;

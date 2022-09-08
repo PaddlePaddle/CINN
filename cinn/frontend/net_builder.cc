@@ -147,8 +147,8 @@ NETBUILDER_UNARY_OP_DEF(Abs, abs)
   }
 NETBUILDER_BINARY_OP_DEF(Add, elementwise_add)
 NETBUILDER_BINARY_OP_DEF(Multiply, elementwise_mul)
-NETBUILDER_BINARY_OP_DEF(Div, divide)
-NETBUILDER_BINARY_OP_DEF(Sub, substract)
+NETBUILDER_BINARY_OP_DEF(Divide, divide)
+NETBUILDER_BINARY_OP_DEF(Subtract, substract)
 NETBUILDER_BINARY_OP_DEF(FloorDiv, floor_divide)
 NETBUILDER_BINARY_OP_DEF(Mod, mod)
 NETBUILDER_BINARY_OP_DEF(FloorMod, floor_mod)
@@ -204,16 +204,6 @@ Placeholder NetBuilder::CreateInput(const Variable& var) {
   CHECK(!var->type.is_unk()) << "The input's type is not set yet";
   inputs_.push_back(var);
   return Placeholder(var);
-}
-
-Variable NetBuilder::ConstScalar(float value, const std::string& name, const std::string& dtype) {
-  auto out = CustomInstr("const_scalar", {}, {{"value", value}}).front();
-  out.set_id(name);
-  auto out_type = common::Str2Type(dtype);
-  CHECK(out_type.is_float() || out_type.is_int() || out_type.is_bool() || out_type.is_int(64))
-      << "no supported type: " << out_type;
-  out->type = out_type;
-  return out;
 }
 
 Variable NetBuilder::FillConstant(
@@ -317,7 +307,7 @@ Variable NetBuilder::SliceAssign(const Variable& input,
 }
 
 Variable NetBuilder::Reverse(const Variable& operand, const std::vector<int>& axis) {
-  return CustomInstr("reverse", {operand}), {{"axis", axis}}).front();
+  return CustomInstr("reverse", {operand}, {{"axis", axis}}).front();
 }
 
 Variable NetBuilder::Select(const Variable& condition, const Variable& true_value, const Variable& false_value) {
@@ -348,42 +338,26 @@ const std::vector<Variable>& NetBuilder::ElementwiseAddGrad(const Variable& dout
                                                             const Variable& x,
                                                             const Variable& y,
                                                             int axis) {
-  Instruction instr("elementwise_add_grad", {dout, x, y});
-  instr.SetAttr("axis", axis);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutputs();
+  return CustomInstr("elementwise_add_grad", {dout, x, y}, {{"axis", axis}});
 }
 
 Variable NetBuilder::Relu6(const Variable& a, float threshold) {
-  Instruction instr("relu6", {a});
-  instr.SetAttr("threshold", threshold);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return CustomInstr("relu6", {a}, {{"threshold", threshold}}).front();
 }
 
 Variable NetBuilder::ReluGrad(const Variable& lhs, const Variable& rhs) {
-  Instruction instr("relu_grad", {lhs, rhs});
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return CustomInstr("relu_grad", {lhs, rhs}, {}).front();
 }
 
 Variable NetBuilder::Cast(const Variable& operand, const std::string& dtype) {
-  Instruction instr("cast", {operand});
-  instr.SetAttr("dtype", dtype);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+  if (operand->type == common::Str2Type(dtype)) {
+    return Identity(operand);
+  }
+  return CustomInstr("cast", {operand}, {{"dtype", dtype}}).front();
 }
 
 Variable NetBuilder::Squeeze(const Variable& operand, const std::vector<int>& axes) {
-  Instruction instr("squeeze", {operand});
-  instr.SetAttr("axes", axes);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return CustomInstr("squeeze", {operand}, {{"axes", axes}}).front();
 }
 
 Variable NetBuilder::Conv(const Variable& lhs,
@@ -396,20 +370,17 @@ Variable NetBuilder::Conv(const Variable& lhs,
                           const std::string& data_format,
                           const std::string& padding_algorithm,
                           const std::vector<int>& output_shape) {
-  Instruction instr("conv2d");
-  instr.SetInputs({lhs, rhs});
-  instr.SetAttr("stride", strides);
-  instr.SetAttr("padding", paddings);
-  instr.SetAttr("dilation", dilations);
-  instr.SetAttr("groups", groups);
-  instr.SetAttr("conv_type", conv_type);
-  instr.SetAttr("data_format", data_format);
-  instr.SetAttr("padding_algorithm", padding_algorithm);
-  instr.SetAttr("output_shape", output_shape);
-
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return CustomInstr("conv2d",
+                     {lhs, rhs},
+                     {{"stride", strides},
+                      {"padding", paddings},
+                      {"dilation", dilations},
+                      {"groups", groups},
+                      {"conv_type", conv_type},
+                      {"data_format", data_format},
+                      {"padding_algorithm", padding_algorithm},
+                      {"output_shape", output_shape}})
+      .front();
 }
 
 Variable NetBuilder::Conv2d(const Variable& a,
@@ -420,17 +391,7 @@ Variable NetBuilder::Conv2d(const Variable& a,
                             int groups,
                             const std::string& data_format,
                             const std::string& padding_algorithm) {
-  Instruction instr("conv2d");
-  instr.SetInputs({a, b});
-  instr.SetAttr("stride", strides);
-  instr.SetAttr("padding", paddings);
-  instr.SetAttr("dilation", dilations);
-  instr.SetAttr("groups", groups);
-  instr.SetAttr("data_format", data_format);
-  instr.SetAttr("padding_algorithm", padding_algorithm);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return Conv(a, b, strides, paddings, dilations, groups, "forward", data_format, padding_algorithm, {});
 }
 
 Variable NetBuilder::DepthwiseConv2d(const Variable& a,
@@ -441,17 +402,15 @@ Variable NetBuilder::DepthwiseConv2d(const Variable& a,
                                      int groups,
                                      const std::string& data_format,
                                      const std::string& padding_algorithm) {
-  Instruction instr("depthwise_conv2d");
-  instr.SetInputs({a, b});
-  instr.SetAttr("stride", strides);
-  instr.SetAttr("padding", paddings);
-  instr.SetAttr("dilation", dilations);
-  instr.SetAttr("groups", groups);
-  instr.SetAttr("data_format", data_format);
-  instr.SetAttr("padding_algorithm", padding_algorithm);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return CustomInstr("depthwise_conv2d",
+                     {a, b},
+                     {{"stride", strides},
+                      {"padding", paddings},
+                      {"dilation", dilations},
+                      {"groups", groups},
+                      {"data_format", data_format},
+                      {"padding_algorithm", padding_algorithm}})
+      .front();
 }
 
 Variable NetBuilder::Pool2d(const Variable& a,
@@ -465,21 +424,19 @@ Variable NetBuilder::Pool2d(const Variable& a,
                             const std::string& data_format,
                             bool adaptive,
                             const std::string& padding_algorithm) {
-  Instruction instr("pool2d");
-  instr.SetInputs({a});
-  instr.SetAttr("pool_type", pooling_type);
-  instr.SetAttr("kernel_size", ksize);
-  instr.SetAttr("stride_size", strides);
-  instr.SetAttr("padding_size", paddings);
-  instr.SetAttr("ceil_mode", ceil_mode);
-  instr.SetAttr("exclusive", exclusive);
-  instr.SetAttr("global_pooling", global_pooling);
-  instr.SetAttr("data_format", data_format);
-  instr.SetAttr("adaptive", adaptive);
-  instr.SetAttr("padding_algorithm", padding_algorithm);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return CustomInstr("pool2d",
+                     {a},
+                     {{"pool_type", pooling_type},
+                      {"kernel_size", ksize},
+                      {"stride_size", strides},
+                      {"padding_size", paddings},
+                      {"ceil_mode", ceil_mode},
+                      {"exclusive", exclusive},
+                      {"global_pooling", global_pooling},
+                      {"data_format", data_format},
+                      {"adaptive", adaptive},
+                      {"padding_algorithm", padding_algorithm}})
+      .front();
 }
 
 std::vector<Variable> NetBuilder::BatchNorm(const Variable& a,
@@ -491,19 +448,10 @@ std::vector<Variable> NetBuilder::BatchNorm(const Variable& a,
                                             float momentum,
                                             const std::string& data_layout,
                                             bool is_test) {
-  std::unique_ptr<Instruction> instr;
-  if (is_test) {
-    instr = std::make_unique<Instruction>("batchnorm");
-  } else {
-    instr = std::make_unique<Instruction>("batch_norm_train");
-  }
-  instr->SetInputs({a, scale, bias, mean, variance});
-  instr->SetAttr("epsilon", epsilon);
-  instr->SetAttr("momentum", momentum);
-  instr->SetAttr("data_layout", data_layout);
-  InferShape(*instr);
-  AppendInstruction(*instr);
-  return instr->GetOutputs();
+  std::string op_type = is_test ? "batchnorm" : "batch_norm_train";
+  return CustomInstr(op_type,
+                     {a, scale, bias, mean, variance},
+                     {{"epsilon", epsilon}, {"momentum", momentum}, {"data_layout", data_layout}});
 }
 
 // batch norm grad, output(grad_x, grad_scale, grad_bias)
@@ -514,69 +462,36 @@ std::vector<Variable> NetBuilder::BatchNormGrad(const Variable& dy,
                                                 const Variable& save_variance,
                                                 const float epsilon,
                                                 const std::string& data_layout) {
-  Instruction instr("batch_norm_grad", {dy, x, scale, save_mean, save_variance});
-  instr.SetAttr("epsilon", epsilon);
-  instr.SetAttr("data_layout", data_layout);
-
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutputs();
+  return CustomInstr("batch_norm_grad",
+                     {dy, x, scale, save_mean, save_variance},
+                     {{"epsilon", epsilon}, {"data_layout", data_layout}});
 }
 
 Variable NetBuilder::Scale(const Variable& a, float scale, float bias, bool bias_after_scale) {
-  Instruction instr("scale", {a});
-  instr.SetAttr("scale", scale);
-  instr.SetAttr("bias", bias);
-  instr.SetAttr("bias_after_scale", bias_after_scale);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return CustomInstr("scale", {a}, {{"scale", scale}, {"bias", bias}, {"bias_after_scale", bias_after_scale}}).front();
 }
 
 Variable NetBuilder::Softmax(const Variable& a, int axis, const std::string& data_format) {
-  Instruction instr("softmax", {a});
-  instr.SetAttr("axis", axis);
-  instr.SetAttr("data_format", data_format);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return CustomInstr("softmax", {a}, {{"axis", axis}, {"data_format", data_format}}).front();
 }
 
 Variable NetBuilder::DropoutInfer(const Variable& a, float dropout_prob, const std::string& dropout_implementation) {
-  Instruction instr("dropout_infer", {a});
-  instr.SetAttr("dropout_prob", dropout_prob);
-  instr.SetAttr("dropout_implementation", dropout_implementation);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return CustomInstr(
+             "dropout_infer", {a}, {{"dropout_prob", dropout_prob}, {"dropout_implementation", dropout_implementation}})
+      .front();
 }
 
 Variable NetBuilder::Sum(const std::vector<Variable>& inputs) {
-  Instruction instr("sum", inputs);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return CustomInstr("sum", inputs, {}).front();
+  ;
 }
 
 Variable NetBuilder::Clip(const std::vector<Variable>& inputs, const float& max_val, const float& min_val) {
-  Instruction instr("clip", inputs);
-  instr.SetAttr("max_val", max_val);
-  instr.SetAttr("min_val", min_val);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return CustomInstr("clip", inputs, {{"max_val", max_val}, {"min_val", min_val}}).front();
 }
 
 Variable NetBuilder::Arange(const float start, const float stop, const float step, const std::string& dtype) {
-  Instruction instr("arange");
-  instr.SetInputs({});
-  instr.SetAttr("start", start);
-  instr.SetAttr("stop", stop);
-  instr.SetAttr("step", step);
-  instr.SetAttr("dtype", dtype);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return CustomInstr("arange", {}, {{"start", start}, {"stop", stop}, {"step", step}, {"dtype", dtype}}).front();
 }
 
 // conv2d grad, output(grad_x, grad_w)
@@ -589,17 +504,14 @@ std::vector<Variable> NetBuilder::Conv2dGrad(const Variable& dy,
                                              const int groups,
                                              const std::string& data_format,
                                              const std::string& padding_algorithm) {
-  Instruction instr("conv2d_grad", {dy, x, w});
-  instr.SetAttr<std::vector<int>>("strides", strides);
-  instr.SetAttr<std::vector<int>>("paddings", paddings);
-  instr.SetAttr<std::vector<int>>("dilations", dilations);
-  instr.SetAttr<int>("groups", groups);
-  instr.SetAttr<std::string>("data_format", data_format);
-  instr.SetAttr<std::string>("padding_algorithm", padding_algorithm);
-
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutputs();
+  return CustomInstr("conv2d_grad",
+                     {dy, x, w},
+                     {{"strides", strides},
+                      {"paddings", paddings},
+                      {"dilations", dilations},
+                      {"groups", groups},
+                      {"data_format", data_format},
+                      {"padding_algorithm", padding_algorithm}});
 }
 
 std::pair<Variable, Variable> NetBuilder::BroadcastMatmulInput(
@@ -801,13 +713,10 @@ std::vector<int> NetBuilder::GetMatmulOutputShape(
 Variable NetBuilder::Matmul(const Variable& x, const Variable& y, bool trans_x, bool trans_y, float alpha) {
   const auto& inputs = BroadcastMatmulInput(x, y, trans_x, trans_y, alpha);
 
-  Instruction instr("matmul", {inputs.first, inputs.second});
-  instr.SetAttr("trans_a", trans_x);
-  instr.SetAttr("trans_b", trans_y);
-  instr.SetAttr("alpha", alpha);
-  InferShape(instr);
-  AppendInstruction(instr);
-  auto out = instr.GetOutput(0);
+  auto out =
+      CustomInstr(
+          "matmul", {inputs.first, inputs.second}, {{"trans_a", trans_x}, {"trans_b", trans_y}, {"alpha", alpha}})
+          .front();
 
   const auto& should_out_shape = GetMatmulOutputShape(x, y, trans_x, trans_y, alpha);
   if (should_out_shape != out->shape) {

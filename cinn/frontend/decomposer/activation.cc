@@ -42,7 +42,7 @@ void relu_grad(const Instruction& instr, const DecomposerContext& context) {
   auto* builder = context.builder();
 
   auto bcast_zero = builder->FillConstant<float>(out->shape, 0.0f, common::UniqName("zero"));
-  auto condition  = builder->Compare(out, bcast_zero, ComparisonKind::kGt);
+  auto condition  = builder->Greater(out, bcast_zero);
   auto res        = builder->Select(condition, dout, bcast_zero);
 
   // map the the output of decomposed operator to the original.
