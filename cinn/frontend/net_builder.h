@@ -239,6 +239,41 @@ class NetBuilder {
    */
   Variable Sum(const std::vector<Variable>& inputs);
 
+  /**
+   * @brief Drop or keep each element of x independently.
+   * @param x The input variable.
+   * @param dropout_prob Probability of setting units to zero. The dropout operator randomly sets (according to the
+   * given dropout probability) the outputs of some units to zero, while others are remain unchanged.
+   * @param dropout_implementation Choice the mode of dropout. When "downgrade_in_infer", downgrade the outcome at
+   * inference: `train: out = input * mask, inference: out = input * (1.0 - dropout_prob)`. When "upscale_in_train",
+   * upscale the outcome at training time: `train: out = input * mask / ( 1.0 - dropout_prob), inference: out = input`.
+   * @return A variable representing the dropout, has same shape and data type with input.
+   */
+  Variable DropoutInfer(const Variable& x,
+                        float dropout_prob                        = 0.5f,
+                        const std::string& dropout_implementation = "downgrade_in_infer");
+
+  /**
+   * @brief The clip operator limits the value of given input within an interval `[min, max]`.
+   * @param x Input N-D variable of scale operator.
+   * @param max_val The minimum value to clip by.
+   * @param min_val The maximum value to clip by
+   * @return Output of clip with the same shape and data type as input.
+   */
+  Variable Clip(const std::vector<Variable>& x, const float& max_val, const float& min_val);
+
+  /**
+   * @brief This operator checks if all `x` and `y` satisfy the condition: `|x - y| <= atol + rtol * |y|`
+   * @param x The first variable.
+   * @param y The second variable.
+   * @param rtol The relative tolerance. Default: 1e−5f.
+   * @param atol The absolute tolerance. Default: 1e−8f.
+   * @param equal_nan If `true`, then two NaNs will be compared as equal. Default: false .
+   * @return The output variable, it’s data type is bool.
+   */
+  Variable IsClose(
+      const Variable& x, const Variable& y, float rtol = 1e-05f, float atol = 1e-08f, bool equal_nan = false);
+
   // ******************************************* //
   // Reduction operator
   /**
@@ -322,6 +357,19 @@ class NetBuilder {
   }
 
   /**
+   * @brief Return evenly spaced values within a given interval. Values are generated within the half-open interval
+   * `[start, stop)` (in other words, the interval including start but excluding stop).
+   * @param start Start of interval. The interval includes this value.
+   * @param stop End of interval. The interval does not include this value, except in some cases where step is not
+   * an integer and floating point round-off affects the length of out.
+   * @param step Spacing between values. For any output out, this is the distance between two adjacent values, `out[i+1]
+   * - out[i]`.
+   * @param dtype The data type of the output. Default: "float32".
+   * @return A 1-D variable which is evenly spaced values within a given interval. Its data type is set by dtype.
+   */
+  Variable Arange(const float start, const float stop, const float step, const std::string& dtype = "float32");
+
+  /**
    * @brief This operator is used to perform matrix multiplication for input x and y.
    * @param x The first input variable.
    * @param y The second input variable.
@@ -347,6 +395,44 @@ class NetBuilder {
    * @return The product variable.
    */
   Variable Matmul(const Variable& x, const Variable& y, bool trans_x = false, bool trans_y = false, float alpha = 1.0f);
+
+  /**
+   * @brief This operation calculates the pooling output based on the input, pooling_type and pool_size, pool_stride,
+   * pool_padding parameters.
+   * @param x The input variable of pooling operator which is a 4-D variable with shape [N, C, H, W]. The format of
+   * input variable is “NCHW” or “NHWC”, where N is batch size, C is the number of channels, H is the height of the
+   * feature, and W is the width of the feature.
+   * @param pooling_type pooling type, can be “max” for max-pooling and “avg” for average-pooling
+   * @param ksize The pool kernel size. If pool kernel size is a tuple or list, it must contain two integers,
+   * (pool_size_Height, pool_size_Width). Otherwise, the pool kernel size will be a square of an int.
+   * @param strides  The pool stride size. If pool stride size is a tuple or list, it must contain two integers,
+   * (pool_stride_Height, pool_stride_Width). Otherwise, the pool stride size will be a square of an int. Default is {1,
+   * 1}.
+   * @param paddings he padding size. If padding is a list/tuple, it must contain two integers, (padding_H, padding_W).
+   * Otherwise, the padding_H = padding_W = padding. Default: padding = {0, 0}.
+   * @param ceil_mode Whether to use the ceil function to calculate output height and width. False is the default. If it
+   * is set to False, the floor function will be used. Default False
+   * @param exclusive Whether to exclude padding points in average pooling mode, default is true.
+   * @param global_pooling Whether to use the global pooling. If global_pooling = true, kernel size and paddings will be
+   * ignored. Default False
+   * @param data_format Data format that specifies the layout of input. It can be "NCHW" or "NHWC". Default: "NCHW".
+   * @param adaptive When true, will perform adaptive pooling instead, output shape in H and W dimensions will be same
+   * as ksize, input data will be divided into grids specify by ksize averagely and perform pooling in each grid area to
+   * get output pooling value. Default: False.
+   * @param padding_algorithm CINN not support! It can be "EXPLICIT"/"SAME"/"VALID". Default: "EXPLICIT".
+   * @return The output variable of pooling result. The data type is same as input variable.
+   */
+  Variable Pool2d(const Variable& x,
+                  const std::string& pooling_type,
+                  const std::vector<int>& ksize,
+                  const std::vector<int>& strides      = {1, 1},
+                  const std::vector<int>& paddings     = {0, 0},
+                  bool ceil_mode                       = false,
+                  bool exclusive                       = true,
+                  bool global_pooling                  = false,
+                  const std::string& data_format       = "NCHW",
+                  bool adaptive                        = false,
+                  const std::string& padding_algorithm = "EXPLICIT");
 
   // ******************************************* //
   // Broadcast operator
@@ -511,6 +597,17 @@ class NetBuilder {
    */
   Variable Relu6(const Variable& x, float threshold = 6.0f);
 
+  /**
+   * @brief This operator implements the softmax layer.
+   * @param x An N-D variable.
+   * @param axis The index of dimension to perform softmax calculations, it should be in range `[−1,rank−1]`,
+   * while `rank` is the rank of input variable. Default: -1. -1 means the last dimension.
+   * @param data_format Specify the data format of the output data, the input will be transformed automatically.
+   * An optional string from: "AnyLayout", "NHWC", "NCHW". Default: "AnyLayout".
+   * @return Output of softmax. The data type and shape are the same as input .
+   */
+  Variable Softmax(const Variable& x, int axis = -1, const std::string& data_format = "AnyLayout");
+
   // ******************************************* //
   // Type converter Operator
   /**
@@ -541,7 +638,7 @@ class NetBuilder {
    * @brief The gradient function of `relu`.
    * @param dout  The gradient variable of the `relu`'s output.
    * @param x The input variable.
-   * @return The gradient variable of `relu`.
+   * @return The gradient variable of `x`.
    */
   Variable ReluGrad(const Variable& dout, const Variable& x);
 
@@ -598,9 +695,25 @@ class NetBuilder {
                   const std::string& data_format       = "NCHW",
                   const std::string& padding_algorithm = "EXPLICIT");
 
-  std::vector<Variable> Conv2dGrad(const Variable& dy,
+  /**
+   * @brief The gradient function of convolution-2d.
+   * @param dout The gradient variable of the `conv2d`'s output.
+   * @param x The image variable.
+   * @param weights The filter variable.
+   * @param strides The stride size. If stride is a list/tuple, it must contain two integers, (stride_H, stride_W).
+   * Otherwise, the stride_H = stride_W = stride. Default: stride = {1, 1}.
+   * @param paddings The padding size. If padding is a list/tuple, it must contain two integers, (padding_H, padding_W).
+   * Otherwise, the padding_H = padding_W = padding. Default: padding = {0, 0}.
+   * @param dilations  The dilation size. If dilation is a list/tuple, it must contain two integers, (dilation_H,
+   * dilation_W). Otherwise, the dilation_H = dilation_W = dilation. Default: dilation = {1, 1}.
+   * @param groups The groups number of the conv layer. Default: groups=1.
+   * @param data_format Data format that specifies the layout of input. It can be "NCHW" or "NHWC". Default: "NCHW".
+   * @param padding_algorithm CINN not support! It can be "EXPLICIT"/"SAME"/"VALID". Default: "EXPLICIT".
+   * @return The gradient variable of 'x'.
+   */
+  std::vector<Variable> Conv2dGrad(const Variable& dout,
                                    const Variable& x,
-                                   const Variable& w,
+                                   const Variable& weights,
                                    const std::vector<int>& strides      = {1, 1},
                                    const std::vector<int>& paddings     = {0, 0},
                                    const std::vector<int>& dilations    = {1, 1},
@@ -608,8 +721,23 @@ class NetBuilder {
                                    const std::string& data_format       = "NCHW",
                                    const std::string& padding_algorithm = "EXPLICIT");
 
-  Variable DepthwiseConv2d(const Variable& a,
-                           const Variable& b,
+  /**
+   * @brief Compute the depthwise convolution-2d.
+   * @param x The image variable.
+   * @param weights The filter variable.
+   * @param strides The stride size. If stride is a list/tuple, it must contain two integers, (stride_H, stride_W).
+   * Otherwise, the stride_H = stride_W = stride. Default: stride = {1, 1}.
+   * @param paddings The padding size. If padding is a list/tuple, it must contain two integers, (padding_H, padding_W).
+   * Otherwise, the padding_H = padding_W = padding. Default: padding = {0, 0}.
+   * @param dilations  The dilation size. If dilation is a list/tuple, it must contain two integers, (dilation_H,
+   * dilation_W). Otherwise, the dilation_H = dilation_W = dilation. Default: dilation = {1, 1}.
+   * @param groups The groups number of the conv layer. Default: groups=1.
+   * @param data_format Data format that specifies the layout of input. It can be "NCHW" or "NHWC". Default: "NCHW".
+   * @param padding_algorithm CINN not support! It can be "EXPLICIT"/"SAME"/"VALID". Default: "EXPLICIT".
+   * @return The depthwise convolution-2d result variable.
+   */
+  Variable DepthwiseConv2d(const Variable& x,
+                           const Variable& weights,
                            const std::vector<int>& strides      = {1, 1},
                            const std::vector<int>& paddings     = {0, 0},
                            const std::vector<int>& dilations    = {1, 1},
@@ -617,25 +745,22 @@ class NetBuilder {
                            const std::string& data_format       = "NCHW",
                            const std::string& padding_algorithm = "EXPLICIT");
 
-  Variable Pool2d(const Variable& a,
-                  const std::string& pooling_type,
-                  const std::vector<int>& ksize,
-                  const std::vector<int>& strides      = {1, 1},
-                  const std::vector<int>& paddings     = {0, 0},
-                  bool ceil_mode                       = false,
-                  bool exclusive                       = true,
-                  bool global_pooling                  = false,
-                  const std::string& data_format       = "NCHW",
-                  bool adaptive                        = false,
-                  const std::string& padding_algorithm = "EXPLICIT");
-
   /**
-   * The batchnorm layer can be used as a normalizer function
-   * for convolution or fully_connected operations.
-   * is_test(true): batch norm infer (default), output={y}
-   * is_test(false): batch norm training, outputs={y, saved_mean, saved_variance, moving_mean, moving_variance}
+   * @brief Compute the depthwise convolution-2d.
+   * @param x The image variable.
+   * @param scale Scale is a 1-dimensional tensor of size C that is applied to the output.
+   * @param bias Bias is a 1-dimensional tensor of size C that is applied to the output.
+   * @param mean The global mean (for training) or estimated mean (for testing).
+   * @param variance The global variance (for training) or estimated Variance (for testing)
+   * @param epsilon The small value added to the variance to prevent division by zero. Default: 1e-5f.
+   * @param momentum The value used for the moving_mean and moving_var computation. Default: 0.9f.
+   * @param data_layout Specify the input data format, may be “NC”, “NCL”, “NCHW”, “NCDHW”, “NLC”, “NHWC” or “NDHWC”.
+   * Defalut “NCHW”.
+   * @param is_test A flag indicating whether it is in test phrase or not.
+   * @return `{out}` if `is_test` it true, `{out, saved_mean, saved_variance, moving_mean, moving_variance}` if
+   * `is_test` is false.
    */
-  std::vector<Variable> BatchNorm(const Variable& a,
+  std::vector<Variable> BatchNorm(const Variable& x,
                                   const Variable& scale,
                                   const Variable& bias,
                                   const Variable& mean,
@@ -645,28 +770,26 @@ class NetBuilder {
                                   const std::string& data_layout = "NCHW",
                                   bool is_test                   = false);
 
+  /**
+   * @brief The gradient function of BatchNorm training.
+   * @param dout The gradient variable of the `batch_norm_training`'s first output.
+   * @param x The image variable.
+   * @param scale Scale is a 1-dimensional tensor of size C that is applied to the output.
+   * @param save_mean The global mean saved from forward compute.
+   * @param save_variance The global variance from forward compute.
+   * @param epsilon The small value added to the variance to prevent division by zero. Default: 1e-5f.
+   * @param data_layout Specify the input data format, may be “NC”, “NCL”, “NCHW”, “NCDHW”, “NLC”, “NHWC” or “NDHWC”.
+   * Defalut “NCHW”.
+   * @return `{x_grad, scale_grad, bias_grad}`.
+   */
   // batch norm grad, output(x_grad, scale_grad, bias_grad)
-  std::vector<Variable> BatchNormGrad(const Variable& dy,
+  std::vector<Variable> BatchNormGrad(const Variable& dout,
                                       const Variable& x,
                                       const Variable& scale,
                                       const Variable& save_mean,
                                       const Variable& save_variance,
-                                      const float epsilon            = 1e-5,
+                                      const float epsilon            = 1e-5f,
                                       const std::string& data_layout = "NCHW");
-
-  Variable Softmax(const Variable& a, int axis = -1, const std::string& data_format = "AnyLayout");
-
-  Variable DropoutInfer(const Variable& a,
-                        float dropout_prob                        = 0.5f,
-                        const std::string& dropout_implementation = "downgrade_in_infer");
-
-  Variable Clip(const std::vector<Variable>& inputs, const float& max_val, const float& min_val);
-
-  Variable Arange(const float start, const float stop, const float step, const std::string& dtype);
-
-  // This operator checks if all x and y satisfy the condition: |x - y| <= atol + rtol * |y|
-  Variable IsClose(
-      const Variable& x, const Variable& y, float rtol = 1e-05f, float atol = 1e-08f, bool equal_nan = false);
 
  private:
   CINN_DISALLOW_COPY_AND_ASSIGN(NetBuilder);
