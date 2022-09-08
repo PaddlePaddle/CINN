@@ -1907,7 +1907,7 @@ TEST(Conv, optimize) {
   LOG(INFO) << "Conv.optimize function is:\n" << Lower("conv", stages, {A, W, B}, {}, {AA, WW, AL, WL, BL});
 }
 
-TEST(Add, cache_read_local) {
+TEST(ElementwiseAdd, cache_read_local) {
   Context::Global().ResetNameId();
 
   Expr M(100);
@@ -2019,7 +2019,7 @@ void __launch_bounds__(10) fn0(const float* __restrict__ A, const float* __restr
   cuMemFree(reinterpret_cast<CUdeviceptr>(C_dev));
 }
 
-TEST(Add, cache_read1) {
+TEST(ElementwiseAdd, cache_read1) {
   Context::Global().ResetNameId();
   Expr M(100);
   Expr N(200);
@@ -2158,7 +2158,7 @@ void __launch_bounds__(98) fn1(const float* __restrict__ A, const float* __restr
   cuMemFree(reinterpret_cast<CUdeviceptr>(C_dev));
 }
 
-TEST(Add, cache_read_compute_at1) {
+TEST(ElementwiseAdd, cache_read_compute_at1) {
   Context::Global().ResetNameId();
   Expr M(100);
   Expr N(95);
@@ -2260,7 +2260,7 @@ void __launch_bounds__(95) fn_cacheread_computeat1(const float* __restrict__ AA,
   cuMemFree(reinterpret_cast<CUdeviceptr>(C_dev));
 }
 
-TEST(Add, cache_read_compute_at2) {
+TEST(ElementwiseAdd, cache_read_compute_at2) {
   Expr M(100);
   Expr N(50);
   Context::Global().ResetNameId();
@@ -2412,7 +2412,7 @@ void TestElementwiseAddPrecisionBasic(
   cuMemFree(reinterpret_cast<CUdeviceptr>(C_dev));
 }
 
-TEST(Add, cache_read_shared) {
+TEST(ElementwiseAdd, cache_read_shared) {
   Context::Global().ResetNameId();
 
   Expr M(100);
@@ -2487,7 +2487,7 @@ void __launch_bounds__(1) fn2(const float* __restrict__ A, const float* __restri
   TestElementwiseAddPrecisionBasic(builder.Build(), "fn2", M, N);
 }
 
-TEST(Add, cache_write_local) {
+TEST(ElementwiseAdd, cache_write_local) {
   Context::Global().ResetNameId();
   // Make a small shape, because the shared memory is small.
   Expr M(40);
