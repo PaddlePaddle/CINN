@@ -18,12 +18,20 @@
 
 #include <limits>
 
+#include "cinn/auto_schedule/cost_model/expr_cost_model.h"
 #include "cinn/auto_schedule/measure/measure.h"
 #include "cinn/auto_schedule/search_strategy/evolutionary_search.h"
+#include "cinn/ir/ir_schedule.h"
 #include "cinn/optim/ir_copy.h"
+#include "cinn/runtime/flags.h"
+
+DECLARE_bool(auto_schedule_use_cost_model);
 
 namespace cinn {
 namespace auto_schedule {
+
+TaskOptimizer::TaskOptimizer(const TuneTask& task, ScheduleMeasurer* schedule_measurer)
+    : task_(&task), schedule_measurer_(schedule_measurer), cost_model_() {}
 
 TuningResult::OptimizedComputeExpr TaskOptimizer::Optimize(const TuningOptions& options) {
   // TODO(zhhsplendid): develop other optimize methods and configure the method by options.
@@ -44,7 +52,7 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
   if (evolutionary_search_ == nullptr) {
     // TODO(zhhsplendid): check whether the options is same as previous,
     // if not, we should create new EvolutionarySearch
-    evolutionary_search_ = std::make_unique<EvolutionarySearch>(*task_);
+    evolutionary_search_ = std::make_unique<EvolutionarySearch>(*task_, cost_model_);
   }
 
   if (options.num_measure_trials == 0) {
@@ -79,7 +87,9 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
     std::vector<SearchState> states = evolutionary_search_->SearchModuleExprEpsGreedy(options);
     VLOG(4) << "TaskOptimizer run EvolutionarySearch with return size = " << states.size();
     std::vector<MeasureInput> measure_inputs(states.size());
+    std::vector<const ir::ModuleExpr*> cost_model_samples(states.size());
     for (size_t i = 0; i < states.size(); ++i) {
+      cost_model_samples[i]            = &(states[i].mod_expr);
       measure_inputs[i].task           = task_;
       std::vector<ir::Expr> best_exprs = states[i].mod_expr.GetExprs();
       CHECK_EQ(best_exprs.size(), task_->lowered_funcs.size())
@@ -97,6 +107,16 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
     CHECK_EQ(measure_outputs.size(), states.size())
         << "ScheduleMeasurer didn't output same number of MeasureOutput of states in TaskOptimizer";
 
+    std::vector<float> cost_model_labels(states.size());
+    for (size_t i = 0; i < states.size(); ++i) {
+      cost_model_labels[i] = measure_outputs[i].execution_cost;
+    }
+
+    if (FLAGS_auto_schedule_use_cost_model) {
+      VLOG(6) << "cost_model_samples.size() = " << cost_model_samples.size();
+      VLOG(6) << "cost_model_labels.size() = " << cost_model_labels.size();
+      cost_model_.Update(cost_model_samples, cost_model_labels, task_->target);
+    }
     // TODO(zhhsplendid): write measure record into cache.
 
     for (size_t i = 0; i < measure_outputs.size(); ++i) {
