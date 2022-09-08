@@ -41,6 +41,8 @@ namespace cinn {
 namespace hlir {
 namespace op {
 
+using common::CINNValuePack;
+
 std::vector<ir::Tensor> Arange(
     const float start, const float stop, const float step, const Type &dtype, const std::string &output_name) {
   int num_elem   = static_cast<int>(std::ceil((stop - start) / step));
@@ -113,8 +115,16 @@ std::shared_ptr<framework::OpStrategy> StrategyForArange(const framework::NodeAt
 
   framework::CINNCompute arange_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of arange compute is empty! Please check.\n";
+    CINNValuePack pack_args = args[0];
 
-    std::vector<ir::Tensor> out = Arange(start, stop, step, common::Str2Type(dtype), common::UniqName("T_Arange_out"));
+    std::string tensor_name = common::UniqName("T_Arange_out");
+
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK_EQ(pack_args.size(), 1U);
+      tensor_name = pack_args[0].operator std::string();
+    }
+
+    std::vector<ir::Tensor> out = Arange(start, stop, step, common::Str2Type(dtype), tensor_name);
     CHECK(out.size() == 1U) << "The size of Arange's output should be 1";
 
     std::vector<common::CINNValue> res;
@@ -128,16 +138,9 @@ std::shared_ptr<framework::OpStrategy> StrategyForArange(const framework::NodeAt
     *ret = common::CINNValuePack{res};
   });
 
-  framework::CINNSchedule arange_schedule([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input argument of arange schedule is empty! Please check.\n";
-    common::CINNValuePack arg_pack = args[0];
-    Expr out                       = arg_pack[0];
-    CHECK(out.as_tensor());
-    *ret = arg_pack;
-  });
-
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(arange_compute, arange_schedule, "strategy.arange.x86", 1);
+  strategy->AddImpl(arange_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.cast.x86", 1);
+
   return strategy;
 }
 

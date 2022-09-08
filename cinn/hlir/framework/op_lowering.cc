@@ -251,16 +251,18 @@ std::vector<ir::Tensor> OpLowerer::CollectInputTensor(std::vector<ir::Tensor>& f
     CHECK(source_data);
     if (FLAGS_cinn_ir_schedule) {
       auto dtype = this->type_dict_.at(source_data->id());
-      CHECK(dtype == Float(32) || dtype.is_bool() || dtype == Int(32))
-          << "The dtype of node " << source_data->id()
-          << " is not float or bool or int! Other dtype is not implemented yet.";
+      CHECK(dtype == Float(32) || dtype.is_bool() || dtype == Int(32) || dtype == Int(64))
+          << "The dtype of node " << source_data->id() << " is not float or bool or int! Dtype " << dtype
+          << " is not supported yet.";
       ir::Tensor tensor;
       if (dtype == Float(32)) {
         tensor = lang::Placeholder<float>(source_data->id(), this->shape_dict_.at(source_data->id()));
       } else if (dtype.is_bool()) {
         tensor = lang::Placeholder<bool>(source_data->id(), this->shape_dict_.at(source_data->id()));
       } else if (dtype == Int(32)) {
-        tensor = lang::Placeholder<int>(source_data->id(), this->shape_dict_.at(source_data->id()));
+        tensor = lang::Placeholder<int32_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
+      } else if (dtype == Int(64)) {
+        tensor = lang::Placeholder<int64_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
       }
       if (!tensor_map.count(source_data->id())) {
         tensor_map[source_data->id()] = tensor;
@@ -273,16 +275,18 @@ std::vector<ir::Tensor> OpLowerer::CollectInputTensor(std::vector<ir::Tensor>& f
         tensor_inputs.push_back(tensor_map[source_data->id()]);
       } else {
         auto dtype = this->type_dict_.at(source_data->id());
-        CHECK(dtype == Float(32) || dtype.is_bool() || dtype == Int(32))
-            << "The dtype of node " << source_data->id()
-            << " is not float or bool or int! Other dtype is not implemented yet.";
+        CHECK(dtype == Float(32) || dtype.is_bool() || dtype == Int(32) || dtype == Int(64))
+            << "The dtype of node " << source_data->id() << " is not float or bool or int! Dtype " << dtype
+            << " is not supported yet.";
         ir::Tensor tensor;
         if (dtype == Float(32)) {
           tensor = lang::Placeholder<float>(source_data->id(), this->shape_dict_.at(source_data->id()));
         } else if (dtype.is_bool()) {
           tensor = lang::Placeholder<bool>(source_data->id(), this->shape_dict_.at(source_data->id()));
         } else if (dtype == Int(32)) {
-          tensor = lang::Placeholder<int>(source_data->id(), this->shape_dict_.at(source_data->id()));
+          tensor = lang::Placeholder<int32_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
+        } else if (dtype == Int(64)) {
+          tensor = lang::Placeholder<int64_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
         }
         tensor_map[source_data->id()] = tensor;
         tensor_inputs.push_back(tensor);
@@ -1081,7 +1085,7 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpaqueOp(GroupPtr& group) {
     std::string id = i->source()->as<NodeData>()->id();
     auto shape     = shape_dict_.at(id);
     Type dtype     = type_dict_.at(id);
-    CHECK(dtype == Float(32) || dtype.is_bool() || dtype == Int(32))
+    CHECK(dtype == Float(32) || dtype.is_bool() || dtype == Int(32) || dtype == Int(64))
         << "The dtype of node " << id << " is not float or bool or int! Other dtype is not implemented yet.";
     ir::Tensor input;
     if (dtype == Float(32)) {
@@ -1089,7 +1093,9 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpaqueOp(GroupPtr& group) {
     } else if (dtype.is_bool()) {
       input = lang::Placeholder<bool>(id, shape);
     } else if (dtype == Int(32)) {
-      input = lang::Placeholder<int>(id, shape);
+      input = lang::Placeholder<int32_t>(id, shape);
+    } else if (dtype == Int(64)) {
+      input = lang::Placeholder<int64_t>(id, shape);
     }
     inputs.push_back(input);
     cinn_inputs.push_back(common::CINNValue(input));
@@ -1954,7 +1960,9 @@ std::vector<ir::LoweredFunc> OpLowerer::LowerOpaqueOp(GroupPtr& group) {
     } else if (dtype.is_bool()) {
       tensor = lang::Placeholder<bool>(id, shape);
     } else if (dtype == Int(32)) {
-      tensor = lang::Placeholder<int>(id, shape);
+      tensor = lang::Placeholder<int32_t>(id, shape);
+    } else if (dtype == Int(64)) {
+      tensor = lang::Placeholder<int64_t>(id, shape);
     }
     tensor_inputs.push_back(tensor);
 
