@@ -149,7 +149,7 @@ NETBUILDER_BINARY_OP_DEF(Add, elementwise_add)
 NETBUILDER_BINARY_OP_DEF(Multiply, elementwise_mul)
 NETBUILDER_BINARY_OP_DEF(Divide, divide)
 NETBUILDER_BINARY_OP_DEF(Subtract, substract)
-NETBUILDER_BINARY_OP_DEF(FloorDiv, floor_divide)
+NETBUILDER_BINARY_OP_DEF(FloorDivide, floor_divide)
 NETBUILDER_BINARY_OP_DEF(Mod, mod)
 NETBUILDER_BINARY_OP_DEF(FloorMod, floor_mod)
 NETBUILDER_BINARY_OP_DEF(Max, max)
@@ -163,8 +163,8 @@ NETBUILDER_BINARY_OP_DEF(BitwiseOr, bitwise_or)
 NETBUILDER_BINARY_OP_DEF(BitwiseXor, bitwise_xor)
 NETBUILDER_BINARY_OP_DEF(LeftShift, left_shift)
 NETBUILDER_BINARY_OP_DEF(RightShift, right_shift)
-NETBUILDER_BINARY_OP_DEF(Greater, greater);
-NETBUILDER_BINARY_OP_DEF(Less, less);
+NETBUILDER_BINARY_OP_DEF(GreaterThan, greater);
+NETBUILDER_BINARY_OP_DEF(LessThan, less);
 NETBUILDER_BINARY_OP_DEF(Equal, equal);
 NETBUILDER_BINARY_OP_DEF(NotEqual, not_equal);
 NETBUILDER_BINARY_OP_DEF(GreaterEqual, greater_equal);

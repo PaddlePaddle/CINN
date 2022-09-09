@@ -78,7 +78,7 @@ namespace frontend {
   macro__(Subtract) \
   macro__(Divide) \
   macro__(Multiply) \
-  macro__(FloorDiv) \
+  macro__(FloorDivide) \
   macro__(Mod) \
   macro__(FloorMod) \
   macro__(Max) \
@@ -94,8 +94,8 @@ namespace frontend {
   macro__(RightShift) \
   macro__(Equal) \
   macro__(NotEqual) \
-  macro__(Greater) \
-  macro__(Less) \
+  macro__(GreaterThan) \
+  macro__(LessThan) \
   macro__(GreaterEqual) \
   macro__(LessEqual)
 

@@ -79,10 +79,11 @@ for op_name in test_op_list:
 
     attrs = {
         "paddle_func": lambda _, x: eval(paddle_module_name + op_name)(x),
-        "cinn_func": lambda _, builder, x: eval("builder." + op_name)(x)
+        "cinn_func": lambda _, builder, x: eval("builder." + op_name.lower())(x
+                                                                              )
     }
     exec("test_class_" + op_name +
-         " = type('Test' + op_name.title() + 'Class', (TestUnaryOp,), attrs)")
+         " = type('Test' + op_name.title() + 'Op', (TestUnaryOp,), attrs)")
 
 
 class TestIsNanOp(TestUnaryOp):
@@ -125,6 +126,19 @@ class TestIsInfCase1(TestIsInfOp):
     def init_case(self):
         self.inputs = {"x": self.random([32, 64])}
         self.inputs["x"][0] = [np.inf] * 64
+
+
+class TestNegOp(TestUnaryOp):
+    def paddle_func(self, x):
+        return paddle.neg(x)
+
+    def cinn_func(self, builder, x):
+        return builder.negative(x)
+
+
+class TestNegCase1(TestNegOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([32, 64], low=-1.0, high=1.0)}
 
 
 if __name__ == "__main__":
