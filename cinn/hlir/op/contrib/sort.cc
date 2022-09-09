@@ -143,6 +143,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForSort(const framework::NodeAttr
                                                        const std::vector<std::vector<int>> &output_shapes,
                                                        const Target &target) {
   auto attr_store = attrs.attr_store;
+  std::string op_name("sort");
 
   CHECK(attr_store.count("axis")) << "find no attr of axis";
   int axis       = absl::get<int>(attr_store.at("axis"));
@@ -153,16 +154,16 @@ std::shared_ptr<framework::OpStrategy> StrategyForSort(const framework::NodeAttr
 
   framework::CINNCompute sort_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input arguments of Sort compute is empty! Please check.\n";
-    CINNValuePack a = args[0];
-    CHECK_GE(a.size(), 1U) << "At least 1 input tensors for Sort compute\n";
-    Expr A = a[0];
+    CINNValuePack pack_args = args[0];
+    CHECK_EQ(pack_args.size(), 1U) << "At least 1 input tensors for Sort compute\n";
+    Expr A = pack_args[0];
     CHECK(A.as_tensor());
     CHECK(!output_shapes.empty());
     auto tensor_A = A.as_tensor_ref();
     auto stages   = CreateStages({tensor_A});
     VLOG(3) << "A shape: " << utils::Join(tensor_A->shape, ", ")
             << ", output_shapes: " << utils::Join(output_shapes[0], ", ");
-    auto tensor_name = UniqName("Sort_out");
+    auto tensor_name                = UniqName("Sort_out");
     if (FLAGS_cinn_ir_schedule) {
       CHECK_EQ(pack_args.size(), 2U);
       CHECK(pack_args[1].is_string());
@@ -206,11 +207,11 @@ std::shared_ptr<framework::OpStrategy> StrategyForArgSort(const framework::NodeA
     is_ascend = absl::get<bool>(attr_store.at("is_ascend"));
   }
 
-  framework::CINNCompute sort_compute([=](lang::Args args, lang::RetValue *ret) {
+  framework::CINNCompute argsort_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input arguments of ArgSort compute is empty! Please check.\n";
-    CINNValuePack a = args[0];
-    CHECK_GE(a.size(), 1U) << "At least 1 input tensors for ArgSort compute\n";
-    Expr A = a[0];
+    CINNValuePack pack_args = args[0];
+    CHECK_EQ(pack_args.size(), 1U) << "At least 1 input tensors for ArgSort compute\n";
+    Expr A = pack_args[0];
     CHECK(A.as_tensor());
     CHECK(!output_shapes.empty());
     auto tensor_A = A.as_tensor_ref();
@@ -223,7 +224,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForArgSort(const framework::NodeA
       CHECK(pack_args[1].is_string());
       tensor_name = pack_args[1].operator std::string();
     }
-    ir::Tensor out = ArgSort(tensor_A, target, axis, is_ascend, tensor_name);
+    ir::Tensor out   = ArgSort(tensor_A, target, axis, is_ascend, tensor_name);
     std::vector<CINNValue> res;
     stages->InsertLazily(out);
     res.push_back(CINNValue(out));
@@ -232,7 +233,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForArgSort(const framework::NodeA
     *ret = CINNValuePack{res};
   });
 
-  framework::CINNSchedule sort_schedule([=](lang::Args args, lang::RetValue *ret) {
+  framework::CINNSchedule argsort_schedule([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of reshape schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
     Expr out               = arg_pack[0];
@@ -241,7 +242,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForArgSort(const framework::NodeA
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(sort_compute, sort_schedule, "strategy.argsort.x86", 1);
+  strategy->AddImpl(argsort_compute, argsort_schedule, "strategy.argsort.x86", 1);
   return strategy;
 }
 
@@ -277,7 +278,7 @@ std::vector<Type> InferDtypeForArgSort(const std::vector<Type> &inputs_type, con
 
 CINN_REGISTER_HELPER(sort_ops) {
   CINN_REGISTER_OP(sort)
-      .describe("Sort.")
+      .describe("Sort a variable x along the given axis and return sorted Variable.")
       .set_num_inputs(1)
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForSort)
@@ -286,7 +287,7 @@ CINN_REGISTER_HELPER(sort_ops) {
       .set_support_level(4);
 
   CINN_REGISTER_OP(argsort)
-      .describe("ArgSort.")
+      .describe("Sort a variable x along the given axis and return indices.")
       .set_num_inputs(1)
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForArgSort)
