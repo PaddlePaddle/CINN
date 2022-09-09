@@ -125,7 +125,7 @@ void IRCudaSplitSchedule(ir::IRSchedule &ir_sch,
                          int axis,
                          const common::Target &target) {
   ir_sch.MergeExprs();
-  LOG(INFO) << "In IRCudaSplitSchedule, Before schedule expr is : " << ir_sch.GetModule().GetExprs().at(0);
+  VLOG(3) << "In IRCudaSplitSchedule, Before schedule expr is : " << ir_sch.GetModule().GetExprs().at(0);
   int dims = output_shapes[0].size();
   std::vector<int> reorders;
   for (int i = 0; i < dims; ++i) {
@@ -183,7 +183,7 @@ void IRCudaSplitSchedule(ir::IRSchedule &ir_sch,
       ir_sch.SimpleComputeAt(all_blocks[i], loops[0]);
     }
   }
-  LOG(INFO) << "In IRCudaSplitSchedule, After schedule expr is : " << ir_sch.GetModule().GetExprs().at(0);
+  VLOG(3) << "In IRCudaSplitSchedule, After schedule expr is : " << ir_sch.GetModule().GetExprs().at(0);
 }
 
 void IRCudaScheduleReduce(ir::IRSchedule &ir_sch,
@@ -565,7 +565,7 @@ void IRGlobalPoolScheduleGPU(ir::IRSchedule &ir_sch, const common::Target &targe
 }
 
 void IRCudaScheduleConv(ir::IRSchedule &ir_sch, const common::Target &target) {
-  LOG(INFO) << "In IRCudaScheduleConv, After Merge expr is : " << ir_sch.GetModule().GetExprs().at(0);
+  VLOG(3) << "Begin IRCudaScheduleConv with expr: " << ir_sch.GetModule().GetExprs().at(0);
   auto &res = ScheduleParam::get_cuda_instance().GetParam();
 
   auto all_blocks = ir_sch.GetAllBlocks();
@@ -636,7 +636,7 @@ void IRCudaScheduleConv(ir::IRSchedule &ir_sch, const common::Target &target) {
   loops      = ir_sch.GetLoops(all_blocks[1]);
   CHECK_GE(loops.size(), 7U);
   ir_sch.Split(loops[6], {-1, rc_factor});
-  LOG(INFO) << "In the end, expr is : " << ir_sch.GetModule().GetExprs().at(0);
+  VLOG(3) << "After IRCudaScheduleConv, expr is : " << ir_sch.GetModule().GetExprs().at(0);
 }
 
 void IRCudaScheduleConv2(ir::IRSchedule &ir_sch,
@@ -654,18 +654,15 @@ void IRCudaScheduleConv2(ir::IRSchedule &ir_sch,
   optim::Simplify(&(output->shape[2]));
   optim::Simplify(&(output->shape[3]));
 
-  LOG(INFO) << "All cache 1, expr is : " << ir_sch.GetModule().GetExprs().at(0);
-  auto input_cache = ir_sch.CacheRead(all_blocks[2], 1, "shared");
-  all_blocks       = ir_sch.GetAllBlocks();
-  LOG(INFO) << "All cache 2, expr is : " << ir_sch.GetModule().GetExprs().at(0);
+  VLOG(3) << "Begin IRCudaScheduleConv2 with expr : " << ir_sch.GetModule().GetExprs().at(0);
+  auto input_cache   = ir_sch.CacheRead(all_blocks[2], 1, "shared");
+  all_blocks         = ir_sch.GetAllBlocks();
   auto weights_cache = ir_sch.CacheRead(all_blocks[3], 2, "shared");
   all_blocks         = ir_sch.GetAllBlocks();
-  LOG(INFO) << "All cache 3, expr is : " << ir_sch.GetModule().GetExprs().at(0);
-  auto output_cache = ir_sch.CacheWrite(all_blocks[4], 0, "local");
-  LOG(INFO) << "After all cache, expr is : " << ir_sch.GetModule().GetExprs().at(0);
-  all_blocks = ir_sch.GetAllBlocks();
+  auto output_cache  = ir_sch.CacheWrite(all_blocks[4], 0, "local");
+  all_blocks         = ir_sch.GetAllBlocks();
   ir_sch.ComputeInline(all_blocks[1]);
-
+  VLOG(3) << "In the middle of IRCudaScheduleConv2, expr is: " << ir_sch.GetModule().GetExprs().at(0);
   auto &x_param  = res[key]["x"];
   auto &y_param  = res[key]["y"];
   auto &f_param  = res[key]["f"];
@@ -749,6 +746,7 @@ void IRCudaScheduleConv2(ir::IRSchedule &ir_sch,
   CHECK_GE(loops.size(), 13U);
   ir_sch.ComputeAt(all_blocks[1], loops[12]);
   // Work In Progress
+  VLOG(3) << "After IRCudaScheduleConv2, expr is: " << ir_sch.GetModule().GetExprs().at(0);
 }
 
 }  // namespace pe
