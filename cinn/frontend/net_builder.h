@@ -188,7 +188,7 @@ class NetBuilder {
   std::vector<int> GetMatmulOutputShape(const Variable& x, const Variable& y, bool trans_x, bool trans_y, float alpha);
 
  public:
-  // ******************************************* //
+  // *******************************************
   // Elementwise Operator
   /**
    * @brief Elementwise compute each element in `input` variable, and return the result Variable.
@@ -274,7 +274,7 @@ class NetBuilder {
   Variable IsClose(
       const Variable& x, const Variable& y, float rtol = 1e-05f, float atol = 1e-08f, bool equal_nan = false);
 
-  // ******************************************* //
+  // *******************************************
   // Reduction operator
   /**
    * @brief Reduce array elements over the given dims.
@@ -290,7 +290,7 @@ class NetBuilder {
   NETBUILDER_REDUCE_OP_FOREACH(NETBUILDER_REDUCE_OP_DECL)
 #undef NETBUILDER_REDUCE_OP_DECL
 
-  // ******************************************* //
+  // *******************************************
   // Tensor operator
   /**
    * @brief Copy and create input from `input` variable.
@@ -435,7 +435,7 @@ class NetBuilder {
                   bool adaptive                        = false,
                   const std::string& padding_algorithm = "EXPLICIT");
 
-  // ******************************************* //
+  // *******************************************
   // Broadcast operator
   /**
    * @brief Broadcast the input variable to a given shape.
@@ -457,7 +457,7 @@ class NetBuilder {
    */
   Variable BroadcastTo(const Variable& x, const std::vector<int>& out_shape, const std::vector<int>& broadcast_axes);
 
-  // ******************************************* //
+  // *******************************************
   // Data Layout transform operator
   /**
    * @brief This OP concatenates the input along the axis.
@@ -588,7 +588,7 @@ class NetBuilder {
                        const std::vector<int>& ends,
                        const std::vector<int>& strides = {});
 
-  // ******************************************* //
+  // *******************************************
   // Activation Operator
   /**
    * @brief Relu6 Activation Operator.
@@ -609,7 +609,7 @@ class NetBuilder {
    */
   Variable Softmax(const Variable& x, int axis = -1, const std::string& data_format = "AnyLayout");
 
-  // ******************************************* //
+  // *******************************************
   // Type converter Operator
   /**
    * @brief This OP takes in the Variable `x` with `x.dtype` and casts it to the output with dtype.
@@ -620,7 +620,7 @@ class NetBuilder {
    */
   Variable Cast(const Variable& x, const std::string& dtype);
 
-  // ******************************************* //
+  // *******************************************
   // Decomposer Operator
   /**
    * @brief The gradient function of `elementwise_add`.
