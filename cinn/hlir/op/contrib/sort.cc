@@ -163,7 +163,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForSort(const framework::NodeAttr
     auto stages   = CreateStages({tensor_A});
     VLOG(3) << "A shape: " << utils::Join(tensor_A->shape, ", ")
             << ", output_shapes: " << utils::Join(output_shapes[0], ", ");
-    auto tensor_name                = UniqName("Sort_out");
+    auto tensor_name = UniqName("Sort_out");
     if (FLAGS_cinn_ir_schedule) {
       CHECK_EQ(pack_args.size(), 2U);
       CHECK(pack_args[1].is_string());
@@ -224,7 +224,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForArgSort(const framework::NodeA
       CHECK(pack_args[1].is_string());
       tensor_name = pack_args[1].operator std::string();
     }
-    ir::Tensor out   = ArgSort(tensor_A, target, axis, is_ascend, tensor_name);
+    ir::Tensor out = ArgSort(tensor_A, target, axis, is_ascend, tensor_name);
     std::vector<CINNValue> res;
     stages->InsertLazily(out);
     res.push_back(CINNValue(out));

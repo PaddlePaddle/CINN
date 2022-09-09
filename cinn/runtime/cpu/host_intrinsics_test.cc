@@ -69,9 +69,12 @@ TEST(tanh, basic) {
 TEST(find_value_nd, basic) {
   Expr M(10), N(20);
   Placeholder<float> x("x", {M, N});
-  auto y = Compute({N}, [&](Expr i) {
-    return CallExtern("cinn_host_find_float_nd", {x, M, x({Expr(5), Expr(3)}), i, N});
-  });
+  auto y = Compute(
+      {N},
+      [&](Expr i) {
+        return CallExtern("cinn_host_find_float_nd", {x, M, x({Expr(5), Expr(3)}), i, N});
+      },
+      "y");
 
   auto stages = CreateStages({y});
 
@@ -109,7 +112,12 @@ TEST(find_value_nd, basic) {
 TEST(cinn_host_lt_num_float, basic) {
   Expr M(10), N(20);
   Placeholder<float> x("x", {M, N});
-  auto y = Compute({N}, [&](Expr j) { return CallExtern("cinn_host_lt_num_float", {x, M, x({Expr(0), j}), j, N}); });
+  auto y = Compute(
+      {N},
+      [&](Expr j) {
+        return CallExtern("cinn_host_lt_num_float", {x, M, x({Expr(0), j}), j, N});
+      },
+      "y");
 
   auto stages = CreateStages({y});
 
@@ -151,7 +159,12 @@ TEST(cinn_host_lt_num_float, basic) {
 TEST(cinn_host_gt_num_float, basic) {
   Expr M(10), N(20);
   Placeholder<float> x("x", {M, N});
-  auto y = Compute({N}, [&](Expr j) { return CallExtern("cinn_host_gt_num_float", {x, M, x({Expr(0), j}), j, N}); });
+  auto y = Compute(
+      {N},
+      [&](Expr j) {
+        return CallExtern("cinn_host_gt_num_float", {x, M, x({Expr(0), j}), j, N});
+      },
+      "y");
 
   auto stages = CreateStages({y});
 
