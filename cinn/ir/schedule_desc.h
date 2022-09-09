@@ -45,6 +45,7 @@ class ScheduleDesc {
 
   ScheduleDesc() = default;
   void Append(Step&& step);
+  void Pop();
   void Replay(IRSchedule* schedule) const;
   proto::ScheduleDesc ToProto() const;
   static std::vector<Expr> ReplayWithProto(const proto::ScheduleDesc& desc_proto, IRSchedule* sch);

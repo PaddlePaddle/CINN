@@ -355,13 +355,12 @@ CINN_BUILD_STEP_KIND(Reorder)
 
 CINN_BUILD_STEP_KIND(ReorderWithBlock)
     .Inputs({"block"})
-    .Attrs({"loop_index"})
+    .Attrs({"loops_index"})
     .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(
                     static_cast<void (IRSchedule::*)(const Expr&, const std::vector<int>&)>(&IRSchedule::Reorder))));
 
 CINN_BUILD_STEP_KIND(ReorderWithBlockName)
-    .Inputs({"block_name"})
-    .Attrs({"loop_index"})
+    .Attrs({"block_name", "loops_index"})
     .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(
                     static_cast<void (IRSchedule::*)(const std::string&, const std::vector<int>&)>(&IRSchedule::Reorder))));
 
@@ -472,6 +471,12 @@ struct ExprEqual {
 
 void ScheduleDesc::Append(Step&& step) { steps.emplace_back(step); }
 
+void ScheduleDesc::Pop() {
+  if (!steps.empty()) {
+    steps.pop_back();
+  }
+}
+
 void ScheduleDesc::Replay(IRSchedule* schedule) const { ReplayWithProto(this->ToProto(), schedule); }
 
 proto::ScheduleDesc ScheduleDesc::ToProto() const {
@@ -510,8 +515,7 @@ proto::ScheduleDesc ScheduleDesc::ToProto() const {
 }
 
 std::vector<Expr> ScheduleDesc::ReplayWithProto(const proto::ScheduleDesc& desc_proto, IRSchedule* sch) {
-  // VLOG(4) << "proto::ScheduleDesc:\n" << desc_proto.DebugString();
-  LOG(INFO) << "proto::ScheduleDesc:\n" << desc_proto.DebugString();
+  VLOG(4) << "proto::ScheduleDesc:\n" << desc_proto.DebugString();
   if (desc_proto.steps().empty()) {
     LOG(WARNING) << "Input proto::ScheduleDesc is empty";
     return {};
@@ -520,8 +524,7 @@ std::vector<Expr> ScheduleDesc::ReplayWithProto(const proto::ScheduleDesc& desc_
   std::vector<Expr> last_outputs;
   absl::flat_hash_map<std::string, Expr> name2expr;
   for (auto&& step_proto : desc_proto.steps()) {
-    // VLOG(4) << "Replay step:\n" << step_proto.DebugString();
-    LOG(INFO) << "Replay step:\n" << step_proto.DebugString();
+    VLOG(4) << "Replay step:\n" << step_proto.DebugString();
     ScheduleDesc::Step step;
     step.type = step_proto.type();
     CHECK(!step.type.empty()) << "Name of StepKind is empty";
