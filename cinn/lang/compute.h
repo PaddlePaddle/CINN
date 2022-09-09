@@ -37,38 +37,38 @@ using attr_t            = absl::variant<int, float, bool, std::string>;
 // The shape are constant integers.
 ir::Tensor Compute(const std::vector<Expr> &domain,
                    std::function<Expr()> fn,
-                   const std::string &name        = "",
+                   const std::string &name,
                    const std::vector<Expr> &shape = {});
 ir::Tensor Compute(const std::vector<Expr> &domain,
                    std::function<Expr(Expr)> fn,
-                   const std::string &name        = "",
+                   const std::string &name,
                    const std::vector<Expr> &shape = {});
 ir::Tensor Compute(const std::vector<Expr> &domain,
                    std::function<Expr(Expr, Expr)> fn,
-                   const std::string &name        = "",
+                   const std::string &name,
                    const std::vector<Expr> &shape = {});
 ir::Tensor Compute(const std::vector<Expr> &domain,
                    std::function<Expr(Expr, Expr, Expr)> fn,
-                   const std::string &name        = "",
+                   const std::string &name,
                    const std::vector<Expr> &shape = {});
 ir::Tensor Compute(const std::vector<Expr> &domain,
                    std::function<Expr(Expr, Expr, Expr, Expr)> fn,
-                   const std::string &name        = "",
+                   const std::string &name,
                    const std::vector<Expr> &shape = {});
 
 ir::Tensor Compute(const std::vector<Expr> &domain,
                    std::function<Expr(Expr, Expr, Expr, Expr, Expr)> fn,
-                   const std::string &name        = "",
+                   const std::string &name,
                    const std::vector<Expr> &shape = {});
 
 ir::Tensor Compute(const std::vector<Expr> &domain,
                    std::function<Expr(Expr, Expr, Expr, Expr, Expr, Expr)> fn,
-                   const std::string &name        = "",
+                   const std::string &name,
                    const std::vector<Expr> &shape = {});
 
 ir::Tensor Compute(const std::vector<Expr> &domain,
                    compute_handler_t fn,
-                   const std::string &name        = "",
+                   const std::string &name,
                    const std::vector<Expr> &shape = {});
 // @}
 

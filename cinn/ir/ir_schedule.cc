@@ -85,8 +85,8 @@ std::vector<Expr> IRSchedule::Split(const std::string& block_name, int loop_inde
 }
 
 Expr IRSchedule::Fuse(const std::vector<Expr>& loops) {
-  LOG(INFO) << "Tring to fuse : ";
-  for (auto& i : loops) LOG(INFO) << i;
+  VLOG(3) << "Tring to fuse : ";
+  for (auto& i : loops) VLOG(3) << i;
   std::vector<const ir::For*> for_nodes;
   std::vector<Var> loop_vars;
   CHECK(!loops.empty()) << "The loops param of Fuse should not be empty! Please check.";
@@ -1225,7 +1225,7 @@ std::vector<Expr> ScheduleHelper::GetLoops(const Expr& block) const {
     }
   }
   if (result.empty()) {
-    LOG(INFO) << "exprs size is : " << exprs.size() << "\n and exprs[0] is : " << exprs[0];
+    LOG(ERROR) << "exprs size is : " << exprs.size() << "\n and exprs[0] is : " << exprs[0];
     LOG(ERROR) << "Didn't find Loops containing ScheduleBlock with name: \n" << block_name << " in ModuleExepr.";
   }
   for (auto& it_for : result) VLOG(3) << "Get Loops :\n" << it_for;
@@ -1246,10 +1246,10 @@ std::vector<Expr> ScheduleHelper::GetAllBlocks() const {
     auto find_blocks = visitor(&it_expr);
     result.insert(result.end(), find_blocks.begin(), find_blocks.end());
   }
-  CHECK(!result.empty()) << "Didn't find blocks in expr.";
   for (auto& it_expr : exprs) {
     VLOG(3) << "it_expr is : " << it_expr;
   }
+  CHECK(!result.empty()) << "Didn't find blocks in expr.";
   return result;
 }
 

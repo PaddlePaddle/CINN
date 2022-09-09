@@ -203,8 +203,10 @@ TEST(CAS, ConvertCinnToCAS) {
   Placeholder<float> A("A", {10, 10});
   Placeholder<float> B("B", {10, 10});
 
-  auto C = Compute({Expr(10), Expr(10)},
-                   [&](Expr i, Expr j) { return A(i, j) + 0.f + 1.f + 2.f * B(i, j) + 0.f * B(i, j) * A(i, j); });
+  auto C = Compute(
+      {Expr(10), Expr(10)},
+      [&](Expr i, Expr j) { return A(i, j) + 0.f + 1.f + 2.f * B(i, j) + 0.f * B(i, j) * A(i, j); },
+      "C");
 
   Expr body = C->body();
   LOG(INFO) << "body " << body;
