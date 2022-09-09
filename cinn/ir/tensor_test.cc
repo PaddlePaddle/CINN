@@ -70,7 +70,8 @@ TEST(Tensor, IsDependOnStatement) {
   Expr N(100);
 
   Placeholder<float> X("X", {N});
-  auto t = Compute({N}, [&](Var i) -> Expr { return X(i); });
+  auto t = Compute(
+      {N}, [&](Var i) -> Expr { return X(i); }, "t");
 
   ASSERT_TRUE(t->IsDependOnStatement("X"));
   ASSERT_FALSE(t->IsDependOnStatement("XXX"));
@@ -85,7 +86,8 @@ TEST(Tensor, Reshape) {
   auto stages = CreateStages({A});
 
   auto A1 = A->Reshape({Expr(10), Expr(10), Expr(100)}, stages);
-  auto B  = Compute(A1->shape, [=](Expr i, Expr j, Expr k) { return A1(i, j, k) * 2.f; });
+  auto B  = Compute(
+      A1->shape, [=](Expr i, Expr j, Expr k) { return A1(i, j, k) * 2.f; }, "B");
 
   stages->InsertLazily(B);
 
@@ -106,18 +108,18 @@ TEST(Tensor, Reshape) {
 void fn(void* _args, int32_t num_args)
 {
   const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
-  cinn_buffer_t* _tensor = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[1]));
-  cinn_buffer_malloc((void*)(0), _tensor);
+  cinn_buffer_t* _B = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[1]));
+  cinn_buffer_malloc((void*)(0), _B);
   const float* A_reshape = ((const float*)(_A->memory));
-  float* tensor = ((float*)(_tensor->memory));
+  float* B = ((float*)(_B->memory));
   for (int32_t i = 0; i < 10; i += 1) {
     for (int32_t j = 0; j < 10; j += 1) {
       for (int32_t k = 0; k < 100; k += 1) {
-        tensor[((1000 * i) + ((100 * j) + k))] = (2 * A_reshape[((1000 * i) + ((100 * j) + k))]);
+        B[((1000 * i) + ((100 * j) + k))] = (2 * A_reshape[((1000 * i) + ((100 * j) + k))]);
       };
     };
   };
-  cinn_buffer_free((void*)(0), _tensor);
+  cinn_buffer_free((void*)(0), _B);
 }
 )ROC";
 
@@ -133,7 +135,8 @@ TEST(Tensor, ReshapeCopied) {
   auto stages = CreateStages({A});
 
   auto A1 = A->ReshapeCopied({Expr(10), Expr(10), Expr(100)}, stages);
-  auto B  = Compute(A1->shape, [=](Expr i, Expr j, Expr k) { return A1(i, j, k) * 2.f; });
+  auto B  = Compute(
+      A1->shape, [=](Expr i, Expr j, Expr k) { return A1(i, j, k) * 2.f; }, "B");
 
   stages->InsertLazily(B);
 
@@ -152,14 +155,14 @@ TEST(Tensor, ReshapeCopied) {
 void fn(void* _args, int32_t num_args)
 {
   const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
-  cinn_buffer_t* _tensor = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[1]));
+  cinn_buffer_t* _B = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[1]));
   cinn_buffer_t* _A_copied_reshape = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 10, 10, 100 }, 32/*align*/);
-  cinn_buffer_malloc((void*)(0), _tensor);
+  cinn_buffer_malloc((void*)(0), _B);
   cinn_buffer_malloc((void*)(0), _A_copied_reshape);
   const float* A = ((const float*)(_A->memory));
   float* A_copied = ((float*)(_A_copied_reshape->memory));
   const float* A_copied_reshape = ((const float*)(_A_copied_reshape->memory));
-  float* tensor = ((float*)(_tensor->memory));
+  float* B = ((float*)(_B->memory));
   for (int32_t i = 0; i < 100; i += 1) {
     for (int32_t j = 0; j < 100; j += 1) {
       A_copied[((100 * i) + j)] = A[((100 * i) + j)];
@@ -168,12 +171,12 @@ void fn(void* _args, int32_t num_args)
   for (int32_t i = 0; i < 10; i += 1) {
     for (int32_t j = 0; j < 10; j += 1) {
       for (int32_t k = 0; k < 100; k += 1) {
-        tensor[((1000 * i) + ((100 * j) + k))] = (2 * A_copied_reshape[((1000 * i) + ((100 * j) + k))]);
+        B[((1000 * i) + ((100 * j) + k))] = (2 * A_copied_reshape[((1000 * i) + ((100 * j) + k))]);
       };
     };
   };
   cinn_buffer_free((void*)(0), _A_copied_reshape);
-  cinn_buffer_free((void*)(0), _tensor);
+  cinn_buffer_free((void*)(0), _B);
 }
 )ROC";
 

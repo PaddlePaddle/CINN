@@ -97,6 +97,15 @@ Var _Buffer_::buffer_addr() const {
   return _Var_::Make(name, thetype);
 }
 
+int _Buffer_::numel() const {
+  int res = 1;
+  for (auto &i : shape) {
+    CHECK(i.is_constant());
+    res *= i.as_int32();
+  }
+  return res;
+}
+
 void _Buffer_::Verify() const {
   CHECK(!shape.empty());
   CHECK(!name.empty());

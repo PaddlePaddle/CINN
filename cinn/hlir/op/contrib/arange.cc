@@ -28,9 +28,11 @@
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
+#include "cinn/hlir/pe/ir_schedule_pe.h"
 #include "cinn/hlir/pe/nn.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_base.h"
+#include "cinn/ir/ir_schedule.h"
 #include "cinn/ir/tensor.h"
 #include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"
@@ -40,6 +42,8 @@ DECLARE_bool(cinn_ir_schedule);
 namespace cinn {
 namespace hlir {
 namespace op {
+
+using common::CINNValuePack;
 
 std::vector<ir::Tensor> Arange(
     const float start, const float stop, const float step, const Type &dtype, const std::string &output_name) {
@@ -113,8 +117,16 @@ std::shared_ptr<framework::OpStrategy> StrategyForArange(const framework::NodeAt
 
   framework::CINNCompute arange_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of arange compute is empty! Please check.\n";
+    CINNValuePack pack_args = args[0];
 
-    std::vector<ir::Tensor> out = Arange(start, stop, step, common::Str2Type(dtype), common::UniqName("T_Arange_out"));
+    std::string tensor_name = common::UniqName("T_Arange_out");
+
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK_EQ(pack_args.size(), 1U);
+      tensor_name = pack_args[0].operator std::string();
+    }
+
+    std::vector<ir::Tensor> out = Arange(start, stop, step, common::Str2Type(dtype), tensor_name);
     CHECK(out.size() == 1U) << "The size of Arange's output should be 1";
 
     std::vector<common::CINNValue> res;
@@ -129,15 +141,42 @@ std::shared_ptr<framework::OpStrategy> StrategyForArange(const framework::NodeAt
   });
 
   framework::CINNSchedule arange_schedule([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input argument of arange schedule is empty! Please check.\n";
-    common::CINNValuePack arg_pack = args[0];
-    Expr out                       = arg_pack[0];
-    CHECK(out.as_tensor());
-    *ret = arg_pack;
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK(!args.empty()) << "The input argument of arange_schedule is empty! Please check.\n";
+      common::CINNValuePack arg_pack = args[0];
+      std::vector<Expr> vec_ast;
+      for (int i = 0; i < arg_pack.size(); i++) {
+        if (arg_pack[i].is_expr()) {
+          Expr temp = arg_pack[i];
+          vec_ast.emplace_back(temp);
+        }
+      }
+      CHECK(!vec_ast.empty());
+      ir::ModuleExpr mod_expr(vec_ast);
+      ir::IRSchedule ir_sch(mod_expr);
+      ir_sch.MergeExprs();
+      long prod_size = std::accumulate(output_shapes[0].begin(), output_shapes[0].end(), 1, std::multiplies<int>());
+      if (prod_size > 1) {
+        if (target.arch == Target::Arch::NVGPU) {
+          pe::IRCudaScheduleInjective(ir_sch, output_shapes.front(), target);
+        } else if (target.arch == Target::Arch::X86) {
+          pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target, true);
+        }
+      }
+      std::vector<common::CINNValue> res{common::CINNValue(ir_sch.GetModule().GetExprs().at(0))};
+      *ret = common::CINNValuePack{res};
+    } else {
+      CHECK(!args.empty()) << "The input argument of arange_schedule is empty! Please check.\n";
+      CINNValuePack arg_pack = args[0];
+      Expr out               = arg_pack[0];
+      CHECK(out.as_tensor());
+      *ret = arg_pack;
+    }
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
   strategy->AddImpl(arange_compute, arange_schedule, "strategy.arange.x86", 1);
+
   return strategy;
 }
 
