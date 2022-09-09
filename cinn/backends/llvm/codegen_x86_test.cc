@@ -29,7 +29,8 @@ TEST(Vectorize, basic) {
   Placeholder<float> A("A", {M});
   Placeholder<float> B("B", {M});
 
-  auto C      = Compute({M}, [&](Expr i) { return A(i) + B(i); });
+  auto C = Compute(
+      {M}, [&](Expr i) { return A(i) + B(i); }, "C");
   auto stages = CreateStages({C});
 
   stages[C]->Vectorize(0, 8);
