@@ -113,6 +113,7 @@ std::shared_ptr<OpStrategy> StrategyForCustomCall(const framework::NodeAttr &att
   return strategy;
 }
 
+#ifdef CINN_WITH_CUDA
 std::vector<ir::Expr> CustomCallArgsForCublas(const framework::NodeAttr &attrs,
                                               const std::vector<ir::Tensor> &inputs,
                                               const std::vector<std::vector<int>> &output_shapes) {
@@ -144,7 +145,9 @@ std::vector<ir::Expr> CustomCallArgsForCublas(const framework::NodeAttr &attrs,
                                 ir::Expr(k)};
   return args;
 }
+#endif
 
+#ifdef CINN_WITH_CUDNN
 std::vector<ir::Expr> CustomCallArgsForCudnnConvForward(const framework::NodeAttr &attrs,
                                                         const std::vector<ir::Tensor> &inputs,
                                                         const std::vector<std::vector<int>> &output_shapes) {
@@ -328,6 +331,7 @@ std::vector<ir::Expr> CustomCallArgsForCudnnPoolBackward(const framework::NodeAt
 
   return args;
 }
+#endif
 
 bool RegisteryCustomCallArgsFunc() {
 #ifdef CINN_WITH_CUDA

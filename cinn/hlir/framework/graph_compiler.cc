@@ -32,32 +32,8 @@ DECLARE_bool(cinn_ir_schedule);
 namespace cinn {
 namespace hlir {
 namespace framework {
-// Store params from node to instruction
-/*
-void AddAttrs(const absl::flat_hash_map<std::string, AttrType>& attrs_store,
-              const std::vector<std::string>& attrs_name,
-              Instruction* instr) {
-  for (auto& attr : attrs_name) {
-    if (attrs_store.find(attr) != attrs_store.end()) {
-      switch (attrs_store.at(attr).index()) {
-        case 2:
-          instr->attrs.push_back(absl::get<int>(attrs_store.at(attr)));
-          break;
-        case 3:
-          instr->str_attrs.push_back(absl::get<std::string>(attrs_store.at(attr)));
-          break;
-        case 5:
-          auto temp = absl::get<std::vector<int>>(attrs_store.at(attr));
-          instr->attrs.insert(instr->attrs.end(), temp.begin(), temp.end());
-          break;
-      }
-    } else {
-      LOG(ERROR) << "Param " << attr << " missed! Please check.";
-    }
-  }
-}
-*/
 
+// Store params from node to instruction
 Program::Program(const std::shared_ptr<Scope>& scope, std::vector<std::unique_ptr<Instruction>>&& instrs)
     : scope_(scope) {
   for (auto& ins : instrs) {
@@ -836,52 +812,6 @@ void GraphCompiler::SetSubKernels(Instruction* instr, const std::string& func_na
     new_op_func = func_name + "_" + std::to_string(i);
   }
 }
-
-/*
-void GraphCompiler::BuildCublasInstr(const Node& node, Instruction* instr) const {
-  auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-  // shape info
-  std::vector<int> shape_sizes;
-  for (auto& in_node : node.inlinks_in_order()) {
-    std::string in_id = in_node->source()->safe_as<NodeData>()->id();
-    auto in_shape     = shape_dict.at(in_id);
-    instr->attrs.insert(instr->attrs.end(), in_shape.begin(), in_shape.end());
-    shape_sizes.push_back(in_shape.size());
-  }
-  // cublas_gemm has three input vars, and its output shape is equal to the input bias.
-  // cublas_matmul only has two input vars, so we should get its output shape from shape_dict.
-  if (node.op()->name == "cublas_matmul") {
-    for (auto& out_node : node.outlinks_in_order()) {
-      std::string out_id = out_node->sink()->safe_as<NodeData>()->id();
-      auto out_shape     = shape_dict.at(out_id);
-      instr->attrs.insert(instr->attrs.end(), out_shape.begin(), out_shape.end());
-      shape_sizes.push_back(out_shape.size());
-    }
-  }
-  instr->attrs.insert(instr->attrs.end(), shape_sizes.begin(), shape_sizes.end());
-  // attribute info
-  bool trans_a = false;
-  if (node.attrs.attr_store.contains("trans_a")) {
-    trans_a = absl::get<bool>(node.attrs.attr_store.at("trans_a"));
-  }
-  instr->attrs.push_back(static_cast<int>(trans_a));
-  bool trans_b = false;
-  if (node.attrs.attr_store.contains("trans_b")) {
-    trans_b = absl::get<bool>(node.attrs.attr_store.at("trans_b"));
-  }
-  instr->attrs.push_back(static_cast<int>(trans_b));
-  bool trans_out = false;
-  if (node.attrs.attr_store.contains("trans_out")) {
-    trans_out = absl::get<bool>(node.attrs.attr_store.at("trans_out"));
-  }
-  instr->attrs.push_back(static_cast<int>(trans_out));
-  float alpha = 1.f;
-  if (node.attrs.attr_store.contains("alpha")) {
-    alpha = absl::get<float>(node.attrs.attr_store.at("alpha"));
-  }
-  instr->attrs.push_back(*reinterpret_cast<int*>(&alpha));
-}
-*/
 
 std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions(
     const std::vector<std::vector<Node*>>& groups, const std::vector<std::shared_ptr<Graph::Group>>& fusion_groups) {
