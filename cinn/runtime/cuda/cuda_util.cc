@@ -260,6 +260,7 @@ class ConvAlgoMap {
 
 void cinn_call_cudnn_conv2d_forward(void *v_args,
                                     int num_args,
+                                    int format,
                                     float alpha,
                                     float beta,
                                     int input_n,
@@ -290,27 +291,28 @@ void cinn_call_cudnn_conv2d_forward(void *v_args,
   float *_w              = reinterpret_cast<float *>(args[1].operator cinn_buffer_t *()->memory);
   float *_y              = reinterpret_cast<float *>(args[2].operator cinn_buffer_t *()->memory);
 
+  CHECK_EQ(args[0].operator cinn_buffer_t *()->type.code, cinn_type_code_t::cinn_type_float);
+  cudnnDataType_t data_type         = CUDNN_DATA_FLOAT;
+  cudnnTensorFormat_t tensor_format = static_cast<cudnnTensorFormat_t>(format);
+
   cudnnTensorDescriptor_t x_desc;
   CUDNN_CALL(cudnnCreateTensorDescriptor(&x_desc));
-  CUDNN_CALL(
-      cudnnSetTensor4dDescriptor(x_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, input_n, input_c, input_h, input_w));
+  CUDNN_CALL(cudnnSetTensor4dDescriptor(x_desc, tensor_format, data_type, input_n, input_c, input_h, input_w));
 
   cudnnFilterDescriptor_t w_desc;
   CUDNN_CALL(cudnnCreateFilterDescriptor(&w_desc));
-  CUDNN_CALL(
-      cudnnSetFilter4dDescriptor(w_desc, CUDNN_DATA_FLOAT, CUDNN_TENSOR_NCHW, filter_n, filter_c, filter_h, filter_w));
+  CUDNN_CALL(cudnnSetFilter4dDescriptor(w_desc, data_type, tensor_format, filter_n, filter_c, filter_h, filter_w));
 
   cudnnConvolutionDescriptor_t conv_desc;
   CUDNN_CALL(cudnnCreateConvolutionDescriptor(&conv_desc));
   CUDNN_CALL(cudnnSetConvolution2dDescriptor(
-      conv_desc, pad_h, pad_w, stride_h, stride_w, dilation_h, dilation_w, CUDNN_CROSS_CORRELATION, CUDNN_DATA_FLOAT));
+      conv_desc, pad_h, pad_w, stride_h, stride_w, dilation_h, dilation_w, CUDNN_CROSS_CORRELATION, data_type));
   CUDNN_CALL(cudnnSetConvolutionGroupCount(conv_desc, groups));
   CUDNN_CALL(cudnnSetConvolutionMathType(conv_desc, CUDNN_DEFAULT_MATH));
 
   cudnnTensorDescriptor_t y_desc;
   CUDNN_CALL(cudnnCreateTensorDescriptor(&y_desc));
-  CUDNN_CALL(
-      cudnnSetTensor4dDescriptor(y_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, output_n, output_c, output_h, output_w));
+  CUDNN_CALL(cudnnSetTensor4dDescriptor(y_desc, tensor_format, data_type, output_n, output_c, output_h, output_w));
 
   auto &conv_algo_map  = ConvAlgoMap::GetInstance();
   std::string hash_key = "conv2d forward," + std::to_string(input_n) + "," + std::to_string(input_c) + "," +
@@ -351,6 +353,7 @@ void cinn_call_cudnn_conv2d_forward(void *v_args,
 
 void cinn_call_cudnn_conv2d_backward_data(void *v_args,
                                           int num_args,
+                                          int format,
                                           float alpha,
                                           float beta,
                                           int input_n,
@@ -381,27 +384,28 @@ void cinn_call_cudnn_conv2d_backward_data(void *v_args,
   float *_w              = reinterpret_cast<float *>(args[1].operator cinn_buffer_t *()->memory);
   float *_dx             = reinterpret_cast<float *>(args[2].operator cinn_buffer_t *()->memory);
 
+  CHECK_EQ(args[0].operator cinn_buffer_t *()->type.code, cinn_type_code_t::cinn_type_float);
+  cudnnDataType_t data_type         = CUDNN_DATA_FLOAT;
+  cudnnTensorFormat_t tensor_format = static_cast<cudnnTensorFormat_t>(format);
+
   cudnnTensorDescriptor_t x_desc;
   CUDNN_CALL(cudnnCreateTensorDescriptor(&x_desc));
-  CUDNN_CALL(
-      cudnnSetTensor4dDescriptor(x_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, input_n, input_c, input_h, input_w));
+  CUDNN_CALL(cudnnSetTensor4dDescriptor(x_desc, tensor_format, data_type, input_n, input_c, input_h, input_w));
 
   cudnnFilterDescriptor_t w_desc;
   CUDNN_CALL(cudnnCreateFilterDescriptor(&w_desc));
-  CUDNN_CALL(
-      cudnnSetFilter4dDescriptor(w_desc, CUDNN_DATA_FLOAT, CUDNN_TENSOR_NCHW, filter_n, filter_c, filter_h, filter_w));
+  CUDNN_CALL(cudnnSetFilter4dDescriptor(w_desc, data_type, tensor_format, filter_n, filter_c, filter_h, filter_w));
 
   cudnnConvolutionDescriptor_t conv_desc;
   CUDNN_CALL(cudnnCreateConvolutionDescriptor(&conv_desc));
   CUDNN_CALL(cudnnSetConvolution2dDescriptor(
-      conv_desc, pad_h, pad_w, stride_h, stride_w, dilation_h, dilation_w, CUDNN_CROSS_CORRELATION, CUDNN_DATA_FLOAT));
+      conv_desc, pad_h, pad_w, stride_h, stride_w, dilation_h, dilation_w, CUDNN_CROSS_CORRELATION, data_type));
   CUDNN_CALL(cudnnSetConvolutionGroupCount(conv_desc, groups));
   CUDNN_CALL(cudnnSetConvolutionMathType(conv_desc, CUDNN_DEFAULT_MATH));
 
   cudnnTensorDescriptor_t y_desc;
   CUDNN_CALL(cudnnCreateTensorDescriptor(&y_desc));
-  CUDNN_CALL(
-      cudnnSetTensor4dDescriptor(y_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, output_n, output_c, output_h, output_w));
+  CUDNN_CALL(cudnnSetTensor4dDescriptor(y_desc, tensor_format, data_type, output_n, output_c, output_h, output_w));
 
   auto &conv_algo_map  = ConvAlgoMap::GetInstance();
   std::string hash_key = "conv2d backward data," + std::to_string(input_n) + "," + std::to_string(input_c) + "," +
@@ -445,6 +449,7 @@ void cinn_call_cudnn_conv2d_backward_data(void *v_args,
 
 void cinn_call_cudnn_conv2d_backward_filter(void *v_args,
                                             int num_args,
+                                            int format,
                                             float alpha,
                                             float beta,
                                             int input_n,
@@ -476,27 +481,28 @@ void cinn_call_cudnn_conv2d_backward_filter(void *v_args,
   float *_dy = reinterpret_cast<float *>(args[1].operator cinn_buffer_t *()->memory);
   float *_dw = reinterpret_cast<float *>(args[2].operator cinn_buffer_t *()->memory);
 
+  CHECK_EQ(args[0].operator cinn_buffer_t *()->type.code, cinn_type_code_t::cinn_type_float);
+  cudnnDataType_t data_type         = CUDNN_DATA_FLOAT;
+  cudnnTensorFormat_t tensor_format = static_cast<cudnnTensorFormat_t>(format);
+
   cudnnTensorDescriptor_t x_desc;
   CUDNN_CALL(cudnnCreateTensorDescriptor(&x_desc));
-  CUDNN_CALL(
-      cudnnSetTensor4dDescriptor(x_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, input_n, input_c, input_h, input_w));
+  CUDNN_CALL(cudnnSetTensor4dDescriptor(x_desc, tensor_format, data_type, input_n, input_c, input_h, input_w));
 
   cudnnFilterDescriptor_t w_desc;
   CUDNN_CALL(cudnnCreateFilterDescriptor(&w_desc));
-  CUDNN_CALL(
-      cudnnSetFilter4dDescriptor(w_desc, CUDNN_DATA_FLOAT, CUDNN_TENSOR_NCHW, filter_n, filter_c, filter_h, filter_w));
+  CUDNN_CALL(cudnnSetFilter4dDescriptor(w_desc, data_type, tensor_format, filter_n, filter_c, filter_h, filter_w));
 
   cudnnConvolutionDescriptor_t conv_desc;
   CUDNN_CALL(cudnnCreateConvolutionDescriptor(&conv_desc));
   CUDNN_CALL(cudnnSetConvolution2dDescriptor(
-      conv_desc, pad_h, pad_w, stride_h, stride_w, dilation_h, dilation_w, CUDNN_CROSS_CORRELATION, CUDNN_DATA_FLOAT));
+      conv_desc, pad_h, pad_w, stride_h, stride_w, dilation_h, dilation_w, CUDNN_CROSS_CORRELATION, data_type));
   CUDNN_CALL(cudnnSetConvolutionGroupCount(conv_desc, groups));
   CUDNN_CALL(cudnnSetConvolutionMathType(conv_desc, CUDNN_DEFAULT_MATH));
 
   cudnnTensorDescriptor_t y_desc;
   CUDNN_CALL(cudnnCreateTensorDescriptor(&y_desc));
-  CUDNN_CALL(
-      cudnnSetTensor4dDescriptor(y_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, output_n, output_c, output_h, output_w));
+  CUDNN_CALL(cudnnSetTensor4dDescriptor(y_desc, tensor_format, data_type, output_n, output_c, output_h, output_w));
 
   auto &algo_map       = ConvAlgoMap::GetInstance();
   std::string hash_key = "conv2d backward filter," + std::to_string(input_n) + "," + std::to_string(input_c) + "," +
@@ -540,7 +546,10 @@ void cinn_call_cudnn_conv2d_backward_filter(void *v_args,
 
 void cinn_call_cudnn_pool2d_forward(void *v_args,
                                     int num_args,
-                                    int pool_type,
+                                    int mode,
+                                    int format,
+                                    float alpha,
+                                    float beta,
                                     int input_n,
                                     int input_c,
                                     int input_h,
@@ -564,17 +573,11 @@ void cinn_call_cudnn_pool2d_forward(void *v_args,
   float *_x = reinterpret_cast<float *>(args[0].operator cinn_buffer_t *()->memory);
   float *_y = reinterpret_cast<float *>(args[1].operator cinn_buffer_t *()->memory);
 
-  cudnnPoolingMode_t pool_mode;
-  switch (pool_type) {
-    case 0:
-      pool_mode = CUDNN_POOLING_MAX;
-      break;
-    case 1:
-      pool_mode = CUDNN_POOLING_AVERAGE_COUNT_INCLUDE_PADDING;
-      break;
-    default:
-      LOG(FATAL) << "Unkown pool_type: " << pool_type;
-  }
+  CHECK_EQ(args[0].operator cinn_buffer_t *()->type.code, cinn_type_code_t::cinn_type_float);
+  cudnnDataType_t data_type         = CUDNN_DATA_FLOAT;
+  cudnnPoolingMode_t pool_mode      = static_cast<cudnnPoolingMode_t>(mode);
+  cudnnTensorFormat_t tensor_format = static_cast<cudnnTensorFormat_t>(format);
+
   cudnnPoolingDescriptor_t pool_desc;
   CUDNN_CALL(cudnnCreatePoolingDescriptor(&pool_desc));
   CUDNN_CALL(cudnnSetPooling2dDescriptor(
@@ -582,16 +585,11 @@ void cinn_call_cudnn_pool2d_forward(void *v_args,
 
   cudnnTensorDescriptor_t x_desc;
   CUDNN_CALL(cudnnCreateTensorDescriptor(&x_desc));
-  CUDNN_CALL(
-      cudnnSetTensor4dDescriptor(x_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, input_n, input_c, input_h, input_w));
+  CUDNN_CALL(cudnnSetTensor4dDescriptor(x_desc, tensor_format, data_type, input_n, input_c, input_h, input_w));
 
   cudnnTensorDescriptor_t y_desc;
   CUDNN_CALL(cudnnCreateTensorDescriptor(&y_desc));
-  CUDNN_CALL(
-      cudnnSetTensor4dDescriptor(y_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, output_n, output_c, output_h, output_w));
-
-  float alpha = 1.0f;
-  float beta  = 0.0f;
+  CUDNN_CALL(cudnnSetTensor4dDescriptor(y_desc, tensor_format, data_type, output_n, output_c, output_h, output_w));
 
   CUDNN_CALL(cudnnPoolingForward(handle, pool_desc, &alpha, x_desc, _x, &beta, y_desc, _y));
 
@@ -602,7 +600,10 @@ void cinn_call_cudnn_pool2d_forward(void *v_args,
 
 void cinn_call_cudnn_pool2d_backward(void *v_args,
                                      int num_args,
-                                     int pool_type,
+                                     int mode,
+                                     int format,
+                                     float alpha,
+                                     float beta,
                                      int input_n,
                                      int input_c,
                                      int input_h,
@@ -628,17 +629,10 @@ void cinn_call_cudnn_pool2d_backward(void *v_args,
   float *_dy = reinterpret_cast<float *>((args[2].operator cinn_buffer_t *())->memory);
   float *_dx = reinterpret_cast<float *>((args[3].operator cinn_buffer_t *())->memory);
 
-  cudnnPoolingMode_t pool_mode;
-  switch (pool_type) {
-    case 0:
-      pool_mode = CUDNN_POOLING_MAX;
-      break;
-    case 1:
-      pool_mode = CUDNN_POOLING_AVERAGE_COUNT_INCLUDE_PADDING;
-      break;
-    default:
-      LOG(FATAL) << "Unkown pool_type: " << pool_type;
-  }
+  CHECK_EQ(args[0].operator cinn_buffer_t *()->type.code, cinn_type_code_t::cinn_type_float);
+  cudnnDataType_t data_type         = CUDNN_DATA_FLOAT;
+  cudnnPoolingMode_t pool_mode      = static_cast<cudnnPoolingMode_t>(mode);
+  cudnnTensorFormat_t tensor_format = static_cast<cudnnTensorFormat_t>(format);
 
   cudnnPoolingDescriptor_t pool_desc;
   CUDNN_CALL(cudnnCreatePoolingDescriptor(&pool_desc));
@@ -647,16 +641,11 @@ void cinn_call_cudnn_pool2d_backward(void *v_args,
 
   cudnnTensorDescriptor_t x_desc;
   CUDNN_CALL(cudnnCreateTensorDescriptor(&x_desc));
-  CUDNN_CALL(
-      cudnnSetTensor4dDescriptor(x_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, input_n, input_c, input_h, input_w));
+  CUDNN_CALL(cudnnSetTensor4dDescriptor(x_desc, tensor_format, data_type, input_n, input_c, input_h, input_w));
 
   cudnnTensorDescriptor_t y_desc;
   CUDNN_CALL(cudnnCreateTensorDescriptor(&y_desc));
-  CUDNN_CALL(
-      cudnnSetTensor4dDescriptor(y_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, output_n, output_c, output_h, output_w));
-
-  float alpha = 1.f;
-  float beta  = 0.f;
+  CUDNN_CALL(cudnnSetTensor4dDescriptor(y_desc, tensor_format, data_type, output_n, output_c, output_h, output_w));
 
   CUDNN_CALL(cudnnPoolingBackward(handle, pool_desc, &alpha, y_desc, _y, y_desc, _dy, x_desc, _x, &beta, x_desc, _dx));
 
@@ -667,7 +656,8 @@ void cinn_call_cudnn_pool2d_backward(void *v_args,
 
 void cinn_call_cudnn_softmax_forward(void *v_args,
                                      int num_args,
-                                     int softmax_type,
+                                     int mode,
+                                     int format,
                                      float alpha,
                                      float beta,
                                      int input_n,
@@ -687,26 +677,18 @@ void cinn_call_cudnn_softmax_forward(void *v_args,
   float *_x = reinterpret_cast<float *>((args[0].operator cinn_buffer_t *())->memory);
   float *_y = reinterpret_cast<float *>((args[1].operator cinn_buffer_t *())->memory);
 
-  cudnnSoftmaxMode_t softmax_mode;
-  switch (softmax_type) {
-    case 0:
-      softmax_mode = CUDNN_SOFTMAX_MODE_INSTANCE;
-      break;
-    case 1:
-      softmax_mode = CUDNN_SOFTMAX_MODE_CHANNEL;
-    default:
-      break;
-  }
+  CHECK_EQ(args[0].operator cinn_buffer_t *()->type.code, cinn_type_code_t::cinn_type_float);
+  cudnnDataType_t data_type         = CUDNN_DATA_FLOAT;
+  cudnnSoftmaxMode_t softmax_mode   = static_cast<cudnnSoftmaxMode_t>(mode);
+  cudnnTensorFormat_t tensor_format = static_cast<cudnnTensorFormat_t>(format);
 
   cudnnTensorDescriptor_t x_desc;
   CUDNN_CALL(cudnnCreateTensorDescriptor(&x_desc));
-  CUDNN_CALL(
-      cudnnSetTensor4dDescriptor(x_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, input_n, input_c, input_h, input_w));
+  CUDNN_CALL(cudnnSetTensor4dDescriptor(x_desc, tensor_format, data_type, input_n, input_c, input_h, input_w));
 
   cudnnTensorDescriptor_t y_desc;
   CUDNN_CALL(cudnnCreateTensorDescriptor(&y_desc));
-  CUDNN_CALL(
-      cudnnSetTensor4dDescriptor(y_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, output_n, output_c, output_h, output_w));
+  CUDNN_CALL(cudnnSetTensor4dDescriptor(y_desc, tensor_format, data_type, output_n, output_c, output_h, output_w));
 
   CUDNN_CALL(cudnnSoftmaxForward(handle, CUDNN_SOFTMAX_LOG, softmax_mode, &alpha, x_desc, _x, &beta, y_desc, _y));
 
@@ -716,7 +698,8 @@ void cinn_call_cudnn_softmax_forward(void *v_args,
 
 void cinn_call_cudnn_softmax_backward(void *v_args,
                                       int num_args,
-                                      int softmax_type,
+                                      int mode,
+                                      int format,
                                       float alpha,
                                       float beta,
                                       int input_n,
@@ -737,26 +720,18 @@ void cinn_call_cudnn_softmax_backward(void *v_args,
   float *_dy = reinterpret_cast<float *>((args[1].operator cinn_buffer_t *())->memory);
   float *_dx = reinterpret_cast<float *>((args[2].operator cinn_buffer_t *())->memory);
 
-  cudnnSoftmaxMode_t softmax_mode;
-  switch (softmax_type) {
-    case 0:
-      softmax_mode = CUDNN_SOFTMAX_MODE_INSTANCE;
-      break;
-    case 1:
-      softmax_mode = CUDNN_SOFTMAX_MODE_CHANNEL;
-    default:
-      break;
-  }
+  CHECK_EQ(args[0].operator cinn_buffer_t *()->type.code, cinn_type_code_t::cinn_type_float);
+  cudnnDataType_t data_type         = CUDNN_DATA_FLOAT;
+  cudnnSoftmaxMode_t softmax_mode   = static_cast<cudnnSoftmaxMode_t>(mode);
+  cudnnTensorFormat_t tensor_format = static_cast<cudnnTensorFormat_t>(format);
 
   cudnnTensorDescriptor_t x_desc;
   CUDNN_CALL(cudnnCreateTensorDescriptor(&x_desc));
-  CUDNN_CALL(
-      cudnnSetTensor4dDescriptor(x_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, input_n, input_c, input_h, input_w));
+  CUDNN_CALL(cudnnSetTensor4dDescriptor(x_desc, tensor_format, data_type, input_n, input_c, input_h, input_w));
 
   cudnnTensorDescriptor_t y_desc;
   CUDNN_CALL(cudnnCreateTensorDescriptor(&y_desc));
-  CUDNN_CALL(
-      cudnnSetTensor4dDescriptor(y_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, output_n, output_c, output_h, output_w));
+  CUDNN_CALL(cudnnSetTensor4dDescriptor(y_desc, tensor_format, data_type, output_n, output_c, output_h, output_w));
 
   CUDNN_CALL(cudnnSoftmaxBackward(
       handle, CUDNN_SOFTMAX_LOG, softmax_mode, &alpha, y_desc, _y, y_desc, _dy, &beta, x_desc, _dx));

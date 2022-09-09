@@ -25,6 +25,10 @@
 #include "cinn/ir/ir_printer.h"
 #include "cinn/utils/string.h"
 
+#ifdef CINN_WITH_CUDNN
+#include "cudnn.h"
+#endif
+
 namespace cinn {
 namespace hlir {
 namespace op {
@@ -158,9 +162,10 @@ std::vector<ir::Expr> CustomCallArgsForCudnnConvForward(const framework::NodeAtt
       attr_store.count("dilation") ? absl::get<std::vector<int>>(attr_store.at("dilation")) : std::vector<int>({1, 1});
   std::string data_format =
       attr_store.count("data_format") ? absl::get<std::string>(attr_store.at("data_format")) : "NCHW";
-  int groups = attr_store.count("groups") ? absl::get<int>(attr_store.at("groups")) : 1;
+  int groups                 = attr_store.count("groups") ? absl::get<int>(attr_store.at("groups")) : 1;
+  cudnnTensorFormat_t format = data_format == "NCHW" ? CUDNN_TENSOR_NCHW : CUDNN_TENSOR_NHWC;
 
-  std::vector<ir::Expr> args = {ir::Expr(data_format), ir::Expr(alpha), ir::Expr(beta)};
+  std::vector<ir::Expr> args = {ir::Expr(static_cast<int>(format)), ir::Expr(alpha), ir::Expr(beta)};
   args.insert(args.end(), inputs[0]->shape.begin(), inputs[0]->shape.end());
   args.insert(args.end(), inputs[1]->shape.begin(), inputs[1]->shape.end());
   args.push_back(ir::Expr(padding[0]));
@@ -193,9 +198,10 @@ std::vector<ir::Expr> CustomCallArgsForCudnnConvBackwardData(const framework::No
       attr_store.count("dilation") ? absl::get<std::vector<int>>(attr_store.at("dilation")) : std::vector<int>({1, 1});
   std::string data_format =
       attr_store.count("data_format") ? absl::get<std::string>(attr_store.at("data_format")) : "NCHW";
-  int groups = attr_store.count("groups") ? absl::get<int>(attr_store.at("groups")) : 1;
+  int groups                 = attr_store.count("groups") ? absl::get<int>(attr_store.at("groups")) : 1;
+  cudnnTensorFormat_t format = data_format == "NCHW" ? CUDNN_TENSOR_NCHW : CUDNN_TENSOR_NHWC;
 
-  std::vector<ir::Expr> args = {ir::Expr(data_format), ir::Expr(alpha), ir::Expr(beta)};
+  std::vector<ir::Expr> args = {ir::Expr(static_cast<int>(format)), ir::Expr(alpha), ir::Expr(beta)};
   std::transform(output_shapes[0].begin(), output_shapes[0].end(), std::back_inserter(args), [](const int dim) {
     return ir::Expr(dim);
   });
@@ -228,9 +234,10 @@ std::vector<ir::Expr> CustomCallArgsForCudnnConvBackwardFilter(const framework::
       attr_store.count("dilation") ? absl::get<std::vector<int>>(attr_store.at("dilation")) : std::vector<int>({1, 1});
   std::string data_format =
       attr_store.count("data_format") ? absl::get<std::string>(attr_store.at("data_format")) : "NCHW";
-  int groups = attr_store.count("groups") ? absl::get<int>(attr_store.at("groups")) : 1;
+  int groups                 = attr_store.count("groups") ? absl::get<int>(attr_store.at("groups")) : 1;
+  cudnnTensorFormat_t format = data_format == "NCHW" ? CUDNN_TENSOR_NCHW : CUDNN_TENSOR_NHWC;
 
-  std::vector<ir::Expr> args = {ir::Expr(data_format), ir::Expr(alpha), ir::Expr(beta)};
+  std::vector<ir::Expr> args = {ir::Expr(static_cast<int>(format)), ir::Expr(alpha), ir::Expr(beta)};
   args.insert(args.end(), inputs[0]->shape.begin(), inputs[0]->shape.end());
   std::transform(output_shapes[0].begin(), output_shapes[0].end(), std::back_inserter(args), [](const int dim) {
     return ir::Expr(dim);
@@ -252,6 +259,9 @@ std::vector<ir::Expr> CustomCallArgsForCudnnPoolForward(const framework::NodeAtt
   CHECK_EQ(inputs.size(), 1UL);
   CHECK_EQ(output_shapes.size(), 1UL);
   auto attr_store = attrs.attr_store;
+  float alpha     = attr_store.count("alpha") ? absl::get<float>(attr_store.at("alpha")) : 1.0f;
+  float beta      = attr_store.count("beta") ? absl::get<float>(attr_store.at("beta")) : 0.0f;
+
   CHECK(attr_store.count("kernel_size"));
   auto kernel = absl::get<std::vector<int>>(attr_store.at("kernel_size"));
   CHECK(attr_store.count("padding_size"));
@@ -263,7 +273,11 @@ std::vector<ir::Expr> CustomCallArgsForCudnnPoolForward(const framework::NodeAtt
   std::string data_format =
       attr_store.count("data_format") ? absl::get<std::string>(attrs.attr_store.at("data_format")) : "NCHW";
 
-  std::vector<ir::Expr> args = {ir::Expr(pool_type), ir::Expr(data_format)};
+  cudnnPoolingMode_t mode    = pool_type == "MAX" ? CUDNN_POOLING_MAX : CUDNN_POOLING_AVERAGE_COUNT_INCLUDE_PADDING;
+  cudnnTensorFormat_t format = data_format == "NCHW" ? CUDNN_TENSOR_NCHW : CUDNN_TENSOR_NHWC;
+
+  std::vector<ir::Expr> args = {
+      ir::Expr(static_cast<int>(mode)), ir::Expr(static_cast<int>(format)), ir::Expr(alpha), ir::Expr(beta)};
   args.insert(args.end(), inputs[0]->shape.begin(), inputs[0]->shape.end());
   args.push_back(ir::Expr(kernel[0]));
   args.push_back(ir::Expr(kernel[1]));
@@ -283,6 +297,9 @@ std::vector<ir::Expr> CustomCallArgsForCudnnPoolBackward(const framework::NodeAt
   CHECK_EQ(inputs.size(), 2UL);
   CHECK_EQ(output_shapes.size(), 1UL);
   auto attr_store = attrs.attr_store;
+  float alpha     = attr_store.count("alpha") ? absl::get<float>(attr_store.at("alpha")) : 1.0f;
+  float beta      = attr_store.count("beta") ? absl::get<float>(attr_store.at("beta")) : 0.0f;
+
   CHECK(attr_store.count("kernel_size"));
   auto kernel = absl::get<std::vector<int>>(attr_store.at("kernel_size"));
   CHECK(attr_store.count("padding_size"));
@@ -294,7 +311,10 @@ std::vector<ir::Expr> CustomCallArgsForCudnnPoolBackward(const framework::NodeAt
   std::string data_format =
       attr_store.count("data_format") ? absl::get<std::string>(attrs.attr_store.at("data_format")) : "NCHW";
 
-  std::vector<ir::Expr> args = {ir::Expr(pool_type), ir::Expr(data_format)};
+  cudnnPoolingMode_t mode    = pool_type == "MAX" ? CUDNN_POOLING_MAX : CUDNN_POOLING_AVERAGE_COUNT_INCLUDE_PADDING;
+  cudnnTensorFormat_t format = data_format == "NCHW" ? CUDNN_TENSOR_NCHW : CUDNN_TENSOR_NHWC;
+  std::vector<ir::Expr> args = {
+      ir::Expr(static_cast<int>(mode)), ir::Expr(static_cast<int>(format)), ir::Expr(alpha), ir::Expr(beta)};
   std::transform(output_shapes[0].begin(), output_shapes[0].end(), std::back_inserter(args), [](const int dim) {
     return ir::Expr(dim);
   });

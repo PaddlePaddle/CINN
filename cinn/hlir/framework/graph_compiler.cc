@@ -33,6 +33,7 @@ namespace cinn {
 namespace hlir {
 namespace framework {
 // Store params from node to instruction
+/*
 void AddAttrs(const absl::flat_hash_map<std::string, AttrType>& attrs_store,
               const std::vector<std::string>& attrs_name,
               Instruction* instr) {
@@ -55,6 +56,7 @@ void AddAttrs(const absl::flat_hash_map<std::string, AttrType>& attrs_store,
     }
   }
 }
+*/
 
 Program::Program(const std::shared_ptr<Scope>& scope, std::vector<std::unique_ptr<Instruction>>&& instrs)
     : scope_(scope) {
@@ -835,6 +837,7 @@ void GraphCompiler::SetSubKernels(Instruction* instr, const std::string& func_na
   }
 }
 
+/*
 void GraphCompiler::BuildCublasInstr(const Node& node, Instruction* instr) const {
   auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
   // shape info
@@ -878,6 +881,7 @@ void GraphCompiler::BuildCublasInstr(const Node& node, Instruction* instr) const
   }
   instr->attrs.push_back(*reinterpret_cast<int*>(&alpha));
 }
+*/
 
 std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions(
     const std::vector<std::vector<Node*>>& groups, const std::vector<std::shared_ptr<Graph::Group>>& fusion_groups) {
