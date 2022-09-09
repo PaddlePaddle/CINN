@@ -162,7 +162,13 @@ std::shared_ptr<framework::OpStrategy> StrategyForSort(const framework::NodeAttr
     auto stages   = CreateStages({tensor_A});
     VLOG(3) << "A shape: " << utils::Join(tensor_A->shape, ", ")
             << ", output_shapes: " << utils::Join(output_shapes[0], ", ");
-    std::vector<ir::Tensor> outputs = Sort(tensor_A, target, axis, is_ascend, UniqName("Sort_out"));
+    auto tensor_name = UniqName("Sort_out");
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK_EQ(pack_args.size(), 2U);
+      CHECK(pack_args[1].is_string());
+      tensor_name = pack_args[1].operator std::string();
+    }
+    std::vector<ir::Tensor> outputs = Sort(tensor_A, target, axis, is_ascend, tensor_name);
     ir::Tensor sort_index           = outputs[0];
     ir::Tensor out                  = outputs[1];
     std::vector<CINNValue> res;
@@ -211,7 +217,13 @@ std::shared_ptr<framework::OpStrategy> StrategyForArgSort(const framework::NodeA
     auto stages   = CreateStages({tensor_A});
     VLOG(3) << "A shape: " << utils::Join(tensor_A->shape, ", ")
             << ", output_shapes: " << utils::Join(output_shapes[0], ", ");
-    ir::Tensor out = ArgSort(tensor_A, target, axis, is_ascend, UniqName("ArgSort_out"));
+    auto tensor_name = UniqName("ArgSort_out");
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK_EQ(pack_args.size(), 2U);
+      CHECK(pack_args[1].is_string());
+      tensor_name = pack_args[1].operator std::string();
+    }
+    ir::Tensor out = ArgSort(tensor_A, target, axis, is_ascend, tensor_name);
     std::vector<CINNValue> res;
     stages->InsertLazily(out);
     res.push_back(CINNValue(out));
@@ -236,8 +248,13 @@ std::shared_ptr<framework::OpStrategy> StrategyForArgSort(const framework::NodeA
 std::vector<std::vector<int>> InferShapeForSort(const std::vector<std::vector<int>> &inputs_shape,
                                                 const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 1UL) << "The input's shape size should be 1! Please check again.";
-  CHECK(attr_store.count("axis")) << "find no attr of axis";
-  int axis = absl::get<int>(attr_store.at("axis"));
+  int axis = 0;
+  for (auto &iter : attrs) {
+    if (iter.first == "axis") {
+      axis = absl::get<int>(iter.second);
+      break;
+    }
+  }
   CHECK_GT(inputs_shape[0].size(), axis) << "The input's dim should be greater than axis! ";
   std::vector<std::vector<int>> res{inputs_shape[0]};
   return res;
