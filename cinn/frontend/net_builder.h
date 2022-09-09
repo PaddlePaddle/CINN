@@ -39,8 +39,10 @@ namespace frontend {
     macro__(ReluGrad)
 
 #define NETBUILDER_ELEMENTWISE_OP_FOREACH(macro__)   \
-    macro__(ElementwiseAdd)                                \
-    macro__(ElementwiseMul)
+    macro__(ElementwiseAdd)                          \
+    macro__(ElementwiseMul)                          \
+    macro__(ElementwiseDiv)                          \
+    macro__(ElementwiseSub)
 // clang-format on
 
 class NetBuilder : public BaseBuilder {
@@ -79,6 +81,26 @@ class NetBuilder : public BaseBuilder {
    * Compute the sum of Variable x along the given dim.
    */
   Variable ReduceSum(const Variable& x, const std::vector<int>& dim, bool keep_dim = false);
+
+  /**
+   * Compute the logic add of Variable x along the given dim.
+   */
+  Variable ReduceAll(const Variable& x, const std::vector<int>& dim, bool keep_dim = false);
+
+  /**
+   * Compute the sum of Variable x along the given dim.
+   */
+  Variable ReduceAny(const Variable& x, const std::vector<int>& dim, bool keep_dim = false);
+
+  /**
+   * Cast Variable x to dtype.
+   */
+  Variable Cast(const Variable& operand, const std::string& dtype);
+
+  /**
+   * Squeeze Variable x along the given axes.
+   */
+  Variable Squeeze(const Variable& operand, const std::vector<int>& axes);
 
   /**
    * The convolution2D layer calculates the output based on the input, filter
@@ -149,6 +171,10 @@ class NetBuilder : public BaseBuilder {
 
   Variable Sum(const std::vector<Variable>& inputs);
 
+  Variable Clip(const std::vector<Variable>& inputs, const float& max_val, const float& min_val);
+
+  Variable Arange(const float start, const float stop, const float step, const std::string& dtype);
+
   // conv2d grad, output(grad_x, grad_w)
   std::vector<Variable> Conv2dGrad(const Variable& dy,
                                    const Variable& x,
@@ -165,6 +191,12 @@ class NetBuilder : public BaseBuilder {
 
  protected:
   Variable ElementwiseOp(const std::string& op_type, const Variable& lhs, const Variable& rhs, int axis = -1);
+
+ private:
+  // the helper function of Matmul
+  std::pair<Variable, Variable> BroadcastMatmulInput(
+      const Variable& x, const Variable& y, bool trans_x, bool trans_y, float alpha);
+  std::vector<int> GetMatmulOutputShape(const Variable& x, const Variable& y, bool trans_x, bool trans_y, float alpha);
 };
 
 }  // namespace frontend

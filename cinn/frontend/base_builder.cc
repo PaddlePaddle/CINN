@@ -140,6 +140,10 @@ Variable BaseBuilder::Reduce(const Variable& operand, ReduceKind kind, const std
       return reduce_func("reduce_max");
     case ReduceKind::kMin:
       return reduce_func("reduce_min");
+    case ReduceKind::kAll:
+      return reduce_func("reduce_all");
+    case ReduceKind::kAny:
+      return reduce_func("reduce_any");
     default:
       LOG(FATAL) << "unknown reduction kind";
   }
@@ -299,6 +303,16 @@ Variable BaseBuilder::ScatterAssign(const Variable& operand, const Variable& upd
 Variable BaseBuilder::ScatterAdd(const Variable& operand, const Variable& updates, const Variable& index, int axis) {
   Instruction instr("scatter_add", {operand, updates, index});
   instr.SetAttr("axis", axis);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
+Variable BaseBuilder::IsClose(const Variable& x, const Variable& y, float rtol, float atol, bool equal_nan) {
+  Instruction instr("isclose", {x, y});
+  instr.SetAttr("rtol", rtol);
+  instr.SetAttr("atol", atol);
+  instr.SetAttr("equal_nan", equal_nan);
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(0);

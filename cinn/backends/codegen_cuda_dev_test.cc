@@ -218,6 +218,7 @@ extern "C" {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -283,6 +284,7 @@ extern "C" {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -656,6 +658,7 @@ extern "C" {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -801,6 +804,7 @@ extern "C" {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -915,6 +919,7 @@ void __launch_bounds__(128) schedule_conv2d_1(const float* __restrict__ X, const
   #ifdef __CUDACC_RTC__
   typedef int int32_t;
   typedef char int8_t;
+  typedef long int int64_t;
   #endif
 
 
@@ -1035,6 +1040,7 @@ extern "C" {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -1143,6 +1149,7 @@ extern "C" {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -1493,8 +1500,6 @@ TEST(CodeGenCUDA, jit_host_call_cuda_kernel) {
   LOG(INFO) << "fn_kernel: " << fn_kernel;
 
   GlobalSymbolRegistry::Global().RegisterFn("fn_kernel_ptr_", reinterpret_cast<void*>(&fn_kernel));
-  GlobalSymbolRegistry::Global().RegisterVar("fn_kernel_stream_ptr_", stream);
-
   // compile host
   {
     auto jit = SimpleJIT::Create();
@@ -1520,11 +1525,12 @@ TEST(CodeGenCUDA, jit_host_call_cuda_kernel) {
     CUDA_CALL(cudaDeviceSynchronize());
 
     // call the kernel
-    auto comp = reinterpret_cast<void (*)(cinn_pod_value_t*, int)>(fn_ptr);
+    auto comp = reinterpret_cast<void (*)(void*, int, void*)>(fn_ptr);
 
     auto args = common::ArgsBuilder().Add(M.as_int32()).Add(A_buf).Add(B_buf).Add(C_buf).Build();
 
-    comp(args.data(), args.size());
+    void* stream = nullptr;
+    comp(args.data(), args.size(), stream);
 
     CUDA_CALL(cudaDeviceSynchronize());
 
@@ -1943,6 +1949,7 @@ extern "C" {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -2079,6 +2086,7 @@ extern "C" {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -2184,6 +2192,7 @@ extern "C" {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -2286,6 +2295,7 @@ extern "C" {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -2449,6 +2459,7 @@ extern "C" {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -2532,6 +2543,7 @@ extern "C" {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -2617,6 +2629,7 @@ extern "C" {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -2699,6 +2712,7 @@ extern "C" {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -3082,6 +3096,7 @@ extern "C" {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 

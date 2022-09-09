@@ -22,12 +22,12 @@ namespace ir {
 /**
  * Collect the IR Nodes(without duplication) in the expression.
  */
-std::set<Expr> CollectIRNodes(Expr x, std::function<bool(const Expr*)>&& teller);
+std::set<Expr> CollectIRNodes(Expr x, std::function<bool(const Expr*)>&& teller, bool uniq_target = false);
 
 /**
  * Collect the IR Nodes(without duplication and tensor's compute body) in the expression.
  */
-std::set<Expr> CollectIRNodesWithoutTensor(Expr x, std::function<bool(const Expr*)>&& teller);
+std::set<Expr> CollectIRNodesWithoutTensor(Expr x, std::function<bool(const Expr*)>&& teller, bool uniq_target = false);
 
 /**
  * Collect the tensors in Load nodes.

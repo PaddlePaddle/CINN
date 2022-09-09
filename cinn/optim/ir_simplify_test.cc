@@ -115,7 +115,8 @@ TEST(IrSimplify, basic) {
 TEST(reverse, prod) {
   Expr M(100), N(20);
   Placeholder<float> A("A", {M, N});
-  auto C = Compute({M, N}, [=](Var i, Var j) { return Expr(1.f) / A(i, j); });
+  auto C = Compute(
+      {M, N}, [=](Var i, Var j) { return Expr(1.f) / A(i, j); }, "C");
 
   auto stages = CreateStages({A, C});
   auto fn     = Lower("fn", stages, {A, C});

@@ -69,7 +69,7 @@ class SerialData {
  * @param args an array of cinn_pod_value_ts(consists of scalars and buffers).
  */
 void cinn_call_cuda_kernel(void* kernel_fn,
-                           cinn_pod_value_t* args,
+                           void* v_args,
                            int num_args,
                            int grid_x,
                            int grid_y,

@@ -41,6 +41,8 @@ enum class ReduceKind : std::int8_t {
   kProd,
   kMax,
   kMin,
+  kAll,
+  kAny,
 };
 
 // WARNING: In BaseBuilder, you should only place the meta op, which are also the common op between NetBuilder and
@@ -132,6 +134,10 @@ class BaseBuilder {
   Variable FillConstant(const std::vector<int>& shape, T value, const std::string& name, bool force_cpu = false) {
     return FillConstant(shape, static_cast<float>(value), name, common::Type2Str(common::type_of<T>()), force_cpu);
   }
+
+  // This operator checks if all x and y satisfy the condition: |x - y| <= atol + rtol * |y|
+  Variable IsClose(
+      const Variable& x, const Variable& y, float rtol = 1e-05f, float atol = 1e-08f, bool equal_nan = false);
 
  protected:
   void InferShape(Instruction instr) const;

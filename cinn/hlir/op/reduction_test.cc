@@ -336,7 +336,6 @@ TEST(Operator, Operator_Reduction_Case_7) {
   void* stream = nullptr;
   backends::GlobalSymbolRegistry::Global().RegisterFn(func_name + "_kernel_ptr_",
                                                       reinterpret_cast<void*>(&reduce_sum_kernel));
-  backends::GlobalSymbolRegistry::Global().RegisterVar(func_name + "_kernel_stream_ptr_", stream);
 
   // gen host code
   auto jit = backends::SimpleJIT::Create();
@@ -345,7 +344,7 @@ TEST(Operator, Operator_Reduction_Case_7) {
   auto fn_reduce_sum = jit->Lookup(func_name);
   CHECK(fn_reduce_sum);
 
-  auto func_0 = reinterpret_cast<void (*)(cinn_pod_value_t*, int)>(fn_reduce_sum);
+  auto func_0 = reinterpret_cast<void (*)(void*, int, void*)>(fn_reduce_sum);
 
   srand(time(NULL));
   auto buffer_x = common::BufferBuilder(Float(32), {n, c, h, w}).set_random().Build();
@@ -369,7 +368,7 @@ TEST(Operator, Operator_Reduction_Case_7) {
   cinn_pod_value_t x_arg(&_x), y_arg(&_y);
   cinn_pod_value_t args0[] = {x_arg, y_arg};
 
-  func_0(args0, 2);
+  func_0(args0, 2, stream);
   CUDA_CALL(cudaMemcpy(buffer_y->memory, dev_y, buffer_y->memory_size, cudaMemcpyDeviceToHost));
 
   CUDA_CALL(cudaFree(dev_x));

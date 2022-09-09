@@ -32,7 +32,8 @@ namespace cpu {
 TEST(tanh, basic) {
   Expr M(10), N(20);
   Placeholder<float> x("x", {M, N});
-  auto y = Compute({M, N}, [&](Expr i, Expr j) { return CallExtern("tanh", {x(i, j)}); });
+  auto y = Compute(
+      {M, N}, [&](Expr i, Expr j) { return CallExtern("tanh", {x(i, j)}); }, "y");
 
   auto stages = CreateStages({y});
 

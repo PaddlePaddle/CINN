@@ -32,22 +32,14 @@ using namespace frontend;
 void CodeGen(ir::LoweredFunc& func) {
 #ifdef CINN_WITH_CUDA
   auto target = common::DefaultNVGPUTarget();
-  Module::Builder builder("Module_Builder", target);
+  Module::Builder builder("module_builder", target);
+
   builder.AddFunction(func);
+  auto module   = builder.Build();
+  auto compiler = backends::Compiler::Create(target);
 
-  auto module                    = builder.Build();
-  auto host_module_device_module = backends::SplitCudaAndHostModule(module);
-  auto& host_module              = std::get<0>(host_module_device_module);
-  auto& device_module            = std::get<1>(host_module_device_module);
-
-  backends::CodeGenCUDA_Dev codegen(target);
-  auto source_code = codegen.Compile(builder.Build());
-  LOG(INFO) << "compiled code of " << func->name << "is:\n\n\n" << source_code;
-
-  // nv jit compile to ptx
-  backends::NVRTC_Compiler compiler;
-  auto ptx = compiler(source_code);
-  CHECK(!ptx.empty());
+  std::string code = "";
+  compiler->Build(module, code);
 #else
   auto target = common::DefaultHostTarget();
   ir::Module::Builder builder("Module_Builder", target);
@@ -68,7 +60,7 @@ TEST(OP_LOWERING, OpaqueOp_TEST_0) {
   }
 
   auto program = cinn_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
@@ -94,7 +86,7 @@ TEST(OP_LOWERING, OpaqueOp_TEST_1) {
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
@@ -119,7 +111,7 @@ TEST(OP_LOWERING, OpaqueOp_TEST_2) {
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
@@ -146,7 +138,7 @@ TEST(OP_LOWERING, Transform_TEST_0) {
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
@@ -178,7 +170,7 @@ TEST(OP_LOWERING, Elementwise_Test_0) {
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
@@ -211,7 +203,7 @@ TEST(OP_LOWERING, Elementwise_Test_1) {
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
@@ -244,7 +236,7 @@ TEST(OP_LOWERING, Elementwise_Test_2) {
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
@@ -271,7 +263,7 @@ TEST(OP_LOWERING, Reduce_Test_0) {
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
@@ -298,7 +290,7 @@ TEST(OP_LOWERING, Reduce_Test_1) {
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
@@ -325,7 +317,7 @@ TEST(OP_LOWERING, Reduce_Test_2) {
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
@@ -352,7 +344,7 @@ TEST(OP_LOWERING, Reduce_Test_3) {
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
@@ -379,7 +371,7 @@ TEST(OP_LOWERING, Reduce_Test_4) {
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
@@ -406,7 +398,7 @@ TEST(OP_LOWERING, Reduce_Test_5) {
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
@@ -433,7 +425,7 @@ TEST(OP_LOWERING, Reduce_Test_6) {
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
@@ -460,7 +452,7 @@ TEST(OP_LOWERING, Reduce_Test_7) {
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
@@ -487,7 +479,7 @@ TEST(OP_LOWERING, Reduce_Test_8) {
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
@@ -514,7 +506,34 @@ TEST(OP_LOWERING, Reduce_Test_9) {
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
+  RunDecomposer(&program, target);
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+
+  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
+  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
+
+  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
+  for (auto& fusion_op : graph->fusion_groups) {
+    auto lowered_func = op_lowerer.Lower(fusion_op);
+    CHECK_EQ(lowered_func.size(), 1);
+    CodeGen(lowered_func[0]);
+  }
+}
+
+TEST(OP_LOWERING, Reduce_Test_10) {
+  int n = 16, c = 16, h = 32, w = 32;
+  NetBuilder net_builder("Reduce_Test_10");
+  // create model
+  {
+    auto A = net_builder.CreateInput(Float(32), {n, c, h, w}, "A");
+    auto B = net_builder.Reduce(A, ReduceKind::kSum, {1});
+  }
+
+  auto program = net_builder.Build();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
@@ -544,7 +563,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_0) {
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
@@ -574,7 +593,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_1) {
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
@@ -609,7 +628,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_2) {
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
@@ -639,7 +658,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_3) {
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
@@ -671,7 +690,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_4) {
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
@@ -706,7 +725,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_5) {
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
@@ -743,7 +762,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_6) {
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
@@ -780,7 +799,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_7) {
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
@@ -817,7 +836,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_8) {
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
@@ -854,7 +873,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_9) {
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
@@ -887,7 +906,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_10) {
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
@@ -921,7 +940,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_11) {
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
@@ -955,7 +974,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_12) {
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
@@ -990,7 +1009,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_13) {
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
@@ -1026,7 +1045,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_14) {
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
@@ -1061,7 +1080,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_15) {
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
@@ -1095,7 +1114,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_16) {
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
@@ -1130,7 +1149,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_17) {
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
@@ -1162,7 +1181,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_18) {
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
@@ -1197,7 +1216,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_19) {
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
@@ -1238,7 +1257,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_20) {
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
@@ -1291,7 +1310,7 @@ TEST(OP_LOWERING, Reduce_Fusion_Test_21) {
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);

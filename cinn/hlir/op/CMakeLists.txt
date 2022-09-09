@@ -1,3 +1,5 @@
+add_subdirectory(contrib)
+
 core_gather_headers()
 
 gather_srcs(cinnapi_src SRCS
@@ -7,6 +9,7 @@ gather_srcs(cinnapi_src SRCS
     elementwise.cc
     reduction.cc
     op_util.cc
+    custom_call.cc
     )
 
 cc_test(test_cinn_op_broadcast SRCS op_broadcast_test.cc DEPS cinncore)

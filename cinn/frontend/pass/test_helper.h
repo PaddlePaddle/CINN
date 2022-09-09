@@ -28,14 +28,6 @@
 
 namespace cinn::frontend {
 
-static Target GetTarget() {
-#ifdef CINN_WITH_CUDA
-  return common::DefaultNVGPUTarget();
-#else
-  return common::DefaultHostTarget();
-#endif
-}
-
 template <typename T>
 std::vector<T> GeneratedRandomVector(size_t numel) {
   std::vector<T> data(numel);
@@ -79,7 +71,7 @@ std::vector<T> CopyToVector(const hlir::framework::Tensor tensor) {
 
 class PassTest {
  public:
-  PassTest() { target_ = GetTarget(); }
+  PassTest() { target_ = common::DefaultTarget(); }
 
   int RunAndCheck(NetBuilder& builder,
                   const std::vector<std::string>& program_passes,

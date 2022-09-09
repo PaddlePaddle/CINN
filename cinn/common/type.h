@@ -104,6 +104,7 @@ struct Type {
   int bits() const;
   int lanes() const;
   cpp_type_t cpp_type() const;
+  int bytes() const;
   // @}
 
   //! Compare two types for equality.
@@ -122,6 +123,8 @@ struct Type {
   Type IgnoreConst() const;
   //! Add const.
   Type ConstOf() const;
+  //! Check if a dtype is supported in CINN yet.
+  bool is_supported() const;
 
   friend std::ostream& operator<<(std::ostream& os, const Type& t);
 
@@ -177,6 +180,7 @@ template <> inline Type type_of<int64_t>() { return I64(); }
 template <> inline Type type_of<uint64_t>() { return UI64(); }
 template <> inline Type type_of<signed char>() { return I8(); }
 template <> inline Type type_of<void>() { return Void(); }
+template <> inline Type type_of<std::string>() { return String(); }
 // clang-format on
 template <>
 inline Type type_of<int8_t*>() {

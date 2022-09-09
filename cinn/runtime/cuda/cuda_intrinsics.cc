@@ -47,10 +47,18 @@ CINN_REGISTER_HELPER(cuda_intrinsics) {
   REGISTER_EXTERN_FUNC_1_IN_1_OUT_FLOAT(asinh);
   REGISTER_EXTERN_FUNC_1_IN_1_OUT_FLOAT(atan);
   REGISTER_EXTERN_FUNC_1_IN_1_OUT_FLOAT(atanh);
-  REGISTER_EXTERN_FUNC_1_IN_1_OUT_FLOAT(isnan);
   REGISTER_EXTERN_FUNC_1_IN_1_OUT_FLOAT(tanh);
-  REGISTER_EXTERN_FUNC_1_IN_1_OUT_FLOAT(isfinite);
-  REGISTER_EXTERN_FUNC_1_IN_1_OUT_FLOAT(isinf);
+
+#undef REGISTER_EXTERN_FUNC_1_IN_1_OUT_FLOAT
+
+#define REGISTER_EXTERN_FUNC_1_IN_1_OUT_BOOL(func__) \
+  REGISTER_EXTERN_SOURCE_FUNC_1_IN_1_OUT(cinn_nvgpu_##func__##_fp32, target, float, bool);
+
+  REGISTER_EXTERN_FUNC_1_IN_1_OUT_BOOL(isnan);
+  REGISTER_EXTERN_FUNC_1_IN_1_OUT_BOOL(isfinite);
+  REGISTER_EXTERN_FUNC_1_IN_1_OUT_BOOL(isinf);
+
+#undef REGISTER_EXTERN_FUNC_1_IN_1_OUT_BOOL
 
   FunctionProto::shape_inference_t inference_shape_globalpool = [](const std::vector<cinn::ir::Expr> &args,
                                                                    int offset) {
@@ -104,6 +112,16 @@ CINN_REGISTER_HELPER(cuda_intrinsics) {
       .AddInputType<float>()
       .End();
 
+  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_block_reduce_all_internal, target)
+      .SetRetType<bool>()
+      .AddInputType<bool>()
+      .End();
+
+  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_block_reduce_any_internal, target)
+      .SetRetType<bool>()
+      .AddInputType<bool>()
+      .End();
+
   REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_block_reduce_sum, target)
       .SetRetType<float>()
       .AddInputType<cinn_buffer_t *>()
@@ -127,6 +145,20 @@ CINN_REGISTER_HELPER(cuda_intrinsics) {
 
   REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_block_reduce_min, target)
       .SetRetType<float>()
+      .AddInputType<cinn_buffer_t *>()
+      .AddInputType<int>()
+      .AddInputType<int>()
+      .End();
+
+  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_block_reduce_all, target)
+      .SetRetType<bool>()
+      .AddInputType<cinn_buffer_t *>()
+      .AddInputType<int>()
+      .AddInputType<int>()
+      .End();
+
+  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_block_reduce_any, target)
+      .SetRetType<bool>()
       .AddInputType<cinn_buffer_t *>()
       .AddInputType<int>()
       .AddInputType<int>()
@@ -197,6 +229,18 @@ CINN_REGISTER_HELPER(cuda_intrinsics) {
       .AddInputType<int>()
       .End();
 
+  REGISTER_FACKED_EXTERN_FUNC_HELPER(block_shuffle_all, target)
+      .SetRetType<bool>()
+      .AddInputType<cinn_buffer_t *>()
+      .AddInputType<int>()
+      .End();
+
+  REGISTER_FACKED_EXTERN_FUNC_HELPER(block_shuffle_any, target)
+      .SetRetType<bool>()
+      .AddInputType<cinn_buffer_t *>()
+      .AddInputType<int>()
+      .End();
+
   return true;
 }
 
@@ -204,16 +248,16 @@ CINN_REGISTER_HELPER(cinn_call_cuda_kernel) {
   using cinn::runtime::cuda::cinn_call_cuda_kernel;
   REGISTER_EXTERN_FUNC_HELPER(cinn_call_cuda_kernel, cinn::common::DefaultHostTarget())
       .SetRetType<void>()
-      .AddInputType<void *>()              // kernel_fn
-      .AddInputType<cinn_pod_value_t *>()  // args
-      .AddInputType<int>()                 // num_args
-      .AddInputType<int>()                 // grid_x
-      .AddInputType<int>()                 // grid_y
-      .AddInputType<int>()                 // grid_z
-      .AddInputType<int>()                 // block_x
-      .AddInputType<int>()                 // block_y
-      .AddInputType<int>()                 // block_z
-      .AddInputType<void *>()              // stream
+      .AddInputType<void *>()  // kernel_fn
+      .AddInputType<void *>()  // args
+      .AddInputType<int>()     // num_args
+      .AddInputType<int>()     // grid_x
+      .AddInputType<int>()     // grid_y
+      .AddInputType<int>()     // grid_z
+      .AddInputType<int>()     // block_x
+      .AddInputType<int>()     // block_y
+      .AddInputType<int>()     // block_z
+      .AddInputType<void *>()  // stream
       .End();
 
   return true;

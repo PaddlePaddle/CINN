@@ -106,7 +106,7 @@ message(STATUS "PYTHON_LIBRARIES: ${PYTHON_LIBRARIES}")
 message(STATUS "PYTHON_INCLUDE_DIR: ${PYTHON_INCLUDE_DIR}")
 
 INCLUDE_DIRECTORIES(${PYTHON_INCLUDE_DIR})
-cc_library(cinnapi SHARED SRCS ${cinnapi_src} DEPS glog ${llvm_libs} framework_proto param_proto schedule_desc_proto absl isl ginac pybind)
+cc_library(cinnapi SHARED SRCS ${cinnapi_src} DEPS glog ${llvm_libs} framework_proto param_proto auto_schedule_proto schedule_desc_proto absl isl ginac pybind)
 add_dependencies(cinnapi GEN_LLVM_RUNTIME_IR_HEADER ZLIB::ZLIB)
 add_dependencies(cinnapi GEN_LLVM_RUNTIME_IR_HEADER ${core_deps})
 
@@ -133,7 +133,7 @@ function(gen_cinncore LINKTYPE)
   if (${LINKTYPE} STREQUAL "STATIC")
     set(CINNCORE_TARGET cinncore_static)
   endif()
-  cc_library(${CINNCORE_TARGET} ${LINKTYPE} SRCS ${core_src} DEPS glog ${llvm_libs} framework_proto param_proto schedule_desc_proto absl isl ginac)
+  cc_library(${CINNCORE_TARGET} ${LINKTYPE} SRCS ${core_src} DEPS glog ${llvm_libs} framework_proto param_proto auto_schedule_proto schedule_desc_proto absl isl ginac)
   add_dependencies(${CINNCORE_TARGET} GEN_LLVM_RUNTIME_IR_HEADER ZLIB::ZLIB)
   add_dependencies(${CINNCORE_TARGET} GEN_LLVM_RUNTIME_IR_HEADER ${core_deps})
 
@@ -205,6 +205,8 @@ if (PUBLISH_LIBS)
         COMMAND cmake -E copy ${CMAKE_BINARY_DIR}/libcinncore_static.a ${CMAKE_BINARY_DIR}/dist/cinn/lib/libcinncore_static.a
         COMMAND cmake -E copy ${CMAKE_BINARY_DIR}/cinn/frontend/paddle/libframework_proto.a ${CMAKE_BINARY_DIR}/dist/cinn/lib/libframework_proto.a
         COMMAND cmake -E copy ${CMAKE_BINARY_DIR}/cinn/hlir/pe/libparam_proto.a ${CMAKE_BINARY_DIR}/dist/cinn/lib/libparam_proto.a
+        COMMAND cmake -E copy ${CMAKE_BINARY_DIR}/cinn/auto_schedule/libauto_schedule_proto.a ${CMAKE_BINARY_DIR}/dist/cinn/lib/libauto_schedule_proto.a
+        COMMAND cmake -E copy ${CMAKE_BINARY_DIR}/cinn/auto_schedule/libschedule_desc_proto.a ${CMAKE_BINARY_DIR}/dist/cinn/lib/libschedule_desc_proto.a
         COMMENT "distribute libcinncore_static.a and related header files."
         DEPENDS cinncore_static
     )
