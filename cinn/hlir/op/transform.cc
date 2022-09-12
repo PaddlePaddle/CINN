@@ -1281,7 +1281,7 @@ std::shared_ptr<OpStrategy> StrategyForTranspose(const framework::NodeAttr &attr
 
   auto strategy = std::make_shared<framework::OpStrategy>();
   CHECK(out_type.size()) << "Out_type of transpose op is empty! Please check.";
-  if (out_type[0] == Float(32)) {
+  if (out_type[0] == Float(32) || out_type[0] == Int(64)) {
     strategy->AddImpl(
         transpose_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.transpose.x86", 1);
   } else {

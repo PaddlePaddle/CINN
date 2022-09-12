@@ -143,6 +143,10 @@ Type Type::ConstOf() const {
   return x;
 }
 
+bool Type::is_supported() const {
+  return (*this == Float(32) || this->is_bool() || *this == Int(32) || *this == Int(64));
+}
+
 Type Type::IgnoreConst() const {
   CheckTypeValid();
   auto x = *this;

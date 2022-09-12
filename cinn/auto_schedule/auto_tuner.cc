@@ -15,6 +15,7 @@
 #include "cinn/auto_schedule/auto_tuner.h"
 
 #include <glog/logging.h>
+#include <pybind11/embed.h>
 
 #include <algorithm>
 #include <memory>

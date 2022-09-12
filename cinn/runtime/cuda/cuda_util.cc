@@ -146,7 +146,7 @@ SerialData::SerialData() {}
 SerialData::~SerialData() {}
 
 void cinn_call_cuda_kernel(void *kernel_fn,
-                           cinn_pod_value_t *args,
+                           void *v_args,
                            int num_args,
                            int grid_x,
                            int grid_y,
@@ -155,15 +155,16 @@ void cinn_call_cuda_kernel(void *kernel_fn,
                            int block_y,
                            int block_z,
                            void *stream) {
-  // prepare void**
-  VLOG(3) << "In cinn_call_cuda_kernel, grid_dim={" << grid_x << ", " << grid_y << ", " << grid_z << "}, block_dim={"
+  VLOG(3) << "cinn_call_cuda_kernel, grid_dim={" << grid_x << ", " << grid_y << ", " << grid_z << "}, block_dim={"
           << block_x << ", " << block_y << ", " << block_z << "}, num_args=" << num_args << ", stream=" << stream;
-  std::vector<void *> arr;
-  for (int i = 0; i < num_args; i++) {
-    if (args[i].type_code() == ::cinn_type_code<cinn_buffer_t *>()) {
-      arr.emplace_back(&((cinn_buffer_t *)(args[i]))->memory);  // NOLINT
+
+  std::vector<void *> kernel_args;
+  cinn_pod_value_t *args = static_cast<cinn_pod_value_t *>(v_args);
+  for (int idx = 0; idx < num_args; ++idx) {
+    if (args[idx].type_code() == ::cinn_type_code<cinn_buffer_t *>()) {
+      kernel_args.push_back(&((cinn_buffer_t *)(args[idx]))->memory);
     } else {
-      arr.emplace_back(args[i].data_addr());
+      kernel_args.push_back(args[idx].data_addr());
     }
   }
   CUDA_DRIVER_CALL(cuLaunchKernel(static_cast<CUfunction>(kernel_fn),
@@ -175,7 +176,7 @@ void cinn_call_cuda_kernel(void *kernel_fn,
                                   block_z,
                                   0,  // share memory
                                   static_cast<CUstream>(stream),
-                                  reinterpret_cast<void **>(arr.data()),
+                                  kernel_args.data(),
                                   nullptr))
 }
 

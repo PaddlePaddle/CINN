@@ -181,8 +181,20 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
       std::string buffer_id =
           (*global_tensor_map_)[tensor_name]->buffer->name + "_" + var_->name + "_" + std::to_string(index);
       if (resized_buffer_.count(buffer_id) != 0) {
-        std::vector<Expr> buffer_shape               = IRCopy((*global_tensor_map_)[tensor_name]->buffer->shape);
-        (*global_tensor_map_).at(tensor_name)->shape = buffer_shape;
+        auto buffer_name = (*global_tensor_map_).at(tensor_name)->buffer->name;
+        VLOG(3) << buffer_id << " already resized! " << buffer_name << " 's shape is : ";
+        std::vector<Expr> buffer_shape = IRCopy(buffer_shape_map_[buffer_name]);
+        for (auto i : buffer_shape) VLOG(3) << i;
+        (*global_tensor_map_).at(tensor_name)->shape         = buffer_shape;
+        (*global_tensor_map_).at(tensor_name)->buffer->shape = IRCopy(buffer_shape);
+        VLOG(3) << (*global_tensor_map_).at(tensor_name)->name << " 's shape is : ";
+        for (auto i : (*global_tensor_map_).at(tensor_name)->shape) VLOG(3) << i;
+        for (auto i : *global_tensor_map_) {
+          if (i.second->buffer.defined() && i.second->buffer->name == buffer_name) {
+            VLOG(3) << i.second->name << " 's buffer " << i.second->buffer->name << " shape is : ";
+            for (auto j : i.second->buffer->shape) VLOG(3) << j;
+          }
+        }
         return;
       }
       auto buffer_shape              = IRCopy((*global_tensor_map_)[tensor_name]->buffer->shape);
@@ -225,9 +237,15 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
       (*global_tensor_map_).at(tensor_name)->shape = tensor_shape;
 
       resized_buffer_.insert(buffer_id);
-      (*global_tensor_map_)[tensor_name]->buffer->shape = IRCopy(tensor_shape);
-      VLOG(3) << tensor_name << " tensor and buffer's New Shape is : ";
-      for (auto& i : tensor_shape) {
+      (*global_tensor_map_)[tensor_name]->buffer->shape                   = IRCopy(tensor_shape);
+      buffer_shape_map_[(*global_tensor_map_)[tensor_name]->buffer->name] = tensor_shape;
+      VLOG(3) << tensor_name << " tensor and buffer " << (*global_tensor_map_).at(tensor_name)->buffer->name
+              << "'s New Shape is : ";
+      for (auto& i : (*global_tensor_map_).at(tensor_name)->shape) {
+        VLOG(3) << i;
+      }
+      VLOG(3) << "Check buffer shape";
+      for (auto& i : (*global_tensor_map_).at(tensor_name)->buffer->shape) {
         VLOG(3) << i;
       }
     } else {
@@ -391,6 +409,7 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
 
  private:
   std::map<std::string, ir::Tensor>* global_tensor_map_;
+  std::map<std::string, std::vector<Expr>> buffer_shape_map_;
   std::unordered_set<std::string>& resized_buffer_;
   const Var& var_;
   const Expr& expr_;
@@ -412,6 +431,7 @@ void CUDAReplaceIndexOfCachePass(Expr* source,
   if (extent.defined() && !extent.is_constant()) {
     VLOG(3) << "Warning! The extent " << extent << " is not constant in CUDAReplaceIndexOfCachePass!";
   }
+  VLOG(3) << "CUDAReplaceIndexOfCachePass visit " << *source;
   ReplaceVarIndexOfCacheMutator mutator(var, expr, global_tensor_map, resized_buffer, blockidx, extent, tensor_name);
   mutator.Execute(source);
 }

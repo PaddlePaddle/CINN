@@ -26,9 +26,5 @@ std::tuple<ir::Module, ir::Module> SplitCudaAndHostModule(ir::Module module) {
   return visitor(&expr);
 }
 
-bool detail::CollectHostFunctionVisitor::IsCudaFunction(const ir::_LoweredFunc_* func) {
-  return func->device_api == ir::DeviceAPI::GPU;
-}
-
 }  // namespace backends
 }  // namespace cinn

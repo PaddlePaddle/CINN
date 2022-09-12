@@ -63,7 +63,7 @@ void Instruction::UpdateArgsCache(const std::map<std::string, cinn_pod_value_t>*
 }
 
 void Instruction::Finalize() {
-  if (fn_.size() > 1 && fn_.size() != in_args_.size()) {
+  if (fn_ptrs_.size() > 1 && fn_ptrs_.size() != in_args_.size()) {
     out_args_.back()[0] = out_args_.front()[0];
     out_args_.erase(out_args_.begin());
     in_args_.erase(in_args_.begin());
@@ -105,17 +105,20 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
     runtime::cuda::cinn_gpu_cublas_gemm(
         attrs, pod_args[0], pod_args[1], nullptr, pod_args[2], static_cast<cudaStream_t>(stream));
   } else {
-    int i = 0;
-    VLOG(2) << "Runing extern function " << function_name_;
-    for (auto& it_fn : fn_) {
-      VLOG(6) << "Runing it_fn " << fn_names_[i];
-      auto& pod_args = args_cached_[i];
-      CHECK(it_fn) << "The LoweredFunc address should be set first by calling SetLoweredFunc method";
+    VLOG(3) << "Runing extern function " << function_name_;
+    for (int idx = 0; idx < fn_ptrs_.size(); ++idx) {
+      VLOG(3) << "Runing func name: " << fn_names_[idx];
+      auto& pod_args = args_cached_[idx];
+      CHECK(fn_ptrs_[idx]) << "The LoweredFunc address should be set first by calling SetLoweredFunc method";
       if (!dryrun) {
-        it_fn(pod_args.data(), pod_args.size());
+        if (target_ == common::DefaultNVGPUTarget()) {
+          ((lower_func_ptr_g)fn_ptrs_[idx])(static_cast<void*>(pod_args.data()), pod_args.size(), stream);
+        } else {
+          ((lower_func_ptr_t)fn_ptrs_[idx])(static_cast<void*>(pod_args.data()), pod_args.size());
+        }
       }
-      i++;
     }
+    VLOG(3) << "Done Runing extern function " << function_name_;
   }
 #elif defined(CINN_WITH_CUDNN)
   auto& pod_args = args_cached_[0];
@@ -175,30 +178,36 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
     runtime::cuda::cinn_gpu_cublas_gemm(
         attrs, pod_args[0], pod_args[1], nullptr, pod_args[2], static_cast<cudaStream_t>(stream));
   } else {
-    int i = 0;
     VLOG(3) << "Runing extern function " << function_name_;
-    for (auto& it_fn : fn_) {
-      auto& pod_args = args_cached_[i];
-      CHECK(it_fn) << "The LoweredFunc address should be set first by calling SetLoweredFunc method";
+    for (int idx = 0; idx < fn_ptrs_.size(); ++idx) {
+      VLOG(3) << "Runing func name: " << fn_names_[idx];
+      auto& pod_args = args_cached_[idx];
+      CHECK(fn_ptrs_[idx]) << "The LoweredFunc address should be set first by calling SetLoweredFunc method";
       if (!dryrun) {
-        it_fn(pod_args.data(), pod_args.size());
+        if (target_ == common::DefaultNVGPUTarget()) {
+          ((lower_func_ptr_g)fn_ptrs_[idx])(static_cast<void*>(pod_args.data()), pod_args.size(), stream);
+        } else {
+          ((lower_func_ptr_t)fn_ptrs_[idx])(static_cast<void*>(pod_args.data()), pod_args.size());
+        }
       }
-      i++;
     }
     VLOG(3) << "Done Runing extern function " << function_name_;
   }
 #else
-  int i = 0;
-  CHECK_EQ(fn_names_.size(), fn_.size());
-  VLOG(3) << "fn_ size is " << fn_.size() << ", function_name_ is : " << function_name_;
-  for (auto& it_fn : fn_) {
-    auto& pod_args = args_cached_[i];
-    CHECK(it_fn) << "The LoweredFunc address should be set first by calling SetLoweredFunc method";
+  VLOG(3) << "Runing extern function " << function_name_;
+  for (int idx = 0; idx < fn_ptrs_.size(); ++idx) {
+    VLOG(3) << "Runing func name: " << fn_names_[idx];
+    auto& pod_args = args_cached_[idx];
+    CHECK(fn_ptrs_[idx]) << "The LoweredFunc address should be set first by calling SetLoweredFunc method";
     if (!dryrun) {
-      it_fn(pod_args.data(), pod_args.size());
+      if (target_ == common::DefaultNVGPUTarget()) {
+        ((lower_func_ptr_g)fn_ptrs_[idx])(static_cast<void*>(pod_args.data()), pod_args.size(), stream);
+      } else {
+        ((lower_func_ptr_t)fn_ptrs_[idx])(static_cast<void*>(pod_args.data()), pod_args.size());
+      }
     }
-    i++;
   }
+  VLOG(3) << "Done Runing extern function " << function_name_;
 #endif
   utils::ProfilerRangePop();
 

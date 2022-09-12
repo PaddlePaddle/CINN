@@ -32,22 +32,14 @@ using namespace frontend;
 void CodeGen(ir::LoweredFunc& func) {
 #ifdef CINN_WITH_CUDA
   auto target = common::DefaultNVGPUTarget();
-  Module::Builder builder("Module_Builder", target);
+  Module::Builder builder("module_builder", target);
+
   builder.AddFunction(func);
+  auto module   = builder.Build();
+  auto compiler = backends::Compiler::Create(target);
 
-  auto module                    = builder.Build();
-  auto host_module_device_module = backends::SplitCudaAndHostModule(module);
-  auto& host_module              = std::get<0>(host_module_device_module);
-  auto& device_module            = std::get<1>(host_module_device_module);
-
-  backends::CodeGenCUDA_Dev codegen(target);
-  auto source_code = codegen.Compile(builder.Build());
-  LOG(INFO) << "compiled code of " << func->name << "is:\n\n\n" << source_code;
-
-  // nv jit compile to ptx
-  backends::NVRTC_Compiler compiler;
-  auto ptx = compiler(source_code);
-  CHECK(!ptx.empty());
+  std::string code = "";
+  compiler->Build(module, code);
 #else
   auto target = common::DefaultHostTarget();
   ir::Module::Builder builder("Module_Builder", target);
@@ -511,6 +503,33 @@ TEST(OP_LOWERING, Reduce_Test_9) {
   {
     auto A = net_builder.CreateInput(Float(32), {n, c, h, w}, "A");
     auto B = net_builder.Reduce(A, ReduceKind::kSum, {0, 2, 3});
+  }
+
+  auto program = net_builder.Build();
+  auto target  = common::DefaultTarget();
+  RunDecomposer(&program, target);
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+
+  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
+  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
+
+  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
+  for (auto& fusion_op : graph->fusion_groups) {
+    auto lowered_func = op_lowerer.Lower(fusion_op);
+    CHECK_EQ(lowered_func.size(), 1);
+    CodeGen(lowered_func[0]);
+  }
+}
+
+TEST(OP_LOWERING, Reduce_Test_10) {
+  int n = 16, c = 16, h = 32, w = 32;
+  NetBuilder net_builder("Reduce_Test_10");
+  // create model
+  {
+    auto A = net_builder.CreateInput(Float(32), {n, c, h, w}, "A");
+    auto B = net_builder.Reduce(A, ReduceKind::kSum, {1});
   }
 
   auto program = net_builder.Build();
