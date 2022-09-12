@@ -270,6 +270,14 @@ Variable NetBuilder::Arange(const float start, const float stop, const float ste
   return instr.GetOutput(0);
 }
 
+Variable NetBuilder::Flip(const Variable& operand, const std::vector<int>& axes) {
+  Instruction instr("flip", {operand});
+  instr.SetAttr("axes", axes);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
 // conv2d grad, output(grad_x, grad_w)
 std::vector<Variable> NetBuilder::Conv2dGrad(const Variable& dy,
                                              const Variable& x,

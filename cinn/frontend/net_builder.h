@@ -175,6 +175,11 @@ class NetBuilder : public BaseBuilder {
 
   Variable Arange(const float start, const float stop, const float step, const std::string& dtype);
 
+  /**
+   * This API flipes the Variable x along the given axis.
+   */
+  Variable Flip(const Variable& operand, const std::vector<int>& axes);
+
   // conv2d grad, output(grad_x, grad_w)
   std::vector<Variable> Conv2dGrad(const Variable& dy,
                                    const Variable& x,
