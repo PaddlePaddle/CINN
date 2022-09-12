@@ -206,7 +206,6 @@ __device__ inline bool cinn_block_reduce_any(const bool *buf, int offset, int ex
     }                                                                    \
     return -1;                                                           \
   } while (0)
-extern "C" {
 
 __device__ inline int cinn_cuda_find_int(const int *buf, int size, int num) {
   __cinn_cuda_find_kernel(buf, size, num, 0, 1);
@@ -222,7 +221,6 @@ __device__ inline int cinn_cuda_find_int_nd(const int *buf, int size, int num, i
 
 __device__ inline int cinn_cuda_find_float_nd(const float *buf, int size, float num, int begin, int stride) {
   __cinn_cuda_find_kernel(buf, size, num, begin, stride);
-}
 }
 
 #undef __cinn_cuda_find_kernel

@@ -37,7 +37,6 @@
 #include "cinn/ir/tensor.h"
 #include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"
-
 DECLARE_bool(cinn_ir_schedule);
 
 namespace cinn {
@@ -52,9 +51,15 @@ ir::Tensor Gather(const ir::Tensor &A, const ir::Tensor &B, const int &axis, con
   auto res = Compute(
       B->shape,
       [=](const std::vector<Expr> &indices) {
-        std::vector<Expr> A_indices(indices);
-        A_indices[axis] = B(indices);
-        return lang::Identity(A(A_indices));
+        std::vector<Expr> A_indices;
+        for (int i = 0; i < axis; ++i) {
+          A_indices.push_back(indices[i]);
+        }
+        A_indices.push_back(ir::Cast::Make(Int(32), B(indices)));
+        for (size_t i = axis + 1; i < A->shape.size(); ++i) {
+          A_indices.push_back(indices[i]);
+        }
+        return A(A_indices);
       },
       name);
   return res;
@@ -72,7 +77,7 @@ ir::Tensor GatherNd(const ir::Tensor &A, const ir::Tensor &B, const std::vector<
           A_indices[axes[i]] = B(B_indices);
           B_indices.pop_back();
         }
-        return lang::Identity(A(A_indices));
+        return A(A_indices);
       },
       name);
   return res;
@@ -90,10 +95,10 @@ std::shared_ptr<framework::OpStrategy> StrategyForGather(const framework::NodeAt
 
   framework::CINNCompute gather_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input arguments of " << op_name << " compute is empty! Please check.\n";
-    CINNValuePack a = args[0];
-    CHECK_EQ(a.size(), 2U) << "2 input tensors for " << op_name << " compute\n";
-    Expr A = a[0];
-    Expr B = a[1];
+    CINNValuePack pack_args = args[0];
+    CHECK_GE(pack_args.size(), 2U) << "2 input tensors for " << op_name << " compute\n";
+    Expr A = pack_args[0];
+    Expr B = pack_args[1];
     CHECK(A.as_tensor());
     CHECK(B.as_tensor());
     CHECK(!output_shapes.empty());
@@ -102,7 +107,12 @@ std::shared_ptr<framework::OpStrategy> StrategyForGather(const framework::NodeAt
     auto stages   = CreateStages({tensor_A, tensor_B});
     VLOG(3) << "A shape: " << utils::Join(tensor_A->shape, ", ") << ", B shape: " << utils::Join(tensor_B->shape, ", ")
             << ", output_shapes: " << utils::Join(output_shapes[0], ", ");
-    ir::Tensor out = Gather(tensor_A, tensor_B, axis, UniqName("Gather_out"));
+    std::string tensor_name = UniqName("Gather_out");
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK_EQ(pack_args.size(), 3U);
+      tensor_name = pack_args[2].operator std::string();
+    }
+    ir::Tensor out = Gather(tensor_A, tensor_B, axis, tensor_name);
     std::vector<CINNValue> res;
     stages->InsertLazily(out);
     res.push_back(CINNValue(out));
@@ -111,9 +121,16 @@ std::shared_ptr<framework::OpStrategy> StrategyForGather(const framework::NodeAt
     *ret = CINNValuePack{res};
   });
 
+  framework::CINNSchedule gather_schedule([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of gather schedule is empty! Please check.\n";
+    CINNValuePack arg_pack = args[0];
+    Expr out               = arg_pack[0];
+    CHECK(out.as_tensor());
+    *ret = arg_pack;
+  });
+
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(
-      gather_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.gather.x86", 1);
+  strategy->AddImpl(gather_compute, gather_schedule, "strategy.gather.x86", 1);
   return strategy;
 }
 
@@ -129,10 +146,10 @@ std::shared_ptr<framework::OpStrategy> StrategyForGatherNd(const framework::Node
 
   framework::CINNCompute gather_nd_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input arguments of " << op_name << " compute is empty! Please check.\n";
-    CINNValuePack a = args[0];
-    CHECK_EQ(a.size(), 2U) << "2 input tensors for " << op_name << " compute\n";
-    Expr A = a[0];
-    Expr B = a[1];
+    CINNValuePack pack_args = args[0];
+    CHECK_GE(pack_args.size(), 2U) << "2 input tensors for " << op_name << " compute\n";
+    Expr A = pack_args[0];
+    Expr B = pack_args[1];
     CHECK(A.as_tensor());
     CHECK(B.as_tensor());
     CHECK(!output_shapes.empty());
@@ -141,7 +158,12 @@ std::shared_ptr<framework::OpStrategy> StrategyForGatherNd(const framework::Node
     auto stages   = CreateStages({tensor_A, tensor_B});
     VLOG(3) << "A shape: " << utils::Join(tensor_A->shape, ", ") << ", B shape: " << utils::Join(tensor_B->shape, ", ")
             << ", output_shapes: " << utils::Join(output_shapes[0], ", ");
-    ir::Tensor out = GatherNd(tensor_A, tensor_B, axes, UniqName("GatherNd_out"));
+    std::string tensor_name = UniqName("GatherNd_out");
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK_EQ(pack_args.size(), 3U);
+      tensor_name = pack_args[2].operator std::string();
+    }
+    ir::Tensor out = GatherNd(tensor_A, tensor_B, axes, tensor_name);
     std::vector<CINNValue> res;
     stages->InsertLazily(out);
     res.push_back(CINNValue(out));

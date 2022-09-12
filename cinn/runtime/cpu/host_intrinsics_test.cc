@@ -69,9 +69,12 @@ TEST(tanh, basic) {
 TEST(find_value_nd, basic) {
   Expr M(10), N(20);
   Placeholder<float> x("x", {M, N});
-  auto y = Compute({N}, [&](Expr i) {
-    return CallExtern("cinn_host_find_float_nd", {x, M, x({Expr(5), Expr(3)}), i, N});
-  });
+  auto y = Compute(
+      {N},
+      [&](Expr i) {
+        return CallExtern("cinn_host_find_float_nd", {x, M, x({Expr(5), Expr(3)}), i, N});
+      },
+      "y");
 
   auto stages = CreateStages({y});
 

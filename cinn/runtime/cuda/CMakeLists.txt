@@ -12,5 +12,4 @@ gather_srcs(cinnapi_src SRCS
         )
 
 nv_test(test_cuda_module SRCS cuda_module_test.cc DEPS cinncore)
-nv_test(test_cuda_intrinsics SRCS cuda_intrinsics_test.cc DEPS cinncore)
 nv_library(cuda_runtime SRCS cinn_cuda_runtime_source.cuh)

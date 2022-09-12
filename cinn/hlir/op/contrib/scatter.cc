@@ -181,11 +181,11 @@ std::shared_ptr<framework::OpStrategy> StrategyForScatter(const framework::NodeA
 
   framework::CINNCompute scatter_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input arguments of " << op_name << " compute is empty! Please check.\n";
-    CINNValuePack a = args[0];
-    CHECK_EQ(a.size(), 3U) << "3 input tensors for " << op_name << " compute\n";
-    Expr A = a[0];
-    Expr B = a[1];
-    Expr C = a[2];
+    CINNValuePack pack_args = args[0];
+    CHECK_GE(pack_args.size(), 3U) << "3 input tensors for " << op_name << " compute\n";
+    Expr A = pack_args[0];
+    Expr B = pack_args[1];
+    Expr C = pack_args[2];
     CHECK(A.as_tensor());
     CHECK(B.as_tensor());
     CHECK(C.as_tensor());
@@ -196,7 +196,12 @@ std::shared_ptr<framework::OpStrategy> StrategyForScatter(const framework::NodeA
     auto stages   = CreateStages({tensor_A, tensor_B, tensor_C});
     VLOG(3) << "A shape: " << utils::Join(tensor_A->shape, ", ") << ", B shape: " << utils::Join(tensor_B->shape, ", ")
             << ", output_shapes: " << utils::Join(output_shapes[0], ", ");
-    ir::Tensor out = Scatter(tensor_A, tensor_B, tensor_C, target, axis, UniqName("Scatter_out"));
+    std::string tensor_name = UniqName("Scatter_out");
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK_EQ(pack_args.size(), 4U);
+      tensor_name = pack_args[3].operator std::string();
+    }
+    ir::Tensor out = Scatter(tensor_A, tensor_B, tensor_C, target, axis, tensor_name);
     std::vector<CINNValue> res;
     stages->InsertLazily(out);
     res.push_back(CINNValue(out));
@@ -223,11 +228,11 @@ std::shared_ptr<framework::OpStrategy> StrategyForScatterNd(const framework::Nod
 
   framework::CINNCompute scatter_nd_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input arguments of " << op_name << " compute is empty! Please check.\n";
-    CINNValuePack a = args[0];
-    CHECK_EQ(a.size(), 3U) << "3 input tensors for " << op_name << " compute\n";
-    Expr A = a[0];
-    Expr B = a[1];
-    Expr C = a[2];
+    CINNValuePack pack_args = args[0];
+    CHECK_GE(pack_args.size(), 3U) << "3 input tensors for " << op_name << " compute\n";
+    Expr A = pack_args[0];
+    Expr B = pack_args[1];
+    Expr C = pack_args[2];
     CHECK(A.as_tensor());
     CHECK(B.as_tensor());
     CHECK(C.as_tensor());
@@ -238,7 +243,12 @@ std::shared_ptr<framework::OpStrategy> StrategyForScatterNd(const framework::Nod
     auto stages   = CreateStages({tensor_A, tensor_B, tensor_C});
     VLOG(3) << "A shape: " << utils::Join(tensor_A->shape, ", ") << ", B shape: " << utils::Join(tensor_B->shape, ", ")
             << ", output_shapes: " << utils::Join(output_shapes[0], ", ");
-    ir::Tensor out = ScatterNd(tensor_A, tensor_B, tensor_C, target, axes, UniqName("Scatter_out"));
+    std::string tensor_name = UniqName("ScatterNd_out");
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK_EQ(pack_args.size(), 4U);
+      tensor_name = pack_args[3].operator std::string();
+    }
+    ir::Tensor out = ScatterNd(tensor_A, tensor_B, tensor_C, target, axes, tensor_name);
     std::vector<CINNValue> res;
     stages->InsertLazily(out);
     res.push_back(CINNValue(out));
