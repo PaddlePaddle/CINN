@@ -17,6 +17,7 @@
 #include "cinn/backends/function_prototype.h"
 #include "cinn/common/cas.h"
 #include "cinn/runtime/cuda/cuda_util.h"
+#include "cinn/runtime/custom_function.h"
 
 CINN_REGISTER_HELPER(cuda_intrinsics) {
   auto target = cinn::common::DefaultNVGPUTarget();
@@ -258,6 +259,15 @@ CINN_REGISTER_HELPER(cinn_call_cuda_kernel) {
       .AddInputType<int>()     // block_y
       .AddInputType<int>()     // block_z
       .AddInputType<void *>()  // stream
+      .End();
+
+  using cinn::runtime::cinn_assert_true;
+  REGISTER_EXTERN_FUNC_HELPER(cinn_assert_true, cinn::common::DefaultHostTarget())
+      .SetRetType<void>()
+      .AddInputType<void *>()       // v_args
+      .AddInputType<std::string>()  // msg
+      .AddInputType<bool>()         // only_warning
+      .AddInputType<void *>()       // stream
       .End();
 
   return true;

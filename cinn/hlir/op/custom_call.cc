@@ -309,6 +309,21 @@ std::vector<ir::Expr> CustomCallArgsForCudnnPoolBackward(const framework::NodeAt
   return args;
 }
 
+std::vector<ir::Expr> CustomCallArgsForAssertTrue(const framework::NodeAttr &attrs,
+                                                  const std::vector<ir::Tensor> &inputs,
+                                                  const std::vector<std::vector<int>> &output_shapes) {
+  CHECK_EQ(inputs.size(), 1UL);
+  CHECK_EQ(output_shapes.size(), 1UL);
+  auto attr_store = attrs.attr_store;
+  CHECK(attr_store.count("msg"));
+  auto msg          = absl::get<std::string>(attr_store.at("msg"));
+  auto only_warning = attr_store.count("only_warning") ? absl::get<bool>(attrs.attr_store.at("only_warning")) : false;
+
+  std::vector<ir::Expr> args = {ir::Expr(msg), ir::Expr(only_warning)};
+
+  return args;
+}
+
 bool RegisteryCustomCallArgsFunc() {
 #ifdef CINN_WITH_CUDA
   CustomCallArgsFuncRegistry::Global().Register(
@@ -335,6 +350,10 @@ bool RegisteryCustomCallArgsFunc() {
 #ifdef CINN_WITH_MKL_CBLAS
 
 #endif
+
+  CustomCallArgsFuncRegistry::Global().Register(
+      "cinn_assert_true", common::DefaultTarget(), CustomCallArgsForAssertTrue);
+
   return true;
 }
 
