@@ -23,7 +23,6 @@
 #include <vector>
 
 #include "cinn/common/target.h"
-#include "cinn/frontend/cinn_builder.h"
 #include "cinn/frontend/decomposer/test_helper.h"
 #include "cinn/frontend/decomposer/use_decomposer.h"
 #include "cinn/frontend/decomposer_registry.h"

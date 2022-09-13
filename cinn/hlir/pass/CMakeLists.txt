@@ -11,6 +11,7 @@ gather_srcs(cinnapi_src SRCS
     dot_merger.cc
     check_fusion_accuracy_pass_util.cc
     check_fusion_accuracy_pass.cc
+    custom_call_pass.cc
     )
 
 cc_test(test_opfusion SRCS opfusion_test.cc DEPS cinncore)

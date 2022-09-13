@@ -69,12 +69,14 @@ class OpLowerer {
             const absl::flat_hash_map<std::string, shape_t>&,
             const Target&);
   std::vector<ir::LoweredFunc> Lower(GroupPtr& group);
+  std::vector<ir::LoweredFunc> LowerWithOutSchedule(GroupPtr& group);
 
  private:
   std::vector<ir::LoweredFunc> LowerOp(ComputeFunction, ScheduleFunction, GroupPtr&);
   std::vector<ir::LoweredFunc> LowerOpaqueOp(GroupPtr&);
   std::vector<ir::LoweredFunc> IRLowerOp(IRComputeFunction, IRScheduleFunction, GroupPtr&);
   std::vector<ir::LoweredFunc> IRLowerOpaqueOp(GroupPtr&);
+  std::vector<ir::LoweredFunc> IRLowerOpWithOutSchedule(IRComputeFunction, GroupPtr&);
 #define DEFINE_IR_COMPUTE_SCHDULE(type)                                                        \
   std::vector<Expr> IR##type##Compute(poly::StageMap& stages,                                  \
                                       std::vector<ir::Tensor>& func_args,                      \

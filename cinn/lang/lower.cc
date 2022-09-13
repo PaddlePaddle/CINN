@@ -82,8 +82,8 @@ std::vector<ir::Buffer> GetTempBuffers(const std::vector<Tensor>& tensor_args,
       buffer_arg_names.insert(tensor->buffer->name);
     }
   }
-  std::unordered_set<std::string> temp_buffer_names;  // used to avoid duplication.
-  std::vector<ir::Buffer> temp_buffers;
+  std::map<std::string, ir::Buffer> name_to_buffer;  // used to avoid duplication.
+
   auto all_temp_tensors = ir::CollectIRNodesWithoutTensor(body, [&](const Expr* x) {
     return x->as_tensor() && x->as_tensor()->buffer.defined() &&
            (!stage_map->Lookup(x->as_tensor()->name) || !stage_map[x->as_tensor()]->inlined()) &&
@@ -91,11 +91,17 @@ std::vector<ir::Buffer> GetTempBuffers(const std::vector<Tensor>& tensor_args,
             utils::Endswith(x->as_tensor()->buffer->name, "temp_buffer"));
   });
   for (auto& e : all_temp_tensors) {
-    if (!temp_buffer_names.count(e.as_tensor()->buffer->name)) {
-      temp_buffers.push_back(e.as_tensor()->buffer);
-      temp_buffer_names.insert(e.as_tensor()->buffer->name);
+    auto buffer_name = e.as_tensor()->buffer->name;
+    if (!name_to_buffer.count(buffer_name)) {
+      name_to_buffer[buffer_name] = e.as_tensor()->buffer;
+    } else {
+      if (e.as_tensor()->buffer->numel() < name_to_buffer[buffer_name]->numel()) {
+        name_to_buffer[buffer_name] = e.as_tensor()->buffer;
+      }
     }
   }
+  std::vector<ir::Buffer> temp_buffers;
+  for (auto& i : name_to_buffer) temp_buffers.push_back(i.second);
   return temp_buffers;
 }
 

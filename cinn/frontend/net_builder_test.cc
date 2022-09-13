@@ -453,5 +453,77 @@ TEST(net_build, program_execute_squeeze_case3) {
   }
 }
 
+TEST(net_build, program_execute_arange_float) {
+  const float start       = 1.5F;
+  const float stop        = 31.5F;
+  const float step        = 2.0F;
+  const std::string dtype = "float32";
+
+  NetBuilder builder("net_builder");
+  Variable out = builder.Arange(start, stop, step, dtype);
+  auto program = builder.Build();
+
+  Target target = common::DefaultHostTarget();
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  auto scope = BuildScope(target, graph);
+  hlir::framework::GraphCompiler gc(target, scope, graph);
+  auto runtime_program = gc.Build();
+
+  scope->Var<hlir::framework::Tensor>(std::string(out->id));
+
+  runtime_program->Execute();
+
+  auto out_tensor                          = scope->GetTensor(std::string(out->id));
+  const std::vector<int>& out_tensor_shape = out_tensor->shape().data();
+  EXPECT_EQ(out_tensor->type(), Float(32));
+  EXPECT_EQ(out_tensor_shape.size(), 1UL);
+
+  int num_elem = static_cast<int>(std::ceil((stop - start) / step));
+  EXPECT_EQ(out_tensor_shape[0], num_elem);
+
+  float* out_data = out_tensor->mutable_data<float>(target);
+  for (int i = 0; i < out_tensor_shape[0]; ++i) {
+    EXPECT_NEAR(out_data[i], start + step * i, 1e-5);
+    VLOG(6) << out_data[i];
+  }
+}
+
+TEST(net_build, program_execute_arange_int) {
+  const float start       = 1.5F;
+  const float stop        = 31.5F;
+  const float step        = 1.6F;
+  const std::string dtype = "int32";
+
+  NetBuilder builder("net_builder");
+  Variable out = builder.Arange(start, stop, step, dtype);
+  auto program = builder.Build();
+
+  Target target = common::DefaultHostTarget();
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  auto scope = BuildScope(target, graph);
+  hlir::framework::GraphCompiler gc(target, scope, graph);
+  auto runtime_program = gc.Build();
+
+  scope->Var<hlir::framework::Tensor>(std::string(out->id));
+
+  runtime_program->Execute();
+
+  auto out_tensor                          = scope->GetTensor(std::string(out->id));
+  const std::vector<int>& out_tensor_shape = out_tensor->shape().data();
+  EXPECT_EQ(out_tensor->type(), Int(32));
+  EXPECT_EQ(out_tensor_shape.size(), 1UL);
+
+  int num_elem = static_cast<int>(std::ceil((stop - start) / step));
+  EXPECT_EQ(out_tensor_shape[0], num_elem);
+
+  int32_t* out_data = out_tensor->mutable_data<int32_t>(target);
+  for (int i = 0; i < out_tensor_shape[0]; ++i) {
+    EXPECT_EQ(out_data[i], static_cast<int32_t>(start + step * i));
+    VLOG(6) << out_data[i];
+  }
+}
+
 }  // namespace frontend
 }  // namespace cinn

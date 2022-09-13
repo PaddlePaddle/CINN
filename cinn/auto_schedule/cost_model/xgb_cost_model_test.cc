@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cinn/auto_schedule/cost_model/cost_model.h"
+#include "cinn/auto_schedule/cost_model/xgb_cost_model.h"
 
+#include <glog/logging.h>
 #include <gtest/gtest.h>
 #include <pybind11/embed.h>
 
@@ -26,8 +27,7 @@ namespace cinn {
 namespace auto_schedule {
 
 TEST(CostModel, Basic) {
-  pybind11::scoped_interpreter guard{};
-  CostModel cost_model;
+  XgbCostModel cost_model;
 
   srand(time(NULL));
 
@@ -47,15 +47,22 @@ TEST(CostModel, Basic) {
   std::string path = "./test_cost_model.cpp_save_model";
   cost_model.Save(path);
 
-  CostModel load_cost_model;
+  XgbCostModel load_cost_model;
   load_cost_model.Load(path);
   std::vector<float> load_pred = cost_model.Predict(samples);
 
   ASSERT_EQ(pred.size(), load_pred.size());
   for (size_t i = 0; i < pred.size(); ++i) {
     ASSERT_FLOAT_EQ(pred[i], load_pred[i]);
+    VLOG(6) << "pred[" << i << "] = " << pred[i];
   }
   std::remove(path.c_str());
+
+  cost_model.Update(samples, labels);
+  pred = cost_model.Predict(samples);
+  for (size_t i = 0; i < pred.size(); ++i) {
+    VLOG(6) << "pred[" << i << "] = " << pred[i];
+  }
 }
 
 }  // namespace auto_schedule

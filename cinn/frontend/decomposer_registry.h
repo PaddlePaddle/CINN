@@ -19,7 +19,7 @@
 #include <unordered_map>
 
 #include "cinn/common/target.h"
-#include "cinn/frontend/cinn_builder.h"
+#include "cinn/frontend/net_builder.h"
 #include "cinn/frontend/syntax.h"
 
 namespace cinn {
@@ -29,10 +29,10 @@ class Decomposer;
 
 class DecomposerContext {
  public:
-  explicit DecomposerContext(CinnBuilder* builder, absl::flat_hash_map<std::string, Variable>* var_map)
+  explicit DecomposerContext(NetBuilder* builder, absl::flat_hash_map<std::string, Variable>* var_map)
       : builder_(builder), var_map_(var_map) {}
 
-  CinnBuilder* builder() const { return builder_; };
+  NetBuilder* builder() const { return builder_; };
 
   // Map the new var to the original var.
   void MapOutToOrigin(const Variable& new_var, const Variable& ori_var) const {
@@ -45,7 +45,7 @@ class DecomposerContext {
   }
 
  private:
-  CinnBuilder* builder_{nullptr};
+  NetBuilder* builder_{nullptr};
   absl::flat_hash_map<std::string, Variable>* var_map_{nullptr};
 };
 

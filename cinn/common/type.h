@@ -123,6 +123,8 @@ struct Type {
   Type IgnoreConst() const;
   //! Add const.
   Type ConstOf() const;
+  //! Check if a dtype is supported in CINN yet.
+  bool is_supported() const;
 
   friend std::ostream& operator<<(std::ostream& os, const Type& t);
 

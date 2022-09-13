@@ -18,6 +18,7 @@
 
 #include <vector>
 
+#include "cinn/auto_schedule/auto_schedule.pb.h"
 #include "cinn/auto_schedule/search_space/search_state.h"
 #include "cinn/ir/ir_schedule.h"
 
@@ -27,13 +28,13 @@ namespace auto_schedule {
 class TestDatabase : public ::testing::Test {
  public:
   TestDatabase() : test_db(2) {
-    test_db.AddRecord(TuningRecord({"k1", 1.0, SearchState(ir::ModuleExpr())}));
-    test_db.AddRecord(TuningRecord({"k2", 2.0, SearchState(ir::ModuleExpr())}));
-    test_db.AddRecord(TuningRecord({"k2", 3.0, SearchState(ir::ModuleExpr())}));
-    test_db.AddRecord(TuningRecord({"k3", 3.0, SearchState(ir::ModuleExpr())}));
-    test_db.AddRecord(TuningRecord({"k3", 4.0, SearchState(ir::ModuleExpr())}));
-    test_db.AddRecord(TuningRecord({"k3", 5.0, SearchState(ir::ModuleExpr())}));
-    test_db.AddRecord(TuningRecord({"k4", 4.0, SearchState(ir::ModuleExpr())}));
+    test_db.AddRecord(TuningRecord("k1", 1.0, SearchState(ir::ModuleExpr())));
+    test_db.AddRecord(TuningRecord("k2", 2.0, SearchState(ir::ModuleExpr())));
+    test_db.AddRecord(TuningRecord("k2", 3.0, SearchState(ir::ModuleExpr())));
+    test_db.AddRecord(TuningRecord("k3", 3.0, SearchState(ir::ModuleExpr())));
+    test_db.AddRecord(TuningRecord("k3", 4.0, SearchState(ir::ModuleExpr())));
+    test_db.AddRecord(TuningRecord("k3", 5.0, SearchState(ir::ModuleExpr())));
+    test_db.AddRecord(TuningRecord("k4", 4.0, SearchState(ir::ModuleExpr())));
   }
 
   void SetUp() override {}
@@ -59,8 +60,8 @@ TEST_F(TestDatabase, GetTopK) {
   SearchState state2(std::move(ir::ModuleExpr()));
   state1.predicted_cost = 1.2;
   state2.predicted_cost = 1.0;
-  test_db.AddRecord(TuningRecord({"k4", 2.0, state1}));
-  test_db.AddRecord(TuningRecord({"k4", 3.0, state2}));
+  test_db.AddRecord(TuningRecord("k4", 2.0, state1));
+  test_db.AddRecord(TuningRecord("k4", 3.0, state2));
 
   auto states = test_db.GetTopK("k4", 3);
   ASSERT_EQ(states.size(), 2);

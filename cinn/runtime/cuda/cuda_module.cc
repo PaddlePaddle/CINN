@@ -66,6 +66,7 @@ void CUDAModule::LaunchKernel(int device_id,
 }
 
 CUfunction CUDAModule::GetFunction(int device_id, const std::string& func_name) {
+  VLOG(5) << "GetFuncion : " << func_name << " with device_id : " << device_id;
   if (!module_per_card_[device_id]) {
     std::lock_guard<std::mutex> lock(mutex_);
     CUDA_DRIVER_CALL(cuModuleLoadData(&module_per_card_[device_id], data_.c_str()));

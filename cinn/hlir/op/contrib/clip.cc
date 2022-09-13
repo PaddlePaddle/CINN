@@ -121,41 +121,9 @@ std::shared_ptr<OpStrategy> StrategyForClip(const framework::NodeAttr &attrs,
     *ret = CINNValuePack{res};
   });
 
-  framework::CINNSchedule clip_schedule([=](lang::Args args, lang::RetValue *ret) {
-    if (FLAGS_cinn_ir_schedule) {
-      CHECK(!args.empty()) << "The input argument of " << op_name << " schedule is empty! Please check.";
-      CINNValuePack arg_pack = args[0];
-      Expr ast_expr          = arg_pack[0];
-      std::vector<Expr> vec_ast{ast_expr};
-      ir::ModuleExpr mod_expr(vec_ast);
-      ir::IRSchedule ir_sch(mod_expr);
-      if (target.arch == Target::Arch::NVGPU) {
-        pe::IRCudaScheduleInjective(ir_sch, output_shapes.front(), target);
-      } else if (target.arch == Target::Arch::X86) {
-        pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target);
-      }
-      std::vector<CINNValue> res;
-      res.push_back(arg_pack[0]);
-      *ret = CINNValuePack{res};
-    } else {
-      CHECK(!args.empty()) << "The input argument of " << op_name << " schedule is empty! Please check.";
-      CINNValuePack arg_pack = args[0];
-      CHECK_EQ(arg_pack.size(), 2UL);
-      Expr Out              = arg_pack[0];
-      poly::StageMap stages = arg_pack[1];
-      CHECK(Out.as_tensor());
-      if (target.arch == Target::Arch::NVGPU) {
-        pe::CudaScheduleInjective(stages[Out.as_tensor_ref()], output_shapes.front(), target);
-      } else if (target.arch == Target::Arch::X86) {
-        pe::ScheduleInjectiveCPU(stages[Out.as_tensor_ref()], output_shapes.front(), target);
-      }
-      *ret = arg_pack;
-    }
-  });
-
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(clip_compute, clip_schedule, "strategy.clip.x86", 1);
-
+  strategy->AddImpl(clip_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.clip.x86", 1);
+  return strategy;
   return strategy;
 }
 

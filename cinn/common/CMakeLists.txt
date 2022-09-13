@@ -17,6 +17,7 @@ gather_srcs(cinnapi_src SRCS
     arithmatic.cc
     cas.cc
     union_find.cc
+    python_interpreter_guard.cc
     )
 
  message(STATUS "srcs: ${cinnapi_src}")
