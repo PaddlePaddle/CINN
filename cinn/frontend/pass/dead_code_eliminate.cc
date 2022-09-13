@@ -15,7 +15,7 @@
 #include <string>
 #include <unordered_set>
 
-#include "cinn/frontend/cinn_builder.h"
+#include "cinn/frontend/net_builder.h"
 #include "cinn/frontend/program_pass.h"
 
 namespace cinn {
@@ -64,7 +64,7 @@ class DeadCodeEliminatePass : public ProgramPass {
       return;
     }
 
-    CinnBuilder builder("dead_code_eliminate_builder");
+    NetBuilder builder("dead_code_eliminate_builder");
     for (auto& var : program->GetInputs()) {
       builder.CreateInput(var);
     }

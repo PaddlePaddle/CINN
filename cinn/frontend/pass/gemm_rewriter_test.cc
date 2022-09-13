@@ -231,7 +231,7 @@ TEST(GemmRwriter, BatchedComplex) {
   auto m       = builder.Matmul(l, y);
   auto n       = builder.Mul(d, a);
   auto o       = builder.BroadcastTo(n, {16, n->shape[0], n->shape[1]}, {1, 2});
-  auto p       = builder.Sub(f, o);
+  auto p       = builder.Subtract(f, o);
   auto q       = builder.Add(f, m);
   auto out     = builder.Add(p, q);
   auto program = builder.Build();
@@ -261,7 +261,7 @@ TEST(GemmRwriter, Complex) {
   auto l       = builder.Transpose(z, {1, 0});
   auto m       = builder.Matmul(l, y);
   auto n       = builder.Mul(c, a);
-  auto p       = builder.Sub(d, n);
+  auto p       = builder.Subtract(d, n);
   auto q       = builder.Add(d, m);
   auto out     = builder.Add(p, q);
   auto program = builder.Build();

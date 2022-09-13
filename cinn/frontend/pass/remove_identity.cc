@@ -16,7 +16,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "cinn/frontend/cinn_builder.h"
+#include "cinn/frontend/net_builder.h"
 #include "cinn/frontend/program_pass.h"
 #include "glog/logging.h"
 
@@ -57,7 +57,7 @@ class RemoveIdentityPass : public ProgramPass {
       return;
     }
 
-    CinnBuilder builder("remove_identity_builder");
+    NetBuilder builder("remove_identity_builder");
     for (auto& var : program->GetInputs()) {
       builder.CreateInput(var);
     }
