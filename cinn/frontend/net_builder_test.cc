@@ -582,8 +582,8 @@ TEST(net_build, program_execute_one_hot) {
   auto out_tensor                   = scope->GetTensor(std::string(out->id));
   const std::vector<int>& out_shape = out_tensor->shape().data();
   EXPECT_EQ(out_shape.size(), indices_shape.size() + 1);
-  EXPECT_EQ(out_shape[0], indices_shape[0]);
-  EXPECT_EQ(out_shape[1], DEPTH);
+  EXPECT_EQ(out_shape[0], DEPTH);
+  EXPECT_EQ(out_shape[1], indices_shape[0]);
 
   float* out_data = out_tensor->mutable_data<float>(target);
   VLOG(6) << "Visualize out_data";
