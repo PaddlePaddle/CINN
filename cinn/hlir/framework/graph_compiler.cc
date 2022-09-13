@@ -266,15 +266,14 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFuncWithIRSchedule(
   std::vector<ir::Tensor> tensor_inputs;
   std::vector<common::CINNValue> cinn_inputs;
   std::vector<std::string> input_output_nodes;
-  VLOG(3) << "GetOpFunc of op " << node->id();
+  VLOG(3) << "GetOpFunc of op " << node->id() << " with op type " << node->op()->name;
 
   // 1.Collect inputs info and outputs info
   for (auto& i : node->inlinks_in_order(true)) {
     std::string id = i->source()->as<NodeData>()->id();
     auto shape     = shape_dict_.at(id);
     Type dtype     = type_dict_.at(id);
-    CHECK(dtype == Float(32) || dtype.is_bool() || dtype == Int(32) || dtype == Int(64))
-        << "The dtype of node " << id << " is not float or bool or int! Other dtype is not implemented yet.";
+    CHECK(dtype.is_supported()) << "Node " << id << " 's dtype " << dtype << "is not supported yet!";
     ir::Tensor input;
     if (dtype == Float(32)) {
       input = lang::Placeholder<float>(id, shape);
@@ -323,8 +322,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const Node* node) {
     std::string input_id = i->source()->as<NodeData>()->id();
     auto in_shape        = shape_dict.at(input_id);
     Type dtype           = dtype_dict.at(input_id);
-    CHECK(dtype == Float(32) || dtype.is_bool() || dtype == Int(32) || dtype == Int(64))
-        << "The dtype of node " << input_id << " is not float or bool or int! Other dtype is not implemented yet.";
+    CHECK(dtype.is_supported()) << "Node " << input_id << " 's dtype " << dtype << "is not supported yet!";
     ir::Tensor temp;
     if (dtype == Float(32)) {
       temp = lang::Placeholder<float>(input_id, in_shape);
@@ -427,8 +425,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
         std::string input_id = source_data->id();
         auto in_shape        = shape_dict.at(input_id);
         Type dtype           = dtype_dict.at(input_id);
-        CHECK(dtype == Float(32) || dtype.is_bool() || dtype == Int(32) || dtype == Int(64))
-            << "The dtype of node " << input_id << " is not float or bool or int! Other dtype is not implemented yet.";
+        CHECK(dtype.is_supported()) << "Node " << input_id << " 's dtype " << dtype << "is not supported yet!";
         ir::Tensor temp_in;
         if (dtype == Float(32)) {
           temp_in = lang::Placeholder<float>(input_id, in_shape);
@@ -1348,15 +1345,15 @@ std::vector<ir::LoweredFunc> GetFuncFromImpl(const std::shared_ptr<OpImpl>& impl
       auto new_args  = lang::GetArgs(funcs[i]->body, input_output_nodes);
       funcs[i]->args = new_args;
     }
+#ifdef CINN_WITH_CUDA
+    optim::OptimizeExprGPU(&(funcs[i]->body));
+#endif
     auto temp_buffers   = lang::GetTempBuffers(all_arg_tensors, stages, funcs[i]->body);
     funcs[i]->temp_bufs = temp_buffers;
     funcs[i]->PrepareBufferCastExprs();
     res.push_back(funcs[i]);
   }
   for (int i = 0; i < res.size(); i++) {
-#ifdef CINN_WITH_CUDA
-    optim::OptimizeExprGPU(&(res[i]->body));
-#endif
     res[i] = optim::Optimize(Expr(res[i]), target, false).as_lowered_func_ref();
   }
 

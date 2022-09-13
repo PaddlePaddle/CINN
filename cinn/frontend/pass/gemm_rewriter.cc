@@ -17,7 +17,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "cinn/frontend/cinn_builder.h"
+#include "cinn/frontend/net_builder.h"
 #include "cinn/frontend/program_pass.h"
 #include "glog/logging.h"
 
@@ -41,7 +41,7 @@ class GemmRewriterPass : public ProgramPass {
 
     CollectInfo(*prog);
 
-    CinnBuilder builder("gemm_rewriter_builder");
+    NetBuilder builder("gemm_rewriter_builder");
     for (auto& var : prog->GetInputs()) {
       builder.CreateInput(var);
     }
@@ -90,7 +90,7 @@ class GemmRewriterPass : public ProgramPass {
   }
 
   // Fuse the pattern of `matmul + add`
-  bool DoGemmFusion(CinnBuilder* builder, const Instruction& instr, const std::unordered_set<std::string>& fetch_ids) {
+  bool DoGemmFusion(NetBuilder* builder, const Instruction& instr, const std::unordered_set<std::string>& fetch_ids) {
     CHECK_EQ(instr->inputs.size(), 2) << "elementwise should have only two inputs";
     std::vector<Variable> inputs;
     bool trans_a   = false;

@@ -98,6 +98,12 @@ std::vector<Type> InferDtypeForElementwise(const std::vector<Type> &inputs_type,
   return res;
 }
 
+std::vector<Type> InferDtypeForElementwiseBool(const std::vector<Type> &inputs_type,
+                                               const framework::AttrMapType &attrs) {
+  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
+  return {Bool()};
+}
+
 std::vector<std::vector<std::string>> InferLayoutForElementwise(const std::vector<framework::shape_t> &input_shapes,
                                                                 const std::vector<std::string> &input_layouts,
                                                                 const framework::NodeAttr &attrs,
@@ -407,10 +413,6 @@ CINN_REGISTER_HELPER(elementwise_ops) {
   CINN_REGISTER_UNARY(asinh, Asinh);
   CINN_REGISTER_UNARY(atan, Atan);
   CINN_REGISTER_UNARY(atanh, Atanh);
-
-  CINN_REGISTER_UNARY(isnan, IsNan)
-  CINN_REGISTER_UNARY(isfinite, IsFinite)
-  CINN_REGISTER_UNARY(isinf, IsInf)
   CINN_REGISTER_UNARY(bitwise_not, BitwiseNot)
 
   CINN_REGISTER_UNARY(negative, Negative)
@@ -422,6 +424,24 @@ CINN_REGISTER_HELPER(elementwise_ops) {
   CINN_REGISTER_UNARY(sigmoid, Sigmoid)
 
 #undef CINN_REGISTER_UNARY
+
+#define CINN_REGISTER_COMPARE(op__, op_stragegy__)                                                                   \
+  CINN_REGISTER_OP(op__)                                                                                             \
+      .describe(#op__ " function")                                                                                   \
+      .set_num_inputs(1)                                                                                             \
+      .set_num_outputs(1)                                                                                            \
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyFor##op_stragegy__) \
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForElementwise))                              \
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForElementwiseBool))                          \
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForElementwise))                            \
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)  \
+      .set_support_level(4);
+
+  CINN_REGISTER_COMPARE(isnan, IsNan)
+  CINN_REGISTER_COMPARE(isfinite, IsFinite)
+  CINN_REGISTER_COMPARE(isinf, IsInf)
+
+#undef CINN_REGISTER_COMPARE
 
   CINN_REGISTER_OP(scale)
       .describe("Putting scale and bias to the input Tensor")

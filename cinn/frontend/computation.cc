@@ -149,7 +149,7 @@ std::shared_ptr<CinnComputation> CinnComputation::CompilePaddleModel(
 }
 
 std::shared_ptr<CinnComputation> CinnComputation::BuildAndCompile(const Target &target,
-                                                                  BaseBuilder &builder,
+                                                                  NetBuilder &builder,
                                                                   const CompileOptions &options,
                                                                   const std::vector<Variable> &outputs,
                                                                   void *stream) {
