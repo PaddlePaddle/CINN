@@ -57,9 +57,7 @@ struct CollectHostFunctionVisitor : public ir::IRMutator<> {
 
  private:
   void Visit(const ir::_LoweredFunc_* op, Expr* expr) override {
-    auto find_call_nodes = ir::CollectIRNodesWithoutTensor(
-        op->body, [&](const Expr* x) { return x->As<ir::Call>(); }, true);
-    if (!op->cuda_axis_info.valid() && !find_call_nodes.empty()) {
+    if (op->body.As<ir::Call>()) {
       host_module_builder.AddFunction(expr->as_lowered_func_ref());
     } else {
       if (!op->cuda_axis_info.valid()) {
