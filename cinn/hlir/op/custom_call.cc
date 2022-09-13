@@ -119,30 +119,31 @@ std::vector<ir::Expr> CustomCallArgsForCublas(const framework::NodeAttr &attrs,
                                               const std::vector<std::vector<int>> &output_shapes) {
   CHECK_EQ(inputs.size(), 2);
   CHECK_EQ(output_shapes.size(), 1);
+  CHECK_LE(inputs[0]->shape.size(), 4);
+  CHECK_LE(inputs[1]->shape.size(), 4);
 
   auto attr_store = attrs.attr_store;
   bool trans_a    = attr_store.count("trans_a") ? absl::get<bool>(attr_store.at("trans_a")) : false;
   bool trans_b    = attr_store.count("trans_b") ? absl::get<bool>(attr_store.at("trans_b")) : false;
   float alpha     = attr_store.count("alpha") ? absl::get<float>(attr_store.at("alpha")) : 1.0f;
   float beta      = attr_store.count("beta") ? absl::get<float>(attr_store.at("beta")) : 0.0f;
-  // b0 b1
-  int b0 = inputs[0]->shape.size() == 3 ? inputs[0]->shape[0].as_int32() : 1;
-  int b1 = inputs[1]->shape.size() == 3 ? inputs[1]->shape[0].as_int32() : 1;
-  CHECK(b0 == b1 || b0 == 1 || b1 == 1);
-  // m n k
-  int m = trans_a ? inputs[0]->shape[1].as_int32() : inputs[0]->shape[0].as_int32();
-  int n = trans_b ? inputs[1]->shape[0].as_int32() : inputs[1]->shape[1].as_int32();
-  int k = trans_a ? inputs[0]->shape[0].as_int32() : inputs[0]->shape[1].as_int32();
+
+  std::vector<ir::Expr> a_shape = inputs[0]->shape;
+  int insert_1_to_a             = 4 - a_shape.size();
+  for (int idx = 0; idx < insert_1_to_a; ++idx) {
+    a_shape.insert(a_shape.begin(), ir::Expr(1));
+  }
+
+  std::vector<ir::Expr> b_shape = inputs[1]->shape;
+  int insert_1_to_b             = 4 - b_shape.size();
+  for (int idx = 0; idx < insert_1_to_b; ++idx) {
+    b_shape.insert(b_shape.begin(), ir::Expr(1));
+  }
+
   // func args
-  std::vector<ir::Expr> args = {ir::Expr(trans_a),
-                                ir::Expr(trans_b),
-                                ir::Expr(alpha),
-                                ir::Expr(beta),
-                                ir::Expr(b0),
-                                ir::Expr(b1),
-                                ir::Expr(m),
-                                ir::Expr(n),
-                                ir::Expr(k)};
+  std::vector<ir::Expr> args = {ir::Expr(trans_a), ir::Expr(trans_b), ir::Expr(alpha), ir::Expr(beta)};
+  args.insert(args.end(), a_shape.begin(), a_shape.end());
+  args.insert(args.end(), b_shape.begin(), b_shape.end());
   return args;
 }
 #endif

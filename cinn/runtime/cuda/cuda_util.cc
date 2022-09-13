@@ -91,11 +91,14 @@ void cinn_call_cublas(void *v_args,
                       bool trans_b,
                       float alpha,
                       float beta,
-                      int b0,
+                      int a1,
+                      int a2,
+                      int a3,
+                      int a4,
                       int b1,
-                      int m,
-                      int n,
-                      int k,
+                      int b2,
+                      int b3,
+                      int b4,
                       void *stream) {
   CHECK_EQ(num_args, 3);
   cublasHandle_t &cuhandle = CublasHandle::GetInstance().GetCublasHandle();
@@ -106,103 +109,48 @@ void cinn_call_cublas(void *v_args,
   float *A = reinterpret_cast<float *>(args[0].operator cinn_buffer_t *()->memory);
   float *B = reinterpret_cast<float *>(args[1].operator cinn_buffer_t *()->memory);
   float *C = reinterpret_cast<float *>(args[2].operator cinn_buffer_t *()->memory);
-  if (b0 == 1 && b1 == 1) {
-    if (!trans_a && !trans_b) {
-      CUBLAS_CALL(cublasSgemm(cuhandle, CUBLAS_OP_N, CUBLAS_OP_N, n, m, k, &alpha, B, n, A, k, &beta, C, n));
-    } else if (trans_a && !trans_b) {
-      CUBLAS_CALL(cublasSgemm(cuhandle, CUBLAS_OP_N, CUBLAS_OP_T, n, m, k, &alpha, B, n, A, m, &beta, C, n));
-    } else if (!trans_a && trans_b) {
-      CUBLAS_CALL(cublasSgemm(cuhandle, CUBLAS_OP_T, CUBLAS_OP_N, n, m, k, &alpha, B, k, A, k, &beta, C, n));
-    } else {
-      CUBLAS_CALL(cublasSgemm(cuhandle, CUBLAS_OP_T, CUBLAS_OP_T, n, m, k, &alpha, B, k, A, m, &beta, C, n));
-    }
-  } else {
+  int m    = trans_a ? a4 : a3;
+  int n    = trans_b ? b3 : b4;
+  int k    = trans_a ? a3 : a4;
+
+  cublasOperation_t trans_op_a = trans_a ? CUBLAS_OP_T : CUBLAS_OP_N;
+  cublasOperation_t trans_op_b = trans_b ? CUBLAS_OP_T : CUBLAS_OP_N;
+  int lda                      = trans_a ? m : k;
+  int ldb                      = trans_b ? k : n;
+
+  if (a1 * a2 * b1 * b2 == 1) {
+    CUBLAS_CALL(cublasSgemm(cuhandle, trans_op_b, trans_op_a, n, m, k, &alpha, B, ldb, A, lda, &beta, C, n));
+  } else if (a1 * b1 == 1) {
+    CHECK(a2 == b2 || a2 == 1 || b2 == 1);
     int stride_a = 0;
     int stride_b = 0;
-    if (b0 > 1) {
+    if (a2 > 1) {
       stride_a = m * k;
     }
-    if (b1 > 1) {
+    if (b2 > 1) {
       stride_b = n * k;
     }
-
-    if (!trans_a && !trans_b) {
-      CUBLAS_CALL(cublasSgemmStridedBatched(cuhandle,
-                                            CUBLAS_OP_N,
-                                            CUBLAS_OP_N,
-                                            n,
-                                            m,
-                                            k,
-                                            &alpha,
-                                            B,
-                                            n,
-                                            stride_b,
-                                            A,
-                                            k,
-                                            stride_a,
-                                            &beta,
-                                            C,
-                                            n,
-                                            m * n,
-                                            b0 > b1 ? b0 : b1));
-    } else if (trans_a && !trans_b) {
-      CUBLAS_CALL(cublasSgemmStridedBatched(cuhandle,
-                                            CUBLAS_OP_N,
-                                            CUBLAS_OP_T,
-                                            n,
-                                            m,
-                                            k,
-                                            &alpha,
-                                            B,
-                                            n,
-                                            stride_b,
-                                            A,
-                                            m,
-                                            stride_a,
-                                            &beta,
-                                            C,
-                                            n,
-                                            m * n,
-                                            b0 > b1 ? b0 : b1));
-    } else if (!trans_a && trans_b) {
-      CUBLAS_CALL(cublasSgemmStridedBatched(cuhandle,
-                                            CUBLAS_OP_T,
-                                            CUBLAS_OP_N,
-                                            n,
-                                            m,
-                                            k,
-                                            &alpha,
-                                            B,
-                                            k,
-                                            stride_b,
-                                            A,
-                                            k,
-                                            stride_a,
-                                            &beta,
-                                            C,
-                                            n,
-                                            m * n,
-                                            b0 > b1 ? b0 : b1));
-    } else {
-      CUBLAS_CALL(cublasSgemmStridedBatched(cuhandle,
-                                            CUBLAS_OP_T,
-                                            CUBLAS_OP_T,
-                                            n,
-                                            m,
-                                            k,
-                                            &alpha,
-                                            B,
-                                            k,
-                                            stride_b,
-                                            A,
-                                            m,
-                                            stride_a,
-                                            &beta,
-                                            C,
-                                            n,
-                                            m * n,
-                                            b0 > b1 ? b0 : b1));
-    }
+    int batch = std::max(a2, b2);
+    CUBLAS_CALL(cublasSgemmStridedBatched(cuhandle,
+                                          trans_op_b,
+                                          trans_op_a,
+                                          n,
+                                          m,
+                                          k,
+                                          &alpha,
+                                          B,
+                                          ldb,
+                                          stride_b,
+                                          A,
+                                          lda,
+                                          stride_a,
+                                          &beta,
+                                          C,
+                                          n,
+                                          m * n,
+                                          batch));
+  } else {
+    LOG(FATAL) << "Not Support 4D Matmul!";
   }
 }
 

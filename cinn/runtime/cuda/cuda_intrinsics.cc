@@ -269,11 +269,14 @@ CINN_REGISTER_HELPER(cinn_cuda_host_api) {
       .AddInputType<bool>()    // trans_b
       .AddInputType<float>()   // alpha
       .AddInputType<float>()   // beta
-      .AddInputType<int>()     // b0
+      .AddInputType<int>()     // a1
+      .AddInputType<int>()     // a2
+      .AddInputType<int>()     // a3
+      .AddInputType<int>()     // a4
       .AddInputType<int>()     // b1
-      .AddInputType<int>()     // m
-      .AddInputType<int>()     // n
-      .AddInputType<int>()     // k
+      .AddInputType<int>()     // b2
+      .AddInputType<int>()     // b3
+      .AddInputType<int>()     // b4
       .AddInputType<void *>()  // stream
       .End();
 #ifdef CINN_WITH_CUDNN

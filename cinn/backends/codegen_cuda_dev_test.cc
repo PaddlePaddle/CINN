@@ -2906,6 +2906,10 @@ TEST(Cudnn, external_function_cudnn) {
   dev_bufs[1]->memory = reinterpret_cast<uint8_t*>(B_dev);
   dev_bufs[2]->memory = reinterpret_cast<uint8_t*>(C_dev);
 
+  dev_bufs[0]->type.code = cinn_type_code_t::cinn_type_float;
+  dev_bufs[1]->type.code = cinn_type_code_t::cinn_type_float;
+  dev_bufs[2]->type.code = cinn_type_code_t::cinn_type_float;
+
   cudaStream_t stream        = nullptr;
   cinn_pod_value_t v_args[3] = {
       cinn_pod_value_t(dev_bufs[0]), cinn_pod_value_t(dev_bufs[1]), cinn_pod_value_t(dev_bufs[2])};
@@ -2930,6 +2934,9 @@ TEST(Cudnn, external_function_cudnn2) {
   dev_bufs[0]->memory = reinterpret_cast<uint8_t*>(A_dev);
   dev_bufs[1]->memory = reinterpret_cast<uint8_t*>(B_dev);
 
+  dev_bufs[0]->type.code = cinn_type_code_t::cinn_type_float;
+  dev_bufs[1]->type.code = cinn_type_code_t::cinn_type_float;
+
   cudaStream_t stream        = nullptr;
   cinn_pod_value_t v_args[2] = {cinn_pod_value_t(dev_bufs[0]), cinn_pod_value_t(dev_bufs[1])};
   runtime::cuda::cinn_call_cudnn_pool2d_forward(
@@ -2953,6 +2960,9 @@ TEST(Cudnn, external_function_cudnn3) {
   for (int i = 0; i < 2; i++) dev_bufs[i] = new cinn_buffer_t;
   dev_bufs[0]->memory = reinterpret_cast<uint8_t*>(A_dev);
   dev_bufs[1]->memory = reinterpret_cast<uint8_t*>(B_dev);
+
+  dev_bufs[0]->type.code = cinn_type_code_t::cinn_type_float;
+  dev_bufs[1]->type.code = cinn_type_code_t::cinn_type_float;
 
   cudaStream_t stream        = nullptr;
   cinn_pod_value_t v_args[2] = {cinn_pod_value_t(dev_bufs[0]), cinn_pod_value_t(dev_bufs[1])};

@@ -47,11 +47,14 @@ void cinn_call_cublas(void* v_args,
                       bool trans_b,
                       float alpha,
                       float beta,
-                      int b0,
+                      int a1,
+                      int a2,
+                      int a3,
+                      int a4,
                       int b1,
-                      int m,
-                      int n,
-                      int k,
+                      int b2,
+                      int b3,
+                      int b4,
                       void* stream);
 
 #ifdef CINN_WITH_CUDNN
