@@ -26,9 +26,12 @@
 namespace cinn {
 namespace ir {
 
+// ------ Following codes are about `Apply` functions registry of variaous types of ScheduleDesc::Step
 class PackedStepContext;
+// uniformed function prototype of a scheduling operation in IRSchedule
 using StepApplyFunc = std::vector<Expr> (*)(PackedStepContext*);
 
+// format the inputs, attrs, uniformed function of a scheduling step
 class StepKindInfo {
  public:
   // compatible for Registry::EntryType
@@ -44,12 +47,13 @@ class StepKindInfo {
     attrs_ = attrs;
     return *this;
   }
-  // format: CINN_STEP_FUNC(...)
+  // format: APPLY_FUNC_UNIFORM(...)
   StepKindInfo& SetApplyFn(StepApplyFunc&& func) {
     apply_func_ = func;
     return *this;
   }
 
+  // execute the Apply function of this type
   std::vector<Expr> Apply(PackedStepContext* context) const { return apply_func_(context); }
 
  private:
@@ -60,6 +64,7 @@ class StepKindInfo {
   StepApplyFunc apply_func_{nullptr};
 };
 
+// StepKindInfo register for all scheduling steps
 class StepKindRegistry : public Registry<StepKindInfo> {
  public:
   StepKindRegistry() = default;
@@ -68,6 +73,8 @@ class StepKindRegistry : public Registry<StepKindInfo> {
   CINN_DISALLOW_COPY_AND_ASSIGN(StepKindRegistry);
 };
 
+// PackedStepContext is the param of a uniformed `Apply` function, which is used to be an
+// auxiliary structure to interact with in/out arguments of the original scheduling function in IRSchedule
 class PackedStepContext {
  public:
   explicit PackedStepContext(const ScheduleDesc::Step& desc, const StepKindInfo* step_kind, IRSchedule* schedule)
@@ -75,8 +82,10 @@ class PackedStepContext {
     Build(desc, step_kind);
   }
 
+  // get the pointer of current IRSchedule object
   IRSchedule* ScheduleHandler() const { return ir_schedule_; }
 
+  // get the idx-th input whose signature is Expr
   Expr InputAt(size_t idx) const {
     CHECK_LT(idx, input_range_.size()) << "idx overranges";
     const auto& range = input_range_.at(idx);
@@ -84,6 +93,7 @@ class PackedStepContext {
     return inputs_[range.first];
   }
 
+  // get the idx-th input whose signature is `std::vector<Expr>`
   std::vector<Expr> InputsAt(size_t idx) const {
     CHECK_LT(idx, input_range_.size()) << "idx overranges";
     const auto& range = input_range_.at(idx);
@@ -94,6 +104,7 @@ class PackedStepContext {
     return results;
   }
 
+  // get the idx-th attribute value with correct type
   template <typename AttrType>
   const AttrType& AttrAt(size_t idx) const {
     try {
@@ -150,6 +161,8 @@ class PackedStepContext {
 template <typename T>
 struct TypeTag {};
 
+// used for converting a member function of the IRSchedule to be a free function
+// with the first parameter is a pointer to the IRSchedule.
 template <typename F, F f>
 struct FreeFuncConverter;
 
@@ -163,6 +176,7 @@ struct FreeFuncConverter<Return (IRSchedule::*)(Args...) const, impl_fn> {
   static Return Apply(IRSchedule* sch, Args... args) { return (sch->*impl_fn)(std::forward<Args>(args)...); }
 };
 
+// used for formatting scheduling functions with variaous function signatures to be uniformed form
 template <typename F, F f>
 struct ApplyFuncImpl;
 
@@ -176,7 +190,8 @@ struct ApplyFuncImpl<Return (*)(Args...), impl_fn> {
   template <typename... RemainingArgs>
   struct ApplyCallHelper;
 
-  // first argument must be IRSchedule
+  // the signature of input parameters of a scheduling operation only can
+  // be one of IRSchedule, Expr or std::vector<Expr>
   template <typename... Tail>
   struct ApplyCallHelper<IRSchedule*, Tail...> {
     template <int in_idx, int attr_idx, int out_idx>
@@ -268,7 +283,7 @@ struct ApplyFuncImpl<Return (*)(Args...), impl_fn> {
   static ::cinn::ir::StepKindInfo& __step_kind_registrar_##TypeName = \
       ::cinn::ir::StepKindRegistry::Global()->__REGISTER_OR_GET__(#TypeName)
 
-// implement demo step kind
+// register StepKindInfo for every type of scheduling operation
 // clang-format off
 CINN_BUILD_STEP_KIND(GetAllBlocks)
     .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(
@@ -393,10 +408,9 @@ CINN_BUILD_STEP_KIND(Rfactor)
 
 CINN_BUILD_STEP_KIND(MergeExprs)
     .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(&IRSchedule::MergeExprs)));
-
 // clang-format on
 
-// ---- ScheduleDesc
+// ------ Following codes are about member function implement of the ScheduleDesc class
 void AttrVariantToProto(const utils::Attribute& attr, proto::ScheduleDesc_Attr* attr_proto) {
 #define SET_DESC_SINGLE_ITEM(index, built_type, proto_type, proto_field)   \
   case index:                                                              \
@@ -460,11 +474,11 @@ utils::Attribute AttrProtoToVariant(const proto::ScheduleDesc_Attr& attr) {
   return value;
 }
 
-// Expr hash functor
+// Expr hash functor, presents how to hash an Expr
 struct ExprHash {
   size_t operator()(const Expr& e) const { return std::hash<IrNode*>()(e.ptr()); }
 };
-// Expr equal functor
+// Expr equal functor, presents whether a Expr pair is equal
 struct ExprEqual {
   bool operator()(const Expr& lhs, const Expr& rhs) const { return lhs.get() == rhs.get(); }
 };
@@ -480,23 +494,26 @@ void ScheduleDesc::Pop() {
 void ScheduleDesc::Replay(IRSchedule* schedule) const { ReplayWithProto(this->ToProto(), schedule); }
 
 proto::ScheduleDesc ScheduleDesc::ToProto() const {
-  proto::ScheduleDesc desc_proto;
+  // map each Expr to a formatted name (e1, e2, ...)
   absl::flat_hash_map<Expr, std::string, ExprHash, ExprEqual> expr2name;
+  proto::ScheduleDesc desc_proto;
+
   for (auto&& step : steps) {
     auto* step_proto = desc_proto.add_steps();
     step_proto->set_type(step.type);
+    // inputs of a step must refer to Exprs resulted by preceding steps
     for (auto&& param2exprs : step.inputs) {
       const std::string& param_name = param2exprs.first;
       auto* expr_desc               = step_proto->add_inputs();
       expr_desc->set_parameter(param_name);
       for (auto&& expr : param2exprs.second) {
         auto expr_it = expr2name.find(expr);
-        // annotation refer to last
         CHECK(expr_it != expr2name.end()) << "Can't find expr of param_name: " << param_name;
         expr_desc->add_arguments(expr_it->second);
       }
     }
 
+    // each output Expr is represented by a formatted name, to be refered by suceeding steps
     for (auto&& expr : step.outputs) {
       std::string local_name = "e" + std::to_string(expr2name.size());
       expr2name.emplace(expr, local_name);
@@ -521,8 +538,11 @@ std::vector<Expr> ScheduleDesc::ReplayWithProto(const proto::ScheduleDesc& desc_
     return {};
   }
 
-  std::vector<Expr> last_outputs;
+  // map a formatted name (e1, e2, ...) to an Expr
   absl::flat_hash_map<std::string, Expr> name2expr;
+  std::vector<Expr> last_outputs;
+
+  // resotre each scheduling step and apply to the new IRSchedule object
   for (auto&& step_proto : desc_proto.steps()) {
     VLOG(4) << "Replay step:\n" << step_proto.DebugString();
     ScheduleDesc::Step step;

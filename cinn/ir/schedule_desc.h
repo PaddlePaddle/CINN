@@ -27,10 +27,17 @@
 namespace cinn {
 namespace ir {
 
+// A ScheduleDesc descripe the scheduling process of a ir::ModuleExpr, it records
+// all transform/getting operations executed by a corresponding ir::IRSchedule.
+// A ScheduleDesc can be serialized to JSON format and saved to file. For deserializing,
+// it can be re-applied to a new IRSchedule that is initialzied by a semantics-euqal
+// original ir::ModuleExpr, and then achieves the same result.
+
 class ScheduleDesc {
  public:
+  // each operation executed through IRSchedule is recorded as a step
   struct Step {
-    std::string type;
+    std::string type;  // step name
     absl::flat_hash_map<std::string, std::vector<Expr>> inputs;
     utils::AttributeMap attrs;
     std::vector<Expr> outputs;
@@ -41,14 +48,23 @@ class ScheduleDesc {
          std::vector<Expr> outputs_i)
         : type(type_i), inputs(inputs_i), attrs(attrs_i), outputs(outputs_i) {}
   };
-  std::vector<Step> steps;
+  std::vector<Step> steps;  // all operations are recorded in order.
 
-  ScheduleDesc() = default;
-  void Append(Step&& step);
-  void Pop();
-  void Replay(IRSchedule* schedule) const;
-  proto::ScheduleDesc ToProto() const;
+  // Re-applied a scheduling process represented as a proto::ScheduleDesc to a new IRSchedule object
   static std::vector<Expr> ReplayWithProto(const proto::ScheduleDesc& desc_proto, IRSchedule* sch);
+
+  // Append a new step
+  void Append(Step&& step);
+
+  // Pop the last step
+  void Pop();
+
+  // Replay this description to a new IRSchedule that is initialzied
+  // by a semantics-euqal original ModuleExpr
+  void Replay(IRSchedule* schedule) const;
+
+  // convert to a proto::ScheduleDesc object
+  proto::ScheduleDesc ToProto() const;
 };
 
 }  // namespace ir

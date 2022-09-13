@@ -22,6 +22,7 @@ message ScheduleDesc {
     repeated string arguments = 2;
   };
 
+  // Attribute type and value
   message Attr {
     enum DataType {
         BOOLEAN = 0;
@@ -53,5 +54,6 @@ message ScheduleDesc {
       repeated Attr attrs = 4;
   };
 
+  // scheduling operation sequence
   repeated Step steps = 1;
 };
