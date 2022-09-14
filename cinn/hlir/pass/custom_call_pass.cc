@@ -91,27 +91,6 @@ class GraphAlterHelper {
     }
   }
 
-  void AssertTrueToCustomCall() {
-    auto nodes = graph_->CollectNodes([](const common::GraphNode* graph_node) -> bool {
-      if (graph_node->safe_as<Node>()) {
-        auto node = graph_node->safe_as<Node>();
-        if (node->op()->name == "assert_true") {
-          return true;
-        }
-      }
-
-      return false;
-    });
-
-    for (auto gnode : nodes) {
-      auto src = gnode->safe_as<Node>();
-      CHECK(src);
-      auto dst                             = GetCustomCallNode(src);
-      dst->attrs.attr_store["custom_call"] = std::string("cinn_assert_true");
-      Alter(src, dst);
-    }
-  }
-
  private:
   void Alter(Node* src, Node* dst) {
     // input to src
@@ -145,21 +124,15 @@ class GraphAlterHelper {
 };
 
 void MatmulToCustomCallPassInternal(Graph* graph) {
-  VLOG(3) << "MatmulToCustomCallPass...!";
+  VLOG(3) << "OpFusionPass...!";
   GraphAlterHelper(graph).MatmulToCustomCall();
-  VLOG(3) << "MatmulToCustomCallPass Finish...!";
+  VLOG(3) << "OpFusionPass Finish...!";
 }
 
 void ConvToCustomCallPassInternal(Graph* graph) {
-  VLOG(3) << "ConvToCustomCallPass...!";
+  VLOG(3) << "OpFusionPass...!";
   GraphAlterHelper(graph).ConvToCustomCall();
-  VLOG(3) << "ConvToCustomCallPass Finish...!";
-}
-
-void AssertTrueToCustomCallPassInternal(Graph* graph) {
-  VLOG(3) << "AssertTrueToCustomCallPass...!";
-  GraphAlterHelper(graph).AssertTrueToCustomCall();
-  VLOG(3) << "AssertTrueToCustomCallPass Finish...!";
+  VLOG(3) << "OpFusionPass Finish...!";
 }
 
 }  // namespace pass
@@ -176,11 +149,6 @@ CINN_REGISTER_HELPER(CustomCallPass) {
       .describe("This pass which convert conv op to custom call pass.")
       .set_change_structure(false)
       .set_body(cinn::hlir::pass::ConvToCustomCallPassInternal);
-
-  CINN_REGISTER_PASS(AssertTrueToCustomCallPass)
-      .describe("This pass which convert assert_true op to custom call pass.")
-      .set_change_structure(false)
-      .set_body(cinn::hlir::pass::AssertTrueToCustomCallPassInternal);
 
   return true;
 }
