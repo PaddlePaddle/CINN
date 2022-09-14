@@ -32,8 +32,30 @@ DECLARE_bool(cinn_ir_schedule);
 namespace cinn {
 namespace hlir {
 namespace framework {
-
 // Store params from node to instruction
+void AddAttrs(const absl::flat_hash_map<std::string, AttrType>& attrs_store,
+              const std::vector<std::string>& attrs_name,
+              Instruction* instr) {
+  for (auto& attr : attrs_name) {
+    if (attrs_store.find(attr) != attrs_store.end()) {
+      switch (attrs_store.at(attr).index()) {
+        case 2:
+          instr->attrs.push_back(absl::get<int>(attrs_store.at(attr)));
+          break;
+        case 3:
+          instr->str_attrs.push_back(absl::get<std::string>(attrs_store.at(attr)));
+          break;
+        case 5:
+          auto temp = absl::get<std::vector<int>>(attrs_store.at(attr));
+          instr->attrs.insert(instr->attrs.end(), temp.begin(), temp.end());
+          break;
+      }
+    } else {
+      LOG(ERROR) << "Param " << attr << " missed! Please check.";
+    }
+  }
+}
+
 Program::Program(const std::shared_ptr<Scope>& scope, std::vector<std::unique_ptr<Instruction>>&& instrs)
     : scope_(scope) {
   for (auto& ins : instrs) {
@@ -266,14 +288,15 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFuncWithIRSchedule(
   std::vector<ir::Tensor> tensor_inputs;
   std::vector<common::CINNValue> cinn_inputs;
   std::vector<std::string> input_output_nodes;
-  VLOG(3) << "GetOpFunc of op " << node->id() << " with op type " << node->op()->name;
+  VLOG(3) << "GetOpFunc of op " << node->id();
 
   // 1.Collect inputs info and outputs info
   for (auto& i : node->inlinks_in_order(true)) {
     std::string id = i->source()->as<NodeData>()->id();
     auto shape     = shape_dict_.at(id);
     Type dtype     = type_dict_.at(id);
-    CHECK(dtype.is_supported()) << "Node " << id << " 's dtype " << dtype << "is not supported yet!";
+    CHECK(dtype == Float(32) || dtype.is_bool() || dtype == Int(32) || dtype == Int(64))
+        << "The dtype of node " << id << " is not float or bool or int! Other dtype is not implemented yet.";
     ir::Tensor input;
     if (dtype == Float(32)) {
       input = lang::Placeholder<float>(id, shape);
@@ -322,7 +345,8 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const Node* node) {
     std::string input_id = i->source()->as<NodeData>()->id();
     auto in_shape        = shape_dict.at(input_id);
     Type dtype           = dtype_dict.at(input_id);
-    CHECK(dtype.is_supported()) << "Node " << input_id << " 's dtype " << dtype << "is not supported yet!";
+    CHECK(dtype == Float(32) || dtype.is_bool() || dtype == Int(32) || dtype == Int(64))
+        << "The dtype of node " << input_id << " is not float or bool or int! Other dtype is not implemented yet.";
     ir::Tensor temp;
     if (dtype == Float(32)) {
       temp = lang::Placeholder<float>(input_id, in_shape);
@@ -425,7 +449,8 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
         std::string input_id = source_data->id();
         auto in_shape        = shape_dict.at(input_id);
         Type dtype           = dtype_dict.at(input_id);
-        CHECK(dtype.is_supported()) << "Node " << input_id << " 's dtype " << dtype << "is not supported yet!";
+        CHECK(dtype == Float(32) || dtype.is_bool() || dtype == Int(32) || dtype == Int(64))
+            << "The dtype of node " << input_id << " is not float or bool or int! Other dtype is not implemented yet.";
         ir::Tensor temp_in;
         if (dtype == Float(32)) {
           temp_in = lang::Placeholder<float>(input_id, in_shape);
@@ -810,6 +835,50 @@ void GraphCompiler::SetSubKernels(Instruction* instr, const std::string& func_na
   }
 }
 
+void GraphCompiler::BuildCublasInstr(const Node& node, Instruction* instr) const {
+  auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
+  // shape info
+  std::vector<int> shape_sizes;
+  for (auto& in_node : node.inlinks_in_order()) {
+    std::string in_id = in_node->source()->safe_as<NodeData>()->id();
+    auto in_shape     = shape_dict.at(in_id);
+    instr->attrs.insert(instr->attrs.end(), in_shape.begin(), in_shape.end());
+    shape_sizes.push_back(in_shape.size());
+  }
+  // cublas_gemm has three input vars, and its output shape is equal to the input bias.
+  // cublas_matmul only has two input vars, so we should get its output shape from shape_dict.
+  if (node.op()->name == "cublas_matmul") {
+    for (auto& out_node : node.outlinks_in_order()) {
+      std::string out_id = out_node->sink()->safe_as<NodeData>()->id();
+      auto out_shape     = shape_dict.at(out_id);
+      instr->attrs.insert(instr->attrs.end(), out_shape.begin(), out_shape.end());
+      shape_sizes.push_back(out_shape.size());
+    }
+  }
+  instr->attrs.insert(instr->attrs.end(), shape_sizes.begin(), shape_sizes.end());
+  // attribute info
+  bool trans_a = false;
+  if (node.attrs.attr_store.contains("trans_a")) {
+    trans_a = absl::get<bool>(node.attrs.attr_store.at("trans_a"));
+  }
+  instr->attrs.push_back(static_cast<int>(trans_a));
+  bool trans_b = false;
+  if (node.attrs.attr_store.contains("trans_b")) {
+    trans_b = absl::get<bool>(node.attrs.attr_store.at("trans_b"));
+  }
+  instr->attrs.push_back(static_cast<int>(trans_b));
+  bool trans_out = false;
+  if (node.attrs.attr_store.contains("trans_out")) {
+    trans_out = absl::get<bool>(node.attrs.attr_store.at("trans_out"));
+  }
+  instr->attrs.push_back(static_cast<int>(trans_out));
+  float alpha = 1.f;
+  if (node.attrs.attr_store.contains("alpha")) {
+    alpha = absl::get<float>(node.attrs.attr_store.at("alpha"));
+  }
+  instr->attrs.push_back(*reinterpret_cast<int*>(&alpha));
+}
+
 std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions(
     const std::vector<std::vector<Node*>>& groups, const std::vector<std::shared_ptr<Graph::Group>>& fusion_groups) {
   std::vector<std::unique_ptr<Instruction>> instructions;
@@ -846,6 +915,144 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions(
                           fusion_group.get() ? fusion_group->input_names : OpGetInputNames(node),
                           fusion_group.get() ? fusion_group->output_names : OpGetOutputNames(node),
                           instr_name));
+
+      if (target_.arch == Target::Arch::NVGPU) {
+        if (node->op()->name == "conv2d") {
+          auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
+          for (auto& in_node : node->inlinks_in_order()) {
+            std::string in_id = in_node->source()->safe_as<NodeData>()->id();
+            auto in_shape     = shape_dict.at(in_id);
+            instr->attrs.insert(instr->attrs.end(), in_shape.begin(), in_shape.end());
+          }
+          // padding stride dilation  group
+          AddAttrs(node->attrs.attr_store, {"padding", "stride", "dilation"}, instr.get());
+          if (node->attrs.attr_store.find("groups") != node->attrs.attr_store.end()) {
+            auto conv_groups = absl::get<int>(node->attrs.attr_store.at("groups"));
+            instr->attrs.push_back(conv_groups);
+          } else {
+            instr->attrs.push_back(1);
+          }
+          // output shape
+          CHECK(!node->outlinks_in_order().empty());
+          auto& out_node     = node->outlinks_in_order().front();
+          std::string out_id = out_node->sink()->safe_as<NodeData>()->id();
+          auto out_shape     = shape_dict.at(out_id);
+          instr->attrs.insert(instr->attrs.end(), out_shape.begin(), out_shape.end());
+          CHECK_EQ(instr->attrs.size(), 19UL);
+          // conv type {forward, backward_data, backward_filter}
+          std::string type = "forward";
+          if (node->attrs.attr_store.find("conv_type") != node->attrs.attr_store.end()) {
+            type = absl::get<std::string>(node->attrs.attr_store.at("conv_type"));
+          }
+          instr->str_attrs.push_back(type);
+        } else if (node->op()->name == "depthwise_conv2d") {
+          auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
+          for (auto& in_node : node->inlinks_in_order()) {
+            std::string in_id = in_node->source()->safe_as<NodeData>()->id();
+            auto in_shape     = shape_dict.at(in_id);
+            instr->attrs.insert(instr->attrs.end(), in_shape.begin(), in_shape.end());
+          }
+          // conv
+          AddAttrs(node->attrs.attr_store, {"padding", "stride", "dilation"}, instr.get());
+          if (node->attrs.attr_store.find("groups") != node->attrs.attr_store.end()) {
+            auto groups = absl::get<int>(node->attrs.attr_store.at("groups"));
+            instr->attrs.push_back(groups);
+          } else {
+            instr->attrs.push_back(instr->attrs[1]);
+          }
+          // output shape
+          CHECK(!node->outlinks_in_order().empty());
+          auto& out_node     = node->outlinks_in_order().front();
+          std::string out_id = out_node->sink()->safe_as<NodeData>()->id();
+          auto out_shape     = shape_dict.at(out_id);
+          instr->attrs.insert(instr->attrs.end(), out_shape.begin(), out_shape.end());
+          CHECK_EQ(instr->attrs.size(), 19UL);
+          // conv type {forward, backward_data, backward_filter}
+          std::string type = "forward";
+          if (node->attrs.attr_store.find("conv_type") != node->attrs.attr_store.end()) {
+            type = absl::get<std::string>(node->attrs.attr_store.at("conv_type"));
+          }
+          instr->str_attrs.push_back(type);
+        } else if (node->op()->name == "pool2d") {
+          auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
+          for (auto& in_node : node->inlinks_in_order()) {
+            std::string in_id = in_node->source()->safe_as<NodeData>()->id();
+            auto in_shape     = shape_dict.at(in_id);
+            CHECK_EQ(in_shape.size(), 4UL);
+            instr->attrs.insert(instr->attrs.end(), in_shape.begin(), in_shape.end());
+          }
+          bool global_pooling = false;
+          if (node->attrs.attr_store.find("global_pooling") != node->attrs.attr_store.end()) {
+            global_pooling = absl::get<bool>(node->attrs.attr_store.at("global_pooling"));
+          }
+          if (node->attrs.attr_store.find("kernel_size") != node->attrs.attr_store.end()) {
+            if (global_pooling == false) {
+              auto padding = absl::get<std::vector<int>>(node->attrs.attr_store.at("kernel_size"));
+              instr->attrs.insert(instr->attrs.end(), padding.begin(), padding.end());
+            } else {
+              instr->attrs.push_back(instr->attrs[2]);
+              instr->attrs.push_back(instr->attrs[3]);
+            }
+          }
+          if (node->attrs.attr_store.find("padding_size") != node->attrs.attr_store.end()) {
+            if (global_pooling == false) {
+              auto stride = absl::get<std::vector<int>>(node->attrs.attr_store.at("padding_size"));
+              CHECK_EQ(stride.size(), 4UL);
+              instr->attrs.insert(instr->attrs.end(), stride.begin(), stride.end());
+            } else {
+              instr->attrs.push_back(0);
+              instr->attrs.push_back(0);
+              instr->attrs.push_back(0);
+              instr->attrs.push_back(0);
+            }
+          }
+          AddAttrs(node->attrs.attr_store, {"stride_size", "pool_type"}, instr.get());
+
+          for (auto& out_node : node->outlinks_in_order()) {
+            std::string out_id = out_node->sink()->safe_as<NodeData>()->id();
+            auto out_shape     = shape_dict.at(out_id);
+            instr->attrs.insert(instr->attrs.end(), out_shape.begin(), out_shape.end());
+          }
+          if (node->attrs.attr_store.find("adaptive") != node->attrs.attr_store.end()) {
+            bool adaptive = absl::get<bool>(node->attrs.attr_store.at("adaptive"));
+            if (adaptive)
+              instr->attrs.push_back(1);
+            else
+              instr->attrs.push_back(0);
+          }
+          CHECK_EQ(instr->attrs.size(), 17UL);
+          CHECK_EQ(instr->str_attrs.size(), 1UL);
+        } else if (node->op()->name == "softmax") {
+          auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
+          for (auto& in_node : node->inlinks_in_order()) {
+            std::string in_id = in_node->source()->safe_as<NodeData>()->id();
+            auto in_shape     = shape_dict.at(in_id);
+            instr->attrs.insert(instr->attrs.end(), in_shape.begin(), in_shape.end());
+          }
+          AddAttrs(node->attrs.attr_store, {"axis"}, instr.get());
+        } else if (node->op()->name == "mul") {
+          auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
+          for (auto& in_node : node->inlinks_in_order()) {
+            std::string in_id = in_node->source()->safe_as<NodeData>()->id();
+            auto in_shape     = shape_dict.at(in_id);
+            instr->attrs.insert(instr->attrs.end(), in_shape.begin(), in_shape.end());
+          }
+          if (node->attrs.attr_store.find("x_num_col_dims") != node->attrs.attr_store.end()) {
+            auto axis = absl::get<int>(node->attrs.attr_store.at("x_num_col_dims"));
+            instr->attrs.push_back(axis);
+          } else {
+            instr->attrs.push_back(1);
+          }
+          if (node->attrs.attr_store.find("y_num_col_dims") != node->attrs.attr_store.end()) {
+            auto axis = absl::get<int>(node->attrs.attr_store.at("y_num_col_dims"));
+            instr->attrs.push_back(axis);
+          } else {
+            instr->attrs.push_back(1);
+          }
+        } else if (node->op()->name == "cublas_gemm" || node->op()->name == "cublas_matmul") {
+          BuildCublasInstr(*node, instr.get());
+        }
+      }
       std::string op_func_name =
           fusion_group.get() ? fusion_group->GetFuncName() : GetOrGenFullFuncName(GenOpFuncName(node));
       auto* fn_ptr = compiler_->Lookup(op_func_name);
@@ -1345,15 +1552,15 @@ std::vector<ir::LoweredFunc> GetFuncFromImpl(const std::shared_ptr<OpImpl>& impl
       auto new_args  = lang::GetArgs(funcs[i]->body, input_output_nodes);
       funcs[i]->args = new_args;
     }
-#ifdef CINN_WITH_CUDA
-    optim::OptimizeExprGPU(&(funcs[i]->body));
-#endif
     auto temp_buffers   = lang::GetTempBuffers(all_arg_tensors, stages, funcs[i]->body);
     funcs[i]->temp_bufs = temp_buffers;
     funcs[i]->PrepareBufferCastExprs();
     res.push_back(funcs[i]);
   }
   for (int i = 0; i < res.size(); i++) {
+#ifdef CINN_WITH_CUDA
+    optim::OptimizeExprGPU(&(res[i]->body));
+#endif
     res[i] = optim::Optimize(Expr(res[i]), target, false).as_lowered_func_ref();
   }
 
