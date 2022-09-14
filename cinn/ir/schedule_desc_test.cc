@@ -86,23 +86,17 @@ IRSchedule MakeIRSchedule(const std::vector<ir::LoweredFunc>& lowered_funcs) {
   return ir::IRSchedule(ir::ModuleExpr(exprs));
 }
 
-std::vector<ir::LoweredFunc> UpdateLowerFunc(const ir::ModuleExpr& module_expr,
-                                             const std::vector<ir::LoweredFunc>& lowered_funcs) {
+// Generate source code with transformed ModuleExpr
+std::string SourceCodeGen(const ModuleExpr& module_expr,
+                          const std::vector<ir::LoweredFunc>& lowered_funcs,
+                          const Target& target) {
   auto exprs = module_expr.GetExprs();
   CHECK_EQ(exprs.size(), lowered_funcs.size()) << "size of func is not euqal";
-  std::vector<ir::LoweredFunc> results = optim::IRCopy(lowered_funcs);
-  for (auto i = 0; i < lowered_funcs.size(); ++i) {
-    results[i]->body = exprs.at(i);
-  }
-  return results;
-}
-
-// Generate source code with transformed ModuleExpr
-std::string SourceCodeGen(const std::vector<ir::LoweredFunc>& lowered_funcs, const Target& target) {
+  std::vector<ir::LoweredFunc> updated_funcs = optim::IRCopy(lowered_funcs);
   Module::Builder builder("test_module", target);
   for (auto i = 0; i < lowered_funcs.size(); ++i) {
-    auto&& func = lowered_funcs.at(i);
-    builder.AddFunction(func);
+    updated_funcs[i]->body = exprs.at(i);
+    builder.AddFunction(updated_funcs[i]);
   }
   auto module = builder.Build();
   CodeGenC codegen(target);
@@ -142,8 +136,8 @@ class TestScheduleDesc : public ::testing::Test {
     }
 
     // check the equality of source code between them
-    ASSERT_EQ(utils::Trim(SourceCodeGen(UpdateLowerFunc(ir_sch.GetModule(), lowered_funcs), target)),
-              utils::Trim(SourceCodeGen(UpdateLowerFunc(replay_sch.GetModule(), lowered_funcs), target)));
+    ASSERT_EQ(utils::Trim(SourceCodeGen(ir_sch.GetModule(), lowered_funcs, target)),
+              utils::Trim(SourceCodeGen(replay_sch.GetModule(), lowered_funcs, target)));
   }
 };
 
