@@ -293,8 +293,9 @@ std::pair<NodePtr, NodeData*> CheckFusionAccuracyPass::CreateAssertNode(const st
                                                                         const std::string& assert_msg) {
   const auto& assert_node_id = "assert_" + node_id;
 
-  auto assert_node                     = Node::Create(Operator::Get("assert_true"), assert_node_id, assert_node_id);
-  assert_node->attrs.attr_store["msg"] = assert_msg;
+  auto assert_node = Node::Create(Operator::Get("custom_call"), assert_node_id, assert_node_id);
+  assert_node->attrs.attr_store["custom_call"]  = std::string("cinn_assert_true");
+  assert_node->attrs.attr_store["msg"]          = assert_msg;
   assert_node->attrs.attr_store["only_warning"] = false;
 
   graph_->RegisterNode(assert_node_id, assert_node.get());
