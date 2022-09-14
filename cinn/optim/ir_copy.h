@@ -18,10 +18,14 @@
 #include <vector>
 
 #include "cinn/ir/ir.h"
-#include "cinn/ir/ir_schedule.h"
 #include "cinn/ir/lowered_func.h"
 
 namespace cinn {
+
+namespace ir {
+class ModuleExpr;
+}
+
 namespace optim {
 
 //! Shallow copy an expression.

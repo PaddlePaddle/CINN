@@ -19,6 +19,7 @@
 
 #include "cinn/cinn.h"
 #include "cinn/ir/ir_printer.h"
+#include "cinn/ir/ir_schedule.h"
 #include "cinn/lang/lower.h"
 #include "cinn/optim/ir_copy.h"
 #include "cinn/utils/string.h"
@@ -85,16 +86,22 @@ IRSchedule MakeIRSchedule(const std::vector<ir::LoweredFunc>& lowered_funcs) {
   return ir::IRSchedule(ir::ModuleExpr(exprs));
 }
 
-// Generate source code with transformed ModuleExpr
-std::string SourceCodeGen(const ModuleExpr& module_expr,
-                          const Target& target,
-                          std::vector<ir::LoweredFunc>& lowered_funcs) {
+std::vector<ir::LoweredFunc> UpdateLowerFunc(const ir::ModuleExpr& module_expr,
+                                             const std::vector<ir::LoweredFunc>& lowered_funcs) {
   auto exprs = module_expr.GetExprs();
   CHECK_EQ(exprs.size(), lowered_funcs.size()) << "size of func is not euqal";
+  std::vector<ir::LoweredFunc> results = optim::IRCopy(lowered_funcs);
+  for (auto i = 0; i < lowered_funcs.size(); ++i) {
+    results[i]->body = exprs.at(i);
+  }
+  return results;
+}
+
+// Generate source code with transformed ModuleExpr
+std::string SourceCodeGen(const std::vector<ir::LoweredFunc>& lowered_funcs, const Target& target) {
   Module::Builder builder("test_module", target);
   for (auto i = 0; i < lowered_funcs.size(); ++i) {
     auto&& func = lowered_funcs.at(i);
-    func->body  = exprs.at(i);
     builder.AddFunction(func);
   }
   auto module = builder.Build();
@@ -135,8 +142,8 @@ class TestScheduleDesc : public ::testing::Test {
     }
 
     // check the equality of source code between them
-    ASSERT_EQ(utils::Trim(SourceCodeGen(ir_sch.GetModule(), target, lowered_funcs)),
-              utils::Trim(SourceCodeGen(replay_sch.GetModule(), target, lowered_funcs)));
+    ASSERT_EQ(utils::Trim(SourceCodeGen(UpdateLowerFunc(ir_sch.GetModule(), lowered_funcs), target)),
+              utils::Trim(SourceCodeGen(UpdateLowerFunc(replay_sch.GetModule(), lowered_funcs), target)));
   }
 };
 
@@ -146,7 +153,7 @@ TEST_F(TestScheduleDesc, Append_Replay) {
 
   auto fused = ir_sch.Fuse("B", {0, 1});
   trace.Append(ScheduleDesc::Step(
-      "FuseWithBlockName", {}, {{"block_name", std::string("B")}, {"loops_index", std::vector<int>({0, 1})}}, {fused}));
+      "FuseWithName", {}, {{"block_name", std::string("B")}, {"loops_index", std::vector<int>({0, 1})}}, {fused}));
   auto splited = ir_sch.Split(fused, {4, -1});
   trace.Append(ScheduleDesc::Step(
       "Split", {{"loop", std::vector<Expr>({fused})}}, {{"factors", std::vector<int>({4, -1})}}, splited));
@@ -159,8 +166,12 @@ TEST_F(TestScheduleDesc, Append_Replay) {
   trace.Append(ScheduleDesc::Step(
       "Split", {{"loop", std::vector<Expr>({fused})}}, {{"factors", std::vector<int>({256, -1})}}, splited));
 
+  // check the equality of results between the ir_sch and replaying of trace
   CheckTracingOutputs(splited, trace);
   CheckReplayResult(ir_sch, trace);
+  // check the equality of results between the ir_sch and replaying of its trace
+  CheckTracingOutputs(splited, ir_sch.GetTraceDesc());
+  CheckReplayResult(ir_sch, ir_sch.GetTraceDesc());
 }
 
 // Test cases with `StepKind` prefix are to check the correctness of their StepKindInfo register
@@ -171,6 +182,7 @@ TEST_F(TestScheduleDesc, StepKind_GetAllBlocks) {
   auto all_blocks = ir_sch.GetAllBlocks();
   trace.Append(ScheduleDesc::Step("GetAllBlocks", {}, {}, {all_blocks}));
   CheckTracingOutputs(all_blocks, trace);
+  CheckTracingOutputs(all_blocks, ir_sch.GetTraceDesc());
 }
 
 TEST_F(TestScheduleDesc, StepKind_GetLoops) {
@@ -182,6 +194,7 @@ TEST_F(TestScheduleDesc, StepKind_GetLoops) {
   auto loops = ir_sch.GetLoops(block_b);
   trace.Append(ScheduleDesc::Step("GetLoops", {{"block", std::vector<Expr>({block_b})}}, {}, loops));
   CheckTracingOutputs(loops, trace);
+  CheckTracingOutputs(loops, ir_sch.GetTraceDesc());
 }
 
 TEST_F(TestScheduleDesc, StepKind_GetLoopsWithName) {
@@ -191,6 +204,7 @@ TEST_F(TestScheduleDesc, StepKind_GetLoopsWithName) {
   auto loops = ir_sch.GetLoops("B");
   trace.Append(ScheduleDesc::Step("GetLoopsWithName", {}, {{"block_name", std::string("B")}}, loops));
   CheckTracingOutputs(loops, trace);
+  CheckTracingOutputs(loops, ir_sch.GetTraceDesc());
 }
 
 TEST_F(TestScheduleDesc, StepKind_GetBlock) {
@@ -200,6 +214,7 @@ TEST_F(TestScheduleDesc, StepKind_GetBlock) {
   auto block_b = ir_sch.GetBlock("B");
   trace.Append(ScheduleDesc::Step("GetBlock", {}, {{"block_name", std::string("B")}}, {block_b}));
   CheckTracingOutputs({block_b}, trace);
+  CheckTracingOutputs({block_b}, ir_sch.GetTraceDesc());
 }
 
 TEST_F(TestScheduleDesc, StepKind_Split) {
@@ -212,6 +227,7 @@ TEST_F(TestScheduleDesc, StepKind_Split) {
   trace.Append(ScheduleDesc::Step(
       "Split", {{"loop", std::vector<Expr>({loops.front()})}}, {{"factors", std::vector<int>({4, -1})}}, splited));
   CheckTracingOutputs(splited, trace);
+  CheckTracingOutputs(splited, ir_sch.GetTraceDesc());
 }
 
 TEST_F(TestScheduleDesc, StepKind_SplitWithName) {
@@ -225,6 +241,7 @@ TEST_F(TestScheduleDesc, StepKind_SplitWithName) {
                          {{"block_name", std::string("B")}, {"loop_index", 1}, {"factors", std::vector<int>({4, -1})}},
                          splited));
   CheckTracingOutputs(splited, trace);
+  CheckTracingOutputs(splited, ir_sch.GetTraceDesc());
 }
 
 TEST_F(TestScheduleDesc, StepKind_Fuse) {
@@ -236,18 +253,18 @@ TEST_F(TestScheduleDesc, StepKind_Fuse) {
   auto fused = ir_sch.Fuse(loops);
   trace.Append(ScheduleDesc::Step("Fuse", {{"loops", loops}}, {}, {fused}));
   CheckTracingOutputs({fused}, trace);
+  CheckTracingOutputs({fused}, ir_sch.GetTraceDesc());
 }
 
-TEST_F(TestScheduleDesc, StepKind_FuseWithBlockName) {
+TEST_F(TestScheduleDesc, StepKind_FuseWithName) {
   lowered_funcs         = LowerCompute({32, 32, 64}, target);
   ir::IRSchedule ir_sch = MakeIRSchedule(lowered_funcs);
 
   auto fused = ir_sch.Fuse("B", {0, 1, 2});
-  trace.Append(ScheduleDesc::Step("FuseWithBlockName",
-                                  {},
-                                  {{"block_name", std::string("B")}, {"loops_index", std::vector<int>({0, 1, 2})}},
-                                  {fused}));
+  trace.Append(ScheduleDesc::Step(
+      "FuseWithName", {}, {{"block_name", std::string("B")}, {"loops_index", std::vector<int>({0, 1, 2})}}, {fused}));
   CheckTracingOutputs({fused}, trace);
+  CheckTracingOutputs({fused}, ir_sch.GetTraceDesc());
 }
 
 TEST_F(TestScheduleDesc, StepKind_FuseWithBlock) {
@@ -262,6 +279,7 @@ TEST_F(TestScheduleDesc, StepKind_FuseWithBlock) {
                                   {{"loops_index", std::vector<int>({0, 1, 2})}},
                                   {fused}));
   CheckTracingOutputs({fused}, trace);
+  CheckTracingOutputs({fused}, ir_sch.GetTraceDesc());
 }
 
 TEST_F(TestScheduleDesc, StepKind_ComputeAt) {
@@ -276,6 +294,7 @@ TEST_F(TestScheduleDesc, StepKind_ComputeAt) {
   trace.Append(ScheduleDesc::Step(
       "ComputeAt", {{"block", std::vector<Expr>({block_b})}, {"loop", std::vector<Expr>({loops[1]})}}, {}, {}));
   CheckReplayResult(ir_sch, trace);
+  CheckReplayResult(ir_sch, ir_sch.GetTraceDesc());
 }
 
 TEST_F(TestScheduleDesc, StepKind_SimpleComputeAt) {
@@ -286,10 +305,11 @@ TEST_F(TestScheduleDesc, StepKind_SimpleComputeAt) {
   trace.Append(ScheduleDesc::Step("GetBlock", {}, {{"block_name", std::string("B")}}, {block_b}));
   auto loops = ir_sch.GetLoops("C");
   trace.Append(ScheduleDesc::Step("GetLoopsWithName", {}, {{"block_name", std::string("C")}}, loops));
-  ir_sch.ComputeAt(block_b, loops[2]);
+  ir_sch.SimpleComputeAt(block_b, loops[2]);
   trace.Append(ScheduleDesc::Step(
-      "ComputeAt", {{"block", std::vector<Expr>({block_b})}, {"loop", std::vector<Expr>({loops[2]})}}, {}, {}));
+      "SimpleComputeAt", {{"block", std::vector<Expr>({block_b})}, {"loop", std::vector<Expr>({loops[2]})}}, {}, {}));
   CheckReplayResult(ir_sch, trace);
+  CheckReplayResult(ir_sch, ir_sch.GetTraceDesc());
 }
 
 TEST_F(TestScheduleDesc, StepKind_GetRootBlock) {
@@ -301,6 +321,7 @@ TEST_F(TestScheduleDesc, StepKind_GetRootBlock) {
   auto root_b = ir_sch.GetRootBlock(loops[1]);
   trace.Append(ScheduleDesc::Step("GetRootBlock", {{"expr", std::vector<Expr>({loops[1]})}}, {}, {root_b}));
   CheckTracingOutputs({root_b}, trace);
+  CheckTracingOutputs({root_b}, ir_sch.GetTraceDesc());
 }
 
 TEST_F(TestScheduleDesc, StepKind_CacheRead) {
@@ -315,7 +336,9 @@ TEST_F(TestScheduleDesc, StepKind_CacheRead) {
                                   {{"read_buffer_index", 0}, {"memory_type", std::string("local")}},
                                   {a_cache}));
   CheckTracingOutputs({a_cache}, trace);
+  CheckTracingOutputs({a_cache}, ir_sch.GetTraceDesc());
   CheckReplayResult(ir_sch, trace);
+  CheckReplayResult(ir_sch, ir_sch.GetTraceDesc());
 }
 
 TEST_F(TestScheduleDesc, StepKind_CacheWrite) {
@@ -327,10 +350,12 @@ TEST_F(TestScheduleDesc, StepKind_CacheWrite) {
   auto b_cache = ir_sch.CacheWrite(block_b, 0, "local");
   trace.Append(ScheduleDesc::Step("CacheWrite",
                                   {{"block", std::vector<Expr>({block_b})}},
-                                  {{"read_buffer_index", 0}, {"memory_type", std::string("local")}},
+                                  {{"write_buffer_index", 0}, {"memory_type", std::string("local")}},
                                   {b_cache}));
   CheckTracingOutputs({b_cache}, trace);
+  CheckTracingOutputs({b_cache}, ir_sch.GetTraceDesc());
   CheckReplayResult(ir_sch, trace);
+  CheckReplayResult(ir_sch, ir_sch.GetTraceDesc());
 }
 
 TEST_F(TestScheduleDesc, StepKind_SyncThreads) {
@@ -342,14 +367,14 @@ TEST_F(TestScheduleDesc, StepKind_SyncThreads) {
   auto b_cache = ir_sch.CacheWrite(block_b, 0, "local");
   trace.Append(ScheduleDesc::Step("CacheWrite",
                                   {{"block", std::vector<Expr>({block_b})}},
-                                  {{"read_buffer_index", 0}, {"memory_type", std::string("local")}},
+                                  {{"write_buffer_index", 0}, {"memory_type", std::string("local")}},
                                   {b_cache}));
   auto block_c = ir_sch.GetBlock("C");
   trace.Append(ScheduleDesc::Step("GetBlock", {}, {{"block_name", std::string("C")}}, {block_c}));
   auto c_cache = ir_sch.CacheWrite(block_c, 0, "local");
   trace.Append(ScheduleDesc::Step("CacheWrite",
                                   {{"block", std::vector<Expr>({block_c})}},
-                                  {{"read_buffer_index", 0}, {"memory_type", std::string("local")}},
+                                  {{"write_buffer_index", 0}, {"memory_type", std::string("local")}},
                                   {c_cache}));
   block_c = ir_sch.GetBlock("C");
   trace.Append(ScheduleDesc::Step("GetBlock", {}, {{"block_name", std::string("C")}}, {block_c}));
@@ -363,6 +388,7 @@ TEST_F(TestScheduleDesc, StepKind_SyncThreads) {
       ScheduleDesc::Step("SyncThreads", {{"ir_node", std::vector<Expr>({block_b})}}, {{"after_node", true}}, {}));
 
   CheckReplayResult(ir_sch, trace);
+  CheckReplayResult(ir_sch, ir_sch.GetTraceDesc());
 }
 
 TEST_F(TestScheduleDesc, StepKind_SetBuffer) {
@@ -377,6 +403,7 @@ TEST_F(TestScheduleDesc, StepKind_SetBuffer) {
                                   {{"memory_type", std::string("shared")}, {"fixed", true}},
                                   {}));
   CheckReplayResult(ir_sch, trace);
+  CheckReplayResult(ir_sch, ir_sch.GetTraceDesc());
 }
 
 TEST_F(TestScheduleDesc, StepKind_Reorder) {
@@ -401,6 +428,7 @@ TEST_F(TestScheduleDesc, StepKind_Reorder) {
   ir_sch.Reorder({loops[4], loops[0]});
   trace.Append(ScheduleDesc::Step("Reorder", {{"loops", std::vector<Expr>({loops[4], loops[0]})}}, {}, {}));
   CheckReplayResult(ir_sch, trace);
+  CheckReplayResult(ir_sch, ir_sch.GetTraceDesc());
 }
 
 TEST_F(TestScheduleDesc, StepKind_ReorderWithBlock) {
@@ -427,9 +455,10 @@ TEST_F(TestScheduleDesc, StepKind_ReorderWithBlock) {
                                   {{"loops_index", std::vector<int>({2, 3, 1, 4, 0})}},
                                   {}));
   CheckReplayResult(ir_sch, trace);
+  CheckReplayResult(ir_sch, ir_sch.GetTraceDesc());
 }
 
-TEST_F(TestScheduleDesc, StepKind_ReorderWithBlockName) {
+TEST_F(TestScheduleDesc, StepKind_ReorderWithName) {
   lowered_funcs         = LowerCompute({32, 32, 64}, target);
   ir::IRSchedule ir_sch = MakeIRSchedule(lowered_funcs);
   auto splited          = ir_sch.Split("B", 0, {-1, 4});
@@ -447,11 +476,12 @@ TEST_F(TestScheduleDesc, StepKind_ReorderWithBlockName) {
 
   ir_sch.Reorder("B", {4, 2, 3, 1, 0});
   trace.Append(
-      ScheduleDesc::Step("ReorderWithBlockName",
+      ScheduleDesc::Step("ReorderWithName",
                          {},
                          {{"block_name", std::string("B")}, {"loops_index", std::vector<int>({4, 2, 3, 1, 0})}},
                          {}));
   CheckReplayResult(ir_sch, trace);
+  CheckReplayResult(ir_sch, ir_sch.GetTraceDesc());
 }
 
 TEST_F(TestScheduleDesc, StepKind_Parallel) {
@@ -463,6 +493,7 @@ TEST_F(TestScheduleDesc, StepKind_Parallel) {
   ir_sch.Parallel(loops[0]);
   trace.Append(ScheduleDesc::Step("Parallel", {{"loop", std::vector<Expr>({loops[0]})}}, {}, {}));
   CheckReplayResult(ir_sch, trace);
+  CheckReplayResult(ir_sch, ir_sch.GetTraceDesc());
 }
 
 TEST_F(TestScheduleDesc, StepKind_Vectorize) {
@@ -474,6 +505,7 @@ TEST_F(TestScheduleDesc, StepKind_Vectorize) {
   ir_sch.Vectorize(loops[1], 16);
   trace.Append(ScheduleDesc::Step("Vectorize", {{"loop", std::vector<Expr>({loops[1]})}}, {{"factor", 16}}, {}));
   CheckReplayResult(ir_sch, trace);
+  CheckReplayResult(ir_sch, ir_sch.GetTraceDesc());
 }
 
 TEST_F(TestScheduleDesc, StepKind_Unroll) {
@@ -485,6 +517,7 @@ TEST_F(TestScheduleDesc, StepKind_Unroll) {
   ir_sch.Unroll(loops[1]);
   trace.Append(ScheduleDesc::Step("Unroll", {{"loop", std::vector<Expr>({loops[1]})}}, {}, {}));
   CheckReplayResult(ir_sch, trace);
+  CheckReplayResult(ir_sch, ir_sch.GetTraceDesc());
 }
 
 TEST_F(TestScheduleDesc, StepKind_ComputeInline) {
@@ -496,6 +529,7 @@ TEST_F(TestScheduleDesc, StepKind_ComputeInline) {
   ir_sch.ComputeInline(block_b);
   trace.Append(ScheduleDesc::Step("ComputeInline", {{"schedule_block", std::vector<Expr>({block_b})}}, {}, {}));
   CheckReplayResult(ir_sch, trace);
+  CheckReplayResult(ir_sch, ir_sch.GetTraceDesc());
 }
 
 TEST_F(TestScheduleDesc, StepKind_Bind) {
@@ -508,6 +542,7 @@ TEST_F(TestScheduleDesc, StepKind_Bind) {
   trace.Append(ScheduleDesc::Step(
       "Bind", {{"loop", std::vector<Expr>({loops[0]})}}, {{"thread_axis", std::string("blockIdx.x")}}, {}));
   CheckReplayResult(ir_sch, trace);
+  CheckReplayResult(ir_sch, ir_sch.GetTraceDesc());
 }
 
 TEST_F(TestScheduleDesc, StepKind_Rfactor) {
@@ -532,7 +567,9 @@ TEST_F(TestScheduleDesc, StepKind_Rfactor) {
   trace.Append(
       ScheduleDesc::Step("Rfactor", {{"rf_loop", std::vector<Expr>({loops[2]})}}, {{"rf_axis", 0}}, {new_rf_tensor}));
   CheckTracingOutputs({new_rf_tensor}, trace);
+  CheckTracingOutputs({new_rf_tensor}, ir_sch.GetTraceDesc());
   CheckReplayResult(ir_sch, trace);
+  CheckReplayResult(ir_sch, ir_sch.GetTraceDesc());
 }
 
 TEST_F(TestScheduleDesc, StepKind_MergeExprs) {

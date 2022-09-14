@@ -19,13 +19,15 @@
 #include <string>
 #include <vector>
 
-#include "cinn/ir/ir_schedule.h"
+#include "cinn/ir/ir.h"
 #include "cinn/ir/schedule_desc.pb.h"
 #include "cinn/utils/registry.h"
 #include "cinn/utils/type_defs.h"
 
 namespace cinn {
 namespace ir {
+
+class IRSchedule;  // forward declartion to avoid cross-reference
 
 // A ScheduleDesc descripe the scheduling process of a ir::ModuleExpr, it records
 // all transform/getting operations executed by a corresponding ir::IRSchedule.
