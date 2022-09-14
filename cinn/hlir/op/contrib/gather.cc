@@ -55,15 +55,17 @@ ir::Tensor Gather(const ir::Tensor &A, const ir::Tensor &B, const int &axis, con
         for (int i = 0; i < axis; ++i) {
           A_indices.push_back(indices[i]);
         }
-        A_indices.push_back(ir::Cast::Make(Int(32), B(indices)));
+        //        A_indices.push_back(ir::Cast::Make(Int(32), B(indices)));
+        A_indices.push_back(Expr(0));
         for (size_t i = axis + 1; i < A->shape.size(); ++i) {
           A_indices.push_back(indices[i]);
         }
-        return A(A_indices);
+        return A(indices);
       },
       name);
   return res;
 }
+
 ir::Tensor GatherNd(const ir::Tensor &A, const ir::Tensor &B, const std::vector<int> &axes, const std::string &name) {
   std::vector<Expr> out_shape = B->shape;
   out_shape.pop_back();
@@ -172,9 +174,16 @@ std::shared_ptr<framework::OpStrategy> StrategyForGatherNd(const framework::Node
     *ret = CINNValuePack{res};
   });
 
+  framework::CINNSchedule gather_nd_schedule([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of gather schedule is empty! Please check.\n";
+    CINNValuePack arg_pack = args[0];
+    Expr out               = arg_pack[0];
+    CHECK(out.as_tensor());
+    *ret = arg_pack;
+  });
+
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(
-      gather_nd_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.gather_nd.x86", 1);
+  strategy->AddImpl(gather_nd_compute, gather_nd_schedule, "strategy.gather_nd.x86", 1);
   return strategy;
 }
 
