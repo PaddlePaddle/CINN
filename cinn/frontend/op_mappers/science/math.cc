@@ -49,7 +49,7 @@ void SubOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx)
 
   auto x   = ctx.GetVar(x_name);
   auto y   = ctx.GetVar(y_name);
-  auto out = ctx.Builder()->Sub(x, y);
+  auto out = ctx.Builder()->Subtract(x, y);
 
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);
@@ -67,7 +67,7 @@ void DivOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx)
 
   auto x   = ctx.GetVar(x_name);
   auto y   = ctx.GetVar(y_name);
-  auto out = ctx.Builder()->Div(x, y);
+  auto out = ctx.Builder()->Divide(x, y);
 
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);
@@ -85,7 +85,7 @@ void MulOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx)
 
   auto x   = ctx.GetVar(x_name);
   auto y   = ctx.GetVar(y_name);
-  auto out = ctx.Builder()->ElementwiseMul(x, y);
+  auto out = ctx.Builder()->Multiply(x, y);
 
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);

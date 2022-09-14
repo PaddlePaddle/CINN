@@ -10,11 +10,11 @@
    :depth: 3
 ..
 
-CinnBuilder Primitive Semantics
+NetBuilder Primitive Semantics
 ===============================
 
 The following describes the semantics of operations defined in the
-CinnBuilder interface.
+NetBuilder interface.
 
 1. Scalar Primitive APIs
 ------------------------
@@ -482,7 +482,7 @@ broadcast\_axes.
 
 ::
 
-    Variable out_var = cinn_builder. BroadcastTo(input_var, {1, 64, 112, 112}, {1});
+    Variable out_var = net_builder. BroadcastTo(input_var, {1, 64, 112, 112}, {1});
 
 If input\_var[64] broadcasts to out\_var[1, 64, 112, 112], then
 out\_shape is [1, 64, 112, 112] and broadcast\_axes are [1]. The i-th
@@ -582,21 +582,21 @@ Convolution operation with input tensor lhs and rhs.
     // x = [16,16,28,28], filter = [32, 16, 3, 3]
     // strides = {1, 1}, paddings = {1, 1}, dilations = {1, 1}
     // y = [16, 32, 28, 28]
-    Variable y = cinn_builder.Conv(x, filter, {1,1}, {1,1}, {1,1}, 1, "forward", "NCHW", "EXPLICIT", {});
+    Variable y = net_builder.Conv(x, filter, {1,1}, {1,1}, {1,1}, 1, "forward", "NCHW", "EXPLICIT", {});
 
     // convolution backward_data
     // grad_y = [16, 32, 28, 28], filter = [32, 16, 3, 3]
     // strides = {1, 1}, paddings = {1, 1}, dilations = {1, 1}
     // grad_x = [16, 16, 28, 28]
-    Variable grad_x = cinn_builder.Conv(filter, grad_y, {1, 1}, {1, 1}, {1, 1}, 1, "backward_data", "NCHW", "EXPLICIT", {16, 16, 28, 28});
+    Variable grad_x = net_builder.Conv(filter, grad_y, {1, 1}, {1, 1}, {1, 1}, 1, "backward_data", "NCHW", "EXPLICIT", {16, 16, 28, 28});
 
     // convolution backward_filter
     // grad_y = [16, 32, 28, 28], x = [16, 16, 28 ,28]
     // strides = {1, 1}, paddings = {1, 1}, dilations = {1, 1}
     // grad_filter = [32, 16, 3, 3]
-    grad_filte = cinn_builder.Conv(x, grad_y, {1, 1}, {1, 1}, {1, 1}, 1, "backward_filter", "NCHW", "EXPLICIT", {32, 16, 3, 3});
+    grad_filte = net_builder.Conv(x, grad_y, {1, 1}, {1, 1}, {1, 1}, 1, "backward_filter", "NCHW", "EXPLICIT", {32, 16, 3, 3});
 
-Reduce
+ReduceSum
 ~~~~~~
 
 ``Reduce(input, kind, dim, keep_dim)`` Reduce on input tensors along the
@@ -620,13 +620,13 @@ given dimensions.
     // x = [128, 128, 16, 16]
     // kind = sum, dim = {2, 3}
     // out = [128, 128] when keep_dim = false
-    out = cinn_builder.Reduce(x, ReduceKind::kSum, {2, 3}, false);
+    out = net_builder.ReduceSum(x, {2, 3}, false);
 
     // Case 2
     // x = [128, 128, 16, 16]
     // kind = sum, dim = {2, 3}
     // out = [128, 128, 1, 1] when keep_dim = true
-    out = cinn_builder.Reduce(x, ReduceKind::kSum, {2, 3}, true);
+    out = net_builder.ReduceSum(x, {2, 3}, true);
 
 Reshape
 ~~~~~~~

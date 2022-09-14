@@ -129,36 +129,64 @@ std::vector<ir::LoweredFunc> OpLowerer::Lower(GroupPtr& group) {
 
 std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpWithoutSchedule(IRComputeFunction compute, GroupPtr& group) {
   poly::StageMap stages;
-  std::vector<ir::Tensor> func_tensors;
+  std::vector<ir::Tensor> arg_tensors;
   std::unordered_map<std::string, ir::Tensor> tensor_map;
   // do compute.
   VLOG(3) << "group->fused_sub_groups.size() is : " << group->fused_sub_groups.size();
   std::vector<Expr> ast_exprs;
   if (group->fused_sub_groups.size() == 0) {
-    ast_exprs = (this->*compute)(stages, func_tensors, tensor_map, group, group);
+    ast_exprs = (this->*compute)(stages, arg_tensors, tensor_map, group, group);
   } else {
     for (auto& sub_group : group->fused_sub_groups) {
-      auto exprs = (this->*compute)(stages, func_tensors, tensor_map, group, sub_group);
+      auto exprs = (this->*compute)(stages, arg_tensors, tensor_map, group, sub_group);
       ast_exprs.insert(ast_exprs.end(), exprs.begin(), exprs.end());
     }
   }
-
   ir::ModuleExpr mod_expr(ast_exprs);
   ir::IRSchedule ir_sch(mod_expr);
   ir_sch.MergeExprs();
 
-  std::vector<std::string> func_tensor_names;
-  for (const ir::Tensor& ft : func_tensors) {
-    func_tensor_names.push_back(ft->name);
+  VLOG(3) << "After IRLowerOp compute, ir is: \n" << ir_sch.GetModule().GetExprs().at(0);
+  // function args
+  std::vector<ir::Argument> func_args;
+  for (auto& args : arg_tensors) {
+    // input node data name.
+    group->input_names.push_back(args->name);
+    // input args
+    func_args.emplace_back(args->buffer, ir::Argument::IO::kInput);
   }
 
-  auto func_body    = ir_sch.GetModule().GetExprs().at(0);
-  auto temp_buffers = lang::GetTempBuffers(func_tensors, stages, func_body);
-  auto func_args    = lang::GetArgs(func_body, func_tensor_names);
+  for (auto& node : group->output_nodes) {
+    // output node data name.
+    for (auto node_data : GetAllNodeData(node)) {
+      group->output_names.push_back(node_data->id());
+    }
+    // collect all output tensor.
+    std::string post   = "";
+    std::string prefix = GetNodeData(node)->id();
+    for (int idx = 0; idx < 1; ++idx) {
+      CHECK(tensor_map.count(prefix)) << "Can't find output tensor " << prefix;
+      if (!tensor_map.count(prefix + post)) {
+        break;
+      }
+      auto tensor = tensor_map[prefix + post];
+      arg_tensors.push_back(tensor);
+      // output args
+      func_args.emplace_back(tensor->buffer, ir::Argument::IO::kOutput);
+      // update post
+      post = "_" + std::to_string(idx);
+    }
+  }
+  auto func_body = ir_sch.GetModule().GetExprs().at(0);
+#ifdef CINN_WITH_CUDA
+  optim::OptimizeExprGPU(&(func_body));
+#endif
+
+  auto temp_buffers = lang::GetTempBuffers(arg_tensors, stages, func_body);
   auto func =
       ir::_LoweredFunc_::Make(group->GetFuncName(), func_args, ir_sch.GetModule().GetExprs().at(0), temp_buffers);
   func->PrepareBufferCastExprs();
-
+  func = optim::Optimize(Expr(func), target_, false).as_lowered_func_ref();
   return {func};
 }
 
