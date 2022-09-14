@@ -122,6 +122,8 @@ class Instruction {
   std::vector<std::string> GetFnNames() { return fn_names_; }
   void AddInArgs(const std::vector<std::string>& in_args) { in_args_.push_back(in_args); }
   void AddOutArgs(const std::vector<std::string>& out_args) { out_args_.push_back(out_args); }
+  std::vector<int> attrs;
+  std::vector<std::string> str_attrs;
   bool pre_run = false;
   Target target_;
 
@@ -129,9 +131,9 @@ class Instruction {
   void CheckResults(const std::map<std::string, cinn_pod_value_t>* name2podargs = nullptr, void* stream = nullptr);
 
  private:
+  bool finalized_flag_ = false;
   Scope* scope_{};
   std::string function_name_;
-  bool finalized_flag_ = false;
   std::vector<std::vector<std::string>> in_args_;
   std::vector<std::vector<std::string>> out_args_;
 
