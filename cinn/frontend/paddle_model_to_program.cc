@@ -100,9 +100,7 @@ void PaddleModelToProgram::AddOpMapper_scale() {
       LOG(FATAL) << "Didn't find [bias] attr in Scale operator!!";
     }
     absl::flat_hash_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
-    attrs["scale"] = scale;
-    attrs["bias"]  = bias;
-    auto out       = program_->scale(x, attrs);
+    auto out = net_builder_->Scale(x, scale, bias);
     CHECK_EQ(op_desc.Output("Out").size(), 1UL);
     auto out_name = op_desc.Output("Out").front();
     AddVar(utils::TransValidVarName(out_name), out);
@@ -126,7 +124,7 @@ void PaddleModelToProgram::AddOpMapper_mul() {
     VLOG(4) << "Mul y_num_col_dims: " << y_num_col_dims;
     VLOG(4) << "x shape: " << utils::Join(x->shape, ",");
     VLOG(4) << "y shape: " << utils::Join(y->shape, ",");
-    auto out = program_->mul(x, y, x_num_col_dims, y_num_col_dims);
+    auto out = net_builder_->Mul(x, y, x_num_col_dims, y_num_col_dims);
     CHECK_EQ(op_desc.Output("Out").size(), 1UL);
     auto out_name = op_desc.Output("Out").front();
     AddVar(utils::TransValidVarName(out_name), out);
@@ -147,7 +145,7 @@ void PaddleModelToProgram::AddOpMapper_matmul() {
     float alpha  = op_desc.GetAttr<float>("alpha");
     VLOG(4) << "x shape: " << utils::Join(x->shape, ",");
     VLOG(4) << "y shape: " << utils::Join(y->shape, ",");
-    auto out = program_->matmul(x, y, trans_a, trans_b, alpha);
+    auto out = net_builder_->Matmul(x, y, trans_a, trans_b, alpha);
     CHECK_EQ(op_desc.Output("Out").size(), 1UL);
     auto out_name = op_desc.Output("Out").front();
     AddVar(utils::TransValidVarName(out_name), out);
@@ -162,7 +160,7 @@ void PaddleModelToProgram::AddOpMapper_reshape2() {
     auto x                 = GetVar(utils::TransValidVarName(x_name));
     std::vector<int> shape = op_desc.GetAttr<std::vector<int>>("shape");
     VLOG(4) << "x shape: " << utils::Join(x->shape, ",");
-    auto out = program_->reshape(x, shape);
+    auto out = net_builder_->Reshape(x, shape);
     CHECK_EQ(op_desc.Output("Out").size(), 1UL);
     auto out_name = op_desc.Output("Out").front();
     AddVar(utils::TransValidVarName(out_name), out);
@@ -181,7 +179,7 @@ void PaddleModelToProgram::AddOpMapper_concat() {
     }
     int axis = op_desc.GetAttr<int>("axis");
     VLOG(4) << "axis in op concat is : " << axis;
-    auto out = program_->concat(input_vars, axis);
+    auto out = net_builder_->Concat(input_vars, axis);
     CHECK_EQ(op_desc.Output("Out").size(), 1UL);
     auto out_name = op_desc.Output("Out").front();
     AddVar(utils::TransValidVarName(out_name), out);
@@ -196,8 +194,7 @@ void PaddleModelToProgram::AddOpMapper_assign() {
     CHECK_EQ(op_desc.Output("Out").size(), 1UL);
     auto out_name = op_desc.Output("Out").front();
     auto x        = GetVar(TransValidVarName(x_name));
-    auto out      = program_->assign(x);
-
+    auto out      = net_builder_->Identity(x);
     AddVar(TransValidVarName(out_name), out);
     var_model_to_program_map_[out_name] = out->id;
   };
@@ -226,9 +223,9 @@ void PaddleModelToProgram::AddOpMapper_fill_constant() {
 
     Variable out;
     switch (dtype) {
-#define DO(desc, type)                                                                                     \
-  case ::paddle::framework::proto::VarType::Type::VarType_Type_##desc:                                     \
-    out = program_->fill_constant<type>(shapes, value, str_value, force_cpu, TransValidVarName(out_name)); \
+#define DO(desc, type)                                                           \
+  case ::paddle::framework::proto::VarType::Type::VarType_Type_##desc:           \
+    out = net_builder_->FillConstant<type>(shapes, value, str_value, force_cpu); \
     break;
       DO(BOOL, bool);
       DO(FP32, float);
@@ -252,7 +249,7 @@ void PaddleModelToProgram::AddOpMapper_transpose2() {
     CHECK(op_desc.HasAttr("axis"));
     auto axis = op_desc.GetAttr<std::vector<int>>("axis");
 
-    auto out = program_->transpose(x, axis);
+    auto out = net_builder_->Transpose(x, axis);
 
     AddVar(TransValidVarName(out_name), out);
     var_model_to_program_map_[out_name] = out->id;
@@ -267,7 +264,7 @@ void PaddleModelToProgram::AddOpMapper_exp() {
     auto out_name = op_desc.Output("Out").front();
     auto x        = GetVar(TransValidVarName(x_name));
 
-    auto out = program_->primitive_exp(x);
+    auto out = net_builder_->Exp(x);
 
     AddVar(TransValidVarName(out_name), out);
     var_model_to_program_map_[out_name] = out->id;
@@ -281,7 +278,7 @@ void PaddleModelToProgram::AddOpMapper_relu() {
     CHECK_EQ(op_desc.Output("Out").size(), 1UL);
     auto out_name = op_desc.Output("Out").front();
     auto x        = GetVar(TransValidVarName(x_name));
-    auto out      = program_->relu(x);
+    auto out      = net_builder_->Relu(x);
 
     AddVar(TransValidVarName(out_name), out);
     var_model_to_program_map_[out_name] = out->id;
@@ -295,14 +292,14 @@ void PaddleModelToProgram::AddOpMapper_softmax() {
     CHECK_EQ(op_desc.Output("Out").size(), 1UL);
     auto out_name = op_desc.Output("Out").front();
 
-    absl::flat_hash_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
+    int axis = 0;
     if (op_desc.HasAttr("axis")) {
-      attrs["axis"] = op_desc.GetAttr<int>("axis");
+      axis = op_desc.GetAttr<int>("axis");
     } else {
-      attrs["axis"] = static_cast<int>(-1);
+      axis = static_cast<int>(-1);
     }
     auto x   = GetVar(TransValidVarName(x_name));
-    auto out = program_->softmax(x, attrs);
+    auto out = net_builder_->Softmax(x, axis);
     AddVar(TransValidVarName(out_name), out);
     var_model_to_program_map_[out_name] = out->id;
   };
@@ -399,8 +396,7 @@ void PaddleModelToProgram::AddOpMapper_relu6() {
     attrs["threshold"] = op_desc.GetAttr<float>("threshold");
 
     auto x   = GetVar(TransValidVarName(x_name));
-    auto out = program_->relu6(x);
-
+    auto out = net_builder_->Relu6(x);
     AddVar(TransValidVarName(out_name), out);
     var_model_to_program_map_[out_name] = out->id;
   };
@@ -416,26 +412,25 @@ void PaddleModelToProgram::AddOpMapper_depthwise_conv2d() {
 
     absl::flat_hash_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
     CHECK(op_desc.HasAttr("paddings"));
-    attrs["padding"] = op_desc.GetAttr<std::vector<int>>("paddings");
+    auto paddings = op_desc.GetAttr<std::vector<int>>("paddings");
     CHECK(op_desc.HasAttr("strides"));
-    attrs["stride"] = op_desc.GetAttr<std::vector<int>>("strides");
+    auto strides = op_desc.GetAttr<std::vector<int>>("strides");
     CHECK(op_desc.HasAttr("dilations"));
-    attrs["dilation"] = op_desc.GetAttr<std::vector<int>>("dilations");
+    auto dilations = op_desc.GetAttr<std::vector<int>>("dilations");
     CHECK(op_desc.HasAttr("groups"));
-    attrs["groups"] = op_desc.GetAttr<int>("groups");
+    auto groups = op_desc.GetAttr<int>("groups");
     CHECK(op_desc.HasAttr("data_format"));
     std::string data_format = op_desc.GetAttr<std::string>("data_format");
     if (data_format == "AnyLayout") {
       data_format = "NCHW";
     }
-    attrs["data_format"] = data_format;
-    auto x               = GetVar(TransValidVarName(x_name));
-    auto y               = GetVar(TransValidVarName(y_name));
+    auto x = GetVar(TransValidVarName(x_name));
+    auto y = GetVar(TransValidVarName(y_name));
     Variable out;
     if (target_.arch == Target::Arch::X86) {
-      out = program_->conv2d(x, y, attrs);
+      out = net_builder_->Conv2d(x, y, strides, paddings, dilations, groups, data_format);
     } else {
-      out = program_->depthwise_conv2d(x, y, attrs);
+      out = net_builder_->DepthwiseConv2d(x, y, strides, paddings, dilations, groups, data_format);
     }
 
     AddVar(TransValidVarName(out_name), out);
@@ -557,9 +552,8 @@ void PaddleModelToProgram::AddOpMapper_sigmoid() {
     auto x_name = op_desc.Input("X").front();
     CHECK_EQ(op_desc.Output("Out").size(), 1UL);
     auto out_name = op_desc.Output("Out").front();
-
-    auto x   = GetVar(TransValidVarName(x_name));
-    auto out = program_->sigmoid(x);
+    auto x        = GetVar(TransValidVarName(x_name));
+    auto out      = net_builder_->Sigmoid(x);
 
     AddVar(TransValidVarName(out_name), out);
     var_model_to_program_map_[out_name] = out->id;
@@ -575,13 +569,13 @@ void PaddleModelToProgram::AddOpMapper_slice() {
 
     absl::flat_hash_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
     CHECK(op_desc.HasAttr("starts"));
-    attrs["starts"] = op_desc.GetAttr<std::vector<int>>("starts");
+    auto starts = op_desc.GetAttr<std::vector<int>>("starts");
     CHECK(op_desc.HasAttr("ends"));
-    attrs["ends"] = op_desc.GetAttr<std::vector<int>>("ends");
+    auto end = op_desc.GetAttr<std::vector<int>>("ends");
     CHECK(op_desc.HasAttr("axes"));
-    attrs["axes"] = op_desc.GetAttr<std::vector<int>>("axes");
-    auto x        = GetVar(TransValidVarName(x_name));
-    auto out      = program_->slice(x, attrs);
+    auto axes = op_desc.GetAttr<std::vector<int>>("axes");
+    auto x    = GetVar(TransValidVarName(x_name));
+    auto out  = net_builder_->Slice(x, axes, starts, end);
 
     AddVar(TransValidVarName(out_name), out);
     var_model_to_program_map_[out_name] = out->id;
@@ -597,11 +591,11 @@ void PaddleModelToProgram::AddOpMapper_dropout_infer() {
 
     absl::flat_hash_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
     CHECK(op_desc.HasAttr("dropout_prob"));
-    attrs["dropout_prob"] = op_desc.GetAttr<float>("dropout_prob");
+    auto dropout_prob = op_desc.GetAttr<float>("dropout_prob");
     CHECK(op_desc.HasAttr("dropout_implementation"));
-    attrs["dropout_implementation"] = op_desc.GetAttr<std::string>("dropout_implementation");
-    auto x                          = GetVar(TransValidVarName(x_name));
-    auto out                        = program_->dropout_infer(x, attrs);
+    auto dropout_implementation = op_desc.GetAttr<std::string>("dropout_implementation");
+    auto x                      = GetVar(TransValidVarName(x_name));
+    auto out                    = net_builder_->DropoutInfer(x, dropout_prob, dropout_implementation);
 
     AddVar(TransValidVarName(out_name), out);
     var_model_to_program_map_[out_name] = out->id;

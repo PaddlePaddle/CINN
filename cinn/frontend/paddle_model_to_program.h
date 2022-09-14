@@ -29,6 +29,7 @@
 #include "cinn/common/context.h"
 #include "cinn/common/object.h"
 #include "cinn/common/type.h"
+#include "cinn/frontend/net_builder.h"
 #include "cinn/frontend/paddle/cpp/program_desc.h"
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/node.h"
@@ -40,7 +41,7 @@ namespace frontend {
 class PaddleModelToProgram {
  public:
   explicit PaddleModelToProgram(hlir::framework::Scope* scope, const common::Target& target)
-      : scope_(scope), target_(target), program_(new Program) {
+      : scope_(scope), target_(target), net_builder_(new NetBuilder("paddle_model_netbuilder")) {
     CHECK(scope_);
 
     AddOpMapper_feed();
@@ -117,8 +118,11 @@ class PaddleModelToProgram {
   void ReverseHWVar(const std::string& name);
 
  private:
+  // op mapper
   absl::flat_hash_map<std::string, std::function<void(const paddle::cpp::OpDesc&)>> op_mappers_;
-  std::unique_ptr<Program> program_;
+  // net builder
+  std::unique_ptr<NetBuilder> net_builder_;
+
   absl::flat_hash_map<std::string, Variable> var_map_;
   absl::flat_hash_set<std::string> fetch_names_;
   // map from var in Paddle model to var name in program.
