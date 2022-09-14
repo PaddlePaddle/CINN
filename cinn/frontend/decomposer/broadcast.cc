@@ -133,7 +133,7 @@ void elementwise_add_grad(const Instruction& instr, const DecomposerContext& con
     std::vector<int> x_reduce_dims;
     GetReduceDimsForX(dx->shape, dout->shape, &x_reduce_dims);
     // The rank of dx is same as dout, so set keep_dim = true
-    dx_t = builder->Reduce(dout, ReduceKind::kSum, x_reduce_dims, true);
+    dx_t = builder->ReduceSum(dout, x_reduce_dims, true);
   }
 
   Variable dy_t;
@@ -146,7 +146,7 @@ void elementwise_add_grad(const Instruction& instr, const DecomposerContext& con
     // The rank of dy is less or equal to dout, after reduce_sum, there
     // may be some extra "1" in the front or back of dy_res's shape. So
     // the dt_res needs to be reshaped.
-    auto dy_res = builder->Reduce(dout, ReduceKind::kSum, y_reduce_dims, true);
+    auto dy_res = builder->ReduceSum(dout, y_reduce_dims, true);
     dy_t        = builder->Reshape(dy_res, dy->shape);
   }
 

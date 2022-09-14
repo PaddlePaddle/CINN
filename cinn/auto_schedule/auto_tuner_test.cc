@@ -124,7 +124,7 @@ frontend::Program TestAutoTuner::CreateAddReluProgram() {
 
   auto a = builder.CreateInput(Float(32), {1, 64, 112, 112}, "A");
   auto b = builder.CreateInput(Float(32), {64}, "B");
-  auto c = builder.ElementwiseAdd(a, b, 1);
+  auto c = builder.Add(a, b, 1);
   auto d = builder.Relu(c);
 
   return builder.Build();

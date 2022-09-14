@@ -30,7 +30,7 @@ TEST(Graph, visualize) {
   frontend::NetBuilder builder("test");
   auto x            = builder.CreateInput(Float(32), {32, 16}, "x");
   auto y            = builder.CreateInput(Float(32), {32, 16}, "y");
-  auto add_1        = builder.ElementwiseAdd(x, y);
+  auto add_1        = builder.Add(x, y);
   auto relu_1       = builder.Relu(add_1);
   auto reduce_sum_1 = builder.ReduceSum(relu_1, {1});
   auto program      = builder.Build();
@@ -49,11 +49,11 @@ TEST(Graph, visualize_recompute) {
   auto y              = builder.CreateInput(Float(32), {32, 16}, "y");
   auto z              = builder.CreateInput(Float(32), {16}, "z");
   auto constant_1     = builder.FillConstant<float>({16}, 1, "constant_1");
-  auto add_1          = builder.ElementwiseAdd(z, constant_1);
+  auto add_1          = builder.Add(z, constant_1);
   auto broadcast_to_1 = builder.BroadcastTo(add_1, {16, 32});
   auto broadcast_to_2 = builder.BroadcastTo(add_1, {32, 16});
-  auto add_2          = builder.ElementwiseAdd(x, broadcast_to_1);
-  auto add_3          = builder.ElementwiseAdd(y, broadcast_to_2);
+  auto add_2          = builder.Add(x, broadcast_to_1);
+  auto add_3          = builder.Add(y, broadcast_to_2);
   auto program        = builder.Build();
 
   auto target = common::DefaultHostTarget();
