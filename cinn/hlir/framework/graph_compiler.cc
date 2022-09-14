@@ -32,7 +32,6 @@
 #include "cinn/poly/stage.h"
 
 DECLARE_bool(cinn_ir_schedule);
-DECLARE_bool(enable_auto_tuner);
 
 namespace cinn {
 namespace hlir {
@@ -721,20 +720,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   if (options.lowered_funcs.empty()) {
     // lowering of new fusion pass is not compatible with the groups from the input options,
     // thus process it seperately
-    if (FLAGS_enable_auto_tuner) {
-      auto_schedule::AutoTuner auto_tuner(target_, graph_.get());
-      auto_schedule::AutoTuner::Config init_config;
-      auto_tuner.Initialize(init_config, this);
-
-      auto_schedule::TuningOptions tuning_options;
-      auto_schedule::TuningResult tuning_result = auto_tuner.Tune(tuning_options);
-
-      for (const auto& opt_expr : tuning_result.optimized_exprs) {
-        for (const auto& lowered_funcs : opt_expr.lowered_funcs) {
-          local_lowered_funcs.push_back(lowered_funcs);
-        }
-      }
-    } else if (!graph_->fusion_groups.empty()) {
+    if (!graph_->fusion_groups.empty()) {
       auto& dtype_dict = graph_->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
       auto& shape_dict = graph_->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
 
