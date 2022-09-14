@@ -128,6 +128,7 @@ TEST(OP_LOWERING, OpaqueOp_TEST_2) {
   }
 }
 
+#ifdef CINN_WITH_CUDNN
 TEST(OP_LOWERING, OpaqueOp_TEST_3) {
   NetBuilder net_builder("OpaqueOp_TEST_3");
   {
@@ -154,6 +155,7 @@ TEST(OP_LOWERING, OpaqueOp_TEST_3) {
     CodeGen(lowered_func[0]);
   }
 }
+#endif
 
 TEST(OP_LOWERING, Transform_TEST_0) {
   NetBuilder net_builder("Transform_TEST_0");

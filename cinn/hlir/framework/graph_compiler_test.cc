@@ -45,7 +45,6 @@ TEST(GraphCompilerTest, TestRemoveInvaildVariables) {
 
   // OpFusion will fuse add+relu, and the intermediate variable 'c' is eliminated
   ApplyPasses(graph.get(), frontend::DefaultOpFusionPasses());
-  LOG(INFO) << graph->Visualize();
   auto scope = BuildScope(target, graph);
   ASSERT_EQ(scope->var_names().size(), 4);
   EXPECT_NE(scope->FindVar(c->id), nullptr);
