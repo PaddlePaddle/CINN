@@ -27,7 +27,7 @@
 namespace cinn {
 namespace ir {
 
-// A ScheduleDesc descripe the scheduling process of a ir::ModuleExpr, it records
+// A ScheduleDesc describe the scheduling process of an ir::ModuleExpr, it records
 // all transform/getting operations executed by a corresponding ir::IRSchedule.
 // A ScheduleDesc can be serialized to JSON format and saved to file. For deserializing,
 // it can be re-applied to a new IRSchedule that is initialzied by a semantics-euqal
