@@ -110,26 +110,19 @@ void Interpreter::Impl::Build(const std::vector<std::string>& input_names,
   program_->Validate();
 
   VLOG(3) << "Program:\n" << *program_;
-
-  auto graph                 = std::make_shared<hlir::framework::Graph>(*program_, target);
-  graph->attrs["model_name"] = std::make_shared<absl::any>(model_name);
-
-  hlir::framework::ApplyPass(graph.get(), "InferShape");
-#ifndef CINN_WITH_CUDA
-  if (target.arch == Target::Arch::X86) {
-    hlir::framework::ApplyPass(graph.get(), "AlterLayout");
-  }
-#endif
-  hlir::framework::ApplyPass(graph.get(), "ConstPropagate");
-  hlir::framework::ApplyPasses(graph.get(), DefaultOpFusionPasses());
-  // Target target = common::DefaultHostTarget();
-  scope_ = hlir::framework::BuildScope(target, graph, scope_);
-
+  // applay frontend pass
   std::unordered_set<std::string> fetch_var_ids;
   for (auto& name : fetch_names_) {
     CHECK(var_map_.count(name)) << "var_map finds no fetch var " << name;
     fetch_var_ids.insert(var_map_.at(name)->id);
   }
+
+  auto graph = Optimize(program_.get(), fetch_var_ids, target);
+  LOG(INFO) << "After Optimize!";
+
+  // auto graph                 = std::make_shared<hlir::framework::Graph>(*program_, target);
+  graph->attrs["model_name"] = std::make_shared<absl::any>(model_name);
+  scope_                     = hlir::framework::BuildScope(target, graph, scope_);
 
   graph_compiler_.reset(new hlir::framework::GraphCompiler(target, scope_, graph));
   hlir::framework::GraphCompiler::CompileOptions options;
