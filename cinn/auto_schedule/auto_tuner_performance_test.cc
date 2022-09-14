@@ -12,17 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cinn/auto_schedule/auto_tuner.h"
-
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
 #include <iostream>
 
+#include "cinn/auto_schedule/auto_tuner.h"
 #include "cinn/common/target.h"
 #include "cinn/frontend/net_builder.h"
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/graph_compiler.h"
+#include "cinn/hlir/framework/node.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/utils/data_util.h"
 
@@ -37,7 +37,7 @@ using ::cinn::hlir::framework::Scope;
 
 class PerformanceTester {
  public:
-  virtual frontend::Program CreateProgram() = 0;
+  virtual frontend::Program CreateProgram()              = 0;
   virtual void PrepareData(std::shared_ptr<Scope> scope) = 0;
 
   void PrepareData() {
@@ -45,24 +45,24 @@ class PerformanceTester {
     PrepareData(manual_schedule_compiled_scope_);
     PrepareData(auto_schedule_compiled_scope_);
   }
-  
-  void BuildRuntimePrograms() {
+
+  void BuildRuntimePrograms(int num_tuning_rounds) {
     BuildNoScheduleProgram();
     BuildManualScheduleProgram();
-    BuildAutoScheduleProgram();
+    BuildAutoScheduleProgram(num_tuning_rounds);
   }
 
   void Run(int repeat) {
-    // TODO  no_schedule_program_->ExecuteTest(repeat);
+    no_schedule_program_->ExecuteTest(repeat);
     manual_schedule_program_->ExecuteTest(repeat);
     auto_schedule_program_->ExecuteTest(repeat);
   }
 
-  void BuildAndRun(int repeat) {
+  void BuildAndRun(int repeat, int num_tuning_rounds) {
     auto program = CreateProgram();
-    graph_ = std::make_shared<hlir::framework::Graph>(program, target_);
+    graph_       = std::make_shared<hlir::framework::Graph>(program, target_);
     VLOG(3) << "Initialize graph completed, start building runtime program.";
-    BuildRuntimePrograms();
+    BuildRuntimePrograms(num_tuning_rounds);
     VLOG(3) << "Build runtime programs completed, start preparing data.";
     PrepareData();
     VLOG(3) << "Prepare data completed, start running.";
@@ -71,28 +71,48 @@ class PerformanceTester {
 
  protected:
   void BuildNoScheduleProgram() {
-    LOG(INFO) << "not implemented.";
-    // TODO  Add no schedule build process.
     no_schedule_compiled_scope_ = BuildScope(target_, graph_);
     no_schedule_graph_compiler_ = std::make_unique<GraphCompiler>(target_, no_schedule_compiled_scope_, graph_);
+
+    std::tuple<std::vector<common::GraphNode*>, std::vector<common::GraphEdge*>> topo_result =
+        graph_->topological_order();
+    const std::vector<common::GraphNode*>& nodes = std::get<0>(topo_result);
+    std::vector<std::vector<hlir::framework::Node*>> task_graph;
+    for (common::GraphNode* n : nodes) {
+      hlir::framework::Node* op_node = n->safe_as<hlir::framework::Node>();
+      if (op_node) {
+        task_graph.push_back(std::vector<hlir::framework::Node*>(1, op_node));
+      }
+    }
+    std::vector<std::vector<ir::LoweredFunc>> funcs = no_schedule_graph_compiler_->FusedGraphToLoweredFunc(task_graph);
+    for (int i = 0; i < funcs.size(); ++i) {
+      VLOG(3) << "func: " << funcs[i][0];
+    }
+
+    GraphCompiler::CompileOptions compile_options;
+    compile_options.with_instantiate_variables = true;
+    compile_options.groups                     = task_graph;
+    compile_options.lowered_funcs              = funcs;
+
+    no_schedule_program_ = no_schedule_graph_compiler_->Build(compile_options).runtime_program;
   }
 
   void BuildManualScheduleProgram() {
     manual_schedule_compiled_scope_ = BuildScope(target_, graph_);
     manual_schedule_graph_compiler_ = std::make_unique<GraphCompiler>(target_, manual_schedule_compiled_scope_, graph_);
-    manual_schedule_program_ = manual_schedule_graph_compiler_->Build();
+    manual_schedule_program_        = manual_schedule_graph_compiler_->Build();
   }
 
-  void BuildAutoScheduleProgram() {
+  void BuildAutoScheduleProgram(int num_tuning_rounds = 10) {
     auto_schedule_compiled_scope_ = BuildScope(target_, graph_);
     auto_schedule_graph_compiler_ = std::make_unique<GraphCompiler>(target_, auto_schedule_compiled_scope_, graph_);
-    tuner_ = std::make_unique<AutoTuner>(target_, graph_.get());
+    tuner_                        = std::make_unique<AutoTuner>(target_, graph_.get());
 
     AutoTuner::Config tuning_config;
     tuning_config.task_schedule_strategy = "round_robin";
 
     TuningOptions tuning_options;
-    tuning_options.num_measure_trials = 0;
+    tuning_options.num_tuning_rounds = num_tuning_rounds;
 
     tuner_->Initialize(tuning_config, auto_schedule_graph_compiler_.get());
     TuningResult tuning_result = tuner_->Tune(tuning_options);
@@ -123,16 +143,16 @@ class PerformanceTester {
   std::unique_ptr<hlir::framework::Program> no_schedule_program_;
   std::unique_ptr<hlir::framework::Program> manual_schedule_program_;
   std::unique_ptr<hlir::framework::Program> auto_schedule_program_;
-  
+
   std::unique_ptr<AutoTuner> tuner_;
 };
 
-class MatmulPerformanceTester : public PerformanceTester {
+class MulPerformanceTester : public PerformanceTester {
  public:
-  MatmulPerformanceTester(int M, int K, int N) : M_(M), K_(K), N_(N) {}
+  MulPerformanceTester(int M, int K, int N) : M_(M), K_(K), N_(N) {}
 
   frontend::Program CreateProgram() override {
-    frontend::NetBuilder builder("matmul_net_builder");
+    frontend::NetBuilder builder("mul_net_builder");
     auto x = builder.CreateInput(Float(32), {M_, K_}, "X");
     auto y = builder.CreateInput(Float(32), {N_, K_}, "Y");
 
@@ -142,8 +162,8 @@ class MatmulPerformanceTester : public PerformanceTester {
   void PrepareData(std::shared_ptr<Scope> scope) override {
     scope->Var<hlir::framework::Tensor>("X");
     scope->Var<hlir::framework::Tensor>("Y");
-    auto x_tensor        = scope->GetTensor("X");
-    auto y_tensor        = scope->GetTensor("Y");
+    auto x_tensor = scope->GetTensor("X");
+    auto y_tensor = scope->GetTensor("Y");
     SetRandData<float>(x_tensor, target_);
     SetRandData<float>(y_tensor, target_);
   }
@@ -169,8 +189,8 @@ class AddPerformanceTester : public PerformanceTester {
   void PrepareData(std::shared_ptr<Scope> scope) override {
     scope->Var<hlir::framework::Tensor>("X");
     scope->Var<hlir::framework::Tensor>("Y");
-    auto x_tensor        = scope->GetTensor("X");
-    auto y_tensor        = scope->GetTensor("Y");
+    auto x_tensor = scope->GetTensor("X");
+    auto y_tensor = scope->GetTensor("Y");
     SetRandData<float>(x_tensor, target_);
     SetRandData<float>(y_tensor, target_);
   }
@@ -180,27 +200,37 @@ class AddPerformanceTester : public PerformanceTester {
   int N_;
 };
 
-TEST(MatmulPerformanceTest, matmul_32x16x32) {
+const int repeat_time       = 100;
+const int num_tuning_rounds = 100;
+
+TEST(MulPerformanceTest, mul_32x16x32) {
   int M = 32;
   int K = 16;
   int N = 32;
-  MatmulPerformanceTester tester(M, K, N);
-  tester.BuildAndRun(100);
+  MulPerformanceTester tester(M, K, N);
+  tester.BuildAndRun(repeat_time, num_tuning_rounds);
 }
 
-TEST(MatmulPerformanceTest, matmul_1024x1024x1024) {
+TEST(MulPerformanceTest, mul_1024x1024x1024) {
   int M = 1024;
   int K = 1024;
   int N = 1024;
-  MatmulPerformanceTester tester(M, K, N);
-  tester.BuildAndRun(100);
+  MulPerformanceTester tester(M, K, N);
+  tester.BuildAndRun(repeat_time, num_tuning_rounds);
 }
 
 TEST(AddPerformanceTest, add_32x16) {
   int M = 32;
   int N = 16;
   AddPerformanceTester tester(M, N);
-  tester.BuildAndRun(100);
+  tester.BuildAndRun(repeat_time, num_tuning_rounds);
+}
+
+TEST(AddPerformanceTest, add_1024x1024) {
+  int M = 1024;
+  int N = 1024;
+  AddPerformanceTester tester(M, N);
+  tester.BuildAndRun(repeat_time, num_tuning_rounds);
 }
 
 }  // namespace auto_schedule
