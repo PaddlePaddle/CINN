@@ -14,9 +14,13 @@
 
 #pragma once
 
+#include <absl/container/flat_hash_map.h>
+
 #include <string>
 #include <vector>
-
+#ifdef CINN_WITH_CUDNN
+#include <cudnn.h>
+#endif
 #include "cinn/runtime/cinn_runtime.h"
 
 namespace cinn {
@@ -24,6 +28,50 @@ namespace runtime {
 namespace cuda {
 
 const int kCUDAMaxCards{8};
+
+void cinn_gpu_cublas_mul(const std::vector<int>& attrs,
+                         cinn_buffer_t* input1,
+                         cinn_buffer_t* input2,
+                         cinn_buffer_t* output,
+                         cudaStream_t stream = nullptr);
+
+void cinn_gpu_cublas_gemm(const std::vector<int>& attrs,
+                          cinn_buffer_t* lhs,
+                          cinn_buffer_t* rhs,
+                          cinn_buffer_t* bias,
+                          cinn_buffer_t* output,
+                          cudaStream_t stream = nullptr);
+#ifdef CINN_WITH_CUDNN
+void cinn_gpu_cudnn_conv2d(const absl::flat_hash_map<std::string, int>& attr,
+                           cinn_buffer_t* x,
+                           cinn_buffer_t* w,
+                           cinn_buffer_t* y,
+                           cudaStream_t stream = nullptr);
+
+void cinn_gpu_cudnn_conv2d_backward_data(const absl::flat_hash_map<std::string, int>& attr,
+                                         cinn_buffer_t* w,
+                                         cinn_buffer_t* dy,
+                                         cinn_buffer_t* dx,
+                                         cudaStream_t stream = nullptr);
+
+void cinn_gpu_cudnn_conv2d_backward_filter(const absl::flat_hash_map<std::string, int>& attr,
+                                           cinn_buffer_t* x,
+                                           cinn_buffer_t* dy,
+                                           cinn_buffer_t* dw,
+                                           cudaStream_t stream = nullptr);
+
+void cinn_gpu_cudnn_pool2d(const std::vector<int>& attrs,
+                           const std::vector<std::string>& str_attrs,
+                           cinn_buffer_t* input,
+                           cinn_buffer_t* output,
+                           cudaStream_t stream = nullptr);
+
+void cinn_gpu_cudnn_softmax(const std::vector<int>& attrs,
+                            cinn_buffer_t* input,
+                            cinn_buffer_t* output,
+                            cudaStream_t stream = nullptr);
+#endif
+
 /**
  * Call a CUDA compiled kernel.
  *
