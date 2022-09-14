@@ -29,10 +29,10 @@ struct OpBuilder {};
   struct OpBuilder<enum_t> {                                                                         \
     constexpr static Variable (NetBuilder::*func)(const Variable&, const Variable&, int){&function}; \
   }
-ELTWISE_SPEC(EltwiseType::kAdd, NetBuilder::ElementwiseAdd);
-ELTWISE_SPEC(EltwiseType::kDiv, NetBuilder::ElementwiseDiv);
-ELTWISE_SPEC(EltwiseType::kMul, NetBuilder::ElementwiseMul);
-ELTWISE_SPEC(EltwiseType::kSub, NetBuilder::ElementwiseSub);
+ELTWISE_SPEC(EltwiseType::kAdd, NetBuilder::Add);
+ELTWISE_SPEC(EltwiseType::kDiv, NetBuilder::Divide);
+ELTWISE_SPEC(EltwiseType::kMul, NetBuilder::Multiply);
+ELTWISE_SPEC(EltwiseType::kSub, NetBuilder::Subtract);
 #undef ELTWISE_SPEC
 
 void AddOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
@@ -112,7 +112,7 @@ void ElementwiseMulOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperCo
 
   auto x   = ctx.GetVar(x_name);
   auto y   = ctx.GetVar(y_name);
-  auto out = ctx.Builder()->ElementwiseMul(x, y, axis);
+  auto out = ctx.Builder()->Multiply(x, y, axis);
 
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);

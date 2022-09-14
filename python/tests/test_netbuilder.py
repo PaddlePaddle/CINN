@@ -108,7 +108,7 @@ class TestNetBuilderOp(unittest.TestCase):
         a = builder.create_input(Float(32), (4, 4), "A")
         tensor_data = [np.random.random([4, 4]).astype("float32")]
         print(tensor_data[0])
-        b = builder.elementwise_add(a, a)
+        b = builder.add(a, a)
         prog = builder.build()
         result = prog.build_and_get_output(self.target, [a], tensor_data, [b])
         res = result[0].numpy(self.target)

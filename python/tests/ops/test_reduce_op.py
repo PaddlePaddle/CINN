@@ -38,7 +38,7 @@ class TestReduceBaseOp(OpTest):
         return paddle.sum(x, axis=self.dim, keepdim=self.keep_dim)
 
     def cinn_func(self, builder, x):
-        return builder.reduce(x, ReduceKind.kSum, self.dim, self.keep_dim)
+        return builder.reduce_sum(x, self.dim, self.keep_dim)
 
     def cinn_create_input(self, builder, shape, name):
         return builder.create_input(Float(32), shape, name)
@@ -70,7 +70,7 @@ class TestReduceSumOp(TestReduceBaseOp):
         return paddle.sum(x, axis=self.dim, keepdim=self.keep_dim)
 
     def cinn_func(self, builder, x):
-        return builder.reduce(x, ReduceKind.kSum, self.dim, self.keep_dim)
+        return builder.reduce_sum(x, self.dim, self.keep_dim)
 
 
 class TestReduceSumCase1(TestReduceSumOp):
@@ -106,7 +106,7 @@ class TestReduceProdOp(TestReduceBaseOp):
         return paddle.prod(x, axis=self.dim, keepdim=self.keep_dim)
 
     def cinn_func(self, builder, x):
-        return builder.reduce(x, ReduceKind.kProd, self.dim, self.keep_dim)
+        return builder.reduce_prod(x, self.dim, self.keep_dim)
 
 
 class TestReduceProdCase1(TestReduceProdOp):
@@ -135,7 +135,7 @@ class TestReduceMaxOp(TestReduceBaseOp):
         return paddle.max(x, axis=self.dim, keepdim=self.keep_dim)
 
     def cinn_func(self, builder, x):
-        return builder.reduce(x, ReduceKind.kMax, self.dim, self.keep_dim)
+        return builder.reduce_max(x, self.dim, self.keep_dim)
 
     def test_check_results(self):
         self.check_outputs_and_grads(all_equal=True)
@@ -167,7 +167,7 @@ class TestReduceMinOp(TestReduceBaseOp):
         return paddle.min(x, axis=self.dim, keepdim=self.keep_dim)
 
     def cinn_func(self, builder, x):
-        return builder.reduce(x, ReduceKind.kMin, self.dim, self.keep_dim)
+        return builder.reduce_min(x, self.dim, self.keep_dim)
 
     def test_check_results(self):
         self.check_outputs_and_grads(all_equal=True)
@@ -204,7 +204,7 @@ class TestAllOp(TestReduceBaseOp):
         return paddle.all(x, axis=self.dim, keepdim=self.keep_dim)
 
     def cinn_func(self, builder, x):
-        return builder.all(x, self.dim, self.keep_dim)
+        return builder.reduce_all(x, self.dim, self.keep_dim)
 
     def cinn_create_input(self, builder, shape, name):
         return builder.create_input(Bool(), shape, name)
@@ -251,7 +251,7 @@ class TestAnyOp(TestReduceBaseOp):
         return paddle.any(x, axis=self.dim, keepdim=self.keep_dim)
 
     def cinn_func(self, builder, x):
-        return builder.any(x, self.dim, self.keep_dim)
+        return builder.reduce_any(x, self.dim, self.keep_dim)
 
     def cinn_create_input(self, builder, shape, name):
         return builder.create_input(Bool(), shape, name)
