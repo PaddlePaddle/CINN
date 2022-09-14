@@ -14,8 +14,10 @@
 
 #pragma once
 
+#include <memory>
 #include <vector>
 
+#include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/node.h"
 #include "cinn/ir/lowered_func.h"
 
@@ -76,7 +78,7 @@ struct TuningOptions {
 struct TuningResult {
   // Result of graph tuning
   struct TunedSubGraph {
-    std::vector<std::vector<hlir::framework::Node*>> groups;
+    std::vector<std::shared_ptr<hlir::framework::Graph::Group>> groups;
   };
 
   // Result of schedule tuning in CINN IR

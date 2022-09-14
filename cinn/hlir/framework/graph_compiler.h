@@ -100,7 +100,7 @@ class GraphCompiler final {
     bool remove_unused_variables                 = true;
     // nodes group, it may come from the result of op fusion or graph tuning.
     // nodes in a group will be built into an Instruction
-    std::vector<std::vector<Node*>> groups;
+    std::vector<std::shared_ptr<Graph::Group>> groups;
     // corresponding LoweredFuncs of above grouped nodes,
     // if it is empty then graph_compiler will generate for them
     std::vector<std::vector<ir::LoweredFunc>> lowered_funcs;

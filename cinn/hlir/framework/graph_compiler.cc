@@ -702,7 +702,14 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
     }
   }
   // use the input groups in options firstly if exists
-  auto groups = options.groups.empty() ? graph_->groups : options.groups;
+  std::vector<std::vector<Node*>> groups;
+  if (options.groups.empty()) {
+    groups = graph_->groups;
+  } else {
+    for (std::shared_ptr<Graph::Group> g : options.groups) {
+      groups.push_back(g->CollectNodes());
+    }
+  }
 
   // if the input lowered_funcs is empty, we will use the defalut lowering process to generate
   std::vector<std::vector<ir::LoweredFunc>> local_lowered_funcs;

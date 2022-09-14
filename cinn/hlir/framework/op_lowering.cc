@@ -70,20 +70,20 @@ OpLowerer::OpLowerer(const absl::flat_hash_map<std::string, Type>& type_dict,
                      const Target& target)
     : type_dict_(type_dict), shape_dict_(shape_dict), target_(target) {}
 
-std::vector<ir::LoweredFunc> OpLowerer::LowerWithOutSchedule(GroupPtr& group) {
+std::vector<ir::LoweredFunc> OpLowerer::LowerWithoutSchedule(GroupPtr& group) {
   VLOG(3) << "Lowering Group : " << group->group_id << " , Op Pattern : " << group->op_pattern_kind;
   if (FLAGS_cinn_ir_schedule) {
     switch (group->op_pattern_kind) {
       case framework::kElemWise:
       case framework::kBroadcast:
       case framework::kInjective:
-        return IRLowerOpWithOutSchedule(&OpLowerer::IRElementwiseCompute, group);
+        return IRLowerOpWithoutSchedule(&OpLowerer::IRElementwiseCompute, group);
       case framework::kCommReduce:
-        return IRLowerOpWithOutSchedule(&OpLowerer::IRReduceCompute, group);
+        return IRLowerOpWithoutSchedule(&OpLowerer::IRReduceCompute, group);
       case framework::kOutEWiseFusable:
         LOG(FATAL) << "Group Pattern Kind kOutEWiseFusable Is Not Implemented!";
       case framework::kOpaque:
-        LOG(FATAL) << "Group Pattern Kind kOutEWiseFusable Is Not Implemented!";
+        return IRLowerOpaqueOp(group);
       default:
         LOG(FATAL) << "Group Pattern Kind kOpaque Is Not Implemented!";
     }
@@ -127,7 +127,7 @@ std::vector<ir::LoweredFunc> OpLowerer::Lower(GroupPtr& group) {
   }
 }
 
-std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpWithOutSchedule(IRComputeFunction compute, GroupPtr& group) {
+std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpWithoutSchedule(IRComputeFunction compute, GroupPtr& group) {
   poly::StageMap stages;
   std::vector<ir::Tensor> func_tensors;
   std::unordered_map<std::string, ir::Tensor> tensor_map;
@@ -147,9 +147,14 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpWithOutSchedule(IRComputeFuncti
   ir::IRSchedule ir_sch(mod_expr);
   ir_sch.MergeExprs();
 
+  std::vector<std::string> func_tensor_names;
+  for (const ir::Tensor& ft : func_tensors) {
+    func_tensor_names.push_back(ft->name);
+  }
+
   auto func_body    = ir_sch.GetModule().GetExprs().at(0);
   auto temp_buffers = lang::GetTempBuffers(func_tensors, stages, func_body);
-  auto func_args    = lang::GetArgs(func_body, func_tensors);
+  auto func_args    = lang::GetArgs(func_body, func_tensor_names);
   auto func =
       ir::_LoweredFunc_::Make(group->GetFuncName(), func_args, ir_sch.GetModule().GetExprs().at(0), temp_buffers);
   func->PrepareBufferCastExprs();
