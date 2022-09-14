@@ -19,8 +19,6 @@
 #include <memory>
 #include <unordered_set>
 
-#include "cinn/auto_schedule/auto_tuner.h"
-#include "cinn/auto_schedule/tuning.h"
 #include "cinn/backends/codegen_cuda_dev.h"
 #include "cinn/common/context.h"
 #include "cinn/hlir/framework/instruction.h"
