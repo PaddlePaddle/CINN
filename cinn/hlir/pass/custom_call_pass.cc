@@ -124,15 +124,15 @@ class GraphAlterHelper {
 };
 
 void MatmulToCublasCustomCallPassInternal(Graph* graph) {
-  VLOG(3) << "OpFusionPass...!";
+  VLOG(3) << "MatmulToCublasCustomCallPass...!";
   GraphAlterHelper(graph).MatmulToCublasCustomCall();
-  VLOG(3) << "OpFusionPass Finish...!";
+  VLOG(3) << "MatmulToCublasCustomCallPass Finish...!";
 }
 
 void ConvToCudnnCustomCallPassInternal(Graph* graph) {
-  VLOG(3) << "OpFusionPass...!";
+  VLOG(3) << "ConvToCudnnCustomCallPass...!";
   GraphAlterHelper(graph).ConvToCudnnCustomCall();
-  VLOG(3) << "OpFusionPass Finish...!";
+  VLOG(3) << "ConvToCudnnCustomCallPass Finish...!";
 }
 
 }  // namespace pass

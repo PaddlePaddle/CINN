@@ -295,8 +295,8 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFuncWithIRSchedule(
     std::string id = i->source()->as<NodeData>()->id();
     auto shape     = shape_dict_.at(id);
     Type dtype     = type_dict_.at(id);
-    CHECK(dtype == Float(32) || dtype.is_bool() || dtype == Int(32) || dtype == Int(64))
-        << "The dtype of node " << id << " is not float or bool or int! Other dtype is not implemented yet.";
+    CHECK(dtype.is_supported()) << "The dtype of node " << id
+                                << " is not float or bool or int! Other dtype is not implemented yet.";
     ir::Tensor input;
     if (dtype == Float(32)) {
       input = lang::Placeholder<float>(id, shape);
@@ -345,8 +345,8 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const Node* node) {
     std::string input_id = i->source()->as<NodeData>()->id();
     auto in_shape        = shape_dict.at(input_id);
     Type dtype           = dtype_dict.at(input_id);
-    CHECK(dtype == Float(32) || dtype.is_bool() || dtype == Int(32) || dtype == Int(64))
-        << "The dtype of node " << input_id << " is not float or bool or int! Other dtype is not implemented yet.";
+    CHECK(dtype.is_supported()) << "The dtype of node " << input_id
+                                << " is not float or bool or int! Other dtype is not implemented yet.";
     ir::Tensor temp;
     if (dtype == Float(32)) {
       temp = lang::Placeholder<float>(input_id, in_shape);
@@ -449,8 +449,8 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
         std::string input_id = source_data->id();
         auto in_shape        = shape_dict.at(input_id);
         Type dtype           = dtype_dict.at(input_id);
-        CHECK(dtype == Float(32) || dtype.is_bool() || dtype == Int(32) || dtype == Int(64))
-            << "The dtype of node " << input_id << " is not float or bool or int! Other dtype is not implemented yet.";
+        CHECK(dtype.is_supported()) << "The dtype of node " << input_id
+                                    << " is not float or bool or int! Other dtype is not implemented yet.";
         ir::Tensor temp_in;
         if (dtype == Float(32)) {
           temp_in = lang::Placeholder<float>(input_id, in_shape);
