@@ -130,6 +130,13 @@ class TestReduceProdCase3(TestReduceProdOp):
         self.keep_dim = False
 
 
+class TestReduceProdCase4(TestReduceProdOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([10, 10, 10], "float32", -1.0, 1.0)}
+        self.dim = []
+        self.keep_dim = False
+
+
 class TestReduceMaxOp(TestReduceBaseOp):
     def paddle_func(self, x):
         return paddle.max(x, axis=self.dim, keepdim=self.keep_dim)
@@ -162,6 +169,13 @@ class TestReduceMaxCase3(TestReduceMaxOp):
         self.keep_dim = False
 
 
+class TestReduceMaxCase4(TestReduceMaxOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([10, 10, 10], "float32", -10.0, -1.0)}
+        self.dim = []
+        self.keep_dim = False
+
+
 class TestReduceMinOp(TestReduceBaseOp):
     def paddle_func(self, x):
         return paddle.min(x, axis=self.dim, keepdim=self.keep_dim)
@@ -191,6 +205,13 @@ class TestReduceMinCase3(TestReduceMinOp):
     def init_case(self):
         self.inputs = {"x": self.random([10, 10, 10], "float32", -1.0, 1.0)}
         self.dim = [0]
+        self.keep_dim = False
+
+
+class TestReduceMinCase4(TestReduceMinOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([10, 10, 10], "float32", 1.0, 10.0)}
+        self.dim = []
         self.keep_dim = False
 
 
@@ -241,6 +262,13 @@ class TestAllCase4(TestAllOp):
         self.keep_dim = False
 
 
+class TestAllCase5(TestAllOp):
+    def init_case(self):
+        self.inputs = {"x": np.full([10, 10, 10], True, 'bool')}
+        self.dim = []
+        self.keep_dim = False
+
+
 class TestAnyOp(TestReduceBaseOp):
     def init_case(self):
         self.inputs = {"x": self.random([10, 10, 10], "bool")}
@@ -285,6 +313,13 @@ class TestAnyCase4(TestAnyOp):
     def init_case(self):
         self.inputs = {"x": self.random([10, 10, 10], "bool")}
         self.dim = [0]
+        self.keep_dim = False
+
+
+class TestAnyCase5(TestAllOp):
+    def init_case(self):
+        self.inputs = {"x": np.full([10, 10, 10], False, 'bool')}
+        self.dim = []
         self.keep_dim = False
 
 
