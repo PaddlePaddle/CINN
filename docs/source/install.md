@@ -63,7 +63,7 @@ from cinn.common import *
 target = DefaultHostTarget()
 #target = DefaultNVGPUTarget()
 
-builder = CinnBuilder("test_basic")
+builder = NetBuilder("test_basic")
 a = builder.create_input(Float(32), (1, 24, 56, 56), "A")
 b = builder.create_input(Float(32), (1, 24, 56, 56), "B")
 c = builder.add(a, b)

@@ -38,7 +38,7 @@ class TestReduceBaseOp(OpTest):
         return paddle.sum(x, axis=self.dim, keepdim=self.keep_dim)
 
     def cinn_func(self, builder, x):
-        return builder.reduce(x, ReduceKind.kSum, self.dim, self.keep_dim)
+        return builder.reduce_sum(x, self.dim, self.keep_dim)
 
     def cinn_create_input(self, builder, shape, name):
         return builder.create_input(Float(32), shape, name)
@@ -70,7 +70,7 @@ class TestReduceSumOp(TestReduceBaseOp):
         return paddle.sum(x, axis=self.dim, keepdim=self.keep_dim)
 
     def cinn_func(self, builder, x):
-        return builder.reduce(x, ReduceKind.kSum, self.dim, self.keep_dim)
+        return builder.reduce_sum(x, self.dim, self.keep_dim)
 
 
 class TestReduceSumCase1(TestReduceSumOp):
@@ -106,7 +106,7 @@ class TestReduceProdOp(TestReduceBaseOp):
         return paddle.prod(x, axis=self.dim, keepdim=self.keep_dim)
 
     def cinn_func(self, builder, x):
-        return builder.reduce(x, ReduceKind.kProd, self.dim, self.keep_dim)
+        return builder.reduce_prod(x, self.dim, self.keep_dim)
 
 
 class TestReduceProdCase1(TestReduceProdOp):
@@ -130,12 +130,19 @@ class TestReduceProdCase3(TestReduceProdOp):
         self.keep_dim = False
 
 
+class TestReduceProdCase4(TestReduceProdOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([10, 10, 10], "float32", -1.0, 1.0)}
+        self.dim = []
+        self.keep_dim = False
+
+
 class TestReduceMaxOp(TestReduceBaseOp):
     def paddle_func(self, x):
         return paddle.max(x, axis=self.dim, keepdim=self.keep_dim)
 
     def cinn_func(self, builder, x):
-        return builder.reduce(x, ReduceKind.kMax, self.dim, self.keep_dim)
+        return builder.reduce_max(x, self.dim, self.keep_dim)
 
     def test_check_results(self):
         self.check_outputs_and_grads(all_equal=True)
@@ -162,12 +169,19 @@ class TestReduceMaxCase3(TestReduceMaxOp):
         self.keep_dim = False
 
 
+class TestReduceMaxCase4(TestReduceMaxOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([10, 10, 10], "float32", -10.0, -1.0)}
+        self.dim = []
+        self.keep_dim = False
+
+
 class TestReduceMinOp(TestReduceBaseOp):
     def paddle_func(self, x):
         return paddle.min(x, axis=self.dim, keepdim=self.keep_dim)
 
     def cinn_func(self, builder, x):
-        return builder.reduce(x, ReduceKind.kMin, self.dim, self.keep_dim)
+        return builder.reduce_min(x, self.dim, self.keep_dim)
 
     def test_check_results(self):
         self.check_outputs_and_grads(all_equal=True)
@@ -194,6 +208,13 @@ class TestReduceMinCase3(TestReduceMinOp):
         self.keep_dim = False
 
 
+class TestReduceMinCase4(TestReduceMinOp):
+    def init_case(self):
+        self.inputs = {"x": self.random([10, 10, 10], "float32", 1.0, 10.0)}
+        self.dim = []
+        self.keep_dim = False
+
+
 class TestAllOp(TestReduceBaseOp):
     def init_case(self):
         self.inputs = {"x": self.random([10, 10, 10], "bool")}
@@ -204,7 +225,7 @@ class TestAllOp(TestReduceBaseOp):
         return paddle.all(x, axis=self.dim, keepdim=self.keep_dim)
 
     def cinn_func(self, builder, x):
-        return builder.all(x, self.dim, self.keep_dim)
+        return builder.reduce_all(x, self.dim, self.keep_dim)
 
     def cinn_create_input(self, builder, shape, name):
         return builder.create_input(Bool(), shape, name)
@@ -241,6 +262,13 @@ class TestAllCase4(TestAllOp):
         self.keep_dim = False
 
 
+class TestAllCase5(TestAllOp):
+    def init_case(self):
+        self.inputs = {"x": np.full([10, 10, 10], True, 'bool')}
+        self.dim = []
+        self.keep_dim = False
+
+
 class TestAnyOp(TestReduceBaseOp):
     def init_case(self):
         self.inputs = {"x": self.random([10, 10, 10], "bool")}
@@ -251,7 +279,7 @@ class TestAnyOp(TestReduceBaseOp):
         return paddle.any(x, axis=self.dim, keepdim=self.keep_dim)
 
     def cinn_func(self, builder, x):
-        return builder.any(x, self.dim, self.keep_dim)
+        return builder.reduce_any(x, self.dim, self.keep_dim)
 
     def cinn_create_input(self, builder, shape, name):
         return builder.create_input(Bool(), shape, name)
@@ -285,6 +313,13 @@ class TestAnyCase4(TestAnyOp):
     def init_case(self):
         self.inputs = {"x": self.random([10, 10, 10], "bool")}
         self.dim = [0]
+        self.keep_dim = False
+
+
+class TestAnyCase5(TestAllOp):
+    def init_case(self):
+        self.inputs = {"x": np.full([10, 10, 10], False, 'bool')}
+        self.dim = []
         self.keep_dim = False
 
 
