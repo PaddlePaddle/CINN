@@ -27,6 +27,7 @@
 #include "cinn/runtime/flags.h"
 
 DECLARE_bool(auto_schedule_use_cost_model);
+DECLARE_bool(cinn_ir_schedule);
 
 namespace cinn {
 namespace auto_schedule {
@@ -52,10 +53,12 @@ class TestAutoTuner : public ::testing::Test {
 
   static frontend::Program CreateAddReluProgram();
   void SetUp() override {
-    graph          = std::make_shared<Graph>(CreateAddReluProgram(), target);
-    compiled_scope = BuildScope(target, graph);
-    graph_compiler = std::make_unique<GraphCompiler>(target, compiled_scope, graph);
-    tuner          = std::make_unique<AutoTuner>(target, graph.get());
+    // AutoTuner is combined with new IR Schedule
+    FLAGS_cinn_ir_schedule = true;
+    graph                  = std::make_shared<Graph>(CreateAddReluProgram(), target);
+    compiled_scope         = BuildScope(target, graph);
+    graph_compiler         = std::make_unique<GraphCompiler>(target, compiled_scope, graph);
+    tuner                  = std::make_unique<AutoTuner>(target, graph.get());
   }
 
   TuningResult InitializeAndTune(const AutoTuner::Config& config, const TuningOptions& options) {
@@ -67,10 +70,10 @@ class TestAutoTuner : public ::testing::Test {
     ASSERT_EQ(2, result.tuned_graph.size());
     const auto& sub_graph1 = result.tuned_graph.front();
     ASSERT_EQ(1, sub_graph1.groups.size());
-    ASSERT_EQ(sub_graph1.groups[0][0]->op()->name, "elementwise_add");
+    ASSERT_EQ(sub_graph1.groups[0]->CollectNodes()[0]->op()->name, "elementwise_add");
     const auto& sub_graph2 = result.tuned_graph.back();
     ASSERT_EQ(1, sub_graph2.groups.size());
-    ASSERT_EQ(sub_graph2.groups[0][0]->op()->name, "relu");
+    ASSERT_EQ(sub_graph2.groups[0]->CollectNodes()[0]->op()->name, "relu");
 
     ASSERT_EQ(result.optimized_exprs.size(), 2UL);
     ASSERT_EQ(result.optimized_exprs[0].lowered_funcs.size(), 1UL);

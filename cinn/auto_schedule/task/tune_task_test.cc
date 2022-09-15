@@ -98,11 +98,15 @@ TEST(TuneTask, GraphToUnoptLoweredFunc_NoPass) {
 {
   ScheduleBlock(root)
   {
-    if ((threadIdx.x < 768)) {
-      ScheduleBlock(var_1)
+    for (i, 0, 32)
+    {
+      for (j, 0, 24)
       {
-        i0, i1 = axis.bind((threadIdx.x / 24), (threadIdx.x % 24))
-        var_1[(threadIdx.x / 24), (threadIdx.x % 24)] = (A[(threadIdx.x / 24), (threadIdx.x % 24)] + B[(threadIdx.x / 24), (threadIdx.x % 24)])
+        ScheduleBlock(var_1)
+        {
+          i0, i1 = axis.bind(i, j)
+          var_1[i0, i1] = (A[i0, i1] + B[i0, i1])
+        }
       }
     }
   }
@@ -110,11 +114,15 @@ TEST(TuneTask, GraphToUnoptLoweredFunc_NoPass) {
 {
   ScheduleBlock(root_0)
   {
-    if ((threadIdx.x < 768)) {
-      ScheduleBlock(var_2)
+    for (i, 0, 32)
+    {
+      for (j, 0, 24)
       {
-        i0, i1 = axis.bind((threadIdx.x / 24), (threadIdx.x % 24))
-        var_2[(threadIdx.x / 24), (threadIdx.x % 24)] = (A[(threadIdx.x / 24), (threadIdx.x % 24)] + var_1[(threadIdx.x / 24), (threadIdx.x % 24)])
+        ScheduleBlock(var_2)
+        {
+          i0, i1 = axis.bind(i, j)
+          var_2[i0, i1] = (A[i0, i1] + var_1[i0, i1])
+        }
       }
     }
   }
@@ -203,18 +211,26 @@ TEST(TuneTask, GraphToUnoptLoweredFunc_ApplyPass) {
   ScheduleBlock(root)
   {
     {
-      if ((threadIdx.x < 768)) {
-        ScheduleBlock(var_1)
+      for (i, 0, 32)
+      {
+        for (j, 0, 24)
         {
-          i0, i1 = axis.bind((threadIdx.x / 24), (threadIdx.x % 24))
-          var_1[(threadIdx.x / 24), (threadIdx.x % 24)] = (A[(threadIdx.x / 24), (threadIdx.x % 24)] + B[(threadIdx.x / 24), (threadIdx.x % 24)])
+          ScheduleBlock(var_1)
+          {
+            i0, i1 = axis.bind(i, j)
+            var_1[i0, i1] = (A[i0, i1] + B[i0, i1])
+          }
         }
       }
-      if ((threadIdx.x < 768)) {
-        ScheduleBlock(var_2)
+      for (i, 0, 32)
+      {
+        for (j, 0, 24)
         {
-          i0, i1 = axis.bind((threadIdx.x / 24), (threadIdx.x % 24))
-          var_2[(threadIdx.x / 24), (threadIdx.x % 24)] = (A[(threadIdx.x / 24), (threadIdx.x % 24)] + var_1[(threadIdx.x / 24), (threadIdx.x % 24)])
+          ScheduleBlock(var_2)
+          {
+            i0, i1 = axis.bind(i, j)
+            var_2[i0, i1] = (A[i0, i1] + var_1[i0, i1])
+          }
         }
       }
     }
