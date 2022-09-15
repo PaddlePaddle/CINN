@@ -46,34 +46,40 @@ __device__ inline float cinn_min(const float left, const float right) { return m
 __device__ inline bool cinn_all(const bool left, const bool right) { return left && right; }
 __device__ inline bool cinn_any(const bool left, const bool right) { return left || right; }
 
-#define cinn_warp_shuffle_internal_kernel(TYPE, value, op)                  \
-  TYPE tmp_val      = value;                                                \
-  unsigned int mask = __activemask();                                       \
-  tmp_val           = op(tmp_val, __shfl_down_sync(mask, tmp_val, 16, 32)); \
-  tmp_val           = op(tmp_val, __shfl_down_sync(mask, tmp_val, 8, 32));  \
-  tmp_val           = op(tmp_val, __shfl_down_sync(mask, tmp_val, 4, 32));  \
-  tmp_val           = op(tmp_val, __shfl_down_sync(mask, tmp_val, 2, 32));  \
-  tmp_val           = op(tmp_val, __shfl_down_sync(mask, tmp_val, 1, 32));  \
-  tmp_val           = __shfl_sync(mask, tmp_val, 0, 32);                    \
+#define cinn_shuffle_function(offset, op, init)                  \
+  shfl_res = __shfl_down_sync(mask, tmp_val, offset, 32);        \
+  shfl_res = threadIdx.x % 32 + offset < lane ? shfl_res : init; \
+  tmp_val = op(tmp_val, shfl_res);
+
+#define cinn_warp_shuffle_internal_kernel(TYPE, value, op, init) \
+  TYPE tmp_val      = value, shfl_res;                           \
+  unsigned int mask = __activemask();                            \
+  unsigned int lane = __popc(mask);                              \
+  cinn_shuffle_function(16, op, init)                            \
+  cinn_shuffle_function(8, op, init)                             \
+  cinn_shuffle_function(4, op, init)                             \
+  cinn_shuffle_function(2, op, init)                             \
+  cinn_shuffle_function(1, op, init)                             \
+  tmp_val = __shfl_sync(mask, tmp_val, 0, 32);                   \
   return tmp_val;
 
 __device__ inline float cinn_warp_shuffle_sum_internal(const float value) {
-  cinn_warp_shuffle_internal_kernel(float, value, cinn_sum);
+  cinn_warp_shuffle_internal_kernel(float, value, cinn_sum, 0.0f);
 }
 __device__ inline float cinn_warp_shuffle_prod_internal(const float value) {
-  cinn_warp_shuffle_internal_kernel(float, value, cinn_prod);
+  cinn_warp_shuffle_internal_kernel(float, value, cinn_prod, 1.0f);
 }
 __device__ inline float cinn_warp_shuffle_max_internal(const float value) {
-  cinn_warp_shuffle_internal_kernel(float, value, cinn_max);
+  cinn_warp_shuffle_internal_kernel(float, value, cinn_max, CINN_FLT_MIN);
 }
 __device__ inline float cinn_warp_shuffle_min_internal(const float value) {
-  cinn_warp_shuffle_internal_kernel(float, value, cinn_min);
+  cinn_warp_shuffle_internal_kernel(float, value, cinn_min, CINN_FLT_MAX);
 }
 __device__ inline bool cinn_warp_shuffle_all_internal(const bool value) {
-  cinn_warp_shuffle_internal_kernel(bool, value, cinn_all);
+  cinn_warp_shuffle_internal_kernel(bool, value, cinn_all, true);
 }
 __device__ inline bool cinn_warp_shuffle_any_internal(const bool value) {
-  cinn_warp_shuffle_internal_kernel(bool, value, cinn_any);
+  cinn_warp_shuffle_internal_kernel(bool, value, cinn_any, false);
 }
 
 #undef cinn_warp_shuffle_internal_kernel
