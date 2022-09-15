@@ -536,7 +536,9 @@ void BindFrontend(pybind11::module *m) {
            py::arg("output_shape")      = std::vector<int>{})
       .def("cast", &NetBuilder::Cast, py::arg("x"), py::arg("dtype"))
       .def("clip", &NetBuilder::Clip, py::arg("x"), py::arg("max"), py::arg("min"))
-      .def("arange", &NetBuilder::Arange, py::arg("start"), py::arg("end"), py::arg("step"), py::arg("dtype"));
+      .def("arange", &NetBuilder::Arange, py::arg("start"), py::arg("end"), py::arg("step"), py::arg("dtype"))
+      .def("gather", &NetBuilder::Gather, py::arg("x"), py::arg("index"), py::arg("axis"))
+      .def("gather_nd", &NetBuilder::GatherNd, py::arg("x"), py::arg("index"), py::arg("axes"));
 
   auto computation = py::class_<CinnComputation, std::shared_ptr<CinnComputation>>(*m, "Computation");
   py::class_<CinnComputation::CompileOptions>(computation, "CompileOptions")
