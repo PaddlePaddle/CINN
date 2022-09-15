@@ -15,12 +15,11 @@
 #pragma once
 
 #include <absl/container/flat_hash_map.h>
+#include <cuda_runtime.h>
 
 #include <string>
 #include <vector>
-#ifdef CINN_WITH_CUDNN
-#include <cudnn.h>
-#endif
+
 #include "cinn/runtime/cinn_runtime.h"
 
 namespace cinn {
