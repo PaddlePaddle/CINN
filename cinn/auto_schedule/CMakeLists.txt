@@ -14,7 +14,7 @@ core_gather_headers()
 gather_srcs(cinnapi_src SRCS auto_tuner.cc)
 
 cc_test(test_auto_tuner SRCS auto_tuner_test.cc DEPS cinncore)
-cc_test(test_auto_tuner_performance SRCS auto_tuner_performance_test.cc DEPS cinncore)
+cc_test(test_performance_comparison SRCS performance_comparison.cc DEPS cinncore)
 
 foreach(header ${auto_schedule_proto_HDRS})
   set(core_proto_includes "${core_proto_includes};${header}" CACHE INTERNAL "")

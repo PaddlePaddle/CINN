@@ -85,14 +85,19 @@ class PerformanceTester {
       }
     }
     std::vector<std::vector<ir::LoweredFunc>> funcs = no_schedule_graph_compiler_->FusedGraphToLoweredFunc(task_graph);
-    for (int i = 0; i < funcs.size(); ++i) {
-      VLOG(3) << "func: " << funcs[i][0];
-    }
 
     GraphCompiler::CompileOptions compile_options;
     compile_options.with_instantiate_variables = true;
     compile_options.groups                     = task_graph;
     compile_options.lowered_funcs              = funcs;
+
+    VLOG(3) << "===========================No Schedule LoweredFunc Begin===========================";
+    for (const auto& funcvec : funcs) {
+      for (const auto& func : funcvec) {
+        VLOG(3) << func;
+      }
+    }
+    VLOG(3) << "===========================No Schedule LoweredFunc End=============================";
 
     no_schedule_program_ = no_schedule_graph_compiler_->Build(compile_options).runtime_program;
   }
@@ -101,6 +106,10 @@ class PerformanceTester {
     manual_schedule_compiled_scope_ = BuildScope(target_, graph_);
     manual_schedule_graph_compiler_ = std::make_unique<GraphCompiler>(target_, manual_schedule_compiled_scope_, graph_);
     manual_schedule_program_        = manual_schedule_graph_compiler_->Build();
+
+    VLOG(3) << "===========================Manual Schedule LoweredFunc Begin===========================";
+    manual_schedule_graph_compiler_->PrintFunc();
+    VLOG(3) << "===========================Manual Schedule LoweredFunc End=============================";
   }
 
   void BuildAutoScheduleProgram(int num_tuning_rounds = 10) {
@@ -109,8 +118,6 @@ class PerformanceTester {
     tuner_                        = std::make_unique<AutoTuner>(target_, graph_.get());
 
     AutoTuner::Config tuning_config;
-    tuning_config.task_schedule_strategy = "round_robin";
-
     TuningOptions tuning_options;
     tuning_options.num_tuning_rounds = num_tuning_rounds;
 
@@ -120,6 +127,14 @@ class PerformanceTester {
     GraphCompiler::CompileOptions compile_options;
     compile_options.with_instantiate_variables = true;
     compile_options.Apply(tuning_result);
+
+    VLOG(3) << "===========================Auto Schedule LoweredFunc Begin===========================";
+    for (const auto& funcvec : compile_options.lowered_funcs) {
+      for (const auto& func : funcvec) {
+        VLOG(3) << func;
+      }
+    }
+    VLOG(3) << "===========================Auto Schedule LoweredFunc End=============================";
 
     auto_schedule_program_ = auto_schedule_graph_compiler_->Build(compile_options).runtime_program;
   }
@@ -174,6 +189,33 @@ class MulPerformanceTester : public PerformanceTester {
   int N_;
 };
 
+class MatmulPerformanceTester : public PerformanceTester {
+ public:
+  MatmulPerformanceTester(int M, int K, int N) : M_(M), K_(K), N_(N) {}
+
+  frontend::Program CreateProgram() override {
+    frontend::NetBuilder builder("mul_net_builder");
+    auto x = builder.CreateInput(Float(32), {M_, K_}, "X");
+    auto y = builder.CreateInput(Float(32), {K_, N_}, "Y");
+
+    auto mul_out = builder.Matmul(x, y);
+    return builder.Build();
+  }
+  void PrepareData(std::shared_ptr<Scope> scope) override {
+    scope->Var<hlir::framework::Tensor>("X");
+    scope->Var<hlir::framework::Tensor>("Y");
+    auto x_tensor = scope->GetTensor("X");
+    auto y_tensor = scope->GetTensor("Y");
+    SetRandData<float>(x_tensor, target_);
+    SetRandData<float>(y_tensor, target_);
+  }
+
+ private:
+  int M_;
+  int K_;
+  int N_;
+};
+
 class AddPerformanceTester : public PerformanceTester {
  public:
   AddPerformanceTester(int M, int N) : M_(M), N_(N) {}
@@ -200,21 +242,23 @@ class AddPerformanceTester : public PerformanceTester {
   int N_;
 };
 
+#ifdef CINN_WITH_CUDA
+
 const int repeat_time       = 100;
-const int num_tuning_rounds = 100;
+const int num_tuning_rounds = 1;
+
+TEST(MatmulPerformanceTest, matmul_32x16x32) {
+  int M = 32;
+  int K = 16;
+  int N = 32;
+  MatmulPerformanceTester tester(M, K, N);
+  tester.BuildAndRun(repeat_time, num_tuning_rounds);
+}
 
 TEST(MulPerformanceTest, mul_32x16x32) {
   int M = 32;
   int K = 16;
   int N = 32;
-  MulPerformanceTester tester(M, K, N);
-  tester.BuildAndRun(repeat_time, num_tuning_rounds);
-}
-
-TEST(MulPerformanceTest, mul_1024x1024x1024) {
-  int M = 1024;
-  int K = 1024;
-  int N = 1024;
   MulPerformanceTester tester(M, K, N);
   tester.BuildAndRun(repeat_time, num_tuning_rounds);
 }
@@ -232,6 +276,8 @@ TEST(AddPerformanceTest, add_1024x1024) {
   AddPerformanceTester tester(M, N);
   tester.BuildAndRun(repeat_time, num_tuning_rounds);
 }
+
+#endif
 
 }  // namespace auto_schedule
 }  // namespace cinn
