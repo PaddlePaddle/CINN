@@ -24,7 +24,7 @@
 namespace cinn {
 namespace runtime {
 
-void cinn_assert_true(void* v_args, std::string msg, bool only_warning, void* stream = nullptr);
+void cinn_assert_true(void* v_args, int msg, bool only_warning, void* stream = nullptr);
 
 }  // namespace runtime
 }  // namespace cinn

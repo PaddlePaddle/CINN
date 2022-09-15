@@ -261,13 +261,14 @@ CINN_REGISTER_HELPER(cinn_call_cuda_kernel) {
       .AddInputType<void *>()  // stream
       .End();
 
+  // TODO(thisjiang): change msg type from 'int' to 'std::string' when custom call support 'std::string' type
   using cinn::runtime::cinn_assert_true;
   REGISTER_EXTERN_FUNC_HELPER(cinn_assert_true, cinn::common::DefaultHostTarget())
       .SetRetType<void>()
-      .AddInputType<void *>()       // v_args
-      .AddInputType<std::string>()  // msg
-      .AddInputType<bool>()         // only_warning
-      .AddInputType<void *>()       // stream
+      .AddInputType<void *>()  // v_args
+      .AddInputType<int>()     // msg
+      .AddInputType<bool>()    // only_warning
+      .AddInputType<void *>()  // stream
       .End();
 
   return true;

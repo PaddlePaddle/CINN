@@ -102,7 +102,7 @@ void CheckAssertTrue(
   }
 }
 
-void cinn_assert_true(void* v_args, std::string msg, bool only_warning, void* stream) {
+void cinn_assert_true(void* v_args, int msg, bool only_warning, void* stream) {
   // why x->type and output->type are empty?
   // CHECK(x->type == cinn_bool_t()) << "The input type of AssertTrue should be bool, but here " << x->type.bits
   //                                 << "! Please check.";
@@ -133,7 +133,7 @@ void cinn_assert_true(void* v_args, std::string msg, bool only_warning, void* st
   size_t numel    = cpu_tensor->shape().numel();
   utils::MemcpyToHost(dst, src, numel * sizeof(bool), target, stream);
 
-  CheckAssertTrue(dst, numel, only_warning, msg, target);
+  CheckAssertTrue(dst, numel, only_warning, std::to_string(msg), target);
 
   if (target == common::DefaultNVGPUTarget()) {
     utils::MemcpyToDevice(output->memory, x->memory, numel * sizeof(bool), target, stream);

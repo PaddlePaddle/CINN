@@ -316,7 +316,8 @@ std::vector<ir::Expr> CustomCallArgsForAssertTrue(const framework::NodeAttr &att
   CHECK_EQ(output_shapes.size(), 1UL);
   auto attr_store = attrs.attr_store;
   CHECK(attr_store.count("msg"));
-  auto msg          = absl::get<std::string>(attr_store.at("msg"));
+  // TODO(thisjiang): change type from 'int' to 'std::string' when custom call support 'std::string' type
+  auto msg          = absl::get<int>(attr_store.at("msg"));
   auto only_warning = attr_store.count("only_warning") ? absl::get<bool>(attrs.attr_store.at("only_warning")) : false;
 
   std::vector<ir::Expr> args = {ir::Expr(msg), ir::Expr(only_warning)};
