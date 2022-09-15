@@ -55,12 +55,11 @@ ir::Tensor Gather(const ir::Tensor &A, const ir::Tensor &B, const int &axis, con
         for (int i = 0; i < axis; ++i) {
           A_indices.push_back(indices[i]);
         }
-        //        A_indices.push_back(ir::Cast::Make(Int(32), B(indices)));
-        A_indices.push_back(Expr(0));
+               A_indices.push_back(ir::Cast::Make(Int(32), B(indices)));
         for (size_t i = axis + 1; i < A->shape.size(); ++i) {
           A_indices.push_back(indices[i]);
         }
-        return A(indices);
+        return A(A_indices);
       },
       name);
   return res;
@@ -186,6 +185,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForGatherNd(const framework::Node
   strategy->AddImpl(gather_nd_compute, gather_nd_schedule, "strategy.gather_nd.x86", 1);
   return strategy;
 }
+
 
 std::vector<std::vector<int>> InferShapeForGather(const std::vector<std::vector<int>> &inputs_shape,
                                                   const framework::AttrMapType &attrs) {
