@@ -2066,6 +2066,13 @@ std::vector<ir::LoweredFunc> OpLowerer::LowerOpaqueOp(GroupPtr& group) {
 
   auto impl =
       OpStrategy::SelectImpl(cinn_strategy[node->op()](node->attrs, tensor_inputs, out_types, out_shapes, target_));
+  // if node op is custom call, return compute.
+  if (node->op()->name == "custom_call") {
+    cinn_inputs.push_back(common::CINNValue(group->GetFuncName()));
+    common::CINNValuePack pack = impl->fcompute(common::CINNValuePack{cinn_inputs});
+    CHECK_EQ(pack.size(), 1UL);
+    return {pack[0].operator ir::Expr().as_lowered_func_ref()};
+  }
   // do compute
   common::CINNValuePack value_pack = impl->fcompute(common::CINNValuePack{cinn_inputs});
   // do schedule

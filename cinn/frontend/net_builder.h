@@ -797,6 +797,26 @@ class NetBuilder {
                                       const float epsilon            = 1e-5f,
                                       const std::string& data_layout = "NCHW");
 
+  /**
+   * @brief Sort Variable x along the given axis. The original Variable x will not be changed.
+   * @param operand The variable that will be sorted.
+   * @param axis Specify the axis to operate on the input. Default: 0.
+   * @param is_ascend Sort mode.
+   * Defalut “NCHW”.
+   * @return `Sorted variable index`.
+   */
+  Variable ArgSort(const Variable& operand, const int& axis, const bool& is_ascend = true);
+
+  /**
+   * @brief Sort Variable x along the given axis. The original Variable x will not be changed.
+   * @param operand The variable that will be sorted.
+   * @param axis Specify the axis to operate on the input. Default: 0.
+   * @param is_ascend Sort mode.
+   * Defalut “NCHW”.
+   * @return `Sorted variable`.
+   */
+  Variable Sort(const Variable& operand, const int& axis, const bool& is_ascend = true);
+
  private:
   CINN_DISALLOW_COPY_AND_ASSIGN(NetBuilder);
 };
