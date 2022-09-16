@@ -40,8 +40,13 @@ namespace frontend {
 
 class PaddleModelToProgram {
  public:
-  explicit PaddleModelToProgram(hlir::framework::Scope* scope, const common::Target& target)
-      : scope_(scope), target_(target), net_builder_(new NetBuilder("paddle_model_netbuilder")) {
+  explicit PaddleModelToProgram(hlir::framework::Scope* scope,
+                                std::unordered_map<std::string, std::vector<int>> input_shape_map,
+                                const common::Target& target)
+      : scope_(scope),
+        input_shape_map_(input_shape_map),
+        target_(target),
+        net_builder_(new NetBuilder("paddle_model_netbuilder")) {
     CHECK(scope_);
 
     AddOpMapper_feed();
@@ -120,6 +125,7 @@ class PaddleModelToProgram {
  private:
   // op mapper
   absl::flat_hash_map<std::string, std::function<void(const paddle::cpp::OpDesc&)>> op_mappers_;
+  std::unordered_map<std::string, std::vector<int>> input_shape_map_;
   // net builder
   std::unique_ptr<NetBuilder> net_builder_;
 

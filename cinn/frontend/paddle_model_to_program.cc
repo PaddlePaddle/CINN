@@ -61,7 +61,9 @@ void PaddleModelToProgram::AddOpMapper_feed() {
     auto outs = op_desc.Output("Out");
     CHECK_EQ(outs.size(), 1UL);
     VLOG(2) << "Model get feed [" << outs[0] << "]";
-    Placeholder input(Float(32), {}, outs[0]);
+    CHECK(input_shape_map_.count(outs[0]));
+    auto input_shape = input_shape_map_[outs[0]];
+    auto input       = net_builder_->CreateInput(Float(32), input_shape, outs[0]);
     AddVar(outs[0], input);
   };
 }
