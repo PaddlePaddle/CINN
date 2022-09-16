@@ -17,6 +17,7 @@
 #include "cinn/backends/function_prototype.h"
 #include "cinn/common/cas.h"
 #include "cinn/runtime/cuda/cuda_util.h"
+#include "cinn/runtime/custom_function.h"
 
 CINN_REGISTER_HELPER(cuda_intrinsics) {
   auto target = cinn::common::DefaultNVGPUTarget();
@@ -333,6 +334,7 @@ CINN_REGISTER_HELPER(cinn_cuda_host_api) {
       .AddInputType<int>()     // b4
       .AddInputType<void *>()  // stream
       .End();
+
 #ifdef CINN_WITH_CUDNN
   using cinn::runtime::cuda::cinn_call_cudnn_conv2d_forward;
   REGISTER_EXTERN_FUNC_HELPER(cinn_call_cudnn_conv2d_forward, cinn::common::DefaultHostTarget())
@@ -520,6 +522,16 @@ CINN_REGISTER_HELPER(cinn_cuda_host_api) {
 #ifdef CINN_WITH_MKL_CBLAS
 
 #endif
+
+  // TODO(thisjiang): change msg type from 'int' to 'std::string' when custom call support 'std::string' type
+  using cinn::runtime::cinn_assert_true;
+  REGISTER_EXTERN_FUNC_HELPER(cinn_assert_true, cinn::common::DefaultHostTarget())
+      .SetRetType<void>()
+      .AddInputType<void *>()  // v_args
+      .AddInputType<int>()     // msg
+      .AddInputType<bool>()    // only_warning
+      .AddInputType<void *>()  // stream
+      .End();
 
   return true;
 }
