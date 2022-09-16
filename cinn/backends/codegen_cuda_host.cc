@@ -71,9 +71,7 @@ llvm::Value* CodeGenCUDA_Host::LowerGPUKernelLauncher(const ir::_LoweredFunc_* f
   std::vector<llvm::Type*> args_type;
   for (auto r_arg : call_ir->read_args) {
     if (r_arg.is_var()) {
-      if (r_arg.as_var()->type().is_string()) {
-        args_type.push_back(CinnTypeToLLVMType(type_of<void*>(), m_));
-      } else if (r_arg.as_var()->type().is_cpp_handle()) {
+      if (r_arg.as_var()->type().is_cpp_handle() || r_arg.as_var()->type().is_string()) {
         args_type.push_back(CinnTypeToLLVMType(type_of<void*>(), m_));
       } else if (r_arg.as_var()->type().is_int(32)) {
         args_type.push_back(CinnTypeToLLVMType(type_of<int32_t>(), m_));
