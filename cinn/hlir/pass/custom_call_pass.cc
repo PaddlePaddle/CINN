@@ -36,7 +36,7 @@ using ConditionFunction = std::function<bool(const Node*, const Node*)>;
 class GraphAlterHelper {
  public:
   GraphAlterHelper(Graph* graph) : graph_(graph) {}
-  void MatmulToCustomCall() {
+  void MatmulToCublasCustomCall() {
     auto nodes = graph_->CollectNodes([](const common::GraphNode* graph_node) -> bool {
       if (graph_node->safe_as<Node>()) {
         auto node = graph_node->safe_as<Node>();
@@ -58,7 +58,7 @@ class GraphAlterHelper {
     }
   }
 
-  void ConvToCustomCall() {
+  void ConvToCudnnCustomCall() {
     auto nodes = graph_->CollectNodes([](const common::GraphNode* graph_node) -> bool {
       if (graph_node->safe_as<Node>()) {
         auto node = graph_node->safe_as<Node>();
@@ -123,16 +123,16 @@ class GraphAlterHelper {
   Graph* graph_;
 };
 
-void MatmulToCustomCallPassInternal(Graph* graph) {
-  VLOG(3) << "OpFusionPass...!";
-  GraphAlterHelper(graph).MatmulToCustomCall();
-  VLOG(3) << "OpFusionPass Finish...!";
+void MatmulToCublasCustomCallPassInternal(Graph* graph) {
+  VLOG(3) << "MatmulToCublasCustomCallPass...!";
+  GraphAlterHelper(graph).MatmulToCublasCustomCall();
+  VLOG(3) << "MatmulToCublasCustomCallPass Finish...!";
 }
 
-void ConvToCustomCallPassInternal(Graph* graph) {
-  VLOG(3) << "OpFusionPass...!";
-  GraphAlterHelper(graph).ConvToCustomCall();
-  VLOG(3) << "OpFusionPass Finish...!";
+void ConvToCudnnCustomCallPassInternal(Graph* graph) {
+  VLOG(3) << "ConvToCudnnCustomCallPass...!";
+  GraphAlterHelper(graph).ConvToCudnnCustomCall();
+  VLOG(3) << "ConvToCudnnCustomCallPass Finish...!";
 }
 
 }  // namespace pass
@@ -140,15 +140,17 @@ void ConvToCustomCallPassInternal(Graph* graph) {
 }  // namespace cinn
 
 CINN_REGISTER_HELPER(CustomCallPass) {
-  CINN_REGISTER_PASS(MatmulToCustomCallPass)
+#ifdef CINN_WITH_CUDA
+  CINN_REGISTER_PASS(MatmulToCublasCustomCallPass)
       .describe("This pass which convert matmul op to custom call pass.")
       .set_change_structure(false)
-      .set_body(cinn::hlir::pass::MatmulToCustomCallPassInternal);
-
-  CINN_REGISTER_PASS(ConvToCustomCallPass)
+      .set_body(cinn::hlir::pass::MatmulToCublasCustomCallPassInternal);
+#endif
+#ifdef CINN_WITH_CUDNN
+  CINN_REGISTER_PASS(ConvToCudnnCustomCallPass)
       .describe("This pass which convert conv op to custom call pass.")
       .set_change_structure(false)
-      .set_body(cinn::hlir::pass::ConvToCustomCallPassInternal);
-
+      .set_body(cinn::hlir::pass::ConvToCudnnCustomCallPassInternal);
+#endif
   return true;
 }

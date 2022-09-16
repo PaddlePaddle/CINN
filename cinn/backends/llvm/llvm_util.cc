@@ -38,6 +38,7 @@ llvm::Type *CinnTypeToLLVMType(common::Type type, llvm::Module *m, bool is_vec) 
   llvm::Type *u32 = llvm::Type::getInt32Ty(m->getContext());
   llvm::Type *f32 = llvm::Type::getFloatTy(m->getContext());
   llvm::Type *f64 = llvm::Type::getDoubleTy(m->getContext());
+  llvm::Type *arr = llvm::Type::getPrimitiveType(m->getContext(), llvm::Type::ArrayTyID);
   if (type.is_void() && type.is_cpp_handle()) {
     return llvm::PointerType::getUnqual(i8);
   }
@@ -59,6 +60,8 @@ llvm::Type *CinnTypeToLLVMType(common::Type type, llvm::Module *m, bool is_vec) 
     ir_type = f64;
   } else if (type.is_void()) {
     ir_type = v;
+  } else if (type.is_string()) {
+    ir_type = arr;
   } else if (type.is_customized_type()) {
     CHECK(!type.customized_type().empty());
     ir_type = m->getTypeByName("struct." + type.customized_type());
