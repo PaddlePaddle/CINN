@@ -21,7 +21,6 @@ gather_srcs(cinnapi_src SRCS
 if(WITH_CUDA)
   nv_test(test_hlir_framework_buffer SRCS buffer_test.cc DEPS cinncore)
   nv_test(test_hlir_framework_infershape_pass SRCS infershape_pass_test.cc DEPS cinncore)
-  nv_test(test_cuda_graph_compiler SRCS cuda_graph_compiler_test.cc DEPS cinncore)
 else()
   cc_test(test_hlir_framework_buffer SRCS buffer_test.cc DEPS cinncore)
   cc_test(test_hlir_framework_infershape_pass SRCS infershape_pass_test.cc DEPS cinncore)

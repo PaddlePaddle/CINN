@@ -86,7 +86,9 @@ std::vector<Expr> IRSchedule::Split(const std::string& block_name, int loop_inde
 
 Expr IRSchedule::Fuse(const std::vector<Expr>& loops) {
   VLOG(3) << "Tring to fuse : ";
-  for (auto& i : loops) VLOG(3) << i;
+  for (auto& loop : loops) {
+    VLOG(3) << loop;
+  }
   std::vector<const ir::For*> for_nodes;
   std::vector<Var> loop_vars;
   CHECK(!loops.empty()) << "The loops param of Fuse should not be empty! Please check.";
