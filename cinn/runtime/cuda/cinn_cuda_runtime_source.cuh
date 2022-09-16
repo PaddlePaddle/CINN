@@ -206,18 +206,28 @@ __device__ inline bool cinn_block_reduce_any(const bool *buf, int offset, int ex
   return cinn_block_reduce_any_internal(tmp_val);
 }
 
-#define __cinn_cuda_find_kernel(buf, size, num) \
-  do {                                          \
-    for (int i = size - 1; i >= 0; --i) {       \
-      if (buf[i] == num) return i;              \
-    }                                           \
-    return -1;                                  \
+#define __cinn_cuda_find_kernel(buf, size, num, begin, stride)           \
+  do {                                                                   \
+    for (int i = (size - 1) * stride + begin; i >= begin; i -= stride) { \
+      if (buf[i] == num) return (i - begin) / stride;                    \
+    }                                                                    \
+    return -1;                                                           \
   } while (0)
 
-__device__ inline int cinn_cuda_find_int(const int *buf, int size, int num) { __cinn_cuda_find_kernel(buf, size, num); }
+__device__ inline int cinn_cuda_find_int(const int *buf, int size, int num) {
+  __cinn_cuda_find_kernel(buf, size, num, 0, 1);
+}
 
 __device__ inline int cinn_cuda_find_float(const float *buf, int size, float num) {
-  __cinn_cuda_find_kernel(buf, size, num);
+  __cinn_cuda_find_kernel(buf, size, num, 0, 1);
+}
+
+__device__ inline int cinn_cuda_find_int_nd(const int *buf, int size, int num, int begin, int stride) {
+  __cinn_cuda_find_kernel(buf, size, num, begin, stride);
+}
+
+__device__ inline int cinn_cuda_find_float_nd(const float *buf, int size, float num, int begin, int stride) {
+  __cinn_cuda_find_kernel(buf, size, num, begin, stride);
 }
 
 #undef __cinn_cuda_find_kernel
@@ -240,6 +250,48 @@ __device__ inline int cinn_cuda_find_float_from(const float *buf, int size, floa
 
 #undef __cinn_cuda_find_from_kernel
 
+#define __cinn_cuda_lt_num_kernel(buf, size, num, offset, stride)          \
+  do {                                                                     \
+    int out = 0;                                                           \
+    for (int i = (size - 1) * stride + offset; i >= offset; i -= stride) { \
+      if (buf[i] < num) out++;                                             \
+    }                                                                      \
+    return out;                                                            \
+  } while (0)
+
+__device__ inline int cinn_cuda_lt_num_float(
+    const float *buf, const int size, const float num, const int offset, const int stride) {
+  __cinn_cuda_lt_num_kernel(buf, size, num, offset, stride);
+}
+
+__device__ inline int cinn_cuda_lt_num_int(
+    const int *buf, const int size, const int num, const int offset, const int stride) {
+  __cinn_cuda_lt_num_kernel(buf, size, num, offset, stride);
+}
+
+#undef __cinn_cuda_lt_num_kernel
+
+#define __cinn_cuda_gt_num_kernel(buf, size, num, offset, stride)          \
+  do {                                                                     \
+    int out = 0;                                                           \
+    for (int i = (size - 1) * stride + offset; i >= offset; i -= stride) { \
+      if (buf[i] > num) out++;                                             \
+    }                                                                      \
+    return out;                                                            \
+  } while (0)
+
+__device__ inline int cinn_cuda_gt_num_float(
+    const float *buf, const int size, const float num, const int offset, const int stride) {
+  __cinn_cuda_gt_num_kernel(buf, size, num, offset, stride);
+}
+
+__device__ inline int cinn_cuda_gt_num_int(
+    const int *buf, const int size, const int num, const int offset, const int stride) {
+  __cinn_cuda_gt_num_kernel(buf, size, num, offset, stride);
+}
+
+#undef __cinn_cuda_gt_num_kernel
+
 __device__ inline float cinn_cuda_index_add(const float x,
                                             const int axis_indice,
                                             const float *__restrict__ y,
@@ -260,11 +312,11 @@ __device__ inline float cinn_cuda_index_add(const float x,
 
 #define block_shuffle_kernel(TYPE, name, op, init_value)                               \
   __device__ inline TYPE block_shuffle_##name(const TYPE *buf, int line, int stride) { \
-    TYPE val = init_value;                                                              \
-    for (int idx = threadIdx.x; idx < line; idx += stride) {                             \
-      val = op(val, buf[idx]);                                                           \
-    }                                                                                    \
-    return val;                                                                          \
+    TYPE val = init_value;                                                             \
+    for (int idx = threadIdx.x; idx < line; idx += stride) {                           \
+      val = op(val, buf[idx]);                                                         \
+    }                                                                                  \
+    return val;                                                                        \
   }
 
 block_shuffle_kernel(float, sum, cinn_sum, 0.0f);
