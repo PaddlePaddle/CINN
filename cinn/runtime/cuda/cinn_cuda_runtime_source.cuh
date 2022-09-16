@@ -249,6 +249,48 @@ __device__ inline int cinn_cuda_find_float_from(const float *buf, int size, floa
 
 #undef __cinn_cuda_find_from_kernel
 
+#define __cinn_cuda_lt_num_kernel(buf, size, num, offset, stride)          \
+  do {                                                                     \
+    int out = 0;                                                           \
+    for (int i = (size - 1) * stride + offset; i >= offset; i -= stride) { \
+      if (buf[i] < num) out++;                                             \
+    }                                                                      \
+    return out;                                                            \
+  } while (0)
+
+__device__ inline int cinn_cuda_lt_num_float(
+    const float *buf, const int size, const float num, const int offset, const int stride) {
+  __cinn_cuda_lt_num_kernel(buf, size, num, offset, stride);
+}
+
+__device__ inline int cinn_cuda_lt_num_int(
+    const int *buf, const int size, const int num, const int offset, const int stride) {
+  __cinn_cuda_lt_num_kernel(buf, size, num, offset, stride);
+}
+
+#undef __cinn_cuda_lt_num_kernel
+
+#define __cinn_cuda_gt_num_kernel(buf, size, num, offset, stride)          \
+  do {                                                                     \
+    int out = 0;                                                           \
+    for (int i = (size - 1) * stride + offset; i >= offset; i -= stride) { \
+      if (buf[i] > num) out++;                                             \
+    }                                                                      \
+    return out;                                                            \
+  } while (0)
+
+__device__ inline int cinn_cuda_gt_num_float(
+    const float *buf, const int size, const float num, const int offset, const int stride) {
+  __cinn_cuda_gt_num_kernel(buf, size, num, offset, stride);
+}
+
+__device__ inline int cinn_cuda_gt_num_int(
+    const int *buf, const int size, const int num, const int offset, const int stride) {
+  __cinn_cuda_gt_num_kernel(buf, size, num, offset, stride);
+}
+
+#undef __cinn_cuda_gt_num_kernel
+
 __device__ inline float cinn_cuda_index_add(const float x,
                                             const int axis_indice,
                                             const float *__restrict__ y,
