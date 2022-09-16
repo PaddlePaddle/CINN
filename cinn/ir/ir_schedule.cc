@@ -1432,7 +1432,7 @@ void ScheduleImpl::CopyTransformAndLoopInfo(const Expr& block, const Expr& block
 
 IRSchedule::IRSchedule() {}
 
-IRSchedule::IRSchedule(IRSchedule&& other) : impl_(std::move(other.impl_)), trace_(other.trace_) {}
+IRSchedule::IRSchedule(IRSchedule&& other) : impl_(std::move(other.impl_)), trace_(std::move(other.trace_)) {}
 
 IRSchedule::~IRSchedule() {}
 
