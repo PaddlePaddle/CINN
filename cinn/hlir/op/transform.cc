@@ -1774,7 +1774,7 @@ std::vector<std::vector<int>> InferShapeForSlice(const std::vector<std::vector<i
     } else if (iter.first == "infer_flags") {
       auto infer_flags = absl::get<std::vector<int>>(iter.second);
       if (!infer_flags.empty()) {
-        LOG(WARNING) << "attr [infer_flags] not support now";
+        LOG(WARNING) << "attr [infer_flags] not support now, and its value is " << utils::Join(infer_flags, ", ");
       }
     } else {
       LOG(ERROR) << "Unsupported attr: " << iter.first << std::endl;
