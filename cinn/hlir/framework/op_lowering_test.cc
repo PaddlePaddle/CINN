@@ -154,8 +154,8 @@ TEST(OP_LOWERING, OpaqueOp_TEST_3) {
 }
 
 #ifdef CINN_WITH_CUDA
-TEST(OP_LOWERING, OpaqueOp_TEST_3) {
-  NetBuilder net_builder("OpaqueOp_TEST_3");
+TEST(OP_LOWERING, OpaqueOp_TEST_4) {
+  NetBuilder net_builder("OpaqueOp_TEST_4");
   {
     auto A = net_builder.CreateInput(Float(32), {128, 128}, "A");
     auto B = net_builder.CreateInput(Float(32), {128, 128}, "B");

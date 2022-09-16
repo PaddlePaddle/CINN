@@ -1210,6 +1210,11 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpaqueOp(GroupPtr& group) {
     cinn_inputs.push_back(common::CINNValue(group->GetFuncName()));
     common::CINNValuePack pack = impl->fcompute(common::CINNValuePack{cinn_inputs});
     CHECK_EQ(pack.size(), 1UL);
+    // reset input names as extern api input args can't be remove duplicate.
+    group->input_names.clear();
+    for (auto& inode : node->inlinks_in_order(true)) {
+      group->input_names.push_back(inode->source()->as<NodeData>()->id());
+    }
     return {pack[0].operator ir::Expr().as_lowered_func_ref()};
   }
 
@@ -2087,6 +2092,11 @@ std::vector<ir::LoweredFunc> OpLowerer::LowerOpaqueOp(GroupPtr& group) {
     cinn_inputs.push_back(common::CINNValue(group->GetFuncName()));
     common::CINNValuePack pack = impl->fcompute(common::CINNValuePack{cinn_inputs});
     CHECK_EQ(pack.size(), 1UL);
+    // reset input names as extern api input args can't be remove duplicate.
+    group->input_names.clear();
+    for (auto& inode : node->inlinks_in_order(true)) {
+      group->input_names.push_back(inode->source()->as<NodeData>()->id());
+    }
     return {pack[0].operator ir::Expr().as_lowered_func_ref()};
   }
   // do compute
