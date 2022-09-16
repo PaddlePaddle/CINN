@@ -61,7 +61,32 @@ TEST(GenerateCode_Cpu, Gather) {
   codegen.SetInlineBuiltinCodes(false);
   std::string code = codegen.Compile(builder.Build(), backends::CodeGenC::OutputKind::CImpl);
   VLOG(6) << "Cpu Codegen result:";
-  VLOG(6) << code << std::endl;
+  auto target_source = R"ROC(
+#include <cinn_runtime.h>
+#include <stdio.h>
+
+void TestGenerateCodeCpu_Gather(void* _args, int32_t num_args)
+{
+  cinn_buffer_t* _test_gather_out = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
+  cinn_buffer_t* _in1 = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 4, 28 });
+  cinn_buffer_t* _in2 = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_int32_t(), { 4, 14 });
+  cinn_buffer_malloc((void*)(0), _test_gather_out);
+  cinn_buffer_malloc((void*)(0), _in1);
+  cinn_buffer_malloc((void*)(0), _in2);
+  const float* in1 = ((const float*)(_in1->memory));
+  const int32_t* in2 = ((const int32_t*)(_in2->memory));
+  float* test_gather_out = ((float*)(_test_gather_out->memory));
+  for (int32_t i = 0; i < 4; i += 1) {
+    for (int32_t j = 0; j < 14; j += 1) {
+      test_gather_out[((14 * i) + j)] = in1[((28 * i) + in2[((14 * i) + j)])];
+    };
+  };
+  cinn_buffer_free((void*)(0), _in1);
+  cinn_buffer_free((void*)(0), _in2);
+  cinn_buffer_free((void*)(0), _test_gather_out);
+}
+  )ROC";
+  CHECK_EQ(utils::Trim(code), utils::Trim(target_source));
 }
 
 TEST(GenerateCode_Cpu, GatherNd) {
@@ -95,6 +120,33 @@ TEST(GenerateCode_Cpu, GatherNd) {
   std::string code = codegen.Compile(builder.Build(), backends::CodeGenC::OutputKind::CImpl);
   VLOG(6) << "Cpu Codegen result:";
   VLOG(6) << code << std::endl;
+
+  auto target_source = R"ROC(
+#include <cinn_runtime.h>
+#include <stdio.h>
+
+void TestGenerateCodeCpu_GatherNd(void* _args, int32_t num_args)
+{
+  cinn_buffer_t* _test_gather_nd_out = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
+  cinn_buffer_t* _in1 = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 4, 28 });
+  cinn_buffer_t* _in2 = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_int32_t(), { 4, 14, 1 });
+  cinn_buffer_malloc((void*)(0), _test_gather_nd_out);
+  cinn_buffer_malloc((void*)(0), _in1);
+  cinn_buffer_malloc((void*)(0), _in2);
+  const float* in1 = ((const float*)(_in1->memory));
+  const int32_t* in2 = ((const int32_t*)(_in2->memory));
+  float* test_gather_nd_out = ((float*)(_test_gather_nd_out->memory));
+  for (int32_t i = 0; i < 4; i += 1) {
+    for (int32_t j = 0; j < 14; j += 1) {
+      test_gather_nd_out[((14 * i) + j)] = in1[((28 * i) + in2[((14 * i) + j)])];
+    };
+  };
+  cinn_buffer_free((void*)(0), _in1);
+  cinn_buffer_free((void*)(0), _in2);
+  cinn_buffer_free((void*)(0), _test_gather_nd_out);
+}
+  )ROC";
+  CHECK_EQ(utils::Trim(code), utils::Trim(target_source));
 }
 
 }  // namespace op

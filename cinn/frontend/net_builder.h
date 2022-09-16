@@ -814,7 +814,7 @@ class NetBuilder {
                                       const std::string& data_layout = "NCHW");
 
   /**
-   * @brief Sort Variable x along the given axis. The original Variable x will not be changed.
+   * @brief Sort Variable x along the given axis and return sorted index. The original Variable x will not be changed.
    * @param operand The variable that will be sorted.
    * @param axis Specify the axis to operate on the input. Default: 0.
    * @param is_ascend Sort mode.
@@ -824,7 +824,8 @@ class NetBuilder {
   Variable ArgSort(const Variable& operand, const int& axis, const bool& is_ascend = true);
 
   /**
-   * @brief Sort Variable x along the given axis. The original Variable x will not be changed.
+   * @brief Sort Variable x along the given axis and return sorted variable. The original Variable x will not be
+   * changed.
    * @param operand The variable that will be sorted.
    * @param axis Specify the axis to operate on the input. Default: 0.
    * @param is_ascend Sort mode.

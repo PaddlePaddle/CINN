@@ -55,7 +55,7 @@ ir::Tensor Gather(const ir::Tensor &A, const ir::Tensor &B, const int &axis, con
         for (int i = 0; i < axis; ++i) {
           A_indices.push_back(indices[i]);
         }
-               A_indices.push_back(ir::Cast::Make(Int(32), B(indices)));
+        A_indices.push_back(ir::Cast::Make(Int(32), B(indices)));
         for (size_t i = axis + 1; i < A->shape.size(); ++i) {
           A_indices.push_back(indices[i]);
         }
@@ -186,7 +186,6 @@ std::shared_ptr<framework::OpStrategy> StrategyForGatherNd(const framework::Node
   return strategy;
 }
 
-
 std::vector<std::vector<int>> InferShapeForGather(const std::vector<std::vector<int>> &inputs_shape,
                                                   const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 2U) << "The input's shape size should be 2! Please check again.";
@@ -222,6 +221,7 @@ CINN_REGISTER_HELPER(gather_ops) {
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForGather))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForGather))
       .set_support_level(4);
+
   CINN_REGISTER_OP(gather_nd)
       .describe("GatherNd.")
       .set_num_inputs(2)

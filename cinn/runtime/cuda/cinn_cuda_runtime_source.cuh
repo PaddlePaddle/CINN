@@ -49,18 +49,15 @@ __device__ inline bool cinn_any(const bool left, const bool right) { return left
 #define cinn_shuffle_function(offset, op, init)                  \
   shfl_res = __shfl_down_sync(mask, tmp_val, offset, 32);        \
   shfl_res = threadIdx.x % 32 + offset < lane ? shfl_res : init; \
-  tmp_val = op(tmp_val, shfl_res);
+  tmp_val  = op(tmp_val, shfl_res);
 
-#define cinn_warp_shuffle_internal_kernel(TYPE, value, op, init) \
-  TYPE tmp_val      = value, shfl_res;                           \
-  unsigned int mask = __activemask();                            \
-  unsigned int lane = __popc(mask);                              \
-  cinn_shuffle_function(16, op, init)                            \
-  cinn_shuffle_function(8, op, init)                             \
-  cinn_shuffle_function(4, op, init)                             \
-  cinn_shuffle_function(2, op, init)                             \
-  cinn_shuffle_function(1, op, init)                             \
-  tmp_val = __shfl_sync(mask, tmp_val, 0, 32);                   \
+#define cinn_warp_shuffle_internal_kernel(TYPE, value, op, init)                                            \
+  TYPE tmp_val      = value, shfl_res;                                                                      \
+  unsigned int mask = __activemask();                                                                       \
+  unsigned int lane = __popc(mask);                                                                         \
+  cinn_shuffle_function(16, op, init) cinn_shuffle_function(8, op, init) cinn_shuffle_function(4, op, init) \
+      cinn_shuffle_function(2, op, init) cinn_shuffle_function(1, op, init) tmp_val =                       \
+          __shfl_sync(mask, tmp_val, 0, 32);                                                                \
   return tmp_val;
 
 __device__ inline float cinn_warp_shuffle_sum_internal(const float value) {
