@@ -22,6 +22,8 @@ namespace cinn {
 namespace frontend {
 namespace science_mappers {
 
+using cinn::utils::ShapeType;
+
 void ConcatOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_GE(op_desc.Input("XS").size(), 1UL);
   auto x_names = op_desc.Input("XS");
@@ -158,7 +160,7 @@ void SliceSelectOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperConte
           << cinn::utils::Join(starts, ",") << "], ends [" << cinn::utils::Join(ends, ",") << "], axis ["
           << cinn::utils::Join(axes, ",") << "], strides [" << cinn::utils::Join(strides, ",") << "].";
 
-  auto out = ctx.Builder()->Slice(x, axes, starts, ends, cinn::utils::ShapeType{}, strides);
+  auto out = ctx.Builder()->Slice(x, axes, starts, ends, ShapeType{}, strides);
 
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);
@@ -194,7 +196,7 @@ void SliceAssignOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperConte
   ctx.AddVarModelToProgram(out_name, out->id);
 }
 
-void ReduceOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+void ReduceOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx, const std::string& reduce_type) {
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
   auto x_name = op_desc.Input("X").front();
   CHECK_EQ(op_desc.Output("Y").size(), 1UL);
@@ -205,15 +207,15 @@ void ReduceOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
 
   auto x = ctx.GetVar(x_name);
 
-  VLOG(4) << "Reudce " << x_name << " from shape (" << cinn::utils::Join(x->shape, ",") << "), with axis "
-          << cinn::utils::Join(axis, ",") << ", keepdim " << keepdim;
+  VLOG(4) << "Reudce " << reduce_type << " x:" << x_name << " from shape (" << cinn::utils::Join(x->shape, ",")
+          << "), with axis [" << cinn::utils::Join(axis, ",") << "], keepdim " << keepdim;
 
   // now paddle science only need reduce sum
   Variable out;
   if (std::accumulate(x->shape.begin(), x->shape.end(), 1, std::multiplies<cinn::utils::DimType>()) == 1) {
     out = ctx.Builder()->Identity(x);
     if (!keepdim) {
-      cinn::utils::ShapeType new_out_shape;
+      ShapeType new_out_shape;
       for (int i = 0; i < x->shape.size(); ++i) {
         if (std::find(axis.begin(), axis.end(), static_cast<cinn::utils::DimType>(i)) == axis.end()) {
           new_out_shape.emplace_back(x->shape[i]);
@@ -222,12 +224,39 @@ void ReduceOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
       out->shape = new_out_shape;
     }
   } else {
-    out = ctx.Builder()->ReduceSum(x, axis, keepdim);
+    if (reduce_type == "Sum") {
+      out = ctx.Builder()->ReduceSum(x, axis, keepdim);
+    } else if (reduce_type == "Prod") {
+      out = ctx.Builder()->ReduceProd(x, axis, keepdim);
+    } else if (reduce_type == "Max") {
+      out = ctx.Builder()->ReduceMax(x, axis, keepdim);
+    } else if (reduce_type == "Min") {
+      out = ctx.Builder()->ReduceMin(x, axis, keepdim);
+    } else if (reduce_type == "All") {
+      out = ctx.Builder()->ReduceAll(x, axis, keepdim);
+    } else if (reduce_type == "Any") {
+      out = ctx.Builder()->ReduceAny(x, axis, keepdim);
+    } else {
+      LOG(FATAL) << "Not support Reduce " << reduce_type << "! Please check.";
+    }
   }
 
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);
 }
+
+#define EXPAND_REDUCE_OPMAPPER(ReduceType)                                                            \
+  void Reduce##ReduceType##OpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) { \
+    ReduceOpMapper(op_desc, ctx, #ReduceType);                                                        \
+  }
+
+EXPAND_REDUCE_OPMAPPER(Sum)
+EXPAND_REDUCE_OPMAPPER(Prod)
+EXPAND_REDUCE_OPMAPPER(Max)
+EXPAND_REDUCE_OPMAPPER(Min)
+EXPAND_REDUCE_OPMAPPER(All)
+EXPAND_REDUCE_OPMAPPER(Any)
+#undef EXPAND_REDUCE_OPMAPPER
 
 void IndexSelectOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
@@ -319,6 +348,18 @@ CINN_REGISTER_HELPER(science_transform) {
   CINN_REGISTER_OP_MAPPER(gather_p, cinn::frontend::science_mappers::IndexSelectOpMapper)
   CINN_REGISTER_OP_MAPPER(index_assign_p, cinn::frontend::science_mappers::IndexAssignOpMapper)
   CINN_REGISTER_OP_MAPPER(scatter_add_p, cinn::frontend::science_mappers::ScatterAddOpMapper)
-  CINN_REGISTER_OP_MAPPER(reduce_p, cinn::frontend::science_mappers::ReduceOpMapper)
+  CINN_REGISTER_OP_MAPPER(reduce_p, cinn::frontend::science_mappers::ReduceSumOpMapper)
+
+#define EXPAND_REDUCE_OP_MAPPER_REGISTER(op_name, ReduceType) \
+  CINN_REGISTER_OP_MAPPER(op_name, cinn::frontend::science_mappers::Reduce##ReduceType##OpMapper)
+
+  EXPAND_REDUCE_OP_MAPPER_REGISTER(reduce_sum_p, Sum)
+  EXPAND_REDUCE_OP_MAPPER_REGISTER(reduce_prod_p, Prod)
+  EXPAND_REDUCE_OP_MAPPER_REGISTER(reduce_max_p, Max)
+  EXPAND_REDUCE_OP_MAPPER_REGISTER(reduce_min_p, Min)
+  EXPAND_REDUCE_OP_MAPPER_REGISTER(reduce_all_p, All)
+  EXPAND_REDUCE_OP_MAPPER_REGISTER(reduce_any_p, Any)
+#undef EXPAND_REDUCE_OP_MAPPER_REGISTER
+
   return true;
 }
