@@ -153,6 +153,35 @@ TEST(OP_LOWERING, OpaqueOp_TEST_3) {
   }
 }
 
+#ifdef CINN_WITH_CUDA
+TEST(OP_LOWERING, OpaqueOp_TEST_3) {
+  NetBuilder net_builder("OpaqueOp_TEST_3");
+  {
+    auto A = net_builder.CreateInput(Float(32), {128, 128}, "A");
+    auto B = net_builder.CreateInput(Float(32), {128, 128}, "B");
+    auto C = net_builder.Matmul(A, B);
+  }
+
+  auto program = net_builder.Build();
+  auto target  = common::DefaultTarget();
+  RunDecomposer(&program, target);
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  hlir::framework::ApplyPass(graph.get(), "MatmulToCublasCustomCallPass");
+  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+
+  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
+  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
+
+  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
+  for (auto& fusion_op : graph->fusion_groups) {
+    auto lowered_func = op_lowerer.Lower(fusion_op);
+    CHECK_EQ(lowered_func.size(), 1);
+    CodeGen(lowered_func[0]);
+  }
+}
+#endif
+
 TEST(OP_LOWERING, Transform_TEST_0) {
   NetBuilder net_builder("Transform_TEST_0");
   {

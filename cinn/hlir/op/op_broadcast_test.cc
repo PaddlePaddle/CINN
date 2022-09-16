@@ -179,6 +179,7 @@ extern "C" {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 

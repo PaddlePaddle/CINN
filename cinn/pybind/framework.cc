@@ -66,8 +66,10 @@ void BindFramework(pybind11::module *m) {
                  input_output_names.push_back(input->name);
                }
                input_output_names.push_back(output_name);
-               func = hlir::framework::GetFuncFromImpl(
-                   impl, common::CINNValuePack{temp_inputs}, res, input_output_names, key, target)[0];
+               std::vector<ir::LoweredFunc> funcs = hlir::framework::GetFuncFromImpl(
+                   impl, common::CINNValuePack{temp_inputs}, res, input_output_names, key, target);
+               CHECK_EQ(funcs.size(), 1U);
+               func = funcs[0];
              } else {
                common::CINNValuePack C = impl->fcompute(common::CINNValuePack{temp_inputs});
                poly::StageMap stages   = C.back();

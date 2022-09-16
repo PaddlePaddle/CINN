@@ -18,10 +18,12 @@
 
 #include "cinn/frontend/net_builder.h"
 #include "cinn/frontend/optimize.h"
+#include "cinn/frontend/program_pass.h"
 #include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/framework/scope.h"
 #include "cinn/hlir/op/use_ops.h"
 #include "cinn/hlir/pass/use_pass.h"
+#include "cinn/utils/data_util.h"
 
 namespace cinn {
 namespace hlir {
@@ -35,8 +37,9 @@ TEST(GraphCompilerTest, TestRemoveInvaildVariables) {
   auto a = builder.CreateInput(Float(32), {1, 64, 112, 112}, "A");
   auto b = builder.CreateInput(Float(32), {64}, "B");
 
-  auto c      = builder.Add(a, b, 1);
-  auto d      = builder.Relu(c);
+  auto c = builder.Add(a, b, 1);
+  auto d = builder.Relu(c);
+
   auto target = common::DefaultHostTarget();
   auto graph  = std::make_shared<Graph>(builder.Build(), target);
 
@@ -114,6 +117,63 @@ TEST(GraphCompilerTest, TestInsertBufferHandlers) {
   EXPECT_EQ(std::unordered_set<std::string>(free_variable_names.begin(), free_variable_names.end()),
             used_variable_names);
 }
+
+#ifdef CINN_WITH_CUDA
+std::vector<float> test_mul(const std::vector<float>& A, const std::vector<float>& B, int M, int K, int N) {
+  std::vector<float> C_target(M * N);
+  for (int i = 0; i < M; i++) {
+    for (int j = 0; j < N; j++) {
+      for (int k = 0; k < K; k++) {
+        C_target[i * N + j] += A[i * K + k] * B[k * N + j];
+      }
+    }
+  }
+  return C_target;
+}
+
+void RunCublas(int M, int N, int K) {
+  frontend::NetBuilder net_builder("builder");
+  auto A = net_builder.CreateInput(Float(32), {M, K}, "A");
+  auto B = net_builder.CreateInput(Float(32), {K, N}, "B");
+  auto C = net_builder.Matmul(A, B);
+
+  auto program = net_builder.Build();
+  auto target  = common::DefaultTarget();
+  auto graph   = std::make_shared<hlir::framework::Graph>(program, target);
+
+  hlir::framework::ApplyPass(graph.get(), "MatmulToCublasCustomCallPass");
+  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+
+  auto scope = BuildScope(target, graph);
+  GraphCompiler gc(target, scope, graph);
+  auto exe_program = gc.Build();
+
+  auto data_a = scope->GetTensor("A");
+  auto data_b = scope->GetTensor("B");
+  SetRandData<float>(data_a, target);
+  SetRandData<float>(data_b, target);
+  exe_program->Execute();
+  auto data_c = scope->GetTensor(C->id);
+
+  auto host_a = GetTensorData<float>(data_a, target);
+  auto host_b = GetTensorData<float>(data_b, target);
+  auto host_c = GetTensorData<float>(data_c, target);
+
+  auto target_mul = test_mul(host_a, host_b, M, K, N);
+  for (int i = 0; i < data_c->shape().numel(); i++) {
+    // LOG_FIRST_N(INFO, 10) << "cinn_data[" << i << "]: " <<  target_mul[i]
+    //                       << " v.s. target_data[" << i << "]: " << host_c[i];
+    EXPECT_NEAR(host_c[i], target_mul[i], 1e-4);
+  }
+}
+
+TEST(GraphCompilerTest, TestCublas) {
+  RunCublas(64, 64, 128);
+  RunCublas(64, 32, 128);
+  RunCublas(64, 128, 128);
+}
+
+#endif
 
 }  // namespace framework
 }  // namespace hlir
