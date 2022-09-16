@@ -25,7 +25,6 @@
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/framework/visualize_helper.h"
-#include "cinn/hlir/pass/check_fusion_accuracy_pass_util.h"
 
 namespace cinn::hlir::pass {
 
@@ -44,6 +43,38 @@ using GroupList = std::vector<GroupPtr>;
 
 using ShapeDict = absl::flat_hash_map<std::string, framework::shape_t>;
 using DtypeDict = absl::flat_hash_map<std::string, common::Type>;
+
+namespace utils {
+class AssertMsg {
+ public:
+  AssertMsg(const std::string& introduction) : introduction_(introduction) {}
+
+  void SetMsg(const std::string& title, const std::string& msg) { msg_info_[title] = msg; }
+
+  const std::string& GetMsg(const std::string& title) const {
+    CHECK(msg_info_.count(title)) << "Msg of " << introduction_ << " not has title: " << title;
+    return msg_info_.at(title);
+  }
+
+  void CleasMsg(const std::string& title) { msg_info_.erase(title); }
+
+  std::string str() const {
+    std::string format_str = introduction_ + "\n";
+    for (const auto& msg_pair : msg_info_) {
+      format_str += "\t\t- " + msg_pair.first + ": " + msg_pair.second + "\n";
+    }
+    return format_str;
+  }
+
+ private:
+  std::string introduction_;
+  std::unordered_map<std::string, std::string> msg_info_;
+};
+
+std::string GenerateCheckFusionAccuracyNodeId(const std::string& node_id) {
+  return node_id + cinn::common::UniqName("_acc_check");
+}
+}  // namespace utils
 
 class CheckFusionAccuracyPass {
  public:
@@ -83,11 +114,11 @@ class CheckFusionAccuracyPass {
 
   std::pair<NodePtr, NodeData*> CreateAllNode(const std::string& node_id);
 
-  std::pair<NodePtr, NodeData*> CreateAssertNode(const std::string& node_id, const std::string& assert_msg);
+  std::pair<NodePtr, NodeData*> CreateAssertNode(const std::string& node_id, utils::AssertMsg* assert_msg);
 
   // the AssertAllClose operator are composed of isclose+all+assert
   std::vector<NodePtr> CreateAssertAllClose(const std::string& node_id,
-                                            const std::string& assert_msg,
+                                            utils::AssertMsg* assert_msg,
                                             const std::vector<NodeData*>& inputs);
 
   // link origin group's output and pass group's output to the AssertAllClose nodes
@@ -290,13 +321,14 @@ std::pair<NodePtr, NodeData*> CheckFusionAccuracyPass::CreateAllNode(const std::
 }
 
 std::pair<NodePtr, NodeData*> CheckFusionAccuracyPass::CreateAssertNode(const std::string& node_id,
-                                                                        const std::string& assert_msg) {
+                                                                        utils::AssertMsg* assert_msg) {
   const auto& assert_node_id = "assert_" + node_id;
 
   auto assert_node = Node::Create(Operator::Get("custom_call"), assert_node_id, assert_node_id);
   assert_node->attrs.attr_store["custom_call"]  = std::string("cinn_assert_true");
-  assert_node->attrs.attr_store["msg"]          = assert_msg;
   assert_node->attrs.attr_store["only_warning"] = false;
+  // TODO(thisjiang): change type from 'int' to 'std::string' when custom call support 'std::string' type
+  assert_node->attrs.attr_store["msg"] = 0;
 
   graph_->RegisterNode(assert_node_id, assert_node.get());
 
@@ -316,7 +348,7 @@ std::pair<NodePtr, NodeData*> CheckFusionAccuracyPass::CreateAssertNode(const st
 }
 
 std::vector<NodePtr> CheckFusionAccuracyPass::CreateAssertAllClose(const std::string& node_id,
-                                                                   const std::string& assert_msg,
+                                                                   utils::AssertMsg* assert_msg,
                                                                    const std::vector<NodeData*>& inputs) {
   std::vector<NodePtr> group_nodes;
   // create isclose + all + assert nodes
@@ -360,7 +392,7 @@ GroupList CheckFusionAccuracyPass::LinkToAssertAllClose(const std::unordered_set
 
     msg->SetMsg("Var id", group_out->id());
 
-    const auto& nodes = CreateAssertAllClose(pass_out->id(), msg->str(), {group_out, pass_out});
+    const auto& nodes = CreateAssertAllClose(pass_out->id(), msg, {group_out, pass_out});
 
     for (const auto& node : nodes) {
       assert_groups.emplace_back(CreateSingleNodeGroup(node));
@@ -472,6 +504,7 @@ GroupList CheckFusionAccuracyPass::Apply() {
     // set assert debug info
     utils::AssertMsg msg("check accuracy of kernel " + group->GetFuncName());
     msg.SetMsg("Kernel name", group->GetFuncName());
+    msg.SetMsg("Group id", group->unique_id);
     msg.SetMsg("Input list", input_list);
     msg.SetMsg("Output list", output_list);
     msg.SetMsg("Group graph", graph_->DebugGroupedGraph({ordered_nodes}));

@@ -9,7 +9,6 @@ gather_srcs(cinnapi_src SRCS
     op_fusion_pass.cc
     fusion_merge_pass.cc
     dot_merger.cc
-    check_fusion_accuracy_pass_util.cc
     check_fusion_accuracy_pass.cc
     custom_call_pass.cc
     )
@@ -23,4 +22,3 @@ cc_test(test_alterlayout SRCS alterlayout_test.cc DEPS cinncore)
 endif()
 cc_test(test_const_propagate SRCS const_propagate_test.cc DEPS cinncore)
 cc_test(test_dot_merger SRCS test_dot_merger.cc DEPS cinncore)
-cc_test(test_check_fusion_accuracy_pass SRCS check_fusion_accuracy_pass_test.cc DEPS cinncore)
