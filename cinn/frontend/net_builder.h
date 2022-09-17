@@ -800,7 +800,7 @@ class NetBuilder {
    * Defalut “NCHW”.
    * @return `Index of variable x to the maximum value`.
    */
-  Variable Argmax(const Variable& x, const int axis=0, bool keep_dim = false);
+  Variable Argmax(const Variable& x, const int& axis = 0, const bool& keep_dim = false);
 
   /**
    * @brief Get index of variable x to the minimum value along the given axis.
@@ -810,7 +810,7 @@ class NetBuilder {
    * Defalut “NCHW”.
    * @return `Index of variable x to the minimum value`.
    */
-  Variable Argmin(const Variable& x, const int axis=0, bool keep_dim = false);
+  Variable Argmin(const Variable& x, const int& axis = 0, const bool& keep_dim = false);
 
   /**
    * @brief Sort variable x along the given axis. The original variable x will not be changed.

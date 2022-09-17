@@ -47,9 +47,9 @@ using common::CINNValuePack;
 
 ir::Tensor ArgSort(const ir::Tensor &A,
                    const common::Target &target,
+                   poly::StageMap stages,
                    const int &axis,
                    const bool &is_ascend,
-                   poly::StageMap stages,
                    const std::string &name) {
   std::string find_func_name;
   std::string index_func_name;
@@ -89,7 +89,7 @@ ir::Tensor ArgSort(const ir::Tensor &A,
         offset            = common::AutoSimplify(offset);
         stride            = common::AutoSimplify(stride);
         auto A_shape_axis = A->shape[pos_axis];
-        return lang::CallExtern(extern_fun_name, {A, A_shape_axis, A(indices), offset, stride});
+        return lang::CallExtern(index_func_name, {A, A_shape_axis, A(indices), offset, stride});
       },
       name + "_temp");
   auto res = Compute(
@@ -111,7 +111,7 @@ ir::Tensor ArgSort(const ir::Tensor &A,
         stride = common::AutoSimplify(stride);
 
         auto A_shape_axis = A->shape[pos_axis];
-        auto idx = lang::CallExtern(extern_fun_name, {positions, A_shape_axis, indices[pos_axis], offset, stride});
+        auto idx = lang::CallExtern(find_func_name, {positions, A_shape_axis, indices[pos_axis], offset, stride});
         return idx;
       },
       name);
@@ -119,12 +119,12 @@ ir::Tensor ArgSort(const ir::Tensor &A,
   return res;
 }
 
-std::vector<ir::Tensor> Sort(const ir::Tensor &A,
-                             const common::Target &target,
-                             const int &axis,
-                             const bool &is_ascend,
-                             poly::StageMap stages,
-                             const std::string &name) {
+ir::Tensor Sort(const ir::Tensor &A,
+                const common::Target &target,
+                poly::StageMap stages,
+                const int &axis,
+                const bool &is_ascend,
+                const std::string &name) {
   int pos_axis = axis;
   if (pos_axis < 0) {
     pos_axis += A->shape.size();
@@ -134,7 +134,7 @@ std::vector<ir::Tensor> Sort(const ir::Tensor &A,
       A->shape,
       [=](const std::vector<Expr> &indices) {
         std::vector<Expr> A_indices(indices);
-        A_indices[pos_axis] = idx;
+        A_indices[pos_axis] = sort_index(indices);
         return A(A_indices);
       },
       name);
@@ -174,7 +174,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForSort(const framework::NodeAttr
       CHECK(pack_args[1].is_string());
       tensor_name = pack_args[1].operator std::string();
     }
-    ir::Tensor out = Sort(tensor_A, target, axis, is_ascend, stages, tensor_name);
+    ir::Tensor out = Sort(tensor_A, target, stages, axis, is_ascend, tensor_name);
     std::vector<CINNValue> res;
     stages->InsertLazily(out);
     res.push_back(CINNValue(out));
@@ -226,7 +226,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForArgSort(const framework::NodeA
       CHECK(pack_args[1].is_string());
       tensor_name = pack_args[1].operator std::string();
     }
-    ir::Tensor out = ArgSort(tensor_A, target, axis, is_ascend, stages, tensor_name);
+    ir::Tensor out = ArgSort(tensor_A, target, stages, axis, is_ascend, tensor_name);
     std::vector<CINNValue> res;
     stages->InsertLazily(out);
     res.push_back(CINNValue(out));

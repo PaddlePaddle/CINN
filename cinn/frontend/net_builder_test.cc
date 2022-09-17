@@ -636,16 +636,16 @@ TEST(net_build, program_execute_arange_int) {
 }
 
 TEST(net_build, program_argmax) {
-  const int N        = 4;
-  const int IN_C     = 3;
-  const int OUT_C    = 1;
-  const int H        = 7;
-  const int W        = 7;
+  const int N     = 4;
+  const int IN_C  = 3;
+  const int OUT_C = 1;
+  const int H     = 7;
+  const int W     = 7;
 
   NetBuilder builder("net_builder");
-  Placeholder input    = builder.CreateInput(Float(32), {N, IN_C, H, W}, "In");
-  Placeholder output   = builder.CreateInput(Float(32), {N, OUT_C, H, W}, "Out");
-  auto program         = builder.Build();
+  Placeholder input  = builder.CreateInput(Float(32), {N, IN_C, H, W}, "In");
+  Placeholder output = builder.CreateInput(Float(32), {N, OUT_C, H, W}, "Out");
+  auto program       = builder.Build();
 
   Target target = common::DefaultHostTarget();
 
@@ -660,8 +660,8 @@ TEST(net_build, program_argmax) {
   auto out_tensor = scope->GetTensor(std::string(output.id()));
   float* out_data = out_tensor->mutable_data<float>(target);
   memset(out_data, 0, sizeof(float) * N * OUT_C * H * W);
-//  out_data[0] = static_cast<float>(KERNEL_H * KERNEL_W);
-//  out_data[1] = static_cast<float>(KERNEL_H * KERNEL_W);
+  //  out_data[0] = static_cast<float>(KERNEL_H * KERNEL_W);
+  //  out_data[1] = static_cast<float>(KERNEL_H * KERNEL_W);
 
   VLOG(6) << "Visualize out_data";
   for (int n = 0; n < N; ++n) {
