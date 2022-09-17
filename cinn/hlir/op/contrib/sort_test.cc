@@ -79,11 +79,9 @@ TEST(GenerateCode_Cpu, Sort) {
   ir::Expr h(28);
 
   lang::Placeholder<int32_t> in("in", {n, h});
-  std::vector<ir::Tensor> outputs = Sort(in.tensor(), target, 1, true, "test_sort_out");
-  ir::Tensor index                = outputs[0];
-  ir::Tensor out                  = outputs[1];
-
-  poly::StageMap stages = poly::CreateStages({in, index, out});
+  auto stages    = CreateStages({tensor_A});
+  ir::Tensor out = Sort(tensor_A, target, 1, true, stages, "test_sort_out");
+  stages->InsertLazily(out);
   std::vector<ir::LoweredFunc> funcs =
       lang::LowerVec("TestGenerateCodeCpu_Sort", stages, {in, index, out}, {}, {}, nullptr, target, true);
 

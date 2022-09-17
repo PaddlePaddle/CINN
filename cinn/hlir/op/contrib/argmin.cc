@@ -6,6 +6,7 @@
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
+#include "cinn/hlir/op/contrib/sort.h"
 #include "cinn/hlir/pe/broadcast.h"
 #include "cinn/hlir/pe/ir_schedule_pe.h"
 #include "cinn/hlir/pe/schedule.h"
@@ -28,11 +29,9 @@ Tensor Argmin(const Tensor &in_tensor, const int &axis, const bool keep_dims, co
   auto ndim  = shape.size();
   CHECK_GT(ndim, 0) << "tensor's dim must be more than 0";
 
-  int real_axis;
+  int real_axis = axis;
   if (axis < 0) {
     real_axis = static_cast<int>(ndim) + axis;
-  } else {
-    real_axis = axis;
   }
   CHECK_LT(real_axis, ndim) << "Axis must be less than tensor's dim";
   CHECK_GE(real_axis, 0) << "Axis must be more than 0";
@@ -52,6 +51,47 @@ Tensor Argmin(const Tensor &in_tensor, const int &axis, const bool keep_dims, co
     output_shape.push_back(Expr(1));
   }
 
+  std::string extern_fun_name;
+  if (target.arch == common::Target::Arch::NVGPU) {
+    extern_fun_name.assign("cinn_cuda_");
+  } else if (target.arch == common::Target::Arch::X86) {
+    extern_fun_name.assign("cinn_host_");
+  } else {
+    LOG(FATAL) << "Argmin only supports X86 and NVGPU ! Please Check.\n";
+  }
+  if (true) {
+    extern_fun_name.append("lt_num_float");
+  } else {
+    extern_fun_name.append("gt_num_float");
+  }
+
+  auto res = Compute(
+      output_shape,
+      [=](const std::vector<Expr> &indices) {
+        std::vector<Expr> eval_indices(indices);
+        if (!keep_dims) {
+          eval_indices.insert(eval_indices.begin() + real_axis, Expr(1));
+        }
+        Expr offset(0);
+        Expr stride(1);
+        for (int i = 0; i < indices.size(); i++) {
+          if (i < pos_axis) {
+            offset = offset * A->shape[i] + indices[i];
+          } else if (i == pos_axis) {
+            offset = offset * A->shape[i];
+          } else {
+            offset = offset * A->shape[i] + indices[i];
+            stride = stride * A->shape[i];
+          }
+        }
+        offset            = common::AutoSimplify(offset);
+        stride            = common::AutoSimplify(stride);
+        auto A_shape_axis = A->shape[pos_axis];
+        return lang::CallExtern(extern_fun_name, {A, A_shape_axis, A(indices), offset, stride});
+      },
+      name);
+  return res;
+
   auto compute = [=](const std::vector<Expr> &indices) -> Expr {
     std::vector<Expr> eval_indices(indices);
     if (!keep_dims) {
@@ -68,8 +108,8 @@ Tensor Argmin(const Tensor &in_tensor, const int &axis, const bool keep_dims, co
     //    current[1]              = c2;
     //    auto for_loop           = ir::For::Make(i, Expr(0), current[0]);
 
-    Placeholder<float> p_min_value("min_value", {shape[real_axis]+1});
-    Placeholder<int32_t> p_min_index("min_index", {shape[real_axis]+1});
+    Placeholder<float> p_min_value("min_value", {shape[real_axis] + 1});
+    Placeholder<int32_t> p_min_index("min_index", {shape[real_axis] + 1});
     auto min_value = ir::Tensor(p_min_value);
     auto min_index = ir::Tensor(p_min_index);
 
@@ -77,17 +117,17 @@ Tensor Argmin(const Tensor &in_tensor, const int &axis, const bool keep_dims, co
     Expr loop_expr          = Expr(loop_var);
     eval_indices[real_axis] = loop_expr;
 
-    auto value  = lang::Identity(in_tensor(eval_indices));
+    auto value = lang::Identity(in_tensor(eval_indices));
     CHECK_EQ(min_value->type(), Float(32));
-//    ir::Store::Make(min_value, Expr(-3.402823e+38f), {Expr(int32_t(0))});
+    //    ir::Store::Make(min_value, Expr(-3.402823e+38f), {Expr(int32_t(0))});
 
-//    auto update = ir::GT::Make(value, Expr(0));
+    //    auto update = ir::GT::Make(value, Expr(0));
     auto update = ir::GT::Make(value, ir::Load::Make(min_value, {loop_expr}));
     CHECK_EQ(min_index->type(), Int(32));
-    auto c_v    = ir::Select::Make(update, value, ir::Load::Make(min_value, {loop_expr}));
-    auto c_i    = ir::Select::Make(update, loop_expr, ir::Load::Make(min_index, {loop_expr}));
+    auto c_v = ir::Select::Make(update, value, ir::Load::Make(min_value, {loop_expr}));
+    auto c_i = ir::Select::Make(update, loop_expr, ir::Load::Make(min_index, {loop_expr}));
 
-    Expr init = ir::Store::Make(min_value, Expr(-3.402823e+38f), {Expr(int32_t(0))});
+    Expr init  = ir::Store::Make(min_value, Expr(-3.402823e+38f), {Expr(int32_t(0))});
     Expr body1 = ir::Store::Make(min_value, c_v, {loop_expr + 1});
     Expr body2 = ir::Store::Make(min_index, c_i, {loop_expr + 1});
 
@@ -211,15 +251,9 @@ std::vector<std::vector<std::string>> InferLayoutForArgmin(const std::vector<fra
                                                            const std::vector<std::string> &input_layouts,
                                                            const framework::NodeAttr &attrs,
                                                            const Target &target) {
-  CHECK_EQ(input_layouts.size(), 1U) << "The input's layouts size is not 1! Please check again.";
-  std::vector<std::string> new_input_layouts = input_layouts;
-  if (input_shapes[0].size() > 4) {
-    // alter input layout back
-    new_input_layouts[0] = "NCHW";
-    VLOG(3) << "alter input layout from " << input_layouts[0] << " to " << new_input_layouts[0];
-  }
-
-  return {{""}, new_input_layouts};
+  CHECK_EQ(input_shapes.size(), 1U) << "The input's shape size is not 1! Please check again.";
+  CHECK_EQ(input_layouts.size(), 1U) << "The input's layout size is not 1! Please check again.";
+  return {input_layouts, input_layouts};
 }
 }  // namespace op
 }  // namespace hlir

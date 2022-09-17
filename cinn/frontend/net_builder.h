@@ -793,7 +793,27 @@ class NetBuilder {
                                       const std::string& data_layout = "NCHW");
 
   /**
-   * @brief Sort Variable x along the given axis. The original Variable x will not be changed.
+   * @brief Get index of variable x to the maximum value along the given axis.
+   * @param x An input N-D variable.
+   * @param axis Specify the axis to operate on the input. Default: 0.
+   * @param keep_dim Decide whether to keep the dimension.
+   * Defalut “NCHW”.
+   * @return `Index of variable x to the maximum value`.
+   */
+  Variable Argmax(const Variable& x, const int axis=0, bool keep_dim = false);
+
+  /**
+   * @brief Get index of variable x to the minimum value along the given axis.
+   * @param x An input N-D variable.
+   * @param axis Specify the axis to operate on the input. Default: 0.
+   * @param keep_dim Decide whether to keep the dimension.
+   * Defalut “NCHW”.
+   * @return `Index of variable x to the minimum value`.
+   */
+  Variable Argmin(const Variable& x, const int axis=0, bool keep_dim = false);
+
+  /**
+   * @brief Sort variable x along the given axis. The original variable x will not be changed.
    * @param operand The variable that will be sorted.
    * @param axis Specify the axis to operate on the input. Default: 0.
    * @param is_ascend Sort mode.
@@ -803,7 +823,7 @@ class NetBuilder {
   Variable ArgSort(const Variable& operand, const int& axis, const bool& is_ascend = true);
 
   /**
-   * @brief Sort Variable x along the given axis. The original Variable x will not be changed.
+   * @brief Sort variable x along the given axis. The original variable x will not be changed.
    * @param operand The variable that will be sorted.
    * @param axis Specify the axis to operate on the input. Default: 0.
    * @param is_ascend Sort mode.

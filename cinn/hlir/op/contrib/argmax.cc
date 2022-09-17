@@ -218,15 +218,9 @@ std::vector<std::vector<std::string>> InferLayoutForArgmax(const std::vector<fra
                                                            const std::vector<std::string> &input_layouts,
                                                            const framework::NodeAttr &attrs,
                                                            const Target &target) {
-  CHECK_EQ(input_layouts.size(), 1U) << "The input's layouts size is not 1! Please check again.";
-  std::vector<std::string> new_input_layouts = input_layouts;
-  if (input_shapes[0].size() > 4) {
-    // alter input layout back
-    new_input_layouts[0] = "NCHW";
-    VLOG(3) << "alter input layout from " << input_layouts[0] << " to " << new_input_layouts[0];
-  }
-
-  return {{""}, new_input_layouts};
+  CHECK_EQ(input_shapes.size(), 1U) << "The input's shape size is not 1! Please check again.";
+  CHECK_EQ(input_layouts.size(), 1U) << "The input's layout size is not 1! Please check again.";
+  return {input_layouts, input_layouts};
 }
 }  // namespace op
 }  // namespace hlir
