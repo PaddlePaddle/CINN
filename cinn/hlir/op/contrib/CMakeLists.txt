@@ -5,9 +5,9 @@ gather_srcs(cinnapi_src SRCS
         squeeze.cc
         clip.cc
         arange.cc
-        repeat.cc
         sort.cc
         squeeze.cc
+        repeat.cc
         )
 
 cc_test(test_cast SRCS cast_test.cc DEPS cinncore)
