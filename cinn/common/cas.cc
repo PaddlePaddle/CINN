@@ -34,6 +34,7 @@ namespace common {
 using namespace ir;  // NOLINT
 
 Expr AutoSimplify(Expr u, const absl::flat_hash_map<std::string, CasInterval>& var_intervals) {
+  VLOG(7) << "Begin AutoSimplify: " << u;
   u = detail::ConvertCinnToCAS(u);
   absl::flat_hash_map<std::string, CasInterval> s_var_intervals;
   for (auto& item : var_intervals) {
@@ -47,6 +48,7 @@ Expr AutoSimplify(Expr u, const absl::flat_hash_map<std::string, CasInterval>& v
   }
   u = CasSimplify(u, s_var_intervals);
   u = detail::ConvertCasToCinn(u);
+  VLOG(7) << "End AutoSimplify " << u;
   return u;
 }
 
@@ -405,6 +407,7 @@ double EvaluatePower(Expr u) {
 // Order, reference to Page 85.
 bool ExprPosCmp::operator()(const Expr& a, const Expr& b) {
   // O-1, 1 <| 2
+  VLOG(7) << "Begin ExprPosCmp, a: " << a << ", b: " << b;
   if (a.is_constant() && b.is_constant()) {
     return a.get_constant() < b.get_constant();
   }
@@ -504,7 +507,7 @@ bool ExprPosCmp::operator()(const Expr& a, const Expr& b) {
   {
     if (a.As<Sum>()) {
       if (b.As<_Var_>()) {
-        return operator()(a, Sum::Make({b}));
+        return operator()(a.As<Sum>()->operand(0), {b});
       }
     }
   }
@@ -740,7 +743,7 @@ Expr CasSimplifyMutator::SimplifyProduct(Expr a) {
     for (auto& v : operands) {
       ss << v << " ";
     }
-    VLOG(6) << "operands: " << ss.str();
+    VLOG(7) << "operands: " << ss.str();
   };
 #endif
 
@@ -819,11 +822,11 @@ std::vector<Expr> CasSimplifyMutator::MergeSum(const std::vector<Expr>& p, const
     std::stringstream ss;
     for (auto& x : p) ss << x << " ";
 
-    VLOG(6) << "MergeSum p(" << ss.str() << ")";
+    VLOG(7) << "MergeSum p(" << ss.str() << ")";
     ss.str("");
 
     for (auto& x : q) ss << x << " ";
-    VLOG(6) << "MergeSum q(" << ss.str() << ")";
+    VLOG(7) << "MergeSum q(" << ss.str() << ")";
     ss.str("");
   }
 #endif
@@ -906,8 +909,8 @@ std::vector<Expr> CasSimplifyMutator::SimplifyBinarySum(Expr left, Expr right) {
     auto a_non_constant = ProductGetNonConstantPart(a);
     auto b_non_constant = ProductGetNonConstantPart(b);
     if (a_non_constant.defined() && b_non_constant.defined() && a_non_constant == b_non_constant) {
-      VLOG(3) << "a " << a;
-      VLOG(3) << "b " << b;
+      VLOG(7) << "a " << a;
+      VLOG(7) << "b " << b;
       Expr s = SimplifySum(Sum::Make({ProductGetConstantPart(a), ProductGetConstantPart(b)}));
       Expr p = Product::Make({s, ProductGetNonConstantPart(a)});
       return {CasSimplify(p, var_intervals)};
@@ -958,7 +961,7 @@ std::vector<Expr> CasSimplifyMutator::SimplifySumRec(const std::vector<Expr>& op
     for (auto& o : operands) {
       ss << o.node_type() << " " << o << " ";
     }
-    VLOG(6) << "SimplifySumRec operands: " << ss.str();
+    VLOG(7) << "SimplifySumRec operands: " << ss.str();
   }
 #endif
   CHECK(!operands.empty());
@@ -1646,6 +1649,7 @@ bool CASasSymbol(Expr expr) {
 }
 
 Expr ConvertCinnToCAS(Expr expr) {
+  VLOG(7) << "Begin ConvertCinnToCAS " << expr;
   Expr copied = optim::IRCopy(expr);
   struct Mutator : public ir::IRMutator<ir::Expr*> {
     void operator()(Expr* expr) { Visit(expr); }
@@ -1838,6 +1842,7 @@ Expr ReplaceMaxToConstant(Expr expr) {
 }
 
 Expr ConvertCasToCinn(Expr expr) {
+  VLOG(7) << "Begin ConvertCasToCinn : " << expr;
   Expr copied = optim::IRCopy(expr);
 
   struct Mutator : ir::IRMutator<Expr*> {
@@ -2046,7 +2051,7 @@ Expr CasSimplifyMutator::FurtherSimplifyFracWithInterval(
       auto it     = var_intervals.find(bv->name);
       auto ai_abs = std::abs(ai->value);
       if (it != var_intervals.end()) {
-        VLOG(3) << "found " << bv->name << " " << it->second << " "
+        VLOG(7) << "found " << bv->name << " " << it->second << " "
                 << " ai " << ai_abs;
       }
       if (it != var_intervals.end() && std::abs(it->second.r) > ai_abs && std::abs(it->second.l) > ai_abs) {
@@ -2084,7 +2089,7 @@ Expr SimplifyConstantFrac(FracOp* node) {
 }
 
 Expr CasSimplifyMutator::SimplifyFracOp(Expr expr) {
-  VLOG(3) << "CAS simplify Frac " << expr;
+  VLOG(7) << "CAS simplify Frac " << expr;
   auto* node = expr.As<FracOp>();
   auto a     = CasSimplify(node->a(), var_intervals);
   auto b     = CasSimplify(node->b(), var_intervals);

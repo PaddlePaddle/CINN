@@ -21,6 +21,7 @@
 #include "cinn/frontend/decomposer/use_decomposer.h"
 #include "cinn/frontend/decomposer_registry.h"
 #include "cinn/frontend/net_builder.h"
+#include "cinn/frontend/optimize.h"
 #include "cinn/frontend/pass/use_program_pass.h"
 #include "cinn/frontend/program_pass.h"
 #include "cinn/hlir/framework/graph.h"
@@ -50,16 +51,8 @@ std::ostream& operator<<(std::ostream& os, const std::vector<T, Alloc>& vec) {
   return os;
 }
 
-Target GetTarget() {
-#ifdef CINN_WITH_CUDA
-  return common::DefaultNVGPUTarget();
-#else
-  return common::DefaultHostTarget();
-#endif
-}
-
 template <typename T>
-void InitRandomVector(std::vector<T>* vec, size_t numel, T low = 0, T high = 1, T precision = 1e-5) {
+void InitRandomVector(std::vector<T>* vec, size_t numel, T low = 0, T high = 1, float precision = 1e-5) {
   std::random_device seed;
   std::default_random_engine engine(seed());
   std::uniform_real_distribution<double> dist(low, high);
@@ -180,10 +173,10 @@ void RunAndCheckShape(NetBuilder& builder,
                       T low                                    = 0,
                       T high                                   = 1) {
   auto prog     = builder.Build();
-  Target target = GetTarget();
+  Target target = common::DefaultTarget();
   RunDecomposer(&prog, target);
   auto graph = std::make_shared<hlir::framework::Graph>(prog, target);
-  hlir::framework::ApplyPass(graph.get(), "OpFusion");
+  hlir::framework::ApplyPasses(graph.get(), DefaultOpFusionPasses());
   auto scope = BuildScope(target, graph);
   hlir::framework::GraphCompiler gc(target, scope, graph);
 

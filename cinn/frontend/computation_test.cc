@@ -17,7 +17,6 @@
 #include <gtest/gtest.h>
 
 #include "cinn/common/target.h"
-#include "cinn/frontend/cinn_builder.h"
 #include "cinn/frontend/decomposer/use_decomposer.h"
 #include "cinn/frontend/decomposer_registry.h"
 #include "cinn/frontend/net_builder.h"
@@ -34,25 +33,25 @@ Program CreateTestProgram() {
   constexpr int M = 32;
   constexpr int N = 24;
 
-  CinnBuilder builder("cinn_builder");
+  NetBuilder builder("net_builder");
   auto a = builder.CreateInput(Float(32), {M, N / 2}, "A");
   auto b = builder.CreateInput(Float(32), {M, N / 2}, "B");
   auto t = builder.Transpose(b, {1, 0});
   auto r = builder.Reshape(t, {M, N / 2});
   auto c = builder.Add(a, r);
-  auto x = builder.Div(a, b);
+  auto x = builder.Divide(a, b);
   auto d = builder.Concat({c, x}, 1);
   auto e = builder.BroadcastTo(d, {B, M, N}, {1, 2});
   auto f = builder.Concat({a, b}, 1);
   auto g = builder.BroadcastTo(f, {B, M, N}, {1, 2});
-  auto h = builder.Sub(e, g);
+  auto h = builder.Subtract(e, g);
   auto i = builder.Max(e, h);
   auto j = builder.Min(e, h);
-  auto k = builder.Mul(i, j);
+  auto k = builder.Multiply(i, j);
   auto l = builder.ConstScalar<bool>(1, "condition");
   auto m = builder.BroadcastTo(l, {B, M, N}, {0});
   auto n = builder.Select(m, j, k);
-  auto o = builder.Reduce(n, ReduceKind::kSum, {0, 1, 2});
+  auto o = builder.ReduceSum(n, {0, 1, 2});
 
   auto program = builder.Build();
   return program;
@@ -136,7 +135,7 @@ TEST(cinn_computation, basic_gpu) {
 }
 #endif
 
-TEST(cinn_computation, cinn_builder_cpu) {
+TEST(cinn_computation, net_builder_cpu) {
   auto program = CreateTestProgram();
   auto target  = common::DefaultHostTarget();
   auto compute = CinnComputation::Compile(target, program);
@@ -170,7 +169,7 @@ TEST(cinn_computation, cinn_builder_cpu) {
 }
 
 #ifdef CINN_WITH_CUDA
-TEST(cinn_computation, cinn_builder_gpu) {
+TEST(cinn_computation, net_builder_gpu) {
   auto program = CreateTestProgram();
   auto target  = common::DefaultNVGPUTarget();
   auto compute = CinnComputation::Compile(target, program);

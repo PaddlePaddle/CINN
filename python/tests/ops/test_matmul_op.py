@@ -35,12 +35,15 @@ class TestMatmulOp(OpTest):
             "x": np.random.random([4, 16]).astype("float32"),
             "y": np.random.random([16, 32]).astype("float32")
         }
+        self.transpose_x = False
+        self.transpose_y = False
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.inputs["x"], stop_gradient=True)
         y = paddle.to_tensor(self.inputs["y"], stop_gradient=True)
 
-        out = paddle.matmul(x, y)
+        out = paddle.matmul(
+            x, y, transpose_x=self.transpose_x, transpose_y=self.transpose_y)
 
         self.paddle_outputs = [out]
 
@@ -48,7 +51,8 @@ class TestMatmulOp(OpTest):
         builder = NetBuilder("matmul")
         x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
         y = builder.create_input(Float(32), self.inputs["y"].shape, "y")
-        out = builder.matmul(x, y)
+        out = builder.matmul(
+            x, y, transpose_x=self.transpose_x, transpose_y=self.transpose_y)
 
         prog = builder.build()
         res = self.get_cinn_output(prog, target, [x, y],
@@ -63,9 +67,11 @@ class TestMatmulOp(OpTest):
 class TestMatmulCase1(TestMatmulOp):
     def init_case(self):
         self.inputs = {
-            "x": np.random.random([16]).astype("float32"),
-            "y": np.random.random([16]).astype("float32")
+            "x": np.random.random([2, 16]).astype("float32"),
+            "y": np.random.random([16, 2]).astype("float32")
         }
+        self.transpose_x = False
+        self.transpose_y = False
 
 
 class TestMatmulCase2(TestMatmulOp):
@@ -74,14 +80,118 @@ class TestMatmulCase2(TestMatmulOp):
             "x": np.random.random([5, 4, 16]).astype("float32"),
             "y": np.random.random([5, 16, 32]).astype("float32")
         }
+        self.transpose_x = False
+        self.transpose_y = False
 
 
 class TestMatmulCase3(TestMatmulOp):
     def init_case(self):
         self.inputs = {
-            "x": np.random.random([16]).astype("float32"),
-            "y": np.random.random([16, 4]).astype("float32")
+            "x": np.random.random([5, 16, 4]).astype("float32"),
+            "y": np.random.random([5, 16, 32]).astype("float32")
         }
+        self.transpose_x = True
+        self.transpose_y = False
+
+
+class TestMatmulCase4(TestMatmulOp):
+    def init_case(self):
+        self.inputs = {
+            "x": np.random.random([16, 4]).astype("float32"),
+            "y": np.random.random([16, 32]).astype("float32")
+        }
+        self.transpose_x = True
+        self.transpose_y = False
+
+
+class TestMatmulCase5(TestMatmulOp):
+    def init_case(self):
+        self.inputs = {
+            "x": np.random.random([4, 16]).astype("float32"),
+            "y": np.random.random([32, 16]).astype("float32")
+        }
+        self.transpose_x = False
+        self.transpose_y = True
+
+
+class TestMatmulCase6(TestMatmulOp):
+    def init_case(self):
+        self.inputs = {
+            "x": np.random.random([16, 4]).astype("float32"),
+            "y": np.random.random([32, 16]).astype("float32")
+        }
+        self.transpose_x = True
+        self.transpose_y = True
+
+
+class TestMatmulCase7(TestMatmulOp):
+    def init_case(self):
+        self.inputs = {
+            "x": np.random.random([8, 16, 4]).astype("float32"),
+            "y": np.random.random([1, 4, 16]).astype("float32")
+        }
+        self.transpose_x = False
+        self.transpose_y = False
+
+
+class TestMatmulCase8(TestMatmulOp):
+    def init_case(self):
+        self.inputs = {
+            "x": np.random.random([1, 8, 16, 4]).astype("float32"),
+            "y": np.random.random([2, 1, 4, 16]).astype("float32")
+        }
+        self.transpose_x = False
+        self.transpose_y = False
+
+
+class TestMatmulCase9(TestMatmulOp):
+    def init_case(self):
+        self.inputs = {
+            "x": np.random.random([8, 16, 4]).astype("float32"),
+            "y": np.random.random([4, 16]).astype("float32")
+        }
+        self.transpose_x = False
+        self.transpose_y = False
+
+
+class TestMatmulCase10(TestMatmulOp):
+    def init_case(self):
+        self.inputs = {
+            "x": np.random.random([2, 8, 16, 4]).astype("float32"),
+            "y": np.random.random([4, 16]).astype("float32")
+        }
+        self.transpose_x = False
+        self.transpose_y = False
+
+
+class TestMatmulCase11(TestMatmulOp):
+    def init_case(self):
+        self.inputs = {
+            "x": np.random.random([2, 8, 4, 16]).astype("float32"),
+            "y": np.random.random([4, 16]).astype("float32")
+        }
+        self.transpose_x = True
+        self.transpose_y = False
+
+
+class TestMatmulCase12(TestMatmulOp):
+    def init_case(self):
+        self.inputs = {
+            "x": np.random.random([2, 8, 16, 4]).astype("float32"),
+            "y": np.random.random([16]).astype("float32")
+        }
+        self.transpose_x = True
+        self.transpose_y = False
+
+
+class TestMatmulCase13(TestMatmulOp):
+    def init_case(self):
+        self.inputs = {
+            "x": np.random.random([4, 16]).astype("float32"),
+            "y": np.random.random([16]).astype("float32")
+        }
+        self.transpose_x = False
+        self.transpose_y = False
 
 
 if __name__ == "__main__":

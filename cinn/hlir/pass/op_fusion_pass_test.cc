@@ -26,13 +26,13 @@ TEST(OpFusionPass, ElementWise_Fusion_0) {
     auto B = net_builder.CreateInput(Float(32), {h, w}, "B");
     auto C = net_builder.CreateInput(Float(32), {h, w}, "C");
     auto D = net_builder.CreateInput(Float(32), {h, w}, "D");
-    auto E = net_builder.ElementwiseAdd(A, B);
-    auto F = net_builder.ElementwiseAdd(C, D);
-    auto G = net_builder.ElementwiseAdd(E, F);
+    auto E = net_builder.Add(A, B);
+    auto F = net_builder.Add(C, D);
+    auto G = net_builder.Add(E, F);
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
@@ -49,14 +49,14 @@ TEST(OpFusionPass, ElementWise_Fusion_1) {
     auto B = net_builder.CreateInput(Float(32), {h, w}, "B");
     auto C = net_builder.CreateInput(Float(32), {h, w}, "C");
     auto D = net_builder.CreateInput(Float(32), {h, w}, "D");
-    auto E = net_builder.ElementwiseAdd(A, B);
-    auto F = net_builder.ElementwiseAdd(E, C);
-    auto G = net_builder.ElementwiseAdd(E, D);
-    auto H = net_builder.ElementwiseAdd(F, G);
+    auto E = net_builder.Add(A, B);
+    auto F = net_builder.Add(E, C);
+    auto G = net_builder.Add(E, D);
+    auto H = net_builder.Add(F, G);
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
@@ -73,13 +73,13 @@ TEST(OpFusionPass, Brodcast_Test_0) {
     auto B = net_builder.CreateInput(Float(32), {w}, "B");
     auto C = net_builder.CreateInput(Float(32), {h, w}, "C");
     auto D = net_builder.CreateInput(Float(32), {h, w}, "D");
-    auto E = net_builder.ElementwiseAdd(C, A, 0);
-    auto F = net_builder.ElementwiseAdd(D, B, 0);
-    auto G = net_builder.ElementwiseAdd(E, F);
+    auto E = net_builder.Add(C, A, 0);
+    auto F = net_builder.Add(D, B, 0);
+    auto G = net_builder.Add(E, F);
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
@@ -96,15 +96,15 @@ TEST(OpFusionPass, Brodcast_Test_1) {
     auto B = net_builder.CreateInput(Float(32), {w}, "B");
     auto C = net_builder.CreateInput(Float(32), {h, w}, "C");
     auto D = net_builder.CreateInput(Float(32), {h, w}, "D");
-    auto E = net_builder.ElementwiseAdd(A, B);
-    auto F = net_builder.ElementwiseAdd(C, D);
-    auto G = net_builder.ElementwiseAdd(F, E, 0);
-    auto H = net_builder.ElementwiseAdd(G, C);
-    auto I = net_builder.ElementwiseAdd(H, D);
+    auto E = net_builder.Add(A, B);
+    auto F = net_builder.Add(C, D);
+    auto G = net_builder.Add(F, E, 0);
+    auto H = net_builder.Add(G, C);
+    auto I = net_builder.Add(H, D);
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
@@ -121,14 +121,14 @@ TEST(OpFusionPass, Reduce_Test_0) {
     auto B = net_builder.CreateInput(Float(32), {w}, "B");
     auto C = net_builder.CreateInput(Float(32), {h, w}, "C");
     auto D = net_builder.CreateInput(Float(32), {h, w}, "D");
-    auto E = net_builder.ElementwiseAdd(A, B);
-    auto F = net_builder.ElementwiseAdd(C, D);
+    auto E = net_builder.Add(A, B);
+    auto F = net_builder.Add(C, D);
     auto G = net_builder.ReduceSum(F, {0});
-    auto H = net_builder.ElementwiseAdd(E, G);
+    auto H = net_builder.Add(E, G);
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
@@ -145,15 +145,15 @@ TEST(OpFusionPass, Reduce_Test_1) {
     auto B = net_builder.CreateInput(Float(32), {w}, "B");
     auto C = net_builder.CreateInput(Float(32), {h, w}, "C");
     auto D = net_builder.CreateInput(Float(32), {h, w}, "D");
-    auto E = net_builder.ElementwiseAdd(A, B);
+    auto E = net_builder.Add(A, B);
     auto F = net_builder.ReduceSum(C, {0});
     auto G = net_builder.ReduceSum(D, {0});
-    auto H = net_builder.ElementwiseAdd(E, F);
-    auto I = net_builder.ElementwiseAdd(G, H);
+    auto H = net_builder.Add(E, F);
+    auto I = net_builder.Add(G, H);
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
@@ -172,13 +172,13 @@ TEST(OpFusionPass, Reduce_Test_2) {
     auto D = net_builder.CreateInput(Float(32), {h, w}, "D");
     auto E = net_builder.ReduceSum(C, {0});
     auto F = net_builder.ReduceSum(D, {1});
-    auto G = net_builder.ElementwiseAdd(A, E);
-    auto H = net_builder.ElementwiseAdd(B, F);
-    auto I = net_builder.ElementwiseAdd(G, H);
+    auto G = net_builder.Add(A, E);
+    auto H = net_builder.Add(B, F);
+    auto I = net_builder.Add(G, H);
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
@@ -196,13 +196,13 @@ TEST(OpFusionPass, Injective_Test_0) {
     auto C = net_builder.CreateInput(Float(32), {h, w}, "C");
     auto D = net_builder.CreateInput(Float(32), {h * 2, w}, "D");
 
-    auto E = net_builder.ElementwiseAdd(A, B);
+    auto E = net_builder.Add(A, B);
     auto F = net_builder.Concat({C, E}, 0);
-    auto G = net_builder.ElementwiseAdd(D, F);
+    auto G = net_builder.Add(D, F);
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
@@ -219,12 +219,12 @@ TEST(OpFusionPass, Test_Insert_BroadcastTo) {
     auto B = net_builder.CreateInput(Float(32), {w}, "B");
     auto C = net_builder.CreateInput(Float(32), {h, w}, "C");
 
-    auto E = net_builder.ElementwiseAdd(C, A, -1);
-    auto F = net_builder.ElementwiseAdd(E, B, -1);
+    auto E = net_builder.Add(C, A, -1);
+    auto F = net_builder.Add(E, B, -1);
   }
 
   auto program = net_builder.Build();
-  auto target  = GetTarget();
+  auto target  = common::DefaultTarget();
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
   hlir::framework::ApplyPass(graph.get(), "OpFusionPass");

@@ -68,7 +68,7 @@ class TestIndexSelectOp(OpTest):
         self.paddle_outputs = [out]
 
     def build_cinn_program(self, target):
-        builder = CinnBuilder("index_select")
+        builder = NetBuilder("index_select")
         x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
         index = builder.create_input(
             Int(32), self.inputs["index"].shape, "index")
@@ -82,7 +82,7 @@ class TestIndexSelectOp(OpTest):
         self.cinn_outputs = res
 
     def test_check_results(self):
-        self.check_outputs_and_grads()
+        self.check_outputs_and_grads(all_equal=True)
 
 
 class TestIndexSelectOpCase1(TestIndexSelectOp):

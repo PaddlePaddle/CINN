@@ -152,7 +152,7 @@ ir::Tensor Transpose(const ir::Tensor& input,
 std::vector<ir::Tensor> Split(const ir::Tensor& A,
                               int axis,
                               const std::vector<std::vector<int>>& output_shapes,
-                              const std::string& name);
+                              const std::vector<std::string>& names);
 
 ir::Tensor Slice(const ir::Tensor& A,
                  const std::vector<int>& starts,

@@ -16,7 +16,9 @@
 
 #include <algorithm>
 #include <string>
+#include <unordered_map>
 
+#include "cinn/backends/codegen_cuda_util.h"
 #include "cinn/backends/extern_func_emitter_builtin.h"
 #include "cinn/backends/extern_func_jit_register.h"
 #include "cinn/backends/llvm/llvm_util.h"
@@ -28,32 +30,9 @@ namespace backends {
 const int kArgsArrayMaxLen = 20;
 
 llvm::Value* CodeGenCUDA_Host::LowerGPUKernelLauncher(const ir::_LoweredFunc_* func) {
-  CHECK(func->cuda_axis_info.valid());
-  /* The current function definiton is
-   * void fn(cinn_pod_value_t* args, int num_args) {
-   *     Call(fn_kernel, args, num_args);
-   * }
-   * will lower to
-   * void fn(cinn_pod_value_t* args, int num_args) { // num_args is ignored here.
-   *    // NOTE the num_args is unnecessary here, but it should follow the pattern of CINN function.
-   *    cinn_call_cuda_kernel(fn_kernel_ptr, args, grid_dim, block_dim, fn_kernel_stream);
-   * }
-   *
-   * NOTE the global variables related to CUDA in LLVM module are
-   * 1. fn_kernel_ptr, the pointer to the compiled kernel function returned by CUDA driver
-   * 2. fn_kernel_stream, the CUDA stream this kernel should launch on.
-   */
-
-  // hard-code here to verify it is a simple CUDA host function.
-  // @{
-  auto body   = func->body;
-  auto* block = body.As<ir::Block>();
-  CHECK(block);
-
-  CHECK_EQ(block->stmts.size(), 1UL);
-  auto* call = block->stmts[0].As<ir::Call>();
-  CHECK(call);
-  // @}
+  auto body     = func->body;
+  auto* call_ir = body.As<ir::Call>();
+  CHECK(call_ir);
 
   // Create the function
   // @{
@@ -66,6 +45,7 @@ llvm::Value* CodeGenCUDA_Host::LowerGPUKernelLauncher(const ir::_LoweredFunc_* f
   std::transform(function->arg_begin(), function->arg_end(), std::back_inserter(ll_function_args), [](auto& arg) {
     return std::addressof(arg);
   });
+  // @}
 
   llvm::BasicBlock* entry = llvm::BasicBlock::Create(
       /*Context=*/b_->getContext(),
@@ -73,63 +53,72 @@ llvm::Value* CodeGenCUDA_Host::LowerGPUKernelLauncher(const ir::_LoweredFunc_* f
       /*Parent=*/function,
       /*InsertBefore=*/nullptr);
   b_->SetInsertPoint(entry);
-  // @}
 
-  // Get the arguments of the function.
-  // @{
-  auto* ll_args       = ll_function_args[0];
-  auto* ll_args_count = ll_function_args[1];
-  CHECK_EQ(ll_args->getType(), ll_cinn_pod_p_ty());   // cinn_pod_value_t* args
-  CHECK_EQ(ll_args_count->getType(), ll_int32_ty());  // int32
+  auto* kernel_args          = ll_function_args[0];
+  auto* kernel_args_count    = ll_function_args[1];
+  llvm::Value* kernel_stream = nullptr;
+  if (ll_function_args.size() == 3) {
+    kernel_stream = ll_function_args[2];
+    CHECK_EQ(kernel_stream->getType(), ll_void_p_ty());  // void* stream
+  }
+  CHECK_EQ(kernel_args->getType(), ll_void_p_ty());       // void* args
+  CHECK_EQ(kernel_args_count->getType(), ll_int32_ty());  // int32
 
-  auto* ll_num_args_copied = b_->CreateAlloca(ll_int32_ty(), nullptr, "num_args_copied");
-  Store(ll_args_count, ll_num_args_copied);
-  SetVar(std::string(ll_num_args_copied->getName()), ll_num_args_copied);
+  std::unordered_map<std::string, llvm::Value*> global_args = {
+      {KERNEL_ARGS, kernel_args}, {KERNEL_ARGS_NUM, kernel_args_count}, {KERNEL_STREAM, kernel_stream}};
 
-  const std::string& func_arg0_name = func->args[0].name();
-  CHECK(LLVM_WillVarLowerAsPointer(func_arg0_name))
-      << "Variable [" << func_arg0_name << "] should have a name like someting will be lower to a pointer";
-  SetVar(func->args[0].var_arg()->name, ll_args);
-  // @}
+  auto ret_type = CinnTypeToLLVMType(Void(), m_);
+  std::vector<llvm::Type*> args_type;
+  for (auto r_arg : call_ir->read_args) {
+    if (r_arg.is_var()) {
+      if (r_arg.as_var()->type().is_cpp_handle() || r_arg.as_var()->type().is_string()) {
+        args_type.push_back(CinnTypeToLLVMType(type_of<void*>(), m_));
+      } else if (r_arg.as_var()->type().is_int(32)) {
+        args_type.push_back(CinnTypeToLLVMType(type_of<int32_t>(), m_));
+      } else {
+        CINN_NOT_IMPLEMENTED;
+      }
+    } else {
+      if (r_arg.type().is_bool()) {
+        args_type.push_back(CinnTypeToLLVMType(type_of<bool>(), m_));
+      } else if (r_arg.type().is_int(32)) {
+        args_type.push_back(CinnTypeToLLVMType(type_of<int32_t>(), m_));
+      } else if (r_arg.type().is_float(32)) {
+        args_type.push_back(CinnTypeToLLVMType(type_of<float>(), m_));
+      } else {
+        CINN_NOT_IMPLEMENTED;
+      }
+    }
+  }
+  auto func_type = llvm::FunctionType::get(ret_type, args_type, false);
+  auto call_func = m_->getOrInsertFunction(call_ir->name, func_type);
 
-  const std::string kernel_ptr_global_var_name    = GenKernelPtrVarName(func->name);
-  const std::string kernel_stream_global_var_name = GenKernelStreamVarName(func->name);
-  // set global variables to reference the [kernel_ptr] and [kernel_stream] for this kernel
-  SetVar(kernel_ptr_global_var_name, m_->getOrInsertGlobal(kernel_ptr_global_var_name, ll_void_p_ty()));
-  SetVar(kernel_stream_global_var_name, m_->getOrInsertGlobal(kernel_stream_global_var_name, ll_void_p_ty()));
-
-  {  // create a new Call node for the ExternFunctionEmitter
-    Var args_var(func->args[0].var_arg()->name, type_of<cinn_pod_value_t*>());  // pass *args directly to kernel
-    Var kernel_fn_ptr_var(kernel_ptr_global_var_name, type_of<void*>());
-    Var kernel_stream_var(kernel_stream_global_var_name, type_of<void*>());
-
-    auto new_call_node = ir::Call::Make(Void(),
-                                        runtime::intrinsic::call_cuda_kernel,
-                                        {
-                                            kernel_fn_ptr_var,  // kernel_fn
-                                            args_var,           // args
-                                            Var(std::string(ll_num_args_copied->getName()), type_of<int32_t>()),
-                                            Expr(func->cuda_axis_info.grid_dim(0)),   // grid_x
-                                            Expr(func->cuda_axis_info.grid_dim(1)),   // grid_y
-                                            Expr(func->cuda_axis_info.grid_dim(2)),   // grid_z
-                                            Expr(func->cuda_axis_info.block_dim(0)),  // block_x
-                                            Expr(func->cuda_axis_info.block_dim(1)),  // block_y
-                                            Expr(func->cuda_axis_info.block_dim(2)),  // block_z
-                                            kernel_stream_var                         // stream
-                                        },
-                                        {},
-                                        ir::CallType::Extern,
-                                        ir::FunctionRef(),
-                                        0);
-
-    auto emitter_id     = ExternFuncID{backend_llvm_host, runtime::intrinsic::call_cuda_kernel};
-    const auto& fn_name = ExternFunctionEmitterRegistry::Global().Lookup(emitter_id);
-    CHECK(!fn_name.empty()) << "No extern function emitter called " << emitter_id;
-    ExternFunctionLLVMEmitter emitter(fn_name);
-    emitter.BindCodeGen(this);
-    emitter.Emit(new_call_node.As<ir::Call>());
+  std::vector<llvm::Value*> call_args;
+  for (auto& r_arg : call_ir->read_args) {
+    if (r_arg.is_var()) {
+      if (r_arg.as_var()->type().is_string()) {
+        auto kvalue = m_->getOrInsertGlobal(r_arg.as_var()->name + "_ptr_", b_->getInt8PtrTy());
+        call_args.push_back(b_->CreateLoad(b_->getInt8PtrTy(), kvalue, r_arg.as_var()->name + "_ptr_load"));
+      } else if (r_arg.as_var()->type().is_cpp_handle() || r_arg.as_var()->type().is_int(32)) {
+        CHECK(global_args.count(r_arg.as_var()->name));
+        call_args.push_back(global_args[r_arg.as_var()->name]);
+      } else {
+        CINN_NOT_IMPLEMENTED;
+      }
+    } else {
+      if (r_arg.type().is_bool()) {
+        call_args.push_back(b_->getInt1(r_arg.as_bool()));
+      } else if (r_arg.type().is_int(32)) {
+        call_args.push_back(b_->getInt32(r_arg.as_int32()));
+      } else if (r_arg.type().is_float(32)) {
+        call_args.push_back(llvm::ConstantFP::get(b_->getFloatTy(), llvm::APFloat(r_arg.as_float())));
+      } else {
+        CINN_NOT_IMPLEMENTED;
+      }
+    }
   }
 
+  b_->CreateCall(call_func, call_args);
   RetVoid();
 
   return function;

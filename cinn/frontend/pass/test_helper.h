@@ -19,6 +19,7 @@
 #include <random>
 
 #include "cinn/frontend/net_builder.h"
+#include "cinn/frontend/optimize.h"
 #include "cinn/frontend/pass/use_program_pass.h"
 #include "cinn/frontend/program_pass.h"
 #include "cinn/hlir/framework/graph_compiler.h"
@@ -26,14 +27,6 @@
 #include "cinn/hlir/pass/use_pass.h"
 
 namespace cinn::frontend {
-
-static Target GetTarget() {
-#ifdef CINN_WITH_CUDA
-  return common::DefaultNVGPUTarget();
-#else
-  return common::DefaultHostTarget();
-#endif
-}
 
 template <typename T>
 std::vector<T> GeneratedRandomVector(size_t numel) {
@@ -78,7 +71,7 @@ std::vector<T> CopyToVector(const hlir::framework::Tensor tensor) {
 
 class PassTest {
  public:
-  PassTest() { target_ = GetTarget(); }
+  PassTest() { target_ = common::DefaultTarget(); }
 
   int RunAndCheck(NetBuilder& builder,
                   const std::vector<std::string>& program_passes,
@@ -112,7 +105,7 @@ class PassTest {
                                                               const std::vector<std::string>& output_names) {
     LOG(INFO) << program;
     auto graph = std::make_shared<hlir::framework::Graph>(program, target_);
-    hlir::framework::ApplyPass(graph.get(), "OpFusion");
+    hlir::framework::ApplyPasses(graph.get(), DefaultOpFusionPasses());
 
     auto scope = hlir::framework::BuildScope(target_, graph);
     hlir::framework::GraphCompiler gc(target_, scope, graph);

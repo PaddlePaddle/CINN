@@ -41,10 +41,7 @@ class SingleOpTester(unittest.TestCase):
     def setUp(self):
         np.random.seed(0)
         self.counter = 0
-        self.target = common.Target()
-        self.target.arch = common.Target.Arch.X86
-        self.target.bits = common.Target.Bit.k32
-        self.target.os = common.Target.OS.Linux
+        self.target = common.DefaultHostTarget()
 
     def create_target_data(self, inputs_data, attrs):
         '''
@@ -103,10 +100,13 @@ class SingleOpTester(unittest.TestCase):
         else:
             correct_result = self.create_target_data(inputs_data, attrs)
 
-        module = self.__codegen(op_name, inputs, output_shapes, attrs)
+        func = self.__lower(op_name, inputs, output_shapes, attrs)
+        builder = lang.Module.Builder(op_name, self.target)
+        builder.add_function(func)
+        module = builder.build()
 
         self.compiler.build(module)
-        fn = self.compiler.lookup(op_name)
+        fn = self.compiler.lookup(func.name())
 
         out = []
 
@@ -135,15 +135,13 @@ class SingleOpTester(unittest.TestCase):
             out_result = out[out_index].numpy()
         self.assertTrue(np.allclose(out_result, correct_result, atol=1e-4))
 
-    def __codegen(self, op_name, inputs, output_shapes, attrs):
+    def __lower(self, op_name, inputs, output_shapes, attrs):
         types = [common.Float(32)]
         strategy_map = framework.Operator.get_op_attrs("CINNStrategy")
         func = strategy_map.apply_strategy(op_name, attrs, inputs, types,
                                            output_shapes, self.target)
         logging.warning('func:\n\n%s\n', func)
-        builder = lang.Module.Builder(op_name, self.target)
-        builder.add_function(func)
-        return builder.build()
+        return func
 
     def __gen_var_name(self):
         self.counter = self.counter + 1

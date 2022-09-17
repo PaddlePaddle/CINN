@@ -218,6 +218,7 @@ extern "C" {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -283,6 +284,7 @@ extern "C" {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -656,6 +658,7 @@ extern "C" {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -801,6 +804,7 @@ extern "C" {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -915,6 +919,7 @@ void __launch_bounds__(128) schedule_conv2d_1(const float* __restrict__ X, const
   #ifdef __CUDACC_RTC__
   typedef int int32_t;
   typedef char int8_t;
+  typedef long int int64_t;
   #endif
 
 
@@ -1035,6 +1040,7 @@ extern "C" {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -1143,6 +1149,7 @@ extern "C" {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -1492,9 +1499,7 @@ TEST(CodeGenCUDA, jit_host_call_cuda_kernel) {
 
   LOG(INFO) << "fn_kernel: " << fn_kernel;
 
-  RuntimeSymbolRegistry::Global().RegisterFn("fn_kernel_ptr_", reinterpret_cast<void*>(&fn_kernel));
-  RuntimeSymbolRegistry::Global().RegisterVar("fn_kernel_stream_ptr_", stream);
-
+  GlobalSymbolRegistry::Global().RegisterFn("fn_kernel_ptr_", reinterpret_cast<void*>(&fn_kernel));
   // compile host
   {
     auto jit = SimpleJIT::Create();
@@ -1520,11 +1525,12 @@ TEST(CodeGenCUDA, jit_host_call_cuda_kernel) {
     CUDA_CALL(cudaDeviceSynchronize());
 
     // call the kernel
-    auto comp = reinterpret_cast<void (*)(cinn_pod_value_t*, int)>(fn_ptr);
+    auto comp = reinterpret_cast<void (*)(void*, int, void*)>(fn_ptr);
 
     auto args = common::ArgsBuilder().Add(M.as_int32()).Add(A_buf).Add(B_buf).Add(C_buf).Build();
 
-    comp(args.data(), args.size());
+    void* stream = nullptr;
+    comp(args.data(), args.size(), stream);
 
     CUDA_CALL(cudaDeviceSynchronize());
 
@@ -1943,6 +1949,7 @@ extern "C" {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -2079,6 +2086,7 @@ extern "C" {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -2154,7 +2162,6 @@ TEST(ElementwiseAdd, cache_read_compute_at1) {
   Context::Global().ResetNameId();
   Expr M(100);
   Expr N(95);
-  Context::Global().ResetNameId();
   Placeholder<float> A("AA", {M, M});
 
   auto C = Compute(
@@ -2185,6 +2192,7 @@ extern "C" {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -2287,6 +2295,7 @@ extern "C" {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -2450,6 +2459,7 @@ extern "C" {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -2533,6 +2543,7 @@ extern "C" {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -2618,6 +2629,7 @@ extern "C" {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -2700,6 +2712,7 @@ extern "C" {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 
@@ -2893,18 +2906,16 @@ TEST(Cudnn, external_function_cudnn) {
   dev_bufs[1]->memory = reinterpret_cast<uint8_t*>(B_dev);
   dev_bufs[2]->memory = reinterpret_cast<uint8_t*>(C_dev);
 
-  std::vector<int> attrs                          = {2, 512, 7, 7, 512, 512, 3, 3, 1, 1, 1, 1, 1, 1, 1, 2, 512, 7, 7};
-  absl::flat_hash_map<std::string, int> attrs_map = {
-      {"input_n", attrs[0]},     {"input_c", attrs[1]},     {"input_h", attrs[2]},   {"input_w", attrs[3]},
-      {"weights_n", attrs[4]},   {"weights_c", attrs[5]},   {"weights_h", attrs[6]}, {"weights_w", attrs[7]},
-      {"pad_h", attrs[8]},       {"pad_w", attrs[9]},       {"stride_h", attrs[10]}, {"stride_w", attrs[11]},
-      {"dilation_h", attrs[12]}, {"dilation_w", attrs[13]}, {"groups", attrs[14]},   {"output_n", attrs[15]},
-      {"output_c", attrs[16]},   {"output_h", attrs[17]},   {"output_w", attrs[18]},
-  };
+  dev_bufs[0]->type.code = cinn_type_code_t::cinn_type_float;
+  dev_bufs[1]->type.code = cinn_type_code_t::cinn_type_float;
+  dev_bufs[2]->type.code = cinn_type_code_t::cinn_type_float;
 
-  runtime::cuda::cinn_gpu_cudnn_conv2d(
-
-      attrs_map, dev_bufs[0], dev_bufs[1], dev_bufs[2]);
+  cudaStream_t stream        = nullptr;
+  cinn_pod_value_t v_args[3] = {
+      cinn_pod_value_t(dev_bufs[0]), cinn_pod_value_t(dev_bufs[1]), cinn_pod_value_t(dev_bufs[2])};
+  runtime::cuda::cinn_call_cudnn_conv2d_forward(
+      v_args, 3, 0, 1.0f, 0.0f, 2, 512, 7, 7, 512, 512, 3, 3, 1, 1, 1, 1, 1, 1, 1, 2, 512, 7, 7, stream);
+  cudaStreamSynchronize(stream);
 }
 
 TEST(Cudnn, external_function_cudnn2) {
@@ -2923,8 +2934,14 @@ TEST(Cudnn, external_function_cudnn2) {
   dev_bufs[0]->memory = reinterpret_cast<uint8_t*>(A_dev);
   dev_bufs[1]->memory = reinterpret_cast<uint8_t*>(B_dev);
 
-  runtime::cuda::cinn_gpu_cudnn_pool2d(
-      {2, 64, 112, 112, 3, 3, 1, 1, 1, 1, 2, 2, 2, 64, 56, 56, 0}, {"max"}, dev_bufs[0], dev_bufs[1]);
+  dev_bufs[0]->type.code = cinn_type_code_t::cinn_type_float;
+  dev_bufs[1]->type.code = cinn_type_code_t::cinn_type_float;
+
+  cudaStream_t stream        = nullptr;
+  cinn_pod_value_t v_args[2] = {cinn_pod_value_t(dev_bufs[0]), cinn_pod_value_t(dev_bufs[1])};
+  runtime::cuda::cinn_call_cudnn_pool2d_forward(
+      v_args, 2, 0, 0, 1.0f, 0.0f, 2, 64, 112, 112, 3, 3, 1, 1, 2, 2, 2, 64, 56, 56, stream);
+  cudaStreamSynchronize(stream);
 }
 
 TEST(Cudnn, external_function_cudnn3) {
@@ -2944,7 +2961,13 @@ TEST(Cudnn, external_function_cudnn3) {
   dev_bufs[0]->memory = reinterpret_cast<uint8_t*>(A_dev);
   dev_bufs[1]->memory = reinterpret_cast<uint8_t*>(B_dev);
 
-  runtime::cuda::cinn_gpu_cudnn_softmax({2, 1000, -1}, dev_bufs[0], dev_bufs[1]);
+  dev_bufs[0]->type.code = cinn_type_code_t::cinn_type_float;
+  dev_bufs[1]->type.code = cinn_type_code_t::cinn_type_float;
+
+  cudaStream_t stream        = nullptr;
+  cinn_pod_value_t v_args[2] = {cinn_pod_value_t(dev_bufs[0]), cinn_pod_value_t(dev_bufs[1])};
+  runtime::cuda::cinn_call_cudnn_softmax_forward(v_args, 2, 0, 0, 1.0f, 0.0f, 2, 1, 1, 1000, 2, 1, 1, 1000, stream);
+  cudaStreamSynchronize(stream);
 }
 #endif
 
@@ -3083,6 +3106,7 @@ extern "C" {
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
+typedef long int int64_t;
 #endif
 
 

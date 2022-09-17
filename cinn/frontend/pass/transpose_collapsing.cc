@@ -19,7 +19,7 @@
 #include <unordered_set>
 
 #include "cinn/common/target.h"
-#include "cinn/frontend/cinn_builder.h"
+#include "cinn/frontend/net_builder.h"
 #include "cinn/frontend/program_pass.h"
 #include "cinn/frontend/syntax.h"
 
@@ -99,7 +99,7 @@ class TransposeCollapsingPass : public ProgramPass {
     }
     FoldingTransposeHorizontal(all_transpose, fetch_ids, in2instr, out2instr, &remove_instrs);
 
-    CinnBuilder builder("transpose_collapsing_builder");
+    NetBuilder builder("transpose_collapsing_builder");
     for (auto& var : program->GetInputs()) {
       builder.CreateInput(var);
     }

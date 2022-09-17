@@ -42,52 +42,71 @@ void GetBroadcastShape(const std::vector<Expr>& shape1,
   CHECK(common_shape);
   CHECK(broadcast_flag1);
   CHECK(broadcast_flag2);
-  int size1                    = shape1.size();
+
+  std::vector<Expr> shape1_new = shape1;
   std::vector<Expr> shape2_new = shape2;
+
   if (axis.defined()) {
     int axis_val = axis.as_int32();
     CHECK_GE(axis_val, -1) << "wrong axis: " << axis_val << std::endl;
-    CHECK_GE(shape1.size(), shape2.size()) << "A's shape should be no less than B's when axis is defined\n";
-    CHECK_LE(axis_val, static_cast<int>(shape1.size() - shape2.size()))
-        << "wrong axis: " << axis_val << " is not <= " << shape1.size() - shape2.size() << std::endl;
-    if (axis_val >= 0) {
-      *axis_offset = shape1.size() - shape2.size() - axis_val;
-      for (int i = 1; i <= *axis_offset; ++i) {
-        // specified axis to align, we insert Expr one in tensor B so as to align right with tensor A.
-        shape2_new.emplace_back(Expr(1));
-        common_shape->insert(common_shape->begin(), shape1[size1 - i]);
-        // flag is used to indicate whether to include the indice or not.
-        broadcast_flag1->emplace_back(true);
-        broadcast_flag2->emplace_back(false);
+    if (shape1.size() >= shape2.size()) {
+      CHECK_LE(axis_val, static_cast<int>(shape1.size() - shape2.size()))
+          << "wrong axis: " << axis_val << " is not <= " << shape1.size() - shape2.size() << std::endl;
+      if (axis_val >= 0) {
+        *axis_offset = shape1.size() - shape2.size() - axis_val;
+        for (int i = 1; i <= *axis_offset; ++i) {
+          // specified axis to align, we insert Expr one in tensor B so as to align right with tensor A.
+          shape2_new.emplace_back(Expr(1));
+          common_shape->insert(common_shape->begin(), shape1[static_cast<int>(shape1.size() - i)]);
+          // flag is used to indicate whether to include the indice or not.
+          broadcast_flag1->emplace_back(true);
+          broadcast_flag2->emplace_back(false);
+        }
+      }
+    } else {
+      CHECK_LE(axis_val, static_cast<int>(shape2.size() - shape1.size()))
+          << "wrong axis: " << axis_val << " is not <= " << shape2.size() - shape1.size() << std::endl;
+      if (axis_val >= 0) {
+        *axis_offset = shape2.size() - shape1.size() - axis_val;
+        for (int i = 1; i <= *axis_offset; ++i) {
+          // specified axis to align, we insert Expr one in tensor B so as to align right with tensor A.
+          shape1_new.emplace_back(Expr(1));
+          common_shape->insert(common_shape->begin(), shape2[static_cast<int>(shape2.size() - i)]);
+          // flag is used to indicate whether to include the indice or not.
+          broadcast_flag2->emplace_back(true);
+          broadcast_flag1->emplace_back(false);
+        }
       }
     }
   }
 
+  int size1 = shape1_new.size();
   int size2 = shape2_new.size();
+
   Expr one(1);
   int i;
   i = axis_offset <= 0 ? 1 : *axis_offset + 1;
   for (; i <= std::min(size1, size2); ++i) {
     // traverse from right to left to get the output shape and broadcast flag
-    auto* var1 = shape1[size1 - i].As<ir::_Var_>();
+    auto* var1 = shape1_new[size1 - i].As<ir::_Var_>();
     auto* var2 = shape2_new[size2 - i].As<ir::_Var_>();
-    if (MathEqual(shape1[size1 - i], shape2_new[size2 - i])) {
-      common_shape->insert(common_shape->begin(), shape1[size1 - i]);
+    if (MathEqual(shape1_new[size1 - i], shape2_new[size2 - i])) {
+      common_shape->insert(common_shape->begin(), shape1_new[size1 - i]);
       // broadcast flags are recorded in a reverse order
       broadcast_flag1->emplace_back(true);
       broadcast_flag2->emplace_back(true);
-    } else if (MathEqual(one, shape1[size1 - i])) {
+    } else if (MathEqual(one, shape1_new[size1 - i])) {
       CHECK(!MathEqual(one, shape2_new[size2 - i]));
       common_shape->insert(common_shape->begin(), shape2_new[size2 - i]);
       broadcast_flag1->emplace_back(false);
       broadcast_flag2->emplace_back(true);
     } else if (MathEqual(one, shape2_new[size2 - i])) {
-      CHECK(!MathEqual(one, shape1[size1 - i]));
-      common_shape->insert(common_shape->begin(), shape1[size1 - i]);
+      CHECK(!MathEqual(one, shape1_new[size1 - i]));
+      common_shape->insert(common_shape->begin(), shape1_new[size1 - i]);
       broadcast_flag1->emplace_back(true);
       broadcast_flag2->emplace_back(false);
     } else if (var1 && var2) {
-      Expr max_var = ir::Max::Make(shape1[size1 - i], shape2_new[size2 - i]);
+      Expr max_var = ir::Max::Make(shape1_new[size1 - i], shape2_new[size2 - i]);
       common_shape->insert(common_shape->begin(), max_var);
       broadcast_flag1->emplace_back(true);
       broadcast_flag2->emplace_back(true);
@@ -96,17 +115,17 @@ void GetBroadcastShape(const std::vector<Expr>& shape1,
       broadcast_flag1->emplace_back(true);
       broadcast_flag2->emplace_back(true);
     } else if (var2) {
-      common_shape->insert(common_shape->begin(), shape1[size1 - i]);
+      common_shape->insert(common_shape->begin(), shape1_new[size1 - i]);
       broadcast_flag1->emplace_back(true);
       broadcast_flag2->emplace_back(true);
     } else {
-      LOG(FATAL) << "Incompatible broadcast dims " << shape1[size1 - i] << " and " << shape2_new[size2 - i]
-                 << " in: " << shape1 << " and " << shape2_new << std::endl;
+      LOG(FATAL) << "Incompatible broadcast dims " << shape1_new[size1 - i] << " and " << shape2_new[size2 - i]
+                 << " in: " << shape1_new << " and " << shape2_new << std::endl;
     }
   }
   if (size1 != size2) {
     int max_size = std::max(size1, size2);
-    auto& shape  = (size1 > size2) ? shape1 : shape2_new;
+    auto& shape  = (size1 > size2) ? shape1_new : shape2_new;
     auto var_l   = (size1 > size2) ? broadcast_flag1 : broadcast_flag2;
     auto var_s   = (size1 > size2) ? broadcast_flag2 : broadcast_flag1;
     for (; i <= max_size; ++i) {
@@ -159,7 +178,8 @@ void GetBroadcastIndice(const std::vector<Expr>& indice,
       if (broadcast_flags1[flag_size - 1 - i]) {
         // broadcast indices are added from left to right
         broadcast_indice1->push_back(indice[i]);
-      } else {
+      } else if (flag_size - i <= tensor_a->shape.size() + axis_offset &&
+                 broadcast_indice1->size() < tensor_a->shape.size()) {
         broadcast_indice1->push_back(Expr(0));
       }
       if (broadcast_flags2[flag_size - 1 - i]) {
@@ -193,7 +213,6 @@ Tensor Broadcast(const FuncOp& op,
     std::vector<Expr> broadcast_indice2;
     GetBroadcastIndice(
         indice, a, b, axis_offset, &broadcast_indice1, &broadcast_indice2, broadcast_flags1, broadcast_flags2);
-
     return op(a(broadcast_indice1), b(broadcast_indice2));
   };
   Tensor output = Compute(common_shape, fn, output_name);
@@ -254,6 +273,58 @@ Tensor BroadcastTo(const Tensor& A,
           broadcast_indice.push_back(indice[broadcast_axes[i]] % A_shape[i]);
         }
         return A(broadcast_indice);
+      },
+      out_name);
+}
+
+ir::Tensor IsClose(
+    const ir::Tensor& x, const ir::Tensor& y, float rtol, float atol, bool equal_nan, const std::string& out_name) {
+  CHECK_EQ(x->shape.size(), y->shape.size())
+      << "The two inputs shape dimension of is close should be equal! Please check.";
+
+  std::vector<int> x_shape, y_shape;
+  for (int i = 0; i < x->shape.size(); ++i) {
+    x_shape.emplace_back(x->shape[i].as_int32());
+    y_shape.emplace_back(y->shape[i].as_int32());
+  }
+
+  CHECK(x_shape == y_shape) << "The two inputs shape of isclose should be equal, but here x:["
+                            << cinn::utils::Join(x_shape, ",") << "] != y:[" << cinn::utils::Join(y_shape, ",")
+                            << "] ! Please check.";
+
+  // For each a=x[i], b=y[i]:
+  // ```
+  // if (isnan(a) || isnan(b)) {
+  //   out = equal_nan && isnan(a) == isnan(b);
+  // } else {
+  //   T left = (a > b ? a - b : b - a);
+  //   T right = atol + (b > 0 ? rtol * b : (-rtol) * b);
+  //   T diff = (left > right ? left - right : right - left);
+  //   out = a == b || left <= right || diff <= 1e-15;
+  // }
+  // ```
+  return Compute(
+      x->shape,
+      [=](const std::vector<Expr>& indice) {
+        // check whether x or y is nan
+        auto a = x(indice), b = y(indice);
+        auto check_x_nan = lang::IsNan(a);
+        auto check_y_nan = lang::IsNan(b);
+
+        // out = equal_nan && isnan(a) == isnan(b);
+        auto check_nan_same = Expr(equal_nan) && ir::EQ::Make(check_x_nan, check_y_nan);
+
+        // check whether x and y are close
+        // T left = (a > b ? a - b : b - a);
+        auto left = ir::Select::Make(a > b, a - b, b - a);
+        // T right = atol + (b > 0 ? rtol * b : (-rtol) * b);
+        auto right = atol + ir::Select::Make(b > 0.0f, rtol * b, (-rtol) * b);
+        // T diff = (left > right ? left - right : right - left);
+        auto diff = ir::Select::Make(left > right, left - right, right - left);
+        // out = a == b || left <= right || diff <= 1e-15;
+        auto check_diff = (ir::EQ::Make(a, b) || (left <= right)) || (diff <= 1e-15f);
+
+        return ir::Select::Make(check_x_nan || check_y_nan, check_nan_same, check_diff);
       },
       out_name);
 }

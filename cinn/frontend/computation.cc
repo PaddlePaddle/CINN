@@ -14,6 +14,7 @@
 
 #include "cinn/frontend/computation.h"
 
+#include "cinn/frontend/optimize.h"
 #include "cinn/frontend/program_pass.h"
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/graph_compiler.h"
@@ -63,7 +64,7 @@ std::shared_ptr<ComputationContext> CompileProgram(const Target &target,
     }
 #endif
     hlir::framework::ApplyPass(ctx->graph.get(), "ConstPropagate");
-    hlir::framework::ApplyPass(ctx->graph.get(), "OpFusion");
+    hlir::framework::ApplyPasses(ctx->graph.get(), DefaultOpFusionPasses());
   }
   for (auto &pass_name : ctx->compile_options.passes) {
     hlir::framework::ApplyPass(ctx->graph.get(), pass_name);
@@ -148,7 +149,7 @@ std::shared_ptr<CinnComputation> CinnComputation::CompilePaddleModel(
 }
 
 std::shared_ptr<CinnComputation> CinnComputation::BuildAndCompile(const Target &target,
-                                                                  BaseBuilder &builder,
+                                                                  NetBuilder &builder,
                                                                   const CompileOptions &options,
                                                                   const std::vector<Variable> &outputs,
                                                                   void *stream) {
@@ -181,7 +182,7 @@ void CinnComputation::SetTensorData(const std::string &tname, void *data, size_t
 
 void CinnComputation::SetTensorData(hlir::framework::Tensor &t, void *data, size_t size) {
   void *tdata = t->mutable_data(context_->target, t->type());
-  CHECK_EQ(size, (t->shape().numel() * t->type().bits() + 7) / 8);
+  CHECK_EQ(size, t->shape().numel() * t->type().bytes());
   if (context_->target.arch == Target::Arch::NVGPU) {
 #ifdef CINN_WITH_CUDA
     CUDA_CALL(cudaMemcpy(tdata, data, size, cudaMemcpyHostToDevice));
@@ -196,7 +197,7 @@ void CinnComputation::SetTensorData(hlir::framework::Tensor &t, void *data, size
 }
 void CinnComputation::GetTensorData(hlir::framework::Tensor &t, void *data, size_t size) {
   void *tdata = t->mutable_data(context_->target, t->type());
-  CHECK_EQ(size, (t->shape().numel() * t->type().bits() + 7) / 8);
+  CHECK_EQ(size, t->shape().numel() * t->type().bytes());
   if (context_->target.arch == Target::Arch::NVGPU) {
 #ifdef CINN_WITH_CUDA
     CUDA_CALL(cudaMemcpy(data, tdata, size, cudaMemcpyDeviceToHost));

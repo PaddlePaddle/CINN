@@ -14,7 +14,7 @@
 
 #include <iostream>
 
-#include "cinn/frontend/base_builder.h"
+#include "cinn/frontend/net_builder.h"
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/tensor.h"
@@ -44,7 +44,7 @@ class CinnComputation {
   }
 
   /**
-   * build program from BaseBuilder, then compile it. BaseBuilder is normally NetBuilder or CINNBuilder.
+   * build program from NetBuilder, then compile it. NetBuilder is normally NetBuilder or CINNBuilder.
    * @param target the target to run the program
    * @param builder program builder (NetBuilder or CINNBuilder)
    * @param options CompileOptions, config the compilation steps
@@ -54,7 +54,7 @@ class CinnComputation {
    * @return shared_ptr pointing to CinnComputation instance
    */
   static std::shared_ptr<CinnComputation> BuildAndCompile(const Target &target,
-                                                          BaseBuilder &builder,
+                                                          NetBuilder &builder,
                                                           const CompileOptions &options = DefaultCompileOptions(),
                                                           const std::vector<Variable> &outputs = {},
                                                           void *stream                         = nullptr);

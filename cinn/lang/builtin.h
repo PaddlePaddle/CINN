@@ -129,6 +129,18 @@ inline Expr ReduceMin(Expr e, const std::vector<Var>& reduce_axis, Expr initial 
   }
   return ir::Reduce::Make(ir::Reduce::kMin, initial, e, reduce_axis);
 }
+inline Expr ReduceAll(Expr e, const std::vector<Var>& reduce_axis, Expr initial = Expr()) {
+  if (!initial.defined()) {
+    initial = Expr(true);
+  }
+  return ir::Reduce::Make(ir::Reduce::kAll, initial, e, reduce_axis);
+}
+inline Expr ReduceAny(Expr e, const std::vector<Var>& reduce_axis, Expr initial = Expr()) {
+  if (!initial.defined()) {
+    initial = Expr(false);
+  }
+  return ir::Reduce::Make(ir::Reduce::kAny, initial, e, reduce_axis);
+}
 
 Expr IsNan(Expr e);
 

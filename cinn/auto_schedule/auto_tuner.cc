@@ -15,6 +15,7 @@
 #include "cinn/auto_schedule/auto_tuner.h"
 
 #include <glog/logging.h>
+#include <pybind11/embed.h>
 
 #include <algorithm>
 #include <memory>
@@ -26,6 +27,7 @@
 #include "cinn/auto_schedule/task/task_creator.h"
 #include "cinn/auto_schedule/task/tune_task.h"
 #include "cinn/auto_schedule/task_scheduler/task_scheduler.h"
+#include "cinn/common/type.h"
 
 namespace cinn {
 namespace auto_schedule {
@@ -44,6 +46,9 @@ void AutoTuner::Initialize(const Config& config, hlir::framework::GraphCompiler*
   for (TuneTask& task : tasks_) {
     task.SetGraphCompiler(graph_compiler);
     task.TaskGraphToUnoptLoweredFunc();
+    task.SerializeToString(graph_->GetAttrs<absl::flat_hash_map<std::string, hlir::framework::shape_t>>("infershape"),
+                           graph_->GetAttrs<absl::flat_hash_map<std::string, common::Type>>("inferdtype"));
+    VLOG(3) << "Add a task with serialized_key:\n" << task.serialized_key;
   }
 
   // create task optimizers

@@ -38,7 +38,9 @@
 #include "cinn/hlir/framework/tensor.h"
 #include "cinn/hlir/op/use_ops.h"
 #include "cinn/hlir/pass/use_pass.h"
+#include "cinn/utils/data_util.h"
 
+DECLARE_bool(cinn_open_fusion_optimize);
 DECLARE_bool(cinn_use_new_fusion_pass);
 
 namespace cinn {
@@ -76,39 +78,6 @@ void PrintMatrix(const std::vector<float>& mat, int bs, int m, int n) {
   std::cout << std::string((ele_width + 2) * n - 1, '-') << "\n\n";
 }
 
-void SetRandData(hlir::framework::Tensor tensor, const common::Target& target, int seed = -1) {
-  if (seed == -1) {
-    std::random_device rd;
-    seed = rd();
-  }
-  std::default_random_engine engine(seed);
-  std::uniform_int_distribution<int> dist(1, 10);
-  size_t num_ele = tensor->shape().numel();
-  std::vector<float> random_data(num_ele);
-  for (size_t i = 0; i < num_ele; i++) {
-    random_data[i] = static_cast<float>(dist(engine));  // All random data
-  }
-
-  auto* data = tensor->mutable_data<float>(target);
-#ifdef CINN_WITH_CUDA
-  cudaMemcpy(data, random_data.data(), num_ele * sizeof(float), cudaMemcpyHostToDevice);
-#else
-  std::copy(random_data.begin(), random_data.end(), data);
-#endif
-}
-
-std::vector<float> GetTensorData(const hlir::framework::Tensor& tensor, const common::Target& target) {
-  auto size = tensor->shape().numel();
-  std::vector<float> data(size);
-#ifdef CINN_WITH_CUDA
-  cudaMemcpy(
-      data.data(), static_cast<const void*>(tensor->data<float>()), size * sizeof(float), cudaMemcpyDeviceToHost);
-#else
-  std::copy(tensor->data<float>(), tensor->data<float>() + size, data.begin());
-#endif
-  return data;
-}
-
 void RunGraph(std::shared_ptr<hlir::framework::Graph> graph,
               const common::Target& target,
               const std::shared_ptr<hlir::framework::Scope>& scope,
@@ -139,9 +108,9 @@ std::vector<float> RunProgram(const Program& program,
   for (auto& input_id : input_ids) {
     scope->Var<hlir::framework::Tensor>(input_id);
     auto input_tensor = scope->GetTensor(input_id);
-    SetRandData(input_tensor, target, seed);
+    SetRandData<int>(input_tensor, target, seed);
     if (print_tensor) {
-      auto tensor_data = GetTensorData(input_tensor, target);
+      auto tensor_data = GetTensorData<float>(input_tensor, target);
       if (input_tensor->shape().data().size() == 2) {
         PrintMatrix(tensor_data, 1, input_tensor->shape().data()[0], input_tensor->shape().data()[1]);
       } else if (input_tensor->shape().data().size() == 3) {
@@ -156,7 +125,7 @@ std::vector<float> RunProgram(const Program& program,
   RunGraph(graph, target, scope, output_ids, graph_passes);
 
   auto output_tensor = scope->GetTensor(output_ids.front());
-  auto output_data   = GetTensorData(output_tensor, target);
+  auto output_data   = GetTensorData<float>(output_tensor, target);
   if (print_tensor) {
     if (output_tensor->shape().data().size() == 2) {
       PrintMatrix(output_data, 1, output_tensor->shape().data()[0], output_tensor->shape().data()[1]);
@@ -173,10 +142,12 @@ std::vector<float> RunProgram(const Program& program,
 struct OptimizeConfig {
   struct PassGroup;
   OptimizeConfig(const PassGroup& program_passes) : program_passes{program_passes} {
-    if (FLAGS_cinn_use_new_fusion_pass) {
-      graph_passes = {{"OpFusionPass", "FusionMergePass"}, {"OpFusionPass", "FusionMergePass"}};
-    } else {
-      graph_passes = {{"OpFusion"}, {"OpFusion"}};
+    if (FLAGS_cinn_open_fusion_optimize) {
+      if (FLAGS_cinn_use_new_fusion_pass) {
+        graph_passes = {{"OpFusionPass", "FusionMergePass"}, {"OpFusionPass", "FusionMergePass"}};
+      } else {
+        graph_passes = {{"OpFusion"}, {"OpFusion"}};
+      }
     }
   }
   OptimizeConfig(const PassGroup& program_passes, const PassGroup& graph_passes)

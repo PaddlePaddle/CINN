@@ -102,7 +102,7 @@ SimpleJIT::SimpleJIT() : context_(std::make_unique<llvm::LLVMContext>()) {
 
   llvm::orc::MangleAndInterner mangle(jit_->getExecutionSession(), jit_->getDataLayout());
 
-  for (auto &item : RuntimeSymbolRegistry::Global().All()) {
+  for (auto &item : GlobalSymbolRegistry::Global().All()) {
     VLOG(2) << "Insert [" << item.first << "] to SimpleJIT";
     llvm::cantFail(jit_->define(llvm::orc::absoluteSymbols(
         {{mangle(item.first), {llvm::pointerToJITTargetAddress(item.second), llvm::JITSymbolFlags::None}}})));
