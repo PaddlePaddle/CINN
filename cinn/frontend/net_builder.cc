@@ -457,7 +457,7 @@ Variable NetBuilder::Pool2d(const Variable& a,
       .front();
 }
 
-Variable NetBuilder::Repeat(const Variable& x, int repeats, int axis){
+Variable NetBuilder::Repeat(const Variable& x, int repeats, int axis) {
   return CustomInstr("repeat", {x}, {{"repeats", repeats}, {"axis", axis}}).front();
 }
 

@@ -52,7 +52,7 @@ TEST(GenerateCode_Cpu, Repeat) {
 
   VLOG(6) << "Expr before CPU codegen:";
   VLOG(6) << funcs[0]->body;
-  
+
   ir::Module::Builder builder("Repeat_Module", target);
   for (auto &f : funcs) {
     builder.AddFunction(f);
