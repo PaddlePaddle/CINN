@@ -453,6 +453,116 @@ TEST(net_build, program_execute_squeeze_case3) {
   }
 }
 
+TEST(net_build, program_execute_argsort) {
+  const int B = 4;
+  const int H = 7;
+
+  NetBuilder builder("net_builder");
+  Placeholder input = builder.CreateInput(Float(32), {B, H}, "In");
+  Variable output   = builder.ArgSort(input, 0, true);
+  auto program      = builder.Build();
+
+  Target target = common::DefaultHostTarget();
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  auto scope = BuildScope(target, graph);
+  hlir::framework::GraphCompiler gc(target, scope, graph);
+  auto runtime_program = gc.Build();
+
+  scope->Var<hlir::framework::Tensor>(std::string(input.id()));
+  scope->Var<hlir::framework::Tensor>(std::string(output->id));
+
+  auto input_tensor = scope->GetTensor(std::string(input.id()));
+  SetRandData<float>(input_tensor, target);
+  auto* input_data = input_tensor->mutable_data<float>(target);
+
+  runtime_program->Execute();
+
+  auto output_tensor                   = scope->GetTensor(std::string(output->id));
+  const std::vector<int>& output_shape = output_tensor->shape().data();
+  EXPECT_EQ(output_tensor->type(), Int(32));
+  EXPECT_EQ(output_shape.size(), 2UL);
+  EXPECT_EQ(output_shape[0], B);
+  EXPECT_EQ(output_shape[1], H);
+
+  int* output_data = output_tensor->mutable_data<int>(target);
+  VLOG(6) << "Visualize output_data";
+  for (int h = 0; h < H; ++h) {
+    std::vector<float> sorted_data;
+    std::vector<float> out_sorted_data(H);
+    for (int b = 0; b < B; ++b) {
+      int index = h + H * b;
+      sorted_data.push_back(input_data[index]);
+      out_sorted_data[output_data[index]] = input_data[index];
+    }
+    std::sort(sorted_data.begin(), sorted_data.begin() + B);
+
+    for (int b = 0; b < B; ++b) {
+      std::string line;
+      int index       = h + H * b;
+      float true_data = sorted_data[b];
+      float out_data  = out_sorted_data[b];
+      line += (std::to_string(out_data) + ", ");
+      EXPECT_EQ(true_data, out_data);
+      VLOG(6) << line;
+    }
+  }
+}
+
+TEST(net_build, program_execute_sort) {
+  const int B = 4;
+  const int H = 7;
+
+  NetBuilder builder("net_builder");
+  Placeholder input = builder.CreateInput(Float(32), {B, H}, "In");
+  Variable output   = builder.Sort(input, 0, true);
+  auto program      = builder.Build();
+
+  Target target = common::DefaultHostTarget();
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  auto scope = BuildScope(target, graph);
+  hlir::framework::GraphCompiler gc(target, scope, graph);
+  auto runtime_program = gc.Build();
+
+  scope->Var<hlir::framework::Tensor>(std::string(input.id()));
+  scope->Var<hlir::framework::Tensor>(std::string(output->id));
+
+  auto input_tensor = scope->GetTensor(std::string(input.id()));
+  SetRandData<float>(input_tensor, target);
+  auto* input_data = input_tensor->mutable_data<float>(target);
+
+  runtime_program->Execute();
+
+  auto output_tensor                   = scope->GetTensor(std::string(output->id));
+  const std::vector<int>& output_shape = output_tensor->shape().data();
+  EXPECT_EQ(output_tensor->type(), Float(32));
+  EXPECT_EQ(output_shape.size(), 2UL);
+  EXPECT_EQ(output_shape[0], B);
+  EXPECT_EQ(output_shape[1], H);
+
+  float* output_data = output_tensor->mutable_data<float>(target);
+  VLOG(6) << "Visualize output_data";
+  for (int h = 0; h < H; ++h) {
+    std::vector<float> sorted_data;
+    for (int b = 0; b < B; ++b) {
+      int index = h + H * b;
+      sorted_data.push_back(input_data[index]);
+    }
+    std::sort(sorted_data.begin(), sorted_data.begin() + B);
+
+    for (int b = 0; b < B; ++b) {
+      std::string line;
+      int index       = h + H * b;
+      float true_data = sorted_data[b];
+      float out_data  = output_data[index];
+      line += (std::to_string(out_data) + ", ");
+      EXPECT_EQ(true_data, out_data);
+      VLOG(6) << line;
+    }
+  }
+}
+
 TEST(net_build, program_execute_arange_float) {
   const float start       = 1.5F;
   const float stop        = 31.5F;
@@ -522,104 +632,6 @@ TEST(net_build, program_execute_arange_int) {
   for (int i = 0; i < out_tensor_shape[0]; ++i) {
     EXPECT_EQ(out_data[i], static_cast<int32_t>(start + step * i));
     VLOG(6) << out_data[i];
-  }
-}
-
-TEST(net_build, program_execute_repeat_axis_0) {
-  const int M       = 4;
-  const int N       = 4;
-  const int repeats = 2;
-  const int axis    = 0;
-
-  NetBuilder builder("net_builder");
-  Placeholder input = builder.CreateInput(Float(32), {M, N}, "In");
-  Variable output   = builder.Repeat(input, repeats, axis);
-  auto program      = builder.Build();
-
-  Target target = common::DefaultHostTarget();
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  auto scope = BuildScope(target, graph);
-  hlir::framework::GraphCompiler gc(target, scope, graph);
-  auto runtime_program = gc.Build();
-
-  scope->Var<hlir::framework::Tensor>(std::string(input.id()));
-  scope->Var<hlir::framework::Tensor>(std::string(output->id));
-
-  auto input_tensor = scope->GetTensor(std::string(input.id()));
-  SetRandData<float>(input_tensor, target);
-  float* input_data = input_tensor->mutable_data<float>(target);
-
-  runtime_program->Execute();
-
-  auto output_tensor                   = scope->GetTensor(std::string(output->id));
-  const std::vector<int>& output_shape = output_tensor->shape().data();
-
-  const int new_M = M * repeats;
-  const int new_N = N;
-  EXPECT_EQ(output_tensor->type(), Float(32));
-  EXPECT_EQ(output_shape.size(), 2UL);
-  EXPECT_EQ(output_shape[0], new_M);
-  EXPECT_EQ(output_shape[1], new_N);
-
-  float* output_data = output_tensor->mutable_data<float>(target);
-  for (int m = 0; m < new_M; ++m) {
-    for (int n = 0; n < new_N; ++n) {
-      int in_index   = n + N * static_cast<int>(std::floor((float)m / repeats));
-      int out_index  = n + new_N * m;
-      float in_data  = input_data[in_index];
-      float out_data = output_data[out_index];
-      EXPECT_EQ(in_data, out_data);
-    }
-  }
-}
-
-TEST(net_build, program_execute_repeat_axis_1) {
-  const int M       = 4;
-  const int N       = 4;
-  const int repeats = 2;
-  const int axis    = 1;
-
-  NetBuilder builder("net_builder");
-  Placeholder input = builder.CreateInput(Float(32), {M, N}, "In");
-  Variable output   = builder.Repeat(input, repeats, axis);
-  auto program      = builder.Build();
-
-  Target target = common::DefaultHostTarget();
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  auto scope = BuildScope(target, graph);
-  hlir::framework::GraphCompiler gc(target, scope, graph);
-  auto runtime_program = gc.Build();
-
-  scope->Var<hlir::framework::Tensor>(std::string(input.id()));
-  scope->Var<hlir::framework::Tensor>(std::string(output->id));
-
-  auto input_tensor = scope->GetTensor(std::string(input.id()));
-  SetRandData<float>(input_tensor, target);
-  float* input_data = input_tensor->mutable_data<float>(target);
-
-  runtime_program->Execute();
-
-  auto output_tensor                   = scope->GetTensor(std::string(output->id));
-  const std::vector<int>& output_shape = output_tensor->shape().data();
-
-  const int new_M = M;
-  const int new_N = N * repeats;
-  EXPECT_EQ(output_tensor->type(), Float(32));
-  EXPECT_EQ(output_shape.size(), 2UL);
-  EXPECT_EQ(output_shape[0], new_M);
-  EXPECT_EQ(output_shape[1], new_N);
-
-  float* output_data = output_tensor->mutable_data<float>(target);
-  for (int m = 0; m < new_M; ++m) {
-    for (int n = 0; n < new_N; ++n) {
-      int in_index   = N * m + static_cast<int>(std::floor((float)n / repeats));
-      int out_index  = n + new_N * m;
-      float in_data  = input_data[in_index];
-      float out_data = output_data[out_index];
-      EXPECT_EQ(in_data, out_data);
-    }
   }
 }
 

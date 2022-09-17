@@ -5,11 +5,17 @@ gather_srcs(cinnapi_src SRCS
         squeeze.cc
         clip.cc
         arange.cc
+<<<<<<< HEAD
         repeat.cc
+=======
+        sort.cc
+        squeeze.cc
+>>>>>>> 2e9f00e34a5bcd409b20046e16f38170334a5748
         )
 
 cc_test(test_cast SRCS cast_test.cc DEPS cinncore)
 cc_test(test_squeeze SRCS squeeze_test.cc DEPS cinncore)
 cc_test(test_clip SRCS clip_test.cc DEPS cinncore)
+cc_test(test_sort SRCS sort_test.cc DEPS cinncore)
 cc_test(test_arange SRCS arange_test.cc DEPS cinncore)
 cc_test(test_repeat SRCS repeat_test.cc DEPS cinncore)

@@ -1,4 +1,4 @@
-// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+// Copyright (c) 2022 CINN Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,19 +14,17 @@
 
 #pragma once
 
-#include "cinn/common/macros.h"
+#include <string>
+#include <vector>
 
-CINN_USE_REGISTER(nn_ops)
-CINN_USE_REGISTER(nn_grad_ops)
-CINN_USE_REGISTER(broadcast_ops)
-CINN_USE_REGISTER(broadcast_grad_ops)
-CINN_USE_REGISTER(elementwise_ops)
-CINN_USE_REGISTER(transform_ops)
-CINN_USE_REGISTER(cast_ops)
-CINN_USE_REGISTER(sort_ops)
-CINN_USE_REGISTER(squeeze_ops)
-CINN_USE_REGISTER(reduce_ops)
-CINN_USE_REGISTER(clip_ops)
-CINN_USE_REGISTER(custom_call_op)
-CINN_USE_REGISTER(arange_ops)
-CINN_USE_REGISTER(repeat_ops)
+#include "cinn/common/target.h"
+#include "cinn/hlir/framework/tensor.h"
+#include "cinn/runtime/cinn_runtime.h"
+
+namespace cinn {
+namespace runtime {
+
+void cinn_assert_true(void* v_args, int msg, bool only_warning, void* stream = nullptr);
+
+}  // namespace runtime
+}  // namespace cinn
