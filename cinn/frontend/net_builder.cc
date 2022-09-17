@@ -494,6 +494,10 @@ Variable NetBuilder::Arange(const float start, const float stop, const float ste
   return CustomInstr("arange", {}, {{"start", start}, {"stop", stop}, {"step", step}, {"dtype", dtype}}).front();
 }
 
+Variable NetBuilder::Repeat(const Variable& x, int repeats, int axis){
+  return CustomInstr("repeat", {x}, {{"repeats", repeats}, {"axis", axis}}).front();
+}
+
 // conv2d grad, output(grad_x, grad_w)
 std::vector<Variable> NetBuilder::Conv2dGrad(const Variable& dy,
                                              const Variable& x,
