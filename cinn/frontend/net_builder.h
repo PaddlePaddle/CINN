@@ -620,6 +620,15 @@ class NetBuilder {
    */
   Variable Cast(const Variable& x, const std::string& dtype);
 
+  /**
+   * @brief Repeat elements of an array `repeats` times along axis `axis`
+   * @param x An input N-D variable.
+   * @param repeats The times of repeat operation.
+   * @param axis The index of dimension to repeat.
+   * @return The repeat result variable.
+   */
+  Variable Repeat(const Variable& x, int repeats, int axis);
+
   // *******************************************
   // Decomposer Operator
   /**
