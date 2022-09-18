@@ -55,7 +55,7 @@ ir::Tensor Gather(const ir::Tensor &A, const ir::Tensor &B, const int &axis, con
         for (int i = 0; i < axis; ++i) {
           A_indices.push_back(indices[i]);
         }
-        A_indices.push_back(ir::Cast::Make(Int(32), B(indices)));
+        A_indices.push_back(B(indices));
         for (size_t i = axis + 1; i < A->shape.size(); ++i) {
           A_indices.push_back(indices[i]);
         }

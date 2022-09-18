@@ -14,10 +14,11 @@
 
 #include "cinn/utils/data_util.h"
 
+#include "iostream"
+
 namespace cinn {
 
-template <typename T>
-void SetRandInt<int>(hlir::framework::Tensor tensor, const common::Target& target, int seed) {
+void SetRandInt(hlir::framework::Tensor tensor, const common::Target& target, int seed) {
   if (seed == -1) {
     std::random_device rd;
     seed = rd();
@@ -25,20 +26,21 @@ void SetRandInt<int>(hlir::framework::Tensor tensor, const common::Target& targe
   std::default_random_engine engine(seed);
   std::uniform_int_distribution<int> dist(1, 10);
   size_t num_ele = tensor->shape().numel();
-  std::vector<T> random_data(num_ele);
+  std::vector<int> random_data(num_ele);
   for (size_t i = 0; i < num_ele; i++) {
-    random_data[i] = static_cast<T> dist(engine);  // All random data
+    random_data[i] = static_cast<int>(dist(engine));  // All random data
   }
 
-  auto* data = tensor->mutable_data<T>(target);
+  auto* data = tensor->mutable_data<int>(target);
 #ifdef CINN_WITH_CUDA
   if (target == common::DefaultNVGPUTarget()) {
-    cudaMemcpy(data, random_data.data(), num_ele * sizeof(T), cudaMemcpyHostToDevice);
+    cudaMemcpy(data, random_data.data(), num_ele * sizeof(int), cudaMemcpyHostToDevice);
     return;
   }
 #endif
   CHECK(target == common::DefaultHostTarget());
   std::copy(random_data.begin(), random_data.end(), data);
+  std::cout << "success" << std::endl;
 }
 
 template <>

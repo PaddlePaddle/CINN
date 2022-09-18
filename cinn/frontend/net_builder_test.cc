@@ -269,14 +269,12 @@ TEST(net_build, program_execute_gather) {
   scope->Var<hlir::framework::Tensor>(std::string(output->id));
 
   auto input1_tensor = scope->GetTensor(std::string(input1.id()));
-  //  SetRandData<float>(input1_tensor, target);
+  SetRandData<float>(input1_tensor, target);
   float* input1_data = input1_tensor->mutable_data<float>(target);
 
   auto input2_tensor = scope->GetTensor(std::string(input2.id()));
-  //  SetRandData<int>(input2_tensor, target);
+  SetRandInt(input2_tensor, target);
   int* input2_data = input2_tensor->mutable_data<int>(target);
-
-  memset(input1_data, 0, sizeof(float) * B * H_IN1);
   memset(input2_data, 0, sizeof(int) * B * H_IN2);
   runtime_program->Execute();
 
@@ -329,7 +327,7 @@ TEST(net_build, program_execute_gather_nd) {
   float* input1_data = input1_tensor->mutable_data<float>(target);
 
   auto input2_tensor = scope->GetTensor(std::string(input2.id()));
-  SetRandData<int>(input2_tensor, target);
+  SetRandInt(input2_tensor, target);
   int* input2_data = input2_tensor->mutable_data<int>(target);
 
   runtime_program->Execute();
@@ -380,11 +378,11 @@ TEST(net_build, program_execute_scatter) {
   scope->Var<hlir::framework::Tensor>(std::string(output->id));
 
   auto input1_tensor = scope->GetTensor(std::string(input1.id()));
-  //  SetRandData<float>(input1_tensor, target);
+  SetRandData<float>(input1_tensor, target);
   float* input1_data = input1_tensor->mutable_data<float>(target);
 
   auto input2_tensor = scope->GetTensor(std::string(input2.id()));
-  //  SetRandData<int>(input2_tensor, target);
+  //  SetRandInt(input2_tensor, target);
   int* input2_data = input2_tensor->mutable_data<int>(target);
 
   runtime_program->Execute();
@@ -452,7 +450,7 @@ TEST(net_build, program_execute_scatter_nd) {
   SetRandData<float>(input1_tensor, target);
 
   auto input2_tensor = scope->GetTensor(std::string(input2.id()));
-  SetRandData<int>(input2_tensor, target);
+  SetRandInt(input2_tensor, target);
 
   runtime_program->Execute();
 
@@ -517,7 +515,7 @@ TEST(net_build, program_execute_cast) {
   scope->Var<hlir::framework::Tensor>(std::string(output->id));
 
   auto input_tensor = scope->GetTensor(std::string(input.id()));
-  SetRandData<int>(input_tensor, target);
+  SetRandInt(input_tensor, target);
   int* input_data = input_tensor->mutable_data<int>(target);
 
   runtime_program->Execute();
