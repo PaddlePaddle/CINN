@@ -69,8 +69,8 @@ std::vector<ir::Tensor> Repeat(const ir::Tensor &tensor, int repeats, int axis, 
         for (size_t i = 0; i < static_cast<size_t>(axis); ++i) {
           idx.push_back(indices[i]);
         }
-        Expr index_dev = ir::Cast::Make(Float(32), indices[axis]) / ir::Cast::Make(Float(32), Expr(repeats));
-        idx.push_back(ir::Cast::Make(Int(32), lang::Floor(index_dev)));
+        Expr index_div = ir::Cast::Make(Float(32), indices[axis]) / ir::Cast::Make(Float(32), Expr(repeats));
+        idx.push_back(ir::Cast::Make(Int(32), lang::Floor(index_div)));
         for (size_t i = axis + 1; i < indices.size(); ++i) {
           idx.push_back(indices[i]);
         }
@@ -84,11 +84,12 @@ std::vector<std::vector<int>> InferShapeForRepeat(const std::vector<std::vector<
                                                   const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 1U) << "The input's shape size should be 1! Please check again.";
 
-  std::vector<int> new_shape;
   int repeats = 0;
   int axis    = 0;
+  std::vector<int> new_shape;
+  const std::vector<int> &tensor_shape = inputs_shape[0];
+  int ndim                             = static_cast<int>(tensor_shape.size());
 
-  int ndim = static_cast<int>(inputs_shape[0].size());
   CHECK(-ndim - 1 <= axis && axis <= ndim) << "repeat only accepts `axis` in [-data.ndim - 1, data.ndim]"
                                            << ", but got axis = " << axis << ", and data.ndim = " << ndim;
 
@@ -105,11 +106,11 @@ std::vector<std::vector<int>> InferShapeForRepeat(const std::vector<std::vector<
   }
 
   for (size_t i = 0; i < static_cast<size_t>(axis); ++i) {
-    new_shape.push_back(inputs_shape[0][i]);
+    new_shape.push_back(tensor_shape[i]);
   }
-  new_shape.push_back(repeats * inputs_shape[0][axis]);
-  for (size_t i = axis + 1; i < inputs_shape[0].size(); ++i) {
-    new_shape.push_back(inputs_shape[0][i]);
+  new_shape.push_back(repeats * tensor_shape[axis]);
+  for (size_t i = axis + 1; i < tensor_shape.size(); ++i) {
+    new_shape.push_back(tensor_shape[i]);
   }
 
   std::vector<std::vector<int>> res{new_shape};
