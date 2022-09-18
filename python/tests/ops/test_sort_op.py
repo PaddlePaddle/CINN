@@ -36,8 +36,8 @@ class TestTransposeOp(OpTest):
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.inputs["x"], stop_gradient=True)
-        out1 = paddle.sort(x, self.axis, is_ascend=True)
-        out2 = paddle.sort(x, self.axis, is_ascend=False)
+        out1 = paddle.sort(x, self.axis, descending=False)
+        out2 = paddle.sort(x, self.axis, descending=True)
         self.paddle_outputs = [out1, out2]
 
     def build_cinn_program(self, target):
