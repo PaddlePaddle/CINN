@@ -535,6 +535,8 @@ void BindFrontend(pybind11::module *m) {
            py::arg("padding_algorithm") = "EXPLICIT",
            py::arg("output_shape")      = std::vector<int>{})
       .def("cast", &NetBuilder::Cast, py::arg("x"), py::arg("dtype"))
+      .def("sort", &NetBuilder::Sort, py::arg("x"), py::arg("axis"), py::arg("is_ascend"))
+      .def("argsort", &NetBuilder::ArgSort, py::arg("x"), py::arg("axis"), py::arg("is_ascend"))
       .def("clip", &NetBuilder::Clip, py::arg("x"), py::arg("max"), py::arg("min"))
       .def("arange", &NetBuilder::Arange, py::arg("start"), py::arg("end"), py::arg("step"), py::arg("dtype"));
 
