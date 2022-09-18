@@ -16,6 +16,31 @@
 
 namespace cinn {
 
+template <typename T>
+void SetRandInt<int>(hlir::framework::Tensor tensor, const common::Target& target, int seed) {
+  if (seed == -1) {
+    std::random_device rd;
+    seed = rd();
+  }
+  std::default_random_engine engine(seed);
+  std::uniform_int_distribution<int> dist(1, 10);
+  size_t num_ele = tensor->shape().numel();
+  std::vector<T> random_data(num_ele);
+  for (size_t i = 0; i < num_ele; i++) {
+    random_data[i] = static_cast<T> dist(engine);  // All random data
+  }
+
+  auto* data = tensor->mutable_data<T>(target);
+#ifdef CINN_WITH_CUDA
+  if (target == common::DefaultNVGPUTarget()) {
+    cudaMemcpy(data, random_data.data(), num_ele * sizeof(T), cudaMemcpyHostToDevice);
+    return;
+  }
+#endif
+  CHECK(target == common::DefaultHostTarget());
+  std::copy(random_data.begin(), random_data.end(), data);
+}
+
 template <>
 void SetRandData<int>(hlir::framework::Tensor tensor, const common::Target& target, int seed) {
   if (seed == -1) {

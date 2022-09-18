@@ -24,6 +24,9 @@
 
 namespace cinn {
 template <typename T>
+void SetRandInt(hlir::framework::Tensor tensor, const common::Target& target, int seed = -1);
+
+template <typename T>
 void SetRandData(hlir::framework::Tensor tensor, const common::Target& target, int seed = -1);
 
 template <typename T>
