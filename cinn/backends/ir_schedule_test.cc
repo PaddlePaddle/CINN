@@ -1437,6 +1437,78 @@ void test_cache_write2(void* _args, int32_t num_args)
 }
 
 #ifdef CINN_WITH_CUDA
+TEST(IrSchedule, set_buffer_size) {
+  Context::Global().ResetNameId();
+  Expr M(64);
+  Expr N(32);
+
+  Target target = common::DefaultNVGPUTarget();
+
+  Placeholder<float> A("A", {M, N});
+  auto B = Compute(
+      {M, N}, [&](Var i, Var j) { return A(i, j) * Expr(2.f); }, "B");
+
+  auto stages = CreateStages({A, B});
+
+  auto func = cinn::lang::LowerVec("set_buffer_size", stages, {A, B}, {}, {}, nullptr, target, true);
+
+  CHECK_EQ(func.size(), 1U);
+
+  auto ast_expr = func[0]->body;
+  std::vector<Expr> vec_ast{ast_expr};
+  ir::ModuleExpr mod_expr(vec_ast);
+  ir::IRSchedule ir_sch(mod_expr);
+
+  auto block_b = ir_sch.GetBlock("B");
+
+  auto a_cache = ir_sch.CacheRead(block_b, 0, "local");
+
+  LOG(INFO) << "After CacheRead, IR is : " << ir_sch.GetModule().GetExprs().at(0);
+
+  ir_sch.SetBufferSizeToOne(a_cache);
+
+  LOG(INFO) << "After SetBufferSizeToOne, IR is : " << ir_sch.GetModule().GetExprs().at(0);
+
+  Module::Builder builder("module1", target);
+  for (auto& i : func) {
+    builder.AddFunction(i);
+  }
+  auto module = builder.Build();
+  CodeGenCUDA_Dev codegen(target);
+  codegen.SetInlineBuiltinCodes(false);
+  auto source_code = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
+
+  LOG(INFO) << "set_buffer_size source code is :\n" << source_code;
+
+  std::string target_code = R"ROC(
+#include "cinn_cuda_runtime_source.cuh"
+
+#ifdef __CUDACC_RTC__
+typedef int int32_t;
+typedef char int8_t;
+#endif
+
+
+
+__global__
+void set_buffer_size(const float* __restrict__ A, float* __restrict__ B)
+{
+  for (int32_t ax0 = 0; ax0 < 64; ax0 += 1) {
+    for (int32_t ax1 = 0; ax1 < 32; ax1 += 1) {
+      A_local[0] = A[((32 * ax0) + ax1)];
+    };
+  };
+  for (int32_t i = 0; i < 64; i += 1) {
+    for (int32_t j = 0; j < 32; j += 1) {
+      B[((32 * i) + j)] = (2 * A_local[0]);
+    };
+  };
+}
+
+)ROC";
+  ASSERT_EQ(utils::Trim(target_code), utils::Trim(source_code));
+}
+
 TEST(IrSchedule, cache_read3) {
   Context::Global().ResetNameId();
   Expr M(64);
