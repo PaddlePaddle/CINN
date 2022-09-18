@@ -70,7 +70,7 @@ Tensor Argmax(const Tensor &in_tensor,
     output_shape.push_back(Expr(1));
   }
 
-  auto sort_index = ArgSort(in_tensor, target, stages, pos_axis, false, name + "_index");
+  auto sort_index = ArgSort(in_tensor, target, stages, pos_axis, true, name + "_index");
   auto res        = Compute(
       output_shape,
       [=](const std::vector<Expr> &indices) {

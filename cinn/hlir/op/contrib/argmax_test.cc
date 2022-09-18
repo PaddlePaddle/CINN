@@ -46,10 +46,11 @@ TEST(GenerateCode_Cpu, Argmax_Keep) {
 
   lang::Placeholder<float> in("in", {n, in_c, h, w});
   poly::StageMap stages = poly::CreateStages({in});
-  ir::Tensor res        = Argmax(in, stages, axis, true, "test_argmax_in");
+  ir::Tensor res        = Argmax(in, target, stages, axis, true, "test_argmax_in");
+  stages->InsertLazily(res);
 
   std::vector<ir::LoweredFunc> funcs =
-      lang::LowerVec("TestGenerateCodeCpu_Argmax_Keep", stages, {res}, {}, {}, nullptr, target, true);
+      lang::LowerVec("TestGenerateCodeCpu_Argmax_Keep", stages, {in, res}, {}, {}, nullptr, target, true);
 
   VLOG(6) << "Expr before CPU codegen:";
   VLOG(6) << funcs[0]->body;

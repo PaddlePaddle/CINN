@@ -46,11 +46,11 @@ TEST(GenerateCode_Cpu, Argmin_Keep) {
 
   lang::Placeholder<float> in("in", {n, in_c, h, w});
   poly::StageMap stages = poly::CreateStages({in});
-  ir::Tensor res        = Argmin(in, stages, axis, true, "test_argmin_in");
+  ir::Tensor res        = Argmin(in, target, stages, axis, true, "test_argmin_in");
+  stages->InsertLazily(res);
 
-  poly::StageMap stages = poly::CreateStages({res});
   std::vector<ir::LoweredFunc> funcs =
-      lang::LowerVec("TestGenerateCodeCpu_Argmin_Keep", stages, {res}, {}, {}, nullptr, target, true);
+      lang::LowerVec("TestGenerateCodeCpu_Argmin_Keep", stages, {in, res}, {}, {}, nullptr, target, true);
 
   VLOG(6) << "Expr before CPU codegen:";
   VLOG(6) << funcs[0]->body;

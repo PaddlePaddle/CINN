@@ -35,11 +35,7 @@ namespace op {
 TEST(GenerateCode_Cpu, ArgSort) {
   common::Context::Global().ResetNameId();
 
-#ifdef CINN_WITH_CUDA
-  Target target = common::DefaultNVGPUTarget();
-#else
   Target target = common::DefaultHostTarget();
-#endif
 
   ir::Expr n(4);
   ir::Expr h(28);
@@ -69,21 +65,17 @@ TEST(GenerateCode_Cpu, ArgSort) {
 TEST(GenerateCode_Cpu, Sort) {
   common::Context::Global().ResetNameId();
 
-#ifdef CINN_WITH_CUDA
-  Target target = common::DefaultNVGPUTarget();
-#else
   Target target = common::DefaultHostTarget();
-#endif
 
   ir::Expr n(4);
   ir::Expr h(28);
 
   lang::Placeholder<int32_t> in("in", {n, h});
-  auto stages    = CreateStages({tensor_A});
-  ir::Tensor out = Sort(tensor_A, target, stages, 1, true, stages, "test_sort_out");
+  auto stages    = poly::CreateStages({in});
+  ir::Tensor out = Sort(in, target, stages, 1, true, "test_sort_out");
   stages->InsertLazily(out);
   std::vector<ir::LoweredFunc> funcs =
-      lang::LowerVec("TestGenerateCodeCpu_Sort", stages, {in, index, out}, {}, {}, nullptr, target, true);
+      lang::LowerVec("TestGenerateCodeCpu_Sort", stages, {in, out}, {}, {}, nullptr, target, true);
 
   VLOG(6) << "Expr before CPU codegen:";
   VLOG(6) << funcs[0]->body;

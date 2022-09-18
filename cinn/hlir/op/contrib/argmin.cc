@@ -40,8 +40,8 @@ using ir::Tensor;
 
 Tensor Argmin(const Tensor &in_tensor,
               const common::Target &target,
-              const int &axis,
               poly::StageMap stages,
+              const int &axis,
               const bool &keep_dims,
               const std::string &name) {
   auto shape = in_tensor->shape;

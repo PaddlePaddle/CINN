@@ -129,7 +129,7 @@ ir::Tensor Sort(const ir::Tensor &A,
   if (pos_axis < 0) {
     pos_axis += A->shape.size();
   }
-  auto sort_index = ArgSort(A, target, pos_axis, is_ascend, name + "_index");
+  auto sort_index = ArgSort(A, target, stages, pos_axis, is_ascend, name + "_index");
   auto res        = Compute(
       A->shape,
       [=](const std::vector<Expr> &indices) {
