@@ -638,7 +638,7 @@ TEST(net_build, program_execute_arange_int) {
 TEST(net_build, program_execute_repeat_axis_0) {
   const int M       = 4;
   const int N       = 4;
-  const int repeats = 2;
+  const int repeats = 3;
   const int axis    = 0;
 
   NetBuilder builder("net_builder");
@@ -687,7 +687,7 @@ TEST(net_build, program_execute_repeat_axis_0) {
 TEST(net_build, program_execute_repeat_axis_1) {
   const int M       = 4;
   const int N       = 4;
-  const int repeats = 2;
+  const int repeats = 3;
   const int axis    = 1;
 
   NetBuilder builder("net_builder");

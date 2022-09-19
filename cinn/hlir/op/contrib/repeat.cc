@@ -48,6 +48,10 @@ using common::CINNValuePack;
 
 std::vector<ir::Tensor> Repeat(const ir::Tensor &tensor, int repeats, int axis, const std::string &output_name) {
   int ndim = static_cast<int>(tensor->shape.size());
+  CHECK(-ndim - 1 <= axis && axis <= ndim) << "repeat only accepts `axis` in [-data.ndim - 1, data.ndim]"
+                                           << ", but got axis = " << axis << ", and data.ndim = " << ndim;
+  CHECK(repeats >= 1) << "repeat only accepts `repeats >= 1`"
+                      << ", but got repeats = " << repeats;
 
   if (axis < 0) {
     // Calculate offset from last dimension
@@ -90,9 +94,6 @@ std::vector<std::vector<int>> InferShapeForRepeat(const std::vector<std::vector<
   const std::vector<int> &tensor_shape = inputs_shape[0];
   int ndim                             = static_cast<int>(tensor_shape.size());
 
-  CHECK(-ndim - 1 <= axis && axis <= ndim) << "repeat only accepts `axis` in [-data.ndim - 1, data.ndim]"
-                                           << ", but got axis = " << axis << ", and data.ndim = " << ndim;
-
   if (attrs.find("repeats") != attrs.end()) {
     repeats = absl::get<int>(attrs.at("repeats"));
   }
@@ -114,7 +115,6 @@ std::vector<std::vector<int>> InferShapeForRepeat(const std::vector<std::vector<
   }
 
   std::vector<std::vector<int>> res{new_shape};
-
   return res;
 }
 
