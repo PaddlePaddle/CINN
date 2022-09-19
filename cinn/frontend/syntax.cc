@@ -113,7 +113,7 @@ Variable Program::batchnorm(const Variable& a,
                             const Variable& mean,
                             const Variable& variance,
                             const absl::flat_hash_map<std::string, attr_t>& attr_store) {
-  Instruction instr("batchnorm");
+  Instruction instr("batch_norm");
   instr.SetInputs({a, scale, bias, mean, variance});
   for (auto& iter : attr_store) {
     instr.SetAttr(iter.first, iter.second);
