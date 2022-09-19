@@ -792,12 +792,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   compiler_->Build(build_module, options.attached_code);
   VLOG(3) << "End of compiler_->Build";
   auto instructions = BuildInstructions(groups, options.groups.empty() ? graph_->fusion_groups : options.groups);
-  for (auto& instr : instructions) {
-    VLOG(6) << "Debug Instruction ";
-    for (auto& fn_name : instr->GetFnNames()) {
-      VLOG(6) << "fu_name = " << fn_name;
-    }
-  }
+
   VLOG(3) << "End of BuildInstructions";
   if (options.remove_unused_variables) {
     RemoveInvalidVariables(instructions);
@@ -922,7 +917,6 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions(
         reuse_vars_map_[out_id] = in_id;
         instr_name              = "no_run";
       }
-      VLOG(6) << "Before new instruction, instr_name = " << instr_name;
       auto instr = std::unique_ptr<Instruction>(
           new Instruction(target_,
                           scope_.get(),
@@ -1069,7 +1063,6 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions(
       }
       std::string op_func_name =
           fusion_group.get() ? fusion_group->GetFuncName() : GetOrGenFullFuncName(GenOpFuncName(node));
-      VLOG(6) << "op_func_name = " << op_func_name;
       auto* fn_ptr = compiler_->Lookup(op_func_name);
       CHECK(fn_ptr);
       instr->SetLoweredFunc(reinterpret_cast<void*>(fn_ptr), op_func_name);
@@ -1082,7 +1075,6 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions(
       }
       // explicitly call Finalize of the instruction after all assignments on it were done
       instr->Finalize();
-      VLOG(6) << "instr->GetFnNames()[0] = " << instr->GetFnNames()[0];
       instructions.push_back(std::move(instr));
     } else {
       CHECK_GT(group.size(), 1U) << "fuse number should be greater than 1";

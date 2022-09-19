@@ -52,7 +52,6 @@ void AutoTuner::Initialize(const Config& config, hlir::framework::GraphCompiler*
   op_lowerer_ = std::make_unique<hlir::framework::OpLowerer>(dtype_dict, shape_dict, target_);
   for (TuneTask& task : tasks_) {
     task.SetOpLowerer(op_lowerer_.get());
-    VLOG(6) << "group GetFuncName() = " << task.task_graph[0]->GetFuncName();
     task.TaskGraphToUnoptLoweredFunc();
     task.SerializeToString(shape_dict, dtype_dict);
     VLOG(3) << "Add a task with serialized_key:\n" << task.serialized_key;
