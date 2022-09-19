@@ -693,12 +693,12 @@ TEST(net_build, program_argmax_case1) {
         std::string line;
         for (int w = 0; w < W; ++w) {
           int index     = w + W * (h + H * (c + IN_C * n));
-          float in_data = input_data[index];
           int out_index = w + W * (h + H * n);
+          float in_data = input_data[index];
           int out_data  = output_data[out_index];
           EXPECT_LE(0, out_data);
           EXPECT_LT(out_data, IN_C);
-          int max_index   = w + W * (h + H * (out_data + OUT_C * n));
+          int max_index   = w + W * (h + H * (out_data + IN_C * n));
           float max_value = input_data[max_index];
           line += (std::to_string(out_data) + ", ");
           EXPECT_LE(in_data, max_value);
@@ -765,12 +765,12 @@ TEST(net_build, program_argmax_case2) {
         std::string line;
         for (int w = 0; w < W; ++w) {
           int index     = w + W * (h + H * (c + IN_C * n));
-          float in_data = input_data[index];
           int out_index = w + W * (h + H * n);
-          int out_data  = output_data[index];
+          float in_data = input_data[index];
+          int out_data  = output_data[out_index];
           EXPECT_LE(0, out_data);
           EXPECT_LT(out_data, IN_C);
-          int max_index   = w + W * (h + H * (out_data + n));
+          int max_index   = w + W * (h + H * (out_data + IN_C * n));
           float max_value = input_data[max_index];
           line += (std::to_string(out_data) + ", ");
           EXPECT_LE(in_data, max_value);
@@ -839,13 +839,12 @@ TEST(net_build, program_argmin_case1) {
         std::string line;
         for (int w = 0; w < W; ++w) {
           int index     = w + W * (h + H * (c + IN_C * n));
-          float in_data = input_data[index];
           int out_index = w + W * (h + H * n);
-          int out_data  = output_data[index];
-
+          float in_data = input_data[index];
+          int out_data  = output_data[out_index];
           EXPECT_LE(0, out_data);
           EXPECT_LT(out_data, IN_C);
-          int max_index   = w + W * (h + H * (out_data + OUT_C * n));
+          int max_index   = w + W * (h + H * (out_data + IN_C * n));
           float max_value = input_data[max_index];
           line += (std::to_string(out_data) + ", ");
           EXPECT_GE(in_data, max_value);
@@ -912,12 +911,12 @@ TEST(net_build, program_argmin_case2) {
         std::string line;
         for (int w = 0; w < W; ++w) {
           int index     = w + W * (h + H * (c + IN_C * n));
-          float in_data = input_data[index];
           int out_index = w + W * (h + H * n);
-          int out_data  = output_data[index];
+          float in_data = input_data[index];
+          int out_data  = output_data[out_index];
           EXPECT_LE(0, out_data);
           EXPECT_LT(out_data, IN_C);
-          int max_index   = w + W * (h + H * (out_data + n));
+          int max_index   = w + W * (h + H * (out_data + IN_C * n));
           float max_value = input_data[max_index];
           line += (std::to_string(out_data) + ", ");
           EXPECT_GE(in_data, max_value);
