@@ -64,9 +64,11 @@ class ScheduleImpl;
 class IRSchedule {
  public:
   IRSchedule();
-  IRSchedule(IRSchedule&& other);
-  ~IRSchedule();
   explicit IRSchedule(const ModuleExpr& modexpr, bool debug_flag = false);
+  IRSchedule(ir::ModuleExpr&& mod_expr, ScheduleDesc&& trace);
+  IRSchedule(IRSchedule&& other);
+  IRSchedule& operator=(IRSchedule&& src);
+  ~IRSchedule();
 
   void SetExprs(const std::vector<Expr>& exprs);
 

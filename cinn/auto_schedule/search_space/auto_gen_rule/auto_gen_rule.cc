@@ -31,7 +31,7 @@ int AutoGenRule::NumberApplicable() const {
   return num_applicable_;
 }
 
-ir::ModuleExpr AutoGenRule::ApplyRandomly() {
+ir::IRSchedule AutoGenRule::ApplyRandomly() {
   CHECK_GT(num_applicable_, 0) << "Call " << GetRuleName() << "::ApplyRandomly() with NumberApplicable() == 0";
   int index = rand() % num_applicable_;
   return Apply(index);

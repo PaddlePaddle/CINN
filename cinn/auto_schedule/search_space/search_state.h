@@ -33,8 +33,9 @@ namespace auto_schedule {
  */
 class SearchState {
  public:
-  // The ModuleExpr
-  ir::ModuleExpr mod_expr;
+  // The IRSchedule, which contains ir::ModuleExpr and trace scheduling process
+  ir::IRSchedule ir_schedule;
+  // std::unique_ptr<ir::IRSchedule> ir_schedule;
 
   // The rules that can be applied to this ModuleExpr at this state.
   // Initialized by list of all AutoGenRule
@@ -50,7 +51,7 @@ class SearchState {
 
   SearchState(const ir::ModuleExpr& mod_expr);
 
-  SearchState(ir::ModuleExpr&& mod_expr);
+  SearchState(ir::IRSchedule&& ir_sch);
 
   SearchState(const SearchState& state);
 
