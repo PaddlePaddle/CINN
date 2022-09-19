@@ -53,7 +53,9 @@ bool AutoInline::CanInlineIntoConsumer(const Expr& sche_block_realize_expr) cons
     return false;
   }
 
-  if (no_inline_output_names_.find(tensor->name) != no_inline_output_names_.end()) {
+  // LoweredFunc output can be tensor name or tensor buffer name
+  if (no_inline_output_names_.find(tensor->name) != no_inline_output_names_.end() ||
+      no_inline_output_names_.find(tensor->buffer->name) != no_inline_output_names_.end()) {
     return false;
   }
 

@@ -122,7 +122,9 @@ SearchState SearchSpace::RandomScheduleMutate(const SearchState& state) {
   VLOG(6) << "Sample AutoGenRule " << sample_rule->GetRuleName();
 
   // 4. Apply the schedule change
+  VLOG(8) << "Before apply: " << ret.mod_expr.GetExprs()[0];
   ret.mod_expr = sample_rule->Apply(sample_index - iter->first);
+  VLOG(8) << "After apply: " << ret.mod_expr.GetExprs()[0];
   return ret;
 }
 

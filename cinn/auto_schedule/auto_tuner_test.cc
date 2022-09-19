@@ -17,6 +17,7 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
+#include <cstdlib>
 #include <iostream>
 
 #include "cinn/common/target.h"
@@ -67,6 +68,7 @@ class TestAutoTunerWithoutFusion : public ::testing::Test {
   }
 
   void SetUp() override {
+    srand(0);
     // AutoTuner is combined with new IR Schedule
     FLAGS_cinn_ir_schedule = true;
     graph                  = std::make_shared<Graph>(CreateAddReluProgram(), target);
@@ -155,17 +157,18 @@ TEST_F(TestAutoTunerWithoutFusion, NonZeroMeasure_EnableCostModel) {
   FLAGS_auto_schedule_use_cost_model = true;
   NonZeroMeasure();
 }
-/* TODO: add TestAutoTunerWithFusion here
+
 class TestAutoTunerWithFusion : public TestAutoTunerWithoutFusion {
  public:
   void SetUp() override {
+    srand(0);
     // AutoTuner is combined with new IR Schedule
     FLAGS_cinn_ir_schedule = true;
     graph                  = std::make_shared<Graph>(CreateAddReluProgram(), target);
     ApplyPass(graph.get(), "OpFusionPass");
-    compiled_scope         = BuildScope(target, graph);
-    graph_compiler         = std::make_unique<GraphCompiler>(target, compiled_scope, graph);
-    tuner                  = std::make_unique<AutoTuner>(target, graph.get());
+    compiled_scope = BuildScope(target, graph);
+    graph_compiler = std::make_unique<GraphCompiler>(target, compiled_scope, graph);
+    tuner          = std::make_unique<AutoTuner>(target, graph.get());
   }
 
   void BasicCheckResult(const TuningResult& result) override {
@@ -188,11 +191,12 @@ class TestAutoTunerWithFusion : public TestAutoTunerWithoutFusion {
     compile_options.Apply(result);
     ASSERT_EQ(1, compile_options.groups.size());
     ASSERT_EQ(1, compile_options.lowered_funcs.size());
+    ASSERT_EQ(1, compile_options.lowered_funcs[0].size());
     VLOG(6) << "Print lowered_funcs before building";
     VLOG(6) << compile_options.lowered_funcs[0][0];
-    //auto runtime_program = graph_compiler->Build(compile_options).runtime_program;
-    //ASSERT_EQ(2, runtime_program->size());
-    //runtime_program->Execute();
+    auto runtime_program = graph_compiler->Build(compile_options).runtime_program;
+    ASSERT_EQ(1, runtime_program->size());
+    runtime_program->Execute();
   }
 };
 
@@ -214,7 +218,7 @@ TEST_F(TestAutoTunerWithFusion, NonZeroMeasure_DisableCostModel) {
 TEST_F(TestAutoTunerWithFusion, NonZeroMeasure_EnableCostModel) {
   FLAGS_auto_schedule_use_cost_model = true;
   NonZeroMeasure();
-}*/
+}
 
 }  // namespace auto_schedule
 }  // namespace cinn
