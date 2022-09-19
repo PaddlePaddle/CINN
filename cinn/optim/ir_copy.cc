@@ -23,6 +23,7 @@
 #include "cinn/common/ir_util.h"
 #include "cinn/ir/ir_mutator.h"
 #include "cinn/ir/ir_printer.h"
+#include "cinn/ir/ir_schedule.h"
 #include "cinn/ir/module.h"
 
 namespace cinn {
