@@ -119,8 +119,9 @@ ir::ModuleExpr MultiLevelTiling::Apply(int index) {
   CHECK(ir_schedule_ != nullptr) << "Run MultiLevelTiling::Apply without Init";
   CHECK(num_applicable_ > 0 && applicable_indices_.size() == num_applicable_)
       << "MultiLevelTiling::Apply pre-condition doesn't meet";
-  CHECK(num_applicable_ > index)
-      << "Invalid index for MultiLevelTiling::Apply, the index needs 0 <= index && index < NumberApplicable()";
+  CHECK(index >= 0 && num_applicable_ > index)
+      << "Invalid index for MultiLevelTiling::Apply, the index needs 0 <= index && index < NumberApplicable(), "
+      << "Currently index = " << index << ",  NumberApplicable() = " << num_applicable_;
 
   int apply_index                              = applicable_indices_[index];
   ir::ScheduleBlockRealize* sche_block_realize = all_block_realizes_[apply_index].As<ir::ScheduleBlockRealize>();

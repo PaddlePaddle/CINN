@@ -14,6 +14,8 @@
 
 #include "cinn/auto_schedule/task/task_creator.h"
 
+#include <glog/logging.h>
+
 #include <memory>
 #include <tuple>
 #include <vector>
@@ -74,6 +76,9 @@ std::vector<TuneTask> TaskCreator::CreateTuneTaskOpLevel(Graph* graph) {
       group->master_nodes.insert(node);
       group->group_id = node->id();
 
+      VLOG(6) << "Huihuang debug, group name = " << group->GetFuncName();
+
+      graph->fusion_groups.push_back(group);
       ret_tasks.emplace_back(TuneTask());
       ret_tasks.back().task_graph.push_back(group);
       ret_tasks.back().target = graph->target_;

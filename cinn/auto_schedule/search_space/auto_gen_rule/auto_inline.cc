@@ -142,8 +142,9 @@ ir::ModuleExpr AutoInline::Apply(int index) {
   CHECK(ir_schedule_ != nullptr) << "Run AutoInline::Apply without Init";
   CHECK(num_applicable_ > 0 && apply_indices_and_type_.size() == num_applicable_)
       << "AutoInline::Apply pre-condition doesn't meet";
-  CHECK(num_applicable_ > index)
-      << "Invalid index for AutoInline::Apply, the index needs 0 <= index && index < NumberApplicable()";
+  CHECK(index >= 0 && num_applicable_ > index)
+      << "Invalid index for AutoInline::Apply, the index needs 0 <= index && index < NumberApplicable(), "
+      << "Currently index = " << index << ",  NumberApplicable() = " << num_applicable_;
 
   int apply_index     = apply_indices_and_type_[index].first;
   AutoInlineType type = apply_indices_and_type_[index].second;
