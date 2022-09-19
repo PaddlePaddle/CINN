@@ -104,8 +104,6 @@ void Interpreter::Impl::Build(const Target& target, const std::string& model_nam
   }
 
   auto graph = Optimize(program_.get(), fetch_var_ids, target);
-  LOG(INFO) << "After Optimize!";
-
   // auto graph                 = std::make_shared<hlir::framework::Graph>(*program_, target);
   graph->attrs["model_name"] = std::make_shared<absl::any>(model_name);
   scope_                     = hlir::framework::BuildScope(target, graph, scope_);

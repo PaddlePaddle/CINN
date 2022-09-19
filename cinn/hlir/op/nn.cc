@@ -2255,7 +2255,7 @@ CINN_REGISTER_HELPER(nn_ops) {
 #endif
       .set_support_level(4);
 
-  CINN_REGISTER_OP(batchnorm)
+  CINN_REGISTER_OP(batch_norm)
       .describe("Can be used as a normalizer function for convolution or fully_connected operations.")
       .set_num_inputs(5)  // here we consider batchnorm's 4 attrs(mean, variance, scale, bias) as other 4 inputs
       .set_num_outputs(1)

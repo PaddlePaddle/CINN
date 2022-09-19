@@ -534,8 +534,9 @@ void PaddleModelToProgram::AddOpMapper_batchnorm() {
     auto epsilon = op_desc.GetAttr<float>("epsilon");
     CHECK(op_desc.HasAttr("momentum"));
     auto momentum = op_desc.GetAttr<float>("momentum");
-    CHECK(op_desc.HasAttr("data_format"));
-    auto data_format = op_desc.GetAttr<std::string>("data_format");
+    // CHECK(op_desc.HasAttr("data_format"));
+    // auto data_format = op_desc.GetAttr<std::string>("data_format");
+    std::string data_format = "NCHW";
 
     auto out = net_builder_->BatchNorm(x, scale, bias, mean, variance, epsilon, momentum, data_format, true);
 
