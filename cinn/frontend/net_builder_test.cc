@@ -272,10 +272,10 @@ TEST(net_build, program_execute_gather) {
   SetRandData<float>(input1_tensor, target);
   float* input1_data = input1_tensor->mutable_data<float>(target);
 
+  memset(input2_data, 0, sizeof(int) * B * H_IN2);
   auto input2_tensor = scope->GetTensor(std::string(input2.id()));
   SetRandInt(input2_tensor, target);
   int* input2_data = input2_tensor->mutable_data<int>(target);
-  memset(input2_data, 0, sizeof(int) * B * H_IN2);
   runtime_program->Execute();
 
   auto output_tensor                   = scope->GetTensor(std::string(output->id));
@@ -381,10 +381,10 @@ TEST(net_build, program_execute_scatter) {
   SetRandData<float>(input1_tensor, target);
   float* input1_data = input1_tensor->mutable_data<float>(target);
 
-  auto input2_tensor = scope->GetTensor(std::string(input2.id()));
-  //  SetRandInt(input2_tensor, target);
-  int* input2_data = input2_tensor->mutable_data<int>(target);
   memset(input2_data, 0, sizeof(int) * B * H_IN);
+  auto input2_tensor = scope->GetTensor(std::string(input2.id()));
+  SetRandInt(input2_tensor, target);
+  int* input2_data = input2_tensor->mutable_data<int>(target);
 
   runtime_program->Execute();
 

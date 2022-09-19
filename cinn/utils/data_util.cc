@@ -24,7 +24,7 @@ void SetRandInt(hlir::framework::Tensor tensor, const common::Target& target, in
     seed = rd();
   }
   std::default_random_engine engine(seed);
-  std::uniform_int_distribution<int> dist(1, 10);
+  std::uniform_int_distribution<int> dist(0, 10);
   size_t num_ele = tensor->shape().numel();
   std::vector<int> random_data(num_ele);
   for (size_t i = 0; i < num_ele; i++) {
@@ -40,7 +40,6 @@ void SetRandInt(hlir::framework::Tensor tensor, const common::Target& target, in
 #endif
   CHECK(target == common::DefaultHostTarget());
   std::copy(random_data.begin(), random_data.end(), data);
-  std::cout << "success" << std::endl;
 }
 
 template <>
