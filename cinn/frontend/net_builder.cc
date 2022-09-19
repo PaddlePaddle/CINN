@@ -350,27 +350,15 @@ Variable NetBuilder::ReluGrad(const Variable& lhs, const Variable& rhs) {
 }
 
 Variable NetBuilder::Gather(const Variable& x, const Variable& index, const int& axis) {
-  Instruction instr("gather", {x, index});
-  instr.SetAttr("axis", axis);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return CustomInstr("gather", {x, index}, {{"axis", axis}}).front();
 }
 
 Variable NetBuilder::GatherNd(const Variable& x, const Variable& index, const std::vector<int>& axes) {
-  Instruction instr("gather_nd", {x, index});
-  instr.SetAttr("axes", axes);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return CustomInstr("gather_nd", {x, index}, {{"axes", axes}}).front();
 }
 
 Variable NetBuilder::Scatter(const Variable& src, const Variable& index, const Variable& out, const int& axis) {
-  Instruction instr("scatter", {src, index, out});
-  instr.SetAttr("axis", axis);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return CustomInstr("scatter", {src, index, out}, {{"axis", axis}}).front();
 }
 Variable NetBuilder::Scatter(const Variable& src,
                              const Variable& index,
@@ -385,11 +373,7 @@ Variable NetBuilder::ScatterNd(const Variable& src,
                                const Variable& index,
                                const Variable& out,
                                const std::vector<int>& axes) {
-  Instruction instr("scatter_nd", {src, index, out});
-  instr.SetAttr("axes", axes);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return CustomInstr("scatter_nd", {src, index, out}, {{"axes", axes}}).front();
 }
 Variable NetBuilder::ScatterNd(const Variable& src,
                                const Variable& index,

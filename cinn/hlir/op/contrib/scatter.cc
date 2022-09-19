@@ -210,9 +210,16 @@ std::shared_ptr<framework::OpStrategy> StrategyForScatter(const framework::NodeA
     *ret = CINNValuePack{res};
   });
 
+  framework::CINNSchedule scatter_schedule([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of scatter schedule is empty! Please check.\n";
+    CINNValuePack arg_pack = args[0];
+    Expr out               = arg_pack[0];
+    CHECK(out.as_tensor());
+    *ret = arg_pack;
+  });
+
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(
-      scatter_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.scatter.x86", 1);
+  strategy->AddImpl(scatter_compute, scatter_schedule, "strategy.scatter.x86", 1);
   return strategy;
 }
 
@@ -257,9 +264,16 @@ std::shared_ptr<framework::OpStrategy> StrategyForScatterNd(const framework::Nod
     *ret = CINNValuePack{res};
   });
 
+  framework::CINNSchedule scatter_nd_schedule([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of scatter_nd schedule is empty! Please check.\n";
+    CINNValuePack arg_pack = args[0];
+    Expr out               = arg_pack[0];
+    CHECK(out.as_tensor());
+    *ret = arg_pack;
+  });
+
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(
-      scatter_nd_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.scatter_nd.x86", 1);
+  strategy->AddImpl(scatter_nd_compute, scatter_nd_schedule, "strategy.scatter_nd.x86", 1);
   return strategy;
 }
 

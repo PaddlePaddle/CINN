@@ -384,6 +384,7 @@ TEST(net_build, program_execute_scatter) {
   auto input2_tensor = scope->GetTensor(std::string(input2.id()));
   //  SetRandInt(input2_tensor, target);
   int* input2_data = input2_tensor->mutable_data<int>(target);
+  memset(input2_data, 0, sizeof(int) * B * H_IN);
 
   runtime_program->Execute();
 
@@ -405,6 +406,7 @@ TEST(net_build, program_execute_scatter) {
     for (int h = 0; h < H_IN; ++h) {
       int index                                 = h + H_IN * b;
       true_data[input2_data[index] + H_OUT * b] = input1_data[index];
+      std::cout << index << " " << input2_data[index] + H_OUT * b << " " << true_data[input2_data[index] + H_OUT * b];
     }
   }
 

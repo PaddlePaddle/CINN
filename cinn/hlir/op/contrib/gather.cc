@@ -59,7 +59,7 @@ ir::Tensor Gather(const ir::Tensor &A, const ir::Tensor &B, const int &axis, con
         for (size_t i = axis + 1; i < A->shape.size(); ++i) {
           A_indices.push_back(indices[i]);
         }
-        return A(A_indices);
+        return lang::Identity(A(A_indices));
       },
       name);
   return res;
@@ -78,7 +78,7 @@ ir::Tensor GatherNd(const ir::Tensor &A, const ir::Tensor &B, const std::vector<
           A_indices[axes[i]] = B(B_indices);
           B_indices.pop_back();
         }
-        return A(A_indices);
+        return lang::Identity(A(A_indices));
       },
       name);
   return res;
@@ -174,7 +174,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForGatherNd(const framework::Node
   });
 
   framework::CINNSchedule gather_nd_schedule([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input argument of gather schedule is empty! Please check.\n";
+    CHECK(!args.empty()) << "The input argument of gather_nd schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
     Expr out               = arg_pack[0];
     CHECK(out.as_tensor());
