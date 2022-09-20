@@ -1,4 +1,4 @@
-// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+// Copyright (c) 2022 CINN Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,30 +14,17 @@
 
 #pragma once
 
-#include <utility>
+#include <string>
 #include <vector>
 
-#include "cinn/ir/ir.h"
-#include "cinn/ir/lowered_func.h"
+#include "cinn/common/target.h"
+#include "cinn/hlir/framework/tensor.h"
+#include "cinn/runtime/cinn_runtime.h"
 
 namespace cinn {
+namespace runtime {
 
-namespace ir {
-class ModuleExpr;
-}
+void cinn_assert_true(void* v_args, int msg, bool only_warning, void* stream = nullptr);
 
-namespace optim {
-
-//! Shallow copy an expression.
-Expr IRCopy(Expr x);
-
-std::vector<Expr> IRCopy(const std::vector<Expr>& x);
-
-ir::ModuleExpr IRCopy(const ir::ModuleExpr& x);
-
-ir::LoweredFunc IRCopy(const ir::LoweredFunc& x);
-
-std::vector<ir::LoweredFunc> IRCopy(const std::vector<ir::LoweredFunc>& x);
-
-}  // namespace optim
+}  // namespace runtime
 }  // namespace cinn
