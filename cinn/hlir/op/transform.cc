@@ -14,6 +14,8 @@
 
 #include "cinn/hlir/pe/transform.h"
 
+#include <algorithm>
+
 #include "cinn/common/cas.h"
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
@@ -1773,8 +1775,9 @@ std::vector<std::vector<int>> InferShapeForSlice(const std::vector<std::vector<i
       strides = absl::get<std::vector<int>>(iter.second);
     } else if (iter.first == "infer_flags") {
       auto infer_flags = absl::get<std::vector<int>>(iter.second);
-      if (!infer_flags.empty()) {
-        LOG(WARNING) << "attr [infer_flags] not support now, and its value is " << utils::Join(infer_flags, ", ");
+      if (std::find_if(infer_flags.begin(), infer_flags.end(), [](int v) { return v < 0; }) != infer_flags.end()) {
+        LOG(WARNING) << "The attr [infer_flags] has negative values, and its value is "
+                     << utils::Join(infer_flags, ", ");
       }
     } else {
       LOG(ERROR) << "Unsupported attr: " << iter.first << std::endl;

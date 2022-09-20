@@ -32,9 +32,12 @@ void Instruction::UpdateArgsCache(const std::map<std::string, cinn_pod_value_t>*
   for (int i = 0; i < cache_size; ++i) {
     common::ArgsBuilder builder;
     // Remove duplicate input arguments
+    std::unordered_set<std::string> in_args_set;
     std::vector<std::string> all_args;
     for (const auto& arg : in_args_[i]) {
+      if (in_args_set.count(arg) != 0) continue;
       all_args.push_back(arg);
+      in_args_set.insert(arg);
     }
 
     all_args.insert(std::end(all_args), out_args_[i].begin(), out_args_[i].end());
