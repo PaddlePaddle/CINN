@@ -20,9 +20,11 @@
 #include "cinn/auto_schedule/auto_tuner.h"
 #include "cinn/common/target.h"
 #include "cinn/frontend/net_builder.h"
+#include "cinn/frontend/optimize.h"
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/node.h"
+#include "cinn/hlir/framework/pass.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/utils/data_util.h"
 
@@ -58,6 +60,8 @@ class PerformanceTester {
   void BuildAndRun(int repeat, int num_tuning_rounds) {
     auto program = CreateProgram();
     graph_       = std::make_shared<hlir::framework::Graph>(program, target_);
+    // graph_ = frontend::Optimize(&program, {}, target_);
+    hlir::framework::ApplyPass(graph_.get(), "InferShape");
     VLOG(3) << "Initialize graph completed, start building runtime program.";
     BuildRuntimePrograms(num_tuning_rounds);
     VLOG(3) << "Build runtime programs completed, start running.";
@@ -202,19 +206,41 @@ class AddPerformanceTester : public PerformanceTester {
 
 class PaddleModelPerformanceTester : public PerformanceTester {
  public:
-  explicit PaddleModelPerformanceTester(const std::string& model_path) : model_path_(model_path) {}
+  explicit PaddleModelPerformanceTester(const std::string& model_path,
+                                        const std::vector<std::string>& input_names,
+                                        const std::vector<std::vector<int>>& input_shapes)
+      : model_path_(model_path), input_names_(input_names), input_shapes_(input_shapes) {}
 
   frontend::Program CreateProgram() override {
+    CHECK(!input_names_.empty());
+    CHECK_EQ(input_names_.size(), input_shapes_.size());
+
     scope_             = std::make_shared<hlir::framework::Scope>();
-    auto loadedProgram = cinn::frontend::LoadPaddleProgram(model_path_, scope_.get(), false, target_);
+    auto loadedProgram = cinn::frontend::LoadPaddleProgram(model_path_, scope_.get(), true, target_);
     auto& program      = std::get<0>(loadedProgram);
+    auto& varmap       = std::get<1>(loadedProgram);
     VLOG(3) << "loaded program: " << *program;
+    CHECK(!varmap.empty());
+
+    std::vector<frontend::Variable> input_vars;
+    std::transform(input_names_.begin(), input_names_.end(), std::back_inserter(input_vars), [&](const std::string& x) {
+      return varmap.at(x);
+    });
+
+    for (int i = 0; i < input_vars.size(); i++) {
+      input_vars[i]->shape = input_shapes_[i];
+    }
+
+    program->SetInputs(input_vars);
+    program->Validate();
 
     return *program;
   }
 
  private:
   const std::string model_path_;
+  std::vector<std::string> input_names_;
+  std::vector<std::vector<int>> input_shapes_;
 };
 
 #ifdef CINN_WITH_CUDA
@@ -253,7 +279,9 @@ TEST(AddPerformanceTest, add_1024x1024) {
 }
 
 TEST(PaddleModelPerformanceTester, ResNet50) {
-  PaddleModelPerformanceTester tester(FLAGS_resnet50_model_dir);
+  std::vector<std::string> input_names       = {"inputs"};
+  std::vector<std::vector<int>> input_shapes = {{1, 3, 224, 224}};
+  PaddleModelPerformanceTester tester(FLAGS_resnet50_model_dir, input_names, input_shapes);
   tester.BuildAndRun(repeat_time, num_tuning_rounds);
 }
 
