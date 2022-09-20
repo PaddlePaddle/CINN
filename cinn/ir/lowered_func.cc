@@ -180,13 +180,13 @@ void _LoweredFunc_::PrepareDeallocOutputBufferExprs() {
 
 void _LoweredFunc_::AllocTempBuffer() {}
 
-void _LoweredFunc_::PrepareBufferCastExprs() {
+void _LoweredFunc_::PrepareBufferCastExprs(bool with_expr_gen_tensor) {
   buffer_data_cast_exprs.clear();
   // collect write.
   optim::TensorWriteTeller write_teller;
   write_teller.Collect(&body);
 
-  auto tensors = CollectAllTensorReference();
+  auto tensors = CollectAllTensorReference(with_expr_gen_tensor);
   std::sort(tensors.begin(), tensors.end(), [](const Tensor& a, const Tensor& b) { return a->name < b->name; });
   VLOG(3) << "Function used " << tensors.size() << " buffers";
   for (auto& tensor : tensors) {
@@ -327,9 +327,11 @@ void _LoweredFunc_::PrepareArgumentExprs() {
   }
 }
 
-std::vector<Tensor> _LoweredFunc_::CollectAllTensorReference() const {
+std::vector<Tensor> _LoweredFunc_::CollectAllTensorReference(bool with_expr_gen_tensor) const {
   std::set<Expr> tensor_exprs =
-      ir::CollectIRNodesWithoutTensor(body, [](const Expr* expr) { return expr->As<ir::_Tensor_>(); });
+      with_expr_gen_tensor
+          ? ir::CollectIRNodes(body, [](const Expr* expr) { return expr->As<ir::_Tensor_>(); })
+          : ir::CollectIRNodesWithoutTensor(body, [](const Expr* expr) { return expr->As<ir::_Tensor_>(); });
 
   std::vector<Tensor> tensors;
   // remove the duplicate tensor by their name.
