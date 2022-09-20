@@ -52,9 +52,9 @@ class TuneTask {
   const std::string& SerializeToString(const absl::flat_hash_map<std::string, hlir::framework::shape_t>& shape_dict,
                                        const absl::flat_hash_map<std::string, cinn::common::Type>& dtype_dict);
 
-  // In CINN, we use std::vector<hlir::framework::Node*> to represent a fused
-  // sub-graph (if an op won't be fused, it will be a vector with size=1). So
-  // the task_graph_ consist of multiple "fused sub-graph" / "unfused op"
+  // In CINN, we use hlir::framework::Graph::Group to represent a fused
+  // sub-graph (if an op won't be fused, it will be a Group with size=1). So
+  // the task_graph_ consists of multiple "fused sub-graph" / "unfused op"
   std::vector<std::shared_ptr<hlir::framework::Graph::Group>> task_graph;
   // target of this task
   common::Target target;
