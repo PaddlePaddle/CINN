@@ -43,15 +43,14 @@ class ParallelCompiler {
    public:
     Task(std::vector<std::shared_ptr<Group>>& g, std::vector<std::vector<ir::LoweredFunc>> f)
         : groups(g), lowered_funcs(f) {}
-    void Lower();
-    void BuildModule();
-    void Codegen();
-    void JitCompile();
+    void Lowering();
+    void CodegenAndJit();
     void BuildInstruction();
 
    public:
-    std::vector<Instruction> instructions;
+    ir::Module ir_module;
     std::vector<std::shared_ptr<Group>> groups;
+    std::vector<std::unique_ptr<Instruction>> instructions;
     std::vector<std::vector<ir::LoweredFunc>> lowered_funcs;
 
    public:

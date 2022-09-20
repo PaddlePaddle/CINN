@@ -27,9 +27,15 @@ std::vector<Instruction> ParallelCompiler::operator()() {
   return MergeResult();
 }
 
-void ParallelCompiler::SplitTask() {}
+void ParallelCompiler::SplitTask() {
+  //
+}
 
-void RunTask(ParallelCompiler::Task& task) {}
+void RunTask(ParallelCompiler::Task& task) {
+  task.Lowering();
+  task.CodegenAndJit();
+  task.BuildInstruction();
+}
 
 void ParallelCompiler::LaunchTask() {
   // start sub-task.
@@ -53,9 +59,8 @@ std::vector<Instruction> ParallelCompiler::MergeResult() {
   return res;
 }
 
-void ParallelCompiler::Task::Lower() {
-  if (lowered_funcs.size()) {
-    return;
+void ParallelCompiler::Task::Lowering() {
+  if (!lowered_funcs.size()) {
   }
   // do op lowering
   ir::Module::Builder builder;
@@ -63,7 +68,53 @@ void ParallelCompiler::Task::Lower() {
     builder.AddFunction(func);
   }
 
-  builder.Build();
+  ir_module = builder.Build();
+}
+
+void ParallelCompiler::Task::CodegenAndJit() {
+  if (target_ == common::DefaultNVGPUTarget()) {
+#ifdef CINN_WITH_CUDA
+    auto splited_module = SplitCudaAndHostModule(module);
+    ir_module           = std::get<0>(splited_module);
+    auto dmodule        = td::get<1>(splited_module);
+
+    CodeGenCUDA_Dev codegen(target_);
+    auto cuda_c = codegen.Compile(dmodule);
+
+    using runtime::cuda::CUDAModule;
+    backends::NVRTC_Compiler compiler;
+    auto ptx = compiler(cuda_c);
+    CHECK(!ptx.empty());
+
+    // load cumodule
+    cumodule.reset(new CUDAModule(ptx, CUDAModule::Kind::PTX));
+    // register kernel
+    RuntimeSymbols symbols;
+    for (auto& fn : dmodule.functions()) {
+      auto cufunc = cumodule->GetFunction(0, fn->name);
+      CHECK(cufunc);
+      symbols.RegisterVar(fn->name + "_ptr_", reinterpret_cast<void*>(cufunc));
+    }
+    engine_ = ExecutionEngine::Create(ExecutionOptions(), std::move(symbols));
+    engine_->Link<CodeGenCUDA_Host>(ir_module);
+#endif
+  } else {
+    engine_ = ExecutionEngine::Create(ExecutionOptions());
+    engine_->Link<CodeGenX86>(module);
+  }
+}
+
+void ParallelCompiler::Task::BuildInstruction() {
+  for (auto& group : groups) {
+    auto instr  = std::unique_ptr<Instruction>(new Instruction(
+        target_, scope_.get(), fusion_group->input_names, fusion_group->output_names, fusion_group->GetFuncName()));
+    auto fn_ptr = engine_->Lookup(fusion_group->GetFuncName());
+    CHECK(fn_ptr) << "Can't find jit function : " << fusion_group->GetFuncName();
+    instr->SetLoweredFunc(reinterpret_cast<void*>(fn_ptr), fusion_group->GetFuncName());
+
+    instr->Finalize();
+    instructions.push_back(std::move(instr));
+  }
 }
 
 }  // namespace framework
