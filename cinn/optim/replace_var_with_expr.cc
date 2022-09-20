@@ -14,6 +14,7 @@
 
 #include "cinn/optim/replace_var_with_expr.h"
 
+#include "cinn/common/cas.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_mutator.h"
 #include "cinn/ir/ir_operators.h"
@@ -148,7 +149,7 @@ std::vector<std::vector<Expr>> CollectTensorIndex(Expr* source, const std::strin
   std::vector<std::vector<Expr>> result = mutator(source);
   for (auto& i : result) {
     for (auto& j : i) {
-      Simplify(&j);
+      j = common::AutoSimplify(j);
     }
   }
   return result;
@@ -161,14 +162,16 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
                                 std::unordered_set<std::string>& resized_buffer,
                                 bool blockidx,
                                 const Expr& extent,
-                                std::string tensor_name)
+                                std::string tensor_name,
+                                const std::map<std::string, int>& loop2extent)
       : var_(var),
         expr_(expr),
         global_tensor_map_(global_tensor_map),
         resized_buffer_(resized_buffer),
         blockidx_(blockidx),
         extent_(extent),
-        tensor_name_(tensor_name) {}
+        tensor_name_(tensor_name),
+        loop2extent_(loop2extent) {}
 
   void Execute(Expr* expr) { ir::IRMutator<>::Visit(expr, expr); }
 
@@ -207,7 +210,7 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
       for (auto& i : buffer_shape) {
         VLOG(3) << i;
       }
-      Simplify(&tensor_shape[index]);
+      tensor_shape[index] = common::AutoSimplify(tensor_shape[index]);
       CHECK(tensor_shape[index].is_constant());
       CHECK(extent_.is_constant());
       /**
@@ -226,13 +229,25 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
       ReplaceVarWithExpr(&copy2, Var(var_name), Expr(0));
       auto res            = copy1 - copy2;
       tensor_shape[index] = tensor_shape[index] - res;
-      Simplify(&tensor_shape[index]);
+      tensor_shape[index] = common::AutoSimplify(tensor_shape[index]);
       VLOG(2) << "tensor_shape[index] - res is : " << tensor_shape[index];
       if (tensor_shape[index].is_constant() && tensor_shape[index].get_constant() <= 0) {
         tensor_shape[index] = Expr(1);
       } else if (!tensor_shape[index].is_constant()) {
-        VLOG(3) << "Index is not constant: " << tensor_shape[index] << " and it will be replaced to 1";
-        tensor_shape[index] = Expr(1);
+        for (auto& i : loop2extent_) {
+          VLOG(3) << "i.first is : " << i.first;
+          VLOG(3) << "i.second - 1 is : " << i.second - 1;
+          ReplaceVarWithExpr(&copy2, Var(i.first), Expr(i.second - 1));
+        }
+        copy2 = common::AutoSimplify(copy2);
+        VLOG(3) << "After ReplaceVarWithExpr and Simplify, copy2 is : " << copy2;
+        if (copy2.is_constant()) {
+          int copy2_i         = copy2.get_constant();
+          tensor_shape[index] = Expr(copy2_i + 1);
+        } else {
+          VLOG(3) << "Index is not constant: " << tensor_shape[index] << " and it will be replaced to 1";
+          tensor_shape[index] = Expr(1);
+        }
       }
       (*global_tensor_map_).at(tensor_name)->shape = tensor_shape;
 
@@ -310,7 +325,7 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
             temp.As<ir::Add>()->b().as_var() && temp.As<ir::Add>()->b().as_var()->name == var_->name) {
           temp.As<ir::Add>()->a() = ir::Div::Make(temp.As<ir::Add>()->a(), extent_);
         }
-        Simplify(&temp);
+        temp           = common::AutoSimplify(temp);
         auto temp_copy = IRCopy(temp);
         // Eliminate var 'j_inner' and get the final index 'j_outer'
         ir::IRMutator<>::Visit(&temp, &temp);
@@ -327,7 +342,7 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
       ir::IRMutator<>::Visit(&node->value, &node->value);
       for (int i = 0; i < node->indices.size(); i++) {
         Expr index = node->indices[i];
-        Simplify(&index);
+        index      = common::AutoSimplify(index);
         // If index[i] is 0, then edit the tensor's shape[i] to 1
         if (index.is_constant() && index.get_constant() == 0.0f) {
           std::vector<Expr> new_shape                   = (*global_tensor_map_).at(tensor->name)->shape;
@@ -347,7 +362,7 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
             temp.As<ir::Add>()->b().as_var() && temp.As<ir::Add>()->b().as_var()->name == var_->name) {
           temp.As<ir::Add>()->a() = ir::Div::Make(temp.As<ir::Add>()->a(), extent_);
         }
-        Simplify(&temp);
+        temp           = common::AutoSimplify(temp);
         auto temp_copy = IRCopy(temp);
         // Eliminate var 'j_inner' and get the final index 'j_outer'
         ir::IRMutator<>::Visit(&temp, &temp);
@@ -364,7 +379,7 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
       ir::IRMutator<>::Visit(&node->value, &node->value);
       for (int i = 0; i < node->indices.size(); i++) {
         Expr index = node->indices[i];
-        Simplify(&index);
+        index      = common::AutoSimplify(index);
         // If index[i] is 0, then edit the tensor's shape[i] to 1
         if (index.is_constant() && index.get_constant() == 0.0f) {
           std::vector<Expr> new_shape                   = (*global_tensor_map_).at(tensor->name)->shape;
@@ -418,6 +433,7 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
   bool find_replace_{false};
   const Expr& extent_;
   std::string tensor_name_;
+  const std::map<std::string, int>& loop2extent_;
 };
 
 void CUDAReplaceIndexOfCachePass(Expr* source,
@@ -427,12 +443,14 @@ void CUDAReplaceIndexOfCachePass(Expr* source,
                                  std::unordered_set<std::string>& resized_buffer,
                                  bool blockidx,
                                  const Expr& extent,
-                                 std::string tensor_name) {
+                                 std::string tensor_name,
+                                 const std::map<std::string, int>& loop2extent) {
   if (extent.defined() && !extent.is_constant()) {
     VLOG(3) << "Warning! The extent " << extent << " is not constant in CUDAReplaceIndexOfCachePass!";
   }
   VLOG(3) << "CUDAReplaceIndexOfCachePass visit " << *source;
-  ReplaceVarIndexOfCacheMutator mutator(var, expr, global_tensor_map, resized_buffer, blockidx, extent, tensor_name);
+  ReplaceVarIndexOfCacheMutator mutator(
+      var, expr, global_tensor_map, resized_buffer, blockidx, extent, tensor_name, loop2extent);
   mutator.Execute(source);
 }
 
