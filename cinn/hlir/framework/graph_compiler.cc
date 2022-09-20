@@ -1274,8 +1274,22 @@ void GraphCompiler::InsertBufferHandlers(std::vector<std::unique_ptr<Instruction
 
 std::vector<std::string> GraphCompiler::OpGetInputNames(const Node* node) const {
   std::vector<std::string> res;
-  for (auto& i : node->inlinks_in_order()) {
-    res.push_back(i->source()->as<NodeData>()->id());
+  if (node->op()->name == "cublas_gemm" || node->op()->name == "cublas_matmul" || node->op()->name == "conv2d" ||
+      node->op()->name == "depthwise_conv2d" || node->op()->name == "pool2d" || node->op()->name == "softmax" ||
+      node->op()->name == "mul" || node->op()->name == "matmul") {
+    for (auto& i : node->inlinks_in_order()) {
+      res.push_back(i->source()->as<NodeData>()->id());
+    }
+  } else {
+    std::unordered_set<std::string> repeat;
+    for (auto& inode : node->inlinks_in_order()) {
+      auto id = inode->source()->as<NodeData>()->id();
+      if (repeat.count(id)) {
+        continue;
+      }
+      repeat.insert(id);
+      res.push_back(id);
+    }
   }
   return res;
 }
