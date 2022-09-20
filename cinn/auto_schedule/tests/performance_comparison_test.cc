@@ -26,6 +26,8 @@
 #include "cinn/ir/ir_base.h"
 #include "cinn/utils/data_util.h"
 
+DEFINE_string(resnet50_model_dir, "", "");
+
 namespace cinn {
 namespace auto_schedule {
 
@@ -37,16 +39,11 @@ using ::cinn::hlir::framework::Scope;
 
 class PerformanceTester {
  public:
-  virtual frontend::Program CreateProgram()              = 0;
-  virtual void PrepareData(std::shared_ptr<Scope> scope) = 0;
-
-  void PrepareData() {
-    PrepareData(no_schedule_compiled_scope_);
-    PrepareData(manual_schedule_compiled_scope_);
-    PrepareData(auto_schedule_compiled_scope_);
-  }
+  virtual frontend::Program CreateProgram() = 0;
 
   void BuildRuntimePrograms(int num_tuning_rounds) {
+    scope_          = BuildScope(target_, graph_, scope_);
+    graph_compiler_ = std::make_unique<GraphCompiler>(target_, scope_, graph_);
     BuildNoScheduleProgram();
     BuildManualScheduleProgram();
     BuildAutoScheduleProgram(num_tuning_rounds);
@@ -63,17 +60,12 @@ class PerformanceTester {
     graph_       = std::make_shared<hlir::framework::Graph>(program, target_);
     VLOG(3) << "Initialize graph completed, start building runtime program.";
     BuildRuntimePrograms(num_tuning_rounds);
-    VLOG(3) << "Build runtime programs completed, start preparing data.";
-    PrepareData();
-    VLOG(3) << "Prepare data completed, start running.";
+    VLOG(3) << "Build runtime programs completed, start running.";
     Run(repeat);
   }
 
  protected:
   void BuildNoScheduleProgram() {
-    no_schedule_compiled_scope_ = BuildScope(target_, graph_);
-    no_schedule_graph_compiler_ = std::make_unique<GraphCompiler>(target_, no_schedule_compiled_scope_, graph_);
-
     std::tuple<std::vector<common::GraphNode*>, std::vector<common::GraphEdge*>> topo_result =
         graph_->topological_order();
     const std::vector<common::GraphNode*>& nodes = std::get<0>(topo_result);
@@ -84,7 +76,7 @@ class PerformanceTester {
         task_graph.push_back(std::vector<hlir::framework::Node*>(1, op_node));
       }
     }
-    std::vector<std::vector<ir::LoweredFunc>> funcs = no_schedule_graph_compiler_->FusedGraphToLoweredFunc(task_graph);
+    std::vector<std::vector<ir::LoweredFunc>> funcs = graph_compiler_->FusedGraphToLoweredFunc(task_graph);
 
     GraphCompiler::CompileOptions compile_options;
     compile_options.with_instantiate_variables = true;
@@ -99,29 +91,25 @@ class PerformanceTester {
     }
     VLOG(3) << "===========================No Schedule LoweredFunc End=============================";
 
-    no_schedule_program_ = no_schedule_graph_compiler_->Build(compile_options).runtime_program;
+    no_schedule_program_ = graph_compiler_->Build(compile_options).runtime_program;
   }
 
   void BuildManualScheduleProgram() {
-    manual_schedule_compiled_scope_ = BuildScope(target_, graph_);
-    manual_schedule_graph_compiler_ = std::make_unique<GraphCompiler>(target_, manual_schedule_compiled_scope_, graph_);
-    manual_schedule_program_        = manual_schedule_graph_compiler_->Build();
+    manual_schedule_program_ = graph_compiler_->Build();
 
     VLOG(3) << "===========================Manual Schedule LoweredFunc Begin===========================";
-    manual_schedule_graph_compiler_->PrintFunc();
+    graph_compiler_->PrintFunc();
     VLOG(3) << "===========================Manual Schedule LoweredFunc End=============================";
   }
 
   void BuildAutoScheduleProgram(int num_tuning_rounds = 10) {
-    auto_schedule_compiled_scope_ = BuildScope(target_, graph_);
-    auto_schedule_graph_compiler_ = std::make_unique<GraphCompiler>(target_, auto_schedule_compiled_scope_, graph_);
-    tuner_                        = std::make_unique<AutoTuner>(target_, graph_.get());
+    tuner_ = std::make_unique<AutoTuner>(target_, graph_.get());
 
     AutoTuner::Config tuning_config;
     TuningOptions tuning_options;
     tuning_options.num_tuning_rounds = num_tuning_rounds;
 
-    tuner_->Initialize(tuning_config, auto_schedule_graph_compiler_.get());
+    tuner_->Initialize(tuning_config, graph_compiler_.get());
     TuningResult tuning_result = tuner_->Tune(tuning_options);
 
     GraphCompiler::CompileOptions compile_options;
@@ -136,7 +124,7 @@ class PerformanceTester {
     }
     VLOG(3) << "===========================Auto Schedule LoweredFunc End=============================";
 
-    auto_schedule_program_ = auto_schedule_graph_compiler_->Build(compile_options).runtime_program;
+    auto_schedule_program_ = graph_compiler_->Build(compile_options).runtime_program;
   }
 
 #ifdef CINN_WITH_CUDA
@@ -146,14 +134,8 @@ class PerformanceTester {
 #endif
 
   std::shared_ptr<Graph> graph_;
-
-  std::shared_ptr<Scope> no_schedule_compiled_scope_;
-  std::shared_ptr<Scope> manual_schedule_compiled_scope_;
-  std::shared_ptr<Scope> auto_schedule_compiled_scope_;
-
-  std::unique_ptr<GraphCompiler> no_schedule_graph_compiler_;
-  std::unique_ptr<GraphCompiler> manual_schedule_graph_compiler_;
-  std::unique_ptr<GraphCompiler> auto_schedule_graph_compiler_;
+  std::shared_ptr<Scope> scope_;
+  std::unique_ptr<GraphCompiler> graph_compiler_;
 
   std::unique_ptr<hlir::framework::Program> no_schedule_program_;
   std::unique_ptr<hlir::framework::Program> manual_schedule_program_;
@@ -164,7 +146,7 @@ class PerformanceTester {
 
 class MulPerformanceTester : public PerformanceTester {
  public:
-  MulPerformanceTester(int M, int K, int N) : M_(M), K_(K), N_(N) {}
+  explicit MulPerformanceTester(int M, int K, int N) : M_(M), K_(K), N_(N) {}
 
   frontend::Program CreateProgram() override {
     frontend::NetBuilder builder("mul_net_builder");
@@ -173,14 +155,6 @@ class MulPerformanceTester : public PerformanceTester {
 
     auto mul_out = builder.Mul(x, y, 1, 1);
     return builder.Build();
-  }
-  void PrepareData(std::shared_ptr<Scope> scope) override {
-    scope->Var<hlir::framework::Tensor>("X");
-    scope->Var<hlir::framework::Tensor>("Y");
-    auto x_tensor = scope->GetTensor("X");
-    auto y_tensor = scope->GetTensor("Y");
-    SetRandData<float>(x_tensor, target_);
-    SetRandData<float>(y_tensor, target_);
   }
 
  private:
@@ -191,7 +165,7 @@ class MulPerformanceTester : public PerformanceTester {
 
 class MatmulPerformanceTester : public PerformanceTester {
  public:
-  MatmulPerformanceTester(int M, int K, int N) : M_(M), K_(K), N_(N) {}
+  explicit MatmulPerformanceTester(int M, int K, int N) : M_(M), K_(K), N_(N) {}
 
   frontend::Program CreateProgram() override {
     frontend::NetBuilder builder("mul_net_builder");
@@ -200,14 +174,6 @@ class MatmulPerformanceTester : public PerformanceTester {
 
     auto mul_out = builder.Matmul(x, y);
     return builder.Build();
-  }
-  void PrepareData(std::shared_ptr<Scope> scope) override {
-    scope->Var<hlir::framework::Tensor>("X");
-    scope->Var<hlir::framework::Tensor>("Y");
-    auto x_tensor = scope->GetTensor("X");
-    auto y_tensor = scope->GetTensor("Y");
-    SetRandData<float>(x_tensor, target_);
-    SetRandData<float>(y_tensor, target_);
   }
 
  private:
@@ -218,7 +184,7 @@ class MatmulPerformanceTester : public PerformanceTester {
 
 class AddPerformanceTester : public PerformanceTester {
  public:
-  AddPerformanceTester(int M, int N) : M_(M), N_(N) {}
+  explicit AddPerformanceTester(int M, int N) : M_(M), N_(N) {}
 
   frontend::Program CreateProgram() override {
     frontend::NetBuilder builder("add_net_builder");
@@ -228,18 +194,27 @@ class AddPerformanceTester : public PerformanceTester {
     auto mul_out = builder.Add(x, y);
     return builder.Build();
   }
-  void PrepareData(std::shared_ptr<Scope> scope) override {
-    scope->Var<hlir::framework::Tensor>("X");
-    scope->Var<hlir::framework::Tensor>("Y");
-    auto x_tensor = scope->GetTensor("X");
-    auto y_tensor = scope->GetTensor("Y");
-    SetRandData<float>(x_tensor, target_);
-    SetRandData<float>(y_tensor, target_);
-  }
 
  private:
   int M_;
   int N_;
+};
+
+class PaddleModelPerformanceTester : public PerformanceTester {
+ public:
+  explicit PaddleModelPerformanceTester(const std::string& model_path) : model_path_(model_path) {}
+
+  frontend::Program CreateProgram() override {
+    scope_             = std::make_shared<hlir::framework::Scope>();
+    auto loadedProgram = cinn::frontend::LoadPaddleProgram(model_path_, scope_.get(), false, target_);
+    auto& program      = std::get<0>(loadedProgram);
+    VLOG(3) << "loaded program: " << *program;
+
+    return *program;
+  }
+
+ private:
+  const std::string model_path_;
 };
 
 #ifdef CINN_WITH_CUDA
@@ -274,6 +249,11 @@ TEST(AddPerformanceTest, add_1024x1024) {
   int M = 1024;
   int N = 1024;
   AddPerformanceTester tester(M, N);
+  tester.BuildAndRun(repeat_time, num_tuning_rounds);
+}
+
+TEST(PaddleModelPerformanceTester, ResNet50) {
+  PaddleModelPerformanceTester tester(FLAGS_resnet50_model_dir);
   tester.BuildAndRun(repeat_time, num_tuning_rounds);
 }
 
