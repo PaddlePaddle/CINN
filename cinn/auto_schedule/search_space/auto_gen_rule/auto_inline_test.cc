@@ -145,12 +145,14 @@ TEST(AutoInline, AddReluInline) {
   VLOG(6) << "Expr before auto inline: " << funcs[0]->body;
 
   ir::ModuleExpr mod_expr_before_inline(std::vector<Expr>({funcs[0]->body}));
+  ir::IRSchedule ir_sch(mod_expr_before_inline);
 
   AutoInline auto_inline(target, {"var_2"});
-  EXPECT_EQ(auto_inline.Init(mod_expr_before_inline), RuleApplyType::kApply);
+  EXPECT_EQ(auto_inline.Init(ir_sch), RuleApplyType::kApply);
   EXPECT_EQ(auto_inline.NumberApplicable(), 2);
 
-  ir::ModuleExpr mod_expr_after_inline = auto_inline.Apply(1);
+  ir::IRSchedule sch_after_inline      = auto_inline.Apply(1);
+  ir::ModuleExpr mod_expr_after_inline = sch_after_inline.GetModule();
   std::vector<ir::Expr> exprs          = mod_expr_after_inline.GetExprs();
   EXPECT_EQ(exprs.size(), 1UL);
 
@@ -162,10 +164,11 @@ TEST(AutoInline, AddReluInline) {
   VLOG(6) << expr_str;
 
   // Auto Inline again
-  EXPECT_EQ(auto_inline.Init(mod_expr_after_inline), RuleApplyType::kApply);
+  EXPECT_EQ(auto_inline.Init(sch_after_inline), RuleApplyType::kApply);
   EXPECT_EQ(auto_inline.NumberApplicable(), 1);
 
-  ir::ModuleExpr final_mod_expr = auto_inline.Apply(0);
+  ir::IRSchedule final_sch      = auto_inline.Apply(0);
+  ir::ModuleExpr final_mod_expr = final_sch.GetModule();
   exprs                         = final_mod_expr.GetExprs();
   EXPECT_EQ(exprs.size(), 1UL);
 
@@ -202,7 +205,7 @@ TEST(AutoInline, AddReluInline) {
   EXPECT_EQ(expr_str, target_str);
 
   // Cannot inline above expr again
-  EXPECT_EQ(auto_inline.Init(final_mod_expr), RuleApplyType::kCannotApply);
+  EXPECT_EQ(auto_inline.Init(final_sch), RuleApplyType::kCannotApply);
 }
 
 }  // namespace auto_schedule
