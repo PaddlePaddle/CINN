@@ -179,28 +179,6 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpWithoutSchedule(IRComputeFuncti
     }
   }
 
-  // Set some internal data nodes with local buffer
-  std::vector<ir::Expr> all_block_realizes = ir_sch.GetAllBlocks();
-  for (auto node : group->CollectNodes()) {
-    if (!group->output_nodes.count(node)) {
-      std::vector<NodeData*> all_node_data = GetAllNodeData(node);
-      for (NodeData* node_data : all_node_data) {
-        if (!tensor_map.count(node_data->id())) {
-          continue;
-        }
-        std::string local_name = tensor_map[node_data->id()]->name;
-
-        for (ir::Expr& e : all_block_realizes) {
-          const ir::ScheduleBlockRealize* sche_block_realize = e.As<ir::ScheduleBlockRealize>();
-          if (sche_block_realize->schedule_block.As<ir::ScheduleBlock>()->name == local_name) {
-            VLOG(6) << "Set local buffer for internal node " << local_name;
-            ir_sch.SetBuffer(e, "local", true);
-          }
-        }
-      }
-    }
-  }
-
   auto func_body = ir_sch.GetModule().GetExprs().at(0);
 #ifdef CINN_WITH_CUDA
   optim::OptimizeExprGPU(&(func_body));
