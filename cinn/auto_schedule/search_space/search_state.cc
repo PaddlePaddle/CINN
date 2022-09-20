@@ -33,7 +33,6 @@ namespace auto_schedule {
 SearchState::SearchState(const ir::ModuleExpr& mod_expr) : ir_schedule(mod_expr) {}
 
 SearchState::SearchState(ir::IRSchedule&& ir_sch) : ir_schedule(std::move(ir_sch)) {}
-// SearchState::SearchState(ir::IRSchedule&& ir_sch) : ir_schedule(ir_sch) {}
 
 SearchState::SearchState(const SearchState& state) : ir_schedule(state.ir_schedule.GetModule()) {
   predicted_cost = state.predicted_cost;

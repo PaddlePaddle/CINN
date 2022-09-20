@@ -35,7 +35,6 @@ class SearchState {
  public:
   // The IRSchedule, which contains ir::ModuleExpr and trace scheduling process
   ir::IRSchedule ir_schedule;
-  // std::unique_ptr<ir::IRSchedule> ir_schedule;
 
   // The rules that can be applied to this ModuleExpr at this state.
   // Initialized by list of all AutoGenRule
