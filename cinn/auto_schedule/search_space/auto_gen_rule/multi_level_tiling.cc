@@ -32,6 +32,7 @@
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_schedule.h"
 #include "cinn/ir/tensor.h"
+#include "cinn/optim/ir_copy.h"
 
 namespace cinn {
 namespace auto_schedule {
@@ -98,8 +99,8 @@ bool MultiLevelTiling::MeetCondition(const ir::ScheduleBlockRealize& sche_block_
   return total_unused_iter_vars >= 1;
 }
 
-RuleApplyType MultiLevelTiling::Init(const ir::ModuleExpr& mod_expr) {
-  ir_schedule_        = std::make_unique<ir::IRSchedule>(mod_expr);
+RuleApplyType MultiLevelTiling::Init(const ir::IRSchedule& init_schedule) {
+  ir_schedule_        = std::make_unique<ir::IRSchedule>(optim::IRCopy(init_schedule));
   all_block_realizes_ = ir_schedule_->GetAllBlocks();
   applicable_indices_.clear();
   num_applicable_ = 0;
@@ -115,7 +116,7 @@ RuleApplyType MultiLevelTiling::Init(const ir::ModuleExpr& mod_expr) {
   return num_applicable_ > 0 ? RuleApplyType::kApplyAndSkipThisRule : RuleApplyType::kCannotApply;
 }
 
-ir::ModuleExpr MultiLevelTiling::Apply(int index) {
+ir::IRSchedule MultiLevelTiling::Apply(int index) {
   CHECK(ir_schedule_ != nullptr) << "Run MultiLevelTiling::Apply without Init";
   CHECK(num_applicable_ > 0 && applicable_indices_.size() == num_applicable_)
       << "MultiLevelTiling::Apply pre-condition doesn't meet";
@@ -173,7 +174,7 @@ ir::ModuleExpr MultiLevelTiling::Apply(int index) {
   }
 
   VLOG(4) << "Returning the result of MultiLevelTiling";
-  return ir_schedule_->GetModule();
+  return optim::IRCopy(*ir_schedule_);
 }
 
 std::string MultiLevelTiling::GetRuleName() const { return "MultiLevelTiling"; }

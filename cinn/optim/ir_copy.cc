@@ -356,8 +356,9 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
   }
 
   Expr Visit(const ir::_BufferRange_* op) {
+    VLOG(6) << "Coping BufferRange:" << op->buffer << "," << Expr(op);
     std::vector<Var> ranges;
-    for (auto& range_var : ranges) {
+    for (auto& range_var : op->ranges) {
       auto* var = range_var.As<_Var_>();
       ranges.push_back(Visit(var));
     }
@@ -365,6 +366,7 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
   }
 
   Expr Visit(const ir::ScheduleBlock* op) {
+    VLOG(6) << "Coping ScheduleBlock:" << op->name << "," << Expr(op);
     std::vector<Var> iter_vars;
     for (auto iter_var : op->iter_vars) {
       auto* var = iter_var.As<_Var_>();
@@ -379,7 +381,9 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
     for (auto buffer_range : op->write_buffers) {
       write_buffers.push_back(Visit(&buffer_range));
     }
-    return ir::ScheduleBlock::Make(iter_vars, read_buffers, write_buffers, op->name, Visit(&op->body));
+    Expr res = ir::ScheduleBlock::Make(iter_vars, read_buffers, write_buffers, op->name, Visit(&op->body));
+    res.As<ScheduleBlock>()->attrs = op->attrs;
+    return res;
   }
 
   Expr Visit(const ir::ScheduleBlockRealize* op) {

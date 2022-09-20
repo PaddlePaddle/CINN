@@ -38,11 +38,11 @@ class MultiLevelTiling : public AutoGenRule {
 
   // initailize the AutoGenRule, it must be called before further actions.
   // Returns false if the rule cannot be applied on the mod_expr, true otherwise
-  RuleApplyType Init(const ir::ModuleExpr& mod_expr) override;
+  RuleApplyType Init(const ir::IRSchedule& init_schedule) override;
 
   // Applies rule on the ir::ModuleExpr for a schedule block specified by index
   // between 0 (inclusive) and NumberApplicable() (exclusive)
-  ir::ModuleExpr Apply(int index) override;
+  ir::IRSchedule Apply(int index) override;
 
   // Returns the name of the rule, used for debug.
   std::string GetRuleName() const override;

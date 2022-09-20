@@ -73,7 +73,7 @@ class IRSchedule {
   void SetExprs(const std::vector<Expr>& exprs);
 
   //! Get the ModuleExpr stored in ScheduleImpl.
-  ModuleExpr GetModule() const;
+  const ModuleExpr& GetModule() const;
 
   //! Merge multiple Exprs in a ModuleExepr to be one
   void MergeExprs();
