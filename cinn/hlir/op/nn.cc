@@ -2215,12 +2215,7 @@ CINN_REGISTER_HELPER(nn_ops) {
 #ifndef CINN_WITH_CUDA
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForConv2d))
 #endif
-#ifdef CINN_WITH_CUDNN
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
-#else
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern",
-                                                      cinn::hlir::framework::OpPatternKind::kOutEWiseFusable)
-#endif
       .set_support_level(4);
 
   CINN_REGISTER_OP(conv2d_NCHWc)

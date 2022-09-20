@@ -2007,7 +2007,7 @@ void OpLowerer::OutEWiseFusableSchedule(poly::StageMap& stages,
       stage->CopyTransform(master_stage);
       stage->CopyLoopInfo(master_stage);
 
-      if (group->internal_nodes.count(node) || sub_group->internal_nodes.count(node)) {
+      if (!group->output_nodes.count(node)) {
         stage->SetBuffer("local");
       }
       // fringe node with no consumer
