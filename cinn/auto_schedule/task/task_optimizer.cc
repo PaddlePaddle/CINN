@@ -162,11 +162,11 @@ ir::LoweredFunc TaskOptimizer::FuncWithUpdatedBody(const ir::LoweredFunc& old_fu
 #ifdef CINN_WITH_CUDA
   optim::OptimizeExprGPU(&updated_body);
 #endif
+
   // Get new temp bufs by analyzing.
   std::vector<ir::Buffer> new_temp_bufs = lang::GetTempBuffers(old_func->args, updated_body);
   ir::LoweredFunc new_func = ir::_LoweredFunc_::Make(old_func->name, old_func->args, updated_body, new_temp_bufs);
-  new_func->PrepareBufferCastExprs();
-  new_func = optim::Optimize(Expr(new_func), task_->target, false).as_lowered_func_ref();
+  new_func                 = optim::Optimize(Expr(new_func), task_->target, false).as_lowered_func_ref();
   return new_func;
 }
 

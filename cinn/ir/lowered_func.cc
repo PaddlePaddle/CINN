@@ -328,7 +328,8 @@ void _LoweredFunc_::PrepareArgumentExprs() {
 }
 
 std::vector<Tensor> _LoweredFunc_::CollectAllTensorReference() const {
-  std::set<Expr> tensor_exprs = ir::CollectIRNodes(body, [](const Expr* expr) { return expr->As<ir::_Tensor_>(); });
+  std::set<Expr> tensor_exprs =
+      ir::CollectIRNodesWithoutTensor(body, [](const Expr* expr) { return expr->As<ir::_Tensor_>(); });
 
   std::vector<Tensor> tensors;
   // remove the duplicate tensor by their name.
