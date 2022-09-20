@@ -72,7 +72,7 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
 
     result.lowered_funcs.emplace_back(optim::IRCopy(task_->lowered_funcs));
 
-    std::vector<ir::Expr> best_exprs = states[0].mod_expr.GetExprs();
+    std::vector<ir::Expr> best_exprs = states[0].ir_schedule.GetModule().GetExprs();
     CHECK_EQ(best_exprs.size(), result.lowered_funcs[0].size())
         << "RuntimeError: Expr size is not equal to LoweredFunc size in TaskOptimizer";
     for (size_t i = 0; i < best_exprs.size(); ++i) {
@@ -95,9 +95,9 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
     std::vector<MeasureInput> measure_inputs(states.size());
     std::vector<const ir::ModuleExpr*> cost_model_samples(states.size());
     for (size_t i = 0; i < states.size(); ++i) {
-      cost_model_samples[i]            = &(states[i].mod_expr);
+      cost_model_samples[i]            = &(states[i].ir_schedule.GetModule());
       measure_inputs[i].task           = task_;
-      std::vector<ir::Expr> best_exprs = states[i].mod_expr.GetExprs();
+      std::vector<ir::Expr> best_exprs = states[i].ir_schedule.GetModule().GetExprs();
       CHECK_EQ(best_exprs.size(), task_->lowered_funcs.size())
           << "RuntimeError: Expr size is not equal to LoweredFunc size in TaskOptimizer";
 

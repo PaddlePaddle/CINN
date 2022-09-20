@@ -1,3 +1,5 @@
+proto_library(schedule_desc_proto SRCS schedule_desc.proto)
+
 core_gather_headers()
 
 gather_srcs(cinnapi_src SRCS
@@ -21,6 +23,7 @@ gather_srcs(cinnapi_src SRCS
     module.cc
     intrinsic_ops.cc
     layout.cc
+    schedule_desc.cc
     )
 
 # cc_test(test_ir SRCS ir_test.cc DEPS core)
@@ -32,3 +35,8 @@ cc_test(test_buffer SRCS buffer_test.cc DEPS cinncore ARGS ${global_test_args})
 cc_test(test_tensor SRCS tensor_test.cc DEPS cinncore)
 cc_test(test_intrinsic_ops SRCS intrinsic_ops_test.cc DEPS cinncore)
 cc_test(test_ir_verify SRCS ir_verify_test.cc DEPS cinncore)
+cc_test(test_schedule_desc SRCS schedule_desc_test.cc DEPS cinncore)
+
+foreach(header ${schedule_desc_proto_HDRS})
+  set(core_proto_includes "${core_proto_includes};${header}" CACHE INTERNAL "")
+endforeach()

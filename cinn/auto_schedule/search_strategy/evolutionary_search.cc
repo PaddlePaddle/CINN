@@ -80,9 +80,10 @@ std::vector<SearchState> EvolutionarySearch::RandomInitSketch(int num) {
 }
 
 SearchState EvolutionarySearch::CrossOver(const SearchState& state1, const SearchState& state2) {
+  // TODO(CtfGo): tracing CrossOver with IRSchedule
   std::vector<ir::Expr> cross_over_exprs;
-  std::vector<ir::Expr> father_exprs = state1.mod_expr.GetExprs();
-  std::vector<ir::Expr> mother_exprs = state2.mod_expr.GetExprs();
+  std::vector<ir::Expr> father_exprs = state1.ir_schedule.GetModule().GetExprs();
+  std::vector<ir::Expr> mother_exprs = state2.ir_schedule.GetModule().GetExprs();
 
   CHECK_EQ(father_exprs.size(), mother_exprs.size())
       << "CrossOver ModuleExpr in EvolutionarySearch must have same number of AST";

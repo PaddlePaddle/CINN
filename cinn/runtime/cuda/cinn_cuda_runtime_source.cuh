@@ -47,34 +47,40 @@ __device__ inline float cinn_min(const float left, const float right) { return m
 __device__ inline bool cinn_all(const bool left, const bool right) { return left && right; }
 __device__ inline bool cinn_any(const bool left, const bool right) { return left || right; }
 
-#define cinn_warp_shuffle_internal_kernel(TYPE, value, op)                        \
-  TYPE tmp_val     = value;                                                \
-  unsigned int mask = __activemask();                                       \
-  tmp_val           = op(tmp_val, __shfl_down_sync(mask, tmp_val, 16, 32)); \
-  tmp_val           = op(tmp_val, __shfl_down_sync(mask, tmp_val, 8, 32));  \
-  tmp_val           = op(tmp_val, __shfl_down_sync(mask, tmp_val, 4, 32));  \
-  tmp_val           = op(tmp_val, __shfl_down_sync(mask, tmp_val, 2, 32));  \
-  tmp_val           = op(tmp_val, __shfl_down_sync(mask, tmp_val, 1, 32));  \
-  tmp_val           = __shfl_sync(mask, tmp_val, 0, 32);                    \
+#define cinn_shuffle_function(offset, op, init)                  \
+  shfl_res = __shfl_down_sync(mask, tmp_val, offset, 32);        \
+  shfl_res = threadIdx.x % 32 + offset < lane ? shfl_res : init; \
+  tmp_val = op(tmp_val, shfl_res);
+
+#define cinn_warp_shuffle_internal_kernel(TYPE, value, op, init) \
+  TYPE tmp_val      = value, shfl_res;                           \
+  unsigned int mask = __activemask();                            \
+  unsigned int lane = __popc(mask);                              \
+  cinn_shuffle_function(16, op, init)                            \
+  cinn_shuffle_function(8, op, init)                             \
+  cinn_shuffle_function(4, op, init)                             \
+  cinn_shuffle_function(2, op, init)                             \
+  cinn_shuffle_function(1, op, init)                             \
+  tmp_val = __shfl_sync(mask, tmp_val, 0, 32);                   \
   return tmp_val;
 
 __device__ inline float cinn_warp_shuffle_sum_internal(const float value) {
-  cinn_warp_shuffle_internal_kernel(float, value, cinn_sum);
+  cinn_warp_shuffle_internal_kernel(float, value, cinn_sum, 0.0f);
 }
 __device__ inline float cinn_warp_shuffle_prod_internal(const float value) {
-  cinn_warp_shuffle_internal_kernel(float, value, cinn_prod);
+  cinn_warp_shuffle_internal_kernel(float, value, cinn_prod, 1.0f);
 }
 __device__ inline float cinn_warp_shuffle_max_internal(const float value) {
-  cinn_warp_shuffle_internal_kernel(float, value, cinn_max);
+  cinn_warp_shuffle_internal_kernel(float, value, cinn_max, CINN_FLT_MIN);
 }
 __device__ inline float cinn_warp_shuffle_min_internal(const float value) {
-  cinn_warp_shuffle_internal_kernel(float, value, cinn_min);
+  cinn_warp_shuffle_internal_kernel(float, value, cinn_min, CINN_FLT_MAX);
 }
 __device__ inline bool cinn_warp_shuffle_all_internal(const bool value) {
-  cinn_warp_shuffle_internal_kernel(bool, value, cinn_all);
+  cinn_warp_shuffle_internal_kernel(bool, value, cinn_all, true);
 }
 __device__ inline bool cinn_warp_shuffle_any_internal(const bool value) {
-  cinn_warp_shuffle_internal_kernel(bool, value, cinn_any);
+  cinn_warp_shuffle_internal_kernel(bool, value, cinn_any, false);
 }
 
 #undef cinn_warp_shuffle_internal_kernel
@@ -200,18 +206,28 @@ __device__ inline bool cinn_block_reduce_any(const bool *buf, int offset, int ex
   return cinn_block_reduce_any_internal(tmp_val);
 }
 
-#define __cinn_cuda_find_kernel(buf, size, num) \
-  do {                                          \
-    for (int i = size - 1; i >= 0; --i) {       \
-      if (buf[i] == num) return i;              \
-    }                                           \
-    return -1;                                  \
+#define __cinn_cuda_find_kernel(buf, size, num, begin, stride)           \
+  do {                                                                   \
+    for (int i = (size - 1) * stride + begin; i >= begin; i -= stride) { \
+      if (buf[i] == num) return (i - begin) / stride;                    \
+    }                                                                    \
+    return -1;                                                           \
   } while (0)
 
-__device__ inline int cinn_cuda_find_int(const int *buf, int size, int num) { __cinn_cuda_find_kernel(buf, size, num); }
+__device__ inline int cinn_cuda_find_int(const int *buf, int size, int num) {
+  __cinn_cuda_find_kernel(buf, size, num, 0, 1);
+}
 
 __device__ inline int cinn_cuda_find_float(const float *buf, int size, float num) {
-  __cinn_cuda_find_kernel(buf, size, num);
+  __cinn_cuda_find_kernel(buf, size, num, 0, 1);
+}
+
+__device__ inline int cinn_cuda_find_int_nd(const int *buf, int size, int num, int begin, int stride) {
+  __cinn_cuda_find_kernel(buf, size, num, begin, stride);
+}
+
+__device__ inline int cinn_cuda_find_float_nd(const float *buf, int size, float num, int begin, int stride) {
+  __cinn_cuda_find_kernel(buf, size, num, begin, stride);
 }
 
 #undef __cinn_cuda_find_kernel
@@ -234,6 +250,48 @@ __device__ inline int cinn_cuda_find_float_from(const float *buf, int size, floa
 
 #undef __cinn_cuda_find_from_kernel
 
+#define __cinn_cuda_lt_num_kernel(buf, size, num, offset, stride)          \
+  do {                                                                     \
+    int out = 0;                                                           \
+    for (int i = (size - 1) * stride + offset; i >= offset; i -= stride) { \
+      if (buf[i] < num) out++;                                             \
+    }                                                                      \
+    return out;                                                            \
+  } while (0)
+
+__device__ inline int cinn_cuda_lt_num_float(
+    const float *buf, const int size, const float num, const int offset, const int stride) {
+  __cinn_cuda_lt_num_kernel(buf, size, num, offset, stride);
+}
+
+__device__ inline int cinn_cuda_lt_num_int(
+    const int *buf, const int size, const int num, const int offset, const int stride) {
+  __cinn_cuda_lt_num_kernel(buf, size, num, offset, stride);
+}
+
+#undef __cinn_cuda_lt_num_kernel
+
+#define __cinn_cuda_gt_num_kernel(buf, size, num, offset, stride)          \
+  do {                                                                     \
+    int out = 0;                                                           \
+    for (int i = (size - 1) * stride + offset; i >= offset; i -= stride) { \
+      if (buf[i] > num) out++;                                             \
+    }                                                                      \
+    return out;                                                            \
+  } while (0)
+
+__device__ inline int cinn_cuda_gt_num_float(
+    const float *buf, const int size, const float num, const int offset, const int stride) {
+  __cinn_cuda_gt_num_kernel(buf, size, num, offset, stride);
+}
+
+__device__ inline int cinn_cuda_gt_num_int(
+    const int *buf, const int size, const int num, const int offset, const int stride) {
+  __cinn_cuda_gt_num_kernel(buf, size, num, offset, stride);
+}
+
+#undef __cinn_cuda_gt_num_kernel
+
 __device__ inline float cinn_cuda_index_add(const float x,
                                             const int axis_indice,
                                             const float *__restrict__ y,
@@ -254,11 +312,11 @@ __device__ inline float cinn_cuda_index_add(const float x,
 
 #define block_shuffle_kernel(TYPE, name, op, init_value)                               \
   __device__ inline TYPE block_shuffle_##name(const TYPE *buf, int line, int stride) { \
-    TYPE val = init_value;                                                              \
-    for (int idx = threadIdx.x; idx < line; idx += stride) {                             \
-      val = op(val, buf[idx]);                                                           \
-    }                                                                                    \
-    return val;                                                                          \
+    TYPE val = init_value;                                                             \
+    for (int idx = threadIdx.x; idx < line; idx += stride) {                           \
+      val = op(val, buf[idx]);                                                         \
+    }                                                                                  \
+    return val;                                                                        \
   }
 
 block_shuffle_kernel(float, sum, cinn_sum, 0.0f);

@@ -15,30 +15,22 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
-#include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
-#include "cinn/common/target.h"
-#include "cinn/ir/ir_schedule.h"
+#include "cinn/ir/ir.h"
+#include "cinn/ir/ir_base.h"
+#include "cinn/ir/tensor.h"
 
 namespace cinn {
-namespace auto_schedule {
+namespace hlir {
+namespace op {
 
-class SkipRule : public AutoGenRule {
- public:
-  SkipRule(const common::Target& target);
-  ~SkipRule() = default;
+ir::Tensor ArgSort(
+    const ir::Tensor& A, const common::Target& target, const int& axis, const bool& is_ascend, const std::string& name);
 
-  RuleApplyType Init(const ir::IRSchedule& init_schedule) override;
+std::vector<ir::Tensor> Sort(
+    const ir::Tensor& A, const common::Target& target, const int& axis, const bool& is_ascend, const std::string& name);
 
-  ir::IRSchedule Apply(int index) override;
-
-  std::string GetRuleName() const override;
-
-  AutoGenRule* NewPointer() const override;
-
- private:
-  std::unique_ptr<ir::IRSchedule> ir_schedule_;
-};
-
-}  // namespace auto_schedule
+}  // namespace op
+}  // namespace hlir
 }  // namespace cinn

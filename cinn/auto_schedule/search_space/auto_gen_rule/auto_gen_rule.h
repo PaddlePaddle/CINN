@@ -49,7 +49,7 @@ class AutoGenRule {
 
   // Initailize the AutoGenRule, it must be called before further actions.
   // Returns false if the rule cannot be applied on the mod_expr, true otherwise.
-  virtual RuleApplyType Init(const ir::ModuleExpr& mod_expr) = 0;
+  virtual RuleApplyType Init(const ir::IRSchedule& init_schedule) = 0;
 
   // CINN IRSchedule can contain many ScheduleBlock(s) and Loop(s), so
   // a auto gen rule may be suitable to different number of
@@ -58,11 +58,11 @@ class AutoGenRule {
   virtual int NumberApplicable() const;
 
   // Applies rule on the ir::ModuleExpr for a schedule block randomly
-  virtual ir::ModuleExpr ApplyRandomly();
+  virtual ir::IRSchedule ApplyRandomly();
 
   // Applies rule on the ir::ModuleExpr for a schedule block specified by index
   // between 0 (inclusive) and NumberApplicable() (exclusive)
-  virtual ir::ModuleExpr Apply(int index) = 0;
+  virtual ir::IRSchedule Apply(int index) = 0;
 
   // Returns the name of the rule, used for debug.
   virtual std::string GetRuleName() const = 0;

@@ -1170,25 +1170,34 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpaqueOp(GroupPtr& group, bool ap
   std::vector<common::CINNValue> cinn_inputs;
 
   std::vector<ir::Argument> args;
+  std::unordered_map<std::string, ir::Tensor> tensor_map;
   for (auto& i : node->inlinks_in_order(true)) {
     std::string id = i->source()->as<NodeData>()->id();
     auto shape     = shape_dict_.at(id);
     Type dtype     = type_dict_.at(id);
     CHECK(dtype.is_supported()) << "Node " << id << " 's dtype " << dtype << "is not supported yet!";
-    ir::Tensor input;
-    if (dtype == Float(32)) {
-      input = lang::Placeholder<float>(id, shape);
-    } else if (dtype.is_bool()) {
-      input = lang::Placeholder<bool>(id, shape);
-    } else if (dtype == Int(32)) {
-      input = lang::Placeholder<int32_t>(id, shape);
-    } else if (dtype == Int(64)) {
-      input = lang::Placeholder<int64_t>(id, shape);
+
+    ir::Tensor tensor;
+    if (!tensor_map.count(id)) {
+      if (dtype == Float(32)) {
+        tensor = lang::Placeholder<float>(id, shape);
+      } else if (dtype.is_bool()) {
+        tensor = lang::Placeholder<bool>(id, shape);
+      } else if (dtype == Int(32)) {
+        tensor = lang::Placeholder<int32_t>(id, shape);
+      } else if (dtype == Int(64)) {
+        tensor = lang::Placeholder<int64_t>(id, shape);
+      }
+      tensor_map[id] = tensor;
+      // input name
+      group->input_names.push_back(id);
+      // input args type
+      args.emplace_back(tensor->buffer, ir::Argument::IO::kInput);
+    } else {
+      tensor = tensor_map[id];
     }
-    inputs.push_back(input);
-    cinn_inputs.push_back(common::CINNValue(input));
-    group->input_names.push_back(id);
-    args.emplace_back(input->buffer, ir::Argument::IO::kInput);
+    inputs.push_back(tensor);
+    cinn_inputs.push_back(common::CINNValue(tensor));
   }
 
   std::vector<Type> out_types;
@@ -1209,6 +1218,11 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpaqueOp(GroupPtr& group, bool ap
     cinn_inputs.push_back(common::CINNValue(group->GetFuncName()));
     common::CINNValuePack pack = impl->fcompute(common::CINNValuePack{cinn_inputs});
     CHECK_EQ(pack.size(), 1UL);
+    // reset input names as extern api input args can't be remove duplicate.
+    group->input_names.clear();
+    for (auto& inode : node->inlinks_in_order(true)) {
+      group->input_names.push_back(inode->source()->as<NodeData>()->id());
+    }
     return {pack[0].operator ir::Expr().as_lowered_func_ref()};
   }
 
@@ -2034,14 +2048,16 @@ void OpLowerer::OutEWiseFusableSchedule(poly::StageMap& stages,
 std::vector<ir::LoweredFunc> OpLowerer::LowerOpaqueOp(GroupPtr& group) {
   VLOG(3) << "LowerOpaqueOp Group : " << group->group_id;
   // get input tensor and output tensor
-  std::vector<ir::Tensor> func_args;
   CHECK(group->nodes.size() || group->fused_sub_groups.size());
   auto& cinn_strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
-
+  // node
   auto node = group->fused_sub_groups.size() ? group->fused_sub_groups[0]->nodes.front() : group->nodes.front();
+  // collect input
+  std::vector<ir::Tensor> func_args;
   std::vector<ir::Tensor> tensor_inputs;
   std::vector<common::CINNValue> cinn_inputs;
+  std::unordered_map<std::string, ir::Tensor> tensor_map;
   for (auto& link : node->inlinks_in_order(true)) {
     auto source = link->source();
     CHECK(source);
@@ -2053,22 +2069,27 @@ std::vector<ir::LoweredFunc> OpLowerer::LowerOpaqueOp(GroupPtr& group) {
     auto dtype = this->type_dict_.at(id);
 
     ir::Tensor tensor;
-    if (dtype == Float(32)) {
-      tensor = lang::Placeholder<float>(id, shape);
-    } else if (dtype.is_bool()) {
-      tensor = lang::Placeholder<bool>(id, shape);
-    } else if (dtype == Int(32)) {
-      tensor = lang::Placeholder<int32_t>(id, shape);
-    } else if (dtype == Int(64)) {
-      tensor = lang::Placeholder<int64_t>(id, shape);
+    if (!tensor_map.count(id)) {
+      if (dtype == Float(32)) {
+        tensor = lang::Placeholder<float>(id, shape);
+      } else if (dtype.is_bool()) {
+        tensor = lang::Placeholder<bool>(id, shape);
+      } else if (dtype == Int(32)) {
+        tensor = lang::Placeholder<int32_t>(id, shape);
+      } else if (dtype == Int(64)) {
+        tensor = lang::Placeholder<int64_t>(id, shape);
+      }
+      tensor_map[id] = tensor;
+      // recored func input args
+      func_args.push_back(tensor);
+      // collect input node data name.
+      group->input_names.push_back(tensor->name);
+    } else {
+      tensor = tensor_map[id];
     }
-    tensor_inputs.push_back(tensor);
 
+    tensor_inputs.push_back(tensor);
     cinn_inputs.push_back(common::CINNValue(ir::Expr(tensor)));
-    // recored func input args
-    func_args.push_back(tensor);
-    // collect input node data name.
-    group->input_names.push_back(tensor->name);
   }
 
   std::vector<Type> out_types;
@@ -2084,6 +2105,18 @@ std::vector<ir::LoweredFunc> OpLowerer::LowerOpaqueOp(GroupPtr& group) {
 
   auto impl =
       OpStrategy::SelectImpl(cinn_strategy[node->op()](node->attrs, tensor_inputs, out_types, out_shapes, target_));
+  // if node op is custom call, return compute.
+  if (node->op()->name == "custom_call") {
+    cinn_inputs.push_back(common::CINNValue(group->GetFuncName()));
+    common::CINNValuePack pack = impl->fcompute(common::CINNValuePack{cinn_inputs});
+    CHECK_EQ(pack.size(), 1UL);
+    // reset input names as extern api input args can't be remove duplicate.
+    group->input_names.clear();
+    for (auto& inode : node->inlinks_in_order(true)) {
+      group->input_names.push_back(inode->source()->as<NodeData>()->id());
+    }
+    return {pack[0].operator ir::Expr().as_lowered_func_ref()};
+  }
   // do compute
   common::CINNValuePack value_pack = impl->fcompute(common::CINNValuePack{cinn_inputs});
   // do schedule

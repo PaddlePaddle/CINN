@@ -80,6 +80,7 @@ void BindLoweredFunc(py::module *m) {
   py::class_<LoweredFunc> lowered_func(*m, "LoweredFunc");
   lowered_func.def(py::init<>())
       .def(py::init<IrNode *>())
+      .def("name", [](const ir::LoweredFunc &self) -> std::string { return self->name; })
       .def("__str__", [](const ir::LoweredFunc &self) -> std::string { return utils::GetStreamCnt(Expr(self)); })
       .def("__repr__", [](const ir::LoweredFunc &self) -> std::string {
         return llvm::formatv("<LoweredFunc {0}>", self.get(), self->name.c_str());
