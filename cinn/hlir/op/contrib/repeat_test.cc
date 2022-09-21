@@ -63,6 +63,30 @@ TEST(GenerateCode_Cpu, Repeat) {
   std::string code = codegen.Compile(builder.Build(), backends::CodeGenC::OutputKind::CImpl);
   VLOG(6) << "Cpu Codegen result:";
   VLOG(6) << code << std::endl;
+
+  auto target_source = R"ROC(
+#include <cinn_runtime.h>
+#include <stdio.h>
+
+void TestGenerateCodeCpu_Repeat(void* _args, int32_t num_args)
+{
+  cinn_buffer_t* _test_repeat = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
+  cinn_buffer_t* _in = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_int32_t(), { 4, 4 });
+  cinn_buffer_malloc((void*)(0), _test_repeat);
+  cinn_buffer_malloc((void*)(0), _in);
+  const int32_t* in = ((const int32_t*)(_in->memory));
+  int32_t* test_repeat = ((int32_t*)(_test_repeat->memory));
+  for (int32_t i = 0; i < 8; i += 1) {
+    for (int32_t j = 0; j < 4; j += 1) {
+      test_repeat[((4 * i) + j)] = in[((4 * ((int32_t)(floorf((0.5 * ((float)(i))))))) + j)];
+    };
+  };
+  cinn_buffer_free((void*)(0), _in);
+  cinn_buffer_free((void*)(0), _test_repeat);
+}
+  )ROC";
+
+  ASSERT_EQ(utils::Trim(code), utils::Trim(target_source));
 }
 
 }  // namespace op
