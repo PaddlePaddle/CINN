@@ -113,7 +113,12 @@ std::shared_ptr<framework::OpStrategy> StrategyForArgmax(const framework::NodeAt
     CHECK(in_expr.as_tensor());
     Tensor in_tensor = in_expr.as_tensor_ref();
     auto stages      = CreateStages({in_tensor});
-    auto out_tensor  = Argmax(in_tensor, target, stages, axis, keep_dims, tensor_name);
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK_EQ(pack_args.size(), 2U);
+      CHECK(pack_args[1].is_string());
+      tensor_name = pack_args[1].operator std::string();
+    }
+    auto out_tensor = Argmax(in_tensor, target, stages, axis, keep_dims, tensor_name);
 
     stages->InsertLazily(out_tensor);
     std::vector<CINNValue> cinn_values{CINNValue(out_tensor), CINNValue(stages)};

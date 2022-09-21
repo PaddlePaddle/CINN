@@ -62,9 +62,11 @@ TEST(GenerateCode_Cpu, Argmax_Keep) {
 
   backends::CodeGenCX86 codegen(target, backends::CodeGenCX86::Feature::AVX512);
   codegen.SetInlineBuiltinCodes(false);
-  std::string code = codegen.Compile(builder.Build(), backends::CodeGenC::OutputKind::CImpl);
-  VLOG(6) << "Cpu Codegen result:";
-  VLOG(6) << code << std::endl;
+  std::string code   = codegen.Compile(builder.Build(), backends::CodeGenC::OutputKind::CImpl);
+  auto target_source = R"ROC(
+
+  )ROC";
+  CHECK_EQ(utils::Trim(code), utils::Trim(target_source));
 }
 
 }  // namespace op
