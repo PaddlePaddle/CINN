@@ -64,7 +64,53 @@ TEST(GenerateCode_Cpu, Argmin_Keep) {
   codegen.SetInlineBuiltinCodes(false);
   std::string code   = codegen.Compile(builder.Build(), backends::CodeGenC::OutputKind::CImpl);
   auto target_source = R"ROC(
+#include <cinn_runtime.h>
+#include <stdio.h>
 
+void TestGenerateCodeCpu_Argmin_Keep(void* _args, int32_t num_args)
+{
+  const cinn_buffer_t* _in = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
+  cinn_buffer_t* _test_argmin_in = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[1]));
+  cinn_buffer_t* _test_argmin_in_index = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_int32_t(), { 4, 3, 28, 28 });
+  cinn_buffer_t* _test_argmin_in_index_temp = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_int32_t(), { 4, 3, 28, 28 });
+  cinn_buffer_malloc((void*)(0), _test_argmin_in);
+  cinn_buffer_malloc((void*)(0), _test_argmin_in_index);
+  cinn_buffer_malloc((void*)(0), _test_argmin_in_index_temp);
+  const float* in = ((const float*)(_in->memory));
+  int32_t* test_argmin_in = ((int32_t*)(_test_argmin_in->memory));
+  int32_t* test_argmin_in_index = ((int32_t*)(_test_argmin_in_index->memory));
+  int32_t* test_argmin_in_index_temp = ((int32_t*)(_test_argmin_in_index_temp->memory));
+  {
+    for (int32_t i = 0; i < 4; i += 1) {
+      for (int32_t j = 0; j < 3; j += 1) {
+        for (int32_t k = 0; k < 28; k += 1) {
+          for (int32_t a = 0; a < 28; a += 1) {
+            test_argmin_in_index_temp[((2352 * i) + ((784 * j) + ((28 * k) + a)))] = cinn_host_lt_num_float(_in, 3, in[((2352 * i) + ((784 * j) + ((28 * k) + a)))], ((2352 * i) + ((28 * k) + a)), 784);
+          };
+        };
+      };
+    };
+    for (int32_t i = 0; i < 4; i += 1) {
+      for (int32_t j = 0; j < 3; j += 1) {
+        for (int32_t k = 0; k < 28; k += 1) {
+          for (int32_t a = 0; a < 28; a += 1) {
+            test_argmin_in_index[((2352 * i) + ((784 * j) + ((28 * k) + a)))] = cinn_host_find_int_nd(_test_argmin_in_index_temp, 3, j, ((2352 * i) + ((28 * k) + a)), 784);
+          };
+        };
+      };
+    };
+    for (int32_t i = 0; i < 4; i += 1) {
+      for (int32_t k = 0; k < 28; k += 1) {
+        for (int32_t a = 0; a < 28; a += 1) {
+          test_argmin_in[((784 * i) + ((28 * k) + a))] = test_argmin_in_index[((2352 * i) + ((28 * k) + a))];
+        };
+      };
+    };
+  };
+  cinn_buffer_free((void*)(0), _test_argmin_in_index);
+  cinn_buffer_free((void*)(0), _test_argmin_in_index_temp);
+  cinn_buffer_free((void*)(0), _test_argmin_in);
+}
   )ROC";
   CHECK_EQ(utils::Trim(code), utils::Trim(target_source));
 }

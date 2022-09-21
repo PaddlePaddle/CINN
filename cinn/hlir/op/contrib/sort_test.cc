@@ -89,7 +89,43 @@ TEST(GenerateCode_Cpu, Sort) {
   codegen.SetInlineBuiltinCodes(false);
   std::string code   = codegen.Compile(builder.Build(), backends::CodeGenC::OutputKind::CImpl);
   auto target_source = R"ROC(
+#include <cinn_runtime.h>
+#include <stdio.h>
 
+void TestGenerateCodeCpu_Sort(void* _args, int32_t num_args)
+{
+  const cinn_buffer_t* _in = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
+  cinn_buffer_t* _test_sort_out = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[1]));
+  cinn_buffer_t* _test_sort_out_index = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_int32_t(), { 4, 28 });
+  cinn_buffer_t* _test_sort_out_index_temp = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_int32_t(), { 4, 28 });
+  cinn_buffer_malloc((void*)(0), _test_sort_out);
+  cinn_buffer_malloc((void*)(0), _test_sort_out_index);
+  cinn_buffer_malloc((void*)(0), _test_sort_out_index_temp);
+  const int32_t* in = ((const int32_t*)(_in->memory));
+  int32_t* test_sort_out = ((int32_t*)(_test_sort_out->memory));
+  int32_t* test_sort_out_index = ((int32_t*)(_test_sort_out_index->memory));
+  int32_t* test_sort_out_index_temp = ((int32_t*)(_test_sort_out_index_temp->memory));
+  {
+    for (int32_t i = 0; i < 4; i += 1) {
+      for (int32_t j = 0; j < 28; j += 1) {
+        test_sort_out_index_temp[((28 * i) + j)] = cinn_host_lt_num_float(_in, 28, in[((28 * i) + j)], (28 * i), 1);
+      };
+    };
+    for (int32_t i = 0; i < 4; i += 1) {
+      for (int32_t j = 0; j < 28; j += 1) {
+        test_sort_out_index[((28 * i) + j)] = cinn_host_find_int_nd(_test_sort_out_index_temp, 28, j, (28 * i), 1);
+      };
+    };
+    for (int32_t i = 0; i < 4; i += 1) {
+      for (int32_t j = 0; j < 28; j += 1) {
+        test_sort_out[((28 * i) + j)] = in[((28 * i) + test_sort_out_index[((28 * i) + j)])];
+      };
+    };
+  };
+  cinn_buffer_free((void*)(0), _test_sort_out_index);
+  cinn_buffer_free((void*)(0), _test_sort_out_index_temp);
+  cinn_buffer_free((void*)(0), _test_sort_out);
+}
   )ROC";
   CHECK_EQ(utils::Trim(code), utils::Trim(target_source));
 }
