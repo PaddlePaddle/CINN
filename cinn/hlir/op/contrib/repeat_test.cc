@@ -53,6 +53,28 @@ TEST(GenerateCode_Cpu, Repeat) {
   VLOG(6) << "Expr before CPU codegen:";
   VLOG(6) << funcs[0]->body;
 
+  auto target_source_ir = R"ROC(
+function TestGenerateCodeCpu_Repeat (_test_repeat)
+{
+  ScheduleBlock(root)
+  {
+    for (i, 0, 8)
+    {
+      for (j, 0, 4)
+      {
+        ScheduleBlock(test_repeat)
+        {
+          i0, i1 = axis.bind(i, j)
+          test_repeat[i0, i1] = in[int32(floor((0.5 * float32(i0)))), i1]
+        }
+      }
+    }
+  }
+}
+  )ROC";
+
+  ASSERT_EQ(utils::GetStreamCnt(funcs[0]), utils::Trim(target_source_ir));
+
   ir::Module::Builder builder("Repeat_Module", target);
   for (auto &f : funcs) {
     builder.AddFunction(f);
