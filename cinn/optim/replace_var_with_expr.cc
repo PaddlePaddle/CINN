@@ -448,10 +448,12 @@ void CUDAReplaceIndexOfCachePass(Expr* source,
   if (extent.defined() && !extent.is_constant()) {
     VLOG(3) << "Warning! The extent " << extent << " is not constant in CUDAReplaceIndexOfCachePass!";
   }
-  VLOG(3) << "CUDAReplaceIndexOfCachePass visit " << *source;
+  VLOG(3) << "CUDAReplaceIndexOfCachePass with tensor_name [" << tensor_name << "] and extent [" << extent << "] visit "
+          << *source;
   ReplaceVarIndexOfCacheMutator mutator(
       var, expr, global_tensor_map, resized_buffer, blockidx, extent, tensor_name, loop2extent);
   mutator.Execute(source);
+  VLOG(3) << "After replace, expr is : " << *source;
 }
 
 }  // namespace optim
