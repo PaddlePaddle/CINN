@@ -50,12 +50,13 @@ class ScheduleImpl {
   ScheduleImpl() = default;
   explicit ScheduleImpl(const ModuleExpr& module_expr, bool debug_flag = false)
       : module_expr_(module_expr), debug_flag_(debug_flag) {}
+  explicit ScheduleImpl(ModuleExpr&& module_expr) : module_expr_(std::move(module_expr)) {}
 
   //! Set the debug flag.
   void SetDebugFlag(bool debug_flag) { debug_flag_ = debug_flag; }
 
   //! Get the ModuleExpr stored in ScheduleImpl.
-  ModuleExpr GetModule() const { return module_expr_; }
+  const ModuleExpr& GetModule() const { return module_expr_; }
 
   void MergeExprs();
 
@@ -1445,6 +1446,14 @@ void ScheduleImpl::CopyTransformAndLoopInfo(const Expr& block, const Expr& block
 IRSchedule::IRSchedule() {}
 
 IRSchedule::IRSchedule(IRSchedule&& other) : impl_(std::move(other.impl_)), trace_(std::move(other.trace_)) {}
+IRSchedule::IRSchedule(ir::ModuleExpr&& mod_expr, ScheduleDesc&& trace)
+    : impl_(std::make_unique<ScheduleImpl>(std::move(mod_expr))), trace_(std::move(trace)) {}
+
+IRSchedule& IRSchedule::operator=(IRSchedule&& src) {
+  impl_  = std::move(src.impl_);
+  trace_ = std::move(src.trace_);
+  return *this;
+}
 
 IRSchedule::~IRSchedule() {}
 
@@ -1457,7 +1466,7 @@ void IRSchedule::SetExprs(const std::vector<Expr>& exprs) {
   // no need to trace
 }
 
-ModuleExpr IRSchedule::GetModule() const {
+const ModuleExpr& IRSchedule::GetModule() const {
   return impl_->GetModule();
   // no need to trace
 }

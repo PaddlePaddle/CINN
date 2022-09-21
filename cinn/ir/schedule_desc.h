@@ -49,7 +49,6 @@ class ScheduleDesc {
          std::vector<Expr> outputs_i)
         : type(type_i), inputs(inputs_i), attrs(attrs_i), outputs(outputs_i) {}
   };
-  std::vector<Step> steps;  // all operations are recorded in order.
 
   // Re-applied a scheduling process represented as a proto::ScheduleDesc to a new IRSchedule object
   static std::vector<Expr> ReplayWithProto(const proto::ScheduleDesc& desc_proto, IRSchedule* sch);
@@ -66,6 +65,9 @@ class ScheduleDesc {
 
   // convert to a proto::ScheduleDesc object
   proto::ScheduleDesc ToProto() const;
+
+ private:
+  std::vector<Step> steps_;  // all operations are recorded in order.
 };
 
 }  // namespace ir

@@ -519,11 +519,11 @@ struct ExprEqual {
   bool operator()(const Expr& lhs, const Expr& rhs) const { return lhs.get() == rhs.get(); }
 };
 
-void ScheduleDesc::Append(Step&& step) { steps.emplace_back(step); }
+void ScheduleDesc::Append(Step&& step) { steps_.emplace_back(std::move(step)); }
 
 void ScheduleDesc::Pop() {
-  if (!steps.empty()) {
-    steps.pop_back();
+  if (!steps_.empty()) {
+    steps_.pop_back();
   }
 }
 
@@ -534,7 +534,7 @@ proto::ScheduleDesc ScheduleDesc::ToProto() const {
   absl::flat_hash_map<Expr, std::string, ExprHash, ExprEqual> expr2name;
   proto::ScheduleDesc desc_proto;
 
-  for (auto&& step : steps) {
+  for (auto&& step : steps_) {
     auto* step_proto = desc_proto.add_steps();
     step_proto->set_type(step.type);
     // inputs of a step must refer to Exprs resulted by preceding steps

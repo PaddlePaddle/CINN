@@ -357,7 +357,7 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
 
   Expr Visit(const ir::_BufferRange_* op) {
     std::vector<Var> ranges;
-    for (auto& range_var : ranges) {
+    for (auto& range_var : op->ranges) {
       auto* var = range_var.As<_Var_>();
       ranges.push_back(Visit(var));
     }
@@ -380,7 +380,7 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
       write_buffers.push_back(Visit(&buffer_range));
     }
     Expr res = ir::ScheduleBlock::Make(iter_vars, read_buffers, write_buffers, op->name, Visit(&op->body));
-    res.As<ir::ScheduleBlock>()->attrs = op->attrs;
+    res.As<ScheduleBlock>()->attrs = op->attrs;
     return res;
   }
 
@@ -471,6 +471,10 @@ std::vector<Expr> IRCopy(const std::vector<Expr>& x) {
 }
 
 ir::ModuleExpr IRCopy(const ir::ModuleExpr& x) { return ir::ModuleExpr(IRCopy(x.GetExprs())); }
+
+ir::IRSchedule IRCopy(const ir::IRSchedule& x) {
+  return ir::IRSchedule(IRCopy(x.GetModule()), ir::ScheduleDesc(x.GetTraceDesc()));
+}
 
 ir::LoweredFunc IRCopy(const ir::LoweredFunc& x) {
   ir::Expr copy_func_expr          = IRCopy(static_cast<ir::Expr>(x));

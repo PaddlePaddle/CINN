@@ -836,6 +836,8 @@ void GraphCompiler::SetSubKernels(Instruction* instr, const std::string& func_na
 }
 
 void GraphCompiler::BuildCublasInstr(const Node& node, Instruction* instr) const {
+  instr->ClearInArgs();
+  instr->AddInArgs(OpGetInputNames(&node));
   auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
   // shape info
   std::vector<int> shape_sizes;

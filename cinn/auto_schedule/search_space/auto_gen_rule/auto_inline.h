@@ -44,9 +44,9 @@ class AutoInline : public AutoGenRule {
   AutoInline(const common::Target& target, const std::unordered_set<std::string>& no_inline_output_names);
   ~AutoInline() = default;
 
-  RuleApplyType Init(const ir::ModuleExpr& mod_expr) override;
+  RuleApplyType Init(const ir::IRSchedule& init_schedule) override;
 
-  ir::ModuleExpr Apply(int index) override;
+  ir::IRSchedule Apply(int index) override;
 
   std::string GetRuleName() const override;
 
