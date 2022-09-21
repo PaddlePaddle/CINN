@@ -1802,7 +1802,9 @@ void CudaScheduleConv(poly::StageMap stages,
     return;
   }
   stages[input_pad]->ComputeInline();
-  stages[weights]->ComputeInline();
+  if (stages[weights]->has_expression()) {
+    stages[weights]->ComputeInline();
+  }
   int f_inner  = GetInnerSplitter(c, h);
   int block_z  = SplitEven(c / f_inner);
   int thread_z = c / f_inner / block_z;
