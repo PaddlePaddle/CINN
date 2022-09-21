@@ -105,10 +105,10 @@ std::shared_ptr<framework::OpStrategy> StrategyForArgmin(const framework::NodeAt
 
   framework::CINNCompute argmin_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of argmin compute is empty! Please check.";
-    common::CINNValuePack arg_packs = args[0];
+    common::CINNValuePack pack_args = args[0];
     std::string tensor_name         = UniqName("Argmin_out");
-    CHECK_EQ(arg_packs.size(), 1U) << "There should be 1 input args for argmax compute";
-    Expr in_expr = arg_packs[0];
+    CHECK_EQ(pack_args.size(), 1U) << "There should be 1 input args for argmax compute";
+    Expr in_expr = pack_args[0];
     CHECK(in_expr.as_tensor());
     Tensor in_tensor = in_expr.as_tensor_ref();
     auto stages      = CreateStages({in_tensor});
