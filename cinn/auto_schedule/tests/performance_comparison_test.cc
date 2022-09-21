@@ -15,6 +15,7 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
+#include <bitset>
 #include <iostream>
 
 #include "cinn/auto_schedule/auto_tuner.h"
@@ -26,9 +27,11 @@
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/pass.h"
 #include "cinn/ir/ir_base.h"
+#include "cinn/runtime/flags.h"
 #include "cinn/utils/data_util.h"
 
-DEFINE_string(resnet50_model_dir, "", "");
+DEFINE_string(resnet50_model_dir, "./ResNet50", "the path to paddle model resnet50.");
+DECLARE_bool(cinn_ir_schedule);
 
 namespace cinn {
 namespace auto_schedule {
@@ -46,49 +49,103 @@ class PerformanceTester {
   void BuildRuntimePrograms(int num_tuning_rounds) {
     scope_          = BuildScope(target_, graph_, scope_);
     graph_compiler_ = std::make_unique<GraphCompiler>(target_, scope_, graph_);
-    BuildNoScheduleProgram();
-    BuildManualScheduleProgram();
-    BuildAutoScheduleProgram(num_tuning_rounds);
+    if (option_flags_.test(0)) {
+      VLOG(3) << "Build no schedule program.";
+      BuildNoScheduleProgram();
+    }
+    if (option_flags_.test(1)) {
+      VLOG(3) << "Build manual schedule program.";
+      BuildManualScheduleProgram();
+    }
+    if (option_flags_.test(2)) {
+      VLOG(3) << "Build auto schedule program.";
+      BuildAutoScheduleProgram(num_tuning_rounds);
+    }
   }
 
   void Run(int repeat) {
-    no_schedule_program_->ExecuteTest(repeat);
-    manual_schedule_program_->ExecuteTest(repeat);
-    auto_schedule_program_->ExecuteTest(repeat);
+    if (option_flags_.test(0)) {
+      VLOG(3) << "Execute no schedule program.";
+      no_schedule_program_->ExecuteTest(repeat);
+    }
+    if (option_flags_.test(1)) {
+      VLOG(3) << "Execute manual schedule program.";
+      manual_schedule_program_->ExecuteTest(repeat);
+    }
+    if (option_flags_.test(2)) {
+      VLOG(3) << "Execute auto schedule program.";
+      auto_schedule_program_->ExecuteTest(repeat);
+    }
   }
 
-  void BuildAndRun(int repeat, int num_tuning_rounds) {
-    auto program = CreateProgram();
-    graph_       = std::make_shared<hlir::framework::Graph>(program, target_);
-    // graph_ = frontend::Optimize(&program, {}, target_);
-    hlir::framework::ApplyPass(graph_.get(), "InferShape");
-    VLOG(3) << "Initialize graph completed, start building runtime program.";
+  void BuildAndRun(int repeat, int num_tuning_rounds, bool initialize_graph = false) {
+    if (initialize_graph || !is_graph_initialized_) {
+      VLOG(3) << "Start initialize graph.";
+      auto program = CreateProgram();
+      graph_       = std::make_shared<hlir::framework::Graph>(program, target_);
+      hlir::framework::ApplyPass(graph_.get(), "InferShape");
+      is_graph_initialized_ = true;
+      VLOG(3) << "Initialize graph completed.";
+    }
+
+    VLOG(3) << "start building runtime program.";
     BuildRuntimePrograms(num_tuning_rounds);
     VLOG(3) << "Build runtime programs completed, start running.";
     Run(repeat);
   }
 
+  void SetOptionFlags(unsigned long options) {
+    CHECK_LE(options, 7UL) << "options can not be greater than 7";
+    option_flags_ = options;
+  }
+
  protected:
   void BuildNoScheduleProgram() {
-    std::tuple<std::vector<common::GraphNode*>, std::vector<common::GraphEdge*>> topo_result =
-        graph_->topological_order();
-    const std::vector<common::GraphNode*>& nodes = std::get<0>(topo_result);
-    std::vector<std::vector<hlir::framework::Node*>> task_graph;
-    for (common::GraphNode* n : nodes) {
-      hlir::framework::Node* op_node = n->safe_as<hlir::framework::Node>();
-      if (op_node) {
-        task_graph.push_back(std::vector<hlir::framework::Node*>(1, op_node));
-      }
-    }
-    std::vector<std::vector<ir::LoweredFunc>> funcs = graph_compiler_->FusedGraphToLoweredFunc(task_graph);
+    const auto& dtype_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, common::Type>>("inferdtype");
+    const auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, hlir::framework::shape_t>>("infershape");
+
+    std::shared_ptr<hlir::framework::OpLowerer> op_lowerer =
+        std::make_unique<hlir::framework::OpLowerer>(dtype_dict, shape_dict, target_);
 
     GraphCompiler::CompileOptions compile_options;
     compile_options.with_instantiate_variables = true;
-    compile_options.groups                     = task_graph;
-    compile_options.lowered_funcs              = funcs;
+
+    std::tuple<std::vector<common::GraphNode*>, std::vector<common::GraphEdge*>> topo_result =
+        graph_->topological_order();
+    const std::vector<common::GraphNode*>& nodes_in_order = std::get<0>(topo_result);
+    for (auto graph_node : nodes_in_order) {
+      // n must be an op node
+      auto node = graph_node->safe_as<hlir::framework::Node>();
+      if (node) {
+        auto group = std::make_shared<Graph::Group>();
+        // init group
+        group->nodes.push_back(node);
+        group->nodes_set.insert(node);
+        group->output_nodes.insert(node);
+        // input node
+        for (auto& edge : node->inlinks()) {
+          auto input_graph_node = edge->source();
+          auto input_node_data  = input_graph_node->safe_as<hlir::framework::NodeData>();
+          CHECK(input_node_data);
+          // input data has no source node
+          if (input_node_data->source_node.get()) {
+            group->input_nodes[input_node_data->source_node.get()] = 1;
+          }
+        }
+
+        // group type
+        group->op_pattern_kind = hlir::framework::kOpaque;
+        // use current node as master node for schedule
+        group->master_nodes.insert(node);
+        group->group_id = node->id();
+
+        compile_options.groups.push_back(group);
+        compile_options.lowered_funcs.push_back(op_lowerer->LowerWithoutSchedule(group));
+      }
+    }
 
     VLOG(3) << "===========================No Schedule LoweredFunc Begin===========================";
-    for (const auto& funcvec : funcs) {
+    for (const auto& funcvec : compile_options.lowered_funcs) {
       for (const auto& func : funcvec) {
         VLOG(3) << func;
       }
@@ -146,11 +203,19 @@ class PerformanceTester {
   std::unique_ptr<hlir::framework::Program> auto_schedule_program_;
 
   std::unique_ptr<AutoTuner> tuner_;
+
+  // Flags that control which schedule tests will be run.
+  // Bit with index 0 controls no schedule test, means options = 1 = "001" will run no schedule test.
+  // Bit with index 1 controls manual schedule test, means options = 2 = "010" will run manual schedule test.
+  // Bit with index 2 controls auto schedule test, means options = 4 = "100" will run auto schedule test.
+  // The default value is 7, which means that all tests will be run.
+  std::bitset<3> option_flags_ = 7UL;
+  bool is_graph_initialized_   = false;
 };
 
 class MulPerformanceTester : public PerformanceTester {
  public:
-  explicit MulPerformanceTester(int M, int K, int N) : M_(M), K_(K), N_(N) {}
+  MulPerformanceTester(int M, int K, int N) : M_(M), K_(K), N_(N) {}
 
   frontend::Program CreateProgram() override {
     frontend::NetBuilder builder("mul_net_builder");
@@ -169,7 +234,7 @@ class MulPerformanceTester : public PerformanceTester {
 
 class MatmulPerformanceTester : public PerformanceTester {
  public:
-  explicit MatmulPerformanceTester(int M, int K, int N) : M_(M), K_(K), N_(N) {}
+  MatmulPerformanceTester(int M, int K, int N) : M_(M), K_(K), N_(N) {}
 
   frontend::Program CreateProgram() override {
     frontend::NetBuilder builder("mul_net_builder");
@@ -188,7 +253,7 @@ class MatmulPerformanceTester : public PerformanceTester {
 
 class AddPerformanceTester : public PerformanceTester {
  public:
-  explicit AddPerformanceTester(int M, int N) : M_(M), N_(N) {}
+  AddPerformanceTester(int M, int N) : M_(M), N_(N) {}
 
   frontend::Program CreateProgram() override {
     frontend::NetBuilder builder("add_net_builder");
@@ -206,9 +271,9 @@ class AddPerformanceTester : public PerformanceTester {
 
 class PaddleModelPerformanceTester : public PerformanceTester {
  public:
-  explicit PaddleModelPerformanceTester(const std::string& model_path,
-                                        const std::vector<std::string>& input_names,
-                                        const std::vector<std::vector<int>>& input_shapes)
+  PaddleModelPerformanceTester(const std::string& model_path,
+                               const std::vector<std::string>& input_names,
+                               const std::vector<std::vector<int>>& input_shapes)
       : model_path_(model_path), input_names_(input_names), input_shapes_(input_shapes) {}
 
   frontend::Program CreateProgram() override {
@@ -249,39 +314,43 @@ const int repeat_time       = 100;
 const int num_tuning_rounds = 1;
 
 TEST(MatmulPerformanceTest, matmul_32x16x32) {
-  int M = 32;
-  int K = 16;
-  int N = 32;
+  FLAGS_cinn_ir_schedule = true;
+  int M                  = 32;
+  int K                  = 16;
+  int N                  = 32;
   MatmulPerformanceTester tester(M, K, N);
+  tester.SetOptionFlags(5UL);
   tester.BuildAndRun(repeat_time, num_tuning_rounds);
 }
 
 TEST(MulPerformanceTest, mul_32x16x32) {
-  int M = 32;
-  int K = 16;
-  int N = 32;
+  FLAGS_cinn_ir_schedule = true;
+  int M                  = 32;
+  int K                  = 16;
+  int N                  = 32;
   MulPerformanceTester tester(M, K, N);
+  tester.SetOptionFlags(5UL);
   tester.BuildAndRun(repeat_time, num_tuning_rounds);
 }
 
 TEST(AddPerformanceTest, add_32x16) {
-  int M = 32;
-  int N = 16;
+  FLAGS_cinn_ir_schedule = true;
+  int M                  = 32;
+  int N                  = 16;
   AddPerformanceTester tester(M, N);
-  tester.BuildAndRun(repeat_time, num_tuning_rounds);
-}
-
-TEST(AddPerformanceTest, add_1024x1024) {
-  int M = 1024;
-  int N = 1024;
-  AddPerformanceTester tester(M, N);
+  tester.SetOptionFlags(5UL);
   tester.BuildAndRun(repeat_time, num_tuning_rounds);
 }
 
 TEST(PaddleModelPerformanceTester, ResNet50) {
+  FLAGS_cinn_ir_schedule                     = true;
   std::vector<std::string> input_names       = {"inputs"};
   std::vector<std::vector<int>> input_shapes = {{1, 3, 224, 224}};
+
+  CHECK_NE(FLAGS_resnet50_model_dir, "");
+  // ResNet50 can only run manual schedule test now.
   PaddleModelPerformanceTester tester(FLAGS_resnet50_model_dir, input_names, input_shapes);
+  tester.SetOptionFlags(0UL);
   tester.BuildAndRun(repeat_time, num_tuning_rounds);
 }
 
