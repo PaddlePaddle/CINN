@@ -14,6 +14,8 @@
 
 #include "cinn/hlir/pe/transform.h"
 
+#include <algorithm>
+
 #include "cinn/common/cas.h"
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
@@ -301,6 +303,9 @@ std::vector<std::vector<int>> InferShapeForMatMul(const std::vector<std::vector<
     CHECK_EQ(new_shape_A.size(), output_shape.size());
     packedB_shape.insert(packedB_shape.begin(), new_shape_A.front());
   }
+  VLOG(4) << "During the matmul shape inference, new_shape_A: " << utils::Join(new_shape_A, ", ");
+  VLOG(4) << "During the matmul shape inference, new_shape_B: " << utils::Join(new_shape_B, ", ");
+  VLOG(4) << "During the matmul shape inference, output_shape: " << utils::Join(output_shape, ", ");
 #ifdef CINN_WITH_CUDA
   std::vector<std::vector<int>> res{output_shape};
 #else
@@ -1770,8 +1775,9 @@ std::vector<std::vector<int>> InferShapeForSlice(const std::vector<std::vector<i
       strides = absl::get<std::vector<int>>(iter.second);
     } else if (iter.first == "infer_flags") {
       auto infer_flags = absl::get<std::vector<int>>(iter.second);
-      if (!infer_flags.empty()) {
-        LOG(WARNING) << "attr [infer_flags] not support now";
+      if (std::find_if(infer_flags.begin(), infer_flags.end(), [](int v) { return v < 0; }) != infer_flags.end()) {
+        LOG(WARNING) << "The attr [infer_flags] has negative values, and its value is "
+                     << utils::Join(infer_flags, ", ");
       }
     } else {
       LOG(ERROR) << "Unsupported attr: " << iter.first << std::endl;
