@@ -301,6 +301,14 @@ class IRSchedule {
    */
   Expr Rfactor(const Expr& rf_loop, int rf_axis);
 
+  /*!
+   * \brief Annotate a block with a key-value pair to set as its attribute
+   * \param block The block to be annotated
+   * \param key The attribute key
+   * \param val The attribute value, its type should be one of attr_t listing
+   */
+  void Annotate(const Expr& block, const std::string& key, const attr_t& value);
+
  private:
   std::unique_ptr<ScheduleImpl> impl_;
   mutable ScheduleDesc trace_;  // trace the scheduling process

@@ -379,7 +379,9 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
     for (auto buffer_range : op->write_buffers) {
       write_buffers.push_back(Visit(&buffer_range));
     }
-    return ir::ScheduleBlock::Make(iter_vars, read_buffers, write_buffers, op->name, Visit(&op->body));
+    Expr res = ir::ScheduleBlock::Make(iter_vars, read_buffers, write_buffers, op->name, Visit(&op->body));
+    res.As<ir::ScheduleBlock>()->attrs = op->attrs;
+    return res;
   }
 
   Expr Visit(const ir::ScheduleBlockRealize* op) {
