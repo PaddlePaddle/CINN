@@ -34,10 +34,10 @@ void ConcatOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
     xs.emplace_back(ctx.GetVar(name));
   }
 
-  auto err_x = std::find_if(xs.begin(), xs.end(), [&](Variable x) { return x->type == xs.front()->type; });
-  CHECK(err_x == xs.end()) << "All input shape of [concat] should be the same, be the input " << (*err_x)->id
-                           << "'s type [" << (*err_x)->type << "] not equal to the first input " << xs.front()->id
-                           << "'s type [" << xs.front()->type << "]";
+  auto err_x = std::find_if(xs.begin(), xs.end(), [&](Variable x) { return x->type != xs.front()->type; });
+  CHECK(err_x == xs.end()) << "All input's dtype of [concat] should be the same, be the input " << (*err_x)->id
+                           << "'s dtype [" << (*err_x)->type << "] not equal to the first input " << xs.front()->id
+                           << "'s dtype [" << xs.front()->type << "]";
 
   Variable out;
   if (xs.size() == 1) {
@@ -73,12 +73,12 @@ void StackOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ct
     xs.emplace_back(ctx.GetVar(name));
   }
 
-  auto err_x = std::find_if(xs.begin(), xs.end(), [&](Variable x) { return x->type == xs.front()->type; });
-  CHECK(err_x == xs.end()) << "All input shape of [concat] should be the same, be the input " << (*err_x)->id
-                           << "'s type [" << (*err_x)->type << "] not equal to the first input " << xs.front()->id
-                           << "'s type [" << xs.front()->type << "]";
+  auto err_x = std::find_if(xs.begin(), xs.end(), [&](Variable x) { return x->type != xs.front()->type; });
+  CHECK(err_x == xs.end()) << "All input's dtype of [concat] should be the same, be the input " << (*err_x)->id
+                           << "'s dtype [" << (*err_x)->type << "] not equal to the first input " << xs.front()->id
+                           << "'s dtype [" << xs.front()->type << "]";
 
-  err_x = std::find_if(xs.begin(), xs.end(), [&](Variable x) { return x->shape == xs.front()->shape; });
+  err_x = std::find_if(xs.begin(), xs.end(), [&](Variable x) { return x->shape != xs.front()->shape; });
   CHECK(err_x == xs.end()) << "All input shape of [stack] should be the same, be the input " << (*err_x)->id
                            << "'s shape [" << cinn::utils::Join((*err_x)->shape, ", ") << "] not equal to "
                            << "the first input " << xs.front()->id << "'s shape ["
