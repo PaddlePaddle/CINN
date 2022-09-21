@@ -7,6 +7,7 @@ gather_srcs(cinnapi_src SRCS
     buffer.cc
     memory.cc
     instruction.cc
+    parallel_compiler.cc
     graph_compiler.cc
     graph.cc
     node.cc

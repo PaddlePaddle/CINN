@@ -28,6 +28,10 @@ DEFINE_bool(cinn_cudnn_deterministic,
 using ::GFLAGS_NAMESPACE::BoolFromEnv;
 using ::GFLAGS_NAMESPACE::StringFromEnv;
 
+DEFINE_int32(cinn_parallel_compile_size,
+             0,
+             "When use parallel compile, set the number of group compiled by each thread.");
+
 DEFINE_bool(cinn_open_fusion_optimize,
             BoolFromEnv("FLAGS_cinn_open_fusion_optimize", true),
             "Whether use the op_fusion optimization.");

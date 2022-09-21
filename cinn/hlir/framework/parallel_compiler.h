@@ -15,11 +15,15 @@
 
 #include <vector>
 
+#include "cinn/backends/llvm/execution_engine.h"
 #include "cinn/common/target.h"
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/instruction.h"
 #include "cinn/hlir/framework/op_lowering.h"
-
+#include "cinn/ir/lowered_func.h"
+#ifdef CINN_WITH_CUDA
+#include "cinn/runtime/cuda/cuda_module.h"
+#endif
 namespace cinn {
 namespace hlir {
 namespace framework {
@@ -31,30 +35,42 @@ class ParallelCompiler {
   };
 
  public:
-  ParallelCompile(std::shared_ptr<Graph>& graph, CompileOptions& option, const common::Target& target);
-  ~ParallelCompile();
-  std::vector<Instruction> operator()();
+  explicit ParallelCompiler(std::shared_ptr<Scope>& scope,
+                            std::shared_ptr<Graph>& graph,
+                            CompileOptions& option,
+                            const common::Target& target)
+      : scope_(scope), graph_(graph), optition_(option), target_(target) {}
+  ~ParallelCompiler() {}
+  std::vector<std::unique_ptr<Instruction>> operator()();
 
  private:
   void SplitTask();
   void LaunchTask();
-  std::vector<Instruction> MergeResult();
+  std::vector<std::unique_ptr<Instruction>> MergeResult();
+
+ public:
   struct Task {
    public:
-    Task(std::vector<std::shared_ptr<Group>>& g, std::vector<std::vector<ir::LoweredFunc>> f)
-        : groups(g), lowered_funcs(f) {}
+    Task(std::shared_ptr<Scope>& s,
+         std::shared_ptr<Graph>& g,
+         std::vector<std::shared_ptr<Graph::Group>> gg,
+         std::vector<std::vector<ir::LoweredFunc>>& f,
+         Target t)
+        : scope(s), graph(g), groups(gg), lowered_funcs(f), target(t) {}
     void Lowering();
     void CodegenAndJit();
     void BuildInstruction();
 
    public:
-    ir::Module ir_module;
-    std::vector<std::shared_ptr<Group>> groups;
+    Target target;
+    std::shared_ptr<Scope> scope;
+    std::shared_ptr<Graph> graph;
+    std::vector<std::shared_ptr<Graph::Group>> groups;
     std::vector<std::unique_ptr<Instruction>> instructions;
     std::vector<std::vector<ir::LoweredFunc>> lowered_funcs;
 
    public:
-    std::unique_ptr<ExecutionEngine> engine;
+    std::unique_ptr<backends::ExecutionEngine> engine;
 #ifdef CINN_WITH_CUDA
     std::unique_ptr<runtime::cuda::CUDAModule> cumodule;
 #endif
@@ -62,10 +78,11 @@ class ParallelCompiler {
   std::vector<Task> tasks_;
 
  private:
-  Target target_;
+  common::Target target_;
   CompileOptions optition_;
+  std::shared_ptr<Scope> scope_;
   std::shared_ptr<Graph> graph_;
-}
+};
 
 }  // namespace framework
 }  // namespace hlir

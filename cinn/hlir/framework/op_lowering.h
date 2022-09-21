@@ -19,7 +19,6 @@
 
 #include "cinn/common/target.h"
 #include "cinn/hlir/framework/graph.h"
-#include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/instruction.h"
 #include "cinn/hlir/framework/op_strategy.h"
 #include "cinn/ir/ir_schedule.h"
