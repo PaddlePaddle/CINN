@@ -39,13 +39,7 @@ void ConcatOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
                            << "'s dtype [" << (*err_x)->type << "] not equal to the first input " << xs.front()->id
                            << "'s dtype [" << xs.front()->type << "]";
 
-  Variable out;
-  if (xs.size() == 1) {
-    // if concat only has one input, using Identity to copy the input and return
-    out = ctx.Builder()->Identity(xs.front());
-  } else {
-    out = ctx.Builder()->Concat(xs, axis);
-  }
+  auto out = ctx.Builder()->Concat(xs, axis);
 
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);
@@ -84,13 +78,7 @@ void StackOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ct
                            << "the first input " << xs.front()->id << "'s shape ["
                            << cinn::utils::Join(xs.front()->shape, ", ") << "]";
 
-  Variable out;
-  if (xs.size() == 1) {
-    // if stack only has one input, using Identity to copy the input and return
-    out = ctx.Builder()->Identity(xs.front());
-  } else {
-    out = ctx.Builder()->Concat(xs, axis);
-  }
+  auto out = ctx.Builder()->Concat(xs, axis);
 
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);
