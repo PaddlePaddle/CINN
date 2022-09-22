@@ -105,6 +105,36 @@ std::vector<ir::Buffer> GetTempBuffers(const std::vector<Tensor>& tensor_args,
   return temp_buffers;
 }
 
+//! Collect the temporary tensors from a computational graph.
+std::vector<ir::Buffer> GetTempBuffers(const std::vector<ir::Argument>& args, Expr body) {
+  std::unordered_set<std::string> buffer_arg_names;
+  for (auto& a : args) {
+    if (a.is_buffer()) {
+      buffer_arg_names.insert(a.name());
+    }
+  }
+  std::map<std::string, ir::Buffer> name_to_buffer;  // used to avoid duplication.
+
+  auto all_temp_tensors = ir::CollectIRNodesWithoutTensor(body, [&](const Expr* x) {
+    return x->as_tensor() && x->as_tensor()->buffer.defined() &&
+           (!buffer_arg_names.count(x->as_tensor()->buffer->name) ||
+            utils::Endswith(x->as_tensor()->buffer->name, "temp_buffer"));
+  });
+  for (auto& e : all_temp_tensors) {
+    auto buffer_name = e.as_tensor()->buffer->name;
+    if (!name_to_buffer.count(buffer_name)) {
+      name_to_buffer[buffer_name] = e.as_tensor()->buffer;
+    } else {
+      if (e.as_tensor()->buffer->numel() < name_to_buffer[buffer_name]->numel()) {
+        name_to_buffer[buffer_name] = e.as_tensor()->buffer;
+      }
+    }
+  }
+  std::vector<ir::Buffer> temp_buffers;
+  for (auto& i : name_to_buffer) temp_buffers.push_back(i.second);
+  return temp_buffers;
+}
+
 std::set<ir::Tensor> CollectTempTensorsFromCtrlDepends(StageMap stages, const std::vector<Tensor>& tensor_args) {
   std::set<ir::Tensor> res;
   for (auto& stage : stages) {

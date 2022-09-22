@@ -107,8 +107,13 @@ SearchState SearchSpace::RandomScheduleMutate(const SearchState& state) {
   }
 
   // 3. Sample a schedule on the distribution
-  int sample_index                         = rand() % cur_weight;
-  auto iter                                = weight_to_rule.lower_bound(sample_index);
+  int sample_index = rand() % cur_weight;
+  // Find a key which is <= sample_index
+  auto iter = weight_to_rule.lower_bound(sample_index);
+  if (iter->first > sample_index) {
+    // weight_to_rule must contain key 0, and sample_index >= 0, so --iter won't exceed the beginning.
+    --iter;
+  }
   std::shared_ptr<AutoGenRule> sample_rule = iter->second;
   VLOG(6) << "Sample AutoGenRule " << sample_rule->GetRuleName();
 

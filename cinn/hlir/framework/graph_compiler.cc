@@ -28,7 +28,9 @@
 #include "cinn/lang/lower.h"
 #include "cinn/optim/transform_gpu_forloop.h"
 #include "cinn/poly/stage.h"
+
 DECLARE_bool(cinn_ir_schedule);
+
 namespace cinn {
 namespace hlir {
 namespace framework {
@@ -705,7 +707,14 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
     }
   }
   // use the input groups in options firstly if exists
-  auto groups = options.groups.empty() ? graph_->groups : options.groups;
+  std::vector<std::vector<Node*>> groups;
+  if (options.groups.empty()) {
+    groups = graph_->groups;
+  } else {
+    for (std::shared_ptr<Graph::Group> g : options.groups) {
+      groups.push_back(g->CollectNodes());
+    }
+  }
 
   // if the input lowered_funcs is empty, we will use the defalut lowering process to generate
   std::vector<std::vector<ir::LoweredFunc>> local_lowered_funcs;
@@ -785,7 +794,8 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
 
   compiler_->Build(build_module, options.attached_code);
   VLOG(3) << "End of compiler_->Build";
-  auto instructions = BuildInstructions(groups, graph_->fusion_groups);
+  auto instructions = BuildInstructions(groups, options.groups.empty() ? graph_->fusion_groups : options.groups);
+
   VLOG(3) << "End of BuildInstructions";
   if (options.remove_unused_variables) {
     RemoveInvalidVariables(instructions);
@@ -890,7 +900,8 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions(
   VLOG(3) << "Begin GraphCompiler::BuildInstructions";
   CHECK_GT(groups.size(), 0);
   CHECK_EQ(fusion_groups.size() != 0, groups.size() == fusion_groups.size())
-      << "fusion_groups's size must be 0 or equal to groups.";
+      << "fusion_groups's size must be 0 or equal to groups. Currently fusion_group's size = " << fusion_groups.size()
+      << ", group's size = " << groups.size();
   for (int idx = 0; idx < groups.size(); ++idx) {
     auto& group = groups[idx];
     std::shared_ptr<Graph::Group> fusion_group(nullptr);
@@ -1327,204 +1338,6 @@ std::shared_ptr<Scope> BuildScope(Target target, const std::shared_ptr<Graph>& g
     tensor->set_type(dtype_dict.at(iter.first));
   }
   return scope;
-}
-
-std::vector<std::vector<ir::LoweredFunc>> GraphCompiler::FusedGraphToLoweredFunc(
-    const std::vector<std::vector<hlir::framework::Node*>>& graph) {
-  std::vector<std::vector<ir::LoweredFunc>> result;
-  for (const std::vector<hlir::framework::Node*>& node_group : graph) {
-    CHECK(!node_group.empty()) << "Invalid graph which contains empty node group in GraphCompiler.";
-    if (node_group.size() == 1) {
-      result.emplace_back(NodeToLoweredFunc(*(node_group[0])));
-    } else {
-      result.emplace_back(FusedNodeGroupToLoweredFunc(node_group));
-    }
-  }
-  return result;
-}
-
-std::vector<ir::LoweredFunc> GraphCompiler::NodeToLoweredFunc(const hlir::framework::Node& node) {
-  VLOG(4) << "Start NodeToExpr of op " << node.id();
-  auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-  auto& dtype_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-
-  std::vector<ir::Tensor> inputs;
-  std::vector<common::CINNValue> cinn_value_inputs;
-
-  for (const common::Shared<common::GraphEdge>& i : node.inlinks_in_order(true)) {
-    std::string input_id    = i->source()->as<NodeData>()->id();
-    const shape_t& in_shape = shape_dict.at(input_id);
-    Type in_dtype           = dtype_dict.at(input_id);
-
-    ir::Tensor tmp = lang::CreatePlaceHolder(in_shape, in_dtype, input_id);
-    inputs.push_back(tmp);
-    cinn_value_inputs.push_back(common::CINNValue(tmp));
-  }
-
-  std::vector<Type> out_types;
-  std::vector<std::vector<int>> output_shapes;
-  for (const common::Shared<common::GraphEdge>& out : node.outlinks_in_order(true)) {
-    std::string out_id = out->sink()->safe_as<NodeData>()->id();
-    if (FLAGS_cinn_ir_schedule) {
-      cinn_value_inputs.push_back(common::CINNValue(out_id));
-    }
-    const shape_t& out_shape = shape_dict.at(out_id);
-    Type dtype               = dtype_dict.at(out_id);
-    output_shapes.push_back(out_shape);
-    out_types.push_back(dtype);
-  }
-
-  auto& strategy = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
-
-  std::shared_ptr<OpImpl> impl =
-      OpStrategy::SelectImpl(strategy[node.op()](node.attrs, inputs, out_types, output_shapes, target_));
-  common::CINNValuePack C = impl->fcompute(common::CINNValuePack{cinn_value_inputs});
-  // The last element of the result of fcompute is a StageMap
-  poly::StageMap stages = static_cast<poly::StageMap>(C.back());
-
-  // make sure the outputs are also in the Lower inputs
-  for (int i = 0; i < C->size() - 1; ++i) {
-    ir::Expr temp = C[i];
-    // checkout whether the tensor is with buffer.
-    if ((!temp.as_tensor_ref()->buffer.defined() || this->target_ != common::DefaultNVGPUTarget()) &&
-        !stages[temp.as_tensor_ref()]->inlined()) {
-      // inputs is reused as args of LowerVec, so we add output Tensor here.
-      inputs.push_back(temp.as_tensor_ref());
-    }
-  }
-  // Note: we didn't call `C = impl->fschedule(C)` because we remove the pre-set
-  // schedule in auto-tuning. Can we speed up tuning using pre-set? Consider it
-  // in the future.
-
-  std::vector<ir::LoweredFunc> funcs = lang::LowerVec(GetOrGenFullFuncName(GenOpFuncName(&node)),
-                                                      stages,
-                                                      inputs,
-                                                      {},
-                                                      {},
-                                                      nullptr,
-                                                      target_,
-                                                      /*support_ir_schedule*/ true);
-
-  VLOG(6) << "The [" << funcs.size() << "] functions of node [" << node.attrs.node_name << "] are:\n";
-  for (auto& f : funcs) {
-    VLOG(6) << f;
-  }
-
-  return funcs;
-}
-
-std::vector<ir::LoweredFunc> GraphCompiler::FusedNodeGroupToLoweredFunc(
-    const std::vector<hlir::framework::Node*>& node_group) {
-  VLOG(4) << "fuse begin: " << node_group[0]->id();
-  size_t fuse_number = node_group.size();
-  CHECK_GT(fuse_number, 1UL) << "fuse nodes number must be greater than 1";
-
-  auto& strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
-  auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-  auto& dtype_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-
-  poly::StageMap stages;
-  std::vector<ir::Tensor> inputs;
-  std::vector<ir::Tensor> outputs;
-  std::unordered_set<NodeData*> in_vars;
-  std::unordered_set<NodeData*> out_vars;
-  absl::flat_hash_map<NodeData*, Expr> temp_var_map;
-  absl::flat_hash_set<ir::Tensor> fetch_tensors;
-  std::string fuse_name = "fn_";
-  int master_index      = GetMasterRefNode(node_group);
-  for (size_t index = 0; index < node_group.size(); ++index) {
-    const hlir::framework::Node* node = node_group[index];
-    std::vector<ir::Tensor> temp_inputs;
-    std::vector<common::CINNValue> cinn_value_inputs;
-
-    fuse_name += node->id() + "_";
-    for (const common::Shared<common::GraphEdge>& link : node->inlinks_in_order(true)) {
-      NodeData* source_data = link->source()->as<NodeData>();
-      in_vars.insert(source_data);
-      if (temp_var_map.count(source_data)) {
-        VLOG(6) << "duplicate var: " << source_data->id();
-        Expr fuse_out = temp_var_map[source_data];
-        cinn_value_inputs.push_back(common::CINNValue(fuse_out));
-        temp_inputs.push_back(fuse_out.as_tensor_ref());
-      } else {
-        std::string input_id = source_data->id();
-        shape_t in_shape     = shape_dict.at(input_id);
-        Type in_dtype        = dtype_dict.at(input_id);
-        ir::Tensor temp_in   = lang::CreatePlaceHolder(in_shape, in_dtype, input_id);
-        inputs.push_back(temp_in);
-        temp_inputs.push_back(temp_in);
-        cinn_value_inputs.push_back(common::CINNValue(temp_in));
-        temp_var_map[source_data] = Expr(temp_in);
-      }
-    }
-
-    std::vector<std::vector<int>> output_shapes;
-    std::vector<Type> out_types;
-    std::vector<NodeData*> temp_outvars;
-    for (const common::Shared<common::GraphEdge>& out : node->outlinks_in_order(true)) {
-      NodeData* out_var = out->sink()->safe_as<NodeData>();
-      out_vars.insert(out_var);
-
-      temp_outvars.push_back(out_var);
-      std::string out_id = out_var->id();
-      if (FLAGS_cinn_ir_schedule) {
-        cinn_value_inputs.push_back(common::CINNValue(out_id));
-      }
-      shape_t out_shape = shape_dict.at(out_id);
-      Type dtype        = dtype_dict.at(out_id);
-      output_shapes.push_back(out_shape);
-      out_types.push_back(dtype);
-    }
-
-    std::shared_ptr<OpImpl> impl =
-        OpStrategy::SelectImpl(strategy[node->op()](node->attrs, temp_inputs, out_types, output_shapes, target_));
-    common::CINNValuePack C = impl->fcompute(common::CINNValuePack{cinn_value_inputs});
-
-    // The last element of the result of fcompute is a StageMap
-    poly::StageMap temp_stages = C.back();
-    for (const auto& i : temp_stages) {
-      ir::Tensor tensor(i.second->tensor());
-      stages->InsertLazily(tensor, i.second.get());
-    }
-
-    for (int i = 0; i < C.size() - 1; i++) {
-      Expr out                      = C[i];
-      temp_var_map[temp_outvars[i]] = out;
-      ir::Tensor temp_tensor        = out.as_tensor_ref();
-      stages->InsertLazily(temp_tensor, temp_stages[temp_tensor]);
-      if (fetch_var_ids_.count(temp_outvars[i]->id())) {
-        VLOG(6) << "get fetch output var " << temp_outvars[i]->id();
-        CHECK(out.as_tensor());
-        fetch_tensors.insert(out.as_tensor_ref());
-      }
-      if (index == fuse_number - 1) {
-        // final output tensor
-        outputs.insert(outputs.begin(), temp_tensor);
-      } else {
-        outputs.push_back(temp_tensor);
-      }
-    }
-  }
-  fuse_name += "fused";
-  VLOG(6) << "fuse_name: " << fuse_name;
-
-  for (const ir::Tensor& tensor : outputs) {
-    // checkout the tensor is with buffer.
-    if (!tensor->buffer.defined() || this->target_ != common::DefaultNVGPUTarget()) {
-      inputs.push_back(tensor);
-    }
-  }
-
-  std::vector<ir::LoweredFunc> funcs = lang::LowerVec(
-      GetOrGenFullFuncName(fuse_name), stages, inputs, {}, {}, nullptr, this->target_, /*support_ir_schedule*/ true);
-
-  VLOG(6) << "The [" << funcs.size() << "] functions of " << fuse_name << " are:\n";
-  for (const ir::LoweredFunc& f : funcs) {
-    VLOG(6) << "Function [" << f->name << "] is:\n";
-    VLOG(6) << f;
-  }
-
-  return funcs;
 }
 
 std::vector<ir::LoweredFunc> GetFuncFromImpl(const std::shared_ptr<OpImpl>& impl,

@@ -21,6 +21,7 @@
 #include "cinn/auto_schedule/search_strategy/evolutionary_search.h"
 #include "cinn/auto_schedule/task/tune_task.h"
 #include "cinn/auto_schedule/tuning.h"
+#include "cinn/ir/lowered_func.h"
 
 namespace cinn {
 namespace auto_schedule {
@@ -36,6 +37,8 @@ class TaskOptimizer {
 
  private:
   TuningResult::OptimizedComputeExpr OptimizeByEvolution(const TuningOptions& options);
+
+  ir::LoweredFunc FuncWithUpdatedBody(const ir::LoweredFunc& old_func, ir::Expr& body);
 
   const TuneTask* task_;
 

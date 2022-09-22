@@ -14,12 +14,17 @@
 
 #include "cinn/frontend/interpreter.h"
 
+#include "cinn/auto_schedule/auto_tuner.h"
+#include "cinn/auto_schedule/tuning.h"
 #include "cinn/frontend/optimize.h"
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/op/use_ops.h"
 #include "cinn/hlir/pass/use_pass.h"
+#include "cinn/runtime/flags.h"
+
+DECLARE_bool(enable_auto_tuner);
 
 namespace cinn::frontend {
 
@@ -134,7 +139,15 @@ void Interpreter::Impl::Build(const std::vector<std::string>& input_names,
   graph_compiler_.reset(new hlir::framework::GraphCompiler(target, scope_, graph));
   hlir::framework::GraphCompiler::CompileOptions options;
   options.with_instantiate_variables = true;
-  runtime_program_                   = graph_compiler_->Build(options, std::move(fetch_var_ids)).runtime_program;
+  if (FLAGS_enable_auto_tuner) {
+    VLOG(4) << "Compile with auto-tune";
+    auto_schedule::AutoTuner auto_tuner(target, graph.get());
+    auto_tuner.Initialize(auto_schedule::AutoTuner::Config(), graph_compiler_.get());
+    auto_schedule::TuningOptions tuning_options;
+    auto_schedule::TuningResult tuning_result = auto_tuner.Tune(tuning_options);
+    options.Apply(tuning_result);
+  }
+  runtime_program_ = graph_compiler_->Build(options, std::move(fetch_var_ids)).runtime_program;
   runtime_program_->PreRun();
 }
 
