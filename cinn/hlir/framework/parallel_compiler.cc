@@ -14,7 +14,7 @@
 
 #include "cinn/hlir/framework/parallel_compiler.h"
 
-#include <cmath>
+#include <algorithm>
 #include <thread>
 
 #include "cinn/backends/codegen_cuda_dev.h"
@@ -41,9 +41,10 @@ std::vector<std::unique_ptr<Instruction>> ParallelCompiler::operator()() {
 
 void ParallelCompiler::SplitTask() {
   CHECK_EQ(graph_->fusion_groups.size(), optition_.lowered_funcs.size());
-  int num_per_task = FLAGS_cinn_parallel_compile_size;
   // split task
-  for (int idx = 0; idx < graph_->fusion_groups.size(); ++idx) {
+  int num_per_task = std::max((graph_->fusion_groups.size() - 1) / FLAGS_cinn_parallel_compile_size + 1, 16UL);
+
+  for (int idx = 0; idx < graph_->fusion_groups.size(); idx += num_per_task) {
     int start          = idx;
     int end            = std::min(idx + num_per_task, static_cast<int>(graph_->fusion_groups.size()));
     auto groups        = std::vector<std::shared_ptr<Graph::Group>>(graph_->fusion_groups.begin() + start,
