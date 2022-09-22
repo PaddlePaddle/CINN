@@ -55,7 +55,7 @@ std::vector<ir::Argument> GetArgs(const Expr& func_body, const std::vector<std::
           break;
         }
       }
-    } else if (store_tensors.count(i) && !load_tensors.count(i)) {
+    } else if (store_tensors.count(i)) {
       for (auto& j : store_nodes) {
         auto store_tensor = j.As<ir::Store>()->tensor.as_tensor_ref();
         if (store_tensor->buffer.defined() && store_tensor->name == i) {
