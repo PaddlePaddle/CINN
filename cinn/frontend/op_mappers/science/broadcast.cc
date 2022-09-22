@@ -56,11 +56,17 @@ void FillAnyLikeOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperConte
   auto value = utils::GetAttrOrDefault<float>(op_desc, "value");
 
   auto dtype_id = utils::GetAttrOrDefault<int>(op_desc, "dtype", static_cast<int>(paddle::cpp::VarDescAPI::Type::FP32));
-  auto dtype_pd = static_cast<paddle::cpp::VarDescAPI::Type>(dtype_id);
-  auto dtype_cinn = utils::CppVarType2CommonType(dtype_pd);
-  auto dtype      = common::Type2Str(dtype_cinn);
+  cinn::common::Type dtype_cinn;
+  if (dtype_id < 0) {
+    dtype_cinn = x->type;
+  } else {
+    auto dtype_pd = static_cast<paddle::cpp::VarDescAPI::Type>(dtype_id);
+    dtype_cinn    = utils::CppVarType2CommonType(dtype_pd);
+  }
 
-  VLOG(4) << "FillAnyLikeOp: fill constant (" << value << ") with shape (" << cinn::utils::Join(shape, ",")
+  auto dtype = common::Type2Str(dtype_cinn);
+
+  VLOG(4) << "FillAnyLikeOp: fill constant (" << value << ") with shape (" << cinn::utils::Join(shape, ", ")
           << ") and dtype [" << dtype << "]";
 
   const auto& cinn_name = cinn::utils::TransValidVarName(y_name);

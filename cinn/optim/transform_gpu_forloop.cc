@@ -248,6 +248,21 @@ void MarkGpuForloop(const std::string &statement,
 
     void MarkForloop(const std::string &tensor_name) {
       // start from 0, threadIdx.x
+      std::map<std::string, int> loop2extent;
+      for (auto *expr : forloop_stack) {
+        auto *for_     = expr->As<ir::For>();
+        auto *poly_for = expr->As<ir::PolyFor>();
+        Var axis_var   = for_ ? for_->loop_var : poly_for->iterator;
+        VLOG(3) << "Tensor name : " << tensor_name << ", axis name is : " << axis_var->name;
+        auto loop_name = axis_var->name;
+        Expr extent    = for_ ? for_->extent : poly_for->ExtractExtent();
+        if (!extent.defined() || !extent.is_constant()) {
+          continue;
+        }
+        int extent_i           = extent.get_constant();
+        loop2extent[loop_name] = extent_i;
+      }
+
       for (auto *expr : forloop_stack) {
         VLOG(2) << "expr in forloop_stack is : \n" << *expr;
         auto *for_     = expr->As<ir::For>();
@@ -280,7 +295,7 @@ void MarkGpuForloop(const std::string &statement,
             Expr extent = for_ ? for_->extent : poly_for->ExtractExtent();
             VLOG(2) << "gpu replacing var " << cuda_var->name << " to Expr(0)";
             optim::CUDAReplaceIndexOfCachePass(
-                expr, var_expr, ir::Expr(0), global_tensor_map, resized_buffer, false, extent);
+                expr, var_expr, ir::Expr(0), global_tensor_map, resized_buffer, false, extent, "", loop2extent);
           } else if (it->second.for_type == ir::ForType::GPUBlock) {
             Var cuda_var(backends::cuda_block_axis_name(forloop_info.offset));
             Expr var_expr(cuda_var);
@@ -290,13 +305,20 @@ void MarkGpuForloop(const std::string &statement,
             Expr extent = for_ ? for_->extent : poly_for->ExtractExtent();
             VLOG(2) << "gpu replacing var " << cuda_var->name << " to Expr(0)";
             optim::CUDAReplaceIndexOfCachePass(
-                expr, var_expr, ir::Expr(0), global_tensor_map, resized_buffer, true, extent);
+                expr, var_expr, ir::Expr(0), global_tensor_map, resized_buffer, true, extent, "", loop2extent);
             VLOG(2) << "After that, expr is : " << *expr;
           } else if (it->second.for_type == ir::ForType::Default) {
             Expr extent = for_ ? for_->extent : poly_for->ExtractExtent();
             VLOG(2) << "ComputeAt replacing var " << axis_var->name << " to Expr(0) in tensor " << tensor_name;
-            optim::CUDAReplaceIndexOfCachePass(
-                expr, axis_var, ir::Expr(0), global_tensor_map, resized_buffer, false, extent, tensor_name);
+            optim::CUDAReplaceIndexOfCachePass(expr,
+                                               axis_var,
+                                               ir::Expr(0),
+                                               global_tensor_map,
+                                               resized_buffer,
+                                               false,
+                                               extent,
+                                               tensor_name,
+                                               loop2extent);
           } else {
             CINN_NOT_IMPLEMENTED
           }

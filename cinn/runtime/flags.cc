@@ -70,10 +70,12 @@ DEFINE_string(cinn_source_code_save_path,
               StringFromEnv("FLAGS_cinn_source_code_save_path", ""),
               "Specify the directory path of generated source code, which is used for debug.");
 
+DEFINE_bool(enable_auto_tuner, BoolFromEnv("FLAGS_enable_auto_tuner", false), "Whether enable auto tuner.");
+
 DEFINE_bool(auto_schedule_use_cost_model,
-            BoolFromEnv("FLAGS_auto_schedule_use_cost_model", false),
+            BoolFromEnv("FLAGS_auto_schedule_use_cost_model", true),
             "Whether to use cost model in auto schedule, this is an on-developing flag and it will be removed when "
-            "cost model is stable");
+            "cost model is stable.");
 
 namespace cinn {
 namespace runtime {

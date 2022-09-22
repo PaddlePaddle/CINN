@@ -21,6 +21,7 @@
 #include "cinn/ir/collect_ir_nodes.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_schedule.h"
+#include "cinn/optim/ir_copy.h"
 
 namespace cinn {
 namespace auto_schedule {
@@ -59,8 +60,8 @@ bool AutoUnroll::MeetCondition(const ir::ScheduleBlock* schedule_block) {
   return !find_target_exprs.empty();
 }
 
-RuleApplyType AutoUnroll::Init(const ir::ModuleExpr& mod_expr) {
-  ir_schedule_ = std::make_unique<ir::IRSchedule>(mod_expr);
+RuleApplyType AutoUnroll::Init(const ir::IRSchedule& init_schedule) {
+  ir_schedule_ = std::make_unique<ir::IRSchedule>(optim::IRCopy(init_schedule));
   auto exprs   = ir_schedule_->GetModule().GetExprs();
 
   // extract all root schedulable blocks
@@ -93,12 +94,12 @@ RuleApplyType AutoUnroll::Init(const ir::ModuleExpr& mod_expr) {
   return num_applicable_ > 0 ? RuleApplyType::kApplyAndSkipThisRule : RuleApplyType::kCannotApply;
 }
 
-ir::ModuleExpr AutoUnroll::Apply(int index) {
+ir::IRSchedule AutoUnroll::Apply(int index) {
   CHECK_LT(index, applicable_schedule_blocks_.size()) << "invalid apply index:" << index;
   auto* schedule_block = applicable_schedule_blocks_.at(index);
   int max_step         = auto_unroll_options[std::rand() % auto_unroll_options.size()];
   schedule_block->attrs.emplace(ir::attr::auto_unroll_max_step, max_step);
-  return ir_schedule_->GetModule();
+  return optim::IRCopy(*ir_schedule_);
 }
 
 }  // namespace auto_schedule

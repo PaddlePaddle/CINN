@@ -17,9 +17,11 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <glog/logging.h>
+#include <glog/raw_logging.h>
 
 #include <mutex>  // NOLINT
 #include <string>
+#include <vector>
 
 #include "cinn/backends/cuda_util.h"
 #include "cinn/runtime/cuda/cuda_util.h"
@@ -69,7 +71,32 @@ CUfunction CUDAModule::GetFunction(int device_id, const std::string& func_name) 
   VLOG(5) << "GetFuncion : " << func_name << " with device_id : " << device_id;
   if (!module_per_card_[device_id]) {
     std::lock_guard<std::mutex> lock(mutex_);
-    CUDA_DRIVER_CALL(cuModuleLoadData(&module_per_card_[device_id], data_.c_str()));
+    // Compilation with parameters
+    const size_t jit_num_options = 2;
+    std::vector<CUjit_option> jit_options(jit_num_options);
+    std::vector<void*> jit_opt_vals(jit_num_options);
+
+    // set up size of compilation log buffer
+    jit_options[0]         = CU_JIT_ERROR_LOG_BUFFER_SIZE_BYTES;
+    size_t log_buffer_size = 1024;
+    jit_opt_vals[0]        = reinterpret_cast<void*>(log_buffer_size);
+
+    // set up pointer to the compilation log buffer
+    jit_options[1] = CU_JIT_ERROR_LOG_BUFFER;
+    std::vector<char> log_buffer(log_buffer_size, '\0');
+    jit_opt_vals[1] = log_buffer.data();
+
+    CUresult status = cuModuleLoadDataEx(
+        &module_per_card_[device_id], data_.c_str(), jit_num_options, jit_options.data(), jit_opt_vals.data());
+
+    if (CUDA_SUCCESS != status) {
+      RAW_LOG(ERROR, "PTX JIT ERROR LOG: %s\n.", log_buffer.data());
+      const char* name;
+      cuGetErrorName(status, &name);
+      const char* msg;
+      cuGetErrorString(status, &msg);
+      RAW_LOG(FATAL, "The error `%s` occurs while compiling the ptx! And its message is `%s`.", name, msg);
+    }
   }
 
   CUfunction func;

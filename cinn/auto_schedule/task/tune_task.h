@@ -23,8 +23,8 @@
 #include "cinn/common/target.h"
 #include "cinn/common/type.h"
 #include "cinn/hlir/framework/graph.h"
-#include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/node.h"
+#include "cinn/hlir/framework/op_lowering.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_schedule.h"
@@ -36,26 +36,26 @@ namespace auto_schedule {
 class TuneTask {
  public:
   TuneTask() = default;
-  TuneTask(hlir::framework::GraphCompiler* compiler) : graph_compiler_(compiler) {}
+  TuneTask(hlir::framework::OpLowerer* op_lowerer) : op_lowerer_(op_lowerer) {}
 
-  void SetGraphCompiler(hlir::framework::GraphCompiler* compiler);
+  void SetOpLowerer(hlir::framework::OpLowerer* op_lowerer);
   // Set lowered_funcs and analyze output names.
   void SetLoweredFuncsAndAnalyzeOutput(const std::vector<ir::LoweredFunc>& lowered_funcs);
   // Extract bodies in lowered_funcs() and return
   std::vector<ir::Expr> GetLoweredFuncBodyExprs() const;
   // Set bodies in lowered_funcs() by exprs
   void SetLoweredFuncBodyExprs(const std::vector<ir::Expr>& exprs);
-  // When you set GraphCompiler and task_graph, lower the task graph to
+  // When you set OpLowerer and task_graph, lower the task graph to
   // un-optimized LoweredFunc and store in lowered_funcs().
   void TaskGraphToUnoptLoweredFunc();
   // Serialize this task as a string contains specific fields of it
   const std::string& SerializeToString(const absl::flat_hash_map<std::string, hlir::framework::shape_t>& shape_dict,
                                        const absl::flat_hash_map<std::string, cinn::common::Type>& dtype_dict);
 
-  // In CINN, we use std::vector<hlir::framework::Node*> to represent a fused
-  // sub-graph (if an op won't be fused, it will be a vector with size=1). So
-  // the task_graph_ consist of multiple "fused sub-graph" / "unfused op"
-  std::vector<std::vector<hlir::framework::Node*>> task_graph;
+  // In CINN, we use hlir::framework::Graph::Group to represent a fused
+  // sub-graph (if an op won't be fused, it will be a Group with size=1). So
+  // the task_graph_ consists of multiple "fused sub-graph" / "unfused op"
+  std::vector<std::shared_ptr<hlir::framework::Graph::Group>> task_graph;
   // target of this task
   common::Target target;
   // stores the initial (un-optimized) LoweredFuncs
@@ -68,7 +68,7 @@ class TuneTask {
 
  private:
   // Not owned
-  hlir::framework::GraphCompiler* graph_compiler_;
+  hlir::framework::OpLowerer* op_lowerer_;
 };
 
 }  // namespace auto_schedule

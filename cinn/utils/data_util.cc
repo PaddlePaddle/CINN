@@ -14,7 +14,33 @@
 
 #include "cinn/utils/data_util.h"
 
+#include "iostream"
+
 namespace cinn {
+
+void SetRandInt(hlir::framework::Tensor tensor, const common::Target& target, int seed) {
+  if (seed == -1) {
+    std::random_device rd;
+    seed = rd();
+  }
+  std::default_random_engine engine(seed);
+  std::uniform_int_distribution<int> dist(0, 10);
+  size_t num_ele = tensor->shape().numel();
+  std::vector<int> random_data(num_ele);
+  for (size_t i = 0; i < num_ele; i++) {
+    random_data[i] = static_cast<int>(dist(engine));  // All random data
+  }
+
+  auto* data = tensor->mutable_data<int>(target);
+#ifdef CINN_WITH_CUDA
+  if (target == common::DefaultNVGPUTarget()) {
+    cudaMemcpy(data, random_data.data(), num_ele * sizeof(int), cudaMemcpyHostToDevice);
+    return;
+  }
+#endif
+  CHECK(target == common::DefaultHostTarget());
+  std::copy(random_data.begin(), random_data.end(), data);
+}
 
 template <>
 void SetRandData<int>(hlir::framework::Tensor tensor, const common::Target& target, int seed) {
