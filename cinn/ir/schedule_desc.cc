@@ -21,6 +21,7 @@
 #include <utility>
 
 #include "cinn/common/macros.h"
+#include "cinn/ir/ir_schedule.h"
 #include "cinn/utils/string.h"
 
 namespace cinn {
@@ -320,7 +321,7 @@ CINN_BUILD_STEP_KIND(Fuse)
     .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(
                 static_cast<Expr (IRSchedule::*)(const std::vector<Expr>&)>(&IRSchedule::Fuse))));
 
-CINN_BUILD_STEP_KIND(FuseWithBlockName)
+CINN_BUILD_STEP_KIND(FuseWithName)
     .Attrs({"block_name", "loops_index"})
     .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(
                 static_cast<Expr (IRSchedule::*)(const std::string&, const std::vector<int>&)>(&IRSchedule::Fuse))));
@@ -350,7 +351,7 @@ CINN_BUILD_STEP_KIND(CacheRead)
 
 CINN_BUILD_STEP_KIND(CacheWrite)
     .Inputs({"block"})
-    .Attrs({"read_buffer_index", "memory_type"})
+    .Attrs({"write_buffer_index", "memory_type"})
     .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(&IRSchedule::CacheWrite)));
 
 CINN_BUILD_STEP_KIND(SyncThreads)
@@ -374,7 +375,7 @@ CINN_BUILD_STEP_KIND(ReorderWithBlock)
     .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(
                     static_cast<void (IRSchedule::*)(const Expr&, const std::vector<int>&)>(&IRSchedule::Reorder))));
 
-CINN_BUILD_STEP_KIND(ReorderWithBlockName)
+CINN_BUILD_STEP_KIND(ReorderWithName)
     .Attrs({"block_name", "loops_index"})
     .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(
                     static_cast<void (IRSchedule::*)(const std::string&, const std::vector<int>&)>(&IRSchedule::Reorder))));
@@ -483,11 +484,11 @@ struct ExprEqual {
   bool operator()(const Expr& lhs, const Expr& rhs) const { return lhs.get() == rhs.get(); }
 };
 
-void ScheduleDesc::Append(Step&& step) { steps.emplace_back(step); }
+void ScheduleDesc::Append(Step&& step) { steps_.emplace_back(std::move(step)); }
 
 void ScheduleDesc::Pop() {
-  if (!steps.empty()) {
-    steps.pop_back();
+  if (!steps_.empty()) {
+    steps_.pop_back();
   }
 }
 
@@ -498,7 +499,7 @@ proto::ScheduleDesc ScheduleDesc::ToProto() const {
   absl::flat_hash_map<Expr, std::string, ExprHash, ExprEqual> expr2name;
   proto::ScheduleDesc desc_proto;
 
-  for (auto&& step : steps) {
+  for (auto&& step : steps_) {
     auto* step_proto = desc_proto.add_steps();
     step_proto->set_type(step.type);
     // inputs of a step must refer to Exprs resulted by preceding steps

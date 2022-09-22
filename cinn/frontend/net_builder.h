@@ -262,6 +262,27 @@ class NetBuilder {
    */
   Variable Clip(const std::vector<Variable>& x, const float& max, const float& min);
 
+  Variable Gather(const Variable& x, const Variable& index, const int& axis = 0);
+
+  Variable GatherNd(const Variable& x, const Variable& index, const std::vector<int>& axes = {});
+
+  Variable Scatter(const Variable& src, const Variable& index, const Variable& out, const int& axis = 0);
+  Variable Scatter(const Variable& src,
+                   const Variable& index,
+                   const std::vector<int>& shape,
+                   const float& default_value = 0,
+                   const int& axis            = 0);
+
+  Variable ScatterNd(const Variable& src,
+                     const Variable& index,
+                     const Variable& out,
+                     const std::vector<int>& axes = {});
+  Variable ScatterNd(const Variable& src,
+                     const Variable& index,
+                     const std::vector<int>& shape,
+                     const float& default_value   = 0,
+                     const std::vector<int>& axes = {});
+
   /**
    * @brief This operator checks if all `x` and `y` satisfy the condition: `|x - y| <= atol + rtol * |y|`
    * @param x The first variable.
@@ -813,7 +834,7 @@ class NetBuilder {
   Variable Argmin(const Variable& x, const int& axis = 0, const bool& keep_dim = false);
 
   /**
-   * @brief Sort variable x along the given axis. The original variable x will not be changed.
+   * @brief Sort Variable x along the given axis and return sorted index. The original Variable x will not be changed.
    * @param operand The variable that will be sorted.
    * @param axis Specify the axis to operate on the input. Default: 0.
    * @param is_ascend Sort mode.
@@ -823,7 +844,8 @@ class NetBuilder {
   Variable ArgSort(const Variable& operand, const int& axis, const bool& is_ascend = true);
 
   /**
-   * @brief Sort variable x along the given axis. The original variable x will not be changed.
+   * @brief Sort Variable x along the given axis and return sorted variable. The original Variable x will not be
+   * changed.
    * @param operand The variable that will be sorted.
    * @param axis Specify the axis to operate on the input. Default: 0.
    * @param is_ascend Sort mode.

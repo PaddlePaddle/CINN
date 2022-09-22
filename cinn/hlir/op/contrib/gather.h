@@ -13,22 +13,22 @@
 // limitations under the License.
 
 #pragma once
-#include <random>
+
+#include <string>
 #include <vector>
 
-#include "cinn/common/target.h"
-#include "cinn/hlir/framework/tensor.h"
-#ifdef CINN_WITH_CUDA
-#include <cuda_runtime.h>
-#endif
+#include "cinn/ir/ir.h"
+#include "cinn/ir/ir_base.h"
+#include "cinn/ir/tensor.h"
 
 namespace cinn {
-void SetRandInt(hlir::framework::Tensor tensor, const common::Target& target, int seed = -1);
+namespace hlir {
+namespace op {
 
-template <typename T>
-void SetRandData(hlir::framework::Tensor tensor, const common::Target& target, int seed = -1);
+ir::Tensor Gather(const ir::Tensor& A, const ir::Tensor& B, const int& axis, const std::string& name);
 
-template <typename T>
-std::vector<T> GetTensorData(const hlir::framework::Tensor& tensor, const common::Target& target);
+ir::Tensor GatherNd(const ir::Tensor& A, const ir::Tensor& B, const std::vector<int>& axes, const std::string& name);
 
+}  // namespace op
+}  // namespace hlir
 }  // namespace cinn

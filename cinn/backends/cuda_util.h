@@ -26,14 +26,14 @@
 
 #include "cinn/runtime/cinn_runtime.h"
 
-#define CUDA_DRIVER_CALL(func)                     \
-  {                                                \
-    auto status = func;                            \
-    if (status != CUDA_SUCCESS) {                  \
-      const char* msg;                             \
-      cuGetErrorName(status, &msg);                \
-      LOG(FATAL) << "CUDA DRIVER Error : " << msg; \
-    }                                              \
+#define CUDA_DRIVER_CALL(func)                                                 \
+  {                                                                            \
+    auto status = func;                                                        \
+    if (status != CUDA_SUCCESS) {                                              \
+      const char* msg;                                                         \
+      cuGetErrorString(status, &msg);                                          \
+      LOG(FATAL) << "CUDA Driver Error: " #func " failed with error: " << msg; \
+    }                                                                          \
   }
 
 #define CUDA_CALL(func)                                            \

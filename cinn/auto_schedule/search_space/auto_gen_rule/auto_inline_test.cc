@@ -71,11 +71,11 @@ TEST(AutoInline, SingleLoopInline) {
   VLOG(6) << mod_expr_before_inline.GetExprs()[0];
 
   AutoInline auto_inline(target, {"C"});
-  EXPECT_EQ(auto_inline.Init(mod_expr_before_inline), RuleApplyType::kApply);
+  EXPECT_EQ(auto_inline.Init(ir_sch), RuleApplyType::kApply);
   EXPECT_EQ(auto_inline.NumberApplicable(), 1);
 
-  ir::ModuleExpr mod_expr_after_inline = auto_inline.ApplyRandomly();
-  std::vector<ir::Expr> exprs          = mod_expr_after_inline.GetExprs();
+  ir::IRSchedule applied_sch  = auto_inline.ApplyRandomly();
+  std::vector<ir::Expr> exprs = applied_sch.GetModule().GetExprs();
   EXPECT_EQ(exprs.size(), 1UL);
 
   std::stringstream ss;
@@ -105,7 +105,7 @@ TEST(AutoInline, SingleLoopInline) {
   EXPECT_EQ(expr_str, target_str);
 
   // Cannot inline above expr again
-  EXPECT_EQ(auto_inline.Init(mod_expr_after_inline), RuleApplyType::kCannotApply);
+  EXPECT_EQ(auto_inline.Init(applied_sch), RuleApplyType::kCannotApply);
 }
 
 }  // namespace auto_schedule
