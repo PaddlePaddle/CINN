@@ -60,6 +60,11 @@ static const char *SnakeName(const char *name) {
   return buf;
 }
 
+#define EXPAND_CINN_SUPPORT_TYPE(EXPAND_MACRO) \
+  EXPAND_MACRO(bool)                           \
+  EXPAND_MACRO(float)                          \
+  EXPAND_MACRO(int)
+
 void BindFrontend(pybind11::module *m) {
   py::class_<Variable>(*m, "Variable")  //
       .def(py::init<const std::string &>(), py::arg("id") = "")
@@ -305,11 +310,6 @@ void BindFrontend(pybind11::module *m) {
       .def("get_program", &frontend::Interpreter::GetProgram)
       .def("get_scope", &frontend::Interpreter::GetScope);
 
-#define EXPAND_CINN_SUPPORT_TYPE(EXPAND_MACRO) \
-  EXPAND_MACRO(bool)                           \
-  EXPAND_MACRO(float)                          \
-  EXPAND_MACRO(int)
-
   py::class_<NetBuilder>(*m, "NetBuilder")
       .def(py::init<const std::string &>(), py::arg("name") = "")
   // clang-format off
@@ -332,14 +332,12 @@ void BindFrontend(pybind11::module *m) {
      EXPAND_CINN_SUPPORT_TYPE(EXPAND_QUINTIC_VECTOR)
 #define EXPAND_SEXTIC_VECTOR(TYPE) EXPAND_QUINTIC_VECTOR(std::vector<TYPE>)
      EXPAND_CINN_SUPPORT_TYPE(EXPAND_SEXTIC_VECTOR)
-#undef EXPAND_SCALAR
 #undef EXPAND_ONE_VECTOR
 #undef EXPAND_TWICE_VECTOR
 #undef EXPAND_TRIPLE_VECTOR
 #undef EXPAND_QUARTIC_VECTOR
 #undef EXPAND_QUINTIC_VECTOR
 #undef EXPAND_SEXTIC_VECTOR
-#undef PY_REGISTER_CONSTANT_TYPE
 #undef PY_REGISTER_CONSTANT_OP
 #define PY_REGISTER_FILLCONSTANT_OP(TYPE__)                                   \
      .def("fill_constant",                                                    \
@@ -606,5 +604,7 @@ void BindFrontend(pybind11::module *m) {
       .def("execute", [](CinnComputation &self) { self.Execute(); });
 
 }  // namespace frontend
+
+#undef EXPAND_CINN_SUPPORT_TYPE
 
 }  // namespace cinn::pybind

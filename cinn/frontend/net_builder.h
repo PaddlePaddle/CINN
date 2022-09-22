@@ -335,21 +335,25 @@ class NetBuilder {
   std::enable_if_t<cinn::utils::is_vector<T>::value, Variable> Constant(const T& value, const std::string& name) {
     CHECK(!value.empty()) << "The value of Constant should not be None or empty list! Please check.";
     if (value.size() == 1UL) {
-      return Constant(value.front(), cinn::UniqName(name));
+      // do not concat, return directly
+      return Constant(value.front(), name);
     }
 
     std::vector<Variable> tmp;
     for (int i = 0; i < value.size(); ++i) {
-      auto var = Constant(value[i], cinn::UniqName(name + "_" + std::to_string(i)));
+      auto var = Constant(value[i], name + "_" + std::to_string(i));
+
       if (var->shape == std::vector<int>{1}) {
         tmp.emplace_back(var);
       } else {
+        // need reshape to ensure the result's shape is correct, otherwise the result's rank is 1
         auto new_shape = var->shape;
         new_shape.insert(new_shape.begin(), 1);
         tmp.emplace_back(Reshape(var, new_shape));
       }
     }
     auto out = Concat(tmp);
+    // set the name correctly
     out.set_id(name);
     return out;
   }
