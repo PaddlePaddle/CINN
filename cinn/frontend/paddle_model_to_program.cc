@@ -429,8 +429,14 @@ void PaddleModelToProgram::AddOpMapper_depthwise_conv2d() {
       data_format = "NCHW";
     }
     attrs["data_format"] = data_format;
-    auto x               = GetVar(TransValidVarName(x_name));
-    auto y               = GetVar(TransValidVarName(y_name));
+    if (op_desc.HasAttr("padding_algorithm")) {
+      attrs["padding_algorithm"] = op_desc.GetAttr<std::string>("padding_algorithm");
+    } else {
+      attrs["padding_algorithm"] = "EXPLICIT";
+    }
+
+    auto x = GetVar(TransValidVarName(x_name));
+    auto y = GetVar(TransValidVarName(y_name));
     Variable out;
     if (target_.arch == Target::Arch::X86) {
       out = program_->conv2d(x, y, attrs);

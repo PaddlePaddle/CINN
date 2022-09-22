@@ -147,6 +147,13 @@ struct Instruction : public common::Shared<_Instruction_> {
    * @param vars The input variables.
    */
   void SetInputs(const std::vector<Variable>& vars) { get()->inputs = vars; }
+
+  const std::vector<Variable>& GetInputs() const { return get()->inputs; }
+  const Variable& GetInput(size_t offset) const {
+    CHECK_LT(offset, get()->inputs.size());
+    return GetInputs()[offset];
+  }
+
   const std::vector<Variable>& GetOutputs() const { return get()->outputs; }
   const Variable& GetOutput(size_t offset) const {
     CHECK_LT(offset, get()->outputs.size());

@@ -72,6 +72,9 @@ class PaddleModelToProgram {
 
   std::unique_ptr<Program> operator()(const std::string& model_dir, bool is_combined);
 
+  // Do not call, test only
+  std::unique_ptr<Program> GetProgram() { return std::move(program_); }
+
   // Add an Instruction to a program given a Paddle-format \p op_desc.
   void AddOp(const paddle::cpp::OpDesc& op_desc);
 
