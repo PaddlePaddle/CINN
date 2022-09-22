@@ -926,7 +926,6 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions(
             auto in_shape     = shape_dict.at(in_id);
             instr->attrs.insert(instr->attrs.end(), in_shape.begin(), in_shape.end());
           }
-          // padding stride dilation  group
           AddAttrs(node->attrs.attr_store, {"padding", "stride", "dilation"}, instr.get());
           if (node->attrs.attr_store.find("groups") != node->attrs.attr_store.end()) {
             auto conv_groups = absl::get<int>(node->attrs.attr_store.at("groups"));
@@ -947,6 +946,9 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions(
             type = absl::get<std::string>(node->attrs.attr_store.at("conv_type"));
           }
           instr->str_attrs.push_back(type);
+          if (node->attrs.attr_store.find("data_format") != node->attrs.attr_store.end()) {
+            instr->str_attrs.push_back(absl::get<std::string>(node->attrs.attr_store["data_format"]));
+          }
         } else if (node->op()->name == "depthwise_conv2d") {
           auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
           for (auto& in_node : node->inlinks_in_order()) {
