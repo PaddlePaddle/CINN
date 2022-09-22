@@ -305,19 +305,42 @@ void BindFrontend(pybind11::module *m) {
       .def("get_program", &frontend::Interpreter::GetProgram)
       .def("get_scope", &frontend::Interpreter::GetScope);
 
+#define EXPAND_CINN_SUPPORT_TYPE(EXPAND_MACRO) \
+  EXPAND_MACRO(bool)                           \
+  EXPAND_MACRO(float)                          \
+  EXPAND_MACRO(int)
+
   py::class_<NetBuilder>(*m, "NetBuilder")
       .def(py::init<const std::string &>(), py::arg("name") = "")
   // clang-format off
-#define PY_REGISTER_CONSTSCALAR_OP(TYPE__)                                    \
-     .def("const_scalar",                                                     \
-          static_cast<Variable (NetBuilder::*)(TYPE__, const std::string &)>( \
-               &NetBuilder::template ConstScalar<TYPE__>),                    \
-          py::arg("value"),                                                   \
+#define PY_REGISTER_CONSTANT_OP(TYPE__)                                              \
+     .def("constant",                                                                \
+          static_cast<Variable (NetBuilder::*)(const TYPE__&, const std::string &)>( \
+               &NetBuilder::template Constant<TYPE__>),                              \
+          py::arg("value"),                                                          \
           py::arg("name"))
-          PY_REGISTER_CONSTSCALAR_OP(bool)
-          PY_REGISTER_CONSTSCALAR_OP(float)
-          PY_REGISTER_CONSTSCALAR_OP(int)
-#undef PY_REGISTER_CONSTSCALAR_OP
+     EXPAND_CINN_SUPPORT_TYPE(PY_REGISTER_CONSTANT_OP)
+#define EXPAND_ONE_VECTOR(TYPE) PY_REGISTER_CONSTANT_OP(std::vector<TYPE>)
+     EXPAND_CINN_SUPPORT_TYPE(EXPAND_ONE_VECTOR)
+#define EXPAND_TWICE_VECTOR(TYPE) EXPAND_ONE_VECTOR(std::vector<TYPE>)
+     EXPAND_CINN_SUPPORT_TYPE(EXPAND_TWICE_VECTOR)
+#define EXPAND_TRIPLE_VECTOR(TYPE) EXPAND_TWICE_VECTOR(std::vector<TYPE>)
+     EXPAND_CINN_SUPPORT_TYPE(EXPAND_TRIPLE_VECTOR)
+#define EXPAND_QUARTIC_VECTOR(TYPE) EXPAND_TRIPLE_VECTOR(std::vector<TYPE>)
+     EXPAND_CINN_SUPPORT_TYPE(EXPAND_QUARTIC_VECTOR)
+#define EXPAND_QUINTIC_VECTOR(TYPE) EXPAND_QUARTIC_VECTOR(std::vector<TYPE>)
+     EXPAND_CINN_SUPPORT_TYPE(EXPAND_QUINTIC_VECTOR)
+#define EXPAND_SEXTIC_VECTOR(TYPE) EXPAND_QUINTIC_VECTOR(std::vector<TYPE>)
+     EXPAND_CINN_SUPPORT_TYPE(EXPAND_SEXTIC_VECTOR)
+#undef EXPAND_SCALAR
+#undef EXPAND_ONE_VECTOR
+#undef EXPAND_TWICE_VECTOR
+#undef EXPAND_TRIPLE_VECTOR
+#undef EXPAND_QUARTIC_VECTOR
+#undef EXPAND_QUINTIC_VECTOR
+#undef EXPAND_SEXTIC_VECTOR
+#undef PY_REGISTER_CONSTANT_TYPE
+#undef PY_REGISTER_CONSTANT_OP
 #define PY_REGISTER_FILLCONSTANT_OP(TYPE__)                                   \
      .def("fill_constant",                                                    \
           static_cast<Variable (NetBuilder::*)(                               \
@@ -327,10 +350,7 @@ void BindFrontend(pybind11::module *m) {
           py::arg("value"),                                                   \
           py::arg("name"),                                                    \
           py::arg("force_cpu") = false)
-          PY_REGISTER_FILLCONSTANT_OP(bool)
-          PY_REGISTER_FILLCONSTANT_OP(float)
-          PY_REGISTER_FILLCONSTANT_OP(int)
-          PY_REGISTER_FILLCONSTANT_OP(int64_t)
+          EXPAND_CINN_SUPPORT_TYPE(PY_REGISTER_FILLCONSTANT_OP)
 #undef PY_REGISTER_FILLCONSTANT_OP
 #define PY_REGISTER_UNARY_FUNC(func_name__) \
   .def(SnakeName(#func_name__), &NetBuilder::func_name__, py::arg("x"))

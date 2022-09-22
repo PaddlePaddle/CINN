@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <type_traits>
 #include <vector>
 
 namespace cinn {
@@ -48,5 +49,16 @@ template <typename T, typename... Ts>
 auto Max(T &&t, Ts &&... ts) {
   return std::max(t, Max(ts...));
 }
+
+template <typename T>
+struct is_vector {
+  static constexpr bool value = false;
+};
+
+template <template <typename...> class C, typename U>
+struct is_vector<C<U>> {
+  static constexpr bool value = std::is_same<C<U>, std::vector<U>>::value;
+};
+
 }  // namespace utils
 }  // namespace cinn

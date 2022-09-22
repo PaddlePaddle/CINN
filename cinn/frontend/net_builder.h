@@ -18,12 +18,14 @@
 
 #include <cstdint>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #include "cinn/common/macros.h"
 #include "cinn/common/type.h"
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/op.h"
+#include "cinn/utils/functional.h"
 #include "cinn/utils/type_defs.h"
 
 namespace cinn {
@@ -309,13 +311,13 @@ class NetBuilder {
   Placeholder CreateInput(const common::Type& type, const std::vector<int>& shape, const std::string& id_hint = "");
 
   /**
-   * @brief Create scalar with the specific value and type, the type is infered from value.
-   * @param value The scalar value to be set.
+   * @brief Create constant tensor with the specific value/vector and type, the type is infered from value.
+   * @param value The constant value to be set.
    * @param name The name of output variable.
    * @return The result variable.
    */
   template <typename T>
-  Variable ConstScalar(T value, const std::string& name) {
+  std::enable_if_t<std::is_fundamental<T>::value, Variable> Constant(const T& value, const std::string& name) {
     Instruction instr("const_scalar");
     instr.SetInputs({});
     instr.SetAttr<T>("value", value);
@@ -326,6 +328,29 @@ class NetBuilder {
     auto out = instr.GetOutput(0);
     out.set_id(name);
     out->type = common::type_of<T>();
+    return out;
+  }
+
+  template <typename T>
+  std::enable_if_t<cinn::utils::is_vector<T>::value, Variable> Constant(const T& value, const std::string& name) {
+    CHECK(!value.empty()) << "The value of Constant should not be None or empty list! Please check.";
+    if (value.size() == 1UL) {
+      return Constant(value.front(), cinn::UniqName(name));
+    }
+
+    std::vector<Variable> tmp;
+    for (int i = 0; i < value.size(); ++i) {
+      auto var = Constant(value[i], cinn::UniqName(name + "_" + std::to_string(i)));
+      if (var->shape == std::vector<int>{1}) {
+        tmp.emplace_back(var);
+      } else {
+        auto new_shape = var->shape;
+        new_shape.insert(new_shape.begin(), 1);
+        tmp.emplace_back(Reshape(var, new_shape));
+      }
+    }
+    auto out = Concat(tmp);
+    out.set_id(name);
     return out;
   }
 

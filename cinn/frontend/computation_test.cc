@@ -48,7 +48,7 @@ Program CreateTestProgram() {
   auto i = builder.Max(e, h);
   auto j = builder.Min(e, h);
   auto k = builder.Multiply(i, j);
-  auto l = builder.ConstScalar<bool>(1, "condition");
+  auto l = builder.Constant<bool>(1, "condition");
   auto m = builder.BroadcastTo(l, {B, M, N}, {0});
   auto n = builder.Select(m, j, k);
   auto o = builder.ReduceSum(n, {0, 1, 2});

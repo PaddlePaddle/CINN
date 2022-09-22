@@ -54,7 +54,7 @@ struct BatchNormHelper {
 
   template <typename T>
   Variable GetTensorFromScalar(T value, std::string name, const std::vector<int>& shape) {
-    // return builder->BroadcastTo(builder->ConstScalar<T>(value, common::UniqName(name)), shape, {0});
+    // return builder->BroadcastTo(builder->Constant<T>(value, common::UniqName(name)), shape, {0});
     return builder->FillConstant<T>(shape, value, common::UniqName(name));
   }
 

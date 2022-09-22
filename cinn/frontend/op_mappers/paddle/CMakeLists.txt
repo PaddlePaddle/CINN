@@ -18,4 +18,5 @@ gather_srcs(cinnapi_src SRCS
     matmul.cc
     compare.cc
     log.cc
-    concat.cc)
+    concat.cc
+    constant.cc)
