@@ -18,7 +18,9 @@
 #include <google/protobuf/text_format.h>
 #include <google/protobuf/util/json_util.h>
 
+#include "cinn/auto_schedule/task/task_registry.h"
 #include "cinn/ir/ir_schedule.h"
+#include "cinn/ir/schedule_desc.h"
 
 namespace cinn {
 namespace auto_schedule {
@@ -31,6 +33,9 @@ proto::TuningRecord TuningRecord::ToProto() const {
   proto::TuningRecord record_proto;
   record_proto.set_task_key(task_key);
   record_proto.set_execution_cost(execution_cost);
+  record_proto.set_predicted_cost(state.predicted_cost);
+  auto trace_proto = state.ir_schedule.GetTraceDesc().ToProto();
+  record_proto.mutable_trace()->CopyFrom(trace_proto);
 
   return record_proto;
 }

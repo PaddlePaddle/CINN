@@ -58,6 +58,8 @@ class SearchState {
 
   SearchState& operator=(const SearchState& src);
 
+  SearchState& operator=(SearchState&& src) = default;
+
   friend bool operator<(const SearchState& left, const SearchState& right);
 
   // Not all ModuleExpr has to be mutated AutoGenRule. For those states which
