@@ -1193,22 +1193,22 @@ void test_cache_read1(void* _args, int32_t num_args)
   {
     for (int32_t ax0 = 0; ax0 < 32; ax0 += 1) {
       for (int32_t ax1 = 0; ax1 < 32; ax1 += 1) {
-        A_local[((64 * ax0) + ax1)] = A[((64 * ax0) + ax1)];
+        A_local_temp_buffer[((64 * ax0) + ax1)] = A[((64 * ax0) + ax1)];
       };
     };
     for (int32_t i = 0; i < 32; i += 1) {
       for (int32_t j = 0; j < 32; j += 1) {
-        B[((32 * i) + j)] = (2 * A_local[((64 * i) + j)]);
+        B[((32 * i) + j)] = (2 * A_local_temp_buffer[((64 * i) + j)]);
       };
     };
     for (int32_t ax0 = 0; ax0 < 16; ax0 += 1) {
       for (int32_t ax1 = 0; ax1 < 16; ax1 += 1) {
-        B_local[((32 * ax0) + ax1)] = B[((32 * ax0) + ax1)];
+        B_local_temp_buffer[((32 * ax0) + ax1)] = B[((32 * ax0) + ax1)];
       };
     };
     for (int32_t i = 0; i < 16; i += 1) {
       for (int32_t j = 0; j < 16; j += 1) {
-        C[((16 * i) + j)] = (1 + B_local[((32 * i) + j)]);
+        C[((16 * i) + j)] = (1 + B_local_temp_buffer[((32 * i) + j)]);
       };
     };
   };
@@ -1275,8 +1275,8 @@ void test_cache_read2(void* _args, int32_t num_args)
   float* B = ((float*)(_B->memory));
   for (int32_t i = 0; i < 64; i += 1) {
     for (int32_t j = 0; j < 32; j += 1) {
-      A_local[((32 * i) + j)] = A[((32 * i) + j)];
-      B[((32 * i) + j)] = (2 * A_local[((32 * i) + j)]);
+      A_local_temp_buffer[((32 * i) + j)] = A[((32 * i) + j)];
+      B[((32 * i) + j)] = (2 * A_local_temp_buffer[((32 * i) + j)]);
     };
   };
   cinn_buffer_free((void*)(0), _B);
@@ -1345,22 +1345,22 @@ void test_cache_write1(void* _args, int32_t num_args)
   {
     for (int32_t i = 0; i < 64; i += 1) {
       for (int32_t j = 0; j < 32; j += 1) {
-        B_local[((32 * i) + j)] = (2 * A[((32 * i) + j)]);
+        B_local_temp_buffer[((32 * i) + j)] = (2 * A[((32 * i) + j)]);
       };
     };
     for (int32_t ax0 = 0; ax0 < 64; ax0 += 1) {
       for (int32_t ax1 = 0; ax1 < 32; ax1 += 1) {
-        B[((32 * ax0) + ax1)] = B_local[((32 * ax0) + ax1)];
+        B[((32 * ax0) + ax1)] = B_local_temp_buffer[((32 * ax0) + ax1)];
       };
     };
     for (int32_t i = 0; i < 64; i += 1) {
       for (int32_t j = 0; j < 32; j += 1) {
-        C_local[((32 * i) + j)] = (1 + B[((32 * i) + j)]);
+        C_local_temp_buffer[((32 * i) + j)] = (1 + B[((32 * i) + j)]);
       };
     };
     for (int32_t ax0 = 0; ax0 < 64; ax0 += 1) {
       for (int32_t ax1 = 0; ax1 < 32; ax1 += 1) {
-        C[((32 * ax0) + ax1)] = C_local[((32 * ax0) + ax1)];
+        C[((32 * ax0) + ax1)] = C_local_temp_buffer[((32 * ax0) + ax1)];
       };
     };
   };
@@ -1425,8 +1425,8 @@ void test_cache_write2(void* _args, int32_t num_args)
   float* B = ((float*)(_B->memory));
   for (int32_t ax0 = 0; ax0 < 64; ax0 += 1) {
     for (int32_t ax1 = 0; ax1 < 32; ax1 += 1) {
-      B_local[((32 * ax0) + ax1)] = (2 * A[((32 * ax0) + ax1)]);
-      B[((32 * ax0) + ax1)] = B_local[((32 * ax0) + ax1)];
+      B_local_temp_buffer[((32 * ax0) + ax1)] = (2 * A[((32 * ax0) + ax1)]);
+      B[((32 * ax0) + ax1)] = B_local_temp_buffer[((32 * ax0) + ax1)];
     };
   };
   cinn_buffer_free((void*)(0), _B);
@@ -1504,24 +1504,24 @@ void test_cache_read3(const float* __restrict__ A, float* __restrict__ C)
   {
     for (int32_t ax0 = 0; ax0 < 32; ax0 += 1) {
       for (int32_t ax1 = 0; ax1 < 32; ax1 += 1) {
-        A_local[((64 * ax0) + ax1)] = A[((64 * ax0) + ax1)];
+        A_local_temp_buffer[((64 * ax0) + ax1)] = A[((64 * ax0) + ax1)];
       };
     };
     for (int32_t i = 0; i < 32; i += 1) {
       for (int32_t j = 0; j < 32; j += 1) {
-        B[((32 * i) + j)] = (2 * A_local[((64 * i) + j)]);
+        B[((32 * i) + j)] = (2 * A_local_temp_buffer[((64 * i) + j)]);
       };
       __syncthreads();
     };
     for (int32_t ax0 = 0; ax0 < 16; ax0 += 1) {
       for (int32_t ax1 = 0; ax1 < 16; ax1 += 1) {
-        B_local[((32 * ax0) + ax1)] = B[((32 * ax0) + ax1)];
+        B_local_temp_buffer[((32 * ax0) + ax1)] = B[((32 * ax0) + ax1)];
       };
     };
     for (int32_t i = 0; i < 16; i += 1) {
       __syncthreads();
       for (int32_t j = 0; j < 16; j += 1) {
-        C[((16 * i) + j)] = (1 + B_local[((32 * i) + j)]);
+        C[((16 * i) + j)] = (1 + B_local_temp_buffer[((32 * i) + j)]);
       };
     };
   };
@@ -1597,24 +1597,24 @@ void test_cache_write3(const float* __restrict__ A, float* __restrict__ C)
   {
     for (int32_t i = 0; i < 64; i += 1) {
       for (int32_t j = 0; j < 32; j += 1) {
-        B_local[((32 * i) + j)] = (2 * A[((32 * i) + j)]);
+        B_local_temp_buffer[((32 * i) + j)] = (2 * A[((32 * i) + j)]);
       };
     };
     for (int32_t ax0 = 0; ax0 < 64; ax0 += 1) {
       for (int32_t ax1 = 0; ax1 < 32; ax1 += 1) {
-        B[((32 * ax0) + ax1)] = B_local[((32 * ax0) + ax1)];
+        B[((32 * ax0) + ax1)] = B_local_temp_buffer[((32 * ax0) + ax1)];
       };
     };
     __syncthreads();
     for (int32_t i = 0; i < 64; i += 1) {
       for (int32_t j = 0; j < 32; j += 1) {
-        C_local[((32 * i) + j)] = (1 + B[((32 * i) + j)]);
+        C_local_temp_buffer[((32 * i) + j)] = (1 + B[((32 * i) + j)]);
       };
     };
     __syncthreads();
     for (int32_t ax0 = 0; ax0 < 64; ax0 += 1) {
       for (int32_t ax1 = 0; ax1 < 32; ax1 += 1) {
-        C[((32 * ax0) + ax1)] = C_local[((32 * ax0) + ax1)];
+        C[((32 * ax0) + ax1)] = C_local_temp_buffer[((32 * ax0) + ax1)];
       };
     };
   };
@@ -1690,24 +1690,24 @@ void test_sync_threads(const float* __restrict__ A, float* __restrict__ C)
   {
     for (int32_t i = 0; i < 64; i += 1) {
       for (int32_t j = 0; j < 32; j += 1) {
-        B_local[((32 * i) + j)] = (2 * A[((32 * i) + j)]);
+        B_local_temp_buffer[((32 * i) + j)] = (2 * A[((32 * i) + j)]);
       };
     };
     for (int32_t ax0 = 0; ax0 < 64; ax0 += 1) {
       for (int32_t ax1 = 0; ax1 < 32; ax1 += 1) {
-        B[((32 * ax0) + ax1)] = B_local[((32 * ax0) + ax1)];
+        B[((32 * ax0) + ax1)] = B_local_temp_buffer[((32 * ax0) + ax1)];
         __syncthreads();
       };
     };
     for (int32_t i = 0; i < 64; i += 1) {
       for (int32_t j = 0; j < 32; j += 1) {
-        C_local[((32 * i) + j)] = (1 + B[((32 * i) + j)]);
+        C_local_temp_buffer[((32 * i) + j)] = (1 + B[((32 * i) + j)]);
       };
     };
     for (int32_t ax0 = 0; ax0 < 64; ax0 += 1) {
       for (int32_t ax1 = 0; ax1 < 32; ax1 += 1) {
         __syncthreads();
-        C[((32 * ax0) + ax1)] = C_local[((32 * ax0) + ax1)];
+        C[((32 * ax0) + ax1)] = C_local_temp_buffer[((32 * ax0) + ax1)];
       };
     };
   };
