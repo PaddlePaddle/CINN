@@ -125,7 +125,7 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
   // Here conv2d and depthwise_conv2d are implemented by one cudnn api cudnnConvolutionForward
   if ((function_name_ == "conv2d" || function_name_ == "depthwise_conv2d") && target_.arch == Target::Arch::NVGPU) {
     if (str_attrs[0] == "forward") {
-      if (str_attrs[1] == "NHWC") {
+      if (str_attrs.size() > 1 && str_attrs[1] == "NHWC") {
         absl::flat_hash_map<std::string, int> attrs_map = {
             {"input_n", attrs[0]},     {"input_h", attrs[1]},     {"input_w", attrs[2]},   {"input_c", attrs[3]},
             {"weights_n", attrs[4]},   {"weights_c", attrs[5]},   {"weights_h", attrs[6]}, {"weights_w", attrs[7]},

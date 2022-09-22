@@ -944,7 +944,9 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions(
             type = absl::get<std::string>(node->attrs.attr_store.at("conv_type"));
           }
           instr->str_attrs.push_back(type);
-          instr->str_attrs.push_back(absl::get<std::string>(node->attrs.attr_store["data_format"]));
+          if (node->attrs.attr_store.find("data_format") != node->attrs.attr_store.end()) {
+            instr->str_attrs.push_back(absl::get<std::string>(node->attrs.attr_store["data_format"]));
+          }
         } else if (node->op()->name == "depthwise_conv2d") {
           auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
           for (auto& in_node : node->inlinks_in_order()) {
