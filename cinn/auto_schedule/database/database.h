@@ -43,12 +43,10 @@ struct TuningRecord {
 
   TuningRecord() = default;
 
-  // initialize a TuningRecord object from a proto object
-  TuningRecord(const proto::TuningRecord& record_proto)
-      : task_key(record_proto.task_key()), execution_cost(record_proto.execution_cost()), state(ir::ModuleExpr()) {}
-
-  TuningRecord(const std::string& task_key, double execution_cost, const SearchState& state)
-      : task_key(task_key), execution_cost(execution_cost), state(state) {}
+  TuningRecord(const std::string& task_key, double execution_cost, double predicted_cost, ir::IRSchedule ir_sch)
+      : task_key(task_key), execution_cost(execution_cost), state(std::move(ir_sch)) {
+    state.predicted_cost = predicted_cost;
+  }
 
   // convert to proto object
   proto::TuningRecord ToProto() const;
