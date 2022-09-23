@@ -280,8 +280,12 @@ class PaddleModelPerformanceTester : public PerformanceTester {
     CHECK(!input_names_.empty());
     CHECK_EQ(input_names_.size(), input_shapes_.size());
 
-    scope_             = std::make_shared<hlir::framework::Scope>();
-    auto loadedProgram = cinn::frontend::LoadPaddleProgram(model_path_, scope_.get(), true, target_);
+    scope_ = std::make_shared<hlir::framework::Scope>();
+    std::unordered_map<std::string, std::vector<int>> input_to_shape;
+    for (int idx = 0; idx < input_names_.size(); ++idx) {
+      input_to_shape[input_names_[idx]] = input_shapes_[idx];
+    }
+    auto loadedProgram = cinn::frontend::LoadPaddleProgram(model_path_, scope_.get(), input_to_shape, true, target_);
     auto& program      = std::get<0>(loadedProgram);
     auto& varmap       = std::get<1>(loadedProgram);
     VLOG(3) << "loaded program: " << *program;
