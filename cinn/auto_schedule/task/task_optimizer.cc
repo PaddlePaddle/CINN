@@ -21,8 +21,14 @@
 #include "cinn/auto_schedule/cost_model/expr_cost_model.h"
 #include "cinn/auto_schedule/measure/measure.h"
 #include "cinn/auto_schedule/search_strategy/evolutionary_search.h"
+#include "cinn/common/target.h"
+#include "cinn/hlir/framework/op_lowering.h"
+#include "cinn/ir/buffer.h"
+#include "cinn/ir/ir.h"
+#include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_schedule.h"
 #include "cinn/optim/ir_copy.h"
+#include "cinn/optim/transform_gpu_forloop.h"
 #include "cinn/runtime/flags.h"
 
 DECLARE_bool(auto_schedule_use_cost_model);
@@ -70,7 +76,7 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
     CHECK_EQ(best_exprs.size(), result.lowered_funcs[0].size())
         << "RuntimeError: Expr size is not equal to LoweredFunc size in TaskOptimizer";
     for (size_t i = 0; i < best_exprs.size(); ++i) {
-      result.lowered_funcs[0][i]->body = best_exprs[i];
+      result.lowered_funcs[0][i] = FuncWithUpdatedBody(result.lowered_funcs[0][i], best_exprs[i]);
       if (task_->target == common::DefaultNVGPUTarget()) {
         result.lowered_funcs[0][i]->PrepareCudaAxisInfoFromBody();
       }
@@ -97,7 +103,8 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
 
       measure_inputs[i].lowered_funcs.emplace_back(optim::IRCopy(task_->lowered_funcs));
       for (size_t j = 0; j < best_exprs.size(); ++j) {
-        measure_inputs[i].lowered_funcs.front().at(j)->body = best_exprs[j];
+        measure_inputs[i].lowered_funcs.front().at(j) =
+            FuncWithUpdatedBody(measure_inputs[i].lowered_funcs.front().at(j), best_exprs[j]);
         if (task_->target == common::DefaultNVGPUTarget()) {
           measure_inputs[i].lowered_funcs.front().at(j)->PrepareCudaAxisInfoFromBody();
         }
@@ -129,6 +136,39 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
     measured_count += states.size();
   }
   return result;
+}
+
+ir::LoweredFunc TaskOptimizer::FuncWithUpdatedBody(const ir::LoweredFunc& old_func, ir::Expr& body) {
+  ir::ModuleExpr mod_expr(std::vector<ir::Expr>({body}));
+  ir::IRSchedule ir_sch(mod_expr);
+
+  // temp_bufs may be deleted during auto tuning (such as auto inline),
+  // we have to check from old temp bufs and set them as local buffer.
+  for (const ir::Buffer& buf : old_func->temp_bufs) {
+    const std::string& buf_name              = buf->name;
+    std::vector<ir::Expr> all_block_realizes = ir_sch.GetAllBlocks();
+    for (ir::Expr& e : all_block_realizes) {
+      const ir::ScheduleBlockRealize* sche_block_realize = e.As<ir::ScheduleBlockRealize>();
+      const std::string& sche_name = sche_block_realize->schedule_block.As<ir::ScheduleBlock>()->name;
+      if (buf_name == "_" + sche_name) {
+        VLOG(6) << "Set local buffer for temp buffer " << buf_name;
+        ir_sch.SetBuffer(e, "local", true);
+        break;
+      }
+    }
+  }
+
+  ir::Expr updated_body = ir_sch.GetModule().GetExprs()[0];
+#ifdef CINN_WITH_CUDA
+  optim::OptimizeExprGPU(&updated_body);
+#endif
+
+  // Get new temp bufs by analyzing.
+  std::vector<ir::Buffer> new_temp_bufs = lang::GetTempBuffers(old_func->args, updated_body);
+  ir::LoweredFunc new_func = ir::_LoweredFunc_::Make(old_func->name, old_func->args, updated_body, new_temp_bufs);
+  new_func                 = optim::Optimize(Expr(new_func), task_->target, false).as_lowered_func_ref();
+  new_func->PrepareBufferCastExprs(/*with_expr_gen_tensor = */ false);
+  return new_func;
 }
 
 }  // namespace auto_schedule

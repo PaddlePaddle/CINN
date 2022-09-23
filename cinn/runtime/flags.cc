@@ -34,7 +34,7 @@ DEFINE_bool(cinn_open_fusion_optimize,
 
 // FLAGS to switch optimization status
 DEFINE_bool(cinn_use_new_fusion_pass,
-            BoolFromEnv("FLAGS_cinn_use_new_fusion_pass", false),
+            BoolFromEnv("FLAGS_cinn_use_new_fusion_pass", true),
             "Whether use the new op_fusion and fusion_merge pass.");
 
 DEFINE_bool(cinn_use_fill_constant_folding,
@@ -66,10 +66,12 @@ DEFINE_string(cinn_source_code_save_path,
               StringFromEnv("FLAGS_cinn_source_code_save_path", ""),
               "Specify the directory path of generated source code, which is used for debug.");
 
+DEFINE_bool(enable_auto_tuner, BoolFromEnv("FLAGS_enable_auto_tuner", false), "Whether enable auto tuner.");
+
 DEFINE_bool(auto_schedule_use_cost_model,
-            BoolFromEnv("FLAGS_auto_schedule_use_cost_model", false),
+            BoolFromEnv("FLAGS_auto_schedule_use_cost_model", true),
             "Whether to use cost model in auto schedule, this is an on-developing flag and it will be removed when "
-            "cost model is stable");
+            "cost model is stable.");
 
 namespace cinn {
 namespace runtime {
