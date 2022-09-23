@@ -38,7 +38,7 @@ DEFINE_bool(cinn_open_fusion_optimize,
 
 // FLAGS to switch optimization status
 DEFINE_bool(cinn_use_new_fusion_pass,
-            BoolFromEnv("FLAGS_cinn_use_new_fusion_pass", false),
+            BoolFromEnv("FLAGS_cinn_use_new_fusion_pass", true),
             "Whether use the new op_fusion and fusion_merge pass.");
 
 DEFINE_bool(cinn_use_fill_constant_folding,
