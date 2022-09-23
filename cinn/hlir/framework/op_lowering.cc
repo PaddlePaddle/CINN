@@ -149,6 +149,7 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpWithoutSchedule(IRComputeFuncti
 
   VLOG(3) << "After IRLowerOp compute, ir is: \n" << ir_sch.GetModule().GetExprs().at(0);
   // function args
+  group->input_names.clear();
   std::vector<ir::Argument> func_args;
   for (auto& args : arg_tensors) {
     // input node data name.
@@ -157,6 +158,7 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpWithoutSchedule(IRComputeFuncti
     func_args.emplace_back(args->buffer, ir::Argument::IO::kInput);
   }
 
+  group->output_names.clear();
   for (auto& node : group->output_nodes) {
     // output node data name.
     for (auto node_data : GetAllNodeData(node)) {
@@ -227,6 +229,7 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOp(IRComputeFunction compute,
   }
   VLOG(3) << "After IRLowerOp schedule, ir is: \n" << ir_sch.GetModule().GetExprs().at(0);
   // function args
+  group->input_names.clear();
   std::vector<ir::Argument> func_args;
   for (auto& args : arg_tensors) {
     // input node data name.
@@ -235,6 +238,7 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOp(IRComputeFunction compute,
     func_args.emplace_back(args->buffer, ir::Argument::IO::kInput);
   }
 
+  group->output_names.clear();
   for (auto& node : group->output_nodes) {
     // output node data name.
     for (auto node_data : GetAllNodeData(node)) {
@@ -274,7 +278,7 @@ std::vector<ir::LoweredFunc> OpLowerer::LowerOp(ComputeFunction compute, Schedul
   poly::StageMap stages;
   std::vector<ir::Tensor> func_args;
   std::unordered_map<std::string, ir::Tensor> tensor_map;
-
+  VLOG(3) << "Fused Sub-Graph Size Is : " << group->fused_sub_groups.size();
   // do compute.
   if (group->fused_sub_groups.size() == 0) {
     (this->*compute)(stages, func_args, tensor_map, group, group);
@@ -284,6 +288,7 @@ std::vector<ir::LoweredFunc> OpLowerer::LowerOp(ComputeFunction compute, Schedul
     }
   }
 
+  VLOG(3) << "After Compute, Do Schedule!";
   // do schedule.
   if (group->fused_sub_groups.size() == 0) {
     (this->*schedule)(stages, tensor_map, group, group);
@@ -292,12 +297,13 @@ std::vector<ir::LoweredFunc> OpLowerer::LowerOp(ComputeFunction compute, Schedul
       (this->*schedule)(stages, tensor_map, group, sub_group);
     }
   }
-
+  group->input_names.clear();
   for (auto& args : func_args) {
     // input node data name.
     group->input_names.push_back(args->name);
   }
 
+  group->output_names.clear();
   for (auto& node : group->output_nodes) {
     // output node data name.
     for (auto node_data : GetAllNodeData(node)) {
@@ -2033,7 +2039,7 @@ void OpLowerer::OutEWiseFusableSchedule(poly::StageMap& stages,
       stage->CopyTransform(master_stage);
       stage->CopyLoopInfo(master_stage);
 
-      if (group->internal_nodes.count(node) || sub_group->internal_nodes.count(node)) {
+      if (!group->output_nodes.count(node)) {
         stage->SetBuffer("local");
       }
       // fringe node with no consumer

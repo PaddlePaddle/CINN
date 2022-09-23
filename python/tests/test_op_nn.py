@@ -460,7 +460,7 @@ class OpTest_batchnorm(SingleOpTester):
     def test_op(self):
         attrs = framework.NodeAttr()
         self.to_test_op([[1, 64, 112, 112], [64], [64], [64], [64]],
-                        [[1, 64, 112, 112]], "batchnorm", attrs)
+                        [[1, 64, 112, 112]], "batch_norm", attrs)
 
 
 class OpTest_softmax_0(SingleOpTester):

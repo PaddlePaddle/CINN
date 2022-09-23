@@ -501,7 +501,7 @@ std::vector<Variable> NetBuilder::BatchNorm(const Variable& a,
                                             float momentum,
                                             const std::string& data_layout,
                                             bool is_test) {
-  std::string op_type = is_test ? "batchnorm" : "batch_norm_train";
+  std::string op_type = is_test ? "batch_norm" : "batch_norm_train";
   return CustomInstr(op_type,
                      {a, scale, bias, mean, variance},
                      {{"epsilon", epsilon}, {"momentum", momentum}, {"data_layout", data_layout}});

@@ -35,7 +35,7 @@ class TestElementwiseMulOp(OpTest):
             "x": np.random.random([32, 64]).astype("float32"),
             "y": np.random.random([32, 64]).astype("float32")
         }
-        self.axis = -1
+        self.axis = 0
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.inputs["x"], stop_gradient=False)
@@ -61,7 +61,7 @@ class TestElementwiseMulOp(OpTest):
         self.paddle_outputs = [out]
 
     def build_cinn_program(self, target):
-        builder = NetBuilder("add")
+        builder = NetBuilder("multiply")
         x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
         y = builder.create_input(Float(32), self.inputs["y"].shape, "y")
         out = builder.multiply(x, y, axis=self.axis)
@@ -82,43 +82,7 @@ class TestMulCase1(TestElementwiseMulOp):
             "x": np.random.random([8, 16, 32, 32]).astype("float32"),
             "y": np.random.random([32, 32]).astype("float32")
         }
-        self.axis = -1
-
-
-class TestMulCase2(TestElementwiseMulOp):
-    def init_case(self):
-        self.inputs = {
-            "x": np.random.random([8, 1, 32, 32]).astype("float32"),
-            "y": np.random.random([16, 32]).astype("float32")
-        }
-        self.axis = 1
-
-
-class TestMulCase3(TestElementwiseMulOp):
-    def init_case(self):
-        self.inputs = {
-            "x": np.random.random([4, 16, 8, 32]).astype("float32"),
-            "y": np.random.random([4, 16]).astype("float32")
-        }
-        self.axis = 0
-
-
-class TestMulCase4(TestElementwiseMulOp):
-    def init_case(self):
-        self.inputs = {
-            "x": np.random.random([4, 16, 8, 32]).astype("float32"),
-            "y": np.random.random([1]).astype("float32")
-        }
-        self.axis = -1
-
-
-class TestMulCase5(TestElementwiseMulOp):
-    def init_case(self):
-        self.inputs = {
-            "x": np.random.random([5, 1]).astype("float32"),
-            "y": np.random.random([5]).astype("float32")
-        }
-        self.axis = -1
+        self.axis = 2
 
 
 if __name__ == "__main__":
