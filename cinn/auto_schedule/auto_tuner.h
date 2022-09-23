@@ -26,6 +26,7 @@
 #include "cinn/common/target.h"
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/graph_compiler.h"
+#include "cinn/hlir/framework/op_lowering.h"
 
 namespace cinn {
 namespace auto_schedule {
@@ -55,6 +56,7 @@ class AutoTuner {
  private:
   const common::Target& target_;
   hlir::framework::Graph* graph_;
+  std::unique_ptr<hlir::framework::OpLowerer> op_lowerer_;
 
   // Tasks to tune
   std::vector<TuneTask> tasks_;

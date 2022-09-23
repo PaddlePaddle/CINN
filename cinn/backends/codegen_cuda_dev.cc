@@ -15,6 +15,7 @@
 #include "cinn/backends/codegen_cuda_dev.h"
 
 #include <cinn/utils/string.h>
+#include <glog/logging.h>
 
 #include <fstream>
 #include <set>
@@ -123,7 +124,6 @@ void CodeGenCUDA_Dev::Visit(const ir::_LoweredFunc_ *op) {
   if (!func_body.As<ir::Block>()) {
     func_body = ir::Block::Make({func_body});
   }
-
   Print(func_body);
 }
 
