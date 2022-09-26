@@ -338,7 +338,7 @@ class NetBuilder {
    * @return The result variable.
    */
   template <typename T>
-  std::enable_if_t<std::is_fundamental<T>::value, Variable> Constant(const T& value, const std::string& name) {
+  std::enable_if_t<std::is_arithmetic<T>::value, Variable> Constant(const T& value, const std::string& name) {
     Instruction instr("const_scalar");
     instr.SetInputs({});
     instr.SetAttr<T>("value", value);
