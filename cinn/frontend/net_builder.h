@@ -353,7 +353,7 @@ class NetBuilder {
   }
 
   template <typename T>
-  std::enable_if_t<cinn::utils::is_vector<T>::value, Variable> Constant(const T& value, const std::string& name) {
+  std::enable_if_t<cinn::utils::is_vector_v<T>, Variable> Constant(const T& value, const std::string& name) {
     CHECK(!value.empty()) << "The value of Constant should not be None or empty list! Please check.";
 
     cinn::utils::ShapeType value_shape;

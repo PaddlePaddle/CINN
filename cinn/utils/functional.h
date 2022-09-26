@@ -58,13 +58,12 @@ template <typename... Ts>
 struct is_vector<std::vector<Ts...>> : std::true_type {};
 
 template <typename T>
-inline constexpr bool is_vector_f(const T &) {
+constexpr bool is_vector_f(const T &) {
   return is_vector<T>::value;
 }
 
-// TODO(thisjiang): inline variables are only available with -std=c++17 or -std=gnu++17
-// template <typename T>
-// inline constexpr bool is_vector_v = is_vector<T>::value;
+template <typename T>
+constexpr bool is_vector_v = is_vector<T>::value;
 
 }  // namespace utils
 }  // namespace cinn
