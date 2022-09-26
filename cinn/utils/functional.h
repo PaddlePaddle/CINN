@@ -58,7 +58,7 @@ template <typename... Ts>
 struct is_vector<std::vector<Ts...>> : std::true_type {};
 
 template <typename T>
-inline constexpr bool is_vector_f(const T &) {
+inline const bool is_vector_f(const T &) {
   return is_vector<T>::value;
 }
 
