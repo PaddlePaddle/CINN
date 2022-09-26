@@ -30,6 +30,7 @@
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/instruction.h"
 #include "cinn/hlir/framework/op_strategy.h"
+#include "cinn/hlir/framework/parallel_compiler.h"
 #include "cinn/hlir/framework/scope.h"
 #include "cinn/ir/lowered_func.h"
 #include "cinn/lang/packed_func.h"
@@ -165,6 +166,9 @@ class GraphCompiler final {
   void InsertBufferHandlers(std::vector<std::unique_ptr<Instruction>>* instructions);
 
  private:
+  // parallel compiler
+  std::shared_ptr<ParallelCompiler> parallel_compiler_;
+
   void ProcessFunction(const std::vector<ir::LoweredFunc>& lowered_func);
   void SetSubKernels(Instruction* instr, const std::string& func_name);
   Target target_;
