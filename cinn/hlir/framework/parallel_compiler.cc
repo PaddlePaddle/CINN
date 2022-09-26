@@ -169,32 +169,14 @@ void ParallelCompiler::Task::CodegenAndJit() {
 }
 
 void ParallelCompiler::Task::BuildInstruction() {
-  // get func args from lowered func.
-  auto get_func_args = [](ir::LoweredFunc func, ir::Argument::IO io) {
-    std::vector<std::string> args;
-    std::transform(func->args.begin(), func->args.end(), std::back_inserter(args), [io](ir::Argument arg) {
-      if (io == ir::Argument::IO::kInput && arg.is_input()) {
-        return arg.name();
-      } else if (io == ir::Argument::IO::kOutput && arg.is_output()) {
-        return arg.name();
-      } else {
-        return std::string("");
-      }
-    });
-    args.erase(std::remove(args.begin(), args.end(), ""), args.end());
-    return args;
-  };
   // create instruction.
-  for (auto& func : lowered_funcs) {
-    CHECK_EQ(func.size(), 1);
-    auto instr  = std::unique_ptr<Instruction>(new Instruction(target,
-                                                              scope.get(),
-                                                              get_func_args(func[0], ir::Argument::IO::kInput),
-                                                              get_func_args(func[0], ir::Argument::IO::kOutput),
-                                                              func[0]->name));
-    auto fn_ptr = engine->Lookup(func[0]->name);
-    CHECK(fn_ptr) << "Can't find jit function : " << func[0]->name;
-    instr->SetLoweredFunc(reinterpret_cast<void*>(fn_ptr), func[0]->name);
+  for (auto& group : groups) {
+    CHECK(group->input_names.size() > 0 || group->output_names.size() > 0);
+    auto instr = std::unique_ptr<Instruction>(
+        new Instruction(target, scope.get(), group->input_names, group->output_names, group->GetFuncName()));
+    auto fn_ptr = engine->Lookup(group->GetFuncName());
+    CHECK(fn_ptr) << "Can't find jit function : " << group->GetFuncName();
+    instr->SetLoweredFunc(reinterpret_cast<void*>(fn_ptr), group->GetFuncName());
 
     instr->Finalize();
     instructions.push_back(std::move(instr));

@@ -690,6 +690,24 @@ void GraphCompiler::CompileOptions::Apply(const auto_schedule::TuningResult& tun
 GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::CompileOptions& options,
                                                       std::unordered_set<std::string>&& fetch_var_ids,
                                                       void* stream) {
+  // assign buffer.
+  if (options.with_instantiate_variables) {
+    VLOG(3) << "Initantiate all variables on compile-time";
+    // All variables reside in scope_, so traverse it to instantiate each one
+    for (auto& name : scope_->var_names()) {
+      auto* var    = scope_->Var<Tensor>(std::string({name.data(), name.size()}));
+      auto& tensor = absl::get<Tensor>(*var);
+      if (reuse_vars_map_.count(name)) {
+        auto src_var_name = reuse_vars_map_.at(name);
+        auto* src_var     = scope_->Var<Tensor>(src_var_name);
+        auto& src_tensor  = absl::get<Tensor>(*src_var);
+        tensor->set_buffer(src_tensor->get_buffer());
+      } else {
+        tensor->mutable_data(target_, tensor->type());
+      }
+    }
+  }
+
   if (FLAGS_cinn_parallel_compile_size) {
     ParallelCompiler::CompileOptions option;
     option.lowered_funcs = options.lowered_funcs;
@@ -818,22 +836,6 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
     InsertBufferHandlers(&instructions);
   }
 
-  if (options.with_instantiate_variables) {
-    VLOG(3) << "Initantiate all variables on compile-time";
-    // All variables reside in scope_, so traverse it to instantiate each one
-    for (auto& name : scope_->var_names()) {
-      auto* var    = scope_->Var<Tensor>(std::string({name.data(), name.size()}));
-      auto& tensor = absl::get<Tensor>(*var);
-      if (reuse_vars_map_.count(name)) {
-        auto src_var_name = reuse_vars_map_.at(name);
-        auto* src_var     = scope_->Var<Tensor>(src_var_name);
-        auto& src_tensor  = absl::get<Tensor>(*src_var);
-        tensor->set_buffer(src_tensor->get_buffer());
-      } else {
-        tensor->mutable_data(target_, tensor->type());
-      }
-    }
-  }
   GraphCompiler::CompilationResult result;
   result.runtime_program.reset(new Program(scope_, std::move(instructions)));
   return result;
