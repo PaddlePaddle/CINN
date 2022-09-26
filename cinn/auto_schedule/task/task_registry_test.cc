@@ -76,7 +76,7 @@ TEST(TestTaskRegistry, basic) {
   std::shared_ptr<hlir::framework::Graph> graph = CreateAddProgram(target);
   std::vector<TuneTask> tasks                   = CreateTasks(graph.get(), target);
 
-  TaskRegistry* task_registry = TaskRegistry::Global();
+  InitialTaskRegistry* task_registry = InitialTaskRegistry::Global();
 
   std::vector<ir::ModuleExpr> module_exprs;
   for (const TuneTask& task : tasks) {
@@ -87,7 +87,7 @@ TEST(TestTaskRegistry, basic) {
   for (int i = 0; i < tasks.size(); ++i) {
     std::string key = tasks[i].serialized_key;
     VLOG(3) << "serialized_key = " << key;
-    ir::ModuleExpr new_expr = task_registry->Get(key);
+    ir::ModuleExpr new_expr = task_registry->Get(key)->module_expr;
 
     ASSERT_EQ(new_expr.GetExprs().size(), module_exprs[i].GetExprs().size());
     for (int j = 0; j < new_expr.GetExprs().size(); ++j) {
@@ -96,10 +96,10 @@ TEST(TestTaskRegistry, basic) {
     }
   }
 
-  bool flag = task_registry->Remove(tasks[0].serialized_key);
+  bool flag = task_registry->Has(tasks[0].serialized_key);
   ASSERT_EQ(flag, true);
 
-  flag = task_registry->Remove(tasks[0].serialized_key);
+  flag = task_registry->Has("not_exist");
   ASSERT_EQ(flag, false);
 }
 

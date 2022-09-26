@@ -21,55 +21,58 @@
 
 #include "cinn/ir/ir_schedule.h"
 #include "cinn/optim/ir_copy.h"
+#include "cinn/utils/registry.h"
 
 namespace cinn {
 
 namespace auto_schedule {
 
-// Global task registrar, used to save the initial ModuleExpr of each task.
-class TaskRegistry {
+struct InitialTaskInfo {
+  std::string task_key;
+  ir::ModuleExpr module_expr;
+
+  InitialTaskInfo(const std::string& task_key, const ir::ModuleExpr& module_expr)
+      : task_key(task_key), module_expr(module_expr) {}
+};
+
+// Global task registry, used to save the initial ModuleExpr of each task.
+class InitialTaskRegistry : public Registry<InitialTaskInfo> {
  public:
-  static TaskRegistry* Global() {
-    static TaskRegistry task_registry;
-    return &task_registry;
+  static InitialTaskRegistry* Global() {
+    static InitialTaskRegistry x;
+    return &x;
   }
 
-  // Store the initial ModuleExpr of a task into the map
-  void Regist(const std::string& task_key, const ir::ModuleExpr& module_expr) {
-    std::lock_guard<std::mutex> lock(mtx_);
-    task_map_.insert({task_key, optim::IRCopy(module_expr)});
+  // Get the initial ModuleExpr of a task.
+  inline const InitialTaskInfo* Get(const std::string& task_key) {
+    const InitialTaskInfo* task_info = Registry<InitialTaskInfo>::Find(task_key);
+    CHECK(task_info) << "InitialTaskInfo [" << task_key << "] is not registered";
+    return task_info;
   }
 
-  // Get the initial ModuleExpr of a task by serialized_key;
-  const ir::ModuleExpr& Get(const std::string& task_key) {
-    std::lock_guard<std::mutex> lock(mtx_);
-    CHECK(task_map_.find(task_key) != task_map_.end()) << "task with task_key = " << task_key << "is not exist.";
-    return task_map_.at(task_key);
-  }
+  // Check if the task info with task_key exists;
+  inline const bool Has(const std::string& task_key) { return nullptr != Registry<InitialTaskInfo>::Find(task_key); }
 
-  // Get the initial ModuleExpr of a task by serialized_key;
-  bool Remove(const std::string& task_key) {
-    std::lock_guard<std::mutex> lock(mtx_);
-    if (task_map_.find(task_key) == task_map_.end()) {
-      return false;
+  // Regist the initial ModuleExpr of a task into the map
+  inline void Regist(const std::string& task_key, const ir::ModuleExpr& module_expr) {
+    std::lock_guard<std::mutex> guard(registering_mutex);
+    if (fmap_.count(task_key) == 0) {
+      InitialTaskInfo* task_info = new InitialTaskInfo(task_key, optim::IRCopy(module_expr));
+      __REGISTER__(task_key, task_info);
     }
-    task_map_.erase(task_key);
-    return true;
-  }
-
-  // Check if the task_key exists;
-  bool Has(const std::string& task_key) {
-    std::lock_guard<std::mutex> lock(mtx_);
-    return task_map_.count(task_key) != 0;
   }
 
  private:
-  TaskRegistry()                    = default;
-  TaskRegistry(const TaskRegistry&) = delete;
-  void operator=(TaskRegistry&) = delete;
+  InitialTaskRegistry() = default;
+  CINN_DISALLOW_COPY_AND_ASSIGN(InitialTaskRegistry);
 
-  std::mutex mtx_;
-  absl::flat_hash_map<std::string, ir::ModuleExpr> task_map_;
+  // Regist the initial ModuleExpr of a task.
+  inline InitialTaskInfo* __REGISTER__(const std::string& task_key, InitialTaskInfo* task_info) {
+    fmap_[task_key] = task_info;
+    const_list_.push_back(task_info);
+    entry_list_.push_back(task_info);
+    return task_info;
+  }
 };
 
 }  // namespace auto_schedule

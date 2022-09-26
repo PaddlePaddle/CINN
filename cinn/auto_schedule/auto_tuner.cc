@@ -50,14 +50,14 @@ void AutoTuner::Initialize(const Config& config, hlir::framework::GraphCompiler*
   const auto& dtype_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, common::Type>>("inferdtype");
   const auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, hlir::framework::shape_t>>("infershape");
 
-  op_lowerer_ = std::make_unique<hlir::framework::OpLowerer>(dtype_dict, shape_dict, target_);
+  op_lowerer_                        = std::make_unique<hlir::framework::OpLowerer>(dtype_dict, shape_dict, target_);
+  InitialTaskRegistry* task_registry = InitialTaskRegistry::Global();
   for (TuneTask& task : tasks_) {
     task.SetOpLowerer(op_lowerer_.get());
     task.TaskGraphToUnoptLoweredFunc();
     task.SerializeToString(shape_dict, dtype_dict);
 
     // Register the initial ModuleExpr corresponding to the task
-    TaskRegistry* task_registry = TaskRegistry::Global();
     std::vector<ir::Expr> exprs(task.lowered_funcs.size());
     std::transform(
         task.lowered_funcs.begin(), task.lowered_funcs.end(), exprs.begin(), [&](const ir::LoweredFunc& func) {
