@@ -641,6 +641,21 @@ class NetBuilder {
    */
   Variable Cast(const Variable& x, const std::string& dtype);
 
+  /** 
+   *  @brief Returns a one-hot tensor where the locations repsented by indices take value `on_value`,
+   *  other locations take value `off_value`.
+   *  @param on_value Value to fill at indices. Its shape must be [1].
+   *  @param on_value Value to fill at all other positions besides indices. Its shape must be [1]
+   *  @param depth Depth of the one-hot dimension.
+   *  @param axis Axis to fill.
+   */
+  Variable OneHot(const Variable& indices,
+                  const Variable& on_value,
+                  const Variable& off_value,
+                  const int depth,
+                  const int axis,
+                  const std::string& dtype);
+
   // *******************************************
   // Decomposer Operator
   /**
