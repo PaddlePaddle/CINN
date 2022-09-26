@@ -70,18 +70,12 @@ ADD_TEST(NAME test_netbuilder
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
 
-ADD_TEST(NAME test_cinnbuilder
-    COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
-    python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_cinnbuilder.py "${WITH_CUDA}"
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-)
-
-ADD_TEST(NAME test_computation
-    COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
-    python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_computation.py
-    ${CMAKE_BINARY_DIR}/thirds/naive_mul_model
-    "${WITH_CUDA}" WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-)
+#ADD_TEST(NAME test_computation_python
+#    COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
+#    python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_computation.py
+#    ${CMAKE_BINARY_DIR}/thirds/naive_mul_model
+#    "${WITH_CUDA}" WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+#)
 
 ADD_TEST(NAME test_cinn_ops_check
     COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
@@ -101,6 +95,7 @@ ADD_TEST(NAME test_cinn_fake_resnet
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
 
+if (WITH_CUDNN)
 ADD_TEST(NAME test_cinn_real_resnet18
     COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
     python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_resnet18.py "${CMAKE_BINARY_DIR}/thirds/ResNet18" "${WITH_CUDA}"
@@ -127,17 +122,18 @@ ADD_TEST(NAME test_cinn_real_resnet50
     python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_resnet50.py "${CMAKE_BINARY_DIR}/thirds/ResNet50" "${WITH_CUDA}"
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
+endif()
 
 ADD_TEST(NAME test_cinn_real_squeezenet
     COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
     python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_squeezenet.py "${CMAKE_BINARY_DIR}/thirds/SqueezeNet" "${WITH_CUDA}"
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 
-ADD_TEST(NAME test_cinn_real_facedet
-    COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
-    python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_facedet.py "${CMAKE_BINARY_DIR}/thirds/FaceDet" "${WITH_CUDA}"
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-)
+#ADD_TEST(NAME test_cinn_real_facedet
+#    COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
+#    python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_facedet.py "${CMAKE_BINARY_DIR}/thirds/FaceDet" "${WITH_CUDA}"
+#    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+#)
 
 file(GLOB CINN_OP_TEST RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" "tests/ops/test_*.py")
 set(EXCLUDE_OP test_mul_op test_broadcast_to_op)

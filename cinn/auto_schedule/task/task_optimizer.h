@@ -16,10 +16,12 @@
 
 #include <memory>
 
+#include "cinn/auto_schedule/cost_model/expr_cost_model.h"
 #include "cinn/auto_schedule/measure/schedule_measurer.h"
 #include "cinn/auto_schedule/search_strategy/evolutionary_search.h"
 #include "cinn/auto_schedule/task/tune_task.h"
 #include "cinn/auto_schedule/tuning.h"
+#include "cinn/ir/lowered_func.h"
 
 namespace cinn {
 namespace auto_schedule {
@@ -29,19 +31,22 @@ namespace auto_schedule {
 // optimal schedule for the task.
 class TaskOptimizer {
  public:
-  TaskOptimizer(const TuneTask& task, ScheduleMeasurer* schedule_measurer)
-      : task_(&task), schedule_measurer_(schedule_measurer) {}
+  TaskOptimizer(const TuneTask& task, ScheduleMeasurer* schedule_measurer);
 
   TuningResult::OptimizedComputeExpr Optimize(const TuningOptions& options);
 
  private:
   TuningResult::OptimizedComputeExpr OptimizeByEvolution(const TuningOptions& options);
 
+  ir::LoweredFunc FuncWithUpdatedBody(const ir::LoweredFunc& old_func, ir::Expr& body);
+
   const TuneTask* task_;
 
   ScheduleMeasurer* schedule_measurer_;
 
   std::unique_ptr<EvolutionarySearch> evolutionary_search_ = nullptr;
+
+  ExprCostModel cost_model_;
 };
 
 }  // namespace auto_schedule

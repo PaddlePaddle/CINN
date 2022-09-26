@@ -24,6 +24,9 @@
 #include "cinn/frontend/net_builder.h"
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/graph_compiler.h"
+#include "cinn/runtime/flags.h"
+
+DECLARE_bool(cinn_ir_schedule);
 
 namespace cinn {
 namespace auto_schedule {
@@ -51,6 +54,7 @@ class TestMeasurer : public ::testing::Test {
   std::vector<MeasureInput> inputs;
 
   void SetUp() override {
+    FLAGS_cinn_ir_schedule = true;
 #ifdef CINN_WITH_CUDA
     Target target = common::DefaultNVGPUTarget();
 #else
@@ -60,15 +64,23 @@ class TestMeasurer : public ::testing::Test {
     auto scope     = BuildScope(target, graph);
     graph_compiler = std::make_unique<GraphCompiler>(target, scope, graph);
     TaskCreator task_creator;
-    tasks = task_creator.CreateTuneTaskOpLevel(graph.get());
+    tasks                  = task_creator.CreateTuneTaskOpLevel(graph.get());
+    const auto& dtype_dict = graph->GetAttrs<absl::flat_hash_map<std::string, common::Type>>("inferdtype");
+    const auto& shape_dict = graph->GetAttrs<absl::flat_hash_map<std::string, hlir::framework::shape_t>>("infershape");
+
+    auto op_lowerer = std::make_unique<hlir::framework::OpLowerer>(dtype_dict, shape_dict, target);
+
     inputs.reserve(tasks.size());
     for (int i = 0; i < tasks.size(); ++i) {
       auto* task = &tasks[i];
+      task->SetOpLowerer(op_lowerer.get());
+      task->TaskGraphToUnoptLoweredFunc();
       MeasureInput input;
       input.task = task;
       // TODO(CtfGo): currently FusedGraphToLoweredFunc doesn't work well on NVGPU target,
       // this setting of lowered_funcs will be enabled once we fix the bug
       // input.lowered_funcs = graph_compiler->FusedGraphToLoweredFunc(task->task_graph);
+      input.lowered_funcs.push_back(task->lowered_funcs);
       inputs.emplace_back(input);
     }
   }

@@ -1816,9 +1816,9 @@ std::shared_ptr<OpStrategy> StrategyForSoftmax(const framework::NodeAttr &attrs,
 
     std::string tensor_name = UniqName("Softmax_out");
     if (FLAGS_cinn_ir_schedule) {
-      CHECK_EQ(pack_args.size(), 2);
-      CHECK(pack_args[1].is_string());
-      tensor_name = pack_args[1].operator std::string();
+      CHECK_GE(pack_args.size(), 2);
+      CHECK(pack_args[pack_args.size() - 1].is_string());
+      tensor_name = pack_args[pack_args.size() - 1].operator std::string();
     }
 
 #ifdef CINN_WITH_MKLDNN
@@ -1859,14 +1859,17 @@ std::shared_ptr<OpStrategy> StrategyForSoftmax(const framework::NodeAttr &attrs,
       if (target.arch == Target::Arch::NVGPU) {
         if (output_shapes[0].size() > 1) {
           auto all_blocks = ir_sch.GetAllBlocks();
-          CHECK_EQ(all_blocks.size(), 2);
-          auto loops         = ir_sch.GetLoops(all_blocks[1]);
-          auto splited_loops = ir_sch.Split(loops[1], {-1, 5});
+          CHECK_EQ(all_blocks.size(), 3);
+          auto loops     = ir_sch.GetLoops(all_blocks[2]);
+          int loop_index = 1;
+          if (output_shapes[0][0] == 1) loop_index--;
+          CHECK_GE(loops.size(), loop_index + 1);
+          auto splited_loops = ir_sch.Split(loops[loop_index], {-1, 5});
           ir_sch.Bind(splited_loops[0], "blockIdx.z");
           ir_sch.Bind(splited_loops[1], "threadIdx.z");
           all_blocks = ir_sch.GetAllBlocks();
-          loops      = ir_sch.GetLoops(all_blocks[1]);
-          ir_sch.ComputeAt(all_blocks[0], loops.back());
+          loops      = ir_sch.GetLoops(all_blocks[2]);
+          ir_sch.ComputeAt(all_blocks[1], loops.back());
         }
         std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
         *ret = CINNValuePack{res};
@@ -2212,12 +2215,7 @@ CINN_REGISTER_HELPER(nn_ops) {
 #ifndef CINN_WITH_CUDA
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForConv2d))
 #endif
-#ifdef CINN_WITH_CUDNN
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
-#else
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern",
-                                                      cinn::hlir::framework::OpPatternKind::kOutEWiseFusable)
-#endif
       .set_support_level(4);
 
   CINN_REGISTER_OP(conv2d_NCHWc)
@@ -2252,7 +2250,7 @@ CINN_REGISTER_HELPER(nn_ops) {
 #endif
       .set_support_level(4);
 
-  CINN_REGISTER_OP(batchnorm)
+  CINN_REGISTER_OP(batch_norm)
       .describe("Can be used as a normalizer function for convolution or fully_connected operations.")
       .set_num_inputs(5)  // here we consider batchnorm's 4 attrs(mean, variance, scale, bias) as other 4 inputs
       .set_num_outputs(1)

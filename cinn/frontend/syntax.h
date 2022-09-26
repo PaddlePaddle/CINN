@@ -492,6 +492,7 @@ std::tuple<std::unique_ptr<Program>,
            absl::flat_hash_set<std::string>>
 LoadPaddleProgram(const std::string& model_dir,
                   hlir::framework::Scope* scope,
+                  std::unordered_map<std::string, std::vector<int>>& input_shape_map,
                   bool is_combined,
                   const common::Target& target = common::DefaultHostTarget());
 

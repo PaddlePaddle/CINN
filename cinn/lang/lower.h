@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "cinn/ir/ir.h"
+#include "cinn/ir/lowered_func.h"
 #include "cinn/ir/module.h"
 #include "cinn/ir/tensor.h"
 #include "cinn/lang/packed_func.h"
@@ -76,5 +77,9 @@ std::vector<ir::Argument> GetArgs(const Expr &func_body, const std::vector<std::
 std::vector<ir::Buffer> GetTempBuffers(const std::vector<Tensor> &tensor_args,
                                        const poly::StageMap &stage_map,
                                        Expr body);
+
+//! Collect the temporary tensors from a computational graph.
+std::vector<ir::Buffer> GetTempBuffers(const std::vector<ir::Argument> &args, Expr body);
+
 }  // namespace lang
 }  // namespace cinn

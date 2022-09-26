@@ -39,7 +39,7 @@ TEST(TransposeFoldingOutput, BatchedMatmulTransLeft) {
   auto d       = builder.Matmul(b, c);
   auto e       = builder.Transpose(d, {0, 2, 1});
   auto f       = builder.CreateInput(Float(32), {3, 7, 8}, "F");
-  auto out     = builder.Sub(e, f);
+  auto out     = builder.Subtract(e, f);
   auto program = builder.Build();
 
   common::Target target = common::DefaultNVGPUTarget();
@@ -89,7 +89,7 @@ TEST(TransposeFoldingOutput, BatchedMatmulTransRight) {
   auto d       = builder.Matmul(a, c);
   auto e       = builder.Transpose(d, {0, 2, 1});
   auto f       = builder.CreateInput(Float(32), {3, 7, 8}, "F");
-  auto out     = builder.Sub(e, f);
+  auto out     = builder.Subtract(e, f);
   auto program = builder.Build();
 
   common::Target target = common::DefaultNVGPUTarget();
@@ -140,7 +140,7 @@ TEST(TransposeFoldingOutput, BatchedMatmulTransTwo) {
   auto e       = builder.Matmul(b, d);
   auto f       = builder.CreateInput(Float(32), {3, 7, 8}, "F");
   auto g       = builder.Transpose(e, {0, 2, 1});
-  auto out     = builder.Sub(f, g);
+  auto out     = builder.Subtract(f, g);
   auto program = builder.Build();
 
   common::Target target = common::DefaultNVGPUTarget();
@@ -190,7 +190,7 @@ TEST(TransposeFoldingOutput, BatchedMatmulNoTrans) {
   auto e       = builder.Matmul(a, c);
   auto f       = builder.CreateInput(Float(32), {3, 7, 8}, "F");
   auto g       = builder.Transpose(e, {0, 2, 1});
-  auto out     = builder.Sub(f, g);
+  auto out     = builder.Subtract(f, g);
   auto program = builder.Build();
 
   common::Target target = common::DefaultNVGPUTarget();
@@ -239,7 +239,7 @@ TEST(TransposeFoldingOutput, MatmulTransLeft) {
   auto d       = builder.Matmul(b, c);
   auto e       = builder.Transpose(d, {1, 0});
   auto f       = builder.CreateInput(Float(32), {7, 8}, "F");
-  auto out     = builder.Sub(e, f);
+  auto out     = builder.Subtract(e, f);
   auto program = builder.Build();
 
   common::Target target = common::DefaultNVGPUTarget();
@@ -289,7 +289,7 @@ TEST(TransposeFoldingOutput, MatmulTransRight) {
   auto d       = builder.Matmul(a, c);
   auto e       = builder.Transpose(d, {1, 0});
   auto f       = builder.CreateInput(Float(32), {7, 8}, "F");
-  auto out     = builder.Sub(e, f);
+  auto out     = builder.Subtract(e, f);
   auto program = builder.Build();
 
   common::Target target = common::DefaultNVGPUTarget();
@@ -340,7 +340,7 @@ TEST(TransposeFoldingOutput, MatmulTransTwo) {
   auto e       = builder.Matmul(b, d);
   auto f       = builder.CreateInput(Float(32), {7, 8}, "F");
   auto g       = builder.Transpose(e, {1, 0});
-  auto out     = builder.Sub(f, g);
+  auto out     = builder.Subtract(f, g);
   auto program = builder.Build();
 
   common::Target target = common::DefaultNVGPUTarget();
@@ -390,7 +390,7 @@ TEST(TransposeFoldingOutput, MatmulNoTrans) {
   auto e       = builder.Matmul(a, c);
   auto f       = builder.CreateInput(Float(32), {7, 8}, "F");
   auto g       = builder.Transpose(e, {1, 0});
-  auto out     = builder.Sub(f, g);
+  auto out     = builder.Subtract(f, g);
   auto program = builder.Build();
 
   common::Target target = common::DefaultNVGPUTarget();
@@ -446,7 +446,7 @@ TEST(TransposeFoldingOutput, BatchedComplex) {
   auto m       = builder.Matmul(l, y);
   auto n       = builder.Mul(d, a);
   auto o       = builder.BroadcastTo(n, {16, n->shape[0], n->shape[1]}, {1, 2});
-  auto p       = builder.Sub(f, o);
+  auto p       = builder.Subtract(f, o);
   auto q       = builder.Transpose(f, {0, 2, 1});
   auto u       = builder.Transpose(m, {0, 2, 1});
   auto v       = builder.Add(q, u);
@@ -482,7 +482,7 @@ TEST(TransposeFoldingOutput, Complex) {
   auto y       = builder.Matmul(x, l);          // 2 * 121
   auto m       = builder.Transpose(y, {1, 0});  // 121 * 2
   auto n       = builder.Mul(z, a);
-  auto p       = builder.Sub(f, n);
+  auto p       = builder.Subtract(f, n);
   auto q       = builder.Transpose(f, {1, 0});
   auto u       = builder.Transpose(m, {1, 0});
   auto v       = builder.Add(q, u);

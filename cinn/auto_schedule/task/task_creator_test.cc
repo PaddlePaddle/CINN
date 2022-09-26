@@ -31,6 +31,7 @@ namespace auto_schedule {
 
 using ::cinn::frontend::NetBuilder;
 using ::cinn::frontend::Program;
+using ::cinn::hlir::framework::Graph;
 using ::cinn::hlir::framework::Node;
 
 Program CreateAddProgram() {
@@ -61,10 +62,10 @@ TEST(TaskCreator, Basic) {
 
   ASSERT_EQ(tasks.size(), 2UL);
   for (TuneTask& task : tasks) {
-    std::vector<std::vector<Node*>>& task_graph = task.task_graph;
+    std::vector<std::shared_ptr<Graph::Group>>& task_graph = task.task_graph;
     ASSERT_EQ(task_graph.size(), 1UL);
-    ASSERT_EQ(task_graph[0].size(), 1UL);
-    ASSERT_EQ(task_graph[0][0]->op()->name, "elementwise_add");
+    ASSERT_EQ(task_graph[0]->CollectNodes().size(), 1UL);
+    ASSERT_EQ(task_graph[0]->nodes[0]->op()->name, "elementwise_add");
   }
 }
 

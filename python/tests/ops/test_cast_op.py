@@ -18,7 +18,6 @@ import unittest
 import numpy as np
 from op_test import OpTest, OpTestTool
 import paddle
-import paddle.nn.functional as F
 import cinn
 from cinn.frontend import *
 from cinn.common import *
@@ -26,61 +25,45 @@ from cinn.common import *
 
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
                     "x86 test will be skipped due to timeout.")
-class TestDivOp(OpTest):
+class TestCastOp(OpTest):
     def setUp(self):
         self.init_case()
 
     def init_case(self):
         self.inputs = {
-            "x": np.random.random([32]).astype("float32"),
-            "y": np.random.random([32]).astype("float32")
+            "x": np.random.random([
+                32,
+                64,
+            ]).astype("float32") * 2 - 1
         }
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.inputs["x"], stop_gradient=True)
-        y = paddle.to_tensor(self.inputs["y"], stop_gradient=True)
-
-        out = paddle.divide(x, y)
+        out = paddle.cast(x, 'int64')
 
         self.paddle_outputs = [out]
 
+    # Note: If the forward and backward operators are run in the same program,
+    # the forward result will be incorrect.
     def build_cinn_program(self, target):
-        builder = NetBuilder("div")
+        builder = NetBuilder("cast")
         x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
-        y = builder.create_input(Float(32), self.inputs["y"].shape, "y")
-        out = builder.div(x, y)
+        out = builder.cast(x, 'int64')
 
         prog = builder.build()
-        res = self.get_cinn_output(prog, target, [x, y],
-                                   [self.inputs["x"], self.inputs["y"]], [out])
+        res = self.get_cinn_output(prog, target, [x], [self.inputs["x"]],
+                                   [out])
 
-        self.cinn_outputs = [res[0]]
+        self.cinn_outputs = res
 
     def test_check_results(self):
         self.check_outputs_and_grads()
 
 
-class TestDivCase1(TestDivOp):
+class TestCastCase1(TestCastOp):
     def init_case(self):
         self.inputs = {
-            "x": np.random.random([32, 64]).astype("float32"),
-            "y": np.random.random([32, 64]).astype("float32")
-        }
-
-
-class TestDivCase2(TestDivOp):
-    def init_case(self):
-        self.inputs = {
-            "x": np.random.random([2, 2, 32]).astype("float32"),
-            "y": np.random.random([32]).astype("float32")
-        }
-
-
-class TestDivCase3(TestDivOp):
-    def init_case(self):
-        self.inputs = {
-            "x": np.random.random([2, 32]).astype("float32"),
-            "y": np.random.random([1]).astype("float32")
+            "x": np.random.random([10201, 50]).astype("float32") * 3 - 1
         }
 
 

@@ -24,7 +24,7 @@ void conv2d_grad(const Instruction& instr, const DecomposerContext& context) {
   auto& x  = instr->inputs[1];
   auto& w  = instr->inputs[2];
 
-  CinnBuilder* builder = context.builder();
+  NetBuilder* builder = context.builder();
   // create backward data
   if (!instr->outputs[0].is_const()) {
     auto dx = builder->Conv(w,

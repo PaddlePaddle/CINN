@@ -25,7 +25,7 @@ from cinn.common import *
 
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
                     "x86 test will be skipped due to timeout.")
-class TestTanhOp(OpTest):
+class TestCeilOp(OpTest):
     def setUp(self):
         self.init_case()
 
@@ -34,21 +34,21 @@ class TestTanhOp(OpTest):
             "x": np.random.random([
                 32,
                 64,
-            ]).astype("float32")
+            ]).astype("float32") * 2 - 1
         }
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.inputs["x"], stop_gradient=True)
-        out = paddle.tanh(x)
+        out = paddle.ceil(x)
 
         self.paddle_outputs = [out]
 
     # Note: If the forward and backward operators are run in the same program,
     # the forward result will be incorrect.
     def build_cinn_program(self, target):
-        builder = NetBuilder("tanh")
+        builder = NetBuilder("ceil")
         x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
-        out = builder.tanh(x)
+        out = builder.ceil(x)
 
         prog = builder.build()
         res = self.get_cinn_output(prog, target, [x], [self.inputs["x"]],
@@ -60,9 +60,11 @@ class TestTanhOp(OpTest):
         self.check_outputs_and_grads()
 
 
-class TestTanhCase1(TestTanhOp):
+class TestCeilCase1(TestCeilOp):
     def init_case(self):
-        self.inputs = {"x": np.random.random([10201, 50]).astype("float32")}
+        self.inputs = {
+            "x": np.random.random([10201, 50]).astype("float32") * 3 - 1
+        }
 
 
 if __name__ == "__main__":
