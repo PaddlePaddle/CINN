@@ -392,12 +392,13 @@ Variable NetBuilder::Cast(const Variable& operand, const std::string& dtype) {
 }
 
 Variable NetBuilder::OneHot(const Variable& indices,
-                              const Variable& on_value,
-                              const Variable& off_value,
-                              const int depth,
-                              const int axis,
-                              const std::string& dtype){
-  return CustomInstr("one_hot", {indices, on_value, off_value}, {{"depth", depth}, {"axis", axis}, {"dtype", dtype}}).front();
+                            const Variable& on_value,
+                            const Variable& off_value,
+                            const int depth,
+                            const int axis,
+                            const std::string& dtype) {
+  return CustomInstr("one_hot", {indices, on_value, off_value}, {{"depth", depth}, {"axis", axis}, {"dtype", dtype}})
+      .front();
 }
 
 Variable NetBuilder::Squeeze(const Variable& operand, const std::vector<int>& axes) {

@@ -641,7 +641,7 @@ class NetBuilder {
    */
   Variable Cast(const Variable& x, const std::string& dtype);
 
-  /** 
+  /**
    *  @brief Returns a one-hot tensor where the locations repsented by indices take value `on_value`,
    *  other locations take value `off_value`.
    *  @param on_value Value to fill at indices. Its shape must be [1].
