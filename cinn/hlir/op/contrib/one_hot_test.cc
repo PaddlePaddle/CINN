@@ -37,8 +37,8 @@ TEST(GenerateCode_Cpu, OneHot) {
 
   common::Target target = common::DefaultHostTarget();
 
-  ir::Expr m(4);
-  ir::Expr n(4);
+  Expr m(4);
+  Expr n(4);
   const int depth         = 3;
   const int axis          = 1;
   const std::string dtype = "float32";

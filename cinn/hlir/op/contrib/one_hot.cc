@@ -74,13 +74,13 @@ ir::Tensor OneHot(const ir::Tensor& indices,
     }
   }
 
-  ir::Expr on_value_cast  = ir::Cast::Make(dtype, on_value(Expr(0)));
-  ir::Expr off_value_cast = ir::Cast::Make(dtype, off_value(Expr(0)));
+  Expr on_value_cast  = ir::Cast::Make(dtype, on_value(Expr(0)));
+  Expr off_value_cast = ir::Cast::Make(dtype, off_value(Expr(0)));
 
   ir::Tensor res = lang::Compute(
       new_shape,
-      [=](const std::vector<ir::Expr>& iter) {
-        std::vector<ir::Expr> indices_indices;
+      [=](const std::vector<Expr>& iter) {
+        std::vector<Expr> indices_indices;
 
         for (size_t i = 0; i < iter.size(); i++) {
           if (static_cast<int>(i) == true_axis) {
@@ -89,8 +89,8 @@ ir::Tensor OneHot(const ir::Tensor& indices,
           indices_indices.push_back(iter[i]);
         }
 
-        auto idx  = iter[true_axis];
-        auto elem = ir::Cast::Make(idx.type(), indices(indices_indices));
+        Expr idx  = iter[true_axis];
+        Expr elem = ir::Cast::Make(idx.type(), indices(indices_indices));
         return ir::Select::Make(ir::EQ::Make(elem, idx), on_value_cast, off_value_cast);
       },
       common::UniqName(output_name));
