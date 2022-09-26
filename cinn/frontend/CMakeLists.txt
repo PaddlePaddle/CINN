@@ -4,9 +4,7 @@ gather_srcs(cinnapi_src SRCS
   syntax.cc
   paddle_model_to_program.cc
   interpreter.cc
-  base_builder.cc
   net_builder.cc
-  cinn_builder.cc
   op_mapper_registry.cc
   paddle_model_convertor.cc
   program_pass.cc
@@ -42,7 +40,6 @@ cc_test(test_computation
   ARGS "--model_dir=${THIRD_PARTY_PATH}/naive_mul_model"
   SRCS computation_test.cc DEPS cinncore)
 cc_test(test_net_builder SRCS net_builder_test.cc DEPS cinncore)
-cc_test(test_cinn_builder SRCS cinn_builder_test.cc DEPS cinncore)
 cc_test(test_decomposer_registry
         SRCS decomposer_registry_test.cc DEPS cinncore)
 

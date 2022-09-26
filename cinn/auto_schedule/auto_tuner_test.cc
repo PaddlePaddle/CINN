@@ -17,13 +17,21 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
+#include <cstdlib>
 #include <iostream>
 
 #include "cinn/common/target.h"
 #include "cinn/frontend/net_builder.h"
 #include "cinn/frontend/syntax.h"
+#include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/graph_compiler.h"
+#include "cinn/hlir/framework/node.h"
+#include "cinn/hlir/framework/pass.h"
 #include "cinn/ir/ir_base.h"
+#include "cinn/runtime/flags.h"
+
+DECLARE_bool(auto_schedule_use_cost_model);
+DECLARE_bool(cinn_ir_schedule);
 
 namespace cinn {
 namespace auto_schedule {
@@ -32,9 +40,10 @@ using ::cinn::hlir::framework::BuildScope;
 using ::cinn::hlir::framework::Graph;
 using ::cinn::hlir::framework::GraphCompiler;
 using ::cinn::hlir::framework::Instruction;
+using ::cinn::hlir::framework::Node;
 using ::cinn::hlir::framework::Scope;
 
-class TestAutoTuner : public ::testing::Test {
+class TestAutoTunerWithoutFusion : public ::testing::Test {
  public:
 #ifdef CINN_WITH_CUDA
   Target target = common::DefaultNVGPUTarget();
@@ -47,12 +56,25 @@ class TestAutoTuner : public ::testing::Test {
   std::unique_ptr<GraphCompiler> graph_compiler;
   std::unique_ptr<AutoTuner> tuner;
 
-  static frontend::Program CreateAddReluProgram();
+  frontend::Program CreateAddReluProgram() {
+    frontend::NetBuilder builder("test");
+
+    auto a = builder.CreateInput(Float(32), {1, 64, 112, 112}, "A");
+    auto b = builder.CreateInput(Float(32), {64}, "B");
+    auto c = builder.Add(a, b, 1);
+    auto d = builder.Relu(c);
+
+    return builder.Build();
+  }
+
   void SetUp() override {
-    graph          = std::make_shared<Graph>(CreateAddReluProgram(), target);
-    compiled_scope = BuildScope(target, graph);
-    graph_compiler = std::make_unique<GraphCompiler>(target, compiled_scope, graph);
-    tuner          = std::make_unique<AutoTuner>(target, graph.get());
+    srand(0);
+    // AutoTuner is combined with new IR Schedule
+    FLAGS_cinn_ir_schedule = true;
+    graph                  = std::make_shared<Graph>(CreateAddReluProgram(), target);
+    compiled_scope         = BuildScope(target, graph);
+    graph_compiler         = std::make_unique<GraphCompiler>(target, compiled_scope, graph);
+    tuner                  = std::make_unique<AutoTuner>(target, graph.get());
   }
 
   TuningResult InitializeAndTune(const AutoTuner::Config& config, const TuningOptions& options) {
@@ -60,21 +82,21 @@ class TestAutoTuner : public ::testing::Test {
     return tuner->Tune(options);
   }
 
-  void BasicCheckResult(const TuningResult& result) {
+  virtual void BasicCheckResult(const TuningResult& result) {
     ASSERT_EQ(2, result.tuned_graph.size());
     const auto& sub_graph1 = result.tuned_graph.front();
     ASSERT_EQ(1, sub_graph1.groups.size());
-    ASSERT_EQ(sub_graph1.groups[0][0]->op()->name, "elementwise_add");
+    ASSERT_EQ(sub_graph1.groups[0]->CollectNodes()[0]->op()->name, "elementwise_add");
     const auto& sub_graph2 = result.tuned_graph.back();
     ASSERT_EQ(1, sub_graph2.groups.size());
-    ASSERT_EQ(sub_graph2.groups[0][0]->op()->name, "relu");
+    ASSERT_EQ(sub_graph2.groups[0]->CollectNodes()[0]->op()->name, "relu");
 
     ASSERT_EQ(result.optimized_exprs.size(), 2UL);
     ASSERT_EQ(result.optimized_exprs[0].lowered_funcs.size(), 1UL);
     ASSERT_EQ(result.optimized_exprs[0].lowered_funcs[0].size(), 1UL);
   }
 
-  void ApplyTunedAndRun(const TuningResult& result) {
+  virtual void ApplyTunedAndRun(const TuningResult& result) {
     // build runtime program with tuning result
     GraphCompiler::CompileOptions compile_options;
     compile_options.with_instantiate_variables = true;
@@ -88,43 +110,114 @@ class TestAutoTuner : public ::testing::Test {
     ASSERT_EQ(2, runtime_program->size());
     runtime_program->Execute();
   }
+
+  void ZeroMeasure() {
+    // set config and options
+    AutoTuner::Config tuning_config;
+    tuning_config.task_schedule_strategy = "round_robin";
+
+    TuningOptions tuning_options;
+    tuning_options.num_measure_trials = 0;
+    auto result                       = InitializeAndTune(tuning_config, tuning_options);
+    BasicCheckResult(result);
+    ApplyTunedAndRun(result);
+  }
+
+  void NonZeroMeasure() {
+    // set config and options
+    AutoTuner::Config tuning_config;
+    tuning_config.task_schedule_strategy = "round_robin";
+
+    TuningOptions tuning_options;
+    tuning_options.num_measure_trials        = 4;
+    tuning_options.num_samples_per_iteration = 2;
+
+    auto result = InitializeAndTune(tuning_config, tuning_options);
+    BasicCheckResult(result);
+    ApplyTunedAndRun(result);
+  }
 };
 
-frontend::Program TestAutoTuner::CreateAddReluProgram() {
-  frontend::NetBuilder builder("test");
-
-  auto a = builder.CreateInput(Float(32), {1, 64, 112, 112}, "A");
-  auto b = builder.CreateInput(Float(32), {64}, "B");
-  auto c = builder.ElementwiseAdd(a, b, 1);
-  auto d = builder.Relu(c);
-
-  return builder.Build();
+TEST_F(TestAutoTunerWithoutFusion, ZeroMeasure_DisableCostModel) {
+  FLAGS_auto_schedule_use_cost_model = false;
+  ZeroMeasure();
 }
 
-TEST_F(TestAutoTuner, ZeroMeasure) {
-  // set config and options
-  AutoTuner::Config tuning_config;
-  tuning_config.task_schedule_strategy = "round_robin";
-
-  TuningOptions tuning_options;
-  tuning_options.num_measure_trials = 0;
-  auto result                       = InitializeAndTune(tuning_config, tuning_options);
-  BasicCheckResult(result);
-  ApplyTunedAndRun(result);
+TEST_F(TestAutoTunerWithoutFusion, ZeroMeasure_EnableCostModel) {
+  FLAGS_auto_schedule_use_cost_model = true;
+  ZeroMeasure();
 }
 
-TEST_F(TestAutoTuner, NonZeroMeasure) {
-  // set config and options
-  AutoTuner::Config tuning_config;
-  tuning_config.task_schedule_strategy = "round_robin";
+TEST_F(TestAutoTunerWithoutFusion, NonZeroMeasure_DisableCostModel) {
+  FLAGS_auto_schedule_use_cost_model = false;
+  NonZeroMeasure();
+}
 
-  TuningOptions tuning_options;
-  tuning_options.num_measure_trials        = 4;
-  tuning_options.num_samples_per_iteration = 2;
+TEST_F(TestAutoTunerWithoutFusion, NonZeroMeasure_EnableCostModel) {
+  FLAGS_auto_schedule_use_cost_model = true;
+  NonZeroMeasure();
+}
 
-  auto result = InitializeAndTune(tuning_config, tuning_options);
-  BasicCheckResult(result);
-  ApplyTunedAndRun(result);
+class TestAutoTunerWithFusion : public TestAutoTunerWithoutFusion {
+ public:
+  void SetUp() override {
+    srand(0);
+    // AutoTuner is combined with new IR Schedule
+    FLAGS_cinn_ir_schedule = true;
+    graph                  = std::make_shared<Graph>(CreateAddReluProgram(), target);
+    ApplyPass(graph.get(), "OpFusionPass");
+    compiled_scope = BuildScope(target, graph);
+    graph_compiler = std::make_unique<GraphCompiler>(target, compiled_scope, graph);
+    tuner          = std::make_unique<AutoTuner>(target, graph.get());
+  }
+
+  void BasicCheckResult(const TuningResult& result) override {
+    ASSERT_EQ(result.tuned_graph.size(), 1UL);
+    const std::vector<Node*>& nodes = result.tuned_graph[0].groups[0]->CollectNodes();
+    ASSERT_EQ(nodes.size(), 3UL);
+    ASSERT_EQ(nodes[0]->op()->name, "broadcast_to");
+    ASSERT_EQ(nodes[1]->op()->name, "elementwise_add");
+    ASSERT_EQ(nodes[2]->op()->name, "relu");
+
+    ASSERT_EQ(result.optimized_exprs.size(), 1UL);
+    ASSERT_EQ(result.optimized_exprs[0].lowered_funcs.size(), 1UL);
+    ASSERT_EQ(result.optimized_exprs[0].lowered_funcs[0].size(), 1UL);
+  }
+
+  void ApplyTunedAndRun(const TuningResult& result) override {
+    // build runtime program with tuning result
+    GraphCompiler::CompileOptions compile_options;
+    compile_options.with_instantiate_variables = true;
+    compile_options.Apply(result);
+    ASSERT_EQ(1, compile_options.groups.size());
+    ASSERT_EQ(1, compile_options.lowered_funcs.size());
+    ASSERT_EQ(1, compile_options.lowered_funcs[0].size());
+    VLOG(6) << "Print lowered_funcs before building";
+    VLOG(6) << compile_options.lowered_funcs[0][0];
+    auto runtime_program = graph_compiler->Build(compile_options).runtime_program;
+    ASSERT_EQ(1, runtime_program->size());
+    runtime_program->Execute();
+  }
+};
+
+TEST_F(TestAutoTunerWithFusion, ZeroMeasure_DisableCostModel) {
+  FLAGS_auto_schedule_use_cost_model = false;
+  ZeroMeasure();
+}
+
+TEST_F(TestAutoTunerWithFusion, ZeroMeasure_EnableCostModel) {
+  FLAGS_auto_schedule_use_cost_model = true;
+  ZeroMeasure();
+}
+
+TEST_F(TestAutoTunerWithFusion, NonZeroMeasure_DisableCostModel) {
+  FLAGS_auto_schedule_use_cost_model = false;
+  NonZeroMeasure();
+}
+
+TEST_F(TestAutoTunerWithFusion, NonZeroMeasure_EnableCostModel) {
+  FLAGS_auto_schedule_use_cost_model = true;
+  NonZeroMeasure();
 }
 
 }  // namespace auto_schedule

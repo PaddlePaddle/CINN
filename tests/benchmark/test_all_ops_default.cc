@@ -289,7 +289,7 @@ TEST_DEFAULT(mul, mul5, type1, type1)
 
 // batchnorm
 std::vector<std::vector<int>> shapes_batchnorm = {{2, 32, 112, 112}, {32}, {32}, {32}, {32}};
-TEST_DEFAULT(batchnorm, batchnorm, type4, type)
+TEST_DEFAULT(batch_norm, batchnorm, type4, type)
 
 // scale
 std::vector<std::vector<int>> shapes_scale = {{2, 1000}};

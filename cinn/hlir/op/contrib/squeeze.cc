@@ -97,16 +97,23 @@ std::shared_ptr<framework::OpStrategy> StrategyForSqueeze(const framework::NodeA
 
   framework::CINNCompute squeeze_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input arguments of Squeeze compute is empty! Please check.\n";
-    CINNValuePack a = args[0];
-    CHECK_GE(a.size(), 1U) << "at least 1 input tensors for Squeeze compute\n";
-    Expr A = a[0];
+    CINNValuePack pack_args = args[0];
+    CHECK_GE(pack_args.size(), 1U) << "at least 1 input tensors for Squeeze compute\n";
+    Expr A = pack_args[0];
     CHECK(A.as_tensor());
     CHECK(!output_shapes.empty());
     auto tensor_A = A.as_tensor_ref();
     auto stages   = CreateStages({tensor_A});
     VLOG(3) << "A shape: " << utils::Join(tensor_A->shape, ", ")
             << ", output_shapes: " << utils::Join(output_shapes[0], ", ");
-    ir::Tensor out = Squeeze(tensor_A, axes, UniqName("Squeeze_out"));
+
+    std::string tensor_name = UniqName("Squeeze_out");
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK_EQ(pack_args.size(), 2U);
+      tensor_name = pack_args[1].operator std::string();
+    }
+
+    ir::Tensor out = Squeeze(tensor_A, axes, tensor_name);
     std::vector<CINNValue> res;
     stages->InsertLazily(out);
     res.push_back(CINNValue(out));

@@ -14,12 +14,17 @@
 
 #include "cinn/frontend/interpreter.h"
 
+#include "cinn/auto_schedule/auto_tuner.h"
+#include "cinn/auto_schedule/tuning.h"
 #include "cinn/frontend/optimize.h"
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/op/use_ops.h"
 #include "cinn/hlir/pass/use_pass.h"
+#include "cinn/runtime/flags.h"
+
+DECLARE_bool(enable_auto_tuner);
 
 namespace cinn::frontend {
 
@@ -32,10 +37,7 @@ struct Interpreter::Impl {
    * @param input_names The name of input variables.
    * @param input_shapes The input shapes.
    */
-  void Build(const std::vector<std::string>& input_names,
-             const std::vector<hlir::framework::shape_t>& input_shapes,
-             const Target& target,
-             const std::string& model_name = "");
+  void Build(const Target& target, const std::string& model_name = "");
 
  private:
   friend class Interpreter;
@@ -60,9 +62,14 @@ void Interpreter::LoadPaddleModel(const std::string& model_dir,
                                   const Target& target,
                                   bool params_combined,
                                   const std::string& model_name) {
-  auto programTuple               = LoadPaddleProgram(model_dir, impl_->scope_.get(), params_combined, target);
-  auto& program                   = std::get<0>(programTuple);
-  auto& var_map                   = std::get<1>(programTuple);
+  std::unordered_map<std::string, std::vector<int>> input_shape_map;
+  CHECK_EQ(impl_->input_names_.size(), impl_->input_shapes_.size());
+  for (int idx = 0; idx < impl_->input_names_.size(); ++idx) {
+    input_shape_map[impl_->input_names_[idx]] = impl_->input_shapes_[idx];
+  }
+  auto programTuple = LoadPaddleProgram(model_dir, impl_->scope_.get(), input_shape_map, params_combined, target);
+  auto& program     = std::get<0>(programTuple);
+  auto& var_map     = std::get<1>(programTuple);
   auto& var_map_paddle_to_program = std::get<2>(programTuple);
   auto& fetch_names               = std::get<3>(programTuple);
   impl_->program_.reset(program.release());
@@ -70,7 +77,7 @@ void Interpreter::LoadPaddleModel(const std::string& model_dir,
   impl_->var_map_paddle_to_cinn_ = var_map_paddle_to_program;
   impl_->fetch_names_            = fetch_names;
 
-  impl_->Build(impl_->input_names_, impl_->input_shapes_, target, model_name);
+  impl_->Build(target, model_name);
 }
 
 frontend::Program Interpreter::GetProgram() {
@@ -91,50 +98,33 @@ hlir::framework::Tensor Interpreter::GetTensor(const std::string& name) {
   return impl_->scope_->GetTensor(it->second);
 }
 
-void Interpreter::Impl::Build(const std::vector<std::string>& input_names,
-                              const std::vector<hlir::framework::shape_t>& input_shapes,
-                              const Target& target,
-                              const std::string& model_name) {
-  CHECK(!input_names.empty());
+void Interpreter::Impl::Build(const Target& target, const std::string& model_name) {
   CHECK(!var_map_.empty());
-  CHECK_EQ(input_names.size(), input_shapes.size());
-
-  std::vector<Variable> input_vars;
-  std::transform(input_names.begin(), input_names.end(), std::back_inserter(input_vars), [&](const std::string& x) {
-    return var_map_.at(x);
-  });
-
-  for (int i = 0; i < input_vars.size(); i++) input_vars[i]->shape = input_shapes[i];
-
-  program_->SetInputs({input_vars});
-  program_->Validate();
-
   VLOG(3) << "Program:\n" << *program_;
-
-  auto graph                 = std::make_shared<hlir::framework::Graph>(*program_, target);
-  graph->attrs["model_name"] = std::make_shared<absl::any>(model_name);
-
-  hlir::framework::ApplyPass(graph.get(), "InferShape");
-#ifndef CINN_WITH_CUDA
-  if (target.arch == Target::Arch::X86) {
-    hlir::framework::ApplyPass(graph.get(), "AlterLayout");
-  }
-#endif
-  hlir::framework::ApplyPass(graph.get(), "ConstPropagate");
-  hlir::framework::ApplyPasses(graph.get(), DefaultOpFusionPasses());
-  // Target target = common::DefaultHostTarget();
-  scope_ = hlir::framework::BuildScope(target, graph, scope_);
-
+  // applay frontend pass
   std::unordered_set<std::string> fetch_var_ids;
   for (auto& name : fetch_names_) {
     CHECK(var_map_.count(name)) << "var_map finds no fetch var " << name;
     fetch_var_ids.insert(var_map_.at(name)->id);
   }
 
+  auto graph = Optimize(program_.get(), fetch_var_ids, target);
+  // auto graph                 = std::make_shared<hlir::framework::Graph>(*program_, target);
+  graph->attrs["model_name"] = std::make_shared<absl::any>(model_name);
+  scope_                     = hlir::framework::BuildScope(target, graph, scope_);
+
   graph_compiler_.reset(new hlir::framework::GraphCompiler(target, scope_, graph));
   hlir::framework::GraphCompiler::CompileOptions options;
   options.with_instantiate_variables = true;
-  runtime_program_                   = graph_compiler_->Build(options, std::move(fetch_var_ids)).runtime_program;
+  if (FLAGS_enable_auto_tuner) {
+    VLOG(4) << "Compile with auto-tune";
+    auto_schedule::AutoTuner auto_tuner(target, graph.get());
+    auto_tuner.Initialize(auto_schedule::AutoTuner::Config(), graph_compiler_.get());
+    auto_schedule::TuningOptions tuning_options;
+    auto_schedule::TuningResult tuning_result = auto_tuner.Tune(tuning_options);
+    options.Apply(tuning_result);
+  }
+  runtime_program_ = graph_compiler_->Build(options, std::move(fetch_var_ids)).runtime_program;
   runtime_program_->PreRun();
 }
 

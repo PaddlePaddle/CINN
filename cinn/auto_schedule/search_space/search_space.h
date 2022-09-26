@@ -18,7 +18,7 @@
 #include <utility>
 #include <vector>
 
-#include "cinn/auto_schedule/cost_model/cost_model.h"
+#include "cinn/auto_schedule/cost_model/expr_cost_model.h"
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_inline.h"
 #include "cinn/auto_schedule/search_space/auto_gen_rule/multi_level_tiling.h"
@@ -48,7 +48,7 @@ class SearchSpace {
   virtual std::vector<SearchState> GetRandomInitialSketch(int num);
 
   // Evolutionary search mutate, returns the mutated ModuleExpr and estimited cost
-  virtual SearchState GetScheduleMutate(const SearchState& state, const CostModel& cost_model);
+  virtual SearchState GetScheduleMutate(const SearchState& state, const ExprCostModel& cost_model);
 
  private:
   // TODO(zhhsplendid): mutate by manual schedule.

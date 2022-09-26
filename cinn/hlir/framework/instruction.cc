@@ -31,15 +31,7 @@ void Instruction::UpdateArgsCache(const std::map<std::string, cinn_pod_value_t>*
 
   for (int i = 0; i < cache_size; ++i) {
     common::ArgsBuilder builder;
-    // Remove duplicate input arguments
-    std::unordered_set<std::string> in_args_set;
-    std::vector<std::string> all_args;
-    for (const auto& arg : in_args_[i]) {
-      if (in_args_set.count(arg) != 0) continue;
-      all_args.push_back(arg);
-      in_args_set.insert(arg);
-    }
-
+    std::vector<std::string> all_args = in_args_[i];
     all_args.insert(std::end(all_args), out_args_[i].begin(), out_args_[i].end());
 
     if (name2podargs != nullptr) {
@@ -125,16 +117,27 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
   // Here conv2d and depthwise_conv2d are implemented by one cudnn api cudnnConvolutionForward
   if ((function_name_ == "conv2d" || function_name_ == "depthwise_conv2d") && target_.arch == Target::Arch::NVGPU) {
     if (str_attrs[0] == "forward") {
-      absl::flat_hash_map<std::string, int> attrs_map = {
-          {"input_n", attrs[0]},     {"input_c", attrs[1]},     {"input_h", attrs[2]},   {"input_w", attrs[3]},
-          {"weights_n", attrs[4]},   {"weights_c", attrs[5]},   {"weights_h", attrs[6]}, {"weights_w", attrs[7]},
-          {"pad_h", attrs[8]},       {"pad_w", attrs[9]},       {"stride_h", attrs[10]}, {"stride_w", attrs[11]},
-          {"dilation_h", attrs[12]}, {"dilation_w", attrs[13]}, {"groups", attrs[14]},   {"output_n", attrs[15]},
-          {"output_c", attrs[16]},   {"output_h", attrs[17]},   {"output_w", attrs[18]},
-      };
-      // input weight output
-      runtime::cuda::cinn_gpu_cudnn_conv2d(
-          attrs_map, pod_args[0], pod_args[1], pod_args[2], static_cast<cudaStream_t>(stream));
+      if (str_attrs.size() > 1 && str_attrs[1] == "NHWC") {
+        absl::flat_hash_map<std::string, int> attrs_map = {
+            {"input_n", attrs[0]},     {"input_h", attrs[1]},     {"input_w", attrs[2]},   {"input_c", attrs[3]},
+            {"weights_n", attrs[4]},   {"weights_c", attrs[5]},   {"weights_h", attrs[6]}, {"weights_w", attrs[7]},
+            {"pad_h", attrs[8]},       {"pad_w", attrs[9]},       {"stride_h", attrs[10]}, {"stride_w", attrs[11]},
+            {"dilation_h", attrs[12]}, {"dilation_w", attrs[13]}, {"groups", attrs[14]},   {"output_n", attrs[15]},
+            {"output_h", attrs[16]},   {"output_w", attrs[17]},   {"output_c", attrs[18]},
+        };
+        runtime::cuda::cinn_gpu_cudnn_conv2d(
+            attrs_map, pod_args[0], pod_args[1], pod_args[2], static_cast<cudaStream_t>(stream), common::Layout::kNHWC);
+      } else {
+        absl::flat_hash_map<std::string, int> attrs_map = {
+            {"input_n", attrs[0]},     {"input_c", attrs[1]},     {"input_h", attrs[2]},   {"input_w", attrs[3]},
+            {"weights_n", attrs[4]},   {"weights_c", attrs[5]},   {"weights_h", attrs[6]}, {"weights_w", attrs[7]},
+            {"pad_h", attrs[8]},       {"pad_w", attrs[9]},       {"stride_h", attrs[10]}, {"stride_w", attrs[11]},
+            {"dilation_h", attrs[12]}, {"dilation_w", attrs[13]}, {"groups", attrs[14]},   {"output_n", attrs[15]},
+            {"output_c", attrs[16]},   {"output_h", attrs[17]},   {"output_w", attrs[18]},
+        };
+        runtime::cuda::cinn_gpu_cudnn_conv2d(
+            attrs_map, pod_args[0], pod_args[1], pod_args[2], static_cast<cudaStream_t>(stream), common::Layout::kNCHW);
+      }
     } else if (str_attrs[0] == "backward_data") {
       // w, dy, dx
       absl::flat_hash_map<std::string, int> attrs_map = {

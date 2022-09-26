@@ -12,26 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cinn/auto_schedule/cost_model/cost_model.h"
+#include "cinn/auto_schedule/cost_model/xgb_cost_model.h"
 
 #include <dirent.h>
+#include <glog/logging.h>
 #include <pybind11/embed.h>
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include <atomic>
 #include <cassert>
 #include <cstring>
 #include <iostream>
+#include <memory>
 #include <mutex>
 #include <regex>
 #include <string>
+#include <utility>
 #include <vector>
+
+#include "cinn/common/python_interpreter_guard.h"
 
 namespace cinn {
 namespace auto_schedule {
 
-std::once_flag CostModel::init_once_flag_;
+std::atomic<int> XgbCostModel::xgb_cost_model_count_(0);
 
 // Convert 1D vector to py numpy
 template <typename Dtype>
@@ -84,40 +90,46 @@ void AddDistPkgToPythonSysPath() {
   }
 }
 
-CostModel::CostModel() {
-  std::call_once(init_once_flag_, AddDistPkgToPythonSysPath);
-  pybind11::module cost_model_py_mod = pybind11::module::import("cinn.auto_schedule.cost_model");
-  python_member_                     = cost_model_py_mod.attr("CostModel")();
+XgbCostModel::XgbCostModel() {
+  common::PythonInterpreterGuard::Guard();
+  int previous = xgb_cost_model_count_.fetch_add(1);
+  if (previous == 0) {
+    AddDistPkgToPythonSysPath();
+  }
+  xgb_module_  = pybind11::module::import("xgboost");
+  xgb_booster_ = xgb_module_.attr("Booster")();
 }
 
-CostModel::~CostModel() {
-  // Do nothing, python_member_ will be destructed after CostModel destructor
-}
-
-void CostModel::Train(const std::vector<std::vector<float>>& samples, const std::vector<float>& labels) {
+void XgbCostModel::Train(const std::vector<std::vector<float>>& samples, const std::vector<float>& labels) {
+  update_samples_            = samples;
+  update_labels_             = labels;
   pybind11::array np_samples = VectorToNumpy<float>(samples);
   pybind11::array np_labels  = VectorToNumpy<float>(labels);
 
-  python_member_.attr("train")(np_samples, np_labels);
+  pybind11::object dmatrix = xgb_module_.attr("DMatrix")(np_samples, np_labels);
+  xgb_booster_             = xgb_module_.attr("train")(pybind11::dict(), dmatrix, pybind11::int_(kTrainRound_));
 }
 
-std::vector<float> CostModel::Predict(const std::vector<std::vector<float>>& samples) {
+std::vector<float> XgbCostModel::Predict(const std::vector<std::vector<float>>& samples) const {
   pybind11::array np_samples = VectorToNumpy<float>(samples);
-
-  pybind11::array py_result = python_member_.attr("predict")(np_samples);
+  pybind11::object dmatrix   = xgb_module_.attr("DMatrix")(np_samples);
+  pybind11::array py_result  = xgb_booster_.attr("predict")(dmatrix);
   return py_result.cast<std::vector<float>>();
 }
 
-void CostModel::Update(const std::vector<std::vector<float>>& samples, const std::vector<float>& labels) {
-  pybind11::array np_samples = VectorToNumpy<float>(samples);
-  pybind11::array np_labels  = VectorToNumpy<float>(labels);
+void XgbCostModel::Update(const std::vector<std::vector<float>>& samples, const std::vector<float>& labels) {
+  update_samples_.insert(update_samples_.end(), samples.begin(), samples.end());
+  update_labels_.insert(update_labels_.end(), labels.begin(), labels.end());
+  pybind11::array np_samples = VectorToNumpy<float>(update_samples_);
+  pybind11::array np_labels  = VectorToNumpy<float>(update_labels_);
 
-  python_member_.attr("update")(np_samples, np_labels);
+  pybind11::object dmatrix = xgb_module_.attr("DMatrix")(np_samples, np_labels);
+  xgb_booster_             = xgb_module_.attr("train")(pybind11::dict(), dmatrix, pybind11::int_(kTrainRound_));
 }
 
-void CostModel::Save(const std::string& path) { python_member_.attr("save")(pybind11::str(path)); }
+void XgbCostModel::Save(const std::string& path) { xgb_booster_.attr("save_model")(pybind11::str(path)); }
 
-void CostModel::Load(const std::string& path) { python_member_.attr("load")(pybind11::str(path)); }
+void XgbCostModel::Load(const std::string& path) { xgb_booster_.attr("load_model")(pybind11::str(path)); }
 
 }  // namespace auto_schedule
 }  // namespace cinn

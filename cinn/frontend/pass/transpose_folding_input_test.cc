@@ -17,7 +17,6 @@
 #include <cfloat>
 
 #include "cinn/cinn.h"
-#include "cinn/frontend/cinn_builder.h"
 #include "cinn/frontend/net_builder.h"
 #include "cinn/frontend/pass/use_program_pass.h"
 #include "cinn/frontend/program_pass.h"
@@ -43,11 +42,11 @@ void RunWithProgram(const Program& program,
 }
 
 TEST(TransposeFoldingInput, FoldIntoDotBachedCase1) {
-  CinnBuilder builder("cinn_builder");
+  NetBuilder builder("net_builder");
   auto x           = builder.CreateInput(Float(32), {4, 5, 3}, "X");
   auto y           = builder.CreateInput(Float(32), {4, 5, 6}, "Y");
   auto transpose_x = builder.Transpose(x, {0, 2, 1});
-  auto out         = builder.Dot(transpose_x, y);
+  auto out         = builder.Matmul(transpose_x, y);
   auto program     = builder.Build();
   auto target      = common::DefaultTarget();
   auto graph       = std::make_shared<hlir::framework::Graph>(program, target);
@@ -73,11 +72,11 @@ TEST(TransposeFoldingInput, FoldIntoDotBachedCase1) {
 }
 
 TEST(TransposeFoldingInput, FoldIntoDotBachedCase2) {
-  CinnBuilder builder("cinn_builder");
+  NetBuilder builder("net_builder");
   auto x           = builder.CreateInput(Float(32), {4, 3, 5}, "X");
   auto y           = builder.CreateInput(Float(32), {4, 6, 5}, "Y");
   auto transpose_y = builder.Transpose(y, {0, 2, 1});
-  auto out         = builder.Dot(x, transpose_y);
+  auto out         = builder.Matmul(x, transpose_y);
   auto program     = builder.Build();
   auto target      = common::DefaultTarget();
   auto graph       = std::make_shared<hlir::framework::Graph>(program, target);
@@ -103,12 +102,12 @@ TEST(TransposeFoldingInput, FoldIntoDotBachedCase2) {
 }
 
 TEST(TransposeFoldingInput, FoldIntoDotBachedCase3) {
-  CinnBuilder builder("cinn_builder");
+  NetBuilder builder("net_builder");
   auto x           = builder.CreateInput(Float(32), {4, 5, 3}, "X");
   auto y           = builder.CreateInput(Float(32), {4, 6, 5}, "Y");
   auto transpose_x = builder.Transpose(x, {0, 2, 1});
   auto transpose_y = builder.Transpose(y, {0, 2, 1});
-  auto out         = builder.Dot(transpose_x, transpose_y);
+  auto out         = builder.Matmul(transpose_x, transpose_y);
   auto program     = builder.Build();
   auto target      = common::DefaultTarget();
   auto graph       = std::make_shared<hlir::framework::Graph>(program, target);
@@ -134,11 +133,11 @@ TEST(TransposeFoldingInput, FoldIntoDotBachedCase3) {
 }
 
 TEST(TransposeFoldingInput, FoldIntoDotCase1) {
-  CinnBuilder builder("cinn_builder");
+  NetBuilder builder("net_builder");
   auto x           = builder.CreateInput(Float(32), {2, 3}, "X");
   auto y           = builder.CreateInput(Float(32), {2, 3}, "Y");
   auto transpose_y = builder.Transpose(y, {1, 0});
-  auto out         = builder.Dot(x, transpose_y);
+  auto out         = builder.Matmul(x, transpose_y);
   auto program     = builder.Build();
   auto target      = common::DefaultTarget();
   auto graph       = std::make_shared<hlir::framework::Graph>(program, target);
@@ -204,11 +203,11 @@ TEST(TransposeFoldingInput, FoldIntoDotCase2) {
 }
 
 TEST(TransposeFoldingInput, TransposeOutInFetchIds) {
-  CinnBuilder builder("cinn_builder");
+  NetBuilder builder("net_builder");
   auto x           = builder.CreateInput(Float(32), {2, 3}, "X");
   auto y           = builder.CreateInput(Float(32), {2, 3}, "Y");
   auto transpose_y = builder.Transpose(y, {1, 0});
-  auto out         = builder.Dot(x, transpose_y);
+  auto out         = builder.Matmul(x, transpose_y);
   auto program     = builder.Build();
   auto target      = common::DefaultTarget();
   auto graph       = std::make_shared<hlir::framework::Graph>(program, target);
@@ -234,11 +233,11 @@ TEST(TransposeFoldingInput, TransposeOutInFetchIds) {
 }
 
 TEST(TransposeFoldingInput, TransposeOutUsedByOtherInstrs) {
-  CinnBuilder builder("cinn_builder");
+  NetBuilder builder("net_builder");
   auto x           = builder.CreateInput(Float(32), {2, 2}, "X");
   auto y           = builder.CreateInput(Float(32), {2, 2}, "Y");
   auto transpose_y = builder.Transpose(y, {1, 0});
-  auto dot         = builder.Dot(x, transpose_y);
+  auto dot         = builder.Matmul(x, transpose_y);
   auto out         = builder.Add(transpose_y, dot);
   auto program     = builder.Build();
   auto target      = common::DefaultTarget();
@@ -265,15 +264,15 @@ TEST(TransposeFoldingInput, TransposeOutUsedByOtherInstrs) {
 }
 
 TEST(TransposeFoldingInput, TransposeTwiceWithMatmul) {
-  CinnBuilder builder("cinn_builder");
+  NetBuilder builder("net_builder");
   auto x = builder.CreateInput(Float(32), {2, 20}, "X");
   auto y = builder.CreateInput(Float(32), {10201, 20}, "Y");
   auto z = builder.CreateInput(Float(32), {10201, 2}, "Z");
 
   auto x_t     = builder.Transpose(x, {1, 0});
   auto x_t_t   = builder.Transpose(x_t, {1, 0});
-  auto dot1    = builder.Dot(y, x_t);
-  auto dot2    = builder.Dot(z, x_t_t);
+  auto dot1    = builder.Matmul(y, x_t);
+  auto dot2    = builder.Matmul(z, x_t_t);
   auto program = builder.Build();
 
   auto target = common::DefaultTarget();
@@ -326,12 +325,12 @@ TEST(TransposeFoldingInput, TransposeTwiceWithMatmul) {
 }
 
 TEST(TransposeFoldingInput, TransposeWithMultiMamtul) {
-  CinnBuilder builder("cinn_builder");
+  NetBuilder builder("net_builder");
   auto x           = builder.CreateInput(Float(32), {2, 2}, "X");
   auto y           = builder.CreateInput(Float(32), {2, 2}, "Y");
   auto transpose_y = builder.Transpose(y, {1, 0});
-  auto dot1        = builder.Dot(x, transpose_y);
-  auto dot2        = builder.Dot(transpose_y, x);
+  auto dot1        = builder.Matmul(x, transpose_y);
+  auto dot2        = builder.Matmul(transpose_y, x);
   auto out         = builder.Add(dot1, dot2);
   auto program     = builder.Build();
   auto target      = common::DefaultTarget();

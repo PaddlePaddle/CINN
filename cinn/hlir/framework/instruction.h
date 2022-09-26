@@ -119,6 +119,8 @@ class Instruction {
 
   std::vector<std::vector<std::string>> GetInArgs() { return in_args_; }
   std::vector<std::vector<std::string>> GetOutArgs() { return out_args_; }
+  void ClearInArgs() { in_args_.clear(); }
+  void ClearOutArgs() { out_args_.clear(); }
   std::vector<std::string> GetFnNames() { return fn_names_; }
   void AddInArgs(const std::vector<std::string>& in_args) { in_args_.push_back(in_args); }
   void AddOutArgs(const std::vector<std::string>& out_args) { out_args_.push_back(out_args); }

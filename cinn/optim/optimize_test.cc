@@ -26,7 +26,8 @@ namespace optim {
 TEST(Optimize, Unroll) {
   Placeholder<float> A("A", {100, 20});
 
-  auto C      = Compute({Expr(100), Expr(20)}, [&](Var i, Var j) { return A(i, j) + 1.f; });
+  auto C = Compute(
+      {Expr(100), Expr(20)}, [&](Var i, Var j) { return A(i, j) + 1.f; }, "C");
   auto stages = CreateStages({C});
 
   stages[C]->Split(1, 5);
@@ -40,11 +41,11 @@ TEST(Optimize, Unroll) {
   {
     for (j_outer, 0, 4)
     {
-      tensor[i, (5 * j_outer)] = (1 + A[i, (5 * j_outer)])
-      tensor[i, (1 + (5 * j_outer))] = (1 + A[i, (1 + (5 * j_outer))])
-      tensor[i, (2 + (5 * j_outer))] = (1 + A[i, (2 + (5 * j_outer))])
-      tensor[i, (3 + (5 * j_outer))] = (1 + A[i, (3 + (5 * j_outer))])
-      tensor[i, (4 + (5 * j_outer))] = (1 + A[i, (4 + (5 * j_outer))])
+      C[i, (5 * j_outer)] = (1 + A[i, (5 * j_outer)])
+      C[i, (1 + (5 * j_outer))] = (1 + A[i, (1 + (5 * j_outer))])
+      C[i, (2 + (5 * j_outer))] = (1 + A[i, (2 + (5 * j_outer))])
+      C[i, (3 + (5 * j_outer))] = (1 + A[i, (3 + (5 * j_outer))])
+      C[i, (4 + (5 * j_outer))] = (1 + A[i, (4 + (5 * j_outer))])
     }
   }
 }

@@ -28,13 +28,17 @@ DEFINE_bool(cinn_cudnn_deterministic,
 using ::GFLAGS_NAMESPACE::BoolFromEnv;
 using ::GFLAGS_NAMESPACE::StringFromEnv;
 
+DEFINE_int32(cinn_parallel_compile_size,
+             0,
+             "When use parallel compile, set the number of group compiled by each thread.");
+
 DEFINE_bool(cinn_open_fusion_optimize,
             BoolFromEnv("FLAGS_cinn_open_fusion_optimize", true),
             "Whether use the op_fusion optimization.");
 
 // FLAGS to switch optimization status
 DEFINE_bool(cinn_use_new_fusion_pass,
-            BoolFromEnv("FLAGS_cinn_use_new_fusion_pass", false),
+            BoolFromEnv("FLAGS_cinn_use_new_fusion_pass", true),
             "Whether use the new op_fusion and fusion_merge pass.");
 
 DEFINE_bool(cinn_use_fill_constant_folding,
@@ -65,6 +69,13 @@ DEFINE_string(cinn_fusion_groups_graphviz_dir,
 DEFINE_string(cinn_source_code_save_path,
               StringFromEnv("FLAGS_cinn_source_code_save_path", ""),
               "Specify the directory path of generated source code, which is used for debug.");
+
+DEFINE_bool(enable_auto_tuner, BoolFromEnv("FLAGS_enable_auto_tuner", false), "Whether enable auto tuner.");
+
+DEFINE_bool(auto_schedule_use_cost_model,
+            BoolFromEnv("FLAGS_auto_schedule_use_cost_model", true),
+            "Whether to use cost model in auto schedule, this is an on-developing flag and it will be removed when "
+            "cost model is stable.");
 
 namespace cinn {
 namespace runtime {

@@ -26,9 +26,9 @@ TEST(FusionMergePass, ElementWise_Fusion_0) {
     auto B = net_builder.CreateInput(Float(32), {h, w}, "B");
     auto C = net_builder.CreateInput(Float(32), {h, w}, "C");
     auto D = net_builder.CreateInput(Float(32), {h, w}, "D");
-    auto E = net_builder.ElementwiseAdd(A, B);
-    auto F = net_builder.ElementwiseAdd(E, C);
-    auto G = net_builder.ElementwiseAdd(E, D);
+    auto E = net_builder.Add(A, B);
+    auto F = net_builder.Add(E, C);
+    auto G = net_builder.Add(E, D);
   }
 
   auto program = net_builder.Build();
@@ -51,10 +51,10 @@ TEST(FusionMergePass, ElementWise_Fusion_1) {
     auto B = net_builder.CreateInput(Float(32), {h, w}, "B");
     auto C = net_builder.CreateInput(Float(32), {h, w}, "C");
     auto D = net_builder.CreateInput(Float(32), {h, w}, "D");
-    auto E = net_builder.ElementwiseAdd(A, B);
-    auto F = net_builder.ElementwiseAdd(C, D);
-    auto G = net_builder.ElementwiseAdd(E, F);
-    auto I = net_builder.ElementwiseAdd(E, F);
+    auto E = net_builder.Add(A, B);
+    auto F = net_builder.Add(C, D);
+    auto G = net_builder.Add(E, F);
+    auto I = net_builder.Add(E, F);
   }
 
   auto program = net_builder.Build();
@@ -79,11 +79,11 @@ TEST(FusionMergePass, ElementWise_Fusion_2) {
     auto D = net_builder.CreateInput(Float(32), {h, w}, "D");
     auto E = net_builder.CreateInput(Float(32), {h, w}, "E");
     auto F = net_builder.CreateInput(Float(32), {h, w}, "F");
-    auto G = net_builder.ElementwiseAdd(A, B);
-    auto H = net_builder.ElementwiseAdd(C, D);
-    auto I = net_builder.ElementwiseAdd(E, G);
-    auto J = net_builder.ElementwiseAdd(G, H);
-    auto K = net_builder.ElementwiseAdd(H, F);
+    auto G = net_builder.Add(A, B);
+    auto H = net_builder.Add(C, D);
+    auto I = net_builder.Add(E, G);
+    auto J = net_builder.Add(G, H);
+    auto K = net_builder.Add(H, F);
   }
 
   auto program = net_builder.Build();
@@ -108,11 +108,11 @@ TEST(FusionMergePass, ElementWise_Fusion_3) {
     auto D = net_builder.CreateInput(Float(32), {h, w}, "D");
     auto E = net_builder.CreateInput(Float(32), {h, w}, "E");
     auto F = net_builder.CreateInput(Float(32), {h, w}, "F");
-    auto G = net_builder.ElementwiseAdd(A, B);
-    auto H = net_builder.ElementwiseAdd(G, C);
-    auto I = net_builder.ElementwiseAdd(G, D);
-    auto J = net_builder.ElementwiseAdd(G, E);
-    auto K = net_builder.ElementwiseAdd(G, F);
+    auto G = net_builder.Add(A, B);
+    auto H = net_builder.Add(G, C);
+    auto I = net_builder.Add(G, D);
+    auto J = net_builder.Add(G, E);
+    auto K = net_builder.Add(G, F);
   }
 
   auto program = net_builder.Build();
@@ -137,11 +137,11 @@ TEST(FusionMergePass, ElementWise_Fusion_4) {
     auto D = net_builder.CreateInput(Float(32), {h, w}, "D");
     auto E = net_builder.CreateInput(Float(32), {h, w}, "E");
     auto F = net_builder.CreateInput(Float(32), {h, w}, "F");
-    auto G = net_builder.ElementwiseAdd(A, B);
-    auto H = net_builder.ElementwiseAdd(G, C);
-    auto I = net_builder.ElementwiseAdd(G, D);
-    auto J = net_builder.ElementwiseAdd(I, E);
-    auto K = net_builder.ElementwiseAdd(I, F);
+    auto G = net_builder.Add(A, B);
+    auto H = net_builder.Add(G, C);
+    auto I = net_builder.Add(G, D);
+    auto J = net_builder.Add(I, E);
+    auto K = net_builder.Add(I, F);
   }
 
   auto program = net_builder.Build();
@@ -162,8 +162,8 @@ TEST(FusionMergePass, ElementWise_Fusion_5) {
   {
     auto A = net_builder.CreateInput(Float(32), {h, w}, "A");
     auto B = net_builder.CreateInput(Float(32), {h, w}, "B");
-    auto C = net_builder.ElementwiseAdd(A, B);
-    auto D = net_builder.ElementwiseAdd(A, B);
+    auto C = net_builder.Add(A, B);
+    auto D = net_builder.Add(A, B);
   }
 
   auto program = net_builder.Build();
@@ -186,9 +186,9 @@ TEST(FusionMergePass, Broadcast_Test_0) {
     auto B = net_builder.CreateInput(Float(32), {w}, "B");
     auto C = net_builder.CreateInput(Float(32), {h, w}, "C");
     auto D = net_builder.CreateInput(Float(32), {h, w}, "D");
-    auto E = net_builder.ElementwiseAdd(A, B);
-    auto F = net_builder.ElementwiseAdd(C, D);
-    auto G = net_builder.ElementwiseAdd(F, E);
+    auto E = net_builder.Add(A, B);
+    auto F = net_builder.Add(C, D);
+    auto G = net_builder.Add(F, E);
   }
 
   auto program = net_builder.Build();
@@ -211,9 +211,9 @@ TEST(FusionMergePass, Broadcast_Test_1) {
     auto B = net_builder.CreateInput(Float(32), {w}, "B");
     auto C = net_builder.CreateInput(Float(32), {h, w}, "C");
     auto D = net_builder.CreateInput(Float(32), {h, w}, "D");
-    auto E = net_builder.ElementwiseAdd(A, B);
-    auto F = net_builder.ElementwiseAdd(C, E);
-    auto G = net_builder.ElementwiseAdd(D, E);
+    auto E = net_builder.Add(A, B);
+    auto F = net_builder.Add(C, E);
+    auto G = net_builder.Add(D, E);
   }
 
   auto program = net_builder.Build();
@@ -236,9 +236,9 @@ TEST(FusionMergePass, Broadcast_Test_2) {
     auto B = net_builder.CreateInput(Float(32), {w}, "B");
     auto C = net_builder.CreateInput(Float(32), {w}, "C");
     auto D = net_builder.CreateInput(Float(32), {h, w}, "D");
-    auto E = net_builder.ElementwiseAdd(A, B);
-    auto F = net_builder.ElementwiseAdd(C, E);
-    auto G = net_builder.ElementwiseAdd(D, E);
+    auto E = net_builder.Add(A, B);
+    auto F = net_builder.Add(C, E);
+    auto G = net_builder.Add(D, E);
   }
 
   auto program = net_builder.Build();
@@ -261,9 +261,9 @@ TEST(FusionMergePass, Broadcast_Test_3) {
     auto B = net_builder.CreateInput(Float(32), {w}, "B");
     auto C = net_builder.CreateInput(Float(32), {h * w, w}, "C");
     auto D = net_builder.CreateInput(Float(32), {h, w}, "D");
-    auto E = net_builder.ElementwiseAdd(A, B);
-    auto F = net_builder.ElementwiseAdd(C, E);
-    auto G = net_builder.ElementwiseAdd(D, E);
+    auto E = net_builder.Add(A, B);
+    auto F = net_builder.Add(C, E);
+    auto G = net_builder.Add(D, E);
   }
 
   auto program = net_builder.Build();
@@ -287,10 +287,10 @@ TEST(FusionMergePass, Broadcast_Test_4) {
     auto C = net_builder.CreateInput(Float(32), {w}, "C");
     auto D = net_builder.CreateInput(Float(32), {h, w}, "D");
     auto E = net_builder.CreateInput(Float(32), {h, w}, "E");
-    auto F = net_builder.ElementwiseAdd(A, B);
-    auto G = net_builder.ElementwiseAdd(C, F);
-    auto H = net_builder.ElementwiseAdd(D, F);
-    auto I = net_builder.ElementwiseAdd(E, F);
+    auto F = net_builder.Add(A, B);
+    auto G = net_builder.Add(C, F);
+    auto H = net_builder.Add(D, F);
+    auto I = net_builder.Add(E, F);
   }
 
   auto program = net_builder.Build();
@@ -314,10 +314,10 @@ TEST(FusionMergePass, Broadcast_Test_5) {
     auto C = net_builder.CreateInput(Float(32), {w}, "C");
     auto D = net_builder.CreateInput(Float(32), {h, w}, "D");
     auto E = net_builder.CreateInput(Float(32), {h * w, w}, "E");
-    auto F = net_builder.ElementwiseAdd(A, B);
-    auto G = net_builder.ElementwiseAdd(C, F);
-    auto H = net_builder.ElementwiseAdd(D, F);
-    auto I = net_builder.ElementwiseAdd(E, F);
+    auto F = net_builder.Add(A, B);
+    auto G = net_builder.Add(C, F);
+    auto H = net_builder.Add(D, F);
+    auto I = net_builder.Add(E, F);
   }
 
   auto program = net_builder.Build();
@@ -338,10 +338,10 @@ TEST(FusionMergePass, Reduce_Test_0) {
   {
     auto A = net_builder.CreateInput(Float(32), {h, w}, "A");
     auto B = net_builder.CreateInput(Float(32), {h, w}, "B");
-    auto C = net_builder.ElementwiseAdd(A, B);
-    auto D = net_builder.Reduce(C, ReduceKind::kSum, {0});
-    auto E = net_builder.Reduce(C, ReduceKind::kSum, {0});
-    auto F = net_builder.Reduce(C, ReduceKind::kSum, {0});
+    auto C = net_builder.Add(A, B);
+    auto D = net_builder.ReduceSum(C, {0});
+    auto E = net_builder.ReduceSum(C, {0});
+    auto F = net_builder.ReduceSum(C, {0});
   }
 
   auto program = net_builder.Build();
@@ -362,9 +362,9 @@ TEST(FusionMergePass, Reduce_Test_1) {
   {
     auto A = net_builder.CreateInput(Float(32), {h, w}, "A");
     auto B = net_builder.CreateInput(Float(32), {h, w}, "B");
-    auto C = net_builder.ElementwiseAdd(A, B);
-    auto D = net_builder.Reduce(C, ReduceKind::kSum, {0});
-    auto E = net_builder.Reduce(C, ReduceKind::kSum, {1});
+    auto C = net_builder.Add(A, B);
+    auto D = net_builder.ReduceSum(C, {0});
+    auto E = net_builder.ReduceSum(C, {1});
   }
 
   auto program = net_builder.Build();
@@ -386,11 +386,11 @@ TEST(FusionMergePass, Reduce_Test_2) {
     auto A = net_builder.CreateInput(Float(32), {h, w}, "A");
     auto B = net_builder.CreateInput(Float(32), {h, w}, "B");
     auto C = net_builder.CreateInput(Float(32), {w}, "C");
-    auto D = net_builder.ElementwiseAdd(A, B);
-    auto E = net_builder.Reduce(D, ReduceKind::kSum, {0});
-    auto F = net_builder.Reduce(D, ReduceKind::kSum, {1});
-    auto G = net_builder.ElementwiseAdd(C, E);
-    auto H = net_builder.ElementwiseAdd(C, F);
+    auto D = net_builder.Add(A, B);
+    auto E = net_builder.ReduceSum(D, {0});
+    auto F = net_builder.ReduceSum(D, {1});
+    auto G = net_builder.Add(C, E);
+    auto H = net_builder.Add(C, F);
   }
 
   auto program = net_builder.Build();
@@ -413,10 +413,10 @@ TEST(FusionMergePass, Reduce_Test_3) {
     auto B = net_builder.CreateInput(Float(32), {h, w}, "B");
     auto C = net_builder.CreateInput(Float(32), {w}, "C");
     auto D = net_builder.CreateInput(Float(32), {h, w}, "D");
-    auto E = net_builder.ElementwiseAdd(A, B);
-    auto F = net_builder.Reduce(E, ReduceKind::kSum, {0});
-    auto G = net_builder.ElementwiseAdd(C, F);
-    auto H = net_builder.ElementwiseAdd(D, F);
+    auto E = net_builder.Add(A, B);
+    auto F = net_builder.ReduceSum(E, {0});
+    auto G = net_builder.Add(C, F);
+    auto H = net_builder.Add(D, F);
   }
 
   auto program = net_builder.Build();
@@ -439,11 +439,11 @@ TEST(FusionMergePass, Reduce_Test_4) {
     auto B = net_builder.CreateInput(Float(32), {h, w}, "B");
     auto C = net_builder.CreateInput(Float(32), {w}, "C");
     auto D = net_builder.CreateInput(Float(32), {h, w}, "D");
-    auto E = net_builder.ElementwiseAdd(A, B);
-    auto F = net_builder.Reduce(E, ReduceKind::kSum, {0});
-    auto G = net_builder.ElementwiseAdd(C, F);
-    auto H = net_builder.ElementwiseAdd(D, F);
-    auto I = net_builder.ElementwiseAdd(D, F);
+    auto E = net_builder.Add(A, B);
+    auto F = net_builder.ReduceSum(E, {0});
+    auto G = net_builder.Add(C, F);
+    auto H = net_builder.Add(D, F);
+    auto I = net_builder.Add(D, F);
   }
 
   auto program = net_builder.Build();
@@ -464,10 +464,10 @@ TEST(FusionMergePass, Reduce_Test_5) {
   {
     auto A = net_builder.CreateInput(Float(32), {h, w}, "A");
     auto B = net_builder.CreateInput(Float(32), {h, w}, "B");
-    auto C = net_builder.ElementwiseAdd(A, B);
-    auto D = net_builder.Reduce(A, ReduceKind::kSum, {1});
-    auto E = net_builder.Reduce(B, ReduceKind::kSum, {1});
-    auto F = net_builder.Reduce(C, ReduceKind::kSum, {1});
+    auto C = net_builder.Add(A, B);
+    auto D = net_builder.ReduceSum(A, {1});
+    auto E = net_builder.ReduceSum(B, {1});
+    auto F = net_builder.ReduceSum(C, {1});
   }
 
   auto program = net_builder.Build();

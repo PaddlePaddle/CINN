@@ -16,7 +16,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "cinn/frontend/cinn_builder.h"
+#include "cinn/frontend/net_builder.h"
 #include "cinn/frontend/program_pass.h"
 #include "glog/logging.h"
 
@@ -50,7 +50,7 @@ class ReshapeRewriterPass : public ProgramPass {
       return;
     }
 
-    CinnBuilder builder("reshape_rewritter_builder");
+    NetBuilder builder("reshape_rewritter_builder");
     for (auto& var : program->GetInputs()) {
       builder.CreateInput(var);
     }

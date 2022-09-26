@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <limits>
 #include <memory>
 #include <unordered_set>
 #include <utility>
@@ -32,8 +33,8 @@ namespace auto_schedule {
  */
 class SearchState {
  public:
-  // The ModuleExpr
-  ir::ModuleExpr mod_expr;
+  // The IRSchedule, which contains ir::ModuleExpr and trace scheduling process
+  ir::IRSchedule ir_schedule;
 
   // The rules that can be applied to this ModuleExpr at this state.
   // Initialized by list of all AutoGenRule
@@ -42,14 +43,14 @@ class SearchState {
   // Cost model predicted cost
   float predicted_cost = NOT_INIT_COST;
 
-  // Negative constant standing for a cost not being initialized
-  static constexpr float NOT_INIT_COST = -1.0;
+  // Constant standing for a cost not being initialized
+  static constexpr float NOT_INIT_COST = std::numeric_limits<float>::max();
 
   SearchState() = default;
 
   SearchState(const ir::ModuleExpr& mod_expr);
 
-  SearchState(ir::ModuleExpr&& mod_expr);
+  SearchState(ir::IRSchedule&& ir_sch);
 
   SearchState(const SearchState& state);
 

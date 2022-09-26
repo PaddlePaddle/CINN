@@ -20,7 +20,7 @@ TEST(Decomposer, elementwise_add_bcast0) {
   NetBuilder builder("elementwise_add");
   auto x   = builder.CreateInput(Float(32), {4, 1, 20, 10});
   auto y   = builder.CreateInput(Float(32), {10, 20});
-  auto out = builder.ElementwiseAdd(x, y, 1);
+  auto out = builder.Add(x, y, 1);
 
   std::vector<std::string> input_names        = {x.id().data(), y.id().data()};
   std::vector<std::string> output_names       = {out->id};
@@ -32,7 +32,7 @@ TEST(Decomposer, elementwise_add_bcase1) {
   NetBuilder builder("elementwise_add");
   auto x   = builder.CreateInput(Float(32), {10, 20});
   auto y   = builder.CreateInput(Float(32), {4, 1, 20, 10});
-  auto out = builder.ElementwiseAdd(x, y, 1);
+  auto out = builder.Add(x, y, 1);
 
   std::vector<std::string> input_names        = {x.id().data(), y.id().data()};
   std::vector<std::string> output_names       = {out->id};
@@ -57,7 +57,7 @@ TEST(Decomposer, elementwise_add_bcast1) {
   NetBuilder builder("elementwise_add");
   auto x   = builder.CreateInput(Float(32), {32, 64, 32, 32});
   auto y   = builder.CreateInput(Float(32), {64});
-  auto out = builder.ElementwiseAdd(x, y, 1);
+  auto out = builder.Add(x, y, 1);
 
   auto add_cpu = [](const std::vector<size_t>& lengths, const std::vector<void*>& ptrs) {
     float* x   = static_cast<float*>(ptrs[0]);
@@ -82,7 +82,7 @@ TEST(Decomposer, elementwise_add_bcast1_2) {
   NetBuilder builder("elementwise_add");
   auto x   = builder.CreateInput(Float(32), {64});
   auto y   = builder.CreateInput(Float(32), {32, 64, 32, 32});
-  auto out = builder.ElementwiseAdd(x, y, 1);
+  auto out = builder.Add(x, y, 1);
 
   auto add_cpu = [](const std::vector<size_t>& lengths, const std::vector<void*>& ptrs) {
     float* x   = static_cast<float*>(ptrs[0]);
@@ -137,7 +137,7 @@ TEST(Decomposer, elementwise_add_bcast2) {
   NetBuilder builder("elementwise_add");
   auto x   = builder.CreateInput(Float(32), {32, 16});
   auto y   = builder.CreateInput(Float(32), {1});
-  auto out = builder.ElementwiseAdd(x, y);
+  auto out = builder.Add(x, y);
 
   auto add_cpu = [](const std::vector<size_t>& lengths, const std::vector<void*>& ptrs) {
     size_t n     = lengths[0];
@@ -160,7 +160,7 @@ TEST(Decomposer, elementwise_add_bcast2_2) {
   NetBuilder builder("elementwise_add");
   auto x   = builder.CreateInput(Float(32), {1});
   auto y   = builder.CreateInput(Float(32), {32, 16});
-  auto out = builder.ElementwiseAdd(x, y);
+  auto out = builder.Add(x, y);
 
   auto add_cpu = [](const std::vector<size_t>& lengths, const std::vector<void*>& ptrs) {
     size_t n     = 32 * 16;
@@ -185,7 +185,7 @@ TEST(Decomposer, elementwise_add_bcast2_3) {
   NetBuilder builder("elementwise_add");
   auto x   = builder.CreateInput(Int(kLength), {32, 16});
   auto y   = builder.CreateInput(Int(kLength), {1});
-  auto out = builder.ElementwiseAdd(x, y);
+  auto out = builder.Add(x, y);
 
   auto add_cpu = [](const std::vector<size_t>& lengths, const std::vector<void*>& ptrs) {
     size_t n      = lengths[0];
@@ -233,7 +233,7 @@ TEST(Decomposer, elementwise_add_same_dims) {
   NetBuilder builder("elementwise_add");
   auto x   = builder.CreateInput(Float(32), {32, 16});
   auto y   = builder.CreateInput(Float(32), {32, 16});
-  auto out = builder.ElementwiseAdd(x, y);
+  auto out = builder.Add(x, y);
 
   auto add_cpu = [](const std::vector<size_t>& lengths, const std::vector<void*>& ptrs) {
     size_t n   = lengths[0];

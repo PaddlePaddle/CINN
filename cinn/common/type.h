@@ -123,6 +123,8 @@ struct Type {
   Type IgnoreConst() const;
   //! Add const.
   Type ConstOf() const;
+  //! Check if a dtype is supported in CINN yet.
+  bool is_supported() const;
 
   friend std::ostream& operator<<(std::ostream& os, const Type& t);
 
@@ -247,6 +249,12 @@ inline Type type_of<cinn_pod_value_t*>() {
 Type Str2Type(const std::string& type);
 
 std::string Type2Str(const Type& type);
+
+enum class Layout {
+  kUnk = 0,
+  kNCHW,
+  kNHWC,
+};
 
 }  // namespace common
 }  // namespace cinn

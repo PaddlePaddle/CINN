@@ -30,12 +30,11 @@
 namespace cinn {
 namespace auto_schedule {
 
-SearchState::SearchState(const ir::ModuleExpr& mod_expr) { this->mod_expr = mod_expr; }
+SearchState::SearchState(const ir::ModuleExpr& mod_expr) : ir_schedule(mod_expr) {}
 
-SearchState::SearchState(ir::ModuleExpr&& mod_expr) { this->mod_expr = std::move(mod_expr); }
+SearchState::SearchState(ir::IRSchedule&& ir_sch) : ir_schedule(std::move(ir_sch)) {}
 
-SearchState::SearchState(const SearchState& state) {
-  mod_expr       = state.mod_expr;
+SearchState::SearchState(const SearchState& state) : ir_schedule(state.ir_schedule.GetModule()) {
   predicted_cost = state.predicted_cost;
   for (const std::shared_ptr<AutoGenRule>& rule : state.applicable_rules) {
     applicable_rules.emplace_back(std::shared_ptr<AutoGenRule>(rule->NewPointer()));
@@ -43,7 +42,7 @@ SearchState::SearchState(const SearchState& state) {
 }
 
 SearchState& SearchState::operator=(const SearchState& src) {
-  this->mod_expr       = src.mod_expr;
+  this->ir_schedule.SetExprs(src.ir_schedule.GetModule().GetExprs());
   this->predicted_cost = src.predicted_cost;
   this->applicable_rules.clear();
   for (const std::shared_ptr<AutoGenRule>& rule : src.applicable_rules) {
