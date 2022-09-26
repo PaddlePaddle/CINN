@@ -27,22 +27,17 @@ namespace cinn {
 namespace auto_schedule {
 
 // Global task registrar, used to save the initial ModuleExpr of each task.
-class TaskRegistrar {
+class TaskRegistry {
  public:
-  static TaskRegistrar* Global() {
-    static TaskRegistrar task_registrar;
-    return &task_registrar;
+  static TaskRegistry* Global() {
+    static TaskRegistry task_registry;
+    return &task_registry;
   }
 
   // Store the initial ModuleExpr of a task into the map
   void Regist(const std::string& task_key, const ir::ModuleExpr& module_expr) {
-    std::vector<Expr> expr_vec;
-    for (const auto& expr : module_expr.GetExprs()) {
-      expr_vec.push_back(optim::IRCopy(expr));
-    }
-    ir::ModuleExpr new_module(expr_vec);
     std::lock_guard<std::mutex> lock(mtx_);
-    task_map_.insert({task_key, new_module});
+    task_map_.insert({task_key, optim::IRCopy(module_expr)});
   }
 
   // Get the initial ModuleExpr of a task by serialized_key;
@@ -62,10 +57,16 @@ class TaskRegistrar {
     return true;
   }
 
+  // Check if the task_key exists;
+  bool Has(const std::string& task_key) {
+    std::lock_guard<std::mutex> lock(mtx_);
+    return task_map_.count(task_key) != 0;
+  }
+
  private:
-  TaskRegistrar()                     = default;
-  TaskRegistrar(const TaskRegistrar&) = delete;
-  void operator=(TaskRegistrar&) = delete;
+  TaskRegistry()                    = default;
+  TaskRegistry(const TaskRegistry&) = delete;
+  void operator=(TaskRegistry&) = delete;
 
   std::mutex mtx_;
   absl::flat_hash_map<std::string, ir::ModuleExpr> task_map_;

@@ -20,7 +20,6 @@
 #include <vector>
 
 #include "cinn/auto_schedule/analysis/analyze_ir.h"
-#include "cinn/auto_schedule/task_registrar.h"
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op_lowering.h"
 #include "cinn/ir/ir_base.h"
@@ -53,15 +52,6 @@ void TuneTask::SetLoweredFuncBodyExprs(const std::vector<ir::Expr>& exprs) {
 void TuneTask::SetLoweredFuncsAndAnalyzeOutput(const std::vector<ir::LoweredFunc>& lowered_funcs) {
   this->lowered_funcs = lowered_funcs;
   this->output_names  = GetOutputNamesFromLoweredFunc(this->lowered_funcs);
-
-  // Register the initial ModuleExpr corresponding to the task
-  TaskRegistrar* task_registrar = TaskRegistrar::Global();
-
-  std::vector<ir::Expr> exprs(lowered_funcs.size());
-  std::transform(lowered_funcs.begin(), lowered_funcs.end(), exprs.begin(), [&](const ir::LoweredFunc& func) {
-    return func->body;
-  });
-  task_registrar->Regist(serialized_key, ir::ModuleExpr(exprs));
 }
 
 void TuneTask::TaskGraphToUnoptLoweredFunc() {

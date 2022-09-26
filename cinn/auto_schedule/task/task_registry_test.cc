@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cinn/auto_schedule/task_registrar.h"
+#include "cinn/auto_schedule/task/task_registry.h"
 
 #include <glog/logging.h>
 #include <gtest/gtest.h>
@@ -64,7 +64,7 @@ std::shared_ptr<hlir::framework::Graph> CreateAddProgram(const common::Target& t
   return std::make_shared<hlir::framework::Graph>(builder.Build(), target);
 }
 
-TEST(TestTaskRegistrar, basic) {
+TEST(TestTaskRegistry, basic) {
   FLAGS_auto_schedule_use_cost_model = true;
   FLAGS_cinn_ir_schedule             = true;
 
@@ -76,18 +76,18 @@ TEST(TestTaskRegistrar, basic) {
   std::shared_ptr<hlir::framework::Graph> graph = CreateAddProgram(target);
   std::vector<TuneTask> tasks                   = CreateTasks(graph.get(), target);
 
-  TaskRegistrar* task_registrar = TaskRegistrar::Global();
+  TaskRegistry* task_registry = TaskRegistry::Global();
 
   std::vector<ir::ModuleExpr> module_exprs;
   for (const TuneTask& task : tasks) {
     module_exprs.emplace_back(task.GetLoweredFuncBodyExprs());
-    task_registrar->Regist(task.serialized_key, module_exprs.back());
+    task_registry->Regist(task.serialized_key, module_exprs.back());
   }
 
   for (int i = 0; i < tasks.size(); ++i) {
     std::string key = tasks[i].serialized_key;
     VLOG(3) << "serialized_key = " << key;
-    ir::ModuleExpr new_expr = task_registrar->Get(key);
+    ir::ModuleExpr new_expr = task_registry->Get(key);
 
     ASSERT_EQ(new_expr.GetExprs().size(), module_exprs[i].GetExprs().size());
     for (int j = 0; j < new_expr.GetExprs().size(); ++j) {
@@ -96,10 +96,10 @@ TEST(TestTaskRegistrar, basic) {
     }
   }
 
-  bool flag = task_registrar->Remove(tasks[0].serialized_key);
+  bool flag = task_registry->Remove(tasks[0].serialized_key);
   ASSERT_EQ(flag, true);
 
-  flag = task_registrar->Remove(tasks[0].serialized_key);
+  flag = task_registry->Remove(tasks[0].serialized_key);
   ASSERT_EQ(flag, false);
 }
 
