@@ -83,11 +83,11 @@ class TestConstantCase5(TestConstantOp):
         self.name = 'x'
 
 
-# may core dump at const_scalar: CUDA Error : invalid argument, Why?
-# class TestConstantCase6(TestConstantOp):
-#     def init_case(self):
-#         self.value = [[[1.0]]]
-#         self.name = 'x'
+class TestConstantCase6(TestConstantOp):
+    def init_case(self):
+        self.value = [[[1.0]]]
+        self.name = 'x'
+
 
 if __name__ == "__main__":
     unittest.main()

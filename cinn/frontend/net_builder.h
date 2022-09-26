@@ -371,14 +371,8 @@ class NetBuilder {
       tmp.emplace_back(var);
     }
 
-    Variable out;
-    if (tmp.size() == 1UL) {
-      // if the input only has one value, do not need concat
-      out = tmp.front();
-    } else {
-      // concat all input
-      out = Concat(tmp);
-    }
+    // concat all input
+    auto out = Concat(tmp);
 
     if (cinn::utils::is_vector_f(value[0])) {
       // if the value of vector is also a vector, we need a reshape to ensure the result's shape
