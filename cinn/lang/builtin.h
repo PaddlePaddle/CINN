@@ -63,7 +63,8 @@ inline Expr Sign(Expr e) {
   auto zero    = make_const(e->type(), 0);
   auto one     = make_const(e->type(), 1);
   auto neg_one = make_const(e->type(), -1);
-  auto ret1    = ir::Select::Make(e > zero, one, zero);
+  auto ret0    = ir::Select::Make(ir::EQ::Make(e, zero), zero, e);
+  auto ret1    = ir::Select::Make(e > zero, one, ret0);
   auto ret2    = ir::Select::Make(e < zero, neg_one, ret1);
   return ret2;
 }
