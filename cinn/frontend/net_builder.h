@@ -355,25 +355,38 @@ class NetBuilder {
   template <typename T>
   std::enable_if_t<cinn::utils::is_vector<T>::value, Variable> Constant(const T& value, const std::string& name) {
     CHECK(!value.empty()) << "The value of Constant should not be None or empty list! Please check.";
-    if (value.size() == 1UL) {
-      // do not concat, return directly
-      return Constant(value.front(), name);
-    }
+
+    cinn::utils::ShapeType value_shape;
 
     std::vector<Variable> tmp;
     for (int i = 0; i < value.size(); ++i) {
       auto var = Constant(value[i], name + "_" + std::to_string(i));
 
-      if (var->shape == std::vector<int>{1}) {
-        tmp.emplace_back(var);
+      if (value_shape.empty()) {
+        value_shape = var->shape;
       } else {
-        // need reshape to ensure the result's shape is correct, otherwise the result's rank is 1
-        auto new_shape = var->shape;
-        new_shape.insert(new_shape.begin(), 1);
-        tmp.emplace_back(Reshape(var, new_shape));
+        CHECK(value_shape == var->shape) << "The elements in constant input list should have same shape! Please check.";
       }
+
+      tmp.emplace_back(var);
     }
-    auto out = Concat(tmp);
+
+    Variable out;
+    if (tmp.size() == 1UL) {
+      // if the input only has one value, do not need concat
+      out = tmp.front();
+    } else {
+      // concat all input
+      out = Concat(tmp);
+    }
+
+    if (cinn::utils::is_vector_f(value[0])) {
+      // if the value of vector is also a vector, we need a reshape to ensure the result's shape
+      // is the same the input, otherwise the result's rank is 1
+      value_shape.insert(value_shape.begin(), value.size());
+      out = Reshape(out, value_shape);
+    }
+
     // set the name correctly
     out.set_id(name);
     return out;

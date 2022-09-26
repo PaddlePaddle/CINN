@@ -77,5 +77,17 @@ class TestConstantCase4(TestConstantOp):
         self.name = 'x'
 
 
+class TestConstantCase5(TestConstantOp):
+    def init_case(self):
+        self.value = [[[1.0], [3.0]], [[5.0], [7.0]]]
+        self.name = 'x'
+
+
+class TestConstantCase6(TestConstantOp):
+    def init_case(self):
+        self.value = [[[1.0]]]
+        self.name = 'x'
+
+
 if __name__ == "__main__":
     unittest.main()
