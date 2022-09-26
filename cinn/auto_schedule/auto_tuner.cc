@@ -57,7 +57,7 @@ void AutoTuner::Initialize(const Config& config, hlir::framework::GraphCompiler*
     task.SerializeToString(shape_dict, dtype_dict);
 
     // Register the initial ModuleExpr corresponding to the task
-    TaskRegistry* task_registry = TaskRegistry::Global();
+    InitialTaskRegistry* task_registry = InitialTaskRegistry::Global();
     std::vector<ir::Expr> exprs(task.lowered_funcs.size());
     std::transform(
         task.lowered_funcs.begin(), task.lowered_funcs.end(), exprs.begin(), [&](const ir::LoweredFunc& func) {
