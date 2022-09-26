@@ -474,6 +474,18 @@ void IrPrinter::Visit(const ScheduleBlockRealize *x) {
     }
     os() << ")\n";
   }
+  if (!schedule_block->attrs.empty()) {
+    DoIndent();
+    os() << "attrs(";
+    bool comma = false;
+    for (auto &&kv : schedule_block->attrs) {
+      if (comma) os() << ", ";
+      os() << kv.first << ":";
+      absl::visit([this](auto &&arg) { this->os() << arg; }, kv.second);
+      comma = true;
+    }
+    os() << ")\n";
+  }
   DoIndent();
   Print(schedule_block->body);
   os() << "\n";

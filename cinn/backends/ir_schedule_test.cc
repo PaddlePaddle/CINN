@@ -2560,5 +2560,43 @@ void test_copytransform2(void* _args, int32_t num_args)
 )ROC";
   ASSERT_EQ(utils::Trim(target_code), utils::Trim(source_code));
 }
+
+TEST(IrSchedule, Annotate) {
+  Context::Global().ResetNameId();
+  Expr M(32);
+  Expr N(32);
+  Placeholder<float> A("A", {M, N});
+  auto B = Compute(
+      {M, N}, [&](Var i, Var j) { return A(i, j); }, "B");
+
+  auto funcs = cinn::lang::LowerVec(
+      "test_split_and_fuse1", CreateStages({A, B}), {A, B}, {}, {}, nullptr, common::DefaultHostTarget(), true);
+  ir::IRSchedule ir_sch(ir::ModuleExpr({funcs[0]->body}));
+  auto fused   = ir_sch.Fuse("B", {0, 1});
+  auto block_b = ir_sch.GetBlock("B");
+  ir_sch.Annotate(block_b, "k1", int(64));
+  block_b = ir_sch.GetBlock("B");
+  ir_sch.Annotate(block_b, "k2", bool(true));
+  block_b = ir_sch.GetBlock("B");
+  ir_sch.Annotate(block_b, "k3", float(2.0));
+  block_b = ir_sch.GetBlock("B");
+  ir_sch.Annotate(block_b, "k4", std::string("v4"));
+  std::string expected_expr = R"ROC({
+  ScheduleBlock(root)
+  {
+    for (i_j_fused, 0, 1024)
+    {
+      ScheduleBlock(B)
+      {
+        i0, i1 = axis.bind((i_j_fused / 32), (i_j_fused % 32))
+        attrs(k1:64, k2:1, k3:2, k4:v4)
+        B[i0, i1] = A[i0, i1]
+      }
+    }
+  }
+})ROC";
+  ASSERT_EQ(utils::GetStreamCnt(ir_sch.GetModule().GetExprs().front()), expected_expr);
+}
+
 }  // namespace backends
 }  // namespace cinn
