@@ -24,7 +24,7 @@
 #include "cinn/frontend/paddle/framework.pb.h"
 
 namespace cinn::frontend::paddle::pb {
-namespace framework_proto = ::paddle::framework::proto;
+namespace framework_proto = ::cinn::frontend::paddle::proto;
 
 // convert between std::vector and protobuf repeated.
 template <typename T>
@@ -60,7 +60,7 @@ class VarDesc : public cpp::VarDescAPI {
 
   explicit VarDesc(framework_proto::VarDesc *desc) : desc_(desc) { CHECK(desc_); }
 
-  ::paddle::framework::proto::VarDesc *Proto() { return desc_; }
+  ::cinn::frontend::paddle::proto::VarDesc *Proto() { return desc_; }
   const framework_proto::VarDesc &ReadonlyProto() const { return *desc_; }
 
   std::string Name() const override { return desc_->name(); }
