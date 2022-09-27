@@ -30,6 +30,7 @@
 #include "cinn/optim/ir_copy.h"
 #include "cinn/optim/transform_gpu_forloop.h"
 #include "cinn/runtime/flags.h"
+#include "cinn/utils/string.h"
 
 DECLARE_bool(auto_schedule_use_cost_model);
 
@@ -90,11 +91,14 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
   result.lowered_funcs.push_back(optim::IRCopy(task_->lowered_funcs));
 
   while (measured_count < options.num_measure_trials) {
+    VLOG(4) << "Search-" << measured_count << " start";
     std::vector<SearchState> states = evolutionary_search_->SearchModuleExprEpsGreedy(options);
-    VLOG(4) << "TaskOptimizer run EvolutionarySearch with return size = " << states.size();
+    VLOG(4) << "EvolutionarySearch finished with return size = " << states.size();
     std::vector<MeasureInput> measure_inputs(states.size());
     std::vector<const ir::ModuleExpr*> cost_model_samples(states.size());
     for (size_t i = 0; i < states.size(); ++i) {
+      VLOG(5) << "<<<<<< State-" << i << " Detail >>>>>>\n" << states[i].DebugString();
+
       cost_model_samples[i]            = &(states[i].ir_schedule.GetModule());
       measure_inputs[i].task           = task_;
       std::vector<ir::Expr> best_exprs = states[i].ir_schedule.GetModule().GetExprs();
@@ -110,6 +114,7 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
         }
       }
     }
+    VLOG(4) << "ScheduleMeasurer start with input size:" << measure_inputs.size();
     std::vector<MeasureResult> measure_outputs = schedule_measurer_->Measure(measure_inputs);
     CHECK_EQ(measure_outputs.size(), states.size())
         << "ScheduleMeasurer didn't output same number of MeasureOutput of states in TaskOptimizer";
@@ -120,12 +125,13 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
     }
 
     if (FLAGS_auto_schedule_use_cost_model) {
-      VLOG(6) << "cost_model_samples.size() = " << cost_model_samples.size();
-      VLOG(6) << "cost_model_labels.size() = " << cost_model_labels.size();
+      VLOG(4) << utils::StringFormat(
+          "Update CostModel with samples[%lu],labels[%lu]", cost_model_samples.size(), cost_model_labels.size());
       cost_model_.Update(cost_model_samples, cost_model_labels, task_->target);
     }
     // TODO(zhhsplendid): write measure record into cache.
 
+    VLOG(4) << "Update best candidate";
     for (size_t i = 0; i < measure_outputs.size(); ++i) {
       if (measure_outputs[i].execution_cost < min_exec_time) {
         min_exec_time        = measure_outputs[i].execution_cost;

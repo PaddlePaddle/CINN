@@ -36,7 +36,7 @@ namespace auto_schedule {
 SearchSpace::SearchSpace(const TuneTask& tune_task) : tune_task_(tune_task) {}
 
 std::vector<SearchState> SearchSpace::GetRandomInitialSketch(int num) {
-  VLOG(4) << "Start SearchSpace::GetRandomInitialSketch";
+  VLOG(4) << "Start SearchSpace::GetRandomInitialSketch with num:" << num;
   SearchState init_state(ir::IRSchedule(ir::ModuleExpr(tune_task_.GetLoweredFuncBodyExprs())));
   std::vector<SearchState> result;
   while (result.size() < num) {
@@ -50,6 +50,8 @@ std::vector<SearchState> SearchSpace::GetRandomInitialSketch(int num) {
       }
     }
     // TODO:(zhhsplendid): De-duplication on the result after we have Expr/ModuleExpr hash;
+    auto debug_str = state.DebugString();
+    VLOG(5) << "Generate state:" << std::hash<std::string>()(debug_str) << ", DebugString:\n" << debug_str;
     result.emplace_back(std::move(state));
   }
   return result;

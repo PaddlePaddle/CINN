@@ -15,6 +15,7 @@
 #include "cinn/auto_schedule/search_space/search_state.h"
 
 #include <memory>
+#include <sstream>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -25,7 +26,9 @@
 #include "cinn/auto_schedule/search_space/auto_gen_rule/skip_rule.h"
 #include "cinn/common/target.h"
 #include "cinn/ir/ir_base.h"
+#include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_schedule.h"
+#include "cinn/utils/string.h"
 
 namespace cinn {
 namespace auto_schedule {
@@ -49,6 +52,30 @@ SearchState& SearchState::operator=(const SearchState& src) {
     this->applicable_rules.emplace_back(std::shared_ptr<AutoGenRule>(rule->NewPointer()));
   }
   return *this;
+}
+
+std::string SearchState::DebugString() const {
+  const auto& exprs = ir_schedule.GetModule().GetExprs();
+  std::stringstream module_stream;
+  for (auto i = 0; i < exprs.size(); ++i) {
+    module_stream << "Expr " << i << " {\n" << exprs.at(i) << "\n}";
+  }
+
+  const char* fmt_str = R"ROC(
+  SearchState {
+    IRSchedule {
+      ModuleExpr {
+        %s
+      }
+      ScheduleDesc {
+        %s
+      }
+    }
+    predicted_cost: %f
+  })ROC";
+
+  return utils::StringFormat(
+      fmt_str, module_stream.str().c_str(), ir_schedule.GetTraceDesc().DebugString().c_str(), predicted_cost);
 }
 
 bool operator<(const SearchState& left, const SearchState& right) { return left.predicted_cost < right.predicted_cost; }
