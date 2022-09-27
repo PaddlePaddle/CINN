@@ -35,19 +35,15 @@ namespace op {
 TEST(GenerateCode_Cpu, ArgSort) {
   common::Context::Global().ResetNameId();
 
-#ifdef CINN_WITH_CUDA
-  Target target = common::DefaultNVGPUTarget();
-#else
   Target target = common::DefaultHostTarget();
-#endif
 
   ir::Expr n(4);
   ir::Expr h(28);
 
   lang::Placeholder<int32_t> in("in", {n, h});
-  ir::Tensor res = ArgSort(in.tensor(), target, 1, true, "test_arg_sort_out");
-
-  poly::StageMap stages = poly::CreateStages({in, res});
+  poly::StageMap stages = poly::CreateStages({in});
+  ir::Tensor res        = ArgSort(in.tensor(), target, stages, 1, true, "test_arg_sort_out");
+  stages->InsertLazily(res);
   std::vector<ir::LoweredFunc> funcs =
       lang::LowerVec("TestGenerateCodeCpu_ArgSort", stages, {in, res}, {}, {}, nullptr, target, true);
 
@@ -69,23 +65,17 @@ TEST(GenerateCode_Cpu, ArgSort) {
 TEST(GenerateCode_Cpu, Sort) {
   common::Context::Global().ResetNameId();
 
-#ifdef CINN_WITH_CUDA
-  Target target = common::DefaultNVGPUTarget();
-#else
   Target target = common::DefaultHostTarget();
-#endif
 
   ir::Expr n(4);
   ir::Expr h(28);
 
   lang::Placeholder<int32_t> in("in", {n, h});
-  std::vector<ir::Tensor> outputs = Sort(in.tensor(), target, 1, true, "test_sort_out");
-  ir::Tensor index                = outputs[0];
-  ir::Tensor out                  = outputs[1];
-
-  poly::StageMap stages = poly::CreateStages({in, index, out});
+  auto stages    = poly::CreateStages({in});
+  ir::Tensor out = Sort(in, target, stages, 1, true, "test_sort_out");
+  stages->InsertLazily(out);
   std::vector<ir::LoweredFunc> funcs =
-      lang::LowerVec("TestGenerateCodeCpu_Sort", stages, {in, index, out}, {}, {}, nullptr, target, true);
+      lang::LowerVec("TestGenerateCodeCpu_Sort", stages, {in, out}, {}, {}, nullptr, target, true);
 
   VLOG(6) << "Expr before CPU codegen:";
   VLOG(6) << funcs[0]->body;
@@ -97,9 +87,47 @@ TEST(GenerateCode_Cpu, Sort) {
 
   backends::CodeGenCX86 codegen(target, backends::CodeGenCX86::Feature::AVX512);
   codegen.SetInlineBuiltinCodes(false);
-  std::string code = codegen.Compile(builder.Build(), backends::CodeGenC::OutputKind::CImpl);
-  VLOG(6) << "Cpu Codegen result:";
-  VLOG(6) << code << std::endl;
+  std::string code   = codegen.Compile(builder.Build(), backends::CodeGenC::OutputKind::CImpl);
+  auto target_source = R"ROC(
+#include <cinn_runtime.h>
+#include <stdio.h>
+
+void TestGenerateCodeCpu_Sort(void* _args, int32_t num_args)
+{
+  const cinn_buffer_t* _in = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
+  cinn_buffer_t* _test_sort_out = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[1]));
+  cinn_buffer_t* _test_sort_out_index = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_int32_t(), { 4, 28 });
+  cinn_buffer_t* _test_sort_out_index_temp = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_int32_t(), { 4, 28 });
+  cinn_buffer_malloc((void*)(0), _test_sort_out);
+  cinn_buffer_malloc((void*)(0), _test_sort_out_index);
+  cinn_buffer_malloc((void*)(0), _test_sort_out_index_temp);
+  const int32_t* in = ((const int32_t*)(_in->memory));
+  int32_t* test_sort_out = ((int32_t*)(_test_sort_out->memory));
+  int32_t* test_sort_out_index = ((int32_t*)(_test_sort_out_index->memory));
+  int32_t* test_sort_out_index_temp = ((int32_t*)(_test_sort_out_index_temp->memory));
+  {
+    for (int32_t i = 0; i < 4; i += 1) {
+      for (int32_t j = 0; j < 28; j += 1) {
+        test_sort_out_index_temp[((28 * i) + j)] = cinn_host_lt_num_float(_in, 28, in[((28 * i) + j)], (28 * i), 1);
+      };
+    };
+    for (int32_t i = 0; i < 4; i += 1) {
+      for (int32_t j = 0; j < 28; j += 1) {
+        test_sort_out_index[((28 * i) + j)] = cinn_host_find_int_nd(_test_sort_out_index_temp, 28, j, (28 * i), 1);
+      };
+    };
+    for (int32_t i = 0; i < 4; i += 1) {
+      for (int32_t j = 0; j < 28; j += 1) {
+        test_sort_out[((28 * i) + j)] = in[((28 * i) + test_sort_out_index[((28 * i) + j)])];
+      };
+    };
+  };
+  cinn_buffer_free((void*)(0), _test_sort_out_index);
+  cinn_buffer_free((void*)(0), _test_sort_out_index_temp);
+  cinn_buffer_free((void*)(0), _test_sort_out);
+}
+  )ROC";
+  CHECK_EQ(utils::Trim(code), utils::Trim(target_source));
 }
 
 }  // namespace op

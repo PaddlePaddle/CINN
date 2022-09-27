@@ -30,6 +30,7 @@
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/instruction.h"
 #include "cinn/hlir/framework/op_strategy.h"
+#include "cinn/hlir/framework/parallel_compiler.h"
 #include "cinn/hlir/framework/scope.h"
 #include "cinn/ir/lowered_func.h"
 #include "cinn/lang/packed_func.h"
@@ -100,7 +101,7 @@ class GraphCompiler final {
     bool remove_unused_variables                 = true;
     // nodes group, it may come from the result of op fusion or graph tuning.
     // nodes in a group will be built into an Instruction
-    std::vector<std::vector<Node*>> groups;
+    std::vector<std::shared_ptr<Graph::Group>> groups;
     // corresponding LoweredFuncs of above grouped nodes,
     // if it is empty then graph_compiler will generate for them
     std::vector<std::vector<ir::LoweredFunc>> lowered_funcs;
@@ -123,14 +124,7 @@ class GraphCompiler final {
 
   const std::shared_ptr<Scope>& GetScope() const { return scope_; }
 
-  std::vector<std::vector<ir::LoweredFunc>> FusedGraphToLoweredFunc(
-      const std::vector<std::vector<hlir::framework::Node*>>& graph);
-
  private:
-  std::vector<ir::LoweredFunc> NodeToLoweredFunc(const hlir::framework::Node& node);
-
-  std::vector<ir::LoweredFunc> FusedNodeGroupToLoweredFunc(const std::vector<hlir::framework::Node*>& node_group);
-
   std::vector<ir::LoweredFunc> GetOpFunc(const std::vector<Node*>& nodes);
 
   std::vector<ir::LoweredFunc> GetOpFunc(const Node* node);
@@ -172,6 +166,9 @@ class GraphCompiler final {
   void InsertBufferHandlers(std::vector<std::unique_ptr<Instruction>>* instructions);
 
  private:
+  // parallel compiler
+  std::shared_ptr<ParallelCompiler> parallel_compiler_;
+
   void ProcessFunction(const std::vector<ir::LoweredFunc>& lowered_func);
   void SetSubKernels(Instruction* instr, const std::string& func_name);
   Target target_;

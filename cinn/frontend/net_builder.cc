@@ -349,6 +349,41 @@ Variable NetBuilder::ReluGrad(const Variable& lhs, const Variable& rhs) {
   return CustomInstr("relu_grad", {lhs, rhs}, {}).front();
 }
 
+Variable NetBuilder::Gather(const Variable& x, const Variable& index, const int& axis) {
+  return CustomInstr("gather", {x, index}, {{"axis", axis}}).front();
+}
+
+Variable NetBuilder::GatherNd(const Variable& x, const Variable& index, const std::vector<int>& axes) {
+  return CustomInstr("gather_nd", {x, index}, {{"axes", axes}}).front();
+}
+
+Variable NetBuilder::Scatter(const Variable& src, const Variable& index, const Variable& out, const int& axis) {
+  return CustomInstr("scatter", {src, index, out}, {{"axis", axis}}).front();
+}
+Variable NetBuilder::Scatter(const Variable& src,
+                             const Variable& index,
+                             const std::vector<int>& shape,
+                             const float& default_value,
+                             const int& axis) {
+  auto out = FillConstant(shape, default_value, UniqName("fill_constant"), "float", false);
+  return Scatter(src, index, out, axis);
+}
+
+Variable NetBuilder::ScatterNd(const Variable& src,
+                               const Variable& index,
+                               const Variable& out,
+                               const std::vector<int>& axes) {
+  return CustomInstr("scatter_nd", {src, index, out}, {{"axes", axes}}).front();
+}
+Variable NetBuilder::ScatterNd(const Variable& src,
+                               const Variable& index,
+                               const std::vector<int>& shape,
+                               const float& default_value,
+                               const std::vector<int>& axes) {
+  auto out = FillConstant(shape, default_value, UniqName("fill_constant"), "float", false);
+  return ScatterNd(src, index, out, axes);
+}
+
 Variable NetBuilder::Cast(const Variable& operand, const std::string& dtype) {
   if (operand->type == common::Str2Type(dtype)) {
     return Identity(operand);
@@ -396,6 +431,24 @@ Variable NetBuilder::Sort(const Variable& operand, const int& axis, const bool& 
   Instruction instr("sort", {operand});
   instr.SetAttr("axis", axis);
   instr.SetAttr("is_ascend", is_ascend);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
+Variable NetBuilder::Argmax(const Variable& x, const int& axis, const bool& keep_dim) {
+  Instruction instr("argmax", {x});
+  instr.SetAttr("axis", axis);
+  instr.SetAttr("keep_dim", keep_dim);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
+Variable NetBuilder::Argmin(const Variable& x, const int& axis, const bool& keep_dim) {
+  Instruction instr("argmin", {x});
+  instr.SetAttr("axis", axis);
+  instr.SetAttr("keep_dim", keep_dim);
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(0);
@@ -470,7 +523,7 @@ std::vector<Variable> NetBuilder::BatchNorm(const Variable& a,
                                             float momentum,
                                             const std::string& data_layout,
                                             bool is_test) {
-  std::string op_type = is_test ? "batchnorm" : "batch_norm_train";
+  std::string op_type = is_test ? "batch_norm" : "batch_norm_train";
   return CustomInstr(op_type,
                      {a, scale, bias, mean, variance},
                      {{"epsilon", epsilon}, {"momentum", momentum}, {"data_layout", data_layout}});

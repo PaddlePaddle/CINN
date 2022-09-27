@@ -12,8 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cinn/common/type.h"
 #include "cinn/frontend/op_mapper_registry.h"
 #include "cinn/frontend/op_mappers/common_utils.h"
+#include "cinn/frontend/paddle/cpp/desc_api.h"
+#include "cinn/frontend/var_type_utils.h"
 
 namespace cinn {
 namespace frontend {
@@ -135,6 +138,40 @@ void SumOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx)
   ctx.AddVarModelToProgram(out_name, out->id);
 }
 
+void CastOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+  CHECK_EQ(op_desc.Input("X").size(), 1UL);
+  auto x_name = op_desc.Input("X").front();
+  CHECK_EQ(op_desc.Output("Out").size(), 1UL);
+  auto out_name = op_desc.Output("Out").front();
+
+  auto dtype =
+      utils::GetAttrOrDefault<int>(op_desc, "out_dtype", static_cast<int>(paddle::cpp::VarDescAPI::Type::FP32));
+  auto str_dtype = common::Type2Str(utils::CppVarType2CommonType(static_cast<paddle::cpp::VarDescAPI::Type>(dtype)));
+
+  auto x   = ctx.GetVar(x_name);
+  auto out = ctx.Builder()->Cast(x, str_dtype);
+
+  ctx.AddVar(out_name, out);
+  ctx.AddVarModelToProgram(out_name, out->id);
+}
+
+// clang-format off
+#define UnaryOpMapper(OpName, InputName, OutputName)                                      \
+  void OpName##OpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) { \
+    CHECK_EQ(op_desc.Input(InputName).size(), 1UL);                                       \
+    auto x_name = op_desc.Input(InputName).front();                                       \
+    CHECK_EQ(op_desc.Output(OutputName).size(), 1UL);                                     \
+    auto out_name = op_desc.Output(OutputName).front();                                   \
+    auto x        = ctx.GetVar(x_name);                                                   \
+    auto out      = ctx.Builder()->OpName(x);                                             \
+    ctx.AddVar(out_name, out);                                                            \
+    ctx.AddVarModelToProgram(out_name, out->id);                                          \
+  }
+UnaryOpMapper(Ceil, "X", "Out")
+UnaryOpMapper(Sign, "X", "Out")
+#undef UnaryOpMapper
+// clang-format on
+
 }  // namespace paddle_mappers
 }  // namespace frontend
 }  // namespace cinn
@@ -148,5 +185,8 @@ CINN_REGISTER_HELPER(paddle_elementwise) {
   CINN_REGISTER_OP_MAPPER(elementwise_div, ElementwiseOpMapper<EltwiseType::kDiv>)
   CINN_REGISTER_OP_MAPPER(elementwise_sub, ElementwiseOpMapper<EltwiseType::kSub>)
   CINN_REGISTER_OP_MAPPER(sum, SumOpMapper)
+  CINN_REGISTER_OP_MAPPER(ceil, CeilOpMapper)
+  CINN_REGISTER_OP_MAPPER(sign, SignOpMapper)
+  CINN_REGISTER_OP_MAPPER(cast, CastOpMapper)
   return true;
 }

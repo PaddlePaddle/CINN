@@ -25,11 +25,19 @@ namespace cinn {
 namespace hlir {
 namespace op {
 
-ir::Tensor ArgSort(
-    const ir::Tensor& A, const common::Target& target, const int& axis, const bool& is_ascend, const std::string& name);
+ir::Tensor ArgSort(const ir::Tensor& A,
+                   const common::Target& target,
+                   poly::StageMap stages,
+                   const int& axis,
+                   const bool& is_ascend,
+                   const std::string& name);
 
-std::vector<ir::Tensor> Sort(
-    const ir::Tensor& A, const common::Target& target, const int& axis, const bool& is_ascend, const std::string& name);
+ir::Tensor Sort(const ir::Tensor& A,
+                const common::Target& target,
+                poly::StageMap stages,
+                const int& axis,
+                const bool& is_ascend,
+                const std::string& name);
 
 }  // namespace op
 }  // namespace hlir
