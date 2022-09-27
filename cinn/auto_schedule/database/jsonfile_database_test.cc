@@ -28,11 +28,8 @@ namespace cinn {
 namespace auto_schedule {
 
 // Return lowerd ir AST for example functions used in this test
-std::vector<ir::LoweredFunc> LowerCompute(const std::vector<int>& shape,
-                                          const Target& target,
-                                          bool need_c                  = false,
-                                          const std::string& operation = "elementwise-copy") {
-  CHECK(shape.size() == 2 || shape.size() == 3) << "shape should be 2 or 3";
+std::vector<ir::LoweredFunc> LowerCompute(const std::vector<int>& shape, const Target& target) {
+  CHECK(shape.size() == 2) << "shape should be 2";
   std::vector<Expr> domain;
   for (auto i = 0; i < shape.size(); ++i) {
     domain.emplace_back(shape[i]);
@@ -41,37 +38,10 @@ std::vector<ir::LoweredFunc> LowerCompute(const std::vector<int>& shape,
   Placeholder<float> A("A", domain);
   ir::Tensor B, C;
 
-  if (operation == "elementwise-copy") {
-    if (domain.size() == 2) {
-      B = Compute(
-          domain, [&A](Var i, Var j) { return A(i, j); }, "B");
-      C = Compute(
-          domain, [&B](Var i, Var j) { return B(i, j); }, "C");
-    } else {
-      B = Compute(
-          domain, [&A](Var i, Var j, Var k) { return A(i, j, k); }, "B");
-      C = Compute(
-          domain, [&B](Var i, Var j, Var k) { return B(i, j, k); }, "C");
-    }
-  }
-
-  if (operation == "elementwise-add_const") {
-    if (domain.size() == 2) {
-      B = Compute(
-          domain, [&A](Var i, Var j) { return A(i, j) * Expr(2.f); }, "B");
-      C = Compute(
-          domain, [&B](Var i, Var j) { return B(i, j) + Expr(1.f); }, "C");
-    } else {
-      B = Compute(
-          domain, [&A](Var i, Var j, Var k) { return A(i, j, k) * Expr(2.f); }, "B");
-      C = Compute(
-          domain, [&B](Var i, Var j, Var k) { return B(i, j, k) + Expr(1.f); }, "C");
-    }
-  }
-
-  if (need_c) {
-    return cinn::lang::LowerVec("test_func", CreateStages({A, B, C}), {A, C}, {}, {}, nullptr, target, true);
-  }
+  B = Compute(
+      domain, [&A](Var i, Var j) { return A(i, j); }, "B");
+  C = Compute(
+      domain, [&B](Var i, Var j) { return B(i, j); }, "C");
 
   return cinn::lang::LowerVec("test_func", CreateStages({A, B}), {A, B}, {}, {}, nullptr, target, true);
 }
@@ -116,7 +86,7 @@ class TestJSONFileDatabase : public ::testing::Test {
   Target target = common::DefaultHostTarget();
 };
 
-TEST_F(TestJSONFileDatabase, SerializeAndDeserialize) {
+TEST_F(TestJSONFileDatabase, Serialize) {
   ir::IRSchedule ir_sch = MakeIRSchedule(lowered_funcs, "test");
   auto fused            = ir_sch.Fuse("B", {0, 1});
   VLOG(3) << "after Fuse, Expr: " << fused;
@@ -134,11 +104,6 @@ TEST_F(TestJSONFileDatabase, SerializeAndDeserialize) {
       "\"outputs\":[\"e0\"],\"attrs\":[{\"name\":\"block_name\",\"dtype\":\"STRING\",\"s\":\"B\"},{\"name\":\"loops_"
       "index\",\"dtype\":\"INTS\",\"ints\":[0,1]}]}]}}";
   EXPECT_EQ(true, str == case1 || str == case2);
-
-  TuningRecord record2 = test_db.JSONToRecord(str).second;
-  EXPECT_EQ(record1.task_key, record2.task_key);
-  EXPECT_EQ(record1.execution_cost, record2.execution_cost);
-  EXPECT_EQ(record1.state.predicted_cost, record2.state.predicted_cost);
 }
 
 TEST_F(TestJSONFileDatabase, SaveLoad) {
@@ -177,6 +142,14 @@ TEST_F(TestJSONFileDatabase, Basic) {
   auto records = test_db.LookUp("k3");
   // check the max number of stored candidates will
   // be restricted to capacity_per_task
+  ASSERT_EQ(test_db.Count("k3"), 2);
+  ASSERT_EQ(records.size(), 2);
+  EXPECT_EQ(records[0].execution_cost, 3.0);
+  EXPECT_EQ(records[1].execution_cost, 4.0);
+
+  JSONFileDatabase new_db(2, record_file_path, false);
+  ASSERT_EQ(test_db.Size(), 6);
+  auto new_records = test_db.LookUp("k3");
   ASSERT_EQ(test_db.Count("k3"), 2);
   ASSERT_EQ(records.size(), 2);
   EXPECT_EQ(records[0].execution_cost, 3.0);

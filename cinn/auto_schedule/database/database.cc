@@ -49,7 +49,7 @@ bool Database::AddRecord(TuningRecord&& record) {
   Commit(record);
 
   auto& records = key2record_[record.task_key];
-  records.emplace(record);
+  records.emplace(std::move(record));
   if (records.size() > capacity_per_task_) {
     records.erase(std::prev(records.end()));
   }

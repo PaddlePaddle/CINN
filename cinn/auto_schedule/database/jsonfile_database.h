@@ -34,9 +34,6 @@ class JSONFileDatabase : public Database {
   // convert a TuningRecord object to string in JSON format
   std::string RecordToJSON(const TuningRecord& record);
 
-  // convert a line of string in JSON format to a TuningRecord object
-  std::pair<bool, TuningRecord> JSONToRecord(const std::string& json_string);
-
  protected:
   // commit the newly added record into json file
   bool Commit(const TuningRecord& record) override;

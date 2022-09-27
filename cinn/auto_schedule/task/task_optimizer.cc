@@ -121,7 +121,9 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
       double execution_cost      = measure_outputs[i].execution_cost;
       double predicted_cost      = states[i].predicted_cost;
       ir::ModuleExpr module_expr = optim::IRCopy(states[i].ir_schedule.GetModule());
-      database_->AddRecord(TuningRecord(task_key, execution_cost, predicted_cost, ir::IRSchedule(module_expr)));
+      ir::ScheduleDesc trace     = states[i].ir_schedule.GetTraceDesc();
+      database_->AddRecord(TuningRecord(
+          task_key, execution_cost, predicted_cost, ir::IRSchedule(std::move(module_expr), std::move(trace))));
     }
 
     std::vector<float> cost_model_labels(states.size());
