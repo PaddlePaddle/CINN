@@ -14,8 +14,12 @@
 
 #pragma once
 
+#include <absl/meta/type_traits.h>
+#include <absl/types/optional.h>
+
 #include <algorithm>
 #include <functional>
+#include <type_traits>
 #include <vector>
 
 namespace cinn {
@@ -48,5 +52,49 @@ template <typename T, typename... Ts>
 auto Max(T &&t, Ts &&... ts) {
   return std::max(t, Max(ts...));
 }
+
+template <typename T, typename = absl::void_t<>>
+struct HasRange : std::false_type {};
+
+template <typename T>
+struct HasRange<T, absl::void_t<decltype(std::declval<T &>().begin()), decltype(std::declval<T &>().end())>>
+    : std::true_type {};
+
+template <typename T>
+std::vector<T> InnerFlatten(const absl::optional<std::reference_wrapper<const T>> &e, std::false_type) {
+  if (e) {
+    return {e->get()};
+  } else {
+    return std::vector<T>{};
+  }
+}
+
+template <typename T>
+auto InnerFlatten(const absl::optional<std::reference_wrapper<const T>> &c, std::true_type) {
+  absl::optional<std::reference_wrapper<const typename T::value_type>> val;
+  if (c && !c->get().empty()) {
+    val = *c->get().begin();
+  }
+
+  auto res = InnerFlatten(val, HasRange<typename T::value_type>{});
+
+  if (val) {
+    auto it = ++c->get().begin();
+    while (it != c->get().end()) {
+      val      = *it;
+      auto tmp = InnerFlatten(val, HasRange<typename T::value_type>{});
+      res.insert(res.end(), tmp.begin(), tmp.end());
+      ++it;
+    }
+  }
+  return res;
+}
+
+template <typename T>
+auto Flatten(const T &v) {
+  absl::optional<std::reference_wrapper<const T>> w = v;
+  return InnerFlatten(w, HasRange<T>{});
+}
+
 }  // namespace utils
 }  // namespace cinn
