@@ -133,7 +133,12 @@ std::pair<ir::Module, std::string> GenReduceCode(const std::vector<int>& shape,
   auto& device_module            = std::get<1>(host_module_device_module);
 
   backends::CodeGenCUDA_Dev codegen(target);
-  auto source_code = codegen.Compile(device_module);
+  std::string source_code;
+  if (!FLAGS_cinn_ir_schedule) {
+    source_code = codegen.Compile(builder.Build());
+  } else {
+    source_code = codegen.Compile(device_module);
+  }
   LOG(INFO) << "compiled code:\n" << source_code;
 
   return std::pair<ir::Module, std::string>(host_module, source_code);
@@ -334,6 +339,69 @@ TEST(Operator, Operator_Reduction_Case_6_3) {
 }
 TEST(Operator, Operator_Reduction_Case_6_4) {
   TestCaseForReduce<MinOp>(1e38f, 32, 32, 32, 32, "Operator_Reduction_Case_6_4", "reduce_min");
+}
+
+TEST(Operator, Operator_Reduction_Case_7) {
+  int n = 32, c = 32, h = 16, w = 16;
+  std::vector<int> shape = {n, c, h, w};
+  std::vector<int> dim   = {0, 1};
+
+  std::string func_name = "reduce_cast_7";
+  // get source code
+  auto host_source = GenReduceCode(shape, dim, func_name);
+
+  // compile to ptx
+  backends::NVRTC_Compiler compiler;
+  auto ptx = compiler(host_source.second);
+  CHECK(!ptx.empty());
+
+  // load ptx
+  CUDA_CALL(cudaSetDevice(0));
+  runtime::cuda::CUDAModule cuda_module(ptx, runtime::cuda::CUDAModule::Kind::PTX);
+  void* reduce_sum_kernel = cuda_module.GetFunction(0, func_name);
+  CHECK(reduce_sum_kernel);
+
+  // register cufunction and stream
+  void* stream = nullptr;
+  backends::GlobalSymbolRegistry::Global().RegisterFn(func_name + "_kernel_ptr_",
+                                                      reinterpret_cast<void*>(&reduce_sum_kernel));
+
+  // gen host code
+  auto jit = backends::SimpleJIT::Create();
+  jit->Link<backends::CodeGenCUDA_Host>(host_source.first);
+
+  auto fn_reduce_sum = jit->Lookup(func_name);
+  CHECK(fn_reduce_sum);
+
+  auto func_0 = reinterpret_cast<void (*)(void*, int, void*)>(fn_reduce_sum);
+
+  srand(time(NULL));
+  auto buffer_x = common::BufferBuilder(Float(32), {n, c, h, w}).set_random().Build();
+  auto buffer_y = common::BufferBuilder(Float(32), {h, w}).set_random().Build();
+
+  void *dev_x = nullptr, *dev_y = nullptr;
+  CUDA_CALL(cudaMalloc(&dev_x, buffer_x->memory_size));
+  CUDA_CALL(cudaMalloc(&dev_y, buffer_y->memory_size));
+
+  CUDA_CALL(cudaMemcpy(dev_x, buffer_x->memory, buffer_x->memory_size, cudaMemcpyHostToDevice));
+
+  cinn_buffer_t _x;
+  cinn_buffer_t _y;
+
+  _x.memory = static_cast<uint8_t*>(dev_x);
+  _y.memory = static_cast<uint8_t*>(dev_y);
+
+  _x.memory_size = buffer_x->memory_size;
+  _y.memory_size = buffer_y->memory_size;
+
+  cinn_pod_value_t x_arg(&_x), y_arg(&_y);
+  cinn_pod_value_t args0[] = {x_arg, y_arg};
+
+  func_0(args0, 2, stream);
+  CUDA_CALL(cudaMemcpy(buffer_y->memory, dev_y, buffer_y->memory_size, cudaMemcpyDeviceToHost));
+
+  CUDA_CALL(cudaFree(dev_x));
+  CUDA_CALL(cudaFree(dev_y));
 }
 
 TEST(Operator, Operator_Reduction_Case_8) {
