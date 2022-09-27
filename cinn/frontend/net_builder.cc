@@ -436,6 +436,24 @@ Variable NetBuilder::Sort(const Variable& operand, const int& axis, const bool& 
   return instr.GetOutput(0);
 }
 
+Variable NetBuilder::Argmax(const Variable& x, const int& axis, const bool& keep_dim) {
+  Instruction instr("argmax", {x});
+  instr.SetAttr("axis", axis);
+  instr.SetAttr("keep_dim", keep_dim);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
+Variable NetBuilder::Argmin(const Variable& x, const int& axis, const bool& keep_dim) {
+  Instruction instr("argmin", {x});
+  instr.SetAttr("axis", axis);
+  instr.SetAttr("keep_dim", keep_dim);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
 Variable NetBuilder::Conv2d(const Variable& a,
                             const Variable& b,
                             const std::vector<int>& strides,
