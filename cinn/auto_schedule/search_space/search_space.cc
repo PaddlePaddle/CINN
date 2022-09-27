@@ -37,14 +37,10 @@ SearchSpace::SearchSpace(const TuneTask& tune_task) : tune_task_(tune_task) {}
 
 std::vector<SearchState> SearchSpace::GetRandomInitialSketch(int num) {
   VLOG(4) << "Start SearchSpace::GetRandomInitialSketch";
+  SearchState init_state(ir::IRSchedule(ir::ModuleExpr(tune_task_.GetLoweredFuncBodyExprs())));
   std::vector<SearchState> result;
   while (result.size() < num) {
-    std::vector<ir::Expr> body_exprs = tune_task_.GetLoweredFuncBodyExprs();
-    std::vector<ir::Expr> copy_exprs;
-    for (const ir::Expr& e : body_exprs) {
-      copy_exprs.push_back(optim::IRCopy(e));
-    }
-    SearchState state(std::move(ir::ModuleExpr(copy_exprs)));
+    SearchState state(init_state);
     state.InitAutoGenRules(tune_task_.target, tune_task_.output_names);
     for (int i = 0; i < init_sketch_random_depth_; ++i) {
       VLOG(5) << "Generating random sketch at depth: " << i;
@@ -68,7 +64,7 @@ SearchState SearchSpace::GetScheduleMutate(const SearchState& state, const ExprC
   }
   SearchState ret = RandomScheduleMutate(state);
   if (FLAGS_auto_schedule_use_cost_model) {
-    ret.predicted_cost = cost_model.Predict(ret.mod_expr, tune_task_.target);
+    ret.predicted_cost = cost_model.Predict(ret.ir_schedule.GetModule(), tune_task_.target);
   }
   return ret;
 }
@@ -89,7 +85,7 @@ SearchState SearchSpace::RandomScheduleMutate(const SearchState& state) {
   for (auto iter = ret.applicable_rules.begin(); iter != ret.applicable_rules.end();) {
     std::shared_ptr<AutoGenRule> rule = *iter;
     VLOG(6) << "Rule name = " << rule->GetRuleName();
-    RuleApplyType apply_type = rule->Init(ret.mod_expr);
+    RuleApplyType apply_type = rule->Init(state.ir_schedule);
     if (apply_type != RuleApplyType::kCannotApply) {
       weight_to_rule[cur_weight] = rule;
       cur_weight += rule->NumberApplicable();
@@ -111,13 +107,18 @@ SearchState SearchSpace::RandomScheduleMutate(const SearchState& state) {
   }
 
   // 3. Sample a schedule on the distribution
-  int sample_index                         = rand() % cur_weight;
-  auto iter                                = weight_to_rule.lower_bound(sample_index);
+  int sample_index = rand() % cur_weight;
+  // Find a key which is <= sample_index
+  auto iter = weight_to_rule.lower_bound(sample_index);
+  if (iter->first > sample_index) {
+    // weight_to_rule must contain key 0, and sample_index >= 0, so --iter won't exceed the beginning.
+    --iter;
+  }
   std::shared_ptr<AutoGenRule> sample_rule = iter->second;
   VLOG(6) << "Sample AutoGenRule " << sample_rule->GetRuleName();
 
   // 4. Apply the schedule change
-  ret.mod_expr = sample_rule->Apply(sample_index - iter->first);
+  ret.ir_schedule = sample_rule->Apply(sample_index - iter->first);
   return ret;
 }
 

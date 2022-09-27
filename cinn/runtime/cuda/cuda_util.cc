@@ -929,7 +929,17 @@ void cinn_gpu_cudnn_conv2d(const absl::flat_hash_map<std::string, int> &attr,
                            cinn_buffer_t *x,
                            cinn_buffer_t *w,
                            cinn_buffer_t *y,
-                           cudaStream_t stream) {
+                           cudaStream_t stream,
+                           common::Layout target) {
+  cudnnTensorFormat_t cudnn_tensor_format;
+  if (target == common::Layout::kNCHW) {
+    cudnn_tensor_format = CUDNN_TENSOR_NCHW;
+  } else if (target == common::Layout::kNHWC) {
+    cudnn_tensor_format = CUDNN_TENSOR_NHWC;
+  } else {
+    CINN_NOT_IMPLEMENTED
+  }
+
   GetAttrValue(attr, input_n, -1);
   GetAttrValue(attr, input_c, -1);
   GetAttrValue(attr, input_h, -1);
@@ -959,7 +969,7 @@ void cinn_gpu_cudnn_conv2d(const absl::flat_hash_map<std::string, int> &attr,
   cudnnTensorDescriptor_t x_desc;
   CUDNN_CALL(cudnnCreateTensorDescriptor(&x_desc));
   CUDNN_CALL(
-      cudnnSetTensor4dDescriptor(x_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, input_n, input_c, input_h, input_w));
+      cudnnSetTensor4dDescriptor(x_desc, cudnn_tensor_format, CUDNN_DATA_FLOAT, input_n, input_c, input_h, input_w));
 
   cudnnFilterDescriptor_t w_desc;
   CUDNN_CALL(cudnnCreateFilterDescriptor(&w_desc));
@@ -975,8 +985,8 @@ void cinn_gpu_cudnn_conv2d(const absl::flat_hash_map<std::string, int> &attr,
 
   cudnnTensorDescriptor_t y_desc;
   CUDNN_CALL(cudnnCreateTensorDescriptor(&y_desc));
-  CUDNN_CALL(
-      cudnnSetTensor4dDescriptor(y_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, output_n, output_c, output_h, output_w));
+  CUDNN_CALL(cudnnSetTensor4dDescriptor(
+      y_desc, cudnn_tensor_format, CUDNN_DATA_FLOAT, output_n, output_c, output_h, output_w));
 
   auto &conv_algo_map  = ConvAlgoMap::GetInstance();
   std::string hash_key = "conv2d forward," + std::to_string(input_n) + "," + std::to_string(input_c) + "," +

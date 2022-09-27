@@ -6,6 +6,7 @@ add_subdirectory(search_space)
 add_subdirectory(search_strategy)
 add_subdirectory(task)
 add_subdirectory(task_scheduler)
+add_subdirectory(tests)
 
 proto_library(auto_schedule_proto SRCS auto_schedule.proto)
 

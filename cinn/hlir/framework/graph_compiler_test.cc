@@ -40,13 +40,12 @@ TEST(GraphCompilerTest, TestRemoveInvaildVariables) {
   auto c = builder.Add(a, b, 1);
   auto d = builder.Relu(c);
 
-  auto target = common::DefaultHostTarget();
-  auto graph  = std::make_shared<Graph>(builder.Build(), target);
+  auto target  = common::DefaultHostTarget();
+  auto program = builder.Build();
+  auto graph   = Optimize(&program, {}, target);
 
-  // OpFusion will fuse add+relu, and the intermediate variable 'c' is eliminated
-  ApplyPasses(graph.get(), frontend::DefaultOpFusionPasses());
   auto scope = BuildScope(target, graph);
-  ASSERT_EQ(scope->var_names().size(), 4);
+  ASSERT_EQ(scope->var_names().size(), 6);
   EXPECT_NE(scope->FindVar(c->id), nullptr);
 
   GraphCompiler gc(target, scope, graph);
@@ -62,12 +61,13 @@ TEST(GraphCompilerTest, TestInsertBufferHandlers) {
   auto a = builder.CreateInput(Float(32), {1, 64, 112, 112}, "A");
   auto b = builder.CreateInput(Float(32), {64}, "B");
 
-  auto c      = builder.Add(a, b, 1);
-  auto d      = builder.Relu(c);
-  auto target = common::DefaultHostTarget();
-  auto graph  = std::make_shared<Graph>(builder.Build(), target);
-  ApplyPasses(graph.get(), frontend::DefaultOpFusionPasses());
-  auto scope = BuildScope(target, graph);
+  auto c = builder.Add(a, b, 1);
+  auto d = builder.Relu(c);
+
+  auto target  = common::DefaultHostTarget();
+  auto program = builder.Build();
+  auto graph   = Optimize(&program, {}, target);
+  auto scope   = BuildScope(target, graph);
 
   GraphCompiler gc_disable(target, scope, graph);
   GraphCompiler::CompileOptions options;
@@ -102,7 +102,6 @@ TEST(GraphCompilerTest, TestInsertBufferHandlers) {
   ASSERT_EQ(computation_instr_disable->size(), computation_instr_enable->size());
   auto computation_instr_function_names = computation_instr_enable->GetFnNames();
   ASSERT_EQ(computation_instr_disable->GetFnNames().size(), computation_instr_enable->GetFnNames().size());
-  ASSERT_NE(computation_instr_function_names.front().find("fn_elementwise_add_0_relu_1_fused"), std::string::npos);
 
   EXPECT_EQ(computation_instr_disable->GetInArgs(), computation_instr_enable->GetInArgs());
   EXPECT_EQ(computation_instr_disable->GetOutArgs(), computation_instr_enable->GetOutArgs());

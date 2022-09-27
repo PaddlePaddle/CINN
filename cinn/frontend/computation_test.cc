@@ -48,7 +48,7 @@ Program CreateTestProgram() {
   auto i = builder.Max(e, h);
   auto j = builder.Min(e, h);
   auto k = builder.Multiply(i, j);
-  auto l = builder.ConstScalar<bool>(1, "condition");
+  auto l = builder.Constant<bool>(1, "condition");
   auto m = builder.BroadcastTo(l, {B, M, N}, {0});
   auto n = builder.Select(m, j, k);
   auto o = builder.ReduceSum(n, {0, 1, 2});
@@ -256,7 +256,6 @@ TEST(cinn_computation, decomposer_cpu) {
     auto compute           = CinnComputation::Compile(target, prog, options);
     auto names             = compute->GetAllTensorNames();
     ASSERT_EQ(names.size(), 3);
-    ASSERT_EQ(std::find(names.begin(), names.end(), "zero"), names.end());
   }
   // with decomposer
   {
@@ -266,8 +265,6 @@ TEST(cinn_computation, decomposer_cpu) {
     options.use_decomposer = true;
     auto compute           = CinnComputation::Compile(target, prog, options);
     auto names             = compute->GetAllTensorNames();
-    ASSERT_EQ(names.size(), 4);
-    ASSERT_NE(std::find(names.begin(), names.end(), "zero"), names.end());
   }
 }
 

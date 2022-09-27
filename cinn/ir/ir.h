@@ -916,14 +916,11 @@ struct ScheduleBlock : public ExprNode<ScheduleBlock> {
   std::vector<Var> iter_vars;
   std::vector<Expr> read_buffers;
   std::vector<Expr> write_buffers;
+  // Additional attributes about this schedulable block,
+  // which take some auxiliary hints for future transformations.
+  std::map<std::string, attr_t> attrs;
   std::string name;
   Expr body;
-
-  /*!
-   * \brief Additional attributes about this schedulable block,
-   * which take some auxiliary hints for future transformations.
-   */
-  std::map<std::string, attr_t> attrs;
 
   static Expr Make(const std::vector<Var>& iter_vars,
                    const std::vector<Expr>& read_buffers,

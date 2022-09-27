@@ -25,9 +25,12 @@
 #include "cinn/auto_schedule/measure/simple_builder.h"
 #include "cinn/auto_schedule/measure/simple_runner.h"
 #include "cinn/auto_schedule/task/task_creator.h"
+#include "cinn/auto_schedule/task/task_registry.h"
 #include "cinn/auto_schedule/task/tune_task.h"
 #include "cinn/auto_schedule/task_scheduler/task_scheduler.h"
+#include "cinn/common/context.h"
 #include "cinn/common/type.h"
+#include "cinn/hlir/framework/op.h"
 
 namespace cinn {
 namespace auto_schedule {
@@ -43,11 +46,25 @@ void AutoTuner::Initialize(const Config& config, hlir::framework::GraphCompiler*
   // create tasks
   TaskCreator task_creator;
   tasks_ = task_creator.CreateTuneTaskOpLevel(graph_);
+
+  const auto& dtype_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, common::Type>>("inferdtype");
+  const auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, hlir::framework::shape_t>>("infershape");
+
+  op_lowerer_                        = std::make_unique<hlir::framework::OpLowerer>(dtype_dict, shape_dict, target_);
+  InitialTaskRegistry* task_registry = InitialTaskRegistry::Global();
   for (TuneTask& task : tasks_) {
-    task.SetGraphCompiler(graph_compiler);
+    task.SetOpLowerer(op_lowerer_.get());
     task.TaskGraphToUnoptLoweredFunc();
-    task.SerializeToString(graph_->GetAttrs<absl::flat_hash_map<std::string, hlir::framework::shape_t>>("infershape"),
-                           graph_->GetAttrs<absl::flat_hash_map<std::string, common::Type>>("inferdtype"));
+    task.SerializeToString(shape_dict, dtype_dict);
+
+    // Register the initial ModuleExpr corresponding to the task
+    std::vector<ir::Expr> exprs(task.lowered_funcs.size());
+    std::transform(
+        task.lowered_funcs.begin(), task.lowered_funcs.end(), exprs.begin(), [&](const ir::LoweredFunc& func) {
+          return func->body;
+        });
+    task_registry->Regist(task.serialized_key, ir::ModuleExpr(exprs));
+
     VLOG(3) << "Add a task with serialized_key:\n" << task.serialized_key;
   }
 
