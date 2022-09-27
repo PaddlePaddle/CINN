@@ -189,6 +189,45 @@ class NetBuilder {
       const Variable& x, const Variable& y, bool trans_x, bool trans_y, float alpha);
   std::vector<int> GetMatmulOutputShape(const Variable& x, const Variable& y, bool trans_x, bool trans_y, float alpha);
 
+  // the helper function for Constant API
+  template <typename T>
+  std::enable_if_t<std::is_arithmetic<T>::value, void> FlattenVector(const std::vector<T>& value,
+                                                                     std::vector<cinn::utils::Attribute>* all_datas,
+                                                                     std::vector<int>* shape,
+                                                                     int depth) {
+    if (shape->size() == depth) {
+      shape->emplace_back(value.size());
+    } else {
+      CHECK_GT(shape->size(), depth) << "The Shape size should greater than recursive depth.";
+      CHECK_EQ(value.size(), shape->at(depth))
+          << "The sub_vector.size() for any sub_vector=vector[0][...][n] should be the same, but vector[0][..]["
+          << depth << "] not! Please check.";
+    }
+
+    for (auto ele : value) {
+      all_datas->emplace_back(ele);
+    }
+  }
+
+  template <typename T>
+  std::enable_if_t<cinn::utils::is_vector<T>::value, void> FlattenVector(const std::vector<T>& value,
+                                                                         std::vector<cinn::utils::Attribute>* all_datas,
+                                                                         std::vector<int>* shape,
+                                                                         int depth) {
+    if (shape->size() == depth) {
+      shape->emplace_back(value.size());
+    } else {
+      CHECK_GT(shape->size(), depth) << "The Shape size should greater than recursive depth.";
+      CHECK_EQ(value.size(), shape->at(depth))
+          << "The sub_vector.size() for any sub_vector=vector[0][...][n] should be the same, but vector[0][..]["
+          << depth << "] not! Please check.";
+    }
+
+    for (const auto& vec : value) {
+      FlattenVector(vec, all_datas, shape, depth + 1);
+    }
+  }
+
  public:
   // *******************************************
   // Elementwise Operator
@@ -356,30 +395,41 @@ class NetBuilder {
   std::enable_if_t<cinn::utils::is_vector<T>::value, Variable> Constant(const T& value, const std::string& name) {
     CHECK(!value.empty()) << "The value of Constant should not be None or empty list! Please check.";
 
-    cinn::utils::ShapeType value_shape;
+    // flatten n-dims vector to 1-dim vector, and get the real shape
+    std::vector<int> shape;
+    std::vector<cinn::utils::Attribute> all_datas;
+    FlattenVector(value, &all_datas, &shape, 0);
 
-    std::vector<Variable> tmp;
-    for (int i = 0; i < value.size(); ++i) {
-      auto var = Constant(value[i], name + "_" + std::to_string(i));
+    VLOG(4) << "The input of constant has " << all_datas.size() << " elements, it's output is " << name << "["
+            << cinn::utils::Join(shape, ", ") << "]";
 
-      if (value_shape.empty()) {
-        value_shape = var->shape;
+    std::vector<Variable> vars;
+    vars.reserve(all_datas.size());
+
+    for (int i = 0; i < all_datas.size(); ++i) {
+      std::string var_name = name + "_" + std::to_string(i);
+      const auto& cur_data = all_datas[i];
+
+      // get the real dtype from Attribute
+      Variable var;
+      if (absl::get_if<bool>(&cur_data)) {
+        VLOG(4) << "The input dtype of constant is bool";
+        var = Constant(absl::get<bool>(cur_data), var_name);
+      } else if (absl::get_if<int>(&cur_data)) {
+        VLOG(4) << "The input dtype of constant is int32";
+        var = Constant(absl::get<int>(cur_data), var_name);
+      } else if (absl::get_if<float>(&cur_data)) {
+        VLOG(4) << "The input dtype of constant is float32";
+        var = Constant(absl::get<float>(cur_data), var_name);
       } else {
-        CHECK(value_shape == var->shape) << "The elements in constant input list should have same shape! Please check.";
+        // TODO(thisjiang): support other dtype when Attribute supported, and modify pybind dtype also
+        LOG(FATAL) << "Constant only support bool/int/float! Please check.";
       }
 
-      tmp.emplace_back(var);
+      vars.emplace_back(var);
     }
 
-    // concat all input
-    auto out = Concat(tmp);
-
-    if (cinn::utils::is_vector_f(value[0])) {
-      // if the value of vector is also a vector, we need a reshape to ensure the result's shape
-      // is the same the input, otherwise the result's rank is 1
-      value_shape.insert(value_shape.begin(), value.size());
-      out = Reshape(out, value_shape);
-    }
+    auto out = Reshape(Concat(vars), shape);
 
     // set the name correctly
     out.set_id(name);
