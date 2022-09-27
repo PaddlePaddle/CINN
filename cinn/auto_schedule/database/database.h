@@ -82,5 +82,13 @@ class Database {
   const int capacity_per_task_;
 };
 
+enum class DatabaseType : int { kMemory, kJSONFile };
+
+struct DatabaseConfig {
+  DatabaseType type            = DatabaseType::kJSONFile;
+  int capacity_per_task        = 2;
+  std::string record_file_path = "/tmp/tuning_record.json";
+};
+
 }  // namespace auto_schedule
 }  // namespace cinn

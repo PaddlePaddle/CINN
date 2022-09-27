@@ -20,6 +20,7 @@
 #include <utility>
 
 #include "cinn/auto_schedule/cost_model/expr_cost_model.h"
+#include "cinn/auto_schedule/database/database.h"
 #include "cinn/auto_schedule/search_space/search_space.h"
 #include "cinn/auto_schedule/search_space/search_state.h"
 #include "cinn/auto_schedule/task/tune_task.h"
@@ -78,7 +79,7 @@ TEST(EvolutionarySearch, GetOneBest) {
   TuneTask mock_tune_task;
   ExprCostModel cost_model;
   TuningOptions options;
-  EvolutionarySearch evolutionary_search(mock_tune_task, cost_model);
+  EvolutionarySearch evolutionary_search(mock_tune_task, cost_model, std::make_shared<Database>(2));
 
   MockSearchSpace* mock_search_space = new MockSearchSpace(mock_tune_task);
   // Ownership is transferred so don't delete mock_search_space
@@ -95,7 +96,7 @@ TEST(EvolutionarySearch, GetEpsGreedy) {
   TuneTask mock_tune_task;
   ExprCostModel cost_model;
   TuningOptions options;
-  EvolutionarySearch evolutionary_search(mock_tune_task, cost_model);
+  EvolutionarySearch evolutionary_search(mock_tune_task, cost_model, std::make_shared<Database>(2));
 
   MockSearchSpace* mock_search_space = new MockSearchSpace(mock_tune_task);
   // Ownership is transferred so don't delete mock_search_space

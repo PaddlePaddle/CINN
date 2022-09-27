@@ -21,6 +21,7 @@
 #include <memory>
 #include <utility>
 
+#include "cinn/auto_schedule/database/jsonfile_database.h"
 #include "cinn/auto_schedule/measure/schedule_measurer.h"
 #include "cinn/auto_schedule/measure/simple_builder.h"
 #include "cinn/auto_schedule/measure/simple_runner.h"
@@ -42,6 +43,14 @@ void AutoTuner::Initialize(const Config& config, hlir::framework::GraphCompiler*
   builder_           = std::make_unique<SimpleBuilder>(graph_compiler);
   runner_            = std::make_unique<SimpleRunner>(config.runner_repeat_times);
   schedule_measurer_ = std::make_unique<ScheduleMeasurer>(builder_.get(), runner_.get());
+
+  // initialize database
+  if (config.database_config.type == DatabaseType::kMemory) {
+    database_ = std::make_shared<Database>(config.database_config.capacity_per_task);
+  } else if (config.database_config.type == DatabaseType::kJSONFile) {
+    database_ = std::make_shared<JSONFileDatabase>(
+        config.database_config.capacity_per_task, config.database_config.record_file_path, true);
+  }
 
   // create tasks
   TaskCreator task_creator;
@@ -71,7 +80,7 @@ void AutoTuner::Initialize(const Config& config, hlir::framework::GraphCompiler*
   // create task optimizers
   task_optimizers_.resize(tasks_.size());
   std::transform(tasks_.begin(), tasks_.end(), task_optimizers_.begin(), [&](const TuneTask& task) {
-    return std::make_unique<TaskOptimizer>(task, schedule_measurer_.get());
+    return std::make_unique<TaskOptimizer>(task, schedule_measurer_.get(), database_);
   });
 
   // create task scheduler
