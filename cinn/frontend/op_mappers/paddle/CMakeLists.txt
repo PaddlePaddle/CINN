@@ -16,4 +16,5 @@ gather_srcs(cinnapi_src SRCS
     reshape.cc
     squeeze.cc
     tanh.cc
+    where.cc
     matmul.cc)
