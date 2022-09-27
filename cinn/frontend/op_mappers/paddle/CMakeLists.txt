@@ -14,5 +14,6 @@ gather_srcs(cinnapi_src SRCS
     dropout.cc
     transpose.cc
     reshape.cc
+    squeeze.cc
     tanh.cc
     matmul.cc)
