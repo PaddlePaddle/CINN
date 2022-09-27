@@ -204,6 +204,7 @@ class NetBuilder {
           << depth << "] not! Please check.";
     }
 
+    all_datas->reserve(all_datas->size() + value.size());
     for (auto ele : value) {
       all_datas->emplace_back(ele);
     }

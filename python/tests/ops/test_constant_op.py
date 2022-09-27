@@ -37,7 +37,6 @@ class TestConstantOp(OpTest):
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.value)
 
-        print("Paddle:", x)
         self.paddle_outputs = [x]
 
     def build_cinn_program(self, target):
@@ -46,7 +45,6 @@ class TestConstantOp(OpTest):
 
         prog = builder.build()
         res = self.get_cinn_output(prog, target, [], [], [x])
-        print("CINN:", res)
         self.cinn_outputs = [res[0]]
 
     def test_check_results(self):
