@@ -18,6 +18,7 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
+#include <ios>
 #include <list>
 #include <set>
 #include <vector>
@@ -28,11 +29,25 @@ namespace cinn {
 namespace utils {
 
 TEST(Functional, Flatten) {
-  std::vector<std::vector<int>> v{{3, 4, 5}, {7, 8, 9, 10}};
-  auto flatten_v = Flatten(v);
+  double s       = 3.14;
+  auto flatten_s = Flatten(s);
+  LOG(INFO) << utils::Join(flatten_s, ", ");
+  ASSERT_EQ(flatten_s.size(), 1);
+  ASSERT_TRUE(absl::c_equal(flatten_s, std::vector<double>{3.14}));
+
+  std::vector<std::vector<int>> i{{3, 4, 5}, {7, 8, 9, 10}};
+  auto flatten_i = Flatten(i);
+  LOG(INFO) << utils::Join(flatten_i, ", ");
+  ASSERT_EQ(flatten_i.size(), 7);
+  ASSERT_TRUE(absl::c_equal(flatten_i, std::vector<int>{3, 4, 5, 7, 8, 9, 10}));
+
+  std::vector<std::vector<std::vector<bool>>> v{{{true, false}, {true, false, true, false}},
+                                                {{false}, {true, true, false}}};
+  std::vector<bool> flatten_v = Flatten(v);
   LOG(INFO) << utils::Join(flatten_v, ", ");
-  ASSERT_EQ(flatten_v.size(), 7);
-  ASSERT_TRUE(absl::c_equal(flatten_v, std::vector<int>{3, 4, 5, 7, 8, 9, 10}));
+  ASSERT_EQ(flatten_v.size(), 10);
+  ASSERT_TRUE(
+      absl::c_equal(flatten_v, std::vector<bool>{true, false, true, false, true, false, false, true, true, false}));
 
   std::list<std::set<std::vector<float>>> a{{{1, 2, 3}, {1, 2, 3, 4, 5, 6}}, {{1, 2.2f, 3}, {1, 2, 3.3f, 4.5f}}};
   auto flatten_a = Flatten(a);
