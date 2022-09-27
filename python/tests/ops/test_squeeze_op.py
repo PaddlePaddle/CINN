@@ -61,5 +61,17 @@ class TestSqueezeCase2(TestSqueezeOp):
         self.axes = []
 
 
+class TestSqueezeCase3(TestSqueezeOp):
+    def init_case(self):
+        self.inputs = {"x": np.random.random([2, 3, 1, 1]).astype("float32")}
+        self.axes = [-2]
+
+
+class TestSqueezeCase4(TestSqueezeOp):
+    def init_case(self):
+        self.inputs = {"x": np.random.random([2, 3, 1, 1]).astype("float32")}
+        self.axes = [2, -1]
+
+
 if __name__ == "__main__":
     unittest.main()

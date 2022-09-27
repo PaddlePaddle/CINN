@@ -50,7 +50,7 @@ ir::Tensor Squeeze(const ir::Tensor &A, const std::vector<int> &axes, const std:
   if (axes.size() != 0) {
     std::unordered_set<int> axes_index;
     for (int i = 0; i < axes.size(); ++i) {
-      axes_index.insert(axes[i]);
+      axes_index.insert(axes[i] < 0 ? axes[i] + A->shape.size() : axes[i]);
     }
     for (int i = 0; i < A_expr_shape.size(); ++i) {
       CHECK(A_expr_shape[i].is_constant()) << "Input tensor's shape should be constant value.";
@@ -144,8 +144,9 @@ std::vector<std::vector<int>> InferShapeForSqueeze(const std::vector<std::vector
   if (axes.size() != 0) {
     std::vector<int> temp_shape = inputs_shape[0];
     for (auto &a : axes) {
-      CHECK(a < temp_shape.size());
-      temp_shape[a] = 0;
+      auto val = a < 0 ? a + inputs_shape[0].size() : a;
+      CHECK(val < temp_shape.size());
+      temp_shape[val] = 0;
     }
     for (auto &i : temp_shape) {
       if (i != 0) {
