@@ -409,6 +409,41 @@ CINN_BUILD_STEP_KIND(Rfactor)
 
 CINN_BUILD_STEP_KIND(MergeExprs)
     .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(&IRSchedule::MergeExprs)));
+
+template <typename AttrType> void Annotate(IRSchedule* ir_sch, const Expr&, const std::string&, AttrType);
+template <> void Annotate<int>(IRSchedule* ir_sch, const Expr& block, const std::string& key, int value) {
+    ir_sch->Annotate(block, key, value);
+}
+template <> void Annotate<bool>(IRSchedule* ir_sch, const Expr& block, const std::string& key, bool value) {
+    ir_sch->Annotate(block, key, value);
+}
+template <> void Annotate<float>(IRSchedule* ir_sch, const Expr& block, const std::string& key, float value) {
+    ir_sch->Annotate(block, key, value);
+}
+void AnnotateStringAttr(IRSchedule* ir_sch, const Expr& block, const std::string& key, const std::string& value) {
+    ir_sch->Annotate(block, key, value);
+}
+
+CINN_BUILD_STEP_KIND(AnnotateIntAttr)
+    .Inputs({"block"})
+    .Attrs({"key", "value"})
+    .SetApplyFn(APPLY_FUNC_UNIFORM(Annotate<int>));
+
+CINN_BUILD_STEP_KIND(AnnotateBoolAttr)
+    .Inputs({"block"})
+    .Attrs({"key", "value"})
+    .SetApplyFn(APPLY_FUNC_UNIFORM(Annotate<bool>));
+
+CINN_BUILD_STEP_KIND(AnnotateFloatAttr)
+    .Inputs({"block"})
+    .Attrs({"key", "value"})
+    .SetApplyFn(APPLY_FUNC_UNIFORM(Annotate<float>));
+
+CINN_BUILD_STEP_KIND(AnnotateStringAttr)
+    .Inputs({"block"})
+    .Attrs({"key", "value"})
+    .SetApplyFn(APPLY_FUNC_UNIFORM(AnnotateStringAttr));
+
 // clang-format on
 
 // ------ Following codes are about member function implement of the ScheduleDesc class

@@ -155,6 +155,7 @@ void CastOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
   ctx.AddVarModelToProgram(out_name, out->id);
 }
 
+// clang-format off
 #define UnaryOpMapper(OpName, InputName, OutputName)                                      \
   void OpName##OpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) { \
     CHECK_EQ(op_desc.Input(InputName).size(), 1UL);                                       \
@@ -167,7 +168,9 @@ void CastOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
     ctx.AddVarModelToProgram(out_name, out->id);                                          \
   }
 UnaryOpMapper(Ceil, "X", "Out")
+UnaryOpMapper(Sign, "X", "Out")
 #undef UnaryOpMapper
+// clang-format on
 
 }  // namespace paddle_mappers
 }  // namespace frontend
@@ -183,6 +186,7 @@ CINN_REGISTER_HELPER(paddle_elementwise) {
   CINN_REGISTER_OP_MAPPER(elementwise_sub, ElementwiseOpMapper<EltwiseType::kSub>)
   CINN_REGISTER_OP_MAPPER(sum, SumOpMapper)
   CINN_REGISTER_OP_MAPPER(ceil, CeilOpMapper)
+  CINN_REGISTER_OP_MAPPER(sign, SignOpMapper)
   CINN_REGISTER_OP_MAPPER(cast, CastOpMapper)
   return true;
 }
