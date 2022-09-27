@@ -22,7 +22,7 @@
 #include "cinn/frontend/paddle/framework.pb.h"
 
 namespace cinn::frontend::paddle::pb {
-namespace framework_proto = ::paddle::framework::proto;
+namespace framework_proto = ::cinn::frontend::paddle::proto;
 
 class ProgramDesc : public cpp::ProgramDescAPI {
  public:
