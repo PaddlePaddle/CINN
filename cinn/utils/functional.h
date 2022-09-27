@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <functional>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 namespace cinn {
@@ -51,6 +52,17 @@ auto Max(T &&t) {
 template <typename T, typename... Ts>
 auto Max(T &&t, Ts &&... ts) {
   return std::max(t, Max(ts...));
+}
+
+template <typename T>
+struct is_vector : std::false_type {};
+
+template <typename... Ts>
+struct is_vector<std::vector<Ts...>> : std::true_type {};
+
+template <typename T>
+inline const bool is_vector_f(const T &) {
+  return is_vector<T>::value;
 }
 
 template <typename T, typename = absl::void_t<>>
