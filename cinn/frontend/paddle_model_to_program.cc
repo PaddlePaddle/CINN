@@ -226,7 +226,7 @@ void PaddleModelToProgram::AddOpMapper_fill_constant() {
     Variable out;
     switch (dtype) {
 #define DO(desc, type)                                                           \
-  case ::paddle::framework::proto::VarType::Type::VarType_Type_##desc:           \
+  case ::cinn::frontend::paddle::proto::VarType::Type::VarType_Type_##desc:      \
     out = net_builder_->FillConstant<type>(shapes, value, str_value, force_cpu); \
     break;
       DO(BOOL, bool);

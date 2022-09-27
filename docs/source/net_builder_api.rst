@@ -19,14 +19,14 @@ NetBuilder interface.
 1. Scalar Primitive APIs
 ------------------------
 
-ConstScalar
+Constant
 ~~~~~~~~~~~
 
-``ConstScalar(value, name)``\ Create a constant value.
+``Constant(value, name)``\ Create a constant value.
 
 ``Args:``
 
--  value(int\|float\|bool): constant value
+-  value(int\|float\|bool\|list): constant value
 -  name(str): the name of the constant
 
 ``Returns:`` a scalar constant
