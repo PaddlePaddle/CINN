@@ -359,12 +359,14 @@ void IRCudaScheduleBlockReduce(ir::IRSchedule &ir_sch,
 
     for (auto &tensor : {reduce_tmp_out, tmp_out, out}) {
       auto loops = ir_sch.GetLoops(tensor->name);
+      if (loops.empty()) continue;
       ir_sch.Split(loops[0], {-1, ir::GetLoopExtent(loops[0])});
     }
   }
 
   for (auto &tensor : {reduce_tmp_out, tmp_out, out}) {
     auto loops = ir_sch.GetLoops(tensor->name);
+    if (loops.empty()) continue;
     ir_sch.Bind(loops[0], "blockIdx.x");
     if (loops.size() > 1U) {
       ir_sch.Bind(loops[1], "threadIdx.x");
