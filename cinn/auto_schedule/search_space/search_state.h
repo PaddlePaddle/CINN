@@ -71,14 +71,3 @@ class SearchState {
 
 }  // namespace auto_schedule
 }  // namespace cinn
-
-// custom specialization of std::hash for SearchState
-namespace std {
-
-template <>
-struct hash<::cinn::auto_schedule::SearchState> {
-  std::size_t operator()(const ::cinn::auto_schedule::SearchState& state) const {
-    return std::hash<std::string>()(state.DebugString());
-  }
-};
-}  // namespace std
