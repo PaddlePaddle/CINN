@@ -52,6 +52,7 @@ std::vector<SearchState> SearchSpace::GetRandomInitialSketch(int num) {
     // TODO:(zhhsplendid): De-duplication on the result after we have Expr/ModuleExpr hash;
     result.emplace_back(std::move(state));
   }
+
   return result;
 }
 

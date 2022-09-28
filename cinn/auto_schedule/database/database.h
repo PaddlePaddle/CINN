@@ -52,6 +52,14 @@ struct TuningRecord {
   proto::TuningRecord ToProto() const;
 };
 
+enum class DatabaseType : int { kMemory, kJSONFile };
+
+struct DatabaseConfig {
+  DatabaseType type            = DatabaseType::kJSONFile;
+  int capacity_per_task        = 2;
+  std::string record_file_path = "/tmp/tuning_record.json";
+};
+
 // A database supports insert or lookup historial tuning result with sepecified traits.
 // It can be implemented with a concrete storage to save/load underlying data,
 // such as memory, file, database server and so on, this base class can be regarded as
@@ -60,6 +68,9 @@ class Database {
  public:
   explicit Database(int capacity_per_task);
   ~Database() = default;
+
+  // Create a Database with the specific config
+  static std::unique_ptr<Database> Make(const DatabaseConfig& config);
 
   // add a record into the database
   bool AddRecord(TuningRecord&& record);
@@ -80,14 +91,6 @@ class Database {
   std::unordered_map<std::string, std::multiset<TuningRecord, TuningRecord::Compare>> key2record_;
   // the max number of candidates stored
   const int capacity_per_task_;
-};
-
-enum class DatabaseType : int { kMemory, kJSONFile };
-
-struct DatabaseConfig {
-  DatabaseType type            = DatabaseType::kJSONFile;
-  int capacity_per_task        = 2;
-  std::string record_file_path = "/tmp/tuning_record.json";
 };
 
 }  // namespace auto_schedule

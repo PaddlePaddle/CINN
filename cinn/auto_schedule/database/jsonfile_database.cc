@@ -61,21 +61,21 @@ JSONFileDatabase::JSONFileDatabase(int capacity_per_task, const std::string& rec
     cinn::auto_schedule::proto::TuningRecord record_proto;
     auto status = google::protobuf::util::JsonStringToMessage(json_lines[index], &record_proto);
     CHECK(status.ok()) << "Failed to parse JSON: " << json_lines[index];
-    all_records_proto[index] = record_proto;
+    all_records_proto[index].Swap(&record_proto);
   };
   utils::parallel_run(worker_fn, utils::SequenceDispatcher(0, json_lines.size()), -1);
 
   InitialTaskRegistry* task_registry = InitialTaskRegistry::Global();
-  std::vector<TuningRecord> all_records;
 
   for (const auto& record_proto : all_records_proto) {
     std::string task_key = record_proto.task_key();
     if (task_registry->Has(task_key)) {
+      ir::IRSchedule ir_sch(optim::IRCopy(task_registry->Get(task_key)->module_expr));
+      ir::ScheduleDesc::ReplayWithProto(record_proto.trace(), &ir_sch);
+
       auto& records = this->key2record_[task_key];
-      records.emplace(record_proto.task_key(),
-                      record_proto.execution_cost(),
-                      record_proto.predicted_cost(),
-                      ir::IRSchedule(optim::IRCopy(task_registry->Get(task_key)->module_expr)));
+      records.emplace(
+          record_proto.task_key(), record_proto.execution_cost(), record_proto.predicted_cost(), std::move(ir_sch));
       if (records.size() > this->capacity_per_task_) {
         records.erase(std::prev(records.end()));
       }
@@ -94,7 +94,6 @@ std::string JSONFileDatabase::RecordToJSON(const TuningRecord& record) {
   return json_string;
 }
 
-// store a tuning record in the json database
 bool JSONFileDatabase::Commit(const TuningRecord& record) {
   std::string json_string = RecordToJSON(record);
   AppendLineToFile(record_file_path_, json_string);

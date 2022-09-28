@@ -32,7 +32,7 @@ namespace auto_schedule {
 // optimal schedule for the task.
 class TaskOptimizer {
  public:
-  TaskOptimizer(const TuneTask& task, ScheduleMeasurer* schedule_measurer, std::shared_ptr<Database> database);
+  TaskOptimizer(const TuneTask& task, ScheduleMeasurer* schedule_measurer, Database* database);
 
   TuningResult::OptimizedComputeExpr Optimize(const TuningOptions& options);
 
@@ -49,7 +49,7 @@ class TaskOptimizer {
 
   ExprCostModel cost_model_;
 
-  std::shared_ptr<Database> database_;
+  Database* database_;
 };
 
 }  // namespace auto_schedule

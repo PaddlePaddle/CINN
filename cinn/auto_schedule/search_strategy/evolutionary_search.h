@@ -39,7 +39,7 @@ class EvolutionarySearch {
    * @param tune_task: the TuneTask this class works on. This class doesn't
    *     take ownership of the pointer.
    */
-  EvolutionarySearch(const TuneTask& tune_task, const ExprCostModel& cost_model, std::shared_ptr<Database> database);
+  EvolutionarySearch(const TuneTask& tune_task, const ExprCostModel& cost_model, Database* database);
 
   /**
    * Destructor
@@ -104,7 +104,7 @@ class EvolutionarySearch {
 
   const ExprCostModel& cost_model_;  // not owned
 
-  std::shared_ptr<Database> database_;  // not owned
+  Database* database_;  // not owned
 };
 
 }  // namespace auto_schedule

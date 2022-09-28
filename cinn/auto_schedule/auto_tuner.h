@@ -72,7 +72,7 @@ class AutoTuner {
   std::unique_ptr<ScheduleMeasurer> schedule_measurer_;
 
   // The database to store tuning record
-  std::shared_ptr<Database> database_;
+  std::unique_ptr<Database> database_;
 };
 
 }  // namespace auto_schedule

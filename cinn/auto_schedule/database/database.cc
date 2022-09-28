@@ -18,6 +18,7 @@
 #include <google/protobuf/text_format.h>
 #include <google/protobuf/util/json_util.h>
 
+#include "cinn/auto_schedule/database/jsonfile_database.h"
 #include "cinn/auto_schedule/task/task_registry.h"
 #include "cinn/ir/ir_schedule.h"
 #include "cinn/ir/schedule_desc.h"
@@ -35,13 +36,24 @@ proto::TuningRecord TuningRecord::ToProto() const {
   record_proto.set_execution_cost(execution_cost);
   record_proto.set_predicted_cost(state.predicted_cost);
   auto trace_proto = state.ir_schedule.GetTraceDesc().ToProto();
-  record_proto.mutable_trace()->CopyFrom(trace_proto);
+  record_proto.mutable_trace()->Swap(&trace_proto);
 
   return record_proto;
 }
 
 Database::Database(int capacity_per_task) : capacity_per_task_(capacity_per_task) {
   CHECK_GT(capacity_per_task_, 0) << "capacity_per_task_ should be greater than 0";
+}
+
+std::unique_ptr<Database> Database::Make(const DatabaseConfig& config) {
+  if (config.type == DatabaseType::kMemory) {
+    return std::make_unique<Database>(config.capacity_per_task);
+  } else if (config.type == DatabaseType::kJSONFile) {
+    return std::make_unique<JSONFileDatabase>(config.capacity_per_task, config.record_file_path, true);
+  }
+
+  LOG(FATAL) << "Unimplementd database type.";
+  return nullptr;
 }
 
 bool Database::AddRecord(TuningRecord&& record) {

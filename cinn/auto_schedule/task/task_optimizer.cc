@@ -36,9 +36,7 @@ DECLARE_bool(auto_schedule_use_cost_model);
 namespace cinn {
 namespace auto_schedule {
 
-TaskOptimizer::TaskOptimizer(const TuneTask& task,
-                             ScheduleMeasurer* schedule_measurer,
-                             std::shared_ptr<Database> database)
+TaskOptimizer::TaskOptimizer(const TuneTask& task, ScheduleMeasurer* schedule_measurer, Database* database)
     : task_(&task), schedule_measurer_(schedule_measurer), database_(database), cost_model_() {}
 
 TuningResult::OptimizedComputeExpr TaskOptimizer::Optimize(const TuningOptions& options) {
@@ -122,6 +120,7 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
       double predicted_cost      = states[i].predicted_cost;
       ir::ModuleExpr module_expr = optim::IRCopy(states[i].ir_schedule.GetModule());
       ir::ScheduleDesc trace     = states[i].ir_schedule.GetTraceDesc();
+
       database_->AddRecord(TuningRecord(
           task_key, execution_cost, predicted_cost, ir::IRSchedule(std::move(module_expr), std::move(trace))));
     }

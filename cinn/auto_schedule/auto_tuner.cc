@@ -45,12 +45,7 @@ void AutoTuner::Initialize(const Config& config, hlir::framework::GraphCompiler*
   schedule_measurer_ = std::make_unique<ScheduleMeasurer>(builder_.get(), runner_.get());
 
   // initialize database
-  if (config.database_config.type == DatabaseType::kMemory) {
-    database_ = std::make_shared<Database>(config.database_config.capacity_per_task);
-  } else if (config.database_config.type == DatabaseType::kJSONFile) {
-    database_ = std::make_shared<JSONFileDatabase>(
-        config.database_config.capacity_per_task, config.database_config.record_file_path, true);
-  }
+  database_ = std::move(Database::Make(config.database_config));
 
   // create tasks
   TaskCreator task_creator;
@@ -80,7 +75,7 @@ void AutoTuner::Initialize(const Config& config, hlir::framework::GraphCompiler*
   // create task optimizers
   task_optimizers_.resize(tasks_.size());
   std::transform(tasks_.begin(), tasks_.end(), task_optimizers_.begin(), [&](const TuneTask& task) {
-    return std::make_unique<TaskOptimizer>(task, schedule_measurer_.get(), database_);
+    return std::make_unique<TaskOptimizer>(task, schedule_measurer_.get(), database_.get());
   });
 
   // create task scheduler

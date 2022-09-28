@@ -33,9 +33,7 @@
 namespace cinn {
 namespace auto_schedule {
 
-EvolutionarySearch::EvolutionarySearch(const TuneTask& tune_task,
-                                       const ExprCostModel& cost_model,
-                                       std::shared_ptr<Database> database)
+EvolutionarySearch::EvolutionarySearch(const TuneTask& tune_task, const ExprCostModel& cost_model, Database* database)
     : tune_task_(tune_task), cost_model_(cost_model), database_(database) {
   search_space_ = std::make_unique<SearchSpace>(tune_task);
 }

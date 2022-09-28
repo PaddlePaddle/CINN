@@ -146,14 +146,6 @@ TEST_F(TestJSONFileDatabase, Basic) {
   ASSERT_EQ(records.size(), 2);
   EXPECT_EQ(records[0].execution_cost, 3.0);
   EXPECT_EQ(records[1].execution_cost, 4.0);
-
-  JSONFileDatabase new_db(2, record_file_path, false);
-  ASSERT_EQ(test_db.Size(), 6);
-  auto new_records = test_db.LookUp("k3");
-  ASSERT_EQ(test_db.Count("k3"), 2);
-  ASSERT_EQ(records.size(), 2);
-  EXPECT_EQ(records[0].execution_cost, 3.0);
-  EXPECT_EQ(records[1].execution_cost, 4.0);
 }
 
 TEST_F(TestJSONFileDatabase, GetTopK) {
@@ -171,6 +163,43 @@ TEST_F(TestJSONFileDatabase, GetTopK) {
   ASSERT_EQ(states.size(), 2);
   EXPECT_FLOAT_EQ(states[0].predicted_cost, 1.2);
   EXPECT_FLOAT_EQ(states[1].predicted_cost, 1.0);
+}
+
+TEST_F(TestJSONFileDatabase, Reload) {
+  ir::IRSchedule ir_sch = MakeIRSchedule(lowered_funcs, "k1");
+  auto fused            = ir_sch.Fuse("B", {0, 1});
+  test_db.AddRecord(TuningRecord("k1", 1.0, 1.0, std::move(ir_sch)));
+  test_db.AddRecord(TuningRecord("k2", 2.0, 1.0, MakeIRSchedule(lowered_funcs, "k2")));
+  auto records = test_db.LookUp("k1");
+  ASSERT_EQ(records.size(), 1);
+
+  JSONFileDatabase new_db(2, record_file_path, false);
+  ASSERT_EQ(new_db.Size(), 2);
+  auto loaded_records = new_db.LookUp("k1");
+  ASSERT_EQ(records.size(), loaded_records.size());
+  EXPECT_EQ(records[0].task_key, loaded_records[0].task_key);
+  EXPECT_EQ(records[0].execution_cost, loaded_records[0].execution_cost);
+  EXPECT_EQ(records[0].state.predicted_cost, loaded_records[0].state.predicted_cost);
+
+  // check the equality of trace info between original TuningRecord and the loaded TuningRecord
+  const auto& lhs_trace = records[0].state.ir_schedule.GetTraceDesc();
+  const auto& rhs_trace = loaded_records[0].state.ir_schedule.GetTraceDesc();
+  std::string lhs, rhs;
+  lhs_trace.ToProto().SerializeToString(&lhs);
+  rhs_trace.ToProto().SerializeToString(&rhs);
+  CHECK_EQ(lhs, rhs);
+
+  // check the equality of module expr between original TuningRecord
+  // and the loaded TuningRecord by replaying with tracing ScheduleDesc
+  auto lhs_exprs = records[0].state.ir_schedule.GetModule().GetExprs();
+  auto rhs_exprs = loaded_records[0].state.ir_schedule.GetModule().GetExprs();
+  ASSERT_EQ(lhs_exprs.size(), rhs_exprs.size());
+  for (auto i = 0; i < lhs_exprs.size(); ++i) {
+    std::string lhs          = utils::GetStreamCnt(lhs_exprs.at(i));
+    std::string rhs          = utils::GetStreamCnt(rhs_exprs.at(i));
+    size_t remove_prefix_len = 28;
+    ASSERT_EQ(lhs.erase(0, remove_prefix_len), rhs.erase(0, remove_prefix_len));
+  }
 }
 
 }  // namespace auto_schedule
