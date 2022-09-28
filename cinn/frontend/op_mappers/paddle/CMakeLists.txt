@@ -20,4 +20,7 @@ gather_srcs(cinnapi_src SRCS
     log.cc
     concat.cc
     constant.cc
-    where.cc)
+    where.cc
+    layer_norm.cc)
+
+cc_test(test_layer_norm SRCS layer_norm_test.cc DEPS cinncore)

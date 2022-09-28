@@ -43,14 +43,13 @@ void LayerNormOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
   }
   absl::optional<std::string> bias_name;
   if (op_desc.HasInput("Bias")) {
-    scale_name = get_input("Bias");
+    bias_name = get_input("Bias");
   }
   // get attribute values
   auto epsilon         = utils::GetAttrOrDefault<float>(op_desc, "epsilon", 1e-5f);
   auto begin_norm_axis = utils::GetAttrOrDefault<int>(op_desc, "begin_norm_axis", 1);
   // get input variable
-  auto x       = ctx.GetVar(x_name);
-  auto x_shape = x->shape;
+  auto x = ctx.GetVar(x_name);
   absl::optional<Variable> scale;
   if (scale_name) {
     scale = ctx.GetVar(*scale_name);
@@ -60,17 +59,18 @@ void LayerNormOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
     bias = ctx.GetVar(*bias_name);
   }
 
-  auto x_ndim = x->shape.size();
+  const auto& x_shape = x->shape;
+  auto x_ndim         = x_shape.size();
   CHECK_LT(begin_norm_axis, x_ndim) << "`begin_norm_axis` must be less than the dimensions of X, but received "
                                     << begin_norm_axis;
   VLOG(4) << "-- [layer_norm] begin_norm_axis = " << begin_norm_axis;
   int left = 1;
   for (int i = 0; i < begin_norm_axis; i++) {
-    left *= x->shape[i];
+    left *= x_shape[i];
   }
   int right = 1;
   for (int i = begin_norm_axis; i < x_ndim; i++) {
-    right *= x->shape[i];
+    right *= x_shape[i];
   }
   VLOG(4) << "-- [layer_norm] left = " << left << ", right = " << right;
 
