@@ -22,6 +22,7 @@
 
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_inline.h"
+#include "cinn/auto_schedule/search_space/auto_gen_rule/auto_unroll.h"
 #include "cinn/auto_schedule/search_space/auto_gen_rule/multi_level_tiling.h"
 #include "cinn/auto_schedule/search_space/auto_gen_rule/skip_rule.h"
 #include "cinn/common/target.h"
@@ -58,21 +59,21 @@ std::string SearchState::DebugString() const {
   const auto& exprs = ir_schedule.GetModule().GetExprs();
   std::stringstream module_stream;
   for (auto i = 0; i < exprs.size(); ++i) {
-    module_stream << "Expr " << i << " {\n" << exprs.at(i) << "\n}";
+    module_stream << "Expr " << i << " {\n" << exprs.at(i) << "\n      }  // end Expr";
   }
 
   const char* fmt_str = R"ROC(
-  SearchState {
-    IRSchedule {
-      ModuleExpr {
-        %s
-      }
-      ScheduleDesc {
-        %s
-      }
+SearchState {
+  IRSchedule {
+    ModuleExpr {
+      %s
+    }   // end ModuleExpr
+    ScheduleDesc {
+      %s
     }
-    predicted_cost: %f
-  })ROC";
+  }
+  predicted_cost: %f
+})ROC";
 
   return utils::StringFormat(
       fmt_str, module_stream.str().c_str(), ir_schedule.GetTraceDesc().DebugString().c_str(), predicted_cost);
@@ -84,6 +85,7 @@ void SearchState::InitAutoGenRules(const common::Target& target, const std::unor
   // TODO(zhhsplendid): pass correct output names to AutoInline
   applicable_rules = {std::shared_ptr<AutoGenRule>(new AutoInline(target, output_names)),
                       std::shared_ptr<AutoGenRule>(new MultiLevelTiling(target)),
+                      std::shared_ptr<AutoGenRule>(new AutoUnroll(target)),
                       std::shared_ptr<AutoGenRule>(new SkipRule(target))};
 }
 

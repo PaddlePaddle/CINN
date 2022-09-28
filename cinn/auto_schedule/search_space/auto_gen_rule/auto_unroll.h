@@ -46,7 +46,7 @@ class AutoUnroll : public AutoGenRule {
 
  private:
   std::unique_ptr<ir::IRSchedule> ir_schedule_;
-  std::vector<ir::ScheduleBlock*> applicable_schedule_blocks_;
+  std::vector<Expr> applicable_schedule_blocks_;
 };
 
 }  // namespace auto_schedule

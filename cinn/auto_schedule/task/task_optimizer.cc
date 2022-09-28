@@ -16,6 +16,7 @@
 
 #include <glog/logging.h>
 
+#include <functional>
 #include <limits>
 
 #include "cinn/auto_schedule/cost_model/expr_cost_model.h"
@@ -49,11 +50,11 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
   CHECK_EQ(options.num_measure_trials % options.num_samples_per_iteration, 0)
       << "TuningOptions.num_measure_trials % TuningOptions.num_samples_per_iteration must be 0.";
 
-  VLOG(4) << "TuneTask LoweredFunc before optimization is:";
-  VLOG(4) << "task_.lowered_funcs().size() = " << task_->lowered_funcs.size();
+  VLOG(4) << "Optimizing TuneTask with num_measure_trials:" << options.num_measure_trials
+          << ", LoweredFunc before optimization is:";
+  VLOG(4) << "lowered function size = " << task_->lowered_funcs.size();
   for (size_t i = 0; i < task_->lowered_funcs.size(); ++i) {
-    VLOG(4) << "lowered_funcs[" << i << "] = ";
-    VLOG(4) << task_->lowered_funcs[i];
+    VLOG(4) << "lowered_funcs[" << i << "] detail:\n" << task_->lowered_funcs[i];
   }
 
   if (evolutionary_search_ == nullptr) {
@@ -91,13 +92,15 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
   result.lowered_funcs.push_back(optim::IRCopy(task_->lowered_funcs));
 
   while (measured_count < options.num_measure_trials) {
-    VLOG(4) << "Search-" << measured_count << " start";
+    VLOG(4) << "Launch a new search, measured_count:" << measured_count;
     std::vector<SearchState> states = evolutionary_search_->SearchModuleExprEpsGreedy(options);
     VLOG(4) << "EvolutionarySearch finished with return size = " << states.size();
     std::vector<MeasureInput> measure_inputs(states.size());
     std::vector<const ir::ModuleExpr*> cost_model_samples(states.size());
     for (size_t i = 0; i < states.size(); ++i) {
-      VLOG(5) << "<<<<<< State-" << i << " Detail >>>>>>\n" << states[i].DebugString();
+      auto debug_str = states[i].DebugString();
+      VLOG(4) << "State-" << i << " hash:" << std::hash<std::string>()(debug_str);
+      VLOG(5) << "****** State-" << i << " Detail ******" << debug_str;
 
       cost_model_samples[i]            = &(states[i].ir_schedule.GetModule());
       measure_inputs[i].task           = task_;
@@ -114,7 +117,7 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
         }
       }
     }
-    VLOG(4) << "ScheduleMeasurer start with input size:" << measure_inputs.size();
+    VLOG(4) << "ScheduleMeasurer start with input size=" << measure_inputs.size();
     std::vector<MeasureResult> measure_outputs = schedule_measurer_->Measure(measure_inputs);
     CHECK_EQ(measure_outputs.size(), states.size())
         << "ScheduleMeasurer didn't output same number of MeasureOutput of states in TaskOptimizer";
@@ -125,15 +128,16 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
     }
 
     if (FLAGS_auto_schedule_use_cost_model) {
-      VLOG(4) << utils::StringFormat(
-          "Update CostModel with samples[%lu],labels[%lu]", cost_model_samples.size(), cost_model_labels.size());
+      VLOG(4) << utils::StringFormat("Update CostModel with samples size=%lu,labels size=%lu",
+                                     cost_model_samples.size(),
+                                     cost_model_labels.size());
       cost_model_.Update(cost_model_samples, cost_model_labels, task_->target);
     }
     // TODO(zhhsplendid): write measure record into cache.
 
-    VLOG(4) << "Update best candidate";
     for (size_t i = 0; i < measure_outputs.size(); ++i) {
       if (measure_outputs[i].execution_cost < min_exec_time) {
+        VLOG(4) << "Update best candidate with execution_cost:" << measure_outputs[i].execution_cost << "us";
         min_exec_time        = measure_outputs[i].execution_cost;
         result.lowered_funcs = measure_inputs[i].lowered_funcs;
       }

@@ -45,12 +45,12 @@ void PrintStates(const int vlog_level, const std::string& phase_name, const std:
   if (!VLOG_IS_ON(vlog_level)) {
     return;
   }
-  VLOG(vlog_level) << "EvolutionarySearch-" << phase_name << " result size:" << states.size();
+  VLOG(vlog_level) << "EvolutionarySearch-" << phase_name << " states size:" << states.size();
   for (auto i = 0; i < states.size(); ++i) {
     auto debug_str = states[i].DebugString();
     VLOG(vlog_level) << "State-" << i << " hash:" << std::hash<std::string>()(debug_str);
-    VLOG(vlog_level + 1) << "State-" << i << " Detail >>>>>>\n" << debug_str;
-    VLOG(vlog_level + 1) << "<<<<<< SearchState End";
+    VLOG(vlog_level + 1) << "****** State-" << i << " Detail ******\n" << debug_str;
+    VLOG(vlog_level + 1) << "****** SearchState End ******";
   }
 }
 
@@ -70,7 +70,7 @@ std::vector<SearchState> EvolutionarySearch::SearchModuleExprBests(const TuningO
   init_population.insert(init_population.end(), topk_from_database.begin(), topk_from_database.end());
   init_population.insert(init_population.end(), random_sketch.begin(), random_sketch.end());
 
-  VLOG(4) << "EvolutionarySearch got generation size " << init_population.size();
+  VLOG(4) << "EvolutionarySearch got init generation size " << init_population.size();
   std::vector<SearchState> picked_bests =
       Evolve(init_population, options.evolution_cross_over_num, options.num_samples_per_iteration);
   PrintStates(4, "Evolve", picked_bests);
@@ -81,8 +81,10 @@ std::vector<SearchState> EvolutionarySearch::SearchModuleExprBests(const TuningO
 std::vector<SearchState> EvolutionarySearch::SearchModuleExprEpsGreedy(const TuningOptions& options) {
   std::vector<SearchState> picked_bests = SearchModuleExprBests(options);
   int random_num                        = options.evolution_init_population_num - options.evolution_pick_database_topk;
-  return PickNextGenerationEpsGreedy(
+  auto results                          = PickNextGenerationEpsGreedy(
       picked_bests, RandomInitSketch(random_num), options.num_samples_per_iteration, options.evolution_eps_greedy);
+  PrintStates(4, "PickNextGenerationEpsGreedy", results);
+  return results;
 }
 
 std::vector<SearchState> EvolutionarySearch::GetTopKCandidatesFromDatabase(int topk) {
@@ -120,7 +122,7 @@ std::vector<SearchState> EvolutionarySearch::Evolve(const std::vector<SearchStat
                                                     int cross_over_num,
                                                     int ret_num) {
   VLOG(4) << utils::StringFormat(
-      "Evolve with population[%lu],cross_over_num:%lu,ret_num:%lu", population.size(), cross_over_num, ret_num);
+      "Evolve with population size=%lu,cross_over_num:%lu,ret_num:%lu", population.size(), cross_over_num, ret_num);
   int generation_num = population.size();
   if (generation_num == 0) {
     return std::vector<SearchState>();
@@ -149,7 +151,7 @@ std::vector<SearchState> EvolutionarySearch::PickNextGenerationEpsGreedy(const s
                                                                          int num,
                                                                          float eps_greedy) {
   VLOG(4) << utils::StringFormat(
-      "PickNextGenerationEpsGreedy with picked_bests[%lu],random_init[%lu],num:%lu,ret_num:%lu",
+      "PickNextGenerationEpsGreedy with picked_bests size=%lu,random_init size=%lu,num:%lu,eps_greedy:%f",
       picked_bests.size(),
       random_init.size(),
       num,

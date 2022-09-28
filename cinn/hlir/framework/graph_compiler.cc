@@ -30,6 +30,7 @@
 #include "cinn/poly/stage.h"
 
 DECLARE_bool(cinn_ir_schedule);
+DECLARE_int32(cinn_parallel_compile_size);
 
 namespace cinn {
 namespace hlir {
@@ -689,6 +690,18 @@ void GraphCompiler::CompileOptions::Apply(const auto_schedule::TuningResult& tun
 GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::CompileOptions& options,
                                                       std::unordered_set<std::string>&& fetch_var_ids,
                                                       void* stream) {
+  if (FLAGS_cinn_parallel_compile_size) {
+    ParallelCompiler::CompileOptions option;
+    option.lowered_funcs = options.lowered_funcs;
+
+    parallel_compiler_ = std::make_shared<ParallelCompiler>(scope_, graph_, option, target_);
+    auto insts         = (*parallel_compiler_.get())();
+
+    GraphCompiler::CompilationResult compilation_result;
+    compilation_result.runtime_program.reset(new Program(scope_, std::move(insts)));
+    return compilation_result;
+  }
+
   Context::Global().ResetNameId();
   compile_options_ = options;
   fetch_var_ids_   = std::move(fetch_var_ids);

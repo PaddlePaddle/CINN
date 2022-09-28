@@ -159,7 +159,9 @@ TEST(OP_LOWERING, OpaqueOp_TEST_4) {
   {
     auto A = net_builder.CreateInput(Float(32), {128, 128}, "A");
     auto B = net_builder.CreateInput(Float(32), {128, 128}, "B");
-    auto C = net_builder.Matmul(A, B);
+    auto C = net_builder.CreateInput(Float(32), {128, 128}, "C");
+    auto D = net_builder.Matmul(A, B);
+    auto E = net_builder.Add(C, D);
   }
 
   auto program = net_builder.Build();
