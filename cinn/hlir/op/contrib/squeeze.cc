@@ -143,9 +143,12 @@ std::vector<std::vector<int>> InferShapeForSqueeze(const std::vector<std::vector
   int tensor_size = 1;
   if (axes.size() != 0) {
     std::vector<int> temp_shape = inputs_shape[0];
-    for (auto &a : axes) {
-      auto val = a < 0 ? a + inputs_shape[0].size() : a;
-      CHECK(val < temp_shape.size());
+    int input_shape_size        = inputs_shape[0].size();
+    for (auto &axis : axes) {
+      CHECK(axis >= -input_shape_size && axis < input_shape_size)
+          << "Invalid axis, the axis should in [-" << input_shape_size << ", " << input_shape_size - 1
+          << "], but current axis is " << axis;
+      auto val        = axis < 0 ? axis + input_shape_size : axis;
       temp_shape[val] = 0;
     }
     for (auto &i : temp_shape) {
