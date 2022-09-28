@@ -308,8 +308,8 @@ void TestCaseForReduce(
   }
 
   void* args[]              = {&dev_x, &dev_z};
-  std::string new_test_name = test_name + "_kernel";
-  if (FLAGS_cinn_ir_schedule) new_test_name = "fn_" + new_test_name;
+  std::string new_test_name = test_name;
+  if (FLAGS_cinn_ir_schedule) new_test_name = "fn_" + new_test_name + "_kernel";
   cuda_module.LaunchKernel(0, new_test_name, grid, block, args);
   CUDA_CALL(cudaMemcpy(buffer_z->memory, dev_z, buffer_z->memory_size, cudaMemcpyDeviceToHost));
 
