@@ -60,11 +60,11 @@ void ParallelCompiler::SplitTask() {
                              : optition_.lowered_funcs;
     tasks_.emplace_back(scope_, graph_, groups, lowered_funcs, target_);
   }
-  VLOG(3) << "Split task to " << tasks_.size() << " sub-task!";
+  VLOG(2) << "Split task to " << tasks_.size() << " sub-task!";
 }
 
 void RunTask(ParallelCompiler::Task* task) {
-  VLOG(3) << "Stark run sub-task, Thread Id : " << std::this_thread::get_id();
+  VLOG(2) << "Stark run sub-task, Thread Id : " << std::this_thread::get_id();
   task->Lowering();
   task->CodegenAndJit();
   task->BuildInstruction();
@@ -128,6 +128,7 @@ void ParallelCompiler::Task::CodegenAndJit() {
     backends::CodeGenCUDA_Dev codegen(target);
     auto cuda_c = codegen.Compile(dmodule);
 
+    VLOG(3) << "Host Code : " << hmodule;
     if (FLAGS_cinn_source_code_save_path.empty()) {
       if (cuda_c.size() > DebugLogMaxLen) {
         VLOG(3) << "[CUDA] source code-0:\n" << cuda_c.substr(0, DebugLogMaxLen);
