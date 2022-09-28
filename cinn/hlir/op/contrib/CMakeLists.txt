@@ -7,11 +7,12 @@ gather_srcs(cinnapi_src SRCS
         squeeze.cc
         clip.cc
         arange.cc
-        repeat.cc
+        flip.cc
         sort.cc
         argmin.cc
         argmax.cc
         squeeze.cc
+        repeat.cc
         )
 
 cc_test(test_cast SRCS cast_test.cc DEPS cinncore)
@@ -23,4 +24,5 @@ cc_test(test_sort SRCS sort_test.cc DEPS cinncore)
 cc_test(test_argmin SRCS argmin_test.cc DEPS cinncore)
 cc_test(test_argmax SRCS argmax_test.cc DEPS cinncore)
 cc_test(test_arange SRCS arange_test.cc DEPS cinncore)
+cc_test(test_flip SRCS flip_test.cc DEPS cinncore)
 cc_test(test_repeat SRCS repeat_test.cc DEPS cinncore)
