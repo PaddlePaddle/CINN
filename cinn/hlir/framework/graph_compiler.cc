@@ -709,7 +709,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   }
 
   if (FLAGS_cinn_parallel_compile_size) {
-    VLOG(3) << "Compile With Parallel Compiler!";
+    VLOG(2) << "Compile With Parallel Compiler!";
     ParallelCompiler::CompileOptions option;
     option.lowered_funcs = options.lowered_funcs;
 
@@ -724,6 +724,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
       VLOG(3) << "option.with_buffer_handle_instruction_inserted enable";
       InsertBufferHandlers(&instructions);
     }
+    VLOG(2) << "Compile With Parallel Compiler Done!";
 
     GraphCompiler::CompilationResult compilation_result;
     compilation_result.runtime_program.reset(new Program(scope_, std::move(instructions)));
