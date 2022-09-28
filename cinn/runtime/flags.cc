@@ -26,10 +26,11 @@ DEFINE_bool(cinn_cudnn_deterministic,
 #endif
 
 using ::GFLAGS_NAMESPACE::BoolFromEnv;
+using ::GFLAGS_NAMESPACE::Int32FromEnv;
 using ::GFLAGS_NAMESPACE::StringFromEnv;
 
 DEFINE_int32(cinn_parallel_compile_size,
-             0,
+             Int32FromEnv("FLAGS_cinn_parallel_compile_size", 0),
              "When use parallel compile, set the number of group compiled by each thread.");
 
 DEFINE_bool(cinn_open_fusion_optimize,
