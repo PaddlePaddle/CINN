@@ -765,6 +765,11 @@ class NetBuilder {
                   const std::string& padding_algorithm = "EXPLICIT");
 
   /**
+   * This API flipes the Variable x along the given axis.
+   */
+  Variable Flip(const Variable& operand, const std::vector<int>& axes);
+
+  /**
    * @brief The gradient function of convolution-2d.
    * @param dout The gradient variable of the `conv2d`'s output.
    * @param x The image variable.
