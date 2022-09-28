@@ -23,7 +23,7 @@
 #include "cinn/frontend/paddle/pb/var_desc.h"
 
 namespace cinn::frontend::paddle {
-namespace framework_proto = ::paddle::framework::proto;
+namespace framework_proto = ::cinn::frontend::paddle::proto;
 
 /// For VarDesc transfrom
 #define TRANS_VAR_ANY_WITH_CPP_IMPL(T)                                          \

@@ -13,32 +13,20 @@
 // limitations under the License.
 
 #pragma once
-
 #include <string>
 #include <vector>
 
 #include "cinn/ir/ir.h"
-#include "cinn/ir/ir_base.h"
-#include "cinn/ir/tensor.h"
 
 namespace cinn {
 namespace hlir {
 namespace op {
-
-ir::Tensor ArgSort(const ir::Tensor& A,
-                   const common::Target& target,
-                   poly::StageMap stages,
-                   const int& axis,
-                   const bool& is_ascend,
-                   const std::string& name);
-
-ir::Tensor Sort(const ir::Tensor& A,
-                const common::Target& target,
-                poly::StageMap stages,
-                const int& axis,
-                const bool& is_ascend,
-                const std::string& name);
-
+ir::Tensor Argmin(const ir::Tensor& in_tensor,
+                  const common::Target& target,
+                  poly::StageMap stages,
+                  const int& axis,
+                  const bool& keep_dims   = false,
+                  const std::string& name = "T_Argmin_out");
 }  // namespace op
 }  // namespace hlir
 }  // namespace cinn
