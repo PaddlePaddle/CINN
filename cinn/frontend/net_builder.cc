@@ -220,6 +220,10 @@ std::vector<Variable> NetBuilder::Split(const Variable& operand, const std::vect
 }
 
 Variable NetBuilder::Concat(const std::vector<Variable>& input_vars, int axis) {
+  CHECK(!input_vars.empty()) << "The inputs of concat op should not be empty! Please check.";
+  if (input_vars.size() == 1UL) {
+    return Identity(input_vars.front());
+  }
   return CustomInstr("concat", input_vars, {{"axis", axis}}).front();
 }
 
@@ -431,6 +435,24 @@ Variable NetBuilder::Sort(const Variable& operand, const int& axis, const bool& 
   Instruction instr("sort", {operand});
   instr.SetAttr("axis", axis);
   instr.SetAttr("is_ascend", is_ascend);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
+Variable NetBuilder::Argmax(const Variable& x, const int& axis, const bool& keep_dim) {
+  Instruction instr("argmax", {x});
+  instr.SetAttr("axis", axis);
+  instr.SetAttr("keep_dim", keep_dim);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
+Variable NetBuilder::Argmin(const Variable& x, const int& axis, const bool& keep_dim) {
+  Instruction instr("argmin", {x});
+  instr.SetAttr("axis", axis);
+  instr.SetAttr("keep_dim", keep_dim);
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(0);
