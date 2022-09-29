@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include "database.h"
+#include "cinn/auto_schedule/database/database.h"
 
 namespace cinn {
 namespace auto_schedule {
@@ -28,14 +28,11 @@ class JSONFileDatabase : public Database {
    * \param record_file_path The path of the json file.
    * \param allow_new_file Whether to create new file when the given path is not found.
    */
-  explicit JSONFileDatabase(int capacity_per_task, const std::string& record_file_path, bool allow_new_file);
+  JSONFileDatabase(int capacity_per_task, const std::string& record_file_path, bool allow_new_file);
   ~JSONFileDatabase() = default;
 
   // convert a TuningRecord object to string in JSON format
   std::string RecordToJSON(const TuningRecord& record);
-
-  // convert a line of string in JSON format to a TuningRecord object
-  TuningRecord JSONToRecord(const std::string& json_string);
 
  protected:
   // commit the newly added record into json file

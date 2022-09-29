@@ -21,6 +21,7 @@
 #include <fstream>
 
 #include "cinn/auto_schedule/auto_schedule.pb.h"
+#include "cinn/auto_schedule/task/task_registry.h"
 #include "cinn/utils/multi_threading.h"
 
 namespace cinn {
@@ -53,18 +54,31 @@ std::vector<std::string> ReadLinesFromFile(const std::string& file_path, bool al
 JSONFileDatabase::JSONFileDatabase(int capacity_per_task, const std::string& record_file_path, bool allow_new_file)
     : Database(capacity_per_task), record_file_path_(record_file_path) {
   auto json_lines = ReadLinesFromFile(record_file_path_, allow_new_file);
+  std::vector<cinn::auto_schedule::proto::TuningRecord> all_records_proto(json_lines.size());
 
-  std::vector<TuningRecord> all_records(json_lines.size());
-  auto worker_fn = [this, &json_lines, &all_records](int index) {
-    all_records[index] = JSONToRecord(json_lines[index]);
+  // convert JSON string to proto object
+  auto worker_fn = [this, &json_lines, &all_records_proto](int index) {
+    cinn::auto_schedule::proto::TuningRecord record_proto;
+    auto status = google::protobuf::util::JsonStringToMessage(json_lines[index], &record_proto);
+    CHECK(status.ok()) << "Failed to parse JSON: " << json_lines[index];
+    all_records_proto[index].Swap(&record_proto);
   };
   utils::parallel_run(worker_fn, utils::SequenceDispatcher(0, json_lines.size()), -1);
 
-  for (const auto& record : all_records) {
-    auto& records = this->key2record_[record.task_key];
-    records.emplace(record);
-    if (records.size() > this->capacity_per_task_) {
-      records.erase(std::prev(records.end()));
+  InitialTaskRegistry* task_registry = InitialTaskRegistry::Global();
+
+  for (const auto& record_proto : all_records_proto) {
+    std::string task_key = record_proto.task_key();
+    if (task_registry->Has(task_key)) {
+      ir::IRSchedule ir_sch(optim::IRCopy(task_registry->Get(task_key)->module_expr));
+      ir::ScheduleDesc::ReplayWithProto(record_proto.trace(), &ir_sch);
+
+      auto& records = this->key2record_[task_key];
+      records.emplace(
+          record_proto.task_key(), record_proto.execution_cost(), record_proto.predicted_cost(), std::move(ir_sch));
+      if (records.size() > this->capacity_per_task_) {
+        records.erase(std::prev(records.end()));
+      }
     }
   }
 }
@@ -72,22 +86,12 @@ JSONFileDatabase::JSONFileDatabase(int capacity_per_task, const std::string& rec
 // convert a TuningRecord object to string in JSON format
 std::string JSONFileDatabase::RecordToJSON(const TuningRecord& record) {
   proto::TuningRecord record_proto = record.ToProto();
-
   std::string json_string;
   auto status = google::protobuf::util::MessageToJsonString(record_proto, &json_string);
   CHECK(status.ok()) << "Failed to serialize record to JSON, task key = " << record.task_key;
   VLOG(4) << "json_string = \n" << json_string;
 
   return json_string;
-}
-
-// convert a line of string in JSON format to a TuningRecord object
-TuningRecord JSONFileDatabase::JSONToRecord(const std::string& json_string) {
-  cinn::auto_schedule::proto::TuningRecord record_proto;
-  auto status = google::protobuf::util::JsonStringToMessage(json_string, &record_proto);
-  CHECK(status.ok()) << "Failed to parse JSON: " << json_string;
-
-  return TuningRecord(record_proto);
 }
 
 bool JSONFileDatabase::Commit(const TuningRecord& record) {

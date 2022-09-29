@@ -38,8 +38,8 @@ DECLARE_bool(auto_schedule_use_cost_model);
 namespace cinn {
 namespace auto_schedule {
 
-TaskOptimizer::TaskOptimizer(const TuneTask& task, ScheduleMeasurer* schedule_measurer)
-    : task_(&task), schedule_measurer_(schedule_measurer), cost_model_() {}
+TaskOptimizer::TaskOptimizer(const TuneTask& task, ScheduleMeasurer* schedule_measurer, Database* database)
+    : task_(&task), schedule_measurer_(schedule_measurer), database_(database), cost_model_() {}
 
 TuningResult::OptimizedComputeExpr TaskOptimizer::Optimize(const TuningOptions& options) {
   // TODO(zhhsplendid): develop other optimize methods and configure the method by options.
@@ -60,7 +60,7 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
   if (evolutionary_search_ == nullptr) {
     // TODO(zhhsplendid): check whether the options is same as previous,
     // if not, we should create new EvolutionarySearch
-    evolutionary_search_ = std::make_unique<EvolutionarySearch>(*task_, cost_model_);
+    evolutionary_search_ = std::make_unique<EvolutionarySearch>(*task_, cost_model_, database_);
   }
 
   if (options.num_measure_trials == 0) {
@@ -121,6 +121,17 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
     std::vector<MeasureResult> measure_outputs = schedule_measurer_->Measure(measure_inputs);
     CHECK_EQ(measure_outputs.size(), states.size())
         << "ScheduleMeasurer didn't output same number of MeasureOutput of states in TaskOptimizer";
+
+    for (size_t i = 0; i < states.size(); ++i) {
+      std::string task_key       = measure_inputs[i].task->serialized_key;
+      double execution_cost      = measure_outputs[i].execution_cost;
+      double predicted_cost      = states[i].predicted_cost;
+      ir::ModuleExpr module_expr = optim::IRCopy(states[i].ir_schedule.GetModule());
+      ir::ScheduleDesc trace     = states[i].ir_schedule.GetTraceDesc();
+
+      database_->AddRecord(TuningRecord(
+          task_key, execution_cost, predicted_cost, ir::IRSchedule(std::move(module_expr), std::move(trace))));
+    }
 
     std::vector<float> cost_model_labels(states.size());
     for (size_t i = 0; i < states.size(); ++i) {

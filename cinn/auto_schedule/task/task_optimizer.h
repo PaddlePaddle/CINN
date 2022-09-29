@@ -17,6 +17,7 @@
 #include <memory>
 
 #include "cinn/auto_schedule/cost_model/expr_cost_model.h"
+#include "cinn/auto_schedule/database/database.h"
 #include "cinn/auto_schedule/measure/schedule_measurer.h"
 #include "cinn/auto_schedule/search_strategy/evolutionary_search.h"
 #include "cinn/auto_schedule/task/tune_task.h"
@@ -31,7 +32,7 @@ namespace auto_schedule {
 // optimal schedule for the task.
 class TaskOptimizer {
  public:
-  TaskOptimizer(const TuneTask& task, ScheduleMeasurer* schedule_measurer);
+  TaskOptimizer(const TuneTask& task, ScheduleMeasurer* schedule_measurer, Database* database);
 
   TuningResult::OptimizedComputeExpr Optimize(const TuningOptions& options);
 
@@ -47,6 +48,8 @@ class TaskOptimizer {
   std::unique_ptr<EvolutionarySearch> evolutionary_search_ = nullptr;
 
   ExprCostModel cost_model_;
+
+  Database* database_;
 };
 
 }  // namespace auto_schedule
