@@ -23,6 +23,7 @@
 #include <memory>
 #include <utility>
 
+#include "cinn/auto_schedule/database/database.h"
 #include "cinn/auto_schedule/search_space/search_space.h"
 #include "cinn/auto_schedule/search_space/search_state.h"
 #include "cinn/auto_schedule/task/tune_task.h"
@@ -34,8 +35,8 @@
 namespace cinn {
 namespace auto_schedule {
 
-EvolutionarySearch::EvolutionarySearch(const TuneTask& tune_task, const ExprCostModel& cost_model)
-    : tune_task_(tune_task), cost_model_(cost_model) {
+EvolutionarySearch::EvolutionarySearch(const TuneTask& tune_task, const ExprCostModel& cost_model, Database* database)
+    : tune_task_(tune_task), cost_model_(cost_model), database_(database) {
   search_space_ = std::make_unique<SearchSpace>(tune_task);
 }
 
@@ -88,9 +89,7 @@ std::vector<SearchState> EvolutionarySearch::SearchModuleExprEpsGreedy(const Tun
 }
 
 std::vector<SearchState> EvolutionarySearch::GetTopKCandidatesFromDatabase(int topk) {
-  // TODO(zhhsplendid): implement it after we have the database
-  VLOG(4) << "GetTopKCandidatesFromDatabase topk:" << topk;
-  return std::vector<SearchState>();
+  return database_->GetTopK(tune_task_.serialized_key, topk);
 }
 
 std::vector<SearchState> EvolutionarySearch::RandomInitSketch(int num) {

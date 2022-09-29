@@ -70,6 +70,7 @@ std::vector<SearchState> SearchSpace::GetRandomInitialSketch(int num) {
     VLOG(5) << "Generate a new state, hash:" << std::hash<std::string>()(debug_str) << ", DebugString:" << debug_str;
     result.emplace_back(std::move(state));
   }
+
   return result;
 }
 

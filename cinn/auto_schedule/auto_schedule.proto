@@ -16,7 +16,11 @@ syntax ="proto3";
 
 package cinn.auto_schedule.proto;
 
+import "cinn/ir/schedule_desc.proto";
+
 message TuningRecord {
   string task_key = 1;
   double execution_cost = 2;
+  double predicted_cost = 3;
+  cinn.ir.proto.ScheduleDesc trace = 4;
 }

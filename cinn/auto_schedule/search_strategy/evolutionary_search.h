@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "cinn/auto_schedule/cost_model/expr_cost_model.h"
+#include "cinn/auto_schedule/database/database.h"
 #include "cinn/auto_schedule/search_space/search_space.h"
 #include "cinn/auto_schedule/search_space/search_state.h"
 #include "cinn/auto_schedule/task/tune_task.h"
@@ -38,7 +39,7 @@ class EvolutionarySearch {
    * @param tune_task: the TuneTask this class works on. This class doesn't
    *     take ownership of the pointer.
    */
-  EvolutionarySearch(const TuneTask& tune_task, const ExprCostModel& cost_model);
+  EvolutionarySearch(const TuneTask& tune_task, const ExprCostModel& cost_model, Database* database);
 
   /**
    * Destructor
@@ -102,6 +103,8 @@ class EvolutionarySearch {
   const TuneTask& tune_task_;
 
   const ExprCostModel& cost_model_;  // not owned
+
+  Database* database_;  // not owned
 };
 
 }  // namespace auto_schedule
