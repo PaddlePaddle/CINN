@@ -30,7 +30,7 @@ namespace auto_schedule {
 
 float ExprCostModel::Predict(const ir::ModuleExpr& sample, const common::Target& target) const {
   if (trained_times_.load() == 0) {
-    return SearchState::NOT_INIT_COST;
+    return _SearchState_::NOT_INIT_COST;
   }
   FeatureExtractor extractor;
   Feature feature                    = extractor.Extract(sample, target);

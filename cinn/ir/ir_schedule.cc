@@ -1445,9 +1445,19 @@ void ScheduleImpl::CopyTransformAndLoopInfo(const Expr& block, const Expr& block
 
 IRSchedule::IRSchedule() {}
 
-IRSchedule::IRSchedule(IRSchedule&& other) : impl_(std::move(other.impl_)), trace_(std::move(other.trace_)) {}
 IRSchedule::IRSchedule(ir::ModuleExpr&& mod_expr, ScheduleDesc&& trace)
     : impl_(std::make_unique<ScheduleImpl>(std::move(mod_expr))), trace_(std::move(trace)) {}
+
+IRSchedule::IRSchedule(const IRSchedule& other)
+    : impl_(std::make_unique<ScheduleImpl>(optim::IRCopy(other.GetModule()))), trace_(other.trace_) {}
+
+IRSchedule& IRSchedule::operator=(const IRSchedule& src) {
+  impl_  = std::make_unique<ScheduleImpl>(optim::IRCopy(src.GetModule()));
+  trace_ = src.trace_;
+  return *this;
+}
+
+IRSchedule::IRSchedule(IRSchedule&& other) : impl_(std::move(other.impl_)), trace_(std::move(other.trace_)) {}
 
 IRSchedule& IRSchedule::operator=(IRSchedule&& src) {
   impl_  = std::move(src.impl_);

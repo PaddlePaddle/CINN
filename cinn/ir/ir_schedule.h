@@ -66,6 +66,8 @@ class IRSchedule {
   IRSchedule();
   explicit IRSchedule(const ModuleExpr& modexpr, bool debug_flag = false);
   IRSchedule(ir::ModuleExpr&& mod_expr, ScheduleDesc&& trace);
+  IRSchedule(const IRSchedule& other);
+  IRSchedule& operator=(const IRSchedule& src);
   IRSchedule(IRSchedule&& other);
   IRSchedule& operator=(IRSchedule&& src);
   ~IRSchedule();

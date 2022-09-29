@@ -80,11 +80,11 @@ TEST(AutoInline, SingleLoopInline) {
   VLOG(6) << mod_expr_before_inline.GetExprs()[0];
 
   AutoInline auto_inline(target, {"C"});
-  EXPECT_EQ(auto_inline.Init(ir_sch), RuleApplyType::kApply);
+  EXPECT_EQ(auto_inline.Init(&ir_sch), RuleApplyType::kApply);
   EXPECT_EQ(auto_inline.NumberApplicable(), 1);
 
-  ir::IRSchedule applied_sch  = auto_inline.ApplyRandomly();
-  std::vector<ir::Expr> exprs = applied_sch.GetModule().GetExprs();
+  auto_inline.ApplyRandomly();
+  std::vector<ir::Expr> exprs = ir_sch.GetModule().GetExprs();
   EXPECT_EQ(exprs.size(), 1UL);
 
   std::stringstream ss;
@@ -114,7 +114,7 @@ TEST(AutoInline, SingleLoopInline) {
   EXPECT_EQ(expr_str, target_str);
 
   // Cannot inline above expr again
-  EXPECT_EQ(auto_inline.Init(applied_sch), RuleApplyType::kCannotApply);
+  EXPECT_EQ(auto_inline.Init(&ir_sch), RuleApplyType::kCannotApply);
 }
 
 TEST(AutoInline, AddReluInline) {
@@ -148,11 +148,11 @@ TEST(AutoInline, AddReluInline) {
   ir::IRSchedule ir_sch(mod_expr_before_inline);
 
   AutoInline auto_inline(target, {"var_2"});
-  EXPECT_EQ(auto_inline.Init(ir_sch), RuleApplyType::kApply);
+  EXPECT_EQ(auto_inline.Init(&ir_sch), RuleApplyType::kApply);
   EXPECT_EQ(auto_inline.NumberApplicable(), 2);
 
-  ir::IRSchedule sch_after_inline      = auto_inline.Apply(1);
-  ir::ModuleExpr mod_expr_after_inline = sch_after_inline.GetModule();
+  auto_inline.Apply(1);
+  ir::ModuleExpr mod_expr_after_inline = ir_sch.GetModule();
   std::vector<ir::Expr> exprs          = mod_expr_after_inline.GetExprs();
   EXPECT_EQ(exprs.size(), 1UL);
 
@@ -164,11 +164,11 @@ TEST(AutoInline, AddReluInline) {
   VLOG(6) << expr_str;
 
   // Auto Inline again
-  EXPECT_EQ(auto_inline.Init(sch_after_inline), RuleApplyType::kApply);
+  EXPECT_EQ(auto_inline.Init(&ir_sch), RuleApplyType::kApply);
   EXPECT_EQ(auto_inline.NumberApplicable(), 1);
 
-  ir::IRSchedule final_sch      = auto_inline.Apply(0);
-  ir::ModuleExpr final_mod_expr = final_sch.GetModule();
+  auto_inline.Apply(0);
+  ir::ModuleExpr final_mod_expr = ir_sch.GetModule();
   exprs                         = final_mod_expr.GetExprs();
   EXPECT_EQ(exprs.size(), 1UL);
 
@@ -205,7 +205,7 @@ TEST(AutoInline, AddReluInline) {
   EXPECT_EQ(expr_str, target_str);
 
   // Cannot inline above expr again
-  EXPECT_EQ(auto_inline.Init(final_sch), RuleApplyType::kCannotApply);
+  EXPECT_EQ(auto_inline.Init(&ir_sch), RuleApplyType::kCannotApply);
 }
 
 }  // namespace auto_schedule
