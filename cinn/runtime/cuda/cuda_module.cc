@@ -52,6 +52,10 @@ void CUDAModule::LaunchKernel(int device_id,
                               void** args,
                               size_t share_memory_size,
                               CUstream stream) {
+  VLOG(3) << "cuLaunchKernel with func_name : " << func_name << ", gridDim.x:" << gridDim.x
+          << ", gridDim.y:" << gridDim.y << ", gridDim.z:" << gridDim.z << ", blockDim.x:" << blockDim.x
+          << ", blockDim.y:" << blockDim.y << ", blockDim.z:" << blockDim.z
+          << ", share_memory_size:" << share_memory_size;
   auto function = GetFunction(device_id, func_name);
   CHECK(function);
   CUDA_DRIVER_CALL(cuLaunchKernel(function,

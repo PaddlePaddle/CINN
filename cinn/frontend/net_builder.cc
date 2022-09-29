@@ -395,6 +395,16 @@ Variable NetBuilder::Cast(const Variable& operand, const std::string& dtype) {
   return CustomInstr("cast", {operand}, {{"dtype", dtype}}).front();
 }
 
+Variable NetBuilder::OneHot(const Variable& indices,
+                            const Variable& on_value,
+                            const Variable& off_value,
+                            const int depth,
+                            const int axis,
+                            const std::string& dtype) {
+  return CustomInstr("one_hot", {indices, on_value, off_value}, {{"depth", depth}, {"axis", axis}, {"dtype", dtype}})
+      .front();
+}
+
 Variable NetBuilder::Squeeze(const Variable& operand, const std::vector<int>& axes) {
   return CustomInstr("squeeze", {operand}, {{"axes", axes}}).front();
 }
@@ -514,6 +524,10 @@ Variable NetBuilder::Pool2d(const Variable& a,
       .front();
 }
 
+Variable NetBuilder::Repeat(const Variable& x, int repeats, int axis) {
+  return CustomInstr("repeat", {x}, {{"repeats", repeats}, {"axis", axis}}).front();
+}
+
 std::vector<Variable> NetBuilder::BatchNorm(const Variable& a,
                                             const Variable& scale,
                                             const Variable& bias,
@@ -567,6 +581,14 @@ Variable NetBuilder::Clip(const std::vector<Variable>& inputs, const float& max_
 
 Variable NetBuilder::Arange(const float start, const float stop, const float step, const std::string& dtype) {
   return CustomInstr("arange", {}, {{"start", start}, {"stop", stop}, {"step", step}, {"dtype", dtype}}).front();
+}
+
+Variable NetBuilder::Flip(const Variable& operand, const std::vector<int>& axes) {
+  Instruction instr("flip", {operand});
+  instr.SetAttr("axes", axes);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
 }
 
 // conv2d grad, output(grad_x, grad_w)
