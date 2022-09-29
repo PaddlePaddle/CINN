@@ -79,7 +79,8 @@ TEST(EvolutionarySearch, GetOneBest) {
   TuneTask mock_tune_task;
   ExprCostModel cost_model;
   TuningOptions options;
-  EvolutionarySearch evolutionary_search(mock_tune_task, cost_model, std::make_shared<Database>(2));
+  Database db(2);
+  EvolutionarySearch evolutionary_search(mock_tune_task, cost_model, &db);
 
   MockSearchSpace* mock_search_space = new MockSearchSpace(mock_tune_task);
   // Ownership is transferred so don't delete mock_search_space
@@ -96,7 +97,8 @@ TEST(EvolutionarySearch, GetEpsGreedy) {
   TuneTask mock_tune_task;
   ExprCostModel cost_model;
   TuningOptions options;
-  EvolutionarySearch evolutionary_search(mock_tune_task, cost_model, std::make_shared<Database>(2));
+  Database db(2);
+  EvolutionarySearch evolutionary_search(mock_tune_task, cost_model, &db);
 
   MockSearchSpace* mock_search_space = new MockSearchSpace(mock_tune_task);
   // Ownership is transferred so don't delete mock_search_space
