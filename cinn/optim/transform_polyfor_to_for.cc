@@ -20,6 +20,7 @@
 #include "cinn/common/arithmatic.h"
 #include "cinn/common/cas.h"
 #include "cinn/common/ir_util.h"
+#include "cinn/common/type.h"
 #include "cinn/ir/ir_mutator.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"
@@ -60,6 +61,7 @@ struct PolyForWithSimpleConditionToForMutator : public ir::IRMutator<Expr*> {
 
   void Visit(const ir::PolyFor* op, Expr* expr) override {
     auto* node = expr->As<ir::PolyFor>();
+    LOG(INFO) << *expr;
     auto* ge_n = node->condition.As<ir::GE>();
     auto* gt_n = node->condition.As<ir::GT>();
     if (ge_n) {
@@ -92,8 +94,12 @@ struct PolyForWithSimpleConditionToForMutator : public ir::IRMutator<Expr*> {
                               (le_n && le_n->a().as_var() && le_n->a().as_var()->name == op->iterator->name);
 
     if (!can_extract_extent) {
-      node->condition = common::SolveInequality(node->condition, op->iterator);
-      optim::Simplify(&node->condition);
+      CHECK(node->condition.As<ir::LE>());
+      auto le = node->condition.As<ir::LE>();
+      CHECK(le->a().As<ir::Sub>());
+      auto sub        = le->a().As<ir::Sub>();
+      node->condition = ir::LE::Make(sub->a(), sub->b());
+
       lt_n = node->condition.As<ir::LT>();
       le_n = node->condition.As<ir::LE>();
       if (!(lt_n || le_n)) return;
