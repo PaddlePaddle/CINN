@@ -34,7 +34,7 @@ namespace auto_schedule {
 // This class is entrance of auto-tune, users can use it
 // to tune graph (not supported yet) and search a series of schedules
 // that maybe more likely to obtain better performance.
-// Internally, it creates necessary components and use them to finish tuning.
+// Internally, it creates necessary components and use them to perform tuning.
 class AutoTuner {
  public:
   // configure how to perform auto-tune, such as

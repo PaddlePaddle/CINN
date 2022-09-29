@@ -36,7 +36,7 @@ namespace auto_schedule {
 SearchSpace::SearchSpace(const TuneTask& tune_task) : tune_task_(tune_task) {}
 
 std::vector<SearchState> SearchSpace::GetRandomInitialSketch(int num) {
-  VLOG(4) << "Start SearchSpace::GetRandomInitialSketch";
+  VLOG(4) << "Start SearchSpace::GetRandomInitialSketch with num:" << num;
   SearchState init_state(ir::IRSchedule(ir::ModuleExpr(tune_task_.GetLoweredFuncBodyExprs())));
   std::vector<SearchState> result;
   while (result.size() < num) {
@@ -50,13 +50,15 @@ std::vector<SearchState> SearchSpace::GetRandomInitialSketch(int num) {
       }
     }
     // TODO:(zhhsplendid): De-duplication on the result after we have Expr/ModuleExpr hash;
+    auto debug_str = state.DebugString();
+    VLOG(5) << "Generate a new state, hash:" << std::hash<std::string>()(debug_str) << ", DebugString:" << debug_str;
     result.emplace_back(std::move(state));
   }
   return result;
 }
 
 SearchState SearchSpace::GetScheduleMutate(const SearchState& state, const ExprCostModel& cost_model) {
-  VLOG(4) << "Start SearchSpace::GetScheduleMutate";
+  VLOG(5) << "Start SearchSpace::GetScheduleMutate";
   bool has_manual_schedule = false;
   if (has_manual_schedule) {
     SearchState ret = ManualScheduleMutate(state);
@@ -75,7 +77,7 @@ SearchState SearchSpace::ManualScheduleMutate(const SearchState& state) {
 }
 
 SearchState SearchSpace::RandomScheduleMutate(const SearchState& state) {
-  VLOG(4) << "Start SearchSpace::RandomScheduleMutate";
+  VLOG(5) << "Start SearchSpace::RandomScheduleMutate";
 
   // 1. Found the schedules which can apply on this Expr
   // 2. Make a distribution on those schedules
@@ -84,7 +86,7 @@ SearchState SearchSpace::RandomScheduleMutate(const SearchState& state) {
   SearchState ret(state);
   for (auto iter = ret.applicable_rules.begin(); iter != ret.applicable_rules.end();) {
     std::shared_ptr<AutoGenRule> rule = *iter;
-    VLOG(6) << "Rule name = " << rule->GetRuleName();
+    VLOG(6) << "Evaluate rule:" << rule->GetRuleName();
     RuleApplyType apply_type = rule->Init(state.ir_schedule);
     if (apply_type != RuleApplyType::kCannotApply) {
       weight_to_rule[cur_weight] = rule;
@@ -115,7 +117,7 @@ SearchState SearchSpace::RandomScheduleMutate(const SearchState& state) {
     --iter;
   }
   std::shared_ptr<AutoGenRule> sample_rule = iter->second;
-  VLOG(6) << "Sample AutoGenRule " << sample_rule->GetRuleName();
+  VLOG(6) << "Apply rule: " << sample_rule->GetRuleName();
 
   // 4. Apply the schedule change
   ret.ir_schedule = sample_rule->Apply(sample_index - iter->first);
