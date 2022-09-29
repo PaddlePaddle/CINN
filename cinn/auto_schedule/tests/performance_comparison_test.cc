@@ -210,26 +210,127 @@ class PerformanceTester : public ::testing::Test {
 const int repeat_time       = 100;
 const int num_tuning_rounds = 1;
 
-TEST_F(PerformanceTester, add_32x16) {
+TEST_F(PerformanceTester, Add) {
   int M = 32;
   int N = 16;
+  SetOptionFlags(7UL);
   BuildAndRun(repeat_time, num_tuning_rounds, AddProgramBuilder(M, N)());
 }
 
-TEST_F(PerformanceTester, mul_32x16x32) {
+TEST_F(PerformanceTester, Mul) {
   int M = 32;
   int K = 16;
   int N = 32;
+  SetOptionFlags(7UL);
   BuildAndRun(repeat_time, num_tuning_rounds, MulProgramBuilder(M, K, N)());
 }
 
-TEST_F(PerformanceTester, matmul_32x16x32) {
-  int M = 32;
-  int K = 16;
-  int N = 32;
+TEST_F(PerformanceTester, Matmul) {
+  int M = 1;
+  int K = 2048;
+  int N = 1000;
+  SetOptionFlags(7UL);
   BuildAndRun(repeat_time, num_tuning_rounds, MatmulProgramBuilder(M, K, N)());
 }
 
+TEST_F(PerformanceTester, Relu) {
+  SetOptionFlags(7UL);
+  BuildAndRun(repeat_time, num_tuning_rounds, ReluProgramBuilder({1, 64, 56, 56})());
+}
+
+TEST_F(PerformanceTester, Conv2d) {
+  std::vector<int32_t> input_shape{1, 3, 224, 224};
+  std::vector<int32_t> weight_shape{64, 3, 7, 7};
+  std::vector<int> strides{2, 2};
+  std::vector<int> paddings{3, 3};
+  std::vector<int> dilations{1, 1};
+  int groups                    = 1;
+  std::string data_format       = "NCHW";
+  std::string padding_algorithm = "EXPLICIT";
+
+  SetOptionFlags(0UL);
+  BuildAndRun(repeat_time,
+              num_tuning_rounds,
+              Conv2dProgramBuilder(
+                  input_shape, weight_shape, strides, paddings, dilations, groups, data_format, padding_algorithm)());
+}
+
+TEST_F(PerformanceTester, Pool2d) {
+  std::vector<int32_t> input_shape{1, 64, 112, 112};
+  std::string pooling_type = "max";
+  std::vector<int> ksize{3, 3};
+  std::vector<int> strides{2, 2};
+  std::vector<int> paddings{1, 1};
+  bool ceil_mode                = false;
+  bool exclusive                = true;
+  bool global_pooling           = false;
+  std::string data_format       = "NCHW";
+  bool adaptive                 = false;
+  std::string padding_algorithm = "EXPLICIT";
+
+  SetOptionFlags(0UL);
+  BuildAndRun(repeat_time,
+              num_tuning_rounds,
+              Pool2dProgramBuilder(input_shape,
+                                   pooling_type,
+                                   ksize,
+                                   strides,
+                                   paddings,
+                                   ceil_mode,
+                                   exclusive,
+                                   global_pooling,
+                                   data_format,
+                                   adaptive,
+                                   padding_algorithm)());
+}
+
+TEST_F(PerformanceTester, BatchNorm) {
+  std::vector<int32_t> input_shape{1, 64, 112, 112};
+  std::vector<int32_t> scale_shape{64};
+  std::vector<int32_t> bias_shape{64};
+  std::vector<int32_t> mean_shape{64};
+  std::vector<int32_t> variance_shape{64};
+  float epsilon                  = 1e-5f;
+  float momentum                 = 0.9f;
+  const std::string& data_layout = "NCHW";
+  bool is_test                   = true;
+
+  SetOptionFlags(7UL);
+  BuildAndRun(
+      repeat_time,
+      num_tuning_rounds,
+      BatchNormProgramBuilder(
+          input_shape, scale_shape, bias_shape, mean_shape, variance_shape, epsilon, momentum, data_layout, is_test)());
+}
+
+TEST_F(PerformanceTester, Reshape) {
+  std::vector<int32_t> input_shape{1, 2048, 1, 1};
+  std::vector<int32_t> output_shape{1, 2048};
+
+  SetOptionFlags(7UL);
+  BuildAndRun(repeat_time, num_tuning_rounds, ReshapeProgramBuilder(input_shape, output_shape)());
+}
+
+TEST_F(PerformanceTester, Softmax) {
+  std::vector<int32_t> input_shape{1, 1000};
+  int axis                = -1;
+  std::string data_format = "AnyLayout";
+
+  SetOptionFlags(0UL);
+  BuildAndRun(repeat_time, num_tuning_rounds, SoftmaxProgramBuilder(input_shape, axis, data_format)());
+}
+
+TEST_F(PerformanceTester, Scale) {
+  std::vector<int32_t> input_shape{1, 1000};
+  float scale           = 1.0f;
+  float bias            = 0.0f;
+  bool bias_after_scale = true;
+
+  SetOptionFlags(7UL);
+  BuildAndRun(repeat_time, num_tuning_rounds, ScaleProgramBuilder(input_shape, scale, bias, bias_after_scale)());
+}
+
+// paddle model test
 TEST_F(PerformanceTester, ResNet50) {
   std::vector<std::string> input_names       = {"inputs"};
   std::vector<std::vector<int>> input_shapes = {{1, 3, 224, 224}};
