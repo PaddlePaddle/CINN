@@ -27,7 +27,7 @@
 #include "cinn/hlir/framework/tensor.h"
 
 namespace cinn::frontend::paddle {
-namespace framework_proto = ::paddle::framework::proto;
+namespace framework_proto = ::cinn::frontend::paddle::proto;
 
 // Read a model and files of parameters in pb format.
 void LoadModelPb(const std::string& model_dir,

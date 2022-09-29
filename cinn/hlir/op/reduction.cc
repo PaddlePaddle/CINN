@@ -262,6 +262,9 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
             LOG(FATAL) << "Unkown Reduce Type!";
           }
         }
+      } else {
+        std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
+        *ret = CINNValuePack{res};
       }
     } else {
       CHECK_GE(arg_pack.size(), 2UL);

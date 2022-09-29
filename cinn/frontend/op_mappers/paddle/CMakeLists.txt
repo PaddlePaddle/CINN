@@ -15,4 +15,9 @@ gather_srcs(cinnapi_src SRCS
     transpose.cc
     reshape.cc
     tanh.cc
-    matmul.cc)
+    matmul.cc
+    compare.cc
+    log.cc
+    concat.cc
+    constant.cc
+    where.cc)
