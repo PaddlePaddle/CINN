@@ -21,6 +21,7 @@
 #include <ios>
 #include <list>
 #include <set>
+#include <string>
 #include <vector>
 
 #include "cinn/utils/string.h"
@@ -48,6 +49,15 @@ TEST(Functional, Flatten) {
   ASSERT_EQ(flatten_v.size(), 10);
   ASSERT_TRUE(
       absl::c_equal(flatten_v, std::vector<bool>{true, false, true, false, true, false, false, true, true, false}));
+
+  std::vector<std::vector<std::vector<std::string>>> str{{{"true", "false"}, {"true", "false", "true", "false"}},
+                                                         {{"false"}, {"true", "true", "false"}}};
+  auto flatten_str = Flatten(str);
+  LOG(INFO) << utils::Join(flatten_str, ", ");
+  ASSERT_EQ(flatten_str.size(), 10);
+  ASSERT_TRUE(absl::c_equal(
+      flatten_str,
+      std::vector<std::string>{"true", "false", "true", "false", "true", "false", "false", "true", "true", "false"}));
 
   std::list<std::set<std::vector<float>>> a{{{1, 2, 3}, {1, 2, 3, 4, 5, 6}}, {{1, 2.2f, 3}, {1, 2, 3.3f, 4.5f}}};
   auto flatten_a = Flatten(a);

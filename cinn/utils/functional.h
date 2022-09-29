@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <ostream>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -69,32 +70,31 @@ template <typename T, typename = absl::void_t<>>
 struct HasRange : std::false_type {};
 
 template <typename T>
-struct HasRange<T, absl::void_t<decltype(std::declval<T &>().begin()), decltype(std::declval<T &>().end())>>
+struct HasRange<T, absl::void_t<decltype(*std::declval<T &>().begin()), decltype(*std::declval<T &>().end())>>
     : std::true_type {};
 
 template <typename T>
-std::vector<T> InnerFlatten(const absl::optional<T> &e, std::false_type) {
+std::vector<T> InnerFlatten(const absl::optional<std::reference_wrapper<const T>> &e, std::false_type) {
   if (e) {
-    return {*e};
+    return {e->get()};
   } else {
     return std::vector<T>{};
   }
 }
 
-template <typename T>
-auto InnerFlatten(const absl::optional<T> &c, std::true_type) {
-  using E               = typename T::value_type;
-  absl::optional<E> val = absl::nullopt;
-  if (c && !c->empty()) {
-    val = static_cast<E>(*c->begin());
+template <typename T, typename E = std::decay_t<decltype(*std::declval<const T>().begin())>>
+auto InnerFlatten(const absl::optional<std::reference_wrapper<const T>> &c, std::true_type) {
+  absl::optional<std::reference_wrapper<const E>> val;
+  if (c && !c->get().empty()) {
+    val = *(c->get().begin());
   }
 
   auto res = InnerFlatten(val, HasRange<E>{});
 
   if (val) {
-    auto it = ++c->begin();
-    while (it != c->end()) {
-      val      = static_cast<E>(*it);
+    auto it = ++(c->get().begin());
+    while (it != c->get().end()) {
+      val      = *it;
       auto tmp = InnerFlatten(val, HasRange<E>{});
       res.insert(res.end(), tmp.begin(), tmp.end());
       ++it;
@@ -103,9 +103,16 @@ auto InnerFlatten(const absl::optional<T> &c, std::true_type) {
   return res;
 }
 
+std::vector<bool> InnerFlatten(const absl::optional<std::reference_wrapper<const std::vector<bool>>> &c,
+                               std::true_type);
+
+std::vector<std::string> InnerFlatten(const absl::optional<std::reference_wrapper<const std::string>> &c,
+                                      std::true_type);
+
 template <typename T>
 auto Flatten(const T &v) {
-  return InnerFlatten(absl::make_optional(v), HasRange<T>{});
+  absl::optional<std::reference_wrapper<const T>> w = v;
+  return InnerFlatten(w, HasRange<T>{});
 }
 
 }  // namespace utils
