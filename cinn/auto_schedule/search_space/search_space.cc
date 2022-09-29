@@ -57,7 +57,7 @@ std::vector<SearchState> SearchSpace::GetRandomInitialSketch(int num) {
 
   std::vector<SearchState> result;
   while (result.size() < num) {
-    SearchState state = _SearchState_::Make(init_rules, init_schedule);
+    SearchState state = _SearchState_::Make(init_schedule, _SearchState_::NOT_INIT_COST, init_rules);
     for (int i = 0; i < init_sketch_random_depth_; ++i) {
       VLOG(5) << "Generating random sketch at depth: " << i;
       state = RandomScheduleMutate(state);

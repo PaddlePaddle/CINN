@@ -38,18 +38,20 @@ class SearchState : public common::Shared<_SearchState_> {
 
 //! Class to store immediate states during search
 struct _SearchState_ : public common::Object {
-  // The rules that can be applied to the IRSchedule at this state.
-  std::vector<AutoGenRule*> applicable_rules;
   // IRSchedule contains ir::ModuleExpr and trace scheduling process
   ir::IRSchedule ir_schedule;
   // Cost model predicted cost
   float predicted_cost = NOT_INIT_COST;
+  // The rules that can be applied to the IRSchedule at this state.
+  std::vector<AutoGenRule*> applicable_rules;
 
   // return detail string of a SearchState for debug;
   std::string DebugString() const;
 
   // create a new _SearchState_
-  static SearchState Make(const std::vector<AutoGenRule*>& rules, ir::IRSchedule ir_sch);
+  static SearchState Make(ir::IRSchedule ir_sch,
+                          float cost                             = NOT_INIT_COST,
+                          const std::vector<AutoGenRule*>& rules = {});
   // Constant standing for a cost not being initialized
   static constexpr float NOT_INIT_COST = std::numeric_limits<float>::max();
 

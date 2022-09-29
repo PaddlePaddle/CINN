@@ -56,16 +56,19 @@ std::unique_ptr<Database> Database::Make(const DatabaseConfig& config) {
   return nullptr;
 }
 
-bool Database::AddRecord(TuningRecord&& record) {
-  CHECK(!record.task_key.empty()) << "task_key of TuningRecord can't be empty";
-  Commit(record);
-
+void Database::Insert(const TuningRecord record) {
   auto& records = key2record_[record.task_key];
-  records.emplace(std::move(record));
+  records.emplace(record);
   if (records.size() > capacity_per_task_) {
     records.erase(std::prev(records.end()));
   }
-  return true;
+}
+
+bool Database::AddRecord(const TuningRecord& record) {
+  CHECK(!record.task_key.empty()) << "task_key of TuningRecord can't be empty";
+
+  Insert(record);
+  return Commit(record);
 }
 
 std::vector<TuningRecord> Database::LookUp(const std::string& task_key) {
