@@ -209,37 +209,36 @@ class PerformanceTester : public ::testing::Test {
 
 const int repeat_time       = 100;
 const int num_tuning_rounds = 1;
-
-TEST_F(PerformanceTester, Add) {
-  int M = 32;
-  int N = 16;
-  SetOptionFlags(7UL);
-  BuildAndRun(repeat_time, num_tuning_rounds, AddProgramBuilder(M, N)());
-}
+const int batch_size        = 1;
 
 TEST_F(PerformanceTester, Mul) {
   int M = 32;
   int K = 16;
   int N = 32;
   SetOptionFlags(7UL);
-  BuildAndRun(repeat_time, num_tuning_rounds, MulProgramBuilder(M, K, N)());
+  BuildAndRun(repeat_time, num_tuning_rounds, MulProgramBuilder({M, K}, {N, K})());
+}
+
+TEST_F(PerformanceTester, Add) {
+  SetOptionFlags(7UL);
+  BuildAndRun(repeat_time, num_tuning_rounds, AddProgramBuilder({1, 56, 56, 256}, {1, 56, 56, 256})());
 }
 
 TEST_F(PerformanceTester, Matmul) {
-  int M = 1;
+  int M = batch_size;
   int K = 2048;
   int N = 1000;
   SetOptionFlags(7UL);
-  BuildAndRun(repeat_time, num_tuning_rounds, MatmulProgramBuilder(M, K, N)());
+  BuildAndRun(repeat_time, num_tuning_rounds, MatmulProgramBuilder({M, K}, {K, N})());
 }
 
 TEST_F(PerformanceTester, Relu) {
   SetOptionFlags(7UL);
-  BuildAndRun(repeat_time, num_tuning_rounds, ReluProgramBuilder({1, 64, 56, 56})());
+  BuildAndRun(repeat_time, num_tuning_rounds, ReluProgramBuilder({batch_size, 64, 56, 56})());
 }
 
 TEST_F(PerformanceTester, Conv2d) {
-  std::vector<int32_t> input_shape{1, 3, 224, 224};
+  std::vector<int32_t> input_shape{batch_size, 3, 224, 224};
   std::vector<int32_t> weight_shape{64, 3, 7, 7};
   std::vector<int> strides{2, 2};
   std::vector<int> paddings{3, 3};
@@ -256,7 +255,7 @@ TEST_F(PerformanceTester, Conv2d) {
 }
 
 TEST_F(PerformanceTester, Pool2d) {
-  std::vector<int32_t> input_shape{1, 64, 112, 112};
+  std::vector<int32_t> input_shape{batch_size, 64, 112, 112};
   std::string pooling_type = "max";
   std::vector<int> ksize{3, 3};
   std::vector<int> strides{2, 2};
@@ -285,7 +284,7 @@ TEST_F(PerformanceTester, Pool2d) {
 }
 
 TEST_F(PerformanceTester, BatchNorm) {
-  std::vector<int32_t> input_shape{1, 64, 112, 112};
+  std::vector<int32_t> input_shape{batch_size, 64, 112, 112};
   std::vector<int32_t> scale_shape{64};
   std::vector<int32_t> bias_shape{64};
   std::vector<int32_t> mean_shape{64};
@@ -304,15 +303,15 @@ TEST_F(PerformanceTester, BatchNorm) {
 }
 
 TEST_F(PerformanceTester, Reshape) {
-  std::vector<int32_t> input_shape{1, 2048, 1, 1};
-  std::vector<int32_t> output_shape{1, 2048};
+  std::vector<int32_t> input_shape{batch_size, 2048, 1, 1};
+  std::vector<int32_t> output_shape{batch_size, 2048};
 
   SetOptionFlags(7UL);
   BuildAndRun(repeat_time, num_tuning_rounds, ReshapeProgramBuilder(input_shape, output_shape)());
 }
 
 TEST_F(PerformanceTester, Softmax) {
-  std::vector<int32_t> input_shape{1, 1000};
+  std::vector<int32_t> input_shape{batch_size, 1000};
   int axis                = -1;
   std::string data_format = "AnyLayout";
 
@@ -321,7 +320,7 @@ TEST_F(PerformanceTester, Softmax) {
 }
 
 TEST_F(PerformanceTester, Scale) {
-  std::vector<int32_t> input_shape{1, 1000};
+  std::vector<int32_t> input_shape{batch_size, 1000};
   float scale           = 1.0f;
   float bias            = 0.0f;
   bool bias_after_scale = true;
@@ -333,7 +332,7 @@ TEST_F(PerformanceTester, Scale) {
 // paddle model test
 TEST_F(PerformanceTester, ResNet50) {
   std::vector<std::string> input_names       = {"inputs"};
-  std::vector<std::vector<int>> input_shapes = {{1, 3, 224, 224}};
+  std::vector<std::vector<int>> input_shapes = {{batch_size, 3, 224, 224}};
   CHECK_NE(FLAGS_resnet50_model_dir, "");
   SetOptionFlags(0UL);
   BuildAndRun(

@@ -22,58 +22,78 @@ namespace auto_schedule {
 
 class AddProgramBuilder : public ProgramCaseBuilder {
  public:
-  AddProgramBuilder(int M, int N) : M_(M), N_(N) {}
+  AddProgramBuilder(const std::vector<int32_t>& input_shape_x, const std::vector<int32_t>& input_shape_y)
+      : input_shape_x_(input_shape_x), input_shape_y_(input_shape_y) {}
 
   frontend::Program operator()() override {
     frontend::NetBuilder builder("add_net_builder");
-    auto x = builder.CreateInput(Float(32), {M_, N_}, "X");
-    auto y = builder.CreateInput(Float(32), {M_, N_}, "Y");
+    auto x = builder.CreateInput(Float(32), input_shape_x_, "X");
+    auto y = builder.CreateInput(Float(32), input_shape_y_, "Y");
 
     auto mul_out = builder.Add(x, y);
     return builder.Build();
   }
 
  private:
-  int M_;
-  int N_;
+  std::vector<int32_t> input_shape_x_;
+  std::vector<int32_t> input_shape_y_;
 };
 
 class MulProgramBuilder : public ProgramCaseBuilder {
  public:
-  MulProgramBuilder(int M, int K, int N) : M_(M), K_(K), N_(N) {}
+  MulProgramBuilder(const std::vector<int32_t>& input_shape_x,
+                    const std::vector<int32_t>& input_shape_y,
+                    int x_num_col_dims = 1,
+                    int y_num_col_dims = 1)
+      : input_shape_x_(input_shape_x),
+        input_shape_y_(input_shape_y),
+        x_num_col_dims_(x_num_col_dims),
+        y_num_col_dims_(y_num_col_dims) {}
 
   frontend::Program operator()() override {
     frontend::NetBuilder builder("mul_net_builder");
-    auto x = builder.CreateInput(Float(32), {M_, K_}, "X");
-    auto y = builder.CreateInput(Float(32), {N_, K_}, "Y");
+    auto x = builder.CreateInput(Float(32), input_shape_x_, "X");
+    auto y = builder.CreateInput(Float(32), input_shape_y_, "Y");
 
-    auto mul_out = builder.Mul(x, y, 1, 1);
+    auto mul_out = builder.Mul(x, y, x_num_col_dims_, y_num_col_dims_);
     return builder.Build();
   }
 
  private:
-  int M_;
-  int K_;
-  int N_;
+  std::vector<int32_t> input_shape_x_;
+  std::vector<int32_t> input_shape_y_;
+  int x_num_col_dims_;
+  int y_num_col_dims_;
 };
 
 class MatmulProgramBuilder : public ProgramCaseBuilder {
  public:
-  MatmulProgramBuilder(int M, int K, int N) : M_(M), K_(K), N_(N) {}
+  MatmulProgramBuilder(const std::vector<int32_t>& input_shape_x,
+                       const std::vector<int32_t>& input_shape_y,
+                       bool trans_x = false,
+                       bool trans_y = false,
+                       float alpha  = 1.0f)
+      : input_shape_x_(input_shape_x),
+        input_shape_y_(input_shape_y),
+        trans_x_(trans_x),
+        trans_y_(trans_y),
+        alpha_(alpha) {}
 
   frontend::Program operator()() override {
     frontend::NetBuilder builder("matmul_net_builder");
-    auto x = builder.CreateInput(Float(32), {M_, K_}, "X");
-    auto y = builder.CreateInput(Float(32), {K_, N_}, "Y");
+    auto x = builder.CreateInput(Float(32), input_shape_x_, "X");
+    auto y = builder.CreateInput(Float(32), input_shape_y_, "Y");
 
-    auto mul_out = builder.Matmul(x, y);
+    auto mul_out = builder.Matmul(x, y, trans_x_, trans_y_, alpha_);
     return builder.Build();
   }
 
  private:
-  int M_;
-  int K_;
-  int N_;
+  std::vector<int32_t> input_shape_x_;
+  std::vector<int32_t> input_shape_y_;
+  bool trans_x_;
+  bool trans_y_;
+  float alpha_;
 };
 
 class ReluProgramBuilder : public ProgramCaseBuilder {
