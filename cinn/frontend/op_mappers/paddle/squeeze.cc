@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cinn/backends/cuda_util.h"
 #include "cinn/frontend/op_mapper_registry.h"
 #include "cinn/frontend/op_mappers/common_utils.h"
 
@@ -55,7 +54,7 @@ void Squeeze2OpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext&
 }  // namespace frontend
 }  // namespace cinn
 
-CINN_REGISTER_HELPER(paddle_squeezes) {
+CINN_REGISTER_HELPER(paddle_squeeze) {
   CINN_REGISTER_OP_MAPPER(squeeze2, cinn::frontend::paddle_mappers::Squeeze2OpMapper)
 
   return true;

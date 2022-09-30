@@ -12,15 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-syntax ="proto3";
+#pragma once
 
-package cinn.auto_schedule.proto;
+#include <string>
+#include <vector>
 
-import "cinn/ir/schedule_desc.proto";
+#include "cinn/ir/ir.h"
+#include "cinn/ir/ir_base.h"
+#include "cinn/ir/tensor.h"
 
-message TuningRecord {
-  string task_key = 1;
-  double execution_cost = 2;
-  double predicted_cost = 3;
-  cinn.ir.proto.ScheduleDesc trace = 4;
-}
+namespace cinn {
+namespace hlir {
+namespace op {
+
+ir::Tensor OneHot(const ir::Tensor& indices,
+                  const ir::Tensor& on_value,
+                  const ir::Tensor& off_value,
+                  const int depth,
+                  const int axis,
+                  const Type& dtype,
+                  const std::string& output_name);
+
+}  // namespace op
+}  // namespace hlir
+}  // namespace cinn

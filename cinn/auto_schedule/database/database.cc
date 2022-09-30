@@ -18,7 +18,10 @@
 #include <google/protobuf/text_format.h>
 #include <google/protobuf/util/json_util.h>
 
+#include "cinn/auto_schedule/database/jsonfile_database.h"
+#include "cinn/auto_schedule/task/task_registry.h"
 #include "cinn/ir/ir_schedule.h"
+#include "cinn/ir/schedule_desc.h"
 
 namespace cinn {
 namespace auto_schedule {
@@ -31,6 +34,9 @@ proto::TuningRecord TuningRecord::ToProto() const {
   proto::TuningRecord record_proto;
   record_proto.set_task_key(task_key);
   record_proto.set_execution_cost(execution_cost);
+  record_proto.set_predicted_cost(state.predicted_cost);
+  auto trace_proto = state.ir_schedule.GetTraceDesc().ToProto();
+  record_proto.mutable_trace()->Swap(&trace_proto);
 
   return record_proto;
 }
@@ -39,12 +45,23 @@ Database::Database(int capacity_per_task) : capacity_per_task_(capacity_per_task
   CHECK_GT(capacity_per_task_, 0) << "capacity_per_task_ should be greater than 0";
 }
 
+std::unique_ptr<Database> Database::Make(const DatabaseConfig& config) {
+  if (config.type == DatabaseType::kMemory) {
+    return std::make_unique<Database>(config.capacity_per_task);
+  } else if (config.type == DatabaseType::kJSONFile) {
+    return std::make_unique<JSONFileDatabase>(config.capacity_per_task, config.record_file_path, true);
+  }
+
+  LOG(FATAL) << "Unimplementd database type.";
+  return nullptr;
+}
+
 bool Database::AddRecord(TuningRecord&& record) {
   CHECK(!record.task_key.empty()) << "task_key of TuningRecord can't be empty";
   Commit(record);
 
   auto& records = key2record_[record.task_key];
-  records.emplace(record);
+  records.emplace(std::move(record));
   if (records.size() > capacity_per_task_) {
     records.erase(std::prev(records.end()));
   }

@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <functional>
 #include <limits>
 #include <memory>
 #include <unordered_set>
@@ -46,6 +47,9 @@ class SearchState {
   // Constant standing for a cost not being initialized
   static constexpr float NOT_INIT_COST = std::numeric_limits<float>::max();
 
+  // return detail string of a SearchState for debug;
+  std::string DebugString() const;
+
   SearchState() = default;
 
   SearchState(const ir::ModuleExpr& mod_expr);
@@ -57,6 +61,8 @@ class SearchState {
   SearchState(SearchState&& state) = default;
 
   SearchState& operator=(const SearchState& src);
+
+  SearchState& operator=(SearchState&& src) = default;
 
   friend bool operator<(const SearchState& left, const SearchState& right);
 

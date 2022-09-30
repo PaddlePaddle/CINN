@@ -20,37 +20,49 @@
 #include <vector>
 
 #include "cinn/auto_schedule/search_space/search_state.h"
+#include "cinn/auto_schedule/task/task_registry.h"
 #include "cinn/ir/ir_schedule.h"
+#include "cinn/optim/ir_copy.h"
 
 namespace cinn {
 namespace auto_schedule {
 
-void AddTestRecords(JSONFileDatabase& test_db) {
-  test_db.AddRecord(TuningRecord("k1", 1.0, SearchState(ir::ModuleExpr())));
-  test_db.AddRecord(TuningRecord("k2", 2.0, SearchState(ir::ModuleExpr())));
-  test_db.AddRecord(TuningRecord("k2", 3.0, SearchState(ir::ModuleExpr())));
-  test_db.AddRecord(TuningRecord("k3", 3.0, SearchState(ir::ModuleExpr())));
-  test_db.AddRecord(TuningRecord("k3", 4.0, SearchState(ir::ModuleExpr())));
-  test_db.AddRecord(TuningRecord("k3", 5.0, SearchState(ir::ModuleExpr())));
-  test_db.AddRecord(TuningRecord("k4", 4.0, SearchState(ir::ModuleExpr())));
+// Return lowerd ir AST for example functions used in this test
+std::vector<ir::LoweredFunc> LowerCompute(const std::vector<int>& shape, const Target& target) {
+  CHECK(shape.size() == 2) << "shape should be 2";
+  std::vector<Expr> domain;
+  for (auto i = 0; i < shape.size(); ++i) {
+    domain.emplace_back(shape[i]);
+  }
 
-  SearchState state1(std::move(ir::ModuleExpr()));
-  SearchState state2(std::move(ir::ModuleExpr()));
-  state1.predicted_cost = 1.2;
-  state2.predicted_cost = 1.0;
-  test_db.AddRecord(TuningRecord("k4", 2.0, state1));
-  test_db.AddRecord(TuningRecord("k4", 3.0, state2));
+  Placeholder<float> A("A", domain);
+  ir::Tensor B, C;
+
+  B = Compute(
+      domain, [&A](Var i, Var j) { return A(i, j); }, "B");
+  C = Compute(
+      domain, [&B](Var i, Var j) { return B(i, j); }, "C");
+
+  return cinn::lang::LowerVec("test_func", CreateStages({A, B}), {A, B}, {}, {}, nullptr, target, true);
+}
+
+// Create a new IRSchedule with copied ir::LoweredFunc AST
+ir::IRSchedule MakeIRSchedule(const std::vector<ir::LoweredFunc>& lowered_funcs, const std::string& task_key) {
+  std::vector<Expr> exprs;
+  for (auto&& func : lowered_funcs) {
+    exprs.emplace_back(optim::IRCopy(func->body));
+  }
+  InitialTaskRegistry* task_registry = InitialTaskRegistry::Global();
+  task_registry->Regist(task_key, ir::ModuleExpr(exprs));
+
+  return ir::IRSchedule(ir::ModuleExpr(exprs));
 }
 
 class TestJSONFileDatabase : public ::testing::Test {
  public:
-  TestJSONFileDatabase() : record_file_path("/tmp/test_record.json"), test_db(2, record_file_path, true) {
-    if (0 == test_db.Size()) {
-      AddTestRecords(test_db);
-    }
-  }
+  TestJSONFileDatabase() : record_file_path("/tmp/test_record.json"), test_db(2, record_file_path, true) {}
 
-  void SetUp() override {}
+  void SetUp() override { lowered_funcs = LowerCompute({32, 32}, target); }
 
   void TearDown() override {
     auto isFileExists = [](const std::string& file_path) -> bool {
@@ -70,34 +82,63 @@ class TestJSONFileDatabase : public ::testing::Test {
 
   std::string record_file_path;
   JSONFileDatabase test_db;
+  std::vector<ir::LoweredFunc> lowered_funcs;
+  Target target = common::DefaultHostTarget();
 };
 
-TEST_F(TestJSONFileDatabase, SerializeAndDeserialize) {
-  TuningRecord record1("test", 1.0, SearchState(ir::ModuleExpr()));
-  std::string str = test_db.RecordToJSON(record1);
-  EXPECT_EQ(str, "{\"taskKey\":\"test\",\"executionCost\":1}");
+TEST_F(TestJSONFileDatabase, Serialize) {
+  ir::IRSchedule ir_sch = MakeIRSchedule(lowered_funcs, "test");
+  auto fused            = ir_sch.Fuse("B", {0, 1});
+  VLOG(3) << "after Fuse, Expr: " << fused;
 
-  TuningRecord record2 = test_db.JSONToRecord(str);
-  EXPECT_EQ(record1.task_key, record2.task_key);
-  EXPECT_EQ(record1.execution_cost, record2.execution_cost);
+  TuningRecord record1("test", 1.0, 2.0, std::move(ir_sch));
+  std::string str = test_db.RecordToJSON(record1);
+  VLOG(3) << "RecordToJSON: " << str;
+  // Because the serialization of protobuf does not guarantee the order, we give all possible results.
+  std::string case1 =
+      "{\"taskKey\":\"test\",\"executionCost\":1,\"predictedCost\":2,\"trace\":{\"steps\":[{\"type\":\"FuseWithName\","
+      "\"outputs\":[\"e0\"],\"attrs\":[{\"name\":\"loops_index\",\"dtype\":\"INTS\",\"ints\":[0,1]},{\"name\":\"block_"
+      "name\",\"dtype\":\"STRING\",\"s\":\"B\"}]}]}}";
+  std::string case2 =
+      "{\"taskKey\":\"test\",\"executionCost\":1,\"predictedCost\":2,\"trace\":{\"steps\":[{\"type\":\"FuseWithName\","
+      "\"outputs\":[\"e0\"],\"attrs\":[{\"name\":\"block_name\",\"dtype\":\"STRING\",\"s\":\"B\"},{\"name\":\"loops_"
+      "index\",\"dtype\":\"INTS\",\"ints\":[0,1]}]}]}}";
+  EXPECT_EQ(true, str == case1 || str == case2);
 }
 
 TEST_F(TestJSONFileDatabase, SaveLoad) {
+  ir::IRSchedule ir_sch1 = MakeIRSchedule(lowered_funcs, "k1");
+  auto fused1            = ir_sch1.Fuse("B", {0, 1});
+  ir::IRSchedule ir_sch2 = MakeIRSchedule(lowered_funcs, "k2");
+
+  test_db.AddRecord(TuningRecord("k1", 1.0, 1.5, std::move(ir_sch1)));
+  test_db.AddRecord(TuningRecord("k2", 3.0, 3.5, std::move(ir_sch2)));
+
   std::vector<std::string> strs = ReadLinesFromFile(record_file_path);
-  ASSERT_EQ(strs.size(), 9);
-  EXPECT_EQ(strs[0], "{\"taskKey\":\"k1\",\"executionCost\":1}");
-  EXPECT_EQ(strs[1], "{\"taskKey\":\"k2\",\"executionCost\":2}");
-  EXPECT_EQ(strs[2], "{\"taskKey\":\"k2\",\"executionCost\":3}");
-  EXPECT_EQ(strs[3], "{\"taskKey\":\"k3\",\"executionCost\":3}");
-  EXPECT_EQ(strs[4], "{\"taskKey\":\"k3\",\"executionCost\":4}");
-  EXPECT_EQ(strs[5], "{\"taskKey\":\"k3\",\"executionCost\":5}");
-  EXPECT_EQ(strs[6], "{\"taskKey\":\"k4\",\"executionCost\":4}");
-  EXPECT_EQ(strs[7], "{\"taskKey\":\"k4\",\"executionCost\":2}");
-  EXPECT_EQ(strs[8], "{\"taskKey\":\"k4\",\"executionCost\":3}");
+  ASSERT_EQ(strs.size(), 2);
+  // Because the serialization of protobuf does not guarantee the order, we give all possible results.
+  std::string case1 =
+      "{\"taskKey\":\"k1\",\"executionCost\":1,\"predictedCost\":1.5,\"trace\":{\"steps\":[{\"type\":\"FuseWithName\","
+      "\"outputs\":[\"e0\"],\"attrs\":[{\"name\":\"loops_index\",\"dtype\":\"INTS\",\"ints\":[0,1]},{\"name\":\"block_"
+      "name\",\"dtype\":\"STRING\",\"s\":\"B\"}]}]}}";
+  std::string case2 =
+      "{\"taskKey\":\"k1\",\"executionCost\":1,\"predictedCost\":1.5,\"trace\":{\"steps\":[{\"type\":\"FuseWithName\","
+      "\"outputs\":[\"e0\"],\"attrs\":[{\"name\":\"block_name\",\"dtype\":\"STRING\",\"s\":\"B\"},{\"name\":\"loops_"
+      "index\",\"dtype\":\"INTS\",\"ints\":[0,1]}]}]}}";
+  EXPECT_EQ(true, strs[0] == case1 || strs[0] == case2);
+  EXPECT_EQ(strs[1], "{\"taskKey\":\"k2\",\"executionCost\":3,\"predictedCost\":3.5,\"trace\":{}}");
 }
 
 TEST_F(TestJSONFileDatabase, Basic) {
-  ASSERT_EQ(test_db.Size(), 7);
+  test_db.AddRecord(TuningRecord("k1", 1.0, 1.0, MakeIRSchedule(lowered_funcs, "k1")));
+  test_db.AddRecord(TuningRecord("k2", 2.0, 1.0, MakeIRSchedule(lowered_funcs, "k2")));
+  test_db.AddRecord(TuningRecord("k2", 3.0, 1.0, MakeIRSchedule(lowered_funcs, "k2")));
+  test_db.AddRecord(TuningRecord("k3", 3.0, 8.0, MakeIRSchedule(lowered_funcs, "k3")));
+  test_db.AddRecord(TuningRecord("k3", 4.0, 7.0, MakeIRSchedule(lowered_funcs, "k3")));
+  test_db.AddRecord(TuningRecord("k3", 5.0, 6.0, MakeIRSchedule(lowered_funcs, "k3")));
+  test_db.AddRecord(TuningRecord("k4", 4.0, 1.0, MakeIRSchedule(lowered_funcs, "k4")));
+
+  ASSERT_EQ(test_db.Size(), 6);
   auto records = test_db.LookUp("k3");
   // check the max number of stored candidates will
   // be restricted to capacity_per_task
@@ -108,13 +149,57 @@ TEST_F(TestJSONFileDatabase, Basic) {
 }
 
 TEST_F(TestJSONFileDatabase, GetTopK) {
-  ASSERT_TRUE(test_db.GetTopK("k5", 2).empty());
+  test_db.AddRecord(TuningRecord("k1", 1.0, 1.0, MakeIRSchedule(lowered_funcs, "k1")));
+  test_db.AddRecord(TuningRecord("k2", 2.0, 1.0, MakeIRSchedule(lowered_funcs, "k2")));
+  test_db.AddRecord(TuningRecord("k2", 3.0, 1.0, MakeIRSchedule(lowered_funcs, "k2")));
+  test_db.AddRecord(TuningRecord("k3", 3.0, 1.0, MakeIRSchedule(lowered_funcs, "k3")));
+  test_db.AddRecord(TuningRecord("k3", 4.0, 1.0, MakeIRSchedule(lowered_funcs, "k3")));
+  test_db.AddRecord(TuningRecord("k3", 5.0, 1.0, MakeIRSchedule(lowered_funcs, "k3")));
+  test_db.AddRecord(TuningRecord("k4", 4.0, 2.0, MakeIRSchedule(lowered_funcs, "k4")));
+  test_db.AddRecord(TuningRecord("k4", 2.0, 1.2, MakeIRSchedule(lowered_funcs, "k4")));
+  test_db.AddRecord(TuningRecord("k4", 3.0, 1.0, MakeIRSchedule(lowered_funcs, "k4")));
 
   auto states = test_db.GetTopK("k4", 3);
   ASSERT_EQ(states.size(), 2);
-
   EXPECT_FLOAT_EQ(states[0].predicted_cost, 1.2);
-  EXPECT_FLOAT_EQ(states[1].predicted_cost, 1);
+  EXPECT_FLOAT_EQ(states[1].predicted_cost, 1.0);
+}
+
+TEST_F(TestJSONFileDatabase, Reload) {
+  ir::IRSchedule ir_sch = MakeIRSchedule(lowered_funcs, "k1");
+  auto fused            = ir_sch.Fuse("B", {0, 1});
+  test_db.AddRecord(TuningRecord("k1", 1.0, 1.0, std::move(ir_sch)));
+  test_db.AddRecord(TuningRecord("k2", 2.0, 1.0, MakeIRSchedule(lowered_funcs, "k2")));
+  auto records = test_db.LookUp("k1");
+  ASSERT_EQ(records.size(), 1);
+
+  JSONFileDatabase new_db(2, record_file_path, false);
+  ASSERT_EQ(new_db.Size(), 2);
+  auto loaded_records = new_db.LookUp("k1");
+  ASSERT_EQ(records.size(), loaded_records.size());
+  EXPECT_EQ(records[0].task_key, loaded_records[0].task_key);
+  EXPECT_EQ(records[0].execution_cost, loaded_records[0].execution_cost);
+  EXPECT_EQ(records[0].state.predicted_cost, loaded_records[0].state.predicted_cost);
+
+  // check the equality of trace info between original TuningRecord and the loaded TuningRecord
+  const auto& lhs_trace = records[0].state.ir_schedule.GetTraceDesc();
+  const auto& rhs_trace = loaded_records[0].state.ir_schedule.GetTraceDesc();
+  std::string lhs, rhs;
+  lhs_trace.ToProto().SerializeToString(&lhs);
+  rhs_trace.ToProto().SerializeToString(&rhs);
+  CHECK_EQ(lhs, rhs);
+
+  // check the equality of module expr between original TuningRecord
+  // and the loaded TuningRecord by replaying with tracing ScheduleDesc
+  auto lhs_exprs = records[0].state.ir_schedule.GetModule().GetExprs();
+  auto rhs_exprs = loaded_records[0].state.ir_schedule.GetModule().GetExprs();
+  ASSERT_EQ(lhs_exprs.size(), rhs_exprs.size());
+  for (auto i = 0; i < lhs_exprs.size(); ++i) {
+    std::string lhs          = utils::GetStreamCnt(lhs_exprs.at(i));
+    std::string rhs          = utils::GetStreamCnt(rhs_exprs.at(i));
+    size_t remove_prefix_len = 28;
+    ASSERT_EQ(lhs.erase(0, remove_prefix_len), rhs.erase(0, remove_prefix_len));
+  }
 }
 
 }  // namespace auto_schedule
