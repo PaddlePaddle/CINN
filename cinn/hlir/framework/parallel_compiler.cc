@@ -36,6 +36,9 @@ namespace framework {
 static constexpr int DebugLogMaxLen = 30000;
 
 std::vector<std::unique_ptr<Instruction>> ParallelCompiler::operator()() {
+  if (!FLAGS_cinn_parallel_compile_size) {
+    return std::vector<std::unique_ptr<Instruction>>();
+  }
   // Task Spilt
   SplitTask();
   // launch task
