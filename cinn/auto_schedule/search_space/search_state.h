@@ -32,7 +32,7 @@ class SearchState : public common::Shared<_SearchState_> {
  public:
   SearchState() = default;
   // create a new SearchState
-  SearchState(ir::IRSchedule ir_sch, float cost = NOT_INIT_COST, const std::vector<AutoGenRule*>& rules = {});
+  explicit SearchState(ir::IRSchedule ir_sch, float cost = NOT_INIT_COST, const std::vector<AutoGenRule*>& rules = {});
 
   // Constant standing for a cost not being initialized
   static constexpr float NOT_INIT_COST = std::numeric_limits<float>::max();
