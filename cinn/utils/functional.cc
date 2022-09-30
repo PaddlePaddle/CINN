@@ -24,28 +24,7 @@ namespace utils {
 
 std::vector<bool> InnerFlatten(const absl::optional<std::reference_wrapper<const std::vector<bool>>> &c,
                                std::true_type) {
-  absl::optional<std::reference_wrapper<const bool>> val;
-  bool bool_val{false};
-  if (c && !c->get().empty()) {
-    // The return type of *(const std::vector<bool>::begin()) is std::_Bit_const_iterator::const_reference,
-    // which can be cast to bool, but cannot be cast to absl::optional<std::reference_wrapper<const bool>>.
-    bool_val = static_cast<bool>(*(c->get().begin()));
-    val      = bool_val;
-  }
-
-  auto res = InnerFlatten(val, HasRange<bool>{});
-
-  if (val) {
-    auto it = ++(c->get().begin());
-    while (it != c->get().end()) {
-      bool_val = static_cast<bool>(*it);
-      val      = bool_val;
-      auto tmp = InnerFlatten(val, HasRange<bool>{});
-      res.insert(res.end(), tmp.begin(), tmp.end());
-      ++it;
-    }
-  }
-  return res;
+  return c->get();
 }
 
 std::vector<std::string> InnerFlatten(const absl::optional<std::reference_wrapper<const std::string>> &c,
