@@ -56,7 +56,7 @@ std::unique_ptr<Database> Database::Make(const DatabaseConfig& config) {
   return nullptr;
 }
 
-void Database::Insert(const TuningRecord record) {
+void Database::Insert(const TuningRecord& record) {
   auto& records = key2record_[record.task_key];
   records.emplace(record);
   if (records.size() > capacity_per_task_) {

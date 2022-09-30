@@ -85,7 +85,7 @@ class Database {
   // commit the newly added record into underlying storage
   virtual bool Commit(const TuningRecord& record) { return true; }
   // insert a newly added record into memory storage
-  void Insert(const TuningRecord record);
+  void Insert(const TuningRecord& record);
 
   // map task_key to its records
   std::unordered_map<std::string, std::multiset<TuningRecord, TuningRecord::Compare>> key2record_;
