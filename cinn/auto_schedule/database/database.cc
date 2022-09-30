@@ -34,8 +34,8 @@ proto::TuningRecord TuningRecord::ToProto() const {
   proto::TuningRecord record_proto;
   record_proto.set_task_key(task_key);
   record_proto.set_execution_cost(execution_cost);
-  record_proto.set_predicted_cost(state.predicted_cost);
-  auto trace_proto = state.ir_schedule.GetTraceDesc().ToProto();
+  record_proto.set_predicted_cost(state->predicted_cost);
+  auto trace_proto = state->ir_schedule.GetTraceDesc().ToProto();
   record_proto.mutable_trace()->Swap(&trace_proto);
 
   return record_proto;
@@ -89,7 +89,7 @@ std::vector<SearchState> Database::GetTopK(const std::string& task_key, int k) {
     return {};
   }
   if (k > capacity_per_task_) {
-    LOG(WARNING) << "Input k:" << k << " is greater than the capacity";
+    LOG(WARNING) << "Top k=" << k << " is greater than the capacity, will adjust k=" << capacity_per_task_;
     k = capacity_per_task_;
   }
 

@@ -27,12 +27,12 @@
 namespace cinn {
 namespace auto_schedule {
 
-SearchState _SearchState_::Make(ir::IRSchedule ir_sch, float cost, const std::vector<AutoGenRule*>& rules) {
-  _SearchState_* state    = common::make_shared<_SearchState_>();
+SearchState::SearchState(ir::IRSchedule ir_sch, float cost, const std::vector<AutoGenRule*>& rules)
+    : common::Shared<_SearchState_>(common::make_shared<_SearchState_>()) {
+  auto* state             = get();
   state->ir_schedule      = std::move(ir_sch);
   state->applicable_rules = rules;
   state->predicted_cost   = cost;
-  return SearchState(state);
 }
 
 std::string _SearchState_::DebugString() const {

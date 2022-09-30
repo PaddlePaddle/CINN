@@ -117,13 +117,10 @@ std::map<std::string, cinn_pod_value_t> SimpleRunner::PrepareArgs(const MeasureI
     // allocate a new buffer for this argument and store it in
     // the temporary scope to be released at proper time.
     auto compiled_tensor = compiled_scope->GetTensor(param);
-    // auto buffer          = AllocBuffer(target, compiled_tensor->type(), compiled_tensor->shape());
+    auto buffer          = AllocBuffer(target, compiled_tensor->type(), compiled_tensor->shape());
     temp_scope->Var<Tensor>(param);
     auto temp_tensor = temp_scope->GetTensor(param);
-    temp_tensor->Resize(Shape(compiled_tensor->shape().data()));
-    temp_tensor->set_type(compiled_tensor->type());
-    temp_tensor->mutable_data(target, temp_tensor->type());
-    // temp_tensor->set_buffer(buffer);
+    temp_tensor->set_buffer(buffer);
     result.emplace(param, temp_tensor->buffer());
   };
 

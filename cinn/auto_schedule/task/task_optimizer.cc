@@ -74,7 +74,7 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
 
     result.lowered_funcs.emplace_back(optim::IRCopy(task_->lowered_funcs));
 
-    std::vector<ir::Expr> best_exprs = states[0].ir_schedule.GetModule().GetExprs();
+    std::vector<ir::Expr> best_exprs = states[0]->ir_schedule.GetModule().GetExprs();
     CHECK_EQ(best_exprs.size(), result.lowered_funcs[0].size())
         << "RuntimeError: Expr size is not equal to LoweredFunc size in TaskOptimizer";
     for (size_t i = 0; i < best_exprs.size(); ++i) {
@@ -98,13 +98,13 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
     std::vector<MeasureInput> measure_inputs(states.size());
     std::vector<const ir::ModuleExpr*> cost_model_samples(states.size());
     for (size_t i = 0; i < states.size(); ++i) {
-      auto debug_str = states[i].DebugString();
+      auto debug_str = states[i]->DebugString();
       VLOG(4) << "State-" << i << " hash:" << std::hash<std::string>()(debug_str);
       VLOG(5) << "****** State-" << i << " Detail ******" << debug_str;
 
-      cost_model_samples[i]            = &(states[i].ir_schedule.GetModule());
+      cost_model_samples[i]            = &(states[i]->ir_schedule.GetModule());
       measure_inputs[i].task           = task_;
-      std::vector<ir::Expr> best_exprs = states[i].ir_schedule.GetModule().GetExprs();
+      std::vector<ir::Expr> best_exprs = states[i]->ir_schedule.GetModule().GetExprs();
       CHECK_EQ(best_exprs.size(), task_->lowered_funcs.size())
           << "RuntimeError: Expr size is not equal to LoweredFunc size in TaskOptimizer";
 
@@ -121,16 +121,10 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
     std::vector<MeasureResult> measure_outputs = schedule_measurer_->Measure(measure_inputs);
     CHECK_EQ(measure_outputs.size(), states.size())
         << "ScheduleMeasurer didn't output same number of MeasureOutput of states in TaskOptimizer";
-
+    // record to database
     for (size_t i = 0; i < states.size(); ++i) {
-      std::string task_key       = measure_inputs[i].task->serialized_key;
-      double execution_cost      = measure_outputs[i].execution_cost;
-      double predicted_cost      = states[i].predicted_cost;
-      ir::ModuleExpr module_expr = optim::IRCopy(states[i].ir_schedule.GetModule());
-      ir::ScheduleDesc trace     = states[i].ir_schedule.GetTraceDesc();
-
-      database_->AddRecord(TuningRecord(
-          task_key, execution_cost, predicted_cost, ir::IRSchedule(std::move(module_expr), std::move(trace))));
+      database_->AddRecord(
+          TuningRecord(measure_inputs[i].task->serialized_key, measure_outputs[i].execution_cost, states[i]));
     }
 
     std::vector<float> cost_model_labels(states.size());

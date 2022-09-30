@@ -72,8 +72,9 @@ JSONFileDatabase::JSONFileDatabase(int capacity_per_task, const std::string& rec
     if (task_registry->Has(task_key)) {
       ir::IRSchedule ir_sch(optim::IRCopy(task_registry->Get(task_key)->module_expr));
       ir::ScheduleDesc::ReplayWithProto(record_proto.trace(), &ir_sch);
-      Insert(
-          TuningRecord(record_proto.task_key(), record_proto.execution_cost(), _SearchState_::Make(std::move(ir_sch))));
+      Insert(TuningRecord(record_proto.task_key(),
+                          record_proto.execution_cost(),
+                          SearchState(std::move(ir_sch), record_proto.predicted_cost())));
     }
   }
 }

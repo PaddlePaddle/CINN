@@ -31,8 +31,12 @@ struct _SearchState_;
 class SearchState : public common::Shared<_SearchState_> {
  public:
   SearchState() = default;
-  explicit SearchState(_SearchState_* s) : common::Shared<_SearchState_>(s) {}
+  // create a new SearchState
+  SearchState(ir::IRSchedule ir_sch, float cost = NOT_INIT_COST, const std::vector<AutoGenRule*>& rules = {});
 
+  // Constant standing for a cost not being initialized
+  static constexpr float NOT_INIT_COST = std::numeric_limits<float>::max();
+  // compare function for two states
   friend bool operator<(const SearchState& left, const SearchState& right);
 };
 
@@ -41,19 +45,12 @@ struct _SearchState_ : public common::Object {
   // IRSchedule contains ir::ModuleExpr and trace scheduling process
   ir::IRSchedule ir_schedule;
   // Cost model predicted cost
-  float predicted_cost = NOT_INIT_COST;
+  float predicted_cost;
   // The rules that can be applied to the IRSchedule at this state.
   std::vector<AutoGenRule*> applicable_rules;
 
-  // return detail string of a SearchState for debug;
+  // return detail string of content for debug;
   std::string DebugString() const;
-
-  // create a new _SearchState_
-  static SearchState Make(ir::IRSchedule ir_sch,
-                          float cost                             = NOT_INIT_COST,
-                          const std::vector<AutoGenRule*>& rules = {});
-  // Constant standing for a cost not being initialized
-  static constexpr float NOT_INIT_COST = std::numeric_limits<float>::max();
 
   const char* type_info() const override { return __type_info__; }
   static constexpr char* __type_info__ = "auto_schedule_state";

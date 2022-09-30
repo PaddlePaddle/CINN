@@ -28,7 +28,7 @@ namespace auto_schedule {
 class TestDatabase : public ::testing::Test {
  public:
   TestDatabase() : test_db(2) {
-    auto state = _SearchState_::Make(ir::IRSchedule());
+    auto state = SearchState(ir::IRSchedule());
     test_db.AddRecord(TuningRecord("k1", 1.0, state));
     test_db.AddRecord(TuningRecord("k2", 2.0, state));
     test_db.AddRecord(TuningRecord("k2", 3.0, state));
@@ -57,8 +57,8 @@ TEST_F(TestDatabase, GetTopK) {
   ASSERT_TRUE(test_db.GetTopK("k5", 2).empty());
   ASSERT_EQ(test_db.GetTopK("k4", 3).size(), 1);
 
-  test_db.AddRecord(TuningRecord("k4", 2.0, _SearchState_::Make(ir::IRSchedule(), 1.2)));
-  test_db.AddRecord(TuningRecord("k4", 3.0, _SearchState_::Make(ir::IRSchedule(), 1.0)));
+  test_db.AddRecord(TuningRecord("k4", 2.0, SearchState(ir::IRSchedule(), 1.2)));
+  test_db.AddRecord(TuningRecord("k4", 3.0, SearchState(ir::IRSchedule(), 1.0)));
 
   auto states = test_db.GetTopK("k4", 3);
   ASSERT_EQ(states.size(), 2);

@@ -42,11 +42,6 @@ using ::cinn::hlir::framework::GraphCompiler;
 using ::cinn::hlir::framework::Instruction;
 using ::cinn::hlir::framework::Scope;
 
-class ProgramBuilder {
-  ProgramBuilder();
-  virtual frontend::Program operator()() = 0;
-};
-
 class PerformanceTester {
  public:
   virtual frontend::Program CreateProgram() = 0;
@@ -88,7 +83,7 @@ class PerformanceTester {
       VLOG(3) << "Start initialize graph.";
       auto program = CreateProgram();
       graph_       = std::make_shared<hlir::framework::Graph>(program, target_);
-      // hlir::framework::ApplyPass(graph_.get(), "InferShape");
+      hlir::framework::ApplyPass(graph_.get(), "InferShape");
       is_graph_initialized_ = true;
       VLOG(3) << "Initialize graph completed.";
     }
@@ -164,7 +159,7 @@ class PerformanceTester {
     manual_schedule_program_ = graph_compiler_->Build();
 
     VLOG(3) << "===========================Manual Schedule LoweredFunc Begin===========================";
-    // graph_compiler_->PrintFunc();
+    graph_compiler_->PrintFunc();
     VLOG(3) << "===========================Manual Schedule LoweredFunc End=============================";
   }
 
@@ -328,7 +323,7 @@ TEST(MatmulPerformanceTest, matmul_32x16x32) {
   int K                  = 16;
   int N                  = 32;
   MatmulPerformanceTester tester(M, K, N);
-  // tester.SetOptionFlags(5UL);
+  tester.SetOptionFlags(5UL);
   tester.BuildAndRun(repeat_time, num_tuning_rounds);
 }
 
@@ -338,7 +333,7 @@ TEST(MulPerformanceTest, mul_32x16x32) {
   int K                  = 16;
   int N                  = 32;
   MulPerformanceTester tester(M, K, N);
-  // tester.SetOptionFlags(5UL);
+  tester.SetOptionFlags(5UL);
   tester.BuildAndRun(repeat_time, num_tuning_rounds);
 }
 
@@ -347,7 +342,7 @@ TEST(AddPerformanceTest, add_32x16) {
   int M                  = 32;
   int N                  = 16;
   AddPerformanceTester tester(M, N);
-  // tester.SetOptionFlags(5UL);
+  tester.SetOptionFlags(5UL);
   tester.BuildAndRun(repeat_time, num_tuning_rounds);
 }
 
@@ -359,7 +354,7 @@ TEST(PaddleModelPerformanceTester, ResNet50) {
   CHECK_NE(FLAGS_resnet50_model_dir, "");
   // ResNet50 can only run manual schedule test now.
   PaddleModelPerformanceTester tester(FLAGS_resnet50_model_dir, input_names, input_shapes);
-  tester.SetOptionFlags(4UL);
+  tester.SetOptionFlags(0UL);
   tester.BuildAndRun(repeat_time, num_tuning_rounds);
 }
 
