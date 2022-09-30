@@ -20,4 +20,5 @@ gather_srcs(cinnapi_src SRCS
     log.cc
     concat.cc
     constant.cc
-    where.cc)
+    where.cc
+    squeeze.cc)
