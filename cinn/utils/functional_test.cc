@@ -29,12 +29,49 @@
 namespace cinn {
 namespace utils {
 
+TEST(Functional, IsVector) {
+  static_assert(!IsVector<int>::value, "int is not a vector");
+  static_assert(!IsVector<std::string>::value, "string is not a vector");
+  static_assert(!IsVector<const std::string *>::value, "const string* is not a vector");
+  static_assert(!IsVector<std::list<bool>>::value, "list<float> is not a vector");
+  static_assert(!IsVector<const std::list<float> &>::value, "const list<float>& is not a vector");
+  static_assert(!IsVector<std::set<bool>>::value, "set<double> is not a vector");
+  static_assert(!IsVector<std::set<double> *>::value, "set<double>* is not a vector");
+
+  static_assert(IsVector<std::vector<float>>::value, "vector<float> is a vector");
+  static_assert(IsVector<std::vector<int> &>::value, "vector<int>& is a vector");
+  static_assert(IsVector<std::vector<bool> *>::value, "vector<bool>* is a vector");
+
+  static_assert(IsVector<const std::vector<float>>::value, "const vector<float> is a vector");
+  static_assert(IsVector<const std::vector<int> &>::value, "const vector<int>& is a vector");
+  static_assert(IsVector<const std::vector<bool> *>::value, "const vector<bool>* is a vector");
+
+  static_assert(IsVector<volatile std::vector<float>>::value, "volatile vector<float> is a vector");
+  static_assert(IsVector<volatile std::vector<int> &>::value, "volatile vector<int>& is a vector");
+  static_assert(IsVector<volatile std::vector<bool> *>::value, "volatile vector<bool>* is a vector");
+
+  static_assert(IsVector<const volatile std::vector<float>>::value, "const volatile vector<float> is a vector");
+  static_assert(IsVector<const volatile std::vector<int> &>::value, "const volatile vector<int>& is a vector");
+  static_assert(IsVector<const volatile std::vector<bool> *>::value, "const volatile vector<bool>* is a vector");
+}
+
 TEST(Functional, Flatten) {
-  double s       = 3.14;
+  double d       = 3.14;
+  auto flatten_d = Flatten(d);
+  LOG(INFO) << utils::Join(flatten_d, ", ");
+  ASSERT_EQ(flatten_d.size(), 1);
+  ASSERT_TRUE(absl::c_equal(flatten_d, std::vector<double>{3.14}));
+
+  std::string s  = "constant";
   auto flatten_s = Flatten(s);
   LOG(INFO) << utils::Join(flatten_s, ", ");
   ASSERT_EQ(flatten_s.size(), 1);
-  ASSERT_TRUE(absl::c_equal(flatten_s, std::vector<double>{3.14}));
+  ASSERT_TRUE(absl::c_equal(flatten_s, std::vector<std::string>{"constant"}));
+  const std::string &sr = s;
+  auto flatten_sr       = Flatten(sr);
+  LOG(INFO) << utils::Join(flatten_sr, ", ");
+  ASSERT_EQ(flatten_sr.size(), 1);
+  ASSERT_TRUE(absl::c_equal(flatten_sr, std::vector<std::string>{"constant"}));
 
   std::vector<std::vector<int>> i{{3, 4, 5}, {7, 8, 9, 10}};
   auto flatten_i = Flatten(i);

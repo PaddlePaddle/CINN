@@ -55,34 +55,34 @@ auto Max(T &&t, Ts &&... ts) {
 }
 
 template <typename T>
-struct is_vector : std::false_type {};
+struct IsVector {
+  template <typename U>
+  static auto infer(U *ptr)
+      -> std::enable_if_t<std::is_same<std::vector<typename U::value_type>, U>::value, std::true_type>;
 
-template <typename... Ts>
-struct is_vector<std::vector<Ts...>> : std::true_type {};
+  template <typename U>
+  static std::false_type infer(...);
 
-template <typename T>
-inline const bool is_vector_f(const T &) {
-  return is_vector<T>::value;
-}
+  static constexpr bool value = decltype(infer<std::decay_t<std::remove_pointer_t<T>>>(nullptr))::value;
+};
 
 template <class T>
-struct is_scalar : std::integral_constant<bool,
-                                          std::is_fundamental<T>::value ||
-                                              std::is_same<std::string, typename std::remove_cv<T>::type>::value> {};
+struct IsString : std::integral_constant<bool, std::is_same<std::string, std::decay_t<T>>::value> {};
 
 template <typename T>
-std::enable_if_t<is_scalar<T>::value, std::vector<T>> Flatten(
+std::enable_if_t<std::is_scalar<T>::value || IsString<T>::value, std::vector<T>> Flatten(
     const absl::optional<std::reference_wrapper<const T>> &c) {
   return c ? std::vector<T>{c->get()} : std::vector<T>{};
 }
 
 template <template <typename...> class C, typename E>
-std::enable_if_t<is_scalar<E>::value, std::vector<E>> Flatten(
-    const absl::optional<std::reference_wrapper<const C<E>>> &c) {
+auto Flatten(const absl::optional<std::reference_wrapper<const C<E>>> &c)
+    -> std::enable_if_t<std::is_scalar<E>::value && !IsString<decltype(c->get())>::value, std::vector<E>> {
   return c ? std::vector<E>(c->get().begin(), c->get().end()) : std::vector<E>{};
 }
 
-template <typename T, typename E = std::decay_t<decltype(*std::declval<const T>().begin())>>
+template <typename T,
+          typename E = std::enable_if_t<!IsString<T>::value, std::decay_t<decltype(*std::declval<const T>().begin())>>>
 auto Flatten(const absl::optional<std::reference_wrapper<const T>> &c) {
   absl::optional<std::reference_wrapper<const E>> val;
   if (c && !c->get().empty()) {

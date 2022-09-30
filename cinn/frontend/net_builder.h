@@ -198,7 +198,7 @@ class NetBuilder {
   }
 
   template <typename T>
-  std::enable_if_t<cinn::utils::is_vector<T>::value, cinn::utils::ShapeType> GetVectorShape(
+  std::enable_if_t<cinn::utils::IsVector<T>::value, cinn::utils::ShapeType> GetVectorShape(
       const std::vector<T>& value) {
     CHECK(!value.empty()) << "The vector should not has empty list! Please check.";
 
@@ -373,7 +373,7 @@ class NetBuilder {
   }
 
   template <typename T>
-  std::enable_if_t<cinn::utils::is_vector<T>::value, Variable> Constant(const T& value, const std::string& name) {
+  std::enable_if_t<cinn::utils::IsVector<T>::value, Variable> Constant(const T& value, const std::string& name) {
     CHECK(!value.empty()) << "The value of Constant should not be None or empty list! Please check.";
 
     // flatten n-dims vector to 1-dim vector
