@@ -36,6 +36,7 @@ std::vector<TuneTask> TaskCreator::CreateTuneTaskOpLevel(Graph* graph) {
   std::vector<TuneTask> ret_tasks;
 
   const std::vector<std::shared_ptr<Graph::Group>>& groups = graph->fusion_groups;
+  VLOG(3) << "Graph fusion_groups size:" << groups.size();
 
   // The input graph has run Op Fusion
   if (!groups.empty()) {

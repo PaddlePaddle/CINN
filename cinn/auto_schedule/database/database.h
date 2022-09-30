@@ -43,15 +43,21 @@ struct TuningRecord {
 
   TuningRecord() = default;
 
-  // initialize a TuningRecord object from a proto object
-  TuningRecord(const proto::TuningRecord& record_proto)
-      : task_key(record_proto.task_key()), execution_cost(record_proto.execution_cost()), state(ir::ModuleExpr()) {}
-
-  TuningRecord(const std::string& task_key, double execution_cost, const SearchState& state)
-      : task_key(task_key), execution_cost(execution_cost), state(state) {}
+  TuningRecord(const std::string& task_key, double execution_cost, double predicted_cost, ir::IRSchedule ir_sch)
+      : task_key(task_key), execution_cost(execution_cost), state(std::move(ir_sch)) {
+    state.predicted_cost = predicted_cost;
+  }
 
   // convert to proto object
   proto::TuningRecord ToProto() const;
+};
+
+enum class DatabaseType : int { kMemory, kJSONFile };
+
+struct DatabaseConfig {
+  DatabaseType type            = DatabaseType::kJSONFile;
+  int capacity_per_task        = 2;
+  std::string record_file_path = "/tmp/tuning_record.json";
 };
 
 // A database supports insert or lookup historial tuning result with sepecified traits.
@@ -62,6 +68,9 @@ class Database {
  public:
   explicit Database(int capacity_per_task);
   ~Database() = default;
+
+  // Create a Database with the specific config
+  static std::unique_ptr<Database> Make(const DatabaseConfig& config);
 
   // add a record into the database
   bool AddRecord(TuningRecord&& record);

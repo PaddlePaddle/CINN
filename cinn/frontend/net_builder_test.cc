@@ -545,7 +545,7 @@ TEST(net_build, program_execute_cast) {
   }
 }
 
-TEST(net_build, program_execute_squeeze_case1) {
+TEST(net_build, program_execute_squeeze_case0) {
   const int B = 4;
   const int C = 1;
   const int H = 7;
@@ -554,6 +554,60 @@ TEST(net_build, program_execute_squeeze_case1) {
   NetBuilder builder("net_builder");
   Placeholder input = builder.CreateInput(Float(32), {B, C, H, W}, "In");
   Variable output   = builder.Squeeze(input, {1});
+  auto program      = builder.Build();
+
+  Target target = common::DefaultHostTarget();
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  auto scope = BuildScope(target, graph);
+  hlir::framework::GraphCompiler gc(target, scope, graph);
+  auto runtime_program = gc.Build();
+
+  scope->Var<hlir::framework::Tensor>(std::string(input.id()));
+  scope->Var<hlir::framework::Tensor>(std::string(output->id));
+
+  auto input_tensor = scope->GetTensor(std::string(input.id()));
+  SetRandData<float>(input_tensor, target);
+  float* input_data = input_tensor->mutable_data<float>(target);
+
+  runtime_program->Execute();
+
+  auto output_tensor                   = scope->GetTensor(std::string(output->id));
+  const std::vector<int>& output_shape = output_tensor->shape().data();
+  EXPECT_EQ(output_shape.size(), 3UL);
+  EXPECT_EQ(output_shape[0], B);
+  EXPECT_EQ(output_shape[1], H);
+  EXPECT_EQ(output_shape[2], W);
+
+  float* output_data = output_tensor->mutable_data<float>(target);
+  VLOG(6) << "Visualize output_data";
+  for (int b = 0; b < B; ++b) {
+    for (int c = 0; c < C; ++c) {
+      VLOG(6) << "b = " << b << ", c = " << c;
+      for (int h = 0; h < H; ++h) {
+        std::string line;
+        for (int w = 0; w < W; ++w) {
+          int index      = w + W * (h + H * (c + C * b));
+          float in_data  = input_data[index];
+          float out_data = output_data[index];
+          line += (std::to_string(out_data) + ", ");
+          EXPECT_EQ(in_data, out_data);
+        }
+        VLOG(6) << line;
+      }
+    }
+  }
+}
+
+TEST(net_build, program_execute_squeeze_case1) {
+  const int B = 4;
+  const int C = 1;
+  const int H = 7;
+  const int W = 1;
+
+  NetBuilder builder("net_builder");
+  Placeholder input = builder.CreateInput(Float(32), {B, C, H, W}, "In");
+  Variable output   = builder.Squeeze(input, {-3});
   auto program      = builder.Build();
 
   Target target = common::DefaultHostTarget();
@@ -653,6 +707,59 @@ TEST(net_build, program_execute_squeeze_case2) {
 }
 
 TEST(net_build, program_execute_squeeze_case3) {
+  const int B = 4;
+  const int C = 1;
+  const int H = 7;
+  const int W = 1;
+
+  NetBuilder builder("net_builder");
+  Placeholder input = builder.CreateInput(Float(32), {B, C, H, W}, "In");
+  Variable output   = builder.Squeeze(input, {1, -1});
+  auto program      = builder.Build();
+
+  Target target = common::DefaultHostTarget();
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  auto scope = BuildScope(target, graph);
+  hlir::framework::GraphCompiler gc(target, scope, graph);
+  auto runtime_program = gc.Build();
+
+  scope->Var<hlir::framework::Tensor>(std::string(input.id()));
+  scope->Var<hlir::framework::Tensor>(std::string(output->id));
+
+  auto input_tensor = scope->GetTensor(std::string(input.id()));
+  SetRandData<float>(input_tensor, target);
+  float* input_data = input_tensor->mutable_data<float>(target);
+
+  runtime_program->Execute();
+
+  auto output_tensor                   = scope->GetTensor(std::string(output->id));
+  const std::vector<int>& output_shape = output_tensor->shape().data();
+  EXPECT_EQ(output_shape.size(), 2UL);
+  EXPECT_EQ(output_shape[0], B);
+  EXPECT_EQ(output_shape[1], H);
+
+  float* output_data = output_tensor->mutable_data<float>(target);
+  VLOG(6) << "Visualize output_data";
+  for (int b = 0; b < B; ++b) {
+    for (int c = 0; c < C; ++c) {
+      VLOG(6) << "b = " << b << ", c = " << c;
+      for (int h = 0; h < H; ++h) {
+        std::string line;
+        for (int w = 0; w < W; ++w) {
+          int index      = w + W * (h + H * (c + C * b));
+          float in_data  = input_data[index];
+          float out_data = output_data[index];
+          line += (std::to_string(out_data) + ", ");
+          EXPECT_EQ(in_data, out_data);
+        }
+        VLOG(6) << line;
+      }
+    }
+  }
+}
+
+TEST(net_build, program_execute_squeeze_case4) {
   const int B = 4;
   const int C = 1;
   const int H = 7;
@@ -1347,6 +1454,101 @@ TEST(net_build, program_execute_repeat_axis_1) {
       float in_data  = input_data[in_index];
       float out_data = output_data[out_index];
       EXPECT_EQ(in_data, out_data);
+    }
+  }
+}
+
+TEST(net_build, program_execute_one_hot) {
+  const int M             = 4;
+  const int N             = 4;
+  const int on_value      = 1;
+  const int off_value     = 0;
+  const int depth         = 11;
+  const int axis          = 0;  // [-1 , M]
+  const std::string dtype = "int32";
+
+  NetBuilder builder("net_builder");
+  Placeholder input           = builder.CreateInput(Int(32), {M, N}, "In");
+  Placeholder on_value_input  = builder.CreateInput(Int(32), {1}, "OnValue");
+  Placeholder off_value_input = builder.CreateInput(Int(32), {1}, "OffValue");
+  Variable output             = builder.OneHot(input, on_value_input, off_value_input, depth, axis, dtype);
+  auto program                = builder.Build();
+
+  Target target = common::DefaultHostTarget();
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  auto scope = BuildScope(target, graph);
+  hlir::framework::GraphCompiler gc(target, scope, graph);
+  auto runtime_program = gc.Build();
+
+  scope->Var<hlir::framework::Tensor>(std::string(input.id()));
+  scope->Var<hlir::framework::Tensor>(std::string(on_value_input.id()));
+  scope->Var<hlir::framework::Tensor>(std::string(off_value_input.id()));
+  scope->Var<hlir::framework::Tensor>(std::string(output->id));
+
+  auto input_tensor                    = scope->GetTensor(std::string(input.id()));
+  const std::vector<int>& intput_shape = input_tensor->shape().data();
+  SetRandInt(input_tensor, target);
+  int* input_data = input_tensor->mutable_data<int>(target);
+
+  auto on_value_tensor = scope->GetTensor(std::string(on_value_input.id()));
+  int* on_value_data   = on_value_tensor->mutable_data<int>(target);
+  on_value_data[0]     = on_value;
+
+  auto off_value_tensor = scope->GetTensor(std::string(off_value_input.id()));
+  int* off_value_data   = off_value_tensor->mutable_data<int>(target);
+  off_value_data[0]     = off_value;
+
+  runtime_program->Execute();
+
+  auto output_tensor                   = scope->GetTensor(std::string(output->id));
+  const std::vector<int>& output_shape = output_tensor->shape().data();
+  int* output_data                     = output_tensor->mutable_data<int>(target);
+
+  EXPECT_EQ(output_tensor->type(), Int(32));
+  EXPECT_EQ(output_shape.size(), intput_shape.size() + 1);
+
+  const int true_axis   = axis == -1 ? M : axis;
+  int input_shape_index = 0;
+
+  for (int i = 0; i < output_shape.size(); i++) {
+    LOG(INFO) << output_shape[i];
+    if (i == true_axis) {
+      EXPECT_EQ(output_shape[i], depth);
+    } else {
+      EXPECT_EQ(output_shape[i], intput_shape[input_shape_index++]);
+    }
+  }
+
+  for (int i = 0; i < output_shape[0]; ++i) {
+    for (int j = 0; j < output_shape[1]; ++j) {
+      for (int k = 0; k < output_shape[2]; ++k) {
+        std::vector<int> s = {i, j, k};
+        int input_index    = 0;
+        int output_index   = 0;
+        int base           = 1;
+
+        for (int x = s.size() - 1; x >= 0; --x) {
+          if (x == true_axis) {
+            continue;
+          }
+          input_index += base * s[x];
+          base = base * output_shape[x];
+        }
+
+        base = 1;
+
+        for (int x = s.size() - 1; x >= 0; --x) {
+          output_index += base * s[x];
+          base = base * output_shape[x];
+        }
+
+        if (s[true_axis] == input_data[input_index]) {
+          EXPECT_EQ(output_data[output_index], on_value);
+        } else {
+          EXPECT_EQ(output_data[output_index], off_value);
+        }
+      }
     }
   }
 }

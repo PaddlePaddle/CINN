@@ -66,6 +66,9 @@ class ScheduleDesc {
   // convert to a proto::ScheduleDesc object
   proto::ScheduleDesc ToProto() const;
 
+  // return detail string of a ScheduleDesc for debug;
+  std::string DebugString() const { return ToProto().DebugString(); }
+
  private:
   std::vector<Step> steps_;  // all operations are recorded in order.
 };

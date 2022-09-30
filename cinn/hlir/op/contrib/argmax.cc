@@ -108,7 +108,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForArgmax(const framework::NodeAt
     CHECK(!args.empty()) << "The input argument of argmax compute is empty! Please check.";
     common::CINNValuePack pack_args = args[0];
     std::string tensor_name         = UniqName("Argmax_out");
-    CHECK_EQ(pack_args.size(), 1U) << "There should be 1 input args for argmax compute";
+    CHECK_GE(pack_args.size(), 1U) << "There should be 1 input args for argmax compute";
     Expr in_expr = pack_args[0];
     CHECK(in_expr.as_tensor());
     Tensor in_tensor = in_expr.as_tensor_ref();
