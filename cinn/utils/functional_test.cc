@@ -102,11 +102,11 @@ TEST(Functional, Flatten) {
   ASSERT_EQ(flatten_a.size(), 16);
   ASSERT_TRUE(absl::c_equal(flatten_a, std::vector<float>{1, 2, 3, 1, 2, 3, 4, 5, 6, 1, 2, 3.3, 4.5, 1, 2.2, 3}));
 
-  std::list<std::vector<std::set<int>>> b;
+  std::list<std::vector<std::set<bool>>> b;
   auto flatten_b = Flatten(b);
   LOG(INFO) << utils::Join(flatten_b, ", ");
   ASSERT_EQ(flatten_b.size(), 0);
-  ASSERT_TRUE(absl::c_equal(flatten_b, std::vector<int>{}));
+  ASSERT_TRUE(absl::c_equal(flatten_b, std::vector<bool>{}));
 
   std::list<std::list<std::vector<std::string>>> empty_str;
   auto flatten_empty_str = Flatten(empty_str);

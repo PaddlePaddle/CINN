@@ -14,11 +14,6 @@
 
 #include "cinn/utils/functional.h"
 
-#include <absl/types/optional.h>
-
-#include <type_traits>
-#include <vector>
-
 namespace cinn {
 namespace utils {}  // namespace utils
 }  // namespace cinn

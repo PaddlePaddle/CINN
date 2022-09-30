@@ -18,7 +18,6 @@
 
 #include <algorithm>
 #include <functional>
-#include <ostream>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -57,7 +56,7 @@ auto Max(T &&t, Ts &&... ts) {
 template <typename T>
 struct IsVector {
   template <typename U>
-  static auto infer(U *ptr)
+  static auto infer(U *)
       -> std::enable_if_t<std::is_same<std::vector<typename U::value_type>, U>::value, std::true_type>;
 
   template <typename U>
@@ -70,8 +69,8 @@ template <class T>
 struct IsString : std::integral_constant<bool, std::is_same<std::string, std::decay_t<T>>::value> {};
 
 template <typename T>
-std::enable_if_t<std::is_scalar<T>::value || IsString<T>::value, std::vector<T>> Flatten(
-    const absl::optional<std::reference_wrapper<const T>> &c) {
+auto Flatten(const absl::optional<std::reference_wrapper<const T>> &c)
+    -> std::enable_if_t<std::is_scalar<T>::value || IsString<T>::value, std::vector<T>> {
   return c ? std::vector<T>{c->get()} : std::vector<T>{};
 }
 
