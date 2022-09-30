@@ -14,13 +14,13 @@
 
 #pragma once
 
-#include "cinn/auto_schedule/tests/program_case_builder.h"
+#include "cinn/auto_schedule/tests/test_program_builder.h"
 #include "cinn/frontend/net_builder.h"
 
 namespace cinn {
 namespace auto_schedule {
 
-class PaddleModelProgramBuilder : public ProgramCaseBuilder {
+class PaddleModelProgramBuilder : public TestProgramBuilder {
  public:
   PaddleModelProgramBuilder(const std::string& model_path,
                             const std::vector<std::string>& input_names,

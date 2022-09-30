@@ -33,6 +33,7 @@
 #include "cinn/utils/data_util.h"
 
 DEFINE_string(resnet50_model_dir, "./ResNet50", "the path to paddle model resnet50.");
+DEFINE_uint64(options, 7, "the options to control which schedule tests will be run.");
 DECLARE_bool(cinn_ir_schedule);
 
 namespace cinn {
@@ -49,6 +50,8 @@ class PerformanceTester : public ::testing::Test {
   void SetUp() override {
     // AutoTuner is combined with new IR Schedule
     FLAGS_cinn_ir_schedule = true;
+    option_flags_          = FLAGS_options;
+    VLOG(3) << "option_flags_ = " << option_flags_;
   }
 
   void BuildRuntimePrograms(int num_tuning_rounds) {
@@ -215,12 +218,10 @@ TEST_F(PerformanceTester, Mul) {
   int M = 32;
   int K = 16;
   int N = 32;
-  SetOptionFlags(7UL);
   BuildAndRun(repeat_time, num_tuning_rounds, MulProgramBuilder({M, K}, {N, K})());
 }
 
 TEST_F(PerformanceTester, Add) {
-  SetOptionFlags(7UL);
   BuildAndRun(repeat_time, num_tuning_rounds, AddProgramBuilder({1, 56, 56, 256}, {1, 56, 56, 256})());
 }
 
@@ -228,12 +229,10 @@ TEST_F(PerformanceTester, Matmul) {
   int M = batch_size;
   int K = 2048;
   int N = 1000;
-  SetOptionFlags(7UL);
   BuildAndRun(repeat_time, num_tuning_rounds, MatmulProgramBuilder({M, K}, {K, N})());
 }
 
 TEST_F(PerformanceTester, Relu) {
-  SetOptionFlags(7UL);
   BuildAndRun(repeat_time, num_tuning_rounds, ReluProgramBuilder({batch_size, 64, 56, 56})());
 }
 
@@ -294,7 +293,6 @@ TEST_F(PerformanceTester, BatchNorm) {
   const std::string& data_layout = "NCHW";
   bool is_test                   = true;
 
-  SetOptionFlags(7UL);
   BuildAndRun(
       repeat_time,
       num_tuning_rounds,
@@ -306,7 +304,6 @@ TEST_F(PerformanceTester, Reshape) {
   std::vector<int32_t> input_shape{batch_size, 2048, 1, 1};
   std::vector<int32_t> output_shape{batch_size, 2048};
 
-  SetOptionFlags(7UL);
   BuildAndRun(repeat_time, num_tuning_rounds, ReshapeProgramBuilder(input_shape, output_shape)());
 }
 
@@ -325,7 +322,6 @@ TEST_F(PerformanceTester, Scale) {
   float bias            = 0.0f;
   bool bias_after_scale = true;
 
-  SetOptionFlags(7UL);
   BuildAndRun(repeat_time, num_tuning_rounds, ScaleProgramBuilder(input_shape, scale, bias, bias_after_scale)());
 }
 
@@ -334,6 +330,7 @@ TEST_F(PerformanceTester, ResNet50) {
   std::vector<std::string> input_names       = {"inputs"};
   std::vector<std::vector<int>> input_shapes = {{batch_size, 3, 224, 224}};
   CHECK_NE(FLAGS_resnet50_model_dir, "");
+
   SetOptionFlags(0UL);
   BuildAndRun(
       repeat_time, num_tuning_rounds, PaddleModelProgramBuilder(FLAGS_resnet50_model_dir, input_names, input_shapes)());

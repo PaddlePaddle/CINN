@@ -14,13 +14,13 @@
 
 #pragma once
 
-#include "cinn/auto_schedule/tests/program_case_builder.h"
+#include "cinn/auto_schedule/tests/test_program_builder.h"
 #include "cinn/frontend/net_builder.h"
 
 namespace cinn {
 namespace auto_schedule {
 
-class AddProgramBuilder : public ProgramCaseBuilder {
+class AddProgramBuilder : public TestProgramBuilder {
  public:
   AddProgramBuilder(const std::vector<int32_t>& input_shape_x, const std::vector<int32_t>& input_shape_y)
       : input_shape_x_(input_shape_x), input_shape_y_(input_shape_y) {}
@@ -39,7 +39,7 @@ class AddProgramBuilder : public ProgramCaseBuilder {
   std::vector<int32_t> input_shape_y_;
 };
 
-class MulProgramBuilder : public ProgramCaseBuilder {
+class MulProgramBuilder : public TestProgramBuilder {
  public:
   MulProgramBuilder(const std::vector<int32_t>& input_shape_x,
                     const std::vector<int32_t>& input_shape_y,
@@ -66,7 +66,7 @@ class MulProgramBuilder : public ProgramCaseBuilder {
   int y_num_col_dims_;
 };
 
-class MatmulProgramBuilder : public ProgramCaseBuilder {
+class MatmulProgramBuilder : public TestProgramBuilder {
  public:
   MatmulProgramBuilder(const std::vector<int32_t>& input_shape_x,
                        const std::vector<int32_t>& input_shape_y,
@@ -96,7 +96,7 @@ class MatmulProgramBuilder : public ProgramCaseBuilder {
   float alpha_;
 };
 
-class ReluProgramBuilder : public ProgramCaseBuilder {
+class ReluProgramBuilder : public TestProgramBuilder {
  public:
   ReluProgramBuilder(std::vector<int32_t> input_shape) : input_shape_(input_shape) {}
 
@@ -112,7 +112,7 @@ class ReluProgramBuilder : public ProgramCaseBuilder {
   std::vector<int32_t> input_shape_;
 };
 
-class Conv2dProgramBuilder : public ProgramCaseBuilder {
+class Conv2dProgramBuilder : public TestProgramBuilder {
  public:
   Conv2dProgramBuilder(const std::vector<int32_t>& input_shape,
                        const std::vector<int32_t>& weight_shape,
@@ -151,7 +151,7 @@ class Conv2dProgramBuilder : public ProgramCaseBuilder {
   std::string padding_algorithm_;
 };
 
-class Pool2dProgramBuilder : public ProgramCaseBuilder {
+class Pool2dProgramBuilder : public TestProgramBuilder {
  public:
   Pool2dProgramBuilder(const std::vector<int32_t>& input_shape,
                        const std::string& pooling_type,
@@ -208,7 +208,7 @@ class Pool2dProgramBuilder : public ProgramCaseBuilder {
   std::string padding_algorithm_;
 };
 
-class BatchNormProgramBuilder : public ProgramCaseBuilder {
+class BatchNormProgramBuilder : public TestProgramBuilder {
  public:
   BatchNormProgramBuilder(const std::vector<int32_t>& input_shape,
                           const std::vector<int32_t>& scale_shape,
@@ -253,7 +253,7 @@ class BatchNormProgramBuilder : public ProgramCaseBuilder {
   bool is_test_;
 };
 
-class ReshapeProgramBuilder : public ProgramCaseBuilder {
+class ReshapeProgramBuilder : public TestProgramBuilder {
  public:
   ReshapeProgramBuilder(const std::vector<int32_t>& input_shape, const std::vector<int32_t>& output_shape)
       : input_shape_(input_shape), output_shape_(output_shape) {}
@@ -271,7 +271,7 @@ class ReshapeProgramBuilder : public ProgramCaseBuilder {
   std::vector<int32_t> output_shape_;
 };
 
-class SoftmaxProgramBuilder : public ProgramCaseBuilder {
+class SoftmaxProgramBuilder : public TestProgramBuilder {
  public:
   SoftmaxProgramBuilder(const std::vector<int32_t>& input_shape,
                         int axis                       = -1,
@@ -292,7 +292,7 @@ class SoftmaxProgramBuilder : public ProgramCaseBuilder {
   std::string data_format_;
 };
 
-class ScaleProgramBuilder : public ProgramCaseBuilder {
+class ScaleProgramBuilder : public TestProgramBuilder {
  public:
   ScaleProgramBuilder(const std::vector<int32_t>& input_shape,
                       float scale           = 1.0f,

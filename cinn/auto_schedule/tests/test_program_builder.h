@@ -17,7 +17,7 @@
 namespace cinn {
 namespace auto_schedule {
 
-class ProgramCaseBuilder {
+class TestProgramBuilder {
  public:
   virtual frontend::Program operator()() = 0;
 };
