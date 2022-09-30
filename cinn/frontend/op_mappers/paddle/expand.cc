@@ -36,7 +36,7 @@ void ExpandV2OpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext&
 
   auto x = ctx.GetVar(x_name);
 
-  CHECK_GT(expand_shape.size(), x->shape.size())
+  CHECK_GE(expand_shape.size(), x->shape.size())
       << "The number of elements of 'shape' for "
          "expand_v2 op must be greater than or equal to the rank of the input.";
 
