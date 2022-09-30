@@ -50,8 +50,8 @@ TEST(Functional, Flatten) {
   ASSERT_TRUE(
       absl::c_equal(flatten_v, std::vector<bool>{true, false, true, false, true, false, false, true, true, false}));
 
-  std::vector<std::vector<std::vector<std::string>>> str{{{"true", "false"}, {"true", "false", "true", "false"}},
-                                                         {{"false"}, {"true", "true", "false"}}};
+  std::vector<std::set<std::list<std::string>>> str{{{"true", "false"}, {"true", "false", "true", "false"}},
+                                                    {{"false"}, {"true", "true", "false"}}};
   auto flatten_str = Flatten(str);
   LOG(INFO) << utils::Join(flatten_str, ", ");
   ASSERT_EQ(flatten_str.size(), 10);
@@ -65,11 +65,17 @@ TEST(Functional, Flatten) {
   ASSERT_EQ(flatten_a.size(), 16);
   ASSERT_TRUE(absl::c_equal(flatten_a, std::vector<float>{1, 2, 3, 1, 2, 3, 4, 5, 6, 1, 2, 3.3, 4.5, 1, 2.2, 3}));
 
-  std::list<std::list<std::vector<int>>> b;
+  std::list<std::vector<std::set<int>>> b;
   auto flatten_b = Flatten(b);
   LOG(INFO) << utils::Join(flatten_b, ", ");
   ASSERT_EQ(flatten_b.size(), 0);
   ASSERT_TRUE(absl::c_equal(flatten_b, std::vector<int>{}));
+
+  std::list<std::list<std::vector<std::string>>> empty_str;
+  auto flatten_empty_str = Flatten(empty_str);
+  LOG(INFO) << utils::Join(flatten_empty_str, ", ");
+  ASSERT_EQ(flatten_empty_str.size(), 0);
+  ASSERT_TRUE(absl::c_equal(flatten_empty_str, std::vector<std::string>{}));
 }
 
 }  // namespace utils

@@ -20,17 +20,5 @@
 #include <vector>
 
 namespace cinn {
-namespace utils {
-
-std::vector<bool> InnerFlatten(const absl::optional<std::reference_wrapper<const std::vector<bool>>> &c,
-                               std::true_type) {
-  return c->get();
-}
-
-std::vector<std::string> InnerFlatten(const absl::optional<std::reference_wrapper<const std::string>> &c,
-                                      std::true_type) {
-  return {c->get()};
-}
-
-}  // namespace utils
+namespace utils {}  // namespace utils
 }  // namespace cinn
