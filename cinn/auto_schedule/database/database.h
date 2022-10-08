@@ -43,10 +43,8 @@ struct TuningRecord {
 
   TuningRecord() = default;
 
-  TuningRecord(const std::string& task_key, double execution_cost, double predicted_cost, ir::IRSchedule ir_sch)
-      : task_key(task_key), execution_cost(execution_cost), state(std::move(ir_sch)) {
-    state.predicted_cost = predicted_cost;
-  }
+  TuningRecord(const std::string& task_key, double execution_cost, SearchState state)
+      : task_key(task_key), execution_cost(execution_cost), state(state) {}
 
   // convert to proto object
   proto::TuningRecord ToProto() const;
@@ -73,7 +71,7 @@ class Database {
   static std::unique_ptr<Database> Make(const DatabaseConfig& config);
 
   // add a record into the database
-  bool AddRecord(TuningRecord&& record);
+  bool AddRecord(const TuningRecord& record);
   // return all records whose task_keys are equal to the specified key
   std::vector<TuningRecord> LookUp(const std::string& task_key);
   // return the states of the top k in sorted candidates
@@ -86,6 +84,8 @@ class Database {
  protected:
   // commit the newly added record into underlying storage
   virtual bool Commit(const TuningRecord& record) { return true; }
+  // insert a newly added record into memory storage
+  void Insert(const TuningRecord& record);
 
   // map task_key to its records
   std::unordered_map<std::string, std::multiset<TuningRecord, TuningRecord::Compare>> key2record_;

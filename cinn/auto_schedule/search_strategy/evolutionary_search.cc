@@ -48,7 +48,7 @@ void PrintStates(const int vlog_level, const std::string& phase_name, const std:
   }
   VLOG(vlog_level) << "EvolutionarySearch-" << phase_name << " states size:" << states.size();
   for (auto i = 0; i < states.size(); ++i) {
-    auto debug_str = states[i].DebugString();
+    auto debug_str = states[i]->DebugString();
     VLOG(vlog_level) << "State-" << i << " hash:" << std::hash<std::string>()(debug_str);
     VLOG(vlog_level + 1) << "****** State-" << i << " Detail ******\n" << debug_str;
     VLOG(vlog_level + 1) << "****** SearchState End ******";
@@ -101,8 +101,8 @@ SearchState EvolutionarySearch::CrossOver(const SearchState& state1, const Searc
   PrintStates(5, "CrossOver", {state1, state2});
   // TODO(CtfGo): tracing CrossOver with IRSchedule
   std::vector<ir::Expr> cross_over_exprs;
-  std::vector<ir::Expr> father_exprs = state1.ir_schedule.GetModule().GetExprs();
-  std::vector<ir::Expr> mother_exprs = state2.ir_schedule.GetModule().GetExprs();
+  std::vector<ir::Expr> father_exprs = state1->ir_schedule.GetModule().GetExprs();
+  std::vector<ir::Expr> mother_exprs = state2->ir_schedule.GetModule().GetExprs();
 
   CHECK_EQ(father_exprs.size(), mother_exprs.size())
       << "CrossOver ModuleExpr in EvolutionarySearch must have same number of AST";
@@ -114,7 +114,7 @@ SearchState EvolutionarySearch::CrossOver(const SearchState& state1, const Searc
       cross_over_exprs.push_back(optim::IRCopy(mother_exprs[i]));
     }
   }
-  return SearchState(ir::ModuleExpr(cross_over_exprs));
+  return SearchState(ir::IRSchedule(ir::ModuleExpr(cross_over_exprs)));
 }
 
 std::vector<SearchState> EvolutionarySearch::Evolve(const std::vector<SearchState>& population,

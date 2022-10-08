@@ -60,8 +60,8 @@ bool AutoUnroll::MeetCondition(const ir::ScheduleBlock* schedule_block) {
   return !find_target_exprs.empty();
 }
 
-RuleApplyType AutoUnroll::Init(const ir::IRSchedule& init_schedule) {
-  ir_schedule_        = std::make_unique<ir::IRSchedule>(optim::IRCopy(init_schedule));
+RuleApplyType AutoUnroll::Init(ir::IRSchedule* ir_schedule) {
+  ir_schedule_        = ir_schedule;
   auto block_realizes = ir_schedule_->GetAllBlocks();
 
   // A schedule block can perform `auto_unroll` rule should meet two conditions:
@@ -87,12 +87,12 @@ RuleApplyType AutoUnroll::Init(const ir::IRSchedule& init_schedule) {
   return num_applicable_ > 0 ? RuleApplyType::kApplyAndSkipThisRule : RuleApplyType::kCannotApply;
 }
 
-ir::IRSchedule AutoUnroll::Apply(int index) {
+void AutoUnroll::Apply(int index) {
   CHECK_LT(index, applicable_schedule_blocks_.size()) << "invalid apply index:" << index;
   auto applied_block = applicable_schedule_blocks_.at(index);
   int max_step       = auto_unroll_options[std::rand() % auto_unroll_options.size()];
   ir_schedule_->Annotate(applied_block, ir::attr::auto_unroll_max_step, max_step);
-  return optim::IRCopy(*ir_schedule_);
+  return;
 }
 
 }  // namespace auto_schedule

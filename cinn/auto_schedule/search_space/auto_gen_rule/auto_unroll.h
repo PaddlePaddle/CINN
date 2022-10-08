@@ -33,19 +33,16 @@ class AutoUnroll : public AutoGenRule {
   AutoUnroll(const common::Target& target) : AutoGenRule(target) {}
   ~AutoUnroll() = default;
 
-  RuleApplyType Init(const ir::IRSchedule& init_schedule) override;
+  RuleApplyType Init(ir::IRSchedule* init_schedule) override;
 
-  ir::IRSchedule Apply(int index) override;
+  void Apply(int index) override;
 
   std::string GetRuleName() const override { return "AutoUnroll"; }
-
-  AutoGenRule* NewPointer() const override { return new AutoUnroll(*target_); }
 
  private:
   bool MeetCondition(const ir::ScheduleBlock* schedule_block);
 
  private:
-  std::unique_ptr<ir::IRSchedule> ir_schedule_;
   std::vector<Expr> applicable_schedule_blocks_;
 };
 
