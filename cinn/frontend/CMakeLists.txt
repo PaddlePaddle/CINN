@@ -19,9 +19,6 @@ if(NOT WITH_CUDA)
           ARGS --model_dir=${THIRD_PARTY_PATH}/naive_mul_model
           SRCS interpreter_test.cc DEPS cinncore)
 
-  cc_test(test_paddle_model_convertor
-          ARGS --model_dir=${THIRD_PARTY_PATH}/naive_mul_model
-          SRCS paddle_model_convertor_test.cc DEPS cinncore)
 else()
   nv_test(test_frontend_syntax
           ARGS "--model_dir=${THIRD_PARTY_PATH}/naive_mul_model"
@@ -30,11 +27,11 @@ else()
   nv_test(test_frontend_interpreter
           ARGS --model_dir=${THIRD_PARTY_PATH}/naive_mul_model
           SRCS interpreter_test.cc DEPS cinncore)
-
-  nv_test(test_paddle_model_convertor
-          ARGS --model_dir=${THIRD_PARTY_PATH}/resnet_model
-          SRCS paddle_model_convertor_test.cc DEPS cinncore)
 endif()
+
+cc_test(test_paddle_model_convertor
+        ARGS --model_dir=${THIRD_PARTY_PATH}/resnet_model
+        SRCS paddle_model_convertor_test.cc DEPS cinncore)
 
 cc_test(test_computation
   ARGS "--model_dir=${THIRD_PARTY_PATH}/naive_mul_model"
