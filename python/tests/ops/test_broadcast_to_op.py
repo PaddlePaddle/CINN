@@ -35,9 +35,11 @@ class TestBroadcastToOp(OpTest):
         self.init_case()
 
     def init_case(self):
-        self.inputs = {"x": np.random.random([6]).astype("float32")}
-        self.out_shape = [4, 5, 6]
-        self.broadcast_axes = [2]
+        self.inputs = {
+            "x": np.random.random([10, 12, 128, 128]).astype("float32")
+        }
+        self.out_shape = [10, 12, 128, 128]
+        self.broadcast_axes = [0, 1, 2, 3]
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.inputs["x"], stop_gradient=True)
@@ -61,123 +63,6 @@ class TestBroadcastToOp(OpTest):
 
     def test_check_results(self):
         self.check_outputs_and_grads(all_equal=True)
-
-
-class TestBroadcastToCase1(TestBroadcastToOp):
-    def init_case(self):
-        self.inputs = {"x": np.random.random([1, 1, 3]).astype("float32")}
-        self.out_shape = [4, 5, 3]
-        self.broadcast_axes = [0, 1, 2]
-
-
-class TestBroadcastToCase2(TestBroadcastToOp):
-    def init_case(self):
-        self.inputs = {"x": np.random.random([5, 3]).astype("float32")}
-        self.out_shape = [4, 5, 3]
-        self.broadcast_axes = [1, 2]
-
-
-class TestBroadcastToCase3(TestBroadcastToOp):
-    def init_case(self):
-        self.inputs = {"x": np.random.random([4, 3]).astype("float32")}
-        self.out_shape = [4, 5, 3]
-        self.broadcast_axes = [0, 2]
-
-    def test_check_results(self):
-        self.build_cinn_program(self.target)
-        # because paddle and numpy do not support discontinuous broadcast,
-        # so here we just pass the check until we know how to compose
-        pass
-
-
-class TestBroadcastToCase4(TestBroadcastToOp):
-    def init_case(self):
-        self.inputs = {"x": np.random.random([5]).astype("float32")}
-        self.out_shape = [4, 5, 3]
-        self.broadcast_axes = [1]
-
-    def test_check_results(self):
-        self.build_cinn_program(self.target)
-        # because paddle and numpy do not support discontinuous broadcast,
-        # so here we just pass the check until we know how to compose
-        pass
-
-
-class TestBroadcastToOpNoAxes(OpTest):
-    def setUp(self):
-        if enable_gpu == "ON":
-            self.target = DefaultNVGPUTarget()
-        else:
-            self.target = DefaultHostTarget()
-        self.init_case()
-
-    def init_case(self):
-        self.inputs = {"x": np.random.random([6]).astype("float32")}
-        self.out_shape = [4, 5, 6]
-
-    def build_paddle_program(self, target):
-        x = paddle.to_tensor(self.inputs["x"], stop_gradient=True)
-        out = paddle.broadcast_to(x, shape=self.out_shape)
-
-        self.paddle_outputs = [out]
-
-    # Note: If the forward and backward operators are run in the same program,
-    # the forward result will be incorrect.
-    def build_cinn_program(self, target):
-        builder = NetBuilder("BroadcastTo")
-        x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
-        out = builder.broadcast_to(x, out_shape=self.out_shape)
-
-        prog = builder.build()
-        res = self.get_cinn_output(prog, target, [x], [self.inputs["x"]],
-                                   [out])
-
-        self.cinn_outputs = res
-
-    def test_check_results(self):
-        self.check_outputs_and_grads(all_equal=True)
-
-
-class TestBroadcastToNoAxesCase1(TestBroadcastToOpNoAxes):
-    def init_case(self):
-        self.inputs = {"x": np.random.random([1, 1, 3]).astype("float32")}
-        self.out_shape = [4, 5, 3]
-
-
-class TestBroadcastToNoAxesCase2(TestBroadcastToOpNoAxes):
-    def init_case(self):
-        self.inputs = {"x": np.random.random([5, 3]).astype("float32")}
-        self.out_shape = [4, 5, 3]
-
-
-class TestBroadcastToNoAxesCase3(TestBroadcastToOpNoAxes):
-    def init_case(self):
-        self.inputs = {"x": np.random.random([4, 1, 3]).astype("float32")}
-        self.out_shape = [4, 5, 3]
-
-
-class TestBroadcastToNoAxesCase4(TestBroadcastToOpNoAxes):
-    def init_case(self):
-        self.inputs = {"x": np.random.random([1, 1, 1]).astype("float32")}
-        self.out_shape = [4, 5, 3]
-
-
-class TestBroadcastToNoAxesCase5(TestBroadcastToOpNoAxes):
-    def init_case(self):
-        self.inputs = {"x": np.random.random([5]).astype("float32")}
-        self.out_shape = [4, 5, 3]
-
-    def test_check_results(self):
-        self.build_cinn_program(self.target)
-        # because paddle and numpy do not support discontinuous broadcast,
-        # so here we just pass the check until we know how to compose
-        pass
-
-
-class TestBroadcastToNoAxesCase6(TestBroadcastToOpNoAxes):
-    def init_case(self):
-        self.inputs = {"x": np.random.random([1]).astype("float32")}
-        self.out_shape = [5]
 
 
 if __name__ == "__main__":
