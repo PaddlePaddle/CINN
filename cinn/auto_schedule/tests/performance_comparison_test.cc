@@ -19,6 +19,8 @@
 #include <iostream>
 
 #include "cinn/auto_schedule/auto_tuner.h"
+#include "cinn/auto_schedule/tests/paddle_model_program_builder.h"
+#include "cinn/auto_schedule/tests/single_op_program_builder.h"
 #include "cinn/common/target.h"
 #include "cinn/frontend/net_builder.h"
 #include "cinn/frontend/optimize.h"
@@ -31,6 +33,7 @@
 #include "cinn/utils/data_util.h"
 
 DEFINE_string(resnet50_model_dir, "./ResNet50", "the path to paddle model resnet50.");
+DEFINE_uint64(options, 7, "the options to control which schedule tests will be run.");
 DECLARE_bool(cinn_ir_schedule);
 
 namespace cinn {
@@ -42,12 +45,17 @@ using ::cinn::hlir::framework::GraphCompiler;
 using ::cinn::hlir::framework::Instruction;
 using ::cinn::hlir::framework::Scope;
 
-class PerformanceTester {
+class PerformanceTester : public ::testing::Test {
  public:
-  virtual frontend::Program CreateProgram() = 0;
+  void SetUp() override {
+    // AutoTuner is combined with new IR Schedule
+    FLAGS_cinn_ir_schedule = true;
+    option_flags_          = FLAGS_options;
+    VLOG(3) << "option_flags_ = " << option_flags_;
+  }
 
   void BuildRuntimePrograms(int num_tuning_rounds) {
-    scope_          = BuildScope(target_, graph_, scope_);
+    scope_          = BuildScope(target_, graph_);
     graph_compiler_ = std::make_unique<GraphCompiler>(target_, scope_, graph_);
     if (option_flags_.test(0)) {
       VLOG(3) << "Build no schedule program.";
@@ -78,17 +86,11 @@ class PerformanceTester {
     }
   }
 
-  void BuildAndRun(int repeat, int num_tuning_rounds, bool initialize_graph = false) {
-    if (initialize_graph || !is_graph_initialized_) {
-      VLOG(3) << "Start initialize graph.";
-      auto program = CreateProgram();
-      graph_       = std::make_shared<hlir::framework::Graph>(program, target_);
-      hlir::framework::ApplyPass(graph_.get(), "InferShape");
-      is_graph_initialized_ = true;
-      VLOG(3) << "Initialize graph completed.";
-    }
-
-    VLOG(3) << "start building runtime program.";
+  void BuildAndRun(int repeat, int num_tuning_rounds, const frontend::Program& program) {
+    VLOG(3) << "Start initialize graph.";
+    graph_ = std::make_shared<hlir::framework::Graph>(program, target_);
+    hlir::framework::ApplyPass(graph_.get(), "InferShape");
+    VLOG(3) << "Initialize graph completed, Start building runtime program.";
     BuildRuntimePrograms(num_tuning_rounds);
     VLOG(3) << "Build runtime programs completed, start running.";
     Run(repeat);
@@ -155,13 +157,7 @@ class PerformanceTester {
     no_schedule_program_ = graph_compiler_->Build(compile_options).runtime_program;
   }
 
-  void BuildManualScheduleProgram() {
-    manual_schedule_program_ = graph_compiler_->Build();
-
-    VLOG(3) << "===========================Manual Schedule LoweredFunc Begin===========================";
-    graph_compiler_->PrintFunc();
-    VLOG(3) << "===========================Manual Schedule LoweredFunc End=============================";
-  }
+  void BuildManualScheduleProgram() { manual_schedule_program_ = graph_compiler_->Build(); }
 
   void BuildAutoScheduleProgram(int num_tuning_rounds = 10) {
     tuner_ = std::make_unique<AutoTuner>(target_, graph_.get());
@@ -210,152 +206,134 @@ class PerformanceTester {
   // Bit with index 2 controls auto schedule test, means options = 4 = "100" will run auto schedule test.
   // The default value is 7, which means that all tests will be run.
   std::bitset<3> option_flags_ = 7UL;
-  bool is_graph_initialized_   = false;
-};
-
-class MulPerformanceTester : public PerformanceTester {
- public:
-  MulPerformanceTester(int M, int K, int N) : M_(M), K_(K), N_(N) {}
-
-  frontend::Program CreateProgram() override {
-    frontend::NetBuilder builder("mul_net_builder");
-    auto x = builder.CreateInput(Float(32), {M_, K_}, "X");
-    auto y = builder.CreateInput(Float(32), {N_, K_}, "Y");
-
-    auto mul_out = builder.Mul(x, y, 1, 1);
-    return builder.Build();
-  }
-
- private:
-  int M_;
-  int K_;
-  int N_;
-};
-
-class MatmulPerformanceTester : public PerformanceTester {
- public:
-  MatmulPerformanceTester(int M, int K, int N) : M_(M), K_(K), N_(N) {}
-
-  frontend::Program CreateProgram() override {
-    frontend::NetBuilder builder("mul_net_builder");
-    auto x = builder.CreateInput(Float(32), {M_, K_}, "X");
-    auto y = builder.CreateInput(Float(32), {K_, N_}, "Y");
-
-    auto mul_out = builder.Matmul(x, y);
-    return builder.Build();
-  }
-
- private:
-  int M_;
-  int K_;
-  int N_;
-};
-
-class AddPerformanceTester : public PerformanceTester {
- public:
-  AddPerformanceTester(int M, int N) : M_(M), N_(N) {}
-
-  frontend::Program CreateProgram() override {
-    frontend::NetBuilder builder("add_net_builder");
-    auto x = builder.CreateInput(Float(32), {M_, N_}, "X");
-    auto y = builder.CreateInput(Float(32), {M_, N_}, "Y");
-
-    auto mul_out = builder.Add(x, y);
-    return builder.Build();
-  }
-
- private:
-  int M_;
-  int N_;
-};
-
-class PaddleModelPerformanceTester : public PerformanceTester {
- public:
-  PaddleModelPerformanceTester(const std::string& model_path,
-                               const std::vector<std::string>& input_names,
-                               const std::vector<std::vector<int>>& input_shapes)
-      : model_path_(model_path), input_names_(input_names), input_shapes_(input_shapes) {}
-
-  frontend::Program CreateProgram() override {
-    CHECK(!input_names_.empty());
-    CHECK_EQ(input_names_.size(), input_shapes_.size());
-
-    scope_ = std::make_shared<hlir::framework::Scope>();
-    std::unordered_map<std::string, std::vector<int>> input_to_shape;
-    for (int idx = 0; idx < input_names_.size(); ++idx) {
-      input_to_shape[input_names_[idx]] = input_shapes_[idx];
-    }
-    auto loadedProgram = cinn::frontend::LoadPaddleProgram(model_path_, scope_.get(), input_to_shape, true, target_);
-    auto& program      = std::get<0>(loadedProgram);
-    auto& varmap       = std::get<1>(loadedProgram);
-    VLOG(3) << "loaded program: " << *program;
-    CHECK(!varmap.empty());
-
-    std::vector<frontend::Variable> input_vars;
-    std::transform(input_names_.begin(), input_names_.end(), std::back_inserter(input_vars), [&](const std::string& x) {
-      return varmap.at(x);
-    });
-
-    for (int i = 0; i < input_vars.size(); i++) {
-      input_vars[i]->shape = input_shapes_[i];
-    }
-
-    program->SetInputs(input_vars);
-    program->Validate();
-
-    return *program;
-  }
-
- private:
-  const std::string model_path_;
-  std::vector<std::string> input_names_;
-  std::vector<std::vector<int>> input_shapes_;
 };
 
 #ifdef CINN_WITH_CUDA
 
 const int repeat_time       = 100;
 const int num_tuning_rounds = 1;
+const int batch_size        = 1;
 
-TEST(MatmulPerformanceTest, matmul_32x16x32) {
-  FLAGS_cinn_ir_schedule = true;
-  int M                  = 32;
-  int K                  = 16;
-  int N                  = 32;
-  MatmulPerformanceTester tester(M, K, N);
-  tester.SetOptionFlags(5UL);
-  tester.BuildAndRun(repeat_time, num_tuning_rounds);
+TEST_F(PerformanceTester, Mul) {
+  int M = 32;
+  int K = 16;
+  int N = 32;
+  BuildAndRun(repeat_time, num_tuning_rounds, MulProgramBuilder({M, K}, {N, K})());
 }
 
-TEST(MulPerformanceTest, mul_32x16x32) {
-  FLAGS_cinn_ir_schedule = true;
-  int M                  = 32;
-  int K                  = 16;
-  int N                  = 32;
-  MulPerformanceTester tester(M, K, N);
-  tester.SetOptionFlags(5UL);
-  tester.BuildAndRun(repeat_time, num_tuning_rounds);
+TEST_F(PerformanceTester, Add) {
+  BuildAndRun(repeat_time, num_tuning_rounds, AddProgramBuilder({1, 56, 56, 256}, {1, 56, 56, 256})());
 }
 
-TEST(AddPerformanceTest, add_32x16) {
-  FLAGS_cinn_ir_schedule = true;
-  int M                  = 32;
-  int N                  = 16;
-  AddPerformanceTester tester(M, N);
-  tester.SetOptionFlags(5UL);
-  tester.BuildAndRun(repeat_time, num_tuning_rounds);
+TEST_F(PerformanceTester, Matmul) {
+  int M = batch_size;
+  int K = 2048;
+  int N = 1000;
+  BuildAndRun(repeat_time, num_tuning_rounds, MatmulProgramBuilder({M, K}, {K, N})());
 }
 
-TEST(PaddleModelPerformanceTester, ResNet50) {
-  FLAGS_cinn_ir_schedule                     = true;
+TEST_F(PerformanceTester, Relu) {
+  BuildAndRun(repeat_time, num_tuning_rounds, ReluProgramBuilder({batch_size, 64, 56, 56})());
+}
+
+TEST_F(PerformanceTester, Conv2d) {
+  std::vector<int32_t> input_shape{batch_size, 3, 224, 224};
+  std::vector<int32_t> weight_shape{64, 3, 7, 7};
+  std::vector<int> strides{2, 2};
+  std::vector<int> paddings{3, 3};
+  std::vector<int> dilations{1, 1};
+  int groups                    = 1;
+  std::string data_format       = "NCHW";
+  std::string padding_algorithm = "EXPLICIT";
+
+  SetOptionFlags(0UL);
+  BuildAndRun(repeat_time,
+              num_tuning_rounds,
+              Conv2dProgramBuilder(
+                  input_shape, weight_shape, strides, paddings, dilations, groups, data_format, padding_algorithm)());
+}
+
+TEST_F(PerformanceTester, Pool2d) {
+  std::vector<int32_t> input_shape{batch_size, 64, 112, 112};
+  std::string pooling_type = "max";
+  std::vector<int> ksize{3, 3};
+  std::vector<int> strides{2, 2};
+  std::vector<int> paddings{1, 1};
+  bool ceil_mode                = false;
+  bool exclusive                = true;
+  bool global_pooling           = false;
+  std::string data_format       = "NCHW";
+  bool adaptive                 = false;
+  std::string padding_algorithm = "EXPLICIT";
+
+  SetOptionFlags(0UL);
+  BuildAndRun(repeat_time,
+              num_tuning_rounds,
+              Pool2dProgramBuilder(input_shape,
+                                   pooling_type,
+                                   ksize,
+                                   strides,
+                                   paddings,
+                                   ceil_mode,
+                                   exclusive,
+                                   global_pooling,
+                                   data_format,
+                                   adaptive,
+                                   padding_algorithm)());
+}
+
+TEST_F(PerformanceTester, BatchNorm) {
+  std::vector<int32_t> input_shape{batch_size, 64, 112, 112};
+  std::vector<int32_t> scale_shape{64};
+  std::vector<int32_t> bias_shape{64};
+  std::vector<int32_t> mean_shape{64};
+  std::vector<int32_t> variance_shape{64};
+  float epsilon                  = 1e-5f;
+  float momentum                 = 0.9f;
+  const std::string& data_layout = "NCHW";
+  bool is_test                   = true;
+
+  BuildAndRun(
+      repeat_time,
+      num_tuning_rounds,
+      BatchNormProgramBuilder(
+          input_shape, scale_shape, bias_shape, mean_shape, variance_shape, epsilon, momentum, data_layout, is_test)());
+}
+
+TEST_F(PerformanceTester, Reshape) {
+  std::vector<int32_t> input_shape{batch_size, 2048, 1, 1};
+  std::vector<int32_t> output_shape{batch_size, 2048};
+
+  BuildAndRun(repeat_time, num_tuning_rounds, ReshapeProgramBuilder(input_shape, output_shape)());
+}
+
+TEST_F(PerformanceTester, Softmax) {
+  std::vector<int32_t> input_shape{batch_size, 1000};
+  int axis                = -1;
+  std::string data_format = "AnyLayout";
+
+  SetOptionFlags(0UL);
+  BuildAndRun(repeat_time, num_tuning_rounds, SoftmaxProgramBuilder(input_shape, axis, data_format)());
+}
+
+TEST_F(PerformanceTester, Scale) {
+  std::vector<int32_t> input_shape{batch_size, 1000};
+  float scale           = 1.0f;
+  float bias            = 0.0f;
+  bool bias_after_scale = true;
+
+  BuildAndRun(repeat_time, num_tuning_rounds, ScaleProgramBuilder(input_shape, scale, bias, bias_after_scale)());
+}
+
+// paddle model test
+TEST_F(PerformanceTester, ResNet50) {
   std::vector<std::string> input_names       = {"inputs"};
-  std::vector<std::vector<int>> input_shapes = {{1, 3, 224, 224}};
-
+  std::vector<std::vector<int>> input_shapes = {{batch_size, 3, 224, 224}};
   CHECK_NE(FLAGS_resnet50_model_dir, "");
-  // ResNet50 can only run manual schedule test now.
-  PaddleModelPerformanceTester tester(FLAGS_resnet50_model_dir, input_names, input_shapes);
-  tester.SetOptionFlags(0UL);
-  tester.BuildAndRun(repeat_time, num_tuning_rounds);
+
+  SetOptionFlags(0UL);
+  BuildAndRun(
+      repeat_time, num_tuning_rounds, PaddleModelProgramBuilder(FLAGS_resnet50_model_dir, input_names, input_shapes)());
 }
 
 #endif

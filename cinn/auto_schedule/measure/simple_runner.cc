@@ -63,11 +63,10 @@ static std::shared_ptr<Buffer> AllocBuffer(const common::Target& target,
   static constexpr int default_alignment = 1024;
   auto buffer                            = std::make_shared<Buffer>(target);
 
+  VLOG(6) << "AllocBuffer target:" << target << ", type:" << type << ", numel:" << shape.numel()
+          << ", fill_random_value:" << fill_random_value;
   const uint32_t bytes_of_ele = static_cast<uint32_t>(std::floor(static_cast<float>(type.bits() + 1) / 8.0));
   CHECK_GT(bytes_of_ele, 0) << "The number bytes of each element is invalid";
-  VLOG(6) << "AllocBuffer-target:" << target << ",type:" << type << ",numel:" << shape.numel()
-          << ",fill_random_value:" << fill_random_value;
-
   if (target == common::DefaultHostTarget()) {
     buffer->ResizeLazy(default_alignment, shape.numel() * bytes_of_ele);
   } else {
@@ -95,6 +94,7 @@ std::map<std::string, cinn_pod_value_t> SimpleRunner::PrepareArgs(const MeasureI
   const auto& instructions   = build_result.runtime_program->GetRunInstructions();
 
   auto fill_arg_fn = [&](const std::string& param) {
+    VLOG(6) << "Filling argument:" << param;
     // the argument is duplicated and has been prepared.
     if (result.count(param)) {
       return;

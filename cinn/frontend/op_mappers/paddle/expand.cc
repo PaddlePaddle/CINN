@@ -98,7 +98,12 @@ void ExpandV2OpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext&
 
   VLOG(4) << "expand_v2: out shape: " << cinn::utils::Join(out_shape, ", ");
 
-  auto out = ctx.Builder()->BroadcastTo(x, out_shape);
+  Variable out;
+  if (out_shape == x_shape) {
+    out = ctx.Builder()->Identity(x);
+  } else {
+    out = ctx.Builder()->BroadcastTo(x, out_shape);
+  }
 
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);

@@ -66,6 +66,8 @@ class IRSchedule {
   IRSchedule();
   explicit IRSchedule(const ModuleExpr& modexpr, bool debug_flag = false);
   IRSchedule(ir::ModuleExpr&& mod_expr, ScheduleDesc&& trace);
+  IRSchedule(const IRSchedule& other);
+  IRSchedule& operator=(const IRSchedule& src);
   IRSchedule(IRSchedule&& other);
   IRSchedule& operator=(IRSchedule&& src);
   ~IRSchedule();
@@ -75,7 +77,7 @@ class IRSchedule {
   //! Get the ModuleExpr stored in ScheduleImpl.
   const ModuleExpr& GetModule() const;
 
-  //! Merge multiple Exprs in a ModuleExepr to be one
+  //! Merge multiple Exprs in a ModuleExpr to be one
   void MergeExprs();
 
   //! Get the ScheduleDesc that traces the scheduling process

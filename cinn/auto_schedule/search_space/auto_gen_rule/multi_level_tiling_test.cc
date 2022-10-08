@@ -106,12 +106,12 @@ TEST(MultiLevelTile, SimpleLoops) {
   VLOG(6) << ast_expr;
 
   MultiLevelTiling multi_level_tiling(target);
-  ir::IRSchedule init_schedule(ir::ModuleExpr({ast_expr}));
-  EXPECT_EQ(multi_level_tiling.Init(init_schedule), RuleApplyType::kApplyAndSkipThisRule);
+  ir::IRSchedule ir_schedule(ir::ModuleExpr({ast_expr}));
+  EXPECT_EQ(multi_level_tiling.Init(&ir_schedule), RuleApplyType::kApplyAndSkipThisRule);
 
   EXPECT_EQ(multi_level_tiling.NumberApplicable(), 1);
-  ir::IRSchedule applied_schedule = multi_level_tiling.ApplyRandomly();
-  std::vector<ir::Expr> exprs     = applied_schedule.GetModule().GetExprs();
+  multi_level_tiling.ApplyRandomly();
+  std::vector<ir::Expr> exprs = ir_schedule.GetModule().GetExprs();
   EXPECT_EQ(exprs.size(), 1UL);
 
   std::stringstream ss;
@@ -150,13 +150,13 @@ TEST(MulitLevelTile, MatrixMultiply) {
   VLOG(6) << ast_expr;
 
   MultiLevelTiling multi_level_tiling(target);
-  ir::IRSchedule init_schedule(ir::ModuleExpr({ast_expr}));
-  EXPECT_EQ(multi_level_tiling.Init(init_schedule), RuleApplyType::kApplyAndSkipThisRule);
+  ir::IRSchedule ir_schedule(ir::ModuleExpr({ast_expr}));
+  EXPECT_EQ(multi_level_tiling.Init(&ir_schedule), RuleApplyType::kApplyAndSkipThisRule);
 
   EXPECT_EQ(multi_level_tiling.NumberApplicable(), 1);
 
-  ir::IRSchedule appied_schedule = multi_level_tiling.ApplyRandomly();
-  std::vector<ir::Expr> exprs    = appied_schedule.GetModule().GetExprs();
+  multi_level_tiling.ApplyRandomly();
+  std::vector<ir::Expr> exprs = ir_schedule.GetModule().GetExprs();
   EXPECT_EQ(exprs.size(), 1UL);
 
   std::stringstream ss;
