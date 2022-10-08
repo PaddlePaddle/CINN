@@ -32,10 +32,10 @@ void ExpandOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
   auto x_shape = x->shape;
 
   VLOG(4) << "expand: x shape: " << cinn::utils::Join(x_shape, ", ");
-  VLOG(4) << "expand: attr shape: " << cinn::utils::Join(shape, ", ");
+  VLOG(4) << "expand: attr expand_times: " << cinn::utils::Join(expand_times, ", ");
 
-  CHECK_EQ(shape.size(), x_shape.size()) << "The size of `expand_times' should == the rank[" << x_shape.size()
-                                         << "] of x's shape, but got " << shape.size();
+  CHECK_EQ(expand_times.size(), x_shape.size()) << "The size of `expand_times' should == the rank[" << x_shape.size()
+                                                << "] of x's shape, but got " << expand_times.size();
 
   std::vector<int> out_shape(x_shape.size());
   for (size_t i = 0; i < x_shape.size(); ++i) {
