@@ -38,6 +38,7 @@ CINN_USE_REGISTER(paddle_concat)
 CINN_USE_REGISTER(paddle_constant)
 CINN_USE_REGISTER(paddle_where)
 CINN_USE_REGISTER(paddle_squeeze)
+CINN_USE_REGISTER(paddle_expand)
 
 CINN_USE_REGISTER(science_broadcast)
 CINN_USE_REGISTER(science_transform)
