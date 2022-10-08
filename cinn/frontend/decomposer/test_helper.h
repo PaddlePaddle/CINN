@@ -52,7 +52,8 @@ std::ostream& operator<<(std::ostream& os, const std::vector<T, Alloc>& vec) {
 }
 
 template <typename T>
-void InitRandomVector(std::vector<T>* vec, size_t numel, T low = 0, T high = 1, float precision = 1e-5) {
+void InitRandomVector(
+    std::vector<T>* vec, size_t numel, T low = static_cast<T>(0), T high = static_cast<T>(1), float precision = 1e-5) {
   std::random_device seed;
   std::default_random_engine engine(seed());
   std::uniform_real_distribution<double> dist(low, high);
@@ -62,6 +63,18 @@ void InitRandomVector(std::vector<T>* vec, size_t numel, T low = 0, T high = 1, 
     T value    = static_cast<T>(dist(engine));
     int coeff  = static_cast<int>(value / precision);
     vec->at(i) = precision * static_cast<T>(coeff);
+  }
+}
+
+template <>
+void InitRandomVector<int>(std::vector<int>* vec, size_t numel, int low, int high, float precision) {
+  std::random_device seed;
+  std::default_random_engine engine(seed());
+  std::uniform_int_distribution<int> dist(low, high);
+
+  vec->resize(numel);
+  for (size_t i = 0; i < numel; ++i) {
+    vec->at(i) = dist(engine);
   }
 }
 
@@ -79,6 +92,26 @@ void CopyFromVector(const std::vector<T>& vec, hlir::framework::Tensor tensor, T
 #endif
 }
 
+template <>
+void CopyFromVector<bool>(const std::vector<bool>& vec, hlir::framework::Tensor tensor, Target target) {
+  auto* data = tensor->mutable_data<bool>(target);
+
+  size_t numel = tensor->shape().numel();
+  EXPECT_EQ(vec.size(), numel);
+
+#ifdef CINN_WITH_CUDA
+  // why not use vector<bool> ? Because to optimizes space, each value is stored in a single bit.
+  // So that the vector<bool> doesn't has data() function.
+  EXPECT_EQ(sizeof(bool), sizeof(char)) << "The test need ensure the byte size of bool equal to the byte size of char.";
+  ;
+  std::vector<char> vec_char(numel);
+  for (int i = 0; i < numel; ++i) vec_char[i] = static_cast<char>(vec[i]);
+  cudaMemcpy(data, vec_char.data(), numel * sizeof(bool), cudaMemcpyHostToDevice);
+#else
+  std::copy(vec.begin(), vec.end(), data);
+#endif
+}
+
 template <typename T>
 void CopyToVector(const hlir::framework::Tensor tensor, std::vector<T>* vec) {
   auto* data = tensor->data<T>();
@@ -88,6 +121,28 @@ void CopyToVector(const hlir::framework::Tensor tensor, std::vector<T>* vec) {
 
 #ifdef CINN_WITH_CUDA
   cudaMemcpy(vec->data(), data, numel * sizeof(T), cudaMemcpyDeviceToHost);
+#else
+  for (size_t i = 0; i < numel; ++i) {
+    vec->at(i) = data[i];
+  }
+#endif
+}
+
+template <>
+void CopyToVector<bool>(const hlir::framework::Tensor tensor, std::vector<bool>* vec) {
+  auto* data = tensor->data<bool>();
+
+  size_t numel = tensor->shape().numel();
+  vec->resize(numel);
+
+#ifdef CINN_WITH_CUDA
+  // why not use vector<bool> ? Because to optimizes space, each value is stored in a single bit.
+  // So that the vector<bool> doesn't has data() function.
+  EXPECT_EQ(sizeof(bool), sizeof(char)) << "The test need ensure the byte size of bool equal to the byte size of char.";
+  ;
+  std::vector<char> vec_char(numel);
+  cudaMemcpy(vec_char.data(), data, numel * sizeof(bool), cudaMemcpyDeviceToHost);
+  for (int i = 0; i < numel; ++i) vec->at(i) = static_cast<bool>(vec_char[i]);
 #else
   for (size_t i = 0; i < numel; ++i) {
     vec->at(i) = data[i];
