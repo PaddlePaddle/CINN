@@ -92,13 +92,14 @@ std::vector<float> var_ref{10.701677, 10.11525, 6.12105, 8.482212, 12.753654, 11
 
 void SetData(hlir::framework::Tensor tensor, const common::Target& target, const std::vector<float>& values) {
   auto* data = tensor->mutable_data<float>(target);
+#ifdef CINN_WITH_CUDA
   if (target == common::DefaultNVGPUTarget()) {
     cudaMemcpy(data, values.data(), values.size() * sizeof(float), cudaMemcpyHostToDevice);
-  } else if (target == common::DefaultHostTarget()) {
-    std::copy(values.begin(), values.end(), data);
-  } else {
-    CINN_NOT_IMPLEMENTED
+    return;
   }
+#endif
+  CHECK(target == common::DefaultHostTarget());
+  std::copy(values.begin(), values.end(), data);
 }
 }  // namespace
 
