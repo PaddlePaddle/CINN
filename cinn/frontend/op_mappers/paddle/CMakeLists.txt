@@ -25,3 +25,5 @@ gather_srcs(cinnapi_src SRCS
     where.cc
     squeeze.cc
     expand.cc)
+
+cc_test(test_paddle_expand SRCS expand_test.cc DEPS cinncore)
