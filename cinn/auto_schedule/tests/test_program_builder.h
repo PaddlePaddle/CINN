@@ -1,4 +1,4 @@
-// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+// Copyright (c) 2022 CINN Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,30 +14,13 @@
 
 #pragma once
 
-#include <utility>
-#include <vector>
-
-#include "cinn/ir/ir.h"
-#include "cinn/ir/lowered_func.h"
-
 namespace cinn {
+namespace auto_schedule {
 
-namespace ir {
-class ModuleExpr;
-}  // namespace ir
+class TestProgramBuilder {
+ public:
+  virtual frontend::Program operator()() = 0;
+};
 
-namespace optim {
-
-//! Shallow copy an expression.
-Expr IRCopy(Expr x);
-
-std::vector<Expr> IRCopy(const std::vector<Expr>& x);
-
-ir::ModuleExpr IRCopy(const ir::ModuleExpr& x);
-
-ir::LoweredFunc IRCopy(const ir::LoweredFunc& x);
-
-std::vector<ir::LoweredFunc> IRCopy(const std::vector<ir::LoweredFunc>& x);
-
-}  // namespace optim
+}  // namespace auto_schedule
 }  // namespace cinn
