@@ -539,8 +539,10 @@ void IRSoftmaxScheduleCPU(ir::IRSchedule &ir_sch, int axis) {
 
 void IRPoolScheduleGPU(ir::IRSchedule &ir_sch, const common::Target &target) {
   auto all_blocks = ir_sch.GetAllBlocks();
-  CHECK_EQ(all_blocks.size(), 1U);
+  CHECK_EQ(all_blocks.size(), 3U);
   ir_sch.Fuse(all_blocks[0], {0, 1, 2, 3});
+  // Blocks were changed after Fuse, so we have to get all blocks again.
+  all_blocks   = ir_sch.GetAllBlocks();
   auto loops   = ir_sch.GetLoops(all_blocks[0]);
   auto splited = ir_sch.Split(loops[0], {-1, 1024});
   ir_sch.Bind(splited[0], "blockIdx.x");

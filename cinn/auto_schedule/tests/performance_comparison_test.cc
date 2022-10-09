@@ -90,6 +90,7 @@ class PerformanceTester : public ::testing::Test {
     VLOG(3) << "Start initialize graph.";
     graph_ = std::make_shared<hlir::framework::Graph>(program, target_);
     hlir::framework::ApplyPass(graph_.get(), "InferShape");
+    hlir::framework::ApplyPass(graph_.get(), "OpFusionPass");
     VLOG(3) << "Initialize graph completed, Start building runtime program.";
     BuildRuntimePrograms(num_tuning_rounds);
     VLOG(3) << "Build runtime programs completed, start running.";
@@ -214,6 +215,7 @@ const int repeat_time       = 100;
 const int num_tuning_rounds = 1;
 const int batch_size        = 1;
 
+/*
 TEST_F(PerformanceTester, Mul) {
   int M = 32;
   int K = 16;
@@ -251,14 +253,14 @@ TEST_F(PerformanceTester, Conv2d) {
               num_tuning_rounds,
               Conv2dProgramBuilder(
                   input_shape, weight_shape, strides, paddings, dilations, groups, data_format, padding_algorithm)());
-}
+}*/
 
 TEST_F(PerformanceTester, Pool2d) {
-  std::vector<int32_t> input_shape{batch_size, 64, 112, 112};
+  std::vector<int32_t> input_shape{4, 64, 112, 112};
   std::string pooling_type = "max";
   std::vector<int> ksize{3, 3};
   std::vector<int> strides{2, 2};
-  std::vector<int> paddings{1, 1};
+  std::vector<int> paddings{1, 1, 1, 1};
   bool ceil_mode                = false;
   bool exclusive                = true;
   bool global_pooling           = false;
@@ -266,7 +268,7 @@ TEST_F(PerformanceTester, Pool2d) {
   bool adaptive                 = false;
   std::string padding_algorithm = "EXPLICIT";
 
-  SetOptionFlags(0UL);
+  // SetOptionFlags(0UL);
   BuildAndRun(repeat_time,
               num_tuning_rounds,
               Pool2dProgramBuilder(input_shape,
@@ -282,6 +284,7 @@ TEST_F(PerformanceTester, Pool2d) {
                                    padding_algorithm)());
 }
 
+/*
 TEST_F(PerformanceTester, BatchNorm) {
   std::vector<int32_t> input_shape{batch_size, 64, 112, 112};
   std::vector<int32_t> scale_shape{64};
@@ -335,7 +338,7 @@ TEST_F(PerformanceTester, ResNet50) {
   BuildAndRun(
       repeat_time, num_tuning_rounds, PaddleModelProgramBuilder(FLAGS_resnet50_model_dir, input_names, input_shapes)());
 }
-
+*/
 #endif
 
 }  // namespace auto_schedule
