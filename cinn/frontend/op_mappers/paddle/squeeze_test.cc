@@ -1,0 +1,172 @@
+// Copyright (c) 2022 CINN Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include <gtest/gtest.h>
+
+#include <algorithm>
+#include <memory>
+#include <random>
+#include <string>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
+
+#include "cinn/common/target.h"
+#include "cinn/frontend/op_mapper_registry.h"
+#include "cinn/frontend/op_mappers/use_op_mappers.h"
+#include "cinn/frontend/optimize.h"
+#include "cinn/frontend/paddle/cpp/op_desc.h"
+#include "cinn/frontend/syntax.h"
+#include "cinn/hlir/framework/graph.h"
+#include "cinn/hlir/framework/graph_compiler.h"
+#include "cinn/hlir/framework/scope.h"
+#include "cinn/hlir/framework/tensor.h"
+#include "cinn/hlir/op/use_ops.h"
+#include "cinn/utils/data_util.h"
+#include "cinn/utils/string.h"
+#ifdef CINN_WITH_CUDA
+#include <cuda_runtime.h>
+#endif
+
+namespace cinn {
+namespace frontend {
+
+namespace {
+void SetData(hlir::framework::Tensor tensor, const common::Target& target, const std::vector<float>& values) {
+  auto* data = tensor->mutable_data<float>(target);
+#ifdef CINN_WITH_CUDA
+  if (target == common::DefaultNVGPUTarget()) {
+    cudaMemcpy(data, values.data(), values.size() * sizeof(float), cudaMemcpyHostToDevice);
+    return;
+  }
+#endif
+  CHECK(target == common::DefaultHostTarget());
+  std::copy(values.begin(), values.end(), data);
+}
+}  // namespace
+
+TEST(squeeze2, squeeze2_ok) {
+  // x [5, 1, 10]
+  std::vector<float> x_data{0.12854190, 0.86595678, 0.50628018, 0.57340592, 0.58484471,
+                            0.35332084, 0.74288440, 0.01657265, 0.57960337, 0.88996172,
+
+                            0.72068954, 0.27006057, 0.86222219, 0.60101908, 0.53954035,
+                            0.48058257, 0.62132895, 0.52569330, 0.07567052, 0.50273550,
+
+                            0.56443858, 0.03832189, 0.19779968, 0.99591678, 0.77944815,
+                            0.28213108, 0.36518449, 0.28384677, 0.41876739, 0.94826484,
+
+                            0.06993651, 0.16367355, 0.04293403, 0.72424090, 0.40233579,
+                            0.77571392, 0.54143453, 0.80370486, 0.04167820, 0.85813892,
+
+                            0.59423029, 0.84487486, 0.68533391, 0.01560080, 0.47167298,
+                            0.43144599, 0.84002745, 0.27667800, 0.80399162, 0.09659594};
+  // out [5, 10]
+  std::vector<float> output_ref{0.12854190, 0.86595678, 0.50628018, 0.57340592, 0.58484471,
+                                0.35332084, 0.74288440, 0.01657265, 0.57960337, 0.88996172,
+
+                                0.72068954, 0.27006057, 0.86222219, 0.60101908, 0.53954035,
+                                0.48058257, 0.62132895, 0.52569330, 0.07567052, 0.50273550,
+
+                                0.56443858, 0.03832189, 0.19779968, 0.99591678, 0.77944815,
+                                0.28213108, 0.36518449, 0.28384677, 0.41876739, 0.94826484,
+
+                                0.06993651, 0.16367355, 0.04293403, 0.72424090, 0.40233579,
+                                0.77571392, 0.54143453, 0.80370486, 0.04167820, 0.85813892,
+
+                                0.59423029, 0.84487486, 0.68533391, 0.01560080, 0.47167298,
+                                0.43144599, 0.84002745, 0.27667800, 0.80399162, 0.09659594};
+
+#ifdef CINN_WITH_CUDA
+  Target target = common::DefaultNVGPUTarget();
+#else
+  Target target = common::DefaultHostTarget();
+#endif
+
+  std::string op_type = "squeeze2";
+  auto* squeeze2      = OpMapperRegistry::Global()->Find(op_type);
+  CHECK_NOTNULL(squeeze2);
+
+  auto symbol_scope = hlir::framework::Scope::Create();
+  std::unordered_map<std::string, Variable> var_map;
+  std::unordered_map<std::string, std::string> var_model_to_program_map;
+  std::unordered_set<std::string> fetch_var_names;
+  NetBuilder builder("net_builder");
+  frontend::OpMapperContext ctx(*symbol_scope, target, &builder, &var_map, &var_model_to_program_map, &fetch_var_names);
+
+  // input
+  auto create_input = [&](const auto& name, const auto& type, const auto& shape) {
+    auto id    = utils::TransValidVarName(name);
+    auto input = ctx.Builder()->CreateInput(type, shape, id);
+    ctx.AddVar(name, input);
+    ctx.AddVarModelToProgram(name, input.id().data());
+  };
+  std::string x_name       = "before_0.tmp_0";
+  std::vector<int> x_shape = {5, 1, 10};
+  create_input(x_name, Float(32), x_shape);
+
+  // output
+  std::string out_name    = "squeeze2_0.tmp_0";
+  std::string xshape_name = "squeeze2_0.tmp_1";
+
+  // attributes
+  std::vector<int> axes = {1};
+
+  paddle::cpp::OpDesc op_desc;
+  op_desc.SetType(op_type);
+  op_desc.SetInput("X", {x_name});
+  op_desc.SetOutput("Out", {out_name});
+  op_desc.SetOutput("XShape", {xshape_name});
+  op_desc.SetAttr("axes", axes);
+
+  squeeze2->Run(op_desc, ctx);
+
+  ctx.AddFetchVarName(var_model_to_program_map.at(out_name));
+  ctx.AddFetchVarName(var_model_to_program_map.at(xshape_name));
+
+  auto program    = builder.Build();
+  auto cinn_graph = std::make_shared<hlir::framework::Graph>(program, target);
+  VLOG(4) << "graph:\n" << cinn_graph->Visualize();
+
+  auto exe_scope = BuildScope(target, cinn_graph);
+  hlir::framework::GraphCompiler gc(target, exe_scope, cinn_graph);
+  hlir::framework::GraphCompiler::CompileOptions options;
+  options.attached_code              = "";
+  options.with_instantiate_variables = true;
+  auto compile_obj                   = gc.Build(options, std::move(fetch_var_names));
+
+  exe_scope->Var<hlir::framework::Tensor>(var_model_to_program_map.at(x_name));
+
+  auto x_ten = exe_scope->GetTensor(var_model_to_program_map.at(x_name));
+
+  SetData(x_ten, target, x_data);
+
+  compile_obj.runtime_program->Execute();
+
+  auto compare = [&](auto var, const auto& ref) {
+    auto var_tensor        = exe_scope->GetTensor(std::string(var->id));
+    std::vector<float> res = GetTensorData<float>(var_tensor, target);
+    for (int i = 0; i < res.size(); ++i) {
+      ASSERT_LT(std::abs(res[i] - ref[i]), 1e-5f + 1e-8f * std::abs(ref[i]));
+    }
+    VLOG(4) << "---- variable info:";
+    VLOG(4) << "     variable name: " << var->id;
+    VLOG(4) << "     variable shape: " << utils::Join(var->shape, ", ");
+    VLOG(4) << "     variable value: " << utils::Join(res, ", ");
+  };
+
+  compare(ctx.GetVar(out_name), output_ref);
+}
+}  // namespace frontend
+}  // namespace cinn

@@ -14,9 +14,7 @@ gather_srcs(cinnapi_src SRCS
     dropout.cc
     transpose.cc
     reshape.cc
-    squeeze.cc
     tanh.cc
-    where.cc
     matmul.cc
     compare.cc
     log.cc
@@ -27,3 +25,6 @@ gather_srcs(cinnapi_src SRCS
     expand.cc)
 
 cc_test(test_paddle_expand SRCS expand_test.cc DEPS cinncore)
+cc_test(test_paddle_elementwise SRCS elementwise_test.cc DEPS cinncore)
+cc_test(test_paddle_where SRCS where_test.cc DEPS cinncore)
+cc_test(test_paddle_squeeze SRCS squeeze_test.cc DEPS cinncore)
