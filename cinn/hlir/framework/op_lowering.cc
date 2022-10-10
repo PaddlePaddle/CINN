@@ -1275,13 +1275,25 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpaqueOp(GroupPtr& group, bool ap
     }
     return res;
   } else {
+    std::vector<Expr> ast_exprs;
     for (auto& f : func) {
-#ifdef CINN_WITH_CUDA
-      optim::OptimizeExprGPU(&(f->body));
-#endif
-      f = optim::Optimize(Expr(f), target_, false).as_lowered_func_ref();
+      ast_exprs.push_back(f->body);
     }
-    return func;
+    ir::ModuleExpr mod_expr(ast_exprs);
+    ir::IRSchedule ir_sch(mod_expr);
+    ir_sch.MergeExprs();
+
+    auto func_body = ir_sch.GetModule().GetExprs().at(0);
+#ifdef CINN_WITH_CUDA
+    optim::OptimizeExprGPU(&(func_body));
+#endif
+
+    auto temp_buffers = lang::GetTempBuffers(inputs, stages, func_body);
+    auto function =
+        ir::_LoweredFunc_::Make(group->GetFuncName(), args, ir_sch.GetModule().GetExprs().at(0), temp_buffers);
+    function->PrepareBufferCastExprs();
+    function = optim::Optimize(Expr(function), target_, false).as_lowered_func_ref();
+    return {function};
   }
 }
 

@@ -33,6 +33,11 @@
 #include "cinn/utils/data_util.h"
 
 DEFINE_string(resnet50_model_dir, "./ResNet50", "the path to paddle model resnet50.");
+// Flags that control which schedule tests will be run.
+// Bit with index 0 controls no schedule test, means options = 1 = "001" will run no schedule test.
+// Bit with index 1 controls manual schedule test, means options = 2 = "010" will run manual schedule test.
+// Bit with index 2 controls auto schedule test, means options = 4 = "100" will run auto schedule test.
+// The default value is 7, which means that all tests will be run.
 DEFINE_uint64(options, 7, "the options to control which schedule tests will be run.");
 DECLARE_bool(cinn_ir_schedule);
 
@@ -248,7 +253,6 @@ TEST_F(PerformanceTester, Conv2d) {
   std::string data_format       = "NCHW";
   std::string padding_algorithm = "EXPLICIT";
 
-  SetOptionFlags(0UL);
   BuildAndRun(repeat_time,
               num_tuning_rounds,
               Conv2dProgramBuilder(
@@ -315,7 +319,7 @@ TEST_F(PerformanceTester, Softmax) {
   int axis                = -1;
   std::string data_format = "AnyLayout";
 
-  SetOptionFlags(0UL);
+  SetOptionFlags(5UL);
   BuildAndRun(repeat_time, num_tuning_rounds, SoftmaxProgramBuilder(input_shape, axis, data_format)());
 }
 
