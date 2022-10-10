@@ -101,6 +101,19 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
     for (int idx = 0; idx < fn_ptrs_.size(); ++idx) {
       VLOG(3) << "Runing func name: " << fn_names_[idx];
       auto& pod_args = args_cached_[idx];
+      VLOG(6) << "in_args_ = ";
+      for (auto a : in_args_[idx]) {
+        VLOG(6) << a;
+      }
+      VLOG(6) << "out_args_ = ";
+      for (auto a : out_args_[idx]) {
+        VLOG(6) << a;
+      }
+
+      VLOG(6) << "pod_args.size() = " << pod_args.size();
+      for (auto& p : pod_args) {
+        VLOG(6) << "pod_arg.data_addr() = " << p.data_addr() << ", type_code() = " << p.type_code();
+      }
       CHECK(fn_ptrs_[idx]) << "The LoweredFunc address should be set first by calling SetLoweredFunc method";
       if (!dryrun) {
         if (target_ == common::DefaultNVGPUTarget()) {
