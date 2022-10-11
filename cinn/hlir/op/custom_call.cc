@@ -170,7 +170,13 @@ std::vector<ir::Expr> CustomCallArgsForCudnnConvForward(const framework::NodeAtt
   cudnnTensorFormat_t format = data_format == "NCHW" ? CUDNN_TENSOR_NCHW : CUDNN_TENSOR_NHWC;
 
   std::vector<ir::Expr> args = {ir::Expr(static_cast<int>(format)), ir::Expr(alpha), ir::Expr(beta)};
-  args.insert(args.end(), inputs[0]->shape.begin(), inputs[0]->shape.end());
+  if (data_format == "NCHW") {
+    args.insert(args.end(), inputs[0]->shape.begin(), inputs[0]->shape.end());
+  } else {
+    const auto &shape = inputs[0]->shape;
+    args.insert(args.end(), {shape[0], shape[3], shape[1], shape[2]});
+  }
+
   args.insert(args.end(), inputs[1]->shape.begin(), inputs[1]->shape.end());
   args.push_back(ir::Expr(padding[0]));
   args.push_back(ir::Expr(padding[1]));
@@ -179,9 +185,17 @@ std::vector<ir::Expr> CustomCallArgsForCudnnConvForward(const framework::NodeAtt
   args.push_back(ir::Expr(dilation[0]));
   args.push_back(ir::Expr(dilation[1]));
   args.push_back(ir::Expr(groups));
-  std::transform(output_shapes[0].begin(), output_shapes[0].end(), std::back_inserter(args), [](const int dim) {
-    return ir::Expr(dim);
-  });
+
+  if (data_format == "NCHW") {
+    std::transform(output_shapes[0].begin(), output_shapes[0].end(), std::back_inserter(args), [](const int dim) {
+      return ir::Expr(dim);
+    });
+  } else {
+    std::vector<int> nhwc_shape{output_shapes[0][0], output_shapes[0][3], output_shapes[0][1], output_shapes[0][2]};
+    std::transform(
+        nhwc_shape.begin(), nhwc_shape.end(), std::back_inserter(args), [](const int dim) { return ir::Expr(dim); });
+  }
+
   return args;
 }
 
