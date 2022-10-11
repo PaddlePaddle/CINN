@@ -95,6 +95,7 @@ class PerformanceTester : public ::testing::Test {
     VLOG(3) << "Start initialize graph.";
     graph_ = std::make_shared<hlir::framework::Graph>(program, target_);
     hlir::framework::ApplyPass(graph_.get(), "InferShape");
+    hlir::framework::ApplyPass(graph_.get(), "OpFusionPass");
     VLOG(3) << "Initialize graph completed, Start building runtime program.";
     BuildRuntimePrograms(num_tuning_rounds);
     VLOG(3) << "Build runtime programs completed, start running.";
@@ -117,38 +118,9 @@ class PerformanceTester : public ::testing::Test {
     GraphCompiler::CompileOptions compile_options;
     compile_options.with_instantiate_variables = true;
 
-    std::tuple<std::vector<common::GraphNode*>, std::vector<common::GraphEdge*>> topo_result =
-        graph_->topological_order();
-    const std::vector<common::GraphNode*>& nodes_in_order = std::get<0>(topo_result);
-    for (auto graph_node : nodes_in_order) {
-      // n must be an op node
-      auto node = graph_node->safe_as<hlir::framework::Node>();
-      if (node) {
-        auto group = std::make_shared<Graph::Group>();
-        // init group
-        group->nodes.push_back(node);
-        group->nodes_set.insert(node);
-        group->output_nodes.insert(node);
-        // input node
-        for (auto& edge : node->inlinks()) {
-          auto input_graph_node = edge->source();
-          auto input_node_data  = input_graph_node->safe_as<hlir::framework::NodeData>();
-          CHECK(input_node_data);
-          // input data has no source node
-          if (input_node_data->source_node.get()) {
-            group->input_nodes[input_node_data->source_node.get()] = 1;
-          }
-        }
-
-        // group type
-        group->op_pattern_kind = hlir::framework::kOpaque;
-        // use current node as master node for schedule
-        group->master_nodes.insert(node);
-        group->group_id = node->id();
-
-        compile_options.groups.push_back(group);
-        compile_options.lowered_funcs.push_back(op_lowerer->LowerWithoutSchedule(group));
-      }
+    compile_options.groups = graph_->fusion_groups;
+    for (auto group : graph_->fusion_groups) {
+      compile_options.lowered_funcs.push_back(op_lowerer->LowerWithoutSchedule(group));
     }
 
     VLOG(3) << "===========================No Schedule LoweredFunc Begin===========================";
@@ -214,8 +186,9 @@ class PerformanceTester : public ::testing::Test {
 };
 
 #ifdef CINN_WITH_CUDA
+#ifndef CINN_WITH_CUDNN
 
-const int repeat_time       = 100;
+const int repeat_time       = 2;
 const int num_tuning_rounds = 1;
 const int batch_size        = 1;
 
@@ -316,7 +289,6 @@ TEST_F(PerformanceTester, Softmax) {
   int axis                = -1;
   std::string data_format = "AnyLayout";
 
-  SetOptionFlags(5UL);
   BuildAndRun(repeat_time, num_tuning_rounds, SoftmaxProgramBuilder(input_shape, axis, data_format)());
 }
 
@@ -340,6 +312,7 @@ TEST_F(PerformanceTester, ResNet50) {
       repeat_time, num_tuning_rounds, PaddleModelProgramBuilder(FLAGS_resnet50_model_dir, input_names, input_shapes)());
 }
 
+#endif
 #endif
 
 }  // namespace auto_schedule
