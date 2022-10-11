@@ -58,7 +58,6 @@ void RunProgram(const Target& target, Program* prog) {
 
   auto passes = DefaultTrainingOptimizeOptions();
 
-  RunDecomposer(prog, target);
   frontend::ProgramPass::Apply(prog, {}, target, passes.program_passes);
 
   auto graph = std::make_shared<hlir::framework::Graph>(*prog, target);
@@ -88,18 +87,17 @@ void RunProgram(const Target& target, Program* prog) {
 }
 
 TEST(PaddleModelConvertor, basic) {
-  auto scope  = hlir::framework::Scope::Create();
   auto target = common::DefaultTarget();
 
-  PaddleModelConvertor model_transform(scope.get(), target);
-  auto program = model_transform(FLAGS_model_dir);
+  PaddleModelConvertor model_transform;
+  auto program = model_transform(target, FLAGS_model_dir);
 
   const auto& var_map                  = model_transform.var_map();
   const auto& var_model_to_program_map = model_transform.var_model_to_program_map();
 
   ASSERT_FALSE(var_map.empty());
   ASSERT_FALSE(var_model_to_program_map.empty());
-  ASSERT_FALSE(model_transform.GetFetchIds().empty());
+  ASSERT_FALSE(model_transform.GetFetchList().empty());
   ASSERT_GT(program.size(), 0);
 
   RunProgram(target, &program);

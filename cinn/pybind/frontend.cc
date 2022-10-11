@@ -24,6 +24,7 @@
 #include "cinn/frontend/interpreter.h"
 #include "cinn/frontend/net_builder.h"
 #include "cinn/frontend/optimize.h"
+#include "cinn/frontend/paddle_model_convertor.h"
 #include "cinn/frontend/pass/use_program_pass.h"
 #include "cinn/frontend/program_pass.h"
 #include "cinn/frontend/syntax.h"
@@ -69,8 +70,10 @@ void BindFrontend(pybind11::module *m) {
   py::class_<Variable>(*m, "Variable")  //
       .def(py::init<const std::string &>(), py::arg("id") = "")
       .def(py::init([](const Placeholder &p) { return new Variable(p); }))
-      .def("__str__", [](Variable &self) { return self->id; })
+      .def("__str__", [](Variable &self) { return utils::GetStreamCnt(self); })
       .def("__repr__", [](Variable &self) { return utils::GetStreamCnt(self); })
+      .def("name", [](Variable &self) { return self->id; })
+      .def("shape", [](Variable &self) { return self->shape; })
       .def("type", [](Variable &self) { return common::Type2Str(self->type); })
       .def("set_type",
            [](Variable &self, const Type &type) {
@@ -120,6 +123,8 @@ void BindFrontend(pybind11::module *m) {
       .def(py::init<>())
       .def("size", &Program::size)
       .def("__getitem__", [](Program &self, int idx) { return self[idx]; })
+      .def("__str__", [](Program &self) { return utils::GetStreamCnt(self); })
+      .def("get_inputs", &Program::GetInputs)
       .def("add", &Program::add)
       .def("mul", &Program::mul)
       .def("elementwise_add", &Program::elementwise_add)
@@ -144,7 +149,7 @@ void BindFrontend(pybind11::module *m) {
               const std::vector<Variable> &tensor_outputs) {
              std::shared_ptr<hlir::framework::Graph> g(new hlir::framework::Graph(self, target));
              hlir::framework::ApplyPass(g.get(), "InferShape");
-             hlir::framework::ApplyPasses(g.get(), frontend::DefaultOpFusionPasses());
+             hlir::framework::ApplyPasses(g.get(), DefaultTrainingOptimizeOptions().graph_passes);
              std::shared_ptr<hlir::framework::Scope> scope = hlir::framework::BuildScope(target, g);
              hlir::framework::GraphCompiler gc(target, scope, g);
              auto program = gc.Build();
@@ -179,7 +184,17 @@ void BindFrontend(pybind11::module *m) {
 
              return outputs;
            })
-      .def("apply_pass", &ProgramPass::Apply)
+      .def("apply_pass",
+           [](Program &self,
+              const std::unordered_set<std::string> &fetch_ids,
+              const common::Target &target,
+              const std::vector<std::string> &passes = {}) {
+             auto real_passes = passes;
+             if (real_passes.empty()) {
+               real_passes = DefaultTrainingOptimizeOptions().program_passes;
+             }
+             frontend::ProgramPass::Apply(&self, fetch_ids, target, real_passes);
+           })
 
       /**
        * @brief Test the performance of a single-op program
@@ -606,6 +621,21 @@ void BindFrontend(pybind11::module *m) {
       .def("get_all_tensor_names", &CinnComputation::GetAllTensorNames)
       .def("get_tensor", &CinnComputation::GetTensor)
       .def("execute", [](CinnComputation &self) { self.Execute(); });
+
+  py::class_<PaddleModelConvertor>(*m, "PaddleModelConvertor")
+      .def(py::init<>())
+      .def("__call__",
+           &PaddleModelConvertor::operator(),
+           py::arg("target"),
+           py::arg("model_path"),
+           py::arg("is_combined") = false,
+           py::arg("scope")       = nullptr)
+      .def("get_fetch_list", &PaddleModelConvertor::GetFetchList)
+      .def("get_cinn_name", [](PaddleModelConvertor &self, const std::string &paddle_name) {
+        CHECK(self.var_model_to_program_map().count(paddle_name))
+            << "Cannot find variabel " << paddle_name << " in CINN! Please check.";
+        return self.var_model_to_program_map().at(paddle_name);
+      });
 
 }  // namespace frontend
 

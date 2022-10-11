@@ -66,7 +66,7 @@ class OpTest(unittest.TestCase):
                         inputs,
                         feed_data,
                         outputs,
-                        passes=["Decomposer"]):
+                        passes=list()):
         fetch_ids = {str(out) for out in outputs}
         self.apply_pass(prog, target, passes, fetch_ids)
         result = prog.build_and_get_output(target, inputs, feed_data, outputs)
@@ -76,19 +76,19 @@ class OpTest(unittest.TestCase):
 
         return outs_and_grads
 
-    def apply_pass(self, prog, target, passes=["Decomposer"], fetch_ids=set()):
+    def apply_pass(self, prog, target, passes=list(), fetch_ids=set()):
         def print_program(prog):
             if logger.getEffectiveLevel() != logging.DEBUG:
                 return
             for i in range(prog.size()):
                 print(prog[i])
 
-        logger.debug("============ Before Decomposer Pass ============")
+        logger.debug("============ Before Pass ============")
         print_program(prog)
 
         prog.apply_pass(fetch_ids, target, passes)
 
-        logger.debug("============ After Decomposer Pass ============")
+        logger.debug("============ After Pass ============")
         print_program(prog)
 
     def check_outputs_and_grads(self,
@@ -207,6 +207,7 @@ class OpTest(unittest.TestCase):
 
     @staticmethod
     def random(shape, dtype="float32", low=0.0, high=1.0):
+        assert bool(shape), "Shape should not empty!"
         if dtype in ["float32", "float64"]:
             return np.random.uniform(low, high, shape).astype(dtype)
         elif dtype == "bool":
