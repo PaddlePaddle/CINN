@@ -331,17 +331,18 @@ void TestCaseForReduce(
 TEST(Operator, Operator_Reduction_Case_6_1) {
   TestCaseForReduce<SumOp>(0.0f, 32, 32, 32, 32, "Operator_Reduction_Case_6_1", "reduce_sum");
 }
-TEST(Operator, Operator_Reduction_Case_6_2) {
+// Temporarily turn off Operator_Reduction_Case_6_2 test
+/* TEST(Operator, Operator_Reduction_Case_6_2) {
   TestCaseForReduce<ProdOp>(1.0f, 1, 1, 1, 32, "Operator_Reduction_Case_6_2", "reduce_prod");
-}
+} */
 TEST(Operator, Operator_Reduction_Case_6_3) {
   TestCaseForReduce<MaxOp>(-1e38f, 32, 32, 32, 32, "Operator_Reduction_Case_6_3", "reduce_max");
 }
 TEST(Operator, Operator_Reduction_Case_6_4) {
   TestCaseForReduce<MinOp>(1e38f, 32, 32, 32, 32, "Operator_Reduction_Case_6_4", "reduce_min");
 }
-
-TEST(Operator, Operator_Reduction_Case_7) {
+// Temporarily turn off Operator_Reduction_Case_7 test
+/* TEST(Operator, Operator_Reduction_Case_7) {
   int n = 32, c = 32, h = 16, w = 16;
   std::vector<int> shape = {n, c, h, w};
   std::vector<int> dim   = {0, 1};
@@ -402,7 +403,7 @@ TEST(Operator, Operator_Reduction_Case_7) {
 
   CUDA_CALL(cudaFree(dev_x));
   CUDA_CALL(cudaFree(dev_y));
-}
+} */
 
 TEST(Operator, Operator_Reduction_Case_8) {
   std::vector<int> shape = {128, 1};
