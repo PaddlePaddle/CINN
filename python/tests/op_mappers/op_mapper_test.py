@@ -59,12 +59,15 @@ class OpMapperTest(OpTest):
             main_program, self.feed_data, fetch_list=self.fetch_targets)
 
         paddle.fluid.io.save_inference_model(
-            "./op_mapper_test_save_model", self.feed_names, self.fetch_targets,
-            exe, main_program)
+            "./op_mapper_test_save_model/op_mapper_test_" +
+            self.__class__.__name__, self.feed_names, self.fetch_targets, exe,
+            main_program)
 
     def build_cinn_program(self, target):
         convertor = PaddleModelConvertor()
-        prog = convertor(self.target, "./op_mapper_test_save_model")
+        prog = convertor(
+            self.target, "./op_mapper_test_save_model/op_mapper_test_" +
+            self.__class__.__name__)
 
         # get cinn input list
         inputs = prog.get_inputs()
