@@ -36,6 +36,9 @@ namespace framework {
 static constexpr int DebugLogMaxLen = 30000;
 
 std::vector<std::unique_ptr<Instruction>> ParallelCompiler::operator()() {
+  if (!FLAGS_cinn_parallel_compile_size) {
+    return std::vector<std::unique_ptr<Instruction>>();
+  }
   // Task Spilt
   SplitTask();
   // launch task
@@ -45,29 +48,22 @@ std::vector<std::unique_ptr<Instruction>> ParallelCompiler::operator()() {
 }
 
 void ParallelCompiler::SplitTask() {
-  CHECK(graph_->fusion_groups.size() == optition_.lowered_funcs.size() || optition_.lowered_funcs.size() == 0);
+  CHECK(graph_->fusion_groups.size() == option_.lowered_funcs.size() || option_.lowered_funcs.size() == 0);
   // split task
   int num_per_task = std::max((graph_->fusion_groups.size() - 1) / FLAGS_cinn_parallel_compile_size + 1, 16UL);
 
   for (int idx = 0; idx < graph_->fusion_groups.size(); idx += num_per_task) {
-    int start          = idx;
-    int end            = std::min(idx + num_per_task, static_cast<int>(graph_->fusion_groups.size()));
-    auto groups        = std::vector<std::shared_ptr<Graph::Group>>(graph_->fusion_groups.begin() + start,
-                                                             graph_->fusion_groups.begin() + end);
-    auto lowered_funcs = optition_.lowered_funcs.size()
-                             ? std::vector<std::vector<ir::LoweredFunc>>(optition_.lowered_funcs.begin() + start,
-                                                                         optition_.lowered_funcs.begin() + end)
-                             : optition_.lowered_funcs;
-    tasks_.emplace_back(scope_, graph_, groups, lowered_funcs, target_);
+    tasks_.emplace_back(this, scope_, graph_, option_, target_);
   }
-  VLOG(3) << "Split task to " << tasks_.size() << " sub-task!";
+  VLOG(2) << "Split task to " << tasks_.size() << " sub-task!";
 }
 
 void RunTask(ParallelCompiler::Task* task) {
-  VLOG(3) << "Stark run sub-task, Thread Id : " << std::this_thread::get_id();
+  VLOG(2) << "Stark run sub-task, Thread Id : " << std::this_thread::get_id();
   task->Lowering();
   task->CodegenAndJit();
   task->BuildInstruction();
+  VLOG(2) << "Finish run sub-task, Thread Id : " << std::this_thread::get_id();
 }
 
 void ParallelCompiler::LaunchTask() {
@@ -85,28 +81,38 @@ void ParallelCompiler::LaunchTask() {
 }
 
 std::vector<std::unique_ptr<Instruction>> ParallelCompiler::MergeResult() {
-  std::vector<std::unique_ptr<Instruction>> res;
+  std::vector<std::unique_ptr<Instruction>> res(graph_->fusion_groups.size());
   for (auto& task : tasks_) {
-    for (auto& instr : task.instructions) {
-      res.push_back(std::move(instr));
+    for (int idx = 0; idx < task.gidx.size(); ++idx) {
+      res[task.gidx[idx]] = std::move(task.instructions[idx]);
     }
   }
   return std::move(res);
 }
 
 void ParallelCompiler::Task::Lowering() {
-  if (!lowered_funcs.size()) {
-    auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-    auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
+  if (options.lowered_funcs.size()) {
+    CHECK_EQ(options.lowered_funcs.size(), graph->fusion_groups.size());
+  }
+  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
+  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
 
-    OpLowerer op_lowerer(dtype_dict, shape_dict, target);
-    for (auto& group : groups) {
-      VLOG(3) << "group_id is : " << group->group_id << ", and its number is : " << group->nodes.size();
-
-      lowered_funcs.emplace_back(std::move(op_lowerer.Lower(group)));
-      CHECK_EQ(lowered_funcs.back().size(), 1) << "Lowerd Function Is Not Equal 1!";
-      VLOG(3) << lowered_funcs.back()[0];
+  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
+  while (true) {
+    int idx = compiler->GetGroupIdx();
+    if (idx < 0) {
+      break;
     }
+
+    gidx.push_back(idx);
+    if (options.lowered_funcs.size()) {
+      lowered_funcs.push_back(options.lowered_funcs[idx]);
+      continue;
+    }
+    auto& group = graph->fusion_groups[idx];
+    lowered_funcs.emplace_back(std::move(op_lowerer.Lower(group)));
+    CHECK_EQ(lowered_funcs.back().size(), 1) << "Lowerd Function Is Not Equal 1!";
+    VLOG(3) << lowered_funcs.back()[0];
   }
 }
 
@@ -117,6 +123,7 @@ void ParallelCompiler::Task::CodegenAndJit() {
     CHECK_EQ(func.size(), 1);
     builder.AddFunction(func[0]);
   }
+
   auto ir_module = builder.Build();
   // codegen compile
   if (target == common::DefaultNVGPUTarget()) {
@@ -128,6 +135,7 @@ void ParallelCompiler::Task::CodegenAndJit() {
     backends::CodeGenCUDA_Dev codegen(target);
     auto cuda_c = codegen.Compile(dmodule);
 
+    VLOG(3) << "Host Code : " << hmodule;
     if (FLAGS_cinn_source_code_save_path.empty()) {
       if (cuda_c.size() > DebugLogMaxLen) {
         VLOG(3) << "[CUDA] source code-0:\n" << cuda_c.substr(0, DebugLogMaxLen);
@@ -169,35 +177,28 @@ void ParallelCompiler::Task::CodegenAndJit() {
 }
 
 void ParallelCompiler::Task::BuildInstruction() {
-  // get func args from lowered func.
-  auto get_func_args = [](ir::LoweredFunc func, ir::Argument::IO io) {
-    std::vector<std::string> args;
-    std::transform(func->args.begin(), func->args.end(), std::back_inserter(args), [io](ir::Argument arg) {
-      if (io == ir::Argument::IO::kInput && arg.is_input()) {
-        return arg.name();
-      } else if (io == ir::Argument::IO::kOutput && arg.is_output()) {
-        return arg.name();
-      } else {
-        return std::string("");
-      }
-    });
-    args.erase(std::remove(args.begin(), args.end(), ""), args.end());
-    return args;
-  };
   // create instruction.
-  for (auto& func : lowered_funcs) {
-    CHECK_EQ(func.size(), 1);
-    auto instr  = std::unique_ptr<Instruction>(new Instruction(target,
-                                                              scope.get(),
-                                                              get_func_args(func[0], ir::Argument::IO::kInput),
-                                                              get_func_args(func[0], ir::Argument::IO::kOutput),
-                                                              func[0]->name));
-    auto fn_ptr = engine->Lookup(func[0]->name);
-    CHECK(fn_ptr) << "Can't find jit function : " << func[0]->name;
-    instr->SetLoweredFunc(reinterpret_cast<void*>(fn_ptr), func[0]->name);
+  for (int idx : gidx) {
+    auto& group = graph->fusion_groups[idx];
+    CHECK(group->input_names.size() > 0 || group->output_names.size() > 0);
+    auto instr = std::unique_ptr<Instruction>(
+        new Instruction(target, scope.get(), group->input_names, group->output_names, group->GetFuncName()));
+
+    auto fn_ptr = engine->Lookup(group->GetFuncName());
+    CHECK(fn_ptr) << "Can't find jit function : " << group->GetFuncName();
+    instr->SetLoweredFunc(reinterpret_cast<void*>(fn_ptr), group->GetFuncName());
 
     instr->Finalize();
     instructions.push_back(std::move(instr));
+  }
+}
+
+int ParallelCompiler::GetGroupIdx() {
+  std::lock_guard<std::mutex> lock(mtx_);
+  if (index < graph_->fusion_groups.size()) {
+    return index++;
+  } else {
+    return -1;
   }
 }
 

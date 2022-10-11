@@ -691,14 +691,42 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
                                                       std::unordered_set<std::string>&& fetch_var_ids,
                                                       void* stream) {
   if (FLAGS_cinn_parallel_compile_size) {
+    if (options.with_instantiate_variables) {
+      VLOG(3) << "Initantiate all variables on compile-time";
+      // All variables reside in scope_, so traverse it to instantiate each one
+      for (auto& name : scope_->var_names()) {
+        auto* var    = scope_->Var<Tensor>(std::string({name.data(), name.size()}));
+        auto& tensor = absl::get<Tensor>(*var);
+        if (reuse_vars_map_.count(name)) {
+          auto src_var_name = reuse_vars_map_.at(name);
+          auto* src_var     = scope_->Var<Tensor>(src_var_name);
+          auto& src_tensor  = absl::get<Tensor>(*src_var);
+          tensor->set_buffer(src_tensor->get_buffer());
+        } else {
+          tensor->mutable_data(target_, tensor->type());
+        }
+      }
+    }
+
+    VLOG(2) << "Compile With Parallel Compiler!";
     ParallelCompiler::CompileOptions option;
     option.lowered_funcs = options.lowered_funcs;
 
     parallel_compiler_ = std::make_shared<ParallelCompiler>(scope_, graph_, option, target_);
-    auto insts         = (*parallel_compiler_.get())();
+    auto instructions  = (*parallel_compiler_.get())();
+
+    if (options.remove_unused_variables) {
+      RemoveInvalidVariables(instructions);
+    }
+
+    if (options.with_buffer_handle_instruction_inserted) {
+      VLOG(3) << "option.with_buffer_handle_instruction_inserted enable";
+      InsertBufferHandlers(&instructions);
+    }
+    VLOG(2) << "Compile With Parallel Compiler Done!";
 
     GraphCompiler::CompilationResult compilation_result;
-    compilation_result.runtime_program.reset(new Program(scope_, std::move(insts)));
+    compilation_result.runtime_program.reset(new Program(scope_, std::move(instructions)));
     return compilation_result;
   }
 
@@ -834,6 +862,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
       }
     }
   }
+
   GraphCompiler::CompilationResult result;
   result.runtime_program.reset(new Program(scope_, std::move(instructions)));
   return result;

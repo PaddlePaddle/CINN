@@ -588,6 +588,10 @@ class FusionMergePassHelper : public FusionHelperBase {
           // others node is as graph output.
         }
 
+        if (output_nodes_set_.count(node)) {
+          be_output = true;
+        }
+
         if (be_output) {
           VLOG(4) << "Insert Id " << node->id() << " Into Group " << master_fuesd_group->group_id;
           master_fuesd_group->output_nodes.insert(node);
