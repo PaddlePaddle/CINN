@@ -33,7 +33,7 @@
 #include "cinn/utils/data_util.h"
 
 DEFINE_string(resnet50_model_dir, "./ResNet50", "the path to paddle model resnet50.");
-DEFINE_uint64(options, 7, "the options to control which schedule tests will be run.");
+DEFINE_int32(options, -1, "the options to control which schedule tests will be run.");
 DECLARE_bool(cinn_ir_schedule);
 
 namespace cinn {
@@ -50,8 +50,6 @@ class PerformanceTester : public ::testing::Test {
   void SetUp() override {
     // AutoTuner is combined with new IR Schedule
     FLAGS_cinn_ir_schedule = true;
-    option_flags_          = FLAGS_options;
-    VLOG(3) << "option_flags_ = " << option_flags_;
   }
 
   void BuildRuntimePrograms(int num_tuning_rounds) {
@@ -90,7 +88,12 @@ class PerformanceTester : public ::testing::Test {
     VLOG(3) << "Start initialize graph.";
     graph_ = std::make_shared<hlir::framework::Graph>(program, target_);
     hlir::framework::ApplyPass(graph_.get(), "InferShape");
+    hlir::framework::ApplyPass(graph_.get(), "OpFusionPass");
     VLOG(3) << "Initialize graph completed, Start building runtime program.";
+    if (FLAGS_options >= 0) {
+      SetOptionFlags(FLAGS_options);
+    }
+    VLOG(3) << "option_flags_ = " << option_flags_;
     BuildRuntimePrograms(num_tuning_rounds);
     VLOG(3) << "Build runtime programs completed, start running.";
     Run(repeat);
@@ -210,7 +213,7 @@ class PerformanceTester : public ::testing::Test {
 
 #ifdef CINN_WITH_CUDA
 
-const int repeat_time       = 100;
+const int repeat_time       = 10;
 const int num_tuning_rounds = 1;
 const int batch_size        = 1;
 
