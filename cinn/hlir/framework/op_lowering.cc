@@ -1259,6 +1259,19 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpaqueOp(GroupPtr& group, bool ap
     // do ast tree schedule
     common::CINNValuePack expr_pack = impl->fschedule(common::CINNValuePack{schedule_inputs});
 
+    ir::Expr func_body = expr_pack[0];
+    VLOG(6) << "func.size() = " << func.size() << ", expr_pack.size()" << expr_pack.size();
+    if (func.size() > expr_pack.size()) {
+      std::vector<std::string> input_output_nodes(group->input_names);
+      input_output_nodes.insert(input_output_nodes.end(), group->output_names.begin(), group->output_names.end());
+      for (auto n : input_output_nodes) {
+        VLOG(6) << "input_output_node: " << n;
+      }
+      args = lang::GetArgs(func_body, input_output_nodes);
+      for (auto a : args) {
+        VLOG(6) << "arg " << a.name();
+      }
+    }
     std::vector<ir::LoweredFunc> res;
     for (int i = 0; i < expr_pack.size(); i++) {
       ir::Expr func_body = expr_pack[0];
@@ -1275,25 +1288,13 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpaqueOp(GroupPtr& group, bool ap
     }
     return res;
   } else {
-    std::vector<Expr> ast_exprs;
     for (auto& f : func) {
-      ast_exprs.push_back(f->body);
-    }
-    ir::ModuleExpr mod_expr(ast_exprs);
-    ir::IRSchedule ir_sch(mod_expr);
-    ir_sch.MergeExprs();
-
-    auto func_body = ir_sch.GetModule().GetExprs().at(0);
 #ifdef CINN_WITH_CUDA
-    optim::OptimizeExprGPU(&(func_body));
+      optim::OptimizeExprGPU(&(f->body));
 #endif
-
-    auto temp_buffers = lang::GetTempBuffers(inputs, stages, func_body);
-    auto function =
-        ir::_LoweredFunc_::Make(group->GetFuncName(), args, ir_sch.GetModule().GetExprs().at(0), temp_buffers);
-    function->PrepareBufferCastExprs();
-    function = optim::Optimize(Expr(function), target_, false).as_lowered_func_ref();
-    return {function};
+      f = optim::Optimize(Expr(f), target_, false).as_lowered_func_ref();
+    }
+    return func;
   }
 }
 

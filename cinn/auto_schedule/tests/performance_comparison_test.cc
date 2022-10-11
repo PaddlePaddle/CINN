@@ -272,7 +272,7 @@ TEST_F(PerformanceTester, Pool2d) {
   bool adaptive                 = false;
   std::string padding_algorithm = "EXPLICIT";
 
-  SetOptionFlags(2UL);
+  SetOptionFlags(4UL);
   BuildAndRun(repeat_time,
               num_tuning_rounds,
               Pool2dProgramBuilder(input_shape,

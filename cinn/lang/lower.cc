@@ -33,6 +33,16 @@ namespace lang {
 using ir::Tensor;
 using poly::Stage;
 
+bool SetStringStartsWith(const std::set<std::string> string_set, const std::string& prefix) {
+  for (const std::string& s : string_set) {
+    VLOG(6) << "s = " << s << ", prefix = " << prefix;
+    if (s.rfind(prefix, 0) == 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
 std::vector<ir::Argument> GetArgs(const Expr& func_body, const std::vector<std::string>& input_output_nodes) {
   std::vector<ir::Argument> res;
   std::set<std::string> load_tensors;
@@ -47,18 +57,20 @@ std::vector<ir::Argument> GetArgs(const Expr& func_body, const std::vector<std::
   });
 
   for (auto& i : input_output_nodes) {
-    if (load_tensors.count(i) && !store_tensors.count(i)) {
+    bool load_contain  = SetStringStartsWith(load_tensors, i);
+    bool store_contain = SetStringStartsWith(store_tensors, i);
+    if (load_contain && !store_contain) {
       for (auto& j : load_nodes) {
         auto load_tensor = j.As<ir::Load>()->tensor.as_tensor_ref();
-        if (load_tensor->buffer.defined() && load_tensor->name == i) {
+        if (load_tensor->buffer.defined() && load_tensor->name.rfind(i, 0) == 0) {
           res.emplace_back(load_tensor->buffer, ir::Argument::IO::kInput);
           break;
         }
       }
-    } else if (store_tensors.count(i)) {
+    } else if (store_contain) {
       for (auto& j : store_nodes) {
         auto store_tensor = j.As<ir::Store>()->tensor.as_tensor_ref();
-        if (store_tensor->buffer.defined() && store_tensor->name == i) {
+        if (store_tensor->buffer.defined() && store_tensor->name.rfind(i, 0) == 0) {
           res.emplace_back(store_tensor->buffer, ir::Argument::IO::kOutput);
           break;
         }
