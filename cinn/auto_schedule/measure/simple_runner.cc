@@ -117,7 +117,9 @@ std::map<std::string, cinn_pod_value_t> SimpleRunner::PrepareArgs(const MeasureI
     // allocate a new buffer for this argument and store it in
     // the temporary scope to be released at proper time.
     auto compiled_tensor = compiled_scope->GetTensor(param);
-    auto buffer          = AllocBuffer(target, compiled_tensor->type(), compiled_tensor->shape());
+    VLOG(6) << "Huihuang debug runner " << param << ", type = " << compiled_tensor->type();
+    auto buffer = AllocBuffer(
+        target, common::F32(), compiled_tensor->shape());  // compiled_tensor->type(), compiled_tensor->shape());
     temp_scope->Var<Tensor>(param);
     auto temp_tensor = temp_scope->GetTensor(param);
     temp_tensor->set_buffer(buffer);
