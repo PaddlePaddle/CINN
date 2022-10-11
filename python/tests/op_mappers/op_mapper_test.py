@@ -14,45 +14,37 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
+import os
+import logging
 import unittest
 import numpy as np
-from ops.op_test import OpTest, OpTestTool
 import paddle
-import cinn
 from cinn.frontend import *
 from cinn.common import *
+from tests.ops.op_test import OpTest, OpTestTool
+
+logging.basicConfig(level=os.environ.get('LOG_LEVEL', 'INFO').upper())
+logger = logging.getLogger(name="op_test")
 
 paddle.enable_static()
 
-enable_gpu = sys.argv.pop()
 
+class OpMapperTest(OpTest):
+    def __init__(self, *args, **kwargs):
+        super(OpMapperTest, self).__init__(*args, **kwargs)
+        self._init_place()
+        self.init_input_data()
 
-class TestOpMapper(OpTest):
-    def setUp(self):
-        if enable_gpu == "ON":
-            self.target = DefaultNVGPUTarget()
+    def _init_place(self):
+        self.place = paddle.CPUPlace()
+        if is_compiled_with_cuda():
             self.place = paddle.CUDAPlace(0)
-        else:
-            self.target = DefaultHostTarget()
-            self.place = paddle.CPUPlace()
 
-        self.init_case()
-
-    def init_case(self):
-        self.feed_data = {
-            'x': self.random([10, 12, 128, 128], 'float32'),
-            'y': self.random([10, 12, 128, 128], 'float32'),
-        }
+    def init_input_data(self):
+        raise Exception("Not implemented.")
 
     def set_paddle_program(self):
-        x = paddle.static.data(
-            name='x', shape=[10, 12, 128, 128], dtype='float32')
-        y = paddle.static.data(
-            name='y', shape=[10, 12, 128, 128], dtype='float32')
-        out = paddle.stack([x, y], 1)
-
-        return ([x.name, y.name], [out])
+        raise Exception("Not implemented.")
 
     def build_paddle_program(self, target):
         main_program = paddle.static.Program()
@@ -105,24 +97,3 @@ class TestOpMapper(OpTest):
         self.cinn_outputs = self.get_cinn_output(prog, target, cinn_inputs,
                                                  cinn_feed_datas, cinn_output,
                                                  list())
-
-    def test_check_results(self):
-        self.check_outputs_and_grads()
-
-
-class TestOpMapperCase1(TestOpMapper):
-    def init_case(self):
-        self.feed_data = {
-            'x': self.random([10, 12, 128, 128], 'float32'),
-        }
-
-    def set_paddle_program(self):
-        x = paddle.static.data(
-            name='x', shape=[10, 12, 128, 128], dtype='float32')
-        out = paddle.log1p(x)
-
-        return ([x.name], [out])
-
-
-if __name__ == "__main__":
-    unittest.main()
