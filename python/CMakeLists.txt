@@ -166,7 +166,7 @@ endforeach()
 # test op mapper
 file(GLOB CINN_OP_MAPPER_TEST RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" "tests/op_mappers/test_*.py")
 
-foreach(op_mapper_test_name ${EXCLUDE_OP})
+foreach(op_mapper_test_name ${EXCLUDE_OP_MAPPER})
     list(REMOVE_ITEM CINN_OP_MAPPER_TEST tests/op_mappers/${op_mapper_test_name}.py)
 endforeach()
 
