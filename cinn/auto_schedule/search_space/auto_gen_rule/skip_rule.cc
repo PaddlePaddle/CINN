@@ -26,17 +26,13 @@ namespace auto_schedule {
 
 SkipRule::SkipRule(const common::Target& target) : AutoGenRule(target) {}
 
-RuleApplyType SkipRule::Init(const ir::IRSchedule& init_schedule) {
-  ir_schedule_    = std::make_unique<ir::IRSchedule>(optim::IRCopy(init_schedule));
+RuleApplyType SkipRule::Init(ir::IRSchedule* ir_schedule) {
+  ir_schedule_    = ir_schedule;
   num_applicable_ = 1;
   return RuleApplyType::kApply;
 }
 
-ir::IRSchedule SkipRule::Apply(int index) { return optim::IRCopy(*ir_schedule_); }
-
 std::string SkipRule::GetRuleName() const { return "SikpRule"; }
-
-AutoGenRule* SkipRule::NewPointer() const { return new SkipRule(*target_); }
 
 }  // namespace auto_schedule
 }  // namespace cinn

@@ -54,19 +54,19 @@ class MockSearchSpace : public SearchSpace {
         exprs.push_back(ir::Expr(-i));
       }
       min_expr_value_ = -i;
-      ret.push_back(SearchState(ir::ModuleExpr(exprs)));
+      ret.push_back(SearchState(ir::IRSchedule(ir::ModuleExpr(exprs))));
     }
     return ret;
   }
 
   SearchState GetScheduleMutate(const SearchState& state, const ExprCostModel& cost_model) override {
     float cost                  = 0.0f;
-    std::vector<ir::Expr> exprs = state.ir_schedule.GetModule().GetExprs();
+    std::vector<ir::Expr> exprs = state->ir_schedule.GetModule().GetExprs();
     for (const ir::Expr& expr : exprs) {
       cost += static_cast<float>((expr.as_int32()));
     }
-    SearchState ret(std::move(ir::ModuleExpr(exprs)));
-    ret.predicted_cost = cost;
+    SearchState ret(state->ir_schedule);
+    ret->predicted_cost = cost;
     return ret;
   }
 
@@ -86,7 +86,7 @@ TEST(EvolutionarySearch, GetOneBest) {
   // Ownership is transferred so don't delete mock_search_space
   evolutionary_search.SetSearchSpace(mock_search_space);
   SearchState best_state      = evolutionary_search.SearchModuleExpr(options);
-  std::vector<ir::Expr> exprs = best_state.ir_schedule.GetModule().GetExprs();
+  std::vector<ir::Expr> exprs = best_state->ir_schedule.GetModule().GetExprs();
   EXPECT_GE(exprs.size(), 1UL);
   for (const ir::Expr& e : exprs) {
     EXPECT_EQ(e.as_int32(), mock_search_space->GetMinExprValue());
@@ -108,7 +108,7 @@ TEST(EvolutionarySearch, GetEpsGreedy) {
   EXPECT_GE(search_states.size(), 1UL);
   size_t expr_size = static_cast<size_t>(mock_search_space->GetModuleExprSize());
   for (const SearchState& state : search_states) {
-    EXPECT_EQ(state.ir_schedule.GetModule().GetExprs().size(), expr_size);
+    EXPECT_EQ(state->ir_schedule.GetModule().GetExprs().size(), expr_size);
   }
 }
 

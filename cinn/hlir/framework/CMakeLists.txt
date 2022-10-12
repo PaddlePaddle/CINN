@@ -22,6 +22,8 @@ gather_srcs(cinnapi_src SRCS
 if(WITH_CUDA)
   nv_test(test_hlir_framework_buffer SRCS buffer_test.cc DEPS cinncore)
   nv_test(test_hlir_framework_infershape_pass SRCS infershape_pass_test.cc DEPS cinncore)
+  cc_test(test_hlir_framework_accuracy_checker SRCS accuracy_checker_test.cc DEPS cinncore)
+  cc_test(test_hlir_framework_parallel_compiler SRCS parallel_compiler_test.cc DEPS cinncore)
 else()
   cc_test(test_hlir_framework_buffer SRCS buffer_test.cc DEPS cinncore)
   cc_test(test_hlir_framework_infershape_pass SRCS infershape_pass_test.cc DEPS cinncore)
@@ -36,4 +38,3 @@ cc_test(test_hlir_framework_print_graph_pass SRCS print_graph_pass_test.cc DEPS 
 cc_test(test_hlir_framework_program SRCS program_test.cc DEPS cinncore)
 cc_test(test_hlir_framework_graph SRCS graph_test.cc DEPS cinncore)
 cc_test(test_hlir_framework_graph_compiler SRCS graph_compiler_test.cc DEPS cinncore)
-cc_test(test_hlir_framework_accuracy_checker SRCS accuracy_checker_test.cc DEPS cinncore)

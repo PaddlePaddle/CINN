@@ -99,8 +99,8 @@ bool MultiLevelTiling::MeetCondition(const ir::ScheduleBlockRealize& sche_block_
   return total_unused_iter_vars >= 1;
 }
 
-RuleApplyType MultiLevelTiling::Init(const ir::IRSchedule& init_schedule) {
-  ir_schedule_        = std::make_unique<ir::IRSchedule>(optim::IRCopy(init_schedule));
+RuleApplyType MultiLevelTiling::Init(ir::IRSchedule* ir_schedule) {
+  ir_schedule_        = ir_schedule;
   all_block_realizes_ = ir_schedule_->GetAllBlocks();
   applicable_indices_.clear();
   num_applicable_ = 0;
@@ -116,7 +116,7 @@ RuleApplyType MultiLevelTiling::Init(const ir::IRSchedule& init_schedule) {
   return num_applicable_ > 0 ? RuleApplyType::kApplyAndSkipThisRule : RuleApplyType::kCannotApply;
 }
 
-ir::IRSchedule MultiLevelTiling::Apply(int index) {
+void MultiLevelTiling::Apply(int index) {
   CHECK(ir_schedule_ != nullptr) << "Run MultiLevelTiling::Apply without Init";
   CHECK(num_applicable_ > 0 && applicable_indices_.size() == num_applicable_)
       << "MultiLevelTiling::Apply pre-condition doesn't meet";
@@ -175,12 +175,10 @@ ir::IRSchedule MultiLevelTiling::Apply(int index) {
   }
 
   VLOG(4) << "Returning the result of MultiLevelTiling";
-  return optim::IRCopy(*ir_schedule_);
+  return;
 }
 
 std::string MultiLevelTiling::GetRuleName() const { return "MultiLevelTiling"; }
-
-AutoGenRule* MultiLevelTiling::NewPointer() const { return new MultiLevelTiling(*target_); }
 
 }  // namespace auto_schedule
 }  // namespace cinn

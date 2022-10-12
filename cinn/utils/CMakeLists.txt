@@ -17,4 +17,4 @@ gather_srcs(cinnapi_src SRCS
 cc_test(test_string SRCS string_test.cc DEPS cinncore)
 cc_test(test_sized_multi_set SRCS sized_multi_set_test.cc DEPS cinncore)
 cc_test(test_multi_threading SRCS multi_threading_test.cc DEPS cinncore)
-cc_test(test_functional SRCS functional_test.cc DEPS cinncore)
+cc_test(test_functional SRCS string.cc functional.cc functional_test.cc DEPS absl Threads::Threads)
