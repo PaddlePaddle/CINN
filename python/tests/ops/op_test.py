@@ -207,6 +207,8 @@ class OpTest(unittest.TestCase):
 
     @staticmethod
     def random(shape, dtype="float32", low=0.0, high=1.0):
+        assert bool(shape), "Shape should not empty!"
+        assert -1 not in shape, "Shape should not -1!"
         if dtype in ["float32", "float64"]:
             return np.random.uniform(low, high, shape).astype(dtype)
         elif dtype == "bool":
