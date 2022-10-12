@@ -58,6 +58,7 @@ void PaddleModelConvertor::RunOp(const paddle::cpp::OpDesc& op_desc, const OpMap
 }
 
 std::unordered_map<std::string, Variable> PaddleModelConvertor::GetFetchList() const {
+  // the return map's key is paddle variable name, the value is the cinn fetch variable
   std::unordered_map<std::string, Variable> fetch_list;
   fetch_list.reserve(fetch_var_names_.size());
   for (const auto& pd_name : fetch_var_names_) {

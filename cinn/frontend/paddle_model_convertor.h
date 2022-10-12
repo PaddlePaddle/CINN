@@ -59,7 +59,7 @@ class PaddleModelConvertor {
     return var_model_to_program_map_;
   }
 
-  // return fetch var ids used in CINN
+  // return the map the paddle variable name to cinn variable object
   std::unordered_map<std::string, Variable> GetFetchList() const;
 
  private:
