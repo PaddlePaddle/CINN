@@ -65,12 +65,10 @@ static std::shared_ptr<Buffer> AllocBuffer(const common::Target& target,
 
   VLOG(6) << "AllocBuffer target:" << target << ", type:" << type << ", numel:" << shape.numel()
           << ", fill_random_value:" << fill_random_value;
-  const uint32_t bytes_of_ele = static_cast<uint32_t>(std::floor(static_cast<float>(type.bits() + 1) / 8.0));
-  CHECK_GT(bytes_of_ele, 0) << "The number bytes of each element is invalid";
   if (target == common::DefaultHostTarget()) {
-    buffer->ResizeLazy(default_alignment, shape.numel() * bytes_of_ele);
+    buffer->ResizeLazy(default_alignment, shape.numel() * type.bytes());
   } else {
-    buffer->ResizeLazy(shape.numel() * bytes_of_ele);
+    buffer->ResizeLazy(shape.numel() * type.bytes());
   }
 
   return buffer;
