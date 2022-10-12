@@ -455,6 +455,7 @@ void BindFrontend(pybind11::module *m) {
            py::arg("axis") = -1)
       .def("relu6", &NetBuilder::Relu6, py::arg("a"), py::arg("threshold") = 6.0f)
       .def("squeeze", &NetBuilder::Squeeze, py::arg("a"), py::arg("axes"))
+      .def("expand_dims", &NetBuilder::ExpandDims, py::arg("x"), py::arg("axis"), py::arg("num_newaxis") = 1)
       .def("argmax", &NetBuilder::Argmax, py::arg("x"), py::arg("axis"), py::arg("keep_dim") = false)
       .def("argmin", &NetBuilder::Argmin, py::arg("x"), py::arg("axis"), py::arg("keep_dim") = false)
       .def("conv2d",

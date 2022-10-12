@@ -23,6 +23,7 @@ gather_srcs(cinnapi_src SRCS
     where.cc
     squeeze.cc
     clip.cc
+    unsqueeze.cc
     layer_norm.cc
     expand.cc)
 
