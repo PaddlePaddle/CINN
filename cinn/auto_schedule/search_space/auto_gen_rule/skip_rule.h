@@ -28,16 +28,11 @@ class SkipRule : public AutoGenRule {
   SkipRule(const common::Target& target);
   ~SkipRule() = default;
 
-  RuleApplyType Init(const ir::IRSchedule& init_schedule) override;
+  RuleApplyType Init(ir::IRSchedule* init_schedule) override;
 
-  ir::IRSchedule Apply(int index) override;
+  void Apply(int index) override {}
 
   std::string GetRuleName() const override;
-
-  AutoGenRule* NewPointer() const override;
-
- private:
-  std::unique_ptr<ir::IRSchedule> ir_schedule_;
 };
 
 }  // namespace auto_schedule

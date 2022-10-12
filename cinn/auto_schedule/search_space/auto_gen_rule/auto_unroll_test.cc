@@ -45,7 +45,7 @@ TEST(AutoUnroll, Init) {
   ir::IRSchedule init_schedule(ir::ModuleExpr({ast_expr}));
   AutoUnroll test_rule(target);
   // not meet specific condition
-  ASSERT_EQ(test_rule.Init(init_schedule), RuleApplyType::kCannotApply);
+  ASSERT_EQ(test_rule.Init(&init_schedule), RuleApplyType::kCannotApply);
 }
 
 TEST(AutoUnroll, UnrollableApply) {
@@ -76,12 +76,12 @@ TEST(AutoUnroll, UnrollableApply) {
   VLOG(6) << "Before auto-unroll:\n" << ast_expr;
 
   AutoUnroll test_rule(target);
-  ir::IRSchedule init_schedule(ir::ModuleExpr({ast_expr}));
-  ASSERT_EQ(test_rule.Init(init_schedule), RuleApplyType::kApplyAndSkipThisRule);
+  ir::IRSchedule ir_schedule(ir::ModuleExpr({ast_expr}));
+  ASSERT_EQ(test_rule.Init(&ir_schedule), RuleApplyType::kApplyAndSkipThisRule);
   EXPECT_EQ(test_rule.NumberApplicable(), 1);
-  ir::IRSchedule applied_schedule = test_rule.ApplyRandomly();
+  test_rule.ApplyRandomly();
 
-  Expr applied_expr            = applied_schedule.GetModule().GetExprs().front();
+  Expr applied_expr            = ir_schedule.GetModule().GetExprs().front();
   auto* applied_block_realize  = applied_expr.As<ir::Block>()->stmts.front().As<ir::ScheduleBlockRealize>();
   auto* applied_schedule_block = applied_block_realize->schedule_block.As<ir::ScheduleBlock>();
   ASSERT_FALSE(applied_schedule_block->attrs.empty());
@@ -90,8 +90,7 @@ TEST(AutoUnroll, UnrollableApply) {
   const int* max_step    = absl::get_if<int>(&attr_value);
   EXPECT_NE(max_step, nullptr);
   EXPECT_LE(*max_step, 128);
-  VLOG(6) << "After auto-unroll:max_step=" << *max_step << ", Ast:\n"
-          << applied_schedule.GetModule().GetExprs().front();
+  VLOG(6) << "After auto-unroll:max_step=" << *max_step << ", Ast:\n" << ir_schedule.GetModule().GetExprs().front();
 }
 
 }  // namespace auto_schedule

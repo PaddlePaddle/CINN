@@ -153,7 +153,7 @@ std::vector<ir::Expr> CustomCallArgsForCudnnConvForward(const framework::NodeAtt
                                                         const std::vector<ir::Tensor> &inputs,
                                                         const std::vector<std::vector<int>> &output_shapes) {
   CHECK_EQ(inputs.size(), 2UL);
-  CHECK_EQ(output_shapes.size(), 1UL);
+  // CHECK_EQ(output_shapes.size(), 1UL);
   auto attr_store = attrs.attr_store;
   float alpha     = attr_store.count("alpha") ? absl::get<float>(attr_store.at("alpha")) : 1.0f;
   float beta      = attr_store.count("beta") ? absl::get<float>(attr_store.at("beta")) : 0.0f;

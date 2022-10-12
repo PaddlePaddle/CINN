@@ -14,7 +14,6 @@
 
 #pragma once
 
-#include <absl/meta/type_traits.h>
 #include <absl/types/optional.h>
 
 #include <algorithm>
@@ -55,47 +54,47 @@ auto Max(T &&t, Ts &&... ts) {
 }
 
 template <typename T>
-struct is_vector : std::false_type {};
+struct IsVector {
+  template <typename U>
+  static auto infer(U *)
+      -> std::enable_if_t<std::is_same<std::vector<typename U::value_type>, U>::value, std::true_type>;
 
-template <typename... Ts>
-struct is_vector<std::vector<Ts...>> : std::true_type {};
+  template <typename U>
+  static std::false_type infer(...);
+
+  static constexpr bool value = decltype(infer<std::decay_t<std::remove_pointer_t<T>>>(nullptr))::value;
+};
+
+template <class T>
+struct IsString : std::integral_constant<bool, std::is_same<std::string, std::decay_t<T>>::value> {};
 
 template <typename T>
-inline const bool is_vector_f(const T &) {
-  return is_vector<T>::value;
+auto Flatten(const absl::optional<std::reference_wrapper<const T>> &c)
+    -> std::enable_if_t<std::is_scalar<T>::value || IsString<T>::value, std::vector<T>> {
+  return c ? std::vector<T>{c->get()} : std::vector<T>{};
 }
 
-template <typename T, typename = absl::void_t<>>
-struct HasRange : std::false_type {};
-
-template <typename T>
-struct HasRange<T, absl::void_t<decltype(std::declval<T &>().begin()), decltype(std::declval<T &>().end())>>
-    : std::true_type {};
-
-template <typename T>
-std::vector<T> InnerFlatten(const absl::optional<T> &e, std::false_type) {
-  if (e) {
-    return {*e};
-  } else {
-    return std::vector<T>{};
-  }
+template <template <typename...> class C, typename E>
+auto Flatten(const absl::optional<std::reference_wrapper<const C<E>>> &c)
+    -> std::enable_if_t<std::is_scalar<E>::value && !IsString<decltype(c->get())>::value, std::vector<E>> {
+  return c ? std::vector<E>(c->get().begin(), c->get().end()) : std::vector<E>{};
 }
 
-template <typename T>
-auto InnerFlatten(const absl::optional<T> &c, std::true_type) {
-  using E               = typename T::value_type;
-  absl::optional<E> val = absl::nullopt;
-  if (c && !c->empty()) {
-    val = static_cast<E>(*c->begin());
+template <typename T,
+          typename E = std::enable_if_t<!IsString<T>::value, std::decay_t<decltype(*std::declval<const T>().begin())>>>
+auto Flatten(const absl::optional<std::reference_wrapper<const T>> &c) {
+  absl::optional<std::reference_wrapper<const E>> val;
+  if (c && !c->get().empty()) {
+    val = *(c->get().begin());
   }
 
-  auto res = InnerFlatten(val, HasRange<E>{});
+  auto res = Flatten(val);
 
   if (val) {
-    auto it = ++c->begin();
-    while (it != c->end()) {
-      val      = static_cast<E>(*it);
-      auto tmp = InnerFlatten(val, HasRange<E>{});
+    auto it = ++(c->get().begin());
+    while (it != c->get().end()) {
+      val      = *it;
+      auto tmp = Flatten(val);
       res.insert(res.end(), tmp.begin(), tmp.end());
       ++it;
     }
@@ -105,7 +104,8 @@ auto InnerFlatten(const absl::optional<T> &c, std::true_type) {
 
 template <typename T>
 auto Flatten(const T &v) {
-  return InnerFlatten(absl::make_optional(v), HasRange<T>{});
+  absl::optional<std::reference_wrapper<const T>> w = v;
+  return Flatten(w);
 }
 
 }  // namespace utils

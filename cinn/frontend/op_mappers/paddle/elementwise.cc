@@ -169,6 +169,7 @@ void CastOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
   }
 UnaryOpMapper(Ceil, "X", "Out")
 UnaryOpMapper(Sign, "X", "Out")
+UnaryOpMapper(Abs, "X", "Out")
 #undef UnaryOpMapper
 // clang-format on
 
@@ -187,6 +188,7 @@ CINN_REGISTER_HELPER(paddle_elementwise) {
   CINN_REGISTER_OP_MAPPER(sum, SumOpMapper)
   CINN_REGISTER_OP_MAPPER(ceil, CeilOpMapper)
   CINN_REGISTER_OP_MAPPER(sign, SignOpMapper)
+  CINN_REGISTER_OP_MAPPER(abs, AbsOpMapper)
   CINN_REGISTER_OP_MAPPER(cast, CastOpMapper)
   return true;
 }

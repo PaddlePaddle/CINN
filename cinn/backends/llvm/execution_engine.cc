@@ -67,8 +67,8 @@
 namespace cinn::backends {
 namespace {
 void InitializeLLVMPasses() {
-  static std::mutex mu;
-  std::lock_guard<std::mutex> lock(mu);
+  llvm::InitializeNativeTarget();
+  llvm::InitializeNativeTargetAsmPrinter();
 
   auto &registry = *llvm::PassRegistry::getPassRegistry();
   llvm::initializeCore(registry);
@@ -112,9 +112,9 @@ std::unique_ptr<llvm::MemoryBuffer> NaiveObjectCache::getObject(const llvm::Modu
   VLOG(1) << "initialize llvm config";
   VLOG(1) << "llvm version: " << LLVM_VERSION_STRING;
   VLOG(1) << "llvm default target triple: " << LLVM_DEFAULT_TARGET_TRIPLE;
-  llvm::InitializeNativeTarget();
-  llvm::InitializeNativeTargetAsmPrinter();
-  InitializeLLVMPasses();
+
+  static std::once_flag flag;
+  std::call_once(flag, InitializeLLVMPasses);
 
   auto engine = std::make_unique<ExecutionEngine>(/*enable_object_cache=*/true, std::move(module_symbols));
 

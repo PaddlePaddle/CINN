@@ -21,4 +21,9 @@ gather_srcs(cinnapi_src SRCS
     concat.cc
     constant.cc
     where.cc
-    squeeze.cc)
+    squeeze.cc
+    layer_norm.cc
+    expand.cc)
+
+cc_test(test_paddle_layer_norm SRCS layer_norm_test.cc DEPS cinncore)
+cc_test(test_paddle_expand SRCS expand_test.cc DEPS cinncore)

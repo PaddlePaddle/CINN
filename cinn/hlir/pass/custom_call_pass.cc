@@ -86,6 +86,13 @@ class GraphAlterHelper {
       } else {
         LOG(FATAL) << "conv type is unkown!";
       }
+      auto out_links = src->outlinks_in_order(true);
+      for (int idx = 1; idx < out_links.size(); ++idx) {
+        auto link = out_links[idx];
+        CHECK(link->sink()->safe_as<NodeData>());
+        src->UnLinkSingleTo(link->sink());
+        graph_->DropNode(link->sink());
+      }
     }
   }
 

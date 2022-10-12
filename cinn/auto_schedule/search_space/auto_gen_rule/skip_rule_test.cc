@@ -60,12 +60,12 @@ TEST(SkipRule, Basic) {
   VLOG(6) << ast_expr;
 
   SkipRule skip_rule(target);
-  ir::IRSchedule init_schedule(ir::ModuleExpr({ast_expr}));
-  EXPECT_EQ(skip_rule.Init(init_schedule), RuleApplyType::kApply);
+  ir::IRSchedule ir_schedule(ir::ModuleExpr({ast_expr}));
+  EXPECT_EQ(skip_rule.Init(&ir_schedule), RuleApplyType::kApply);
 
   EXPECT_EQ(skip_rule.NumberApplicable(), 1);
-  ir::IRSchedule applied_schedule = skip_rule.ApplyRandomly();
-  std::vector<ir::Expr> exprs     = applied_schedule.GetModule().GetExprs();
+  skip_rule.ApplyRandomly();
+  std::vector<ir::Expr> exprs = ir_schedule.GetModule().GetExprs();
   EXPECT_EQ(exprs.size(), 1UL);
 
   EXPECT_EQ(ast_expr, exprs[0]);

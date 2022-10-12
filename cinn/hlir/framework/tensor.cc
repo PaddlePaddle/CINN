@@ -14,8 +14,27 @@
 
 #include "cinn/hlir/framework/tensor.h"
 
+#include "cinn/runtime/cinn_runtime.h"
+
 namespace cinn {
 namespace hlir {
-namespace framework {}  // namespace framework
+namespace framework {
+
+void _Tensor_::set_type(Type type) {
+  type_ = type;
+  switch (type.type()) {
+    case common::Type::type_t::Int:
+      buffer_->data()->type = cinn_int32_t();
+      break;
+    case common::Type::type_t::Float:
+      buffer_->data()->type = cinn_float32_t();
+      break;
+    default:
+      buffer_->data()->type = cinn_unk_t();
+      break;
+  }
+}
+
+}  // namespace framework
 }  // namespace hlir
 }  // namespace cinn

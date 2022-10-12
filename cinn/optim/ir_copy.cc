@@ -472,10 +472,6 @@ std::vector<Expr> IRCopy(const std::vector<Expr>& x) {
 
 ir::ModuleExpr IRCopy(const ir::ModuleExpr& x) { return ir::ModuleExpr(IRCopy(x.GetExprs())); }
 
-ir::IRSchedule IRCopy(const ir::IRSchedule& x) {
-  return ir::IRSchedule(IRCopy(x.GetModule()), ir::ScheduleDesc(x.GetTraceDesc()));
-}
-
 ir::LoweredFunc IRCopy(const ir::LoweredFunc& x) {
   ir::Expr copy_func_expr          = IRCopy(static_cast<ir::Expr>(x));
   ir::_LoweredFunc_* copy_func_ptr = copy_func_expr.As<ir::_LoweredFunc_>();
