@@ -70,7 +70,7 @@ void BindFrontend(pybind11::module *m) {
   py::class_<Variable>(*m, "Variable")  //
       .def(py::init<const std::string &>(), py::arg("id") = "")
       .def(py::init([](const Placeholder &p) { return new Variable(p); }))
-      .def("__str__", [](Variable &self) { return utils::GetStreamCnt(self); })
+      .def("__str__", [](Variable &self) { return self->id; })
       .def("__repr__", [](Variable &self) { return utils::GetStreamCnt(self); })
       .def("name", [](Variable &self) { return self->id; })
       .def("shape", [](Variable &self) { return self->shape; })

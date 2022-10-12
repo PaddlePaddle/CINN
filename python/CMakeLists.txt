@@ -56,10 +56,12 @@ if (NOT ${WITH_CUDA})
     )
 endif()
 
-ADD_TEST(NAME test_op_mapper
+ADD_TEST(NAME test_cinn_frontend
     COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
-    python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_op_mapper.py "${WITH_CUDA}"
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_frontend.py
+    ${CMAKE_BINARY_DIR}/thirds/naive_mul_model
+    ${CMAKE_BINARY_DIR}/thirds/multi_fc_model
+    "${WITH_CUDA}" WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
 
 ADD_TEST(NAME test_netbuilder
@@ -133,7 +135,6 @@ ADD_TEST(NAME test_cinn_real_squeezenet
 #    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 #)
 
-# test cinn op
 file(GLOB CINN_OP_TEST RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" "tests/ops/test_*.py")
 set(EXCLUDE_OP test_mul_op test_broadcast_to_op)
 
