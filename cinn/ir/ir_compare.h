@@ -22,14 +22,20 @@ namespace cinn {
 namespace ir {
 
 struct IrEqualVistor : public IRVisitorBase<bool, const Expr*> {
+  explicit IrEqualVistor(bool allow_name_suffix_idx_diff = false)
+      : allow_name_suffix_idx_diff_(allow_name_suffix_idx_diff) {}
   bool Compare(const Expr& lhs, const Expr& rhs);
 #define __(op__) bool Visit(const op__* lhs, const Expr* other) override;
   NODETY_FORALL(__)
 #undef __
  private:
+  bool Compare(const std::string& lhs, const std::string& rhs, bool allow_name_suffix_idx_diff = false);
   bool Compare(const std::map<std::string, attr_t>& lhs, const std::map<std::string, attr_t>& rhs);
   template <typename T>
   bool Compare(const std::vector<T>& lhs, const std::vector<T>& rhs);
+
+  // TODO(CtfGo): Add explanation;
+  bool allow_name_suffix_idx_diff_ = false;
 };
 
 }  // namespace ir

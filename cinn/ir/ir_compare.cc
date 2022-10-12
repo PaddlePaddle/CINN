@@ -35,6 +35,19 @@ bool IrEqualVistor::Compare(const Expr& lhs, const Expr& rhs) {
   return equal;
 }
 
+bool IrEqualVistor::Compare(const std::string& lhs, const std::string& rhs, bool allow_name_suffix_idx_diff) {
+  if (!allow_name_suffix_idx_diff) {
+    return lhs == rhs;
+  }
+  // TODO(CtfGo): Add explanation;
+  auto remove_idx_fn = [](const std::string& name) -> std::string {
+    auto idx_pos = name.find_last_of('_');
+    return idx_pos == std::string::npos ? name : name.substr(0, idx_pos);
+  };
+  return remove_idx_fn(lhs) == remove_idx_fn(rhs);
+  return false;
+}
+
 bool IrEqualVistor::Compare(const std::map<std::string, attr_t>& lhs, const std::map<std::string, attr_t>& rhs) {
   if (lhs.size() != rhs.size()) {
     VLOG(6) << "Not equal, lhs size=" << lhs.size() << ", rhs size=" << rhs.size();
@@ -273,9 +286,9 @@ bool IrEqualVistor::Visit(const _BufferRange_* lhs, const Expr* other) {
 
 bool IrEqualVistor::Visit(const ScheduleBlock* lhs, const Expr* other) {
   auto* rhs = other->As<ScheduleBlock>();
-  return Compare(lhs->iter_vars, rhs->iter_vars) && Compare(lhs->read_buffers, rhs->read_buffers) &&
-         Compare(lhs->write_buffers, rhs->write_buffers) && Compare(lhs->attrs, rhs->attrs) &&
-         Compare(lhs->body, rhs->body);
+  return Compare(lhs->name, rhs->name, allow_name_suffix_idx_diff_) && Compare(lhs->iter_vars, rhs->iter_vars) &&
+         Compare(lhs->read_buffers, rhs->read_buffers) && Compare(lhs->write_buffers, rhs->write_buffers) &&
+         Compare(lhs->attrs, rhs->attrs) && Compare(lhs->body, rhs->body);
 }
 
 bool IrEqualVistor::Visit(const ScheduleBlockRealize* lhs, const Expr* other) {
