@@ -28,6 +28,9 @@
 #include "cinn/runtime/intrinsic.h"
 #include "cinn/utils/string.h"
 
+//! Root of the builtin code.
+DECLARE_string(cinn_x86_builtin_code_root);
+
 namespace cinn {
 namespace backends {
 using namespace utils;  // NOLINT
@@ -818,7 +821,5 @@ Expr StridedRampBase(Expr e, int stride) {
 }  // namespace detail
 
 }  // namespace backends
-
-DEFINE_string(cinn_x86_builtin_code_root, "", "");
 
 }  // namespace cinn

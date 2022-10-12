@@ -1,5 +1,8 @@
-// Copyright (c) 2022 CINN Authors. All Rights Reserved.  // // Licensed under the Apache License, Version 2.0 (the
-// "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
+// Copyright (c) 2022 CINN Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/LICENSE-2.0
 //
@@ -11,6 +14,7 @@
 
 #include "cinn/auto_schedule/database/jsonfile_database.h"
 
+#include <google/protobuf/util/message_differencer.h>
 #include <gtest/gtest.h>
 
 #include <fstream>
@@ -181,10 +185,12 @@ TEST_F(TestJSONFileDatabase, Reload) {
   // check the equality of trace info between original TuningRecord and the loaded TuningRecord
   const auto& lhs_trace = records[0].state->ir_schedule.GetTraceDesc();
   const auto& rhs_trace = loaded_records[0].state->ir_schedule.GetTraceDesc();
-  std::string lhs, rhs;
-  lhs_trace.ToProto().SerializeToString(&lhs);
-  rhs_trace.ToProto().SerializeToString(&rhs);
-  CHECK_EQ(lhs, rhs);
+  auto lhs              = lhs_trace.ToProto();
+  auto rhs              = rhs_trace.ToProto();
+  google::protobuf::util::MessageDifferencer dif;
+  static const google::protobuf::Descriptor* descriptor = cinn::ir::proto::ScheduleDesc_Step::descriptor();
+  dif.TreatAsSet(descriptor->FindFieldByName("attrs"));
+  EXPECT_TRUE(dif.Compare(lhs, rhs));
 
   // check the equality of module expr between original TuningRecord
   // and the loaded TuningRecord by replaying with tracing ScheduleDesc

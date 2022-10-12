@@ -13,6 +13,7 @@
 // limitations under the License.
 #pragma once
 
+#include <mutex>
 #include <vector>
 
 #include "cinn/backends/llvm/execution_engine.h"
@@ -37,9 +38,9 @@ class ParallelCompiler {
  public:
   explicit ParallelCompiler(std::shared_ptr<Scope>& scope,
                             std::shared_ptr<Graph>& graph,
-                            CompileOptions& option,
+                            const CompileOptions& option,
                             const common::Target& target)
-      : scope_(scope), graph_(graph), optition_(option), target_(target) {}
+      : scope_(scope), graph_(graph), option_(option), target_(target) {}
   ~ParallelCompiler() {}
   std::vector<std::unique_ptr<Instruction>> operator()();
 
@@ -51,21 +52,24 @@ class ParallelCompiler {
  public:
   struct Task {
    public:
-    Task(std::shared_ptr<Scope>& s,
+    Task(ParallelCompiler* p,
+         std::shared_ptr<Scope>& s,
          std::shared_ptr<Graph>& g,
-         std::vector<std::shared_ptr<Graph::Group>> gg,
-         std::vector<std::vector<ir::LoweredFunc>>& f,
-         Target t)
-        : scope(s), graph(g), groups(gg), lowered_funcs(f), target(t) {}
+         const CompileOptions& cp,
+         const Target& t)
+        : compiler(p), scope(s), graph(g), options(cp), target(t) {}
     void Lowering();
     void CodegenAndJit();
     void BuildInstruction();
 
    public:
-    Target target;
+    const Target target;
+    ParallelCompiler* compiler;
     std::shared_ptr<Scope> scope;
     std::shared_ptr<Graph> graph;
-    std::vector<std::shared_ptr<Graph::Group>> groups;
+    const CompileOptions& options;
+
+    std::vector<int> gidx;
     std::vector<std::unique_ptr<Instruction>> instructions;
     std::vector<std::vector<ir::LoweredFunc>> lowered_funcs;
 
@@ -76,10 +80,14 @@ class ParallelCompiler {
 #endif
   };
   std::vector<Task> tasks_;
+  int GetGroupIdx();
 
  private:
-  common::Target target_;
-  CompileOptions optition_;
+  int index{0};
+  std::mutex mtx_;
+
+  const common::Target target_;
+  const CompileOptions& option_;
   std::shared_ptr<Scope> scope_;
   std::shared_ptr<Graph> graph_;
 };

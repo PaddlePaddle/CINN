@@ -30,9 +30,6 @@
 
 namespace cinn {
 
-//! Root of the builtin code.
-DECLARE_string(cinn_x86_builtin_code_root);
-
 namespace ir {
 class Module;
 }  // namespace ir
