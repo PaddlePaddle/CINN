@@ -677,10 +677,10 @@ Expr FracOp::Make(Expr n, Expr d) {
 }
 
 Expr Power::Make(Expr n, Expr d) {
+  CHECK(d.type() == n.type()) << "n's type is " << n.type() << " but d's type is " << d.type();
   auto *node          = make_shared<Power>();
   node->operands()[0] = n;
   node->operands()[1] = d;
-  CHECK(d.type().is_int());
 
   node->set_type(n->type());
 

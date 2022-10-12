@@ -139,7 +139,7 @@ Expr Exponent(Expr v) {
   if (power_n) {
     return power_n->b();
   }
-  return Expr(1);
+  return make_const(v->type(), 1);
 }
 
 namespace detail {
@@ -284,11 +284,12 @@ Expr CasSimplifyMutator::SimplifyIntegerPower(Expr u) {
   CHECK(node);
   Expr v = node->a();
   Expr n = node->b();
-  CHECK(n.type().is_int());
+  CHECK(n.type() == v.type());
 
   auto* vi = v.As<IntImm>();
   auto* vf = v.As<FloatImm>();
   auto* ni = n.As<IntImm>();
+  auto* nf = n.As<FloatImm>();
   if (vi) {
     if (vi->value == 0) return make_const(0);
     if (vi->value == 1) return make_const(1);
@@ -307,6 +308,16 @@ Expr CasSimplifyMutator::SimplifyIntegerPower(Expr u) {
     }
   }
 
+  if (nf) {
+    // x^0 = 1
+    if (nf->value == 0.0f) {
+      return make_const(u.type(), 1);
+    }
+    if (nf->value == 1.0f) {
+      return v;
+    }
+  }
+
   // 3 ^ k, k > 0, evaluate it.
   if (v.is_constant() && n.is_constant() && n.get_constant() > 0) {
     auto* vi = v.As<IntImm>();
@@ -321,11 +332,12 @@ Expr CasSimplifyMutator::SimplifyIntegerPower(Expr u) {
     Expr r = vp->a();
     Expr s = vp->b();
     Expr p = SimplifyProduct(Product::Make({n, s}));
-    if (p.As<IntImm>()) {
-      return SimplifyIntegerPower(Power::Make(r, p));
-    } else {
-      return Power::Make(r, p);
+
+    if (r.type() != p.type()) {
+      // ensure power's two input type same
+      p = ir::Cast::Make(r->type(), p);
     }
+    return Power::Make(r, p);
   }
 
   return u;
@@ -333,19 +345,20 @@ Expr CasSimplifyMutator::SimplifyIntegerPower(Expr u) {
 
 Expr EvaluateConstantPower(Expr u) {
   auto* op = u.As<Power>();
-  CHECK(op->b().type().is_int());
+  CHECK(op->b().type() == op->a().type());
 
   auto* ai = op->a().As<IntImm>();
   auto* af = op->a().As<FloatImm>();
   auto* bi = op->b().As<IntImm>();
+  auto* bf = op->b().As<FloatImm>();
 
   if (ai && bi && bi->value < 0) return Expr();
 
   if (ai && bi) {
     return make_const(ai->type(), std::pow(ai->value, bi->value));
   }
-  if (af && bi) {
-    return make_const(af->type(), std::pow(af->value, bi->value));
+  if (af && bf) {
+    return make_const(af->type(), std::pow(af->value, bf->value));
   }
 
   return Expr();
@@ -374,7 +387,8 @@ Expr CasSimplifyMutator::SimplifyPower(Expr u) {
     return make_const(node->a().type(), 1);
   }
 
-  if (b.As<IntImm>()) {
+  if (b.As<IntImm>() || b.As<FloatImm>()) {
+    CHECK(a.type() == b.type());
     return SimplifyIntegerPower(Power::Make(a, b));
   }
 
@@ -397,11 +411,9 @@ double EvaluatePower(Expr u) {
   auto* power = u.As<Power>();
   auto a      = power->a();
   auto b      = power->b();
+  CHECK(a.type() == b.type());
 
-  auto bi = b.As<IntImm>();
-  CHECK(bi);
-
-  return std::pow(power->a().get_constant(), bi->value);
+  return std::pow(a.get_constant(), b.get_constant());
 }
 
 // Order, reference to Page 85.
@@ -489,7 +501,7 @@ bool ExprPosCmp::operator()(const Expr& a, const Expr& b) {
   {
     if (a.As<Power>()) {
       if (b.As<Add>() || b.As<Call>() || b.As<_Var_>() || b.As<Mod>() || b.As<Call>()) {
-        return operator()(a, Power::Make(b, make_const(1)));
+        return operator()(a, Power::Make(b, make_const(b.type(), 1)));
       }
     }
   }
@@ -625,6 +637,7 @@ std::vector<Expr> CasSimplifyMutator::SimplifyBinaryProduct(Expr left, Expr righ
     // case 3
     if (Base(a) == Base(b)) {
       Expr s = SimplifySum(Sum::Make({Exponent(a), Exponent(b)}));
+
       Expr p = SimplifyPower(Power::Make(Base(a), s));
       return {p};
     }
@@ -649,7 +662,7 @@ std::vector<Expr> CasSimplifyMutator::SimplifyBinaryProduct(Expr left, Expr righ
           int g       = gcd(ap_base_i->value, bi->value);
           int base    = ap_base_i->value / g;
           int b_value = bi->value / g;
-          auto a_new  = Power::Make(make_const(ap->a().type(), base), make_const(-1));
+          auto a_new  = Power::Make(make_const(ap->a().type(), base), make_const(ap->a().type(), -1));
           auto b_new  = make_const(_b.type(), b_value);
           return {CasSimplify(Product::Make({a_new, b_new}), var_intervals)};
         }
@@ -1745,7 +1758,7 @@ Expr ConvertCinnToCAS(Expr expr) {
       }
 
       if (a.type().is_float()) {
-        b     = Power::Make(b, make_const(Int(32), -1));
+        b     = Power::Make(b, make_const(b.type(), -1));
         *expr = Product::Make({a, b});
       } else {  // int division, NOTE that 3/2 = 1, 3./2 = 1.5
         *expr = FracOp::Make(a, b);
@@ -1965,7 +1978,7 @@ Expr ConvertCasToCinn(Expr expr) {
           *expr = init;
         } else {
           // some case like a^-2
-          auto new_expr = make_const(a.type(), 1.f) / (ir::Power::Make(a, make_const(b.type(), -b.get_constant())));
+          auto new_expr = make_const(a.type(), 1.f) / (ir::Power::Make(a, make_const(a.type(), -b.get_constant())));
           Visit(&new_expr);
           *expr = new_expr;
           return;

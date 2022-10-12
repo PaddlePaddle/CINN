@@ -35,7 +35,7 @@ using namespace ir;  // NOLINT
 TEST(CAS, SimplifyPower_0) {
   {  // x^0 = 1
     Var x   = ir::_Var_::Make("x", Float(32));
-    auto p0 = ir::Power::Make(x, Expr(0));
+    auto p0 = ir::Power::Make(x, Expr(0.0f));
     LOG(INFO) << "p0 " << p0;
     auto p2 = CasSimplify(p0);
     LOG(INFO) << "simplified " << p2;
@@ -43,7 +43,7 @@ TEST(CAS, SimplifyPower_0) {
   }
   {  // x^1 = x
     Var x   = ir::_Var_::Make("x", Float(32));
-    auto p0 = ir::Power::Make(x, Expr(1));
+    auto p0 = ir::Power::Make(x, Expr(1.0f));
     auto p2 = CasSimplify(p0);
     EXPECT_EQ(GetStreamCnt(p2), "x");
   }
@@ -56,7 +56,7 @@ TEST(CAS, SimplifyPower_0) {
   }
 
   {  // 1.^x = 1.
-    Var x   = ir::_Var_::Make("x", Int(32));
+    Var x   = ir::_Var_::Make("x", Float(32));
     auto p0 = ir::Power::Make(make_const(1.f), x);
     LOG(INFO) << "p0 " << p0;
     auto p2 = CasSimplify(p0);
@@ -74,8 +74,8 @@ TEST(CAS, SimplifyPower_0) {
   }
 
   {  // 0.^x = 0
-    Var x   = ir::_Var_::Make("x", Int(32));
-    auto p0 = ir::Power::Make(make_const(0.f), x);
+    Var x   = ir::_Var_::Make("x", Float(32));
+    auto p0 = ir::Power::Make(make_const(0.0f), x);
     LOG(INFO) << "p0 " << p0;
     auto p2 = CasSimplify(p0);
     LOG(INFO) << "simplified " << p2;
@@ -91,9 +91,9 @@ TEST(CAS, number_cal) {
 
 TEST(CAS, SimplifyPower) {
   Var x   = ir::_Var_::Make("x", Float(32));
-  auto p0 = ir::Power::Make(x, Expr(2));
+  auto p0 = ir::Power::Make(x, Expr(2.0f));
   LOG(INFO) << "p0 " << p0;
-  auto p1 = ir::Power::Make(p0, Expr(3));
+  auto p1 = ir::Power::Make(p0, Expr(3.0f));
 
   LOG(INFO) << "power: " << p1;
 
@@ -173,8 +173,8 @@ TEST(CAS, SimplifyProduct) {
 
   EXPECT_EQ(GetStreamCnt(u1), "1");
   EXPECT_EQ(GetStreamCnt(u2), "(-1 * x * y * z)");
-  EXPECT_EQ(GetStreamCnt(u3), "((x^-1) * y * z)");
-  EXPECT_EQ(GetStreamCnt(u4), "(x^5)");
+  EXPECT_EQ(GetStreamCnt(u3), "(powf(x, -1) * y * z)");
+  EXPECT_EQ(GetStreamCnt(u4), "powf(x, 5)");
   LOG(INFO) << u4;
 }
 
@@ -196,7 +196,7 @@ TEST(CAS, SimplifyMod) {
   EXPECT_EQ(GetStreamCnt(u1), "0");
   EXPECT_EQ(GetStreamCnt(u2), "((x + y + z) % 2)");
   EXPECT_EQ(GetStreamCnt(u3), "1");
-  EXPECT_EQ(GetStreamCnt(u4), "(1 + (x^3) + y)");
+  EXPECT_EQ(GetStreamCnt(u4), "(1 + powf(x, 3) + y)");
 }
 
 TEST(CAS, ConvertCinnToCAS) {
