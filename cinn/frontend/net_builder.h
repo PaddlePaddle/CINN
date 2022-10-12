@@ -578,6 +578,15 @@ class NetBuilder {
   Variable Squeeze(const Variable& x, const cinn::utils::ShapeType& axes);
 
   /**
+   * @brief Creates an operation to insert new dimensions of length 1.
+   * @param operand An N-D variable.
+   * @param axis The index of the first new dimension (allows negative indices as offsets from the last dimension).
+   * @param num_newaxis The number of new dimensions to insert
+   * @return A variable whose op member is the dim expandsion operation.
+   */
+  Variable ExpandDims(const Variable& operand, const int& axis, const int& num_newaxis = 1);
+
+  /**
    * @brief This operator reverse the input along the axis.
    * @param x An N-D variable.
    * @param axis Specify the axis to operate on the input reverse.
