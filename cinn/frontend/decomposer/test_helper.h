@@ -14,8 +14,10 @@
 
 #pragma once
 
+#include <glog/logging.h>
 #include <gtest/gtest.h>
 
+#include <iomanip>
 #include <random>
 
 #include "cinn/frontend/decomposer/use_decomposer.h"
@@ -74,7 +76,7 @@ void CopyFromVector(const std::vector<T>& vec, hlir::framework::Tensor tensor, T
   auto* data = tensor->mutable_data<T>(target);
 
   size_t numel = tensor->shape().numel();
-  EXPECT_EQ(vec.size(), numel);
+  CHECK_EQ(vec.size(), numel);
 
 #ifdef CINN_WITH_CUDA
   cudaMemcpy(data, vec.data(), numel * sizeof(T), cudaMemcpyHostToDevice);
@@ -132,7 +134,7 @@ void CheckOutput(const std::vector<T>& actual, const std::vector<T>& expect, flo
   LOG(INFO) << "- Total " << num_diffs << " different results, offset=" << offset << ", " << actual[offset]
             << " (actual) vs " << expect[offset] << " (expect), maximum_relative_diff=" << max_diff
             << " (absolute_diff=" << abs((actual[offset] - expect[offset])) << ")";
-  ASSERT_EQ(num_diffs, 0);
+  CHECK_EQ(num_diffs, 0);
 }
 
 template <typename T>

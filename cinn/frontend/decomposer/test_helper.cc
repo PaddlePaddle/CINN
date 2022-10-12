@@ -33,13 +33,13 @@ void CopyFromVector<bool>(const std::vector<bool>& vec, hlir::framework::Tensor 
   auto* data = tensor->mutable_data<bool>(target);
 
   size_t numel = tensor->shape().numel();
-  EXPECT_EQ(vec.size(), numel);
+  CHECK_EQ(vec.size(), numel);
 
 #ifdef CINN_WITH_CUDA
   // why not use vector<bool> ? Because to optimizes space, each value is stored in a single bit.
   // So that the vector<bool> doesn't has data() function.
-  EXPECT_EQ(sizeof(bool), sizeof(char)) << "The test need ensure the byte size of bool equal to the byte size of char.";
-  ;
+  CHECK_EQ(sizeof(bool), sizeof(char)) << "The test need ensure the byte size of bool equal to the byte size of char.";
+
   std::vector<char> vec_char(numel);
   for (int i = 0; i < numel; ++i) vec_char[i] = static_cast<char>(vec[i]);
   cudaMemcpy(data, vec_char.data(), numel * sizeof(bool), cudaMemcpyHostToDevice);
@@ -58,8 +58,8 @@ void CopyToVector<bool>(const hlir::framework::Tensor tensor, std::vector<bool>*
 #ifdef CINN_WITH_CUDA
   // why not use vector<bool> ? Because to optimizes space, each value is stored in a single bit.
   // So that the vector<bool> doesn't has data() function.
-  EXPECT_EQ(sizeof(bool), sizeof(char)) << "The test need ensure the byte size of bool equal to the byte size of char.";
-  ;
+  CHECK_EQ(sizeof(bool), sizeof(char)) << "The test need ensure the byte size of bool equal to the byte size of char.";
+
   std::vector<char> vec_char(numel);
   cudaMemcpy(vec_char.data(), data, numel * sizeof(bool), cudaMemcpyDeviceToHost);
   for (int i = 0; i < numel; ++i) vec->at(i) = static_cast<bool>(vec_char[i]);
