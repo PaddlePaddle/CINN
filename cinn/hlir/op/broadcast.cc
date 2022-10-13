@@ -92,7 +92,7 @@ std::shared_ptr<OpStrategy> StrategyForBroadcast(
 
 std::vector<shape_t> InferShapeForBroadcast(const std::vector<shape_t> &inputs_shape,
                                             const framework::AttrMapType &attrs) {
-  CHECK_EQ(inputs_shape.size(), 2UL);
+  CHECK_EQ(inputs_shape.size(), 2UL) << "The broadcast op should has  two input! Please check.";
   std::vector<int> out_shape;
 
   int axis = -1;
@@ -110,7 +110,10 @@ std::vector<shape_t> InferShapeForBroadcast(const std::vector<shape_t> &inputs_s
 }
 
 std::vector<Type> InferDtypeForBroadcast(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
-  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
+  CHECK_EQ(inputs_type.size(), 2UL) << "The broadcast op should has two inputs! Please check.";
+  CHECK(inputs_type[0] == inputs_type[1])
+      << "The two inputs of broadcast op should have the same dtype, but here x:" << inputs_type[0]
+      << ", y:" << inputs_type[1];
   std::vector<Type> res{inputs_type[0]};
   return res;
 }
@@ -212,6 +215,12 @@ std::vector<shape_t> InferShapeForBroadcastTo(const std::vector<shape_t> &inputs
 
   VLOG(3) << "broadcast out shape: " << utils::Join(out_shape, ", ");
   return {out_shape};
+}
+
+std::vector<Type> InferDtypeForBroadcastTo(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
+  CHECK_EQ(inputs_type.size(), 1UL) << "The broadcast op should has one inputs! Please check.";
+  std::vector<Type> res{inputs_type[0]};
+  return res;
 }
 
 std::vector<std::vector<std::string>> InferLayoutForBroadcastTo(const std::vector<std::vector<int>> &input_shapes,
@@ -426,7 +435,7 @@ CINN_REGISTER_HELPER(broadcast_ops) {
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForBroadcastTo)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForBroadcastTo))
-      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForBroadcast))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForBroadcastTo))
 #ifndef CINN_WITH_CUDA
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForBroadcastTo))
 #endif

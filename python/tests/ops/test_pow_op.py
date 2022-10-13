@@ -32,22 +32,25 @@ class TestPowOp(OpTest):
     def init_case(self):
         self.inputs = {
             "x": self.random([32, 64], "float32"),
-            "y": self.random([32, 64], "float32", 2.0, 5.0)
+            "y": self.random([32, 64], "float32", 1.0, 5.0)
         }
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.inputs["x"], stop_gradient=False)
-        y = paddle.to_tensor(
-            self.inputs["y"].astype("float32"), stop_gradient=False)
+        y = paddle.to_tensor(self.inputs["y"], stop_gradient=False)
 
         out = paddle.pow(x, y)
 
         self.paddle_outputs = [out]
 
     def build_cinn_program(self, target):
-        builder = NetBuilder("add")
-        x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
-        y = builder.create_input(Float(32), self.inputs["y"].shape, "y")
+        builder = NetBuilder("power")
+        x = builder.create_input(
+            self.nptype2cinntype(self.inputs["x"].dtype),
+            self.inputs["x"].shape, "x")
+        y = builder.create_input(
+            self.nptype2cinntype(self.inputs["y"].dtype),
+            self.inputs["y"].shape, "y")
         out = builder.power(x, y)
 
         prog = builder.build()
@@ -58,6 +61,22 @@ class TestPowOp(OpTest):
 
     def test_check_results(self):
         self.check_outputs_and_grads()
+
+
+class TestPowCase1(TestPowOp):
+    def init_case(self):
+        self.inputs = {
+            "x": self.random([32, 64], "int32", 2, 10),
+            "y": self.random([32, 64], "int32", 1, 5)
+        }
+
+
+class TestPowCase2(TestPowOp):
+    def init_case(self):
+        self.inputs = {
+            "x": self.random([32, 64], "int32", 2, 10),
+            "y": self.random([1], "int32", 1, 5)
+        }
 
 
 if __name__ == "__main__":

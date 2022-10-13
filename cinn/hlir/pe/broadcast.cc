@@ -234,7 +234,6 @@ HLIR_IMP_BC_PE(Mod, return a % b;);
 HLIR_IMP_BC_PE(FloorMod, return a - lang::Floor(a / b) * b;);
 HLIR_IMP_BC_PE(Maximum, return ir::Max::Make(a, b););
 HLIR_IMP_BC_PE(Minimum, return ir::Min::Make(a, b););
-HLIR_IMP_BC_PE(Power, return ir::Power::Make(a, b););
 HLIR_IMP_BC_PE(LeftShift, return a << b;);
 HLIR_IMP_BC_PE(RightShift, return a >> b;);
 HLIR_IMP_BC_PE(LogicalAnd, return a && b;);
@@ -249,6 +248,8 @@ HLIR_IMP_BC_PE(Equal, return ir::EQ::Make(a, b););
 HLIR_IMP_BC_PE(NotEqual, return ir::NE::Make(a, b););
 HLIR_IMP_BC_PE(GreaterEqual, return a >= b;);
 HLIR_IMP_BC_PE(LessEqual, return a <= b;);
+HLIR_IMP_BC_PE(Power,
+               return a.type().is_float() ? ir::Power::Make(a, b) : lang::CallExtern("cinn_nvgpu_pow_int32", {a, b}););
 
 Tensor BroadcastTo(const Tensor& A,
                    const std::vector<int>& out_shape,

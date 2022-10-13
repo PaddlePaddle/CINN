@@ -39,6 +39,14 @@ __device__ inline float FN(min)(float a, float b) { return min(a, b); }
 
 #undef FN
 
+__host__ __device__ inline int cinn_nvgpu_pow_int32(int a, int b) {
+  int res = 1;
+  for (int i = 0; i < b; ++i) {
+    res *= a;
+  }
+  return res;
+}
+
 __device__ inline float cinn_sum(const float left, const float right) { return left + right; }
 __device__ inline float cinn_prod(const float left, const float right) { return left * right; }
 __device__ inline float cinn_max(const float left, const float right) { return max(left, right); }

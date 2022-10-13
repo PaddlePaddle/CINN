@@ -364,7 +364,13 @@ void IrPrinter::Visit(const FracOp *x) {
 }
 
 void IrPrinter::Visit(const Power *x) {
-  os() << "powf(";
+  if (x->a().type().is_float(32)) {
+    os() << "powf(";
+  } else if (x->a().type().is_float(64)) {
+    os() << "pow(";
+  } else {
+    CINN_NOT_IMPLEMENTED
+  }
   Print(x->a());
   os() << ", ";
   Print(x->b());

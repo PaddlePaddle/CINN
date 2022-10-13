@@ -216,6 +216,18 @@ class OpTest(unittest.TestCase):
         else:
             raise Exception("Not supported yet.")
 
+    @staticmethod
+    def nptype2cinntype(dtype):
+        switch_map = {
+            "float32": Float(32),
+            "float64": Float(64),
+            "int32": Int(32),
+            "int64": Int(64),
+            "bool": Bool()
+        }
+        assert str(dtype) in switch_map, dtype + " not support in CINN"
+        return switch_map[str(dtype)]
+
 
 class OpTestTool:
     @classmethod
