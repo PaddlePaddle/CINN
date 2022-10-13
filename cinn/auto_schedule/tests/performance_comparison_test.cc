@@ -257,7 +257,7 @@ TEST_F(PerformanceTester, Conv2d) {
   std::string data_format       = "NCHW";
   std::string padding_algorithm = "EXPLICIT";
 
-  SetOptionFlags(3UL);
+  SetOptionFlags(0UL);
   BuildAndRun(repeat_time,
               num_tuning_rounds,
               Conv2dProgramBuilder(
