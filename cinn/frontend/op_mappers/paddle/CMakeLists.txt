@@ -27,4 +27,3 @@ gather_srcs(cinnapi_src SRCS
     expand.cc)
 
 cc_test(test_paddle_layer_norm SRCS layer_norm_test.cc DEPS cinncore)
-cc_test(test_paddle_expand SRCS expand_test.cc DEPS cinncore)
