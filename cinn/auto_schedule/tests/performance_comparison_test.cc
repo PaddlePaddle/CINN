@@ -257,7 +257,7 @@ TEST_F(PerformanceTester, Conv2d) {
   std::string data_format       = "NCHW";
   std::string padding_algorithm = "EXPLICIT";
 
-  SetOptionFlags(0UL);
+  SetOptionFlags(1UL);
   BuildAndRun(repeat_time,
               num_tuning_rounds,
               Conv2dProgramBuilder(
@@ -323,7 +323,7 @@ TEST_F(PerformanceTester, Softmax) {
   int axis                = -1;
   std::string data_format = "AnyLayout";
 
-  SetOptionFlags(3UL);
+  SetOptionFlags(1UL);
   BuildAndRun(repeat_time, num_tuning_rounds, SoftmaxProgramBuilder(input_shape, axis, data_format)());
 }
 
