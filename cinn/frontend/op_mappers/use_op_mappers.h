@@ -39,6 +39,7 @@ CINN_USE_REGISTER(paddle_constant)
 CINN_USE_REGISTER(paddle_where)
 CINN_USE_REGISTER(paddle_layer_norm)
 CINN_USE_REGISTER(paddle_squeeze)
+CINN_USE_REGISTER(paddle_clip)
 CINN_USE_REGISTER(paddle_unsqueeze)
 CINN_USE_REGISTER(paddle_expand)
 
