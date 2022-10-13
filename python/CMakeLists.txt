@@ -162,3 +162,19 @@ foreach(op_test_name ${CINN_OP_TEST})
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     )
 endforeach()
+
+# test op mapper
+file(GLOB CINN_OP_MAPPER_TEST RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" "tests/op_mappers/test_*.py")
+
+foreach(op_mapper_test_name ${EXCLUDE_OP_MAPPER})
+    list(REMOVE_ITEM CINN_OP_MAPPER_TEST tests/op_mappers/${op_mapper_test_name}.py)
+endforeach()
+
+foreach(op_mapper_test_name ${CINN_OP_MAPPER_TEST})
+    string(REGEX REPLACE ".py" "" op_mapper_test_name ${op_mapper_test_name})
+    ADD_TEST(NAME ${op_mapper_test_name}
+        COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
+        python3 ${CMAKE_CURRENT_SOURCE_DIR}/${op_mapper_test_name}.py "${WITH_CUDA}"
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    )
+endforeach()

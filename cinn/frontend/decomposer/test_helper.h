@@ -14,8 +14,10 @@
 
 #pragma once
 
+#include <glog/logging.h>
 #include <gtest/gtest.h>
 
+#include <iomanip>
 #include <random>
 
 #include "cinn/frontend/decomposer/use_decomposer.h"
@@ -52,7 +54,8 @@ std::ostream& operator<<(std::ostream& os, const std::vector<T, Alloc>& vec) {
 }
 
 template <typename T>
-void InitRandomVector(std::vector<T>* vec, size_t numel, T low = 0, T high = 1, float precision = 1e-5) {
+void InitRandomVector(
+    std::vector<T>* vec, size_t numel, T low = static_cast<T>(0), T high = static_cast<T>(1), float precision = 1e-5) {
   std::random_device seed;
   std::default_random_engine engine(seed());
   std::uniform_real_distribution<double> dist(low, high);
@@ -65,12 +68,15 @@ void InitRandomVector(std::vector<T>* vec, size_t numel, T low = 0, T high = 1, 
   }
 }
 
+template <>
+void InitRandomVector<int>(std::vector<int>* vec, size_t numel, int low, int high, float precision);
+
 template <typename T>
 void CopyFromVector(const std::vector<T>& vec, hlir::framework::Tensor tensor, Target target) {
   auto* data = tensor->mutable_data<T>(target);
 
   size_t numel = tensor->shape().numel();
-  EXPECT_EQ(vec.size(), numel);
+  CHECK_EQ(vec.size(), numel);
 
 #ifdef CINN_WITH_CUDA
   cudaMemcpy(data, vec.data(), numel * sizeof(T), cudaMemcpyHostToDevice);
@@ -78,6 +84,9 @@ void CopyFromVector(const std::vector<T>& vec, hlir::framework::Tensor tensor, T
   std::copy(vec.begin(), vec.end(), data);
 #endif
 }
+
+template <>
+void CopyFromVector<bool>(const std::vector<bool>& vec, hlir::framework::Tensor tensor, Target target);
 
 template <typename T>
 void CopyToVector(const hlir::framework::Tensor tensor, std::vector<T>* vec) {
@@ -94,6 +103,9 @@ void CopyToVector(const hlir::framework::Tensor tensor, std::vector<T>* vec) {
   }
 #endif
 }
+
+template <>
+void CopyToVector<bool>(const hlir::framework::Tensor tensor, std::vector<bool>* vec);
 
 template <typename T>
 void CheckOutput(const std::vector<T>& actual, const std::vector<T>& expect, float atol = 1e-8, float rtol = 1e-5) {
@@ -122,7 +134,7 @@ void CheckOutput(const std::vector<T>& actual, const std::vector<T>& expect, flo
   LOG(INFO) << "- Total " << num_diffs << " different results, offset=" << offset << ", " << actual[offset]
             << " (actual) vs " << expect[offset] << " (expect), maximum_relative_diff=" << max_diff
             << " (absolute_diff=" << abs((actual[offset] - expect[offset])) << ")";
-  ASSERT_EQ(num_diffs, 0);
+  CHECK_EQ(num_diffs, 0);
 }
 
 template <typename T>
