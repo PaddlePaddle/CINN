@@ -796,7 +796,6 @@ void Broadcast::Verify() const { CHECK(value.defined()); }
 void Power::Verify() const {
   CHECK(a().defined());
   CHECK(b().defined());
-  CHECK(b().type() == type_of<int32_t>());
 }
 
 void MultiOperandVerify(llvm::ArrayRef<Expr> operands) {

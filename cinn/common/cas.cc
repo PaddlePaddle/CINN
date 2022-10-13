@@ -1984,7 +1984,8 @@ Expr ConvertCasToCinn(Expr expr) {
           return;
         }
       } else {
-        CINN_NOT_IMPLEMENTED
+        // Todo: When b is not constant in power(a,b), we don't do any simplify.
+        return;
       }
     }
   };
