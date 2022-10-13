@@ -50,7 +50,8 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
   options.program_passes.emplace_back("DeadCodeEliminate");
   if (FLAGS_cinn_open_fusion_optimize) {
     if (FLAGS_cinn_use_new_fusion_pass) {
-      options.graph_passes = {"MatmulToCublasCustomCallPass", "OpFusionPass", "FusionMergePass"};
+      options.graph_passes = {
+          "MatmulToCublasCustomCallPass", "ConvToCudnnCustomCallPass", "OpFusionPass", "FusionMergePass"};
     } else {
       options.graph_passes = {"OpFusion"};
     }
