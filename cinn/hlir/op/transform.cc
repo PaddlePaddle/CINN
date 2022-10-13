@@ -1976,7 +1976,7 @@ std::shared_ptr<OpStrategy> StrategyForExpandDims(const framework::NodeAttr &att
   if (attrs.attr_store.contains("axis")) {
     axis = absl::get<int>(attrs.attr_store.at("axis"));
   }
-  int num_newaxis;
+  int num_newaxis{1};
   if (attrs.attr_store.contains("num_newaxis")) {
     num_newaxis = absl::get<int>(attrs.attr_store.at("num_newaxis"));
   }
@@ -1990,29 +1990,28 @@ std::shared_ptr<OpStrategy> StrategyForExpandDims(const framework::NodeAttr &att
     output_shape.emplace_back(i);
   }
 
-  framework::CINNCompute expand_dims_compute{
-      [axis, num_newaxis, output_shape = std::move(output_shape)](lang::Args args, lang::RetValue *ret) {
-        VLOG(4) << "The axis value used in expand_dims: " << axis;
-        CHECK(!args.empty()) << "The input args are empty! Please check again.";
-        CINNValuePack input_args = args[0];
-        int input_size           = input_args.size();
-        CHECK_GE(input_size, 1U) << "Require 1 input tensors for expand_dims compute.";
-        Expr x = input_args[0];
-        CHECK(x.as_tensor());
+  framework::CINNCompute expand_dims_compute{[axis, num_newaxis](lang::Args args, lang::RetValue *ret) {
+    VLOG(4) << "The axis value used in expand_dims: " << axis;
+    CHECK(!args.empty()) << "The input args are empty! Please check again.";
+    CINNValuePack input_args = args[0];
+    int input_size           = input_args.size();
+    CHECK_GE(input_size, 1U) << "Require 1 input tensors for expand_dims compute.";
+    Expr x = input_args[0];
+    CHECK(x.as_tensor());
 
-        std::string tensor_name = UniqName("expand_dims_output");
-        if (FLAGS_cinn_ir_schedule) {
-          CHECK_EQ(input_args.size(), 2U);
-          CHECK(input_args[1].is_string());
-          tensor_name = input_args[1].operator std::string();
-        }
+    std::string tensor_name = UniqName("expand_dims_output");
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK_EQ(input_args.size(), 2U);
+      CHECK(input_args[1].is_string());
+      tensor_name = input_args[1].operator std::string();
+    }
 
-        auto out    = pe::ExpandDims(x.as_tensor_ref(), axis, num_newaxis, tensor_name);
-        auto stages = CreateStages({x.as_tensor_ref()});
-        stages->InsertLazily(out);
-        std::vector<CINNValue> res{CINNValue(out), CINNValue(stages)};
-        *ret = CINNValuePack{res};
-      }};
+    auto out    = pe::ExpandDims(x.as_tensor_ref(), axis, num_newaxis, tensor_name);
+    auto stages = CreateStages({x.as_tensor_ref()});
+    stages->InsertLazily(out);
+    std::vector<CINNValue> res{CINNValue(out), CINNValue(stages)};
+    *ret = CINNValuePack{res};
+  }};
 
   auto strategy = std::make_shared<framework::OpStrategy>();
   strategy->AddImpl(
