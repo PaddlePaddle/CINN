@@ -42,6 +42,7 @@ CINN_USE_REGISTER(paddle_squeeze)
 CINN_USE_REGISTER(paddle_clip)
 CINN_USE_REGISTER(paddle_unsqueeze)
 CINN_USE_REGISTER(paddle_expand)
+CINN_USE_REGISTER(paddle_take_along_axis)
 
 CINN_USE_REGISTER(science_broadcast)
 CINN_USE_REGISTER(science_transform)
