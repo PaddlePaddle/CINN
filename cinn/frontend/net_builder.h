@@ -40,6 +40,7 @@ namespace frontend {
   macro__(Sqrt) \
   macro__(Tanh) \
   macro__(Relu) \
+  macro__(Gelu) \
   macro__(Sigmoid) \
   macro__(Identity) \
   macro__(Exp) \
