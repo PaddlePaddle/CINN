@@ -107,6 +107,7 @@ Variable NetBuilder::Reduce(const std::string& op_type, const Variable& x, const
 NETBUILDER_UNARY_OP_DEF(Sqrt, sqrt)
 NETBUILDER_UNARY_OP_DEF(Tanh, tanh)
 NETBUILDER_UNARY_OP_DEF(Relu, relu)
+NETBUILDER_UNARY_OP_DEF(Gelu, gelu)
 NETBUILDER_UNARY_OP_DEF(Sigmoid, sigmoid)
 NETBUILDER_UNARY_OP_DEF(Identity, identity)
 NETBUILDER_UNARY_OP_DEF(Exp, exp)
