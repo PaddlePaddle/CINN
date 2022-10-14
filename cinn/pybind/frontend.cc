@@ -146,11 +146,12 @@ void BindFrontend(pybind11::module *m) {
               const common::Target &target,
               const std::vector<Variable> &tensor_inputs,
               const std::vector<py::array> &input_data,
-              const std::vector<Variable> &tensor_outputs) {
+              const std::vector<Variable> &tensor_outputs,
+              std::shared_ptr<hlir::framework::Scope> scope = nullptr) {
              std::shared_ptr<hlir::framework::Graph> g(new hlir::framework::Graph(self, target));
              hlir::framework::ApplyPass(g.get(), "InferShape");
              hlir::framework::ApplyPasses(g.get(), DefaultTrainingOptimizeOptions().graph_passes);
-             std::shared_ptr<hlir::framework::Scope> scope = hlir::framework::BuildScope(target, g);
+             scope = hlir::framework::BuildScope(target, g, scope);
              hlir::framework::GraphCompiler gc(target, scope, g);
              auto program = gc.Build();
              for (size_t i = 0; i < tensor_inputs.size(); i++) {
