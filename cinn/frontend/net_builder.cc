@@ -409,6 +409,10 @@ Variable NetBuilder::Squeeze(const Variable& operand, const std::vector<int>& ax
   return CustomInstr("squeeze", {operand}, {{"axes", axes}}).front();
 }
 
+Variable NetBuilder::ExpandDims(const Variable& operand, int axis, int num_newaxis) {
+  return CustomInstr("expand_dims", {operand}, {{"axis", axis}, {"num_newaxis", num_newaxis}}).front();
+}
+
 Variable NetBuilder::Conv(const Variable& lhs,
                           const Variable& rhs,
                           const std::vector<int>& strides,

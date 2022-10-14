@@ -57,19 +57,30 @@ void PaddleModelConvertor::RunOp(const paddle::cpp::OpDesc& op_desc, const OpMap
   kernel->Run(op_desc, ctx);
 }
 
-std::unordered_set<std::string> PaddleModelConvertor::GetFetchIds() const {
-  std::unordered_set<std::string> fetch_names;
-  fetch_names.reserve(fetch_var_names_.size());
-  std::for_each(fetch_var_names_.begin(), fetch_var_names_.end(), [this, &fetch_names](const std::string& name) {
-    CHECK_EQ(var_model_to_program_map_.count(name), 1) << "Cannot find [" << name << "] in var_model_to_program_map_";
-    fetch_names.insert(var_model_to_program_map_.at(name));
-  });
-  return fetch_names;
+std::unordered_map<std::string, Variable> PaddleModelConvertor::GetFetchList() const {
+  // the return map's key is paddle variable name, the value is the cinn fetch variable
+  std::unordered_map<std::string, Variable> fetch_list;
+  fetch_list.reserve(fetch_var_names_.size());
+  for (const auto& pd_name : fetch_var_names_) {
+    CHECK(var_map_.count(pd_name)) << "Cannot find cinn variable [" << pd_name << "] in var_map_";
+    fetch_list[pd_name] = var_map_.at(pd_name);
+  }
+  return fetch_list;
 }
 
-Program PaddleModelConvertor::operator()(const std::string& model_dir, bool is_combined) {
+Program PaddleModelConvertor::operator()(const common::Target& target,
+                                         const std::string& model_dir,
+                                         bool is_combined,
+                                         hlir::framework::Scope* scope) {
+  std::shared_ptr<hlir::framework::Scope> scope_s;
+  if (!scope) {
+    // do not need scope
+    scope_s = hlir::framework::Scope::Create();
+    scope   = scope_s.get();
+  }
+
   paddle::cpp::ProgramDesc program_desc;
-  paddle::LoadModelPb(model_dir, "__model__", "", scope_, &program_desc, is_combined, false, target_);
+  paddle::LoadModelPb(model_dir, "__model__", "", scope, &program_desc, is_combined, false, target);
   CHECK_EQ(program_desc.BlocksSize(), 1) << "CINN can only support the model with a single block";
   auto* block_desc = program_desc.GetBlock<paddle::cpp::BlockDesc>(0);
 
@@ -84,7 +95,7 @@ Program PaddleModelConvertor::operator()(const std::string& model_dir, bool is_c
   VLOG(4) << "NetBuilder Name " << builder_name;
 
   NetBuilder builder(builder_name);
-  OpMapperContext ctx(*scope_, target_, &builder, &var_map_, &var_model_to_program_map_, &fetch_var_names_);
+  OpMapperContext ctx(*scope, target, &builder, &var_map_, &var_model_to_program_map_, &fetch_var_names_);
 
   PrepareRun(*block_desc, &ctx);
   for (int i = 0; i < block_desc->OpsSize(); i++) {
