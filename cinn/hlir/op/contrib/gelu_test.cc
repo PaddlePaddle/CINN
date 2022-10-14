@@ -31,6 +31,15 @@
 namespace cinn {
 namespace hlir {
 namespace op {
+namespace {
+bool IsCompiledWithCUDA() {
+#if !defined(CINN_WITH_CUDA)
+  return false;
+#else
+  return true;
+#endif
+}
+}  // namespace
 
 TEST(GenerateCode_Cpu, Gelu) {
   common::Context::Global().ResetNameId();
@@ -59,6 +68,9 @@ TEST(GenerateCode_Cpu, Gelu) {
 }
 
 TEST(GenerateCode_Cuda, Gelu) {
+  if (!IsCompiledWithCUDA()) {
+    return;
+  }
   common::Context::Global().ResetNameId();
 
   common::Target target = common::DefaultNVGPUTarget();
