@@ -343,7 +343,6 @@ StrategyForBinary(mod, Mod);
 StrategyForBinary(floor_mod, FloorMod);
 StrategyForBinary(max, Maximum);
 StrategyForBinary(min, Minimum);
-StrategyForBinary(power, Power);
 StrategyForBinary(logical_and, LogicalAnd);
 StrategyForBinary(logical_or, LogicalOr);
 StrategyForBinary(logical_xor, LogicalXOr);
@@ -401,7 +400,6 @@ CINN_REGISTER_HELPER(broadcast_ops) {
   CINN_REGISTER_BINARY(floor_mod, FloorMod);
   CINN_REGISTER_BINARY(max, Maximum);
   CINN_REGISTER_BINARY(min, Minimum);
-  CINN_REGISTER_BINARY(power, Power);
 
   CINN_REGISTER_BINARY_CMP(logical_and, LogicalAnd);
   CINN_REGISTER_BINARY_CMP(logical_or, LogicalOr);

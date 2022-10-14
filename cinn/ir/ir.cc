@@ -676,17 +676,6 @@ Expr FracOp::Make(Expr n, Expr d) {
   return Expr(node);
 }
 
-Expr Power::Make(Expr n, Expr d) {
-  auto *node          = make_shared<Power>();
-  node->operands()[0] = n;
-  node->operands()[1] = d;
-  CHECK(d.type().is_int());
-
-  node->set_type(n->type());
-
-  return Expr(node);
-}
-
 ir::Module _Module_::Make(const std::string &name, Target target) {
   auto n    = make_shared<_Module_>();
   n->name   = name;
@@ -792,12 +781,6 @@ void FracOp::Verify() const {
 }
 
 void Broadcast::Verify() const { CHECK(value.defined()); }
-
-void Power::Verify() const {
-  CHECK(a().defined());
-  CHECK(b().defined());
-  CHECK(b().type() == type_of<int32_t>());
-}
 
 void MultiOperandVerify(llvm::ArrayRef<Expr> operands) {
   Type operand_type = operands.front().type();
