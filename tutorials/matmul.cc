@@ -77,6 +77,7 @@ function fn0 (_A, _B, _C)
   //! @ROC[c++]
   target_source = R"ROC(
 #include <cinn_runtime.h>
+#include <math.h>
 #include <stdio.h>
 
 void fn0(void* _args, int32_t num_args)
