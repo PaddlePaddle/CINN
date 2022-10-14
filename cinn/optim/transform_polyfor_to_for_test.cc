@@ -74,6 +74,7 @@ TEST(Expr, basic) {
 
     auto target_out = R"ROC(
 #include <cinn_runtime.h>
+#include <math.h>
 #include <stdio.h>
 
 void matmul(void* _args, int32_t num_args)

@@ -103,6 +103,7 @@ TEST(Tensor, Reshape) {
 
   auto target_source = R"ROC(
 #include <cinn_runtime.h>
+#include <math.h>
 #include <stdio.h>
 
 void fn(void* _args, int32_t num_args)
@@ -150,6 +151,7 @@ TEST(Tensor, ReshapeCopied) {
 
   auto target_source = R"ROC(
 #include <cinn_runtime.h>
+#include <math.h>
 #include <stdio.h>
 
 void fn(void* _args, int32_t num_args)

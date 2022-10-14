@@ -65,6 +65,7 @@ TEST(GenerateCode_Cpu, Argmin_Keep) {
   std::string code   = codegen.Compile(builder.Build(), backends::CodeGenC::OutputKind::CImpl);
   auto target_source = R"ROC(
 #include <cinn_runtime.h>
+#include <math.h>
 #include <stdio.h>
 
 void TestGenerateCodeCpu_Argmin_Keep(void* _args, int32_t num_args)

@@ -88,6 +88,7 @@ function TestGenerateCodeCpu_Repeat (_test_repeat)
 
   auto target_source = R"ROC(
 #include <cinn_runtime.h>
+#include <math.h>
 #include <stdio.h>
 
 void TestGenerateCodeCpu_Repeat(void* _args, int32_t num_args)

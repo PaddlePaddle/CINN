@@ -66,6 +66,7 @@ TEST(GenerateCode_Cpu, Scatter) {
 
   auto target_source = R"ROC(
 #include <cinn_runtime.h>
+#include <math.h>
 #include <stdio.h>
 
 void TestGenerateCodeCpu_Scatter(void* _args, int32_t num_args)
@@ -130,6 +131,7 @@ TEST(GenerateCode_Cpu, ScatterNd) {
 
   auto target_source = R"ROC(
 #include <cinn_runtime.h>
+#include <math.h>
 #include <stdio.h>
 
 void TestGenerateCodeCpu_Scatter(void* _args, int32_t num_args)

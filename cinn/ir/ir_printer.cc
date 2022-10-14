@@ -368,6 +368,8 @@ void IrPrinter::Visit(const Power *x) {
     os() << "powf(";
   } else if (x->a().type().is_float(64)) {
     os() << "pow(";
+  } else if (x->a().type().is_int()) {
+    os() << "powf(";
   } else {
     CINN_NOT_IMPLEMENTED
   }

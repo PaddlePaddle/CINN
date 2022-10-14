@@ -1965,7 +1965,7 @@ Expr ConvertCasToCinn(Expr expr) {
       Visit(&b);
 
       auto* node = expr->As<ir::Power>();
-      if (b.is_constant()) {
+      if (b.type().is_int() && b.is_constant()) {
         if (b.get_constant() == 1) {
           *expr = a;
         } else if (b.get_constant() == 0) {

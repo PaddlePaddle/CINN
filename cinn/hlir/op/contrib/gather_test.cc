@@ -63,6 +63,7 @@ TEST(GenerateCode_Cpu, Gather) {
   VLOG(6) << "Cpu Codegen result:";
   auto target_source = R"ROC(
 #include <cinn_runtime.h>
+#include <math.h>
 #include <stdio.h>
 
 void TestGenerateCodeCpu_Gather(void* _args, int32_t num_args)
@@ -123,6 +124,7 @@ TEST(GenerateCode_Cpu, GatherNd) {
 
   auto target_source = R"ROC(
 #include <cinn_runtime.h>
+#include <math.h>
 #include <stdio.h>
 
 void TestGenerateCodeCpu_GatherNd(void* _args, int32_t num_args)

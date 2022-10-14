@@ -69,6 +69,7 @@ TEST(GenerateCode_Cpu, OneHot) {
 
   auto target_source = R"ROC(
 #include <cinn_runtime.h>
+#include <math.h>
 #include <stdio.h>
 
 void TestGenerateCodeCpu_OneHot(void* _args, int32_t num_args)

@@ -67,6 +67,7 @@ TEST(Vectorize, replace_var) {
   auto out        = codegen.Compile(builder.Build(), CodeGenC::OutputKind::CImpl);
   auto target_out = R"ROC(
 #include <cinn_runtime.h>
+#include <math.h>
 #include <stdio.h>
 
 void matmul(void* _args, int32_t num_args)
@@ -139,6 +140,7 @@ TEST(Vectorize, TestMarkVectorize) {
 
   auto target_out = R"ROC(
 #include <cinn_runtime.h>
+#include <math.h>
 #include <stdio.h>
 
 void matmul(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, struct cinn_buffer_t *_C)

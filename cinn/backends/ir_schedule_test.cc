@@ -75,6 +75,7 @@ TEST(IrSchedule, split_and_fuse1) {
 
   std::string target_code = R"ROC(
 #include <cinn_runtime.h>
+#include <math.h>
 #include <stdio.h>
 
 void test_split_and_fuse1(void* _args, int32_t num_args)
@@ -134,6 +135,7 @@ TEST(IrSchedule, split_and_fuse2) {
 
   std::string target_code = R"ROC(
 #include <cinn_runtime.h>
+#include <math.h>
 #include <stdio.h>
 
 void test_split_and_fuse2(void* _args, int32_t num_args)
@@ -196,6 +198,7 @@ TEST(IrSchedule, reorder1) {
 
   std::string target_code = R"ROC(
 #include <cinn_runtime.h>
+#include <math.h>
 #include <stdio.h>
 
 void test_reorder1(void* _args, int32_t num_args)
@@ -261,6 +264,7 @@ TEST(IrSchedule, reorder2) {
 
   std::string target_code = R"ROC(
 #include <cinn_runtime.h>
+#include <math.h>
 #include <stdio.h>
 
 void test_reorder2(void* _args, int32_t num_args)
@@ -328,6 +332,7 @@ TEST(IrSchedule, reorder3) {
 
   std::string target_code = R"ROC(
 #include <cinn_runtime.h>
+#include <math.h>
 #include <stdio.h>
 
 void test_reorder3(void* _args, int32_t num_args)
@@ -399,6 +404,7 @@ TEST(IrSchedule, reorder4) {
 
   std::string target_code = R"ROC(
 #include <cinn_runtime.h>
+#include <math.h>
 #include <stdio.h>
 
 void test_reorder4(void* _args, int32_t num_args)
@@ -466,6 +472,7 @@ TEST(IrSchedule, parallel) {
 
   std::string target_code = R"ROC(
 #include <cinn_runtime.h>
+#include <math.h>
 #include <stdio.h>
 
 void test_parallel(void* _args, int32_t num_args)
@@ -553,6 +560,7 @@ function test_vectorize (_A, _B)
 
   std::string target_code = R"ROC(
 #include <cinn_runtime.h>
+#include <math.h>
 #include <stdio.h>
 
 void test_vectorize(void* _args, int32_t num_args)
@@ -629,6 +637,7 @@ function test_unroll (_A, _B)
 
   std::string target_code = R"ROC(
 #include <cinn_runtime.h>
+#include <math.h>
 #include <stdio.h>
 
 void test_unroll(void* _args, int32_t num_args)
@@ -734,6 +743,7 @@ TEST(IrSchedule, compute_at1) {
 
   std::string target_code = R"ROC(
 #include <cinn_runtime.h>
+#include <math.h>
 #include <stdio.h>
 
 void test_compute_at1(void* _args, int32_t num_args)
@@ -805,6 +815,7 @@ TEST(IrSchedule, compute_at2) {
 
   std::string target_code = R"ROC(
 #include <cinn_runtime.h>
+#include <math.h>
 #include <stdio.h>
 
 void test_compute_at2(void* _args, int32_t num_args)
@@ -882,6 +893,7 @@ TEST(IrSchedule, compute_at3) {
 
   std::string target_code = R"ROC(
 #include <cinn_runtime.h>
+#include <math.h>
 #include <stdio.h>
 
 void test_compute_at3(void* _args, int32_t num_args)
@@ -1178,6 +1190,7 @@ TEST(IrSchedule, cache_read1) {
 
   std::string target_code = R"ROC(
 #include <cinn_runtime.h>
+#include <math.h>
 #include <stdio.h>
 
 void test_cache_read1(void* _args, int32_t num_args)
@@ -1264,6 +1277,7 @@ TEST(IrSchedule, cache_read2) {
 
   std::string target_code = R"ROC(
 #include <cinn_runtime.h>
+#include <math.h>
 #include <stdio.h>
 
 void test_cache_read2(void* _args, int32_t num_args)
@@ -1330,6 +1344,7 @@ TEST(IrSchedule, cache_write1) {
 
   std::string target_code = R"ROC(
 #include <cinn_runtime.h>
+#include <math.h>
 #include <stdio.h>
 
 void test_cache_write1(void* _args, int32_t num_args)
@@ -1414,6 +1429,7 @@ TEST(IrSchedule, cache_write2) {
 
   std::string target_code = R"ROC(
 #include <cinn_runtime.h>
+#include <math.h>
 #include <stdio.h>
 
 void test_cache_write2(void* _args, int32_t num_args)
@@ -1811,6 +1827,7 @@ function test_rfactor (_A, _B)
   LOG(INFO) << "rfactor source code is :\n" << source_code;
   std::string target_code = R"ROC(
 #include <cinn_runtime.h>
+#include <math.h>
 #include <stdio.h>
 
 void test_rfactor(void* _args, int32_t num_args)
@@ -1941,6 +1958,7 @@ function test_rfactor (_A, _B)
   LOG(INFO) << "rfactor source code is :\n" << source_code;
   std::string target_code = R"ROC(
 #include <cinn_runtime.h>
+#include <math.h>
 #include <stdio.h>
 
 void test_rfactor(void* _args, int32_t num_args)
@@ -2070,6 +2088,7 @@ function test_rfactor (_A, _B, _C)
   LOG(INFO) << "rfactor source code is :\n" << source_code;
   std::string target_code = R"ROC(
 #include <cinn_runtime.h>
+#include <math.h>
 #include <stdio.h>
 
 void test_rfactor(void* _args, int32_t num_args)
@@ -2150,6 +2169,7 @@ TEST(IrSchedule, compute_inline1) {
 
   std::string target_code = R"ROC(
 #include <cinn_runtime.h>
+#include <math.h>
 #include <stdio.h>
 
 void test_compute_inline1(void* _args, int32_t num_args)
@@ -2218,6 +2238,7 @@ TEST(IrSchedule, compute_inline2) {
 
   std::string target_code = R"ROC(
 #include <cinn_runtime.h>
+#include <math.h>
 #include <stdio.h>
 
 void test_compute_inline2(void* _args, int32_t num_args)
@@ -2431,6 +2452,7 @@ TEST(IrSchedule, copytransform1) {
 
   std::string target_code = R"ROC(
 #include <cinn_runtime.h>
+#include <math.h>
 #include <stdio.h>
 
 void test_copytransform1(void* _args, int32_t num_args)
@@ -2520,6 +2542,7 @@ TEST(IrSchedule, copytransform2) {
 
   std::string target_code = R"ROC(
 #include <cinn_runtime.h>
+#include <math.h>
 #include <stdio.h>
 
 void test_copytransform2(void* _args, int32_t num_args)

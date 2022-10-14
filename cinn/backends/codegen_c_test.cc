@@ -78,6 +78,7 @@ TEST(CodeGenC, module) {
 
     std::string target_str = R"ROC(
 #include <cinn_runtime.h>
+#include <math.h>
 #include <stdio.h>
 
 void add1(void* _args, int32_t num_args)
@@ -109,6 +110,7 @@ void add1(void* _args, int32_t num_args)
 #define _MODULE1_CINN_H_
 
 #include <cinn_runtime.h>
+#include <math.h>
 #include <stdio.h>
 
 void add1(void* _args, int32_t num_args);
@@ -174,6 +176,7 @@ TEST(CodeGenC, module_with_transform) {
 
   auto tgt = R"ROC(
 #include <cinn_runtime.h>
+#include <math.h>
 #include <stdio.h>
 
 void add1(void* _args, int32_t num_args)
@@ -271,6 +274,7 @@ TEST(CodeGenC, matmul) {
 
   auto tgt = R"ROC(
 #include <cinn_runtime.h>
+#include <math.h>
 #include <stdio.h>
 
 void matmul(void* _args, int32_t num_args)
@@ -382,6 +386,7 @@ TEST(CodeGenC, matmul_tile) {
 
   auto target_out = R"ROC(
 #include <cinn_runtime.h>
+#include <math.h>
 #include <stdio.h>
 
 void matmul(void* _args, int32_t num_args)
@@ -463,6 +468,7 @@ TEST(CodeGenC, matmul_packed) {
 
   auto target_out = R"ROC(
 #include <cinn_runtime.h>
+#include <math.h>
 #include <stdio.h>
 
 void matmul_with_packing(void* _args, int32_t num_args)
