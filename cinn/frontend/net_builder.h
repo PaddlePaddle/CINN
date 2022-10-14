@@ -584,7 +584,7 @@ class NetBuilder {
    * @param num_newaxis The number of new dimensions to insert
    * @return A variable whose op member is the dim expandsion operation.
    */
-  Variable ExpandDims(const Variable& operand, const int& axis, const int& num_newaxis = 1);
+  Variable ExpandDims(const Variable& operand, int axis, int num_newaxis = 1);
 
   /**
    * @brief This operator reverse the input along the axis.
