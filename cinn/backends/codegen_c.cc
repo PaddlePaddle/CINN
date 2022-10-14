@@ -600,8 +600,8 @@ void CodeGenC::Visit(const ir::_LoweredFunc_ *op) {
 
 void CodeGenC::PrintIncludes() {
   os() << "#include <cinn_runtime.h>\n";
-  os() << "#include <stdio.h>\n";
   os() << "#include <math.h>\n";
+  os() << "#include <stdio.h>\n";
   os() << "\n";
 }
 
