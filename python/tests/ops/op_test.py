@@ -206,6 +206,18 @@ class OpTest(unittest.TestCase):
             self.assertTrue(is_allclose, msg=error_message)
 
     @staticmethod
+    def nptype2cinntype(dtype):
+        switch_map = {
+            "float32": Float(32),
+            "float64": Float(64),
+            "int32": Int(32),
+            "int64": Int(64),
+            "bool": Bool()
+        }
+        assert str(dtype) in switch_map, dtype + " not support in CINN"
+        return switch_map[str(dtype)]
+
+    @staticmethod
     def random(shape, dtype="float32", low=0.0, high=1.0):
         assert bool(shape), "Shape should not empty!"
         assert -1 not in shape, "Shape should not -1!"
