@@ -71,16 +71,14 @@ std::unordered_map<std::string, Variable> PaddleModelConvertor::GetFetchList() c
 Program PaddleModelConvertor::operator()(const common::Target& target,
                                          const std::string& model_dir,
                                          bool is_combined,
-                                         hlir::framework::Scope* scope) {
-  std::shared_ptr<hlir::framework::Scope> scope_s;
+                                         std::shared_ptr<hlir::framework::Scope> scope) {
   if (!scope) {
     // do not need scope
-    scope_s = hlir::framework::Scope::Create();
-    scope   = scope_s.get();
+    scope = hlir::framework::Scope::Create();
   }
 
   paddle::cpp::ProgramDesc program_desc;
-  paddle::LoadModelPb(model_dir, "__model__", "", scope, &program_desc, is_combined, false, target);
+  paddle::LoadModelPb(model_dir, "__model__", "", scope.get(), &program_desc, is_combined, false, target);
   CHECK_EQ(program_desc.BlocksSize(), 1) << "CINN can only support the model with a single block";
   auto* block_desc = program_desc.GetBlock<paddle::cpp::BlockDesc>(0);
 

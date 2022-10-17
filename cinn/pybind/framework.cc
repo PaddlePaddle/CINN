@@ -111,7 +111,7 @@ void BindFramework(pybind11::module *m) {
            })
       .def("__str__", [](NodeAttr &self) { return utils::GetStreamCnt(self); });
 
-  py::class_<Scope>(*m, "Scope")
+  py::class_<Scope, std::shared_ptr<Scope>>(*m, "Scope")
       .def(py::init<>())  //
       .def("get_tensor",
            [](Scope &self, const std::string &name, const Target &target) {
