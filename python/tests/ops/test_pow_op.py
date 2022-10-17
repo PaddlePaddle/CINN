@@ -33,7 +33,7 @@ class TestPowOp(OpTest):
     def init_case(self):
         self.inputs = {
             "x": self.random([32, 64], "float32"),
-            "y": self.random([32, 64], "float32")
+            "y": self.random([32, 64], "float32", 0.0, 4.0)
         }
         self.axis = -1
 
@@ -69,7 +69,7 @@ class TestPowCase1(TestPowOp):
     def init_case(self):
         self.inputs = {
             "x": self.random([8, 16, 32, 32], "float32"),
-            "y": self.random([1], "float32")
+            "y": self.random([1], "float32", 0.0, 4.0)
         }
         self.axis = 0
 
