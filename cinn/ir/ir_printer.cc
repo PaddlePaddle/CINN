@@ -363,14 +363,6 @@ void IrPrinter::Visit(const FracOp *x) {
   os() << ")";
 }
 
-void IrPrinter::Visit(const Power *x) {
-  os() << "(";
-  Print(x->a());
-  os() << "^";
-  Print(x->b());
-  os() << ")";
-}
-
 void IrPrinter::Visit(const Product *x) {
   os() << "(";
   for (int i = 0; i < x->operands().size() - 1; i++) {

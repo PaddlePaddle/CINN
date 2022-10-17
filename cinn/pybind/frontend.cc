@@ -141,49 +141,56 @@ void BindFrontend(pybind11::module *m) {
       .def("pool2d", &Program::pool2d)
       .def("concat", &Program::concat)
       .def("reshape", &Program::reshape)
-      .def("build_and_get_output",
-           [](Program &self,
-              const common::Target &target,
-              const std::vector<Variable> &tensor_inputs,
-              const std::vector<py::array> &input_data,
-              const std::vector<Variable> &tensor_outputs) {
-             std::shared_ptr<hlir::framework::Graph> g(new hlir::framework::Graph(self, target));
-             hlir::framework::ApplyPass(g.get(), "InferShape");
-             hlir::framework::ApplyPasses(g.get(), DefaultTrainingOptimizeOptions().graph_passes);
-             std::shared_ptr<hlir::framework::Scope> scope = hlir::framework::BuildScope(target, g);
-             hlir::framework::GraphCompiler gc(target, scope, g);
-             auto program = gc.Build();
-             for (size_t i = 0; i < tensor_inputs.size(); i++) {
-               auto in_tensor = scope->GetTensor(tensor_inputs[i]->id);
-               auto dtype     = tensor_inputs[i]->type;
-               auto *data     = in_tensor->mutable_data(target, dtype);
-               CHECK_EQ(input_data[i].size(), in_tensor->shape().numel())
-                   << "The size of tensor [" << tensor_inputs[i]->id
-                   << "] is different with the input data's size! Please check.";
-               if (target.arch == Target::Arch::NVGPU) {
+      .def(
+          "build_and_get_output",
+          [](Program &self,
+             const common::Target &target,
+             const std::vector<Variable> &tensor_inputs,
+             const std::vector<py::array> &input_data,
+             const std::vector<Variable> &tensor_outputs,
+             std::shared_ptr<hlir::framework::Scope> scope) {
+            std::shared_ptr<hlir::framework::Graph> g(new hlir::framework::Graph(self, target));
+            hlir::framework::ApplyPass(g.get(), "InferShape");
+            hlir::framework::ApplyPasses(g.get(), DefaultTrainingOptimizeOptions().graph_passes);
+            scope = hlir::framework::BuildScope(target, g, scope);
+            hlir::framework::GraphCompiler gc(target, scope, g);
+            auto program = gc.Build();
+            for (size_t i = 0; i < tensor_inputs.size(); i++) {
+              auto in_tensor = scope->GetTensor(tensor_inputs[i]->id);
+              auto dtype     = tensor_inputs[i]->type;
+              auto *data     = in_tensor->mutable_data(target, dtype);
+              CHECK_EQ(input_data[i].size(), in_tensor->shape().numel())
+                  << "The size of tensor [" << tensor_inputs[i]->id
+                  << "] is different with the input data's size! Please check.";
+              if (target.arch == Target::Arch::NVGPU) {
 #ifdef CINN_WITH_CUDA
-                 CUDA_CALL(cudaMemcpy(
-                     data, input_data[i].data(), in_tensor->shape().numel() * dtype.bytes(), cudaMemcpyHostToDevice));
+                CUDA_CALL(cudaMemcpy(
+                    data, input_data[i].data(), in_tensor->shape().numel() * dtype.bytes(), cudaMemcpyHostToDevice));
 #else
                  LOG(FATAL) <<"To use CUDA backends, you need to set WITH_CUDA ON!";
 #endif
-               } else if (target.arch == Target::Arch::X86) {
-                 memcpy(data, input_data[i].data(),
-                        in_tensor->shape().numel() * dtype.bytes());  // All random data
-               } else {
-                 CINN_NOT_IMPLEMENTED
-               }
-             }
-             program->Execute();
+              } else if (target.arch == Target::Arch::X86) {
+                memcpy(data, input_data[i].data(),
+                       in_tensor->shape().numel() * dtype.bytes());  // All random data
+              } else {
+                CINN_NOT_IMPLEMENTED
+              }
+            }
+            program->Execute();
 
-             std::vector<hlir::framework::Tensor> outputs;
-             for (size_t i = 0; i < tensor_outputs.size(); i++) {
-               outputs.push_back(scope->GetTensor(tensor_outputs[i]->id));
-               outputs.back()->set_type(tensor_outputs[i]->type);
-             }
+            std::vector<hlir::framework::Tensor> outputs;
+            for (size_t i = 0; i < tensor_outputs.size(); i++) {
+              outputs.push_back(scope->GetTensor(tensor_outputs[i]->id));
+              outputs.back()->set_type(tensor_outputs[i]->type);
+            }
 
-             return outputs;
-           })
+            return outputs;
+          },
+          py::arg("target"),
+          py::arg("feed_list"),
+          py::arg("feed_datas"),
+          py::arg("fetch_list"),
+          py::arg("scope") = nullptr)
       .def("apply_pass",
            [](Program &self,
               const std::unordered_set<std::string> &fetch_ids,
@@ -469,6 +476,7 @@ void BindFrontend(pybind11::module *m) {
            py::arg("y"),
            py::arg("axis") = -1)
       .def("relu6", &NetBuilder::Relu6, py::arg("a"), py::arg("threshold") = 6.0f)
+      .def("gelu", &NetBuilder::Gelu, py::arg("x"))
       .def("squeeze", &NetBuilder::Squeeze, py::arg("a"), py::arg("axes"))
       .def("expand_dims", &NetBuilder::ExpandDims, py::arg("x"), py::arg("axis"), py::arg("num_newaxis") = 1)
       .def("argmax", &NetBuilder::Argmax, py::arg("x"), py::arg("axis"), py::arg("keep_dim") = false)

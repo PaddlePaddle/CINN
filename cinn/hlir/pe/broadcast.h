@@ -66,8 +66,6 @@ HLIR_DCL_BC_PE(FloorMod);
 HLIR_DCL_BC_PE(Maximum);
 //! Compute Minimum(A, B) with auto-broadcasting.
 HLIR_DCL_BC_PE(Minimum);
-//! Compute Power(A, B) with auto-broadcasting.
-HLIR_DCL_BC_PE(Power);
 //! Compute A << B with auto-broadcasting.
 HLIR_DCL_BC_PE(LeftShift);
 //! Compute A >> B with auto-broadcasting.

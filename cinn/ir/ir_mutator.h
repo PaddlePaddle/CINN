@@ -235,13 +235,6 @@ void IRMutator<T>::Visit(const FracOp *expr, T op) {
 }
 
 template <typename T>
-void IRMutator<T>::Visit(const Power *expr, T op) {
-  auto *node = op->template As<Power>();
-  IRVisitorBase<void, T>::Visit(&node->a(), &node->a());
-  IRVisitorBase<void, T>::Visit(&node->b(), &node->b());
-}
-
-template <typename T>
 void IRMutator<T>::Visit(const Product *expr, T op) {
   auto *node = op->template As<Product>();
   for (auto &x : node->operands()) {

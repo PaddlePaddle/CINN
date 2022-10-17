@@ -538,7 +538,6 @@ void CodeGenC::Visit(const ir::Broadcast *op) {
 }
 
 void CodeGenC::Visit(const ir::FracOp *op) { ir::IrPrinter::Visit(op); }
-void CodeGenC::Visit(const ir::Power *op) { ir::IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::Sum *op) { ir::IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::Product *op) { ir::IrPrinter::Visit(op); }
 

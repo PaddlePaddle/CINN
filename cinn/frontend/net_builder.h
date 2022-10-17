@@ -40,6 +40,7 @@ namespace frontend {
   macro__(Sqrt) \
   macro__(Tanh) \
   macro__(Relu) \
+  macro__(Gelu) \
   macro__(Sigmoid) \
   macro__(Identity) \
   macro__(Exp) \
@@ -85,7 +86,6 @@ namespace frontend {
   macro__(FloorMod) \
   macro__(Max) \
   macro__(Min) \
-  macro__(Power) \
   macro__(LogicalAnd) \
   macro__(LogicalOr) \
   macro__(LogicalXor) \

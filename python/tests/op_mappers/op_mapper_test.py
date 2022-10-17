@@ -21,6 +21,7 @@ import numpy as np
 import paddle
 from cinn.frontend import *
 from cinn.common import *
+from cinn.framework import *
 from tests.ops.op_test import OpTest, OpTestTool
 
 logging.basicConfig(level=os.environ.get('LOG_LEVEL', 'INFO').upper())
@@ -55,8 +56,15 @@ class OpMapperTest(OpTest):
         exe = paddle.static.Executor(self.place)
         exe.run(startup_program)
 
+        logger.debug("Feed list:\n" + str(self.feed_data))
+
         self.paddle_outputs = exe.run(
             main_program, self.feed_data, fetch_list=self.fetch_targets)
+
+        logger.debug("Paddle result:\n" +
+                     str([{
+                         self.fetch_targets[i].name: self.paddle_outputs[i]
+                     } for i in range(len(self.fetch_targets))]))
 
         paddle.fluid.io.save_inference_model(
             "./op_mapper_test_save_model/op_mapper_test_" +
@@ -65,9 +73,12 @@ class OpMapperTest(OpTest):
 
     def build_cinn_program(self, target):
         convertor = PaddleModelConvertor()
+        scope = Scope()
         prog = convertor(
-            self.target, "./op_mapper_test_save_model/op_mapper_test_" +
-            self.__class__.__name__)
+            self.target,
+            "./op_mapper_test_save_model/op_mapper_test_" +
+            self.__class__.__name__,
+            scope=scope)
 
         # get cinn input list
         inputs = prog.get_inputs()
@@ -94,9 +105,17 @@ class OpMapperTest(OpTest):
 
         # get cinn output list
         output_dict = convertor.get_fetch_list()
-        cinn_output = [output_dict[var.name] for var in self.fetch_targets]
+
+        cinn_output_vars = [
+            output_dict[var.name] for var in self.fetch_targets
+        ]
 
         # run and get result
-        self.cinn_outputs = self.get_cinn_output(prog, target, cinn_inputs,
-                                                 cinn_feed_datas, cinn_output,
-                                                 list())
+        self.cinn_outputs = self.get_cinn_output(
+            prog, target, cinn_inputs, cinn_feed_datas, cinn_output_vars,
+            list(), scope)
+
+        logger.debug("CINN result:\n" + str([{
+            self.fetch_targets[i].name + "/" + convertor.get_cinn_name(self.fetch_targets[i].name):
+            self.cinn_outputs[i]
+        } for i in range(len(self.fetch_targets))]))
