@@ -110,7 +110,6 @@ VisitForDtypePattern(GE, cmp);
 VisitForDtypePattern(LT, cmp);
 VisitForDtypePattern(LE, cmp);
 VisitForDtypePattern(Call, math_func);
-VisitForDtypePattern(Power, math_func);
 VisitForDtypePattern(PrimitiveNode, math_func);
 VisitForDtypePattern(Cast, other_call);
 VisitForDtypePattern(Let, other_call);

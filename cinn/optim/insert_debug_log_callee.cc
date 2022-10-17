@@ -108,7 +108,6 @@ struct StoreDebugInfoBuilder : public ir::IRVisitor {
   void Visit(const ir::Ramp *x) override {}
   void Visit(const ir::Broadcast *x) override {}
   void Visit(const ir::FracOp *x) override {}
-  void Visit(const ir::Power *x) override {}
   void Visit(const ir::Product *x) override {}
   void Visit(const ir::Sum *x) override {}
 

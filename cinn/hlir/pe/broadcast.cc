@@ -234,7 +234,6 @@ HLIR_IMP_BC_PE(Mod, return a % b;);
 HLIR_IMP_BC_PE(FloorMod, return a - lang::Floor(a / b) * b;);
 HLIR_IMP_BC_PE(Maximum, return ir::Max::Make(a, b););
 HLIR_IMP_BC_PE(Minimum, return ir::Min::Make(a, b););
-HLIR_IMP_BC_PE(Power, return ir::Power::Make(a, b););
 HLIR_IMP_BC_PE(LeftShift, return a << b;);
 HLIR_IMP_BC_PE(RightShift, return a >> b;);
 HLIR_IMP_BC_PE(LogicalAnd, return a && b;);
