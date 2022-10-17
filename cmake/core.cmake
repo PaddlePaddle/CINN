@@ -67,8 +67,8 @@ function(cc_test TARGET_NAME)
     cmake_parse_arguments(cc_test "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
     add_executable(${TARGET_NAME} ${cc_test_SRCS})
     get_property(os_dependency_modules GLOBAL PROPERTY OS_DEPENDENCY_MODULES)
-    target_link_libraries(${TARGET_NAME} ${cc_test_DEPS} ${os_dependency_modules} cinn_gtest_main gtest test_helper)
-    add_dependencies(${TARGET_NAME} ${cc_test_DEPS} cinn_gtest_main gtest extern_gtest test_helper)
+    target_link_libraries(${TARGET_NAME} ${cc_test_DEPS} ${os_dependency_modules} cinn_gtest_main gtest )
+    add_dependencies(${TARGET_NAME} ${cc_test_DEPS} cinn_gtest_main gtest extern_gtest)
 
     add_test(NAME ${TARGET_NAME}
       COMMAND ${TARGET_NAME} "${cc_test_ARGS}"
@@ -140,9 +140,9 @@ function(nv_test TARGET_NAME)
     cmake_parse_arguments(nv_test "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
     cuda_add_executable(${TARGET_NAME} ${nv_test_SRCS})
     get_property(os_dependency_modules GLOBAL PROPERTY OS_DEPENDENCY_MODULES)
-    target_link_libraries(${TARGET_NAME} ${nv_test_DEPS} cinn_gtest_main gtest test_helper
+    target_link_libraries(${TARGET_NAME} ${nv_test_DEPS} cinn_gtest_main gtest
       ${os_dependency_modules} ${CUDNN_LIBRARY} ${CUBLAS_LIBRARIES} ${CUDA_LIBRARIES})
-    add_dependencies(${TARGET_NAME} ${nv_test_DEPS} cinn_gtest_main gtest test_helper)
+    add_dependencies(${TARGET_NAME} ${nv_test_DEPS} cinn_gtest_main gtest)
     common_link(${TARGET_NAME})
     # add_test(${TARGET_NAME} ${TARGET_NAME})
     add_test(NAME ${TARGET_NAME}
