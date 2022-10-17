@@ -36,10 +36,11 @@ class TestCastOp(OpTest):
                 64,
             ]).astype("float32") * 2 - 1
         }
+        self.cast_to_dtype = 'int64'
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.inputs["x"], stop_gradient=True)
-        out = paddle.cast(x, 'int64')
+        out = paddle.cast(x, self.cast_to_dtype)
 
         self.paddle_outputs = [out]
 
@@ -48,7 +49,7 @@ class TestCastOp(OpTest):
     def build_cinn_program(self, target):
         builder = NetBuilder("cast")
         x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
-        out = builder.cast(x, 'int64')
+        out = builder.cast(x, self.cast_to_dtype)
 
         prog = builder.build()
         res = self.get_cinn_output(prog, target, [x], [self.inputs["x"]],
@@ -65,6 +66,18 @@ class TestCastCase1(TestCastOp):
         self.inputs = {
             "x": np.random.random([10201, 50]).astype("float32") * 3 - 1
         }
+        self.cast_to_dtype = 'int64'
+
+
+class TestCastCase2(TestCastOp):
+    def init_case(self):
+        self.inputs = {
+            "x": np.random.random([
+                32,
+                64,
+            ]).astype("float32") * 2 - 1
+        }
+        self.cast_to_dtype = 'bool'
 
 
 if __name__ == "__main__":
