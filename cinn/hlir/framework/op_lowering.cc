@@ -181,6 +181,20 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpWithoutSchedule(IRComputeFuncti
     }
   }
 
+  std::unordered_set<std::string> args_map;
+  for (auto arg : func_args) {
+    args_map.insert(arg.name());
+  }
+
+  for (auto& tensor : tensor_map) {
+    if (args_map.count("_" + tensor.first)) {
+      continue;
+    }
+    arg_tensors.push_back(tensor.second);
+    group->output_names.push_back(tensor.first);
+    func_args.emplace_back(tensor.second->buffer, ir::Argument::IO::kOutput);
+  }
+
   auto func_body = ir_sch.GetModule().GetExprs().at(0);
 #ifdef CINN_WITH_CUDA
   optim::OptimizeExprGPU(&(func_body));
@@ -191,6 +205,7 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpWithoutSchedule(IRComputeFuncti
       ir::_LoweredFunc_::Make(group->GetFuncName(), func_args, ir_sch.GetModule().GetExprs().at(0), temp_buffers);
   func->PrepareBufferCastExprs();
   func = optim::Optimize(Expr(func), target_, false).as_lowered_func_ref();
+
   return {func};
 }
 

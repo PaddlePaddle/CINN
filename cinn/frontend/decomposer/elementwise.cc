@@ -35,12 +35,37 @@ void sum(const Instruction& instr, const DecomposerContext& context) {
   context.MapOutToOrigin(sum, output);
 }
 
+void clip(const Instruction& instr, const DecomposerContext& context) {
+  CHECK_GT(instr->inputs.size(), 0UL) << "At least 1 input tensor for " << instr->op_type;
+  CHECK_EQ(instr->outputs.size(), 1UL) << "1 output tensor for " << instr->op_type;
+
+  auto input    = instr->inputs[0];
+  auto output   = instr->outputs[0];
+  auto* builder = context.builder();
+
+  auto max_val  = instr.GetAttrs<float>("max_val");
+  auto min_val  = instr.GetAttrs<float>("min_val");
+  auto max_val_ = builder->FillConstant(input->shape, max_val, common::UniqName("constant"));
+  auto min_val_ = builder->FillConstant(input->shape, min_val, common::UniqName("constant"));
+
+  auto out0 = builder->Min(input, max_val_);
+  auto out1 = builder->Max(out0, min_val_);
+  // map the the output of decomposed operator to the original.
+  context.MapOutToOrigin(out1, output);
+}
+
 }  // namespace decomposer
 }  // namespace frontend
 }  // namespace cinn
 
-CINN_REGISTER_HELPER(elementwise_decomposers) {
+CINN_REGISTER_HELPER(sum_decomposers) {
   CINN_DECOMPOSER_REGISTER(sum, cinn::frontend::decomposer::sum);
+
+  return true;
+}
+
+CINN_REGISTER_HELPER(clip_decomposers) {
+  CINN_DECOMPOSER_REGISTER(clip, cinn::frontend::decomposer::clip);
 
   return true;
 }

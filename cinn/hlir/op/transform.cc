@@ -923,8 +923,11 @@ std::vector<std::vector<int>> InferShapeForMul(const std::vector<std::vector<int
   int reduce_factor           = pe::GetMulFactor(check_dim_x, Float(32), common::DefaultHostTarget());
   std::vector<int> temp_shape = {flatten_shape_A, flatten_shape_B, reduce_factor};
 
-  std::vector<std::vector<int>> res{output_shape, temp_shape};
-  return res;
+#ifdef CINN_WITH_CUDA
+  return {output_shape};
+#else
+  return {output_shape, temp_shape};
+#endif
 }
 
 std::vector<Type> InferDtypeForMul(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
@@ -2059,7 +2062,11 @@ CINN_REGISTER_HELPER(transform_ops) {
   CINN_REGISTER_OP(mul)
       .describe("This operator is used to perform matrix multiplication for input X and Y.")
       .set_num_inputs(2)
+#ifdef CINN_WITH_CUDA
+      .set_num_outputs(1)
+#else
       .set_num_outputs(2)
+#endif
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForMul)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForMul))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForMul))

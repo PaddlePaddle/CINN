@@ -362,7 +362,7 @@ bool RegisteryCustomCallArgsFunc() {
   CustomCallArgsFuncRegistry::Global().Register(
       "cinn_call_cudnn_conv2d_backward_data", common::DefaultNVGPUTarget(), CustomCallArgsForCudnnConvBackwardData);
   CustomCallArgsFuncRegistry::Global().Register(
-      "cinn_gpu_cudnn_conv2d_backward_filter", common::DefaultNVGPUTarget(), CustomCallArgsForCudnnConvBackwardFilter);
+      "cinn_call_cudnn_conv2d_backward_filter", common::DefaultNVGPUTarget(), CustomCallArgsForCudnnConvBackwardFilter);
   CustomCallArgsFuncRegistry::Global().Register(
       "cinn_call_cudnn_pool2d_forward", common::DefaultNVGPUTarget(), CustomCallArgsForCudnnPoolForward);
   CustomCallArgsFuncRegistry::Global().Register(
