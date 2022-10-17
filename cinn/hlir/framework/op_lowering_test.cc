@@ -14,6 +14,8 @@
 
 #include "cinn/hlir/framework/op_lowering.h"
 
+#include <gtest/gtest.h>
+
 #include "cinn/backends/codegen_c_x86.h"
 #include "cinn/backends/codegen_cuda_dev.h"
 #include "cinn/backends/codegen_cuda_util.h"

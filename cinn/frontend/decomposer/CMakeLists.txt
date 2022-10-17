@@ -6,8 +6,9 @@ gather_srcs(cinnapi_src SRCS
     broadcast.cc
     batch_norm.cc
     conv2d_grad.cc
-    test_helper.cc
     )
+
+cc_library(test_helper SRCS test_helper.cc DEPS cinncore)
 
 if (WITH_CUDA)
 cc_test(test_activation_decomposer SRCS activation_test.cc DEPS cinncore)
