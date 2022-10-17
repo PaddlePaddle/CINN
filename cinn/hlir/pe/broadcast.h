@@ -95,6 +95,12 @@ HLIR_DCL_BC_PE(GreaterEqual);
 //! Compute A <= B with auto-broadcasting.
 HLIR_DCL_BC_PE(LessEqual);
 
+ir::Tensor Pow(const ir::Tensor& A,
+               const ir::Tensor& B,
+               const std::string& output_name,
+               const Expr& axis,
+               const common::Target& target);
+
 ir::Tensor BroadcastTo(const ir::Tensor& A,
                        const std::vector<int>& out_shape,
                        const std::vector<int>& broadcast_axes,
