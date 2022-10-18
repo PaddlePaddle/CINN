@@ -48,7 +48,7 @@ Variable OpMapperContext::GetVar(const std::string& origin_name) const {
     local_var.set_id(name);
     local_var->shape = tensor->shape().data();
     local_var->type  = tensor->type();
-    AddVar(name, local_var);
+    AddVar(origin_name, local_var);
     return local_var;
   }
 
