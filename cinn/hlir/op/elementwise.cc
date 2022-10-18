@@ -279,7 +279,9 @@ std::shared_ptr<OpStrategy> StrategyForFillConstant(const framework::NodeAttr &a
     force_cpu = absl::get<bool>(attrs.attr_store.at("force_cpu"));
 
 #ifdef CINN_WITH_CUDA
-    if (force_cpu && target != common::DefaultHostTarget()) CINN_NOT_IMPLEMENTED
+    if (force_cpu && target != common::DefaultHostTarget()) {
+      LOG(WARNING) << "[force_cpu] not supported in CINN! The output will placed on device.";
+    }
 #endif
 
     CINNValuePack arg_pack  = args[0];

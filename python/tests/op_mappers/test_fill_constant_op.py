@@ -59,5 +59,13 @@ class TestFillConstantCase1(TestFillConstantOp):
         self.dtype = "int32"
 
 
+class TestFillConstantCase2(TestFillConstantOp):
+    def set_paddle_program(self):
+        out = paddle.fluid.layers.fill_constant(
+            self.shape, self.dtype, self.value, force_cpu=True)
+
+        return ([], [out])
+
+
 if __name__ == "__main__":
     unittest.main()
