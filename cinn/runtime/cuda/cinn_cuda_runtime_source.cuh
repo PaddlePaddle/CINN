@@ -57,6 +57,13 @@ __device__ inline int FN_INT32(pow)(int a, int b) {
   return res;
 }
 
+__device__ inline int FN_INT32(left_shift)(int a, int b) { return a << b; }
+__device__ inline int FN_INT32(right_shift)(int a, int b) { return a >> b; }
+__device__ inline int FN_INT32(bitwise_and)(int a, int b) { return a & b; }
+__device__ inline int FN_INT32(bitwise_or)(int a, int b) { return a | b; }
+__device__ inline int FN_INT32(bitwise_xor)(int a, int b) { return a ^ b; }
+__device__ inline int FN_INT32(bitwise_not)(int a) { return ~a; }
+
 #undef FN_INT32
 
 __device__ inline float cinn_sum(const float left, const float right) { return left + right; }
