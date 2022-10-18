@@ -20,6 +20,7 @@
 
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/layout.h"
+#include "cinn/ir/tensor.h"
 #include "cinn/poly/stage.h"
 
 namespace cinn {
@@ -217,6 +218,11 @@ ir::Tensor ScatterAdd(const ir::Tensor& input,
                       const common::Target& target,
                       const int axis,
                       const std::string& output_name);
+
+ir::Tensor ExpandDims(const ir::Tensor& input,
+                      int axis,
+                      int num_newaxis                = 1,
+                      const std::string& output_name = UniqName("T_Transform_ExpandDims_out"));
 
 }  // namespace pe
 }  // namespace hlir

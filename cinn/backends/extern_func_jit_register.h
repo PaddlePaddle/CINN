@@ -68,7 +68,7 @@
  * Register a sourced function(No function address, called in generated source code).
  */
 #define REGISTER_EXTERN_SOURCE_FUNC_2_IN_1_OUT(fn__, target__, in_type1__, in_type2__, out_type__) \
-  REGISTER_EXTERN_FUNC_HELPER(fn__, target__)                                                      \
+  REGISTER_FACKED_EXTERN_FUNC_HELPER(fn__, target__)                                               \
       .SetRetType<out_type__>()                                                                    \
       .AddInputType<in_type1__>()                                                                  \
       .AddInputType<in_type2__>()                                                                  \

@@ -33,7 +33,12 @@
 #include "cinn/utils/data_util.h"
 
 DEFINE_string(resnet50_model_dir, "./ResNet50", "the path to paddle model resnet50.");
-DEFINE_uint64(options, 7, "the options to control which schedule tests will be run.");
+// Flags that control which schedule tests will be run.
+// Bit with index 0 controls no schedule test, means options = 1 = "001" will run no schedule test.
+// Bit with index 1 controls manual schedule test, means options = 2 = "010" will run manual schedule test.
+// Bit with index 2 controls auto schedule test, means options = 4 = "100" will run auto schedule test.
+// The default value is -1, which means that this flag is disabled to set the options
+DEFINE_int32(options, -1, "the options to control which schedule tests will be run.");
 DECLARE_bool(cinn_ir_schedule);
 
 namespace cinn {
@@ -50,8 +55,6 @@ class PerformanceTester : public ::testing::Test {
   void SetUp() override {
     // AutoTuner is combined with new IR Schedule
     FLAGS_cinn_ir_schedule = true;
-    option_flags_          = FLAGS_options;
-    VLOG(3) << "option_flags_ = " << option_flags_;
   }
 
   void BuildRuntimePrograms(int num_tuning_rounds) {
@@ -90,7 +93,12 @@ class PerformanceTester : public ::testing::Test {
     VLOG(3) << "Start initialize graph.";
     graph_ = std::make_shared<hlir::framework::Graph>(program, target_);
     hlir::framework::ApplyPass(graph_.get(), "InferShape");
+    hlir::framework::ApplyPass(graph_.get(), "OpFusionPass");
     VLOG(3) << "Initialize graph completed, Start building runtime program.";
+    if (FLAGS_options >= 0) {
+      SetOptionFlags(FLAGS_options);
+    }
+    VLOG(3) << "option_flags_ = " << option_flags_;
     BuildRuntimePrograms(num_tuning_rounds);
     VLOG(3) << "Build runtime programs completed, start running.";
     Run(repeat);
@@ -112,36 +120,43 @@ class PerformanceTester : public ::testing::Test {
     GraphCompiler::CompileOptions compile_options;
     compile_options.with_instantiate_variables = true;
 
-    std::tuple<std::vector<common::GraphNode*>, std::vector<common::GraphEdge*>> topo_result =
-        graph_->topological_order();
-    const std::vector<common::GraphNode*>& nodes_in_order = std::get<0>(topo_result);
-    for (auto graph_node : nodes_in_order) {
-      // n must be an op node
-      auto node = graph_node->safe_as<hlir::framework::Node>();
-      if (node) {
-        auto group = std::make_shared<Graph::Group>();
-        // init group
-        group->nodes.push_back(node);
-        group->nodes_set.insert(node);
-        group->output_nodes.insert(node);
-        // input node
-        for (auto& edge : node->inlinks()) {
-          auto input_graph_node = edge->source();
-          auto input_node_data  = input_graph_node->safe_as<hlir::framework::NodeData>();
-          CHECK(input_node_data);
-          // input data has no source node
-          if (input_node_data->source_node.get()) {
-            group->input_nodes[input_node_data->source_node.get()] = 1;
+    if (graph_->fusion_groups.empty()) {
+      std::tuple<std::vector<common::GraphNode*>, std::vector<common::GraphEdge*>> topo_result =
+          graph_->topological_order();
+      const std::vector<common::GraphNode*>& nodes_in_order = std::get<0>(topo_result);
+      for (auto graph_node : nodes_in_order) {
+        // n must be an op node
+        auto node = graph_node->safe_as<hlir::framework::Node>();
+        if (node) {
+          auto group = std::make_shared<Graph::Group>();
+          // init group
+          group->nodes.push_back(node);
+          group->nodes_set.insert(node);
+          group->output_nodes.insert(node);
+          // input node
+          for (auto& edge : node->inlinks()) {
+            auto input_graph_node = edge->source();
+            auto input_node_data  = input_graph_node->safe_as<hlir::framework::NodeData>();
+            CHECK(input_node_data);
+            // input data has no source node
+            if (input_node_data->source_node.get()) {
+              group->input_nodes[input_node_data->source_node.get()] = 1;
+            }
           }
+
+          // group type
+          group->op_pattern_kind = hlir::framework::kOpaque;
+          // use current node as master node for schedule
+          group->master_nodes.insert(node);
+          group->group_id = node->id();
+
+          compile_options.groups.push_back(group);
+          compile_options.lowered_funcs.push_back(op_lowerer->LowerWithoutSchedule(group));
         }
-
-        // group type
-        group->op_pattern_kind = hlir::framework::kOpaque;
-        // use current node as master node for schedule
-        group->master_nodes.insert(node);
-        group->group_id = node->id();
-
-        compile_options.groups.push_back(group);
+      }
+    } else {
+      compile_options.groups = graph_->fusion_groups;
+      for (auto group : graph_->fusion_groups) {
         compile_options.lowered_funcs.push_back(op_lowerer->LowerWithoutSchedule(group));
       }
     }
@@ -208,9 +223,7 @@ class PerformanceTester : public ::testing::Test {
   std::bitset<3> option_flags_ = 7UL;
 };
 
-#ifdef CINN_WITH_CUDA
-
-const int repeat_time       = 100;
+const int repeat_time       = 2;
 const int num_tuning_rounds = 1;
 const int batch_size        = 1;
 
@@ -246,7 +259,7 @@ TEST_F(PerformanceTester, Conv2d) {
   std::string data_format       = "NCHW";
   std::string padding_algorithm = "EXPLICIT";
 
-  SetOptionFlags(0UL);
+  SetOptionFlags(1UL);
   BuildAndRun(repeat_time,
               num_tuning_rounds,
               Conv2dProgramBuilder(
@@ -312,7 +325,7 @@ TEST_F(PerformanceTester, Softmax) {
   int axis                = -1;
   std::string data_format = "AnyLayout";
 
-  SetOptionFlags(0UL);
+  SetOptionFlags(1UL);
   BuildAndRun(repeat_time, num_tuning_rounds, SoftmaxProgramBuilder(input_shape, axis, data_format)());
 }
 
@@ -335,8 +348,6 @@ TEST_F(PerformanceTester, ResNet50) {
   BuildAndRun(
       repeat_time, num_tuning_rounds, PaddleModelProgramBuilder(FLAGS_resnet50_model_dir, input_names, input_shapes)());
 }
-
-#endif
 
 }  // namespace auto_schedule
 }  // namespace cinn

@@ -155,8 +155,8 @@ std::shared_ptr<framework::OpStrategy> StrategyForRepeat(const framework::NodeAt
     std::string tensor_name = common::UniqName("T_Repeat_out");
 
     if (FLAGS_cinn_ir_schedule) {
-      CHECK_EQ(pack_args.size(), 1U);
-      tensor_name = pack_args[0].operator std::string();
+      CHECK_EQ(pack_args.size(), 2U);
+      tensor_name = pack_args[1].operator std::string();
     }
 
     std::vector<ir::Tensor> out = Repeat(tensor_A, repeats, axis, tensor_name);

@@ -67,7 +67,10 @@ std::vector<SearchState> SearchSpace::GetRandomInitialSketch(int num) {
     }
     // TODO:(zhhsplendid): De-duplication on the result after we have Expr/ModuleExpr hash;
     auto debug_str = state->DebugString();
-    VLOG(5) << "Generate a new state, hash:" << std::hash<std::string>()(debug_str) << ", DebugString:" << debug_str;
+    VLOG(5) << utils::StringFormat("Sketch-%lu generated, SearchState hash:%lu, DebugString:%s",
+                                   result.size(),
+                                   std::hash<std::string>()(debug_str),
+                                   debug_str.c_str());
     result.emplace_back(std::move(state));
   }
 
@@ -75,7 +78,7 @@ std::vector<SearchState> SearchSpace::GetRandomInitialSketch(int num) {
 }
 
 SearchState SearchSpace::GetScheduleMutate(const SearchState& state, const ExprCostModel& cost_model) {
-  VLOG(5) << "Start SearchSpace::GetScheduleMutate";
+  VLOG(5) << "Start SearchSpace::GetScheduleMutate in state:" << std::hash<std::string>()(state->DebugString());
   bool has_manual_schedule = false;
   if (has_manual_schedule) {
     SearchState ret = ManualScheduleMutate(state);
@@ -102,9 +105,9 @@ SearchState SearchSpace::RandomScheduleMutate(const SearchState& state) {
   int cur_weight = 0;
   SearchState ret(state);
   for (auto iter = ret->applicable_rules.begin(); iter != ret->applicable_rules.end();) {
-    AutoGenRule* rule = *iter;
-    VLOG(6) << "Evaluate rule:" << rule->GetRuleName();
+    AutoGenRule* rule        = *iter;
     RuleApplyType apply_type = rule->Init(&ret->ir_schedule);
+    VLOG(6) << "Evaluate rule:" << rule->GetRuleName() << "=" << static_cast<int>(apply_type);
     if (apply_type != RuleApplyType::kCannotApply) {
       weight_to_rule[cur_weight] = rule;
       cur_weight += rule->NumberApplicable();
@@ -134,8 +137,7 @@ SearchState SearchSpace::RandomScheduleMutate(const SearchState& state) {
     --iter;
   }
   AutoGenRule* sample_rule = iter->second;
-  VLOG(6) << "Apply rule: " << sample_rule->GetRuleName();
-
+  VLOG(6) << "Apply rule: " << sample_rule->GetRuleName() << " with index=" << sample_index - iter->first;
   // 4. Apply the schedule change
   sample_rule->Apply(sample_index - iter->first);
   return ret;

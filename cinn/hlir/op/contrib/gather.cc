@@ -25,6 +25,7 @@
 #include "cinn/common/common.h"
 #include "cinn/common/context.h"
 #include "cinn/common/macros.h"
+#include "cinn/common/type.h"
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
@@ -55,7 +56,7 @@ ir::Tensor Gather(const ir::Tensor &A, const ir::Tensor &B, const int &axis, con
         for (int i = 0; i < axis; ++i) {
           A_indices.push_back(indices[i]);
         }
-        A_indices.push_back(B(indices));
+        A_indices.push_back(ir::Cast::Make(common::I32(), B(indices)));
         for (size_t i = axis + 1; i < A->shape.size(); ++i) {
           A_indices.push_back(indices[i]);
         }
