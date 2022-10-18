@@ -52,8 +52,8 @@ void CodeGen(ir::LoweredFunc& func) {
 #endif
 }
 
-TEST(OP_LOWERING, OpaqueOp_TEST_0) {
-  NetBuilder net_builder("OpaqueOp_TEST_0");
+TEST(OP_LOWERING, NonFusibleOp_TEST_0) {
+  NetBuilder net_builder("NonFusibleOp_TEST_0");
   {
     auto A = net_builder.CreateInput(Float(32), {9801, 2}, "A");
     auto B = net_builder.Reshape(A, {9801, 2});
@@ -77,8 +77,8 @@ TEST(OP_LOWERING, OpaqueOp_TEST_0) {
   }
 }
 
-TEST(OP_LOWERING, OpaqueOp_TEST_1) {
-  NetBuilder net_builder("OpaqueOp_TEST_1");
+TEST(OP_LOWERING, NonFusibleOp_TEST_1) {
+  NetBuilder net_builder("NonFusibleOp_TEST_1");
   {
     auto A = net_builder.CreateInput(Float(32), {128, 128}, "A");
     auto B = net_builder.CreateInput(Float(32), {128, 128}, "B");
@@ -103,8 +103,8 @@ TEST(OP_LOWERING, OpaqueOp_TEST_1) {
   }
 }
 
-TEST(OP_LOWERING, OpaqueOp_TEST_2) {
-  NetBuilder net_builder("OpaqueOp_TEST_2");
+TEST(OP_LOWERING, NonFusibleOp_TEST_2) {
+  NetBuilder net_builder("NonFusibleOp_TEST_2");
   {
     auto A = net_builder.CreateInput(Float(32), {128, 128}, "A");
     auto B = net_builder.Matmul(A, A);
@@ -128,8 +128,8 @@ TEST(OP_LOWERING, OpaqueOp_TEST_2) {
   }
 }
 
-TEST(OP_LOWERING, OpaqueOp_TEST_3) {
-  NetBuilder net_builder("OpaqueOp_TEST_3");
+TEST(OP_LOWERING, NonFusibleOp_TEST_3) {
+  NetBuilder net_builder("NonFusibleOp_TEST_3");
   {
     auto A = net_builder.CreateInput(Float(32), {128, 256}, "A");
     auto C = net_builder.Split(A, {4}, 1);
@@ -154,8 +154,8 @@ TEST(OP_LOWERING, OpaqueOp_TEST_3) {
 }
 
 #ifdef CINN_WITH_CUDA
-TEST(OP_LOWERING, OpaqueOp_TEST_4) {
-  NetBuilder net_builder("OpaqueOp_TEST_4");
+TEST(OP_LOWERING, NonFusibleOp_TEST_4) {
+  NetBuilder net_builder("NonFusibleOp_TEST_4");
   {
     auto A = net_builder.CreateInput(Float(32), {128, 128}, "A");
     auto B = net_builder.CreateInput(Float(32), {128, 128}, "B");
