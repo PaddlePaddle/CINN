@@ -162,17 +162,7 @@ void ComputeReferenceCpu(const std::vector<std::vector<T>>& input_vecs,
   cpu_kernel_func(lengths, ptrs);
 }
 
-void RunDecomposer(Program* prog, const Target& target) {
-  LOG(INFO) << "===================== Before Decomposition =====================";
-  for (int i = 0; i < prog->size(); i++) {
-    LOG(INFO) << "instruction: " << (*prog)[i];
-  }
-  ProgramPass::Apply(prog, {}, target, {"Decomposer"});
-  LOG(INFO) << "===================== After Decomposition =====================";
-  for (int i = 0; i < prog->size(); i++) {
-    LOG(INFO) << "instruction: " << (*prog)[i];
-  }
-}
+void RunDecomposer(Program* prog, const Target& target, const std::vector<std::string>& passes = {"Decomposer"});
 
 template <typename T>
 void RunAndCheckShape(NetBuilder& builder,
@@ -182,10 +172,11 @@ void RunAndCheckShape(NetBuilder& builder,
                       std::vector<std::vector<T>>* input_vecs  = nullptr,
                       std::vector<std::vector<T>>* output_vecs = nullptr,
                       T low                                    = 0,
-                      T high                                   = 1) {
+                      T high                                   = 1,
+                      const std::vector<std::string>& passes   = {"Decomposer"}) {
   auto prog     = builder.Build();
   Target target = common::DefaultTarget();
-  RunDecomposer(&prog, target);
+  RunDecomposer(&prog, target, passes);
   auto graph = std::make_shared<hlir::framework::Graph>(prog, target);
   hlir::framework::ApplyPasses(graph.get(), DefaultOpFusionPasses());
   auto scope = BuildScope(target, graph);
@@ -223,13 +214,14 @@ void RunAndCheck(NetBuilder& builder,
                  const std::vector<std::string>& output_names,
                  const std::vector<std::vector<int>>& output_shapes,
                  CPUKernelFunc cpu_kernel_func,
-                 T low      = 0,
-                 T high     = 1,
-                 float atol = 1e-8,
-                 float rtol = 1e-5) {
+                 T low                                  = 0,
+                 T high                                 = 1,
+                 float atol                             = 1e-8,
+                 float rtol                             = 1e-5,
+                 const std::vector<std::string>& passes = {"Decomposer"}) {
   std::vector<std::vector<T>> input_vecs;
   std::vector<std::vector<T>> output_vecs;
-  RunAndCheckShape<T>(builder, input_names, output_names, output_shapes, &input_vecs, &output_vecs, low, high);
+  RunAndCheckShape<T>(builder, input_names, output_names, output_shapes, &input_vecs, &output_vecs, low, high, passes);
 
   std::vector<std::vector<T>> output_refs;
   ComputeReferenceCpu<T>(input_vecs, output_vecs, &output_refs, cpu_kernel_func);

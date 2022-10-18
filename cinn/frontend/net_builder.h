@@ -86,7 +86,7 @@ namespace frontend {
   macro__(FloorMod) \
   macro__(Max) \
   macro__(Min) \
-  macro__(Power) \
+  macro__(Pow) \
   macro__(LogicalAnd) \
   macro__(LogicalOr) \
   macro__(LogicalXor) \

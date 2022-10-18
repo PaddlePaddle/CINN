@@ -106,7 +106,7 @@ AutoInlineType AutoInline::AnalyzeInlineType(const Expr& sche_block_realize_expr
     return AutoInlineType::kCannotInline;
   }
 
-  std::unordered_set<ir::IrNodeTy> no_inline_node_types = {ir::IrNodeTy::Power, ir::IrNodeTy::IfThenElse};
+  std::unordered_set<ir::IrNodeTy> no_inline_node_types = {ir::IrNodeTy::IfThenElse};
   if (ContainsNodeType(sche_block->body, no_inline_node_types)) {
     return AutoInlineType::kCannotInline;
   }

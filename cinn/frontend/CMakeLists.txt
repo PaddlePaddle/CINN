@@ -31,7 +31,7 @@ endif()
 
 #cc_test(test_paddle_model_convertor
 #        ARGS --model_dir=${THIRD_PARTY_PATH}/resnet_model
-#        SRCS paddle_model_convertor_test.cc DEPS cinncore)
+#        SRCS paddle_model_convertor_test.cc DEPS cinncore decomposer_test_helper)
 
 #cc_test(test_computation
 #  ARGS "--model_dir=${THIRD_PARTY_PATH}/naive_mul_model"

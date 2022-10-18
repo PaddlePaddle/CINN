@@ -37,8 +37,8 @@ DEFINE_string(resnet50_model_dir, "./ResNet50", "the path to paddle model resnet
 // Bit with index 0 controls no schedule test, means options = 1 = "001" will run no schedule test.
 // Bit with index 1 controls manual schedule test, means options = 2 = "010" will run manual schedule test.
 // Bit with index 2 controls auto schedule test, means options = 4 = "100" will run auto schedule test.
-// The default value is 7, which means that all tests will be run.
-DEFINE_uint64(options, 7, "the options to control which schedule tests will be run.");
+// The default value is -1, which means that this flag is disabled to set the options
+DEFINE_int32(options, -1, "the options to control which schedule tests will be run.");
 DECLARE_bool(cinn_ir_schedule);
 
 namespace cinn {
@@ -55,8 +55,6 @@ class PerformanceTester : public ::testing::Test {
   void SetUp() override {
     // AutoTuner is combined with new IR Schedule
     FLAGS_cinn_ir_schedule = true;
-    option_flags_          = FLAGS_options;
-    VLOG(3) << "option_flags_ = " << option_flags_;
   }
 
   void BuildRuntimePrograms(int num_tuning_rounds) {
@@ -97,6 +95,10 @@ class PerformanceTester : public ::testing::Test {
     hlir::framework::ApplyPass(graph_.get(), "InferShape");
     hlir::framework::ApplyPass(graph_.get(), "OpFusionPass");
     VLOG(3) << "Initialize graph completed, Start building runtime program.";
+    if (FLAGS_options >= 0) {
+      SetOptionFlags(FLAGS_options);
+    }
+    VLOG(3) << "option_flags_ = " << option_flags_;
     BuildRuntimePrograms(num_tuning_rounds);
     VLOG(3) << "Build runtime programs completed, start running.";
     Run(repeat);
@@ -143,7 +145,7 @@ class PerformanceTester : public ::testing::Test {
           }
 
           // group type
-          group->op_pattern_kind = hlir::framework::kOpaque;
+          group->op_pattern_kind = hlir::framework::kNonFusible;
           // use current node as master node for schedule
           group->master_nodes.insert(node);
           group->group_id = node->id();

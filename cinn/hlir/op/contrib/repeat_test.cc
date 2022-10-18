@@ -65,7 +65,7 @@ function TestGenerateCodeCpu_Repeat (_test_repeat)
         ScheduleBlock(test_repeat)
         {
           i0, i1 = axis.bind(i, j)
-          test_repeat[i0, i1] = in[int32(floor((0.5 * float32(i0)))), i1]
+          test_repeat[i0, i1] = in[int32(floor((float32(i0) / 2))), i1]
         }
       }
     }
@@ -100,7 +100,7 @@ void TestGenerateCodeCpu_Repeat(void* _args, int32_t num_args)
   int32_t* test_repeat = ((int32_t*)(_test_repeat->memory));
   for (int32_t i = 0; i < 8; i += 1) {
     for (int32_t j = 0; j < 4; j += 1) {
-      test_repeat[((4 * i) + j)] = in[((4 * ((int32_t)(floorf((0.5 * ((float)(i))))))) + j)];
+      test_repeat[((4 * i) + j)] = in[((4 * ((int32_t)(floorf((((float)(i)) / 2))))) + j)];
     };
   };
   cinn_buffer_free((void*)(0), _in);
