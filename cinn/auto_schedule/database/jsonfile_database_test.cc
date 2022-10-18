@@ -22,6 +22,8 @@
 
 #include "cinn/auto_schedule/search_space/search_state.h"
 #include "cinn/auto_schedule/task/task_registry.h"
+#include "cinn/cinn.h"
+#include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_schedule.h"
 #include "cinn/optim/ir_copy.h"
 
@@ -92,7 +94,7 @@ TEST_F(TestJSONFileDatabase, Serialize) {
   auto fused            = ir_sch.Fuse("B", {0, 1});
   VLOG(3) << "after Fuse, Expr: " << fused;
 
-  TuningRecord record1("test", 1.0, SearchState(std::move(ir_sch), 2.0));
+  TuningRecord record1("test", SearchState(std::move(ir_sch), 2.0), 1.0);
   std::string str = test_db.RecordToJSON(record1);
   VLOG(3) << "RecordToJSON: " << str;
   // Because the serialization of protobuf does not guarantee the order, we give all possible results.
@@ -112,8 +114,8 @@ TEST_F(TestJSONFileDatabase, SaveLoad) {
   auto fused1            = ir_sch1.Fuse("B", {0, 1});
   ir::IRSchedule ir_sch2 = MakeIRSchedule(lowered_funcs, "k2");
 
-  test_db.AddRecord(TuningRecord("k1", 1.0, SearchState(std::move(ir_sch1), 1.5)));
-  test_db.AddRecord(TuningRecord("k2", 3.0, SearchState(std::move(ir_sch2), 3.5)));
+  test_db.AddRecord(TuningRecord("k1", SearchState(std::move(ir_sch1), 1.5), 1.0));
+  test_db.AddRecord(TuningRecord("k2", SearchState(std::move(ir_sch2), 3.5), 3.0));
 
   std::vector<std::string> strs = ReadLinesFromFile(record_file_path);
   ASSERT_EQ(strs.size(), 2);
@@ -131,13 +133,13 @@ TEST_F(TestJSONFileDatabase, SaveLoad) {
 }
 
 TEST_F(TestJSONFileDatabase, Basic) {
-  test_db.AddRecord(TuningRecord("k1", 1.0, SearchState(MakeIRSchedule(lowered_funcs, "k1"), 1.0)));
-  test_db.AddRecord(TuningRecord("k2", 2.0, SearchState(MakeIRSchedule(lowered_funcs, "k2"), 1.0)));
-  test_db.AddRecord(TuningRecord("k2", 3.0, SearchState(MakeIRSchedule(lowered_funcs, "k2"), 1.0)));
-  test_db.AddRecord(TuningRecord("k3", 3.0, SearchState(MakeIRSchedule(lowered_funcs, "k3"), 8.0)));
-  test_db.AddRecord(TuningRecord("k3", 4.0, SearchState(MakeIRSchedule(lowered_funcs, "k3"), 7.0)));
-  test_db.AddRecord(TuningRecord("k3", 5.0, SearchState(MakeIRSchedule(lowered_funcs, "k3"), 6.0)));
-  test_db.AddRecord(TuningRecord("k4", 4.0, SearchState(MakeIRSchedule(lowered_funcs, "k4"), 1.0)));
+  test_db.AddRecord(TuningRecord("k1", SearchState(MakeIRSchedule(lowered_funcs, "k1"), 1.0), 1.0));
+  test_db.AddRecord(TuningRecord("k2", SearchState(MakeIRSchedule(lowered_funcs, "k2"), 1.0), 2.0));
+  test_db.AddRecord(TuningRecord("k2", SearchState(MakeIRSchedule(lowered_funcs, "k2"), 1.0), 3.0));
+  test_db.AddRecord(TuningRecord("k3", SearchState(MakeIRSchedule(lowered_funcs, "k3"), 8.0), 3.0));
+  test_db.AddRecord(TuningRecord("k3", SearchState(MakeIRSchedule(lowered_funcs, "k3"), 7.0), 4.0));
+  test_db.AddRecord(TuningRecord("k3", SearchState(MakeIRSchedule(lowered_funcs, "k3"), 6.0), 5.0));
+  test_db.AddRecord(TuningRecord("k4", SearchState(MakeIRSchedule(lowered_funcs, "k4"), 1.0), 4.0));
 
   ASSERT_EQ(test_db.Size(), 6);
   auto records = test_db.LookUp("k3");
@@ -150,27 +152,27 @@ TEST_F(TestJSONFileDatabase, Basic) {
 }
 
 TEST_F(TestJSONFileDatabase, GetTopK) {
-  test_db.AddRecord(TuningRecord("k1", 1.0, SearchState(MakeIRSchedule(lowered_funcs, "k1"), 1.0)));
-  test_db.AddRecord(TuningRecord("k2", 2.0, SearchState(MakeIRSchedule(lowered_funcs, "k2"), 1.0)));
-  test_db.AddRecord(TuningRecord("k2", 3.0, SearchState(MakeIRSchedule(lowered_funcs, "k2"), 1.0)));
-  test_db.AddRecord(TuningRecord("k3", 3.0, SearchState(MakeIRSchedule(lowered_funcs, "k3"), 1.0)));
-  test_db.AddRecord(TuningRecord("k3", 4.0, SearchState(MakeIRSchedule(lowered_funcs, "k3"), 1.0)));
-  test_db.AddRecord(TuningRecord("k3", 5.0, SearchState(MakeIRSchedule(lowered_funcs, "k3"), 1.0)));
-  test_db.AddRecord(TuningRecord("k4", 4.0, SearchState(MakeIRSchedule(lowered_funcs, "k4"), 2.0)));
-  test_db.AddRecord(TuningRecord("k4", 2.0, SearchState(MakeIRSchedule(lowered_funcs, "k4"), 1.2)));
-  test_db.AddRecord(TuningRecord("k4", 3.0, SearchState(MakeIRSchedule(lowered_funcs, "k4"), 1.0)));
+  test_db.AddRecord(TuningRecord("k1", SearchState(MakeIRSchedule(lowered_funcs, "k1"), 1.0), 1.0));
+  test_db.AddRecord(TuningRecord("k2", SearchState(MakeIRSchedule(lowered_funcs, "k2"), 1.0), 2.0));
+  test_db.AddRecord(TuningRecord("k2", SearchState(MakeIRSchedule(lowered_funcs, "k2"), 1.0), 3.0));
+  test_db.AddRecord(TuningRecord("k3", SearchState(MakeIRSchedule(lowered_funcs, "k3"), 1.0), 3.0));
+  test_db.AddRecord(TuningRecord("k3", SearchState(MakeIRSchedule(lowered_funcs, "k3"), 1.0), 4.0));
+  test_db.AddRecord(TuningRecord("k3", SearchState(MakeIRSchedule(lowered_funcs, "k3"), 1.0), 5.0));
+  test_db.AddRecord(TuningRecord("k4", SearchState(MakeIRSchedule(lowered_funcs, "k4"), 2.0), 4.0));
+  test_db.AddRecord(TuningRecord("k4", SearchState(MakeIRSchedule(lowered_funcs, "k4"), 1.2), 2.0));
+  test_db.AddRecord(TuningRecord("k4", SearchState(MakeIRSchedule(lowered_funcs, "k4"), 1.0), 3.0));
 
-  auto states = test_db.GetTopK("k4", 3);
-  ASSERT_EQ(states.size(), 2);
-  EXPECT_FLOAT_EQ(states[0]->predicted_cost, 1.2);
-  EXPECT_FLOAT_EQ(states[1]->predicted_cost, 1.0);
+  auto records = test_db.GetTopK("k4", 3);
+  ASSERT_EQ(records.size(), 2);
+  EXPECT_FLOAT_EQ(records[0].predicted_cost, 1.2);
+  EXPECT_FLOAT_EQ(records[1].predicted_cost, 1.0);
 }
 
 TEST_F(TestJSONFileDatabase, Reload) {
   ir::IRSchedule ir_sch = MakeIRSchedule(lowered_funcs, "k1");
   auto fused            = ir_sch.Fuse("B", {0, 1});
-  test_db.AddRecord(TuningRecord("k1", 1.0, SearchState(std::move(ir_sch), 1.0)));
-  test_db.AddRecord(TuningRecord("k2", 2.0, SearchState(MakeIRSchedule(lowered_funcs, "k2"), 1.0)));
+  test_db.AddRecord(TuningRecord("k1", SearchState(std::move(ir_sch), 1.0), 1.0));
+  test_db.AddRecord(TuningRecord("k2", SearchState(MakeIRSchedule(lowered_funcs, "k2"), 1.0), 2.0));
   auto records = test_db.LookUp("k1");
   ASSERT_EQ(records.size(), 1);
 
@@ -180,22 +182,25 @@ TEST_F(TestJSONFileDatabase, Reload) {
   ASSERT_EQ(records.size(), loaded_records.size());
   EXPECT_EQ(records[0].task_key, loaded_records[0].task_key);
   EXPECT_EQ(records[0].execution_cost, loaded_records[0].execution_cost);
-  EXPECT_EQ(records[0].state->predicted_cost, loaded_records[0].state->predicted_cost);
+  EXPECT_EQ(records[0].predicted_cost, loaded_records[0].predicted_cost);
 
   // check the equality of trace info between original TuningRecord and the loaded TuningRecord
-  const auto& lhs_trace = records[0].state->ir_schedule.GetTraceDesc();
-  const auto& rhs_trace = loaded_records[0].state->ir_schedule.GetTraceDesc();
-  auto lhs              = lhs_trace.ToProto();
-  auto rhs              = rhs_trace.ToProto();
+  const auto& lhs_trace = records[0].trace;
+  const auto& rhs_trace = loaded_records[0].trace;
   google::protobuf::util::MessageDifferencer dif;
   static const google::protobuf::Descriptor* descriptor = cinn::ir::proto::ScheduleDesc_Step::descriptor();
   dif.TreatAsSet(descriptor->FindFieldByName("attrs"));
-  EXPECT_TRUE(dif.Compare(lhs, rhs));
+  EXPECT_TRUE(dif.Compare(lhs_trace, rhs_trace));
 
   // check the equality of module expr between original TuningRecord
   // and the loaded TuningRecord by replaying with tracing ScheduleDesc
-  auto lhs_exprs = records[0].state->ir_schedule.GetModule().GetExprs();
-  auto rhs_exprs = loaded_records[0].state->ir_schedule.GetModule().GetExprs();
+  ir::IRSchedule lhs_sch = MakeIRSchedule(lowered_funcs, "k1");
+  ir::IRSchedule rhs_sch = MakeIRSchedule(lowered_funcs, "k1");
+  ir::ScheduleDesc::ReplayWithProto(lhs_trace, &lhs_sch);
+  ir::ScheduleDesc::ReplayWithProto(rhs_trace, &rhs_sch);
+  auto lhs_exprs = lhs_sch.GetModule().GetExprs();
+  auto rhs_exprs = rhs_sch.GetModule().GetExprs();
+
   ASSERT_EQ(lhs_exprs.size(), rhs_exprs.size());
   for (auto i = 0; i < lhs_exprs.size(); ++i) {
     std::string lhs          = utils::GetStreamCnt(lhs_exprs.at(i));

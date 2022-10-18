@@ -124,7 +124,7 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
     // record to database
     for (size_t i = 0; i < states.size(); ++i) {
       database_->AddRecord(
-          TuningRecord(measure_inputs[i].task->serialized_key, measure_outputs[i].execution_cost, states[i]));
+          TuningRecord(measure_inputs[i].task->serialized_key, states[i], measure_outputs[i].execution_cost));
     }
 
     std::vector<float> cost_model_labels(states.size());

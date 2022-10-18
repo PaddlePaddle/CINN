@@ -26,6 +26,7 @@
 #include "cinn/auto_schedule/database/database.h"
 #include "cinn/auto_schedule/search_space/search_space.h"
 #include "cinn/auto_schedule/search_space/search_state.h"
+#include "cinn/auto_schedule/task/task_registry.h"
 #include "cinn/auto_schedule/task/tune_task.h"
 #include "cinn/auto_schedule/tuning.h"
 #include "cinn/optim/ir_copy.h"
@@ -89,7 +90,16 @@ std::vector<SearchState> EvolutionarySearch::SearchModuleExprEpsGreedy(const Tun
 }
 
 std::vector<SearchState> EvolutionarySearch::GetTopKCandidatesFromDatabase(int topk) {
-  return database_->GetTopK(tune_task_.serialized_key, topk);
+  std::vector<SearchState> results;
+  const auto& task_key               = tune_task_.serialized_key;
+  auto records                       = database_->GetTopK(task_key, topk);
+  InitialTaskRegistry* task_registry = InitialTaskRegistry::Global();
+  for (auto&& record : records) {
+    ir::IRSchedule ir_sch(optim::IRCopy(task_registry->Get(task_key)->module_expr));
+    ir::ScheduleDesc::ReplayWithProto(record.trace, &ir_sch);
+    results.emplace_back(SearchState(std::move(ir_sch), record.predicted_cost));
+  }
+  return results;
 }
 
 std::vector<SearchState> EvolutionarySearch::RandomInitSketch(int num) {
