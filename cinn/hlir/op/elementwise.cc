@@ -278,7 +278,10 @@ std::shared_ptr<OpStrategy> StrategyForFillConstant(const framework::NodeAttr &a
     CHECK(attrs.attr_store.count("force_cpu"));
     force_cpu = absl::get<bool>(attrs.attr_store.at("force_cpu"));
 
-    if (force_cpu) CINN_NOT_IMPLEMENTED
+#ifndef CINN_WITH_CUDA
+    if (force_cpu && target != DefaultHostTarget()) CINN_NOT_IMPLEMENTED
+#endif
+
     CINNValuePack arg_pack  = args[0];
     std::string tensor_name = UniqName("fill_constant_Out");
     if (FLAGS_cinn_ir_schedule) {
