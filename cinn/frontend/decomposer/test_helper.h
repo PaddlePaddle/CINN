@@ -15,7 +15,6 @@
 #pragma once
 
 #include <glog/logging.h>
-#include <gtest/gtest.h>
 
 #include <iomanip>
 #include <random>
