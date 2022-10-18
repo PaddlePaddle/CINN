@@ -57,7 +57,7 @@ std::vector<std::vector<float>> RunWithProgram(const Program& program,
     SetInputData(scope->GetTensor(in_name), target);
   }
 
-  hlir::framework::ApplyPasses(graph.get(), {"InferShape", "OpFusion"});
+  hlir::framework::ApplyPasses(graph.get(), {"InferShape", "OpFusionPass"});
   VLOG(1) << "graph:\n" << graph->Visualize();
   hlir::framework::GraphCompiler gc(target, scope, graph);
   auto runtime_program = gc.Build();

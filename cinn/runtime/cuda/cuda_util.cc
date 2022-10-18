@@ -268,7 +268,6 @@ void cinn_call_cudnn_conv2d_forward(void *v_args,
                          "," + std::to_string(filter_c) + "," + std::to_string(filter_h) + "," +
                          std::to_string(filter_w) + "," + std::to_string(output_n) + "," + std::to_string(output_c) +
                          "," + std::to_string(output_h) + "," + std::to_string(output_w);
-
   cudnnConvolutionFwdAlgo_t algo;
   int algo_int = conv_algo_map.GetAlgo(hash_key);
   if (algo_int >= 0) {
@@ -328,8 +327,8 @@ void cinn_call_cudnn_conv2d_backward_data(void *v_args,
   cudnnHandle_t &handle = CudnnHandle::GetInstance().GetCudnnHandle();
   CUDNN_CALL(cudnnSetStream(handle, static_cast<cudaStream_t>(stream)));
   cinn_pod_value_t *args = static_cast<cinn_pod_value_t *>(v_args);
-  float *_dy             = reinterpret_cast<float *>(args[0].operator cinn_buffer_t *()->memory);
-  float *_w              = reinterpret_cast<float *>(args[1].operator cinn_buffer_t *()->memory);
+  float *_w              = reinterpret_cast<float *>(args[0].operator cinn_buffer_t *()->memory);
+  float *_dy             = reinterpret_cast<float *>(args[1].operator cinn_buffer_t *()->memory);
   float *_dx             = reinterpret_cast<float *>(args[2].operator cinn_buffer_t *()->memory);
 
   CHECK_EQ(args[0].operator cinn_buffer_t *()->type.code, cinn_type_code_t::cinn_type_float);

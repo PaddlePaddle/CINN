@@ -86,15 +86,15 @@ class TestAutoTunerWithoutFusion : public ::testing::Test {
   }
 
   virtual void BasicCheckResult(const TuningResult& result) {
-    ASSERT_EQ(2, result.tuned_graph.size());
+    ASSERT_EQ(1, result.tuned_graph.size());
     const auto& sub_graph1 = result.tuned_graph.front();
     ASSERT_EQ(1, sub_graph1.groups.size());
-    ASSERT_EQ(sub_graph1.groups[0]->CollectNodes()[0]->op()->name, "elementwise_add");
+    ASSERT_EQ(sub_graph1.groups[0]->CollectNodes()[0]->op()->name, "broadcast_to");
     const auto& sub_graph2 = result.tuned_graph.back();
     ASSERT_EQ(1, sub_graph2.groups.size());
-    ASSERT_EQ(sub_graph2.groups[0]->CollectNodes()[0]->op()->name, "relu");
+    ASSERT_EQ(sub_graph2.groups[0]->CollectNodes()[0]->op()->name, "broadcast_to");
 
-    ASSERT_EQ(result.optimized_exprs.size(), 2UL);
+    ASSERT_EQ(result.optimized_exprs.size(), 1UL);
     ASSERT_EQ(result.optimized_exprs[0].lowered_funcs.size(), 1UL);
     ASSERT_EQ(result.optimized_exprs[0].lowered_funcs[0].size(), 1UL);
   }
@@ -104,8 +104,8 @@ class TestAutoTunerWithoutFusion : public ::testing::Test {
     GraphCompiler::CompileOptions compile_options;
     compile_options.with_instantiate_variables = true;
     compile_options.Apply(result);
-    ASSERT_EQ(2, compile_options.groups.size());
-    ASSERT_EQ(2, compile_options.lowered_funcs.size());
+    ASSERT_EQ(1, compile_options.groups.size());
+    ASSERT_EQ(1, compile_options.lowered_funcs.size());
     VLOG(6) << "Print lowered_funcs before building";
     VLOG(6) << compile_options.lowered_funcs[0][0];
     VLOG(6) << compile_options.lowered_funcs[1][0];

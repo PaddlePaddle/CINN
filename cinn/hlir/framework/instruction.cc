@@ -127,6 +127,7 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
         };
         runtime::cuda::cinn_gpu_cudnn_conv2d(
             attrs_map, pod_args[0], pod_args[1], pod_args[2], static_cast<cudaStream_t>(stream), common::Layout::kNHWC);
+
       } else {
         absl::flat_hash_map<std::string, int> attrs_map = {
             {"input_n", attrs[0]},     {"input_c", attrs[1]},     {"input_h", attrs[2]},   {"input_w", attrs[3]},

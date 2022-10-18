@@ -51,7 +51,14 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
   if (FLAGS_cinn_open_fusion_optimize) {
     if (FLAGS_cinn_use_new_fusion_pass) {
       options.graph_passes = {
-          "MatmulToCublasCustomCallPass", "ConvToCudnnCustomCallPass", "OpFusionPass", "FusionMergePass"};
+#ifdef CINN_WITH_CUDA
+          "MatmulToCublasCustomCallPass",
+#ifdef CINN_WITH_CUDNN
+          "ConvToCudnnCustomCallPass",
+#endif
+#endif
+          "OpFusionPass",
+          "FusionMergePass"};
     } else {
       options.graph_passes = {"OpFusion"};
     }
