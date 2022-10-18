@@ -115,11 +115,10 @@ TEST(load_paddle_model, fc_execute) {
   LOG(INFO) << "program:\n" << *program;
 
   Target target = common::DefaultHostTarget();
-  auto graph    = std::make_shared<hlir::framework::Graph>(*program, target);
+  std::unordered_set<std::string> fetch_ids;
+  auto graph = cinn::frontend::Optimize(program.get(), fetch_ids, target);
 
-  // hlir::framework::ApplyPass(graph.get(), "InferShape");
   scope = BuildScope(target, graph, scope);
-
   hlir::framework::GraphCompiler gc(target, scope, graph);
   auto runtime_program = gc.Build();
 

@@ -49,7 +49,7 @@ TEST(GemmRwriter, BatchedTransLeft) {
                     [](absl::string_view id) { return std::string(id); });
   std::pair<std::vector<std::string>, std::vector<std::string>> passes{{"Decomposer", "RemoveIdentity"},
                                                                        {"TransposeFoldingInput", "GemmRewriter"}};
-  CompareResult(&program, target, input_ids, {out->id}, 2, passes, 123, true);
+  CompareResult(&program, target, input_ids, {out->id}, 1, passes, 123, true);
 }
 
 TEST(GemmRwriter, BatchedTransRight) {
@@ -72,7 +72,7 @@ TEST(GemmRwriter, BatchedTransRight) {
                     [](absl::string_view id) { return std::string(id); });
   std::pair<std::vector<std::string>, std::vector<std::string>> passes{{"Decomposer", "RemoveIdentity"},
                                                                        {"TransposeFoldingInput", "GemmRewriter"}};
-  CompareResult(&program, target, input_ids, {out->id}, 2, passes, 123, true);
+  CompareResult(&program, target, input_ids, {out->id}, 1, passes, 123, true);
 }
 
 TEST(GemmRwriter, BatchedTransTwo) {
@@ -96,7 +96,7 @@ TEST(GemmRwriter, BatchedTransTwo) {
                     [](absl::string_view id) { return std::string(id); });
   auto passes = std::make_pair(std::vector<std::string>{"Decomposer", "RemoveIdentity"},
                                std::vector<std::string>{"TransposeFoldingInput", "GemmRewriter"});
-  CompareResult(&program, target, input_ids, {out->id}, 3, passes, 123, true);
+  CompareResult(&program, target, input_ids, {out->id}, 2, passes, 123, true);
 }
 
 TEST(GemmRwriter, BatchedNoTrans) {
@@ -118,7 +118,7 @@ TEST(GemmRwriter, BatchedNoTrans) {
                     [](absl::string_view id) { return std::string(id); });
   auto passes = std::make_pair(std::vector<std::string>{"Decomposer", "RemoveIdentity"},
                                std::vector<std::string>{"TransposeFoldingInput", "GemmRewriter"});
-  CompareResult(&program, target, input_ids, {out->id}, 1, passes, 123, true);
+  CompareResult(&program, target, input_ids, {out->id}, 0, passes, 123, true);
 }
 
 TEST(GemmRwriter, TransLeft) {
@@ -141,7 +141,7 @@ TEST(GemmRwriter, TransLeft) {
                     [](absl::string_view id) { return std::string(id); });
   auto passes = std::make_pair(std::vector<std::string>{"Decomposer", "RemoveIdentity"},
                                std::vector<std::string>{"TransposeFoldingInput", "GemmRewriter"});
-  CompareResult(&program, target, input_ids, {out->id}, 2, passes, 123, true);
+  CompareResult(&program, target, input_ids, {out->id}, 1, passes, 123, true);
 }
 
 TEST(GemmRwriter, TransRight) {
@@ -164,7 +164,7 @@ TEST(GemmRwriter, TransRight) {
                     [](absl::string_view id) { return std::string(id); });
   auto passes = std::make_pair(std::vector<std::string>{"Decomposer", "RemoveIdentity"},
                                std::vector<std::string>{"TransposeFoldingInput", "GemmRewriter"});
-  CompareResult(&program, target, input_ids, {out->id}, 2, passes, 123, true);
+  CompareResult(&program, target, input_ids, {out->id}, 1, passes, 123, true);
 }
 
 TEST(GemmRwriter, TransTwo) {
@@ -188,7 +188,7 @@ TEST(GemmRwriter, TransTwo) {
                     [](absl::string_view id) { return std::string(id); });
   auto passes = std::make_pair(std::vector<std::string>{"Decomposer", "RemoveIdentity"},
                                std::vector<std::string>{"TransposeFoldingInput", "GemmRewriter"});
-  CompareResult(&program, target, input_ids, {out->id}, 3, passes, 123, true);
+  CompareResult(&program, target, input_ids, {out->id}, 2, passes, 123, true);
 }
 
 TEST(GemmRwriter, NoTrans) {
@@ -210,7 +210,7 @@ TEST(GemmRwriter, NoTrans) {
                     [](absl::string_view id) { return std::string(id); });
   auto passes = std::make_pair(std::vector<std::string>{"Decomposer", "RemoveIdentity"},
                                std::vector<std::string>{"TransposeFoldingInput", "GemmRewriter"});
-  CompareResult(&program, target, input_ids, {out->id}, 1, passes, 123, true);
+  CompareResult(&program, target, input_ids, {out->id}, 0, passes, 123, true);
 }
 
 TEST(GemmRwriter, BatchedComplex) {
@@ -219,7 +219,7 @@ TEST(GemmRwriter, BatchedComplex) {
   }
   NetBuilder builder("net_builder");
   auto a       = builder.FillConstant<float>({2, 20}, 2.0f, "A");
-  auto b       = builder.BroadcastTo(a, {16, 2, 20}, {1, 2});
+  auto b       = builder.FillConstant<float>({16, 2, 20}, 2.0f, "B");
   auto c       = builder.Transpose(b, {0, 2, 1});
   auto d       = builder.CreateInput(Float(32), {121, 20}, "D");
   auto e       = builder.BroadcastTo(d, {16, 121, 20}, {1, 2});
@@ -243,7 +243,7 @@ TEST(GemmRwriter, BatchedComplex) {
                     [](absl::string_view id) { return std::string(id); });
   auto passes = std::make_pair(std::vector<std::string>{"Decomposer", "RemoveIdentity"},
                                std::vector<std::string>{"TransposeFoldingInput", "GemmRewriter"});
-  CompareResult(&program, target, input_ids, {out->id}, 4, passes, 123, false);
+  CompareResult(&program, target, input_ids, {out->id}, 3, passes, 123, false);
 }
 
 TEST(GemmRwriter, Complex) {
@@ -273,7 +273,7 @@ TEST(GemmRwriter, Complex) {
                     [](absl::string_view id) { return std::string(id); });
   auto passes = std::make_pair(std::vector<std::string>{"Decomposer", "RemoveIdentity"},
                                std::vector<std::string>{"TransposeFoldingInput", "GemmRewriter"});
-  CompareResult(&program, target, input_ids, {out->id}, 4, passes, 123, false);
+  CompareResult(&program, target, input_ids, {out->id}, 3, passes, 123, false);
 }
 
 }  // namespace cinn::frontend

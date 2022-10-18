@@ -48,6 +48,7 @@ std::vector<std::unique_ptr<Instruction>> ParallelCompiler::operator()() {
 }
 
 void ParallelCompiler::SplitTask() {
+  CHECK(graph_->fusion_groups.size());
   CHECK(graph_->fusion_groups.size() == option_.lowered_funcs.size() || option_.lowered_funcs.size() == 0);
   // split task
   int num_per_task = std::max((graph_->fusion_groups.size() - 1) / FLAGS_cinn_parallel_compile_size + 1, 16UL);
