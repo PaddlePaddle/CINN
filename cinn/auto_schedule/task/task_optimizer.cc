@@ -138,7 +138,6 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
                                      cost_model_labels.size());
       cost_model_.Update(cost_model_samples, cost_model_labels, task_->target);
     }
-    // TODO(zhhsplendid): write measure record into cache.
 
     for (size_t i = 0; i < measure_outputs.size(); ++i) {
       if (measure_outputs[i].execution_cost < min_exec_time) {
