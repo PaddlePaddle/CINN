@@ -39,21 +39,17 @@ std::string _SearchState_::DebugString() const {
   const auto& exprs = ir_schedule.GetModule().GetExprs();
   std::stringstream module_stream;
   for (auto i = 0; i < exprs.size(); ++i) {
-    module_stream << "Expr " << i << " {\n" << exprs.at(i) << "\n      }  // end Expr";
+    module_stream << "Expr " << i << " {\n" << exprs.at(i) << "\n}  // end Expr";
   }
 
   const char* fmt_str = R"ROC(
-SearchState {
-  IRSchedule {
-    ModuleExpr {
-      %s
-    }   // end ModuleExpr
-    ScheduleDesc {
-      %s
-    }
-  }
-  predicted_cost: %f
-})ROC";
+ModuleExpr {
+%s
+} // end ModuleExpr
+ScheduleDesc {
+%s
+} // end ScheduleDesc
+predicted_cost: %f)ROC";
 
   return utils::StringFormat(
       fmt_str, module_stream.str().c_str(), ir_schedule.GetTraceDesc().DebugString().c_str(), predicted_cost);
