@@ -65,12 +65,10 @@ static std::shared_ptr<Buffer> AllocBuffer(const common::Target& target,
 
   VLOG(6) << "AllocBuffer target:" << target << ", type:" << type << ", numel:" << shape.numel()
           << ", fill_random_value:" << fill_random_value;
-  const uint32_t bytes_of_ele = static_cast<uint32_t>(std::floor(static_cast<float>(type.bits() + 1) / 8.0));
-  CHECK_GT(bytes_of_ele, 0) << "The number bytes of each element is invalid";
   if (target == common::DefaultHostTarget()) {
-    buffer->ResizeLazy(default_alignment, shape.numel() * bytes_of_ele);
+    buffer->ResizeLazy(default_alignment, shape.numel() * type.bytes());
   } else {
-    buffer->ResizeLazy(shape.numel() * bytes_of_ele);
+    buffer->ResizeLazy(shape.numel() * type.bytes());
   }
 
   return buffer;
@@ -156,6 +154,11 @@ MeasureResult SimpleRunner::Run(const MeasureInput& input, const BuildResult& bu
     for (int i = 0; i < repeat_times_; ++i) {
       instr->Run(&execution_args);
     }
+#ifdef CINN_WITH_CUDA
+    if (instr->target_ == common::DefaultNVGPUTarget()) {
+      CUDA_CALL(cudaDeviceSynchronize());
+    }
+#endif
     auto time_span =
         std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - run_start);
     auto cost_avg = static_cast<double>(time_span.count()) / repeat_times_;

@@ -44,40 +44,6 @@ void FillConstantOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperCont
   ctx.AddVarModelToProgram(y_name, out->id);
 }
 
-void FillAnyLikeOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
-  CHECK_EQ(op_desc.Input("X").size(), 1UL);
-  auto x_name = op_desc.Input("X").front();
-  auto x      = ctx.GetVar(x_name);
-
-  CHECK_EQ(op_desc.Output("Out").size(), 1UL);
-  auto y_name = op_desc.Output("Out").front();
-
-  auto shape = utils::ToShapeType(x->shape);
-  auto value = utils::GetAttrOrDefault<float>(op_desc, "value");
-
-  auto dtype_id = utils::GetAttrOrDefault<int>(op_desc, "dtype", static_cast<int>(paddle::cpp::VarDescAPI::Type::FP32));
-  cinn::common::Type dtype_cinn;
-  if (dtype_id < 0) {
-    dtype_cinn = x->type;
-  } else {
-    auto dtype_pd = static_cast<paddle::cpp::VarDescAPI::Type>(dtype_id);
-    dtype_cinn    = utils::CppVarType2CommonType(dtype_pd);
-  }
-
-  auto dtype = common::Type2Str(dtype_cinn);
-
-  VLOG(4) << "FillAnyLikeOp: fill constant (" << value << ") with shape (" << cinn::utils::Join(shape, ", ")
-          << ") and dtype [" << dtype << "]";
-
-  const auto& cinn_name = cinn::utils::TransValidVarName(y_name);
-  CheckVarNameValid(cinn_name);
-
-  auto out = ctx.Builder()->FillConstant(shape, value, cinn_name, dtype);
-
-  ctx.AddVar(y_name, out);
-  ctx.AddVarModelToProgram(y_name, out->id);
-}
-
 void BroadcastOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
   auto x_name = op_desc.Input("X").front();
@@ -105,7 +71,6 @@ void BroadcastOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
 
 CINN_REGISTER_HELPER(science_broadcast) {
   CINN_REGISTER_OP_MAPPER(fill_constant_p, cinn::frontend::science_mappers::FillConstantOpMapper)
-  CINN_REGISTER_OP_MAPPER(fill_any_like, cinn::frontend::science_mappers::FillAnyLikeOpMapper)
   CINN_REGISTER_OP_MAPPER(broadcast_p, cinn::frontend::science_mappers::BroadcastOpMapper)
 
   return true;

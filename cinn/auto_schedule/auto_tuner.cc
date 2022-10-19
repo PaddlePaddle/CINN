@@ -141,7 +141,7 @@ void PrintResult(const TuningResult& result) {
 
 TuningResult AutoTuner::Tune(const TuningOptions& options) {
   CHECK_GT(options.num_tuning_rounds, 0) << "Invalid config";
-  VLOG(3) << "Begin tuning with round num:" << options.num_tuning_rounds;
+  VLOG(3) << "Begin tuning with round num=" << options.num_tuning_rounds << ", tasks size=" << tasks_.size();
 
   TuningResult result;
   result.tuned_graph.resize(tasks_.size());

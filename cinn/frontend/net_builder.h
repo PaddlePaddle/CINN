@@ -40,6 +40,7 @@ namespace frontend {
   macro__(Sqrt) \
   macro__(Tanh) \
   macro__(Relu) \
+  macro__(Gelu) \
   macro__(Sigmoid) \
   macro__(Identity) \
   macro__(Exp) \
@@ -85,7 +86,7 @@ namespace frontend {
   macro__(FloorMod) \
   macro__(Max) \
   macro__(Min) \
-  macro__(Power) \
+  macro__(Pow) \
   macro__(LogicalAnd) \
   macro__(LogicalOr) \
   macro__(LogicalXor) \
@@ -576,6 +577,15 @@ class NetBuilder {
    * @return Output squeezed variable. Data type is same as input variable.
    */
   Variable Squeeze(const Variable& x, const cinn::utils::ShapeType& axes);
+
+  /**
+   * @brief Creates an operation to insert new dimensions of length 1.
+   * @param operand An N-D variable.
+   * @param axis The index of the first new dimension (allows negative indices as offsets from the last dimension).
+   * @param num_newaxis The number of new dimensions to insert
+   * @return A variable whose op member is the dim expandsion operation.
+   */
+  Variable ExpandDims(const Variable& operand, int axis, int num_newaxis = 1);
 
   /**
    * @brief This operator reverse the input along the axis.

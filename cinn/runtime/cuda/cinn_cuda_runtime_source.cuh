@@ -4,7 +4,7 @@
 #define CINN_FLT_MAX 3.402823e+38f
 #define CINN_FLT_MIN -3.402823e+38f
 
-#define FN(x) cinn_nvgpu_##x##_fp32
+#define FN(func) cinn_nvgpu_##func##_fp32
 // NOTE Due to function override, we don't need to use type (such as '_fp32') as the suffix of function's name.
 __device__ inline float FN(sin)(float x) { return sin(x); }
 __device__ inline float FN(cos)(float x) { return cos(x); }
@@ -37,7 +37,34 @@ __device__ inline bool FN(isnan)(float x) { return isnan(x); }
 __device__ inline float FN(max)(float a, float b) { return max(a, b); }
 __device__ inline float FN(min)(float a, float b) { return min(a, b); }
 
+__device__ inline float FN(pow)(float a, float b) { return powf(a, b); }
+
 #undef FN
+
+#define FN_FP64(func) cinn_nvgpu_##func##_fp64
+
+__device__ inline double FN_FP64(pow)(double a, double b) { return pow(a, b); }
+
+#undef FN_FP64
+
+#define FN_INT32(func) cinn_nvgpu_##func##_int32
+
+__device__ inline int FN_INT32(pow)(int a, int b) {
+  int res = 1;
+  for (int i = 0; i < b; ++i) {
+    res *= a;
+  }
+  return res;
+}
+
+__device__ inline int FN_INT32(left_shift)(int a, int b) { return a << b; }
+__device__ inline int FN_INT32(right_shift)(int a, int b) { return a >> b; }
+__device__ inline int FN_INT32(bitwise_and)(int a, int b) { return a & b; }
+__device__ inline int FN_INT32(bitwise_or)(int a, int b) { return a | b; }
+__device__ inline int FN_INT32(bitwise_xor)(int a, int b) { return a ^ b; }
+__device__ inline int FN_INT32(bitwise_not)(int a) { return ~a; }
+
+#undef FN_INT32
 
 __device__ inline float cinn_sum(const float left, const float right) { return left + right; }
 __device__ inline float cinn_prod(const float left, const float right) { return left * right; }

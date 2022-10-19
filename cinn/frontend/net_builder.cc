@@ -107,6 +107,7 @@ Variable NetBuilder::Reduce(const std::string& op_type, const Variable& x, const
 NETBUILDER_UNARY_OP_DEF(Sqrt, sqrt)
 NETBUILDER_UNARY_OP_DEF(Tanh, tanh)
 NETBUILDER_UNARY_OP_DEF(Relu, relu)
+NETBUILDER_UNARY_OP_DEF(Gelu, gelu)
 NETBUILDER_UNARY_OP_DEF(Sigmoid, sigmoid)
 NETBUILDER_UNARY_OP_DEF(Identity, identity)
 NETBUILDER_UNARY_OP_DEF(Exp, exp)
@@ -154,7 +155,7 @@ NETBUILDER_BINARY_OP_DEF(Mod, mod)
 NETBUILDER_BINARY_OP_DEF(FloorMod, floor_mod)
 NETBUILDER_BINARY_OP_DEF(Max, max)
 NETBUILDER_BINARY_OP_DEF(Min, min)
-NETBUILDER_BINARY_OP_DEF(Power, power)
+NETBUILDER_BINARY_OP_DEF(Pow, pow)
 NETBUILDER_BINARY_OP_DEF(LogicalAnd, logical_and)
 NETBUILDER_BINARY_OP_DEF(LogicalOr, logical_or)
 NETBUILDER_BINARY_OP_DEF(LogicalXor, logical_xor)
@@ -407,6 +408,10 @@ Variable NetBuilder::OneHot(const Variable& indices,
 
 Variable NetBuilder::Squeeze(const Variable& operand, const std::vector<int>& axes) {
   return CustomInstr("squeeze", {operand}, {{"axes", axes}}).front();
+}
+
+Variable NetBuilder::ExpandDims(const Variable& operand, int axis, int num_newaxis) {
+  return CustomInstr("expand_dims", {operand}, {{"axis", axis}, {"num_newaxis", num_newaxis}}).front();
 }
 
 Variable NetBuilder::Conv(const Variable& lhs,

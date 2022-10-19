@@ -39,7 +39,7 @@ SET(BASIC_TEST_NAMES
     test_pe_reduction
     test_pe_transform
     test_op_broadcast
-    test_op_transform
+#    test_op_transform
 )
 
 foreach(basic_test_name ${BASIC_TEST_NAMES})
@@ -50,12 +50,13 @@ foreach(basic_test_name ${BASIC_TEST_NAMES})
 endforeach()
 
 if (NOT ${WITH_CUDA})
-    ADD_TEST(NAME test_op_nn
-        COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
-        python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_op_nn.py WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-    )
+#    ADD_TEST(NAME test_op_nn
+#        COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
+#        python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_op_nn.py WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+#    )
 endif()
 
+if (WITH_CUDNN)
 ADD_TEST(NAME test_cinn_frontend
     COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
     python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_frontend.py
@@ -63,12 +64,12 @@ ADD_TEST(NAME test_cinn_frontend
     ${CMAKE_BINARY_DIR}/thirds/multi_fc_model
     "${WITH_CUDA}" WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
-
 ADD_TEST(NAME test_netbuilder
     COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
     python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_netbuilder.py "${WITH_CUDA}"
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
+endif()
 
 #ADD_TEST(NAME test_computation_python
 #    COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
@@ -89,54 +90,51 @@ ADD_TEST(NAME test_cinn_op_benchmark
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
 
+if (WITH_CUDNN)
 ADD_TEST(NAME test_cinn_fake_resnet
     COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
     python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_resnet.py "${CMAKE_BINARY_DIR}/thirds/resnet_model" "${WITH_CUDA}"
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
 
-if (WITH_CUDNN)
-ADD_TEST(NAME test_cinn_real_resnet18
-    COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
-    python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_resnet18.py "${CMAKE_BINARY_DIR}/thirds/ResNet18" "${WITH_CUDA}"
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+#ADD_TEST(NAME test_cinn_real_resnet18
+#    COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
+#    python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_resnet18.py "${CMAKE_BINARY_DIR}/thirds/ResNet18" "${WITH_CUDA}"
+#    WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 
-ADD_TEST(NAME test_cinn_real_mobilenetV2
-    COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
-    python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_mobilenetv2.py "${CMAKE_BINARY_DIR}/thirds/MobileNetV2" "${WITH_CUDA}"
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+#ADD_TEST(NAME test_cinn_real_mobilenetV2
+#    COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
+#    python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_mobilenetv2.py "${CMAKE_BINARY_DIR}/thirds/MobileNetV2" "${WITH_CUDA}"
+#    WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 
-ADD_TEST(NAME test_cinn_real_efficientnet
-    COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
-    python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_efficientnet.py "${CMAKE_BINARY_DIR}/thirds/EfficientNet" "${WITH_CUDA}"
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-)
+#ADD_TEST(NAME test_cinn_real_efficientnet
+#    COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
+#    python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_efficientnet.py "${CMAKE_BINARY_DIR}/thirds/EfficientNet" "${WITH_CUDA}"
+#    WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 
-ADD_TEST(NAME test_cinn_real_mobilenetV1
-    COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
-    python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_mobilenetv1.py "${CMAKE_BINARY_DIR}/thirds/MobilenetV1" "${WITH_CUDA}"
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+#ADD_TEST(NAME test_cinn_real_mobilenetV1
+#    COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
+#    python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_mobilenetv1.py "${CMAKE_BINARY_DIR}/thirds/MobilenetV1" "${WITH_CUDA}"
+#    WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 
-ADD_TEST(NAME test_cinn_real_resnet50
-    COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
-    python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_resnet50.py "${CMAKE_BINARY_DIR}/thirds/ResNet50" "${WITH_CUDA}"
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-)
+#ADD_TEST(NAME test_cinn_real_resnet50
+#    COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
+#    python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_resnet50.py "${CMAKE_BINARY_DIR}/thirds/ResNet50" "${WITH_CUDA}"
+#    WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 endif()
 
-ADD_TEST(NAME test_cinn_real_squeezenet
-    COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
-    python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_squeezenet.py "${CMAKE_BINARY_DIR}/thirds/SqueezeNet" "${WITH_CUDA}"
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+#ADD_TEST(NAME test_cinn_real_squeezenet
+#    COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
+#    python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_squeezenet.py "${CMAKE_BINARY_DIR}/thirds/SqueezeNet" "${WITH_CUDA}"
+#    WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 
 #ADD_TEST(NAME test_cinn_real_facedet
 #    COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
 #    python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_facedet.py "${CMAKE_BINARY_DIR}/thirds/FaceDet" "${WITH_CUDA}"
-#    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-#)
+#    WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 
 file(GLOB CINN_OP_TEST RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" "tests/ops/test_*.py")
-set(EXCLUDE_OP test_mul_op test_broadcast_to_op)
+set(EXCLUDE_OP test_mul_op test_broadcast_to_op test_conv2d_op)
 
 ADD_TEST(NAME test_mul_op
     COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
@@ -150,6 +148,14 @@ ADD_TEST(NAME test_broadcast_to_op
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
 
+if (WITH_CUDNN)
+ADD_TEST(NAME test_conv2d_op
+    COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
+    python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/ops/test_conv2d_op.py
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+)
+endif()
+
 foreach(op_test_name ${EXCLUDE_OP})
     list(REMOVE_ITEM CINN_OP_TEST tests/ops/${op_test_name}.py)
 endforeach()
@@ -162,3 +168,21 @@ foreach(op_test_name ${CINN_OP_TEST})
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     )
 endforeach()
+
+# test op mapper
+if (WITH_CUDNN)
+file(GLOB CINN_OP_MAPPER_TEST RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" "tests/op_mappers/test_*.py")
+
+foreach(op_mapper_test_name ${EXCLUDE_OP_MAPPER})
+    list(REMOVE_ITEM CINN_OP_MAPPER_TEST tests/op_mappers/${op_mapper_test_name}.py)
+endforeach()
+
+foreach(op_mapper_test_name ${CINN_OP_MAPPER_TEST})
+    string(REGEX REPLACE ".py" "" op_mapper_test_name ${op_mapper_test_name})
+    ADD_TEST(NAME ${op_mapper_test_name}
+        COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
+        python3 ${CMAKE_CURRENT_SOURCE_DIR}/${op_mapper_test_name}.py "${WITH_CUDA}"
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    )
+endforeach()
+endif()

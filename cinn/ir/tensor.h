@@ -82,7 +82,7 @@ class Tensor : public ir::IrNodeRef {
   // @{
   Expr operator()(const Expr& a) const { return operator()(std::vector<Expr>({a})); }
   template <typename... Args>
-  inline typename std::enable_if<detail::GE(sizeof...(Args), 2), Expr>::type operator()(Args... args) const {
+  inline typename std::enable_if<detail::GE(sizeof...(Args), 2), Expr>::type operator()(Args&&... args) const {
     return operator()({std::forward<Args>(args)...});
   }
   // @}

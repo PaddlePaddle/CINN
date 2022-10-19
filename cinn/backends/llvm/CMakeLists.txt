@@ -25,7 +25,7 @@ set(srcs
 
 
 cc_test(test_codegen_llvm SRCS codegen_llvm_test.cc DEPS cinncore)
-cc_test(test_execution_engine SRCS execution_engine_test.cc DEPS cinncore)
+#cc_test(test_execution_engine SRCS execution_engine_test.cc DEPS cinncore)
 cc_test(test_codegen_x86 SRCS codegen_x86_test.cc DEPS cinncore)
 
 foreach(cpp ${srcs})

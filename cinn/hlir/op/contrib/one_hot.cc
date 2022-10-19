@@ -169,6 +169,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForOneHot(const framework::NodeAt
     CHECK(!args.empty()) << "The input argument of one_hot compute is empty! Please check.\n";
     common::CINNValuePack pack_args = args[0];
     CHECK(!pack_args.empty()) << "at least one input tensor for transpose compute\n";
+    CHECK_GE(pack_args.size(), 3U);
     Expr indices_expr   = pack_args[0];
     Expr on_value_expr  = pack_args[1];
     Expr off_value_expr = pack_args[2];
@@ -183,8 +184,8 @@ std::shared_ptr<framework::OpStrategy> StrategyForOneHot(const framework::NodeAt
     std::string tensor_name = common::UniqName("T_OneHot_out");
 
     if (FLAGS_cinn_ir_schedule) {
-      CHECK_EQ(pack_args.size(), 1U);
-      tensor_name = pack_args[0].operator std::string();
+      CHECK_EQ(pack_args.size(), 4U);
+      tensor_name = pack_args[3].operator std::string();
     }
 
     ir::Tensor out = OneHot(indices, on_value, off_value, depth, axis, common::Str2Type(dtype), tensor_name);

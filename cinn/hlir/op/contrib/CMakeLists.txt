@@ -12,6 +12,7 @@ gather_srcs(cinnapi_src SRCS
         argmin.cc
         argmax.cc
         squeeze.cc
+        gelu.cc
         repeat.cc
         one_hot.cc
         )
@@ -25,6 +26,7 @@ cc_test(test_sort SRCS sort_test.cc DEPS cinncore)
 cc_test(test_argmin SRCS argmin_test.cc DEPS cinncore)
 cc_test(test_argmax SRCS argmax_test.cc DEPS cinncore)
 cc_test(test_arange SRCS arange_test.cc DEPS cinncore)
+cc_test(test_gelu SRCS gelu_test.cc DEPS cinncore)
 cc_test(test_flip SRCS flip_test.cc DEPS cinncore)
 cc_test(test_repeat SRCS repeat_test.cc DEPS cinncore)
 cc_test(test_one_hot SRCS one_hot_test.cc DEPS cinncore)
