@@ -117,7 +117,7 @@ CINN_REGISTER_HELPER(gelu_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForGelu)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForGelu))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForGelu))
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise);
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElementWise);
 
   return true;
 }

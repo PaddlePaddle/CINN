@@ -47,11 +47,10 @@ class FusionHelperBase {
     CHECK(op_pattern_dict_->Find(node->op())) << "Don't find the pattern of op : " << node->id();
     auto kind = op_pattern_dict_[0][node->op()];
 
-    CHECK_NE(kind, framework::kTuple) << "kTuple is not support now!";
     if (kind == framework::kBroadcast) {
       // As binary op was defined as broadcast, actually it should be element-wise.
       if (node->op()->name != "broadcast_to") {
-        return framework::kElemWise;
+        return framework::kElementWise;
       }
     }
 

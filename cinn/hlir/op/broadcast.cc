@@ -494,7 +494,7 @@ CINN_REGISTER_HELPER(broadcast_ops) {
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForIsClose))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForIsClose))
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForIsClose))
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElementWise)
       .set_support_level(4);
 
   return true;

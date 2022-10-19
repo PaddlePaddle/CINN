@@ -392,7 +392,7 @@ CINN_REGISTER_HELPER(custom_call_op) {
   CINN_REGISTER_OP(custom_call)
       .describe("This operator implements the call of extern api!")
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForCustomCall)
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque);
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kNonFusible);
 
   return true;
 }
