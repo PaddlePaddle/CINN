@@ -85,7 +85,12 @@ const std::string& TuneTask::SerializeToString(
         ss << ", ";
       }
       ++printed_num;
-      ss << cinn::common::Type2Str(dit->second) << "[" + utils::Join(sit->second, ",") << "]";
+      // TODO(CtfGo): CINN uses the names of input/output NodeData as arguments of the LoweredFunc,
+      // so it will result in different LoweredFuncs for two Nodes even though they represents the same operator.
+      // Here we add `var_node->id()` into the serialized_key to distinguish them, otherwise AutoTuner will
+      // get wrong TuningRecords in quering cached results from database.  In the future, we should remove name-releated
+      // limit in Lower process, to avoid duplicate tuningin tasks with same operators.
+      ss << var_node->id() << "->" << cinn::common::Type2Str(dit->second) << "[" + utils::Join(sit->second, ",") << "]";
     }
   };
 
