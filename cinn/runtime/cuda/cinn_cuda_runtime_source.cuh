@@ -39,6 +39,7 @@ __device__ inline float FN(min)(float a, float b) { return min(a, b); }
 
 __device__ inline float FN(pow)(float a, float b) { return powf(a, b); }
 
+__device__ inline float FN(remainder)(float a, float b) { return remainderf(a, b); }
 #undef FN
 
 #define FN_FP64(func) cinn_nvgpu_##func##_fp64

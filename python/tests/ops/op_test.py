@@ -98,7 +98,9 @@ class OpTest(unittest.TestCase):
                                 all_equal=False,
                                 equal_nan=False):
         self.build_paddle_program(self.target)
+        logger.debug("Paddle result:\n" + str(self.paddle_outputs))
         self.build_cinn_program(self.target)
+        logger.debug("CINN result:\n" + str(self.cinn_outputs))
 
         logger.debug("============ Check Outputs ============")
         self.check_results(self.paddle_outputs, self.cinn_outputs,

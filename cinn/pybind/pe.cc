@@ -78,7 +78,7 @@ void BindPE(py::module* m) {
   BIND_BINARY(divide, Divide);
   BIND_BINARY(floor_divide, FloorDivide);
   BIND_BINARY(mod, Mod);
-  BIND_BINARY(floor_mod, FloorMod);
+  BIND_BINARY(remainder, Remainder);
   BIND_BINARY(max, Maximum);
   BIND_BINARY(min, Minimum);
   BIND_BINARY(left_shift, LeftShift);

@@ -135,9 +135,6 @@ CINN_REGISTER_HELPER(host_intrinsics) {
 
 #define REGISTER_EXTERN_FUNC_1_IN_1_OUT_FP32(func__) REGISTER_EXTERN_FUNC_1_IN_1_OUT(func__, host_target, float, float);
 
-#define REGISTER_EXTERN_FUNC_1_IN_1_OUT_FP32_INT(func__) \
-  REGISTER_EXTERN_FUNC_1_IN_1_OUT(func__, host_target, float, int);
-
   REGISTER_EXTERN_FUNC_1_IN_1_OUT_FP32(erff);
   REGISTER_EXTERN_FUNC_1_IN_1_OUT_FP32(acosf);
   REGISTER_EXTERN_FUNC_1_IN_1_OUT_FP32(acoshf);
@@ -145,6 +142,20 @@ CINN_REGISTER_HELPER(host_intrinsics) {
   REGISTER_EXTERN_FUNC_1_IN_1_OUT_FP32(asinhf);
   REGISTER_EXTERN_FUNC_1_IN_1_OUT_FP32(atanf);
   REGISTER_EXTERN_FUNC_1_IN_1_OUT_FP32(atanhf);
+
+#undef REGISTER_EXTERN_FUNC_1_IN_1_OUT_FP32
+
+#define REGISTER_EXTERN_FUNC_1_IN_1_OUT_FP32_INT(func__) \
+  REGISTER_EXTERN_FUNC_1_IN_1_OUT(func__, host_target, float, int);
+
+#undef REGISTER_EXTERN_FUNC_1_IN_1_OUT_FP32_INT
+
+#define REGISTER_EXTERN_FUNC_2_IN_1_F(func__) REGISTER_EXTERN_FUNC_2_IN_1_OUT(func__, host_target, float, float, float);
+
+  REGISTER_EXTERN_FUNC_2_IN_1_F(powf)
+  REGISTER_EXTERN_FUNC_2_IN_1_F(remainderf)
+
+#undef REGISTER_EXTERN_FUNC_2_IN_1_F
 
 #define REGISTER_EXTERN_FUNC_2_IN_1_FP32(func__) \
   REGISTER_EXTERN_FUNC_2_IN_1_OUT(cinn_host_##func__##_fp32, host_target, float, float, float);
