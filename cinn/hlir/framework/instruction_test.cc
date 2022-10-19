@@ -379,7 +379,7 @@ TEST(Instruction, CONV_BACKWARD_DATA) {
   cinn_pod_value_t w(&_w);
   cinn_pod_value_t y(&_y);
   // weight dy dx
-  std::vector<cinn_pod_value_t> pod_args = {y, w, x};
+  std::vector<cinn_pod_value_t> pod_args = {w, y, x};
 
   Scope scope;
   auto target = common::DefaultNVGPUTarget();

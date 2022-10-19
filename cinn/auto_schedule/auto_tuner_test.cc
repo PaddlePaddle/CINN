@@ -110,7 +110,7 @@ class TestAutoTunerWithoutFusion : public ::testing::Test {
     VLOG(6) << compile_options.lowered_funcs[0][0];
     VLOG(6) << compile_options.lowered_funcs[1][0];
     auto runtime_program = graph_compiler->Build(compile_options).runtime_program;
-    ASSERT_EQ(2, runtime_program->size());
+    ASSERT_EQ(1, runtime_program->size());
     runtime_program->Execute();
   }
 
