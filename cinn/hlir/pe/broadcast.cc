@@ -238,7 +238,7 @@ HLIR_IMP_BC_PE(LeftShift, return a << b;);
 HLIR_IMP_BC_PE(RightShift, return a >> b;);
 HLIR_IMP_BC_PE(LogicalAnd, return a && b;);
 HLIR_IMP_BC_PE(LogicalOr, return a || b;);
-HLIR_IMP_BC_PE(LogicalXOr, return a ^ b;);
+HLIR_IMP_BC_PE(LogicalXOr, return (a || b) && !(a && b););
 HLIR_IMP_BC_PE(BitwiseAnd, return a & b;);
 HLIR_IMP_BC_PE(BitwiseOr, return a | b;);
 HLIR_IMP_BC_PE(BitwiseXor, return a ^ b;);
