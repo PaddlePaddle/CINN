@@ -102,6 +102,7 @@ TEST(syntax, program_execute_multi_elementwise_add2) {
   runtime_program->Execute();
 }
 
+/*
 // Load a simple Paddle model, execute it
 TEST(load_paddle_model, fc_execute) {
   auto scope = std::make_shared<Scope>();
@@ -136,6 +137,7 @@ TEST(load_paddle_model, fc_execute) {
   auto data = GetTensorData<float>(tensor, target);
   for (int i = 0; i < 10; i++) LOG(INFO) << "data: " << data[i];
 }
+*/
 
 }  // namespace frontend
 }  // namespace cinn
