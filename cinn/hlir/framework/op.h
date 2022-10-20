@@ -44,25 +44,24 @@ using dim_t   = utils::DimType;
 
 /*! \brief operator pattern used in graph fusion */
 enum OpPatternKind {
-  // Elementwise operation
-  kElemWise = 0,
-  // Broadcasting operator, can always map output axis to the input in order.
-  // for example :code:`out[i, ax1, j, ax2] = input[i, j]`.
-  // Note that the axis need to be in order so transpose is not a bcast operator.
+  // The relation between input tensor index and output tensor index is one-to-one correspondence.
+  // for example :code:`out[i, j] = input[i, j] + 1`.
+  // Note that the axis need to be in order.
+  kElementWise = 0,
+  // The relation between input tensor index and output tensor index is one-to-many correspondence.
+  // for example :code:`out[i, j, k] = input[i, j]`.
+  // Note that the axis need to be in order.
   kBroadcast = 1,
-  // Injective operator, can always injectively map output axis to a single input axis.
-  // All injective operator can still be safely fused to injective and reduction.
+  // Injective operator, we can always injectively map a output axis to a input axis.
+  // for example :code:`out[i, j] = input[j, i]`.
   kInjective = 2,
-  // Communicative reduction operator.
-  kCommReduce = 3,
-  // Complex operation, can still fuse elemwise operations into its output.
-  // but cannot chain another complex op
-  kOutEWiseFusable = 4,
-  // The pattern for tuple nodes. Can fuse into subsequent injective ops,
-  // but treated specially
-  kTuple = 7,
-  // Opaque operation, cannot fuse anything.
-  kOpaque = 8
+  // The relation between input tensor index and output tensor index is many-to-one correspondence.
+  // for example :code:`out[i, j] = sum(input[i, j, k]) along k`.
+  kReduction = 3,
+  // Complex operation, can still fuse one-to-one operations into its output.
+  kOutFusible = 4,
+  // Operation that cannot fuse anything.
+  kNonFusible = 8
 };
 
 struct OpRegistry : public Registry<Operator> {

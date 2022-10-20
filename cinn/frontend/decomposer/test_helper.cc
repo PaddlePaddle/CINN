@@ -16,6 +16,18 @@
 
 namespace cinn::frontend {
 
+void RunDecomposer(Program* prog, const Target& target, const std::vector<std::string>& passes) {
+  VLOG(1) << "===================== Before Program Pass =====================";
+  for (int i = 0; i < prog->size(); i++) {
+    VLOG(1) << "instruction: " << (*prog)[i];
+  }
+  ProgramPass::Apply(prog, {}, target, passes);
+  VLOG(1) << "===================== After Program Pass =====================";
+  for (int i = 0; i < prog->size(); i++) {
+    VLOG(1) << "instruction: " << (*prog)[i];
+  }
+}
+
 template <>
 void InitRandomVector<int>(std::vector<int>* vec, size_t numel, int low, int high, float precision) {
   std::random_device seed;
