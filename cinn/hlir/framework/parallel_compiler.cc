@@ -133,10 +133,11 @@ void ParallelCompiler::Task::CodegenAndJit() {
     auto hmodule        = std::get<0>(splited_module);
     auto dmodule        = std::get<1>(splited_module);
 
+    VLOG(3) << "Host Code : " << hmodule;
+    VLOG(3) << "Host Code : " << dmodule;
     backends::CodeGenCUDA_Dev codegen(target);
     auto cuda_c = codegen.Compile(dmodule);
 
-    VLOG(3) << "Host Code : " << hmodule;
     if (FLAGS_cinn_source_code_save_path.empty()) {
       if (cuda_c.size() > DebugLogMaxLen) {
         VLOG(3) << "[CUDA] source code-0:\n" << cuda_c.substr(0, DebugLogMaxLen);

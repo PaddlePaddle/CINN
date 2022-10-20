@@ -178,10 +178,10 @@ class TestAutoTunerWithFusion : public TestAutoTunerWithoutFusion {
   void BasicCheckResult(const TuningResult& result) override {
     ASSERT_EQ(result.tuned_graph.size(), 1UL);
     const std::vector<Node*>& nodes = result.tuned_graph[0].groups[0]->CollectNodes();
-    ASSERT_EQ(nodes.size(), 3UL);
+    ASSERT_EQ(nodes.size(), 4UL);
     ASSERT_EQ(nodes[0]->op()->name, "broadcast_to");
-    ASSERT_EQ(nodes[1]->op()->name, "elementwise_add");
-    ASSERT_EQ(nodes[2]->op()->name, "relu");
+    ASSERT_EQ(nodes[1]->op()->name, "fill_constant");
+    ASSERT_EQ(nodes[2]->op()->name, "elementwise_add");
 
     ASSERT_EQ(result.optimized_exprs.size(), 1UL);
     ASSERT_EQ(result.optimized_exprs[0].lowered_funcs.size(), 1UL);

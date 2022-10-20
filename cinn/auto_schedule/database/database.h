@@ -53,7 +53,7 @@ struct TuningRecord {
 enum class DatabaseType : int { kMemory, kJSONFile };
 
 struct DatabaseConfig {
-  DatabaseType type            = DatabaseType::kJSONFile;
+  DatabaseType type            = DatabaseType::kMemory;
   int capacity_per_task        = 2;
   std::string record_file_path = "/tmp/tuning_record.json";
 };
