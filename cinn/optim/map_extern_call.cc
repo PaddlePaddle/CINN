@@ -62,29 +62,33 @@ void MapExternCall(Expr *e, Target target) {
 
     void DealWithNvGpuintrinsics(ir::Call *node, Expr *expr) {
       auto arg_size = node->read_args.size();
-      CHECK_GT(arg_size, 0UL) << "The arguments of " << node->name << " should not empty! Please check.";
-      auto dtype = node->read_args.front().type();
+      if (arg_size == 0UL) {
+        // some node like __syncthreads hasn't arguments
+        return;
+      }
+      const auto &dtype = node->read_args.front().type();
+      const auto &name  = node->name;
 
-      bool node_in_extern_fp32  = kExternFp32CallsGPU.count(node->name);
-      bool node_in_extern_int32 = kExternInt32CallsGPU.count(node->name);
+      bool node_in_extern_fp32     = kExternFp32CallsGPU.count(name);
+      std::string extern_fp32_func = "cinn_nvgpu_" + name + "_fp32";
+
+      bool node_in_extern_int32     = kExternInt32CallsGPU.count(name);
+      std::string extern_int32_func = "cinn_nvgpu_" + name + "_int32";
 
       if (node_in_extern_fp32 && node_in_extern_int32) {
-        CHECK_GE(arg_size, 1UL);
         if (dtype == Float(32)) {
-          *expr = lang::CallExtern("cinn_nvgpu_" + node->name + "_fp32", node->read_args);
+          *expr = lang::CallExtern(extern_fp32_func, node->read_args);
         } else if (dtype == Int(32)) {
-          *expr = lang::CallExtern("cinn_nvgpu_" + node->name + "_int32", node->read_args);
+          *expr = lang::CallExtern(extern_int32_func, node->read_args);
         } else {
-          LOG(FATAL) << "Not support data type " << dtype;
+          LOG(FATAL) << name << " not support data type " << dtype;
         }
       } else if (node_in_extern_fp32) {
-        CHECK_GE(arg_size, 1UL);
-        CHECK_EQ(dtype, Float(32));
-        *expr = lang::CallExtern("cinn_nvgpu_" + node->name + "_fp32", node->read_args);
+        CHECK_EQ(dtype, Float(32)) << name << " only support float32, but here " << dtype;
+        *expr = lang::CallExtern(extern_fp32_func, node->read_args);
       } else if (node_in_extern_int32) {
-        CHECK_GE(arg_size, 1UL);
-        CHECK_EQ(dtype, Int(32));
-        *expr = lang::CallExtern("cinn_nvgpu_" + node->name + "_int32", node->read_args);
+        CHECK_EQ(dtype, Int(32)) << name << " only support int32, but here " << dtype;
+        *expr = lang::CallExtern(extern_int32_func, node->read_args);
       }
       // TODO(Superjomn) deal with int64 intrinsics.
     }
