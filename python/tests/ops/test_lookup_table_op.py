@@ -36,7 +36,7 @@ class TestLookupTableOp(OpTest):
                 10,
                 20,
             ]).astype("float32"),
-            "ids": np.random.random_integers(0, 9, (5, 2)).astype("int32")
+            "ids": np.random.random_integers(0, 9, (5, 2)).astype("int64")
         }
 
     def build_paddle_program(self, target):
@@ -53,7 +53,7 @@ class TestLookupTableOp(OpTest):
         table = builder.create_input(
             Float(32), self.inputs["table"].shape, "table")
         ids = builder.create_input(
-            Int(32), self.inputs["ids"].shape + (1, ), "ids")
+            Int(64), self.inputs["ids"].shape + (1, ), "ids")
         out = builder.lookup_table(table, ids, -1)
         prog = builder.build()
         forward_res = self.get_cinn_output(
