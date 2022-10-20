@@ -38,7 +38,7 @@ DEFINE_string(resnet50_model_dir, "./ResNet50", "the path to paddle model resnet
 // Bit with index 1 controls manual schedule test, means options = 2 = "010" will run manual schedule test.
 // Bit with index 2 controls auto schedule test, means options = 4 = "100" will run auto schedule test.
 // The default value is -1, which means that this flag is disabled to set the options
-DEFINE_int32(measure_knobs, -1, "the options to control which schedule tests will be run.");
+DEFINE_int32(evaluate_knobs, -1, "the options to control which schedule tests will be run.");
 
 namespace cinn {
 namespace auto_schedule {
@@ -52,24 +52,26 @@ using ::cinn::hlir::framework::Scope;
 class PerformanceTester : public ::testing::Test {
  public:
   struct Options {
-    int repeat_times      = 2;  // repeat times of execut
+    // times of compiled runtime program will be executed repeatedly.
+    int repeat_times = 2;
+    // the num_tuning_rounds for auto tuning
     int num_tuning_rounds = 10;
-    // knobs to control which schedules will be measured, refer to FLAGS_measure_knobs explanation
-    std::bitset<3> measure_knobs = 7UL;
+    // knobs to control which schedules will be measured, refer to FLAGS_evaluate_knobs explanation
+    std::bitset<3> evaluate_knobs = 7UL;
   };
 
-  void Measure(const frontend::Program& program) {
+  void Evaluate(const frontend::Program& program) {
     VLOG(3) << "Initialize graph.";
     graph_ = std::make_shared<hlir::framework::Graph>(program, target_);
     VLOG(3) << "Apply graph pass.";
     hlir::framework::ApplyPass(graph_.get(), "InferShape");
     // hlir::framework::ApplyPass(graph_.get(), "OpFusionPass");
-    if (FLAGS_measure_knobs >= 0) {
-      options_.measure_knobs = FLAGS_measure_knobs;
+    if (FLAGS_evaluate_knobs >= 0) {
+      options_.evaluate_knobs = FLAGS_evaluate_knobs;
     }
-    VLOG(3) << "measure_knobs = " << options_.measure_knobs;
+    VLOG(3) << "evaluate_knobs = " << options_.evaluate_knobs;
 
-    if (options_.measure_knobs.test(0)) {
+    if (options_.evaluate_knobs.test(0)) {
       VLOG(3) << "Build no schedule program.";
       auto scope           = BuildScope(target_, graph_);
       auto graph_compiler  = std::make_unique<GraphCompiler>(target_, scope, graph_);
@@ -77,7 +79,7 @@ class PerformanceTester : public ::testing::Test {
       VLOG(3) << "Execute no schedule program.";
       runtime_program->ExecuteTest(options_.repeat_times);
     }
-    if (options_.measure_knobs.test(1)) {
+    if (options_.evaluate_knobs.test(1)) {
       VLOG(3) << "Build manual schedule program.";
       auto scope           = BuildScope(target_, graph_);
       auto graph_compiler  = std::make_unique<GraphCompiler>(target_, scope, graph_);
@@ -85,11 +87,11 @@ class PerformanceTester : public ::testing::Test {
       VLOG(3) << "Execute manual schedule program.";
       runtime_program->ExecuteTest(options_.repeat_times);
     }
-    if (options_.measure_knobs.test(2)) {
+    if (options_.evaluate_knobs.test(2)) {
       VLOG(3) << "Build auto schedule program.";
       auto scope           = BuildScope(target_, graph_);
       auto graph_compiler  = std::make_unique<GraphCompiler>(target_, scope, graph_);
-      auto runtime_program = BuildManualScheduleProgram(graph_compiler.get());
+      auto runtime_program = BuildAutoScheduleProgram(graph_compiler.get(), options_.num_tuning_rounds);
       VLOG(3) << "Execute auto schedule program.";
       runtime_program->ExecuteTest(options_.repeat_times);
     }
@@ -197,25 +199,25 @@ class PerformanceTester : public ::testing::Test {
   Options options_;
 };
 
-constexpr int batch_size = 1;
+constexpr int batch_size = 4;
 
 TEST_F(PerformanceTester, Mul) {
   int M = 32;
   int K = 16;
   int N = 32;
-  Measure(MulProgramBuilder({M, K}, {N, K})());
+  Evaluate(MulProgramBuilder({M, K}, {N, K})());
 }
 
-TEST_F(PerformanceTester, Add) { Measure(AddProgramBuilder({1, 56, 56, 256}, {1, 56, 56, 256})()); }
+TEST_F(PerformanceTester, Add) { Evaluate(AddProgramBuilder({1, 56, 56, 256}, {1, 56, 56, 256})()); }
 
 TEST_F(PerformanceTester, Matmul) {
   int M = batch_size;
   int K = 2048;
   int N = 1000;
-  Measure(MatmulProgramBuilder({M, K}, {K, N})());
+  Evaluate(MatmulProgramBuilder({M, K}, {K, N})());
 }
 
-TEST_F(PerformanceTester, Relu) { Measure(ReluProgramBuilder({batch_size, 64, 56, 56})()); }
+TEST_F(PerformanceTester, Relu) { Evaluate(ReluProgramBuilder({batch_size, 64, 56, 56})()); }
 
 TEST_F(PerformanceTester, Conv2d) {
   std::vector<int32_t> input_shape{batch_size, 3, 224, 224};
@@ -227,16 +229,16 @@ TEST_F(PerformanceTester, Conv2d) {
   std::string data_format       = "NCHW";
   std::string padding_algorithm = "EXPLICIT";
 
-  Measure(Conv2dProgramBuilder(
+  Evaluate(Conv2dProgramBuilder(
       input_shape, weight_shape, strides, paddings, dilations, groups, data_format, padding_algorithm)());
 }
 
 TEST_F(PerformanceTester, Pool2d) {
-  std::vector<int32_t> input_shape{4, 64, 112, 112};
+  std::vector<int32_t> input_shape{batch_size, 64, 112, 112};
   std::string pooling_type = "max";
   std::vector<int> ksize{3, 3};
   std::vector<int> strides{2, 2};
-  std::vector<int> paddings{1, 1, 1, 1};
+  std::vector<int> paddings{1, 1};
   bool ceil_mode                = false;
   bool exclusive                = true;
   bool global_pooling           = false;
@@ -244,18 +246,18 @@ TEST_F(PerformanceTester, Pool2d) {
   bool adaptive                 = false;
   std::string padding_algorithm = "EXPLICIT";
 
-  options_.measure_knobs = 4UL;
-  Measure(Pool2dProgramBuilder(input_shape,
-                               pooling_type,
-                               ksize,
-                               strides,
-                               paddings,
-                               ceil_mode,
-                               exclusive,
-                               global_pooling,
-                               data_format,
-                               adaptive,
-                               padding_algorithm)());
+  options_.evaluate_knobs = 0UL;
+  Evaluate(Pool2dProgramBuilder(input_shape,
+                                pooling_type,
+                                ksize,
+                                strides,
+                                paddings,
+                                ceil_mode,
+                                exclusive,
+                                global_pooling,
+                                data_format,
+                                adaptive,
+                                padding_algorithm)());
 }
 
 TEST_F(PerformanceTester, BatchNorm) {
@@ -269,7 +271,7 @@ TEST_F(PerformanceTester, BatchNorm) {
   const std::string& data_layout = "NCHW";
   bool is_test                   = true;
 
-  Measure(BatchNormProgramBuilder(
+  Evaluate(BatchNormProgramBuilder(
       input_shape, scale_shape, bias_shape, mean_shape, variance_shape, epsilon, momentum, data_layout, is_test)());
 }
 
@@ -277,7 +279,7 @@ TEST_F(PerformanceTester, Reshape) {
   std::vector<int32_t> input_shape{batch_size, 2048, 1, 1};
   std::vector<int32_t> output_shape{batch_size, 2048};
 
-  Measure(ReshapeProgramBuilder(input_shape, output_shape)());
+  Evaluate(ReshapeProgramBuilder(input_shape, output_shape)());
 }
 
 TEST_F(PerformanceTester, Softmax) {
@@ -285,7 +287,8 @@ TEST_F(PerformanceTester, Softmax) {
   int axis                = -1;
   std::string data_format = "AnyLayout";
 
-  Measure(SoftmaxProgramBuilder(input_shape, axis, data_format)());
+  options_.evaluate_knobs = 5UL;
+  Evaluate(SoftmaxProgramBuilder(input_shape, axis, data_format)());
 }
 
 TEST_F(PerformanceTester, Scale) {
@@ -294,7 +297,7 @@ TEST_F(PerformanceTester, Scale) {
   float bias            = 0.0f;
   bool bias_after_scale = true;
 
-  Measure(ScaleProgramBuilder(input_shape, scale, bias, bias_after_scale)());
+  Evaluate(ScaleProgramBuilder(input_shape, scale, bias, bias_after_scale)());
 }
 
 // paddle model test
@@ -303,8 +306,8 @@ TEST_F(PerformanceTester, ResNet50) {
   std::vector<std::vector<int>> input_shapes = {{batch_size, 3, 224, 224}};
   CHECK_NE(FLAGS_resnet50_model_dir, "");
 
-  options_.measure_knobs = 0UL;
-  Measure(PaddleModelProgramBuilder(FLAGS_resnet50_model_dir, input_names, input_shapes)());
+  options_.evaluate_knobs = 0UL;
+  Evaluate(PaddleModelProgramBuilder(FLAGS_resnet50_model_dir, input_names, input_shapes)());
 }
 
 }  // namespace auto_schedule
