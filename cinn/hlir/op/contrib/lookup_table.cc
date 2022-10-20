@@ -58,16 +58,15 @@ ir::Tensor LookupTable(const ir::Tensor& table,
   return lang::Compute(
       output_shape,
       [&](const std::vector<ir::Expr>& indices) {
-        Expr id{1};
         std::vector<Expr> offsets;
         for (int i = 0; i < indices.size() - 1; ++i) {
-          id = id * indices[i];
           offsets.emplace_back(indices[i]);
         }
         offsets.emplace_back(Expr(0));
         // Because the current conversion rules have not been completed, static conversion is done here.
-        auto pred       = Expr(padding_idx != -1 && id == Expr(static_cast<int32_t>(padding_idx)));
         auto ids_offset = ir::Cast::Make(common::I32(), ids(offsets));
+        auto pred =
+            ir::And::Make(Expr(padding_idx != -1), ir::EQ::Make(ids_offset, Expr(static_cast<int32_t>(padding_idx))));
         return ir::Select::Make(pred, common::make_const(table->type(), 0), table(ids_offset, indices.back()));
       },
       common::UniqName(output_name));
@@ -81,7 +80,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForLookupTable(const framework::N
   std::string op_name("lookup_table");
   const auto& attr_store = attrs.attr_store;
   CHECK(attr_store.count("padding_idx")) << "find no attr of axis";
-  auto padding_idx = absl::get<int64_t>(attr_store.at("padding_idx"));
+  auto padding_idx = absl::get<int32_t>(attr_store.at("padding_idx"));
 
   framework::CINNCompute lookup_table_compute([=](lang::Args args, lang::RetValue* ret) {
     CHECK(!args.empty()) << "The input arguments of " << op_name << " compute is empty! Please check.\n";
@@ -111,45 +110,9 @@ std::shared_ptr<framework::OpStrategy> StrategyForLookupTable(const framework::N
     *ret = CINNValuePack{res};
   });
 
-  framework::CINNSchedule lookup_table_schedule([=](lang::Args args, lang::RetValue* ret) {
-    if (FLAGS_cinn_ir_schedule) {
-      CHECK(!args.empty()) << "The input argument of lookup_table_schedule is empty! Please check.\n";
-      common::CINNValuePack arg_pack = args[0];
-      std::vector<Expr> vec_ast;
-      for (int i = 0; i < arg_pack.size(); i++) {
-        if (arg_pack[i].is_expr()) {
-          Expr temp = arg_pack[i];
-          vec_ast.emplace_back(temp);
-        }
-      }
-      CHECK(!vec_ast.empty());
-      ir::ModuleExpr mod_expr(vec_ast);
-      ir::IRSchedule ir_sch(mod_expr);
-      ir_sch.MergeExprs();
-      long prod_size = std::accumulate(output_shapes[0].begin(), output_shapes[0].end(), 1, std::multiplies<int>());
-      if (prod_size > 1) {
-        if (target.arch == Target::Arch::NVGPU) {
-          pe::IRCudaScheduleInjective(ir_sch, output_shapes.front(), target);
-        } else if (target.arch == Target::Arch::X86) {
-          pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target, true);
-        }
-      }
-      std::vector<common::CINNValue> res{common::CINNValue(ir_sch.GetModule().GetExprs().at(0))};
-      *ret = common::CINNValuePack{res};
-    } else {
-      CHECK(!args.empty()) << "The input argument of lookup_table_schedule is empty! Please check.\n";
-      CINNValuePack arg_pack = args[0];
-      Expr out               = arg_pack[0];
-      CHECK(out.as_tensor());
-      *ret = arg_pack;
-    }
-  });
   auto strategy = std::make_shared<framework::OpStrategy>();
-  if (target.arch == Target::Arch::NVGPU) {
-    strategy->AddImpl(lookup_table_compute, lookup_table_schedule, "strategy.lookup_table.cuda", 1);
-  } else {
-    strategy->AddImpl(lookup_table_compute, lookup_table_schedule, "strategy.lookup_table.x86", 1);
-  }
+  strategy->AddImpl(
+      lookup_table_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.lookup_table", 1);
   return strategy;
 }
 

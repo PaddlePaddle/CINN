@@ -42,7 +42,7 @@ class TestLookupTableOp(OpTest):
     def build_paddle_program(self, target):
         table = paddle.to_tensor(self.inputs["table"], stop_gradient=False)
         ids = paddle.to_tensor(self.inputs["ids"], stop_gradient=False)
-        out = F.embedding(ids, table, None)
+        out = F.embedding(ids, table, 1)
 
         self.paddle_outputs = [out]
 
@@ -54,7 +54,7 @@ class TestLookupTableOp(OpTest):
             Float(32), self.inputs["table"].shape, "table")
         ids = builder.create_input(
             Int(64), self.inputs["ids"].shape + (1, ), "ids")
-        out = builder.lookup_table(table, ids, -1)
+        out = builder.lookup_table(table, ids, 1)
         prog = builder.build()
         forward_res = self.get_cinn_output(
             prog, target, [table, ids],

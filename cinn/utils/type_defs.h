@@ -26,8 +26,7 @@ namespace utils {
 // attribute type defs
 using Attribute    = absl::variant<bool,
                                 float,
-                                int32_t,
-                                int64_t,
+                                int,
                                 std::string,
                                 std::vector<bool>,
                                 std::vector<int>,
