@@ -542,7 +542,11 @@ Var &Var::operator=(const _Var_ *x) {
 Expr Load::Make(Expr tensor, const std::vector<Expr> &indices) {
   CHECK(tensor->type().valid());
   CHECK(!indices.empty());
-  for (auto &idx : indices) CHECK_EQ(idx.type().ElementOf(), Int(32));
+  for (auto &idx : indices) {
+    if (idx.type().ElementOf() != Int(32) && idx.type().ElementOf() != Int(64)) {
+      LOG(FATAL) << "The data type of index should be int32 or int64.";
+    }
+  }
   auto node     = make_shared<Load>();
   node->tensor  = tensor;
   node->indices = indices;

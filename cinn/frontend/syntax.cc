@@ -481,7 +481,8 @@ std::string _Instruction_::debug_string() const {
   struct Visit {
     std::stringstream& s_;
     explicit Visit(std::stringstream& s) : s_(s) {}
-    void operator()(int x) { s_ << x; }
+    void operator()(int32_t x) { s_ << x; }
+    void operator()(int64_t x) { s_ << x; }
     void operator()(float x) { s_ << x; }
     void operator()(bool x) { s_ << (x ? "true" : "false"); }
     void operator()(const std::string& x) { s_ << x; }

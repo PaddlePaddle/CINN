@@ -473,6 +473,14 @@ Variable NetBuilder::Argmin(const Variable& x, const int& axis, const bool& keep
   return instr.GetOutput(0);
 }
 
+Variable NetBuilder::LookupTable(const Variable& table, const Variable& ids, int64_t padding_idx) {
+  Instruction instr("lookup_table", {table, ids});
+  instr.SetAttr("padding_idx", padding_idx);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
 Variable NetBuilder::Conv2d(const Variable& a,
                             const Variable& b,
                             const std::vector<int>& strides,
