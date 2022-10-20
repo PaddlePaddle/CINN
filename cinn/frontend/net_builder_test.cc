@@ -108,11 +108,11 @@ TEST(net_build, program_execute_fc) {
   constexpr int N = 24;
 
   NetBuilder builder("net_builder");
-  auto a = builder.CreateInput(Float(32), {B, M, K}, "A");
-  auto w = builder.CreateInput(Float(32), {N, K}, "W");  // weight
+  auto a = builder.CreateInput(Float(32), {B * M, K}, "A");
+  auto w = builder.CreateInput(Float(32), {K, N}, "W");  // weight
   auto b = builder.CreateInput(Float(32), {N}, "B");     // bias
 
-  auto mul_out = builder.Mul(a, w, 2, 1);
+  auto mul_out = builder.Matmul(a, w);
   auto add_out = builder.Add(mul_out, b);
   auto program = builder.Build();
 

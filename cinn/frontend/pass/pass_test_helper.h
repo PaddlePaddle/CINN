@@ -159,7 +159,8 @@ struct OptimizeConfig {
 
     if (FLAGS_cinn_open_fusion_optimize) {
       if (FLAGS_cinn_use_new_fusion_pass) {
-        graph_passes = {{"OpFusionPass", "FusionMergePass"}, {"OpFusionPass", "FusionMergePass"}};
+        graph_passes = {{"MatmulToCublasCustomCallPass", "OpFusionPass", "FusionMergePass"},
+                        {"MatmulToCublasCustomCallPass", "OpFusionPass", "FusionMergePass"}};
       } else {
         LOG(FATAL) << "Cinn new op fusion is not applied!";
       }

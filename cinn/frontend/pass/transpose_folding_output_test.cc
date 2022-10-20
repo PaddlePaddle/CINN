@@ -433,7 +433,7 @@ TEST(TransposeFoldingOutput, BatchedComplex) {
     return;
   }
   NetBuilder builder("net_builder");
-  auto a       = builder.FillConstant<float>({2, 20}, 2.0f, "A");
+  auto a       = builder.FillConstant<float>({20, 2}, 2.0f, "A");
   auto b       = builder.FillConstant<float>({16, 2, 20}, 2.0f, "B");
   auto c       = builder.Transpose(b, {0, 2, 1});
   auto d       = builder.CreateInput(Float(32), {121, 20}, "D");
@@ -444,7 +444,7 @@ TEST(TransposeFoldingOutput, BatchedComplex) {
   auto z       = builder.CreateInput(Float(32), {16, 20, 121}, "Z");
   auto l       = builder.Transpose(z, {0, 2, 1});
   auto m       = builder.Matmul(l, y);
-  auto n       = builder.Mul(d, a);
+  auto n       = builder.Matmul(d, a);
   auto o       = builder.BroadcastTo(n, {16, n->shape[0], n->shape[1]}, {1, 2});
   auto p       = builder.Subtract(f, o);
   auto q       = builder.Transpose(f, {0, 2, 1});
@@ -481,7 +481,7 @@ TEST(TransposeFoldingOutput, Complex) {
   auto l       = builder.Transpose(z, {1, 0});  // 20 * 121
   auto y       = builder.Matmul(x, l);          // 2 * 121
   auto m       = builder.Transpose(y, {1, 0});  // 121 * 2
-  auto n       = builder.Mul(z, a);
+  auto n       = builder.Matmul(z, a, false, true);
   auto p       = builder.Subtract(f, n);
   auto q       = builder.Transpose(f, {1, 0});
   auto u       = builder.Transpose(m, {1, 0});

@@ -125,6 +125,7 @@ std::vector<ir::Expr> CustomCallArgsForCublas(const framework::NodeAttr &attrs,
   auto attr_store = attrs.attr_store;
   bool trans_a    = attr_store.count("trans_a") ? absl::get<bool>(attr_store.at("trans_a")) : false;
   bool trans_b    = attr_store.count("trans_b") ? absl::get<bool>(attr_store.at("trans_b")) : false;
+  bool trans_out  = attr_store.count("trans_out") ? absl::get<bool>(attr_store.at("trans_out")) : false;
   float alpha     = attr_store.count("alpha") ? absl::get<float>(attr_store.at("alpha")) : 1.0f;
   float beta      = attr_store.count("beta") ? absl::get<float>(attr_store.at("beta")) : 0.0f;
 
@@ -178,7 +179,8 @@ std::vector<ir::Expr> CustomCallArgsForCublas(const framework::NodeAttr &attrs,
   CHECK_EQ(a_shape.size(), 4);
   CHECK_EQ(b_shape.size(), 4);
   // func args
-  std::vector<ir::Expr> args = {ir::Expr(trans_a), ir::Expr(trans_b), ir::Expr(alpha), ir::Expr(beta)};
+  std::vector<ir::Expr> args = {
+      ir::Expr(trans_a), ir::Expr(trans_b), ir::Expr(trans_out), ir::Expr(alpha), ir::Expr(beta)};
   args.insert(args.end(), a_shape.begin(), a_shape.end());
   args.insert(args.end(), b_shape.begin(), b_shape.end());
   return args;
