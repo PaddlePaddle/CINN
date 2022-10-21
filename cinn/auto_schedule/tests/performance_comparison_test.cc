@@ -55,7 +55,7 @@ class PerformanceTester : public ::testing::Test {
     // times of compiled runtime program will be executed repeatedly.
     int repeat_times = 2;
     // the num_tuning_rounds for auto tuning
-    int num_tuning_rounds = 10;
+    int num_tuning_rounds = 2;
     // knobs to control which schedules will be measured, refer to FLAGS_evaluate_knobs explanation
     std::bitset<3> evaluate_knobs = 7UL;
   };
@@ -229,6 +229,7 @@ TEST_F(PerformanceTester, Conv2d) {
   std::string data_format       = "NCHW";
   std::string padding_algorithm = "EXPLICIT";
 
+  options_.evaluate_knobs = 0UL;
   Evaluate(Conv2dProgramBuilder(
       input_shape, weight_shape, strides, paddings, dilations, groups, data_format, padding_algorithm)());
 }
@@ -246,7 +247,6 @@ TEST_F(PerformanceTester, Pool2d) {
   bool adaptive                 = false;
   std::string padding_algorithm = "EXPLICIT";
 
-  options_.evaluate_knobs = 4UL;
   Evaluate(Pool2dProgramBuilder(input_shape,
                                 pooling_type,
                                 ksize,
