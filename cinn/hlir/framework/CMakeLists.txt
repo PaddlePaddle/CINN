@@ -29,7 +29,7 @@ endif()
 
 
 if (WITH_CUDA)
-cc_test(test_hlir_framework_op_lowering SRCS op_lowering_test.cc DEPS cinncore)
+cc_test(test_hlir_framework_op_lowering SRCS op_lowering_test.cc DEPS cinncore decomposer_test_helper)
 endif()
 cc_test(test_hlir_framework_tensor SRCS tensor_test.cc DEPS cinncore)
 cc_test(test_hlir_framework_scope SRCS scope_test.cc DEPS cinncore)

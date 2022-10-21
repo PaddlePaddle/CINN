@@ -73,6 +73,8 @@ class TestPaddleModel(OpTest):
             return "float32"
         elif dtype == paddle.int32:
             return "int32"
+        elif dtype == paddle.int64:
+            return "int64"
         elif dtype == paddle.bool:
             return "bool"
         else:

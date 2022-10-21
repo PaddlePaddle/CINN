@@ -62,8 +62,8 @@ class TuneTask {
   std::vector<ir::LoweredFunc> lowered_funcs;
   // names of the output arguments of lowered_funcs_
   std::unordered_set<std::string> output_names;
-  // serialized string of this task, it contain struct,shape,dtype informat
-  // and can be further used to hash
+  // serialized string of this task, it contain struct,shape,dtype,input/output variable name
+  // of the task_graph and can be further used to hash
   std::string serialized_key;
 
  private:

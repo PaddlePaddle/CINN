@@ -54,6 +54,10 @@ void MapExternCall(Expr *e, Target target) {
         CHECK_GE(node->read_args.size(), 1UL);
         CHECK_EQ(node->read_args.front().type(), Float(32));
         *expr = lang::CallExtern("cinn_nvgpu_" + node->name + "_fp32", node->read_args);
+      } else if (kExternInt32CallsGPU.count(node->name)) {
+        CHECK_GE(node->read_args.size(), 1UL);
+        CHECK_EQ(node->read_args.front().type(), Int(32));
+        *expr = lang::CallExtern("cinn_nvgpu_" + node->name + "_int32", node->read_args);
       }
       // TODO(Superjomn) deal with int64 intrinsics.
     }

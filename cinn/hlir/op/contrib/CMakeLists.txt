@@ -14,6 +14,7 @@ gather_srcs(cinnapi_src SRCS
         squeeze.cc
         gelu.cc
         repeat.cc
+        lookup_table.cc
         one_hot.cc
         )
 
@@ -30,3 +31,4 @@ cc_test(test_gelu SRCS gelu_test.cc DEPS cinncore)
 cc_test(test_flip SRCS flip_test.cc DEPS cinncore)
 cc_test(test_repeat SRCS repeat_test.cc DEPS cinncore)
 cc_test(test_one_hot SRCS one_hot_test.cc DEPS cinncore)
+cc_test(test_lookup_table SRCS lookup_table_test.cc DEPS cinncore)

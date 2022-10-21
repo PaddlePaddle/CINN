@@ -483,6 +483,7 @@ void BindFrontend(pybind11::module *m) {
       .def("expand_dims", &NetBuilder::ExpandDims, py::arg("x"), py::arg("axis"), py::arg("num_newaxis") = 1)
       .def("argmax", &NetBuilder::Argmax, py::arg("x"), py::arg("axis"), py::arg("keep_dim") = false)
       .def("argmin", &NetBuilder::Argmin, py::arg("x"), py::arg("axis"), py::arg("keep_dim") = false)
+      .def("lookup_table", &NetBuilder::LookupTable, py::arg("table"), py::arg("ids"), py::arg("padding_idx"))
       .def("conv2d",
            &NetBuilder::Conv2d,
            py::arg("x"),
