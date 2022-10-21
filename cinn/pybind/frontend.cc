@@ -64,7 +64,9 @@ static const char *SnakeName(const char *name) {
 #define EXPAND_CINN_SUPPORT_TYPE(EXPAND_MACRO) \
   EXPAND_MACRO(bool)                           \
   EXPAND_MACRO(float)                          \
-  EXPAND_MACRO(int)
+  EXPAND_MACRO(int)                            \
+  EXPAND_MACRO(int64_t)                        \
+  EXPAND_MACRO(double)
 
 void BindFrontend(pybind11::module *m) {
   py::class_<Variable>(*m, "Variable")  //

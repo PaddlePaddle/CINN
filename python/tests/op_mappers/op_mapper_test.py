@@ -42,7 +42,8 @@ class OpMapperTest(OpTest):
             self.place = paddle.CUDAPlace(0)
 
     def init_input_data(self):
-        raise Exception("Not implemented.")
+        self.feed_data = {}
+        logger.warn("No Input Data")
 
     def set_paddle_program(self):
         raise Exception("Not implemented.")

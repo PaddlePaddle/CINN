@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <absl/types/optional.h>
+
 #include <algorithm>
 
 #include "cinn/frontend/op_mapper_registry.h"
@@ -94,6 +96,39 @@ void FillAnyLikeOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperConte
   ctx.AddVarModelToProgram(y_name, out->id);
 }
 
+void AssignValueOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+  CHECK_EQ(op_desc.Output("Out").size(), 1UL);
+  auto out_name             = op_desc.Output("Out").front();
+  const auto& cinn_out_name = cinn::utils::TransValidVarName(out_name);
+
+  const auto& bool_values_tmp = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "bool_values");
+  std::vector<bool> bool_values;
+  if (!bool_values_tmp.empty()) {
+    std::transform(bool_values_tmp.begin(), bool_values_tmp.end(), std::back_inserter(bool_values), [](int x) {
+      return static_cast<bool>(x);
+    });
+  }
+  const auto& fp32_values  = utils::GetAttrOrDefault<std::vector<float>>(op_desc, "fp32_values");
+  const auto& int32_values = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "int32_values");
+  const auto& int64_values = utils::GetAttrOrDefault<std::vector<int64_t>>(op_desc, "int64_values");
+
+  absl::optional<Variable> out;
+  if (!bool_values.empty()) {
+    out = ctx.Builder()->Constant(bool_values, cinn_out_name);
+  } else if (!fp32_values.empty()) {
+    out = ctx.Builder()->Constant(fp32_values, cinn_out_name);
+  } else if (!int32_values.empty()) {
+    out = ctx.Builder()->Constant(int32_values, cinn_out_name);
+  } else if (!int64_values.empty()) {
+    out = ctx.Builder()->Constant(int64_values, cinn_out_name);
+  } else {
+    LOG(FATAL) << "assign_value's input should not empty! Please check.";
+  }
+
+  ctx.AddVar(out_name, out.value());
+  ctx.AddVarModelToProgram(out_name, out.value()->id);
+}
+
 }  // namespace paddle_mappers
 }  // namespace frontend
 }  // namespace cinn
@@ -102,5 +137,6 @@ CINN_REGISTER_HELPER(paddle_constant) {
   CINN_REGISTER_OP_MAPPER(shape, cinn::frontend::paddle_mappers::ShapeOpMapper)
   CINN_REGISTER_OP_MAPPER(fill_constant, cinn::frontend::paddle_mappers::FillConstantOpMapper)
   CINN_REGISTER_OP_MAPPER(fill_any_like, cinn::frontend::paddle_mappers::FillAnyLikeOpMapper)
+  CINN_REGISTER_OP_MAPPER(assign_value, cinn::frontend::paddle_mappers::AssignValueOpMapper)
   return true;
 }

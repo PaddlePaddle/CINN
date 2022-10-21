@@ -27,10 +27,14 @@ namespace utils {
 using Attribute    = absl::variant<bool,
                                 float,
                                 int,
+                                int64_t,
+                                double,
                                 std::string,
                                 std::vector<bool>,
                                 std::vector<int>,
+                                std::vector<int64_t>,
                                 std::vector<float>,
+                                std::vector<double>,
                                 std::vector<std::string>>;
 using AttributeMap = absl::flat_hash_map<std::string, Attribute>;
 
