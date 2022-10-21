@@ -1427,7 +1427,7 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
       ir::ModuleExpr mod_expr(vec_ast);
       ir::IRSchedule ir_sch(mod_expr);
       ir_sch.MergeExprs();
-      if (arg_pack.size() == 4UL) {
+      if (arg_pack.size() == 3UL || arg_pack.size() == 4UL) {
         CHECK_EQ(vec_tensor.size(), 2);
         Expr input_pad = vec_tensor[1];
         CHECK(input_pad.as_tensor());
@@ -1437,8 +1437,7 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
       if (target.arch == Target::Arch::NVGPU) {
         pe::IRPoolScheduleGPU(ir_sch, target);
       }
-      std::vector<CINNValue> res;
-      res.push_back(CINNValue(ir_sch.GetModule().GetExprs().at(0)));
+      std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
       *ret = CINNValuePack{res};
     } else {
       CHECK(!args.empty()) << "The input argument of pool2d schedule is empty! Please check.\n";
