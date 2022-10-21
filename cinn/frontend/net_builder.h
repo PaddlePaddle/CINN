@@ -940,6 +940,17 @@ class NetBuilder {
    */
   Variable Sort(const Variable& operand, const int& axis, const bool& is_ascend = true);
 
+  /**
+   * @brief Lookup embeddings vector of ids provided by x .
+   * @param table A variable with shape of lookup table parameter
+   * @param ids An input contains the id information.
+   * @param padding_idx If the value is -1, it makes no effect to lookup.
+                     Otherwise the given value indicates padding the output
+                     with zeros whenever lookup encounters it in Ids.
+   * @return `The concatenated variable of selected values`.
+   */
+  Variable LookupTable(const Variable& table, const Variable& ids, int64_t padding_idx);
+
  private:
   CINN_DISALLOW_COPY_AND_ASSIGN(NetBuilder);
 };
