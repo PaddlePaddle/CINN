@@ -1260,17 +1260,10 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerNonFusibleOp(GroupPtr& group, boo
     common::CINNValuePack expr_pack = impl->fschedule(common::CINNValuePack{schedule_inputs});
 
     ir::Expr func_body = expr_pack[0];
-    VLOG(6) << "func.size() = " << func.size() << ", expr_pack.size()" << expr_pack.size();
     if (func.size() > expr_pack.size()) {
       std::vector<std::string> input_output_nodes(group->input_names);
       input_output_nodes.insert(input_output_nodes.end(), group->output_names.begin(), group->output_names.end());
-      for (auto n : input_output_nodes) {
-        VLOG(6) << "input_output_node: " << n;
-      }
       args = lang::GetArgs(func_body, input_output_nodes);
-      for (auto a : args) {
-        VLOG(6) << "arg " << a.name();
-      }
     }
     std::vector<ir::LoweredFunc> res;
     for (int i = 0; i < expr_pack.size(); i++) {

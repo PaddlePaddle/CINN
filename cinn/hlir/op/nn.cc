@@ -1400,7 +1400,6 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
     CHECK(out.size() == 1U || out.size() == 2U) << "The size of pe::Pool2d's output should be 1 or 2.";
     std::vector<CINNValue> res;
     for (auto &t : out) {
-      VLOG(6) << "Huihuang debug out = " << t;
       stages->InsertLazily(t);
       res.push_back(CINNValue(t));
     }
@@ -1415,15 +1414,12 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
       CINNValuePack arg_pack = args[0];
       std::vector<Expr> vec_ast;
       std::vector<Expr> vec_tensor;
-      VLOG(6) << "Huihuang debug here, arg_pack.size() = " << arg_pack.size();
       for (int i = 0; i < arg_pack.size(); i++) {
         if (arg_pack[i].is_expr()) {
           Expr temp = arg_pack[i];
           vec_ast.emplace_back(temp);
-          VLOG(6) << "arg_pack[" << i << "] is a non-tensor Expr: " << temp;
         } else if (arg_pack[i].is_tensor()) {
           Expr temp = arg_pack[i];
-          VLOG(6) << "arg_pack[" << i << "] is a tensor Expr: " << temp;
           vec_tensor.emplace_back(temp);
         }
       }
@@ -1435,7 +1431,6 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
         CHECK_EQ(vec_tensor.size(), 2);
         Expr input_pad = vec_tensor[1];
         CHECK(input_pad.as_tensor());
-        VLOG(6) << "Huihuang debug here, input_pad.as_tensor()->name = " << input_pad.as_tensor()->name;
         auto block_input_pad = ir_sch.GetBlock(input_pad.as_tensor()->name);
         ir_sch.ComputeInline(block_input_pad);
       }

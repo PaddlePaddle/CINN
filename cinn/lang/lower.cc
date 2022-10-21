@@ -35,7 +35,6 @@ using poly::Stage;
 
 bool SetStringStartsWith(const std::set<std::string> string_set, const std::string& prefix) {
   for (const std::string& s : string_set) {
-    VLOG(6) << "s = " << s << ", prefix = " << prefix;
     if (s.rfind(prefix, 0) == 0) {
       return true;
     }

@@ -227,7 +227,6 @@ const int repeat_time       = 2;
 const int num_tuning_rounds = 1;
 const int batch_size        = 1;
 
-/*
 TEST_F(PerformanceTester, Mul) {
   int M = 32;
   int K = 16;
@@ -260,11 +259,13 @@ TEST_F(PerformanceTester, Conv2d) {
   std::string data_format       = "NCHW";
   std::string padding_algorithm = "EXPLICIT";
 
+  SetOptionFlags(4UL);
+
   BuildAndRun(repeat_time,
               num_tuning_rounds,
               Conv2dProgramBuilder(
                   input_shape, weight_shape, strides, paddings, dilations, groups, data_format, padding_algorithm)());
-}*/
+}
 
 TEST_F(PerformanceTester, Pool2d) {
   std::vector<int32_t> input_shape{4, 64, 112, 112};
@@ -295,7 +296,6 @@ TEST_F(PerformanceTester, Pool2d) {
                                    padding_algorithm)());
 }
 
-/*
 TEST_F(PerformanceTester, BatchNorm) {
   std::vector<int32_t> input_shape{batch_size, 64, 112, 112};
   std::vector<int32_t> scale_shape{64};

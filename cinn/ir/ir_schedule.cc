@@ -1274,10 +1274,8 @@ std::vector<Expr> ScheduleImpl::GetLoops(const Expr& block) const {
   std::string block_name = block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->name;
 
   for (auto& it_expr : exprs) {
-    VLOG(6) << "Huihuang it_expr = " << it_expr;
     ir::FindLoopsVisitor visitor(block);
     auto find_loops = visitor(&it_expr);
-    VLOG(6) << "find_loops.size() = " << find_loops.size();
     if (!find_loops.empty()) {
       if (!result.empty()) LOG(FATAL) << "Find block with name: \n" << block_name << " appeared in more than one AST!";
       result = find_loops;
