@@ -53,6 +53,7 @@ std::vector<std::string> ReadLinesFromFile(const std::string& file_path, bool al
 
 JSONFileDatabase::JSONFileDatabase(int capacity_per_task, const std::string& record_file_path, bool allow_new_file)
     : Database(capacity_per_task), record_file_path_(record_file_path) {
+  VLOG(3) << "Auto schdule will save/load tuning records on file:" << record_file_path;
   auto json_lines = ReadLinesFromFile(record_file_path_, allow_new_file);
   std::vector<cinn::auto_schedule::proto::TuningRecord> all_records_proto(json_lines.size());
 
@@ -70,11 +71,8 @@ JSONFileDatabase::JSONFileDatabase(int capacity_per_task, const std::string& rec
   for (const auto& record_proto : all_records_proto) {
     std::string task_key = record_proto.task_key();
     if (task_registry->Has(task_key)) {
-      ir::IRSchedule ir_sch(optim::IRCopy(task_registry->Get(task_key)->module_expr));
-      ir::ScheduleDesc::ReplayWithProto(record_proto.trace(), &ir_sch);
-      Insert(TuningRecord(record_proto.task_key(),
-                          record_proto.execution_cost(),
-                          SearchState(std::move(ir_sch), record_proto.predicted_cost())));
+      VLOG(4) << "Add a measured TuningRecord with task_key=" << task_key;
+      Insert(TuningRecord(record_proto));
     }
   }
 }

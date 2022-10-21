@@ -34,10 +34,8 @@ proto::TuningRecord TuningRecord::ToProto() const {
   proto::TuningRecord record_proto;
   record_proto.set_task_key(task_key);
   record_proto.set_execution_cost(execution_cost);
-  record_proto.set_predicted_cost(state->predicted_cost);
-  auto trace_proto = state->ir_schedule.GetTraceDesc().ToProto();
-  record_proto.mutable_trace()->Swap(&trace_proto);
-
+  record_proto.set_predicted_cost(predicted_cost);
+  record_proto.mutable_trace()->CopyFrom(trace);
   return record_proto;
 }
 
@@ -83,7 +81,7 @@ std::vector<TuningRecord> Database::LookUp(const std::string& task_key) {
   return results;
 }
 
-std::vector<SearchState> Database::GetTopK(const std::string& task_key, int k) {
+std::vector<TuningRecord> Database::GetTopK(const std::string& task_key, int k) {
   auto fit = key2record_.find(task_key);
   if (fit == key2record_.end() || k <= 0) {
     return {};
@@ -93,10 +91,10 @@ std::vector<SearchState> Database::GetTopK(const std::string& task_key, int k) {
     k = capacity_per_task_;
   }
 
-  std::vector<SearchState> results;
+  std::vector<TuningRecord> results;
   results.reserve(k);
   for (const TuningRecord& record : fit->second) {
-    results.emplace_back(record.state);
+    results.emplace_back(record);
     if (results.size() == k) {
       break;
     }
