@@ -38,6 +38,8 @@ struct Mutator : ir::IRMutator<> {
     *expr = Expr(static_cast<type__>(i->value));     \
   } else if (auto* f = op->v().As<ir::FloatImm>()) { \
     *expr = Expr(static_cast<type__>(f->value));     \
+  } else if (auto* u = op->v().As<ir::UIntImm>()) {  \
+    *expr = Expr(static_cast<type__>(u->value));     \
   } else {                                           \
     CINN_NOT_IMPLEMENTED                             \
   }
@@ -53,8 +55,15 @@ struct Mutator : ir::IRMutator<> {
         __CAST_TO_TYPE(double)
       } else if (op->type() == type_of<bool>()) {
         __CAST_TO_TYPE(bool)
+      } else if (op->type() == type_of<uint32_t>()) {
+        __CAST_TO_TYPE(uint32_t)
+      } else if (op->type() == type_of<uint64_t>()) {
+        __CAST_TO_TYPE(uint64_t)
+      } else {
+        CINN_NOT_IMPLEMENTED
       }
     }
+#undef __CAST_TO_TYPE
   }
 };
 

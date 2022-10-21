@@ -50,4 +50,14 @@ TEST(CastSimplify, Imm_double) {
   ASSERT_EQ(c.type(), Int(32));
 }
 
+TEST(CastSimplify, Imm_uint) {
+  Expr a = ir::Cast::Make(UInt(64), Expr(1));
+  Expr c = ir::Cast::Make(UInt(32), a);
+  LOG(INFO) << c;
+  CastSimplify(&c);
+  LOG(INFO) << c;
+  ASSERT_EQ(utils::GetStreamCnt(c), "1");
+  ASSERT_EQ(c.type(), UInt(32));
+}
+
 }  // namespace cinn::optim

@@ -197,6 +197,7 @@ In HLIR
 - `hlir::framework::Program`, the final executable program in runtime. It holds many basic executable elements. 
 - `hlir::framework::Graph`, the graph that represents the structure of a model. Each node in the graph represents an operator (conv2d, relu, mul, etc.).
 - `hlir::framework::GraphCompiler`, the compiler that transforms the graph representation(hlir::framework::Graph) of a model into an executable program(hlir::framework::Program).
+
 In CINN IR
 
 - `Compute`, the method to define a computation,
