@@ -212,7 +212,7 @@ Variable NetBuilder::FillConstant(
   auto out =
       CustomInstr("fill_constant", {}, {{"shape", shape}, {"value", value}, {"dtype", dtype}, {"force_cpu", force_cpu}})
           .front();
-  out.set_id(name);
+  out.set_id(cinn::utils::TransValidVarName(name));
   return out;
 }
 
