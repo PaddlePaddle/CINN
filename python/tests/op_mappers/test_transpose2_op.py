@@ -58,7 +58,7 @@ class TestTranspose2Op(OpMapperTest):
 
 class TestTranspose2OpInt32(TestTranspose2Op):
     def init_input_dtype(self):
-        self.dtype = 'float32'
+        self.dtype = 'int32'
 
 
 class TestTranspose2OpInt64(TestTranspose2Op):
