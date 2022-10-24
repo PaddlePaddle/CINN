@@ -2160,7 +2160,7 @@ CINN_REGISTER_HELPER(transform_ops) {
   CINN_REGISTER_OP(mul)
       .describe("This operator is used to perform matrix multiplication for input X and Y.")
       .set_num_inputs(2)
-#ifdef CINN_WITH_CUDA
+#ifdef CINN_WITH_CUDNN
       .set_num_outputs(1)
 #else
       .set_num_outputs(2)

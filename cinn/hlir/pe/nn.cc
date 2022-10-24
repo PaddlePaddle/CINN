@@ -257,8 +257,10 @@ std::vector<ir::Tensor> Conv2d_NCHW(const ir::Tensor &input,
   }
   ir::Tensor input_pad;
   if (pad_h == 0 && pad_w == 0) {
-    input_pad = Compute(
-        input->shape, [=](Expr nn, Expr cc, Expr yy, Expr xx) { return input(nn, cc, yy, xx); }, UniqName("input_pad"));
+    input_pad = input;
+    // input_pad = Compute(
+    //     input->shape, [=](Expr nn, Expr cc, Expr yy, Expr xx) { return input(nn, cc, yy, xx); },
+    //     UniqName("input_pad"));
   } else {
     input_pad = Compute(
         input_pad_shape,

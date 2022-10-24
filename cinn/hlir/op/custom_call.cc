@@ -172,6 +172,10 @@ std::vector<ir::Expr> CustomCallArgsForCublas(const framework::NodeAttr &attrs,
     }
     b_shape.emplace_back(height);
     b_shape.emplace_back(width);
+
+    CHECK_EQ(a_shape.back(), b_shape.back());
+    // transpose b
+    trans_b = true;
   } else {
     LOG(FATAL) << "Unkown Matmul Setting!";
   }
