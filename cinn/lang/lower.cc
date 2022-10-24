@@ -46,61 +46,44 @@ bool IsUniqRename(const std::string& to_check, const std::string& prefix) {
   return true;
 }
 
-bool SetStringContainsUniqRename(const std::set<std::string> string_set, const std::string& prefix) {
-  for (const std::string& s : string_set) {
-    if (IsUniqRename(s, prefix)) {
-      return true;
-    }
-  }
-  return false;
-}
-
 std::vector<ir::Argument> GetArgs(const Expr& func_body, const std::vector<std::string>& input_output_nodes) {
-  std::vector<ir::Argument> res;
-  std::set<std::string> load_tensors;
-  std::set<std::string> store_tensors;
+  std::map<std::string, const ir::Store*> name_to_store;
   auto store_nodes = ir::CollectIRNodesWithoutTensor(func_body, [&](const Expr* x) {
-    if (x->As<ir::Store>()) store_tensors.insert(x->As<ir::Store>()->tensor.as_tensor_ref()->name);
-    return x->As<ir::Store>();
-  });
-  auto load_nodes  = ir::CollectIRNodesWithoutTensor(func_body, [&](const Expr* x) {
-    if (x->As<ir::Load>()) load_tensors.insert(x->As<ir::Load>()->tensor.as_tensor_ref()->name);
-    return x->As<ir::Load>();
+    const ir::Store* p = x->As<ir::Store>();
+    if (p) {
+      name_to_store[p->tensor.as_tensor_ref()->name] = p;
+    }
+    return p;
   });
 
-  std::set<std::string> load_deduplicate;
-  std::set<std::string> store_deduplicate;
-  for (auto& i : input_output_nodes) {
-    bool load_contain  = SetStringContainsUniqRename(load_tensors, i);
-    bool store_contain = SetStringContainsUniqRename(store_tensors, i);
-    VLOG(6) << "load_contain = " << load_contain;
-    VLOG(6) << "store_contain = " << store_contain;
-    if (load_contain && !store_contain) {
-      for (auto& j : load_nodes) {
-        auto load_tensor = j.As<ir::Load>()->tensor.as_tensor_ref();
-        if (load_tensor->buffer.defined() && IsUniqRename(load_tensor->name, i)) {
-          ir::Argument argument(load_tensor->buffer, ir::Argument::IO::kInput);
-          if (!load_deduplicate.count(argument.name())) {
-            VLOG(6) << "Load tensor name " << load_tensor->name;
-            load_deduplicate.insert(argument.name());
-            res.emplace_back(argument);
-          }
-        }
+  std::map<std::string, const ir::Load*> name_to_load;
+  auto load_nodes = ir::CollectIRNodesWithoutTensor(func_body, [&](const Expr* x) {
+    const ir::Load* p = x->As<ir::Load>();
+    if (p) {
+      name_to_load[p->tensor.as_tensor_ref()->name] = p;
+    }
+    return p;
+  });
+
+  std::vector<ir::Argument> res;
+  for (const std::string& i : input_output_nodes) {
+    for (const auto& name_load_pair : name_to_load) {
+      const std::string& name = name_load_pair.first;
+      if (IsUniqRename(name, i) && name_to_store.find(name) == name_to_store.end()) {
+        auto load_tensor = name_load_pair.second->tensor.as_tensor_ref();
+        res.emplace_back(load_tensor->buffer, ir::Argument::IO::kInput);
       }
-    } else if (store_contain) {
-      for (auto& j : store_nodes) {
-        auto store_tensor = j.As<ir::Store>()->tensor.as_tensor_ref();
-        if (store_tensor->buffer.defined() && IsUniqRename(store_tensor->name, i)) {
-          ir::Argument argument(store_tensor->buffer, ir::Argument::IO::kOutput);
-          if (!store_deduplicate.count(argument.name())) {
-            VLOG(6) << "Store tensor name " << store_tensor->name;
-            store_deduplicate.insert(argument.name());
-            res.emplace_back(argument);
-          }
-        }
+    }
+
+    for (const auto& name_store_pair : name_to_store) {
+      const std::string& name = name_store_pair.first;
+      if (IsUniqRename(name, i)) {
+        auto store_tensor = name_store_pair.second->tensor.as_tensor_ref();
+        res.emplace_back(store_tensor->buffer, ir::Argument::IO::kOutput);
       }
     }
   }
+
   for (auto& i : input_output_nodes) VLOG(3) << "In input_output_nodes, arg has : " << i;
   for (auto& i : res) VLOG(3) << "In res, arg has : " << i.name();
   return res;
