@@ -33,6 +33,10 @@ message ScheduleDesc {
         INTS = 5;
         FLOATS = 6;
         STRINGS = 7;
+        LONG = 8;
+        DOUBLE = 9;
+        LONGS = 10;
+        DOUBLES = 11;
     };
 
     string name = 1;
@@ -45,6 +49,10 @@ message ScheduleDesc {
     repeated int32 ints = 8;
     repeated float floats = 9;
     repeated string strings = 10;
+    int64 l = 11;
+    double d = 12;
+    repeated int64 longs = 13;
+    repeated double doubles = 14;
   };
 
   message Step {
