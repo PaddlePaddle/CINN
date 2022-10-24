@@ -1427,7 +1427,8 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
       ir::ModuleExpr mod_expr(vec_ast);
       ir::IRSchedule ir_sch(mod_expr);
       ir_sch.MergeExprs();
-      if (arg_pack.size() == 3UL || arg_pack.size() == 4UL) {
+      int arg_pack_size = arg_pack.size();
+      if (arg_pack_size == 3UL || arg_pack_size == 4UL) {
         CHECK_EQ(vec_tensor.size(), 2);
         Expr input_pad = vec_tensor[1];
         CHECK(input_pad.as_tensor());
@@ -1435,7 +1436,7 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
         ir_sch.ComputeInline(block_input_pad);
       }
       if (target.arch == Target::Arch::NVGPU) {
-        pe::IRPoolScheduleGPU(ir_sch, target);
+        pe::IRPoolScheduleGPU(ir_sch, target, arg_pack_size);
       }
       std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
       *ret = CINNValuePack{res};

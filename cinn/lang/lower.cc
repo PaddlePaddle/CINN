@@ -33,9 +33,22 @@ namespace lang {
 using ir::Tensor;
 using poly::Stage;
 
-bool SetStringStartsWith(const std::set<std::string> string_set, const std::string& prefix) {
+// Returns true if input string to_check is prefix([_0-9])*
+bool IsUniqRename(const std::string& to_check, const std::string& prefix) {
+  if (to_check.rfind(prefix, 0) != 0) {
+    return false;
+  }
+  for (int i = prefix.size(); i < to_check.size(); ++i) {
+    if (to_check[i] != '_' && (to_check[i] < '0' || to_check[i] > '9')) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool SetStringContainsUniqRename(const std::set<std::string> string_set, const std::string& prefix) {
   for (const std::string& s : string_set) {
-    if (s.rfind(prefix, 0) == 0) {
+    if (IsUniqRename(s, prefix)) {
       return true;
     }
   }
@@ -55,23 +68,35 @@ std::vector<ir::Argument> GetArgs(const Expr& func_body, const std::vector<std::
     return x->As<ir::Load>();
   });
 
+  std::set<std::string> load_deduplicate;
+  std::set<std::string> store_deduplicate;
   for (auto& i : input_output_nodes) {
-    bool load_contain  = SetStringStartsWith(load_tensors, i);
-    bool store_contain = SetStringStartsWith(store_tensors, i);
+    bool load_contain  = SetStringContainsUniqRename(load_tensors, i);
+    bool store_contain = SetStringContainsUniqRename(store_tensors, i);
+    VLOG(6) << "load_contain = " << load_contain;
+    VLOG(6) << "store_contain = " << store_contain;
     if (load_contain && !store_contain) {
       for (auto& j : load_nodes) {
         auto load_tensor = j.As<ir::Load>()->tensor.as_tensor_ref();
-        if (load_tensor->buffer.defined() && load_tensor->name.rfind(i, 0) == 0) {
-          res.emplace_back(load_tensor->buffer, ir::Argument::IO::kInput);
-          break;
+        if (load_tensor->buffer.defined() && IsUniqRename(load_tensor->name, i)) {
+          ir::Argument argument(load_tensor->buffer, ir::Argument::IO::kInput);
+          if (!load_deduplicate.count(argument.name())) {
+            VLOG(6) << "Load tensor name " << load_tensor->name;
+            load_deduplicate.insert(argument.name());
+            res.emplace_back(argument);
+          }
         }
       }
     } else if (store_contain) {
       for (auto& j : store_nodes) {
         auto store_tensor = j.As<ir::Store>()->tensor.as_tensor_ref();
-        if (store_tensor->buffer.defined() && store_tensor->name.rfind(i, 0) == 0) {
-          res.emplace_back(store_tensor->buffer, ir::Argument::IO::kOutput);
-          break;
+        if (store_tensor->buffer.defined() && IsUniqRename(store_tensor->name, i)) {
+          ir::Argument argument(store_tensor->buffer, ir::Argument::IO::kOutput);
+          if (!store_deduplicate.count(argument.name())) {
+            VLOG(6) << "Store tensor name " << store_tensor->name;
+            store_deduplicate.insert(argument.name());
+            res.emplace_back(argument);
+          }
         }
       }
     }

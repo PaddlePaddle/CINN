@@ -235,7 +235,7 @@ TEST_F(PerformanceTester, Conv2d) {
 }
 
 TEST_F(PerformanceTester, Pool2d) {
-  std::vector<int32_t> input_shape{4, 64, 112, 112};
+  std::vector<int32_t> input_shape{batch_size, 64, 112, 112};
   std::string pooling_type = "max";
   std::vector<int> ksize{3, 3};
   std::vector<int> strides{2, 2};
