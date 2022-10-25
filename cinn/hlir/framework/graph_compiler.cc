@@ -739,13 +739,13 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   VLOG(3) << "Begin GraphCompiler::Build";
   m_builder_.Clear();
 
-  // if there are no avaiable groups, we will take each node as a group
   // use the input groups in options firstly if exists
-  std::vector<std::vector<Node*>> groups = graph_->groups;  // change the group name
+  std::vector<std::vector<Node*>> node_groups = graph_->groups;
   std::vector<std::shared_ptr<framework::Graph::Group>> fusion_groups =
       options.groups.empty() ? options.groups : graph_->fusion_groups;
 
-  if (groups.empty() && fusion_groups.empty()) {
+  // if there are no avaiable fusion result, we will take each node as a group
+  if (node_groups.empty() && fusion_groups.empty()) {
     VLOG(3) << "not apply OpFusionPass, will build a Graph::Group for each node";
     fusion_groups = pass::BuildNonFusedGroups(graph_.get());
   }
@@ -753,9 +753,9 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   // fusion_groups is not empty;
   for (auto g : fusion_groups) {
     VLOG(3) << "group_id is : " << g->group_id << ", and its number is : " << g->nodes.size();
-    groups.push_back(std::move(g->CollectNodes()));
+    node_groups.push_back(std::move(g->CollectNodes()));
     // set node as output node from fetch_var_ids.
-    for (auto node : groups.back()) {
+    for (auto node : node_groups.back()) {
       // get all node datas.
       for (auto& link : node->outlinks()) {
         auto node_data = link->sink()->safe_as<NodeData>();
@@ -772,8 +772,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   // if the input lowered_funcs is empty, we will use the defalut lowering process to generate
   std::vector<std::vector<ir::LoweredFunc>> local_lowered_funcs;
   if (options.lowered_funcs.empty()) {
-    // lowering of new fusion pass is not compatible with the groups from the input options,
-    // thus process it seperately
+    // lowering each group with op_lowerer
     if (!fusion_groups.empty()) {
       auto& dtype_dict = graph_->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
       auto& shape_dict = graph_->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
@@ -786,11 +785,11 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
       }
     } else {
       std::vector<ir::LoweredFunc> lowered_func;
-      for (int i = 0; i < groups.size(); i++) {
-        if (groups[i].size() == 1) {
-          lowered_func = GetOpFunc(groups[i][0]);
+      for (int i = 0; i < node_groups.size(); i++) {
+        if (node_groups[i].size() == 1) {
+          lowered_func = GetOpFunc(node_groups[i][0]);
         } else {
-          lowered_func = GetOpFunc(groups[i]);
+          lowered_func = GetOpFunc(node_groups[i]);
         }
         local_lowered_funcs.emplace_back(std::move(lowered_func));
       }
@@ -798,11 +797,11 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   }
   // use the input lowered_funcs in options firstly if exists
   const auto& lowered_funcs = options.lowered_funcs.empty() ? local_lowered_funcs : options.lowered_funcs;
-  CHECK_EQ(groups.size(), lowered_funcs.size()) << "The size of groups and lowered_funcs shoule be equal";
+  CHECK_EQ(node_groups.size(), lowered_funcs.size()) << "The size of groups and lowered_funcs shoule be equal";
   for (auto&& lowered_func : lowered_funcs) {
     this->ProcessFunction(lowered_func);
   }
-  graph_->VisualizeGroupedGraph(groups, fetch_var_ids_);
+  graph_->VisualizeGroupedGraph(node_groups, fetch_var_ids_);
 
   // compile the module
   // Need to create a new compiler for every call of Build,
@@ -820,7 +819,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
 
   compiler_->Build(build_module, options.attached_code);
   VLOG(3) << "End of compiler_->Build";
-  auto instructions = BuildInstructions(groups, fusion_groups);
+  auto instructions = BuildInstructions(node_groups, fusion_groups);
 
   VLOG(3) << "End of BuildInstructions";
   if (options.remove_unused_variables) {

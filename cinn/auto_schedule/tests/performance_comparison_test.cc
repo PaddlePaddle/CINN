@@ -33,7 +33,6 @@
 #include "cinn/runtime/flags.h"
 #include "cinn/utils/data_util.h"
 
-DECLARE_bool(cinn_ir_schedule);
 DEFINE_string(resnet50_model_dir, "./ResNet50", "the path to paddle model resnet50.");
 // Flags that control which schedule tests will be run.
 // Bit with index 0 controls no schedule test, means options = 1 = "001" will run no schedule test.
@@ -51,7 +50,6 @@ using ::cinn::hlir::framework::GraphCompiler;
 using ::cinn::hlir::framework::Instruction;
 using ::cinn::hlir::framework::Scope;
 
-// FLAGS_cinn_ir_schedule = true;
 class PerformanceTester : public ::testing::Test {
  public:
   struct Options {
@@ -208,11 +206,11 @@ TEST_F(PerformanceTester, Conv2d) {
 }
 
 TEST_F(PerformanceTester, Pool2d) {
-  std::vector<int32_t> input_shape{4, 64, 112, 112};
+  std::vector<int32_t> input_shape{batch_size, 64, 112, 112};
   std::string pooling_type = "max";
   std::vector<int> ksize{3, 3};
   std::vector<int> strides{2, 2};
-  std::vector<int> paddings{1, 1, 1, 1};
+  std::vector<int> paddings{1, 1};
   bool ceil_mode                = false;
   bool exclusive                = true;
   bool global_pooling           = false;
@@ -261,7 +259,6 @@ TEST_F(PerformanceTester, Softmax) {
   int axis                = -1;
   std::string data_format = "AnyLayout";
 
-  options_.evaluate_knobs = 5UL;
   Evaluate(SoftmaxProgramBuilder(input_shape, axis, data_format)());
 }
 

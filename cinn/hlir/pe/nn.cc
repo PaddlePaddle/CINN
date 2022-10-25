@@ -751,7 +751,7 @@ std::vector<ir::Tensor> Softmax(const ir::Tensor &A, int axis, const std::string
         }
         return lang::Exp(A(indice)) / temp(new_indice);
       },
-      output_name);
+      UniqName("softmax_out"));
   return {out, temp};
 }
 
@@ -779,7 +779,7 @@ std::vector<ir::Tensor> SoftmaxMKLDNN(const ir::Tensor &A, int axis, const std::
                                     A,           // input
                                 });
       },
-      output_name);
+      UniqName("softmax_mkldnn_out"));
   auto out = call->TupleGet(0);
   out->WithBuffer(A->type());
   return {out, call};
