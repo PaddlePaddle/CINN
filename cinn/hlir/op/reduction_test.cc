@@ -31,9 +31,9 @@
 #include "cinn/cinn.h"
 #include "cinn/common/target.h"
 #include "cinn/common/test_helper.h"
-#include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
+#include "cinn/hlir/framework/op_lowering.h"
 #include "cinn/hlir/framework/op_strategy.h"
 #include "cinn/hlir/op/use_ops.h"
 #include "cinn/hlir/pe/nn.h"
@@ -108,12 +108,12 @@ std::pair<ir::Module, std::string> GenReduceCode(const std::vector<int>& shape,
     func = lang::LowerVec(func_name, rets.back(), inputs, {}, {}, nullptr, target);
   } else {
     std::vector<std::string> input_output_nodes{"X", op_name};
-    func = GetFuncFromImpl(impl,
-                           common::CINNValuePack{{common::CINNValue(X), common::CINNValue(op_name)}},
-                           inputs,
-                           input_output_nodes,
-                           func_name,
-                           target);
+    func = GetFuncFromOpImpl(impl,
+                             common::CINNValuePack{{common::CINNValue(X), common::CINNValue(op_name)}},
+                             inputs,
+                             input_output_nodes,
+                             func_name,
+                             target);
   }
   for (auto& f : func) {
     LOG(INFO) << "Test Strategy Codegen:\n" << f;

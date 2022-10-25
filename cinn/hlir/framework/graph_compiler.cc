@@ -24,6 +24,7 @@
 #include "cinn/hlir/framework/instruction.h"
 #include "cinn/hlir/framework/op_lowering.h"
 #include "cinn/hlir/framework/tensor.h"
+#include "cinn/hlir/pass/op_fusion_pass.h"
 #include "cinn/hlir/pe/schedule.h"
 #include "cinn/lang/lower.h"
 #include "cinn/optim/transform_gpu_forloop.h"
@@ -331,8 +332,8 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFuncWithIRSchedule(
   auto impl =
       OpStrategy::SelectImpl(cinn_strategy[node->op()](node->attrs, tensor_inputs, out_types, out_shapes, target_));
 
-  auto res =
-      GetFuncFromImpl(impl, common::CINNValuePack{cinn_inputs}, tensor_inputs, input_output_nodes, node->id(), target_);
+  auto res = GetFuncFromOpImpl(
+      impl, common::CINNValuePack{cinn_inputs}, tensor_inputs, input_output_nodes, node->id(), target_);
   return res;
 }
 
@@ -737,23 +738,34 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   auto& nodes      = std::get<0>(topo_order);
   VLOG(3) << "Begin GraphCompiler::Build";
   m_builder_.Clear();
+
   // if there are no avaiable groups, we will take each node as a group
-  if (options.groups.empty() && graph_->groups.empty() && graph_->fusion_groups.empty()) {
-    VLOG(3) << "not run opfusion pass";
-    for (auto& node : nodes) {
-      auto op_node = node->safe_as<Node>();
-      if (op_node) {
-        graph_->groups.push_back({op_node});
-      }
-    }
-  }
   // use the input groups in options firstly if exists
-  std::vector<std::vector<Node*>> groups;
-  if (options.groups.empty()) {
-    groups = graph_->groups;
-  } else {
-    for (std::shared_ptr<Graph::Group> g : options.groups) {
-      groups.push_back(g->CollectNodes());
+  std::vector<std::vector<Node*>> groups = graph_->groups;  // change the group name
+  std::vector<std::shared_ptr<framework::Graph::Group>> fusion_groups =
+      options.groups.empty() ? options.groups : graph_->fusion_groups;
+
+  if (groups.empty() && fusion_groups.empty()) {
+    VLOG(3) << "not apply OpFusionPass, will build a Graph::Group for each node";
+    fusion_groups = pass::BuildNonFusedGroups(graph_.get());
+  }
+
+  // fusion_groups is not empty;
+  for (auto g : fusion_groups) {
+    VLOG(3) << "group_id is : " << g->group_id << ", and its number is : " << g->nodes.size();
+    groups.push_back(std::move(g->CollectNodes()));
+    // set node as output node from fetch_var_ids.
+    for (auto node : groups.back()) {
+      // get all node datas.
+      for (auto& link : node->outlinks()) {
+        auto node_data = link->sink()->safe_as<NodeData>();
+        CHECK(node_data);
+        // if node data is in fetch_var_ids.
+        if (fetch_var_ids_.count(node_data->id())) {
+          g->output_nodes.insert(node);
+          break;
+        }
+      }
     }
   }
 
@@ -762,52 +774,25 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   if (options.lowered_funcs.empty()) {
     // lowering of new fusion pass is not compatible with the groups from the input options,
     // thus process it seperately
-    if (!graph_->fusion_groups.empty()) {
+    if (!fusion_groups.empty()) {
       auto& dtype_dict = graph_->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
       auto& shape_dict = graph_->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
 
       OpLowerer op_lowerer(dtype_dict, shape_dict, target_);
-      for (auto& group : graph_->fusion_groups) {
-        VLOG(3) << "group_id is : " << group->group_id << ", and its number is : " << group->nodes.size();
-        groups.push_back(std::move(group->CollectNodes()));
-        // set node as output node from fetch_var_ids.
-        for (auto node : groups.back()) {
-          // get all node datas.
-          for (auto& link : node->outlinks()) {
-            auto node_data = link->sink()->safe_as<NodeData>();
-            CHECK(node_data);
-            // if node data is in fetch_var_ids.
-            if (fetch_var_ids_.count(node_data->id())) {
-              group->output_nodes.insert(node);
-              break;
-            }
-          }
-        }
-        local_lowered_funcs.emplace_back(std::move(op_lowerer.Lower(group)));
+      for (auto g : fusion_groups) {
+        local_lowered_funcs.emplace_back(std::move(op_lowerer.Lower(g)));
         CHECK_EQ(local_lowered_funcs.back().size(), 1) << "Lowerd Function Is Not Equal 1!";
         VLOG(3) << local_lowered_funcs.back()[0];
       }
     } else {
-      VLOG(3) << "fusion_groups is empty";
       std::vector<ir::LoweredFunc> lowered_func;
-      if (FLAGS_cinn_ir_schedule) {
-        auto& dtype_dict = graph_->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-        auto& shape_dict = graph_->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-        for (int i = 0; i < groups.size(); i++) {
-          for (int j = 0; j < groups[i].size(); j++) {
-            lowered_func = GetOpFuncWithIRSchedule(groups[i][j], dtype_dict, shape_dict);
-            local_lowered_funcs.emplace_back(std::move(lowered_func));
-          }
+      for (int i = 0; i < groups.size(); i++) {
+        if (groups[i].size() == 1) {
+          lowered_func = GetOpFunc(groups[i][0]);
+        } else {
+          lowered_func = GetOpFunc(groups[i]);
         }
-      } else {
-        for (int i = 0; i < groups.size(); i++) {
-          if (groups[i].size() == 1) {
-            lowered_func = GetOpFunc(groups[i][0]);
-          } else {
-            lowered_func = GetOpFunc(groups[i]);
-          }
-          local_lowered_funcs.emplace_back(std::move(lowered_func));
-        }
+        local_lowered_funcs.emplace_back(std::move(lowered_func));
       }
     }
   }
@@ -835,7 +820,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
 
   compiler_->Build(build_module, options.attached_code);
   VLOG(3) << "End of compiler_->Build";
-  auto instructions = BuildInstructions(groups, options.groups.empty() ? graph_->fusion_groups : options.groups);
+  auto instructions = BuildInstructions(groups, fusion_groups);
 
   VLOG(3) << "End of BuildInstructions";
   if (options.remove_unused_variables) {
@@ -1380,65 +1365,6 @@ std::shared_ptr<Scope> BuildScope(Target target, const std::shared_ptr<Graph>& g
     tensor->set_type(dtype_dict.at(iter.first));
   }
   return scope;
-}
-
-std::vector<ir::LoweredFunc> GetFuncFromImpl(const std::shared_ptr<OpImpl>& impl,
-                                             const common::CINNValuePack& cinn_inputs,
-                                             std::vector<ir::Tensor>& all_arg_tensors,
-                                             const std::vector<std::string>& input_output_nodes,
-                                             const std::string& node_id,
-                                             const Target& target) {
-  // 1.Call Op's Compute function, using the default stages and LowerVec to get IR tree.
-  common::CINNValuePack C = impl->fcompute(cinn_inputs);
-
-  // 2. Collect tensors and arguments
-  // Add output tensors to all_arg_tensors
-  for (int i = 0; i < C->size() - 1; i++) {
-    ir::Expr temp = C[i];
-    // checkout whether the tensor is with buffer.
-    if (!temp.as_tensor_ref()->buffer.defined() || target != common::DefaultNVGPUTarget()) {
-      all_arg_tensors.push_back(temp.as_tensor_ref());
-    }
-  }
-
-  poly::StageMap stages        = C.back();
-  std::string func_name_prefix = "fn_";
-  auto funcs = lang::LowerVec(func_name_prefix + node_id, stages, all_arg_tensors, {}, {}, nullptr, target, true);
-
-  std::vector<common::CINNValue> schedule_inputs;
-  for (int i = 0; i < C.size() - 1; ++i) {
-    CHECK(C[i].is_tensor());
-    schedule_inputs.push_back(common::CINNValue(C[i]));
-  }
-  for (auto& f : funcs) {
-    schedule_inputs.push_back(common::CINNValue(f->body));
-  }
-
-  // 3. Call Op's Schedule function, optimizing the IR tree by new IR schedule
-  common::CINNValuePack expr_pack = impl->fschedule(common::CINNValuePack{schedule_inputs});
-
-  // 4. Optimize the LoweredFunc
-  VLOG(3) << "expr_pack.size() is : " << expr_pack.size();
-  std::vector<ir::LoweredFunc> res;
-  for (int i = 0; i < expr_pack.size(); i++) {
-    if (funcs.size() > expr_pack.size()) {
-      auto new_args  = lang::GetArgs(funcs[i]->body, input_output_nodes);
-      funcs[i]->args = new_args;
-    }
-    auto temp_buffers   = lang::GetTempBuffers(all_arg_tensors, stages, funcs[i]->body);
-    funcs[i]->temp_bufs = temp_buffers;
-    funcs[i]->PrepareBufferCastExprs();
-    res.push_back(funcs[i]);
-  }
-  for (int i = 0; i < res.size(); i++) {
-#ifdef CINN_WITH_CUDA
-    optim::OptimizeExprGPU(&(res[i]->body));
-#endif
-    res[i] = optim::Optimize(Expr(res[i]), target, false).as_lowered_func_ref();
-  }
-
-  // 5. Return the result.
-  return res;
 }
 
 }  // namespace framework

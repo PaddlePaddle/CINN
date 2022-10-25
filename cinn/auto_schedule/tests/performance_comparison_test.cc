@@ -28,10 +28,12 @@
 #include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/pass.h"
+#include "cinn/hlir/pass/op_fusion_pass.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/runtime/flags.h"
 #include "cinn/utils/data_util.h"
 
+DECLARE_bool(cinn_ir_schedule);
 DEFINE_string(resnet50_model_dir, "./ResNet50", "the path to paddle model resnet50.");
 // Flags that control which schedule tests will be run.
 // Bit with index 0 controls no schedule test, means options = 1 = "001" will run no schedule test.
@@ -49,13 +51,14 @@ using ::cinn::hlir::framework::GraphCompiler;
 using ::cinn::hlir::framework::Instruction;
 using ::cinn::hlir::framework::Scope;
 
+// FLAGS_cinn_ir_schedule = true;
 class PerformanceTester : public ::testing::Test {
  public:
   struct Options {
     // times of compiled runtime program will be executed repeatedly.
     int repeat_times = 2;
     // the num_tuning_rounds for auto tuning
-    int num_tuning_rounds = 10;
+    int num_tuning_rounds = 1;
     // knobs to control which schedules will be measured, refer to FLAGS_evaluate_knobs explanation
     std::bitset<3> evaluate_knobs = 7UL;
   };
@@ -65,7 +68,7 @@ class PerformanceTester : public ::testing::Test {
     graph_ = std::make_shared<hlir::framework::Graph>(program, target_);
     VLOG(3) << "Apply graph pass.";
     hlir::framework::ApplyPass(graph_.get(), "InferShape");
-    // hlir::framework::ApplyPass(graph_.get(), "OpFusionPass");
+    hlir::framework::ApplyPass(graph_.get(), "OpFusionPass");
     if (FLAGS_evaluate_knobs >= 0) {
       options_.evaluate_knobs = FLAGS_evaluate_knobs;
     }
@@ -109,44 +112,13 @@ class PerformanceTester : public ::testing::Test {
     compile_options.with_instantiate_variables = true;
 
     if (graph_->fusion_groups.empty()) {
-      std::tuple<std::vector<common::GraphNode*>, std::vector<common::GraphEdge*>> topo_result =
-          graph_->topological_order();
-      const std::vector<common::GraphNode*>& nodes_in_order = std::get<0>(topo_result);
-      for (auto graph_node : nodes_in_order) {
-        // n must be an op node
-        auto node = graph_node->safe_as<hlir::framework::Node>();
-        if (node) {
-          auto group = std::make_shared<Graph::Group>();
-          // init group
-          group->nodes.push_back(node);
-          group->nodes_set.insert(node);
-          group->output_nodes.insert(node);
-          // input node
-          for (auto& edge : node->inlinks()) {
-            auto input_graph_node = edge->source();
-            auto input_node_data  = input_graph_node->safe_as<hlir::framework::NodeData>();
-            CHECK(input_node_data);
-            // input data has no source node
-            if (input_node_data->source_node.get()) {
-              group->input_nodes[input_node_data->source_node.get()] = 1;
-            }
-          }
-
-          // group type
-          group->op_pattern_kind = hlir::framework::kNonFusible;
-          // use current node as master node for schedule
-          group->master_nodes.insert(node);
-          group->group_id = node->id();
-
-          compile_options.groups.push_back(group);
-          compile_options.lowered_funcs.push_back(op_lowerer->LowerWithoutSchedule(group));
-        }
-      }
+      compile_options.groups = hlir::pass::BuildNonFusedGroups(graph_.get());
     } else {
       compile_options.groups = graph_->fusion_groups;
-      for (auto group : graph_->fusion_groups) {
-        compile_options.lowered_funcs.push_back(op_lowerer->LowerWithoutSchedule(group));
-      }
+    }
+
+    for (auto group : graph_->fusion_groups) {
+      compile_options.lowered_funcs.push_back(op_lowerer->LowerWithoutSchedule(group));
     }
 
     VLOG(3) << "===========================No Schedule LoweredFunc Begin===========================";
@@ -170,7 +142,9 @@ class PerformanceTester : public ::testing::Test {
 
     AutoTuner::Config tuning_config;
     TuningOptions tuning_options;
-    tuning_options.num_tuning_rounds = num_tuning_rounds;
+    tuning_options.num_tuning_rounds         = num_tuning_rounds;
+    tuning_options.num_measure_trials        = 4;
+    tuning_options.num_samples_per_iteration = 4;
 
     tuner->Initialize(tuning_config, graph_compiler);
     TuningResult tuning_result = tuner->Tune(tuning_options);
@@ -234,11 +208,11 @@ TEST_F(PerformanceTester, Conv2d) {
 }
 
 TEST_F(PerformanceTester, Pool2d) {
-  std::vector<int32_t> input_shape{batch_size, 64, 112, 112};
+  std::vector<int32_t> input_shape{4, 64, 112, 112};
   std::string pooling_type = "max";
   std::vector<int> ksize{3, 3};
   std::vector<int> strides{2, 2};
-  std::vector<int> paddings{1, 1};
+  std::vector<int> paddings{1, 1, 1, 1};
   bool ceil_mode                = false;
   bool exclusive                = true;
   bool global_pooling           = false;
