@@ -283,7 +283,6 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOp(IRComputeFunction compute,
   auto temp_buffers = lang::GetTempBuffers(arg_tensors, stages, func_body);
   auto func =
       ir::_LoweredFunc_::Make(group->GetFuncName(), func_args, ir_sch.GetModule().GetExprs().at(0), temp_buffers);
-  func->PrepareBufferCastExprs();
   func = optim::Optimize(Expr(func), target_, false).as_lowered_func_ref();
   return {func};
 }
