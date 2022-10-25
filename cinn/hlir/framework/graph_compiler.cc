@@ -1418,16 +1418,18 @@ std::vector<ir::LoweredFunc> GetFuncFromImpl(const std::shared_ptr<OpImpl>& impl
   common::CINNValuePack expr_pack = impl->fschedule(common::CINNValuePack{schedule_inputs});
 
   // 4. Optimize the LoweredFunc
-  VLOG(3) << "expr_pack.size() is : " << expr_pack.size();
+  VLOG(3) << "expr_pack.size() is : " << expr_pack.size() << ", funcs.size() is " << funcs.size();
+  VLOG(3) << "input_output_nodes.size() is: " << input_output_nodes.size()
+          << ", all_arg_tensors.size() is: " << all_arg_tensors.size();
   std::vector<ir::LoweredFunc> res;
   for (int i = 0; i < expr_pack.size(); i++) {
-    if (funcs.size() > expr_pack.size()) {
+    if (funcs.size() > expr_pack.size() || all_arg_tensors.size() > input_output_nodes.size()) {
       auto new_args  = lang::GetArgs(funcs[i]->body, input_output_nodes);
       funcs[i]->args = new_args;
     }
     auto temp_buffers   = lang::GetTempBuffers(all_arg_tensors, stages, funcs[i]->body);
     funcs[i]->temp_bufs = temp_buffers;
-    funcs[i]->PrepareBufferCastExprs();
+    funcs[i]            = ir::_LoweredFunc_::Make(funcs[i]->name, funcs[i]->args, funcs[i]->body, funcs[i]->temp_bufs);
     res.push_back(funcs[i]);
   }
   for (int i = 0; i < res.size(); i++) {
