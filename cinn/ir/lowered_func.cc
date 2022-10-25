@@ -193,15 +193,7 @@ void _LoweredFunc_::PrepareBufferCastExprs(bool with_expr_gen_tensor) {
   std::sort(tensors.begin(), tensors.end(), [](const Tensor& a, const Tensor& b) { return a->name < b->name; });
 
   VLOG(3) << "Function used " << tensors.size() << " buffers";
-  std::unordered_set<std::string> args_map;
-  for (int i = 0; i < args.size(); i++) {
-    auto& arg = args[i];
-    args_map.insert(arg.name());
-  }
   for (auto& tensor : tensors) {
-    if (!args_map.count("_" + tensor->name) && tensor->name.find("_init") == std::string::npos) {
-      continue;
-    }
     auto* node = tensor.As<ir::_Tensor_>();
     CHECK(node);
     if (!tensor->buffer.defined()) continue;
