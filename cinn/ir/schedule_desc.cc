@@ -241,6 +241,10 @@ struct ApplyFuncImpl<Return (*)(Args...), impl_fn> {
   CINN_SPECIALIZE_ApplyCallHelper(const std::vector<int>&);
   CINN_SPECIALIZE_ApplyCallHelper(const std::vector<float>&);
   CINN_SPECIALIZE_ApplyCallHelper(const std::vector<std::string>&);
+  CINN_SPECIALIZE_ApplyCallHelper(int64_t);
+  CINN_SPECIALIZE_ApplyCallHelper(double);
+  CINN_SPECIALIZE_ApplyCallHelper(const std::vector<int64_t>&);
+  CINN_SPECIALIZE_ApplyCallHelper(const std::vector<double>&);
 
   template <int out_idx, typename T>
   struct ApplyReturnHelper;
@@ -472,6 +476,10 @@ void AttrVariantToProto(const utils::Attribute& attr, proto::ScheduleDesc_Attr* 
     SET_DESC_REPEATED_ITEM(5, std::vector<int>, INTS, ints);
     SET_DESC_REPEATED_ITEM(6, std::vector<float>, FLOATS, floats);
     SET_DESC_REPEATED_ITEM(7, std::vector<std::string>, STRINGS, strings);
+    SET_DESC_SINGLE_ITEM(8, int64_t, LONG, l);
+    SET_DESC_SINGLE_ITEM(9, double, DOUBLE, d);
+    SET_DESC_REPEATED_ITEM(10, std::vector<int64_t>, LONGS, longs);
+    SET_DESC_REPEATED_ITEM(11, std::vector<double>, DOUBLES, doubles);
     default:
       LOG(FATAL) << "Invalid index:" << attr.index();
   }
@@ -501,6 +509,10 @@ utils::Attribute AttrProtoToVariant(const proto::ScheduleDesc_Attr& attr) {
     PARSE_DESC_REPEATED_ITEM(INTS, ints, std::vector<int>);
     PARSE_DESC_REPEATED_ITEM(FLOATS, floats, std::vector<float>);
     PARSE_DESC_REPEATED_ITEM(STRINGS, strings, std::vector<std::string>);
+    PARSE_DESC_SINGLE_ITEM(LONG, l, int64_t);
+    PARSE_DESC_SINGLE_ITEM(DOUBLE, d, double);
+    PARSE_DESC_REPEATED_ITEM(LONGS, longs, std::vector<int64_t>);
+    PARSE_DESC_REPEATED_ITEM(DOUBLES, doubles, std::vector<double>);
     default:
       LOG(FATAL) << "Invalid type:" << attr.DebugString();
   }

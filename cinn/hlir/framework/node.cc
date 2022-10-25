@@ -41,7 +41,9 @@ struct PyBindNodeAttrVisitor {
   explicit PyBindNodeAttrVisitor(std::stringstream& out) : out(out) {}
 
   void operator()(int v) { out << "int: " << v; }
+  void operator()(int64_t v) { out << "int64_t: " << v; }
   void operator()(float v) { out << "float: " << v; }
+  void operator()(double v) { out << "double: " << v; }
   void operator()(bool v) { out << "bool: " << v; }
   void operator()(const std::string& v) { out << "string: " << v; }
 #define VISIT_ELEMENTS(T__)                                      \
@@ -51,7 +53,9 @@ struct PyBindNodeAttrVisitor {
     out << vs.back();                                            \
   }
   VISIT_ELEMENTS(int)
+  VISIT_ELEMENTS(int64_t)
   VISIT_ELEMENTS(float)
+  VISIT_ELEMENTS(double)
   VISIT_ELEMENTS(bool)
   VISIT_ELEMENTS(std::string)
 };

@@ -166,12 +166,15 @@ Expr GetScalarExpr(const framework::NodeAttr::attr_t &attr) {
     Expr &scalar_;
     explicit Visitor(Expr &scalar) : scalar_(scalar) {}
     void operator()(float v) { scalar_ = Expr(v); }
+    void operator()(double v) { scalar_ = Expr(v); }
     void operator()(int32_t v) { scalar_ = Expr(v); }
     void operator()(int64_t v) { scalar_ = Expr(v); }
     void operator()(bool v) { scalar_ = Expr(v); }
     void operator()(const std::string &v) { scalar_ = Expr(v); }
     void operator()(const std::vector<int> &) { LOG(FATAL) << "wrong type std::vector<int>"; }
+    void operator()(const std::vector<int64_t> &) { LOG(FATAL) << "wrong type std::vector<int64_t>"; }
     void operator()(const std::vector<float> &) { LOG(FATAL) << "wrong type std::vector<float>"; }
+    void operator()(const std::vector<double> &) { LOG(FATAL) << "wrong type std::vector<double>"; }
     void operator()(const std::vector<bool> &) { LOG(FATAL) << "wrong type std::vector<bool>"; }
     void operator()(const std::vector<std::string> &) { LOG(FATAL) << "wrong type std::vector<std::string>"; }
   };

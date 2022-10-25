@@ -188,10 +188,13 @@ UnaryOpMapper(Abs, "X", "Out")
     VLOG(4) << "pow(" << x_name << ", " << y_name << ")";
   } else if (op_desc.HasAttr("factor")) {
     auto factor = utils::GetAttrOrDefault<float>(op_desc, "factor");
-    y           = ctx.Builder()->FillConstant(x->shape, factor, cinn::UniqName(x_name + "_factor"));
+    y = ctx.Builder()->FillConstant(x->shape, factor, cinn::UniqName(x_name + "_factor"), common::Type2Str(x->type));
   } else {
     LOG(FATAL) << "Cannot found [FactorTensor] input or [factor] attribute in paddle.pow! Please check.";
   }
+
+  CHECK_EQ(x->type, y.value()->type) << "The data type of pow's inputs should be equal, but here x:" << x->type
+                                     << " != y:" << y.value()->type;
 
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
   auto out_name = op_desc.Output("Out").front();
