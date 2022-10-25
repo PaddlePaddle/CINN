@@ -1432,7 +1432,9 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
         CHECK_EQ(vec_tensor.size(), 2);
         Expr input_pad = vec_tensor[1];
         CHECK(input_pad.as_tensor());
-        auto block_input_pad = ir_sch.GetBlock(input_pad.as_tensor()->name);
+        const std::string &input_pad_name = input_pad.as_tensor()->name;
+        VLOG(6) << "ComputeInline on " << input_pad_name;
+        auto block_input_pad = ir_sch.GetBlock(input_pad_name);
         ir_sch.ComputeInline(block_input_pad);
       }
       if (target.arch == Target::Arch::NVGPU) {
