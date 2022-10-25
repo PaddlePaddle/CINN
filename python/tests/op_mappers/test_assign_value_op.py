@@ -27,7 +27,7 @@ paddle.enable_static()
 enable_gpu = sys.argv.pop()
 
 
-class TestStackOp(OpMapperTest):
+class TestAssignValueOp(OpMapperTest):
     def setUp(self):
         if enable_gpu == "ON":
             self.target = DefaultNVGPUTarget()
@@ -37,26 +37,30 @@ class TestStackOp(OpMapperTest):
             self.place = paddle.CPUPlace()
 
     def init_input_data(self):
-        self.feed_data = {
-            'x': self.random([10, 12, 128, 128], 'float32'),
-            'y': self.random([10, 12, 128, 128], 'float32'),
-        }
+        self.feed_data = {'x': self.random([10], 'float32')}
 
     def set_paddle_program(self):
-        x = paddle.static.data(
-            name='x',
-            shape=self.feed_data['x'].shape,
-            dtype=self.feed_data['x'].dtype)
-        y = paddle.static.data(
-            name='y',
-            shape=self.feed_data['y'].shape,
-            dtype=self.feed_data['x'].dtype)
-        out = paddle.stack([x, y], 1)
+        out = paddle.assign(self.feed_data['x'])
 
-        return ([x.name, y.name], [out])
+        return ([], [out])
 
     def test_check_results(self):
         self.check_outputs_and_grads()
+
+
+class TestAssignValueCase1(TestAssignValueOp):
+    def init_input_data(self):
+        self.feed_data = {'x': self.random([10], 'int32', 0, 1000)}
+
+
+class TestAssignValueCase2(TestAssignValueOp):
+    def init_input_data(self):
+        self.feed_data = {'x': self.random([10], 'bool')}
+
+
+class TestAssignValueCase3(TestAssignValueOp):
+    def init_input_data(self):
+        self.feed_data = {'x': self.random([10], 'int64', 0, 1000)}
 
 
 if __name__ == "__main__":

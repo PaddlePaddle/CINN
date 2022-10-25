@@ -21,6 +21,17 @@
 namespace cinn {
 namespace optim {
 
+static const std::set<std::string> kExternFp32CallsGPU{
+    {"exp",   "erf",   "sigmoid", "sqrt",  "log",   "log2", "log10",    "floor", "ceil",
+     "round", "trunc", "cos",     "cosh",  "tan",   "sin",  "sinh",     "acos",  "acosh",
+     "asin",  "asinh", "atan",    "atanh", "isnan", "tanh", "isfinite", "isinf", "remainder"}};
+
+static const std::set<std::string> kExternInt32CallsGPU{
+    {"left_shift", "right_shift", "bitwise_or", "bitwise_and", "bitwise_xor", "bitwise_not"}};
+
+static const std::set<std::string> kExternFp32CallsCPU = {
+    "erf", "acos", "acosh", "asin", "asinh", "atan", "atanh", "remainder"};
+
 void MapExternCall(Expr *e, Target target) {
   struct Mutator : ir::IRMutator<Expr *> {
     Target target;
@@ -50,14 +61,34 @@ void MapExternCall(Expr *e, Target target) {
     }
 
     void DealWithNvGpuintrinsics(ir::Call *node, Expr *expr) {
-      if (kExternFp32CallsGPU.count(node->name)) {
-        CHECK_GE(node->read_args.size(), 1UL);
-        CHECK_EQ(node->read_args.front().type(), Float(32));
-        *expr = lang::CallExtern("cinn_nvgpu_" + node->name + "_fp32", node->read_args);
-      } else if (kExternInt32CallsGPU.count(node->name)) {
-        CHECK_GE(node->read_args.size(), 1UL);
-        CHECK_EQ(node->read_args.front().type(), Int(32));
-        *expr = lang::CallExtern("cinn_nvgpu_" + node->name + "_int32", node->read_args);
+      auto arg_size = node->read_args.size();
+      if (arg_size == 0UL) {
+        // some node like __syncthreads hasn't arguments
+        return;
+      }
+      const auto &dtype = node->read_args.front().type();
+      const auto &name  = node->name;
+
+      bool node_in_extern_fp32     = kExternFp32CallsGPU.count(name);
+      std::string extern_fp32_func = "cinn_nvgpu_" + name + "_fp32";
+
+      bool node_in_extern_int32     = kExternInt32CallsGPU.count(name);
+      std::string extern_int32_func = "cinn_nvgpu_" + name + "_int32";
+
+      if (node_in_extern_fp32 && node_in_extern_int32) {
+        if (dtype == Float(32)) {
+          *expr = lang::CallExtern(extern_fp32_func, node->read_args);
+        } else if (dtype == Int(32)) {
+          *expr = lang::CallExtern(extern_int32_func, node->read_args);
+        } else {
+          LOG(FATAL) << name << " not support data type " << dtype;
+        }
+      } else if (node_in_extern_fp32) {
+        CHECK_EQ(dtype, Float(32)) << name << " only support float32, but here " << dtype;
+        *expr = lang::CallExtern(extern_fp32_func, node->read_args);
+      } else if (node_in_extern_int32) {
+        CHECK_EQ(dtype, Int(32)) << name << " only support int32, but here " << dtype;
+        *expr = lang::CallExtern(extern_int32_func, node->read_args);
       }
       // TODO(Superjomn) deal with int64 intrinsics.
     }

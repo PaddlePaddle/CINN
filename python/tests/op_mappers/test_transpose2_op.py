@@ -27,7 +27,7 @@ paddle.enable_static()
 enable_gpu = sys.argv.pop()
 
 
-class TestStackOp(OpMapperTest):
+class TestTranspose2Op(OpMapperTest):
     def setUp(self):
         if enable_gpu == "ON":
             self.target = DefaultNVGPUTarget()
@@ -36,27 +36,34 @@ class TestStackOp(OpMapperTest):
             self.target = DefaultHostTarget()
             self.place = paddle.CPUPlace()
 
+    def init_input_dtype(self):
+        self.dtype = 'float32'
+
     def init_input_data(self):
+        self.init_input_dtype()
         self.feed_data = {
-            'x': self.random([10, 12, 128, 128], 'float32'),
-            'y': self.random([10, 12, 128, 128], 'float32'),
+            'x': self.random([2, 3, 4], self.dtype),
         }
 
     def set_paddle_program(self):
-        x = paddle.static.data(
-            name='x',
-            shape=self.feed_data['x'].shape,
-            dtype=self.feed_data['x'].dtype)
-        y = paddle.static.data(
-            name='y',
-            shape=self.feed_data['y'].shape,
-            dtype=self.feed_data['x'].dtype)
-        out = paddle.stack([x, y], 1)
+        x = paddle.static.data(name='x', shape=[2, 3, 4], dtype=self.dtype)
+        perm = [1, 0, 2]
+        out = paddle.transpose(x, perm)
 
-        return ([x.name, y.name], [out])
+        return ([x.name], [out])
 
     def test_check_results(self):
         self.check_outputs_and_grads()
+
+
+class TestTranspose2OpInt32(TestTranspose2Op):
+    def init_input_dtype(self):
+        self.dtype = 'int32'
+
+
+class TestTranspose2OpInt64(TestTranspose2Op):
+    def init_input_dtype(self):
+        self.dtype = 'int64'
 
 
 if __name__ == "__main__":
