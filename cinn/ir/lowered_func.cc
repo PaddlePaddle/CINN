@@ -199,7 +199,7 @@ void _LoweredFunc_::PrepareBufferCastExprs(bool with_expr_gen_tensor) {
     args_map.insert(arg.name());
   }
   for (auto& tensor : tensors) {
-    if (!args_map.count("_" + tensor->name)) {
+    if (!args_map.count("_" + tensor->name) && tensor->name.find("_init") == std::string::npos) {
       continue;
     }
     auto* node = tensor.As<ir::_Tensor_>();
