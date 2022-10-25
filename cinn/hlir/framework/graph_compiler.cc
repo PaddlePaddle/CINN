@@ -1423,7 +1423,7 @@ std::vector<ir::LoweredFunc> GetFuncFromImpl(const std::shared_ptr<OpImpl>& impl
           << ", all_arg_tensors.size() is: " << all_arg_tensors.size();
   std::vector<ir::LoweredFunc> res;
   for (int i = 0; i < expr_pack.size(); i++) {
-    if (funcs.size() > expr_pack.size() || all_arg_tensors.size() != input_output_nodes.size()) {
+    if (funcs.size() > expr_pack.size() || all_arg_tensors.size() > input_output_nodes.size()) {
       auto new_args  = lang::GetArgs(funcs[i]->body, input_output_nodes);
       funcs[i]->args = new_args;
     }

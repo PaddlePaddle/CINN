@@ -1264,7 +1264,7 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerNonFusibleOp(GroupPtr& group, boo
     input_output_nodes.insert(input_output_nodes.end(), group->output_names.begin(), group->output_names.end());
     VLOG(6) << "func.size() = " << func.size() << ", expr_pack.size() = " << expr_pack.size();
     VLOG(6) << "args.size() = " << args.size() << ", input_output_nodes.size() = " << input_output_nodes.size();
-    if (args.size() != input_output_nodes.size()) {
+    if (args.size() > input_output_nodes.size()) {
       args = lang::GetArgs(func_body, input_output_nodes);
     }
     std::vector<ir::LoweredFunc> res;
