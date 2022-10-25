@@ -100,7 +100,7 @@ TEST(net_build, program_execute_multi_elementwise_add) {
 
   runtime_program->Execute();
 }
-
+#ifdef CINN_WITH_CUDA
 TEST(net_build, program_execute_fc) {
   constexpr int B = 10;  // batch size
   constexpr int M = 32;
@@ -146,7 +146,7 @@ TEST(net_build, program_execute_fc) {
 
   runtime_program->Execute();
 }
-
+#endif
 TEST(net_build, program_execute_reverse) {
   const int B = 16;
   const int C = 3;

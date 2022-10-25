@@ -684,6 +684,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::_Module_ *op) {
   for (auto &fn : op->functions) {
     VLOG(1) << "JIT Linking function [" << fn.As<ir::_LoweredFunc_>()->name << "]";
     ir::Expr fn_expr(fn);
+
     auto fnll = Visit(&fn_expr);
 
     VLOG(5) << "fn llvm:\n" << DumpToString(*fnll);
@@ -920,26 +921,13 @@ llvm::Value *CodeGenLLVM::Visit(const ir::_LoweredFunc_ *op) {
   auto create_temp_buffers   = op->PrepareCreateTempBufferExprs();
   auto alloca_temp_buffers   = op->PrepareAllocTempBufferExprs();
   auto dealloca_temp_buffers = op->PrepareDeallocTempBufferExprs();
-  new_body.reserve(op->argument_prepare_exprs.size() + op->alloc_output_buffer_exprs.size() +
-                   create_temp_buffers.size() + alloca_temp_buffers.size() + dealloca_temp_buffers.size() +
-                   op->buffer_data_cast_exprs.size() + 1 /*op->body*/ + op->dealloc_output_buffer_exprs.size());
-
-  //  auto append = [&new_body](auto &&v) {
-  //    if (std::is_same<const ir::Expr &, decltype(v)>::value) {
-  //      new_body.push_back(v);
-  //    } else {
-  //      new_body.insert(new_body.end(), v.begin(), v.end());
-  //    }
-  //  };
 
   appendBody(new_body, op->argument_prepare_exprs);
   appendBody(new_body, create_temp_buffers);
   appendBody(new_body, alloca_temp_buffers);
-  appendBody(new_body, op->alloc_output_buffer_exprs);
   appendBody(new_body, op->buffer_data_cast_exprs);
   appendBody(new_body, op->body);
   appendBody(new_body, dealloca_temp_buffers);
-  appendBody(new_body, op->dealloc_output_buffer_exprs);
 
   ir::Expr function_body = ir::Block::Make(new_body);
 
