@@ -78,6 +78,35 @@ EXTERN_CALL_IMP_NO_VEC(Asinh, asinh);
 EXTERN_CALL_IMP_NO_VEC(Atan, atan);
 EXTERN_CALL_IMP_NO_VEC(Atanh, atanh);
 
+#undef EXTERN_CALL_IMP
+#undef EXTERN_CALL_IMP_NO_VEC
+
+#define EXTERN_BINARY_CALL_IMP(name__, target__) \
+  Expr name__(Expr a, Expr b) { return ir::Call::Make(a->type(), #target__, {a, b}, {}, ir::CallType::Extern); }
+
+EXTERN_BINARY_CALL_IMP(Remainder, remainder)
+
+#undef EXTERN_BINARY_CALL_IMP
+
+Expr Zero(const Type& type) { return make_const(type, 0); }
+Expr One(const Type& type) { return make_const(type, 1); }
+
+Expr FloorDivide(Expr a, Expr b) {
+  CHECK_EQ(a.type(), b.type()) << "FloorDivide's inputs type not equal, where a:" << a.type() << " but b:" << b.type();
+  return a.type().is_float() ? Floor(a / b) : a / b;
+}
+
+Expr Mod(Expr a, Expr b) {
+  CHECK_EQ(a.type(), b.type()) << "FloorDivide's inputs type not equal, where a:" << a.type() << " but b:" << b.type();
+  auto quotient = lang::FloorDivide(a, b);
+  if (a.type().is_int()) {
+    auto zero = Zero(a->type());
+    auto one  = One(a->type());
+    quotient  = ir::Select::Make(a > zero && b < zero, lang::FloorDivide(a - one, b) - one, lang::FloorDivide(a, b));
+  }
+  return a - quotient * b;
+}
+
 Expr min_value(const Type& type) {
   CHECK_EQ(type.lanes(), 1);
 #define FOR_CASE(type__)                                \
@@ -130,7 +159,10 @@ Expr Abs(Expr e) {
       return make_const(type, std::fabs(node->value));
     }
     return CallExtern("fabs", {e});
+  } else {
+    LOG(FATAL) << "Abs Not support data type " << type;
   }
+  return e;
 }
 
 Expr IsNan(Expr e) {
