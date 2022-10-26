@@ -1428,6 +1428,8 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
       ir::IRSchedule ir_sch(mod_expr);
       ir_sch.MergeExprs();
       int arg_pack_size = arg_pack.size();
+      // arg_pack_size == 3 case: input, input_pad, output
+      // arg_pack_size == 4 case: input, input_pad, output, stage
       if (arg_pack_size == 3UL || arg_pack_size == 4UL) {
         CHECK_EQ(vec_tensor.size(), 2);
         Expr input_pad = vec_tensor[1];
