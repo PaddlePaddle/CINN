@@ -62,7 +62,6 @@ std::vector<ir::LoweredFunc> GetFuncFromOpImpl(const std::shared_ptr<OpImpl>& im
                                                const std::string& func_name,
                                                const Target& target,
                                                bool apply_impl_schedule) {
-  std::set<std::string> all_arg_names(input_output_nodes.begin(), input_output_nodes.end());
   // 1.Call Op's Compute function, using the default stages and LowerVec to get IR tree.
   common::CINNValuePack C = impl->fcompute(cinn_inputs);
 
@@ -74,14 +73,15 @@ std::vector<ir::LoweredFunc> GetFuncFromOpImpl(const std::shared_ptr<OpImpl>& im
     if (!temp.as_tensor_ref()->buffer.defined() || target != common::DefaultNVGPUTarget()) {
       all_arg_tensors.push_back(temp.as_tensor_ref());
       temp.as_tensor_ref()->WithBuffer();
-      all_arg_names.insert(temp.as_tensor_ref()->name);
     }
   }
 
   poly::StageMap stages = C.back();
   auto funcs            = lang::LowerVec(func_name, stages, all_arg_tensors, {}, {}, nullptr, target, true);
 
+  std::vector<ir::LoweredFunc> res = funcs;
   if (apply_impl_schedule) {
+    res.clear();
     std::vector<common::CINNValue> schedule_inputs;
     for (int i = 0; i < C.size() - 1; ++i) {
       CHECK(C[i].is_tensor());
@@ -96,25 +96,26 @@ std::vector<ir::LoweredFunc> GetFuncFromOpImpl(const std::shared_ptr<OpImpl>& im
 
     // 4. Optimize the LoweredFunc
     VLOG(3) << "expr_pack.size() is : " << expr_pack.size();
-    std::vector<std::string> input_output_names(all_arg_names.begin(), all_arg_names.end());
-    funcs.clear();
     for (int i = 0; i < expr_pack.size(); i++) {
-      ir::Expr func_body = expr_pack[i];
-      auto args          = lang::GetArgs(func_body, input_output_names);
-      auto temp_buffers  = lang::GetTempBuffers(all_arg_tensors, stages, func_body);
-      auto function      = ir::_LoweredFunc_::Make(func_name, args, func_body, temp_buffers);
-      function->PrepareBufferCastExprs();
-      funcs.push_back(function);
+      ir::Expr func_body             = expr_pack[i];
+      std::vector<ir::Argument> args = funcs[i]->args;
+      // if multiple functions are merged, we should update the arguments
+      if (funcs.size() > expr_pack.size()) {
+        args = lang::GetArgs(func_body, input_output_nodes);
+      }
+      auto temp_buffers = lang::GetTempBuffers(all_arg_tensors, stages, func_body);
+      auto function     = ir::_LoweredFunc_::Make(funcs[i]->name, args, func_body, temp_buffers);
+      res.push_back(function);
     }
   }
 
-  for (auto& f : funcs) {
+  for (auto& f : res) {
 #ifdef CINN_WITH_CUDA
     optim::OptimizeExprGPU(&(f->body));
 #endif
     f = optim::Optimize(Expr(f), target, false).as_lowered_func_ref();
   }
-  return funcs;
+  return res;
 }
 
 std::vector<Node*> GetConsumer(Node* node) {
@@ -1258,8 +1259,8 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerNonFusibleOp(GroupPtr& group, boo
       }
       tensor_map[id] = tensor;
       // input name
-      group->input_names.push_back(id);
-      input_output_names.push_back(id);
+      group->input_names.push_back(tensor->name);
+      input_output_names.push_back(tensor->name);
     } else {
       tensor = tensor_map[id];
     }
@@ -1274,6 +1275,7 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerNonFusibleOp(GroupPtr& group, boo
   for (auto node_data : node_datas) {
     VLOG(3) << "cinn_inputs.push_back " << node_data->id();
     group->output_names.push_back(node_data->id());
+    input_output_names.push_back(node_data->id());
     out_types.push_back(this->type_dict_.at(node_data->id()));
     out_shapes.push_back(this->shape_dict_.at(node_data->id()));
     cinn_inputs.push_back(common::CINNValue(node_data->id()));

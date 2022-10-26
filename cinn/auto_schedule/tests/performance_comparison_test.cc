@@ -259,6 +259,7 @@ TEST_F(PerformanceTester, Softmax) {
   int axis                = -1;
   std::string data_format = "AnyLayout";
 
+  options_.evaluate_knobs = 5UL;
   Evaluate(SoftmaxProgramBuilder(input_shape, axis, data_format)());
 }
 
