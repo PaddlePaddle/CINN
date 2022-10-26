@@ -516,6 +516,7 @@ void InsertBroadcastTo(Graph* graph) {
         if (output_shape != input_shape) {
           // input_data UnLinkTo node
           input_data->UnLinkSingleTo(node);
+          std::vector<int> broadcast_axes;
           if (input_shape.size() == output_shape.size()) {
             for (int idx = 0; idx < input_shape.size(); ++idx) {
               broadcast_axes.push_back(idx);
