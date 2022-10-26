@@ -34,7 +34,7 @@ namespace auto_schedule {
 // This class is entrance of auto-tune, users can use it
 // to tune graph (not supported yet) and search a series of schedules
 // that maybe more likely to obtain better performance.
-// Internally, it creates necessary components and use them to finish tuning.
+// Internally, it creates necessary components and use them to perform tuning.
 class AutoTuner {
  public:
   // configure how to perform auto-tune, such as
@@ -43,6 +43,7 @@ class AutoTuner {
     std::string task_schedule_strategy = "round_robin";
     TaskScheduler::Config task_schedule_config;
     int runner_repeat_times = 1;
+    DatabaseConfig database_config;
   };
 
   AutoTuner(const common::Target& target, hlir::framework::Graph* graph);
@@ -69,6 +70,9 @@ class AutoTuner {
   std::unique_ptr<ScheduleBuilder> builder_;
   std::unique_ptr<ScheduleRunner> runner_;
   std::unique_ptr<ScheduleMeasurer> schedule_measurer_;
+
+  // The database to store tuning record
+  std::unique_ptr<Database> database_;
 };
 
 }  // namespace auto_schedule

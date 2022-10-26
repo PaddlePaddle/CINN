@@ -25,6 +25,7 @@
 #include "cinn/common/common.h"
 #include "cinn/common/context.h"
 #include "cinn/common/macros.h"
+#include "cinn/common/type.h"
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
@@ -55,7 +56,7 @@ ir::Tensor Gather(const ir::Tensor &A, const ir::Tensor &B, const int &axis, con
         for (int i = 0; i < axis; ++i) {
           A_indices.push_back(indices[i]);
         }
-        A_indices.push_back(B(indices));
+        A_indices.push_back(ir::Cast::Make(common::I32(), B(indices)));
         for (size_t i = axis + 1; i < A->shape.size(); ++i) {
           A_indices.push_back(indices[i]);
         }
@@ -123,11 +124,37 @@ std::shared_ptr<framework::OpStrategy> StrategyForGather(const framework::NodeAt
   });
 
   framework::CINNSchedule gather_schedule([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input argument of gather schedule is empty! Please check.\n";
-    CINNValuePack arg_pack = args[0];
-    Expr out               = arg_pack[0];
-    CHECK(out.as_tensor());
-    *ret = arg_pack;
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK(!args.empty()) << "The input argument of gather_schedule is empty! Please check.\n";
+      common::CINNValuePack arg_pack = args[0];
+      std::vector<Expr> vec_ast;
+      for (int i = 0; i < arg_pack.size(); i++) {
+        if (arg_pack[i].is_expr()) {
+          Expr temp = arg_pack[i];
+          vec_ast.emplace_back(temp);
+        }
+      }
+      CHECK(!vec_ast.empty());
+      ir::ModuleExpr mod_expr(vec_ast);
+      ir::IRSchedule ir_sch(mod_expr);
+      ir_sch.MergeExprs();
+      long prod_size = std::accumulate(output_shapes[0].begin(), output_shapes[0].end(), 1, std::multiplies<int>());
+      if (prod_size > 1) {
+        if (target.arch == Target::Arch::NVGPU) {
+          pe::IRCudaScheduleInjective(ir_sch, output_shapes.front(), target);
+        } else if (target.arch == Target::Arch::X86) {
+          pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target, true);
+        }
+      }
+      std::vector<common::CINNValue> res{common::CINNValue(ir_sch.GetModule().GetExprs().at(0))};
+      *ret = common::CINNValuePack{res};
+    } else {
+      CHECK(!args.empty()) << "The input argument of gather_schedule is empty! Please check.\n";
+      CINNValuePack arg_pack = args[0];
+      Expr out               = arg_pack[0];
+      CHECK(out.as_tensor());
+      *ret = arg_pack;
+    }
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -174,11 +201,37 @@ std::shared_ptr<framework::OpStrategy> StrategyForGatherNd(const framework::Node
   });
 
   framework::CINNSchedule gather_nd_schedule([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input argument of gather_nd schedule is empty! Please check.\n";
-    CINNValuePack arg_pack = args[0];
-    Expr out               = arg_pack[0];
-    CHECK(out.as_tensor());
-    *ret = arg_pack;
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK(!args.empty()) << "The input argument of gather_nd_schedule is empty! Please check.\n";
+      common::CINNValuePack arg_pack = args[0];
+      std::vector<Expr> vec_ast;
+      for (int i = 0; i < arg_pack.size(); i++) {
+        if (arg_pack[i].is_expr()) {
+          Expr temp = arg_pack[i];
+          vec_ast.emplace_back(temp);
+        }
+      }
+      CHECK(!vec_ast.empty());
+      ir::ModuleExpr mod_expr(vec_ast);
+      ir::IRSchedule ir_sch(mod_expr);
+      ir_sch.MergeExprs();
+      long prod_size = std::accumulate(output_shapes[0].begin(), output_shapes[0].end(), 1, std::multiplies<int>());
+      if (prod_size > 1) {
+        if (target.arch == Target::Arch::NVGPU) {
+          pe::IRCudaScheduleInjective(ir_sch, output_shapes.front(), target);
+        } else if (target.arch == Target::Arch::X86) {
+          pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target, true);
+        }
+      }
+      std::vector<common::CINNValue> res{common::CINNValue(ir_sch.GetModule().GetExprs().at(0))};
+      *ret = common::CINNValuePack{res};
+    } else {
+      CHECK(!args.empty()) << "The input argument of gather_nd_schedule is empty! Please check.\n";
+      CINNValuePack arg_pack = args[0];
+      Expr out               = arg_pack[0];
+      CHECK(out.as_tensor());
+      *ret = arg_pack;
+    }
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();

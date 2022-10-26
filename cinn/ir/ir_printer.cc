@@ -363,14 +363,6 @@ void IrPrinter::Visit(const FracOp *x) {
   os() << ")";
 }
 
-void IrPrinter::Visit(const Power *x) {
-  os() << "(";
-  Print(x->a());
-  os() << "^";
-  Print(x->b());
-  os() << ")";
-}
-
 void IrPrinter::Visit(const Product *x) {
   os() << "(";
   for (int i = 0; i < x->operands().size() - 1; i++) {
@@ -471,6 +463,18 @@ void IrPrinter::Visit(const ScheduleBlockRealize *x) {
     for (int i = 0; i < write_buffers.size(); i++) {
       if (i) os() << ", ";
       Print(write_buffers[i]);
+    }
+    os() << ")\n";
+  }
+  if (!schedule_block->attrs.empty()) {
+    DoIndent();
+    os() << "attrs(";
+    bool comma = false;
+    for (auto &&kv : schedule_block->attrs) {
+      if (comma) os() << ", ";
+      os() << kv.first << ":";
+      absl::visit([this](auto &&arg) { this->os() << arg; }, kv.second);
+      comma = true;
     }
     os() << ")\n";
   }

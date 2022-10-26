@@ -60,46 +60,39 @@ bool AutoUnroll::MeetCondition(const ir::ScheduleBlock* schedule_block) {
   return !find_target_exprs.empty();
 }
 
-RuleApplyType AutoUnroll::Init(const ir::IRSchedule& init_schedule) {
-  ir_schedule_ = std::make_unique<ir::IRSchedule>(optim::IRCopy(init_schedule));
-  auto exprs   = ir_schedule_->GetModule().GetExprs();
+RuleApplyType AutoUnroll::Init(ir::IRSchedule* ir_schedule) {
+  ir_schedule_        = ir_schedule;
+  auto block_realizes = ir_schedule_->GetAllBlocks();
 
-  // extract all root schedulable blocks
-  std::vector<ir::ScheduleBlock*> root_schedule_blocks_;
-  for (auto&& it_expr : exprs) {
-    auto* block = it_expr.As<ir::Block>();
-    CHECK(block) << "block is null";
-    for (auto&& stmt : block->stmts) {
-      ir::ScheduleBlockRealize* block_realize = stmt.As<ir::ScheduleBlockRealize>();
-      CHECK(block_realize) << "stmt is not a ScheduleBlockRealize";
-      ir::ScheduleBlock* schedule_block = block_realize->schedule_block.As<ir::ScheduleBlock>();
-      CHECK(schedule_block) << "schedule_block field is not a ScheduleBlock";
-      VLOG(6) << "Find a root schedule block:\n" << stmt;
-      root_schedule_blocks_.emplace_back(schedule_block);
-    }
-  }
-  VLOG(6) << "Module has root_schedule_blocks:" << root_schedule_blocks_.size();
-
-  // collect schedule blocks which meet applicable conditions
+  // A schedule block can perform `auto_unroll` rule should meet two conditions:
+  // (1) it is a root block
+  // (2) MeetCondition returns true with it
   applicable_schedule_blocks_.clear();
-  for (size_t i = 0; i < root_schedule_blocks_.size(); ++i) {
-    ir::ScheduleBlock* schedule_block = root_schedule_blocks_.at(i);
+  std::set<Expr> deduplicate_results;
+  for (size_t i = 0; i < block_realizes.size(); ++i) {
+    // find root block
+    Expr root_block     = ir_schedule_->GetRootBlock(block_realizes[i]);
+    auto* block_realize = root_block.As<ir::ScheduleBlockRealize>();
+    CHECK(block_realize) << "stmt is not a ScheduleBlockRealize:" << root_block;
+    auto* schedule_block = block_realize->schedule_block.As<ir::ScheduleBlock>();
+    CHECK(schedule_block) << "schedule_block field is not a ScheduleBlock:" << Expr(block_realize);
     if (MeetCondition(schedule_block)) {
-      applicable_schedule_blocks_.emplace_back(schedule_block);
+      deduplicate_results.emplace(root_block);
     }
   }
-  num_applicable_ = applicable_schedule_blocks_.size();
+  applicable_schedule_blocks_ = {deduplicate_results.begin(), deduplicate_results.end()};
+  num_applicable_             = applicable_schedule_blocks_.size();
   VLOG(6) << "Collect applicable_schedule_blocks_:" << num_applicable_;
 
   return num_applicable_ > 0 ? RuleApplyType::kApplyAndSkipThisRule : RuleApplyType::kCannotApply;
 }
 
-ir::IRSchedule AutoUnroll::Apply(int index) {
+void AutoUnroll::Apply(int index) {
   CHECK_LT(index, applicable_schedule_blocks_.size()) << "invalid apply index:" << index;
-  auto* schedule_block = applicable_schedule_blocks_.at(index);
-  int max_step         = auto_unroll_options[std::rand() % auto_unroll_options.size()];
-  schedule_block->attrs.emplace(ir::attr::auto_unroll_max_step, max_step);
-  return optim::IRCopy(*ir_schedule_);
+  auto applied_block = applicable_schedule_blocks_.at(index);
+  int max_step       = auto_unroll_options[std::rand() % auto_unroll_options.size()];
+  ir_schedule_->Annotate(applied_block, ir::attr::auto_unroll_max_step, max_step);
+  return;
 }
 
 }  // namespace auto_schedule

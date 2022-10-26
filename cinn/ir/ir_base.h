@@ -102,7 +102,6 @@ class ScheduleBlockRealize;
   macro__(Ramp)                             \
   macro__(Broadcast)                        \
   macro__(FracOp)                           \
-  macro__(Power)                            \
   macro__(Product)                          \
   macro__(Sum)                              \
   macro__(PrimitiveNode)                    \

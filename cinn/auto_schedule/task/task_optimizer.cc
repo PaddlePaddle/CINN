@@ -16,6 +16,7 @@
 
 #include <glog/logging.h>
 
+#include <functional>
 #include <limits>
 
 #include "cinn/auto_schedule/cost_model/expr_cost_model.h"
@@ -30,14 +31,15 @@
 #include "cinn/optim/ir_copy.h"
 #include "cinn/optim/transform_gpu_forloop.h"
 #include "cinn/runtime/flags.h"
+#include "cinn/utils/string.h"
 
 DECLARE_bool(auto_schedule_use_cost_model);
 
 namespace cinn {
 namespace auto_schedule {
 
-TaskOptimizer::TaskOptimizer(const TuneTask& task, ScheduleMeasurer* schedule_measurer)
-    : task_(&task), schedule_measurer_(schedule_measurer), cost_model_() {}
+TaskOptimizer::TaskOptimizer(const TuneTask& task, ScheduleMeasurer* schedule_measurer, Database* database)
+    : task_(&task), schedule_measurer_(schedule_measurer), database_(database), cost_model_() {}
 
 TuningResult::OptimizedComputeExpr TaskOptimizer::Optimize(const TuningOptions& options) {
   // TODO(zhhsplendid): develop other optimize methods and configure the method by options.
@@ -48,17 +50,17 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
   CHECK_EQ(options.num_measure_trials % options.num_samples_per_iteration, 0)
       << "TuningOptions.num_measure_trials % TuningOptions.num_samples_per_iteration must be 0.";
 
-  VLOG(4) << "TuneTask LoweredFunc before optimization is:";
-  VLOG(4) << "task_.lowered_funcs().size() = " << task_->lowered_funcs.size();
+  VLOG(4) << "Optimizing TuneTask with num_measure_trials:" << options.num_measure_trials
+          << ", LoweredFunc before optimization is:";
+  VLOG(4) << "lowered function size = " << task_->lowered_funcs.size();
   for (size_t i = 0; i < task_->lowered_funcs.size(); ++i) {
-    VLOG(4) << "lowered_funcs[" << i << "] = ";
-    VLOG(4) << task_->lowered_funcs[i];
+    VLOG(4) << "lowered_funcs[" << i << "] detail:\n" << task_->lowered_funcs[i];
   }
 
   if (evolutionary_search_ == nullptr) {
     // TODO(zhhsplendid): check whether the options is same as previous,
     // if not, we should create new EvolutionarySearch
-    evolutionary_search_ = std::make_unique<EvolutionarySearch>(*task_, cost_model_);
+    evolutionary_search_ = std::make_unique<EvolutionarySearch>(*task_, cost_model_, database_);
   }
 
   if (options.num_measure_trials == 0) {
@@ -72,7 +74,7 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
 
     result.lowered_funcs.emplace_back(optim::IRCopy(task_->lowered_funcs));
 
-    std::vector<ir::Expr> best_exprs = states[0].ir_schedule.GetModule().GetExprs();
+    std::vector<ir::Expr> best_exprs = states[0]->ir_schedule.GetModule().GetExprs();
     CHECK_EQ(best_exprs.size(), result.lowered_funcs[0].size())
         << "RuntimeError: Expr size is not equal to LoweredFunc size in TaskOptimizer";
     for (size_t i = 0; i < best_exprs.size(); ++i) {
@@ -90,14 +92,19 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
   result.lowered_funcs.push_back(optim::IRCopy(task_->lowered_funcs));
 
   while (measured_count < options.num_measure_trials) {
+    VLOG(4) << "Launch a new search, measured_count:" << measured_count;
     std::vector<SearchState> states = evolutionary_search_->SearchModuleExprEpsGreedy(options);
-    VLOG(4) << "TaskOptimizer run EvolutionarySearch with return size = " << states.size();
+    VLOG(4) << "EvolutionarySearch finished with return size = " << states.size();
     std::vector<MeasureInput> measure_inputs(states.size());
     std::vector<const ir::ModuleExpr*> cost_model_samples(states.size());
     for (size_t i = 0; i < states.size(); ++i) {
-      cost_model_samples[i]            = &(states[i].ir_schedule.GetModule());
+      auto debug_str = states[i]->DebugString();
+      VLOG(4) << "State-" << i << " hash:" << std::hash<std::string>()(debug_str);
+      VLOG(5) << "****** State-" << i << " Detail ******" << debug_str;
+
+      cost_model_samples[i]            = &(states[i]->ir_schedule.GetModule());
       measure_inputs[i].task           = task_;
-      std::vector<ir::Expr> best_exprs = states[i].ir_schedule.GetModule().GetExprs();
+      std::vector<ir::Expr> best_exprs = states[i]->ir_schedule.GetModule().GetExprs();
       CHECK_EQ(best_exprs.size(), task_->lowered_funcs.size())
           << "RuntimeError: Expr size is not equal to LoweredFunc size in TaskOptimizer";
 
@@ -110,9 +117,15 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
         }
       }
     }
+    VLOG(4) << "ScheduleMeasurer start with input size=" << measure_inputs.size();
     std::vector<MeasureResult> measure_outputs = schedule_measurer_->Measure(measure_inputs);
     CHECK_EQ(measure_outputs.size(), states.size())
         << "ScheduleMeasurer didn't output same number of MeasureOutput of states in TaskOptimizer";
+    // record to database
+    for (size_t i = 0; i < states.size(); ++i) {
+      database_->AddRecord(
+          TuningRecord(measure_inputs[i].task->serialized_key, states[i], measure_outputs[i].execution_cost));
+    }
 
     std::vector<float> cost_model_labels(states.size());
     for (size_t i = 0; i < states.size(); ++i) {
@@ -120,14 +133,15 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
     }
 
     if (FLAGS_auto_schedule_use_cost_model) {
-      VLOG(6) << "cost_model_samples.size() = " << cost_model_samples.size();
-      VLOG(6) << "cost_model_labels.size() = " << cost_model_labels.size();
+      VLOG(4) << utils::StringFormat("Update CostModel with samples size=%lu,labels size=%lu",
+                                     cost_model_samples.size(),
+                                     cost_model_labels.size());
       cost_model_.Update(cost_model_samples, cost_model_labels, task_->target);
     }
-    // TODO(zhhsplendid): write measure record into cache.
 
     for (size_t i = 0; i < measure_outputs.size(); ++i) {
       if (measure_outputs[i].execution_cost < min_exec_time) {
+        VLOG(4) << "Update best candidate with execution_cost:" << measure_outputs[i].execution_cost << "us";
         min_exec_time        = measure_outputs[i].execution_cost;
         result.lowered_funcs = measure_inputs[i].lowered_funcs;
       }

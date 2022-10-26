@@ -37,10 +37,7 @@ namespace frontend {
 // Note that if anyone op not registered, the program will failed and aborted.
 class PaddleModelConvertor {
  public:
-  explicit PaddleModelConvertor(hlir::framework::Scope* scope, const common::Target& target)
-      : scope_(scope), target_(target) {
-    CHECK(scope_);
-  }
+  PaddleModelConvertor() = default;
 
   // prepare feed variable before run CINN op
   void PrepareRun(const paddle::cpp::BlockDesc& block_desc, OpMapperContext* ctx);
@@ -49,16 +46,21 @@ class PaddleModelConvertor {
   static void RunOp(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx);
 
   // operator() accept the modle's directory, and return the fronted::Program object.
-  Program operator()(const std::string& model_dir, bool is_combined = false);
+  Program operator()(const common::Target& target,
+                     const std::string& model_dir,
+                     bool is_combined                              = false,
+                     std::shared_ptr<hlir::framework::Scope> scope = nullptr);
 
   // return the internal variable map
-  const auto& var_map() const { return var_map_; }
+  const std::unordered_map<std::string, Variable>& var_map() const { return var_map_; }
 
   // return the map from the variable name in paddle model to cinn program.
-  const auto& var_model_to_program_map() const { return var_model_to_program_map_; }
+  const std::unordered_map<std::string, std::string>& var_model_to_program_map() const {
+    return var_model_to_program_map_;
+  }
 
-  // return fetch var ids used in CINN
-  std::unordered_set<std::string> GetFetchIds() const;
+  // return the map the paddle variable name to cinn variable object
+  std::unordered_map<std::string, Variable> GetFetchList() const;
 
  private:
   std::unordered_map<std::string, Variable> var_map_;
@@ -66,8 +68,6 @@ class PaddleModelConvertor {
   std::unordered_map<std::string, std::string> var_model_to_program_map_;
   // fetch var names used in Paddle
   std::unordered_set<std::string> fetch_var_names_;
-  hlir::framework::Scope* scope_{};
-  const common::Target& target_;
 };
 
 }  // namespace frontend

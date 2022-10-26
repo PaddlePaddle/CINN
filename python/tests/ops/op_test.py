@@ -66,10 +66,12 @@ class OpTest(unittest.TestCase):
                         inputs,
                         feed_data,
                         outputs,
-                        passes=["Decomposer"]):
+                        passes=["Decomposer"],
+                        scope=None):
         fetch_ids = {str(out) for out in outputs}
         self.apply_pass(prog, target, passes, fetch_ids)
-        result = prog.build_and_get_output(target, inputs, feed_data, outputs)
+        result = prog.build_and_get_output(target, inputs, feed_data, outputs,
+                                           scope)
         outs_and_grads = []
         for res in result:
             outs_and_grads.append(res.numpy(target))
@@ -91,25 +93,28 @@ class OpTest(unittest.TestCase):
         logger.debug("============ After Decomposer Pass ============")
         print_program(prog)
 
-    def check_outputs_and_grads(self, max_relative_error=1e-5,
-                                all_equal=False):
+    def check_outputs_and_grads(self,
+                                max_relative_error=1e-5,
+                                all_equal=False,
+                                equal_nan=False):
         self.build_paddle_program(self.target)
         self.build_cinn_program(self.target)
 
         logger.debug("============ Check Outputs ============")
         self.check_results(self.paddle_outputs, self.cinn_outputs,
-                           max_relative_error, all_equal)
+                           max_relative_error, all_equal, equal_nan)
 
         if len(self.cinn_grads) != 0:
             logger.debug("============ Check Grads ============")
             self.check_results(self.paddle_grads, self.cinn_grads,
-                               max_relative_error, all_equal)
+                               max_relative_error, all_equal, equal_nan)
 
     def check_results(self,
                       expect_res,
                       actual_res,
                       max_relative_error,
-                      all_equal=False):
+                      all_equal=False,
+                      equal_nan=False):
         def _compute_max_relative_error(output_id, expect, actual):
             absolute_diff = np.abs(expect - actual).flatten()
             relative_diff = absolute_diff / np.abs(expect).flatten()
@@ -185,7 +190,11 @@ class OpTest(unittest.TestCase):
             error_message = ""
             if not should_all_equal:
                 is_allclose = np.allclose(
-                    expect, actual, atol=1e-6, rtol=max_relative_error)
+                    expect,
+                    actual,
+                    atol=1e-6,
+                    rtol=max_relative_error,
+                    equal_nan=equal_nan)
                 error_message = "np.allclose(expect, actual, atol=1e-6, rtol={}) checks succeed!".format(
                     max_relative_error
                 ) if is_allclose else _compute_max_relative_error(
@@ -199,7 +208,21 @@ class OpTest(unittest.TestCase):
             self.assertTrue(is_allclose, msg=error_message)
 
     @staticmethod
+    def nptype2cinntype(dtype):
+        switch_map = {
+            "float32": Float(32),
+            "float64": Float(64),
+            "int32": Int(32),
+            "int64": Int(64),
+            "bool": Bool()
+        }
+        assert str(dtype) in switch_map, dtype + " not support in CINN"
+        return switch_map[str(dtype)]
+
+    @staticmethod
     def random(shape, dtype="float32", low=0.0, high=1.0):
+        assert bool(shape), "Shape should not empty!"
+        assert -1 not in shape, "Shape should not -1!"
         if dtype in ["float32", "float64"]:
             return np.random.uniform(low, high, shape).astype(dtype)
         elif dtype == "bool":

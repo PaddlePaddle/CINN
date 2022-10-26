@@ -89,6 +89,7 @@ class ScheduleImpl {
   void ComputeInline(const Expr& schedule_block);
   void Bind(const Expr& loop, const std::string& thread_axis);
   Expr Rfactor(const Expr& rf_loop, int rf_axis);
+  void Annotate(const Expr& block, const std::string& key, const attr_t& value);
   void CopyTransformAndLoopInfo(const Expr& block, const Expr& block_target);
   void CopyTransformAndLoopInfo(const std::string& block_name, const std::string& block_target_name);
 
@@ -1324,6 +1325,15 @@ Expr ScheduleImpl::GetBlock(const std::string& block_name) const {
   LOG(FATAL) << "Didn't find a block with name " << block_name << " in this ModuleExpr!";
 }
 
+void ScheduleImpl::Annotate(const Expr& block, const std::string& key, const attr_t& value) {
+  CHECK(block.As<ir::ScheduleBlockRealize>());
+  CHECK(block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>());
+  auto copied_block    = optim::IRCopy(block);
+  auto* schedule_block = copied_block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>();
+  schedule_block->attrs.emplace(key, value);
+  this->Replace(block, copied_block);
+}
+
 void ScheduleImpl::CopyTransformAndLoopInfo(const std::string& block_name, const std::string& block_target_name) {
   auto block        = this->GetBlock(block_name);
   auto block_target = this->GetBlock(block_target_name);
@@ -1435,9 +1445,23 @@ void ScheduleImpl::CopyTransformAndLoopInfo(const Expr& block, const Expr& block
 
 IRSchedule::IRSchedule() {}
 
-IRSchedule::IRSchedule(IRSchedule&& other) : impl_(std::move(other.impl_)), trace_(std::move(other.trace_)) {}
+IRSchedule::IRSchedule(const ModuleExpr& module_expr, bool debug_flag) {
+  impl_ = std::make_unique<ScheduleImpl>(module_expr, debug_flag);
+}
+
 IRSchedule::IRSchedule(ir::ModuleExpr&& mod_expr, ScheduleDesc&& trace)
     : impl_(std::make_unique<ScheduleImpl>(std::move(mod_expr))), trace_(std::move(trace)) {}
+
+IRSchedule::IRSchedule(const IRSchedule& other)
+    : impl_(std::make_unique<ScheduleImpl>(optim::IRCopy(other.GetModule()))), trace_(other.trace_) {}
+
+IRSchedule& IRSchedule::operator=(const IRSchedule& src) {
+  impl_  = std::make_unique<ScheduleImpl>(optim::IRCopy(src.GetModule()));
+  trace_ = src.trace_;
+  return *this;
+}
+
+IRSchedule::IRSchedule(IRSchedule&& other) : impl_(std::move(other.impl_)), trace_(std::move(other.trace_)) {}
 
 IRSchedule& IRSchedule::operator=(IRSchedule&& src) {
   impl_  = std::move(src.impl_);
@@ -1446,10 +1470,6 @@ IRSchedule& IRSchedule::operator=(IRSchedule&& src) {
 }
 
 IRSchedule::~IRSchedule() {}
-
-IRSchedule::IRSchedule(const ModuleExpr& module_expr, bool debug_flag) {
-  impl_ = std::make_unique<ScheduleImpl>(module_expr, debug_flag);
-}
 
 void IRSchedule::SetExprs(const std::vector<Expr>& exprs) {
   return impl_->SetExprs(exprs);
@@ -1618,6 +1638,26 @@ Expr IRSchedule::Rfactor(const Expr& rf_loop, int rf_axis) {
   trace_.Append(
       ScheduleDesc::Step("Rfactor", {{"rf_loop", std::vector<Expr>({rf_loop})}}, {{"rf_axis", rf_axis}}, {result}));
   return result;
+}
+
+void IRSchedule::Annotate(const Expr& block, const std::string& key, const attr_t& value) {
+  impl_->Annotate(block, key, value);
+
+#define TRACE_ANNOTATE_ITEM(data_type, step_name)                                            \
+  if (absl::holds_alternative<data_type>(value)) {                                           \
+    trace_.Append(ScheduleDesc::Step(#step_name,                                             \
+                                     {{"block", std::vector<Expr>({block})}},                \
+                                     {{"key", key}, {"value", absl::get<data_type>(value)}}, \
+                                     {}));                                                   \
+    return;                                                                                  \
+  }
+  TRACE_ANNOTATE_ITEM(int, AnnotateIntAttr)
+  TRACE_ANNOTATE_ITEM(bool, AnnotateBoolAttr)
+  TRACE_ANNOTATE_ITEM(float, AnnotateFloatAttr)
+  TRACE_ANNOTATE_ITEM(std::string, AnnotateStringAttr)
+#undef TRACE_ANNOTATE_ITEM
+
+  LOG(FATAL) << "Value of attribute:" << key << " input unsupported data type";
 }
 
 void IRSchedule::CopyTransformAndLoopInfo(const Expr& block, const Expr& block_target) {

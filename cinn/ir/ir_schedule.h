@@ -66,6 +66,8 @@ class IRSchedule {
   IRSchedule();
   explicit IRSchedule(const ModuleExpr& modexpr, bool debug_flag = false);
   IRSchedule(ir::ModuleExpr&& mod_expr, ScheduleDesc&& trace);
+  IRSchedule(const IRSchedule& other);
+  IRSchedule& operator=(const IRSchedule& src);
   IRSchedule(IRSchedule&& other);
   IRSchedule& operator=(IRSchedule&& src);
   ~IRSchedule();
@@ -75,7 +77,7 @@ class IRSchedule {
   //! Get the ModuleExpr stored in ScheduleImpl.
   const ModuleExpr& GetModule() const;
 
-  //! Merge multiple Exprs in a ModuleExepr to be one
+  //! Merge multiple Exprs in a ModuleExpr to be one
   void MergeExprs();
 
   //! Get the ScheduleDesc that traces the scheduling process
@@ -302,6 +304,14 @@ class IRSchedule {
    * \endcode
    */
   Expr Rfactor(const Expr& rf_loop, int rf_axis);
+
+  /*!
+   * \brief Annotate a block with a key-value pair to set as its attribute
+   * \param block The block to be annotated
+   * \param key The attribute key
+   * \param val The attribute value, its type should be one of attr_t listing
+   */
+  void Annotate(const Expr& block, const std::string& key, const attr_t& value);
 
  private:
   std::unique_ptr<ScheduleImpl> impl_;

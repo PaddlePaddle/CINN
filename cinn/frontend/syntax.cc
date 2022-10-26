@@ -482,11 +482,15 @@ std::string _Instruction_::debug_string() const {
     std::stringstream& s_;
     explicit Visit(std::stringstream& s) : s_(s) {}
     void operator()(int x) { s_ << x; }
+    void operator()(int64_t x) { s_ << x; }
     void operator()(float x) { s_ << x; }
+    void operator()(double x) { s_ << x; }
     void operator()(bool x) { s_ << (x ? "true" : "false"); }
     void operator()(const std::string& x) { s_ << x; }
     void operator()(const std::vector<int>& x) { s_ << "[" + utils::Join(x, ",") + "]"; }
+    void operator()(const std::vector<int64_t>& x) { s_ << "[" + utils::Join(x, ",") + "]"; }
     void operator()(const std::vector<float>& x) { s_ << "[" + utils::Join(x, ",") + "]"; }
+    void operator()(const std::vector<double>& x) { s_ << "[" + utils::Join(x, ",") + "]"; }
     void operator()(const std::vector<bool>& x) { s_ << "[" + utils::Join(x, ",") + "]"; }
     void operator()(const std::vector<std::string>& x) { s_ << "[" + utils::Join(x, ",") + "]"; }
   };

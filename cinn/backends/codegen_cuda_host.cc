@@ -83,8 +83,12 @@ llvm::Value* CodeGenCUDA_Host::LowerGPUKernelLauncher(const ir::_LoweredFunc_* f
         args_type.push_back(CinnTypeToLLVMType(type_of<bool>(), m_));
       } else if (r_arg.type().is_int(32)) {
         args_type.push_back(CinnTypeToLLVMType(type_of<int32_t>(), m_));
+      } else if (r_arg.type().is_int(64)) {
+        args_type.push_back(CinnTypeToLLVMType(type_of<int64_t>(), m_));
       } else if (r_arg.type().is_float(32)) {
         args_type.push_back(CinnTypeToLLVMType(type_of<float>(), m_));
+      } else if (r_arg.type().is_float(64)) {
+        args_type.push_back(CinnTypeToLLVMType(type_of<double>(), m_));
       } else {
         CINN_NOT_IMPLEMENTED;
       }
@@ -110,8 +114,12 @@ llvm::Value* CodeGenCUDA_Host::LowerGPUKernelLauncher(const ir::_LoweredFunc_* f
         call_args.push_back(b_->getInt1(r_arg.as_bool()));
       } else if (r_arg.type().is_int(32)) {
         call_args.push_back(b_->getInt32(r_arg.as_int32()));
+      } else if (r_arg.type().is_int(64)) {
+        call_args.push_back(b_->getInt64(r_arg.as_int64()));
       } else if (r_arg.type().is_float(32)) {
         call_args.push_back(llvm::ConstantFP::get(b_->getFloatTy(), llvm::APFloat(r_arg.as_float())));
+      } else if (r_arg.type().is_float(64)) {
+        call_args.push_back(llvm::ConstantFP::get(b_->getDoubleTy(), llvm::APFloat(r_arg.as_double())));
       } else {
         CINN_NOT_IMPLEMENTED;
       }

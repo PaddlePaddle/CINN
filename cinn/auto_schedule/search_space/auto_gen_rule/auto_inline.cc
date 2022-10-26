@@ -106,7 +106,7 @@ AutoInlineType AutoInline::AnalyzeInlineType(const Expr& sche_block_realize_expr
     return AutoInlineType::kCannotInline;
   }
 
-  std::unordered_set<ir::IrNodeTy> no_inline_node_types = {ir::IrNodeTy::Power, ir::IrNodeTy::IfThenElse};
+  std::unordered_set<ir::IrNodeTy> no_inline_node_types = {ir::IrNodeTy::IfThenElse};
   if (ContainsNodeType(sche_block->body, no_inline_node_types)) {
     return AutoInlineType::kCannotInline;
   }
@@ -122,8 +122,8 @@ AutoInlineType AutoInline::AnalyzeInlineType(const Expr& sche_block_realize_expr
   return AutoInlineType::kCannotInline;
 }
 
-RuleApplyType AutoInline::Init(const ir::IRSchedule& init_schedule) {
-  ir_schedule_        = std::make_unique<ir::IRSchedule>(optim::IRCopy(init_schedule));
+RuleApplyType AutoInline::Init(ir::IRSchedule* ir_schedule) {
+  ir_schedule_        = ir_schedule;
   all_block_realizes_ = ir_schedule_->GetAllBlocks();
   apply_indices_and_type_.clear();
   num_applicable_ = 0;
@@ -141,7 +141,7 @@ RuleApplyType AutoInline::Init(const ir::IRSchedule& init_schedule) {
   return num_applicable_ > 0 ? RuleApplyType::kApply : RuleApplyType::kCannotApply;
 }
 
-ir::IRSchedule AutoInline::Apply(int index) {
+void AutoInline::Apply(int index) {
   CHECK(ir_schedule_ != nullptr) << "Run AutoInline::Apply without Init";
   CHECK(num_applicable_ > 0 && apply_indices_and_type_.size() == num_applicable_)
       << "AutoInline::Apply pre-condition doesn't meet";
@@ -175,12 +175,10 @@ ir::IRSchedule AutoInline::Apply(int index) {
     sche_block->write_buffers                    = {};
     AnalyzeScheduleBlockReadWriteBuffer(sche_block);
   }
-  return optim::IRCopy(*ir_schedule_);
+  return;
 }
 
 std::string AutoInline::GetRuleName() const { return "AutoInline"; }
-
-AutoGenRule* AutoInline::NewPointer() const { return new AutoInline(*target_, no_inline_output_names_); }
 
 }  // namespace auto_schedule
 }  // namespace cinn

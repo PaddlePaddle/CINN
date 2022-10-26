@@ -27,8 +27,8 @@ BuildResult SimpleBuilder::Build(const MeasureInput& input) {
   compile_options.groups                  = input.task->task_graph;
   compile_options.lowered_funcs           = input.lowered_funcs;
   compile_options.remove_unused_variables = false;
-  VLOG(5) << "call GraphCompiler to Build with " << compile_options.groups.size() << " groups, "
-          << compile_options.lowered_funcs.size() << " lowered_funcs";
+  VLOG(5) << "call GraphCompiler to Build with Graph::Group size=" << compile_options.groups.size()
+          << ", lowered_funcs group size=" << compile_options.lowered_funcs.size();
   GraphCompiler::CompilationResult compiled_result = graph_compiler_->Build(compile_options);
 
   BuildResult build_result;

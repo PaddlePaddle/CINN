@@ -314,18 +314,6 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
     return Expr(n);
   }
 
-  Expr Visit(const Power* op) override {
-    auto a = Visit(&op->a());
-    auto b = Visit(&op->b());
-    CHECK(a.defined());
-    CHECK(b.defined());
-
-    auto* n = make_shared<Power>();
-    n->a()  = a;
-    n->b()  = b;
-    return Expr(n);
-  }
-
   Expr Visit(const Product* op) override {
     std::vector<Expr> operands;
     for (auto& v : op->operands()) {
@@ -471,10 +459,6 @@ std::vector<Expr> IRCopy(const std::vector<Expr>& x) {
 }
 
 ir::ModuleExpr IRCopy(const ir::ModuleExpr& x) { return ir::ModuleExpr(IRCopy(x.GetExprs())); }
-
-ir::IRSchedule IRCopy(const ir::IRSchedule& x) {
-  return ir::IRSchedule(IRCopy(x.GetModule()), ir::ScheduleDesc(x.GetTraceDesc()));
-}
 
 ir::LoweredFunc IRCopy(const ir::LoweredFunc& x) {
   ir::Expr copy_func_expr          = IRCopy(static_cast<ir::Expr>(x));

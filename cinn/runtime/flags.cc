@@ -26,7 +26,14 @@ DEFINE_bool(cinn_cudnn_deterministic,
 #endif
 
 using ::GFLAGS_NAMESPACE::BoolFromEnv;
+using ::GFLAGS_NAMESPACE::Int32FromEnv;
 using ::GFLAGS_NAMESPACE::StringFromEnv;
+
+DEFINE_string(cinn_x86_builtin_code_root, StringFromEnv("FLAGS_cinn_x86_builtin_code_root", ""), "");
+
+DEFINE_int32(cinn_parallel_compile_size,
+             Int32FromEnv("FLAGS_cinn_parallel_compile_size", 0),
+             "When use parallel compile, set the number of group compiled by each thread.");
 
 DEFINE_bool(cinn_open_fusion_optimize,
             BoolFromEnv("FLAGS_cinn_open_fusion_optimize", true),
@@ -46,7 +53,7 @@ DEFINE_bool(cinn_use_cuda_vectorize,
             "Whether use cuda vectroize on schedule config");
 
 DEFINE_bool(cinn_ir_schedule,
-            BoolFromEnv("FLAGS_cinn_ir_schedule", false),
+            BoolFromEnv("FLAGS_cinn_ir_schedule", true),
             "Whether use reconstructed schedule primitives.");
 
 // FLAGS for performance analysis and accuracy debug

@@ -1026,8 +1026,6 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Broadcast *op) {
 
 llvm::Value *CodeGenLLVM::Visit(const ir::FracOp *op) { __IR_EMITTER_NOT_IMPLEMENTED(op); }
 
-llvm::Value *CodeGenLLVM::Visit(const ir::Power *op) { __IR_EMITTER_NOT_IMPLEMENTED(op); }
-
 llvm::Value *CodeGenLLVM::Visit(const ir::Product *op) {
   auto size = op->operands().size();
   if (size == 0) return nullptr;

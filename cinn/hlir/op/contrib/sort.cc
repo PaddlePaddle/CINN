@@ -29,6 +29,7 @@
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
 #include "cinn/hlir/pe/elementwise.h"
+#include "cinn/hlir/pe/ir_schedule_pe.h"
 #include "cinn/hlir/pe/transform.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_base.h"
@@ -47,27 +48,31 @@ using common::CINNValuePack;
 
 ir::Tensor ArgSort(const ir::Tensor &A,
                    const common::Target &target,
+                   poly::StageMap stages,
                    const int &axis,
                    const bool &is_ascend,
                    const std::string &name) {
-  std::string extern_fun_name;
+  std::string find_func_name;
+  std::string index_func_name;
   if (target.arch == common::Target::Arch::NVGPU) {
-    extern_fun_name.assign("cinn_cuda_");
+    index_func_name.assign("cinn_cuda_");
+    find_func_name.assign("cinn_cuda_find_int_nd");
   } else if (target.arch == common::Target::Arch::X86) {
-    extern_fun_name.assign("cinn_host_");
+    index_func_name.assign("cinn_host_");
+    find_func_name.assign("cinn_host_find_int_nd");
   } else {
     LOG(FATAL) << "ArgSort only supports X86 and NVGPU ! Please Check.\n";
   }
   if (is_ascend) {
-    extern_fun_name.append("lt_num_float");
+    index_func_name.append("lt_num_float");
   } else {
-    extern_fun_name.append("gt_num_float");
+    index_func_name.append("gt_num_float");
   }
   int pos_axis = axis;
   if (pos_axis < 0) {
     pos_axis += A->shape.size();
   }
-  auto res = Compute(
+  auto positions = Compute(
       A->shape,
       [=](const std::vector<Expr> &indices) {
         Expr offset(0);
@@ -85,31 +90,10 @@ ir::Tensor ArgSort(const ir::Tensor &A,
         offset            = common::AutoSimplify(offset);
         stride            = common::AutoSimplify(stride);
         auto A_shape_axis = A->shape[pos_axis];
-        return lang::CallExtern(extern_fun_name, {A, A_shape_axis, A(indices), offset, stride});
+        return lang::CallExtern(index_func_name, {A, A_shape_axis, A(indices), offset, stride});
       },
-      name);
-  return res;
-}
-
-std::vector<ir::Tensor> Sort(const ir::Tensor &A,
-                             const common::Target &target,
-                             const int &axis,
-                             const bool &is_ascend,
-                             const std::string &name) {
-  std::string extern_fun_name;
-  if (target.arch == common::Target::Arch::NVGPU) {
-    extern_fun_name.assign("cinn_cuda_find_int_nd");
-  } else if (target.arch == common::Target::Arch::X86) {
-    extern_fun_name.assign("cinn_host_find_int_nd");
-  } else {
-    LOG(FATAL) << "Sort only supports X86 and NVGPU ! Please Check.\n";
-  }
-  int pos_axis = axis;
-  if (pos_axis < 0) {
-    pos_axis += A->shape.size();
-  }
-  auto sort_index = ArgSort(A, target, pos_axis, is_ascend, name + "_index");
-  auto res        = Compute(
+      name + "_temp");
+  auto res = Compute(
       A->shape,
       [=](const std::vector<Expr> &indices) {
         Expr offset(0);
@@ -128,13 +112,35 @@ std::vector<ir::Tensor> Sort(const ir::Tensor &A,
         stride = common::AutoSimplify(stride);
 
         auto A_shape_axis = A->shape[pos_axis];
-        auto idx = lang::CallExtern(extern_fun_name, {sort_index, A_shape_axis, indices[pos_axis], offset, stride});
+        auto idx = lang::CallExtern(find_func_name, {positions, A_shape_axis, indices[pos_axis], offset, stride});
+        return idx;
+      },
+      name);
+  stages->InsertLazily(positions);
+  return res;
+}
+
+ir::Tensor Sort(const ir::Tensor &A,
+                const common::Target &target,
+                poly::StageMap stages,
+                const int &axis,
+                const bool &is_ascend,
+                const std::string &name) {
+  int pos_axis = axis;
+  if (pos_axis < 0) {
+    pos_axis += A->shape.size();
+  }
+  auto sort_index = ArgSort(A, target, stages, pos_axis, is_ascend, name + "_index");
+  auto res        = Compute(
+      A->shape,
+      [=](const std::vector<Expr> &indices) {
         std::vector<Expr> A_indices(indices);
-        A_indices[pos_axis] = idx;
+        A_indices[pos_axis] = sort_index(indices);
         return A(A_indices);
       },
       name);
-  return {sort_index, res};
+  stages->InsertLazily(sort_index);
+  return res;
 }
 
 std::shared_ptr<framework::OpStrategy> StrategyForSort(const framework::NodeAttr &attrs,
@@ -155,7 +161,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForSort(const framework::NodeAttr
   framework::CINNCompute sort_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input arguments of Sort compute is empty! Please check.\n";
     CINNValuePack pack_args = args[0];
-    CHECK_EQ(pack_args.size(), 1U) << "At least 1 input tensors for Sort compute\n";
+    CHECK_GE(pack_args.size(), 1U) << "At least 1 input tensors for Sort compute\n";
     Expr A = pack_args[0];
     CHECK(A.as_tensor());
     CHECK(!output_shapes.empty());
@@ -169,11 +175,8 @@ std::shared_ptr<framework::OpStrategy> StrategyForSort(const framework::NodeAttr
       CHECK(pack_args[1].is_string());
       tensor_name = pack_args[1].operator std::string();
     }
-    std::vector<ir::Tensor> outputs = Sort(tensor_A, target, axis, is_ascend, tensor_name);
-    ir::Tensor sort_index           = outputs[0];
-    ir::Tensor out                  = outputs[1];
+    ir::Tensor out = Sort(tensor_A, target, stages, axis, is_ascend, tensor_name);
     std::vector<CINNValue> res;
-    stages->InsertLazily(sort_index);
     stages->InsertLazily(out);
     res.push_back(CINNValue(out));
     CHECK(!out_type.empty()) << "Output type of Sort is empty! Please check.\n";
@@ -182,11 +185,37 @@ std::shared_ptr<framework::OpStrategy> StrategyForSort(const framework::NodeAttr
   });
 
   framework::CINNSchedule sort_schedule([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input argument of reshape schedule is empty! Please check.\n";
-    CINNValuePack arg_pack = args[0];
-    Expr out               = arg_pack[0];
-    CHECK(out.as_tensor());
-    *ret = arg_pack;
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK(!args.empty()) << "The input argument of sort_schedule is empty! Please check.\n";
+      common::CINNValuePack arg_pack = args[0];
+      std::vector<Expr> vec_ast;
+      for (int i = 0; i < arg_pack.size(); i++) {
+        if (arg_pack[i].is_expr()) {
+          Expr temp = arg_pack[i];
+          vec_ast.emplace_back(temp);
+        }
+      }
+      CHECK(!vec_ast.empty());
+      ir::ModuleExpr mod_expr(vec_ast);
+      ir::IRSchedule ir_sch(mod_expr);
+      ir_sch.MergeExprs();
+      long prod_size = std::accumulate(output_shapes[0].begin(), output_shapes[0].end(), 1, std::multiplies<int>());
+      if (prod_size > 1) {
+        if (target.arch == Target::Arch::NVGPU) {
+          pe::IRCudaScheduleInjective(ir_sch, output_shapes.front(), target);
+        } else if (target.arch == Target::Arch::X86) {
+          pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target, true);
+        }
+      }
+      std::vector<common::CINNValue> res{common::CINNValue(ir_sch.GetModule().GetExprs().at(0))};
+      *ret = common::CINNValuePack{res};
+    } else {
+      CHECK(!args.empty()) << "The input argument of sort_schedule is empty! Please check.\n";
+      CINNValuePack arg_pack = args[0];
+      Expr out               = arg_pack[0];
+      CHECK(out.as_tensor());
+      *ret = arg_pack;
+    }
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -210,7 +239,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForArgSort(const framework::NodeA
   framework::CINNCompute argsort_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input arguments of ArgSort compute is empty! Please check.\n";
     CINNValuePack pack_args = args[0];
-    CHECK_EQ(pack_args.size(), 1U) << "At least 1 input tensors for ArgSort compute\n";
+    CHECK_GE(pack_args.size(), 1U) << "At least 1 input tensors for ArgSort compute\n";
     Expr A = pack_args[0];
     CHECK(A.as_tensor());
     CHECK(!output_shapes.empty());
@@ -224,7 +253,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForArgSort(const framework::NodeA
       CHECK(pack_args[1].is_string());
       tensor_name = pack_args[1].operator std::string();
     }
-    ir::Tensor out = ArgSort(tensor_A, target, axis, is_ascend, tensor_name);
+    ir::Tensor out = ArgSort(tensor_A, target, stages, axis, is_ascend, tensor_name);
     std::vector<CINNValue> res;
     stages->InsertLazily(out);
     res.push_back(CINNValue(out));
@@ -234,11 +263,37 @@ std::shared_ptr<framework::OpStrategy> StrategyForArgSort(const framework::NodeA
   });
 
   framework::CINNSchedule argsort_schedule([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input argument of reshape schedule is empty! Please check.\n";
-    CINNValuePack arg_pack = args[0];
-    Expr out               = arg_pack[0];
-    CHECK(out.as_tensor());
-    *ret = arg_pack;
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK(!args.empty()) << "The input argument of argsort_schedule is empty! Please check.\n";
+      common::CINNValuePack arg_pack = args[0];
+      std::vector<Expr> vec_ast;
+      for (int i = 0; i < arg_pack.size(); i++) {
+        if (arg_pack[i].is_expr()) {
+          Expr temp = arg_pack[i];
+          vec_ast.emplace_back(temp);
+        }
+      }
+      CHECK(!vec_ast.empty());
+      ir::ModuleExpr mod_expr(vec_ast);
+      ir::IRSchedule ir_sch(mod_expr);
+      ir_sch.MergeExprs();
+      long prod_size = std::accumulate(output_shapes[0].begin(), output_shapes[0].end(), 1, std::multiplies<int>());
+      if (prod_size > 1) {
+        if (target.arch == Target::Arch::NVGPU) {
+          pe::IRCudaScheduleInjective(ir_sch, output_shapes.front(), target);
+        } else if (target.arch == Target::Arch::X86) {
+          pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target, true);
+        }
+      }
+      std::vector<common::CINNValue> res{common::CINNValue(ir_sch.GetModule().GetExprs().at(0))};
+      *ret = common::CINNValuePack{res};
+    } else {
+      CHECK(!args.empty()) << "The input argument of argsort_schedule is empty! Please check.\n";
+      CINNValuePack arg_pack = args[0];
+      Expr out               = arg_pack[0];
+      CHECK(out.as_tensor());
+      *ret = arg_pack;
+    }
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();

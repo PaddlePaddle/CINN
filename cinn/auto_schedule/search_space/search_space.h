@@ -20,9 +20,6 @@
 
 #include "cinn/auto_schedule/cost_model/expr_cost_model.h"
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
-#include "cinn/auto_schedule/search_space/auto_gen_rule/auto_inline.h"
-#include "cinn/auto_schedule/search_space/auto_gen_rule/multi_level_tiling.h"
-#include "cinn/auto_schedule/search_space/auto_gen_rule/skip_rule.h"
 #include "cinn/auto_schedule/search_space/search_state.h"
 #include "cinn/auto_schedule/task/tune_task.h"
 #include "cinn/ir/ir_base.h"
@@ -57,8 +54,9 @@ class SearchSpace {
   SearchState RandomScheduleMutate(const SearchState& state);
 
   const TuneTask& tune_task_;
-
   int init_sketch_random_depth_ = 6;
+  // supported AutoGenRules, every task holds a set
+  std::vector<std::unique_ptr<AutoGenRule>> sketch_rules_;
 };
 
 }  // namespace auto_schedule

@@ -262,6 +262,9 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
             LOG(FATAL) << "Unkown Reduce Type!";
           }
         }
+      } else {
+        std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
+        *ret = CINNValuePack{res};
       }
     } else {
       CHECK_GE(arg_pack.size(), 2UL);
@@ -455,16 +458,16 @@ std::vector<std::vector<std::string>> InferLayoutForBnOptimize(const std::vector
 }  // namespace cinn
 
 CINN_REGISTER_HELPER(reduce_ops) {
-#define CINN_REGISTER_REDUCTION_WITH_DTYPE(op__, op_stragegy__, dtype__)                                              \
-  CINN_REGISTER_OP(op__)                                                                                              \
-      .describe(#op__ " function")                                                                                    \
-      .set_num_inputs(1)                                                                                              \
-      .set_num_outputs(1)                                                                                             \
-      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyFor##op_stragegy__)  \
-      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForReduction))                                 \
-      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForReduction##dtype__))                        \
-      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForReduction))                               \
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kCommReduce) \
+#define CINN_REGISTER_REDUCTION_WITH_DTYPE(op__, op_stragegy__, dtype__)                                             \
+  CINN_REGISTER_OP(op__)                                                                                             \
+      .describe(#op__ " function")                                                                                   \
+      .set_num_inputs(1)                                                                                             \
+      .set_num_outputs(1)                                                                                            \
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyFor##op_stragegy__) \
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForReduction))                                \
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForReduction##dtype__))                       \
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForReduction))                              \
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kReduction) \
       .set_support_level(4);
 
 #define CINN_REGISTER_REDUCTION(op__, op_stragegy__) CINN_REGISTER_REDUCTION_WITH_DTYPE(op__, op_stragegy__, )

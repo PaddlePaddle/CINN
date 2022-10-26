@@ -19,7 +19,6 @@
 
 #include "cinn/common/target.h"
 #include "cinn/hlir/framework/graph.h"
-#include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/instruction.h"
 #include "cinn/hlir/framework/op_strategy.h"
 #include "cinn/ir/ir_schedule.h"
@@ -28,9 +27,9 @@
 #include "cinn/lang/packed_func.h"
 
 // Fusion Op lowering, there are four kinds of lowering function:
-// Elementwise/Broadcast/Injective,Reduce,OutEWiseFusable,Opaque.
+// Elementwise/Broadcast/Injective,Reduce,OutEWiseFusable,NonFusible.
 // Elementwise/Broadcast/Injective Ops is with same shcedule.
-// Reduce,OutEWiseFusable,Opaque are using different schedule.
+// Reduce,OutEWiseFusable,NonFusible are using different schedule.
 
 namespace cinn {
 namespace hlir {
@@ -74,9 +73,9 @@ class OpLowerer {
 
  private:
   std::vector<ir::LoweredFunc> LowerOp(ComputeFunction, ScheduleFunction, GroupPtr&);
-  std::vector<ir::LoweredFunc> LowerOpaqueOp(GroupPtr&);
+  std::vector<ir::LoweredFunc> LowerNonFusibleOp(GroupPtr&);
   std::vector<ir::LoweredFunc> IRLowerOp(IRComputeFunction, IRScheduleFunction, GroupPtr&);
-  std::vector<ir::LoweredFunc> IRLowerOpaqueOp(GroupPtr&, bool);
+  std::vector<ir::LoweredFunc> IRLowerNonFusibleOp(GroupPtr&, bool);
   std::vector<ir::LoweredFunc> IRLowerOpWithoutSchedule(IRComputeFunction, GroupPtr&);
 #define DEFINE_IR_COMPUTE_SCHDULE(type)                                                        \
   std::vector<Expr> IR##type##Compute(poly::StageMap& stages,                                  \

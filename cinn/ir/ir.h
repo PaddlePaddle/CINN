@@ -844,34 +844,6 @@ struct FracOp : public BinaryOpNode<FracOp> {
   using ExprNode<FracOp>::operands;
 };
 
-struct Power : public ExprNode<Power> {
-  Power() { operands().resize(2); }
-  static Expr Make(Expr n, Expr d);
-
-  void Verify() const override;
-
-  Type type() const override {
-    CHECK(a().defined());
-    return a()->type();
-  }
-
-  Expr& a() { return operands()[0]; }
-  Expr& b() { return operands()[1]; }
-  const Expr& a() const { return operands()[0]; }
-  const Expr& b() const { return operands()[1]; }
-
-  bool is_constant() const { return a().is_constant() && b().is_constant(); }
-  double get_constant() const {
-    CHECK(is_constant());
-    double a_value = a().get_constant();
-    double b_value = b().get_constant();
-    return std::pow(a_value, b_value);
-  }
-  static const IrNodeTy _node_type_ = IrNodeTy::Power;
-
-  using ExprNode<Power>::operands;
-};
-
 struct Product : public ExprNode<Product> {
   static Expr Make(const std::vector<Expr>& vs);
 
@@ -916,14 +888,11 @@ struct ScheduleBlock : public ExprNode<ScheduleBlock> {
   std::vector<Var> iter_vars;
   std::vector<Expr> read_buffers;
   std::vector<Expr> write_buffers;
+  // Additional attributes about this schedulable block,
+  // which take some auxiliary hints for future transformations.
+  std::map<std::string, attr_t> attrs;
   std::string name;
   Expr body;
-
-  /*!
-   * \brief Additional attributes about this schedulable block,
-   * which take some auxiliary hints for future transformations.
-   */
-  std::map<std::string, attr_t> attrs;
 
   static Expr Make(const std::vector<Var>& iter_vars,
                    const std::vector<Expr>& read_buffers,

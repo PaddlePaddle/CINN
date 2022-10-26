@@ -44,4 +44,10 @@ inline int cinn_host_gt_num_float(
 
 inline int cinn_host_gt_num_int(
     const cinn_buffer_t* buf, const int size, const int num, const int offset, const int stride);
+
+#define FN_INT32(func) cinn_host_##func##_int32
+
+inline int FN_INT32(pow)(int x, int y);
+
+#undef FN_INT32
 }

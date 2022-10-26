@@ -24,7 +24,6 @@ namespace cinn {
 
 namespace ir {
 class ModuleExpr;
-class IRSchedule;
 }  // namespace ir
 
 namespace optim {
@@ -35,8 +34,6 @@ Expr IRCopy(Expr x);
 std::vector<Expr> IRCopy(const std::vector<Expr>& x);
 
 ir::ModuleExpr IRCopy(const ir::ModuleExpr& x);
-
-ir::IRSchedule IRCopy(const ir::IRSchedule& x);
 
 ir::LoweredFunc IRCopy(const ir::LoweredFunc& x);
 

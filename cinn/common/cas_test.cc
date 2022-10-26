@@ -32,73 +32,10 @@ using utils::Join;
 using utils::Trim;
 using namespace ir;  // NOLINT
 
-TEST(CAS, SimplifyPower_0) {
-  {  // x^0 = 1
-    Var x   = ir::_Var_::Make("x", Float(32));
-    auto p0 = ir::Power::Make(x, Expr(0));
-    LOG(INFO) << "p0 " << p0;
-    auto p2 = CasSimplify(p0);
-    LOG(INFO) << "simplified " << p2;
-    EXPECT_EQ(GetStreamCnt(p2), "1");
-  }
-  {  // x^1 = x
-    Var x   = ir::_Var_::Make("x", Float(32));
-    auto p0 = ir::Power::Make(x, Expr(1));
-    auto p2 = CasSimplify(p0);
-    EXPECT_EQ(GetStreamCnt(p2), "x");
-  }
-
-  {  // 1^x = 1
-    Var x   = ir::_Var_::Make("x", Int(32));
-    auto p0 = ir::Power::Make(make_const(1), x);
-    auto p2 = CasSimplify(p0);
-    EXPECT_EQ(GetStreamCnt(p2), "1");
-  }
-
-  {  // 1.^x = 1.
-    Var x   = ir::_Var_::Make("x", Int(32));
-    auto p0 = ir::Power::Make(make_const(1.f), x);
-    LOG(INFO) << "p0 " << p0;
-    auto p2 = CasSimplify(p0);
-    LOG(INFO) << "simplified " << p2;
-    EXPECT_EQ(GetStreamCnt(p2), "1");
-  }
-
-  {  // 0^x = 0
-    Var x   = ir::_Var_::Make("x", Int(32));
-    auto p0 = ir::Power::Make(make_const(0), x);
-    LOG(INFO) << "p0 " << p0;
-    auto p2 = CasSimplify(p0);
-    LOG(INFO) << "simplified " << p2;
-    EXPECT_EQ(GetStreamCnt(p2), "0");
-  }
-
-  {  // 0.^x = 0
-    Var x   = ir::_Var_::Make("x", Int(32));
-    auto p0 = ir::Power::Make(make_const(0.f), x);
-    LOG(INFO) << "p0 " << p0;
-    auto p2 = CasSimplify(p0);
-    LOG(INFO) << "simplified " << p2;
-    EXPECT_EQ(GetStreamCnt(p2), "0");
-  }
-}
-
 TEST(CAS, number_cal) {
   // 1 * 100 * -1 + 0 + 1001
   auto u1 = Sum::Make({Product::Make({Expr(1), Expr(100), Expr(-1)}), Expr(0), Expr(1001)});
   LOG(INFO) << u1;
-}
-
-TEST(CAS, SimplifyPower) {
-  Var x   = ir::_Var_::Make("x", Float(32));
-  auto p0 = ir::Power::Make(x, Expr(2));
-  LOG(INFO) << "p0 " << p0;
-  auto p1 = ir::Power::Make(p0, Expr(3));
-
-  LOG(INFO) << "power: " << p1;
-
-  auto p2 = CasSimplify(p1);
-  LOG(INFO) << "simplified: " << p2;
 }
 
 TEST(CAS, cmp) {
@@ -117,18 +54,6 @@ TEST(CAS, cmp) {
   EXPECT_EQ(cmp(ir::Product::Make({x, y, z}), ir::Product::Make({Expr(10), y, z})), false);
   // 1 * y * z < 10 * y * z
   EXPECT_EQ(cmp(ir::Product::Make({Expr(1), y, z}), ir::Product::Make({Expr(10), y, z})), true);
-  // y^1 < y^x
-  EXPECT_EQ(cmp(ir::Power::Make(y, Expr(1)), ir::Power::Make(y, x)), true);
-  // y^1 < y^2
-  EXPECT_EQ(cmp(ir::Power::Make(y, Expr(1)), ir::Power::Make(y, Expr(2))), true);
-  // y * z^2 > x * z^1
-  EXPECT_EQ(cmp(Product::Make({y, Power::Make(z, Expr(2))}), Product::Make({x, Power::Make(z, Expr(1))})), false);
-  // 1*y^2 > y
-  EXPECT_EQ(cmp(Product::Make({Expr(1), Power::Make(y, Expr(2))}), y), false);
-  // 1*y^2 > x
-  EXPECT_EQ(cmp(Product::Make({Expr(1), Power::Make(y, Expr(2))}), x), false);
-  // 1*y^2 < z
-  EXPECT_EQ(cmp(Product::Make({Expr(1), Power::Make(y, Expr(2))}), z), true);
 }
 
 TEST(CAS, SimplifySum) {
@@ -162,20 +87,10 @@ TEST(CAS, SimplifyProduct) {
   Var y = ir::_Var_::Make("y", Int(32));
   Var z = ir::_Var_::Make("z", Int(32));
 
-  // x * x^-1
-  auto u1 = CasSimplify(Product::Make({x, Power::Make(x, Expr(-1))}));
   // zyx*(-1)
   auto u2 = CasSimplify(Product::Make({z, y, x, Expr(-1)}));
-  // x^2*y*z*x*x*x^-5
-  auto u3 = CasSimplify(Product::Make({Power::Make(x, Expr(2)), y, z, x, x, Power::Make(x, Expr(-5))}));
-  // x^(4/2) * x^3
-  auto u4 = CasSimplify(Product::Make({Power::Make(x, FracOp::Make(Expr(4), Expr(2))), Power::Make(x, Expr(3))}));
 
-  EXPECT_EQ(GetStreamCnt(u1), "1");
   EXPECT_EQ(GetStreamCnt(u2), "(-1 * x * y * z)");
-  EXPECT_EQ(GetStreamCnt(u3), "((x^-1) * y * z)");
-  EXPECT_EQ(GetStreamCnt(u4), "(x^5)");
-  LOG(INFO) << u4;
 }
 
 TEST(CAS, SimplifyMod) {
@@ -189,14 +104,10 @@ TEST(CAS, SimplifyMod) {
   auto u2 = CasSimplify(Mod::Make(Sum::Make({x, y, z}), Expr(2)));
   // x%2 + 1%2 + x%2
   auto u3 = CasSimplify(Sum::Make({Mod::Make(x, Expr(2)), Mod::Make(Expr(1), Expr(2)), Mod::Make(x, Expr(2))}));
-  // x^3 + x % 5 + y + 1 + (4*x)%5
-  auto u4 = CasSimplify(Sum::Make(
-      {Power::Make(x, Expr(3)), Mod::Make(x, Expr(5)), y, Expr(1), Mod::Make(Product::Make({x, Expr(4)}), Expr(5))}));
 
   EXPECT_EQ(GetStreamCnt(u1), "0");
   EXPECT_EQ(GetStreamCnt(u2), "((x + y + z) % 2)");
   EXPECT_EQ(GetStreamCnt(u3), "1");
-  EXPECT_EQ(GetStreamCnt(u4), "(1 + (x^3) + y)");
 }
 
 TEST(CAS, ConvertCinnToCAS) {

@@ -28,6 +28,9 @@
 #include "cinn/runtime/intrinsic.h"
 #include "cinn/utils/string.h"
 
+//! Root of the builtin code.
+DECLARE_string(cinn_x86_builtin_code_root);
+
 namespace cinn {
 namespace backends {
 using namespace utils;  // NOLINT
@@ -535,7 +538,6 @@ void CodeGenC::Visit(const ir::Broadcast *op) {
 }
 
 void CodeGenC::Visit(const ir::FracOp *op) { ir::IrPrinter::Visit(op); }
-void CodeGenC::Visit(const ir::Power *op) { ir::IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::Sum *op) { ir::IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::Product *op) { ir::IrPrinter::Visit(op); }
 
@@ -818,7 +820,5 @@ Expr StridedRampBase(Expr e, int stride) {
 }  // namespace detail
 
 }  // namespace backends
-
-DEFINE_string(cinn_x86_builtin_code_root, "", "");
 
 }  // namespace cinn
