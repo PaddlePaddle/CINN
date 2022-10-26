@@ -14,6 +14,7 @@
 
 #include "cinn/ir/ir_compare.h"
 
+#include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_printer.h"
 
 namespace cinn {
@@ -23,34 +24,45 @@ bool IrEqualVistor::Compare(const Expr& lhs, const Expr& rhs) {
   if (lhs.get() == rhs.get()) {  // the same object, including both are null
     return true;
   }
-  if (!lhs.defined() || !rhs.defined()) {  // someone invalid
-    return false;
-  }
-  bool equal = lhs->node_type() == rhs->node_type();
+
+  bool equal = lhs.defined() && rhs.defined();  // someone invalid
+  equal      = equal && lhs->node_type() == rhs->node_type();
   equal      = equal && IRVisitorBase<bool, const Expr*>::Visit(&lhs, &rhs);
 
   if (!equal) {
-    VLOG(5) << "Not equal, lhs:\n" << lhs << ", rhs:" << rhs;
+    VLOG(5) << "Not equal on Expr, lhs:[type:" << kIrNodeTyReprs[static_cast<int>(lhs->node_type())] << "]\n"
+            << lhs << ", \nrhs[type:" << kIrNodeTyReprs[static_cast<int>(rhs->node_type())] << "]\n"
+            << rhs;
   }
   return equal;
 }
 
-bool IrEqualVistor::Compare(const std::string& lhs, const std::string& rhs, bool allow_name_suffix_idx_diff) {
-  if (!allow_name_suffix_idx_diff) {
-    return lhs == rhs;
-  }
+bool IrEqualVistor::Compare(const std::string& lhs, const std::string& rhs, bool allow_name_suffix_diff) {
   // TODO(CtfGo): Add explanation;
   auto remove_idx_fn = [](const std::string& name) -> std::string {
     auto idx_pos = name.find_last_of('_');
     return idx_pos == std::string::npos ? name : name.substr(0, idx_pos);
   };
-  return remove_idx_fn(lhs) == remove_idx_fn(rhs);
-  return false;
+
+  bool equal = true;
+  if (!allow_name_suffix_diff) {
+    equal = lhs == rhs;
+  } else {
+    auto lhs_prefix = remove_idx_fn(lhs);
+    auto rhs_prefix = remove_idx_fn(rhs);
+    equal           = lhs_prefix == rhs_prefix;
+  }
+
+  if (!equal) {
+    VLOG(5) << "Not euqal on name, lhs=" << lhs << ", rhs=" << rhs;
+  }
+
+  return equal;
 }
 
 bool IrEqualVistor::Compare(const std::map<std::string, attr_t>& lhs, const std::map<std::string, attr_t>& rhs) {
   if (lhs.size() != rhs.size()) {
-    VLOG(6) << "Not equal, lhs size=" << lhs.size() << ", rhs size=" << rhs.size();
+    VLOG(6) << "Not equal on attrs, lhs size=" << lhs.size() << ", rhs size=" << rhs.size();
     return false;
   }
   for (auto&& kv : lhs) {
@@ -66,12 +78,12 @@ bool IrEqualVistor::Compare(const std::map<std::string, attr_t>& lhs, const std:
 template <typename T>
 bool IrEqualVistor::Compare(const std::vector<T>& lhs, const std::vector<T>& rhs) {
   if (lhs.size() != rhs.size()) {
-    VLOG(6) << "Not equal, lhs size=" << lhs.size() << ", rhs size=" << rhs.size();
+    VLOG(6) << "Not equal on repeated fields, lhs size=" << lhs.size() << ", rhs size=" << rhs.size();
     return false;
   }
   for (auto i = 0; i < lhs.size(); ++i) {
     if (!Compare(lhs.at(i), rhs.at(i))) {
-      VLOG(6) << "Not equal at index=" << i;
+      VLOG(6) << "Not equal on repeated fields at index=" << i;
       return false;
     }
   }
@@ -275,8 +287,9 @@ bool IrEqualVistor::Visit(const PrimitiveNode* lhs, const Expr* other) {
 
 bool IrEqualVistor::Visit(const IntrinsicOp* lhs, const Expr* other) {
   auto* rhs = other->As<IntrinsicOp>();
-  return false;
-  // TODO(CtfGo): Support to compare IntrinsicOp
+  return lhs->getKind() == rhs->getKind() && lhs->input_types() == rhs->input_types() &&
+         lhs->output_types() == rhs->output_types();
+  // TODO(CtfGo): Compare every derived class of IntrinsicOp separately
 }
 
 bool IrEqualVistor::Visit(const _BufferRange_* lhs, const Expr* other) {
@@ -286,7 +299,7 @@ bool IrEqualVistor::Visit(const _BufferRange_* lhs, const Expr* other) {
 
 bool IrEqualVistor::Visit(const ScheduleBlock* lhs, const Expr* other) {
   auto* rhs = other->As<ScheduleBlock>();
-  return Compare(lhs->name, rhs->name, allow_name_suffix_idx_diff_) && Compare(lhs->iter_vars, rhs->iter_vars) &&
+  return Compare(lhs->name, rhs->name, allow_name_suffix_diff_) && Compare(lhs->iter_vars, rhs->iter_vars) &&
          Compare(lhs->read_buffers, rhs->read_buffers) && Compare(lhs->write_buffers, rhs->write_buffers) &&
          Compare(lhs->attrs, rhs->attrs) && Compare(lhs->body, rhs->body);
 }
