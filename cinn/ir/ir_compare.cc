@@ -265,11 +265,6 @@ bool IrEqualVistor::Visit(const FracOp* lhs, const Expr* other) {
   return Compare(lhs->a(), rhs->a()) && Compare(lhs->b(), rhs->b());
 }
 
-bool IrEqualVistor::Visit(const Power* lhs, const Expr* other) {
-  auto* rhs = other->As<Power>();
-  return Compare(lhs->a(), rhs->a()) && Compare(lhs->b(), rhs->b());
-}
-
 bool IrEqualVistor::Visit(const Product* lhs, const Expr* other) {
   auto* rhs = other->As<Product>();
   return Compare(lhs->operands(), rhs->operands());
