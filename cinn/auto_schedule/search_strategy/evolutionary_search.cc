@@ -26,6 +26,7 @@
 #include "cinn/auto_schedule/database/database.h"
 #include "cinn/auto_schedule/search_space/search_space.h"
 #include "cinn/auto_schedule/search_space/search_state.h"
+#include "cinn/auto_schedule/task/task_registry.h"
 #include "cinn/auto_schedule/task/tune_task.h"
 #include "cinn/auto_schedule/tuning.h"
 #include "cinn/optim/ir_copy.h"
@@ -46,11 +47,11 @@ void PrintStates(const int vlog_level, const std::string& phase_name, const std:
   if (!VLOG_IS_ON(vlog_level)) {
     return;
   }
-  VLOG(vlog_level) << "EvolutionarySearch-" << phase_name << " states size:" << states.size();
+  VLOG(vlog_level) << "EvolutionarySearch-" << phase_name << " results size:" << states.size();
   for (auto i = 0; i < states.size(); ++i) {
     auto debug_str = states[i]->DebugString();
     VLOG(vlog_level) << "State-" << i << " hash:" << std::hash<std::string>()(debug_str);
-    VLOG(vlog_level + 1) << "****** State-" << i << " Detail ******\n" << debug_str;
+    VLOG(vlog_level + 1) << "****** State-" << i << " Detail ******" << debug_str;
     VLOG(vlog_level + 1) << "****** SearchState End ******";
   }
 }
@@ -71,7 +72,6 @@ std::vector<SearchState> EvolutionarySearch::SearchModuleExprBests(const TuningO
   init_population.insert(init_population.end(), topk_from_database.begin(), topk_from_database.end());
   init_population.insert(init_population.end(), random_sketch.begin(), random_sketch.end());
 
-  VLOG(4) << "EvolutionarySearch got init generation size " << init_population.size();
   std::vector<SearchState> picked_bests =
       Evolve(init_population, options.evolution_cross_over_num, options.num_samples_per_iteration);
   PrintStates(4, "Evolve", picked_bests);
@@ -89,11 +89,20 @@ std::vector<SearchState> EvolutionarySearch::SearchModuleExprEpsGreedy(const Tun
 }
 
 std::vector<SearchState> EvolutionarySearch::GetTopKCandidatesFromDatabase(int topk) {
-  return database_->GetTopK(tune_task_.serialized_key, topk);
+  std::vector<SearchState> results;
+  const auto& task_key               = tune_task_.serialized_key;
+  auto records                       = database_->GetTopK(task_key, topk);
+  InitialTaskRegistry* task_registry = InitialTaskRegistry::Global();
+  for (auto&& record : records) {
+    ir::IRSchedule ir_sch(optim::IRCopy(task_registry->Get(task_key)->module_expr));
+    ir::ScheduleDesc::ReplayWithProto(record.trace, &ir_sch);
+    results.emplace_back(SearchState(std::move(ir_sch), record.predicted_cost));
+  }
+  return results;
 }
 
 std::vector<SearchState> EvolutionarySearch::RandomInitSketch(int num) {
-  VLOG(4) << "RandomInitSketch is fetching " << num << " sketches";
+  VLOG(4) << "RandomInitSketch with num:" << num;
   return search_space_->GetRandomInitialSketch(num);
 }
 

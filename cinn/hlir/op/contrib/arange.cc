@@ -167,8 +167,8 @@ std::shared_ptr<framework::OpStrategy> StrategyForArange(const framework::NodeAt
       *ret = common::CINNValuePack{res};
     } else {
       CHECK(!args.empty()) << "The input argument of arange_schedule is empty! Please check.\n";
-      CINNValuePack arg_pack = args[0];
-      Expr out               = arg_pack[0];
+      common::CINNValuePack arg_pack = args[0];
+      Expr out                       = arg_pack[0];
       CHECK(out.as_tensor());
       *ret = arg_pack;
     }

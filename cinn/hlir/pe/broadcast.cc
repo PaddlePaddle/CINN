@@ -229,17 +229,16 @@ HLIR_IMP_BC_PE(Add, return a + b;);
 HLIR_IMP_BC_PE(Substract, return a - b;);
 HLIR_IMP_BC_PE(Multiply, return a * b;);
 HLIR_IMP_BC_PE(Divide, return a / b;);
-HLIR_IMP_BC_PE(FloorDivide, return lang::Floor(a / b););
-HLIR_IMP_BC_PE(Mod, return a % b;);
-HLIR_IMP_BC_PE(FloorMod, return a - lang::Floor(a / b) * b;);
+HLIR_IMP_BC_PE(FloorDivide, return lang::FloorDivide(a, b););
+HLIR_IMP_BC_PE(Remainder, return a.type().is_int() ? a % b : lang::Remainder(a, b););
+HLIR_IMP_BC_PE(Mod, return lang::Mod(a, b););
 HLIR_IMP_BC_PE(Maximum, return ir::Max::Make(a, b););
 HLIR_IMP_BC_PE(Minimum, return ir::Min::Make(a, b););
-HLIR_IMP_BC_PE(Power, return ir::Power::Make(a, b););
 HLIR_IMP_BC_PE(LeftShift, return a << b;);
 HLIR_IMP_BC_PE(RightShift, return a >> b;);
 HLIR_IMP_BC_PE(LogicalAnd, return a && b;);
 HLIR_IMP_BC_PE(LogicalOr, return a || b;);
-HLIR_IMP_BC_PE(LogicalXOr, return a ^ b;);
+HLIR_IMP_BC_PE(LogicalXOr, return (a || b) && !(a && b););
 HLIR_IMP_BC_PE(BitwiseAnd, return a & b;);
 HLIR_IMP_BC_PE(BitwiseOr, return a | b;);
 HLIR_IMP_BC_PE(BitwiseXor, return a ^ b;);
@@ -249,6 +248,36 @@ HLIR_IMP_BC_PE(Equal, return ir::EQ::Make(a, b););
 HLIR_IMP_BC_PE(NotEqual, return ir::NE::Make(a, b););
 HLIR_IMP_BC_PE(GreaterEqual, return a >= b;);
 HLIR_IMP_BC_PE(LessEqual, return a <= b;);
+
+Tensor Pow(
+    const Tensor& A, const Tensor& B, const std::string& output_name, const Expr& axis, const common::Target& target) {
+  CHECK_EQ(A->type(), B->type()) << "The data type of input tensors of pow op should be equal, but here x:" << A->type()
+                                 << " != y:" << B->type() << "! Please check.";
+
+  std::string extern_func_name = "cinn_";
+  if (target == common::DefaultNVGPUTarget()) {
+    extern_func_name += "nvgpu_";
+  } else if (target == common::DefaultHostTarget()) {
+    extern_func_name += "host_";
+  } else {
+    LOG(FATAL) << "Pow op only support nvgpu and host now, but here " << target << "! Please check.";
+  }
+
+  extern_func_name += "pow_";
+
+  if (A->type().is_float(64)) {
+    extern_func_name += "fp64";
+  } else if (A->type().is_float(32)) {
+    extern_func_name += "fp32";
+  } else if (A->type().is_int(32)) {
+    extern_func_name += "int32";
+  } else {
+    LOG(FATAL) << "Pow op only support float64/float32/int32 now, but here " << A->type() << "! Please check.";
+  }
+
+  auto fn = [&](const Expr& a, const Expr& b) { return lang::CallExtern(extern_func_name, {a, b}); };
+  return Broadcast(fn, A, B, output_name, axis);
+}
 
 Tensor BroadcastTo(const Tensor& A,
                    const std::vector<int>& out_shape,

@@ -124,7 +124,7 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
     // record to database
     for (size_t i = 0; i < states.size(); ++i) {
       database_->AddRecord(
-          TuningRecord(measure_inputs[i].task->serialized_key, measure_outputs[i].execution_cost, states[i]));
+          TuningRecord(measure_inputs[i].task->serialized_key, states[i], measure_outputs[i].execution_cost));
     }
 
     std::vector<float> cost_model_labels(states.size());
@@ -138,7 +138,6 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
                                      cost_model_labels.size());
       cost_model_.Update(cost_model_samples, cost_model_labels, task_->target);
     }
-    // TODO(zhhsplendid): write measure record into cache.
 
     for (size_t i = 0; i < measure_outputs.size(); ++i) {
       if (measure_outputs[i].execution_cost < min_exec_time) {

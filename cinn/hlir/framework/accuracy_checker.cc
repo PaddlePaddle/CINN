@@ -42,6 +42,8 @@ template <typename T>
 std::string GetTypeString() {
   if (std::is_same<T, float>::value) {
     return "float";
+  } else if (std::is_same<T, double>::value) {
+    return "double";
   } else if (std::is_same<T, int32_t>::value) {
     return "int32_t";
   } else if (std::is_same<T, int64_t>::value) {
@@ -97,10 +99,14 @@ std::string DebugString(const Tensor& cpu_tensor, const std::string& name, const
 
 std::string AccuracyChecker::operator()(const std::string& arg_name) {
   auto tensor = scope_->GetTensor(arg_name);
-  if (tensor->type().is_float()) {
+  if (tensor->type().is_float(32)) {
     return CheckTensor<float>(tensor, arg_name);
-  } else if (tensor->type().is_int()) {
+  } else if (tensor->type().is_float(64)) {
+    return CheckTensor<double>(tensor, arg_name);
+  } else if (tensor->type().is_int(32)) {
     return CheckTensor<int32_t>(tensor, arg_name);
+  } else if (tensor->type().is_int(64)) {
+    return CheckTensor<int64_t>(tensor, arg_name);
   } else if (tensor->type().is_bool()) {
     return CheckTensor<bool>(tensor, arg_name);
   } else {
@@ -115,6 +121,8 @@ std::string AccuracyChecker::operator()(const std::map<std::string, cinn_pod_val
   const cinn_buffer_t* buffer = cinn_pod_value_to_buffer_p(const_cast<cinn_pod_value_t*>(&name2podargs->at(arg_name)));
   if (buffer->type == cinn_float32_t()) {
     return CheckBuffer<float>(buffer, arg_name);
+  } else if (buffer->type == cinn_float64_t()) {
+    return CheckBuffer<double>(buffer, arg_name);
   } else if (buffer->type == cinn_int32_t()) {
     return CheckBuffer<int32_t>(buffer, arg_name);
   } else if (buffer->type == cinn_int64_t()) {

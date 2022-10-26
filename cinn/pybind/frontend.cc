@@ -24,6 +24,7 @@
 #include "cinn/frontend/interpreter.h"
 #include "cinn/frontend/net_builder.h"
 #include "cinn/frontend/optimize.h"
+#include "cinn/frontend/paddle_model_convertor.h"
 #include "cinn/frontend/pass/use_program_pass.h"
 #include "cinn/frontend/program_pass.h"
 #include "cinn/frontend/syntax.h"
@@ -63,7 +64,9 @@ static const char *SnakeName(const char *name) {
 #define EXPAND_CINN_SUPPORT_TYPE(EXPAND_MACRO) \
   EXPAND_MACRO(bool)                           \
   EXPAND_MACRO(float)                          \
-  EXPAND_MACRO(int)
+  EXPAND_MACRO(int)                            \
+  EXPAND_MACRO(int64_t)                        \
+  EXPAND_MACRO(double)
 
 void BindFrontend(pybind11::module *m) {
   py::class_<Variable>(*m, "Variable")  //
@@ -71,6 +74,8 @@ void BindFrontend(pybind11::module *m) {
       .def(py::init([](const Placeholder &p) { return new Variable(p); }))
       .def("__str__", [](Variable &self) { return self->id; })
       .def("__repr__", [](Variable &self) { return utils::GetStreamCnt(self); })
+      .def("name", [](Variable &self) { return self->id; })
+      .def("shape", [](Variable &self) { return self->shape; })
       .def("type", [](Variable &self) { return common::Type2Str(self->type); })
       .def("set_type",
            [](Variable &self, const Type &type) {
@@ -120,6 +125,8 @@ void BindFrontend(pybind11::module *m) {
       .def(py::init<>())
       .def("size", &Program::size)
       .def("__getitem__", [](Program &self, int idx) { return self[idx]; })
+      .def("__str__", [](Program &self) { return utils::GetStreamCnt(self); })
+      .def("get_inputs", &Program::GetInputs)
       .def("add", &Program::add)
       .def("mul", &Program::mul)
       .def("elementwise_add", &Program::elementwise_add)
@@ -136,50 +143,67 @@ void BindFrontend(pybind11::module *m) {
       .def("pool2d", &Program::pool2d)
       .def("concat", &Program::concat)
       .def("reshape", &Program::reshape)
-      .def("build_and_get_output",
-           [](Program &self,
-              const common::Target &target,
-              const std::vector<Variable> &tensor_inputs,
-              const std::vector<py::array> &input_data,
-              const std::vector<Variable> &tensor_outputs) {
-             std::shared_ptr<hlir::framework::Graph> g(new hlir::framework::Graph(self, target));
-             hlir::framework::ApplyPass(g.get(), "InferShape");
-             hlir::framework::ApplyPasses(g.get(), frontend::DefaultOpFusionPasses());
-             std::shared_ptr<hlir::framework::Scope> scope = hlir::framework::BuildScope(target, g);
-             hlir::framework::GraphCompiler gc(target, scope, g);
-             auto program = gc.Build();
-             for (size_t i = 0; i < tensor_inputs.size(); i++) {
-               auto in_tensor = scope->GetTensor(tensor_inputs[i]->id);
-               auto dtype     = tensor_inputs[i]->type;
-               auto *data     = in_tensor->mutable_data(target, dtype);
-               CHECK_EQ(input_data[i].size(), in_tensor->shape().numel())
-                   << "The size of tensor [" << tensor_inputs[i]->id
-                   << "] is different with the input data's size! Please check.";
-               if (target.arch == Target::Arch::NVGPU) {
+      .def(
+          "build_and_get_output",
+          [](Program &self,
+             const common::Target &target,
+             const std::vector<Variable> &tensor_inputs,
+             const std::vector<py::array> &input_data,
+             const std::vector<Variable> &tensor_outputs,
+             std::shared_ptr<hlir::framework::Scope> scope) {
+            std::shared_ptr<hlir::framework::Graph> g(new hlir::framework::Graph(self, target));
+            hlir::framework::ApplyPass(g.get(), "InferShape");
+            hlir::framework::ApplyPasses(g.get(), DefaultTrainingOptimizeOptions().graph_passes);
+            scope = hlir::framework::BuildScope(target, g, scope);
+            hlir::framework::GraphCompiler gc(target, scope, g);
+            auto program = gc.Build();
+            for (size_t i = 0; i < tensor_inputs.size(); i++) {
+              auto in_tensor = scope->GetTensor(tensor_inputs[i]->id);
+              auto dtype     = tensor_inputs[i]->type;
+              auto *data     = in_tensor->mutable_data(target, dtype);
+              CHECK_EQ(input_data[i].size(), in_tensor->shape().numel())
+                  << "The size of tensor [" << tensor_inputs[i]->id
+                  << "] is different with the input data's size! Please check.";
+              if (target.arch == Target::Arch::NVGPU) {
 #ifdef CINN_WITH_CUDA
-                 CUDA_CALL(cudaMemcpy(
-                     data, input_data[i].data(), in_tensor->shape().numel() * dtype.bytes(), cudaMemcpyHostToDevice));
+                CUDA_CALL(cudaMemcpy(
+                    data, input_data[i].data(), in_tensor->shape().numel() * dtype.bytes(), cudaMemcpyHostToDevice));
 #else
                  LOG(FATAL) <<"To use CUDA backends, you need to set WITH_CUDA ON!";
 #endif
-               } else if (target.arch == Target::Arch::X86) {
-                 memcpy(data, input_data[i].data(),
-                        in_tensor->shape().numel() * dtype.bytes());  // All random data
-               } else {
-                 CINN_NOT_IMPLEMENTED
-               }
-             }
-             program->Execute();
+              } else if (target.arch == Target::Arch::X86) {
+                memcpy(data, input_data[i].data(),
+                       in_tensor->shape().numel() * dtype.bytes());  // All random data
+              } else {
+                CINN_NOT_IMPLEMENTED
+              }
+            }
+            program->Execute();
 
-             std::vector<hlir::framework::Tensor> outputs;
-             for (size_t i = 0; i < tensor_outputs.size(); i++) {
-               outputs.push_back(scope->GetTensor(tensor_outputs[i]->id));
-               outputs.back()->set_type(tensor_outputs[i]->type);
-             }
+            std::vector<hlir::framework::Tensor> outputs;
+            for (size_t i = 0; i < tensor_outputs.size(); i++) {
+              outputs.push_back(scope->GetTensor(tensor_outputs[i]->id));
+              outputs.back()->set_type(tensor_outputs[i]->type);
+            }
 
-             return outputs;
+            return outputs;
+          },
+          py::arg("target"),
+          py::arg("feed_list"),
+          py::arg("feed_datas"),
+          py::arg("fetch_list"),
+          py::arg("scope") = nullptr)
+      .def("apply_pass",
+           [](Program &self,
+              const std::unordered_set<std::string> &fetch_ids,
+              const common::Target &target,
+              const std::vector<std::string> &passes = {}) {
+             auto real_passes = passes;
+             if (real_passes.empty()) {
+               real_passes = DefaultTrainingOptimizeOptions().program_passes;
+             }
+             frontend::ProgramPass::Apply(&self, fetch_ids, target, real_passes);
            })
-      .def("apply_pass", &ProgramPass::Apply)
 
       /**
        * @brief Test the performance of a single-op program
@@ -454,9 +478,12 @@ void BindFrontend(pybind11::module *m) {
            py::arg("y"),
            py::arg("axis") = -1)
       .def("relu6", &NetBuilder::Relu6, py::arg("a"), py::arg("threshold") = 6.0f)
+      .def("gelu", &NetBuilder::Gelu, py::arg("x"))
       .def("squeeze", &NetBuilder::Squeeze, py::arg("a"), py::arg("axes"))
+      .def("expand_dims", &NetBuilder::ExpandDims, py::arg("x"), py::arg("axis"), py::arg("num_newaxis") = 1)
       .def("argmax", &NetBuilder::Argmax, py::arg("x"), py::arg("axis"), py::arg("keep_dim") = false)
       .def("argmin", &NetBuilder::Argmin, py::arg("x"), py::arg("axis"), py::arg("keep_dim") = false)
+      .def("lookup_table", &NetBuilder::LookupTable, py::arg("table"), py::arg("ids"), py::arg("padding_idx"))
       .def("conv2d",
            &NetBuilder::Conv2d,
            py::arg("x"),
@@ -606,6 +633,21 @@ void BindFrontend(pybind11::module *m) {
       .def("get_all_tensor_names", &CinnComputation::GetAllTensorNames)
       .def("get_tensor", &CinnComputation::GetTensor)
       .def("execute", [](CinnComputation &self) { self.Execute(); });
+
+  py::class_<PaddleModelConvertor>(*m, "PaddleModelConvertor")
+      .def(py::init<>())
+      .def("__call__",
+           &PaddleModelConvertor::operator(),
+           py::arg("target"),
+           py::arg("model_path"),
+           py::arg("is_combined") = false,
+           py::arg("scope")       = nullptr)
+      .def("get_fetch_list", &PaddleModelConvertor::GetFetchList)
+      .def("get_cinn_name", [](PaddleModelConvertor &self, const std::string &paddle_name) {
+        CHECK(self.var_model_to_program_map().count(paddle_name))
+            << "Cannot find variabel " << paddle_name << " in CINN! Please check.";
+        return self.var_model_to_program_map().at(paddle_name);
+      });
 
 }  // namespace frontend
 

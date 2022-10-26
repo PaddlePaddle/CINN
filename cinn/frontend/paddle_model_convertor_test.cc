@@ -17,6 +17,7 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
+#include "cinn/frontend/decomposer/test_helper.h"
 #include "cinn/runtime/use_extern_funcs.h"
 
 DEFINE_string(model_dir, "", "");
@@ -24,20 +25,82 @@ DEFINE_string(model_dir, "", "");
 namespace cinn {
 namespace frontend {
 
-TEST(PaddleModelConvertor, basic) {
-  auto scope  = hlir::framework::Scope::Create();
-  auto target = common::DefaultHostTarget();
+template <typename T>
+void RandomInput(const Target& target,
+                 hlir::framework::Tensor tensor,
+                 T low  = static_cast<T>(0),
+                 T high = static_cast<T>(1)) {
+  std::vector<T> vec;
+  InitRandomVector<T>(&vec, tensor->shape().numel(), low, high);
+  CopyFromVector<T>(vec, tensor, target);
+}
 
-  PaddleModelConvertor model_transform(scope.get(), target);
-  auto program = model_transform(FLAGS_model_dir);
+template <>
+void RandomInput<bool>(const Target& target, hlir::framework::Tensor tensor, bool low, bool high) {
+  std::vector<int> vec_int;
+  InitRandomVector<int>(&vec_int, tensor->shape().numel(), 0, 1);
+
+  std::vector<bool> vec(vec_int.size());
+  for (int i = 0; i < vec_int.size(); ++i) {
+    vec[i] = static_cast<bool>(vec_int[i]);
+  }
+  CopyFromVector<bool>(vec, tensor, target);
+}
+
+void RunProgram(const Target& target, Program* prog) {
+  const auto& inputs = prog->GetInputs();
+  std::vector<std::string> input_names;
+  for (const auto& var : inputs) {
+    input_names.emplace_back(var->id);
+  }
+
+  LOG(INFO) << "The Program's inputs are [" << cinn::utils::Join(input_names, ", ") << "]";
+
+  auto passes = DefaultTrainingOptimizeOptions();
+
+  frontend::ProgramPass::Apply(prog, {}, target, passes.program_passes);
+
+  auto graph = std::make_shared<hlir::framework::Graph>(*prog, target);
+  hlir::framework::ApplyPasses(graph.get(), passes.graph_passes);
+
+  auto scope = BuildScope(target, graph);
+
+  hlir::framework::GraphCompiler gc(target, scope, graph);
+  auto runtime_program = gc.Build();
+
+  for (size_t i = 0; i < input_names.size(); ++i) {
+    scope->Var<hlir::framework::Tensor>(input_names[i]);
+    auto tensor = scope->GetTensor(input_names[i]);
+
+    if (inputs[i]->type.is_float(32)) {
+      RandomInput<float>(target, tensor);
+    } else if (inputs[i]->type.is_int(32)) {
+      RandomInput<int>(target, tensor);
+    } else if (inputs[i]->type.is_bool()) {
+      RandomInput<bool>(target, tensor, 0, inputs[i]->shape[0]);
+    } else {
+      LOG(FATAL) << "Only support float/int/bool! Please check.";
+    }
+  }
+
+  runtime_program->Execute();
+}
+
+TEST(PaddleModelConvertor, basic) {
+  auto target = common::DefaultTarget();
+
+  PaddleModelConvertor model_transform;
+  auto program = model_transform(target, FLAGS_model_dir);
 
   const auto& var_map                  = model_transform.var_map();
   const auto& var_model_to_program_map = model_transform.var_model_to_program_map();
 
   ASSERT_FALSE(var_map.empty());
   ASSERT_FALSE(var_model_to_program_map.empty());
-  ASSERT_FALSE(model_transform.GetFetchIds().empty());
+  ASSERT_FALSE(model_transform.GetFetchList().empty());
   ASSERT_GT(program.size(), 0);
+
+  RunProgram(target, &program);
 }
 
 }  // namespace frontend

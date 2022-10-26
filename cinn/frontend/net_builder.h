@@ -40,6 +40,7 @@ namespace frontend {
   macro__(Sqrt) \
   macro__(Tanh) \
   macro__(Relu) \
+  macro__(Gelu) \
   macro__(Sigmoid) \
   macro__(Identity) \
   macro__(Exp) \
@@ -82,10 +83,10 @@ namespace frontend {
   macro__(Multiply) \
   macro__(FloorDivide) \
   macro__(Mod) \
-  macro__(FloorMod) \
+  macro__(Remainder) \
   macro__(Max) \
   macro__(Min) \
-  macro__(Power) \
+  macro__(Pow) \
   macro__(LogicalAnd) \
   macro__(LogicalOr) \
   macro__(LogicalXor) \
@@ -578,6 +579,15 @@ class NetBuilder {
   Variable Squeeze(const Variable& x, const cinn::utils::ShapeType& axes);
 
   /**
+   * @brief Creates an operation to insert new dimensions of length 1.
+   * @param operand An N-D variable.
+   * @param axis The index of the first new dimension (allows negative indices as offsets from the last dimension).
+   * @param num_newaxis The number of new dimensions to insert
+   * @return A variable whose op member is the dim expandsion operation.
+   */
+  Variable ExpandDims(const Variable& operand, int axis, int num_newaxis = 1);
+
+  /**
    * @brief This operator reverse the input along the axis.
    * @param x An N-D variable.
    * @param axis Specify the axis to operate on the input reverse.
@@ -929,6 +939,17 @@ class NetBuilder {
    * @return `Sorted variable`.
    */
   Variable Sort(const Variable& operand, const int& axis, const bool& is_ascend = true);
+
+  /**
+   * @brief Lookup embeddings vector of ids provided by x .
+   * @param table A variable with shape of lookup table parameter
+   * @param ids An input contains the id information.
+   * @param padding_idx If the value is -1, it makes no effect to lookup.
+                     Otherwise the given value indicates padding the output
+                     with zeros whenever lookup encounters it in Ids.
+   * @return `The concatenated variable of selected values`.
+   */
+  Variable LookupTable(const Variable& table, const Variable& ids, int64_t padding_idx);
 
  private:
   CINN_DISALLOW_COPY_AND_ASSIGN(NetBuilder);

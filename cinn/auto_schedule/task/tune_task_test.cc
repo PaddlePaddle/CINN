@@ -297,19 +297,18 @@ TEST(TuneTask, SerializeToString) {
   std::string single_add_str = R"ROC(Target<linux,nvgpu,64>
 
 Group 0 {
-  (float32[32,24]) = elementwise_add(float32[32,24], float32[32,24])
+  (var_1->float32[32,24]) = elementwise_add(A->float32[32,24], B->float32[32,24])
 }
 )ROC";
 #else
   std::string single_add_str     = R"ROC(Target<linux,x86,64>
 
 Group 0 {
-  (float32[32,24]) = elementwise_add(float32[32,24], float32[32,24])
+  (var_1->float32[32,24]) = elementwise_add(A->float32[32,24], B->float32[32,24])
 }
 )ROC";
 #endif
   EXPECT_EQ(single_tasks[0].serialized_key, single_add_str);
-  EXPECT_EQ(single_tasks[1].serialized_key, single_add_str);
 
   ApplyPass(graph.get(), "OpFusionPass");
   std::vector<TuneTask> fused_tasks = task_creator.CreateTuneTaskOpLevel(graph.get());
@@ -322,16 +321,16 @@ Group 0 {
   std::string fused_expected_str = R"ROC(Target<linux,nvgpu,64>
 
 Group 0 {
-  (float32[32,24]) = elementwise_add(float32[32,24], float32[32,24])
-  (float32[32,24]) = elementwise_add(float32[32,24], float32[32,24])
+  (var_1->float32[32,24]) = elementwise_add(A->float32[32,24], B->float32[32,24])
+  (var_2->float32[32,24]) = elementwise_add(A->float32[32,24], var_1->float32[32,24])
 }
 )ROC";
 #else
   std::string fused_expected_str = R"ROC(Target<linux,x86,64>
 
 Group 0 {
-  (float32[32,24]) = elementwise_add(float32[32,24], float32[32,24])
-  (float32[32,24]) = elementwise_add(float32[32,24], float32[32,24])
+  (var_1->float32[32,24]) = elementwise_add(A->float32[32,24], B->float32[32,24])
+  (var_2->float32[32,24]) = elementwise_add(A->float32[32,24], var_1->float32[32,24])
 }
 )ROC";
 #endif

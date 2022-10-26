@@ -74,18 +74,18 @@ std::vector<ir::LoweredFunc> OpLowerer::LowerWithoutSchedule(GroupPtr& group) {
   VLOG(3) << "Lowering Group : " << group->group_id << " , Op Pattern : " << group->op_pattern_kind;
   if (FLAGS_cinn_ir_schedule) {
     switch (group->op_pattern_kind) {
-      case framework::kElemWise:
+      case framework::kElementWise:
       case framework::kBroadcast:
       case framework::kInjective:
         return IRLowerOpWithoutSchedule(&OpLowerer::IRElementwiseCompute, group);
-      case framework::kCommReduce:
+      case framework::kReduction:
         return IRLowerOpWithoutSchedule(&OpLowerer::IRReduceCompute, group);
-      case framework::kOutEWiseFusable:
-        LOG(FATAL) << "Group Pattern Kind kOutEWiseFusable Is Not Implemented!";
-      case framework::kOpaque:
-        return IRLowerOpaqueOp(group, /*apply_impl_schedule = */ false);
+      case framework::kOutFusible:
+        LOG(FATAL) << "Group Pattern Kind kOutFusible Is Not Implemented!";
+      case framework::kNonFusible:
+        return IRLowerNonFusibleOp(group, /*apply_impl_schedule = */ false);
       default:
-        LOG(FATAL) << "Group Pattern Kind kOpaque Is Not Implemented!";
+        LOG(FATAL) << "Group Pattern Kind kNonFusible Is Not Implemented!";
     }
   } else {
     LOG(FATAL) << "Previous IR Schedule Is Not Implemented!";
@@ -96,31 +96,31 @@ std::vector<ir::LoweredFunc> OpLowerer::Lower(GroupPtr& group) {
   VLOG(3) << "Lowering Group : " << group->group_id << " , Op Pattern : " << group->op_pattern_kind;
   if (FLAGS_cinn_ir_schedule) {
     switch (group->op_pattern_kind) {
-      case framework::kElemWise:
+      case framework::kElementWise:
       case framework::kBroadcast:
       case framework::kInjective:
         return IRLowerOp(&OpLowerer::IRElementwiseCompute, &OpLowerer::IRElementwiseSchedule, group);
-      case framework::kCommReduce:
+      case framework::kReduction:
         return IRLowerOp(&OpLowerer::IRReduceCompute, &OpLowerer::IRReduceSchedule, group);
-      case framework::kOutEWiseFusable:
-        LOG(FATAL) << "Group Pattern Kind kOutEWiseFusable Is Not Implemented!";
-      case framework::kOpaque:
-        return IRLowerOpaqueOp(group, /*apply_impl_schedule = */ true);
+      case framework::kOutFusible:
+        LOG(FATAL) << "Group Pattern Kind kOutFusible Is Not Implemented!";
+      case framework::kNonFusible:
+        return IRLowerNonFusibleOp(group, /*apply_impl_schedule = */ true);
       default:
         LOG(FATAL) << "Group Pattern Kind Is Unknown!";
     }
   } else {
     switch (group->op_pattern_kind) {
-      case framework::kElemWise:
+      case framework::kElementWise:
       case framework::kBroadcast:
       case framework::kInjective:
         return LowerOp(&OpLowerer::ElementwiseCompute, &OpLowerer::ElementwiseSchedule, group);
-      case framework::kCommReduce:
+      case framework::kReduction:
         return LowerOp(&OpLowerer::ReduceCompute, &OpLowerer::ReduceSchedule, group);
-      case framework::kOutEWiseFusable:
+      case framework::kOutFusible:
         return LowerOp(&OpLowerer::OutEWiseFusableCompute, &OpLowerer::OutEWiseFusableSchedule, group);
-      case framework::kOpaque:
-        return LowerOpaqueOp(group);
+      case framework::kNonFusible:
+        return LowerNonFusibleOp(group);
       default:
         LOG(FATAL) << "Group Pattern Kind Is Unknown!";
     }
@@ -537,8 +537,8 @@ std::vector<Expr> OpLowerer::IRReduceCompute(poly::StageMap& stages,
     }
     auto func = lang::LowerVec("fn_" + node->id(), tmp_stages, tensor_inputs, {}, {}, nullptr, this->target_, true);
 
-    // node is kCommReduce
-    if (op_pattern_dict[node->op()] == framework::kCommReduce && apply_impl_schedule) {
+    // node is kReduction
+    if (op_pattern_dict[node->op()] == framework::kReduction && apply_impl_schedule) {
       std::vector<common::CINNValue> schedule_inputs;
       // collect tensor
       for (int idx = 0; idx < pack.size() - 1; ++idx) {
@@ -804,12 +804,12 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
       for (auto node : group->master_nodes) {
         if (GetNodeData(node)->id() ==
             block->as<ir::ScheduleBlockRealize>()->schedule_block->as<ir::ScheduleBlock>()->name) {
-          if (op_pattern_dict[node->op()] != framework::kCommReduce) {
+          if (op_pattern_dict[node->op()] != framework::kReduction) {
             master = node;
             break;
           }
 
-          if (op_pattern_dict[node->op()] == framework::kCommReduce) {
+          if (op_pattern_dict[node->op()] == framework::kReduction) {
             reducer = node;
             break;
           }
@@ -822,7 +822,7 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
     }
     // find master node.
     for (auto node : group->master_nodes) {
-      if (op_pattern_dict[node->op()] != framework::kCommReduce) {
+      if (op_pattern_dict[node->op()] != framework::kReduction) {
         master = node;
         break;
       }
@@ -834,25 +834,25 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
       } else {
         master = group->fused_sub_groups.back()->nodes.back();
       }
-      CHECK_EQ(op_pattern_dict[master->op()], framework::kCommReduce) << "Master Node Type Must Be Reduce!";
+      CHECK_EQ(op_pattern_dict[master->op()], framework::kReduction) << "Master Node Type Must Be Reduce!";
     }
 
     // find master reducer node.
-    reducer = op_pattern_dict[master->op()] == framework::kCommReduce ? master : nullptr;
+    reducer = op_pattern_dict[master->op()] == framework::kReduction ? master : nullptr;
     if (!group->fused_sub_groups.size()) {
       for (auto node : group->master_nodes) {
-        if (op_pattern_dict[node->op()] == framework::kCommReduce) {
+        if (op_pattern_dict[node->op()] == framework::kReduction) {
           reducer = node;
           break;
         }
       }
     }
     for (int idx = group->fused_sub_groups.size() - 1; idx >= 0 && !reducer; --idx) {
-      if (group->fused_sub_groups[idx]->op_pattern_kind != framework::kCommReduce) {
+      if (group->fused_sub_groups[idx]->op_pattern_kind != framework::kReduction) {
         continue;
       }
       for (auto node : group->fused_sub_groups[idx]->master_nodes) {
-        if (op_pattern_dict[node->op()] == framework::kCommReduce) {
+        if (op_pattern_dict[node->op()] == framework::kReduction) {
           reducer = node;
           break;
         }
@@ -894,7 +894,7 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
       std::unordered_set<Node*> visited_nodes;
       for (auto node : group->master_nodes) {
         VLOG(2) << "Schedule reduce node -> " << node->id();
-        if (op_pattern_dict[node->op()] != framework::kCommReduce) {
+        if (op_pattern_dict[node->op()] != framework::kReduction) {
           continue;
         }
         auto node_data   = GetNodeData(node);
@@ -1045,7 +1045,7 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
     if (node == master) {
       continue;
     }
-    if (op_pattern_dict[node->op()] == framework::kCommReduce) {
+    if (op_pattern_dict[node->op()] == framework::kReduction) {
       continue;
     }
 
@@ -1085,7 +1085,7 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
         if (node_shape != tmp_reducer_shape) {
           // try to find the same shape reduce from visited_nodes
           for (auto rnode : group->master_nodes) {
-            if (op_pattern_dict[rnode->op()] != framework::kCommReduce) {
+            if (op_pattern_dict[rnode->op()] != framework::kReduction) {
               continue;
             }
             auto shape = this->shape_dict_.at(rnode->inlinks_in_order()[0]->source()->id());
@@ -1163,8 +1163,8 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
   }
 }
 
-std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpaqueOp(GroupPtr& group, bool apply_impl_schedule) {
-  VLOG(3) << "LowerOpaqueOp Group : " << group->group_id;
+std::vector<ir::LoweredFunc> OpLowerer::IRLowerNonFusibleOp(GroupPtr& group, bool apply_impl_schedule) {
+  VLOG(3) << "LowerNonFusibleOp Group : " << group->group_id;
   // get input tensor and output tensor
   CHECK(group->nodes.size() || group->fused_sub_groups.size());
   auto& cinn_strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
@@ -1416,8 +1416,8 @@ void OpLowerer::ReduceCompute(poly::StageMap& stages,
     }
     value_pack.back() = CINNValue(stages);
 
-    // node is kCommReduce
-    if (op_pattern_dict[node->op()] == framework::kCommReduce) {
+    // node is kReduction
+    if (op_pattern_dict[node->op()] == framework::kReduction) {
       reducer = node;
       // do schedule
       value_pack = impl->fschedule(value_pack);
@@ -1431,7 +1431,7 @@ void OpLowerer::ReduceCompute(poly::StageMap& stages,
       } else {
         bool copied_transform = false;
         for (auto rnode : group->master_nodes) {
-          if (op_pattern_dict[rnode->op()] == framework::kCommReduce) {
+          if (op_pattern_dict[rnode->op()] == framework::kReduction) {
             auto rnode_data = GetNodeData(rnode);
             if (!tensor_map.count(rnode_data->id())) {
               continue;
@@ -1622,29 +1622,29 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
 
   Node* master_node = nullptr;
   for (auto node : group->master_nodes) {
-    if (op_pattern_dict[node->op()] != framework::kCommReduce) {
+    if (op_pattern_dict[node->op()] != framework::kReduction) {
       master_node = node;
       break;
     }
   }
 
-  // if not find master node, using last kCommReduce as master node.
+  // if not find master node, using last kReduction as master node.
   if (!master_node) {
     if (group->fused_sub_groups.empty()) {
       master_node = group->nodes.back();
     } else {
       master_node = group->fused_sub_groups.back()->nodes.back();
     }
-    CHECK_EQ(op_pattern_dict[master_node->op()], framework::kCommReduce) << "Master Node Type Must Be Reduce!";
+    CHECK_EQ(op_pattern_dict[master_node->op()], framework::kReduction) << "Master Node Type Must Be Reduce!";
   }
   auto master_node_data = GetNodeData(master_node);
   auto master_stage     = stages[tensor_map[master_node_data->id()]];
 
-  Node* master_reducer = op_pattern_dict[master_node->op()] == framework::kCommReduce ? master_node : nullptr;
+  Node* master_reducer = op_pattern_dict[master_node->op()] == framework::kReduction ? master_node : nullptr;
   // find the reducer that link to master node.
   if (!master_reducer) {
     for (auto reducer : group->master_nodes) {
-      if (op_pattern_dict[reducer->op()] == framework::kCommReduce) {
+      if (op_pattern_dict[reducer->op()] == framework::kReduction) {
         master_reducer = reducer;
         break;
       }
@@ -1670,7 +1670,7 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
   if (without_last_dim) {
     // check each reduce has same input shape.
     for (auto reducer : group->master_nodes) {
-      if (op_pattern_dict[reducer->op()] != framework::kCommReduce) {
+      if (op_pattern_dict[reducer->op()] != framework::kReduction) {
         continue;
       }
       if (this->shape_dict_.at(reducer->inlinks_in_order()[0]->source()->id()) != master_reducer_shape) {
@@ -1691,13 +1691,13 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
     VLOG(3) << "Schedule node -> " << node->id();
     auto node_data = GetNodeData(node);
     auto stage     = stages[tensor_map[node_data->id()]];
-    // if node is kCommReduce
+    // if node is kReduction
     if (node == master_node) {
       continue;
     }
     // for x86 schedule.
     if (this->target_ == common::DefaultHostTarget()) {
-      if (op_pattern_dict[node->op()] == framework::kCommReduce) {
+      if (op_pattern_dict[node->op()] == framework::kReduction) {
         if (!group->output_nodes.count(node)) {
           stage->SetBuffer("local");
         }
@@ -1743,8 +1743,8 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
       continue;
     }
 
-    // if node is kCommReduce
-    if (op_pattern_dict[node->op()] == framework::kCommReduce) {
+    // if node is kReduction
+    if (op_pattern_dict[node->op()] == framework::kReduction) {
       VLOG(3) << "Reduce Schedule for Reduce Type!";
       // if node is not output node, set buffer.
       if (!group->output_nodes.count(node)) {
@@ -1834,21 +1834,21 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
         if (!reduce_with_same_shape) {
           // find reducer for current node to assign
           GroupPtr reducer_group = sub_group;
-          if (sub_group->op_pattern_kind != framework::kCommReduce) {
+          if (sub_group->op_pattern_kind != framework::kReduction) {
             for (auto& consumer : sub_group->consumer_groups) {
               if (!consumer->belong_groups.count(group)) {
                 continue;
               }
-              if (consumer->op_pattern_kind == framework::kCommReduce) {
+              if (consumer->op_pattern_kind == framework::kReduction) {
                 reducer_group = consumer;
                 break;
               }
             }
           }
 
-          if (reducer_group->op_pattern_kind == framework::kCommReduce) {
+          if (reducer_group->op_pattern_kind == framework::kReduction) {
             for (auto reducer : reducer_group->master_nodes) {
-              if (op_pattern_dict[reducer->op()] == framework::kCommReduce) {
+              if (op_pattern_dict[reducer->op()] == framework::kReduction) {
                 reducer_shape = this->shape_dict_.at(reducer->inlinks_in_order()[0]->source()->id());
                 if (node_shape == reducer_shape) {
                   reducer_data  = GetNodeData(reducer);
@@ -1859,7 +1859,7 @@ void OpLowerer::ReduceSchedule(poly::StageMap& stages,
             }
           } else {
             for (auto reducer : group->master_nodes) {
-              if (op_pattern_dict[reducer->op()] == framework::kCommReduce) {
+              if (op_pattern_dict[reducer->op()] == framework::kReduction) {
                 reducer_shape = this->shape_dict_.at(reducer->inlinks_in_order()[0]->source()->id());
                 if (node_shape == reducer_shape) {
                   reducer_data  = GetNodeData(reducer);
@@ -1959,14 +1959,14 @@ void OpLowerer::OutEWiseFusableCompute(poly::StageMap& stages,
     CHECK_GE(value_pack.size(), 2);
     ir::Expr out              = value_pack[0];
     poly::StageMap tmp_stages = value_pack.back();
-    // node is kCommReduce
-    if (op_pattern_dict[node->op()] == framework::kOutEWiseFusable) {
+    // node is kReduction
+    if (op_pattern_dict[node->op()] == framework::kOutFusible) {
       // do schedule
       value_pack = impl->fschedule(value_pack);
     } else if (group->master_nodes.count(node)) {
       // node is master node, copy schedule from OutEWiseFusable node
       for (auto fnode : group->master_nodes) {
-        if (op_pattern_dict[fnode->op()] == framework::kOutEWiseFusable) {
+        if (op_pattern_dict[fnode->op()] == framework::kOutFusible) {
           auto fnode_data = GetNodeData(fnode);
           tmp_stages[out.as_tensor_ref()]->CopyTransform(stages[tensor_map[fnode_data->id()]]);
           tmp_stages[out.as_tensor_ref()]->CopyLoopInfo(stages[tensor_map[fnode_data->id()]]);
@@ -1994,21 +1994,20 @@ void OpLowerer::OutEWiseFusableSchedule(poly::StageMap& stages,
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
   Node* master_node     = nullptr;
   for (auto node : group->master_nodes) {
-    if (op_pattern_dict[node->op()] != framework::kOutEWiseFusable) {
+    if (op_pattern_dict[node->op()] != framework::kOutFusible) {
       master_node = node;
       break;
     }
   }
 
-  // if not find master node, using last kOutEWiseFusable as master node.
+  // if not find master node, using last kOutFusible as master node.
   if (!master_node) {
     if (group->fused_sub_groups.empty()) {
       master_node = group->nodes.back();
     } else {
       master_node = group->fused_sub_groups.back()->nodes.back();
     }
-    CHECK_EQ(op_pattern_dict[master_node->op()], framework::kOutEWiseFusable)
-        << "Master Node Type Must Be OutEWiseFusable!";
+    CHECK_EQ(op_pattern_dict[master_node->op()], framework::kOutFusible) << "Master Node Type Must Be OutEWiseFusable!";
   }
 
   auto master_node_data = GetNodeData(master_node);
@@ -2022,8 +2021,8 @@ void OpLowerer::OutEWiseFusableSchedule(poly::StageMap& stages,
       continue;
     }
 
-    // if node is kOutEWiseFusable
-    if (op_pattern_dict[node->op()] == framework::kOutEWiseFusable) {
+    // if node is kOutFusible
+    if (op_pattern_dict[node->op()] == framework::kOutFusible) {
       // if node is not output nodes
       if (!group->output_nodes.count(node)) {
         tensor_map[node_data->id()]->WithBuffer("local");
@@ -2051,8 +2050,8 @@ void OpLowerer::OutEWiseFusableSchedule(poly::StageMap& stages,
   }
 }
 
-std::vector<ir::LoweredFunc> OpLowerer::LowerOpaqueOp(GroupPtr& group) {
-  VLOG(3) << "LowerOpaqueOp Group : " << group->group_id;
+std::vector<ir::LoweredFunc> OpLowerer::LowerNonFusibleOp(GroupPtr& group) {
+  VLOG(3) << "LowerNonFusibleOp Group : " << group->group_id;
   // get input tensor and output tensor
   CHECK(group->nodes.size() || group->fused_sub_groups.size());
   auto& cinn_strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy");

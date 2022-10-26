@@ -24,6 +24,13 @@
 namespace cinn {
 namespace frontend {
 
+TEST(OpMapperRegistryTest, list_all_opmappers) {
+  auto all_opmappers_names = OpMapperRegistry::Global()->ListAllNames();
+  LOG(INFO) << "Total has " << all_opmappers_names.size() << " registered OpMappers:\n"
+            << cinn::utils::Join(all_opmappers_names, ", ");
+  ASSERT_FALSE(all_opmappers_names.empty());
+}
+
 TEST(OpMapperRegistryTest, basic) {
   auto kernel = OpMapperRegistry::Global()->Find("sigmoid");
   ASSERT_NE(kernel, nullptr);

@@ -61,13 +61,11 @@ HLIR_DCL_BC_PE(FloorDivide);
 //! Compute A % B with auto-broadcasting.
 HLIR_DCL_BC_PE(Mod);
 //! Compute A - floor_div(A, B) * B with auto-broadcasting.
-HLIR_DCL_BC_PE(FloorMod);
+HLIR_DCL_BC_PE(Remainder);
 //! Compute Maximum(A, B) with auto-broadcasting.
 HLIR_DCL_BC_PE(Maximum);
 //! Compute Minimum(A, B) with auto-broadcasting.
 HLIR_DCL_BC_PE(Minimum);
-//! Compute Power(A, B) with auto-broadcasting.
-HLIR_DCL_BC_PE(Power);
 //! Compute A << B with auto-broadcasting.
 HLIR_DCL_BC_PE(LeftShift);
 //! Compute A >> B with auto-broadcasting.
@@ -96,6 +94,12 @@ HLIR_DCL_BC_PE(NotEqual);
 HLIR_DCL_BC_PE(GreaterEqual);
 //! Compute A <= B with auto-broadcasting.
 HLIR_DCL_BC_PE(LessEqual);
+
+ir::Tensor Pow(const ir::Tensor& A,
+               const ir::Tensor& B,
+               const std::string& output_name,
+               const Expr& axis,
+               const common::Target& target);
 
 ir::Tensor BroadcastTo(const ir::Tensor& A,
                        const std::vector<int>& out_shape,

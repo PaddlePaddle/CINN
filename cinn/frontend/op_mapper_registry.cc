@@ -20,12 +20,10 @@ namespace cinn {
 namespace frontend {
 
 void OpMapperContext::AddVar(const std::string& origin_name, const Variable& var, bool replace) const {
-  CHECK(!origin_name.empty()) << "Variable [" << origin_name << "]'s is empty ! Please check.";
-  const auto& name = cinn::utils::TransValidVarName(origin_name);
-  CheckVarNameValid(name);
-  CHECK(replace || !var_map_->count(name)) << "Duplicate variable [" << name << "] found";
-  (*var_map_)[name] = var;
-  VLOG(4) << "Add variable [" << name << "] with shape " << cinn::utils::Join(var->shape, ",");
+  CHECK(replace || !var_map_->count(origin_name))
+      << "Duplicate variable [" << origin_name << "] found, whose id is " << var_map_->at(origin_name)->id;
+  (*var_map_)[origin_name] = var;
+  VLOG(4) << "Add variable [" << origin_name << "] with shape " << cinn::utils::Join(var->shape, ",");
 }
 
 void OpMapperContext::AddVarModelToProgram(const std::string& name, const std::string& id) const {
@@ -37,11 +35,11 @@ void OpMapperContext::AddVarModelToProgram(const std::string& name, const std::s
 void OpMapperContext::AddFetchVarName(const std::string& name) const { fetch_var_names_->insert(name); }
 
 Variable OpMapperContext::GetVar(const std::string& origin_name) const {
+  auto it = var_map_->find(origin_name);
+  if (it != var_map_->end()) return it->second;
+
   const auto& name = cinn::utils::TransValidVarName(origin_name);
   CheckVarNameValid(name);
-
-  auto it = var_map_->find(name);
-  if (it != var_map_->end()) return it->second;
 
   auto* var = scope_.FindVar(name);
   if (var) {
@@ -50,11 +48,11 @@ Variable OpMapperContext::GetVar(const std::string& origin_name) const {
     local_var.set_id(name);
     local_var->shape = tensor->shape().data();
     local_var->type  = tensor->type();
-    AddVar(name, local_var);
+    AddVar(origin_name, local_var);
     return local_var;
   }
 
-  LOG(FATAL) << "No var called [" << name << "] exists";
+  LOG(FATAL) << "No var called [" << origin_name << "] exists";
   return Variable();
 }
 

@@ -416,19 +416,6 @@ void BindIrIr(py::module *m) {
       BINARY_OP(double);
 #undef BINARY_OP
 
-  DefineExprNode<ir::Power>(m, "Power");
-  py::class_<ir::Power, ir::ExprNode<ir::Power>> power(*m, "Power");
-  power.def(py::init<>())
-      .def_static("make", &ir::Power::Make)
-      .def("type", &ir::Power::type)
-      .def("a_const", py::overload_cast<>(&ir::Power::a, py::const_), py::return_value_policy::reference)
-      .def("a_mutable", py::overload_cast<>(&ir::Power::a), py::return_value_policy::reference)
-      .def("b_const", py::overload_cast<>(&ir::Power::b, py::const_), py::return_value_policy::reference)
-      .def("b_mutable", py::overload_cast<>(&ir::Power::b), py::return_value_policy::reference)
-      .def("is_constant", &ir::Power::is_constant)
-      .def("operands_mutable", py::overload_cast<>(&ir::Power::operands))
-      .def("operands_const", py::overload_cast<>(&ir::Power::operands, py::const_));
-
   DefineExprNode<ir::Product>(m, "Product");
   py::class_<ir::Product, ir::ExprNode<ir::Product>> product(*m, "Product");
   product.def_static("make", &ir::Product::Make)

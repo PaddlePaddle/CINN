@@ -72,7 +72,7 @@ std::vector<TuneTask> TaskCreator::CreateTuneTaskOpLevel(Graph* graph) {
       }
 
       // group type
-      group->op_pattern_kind = hlir::framework::kOpaque;
+      group->op_pattern_kind = hlir::framework::kNonFusible;
       // use current node as master node for schedule
       group->master_nodes.insert(node);
       group->group_id = node->id();

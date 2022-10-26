@@ -66,10 +66,12 @@ class OpTest(unittest.TestCase):
                         inputs,
                         feed_data,
                         outputs,
-                        passes=["Decomposer"]):
+                        passes=["Decomposer"],
+                        scope=None):
         fetch_ids = {str(out) for out in outputs}
         self.apply_pass(prog, target, passes, fetch_ids)
-        result = prog.build_and_get_output(target, inputs, feed_data, outputs)
+        result = prog.build_and_get_output(target, inputs, feed_data, outputs,
+                                           scope)
         outs_and_grads = []
         for res in result:
             outs_and_grads.append(res.numpy(target))
@@ -206,7 +208,21 @@ class OpTest(unittest.TestCase):
             self.assertTrue(is_allclose, msg=error_message)
 
     @staticmethod
+    def nptype2cinntype(dtype):
+        switch_map = {
+            "float32": Float(32),
+            "float64": Float(64),
+            "int32": Int(32),
+            "int64": Int(64),
+            "bool": Bool()
+        }
+        assert str(dtype) in switch_map, dtype + " not support in CINN"
+        return switch_map[str(dtype)]
+
+    @staticmethod
     def random(shape, dtype="float32", low=0.0, high=1.0):
+        assert bool(shape), "Shape should not empty!"
+        assert -1 not in shape, "Shape should not -1!"
         if dtype in ["float32", "float64"]:
             return np.random.uniform(low, high, shape).astype(dtype)
         elif dtype == "bool":
