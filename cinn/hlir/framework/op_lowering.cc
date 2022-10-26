@@ -72,7 +72,6 @@ std::vector<ir::LoweredFunc> GetFuncFromOpImpl(const std::shared_ptr<OpImpl>& im
     // checkout whether the tensor is with buffer.
     if (!temp.as_tensor_ref()->buffer.defined() || target != common::DefaultNVGPUTarget()) {
       all_arg_tensors.push_back(temp.as_tensor_ref());
-      temp.as_tensor_ref()->WithBuffer();
     }
   }
 

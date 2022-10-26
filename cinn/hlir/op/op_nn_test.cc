@@ -53,7 +53,7 @@ Module LowerToModule(const std::string test_name,
     common::CINNValuePack cinn_input = common::CINNValuePack{cinn_inputs};
     input_names.push_back(output_name);
 
-    auto funcs = framework::GetFuncFromOpImpl(impl, cinn_input, inputs, input_names, func_name, target);
+    auto funcs = framework::GetFuncFromOpImpl(impl, cinn_input, inputs, input_names, "fn_" + func_name, target);
 
     for (auto func : funcs) {
       LOG(INFO) << "Test" << test_name << "'s Strategy, func is :\n" << func;

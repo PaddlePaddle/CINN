@@ -742,7 +742,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   // use the input groups in options firstly if exists
   std::vector<std::vector<Node*>> node_groups = graph_->groups;
   std::vector<std::shared_ptr<framework::Graph::Group>> fusion_groups =
-      options.groups.empty() ? options.groups : graph_->fusion_groups;
+      options.groups.empty() ? graph_->fusion_groups : options.groups;
 
   // if there are no avaiable fusion result, we will take each node as a group
   if (node_groups.empty() && fusion_groups.empty()) {
@@ -751,7 +751,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   }
 
   // fusion_groups is not empty;
-  for (auto g : fusion_groups) {
+  for (auto& g : fusion_groups) {
     VLOG(3) << "group_id is : " << g->group_id << ", and its number is : " << g->nodes.size();
     node_groups.push_back(std::move(g->CollectNodes()));
     // set node as output node from fetch_var_ids.
@@ -778,7 +778,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
       auto& shape_dict = graph_->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
 
       OpLowerer op_lowerer(dtype_dict, shape_dict, target_);
-      for (auto g : fusion_groups) {
+      for (auto& g : fusion_groups) {
         local_lowered_funcs.emplace_back(std::move(op_lowerer.Lower(g)));
         CHECK_EQ(local_lowered_funcs.back().size(), 1) << "Lowerd Function Is Not Equal 1!";
         VLOG(3) << local_lowered_funcs.back()[0];

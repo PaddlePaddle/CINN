@@ -112,7 +112,7 @@ std::pair<ir::Module, std::string> GenReduceCode(const std::vector<int>& shape,
                              common::CINNValuePack{{common::CINNValue(X), common::CINNValue(op_name)}},
                              inputs,
                              input_output_nodes,
-                             func_name,
+                             "fn_" + func_name,
                              target);
   }
   for (auto& f : func) {

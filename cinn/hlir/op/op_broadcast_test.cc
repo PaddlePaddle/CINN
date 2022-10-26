@@ -63,7 +63,7 @@ TEST(Operator, Operator_ElementWise_Add_Test0) {
         common::CINNValuePack{{common::CINNValue(A), common::CINNValue(B), common::CINNValue(out_name)}};
     std::vector<std::string> input_output_names{"A", "B", out_name};
 
-    auto funcs = framework::GetFuncFromOpImpl(impl, cinn_input, inputs, input_output_names, func_name, target);
+    auto funcs = framework::GetFuncFromOpImpl(impl, cinn_input, inputs, input_output_names, "fn_" + func_name, target);
 
     for (auto func : funcs) {
       LOG(INFO) << "Test Operator_ElementWise_Add_Test0's Strategy, func is :\n" << func;
@@ -81,7 +81,7 @@ TEST(Operator, Operator_ElementWise_Add_Test0) {
       Expr temp = rets[i];
       inputs.push_back(temp.as_tensor_ref());
     }
-    auto func = Lower("fn_" + func_name, rets.back(), inputs);
+    auto func = Lower(func_name, rets.back(), inputs);
     LOG(INFO) << "Test Strategy Codegen:\n" << func;
     builder.AddFunction(func);
   }
@@ -143,7 +143,7 @@ TEST(Operator, Operator_ElementWise_Add_Test1) {
         common::CINNValuePack{{common::CINNValue(A), common::CINNValue(B), common::CINNValue(out_name)}};
     std::vector<std::string> input_output_names{"A", "B", out_name};
 
-    auto funcs = framework::GetFuncFromOpImpl(impl, cinn_input, inputs, input_output_names, func_name, target);
+    auto funcs = framework::GetFuncFromOpImpl(impl, cinn_input, inputs, input_output_names, "fn_" + func_name, target);
 
     for (auto func : funcs) {
       builder.AddFunction(func);
@@ -250,7 +250,7 @@ TEST(Operator, Operator_BroadcastTo) {
       inputs.push_back(temp.as_tensor_ref());
     }
 
-    auto func = Lower("func" + func_name, rets.back(), inputs);
+    auto func = Lower("fn_" + func_name, rets.back(), inputs);
     LOG(INFO) << "Test Operator_BroadcastTo's Strategy, func is :\n" << func;
   }
 }
