@@ -39,12 +39,61 @@ std::vector<std::unique_ptr<Instruction>> ParallelCompiler::operator()() {
   if (!FLAGS_cinn_parallel_compile_size) {
     return std::vector<std::unique_ptr<Instruction>>();
   }
+  if (graph_->fusion_groups.size() == 0) {
+    CreateFusionGroup();
+  }
   // Task Spilt
   SplitTask();
   // launch task
   LaunchTask();
   // merge instruction
   return MergeResult();
+}
+
+OpPatternKind GetOpKind(const framework::Node* node) {
+  auto& op_pattern_dict = framework::Operator::GetAttrs<OpPatternKind>("OpPattern");
+  CHECK(op_pattern_dict.Find(node->op())) << "Don't find the pattern of op : " << node->id();
+  auto kind = op_pattern_dict[node->op()];
+
+  if (kind == framework::kBroadcast) {
+    // As binary op was defined as broadcast, actually it should be element-wise.
+    if (node->op()->name != "broadcast_to") {
+      return framework::kElementWise;
+    }
+  }
+
+  return kind;
+}
+
+void ParallelCompiler::CreateFusionGroup() {
+  auto nodes_inorder = std::get<0>(graph_->topological_order());
+  for (auto graph_node : nodes_inorder) {
+    auto node = graph_node->safe_as<Node>();
+    if (node) {
+      auto group = std::make_shared<Graph::Group>();
+      // init group
+      group->nodes.push_back(node);
+      group->nodes_set.insert(node);
+      group->output_nodes.insert(node);
+      // input node
+      for (auto& edge : node->inlinks()) {
+        auto input_graph_node = edge->source();
+        auto input_node_data  = input_graph_node->safe_as<NodeData>();
+        CHECK(input_node_data);
+        // input data has no source node
+        if (input_node_data->source_node.get()) {
+          group->input_nodes[input_node_data->source_node.get()] = 1;
+        }
+      }
+
+      // group type
+      group->op_pattern_kind = GetOpKind(node);
+      // use current node as master node for schedule
+      group->master_nodes.insert(node);
+      group->group_id = node->id();
+      graph_->fusion_groups.push_back(group);
+    }
+  }
 }
 
 void ParallelCompiler::SplitTask() {
