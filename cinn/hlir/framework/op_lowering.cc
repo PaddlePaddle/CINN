@@ -62,6 +62,7 @@ std::vector<ir::LoweredFunc> GetFuncFromOpImpl(const std::shared_ptr<OpImpl>& im
                                                const std::string& func_name,
                                                const Target& target,
                                                bool apply_impl_schedule) {
+  std::set<std::string> all_arg_names(input_output_nodes.begin(), input_output_nodes.end());
   // 1.Call Op's Compute function, using the default stages and LowerVec to get IR tree.
   common::CINNValuePack C = impl->fcompute(cinn_inputs);
 
@@ -72,6 +73,7 @@ std::vector<ir::LoweredFunc> GetFuncFromOpImpl(const std::shared_ptr<OpImpl>& im
     // checkout whether the tensor is with buffer.
     if (!temp.as_tensor_ref()->buffer.defined() || target != common::DefaultNVGPUTarget()) {
       all_arg_tensors.push_back(temp.as_tensor_ref());
+      all_arg_names.insert(temp.as_tensor_ref()->name);
     }
   }
 
@@ -80,7 +82,7 @@ std::vector<ir::LoweredFunc> GetFuncFromOpImpl(const std::shared_ptr<OpImpl>& im
 
   std::vector<ir::LoweredFunc> res = funcs;
   if (apply_impl_schedule) {
-    res.clear();
+    res.clear();  // reset lowered results
     std::vector<common::CINNValue> schedule_inputs;
     for (int i = 0; i < C.size() - 1; ++i) {
       CHECK(C[i].is_tensor());
@@ -93,14 +95,14 @@ std::vector<ir::LoweredFunc> GetFuncFromOpImpl(const std::shared_ptr<OpImpl>& im
     // 3. Call Op's Schedule function, optimizing the IR tree by new IR schedule
     common::CINNValuePack expr_pack = impl->fschedule(common::CINNValuePack{schedule_inputs});
 
+    std::vector<std::string> input_output_names(all_arg_names.begin(), all_arg_names.end());
     // 4. Optimize the LoweredFunc
-    VLOG(3) << "expr_pack.size() is : " << expr_pack.size();
     for (int i = 0; i < expr_pack.size(); i++) {
       ir::Expr func_body             = expr_pack[i];
       std::vector<ir::Argument> args = funcs[i]->args;
       // if multiple functions are merged, we should update the arguments
       if (funcs.size() > expr_pack.size()) {
-        args = lang::GetArgs(func_body, input_output_nodes);
+        args = lang::GetArgs(func_body, input_output_names);
       }
       auto temp_buffers = lang::GetTempBuffers(all_arg_tensors, stages, func_body);
       auto function     = ir::_LoweredFunc_::Make(funcs[i]->name, args, func_body, temp_buffers);

@@ -333,7 +333,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFuncWithIRSchedule(
       OpStrategy::SelectImpl(cinn_strategy[node->op()](node->attrs, tensor_inputs, out_types, out_shapes, target_));
 
   auto res = GetFuncFromOpImpl(
-      impl, common::CINNValuePack{cinn_inputs}, tensor_inputs, input_output_nodes, node->id(), target_);
+      impl, common::CINNValuePack{cinn_inputs}, tensor_inputs, input_output_nodes, "fn_" + node->id(), target_);
   return res;
 }
 
@@ -772,11 +772,10 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
   // if the input lowered_funcs is empty, we will use the defalut lowering process to generate
   std::vector<std::vector<ir::LoweredFunc>> local_lowered_funcs;
   if (options.lowered_funcs.empty()) {
+    const auto& dtype_dict = graph_->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
+    const auto& shape_dict = graph_->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
     // lowering each group with op_lowerer
     if (!fusion_groups.empty()) {
-      auto& dtype_dict = graph_->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
-      auto& shape_dict = graph_->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
-
       OpLowerer op_lowerer(dtype_dict, shape_dict, target_);
       for (auto& g : fusion_groups) {
         local_lowered_funcs.emplace_back(std::move(op_lowerer.Lower(g)));
@@ -786,10 +785,16 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
     } else {
       std::vector<ir::LoweredFunc> lowered_func;
       for (int i = 0; i < node_groups.size(); i++) {
-        if (node_groups[i].size() == 1) {
-          lowered_func = GetOpFunc(node_groups[i][0]);
+        if (FLAGS_cinn_ir_schedule) {
+          for (auto* node : node_groups[i]) {
+            lowered_func = GetOpFuncWithIRSchedule(node, dtype_dict, shape_dict);
+          }
         } else {
-          lowered_func = GetOpFunc(node_groups[i]);
+          if (node_groups[i].size() == 1) {
+            lowered_func = GetOpFunc(node_groups[i][0]);
+          } else {
+            lowered_func = GetOpFunc(node_groups[i]);
+          }
         }
         local_lowered_funcs.emplace_back(std::move(lowered_func));
       }
