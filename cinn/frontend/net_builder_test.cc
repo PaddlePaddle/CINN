@@ -142,6 +142,56 @@ TEST(net_build, program_execute_fc) {
   runtime_program->Execute();
 }
 
+TEST(net_build, program_execute_pool2d) {
+  const int B = 16;
+  const int C = 64;
+  const int H = 112;
+  const int W = 112;
+
+  NetBuilder builder("net_builder");
+  Placeholder input        = builder.CreateInput(Float(32), {B, C, H, W}, "Img");
+  std::string pooling_type = "max";
+  std::vector<int> ksize{3, 3};
+  std::vector<int> strides{2, 2};
+  std::vector<int> paddings{1, 1, 1, 1};
+  bool ceil_mode                = false;
+  bool exclusive                = true;
+  bool global_pooling           = false;
+  std::string data_format       = "NCHW";
+  bool adaptive                 = false;
+  std::string padding_algorithm = "EXPLICIT";
+  Variable pool_out             = builder.Pool2d(input,
+                                     pooling_type,
+                                     ksize,
+                                     strides,
+                                     paddings,
+                                     ceil_mode,
+                                     exclusive,
+                                     global_pooling,
+                                     data_format,
+                                     adaptive,
+                                     padding_algorithm);
+  auto program                  = builder.Build();
+
+#ifdef CINN_WITH_CUDA
+  Target target = common::DefaultNVGPUTarget();
+#else
+  Target target = common::DefaultHostTarget();
+#endif
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  auto scope = BuildScope(target, graph);
+  hlir::framework::GraphCompiler gc(target, scope, graph);
+  auto runtime_program = gc.Build();
+
+  scope->Var<hlir::framework::Tensor>(std::string(input.id()));
+  scope->Var<hlir::framework::Tensor>(std::string(pool_out->id));
+
+  auto input_tensor = scope->GetTensor(std::string(input.id()));
+  SetRandData<float>(input_tensor, target);
+  runtime_program->Execute();
+}
+
 TEST(net_build, program_execute_reverse) {
   const int B = 16;
   const int C = 3;

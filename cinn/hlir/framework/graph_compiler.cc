@@ -1033,8 +1033,8 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions(
           }
           if (node->attrs.attr_store.find("kernel_size") != node->attrs.attr_store.end()) {
             if (global_pooling == false) {
-              auto padding = absl::get<std::vector<int>>(node->attrs.attr_store.at("kernel_size"));
-              instr->attrs.insert(instr->attrs.end(), padding.begin(), padding.end());
+              auto kernel_size = absl::get<std::vector<int>>(node->attrs.attr_store.at("kernel_size"));
+              instr->attrs.insert(instr->attrs.end(), kernel_size.begin(), kernel_size.end());
             } else {
               instr->attrs.push_back(instr->attrs[2]);
               instr->attrs.push_back(instr->attrs[3]);
@@ -1042,9 +1042,9 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions(
           }
           if (node->attrs.attr_store.find("padding_size") != node->attrs.attr_store.end()) {
             if (global_pooling == false) {
-              auto stride = absl::get<std::vector<int>>(node->attrs.attr_store.at("padding_size"));
-              CHECK_EQ(stride.size(), 4UL);
-              instr->attrs.insert(instr->attrs.end(), stride.begin(), stride.end());
+              auto padding = absl::get<std::vector<int>>(node->attrs.attr_store.at("padding_size"));
+              CHECK_EQ(padding.size(), 4UL);
+              instr->attrs.insert(instr->attrs.end(), padding.begin(), padding.end());
             } else {
               instr->attrs.push_back(0);
               instr->attrs.push_back(0);

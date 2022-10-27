@@ -210,7 +210,7 @@ TEST_F(PerformanceTester, Pool2d) {
   std::string pooling_type = "max";
   std::vector<int> ksize{3, 3};
   std::vector<int> strides{2, 2};
-  std::vector<int> paddings{1, 1};
+  std::vector<int> paddings{1, 1, 1, 1};
   bool ceil_mode                = false;
   bool exclusive                = true;
   bool global_pooling           = false;
@@ -218,7 +218,6 @@ TEST_F(PerformanceTester, Pool2d) {
   bool adaptive                 = false;
   std::string padding_algorithm = "EXPLICIT";
 
-  options_.evaluate_knobs = 0UL;
   Evaluate(Pool2dProgramBuilder(input_shape,
                                 pooling_type,
                                 ksize,
