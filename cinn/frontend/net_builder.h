@@ -83,7 +83,7 @@ namespace frontend {
   macro__(Multiply) \
   macro__(FloorDivide) \
   macro__(Mod) \
-  macro__(FloorMod) \
+  macro__(Remainder) \
   macro__(Max) \
   macro__(Min) \
   macro__(Pow) \

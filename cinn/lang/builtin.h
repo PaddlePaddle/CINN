@@ -54,6 +54,17 @@ EXTERN_CALL_DCL(Atan);
 EXTERN_CALL_DCL(Atanh);
 EXTERN_CALL_DCL(Tanh);
 
+#undef EXTERN_CALL_DCL
+
+//! extern call binary op
+#define EXTERN_BINARY_CALL_DCL(name__) Expr name__(Expr a, Expr b);
+
+EXTERN_BINARY_CALL_DCL(FloorDivide);
+EXTERN_BINARY_CALL_DCL(Remainder);
+EXTERN_BINARY_CALL_DCL(Mod);
+
+#undef EXTERN_BINARY_CALL_DCL
+
 inline Expr Sigmoid(Expr e) {
   auto one = common::make_const(e->type(), 1);
   return one / (one + Exp(-e));
@@ -115,6 +126,8 @@ inline Expr ReduceMul(Expr e, const std::vector<Var>& reduce_axis, Expr initial 
   return ir::Reduce::Make(ir::Reduce::kMul, initial, e, reduce_axis);
 }
 
+Expr Zero(const Type& type);
+Expr One(const Type& type);
 Expr min_value(const Type& type);
 Expr max_value(const Type& type);
 

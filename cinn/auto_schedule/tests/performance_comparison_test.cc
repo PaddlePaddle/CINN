@@ -244,7 +244,7 @@ TEST_F(PerformanceTester, Pool2d) {
   std::string pooling_type = "max";
   std::vector<int> ksize{3, 3};
   std::vector<int> strides{2, 2};
-  std::vector<int> paddings{1, 1};
+  std::vector<int> paddings{1, 1, 1, 1};
   bool ceil_mode                = false;
   bool exclusive                = true;
   bool global_pooling           = false;

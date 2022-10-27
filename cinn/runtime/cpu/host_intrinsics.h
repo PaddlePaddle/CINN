@@ -45,18 +45,6 @@ inline int cinn_host_gt_num_float(
 inline int cinn_host_gt_num_int(
     const cinn_buffer_t* buf, const int size, const int num, const int offset, const int stride);
 
-#define FN_FP32(func) cinn_host_##func##_fp32
-
-inline float FN_FP32(pow)(float x, float y);
-
-#undef FN_FP32
-
-#define FN_FP64(func) cinn_host_##func##_fp64
-
-inline double FN_FP64(pow)(double x, double y);
-
-#undef FN_FP64
-
 #define FN_INT32(func) cinn_host_##func##_int32
 
 inline int FN_INT32(pow)(int x, int y);
