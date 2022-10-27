@@ -21,8 +21,8 @@
 namespace cinn {
 namespace ir {
 
-struct IrEqualVistor : public IRVisitorBase<bool, const Expr*> {
-  explicit IrEqualVistor(bool allow_name_suffix_diff = false) : allow_name_suffix_diff_(allow_name_suffix_diff) {}
+struct IrEqualVisitor : public IRVisitorBase<bool, const Expr*> {
+  explicit IrEqualVisitor(bool allow_name_suffix_diff = false) : allow_name_suffix_diff_(allow_name_suffix_diff) {}
   bool Compare(const Expr& lhs, const Expr& rhs);
 
  private:
@@ -35,7 +35,7 @@ struct IrEqualVistor : public IRVisitorBase<bool, const Expr*> {
   NODETY_FORALL(__)
 #undef __
 
-  // TODO(CtfGo): Add explanation;
+  // whether allowing name suffix ends with "_[0-9]+" different
   bool allow_name_suffix_diff_ = false;
 };
 

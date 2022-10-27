@@ -20,7 +20,7 @@
 namespace cinn {
 namespace ir {
 
-bool IrEqualVistor::Compare(const Expr& lhs, const Expr& rhs) {
+bool IrEqualVisitor::Compare(const Expr& lhs, const Expr& rhs) {
   if (lhs.get() == rhs.get()) {  // the same object, including both are null
     return true;
   }
@@ -37,8 +37,8 @@ bool IrEqualVistor::Compare(const Expr& lhs, const Expr& rhs) {
   return equal;
 }
 
-bool IrEqualVistor::Compare(const std::string& lhs, const std::string& rhs, bool allow_name_suffix_diff) {
-  // TODO(CtfGo): Add explanation;
+bool IrEqualVisitor::Compare(const std::string& lhs, const std::string& rhs, bool allow_name_suffix_diff) {
+  // if allow_name_suffix_diff=true then just compare the name prefix before the "_[0-9]+"
   auto remove_idx_fn = [](const std::string& name) -> std::string {
     auto idx_pos = name.find_last_of('_');
     return idx_pos == std::string::npos ? name : name.substr(0, idx_pos);
@@ -60,7 +60,7 @@ bool IrEqualVistor::Compare(const std::string& lhs, const std::string& rhs, bool
   return equal;
 }
 
-bool IrEqualVistor::Compare(const std::map<std::string, attr_t>& lhs, const std::map<std::string, attr_t>& rhs) {
+bool IrEqualVisitor::Compare(const std::map<std::string, attr_t>& lhs, const std::map<std::string, attr_t>& rhs) {
   if (lhs.size() != rhs.size()) {
     VLOG(6) << "Not equal on attrs, lhs size=" << lhs.size() << ", rhs size=" << rhs.size();
     return false;
@@ -76,7 +76,7 @@ bool IrEqualVistor::Compare(const std::map<std::string, attr_t>& lhs, const std:
 }
 
 template <typename T>
-bool IrEqualVistor::Compare(const std::vector<T>& lhs, const std::vector<T>& rhs) {
+bool IrEqualVisitor::Compare(const std::vector<T>& lhs, const std::vector<T>& rhs) {
   if (lhs.size() != rhs.size()) {
     VLOG(6) << "Not equal on repeated fields, lhs size=" << lhs.size() << ", rhs size=" << rhs.size();
     return false;
@@ -90,20 +90,20 @@ bool IrEqualVistor::Compare(const std::vector<T>& lhs, const std::vector<T>& rhs
   return true;
 }
 
-#define PRIMITIVE_TYPE_IMPL(op__)                                 \
-  bool IrEqualVistor::Visit(const op__* lhs, const Expr* other) { \
-    auto* rhs = other->As<op__>();                                \
-    return lhs->value == rhs->value;                              \
+#define PRIMITIVE_TYPE_IMPL(op__)                                  \
+  bool IrEqualVisitor::Visit(const op__* lhs, const Expr* other) { \
+    auto* rhs = other->As<op__>();                                 \
+    return lhs->value == rhs->value;                               \
   }
 
-#define UNARY_OP_IMPL(op__)                                       \
-  bool IrEqualVistor::Visit(const op__* lhs, const Expr* other) { \
-    auto* rhs = other->As<op__>();                                \
-    return Compare(lhs->v(), rhs->v());                           \
+#define UNARY_OP_IMPL(op__)                                        \
+  bool IrEqualVisitor::Visit(const op__* lhs, const Expr* other) { \
+    auto* rhs = other->As<op__>();                                 \
+    return Compare(lhs->v(), rhs->v());                            \
   }
 
 #define BINARY_OP_IMPL(op__)                                           \
-  bool IrEqualVistor::Visit(const op__* lhs, const Expr* other) {      \
+  bool IrEqualVisitor::Visit(const op__* lhs, const Expr* other) {     \
     auto* rhs = other->As<op__>();                                     \
     return Compare(lhs->a(), rhs->a()) && Compare(lhs->b(), rhs->b()); \
   }
@@ -116,41 +116,41 @@ NODETY_BINARY_OP_FOR_EACH(BINARY_OP_IMPL)
 #undef UNARY_OP_IMPL
 #undef BINARY_OP_IMPL
 
-bool IrEqualVistor::Visit(const Cast* lhs, const Expr* other) {
+bool IrEqualVisitor::Visit(const Cast* lhs, const Expr* other) {
   auto* rhs = other->As<Cast>();
   return lhs->type() == rhs->type() && Compare(lhs->v(), rhs->v());
 }
 
-bool IrEqualVistor::Visit(const For* lhs, const Expr* other) {
+bool IrEqualVisitor::Visit(const For* lhs, const Expr* other) {
   auto* rhs = other->As<For>();
   return lhs->for_type() == rhs->for_type() && Compare(lhs->loop_var, rhs->loop_var) && Compare(lhs->min, rhs->min) &&
          Compare(lhs->extent, rhs->extent) && Compare(lhs->body, rhs->body);
 }
 
-bool IrEqualVistor::Visit(const PolyFor* lhs, const Expr* other) {
+bool IrEqualVisitor::Visit(const PolyFor* lhs, const Expr* other) {
   auto* rhs = other->As<PolyFor>();
   return lhs->for_type() == rhs->for_type() && Compare(lhs->iterator, rhs->iterator) && Compare(lhs->init, rhs->init) &&
          Compare(lhs->condition, rhs->condition) && Compare(lhs->inc, rhs->inc) && Compare(lhs->body, rhs->body);
 }
 
-bool IrEqualVistor::Visit(const Select* lhs, const Expr* other) {
+bool IrEqualVisitor::Visit(const Select* lhs, const Expr* other) {
   auto* rhs = other->As<Select>();
   return Compare(lhs->condition, rhs->condition) && Compare(lhs->true_value, rhs->true_value) &&
          Compare(lhs->false_value, rhs->false_value);
 }
 
-bool IrEqualVistor::Visit(const IfThenElse* lhs, const Expr* other) {
+bool IrEqualVisitor::Visit(const IfThenElse* lhs, const Expr* other) {
   auto* rhs = other->As<IfThenElse>();
   return Compare(lhs->condition, rhs->condition) && Compare(lhs->true_case, rhs->true_case) &&
          Compare(lhs->false_case, rhs->false_case);
 }
 
-bool IrEqualVistor::Visit(const Block* lhs, const Expr* other) {
+bool IrEqualVisitor::Visit(const Block* lhs, const Expr* other) {
   auto* rhs = other->As<Block>();
   return Compare(lhs->stmts, rhs->stmts);
 }
 
-bool IrEqualVistor::Visit(const Call* lhs, const Expr* other) {
+bool IrEqualVisitor::Visit(const Call* lhs, const Expr* other) {
   auto* rhs = other->As<Call>();
   return lhs->name == rhs->name && Compare(lhs->read_args, rhs->read_args) &&
          Compare(lhs->write_args, rhs->write_args) && Compare(lhs->attrs, rhs->attrs) &&
@@ -158,34 +158,34 @@ bool IrEqualVistor::Visit(const Call* lhs, const Expr* other) {
   // TODO(CtfGo): Compare `func` field
 }
 
-bool IrEqualVistor::Visit(const _Var_* lhs, const Expr* other) {
+bool IrEqualVisitor::Visit(const _Var_* lhs, const Expr* other) {
   auto* rhs = other->As<_Var_>();
   return lhs->name == rhs->name && Compare(lhs->lower_bound, rhs->lower_bound) &&
          Compare(lhs->upper_bound, rhs->upper_bound) && lhs->tag == rhs->tag;
 }
 
-bool IrEqualVistor::Visit(const Load* lhs, const Expr* other) {
+bool IrEqualVisitor::Visit(const Load* lhs, const Expr* other) {
   auto* rhs = other->As<Load>();
   return Compare(lhs->tensor, rhs->tensor) && Compare(lhs->indices, rhs->indices);
 }
 
-bool IrEqualVistor::Visit(const Store* lhs, const Expr* other) {
+bool IrEqualVisitor::Visit(const Store* lhs, const Expr* other) {
   auto* rhs = other->As<Store>();
   return Compare(lhs->tensor, rhs->tensor) && Compare(lhs->indices, rhs->indices);
 }
 
-bool IrEqualVistor::Visit(const Alloc* lhs, const Expr* other) {
+bool IrEqualVisitor::Visit(const Alloc* lhs, const Expr* other) {
   auto* rhs = other->As<Alloc>();
   return Compare(lhs->destination, rhs->destination) && Compare(lhs->extents, rhs->extents) &&
          Compare(lhs->condition, rhs->condition) && Compare(lhs->body, rhs->body);
 }
 
-bool IrEqualVistor::Visit(const Free* lhs, const Expr* other) {
+bool IrEqualVisitor::Visit(const Free* lhs, const Expr* other) {
   auto* rhs = other->As<Free>();
   return Compare(lhs->destination, rhs->destination);
 }
 
-bool IrEqualVistor::Visit(const _Buffer_* lhs, const Expr* other) {
+bool IrEqualVisitor::Visit(const _Buffer_* lhs, const Expr* other) {
   auto* rhs = other->As<_Buffer_>();
   return Compare(lhs->shape, rhs->shape) && Compare(lhs->strides, rhs->strides) && lhs->name == rhs->name &&
          lhs->scope == rhs->scope && Compare(lhs->elem_offset, rhs->elem_offset) &&
@@ -193,12 +193,12 @@ bool IrEqualVistor::Visit(const _Buffer_* lhs, const Expr* other) {
          lhs->data_alignment == rhs->data_alignment && lhs->memory_type == rhs->memory_type && lhs->dtype == rhs->dtype;
 }
 
-bool IrEqualVistor::Visit(const _Tensor_* lhs, const Expr* other) {
+bool IrEqualVisitor::Visit(const _Tensor_* lhs, const Expr* other) {
   auto* rhs = other->As<_Tensor_>();
   return lhs->name == rhs->name && Compare(lhs->shape, rhs->shape);
 }
 
-bool IrEqualVistor::Visit(const _LoweredFunc_* lhs, const Expr* other) {
+bool IrEqualVisitor::Visit(const _LoweredFunc_* lhs, const Expr* other) {
   auto* rhs = other->As<_LoweredFunc_>();
   if (lhs->name != rhs->name) {
     VLOG(6) << "Not equal, lhs name=" << lhs->name << ", rhs name=" << rhs->name;
@@ -233,73 +233,73 @@ bool IrEqualVistor::Visit(const _LoweredFunc_* lhs, const Expr* other) {
          Compare(lhs->argument_prepare_exprs, rhs->argument_prepare_exprs);
 }
 
-bool IrEqualVistor::Visit(const _Module_* lhs, const Expr* other) {
+bool IrEqualVisitor::Visit(const _Module_* lhs, const Expr* other) {
   auto* rhs = other->As<_Module_>();
   return lhs->name == rhs->name && lhs->target == rhs->target && Compare(lhs->buffers, rhs->buffers) &&
          Compare(lhs->functions, rhs->functions) && Compare(lhs->submodules, rhs->submodules);
 }
 
-bool IrEqualVistor::Visit(const Let* lhs, const Expr* other) {
+bool IrEqualVisitor::Visit(const Let* lhs, const Expr* other) {
   auto* rhs = other->As<Let>();
   return Compare(lhs->symbol, rhs->symbol) && Compare(lhs->body, rhs->body);
 }
 
-bool IrEqualVistor::Visit(const Reduce* lhs, const Expr* other) {
+bool IrEqualVisitor::Visit(const Reduce* lhs, const Expr* other) {
   auto* rhs = other->As<Reduce>();
   return Compare(lhs->init, rhs->init) && Compare(lhs->body, rhs->body) && lhs->reduce_type == rhs->reduce_type;
   // TODO(CtfGo): compare `reduce_axis` field
 }
 
-bool IrEqualVistor::Visit(const Ramp* lhs, const Expr* other) {
+bool IrEqualVisitor::Visit(const Ramp* lhs, const Expr* other) {
   auto* rhs = other->As<Ramp>();
   return Compare(lhs->base, rhs->base) && Compare(lhs->stride, rhs->stride) && lhs->lanes == rhs->lanes;
 }
 
-bool IrEqualVistor::Visit(const Broadcast* lhs, const Expr* other) {
+bool IrEqualVisitor::Visit(const Broadcast* lhs, const Expr* other) {
   auto* rhs = other->As<Broadcast>();
   return Compare(lhs->value, rhs->value) && lhs->lanes == rhs->lanes;
 }
 
-bool IrEqualVistor::Visit(const FracOp* lhs, const Expr* other) {
+bool IrEqualVisitor::Visit(const FracOp* lhs, const Expr* other) {
   auto* rhs = other->As<FracOp>();
   return Compare(lhs->a(), rhs->a()) && Compare(lhs->b(), rhs->b());
 }
 
-bool IrEqualVistor::Visit(const Product* lhs, const Expr* other) {
+bool IrEqualVisitor::Visit(const Product* lhs, const Expr* other) {
   auto* rhs = other->As<Product>();
   return Compare(lhs->operands(), rhs->operands());
 }
 
-bool IrEqualVistor::Visit(const Sum* lhs, const Expr* other) {
+bool IrEqualVisitor::Visit(const Sum* lhs, const Expr* other) {
   auto* rhs = other->As<Sum>();
   return Compare(lhs->operands(), rhs->operands());
 }
 
-bool IrEqualVistor::Visit(const PrimitiveNode* lhs, const Expr* other) {
+bool IrEqualVisitor::Visit(const PrimitiveNode* lhs, const Expr* other) {
   auto* rhs = other->As<PrimitiveNode>();
   return lhs->name == rhs->name && Compare(lhs->arguments, rhs->arguments) && Compare(lhs->attrs, rhs->attrs);
 }
 
-bool IrEqualVistor::Visit(const IntrinsicOp* lhs, const Expr* other) {
+bool IrEqualVisitor::Visit(const IntrinsicOp* lhs, const Expr* other) {
   auto* rhs = other->As<IntrinsicOp>();
   return lhs->getKind() == rhs->getKind() && lhs->input_types() == rhs->input_types() &&
          lhs->output_types() == rhs->output_types();
   // TODO(CtfGo): Compare every derived class of IntrinsicOp separately
 }
 
-bool IrEqualVistor::Visit(const _BufferRange_* lhs, const Expr* other) {
+bool IrEqualVisitor::Visit(const _BufferRange_* lhs, const Expr* other) {
   auto* rhs = other->As<_BufferRange_>();
   return Compare(lhs->buffer, rhs->buffer) && Compare(lhs->ranges, rhs->ranges);
 }
 
-bool IrEqualVistor::Visit(const ScheduleBlock* lhs, const Expr* other) {
+bool IrEqualVisitor::Visit(const ScheduleBlock* lhs, const Expr* other) {
   auto* rhs = other->As<ScheduleBlock>();
   return Compare(lhs->name, rhs->name, allow_name_suffix_diff_) && Compare(lhs->iter_vars, rhs->iter_vars) &&
          Compare(lhs->read_buffers, rhs->read_buffers) && Compare(lhs->write_buffers, rhs->write_buffers) &&
          Compare(lhs->attrs, rhs->attrs) && Compare(lhs->body, rhs->body);
 }
 
-bool IrEqualVistor::Visit(const ScheduleBlockRealize* lhs, const Expr* other) {
+bool IrEqualVisitor::Visit(const ScheduleBlockRealize* lhs, const Expr* other) {
   auto* rhs = other->As<ScheduleBlockRealize>();
   return Compare(lhs->iter_values, rhs->iter_values) && Compare(lhs->schedule_block, rhs->schedule_block);
 }
