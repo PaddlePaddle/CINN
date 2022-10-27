@@ -185,7 +185,8 @@ TEST(net_build, program_execute_pool2d) {
   Target target = common::DefaultHostTarget();
 #endif
 
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  std::unordered_set<std::string> fetch_ids;
+  auto graph = Optimize(&program, fetch_ids, target);
   auto scope = BuildScope(target, graph);
   hlir::framework::GraphCompiler gc(target, scope, graph);
   auto runtime_program = gc.Build();
