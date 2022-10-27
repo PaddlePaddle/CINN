@@ -739,6 +739,7 @@ std::vector<ir::Tensor> Softmax(const ir::Tensor &A, int axis, const std::string
         return lang::ReduceSum(lang::Exp(A(new_indice)), {reduce_axis});
       },
       UniqName("softmax_temp_out"));
+  temp->WithBuffer("local");
 
   ir::Tensor out = Compute(
       A->shape,
@@ -1171,16 +1172,8 @@ std::vector<Tensor> Pool2d(const Tensor &tensor,
   CHECK(tensor->shape.size() == 4U || tensor->shape.size() == 5U)
       << "pool2d requires tensor's shape_size to be 4 or 5\n";
   std::vector<int> axis = {height_axis, width_axis};
-  return PoolImpl(tensor,
-                  kernel_size,
-                  stride_size,
-                  padding_size,
-                  pool_type,
-                  axis,
-                  ceil_mode,
-                  exclusive,
-                  adaptive,
-                  UniqName(output_name));
+  return PoolImpl(
+      tensor, kernel_size, stride_size, padding_size, pool_type, axis, ceil_mode, exclusive, adaptive, output_name);
 }
 
 std::vector<Tensor> Pool3d(const Tensor &tensor,
