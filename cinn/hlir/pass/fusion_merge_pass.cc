@@ -838,6 +838,11 @@ class FusionMergePassHelper : public FusionHelperBase {
       if (is_same_shape(first, second)) {
         return true;
       }
+
+      // if first has more than one concumser, can't fuse.
+      if (first->consumer_groups.size() > 1) {
+        return false;
+      }
       // if first's output is not all in second's input
       for (auto output : first->output_nodes) {
         if (!second->input_nodes.count(output)) {
