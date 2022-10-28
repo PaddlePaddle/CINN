@@ -14,6 +14,7 @@
 
 #pragma once
 #include <absl/container/flat_hash_map.h>
+#include <absl/types/variant.h>
 
 #include <map>
 #include <memory>
@@ -101,16 +102,32 @@ Expr min(Expr a, Expr b);
 template <typename T>
 Expr make_const(Type t, T v) {
   if (t.is_vector()) {
-    if (t.type() == Type::type_t::Int) {
-      return ir::Broadcast::Make(make_shared<ir::IntImm>(t.ElementOf(), v), t.lanes());
+    if (t.is_int(32)) {
+      return ir::Broadcast::Make(make_shared<ir::IntImm>(t.ElementOf(), static_cast<int>(v)), t.lanes());
+    } else if (t.is_int(64)) {
+      return ir::Broadcast::Make(make_shared<ir::IntImm>(t.ElementOf(), static_cast<int64_t>(v)), t.lanes());
+    } else if (t.is_float(32)) {
+      return ir::Broadcast::Make(make_shared<ir::FloatImm>(t.ElementOf(), static_cast<float>(v)), t.lanes());
+    } else if (t.is_float(64)) {
+      return ir::Broadcast::Make(make_shared<ir::FloatImm>(t.ElementOf(), static_cast<double>(v)), t.lanes());
+    } else if (t.is_bool()) {
+      return ir::Broadcast::Make(make_shared<ir::UIntImm>(t.ElementOf(), static_cast<bool>(v)), t.lanes());
     } else {
-      return ir::Broadcast::Make(make_shared<ir::FloatImm>(t.ElementOf(), v), t.lanes());
+      CINN_NOT_IMPLEMENTED
     }
   } else {
-    if (t.type() == Type::type_t::Int) {
-      return make_shared<ir::IntImm>(t, v);
+    if (t.is_int(32)) {
+      return make_shared<ir::IntImm>(t, static_cast<int>(v));
+    } else if (t.is_int(64)) {
+      return make_shared<ir::IntImm>(t, static_cast<int64_t>(v));
+    } else if (t.is_float(32)) {
+      return make_shared<ir::FloatImm>(t, static_cast<float>(v));
+    } else if (t.is_float(64)) {
+      return make_shared<ir::FloatImm>(t, static_cast<double>(v));
+    } else if (t.is_bool()) {
+      return make_shared<ir::UIntImm>(t, static_cast<bool>(v));
     } else {
-      return make_shared<ir::FloatImm>(t, v);
+      CINN_NOT_IMPLEMENTED
     }
   }
   return Expr();

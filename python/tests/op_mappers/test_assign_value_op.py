@@ -63,5 +63,17 @@ class TestAssignValueCase3(TestAssignValueOp):
         self.feed_data = {'x': self.random([10], 'int64', 0, 1000)}
 
 
+class TestAssignValueCase4(TestAssignValueOp):
+    def init_input_data(self):
+        self.feed_data = {'x': self.random([1], 'float32')}
+
+
+class TestAssignValueCase5(TestAssignValueOp):
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([np.random.randint(100, 1000)], 'float32')
+        }
+
+
 if __name__ == "__main__":
     unittest.main()
