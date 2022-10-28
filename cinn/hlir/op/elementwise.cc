@@ -360,7 +360,7 @@ std::shared_ptr<OpStrategy> StrategyForAssignValue(const framework::NodeAttr &at
                                                    const Target &target) {
   framework::CINNCompute assign_value_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of fill_constant compute is empty! Please check.";
-    CHECK(attrs.attr_store.count("values"));
+    CHECK(attrs.attr_store.count("values")) << "assign_value should set attribute [values]! Please check.";
     const auto &value = attrs.attr_store.at("values");
 
     CINNValuePack arg_pack  = args[0];
@@ -398,7 +398,7 @@ std::shared_ptr<OpStrategy> StrategyForAssignValue(const framework::NodeAttr &at
 
 std::vector<shape_t> InferShapeForAssignValue(const std::vector<shape_t> &inputs_shape,
                                               const framework::AttrMapType &attrs) {
-  CHECK(attrs.count("values"));
+  CHECK(attrs.count("values")) << "assign_value should set attribute [values]! Please check.";
   const auto &value = attrs.at("values");
 
   shape_t shape;
@@ -414,9 +414,11 @@ std::vector<shape_t> InferShapeForAssignValue(const std::vector<shape_t> &inputs
   }
   EXPAND_ATTR_TYPE(EXPAND_ATTR_TO_GET_SHAPE)
   else {
-    LOG(FATAL) << "Assign value not support the type!";
+    LOG(FATAL) << "assign_value not support the type!";
   }
 #undef EXPAND_ATTR_TO_GET_SHAPE
+
+  VLOG(3) << "The output shape of assign_value is [" << cinn::utils::Join(shape, ", ") << "]";
 
   return {shape};
 }
@@ -426,10 +428,16 @@ std::vector<Type> InferDtypeForAssignValue(const std::vector<Type> &inputs_type,
   if (attrs.find("dtype") != attrs.end()) {
     // attribute [dtype] are given
     auto dtype_str = absl::get<std::string>(attrs.at("dtype"));
-    out_type       = common::Str2Type(dtype_str);
-  } else {
+    if (!dtype_str.empty()) {
+      // if the [dtype] is not empty, output as the given type
+      out_type = common::Str2Type(dtype_str);
+    }
+  }
+
+  // attribute [dtype] not given or is empty
+  if (out_type.is_unk()) {
     // infer from [values]'s dtype
-    CHECK(attrs.count("values"));
+    CHECK(attrs.count("values")) << "assign_value should set attribute [values]! Please check.";
     const auto &value = attrs.at("values");
 
 #define EXPAND_ATTR_TO_GET_DTYPE(TYPE)                \
@@ -444,7 +452,7 @@ std::vector<Type> InferDtypeForAssignValue(const std::vector<Type> &inputs_type,
     }
     EXPAND_ATTR_TYPE(EXPAND_ATTR_TO_GET_DTYPE)
     else {
-      LOG(FATAL) << "Assign value not support the type!";
+      LOG(FATAL) << "assign_value not support the type!";
     }
 #undef EXPAND_ATTR_TO_GET_DTYPE
   }
