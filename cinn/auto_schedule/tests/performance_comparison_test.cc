@@ -171,7 +171,7 @@ class PerformanceTester : public ::testing::Test {
   Options options_;
 };
 
-constexpr int batch_size = 4;
+constexpr int batch_size = 2;
 
 TEST_F(PerformanceTester, Mul) {
   int M = 32;
@@ -258,7 +258,6 @@ TEST_F(PerformanceTester, Softmax) {
   int axis                = -1;
   std::string data_format = "AnyLayout";
 
-  options_.evaluate_knobs = 5UL;
   Evaluate(SoftmaxProgramBuilder(input_shape, axis, data_format)());
 }
 
