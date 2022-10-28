@@ -72,6 +72,7 @@ std::vector<ir::LoweredFunc> GetFuncFromOpImpl(const std::shared_ptr<OpImpl>& im
     // checkout whether the tensor is with buffer.
     if (!temp.as_tensor_ref()->buffer.defined() || target != common::DefaultNVGPUTarget()) {
       all_arg_tensors.push_back(temp.as_tensor_ref());
+      VLOG(5) << "Append an output tensor:" << temp.as_tensor_ref()->name;
     }
   }
 
@@ -94,12 +95,14 @@ std::vector<ir::LoweredFunc> GetFuncFromOpImpl(const std::shared_ptr<OpImpl>& im
     common::CINNValuePack expr_pack = impl->fschedule(common::CINNValuePack{schedule_inputs});
 
     // 4. Optimize the LoweredFunc
+    VLOG(5) << "funcs size=" << funcs.size() << ", expr_pack size=" << expr_pack.size();
     for (int i = 0; i < expr_pack.size(); i++) {
       ir::Expr func_body             = expr_pack[i];
       std::vector<ir::Argument> args = funcs[i]->args;
       // if multiple functions are merged, we should update the arguments
-      if (funcs.size() > expr_pack.size()) {
+      if (funcs.size() > expr_pack.size() || all_arg_tensors.size() > input_output_nodes.size()) {
         args = lang::GetArgs(func_body, input_output_nodes);
+        VLOG(5) << "Update arguments of function after schedule";
       }
       auto temp_buffers = lang::GetTempBuffers(all_arg_tensors, stages, func_body);
       auto function     = ir::_LoweredFunc_::Make(funcs[i]->name, args, func_body, temp_buffers);

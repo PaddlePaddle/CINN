@@ -983,7 +983,7 @@ std::vector<Tensor> PoolImpl(const Tensor &tensor,
 
           return lang::ReduceMax(temp(indices), {daxis}, min_value);
         },
-        UniqName(output_name));
+        output_name);
   } else if (pool_type == "avg") {
     // Pad the input tensor with pad_value zero
     temp = do_pad ? Pad(tensor, pad_before, pad_after, 0, UniqName("pad_temp")) : tensor;
@@ -1021,7 +1021,7 @@ std::vector<Tensor> PoolImpl(const Tensor &tensor,
             return lang::ReduceSum(ir::Div::Make(temp(indices), cast(temp_factor, Float(32))), daxis);
           }
         },
-        UniqName(output_name));
+        output_name);
   } else {
     LOG(ERROR) << "Unrecognized pool_type: " << pool_type;
   }
@@ -1063,7 +1063,7 @@ std::vector<Tensor> PoolImpl(const Tensor &tensor,
           Expr divide_factor = Max::Make(temp_factor, make_const(Int(32), 1));
           return lang::ReduceSum(ir::Div::Make(temp(indices), cast(divide_factor, Float(32))), {reduce_axis});
         },
-        UniqName(output_name));
+        output_name);
   }
   if (do_pad) {
     return {res, temp};
