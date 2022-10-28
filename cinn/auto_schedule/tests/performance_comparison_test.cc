@@ -62,46 +62,43 @@ class PerformanceTester : public ::testing::Test {
   };
 
   void Evaluate(const frontend::Program& program) {
-    VLOG(3) << "Initialize graph.";
-    graph_ = std::make_shared<hlir::framework::Graph>(program, target_);
-    VLOG(3) << "Apply graph pass.";
-    hlir::framework::ApplyPass(graph_.get(), "InferShape");
-    hlir::framework::ApplyPass(graph_.get(), "OpFusionPass");
     if (FLAGS_evaluate_knobs >= 0) {
       options_.evaluate_knobs = FLAGS_evaluate_knobs;
     }
     VLOG(3) << "evaluate_knobs = " << options_.evaluate_knobs;
 
-    if (options_.evaluate_knobs.test(0)) {
-      VLOG(3) << "Build no schedule program.";
-      auto scope           = BuildScope(target_, graph_);
-      auto graph_compiler  = std::make_unique<GraphCompiler>(target_, scope, graph_);
-      auto runtime_program = BuildNoScheduleProgram(graph_compiler.get());
-      VLOG(3) << "Execute no schedule program.";
+    auto worker_fn = [this, &program](const std::string& schedule_name, BuildRuntimeProgramFn build_fn) {
+      VLOG(3) << "Initialize graph.";
+      auto graph = std::make_shared<hlir::framework::Graph>(program, target_);
+      VLOG(3) << "Apply graph pass.";
+      hlir::framework::ApplyPass(graph.get(), "InferShape");
+      hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+      VLOG(3) << "Build " << schedule_name << " program.";
+      auto scope           = BuildScope(target_, graph);
+      auto graph_compiler  = std::make_unique<GraphCompiler>(target_, scope, graph);
+      auto runtime_program = (this->*build_fn)(graph.get(), graph_compiler.get());
+      VLOG(3) << "Execute " << schedule_name << " program.";
       runtime_program->ExecuteTest(options_.repeat_times);
+    };
+
+    if (options_.evaluate_knobs.test(0)) {
+      worker_fn("no schedule", &PerformanceTester::BuildNoScheduleProgram);
     }
     if (options_.evaluate_knobs.test(1)) {
-      VLOG(3) << "Build manual schedule program.";
-      auto scope           = BuildScope(target_, graph_);
-      auto graph_compiler  = std::make_unique<GraphCompiler>(target_, scope, graph_);
-      auto runtime_program = BuildManualScheduleProgram(graph_compiler.get());
-      VLOG(3) << "Execute manual schedule program.";
-      runtime_program->ExecuteTest(options_.repeat_times);
+      worker_fn("manual schedule", &PerformanceTester::BuildManualScheduleProgram);
     }
     if (options_.evaluate_knobs.test(2)) {
-      VLOG(3) << "Build auto schedule program.";
-      auto scope           = BuildScope(target_, graph_);
-      auto graph_compiler  = std::make_unique<GraphCompiler>(target_, scope, graph_);
-      auto runtime_program = BuildAutoScheduleProgram(graph_compiler.get(), options_.num_tuning_rounds);
-      VLOG(3) << "Execute auto schedule program.";
-      runtime_program->ExecuteTest(options_.repeat_times);
+      worker_fn("auto schedule", &PerformanceTester::BuildAutoScheduleProgram);
     }
   }
 
  protected:
-  std::unique_ptr<hlir::framework::Program> BuildNoScheduleProgram(GraphCompiler* graph_compiler) {
-    const auto& dtype_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, common::Type>>("inferdtype");
-    const auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, hlir::framework::shape_t>>("infershape");
+  using BuildRuntimeProgramFn = std::unique_ptr<hlir::framework::Program> (PerformanceTester::*)(Graph*,
+                                                                                                 GraphCompiler*);
+
+  std::unique_ptr<hlir::framework::Program> BuildNoScheduleProgram(Graph* graph, GraphCompiler* graph_compiler) {
+    const auto& dtype_dict = graph->GetAttrs<absl::flat_hash_map<std::string, common::Type>>("inferdtype");
+    const auto& shape_dict = graph->GetAttrs<absl::flat_hash_map<std::string, hlir::framework::shape_t>>("infershape");
 
     std::shared_ptr<hlir::framework::OpLowerer> op_lowerer =
         std::make_unique<hlir::framework::OpLowerer>(dtype_dict, shape_dict, target_);
@@ -109,13 +106,13 @@ class PerformanceTester : public ::testing::Test {
     GraphCompiler::CompileOptions compile_options;
     compile_options.with_instantiate_variables = true;
 
-    if (graph_->fusion_groups.empty()) {
-      compile_options.groups = hlir::pass::BuildNonFusedGroups(graph_.get());
+    if (graph->fusion_groups.empty()) {
+      compile_options.groups = hlir::pass::BuildNonFusedGroups(graph);
     } else {
-      compile_options.groups = graph_->fusion_groups;
+      compile_options.groups = graph->fusion_groups;
     }
 
-    for (auto group : graph_->fusion_groups) {
+    for (auto group : graph->fusion_groups) {
       compile_options.lowered_funcs.push_back(op_lowerer->LowerWithoutSchedule(group));
     }
 
@@ -130,19 +127,18 @@ class PerformanceTester : public ::testing::Test {
     return graph_compiler->Build(compile_options).runtime_program;
   }
 
-  std::unique_ptr<hlir::framework::Program> BuildManualScheduleProgram(GraphCompiler* graph_compiler) {
+  std::unique_ptr<hlir::framework::Program> BuildManualScheduleProgram(Graph* graph, GraphCompiler* graph_compiler) {
     return graph_compiler->Build();
   }
 
-  std::unique_ptr<hlir::framework::Program> BuildAutoScheduleProgram(GraphCompiler* graph_compiler,
-                                                                     int num_tuning_rounds) {
-    auto tuner = std::make_unique<AutoTuner>(target_, graph_.get());
+  std::unique_ptr<hlir::framework::Program> BuildAutoScheduleProgram(Graph* graph, GraphCompiler* graph_compiler) {
+    auto tuner = std::make_unique<AutoTuner>(target_, graph);
 
     AutoTuner::Config tuning_config;
     TuningOptions tuning_options;
-    tuning_options.num_tuning_rounds         = num_tuning_rounds;
-    tuning_options.num_measure_trials        = 4;
-    tuning_options.num_samples_per_iteration = 4;
+    tuning_options.num_tuning_rounds         = options_.num_tuning_rounds;
+    tuning_options.num_measure_trials        = 2;
+    tuning_options.num_samples_per_iteration = 2;
 
     tuner->Initialize(tuning_config, graph_compiler);
     TuningResult tuning_result = tuner->Tune(tuning_options);
@@ -167,7 +163,6 @@ class PerformanceTester : public ::testing::Test {
 #else
   Target target_ = common::DefaultHostTarget();
 #endif
-  std::shared_ptr<Graph> graph_;
   Options options_;
 };
 
