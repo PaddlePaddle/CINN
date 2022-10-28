@@ -169,9 +169,22 @@ std::vector<ir::Expr> CustomCallArgsForCudnnConvForward(const framework::NodeAtt
   int groups                 = attr_store.count("groups") ? absl::get<int>(attr_store.at("groups")) : 1;
   cudnnTensorFormat_t format = data_format == "NCHW" ? CUDNN_TENSOR_NCHW : CUDNN_TENSOR_NHWC;
 
+  std::vector<Expr> input  = inputs[0]->shape;
+  std::vector<Expr> filter = inputs[1]->shape;
+  std::vector<Expr> output = {};
+  std::transform(output_shapes[0].begin(), output_shapes[0].end(), std::back_inserter(output), [](const int dim) {
+    return ir::Expr(dim);
+  });
+  // if format is nhwc
+  if (format == CUDNN_TENSOR_NHWC) {
+    input  = {input[0], input[3], input[1], input[2]};
+    filter = {filter[0], filter[3], filter[1], filter[2]};
+    output = {output[0], output[3], output[1], output[2]};
+  }
+
   std::vector<ir::Expr> args = {ir::Expr(static_cast<int>(format)), ir::Expr(alpha), ir::Expr(beta)};
-  args.insert(args.end(), inputs[0]->shape.begin(), inputs[0]->shape.end());
-  args.insert(args.end(), inputs[1]->shape.begin(), inputs[1]->shape.end());
+  args.insert(args.end(), input.begin(), input.end());
+  args.insert(args.end(), filter.begin(), filter.end());
   args.push_back(ir::Expr(padding[0]));
   args.push_back(ir::Expr(padding[1]));
   args.push_back(ir::Expr(stride[0]));
@@ -179,9 +192,8 @@ std::vector<ir::Expr> CustomCallArgsForCudnnConvForward(const framework::NodeAtt
   args.push_back(ir::Expr(dilation[0]));
   args.push_back(ir::Expr(dilation[1]));
   args.push_back(ir::Expr(groups));
-  std::transform(output_shapes[0].begin(), output_shapes[0].end(), std::back_inserter(args), [](const int dim) {
-    return ir::Expr(dim);
-  });
+  args.insert(args.end(), output.begin(), output.end());
+
   return args;
 }
 
@@ -205,11 +217,22 @@ std::vector<ir::Expr> CustomCallArgsForCudnnConvBackwardData(const framework::No
   int groups                 = attr_store.count("groups") ? absl::get<int>(attr_store.at("groups")) : 1;
   cudnnTensorFormat_t format = data_format == "NCHW" ? CUDNN_TENSOR_NCHW : CUDNN_TENSOR_NHWC;
 
-  std::vector<ir::Expr> args = {ir::Expr(static_cast<int>(format)), ir::Expr(alpha), ir::Expr(beta)};
-  std::transform(output_shapes[0].begin(), output_shapes[0].end(), std::back_inserter(args), [](const int dim) {
+  std::vector<Expr> input = {};
+  std::transform(output_shapes[0].begin(), output_shapes[0].end(), std::back_inserter(input), [](const int dim) {
     return ir::Expr(dim);
   });
-  args.insert(args.end(), inputs[0]->shape.begin(), inputs[0]->shape.end());
+  std::vector<Expr> filter = inputs[0]->shape;
+  std::vector<Expr> output = inputs[1]->shape;
+  // if format is nhwc
+  if (format == CUDNN_TENSOR_NHWC) {
+    input  = {input[0], input[3], input[1], input[2]};
+    filter = {filter[0], filter[3], filter[1], filter[2]};
+    output = {output[0], output[3], output[1], output[2]};
+  }
+
+  std::vector<ir::Expr> args = {ir::Expr(static_cast<int>(format)), ir::Expr(alpha), ir::Expr(beta)};
+  args.insert(args.end(), input.begin(), input.end());
+  args.insert(args.end(), filter.begin(), filter.end());
   args.push_back(ir::Expr(padding[0]));
   args.push_back(ir::Expr(padding[1]));
   args.push_back(ir::Expr(stride[0]));
@@ -217,7 +240,7 @@ std::vector<ir::Expr> CustomCallArgsForCudnnConvBackwardData(const framework::No
   args.push_back(ir::Expr(dilation[0]));
   args.push_back(ir::Expr(dilation[1]));
   args.push_back(ir::Expr(groups));
-  args.insert(args.end(), inputs[1]->shape.begin(), inputs[1]->shape.end());
+  args.insert(args.end(), output.begin(), output.end());
   return args;
 }
 
@@ -241,11 +264,22 @@ std::vector<ir::Expr> CustomCallArgsForCudnnConvBackwardFilter(const framework::
   int groups                 = attr_store.count("groups") ? absl::get<int>(attr_store.at("groups")) : 1;
   cudnnTensorFormat_t format = data_format == "NCHW" ? CUDNN_TENSOR_NCHW : CUDNN_TENSOR_NHWC;
 
-  std::vector<ir::Expr> args = {ir::Expr(static_cast<int>(format)), ir::Expr(alpha), ir::Expr(beta)};
-  args.insert(args.end(), inputs[0]->shape.begin(), inputs[0]->shape.end());
-  std::transform(output_shapes[0].begin(), output_shapes[0].end(), std::back_inserter(args), [](const int dim) {
+  std::vector<Expr> input  = inputs[0]->shape;
+  std::vector<Expr> filter = {};
+  std::transform(output_shapes[0].begin(), output_shapes[0].end(), std::back_inserter(filter), [](const int dim) {
     return ir::Expr(dim);
   });
+  std::vector<Expr> output = inputs[1]->shape;
+  // if format is nhwc
+  if (format == CUDNN_TENSOR_NHWC) {
+    input  = {input[0], input[3], input[1], input[2]};
+    filter = {filter[0], filter[3], filter[1], filter[2]};
+    output = {output[0], output[3], output[1], output[2]};
+  }
+
+  std::vector<ir::Expr> args = {ir::Expr(static_cast<int>(format)), ir::Expr(alpha), ir::Expr(beta)};
+  args.insert(args.end(), input.begin(), input.end());
+  args.insert(args.end(), filter.begin(), filter.end());
   args.push_back(ir::Expr(padding[0]));
   args.push_back(ir::Expr(padding[1]));
   args.push_back(ir::Expr(stride[0]));
@@ -253,7 +287,7 @@ std::vector<ir::Expr> CustomCallArgsForCudnnConvBackwardFilter(const framework::
   args.push_back(ir::Expr(dilation[0]));
   args.push_back(ir::Expr(dilation[1]));
   args.push_back(ir::Expr(groups));
-  args.insert(args.end(), inputs[1]->shape.begin(), inputs[1]->shape.end());
+  args.insert(args.end(), output.begin(), output.end());
   return args;
 }
 
