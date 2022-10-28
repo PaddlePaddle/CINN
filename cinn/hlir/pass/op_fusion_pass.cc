@@ -520,22 +520,28 @@ void InsertBroadcastTo(Graph* graph) {
         if (output_shape != input_shape) {
           // input_data UnLinkTo node
           input_data->UnLinkSingleTo(node);
-          int axis = -1;
-          if (node->attrs.attr_store.find("axis") != node->attrs.attr_store.end()) {
-            axis = absl::get<int>(node->attrs.attr_store["axis"]);
+          std::vector<int> broadcast_axes;
+          if (input_shape.size() == output_shape.size()) {
+            for (int idx = 0; idx < input_shape.size(); ++idx) {
+              broadcast_axes.push_back(idx);
+            }
+          } else {
+            int axis = -1;
+            if (node->attrs.attr_store.find("axis") != node->attrs.attr_store.end()) {
+              axis = absl::get<int>(node->attrs.attr_store["axis"]);
+            }
+            if (axis == -1) {
+              axis = output_shape.size() - 1;
+            }
+            node->attrs.attr_store = {};
+            CHECK_LE(axis + input_shape.size(), output_shape.size());
+            for (int idx = 0; idx < input_shape.size(); ++idx) {
+              broadcast_axes.push_back(axis++);
+            }
           }
-          if (axis == -1) {
-            axis = output_shape.size() - 1;
-          }
-          node->attrs.attr_store = {};
-          CHECK_LE(axis + input_shape.size(), output_shape.size());
           // create node
           auto tmp_node = new Node(
               framework::Operator::Get("broadcast_to"), "broadcast_to", "broadcast_to_" + std::to_string(++index));
-          std::vector<int> broadcast_axes;
-          for (int idx = 0; idx < input_shape.size(); ++idx) {
-            broadcast_axes.push_back(axis++);
-          }
           tmp_node->attrs.attr_store["out_shape"]      = output_shape;
           tmp_node->attrs.attr_store["broadcast_axes"] = broadcast_axes;
           input_data->LinkTo(tmp_node);
