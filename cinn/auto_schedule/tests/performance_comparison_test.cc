@@ -39,6 +39,7 @@ DEFINE_string(resnet50_model_dir, "./ResNet50", "the path to paddle model resnet
 // Bit with index 2 controls auto schedule test, means options = 4 = "100" will run auto schedule test.
 // The default value is -1, which means that this flag is disabled to set the options
 DEFINE_int32(evaluate_knobs, -1, "the options to control which schedule tests will be run.");
+DECLARE_int32(cinn_parallel_compile_size);
 
 namespace cinn {
 namespace auto_schedule {
@@ -64,7 +65,7 @@ class PerformanceTester : public ::testing::Test {
     VLOG(3) << "Initialize graph.";
     graph_ = std::make_shared<hlir::framework::Graph>(program, target_);
     VLOG(3) << "Apply graph pass.";
-    hlir::framework::ApplyPass(graph_.get(), "InferShape");
+    // hlir::framework::ApplyPass(graph_.get(), "InferShape");
     // hlir::framework::ApplyPass(graph_.get(), "OpFusionPass");
     if (FLAGS_evaluate_knobs >= 0) {
       options_.evaluate_knobs = FLAGS_evaluate_knobs;
@@ -205,6 +206,8 @@ TEST_F(PerformanceTester, Mul) {
   int M = 32;
   int K = 16;
   int N = 32;
+
+  FLAGS_cinn_parallel_compile_size = 0;
   Evaluate(MulProgramBuilder({M, K}, {N, K})());
 }
 
@@ -214,6 +217,8 @@ TEST_F(PerformanceTester, Matmul) {
   int M = batch_size;
   int K = 2048;
   int N = 1000;
+
+  FLAGS_cinn_parallel_compile_size = 0;
   Evaluate(MatmulProgramBuilder({M, K}, {K, N})());
 }
 
@@ -229,6 +234,7 @@ TEST_F(PerformanceTester, Conv2d) {
   std::string data_format       = "NCHW";
   std::string padding_algorithm = "EXPLICIT";
 
+  FLAGS_cinn_parallel_compile_size = 0;
   Evaluate(Conv2dProgramBuilder(
       input_shape, weight_shape, strides, paddings, dilations, groups, data_format, padding_algorithm)());
 }
@@ -246,6 +252,8 @@ TEST_F(PerformanceTester, Pool2d) {
   bool adaptive                 = false;
   std::string padding_algorithm = "EXPLICIT";
 
+  options_.evaluate_knobs          = 0UL;
+  FLAGS_cinn_parallel_compile_size = 0;
   Evaluate(Pool2dProgramBuilder(input_shape,
                                 pooling_type,
                                 ksize,
@@ -270,6 +278,7 @@ TEST_F(PerformanceTester, BatchNorm) {
   const std::string& data_layout = "NCHW";
   bool is_test                   = true;
 
+  FLAGS_cinn_parallel_compile_size = 0;
   Evaluate(BatchNormProgramBuilder(
       input_shape, scale_shape, bias_shape, mean_shape, variance_shape, epsilon, momentum, data_layout, is_test)());
 }
@@ -286,7 +295,8 @@ TEST_F(PerformanceTester, Softmax) {
   int axis                = -1;
   std::string data_format = "AnyLayout";
 
-  options_.evaluate_knobs = 5UL;
+  options_.evaluate_knobs          = 5UL;
+  FLAGS_cinn_parallel_compile_size = 0;
   Evaluate(SoftmaxProgramBuilder(input_shape, axis, data_format)());
 }
 
@@ -296,6 +306,7 @@ TEST_F(PerformanceTester, Scale) {
   float bias            = 0.0f;
   bool bias_after_scale = true;
 
+  FLAGS_cinn_parallel_compile_size = 0;
   Evaluate(ScaleProgramBuilder(input_shape, scale, bias, bias_after_scale)());
 }
 
@@ -305,7 +316,8 @@ TEST_F(PerformanceTester, ResNet50) {
   std::vector<std::vector<int>> input_shapes = {{batch_size, 3, 224, 224}};
   CHECK_NE(FLAGS_resnet50_model_dir, "");
 
-  options_.evaluate_knobs = 0UL;
+  options_.evaluate_knobs          = 0UL;
+  FLAGS_cinn_parallel_compile_size = 0;
   Evaluate(PaddleModelProgramBuilder(FLAGS_resnet50_model_dir, input_names, input_shapes)());
 }
 

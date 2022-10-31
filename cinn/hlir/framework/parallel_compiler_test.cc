@@ -27,6 +27,21 @@ namespace framework {
 
 using namespace frontend;
 
+TEST(ParallelCompilerTest, Add_TEST_0) {
+  frontend::NetBuilder builder("Add_TEST_0");
+  auto A       = builder.CreateInput(Float(32), {128, 128}, "A");
+  auto B       = builder.CreateInput(Float(32), {128, 128}, "B");
+  auto C       = builder.Add(A, B);
+  auto target  = common::DefaultNVGPUTarget();
+  auto program = builder.Build();
+  auto graph   = std::make_shared<Graph>(program, target);
+  auto scope   = BuildScope(target, graph);
+
+  ParallelCompiler::CompileOptions option;
+  ParallelCompiler pc(scope, graph, option, target);
+  auto runtime_program = pc();
+}
+
 TEST(ParallelCompilerTest, Conv2d_Test_0) {
   frontend::NetBuilder builder("Conv2d_Test_0");
   auto A = builder.CreateInput(Float(32), {1, 64, 112, 112}, "A");

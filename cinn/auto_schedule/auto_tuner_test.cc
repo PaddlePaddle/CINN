@@ -22,6 +22,7 @@
 
 #include "cinn/common/target.h"
 #include "cinn/frontend/net_builder.h"
+#include "cinn/frontend/optimize.h"
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/graph_compiler.h"
@@ -71,10 +72,12 @@ class TestAutoTunerWithoutFusion : public ::testing::Test {
     srand(0);
     // AutoTuner is combined with new IR Schedule
     FLAGS_cinn_ir_schedule = true;
-    graph                  = std::make_shared<Graph>(CreateAddReluProgram(), target);
-    compiled_scope         = BuildScope(target, graph);
-    graph_compiler         = std::make_unique<GraphCompiler>(target, compiled_scope, graph);
-    tuner                  = std::make_unique<AutoTuner>(target, graph.get());
+    std::unordered_set<std::string> fetch_ids;
+    auto program   = CreateAddReluProgram();
+    auto graph     = cinn::frontend::Optimize(&program, fetch_ids, target);
+    compiled_scope = BuildScope(target, graph);
+    graph_compiler = std::make_unique<GraphCompiler>(target, compiled_scope, graph);
+    tuner          = std::make_unique<AutoTuner>(target, graph.get());
   }
 
   TuningResult InitializeAndTune(const AutoTuner::Config& config, const TuningOptions& options) {
@@ -83,15 +86,15 @@ class TestAutoTunerWithoutFusion : public ::testing::Test {
   }
 
   virtual void BasicCheckResult(const TuningResult& result) {
-    ASSERT_EQ(2, result.tuned_graph.size());
+    ASSERT_EQ(1, result.tuned_graph.size());
     const auto& sub_graph1 = result.tuned_graph.front();
     ASSERT_EQ(1, sub_graph1.groups.size());
-    ASSERT_EQ(sub_graph1.groups[0]->CollectNodes()[0]->op()->name, "elementwise_add");
+    ASSERT_EQ(sub_graph1.groups[0]->CollectNodes()[0]->op()->name, "broadcast_to");
     const auto& sub_graph2 = result.tuned_graph.back();
     ASSERT_EQ(1, sub_graph2.groups.size());
-    ASSERT_EQ(sub_graph2.groups[0]->CollectNodes()[0]->op()->name, "relu");
+    ASSERT_EQ(sub_graph2.groups[0]->CollectNodes()[0]->op()->name, "broadcast_to");
 
-    ASSERT_EQ(result.optimized_exprs.size(), 2UL);
+    ASSERT_EQ(result.optimized_exprs.size(), 1UL);
     ASSERT_EQ(result.optimized_exprs[0].lowered_funcs.size(), 1UL);
     ASSERT_EQ(result.optimized_exprs[0].lowered_funcs[0].size(), 1UL);
   }
@@ -101,13 +104,13 @@ class TestAutoTunerWithoutFusion : public ::testing::Test {
     GraphCompiler::CompileOptions compile_options;
     compile_options.with_instantiate_variables = true;
     compile_options.Apply(result);
-    ASSERT_EQ(2, compile_options.groups.size());
-    ASSERT_EQ(2, compile_options.lowered_funcs.size());
+    ASSERT_EQ(1, compile_options.groups.size());
+    ASSERT_EQ(1, compile_options.lowered_funcs.size());
     VLOG(6) << "Print lowered_funcs before building";
     VLOG(6) << compile_options.lowered_funcs[0][0];
     VLOG(6) << compile_options.lowered_funcs[1][0];
     auto runtime_program = graph_compiler->Build(compile_options).runtime_program;
-    ASSERT_EQ(2, runtime_program->size());
+    ASSERT_EQ(1, runtime_program->size());
     runtime_program->Execute();
   }
 
@@ -164,8 +167,9 @@ class TestAutoTunerWithFusion : public TestAutoTunerWithoutFusion {
     srand(0);
     // AutoTuner is combined with new IR Schedule
     FLAGS_cinn_ir_schedule = true;
-    graph                  = std::make_shared<Graph>(CreateAddReluProgram(), target);
-    ApplyPass(graph.get(), "OpFusionPass");
+    std::unordered_set<std::string> fetch_ids;
+    auto program   = CreateAddReluProgram();
+    auto graph     = cinn::frontend::Optimize(&program, fetch_ids, target);
     compiled_scope = BuildScope(target, graph);
     graph_compiler = std::make_unique<GraphCompiler>(target, compiled_scope, graph);
     tuner          = std::make_unique<AutoTuner>(target, graph.get());
@@ -174,10 +178,10 @@ class TestAutoTunerWithFusion : public TestAutoTunerWithoutFusion {
   void BasicCheckResult(const TuningResult& result) override {
     ASSERT_EQ(result.tuned_graph.size(), 1UL);
     const std::vector<Node*>& nodes = result.tuned_graph[0].groups[0]->CollectNodes();
-    ASSERT_EQ(nodes.size(), 3UL);
+    ASSERT_EQ(nodes.size(), 4UL);
     ASSERT_EQ(nodes[0]->op()->name, "broadcast_to");
-    ASSERT_EQ(nodes[1]->op()->name, "elementwise_add");
-    ASSERT_EQ(nodes[2]->op()->name, "relu");
+    ASSERT_EQ(nodes[1]->op()->name, "fill_constant");
+    ASSERT_EQ(nodes[2]->op()->name, "elementwise_add");
 
     ASSERT_EQ(result.optimized_exprs.size(), 1UL);
     ASSERT_EQ(result.optimized_exprs[0].lowered_funcs.size(), 1UL);

@@ -75,7 +75,7 @@ TEST(TransposeFoldingOutput, BatchedGemmTransLeft) {
   std::pair<std::vector<std::string>, std::vector<std::string>> passes{
       {"Decomposer", "RemoveIdentity"},
       {"TransposeFoldingInput", "GemmRewriter", "TransposeFoldingOutput", "GemmRewriter"}};
-  CompareResult(&program, target, input_ids, {out->id}, 3, passes, 123, true);
+  CompareResult(&program, target, input_ids, {out->id}, 2, passes, 123, true);
 }
 
 TEST(TransposeFoldingOutput, BatchedMatmulTransRight) {
@@ -125,7 +125,7 @@ TEST(TransposeFoldingOutput, BatchedGemmTransRight) {
   std::pair<std::vector<std::string>, std::vector<std::string>> passes{
       {"Decomposer", "RemoveIdentity"},
       {"TransposeFoldingInput", "GemmRewriter", "TransposeFoldingOutput", "GemmRewriter"}};
-  CompareResult(&program, target, input_ids, {out->id}, 3, passes, 123, true);
+  CompareResult(&program, target, input_ids, {out->id}, 2, passes, 123, true);
 }
 
 TEST(TransposeFoldingOutput, BatchedMatmulTransTwo) {
@@ -177,7 +177,7 @@ TEST(TransposeFoldingOutput, BatchedGemmTransTwo) {
   auto passes = std::make_pair(
       std::vector<std::string>{"Decomposer", "RemoveIdentity"},
       std::vector<std::string>{"TransposeFoldingInput", "GemmRewriter", "TransposeFoldingOutput", "GemmRewriter"});
-  CompareResult(&program, target, input_ids, {out->id}, 4, passes, 123, true);
+  CompareResult(&program, target, input_ids, {out->id}, 3, passes, 123, true);
 }
 
 TEST(TransposeFoldingOutput, BatchedMatmulNoTrans) {
@@ -225,7 +225,7 @@ TEST(TransposeFoldingOutput, BatchedGemmNoTrans) {
   auto passes = std::make_pair(
       std::vector<std::string>{"Decomposer", "RemoveIdentity"},
       std::vector<std::string>{"TransposeFoldingInput", "GemmRewriter", "TransposeFoldingOutput", "GemmRewriter"});
-  CompareResult(&program, target, input_ids, {out->id}, 2, passes, 123, true);
+  CompareResult(&program, target, input_ids, {out->id}, 1, passes, 123, true);
 }
 
 TEST(TransposeFoldingOutput, MatmulTransLeft) {
@@ -275,7 +275,7 @@ TEST(TransposeFoldingOutput, GemmTransLeft) {
   std::pair<std::vector<std::string>, std::vector<std::string>> passes{
       {"Decomposer", "RemoveIdentity"},
       {"TransposeFoldingInput", "GemmRewriter", "TransposeFoldingOutput", "GemmRewriter"}};
-  CompareResult(&program, target, input_ids, {out->id}, 3, passes, 123, true);
+  CompareResult(&program, target, input_ids, {out->id}, 2, passes, 123, true);
 }
 
 TEST(TransposeFoldingOutput, MatmulTransRight) {
@@ -325,7 +325,7 @@ TEST(TransposeFoldingOutput, GemmTransRight) {
   std::pair<std::vector<std::string>, std::vector<std::string>> passes{
       {"Decomposer", "RemoveIdentity"},
       {"TransposeFoldingInput", "GemmRewriter", "TransposeFoldingOutput", "GemmRewriter"}};
-  CompareResult(&program, target, input_ids, {out->id}, 3, passes, 123, true);
+  CompareResult(&program, target, input_ids, {out->id}, 2, passes, 123, true);
 }
 
 TEST(TransposeFoldingOutput, MatmulTransTwo) {
@@ -377,7 +377,7 @@ TEST(TransposeFoldingOutput, GemmTransTwo) {
   auto passes = std::make_pair(
       std::vector<std::string>{"Decomposer", "RemoveIdentity"},
       std::vector<std::string>{"TransposeFoldingInput", "GemmRewriter", "TransposeFoldingOutput", "GemmRewriter"});
-  CompareResult(&program, target, input_ids, {out->id}, 4, passes, 123, true);
+  CompareResult(&program, target, input_ids, {out->id}, 3, passes, 123, true);
 }
 
 TEST(TransposeFoldingOutput, MatmulNoTrans) {
@@ -425,7 +425,7 @@ TEST(TransposeFoldingOutput, GemmNoTrans) {
   auto passes = std::make_pair(
       std::vector<std::string>{"Decomposer", "RemoveIdentity"},
       std::vector<std::string>{"TransposeFoldingInput", "GemmRewriter", "TransposeFoldingOutput", "GemmRewriter"});
-  CompareResult(&program, target, input_ids, {out->id}, 2, passes, 123, true);
+  CompareResult(&program, target, input_ids, {out->id}, 1, passes, 123, true);
 }
 
 TEST(TransposeFoldingOutput, BatchedComplex) {
@@ -433,8 +433,8 @@ TEST(TransposeFoldingOutput, BatchedComplex) {
     return;
   }
   NetBuilder builder("net_builder");
-  auto a       = builder.FillConstant<float>({2, 20}, 2.0f, "A");
-  auto b       = builder.BroadcastTo(a, {16, 2, 20}, {1, 2});
+  auto a       = builder.FillConstant<float>({20, 2}, 2.0f, "A");
+  auto b       = builder.FillConstant<float>({16, 2, 20}, 2.0f, "B");
   auto c       = builder.Transpose(b, {0, 2, 1});
   auto d       = builder.CreateInput(Float(32), {121, 20}, "D");
   auto e       = builder.BroadcastTo(d, {16, 121, 20}, {1, 2});
@@ -444,7 +444,7 @@ TEST(TransposeFoldingOutput, BatchedComplex) {
   auto z       = builder.CreateInput(Float(32), {16, 20, 121}, "Z");
   auto l       = builder.Transpose(z, {0, 2, 1});
   auto m       = builder.Matmul(l, y);
-  auto n       = builder.Mul(d, a);
+  auto n       = builder.Matmul(d, a);
   auto o       = builder.BroadcastTo(n, {16, n->shape[0], n->shape[1]}, {1, 2});
   auto p       = builder.Subtract(f, o);
   auto q       = builder.Transpose(f, {0, 2, 1});
@@ -464,7 +464,7 @@ TEST(TransposeFoldingOutput, BatchedComplex) {
   auto passes = std::make_pair(
       std::vector<std::string>{"Decomposer", "RemoveIdentity"},
       std::vector<std::string>{"TransposeFoldingInput", "GemmRewriter", "TransposeFoldingOutput", "GemmRewriter"});
-  CompareResult(&program, target, input_ids, {out->id}, 5, passes, 123, false);
+  CompareResult(&program, target, input_ids, {out->id}, 4, passes, 123, false);
 }
 
 TEST(TransposeFoldingOutput, Complex) {
@@ -481,7 +481,7 @@ TEST(TransposeFoldingOutput, Complex) {
   auto l       = builder.Transpose(z, {1, 0});  // 20 * 121
   auto y       = builder.Matmul(x, l);          // 2 * 121
   auto m       = builder.Transpose(y, {1, 0});  // 121 * 2
-  auto n       = builder.Mul(z, a);
+  auto n       = builder.Matmul(z, a, false, true);
   auto p       = builder.Subtract(f, n);
   auto q       = builder.Transpose(f, {1, 0});
   auto u       = builder.Transpose(m, {1, 0});
@@ -501,7 +501,7 @@ TEST(TransposeFoldingOutput, Complex) {
       std::vector<std::string>{"Decomposer", "RemoveIdentity"},
       std::vector<std::string>{
           "TransposeFoldingInput", "GemmRewriter", "TransposeFoldingOutput", "GemmRewriter", "TransposeFoldingOutput"});
-  CompareResult(&program, target, input_ids, {out->id}, 6, passes, 123, false);
+  CompareResult(&program, target, input_ids, {out->id}, 5, passes, 123, false);
 }
 
 TEST(TransposeFoldingOutput, MultiTransCaseOne) {
@@ -532,7 +532,7 @@ TEST(TransposeFoldingOutput, MultiTransCaseOne) {
                                                         "GemmRewriter",
                                                         "TransposeFoldingOutput",
                                                         "GemmRewriter"});
-  CompareResult(&program, target, input_ids, {out->id}, 2, passes, 123, true);
+  CompareResult(&program, target, input_ids, {out->id}, 1, passes, 123, true);
 }
 
 TEST(TransposeFoldingOutput, MultiTransCaseTwo) {
@@ -561,7 +561,7 @@ TEST(TransposeFoldingOutput, MultiTransCaseTwo) {
                                                         "GemmRewriter",
                                                         "TransposeFoldingOutput",
                                                         "GemmRewriter"});
-  CompareResult(&program, target, input_ids, {out->id}, 3, passes, 123, true);
+  CompareResult(&program, target, input_ids, {out->id}, 2, passes, 123, true);
 }
 
 }  // namespace cinn::frontend

@@ -100,12 +100,6 @@ class TestConcatCase3(TestConcatOp):
         self.axis = 1
 
 
-class TestConcatCase4(TestConcatOp):
-    def init_case(self):
-        self.inputs = {"x1": np.random.random([1, 16]).astype("float32")}
-        self.axis = 0
-
-
 class TestConcatCase5(TestConcatOp):
     def init_case(self):
         self.inputs = {

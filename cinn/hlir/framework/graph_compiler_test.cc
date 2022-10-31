@@ -118,23 +118,50 @@ TEST(GraphCompilerTest, TestInsertBufferHandlers) {
 }
 
 #ifdef CINN_WITH_CUDA
-std::vector<float> test_mul(const std::vector<float>& A, const std::vector<float>& B, int M, int K, int N) {
-  std::vector<float> C_target(M * N);
-  for (int i = 0; i < M; i++) {
-    for (int j = 0; j < N; j++) {
-      for (int k = 0; k < K; k++) {
-        C_target[i * N + j] += A[i * K + k] * B[k * N + j];
+std::vector<float> test_mul(
+    const std::vector<float>& A, const std::vector<float>& B, int M, int K, int N, bool trans_a, bool trans_b) {
+  std::vector<float> C(M * N, 0);
+  if (!trans_a && !trans_b) {
+    for (int idx = 0; idx < M; ++idx) {
+      for (int idy = 0; idy < N; ++idy) {
+        for (int idz = 0; idz < K; ++idz) {
+          C[idx * N + idy] += A[idx * K + idz] * B[idz * N + idy];
+        }
+      }
+    }
+  } else if (trans_a && !trans_b) {
+    for (int idx = 0; idx < M; ++idx) {
+      for (int idy = 0; idy < N; ++idy) {
+        for (int idz = 0; idz < K; ++idz) {
+          C[idx * N + idy] += A[idz * M + idx] * B[idz * N + idy];
+        }
+      }
+    }
+  } else if (!trans_a && trans_b) {
+    for (int idx = 0; idx < M; ++idx) {
+      for (int idy = 0; idy < N; ++idy) {
+        for (int idz = 0; idz < K; ++idz) {
+          C[idx * N + idy] += A[idx * K + idz] * B[idy * K + idz];
+        }
+      }
+    }
+  } else {
+    for (int idx = 0; idx < M; ++idx) {
+      for (int idy = 0; idy < N; ++idy) {
+        for (int idz = 0; idz < K; ++idz) {
+          C[idx * N + idy] += A[idz * M + idx] * B[idy * K + idz];
+        }
       }
     }
   }
-  return C_target;
+  return C;
 }
 
-void RunCublas(int M, int N, int K) {
+void RunCublas(int M, int N, int K, bool trans_a = false, bool trans_b = false) {
   frontend::NetBuilder net_builder("builder");
-  auto A = net_builder.CreateInput(Float(32), {M, K}, "A");
-  auto B = net_builder.CreateInput(Float(32), {K, N}, "B");
-  auto C = net_builder.Matmul(A, B);
+  auto A = net_builder.CreateInput(Float(32), trans_a ? std::vector<int>({K, M}) : std::vector<int>({M, K}), "A");
+  auto B = net_builder.CreateInput(Float(32), trans_b ? std::vector<int>({N, K}) : std::vector<int>({K, N}), "B");
+  auto C = net_builder.Matmul(A, B, trans_a, trans_b);
 
   auto program = net_builder.Build();
   auto target  = common::DefaultTarget();
@@ -158,18 +185,28 @@ void RunCublas(int M, int N, int K) {
   auto host_b = GetTensorData<float>(data_b, target);
   auto host_c = GetTensorData<float>(data_c, target);
 
-  auto target_mul = test_mul(host_a, host_b, M, K, N);
+  auto target_mul = test_mul(host_a, host_b, M, K, N, trans_a, trans_b);
   for (int i = 0; i < data_c->shape().numel(); i++) {
     // LOG_FIRST_N(INFO, 10) << "cinn_data[" << i << "]: " <<  target_mul[i]
     //                       << " v.s. target_data[" << i << "]: " << host_c[i];
-    EXPECT_NEAR(host_c[i], target_mul[i], 1e-4);
+    // EXPECT_NEAR(host_c[i], target_mul[i], 1e-4);
+    CHECK(abs(host_c[i] - target_mul[i]) < 1e-4);
   }
 }
 
 TEST(GraphCompilerTest, TestCublas) {
   RunCublas(64, 64, 128);
+  RunCublas(64, 64, 128, false, true);
+  RunCublas(64, 64, 128, true, false);
+  RunCublas(64, 64, 128, true, true);
   RunCublas(64, 32, 128);
+  RunCublas(64, 32, 128, false, true);
+  RunCublas(64, 32, 128, true, false);
+  RunCublas(64, 32, 128, true, true);
   RunCublas(64, 128, 128);
+  RunCublas(64, 128, 128, false, true);
+  RunCublas(64, 128, 128, true, false);
+  RunCublas(64, 128, 128, true, true);
 }
 
 #endif

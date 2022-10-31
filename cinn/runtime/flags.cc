@@ -32,7 +32,7 @@ using ::GFLAGS_NAMESPACE::StringFromEnv;
 DEFINE_string(cinn_x86_builtin_code_root, StringFromEnv("FLAGS_cinn_x86_builtin_code_root", ""), "");
 
 DEFINE_int32(cinn_parallel_compile_size,
-             Int32FromEnv("FLAGS_cinn_parallel_compile_size", 0),
+             Int32FromEnv("FLAGS_cinn_parallel_compile_size", 8),
              "When use parallel compile, set the number of group compiled by each thread.");
 
 DEFINE_bool(cinn_open_fusion_optimize,
