@@ -15,6 +15,10 @@
 #include <absl/types/optional.h>
 
 #include <algorithm>
+#include <iterator>
+#include <limits>
+#include <numeric>
+#include <utility>
 
 #include "cinn/frontend/op_mapper_registry.h"
 #include "cinn/frontend/op_mappers/common_utils.h"
@@ -96,6 +100,19 @@ void FillAnyLikeOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperConte
   ctx.AddVarModelToProgram(y_name, out->id);
 }
 
+template <typename T>
+std::pair<bool, T> IsArithmeticSequence(const std::vector<T>& vec) {
+  if (vec.empty()) {
+    return {true, static_cast<T>(0)};
+  }
+
+  std::vector<T> adj_diff;
+  std::adjacent_difference(vec.begin(), vec.end(), std::back_inserter(adj_diff));
+  bool is_diff_same =
+      std::all_of(adj_diff.begin() + 1, adj_diff.end(), [&adj_diff](const T& v) { return v == adj_diff.back(); });
+  return {adj_diff.back() != 0 && is_diff_same, adj_diff.back()};
+}
+
 void AssignValueOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
   auto out_name             = op_desc.Output("Out").front();
@@ -114,13 +131,55 @@ void AssignValueOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperConte
 
   absl::optional<Variable> out;
   if (!bool_values.empty()) {
+    VLOG(4) << "The input of assign_value is [" << cinn::utils::Join(bool_values, ", ") << "]";
+
     out = ctx.Builder()->Constant(bool_values, cinn_out_name);
   } else if (!fp32_values.empty()) {
-    out = ctx.Builder()->Constant(fp32_values, cinn_out_name);
+    VLOG(4) << "The input of assign_value is [" << cinn::utils::Join(fp32_values, ", ") << "]";
+
+    auto adj_diff = IsArithmeticSequence(fp32_values);
+
+    if (adj_diff.first) {
+      VLOG(4) << "The input of assign_value is a arithmetic sequence. Using Arange instead of Constant.";
+      auto epsilone =
+          adj_diff.second > 0 ? std::numeric_limits<float>::epsilon() : -std::numeric_limits<float>::epsilon();
+
+      out = ctx.Builder()->Arange(fp32_values.front(), fp32_values.back() + epsilone, adj_diff.second, "float32");
+    } else {
+      out = ctx.Builder()->Constant(fp32_values, cinn_out_name);
+    }
   } else if (!int32_values.empty()) {
-    out = ctx.Builder()->Constant(int32_values, cinn_out_name);
+    VLOG(4) << "The input of assign_value is [" << cinn::utils::Join(int32_values, ", ") << "]";
+
+    auto adj_diff = IsArithmeticSequence(int32_values);
+
+    if (adj_diff.first) {
+      VLOG(4) << "The input of assign_value is a arithmetic sequence. Using Arange instead of Constant.";
+      auto epsilone = adj_diff.second > 0 ? 1 : -1;
+
+      out = ctx.Builder()->Arange(static_cast<float>(int32_values.front()),
+                                  static_cast<float>(int32_values.back() + epsilone),
+                                  static_cast<float>(adj_diff.second),
+                                  "int32");
+    } else {
+      out = ctx.Builder()->Constant(int32_values, cinn_out_name);
+    }
   } else if (!int64_values.empty()) {
-    out = ctx.Builder()->Constant(int64_values, cinn_out_name);
+    VLOG(4) << "The input of assign_value is [" << cinn::utils::Join(int64_values, ", ") << "]";
+
+    auto adj_diff = IsArithmeticSequence(int64_values);
+
+    if (adj_diff.first) {
+      VLOG(4) << "The input of assign_value is a arithmetic sequence. Using Arange instead of Constant.";
+      auto epsilone = adj_diff.second > 0 ? 1 : -1;
+
+      out = ctx.Builder()->Arange(static_cast<float>(int64_values.front()),
+                                  static_cast<float>(int64_values.back() + epsilone),
+                                  static_cast<float>(adj_diff.second),
+                                  "int64");
+    } else {
+      out = ctx.Builder()->Constant(int64_values, cinn_out_name);
+    }
   } else {
     LOG(FATAL) << "assign_value's input should not empty! Please check.";
   }

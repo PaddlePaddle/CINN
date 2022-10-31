@@ -359,12 +359,17 @@ std::shared_ptr<OpStrategy> StrategyForAssignValue(const framework::NodeAttr &at
                                                    const std::vector<std::vector<int>> &output_shapes,
                                                    const Target &target) {
   framework::CINNCompute assign_value_compute([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input argument of fill_constant compute is empty! Please check.";
+    CHECK(!args.empty()) << "The input argument of assign_value compute is empty! Please check.";
     CHECK(attrs.attr_store.count("values")) << "assign_value should set attribute [values]! Please check.";
     const auto &value = attrs.attr_store.at("values");
 
     CINNValuePack arg_pack  = args[0];
-    std::string tensor_name = arg_pack[0].operator std::string();
+    std::string tensor_name = UniqName("T_assign_value_out");
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK_EQ(arg_pack.size(), 1U);
+      CHECK(arg_pack[0].is_string());
+      tensor_name = arg_pack[0].operator std::string();
+    }
 
     absl::optional<ir::Tensor> out;
 #define EXPAND_VALUE_TO_TENSOR(TYPE)                                                            \
@@ -386,7 +391,7 @@ std::shared_ptr<OpStrategy> StrategyForAssignValue(const framework::NodeAttr &at
     CHECK(out && out.value().defined()) << "can't create assign_value with the given type " << out_type[0];
 
     auto stages = CreateStages({out.value()});
-    *ret        = CINNValuePack{{CINNValue(out.value()), CINNValue(stages)}};
+    *ret        = CINNValuePack{{CINNValue(Expr(out.value().get())), CINNValue(stages)}};
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
