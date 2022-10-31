@@ -49,5 +49,13 @@ inline int cinn_host_gt_num_int(
 
 inline int FN_INT32(pow)(int x, int y);
 
+inline int FN_INT32(example)(int x, int y);
+
 #undef FN_INT32
+
+#define FN_FP32(func) cinn_host_##func##_fp32
+
+inline float FN_FP32(example)(float x, float y);
+
+#undef FN_FP32
 }

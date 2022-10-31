@@ -16,7 +16,7 @@ gather_srcs(cinnapi_src SRCS
         repeat.cc
         lookup_table.cc
         one_hot.cc
-        )
+        example.cc)
 
 cc_test(test_cast SRCS cast_test.cc DEPS cinncore)
 cc_test(test_squeeze SRCS squeeze_test.cc DEPS cinncore)

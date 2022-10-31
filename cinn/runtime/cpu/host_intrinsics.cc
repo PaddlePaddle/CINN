@@ -108,6 +108,8 @@ inline int cinn_host_gt_num_int(
 
 inline float FN_FP32(pow)(float x, float y) { return powf(x, y); }
 
+inline float FN_FP32(example)(float x, float y) { return x * y; }
+
 #undef FN_FP32
 
 #define FN_FP64(func) cinn_host_##func##_fp64
@@ -126,6 +128,7 @@ inline int FN_INT32(pow)(int x, int y) {
   return res;
 }
 
+inline int FN_INT32(example)(int x, int y) { return x * y; }
 #undef FN_INT32
 }
 
@@ -162,6 +165,8 @@ CINN_REGISTER_HELPER(host_intrinsics) {
 
   REGISTER_EXTERN_FUNC_2_IN_1_FP32(pow)
 
+  REGISTER_EXTERN_FUNC_2_IN_1_FP32(example)
+
 #undef REGISTER_EXTERN_FUNC_2_IN_1_FP32
 
 #define REGISTER_EXTERN_FUNC_2_IN_1_FP64(func__) \
@@ -175,6 +180,8 @@ CINN_REGISTER_HELPER(host_intrinsics) {
   REGISTER_EXTERN_FUNC_2_IN_1_OUT(cinn_host_##func__##_int32, host_target, int, int, int);
 
   REGISTER_EXTERN_FUNC_2_IN_1_INT32(pow)
+
+  REGISTER_EXTERN_FUNC_2_IN_1_INT32(example)
 
 #undef REGISTER_EXTERN_FUNC_2_IN_1_INT32
 

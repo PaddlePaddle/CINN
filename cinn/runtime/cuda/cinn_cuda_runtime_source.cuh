@@ -40,6 +40,8 @@ __device__ inline float FN(min)(float a, float b) { return min(a, b); }
 __device__ inline float FN(pow)(float a, float b) { return powf(a, b); }
 
 __device__ inline float FN(remainder)(float a, float b) { return remainderf(a, b); }
+
+__device__ inline float FN(example)(float a, float b) { return a * b; }
 #undef FN
 
 #define FN_FP64(func) cinn_nvgpu_##func##_fp64
@@ -64,6 +66,8 @@ __device__ inline int FN_INT32(bitwise_and)(int a, int b) { return a & b; }
 __device__ inline int FN_INT32(bitwise_or)(int a, int b) { return a | b; }
 __device__ inline int FN_INT32(bitwise_xor)(int a, int b) { return a ^ b; }
 __device__ inline int FN_INT32(bitwise_not)(int a) { return ~a; }
+
+__device__ inline int FN_INT32(example)(int a, int b) { return a * b; }
 
 #undef FN_INT32
 

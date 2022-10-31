@@ -316,6 +316,15 @@ class NetBuilder {
   Variable IsClose(
       const Variable& x, const Variable& y, float rtol = 1e-05f, float atol = 1e-08f, bool equal_nan = false);
 
+  /**
+   * @brief This elementwise operator just for example, it doesn't make any sense !!!
+   * @param x The first variable.
+   * @param y The second variable.
+   * @param div_x `x / (x + y)` if `div_x` else `y / (x + y)`.
+   * @return The output variable, it’s data type and shape are the same as input.
+   */
+  Variable Example(const Variable& x, const Variable& y, bool div_x = true);
+
   // *******************************************
   // Reduction operator
   /**
