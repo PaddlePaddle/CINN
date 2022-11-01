@@ -57,7 +57,7 @@ class CustomCallArgsFuncRegistry {
 
   ArgsFunc Lookup(const std::string &custom_call, const common::Target &target) {
     auto id = custom_call + "_" + target.arch_str();
-    CHECK(func_map_.count(id));
+    CHECK(func_map_.count(id)) << "Can't find " << custom_call << " for target " << target.arch_str();
     return func_map_[id];
   }
 
@@ -125,23 +125,66 @@ std::vector<ir::Expr> CustomCallArgsForCublas(const framework::NodeAttr &attrs,
   auto attr_store = attrs.attr_store;
   bool trans_a    = attr_store.count("trans_a") ? absl::get<bool>(attr_store.at("trans_a")) : false;
   bool trans_b    = attr_store.count("trans_b") ? absl::get<bool>(attr_store.at("trans_b")) : false;
+  bool trans_out  = attr_store.count("trans_out") ? absl::get<bool>(attr_store.at("trans_out")) : false;
   float alpha     = attr_store.count("alpha") ? absl::get<float>(attr_store.at("alpha")) : 1.0f;
   float beta      = attr_store.count("beta") ? absl::get<float>(attr_store.at("beta")) : 0.0f;
 
-  std::vector<ir::Expr> a_shape = inputs[0]->shape;
-  int insert_1_to_a             = 4 - a_shape.size();
-  for (int idx = 0; idx < insert_1_to_a; ++idx) {
-    a_shape.insert(a_shape.begin(), ir::Expr(1));
+  int x_num_col_dims = attr_store.count("x_num_col_dims") ? absl::get<int>(attr_store.at("x_num_col_dims")) : 0;
+  int y_num_col_dims = attr_store.count("y_num_col_dims") ? absl::get<int>(attr_store.at("y_num_col_dims")) : 0;
+  CHECK((x_num_col_dims == 0 && y_num_col_dims == 0) || (x_num_col_dims > 0 && y_num_col_dims > 0));
+
+  std::vector<ir::Expr> a_shape, b_shape;
+  if (x_num_col_dims == 0 && y_num_col_dims == 0) {
+    a_shape           = inputs[0]->shape;
+    int insert_1_to_a = 4 - a_shape.size();
+    for (int idx = 0; idx < insert_1_to_a; ++idx) {
+      a_shape.insert(a_shape.begin(), ir::Expr(1));
+    }
+
+    b_shape           = inputs[1]->shape;
+    int insert_1_to_b = 4 - b_shape.size();
+    for (int idx = 0; idx < insert_1_to_b; ++idx) {
+      b_shape.insert(b_shape.begin(), ir::Expr(1));
+    }
+  } else if (x_num_col_dims > 0 && y_num_col_dims > 0) {
+    // input a shape.
+    a_shape    = {Expr(1), Expr(1)};
+    int height = 1;
+    int width  = 1;
+    for (int idx = 0; idx < x_num_col_dims; ++idx) {
+      height *= inputs[0]->shape[idx].as_int32();
+    }
+    for (int idx = x_num_col_dims; idx < inputs[0]->shape.size(); ++idx) {
+      width *= inputs[0]->shape[idx].as_int32();
+    }
+    a_shape.emplace_back(height);
+    a_shape.emplace_back(width);
+
+    // input b shape.
+    b_shape = {Expr(1), Expr(1)};
+    height  = 1;
+    width   = 1;
+    for (int idx = 0; idx < y_num_col_dims; ++idx) {
+      height *= inputs[1]->shape[idx].as_int32();
+    }
+    for (int idx = y_num_col_dims; idx < inputs[0]->shape.size(); ++idx) {
+      width *= inputs[1]->shape[idx].as_int32();
+    }
+    b_shape.emplace_back(height);
+    b_shape.emplace_back(width);
+
+    CHECK_EQ(a_shape.back(), b_shape.back());
+    // transpose b
+    trans_b = true;
+  } else {
+    LOG(FATAL) << "Unkown Matmul Setting!";
   }
 
-  std::vector<ir::Expr> b_shape = inputs[1]->shape;
-  int insert_1_to_b             = 4 - b_shape.size();
-  for (int idx = 0; idx < insert_1_to_b; ++idx) {
-    b_shape.insert(b_shape.begin(), ir::Expr(1));
-  }
-
+  CHECK_EQ(a_shape.size(), 4);
+  CHECK_EQ(b_shape.size(), 4);
   // func args
-  std::vector<ir::Expr> args = {ir::Expr(trans_a), ir::Expr(trans_b), ir::Expr(alpha), ir::Expr(beta)};
+  std::vector<ir::Expr> args = {
+      ir::Expr(trans_a), ir::Expr(trans_b), ir::Expr(trans_out), ir::Expr(alpha), ir::Expr(beta)};
   args.insert(args.end(), a_shape.begin(), a_shape.end());
   args.insert(args.end(), b_shape.begin(), b_shape.end());
   return args;
@@ -153,7 +196,7 @@ std::vector<ir::Expr> CustomCallArgsForCudnnConvForward(const framework::NodeAtt
                                                         const std::vector<ir::Tensor> &inputs,
                                                         const std::vector<std::vector<int>> &output_shapes) {
   CHECK_EQ(inputs.size(), 2UL);
-  CHECK_EQ(output_shapes.size(), 1UL);
+  // CHECK_EQ(output_shapes.size(), 1UL);
   auto attr_store = attrs.attr_store;
   float alpha     = attr_store.count("alpha") ? absl::get<float>(attr_store.at("alpha")) : 1.0f;
   float beta      = attr_store.count("beta") ? absl::get<float>(attr_store.at("beta")) : 0.0f;
@@ -169,9 +212,22 @@ std::vector<ir::Expr> CustomCallArgsForCudnnConvForward(const framework::NodeAtt
   int groups                 = attr_store.count("groups") ? absl::get<int>(attr_store.at("groups")) : 1;
   cudnnTensorFormat_t format = data_format == "NCHW" ? CUDNN_TENSOR_NCHW : CUDNN_TENSOR_NHWC;
 
+  std::vector<Expr> input  = inputs[0]->shape;
+  std::vector<Expr> filter = inputs[1]->shape;
+  std::vector<Expr> output = {};
+  std::transform(output_shapes[0].begin(), output_shapes[0].end(), std::back_inserter(output), [](const int dim) {
+    return ir::Expr(dim);
+  });
+  // if format is nhwc
+  if (format == CUDNN_TENSOR_NHWC) {
+    input  = {input[0], input[3], input[1], input[2]};
+    filter = {filter[0], filter[3], filter[1], filter[2]};
+    output = {output[0], output[3], output[1], output[2]};
+  }
+
   std::vector<ir::Expr> args = {ir::Expr(static_cast<int>(format)), ir::Expr(alpha), ir::Expr(beta)};
-  args.insert(args.end(), inputs[0]->shape.begin(), inputs[0]->shape.end());
-  args.insert(args.end(), inputs[1]->shape.begin(), inputs[1]->shape.end());
+  args.insert(args.end(), input.begin(), input.end());
+  args.insert(args.end(), filter.begin(), filter.end());
   args.push_back(ir::Expr(padding[0]));
   args.push_back(ir::Expr(padding[1]));
   args.push_back(ir::Expr(stride[0]));
@@ -179,9 +235,8 @@ std::vector<ir::Expr> CustomCallArgsForCudnnConvForward(const framework::NodeAtt
   args.push_back(ir::Expr(dilation[0]));
   args.push_back(ir::Expr(dilation[1]));
   args.push_back(ir::Expr(groups));
-  std::transform(output_shapes[0].begin(), output_shapes[0].end(), std::back_inserter(args), [](const int dim) {
-    return ir::Expr(dim);
-  });
+  args.insert(args.end(), output.begin(), output.end());
+
   return args;
 }
 
@@ -205,11 +260,22 @@ std::vector<ir::Expr> CustomCallArgsForCudnnConvBackwardData(const framework::No
   int groups                 = attr_store.count("groups") ? absl::get<int>(attr_store.at("groups")) : 1;
   cudnnTensorFormat_t format = data_format == "NCHW" ? CUDNN_TENSOR_NCHW : CUDNN_TENSOR_NHWC;
 
-  std::vector<ir::Expr> args = {ir::Expr(static_cast<int>(format)), ir::Expr(alpha), ir::Expr(beta)};
-  std::transform(output_shapes[0].begin(), output_shapes[0].end(), std::back_inserter(args), [](const int dim) {
+  std::vector<Expr> input = {};
+  std::transform(output_shapes[0].begin(), output_shapes[0].end(), std::back_inserter(input), [](const int dim) {
     return ir::Expr(dim);
   });
-  args.insert(args.end(), inputs[0]->shape.begin(), inputs[0]->shape.end());
+  std::vector<Expr> filter = inputs[0]->shape;
+  std::vector<Expr> output = inputs[1]->shape;
+  // if format is nhwc
+  if (format == CUDNN_TENSOR_NHWC) {
+    input  = {input[0], input[3], input[1], input[2]};
+    filter = {filter[0], filter[3], filter[1], filter[2]};
+    output = {output[0], output[3], output[1], output[2]};
+  }
+
+  std::vector<ir::Expr> args = {ir::Expr(static_cast<int>(format)), ir::Expr(alpha), ir::Expr(beta)};
+  args.insert(args.end(), input.begin(), input.end());
+  args.insert(args.end(), filter.begin(), filter.end());
   args.push_back(ir::Expr(padding[0]));
   args.push_back(ir::Expr(padding[1]));
   args.push_back(ir::Expr(stride[0]));
@@ -217,7 +283,7 @@ std::vector<ir::Expr> CustomCallArgsForCudnnConvBackwardData(const framework::No
   args.push_back(ir::Expr(dilation[0]));
   args.push_back(ir::Expr(dilation[1]));
   args.push_back(ir::Expr(groups));
-  args.insert(args.end(), inputs[1]->shape.begin(), inputs[1]->shape.end());
+  args.insert(args.end(), output.begin(), output.end());
   return args;
 }
 
@@ -241,11 +307,22 @@ std::vector<ir::Expr> CustomCallArgsForCudnnConvBackwardFilter(const framework::
   int groups                 = attr_store.count("groups") ? absl::get<int>(attr_store.at("groups")) : 1;
   cudnnTensorFormat_t format = data_format == "NCHW" ? CUDNN_TENSOR_NCHW : CUDNN_TENSOR_NHWC;
 
-  std::vector<ir::Expr> args = {ir::Expr(static_cast<int>(format)), ir::Expr(alpha), ir::Expr(beta)};
-  args.insert(args.end(), inputs[0]->shape.begin(), inputs[0]->shape.end());
-  std::transform(output_shapes[0].begin(), output_shapes[0].end(), std::back_inserter(args), [](const int dim) {
+  std::vector<Expr> input  = inputs[0]->shape;
+  std::vector<Expr> filter = {};
+  std::transform(output_shapes[0].begin(), output_shapes[0].end(), std::back_inserter(filter), [](const int dim) {
     return ir::Expr(dim);
   });
+  std::vector<Expr> output = inputs[1]->shape;
+  // if format is nhwc
+  if (format == CUDNN_TENSOR_NHWC) {
+    input  = {input[0], input[3], input[1], input[2]};
+    filter = {filter[0], filter[3], filter[1], filter[2]};
+    output = {output[0], output[3], output[1], output[2]};
+  }
+
+  std::vector<ir::Expr> args = {ir::Expr(static_cast<int>(format)), ir::Expr(alpha), ir::Expr(beta)};
+  args.insert(args.end(), input.begin(), input.end());
+  args.insert(args.end(), filter.begin(), filter.end());
   args.push_back(ir::Expr(padding[0]));
   args.push_back(ir::Expr(padding[1]));
   args.push_back(ir::Expr(stride[0]));
@@ -253,7 +330,7 @@ std::vector<ir::Expr> CustomCallArgsForCudnnConvBackwardFilter(const framework::
   args.push_back(ir::Expr(dilation[0]));
   args.push_back(ir::Expr(dilation[1]));
   args.push_back(ir::Expr(groups));
-  args.insert(args.end(), inputs[1]->shape.begin(), inputs[1]->shape.end());
+  args.insert(args.end(), output.begin(), output.end());
   return args;
 }
 
@@ -362,7 +439,7 @@ bool RegisteryCustomCallArgsFunc() {
   CustomCallArgsFuncRegistry::Global().Register(
       "cinn_call_cudnn_conv2d_backward_data", common::DefaultNVGPUTarget(), CustomCallArgsForCudnnConvBackwardData);
   CustomCallArgsFuncRegistry::Global().Register(
-      "cinn_gpu_cudnn_conv2d_backward_filter", common::DefaultNVGPUTarget(), CustomCallArgsForCudnnConvBackwardFilter);
+      "cinn_call_cudnn_conv2d_backward_filter", common::DefaultNVGPUTarget(), CustomCallArgsForCudnnConvBackwardFilter);
   CustomCallArgsFuncRegistry::Global().Register(
       "cinn_call_cudnn_pool2d_forward", common::DefaultNVGPUTarget(), CustomCallArgsForCudnnPoolForward);
   CustomCallArgsFuncRegistry::Global().Register(
@@ -392,7 +469,7 @@ CINN_REGISTER_HELPER(custom_call_op) {
   CINN_REGISTER_OP(custom_call)
       .describe("This operator implements the call of extern api!")
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForCustomCall)
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque);
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kNonFusible);
 
   return true;
 }

@@ -52,9 +52,8 @@ class GraphAlterHelper {
     for (auto gnode : nodes) {
       auto src = gnode->safe_as<Node>();
       CHECK(src);
-      auto dst                             = GetCustomCallNode(src);
-      dst->attrs.attr_store["custom_call"] = std::string("cinn_call_cublas");
-      Alter(src, dst);
+      src->attrs.op                        = framework::Operator::Get("custom_call");
+      src->attrs.attr_store["custom_call"] = std::string("cinn_call_cublas");
     }
   }
 
@@ -73,53 +72,31 @@ class GraphAlterHelper {
     for (auto gnode : nodes) {
       auto src = gnode->safe_as<Node>();
       CHECK(src);
-      auto dst = GetCustomCallNode(src);
-      CHECK(dst->attrs.attr_store.count("conv_type"));
-      std::string type = dst->attrs.attr_store.count("conv_type")
-                             ? absl::get<std::string>(dst->attrs.attr_store["conv_type"])
+      src->attrs.op = framework::Operator::Get("custom_call");
+      CHECK(src->attrs.attr_store.count("conv_type"));
+      std::string type = src->attrs.attr_store.count("conv_type")
+                             ? absl::get<std::string>(src->attrs.attr_store["conv_type"])
                              : "forward";
       if (type == "forward") {
-        dst->attrs.attr_store["custom_call"] = std::string("cinn_call_cudnn_conv2d_forward");
+        src->attrs.attr_store["custom_call"] = std::string("cinn_call_cudnn_conv2d_forward");
       } else if (type == "backward_data") {
-        dst->attrs.attr_store["custom_call"] = std::string("cinn_call_cudnn_conv2d_backward_data");
+        src->attrs.attr_store["custom_call"] = std::string("cinn_call_cudnn_conv2d_backward_data");
       } else if (type == "backward_filter") {
-        dst->attrs.attr_store["custom_call"] = std::string("cinn_gpu_cudnn_conv2d_backward_filter");
+        src->attrs.attr_store["custom_call"] = std::string("cinn_call_cudnn_conv2d_backward_filter");
       } else {
         LOG(FATAL) << "conv type is unkown!";
       }
-      Alter(src, dst);
+      auto out_links = src->outlinks_in_order(true);
+      for (int idx = 1; idx < out_links.size(); ++idx) {
+        auto link = out_links[idx];
+        CHECK(link->sink()->safe_as<NodeData>());
+        src->UnLinkSingleTo(link->sink());
+        graph_->DropNode(link->sink());
+      }
     }
   }
 
  private:
-  void Alter(Node* src, Node* dst) {
-    // input to src
-    for (auto& edge : src->inlinks_in_order()) {
-      auto input_data = edge->source()->safe_as<NodeData>();
-      CHECK(input_data);
-
-      input_data->UnLinkSingleTo(src);
-      input_data->LinkTo(dst);
-    }
-
-    // src to output
-    for (auto& edge : src->outlinks_in_order()) {
-      auto output_data = edge->sink()->safe_as<NodeData>();
-      CHECK(output_data);
-
-      src->UnLinkSingleTo(output_data);
-      dst->LinkTo(output_data);
-    }
-
-    graph_->DropNode(src);
-  }
-  Node* GetCustomCallNode(Node* src) {
-    auto dst = new Node(framework::Operator::Get("custom_call"), src->attrs.node_name, src->id());
-    graph_->RegisterNode(dst->id(), dst);
-    dst->attrs.attr_store = src->attrs.attr_store;
-    return dst;
-  }
-
   Graph* graph_;
 };
 

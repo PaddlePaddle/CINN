@@ -156,6 +156,15 @@ struct OptimizeConfig {
   OptimizeConfig(const std::pair<std::vector<std::string>, std::vector<std::string>>& program_passes) {
     this->program_passes.ctrl = program_passes.first;
     this->program_passes.exp  = program_passes.second;
+
+    if (FLAGS_cinn_open_fusion_optimize) {
+      if (FLAGS_cinn_use_new_fusion_pass) {
+        graph_passes = {{"MatmulToCublasCustomCallPass", "OpFusionPass", "FusionMergePass"},
+                        {"MatmulToCublasCustomCallPass", "OpFusionPass", "FusionMergePass"}};
+      } else {
+        LOG(FATAL) << "Cinn new op fusion is not applied!";
+      }
+    }
   }
 
   struct PassGroup {
@@ -179,7 +188,6 @@ void CompareResult(Program* program,
   std::unordered_set<std::string> fetch_ids(output_ids.begin(), output_ids.end());
   // apply common passes
   ProgramPass::Apply(program, fetch_ids, target, passes.program_passes.ctrl);
-
   // get original program size
   auto origin_size = program->size();
   // get original output

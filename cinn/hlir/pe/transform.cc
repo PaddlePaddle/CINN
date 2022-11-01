@@ -980,6 +980,42 @@ ir::Tensor ScatterAdd(const ir::Tensor& input,
   return output;
 }
 
+ir::Tensor ExpandDims(const ir::Tensor& input, int axis, int num_newaxis, const std::string& output_name) {
+  int ndims = input.ndims();
+  CHECK(axis >= -ndims - 1 && axis <= ndims)
+      << "expand_dims only accept `axis` in [-x.ndim - 1, x.ndim], but got axis = " << axis
+      << ", and x.ndims = " << ndims;
+  CHECK_GE(num_newaxis, 0);
+
+  if (axis < 0) {
+    axis = ndims + axis + 1;
+  }
+  std::vector<Expr> output_shape;
+  for (size_t i = 0; i < static_cast<size_t>(axis); ++i) {
+    output_shape.push_back(input->shape[i]);
+  }
+  for (size_t i = 0; i < static_cast<size_t>(num_newaxis); ++i) {
+    output_shape.push_back(Expr(1));
+  }
+  for (size_t i = axis; i < input->shape.size(); ++i) {
+    output_shape.push_back(input->shape[i]);
+  }
+
+  return Compute(
+      output_shape,
+      [=](const std::vector<Expr>& indice) {
+        std::vector<Expr> idx;
+        for (size_t i = 0; i < static_cast<size_t>(axis); ++i) {
+          idx.push_back(indice[i]);
+        }
+        for (size_t i = axis + num_newaxis; i < indice.size(); ++i) {
+          idx.push_back(indice[i]);
+        }
+        return input(idx);
+      },
+      UniqName(output_name));
+}
+
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn

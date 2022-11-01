@@ -37,9 +37,9 @@ TEST(Optimize, Unroll) {
 
   auto out = R"ROC(
 {
-  for (i, 0, 100)
+  serial for (i, 0, 100)
   {
-    for (j_outer, 0, 4)
+    serial for (j_outer, 0, 4)
     {
       C[i, (5 * j_outer)] = (1 + A[i, (5 * j_outer)])
       C[i, (1 + (5 * j_outer))] = (1 + A[i, (1 + (5 * j_outer))])

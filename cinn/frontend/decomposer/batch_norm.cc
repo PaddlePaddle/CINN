@@ -54,7 +54,7 @@ struct BatchNormHelper {
 
   template <typename T>
   Variable GetTensorFromScalar(T value, std::string name, const std::vector<int>& shape) {
-    // return builder->BroadcastTo(builder->ConstScalar<T>(value, common::UniqName(name)), shape, {0});
+    // return builder->BroadcastTo(builder->Constant<T>(value, common::UniqName(name)), shape, {0});
     return builder->FillConstant<T>(shape, value, common::UniqName(name));
   }
 
@@ -232,9 +232,48 @@ void batch_norm_grad(const Instruction& instr, const DecomposerContext& context)
   context.MapOutToOrigin(bias_grad, instr->outputs[2]);
 }
 
+void batch_norm(const Instruction& instr, const DecomposerContext& context) {
+  CHECK_EQ(instr->inputs.size(), 5UL) << "The number of the given inputs is not equal to the required for op "
+                                      << instr->op_type;
+  CHECK_EQ(instr->outputs.size(), 1UL) << "The number of the given outputs is not equal to the required for op "
+                                       << instr->op_type;
+
+  auto& x               = instr->inputs[0];
+  auto& scale           = instr->inputs[1];
+  auto& bias            = instr->inputs[2];
+  auto& moving_mean     = instr->inputs[3];
+  auto& moving_variance = instr->inputs[4];
+
+  float epsilon      = instr.GetAttrs<float>("epsilon");
+  float momentum     = instr.GetAttrs<float>("momentum");
+  std::string layout = instr.GetAttrs<std::string>("data_layout");
+
+  NetBuilder* builder = context.builder();
+  BatchNormHelper helper(builder, x->shape, scale->shape, layout, "batch_norm");
+
+  auto mean_4d = builder->BroadcastTo(moving_mean, x->shape, {helper.channel_dim});
+  // std_variance_inv = rsqrt(variance + epsilon), shape = [c]
+  auto std_variance_inv_4d = helper.StdVarianceInv4d(moving_variance, epsilon);
+
+  // y = scale * (x - mean) * std_variance_inv + bias, shape = [n, c, h, w]
+  auto scale_4d          = builder->BroadcastTo(scale, x->shape, {helper.channel_dim});
+  auto bias_4d           = builder->BroadcastTo(bias, x->shape, {helper.channel_dim});
+  auto normalized        = builder->Multiply(builder->Subtract(x, mean_4d), std_variance_inv_4d);
+  auto scaled_normalized = builder->Multiply(normalized, scale_4d);
+  auto y                 = builder->Add(scaled_normalized, bias_4d);
+
+  context.MapOutToOrigin(y, instr->outputs[0]);
+}
+
 }  // namespace decomposer
 }  // namespace frontend
 }  // namespace cinn
+
+CINN_REGISTER_HELPER(batch_norm_decomposer) {
+  CINN_DECOMPOSER_REGISTER(batch_norm, cinn::frontend::decomposer::batch_norm);
+
+  return true;
+}
 
 CINN_REGISTER_HELPER(batch_norm_train_decomposer) {
   CINN_DECOMPOSER_REGISTER(batch_norm_train, cinn::frontend::decomposer::batch_norm_train);

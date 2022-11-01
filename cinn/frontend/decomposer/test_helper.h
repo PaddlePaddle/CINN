@@ -14,8 +14,9 @@
 
 #pragma once
 
-#include <gtest/gtest.h>
+#include <glog/logging.h>
 
+#include <iomanip>
 #include <random>
 
 #include "cinn/frontend/decomposer/use_decomposer.h"
@@ -52,7 +53,8 @@ std::ostream& operator<<(std::ostream& os, const std::vector<T, Alloc>& vec) {
 }
 
 template <typename T>
-void InitRandomVector(std::vector<T>* vec, size_t numel, T low = 0, T high = 1, float precision = 1e-5) {
+void InitRandomVector(
+    std::vector<T>* vec, size_t numel, T low = static_cast<T>(0), T high = static_cast<T>(1), float precision = 1e-5) {
   std::random_device seed;
   std::default_random_engine engine(seed());
   std::uniform_real_distribution<double> dist(low, high);
@@ -65,12 +67,15 @@ void InitRandomVector(std::vector<T>* vec, size_t numel, T low = 0, T high = 1, 
   }
 }
 
+template <>
+void InitRandomVector<int>(std::vector<int>* vec, size_t numel, int low, int high, float precision);
+
 template <typename T>
 void CopyFromVector(const std::vector<T>& vec, hlir::framework::Tensor tensor, Target target) {
   auto* data = tensor->mutable_data<T>(target);
 
   size_t numel = tensor->shape().numel();
-  EXPECT_EQ(vec.size(), numel);
+  CHECK_EQ(vec.size(), numel);
 
   if (target == common::DefaultNVGPUTarget()) {
 #ifdef CINN_WITH_CUDA
@@ -82,6 +87,9 @@ void CopyFromVector(const std::vector<T>& vec, hlir::framework::Tensor tensor, T
     std::copy(vec.begin(), vec.end(), data);
   }
 }
+
+template <>
+void CopyFromVector<bool>(const std::vector<bool>& vec, hlir::framework::Tensor tensor, Target target);
 
 template <typename T>
 void CopyToVector(const hlir::framework::Tensor tensor, std::vector<T>* vec) {
@@ -98,6 +106,9 @@ void CopyToVector(const hlir::framework::Tensor tensor, std::vector<T>* vec) {
   }
 #endif
 }
+
+template <>
+void CopyToVector<bool>(const hlir::framework::Tensor tensor, std::vector<bool>* vec);
 
 template <typename T>
 void CheckOutput(const std::vector<T>& actual, const std::vector<T>& expect, float atol = 1e-8, float rtol = 1e-5) {
@@ -126,7 +137,7 @@ void CheckOutput(const std::vector<T>& actual, const std::vector<T>& expect, flo
   LOG(INFO) << "- Total " << num_diffs << " different results, offset=" << offset << ", " << actual[offset]
             << " (actual) vs " << expect[offset] << " (expect), maximum_relative_diff=" << max_diff
             << " (absolute_diff=" << abs((actual[offset] - expect[offset])) << ")";
-  ASSERT_EQ(num_diffs, 0);
+  CHECK_EQ(num_diffs, 0);
 }
 
 template <typename T>
@@ -155,17 +166,7 @@ void ComputeReferenceCpu(const std::vector<std::vector<T>>& input_vecs,
   cpu_kernel_func(lengths, ptrs);
 }
 
-void RunDecomposer(Program* prog, const Target& target) {
-  LOG(INFO) << "===================== Before Decomposition =====================";
-  for (int i = 0; i < prog->size(); i++) {
-    LOG(INFO) << "instruction: " << (*prog)[i];
-  }
-  ProgramPass::Apply(prog, {}, target, {"Decomposer"});
-  LOG(INFO) << "===================== After Decomposition =====================";
-  for (int i = 0; i < prog->size(); i++) {
-    LOG(INFO) << "instruction: " << (*prog)[i];
-  }
-}
+void RunDecomposer(Program* prog, const Target& target, const std::vector<std::string>& passes = {"Decomposer"});
 
 template <typename T>
 void RunAndCheckShape(NetBuilder& builder,
@@ -175,10 +176,11 @@ void RunAndCheckShape(NetBuilder& builder,
                       std::vector<std::vector<T>>* input_vecs  = nullptr,
                       std::vector<std::vector<T>>* output_vecs = nullptr,
                       T low                                    = 0,
-                      T high                                   = 1) {
+                      T high                                   = 1,
+                      const std::vector<std::string>& passes   = {"Decomposer"}) {
   auto prog     = builder.Build();
   Target target = common::DefaultTarget();
-  RunDecomposer(&prog, target);
+  RunDecomposer(&prog, target, passes);
   auto graph = std::make_shared<hlir::framework::Graph>(prog, target);
   hlir::framework::ApplyPasses(graph.get(), DefaultOpFusionPasses());
   auto scope = BuildScope(target, graph);
@@ -216,13 +218,14 @@ void RunAndCheck(NetBuilder& builder,
                  const std::vector<std::string>& output_names,
                  const std::vector<std::vector<int>>& output_shapes,
                  CPUKernelFunc cpu_kernel_func,
-                 T low      = 0,
-                 T high     = 1,
-                 float atol = 1e-8,
-                 float rtol = 1e-5) {
+                 T low                                  = 0,
+                 T high                                 = 1,
+                 float atol                             = 1e-8,
+                 float rtol                             = 1e-5,
+                 const std::vector<std::string>& passes = {"Decomposer"}) {
   std::vector<std::vector<T>> input_vecs;
   std::vector<std::vector<T>> output_vecs;
-  RunAndCheckShape<T>(builder, input_names, output_names, output_shapes, &input_vecs, &output_vecs, low, high);
+  RunAndCheckShape<T>(builder, input_names, output_names, output_shapes, &input_vecs, &output_vecs, low, high, passes);
 
   std::vector<std::vector<T>> output_refs;
   ComputeReferenceCpu<T>(input_vecs, output_vecs, &output_refs, cpu_kernel_func);

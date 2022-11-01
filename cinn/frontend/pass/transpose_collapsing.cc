@@ -118,6 +118,9 @@ class TransposeCollapsingPass : public ProgramPass {
                                 const InputToOpMap& in2instr,
                                 const OutputToOpMap& out2instr,
                                 std::unordered_set<Instruction*>* remove_instrs) const {
+    if (all_transpose.size() == 1) {
+      return;
+    }
     // the transpose op should not remove
     std::unordered_set<Instruction*> visited_instrs;
     for (auto transpose : all_transpose) {

@@ -14,55 +14,46 @@
 
 #pragma once
 
+#include <functional>
 #include <limits>
-#include <memory>
-#include <unordered_set>
-#include <utility>
 #include <vector>
 
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
-#include "cinn/common/target.h"
-#include "cinn/ir/ir_base.h"
+#include "cinn/common/object.h"
+#include "cinn/common/shared.h"
 #include "cinn/ir/ir_schedule.h"
 
 namespace cinn {
 namespace auto_schedule {
 
-/**
- * Class to store immediate states during search
- */
-class SearchState {
+struct _SearchState_;
+//! Shared Wrapper for _SearchState_
+class SearchState : public common::Shared<_SearchState_> {
  public:
-  // The ModuleExpr
-  ir::ModuleExpr mod_expr;
-
-  // The rules that can be applied to this ModuleExpr at this state.
-  // Initialized by list of all AutoGenRule
-  std::vector<std::shared_ptr<AutoGenRule>> applicable_rules;
-
-  // Cost model predicted cost
-  float predicted_cost = NOT_INIT_COST;
+  SearchState() = default;
+  // create a new SearchState
+  explicit SearchState(ir::IRSchedule ir_sch, float cost = NOT_INIT_COST, const std::vector<AutoGenRule*>& rules = {});
 
   // Constant standing for a cost not being initialized
   static constexpr float NOT_INIT_COST = std::numeric_limits<float>::max();
-
-  SearchState() = default;
-
-  SearchState(const ir::ModuleExpr& mod_expr);
-
-  SearchState(ir::ModuleExpr&& mod_expr);
-
-  SearchState(const SearchState& state);
-
-  SearchState(SearchState&& state) = default;
-
-  SearchState& operator=(const SearchState& src);
-
+  // compare function for two states
   friend bool operator<(const SearchState& left, const SearchState& right);
+};
 
-  // Not all ModuleExpr has to be mutated AutoGenRule. For those states which
-  // have ModuleExpr to random mutated by AutoGenRule, initialize it.
-  void InitAutoGenRules(const common::Target& target, const std::unordered_set<std::string>& output_names);
+//! Class to store immediate states during search
+struct _SearchState_ : public common::Object {
+  // IRSchedule contains ir::ModuleExpr and trace scheduling process
+  ir::IRSchedule ir_schedule;
+  // Cost model predicted cost
+  float predicted_cost;
+  // The rules that can be applied to the IRSchedule at this state.
+  std::vector<AutoGenRule*> applicable_rules;
+
+  // return detail string of content for debug;
+  std::string DebugString() const;
+
+  const char* type_info() const override { return __type_info__; }
+  static constexpr char* __type_info__ = "auto_schedule_state";
 };
 
 }  // namespace auto_schedule

@@ -15,50 +15,48 @@
 #include "cinn/auto_schedule/search_space/search_state.h"
 
 #include <memory>
-#include <unordered_set>
+#include <sstream>
 #include <utility>
 #include <vector>
 
-#include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
-#include "cinn/auto_schedule/search_space/auto_gen_rule/auto_inline.h"
-#include "cinn/auto_schedule/search_space/auto_gen_rule/multi_level_tiling.h"
-#include "cinn/auto_schedule/search_space/auto_gen_rule/skip_rule.h"
-#include "cinn/common/target.h"
 #include "cinn/ir/ir_base.h"
+#include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_schedule.h"
+#include "cinn/utils/string.h"
 
 namespace cinn {
 namespace auto_schedule {
 
-SearchState::SearchState(const ir::ModuleExpr& mod_expr) { this->mod_expr = mod_expr; }
-
-SearchState::SearchState(ir::ModuleExpr&& mod_expr) { this->mod_expr = std::move(mod_expr); }
-
-SearchState::SearchState(const SearchState& state) {
-  mod_expr       = state.mod_expr;
-  predicted_cost = state.predicted_cost;
-  for (const std::shared_ptr<AutoGenRule>& rule : state.applicable_rules) {
-    applicable_rules.emplace_back(std::shared_ptr<AutoGenRule>(rule->NewPointer()));
-  }
+SearchState::SearchState(ir::IRSchedule ir_sch, float cost, const std::vector<AutoGenRule*>& rules)
+    : common::Shared<_SearchState_>(common::make_shared<_SearchState_>()) {
+  auto* state             = get();
+  state->ir_schedule      = std::move(ir_sch);
+  state->applicable_rules = rules;
+  state->predicted_cost   = cost;
 }
 
-SearchState& SearchState::operator=(const SearchState& src) {
-  this->mod_expr       = src.mod_expr;
-  this->predicted_cost = src.predicted_cost;
-  this->applicable_rules.clear();
-  for (const std::shared_ptr<AutoGenRule>& rule : src.applicable_rules) {
-    this->applicable_rules.emplace_back(std::shared_ptr<AutoGenRule>(rule->NewPointer()));
+std::string _SearchState_::DebugString() const {
+  const auto& exprs = ir_schedule.GetModule().GetExprs();
+  std::stringstream module_stream;
+  for (auto i = 0; i < exprs.size(); ++i) {
+    module_stream << "Expr " << i << " {\n" << exprs.at(i) << "\n}  // end Expr";
   }
-  return *this;
+
+  const char* fmt_str = R"ROC(
+ModuleExpr {
+%s
+} // end ModuleExpr
+ScheduleDesc {
+%s
+} // end ScheduleDesc
+predicted_cost: %f)ROC";
+
+  return utils::StringFormat(
+      fmt_str, module_stream.str().c_str(), ir_schedule.GetTraceDesc().DebugString().c_str(), predicted_cost);
 }
 
-bool operator<(const SearchState& left, const SearchState& right) { return left.predicted_cost < right.predicted_cost; }
-
-void SearchState::InitAutoGenRules(const common::Target& target, const std::unordered_set<std::string>& output_names) {
-  // TODO(zhhsplendid): pass correct output names to AutoInline
-  applicable_rules = {std::shared_ptr<AutoGenRule>(new AutoInline(target, output_names)),
-                      std::shared_ptr<AutoGenRule>(new MultiLevelTiling(target)),
-                      std::shared_ptr<AutoGenRule>(new SkipRule(target))};
+bool operator<(const SearchState& left, const SearchState& right) {
+  return left->predicted_cost < right->predicted_cost;
 }
 
 }  // namespace auto_schedule

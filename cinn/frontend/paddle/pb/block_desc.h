@@ -20,7 +20,7 @@
 
 namespace cinn::frontend::paddle::pb {
 
-namespace framework_proto = ::paddle::framework::proto;
+namespace framework_proto = ::cinn::frontend::paddle::proto;
 
 class BlockDesc : public cpp::BlockDescAPI {
  public:

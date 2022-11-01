@@ -33,38 +33,57 @@ namespace lang {
 using ir::Tensor;
 using poly::Stage;
 
+// Returns true if input string to_check is prefix([_0-9])*
+bool IsUniqRename(const std::string& to_check, const std::string& prefix) {
+  if (to_check.rfind(prefix, 0) != 0) {
+    return false;
+  }
+  for (int i = prefix.size(); i < to_check.size(); ++i) {
+    if (to_check[i] != '_' && (to_check[i] < '0' || to_check[i] > '9')) {
+      return false;
+    }
+  }
+  return true;
+}
+
 std::vector<ir::Argument> GetArgs(const Expr& func_body, const std::vector<std::string>& input_output_nodes) {
-  std::vector<ir::Argument> res;
-  std::set<std::string> load_tensors;
-  std::set<std::string> store_tensors;
+  std::map<std::string, const ir::Store*> name_to_store;
   auto store_nodes = ir::CollectIRNodesWithoutTensor(func_body, [&](const Expr* x) {
-    if (x->As<ir::Store>()) store_tensors.insert(x->As<ir::Store>()->tensor.as_tensor_ref()->name);
-    return x->As<ir::Store>();
-  });
-  auto load_nodes  = ir::CollectIRNodesWithoutTensor(func_body, [&](const Expr* x) {
-    if (x->As<ir::Load>()) load_tensors.insert(x->As<ir::Load>()->tensor.as_tensor_ref()->name);
-    return x->As<ir::Load>();
+    const ir::Store* p = x->As<ir::Store>();
+    if (p) {
+      name_to_store[p->tensor.as_tensor_ref()->name] = p;
+    }
+    return p;
   });
 
-  for (auto& i : input_output_nodes) {
-    if (load_tensors.count(i) && !store_tensors.count(i)) {
-      for (auto& j : load_nodes) {
-        auto load_tensor = j.As<ir::Load>()->tensor.as_tensor_ref();
-        if (load_tensor->buffer.defined() && load_tensor->name == i) {
-          res.emplace_back(load_tensor->buffer, ir::Argument::IO::kInput);
-          break;
-        }
+  std::map<std::string, const ir::Load*> name_to_load;
+  auto load_nodes = ir::CollectIRNodesWithoutTensor(func_body, [&](const Expr* x) {
+    const ir::Load* p = x->As<ir::Load>();
+    if (p) {
+      name_to_load[p->tensor.as_tensor_ref()->name] = p;
+    }
+    return p;
+  });
+
+  std::vector<ir::Argument> res;
+  for (const std::string& i : input_output_nodes) {
+    for (const auto& name_load_pair : name_to_load) {
+      const std::string& name = name_load_pair.first;
+      if (IsUniqRename(name, i) && name_to_store.find(name) == name_to_store.end()) {
+        auto load_tensor = name_load_pair.second->tensor.as_tensor_ref();
+        res.emplace_back(load_tensor->buffer, ir::Argument::IO::kInput);
       }
-    } else if (store_tensors.count(i) && !load_tensors.count(i)) {
-      for (auto& j : store_nodes) {
-        auto store_tensor = j.As<ir::Store>()->tensor.as_tensor_ref();
-        if (store_tensor->buffer.defined() && store_tensor->name == i) {
-          res.emplace_back(store_tensor->buffer, ir::Argument::IO::kOutput);
-          break;
-        }
+    }
+
+    for (const auto& name_store_pair : name_to_store) {
+      const std::string& name = name_store_pair.first;
+      if (IsUniqRename(name, i)) {
+        auto store_tensor = name_store_pair.second->tensor.as_tensor_ref();
+        res.emplace_back(store_tensor->buffer, ir::Argument::IO::kOutput);
       }
     }
   }
+
   for (auto& i : input_output_nodes) VLOG(3) << "In input_output_nodes, arg has : " << i;
   for (auto& i : res) VLOG(3) << "In res, arg has : " << i.name();
   return res;
@@ -88,6 +107,36 @@ std::vector<ir::Buffer> GetTempBuffers(const std::vector<Tensor>& tensor_args,
     return x->as_tensor() && x->as_tensor()->buffer.defined() &&
            (!stage_map->Lookup(x->as_tensor()->name) || !stage_map[x->as_tensor()]->inlined()) &&
            ((!buffer_arg_names.count(x->as_tensor()->buffer->name) && !tensor_arg_names.count(x->as_tensor()->name)) ||
+            utils::Endswith(x->as_tensor()->buffer->name, "temp_buffer"));
+  });
+  for (auto& e : all_temp_tensors) {
+    auto buffer_name = e.as_tensor()->buffer->name;
+    if (!name_to_buffer.count(buffer_name)) {
+      name_to_buffer[buffer_name] = e.as_tensor()->buffer;
+    } else {
+      if (e.as_tensor()->buffer->numel() < name_to_buffer[buffer_name]->numel()) {
+        name_to_buffer[buffer_name] = e.as_tensor()->buffer;
+      }
+    }
+  }
+  std::vector<ir::Buffer> temp_buffers;
+  for (auto& i : name_to_buffer) temp_buffers.push_back(i.second);
+  return temp_buffers;
+}
+
+//! Collect the temporary tensors from a computational graph.
+std::vector<ir::Buffer> GetTempBuffers(const std::vector<ir::Argument>& args, Expr body) {
+  std::unordered_set<std::string> buffer_arg_names;
+  for (auto& a : args) {
+    if (a.is_buffer()) {
+      buffer_arg_names.insert(a.name());
+    }
+  }
+  std::map<std::string, ir::Buffer> name_to_buffer;  // used to avoid duplication.
+
+  auto all_temp_tensors = ir::CollectIRNodesWithoutTensor(body, [&](const Expr* x) {
+    return x->as_tensor() && x->as_tensor()->buffer.defined() &&
+           (!buffer_arg_names.count(x->as_tensor()->buffer->name) ||
             utils::Endswith(x->as_tensor()->buffer->name, "temp_buffer"));
   });
   for (auto& e : all_temp_tensors) {

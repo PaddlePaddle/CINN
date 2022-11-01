@@ -14,6 +14,7 @@
 
 #pragma once
 #include <map>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -21,6 +22,7 @@
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_mutator.h"
+#include "cinn/ir/schedule_desc.h"
 #include "cinn/ir/tensor.h"
 
 namespace cinn {
@@ -53,23 +55,33 @@ class ModuleExpr {
 };
 
 /**
- * A struct helps to implment Schedule primitives.
+ * A struct containing all the schedule primitives. Each shedule primitive is a member function of IRSchedule.
+ * Schedule primitves are implmented by ScheduleImpl manipulating the AST - IR(Expr).
+ * To support serializing and replaying, each schedule primitive should append a ScheduleDesc::Step to
+ * the trace_ in its corresponding function implment.
  */
-class ScheduleHelper {
+class ScheduleImpl;
+class IRSchedule {
  public:
-  ScheduleHelper() = default;
-  explicit ScheduleHelper(const ModuleExpr& module_expr, bool debug_flag = false)
-      : module_expr_(module_expr), debug_flag_(debug_flag) {}
+  IRSchedule();
+  explicit IRSchedule(const ModuleExpr& modexpr, bool debug_flag = false);
+  IRSchedule(ir::ModuleExpr&& mod_expr, ScheduleDesc&& trace);
+  IRSchedule(const IRSchedule& other);
+  IRSchedule& operator=(const IRSchedule& src);
+  IRSchedule(IRSchedule&& other);
+  IRSchedule& operator=(IRSchedule&& src);
+  ~IRSchedule();
 
-  //! Set the debug flag.
-  void SetDebugFlag(bool debug_flag) { debug_flag_ = debug_flag; }
+  void SetExprs(const std::vector<Expr>& exprs);
 
-  /**
-   * In IR stored in ModuleExpr, replace a specified Expr node src_sref to another Expr node tgt_stmt.
-   * @param src_sref The IR node to be replaced.
-   * @param tgt_stmt The IR node to replace the original one.
-   */
-  void Replace(const Expr& src_sref, const Expr& tgt_stmt);
+  //! Get the ModuleExpr stored in ScheduleImpl.
+  const ModuleExpr& GetModule() const;
+
+  //! Merge multiple Exprs in a ModuleExpr to be one
+  void MergeExprs();
+
+  //! Get the ScheduleDesc that traces the scheduling process
+  const ScheduleDesc& GetTraceDesc() const { return trace_; }
 
   /**
    * \brief Get all the loops of specific Block stored in ModuleExpr.
@@ -90,47 +102,6 @@ class ScheduleHelper {
 
   //! Get a block with the specific name.
   Expr GetBlock(const std::string& block_name) const;
-
-  //! Get the ModuleExpr stored in ScheduleHelper.
-  ModuleExpr GetModule() const { return module_expr_; }
-
-  void SetExprs(const std::vector<Expr>& exprs) { module_expr_.SetExprs(exprs); }
-
- private:
-  ModuleExpr module_expr_;
-  bool debug_flag_{false};
-};
-
-/**
- * A struct containing all the schedule primitives. Each shedule primitive is a member function of IRSchedule.
- * Schedule primitves are implmented by ScheduleHelper manipulating the AST - IR(Expr).
- */
-class IRSchedule {
- public:
-  IRSchedule() = default;
-  explicit IRSchedule(const ModuleExpr& modexpr, bool debug_flag = false);
-
-  void SetExprs(const std::vector<Expr>& exprs) { helper_.SetExprs(exprs); }
-
-  /**
-   * \brief Get all the loops of specific Block stored in ModuleExpr.
-   * @param block The block we find loop in.
-   * @return Loops of the block.
-   */
-  std::vector<Expr> GetLoops(const Expr& block) const { return helper_.GetLoops(block); }
-
-  /**
-   * \brief Get all the loops of specific Block stored in ModuleExpr.
-   * @param block_name Name of the block.
-   * @return Loops of the block.
-   */
-  std::vector<Expr> GetLoops(const std::string& block_name) const { return helper_.GetLoops(block_name); }
-
-  //! Get all blocks stored in this ModuleExpr.
-  std::vector<Expr> GetAllBlocks() const { return helper_.GetAllBlocks(); }
-
-  //! Get a block with the specific name.
-  Expr GetBlock(const std::string& block_name) const { return helper_.GetBlock(block_name); }
 
   /**
    * \brief Split a for loop into multiple loops, based on the factors.
@@ -334,13 +305,17 @@ class IRSchedule {
    */
   Expr Rfactor(const Expr& rf_loop, int rf_axis);
 
-  //! Get the ModuleExpr stored in ScheduleHelper.
-  ModuleExpr GetModule() const { return helper_.GetModule(); }
-
-  void MergeExprs();
+  /*!
+   * \brief Annotate a block with a key-value pair to set as its attribute
+   * \param block The block to be annotated
+   * \param key The attribute key
+   * \param val The attribute value, its type should be one of attr_t listing
+   */
+  void Annotate(const Expr& block, const std::string& key, const attr_t& value);
 
  private:
-  ScheduleHelper helper_;
+  std::unique_ptr<ScheduleImpl> impl_;
+  mutable ScheduleDesc trace_;  // trace the scheduling process
 };
 
 /*!

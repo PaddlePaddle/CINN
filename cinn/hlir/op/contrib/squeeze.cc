@@ -50,7 +50,7 @@ ir::Tensor Squeeze(const ir::Tensor &A, const std::vector<int> &axes, const std:
   if (axes.size() != 0) {
     std::unordered_set<int> axes_index;
     for (int i = 0; i < axes.size(); ++i) {
-      axes_index.insert(axes[i]);
+      axes_index.insert(axes[i] < 0 ? axes[i] + A->shape.size() : axes[i]);
     }
     for (int i = 0; i < A_expr_shape.size(); ++i) {
       CHECK(A_expr_shape[i].is_constant()) << "Input tensor's shape should be constant value.";
@@ -143,9 +143,13 @@ std::vector<std::vector<int>> InferShapeForSqueeze(const std::vector<std::vector
   int tensor_size = 1;
   if (axes.size() != 0) {
     std::vector<int> temp_shape = inputs_shape[0];
-    for (auto &a : axes) {
-      CHECK(a < temp_shape.size());
-      temp_shape[a] = 0;
+    int input_shape_size        = inputs_shape[0].size();
+    for (auto &axis : axes) {
+      CHECK(axis >= -input_shape_size && axis < input_shape_size)
+          << "Invalid axis, the axis should in [-" << input_shape_size << ", " << input_shape_size - 1
+          << "], but current axis is " << axis;
+      auto val        = axis < 0 ? axis + input_shape_size : axis;
+      temp_shape[val] = 0;
     }
     for (auto &i : temp_shape) {
       if (i != 0) {
@@ -212,6 +216,7 @@ CINN_REGISTER_HELPER(squeeze_ops) {
 #ifndef CINN_WITH_CUDA
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForSqueeze))
 #endif
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kNonFusible)
       .set_support_level(4);
 
   return true;

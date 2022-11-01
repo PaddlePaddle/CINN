@@ -19,23 +19,20 @@
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
 #include "cinn/common/target.h"
 #include "cinn/ir/ir_schedule.h"
+#include "cinn/optim/ir_copy.h"
 
 namespace cinn {
 namespace auto_schedule {
 
 SkipRule::SkipRule(const common::Target& target) : AutoGenRule(target) {}
 
-RuleApplyType SkipRule::Init(const ir::ModuleExpr& mod_expr) {
+RuleApplyType SkipRule::Init(ir::IRSchedule* ir_schedule) {
+  ir_schedule_    = ir_schedule;
   num_applicable_ = 1;
-  mod_expr_       = mod_expr;
   return RuleApplyType::kApply;
 }
 
-ir::ModuleExpr SkipRule::Apply(int index) { return mod_expr_; }
-
 std::string SkipRule::GetRuleName() const { return "SikpRule"; }
-
-AutoGenRule* SkipRule::NewPointer() const { return new SkipRule(*target_); }
 
 }  // namespace auto_schedule
 }  // namespace cinn

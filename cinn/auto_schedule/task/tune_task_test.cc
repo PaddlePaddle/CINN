@@ -26,8 +26,8 @@
 #include "cinn/frontend/net_builder.h"
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/graph.h"
-#include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/node.h"
+#include "cinn/hlir/framework/op_lowering.h"
 #include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/framework/scope.h"
 #include "cinn/ir/ir_base.h"
@@ -42,8 +42,7 @@ namespace auto_schedule {
 
 using ::cinn::frontend::NetBuilder;
 using ::cinn::frontend::Program;
-using ::cinn::hlir::framework::GraphCompiler;
-using ::cinn::hlir::framework::Scope;
+using ::cinn::hlir::framework::OpLowerer;
 
 Program CreateAddProgram() {
   constexpr int M = 32;
@@ -60,136 +59,29 @@ Program CreateAddProgram() {
 }
 
 TEST(TuneTask, GraphToUnoptLoweredFunc_NoPass) {
+  // Auto tuner is combined with IR schedule
+  FLAGS_cinn_ir_schedule = true;
   Context::Global().ResetNameId();
 #ifdef CINN_WITH_CUDA
   Target target = common::DefaultNVGPUTarget();
 #else
-  Target target          = common::DefaultHostTarget();
+  Target target                  = common::DefaultHostTarget();
 #endif
   Program prog = CreateAddProgram();
   auto graph   = std::make_shared<hlir::framework::Graph>(prog, target);
 
-  std::shared_ptr<cinn::hlir::framework::Scope> scope = BuildScope(target, graph);
-
   TaskCreator task_creator;
   std::vector<TuneTask> tasks = task_creator.CreateTuneTaskOpLevel(graph.get());
-
-  GraphCompiler graph_compiler(target, scope, graph);
-
   ASSERT_EQ(tasks.size(), 2UL);
 
-  std::stringstream ss;
-  for (TuneTask& task : tasks) {
-    task.SetGraphCompiler(&graph_compiler);
-    task.TaskGraphToUnoptLoweredFunc();
+  const auto& shape_dict = graph->GetAttrs<absl::flat_hash_map<std::string, hlir::framework::shape_t>>("infershape");
+  const auto& dtype_dict = graph->GetAttrs<absl::flat_hash_map<std::string, common::Type>>("inferdtype");
 
-    std::vector<ir::Expr> exprs = task.GetLoweredFuncBodyExprs();
-    VLOG(6) << "ir:Expr is: ";
-    for (const ir::Expr& e : exprs) {
-      VLOG(6) << e;
-      ss << e << std::endl;
-    }
-  }
-
-  std::string expr_str   = ss.str();
-  std::string target_str = R"ROC(
-{
-  ScheduleBlock(root)
-  {
-    for (i, 0, 32)
-    {
-      for (j, 0, 24)
-      {
-        ScheduleBlock(elementwise_add_Out)
-        {
-          i0, i1 = axis.bind(i, j)
-          elementwise_add_Out[i0, i1] = (A[i0, i1] + B[i0, i1])
-        }
-      }
-    }
-  }
-}
-{
-  ScheduleBlock(root_0)
-  {
-    for (i, 0, 32)
-    {
-      for (j, 0, 24)
-      {
-        ScheduleBlock(elementwise_add_Out_0)
-        {
-          i0, i1 = axis.bind(i, j)
-          elementwise_add_Out_0[i0, i1] = (A[i0, i1] + var_1[i0, i1])
-        }
-      }
-    }
-  }
-}
-)ROC";
-
-  if (FLAGS_cinn_ir_schedule) {
-    target_str = R"ROC(
-{
-  ScheduleBlock(root)
-  {
-    for (i, 0, 32)
-    {
-      for (j, 0, 24)
-      {
-        ScheduleBlock(var_1)
-        {
-          i0, i1 = axis.bind(i, j)
-          var_1[i0, i1] = (A[i0, i1] + B[i0, i1])
-        }
-      }
-    }
-  }
-}
-{
-  ScheduleBlock(root_0)
-  {
-    for (i, 0, 32)
-    {
-      for (j, 0, 24)
-      {
-        ScheduleBlock(var_2)
-        {
-          i0, i1 = axis.bind(i, j)
-          var_2[i0, i1] = (A[i0, i1] + var_1[i0, i1])
-        }
-      }
-    }
-  }
-}
-)ROC";
-  }
-
-  EXPECT_EQ(utils::Trim(target_str), utils::Trim(expr_str));
-}
-
-TEST(TuneTask, GraphToUnoptLoweredFunc_ApplyPass) {
-  Context::Global().ResetNameId();
-#ifdef CINN_WITH_CUDA
-  Target target = common::DefaultNVGPUTarget();
-#else
-  Target target          = common::DefaultHostTarget();
-#endif
-  Program prog = CreateAddProgram();
-  auto graph   = std::make_shared<hlir::framework::Graph>(prog, target);
-  ApplyPass(graph.get(), "OpFusion");
-
-  std::shared_ptr<cinn::hlir::framework::Scope> scope = BuildScope(target, graph);
-
-  TaskCreator task_creator;
-  std::vector<TuneTask> tasks = task_creator.CreateTuneTaskOpLevel(graph.get());
-
-  GraphCompiler graph_compiler(target, scope, graph);
-
-  ASSERT_EQ(tasks.size(), 1UL);
+  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
 
   std::stringstream ss;
   for (TuneTask& task : tasks) {
-    task.SetGraphCompiler(&graph_compiler);
+    task.SetOpLowerer(&op_lowerer);
     task.TaskGraphToUnoptLoweredFunc();
 
     std::vector<ir::Expr> exprs = task.GetLoweredFuncBodyExprs();
@@ -206,44 +98,9 @@ TEST(TuneTask, GraphToUnoptLoweredFunc_ApplyPass) {
 {
   ScheduleBlock(root)
   {
-    for (i, 0, 32)
+    serial for (i, 0, 32)
     {
-      for (j, 0, 24)
-      {
-        ScheduleBlock(elementwise_add_Out)
-        {
-          i0, i1 = axis.bind(i, j)
-          elementwise_add_Out[i0, i1] = (A[i0, i1] + B[i0, i1])
-        }
-      }
-    }
-  }
-}
-{
-  ScheduleBlock(root_0)
-  {
-    for (i, 0, 32)
-    {
-      for (j, 0, 24)
-      {
-        ScheduleBlock(elementwise_add_Out_0)
-        {
-          i0, i1 = axis.bind(i, j)
-          elementwise_add_Out_0[i0, i1] = (A[i0, i1] + elementwise_add_Out[i0, i1])
-        }
-      }
-    }
-  }
-}
-)ROC";
-  if (FLAGS_cinn_ir_schedule) {
-    target_str = R"ROC(
-{
-  ScheduleBlock(root)
-  {
-    for (i, 0, 32)
-    {
-      for (j, 0, 24)
+      serial for (j, 0, 24)
       {
         ScheduleBlock(var_1)
         {
@@ -257,9 +114,9 @@ TEST(TuneTask, GraphToUnoptLoweredFunc_ApplyPass) {
 {
   ScheduleBlock(root_0)
   {
-    for (i, 0, 32)
+    serial for (i, 0, 32)
     {
-      for (j, 0, 24)
+      serial for (j, 0, 24)
       {
         ScheduleBlock(var_2)
         {
@@ -271,50 +128,92 @@ TEST(TuneTask, GraphToUnoptLoweredFunc_ApplyPass) {
   }
 }
 )ROC";
-  }
-
 #else
-  std::string target_str = R"ROC(
+  std::string target_str         = R"ROC(
 {
   ScheduleBlock(root)
   {
+    serial for (i, 0, 32)
     {
-      for (i, 0, 32)
+      serial for (j, 0, 24)
       {
-        for (j, 0, 24)
+        ScheduleBlock(var_1)
         {
-          ScheduleBlock(elementwise_add_Out)
-          {
-            i0, i1 = axis.bind(i, j)
-            elementwise_add_Out[i0, i1] = (A[i0, i1] + B[i0, i1])
-          }
+          i0, i1 = axis.bind(i, j)
+          var_1[i0, i1] = (A[i0, i1] + B[i0, i1])
         }
       }
-      for (i, 0, 32)
+    }
+  }
+}
+{
+  ScheduleBlock(root_0)
+  {
+    serial for (i, 0, 32)
+    {
+      serial for (j, 0, 24)
       {
-        for (j, 0, 24)
+        ScheduleBlock(var_2)
         {
-          ScheduleBlock(elementwise_add_Out_0)
-          {
-            i0, i1 = axis.bind(i, j)
-            elementwise_add_Out_0[i0, i1] = (A[i0, i1] + elementwise_add_Out[i0, i1])
-          }
+          i0, i1 = axis.bind(i, j)
+          var_2[i0, i1] = (A[i0, i1] + var_1[i0, i1])
         }
       }
     }
   }
 }
 )ROC";
+#endif
 
-  if (FLAGS_cinn_ir_schedule) {
-    target_str = R"ROC(
+  EXPECT_EQ(utils::Trim(target_str), utils::Trim(expr_str));
+}
+
+TEST(TuneTask, GraphToUnoptLoweredFunc_ApplyPass) {
+  // Auto tuner is combined with IR schedule
+  FLAGS_cinn_ir_schedule = true;
+  Context::Global().ResetNameId();
+#ifdef CINN_WITH_CUDA
+  Target target = common::DefaultNVGPUTarget();
+#else
+  Target target                  = common::DefaultHostTarget();
+#endif
+  Program prog = CreateAddProgram();
+  auto graph   = std::make_shared<hlir::framework::Graph>(prog, target);
+  ApplyPass(graph.get(), "OpFusionPass");
+
+  TaskCreator task_creator;
+  std::vector<TuneTask> tasks = task_creator.CreateTuneTaskOpLevel(graph.get());
+
+  ASSERT_EQ(tasks.size(), 1UL);
+
+  const auto& shape_dict = graph->GetAttrs<absl::flat_hash_map<std::string, hlir::framework::shape_t>>("infershape");
+  const auto& dtype_dict = graph->GetAttrs<absl::flat_hash_map<std::string, common::Type>>("inferdtype");
+
+  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
+
+  std::stringstream ss;
+  for (TuneTask& task : tasks) {
+    task.SetOpLowerer(&op_lowerer);
+    task.TaskGraphToUnoptLoweredFunc();
+
+    std::vector<ir::Expr> exprs = task.GetLoweredFuncBodyExprs();
+    VLOG(6) << "ir:Expr is: ";
+    for (const ir::Expr& e : exprs) {
+      VLOG(6) << e;
+      ss << e << std::endl;
+    }
+  }
+
+  std::string expr_str = ss.str();
+#ifdef CINN_WITH_CUDA
+  std::string target_str = R"ROC(
 {
   ScheduleBlock(root)
   {
     {
-      for (i, 0, 32)
+      serial for (i, 0, 32)
       {
-        for (j, 0, 24)
+        serial for (j, 0, 24)
         {
           ScheduleBlock(var_1)
           {
@@ -323,9 +222,9 @@ TEST(TuneTask, GraphToUnoptLoweredFunc_ApplyPass) {
           }
         }
       }
-      for (i, 0, 32)
+      serial for (i, 0, 32)
       {
-        for (j, 0, 24)
+        serial for (j, 0, 24)
         {
           ScheduleBlock(var_2)
           {
@@ -338,12 +237,41 @@ TEST(TuneTask, GraphToUnoptLoweredFunc_ApplyPass) {
   }
 }
 )ROC";
-  }
 
+#else
+  std::string target_str         = R"ROC(
+{
+  ScheduleBlock(root)
+  {
+    {
+      serial for (i, 0, 32)
+      {
+        serial for (j, 0, 24)
+        {
+          ScheduleBlock(var_1)
+          {
+            i0, i1 = axis.bind(i, j)
+            var_1[i0, i1] = (A[i0, i1] + B[i0, i1])
+          }
+        }
+      }
+      serial for (i, 0, 32)
+      {
+        serial for (j, 0, 24)
+        {
+          ScheduleBlock(var_2)
+          {
+            i0, i1 = axis.bind(i, j)
+            var_2[i0, i1] = (A[i0, i1] + var_1[i0, i1])
+          }
+        }
+      }
+    }
+  }
+}
+)ROC";
 #endif
 
-  LOG(INFO) << target_str;
-  LOG(INFO) << expr_str;
   EXPECT_EQ(utils::Trim(target_str), utils::Trim(expr_str));
 }
 
@@ -369,21 +297,20 @@ TEST(TuneTask, SerializeToString) {
   std::string single_add_str = R"ROC(Target<linux,nvgpu,64>
 
 Group 0 {
-  (float32[32,24]) = elementwise_add(float32[32,24], float32[32,24])
+  (var_1->float32[32,24]) = elementwise_add(A->float32[32,24], B->float32[32,24])
 }
 )ROC";
 #else
   std::string single_add_str     = R"ROC(Target<linux,x86,64>
 
 Group 0 {
-  (float32[32,24]) = elementwise_add(float32[32,24], float32[32,24])
+  (var_1->float32[32,24]) = elementwise_add(A->float32[32,24], B->float32[32,24])
 }
 )ROC";
 #endif
   EXPECT_EQ(single_tasks[0].serialized_key, single_add_str);
-  EXPECT_EQ(single_tasks[1].serialized_key, single_add_str);
 
-  ApplyPass(graph.get(), "OpFusion");
+  ApplyPass(graph.get(), "OpFusionPass");
   std::vector<TuneTask> fused_tasks = task_creator.CreateTuneTaskOpLevel(graph.get());
   ASSERT_EQ(fused_tasks.size(), 1UL);
   fused_tasks[0].SerializeToString(
@@ -394,16 +321,16 @@ Group 0 {
   std::string fused_expected_str = R"ROC(Target<linux,nvgpu,64>
 
 Group 0 {
-  (float32[32,24]) = elementwise_add(float32[32,24], float32[32,24])
-  (float32[32,24]) = elementwise_add(float32[32,24], float32[32,24])
+  (var_1->float32[32,24]) = elementwise_add(A->float32[32,24], B->float32[32,24])
+  (var_2->float32[32,24]) = elementwise_add(A->float32[32,24], var_1->float32[32,24])
 }
 )ROC";
 #else
   std::string fused_expected_str = R"ROC(Target<linux,x86,64>
 
 Group 0 {
-  (float32[32,24]) = elementwise_add(float32[32,24], float32[32,24])
-  (float32[32,24]) = elementwise_add(float32[32,24], float32[32,24])
+  (var_1->float32[32,24]) = elementwise_add(A->float32[32,24], B->float32[32,24])
+  (var_2->float32[32,24]) = elementwise_add(A->float32[32,24], var_1->float32[32,24])
 }
 )ROC";
 #endif

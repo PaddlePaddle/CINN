@@ -176,7 +176,7 @@ struct _LoweredFunc_ : ExprNode<_LoweredFunc_> {
   std::vector<Expr> PrepareDeallocTempBufferExprs() const;
   std::vector<Expr> CudaPrepareAllocTempBufferExprs() const;
   std::vector<Expr> CudaAliasVarExprs() const;
-  void PrepareBufferCastExprs();
+  void PrepareBufferCastExprs(bool with_expr_gen_tensor = true);
   void PrepareCudaAxisInfoFromBody();
 
  private:
@@ -191,7 +191,7 @@ struct _LoweredFunc_ : ExprNode<_LoweredFunc_> {
   void PrepareArgumentExprs();
   //! Get all the Buffers the function body references.
   //! NOTE it will return the buffers with duplicates removed(by comparing their name).
-  std::vector<Tensor> CollectAllTensorReference() const;
+  std::vector<Tensor> CollectAllTensorReference(bool with_expr_gen_tensor = true) const;
 };
 
 }  // namespace ir

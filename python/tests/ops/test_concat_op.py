@@ -25,7 +25,7 @@ from cinn.common import *
 
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
                     "x86 test will be skipped due to timeout.")
-class TestConcatOp1(OpTest):
+class TestConcatOp(OpTest):
     def setUp(self):
         self.init_case()
 
@@ -36,10 +36,20 @@ class TestConcatOp1(OpTest):
         }
         self.axis = 0
 
+    def paddle_inputs(self, inputs):
+        return [
+            paddle.to_tensor(data, stop_gradient=True)
+            for _, data in inputs.items()
+        ]
+
+    def cinn_inputs(self, builder, inputs):
+        return [
+            builder.create_input(Float(32), data.shape, name)
+            for name, data in inputs.items()
+        ]
+
     def build_paddle_program(self, target):
-        x1 = paddle.to_tensor(self.inputs["x1"], stop_gradient=True)
-        x2 = paddle.to_tensor(self.inputs["x2"], stop_gradient=True)
-        out = paddle.concat(x=[x1, x2], axis=self.axis)
+        out = paddle.concat(x=self.paddle_inputs(self.inputs), axis=self.axis)
 
         self.paddle_outputs = [out]
 
@@ -47,13 +57,14 @@ class TestConcatOp1(OpTest):
     # the forward result will be incorrect.
     def build_cinn_program(self, target):
         builder = NetBuilder("concat")
-        x1 = builder.create_input(Float(32), self.inputs["x1"].shape, "x1")
-        x2 = builder.create_input(Float(32), self.inputs["x2"].shape, "x2")
-        out = builder.concat([x1, x2], axis=self.axis)
+        input_list = self.cinn_inputs(builder, self.inputs)
+        out = builder.concat(input_list, axis=self.axis)
 
         prog = builder.build()
-        res = self.get_cinn_output(prog, target, [x1, x2],
-                                   [self.inputs["x1"], self.inputs["x2"]],
+
+        input_datas = [data for _, data in self.inputs.items()]
+
+        res = self.get_cinn_output(prog, target, input_list, input_datas,
                                    [out])
 
         self.cinn_outputs = res
@@ -62,7 +73,7 @@ class TestConcatOp1(OpTest):
         self.check_outputs_and_grads(all_equal=True)
 
 
-class TestConcat2Case1(TestConcatOp1):
+class TestConcatCase1(TestConcatOp):
     def init_case(self):
         self.inputs = {
             "x1": np.random.random([4, 3]).astype("float32"),
@@ -71,7 +82,7 @@ class TestConcat2Case1(TestConcatOp1):
         self.axis = 0
 
 
-class TestConcat2Case2(TestConcatOp1):
+class TestConcatCase2(TestConcatOp):
     def init_case(self):
         self.inputs = {
             "x1": np.random.random([2, 4, 8]).astype("float32"),
@@ -80,7 +91,7 @@ class TestConcat2Case2(TestConcatOp1):
         self.axis = -1
 
 
-class TestConcat2Case3(TestConcatOp1):
+class TestConcatCase3(TestConcatOp):
     def init_case(self):
         self.inputs = {
             "x1": np.random.random([2, 8, 4]).astype("float32"),
@@ -89,10 +100,7 @@ class TestConcat2Case3(TestConcatOp1):
         self.axis = 1
 
 
-class TestConcatOp2(OpTest):
-    def setUp(self):
-        self.init_case()
-
+class TestConcatCase5(TestConcatOp):
     def init_case(self):
         self.inputs = {
             "x1": np.random.random([1, 16]).astype("float32"),
@@ -102,38 +110,6 @@ class TestConcatOp2(OpTest):
             "x5": np.random.random([5, 16]).astype("float32")
         }
         self.axis = 0
-
-    def build_paddle_program(self, target):
-        x1 = paddle.to_tensor(self.inputs["x1"], stop_gradient=True)
-        x2 = paddle.to_tensor(self.inputs["x2"], stop_gradient=True)
-        x3 = paddle.to_tensor(self.inputs["x3"], stop_gradient=True)
-        x4 = paddle.to_tensor(self.inputs["x4"], stop_gradient=True)
-        x5 = paddle.to_tensor(self.inputs["x5"], stop_gradient=True)
-        out = paddle.concat(x=[x1, x2, x3, x4, x5], axis=self.axis)
-
-        self.paddle_outputs = [out]
-
-    # Note: If the forward and backward operators are run in the same program,
-    # the forward result will be incorrect.
-    def build_cinn_program(self, target):
-        builder = NetBuilder("concat")
-        x1 = builder.create_input(Float(32), self.inputs["x1"].shape, "x1")
-        x2 = builder.create_input(Float(32), self.inputs["x2"].shape, "x2")
-        x3 = builder.create_input(Float(32), self.inputs["x3"].shape, "x3")
-        x4 = builder.create_input(Float(32), self.inputs["x4"].shape, "x4")
-        x5 = builder.create_input(Float(32), self.inputs["x5"].shape, "x5")
-        out = builder.concat([x1, x2, x3, x4, x5], axis=self.axis)
-
-        prog = builder.build()
-        res = self.get_cinn_output(prog, target, [x1, x2, x3, x4, x5], [
-            self.inputs["x1"], self.inputs["x2"], self.inputs["x3"],
-            self.inputs["x4"], self.inputs["x5"]
-        ], [out])
-
-        self.cinn_outputs = res
-
-    def test_check_results(self):
-        self.check_outputs_and_grads(all_equal=True)
 
 
 if __name__ == "__main__":

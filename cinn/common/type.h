@@ -250,5 +250,11 @@ Type Str2Type(const std::string& type);
 
 std::string Type2Str(const Type& type);
 
+enum class Layout {
+  kUnk = 0,
+  kNCHW,
+  kNHWC,
+};
+
 }  // namespace common
 }  // namespace cinn

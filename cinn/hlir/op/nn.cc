@@ -1427,15 +1427,20 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
       ir::ModuleExpr mod_expr(vec_ast);
       ir::IRSchedule ir_sch(mod_expr);
       ir_sch.MergeExprs();
-      if (arg_pack.size() == 3UL) {
+      int arg_pack_size = arg_pack.size();
+      // arg_pack_size == 3 case: input, input_pad, output
+      // arg_pack_size == 4 case: input, input_pad, output, stage
+      if (arg_pack_size == 3UL || arg_pack_size == 4UL) {
         CHECK_EQ(vec_tensor.size(), 2);
         Expr input_pad = vec_tensor[1];
         CHECK(input_pad.as_tensor());
-        auto block_input_pad = ir_sch.GetBlock(input_pad.as_tensor()->name);
+        const std::string &input_pad_name = input_pad.as_tensor()->name;
+        VLOG(6) << "ComputeInline on " << input_pad_name;
+        auto block_input_pad = ir_sch.GetBlock(input_pad_name);
         ir_sch.ComputeInline(block_input_pad);
       }
       if (target.arch == Target::Arch::NVGPU) {
-        pe::IRPoolScheduleGPU(ir_sch, target);
+        pe::IRPoolScheduleGPU(ir_sch, target, arg_pack_size);
       }
       std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
       *ret = CINNValuePack{res};
@@ -1860,16 +1865,23 @@ std::shared_ptr<OpStrategy> StrategyForSoftmax(const framework::NodeAttr &attrs,
         if (output_shapes[0].size() > 1) {
           auto all_blocks = ir_sch.GetAllBlocks();
           CHECK_EQ(all_blocks.size(), 3);
-          auto loops     = ir_sch.GetLoops(all_blocks[2]);
+          auto loops = ir_sch.GetLoops(all_blocks[2]);
+          ir_sch.ComputeAt(all_blocks[1], loops.back());
+
+          if (output_shapes[0][0] != 1) {
+            ir_sch.SimpleComputeAt(all_blocks[0], loops[0]);
+          }
+
+          loops          = ir_sch.GetLoops(all_blocks[2]);
           int loop_index = 1;
           if (output_shapes[0][0] == 1) loop_index--;
           CHECK_GE(loops.size(), loop_index + 1);
           auto splited_loops = ir_sch.Split(loops[loop_index], {-1, 5});
-          ir_sch.Bind(splited_loops[0], "blockIdx.z");
-          ir_sch.Bind(splited_loops[1], "threadIdx.z");
+
           all_blocks = ir_sch.GetAllBlocks();
           loops      = ir_sch.GetLoops(all_blocks[2]);
-          ir_sch.ComputeAt(all_blocks[1], loops.back());
+          ir_sch.Bind(loops[0], "blockIdx.x");
+          ir_sch.Bind(loops[1], "threadIdx.x");
         }
         std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
         *ret = CINNValuePack{res};
@@ -2189,7 +2201,7 @@ CINN_REGISTER_HELPER(nn_ops) {
 #ifndef CINN_WITH_CUDA
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForUnary))
 #endif
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElementWise)
       .set_support_level(4);
 
   CINN_REGISTER_OP(relu6)
@@ -2202,7 +2214,7 @@ CINN_REGISTER_HELPER(nn_ops) {
 #ifndef CINN_WITH_CUDA
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForUnary))
 #endif
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElementWise)
       .set_support_level(4);
 
   CINN_REGISTER_OP(conv2d)
@@ -2215,12 +2227,7 @@ CINN_REGISTER_HELPER(nn_ops) {
 #ifndef CINN_WITH_CUDA
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForConv2d))
 #endif
-#ifdef CINN_WITH_CUDNN
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
-#else
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern",
-                                                      cinn::hlir::framework::OpPatternKind::kOutEWiseFusable)
-#endif
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kNonFusible)
       .set_support_level(4);
 
   CINN_REGISTER_OP(conv2d_NCHWc)
@@ -2233,8 +2240,7 @@ CINN_REGISTER_HELPER(nn_ops) {
 #ifndef CINN_WITH_CUDA
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForConv2dNCHWc))
 #endif
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern",
-                                                      cinn::hlir::framework::OpPatternKind::kOutEWiseFusable)
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOutFusible)
       .set_support_level(4);
 
   CINN_REGISTER_OP(depthwise_conv2d)
@@ -2248,14 +2254,13 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForConv2d))
 #endif
 #ifdef CINN_WITH_CUDNN
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kNonFusible)
 #else
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern",
-                                                      cinn::hlir::framework::OpPatternKind::kOutEWiseFusable)
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOutFusible)
 #endif
       .set_support_level(4);
 
-  CINN_REGISTER_OP(batchnorm)
+  CINN_REGISTER_OP(batch_norm)
       .describe("Can be used as a normalizer function for convolution or fully_connected operations.")
       .set_num_inputs(5)  // here we consider batchnorm's 4 attrs(mean, variance, scale, bias) as other 4 inputs
       .set_num_outputs(1)
@@ -2265,7 +2270,7 @@ CINN_REGISTER_HELPER(nn_ops) {
 #ifndef CINN_WITH_CUDA
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForBatchNorm))
 #endif
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElementWise)
       .set_support_level(4);
 
   CINN_REGISTER_OP(pool1d)
@@ -2278,7 +2283,7 @@ CINN_REGISTER_HELPER(nn_ops) {
 #ifndef CINN_WITH_CUDA
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForPool))
 #endif
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kNonFusible)
       .set_support_level(4);
 
   CINN_REGISTER_OP(pool2d)
@@ -2291,7 +2296,7 @@ CINN_REGISTER_HELPER(nn_ops) {
 #ifndef CINN_WITH_CUDA
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForPool))
 #endif
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kNonFusible)
       .set_support_level(4);
 
   CINN_REGISTER_OP(pool3d)
@@ -2304,7 +2309,7 @@ CINN_REGISTER_HELPER(nn_ops) {
 #ifndef CINN_WITH_CUDA
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForPool))
 #endif
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kNonFusible)
       .set_support_level(4);
 
   CINN_REGISTER_OP(softmax)
@@ -2317,7 +2322,7 @@ CINN_REGISTER_HELPER(nn_ops) {
 #ifndef CINN_WITH_CUDA
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForSoftmax))
 #endif
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kNonFusible)
       .set_support_level(4);
 
   CINN_REGISTER_OP(dropout_infer)
@@ -2330,7 +2335,7 @@ CINN_REGISTER_HELPER(nn_ops) {
 #ifndef CINN_WITH_CUDA
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForUnary))
 #endif
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kNonFusible)
       .set_support_level(4);
 
   CINN_REGISTER_OP(select)
@@ -2343,7 +2348,7 @@ CINN_REGISTER_HELPER(nn_ops) {
 #ifndef CINN_WITH_CUDA
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForUnary))
 #endif
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElementWise)
       .set_support_level(4);
 
   return true;
@@ -2357,7 +2362,7 @@ CINN_REGISTER_HELPER(nn_grad_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForGradOp)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForRelu))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForRelu))
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise);
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElementWise);
 
   CINN_REGISTER_OP(batch_norm_train)
       .describe("This operator implements the batch normalization training forward.")

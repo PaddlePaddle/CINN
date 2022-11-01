@@ -18,7 +18,10 @@
 #include <google/protobuf/text_format.h>
 #include <google/protobuf/util/json_util.h>
 
+#include "cinn/auto_schedule/database/jsonfile_database.h"
+#include "cinn/auto_schedule/task/task_registry.h"
 #include "cinn/ir/ir_schedule.h"
+#include "cinn/ir/schedule_desc.h"
 
 namespace cinn {
 namespace auto_schedule {
@@ -31,7 +34,8 @@ proto::TuningRecord TuningRecord::ToProto() const {
   proto::TuningRecord record_proto;
   record_proto.set_task_key(task_key);
   record_proto.set_execution_cost(execution_cost);
-
+  record_proto.set_predicted_cost(predicted_cost);
+  record_proto.mutable_trace()->CopyFrom(trace);
   return record_proto;
 }
 
@@ -39,16 +43,30 @@ Database::Database(int capacity_per_task) : capacity_per_task_(capacity_per_task
   CHECK_GT(capacity_per_task_, 0) << "capacity_per_task_ should be greater than 0";
 }
 
-bool Database::AddRecord(TuningRecord&& record) {
-  CHECK(!record.task_key.empty()) << "task_key of TuningRecord can't be empty";
-  Commit(record);
+std::unique_ptr<Database> Database::Make(const DatabaseConfig& config) {
+  if (config.type == DatabaseType::kMemory) {
+    return std::make_unique<Database>(config.capacity_per_task);
+  } else if (config.type == DatabaseType::kJSONFile) {
+    return std::make_unique<JSONFileDatabase>(config.capacity_per_task, config.record_file_path, true);
+  }
 
+  LOG(FATAL) << "Unimplementd database type.";
+  return nullptr;
+}
+
+void Database::Insert(const TuningRecord& record) {
   auto& records = key2record_[record.task_key];
   records.emplace(record);
   if (records.size() > capacity_per_task_) {
     records.erase(std::prev(records.end()));
   }
-  return true;
+}
+
+bool Database::AddRecord(const TuningRecord& record) {
+  CHECK(!record.task_key.empty()) << "task_key of TuningRecord can't be empty";
+
+  Insert(record);
+  return Commit(record);
 }
 
 std::vector<TuningRecord> Database::LookUp(const std::string& task_key) {
@@ -63,20 +81,20 @@ std::vector<TuningRecord> Database::LookUp(const std::string& task_key) {
   return results;
 }
 
-std::vector<SearchState> Database::GetTopK(const std::string& task_key, int k) {
+std::vector<TuningRecord> Database::GetTopK(const std::string& task_key, int k) {
   auto fit = key2record_.find(task_key);
   if (fit == key2record_.end() || k <= 0) {
     return {};
   }
   if (k > capacity_per_task_) {
-    LOG(WARNING) << "Input k:" << k << " is greater than the capacity";
+    LOG(WARNING) << "Top k=" << k << " is greater than the capacity, will adjust k=" << capacity_per_task_;
     k = capacity_per_task_;
   }
 
-  std::vector<SearchState> results;
+  std::vector<TuningRecord> results;
   results.reserve(k);
   for (const TuningRecord& record : fit->second) {
-    results.emplace_back(record.state);
+    results.emplace_back(record);
     if (results.size() == k) {
       break;
     }

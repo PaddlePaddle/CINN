@@ -107,6 +107,7 @@ Variable NetBuilder::Reduce(const std::string& op_type, const Variable& x, const
 NETBUILDER_UNARY_OP_DEF(Sqrt, sqrt)
 NETBUILDER_UNARY_OP_DEF(Tanh, tanh)
 NETBUILDER_UNARY_OP_DEF(Relu, relu)
+NETBUILDER_UNARY_OP_DEF(Gelu, gelu)
 NETBUILDER_UNARY_OP_DEF(Sigmoid, sigmoid)
 NETBUILDER_UNARY_OP_DEF(Identity, identity)
 NETBUILDER_UNARY_OP_DEF(Exp, exp)
@@ -151,10 +152,10 @@ NETBUILDER_BINARY_OP_DEF(Divide, divide)
 NETBUILDER_BINARY_OP_DEF(Subtract, substract)
 NETBUILDER_BINARY_OP_DEF(FloorDivide, floor_divide)
 NETBUILDER_BINARY_OP_DEF(Mod, mod)
-NETBUILDER_BINARY_OP_DEF(FloorMod, floor_mod)
+NETBUILDER_BINARY_OP_DEF(Remainder, remainder)
 NETBUILDER_BINARY_OP_DEF(Max, max)
 NETBUILDER_BINARY_OP_DEF(Min, min)
-NETBUILDER_BINARY_OP_DEF(Power, power)
+NETBUILDER_BINARY_OP_DEF(Pow, pow)
 NETBUILDER_BINARY_OP_DEF(LogicalAnd, logical_and)
 NETBUILDER_BINARY_OP_DEF(LogicalOr, logical_or)
 NETBUILDER_BINARY_OP_DEF(LogicalXor, logical_xor)
@@ -211,7 +212,7 @@ Variable NetBuilder::FillConstant(
   auto out =
       CustomInstr("fill_constant", {}, {{"shape", shape}, {"value", value}, {"dtype", dtype}, {"force_cpu", force_cpu}})
           .front();
-  out.set_id(name);
+  out.set_id(cinn::utils::TransValidVarName(name));
   return out;
 }
 
@@ -220,6 +221,10 @@ std::vector<Variable> NetBuilder::Split(const Variable& operand, const std::vect
 }
 
 Variable NetBuilder::Concat(const std::vector<Variable>& input_vars, int axis) {
+  CHECK(!input_vars.empty()) << "The inputs of concat op should not be empty! Please check.";
+  if (input_vars.size() == 1UL) {
+    return Identity(input_vars.front());
+  }
   return CustomInstr("concat", input_vars, {{"axis", axis}}).front();
 }
 
@@ -349,6 +354,41 @@ Variable NetBuilder::ReluGrad(const Variable& lhs, const Variable& rhs) {
   return CustomInstr("relu_grad", {lhs, rhs}, {}).front();
 }
 
+Variable NetBuilder::Gather(const Variable& x, const Variable& index, const int& axis) {
+  return CustomInstr("gather", {x, index}, {{"axis", axis}}).front();
+}
+
+Variable NetBuilder::GatherNd(const Variable& x, const Variable& index, const std::vector<int>& axes) {
+  return CustomInstr("gather_nd", {x, index}, {{"axes", axes}}).front();
+}
+
+Variable NetBuilder::Scatter(const Variable& src, const Variable& index, const Variable& out, const int& axis) {
+  return CustomInstr("scatter", {src, index, out}, {{"axis", axis}}).front();
+}
+Variable NetBuilder::Scatter(const Variable& src,
+                             const Variable& index,
+                             const std::vector<int>& shape,
+                             const float& default_value,
+                             const int& axis) {
+  auto out = FillConstant(shape, default_value, UniqName("fill_constant"), "float", false);
+  return Scatter(src, index, out, axis);
+}
+
+Variable NetBuilder::ScatterNd(const Variable& src,
+                               const Variable& index,
+                               const Variable& out,
+                               const std::vector<int>& axes) {
+  return CustomInstr("scatter_nd", {src, index, out}, {{"axes", axes}}).front();
+}
+Variable NetBuilder::ScatterNd(const Variable& src,
+                               const Variable& index,
+                               const std::vector<int>& shape,
+                               const float& default_value,
+                               const std::vector<int>& axes) {
+  auto out = FillConstant(shape, default_value, UniqName("fill_constant"), "float", false);
+  return ScatterNd(src, index, out, axes);
+}
+
 Variable NetBuilder::Cast(const Variable& operand, const std::string& dtype) {
   if (operand->type == common::Str2Type(dtype)) {
     return Identity(operand);
@@ -356,8 +396,22 @@ Variable NetBuilder::Cast(const Variable& operand, const std::string& dtype) {
   return CustomInstr("cast", {operand}, {{"dtype", dtype}}).front();
 }
 
+Variable NetBuilder::OneHot(const Variable& indices,
+                            const Variable& on_value,
+                            const Variable& off_value,
+                            const int depth,
+                            const int axis,
+                            const std::string& dtype) {
+  return CustomInstr("one_hot", {indices, on_value, off_value}, {{"depth", depth}, {"axis", axis}, {"dtype", dtype}})
+      .front();
+}
+
 Variable NetBuilder::Squeeze(const Variable& operand, const std::vector<int>& axes) {
   return CustomInstr("squeeze", {operand}, {{"axes", axes}}).front();
+}
+
+Variable NetBuilder::ExpandDims(const Variable& operand, int axis, int num_newaxis) {
+  return CustomInstr("expand_dims", {operand}, {{"axis", axis}, {"num_newaxis", num_newaxis}}).front();
 }
 
 Variable NetBuilder::Conv(const Variable& lhs,
@@ -396,6 +450,32 @@ Variable NetBuilder::Sort(const Variable& operand, const int& axis, const bool& 
   Instruction instr("sort", {operand});
   instr.SetAttr("axis", axis);
   instr.SetAttr("is_ascend", is_ascend);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
+Variable NetBuilder::Argmax(const Variable& x, const int& axis, const bool& keep_dim) {
+  Instruction instr("argmax", {x});
+  instr.SetAttr("axis", axis);
+  instr.SetAttr("keep_dim", keep_dim);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
+Variable NetBuilder::Argmin(const Variable& x, const int& axis, const bool& keep_dim) {
+  Instruction instr("argmin", {x});
+  instr.SetAttr("axis", axis);
+  instr.SetAttr("keep_dim", keep_dim);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
+Variable NetBuilder::LookupTable(const Variable& table, const Variable& ids, int64_t padding_idx) {
+  Instruction instr("lookup_table", {table, ids});
+  instr.SetAttr<int32_t>("padding_idx", padding_idx);
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(0);
@@ -457,6 +537,10 @@ Variable NetBuilder::Pool2d(const Variable& a,
       .front();
 }
 
+Variable NetBuilder::Repeat(const Variable& x, int repeats, int axis) {
+  return CustomInstr("repeat", {x}, {{"repeats", repeats}, {"axis", axis}}).front();
+}
+
 std::vector<Variable> NetBuilder::BatchNorm(const Variable& a,
                                             const Variable& scale,
                                             const Variable& bias,
@@ -466,7 +550,7 @@ std::vector<Variable> NetBuilder::BatchNorm(const Variable& a,
                                             float momentum,
                                             const std::string& data_layout,
                                             bool is_test) {
-  std::string op_type = is_test ? "batchnorm" : "batch_norm_train";
+  std::string op_type = is_test ? "batch_norm" : "batch_norm_train";
   return CustomInstr(op_type,
                      {a, scale, bias, mean, variance},
                      {{"epsilon", epsilon}, {"momentum", momentum}, {"data_layout", data_layout}});
@@ -510,6 +594,14 @@ Variable NetBuilder::Clip(const std::vector<Variable>& inputs, const float& max_
 
 Variable NetBuilder::Arange(const float start, const float stop, const float step, const std::string& dtype) {
   return CustomInstr("arange", {}, {{"start", start}, {"stop", stop}, {"step", step}, {"dtype", dtype}}).front();
+}
+
+Variable NetBuilder::Flip(const Variable& operand, const std::vector<int>& axes) {
+  Instruction instr("flip", {operand});
+  instr.SetAttr("axes", axes);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
 }
 
 // conv2d grad, output(grad_x, grad_w)

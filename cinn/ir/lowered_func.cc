@@ -30,6 +30,7 @@
 #include "cinn/optim/tensor_write_tell.h"
 #include "cinn/runtime/intrinsic.h"
 #include "cinn/utils/string.h"
+DECLARE_bool(cinn_ir_schedule);
 
 namespace cinn {
 namespace ir {
@@ -52,7 +53,9 @@ LoweredFunc _LoweredFunc_::Make(const std::string& name,
   n->PrepareCreateTempBufferExprs();
   n->PrepareAllocTempBufferExprs();
   n->AllocTempBuffer();
-  n->PrepareBufferCastExprs();
+  bool with_expr_gen_tensor = true;
+  if (FLAGS_cinn_ir_schedule) with_expr_gen_tensor = false;
+  n->PrepareBufferCastExprs(with_expr_gen_tensor);
   n->PrepareArgumentExprs();
   n->PrepareDeallocTempBufferExprs();
   n->PrepareDeallocOutputBufferExprs();
@@ -180,14 +183,15 @@ void _LoweredFunc_::PrepareDeallocOutputBufferExprs() {
 
 void _LoweredFunc_::AllocTempBuffer() {}
 
-void _LoweredFunc_::PrepareBufferCastExprs() {
+void _LoweredFunc_::PrepareBufferCastExprs(bool with_expr_gen_tensor) {
   buffer_data_cast_exprs.clear();
   // collect write.
   optim::TensorWriteTeller write_teller;
   write_teller.Collect(&body);
 
-  auto tensors = CollectAllTensorReference();
+  auto tensors = CollectAllTensorReference(with_expr_gen_tensor);
   std::sort(tensors.begin(), tensors.end(), [](const Tensor& a, const Tensor& b) { return a->name < b->name; });
+
   VLOG(3) << "Function used " << tensors.size() << " buffers";
   for (auto& tensor : tensors) {
     auto* node = tensor.As<ir::_Tensor_>();
@@ -327,8 +331,11 @@ void _LoweredFunc_::PrepareArgumentExprs() {
   }
 }
 
-std::vector<Tensor> _LoweredFunc_::CollectAllTensorReference() const {
-  std::set<Expr> tensor_exprs = ir::CollectIRNodes(body, [](const Expr* expr) { return expr->As<ir::_Tensor_>(); });
+std::vector<Tensor> _LoweredFunc_::CollectAllTensorReference(bool with_expr_gen_tensor) const {
+  std::set<Expr> tensor_exprs =
+      with_expr_gen_tensor
+          ? ir::CollectIRNodes(body, [](const Expr* expr) { return expr->As<ir::_Tensor_>(); })
+          : ir::CollectIRNodesWithoutTensor(body, [](const Expr* expr) { return expr->As<ir::_Tensor_>(); });
 
   std::vector<Tensor> tensors;
   // remove the duplicate tensor by their name.

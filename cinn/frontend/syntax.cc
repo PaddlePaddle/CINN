@@ -113,7 +113,7 @@ Variable Program::batchnorm(const Variable& a,
                             const Variable& mean,
                             const Variable& variance,
                             const absl::flat_hash_map<std::string, attr_t>& attr_store) {
-  Instruction instr("batchnorm");
+  Instruction instr("batch_norm");
   instr.SetInputs({a, scale, bias, mean, variance});
   for (auto& iter : attr_store) {
     instr.SetAttr(iter.first, iter.second);
@@ -266,11 +266,17 @@ std::tuple<std::unique_ptr<Program>,
            absl::flat_hash_map<std::string, Variable>,
            absl::flat_hash_map<std::string, std::string>,
            absl::flat_hash_set<std::string>>
-LoadPaddleProgram(const std::string& model_dir, Scope* scope, bool is_combined, const common::Target& target) {
+LoadPaddleProgram(const std::string& model_dir,
+                  Scope* scope,
+                  std::unordered_map<std::string, std::vector<int>>& input_shape_map,
+                  bool is_combined,
+                  const common::Target& target) {
   VLOG(1) << "Loading Paddle model from " << model_dir;
-  PaddleModelToProgram program(scope, target);
-  return std::make_tuple(
-      program(model_dir, is_combined), program.var_map(), program.var_model_to_program_map(), program.fetch_names());
+  PaddleModelToProgram paddle_to_program(scope, input_shape_map, target);
+  return std::make_tuple(paddle_to_program(model_dir, is_combined),
+                         paddle_to_program.var_map(),
+                         paddle_to_program.var_model_to_program_map(),
+                         paddle_to_program.fetch_names());
 }
 
 void Program::SetInputs(const std::vector<Variable>& xs) {
@@ -476,11 +482,15 @@ std::string _Instruction_::debug_string() const {
     std::stringstream& s_;
     explicit Visit(std::stringstream& s) : s_(s) {}
     void operator()(int x) { s_ << x; }
+    void operator()(int64_t x) { s_ << x; }
     void operator()(float x) { s_ << x; }
+    void operator()(double x) { s_ << x; }
     void operator()(bool x) { s_ << (x ? "true" : "false"); }
     void operator()(const std::string& x) { s_ << x; }
     void operator()(const std::vector<int>& x) { s_ << "[" + utils::Join(x, ",") + "]"; }
+    void operator()(const std::vector<int64_t>& x) { s_ << "[" + utils::Join(x, ",") + "]"; }
     void operator()(const std::vector<float>& x) { s_ << "[" + utils::Join(x, ",") + "]"; }
+    void operator()(const std::vector<double>& x) { s_ << "[" + utils::Join(x, ",") + "]"; }
     void operator()(const std::vector<bool>& x) { s_ << "[" + utils::Join(x, ",") + "]"; }
     void operator()(const std::vector<std::string>& x) { s_ << "[" + utils::Join(x, ",") + "]"; }
   };

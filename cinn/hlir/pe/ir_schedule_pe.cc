@@ -359,12 +359,14 @@ void IRCudaScheduleBlockReduce(ir::IRSchedule &ir_sch,
 
     for (auto &tensor : {reduce_tmp_out, tmp_out, out}) {
       auto loops = ir_sch.GetLoops(tensor->name);
+      if (loops.empty()) continue;
       ir_sch.Split(loops[0], {-1, ir::GetLoopExtent(loops[0])});
     }
   }
 
   for (auto &tensor : {reduce_tmp_out, tmp_out, out}) {
     auto loops = ir_sch.GetLoops(tensor->name);
+    if (loops.empty()) continue;
     ir_sch.Bind(loops[0], "blockIdx.x");
     if (loops.size() > 1U) {
       ir_sch.Bind(loops[1], "threadIdx.x");
@@ -535,14 +537,26 @@ void IRSoftmaxScheduleCPU(ir::IRSchedule &ir_sch, int axis) {
   ir_sch.ComputeAt(all_blocks[1], loops[0]);
 }
 
-void IRPoolScheduleGPU(ir::IRSchedule &ir_sch, const common::Target &target) {
-  auto all_blocks = ir_sch.GetAllBlocks();
-  CHECK_EQ(all_blocks.size(), 1U);
-  ir_sch.Fuse(all_blocks[0], {0, 1, 2, 3});
-  auto loops   = ir_sch.GetLoops(all_blocks[0]);
-  auto splited = ir_sch.Split(loops[0], {-1, 1024});
-  ir_sch.Bind(splited[0], "blockIdx.x");
-  ir_sch.Bind(splited[1], "threadIdx.x");
+void IRPoolScheduleGPU(ir::IRSchedule &ir_sch, const common::Target &target, int arg_pack_size) {
+  if (arg_pack_size == 3) {
+    auto all_blocks = ir_sch.GetAllBlocks();
+    CHECK_EQ(all_blocks.size(), 1U);
+    ir_sch.Fuse(all_blocks[0], {0, 1, 2, 3});
+    auto loops   = ir_sch.GetLoops(all_blocks[0]);
+    auto splited = ir_sch.Split(loops[0], {-1, 1024});
+    ir_sch.Bind(splited[0], "blockIdx.x");
+    ir_sch.Bind(splited[1], "threadIdx.x");
+  } else if (arg_pack_size == 4) {
+    auto all_blocks = ir_sch.GetAllBlocks();
+    CHECK_EQ(all_blocks.size(), 2U);
+    ir_sch.Fuse(all_blocks[0], {0, 1, 2, 3});
+    // Blocks were changed after Fuse, so we have to get all blocks again.
+    all_blocks   = ir_sch.GetAllBlocks();
+    auto loops   = ir_sch.GetLoops(all_blocks[0]);
+    auto splited = ir_sch.Split(loops[0], {-1, 1024});
+    ir_sch.Bind(splited[0], "blockIdx.x");
+    ir_sch.Bind(splited[1], "threadIdx.x");
+  }
 }
 
 void IRGlobalPoolScheduleGPU(ir::IRSchedule &ir_sch, const common::Target &target) {

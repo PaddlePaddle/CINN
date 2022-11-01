@@ -20,6 +20,7 @@
 #include <string>
 #include <vector>
 
+#include "cinn/common/type.h"
 #include "cinn/runtime/cinn_runtime.h"
 
 namespace cinn {
@@ -45,7 +46,8 @@ void cinn_gpu_cudnn_conv2d(const absl::flat_hash_map<std::string, int>& attr,
                            cinn_buffer_t* x,
                            cinn_buffer_t* w,
                            cinn_buffer_t* y,
-                           cudaStream_t stream = nullptr);
+                           cudaStream_t stream   = nullptr,
+                           common::Layout target = common::Layout::kNCHW);
 
 void cinn_gpu_cudnn_conv2d_backward_data(const absl::flat_hash_map<std::string, int>& attr,
                                          cinn_buffer_t* w,
@@ -92,6 +94,7 @@ void cinn_call_cublas(void* v_args,
                       int num_args,
                       bool trans_a,
                       bool trans_b,
+                      bool trans_o,
                       float alpha,
                       float beta,
                       int a1,

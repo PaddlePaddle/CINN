@@ -20,8 +20,8 @@
 #include <vector>
 
 #include "cinn/auto_schedule/analysis/analyze_ir.h"
-#include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/node.h"
+#include "cinn/hlir/framework/op_lowering.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_schedule.h"
 #include "cinn/ir/lowered_func.h"
@@ -30,7 +30,7 @@
 namespace cinn {
 namespace auto_schedule {
 
-void TuneTask::SetGraphCompiler(hlir::framework::GraphCompiler* compiler) { graph_compiler_ = compiler; }
+void TuneTask::SetOpLowerer(hlir::framework::OpLowerer* op_lowerer) { op_lowerer_ = op_lowerer; }
 
 std::vector<ir::Expr> TuneTask::GetLoweredFuncBodyExprs() const {
   std::vector<ir::Expr> result;
@@ -55,12 +55,13 @@ void TuneTask::SetLoweredFuncsAndAnalyzeOutput(const std::vector<ir::LoweredFunc
 }
 
 void TuneTask::TaskGraphToUnoptLoweredFunc() {
-  CHECK(graph_compiler_ != nullptr) << "graph_compiler_ must be set before processing graph";
+  CHECK(op_lowerer_ != nullptr) << "op_lowerer_ must be set before processing graph";
+
   // TODO(zhhsplendid): current a task only contains one Op or one Fused Op,
-  // so we can take only first std::vector<ir::LoweredFunc>. Support the
-  // lowered_funcs to be std::vector<std::vector<ir::LoweredFunc>>
+  // so we can take only first group to lower to std::vector<ir::LoweredFunc>.
+  // Support the lowered_funcs to be std::vector<std::vector<ir::LoweredFunc>>
   // in the future.
-  SetLoweredFuncsAndAnalyzeOutput(graph_compiler_->FusedGraphToLoweredFunc(task_graph)[0]);
+  SetLoweredFuncsAndAnalyzeOutput(op_lowerer_->LowerWithoutSchedule(task_graph[0]));
 }
 
 const std::string& TuneTask::SerializeToString(
@@ -84,13 +85,18 @@ const std::string& TuneTask::SerializeToString(
         ss << ", ";
       }
       ++printed_num;
-      ss << cinn::common::Type2Str(dit->second) << "[" + utils::Join(sit->second, ",") << "]";
+      // TODO(CtfGo): CINN uses the names of input/output NodeData ids as arguments of the LoweredFunc in the Lower
+      // process, so it will result in different LoweredFuncs for two Nodes even though they represents the same
+      // operator. Here we add `var_node->id()` into the serialized_key to distinguish them, otherwise AutoTuner will
+      // get wrong TuningRecords when quering cached results from database.  In the future, we should remove
+      // name-releated limit in Lower process, to avoid duplicate tuning tasks with same operators.
+      ss << var_node->id() << "->" << cinn::common::Type2Str(dit->second) << "[" + utils::Join(sit->second, ",") << "]";
     }
   };
 
   // print each group of the task_graph
   for (auto p = 0; p < task_graph.size(); ++p) {
-    const std::vector<hlir::framework::Node*>& group = task_graph.at(p);
+    const std::vector<hlir::framework::Node*>& group = task_graph.at(p)->CollectNodes();
     ss << "Group " << p << " {\n";
     for (auto i = 0; i < group.size(); ++i) {
       const hlir::framework::Node* node = group.at(i);

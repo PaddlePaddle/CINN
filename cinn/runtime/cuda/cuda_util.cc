@@ -89,6 +89,7 @@ void cinn_call_cublas(void *v_args,
                       int num_args,
                       bool trans_a,
                       bool trans_b,
+                      bool trans_o,
                       float alpha,
                       float beta,
                       int a1,
@@ -109,44 +110,45 @@ void cinn_call_cublas(void *v_args,
   float *A = reinterpret_cast<float *>(args[0].operator cinn_buffer_t *()->memory);
   float *B = reinterpret_cast<float *>(args[1].operator cinn_buffer_t *()->memory);
   float *C = reinterpret_cast<float *>(args[2].operator cinn_buffer_t *()->memory);
-  int m    = trans_a ? a4 : a3;
-  int n    = trans_b ? b3 : b4;
-  int k    = trans_a ? a3 : a4;
 
-  cublasOperation_t trans_op_a = trans_a ? CUBLAS_OP_T : CUBLAS_OP_N;
-  cublasOperation_t trans_op_b = trans_b ? CUBLAS_OP_T : CUBLAS_OP_N;
-  int lda                      = trans_a ? m : k;
-  int ldb                      = trans_b ? k : n;
+  int m = trans_o ? (trans_a ? a4 : a3) : (trans_b ? b3 : b4);
+  int n = trans_o ? (trans_b ? b3 : b4) : (trans_a ? a4 : a3);
+  int k = trans_a ? a3 : a4;
+
+  cublasOperation_t trans_op_l =
+      trans_o ? (trans_a ? CUBLAS_OP_N : CUBLAS_OP_T) : (trans_b ? CUBLAS_OP_T : CUBLAS_OP_N);
+  cublasOperation_t trans_op_r =
+      trans_o ? (trans_b ? CUBLAS_OP_N : CUBLAS_OP_T) : (trans_a ? CUBLAS_OP_T : CUBLAS_OP_N);
+  int ldl = trans_op_l == CUBLAS_OP_N ? m : k;  // trans_o ? (trans_a ? k : m) : (trans_b ? k : m);
+  int ldr = trans_op_r == CUBLAS_OP_N ? k : n;  // trans_o ? (trans_b ? n : k) : (trans_a ? n : k);
+  int ldc = m;
+
+  float *lhs = trans_o ? A : B;
+  float *rhs = trans_o ? B : A;
 
   if (a1 * a2 * b1 * b2 == 1) {
-    CUBLAS_CALL(cublasSgemm(cuhandle, trans_op_b, trans_op_a, n, m, k, &alpha, B, ldb, A, lda, &beta, C, n));
+    CUBLAS_CALL(cublasSgemm(cuhandle, trans_op_l, trans_op_r, m, n, k, &alpha, lhs, ldl, rhs, ldr, &beta, C, ldc));
   } else if (a1 * b1 == 1) {
     CHECK(a2 == b2 || a2 == 1 || b2 == 1);
-    int stride_a = 0;
-    int stride_b = 0;
-    if (a2 > 1) {
-      stride_a = m * k;
-    }
-    if (b2 > 1) {
-      stride_b = n * k;
-    }
-    int batch = std::max(a2, b2);
+    int stride_l = trans_o ? (a2 > 1 ? a3 * a4 : 0) : (b2 > 1 ? b3 * b4 : 0);
+    int stride_r = trans_o ? (b2 > 1 ? b3 * b4 : 0) : (a2 > 1 ? a3 * a4 : 0);
+    int batch    = std::max(a2, b2);
     CUBLAS_CALL(cublasSgemmStridedBatched(cuhandle,
-                                          trans_op_b,
-                                          trans_op_a,
-                                          n,
+                                          trans_op_l,
+                                          trans_op_r,
                                           m,
+                                          n,
                                           k,
                                           &alpha,
-                                          B,
-                                          ldb,
-                                          stride_b,
-                                          A,
-                                          lda,
-                                          stride_a,
+                                          lhs,
+                                          ldl,
+                                          stride_l,
+                                          rhs,
+                                          ldr,
+                                          stride_r,
                                           &beta,
                                           C,
-                                          n,
+                                          ldc,
                                           m * n,
                                           batch));
   } else {
@@ -268,7 +270,6 @@ void cinn_call_cudnn_conv2d_forward(void *v_args,
                          "," + std::to_string(filter_c) + "," + std::to_string(filter_h) + "," +
                          std::to_string(filter_w) + "," + std::to_string(output_n) + "," + std::to_string(output_c) +
                          "," + std::to_string(output_h) + "," + std::to_string(output_w);
-
   cudnnConvolutionFwdAlgo_t algo;
   int algo_int = conv_algo_map.GetAlgo(hash_key);
   if (algo_int >= 0) {
@@ -328,8 +329,8 @@ void cinn_call_cudnn_conv2d_backward_data(void *v_args,
   cudnnHandle_t &handle = CudnnHandle::GetInstance().GetCudnnHandle();
   CUDNN_CALL(cudnnSetStream(handle, static_cast<cudaStream_t>(stream)));
   cinn_pod_value_t *args = static_cast<cinn_pod_value_t *>(v_args);
-  float *_dy             = reinterpret_cast<float *>(args[0].operator cinn_buffer_t *()->memory);
-  float *_w              = reinterpret_cast<float *>(args[1].operator cinn_buffer_t *()->memory);
+  float *_w              = reinterpret_cast<float *>(args[0].operator cinn_buffer_t *()->memory);
+  float *_dy             = reinterpret_cast<float *>(args[1].operator cinn_buffer_t *()->memory);
   float *_dx             = reinterpret_cast<float *>(args[2].operator cinn_buffer_t *()->memory);
 
   CHECK_EQ(args[0].operator cinn_buffer_t *()->type.code, cinn_type_code_t::cinn_type_float);
@@ -929,7 +930,17 @@ void cinn_gpu_cudnn_conv2d(const absl::flat_hash_map<std::string, int> &attr,
                            cinn_buffer_t *x,
                            cinn_buffer_t *w,
                            cinn_buffer_t *y,
-                           cudaStream_t stream) {
+                           cudaStream_t stream,
+                           common::Layout target) {
+  cudnnTensorFormat_t cudnn_tensor_format;
+  if (target == common::Layout::kNCHW) {
+    cudnn_tensor_format = CUDNN_TENSOR_NCHW;
+  } else if (target == common::Layout::kNHWC) {
+    cudnn_tensor_format = CUDNN_TENSOR_NHWC;
+  } else {
+    CINN_NOT_IMPLEMENTED
+  }
+
   GetAttrValue(attr, input_n, -1);
   GetAttrValue(attr, input_c, -1);
   GetAttrValue(attr, input_h, -1);
@@ -959,7 +970,7 @@ void cinn_gpu_cudnn_conv2d(const absl::flat_hash_map<std::string, int> &attr,
   cudnnTensorDescriptor_t x_desc;
   CUDNN_CALL(cudnnCreateTensorDescriptor(&x_desc));
   CUDNN_CALL(
-      cudnnSetTensor4dDescriptor(x_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, input_n, input_c, input_h, input_w));
+      cudnnSetTensor4dDescriptor(x_desc, cudnn_tensor_format, CUDNN_DATA_FLOAT, input_n, input_c, input_h, input_w));
 
   cudnnFilterDescriptor_t w_desc;
   CUDNN_CALL(cudnnCreateFilterDescriptor(&w_desc));
@@ -975,8 +986,8 @@ void cinn_gpu_cudnn_conv2d(const absl::flat_hash_map<std::string, int> &attr,
 
   cudnnTensorDescriptor_t y_desc;
   CUDNN_CALL(cudnnCreateTensorDescriptor(&y_desc));
-  CUDNN_CALL(
-      cudnnSetTensor4dDescriptor(y_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, output_n, output_c, output_h, output_w));
+  CUDNN_CALL(cudnnSetTensor4dDescriptor(
+      y_desc, cudnn_tensor_format, CUDNN_DATA_FLOAT, output_n, output_c, output_h, output_w));
 
   auto &conv_algo_map  = ConvAlgoMap::GetInstance();
   std::string hash_key = "conv2d forward," + std::to_string(input_n) + "," + std::to_string(input_c) + "," +

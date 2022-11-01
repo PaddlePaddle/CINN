@@ -111,25 +111,28 @@ std::shared_ptr<CinnComputation> CinnComputation::CompilePaddleModel(
     const CompileOptions &options,
     void *stream) {
   CHECK(input_names.size() == input_shapes.size());
-  auto scope                  = std::make_shared<hlir::framework::Scope>();
-  auto loadedProgram          = LoadPaddleProgram(model_path, scope.get(), params_combined, target);
+  auto scope = std::make_shared<hlir::framework::Scope>();
+  std::unordered_map<std::string, std::vector<int>> input_shape_map;
+  for (int idx = 0; idx < input_names.size(); ++idx) {
+    input_shape_map[input_names[idx]] = input_shapes[idx];
+  }
+  auto loadedProgram          = LoadPaddleProgram(model_path, scope.get(), input_shape_map, params_combined, target);
   auto &program               = std::get<0>(loadedProgram);
   auto &varmap                = std::get<1>(loadedProgram);
   auto &varmap_paddle2program = std::get<2>(loadedProgram);
   auto &fetch_names           = std::get<3>(loadedProgram);
 
-  std::vector<Variable> input_vars;
-  std::vector<Variable> output_vars;
-  for (int i = 0; i < input_names.size(); i++) {
-    auto &name = input_names[i];
-    auto &var  = varmap.at(name);
-    var->shape = input_shapes[i];
-    input_vars.push_back(var);
-  }
-  program->SetInputs({input_vars});
-  program->Validate();
+  // std::vector<Variable> input_vars;
+  // for (int i = 0; i < input_names.size(); i++) {
+  //   auto &name = input_names[i];
+  //   auto &var  = varmap.at(name);
+  //   var->shape = input_shapes[i];
+  //   input_vars.push_back(var);
+  // }
+  // program->SetInputs({input_vars});
+  // program->Validate();
   VLOG(3) << "program:\n" << *program;
-
+  std::vector<Variable> output_vars;
   for (auto &name : fetch_names) {
     output_vars.push_back(varmap.at(name));
   }

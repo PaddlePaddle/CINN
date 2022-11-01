@@ -37,7 +37,7 @@ using framework::OpPatternKind;
 struct DomNode {
   GraphNode* ref_node{nullptr};
   DomNode* parent{nullptr};
-  OpPatternKind pattern{framework::kOpaque};
+  OpPatternKind pattern{framework::kNonFusible};
   int depth{0};
 };
 
@@ -68,7 +68,7 @@ void GetBroadcastPattern(Node* op_node,
       }
     }
     if (is_same) {
-      *pattern = framework::kElemWise;
+      *pattern = framework::kElementWise;
     } else {
       VLOG(2) << "not fuse broadcast";
     }
@@ -160,7 +160,7 @@ class DomTree {
         VLOG(2) << sink->id() << "'s op pattern is " << op_pattern;
         if (op_node->attrs.attr_store.count("pre_run") && absl::get<bool>(op_node->attrs.attr_store["pre_run"])) {
           // not fuse pre_run opnode
-          op_pattern = framework::kOpaque;
+          op_pattern = framework::kNonFusible;
           VLOG(3) << op_node->op()->name << " do pre_run and not fuse";
         }
         *pattern = FusePattern(*pattern, op_pattern);
@@ -177,10 +177,10 @@ class DomTree {
       CHECK(graph_node->safe_as<NodeData>());
       // extern input vars
       dom_node->parent  = nullptr;
-      dom_node->pattern = framework::kOpaque;
+      dom_node->pattern = framework::kNonFusible;
       dom_node->depth   = 0;
     } else {
-      OpPatternKind pattern{framework::kElemWise};
+      OpPatternKind pattern{framework::kElementWise};
       auto* parent      = FindLCA(graph_node, &pattern);
       dom_node->parent  = parent;
       dom_node->pattern = pattern;
@@ -249,20 +249,20 @@ class GraphPartition {
         auto pattern = op_pattern_dict[op_node->op()];
         if (op_node->attrs.attr_store.count("pre_run") && absl::get<bool>(op_node->attrs.attr_store["pre_run"])) {
           // not fuse pre_run opnode
-          pattern = framework::kOpaque;
+          pattern = framework::kNonFusible;
           VLOG(3) << op_node->op()->name << " do pre_run and not fuse";
         }
         group_node->pattern        = pattern;
         group_node->op_nodes_count = 1;
-        if (pattern == framework::kOutEWiseFusable) {
+        if (pattern == framework::kOutFusible) {
           group_node->master_node = graph_node;
         }
       } else {
         // var nodes
         if (graph_node->inlinks().empty()) {
-          group_node->pattern = framework::kOpaque;
+          group_node->pattern = framework::kNonFusible;
         } else {
-          group_node->pattern = framework::kElemWise;
+          group_node->pattern = framework::kElementWise;
         }
       }
       group_nodes_.push_back(group_node);
@@ -346,7 +346,7 @@ class GraphPartition {
     visited_nodes_.clear();
     CHECK(source != sink);
     auto sink_op_node = sink->safe_as<Node>();
-    if (sink_op_node && GetRootPattern(source) == framework::kOutEWiseFusable &&
+    if (sink_op_node && GetRootPattern(source) == framework::kOutFusible &&
         op_pattern_dict[sink_op_node->op()] >= framework::kBroadcast) {
       // verify conv and sink out shape. If sink's out shape is different from conv's, then no fuse for computeAt
       // lowering incompatible
@@ -440,12 +440,12 @@ class GraphPartition {
       CHECK(dom_node);
       CHECK(group_node);
       if (!dom_node->parent) continue;
-      if (group_node->pattern == framework::kOpaque) continue;
+      if (group_node->pattern == framework::kNonFusible) continue;
       int parent_index       = dom_node->parent->ref_node->get_index();
       auto parent_group_node = group_nodes_[parent_index];
       if (parent_group_node && parent_group_node->GetRootNode() == group_node->GetRootNode()) continue;
 
-      if (group_node->pattern == framework::kOutEWiseFusable) {
+      if (group_node->pattern == framework::kOutFusible) {
         if (dom_node->pattern <= framework::kBroadcast) {
           auto fn       = [](OpPatternKind pattern, bool is_sink) { return pattern <= framework::kBroadcast; };
           auto lca_node = dom_node->parent->ref_node;
@@ -455,10 +455,10 @@ class GraphPartition {
           }
         }
       } else if (group_node->pattern <= framework::kBroadcast) {
-        if (dom_node->pattern <= framework::kCommReduce) {
+        if (dom_node->pattern <= framework::kReduction) {
           auto fn = [](OpPatternKind pattern, bool is_sink) {
             if (is_sink) {
-              return pattern <= framework::kOutEWiseFusable;
+              return pattern <= framework::kOutFusible;
             } else {
               return pattern <= framework::kInjective;
             }

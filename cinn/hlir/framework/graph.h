@@ -72,7 +72,7 @@ class Graph : public cinn::common::Graph {
     // output nodes of the group.
     std::unordered_set<Node*> output_nodes;
     // op pattern kind.
-    framework::OpPatternKind op_pattern_kind{framework::kElemWise};
+    framework::OpPatternKind op_pattern_kind{framework::kElementWise};
     // internal node, the output is used by multi-node.
     // internal node can't use compute inline, should use buffer.
     std::unordered_set<Node*> internal_nodes;

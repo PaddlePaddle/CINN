@@ -49,7 +49,7 @@ class AutoGenRule {
 
   // Initailize the AutoGenRule, it must be called before further actions.
   // Returns false if the rule cannot be applied on the mod_expr, true otherwise.
-  virtual RuleApplyType Init(const ir::ModuleExpr& mod_expr) = 0;
+  virtual RuleApplyType Init(ir::IRSchedule* ir_schedule) = 0;
 
   // CINN IRSchedule can contain many ScheduleBlock(s) and Loop(s), so
   // a auto gen rule may be suitable to different number of
@@ -58,24 +58,22 @@ class AutoGenRule {
   virtual int NumberApplicable() const;
 
   // Applies rule on the ir::ModuleExpr for a schedule block randomly
-  virtual ir::ModuleExpr ApplyRandomly();
+  virtual void ApplyRandomly();
 
   // Applies rule on the ir::ModuleExpr for a schedule block specified by index
   // between 0 (inclusive) and NumberApplicable() (exclusive)
-  virtual ir::ModuleExpr Apply(int index) = 0;
+  virtual void Apply(int index) = 0;
 
   // Returns the name of the rule, used for debug.
   virtual std::string GetRuleName() const = 0;
-
-  // Returns a pointer pointing to the rule. This class doesn't own the
-  // pointer, caller should manage the life time of the pointer.
-  virtual AutoGenRule* NewPointer() const = 0;
 
  protected:
   // number of ScheduleBlock that can apply this auto gen rule
   int num_applicable_ = -1;
   // Target, not owned.
   const common::Target* target_;
+  // IRSchedule, not owned;
+  ir::IRSchedule* ir_schedule_;
 };
 
 }  // namespace auto_schedule

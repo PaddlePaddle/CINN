@@ -245,7 +245,6 @@ bool IsPureMath(Expr expr) {
       IrNodeTy ::Sum,
       IrNodeTy ::Product,
       IrNodeTy ::FracOp,
-      IrNodeTy ::Power,
       IrNodeTy ::FloatImm,
       IrNodeTy ::Add,
       IrNodeTy ::Sub,

@@ -34,7 +34,7 @@ std::vector<MeasureResult> ScheduleMeasurer::Measure(const std::vector<MeasureIn
 
   // define how to build a candidate with the specified index
   auto build_fn = [builder = builder_, &inputs, &build_results, &results](int index) {
-    VLOG(6) << "Build candidate: " << index;
+    VLOG(6) << "Build candidate index: " << index;
     auto m_start = std::chrono::steady_clock::now();
     try {
       build_results[index] = builder->Build(inputs[index]);
@@ -47,7 +47,7 @@ std::vector<MeasureResult> ScheduleMeasurer::Measure(const std::vector<MeasureIn
 
   // define how to run a candidate with the specified index
   auto run_fn = [runner = runner_, &inputs, &build_results, &results](int index) {
-    VLOG(6) << "Run candidate: " << index;
+    VLOG(6) << "Run candidate index: " << index;
     auto m_start = std::chrono::steady_clock::now();
     try {
       // if error occured in building, then skip running

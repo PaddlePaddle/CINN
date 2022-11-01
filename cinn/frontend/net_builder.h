@@ -18,12 +18,14 @@
 
 #include <cstdint>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #include "cinn/common/macros.h"
 #include "cinn/common/type.h"
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/op.h"
+#include "cinn/utils/functional.h"
 #include "cinn/utils/type_defs.h"
 
 namespace cinn {
@@ -38,6 +40,7 @@ namespace frontend {
   macro__(Sqrt) \
   macro__(Tanh) \
   macro__(Relu) \
+  macro__(Gelu) \
   macro__(Sigmoid) \
   macro__(Identity) \
   macro__(Exp) \
@@ -80,10 +83,10 @@ namespace frontend {
   macro__(Multiply) \
   macro__(FloorDivide) \
   macro__(Mod) \
-  macro__(FloorMod) \
+  macro__(Remainder) \
   macro__(Max) \
   macro__(Min) \
-  macro__(Power) \
+  macro__(Pow) \
   macro__(LogicalAnd) \
   macro__(LogicalOr) \
   macro__(LogicalXor) \
@@ -101,7 +104,7 @@ namespace frontend {
 
 // ******************************************* //
 // Reduce array elements over the given dims.
-// Variable REDUCE_OP(const Variable& x, const std::vector<int>& dim = {}, bool keep_dim = false);
+// Variable REDUCE_OP(const Variable& x, const cinn::utils::ShapeType& dim = {}, bool keep_dim = false);
 #define NETBUILDER_REDUCE_OP_FOREACH(macro__) \
   macro__(ReduceSum) \
   macro__(ReduceProd) \
@@ -178,14 +181,32 @@ class NetBuilder {
    */
   Variable Reduce(const std::string& op_type,
                   const Variable& x,
-                  const std::vector<int>& dim = {},
-                  bool keep_dim               = false);
+                  const cinn::utils::ShapeType& dim = {},
+                  bool keep_dim                     = false);
 
  private:
   // the helper function for Matmul API
   std::pair<Variable, Variable> BroadcastMatmulInput(
       const Variable& x, const Variable& y, bool trans_x, bool trans_y, float alpha);
-  std::vector<int> GetMatmulOutputShape(const Variable& x, const Variable& y, bool trans_x, bool trans_y, float alpha);
+  cinn::utils::ShapeType GetMatmulOutputShape(
+      const Variable& x, const Variable& y, bool trans_x, bool trans_y, float alpha);
+
+  // the helper function for Constant API
+  template <typename T>
+  std::enable_if_t<std::is_arithmetic<T>::value, cinn::utils::ShapeType> GetVectorShape(const std::vector<T>& value) {
+    CHECK(!value.empty()) << "The vector should not has empty list! Please check.";
+    return {static_cast<int>(value.size())};
+  }
+
+  template <typename T>
+  std::enable_if_t<cinn::utils::IsVector<T>::value, cinn::utils::ShapeType> GetVectorShape(
+      const std::vector<T>& value) {
+    CHECK(!value.empty()) << "The vector should not has empty list! Please check.";
+
+    auto shape = GetVectorShape(value[0]);
+    shape.insert(shape.begin(), static_cast<int>(value.size()));
+    return shape;
+  }
 
  public:
   // *******************************************
@@ -262,6 +283,27 @@ class NetBuilder {
    */
   Variable Clip(const std::vector<Variable>& x, const float& max, const float& min);
 
+  Variable Gather(const Variable& x, const Variable& index, const int& axis = 0);
+
+  Variable GatherNd(const Variable& x, const Variable& index, const cinn::utils::ShapeType& axes = {});
+
+  Variable Scatter(const Variable& src, const Variable& index, const Variable& out, const int& axis = 0);
+  Variable Scatter(const Variable& src,
+                   const Variable& index,
+                   const cinn::utils::ShapeType& shape,
+                   const float& default_value = 0,
+                   const int& axis            = 0);
+
+  Variable ScatterNd(const Variable& src,
+                     const Variable& index,
+                     const Variable& out,
+                     const cinn::utils::ShapeType& axes = {});
+  Variable ScatterNd(const Variable& src,
+                     const Variable& index,
+                     const cinn::utils::ShapeType& shape,
+                     const float& default_value         = 0,
+                     const cinn::utils::ShapeType& axes = {});
+
   /**
    * @brief This operator checks if all `x` and `y` satisfy the condition: `|x - y| <= atol + rtol * |y|`
    * @param x The first variable.
@@ -286,7 +328,7 @@ class NetBuilder {
    * @return The result variable.
    */
 #define NETBUILDER_REDUCE_OP_DECL(func_name__) \
-  Variable func_name__(const Variable& x, const std::vector<int>& dim = {}, bool keep_dim = false);
+  Variable func_name__(const Variable& x, const cinn::utils::ShapeType& dim = {}, bool keep_dim = false);
   NETBUILDER_REDUCE_OP_FOREACH(NETBUILDER_REDUCE_OP_DECL)
 #undef NETBUILDER_REDUCE_OP_DECL
 
@@ -306,16 +348,18 @@ class NetBuilder {
    * @param id_hint The input variable's name. Default is None.
    * @return The new input.
    */
-  Placeholder CreateInput(const common::Type& type, const std::vector<int>& shape, const std::string& id_hint = "");
+  Placeholder CreateInput(const common::Type& type,
+                          const cinn::utils::ShapeType& shape,
+                          const std::string& id_hint = "");
 
   /**
-   * @brief Create scalar with the specific value and type, the type is infered from value.
-   * @param value The scalar value to be set.
+   * @brief Create constant tensor with the specific value/vector and type, the type is infered from value.
+   * @param value The constant value to be set.
    * @param name The name of output variable.
    * @return The result variable.
    */
   template <typename T>
-  Variable ConstScalar(T value, const std::string& name) {
+  std::enable_if_t<std::is_arithmetic<T>::value, Variable> Constant(const T& value, const std::string& name) {
     Instruction instr("const_scalar");
     instr.SetInputs({});
     instr.SetAttr<T>("value", value);
@@ -329,6 +373,29 @@ class NetBuilder {
     return out;
   }
 
+  template <typename T>
+  std::enable_if_t<cinn::utils::IsVector<T>::value, Variable> Constant(const T& value, const std::string& name) {
+    CHECK(!value.empty()) << "The value of Constant should not be None or empty list! Please check.";
+
+    // flatten n-dims vector to 1-dim vector
+    auto all_datas = cinn::utils::Flatten(value);
+
+    // why need static_cast ? For vector<bool>, the type of `data[i]` is `bit_reference` no `bool`
+    using dtype = typename decltype(all_datas)::value_type;
+
+    std::vector<Variable> vars;
+    vars.reserve(all_datas.size());
+    for (int i = 0; i < all_datas.size(); ++i) {
+      vars.emplace_back(Constant(static_cast<dtype>(all_datas[i]), name + "_" + std::to_string(i)));
+    }
+
+    auto out = Reshape(Concat(vars), GetVectorShape(value));
+
+    // set the name correctly
+    out.set_id(name);
+    return out;
+  }
+
   /**
    * @brief The op return a variable with the specific value, shape and type.
    * @param shape Shape of the variable to be created.
@@ -338,7 +405,7 @@ class NetBuilder {
    * @param force_cpu Whether the variable should force placed in cpu, default in device memory. Default is false.
    * @return The result variable.
    */
-  Variable FillConstant(const std::vector<int>& shape,
+  Variable FillConstant(const cinn::utils::ShapeType& shape,
                         float value,
                         const std::string& name,
                         const std::string& dtype,
@@ -353,7 +420,7 @@ class NetBuilder {
    * @return The result variable.
    */
   template <typename T = float>
-  Variable FillConstant(const std::vector<int>& shape, T value, const std::string& name, bool force_cpu = false) {
+  Variable FillConstant(const cinn::utils::ShapeType& shape, T value, const std::string& name, bool force_cpu = false) {
     return FillConstant(shape, static_cast<float>(value), name, common::Type2Str(common::type_of<T>()), force_cpu);
   }
 
@@ -435,6 +502,15 @@ class NetBuilder {
                   bool adaptive                        = false,
                   const std::string& padding_algorithm = "EXPLICIT");
 
+  /**
+   * @brief Repeat elements of an array `repeats` times along axis `axis`
+   * @param x An input N-D variable.
+   * @param repeats The times of repeat operation.
+   * @param axis The index of dimension to repeat.
+   * @return The repeat result variable.
+   */
+  Variable Repeat(const Variable& x, int repeats, int axis);
+
   // *******************************************
   // Broadcast operator
   /**
@@ -444,7 +520,7 @@ class NetBuilder {
    * dimension unchanged.
    * @return The result variable with given shape.
    */
-  Variable BroadcastTo(const Variable& x, const std::vector<int>& out_shape);
+  Variable BroadcastTo(const Variable& x, const cinn::utils::ShapeType& out_shape);
 
   /**
    * @brief Broadcast the input variable to a given shape.
@@ -455,7 +531,9 @@ class NetBuilder {
    * the same as input shape.
    * @return The result variable with given shape.
    */
-  Variable BroadcastTo(const Variable& x, const std::vector<int>& out_shape, const std::vector<int>& broadcast_axes);
+  Variable BroadcastTo(const Variable& x,
+                       const cinn::utils::ShapeType& out_shape,
+                       const cinn::utils::ShapeType& broadcast_axes);
 
   // *******************************************
   // Data Layout transform operator
@@ -487,7 +565,7 @@ class NetBuilder {
    * @param shape Define the target shape. At most one dimension of the target shape can be -1.
    * @return A reshaped variable with the same data type as x.
    */
-  Variable Reshape(const Variable& x, const std::vector<int>& shape);
+  Variable Reshape(const Variable& x, const cinn::utils::ShapeType& shape);
 
   /**
    * @brief This OP will squeeze single-dimensional entries of input variable shape. If axes is provided, will remove
@@ -498,7 +576,16 @@ class NetBuilder {
    * `axes=axes+rank(input)`.
    * @return Output squeezed variable. Data type is same as input variable.
    */
-  Variable Squeeze(const Variable& x, const std::vector<int>& axes);
+  Variable Squeeze(const Variable& x, const cinn::utils::ShapeType& axes);
+
+  /**
+   * @brief Creates an operation to insert new dimensions of length 1.
+   * @param operand An N-D variable.
+   * @param axis The index of the first new dimension (allows negative indices as offsets from the last dimension).
+   * @param num_newaxis The number of new dimensions to insert
+   * @return A variable whose op member is the dim expandsion operation.
+   */
+  Variable ExpandDims(const Variable& operand, int axis, int num_newaxis = 1);
 
   /**
    * @brief This operator reverse the input along the axis.
@@ -506,7 +593,7 @@ class NetBuilder {
    * @param axis Specify the axis to operate on the input reverse.
    * @return A reversed variable with the same data type as x.
    */
-  Variable Reverse(const Variable& x, const std::vector<int>& axis);
+  Variable Reverse(const Variable& x, const cinn::utils::ShapeType& axis);
 
   /**
    * @brief Permute the data dimensions of input according to perm. The i-th dimension of the returned variable will
@@ -515,7 +602,7 @@ class NetBuilder {
    * @param axis Permute the input according to the data of perm.
    * @return A transposed n-D variable.
    */
-  Variable Transpose(const Variable& x, const std::vector<int>& axis);
+  Variable Transpose(const Variable& x, const cinn::utils::ShapeType& axis);
 
   /**
    * @brief This operator produces a slice of x along multiple axes.
@@ -528,7 +615,7 @@ class NetBuilder {
    * @return A variable with the same dimension as x. The data type is same as x.
    */
   Variable Slice(const Variable& x,
-                 const std::vector<int>& axes,
+                 const cinn::utils::ShapeType& axes,
                  const std::vector<int>& starts      = {},
                  const std::vector<int>& ends        = {},
                  const std::vector<int>& infer_flags = {},
@@ -583,7 +670,7 @@ class NetBuilder {
    */
   Variable SliceAssign(const Variable& x,
                        const Variable& assign,
-                       const std::vector<int>& axes,
+                       const cinn::utils::ShapeType& axes,
                        const std::vector<int>& starts,
                        const std::vector<int>& ends,
                        const std::vector<int>& strides = {});
@@ -619,6 +706,21 @@ class NetBuilder {
    * @return A variable with the same shape as input’s.
    */
   Variable Cast(const Variable& x, const std::string& dtype);
+
+  /**
+   *  @brief Returns a one-hot tensor where the locations repsented by indices take value `on_value`,
+   *  other locations take value `off_value`.
+   *  @param on_value Value to fill at indices. Its shape must be [1].
+   *  @param on_value Value to fill at all other positions besides indices. Its shape must be [1]
+   *  @param depth Depth of the one-hot dimension.
+   *  @param axis Axis to fill.
+   */
+  Variable OneHot(const Variable& indices,
+                  const Variable& on_value,
+                  const Variable& off_value,
+                  const int depth,
+                  const int axis,
+                  const std::string& dtype);
 
   // *******************************************
   // Decomposer Operator
@@ -663,14 +765,14 @@ class NetBuilder {
    */
   Variable Conv(const Variable& x,
                 const Variable& weight,
-                const std::vector<int>& strides      = {1, 1},
-                const std::vector<int>& paddings     = {0, 0},
-                const std::vector<int>& dilations    = {1, 1},
-                int groups                           = 1,
-                const std::string& conv_type         = "forward",
-                const std::string& data_format       = "NCHW",
-                const std::string& padding_algorithm = "EXPLICIT",
-                const std::vector<int>& output_shape = {});
+                const std::vector<int>& strides            = {1, 1},
+                const std::vector<int>& paddings           = {0, 0},
+                const std::vector<int>& dilations          = {1, 1},
+                int groups                                 = 1,
+                const std::string& conv_type               = "forward",
+                const std::string& data_format             = "NCHW",
+                const std::string& padding_algorithm       = "EXPLICIT",
+                const cinn::utils::ShapeType& output_shape = {});
 
   /**
    * @brief Compute the convolution-2d.
@@ -695,6 +797,11 @@ class NetBuilder {
                   int groups                           = 1,
                   const std::string& data_format       = "NCHW",
                   const std::string& padding_algorithm = "EXPLICIT");
+
+  /**
+   * This API flipes the Variable x along the given axis.
+   */
+  Variable Flip(const Variable& operand, const std::vector<int>& axes);
 
   /**
    * @brief The gradient function of convolution-2d.
@@ -793,7 +900,27 @@ class NetBuilder {
                                       const std::string& data_layout = "NCHW");
 
   /**
-   * @brief Sort Variable x along the given axis. The original Variable x will not be changed.
+   * @brief Get index of variable x to the maximum value along the given axis.
+   * @param x An input N-D variable.
+   * @param axis Specify the axis to operate on the input. Default: 0.
+   * @param keep_dim Decide whether to keep the dimension.
+   * Defalut “NCHW”.
+   * @return `Index of variable x to the maximum value`.
+   */
+  Variable Argmax(const Variable& x, const int& axis = 0, const bool& keep_dim = false);
+
+  /**
+   * @brief Get index of variable x to the minimum value along the given axis.
+   * @param x An input N-D variable.
+   * @param axis Specify the axis to operate on the input. Default: 0.
+   * @param keep_dim Decide whether to keep the dimension.
+   * Defalut “NCHW”.
+   * @return `Index of variable x to the minimum value`.
+   */
+  Variable Argmin(const Variable& x, const int& axis = 0, const bool& keep_dim = false);
+
+  /**
+   * @brief Sort Variable x along the given axis and return sorted index. The original Variable x will not be changed.
    * @param operand The variable that will be sorted.
    * @param axis Specify the axis to operate on the input. Default: 0.
    * @param is_ascend Sort mode.
@@ -803,7 +930,8 @@ class NetBuilder {
   Variable ArgSort(const Variable& operand, const int& axis, const bool& is_ascend = true);
 
   /**
-   * @brief Sort Variable x along the given axis. The original Variable x will not be changed.
+   * @brief Sort Variable x along the given axis and return sorted variable. The original Variable x will not be
+   * changed.
    * @param operand The variable that will be sorted.
    * @param axis Specify the axis to operate on the input. Default: 0.
    * @param is_ascend Sort mode.
@@ -811,6 +939,17 @@ class NetBuilder {
    * @return `Sorted variable`.
    */
   Variable Sort(const Variable& operand, const int& axis, const bool& is_ascend = true);
+
+  /**
+   * @brief Lookup embeddings vector of ids provided by x .
+   * @param table A variable with shape of lookup table parameter
+   * @param ids An input contains the id information.
+   * @param padding_idx If the value is -1, it makes no effect to lookup.
+                     Otherwise the given value indicates padding the output
+                     with zeros whenever lookup encounters it in Ids.
+   * @return `The concatenated variable of selected values`.
+   */
+  Variable LookupTable(const Variable& table, const Variable& ids, int64_t padding_idx);
 
  private:
   CINN_DISALLOW_COPY_AND_ASSIGN(NetBuilder);

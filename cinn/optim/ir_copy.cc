@@ -23,6 +23,7 @@
 #include "cinn/common/ir_util.h"
 #include "cinn/ir/ir_mutator.h"
 #include "cinn/ir/ir_printer.h"
+#include "cinn/ir/ir_schedule.h"
 #include "cinn/ir/module.h"
 
 namespace cinn {
@@ -313,18 +314,6 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
     return Expr(n);
   }
 
-  Expr Visit(const Power* op) override {
-    auto a = Visit(&op->a());
-    auto b = Visit(&op->b());
-    CHECK(a.defined());
-    CHECK(b.defined());
-
-    auto* n = make_shared<Power>();
-    n->a()  = a;
-    n->b()  = b;
-    return Expr(n);
-  }
-
   Expr Visit(const Product* op) override {
     std::vector<Expr> operands;
     for (auto& v : op->operands()) {
@@ -356,7 +345,7 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
 
   Expr Visit(const ir::_BufferRange_* op) {
     std::vector<Var> ranges;
-    for (auto& range_var : ranges) {
+    for (auto& range_var : op->ranges) {
       auto* var = range_var.As<_Var_>();
       ranges.push_back(Visit(var));
     }
@@ -378,7 +367,9 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
     for (auto buffer_range : op->write_buffers) {
       write_buffers.push_back(Visit(&buffer_range));
     }
-    return ir::ScheduleBlock::Make(iter_vars, read_buffers, write_buffers, op->name, Visit(&op->body));
+    Expr res = ir::ScheduleBlock::Make(iter_vars, read_buffers, write_buffers, op->name, Visit(&op->body));
+    res.As<ScheduleBlock>()->attrs = op->attrs;
+    return res;
   }
 
   Expr Visit(const ir::ScheduleBlockRealize* op) {

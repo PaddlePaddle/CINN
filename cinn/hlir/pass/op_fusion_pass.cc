@@ -120,8 +120,8 @@ class OpFusionPassHelper : public FusionHelperBase {
  private:
   void DoOpFusion() {
     for (auto consumer : nodes_) {
-      // kOpaque op can't fuse any other op.
-      if (GetOpKind(consumer) == framework::kOpaque) {
+      // kNonFusible op can't fuse any other op.
+      if (GetOpKind(consumer) == framework::kNonFusible) {
         continue;
       }
 
@@ -144,8 +144,8 @@ class OpFusionPassHelper : public FusionHelperBase {
           continue;
         }
 
-        // kOpaque op can't fuse any other op.
-        if (GetOpKind(producer) == framework::kOpaque) {
+        // kNonFusible op can't fuse any other op.
+        if (GetOpKind(producer) == framework::kNonFusible) {
           continue;
         }
         VLOG(3) << "Producer Op: " << producer->id() << ", Op Pattern: " << GetOpKind(producer)
@@ -175,7 +175,7 @@ class OpFusionPassHelper : public FusionHelperBase {
                 ? consumer_fusion->op_pattern_kind
                 : GetOpKind(producer);
 
-        if (GetOpKind(producer) == framework::kCommReduce) {
+        if (GetOpKind(producer) == framework::kReduction) {
           consumer_fusion->master_nodes.insert(producer);
         }
 
@@ -225,7 +225,7 @@ class OpFusionPassHelper : public FusionHelperBase {
       auto& fusion_op = this->fusion_groups_[consumer];
       Node* reducer   = NULL;
       for (auto* master : fusion_op->master_nodes) {
-        if (this->GetOpKind(master) == framework::kCommReduce) {
+        if (this->GetOpKind(master) == framework::kReduction) {
           reducer = master;
           break;
         }
@@ -259,7 +259,7 @@ class OpFusionPassHelper : public FusionHelperBase {
           producer_reduce_dim == reducer_reduce_dim) {
         auto shared_size = GetSharedSize(producer);
         for (auto* master : fusion_op->master_nodes) {
-          if (this->GetOpKind(master) == framework::kCommReduce) {
+          if (this->GetOpKind(master) == framework::kReduction) {
             shared_size += GetSharedSize(master);
           }
         }
@@ -277,7 +277,7 @@ class OpFusionPassHelper : public FusionHelperBase {
           producer_output_shape == reducer_output_shape && producer_reduce_dim == reducer_reduce_dim) {
         auto shared_size = GetSharedSize(producer);
         for (auto* master : fusion_op->master_nodes) {
-          if (this->GetOpKind(master) == framework::kCommReduce) {
+          if (this->GetOpKind(master) == framework::kReduction) {
             shared_size += GetSharedSize(master);
           }
         }
@@ -304,7 +304,7 @@ class OpFusionPassHelper : public FusionHelperBase {
       auto& fusion_op = this->fusion_groups_[consumer];
       Node* reducer   = NULL;
       for (auto* master : fusion_op->master_nodes) {
-        if (this->GetOpKind(master) == framework::kCommReduce) {
+        if (this->GetOpKind(master) == framework::kReduction) {
           reducer = master;
           break;
         }
@@ -343,11 +343,11 @@ class OpFusionPassHelper : public FusionHelperBase {
     {
       FusionRelation relation;
       // producer -> consumer
-      relation.op_kind = {framework::kElemWise, framework::kBroadcast, framework::kCommReduce, framework::kInjective};
+      relation.op_kind = {framework::kElementWise, framework::kBroadcast, framework::kReduction, framework::kInjective};
       // producer -> fusion
       relation.fusion_op_kind = {
           // horizontal or vertical relation(Elementwise + *Elementwise*). As has same output shape, can always fuse.
-          {framework::kElemWise, always_fuse},
+          {framework::kElementWise, always_fuse},
           // must be horizontal, as Elementwise + Broadcast is left to fusion merge pass.
           {framework::kBroadcast,
            [this, is_same_shape](const Node* producer, const Node* consumer) -> bool {
@@ -362,7 +362,7 @@ class OpFusionPassHelper : public FusionHelperBase {
            }},
           // horizontal or vertical relation, check with same output shape with horizontal relation or with last
           // successive dimension less than 1024 for gpu.
-          {framework::kCommReduce, is_same_shape_or_vertical_reduce_relation},
+          {framework::kReduction, is_same_shape_or_vertical_reduce_relation},
           // can be horizontal or can compute inline, check with same output shape or can compute inline.
           {framework::kInjective,
            [this, is_same_shape](const Node* producer, const Node* consumer) -> bool {
@@ -370,22 +370,22 @@ class OpFusionPassHelper : public FusionHelperBase {
                                                           !this->output_nodes_set_.count(const_cast<Node*>(producer)));
            }},
           // must be horizontal, check with same output shape.
-          {framework::kOutEWiseFusable, is_same_shape}};
-      fusion_relation_map_[framework::kElemWise] = std::move(relation);
+          {framework::kOutFusible, is_same_shape}};
+      fusion_relation_map_[framework::kElementWise] = std::move(relation);
     }
     // 2.kBroadcast as producer
     {
       FusionRelation relation;
       // producer -> consumer
-      relation.op_kind = {framework::kElemWise, framework::kCommReduce, framework::kInjective};
+      relation.op_kind = {framework::kElementWise, framework::kReduction, framework::kInjective};
       // producer -> fusion
       relation.fusion_op_kind = {
           // horizontal or vertical relation(Broadcast + *Elementwise*), check with same output shape.
-          {framework::kElemWise, is_same_shape},
+          {framework::kElementWise, is_same_shape},
           // must be horizontal, as Broadcast + Broadcast is not allowed.
           {framework::kBroadcast, is_same_shape},
           // horizontal or vertical relation(Broadcast + Reduce).
-          {framework::kCommReduce, always_fuse},
+          {framework::kReduction, always_fuse},
           // can be horizontal or can compute inline, check with same output shape or just one consumer.
           {framework::kInjective,
            [this, is_same_shape](const Node* producer, const Node* consumer) -> bool {
@@ -393,70 +393,70 @@ class OpFusionPassHelper : public FusionHelperBase {
                                                           !this->output_nodes_set_.count(const_cast<Node*>(producer)));
            }},
           // must be horizontal, check with same output shape.
-          {framework::kOutEWiseFusable, is_same_shape}};
+          {framework::kOutFusible, is_same_shape}};
       fusion_relation_map_[framework::kBroadcast] = std::move(relation);
     }
-    // 3.kCommReduce as producer
+    // 3.kReduction as producer
     {
       FusionRelation relation;
       // producer -> consumer
-      relation.op_kind = {framework::kElemWise};
+      relation.op_kind = {framework::kElementWise};
       // producer -> fusion
       relation.fusion_op_kind = {
           // horizontal or vertical relation(Reduce + Elementwise*), check without last dimension in reduce.
-          {framework::kElemWise, without_last_dimension_in_reduce},
+          {framework::kElementWise, without_last_dimension_in_reduce},
           // must be horizontal relation, check with same output shape and without last dimension in reduce.
           {framework::kBroadcast,
            [this, is_same_shape, without_last_dimension_in_reduce](const Node* producer, const Node* consumer) -> bool {
              return is_same_shape(producer, consumer) && without_last_dimension_in_reduce(producer, consumer);
            }},
           // must be horizontal relation and with same reduce attr.
-          {framework::kCommReduce, reduce_fuse_reduce},
+          {framework::kReduction, reduce_fuse_reduce},
           // can't fuse.
           {framework::kInjective, no_fuse},
           // can't fuse.
-          {framework::kOutEWiseFusable, no_fuse}};
-      fusion_relation_map_[framework::kCommReduce] = std::move(relation);
+          {framework::kOutFusible, no_fuse}};
+      fusion_relation_map_[framework::kReduction] = std::move(relation);
     }
     // 4.kInjective
     {
       FusionRelation relation;
       // producer -> consumer
-      relation.op_kind = {framework::kElemWise, framework::kCommReduce};
+      relation.op_kind = {framework::kElementWise, framework::kReduction};
       // producer -> fusion
       relation.fusion_op_kind = {
           // can be horizontal or vertical(Injective + Elementwise), check with same output shape.
-          {framework::kElemWise, is_same_shape},
+          {framework::kElementWise, is_same_shape},
           // must be horizontal relation, check with same output shape.
           {framework::kBroadcast, is_same_shape},
           // left to fusion merge pass.
-          {framework::kCommReduce, no_fuse},
+          {framework::kReduction, no_fuse},
           // must be horizontal relation, check with same output shape.
           {framework::kInjective, is_same_shape},
           // can't fuse.
-          {framework::kOutEWiseFusable, no_fuse},
+          {framework::kOutFusible, no_fuse},
       };
       fusion_relation_map_[framework::kInjective] = std::move(relation);
     }
-    // 5.kOutEWiseFusable
+    // 5.kOutFusible
     {
       FusionRelation relation;
       // producer -> consumer
-      relation.op_kind = {framework::kElemWise};
+      relation.op_kind = {framework::kElementWise};
       // producer -> fusion
       relation.fusion_op_kind = {
           // horizontal or vertical relation, check has same shape.
-          {framework::kElemWise, is_same_shape},
+          {framework::kElementWise, is_same_shape},
           // it must be horizontal relation, check has same shape.
           {framework::kBroadcast, is_same_shape},
           // can't fuse.
-          {framework::kCommReduce, no_fuse},
+          {framework::kReduction, no_fuse},
           // must be horizontal relation, check has same shape.
           {framework::kInjective, is_same_shape},
           // can't fuse.
-          {framework::kOutEWiseFusable, no_fuse},
+          {framework::kOutFusible, no_fuse},
       };
-      fusion_relation_map_[framework::kOutEWiseFusable] = std::move(relation);
+      fusion_relation_map_[framework::kOutFusible] = std::move(relation);
     }
   }
 
@@ -516,28 +516,34 @@ void InsertBroadcastTo(Graph* graph) {
         if (output_shape != input_shape) {
           // input_data UnLinkTo node
           input_data->UnLinkSingleTo(node);
-          int axis = -1;
-          if (node->attrs.attr_store.find("axis") != node->attrs.attr_store.end()) {
-            axis = absl::get<int>(node->attrs.attr_store["axis"]);
+          std::vector<int> broadcast_axes;
+          if (input_shape.size() == output_shape.size()) {
+            for (int idx = 0; idx < input_shape.size(); ++idx) {
+              broadcast_axes.push_back(idx);
+            }
+          } else {
+            int axis = -1;
+            if (node->attrs.attr_store.find("axis") != node->attrs.attr_store.end()) {
+              axis = absl::get<int>(node->attrs.attr_store["axis"]);
+            }
+            if (axis == -1) {
+              axis = output_shape.size() - 1;
+            }
+            node->attrs.attr_store = {};
+            CHECK_LE(axis + input_shape.size(), output_shape.size());
+            for (int idx = 0; idx < input_shape.size(); ++idx) {
+              broadcast_axes.push_back(axis++);
+            }
           }
-          if (axis == -1) {
-            axis = output_shape.size() - 1;
-          }
-          node->attrs.attr_store = {};
-          CHECK_LE(axis + input_shape.size(), output_shape.size());
           // create node
           auto tmp_node = new Node(
               framework::Operator::Get("broadcast_to"), "broadcast_to", "broadcast_to_" + std::to_string(++index));
-          std::vector<int> broadcast_axes;
-          for (int idx = 0; idx < input_shape.size(); ++idx) {
-            broadcast_axes.push_back(axis++);
-          }
           tmp_node->attrs.attr_store["out_shape"]      = output_shape;
           tmp_node->attrs.attr_store["broadcast_axes"] = broadcast_axes;
           input_data->LinkTo(tmp_node);
           graph->RegisterNode(tmp_node->id(), tmp_node);
           // create node data
-          auto tmp_node_data = new NodeData(Shared<Node>(tmp_node), 0, 0, "var_" + std::to_string(index), false);
+          auto tmp_node_data = new NodeData(Shared<Node>(tmp_node), 0, 0, common::UniqName("var"), false);
           tmp_node->LinkTo(tmp_node_data);
           tmp_node_data->LinkTo(node);
           graph->RegisterNode(tmp_node_data->id(), tmp_node_data);

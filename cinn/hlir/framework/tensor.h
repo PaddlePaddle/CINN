@@ -89,7 +89,7 @@ class _Tensor_ : public Object {
 
   const Type& type() { return type_; }
 
-  void set_type(Type type) { type_ = type; }
+  void set_type(Type type);
   const Type& type() const { return type_; }
 
   cinn_buffer_t* buffer() { return buffer_->data(); }

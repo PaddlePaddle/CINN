@@ -20,7 +20,7 @@
 
 namespace cinn::frontend::paddle::pb {
 
-namespace framework_proto = ::paddle::framework::proto;
+namespace framework_proto = ::cinn::frontend::paddle::proto;
 
 using Attribute       = absl::variant<int, float, bool, std::vector<std::string>, std::vector<int>>;
 using VariableNameMap = std::map<std::string, std::vector<std::string>>;

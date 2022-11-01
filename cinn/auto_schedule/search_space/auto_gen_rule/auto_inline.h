@@ -44,20 +44,17 @@ class AutoInline : public AutoGenRule {
   AutoInline(const common::Target& target, const std::unordered_set<std::string>& no_inline_output_names);
   ~AutoInline() = default;
 
-  RuleApplyType Init(const ir::ModuleExpr& mod_expr) override;
+  RuleApplyType Init(ir::IRSchedule* ir_schedule) override;
 
-  ir::ModuleExpr Apply(int index) override;
+  void Apply(int index) override;
 
   std::string GetRuleName() const override;
-
-  AutoGenRule* NewPointer() const override;
 
   AutoInlineType AnalyzeInlineType(const Expr& sche_block_realize_expr) const;
 
   bool CanInlineIntoConsumer(const Expr& sche_block_realize_expr) const;
 
  private:
-  std::unique_ptr<ir::IRSchedule> ir_schedule_;
   std::vector<ir::Expr> all_block_realizes_;
   std::vector<std::pair<int, AutoInlineType>> apply_indices_and_type_;
   std::unordered_set<std::string> no_inline_output_names_;

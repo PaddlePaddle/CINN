@@ -61,7 +61,9 @@ void PaddleModelToProgram::AddOpMapper_feed() {
     auto outs = op_desc.Output("Out");
     CHECK_EQ(outs.size(), 1UL);
     VLOG(2) << "Model get feed [" << outs[0] << "]";
-    Placeholder input(Float(32), {}, outs[0]);
+    CHECK(input_shape_map_.count(outs[0]));
+    auto input_shape = input_shape_map_[outs[0]];
+    auto input       = net_builder_->CreateInput(Float(32), input_shape, outs[0]);
     AddVar(outs[0], input);
   };
 }
@@ -100,9 +102,7 @@ void PaddleModelToProgram::AddOpMapper_scale() {
       LOG(FATAL) << "Didn't find [bias] attr in Scale operator!!";
     }
     absl::flat_hash_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
-    attrs["scale"] = scale;
-    attrs["bias"]  = bias;
-    auto out       = program_->scale(x, attrs);
+    auto out = net_builder_->Scale(x, scale, bias);
     CHECK_EQ(op_desc.Output("Out").size(), 1UL);
     auto out_name = op_desc.Output("Out").front();
     AddVar(utils::TransValidVarName(out_name), out);
@@ -126,7 +126,7 @@ void PaddleModelToProgram::AddOpMapper_mul() {
     VLOG(4) << "Mul y_num_col_dims: " << y_num_col_dims;
     VLOG(4) << "x shape: " << utils::Join(x->shape, ",");
     VLOG(4) << "y shape: " << utils::Join(y->shape, ",");
-    auto out = program_->mul(x, y, x_num_col_dims, y_num_col_dims);
+    auto out = net_builder_->Mul(x, y, x_num_col_dims, y_num_col_dims);
     CHECK_EQ(op_desc.Output("Out").size(), 1UL);
     auto out_name = op_desc.Output("Out").front();
     AddVar(utils::TransValidVarName(out_name), out);
@@ -147,7 +147,7 @@ void PaddleModelToProgram::AddOpMapper_matmul() {
     float alpha  = op_desc.GetAttr<float>("alpha");
     VLOG(4) << "x shape: " << utils::Join(x->shape, ",");
     VLOG(4) << "y shape: " << utils::Join(y->shape, ",");
-    auto out = program_->matmul(x, y, trans_a, trans_b, alpha);
+    auto out = net_builder_->Matmul(x, y, trans_a, trans_b, alpha);
     CHECK_EQ(op_desc.Output("Out").size(), 1UL);
     auto out_name = op_desc.Output("Out").front();
     AddVar(utils::TransValidVarName(out_name), out);
@@ -162,7 +162,7 @@ void PaddleModelToProgram::AddOpMapper_reshape2() {
     auto x                 = GetVar(utils::TransValidVarName(x_name));
     std::vector<int> shape = op_desc.GetAttr<std::vector<int>>("shape");
     VLOG(4) << "x shape: " << utils::Join(x->shape, ",");
-    auto out = program_->reshape(x, shape);
+    auto out = net_builder_->Reshape(x, shape);
     CHECK_EQ(op_desc.Output("Out").size(), 1UL);
     auto out_name = op_desc.Output("Out").front();
     AddVar(utils::TransValidVarName(out_name), out);
@@ -181,7 +181,7 @@ void PaddleModelToProgram::AddOpMapper_concat() {
     }
     int axis = op_desc.GetAttr<int>("axis");
     VLOG(4) << "axis in op concat is : " << axis;
-    auto out = program_->concat(input_vars, axis);
+    auto out = net_builder_->Concat(input_vars, axis);
     CHECK_EQ(op_desc.Output("Out").size(), 1UL);
     auto out_name = op_desc.Output("Out").front();
     AddVar(utils::TransValidVarName(out_name), out);
@@ -196,8 +196,7 @@ void PaddleModelToProgram::AddOpMapper_assign() {
     CHECK_EQ(op_desc.Output("Out").size(), 1UL);
     auto out_name = op_desc.Output("Out").front();
     auto x        = GetVar(TransValidVarName(x_name));
-    auto out      = program_->assign(x);
-
+    auto out      = net_builder_->Identity(x);
     AddVar(TransValidVarName(out_name), out);
     var_model_to_program_map_[out_name] = out->id;
   };
@@ -226,9 +225,9 @@ void PaddleModelToProgram::AddOpMapper_fill_constant() {
 
     Variable out;
     switch (dtype) {
-#define DO(desc, type)                                                                                     \
-  case ::paddle::framework::proto::VarType::Type::VarType_Type_##desc:                                     \
-    out = program_->fill_constant<type>(shapes, value, str_value, force_cpu, TransValidVarName(out_name)); \
+#define DO(desc, type)                                                           \
+  case ::cinn::frontend::paddle::proto::VarType::Type::VarType_Type_##desc:      \
+    out = net_builder_->FillConstant<type>(shapes, value, str_value, force_cpu); \
     break;
       DO(BOOL, bool);
       DO(FP32, float);
@@ -252,7 +251,7 @@ void PaddleModelToProgram::AddOpMapper_transpose2() {
     CHECK(op_desc.HasAttr("axis"));
     auto axis = op_desc.GetAttr<std::vector<int>>("axis");
 
-    auto out = program_->transpose(x, axis);
+    auto out = net_builder_->Transpose(x, axis);
 
     AddVar(TransValidVarName(out_name), out);
     var_model_to_program_map_[out_name] = out->id;
@@ -267,7 +266,7 @@ void PaddleModelToProgram::AddOpMapper_exp() {
     auto out_name = op_desc.Output("Out").front();
     auto x        = GetVar(TransValidVarName(x_name));
 
-    auto out = program_->primitive_exp(x);
+    auto out = net_builder_->Exp(x);
 
     AddVar(TransValidVarName(out_name), out);
     var_model_to_program_map_[out_name] = out->id;
@@ -281,7 +280,7 @@ void PaddleModelToProgram::AddOpMapper_relu() {
     CHECK_EQ(op_desc.Output("Out").size(), 1UL);
     auto out_name = op_desc.Output("Out").front();
     auto x        = GetVar(TransValidVarName(x_name));
-    auto out      = program_->relu(x);
+    auto out      = net_builder_->Relu(x);
 
     AddVar(TransValidVarName(out_name), out);
     var_model_to_program_map_[out_name] = out->id;
@@ -295,14 +294,14 @@ void PaddleModelToProgram::AddOpMapper_softmax() {
     CHECK_EQ(op_desc.Output("Out").size(), 1UL);
     auto out_name = op_desc.Output("Out").front();
 
-    absl::flat_hash_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
+    int axis = 0;
     if (op_desc.HasAttr("axis")) {
-      attrs["axis"] = op_desc.GetAttr<int>("axis");
+      axis = op_desc.GetAttr<int>("axis");
     } else {
-      attrs["axis"] = static_cast<int>(-1);
+      axis = static_cast<int>(-1);
     }
     auto x   = GetVar(TransValidVarName(x_name));
-    auto out = program_->softmax(x, attrs);
+    auto out = net_builder_->Softmax(x, axis);
     AddVar(TransValidVarName(out_name), out);
     var_model_to_program_map_[out_name] = out->id;
   };
@@ -320,7 +319,7 @@ void PaddleModelToProgram::AddOpMapper_elementwise_add() {
 
     auto x   = GetVar(TransValidVarName(x_name));
     auto y   = GetVar(TransValidVarName(y_name));
-    auto out = program_->elementwise_add(x, y, axis);
+    auto out = net_builder_->Add(x, y, axis);
 
     AddVar(TransValidVarName(out_name), out);
     var_model_to_program_map_[out_name] = out->id;
@@ -339,7 +338,7 @@ void PaddleModelToProgram::AddOpMapper_elementwise_mul() {
 
     auto x   = GetVar(TransValidVarName(x_name));
     auto y   = GetVar(TransValidVarName(y_name));
-    auto out = program_->elementwise_mul(x, y, axis);
+    auto out = net_builder_->Multiply(x, y, axis);
 
     AddVar(TransValidVarName(out_name), out);
     var_model_to_program_map_[out_name] = out->id;
@@ -359,7 +358,7 @@ void PaddleModelToProgram::AddOpMapper_elementwise_div() {
 
     auto x   = GetVar(TransValidVarName(x_name));
     auto y   = GetVar(TransValidVarName(y_name));
-    auto out = program_->elementwise_div(x, y, axis);
+    auto out = net_builder_->Divide(x, y, axis);
 
     AddVar(TransValidVarName(out_name), out);
     var_model_to_program_map_[out_name] = out->id;
@@ -379,7 +378,7 @@ void PaddleModelToProgram::AddOpMapper_elementwise_sub() {
 
     auto x   = GetVar(TransValidVarName(x_name));
     auto y   = GetVar(TransValidVarName(y_name));
-    auto out = program_->elementwise_sub(x, y, axis);
+    auto out = net_builder_->Subtract(x, y, axis);
 
     AddVar(TransValidVarName(out_name), out);
     var_model_to_program_map_[out_name] = out->id;
@@ -399,8 +398,7 @@ void PaddleModelToProgram::AddOpMapper_relu6() {
     attrs["threshold"] = op_desc.GetAttr<float>("threshold");
 
     auto x   = GetVar(TransValidVarName(x_name));
-    auto out = program_->relu6(x);
-
+    auto out = net_builder_->Relu6(x);
     AddVar(TransValidVarName(out_name), out);
     var_model_to_program_map_[out_name] = out->id;
   };
@@ -414,28 +412,26 @@ void PaddleModelToProgram::AddOpMapper_depthwise_conv2d() {
     CHECK_EQ(op_desc.Output("Output").size(), 1UL);
     auto out_name = op_desc.Output("Output").front();
 
-    absl::flat_hash_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
     CHECK(op_desc.HasAttr("paddings"));
-    attrs["padding"] = op_desc.GetAttr<std::vector<int>>("paddings");
+    auto paddings = op_desc.GetAttr<std::vector<int>>("paddings");
     CHECK(op_desc.HasAttr("strides"));
-    attrs["stride"] = op_desc.GetAttr<std::vector<int>>("strides");
+    auto strides = op_desc.GetAttr<std::vector<int>>("strides");
     CHECK(op_desc.HasAttr("dilations"));
-    attrs["dilation"] = op_desc.GetAttr<std::vector<int>>("dilations");
+    auto dilations = op_desc.GetAttr<std::vector<int>>("dilations");
     CHECK(op_desc.HasAttr("groups"));
-    attrs["groups"] = op_desc.GetAttr<int>("groups");
+    auto groups = op_desc.GetAttr<int>("groups");
     CHECK(op_desc.HasAttr("data_format"));
     std::string data_format = op_desc.GetAttr<std::string>("data_format");
     if (data_format == "AnyLayout") {
       data_format = "NCHW";
     }
-    attrs["data_format"] = data_format;
-    auto x               = GetVar(TransValidVarName(x_name));
-    auto y               = GetVar(TransValidVarName(y_name));
+    auto x = GetVar(TransValidVarName(x_name));
+    auto y = GetVar(TransValidVarName(y_name));
     Variable out;
     if (target_.arch == Target::Arch::X86) {
-      out = program_->conv2d(x, y, attrs);
+      out = net_builder_->Conv2d(x, y, strides, paddings, dilations, groups, data_format);
     } else {
-      out = program_->depthwise_conv2d(x, y, attrs);
+      out = net_builder_->DepthwiseConv2d(x, y, strides, paddings, dilations, groups, data_format);
     }
 
     AddVar(TransValidVarName(out_name), out);
@@ -452,24 +448,22 @@ void PaddleModelToProgram::AddOpMapper_conv2d() {
     CHECK_EQ(op_desc.Output("Output").size(), 1UL);
     auto out_name = op_desc.Output("Output").front();
 
-    absl::flat_hash_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
     CHECK(op_desc.HasAttr("paddings"));
-    attrs["padding"] = op_desc.GetAttr<std::vector<int>>("paddings");
+    auto paddings = op_desc.GetAttr<std::vector<int>>("paddings");
     CHECK(op_desc.HasAttr("strides"));
-    attrs["stride"] = op_desc.GetAttr<std::vector<int>>("strides");
+    auto strides = op_desc.GetAttr<std::vector<int>>("strides");
     CHECK(op_desc.HasAttr("dilations"));
-    attrs["dilation"] = op_desc.GetAttr<std::vector<int>>("dilations");
+    auto dilations = op_desc.GetAttr<std::vector<int>>("dilations");
     CHECK(op_desc.HasAttr("groups"));
-    attrs["groups"] = op_desc.GetAttr<int>("groups");
+    auto groups = op_desc.GetAttr<int>("groups");
     CHECK(op_desc.HasAttr("data_format"));
     std::string data_format = op_desc.GetAttr<std::string>("data_format");
     if (data_format == "AnyLayout") {
       data_format = "NCHW";
     }
-    attrs["data_format"] = data_format;
-    auto x               = GetVar(TransValidVarName(x_name));
-    auto y               = GetVar(TransValidVarName(y_name));
-    auto out             = program_->conv2d(x, y, attrs);
+    auto x   = GetVar(TransValidVarName(x_name));
+    auto y   = GetVar(TransValidVarName(y_name));
+    auto out = net_builder_->Conv2d(x, y, strides, paddings, dilations, groups, data_format);
 
     AddVar(TransValidVarName(out_name), out);
     var_model_to_program_map_[out_name] = out->id;
@@ -483,34 +477,33 @@ void PaddleModelToProgram::AddOpMapper_pool2d() {
     CHECK_EQ(op_desc.Output("Out").size(), 1UL);
     auto out_name = op_desc.Output("Out").front();
 
-    absl::flat_hash_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
     CHECK(op_desc.HasAttr("pooling_type"));
-    attrs["pool_type"] = op_desc.GetAttr<std::string>("pooling_type");
+    auto pool_type = op_desc.GetAttr<std::string>("pooling_type");
     CHECK(op_desc.HasAttr("ksize"));
-    attrs["kernel_size"] = op_desc.GetAttr<std::vector<int>>("ksize");
+    auto ksize = op_desc.GetAttr<std::vector<int>>("ksize");
     CHECK(op_desc.HasAttr("strides"));
-    attrs["stride_size"] = op_desc.GetAttr<std::vector<int>>("strides");
+    auto strides = op_desc.GetAttr<std::vector<int>>("strides");
     CHECK(op_desc.HasAttr("paddings"));
-    auto padding_size = op_desc.GetAttr<std::vector<int>>("paddings");
+    auto paddings = op_desc.GetAttr<std::vector<int>>("paddings");
 
-    if (padding_size.size() == 2) {
-      padding_size.insert(padding_size.begin(), padding_size.front());
-      padding_size.push_back(padding_size.back());
+    if (paddings.size() == 2) {
+      paddings.insert(paddings.begin(), paddings.front());
+      paddings.push_back(paddings.back());
     }
-    attrs["padding_size"] = padding_size;
     CHECK(op_desc.HasAttr("ceil_mode"));
-    attrs["ceil_mode"] = op_desc.GetAttr<bool>("ceil_mode");
+    auto ceil_mode = op_desc.GetAttr<bool>("ceil_mode");
     CHECK(op_desc.HasAttr("exclusive"));
-    attrs["exclusive"] = op_desc.GetAttr<bool>("exclusive");
+    auto exclusive = op_desc.GetAttr<bool>("exclusive");
     CHECK(op_desc.HasAttr("data_format"));
-    attrs["data_format"] = op_desc.GetAttr<std::string>("data_format");
+    auto data_format = op_desc.GetAttr<std::string>("data_format");
     CHECK(op_desc.HasAttr("global_pooling"));
-    attrs["global_pooling"] = op_desc.GetAttr<bool>("global_pooling");
+    auto global_pooling = op_desc.GetAttr<bool>("global_pooling");
     CHECK(op_desc.HasAttr("adaptive"));
-    attrs["adaptive"] = op_desc.GetAttr<bool>("adaptive");
+    auto adaptive = op_desc.GetAttr<bool>("adaptive");
 
     auto x   = GetVar(TransValidVarName(x_name));
-    auto out = program_->pool2d(x, attrs);
+    auto out = net_builder_->Pool2d(
+        x, pool_type, ksize, strides, paddings, ceil_mode, exclusive, global_pooling, data_format, adaptive);
 
     AddVar(TransValidVarName(out_name), out);
     var_model_to_program_map_[out_name] = out->id;
@@ -532,22 +525,23 @@ void PaddleModelToProgram::AddOpMapper_batchnorm() {
     CHECK(!op_desc.Output("Y").empty());
     auto out_name = op_desc.Output("Y").front();
 
-    absl::flat_hash_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
+    auto x        = GetVar(TransValidVarName(x_name));
+    auto scale    = GetVar(TransValidVarName(scale_name));
+    auto bias     = GetVar(TransValidVarName(bias_name));
+    auto mean     = GetVar(TransValidVarName(mean_name));
+    auto variance = GetVar(TransValidVarName(variance_name));
     CHECK(op_desc.HasAttr("epsilon"));
-    attrs["epsilon"] = op_desc.GetAttr<float>("epsilon");
-    auto x           = GetVar(TransValidVarName(x_name));
-    auto scale       = GetVar(TransValidVarName(scale_name));
-    auto bias        = GetVar(TransValidVarName(bias_name));
-    auto mean        = GetVar(TransValidVarName(mean_name));
-    auto variance    = GetVar(TransValidVarName(variance_name));
-#ifndef CINN_WITH_CUDNN
-    auto out = program_->fused_batchnorm_inference(x, scale, bias, mean, variance, attrs);
-#else
-    auto out = program_->batchnorm(x, scale, bias, mean, variance, attrs);
-#endif
+    auto epsilon = op_desc.GetAttr<float>("epsilon");
+    CHECK(op_desc.HasAttr("momentum"));
+    auto momentum = op_desc.GetAttr<float>("momentum");
+    // CHECK(op_desc.HasAttr("data_format"));
+    // auto data_format = op_desc.GetAttr<std::string>("data_format");
+    std::string data_format = "NCHW";
 
-    AddVar(TransValidVarName(out_name), out);
-    var_model_to_program_map_[out_name] = out->id;
+    auto out = net_builder_->BatchNorm(x, scale, bias, mean, variance, epsilon, momentum, data_format, true);
+
+    AddVar(TransValidVarName(out_name), out[0]);
+    var_model_to_program_map_[out_name] = out[0]->id;
   };
 }
 
@@ -557,9 +551,8 @@ void PaddleModelToProgram::AddOpMapper_sigmoid() {
     auto x_name = op_desc.Input("X").front();
     CHECK_EQ(op_desc.Output("Out").size(), 1UL);
     auto out_name = op_desc.Output("Out").front();
-
-    auto x   = GetVar(TransValidVarName(x_name));
-    auto out = program_->sigmoid(x);
+    auto x        = GetVar(TransValidVarName(x_name));
+    auto out      = net_builder_->Sigmoid(x);
 
     AddVar(TransValidVarName(out_name), out);
     var_model_to_program_map_[out_name] = out->id;
@@ -575,13 +568,13 @@ void PaddleModelToProgram::AddOpMapper_slice() {
 
     absl::flat_hash_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
     CHECK(op_desc.HasAttr("starts"));
-    attrs["starts"] = op_desc.GetAttr<std::vector<int>>("starts");
+    auto starts = op_desc.GetAttr<std::vector<int>>("starts");
     CHECK(op_desc.HasAttr("ends"));
-    attrs["ends"] = op_desc.GetAttr<std::vector<int>>("ends");
+    auto end = op_desc.GetAttr<std::vector<int>>("ends");
     CHECK(op_desc.HasAttr("axes"));
-    attrs["axes"] = op_desc.GetAttr<std::vector<int>>("axes");
-    auto x        = GetVar(TransValidVarName(x_name));
-    auto out      = program_->slice(x, attrs);
+    auto axes = op_desc.GetAttr<std::vector<int>>("axes");
+    auto x    = GetVar(TransValidVarName(x_name));
+    auto out  = net_builder_->Slice(x, axes, starts, end);
 
     AddVar(TransValidVarName(out_name), out);
     var_model_to_program_map_[out_name] = out->id;
@@ -597,11 +590,11 @@ void PaddleModelToProgram::AddOpMapper_dropout_infer() {
 
     absl::flat_hash_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
     CHECK(op_desc.HasAttr("dropout_prob"));
-    attrs["dropout_prob"] = op_desc.GetAttr<float>("dropout_prob");
+    auto dropout_prob = op_desc.GetAttr<float>("dropout_prob");
     CHECK(op_desc.HasAttr("dropout_implementation"));
-    attrs["dropout_implementation"] = op_desc.GetAttr<std::string>("dropout_implementation");
-    auto x                          = GetVar(TransValidVarName(x_name));
-    auto out                        = program_->dropout_infer(x, attrs);
+    auto dropout_implementation = op_desc.GetAttr<std::string>("dropout_implementation");
+    auto x                      = GetVar(TransValidVarName(x_name));
+    auto out                    = net_builder_->DropoutInfer(x, dropout_prob, dropout_implementation);
 
     AddVar(TransValidVarName(out_name), out);
     var_model_to_program_map_[out_name] = out->id;
@@ -731,7 +724,7 @@ std::unique_ptr<Program> PaddleModelToProgram::operator()(const std::string& mod
     auto* op_desc = block_desc->GetOp<paddle::cpp::OpDesc>(i);
     AddOp(*op_desc);
   }
-  return std::move(program_);
+  return std::unique_ptr<Program>(new Program(net_builder_->Build()));
 }
 
 void PaddleModelToProgram::AddVar(const std::string& name, const Variable& var, bool replace) {

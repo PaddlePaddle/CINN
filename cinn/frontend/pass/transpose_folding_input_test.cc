@@ -34,14 +34,14 @@ void RunWithProgram(const Program& program,
                     const Target& target,
                     const std::shared_ptr<hlir::framework::Scope>& scope) {
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  hlir::framework::ApplyPasses(graph.get(), {"InferShape", "OpFusion"});
+  hlir::framework::ApplyPasses(graph.get(), {"OpFusionPass"});
   VLOG(1) << "graph:\n" << graph->Visualize();
   hlir::framework::GraphCompiler gc(target, scope, graph);
   auto runtime_program = gc.Build();
   runtime_program->Execute();
 }
 
-TEST(TransposeFoldingInput, FoldIntoDotBachedCase1) {
+TEST(TransposeFoldingInput, FoldIntoDotBatchedCase1) {
   NetBuilder builder("net_builder");
   auto x           = builder.CreateInput(Float(32), {4, 5, 3}, "X");
   auto y           = builder.CreateInput(Float(32), {4, 5, 6}, "Y");

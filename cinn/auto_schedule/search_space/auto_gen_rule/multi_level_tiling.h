@@ -38,18 +38,14 @@ class MultiLevelTiling : public AutoGenRule {
 
   // initailize the AutoGenRule, it must be called before further actions.
   // Returns false if the rule cannot be applied on the mod_expr, true otherwise
-  RuleApplyType Init(const ir::ModuleExpr& mod_expr) override;
+  RuleApplyType Init(ir::IRSchedule* init_schedule) override;
 
   // Applies rule on the ir::ModuleExpr for a schedule block specified by index
   // between 0 (inclusive) and NumberApplicable() (exclusive)
-  ir::ModuleExpr Apply(int index) override;
+  void Apply(int index) override;
 
   // Returns the name of the rule, used for debug.
   std::string GetRuleName() const override;
-
-  // Returns a pointer pointing to this rule. This class doesn't own the
-  // pointer, caller should manage the life time of the pointer.
-  AutoGenRule* NewPointer() const override;
 
   // Returns true if sche_block_realize is applicable by MultiLevelTiling
   bool MeetCondition(const ir::ScheduleBlockRealize& sche_block_realize) const;
@@ -95,7 +91,6 @@ class MultiLevelTiling : public AutoGenRule {
   }
 
  private:
-  std::unique_ptr<ir::IRSchedule> ir_schedule_;
   std::vector<ir::Expr> all_block_realizes_;
   std::vector<int> applicable_indices_;
 
