@@ -164,24 +164,23 @@ void CheckFusionAccuracyPass::CreateCheckNodeOutputs(Node* old_node, NodePtr new
 
     const auto& out_node_id = out_node->id();
     // If the check node's output variable node not created
-    if (!old2new_nodedata_map_.count(out_node)) {
-      const auto& check_out_node_id = utils::GenerateCheckFusionAccuracyNodeId(out_node_id);
+    CHECK_EQ(old2new_nodedata_map_.count(out_node), 0) << "The graph is not a SSA graph! Please check.";
 
-      auto check_out_node          = CreateOutputNode(new_node, check_out_node_id);
-      check_out_node->output_index = out_node->output_index;
+    const auto& check_out_node_id = utils::GenerateCheckFusionAccuracyNodeId(out_node_id);
 
-      // why assign twice? only assign once may cause useless assign, a puzzling bug
-      shape_dict_[check_out_node_id] = shape_dict_.at(out_node_id);
-      shape_dict_[check_out_node_id] = shape_dict_.at(out_node_id);
+    auto check_out_node          = CreateOutputNode(new_node, check_out_node_id);
+    check_out_node->output_index = out_node->output_index;
 
-      dtype_dict_[check_out_node_id] = dtype_dict_.at(out_node_id);
-      dtype_dict_[check_out_node_id] = dtype_dict_.at(out_node_id);
+    auto check_out_shape = shape_dict_.at(out_node_id);
+    shape_dict_.emplace(check_out_node_id, std::move(check_out_shape));
 
-      VLOG(4) << "Create the check fusion accuracy node of node " << old_node->id() << "'s output node "
-              << DebugNodeData(out_node) << " success, which is " << DebugNodeData(check_out_node);
+    auto check_out_dtype = dtype_dict_.at(out_node_id);
+    dtype_dict_.emplace(check_out_node_id, std::move(check_out_dtype));
 
-      old2new_nodedata_map_[out_node] = check_out_node;
-    }
+    VLOG(4) << "Create the check fusion accuracy node of node " << old_node->id() << "'s output node "
+            << DebugNodeData(out_node) << " success, which is " << DebugNodeData(check_out_node);
+
+    old2new_nodedata_map_[out_node] = check_out_node;
   }
 }
 
@@ -227,11 +226,10 @@ OpPatternKind CheckFusionAccuracyPass::GetOpKind(const framework::Node* node) {
   CHECK(op_pattern_dict_->Find(node->op())) << "Don't find the pattern of op : " << node->id();
   auto kind = op_pattern_dict_[0][node->op()];
 
-  CHECK_NE(kind, framework::kTuple) << "kTuple is not support now!";
   if (kind == framework::kBroadcast) {
     // As binary op was defined as broadcast, actually it should be element-wise.
     if (node->op()->name != "broadcast_to") {
-      return framework::kElemWise;
+      return framework::kElementWise;
     }
   }
 
@@ -278,11 +276,9 @@ std::pair<NodePtr, NodeData*> CheckFusionAccuracyPass::CreateIsCloseNode(const s
   // create node's output data node
   auto output_data = CreateOutputNode(is_close_node);
 
-  shape_dict_[output_data->id()] = shape_dict_.at(node_id);
-  shape_dict_[output_data->id()] = shape_dict_.at(node_id);
-
-  dtype_dict_[output_data->id()] = common::Bool();
-  dtype_dict_[output_data->id()] = common::Bool();
+  auto check_out_shape = shape_dict_.at(node_id);
+  shape_dict_.emplace(output_data->id(), std::move(check_out_shape));
+  dtype_dict_.emplace(output_data->id(), common::Bool());
 
   VLOG(4) << "Create node " << node_id << "'s isclose node success, whose id is " << is_close_node_id
           << ", whose output is " << DebugNodeData(output_data);
@@ -308,11 +304,8 @@ std::pair<NodePtr, NodeData*> CheckFusionAccuracyPass::CreateAllNode(const std::
   // create node's output data node
   auto output_data = CreateOutputNode(all_node);
 
-  shape_dict_[output_data->id()] = framework::shape_t{1};
-  shape_dict_[output_data->id()] = framework::shape_t{1};
-
-  dtype_dict_[output_data->id()] = common::Bool();
-  dtype_dict_[output_data->id()] = common::Bool();
+  shape_dict_.emplace(output_data->id(), framework::shape_t{1});
+  dtype_dict_.emplace(output_data->id(), common::Bool());
 
   VLOG(4) << "Create node " << node_id << "'s all node success, whose id is " << all_node_id << ", whose output is "
           << DebugNodeData(output_data);
@@ -335,11 +328,8 @@ std::pair<NodePtr, NodeData*> CheckFusionAccuracyPass::CreateAssertNode(const st
   // create node's output data node
   auto output_data = CreateOutputNode(assert_node);
 
-  shape_dict_[output_data->id()] = framework::shape_t{1};
-  shape_dict_[output_data->id()] = framework::shape_t{1};
-
-  dtype_dict_[output_data->id()] = common::Bool();
-  dtype_dict_[output_data->id()] = common::Bool();
+  shape_dict_.emplace(output_data->id(), framework::shape_t{1});
+  dtype_dict_.emplace(output_data->id(), common::Bool());
 
   VLOG(4) << "Create node " << node_id << "'s assert node success, whose id is " << assert_node_id
           << ", whose output is " << DebugNodeData(output_data);
