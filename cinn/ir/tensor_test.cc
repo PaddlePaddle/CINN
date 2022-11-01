@@ -55,9 +55,9 @@ TEST(Tensor, inlined) {
   EXPECT_EQ(Trim(out), Trim(R"ROC(
 function func_C (_A, _B, _D)
 {
-  for (i, 0, 100)
+  serial for (i, 0, 100)
   {
-    for (j, 0, 20)
+    serial for (j, 0, 20)
     {
       D[i, j] = (1 + ((2 * A[i, j]) + (2 * B[i, j])))
     }

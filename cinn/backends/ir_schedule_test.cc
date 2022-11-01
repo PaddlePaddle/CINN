@@ -525,9 +525,9 @@ function test_vectorize (_A, _B)
 {
   ScheduleBlock(root)
   {
-    for (i, 0, 32)
+    serial for (i, 0, 32)
     {
-      vectorize_16 for (j, 0, 32)
+      vectorize[16] for (j, 0, 32)
       {
         ScheduleBlock(B)
         {
@@ -601,7 +601,7 @@ function test_unroll (_A, _B)
 {
   ScheduleBlock(root)
   {
-    for (i, 0, 32)
+    serial for (i, 0, 32)
     {
       unroll for (j, 0, 2)
       {
@@ -676,9 +676,9 @@ function test_bind (_A, _B)
 {
   ScheduleBlock(root)
   {
-    thread_bind_blockIdx.x for (i, 0, 32)
+    thread_bind[blockIdx.x] for (i, 0, 32)
     {
-      for (j, 0, 2)
+      serial for (j, 0, 2)
       {
         ScheduleBlock(B)
         {
@@ -1191,9 +1191,9 @@ void test_cache_read1(void* _args, int32_t num_args)
   float* B = ((float*)(_B->memory));
   float* C = ((float*)(_C->memory));
   {
-    for (int32_t ax0 = 0; ax0 < 32; ax0 += 1) {
-      for (int32_t ax1 = 0; ax1 < 32; ax1 += 1) {
-        A_local_temp_buffer[((64 * ax0) + ax1)] = A[((64 * ax0) + ax1)];
+    for (int32_t cache_ax0 = 0; cache_ax0 < 32; cache_ax0 += 1) {
+      for (int32_t cache_ax1 = 0; cache_ax1 < 32; cache_ax1 += 1) {
+        A_local_temp_buffer[((64 * cache_ax0) + cache_ax1)] = A[((64 * cache_ax0) + cache_ax1)];
       };
     };
     for (int32_t i = 0; i < 32; i += 1) {
@@ -1201,9 +1201,9 @@ void test_cache_read1(void* _args, int32_t num_args)
         B[((32 * i) + j)] = (2 * A_local_temp_buffer[((64 * i) + j)]);
       };
     };
-    for (int32_t ax0 = 0; ax0 < 16; ax0 += 1) {
-      for (int32_t ax1 = 0; ax1 < 16; ax1 += 1) {
-        B_local_temp_buffer[((32 * ax0) + ax1)] = B[((32 * ax0) + ax1)];
+    for (int32_t cache_ax0_0 = 0; cache_ax0_0 < 16; cache_ax0_0 += 1) {
+      for (int32_t cache_ax1_0 = 0; cache_ax1_0 < 16; cache_ax1_0 += 1) {
+        B_local_temp_buffer[((32 * cache_ax0_0) + cache_ax1_0)] = B[((32 * cache_ax0_0) + cache_ax1_0)];
       };
     };
     for (int32_t i = 0; i < 16; i += 1) {
@@ -1348,9 +1348,9 @@ void test_cache_write1(void* _args, int32_t num_args)
         B_local_temp_buffer[((32 * i) + j)] = (2 * A[((32 * i) + j)]);
       };
     };
-    for (int32_t ax0 = 0; ax0 < 64; ax0 += 1) {
-      for (int32_t ax1 = 0; ax1 < 32; ax1 += 1) {
-        B[((32 * ax0) + ax1)] = B_local_temp_buffer[((32 * ax0) + ax1)];
+    for (int32_t cache_ax0 = 0; cache_ax0 < 64; cache_ax0 += 1) {
+      for (int32_t cache_ax1 = 0; cache_ax1 < 32; cache_ax1 += 1) {
+        B[((32 * cache_ax0) + cache_ax1)] = B_local_temp_buffer[((32 * cache_ax0) + cache_ax1)];
       };
     };
     for (int32_t i = 0; i < 64; i += 1) {
@@ -1358,9 +1358,9 @@ void test_cache_write1(void* _args, int32_t num_args)
         C_local_temp_buffer[((32 * i) + j)] = (1 + B[((32 * i) + j)]);
       };
     };
-    for (int32_t ax0 = 0; ax0 < 64; ax0 += 1) {
-      for (int32_t ax1 = 0; ax1 < 32; ax1 += 1) {
-        C[((32 * ax0) + ax1)] = C_local_temp_buffer[((32 * ax0) + ax1)];
+    for (int32_t cache_ax0_0 = 0; cache_ax0_0 < 64; cache_ax0_0 += 1) {
+      for (int32_t cache_ax1_0 = 0; cache_ax1_0 < 32; cache_ax1_0 += 1) {
+        C[((32 * cache_ax0_0) + cache_ax1_0)] = C_local_temp_buffer[((32 * cache_ax0_0) + cache_ax1_0)];
       };
     };
   };
@@ -1423,10 +1423,10 @@ void test_cache_write2(void* _args, int32_t num_args)
   cinn_buffer_malloc((void*)(0), _B);
   const float* A = ((const float*)(_A->memory));
   float* B = ((float*)(_B->memory));
-  for (int32_t ax0 = 0; ax0 < 64; ax0 += 1) {
-    for (int32_t ax1 = 0; ax1 < 32; ax1 += 1) {
-      B_local_temp_buffer[((32 * ax0) + ax1)] = (2 * A[((32 * ax0) + ax1)]);
-      B[((32 * ax0) + ax1)] = B_local_temp_buffer[((32 * ax0) + ax1)];
+  for (int32_t cache_ax0 = 0; cache_ax0 < 64; cache_ax0 += 1) {
+    for (int32_t cache_ax1 = 0; cache_ax1 < 32; cache_ax1 += 1) {
+      B_local_temp_buffer[((32 * cache_ax0) + cache_ax1)] = (2 * A[((32 * cache_ax0) + cache_ax1)]);
+      B[((32 * cache_ax0) + cache_ax1)] = B_local_temp_buffer[((32 * cache_ax0) + cache_ax1)];
     };
   };
   cinn_buffer_free((void*)(0), _B);
@@ -1502,9 +1502,9 @@ void test_cache_read3(const float* __restrict__ A, float* __restrict__ C)
   float _B_temp_buffer [ 1024 ];
   float* B = _B_temp_buffer;
   {
-    for (int32_t ax0 = 0; ax0 < 32; ax0 += 1) {
-      for (int32_t ax1 = 0; ax1 < 32; ax1 += 1) {
-        A_local_temp_buffer[((64 * ax0) + ax1)] = A[((64 * ax0) + ax1)];
+    for (int32_t cache_ax0 = 0; cache_ax0 < 32; cache_ax0 += 1) {
+      for (int32_t cache_ax1 = 0; cache_ax1 < 32; cache_ax1 += 1) {
+        A_local_temp_buffer[((64 * cache_ax0) + cache_ax1)] = A[((64 * cache_ax0) + cache_ax1)];
       };
     };
     for (int32_t i = 0; i < 32; i += 1) {
@@ -1513,9 +1513,9 @@ void test_cache_read3(const float* __restrict__ A, float* __restrict__ C)
       };
       __syncthreads();
     };
-    for (int32_t ax0 = 0; ax0 < 16; ax0 += 1) {
-      for (int32_t ax1 = 0; ax1 < 16; ax1 += 1) {
-        B_local_temp_buffer[((32 * ax0) + ax1)] = B[((32 * ax0) + ax1)];
+    for (int32_t cache_ax0_0 = 0; cache_ax0_0 < 16; cache_ax0_0 += 1) {
+      for (int32_t cache_ax1_0 = 0; cache_ax1_0 < 16; cache_ax1_0 += 1) {
+        B_local_temp_buffer[((32 * cache_ax0_0) + cache_ax1_0)] = B[((32 * cache_ax0_0) + cache_ax1_0)];
       };
     };
     for (int32_t i = 0; i < 16; i += 1) {
@@ -1600,9 +1600,9 @@ void test_cache_write3(const float* __restrict__ A, float* __restrict__ C)
         B_local_temp_buffer[((32 * i) + j)] = (2 * A[((32 * i) + j)]);
       };
     };
-    for (int32_t ax0 = 0; ax0 < 64; ax0 += 1) {
-      for (int32_t ax1 = 0; ax1 < 32; ax1 += 1) {
-        B[((32 * ax0) + ax1)] = B_local_temp_buffer[((32 * ax0) + ax1)];
+    for (int32_t cache_ax0 = 0; cache_ax0 < 64; cache_ax0 += 1) {
+      for (int32_t cache_ax1 = 0; cache_ax1 < 32; cache_ax1 += 1) {
+        B[((32 * cache_ax0) + cache_ax1)] = B_local_temp_buffer[((32 * cache_ax0) + cache_ax1)];
       };
     };
     __syncthreads();
@@ -1612,9 +1612,9 @@ void test_cache_write3(const float* __restrict__ A, float* __restrict__ C)
       };
     };
     __syncthreads();
-    for (int32_t ax0 = 0; ax0 < 64; ax0 += 1) {
-      for (int32_t ax1 = 0; ax1 < 32; ax1 += 1) {
-        C[((32 * ax0) + ax1)] = C_local_temp_buffer[((32 * ax0) + ax1)];
+    for (int32_t cache_ax0_0 = 0; cache_ax0_0 < 64; cache_ax0_0 += 1) {
+      for (int32_t cache_ax1_0 = 0; cache_ax1_0 < 32; cache_ax1_0 += 1) {
+        C[((32 * cache_ax0_0) + cache_ax1_0)] = C_local_temp_buffer[((32 * cache_ax0_0) + cache_ax1_0)];
       };
     };
   };
@@ -1693,9 +1693,9 @@ void test_sync_threads(const float* __restrict__ A, float* __restrict__ C)
         B_local_temp_buffer[((32 * i) + j)] = (2 * A[((32 * i) + j)]);
       };
     };
-    for (int32_t ax0 = 0; ax0 < 64; ax0 += 1) {
-      for (int32_t ax1 = 0; ax1 < 32; ax1 += 1) {
-        B[((32 * ax0) + ax1)] = B_local_temp_buffer[((32 * ax0) + ax1)];
+    for (int32_t cache_ax0 = 0; cache_ax0 < 64; cache_ax0 += 1) {
+      for (int32_t cache_ax1 = 0; cache_ax1 < 32; cache_ax1 += 1) {
+        B[((32 * cache_ax0) + cache_ax1)] = B_local_temp_buffer[((32 * cache_ax0) + cache_ax1)];
         __syncthreads();
       };
     };
@@ -1704,10 +1704,10 @@ void test_sync_threads(const float* __restrict__ A, float* __restrict__ C)
         C_local_temp_buffer[((32 * i) + j)] = (1 + B[((32 * i) + j)]);
       };
     };
-    for (int32_t ax0 = 0; ax0 < 64; ax0 += 1) {
-      for (int32_t ax1 = 0; ax1 < 32; ax1 += 1) {
+    for (int32_t cache_ax0_0 = 0; cache_ax0_0 < 64; cache_ax0_0 += 1) {
+      for (int32_t cache_ax1_0 = 0; cache_ax1_0 < 32; cache_ax1_0 += 1) {
         __syncthreads();
-        C[((32 * ax0) + ax1)] = C_local_temp_buffer[((32 * ax0) + ax1)];
+        C[((32 * cache_ax0_0) + cache_ax1_0)] = C_local_temp_buffer[((32 * cache_ax0_0) + cache_ax1_0)];
       };
     };
   };
@@ -1759,16 +1759,16 @@ function test_rfactor (_A, _B)
   ScheduleBlock(root)
   {
     {
-      for (rf_k0, 0, 16)
+      serial for (rf_k0, 0, 16)
       {
-        for (i, 0, 32)
+        serial for (i, 0, 32)
         {
           ScheduleBlock(rf_B__reduce_init)
           {
             i0, i1 = axis.bind(i, rf_k0)
             rf_B__reduce_init[i1, i0] = 0
           }
-          for (j0, 0, 2)
+          serial for (j0, 0, 2)
           {
             ScheduleBlock(rf_B)
             {
@@ -1778,14 +1778,14 @@ function test_rfactor (_A, _B)
           }
         }
       }
-      for (i, 0, 32)
+      serial for (i, 0, 32)
       {
         ScheduleBlock(B__reduce_init)
         {
           i0 = axis.bind(i)
           B__reduce_init[i0] = 0
         }
-        for (k0, 0, 16)
+        serial for (k0, 0, 16)
         {
           ScheduleBlock(B)
           {
@@ -1889,16 +1889,16 @@ function test_rfactor (_A, _B)
   ScheduleBlock(root)
   {
     {
-      for (i, 0, 32)
+      serial for (i, 0, 32)
       {
-        for (rf_j0, 0, 2)
+        serial for (rf_j0, 0, 2)
         {
           ScheduleBlock(rf_B__reduce_init)
           {
             i0, i1 = axis.bind(i, rf_j0)
             rf_B__reduce_init[i0, i1] = 0
           }
-          for (k0, 0, 16)
+          serial for (k0, 0, 16)
           {
             ScheduleBlock(rf_B)
             {
@@ -1908,14 +1908,14 @@ function test_rfactor (_A, _B)
           }
         }
       }
-      for (i, 0, 32)
+      serial for (i, 0, 32)
       {
         ScheduleBlock(B__reduce_init)
         {
           i0 = axis.bind(i)
           B__reduce_init[i0] = 0
         }
-        for (j0, 0, 2)
+        serial for (j0, 0, 2)
         {
           ScheduleBlock(B)
           {
@@ -2015,11 +2015,11 @@ function test_rfactor (_A, _B, _C)
   ScheduleBlock(root)
   {
     {
-      for (rf_k0, 0, 16)
+      serial for (rf_k0, 0, 16)
       {
-        for (i, 0, 32)
+        serial for (i, 0, 32)
         {
-          for (j, 0, 2)
+          serial for (j, 0, 2)
           {
             ScheduleBlock(rf_C__reduce_init)
             {
@@ -2034,16 +2034,16 @@ function test_rfactor (_A, _B, _C)
           }
         }
       }
-      for (i, 0, 32)
+      serial for (i, 0, 32)
       {
-        for (j, 0, 2)
+        serial for (j, 0, 2)
         {
           ScheduleBlock(C__reduce_init)
           {
             i0, i1 = axis.bind(i, j)
             C__reduce_init[i0, i1] = 0
           }
-          for (k0, 0, 16)
+          serial for (k0, 0, 16)
           {
             ScheduleBlock(C)
             {
@@ -2584,7 +2584,7 @@ TEST(IrSchedule, Annotate) {
   std::string expected_expr = R"ROC({
   ScheduleBlock(root)
   {
-    for (i_j_fused, 0, 1024)
+    serial for (i_j_fused, 0, 1024)
     {
       ScheduleBlock(B)
       {

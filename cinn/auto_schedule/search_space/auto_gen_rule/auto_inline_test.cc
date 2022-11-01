@@ -98,7 +98,7 @@ TEST(AutoInline, SingleLoopInline) {
   ScheduleBlock(root)
   {
     {
-      for (i, 0, 32)
+      serial for (i, 0, 32)
       {
         ScheduleBlock(C)
         {
@@ -183,11 +183,11 @@ TEST(AutoInline, AddReluInline) {
   ScheduleBlock(root)
   {
     {
-      for (j, 0, 64)
+      serial for (j, 0, 64)
       {
-        for (k, 0, 112)
+        serial for (k, 0, 112)
         {
-          for (a, 0, 112)
+          serial for (a, 0, 112)
           {
             ScheduleBlock(var_2)
             {

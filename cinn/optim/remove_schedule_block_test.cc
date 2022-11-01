@@ -49,16 +49,16 @@ function matmul (_A, _B, _C)
 {
   ScheduleBlock(root)
   {
-    for (i, 0, 100)
+    serial for (i, 0, 100)
     {
-      for (j, 0, 50)
+      serial for (j, 0, 50)
       {
         ScheduleBlock(C__reduce_init)
         {
           i0, i1 = axis.bind(i, j)
           C__reduce_init[i0, i1] = 0
         }
-        for (k0, 0, 20)
+        serial for (k0, 0, 20)
         {
           ScheduleBlock(C)
           {
@@ -79,12 +79,12 @@ function matmul (_A, _B, _C)
   EXPECT_EQ(utils::GetStreamCnt(func), utils::Trim(R"ROC(
 function matmul (_A, _B, _C)
 {
-  for (i, 0, 100)
+  serial for (i, 0, 100)
   {
-    for (j, 0, 50)
+    serial for (j, 0, 50)
     {
       C__reduce_init[i, j] = 0
-      for (k0, 0, 20)
+      serial for (k0, 0, 20)
       {
         C[i, j] = (C[i, j] + (A[i, k0] * B[k0, j]))
       }
