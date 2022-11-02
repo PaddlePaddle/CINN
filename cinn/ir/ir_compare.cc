@@ -1,4 +1,4 @@
-// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+// Copyright (c) 2022 CINN Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,6 +14,8 @@
 
 #include "cinn/ir/ir_compare.h"
 
+#include <regex>
+
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_printer.h"
 
@@ -25,8 +27,11 @@ bool IrEqualVisitor::Compare(const Expr& lhs, const Expr& rhs) {
     return true;
   }
 
-  bool equal = lhs.defined() && rhs.defined();  // someone invalid
-  equal      = equal && lhs->node_type() == rhs->node_type();
+  if (!lhs.defined() || !rhs.defined()) {  // someone invalid
+    return false;
+    VLOG(5) << "Not equal on Expr, someone not defined";
+  }
+  bool equal = lhs->node_type() == rhs->node_type();
   equal      = equal && IRVisitorBase<bool, const Expr*>::Visit(&lhs, &rhs);
 
   if (!equal) {
@@ -39,18 +44,24 @@ bool IrEqualVisitor::Compare(const Expr& lhs, const Expr& rhs) {
 
 bool IrEqualVisitor::Compare(const std::string& lhs, const std::string& rhs, bool allow_name_suffix_diff) {
   // if allow_name_suffix_diff=true then just compare the name prefix before the "_[0-9]+"
-  auto remove_idx_fn = [](const std::string& name) -> std::string {
-    auto idx_pos = name.find_last_of('_');
-    return idx_pos == std::string::npos ? name : name.substr(0, idx_pos);
+  auto common_len = 0;
+  for (; common_len < lhs.size() && common_len < rhs.size(); ++common_len) {
+    if (lhs[common_len] != rhs[common_len]) break;
+  }
+
+  auto is_endswith_index = [&common_len](const std::string& name) {
+    const std::regex txt_regex("_\\d+");
+    return common_len == name.size() || std::regex_match(name.substr(common_len), txt_regex);
   };
 
-  bool equal = true;
-  if (!allow_name_suffix_diff) {
-    equal = lhs == rhs;
+  bool equal = false;
+  if (common_len == lhs.size() && common_len == rhs.size()) {
+    equal = true;
   } else {
-    auto lhs_prefix = remove_idx_fn(lhs);
-    auto rhs_prefix = remove_idx_fn(rhs);
-    equal           = lhs_prefix == rhs_prefix;
+    equal = false;
+    if (allow_name_suffix_diff) {
+      equal = is_endswith_index(lhs) && is_endswith_index(rhs);
+    }
   }
 
   if (!equal) {

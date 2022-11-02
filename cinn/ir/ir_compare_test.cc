@@ -18,6 +18,7 @@
 #include <gtest/gtest.h>
 
 #include "cinn/cinn.h"
+#include "cinn/utils/string.h"
 
 namespace cinn {
 namespace ir {
@@ -42,12 +43,70 @@ TEST(TestIrCompare, SingleFunction) {
   ASSERT_EQ(funcs_2.size(), 1);
   ASSERT_EQ(funcs_3.size(), 1);
 
-  IrEqualVistor compartor;
+  std::string func1_str = R"ROC(function add_const (_A, _B)
+{
+  ScheduleBlock(root)
+  {
+    for (i, 0, 32)
+    {
+      for (j, 0, 32)
+      {
+        ScheduleBlock(B)
+        {
+          i0, i1 = axis.bind(i, j)
+          B[i0, i1] = (2 + A[i0, i1])
+        }
+      }
+    }
+  }
+})ROC";
+
+  std::string func2_str = R"ROC(function add_const (_A, _B)
+{
+  ScheduleBlock(root_0)
+  {
+    for (i, 0, 32)
+    {
+      for (j, 0, 32)
+      {
+        ScheduleBlock(B)
+        {
+          i0, i1 = axis.bind(i, j)
+          B[i0, i1] = (2 + A[i0, i1])
+        }
+      }
+    }
+  }
+})ROC";
+
+  std::string func3_str = R"ROC(function add_const (_A, _C)
+{
+  ScheduleBlock(root_1)
+  {
+    for (i, 0, 32)
+    {
+      for (j, 0, 32)
+      {
+        ScheduleBlock(C)
+        {
+          i0, i1 = axis.bind(i, j)
+          C[i0, i1] = (2 + A[i0, i1])
+        }
+      }
+    }
+  }
+})ROC";
+
+  ASSERT_EQ(func1_str, utils::GetStreamCnt(funcs_1.front()));
+  ASSERT_EQ(func2_str, utils::GetStreamCnt(funcs_2.front()));
+  ASSERT_EQ(func3_str, utils::GetStreamCnt(funcs_3.front()));
+
+  IrEqualVisitor compartor;
   // they are different at the name of root ScheduleBlock
   ASSERT_FALSE(compartor.Compare(funcs_1.front(), funcs_2.front()));
   // compare with itself
   ASSERT_TRUE(compartor.Compare(funcs_1.front(), funcs_1.front()));
-  IrEqualVistor compartor_allow_suffix_diff(true);
+  IrEqualVisitor compartor_allow_suffix_diff(true);
   // they are euqal if allowing suffix of name different
   ASSERT_TRUE(compartor_allow_suffix_diff.Compare(funcs_1.front(), funcs_2.front()));
 
