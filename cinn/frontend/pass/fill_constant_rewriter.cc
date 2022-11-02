@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <functional>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -24,17 +25,41 @@ namespace cinn {
 namespace frontend {
 namespace pass {
 
-// ReshapeRewriterPass simplify instructions in following patterns:
+// map from op type to {remove check function, replace replace function}
+static std::unordered_map<
+    std::string,
+    std::pair<std::function<bool(const Instruction&)>, std::function<void(const Instruction&, Instruction*)>>>
+    rewriter_ops = {{"reshape",
+                     {[](const Instruction& instr) {
+                        auto& input_var  = instr->inputs[0];
+                        auto& output_var = instr->outputs[0];
+                        return (input_var->id != output_var->id) && (input_var->shape == output_var->shape);
+                      },
+                      [](const Instruction& instr, Instruction* fill_constant) {
+                        (*fill_constant)->outputs[0]     = instr->outputs[0];
+                        (*fill_constant)->attrs["shape"] = instr->outputs[0]->shape;
+                      }}},
+                    {"scale",
+                     {[](const Instruction& instr) {
+                        return !instr->attrs.count("scale") || instr.GetAttrs<float>("scale") == 1.0f;
+                      },
+                      [](const Instruction& instr, Instruction* fill_constant) {
+                        (*fill_constant)->outputs[0] = instr->outputs[0];
+                        auto scale = instr->attrs.count("scale") ? instr.GetAttrs<float>("scale") : 1.0f;
+                        fill_constant->SetAttr("value", fill_constant->GetAttrs<float>("value") * scale);
+                      }}}};
+
+// FillConstantRewriterPass simplify instructions in following patterns:
 //
-// 1. Change reshape to identity, if the shape of input and output is the same. The identity can be removed by
+// 1. Change reshape/scale to identity, if the shape of input and output is the same. The identity can be removed by
 // RemoveIdentityPass.
-// 2. Simplify fill_constant + reshape to a single fill_constant, if varA/varB is not in fetch_ids.
+// 2. Simplify fill_constant + reshape/scale to a single fill_constant, if varA/varB is not in fetch_ids.
 //        fill_constant              fill_constant
 //              | varA                     |
-//           reshape           =>          | varA/varB
+//           reshape/scale     =>          | varA/varB
 //              | varB                     |
 //            instrX                     instrX
-class ReshapeRewriterPass : public ProgramPass {
+class FillConstantRewriterPass : public ProgramPass {
  public:
   using ProgramPass::ProgramPass;
 
@@ -62,8 +87,7 @@ class ReshapeRewriterPass : public ProgramPass {
         auto iter         = outputs2instr_.find(instr->inputs[0].get());
         auto& input_instr = iter->second;
         CHECK(input_instr->op_type == "fill_constant") << "The previous op's type is not fill_constant, please check.";
-        input_instr->outputs[0]     = instr->outputs[0];
-        input_instr->attrs["shape"] = instr->outputs[0]->shape;
+        rewriter_ops.at(instr->op_type).second(instr, &input_instr);
       } else {
         if (replace_idxs_.count(i)) {
           instr->op_type = "identity";
@@ -95,7 +119,7 @@ class ReshapeRewriterPass : public ProgramPass {
 
     for (int i = 0; i < program.size(); ++i) {
       const auto& instr = program[i];
-      if (instr->op_type != "reshape") {
+      if (!rewriter_ops.count(instr->op_type)) {
         continue;
       }
       CHECK_EQ(instr->inputs.size(), 1) << "reshape should have only 1 input.";
@@ -118,7 +142,7 @@ class ReshapeRewriterPass : public ProgramPass {
           VLOG(3) << "Remove the " << i << "-th instruction: " << instr;
         }
       }
-      if (!matched && (input_var->id != output_var->id) && (input_var->shape == output_var->shape)) {
+      if (!matched && rewriter_ops.at(instr->op_type).first(instr)) {
         VLOG(3) << "Replace the " << i << "-th instruction to identity: " << instr;
         replace_idxs_.insert(i);
       }
@@ -134,8 +158,8 @@ class ReshapeRewriterPass : public ProgramPass {
 }  // namespace frontend
 }  // namespace cinn
 
-CINN_REGISTER_HELPER(ReshapeRewriter) {
-  CINN_REGISTER_PROGRAM_PASS(ReshapeRewriter, cinn::frontend::pass::ReshapeRewriterPass);
+CINN_REGISTER_HELPER(FillConstantRewriter) {
+  CINN_REGISTER_PROGRAM_PASS(FillConstantRewriter, cinn::frontend::pass::FillConstantRewriterPass);
 
   return true;
 }

@@ -42,7 +42,7 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
   options.program_passes.emplace_back("GemmRewriter");
   options.program_passes.emplace_back("TransposeFoldingOutput");
   options.program_passes.emplace_back("GemmRewriter");
-  options.program_passes.emplace_back("ReshapeRewriter");
+  options.program_passes.emplace_back("FillConstantRewriter");
   if (FLAGS_cinn_use_fill_constant_folding) {
     options.program_passes.emplace_back("FillConstantFolding");
   }

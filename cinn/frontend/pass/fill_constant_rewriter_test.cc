@@ -21,7 +21,7 @@
 
 namespace cinn::frontend {
 
-TEST(ReshapeRewriter, remove_single) {
+TEST(FillConstantRewriter, remove_reshape_single) {
   //              <x>
   //           /       \
   //     identity    reshape
@@ -39,12 +39,12 @@ TEST(ReshapeRewriter, remove_single) {
   PassTest tester;
   std::vector<std::string> input_names    = {x.id().data()};
   std::vector<std::string> output_names   = {reduce_sum_1->id, reduce_sum_2->id};
-  std::vector<std::string> program_passes = {"ReshapeRewriter", "RemoveIdentity"};
+  std::vector<std::string> program_passes = {"FillConstantRewriter", "RemoveIdentity"};
   int num_removed_ops                     = tester.RunAndCheck(builder, program_passes, input_names, output_names);
   ASSERT_EQ(num_removed_ops, 2);
 }
 
-TEST(ReshapeRewriter, remove_with_fill_constant) {
+TEST(FillConstantRewriter, remove_reshape_with_fill_constant) {
   //  fill_constant({16, 32})   <x>
   //          |                  |
   //     reshape({32, 16}     reshape
@@ -62,9 +62,55 @@ TEST(ReshapeRewriter, remove_with_fill_constant) {
   PassTest tester;
   std::vector<std::string> input_names    = {x.id().data()};
   std::vector<std::string> output_names   = {add_1->id};
-  std::vector<std::string> program_passes = {"ReshapeRewriter", "RemoveIdentity"};
+  std::vector<std::string> program_passes = {"FillConstantRewriter", "RemoveIdentity"};
   int num_removed_ops                     = tester.RunAndCheck(builder, program_passes, input_names, output_names);
   ASSERT_EQ(num_removed_ops, 2);
+}
+
+TEST(FillConstantRewriter, remove_scale_single) {
+  //              <x>
+  //           /       \
+  //     identity    scale
+  //          |         |
+  //    reduce_sum  reduce_sum
+  //          |         |
+  // <reduce_sum_1> <reduce_sum_2>
+  NetBuilder builder("net_builder");
+  auto x            = builder.CreateInput(Float(32), {32, 16}, "x");
+  auto identity_1   = builder.Identity(x);
+  auto scale_1      = builder.Scale(x, -1.0f);
+  auto reduce_sum_1 = builder.ReduceSum(identity_1, {0});
+  auto reduce_sum_2 = builder.ReduceSum(scale_1, {1});
+
+  PassTest tester;
+  std::vector<std::string> input_names    = {x.id().data()};
+  std::vector<std::string> output_names   = {reduce_sum_1->id, reduce_sum_2->id};
+  std::vector<std::string> program_passes = {"FillConstantRewriter", "RemoveIdentity"};
+  int num_removed_ops                     = tester.RunAndCheck(builder, program_passes, input_names, output_names);
+  ASSERT_EQ(num_removed_ops, 1);
+}
+
+TEST(FillConstantRewriter, remove_scale_with_fill_constant) {
+  //  fill_constant({16, 32})   <x>
+  //          |                  |
+  //        scale              scale
+  //           \                /
+  //             elementwise_add
+  //                   |
+  //                <add_1>
+  NetBuilder builder("net_builder");
+  auto x          = builder.CreateInput(Float(32), {32, 16}, "x");
+  auto constant_1 = builder.FillConstant<float>({32, 16}, 128.0f, "constant_1");
+  auto scale_1    = builder.Scale(constant_1, -1.0f);
+  auto scale_2    = builder.Scale(x, -1.0f);
+  auto add_1      = builder.Add(scale_1, scale_2);
+
+  PassTest tester;
+  std::vector<std::string> input_names    = {x.id().data()};
+  std::vector<std::string> output_names   = {add_1->id};
+  std::vector<std::string> program_passes = {"FillConstantRewriter", "RemoveIdentity"};
+  int num_removed_ops                     = tester.RunAndCheck(builder, program_passes, input_names, output_names);
+  ASSERT_EQ(num_removed_ops, 1);
 }
 
 }  // namespace cinn::frontend
