@@ -82,7 +82,7 @@ class GraphAlterHelper {
       } else if (type == "backward_data") {
         src->attrs.attr_store["custom_call"] = std::string("cinn_call_cudnn_conv2d_backward_data");
       } else if (type == "backward_filter") {
-        src->attrs.attr_store["custom_call"] = std::string("cinn_gpu_cudnn_conv2d_backward_filter");
+        src->attrs.attr_store["custom_call"] = std::string("cinn_call_cudnn_conv2d_backward_filter");
       } else {
         LOG(FATAL) << "conv type is unkown!";
       }

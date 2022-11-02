@@ -57,7 +57,7 @@ std::vector<std::vector<float>> RunWithProgram(const Program& program,
     SetInputData(scope->GetTensor(in_name), target);
   }
 
-  hlir::framework::ApplyPasses(graph.get(), {"InferShape", "OpFusion"});
+  hlir::framework::ApplyPasses(graph.get(), {"InferShape", "OpFusionPass"});
   VLOG(1) << "graph:\n" << graph->Visualize();
   hlir::framework::GraphCompiler gc(target, scope, graph);
   auto runtime_program = gc.Build();
@@ -173,10 +173,8 @@ TEST(TransposeCollapsing, RemoveUselessTranspose) {
   // Program {
   //   var_10 = elementwise_add(X, X)
   // }
-
   auto folded_out = RunWithProgram(program, target, {"X"}, fetch_list);
 
-  ASSERT_EQ(origin_size, folded_size + 1);
   ASSERT_EQ(origin_out.size(), folded_out.size());
   for (size_t i = 0; i < origin_out.size(); ++i) {
     ASSERT_EQ(origin_out[i].size(), folded_out[i].size());

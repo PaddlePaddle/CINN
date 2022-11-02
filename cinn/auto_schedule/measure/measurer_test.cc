@@ -22,6 +22,7 @@
 #include "cinn/auto_schedule/task/task_creator.h"
 #include "cinn/common/target.h"
 #include "cinn/frontend/net_builder.h"
+#include "cinn/frontend/optimize.h"
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/runtime/flags.h"
@@ -60,7 +61,9 @@ class TestMeasurer : public ::testing::Test {
 #else
     Target target = common::DefaultHostTarget();
 #endif
-    auto graph     = std::make_shared<Graph>(CreateAddReluProgram(), target);
+    std::unordered_set<std::string> fetch_ids;
+    auto program   = CreateAddReluProgram();
+    auto graph     = cinn::frontend::Optimize(&program, fetch_ids, target);
     auto scope     = BuildScope(target, graph);
     graph_compiler = std::make_unique<GraphCompiler>(target, scope, graph);
     TaskCreator task_creator;
@@ -69,7 +72,6 @@ class TestMeasurer : public ::testing::Test {
     const auto& shape_dict = graph->GetAttrs<absl::flat_hash_map<std::string, hlir::framework::shape_t>>("infershape");
 
     auto op_lowerer = std::make_unique<hlir::framework::OpLowerer>(dtype_dict, shape_dict, target);
-
     inputs.reserve(tasks.size());
     for (int i = 0; i < tasks.size(); ++i) {
       auto* task = &tasks[i];
@@ -117,14 +119,12 @@ TEST_F(TestMeasurer, CatchException) {
   std::vector<MeasureResult> results = measurer_with_build_error->Measure(inputs);
   ASSERT_EQ(inputs.size(), results.size());
   EXPECT_EQ(results[0].error_msg, "Build failed, error: BuildError\n");
-  EXPECT_EQ(results[1].error_msg, "Build failed, error: BuildError\n");
 
   // TODO(CtfGo): test parallel build after we support thread-safe compilation
   auto measurer_with_run_error = std::make_unique<ScheduleMeasurer>(builder.get(), throw_runner.get(), 1);
   results                      = measurer_with_run_error->Measure(inputs);
   ASSERT_EQ(inputs.size(), results.size());
   EXPECT_EQ(results[0].error_msg, "Run failed, error: RunError\n");
-  EXPECT_EQ(results[1].error_msg, "Run failed, error: RunError\n");
 }
 
 }  // namespace auto_schedule

@@ -65,9 +65,9 @@ TEST(IrSimplify, basic) {
     Simplify(&body);
     auto target_out = R"ROC(
 {
-  for (i, 0, 100)
+  serial for (i, 0, 100)
   {
-    for (j, 0, 20)
+    serial for (j, 0, 20)
     {
       B[i, j] = (125 + (X[i, j] + y[i, 0]))
     }
@@ -99,9 +99,9 @@ TEST(IrSimplify, basic) {
 
     auto target_out = R"ROC(
 {
-  for (i, 0, 100)
+  serial for (i, 0, 100)
   {
-    for (j, 0, 20)
+    serial for (j, 0, 20)
     {
       B[i, j] = ((y[i, 0] / 3) + (125 + X[(1000 * i), 0]))
     }

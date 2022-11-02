@@ -58,9 +58,9 @@ function TestGenerateCodeCpu_Repeat (_test_repeat)
 {
   ScheduleBlock(root)
   {
-    for (i, 0, 8)
+    serial for (i, 0, 8)
     {
-      for (j, 0, 4)
+      serial for (j, 0, 4)
       {
         ScheduleBlock(test_repeat)
         {

@@ -48,9 +48,9 @@ TEST(lower, basic) {
 
   auto out = R"ROC(
 {
-  for (i, 0, 100)
+  serial for (i, 0, 100)
   {
-    for (j, 0, 15)
+    serial for (j, 0, 15)
     {
       B[i, j] = (1 + A[i, j])
     }
