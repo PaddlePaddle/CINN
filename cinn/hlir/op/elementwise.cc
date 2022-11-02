@@ -16,6 +16,7 @@
 
 #include <iostream>
 
+#include "absl/types/optional.h"
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
@@ -345,6 +346,136 @@ std::vector<std::vector<std::string>> InferLayoutForFillConstant(const std::vect
   return {{""}, input_layouts};
 }
 
+#define EXPAND_ATTR_TYPE(MACRO) \
+  MACRO(bool)                   \
+  MACRO(float)                  \
+  MACRO(int)                    \
+  MACRO(int64_t)                \
+  MACRO(double)
+
+std::shared_ptr<OpStrategy> StrategyForAssignValue(const framework::NodeAttr &attrs,
+                                                   const std::vector<ir::Tensor> &inputs,
+                                                   const std::vector<Type> &out_type,
+                                                   const std::vector<std::vector<int>> &output_shapes,
+                                                   const Target &target) {
+  framework::CINNCompute assign_value_compute([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of assign_value compute is empty! Please check.";
+    CHECK(attrs.attr_store.count("values")) << "assign_value should set attribute [values]! Please check.";
+    const auto &value = attrs.attr_store.at("values");
+
+    CINNValuePack arg_pack  = args[0];
+    std::string tensor_name = UniqName("T_assign_value_out");
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK_EQ(arg_pack.size(), 1U);
+      CHECK(arg_pack[0].is_string());
+      tensor_name = arg_pack[0].operator std::string();
+    }
+
+    absl::optional<ir::Tensor> out;
+#define EXPAND_VALUE_TO_TENSOR(TYPE)                                                            \
+  else if (absl::get_if<TYPE>(&value)) {                                                        \
+    out = pe::AssignValue(std::vector<TYPE>{absl::get<TYPE>(value)}, out_type[0], tensor_name); \
+  }                                                                                             \
+  else if (absl::get_if<std::vector<TYPE>>(&value)) {                                           \
+    out = pe::AssignValue(absl::get<std::vector<TYPE>>(value), out_type[0], tensor_name);       \
+  }
+
+    if (false) {
+    }
+    EXPAND_ATTR_TYPE(EXPAND_VALUE_TO_TENSOR)
+    else {
+      LOG(FATAL) << "Assign value not support the type " << out_type[0];
+    }
+#undef EXPAND_VALUE_TO_TENSOR
+
+    CHECK(out && out.value().defined()) << "can't create assign_value with the given type " << out_type[0];
+
+    auto stages = CreateStages({out.value()});
+    *ret        = CINNValuePack{{CINNValue(Expr(out.value().get())), CINNValue(stages)}};
+  });
+
+  auto strategy = std::make_shared<framework::OpStrategy>();
+  strategy->AddImpl(
+      assign_value_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.assign_value.x86", 1);
+
+  return strategy;
+}
+
+std::vector<shape_t> InferShapeForAssignValue(const std::vector<shape_t> &inputs_shape,
+                                              const framework::AttrMapType &attrs) {
+  CHECK(attrs.count("values")) << "assign_value should set attribute [values]! Please check.";
+  const auto &value = attrs.at("values");
+
+  shape_t shape;
+#define EXPAND_ATTR_TO_GET_SHAPE(TYPE)                              \
+  else if (absl::get_if<TYPE>(&value)) {                            \
+    shape.emplace_back(1);                                          \
+  }                                                                 \
+  else if (absl::get_if<std::vector<TYPE>>(&value)) {               \
+    shape.emplace_back(absl::get<std::vector<TYPE>>(value).size()); \
+  }
+
+  if (false) {
+  }
+  EXPAND_ATTR_TYPE(EXPAND_ATTR_TO_GET_SHAPE)
+  else {
+    LOG(FATAL) << "assign_value not support the type!";
+  }
+#undef EXPAND_ATTR_TO_GET_SHAPE
+
+  VLOG(3) << "The output shape of assign_value is [" << cinn::utils::Join(shape, ", ") << "]";
+
+  return {shape};
+}
+
+std::vector<Type> InferDtypeForAssignValue(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
+  Type out_type;
+  if (attrs.find("dtype") != attrs.end()) {
+    // attribute [dtype] are given
+    auto dtype_str = absl::get<std::string>(attrs.at("dtype"));
+    if (!dtype_str.empty()) {
+      // if the [dtype] is not empty, output as the given type
+      out_type = common::Str2Type(dtype_str);
+    }
+  }
+
+  // attribute [dtype] not given or is empty
+  if (out_type.is_unk()) {
+    // infer from [values]'s dtype
+    CHECK(attrs.count("values")) << "assign_value should set attribute [values]! Please check.";
+    const auto &value = attrs.at("values");
+
+#define EXPAND_ATTR_TO_GET_DTYPE(TYPE)                \
+  else if (absl::get_if<TYPE>(&value)) {              \
+    out_type = common::type_of<TYPE>();               \
+  }                                                   \
+  else if (absl::get_if<std::vector<TYPE>>(&value)) { \
+    out_type = common::type_of<TYPE>();               \
+  }
+
+    if (false) {
+    }
+    EXPAND_ATTR_TYPE(EXPAND_ATTR_TO_GET_DTYPE)
+    else {
+      LOG(FATAL) << "assign_value not support the type!";
+    }
+#undef EXPAND_ATTR_TO_GET_DTYPE
+  }
+
+  VLOG(3) << "The data type of assign_value is " << out_type;
+
+  return {out_type};
+}
+
+std::vector<std::vector<std::string>> InferLayoutForAssignValue(const std::vector<framework::shape_t> &input_shapes,
+                                                                const std::vector<std::string> &input_layouts,
+                                                                const framework::NodeAttr &attrs,
+                                                                const Target &target) {
+  return {{""}, input_layouts};
+}
+
+#undef EXPAND_ATTR_TYPE
+
 StrategyForUnary(exp, Exp);
 StrategyForUnary(erf, Erf);
 StrategyForUnary(sqrt, Sqrt);
@@ -495,6 +626,19 @@ CINN_REGISTER_HELPER(elementwise_ops) {
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForFillConstant))
 #ifndef CINN_WITH_CUDA
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForFillConstant))
+#endif
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElementWise)
+      .set_support_level(4);
+
+  CINN_REGISTER_OP(assign_value)
+      .describe("create tensor with the given value, type and shape")
+      .set_num_inputs(0)
+      .set_num_outputs(1)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForAssignValue)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForAssignValue))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForAssignValue))
+#ifndef CINN_WITH_CUDA
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForAssignValue))
 #endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElementWise)
       .set_support_level(4);
