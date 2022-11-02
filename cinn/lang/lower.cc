@@ -35,38 +35,48 @@ using poly::Stage;
 
 std::vector<ir::Argument> GetArgs(const Expr& func_body, const std::vector<std::string>& input_output_nodes) {
   std::vector<ir::Argument> res;
-  std::set<std::string> load_tensors;
-  std::set<std::string> store_tensors;
-  auto store_nodes = ir::CollectIRNodesWithoutTensor(func_body, [&](const Expr* x) {
-    if (x->As<ir::Store>()) store_tensors.insert(x->As<ir::Store>()->tensor.as_tensor_ref()->name);
-    return x->As<ir::Store>();
-  });
-  auto load_nodes  = ir::CollectIRNodesWithoutTensor(func_body, [&](const Expr* x) {
-    if (x->As<ir::Load>()) load_tensors.insert(x->As<ir::Load>()->tensor.as_tensor_ref()->name);
-    return x->As<ir::Load>();
-  });
+  std::map<std::string, std::set<const ir::Load*>> name2loads;
+  std::map<std::string, std::set<const ir::Store*>> name2stores;
+  auto load_or_store_nodes = ir::CollectIRNodesWithoutTensor(
+      func_body, [&](const Expr* x) { return x->As<ir::Store>() || x->As<ir::Load>(); });
 
-  for (auto& i : input_output_nodes) {
-    if (load_tensors.count(i) && !store_tensors.count(i)) {
-      for (auto& j : load_nodes) {
-        auto load_tensor = j.As<ir::Load>()->tensor.as_tensor_ref();
-        if (load_tensor->buffer.defined() && load_tensor->name == i) {
-          res.emplace_back(load_tensor->buffer, ir::Argument::IO::kInput);
+  for (auto&& e : load_or_store_nodes) {
+    if (e.As<ir::Load>()) {
+      auto&& tensor_name = e.As<ir::Load>()->tensor.as_tensor()->name;
+      name2loads[tensor_name].insert(e.As<ir::Load>());
+    } else {  // Store node
+      auto&& tensor_name = e.As<ir::Store>()->tensor.as_tensor()->name;
+      name2stores[tensor_name].insert(e.As<ir::Store>());
+    }
+  }
+
+  for (auto&& node_name : input_output_nodes) {
+    auto load_it  = name2loads.find(node_name);
+    auto store_it = name2stores.find(node_name);
+    // if a node is ir::Load and also ir::Store, then process it as a ir::Store in priority.
+    if (store_it != name2stores.end()) {  //
+      for (auto&& node : store_it->second) {
+        const auto* tensor = node->tensor.as_tensor();
+        if (tensor->buffer.defined()) {
+          res.emplace_back(tensor->buffer, ir::Argument::IO::kOutput);
           break;
         }
       }
-    } else if (store_tensors.count(i)) {
-      for (auto& j : store_nodes) {
-        auto store_tensor = j.As<ir::Store>()->tensor.as_tensor_ref();
-        if (store_tensor->buffer.defined() && store_tensor->name == i) {
-          res.emplace_back(store_tensor->buffer, ir::Argument::IO::kOutput);
+    } else if (load_it != name2loads.end()) {
+      for (auto&& node : load_it->second) {
+        const auto* tensor = node->tensor.as_tensor();
+        if (tensor->buffer.defined()) {
+          res.emplace_back(tensor->buffer, ir::Argument::IO::kInput);
           break;
         }
       }
     }
   }
-  for (auto& i : input_output_nodes) VLOG(3) << "In input_output_nodes, arg has : " << i;
-  for (auto& i : res) VLOG(3) << "In res, arg has : " << i.name();
+
+  if (VLOG_IS_ON(3)) {
+    for (auto& i : input_output_nodes) VLOG(3) << "In input_output_nodes, arg has : " << i;
+    for (auto& i : res) VLOG(3) << "In res, arg has : " << i.name();
+  }
   return res;
 }
 
