@@ -18,7 +18,8 @@
 
 CINN_USE_REGISTER(activation_decomposers)
 CINN_USE_REGISTER(activation_grad_decomposers)
-CINN_USE_REGISTER(elementwise_decomposers)
+CINN_USE_REGISTER(sum_decomposers)
+CINN_USE_REGISTER(clip_decomposers)
 CINN_USE_REGISTER(broadcast_decomposers)
 CINN_USE_REGISTER(broadcast_grad_decomposers)
 CINN_USE_REGISTER(batch_norm_decomposer)

@@ -249,9 +249,9 @@ TEST(Vectorize, cuda_vectorize) {
   auto target_expr = R"ROC(
 function matmul (_A, _B, _C)
 {
-  for (i, 0, 100)
+  serial for (i, 0, 100)
   {
-    for (j, 0, 125)
+    serial for (j, 0, 125)
     {
       CudaVectorType::float4<4>* vectorized_C = CudaVectorType::float4<4>*(get_addr(C[i, ((j * 4) + 0)]))
       const CudaVectorType::float4<4>* vectorized_A = const CudaVectorType::float4<4>*(get_addr(A[i, ((j * 4) + 0)]))

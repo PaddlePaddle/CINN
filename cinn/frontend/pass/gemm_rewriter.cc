@@ -47,13 +47,13 @@ class GemmRewriterPass : public ProgramPass {
     }
     for (int i = prog->size() - 1; i >= 0; i--) {
       auto& instr = prog->operator[](i);
-      if (instr->op_type == "elementwise_add") {
+      /*if (instr->op_type == "elementwise_add") {
         auto fused = DoGemmFusion(&builder, instr, fetch_ids);
         if (fused) {
           // the elementwise_add is fused in gemm, just skip it
           continue;
         }
-      }
+      }*/
       if (!removed_instrs_.count(instr.get())) {
         builder.AppendInstruction(instr);
       }

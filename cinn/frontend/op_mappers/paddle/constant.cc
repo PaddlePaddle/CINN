@@ -102,15 +102,17 @@ void FillAnyLikeOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperConte
 
 template <typename T>
 std::pair<bool, T> IsArithmeticSequence(const std::vector<T>& vec) {
-  if (vec.empty()) {
-    return {true, static_cast<T>(0)};
+  if (vec.size() <= 1UL || (vec[1] - vec[0]) == 0) {
+    return {false, static_cast<T>(0)};
   }
 
-  std::vector<T> adj_diff;
-  std::adjacent_difference(vec.begin(), vec.end(), std::back_inserter(adj_diff));
-  bool is_diff_same =
-      std::all_of(adj_diff.begin() + 1, adj_diff.end(), [&adj_diff](const T& v) { return v == adj_diff.back(); });
-  return {adj_diff.back() != 0 && is_diff_same, adj_diff.back()};
+  auto first_diff = vec[1] - vec[0];
+  for (int i = 2; i < vec.size(); ++i) {
+    if ((vec[i] - vec[i - 1]) != first_diff) {
+      return {false, first_diff};
+    }
+  }
+  return {true, first_diff};
 }
 
 void AssignValueOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {

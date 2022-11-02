@@ -77,11 +77,7 @@ std::vector<std::vector<int>> InferShapeForArange(const std::vector<std::vector<
   CHECK_NE(step, 0) << "The value of step cann't be 0!";
 
   int num_elem = 0;
-  if (step > 0.0f) {
-    num_elem = static_cast<int>(std::ceil((stop - start) / step));
-  } else if (step < 0.0f) {
-    num_elem = static_cast<int>(std::ceil((start - stop) / (-step)));
-  }
+  num_elem     = static_cast<int>(std::ceil((stop - start) / step));
   VLOG(4) << "Arange with start = " << start << ", stop = " << stop << ", step = " << step << ", total has " << num_elem
           << " elements";
   CHECK_GT(num_elem, 0) << "Invalid arange parameters, start = " << start << ", stop = " << stop << ", step = " << step

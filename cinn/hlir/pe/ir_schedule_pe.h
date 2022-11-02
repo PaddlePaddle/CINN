@@ -74,7 +74,7 @@ void IRCudaTwoStepReduceSchedule(ir::IRSchedule &ir_sch,
 
 void IRSoftmaxScheduleCPU(ir::IRSchedule &ir_sch, int axis = -1);
 
-void IRPoolScheduleGPU(ir::IRSchedule &ir_sch, const common::Target &target);
+void IRPoolScheduleGPU(ir::IRSchedule &ir_sch, const common::Target &target, int arg_pack_size = 3);
 
 void IRGlobalPoolScheduleGPU(ir::IRSchedule &ir_sch, const common::Target &target);
 

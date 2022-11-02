@@ -181,6 +181,20 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpWithoutSchedule(IRComputeFuncti
     }
   }
 
+  std::unordered_set<std::string> args_map;
+  for (auto arg : func_args) {
+    args_map.insert(arg.name());
+  }
+
+  for (auto& tensor : tensor_map) {
+    if (args_map.count("_" + tensor.first)) {
+      continue;
+    }
+    arg_tensors.push_back(tensor.second);
+    group->output_names.push_back(tensor.first);
+    func_args.emplace_back(tensor.second->buffer, ir::Argument::IO::kOutput);
+  }
+
   auto func_body = ir_sch.GetModule().GetExprs().at(0);
 #ifdef CINN_WITH_CUDA
   optim::OptimizeExprGPU(&(func_body));
@@ -191,6 +205,7 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOpWithoutSchedule(IRComputeFuncti
       ir::_LoweredFunc_::Make(group->GetFuncName(), func_args, ir_sch.GetModule().GetExprs().at(0), temp_buffers);
   func->PrepareBufferCastExprs();
   func = optim::Optimize(Expr(func), target_, false).as_lowered_func_ref();
+
   return {func};
 }
 
@@ -268,7 +283,6 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOp(IRComputeFunction compute,
   auto temp_buffers = lang::GetTempBuffers(arg_tensors, stages, func_body);
   auto func =
       ir::_LoweredFunc_::Make(group->GetFuncName(), func_args, ir_sch.GetModule().GetExprs().at(0), temp_buffers);
-  func->PrepareBufferCastExprs();
   func = optim::Optimize(Expr(func), target_, false).as_lowered_func_ref();
   return {func};
 }
@@ -1259,6 +1273,14 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerNonFusibleOp(GroupPtr& group, boo
     // do ast tree schedule
     common::CINNValuePack expr_pack = impl->fschedule(common::CINNValuePack{schedule_inputs});
 
+    ir::Expr func_body = expr_pack[0];
+    std::vector<std::string> input_output_nodes(group->input_names);
+    input_output_nodes.insert(input_output_nodes.end(), group->output_names.begin(), group->output_names.end());
+    VLOG(6) << "func.size() = " << func.size() << ", expr_pack.size() = " << expr_pack.size();
+    VLOG(6) << "args.size() = " << args.size() << ", input_output_nodes.size() = " << input_output_nodes.size();
+    if (args.size() > input_output_nodes.size()) {
+      args = lang::GetArgs(func_body, input_output_nodes);
+    }
     std::vector<ir::LoweredFunc> res;
     for (int i = 0; i < expr_pack.size(); i++) {
       ir::Expr func_body = expr_pack[0];
@@ -1267,7 +1289,6 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerNonFusibleOp(GroupPtr& group, boo
 #endif
       auto temp_buffers = lang::GetTempBuffers(inputs, stages, func_body);
       auto function     = ir::_LoweredFunc_::Make(group->GetFuncName(), args, func_body, temp_buffers);
-      function->PrepareBufferCastExprs();
       res.push_back(function);
     }
     for (auto& i : res) {

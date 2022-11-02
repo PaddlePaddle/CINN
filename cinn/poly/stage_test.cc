@@ -152,9 +152,9 @@ TEST(ComputeAt, Before) {
   auto target = R"ROC(
 function fn (_A, _B, _cache, _C)
 {
-  for (i, 0, 10)
+  serial for (i, 0, 10)
   {
-    for (j, 0, 10)
+    serial for (j, 0, 10)
     {
       cache[i, j] = A[i, j]
       C[i, j] = (cache[i, j] + B[i, j])
@@ -203,18 +203,18 @@ TEST(ComputeAt, simple) {
     auto target = R"ROC(
 function fn (_A, _A1, _B)
 {
-  for (i_outer, 0, 2)
+  serial for (i_outer, 0, 2)
   {
-    for (i_inner, 0, 16)
+    serial for (i_inner, 0, 16)
     {
-      for (j, 0, 64)
+      serial for (j, 0, 64)
       {
-        for (i_at, 0, 3)
+        serial for (i_at, 0, 3)
         {
           A1[((16 * i_outer) + (i_at + i_inner)), j] = A[((16 * i_outer) + (i_at + i_inner)), j]
         }
       }
-      for (j, 0, 32)
+      serial for (j, 0, 32)
       {
         B[((16 * i_outer) + i_inner), j] = (A1[((16 * i_outer) + i_inner), j] + (A1[(1 + ((16 * i_outer) + i_inner)), j] + A1[(2 + ((16 * i_outer) + i_inner)), j]))
       }
@@ -263,9 +263,9 @@ TEST(ComputeAt, Before1) {
     auto target = utils::Trim(R"ROC(
 function fn (_A, _cache, _transformed)
 {
-  for (i, 0, 100)
+  serial for (i, 0, 100)
   {
-    for (j, 0, 200)
+    serial for (j, 0, 200)
     {
       cache[i] = A[i, j]
       transformed[i, j] = 1
@@ -290,9 +290,9 @@ function fn (_A, _cache, _transformed)
     auto target = utils::Trim(R"ROC(
 function fn (_A, _cache, _transformed)
 {
-  for (i, 0, 100)
+  serial for (i, 0, 100)
   {
-    for (j, 0, 200)
+    serial for (j, 0, 200)
     {
       transformed[i, j] = 1
       cache[i] = A[i, j]
@@ -413,9 +413,9 @@ TEST(ComputeInline, basic) {
   auto target = R"ROC(
 function fn (_A, _C)
 {
-  for (i, 0, 100)
+  serial for (i, 0, 100)
   {
-    for (j, 0, 200)
+    serial for (j, 0, 200)
     {
       C[i, j] = (6 + (2 * A[i, j]))
     }
@@ -457,23 +457,23 @@ TEST(ComputeInline, complex_graph) {
   auto target = R"ROC(
 function fn (_A, _C, _C1, _C2)
 {
-  for (i, 0, 100)
+  serial for (i, 0, 100)
   {
-    for (j, 0, 200)
+    serial for (j, 0, 200)
     {
       C2[i, j] = (6 + (2 * A[i, j]))
     }
   }
-  for (i, 0, 100)
+  serial for (i, 0, 100)
   {
-    for (j, 0, 200)
+    serial for (j, 0, 200)
     {
       C1[i, j] = (4 + (2 * A[i, j]))
     }
   }
-  for (i, 0, 100)
+  serial for (i, 0, 100)
   {
-    for (j, 0, 200)
+    serial for (j, 0, 200)
     {
       C[i, j] = (2 + (2 * A[i, j]))
     }
