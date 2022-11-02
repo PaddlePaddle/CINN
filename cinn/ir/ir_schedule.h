@@ -313,6 +313,12 @@ class IRSchedule {
    */
   void Annotate(const Expr& block, const std::string& key, const attr_t& value);
 
+  /*!
+   * \brief flat the loop and tensor shape.
+   * \param block The block to be flatted
+   */
+  void Flatten(const Expr& block);
+
  private:
   std::unique_ptr<ScheduleImpl> impl_;
   mutable ScheduleDesc trace_;  // trace the scheduling process

@@ -102,6 +102,111 @@ HLIR_IMP_UNARY_PE(Sign);
 HLIR_IMP_UNARY_PE(Abs);
 HLIR_IMP_UNARY_PE(Rsqrt);
 
+ir::Tensor Reshape(const ir::Tensor& A, const std::vector<int>& new_shape, const std::string& name) {
+  std::vector<Expr> new_expr_shape;
+  std::vector<Expr> A_expr_shape = A->shape;
+  int input_total_size           = 1;
+  int output_total_size          = 1;
+  for (auto& i : A_expr_shape) {
+    CHECK(i.is_constant()) << "Input tensor's shape should be constant value.";
+    input_total_size *= static_cast<int>(i.get_constant());
+  }
+  for (auto& i : new_shape) {
+    output_total_size *= i;
+    new_expr_shape.push_back(Expr(i));
+  }
+  CHECK_EQ(input_total_size, output_total_size)
+      << "In op reshape, the input tensor and output tensor's total size should be equal, please check!";
+  auto res = Compute(
+      new_expr_shape,
+      [=](const std::vector<Expr>& indice) {
+        Expr offset = Expr(0);
+        for (int i = 0; i < indice.size(); i++) {
+          offset = offset * new_expr_shape[i] + indice[i];
+        }
+        std::vector<Expr> indice_a;
+        for (int i = A_expr_shape.size() - 1; i >= 0; i--) {
+          auto temp = offset % A_expr_shape[i];
+          indice_a.insert(indice_a.begin(), temp);
+          offset = (offset - temp) / A_expr_shape[i];
+        }
+        return A(indice_a);
+      },
+      name);
+  return res;
+}
+
+ir::Tensor ExpandDims(const ir::Tensor& input, int axis, int num_newaxis, const std::string& output_name) {
+  int ndims = input.ndims();
+  CHECK(axis >= -ndims - 1 && axis <= ndims)
+      << "expand_dims only accept `axis` in [-x.ndim - 1, x.ndim], but got axis = " << axis
+      << ", and x.ndims = " << ndims;
+  CHECK_GE(num_newaxis, 0);
+
+  if (axis < 0) {
+    axis = ndims + axis + 1;
+  }
+  std::vector<Expr> output_shape;
+  for (size_t i = 0; i < static_cast<size_t>(axis); ++i) {
+    output_shape.push_back(input->shape[i]);
+  }
+  for (size_t i = 0; i < static_cast<size_t>(num_newaxis); ++i) {
+    output_shape.push_back(Expr(1));
+  }
+  for (size_t i = axis; i < input->shape.size(); ++i) {
+    output_shape.push_back(input->shape[i]);
+  }
+
+  return Compute(
+      output_shape,
+      [=](const std::vector<Expr>& indice) {
+        std::vector<Expr> idx;
+        for (size_t i = 0; i < static_cast<size_t>(axis); ++i) {
+          idx.push_back(indice[i]);
+        }
+        for (size_t i = axis + num_newaxis; i < indice.size(); ++i) {
+          idx.push_back(indice[i]);
+        }
+        return input(idx);
+      },
+      UniqName(output_name));
+}
+
+ir::Tensor Squeeze(const ir::Tensor& A, const std::vector<int>& axes, const std::string& output_name) {
+  std::vector<int> position;
+  std::vector<Expr> output_shape;
+  if (axes.size()) {
+    for (int idx = 0; idx < A->shape.size(); ++idx) {
+      // if can't find idx in axis
+      if (std::find(axes.begin(), axes.end(), idx) == axes.end()) {
+        output_shape.push_back(A->shape[idx]);
+        position.push_back(idx);
+      } else {
+        CHECK_EQ(A->shape[idx], Expr(1));
+      }
+    }
+  } else {
+    for (int idx = 0; idx < A->shape.size(); ++idx) {
+      if (A->shape[idx] != Expr(1)) {
+        output_shape.push_back(A->shape[idx]);
+        position.push_back(idx);
+      }
+    }
+  }
+
+  auto res = Compute(
+      output_shape,
+      [=](const std::vector<Expr>& indices) {
+        std::vector<Expr> indexs(A->shape.size(), Expr(0));
+        for (int idx = 0; idx < indices.size(); ++idx) {
+          indexs[position[idx]] = indices[idx];
+        }
+        return A(indexs);
+      },
+      output_name);
+  return res;
+}
+
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn

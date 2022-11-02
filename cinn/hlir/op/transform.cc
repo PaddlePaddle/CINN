@@ -341,118 +341,6 @@ std::vector<std::vector<std::string>> InferLayoutForMatMul(const std::vector<fra
   return {{"", ""}, new_input_layouts};
 }
 
-std::shared_ptr<OpStrategy> StrategyForReshape(const framework::NodeAttr &attrs,
-                                               const std::vector<ir::Tensor> &inputs,
-                                               const std::vector<Type> &out_type,
-                                               const std::vector<std::vector<int>> &output_shapes,
-                                               const Target &target) {
-  framework::CINNCompute reshape_compute([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input arguments of Reshape compute is empty! Please check.\n";
-    CINNValuePack pack_args = args[0];
-    CHECK_GE(pack_args.size(), 1U) << "at least 1 input tensors for Reshape compute\n";
-    Expr A = pack_args[0];
-    CHECK(A.as_tensor());
-    CHECK(!output_shapes.empty());
-    auto attr_store = attrs.attr_store;
-    CHECK(attr_store.count("shape")) << "find no attr of shape";
-    std::vector<int> new_shape = absl::get<std::vector<int>>(attr_store.at("shape"));
-    auto tensor_A              = A.as_tensor_ref();
-    auto stages                = CreateStages({tensor_A});
-    VLOG(3) << "A shape: " << utils::Join(tensor_A->shape, ", ")
-            << ", output_shapes: " << utils::Join(output_shapes[0], ", ");
-
-    std::string tensor_name = UniqName("Reshape_out");
-    if (FLAGS_cinn_ir_schedule) {
-      CHECK_EQ(pack_args.size(), 2);
-      CHECK(pack_args[1].is_string());
-      tensor_name = pack_args[1].operator std::string();
-    }
-
-    ir::Tensor out = pe::Reshape(tensor_A, output_shapes[0], stages, tensor_name);
-    std::vector<CINNValue> res;
-    stages->InsertLazily(out);
-    res.push_back(CINNValue(out));
-    CHECK(!out_type.empty()) << "Output type of Reshape is empty! Please check.\n";
-    res.push_back(CINNValue(stages));
-    *ret = CINNValuePack{res};
-  });
-
-  auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(
-      reshape_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.reshape.x86", 1);
-  return strategy;
-}
-
-std::vector<std::vector<int>> InferShapeForReshape(const std::vector<std::vector<int>> &inputs_shape,
-                                                   const framework::AttrMapType &attrs) {
-  CHECK_EQ(inputs_shape.size(), 1U) << "The input's shape size should be 1! Please check again.";
-  std::vector<int> output_shape;
-  for (auto &iter : attrs) {
-    if (iter.first == "shape") {
-      output_shape = absl::get<std::vector<int>>(iter.second);
-      break;
-    }
-  }
-  int tensor_size = 1;
-  for (auto i : inputs_shape[0]) {
-    tensor_size *= i;
-  }
-  CHECK(!output_shape.empty()) << "infer_shape for reshape turns out to be empty. Please check\n";
-  int flag_index = -1;
-  for (int i = 0; i < output_shape.size(); i++) {
-    if (output_shape[i] > 0) {
-      CHECK_EQ(tensor_size % output_shape[i], 0)
-          << "Incompatible input shape and output shape in op reshape: " << tensor_size << ", " << output_shape[i];
-      tensor_size /= output_shape[i];
-    } else if (output_shape[i] == 0) {
-      CHECK_LT(i, inputs_shape[0].size())
-          << "In op reshape, when attribute shape[i] == 0, shape[i] = input_shape[i]. But now the size of input_shape "
-             "<= i, which is incompatible. Please check!";
-      output_shape[i] = inputs_shape[0][i];
-      CHECK_EQ(tensor_size % output_shape[i], 0)
-          << "Incompatible input shape and output shape in op reshape: " << tensor_size << ", " << output_shape[i];
-      tensor_size /= output_shape[i];
-    } else if (output_shape[i] == -1 && flag_index == -1) {
-      flag_index = i;
-    } else if (output_shape[i] == -1) {
-      LOG(FATAL) << "More than one -1 in output_shape of op reshape.";
-    } else {
-      LOG(FATAL) << "Unsupported output_shape " << output_shape[i];
-    }
-  }
-  if (flag_index >= 0) output_shape[flag_index] = tensor_size;
-  std::vector<std::vector<int>> res{output_shape};
-  return res;
-}
-
-std::vector<Type> InferDtypeForReshape(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
-  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
-  std::vector<Type> res{inputs_type[0]};
-  return res;
-}
-
-std::vector<std::vector<std::string>> InferLayoutForReshape(const std::vector<framework::shape_t> &input_shapes,
-                                                            const std::vector<std::string> &input_layouts,
-                                                            const framework::NodeAttr &attrs,
-                                                            const Target &target) {
-  CHECK_EQ(input_shapes.size(), 1U) << "The input's shape size is not 1! Please check again.";
-  CHECK_EQ(input_layouts.size(), 1U) << "The input's layout size is not 1! Please check again.";
-  std::vector<int> output_shape;
-  CHECK(attrs.attr_store.count("shape")) << "find no attr of shape";
-  std::vector<std::string> new_input_layouts = input_layouts;
-  if (input_shapes[0].size() > 4) {
-    // alter input layout back
-    new_input_layouts[0] = "NCHW";
-    VLOG(3) << "alter input layout from " << input_layouts[0] << " to " << new_input_layouts[0];
-  }
-  output_shape = absl::get<std::vector<int>>(attrs.attr_store.at("shape"));
-  if (input_shapes[0].size() == output_shape.size()) {
-    return {new_input_layouts, new_input_layouts};
-  } else {
-    return {{""}, new_input_layouts};
-  }
-}
-
 std::shared_ptr<OpStrategy> StrategyForSplit(const framework::NodeAttr &attrs,
                                              const std::vector<ir::Tensor> &inputs,
                                              const std::vector<Type> &out_type,
@@ -1964,104 +1852,6 @@ std::vector<std::vector<std::string>> InferLayoutForSliceAssign(const std::vecto
   return {{input_layouts[0]}, {""}};
 }
 
-std::shared_ptr<OpStrategy> StrategyForExpandDims(const framework::NodeAttr &attrs,
-                                                  const std::vector<ir::Tensor> &inputs,
-                                                  const std::vector<Type> &out_type,
-                                                  const std::vector<std::vector<int>> &output_shapes,
-                                                  const Target &target) {
-  CHECK(!output_shapes.empty() && !output_shapes[0].empty()) << "The shape of output is empty! Please check again.";
-  VLOG(4) << "The output passed in StrategyForExpandDims: " << utils::Join(output_shapes[0], ", ");
-  CHECK(!out_type.empty()) << "The output type of IndexSelect is empty! Please check again.\n";
-
-  int axis = 0;
-  if (attrs.attr_store.contains("axis")) {
-    axis = absl::get<int>(attrs.attr_store.at("axis"));
-  }
-  int num_newaxis{1};
-  if (attrs.attr_store.contains("num_newaxis")) {
-    num_newaxis = absl::get<int>(attrs.attr_store.at("num_newaxis"));
-  }
-
-  VLOG(4) << "The axis value used in expand_dims: " << axis;
-  VLOG(4) << "The num_newaxis value used in expand_dims: " << num_newaxis;
-
-  std::vector<Expr> output_shape;
-  output_shape.reserve(output_shapes[0].size());
-  for (int i : output_shapes[0]) {
-    output_shape.emplace_back(i);
-  }
-
-  framework::CINNCompute expand_dims_compute{[axis, num_newaxis](lang::Args args, lang::RetValue *ret) {
-    VLOG(4) << "The axis value used in expand_dims: " << axis;
-    CHECK(!args.empty()) << "The input args are empty! Please check again.";
-    CINNValuePack input_args = args[0];
-    int input_size           = input_args.size();
-    CHECK_GE(input_size, 1U) << "Require 1 input tensors for expand_dims compute.";
-    Expr x = input_args[0];
-    CHECK(x.as_tensor());
-
-    std::string tensor_name = UniqName("expand_dims_output");
-    if (FLAGS_cinn_ir_schedule) {
-      CHECK_EQ(input_args.size(), 2U);
-      CHECK(input_args[1].is_string());
-      tensor_name = input_args[1].operator std::string();
-    }
-
-    auto out    = pe::ExpandDims(x.as_tensor_ref(), axis, num_newaxis, tensor_name);
-    auto stages = CreateStages({x.as_tensor_ref()});
-    stages->InsertLazily(out);
-    std::vector<CINNValue> res{CINNValue(out), CINNValue(stages)};
-    *ret = CINNValuePack{res};
-  }};
-
-  auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(
-      expand_dims_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.expand_dims.x86", 1);
-  return strategy;
-}
-
-std::vector<std::vector<int>> InferShapeForExpandDims(const std::vector<std::vector<int>> &inputs_shape,
-                                                      const framework::AttrMapType &attrs) {
-  CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
-  int axis  = 0;
-  int ndims = inputs_shape[0].size();
-  if (attrs.contains("axis")) {
-    axis = absl::get<int>(attrs.at("axis"));
-  }
-  if (axis < 0) {
-    axis = axis + 1 + static_cast<int>(inputs_shape[0].size());
-  }
-  CHECK(axis >= -ndims - 1 && axis <= ndims)
-      << "expand_dims only accept `axis` in [-x.ndim - 1, x.ndim], but got axis = " << axis
-      << ", and x.ndims = " << ndims;
-  int num_newaxis = 1;
-  if (attrs.contains("num_newaxis")) {
-    num_newaxis = absl::get<int>(attrs.at("num_newaxis"));
-    CHECK_GE(num_newaxis, 0);
-  }
-
-  std::vector<int> output_shape;
-  output_shape.reserve(ndims + num_newaxis);
-  for (int i = 0; i < axis; ++i) {
-    output_shape.push_back(inputs_shape[0][i]);
-  }
-  for (int i = 0; i < num_newaxis; ++i) {
-    output_shape.push_back(1);
-  }
-  for (int i = axis; i < ndims; ++i) {
-    output_shape.push_back(inputs_shape[0][i]);
-  }
-
-  VLOG(4) << "The output calculated in InferShapeForExpandDims: " << utils::Join(output_shape, ", ");
-  return {std::move(output_shape)};
-}
-
-std::vector<Type> InferDtypeForExpandDims(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
-  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
-  std::vector<Type> res{inputs_type[0]};
-  return res;
-}
-
 }  // namespace op
 }  // namespace hlir
 }  // namespace cinn
@@ -2082,19 +1872,6 @@ CINN_REGISTER_HELPER(transform_ops) {
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForMatMul))
 #ifndef CINN_WITH_CUDA
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForMatMul))
-#endif
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kNonFusible)
-      .set_support_level(4);
-
-  CINN_REGISTER_OP(reshape)
-      .describe("This operator is used to reshape input tensor X.")
-      .set_num_inputs(1)
-      .set_num_outputs(1)
-      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForReshape)
-      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForReshape))
-      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForReshape))
-#ifndef CINN_WITH_CUDA
-      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForReshape))
 #endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kNonFusible)
       .set_support_level(4);
@@ -2131,7 +1908,7 @@ CINN_REGISTER_HELPER(transform_ops) {
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForReverse)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForReverse))
-      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForReshape))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferShapeForSliceAssign))
 #ifndef CINN_WITH_CUDA
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForReverse))
 #endif
@@ -2144,7 +1921,7 @@ CINN_REGISTER_HELPER(transform_ops) {
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForTranspose)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForTranspose))
-      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForReshape))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferShapeForSliceAssign))
 #ifndef CINN_WITH_CUDA
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForTranspose))
 #endif
@@ -2265,17 +2042,6 @@ CINN_REGISTER_HELPER(transform_ops) {
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForScatterAdd))
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kInjective)
       .set_support_level(4);
-
-  // TODO(wilber): expand_dims should be kBroadcast, but have conflict with op_fusion_pass, temp set kInjective.
-  CINN_REGISTER_OP(expand_dims)
-      .describe("This operator is used to expand input tensor's dims.")
-      .set_num_inputs(1)
-      .set_num_outputs(1)
-      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForExpandDims)
-      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForExpandDims))
-      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForExpandDims))
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kInjective)
-      .set_support_level(1);
 
   return true;
 }

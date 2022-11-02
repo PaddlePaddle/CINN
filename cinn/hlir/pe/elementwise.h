@@ -75,6 +75,19 @@ HLIR_DCL_UNARY_PE(ElementwiseSum);
 HLIR_DCL_UNARY_PE(Full);
 HLIR_DCL_UNARY_PE(FullLike);
 
+ir::Tensor Reshape(const ir::Tensor& A,
+                   const std::vector<int>& new_shape,
+                   const std::string& name = UniqName("T_Transform_Matmul_out"));
+
+ir::Tensor ExpandDims(const ir::Tensor& input,
+                      int axis,
+                      int num_newaxis                = 1,
+                      const std::string& output_name = UniqName("T_Transform_ExpandDims_out"));
+
+ir::Tensor Squeeze(const ir::Tensor& A,
+                   const std::vector<int>& axes   = {},
+                   const std::string& output_name = UniqName("T_Transform_Squeeze_out"));
+
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn
