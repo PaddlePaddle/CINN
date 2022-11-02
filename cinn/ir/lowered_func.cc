@@ -191,6 +191,7 @@ void _LoweredFunc_::PrepareBufferCastExprs(bool with_expr_gen_tensor) {
 
   auto tensors = CollectAllTensorReference(with_expr_gen_tensor);
   std::sort(tensors.begin(), tensors.end(), [](const Tensor& a, const Tensor& b) { return a->name < b->name; });
+
   VLOG(3) << "Function used " << tensors.size() << " buffers";
   for (auto& tensor : tensors) {
     auto* node = tensor.As<ir::_Tensor_>();

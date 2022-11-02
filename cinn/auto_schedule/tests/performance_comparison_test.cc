@@ -40,6 +40,7 @@ DEFINE_string(resnet50_model_dir, "./ResNet50", "the path to paddle model resnet
 // Bit with index 2 controls auto schedule test, means options = 4 = "100" will run auto schedule test.
 // The default value is -1, which means that this flag is disabled to set the options
 DEFINE_int32(evaluate_knobs, -1, "the options to control which schedule tests will be run.");
+DECLARE_int32(cinn_parallel_compile_size);
 
 namespace cinn {
 namespace auto_schedule {
@@ -60,6 +61,8 @@ class PerformanceTester : public ::testing::Test {
     // knobs to control which schedules will be measured, refer to FLAGS_evaluate_knobs explanation
     std::bitset<3> evaluate_knobs = 7UL;
   };
+
+  void SetUp() override { FLAGS_cinn_parallel_compile_size = 0; }
 
   void Evaluate(const frontend::Program& program) {
     if (FLAGS_evaluate_knobs >= 0) {
@@ -172,6 +175,7 @@ TEST_F(PerformanceTester, Mul) {
   int M = 32;
   int K = 16;
   int N = 32;
+
   Evaluate(MulProgramBuilder({M, K}, {N, K})());
 }
 
@@ -181,6 +185,7 @@ TEST_F(PerformanceTester, Matmul) {
   int M = batch_size;
   int K = 2048;
   int N = 1000;
+
   Evaluate(MatmulProgramBuilder({M, K}, {K, N})());
 }
 

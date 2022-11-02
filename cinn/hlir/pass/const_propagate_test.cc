@@ -56,6 +56,7 @@ TEST(const_conv, const_conv) {
 
   hlir::framework::ApplyPass(graph.get(), "InferShape");
   hlir::framework::ApplyPass(graph.get(), "ConstPropagate");
+  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
   auto scope = BuildScope(target, graph);
 
   hlir::framework::GraphCompiler gc(target, scope, graph);
@@ -100,14 +101,14 @@ TEST(const_bn, const_bn) {
 
   hlir::framework::ApplyPass(graph.get(), "InferShape");
   hlir::framework::ApplyPass(graph.get(), "ConstPropagate");
+  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
   auto scope = BuildScope(target, graph);
 
   hlir::framework::GraphCompiler gc(target, scope, graph);
   auto runtime_program = gc.Build();
   auto& prerun_instrs  = runtime_program->GetPreRunInstructions();
   auto& run_instrs     = runtime_program->GetRunInstructions();
-  ASSERT_EQ(prerun_instrs.size(), 7);
-  ASSERT_EQ(run_instrs.size(), 2);
+  ASSERT_EQ(run_instrs.size(), 3);
 
   scope->Var<hlir::framework::Tensor>("A");
   scope->Var<hlir::framework::Tensor>("Scale");

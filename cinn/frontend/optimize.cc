@@ -46,11 +46,19 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
   if (FLAGS_cinn_use_fill_constant_folding) {
     options.program_passes.emplace_back("FillConstantFolding");
   }
-  options.program_passes.emplace_back("RemoveIdentity");
+  // options.program_passes.emplace_back("RemoveIdentity");
   options.program_passes.emplace_back("DeadCodeEliminate");
   if (FLAGS_cinn_open_fusion_optimize) {
     if (FLAGS_cinn_use_new_fusion_pass) {
-      options.graph_passes = {"OpFusionPass", "FusionMergePass"};
+      options.graph_passes = {
+#ifdef CINN_WITH_CUDA
+          "MatmulToCublasCustomCallPass",
+#ifdef CINN_WITH_CUDNN
+          "ConvToCudnnCustomCallPass",
+#endif
+#endif
+          "OpFusionPass",
+          "FusionMergePass"};
     } else {
       options.graph_passes = {"OpFusion"};
     }

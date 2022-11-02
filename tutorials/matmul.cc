@@ -47,12 +47,12 @@ TEST(matmul, basic) {
   auto target_source = R"ROC(
 function fn0 (_A, _B, _C)
 {
-  for (i, 0, 100)
+  serial for (i, 0, 100)
   {
-    for (j, 0, 200)
+    serial for (j, 0, 200)
     {
       C__reduce_init[i, j] = 0
-      for (k0, 0, 50)
+      serial for (k0, 0, 50)
       {
         C[i, j] = (C[i, j] + (A[i, k0] * B[k0, j]))
       }
@@ -124,16 +124,16 @@ void fn0(void* _args, int32_t num_args)
   target_source = R"ROC(
 function fn1 (_A, _B, _C)
 {
-  for (i_outer, 0, 25)
+  serial for (i_outer, 0, 25)
   {
-    for (i_inner, 0, 4)
+    serial for (i_inner, 0, 4)
     {
-      for (j_outer, 0, 50)
+      serial for (j_outer, 0, 50)
       {
-        for (j_inner, 0, 4)
+        serial for (j_inner, 0, 4)
         {
           C__reduce_init[((4 * i_outer) + i_inner), ((4 * j_outer) + j_inner)] = 0
-          for (k0, 0, 50)
+          serial for (k0, 0, 50)
           {
             C[((4 * i_outer) + i_inner), ((4 * j_outer) + j_inner)] = (C[((4 * i_outer) + i_inner), ((4 * j_outer) + j_inner)] + (A[((4 * i_outer) + i_inner), k0] * B[k0, ((4 * j_outer) + j_inner)]))
           }

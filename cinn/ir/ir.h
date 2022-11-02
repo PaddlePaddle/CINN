@@ -702,6 +702,7 @@ struct ForBase {
   }
 
   inline bool is_serial() const { return for_type_ == ForType::Serial; }
+  inline bool is_default() const { return for_type_ == ForType::Default; }
   inline bool is_unrolled() const { return tell_for_type_flag(ForType::Unrolled); }
   inline bool is_vectorized() const { return tell_for_type_flag(ForType::Vectorized); }
   inline bool is_parallel() const { return tell_for_type_flag(ForType::Parallel); }

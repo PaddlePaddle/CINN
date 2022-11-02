@@ -46,22 +46,15 @@ class TestMulOp(OpTest):
         self.paddle_outputs = [out]
 
     def build_cinn_program(self, target):
-        builder = NetBuilder("mul")
+        builder = NetBuilder("matmul")
 
         x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
+        y = builder.create_input(Float(32), self.inputs["y"].shape, "y")
 
-        if enable_cudnn == "ON":
-            tran_y = self.inputs["y"].reshape(-1)
-        else:
-            tran_y = self.inputs["y"].transpose().reshape(-1)
-
-        y = builder.create_input(
-            Float(32), [self.inputs["y"].shape[1], self.inputs["y"].shape[0]],
-            "y")
-        out = builder.mul(x, y)
+        out = builder.matmul(x, y)
         prog = builder.build()
-        forward_res = self.get_cinn_output(prog, target, [x, y],
-                                           [self.inputs["x"], tran_y], [out])
+        forward_res = self.get_cinn_output(
+            prog, target, [x, y], [self.inputs["x"], self.inputs["y"]], [out])
 
         self.cinn_outputs = forward_res
 

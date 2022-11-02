@@ -27,6 +27,7 @@
 #include "cinn/frontend/decomposer/use_decomposer.h"
 #include "cinn/frontend/decomposer_registry.h"
 #include "cinn/frontend/net_builder.h"
+#include "cinn/frontend/optimize.h"
 #include "cinn/frontend/program_pass.h"
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/graph.h"
@@ -48,6 +49,7 @@ TEST(nn, CONV_GRAD) {
   std::vector<int> strides   = {1, 1};
   std::vector<int> paddings  = {1, 1};
   std::vector<int> dilations = {1, 1};
+  std::unordered_set<std::string> fetch_ids;
 
   NetBuilder net_builder("net_builder");
   {
@@ -57,14 +59,14 @@ TEST(nn, CONV_GRAD) {
     auto weight = net_builder.CreateInput(Float(32), {oc, ic, fh, fw}, "weight");
     // add batch norm train
     auto outputs = net_builder.Conv2dGrad(dy, x, weight, strides, paddings, dilations);
+    fetch_ids    = {outputs[0]->id, outputs[1]->id};
   }
 
   // build program
   auto program = net_builder.Build();
   auto target  = common::DefaultNVGPUTarget();
-  RunDecomposer(&program, target);
+  auto graph   = Optimize(&program, fetch_ids, target);
 
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
   auto scope = BuildScope(target, graph);
   hlir::framework::GraphCompiler gc(target, scope, graph);
   auto run_program = gc.Build();

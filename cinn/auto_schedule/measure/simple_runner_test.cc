@@ -22,6 +22,7 @@
 
 #include "cinn/common/target.h"
 #include "cinn/frontend/net_builder.h"
+#include "cinn/frontend/optimize.h"
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/graph_compiler.h"
 
@@ -51,12 +52,14 @@ class TestSimpleRunner : public ::testing::Test {
 
   static frontend::Program CreateAddReluProgram();
   void SetUp() override {
-    graph                    = std::make_shared<Graph>(CreateAddReluProgram(), target);
+    std::unordered_set<std::string> fetch_ids;
+    auto program             = CreateAddReluProgram();
+    auto graph               = cinn::frontend::Optimize(&program, fetch_ids, target);
     compiled_scope           = BuildScope(target, graph);
     graph_compiler           = std::make_unique<GraphCompiler>(target, compiled_scope, graph);
     auto runtime_program     = graph_compiler->Build();
     const auto& instructions = runtime_program->GetRunInstructions();
-    ASSERT_EQ(2, instructions.size());
+    ASSERT_EQ(1, instructions.size());
 
     build_result.compiled_scope  = compiled_scope.get();
     build_result.runtime_program = std::move(runtime_program);

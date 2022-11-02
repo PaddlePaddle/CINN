@@ -44,12 +44,12 @@ TEST(CreateStages, compute_at) {
 
   auto target_out = R"ROC(
 {
-  for (i, 0, 100)
+  serial for (i, 0, 100)
   {
-    for (j, 0, 100)
+    serial for (j, 0, 100)
     {
       B[i, j] = (1 + A[i, j])
-      for (k, 0, 100)
+      serial for (k, 0, 100)
       {
         C[i, j, k] = (B[i, j] * B[j, k])
       }
@@ -94,23 +94,23 @@ TEST(CreateStages, buffer_bind_to_multiple_tensors_schedule) {
 
   auto target_out = R"ROC(
 {
-  for (i, 0, 100)
+  serial for (i, 0, 100)
   {
-    for (j, 0, 100)
+    serial for (j, 0, 100)
     {
       B[i, j] = (1 + A[i, j])
     }
   }
-  for (i, 0, 100)
+  serial for (i, 0, 100)
   {
-    for (j, 0, 100)
+    serial for (j, 0, 100)
     {
       C[i, j] = (1 + A[i, j])
     }
   }
-  for (i, 0, 100)
+  serial for (i, 0, 100)
   {
-    for (j, 0, 100)
+    serial for (j, 0, 100)
     {
       D[i, j] = (1 + A[i, j])
     }
