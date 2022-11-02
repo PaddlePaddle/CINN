@@ -47,9 +47,9 @@ TEST(TestIrCompare, SingleFunction) {
 {
   ScheduleBlock(root)
   {
-    for (i, 0, 32)
+    serial for (i, 0, 32)
     {
-      for (j, 0, 32)
+      serial for (j, 0, 32)
       {
         ScheduleBlock(B)
         {
@@ -65,9 +65,9 @@ TEST(TestIrCompare, SingleFunction) {
 {
   ScheduleBlock(root_0)
   {
-    for (i, 0, 32)
+    serial for (i, 0, 32)
     {
-      for (j, 0, 32)
+      serial for (j, 0, 32)
       {
         ScheduleBlock(B)
         {
@@ -83,9 +83,9 @@ TEST(TestIrCompare, SingleFunction) {
 {
   ScheduleBlock(root_1)
   {
-    for (i, 0, 32)
+    serial for (i, 0, 32)
     {
-      for (j, 0, 32)
+      serial for (j, 0, 32)
       {
         ScheduleBlock(C)
         {
