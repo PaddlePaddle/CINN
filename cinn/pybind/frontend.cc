@@ -341,10 +341,11 @@ void BindFrontend(pybind11::module *m) {
   // clang-format off
 #define PY_REGISTER_CONSTANT_OP(TYPE__)                                              \
      .def("constant",                                                                \
-          static_cast<Variable (NetBuilder::*)(const TYPE__&, const std::string &)>( \
+          static_cast<Variable (NetBuilder::*)(const TYPE__&, const std::string &, const std::string &)>( \
                &NetBuilder::template Constant<TYPE__>),                              \
           py::arg("value"),                                                          \
-          py::arg("name"))
+          py::arg("name"),                                                          \
+          py::arg("dtype") = "")
      EXPAND_CINN_SUPPORT_TYPE(PY_REGISTER_CONSTANT_OP)
 #define EXPAND_ONE_VECTOR(TYPE) PY_REGISTER_CONSTANT_OP(std::vector<TYPE>)
      EXPAND_CINN_SUPPORT_TYPE(EXPAND_ONE_VECTOR)
