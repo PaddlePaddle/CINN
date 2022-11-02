@@ -101,16 +101,24 @@ Expr min(Expr a, Expr b);
 template <typename T>
 Expr make_const(Type t, T v) {
   if (t.is_vector()) {
-    if (t.type() == Type::type_t::Int) {
-      return ir::Broadcast::Make(make_shared<ir::IntImm>(t.ElementOf(), v), t.lanes());
+    if (t.is_int()) {
+      return ir::Broadcast::Make(make_shared<ir::IntImm>(t.ElementOf(), static_cast<int64_t>(v)), t.lanes());
+    } else if (t.is_float()) {
+      return ir::Broadcast::Make(make_shared<ir::FloatImm>(t.ElementOf(), static_cast<float>(v)), t.lanes());
+    } else if (t.is_bool()) {
+      return ir::Broadcast::Make(make_shared<ir::UIntImm>(t.ElementOf(), static_cast<bool>(v)), t.lanes());
     } else {
-      return ir::Broadcast::Make(make_shared<ir::FloatImm>(t.ElementOf(), v), t.lanes());
+      CINN_NOT_IMPLEMENTED
     }
   } else {
-    if (t.type() == Type::type_t::Int) {
-      return make_shared<ir::IntImm>(t, v);
+    if (t.is_int()) {
+      return make_shared<ir::IntImm>(t, static_cast<int64_t>(v));
+    } else if (t.is_float()) {
+      return make_shared<ir::FloatImm>(t, static_cast<float>(v));
+    } else if (t.is_bool()) {
+      return make_shared<ir::UIntImm>(t, static_cast<bool>(v));
     } else {
-      return make_shared<ir::FloatImm>(t, v);
+      CINN_NOT_IMPLEMENTED
     }
   }
   return Expr();

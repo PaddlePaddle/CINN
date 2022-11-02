@@ -380,7 +380,8 @@ Expr MakeCacheBlock(const std::vector<std::pair<Expr, Expr>>& buffer_region,
   std::vector<Expr> iter_values;
   // Create loop vars and block vars' binding_value
   for (auto& axis_range : buffer_region) {
-    Var loop_var("ax" + std::to_string(loop_vars.size()));
+    Var loop_var(common::UniqName("cache_ax" + std::to_string(loop_vars.size())));
+    // Var loop_var("ax" + std::to_string(loop_vars.size()));
     loop_vars.push_back(loop_var);
     iter_values.push_back(common::AutoSimplify(axis_range.first + loop_var));
   }

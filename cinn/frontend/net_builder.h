@@ -359,37 +359,32 @@ class NetBuilder {
    * @return The result variable.
    */
   template <typename T>
-  std::enable_if_t<std::is_arithmetic<T>::value, Variable> Constant(const T& value, const std::string& name) {
-    Instruction instr("const_scalar");
-    instr.SetInputs({});
-    instr.SetAttr<T>("value", value);
+  std::enable_if_t<std::is_arithmetic<T>::value, Variable> Constant(const T& value,
+                                                                    const std::string& name,
+                                                                    const std::string& dtype = "") {
+    auto true_dtype = dtype.empty() ? common::Type2Str(common::type_of<T>()) : dtype;
+    auto out        = CustomInstr("const_scalar", {}, {{"value", value}, {"dtype", true_dtype}}).front();
 
-    InferShape(instr);
-    AppendInstruction(instr);
-
-    auto out = instr.GetOutput(0);
     out.set_id(name);
-    out->type = common::type_of<T>();
     return out;
   }
 
   template <typename T>
-  std::enable_if_t<cinn::utils::IsVector<T>::value, Variable> Constant(const T& value, const std::string& name) {
+  std::enable_if_t<cinn::utils::IsVector<T>::value, Variable> Constant(const T& value,
+                                                                       const std::string& name,
+                                                                       const std::string& dtype = "") {
     CHECK(!value.empty()) << "The value of Constant should not be None or empty list! Please check.";
 
     // flatten n-dims vector to 1-dim vector
     auto all_datas = cinn::utils::Flatten(value);
 
-    // why need static_cast ? For vector<bool>, the type of `data[i]` is `bit_reference` no `bool`
-    using dtype = typename decltype(all_datas)::value_type;
+    VLOG(4) << "Constant with values: " << cinn::utils::Join(all_datas, ", ");
 
-    std::vector<Variable> vars;
-    vars.reserve(all_datas.size());
-    for (int i = 0; i < all_datas.size(); ++i) {
-      vars.emplace_back(Constant(static_cast<dtype>(all_datas[i]), name + "_" + std::to_string(i)));
-    }
+    using TYPE      = typename decltype(all_datas)::value_type;
+    auto true_dtype = dtype.empty() ? common::Type2Str(common::type_of<TYPE>()) : dtype;
+    auto assign_out = CustomInstr("assign_value", {}, {{"values", all_datas}, {"dtype", true_dtype}}).front();
 
-    auto out = Reshape(Concat(vars), GetVectorShape(value));
+    auto out = Reshape(assign_out, GetVectorShape(value));
 
     // set the name correctly
     out.set_id(name);

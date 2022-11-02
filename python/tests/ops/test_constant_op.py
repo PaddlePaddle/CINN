@@ -33,15 +33,16 @@ class TestConstantOp(OpTest):
     def init_case(self):
         self.value = 1.0
         self.name = 'x'
+        self.dtype = "float32"
 
     def build_paddle_program(self, target):
-        x = paddle.to_tensor(self.value)
+        x = paddle.to_tensor(self.value, dtype=self.dtype)
 
         self.paddle_outputs = [x]
 
     def build_cinn_program(self, target):
         builder = NetBuilder("constant")
-        x = builder.constant(self.value, self.name)
+        x = builder.constant(self.value, self.name, self.dtype)
 
         prog = builder.build()
         res = self.get_cinn_output(prog, target, [], [], [x])
@@ -55,36 +56,56 @@ class TestConstantCase1(TestConstantOp):
     def init_case(self):
         self.value = [1.0]
         self.name = 'x'
+        self.dtype = "float32"
 
 
 class TestConstantCase2(TestConstantOp):
     def init_case(self):
         self.value = [1.0, 2.0, 3.0, 4.0, 5.0]
         self.name = 'x'
+        self.dtype = "float32"
 
 
 class TestConstantCase3(TestConstantOp):
     def init_case(self):
         self.value = [[1.0, 2.0], [3.0, 4.0]]
         self.name = 'x'
+        self.dtype = "float32"
 
 
 class TestConstantCase4(TestConstantOp):
     def init_case(self):
         self.value = [[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]]
         self.name = 'x'
+        self.dtype = "float32"
 
 
 class TestConstantCase5(TestConstantOp):
     def init_case(self):
         self.value = [[[1.0], [3.0]], [[5.0], [7.0]]]
         self.name = 'x'
+        self.dtype = "float32"
 
 
 class TestConstantCase6(TestConstantOp):
     def init_case(self):
         self.value = [[[1.0]]]
         self.name = 'x'
+        self.dtype = "float32"
+
+
+class TestConstantCase7(TestConstantOp):
+    def init_case(self):
+        self.value = self.random([200], "int32", 1, 1000).tolist()
+        self.name = 'x'
+        self.dtype = "int32"
+
+
+class TestConstantCase8(TestConstantOp):
+    def init_case(self):
+        self.value = self.random([10], "int64", 1, 1000).tolist()
+        self.name = 'x'
+        self.dtype = "int64"
 
 
 if __name__ == "__main__":

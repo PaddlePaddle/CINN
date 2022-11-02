@@ -98,9 +98,9 @@ TEST(TuneTask, GraphToUnoptLoweredFunc_NoPass) {
 {
   ScheduleBlock(root)
   {
-    for (i, 0, 32)
+    serial for (i, 0, 32)
     {
-      for (j, 0, 24)
+      serial for (j, 0, 24)
       {
         ScheduleBlock(var_1)
         {
@@ -114,9 +114,9 @@ TEST(TuneTask, GraphToUnoptLoweredFunc_NoPass) {
 {
   ScheduleBlock(root_0)
   {
-    for (i, 0, 32)
+    serial for (i, 0, 32)
     {
-      for (j, 0, 24)
+      serial for (j, 0, 24)
       {
         ScheduleBlock(var_2)
         {
@@ -133,9 +133,9 @@ TEST(TuneTask, GraphToUnoptLoweredFunc_NoPass) {
 {
   ScheduleBlock(root)
   {
-    for (i, 0, 32)
+    serial for (i, 0, 32)
     {
-      for (j, 0, 24)
+      serial for (j, 0, 24)
       {
         ScheduleBlock(var_1)
         {
@@ -149,9 +149,9 @@ TEST(TuneTask, GraphToUnoptLoweredFunc_NoPass) {
 {
   ScheduleBlock(root_0)
   {
-    for (i, 0, 32)
+    serial for (i, 0, 32)
     {
-      for (j, 0, 24)
+      serial for (j, 0, 24)
       {
         ScheduleBlock(var_2)
         {
@@ -211,9 +211,9 @@ TEST(TuneTask, GraphToUnoptLoweredFunc_ApplyPass) {
   ScheduleBlock(root)
   {
     {
-      for (i, 0, 32)
+      serial for (i, 0, 32)
       {
-        for (j, 0, 24)
+        serial for (j, 0, 24)
         {
           ScheduleBlock(var_1)
           {
@@ -222,9 +222,9 @@ TEST(TuneTask, GraphToUnoptLoweredFunc_ApplyPass) {
           }
         }
       }
-      for (i, 0, 32)
+      serial for (i, 0, 32)
       {
-        for (j, 0, 24)
+        serial for (j, 0, 24)
         {
           ScheduleBlock(var_2)
           {
@@ -244,9 +244,9 @@ TEST(TuneTask, GraphToUnoptLoweredFunc_ApplyPass) {
   ScheduleBlock(root)
   {
     {
-      for (i, 0, 32)
+      serial for (i, 0, 32)
       {
-        for (j, 0, 24)
+        serial for (j, 0, 24)
         {
           ScheduleBlock(var_1)
           {
@@ -255,9 +255,9 @@ TEST(TuneTask, GraphToUnoptLoweredFunc_ApplyPass) {
           }
         }
       }
-      for (i, 0, 32)
+      serial for (i, 0, 32)
       {
-        for (j, 0, 24)
+        serial for (j, 0, 24)
         {
           ScheduleBlock(var_2)
           {

@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "cinn/ir/ir.h"
+#include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"
 
 namespace cinn {
@@ -87,6 +88,30 @@ ir::Tensor ExpandDims(const ir::Tensor& input,
 ir::Tensor Squeeze(const ir::Tensor& A,
                    const std::vector<int>& axes   = {},
                    const std::string& output_name = UniqName("T_Transform_Squeeze_out"));
+
+template <typename T>
+ir::Tensor AssignValue(const std::vector<T>& values,
+                       const common::Type& type       = common::type_of<T>(),
+                       const std::string& output_name = "T_assign_value_out") {
+  CHECK(!values.empty()) << "The input of pe::AssignValue should not empty! Please check.";
+
+  auto out = lang::Compute(
+      {ir::Expr(static_cast<int>(values.size()))},
+      [=](const std::vector<ir::Expr>& indice) {
+        auto init_value =
+            (type == common::type_of<T>()) ? ir::Expr(values[0]) : common::cast(ir::Expr(values[0]), type);
+        ir::Expr previous = ir::Select::Make(ir::EQ::Make(indice[0], ir::Expr(0)), init_value, lang::Zero(type));
+
+        for (int i = 1; i < values.size(); ++i) {
+          auto val = (type == common::type_of<T>()) ? ir::Expr(values[i]) : common::cast(ir::Expr(values[i]), type);
+          previous = ir::Select::Make(ir::EQ::Make(indice[0], ir::Expr(i)), val, previous);
+        }
+        return previous;
+      },
+      output_name);
+
+  return out;
+}
 
 }  // namespace pe
 }  // namespace hlir

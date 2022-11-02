@@ -1021,7 +1021,8 @@ struct LoopReconstructor : public ir::IRMutator<> {
     for (int i = 0; i < n_iters; ++i) {
       auto iter_dom = iter_doms[i];
       if (iter_dom.second != Expr(1)) {
-        Var var("ax" + std::to_string(loop_vars.size()), Int(32));
+        Var var(common::UniqName("ax" + std::to_string(loop_vars.size())), Int(32));
+        // Var var("ax" + std::to_string(loop_vars.size()), Int(32));
         loop_vars.push_back(var);
         loop_extents.push_back(iter_dom.second);
         iter_values.push_back(common::AutoSimplify(iter_dom.first) + var);
@@ -1036,12 +1037,8 @@ struct LoopReconstructor : public ir::IRMutator<> {
       auto loop_var    = loop_vars[i];
       auto loop_extent = loop_extents[i];
       if (!loop_body.As<ir::Block>()) loop_body = Block::Make({loop_body});
-      loop_body = For::Make(loop_var,
-                            Expr(0),
-                            loop_extent,
-                            loop_.As<ir::For>()->for_type(),
-                            loop_.As<ir::For>()->device_api,
-                            std::move(loop_body));
+      loop_body = For::Make(
+          loop_var, Expr(0), loop_extent, ForType::Serial, loop_.As<ir::For>()->device_api, std::move(loop_body));
     }
     new_loop_ = optim::IRCopy(loop_);
     InsertBlock(new_loop_, loop_body);
