@@ -152,9 +152,13 @@ void BindFrontend(pybind11::module *m) {
              const std::vector<Variable> &tensor_outputs,
              std::shared_ptr<hlir::framework::Scope> scope) {
             std::unordered_set<std::string> fetch_ids;
+            VLOG(3) << "Before cinn::frontend::Optimize";
             auto graph = cinn::frontend::Optimize(&self, fetch_ids, target);
-            scope      = hlir::framework::BuildScope(target, graph, scope);
+            VLOG(3) << "Before BuildScope";
+            scope = hlir::framework::BuildScope(target, graph, scope);
+            VLOG(3) << "Before GraphCompiler init";
             hlir::framework::GraphCompiler gc(target, scope, graph);
+            VLOG(3) << "Before GraphCompiler::Build";
             auto program = gc.Build();
             for (size_t i = 0; i < tensor_inputs.size(); i++) {
               auto in_tensor = scope->GetTensor(tensor_inputs[i]->id);

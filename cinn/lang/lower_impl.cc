@@ -441,7 +441,6 @@ std::vector<ir::Argument> LowerImpl::GenFuncArgForSplitKernel(Expr func_iterator
         VLOG(3) << "And its share_buffer_tensor is : " << i;
       }
     }
-    VLOG(3) << "In all_tensors, it has : " << tensor->name;
   }
   for (auto& i : all_vars) {
     auto* var = i.as_var();
@@ -490,6 +489,17 @@ std::vector<ir::Argument> LowerImpl::GenFuncArgForSplitKernel(Expr func_iterator
     else
       out_args.emplace_back(tensor->buffer, io);
   }
+  if (out_args.empty()) {
+    for (auto& i : all_tensors) {
+      auto* tensor = i.as_tensor();
+      VLOG(3) << "Tensor " << tensor->name << tensor->buffer.defined() ? " has buffer!" : "has no buffer!";
+      if (tensor->buffer.defined() && !arg_names.count(tensor->buffer->name)) {
+        bool is_output = teller.IsWrite(tensor->name) && teller.IsWrite(tensor->name);
+        if (is_output) out_args.emplace_back(tensor->buffer, ir::Argument::IO::kOutput);
+      }
+    }
+  }
+
   std::vector<ir::Argument> args(in_args.begin(), in_args.end());
   args.insert(std::end(args), out_args.begin(), out_args.end());
   return args;
@@ -704,6 +714,7 @@ std::vector<Expr> LowerImpl::GenerateFunctionBody(const poly::Schedule* schedule
         // add schedule block of tensor computation for schedule IR
         int var_counts = tensor->shape.size() + tensor->reduce_axis.size();
         std::vector<int> int_shape;
+        VLOG(3) << "Tensor " << tensor->name << "'s shape is : " << utils::Join(tensor->shape, ",");
         for (auto& expr : tensor->shape) {
           CHECK(expr.is_constant());
           int_shape.push_back((int)expr.get_constant());

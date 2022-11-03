@@ -246,7 +246,7 @@ std::vector<Expr> GetLoopsOfExpr(const Expr& expr, const Expr& root) {
   auto loop_nodes =
       ir::CollectIRNodesWithoutTensor(root, [&](const Expr* x) { return x->As<ir::For>() && Contains(*x, expr); });
   std::vector<Expr> result(loop_nodes.begin(), loop_nodes.end());
-  if (result.empty()) LOG(FATAL) << "Didn't find expr's loops in root.";
+  if (result.empty()) LOG(FATAL) << "Didn't find expr's : \n" << expr << "\n loops in root : \n" << root;
   std::sort(result.begin(), result.end(), [&](Expr i, Expr j) {
     return (utils::GetStreamCnt(i).size() > utils::GetStreamCnt(j).size());
   });

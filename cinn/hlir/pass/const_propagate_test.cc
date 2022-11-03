@@ -108,7 +108,8 @@ TEST(const_bn, const_bn) {
   auto runtime_program = gc.Build();
   auto& prerun_instrs  = runtime_program->GetPreRunInstructions();
   auto& run_instrs     = runtime_program->GetRunInstructions();
-  ASSERT_EQ(run_instrs.size(), 3);
+  // Revert changes in PR #990 to pass the model unittests
+  ASSERT_EQ(run_instrs.size(), 1);
 
   scope->Var<hlir::framework::Tensor>("A");
   scope->Var<hlir::framework::Tensor>("Scale");

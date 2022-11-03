@@ -34,6 +34,8 @@ void Graph::Initialize(const frontend::Program& prog,
   int counter = 0;
   for (size_t i = 0; i < prog.size(); i++) {
     auto temp = prog[i];
+    VLOG(3) << "operator [" << temp->op_type << "] has [" << temp->inputs.size() << "] inputs, and ["
+            << temp->outputs.size() << "] outputs";
     Node* node_tmp =
         new Node(Operator::Get(temp->op_type), temp->op_type, temp->op_type + "_" + std::to_string(counter++));
     Shared<Node> node_ptr(node_tmp);

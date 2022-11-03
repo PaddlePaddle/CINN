@@ -134,6 +134,7 @@ Expr RampRelatedMul(Expr a, Expr b) {
 
 Expr IndiceToAbsOffset(const std::vector<Expr> &shape, const std::vector<Expr> &indices) {
   CHECK_GE(shape.size(), indices.size());
+  VLOG(3) << "Begin IndiceToAbsOffset";
   Expr res;
   for (int i = 0; i < shape.size(); i++) {
     CHECK_EQ(shape[i].type(), Int(32));
