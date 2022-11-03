@@ -691,6 +691,153 @@ function test_bind (_A, _B)
 }
 )ROC"));
 }
+TEST(IrSchedule, simple_compute_at) {
+  Context::Global().ResetNameId();
+  Expr M(128);
+  Expr N(10);
+
+  Target target = common::DefaultHostTarget();
+
+  Placeholder<float> A("A", {M, N});
+  auto B = Compute(
+      {M, N}, [&](Var i, Var j) { return A(i, j); }, "B");
+  auto C = Compute(
+      {M, N}, [&](Var i, Var j) { return B(i, j); }, "C");
+
+  auto stages = CreateStages({A, B, C});
+
+  auto func = cinn::lang::LowerVec("test_simple_compute_at", stages, {A, C}, {}, {}, nullptr, target, true);
+  CHECK_EQ(func.size(), 1U);
+
+  auto ast_expr = func[0]->body;
+  std::vector<Expr> vec_ast{ast_expr};
+  ir::ModuleExpr mod_expr(vec_ast);
+  ir::IRSchedule ir_sch(mod_expr);
+
+  auto fused   = ir_sch.Fuse("B", {0, 1});
+  auto splited = ir_sch.Split(fused, {-1, 1024});
+
+  fused        = ir_sch.Fuse("C", {0, 1});
+  splited      = ir_sch.Split(fused, {-1, 1024});
+  auto block_b = ir_sch.GetBlock("B");
+  ir_sch.SimpleComputeAt(block_b, splited[1]);
+
+  Module::Builder builder("module1", target);
+  for (auto& i : func) {
+    builder.AddFunction(i);
+  }
+  auto module = builder.Build();
+  CodeGenC codegen(target);
+  codegen.SetInlineBuiltinCodes(false);
+  auto source_code = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
+
+  VLOG(1) << "simple_compute_at source code is :\n" << source_code;
+
+  std::string target_code = R"ROC(
+#include <cinn_runtime.h>
+#include <stdio.h>
+
+void test_compute_at0(void* _args, int32_t num_args)
+{
+  const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
+  cinn_buffer_t* _C = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[1]));
+  cinn_buffer_t* _B = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 128, 10 });
+  cinn_buffer_malloc((void*)(0), _C);
+  cinn_buffer_malloc((void*)(0), _B);
+  const float* A = ((const float*)(_A->memory));
+  float* B = ((float*)(_B->memory));
+  float* C = ((float*)(_C->memory));
+  for (int32_t i_j_fused_0 = 0; i_j_fused_0 < 2; i_j_fused_0 += 1) {
+    for (int32_t i_j_fused_1 = 0; i_j_fused_1 < 1024; i_j_fused_1 += 1) {
+      if ((((1024 * i_j_fused_0) + i_j_fused_1) < 1280)) {
+      {
+        B[((1024 * i_j_fused_0) + i_j_fused_1)] = A[((1024 * i_j_fused_0) + i_j_fused_1)];
+        C[((1024 * i_j_fused_0) + i_j_fused_1)] = B[((1024 * i_j_fused_0) + i_j_fused_1)];
+      }
+      };
+    };
+  };
+  cinn_buffer_free((void*)(0), _B);
+  cinn_buffer_free((void*)(0), _C);
+}
+
+)ROC";
+  ASSERT_EQ(utils::Trim(target_code), utils::Trim(source_code));
+}
+
+TEST(IrSchedule, compute_at0) {
+  Context::Global().ResetNameId();
+  Expr M(128);
+  Expr N(10);
+
+  Target target = common::DefaultHostTarget();
+
+  Placeholder<float> A("A", {M, N});
+  auto B = Compute(
+      {M, N}, [&](Var i, Var j) { return A(i, j); }, "B");
+  auto C = Compute(
+      {M, N}, [&](Var i, Var j) { return B(i, j); }, "C");
+
+  auto stages = CreateStages({A, B, C});
+
+  auto func = cinn::lang::LowerVec("test_compute_at0", stages, {A, C}, {}, {}, nullptr, target, true);
+  CHECK_EQ(func.size(), 1U);
+
+  auto ast_expr = func[0]->body;
+  std::vector<Expr> vec_ast{ast_expr};
+  ir::ModuleExpr mod_expr(vec_ast);
+  ir::IRSchedule ir_sch(mod_expr);
+
+  auto fused   = ir_sch.Fuse("B", {0, 1});
+  auto splited = ir_sch.Split(fused, {-1, 1024});
+
+  fused        = ir_sch.Fuse("C", {0, 1});
+  splited      = ir_sch.Split(fused, {-1, 1024});
+  auto block_b = ir_sch.GetBlock("B");
+  ir_sch.ComputeAt(block_b, splited[1]);
+
+  Module::Builder builder("module1", target);
+  for (auto& i : func) {
+    builder.AddFunction(i);
+  }
+  auto module = builder.Build();
+  CodeGenC codegen(target);
+  codegen.SetInlineBuiltinCodes(false);
+  auto source_code = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
+
+  VLOG(1) << "compute_at0 source code is :\n" << source_code;
+
+  std::string target_code = R"ROC(
+#include <cinn_runtime.h>
+#include <stdio.h>
+
+void test_compute_at1(void* _args, int32_t num_args)
+{
+  const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
+  cinn_buffer_t* _C = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[1]));
+  cinn_buffer_t* _B = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 32, 32, 32 });
+  cinn_buffer_malloc((void*)(0), _C);
+  cinn_buffer_malloc((void*)(0), _B);
+  const float* A = ((const float*)(_A->memory));
+  float* B = ((float*)(_B->memory));
+  float* C = ((float*)(_C->memory));
+  for (int32_t i = 0; i < 32; i += 1) {
+    for (int32_t j = 0; j < 32; j += 1) {
+      for (int32_t ax0 = 0; ax0 < 32; ax0 += 1) {
+        B[((1024 * i) + ((32 * j) + ax0))] = A[((1024 * i) + ((32 * j) + ax0))];
+      };
+      for (int32_t k = 0; k < 32; k += 1) {
+        C[((1024 * i) + ((32 * j) + k))] = B[((1024 * i) + ((32 * j) + k))];
+      };
+    };
+  };
+  cinn_buffer_free((void*)(0), _B);
+  cinn_buffer_free((void*)(0), _C);
+}
+
+)ROC";
+  ASSERT_EQ(utils::Trim(target_code), utils::Trim(source_code));
+}
 
 TEST(IrSchedule, compute_at1) {
   Context::Global().ResetNameId();
