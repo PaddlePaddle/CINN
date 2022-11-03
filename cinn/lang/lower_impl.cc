@@ -492,7 +492,7 @@ std::vector<ir::Argument> LowerImpl::GenFuncArgForSplitKernel(Expr func_iterator
   if (out_args.empty()) {
     for (auto& i : all_tensors) {
       auto* tensor = i.as_tensor();
-      VLOG(3) << "Tensor " << tensor->name << tensor->buffer.defined() ? " has buffer!" : "has no buffer!";
+      VLOG(3) << "Tensor " << tensor->name;
       if (tensor->buffer.defined() && !arg_names.count(tensor->buffer->name)) {
         bool is_output = teller.IsWrite(tensor->name) && teller.IsWrite(tensor->name);
         if (is_output) out_args.emplace_back(tensor->buffer, ir::Argument::IO::kOutput);
