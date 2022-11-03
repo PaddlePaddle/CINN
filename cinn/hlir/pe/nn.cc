@@ -591,19 +591,30 @@ std::vector<Tensor> Depthwise_Conv2d_NCHW(const Tensor &input,
   Expr in_w = input->shape[3];
   Expr c_m  = weight->shape[1];  // channel_multiplier
   std::vector<Expr> output_shape;
-
+  CHECK(input->shape[0].is_constant());
+  CHECK(input->shape[1].is_constant());
+  CHECK(input->shape[2].is_constant());
+  CHECK(input->shape[3].is_constant());
+  CHECK(weight->shape[1].is_constant());
+  CHECK(weight->shape[2].is_constant());
+  CHECK(weight->shape[3].is_constant());
+  int B = (int)input->shape[0].get_constant();
+  int O = (int)weight->shape[1].get_constant() * (int)input->shape[1].get_constant();
+  int H = ((int)input->shape[2].get_constant() - (int)weight->shape[2].get_constant() + 2 * pad_h) / stride_h + 1;
+  int W = ((int)input->shape[3].get_constant() - (int)weight->shape[3].get_constant() + 2 * pad_w) / stride_w + 1;
   output_shape = {
-      input->shape[0],                                                  // B
-      weight->shape[1] * input->shape[1],                               // O
-      (input->shape[2] - weight->shape[2] + 2 * pad_h) / stride_h + 1,  // H
-      (input->shape[3] - weight->shape[3] + 2 * pad_w) / stride_w + 1   // W
+      Expr(B),  // B
+      Expr(O),  // O
+      Expr(H),  // H
+      Expr(W)   // W
   };
   auto input_pad =
       (pad_h == 0 && pad_w == 0) ? Identity(input).front() : Pad(input, {Expr(0), Expr(0), Expr(pad_h), Expr(pad_w)});
 
   Var kernel_h = Var(weight->shape[2], "kh");
   Var kernel_w = Var(weight->shape[3], "kw");
-  auto res     = Compute(
+  VLOG(3) << "Output shape is : " << utils::Join(output_shape, ",");
+  auto res = Compute(
       output_shape,
       [=](Expr nn, Expr ff, Expr yy, Expr xx) {
         return lang::ReduceSum(input_pad(nn, ff / c_m, yy * stride_h + kernel_h, xx * stride_w + kernel_w) *

@@ -31,6 +31,7 @@ void ProgramPass::Apply(Program* prog,
   int i = 0;
   for (const auto* pass : fpass) {
     int before = prog->size();
+    VLOG(3) << "Before ApplyPass: " << pass->name();
     pass->ApplyImpl(prog, fetch_ids, target);
     int after = prog->size();
     VLOG(1) << "Apply " << passes[i++] << " pass, program size: " << before << " -> " << after

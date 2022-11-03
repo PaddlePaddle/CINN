@@ -41,7 +41,7 @@ class ProgramPass {
                     const common::Target& target,
                     const std::vector<std::string>& passes);
 
-  const std::string& name() { return name_; }
+  const std::string& name() const { return name_; }
 
  protected:
   virtual void ApplyImpl(Program* prog,

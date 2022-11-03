@@ -1421,24 +1421,39 @@ std::vector<ir::LoweredFunc> GetFuncFromImpl(const std::shared_ptr<OpImpl>& impl
   VLOG(3) << "expr_pack.size() is : " << expr_pack.size() << ", funcs.size() is " << funcs.size();
   VLOG(3) << "input_output_nodes.size() is: " << input_output_nodes.size()
           << ", all_arg_tensors.size() is: " << all_arg_tensors.size();
-  std::vector<ir::LoweredFunc> res;
-  for (int i = 0; i < expr_pack.size(); i++) {
-    if (funcs.size() > expr_pack.size() || all_arg_tensors.size() > input_output_nodes.size()) {
-      auto new_args  = lang::GetArgs(funcs[i]->body, input_output_nodes);
-      funcs[i]->args = new_args;
+  std::vector<ir::LoweredFunc> funcs_after_schedule;
+  CHECK_GE(funcs.size(), expr_pack.size());
+  if (funcs.size() > expr_pack.size() || all_arg_tensors.size() > input_output_nodes.size()) {
+    for (int i = 0; i < funcs.size(); i++) {
+      for (int j = 0; j < expr_pack.size(); j++) {
+        Expr temp = expr_pack[j];
+        if (temp == funcs[i]->body) {
+          auto new_args  = lang::GetArgs(funcs[i]->body, input_output_nodes);
+          funcs[i]->args = new_args;
+          funcs_after_schedule.push_back(funcs[i]);
+          break;
+        }
+      }
     }
-    auto temp_buffers   = lang::GetTempBuffers(all_arg_tensors, stages, funcs[i]->body);
-    funcs[i]->temp_bufs = temp_buffers;
-    funcs[i]            = ir::_LoweredFunc_::Make(funcs[i]->name, funcs[i]->args, funcs[i]->body, funcs[i]->temp_bufs);
-    res.push_back(funcs[i]);
+  } else if (funcs.size() == expr_pack.size()) {
+    funcs_after_schedule = funcs;
+  } else {
+    LOG(FATAL) << "The number of funcs should not less than expr_pack's";
   }
-  for (int i = 0; i < res.size(); i++) {
+  CHECK_EQ(funcs_after_schedule.size(), expr_pack.size());
+  std::vector<ir::LoweredFunc> res;
+  for (int i = 0; i < funcs_after_schedule.size(); i++) {
+    auto temp_buffers                  = lang::GetTempBuffers(all_arg_tensors, stages, funcs_after_schedule[i]->body);
+    funcs_after_schedule[i]->temp_bufs = temp_buffers;
+    funcs_after_schedule[i]            = ir::_LoweredFunc_::Make(funcs_after_schedule[i]->name,
+                                                      funcs_after_schedule[i]->args,
+                                                      funcs_after_schedule[i]->body,
+                                                      funcs_after_schedule[i]->temp_bufs);
 #ifdef CINN_WITH_CUDA
-    optim::OptimizeExprGPU(&(res[i]->body));
+    optim::OptimizeExprGPU(&(funcs_after_schedule[i]->body));
 #endif
-    res[i] = optim::Optimize(Expr(res[i]), target, false).as_lowered_func_ref();
+    res.emplace_back(optim::Optimize(Expr(funcs_after_schedule[i]), target, false).as_lowered_func_ref());
   }
-
   // 5. Return the result.
   return res;
 }

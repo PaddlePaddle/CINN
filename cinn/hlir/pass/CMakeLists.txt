@@ -9,6 +9,7 @@ gather_srcs(cinnapi_src SRCS
     op_fusion_pass.cc
     fusion_merge_pass.cc
     dot_merger.cc
+    check_fusion_accuracy_pass.cc
     custom_call_pass.cc
     )
 
@@ -16,6 +17,9 @@ gather_srcs(cinnapi_src SRCS
 if (WITH_CUDA)
 cc_test(test_primitive_ops SRCS test_primitive_ops.cc DEPS cinncore)
 cc_test(test_const_propagate SRCS const_propagate_test.cc DEPS cinncore)
+
+# TODO(thisjiang): move when test bug in x86 is fixed
+cc_test(test_check_fusion_accuracy_pass SRCS check_fusion_accuracy_pass_test.cc DEPS cinncore decomposer_test_helper)
 endif()
 cc_test(test_op_fusion_pass SRCS op_fusion_pass_test.cc DEPS cinncore decomposer_test_helper)
 cc_test(test_fusion_merge_pass SRCS fusion_merge_pass_test.cc DEPS cinncore decomposer_test_helper)

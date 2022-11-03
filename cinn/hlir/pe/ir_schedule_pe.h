@@ -76,6 +76,8 @@ void IRSoftmaxScheduleCPU(ir::IRSchedule &ir_sch, int axis = -1);
 
 void IRPoolScheduleGPU(ir::IRSchedule &ir_sch, const common::Target &target, int arg_pack_size = 3);
 
+void IRCudaScheduleDepthwiseConv(ir::IRSchedule &ir_sch, const std::vector<ir::Expr> &tensors);
+
 void IRGlobalPoolScheduleGPU(ir::IRSchedule &ir_sch, const common::Target &target);
 
 void IRCudaScheduleConv2(ir::IRSchedule &ir_sch,
