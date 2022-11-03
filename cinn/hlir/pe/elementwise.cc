@@ -102,6 +102,41 @@ HLIR_IMP_UNARY_PE(Sign);
 HLIR_IMP_UNARY_PE(Abs);
 HLIR_IMP_UNARY_PE(Rsqrt);
 
+ir::Tensor Squeeze(const ir::Tensor& A, const std::vector<int>& axes, const std::string& output_name) {
+  std::vector<int> position;
+  std::vector<Expr> output_shape;
+  if (axes.size()) {
+    for (int idx = 0; idx < A->shape.size(); ++idx) {
+      // if can't find idx in axis
+      if (std::find(axes.begin(), axes.end(), idx) == axes.end()) {
+        output_shape.push_back(A->shape[idx]);
+        position.push_back(idx);
+      } else {
+        CHECK_EQ(A->shape[idx], Expr(1));
+      }
+    }
+  } else {
+    for (int idx = 0; idx < A->shape.size(); ++idx) {
+      if (A->shape[idx] != Expr(1)) {
+        output_shape.push_back(A->shape[idx]);
+        position.push_back(idx);
+      }
+    }
+  }
+
+  auto res = Compute(
+      output_shape,
+      [=](const std::vector<Expr>& indices) {
+        std::vector<Expr> indexs(A->shape.size(), Expr(0));
+        for (int idx = 0; idx < indices.size(); ++idx) {
+          indexs[position[idx]] = indices[idx];
+        }
+        return A(indexs);
+      },
+      output_name);
+  return res;
+}
+
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn

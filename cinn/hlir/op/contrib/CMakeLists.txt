@@ -4,14 +4,12 @@ gather_srcs(cinnapi_src SRCS
         gather.cc
         scatter.cc
         cast.cc
-        squeeze.cc
         clip.cc
         arange.cc
         flip.cc
         sort.cc
         argmin.cc
         argmax.cc
-        squeeze.cc
         gelu.cc
         repeat.cc
         lookup_table.cc
@@ -19,7 +17,6 @@ gather_srcs(cinnapi_src SRCS
         )
 
 cc_test(test_cast SRCS cast_test.cc DEPS cinncore)
-cc_test(test_squeeze SRCS squeeze_test.cc DEPS cinncore)
 cc_test(test_gather SRCS gather_test.cc DEPS cinncore)
 cc_test(test_scatter SRCS scatter_test.cc DEPS cinncore)
 cc_test(test_clip SRCS clip_test.cc DEPS cinncore)

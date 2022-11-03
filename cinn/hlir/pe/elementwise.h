@@ -100,6 +100,10 @@ ir::Tensor AssignValue(const std::vector<T>& values,
   return out;
 }
 
+ir::Tensor Squeeze(const ir::Tensor& A,
+                   const std::vector<int>& axes   = {},
+                   const std::string& output_name = UniqName("T_Transform_Squeeze_out"));
+
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn
