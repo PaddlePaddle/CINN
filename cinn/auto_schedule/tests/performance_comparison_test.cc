@@ -71,10 +71,10 @@ class PerformanceTester : public ::testing::Test {
     VLOG(3) << "evaluate_knobs = " << options_.evaluate_knobs;
 
     auto worker_fn = [this, &program](const std::string& schedule_name, BuildRuntimeProgramFn build_fn) {
+      Context::Global().ResetNameId();
       VLOG(3) << "Initialize graph.";
       auto graph = std::make_shared<hlir::framework::Graph>(program, target_);
       VLOG(3) << "Apply graph pass.";
-      hlir::framework::ApplyPass(graph.get(), "InferShape");
       hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
       VLOG(3) << "Build " << schedule_name << " program.";
       auto scope           = BuildScope(target_, graph);
