@@ -36,6 +36,23 @@ namespace cinn {
 namespace hlir {
 namespace pe {
 
+void IRElementwiseSchedule(ir::IRSchedule &ir_sch, const std::vector<int> &output_shape, const common::Target &target) {
+  if (target == common::DefaultNVGPUTarget()) {
+    auto blocks = ir_sch.GetAllBlocks();
+    ir_sch.FlattenLoops(ir_sch.GetLoops(blocks[0]));
+
+    auto loops = ir_sch.GetLoops(blocks[0]);
+    auto size  = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int>());
+    if (size <= target.max_num_threads()) {
+      ir_sch.Bind(loops[0], "blockIdx.x");
+    } else {
+      auto splited = ir_sch.Split(loops[0], {-1, target.max_num_threads() / 4});
+      ir_sch.Bind(splited[0], "blockIdx.x");
+      ir_sch.Bind(splited[1], "threadIdx.x");
+    }
+  }
+}
+
 void IRScheduleInjectiveCPU(ir::IRSchedule &ir_sch,
                             const std::vector<int> &output_shape,
                             const common::Target &target,

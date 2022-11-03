@@ -90,6 +90,7 @@ class ScheduleImpl {
   void Bind(const Expr& loop, const std::string& thread_axis);
   Expr Rfactor(const Expr& rf_loop, int rf_axis);
   void Annotate(const Expr& block, const std::string& key, const attr_t& value);
+  void FlattenLoops(const std::vector<Expr>& loops);
   void CopyTransformAndLoopInfo(const Expr& block, const Expr& block_target);
   void CopyTransformAndLoopInfo(const std::string& block_name, const std::string& block_target_name);
 
@@ -1331,6 +1332,77 @@ void ScheduleImpl::Annotate(const Expr& block, const std::string& key, const att
   this->Replace(block, copied_block);
 }
 
+void ScheduleImpl::FlattenLoops(const std::vector<Expr>& loops) {
+  // if loops number less equal than 1
+  if (loops.size() <= 1) {
+    return;
+  }
+
+  // compute loop
+  int extent = 1;
+  std::vector<int> strides;
+  for (int idx = loops.size() - 1; idx >= 0; --idx) {
+    strides.insert(strides.begin(), extent);
+    extent *= loops[idx].As<ir::For>()->extent.as_int32();
+  }
+
+  // create new loop.
+  auto last = loops.back().As<ir::For>();
+  auto var  = ir::Var(common::UniqName("flat_i"));
+  auto loop = ir::For::Make(var, ir::Expr(0), ir::Expr(extent), last->for_type(), last->device_api, last->body);
+
+  ir::FindBlocksVisitor visitor;
+  auto blocks = visitor(&last->body);
+
+  // change blocks iter value/iter var
+  for (auto& block : blocks) {
+    auto block_realize  = block.As<ir::ScheduleBlockRealize>();
+    auto schedule_block = block_realize->schedule_block.As<ir::ScheduleBlock>();
+
+    auto iter = ir::Expr(var);
+    block_realize->iter_values.clear();
+    block_realize->iter_values.push_back(iter);
+    for (int idx = 0; idx < strides.size(); ++idx) {
+      block_realize->iter_values.push_back(iter / Expr(strides[idx]));
+      iter = iter % Expr(strides[idx]);
+    }
+    // update iter_vars
+    schedule_block->iter_vars.insert(schedule_block->iter_vars.begin(), var);
+    CHECK_EQ(block_realize->iter_values.size(), schedule_block->iter_vars.size());
+  }
+  // flat store/load tensor, update indexs.
+  auto store_tensors = ir::CollectIRNodesWithoutTensor(
+      last->body, [&](const Expr* x) { return x->As<ir::Store>() || x->As<ir::Load>(); }, false);
+  for (auto tensor : store_tensors) {
+    // if tensor is store,
+    if (tensor.As<ir::Store>()) {
+      auto store     = tensor.As<ir::Store>();
+      store->indices = {Expr(var)};
+      if (store->is_addr_tensor()) {
+        auto t = store->tensor.as_tensor_ref();
+        CHECK_EQ(t->reduce_axis.size(), 0UL);
+        t->shape  = {Expr(extent)};
+        t->domain = {Expr(extent)};
+      }
+    } else {
+      auto load = tensor.As<ir::Load>();
+      if (load->is_addr_tensor()) {
+        auto t    = load->tensor.as_tensor_ref();
+        auto size = std::accumulate(
+            t->shape.begin(), t->shape.end(), 1, [](int sum, ir::Expr& expr) { return sum * expr.as_int32(); });
+        if (size == extent) {
+          load->indices = {Expr(var)};
+          CHECK_EQ(t->reduce_axis.size(), 0UL);
+          t->shape  = {Expr(extent)};
+          t->domain = {Expr(extent)};
+        }
+      }
+    }
+  }
+
+  this->Replace(loops[0], loop);
+}
+
 void ScheduleImpl::CopyTransformAndLoopInfo(const std::string& block_name, const std::string& block_target_name) {
   auto block        = this->GetBlock(block_name);
   auto block_target = this->GetBlock(block_target_name);
@@ -1656,6 +1728,8 @@ void IRSchedule::Annotate(const Expr& block, const std::string& key, const attr_
 
   LOG(FATAL) << "Value of attribute:" << key << " input unsupported data type";
 }
+
+void IRSchedule::FlattenLoops(const std::vector<Expr>& loops) { impl_->FlattenLoops(loops); }
 
 void IRSchedule::CopyTransformAndLoopInfo(const Expr& block, const Expr& block_target) {
   impl_->CopyTransformAndLoopInfo(block, block_target);
