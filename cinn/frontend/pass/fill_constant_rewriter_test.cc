@@ -129,8 +129,8 @@ TEST(FillConstantRewriter, remove_multi_scale_with_fill_constant) {
   auto x          = builder.CreateInput(Float(32), {32, 16}, "x");
   auto constant_1 = builder.FillConstant<float>({32, 16}, 128.0f, "constant_1");
   auto scale_1    = builder.Scale(constant_1, -1.0f);
-  auto scale_2    = builder.Scale(scale_1, 2.0f);
-  auto scale_3    = builder.Scale(scale_2, 3.0f);
+  auto scale_2    = builder.Scale(scale_1, 2.0f, 10.0f);
+  auto scale_3    = builder.Scale(scale_2, 3.0f, 1.0f, false);
 
   auto x_1   = builder.Scale(x, 1.0f);
   auto add_1 = builder.Add(scale_3, x_1);
