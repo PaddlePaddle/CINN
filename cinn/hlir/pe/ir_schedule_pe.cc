@@ -44,7 +44,7 @@ void IRElementwiseSchedule(ir::IRSchedule &ir_sch, const std::vector<int> &outpu
     auto loops = ir_sch.GetLoops(blocks[0]);
     auto size  = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int>());
     if (size <= target.max_num_threads()) {
-      ir_sch.Bind(loops[0], "blockIdx.x");
+      ir_sch.Bind(loops[0], "threadIdx.x");
     } else {
       auto splited = ir_sch.Split(loops[0], {-1, target.max_num_threads() / 4});
       ir_sch.Bind(splited[0], "blockIdx.x");
