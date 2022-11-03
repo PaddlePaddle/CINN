@@ -63,7 +63,6 @@ std::vector<ir::LoweredFunc> GetFuncFromOpImpl(const std::shared_ptr<OpImpl>& im
                                                const Target& target,
                                                bool apply_impl_schedule) {
   // 1.Call Op's Compute function, using the default stages and LowerVec to get IR tree.
-  VLOG(5) << "input_output_nodes:" << utils::Join(input_output_nodes, ",");
   common::CINNValuePack C = impl->fcompute(cinn_inputs);
 
   // 2. Collect tensors and arguments
@@ -75,10 +74,6 @@ std::vector<ir::LoweredFunc> GetFuncFromOpImpl(const std::shared_ptr<OpImpl>& im
       all_arg_tensors.push_back(temp.as_tensor_ref());
       VLOG(5) << "Append an output tensor:" << temp.as_tensor_ref()->name;
     }
-  }
-  VLOG(5) << "all_arg_tensors size:" << all_arg_tensors.size();
-  for (auto&& tensor : all_arg_tensors) {
-    VLOG(5) << "all_arg_tensors:" << tensor->name;
   }
 
   poly::StageMap stages = C.back();
@@ -104,19 +99,10 @@ std::vector<ir::LoweredFunc> GetFuncFromOpImpl(const std::shared_ptr<OpImpl>& im
     for (int i = 0; i < expr_pack.size(); i++) {
       ir::Expr func_body             = expr_pack[i];
       std::vector<ir::Argument> args = funcs[i]->args;
-      VLOG(5) << "After schedule, origin function:\n" << funcs[i];
-      VLOG(5) << "After schedule, updated function body:\n" << func_body;
       // if multiple functions are merged, we should update the arguments
       if (funcs.size() > expr_pack.size()) {
-        // if (funcs.size() > expr_pack.size() || all_arg_tensors.size() > input_output_nodes.size()) {
-        for (auto&& arg : args) {
-          VLOG(5) << "original argument:" << arg.buffer_arg()->name;
-        }
         args = lang::GetArgs(func_body, input_output_nodes);
         VLOG(5) << "Update arguments of function after schedule";
-        for (auto&& arg : args) {
-          VLOG(5) << "updated argument:" << arg.buffer_arg()->name;
-        }
       }
       auto temp_buffers = lang::GetTempBuffers(all_arg_tensors, stages, func_body);
       auto function     = ir::_LoweredFunc_::Make(funcs[i]->name, args, func_body, temp_buffers);
