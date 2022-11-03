@@ -109,6 +109,10 @@ ir::Tensor ExpandDims(const ir::Tensor& input,
                       int num_newaxis                = 1,
                       const std::string& output_name = UniqName("T_Transform_ExpandDims_out"));
 
+ir::Tensor Reshape(const ir::Tensor& A,
+                   const std::vector<int>& new_shape,
+                   const std::string& name = UniqName("T_Transform_Matmul_out"));
+
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn
