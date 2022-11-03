@@ -150,12 +150,43 @@ void BindFrontend(pybind11::module *m) {
              const std::vector<Variable> &tensor_inputs,
              const std::vector<py::array> &input_data,
              const std::vector<Variable> &tensor_outputs,
-             std::shared_ptr<hlir::framework::Scope> scope) {
+             const std::vector<std::string> &passes        = std::vector<std::string>{},
+             std::shared_ptr<hlir::framework::Scope> scope = nullptr) {
             std::unordered_set<std::string> fetch_ids;
-            auto graph = cinn::frontend::Optimize(&self, fetch_ids, target);
-            scope      = hlir::framework::BuildScope(target, graph, scope);
+            for (const auto &out : tensor_outputs) {
+              fetch_ids.insert(out->id);
+            }
+
+            std::vector<std::string> program_passes, graph_passes;
+
+            const auto &default_program_pass = DefaultTrainingOptimizeOptions().program_passes;
+            const auto &default_graph_pass   = DefaultTrainingOptimizeOptions().graph_passes;
+            for (const auto &pass : passes) {
+              if (std::find(default_program_pass.begin(), default_program_pass.end(), pass) !=
+                  default_program_pass.end()) {
+                program_passes.emplace_back(pass);
+              } else if (std::find(default_graph_pass.begin(), default_graph_pass.end(), pass) !=
+                         default_graph_pass.end()) {
+                graph_passes.emplace_back(pass);
+              } else {
+                LOG(WARNING) << "Cannot find pass: " << pass << " in CINN! Please check.";
+              }
+            }
+            if (program_passes.empty()) {
+              program_passes = default_program_pass;
+            }
+            if (graph_passes.empty()) {
+              graph_passes = default_graph_pass;
+            }
+
+            frontend::ProgramPass::Apply(&self, fetch_ids, target, program_passes);
+            auto graph = std::make_shared<hlir::framework::Graph>(self, fetch_ids, target);
+            hlir::framework::ApplyPasses(graph.get(), graph_passes);
+
+            scope = hlir::framework::BuildScope(target, graph, scope);
             hlir::framework::GraphCompiler gc(target, scope, graph);
             auto program = gc.Build();
+
             for (size_t i = 0; i < tensor_inputs.size(); i++) {
               auto in_tensor = scope->GetTensor(tensor_inputs[i]->id);
               auto dtype     = tensor_inputs[i]->type;
@@ -191,7 +222,8 @@ void BindFrontend(pybind11::module *m) {
           py::arg("feed_list"),
           py::arg("feed_datas"),
           py::arg("fetch_list"),
-          py::arg("scope") = nullptr)
+          py::arg("passes") = std::vector<std::string>{},
+          py::arg("scope")  = nullptr)
       .def("apply_pass",
            [](Program &self,
               const std::unordered_set<std::string> &fetch_ids,

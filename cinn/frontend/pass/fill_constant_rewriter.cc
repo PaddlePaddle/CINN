@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <functional>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -25,40 +26,38 @@ namespace cinn {
 namespace frontend {
 namespace pass {
 
-// map from op type to {remove check function, replace replace function}
-static std::unordered_map<
-    std::string,
-    std::pair<std::function<bool(const Instruction&)>, std::function<void(const Instruction&, Instruction*)>>>
-    rewriter_ops = {{"reshape",
-                     {[](const Instruction& instr) {
-                        auto& input_var  = instr->inputs[0];
-                        auto& output_var = instr->outputs[0];
-                        return (input_var->id != output_var->id) && (input_var->shape == output_var->shape);
-                      },
-                      [](const Instruction& instr, Instruction* fill_constant) {
-                        (*fill_constant)->outputs[0]     = instr->outputs[0];
-                        (*fill_constant)->attrs["shape"] = instr->outputs[0]->shape;
-                      }}},
-                    {"scale",
-                     {[](const Instruction& instr) {
-                        return !instr->attrs.count("scale") || instr.GetAttrs<float>("scale") == 1.0f;
-                      },
-                      [](const Instruction& instr, Instruction* fill_constant) {
-                        (*fill_constant)->outputs[0] = instr->outputs[0];
-                        auto scale = instr->attrs.count("scale") ? instr.GetAttrs<float>("scale") : 1.0f;
-                        fill_constant->SetAttr("value", fill_constant->GetAttrs<float>("value") * scale);
-                      }}}};
+static std::unordered_map<std::string, std::function<void(const Instruction&, Instruction*)>> rewriter_ops = {
+    {"reshape",
+     [](const Instruction& fill_constant, Instruction* instr) -> void {
+       (*instr)->op_type = "fill_constant";
+       (*instr)->inputs.clear();
+       // the outputs keep same
 
-// FillConstantRewriterPass simplify instructions in following patterns:
-//
-// 1. Change reshape/scale to identity, if the shape of input and output is the same. The identity can be removed by
-// RemoveIdentityPass.
-// 2. Simplify fill_constant + reshape/scale to a single fill_constant, if varA/varB is not in fetch_ids.
-//        fill_constant              fill_constant
-//              | varA                     |
-//           reshape/scale     =>          | varA/varB
-//              | varB                     |
-//            instrX                     instrX
+       CHECK((*instr)->attrs.count("shape")) << "The reshape op should has attribute [shape]!";
+       auto new_shape           = (*instr)->attrs.at("shape");
+       (*instr)->attrs          = fill_constant->attrs;
+       (*instr)->attrs["shape"] = new_shape;
+     }},
+    {"scale", [](const Instruction& fill_constant, Instruction* instr) -> void {
+       (*instr)->op_type = "fill_constant";
+       (*instr)->inputs.clear();
+       // the outputs keep same
+
+       auto scale = (*instr)->attrs.count("scale") ? instr->GetAttrs<float>("scale") : 1.0f;
+       auto bias  = (*instr)->attrs.count("bias") ? instr->GetAttrs<float>("bias") : 0.0f;
+       auto bias_after_scale =
+           (*instr)->attrs.count("bias_after_scale") ? instr->GetAttrs<bool>("bias_after_scale") : true;
+
+       (*instr)->attrs = fill_constant->attrs;
+
+       auto old_value = fill_constant.GetAttrs<float>("value");
+       if (bias_after_scale) {
+         (*instr)->attrs["value"] = scale * old_value + bias;
+       } else {
+         (*instr)->attrs["value"] = scale * (old_value + bias);
+       }
+     }}};
+
 class FillConstantRewriterPass : public ProgramPass {
  public:
   using ProgramPass::ProgramPass;
@@ -67,13 +66,18 @@ class FillConstantRewriterPass : public ProgramPass {
   void ApplyImpl(Program* program,
                  const std::unordered_set<std::string>& fetch_ids,
                  const common::Target& target) override {
-    CollectInfo(*program, fetch_ids);
+    VLOG(3) << "Before FillConstantRewriterPass:\n" << *program;
+    auto input2instr = GetInput2Instr(program);
 
-    VLOG(3) << "Total remove " << remove_idxs_.size() << " instructions; replace " << replace_idxs_.size()
-            << " instructions (reshape -> identity).";
-    if (remove_idxs_.size() == 0 && replace_idxs_.size() == 0) {
-      return;
+    std::unordered_set<const Instruction*> remove_instr;
+    for (int i = 0; i < program->size(); ++i) {
+      const auto& instr = (*program)[i];
+
+      if (instr->op_type == "fill_constant") {
+        RewriteFillConstant(instr, input2instr, fetch_ids, &remove_instr);
+      }
     }
+    VLOG(3) << "FillConstantRewriterPass Remove " << remove_instr.size() << " instruction";
 
     NetBuilder builder("reshape_rewritter_builder");
     for (auto& var : program->GetInputs()) {
@@ -82,76 +86,59 @@ class FillConstantRewriterPass : public ProgramPass {
 
     for (int i = 0; i < program->size(); ++i) {
       const auto& instr = (*program)[i];
-      if (remove_idxs_.count(i)) {
-        // Change the attr shape of the previous fill_constant.
-        auto iter         = outputs2instr_.find(instr->inputs[0].get());
-        auto& input_instr = iter->second;
-        CHECK(input_instr->op_type == "fill_constant") << "The previous op's type is not fill_constant, please check.";
-        rewriter_ops.at(instr->op_type).second(instr, &input_instr);
-      } else {
-        if (replace_idxs_.count(i)) {
-          instr->op_type = "identity";
-          instr->attrs.clear();
-          instr->attrs_ordered.clear();
-        }
+
+      if (!remove_instr.count(&instr)) {
         builder.AppendInstruction(instr);
       }
     }
     *program = builder.Build();
+
+    VLOG(3) << "After FillConstantRewriterPass:\n" << *program;
   }
 
  private:
-  void CollectInfo(const Program& program, const std::unordered_set<std::string>& fetch_ids) {
-    replace_idxs_.clear();
-    remove_idxs_.clear();
-    outputs2instr_.clear();
+  using Input2Instr = std::unordered_map<std::string, std::unordered_set<Instruction*>>;
 
-    std::unordered_map<_Variable_*, int> var_used_count;
-    for (int i = 0; i < program.size(); ++i) {
-      auto& instr = program[i];
-      for (auto& var : instr->outputs) {
-        outputs2instr_.emplace(var.get(), instr);
-      }
-      for (auto& var : instr->inputs) {
-        var_used_count[var.get()]++;
+  Input2Instr GetInput2Instr(Program* program) {
+    Input2Instr input2instr;
+
+    for (int i = 0; i < program->size(); ++i) {
+      auto& instr = (*program)[i];
+      for (const auto& var : instr->inputs) {
+        input2instr[var->id].insert(&instr);
       }
     }
 
-    for (int i = 0; i < program.size(); ++i) {
-      const auto& instr = program[i];
-      if (!rewriter_ops.count(instr->op_type)) {
-        continue;
-      }
-      CHECK_EQ(instr->inputs.size(), 1) << "reshape should have only 1 input.";
-      CHECK_EQ(instr->outputs.size(), 1) << "reshape should have only 1 output.";
-
-      auto& input_var  = instr->inputs[0];
-      auto& output_var = instr->outputs[0];
-
-      bool matched = false;
-      auto iter    = outputs2instr_.find(input_var.get());
-      if (iter != outputs2instr_.end()) {
-        auto& input_instr = iter->second;
-        // Match the pattern is fill_constant -> reshape
-        // reshape should be the only output instruction of fill_constant, and the output variable of fill_constant
-        // cannot be in the fetch_ids.
-        if (input_instr->op_type == "fill_constant" && var_used_count[input_var.get()] == 1 &&
-            !fetch_ids.count(input_var->id)) {
-          matched = true;
-          remove_idxs_.insert(i);
-          VLOG(3) << "Remove the " << i << "-th instruction: " << instr;
-        }
-      }
-      if (!matched && rewriter_ops.at(instr->op_type).first(instr)) {
-        VLOG(3) << "Replace the " << i << "-th instruction to identity: " << instr;
-        replace_idxs_.insert(i);
-      }
-    }
+    return input2instr;
   }
 
-  std::unordered_set<int> replace_idxs_;
-  std::unordered_set<int> remove_idxs_;
-  std::unordered_map<_Variable_*, Instruction> outputs2instr_;
+  void RewriteFillConstant(const Instruction& fill_constant,
+                           const Input2Instr& input2instr,
+                           const std::unordered_set<std::string>& fetch_ids,
+                           std::unordered_set<const Instruction*>* remove_instr) {
+    CHECK_EQ(fill_constant->op_type, std::string("fill_constant"));
+    CHECK_EQ(fill_constant->outputs.size(), 1UL) << "The fill_constant op should just has one output! Please check.";
+    const auto& out = fill_constant->outputs[0];
+
+    if (!input2instr.count(out->id)) {
+      // the fill constant's output is empty, skip
+      return;
+    }
+
+    bool can_remove = true;
+    for (auto* instr : input2instr.at(out->id)) {
+      if (rewriter_ops.count((*instr)->op_type)) {
+        rewriter_ops.at((*instr)->op_type)(fill_constant, instr);
+        RewriteFillConstant(*instr, input2instr, fetch_ids, remove_instr);
+      } else {
+        can_remove = false;
+      }
+    }
+
+    if (can_remove && !fetch_ids.count(out->id)) {
+      remove_instr->insert(&fill_constant);
+    }
+  }
 };
 
 }  // namespace pass
