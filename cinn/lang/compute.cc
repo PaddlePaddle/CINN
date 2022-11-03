@@ -173,7 +173,7 @@ ir::Tensor Compute(const std::vector<Expr> &domain,
     CHECK(!common::IsAxisNameReserved(ra->name)) << "reduce axis [" << ra->name << "]'s name is reserved";
   }
 
-  VLOG(3) << "domain: " << domain_without_reduce_axis;
+  VLOG(3) << "tensor " << name << "'s domain is : " << domain_without_reduce_axis;
 
   auto op     = ir::ComputeOp::Make(unique_name, fn, real_shape, domain_without_reduce_axis, reduce_axis);
   auto tensor = ir::Tensor(unique_name, fn_body.type(), real_shape, domain_without_reduce_axis, op, reduce_axis);

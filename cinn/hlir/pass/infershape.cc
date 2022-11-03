@@ -37,6 +37,7 @@ using dtype_dict_t = absl::flat_hash_map<std::string, common::Type>;
 using shape_dict_t = absl::flat_hash_map<std::string, framework::shape_t>;
 
 void InferShape(Node* node, dtype_dict_t& dtype_dict, shape_dict_t& shape_dict) {
+  VLOG(3) << "Begin InferShape of node " << node->id();
   auto op_infershape = Operator::GetAttrs<infershape_t>("infershape");
   auto op_inferdtype = Operator::GetAttrs<inferdtype_t>("inferdtype");
   CHECK(node) << "The node can not be nullptr.";
@@ -92,6 +93,7 @@ void InferShape(Node* node, dtype_dict_t& dtype_dict, shape_dict_t& shape_dict) 
 }
 
 void InferShapePass(Graph* graph) {
+  VLOG(3) << "Begin InferShapePass";
   auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, framework::shape_t>>("infershape");
   auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
   auto store_nodes = std::get<0>(graph->topological_order());

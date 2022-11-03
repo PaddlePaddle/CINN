@@ -50,15 +50,15 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
   options.program_passes.emplace_back("DeadCodeEliminate");
   if (FLAGS_cinn_open_fusion_optimize) {
     if (FLAGS_cinn_use_new_fusion_pass) {
-      options.graph_passes = {
-#ifdef CINN_WITH_CUDA
-          "MatmulToCublasCustomCallPass",
-#ifdef CINN_WITH_CUDNN
-          "ConvToCudnnCustomCallPass",
-#endif
-#endif
-          "OpFusionPass",
-          "FusionMergePass"};
+      options.graph_passes = {// Revert changes in PR #990 to pass the model unittests
+                              /* #ifdef CINN_WITH_CUDA
+                                        "MatmulToCublasCustomCallPass",
+                              #ifdef CINN_WITH_CUDNN
+                                        "ConvToCudnnCustomCallPass",
+                              #endif
+                              #endif */
+                              "OpFusionPass",
+                              "FusionMergePass"};
     } else {
       options.graph_passes = {"OpFusion"};
     }
@@ -84,10 +84,12 @@ std::shared_ptr<hlir::framework::Graph> Optimize(frontend::Program* program,
                                                  common::Target target,
                                                  const OptimizeOptions& options) {
   // Apply program passes
+  VLOG(3) << "Before frontend::ProgramPass::Apply";
   frontend::ProgramPass::Apply(program, fetch_ids, target, options.program_passes);
   // Apply graph passes
   auto graph = std::make_shared<hlir::framework::Graph>(*program, fetch_ids, target);
   //
+  VLOG(3) << "Before hlir::framework::ApplyPasses";
   hlir::framework::ApplyPasses(graph.get(), options.graph_passes);
   return graph;
 }
