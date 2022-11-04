@@ -54,6 +54,33 @@ void CodeGen(ir::LoweredFunc& func) {
 #endif
 }
 
+TEST(OP_LOWERING, Elementwise_TEST_0) {
+  NetBuilder net_builder("Elementwise_TEST_0");
+  {
+    auto x  = net_builder.FillConstant<float>({1}, 128.0, "x");
+    auto o1 = net_builder.Scale(x, -1.0, 0.0);
+    auto o2 = net_builder.Scale(x, -1.0, 0.0);
+  }
+
+  auto program = net_builder.Build();
+  auto target  = common::DefaultTarget();
+  RunDecomposer(&program, target);
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+  hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
+  hlir::framework::ApplyPass(graph.get(), "FusionMergePass");
+
+  auto& dtype_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
+  auto& shape_dict = graph->GetMutableAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
+
+  OpLowerer op_lowerer(dtype_dict, shape_dict, target);
+  for (auto& fusion_op : graph->fusion_groups) {
+    auto lowered_func = op_lowerer.Lower(fusion_op);
+    CHECK_EQ(lowered_func.size(), 1);
+    CodeGen(lowered_func[0]);
+  }
+}
+
 TEST(OP_LOWERING, NonFusibleOp_TEST_0) {
   NetBuilder net_builder("NonFusibleOp_TEST_0");
   {
