@@ -152,7 +152,6 @@ void cinn_call_cublas(void *v_args,
                                           m * n,
                                           batch));
   } else {
-    // LOG(FATAL) << "Not Support 4D Matmul!";
     CHECK(a1 == b1 && a2 == b2);
     int stride_l = trans_o ? a3 * a4 : b3 * b4;
     int stride_r = trans_o ? b3 * b4 : a3 * a4;
