@@ -1,4 +1,4 @@
-// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+// Copyright (c) 2022 CINN Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,16 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#pragma once
+#include "cinn/hlir/framework/graph.h"
 
-#include "cinn/common/macros.h"
+namespace cinn {
+namespace hlir {
+namespace pass {
 
-CINN_USE_REGISTER(Decomposer)
-CINN_USE_REGISTER(DeadCodeEliminate)
-CINN_USE_REGISTER(RemoveIdentity)
-CINN_USE_REGISTER(TransposeCollapsing)
-CINN_USE_REGISTER(TransposeFoldingInput)
-CINN_USE_REGISTER(GemmRewriter)
-CINN_USE_REGISTER(TransposeFoldingOutput)
-CINN_USE_REGISTER(FillConstantRewriter)
-CINN_USE_REGISTER(FillConstantFolding)
+// create a new group for every single node of the graph
+std::vector<std::shared_ptr<framework::Graph::Group>> BuildNonFusedGroups(const framework::Graph* graph);
+
+}  // namespace pass
+}  // namespace hlir
+}  // namespace cinn

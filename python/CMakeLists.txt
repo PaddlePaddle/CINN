@@ -170,7 +170,7 @@ foreach(op_test_name ${CINN_OP_TEST})
 endforeach()
 
 # test op mapper
-#if (WITH_CUDNN)
+if (WITH_CUDNN)
 file(GLOB CINN_OP_MAPPER_TEST RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" "tests/op_mappers/test_*.py")
 
 foreach(op_mapper_test_name ${EXCLUDE_OP_MAPPER})
@@ -185,4 +185,4 @@ foreach(op_mapper_test_name ${CINN_OP_MAPPER_TEST})
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     )
 endforeach()
-#endif()
+endif()

@@ -24,6 +24,7 @@ gather_srcs(cinnapi_src SRCS
     intrinsic_ops.cc
     layout.cc
     schedule_desc.cc
+    ir_compare.cc
     )
 
 # cc_test(test_ir SRCS ir_test.cc DEPS core)
@@ -36,6 +37,7 @@ cc_test(test_tensor SRCS tensor_test.cc DEPS cinncore)
 cc_test(test_intrinsic_ops SRCS intrinsic_ops_test.cc DEPS cinncore)
 cc_test(test_ir_verify SRCS ir_verify_test.cc DEPS cinncore)
 cc_test(test_schedule_desc SRCS schedule_desc_test.cc DEPS cinncore)
+cc_test(test_ir_compare SRCS ir_compare_test.cc DEPS cinncore)
 
 foreach(header ${schedule_desc_proto_HDRS})
   set(core_proto_includes "${core_proto_includes};${header}" CACHE INTERNAL "")
