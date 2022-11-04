@@ -32,7 +32,8 @@ using ::GFLAGS_NAMESPACE::StringFromEnv;
 DEFINE_string(cinn_x86_builtin_code_root, StringFromEnv("FLAGS_cinn_x86_builtin_code_root", ""), "");
 
 DEFINE_int32(cinn_parallel_compile_size,
-             Int32FromEnv("FLAGS_cinn_parallel_compile_size", 8),
+             // Revert changes in PR #990 to pass the model unittests
+             Int32FromEnv("FLAGS_cinn_parallel_compile_size", 0),
              "When use parallel compile, set the number of group compiled by each thread.");
 
 DEFINE_bool(cinn_open_fusion_optimize,
@@ -47,6 +48,11 @@ DEFINE_bool(cinn_use_new_fusion_pass,
 DEFINE_bool(cinn_use_fill_constant_folding,
             BoolFromEnv("FLAGS_cinn_use_fill_constant_folding", false),
             "Whether use the FillConstantFolding pass.");
+
+DEFINE_bool(cinn_check_fusion_accuracy_pass,
+            BoolFromEnv("FLAGS_cinn_check_fusion_accuracy_pass", false),
+            "Check the correct of fusion kernels, if the results not satisfied 'allclose(rtol=1e-05f, atol=1e-08f)', "
+            "report error and exited.");
 
 DEFINE_bool(cinn_use_cuda_vectorize,
             BoolFromEnv("FLAGS_cinn_use_cuda_vectorize", false),

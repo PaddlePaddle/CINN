@@ -206,12 +206,12 @@ std::shared_ptr<OpStrategy> StrategyForBroadcastTo(const framework::NodeAttr &at
                                                    const Target &target) {
   std::vector<int> out_shape;
   std::vector<int> broadcast_axes;
-  if (attrs.attr_store.count("out_shape")) {
-    out_shape = absl::get<std::vector<int>>(attrs.attr_store.at("out_shape"));
-  }
-  if (attrs.attr_store.count("broadcast_axes")) {
-    broadcast_axes = absl::get<std::vector<int>>(attrs.attr_store.at("broadcast_axes"));
-  }
+  CHECK(attrs.attr_store.count("out_shape"));
+  out_shape = absl::get<std::vector<int>>(attrs.attr_store.at("out_shape"));
+  CHECK(attrs.attr_store.count("broadcast_axes"));
+  broadcast_axes = absl::get<std::vector<int>>(attrs.attr_store.at("broadcast_axes"));
+  VLOG(3) << "broadcast out shape: " << utils::Join(out_shape, ", ");
+  VLOG(3) << "broadcast_axes shape: " << utils::Join(broadcast_axes, ", ");
 
   framework::CINNCompute broadcast_to_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of broadcast_to compute is empty! Please check.";
@@ -248,11 +248,12 @@ std::vector<shape_t> InferShapeForBroadcastTo(const std::vector<shape_t> &inputs
   out_shape      = absl::get<std::vector<int>>(attrs.at("out_shape"));
   broadcast_axes = absl::get<std::vector<int>>(attrs.at("broadcast_axes"));
 
+  VLOG(3) << "broadcast out shape: " << utils::Join(out_shape, ", ");
+  VLOG(3) << "broadcast_axes shape: " << utils::Join(broadcast_axes, ", ");
   CHECK_EQ(inputs_shape[0].size(), broadcast_axes.size())
       << "broadcast_axes's size should be same with the input shape's size";
   CHECK_GE(out_shape.size(), broadcast_axes.size()) << "broadcast_axes's size should be no more than out_shape's size";
 
-  VLOG(3) << "broadcast out shape: " << utils::Join(out_shape, ", ");
   return {out_shape};
 }
 

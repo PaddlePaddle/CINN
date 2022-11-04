@@ -114,6 +114,9 @@ class Graph : public cinn::common::Graph {
       }
     }
 
+    std::unordered_set<NodeData*> GetInputNodeDatas();
+    std::unordered_set<NodeData*> GetOutputNodeDatas(const std::vector<NodeData*>& graph_outputs = {});
+
     std::string GetFuncName() { return "fn_" + group_id + unique_id; }
   };
   std::vector<std::shared_ptr<Group>> fusion_groups;
@@ -166,19 +169,32 @@ class Graph : public cinn::common::Graph {
   }
 
   /**
+   * \brief Debug the grouped graph according to fusion_groups.
+   */
+  std::string DebugGroupedGraph(const std::unordered_set<std::string>& fetch_var_ids = {});
+
+  /**
+   * \brief Debug the grouped graph according to user specified groups.
+   */
+  std::string DebugGroupedGraph(const std::vector<std::vector<Node*>>& groups,
+                                const std::unordered_set<std::string>& fetch_var_ids = {});
+
+  /**
    * \brief Visualize the grouped graph according to fusion_groups.
    */
-  void VisualizeGroupedGraph(const std::unordered_set<std::string>& fetch_var_ids);
+  void VisualizeGroupedGraph(const std::unordered_set<std::string>& fetch_var_ids = {});
 
   /**
    * \brief Visualize the grouped graph according to user specified groups.
    */
   void VisualizeGroupedGraph(const std::vector<std::vector<Node*>>& groups,
-                             const std::unordered_set<std::string>& fetch_var_ids);
+                             const std::unordered_set<std::string>& fetch_var_ids = {});
 
  private:
   void VisualizeGroups(const std::vector<std::vector<Node*>>& groups,
-                       const std::unordered_set<std::string>& fetch_var_ids);
+                       const std::unordered_set<std::string>& fetch_var_ids = {});
+
+  std::vector<std::vector<Node*>> FusionGroupsToGroups();
 
   std::string viz_path_;
   static std::atomic_size_t viz_count_;

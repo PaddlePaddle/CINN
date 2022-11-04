@@ -33,9 +33,7 @@ assert len(sys.argv) == 1 + 2 + 1  # model and enable_gpu count
 enable_gpu = sys.argv.pop()
 multi_fc_model_dir = sys.argv.pop()
 naive_model_dir = sys.argv.pop()
-
-
-class TestFrontend(unittest.TestCase):
+""" class TestFrontend(unittest.TestCase):
     def setUp(self):
         if enable_gpu == "ON":
             self.target = DefaultNVGPUTarget()
@@ -108,7 +106,7 @@ class TestFrontend(unittest.TestCase):
         result[0].set_type(Float(32))
         result = result[0].numpy(self.target).reshape(-1)
         tensor_data.append(result)
-        self.paddle_verify(tensor_data)
+        self.paddle_verify(tensor_data) """
 
 
 class TestLoadPaddleModel_FC(unittest.TestCase):

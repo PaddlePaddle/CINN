@@ -196,8 +196,22 @@ void Summary(const std::vector<std::vector<Node*>>& groups, const std::string& v
 
 std::string DebugString(const Node* node) {
   std::stringstream ss;
-  ss << "op_type=" << node->id() << ", inputs{";
+  ss << "{";
   bool first = true;
+  for (auto& outlink : node->outlinks()) {
+    auto* outnode = outlink->sink()->safe_as<NodeData>();
+    if (outnode) {
+      if (!first) {
+        ss << ", ";
+      } else {
+        first = false;
+      }
+      ss << outnode->id();
+    }
+  }
+
+  ss << "} = " << node->op()->name << "{";
+  first = true;
   for (auto& inlink : node->inlinks()) {
     auto* innode = inlink->source()->safe_as<NodeData>();
     if (innode) {
@@ -209,18 +223,34 @@ std::string DebugString(const Node* node) {
       ss << innode->id();
     }
   }
-  ss << "}, outputs{";
-  first = true;
-  for (auto& outlink : node->outlinks()) {
-    auto* outnode = outlink->sink()->safe_as<NodeData>();
-    if (outnode) {
-      if (!first) {
-        ss << ", ";
-      } else {
-        first = false;
-      }
-      ss << outnode->id();
+  ss << ", id=" << node->id() << ", ";
+
+  auto get_attr_value = [](const utils::Attribute& attr) -> std::string {
+    std::stringstream ss;
+    if (absl::get_if<bool>(&attr)) {
+      ss << std::boolalpha << absl::get<bool>(attr);
+    } else if (absl::get_if<float>(&attr)) {
+      ss << std::scientific << absl::get<float>(attr);
+    } else if (absl::get_if<int>(&attr)) {
+      ss << absl::get<int>(attr);
+    } else if (absl::get_if<std::string>(&attr)) {
+      ss << absl::get<std::string>(attr);
+    } else if (absl::get_if<std::vector<bool>>(&attr)) {
+      ss << "[" + cinn::utils::Join(absl::get<std::vector<bool>>(attr), ", ") + "]";
+    } else if (absl::get_if<std::vector<int>>(&attr)) {
+      ss << "[" + cinn::utils::Join(absl::get<std::vector<int>>(attr), ", ") + "]";
+    } else if (absl::get_if<std::vector<float>>(&attr)) {
+      ss << "[" + cinn::utils::Join(absl::get<std::vector<float>>(attr), ", ") + "]";
+    } else if (absl::get_if<std::vector<std::string>>(&attr)) {
+      ss << "[" + cinn::utils::Join(absl::get<std::vector<std::string>>(attr), ", ") + "]";
+    } else {
+      LOG(FATAL) << "Unkown attribute data type! Please check.";
     }
+    return ss.str();
+  };
+
+  for (const auto& attr_pair : node->attrs.attr_store) {
+    ss << attr_pair.first << "=" << get_attr_value(attr_pair.second) << ", ";
   }
   ss << "}";
   return ss.str();
