@@ -42,13 +42,16 @@ class DecomposerPass : public ProgramPass {
       auto instr      = (*prog)[i];
       auto decomposer = InstrDecomposerRegistry::Global()->Find(instr->op_type, target);
       if (decomposer) {
+        VLOG(3) << "Run decomposer of op " << instr->op_type;
         decomposer->Run(instr, context);
       } else {
+        VLOG(3) << "Don't run decomposer of op " << instr->op_type;
         builder.AppendInstruction(instr);
       }
     }
+    VLOG(3) << "Before builder.Build()";
     *prog = builder.Build();
-
+    VLOG(3) << "After builder.Build()";
     // step 3: set the origin output to the output of decomposed operator.
     for (size_t i = 0; i < prog->size(); i++) {
       auto& outputs = (*prog)[i]->outputs;

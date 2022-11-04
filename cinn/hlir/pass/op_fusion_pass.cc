@@ -506,6 +506,13 @@ void InsertBroadcastTo(Graph* graph) {
       CHECK(shape_dict.count(node_data->id())) << "Can't find " << node_data->id() << " 's shape!";
       auto output_shape = shape_dict.at(node_data->id());
 
+      // get input dtype.
+      // broadcast op's input dtype seems to be all the same, so we use this dtype as the broadcast_to op's output
+      // dtype.
+      auto in_node_data = (*node->inlinks().begin())->source()->safe_as<NodeData>();
+      CHECK(in_node_data);
+      CHECK(dtype_dict.count(in_node_data->id())) << "Can't find " << in_node_data->id() << " 's dtype!";
+
       // check input node
       for (auto& edge : node->inlinks_in_order()) {
         auto input_data = edge->source()->safe_as<NodeData>();
@@ -550,7 +557,7 @@ void InsertBroadcastTo(Graph* graph) {
           // update shape_dict
           shape_dict[tmp_node_data->id()] = output_shape;
           // update dtype_dict
-          dtype_dict[tmp_node_data->id()] = common::Str2Type(common::Type2Str(dtype_dict[node_data->id()]));
+          dtype_dict[tmp_node_data->id()] = common::Str2Type(common::Type2Str(dtype_dict[in_node_data->id()]));
         }
       }
     }

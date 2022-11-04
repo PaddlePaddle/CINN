@@ -812,7 +812,8 @@ std::vector<std::vector<int>> InferShapeForMul(const std::vector<std::vector<int
   std::vector<int> temp_shape = {flatten_shape_A, flatten_shape_B, reduce_factor};
 
 #ifdef CINN_WITH_CUDA
-  return {output_shape};
+  // Revert changes in PR #990 to pass the model unittests
+  return {output_shape, temp_shape};
 #else
   return {output_shape, temp_shape};
 #endif
@@ -820,8 +821,11 @@ std::vector<std::vector<int>> InferShapeForMul(const std::vector<std::vector<int
 
 std::vector<Type> InferDtypeForMul(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
-  std::vector<Type> res{inputs_type[0], inputs_type[0]};
-  return res;
+#ifdef CINN_WITH_CUDA
+  return {inputs_type[0], inputs_type[0]};
+#else
+  return {inputs_type[0], inputs_type[0]};
+#endif
 }
 
 std::vector<std::vector<std::string>> InferLayoutForMul(const std::vector<framework::shape_t> &input_shapes,
@@ -1936,7 +1940,8 @@ CINN_REGISTER_HELPER(transform_ops) {
       .describe("This operator is used to perform matrix multiplication for input X and Y.")
       .set_num_inputs(2)
 #ifdef CINN_WITH_CUDNN
-      .set_num_outputs(1)
+      // Revert changes in PR #990 to pass the model unittests
+      .set_num_outputs(2)
 #else
       .set_num_outputs(2)
 #endif

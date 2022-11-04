@@ -555,44 +555,81 @@ void IRSoftmaxScheduleCPU(ir::IRSchedule &ir_sch, int axis) {
 }
 
 void IRPoolScheduleGPU(ir::IRSchedule &ir_sch, const common::Target &target, int arg_pack_size) {
-  if (arg_pack_size == 3) {
-    auto all_blocks = ir_sch.GetAllBlocks();
-    CHECK_EQ(all_blocks.size(), 1U);
-    ir_sch.Fuse(all_blocks[0], {0, 1, 2, 3});
-    auto loops   = ir_sch.GetLoops(all_blocks[0]);
-    auto splited = ir_sch.Split(loops[0], {-1, 1024});
-    ir_sch.Bind(splited[0], "blockIdx.x");
-    ir_sch.Bind(splited[1], "threadIdx.x");
-  } else if (arg_pack_size == 4) {
-    auto all_blocks = ir_sch.GetAllBlocks();
-    CHECK_EQ(all_blocks.size(), 2U);
-    ir_sch.Fuse(all_blocks[0], {0, 1, 2, 3});
-    // Blocks were changed after Fuse, so we have to get all blocks again.
-    all_blocks   = ir_sch.GetAllBlocks();
-    auto loops   = ir_sch.GetLoops(all_blocks[0]);
-    auto splited = ir_sch.Split(loops[0], {-1, 1024});
-    ir_sch.Bind(splited[0], "blockIdx.x");
-    ir_sch.Bind(splited[1], "threadIdx.x");
-  }
+  VLOG(3) << "Before IRPoolScheduleGPU: " << ir_sch.GetModule().GetExprs().at(0);
+  auto all_blocks = ir_sch.GetAllBlocks();
+  VLOG(3) << "all_blocks[0] is : " << all_blocks[0];
+  auto loops = ir_sch.GetLoops(all_blocks[0]);
+  ir_sch.Fuse(loops);
+  // Blocks were changed after Fuse, so we have to get all blocks again.
+  all_blocks   = ir_sch.GetAllBlocks();
+  loops        = ir_sch.GetLoops(all_blocks[0]);
+  auto splited = ir_sch.Split(loops[0], {-1, 1024});
+  ir_sch.Bind(splited[0], "blockIdx.x");
+  ir_sch.Bind(splited[1], "threadIdx.x");
+  VLOG(3) << "End IRPoolScheduleGPU: " << ir_sch.GetModule().GetExprs().at(0);
 }
 
 void IRGlobalPoolScheduleGPU(ir::IRSchedule &ir_sch, const common::Target &target) {
+  VLOG(3) << "Before IRGlobalPoolScheduleGPU: " << ir_sch.GetModule().GetExprs().at(0);
   auto all_blocks = ir_sch.GetAllBlocks();
   CHECK_EQ(all_blocks.size(), 2U);
-  auto fused   = ir_sch.Fuse(all_blocks[0], {0, 1});
-  auto splited = ir_sch.Split(fused, {-1, 32});
-  all_blocks   = ir_sch.GetAllBlocks();
-  fused        = ir_sch.Fuse(all_blocks[1], {0, 1});
-  splited      = ir_sch.Split(fused, {-1, 32});
-  ir_sch.Bind(splited[0], "blockIdx.x");
-  ir_sch.Bind(splited[1], "threadIdx.y");
+  auto loops = ir_sch.GetLoops(all_blocks[1]);
+  if (loops.size() > 1) {
+    auto fused   = ir_sch.Fuse(all_blocks[0], {0, 1});
+    auto splited = ir_sch.Split(fused, {-1, 32});
+    all_blocks   = ir_sch.GetAllBlocks();
+    fused        = ir_sch.Fuse(all_blocks[1], {0, 1});
+    splited      = ir_sch.Split(fused, {-1, 32});
+    ir_sch.Bind(splited[0], "blockIdx.x");
+    ir_sch.Bind(splited[1], "threadIdx.y");
+    all_blocks = ir_sch.GetAllBlocks();
+    ir_sch.SimpleComputeAt(all_blocks[0], splited[1]);
+    all_blocks = ir_sch.GetAllBlocks();
+    ir_sch.SetBuffer(all_blocks[0], "local", true);
+    loops = ir_sch.GetLoops(all_blocks[0]);
+    CHECK_GE(loops.size(), 3U);
+    ir_sch.Bind(loops[2], "threadIdx.x");
+  } else {
+    loops        = ir_sch.GetLoops(all_blocks[0]);
+    auto splited = ir_sch.Split(loops[0], {-1, 32});
+    all_blocks   = ir_sch.GetAllBlocks();
+    loops        = ir_sch.GetLoops(all_blocks[1]);
+    splited      = ir_sch.Split(loops[0], {-1, 32});
+    ir_sch.Bind(splited[0], "blockIdx.x");
+    ir_sch.Bind(splited[1], "threadIdx.y");
+    all_blocks = ir_sch.GetAllBlocks();
+    splited    = ir_sch.GetLoops(all_blocks[1]);
+    ir_sch.SimpleComputeAt(all_blocks[0], splited[1]);
+    all_blocks = ir_sch.GetAllBlocks();
+    ir_sch.SetBuffer(all_blocks[0], "local", true);
+    loops = ir_sch.GetLoops(all_blocks[0]);
+    CHECK_GE(loops.size(), 3U);
+    ir_sch.Bind(loops[2], "threadIdx.x");
+  }
+  VLOG(3) << "After IRGlobalPoolScheduleGPU: " << ir_sch.GetModule().GetExprs().at(0);
+}
+
+void IRCudaScheduleDepthwiseConv(ir::IRSchedule &ir_sch, const std::vector<ir::Expr> &tensors) {
+  if (tensors.size() == 3U) {
+    CHECK(tensors[1].as_tensor());
+    auto input_pad = ir_sch.GetBlock(tensors[1].as_tensor_ref()->name);
+    ir_sch.ComputeInline(input_pad);
+  }
+  auto all_blocks = ir_sch.GetAllBlocks();
+  VLOG(3) << "Begin IRCudaScheduleDepthwiseConv with expr: " << ir_sch.GetModule().GetExprs().at(0);
+  auto OL    = ir_sch.CacheWrite(all_blocks[0], 0, "local");
   all_blocks = ir_sch.GetAllBlocks();
-  ir_sch.SimpleComputeAt(all_blocks[0], splited[1]);
+  CHECK_GE(all_blocks.size(), 2);
+  auto loops = ir_sch.GetLoops(all_blocks[1]);
+  CHECK_GE(loops.size(), 4);
+  ir_sch.Bind(loops[0], "blockIdx.x");
+  ir_sch.Bind(loops[1], "blockIdx.y");
+  ir_sch.Bind(loops[2], "blockIdx.z");
+  ir_sch.Bind(loops[3], "threadIdx.x");
   all_blocks = ir_sch.GetAllBlocks();
-  ir_sch.SetBuffer(all_blocks[0], "local", true);
-  auto loops = ir_sch.GetLoops(all_blocks[0]);
-  CHECK_GE(loops.size(), 3U);
-  ir_sch.Bind(loops[2], "threadIdx.x");
+  loops      = ir_sch.GetLoops(all_blocks[1]);
+  ir_sch.ComputeAt(all_blocks[0], loops[3]);
+  VLOG(3) << "After IRCudaScheduleDepthwiseConv with expr: " << ir_sch.GetModule().GetExprs().at(0);
 }
 
 void IRCudaScheduleConv(ir::IRSchedule &ir_sch, const common::Target &target) {
