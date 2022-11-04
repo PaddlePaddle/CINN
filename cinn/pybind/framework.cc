@@ -19,9 +19,9 @@
 
 #include "cinn/common/cinn_value.h"
 #include "cinn/frontend/interpreter.h"
+#include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
-#include "cinn/hlir/framework/op_lowering.h"
 #include "cinn/hlir/framework/op_strategy.h"
 #include "cinn/hlir/framework/scope.h"
 #include "cinn/hlir/op/use_ops.h"
@@ -66,7 +66,7 @@ void BindFramework(pybind11::module *m) {
                  input_output_names.push_back(input->name);
                }
                input_output_names.push_back(output_name);
-               std::vector<ir::LoweredFunc> funcs = hlir::framework::GetFuncFromOpImpl(
+               std::vector<ir::LoweredFunc> funcs = hlir::framework::GetFuncFromImpl(
                    impl, common::CINNValuePack{temp_inputs}, res, input_output_names, key, target);
                CHECK_EQ(funcs.size(), 1U);
                func = funcs[0];

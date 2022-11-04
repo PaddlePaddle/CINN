@@ -25,7 +25,6 @@
 #include "cinn/backends/llvm/runtime_symbol_registry.h"
 #include "cinn/backends/nvrtc_util.h"
 #include "cinn/common/context.h"
-#include "cinn/hlir/pass/op_fusion_pass.h"
 #include "cinn/ir/module.h"
 
 DECLARE_int32(cinn_parallel_compile_size);
@@ -41,7 +40,7 @@ std::vector<std::unique_ptr<Instruction>> ParallelCompiler::operator()() {
     return std::vector<std::unique_ptr<Instruction>>();
   }
   if (graph_->fusion_groups.size() == 0) {
-    graph_->fusion_groups = pass::BuildNonFusedGroups(graph_.get());
+    CreateFusionGroup();
   }
   // Task Spilt
   SplitTask();
@@ -64,6 +63,37 @@ OpPatternKind GetOpKind(const framework::Node* node) {
   }
 
   return kind;
+}
+
+void ParallelCompiler::CreateFusionGroup() {
+  auto nodes_inorder = std::get<0>(graph_->topological_order());
+  for (auto graph_node : nodes_inorder) {
+    auto node = graph_node->safe_as<Node>();
+    if (node) {
+      auto group = std::make_shared<Graph::Group>();
+      // init group
+      group->nodes.push_back(node);
+      group->nodes_set.insert(node);
+      group->output_nodes.insert(node);
+      // input node
+      for (auto& edge : node->inlinks()) {
+        auto input_graph_node = edge->source();
+        auto input_node_data  = input_graph_node->safe_as<NodeData>();
+        CHECK(input_node_data);
+        // input data has no source node
+        if (input_node_data->source_node.get()) {
+          group->input_nodes[input_node_data->source_node.get()] = 1;
+        }
+      }
+
+      // group type
+      group->op_pattern_kind = GetOpKind(node);
+      // use current node as master node for schedule
+      group->master_nodes.insert(node);
+      group->group_id = node->id();
+      graph_->fusion_groups.push_back(group);
+    }
+  }
 }
 
 void ParallelCompiler::SplitTask() {

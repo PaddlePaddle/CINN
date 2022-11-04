@@ -20,8 +20,8 @@
 #include <string>
 
 #include "cinn/cinn.h"
+#include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/node.h"
-#include "cinn/hlir/framework/op_lowering.h"
 #include "cinn/hlir/framework/op_strategy.h"
 #include "cinn/hlir/op/use_ops.h"
 #include "cinn/hlir/pe/broadcast.h"
@@ -61,7 +61,7 @@ TEST(Operator, GetAttrs) {
         common::CINNValuePack{{common::CINNValue(A), common::CINNValue(B), common::CINNValue(out_name)}};
     std::vector<std::string> input_output_names{"A", "B", out_name};
 
-    auto funcs = framework::GetFuncFromOpImpl(impl, cinn_input, inputs, input_output_names, func_name, target);
+    auto funcs = framework::GetFuncFromImpl(impl, cinn_input, inputs, input_output_names, func_name, target);
 
     for (auto func : funcs) {
       LOG(INFO) << "Test Operator_ElementWise_Add_Test0's Strategy, func is :\n" << func;

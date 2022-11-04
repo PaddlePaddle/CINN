@@ -146,6 +146,7 @@ TEST(net_build, program_execute_fc) {
 
   runtime_program->Execute();
 }
+#endif
 
 TEST(net_build, program_execute_pool2d) {
   const int B = 16;
@@ -197,7 +198,6 @@ TEST(net_build, program_execute_pool2d) {
   SetRandData<float>(input_tensor, target);
   runtime_program->Execute();
 }
-#endif
 
 TEST(net_build, program_execute_reverse) {
   const int B = 16;

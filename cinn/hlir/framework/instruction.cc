@@ -37,7 +37,6 @@ void Instruction::UpdateArgsCache(const std::map<std::string, cinn_pod_value_t>*
     if (name2podargs != nullptr) {
       for (const auto& arg : all_args) {
         CHECK_NE(name2podargs->count(arg), 0) << "Argument [" << arg << "] not found in the name2podargs";
-        VLOG(5) << "Get a argument, name=" << arg << ",type_code=" << name2podargs->at(arg).type_code();
         builder.Add(name2podargs->at(arg));
       }
     } else {
@@ -47,7 +46,6 @@ void Instruction::UpdateArgsCache(const std::map<std::string, cinn_pod_value_t>*
 
         // TODO(Superjomn) Support other types.
         auto& tensor = absl::get<Tensor>(*var);
-        VLOG(5) << "Get a argument, name=" << arg;
         builder.Add(tensor->buffer());
       }
     }
