@@ -737,7 +737,7 @@ TEST(IrSchedule, simple_compute_at) {
 #include <cinn_runtime.h>
 #include <stdio.h>
 
-void test_compute_at0(void* _args, int32_t num_args)
+void test_simple_compute_at(void* _args, int32_t num_args)
 {
   const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
   cinn_buffer_t* _C = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[1]));
@@ -811,23 +811,23 @@ TEST(IrSchedule, compute_at0) {
 #include <cinn_runtime.h>
 #include <stdio.h>
 
-void test_compute_at1(void* _args, int32_t num_args)
+void test_compute_at0(void* _args, int32_t num_args)
 {
   const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
   cinn_buffer_t* _C = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[1]));
-  cinn_buffer_t* _B = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 32, 32, 32 });
+  cinn_buffer_t* _B = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 128, 10 });
   cinn_buffer_malloc((void*)(0), _C);
   cinn_buffer_malloc((void*)(0), _B);
   const float* A = ((const float*)(_A->memory));
   float* B = ((float*)(_B->memory));
   float* C = ((float*)(_C->memory));
-  for (int32_t i = 0; i < 32; i += 1) {
-    for (int32_t j = 0; j < 32; j += 1) {
-      for (int32_t ax0 = 0; ax0 < 32; ax0 += 1) {
-        B[((1024 * i) + ((32 * j) + ax0))] = A[((1024 * i) + ((32 * j) + ax0))];
-      };
-      for (int32_t k = 0; k < 32; k += 1) {
-        C[((1024 * i) + ((32 * j) + k))] = B[((1024 * i) + ((32 * j) + k))];
+  for (int32_t i_j_fused_0 = 0; i_j_fused_0 < 2; i_j_fused_0 += 1) {
+    for (int32_t i_j_fused_1 = 0; i_j_fused_1 < 1024; i_j_fused_1 += 1) {
+      if ((((1024 * i_j_fused_0) + i_j_fused_1) < 1280)) {
+      {
+        B[((1024 * i_j_fused_0) + i_j_fused_1)] = A[((1024 * i_j_fused_0) + i_j_fused_1)];
+        C[((1024 * i_j_fused_0) + i_j_fused_1)] = B[((1024 * i_j_fused_0) + i_j_fused_1)];
+      }
       };
     };
   };
