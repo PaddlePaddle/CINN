@@ -1718,6 +1718,79 @@ void test_sync_threads(const float* __restrict__ A, float* __restrict__ C)
 }
 #endif
 
+TEST(IrSchedule, cache_write4) {
+  Context::Global().ResetNameId();
+  Expr M(64);
+  Expr N(32);
+
+  Target target = common::DefaultHostTarget();
+
+  Placeholder<float> A("A", {M, N, N});
+  Var k(32, "k0");
+  auto B = Compute(
+      {M, N}, [&](Var i, Var j) { return lang::ReduceSum(A(i, j, k), {k}); }, "B");
+
+  auto stages = CreateStages({A, B});
+
+  auto func = cinn::lang::LowerVec("test_cache_write4", stages, {A, B}, {}, {}, nullptr, target, true);
+
+  CHECK_EQ(func.size(), 1U);
+
+  auto ast_expr = func[0]->body;
+  std::vector<Expr> vec_ast{ast_expr};
+  ir::ModuleExpr mod_expr(vec_ast);
+  ir::IRSchedule ir_sch(mod_expr);
+
+  auto block_b = ir_sch.GetBlock("B");
+  auto b_cache = ir_sch.CacheWrite(block_b, 0, "local");
+  auto loops   = ir_sch.GetLoops("B");
+
+  VLOG(1) << "After CacheWrite, IR is : " << ir_sch.GetModule().GetExprs().at(0);
+
+  Module::Builder builder("module1", target);
+  for (auto& i : func) {
+    builder.AddFunction(i);
+  }
+  auto module = builder.Build();
+  CodeGenC codegen(target);
+  codegen.SetInlineBuiltinCodes(false);
+  auto source_code = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
+
+  VLOG(1) << "cache_write4 source code is :\n" << source_code;
+
+  std::string target_code = R"ROC(
+#include <cinn_runtime.h>
+#include <stdio.h>
+
+void test_cache_write4(void* _args, int32_t num_args)
+{
+  const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
+  cinn_buffer_t* _B = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[1]));
+  cinn_buffer_malloc((void*)(0), _B);
+  const float* A = ((const float*)(_A->memory));
+  float* B = ((float*)(_B->memory));
+  float* B__reduce_init = ((float*)(_B->memory));
+  {
+    for (int32_t i = 0; i < 64; i += 1) {
+      for (int32_t j = 0; j < 32; j += 1) {
+        B__reduce_init[((32 * i) + j)] = 0;
+        for (int32_t k0 = 0; k0 < 32; k0 += 1) {
+          B_local_temp_buffer[((32 * i) + j)] = (B_local_temp_buffer[((32 * i) + j)] + A[((1024 * i) + ((32 * j) + k0))]);
+        };
+      };
+    };
+    for (int32_t cache_ax0 = 0; cache_ax0 < 64; cache_ax0 += 1) {
+      for (int32_t cache_ax1 = 0; cache_ax1 < 32; cache_ax1 += 1) {
+        B[((32 * cache_ax0) + cache_ax1)] = B_local_temp_buffer[((32 * cache_ax0) + cache_ax1)];
+      };
+    };
+  };
+  cinn_buffer_free((void*)(0), _B);
+}
+)ROC";
+  ASSERT_EQ(utils::Trim(target_code), utils::Trim(source_code));
+}
+
 TEST(IrSchedule, rfactor) {
   Context::Global().ResetNameId();
   Expr M(32);

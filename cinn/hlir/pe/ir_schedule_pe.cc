@@ -664,6 +664,7 @@ void IRCudaScheduleConv(ir::IRSchedule &ir_sch, const common::Target &target) {
   CHECK_LE(w * thread_z, 1024) << "Wrong Param of Conv2d!";
   all_blocks = ir_sch.GetAllBlocks();
   auto OL    = ir_sch.CacheWrite(all_blocks[1], 0, "local");
+  VLOG(3) << "After CacheWrite with expr: " << ir_sch.GetModule().GetExprs().at(0);
   all_blocks = ir_sch.GetAllBlocks();
   auto loops = ir_sch.GetLoops(all_blocks[2]);
   CHECK_GE(loops.size(), 2U);
@@ -675,18 +676,38 @@ void IRCudaScheduleConv(ir::IRSchedule &ir_sch, const common::Target &target) {
   all_blocks = ir_sch.GetAllBlocks();
   loops      = ir_sch.GetLoops(all_blocks[2]);
   CHECK_GE(loops.size(), 5U);
-  ir_sch.Bind(loops[1], "blockIdx.z");
-  ir_sch.Bind(loops[2], "blockIdx.y");
-  ir_sch.Bind(loops[3], "threadIdx.z");
-  ir_sch.Bind(loops[4], "threadIdx.x");
-  all_blocks = ir_sch.GetAllBlocks();
-  loops      = ir_sch.GetLoops(all_blocks[2]);
-  CHECK_GE(loops.size(), 5U);
   ir_sch.ComputeAt(all_blocks[1], loops[4]);
   all_blocks = ir_sch.GetAllBlocks();
   loops      = ir_sch.GetLoops(all_blocks[1]);
   CHECK_GE(loops.size(), 7U);
   ir_sch.Split(loops[6], {-1, rc_factor});
+
+  all_blocks = ir_sch.GetAllBlocks();
+  loops      = ir_sch.GetLoops(all_blocks[0]);
+  // If loops size is less than 4, it means a 1-loop is eliminated. We need to add one.
+  if (loops.size() < 4U) {
+    ir_sch.Split(loops[0], {1, -1});
+  }
+  all_blocks = ir_sch.GetAllBlocks();
+  loops      = ir_sch.GetLoops(all_blocks[0]);
+  CHECK_EQ(loops.size(), 4U);
+  ir_sch.Split(loops[1], {-1, thread_z, f_inner});
+  all_blocks = ir_sch.GetAllBlocks();
+  loops      = ir_sch.GetLoops(all_blocks[0]);
+  CHECK_GE(loops.size(), 6U);
+  ir_sch.Reorder({loops[1], loops[4], loops[2], loops[5], loops[3]});
+  all_blocks = ir_sch.GetAllBlocks();
+  loops      = ir_sch.GetLoops(all_blocks[1]);
+  CHECK_GE(loops.size(), 6U);
+  ir_sch.SimpleComputeAt(all_blocks[0], loops[5]);
+
+  all_blocks = ir_sch.GetAllBlocks();
+  loops      = ir_sch.GetLoops(all_blocks[2]);
+  CHECK_GE(loops.size(), 5U);
+  ir_sch.Bind(loops[1], "blockIdx.z");
+  ir_sch.Bind(loops[2], "blockIdx.y");
+  ir_sch.Bind(loops[3], "threadIdx.z");
+  ir_sch.Bind(loops[4], "threadIdx.x");
   VLOG(3) << "After IRCudaScheduleConv, expr is : " << ir_sch.GetModule().GetExprs().at(0);
 }
 
