@@ -18,8 +18,6 @@
 #include <cublas_v2.h>
 #include <cuda_runtime.h>
 #include <glog/logging.h>
-#include <thrust/device_vector.h>
-#include <thrust/host_vector.h>
 
 #include <algorithm>
 #ifdef CINN_WITH_CUDNN
