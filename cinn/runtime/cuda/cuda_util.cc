@@ -18,6 +18,8 @@
 #include <cublas_v2.h>
 #include <cuda_runtime.h>
 #include <glog/logging.h>
+#include <thrust/device_vector.h>
+#include <thrust/host_vector.h>
 
 #include <algorithm>
 #ifdef CINN_WITH_CUDNN
@@ -84,6 +86,8 @@ void cinn_call_cuda_kernel(void *kernel_fn,
                                   kernel_args.data(),
                                   nullptr))
 }
+
+void FreeMemory(void *data) { CUDA_CALL(cudaFree(static_cast<float **>(data))); }
 
 void cinn_call_cublas(void *v_args,
                       int num_args,
@@ -152,28 +156,108 @@ void cinn_call_cublas(void *v_args,
                                           m * n,
                                           batch));
   } else {
-    CHECK(a1 == b1 && a2 == b2);
-    int stride_l = trans_o ? a3 * a4 : b3 * b4;
-    int stride_r = trans_o ? b3 * b4 : a3 * a4;
-    int batch    = a1 * a2;
-    CUBLAS_CALL(cublasSgemmStridedBatched(cuhandle,
-                                          trans_op_l,
-                                          trans_op_r,
-                                          m,
-                                          n,
-                                          k,
-                                          &alpha,
-                                          lhs,
-                                          ldl,
-                                          stride_l,
-                                          rhs,
-                                          ldr,
-                                          stride_r,
-                                          &beta,
-                                          C,
-                                          ldc,
-                                          m * n,
-                                          batch));
+    int l1 = trans_o ? a1 : b1, l2 = trans_o ? a2 : b2;
+    int r1 = trans_o ? b1 : a1, r2 = trans_o ? b2 : a2;
+
+    if ((l1 == r1 && l2 == r2) || (l1 == 1 && l2 == 1) || (r1 == 1 && r2 == 1)) {
+      cinn_call_cublas(
+          v_args, num_args, trans_a, trans_b, trans_o, alpha, beta, 1, a1 * a2, a3, a4, 1, b1 * b2, b3, b4, stream);
+    } else {
+      int batch = std::max(l1, r1) * std::max(l2, r2);
+      std::vector<float *> arr(3 * batch);
+      float **l_arr = &arr[0];
+      float **r_arr = &arr[batch];
+      float **c_arr = &arr[batch * 2];
+
+      if (l1 == r1) {
+        // (N * 1 * M * K) x (N * L * K * N)
+        if (l2 == 1) {
+          for (int idx = 0; idx < r1; ++idx) {
+            for (int idy = 0; idy < r2; ++idy) {
+              *l_arr++ = lhs + idx * m * k;
+              *r_arr++ = rhs + idx * r2 * n * k + idy * n * k;
+              *c_arr++ = C + idx * r2 * m * n + idy * m * n;
+            }
+          }
+        } /* (N * L * M * K) x (N * 1 * K * N) */
+        else if (r2 == 1) {
+          for (int idx = 0; idx < l1; ++idx) {
+            for (int idy = 0; idy < l2; ++idy) {
+              *l_arr++ = lhs + idx * l2 * m * k + idy * m * k;
+              *r_arr++ = rhs + idx * n * k;
+              *c_arr++ = C + idx * l2 * m * n + idy + m * n;
+            }
+          }
+        } else {
+          LOG(FATAL) << "";
+        }
+      } else if (l1 == 1) {
+        // (1 * L * M * K) x (N * L * K * N)
+        if (l2 == r2) {
+          for (int idx = 0; idx < r1; ++idx) {
+            for (int idy = 0; idy < r2; ++idy) {
+              *l_arr++ = lhs + idy * m * k;
+              *r_arr++ = rhs + idx * r2 * n * k + idy * n * k;
+              *c_arr++ = C + idx * r2 * m * n + idy * m * n;
+            }
+          }
+        } /* (1 * L * M * K) x (N * 1 * K * N) */
+        else if (r2 == 1) {
+          for (int idx = 0; idx < r1; ++idx) {
+            for (int idy = 0; idy < l2; ++idy) {
+              *l_arr++ = lhs + idy * m * k;
+              *r_arr++ = rhs + idx * n * k;
+              *c_arr++ = C + idx * l2 * m * n + idy * m * n;
+            }
+          }
+        } else {
+          LOG(FATAL) << "";
+        }
+      } else if (r1 == 1) {
+        //  (N * L * M * K) x (1 * L * K * N)
+        if (l2 == r2) {
+          for (int idx = 0; idx < l1; ++idx) {
+            for (int idy = 0; idy < l2; ++idy) {
+              *l_arr++ = lhs + idx * l2 * m * k + idy * m * k;
+              *r_arr++ = rhs + idy * n * k;
+              *c_arr++ = C + idx * l2 * m * n + idy * m * n;
+            }
+          }
+        } /*(N * 1 * M * K) x (1 * L * K * N)*/
+        else if (l2 == 1) {
+          for (int idx = 0; idx < l1; ++idx) {
+            for (int idy = 0; idy < r2; ++idy) {
+              *l_arr++ = lhs + idx * m * k;
+              *r_arr++ = rhs + idy * n * k;
+              *c_arr++ = C + idx * r2 * m * n + idy * m * n;
+            }
+          }
+        } else {
+          LOG(FATAL) << "";
+        }
+      }
+
+      float **arr_d = nullptr;
+      CUDA_CALL(cudaMalloc(&arr_d, 3 * sizeof(float *) * batch));
+      CUDA_CALL(cudaMemcpy(arr_d, arr.data(), 3 * sizeof(float *) * batch, cudaMemcpyHostToDevice));
+
+      CUBLAS_CALL(cublasSgemmBatched(cuhandle,
+                                     trans_op_l,
+                                     trans_op_r,
+                                     m,
+                                     n,
+                                     k,
+                                     &alpha,
+                                     arr_d,
+                                     ldl,
+                                     arr_d + batch,
+                                     ldr,
+                                     &beta,
+                                     arr_d + batch * 2,
+                                     ldc,
+                                     batch));
+      CUDA_CALL(cudaLaunchHostFunc(custream, FreeMemory, arr_d));
+    }
   }
 }
 
