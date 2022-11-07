@@ -161,6 +161,9 @@ void cinn_call_cublas(void *v_args,
       int stride_l = (l1 == 1 && l2 == 1) ? 0 : l3 * l4;
       int stride_r = (r1 == 1 && r2 == 1) ? 0 : r3 * r4;
 
+      // four types matmul:
+      // (N, L) * (N ,L),(N, 1) * (N ,1)
+      // (N, L) * (1, 1),(1, 1) * (N, L)
       CUBLAS_CALL(cublasSgemmStridedBatched(cuhandle,
                                             trans_op_l,
                                             trans_op_r,
