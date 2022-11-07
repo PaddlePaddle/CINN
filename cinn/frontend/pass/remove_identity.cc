@@ -18,11 +18,14 @@
 
 #include "cinn/frontend/net_builder.h"
 #include "cinn/frontend/program_pass.h"
+#include "cinn/utils/type_defs.h"
 #include "glog/logging.h"
 
 namespace cinn {
 namespace frontend {
 namespace pass {
+
+using cinn::utils::ShapeType;
 
 static std::unordered_map<std::string, std::function<bool(const Instruction&)>> identity_ops = {
     {"identity", [](const Instruction& instr) -> bool { return true; }},
@@ -32,10 +35,23 @@ static std::unordered_map<std::string, std::function<bool(const Instruction&)>> 
        auto& output_var = instr->outputs[0];
        return (input_var->id != output_var->id) && (input_var->shape == output_var->shape);
      }},
-    {"scale", [](const Instruction& instr) -> bool {
+    {"scale",
+     [](const Instruction& instr) -> bool {
        bool bias_zero = !instr->attrs.count("bias") || instr.GetAttrs<float>("bias") == 0.0f;
        bool scale_one = !instr->attrs.count("scale") || instr.GetAttrs<float>("scale") == 1.0f;
        return bias_zero && scale_one;
+     }},
+    {"transpose", [](const Instruction& instr) -> bool {
+       auto axis = instr->attrs.count("axis") ? instr.GetAttrs<ShapeType>("axis") : ShapeType{};
+
+       bool useless_transpose = true;
+       for (int i = 0; i < axis.size(); ++i) {
+         if (axis[i] != i) {
+           useless_transpose = false;
+           break;
+         }
+       }
+       return useless_transpose;
      }}};
 
 // RemoveIdentityPass will remove the identity instructions in following patterns:

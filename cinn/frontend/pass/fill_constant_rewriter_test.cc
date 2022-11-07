@@ -157,4 +157,34 @@ TEST(FillConstantRewriter, two_fill_constant) {
   ASSERT_EQ(num_removed_ops, 0);
 }
 
+TEST(FillConstantRewriter, remove_multi_transpose_with_fill_constant) {
+  //  fill_constant({16, 32})  x
+  //          |                |
+  //      transpose          transpose
+  //          |                |
+  //      transpose            |
+  //          |                |
+  //      transpose            |
+  //          \                /
+  //           elementwise_add
+  //                   |
+  //                <add_1>
+  NetBuilder builder("net_builder");
+  auto x           = builder.CreateInput(Float(32), {32, 16}, "x");
+  auto constant_1  = builder.FillConstant<float>({32, 16}, 128.0f, "constant_1");
+  auto transpose_1 = builder.Transpose(constant_1, {1, 0});
+  auto transpose_2 = builder.Transpose(transpose_1, {1, 0});
+  auto transpose_3 = builder.Transpose(transpose_2, {0, 1});
+
+  auto x_1   = builder.Transpose(x, {0, 1});
+  auto add_1 = builder.Add(transpose_3, x_1);
+
+  PassTest tester;
+  std::vector<std::string> input_names    = {x.id().data()};
+  std::vector<std::string> output_names   = {add_1->id};
+  std::vector<std::string> program_passes = {"FillConstantRewriter", "RemoveIdentity"};
+  int num_removed_ops                     = tester.RunAndCheck(builder, program_passes, input_names, output_names);
+  ASSERT_EQ(num_removed_ops, 4);
+}
+
 }  // namespace cinn::frontend

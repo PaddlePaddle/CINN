@@ -20,11 +20,14 @@
 
 #include "cinn/frontend/net_builder.h"
 #include "cinn/frontend/program_pass.h"
+#include "cinn/utils/type_defs.h"
 #include "glog/logging.h"
 
 namespace cinn {
 namespace frontend {
 namespace pass {
+
+using cinn::utils::ShapeType;
 
 static std::unordered_map<std::string, std::function<void(const Instruction&, Instruction*)>> rewriter_ops = {
     {"reshape",
@@ -38,7 +41,8 @@ static std::unordered_map<std::string, std::function<void(const Instruction&, In
        (*instr)->attrs          = fill_constant->attrs;
        (*instr)->attrs["shape"] = new_shape;
      }},
-    {"scale", [](const Instruction& fill_constant, Instruction* instr) -> void {
+    {"scale",
+     [](const Instruction& fill_constant, Instruction* instr) -> void {
        (*instr)->op_type = "fill_constant";
        (*instr)->inputs.clear();
        // the outputs keep same
@@ -52,9 +56,35 @@ static std::unordered_map<std::string, std::function<void(const Instruction&, In
 
        auto old_value = fill_constant.GetAttrs<float>("value");
        if (bias_after_scale) {
-         (*instr)->attrs["value"] = scale * old_value + bias;
+         instr->SetAttr("value", scale * old_value + bias);
        } else {
-         (*instr)->attrs["value"] = scale * (old_value + bias);
+         instr->SetAttr("value", scale * (old_value + bias));
+       }
+     }},
+    {"transpose", [](const Instruction& fill_constant, Instruction* instr) -> void {
+       (*instr)->op_type = "fill_constant";
+       (*instr)->inputs.clear();
+       // the outputs keep same
+
+       auto axis = (*instr)->attrs.count("axis") ? instr->GetAttrs<ShapeType>("axis") : ShapeType{};
+
+       (*instr)->attrs = fill_constant->attrs;
+
+       bool useless_transpose = true;
+       for (int i = 0; i < axis.size(); ++i) {
+         if (axis[i] != i) {
+           useless_transpose = false;
+           break;
+         }
+       }
+
+       if (!useless_transpose) {
+         ShapeType old_shape = fill_constant.GetAttrs<ShapeType>("shape");
+         ShapeType new_shape = old_shape;
+         for (int i = 0; i < axis.size(); ++i) {
+           new_shape[i] = old_shape[axis[i]];
+         }
+         instr->SetAttr("shape", new_shape);
        }
      }}};
 
