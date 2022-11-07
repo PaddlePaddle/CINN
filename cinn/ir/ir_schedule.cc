@@ -949,7 +949,7 @@ Expr ScheduleImpl::GetRootBlock(const Expr& expr) const {
       return it_expr.As<ir::Block>()->stmts[0];
     }
   }
-  LOG(FATAL) << "Didn't find expr in ScheduleImpl:\n" << expr;
+  LOG(FATAL) << "Didn't find expr \n" << expr << "in ScheduleImpl:\n" << exprs[0];
 }
 
 // The struct used to reconstruct the new For node to replace the old For node.
