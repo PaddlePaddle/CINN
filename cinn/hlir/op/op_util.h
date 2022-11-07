@@ -18,8 +18,10 @@
 #include <string>
 #include <vector>
 
+#include "cinn/common/target.h"
 #include "cinn/hlir/framework/node.h"
 #include "cinn/ir/ir.h"
+#include "cinn/lang/packed_func.h"
 
 namespace cinn {
 namespace hlir {
@@ -39,6 +41,16 @@ std::vector<Expr> ToCinnExprs(const std::vector<T>& args) {
   std::transform(args.begin(), args.end(), std::back_inserter(exprs), [](const T& arg) { return Expr(arg); });
   return exprs;
 }
+
+using CINNSchedule = lang::PackedFunc;
+
+CINNSchedule GetElementwiseScheduleFunc(const std::vector<std::vector<int>>& output_shapes,
+                                        const Target& target,
+                                        bool vectorizable = true);
+
+CINNSchedule GetInjectiveScheduleFunc(const std::vector<std::vector<int>>& output_shapes,
+                                      const Target& target,
+                                      bool vectorizable = true);
 
 }  // namespace hlir
 }  // namespace cinn
