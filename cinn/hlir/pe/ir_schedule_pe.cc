@@ -50,6 +50,9 @@ void IRElementwiseSchedule(ir::IRSchedule &ir_sch, const std::vector<int> &outpu
       ir_sch.Bind(splited[0], "blockIdx.x");
       ir_sch.Bind(splited[1], "threadIdx.x");
     }
+  } else {
+    auto blocks = ir_sch.GetAllBlocks();
+    ir_sch.FlattenLoops(ir_sch.GetLoops(blocks[0]));
   }
 }
 

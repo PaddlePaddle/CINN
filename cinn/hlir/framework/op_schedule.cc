@@ -43,11 +43,14 @@ CINNSchedule GetInjectiveScheduleFunc(const std::vector<std::vector<int>>& outpu
       ir::ModuleExpr mod_expr(vec_ast);
       ir::IRSchedule ir_sch(mod_expr);
       ir_sch.MergeExprs();
+      pe::IRElementwiseSchedule(ir_sch, output_shapes.front(), target);
+      /*
       if (target.arch == Target::Arch::NVGPU) {
         pe::IRCudaScheduleInjective(ir_sch, output_shapes.front(), target);
       } else if (target.arch == Target::Arch::X86) {
         pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target, vectorizable);
       }
+      */
       std::vector<common::CINNValue> res{common::CINNValue(ir_sch.GetModule().GetExprs().at(0))};
       *ret = common::CINNValuePack{res};
     } else {
