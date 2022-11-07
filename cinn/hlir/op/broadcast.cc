@@ -86,7 +86,7 @@ std::shared_ptr<OpStrategy> StrategyForBroadcast(
 
   auto strategy = std::make_shared<framework::OpStrategy>();
   strategy->AddImpl(
-      binary_compute, framework::GetElementwiseScheduleFunc(output_shapes, target), "strategy." + op_name + ".x86", 1);
+      binary_compute, GetElementwiseScheduleFunc(output_shapes, target), "strategy." + op_name + ".x86", 1);
   return strategy;
 }
 
@@ -186,7 +186,7 @@ std::shared_ptr<OpStrategy> StrategyForPow(const framework::NodeAttr &attrs,
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(pow_compute, framework::GetElementwiseScheduleFunc(output_shapes, target), "strategy.pow.x86", 1);
+  strategy->AddImpl(pow_compute, GetElementwiseScheduleFunc(output_shapes, target), "strategy.pow.x86", 1);
   return strategy;
 }
 
@@ -232,10 +232,8 @@ std::shared_ptr<OpStrategy> StrategyForBroadcastTo(const framework::NodeAttr &at
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(broadcast_to_compute,
-                    framework::GetElementwiseScheduleFunc(output_shapes, target),
-                    "strategy.broadcast_to.x86",
-                    1);
+  strategy->AddImpl(
+      broadcast_to_compute, GetElementwiseScheduleFunc(output_shapes, target), "strategy.broadcast_to.x86", 1);
 
   return strategy;
 }
@@ -342,8 +340,7 @@ std::shared_ptr<OpStrategy> StrategyForIsClose(const framework::NodeAttr &attrs,
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(
-      isclose_compute, framework::GetElementwiseScheduleFunc(output_shapes, target), "strategy.assertisclose", 1);
+  strategy->AddImpl(isclose_compute, GetElementwiseScheduleFunc(output_shapes, target), "strategy.assertisclose", 1);
 
   return strategy;
 }

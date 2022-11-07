@@ -111,8 +111,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForLookupTable(const framework::N
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(
-      lookup_table_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.lookup_table", 1);
+  strategy->AddImpl(lookup_table_compute, GetInjectiveScheduleFunc(output_shapes, target), "strategy.lookup_table", 1);
   return strategy;
 }
 

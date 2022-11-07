@@ -19,7 +19,6 @@
 #include <vector>
 
 #include "cinn/hlir/framework/node.h"
-#include "cinn/hlir/framework/op_schedule.h"
 #include "cinn/hlir/framework/schedule.h"
 #include "cinn/lang/packed_func.h"
 
@@ -27,7 +26,8 @@ namespace cinn {
 namespace hlir {
 namespace framework {
 
-using CINNCompute = lang::PackedFunc;
+using CINNCompute  = lang::PackedFunc;
+using CINNSchedule = lang::PackedFunc;
 
 class OpStrategy;
 

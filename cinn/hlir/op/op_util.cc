@@ -14,9 +14,18 @@
 
 #include "cinn/hlir/op/op_util.h"
 
+#include "cinn/hlir/pe/ir_schedule_pe.h"
+#include "cinn/hlir/pe/schedule.h"
+#include "cinn/ir/ir_schedule.h"
+
+DECLARE_bool(cinn_ir_schedule);
+
+namespace cinn {
+namespace hlir {
+
 CINNSchedule GetElementwiseScheduleFunc(const std::vector<std::vector<int>>& output_shapes,
                                         const Target& target,
-                                        bool vectorizable = true) {
+                                        bool vectorizable) {
   return CINNSchedule([=](lang::Args args, lang::RetValue* ret) {
     if (FLAGS_cinn_ir_schedule) {
       CHECK(!args.empty()) << "The input argument of InjectiveSchedule is empty! Please check.\n";
@@ -93,3 +102,6 @@ CINNSchedule GetInjectiveScheduleFunc(const std::vector<std::vector<int>>& outpu
     }
   });
 }
+
+}  // namespace hlir
+}  // namespace cinn

@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "cinn/common/ir_util.h"
+#include "cinn/hlir/op/op_util.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/tensor.h"

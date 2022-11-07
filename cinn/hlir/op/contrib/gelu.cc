@@ -25,6 +25,7 @@
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
 #include "cinn/hlir/op/contrib/clip.h"
+#include "cinn/hlir/op/op_util.h"
 #include "cinn/hlir/pe/ir_schedule_pe.h"
 #include "cinn/hlir/pe/nn.h"
 #include "cinn/hlir/pe/schedule.h"
@@ -85,7 +86,7 @@ std::shared_ptr<OpStrategy> StrategyForGelu(const framework::NodeAttr &attrs,
   auto strategy = std::make_shared<framework::OpStrategy>();
   CHECK(out_type.size()) << "Out_type of gelu op is empty! Please check.";
   if (out_type[0] == Float(32)) {
-    strategy->AddImpl(gelu_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.gelu.x86", 1);
+    strategy->AddImpl(gelu_compute, GetInjectiveScheduleFunc(output_shapes, target), "strategy.gelu.x86", 1);
   } else {
     LOG(FATAL) << "Gelu op with dtype != float32 is not implemented yet!";
   }
