@@ -218,6 +218,18 @@ class OpFusionPassHelper : public FusionHelperBase {
       auto master_node = fusion_op->master_nodes.begin();
       return this->GetNodeDataShape(producer) == this->GetNodeDataShape(*master_node) ? true : false;
     };
+    auto is_same_size = [this](const Node* producer, const Node* consumer) -> bool {
+      auto& fusion_op     = this->fusion_groups_[consumer];
+      auto master_node    = fusion_op->master_nodes.begin();
+      auto producer_shape = this->GetNodeDataShape(producer);
+      auto consumer_shape = this->GetNodeDataShape(*master_node);
+      if (producer_shape == consumer_shape) {
+        return true;
+      }
+      auto psize = std::accumulate(producer_shape.begin(), producer_shape.end(), 1, std::multiplies<int>());
+      auto csize = std::accumulate(consumer_shape.begin(), consumer_shape.end(), 1, std::multiplies<int>());
+      return psize == csize;
+    };
     // 4. without last dimension in reduce axis.
     auto without_last_dimension_in_reduce = [this](const Node* producer, const Node* consumer) -> bool {
       auto in_shape    = this->shape_dict_.at(producer->inlinks_in_order()[0]->source()->id());
