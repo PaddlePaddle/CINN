@@ -28,7 +28,6 @@
 #include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/pass.h"
-#include "cinn/hlir/pass/op_fusion_pass.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/runtime/flags.h"
 #include "cinn/utils/data_util.h"
@@ -57,51 +56,52 @@ class PerformanceTester : public ::testing::Test {
     // times of compiled runtime program will be executed repeatedly.
     int repeat_times = 2;
     // the num_tuning_rounds for auto tuning
-    int num_tuning_rounds = 1;
+    int num_tuning_rounds = 10;
     // knobs to control which schedules will be measured, refer to FLAGS_evaluate_knobs explanation
     std::bitset<3> evaluate_knobs = 7UL;
   };
 
-  void SetUp() override { FLAGS_cinn_parallel_compile_size = 0; }
-
   void Evaluate(const frontend::Program& program) {
+    VLOG(3) << "Initialize graph.";
+    graph_ = std::make_shared<hlir::framework::Graph>(program, target_);
+    VLOG(3) << "Apply graph pass.";
+    // hlir::framework::ApplyPass(graph_.get(), "InferShape");
+    // hlir::framework::ApplyPass(graph_.get(), "OpFusionPass");
     if (FLAGS_evaluate_knobs >= 0) {
       options_.evaluate_knobs = FLAGS_evaluate_knobs;
     }
     VLOG(3) << "evaluate_knobs = " << options_.evaluate_knobs;
 
-    auto worker_fn = [this, &program](const std::string& schedule_name, BuildRuntimeProgramFn build_fn) {
-      Context::Global().ResetNameId();
-      VLOG(3) << "Initialize graph.";
-      auto graph = std::make_shared<hlir::framework::Graph>(program, target_);
-      VLOG(3) << "Apply graph pass.";
-      hlir::framework::ApplyPass(graph.get(), "OpFusionPass");
-      VLOG(3) << "Build " << schedule_name << " program.";
-      auto scope           = BuildScope(target_, graph);
-      auto graph_compiler  = std::make_unique<GraphCompiler>(target_, scope, graph);
-      auto runtime_program = (this->*build_fn)(graph.get(), graph_compiler.get());
-      VLOG(3) << "Execute " << schedule_name << " program.";
-      runtime_program->ExecuteTest(options_.repeat_times);
-    };
-
     if (options_.evaluate_knobs.test(0)) {
-      worker_fn("no schedule", &PerformanceTester::BuildNoScheduleProgram);
+      VLOG(3) << "Build no schedule program.";
+      auto scope           = BuildScope(target_, graph_);
+      auto graph_compiler  = std::make_unique<GraphCompiler>(target_, scope, graph_);
+      auto runtime_program = BuildNoScheduleProgram(graph_compiler.get());
+      VLOG(3) << "Execute no schedule program.";
+      runtime_program->ExecuteTest(options_.repeat_times);
     }
     if (options_.evaluate_knobs.test(1)) {
-      worker_fn("manual schedule", &PerformanceTester::BuildManualScheduleProgram);
+      VLOG(3) << "Build manual schedule program.";
+      auto scope           = BuildScope(target_, graph_);
+      auto graph_compiler  = std::make_unique<GraphCompiler>(target_, scope, graph_);
+      auto runtime_program = BuildManualScheduleProgram(graph_compiler.get());
+      VLOG(3) << "Execute manual schedule program.";
+      runtime_program->ExecuteTest(options_.repeat_times);
     }
     if (options_.evaluate_knobs.test(2)) {
-      worker_fn("auto schedule", &PerformanceTester::BuildAutoScheduleProgram);
+      VLOG(3) << "Build auto schedule program.";
+      auto scope           = BuildScope(target_, graph_);
+      auto graph_compiler  = std::make_unique<GraphCompiler>(target_, scope, graph_);
+      auto runtime_program = BuildAutoScheduleProgram(graph_compiler.get(), options_.num_tuning_rounds);
+      VLOG(3) << "Execute auto schedule program.";
+      runtime_program->ExecuteTest(options_.repeat_times);
     }
   }
 
  protected:
-  using BuildRuntimeProgramFn = std::unique_ptr<hlir::framework::Program> (PerformanceTester::*)(Graph*,
-                                                                                                 GraphCompiler*);
-
-  std::unique_ptr<hlir::framework::Program> BuildNoScheduleProgram(Graph* graph, GraphCompiler* graph_compiler) {
-    const auto& dtype_dict = graph->GetAttrs<absl::flat_hash_map<std::string, common::Type>>("inferdtype");
-    const auto& shape_dict = graph->GetAttrs<absl::flat_hash_map<std::string, hlir::framework::shape_t>>("infershape");
+  std::unique_ptr<hlir::framework::Program> BuildNoScheduleProgram(GraphCompiler* graph_compiler) {
+    const auto& dtype_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, common::Type>>("inferdtype");
+    const auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, hlir::framework::shape_t>>("infershape");
 
     std::shared_ptr<hlir::framework::OpLowerer> op_lowerer =
         std::make_unique<hlir::framework::OpLowerer>(dtype_dict, shape_dict, target_);
@@ -109,14 +109,45 @@ class PerformanceTester : public ::testing::Test {
     GraphCompiler::CompileOptions compile_options;
     compile_options.with_instantiate_variables = true;
 
-    if (graph->fusion_groups.empty()) {
-      compile_options.groups = hlir::pass::BuildNonFusedGroups(graph);
-    } else {
-      compile_options.groups = graph->fusion_groups;
-    }
+    if (graph_->fusion_groups.empty()) {
+      std::tuple<std::vector<common::GraphNode*>, std::vector<common::GraphEdge*>> topo_result =
+          graph_->topological_order();
+      const std::vector<common::GraphNode*>& nodes_in_order = std::get<0>(topo_result);
+      for (auto graph_node : nodes_in_order) {
+        // n must be an op node
+        auto node = graph_node->safe_as<hlir::framework::Node>();
+        if (node) {
+          auto group = std::make_shared<Graph::Group>();
+          // init group
+          group->nodes.push_back(node);
+          group->nodes_set.insert(node);
+          group->output_nodes.insert(node);
+          // input node
+          for (auto& edge : node->inlinks()) {
+            auto input_graph_node = edge->source();
+            auto input_node_data  = input_graph_node->safe_as<hlir::framework::NodeData>();
+            CHECK(input_node_data);
+            // input data has no source node
+            if (input_node_data->source_node.get()) {
+              group->input_nodes[input_node_data->source_node.get()] = 1;
+            }
+          }
 
-    for (auto group : graph->fusion_groups) {
-      compile_options.lowered_funcs.push_back(op_lowerer->LowerWithoutSchedule(group));
+          // group type
+          group->op_pattern_kind = hlir::framework::kNonFusible;
+          // use current node as master node for schedule
+          group->master_nodes.insert(node);
+          group->group_id = node->id();
+
+          compile_options.groups.push_back(group);
+          compile_options.lowered_funcs.push_back(op_lowerer->LowerWithoutSchedule(group));
+        }
+      }
+    } else {
+      compile_options.groups = graph_->fusion_groups;
+      for (auto group : graph_->fusion_groups) {
+        compile_options.lowered_funcs.push_back(op_lowerer->LowerWithoutSchedule(group));
+      }
     }
 
     VLOG(3) << "===========================No Schedule LoweredFunc Begin===========================";
@@ -130,18 +161,17 @@ class PerformanceTester : public ::testing::Test {
     return graph_compiler->Build(compile_options).runtime_program;
   }
 
-  std::unique_ptr<hlir::framework::Program> BuildManualScheduleProgram(Graph* graph, GraphCompiler* graph_compiler) {
+  std::unique_ptr<hlir::framework::Program> BuildManualScheduleProgram(GraphCompiler* graph_compiler) {
     return graph_compiler->Build();
   }
 
-  std::unique_ptr<hlir::framework::Program> BuildAutoScheduleProgram(Graph* graph, GraphCompiler* graph_compiler) {
-    auto tuner = std::make_unique<AutoTuner>(target_, graph);
+  std::unique_ptr<hlir::framework::Program> BuildAutoScheduleProgram(GraphCompiler* graph_compiler,
+                                                                     int num_tuning_rounds) {
+    auto tuner = std::make_unique<AutoTuner>(target_, graph_.get());
 
     AutoTuner::Config tuning_config;
     TuningOptions tuning_options;
-    tuning_options.num_tuning_rounds         = options_.num_tuning_rounds;
-    tuning_options.num_measure_trials        = 2;
-    tuning_options.num_samples_per_iteration = 2;
+    tuning_options.num_tuning_rounds = num_tuning_rounds;
 
     tuner->Initialize(tuning_config, graph_compiler);
     TuningResult tuning_result = tuner->Tune(tuning_options);
@@ -166,16 +196,18 @@ class PerformanceTester : public ::testing::Test {
 #else
   Target target_ = common::DefaultHostTarget();
 #endif
+  std::shared_ptr<Graph> graph_;
   Options options_;
 };
 
-constexpr int batch_size = 2;
+constexpr int batch_size = 4;
 
 TEST_F(PerformanceTester, Mul) {
   int M = 32;
   int K = 16;
   int N = 32;
 
+  FLAGS_cinn_parallel_compile_size = 0;
   Evaluate(MulProgramBuilder({M, K}, {N, K})());
 }
 
@@ -186,6 +218,7 @@ TEST_F(PerformanceTester, Matmul) {
   int K = 2048;
   int N = 1000;
 
+  FLAGS_cinn_parallel_compile_size = 0;
   Evaluate(MatmulProgramBuilder({M, K}, {K, N})());
 }
 
@@ -201,6 +234,7 @@ TEST_F(PerformanceTester, Conv2d) {
   std::string data_format       = "NCHW";
   std::string padding_algorithm = "EXPLICIT";
 
+  FLAGS_cinn_parallel_compile_size = 0;
   Evaluate(Conv2dProgramBuilder(
       input_shape, weight_shape, strides, paddings, dilations, groups, data_format, padding_algorithm)());
 }
@@ -218,6 +252,8 @@ TEST_F(PerformanceTester, Pool2d) {
   bool adaptive                 = false;
   std::string padding_algorithm = "EXPLICIT";
 
+  options_.evaluate_knobs          = 0UL;
+  FLAGS_cinn_parallel_compile_size = 0;
   Evaluate(Pool2dProgramBuilder(input_shape,
                                 pooling_type,
                                 ksize,
@@ -242,6 +278,7 @@ TEST_F(PerformanceTester, BatchNorm) {
   const std::string& data_layout = "NCHW";
   bool is_test                   = true;
 
+  FLAGS_cinn_parallel_compile_size = 0;
   Evaluate(BatchNormProgramBuilder(
       input_shape, scale_shape, bias_shape, mean_shape, variance_shape, epsilon, momentum, data_layout, is_test)());
 }
@@ -258,6 +295,8 @@ TEST_F(PerformanceTester, Softmax) {
   int axis                = -1;
   std::string data_format = "AnyLayout";
 
+  options_.evaluate_knobs          = 5UL;
+  FLAGS_cinn_parallel_compile_size = 0;
   Evaluate(SoftmaxProgramBuilder(input_shape, axis, data_format)());
 }
 
@@ -267,6 +306,7 @@ TEST_F(PerformanceTester, Scale) {
   float bias            = 0.0f;
   bool bias_after_scale = true;
 
+  FLAGS_cinn_parallel_compile_size = 0;
   Evaluate(ScaleProgramBuilder(input_shape, scale, bias, bias_after_scale)());
 }
 
@@ -276,7 +316,8 @@ TEST_F(PerformanceTester, ResNet50) {
   std::vector<std::vector<int>> input_shapes = {{batch_size, 3, 224, 224}};
   CHECK_NE(FLAGS_resnet50_model_dir, "");
 
-  options_.evaluate_knobs = 0UL;
+  options_.evaluate_knobs          = 0UL;
+  FLAGS_cinn_parallel_compile_size = 0;
   Evaluate(PaddleModelProgramBuilder(FLAGS_resnet50_model_dir, input_names, input_shapes)());
 }
 
