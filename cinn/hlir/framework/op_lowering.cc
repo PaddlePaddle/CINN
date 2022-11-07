@@ -121,7 +121,6 @@ std::vector<ir::LoweredFunc> GetFuncFromOpImpl(const std::shared_ptr<OpImpl>& im
       LOG(FATAL) << "The number of funcs should not less than expr_pack's";
     }
     CHECK_EQ(funcs_after_schedule.size(), expr_pack.size());
-    std::vector<ir::LoweredFunc> res;
     for (int i = 0; i < funcs_after_schedule.size(); i++) {
       auto temp_buffers                  = lang::GetTempBuffers(all_arg_tensors, stages, funcs_after_schedule[i]->body);
       funcs_after_schedule[i]->temp_bufs = temp_buffers;
