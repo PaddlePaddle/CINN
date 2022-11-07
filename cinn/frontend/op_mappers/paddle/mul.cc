@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "absl/types/optional.h"
 #include "cinn/backends/cuda_util.h"
 #include "cinn/frontend/op_mapper_registry.h"
 #include "cinn/frontend/op_mappers/common_utils.h"
@@ -25,61 +26,64 @@ void MulOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx)
   auto x_name = op_desc.Input("X").front();
   CHECK_EQ(op_desc.Input("Y").size(), 1UL);
   auto y_name = op_desc.Input("Y").front();
-  auto x      = ctx.GetVar(x_name);
-  // We replace `TransposeVar(y_name, ctx)` by reshape op and transpose op to
-  // support CINN for training because we don't operate on data during net
-  // building in training stage. Consider a better code to integrate infer
-  // and training.
-  // TransposeVar(y_name, ctx);
+
+  auto x = ctx.GetVar(x_name);
   auto y = ctx.GetVar(y_name);
 
-  CHECK_EQ(y->shape.size(), 2UL) << "The y data's shape size of op [mul] is not equal to 2! Please check.";
-  VLOG(4) << "input y shape: " << cinn::utils::Join(y->shape, ",");
-
-  // In origin `TransposeVar(y_name, ctx)`, it transpose the variable when
-  // not using CUDNN, else just reshape.
-  Variable tran_y;
-  if (ctx.Target().arch == Target::Arch::NVGPU) {
-#ifdef CINN_WITH_CUDNN
-    auto tran_shape = y->shape;
-    std::swap(tran_shape[0], tran_shape[1]);
-    tran_y = ctx.Builder()->Reshape(y, tran_shape);
-    VLOG(4) << "Run with CUDNN and reshape y to" << cinn::utils::Join(tran_y->shape, ",");
-#else
-    tran_y = ctx.Builder()->Transpose(y, {1, 0});
-    VLOG(4) << "Run Not with CUDNN and transpose y to " << cinn::utils::Join(tran_y->shape, ",");
-#endif
-  } else {
-    tran_y = ctx.Builder()->Transpose(y, {1, 0});
-    VLOG(4) << "Run Not with CUDNN and transpose y to " << cinn::utils::Join(tran_y->shape, ",");
-  }
-
+  // Step1: flatten multi-dimension matrix input to two-dimension matrix
   auto x_num_col_dims = utils::GetAttrOrDefault<int>(op_desc, "x_num_col_dims", 1);
   auto y_num_col_dims = utils::GetAttrOrDefault<int>(op_desc, "y_num_col_dims", 1);
 
-  VLOG(4) << "Mul x_num_col_dims: " << x_num_col_dims;
-  VLOG(4) << "Mul y_num_col_dims: " << y_num_col_dims;
-  VLOG(4) << "x shape: " << cinn::utils::Join(x->shape, ",");
-  VLOG(4) << "y shape: " << cinn::utils::Join(tran_y->shape, ",");
-  auto out = ctx.Builder()->Mul(x, tran_y, x_num_col_dims, y_num_col_dims);
-  VLOG(4) << "The shape of cinn mul output "
-          << " = " << cinn::utils::Join(out->shape, ", ");
+  auto flatten_shape = [](const cinn::utils::ShapeType& shape, int num_col_dims) {
+    if (shape.size() <= 2) {
+      return shape;
+    }
 
-  // compute the real output shape
-  std::vector<int> output_shape;
-  output_shape.reserve(static_cast<size_t>(x_num_col_dims + y->shape.size() - y_num_col_dims));
+    if (num_col_dims < 0) {
+      num_col_dims += shape.size();
+    }
+
+    CHECK_GT(num_col_dims, 0) << "The [num_col_dims] should not be 0 in mul op! Please check.";
+    CHECK_LT(num_col_dims, shape.size()) << "The [num_col_dims] > rank(input) in mul op! Please check.";
+
+    cinn::utils::ShapeType new_shape(2, 1);
+    for (int i = 0; i < num_col_dims; ++i) {
+      new_shape[0] *= shape[i];
+    }
+    for (int i = num_col_dims; i < shape.size(); ++i) {
+      new_shape[1] *= shape[i];
+    }
+    return new_shape;
+  };
+
+  const auto& x_shape = flatten_shape(x->shape, x_num_col_dims);
+  const auto& y_shape = flatten_shape(y->shape, y_num_col_dims);
+
+  auto x_reshape = x;
+  if (x_shape != x->shape) {
+    x_reshape = ctx.Builder()->Reshape(x, x_shape);
+  }
+
+  auto y_reshape = y;
+  if (y_shape != y->shape) {
+    y_reshape = ctx.Builder()->Reshape(y, y_shape);
+  }
+
+  // Step2: matmul
+  const auto& matmul_out = ctx.Builder()->Matmul(x_reshape, y_reshape);
+
+  // Step3 : recover matmul's output shape
+  cinn::utils::ShapeType out_shape;
   for (int i = 0; i < x_num_col_dims; ++i) {
-    output_shape.push_back(x->shape[i]);
+    out_shape.emplace_back(x->shape[i]);
   }
-
   for (int i = y_num_col_dims; i < y->shape.size(); ++i) {
-    output_shape.push_back(y->shape[i]);
+    out_shape.emplace_back(y->shape[i]);
   }
-  VLOG(4) << "The shape of final output "
-          << " = " << cinn::utils::Join(output_shape, ", ");
 
-  if (output_shape.size() != out->shape.size()) {
-    out = ctx.Builder()->Reshape(out, output_shape);
+  auto out = matmul_out;
+  if (matmul_out->shape != out_shape) {
+    out = ctx.Builder()->Reshape(matmul_out, out_shape);
   }
 
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
