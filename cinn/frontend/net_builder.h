@@ -571,7 +571,7 @@ class NetBuilder {
    * `axes=axes+rank(input)`.
    * @return Output squeezed variable. Data type is same as input variable.
    */
-  Variable Squeeze(const Variable& x, const cinn::utils::ShapeType& axes);
+  Variable Squeeze(const Variable& x, const cinn::utils::ShapeType& axes = {});
 
   /**
    * @brief Creates an operation to insert new dimensions of length 1.
