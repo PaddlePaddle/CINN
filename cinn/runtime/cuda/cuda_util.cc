@@ -162,8 +162,8 @@ void cinn_call_cublas(void *v_args,
       int stride_r = (r1 == 1 && r2 == 1) ? 0 : r3 * r4;
 
       // four types matmul:
-      // (N, L) * (N ,L),(N, 1) * (N ,1)
-      // (N, L) * (1, 1),(1, 1) * (N, L)
+      // (N, L) * (N, L) , (N, 1) * (N, 1)
+      // (N, L) * (1, 1) , (1, 1) * (N, L)
       CUBLAS_CALL(cublasSgemmStridedBatched(cuhandle,
                                             trans_op_l,
                                             trans_op_r,
@@ -192,9 +192,9 @@ void cinn_call_cublas(void *v_args,
       int stride_l = l2 == 1 ? 0 : l3 * l4;
       int stride_r = r2 == 1 ? 0 : r3 * r4;
       // six type matmul:
-      // (N, L) * (N, 1),(N, L) * (1, L)
-      // (N, 1) * (N, L),(1, L) * (N, L)
-      // (N, 1) * (1, L),(1, L) * (N, 1)
+      // (N, L) * (N, 1) , (N, L) * (1, L)
+      // (N, 1) * (N, L) , (1, L) * (N, L)
+      // (N, 1) * (1, L) , (1, L) * (N, 1)
       for (int idx = 0; idx < std::max(l1, r1); ++idx) {
         CUBLAS_CALL(cublasSgemmStridedBatched(cuhandle,
                                               trans_op_l,
