@@ -160,7 +160,6 @@ void cinn_call_cublas(void *v_args,
     if ((l1 == r1 && l2 == r2) || (l1 == 1 && l2 == 1) || (r1 == 1 && r2 == 1)) {
       int stride_l = (l1 == 1 && l2 == 1) ? 0 : l3 * l4;
       int stride_r = (r1 == 1 && r2 == 1) ? 0 : r3 * r4;
-      int batch    = std::max(l1, r1) * std::max(l2, r2);
 
       CUBLAS_CALL(cublasSgemmStridedBatched(cuhandle,
                                             trans_op_l,
@@ -179,12 +178,13 @@ void cinn_call_cublas(void *v_args,
                                             C,
                                             ldc,
                                             m * n,
-                                            batch));
+                                            std::max(l1, r1) * std::max(l2, r2)));
     } else {
       // (N, L) / (N, 1) / (1, L)
       int bstride_l = (l1 != 1 && l2 != 1) ? (l2 * m * k) : ((l1 != 1) ? m * k : 0);
       // (N, L) / (N, 1) / (1, L)
-      int bstride_r = (r1 != 1 && r2 != 1) ? (r2 * k * n) : ((r1 != 1) ? n * k : 0);
+      int bstride_r = (r1 != 1 && r2 != 1) ? (r2 * k * n) : ((r1 != 1) ? k * n : 0);
+      int bstride_c = std::max(l2, r2) * m * n;
 
       int stride_l = l2 == 1 ? 0 : l3 * l4;
       int stride_r = r2 == 1 ? 0 : r3 * r4;
@@ -203,7 +203,7 @@ void cinn_call_cublas(void *v_args,
                                               ldr,
                                               stride_r,
                                               &beta,
-                                              C + idx * std::max(l2, r2) * m * n,
+                                              C + idx * bstride_c,
                                               ldc,
                                               m * n,
                                               std::max(l2, r2)));
