@@ -185,7 +185,7 @@ void cinn_call_cublas(void *v_args,
             for (int idy = 0; idy < l2; ++idy) {
               *l_arr++ = lhs + idx * l2 * m * k + idy * m * k;
               *r_arr++ = rhs + idx * n * k;
-              *c_arr++ = C + idx * l2 * m * n + idy + m * n;
+              *c_arr++ = C + idx * l2 * m * n + idy * m * n;
             }
           }
         } else {
