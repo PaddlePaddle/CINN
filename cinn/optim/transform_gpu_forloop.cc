@@ -159,20 +159,7 @@ void MarkGpuForloop(const std::string &statement,
           global_tensor_map(global_tensor_map),
           resized_buffer(resized_buffer) {}
 
-    void operator()(Expr *expr) {
-      ir::IRMutator<>::Visit(expr, expr);
-
-      LOG(INFO) << "Begin MarkGpuForloop GetTempBuffers";
-      auto all_tensors = ir::CollectIRNodesWithoutTensor(*expr, [&](const Expr *x) {
-        if (x->as_tensor() && x->as_tensor()->buffer.defined()) {
-          LOG(INFO) << x->as_tensor()->buffer->name << " buffer shape is : ";
-          for (auto i : x->as_tensor()->buffer->shape) {
-            LOG(INFO) << i << ", ";
-          }
-        }
-        return x->as_tensor();
-      });
-    }
+    void operator()(Expr *expr) { ir::IRMutator<>::Visit(expr, expr); }
 
    private:
     // Mark the specific store.
@@ -477,16 +464,6 @@ void OptimizeExprGPU(Expr *expr) {
   std::unordered_set<std::string> resized_buffer;
   VLOG(3) << "Expr is : " << *expr;
   TransformGpuForloops(forloop_infos, tensor_traverse_order, &global_tensor_map, resized_buffer, expr);
-
-  auto all_tensors = ir::CollectIRNodesWithoutTensor(*expr, [&](const Expr *x) {
-    if (x->as_tensor() && x->as_tensor()->buffer.defined()) {
-      LOG(INFO) << x->as_tensor()->name << " with " << x->as_tensor()->buffer->name << " buffer shape is : ";
-      for (auto i : x->as_tensor()->buffer->shape) {
-        LOG(INFO) << i << ", ";
-      }
-    }
-    return x->as_tensor();
-  });
 
   VLOG(3) << "After TransformGpuForloops, Expr is : " << *expr;
 }
