@@ -85,8 +85,6 @@ void cinn_call_cuda_kernel(void *kernel_fn,
                                   nullptr))
 }
 
-void FreeMemory(void *data) { CUDA_CALL(cudaFree(static_cast<float **>(data))); }
-
 void cinn_call_cublas(void *v_args,
                       int num_args,
                       bool trans_a,
