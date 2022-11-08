@@ -110,6 +110,17 @@ std::vector<ir::Buffer> GetTempBuffers(const std::vector<Tensor>& tensor_args,
       }
     }
   }
+  // visit the ir body and update the map of name_to_buffer
+  auto update_map = ir::CollectIRNodesWithoutTensor(body, [&](const Expr* x) {
+    if (x->as_tensor() && x->as_tensor()->buffer.defined()) {
+      auto buffer_name = x->as_tensor()->buffer->name;
+      if (name_to_buffer.count(buffer_name) && x->as_tensor()->buffer->numel() < name_to_buffer[buffer_name]->numel()) {
+        name_to_buffer[buffer_name] = x->as_tensor()->buffer;
+      }
+    }
+    return x->as_tensor() && x->as_tensor()->buffer.defined();
+  });
+
   std::vector<ir::Buffer> temp_buffers;
   for (auto& i : name_to_buffer) temp_buffers.push_back(i.second);
   return temp_buffers;
@@ -140,6 +151,17 @@ std::vector<ir::Buffer> GetTempBuffers(const std::vector<ir::Argument>& args, Ex
       }
     }
   }
+  // visit the ir body and update the map of name_to_buffer
+  auto update_map = ir::CollectIRNodesWithoutTensor(body, [&](const Expr* x) {
+    if (x->as_tensor() && x->as_tensor()->buffer.defined()) {
+      auto buffer_name = x->as_tensor()->buffer->name;
+      if (name_to_buffer.count(buffer_name) && x->as_tensor()->buffer->numel() < name_to_buffer[buffer_name]->numel()) {
+        name_to_buffer[buffer_name] = x->as_tensor()->buffer;
+      }
+    }
+    return x->as_tensor() && x->as_tensor()->buffer.defined();
+  });
+
   std::vector<ir::Buffer> temp_buffers;
   for (auto& i : name_to_buffer) temp_buffers.push_back(i.second);
   return temp_buffers;
