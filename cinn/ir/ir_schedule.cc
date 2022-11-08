@@ -637,6 +637,18 @@ struct CacheWriteRewriter : public ir::IRMutator<> {
     rewriter(&info->cache_block);
     rewriter.mutate_cache_block = false;
     rewriter(&new_root);
+    auto find_tensor = ir::CollectIRNodesWithoutTensor(
+        new_root,
+        [&](const Expr* x) { return x->As<Store>() && (x->As<Store>()->tensor == Expr(info->read_tensor)); },
+        true);
+    if (!find_tensor.empty()) {
+      auto find_store = ir::CollectIRNodesWithoutTensor((*find_tensor.begin()), [&](const Expr* x) {
+        return x->As<Load>() && (x->As<Load>()->tensor == Expr(info->write_tensor));
+      });
+      for (auto load_ir : find_store) {
+        load_ir.As<Load>()->tensor = Expr(info->read_tensor);
+      }
+    }
     return new_root;
   }
 
@@ -765,6 +777,19 @@ Expr ScheduleImpl::CacheWrite(const Expr& block, int write_buffer_index, const s
                GetTensor(*x)->name == info.read_tensor->name;
       },
       true);
+
+  CHECK(info.write_tensor->buffer.defined());
+
+  // Replace buffer
+  auto all_tensors = ir::CollectIRNodesWithoutTensor(
+      root, [&](const Expr* x) { return x->as_tensor() && x->as_tensor()->buffer.defined(); });
+
+  for (auto i : all_tensors) {
+    if (i.as_tensor()->name != info.write_tensor->name && i.as_tensor()->buffer.defined() &&
+        i.as_tensor()->buffer->name == info.write_tensor->buffer->name) {
+      i.as_tensor()->Bind(info.read_tensor->buffer);
+    }
+  }
 
   CHECK_EQ(find_cache_block.size(), 1U);
 
@@ -925,7 +950,7 @@ Expr ScheduleImpl::GetRootBlock(const Expr& expr) const {
       return it_expr.As<ir::Block>()->stmts[0];
     }
   }
-  LOG(FATAL) << "Didn't find expr in ScheduleImpl:\n" << expr;
+  LOG(FATAL) << "Didn't find expr \n" << expr << "in ScheduleImpl:\n" << exprs[0];
 }
 
 // The struct used to reconstruct the new For node to replace the old For node.
