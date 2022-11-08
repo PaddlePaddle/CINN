@@ -66,6 +66,8 @@ class Compiler final {
   Target target_;
   std::unique_ptr<ExecutionEngine> engine_;
 
+  std::unordered_map<std::string, std::string> cfunc_to_cppfunc;
+
 #ifdef CINN_WITH_CUDA
   std::unique_ptr<runtime::cuda::CUDAModule> cuda_module_;
 #endif

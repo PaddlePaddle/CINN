@@ -187,15 +187,20 @@ void ParallelCompiler::Task::CodegenAndJit() {
     backends::NVRTC_Compiler compiler;
     auto ptx = compiler(cuda_c, true, kernel_names, cpp_fn_names.get());
     CHECK(!ptx.empty());
+    CHECK_EQ(kernel_names.size(), cpp_fn_names->size());
 
     // load cumodule
     cumodule.reset(new CUDAModule(ptx, CUDAModule::Kind::PTX));
     // register kernel
     backends::RuntimeSymbols symbols;
-    for (auto& fn_name : *cpp_fn_names) {
-      auto cufunc = cumodule->GetFunction(0, fn_name);
+    for (int i = 0; i < kernel_names.size(); ++i) {
+      const auto& fn_name = cpp_fn_names->at(i);
+      auto cufunc         = cumodule->GetFunction(0, fn_name);
       CHECK(cufunc);
-      symbols.RegisterVar(fn_name + "_ptr_", reinterpret_cast<void*>(cufunc));
+      symbols.RegisterVar(fn_name, reinterpret_cast<void*>(cufunc));
+
+      cfunc_to_cppfunc.emplace(kernel_names[i], fn_name);
+      LOG(INFO) << "Map cfunc: " << (kernel_names[i]) << " to cppfunc: " << (fn_name);
     }
     engine = backends::ExecutionEngine::Create(backends::ExecutionOptions(), std::move(symbols));
     engine->Link<backends::CodeGenCUDA_Host>(hmodule);
@@ -214,9 +219,17 @@ void ParallelCompiler::Task::BuildInstruction() {
     auto instr = std::unique_ptr<Instruction>(
         new Instruction(target, scope.get(), group->input_names, group->output_names, group->GetFuncName()));
 
-    auto fn_ptr = engine->Lookup(group->GetFuncName());
-    CHECK(fn_ptr) << "Can't find jit function : " << group->GetFuncName();
-    instr->SetLoweredFunc(reinterpret_cast<void*>(fn_ptr), group->GetFuncName());
+    std::string func_name = group->GetFuncName() + "_kernel";
+    LOG(INFO) << "Try loopup func: " << func_name;
+    if (cfunc_to_cppfunc.count(func_name)) {
+      auto fn_ptr = engine->Lookup(cfunc_to_cppfunc.at(func_name));
+      CHECK(fn_ptr) << "Can't find jit function : " << cfunc_to_cppfunc.at(func_name);
+      instr->SetLoweredFunc(reinterpret_cast<void*>(fn_ptr), cfunc_to_cppfunc.at(func_name));
+    } else {
+      auto fn_ptr = engine->Lookup(func_name);
+      CHECK(fn_ptr) << "Can't find jit function : " << func_name;
+      instr->SetLoweredFunc(reinterpret_cast<void*>(fn_ptr), func_name);
+    }
 
     instr->Finalize();
     instructions.push_back(std::move(instr));

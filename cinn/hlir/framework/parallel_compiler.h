@@ -73,6 +73,8 @@ class ParallelCompiler {
     std::vector<std::unique_ptr<Instruction>> instructions;
     std::vector<std::vector<ir::LoweredFunc>> lowered_funcs;
 
+    std::unordered_map<std::string, std::string> cfunc_to_cppfunc;
+
    public:
     std::unique_ptr<backends::ExecutionEngine> engine;
 #ifdef CINN_WITH_CUDA

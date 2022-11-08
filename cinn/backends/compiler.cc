@@ -115,17 +115,22 @@ void Compiler::CompileCudaModule(const Module& module, const std::string& code) 
 
   auto ptx = compiler(source_code, true, kernel_names, cpp_fn_names.get());
   CHECK(!ptx.empty());
+  CHECK_EQ(kernel_names.size(), cpp_fn_names->size());
 
   // TODO(Superjomn) Whether to support multiple CUDA modules?
   cuda_module_.reset(new CUDAModule(ptx, CUDAModule::Kind::PTX));
 
   RuntimeSymbols symbols;
 
-  for (auto& kernel_fn_name : *cpp_fn_names) {
-    auto fn_kernel = cuda_module_->GetFunction(0, kernel_fn_name);
+  for (int i = 0; i < kernel_names.size(); ++i) {
+    const auto& kernel_fn_name = cpp_fn_names->at(i);
+    auto fn_kernel             = cuda_module_->GetFunction(0, kernel_fn_name);
     CHECK(fn_kernel);
 
-    symbols.RegisterVar(kernel_fn_name + "_ptr_", reinterpret_cast<void*>(fn_kernel));
+    symbols.RegisterVar(kernel_fn_name, reinterpret_cast<void*>(fn_kernel));
+
+    cfunc_to_cppfunc.emplace(kernel_names[i], kernel_fn_name);
+    LOG(INFO) << "Map cfunc: " << (kernel_names[i]) << " to cppfunc: " << (kernel_fn_name);
   }
 
   engine_ = ExecutionEngine::Create(ExecutionOptions(), std::move(symbols));
@@ -142,10 +147,13 @@ void Compiler::ExportObject(const std::string& path) { engine_->ExportObject(pat
 
 void* Compiler::Lookup(absl::string_view fn_name) {
   CHECK(engine_);
-  if (engine_->Lookup(fn_name) != nullptr) {
-    return engine_->Lookup(fn_name);
+  std::string func_name = std::string(fn_name.data()) + "_kernel";
+  LOG(INFO) << "Try loopup func: " << func_name;
+  if (cfunc_to_cppfunc.count(func_name)) {
+    auto func = engine_->Lookup(cfunc_to_cppfunc.at(func_name));
+    return func;
   }
-  return nullptr;
+  return engine_->Lookup(func_name);
 }
 
 }  // namespace backends

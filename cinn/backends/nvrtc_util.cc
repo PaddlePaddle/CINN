@@ -114,7 +114,6 @@ std::string NVRTC_Compiler::CompilePTX(const std::string& code,
       const char* cpp_name;
       NVRTC_CALL(nvrtcGetLoweredName(prog, fn_name.c_str(), &cpp_name));
 
-      LOG(INFO) << "NVRTC add function: " << cpp_name;
       cpp_cn_names->emplace_back(cpp_name);
     }
   }
