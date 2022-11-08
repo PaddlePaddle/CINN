@@ -184,8 +184,9 @@ void ParallelCompiler::Task::CodegenAndJit() {
 
     VLOG(3) << "Host Code : " << hmodule;
     VLOG(3) << "Host Code : " << dmodule;
+    bool support_cpp = true;
     backends::CodeGenCUDA_Dev codegen(target);
-    auto cuda_c = codegen.Compile(dmodule);
+    auto cuda_c = codegen.Compile(dmodule, !support_cpp);
 
     if (FLAGS_cinn_source_code_save_path.empty()) {
       if (cuda_c.size() > DebugLogMaxLen) {
@@ -204,19 +205,27 @@ void ParallelCompiler::Task::CodegenAndJit() {
       of.close();
     }
 
+    std::vector<std::string> kernel_names;
+    if (support_cpp) {
+      for (auto& fn : dmodule.functions()) {
+        kernel_names.emplace_back(fn->name);
+      }
+    }
+    auto cpp_fn_names = std::make_unique<std::vector<std::string>>();
+
     using runtime::cuda::CUDAModule;
     backends::NVRTC_Compiler compiler;
-    auto ptx = compiler(cuda_c);
+    auto ptx = compiler(cuda_c, true, kernel_names, cpp_fn_names.get());
     CHECK(!ptx.empty());
 
     // load cumodule
     cumodule.reset(new CUDAModule(ptx, CUDAModule::Kind::PTX));
     // register kernel
     backends::RuntimeSymbols symbols;
-    for (auto& fn : dmodule.functions()) {
-      auto cufunc = cumodule->GetFunction(0, fn->name);
+    for (auto& fn_name : *cpp_fn_names) {
+      auto cufunc = cumodule->GetFunction(0, fn_name);
       CHECK(cufunc);
-      symbols.RegisterVar(fn->name + "_ptr_", reinterpret_cast<void*>(cufunc));
+      symbols.RegisterVar(fn_name + "_ptr_", reinterpret_cast<void*>(cufunc));
     }
     engine = backends::ExecutionEngine::Create(backends::ExecutionOptions(), std::move(symbols));
     engine->Link<backends::CodeGenCUDA_Host>(hmodule);

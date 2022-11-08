@@ -34,9 +34,13 @@ class NVRTC_Compiler {
    * Compile the \p code and get PTX string.
    * @param code The CUDA source code.
    * @param include_headers Whether to include the headers of CUDA and CINN runtime modules.
+   * @param kernel_names The function name vector of CUDA and CINN runtime modules for C++ support.
    * @return Compiled PTX code string.
    */
-  std::string operator()(const std::string& code, bool include_headers = true);
+  std::string operator()(const std::string& code,
+                         bool include_headers                         = true,
+                         const std::vector<std::string>& kernel_names = {},
+                         std::vector<std::string>* cpp_cn_names       = nullptr);
 
  private:
   /**
@@ -56,7 +60,10 @@ class NVRTC_Compiler {
    * @param code source code string.
    * @return PTX string.
    */
-  std::string CompilePTX(const std::string& code, bool include_headers);
+  std::string CompilePTX(const std::string& code,
+                         bool include_headers                         = true,
+                         const std::vector<std::string>& kernel_names = {},
+                         std::vector<std::string>* cpp_cn_names       = nullptr);
 };
 
 }  // namespace backends

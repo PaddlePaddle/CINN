@@ -52,7 +52,7 @@ std::string Compiler::GetSourceCode(const ir::Module& module) {
     auto& host_module                = std::get<0>(_host_module_device_module_);
     auto& device_module              = std::get<1>(_host_module_device_module_);
     CodeGenCUDA_Dev codegen(target_);
-    auto source_code = codegen.Compile(device_module);
+    auto source_code = codegen.Compile(device_module, false);
     return source_code;
 #else
     CINN_NOT_IMPLEMENTED
@@ -81,7 +81,9 @@ void Compiler::CompileCudaModule(const Module& module, const std::string& code) 
 
   VLOG(3) << "[CUDA] device module:\n" << device_module;
   CodeGenCUDA_Dev codegen(target_);
-  auto source_code = codegen.Compile(device_module);
+
+  bool support_cpp = true;
+  auto source_code = codegen.Compile(device_module, !support_cpp);
   if (!code.empty()) source_code = code;
   if (FLAGS_cinn_source_code_save_path.empty()) {
     if (source_code.size() > DebugLogMaxLen) {
@@ -103,7 +105,15 @@ void Compiler::CompileCudaModule(const Module& module, const std::string& code) 
 
   backends::NVRTC_Compiler compiler;
 
-  auto ptx = compiler(source_code);
+  std::vector<std::string> kernel_names;
+  if (support_cpp) {
+    for (auto& fn : device_module.functions()) {
+      kernel_names.emplace_back(fn->name);
+    }
+  }
+  auto cpp_fn_names = std::make_unique<std::vector<std::string>>();
+
+  auto ptx = compiler(source_code, true, kernel_names, cpp_fn_names.get());
   CHECK(!ptx.empty());
 
   // TODO(Superjomn) Whether to support multiple CUDA modules?
@@ -111,9 +121,8 @@ void Compiler::CompileCudaModule(const Module& module, const std::string& code) 
 
   RuntimeSymbols symbols;
 
-  for (auto& fn : device_module.functions()) {
-    std::string kernel_fn_name = fn->name;
-    auto fn_kernel             = cuda_module_->GetFunction(0, kernel_fn_name);
+  for (auto& kernel_fn_name : *cpp_fn_names) {
+    auto fn_kernel = cuda_module_->GetFunction(0, kernel_fn_name);
     CHECK(fn_kernel);
 
     symbols.RegisterVar(kernel_fn_name + "_ptr_", reinterpret_cast<void*>(fn_kernel));

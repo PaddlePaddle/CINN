@@ -25,8 +25,11 @@
 namespace cinn {
 namespace backends {
 
-std::string NVRTC_Compiler::operator()(const std::string& code, bool include_headers) {
-  return CompilePTX(code, include_headers);
+std::string NVRTC_Compiler::operator()(const std::string& code,
+                                       bool include_headers,
+                                       const std::vector<std::string>& kernel_names,
+                                       std::vector<std::string>* cpp_cn_names) {
+  return CompilePTX(code, include_headers, kernel_names, cpp_cn_names);
 }
 
 std::vector<std::string> NVRTC_Compiler::FindCUDAIncludePaths() {
@@ -56,7 +59,10 @@ std::vector<std::string> NVRTC_Compiler::FindCINNRuntimeIncludePaths() {
   return {Context::Global().runtime_include_dir()};
 }
 
-std::string NVRTC_Compiler::CompilePTX(const std::string& code, bool include_headers) {
+std::string NVRTC_Compiler::CompilePTX(const std::string& code,
+                                       bool include_headers,
+                                       const std::vector<std::string>& kernel_names,
+                                       std::vector<std::string>* cpp_cn_names) {
   std::vector<std::string> compile_options;
   std::vector<const char*> param_cstrings{};
   nvrtcProgram prog;
@@ -87,13 +93,31 @@ std::string NVRTC_Compiler::CompilePTX(const std::string& code, bool include_hea
 
     compile_options.insert(std::end(compile_options), include_paths.begin(), include_paths.end());
   }
+  compile_options.emplace_back("--std=c++14");
 
   for (const auto& option : compile_options) {
     param_cstrings.push_back(option.c_str());
   }
   VLOG(3) << "compile options: " << utils::Join(compile_options, " ");
   NVRTC_CALL(nvrtcCreateProgram(&prog, code.c_str(), nullptr, 0, nullptr, nullptr));
+
+  if (cpp_cn_names) {
+    for (const auto fn_name : kernel_names) {
+      NVRTC_CALL(nvrtcAddNameExpression(prog, fn_name.c_str()));
+    }
+  }
+
   nvrtcResult compile_res = nvrtcCompileProgram(prog, param_cstrings.size(), param_cstrings.data());
+
+  if (cpp_cn_names) {
+    for (const auto fn_name : kernel_names) {
+      const char* cpp_name;
+      NVRTC_CALL(nvrtcGetLoweredName(prog, fn_name.c_str(), &cpp_name));
+
+      LOG(INFO) << "NVRTC add function: " << cpp_name;
+      cpp_cn_names->emplace_back(cpp_name);
+    }
+  }
 
   {  // get log
     size_t log_size;
@@ -110,6 +134,7 @@ std::string NVRTC_Compiler::CompilePTX(const std::string& code, bool include_hea
   std::string ptx;
   ptx.resize(ptx_size);
   NVRTC_CALL(nvrtcGetPTX(prog, &ptx[0]));
+
   NVRTC_CALL(nvrtcDestroyProgram(&prog));
 
   return ptx;
