@@ -34,7 +34,6 @@
 #include "cinn/optim/ir_copy.h"
 #include "cinn/optim/ir_simplify.h"
 #include "cinn/optim/replace_var_with_expr.h"
-#include "cinn/utils/string.h"
 
 namespace cinn {
 namespace ir {
@@ -117,8 +116,7 @@ bool Contains(const Expr& container, const Expr& expr) {
 Expr GetNextForLoop(const Expr& for_loop) {
   Expr result;
   CHECK(for_loop.As<ir::For>()) << "The input of GetNextForLoop should be ir::For!";
-  Expr for_body = for_loop.As<ir::For>()->body;
-  // VLOG(6) << "Huihuang debug GetNextForLoop for_loop: " << for_loop.As<ir::For>()->loop_var;
+  Expr for_body             = for_loop.As<ir::For>()->body;
   ir::Block* for_body_block = for_body.As<ir::Block>();
   CHECK(for_body_block) << "The for_loop's body shoule be Block!";
 
@@ -135,14 +133,12 @@ Expr GetNextForLoop(const Expr& for_loop) {
       }
     }
   }
-  // VLOG(6) << "next_idx = " << next_idx;
   if (next_idx == -1) {
     // More then one sub for loop, Return undefined.
     return result;
   }
 
   Expr block_body = for_body_block->stmts[next_idx];
-  // VLOG(6) << "Checking " << block_body;
   if (block_body.As<IfThenElse>()) {
     // TODO(zhhsplendid): is it right to only handle true case?
     // It may be wrong, but the code is written by previous developer, for us,
@@ -154,10 +150,8 @@ Expr GetNextForLoop(const Expr& for_loop) {
     result = true_case.As<ir::Block>()->stmts[0];
     return result;
   } else if (block_body.As<ir::For>()) {
-    // VLOG(6) << "Checking returns as For";
     return block_body;
   } else {
-    // VLOG(6) << "Checking returns as undefined";
     return result;
   }
 }
@@ -490,35 +484,26 @@ std::pair<Expr, Expr> GetBoundaryOfReorderRange(const std::set<Expr, CompExpr>& 
   Expr bottom;
   std::set<Expr, CompExpr> visited;
   bool first_traversal = true;
-  VLOG(6) << "Huihuang debug GetBoundaryOfReorderRange, loop_set.size() = " << loop_set.size();
   for (Expr loop_i : loop_set) {
-    VLOG(6) << "Huihuang boundary iterating " << loop_i.As<ir::For>()->loop_var;
-    VLOG(6) << loop_i;
     if (visited.count(loop_i)) {
       continue;
     }
-    VLOG(6) << "Huihuang traversal from " << loop_i.As<ir::For>()->loop_var;
     Expr v_for = loop_i;
     CHECK(v_for.As<ir::For>());
     while (v_for.defined()) {
-      VLOG(6) << "Huihuang visit " << v_for.As<ir::For>()->loop_var;
-      VLOG(6) << v_for;
       // If loop_i's sub loop is visited it must be pre-visited top.
       // Then loop_i should be the new top
       if (visited.count(v_for)) {
         if (v_for != top) {
           LOG(FATAL) << "Loops in GetBoundaryOfReorderRange is not a chain! Please check.";
         }
-        VLOG(6) << "Set top to " << v_for.As<ir::For>()->loop_var;
         top = loop_i;
         break;
       }
 
       // This while loop always GetNextForLoop(sub loop), so the last
       // visited v_for in the first traversal will be the bottom.
-      VLOG(6) << "first_traversal = " << first_traversal << ", loop_set.count(v_for) = " << loop_set.count(v_for);
       if (first_traversal && loop_set.count(v_for)) {
-        VLOG(6) << "set bottom to " << v_for.As<ir::For>()->loop_var;
         bottom = v_for;
       }
       visited.insert(v_for);

@@ -180,7 +180,6 @@ void MultiLevelTiling::Apply(int index) {
 
   int num_binds = std::min(bind_axis_.size(), tiles.size());
   for (int i = 0; i < num_binds; ++i) {
-    VLOG(6) << "Huihuang i = " << i;
     loop_var_name_to_idx.clear();
     for_exprs = ir_schedule_->GetLoops(sche_block->name);
     for (int j = 0; j < for_exprs.size(); ++j) {
@@ -190,8 +189,7 @@ void MultiLevelTiling::Apply(int index) {
     for (int j = 0; j < tiles[i].size(); ++j) {
       const ir::For* tile_loop = tiles[i][j].As<ir::For>();
       CHECK(tile_loop) << "tiles store non For Expr";
-      int idx = loop_var_name_to_idx[tile_loop->loop_var->name];
-      VLOG(6) << "Huihuang idx = " << idx;
+      int idx     = loop_var_name_to_idx[tile_loop->loop_var->name];
       tiles[i][j] = for_exprs[idx];
     }
 

@@ -22,6 +22,7 @@
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_mutator.h"
 #include "cinn/ir/tensor.h"
+#include "cinn/utils/string.h"
 
 namespace cinn {
 namespace ir {
