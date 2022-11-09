@@ -35,7 +35,7 @@
 
 namespace cinn {
 namespace auto_schedule {
-/*
+
 TEST(MultiLevelTile, SampleSplitTwo) {
   srand(0);
   Context::Global().ResetNameId();
@@ -120,7 +120,6 @@ TEST(MultiLevelTile, SimpleLoops) {
   std::string expr_str = ss.str();
   VLOG(6) << expr_str;
 }
-*/
 
 TEST(MulitLevelTile, MatrixMultiply) {
   srand(0);

@@ -170,19 +170,18 @@ std::vector<Expr> GetIfThenElseInRange(const Expr& top, const Expr& bottom) {
     CHECK(loop_iter.As<ir::For>());
     CHECK(loop_iter.As<ir::For>()->body.As<ir::Block>()) << "For node's body should be Block!";
     auto block = loop_iter.As<ir::For>()->body.As<ir::Block>();
-    if (block->stmts.size() != 1) LOG(FATAL) << "Between For top and For bottom, there is a block's size not = 1!";
-    Expr tmp = block->stmts[0];
-    if (tmp.As<IfThenElse>()) {
-      if_nodes.push_back(tmp);
-      CHECK(tmp.As<IfThenElse>()->true_case.As<ir::Block>());
-      Expr true_case = tmp.As<IfThenElse>()->true_case;
-      CHECK(true_case.As<ir::Block>()->stmts.size() == 1U && true_case.As<ir::Block>()->stmts[0].As<ir::For>());
-      tmp = true_case.As<ir::Block>()->stmts[0];
+    for (Expr tmp : block->stmts) {
+      if (tmp.As<IfThenElse>()) {
+        if_nodes.push_back(tmp);
+        CHECK(tmp.As<IfThenElse>()->true_case.As<ir::Block>());
+        Expr true_case = tmp.As<IfThenElse>()->true_case;
+        CHECK(true_case.As<ir::Block>()->stmts.size() == 1U && true_case.As<ir::Block>()->stmts[0].As<ir::For>());
+        tmp = true_case.As<ir::Block>()->stmts[0];
+      }
+      if (tmp.As<ir::For>()) {
+        loop_iter = tmp;
+      }
     }
-    if (tmp.As<ir::For>())
-      loop_iter = tmp;
-    else
-      LOG(FATAL) << "Between For top and For bottom, Block stmt:\n " << tmp << " is neither IfThenElse nor For!";
   }
   return if_nodes;
 }

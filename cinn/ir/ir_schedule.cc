@@ -880,30 +880,30 @@ void ScheduleImpl::Reorder(const std::vector<Expr>& loops) {
   if (loops.size() <= 1) {
     return;
   }
-  VLOG(6) << "Huihuang debug: origin exprs = ";
-  VLOG(6) << module_expr_.GetExprs()[0];
-  VLOG(6) << "Huihuang debug: loops = ";
-  for (int i = 0; i < loops.size(); ++i) {
-    VLOG(6) << "loops[" << i << "] loop_var =";
-    VLOG(6) << loops[i].As<ir::For>()->loop_var;
-  }
+  // VLOG(6) << "Huihuang debug: origin exprs = ";
+  // VLOG(6) << module_expr_.GetExprs()[0];
+  // VLOG(6) << "Huihuang debug: loops = ";
+  // for (int i = 0; i < loops.size(); ++i) {
+  // VLOG(6) << "loops[" << i << "] loop_var =";
+  // VLOG(6) << loops[i].As<ir::For>()->loop_var;
+  //}
 
   std::set<Expr, CompExpr> loop_set = CollectLoopsToSet(loops);
-  VLOG(6) << "After CollectLoopsToSet, loop_set.size() = " << loop_set.size();
+  // VLOG(6) << "After CollectLoopsToSet, loop_set.size() = " << loop_set.size();
   auto boundary = GetBoundaryOfReorderRange(loop_set);
-  VLOG(6) << "After GetBoundary";
+  // VLOG(6) << "After GetBoundary";
   Expr top    = boundary.first;
   Expr bottom = boundary.second;
-  VLOG(6) << "top = " << top;
-  VLOG(6) << "bottom = " << bottom;
+  // VLOG(6) << "top = " << top;
+  // VLOG(6) << "bottom = " << bottom;
   std::vector<Expr> chain = GetLoopsInRange(top, bottom);
-  VLOG(6) << "After GetChain";
-  VLOG(6) << chain;
+  // VLOG(6) << "After GetChain";
+  // VLOG(6) << chain;
   std::vector<Expr> if_nodes = GetIfThenElseInRange(top, bottom);
-  VLOG(6) << "After GetIfNodes, if_nodes.size() = " << if_nodes.size();
+  // VLOG(6) << "After GetIfNodes, if_nodes.size() = " << if_nodes.size();
   Expr new_loop = ConstructNewLoopChain(chain, loops, loop_set, if_nodes);
-  VLOG(6) << "After construct New loop = ";
-  VLOG(6) << new_loop;
+  // VLOG(6) << "After construct New loop = ";
+  // VLOG(6) << new_loop;
   this->Replace(top, new_loop);
 }
 

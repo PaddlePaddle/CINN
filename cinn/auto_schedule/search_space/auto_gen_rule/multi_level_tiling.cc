@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -154,10 +155,24 @@ void MultiLevelTiling::Apply(int index) {
     }
   }
   VLOG(5) << "Finish Split in MultiLevelTiling, before Reorder.";
+
+  // Have to GetLoops again because Split can change Block Expr(s)
+  for_exprs = ir_schedule_->GetLoops(sche_block->name);
+  std::unordered_map<std::string, int> loop_var_name_to_idx;
+  for (int i = 0; i < for_exprs.size(); ++i) {
+    loop_var_name_to_idx[for_exprs[i].As<ir::For>()->loop_var->name] = i;
+  }
+  CHECK(loop_var_name_to_idx.size() == for_exprs.size()) << "Loops contain duplicate loop var names after split";
+
   std::vector<Expr> splited_loops;
   for (auto& t : tiles) {
     std::reverse(t.begin(), t.end());
-    splited_loops.insert(splited_loops.end(), t.begin(), t.end());
+    for (auto& tile_loop_expr : t) {
+      const ir::For* tile_loop = tile_loop_expr.As<ir::For>();
+      CHECK(tile_loop) << "tiles store non For Expr";
+      int idx = loop_var_name_to_idx[tile_loop->loop_var->name];
+      splited_loops.push_back(for_exprs[idx]);
+    }
   }
 
   // TODO(zhhsplendid): Reorder has some bugs in this case.
@@ -165,6 +180,21 @@ void MultiLevelTiling::Apply(int index) {
   //
   ir_schedule_->Reorder(splited_loops);
   VLOG(5) << "Finish Reorder in MultiLevelTiling";
+
+  loop_var_name_to_idx.clear();
+  for_exprs = ir_schedule_->GetLoops(sche_block->name);
+  for (int i = 0; i < for_exprs.size(); ++i) {
+    loop_var_name_to_idx[for_exprs[i].As<ir::For>()->loop_var->name] = i;
+  }
+  CHECK(loop_var_name_to_idx.size() == for_exprs.size()) << "Loops contain duplicate loop var names after Reorder";
+  for (int i = 0; i < tiles.size(); ++i) {
+    for (int j = 0; j < tiles[i].size(); ++j) {
+      const ir::For* tile_loop = tiles[i][j].As<ir::For>();
+      CHECK(tile_loop) << "tiles store non For Expr";
+      int idx     = loop_var_name_to_idx[tile_loop->loop_var->name];
+      tiles[i][j] = for_exprs[idx];
+    }
+  }
 
   int num_binds = std::min(bind_axis_.size(), tiles.size());
   for (int i = 0; i < num_binds; ++i) {
