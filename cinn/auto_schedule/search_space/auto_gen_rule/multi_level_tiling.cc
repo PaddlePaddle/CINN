@@ -175,33 +175,29 @@ void MultiLevelTiling::Apply(int index) {
     }
   }
 
-  // TODO(zhhsplendid): Reorder has some bugs in this case.
-  // Enable it after we fix it.
-  //
   ir_schedule_->Reorder(splited_loops);
   VLOG(5) << "Finish Reorder in MultiLevelTiling";
 
-  loop_var_name_to_idx.clear();
-  for_exprs = ir_schedule_->GetLoops(sche_block->name);
-  for (int i = 0; i < for_exprs.size(); ++i) {
-    loop_var_name_to_idx[for_exprs[i].As<ir::For>()->loop_var->name] = i;
-  }
-  CHECK(loop_var_name_to_idx.size() == for_exprs.size()) << "Loops contain duplicate loop var names after Reorder";
-  for (int i = 0; i < tiles.size(); ++i) {
+  int num_binds = std::min(bind_axis_.size(), tiles.size());
+  for (int i = 0; i < num_binds; ++i) {
+    VLOG(6) << "Huihuang i = " << i;
+    loop_var_name_to_idx.clear();
+    for_exprs = ir_schedule_->GetLoops(sche_block->name);
+    for (int j = 0; j < for_exprs.size(); ++j) {
+      loop_var_name_to_idx[for_exprs[j].As<ir::For>()->loop_var->name] = j;
+    }
+    CHECK(loop_var_name_to_idx.size() == for_exprs.size()) << "Loops contain duplicate loop var names before Fusion";
     for (int j = 0; j < tiles[i].size(); ++j) {
       const ir::For* tile_loop = tiles[i][j].As<ir::For>();
       CHECK(tile_loop) << "tiles store non For Expr";
-      int idx     = loop_var_name_to_idx[tile_loop->loop_var->name];
+      int idx = loop_var_name_to_idx[tile_loop->loop_var->name];
+      VLOG(6) << "Huihuang idx = " << idx;
       tiles[i][j] = for_exprs[idx];
     }
-  }
 
-  int num_binds = std::min(bind_axis_.size(), tiles.size());
-  for (int i = 0; i < num_binds; ++i) {
-    //   TODO(zhhsplendid): Enable fuse and then bind after fixing reorder bug.
     Expr fused = ir_schedule_->Fuse(tiles[i]);
     ir_schedule_->Bind(fused, bind_axis_[i]);
-    ir_schedule_->Bind(tiles[i][0], bind_axis_[i]);
+    tiles[i] = {fused};
   }
 
   VLOG(4) << "Returning the result of MultiLevelTiling";
