@@ -35,6 +35,8 @@ namespace cinn {
 namespace backends {
 using namespace utils;  // NOLINT
 
+using cinn::common::float16;
+
 const char *kCKeywordRestrict = "__restrict__";
 
 void CodeGenC::Compile(const ir::Module &module, const Outputs &outputs) {
@@ -102,8 +104,9 @@ std::string CodeGenC::GetTypeName(Type type) {
   GET_SCALAR_TYPE(type.is_int(8), "int8_t");
   GET_SCALAR_TYPE(type.is_int(32), "int32_t");
   GET_SCALAR_TYPE(type.is_int(64), "int64_t");
-  GET_SCALAR_TYPE(type.is_float(32), "float")
-  GET_SCALAR_TYPE(type.is_float(64), "double")
+  GET_SCALAR_TYPE(type.is_float(16), "float16");
+  GET_SCALAR_TYPE(type.is_float(32), "float");
+  GET_SCALAR_TYPE(type.is_float(64), "double");
 #undef GET_SCALAR_TYPE
 
   // customized_type
@@ -667,6 +670,8 @@ void CodeGenC::PrintRuntimeType(const cinn_type_t &type) {
     os() << "cinn_int32_t()";
   } else if (type == cinn_int64_t()) {
     os() << "cinn_int64_t()";
+  } else if (type == cinn_float16_t()) {
+    os() << "cinn_float16_t()";
   } else if (type == cinn_float32_t()) {
     os() << "cinn_float32_t()";
   } else if (type == cinn_float64_t()) {
@@ -715,6 +720,8 @@ void CodeGenC::Visit(const ir::intrinsics::PodValueToX *op) {
     os() << runtime::intrinsic::pod_value_to_float;
   } else if (to_type == type_of<double>()) {
     os() << runtime::intrinsic::pod_value_to_double;
+  } else if (to_type == type_of<float16>()) {
+    os() << runtime::intrinsic::pod_value_to_float16;
   } else if (to_type == type_of<int32_t>()) {
     os() << runtime::intrinsic::pod_value_to_int32;
   } else if (to_type == type_of<int64_t>()) {

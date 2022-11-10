@@ -144,7 +144,7 @@ Type Type::ConstOf() const {
 }
 
 bool Type::is_supported() const {
-  return (*this == Float(32) || this->is_bool() || *this == Int(32) || *this == Int(64));
+  return this->is_float(32) || this->is_bool() || this->is_int(32) || this->is_int(64) || this->is_float(16);
 }
 
 Type Type::IgnoreConst() const {
@@ -338,6 +338,7 @@ int Type::bytes() const {
 #define GET_TYPE_SIZE_PAIR(TYPE) \
   { type_of<TYPE>(), sizeof(TYPE) }
   static std::unordered_map<Type, int, TypeHash> type_bytes = {
+      GET_TYPE_SIZE_PAIR(float16),
       GET_TYPE_SIZE_PAIR(float),
       GET_TYPE_SIZE_PAIR(double),
       GET_TYPE_SIZE_PAIR(unsigned char),
@@ -423,6 +424,8 @@ Type Str2Type(const std::string &type) {
       {"void**", type_of<void **>()},
       {"int8*", type_of<int8_t *>()},
       {"int8_t*", type_of<int8_t *>()},
+      {"float16*", type_of<float16 *>()},
+      {"half*", type_of<float16 *>()},
       {"float*", type_of<float *>()},
       {"float32*", type_of<float *>()},
       {"double*", type_of<double *>()},

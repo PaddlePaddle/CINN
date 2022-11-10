@@ -61,6 +61,7 @@ static const char* buffer_p_to_cinn_pod_value_repr = "buffer_p_to_cinn_pod_value
 static const char* pod_value_to_buffer_p = "cinn_pod_value_to_buffer_p";
 static const char* pod_value_to_int32    = "cinn_pod_value_to_int32";
 static const char* pod_value_to_int64    = "cinn_pod_value_to_int64";
+static const char* pod_value_to_float16  = "cinn_pod_value_to_float16";
 static const char* pod_value_to_float    = "cinn_pod_value_to_float";
 static const char* pod_value_to_double   = "cinn_pod_value_to_double";
 static const char* pod_value_to_void_p   = "cinn_pod_value_to_void_p";

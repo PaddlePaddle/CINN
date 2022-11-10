@@ -31,6 +31,8 @@
 #ifdef __cplusplus
 #include <functional>
 #include <vector>
+
+#include "cinn/common/float16.h"
 #endif
 
 #ifdef __cplusplus
@@ -92,6 +94,7 @@ extern cinn_type_t cinn_int32_t(int num_asterisks = 0);
 extern cinn_type_t cinn_int64_t(int num_asterisks = 0);
 extern cinn_type_t cinn_uint32_t(int num_asterisks = 0);
 extern cinn_type_t cinn_uint64_t(int num_asterisks = 0);
+extern cinn_type_t cinn_float16_t(int num_asterisks = 0);
 extern cinn_type_t cinn_float32_t(int num_asterisks = 0);
 extern cinn_type_t cinn_float64_t(int num_asterisks = 0);
 // @}
@@ -382,6 +385,7 @@ struct cinn_pod_value_t {
   explicit cinn_pod_value_t(int8_t value);
   explicit cinn_pod_value_t(int32_t value);
   explicit cinn_pod_value_t(int64_t value);
+  explicit cinn_pod_value_t(cinn::common::float16 value);
   explicit cinn_pod_value_t(float value);
   explicit cinn_pod_value_t(double value);
   explicit cinn_pod_value_t(void* value);
@@ -391,6 +395,7 @@ struct cinn_pod_value_t {
   //@{
   operator double() const;
   operator float() const;
+  operator cinn::common::float16() const;
   operator int8_t() const;
   operator int32_t() const;
   operator int64_t() const;
@@ -433,6 +438,7 @@ __m(char*, 5);
 __m(char const*, 6);
 __m(cinn_buffer_t*, 7);
 __m(int8_t, 8);
+__m(cinn::common::float16, 9);
 #undef __m
 //@}
 #endif  // __cplusplus
@@ -448,6 +454,7 @@ extern "C" {
 #endif
 //! cinn_pod_value to specific types.
 // @{
+cinn::common::float16 cinn_pod_value_to_float16(cinn_pod_value_t* value);
 float cinn_pod_value_to_float(cinn_pod_value_t* value);
 double cinn_pod_value_to_double(cinn_pod_value_t* value);
 int64_t cinn_pod_value_to_int64(cinn_pod_value_t* value);
@@ -459,6 +466,7 @@ cinn_buffer_t* cinn_pod_value_to_buffer_p(cinn_pod_value_t* value);
 
 //! other specific types to cinn_pod_value
 // @{
+void float16_to_cinn_pod_value(cinn::common::float16 v, cinn_pod_value_t* out);
 void float_to_cinn_pod_value(float v, cinn_pod_value_t* out);
 void int32_to_cinn_pod_value(int32_t v, cinn_pod_value_t* out);
 void handle_to_cinn_pod_value(void* v, cinn_pod_value_t* out);

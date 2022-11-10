@@ -1373,8 +1373,7 @@ std::shared_ptr<Scope> BuildScope(Target target, const std::shared_ptr<Graph>& g
     VLOG(3) << "Tensor [" << iter.first << "] resize to " << utils::Join(shape, ",");
     tensor->Resize(Shape{shape});
     CHECK(dtype_dict.count(iter.first));
-    CHECK(dtype_dict.at(iter.first) == Float(32) || dtype_dict.at(iter.first).is_bool() ||
-          dtype_dict.at(iter.first) == Int(32) || dtype_dict.at(iter.first) == Int(64))
+    CHECK(dtype_dict.at(iter.first).is_supported())
         << "The dtype of node " << iter.first << " is not float or bool or int! Its type "
         << dtype_dict.at(iter.first).type() << ", " << dtype_dict.at(iter.first).bits() << " is not implemented yet.";
     tensor->set_type(dtype_dict.at(iter.first));

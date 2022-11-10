@@ -86,7 +86,7 @@ std::vector<Tensor> Matmul(
   if (alpha != 1) {
     auto res = Compute(
         output_shape,
-        [=](const std::vector<Expr>& indice) { return temp(indice) * make_const(temp->type(), alpha); },
+        [=](const std::vector<Expr>& indice) { return temp(indice) * common::make_const(temp->type(), alpha); },
         name);
     return {res, temp};
   } else {
@@ -317,7 +317,7 @@ std::vector<Tensor> MatmulV2(const Tensor& A,
         if (alpha == 1) {
           return lang::ReduceSum(A(indice_a) * packedB(indice_b), {reduce_k});
         } else {
-          return lang::ReduceSum(A(indice_a) * packedB(indice_b) * make_const(A->type(), alpha), {reduce_k});
+          return lang::ReduceSum(A(indice_a) * packedB(indice_b) * common::make_const(A->type(), alpha), {reduce_k});
         }
       },
       UniqName("matmulV2_out"));

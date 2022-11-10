@@ -285,7 +285,9 @@ void CheckBufferUniqueInExpr(Expr expr) {
 
 Expr cast(Expr e, Type type) {
   if (e.is_constant()) {
-    if (type.is_int(32)) {
+    if (type.is_bool()) {
+      return common::make_const(static_cast<bool>(e.get_constant()));
+    } else if (type.is_int(32)) {
       return common::make_const(static_cast<int32_t>(e.get_constant()));
     } else if (type.is_int(64)) {
       return common::make_const(static_cast<int64_t>(e.get_constant()));
@@ -293,6 +295,8 @@ Expr cast(Expr e, Type type) {
       return common::make_const(static_cast<float>(e.get_constant()));
     } else if (type.is_float(64)) {
       return common::make_const(static_cast<double>(e.get_constant()));
+    } else if (type.is_float(16)) {
+      return common::make_const(static_cast<cinn::common::float16>(e.get_constant()));
     } else {
       CINN_NOT_IMPLEMENTED
     }

@@ -18,6 +18,8 @@
 
 namespace cinn::optim {
 
+using cinn::common::float16;
+
 namespace {
 
 struct Mutator : ir::IRMutator<> {
@@ -53,6 +55,8 @@ struct Mutator : ir::IRMutator<> {
         __CAST_TO_TYPE(float)
       } else if (op->type() == type_of<double>()) {
         __CAST_TO_TYPE(double)
+      } else if (op->type() == type_of<float16>()) {
+        __CAST_TO_TYPE(float16)
       } else if (op->type() == type_of<bool>()) {
         __CAST_TO_TYPE(bool)
       } else if (op->type() == type_of<uint32_t>()) {

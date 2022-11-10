@@ -20,6 +20,7 @@
 #include <string>
 #include <vector>
 
+#include "cinn/common/float16.h"
 #include "cinn/ir/ir.h"
 
 namespace cinn {
@@ -47,6 +48,7 @@ std::vector<Expr *> GetForloopStackToStore(Expr *expr, const std::string &tensor
 // @{
 inline Expr make_const(int32_t x) { return make_const(Int(32), static_cast<int64_t>(x)); }
 inline Expr make_const(int64_t x) { return make_const(Int(64), static_cast<int64_t>(x)); }
+inline Expr make_const(float16 x) { return make_const(Float(16), static_cast<double>(x)); }
 inline Expr make_const(float x) { return make_const(Float(32), static_cast<double>(x)); }
 inline Expr make_const(double x) { return make_const(Float(64), static_cast<double>(x)); }
 inline Expr make_const(bool x) { return make_const(Bool(1), static_cast<bool>(x)); }

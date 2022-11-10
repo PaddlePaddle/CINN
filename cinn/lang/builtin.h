@@ -92,14 +92,10 @@ inline Expr BitwiseXor(Expr a, Expr b) { return a ^ b; }
 inline Expr LeftShift(Expr a, Expr b) { return a << b; }
 inline Expr RightShift(Expr a, Expr b) { return a >> b; }
 
-template <typename T>
-inline Expr Relu(Expr e, T threshold = static_cast<T>(0)) {
-  return ir::Max::Make(e, make_const(e->type(), threshold));
-}
+inline Expr Relu(Expr e, double threshold = 0.0) { return ir::Max::Make(e, make_const(e->type(), threshold)); }
 
-template <typename T>
-inline Expr Relu6(Expr e, T threshold = static_cast<T>(0)) {
-  return ir::Min::Make(ir::Max::Make(e, make_const(e->type(), threshold)), make_const(e->type(), 6));
+inline Expr Relu6(Expr e, double threshold = 0.0) {
+  return ir::Min::Make(ir::Max::Make(e, make_const(e->type(), threshold)), make_const(e->type(), 6.0));
 }
 
 inline Expr LeakyRelu(Expr e, double alpha) {
