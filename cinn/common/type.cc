@@ -421,15 +421,34 @@ Type Str2Type(const std::string &type) {
       {"double", F64()},
 
       {"void*", type_of<void *>()},
+      {"void_p", type_of<void *>()},
       {"void**", type_of<void **>()},
+      {"void_p_p", type_of<void **>()},
+
       {"int8*", type_of<int8_t *>()},
+      {"int8_p", type_of<int8_t *>()},
       {"int8_t*", type_of<int8_t *>()},
+
       {"float16*", type_of<float16 *>()},
       {"half*", type_of<float16 *>()},
+      {"float16_p", type_of<float16 *>()},
+      {"half_p", type_of<float16 *>()},
+
       {"float*", type_of<float *>()},
       {"float32*", type_of<float *>()},
+      {"float_p", type_of<float *>()},
+      {"float32_p", type_of<float *>()},
+
       {"double*", type_of<double *>()},
       {"float64*", type_of<double *>()},
+      {"double_p", type_of<double *>()},
+      {"float64_p", type_of<double *>()},
+
+      {"cinn_buffer", type_of<cinn_buffer_t>()},
+      {"cinn_buffer_p", type_of<cinn_buffer_t *>()},
+      {"const_cinn_buffer_p", type_of<const cinn_buffer_t *>()},
+      {"cinn_pod_value", type_of<cinn_pod_value_t>()},
+      {"cinn_pod_value_p", type_of<cinn_pod_value_t *>()},
   };
 
   CHECK(str2type_map.find(type) != str2type_map.end()) << "Not support type [" << type << "] ! Please Check.\n";

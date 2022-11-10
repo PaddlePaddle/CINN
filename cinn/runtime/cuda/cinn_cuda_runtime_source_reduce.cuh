@@ -24,10 +24,12 @@ __device__ inline float cinn_prod_fp32(const float left, const float right) { re
 __device__ inline float cinn_max_fp32(const float left, const float right) { return cinn_nvgpu_max_fp32(left, right); }
 __device__ inline float cinn_min_fp32(const float left, const float right) { return cinn_nvgpu_min_fp32(left, right); }
 
+#ifdef CINN_CUDA_FP16
 __device__ inline float16 cinn_sum_fp16(const float16 left, const float16 right) { return left + right; }
 __device__ inline float16 cinn_prod_fp16(const float16 left, const float16 right) { return left * right; }
 __device__ inline float16 cinn_max_fp16(const float16 left, const float16 right) { return cinn_nvgpu_max_fp16(left, right); }
 __device__ inline float16 cinn_min_fp16(const float16 left, const float16 right) { return cinn_nvgpu_min_fp16(left, right); }
+#endif
 
 __device__ inline bool cinn_all(const bool left, const bool right) { return left && right; }
 __device__ inline bool cinn_any(const bool left, const bool right) { return left || right; }

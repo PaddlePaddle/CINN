@@ -27,6 +27,7 @@ namespace py = pybind11;
 namespace cinn::pybind {
 
 using common::CINNValue;
+using common::float16;
 using common::Object;
 using common::Target;
 using common::Type;
@@ -174,31 +175,7 @@ void BindType(py::module *m) {
           py::arg("type"),
           py::arg("val"));
 
-  m->def("type_of", [](absl::string_view dtype) {
-    if (dtype == "float32") return common::type_of<float>();
-    if (dtype == "float64") return common::type_of<double>();
-    if (dtype == "uchar") return common::type_of<unsigned char>();
-    if (dtype == "int8") return common::type_of<int8_t>();
-    if (dtype == "int16") return common::type_of<int16_t>();
-    if (dtype == "uint32") return common::type_of<uint32_t>();
-    if (dtype == "bool") return common::type_of<bool>();
-    if (dtype == "char") return common::type_of<char>();
-    if (dtype == "int32") return common::type_of<int32_t>();
-    if (dtype == "void") return common::type_of<void>();
-    if (dtype == "int8_p") return common::type_of<int8_t *>();
-    if (dtype == "void_p") return common::type_of<void *>();
-    if (dtype == "void_p_p") return common::type_of<void **>();
-    if (dtype == "float32_p") return common::type_of<float *>();
-    if (dtype == "float64_p") return common::type_of<double *>();
-    if (dtype == "cinn_buffer") return common::type_of<cinn_buffer_t>();
-    if (dtype == "cinn_buffer_p") return common::type_of<cinn_buffer_t *>();
-    if (dtype == "const_cinn_buffer_p") return common::type_of<const cinn_buffer_t *>();
-    if (dtype == "cinn_pod_value") return common::type_of<cinn_pod_value_t>();
-    if (dtype == "cinn_pod_value_p") return common::type_of<cinn_pod_value_t *>();
-
-    CINN_NOT_IMPLEMENTED;
-    return Void();
-  });
+  m->def("type_of", [](absl::string_view dtype) { return common::Str2Type(dtype.data()); });
 }
 
 void BindObject(py::module *m) {
@@ -263,6 +240,7 @@ void BindCinnValue(py::module *m) {
       .def(py::init<int8_t>())
       .def(py::init<int32_t>())
       .def(py::init<int64_t>())
+      .def(py::init<float16>())
       .def(py::init<float>())
       .def(py::init<double>())
       .def(py::init<char *>())
@@ -275,6 +253,7 @@ void BindCinnValue(py::module *m) {
       .def("defined", &CINNValue::defined)
       .def("to_double", [](CINNValue &self) { return static_cast<double>(self); })
       .def("to_float", [](CINNValue &self) { return static_cast<float>(self); })
+      .def("to_float16", [](CINNValue &self) { return static_cast<float16>(self); })
       .def("to_int8", [](CINNValue &self) { return static_cast<int8_t>(self); })
       .def("to_int32", [](CINNValue &self) { return static_cast<int32_t>(self); })
       .def("to_int64", [](CINNValue &self) { return static_cast<int64_t>(self); })
@@ -285,6 +264,7 @@ void BindCinnValue(py::module *m) {
       .def("to_expr", [](CINNValue &self) { return ir::Expr(self.operator ir::Expr()); })
       .def("set", &CINNValue::Set<int32_t>)
       .def("set", &CINNValue::Set<int64_t>)
+      .def("set", &CINNValue::Set<float16>)
       .def("set", &CINNValue::Set<float>)
       .def("set", &CINNValue::Set<double>)
       .def("set", &CINNValue::Set<char *>)
