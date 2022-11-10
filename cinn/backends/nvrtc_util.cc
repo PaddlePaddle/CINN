@@ -73,6 +73,7 @@ std::string NVRTC_Compiler::CompilePTX(const std::string& code, bool include_hea
   }
 
   compile_options.push_back("-arch=compute_" + cc);
+  compile_options.push_back("-std=c++14");
 
   if (include_headers) {  // prepare include headers
     auto cuda_headers = FindCUDAIncludePaths();

@@ -231,14 +231,19 @@ std::string CodeGenCUDA_Dev::Compile(const ir::Module &module, CodeGenC::OutputK
 }
 
 void CodeGenCUDA_Dev::PrintIncludes() {
-  os() << "#include \"cinn_cuda_runtime_source.cuh\"\n\n";
-  os() << "#ifdef __CUDACC_RTC__\n";
-  os() << "typedef int int32_t;\n";
-  os() << "typedef char int8_t;\n";
-  os() << "typedef long int int64_t;\n";
-  os() << "#endif\n";
-  os() << "\n";
-  os() << "\n";
+  // TODO(Shixiaowei02): use jitify for standard header files.
+  static constexpr const char *prefix = R"(
+#include "cinn_cuda_runtime_source.cuh"
+#include "float16.h"
+
+#ifdef __CUDACC_RTC__
+typedef int int32_t;
+typedef char int8_t;
+typedef long int int64_t;
+#endif
+)";
+
+  os() << prefix << "\n\n";
 }
 
 void CodeGenCUDA_Dev::PrintTempBufferCreation(const ir::Buffer &buffer) {

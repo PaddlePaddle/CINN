@@ -20,6 +20,7 @@
 #include <mutex>
 
 #include "cinn/ir/ir.h"
+#include "cinn/utils/string.h"
 
 namespace cinn {
 namespace common {
@@ -34,13 +35,15 @@ Context& Context::Global() {
   return x;
 }
 
-const std::string& Context::runtime_include_dir() {
+const std::vector<std::string>& Context::runtime_include_dir() {
   std::lock_guard<std::mutex> lock(mutex_);
   if (runtime_include_dir_.empty()) {
-    char* env            = std::getenv(kRuntimeIncludeDirEnvironKey);
-    runtime_include_dir_ = env ? env : "";  // Leave empty if no env found.
+    std::string env = std::getenv(kRuntimeIncludeDirEnvironKey);
+    if (env.size()) {
+      VLOG(4) << "-- runtime_include_dir: " << env;
+      runtime_include_dir_ = cinn::utils::Split(env, ":");
+    }
   }
-  VLOG(4) << "-- runtime_include_dir: " << runtime_include_dir_;
   return runtime_include_dir_;
 }
 

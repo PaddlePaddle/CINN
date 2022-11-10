@@ -18,10 +18,9 @@
 #define __CINN_x86__
 #include <immintrin.h>
 #endif
-#include <stdint.h>
 
 #include <cmath>
-#include <iostream>
+#include <cstdint>
 #include <limits>
 
 #ifdef CINN_WITH_CUDA
