@@ -152,28 +152,68 @@ void cinn_call_cublas(void *v_args,
                                           m * n,
                                           batch));
   } else {
-    CHECK(a1 == b1 && a2 == b2);
-    int stride_l = trans_o ? a3 * a4 : b3 * b4;
-    int stride_r = trans_o ? b3 * b4 : a3 * a4;
-    int batch    = a1 * a2;
-    CUBLAS_CALL(cublasSgemmStridedBatched(cuhandle,
-                                          trans_op_l,
-                                          trans_op_r,
-                                          m,
-                                          n,
-                                          k,
-                                          &alpha,
-                                          lhs,
-                                          ldl,
-                                          stride_l,
-                                          rhs,
-                                          ldr,
-                                          stride_r,
-                                          &beta,
-                                          C,
-                                          ldc,
-                                          m * n,
-                                          batch));
+    int l1 = trans_o ? a1 : b1, l2 = trans_o ? a2 : b2, l3 = trans_o ? a3 : b3, l4 = trans_o ? a4 : b4;
+    int r1 = trans_o ? b1 : a1, r2 = trans_o ? b2 : a2, r3 = trans_o ? b3 : a3, r4 = trans_o ? b4 : a4;
+
+    if ((l1 == r1 && l2 == r2) || (l1 == 1 && l2 == 1) || (r1 == 1 && r2 == 1)) {
+      int stride_l = (l1 == 1 && l2 == 1) ? 0 : l3 * l4;
+      int stride_r = (r1 == 1 && r2 == 1) ? 0 : r3 * r4;
+
+      // four types matmul:
+      // (N, L) * (N, L) , (N, 1) * (N, 1)
+      // (N, L) * (1, 1) , (1, 1) * (N, L)
+      CUBLAS_CALL(cublasSgemmStridedBatched(cuhandle,
+                                            trans_op_l,
+                                            trans_op_r,
+                                            m,
+                                            n,
+                                            k,
+                                            &alpha,
+                                            lhs,
+                                            ldl,
+                                            stride_l,
+                                            rhs,
+                                            ldr,
+                                            stride_r,
+                                            &beta,
+                                            C,
+                                            ldc,
+                                            m * n,
+                                            std::max(l1, r1) * std::max(l2, r2)));
+    } else {
+      // (N, L) / (N, 1) / (1, L)
+      int bstride_l = (l1 != 1 && l2 != 1) ? (l2 * m * k) : ((l1 != 1) ? m * k : 0);
+      // (N, L) / (N, 1) / (1, L)
+      int bstride_r = (r1 != 1 && r2 != 1) ? (r2 * k * n) : ((r1 != 1) ? k * n : 0);
+      int bstride_c = std::max(l2, r2) * m * n;
+
+      int stride_l = l2 == 1 ? 0 : l3 * l4;
+      int stride_r = r2 == 1 ? 0 : r3 * r4;
+      // six type matmul:
+      // (N, L) * (N, 1) , (N, L) * (1, L)
+      // (N, 1) * (N, L) , (1, L) * (N, L)
+      // (N, 1) * (1, L) , (1, L) * (N, 1)
+      for (int idx = 0; idx < std::max(l1, r1); ++idx) {
+        CUBLAS_CALL(cublasSgemmStridedBatched(cuhandle,
+                                              trans_op_l,
+                                              trans_op_r,
+                                              m,
+                                              n,
+                                              k,
+                                              &alpha,
+                                              lhs + idx * bstride_l,
+                                              ldl,
+                                              stride_l,
+                                              rhs + idx * bstride_r,
+                                              ldr,
+                                              stride_r,
+                                              &beta,
+                                              C + idx * bstride_c,
+                                              ldc,
+                                              m * n,
+                                              std::max(l2, r2)));
+      }
+    }
   }
 }
 
