@@ -994,7 +994,7 @@ std::vector<Tensor> PoolImpl(const Tensor &tensor,
 
           return lang::ReduceMax(temp(indices), {daxis}, min_value);
         },
-        UniqName(output_name));
+        output_name);
   } else if (pool_type == "avg") {
     // Pad the input tensor with pad_value zero
     temp = do_pad ? Pad(tensor, pad_before, pad_after, 0, UniqName("pad_temp")) : tensor;
@@ -1032,7 +1032,7 @@ std::vector<Tensor> PoolImpl(const Tensor &tensor,
             return lang::ReduceSum(ir::Div::Make(temp(indices), cast(temp_factor, Float(32))), daxis);
           }
         },
-        UniqName(output_name));
+        output_name);
   } else {
     LOG(ERROR) << "Unrecognized pool_type: " << pool_type;
   }
@@ -1074,7 +1074,7 @@ std::vector<Tensor> PoolImpl(const Tensor &tensor,
           Expr divide_factor = Max::Make(temp_factor, make_const(Int(32), 1));
           return lang::ReduceSum(ir::Div::Make(temp(indices), cast(divide_factor, Float(32))), {reduce_axis});
         },
-        UniqName(output_name));
+        output_name);
   }
   if (do_pad) {
     return {res, temp};
@@ -1102,16 +1102,8 @@ std::vector<Tensor> Pool1d(const Tensor &tensor,
   }
   CHECK_EQ(tensor->shape.size(), 3U) << "pool1d requires tensor's shape_size to be 3\n";
   std::vector<int> axis = {width_axis};
-  return PoolImpl(tensor,
-                  kernel_size,
-                  stride_size,
-                  padding_size,
-                  pool_type,
-                  axis,
-                  ceil_mode,
-                  exclusive,
-                  false,
-                  UniqName(output_name));
+  return PoolImpl(
+      tensor, kernel_size, stride_size, padding_size, pool_type, axis, ceil_mode, exclusive, false, output_name);
 }
 
 std::vector<Tensor> GlobalPool2d(const Tensor &tensor, const std::string &pool_type, const std::string &output_name) {
