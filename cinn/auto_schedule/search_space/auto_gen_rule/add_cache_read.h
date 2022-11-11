@@ -28,8 +28,7 @@ class AddCacheRead : public AutoGenRule {
   AddCacheRead(const common::Target& target) : AutoGenRule(target) {}
   ~AddCacheRead() = default;
 
-  // initailize the AutoGenRule, it must be called before further actions.
-  // Returns false if the rule cannot be applied on the mod_expr, true otherwise
+  // initailize the AddCacheRead rule, it must be called before further actions.
   RuleApplyType Init(ir::IRSchedule* init_schedule) override;
 
   // Applies rule on the ir::ModuleExpr for a schedule block specified by index
@@ -39,14 +38,13 @@ class AddCacheRead : public AutoGenRule {
   // Returns the name of the rule, used for debug.
   std::string GetRuleName() const override { return "AddCacheRead"; }
 
-  // Returns true if sche_block_realize is applicable by MultiLevelTiling
-  bool MeetCondition(const ir::ScheduleBlockRealize& sche_block_realize) const;
+  // Returns true if the schedule block expr is applicable by AddCacheRead
+  bool MeetCondition(const ir::Expr& block_expr) const;
 
+  // Get the out most reduce loop to set cache block in.
   ir::Expr GetTargetLoop(const ir::Expr& block_expr) const;
 
  private:
-  // std::vector<ir::Expr> all_block_realizes_;
-  // std::vector<int> applicable_indices_;
   std::vector<Expr> applicable_schedule_blocks_;
   std::string cache_memory_type_;
 

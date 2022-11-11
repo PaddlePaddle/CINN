@@ -23,19 +23,198 @@
 
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
 #include "cinn/auto_schedule/search_space/auto_gen_rule/multi_level_tiling.h"
+#include "cinn/backends/codegen_c.h"
+#include "cinn/backends/codegen_cuda_dev.h"
+#include "cinn/backends/compiler.h"
+#include "cinn/backends/nvrtc_util.h"
 #include "cinn/cinn.h"
+#include "cinn/common/cuda_test_helper.h"
+#include "cinn/common/test_helper.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_schedule.h"
+#include "cinn/ir/module.h"
 #include "cinn/ir/tensor.h"
 #include "cinn/lang/compute.h"
 #include "cinn/lang/lower.h"
 #include "cinn/poly/stage.h"
+#include "cinn/runtime/cuda/cuda_module.h"
+#include "cinn/runtime/cuda/cuda_util.h"
 #include "cinn/utils/string.h"
 
 namespace cinn {
 namespace auto_schedule {
+
+void common_matmul(float* A, float* B, float* C, int M, int N, int K) {
+  for (int i = 0; i < M; ++i) {
+    for (int j = 0; j < N; ++j) {
+      for (int k = 0; k < K; ++k) {
+        C[i * N + j] += A[i * K + k] * B[k * N + j];
+      }
+    }
+  }
+}
+
+void* CreateDeviceBuffer(const cinn_buffer_t* host_buffer) {
+  CHECK(host_buffer->memory);
+  int num_bytes = host_buffer->num_elements() * sizeof(float);
+  VLOG(6) << "create device buffer, num_bytes = " << num_bytes;
+  CUdeviceptr data;
+  cuMemAlloc(&data, num_bytes);
+
+  CUDA_CALL(cudaMemcpy(reinterpret_cast<void*>(data), host_buffer->memory, num_bytes, cudaMemcpyHostToDevice));
+  return reinterpret_cast<void*>(data);
+}
+
+void check_matmul_result_cpu(int M, int N, int K, void (*func_ptr)(void**, int32_t)) {
+  // prepare data
+  auto* A_host = common::BufferBuilder(Float(32), {M, N}).set_random().Build();
+  CHECK(A_host);
+  auto* B_host = common::BufferBuilder(Float(32), {M, N}).set_random().Build();
+  CHECK(B_host);
+  auto* C_host = common::BufferBuilder(Float(32), {M, N}).set_zero().Build();
+  CHECK(C_host);
+  auto all_args = common::ArgsBuilder().Add(A_host).Add(B_host).Add(C_host).Build();
+
+  // calculate matmul after schedule in rule
+  func_ptr(reinterpret_cast<void**>(all_args.data()), all_args.size());
+  float* res = reinterpret_cast<float*>(C_host->memory);
+
+  // calculate common matmul
+  float* data_A     = reinterpret_cast<float*>(A_host->memory);
+  float* data_B     = reinterpret_cast<float*>(B_host->memory);
+  float* target_res = (float*)malloc(M * N * sizeof(float));
+  memset(target_res, 0, M * N * sizeof(float));
+  common_matmul(data_A, data_B, target_res, M, N, K);
+
+  // check result
+  for (int i = 0; i < M; ++i) {
+    for (int j = 0; j < N; ++j) {
+      ASSERT_NEAR(res[i * N + j], target_res[i * N + j], 1e-4);
+    }
+  }
+
+  cinn_buffer_free(nullptr, A_host);
+  cinn_buffer_free(nullptr, B_host);
+  cinn_buffer_free(nullptr, C_host);
+  free(target_res);
+}
+
+// TODO: Debug and check result on cuda
+void check_matmul_result_cuda(int M, int N, int K, void (*func_ptr)(void**, int32_t)) {
+  // prepare data
+  auto* A_host = common::BufferBuilder(Float(32), {M, N}).set_random().Build();
+  CHECK(A_host);
+  auto* B_host = common::BufferBuilder(Float(32), {M, N}).set_random().Build();
+  CHECK(B_host);
+  auto* C_host = common::BufferBuilder(Float(32), {M, N}).set_zero().Build();
+  CHECK(C_host);
+  auto* C_res_host = common::BufferBuilder(Float(32), {M, N}).set_zero().Build();
+
+  auto* A_dev = CreateDeviceBuffer(A_host);
+  auto* B_dev = CreateDeviceBuffer(B_host);
+  auto* C_dev = CreateDeviceBuffer(C_host);
+
+  cinn_buffer_t* dev_bufs[3];
+  for (int i = 0; i < 3; ++i) dev_bufs[i] = new cinn_buffer_t;
+  dev_bufs[0]->memory = reinterpret_cast<uint8_t*>(A_dev);
+  dev_bufs[1]->memory = reinterpret_cast<uint8_t*>(B_dev);
+  dev_bufs[2]->memory = reinterpret_cast<uint8_t*>(C_dev);
+  auto all_args       = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Add(dev_bufs[2]).Build();
+
+  // calculate matmul after schedule in rule
+  CUDA_CALL(cudaDeviceSynchronize());
+  CHECK(func_ptr);
+  func_ptr(reinterpret_cast<void**>(all_args.data()), all_args.size());
+  CUDA_CALL(cudaDeviceSynchronize());
+  CUDA_CALL(cudaMemcpy(
+      reinterpret_cast<void*>(C_host->memory), C_dev, C_host->num_elements() * sizeof(float), cudaMemcpyDeviceToHost));
+  float* res = reinterpret_cast<float*>(C_host->memory);
+
+  // calculate common matmul
+  float* data_A     = reinterpret_cast<float*>(A_host->memory);
+  float* data_B     = reinterpret_cast<float*>(B_host->memory);
+  float* target_res = (float*)malloc(M * N * sizeof(float));
+  memset(target_res, 0, M * N * sizeof(float));
+  common_matmul(data_A, data_B, target_res, M, N, K);
+
+  // check result
+  for (int i = 0; i < M; ++i) {
+    for (int j = 0; j < N; ++j) {
+      ASSERT_NEAR(res[i * N + j], target_res[i * N + j], 1e-4);
+    }
+  }
+
+  cinn_buffer_free(nullptr, A_host);
+  cinn_buffer_free(nullptr, B_host);
+  cinn_buffer_free(nullptr, C_host);
+  free(target_res);
+  cuMemFree(reinterpret_cast<CUdeviceptr>(A_dev));
+  cuMemFree(reinterpret_cast<CUdeviceptr>(B_dev));
+  cuMemFree(reinterpret_cast<CUdeviceptr>(C_dev));
+}
+
+TEST(AddCacheRead, Init) {
+  srand(0);
+  Context::Global().ResetNameId();
+#ifdef CINN_WITH_CUDA
+  Target target = common::DefaultNVGPUTarget();
+#else
+  Target target      = common::DefaultHostTarget();
+#endif
+
+  Expr M(32);
+  Expr N(32);
+  Expr K(32);
+
+  // matmul case
+  Placeholder<float> A("A", {M, K});
+  Placeholder<float> B("B", {K, N});
+
+  Var k(K.as_int32(), "reduce_axis_k");
+  ir::Tensor C = Compute(
+      {M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k) * B(k, j), {k}); }, "C");
+
+  poly::StageMap stages = CreateStages({C});
+  std::vector<ir::LoweredFunc> funcs =
+      lang::LowerVec("TestAddCacheRead_InitTrue", stages, {C}, {}, {}, nullptr, target, true);
+
+  ir::Expr matmul_expr = funcs[0]->body;
+  VLOG(6) << "Matmul Expr before AddCacheRead: ";
+  VLOG(6) << matmul_expr;
+
+  ir::IRSchedule ir_schedule_matmul(ir::ModuleExpr({matmul_expr}));
+
+  AddCacheRead add_cache_read(target);
+  EXPECT_EQ(add_cache_read.Init(&ir_schedule_matmul), RuleApplyType::kApplyAndSkipAllRules);
+  EXPECT_EQ(add_cache_read.NumberApplicable(), 1);
+
+  add_cache_read.ApplyRandomly();
+  std::vector<ir::Expr> exprs = ir_schedule_matmul.GetModule().GetExprs();
+  EXPECT_EQ(exprs.size(), 1UL);
+  VLOG(6) << "Matmul Expr after AddCacheRead: " << exprs[0];
+
+  // add case
+  Placeholder<float> D("D", {M, K});
+  Placeholder<float> E("E", {K, N});
+  ir::Tensor F = Compute(
+      {M, N}, [&](Var i, Var j) { return D(i, j) * E(i, j); }, "F");
+
+  poly::StageMap stages_add = CreateStages({F});
+  std::vector<ir::LoweredFunc> funcs_add =
+      lang::LowerVec("TestAddCacheRead_InitFalse", stages_add, {F}, {}, {}, nullptr, target, true);
+
+  ir::Expr add_expr = funcs_add[0]->body;
+  VLOG(6) << "Mat Add Expr before AddCacheRead: ";
+  VLOG(6) << add_expr;
+
+  ir::IRSchedule ir_schedule_add(ir::ModuleExpr({add_expr}));
+
+  AddCacheRead add_cache_read2(target);
+  EXPECT_EQ(add_cache_read2.Init(&ir_schedule_add), RuleApplyType::kCannotApply);
+  EXPECT_EQ(add_cache_read2.NumberApplicable(), 0);
+}
 
 TEST(AddCacheRead, MatrixMultiply) {
   srand(0);
@@ -43,7 +222,7 @@ TEST(AddCacheRead, MatrixMultiply) {
 #ifdef CINN_WITH_CUDA
   Target target = common::DefaultNVGPUTarget();
 #else
-  Target target = common::DefaultHostTarget();
+  Target target      = common::DefaultHostTarget();
 #endif
 
   Expr M(32);
@@ -59,35 +238,109 @@ TEST(AddCacheRead, MatrixMultiply) {
 
   poly::StageMap stages = CreateStages({C});
   std::vector<ir::LoweredFunc> funcs =
-      lang::LowerVec("TestMultiLevelTile_MatrixMultiply", stages, {C}, {}, {}, nullptr, target, true);
+      lang::LowerVec("TestAddCacheRead_MatrixMultiply", stages, {A, B, C}, {}, {}, nullptr, target, true);
 
   ir::Expr ast_expr = funcs[0]->body;
   VLOG(6) << "Expr before MultiLevelTiling: ";
   VLOG(6) << ast_expr;
 
-  MultiLevelTiling multi_level_tiling(target);
   ir::IRSchedule ir_schedule(ir::ModuleExpr({ast_expr}));
-  EXPECT_EQ(multi_level_tiling.Init(&ir_schedule), RuleApplyType::kApplyAndSkipThisRule);
 
+  // Apply MultiLevelTiling before AddCacheRead
+  MultiLevelTiling multi_level_tiling(target);
+  EXPECT_EQ(multi_level_tiling.Init(&ir_schedule), RuleApplyType::kApplyAndSkipThisRule);
   EXPECT_EQ(multi_level_tiling.NumberApplicable(), 1);
 
   multi_level_tiling.ApplyRandomly();
   std::vector<ir::Expr> exprs = ir_schedule.GetModule().GetExprs();
   EXPECT_EQ(exprs.size(), 1UL);
+  VLOG(6) << "Expr after MultiLevelTiling: " << exprs[0];
 
-  std::stringstream ss;
-  ss << exprs[0];
-
-  std::string expr_str = ss.str();
-  VLOG(6) << expr_str;
-
+  // Apply AddCacheRead
   AddCacheRead add_cache_read(target);
   EXPECT_EQ(add_cache_read.Init(&ir_schedule), RuleApplyType::kApplyAndSkipAllRules);
   EXPECT_EQ(add_cache_read.NumberApplicable(), 1);
+
   add_cache_read.ApplyRandomly();
-  std::vector<ir::Expr> exprs1 = ir_schedule.GetModule().GetExprs();
+  exprs = ir_schedule.GetModule().GetExprs();
   EXPECT_EQ(exprs.size(), 1UL);
-  VLOG(6) << "after AddCacheRead, IRModule: " << exprs1[0];
+  VLOG(6) << "Expr after AddCacheRead: " << exprs[0];
+
+  auto temp_buffers = lang::GetTempBuffers({A, B, C}, stages, exprs[0]);
+  auto func         = ir::_LoweredFunc_::Make(funcs[0]->name, funcs[0]->args, funcs[0]->body, temp_buffers);
+
+  ir::Module::Builder builder("test_bulder", target);
+  builder.AddFunction(func);
+  auto build_module = builder.Build();
+
+  auto compiler = backends::Compiler::Create(target);
+  compiler->Build(build_module);
+
+#ifdef CINN_WITH_CUDA
+  // check source code
+  backends::CodeGenCUDA_Dev codegen(target);
+  codegen.SetInlineBuiltinCodes(false);
+  auto source_code = codegen.Compile(build_module, CodeGenC::OutputKind::CImpl);
+  VLOG(6) << "source code is :\n" << source_code;
+
+  std::string target_code = R"ROC(#include "cinn_cuda_runtime_source.cuh"
+
+#ifdef __CUDACC_RTC__
+typedef int int32_t;
+typedef char int8_t;
+typedef long int int64_t;
+#endif
+
+
+
+__global__
+void __launch_bounds__(1) TestAddCacheRead_MatrixMultiply(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
+{
+  __shared__ float _A_shared_temp_buffer [ 1024 ];
+  __shared__ float _B_shared_temp_buffer [ 1024 ];
+  float* A_shared_temp_buffer = _A_shared_temp_buffer;
+  float* B_shared_temp_buffer = _B_shared_temp_buffer;
+  float* C__reduce_init = C;
+  for (int32_t i_0 = 0; i_0 < 2; i_0 += 1) {
+    for (int32_t i_1 = 0; i_1 < 8; i_1 += 1) {
+      for (int32_t i_2 = 0; i_2 < 1; i_2 += 1) {
+        for (int32_t i_3 = 0; i_3 < 2; i_3 += 1) {
+          for (int32_t i_4 = 0; i_4 < 1; i_4 += 1) {
+            for (int32_t j_0 = 0; j_0 < 2; j_0 += 1) {
+              for (int32_t j_1 = 0; j_1 < 1; j_1 += 1) {
+                for (int32_t j_2 = 0; j_2 < 2; j_2 += 1) {
+                  for (int32_t j_3 = 0; j_3 < 2; j_3 += 1) {
+                    for (int32_t j_4 = 0; j_4 < 4; j_4 += 1) {
+                      C__reduce_init[((512 * i_0) + ((64 * i_1) + ((64 * i_2) + ((32 * i_3) + ((32 * i_4) + ((16 * j_0) + ((16 * j_1) + ((8 * j_2) + ((4 * j_3) + j_4)))))))))] = 0;
+                      for (int32_t reduce_axis_k_0 = 0; reduce_axis_k_0 < 16; reduce_axis_k_0 += 1) {
+                        for (int32_t ax0_0 = 0; ax0_0 < 3; ax0_0 += 1) {
+                          B_shared_temp_buffer[((32 * ax0_0) + ((16 * j_0) + ((16 * j_1) + ((8 * j_2) + ((4 * j_3) + ((64 * reduce_axis_k_0) + j_4))))))] = B[((32 * ax0_0) + ((16 * j_0) + ((16 * j_1) + ((8 * j_2) + ((4 * j_3) + ((64 * reduce_axis_k_0) + j_4))))))];
+                        };
+                        for (int32_t ax0 = 0; ax0 < 3; ax0 += 1) {
+                          A_shared_temp_buffer[((64 * i_1) + ((64 * i_2) + ((32 * i_3) + ((32 * i_4) + ((2 * reduce_axis_k_0) + ax0)))))] = A[((64 * i_1) + ((64 * i_2) + ((32 * i_3) + ((32 * i_4) + ((2 * reduce_axis_k_0) + ax0)))))];
+                        };
+                        for (int32_t reduce_axis_k_1 = 0; reduce_axis_k_1 < 2; reduce_axis_k_1 += 1) {
+                          for (int32_t reduce_axis_k_2 = 0; reduce_axis_k_2 < 1; reduce_axis_k_2 += 1) {
+                            C[((64 * i_1) + ((64 * i_2) + ((32 * i_3) + ((32 * i_4) + ((16 * j_0) + ((16 * j_1) + ((8 * j_2) + ((4 * j_3) + j_4))))))))] = (C[((64 * i_1) + ((64 * i_2) + ((32 * i_3) + ((32 * i_4) + ((16 * j_0) + ((16 * j_1) + ((8 * j_2) + ((4 * j_3) + j_4))))))))] + (A_shared_temp_buffer[((64 * i_1) + ((64 * i_2) + ((32 * i_3) + ((32 * i_4) + ((2 * reduce_axis_k_0) + (reduce_axis_k_1 + reduce_axis_k_2))))))] * B_shared_temp_buffer[((16 * j_0) + ((16 * j_1) + ((8 * j_2) + ((4 * j_3) + ((64 * reduce_axis_k_0) + ((32 * reduce_axis_k_1) + ((32 * reduce_axis_k_2) + j_4)))))))]));
+                          };
+                        };
+                      };
+                    };
+                  };
+                };
+              };
+            };
+          };
+        };
+      };
+    };
+  };
+})ROC";
+  EXPECT_EQ(source_code, target_code);
+#else
+  auto test_func_ptr = reinterpret_cast<void (*)(void**, int32_t)>(compiler->Lookup("TestAddCacheRead_MatrixMultiply"));
+  check_matmul_result_cpu(M.as_int32(), N.as_int32(), K.as_int32(), test_func_ptr);
+#endif
 }
 
 }  // namespace auto_schedule
