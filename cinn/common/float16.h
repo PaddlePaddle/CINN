@@ -18,9 +18,9 @@
 #define __CINN_x86__
 #include <immintrin.h>
 #endif
-#include <stdint.h>
 
 #include <cmath>
+#include <cstdint>
 #include <iostream>
 #include <limits>
 
@@ -28,7 +28,7 @@
 #include <cuda.h>
 #endif  // CINN_WITH_CUDA
 
-#if defined(__CUDACC__) && CUDA_VERSION >= 7050
+#if (defined(__CUDACC__) || defined(__CUDACC_RTC__)) && CUDA_VERSION >= 7050
 #define CINN_CUDA_FP16
 #include <cuda_fp16.h>
 #endif
@@ -41,7 +41,7 @@
 
 #define CUDA_ARCH_FP16_SUPPORTED(CUDA_ARCH) (CUDA_ARCH >= 600)
 
-#ifdef __CUDACC__
+#if defined(__CUDACC__) || defined(__CUDACC_RTC__)
 #define HOSTDEVICE __host__ __device__
 #define DEVICE __device__
 #define HOST __host__
@@ -604,16 +604,17 @@ HOSTDEVICE inline float16(abs)(const float16& a) {
 #endif
 }
 
-inline std::ostream& operator<<(std::ostream& os, const float16& a) {
+}  // namespace common
+}  // namespace cinn
+
+#ifndef __CUDACC_RTC__
+
+inline std::ostream& operator<<(std::ostream& os, const ::cinn::common::float16& a) {
   os << static_cast<float>(a);
   return os;
 }
 
-}  // namespace common
-}  // namespace cinn
-
 namespace std {
-
 // Override the std::is_pod::value for float16
 // The reason is that different compilers implemented std::is_pod based on
 // different C++ standards. float16 class is a plain old data in C++11 given
@@ -689,3 +690,5 @@ struct numeric_limits<cinn::common::float16> {
 HOSTDEVICE inline cinn::common::float16 abs(const cinn::common::float16& a) { return cinn::common::abs(a); }
 
 }  // namespace std
+
+#endif

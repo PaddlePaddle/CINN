@@ -18,7 +18,7 @@
 #include <iostream>
 #include <vector>
 
-#include "cinn/backends/nvrtc_util.h"
+#include "cinn/backends/nvrtc/nvrtc_util.h"
 #include "cinn/common/context.h"
 #include "cinn/runtime/cuda/cuda_module.h"
 
@@ -110,7 +110,7 @@ void __launch_bounds__(512) fn_relu_1_kernel(const float* __restrict__ var_1, fl
 }
 )ROC";
 
-  backends::NVRTC_Compiler compiler;
+  backends::nvrtc::Compiler compiler;
 
   std::string ptx = compiler(source_code);
   ASSERT_FALSE(ptx.empty());

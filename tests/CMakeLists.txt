@@ -1,4 +1,5 @@
 if (WITH_TESTING)
+  return()
   include_directories(${CMAKE_SOURCE_DIR}/cinn/runtime)
   add_subdirectory(benchmark)
 
