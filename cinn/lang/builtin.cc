@@ -146,6 +146,26 @@ Expr max_value(const Type& type) {
   return Expr();
 }
 
+Expr Epsilon(const Type& type) {
+  CHECK_EQ(type.lanes(), 1);
+
+#define FOR_CASE(type__)                                 \
+  if (type == type_of<type__>()) {                       \
+    return Expr(std::numeric_limits<type__>::epsilon()); \
+  }
+  FOR_CASE(int32_t)
+  FOR_CASE(int64_t)
+  FOR_CASE(uint32_t)
+  FOR_CASE(uint64_t)
+  FOR_CASE(float16)
+  FOR_CASE(float)
+  FOR_CASE(double)
+#undef FOR_CASE
+
+  CINN_NOT_IMPLEMENTED
+  return Expr();
+}
+
 Expr Abs(Expr e) {
   Type type      = e->type();
   Type bool_type = Bool(type.lanes());

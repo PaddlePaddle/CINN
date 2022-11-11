@@ -351,7 +351,7 @@ ir::Tensor IsClose(
         // T diff = (left > right ? left - right : right - left);
         auto diff = ir::Select::Make(left > right, left - right, right - left);
         // out = a == b || left <= right || diff <= 1e-15;
-        auto check_diff = (ir::EQ::Make(a, b) || (left <= right)) || (diff <= common::make_const(diff->type(), 1e-15f));
+        auto check_diff = (ir::EQ::Make(a, b) || (left <= right)) || (diff <= lang::Epsilon(diff->type()));
 
         return ir::Select::Make(check_x_nan || check_y_nan, check_nan_same, check_diff);
       },

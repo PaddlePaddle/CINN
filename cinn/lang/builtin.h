@@ -126,6 +126,7 @@ Expr Zero(const Type& type);
 Expr One(const Type& type);
 Expr min_value(const Type& type);
 Expr max_value(const Type& type);
+Expr Epsilon(const Type& type);
 
 inline Expr ReduceMax(Expr e, const std::vector<Var>& reduce_axis, Expr initial = Expr()) {
   if (!initial.defined()) {

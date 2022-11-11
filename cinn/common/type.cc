@@ -445,9 +445,14 @@ Type Str2Type(const std::string &type) {
       {"float64_p", type_of<double *>()},
 
       {"cinn_buffer", type_of<cinn_buffer_t>()},
+      {"cinn_buffer*", type_of<cinn_buffer_t>()},
       {"cinn_buffer_p", type_of<cinn_buffer_t *>()},
+
+      {"const cinn_buffer*", type_of<const cinn_buffer_t *>()},
       {"const_cinn_buffer_p", type_of<const cinn_buffer_t *>()},
+
       {"cinn_pod_value", type_of<cinn_pod_value_t>()},
+      {"cinn_pod_value*", type_of<cinn_pod_value_t *>()},
       {"cinn_pod_value_p", type_of<cinn_pod_value_t *>()},
   };
 

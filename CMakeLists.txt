@@ -41,7 +41,6 @@ endif()
 if (WITH_CUDA)
   message(STATUS "Enable CUDA")
   add_definitions(-DCINN_WITH_CUDA)
-
   if (WITH_CUDNN)
     message(STATUS "Enable CUDNN")
     add_definitions(-DCINN_WITH_CUDNN)

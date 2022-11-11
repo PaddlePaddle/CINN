@@ -8,9 +8,19 @@
   MACRO(max_fp32, 3.402823e+38f, float, ##__VA_ARGS__) \
   MACRO(min_fp32, -3.402823e+38f, float, ##__VA_ARGS__) \
 
-#define EXPAND_REDUCE_BOOL_MACRO(MACRO, ...) \
-  MACRO(all, true, bool, ##__VA_ARGS__) \
-  MACRO(any, false, bool, ##__VA_ARGS__)
+#ifdef FN_FP32
+#define FUNC_FP32(func) FN_FP32(func)
+#else
+#define FUNC_FP32(func) cinn_nvgpu_##func##_fp32
+#endif
+
+__device__ inline float cinn_sum_fp32(const float left, const float right) { return left + right; }
+__device__ inline float cinn_prod_fp32(const float left, const float right) { return left * right; }
+__device__ inline float cinn_max_fp32(const float left, const float right) { return FUNC_FP32(max)(left, right); }
+__device__ inline float cinn_min_fp32(const float left, const float right) { return FUNC_FP32(min)(left, right); }
+
+
+#ifdef CINN_CUDA_FP16
 
 #define EXPAND_REDUCE_FP16_MACRO(MACRO, ...) \
   MACRO(sum_fp16, 0.0f, float16, ##__VA_ARGS__) \
@@ -18,18 +28,22 @@
   MACRO(max_fp16, -65504f, float16, ##__VA_ARGS__) \
   MACRO(min_fp16, 65504f, float16, ##__VA_ARGS__)
 
+#ifdef FN_FP16
+#define FUNC_FP16(func) FN_FP16(func)
+#else
+#define FUNC_FP16(func) cinn_nvgpu_##func##_fp16
+#endif
 
-__device__ inline float cinn_sum_fp32(const float left, const float right) { return left + right; }
-__device__ inline float cinn_prod_fp32(const float left, const float right) { return left * right; }
-__device__ inline float cinn_max_fp32(const float left, const float right) { return cinn_nvgpu_max_fp32(left, right); }
-__device__ inline float cinn_min_fp32(const float left, const float right) { return cinn_nvgpu_min_fp32(left, right); }
-
-#ifdef CINN_CUDA_FP16
 __device__ inline float16 cinn_sum_fp16(const float16 left, const float16 right) { return left + right; }
 __device__ inline float16 cinn_prod_fp16(const float16 left, const float16 right) { return left * right; }
-__device__ inline float16 cinn_max_fp16(const float16 left, const float16 right) { return cinn_nvgpu_max_fp16(left, right); }
-__device__ inline float16 cinn_min_fp16(const float16 left, const float16 right) { return cinn_nvgpu_min_fp16(left, right); }
+__device__ inline float16 cinn_max_fp16(const float16 left, const float16 right) { return FUNC_FP16(max)(left, right); }
+__device__ inline float16 cinn_min_fp16(const float16 left, const float16 right) { return FUNC_FP16(min)(left, right); }
 #endif
+
+
+#define EXPAND_REDUCE_BOOL_MACRO(MACRO, ...) \
+  MACRO(all, true, bool, ##__VA_ARGS__) \
+  MACRO(any, false, bool, ##__VA_ARGS__)
 
 __device__ inline bool cinn_all(const bool left, const bool right) { return left && right; }
 __device__ inline bool cinn_any(const bool left, const bool right) { return left || right; }
@@ -166,5 +180,5 @@ EXPAND_REDUCE_FP16_MACRO(BLOCK_SHUFFLE_IMPL)
 #undef EXPAND_REDUCE_BOOL_MACRO
 #undef EXPAND_REDUCE_FP16_MACRO
 
-#undef CINN_FLT_MIN
-#undef CINN_FLT_MAX
+#undef FUNC_FP32
+#undef FUNC_FP16
