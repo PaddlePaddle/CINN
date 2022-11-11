@@ -56,7 +56,6 @@ std::vector<std::string> Compiler::FindCUDAIncludePaths() {
 std::vector<std::string> Compiler::FindCINNRuntimeIncludePaths() { return {Context::Global().runtime_include_dir()}; }
 
 std::string Compiler::CompilePTX(const std::string& code, bool include_headers) {
-  LOG(INFO) << "code = " << code;
   std::vector<std::string> compile_options;
   std::vector<const char*> param_cstrings{};
   nvrtcProgram prog;
