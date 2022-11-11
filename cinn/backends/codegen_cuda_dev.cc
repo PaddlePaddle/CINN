@@ -31,7 +31,11 @@ namespace backends {
 
 const std::string CodeGenCUDA_Dev::source_header_ =
     R"(#include "cinn_cuda_runtime_source.cuh"
-#include "float16.h"
+#ifdef __CUDACC_RTC__
+typedef int int32_t;
+typedef char int8_t;
+typedef long int int64_t;
+#endif
 )";
 
 const std::string &CodeGenCUDA_Dev::GetSourceHeader() const { return source_header_; }
