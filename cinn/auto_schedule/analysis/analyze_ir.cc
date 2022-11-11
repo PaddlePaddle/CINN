@@ -51,27 +51,29 @@ void AnalyzeScheduleBlockReadWriteBuffer(ir::ScheduleBlock* sche_block) {
     return;
   }
 
-  std::set<ir::Expr> load_nodes =
-      ir::CollectIRNodesWithoutTensor(sche_block->body, [&](const Expr* x) { return x->As<ir::Load>() != nullptr; });
-  for (const ir::Expr& e : load_nodes) {
-    const ir::Load* load_expr = e.As<ir::Load>();
-    const ir::Tensor t        = load_expr->tensor.as_tensor_ref();
-    sche_block->read_buffers.emplace_back(ir::BufferRange(t->buffer, IndicesToVars(load_expr->indices)));
-  }
-
-  std::set<ir::Expr> store_nodes =
-      ir::CollectIRNodesWithoutTensor(sche_block->body, [&](const Expr* x) { return x->As<ir::Store>() != nullptr; });
-  for (const ir::Expr& e : store_nodes) {
-    const ir::Store* store_expr = e.As<ir::Store>();
-    const ir::Tensor t          = store_expr->tensor.as_tensor_ref();
-    sche_block->write_buffers.emplace_back(ir::BufferRange(t->buffer, IndicesToVars(store_expr->indices)));
-  }
-
-  auto buffer_range_cmp = [](const Expr& lhs, const Expr& rhs) {
-    return lhs.As<ir::_BufferRange_>()->buffer.as_buffer_ref() < rhs.As<ir::_BufferRange_>()->buffer.as_buffer_ref();
-  };
-  sort(sche_block->read_buffers.begin(), sche_block->read_buffers.end(), buffer_range_cmp);
-  sort(sche_block->write_buffers.begin(), sche_block->write_buffers.end(), buffer_range_cmp);
+  std::set<ir::BufferRange> visited_read_buffers;
+  std::set<ir::BufferRange> visited_write_buffers;
+  ir::CollectIRNodesWithoutTensor(sche_block->body, [&](const Expr* x) {
+    const ir::Load* load_expr = x->As<ir::Load>();
+    if (load_expr != nullptr) {
+      const ir::Tensor t = load_expr->tensor.as_tensor_ref();
+      ir::BufferRange read_buffer(t->buffer, IndicesToVars(load_expr->indices));
+      if (!visited_read_buffers.count(read_buffer)) {
+        sche_block->read_buffers.emplace_back(read_buffer);
+      }
+      return false;
+    }
+    const ir::Store* store_expr = x->As<ir::Store>();
+    if (store_expr != nullptr) {
+      const ir::Tensor t = store_expr->tensor.as_tensor_ref();
+      ir::BufferRange write_buffer(t->buffer, IndicesToVars(store_expr->indices));
+      if (!visited_write_buffers.count(write_buffer)) {
+        sche_block->write_buffers.emplace_back(write_buffer);
+      }
+      return false;
+    }
+    return false;
+  });
 }
 
 bool ContainsNodeType(ir::Expr expr, const std::unordered_set<ir::IrNodeTy>& node_types) {
