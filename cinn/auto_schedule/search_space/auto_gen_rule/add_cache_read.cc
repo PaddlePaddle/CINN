@@ -45,8 +45,8 @@ RuleApplyType AddCacheRead::Init(ir::IRSchedule* ir_schedule) {
   num_applicable_ = 0;
   for (size_t i = 0; i < block_realizes.size(); ++i) {
     ir::ScheduleBlockRealize* sch_block_realize = block_realizes[i].As<ir::ScheduleBlockRealize>();
-    // AnalyzeScheduleBlockReadWriteBuffer(sch_block_realize->schedule_block.As<ir::ScheduleBlock>());
-    if (MeetCondition(*sch_block_realize)) {
+    AnalyzeScheduleBlockReadWriteBuffer(sch_block_realize->schedule_block.As<ir::ScheduleBlock>());
+    if (MeetCondition(block_realizes[i])) {
       ++num_applicable_;
       applicable_schedule_blocks_.push_back(block_realizes[i]);
     }
@@ -64,6 +64,7 @@ void AddCacheRead::Apply(int index) {
   ir::ScheduleBlock* sch_block                = sch_block_realize->schedule_block.As<ir::ScheduleBlock>();
   std::string block_name                      = sch_block->name;
 
+  // Analyze which buffers can be cached
   std::vector<std::string> read_tensor_strs;
   ir::CollectIRNodesWithoutTensor(sch_block->body, [&](const Expr* x) {
     if (x->As<ir::Load>()) read_tensor_strs.push_back(x->As<ir::Load>()->tensor.as_tensor()->name);
@@ -92,6 +93,7 @@ void AddCacheRead::Apply(int index) {
     VLOG(6) << "only read tensors: " << read_tensor_strs[idx];
   }
 
+  // Do schedule
   for (int read_buffer_index : read_buffer_indexes) {
     ir::Expr cache_block = ir_schedule_->CacheRead(sch_block_expr, read_buffer_index, cache_memory_type_);
     VLOG(6) << "cache block: " << cache_block;
@@ -101,15 +103,69 @@ void AddCacheRead::Apply(int index) {
   }
 }
 
-bool AddCacheRead::MeetCondition(const ir::ScheduleBlockRealize& sche_block_realize) const {
-  const ir::ScheduleBlock* sch_block = sche_block_realize.schedule_block.As<ir::ScheduleBlock>();
+// TODO: Merge this function and the same function in MultiLevelTiling rule
+bool NeedMultiLevelTiling(const ir::ScheduleBlockRealize& sch_block_realize) {
+  const ir::ScheduleBlock* sche_block = sch_block_realize.schedule_block.As<ir::ScheduleBlock>();
+  const ir::Expr& write_buffer        = sche_block->write_buffers[0].As<ir::_BufferRange_>()->buffer;
+
+  // Enumerate each read region, get the number of schedule block iter vars
+  // which  are not used to index the read region
+  int total_unused_iter_vars = 0;
+
+  for (const ir::Expr& read_buffer_expr : sche_block->read_buffers) {
+    const ir::_BufferRange_* read_buffer = read_buffer_expr.As<ir::_BufferRange_>();
+    // Skip the reduction buffer
+    if (read_buffer->buffer == write_buffer) {
+      continue;
+    }
+    // Collect the vars in schedule block that are used to index the read region
+    std::unordered_set<std::string> vars_index_read;
+    for (const Var& range : read_buffer->ranges) {
+      vars_index_read.insert(range->name);
+    }
+    // Check the block iter vars are not used to index the read region
+    int n_unused_block_vars = 0;
+    for (const ir::Var& block_iter_var : sche_block->iter_vars) {
+      bool iter_var_in_read = false;
+      for (const std::string& var : vars_index_read) {
+        if (var == block_iter_var->name) {
+          iter_var_in_read = true;
+          break;
+        }
+      }
+      if (!iter_var_in_read) {
+        ++n_unused_block_vars;
+      }
+    }
+    total_unused_iter_vars += n_unused_block_vars;
+  }
+
+  return total_unused_iter_vars >= 1;
+}
+
+bool AddCacheRead::MeetCondition(const ir::Expr& block_expr) const {
+  const ir::ScheduleBlockRealize* sch_block_realize = block_expr.As<ir::ScheduleBlockRealize>();
+  const ir::ScheduleBlock* sch_block                = sch_block_realize->schedule_block.As<ir::ScheduleBlock>();
+
   if (sch_block->read_buffers.empty() || sch_block->write_buffers.size() != 1) {
     return false;
   }
+
+  if (!NeedMultiLevelTiling(*sch_block_realize)) return false;
+
+  // check cross thread reduce axis
+  for (const ir::Expr& for_expr : ir_schedule_->GetLoops(block_expr)) {
+    const ir::For* for_node = for_expr.As<ir::For>();
+    if (for_node->is_GPUThreadBinded() && for_node->loop_var->is_reduce_axis) {
+      return false;
+    }
+  }
+
   return true;
 }
 
 ir::Expr AddCacheRead::GetTargetLoop(const ir::Expr& block_expr) const {
+  // Get the out most reduce axis
   std::vector<Expr> for_exprs = ir_schedule_->GetLoops(block_expr);
   for (auto& for_expr : for_exprs) {
     ir::Var for_node_var          = for_expr.As<ir::For>()->loop_var;
