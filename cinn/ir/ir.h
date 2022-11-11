@@ -887,7 +887,11 @@ struct Block : public ExprNode<Block> {
 // ScheduleBlock is the unit of schedule IR which represents tensor's computation
 struct ScheduleBlock : public ExprNode<ScheduleBlock> {
   std::vector<Var> iter_vars;
+  // BufferRange(s) which is read in this schedule block, it is used to
+  // analyze, not a real computation expression. Must be AST DFS order.
   std::vector<Expr> read_buffers;
+  // BufferRange(s) which is written in this schedule block, it is used to
+  // analyze, not a real computation expression. Must be AST DFS order.
   std::vector<Expr> write_buffers;
   // Additional attributes about this schedulable block,
   // which take some auxiliary hints for future transformations.
