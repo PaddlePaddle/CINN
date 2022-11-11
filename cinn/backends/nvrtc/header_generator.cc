@@ -20,6 +20,13 @@
 namespace cinn {
 namespace backends {
 namespace nvrtc {
+namespace {
+#ifdef NVRTC_STL_PATH
+static constexpr char* nvrtc_stl_path = NVRTC_STL_PATH;
+#else
+static constexpr char* nvrtc_stl_path = nullptr;
+#endif
+}  // namespace
 
 JitSafeHeaderGenerator::JitSafeHeaderGenerator() {
   for (const auto& pair : headers_map_) {
@@ -44,6 +51,11 @@ void JitSafeHeaderGenerator::GenerateFiles(const std::string& dir) const {
     os << headers_map_.at(name);
     os.close();
   }
+}
+
+void JitSafeHeaderGenerator::GenerateFiles() const {
+  CHECK(nvrtc_stl_path) << "The default directory path does not exist.";
+  GenerateFiles(nvrtc_stl_path);
 }
 
 const std::map<std::string, std::string> JitSafeHeaderGenerator::headers_map_ =

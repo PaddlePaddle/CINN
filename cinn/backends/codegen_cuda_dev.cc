@@ -36,7 +36,9 @@ const std::string CodeGenCUDA_Dev::source_header_ =
 
 const std::string &CodeGenCUDA_Dev::GetSourceHeader() const { return source_header_; }
 
-CodeGenCUDA_Dev::CodeGenCUDA_Dev(Target target) : CodeGenC(target) {}
+CodeGenCUDA_Dev::CodeGenCUDA_Dev(Target target) : CodeGenC(target) {
+  generator_ = std::make_unique<backends::nvrtc::JitSafeHeaderGenerator>();
+}
 
 std::string CodeGenCUDA_Dev::Compile(const ir::Module &module, bool for_nvrtc) {
   for_nvrtc_  = for_nvrtc;
@@ -234,7 +236,7 @@ std::string CodeGenCUDA_Dev::Compile(const ir::Module &module, CodeGenC::OutputK
 
 void CodeGenCUDA_Dev::PrintIncludes() {
   // TODO(Shixiaowei02): use jitify for standard header files.
-  generator_.GenerateFiles("/tmp/stl/");
+  generator_->GenerateFiles();
   os() << GetSourceHeader();
 }
 

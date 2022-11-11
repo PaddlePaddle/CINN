@@ -22,6 +22,9 @@ namespace cinn {
 namespace backends {
 class HeaderGeneratorBase {
  public:
+  // Generate header files to the default directory.
+  virtual void GenerateFiles() const = 0;
+  // Generate header files to the specified directory.
   virtual void GenerateFiles(const std::string& dir) const = 0;
 };
 
@@ -32,6 +35,7 @@ class JitSafeHeaderGenerator : public HeaderGeneratorBase {
   JitSafeHeaderGenerator();
   explicit JitSafeHeaderGenerator(std::vector<std::string> header_names);
   void GenerateFiles(const std::string& dir) const override;
+  void GenerateFiles() const override;
 
  private:
   std::vector<std::string> header_names_;

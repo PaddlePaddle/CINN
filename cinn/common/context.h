@@ -66,6 +66,8 @@ class Context {
 
   const std::vector<std::string>& runtime_include_dir();
 
+  void AddRuntimeIncludeDir(std::string dir);
+
   /**
    * The global isl ctx.
    */

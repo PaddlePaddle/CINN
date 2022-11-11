@@ -47,6 +47,11 @@ const std::vector<std::string>& Context::runtime_include_dir() {
   return runtime_include_dir_;
 }
 
+void Context::AddRuntimeIncludeDir(std::string dir) {
+  // TODO(Shixiaowei02): path deduplication
+  runtime_include_dir_.emplace_back(std::move(dir));
+}
+
 const char* kRuntimeIncludeDirEnvironKey = "runtime_include_dir";
 
 std::string NameGenerator::New(const std::string& name_hint) {

@@ -104,7 +104,7 @@ class CodeGenCUDA_Dev : public CodeGenC {
   // names of vectorized tensors from `Let` statments where dtypes of the tensors
   // are customized_type with customized_type::kcuda_builtin_vector_t prefix
   std::unordered_set<std::string> vectorized_tensor_names_;
-  backends::nvrtc::JitSafeHeaderGenerator generator_;
+  std::unique_ptr<backends::HeaderGeneratorBase> generator_;
   static const std::string source_header_;
 };
 

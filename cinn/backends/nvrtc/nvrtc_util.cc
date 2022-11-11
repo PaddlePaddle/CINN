@@ -25,6 +25,13 @@
 namespace cinn {
 namespace backends {
 namespace nvrtc {
+namespace {
+#ifdef NVRTC_STL_PATH
+static constexpr char* nvrtc_stl_path = NVRTC_STL_PATH;
+#else
+static constexpr char* nvrtc_stl_path = nullptr;
+#endif
+}  // namespace
 
 std::string Compiler::operator()(const std::string& code, bool include_headers) {
   return CompilePTX(code, include_headers);
@@ -84,6 +91,9 @@ std::string Compiler::CompilePTX(const std::string& code, bool include_headers) 
     }
     for (auto& header : cinn_headers) {
       include_paths.push_back("--include-path=" + header);
+    }
+    if (nvrtc_stl_path) {
+      include_paths.push_back("--include-path=" + std::string{nvrtc_stl_path});
     }
 
     compile_options.insert(std::end(compile_options), include_paths.begin(), include_paths.end());
