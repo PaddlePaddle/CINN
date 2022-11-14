@@ -39,7 +39,7 @@ namespace pe {
 void IRElementwiseSchedule(ir::IRSchedule &ir_sch, const std::vector<int> &output_shape, const common::Target &target) {
   if (target == common::DefaultNVGPUTarget()) {
     auto blocks = ir_sch.GetAllBlocks();
-    ir_sch.FlattenLoops(ir_sch.GetLoops(blocks[0]));
+    ir_sch.FlattenLoops(ir_sch.GetLoops(blocks[0]), true);
 
     auto loops = ir_sch.GetLoops(blocks[0]);
     auto size  = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int>());

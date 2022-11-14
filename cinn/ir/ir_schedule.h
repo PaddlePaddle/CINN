@@ -314,7 +314,7 @@ class IRSchedule {
   void Annotate(const Expr& block, const std::string& key, const attr_t& value);
 
   // flat loops and the tensor in this loops.
-  void FlattenLoops(const std::vector<Expr>& loops, const bool flat_tensor = true);
+  void FlattenLoops(const std::vector<Expr>& loops, const bool flat_tensor = false);
 
  private:
   std::unique_ptr<ScheduleImpl> impl_;

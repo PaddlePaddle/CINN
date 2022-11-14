@@ -91,7 +91,7 @@ class ScheduleImpl {
   Expr Rfactor(const Expr& rf_loop, int rf_axis);
   Expr AddUnitLoop(const Expr& block) const;
   void Annotate(const Expr& block, const std::string& key, const attr_t& value);
-  void FlattenLoops(const std::vector<Expr>& loops, const bool flat_tensor = true);
+  void FlattenLoops(const std::vector<Expr>& loops, const bool flat_tensor = false);
   void CopyTransformAndLoopInfo(const Expr& block, const Expr& block_target);
   void CopyTransformAndLoopInfo(const std::string& block_name, const std::string& block_target_name);
 
