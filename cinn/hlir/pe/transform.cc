@@ -946,6 +946,25 @@ ir::Tensor ScatterAdd(const ir::Tensor& input,
   return output;
 }
 
+ir::Tensor Gather(const ir::Tensor& input, const ir::Tensor& index, const int& axis, const std::string& output_name) {
+  CHECK_EQ(input->shape.size(), index->shape.size());
+  auto res = Compute(
+      index->shape,
+      [=](const std::vector<Expr>& indices) {
+        std::vector<Expr> A_indices;
+        for (int i = 0; i < axis; ++i) {
+          A_indices.push_back(indices[i]);
+        }
+        A_indices.push_back(ir::Cast::Make(common::I32(), index(indices)));
+        for (size_t i = axis + 1; i < input->shape.size(); ++i) {
+          A_indices.push_back(indices[i]);
+        }
+        return input(A_indices);
+      },
+      UniqName(output_name));
+  return res;
+}
+
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn

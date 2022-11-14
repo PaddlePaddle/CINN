@@ -33,7 +33,6 @@ using namespace frontend;
 
 void CodeGen(ir::LoweredFunc& func) {
 #ifdef CINN_WITH_CUDA
-  LOG(INFO) << func;
   auto target = common::DefaultNVGPUTarget();
   Module::Builder builder("module_builder", target);
 
@@ -55,11 +54,13 @@ void CodeGen(ir::LoweredFunc& func) {
 #endif
 }
 
-TEST(OP_LOWERING, Elementwise_TEST_0) {
+TEST(OP_LOWERING, Elementwise_Test_Reshape_Fusion) {
   NetBuilder net_builder("Elementwise_TEST_0");
   {
-    auto A = net_builder.CreateInput(Float(32), {16, 16, 1, 16}, "A");
-    auto B = net_builder.Reshape(A, {8, 8, 8, 8});
+    auto A = net_builder.CreateInput(Float(32), {8, 8, 8, 8}, "A");
+    auto B = net_builder.Reshape(A, {16, 16, 16});
+    auto C = net_builder.CreateInput(Float(32), {16, 16, 16}, "C");
+    auto D = net_builder.Add(B, C);
   }
 
   auto program = net_builder.Build();

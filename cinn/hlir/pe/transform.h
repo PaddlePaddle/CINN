@@ -215,6 +215,15 @@ ir::Tensor ScatterAdd(const ir::Tensor& input,
                       const int axis,
                       const std::string& output_name);
 
+/**
+ * @brief Perform meta op Gather
+ * @param input The input tensor
+ * @param index The indexs tensor
+ * @param axis the axis to do gather
+ * @param output_name the name of the output tensor
+ */
+ir::Tensor Gather(const ir::Tensor& input, const ir::Tensor& index, const int& axis, const std::string& name);
+
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn

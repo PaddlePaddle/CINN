@@ -233,7 +233,7 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOp(IRComputeFunction compute,
   Node* first  = nullptr;
   Node* second = nullptr;
   // do schedule.
-  VLOG(3) << "Before IRLowerOp schedule";
+  VLOG(3) << "Before IRLowerOp schedule, ir is: \n" << ir_sch.GetModule().GetExprs().at(0);
   if (group->fused_sub_groups.size() == 0) {
     (this->*schedule)(ir_sch, tensor_map, group, group, first, second);
   } else {

@@ -80,7 +80,7 @@ CINNSchedule GetInjectiveScheduleFunc(const std::vector<std::vector<int>>& outpu
       ir::IRSchedule ir_sch(mod_expr);
       ir_sch.MergeExprs();
       if (target.arch == Target::Arch::NVGPU) {
-        pe::IRCudaScheduleInjective(ir_sch, output_shapes.front(), target);
+        pe::IRInjectiveSchedule(ir_sch, output_shapes.front(), target);
       } else if (target.arch == Target::Arch::X86) {
         pe::IRScheduleInjectiveCPU(ir_sch, output_shapes.front(), target, vectorizable);
       }

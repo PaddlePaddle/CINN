@@ -1851,6 +1851,63 @@ std::vector<std::vector<std::string>> InferLayoutForSliceAssign(const std::vecto
   return {{input_layouts[0]}, {""}};
 }
 
+std::shared_ptr<framework::OpStrategy> StrategyForGather(const framework::NodeAttr &attrs,
+                                                         const std::vector<ir::Tensor> &inputs,
+                                                         const std::vector<Type> &out_type,
+                                                         const std::vector<std::vector<int>> &output_shapes,
+                                                         const Target &target) {
+  auto attr_store = attrs.attr_store;
+  CHECK(attr_store.count("axis")) << "find no attr of axis";
+  int axis = absl::get<int>(attr_store.at("axis"));
+  std::string op_name("gather");
+
+  framework::CINNCompute gather_compute([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input arguments of " << op_name << " compute is empty! Please check.\n";
+    CINNValuePack pack_args = args[0];
+    CHECK_GE(pack_args.size(), 2U) << "2 input tensors for " << op_name << " compute\n";
+    Expr A = pack_args[0];
+    Expr B = pack_args[1];
+    CHECK(A.as_tensor());
+    CHECK(B.as_tensor());
+    CHECK(!output_shapes.empty());
+    auto tensor_A = A.as_tensor_ref();
+    auto tensor_B = B.as_tensor_ref();
+    auto stages   = CreateStages({tensor_A, tensor_B});
+    VLOG(3) << "A shape: " << utils::Join(tensor_A->shape, ", ") << ", B shape: " << utils::Join(tensor_B->shape, ", ")
+            << ", output_shapes: " << utils::Join(output_shapes[0], ", ");
+    std::string tensor_name = UniqName("Gather_out");
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK_EQ(pack_args.size(), 3U);
+      tensor_name = pack_args[2].operator std::string();
+    }
+    ir::Tensor out = pe::Gather(tensor_A, tensor_B, axis, tensor_name);
+    std::vector<CINNValue> res;
+    stages->InsertLazily(out);
+    res.push_back(CINNValue(out));
+    CHECK(!out_type.empty()) << "Output type of " << op_name << " is empty! Please check.\n";
+    res.push_back(CINNValue(stages));
+    *ret = CINNValuePack{res};
+  });
+
+  auto strategy = std::make_shared<framework::OpStrategy>();
+  strategy->AddImpl(gather_compute, GetInjectiveScheduleFunc(output_shapes, target), "strategy.gather.x86", 1);
+  return strategy;
+}
+
+std::vector<std::vector<int>> InferShapeForGather(const std::vector<std::vector<int>> &inputs_shape,
+                                                  const framework::AttrMapType &attrs) {
+  CHECK_EQ(inputs_shape.size(), 2U) << "The input's shape size should be 2! Please check again.";
+  CHECK_EQ(inputs_shape[0].size(), inputs_shape[1].size()) << "The inputs' dims should be equal.";
+  std::vector<std::vector<int>> res{inputs_shape[1]};
+  return res;
+}
+
+std::vector<Type> InferDtypeForGather(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
+  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
+  std::vector<Type> res{inputs_type[0]};
+  return res;
+}
+
 }  // namespace op
 }  // namespace hlir
 }  // namespace cinn
@@ -2005,7 +2062,7 @@ CINN_REGISTER_HELPER(transform_ops) {
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForSliceAssign))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForSliceAssign))
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForSliceAssign))
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElementWise)
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kInjective)
       .set_support_level(4);
 
   CINN_REGISTER_OP(index_select)
@@ -2040,6 +2097,16 @@ CINN_REGISTER_HELPER(transform_ops) {
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForScatterAdd))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForScatterAdd))
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForScatterAdd))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kInjective)
+      .set_support_level(4);
+
+  CINN_REGISTER_OP(gather)
+      .describe("Gather.")
+      .set_num_inputs(2)
+      .set_num_outputs(1)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForGather)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForGather))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForGather))
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kInjective)
       .set_support_level(4);
 

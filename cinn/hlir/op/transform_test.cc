@@ -116,6 +116,65 @@ TEST(SliceAssign, SliceAssign_Op) {
   }
 }
 
+/*
+TEST(Gather, Gather_Op) {
+  common::Context::Global().ResetNameId();
+
+  common::Target target = common::DefaultHostTarget();
+
+  ir::Expr n(4);
+  ir::Expr h_in1(28);
+  ir::Expr h_in2(14);
+
+  lang::Placeholder<float> in1("in1", {n, h_in1});
+  lang::Placeholder<int32_t> in2("in2", {n, h_in2});
+  ir::Tensor res = pe::Gather(in1, in2, 1, "test_gather_out");
+
+  poly::StageMap stages = poly::CreateStages({res});
+  std::vector<ir::LoweredFunc> funcs =
+      lang::LowerVec("TestGenerateCodeCpu_Gather", stages, {res}, {}, {}, nullptr, target, true);
+
+  VLOG(6) << "Expr before CPU codegen:";
+  VLOG(6) << funcs[0]->body;
+
+  ir::Module::Builder builder("Gather_Module", target);
+  for (auto& f : funcs) {
+    builder.AddFunction(f);
+  }
+
+  backends::CodeGenCX86 codegen(target, backends::CodeGenCX86::Feature::AVX512);
+  codegen.SetInlineBuiltinCodes(false);
+  std::string code = codegen.Compile(builder.Build(), backends::CodeGenC::OutputKind::CImpl);
+  VLOG(6) << "Cpu Codegen result:";
+  auto target_source = R"ROC(
+#include <cinn_runtime.h>
+#include <stdio.h>
+
+void TestGenerateCodeCpu_Gather(void* _args, int32_t num_args)
+{
+  cinn_buffer_t* _test_gather_out = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
+  cinn_buffer_t* _in1 = cinn_buffer_t::new_((cinn_device_kind_t)(0), cinn_float32_t(), { 4, 28 });
+  cinn_buffer_t* _in2 = cinn_buffer_t::new_((cinn_device_kind_t)(0), cinn_int32_t(), { 4, 14 });
+  cinn_buffer_malloc((void*)(0), _test_gather_out);
+  cinn_buffer_malloc((void*)(0), _in1);
+  cinn_buffer_malloc((void*)(0), _in2);
+  const float* in1 = ((const float*)(_in1->memory));
+  const int32_t* in2 = ((const int32_t*)(_in2->memory));
+  float* test_gather_out = ((float*)(_test_gather_out->memory));
+  for (int32_t i = 0; i < 4; i += 1) {
+    for (int32_t j = 0; j < 14; j += 1) {
+      test_gather_out[((14 * i) + j)] = in1[((28 * i) + in2[((14 * i) + j)])];
+    };
+  };
+  cinn_buffer_free((void*)(0), _in1);
+  cinn_buffer_free((void*)(0), _in2);
+  cinn_buffer_free((void*)(0), _test_gather_out);
+}
+  )ROC";
+  CHECK_EQ(utils::Trim(code), utils::Trim(target_source));
+}
+*/
+
 }  // namespace framework
 }  // namespace hlir
 }  // namespace cinn
