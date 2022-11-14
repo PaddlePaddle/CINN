@@ -83,7 +83,12 @@ TEST(AddCacheWrite, Init) {
   ir::IRSchedule ir_schedule_matmul(ir::ModuleExpr({matmul_expr}));
 
   AddCacheWrite add_cache_write(target);
-  EXPECT_EQ(add_cache_write.Init(&ir_schedule_matmul), RuleApplyType::kApplyAndSkipAllRules);
+  auto apply_type = add_cache_write.Init(&ir_schedule_matmul);
+#ifdef CINN_WITH_CUDA
+  EXPECT_EQ(apply_type, RuleApplyType::kApplyAndSkipAllRules);
+#else
+  EXPECT_EQ(apply_type, RuleApplyType::kApplyAndSkipThisRule);
+#endif
   EXPECT_EQ(add_cache_write.NumberApplicable(), 1);
 
   add_cache_write.ApplyRandomly();
@@ -154,7 +159,12 @@ TEST(AddCacheWrite, MatrixMultiply) {
 
   // Apply AddCacheWrite
   AddCacheWrite add_cache_write(target);
-  EXPECT_EQ(add_cache_write.Init(&ir_schedule), RuleApplyType::kApplyAndSkipAllRules);
+  auto apply_type = add_cache_write.Init(&ir_schedule);
+#ifdef CINN_WITH_CUDA
+  EXPECT_EQ(apply_type, RuleApplyType::kApplyAndSkipAllRules);
+#else
+  EXPECT_EQ(apply_type, RuleApplyType::kApplyAndSkipThisRule);
+#endif
   EXPECT_EQ(add_cache_write.NumberApplicable(), 1);
 
   add_cache_write.ApplyRandomly();
