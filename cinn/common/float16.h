@@ -26,12 +26,12 @@
 
 #ifdef CINN_WITH_CUDA
 #include <cuda.h>
-#endif  // CINN_WITH_CUDA
 
 #if (defined(__CUDACC__) || defined(__CUDACC_RTC__)) && CUDA_VERSION >= 7050
 #define CINN_CUDA_FP16
 #include <cuda_fp16.h>
 #endif
+#endif  // CINN_WITH_CUDA
 
 #ifndef _WIN32
 #define CINN_ALIGN(x) __attribute__((aligned(x)))
@@ -419,7 +419,7 @@ __device__ inline bool operator>=(const half& a, const half& b) {
 #endif  // CINN_CUDA_FP16
 
 // Arithmetic operators for float16 on GPU
-#if defined(CINN_CUDA_FP16)
+#ifdef CINN_CUDA_FP16
 
 __host__ __device__ inline float16 operator+(const float16& a, const float16& b) {
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
@@ -619,6 +619,36 @@ __host__ __device__ inline float16(abs)(const float16& a) {
 
 }  // namespace common
 }  // namespace cinn
+
+#ifdef CINN_CUDA_FP16
+__device__ inline cinn::common::float16 __shfl_sync(unsigned mask,
+                                                    cinn::common::float16 var,
+                                                    int srcLane,
+                                                    int width = warpSize) {
+  return cinn::common::float16(__shfl_sync(mask, var.to_half(), srcLane, width));
+}
+
+__device__ inline cinn::common::float16 __shfl_up_sync(unsigned mask,
+                                                       cinn::common::float16 var,
+                                                       unsigned int delta,
+                                                       int width = warpSize) {
+  return cinn::common::float16(__shfl_up_sync(mask, var.to_half(), delta, width));
+}
+
+__device__ inline cinn::common::float16 __shfl_down_sync(unsigned mask,
+                                                         cinn::common::float16 var,
+                                                         unsigned int delta,
+                                                         int width = warpSize) {
+  return cinn::common::float16(__shfl_down_sync(mask, var.to_half(), delta, width));
+}
+
+__device__ inline cinn::common::float16 __shfl_xor_sync(unsigned mask,
+                                                        cinn::common::float16 var,
+                                                        int laneMask,
+                                                        int width = warpSize) {
+  return cinn::common::float16(__shfl_xor_sync(mask, var.to_half(), laneMask, width));
+}
+#endif
 
 #ifndef __CUDACC_RTC__
 
