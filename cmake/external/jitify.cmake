@@ -24,6 +24,7 @@ ExternalProject_Add(
 
 include_directories(${JITIFY_SOURCE_PATH})
 add_definitions(-DNVRTC_STL_PATH="${JITIFY_STL_HEADERS}")
+message(STATUS "Jitify header files path: ${JITIFY_STL_HEADERS}")
 
 add_library(extern_jitify INTERFACE)
 add_dependencies(extern_jitify external_jitify)

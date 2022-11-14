@@ -95,6 +95,7 @@ std::string Compiler::CompilePTX(const std::string& code, bool include_headers) 
     if (nvrtc_stl_path) {
       include_paths.push_back("--include-path=" + std::string{nvrtc_stl_path});
     }
+    LOG(INFO) << "Add nvrtc_stl_path: " << nvrtc_stl_path;
 
     compile_options.insert(std::end(compile_options), include_paths.begin(), include_paths.end());
   }
