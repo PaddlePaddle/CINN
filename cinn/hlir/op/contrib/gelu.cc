@@ -54,8 +54,9 @@ ir::Tensor Gelu(const ir::Tensor &input, const std::string &output_name) {
       input->shape,
       [=](const std::vector<Expr> &indice) {
         Expr e = input(indice);
-        return e * (make_const(e->type(), 0.5) +
-                    make_const(e->type(), 0.5) * lang::Erf(e * make_const(e->type(), std::sqrt(0.5))));
+        return e *
+               (ir::Cast::Make(e->type(), Expr(0.5)) +
+                ir::Cast::Make(e->type(), Expr(0.5)) * lang::Erf(e * ir::Cast::Make(e->type(), Expr(std::sqrt(0.5)))));
       },
       output_name);
 }

@@ -710,7 +710,7 @@ std::vector<Expr> CasSimplifyMutator::SimplifyBinarySum(Expr left, Expr right) {
       VLOG(7) << "a " << a;
       VLOG(7) << "b " << b;
       Expr s = SimplifySum(Sum::Make({ProductGetConstantPart(a), ProductGetConstantPart(b)}));
-      Expr p = Product::Make({s, ProductGetNonConstantPart(a)});
+      Expr p = Product::Make({ir::Cast::Make(a->type(), s), ProductGetNonConstantPart(a)});
       return {CasSimplify(p, var_intervals)};
     }
 

@@ -27,6 +27,12 @@ namespace lang {
 Expr logic_and(const std::vector<Expr>& conds);
 Expr logic_or(const std::vector<Expr>& conds);
 
+Expr Zero(const Type& type);
+Expr One(const Type& type);
+Expr min_value(const Type& type);
+Expr max_value(const Type& type);
+Expr Epsilon(const Type& type);
+
 //! extern call op
 #define EXTERN_CALL_DCL(name__) Expr name__(Expr e);
 
@@ -66,14 +72,14 @@ EXTERN_BINARY_CALL_DCL(Mod);
 #undef EXTERN_BINARY_CALL_DCL
 
 inline Expr Sigmoid(Expr e) {
-  auto one = common::make_const(e->type(), 1);
+  auto one = One(e->type());
   return one / (one + Exp(-e));
 }
 
 inline Expr Sign(Expr e) {
-  auto zero    = make_const(e->type(), 0);
-  auto one     = make_const(e->type(), 1);
-  auto neg_one = make_const(e->type(), -1);
+  auto zero    = Zero(e->type());
+  auto one     = One(e->type());
+  auto neg_one = ir::Cast::Make(e->type(), Expr(-1));
   auto ret0    = ir::Select::Make(ir::EQ::Make(e, zero), zero, e);
   auto ret1    = ir::Select::Make(e > zero, one, ret0);
   auto ret2    = ir::Select::Make(e < zero, neg_one, ret1);
@@ -92,41 +98,38 @@ inline Expr BitwiseXor(Expr a, Expr b) { return a ^ b; }
 inline Expr LeftShift(Expr a, Expr b) { return a << b; }
 inline Expr RightShift(Expr a, Expr b) { return a >> b; }
 
-inline Expr Relu(Expr e, double threshold = 0.0) { return ir::Max::Make(e, make_const(e->type(), threshold)); }
+inline Expr Relu(Expr e, double threshold = 0.0) {
+  return ir::Max::Make(e, ir::Cast::Make(e->type(), Expr(threshold)));
+}
 
 inline Expr Relu6(Expr e, double threshold = 0.0) {
-  return ir::Min::Make(ir::Max::Make(e, make_const(e->type(), threshold)), make_const(e->type(), 6.0));
+  return ir::Min::Make(ir::Max::Make(e, ir::Cast::Make(e->type(), Expr(threshold))),
+                       ir::Cast::Make(e->type(), Expr(6.0)));
 }
 
 inline Expr LeakyRelu(Expr e, double alpha) {
-  auto zero = make_const(e->type(), 0);
-  return ir::Select::Make(e > zero, e, e * make_const(e->type(), alpha));
+  auto zero = Zero(e->type());
+  return ir::Select::Make(e > zero, e, e * ir::Cast::Make(e->type(), Expr(alpha)));
 }
 
 inline Expr LeakyRelu(Expr e, Expr alpha) {
-  auto zero = make_const(e->type(), 0);
+  auto zero = Zero(e->type());
   return ir::Select::Make(e > zero, e, e * alpha);
 }
 
 inline Expr ReduceSum(Expr e, const std::vector<Var>& reduce_axis, Expr initial = Expr()) {
   if (!initial.defined()) {
-    initial = make_const(e->type(), 0.f);
+    initial = Zero(e->type());
   }
   return ir::Reduce::Make(ir::Reduce::kSum, initial, e, reduce_axis);
 }
 
 inline Expr ReduceMul(Expr e, const std::vector<Var>& reduce_axis, Expr initial = Expr()) {
   if (!initial.defined()) {
-    initial = make_const(e->type(), 1);
+    initial = One(e->type());
   }
   return ir::Reduce::Make(ir::Reduce::kMul, initial, e, reduce_axis);
 }
-
-Expr Zero(const Type& type);
-Expr One(const Type& type);
-Expr min_value(const Type& type);
-Expr max_value(const Type& type);
-Expr Epsilon(const Type& type);
 
 inline Expr ReduceMax(Expr e, const std::vector<Var>& reduce_axis, Expr initial = Expr()) {
   if (!initial.defined()) {
