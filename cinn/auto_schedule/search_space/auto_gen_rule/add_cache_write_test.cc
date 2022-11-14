@@ -23,7 +23,6 @@
 
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
 #include "cinn/auto_schedule/search_space/auto_gen_rule/multi_level_tiling.h"
-#include "cinn/backends/codegen_c.h"
 #include "cinn/backends/codegen_cuda_dev.h"
 #include "cinn/backends/compiler.h"
 #include "cinn/backends/nvrtc_util.h"
@@ -36,8 +35,6 @@
 #include "cinn/ir/ir_schedule.h"
 #include "cinn/ir/module.h"
 #include "cinn/ir/tensor.h"
-#include "cinn/lang/compute.h"
-#include "cinn/lang/lower.h"
 #include "cinn/poly/stage.h"
 #include "cinn/utils/string.h"
 
@@ -63,9 +60,9 @@ TEST(AddCacheWrite, Init) {
   Target target = common::DefaultHostTarget();
 #endif
 
-  Expr M(32);
-  Expr N(32);
-  Expr K(32);
+  ir::Expr M(32);
+  ir::Expr N(32);
+  ir::Expr K(32);
 
   // matmul case
   Placeholder<float> A("A", {M, K});
@@ -124,9 +121,9 @@ TEST(AddCacheWrite, MatrixMultiply) {
   Target target = common::DefaultHostTarget();
 #endif
 
-  Expr M(32);
-  Expr N(32);
-  Expr K(32);
+  ir::Expr M(32);
+  ir::Expr N(32);
+  ir::Expr K(32);
 
   Placeholder<float> A("A", {M, K});
   Placeholder<float> B("B", {K, N});
@@ -166,7 +163,7 @@ TEST(AddCacheWrite, MatrixMultiply) {
   VLOG(6) << "Expr after AddCacheWrite: " << exprs[0];
 
   auto temp_buffers = lang::GetTempBuffers({A, B, C}, stages, exprs[0]);
-  auto func         = ir::_LoweredFunc_::Make(funcs[0]->name, funcs[0]->args, funcs[0]->body, temp_buffers);
+  auto func         = ir::_LoweredFunc_::Make(funcs[0]->name, funcs[0]->args, exprs[0], temp_buffers);
 
   ir::Module::Builder builder("test_bulder", target);
   builder.AddFunction(func);

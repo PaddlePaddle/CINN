@@ -46,7 +46,11 @@ RuleApplyType AddCacheWrite::Init(ir::IRSchedule* ir_schedule) {
   num_applicable_ = 0;
   for (size_t i = 0; i < block_realizes.size(); ++i) {
     ir::ScheduleBlockRealize* sch_block_realize = block_realizes[i].As<ir::ScheduleBlockRealize>();
+    // Prepare the read/write buffer information of the block,
+    // which will be used to analyze which buffers can be cached.
     AnalyzeScheduleBlockReadWriteBuffer(sch_block_realize->schedule_block.As<ir::ScheduleBlock>());
+    // Use function MeetCondition() to filter inapplicable blocks,
+    // only save the applicable blocks, and the index will be used for subsequent access.
     if (MeetCondition(block_realizes[i])) {
       ++num_applicable_;
       applicable_schedule_blocks_.push_back(block_realizes[i]);
@@ -54,6 +58,7 @@ RuleApplyType AddCacheWrite::Init(ir::IRSchedule* ir_schedule) {
   }
   VLOG(6) << "Collect applicable_schedule_blocks_:" << num_applicable_;
 
+  // Select a cache memory type
   cache_memory_type_ = kMemoryTypes.at(target_->arch);
 
   if (num_applicable_ > 0) {
@@ -67,12 +72,12 @@ RuleApplyType AddCacheWrite::Init(ir::IRSchedule* ir_schedule) {
 void AddCacheWrite::Apply(int index) {
   ir::Expr sch_block_expr = applicable_schedule_blocks_[index];
 
-  // Do schedule
+  // Schedule
   ir::Expr cache_block = ir_schedule_->CacheWrite(sch_block_expr, 0, cache_memory_type_);
   VLOG(6) << "cache block: " << cache_block;
 }
 
-// TODO: Merge this function and the same function in MultiLevelTiling rule
+// TODO(BiynXu): Merge this function and the same function in MultiLevelTiling rule
 bool NeedMultiLevelTiling(const ir::ScheduleBlockRealize& sch_block_realize) {
   const ir::ScheduleBlock* sche_block = sch_block_realize.schedule_block.As<ir::ScheduleBlock>();
   const ir::Expr& write_buffer        = sche_block->write_buffers[0].As<ir::_BufferRange_>()->buffer;
@@ -112,13 +117,6 @@ bool NeedMultiLevelTiling(const ir::ScheduleBlockRealize& sch_block_realize) {
   return total_unused_iter_vars >= 1;
 }
 
-bool AddCacheWrite::HasSingleElementwiseMatchedConsumer(const ir::Expr& block_expr) const {
-  ir::Expr root_block_expr        = ir_schedule_->GetRootBlock(block_expr);
-  std::vector<ir::Expr> consumers = ir::GetConsumers(block_expr, root_block_expr);
-  VLOG(6) << "xb_debug consumers.size() = " << consumers.size();
-  return false;
-}
-
 bool AddCacheWrite::MeetCondition(const ir::Expr& block_expr) const {
   const ir::ScheduleBlockRealize* sch_block_realize = block_expr.As<ir::ScheduleBlockRealize>();
   const ir::ScheduleBlock* sch_block                = sch_block_realize->schedule_block.As<ir::ScheduleBlock>();
@@ -128,13 +126,12 @@ bool AddCacheWrite::MeetCondition(const ir::Expr& block_expr) const {
   }
 
   if (!NeedMultiLevelTiling(*sch_block_realize)) return false;
-  if (HasSingleElementwiseMatchedConsumer(block_expr)) return false;
 
   return true;
 }
 
 const std::unordered_map<common::Target::Arch, std::string> AddCacheWrite::kMemoryTypes{
-    {common::Target::Arch::X86, "local"}, {common::Target::Arch::NVGPU, "shared"}};
+    {common::Target::Arch::X86, "local"}, {common::Target::Arch::NVGPU, "local"}};
 
 }  // namespace auto_schedule
 }  // namespace cinn

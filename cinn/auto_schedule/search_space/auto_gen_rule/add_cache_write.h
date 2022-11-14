@@ -38,14 +38,12 @@ class AddCacheWrite : public AutoGenRule {
   // Return the name of the rule, used for debug.
   std::string GetRuleName() const override { return "AddCacheWrite"; }
 
-  // Return whether the block has only one consumer and they are elementwise-matched.
-  bool HasSingleElementwiseMatchedConsumer(const ir::Expr& block_expr) const;
-
+ private:
   // Return true if the schedule block expr is applicable by AddCacheWrite
   bool MeetCondition(const ir::Expr& block_expr) const;
 
  private:
-  std::vector<Expr> applicable_schedule_blocks_;
+  std::vector<ir::Expr> applicable_schedule_blocks_;
   std::string cache_memory_type_;
 
   static const std::unordered_map<common::Target::Arch, std::string> kMemoryTypes;
