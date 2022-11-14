@@ -39,14 +39,16 @@
 #include "cinn/lang/compute.h"
 #include "cinn/lang/lower.h"
 #include "cinn/poly/stage.h"
+#ifdef CINN_WITH_CUDA
 #include "cinn/runtime/cuda/cuda_module.h"
 #include "cinn/runtime/cuda/cuda_util.h"
+#endif
 #include "cinn/utils/string.h"
 
 namespace cinn {
 namespace auto_schedule {
 
-void common_matmul(float* A, float* B, float* C, int M, int N, int K) {
+void naive_matmul(float* A, float* B, float* C, int M, int N, int K) {
   for (int i = 0; i < M; ++i) {
     for (int j = 0; j < N; ++j) {
       for (int k = 0; k < K; ++k) {
@@ -54,17 +56,6 @@ void common_matmul(float* A, float* B, float* C, int M, int N, int K) {
       }
     }
   }
-}
-
-void* CreateDeviceBuffer(const cinn_buffer_t* host_buffer) {
-  CHECK(host_buffer->memory);
-  int num_bytes = host_buffer->num_elements() * sizeof(float);
-  VLOG(6) << "create device buffer, num_bytes = " << num_bytes;
-  CUdeviceptr data;
-  cuMemAlloc(&data, num_bytes);
-
-  CUDA_CALL(cudaMemcpy(reinterpret_cast<void*>(data), host_buffer->memory, num_bytes, cudaMemcpyHostToDevice));
-  return reinterpret_cast<void*>(data);
 }
 
 void check_matmul_result_cpu(int M, int N, int K, void (*func_ptr)(void**, int32_t)) {
@@ -86,7 +77,7 @@ void check_matmul_result_cpu(int M, int N, int K, void (*func_ptr)(void**, int32
   float* data_B     = reinterpret_cast<float*>(B_host->memory);
   float* target_res = (float*)malloc(M * N * sizeof(float));
   memset(target_res, 0, M * N * sizeof(float));
-  common_matmul(data_A, data_B, target_res, M, N, K);
+  naive_matmul(data_A, data_B, target_res, M, N, K);
 
   // check result
   for (int i = 0; i < M; ++i) {
@@ -99,6 +90,18 @@ void check_matmul_result_cpu(int M, int N, int K, void (*func_ptr)(void**, int32
   cinn_buffer_free(nullptr, B_host);
   cinn_buffer_free(nullptr, C_host);
   free(target_res);
+}
+
+#ifdef CINN_WITH_CUDA
+void* CreateDeviceBuffer(const cinn_buffer_t* host_buffer) {
+  CHECK(host_buffer->memory);
+  int num_bytes = host_buffer->num_elements() * sizeof(float);
+  VLOG(6) << "create device buffer, num_bytes = " << num_bytes;
+  CUdeviceptr data;
+  cuMemAlloc(&data, num_bytes);
+
+  CUDA_CALL(cudaMemcpy(reinterpret_cast<void*>(data), host_buffer->memory, num_bytes, cudaMemcpyHostToDevice));
+  return reinterpret_cast<void*>(data);
 }
 
 // TODO: Debug and check result on cuda
@@ -137,7 +140,7 @@ void check_matmul_result_cuda(int M, int N, int K, void (*func_ptr)(void**, int3
   float* data_B     = reinterpret_cast<float*>(B_host->memory);
   float* target_res = (float*)malloc(M * N * sizeof(float));
   memset(target_res, 0, M * N * sizeof(float));
-  common_matmul(data_A, data_B, target_res, M, N, K);
+  naive_matmul(data_A, data_B, target_res, M, N, K);
 
   // check result
   for (int i = 0; i < M; ++i) {
@@ -154,6 +157,7 @@ void check_matmul_result_cuda(int M, int N, int K, void (*func_ptr)(void**, int3
   cuMemFree(reinterpret_cast<CUdeviceptr>(B_dev));
   cuMemFree(reinterpret_cast<CUdeviceptr>(C_dev));
 }
+#endif
 
 TEST(AddCacheRead, Init) {
   srand(0);
