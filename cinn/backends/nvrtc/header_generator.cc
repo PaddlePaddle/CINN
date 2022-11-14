@@ -39,18 +39,24 @@ JitSafeHeaderGenerator::JitSafeHeaderGenerator(std::vector<std::string> header_n
 
 void JitSafeHeaderGenerator::GenerateFiles(const std::string& dir) const {
   std::ofstream os;
+  std::ifstream is;
   // TODO(Shixiaowei02): parallel execution
   for (const auto& name : header_names_) {
+    is.clear();
+    os.clear();
     std::string full_path = dir + "/" + name;
-    os.open(full_path, std::ios_base::in);
-    if (os.good()) {
-      os.close();
+    is.open(full_path);
+    if (is.good()) {
+      is.close();
       continue;
     }
-    os.close();
+    is.close();
     os.open(full_path, std::ios_base::out);
     os << headers_map_.at(name);
     os.close();
+    if (!os) {
+      LOG(FATAL) << "file writing failed: " << full_path;
+    }
   }
 }
 
