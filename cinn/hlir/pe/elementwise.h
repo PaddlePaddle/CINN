@@ -102,16 +102,18 @@ ir::Tensor AssignValue(const std::vector<T>& values,
 
 ir::Tensor Squeeze(const ir::Tensor& A,
                    const std::vector<int>& axes   = {},
-                   const std::string& output_name = UniqName("T_Transform_Squeeze_out"));
+                   const std::string& output_name = UniqName("T_Elementwise_Squeeze_out"));
 
 ir::Tensor ExpandDims(const ir::Tensor& input,
                       int axis,
                       int num_newaxis                = 1,
-                      const std::string& output_name = UniqName("T_Transform_ExpandDims_out"));
+                      const std::string& output_name = UniqName("T_Elementwise_ExpandDims_out"));
 
 ir::Tensor Reshape(const ir::Tensor& A,
                    const std::vector<int>& new_shape,
-                   const std::string& name = UniqName("T_Transform_Matmul_out"));
+                   const std::string& name = UniqName("T_Elementwise_Reshape_out"));
+
+ir::Tensor Cast(const ir::Tensor& A, const Type& dtype, const std::string& name = UniqName("T_Elementwise_Cast_out"));
 
 }  // namespace pe
 }  // namespace hlir

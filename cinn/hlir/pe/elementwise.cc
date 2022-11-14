@@ -207,6 +207,12 @@ ir::Tensor Reshape(const ir::Tensor& A, const std::vector<int>& new_shape, const
   return res;
 }
 
+ir::Tensor Cast(const ir::Tensor& A, const Type& dtype, const std::string& name) {
+  auto res = Compute(
+      A->shape, [=](const std::vector<Expr>& indices) { return ir::Cast::Make(dtype, A(indices)); }, name);
+  return res;
+}
+
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn
