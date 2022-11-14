@@ -51,25 +51,17 @@ void AnalyzeScheduleBlockReadWriteBuffer(ir::ScheduleBlock* sche_block) {
     return;
   }
 
-  std::set<ir::BufferRange> visited_read_buffers;
-  std::set<ir::BufferRange> visited_write_buffers;
   ir::CollectIRNodesWithoutTensor(sche_block->body, [&](const Expr* x) {
     const ir::Load* load_expr = x->As<ir::Load>();
     if (load_expr != nullptr) {
       const ir::Tensor t = load_expr->tensor.as_tensor_ref();
-      ir::BufferRange read_buffer(t->buffer, IndicesToVars(load_expr->indices));
-      if (!visited_read_buffers.count(read_buffer)) {
-        sche_block->read_buffers.emplace_back(read_buffer);
-      }
+      sche_block->read_buffers.emplace_back(ir::BufferRange(t->buffer, IndicesToVars(load_expr->indices)));
       return false;
     }
     const ir::Store* store_expr = x->As<ir::Store>();
     if (store_expr != nullptr) {
       const ir::Tensor t = store_expr->tensor.as_tensor_ref();
-      ir::BufferRange write_buffer(t->buffer, IndicesToVars(store_expr->indices));
-      if (!visited_write_buffers.count(write_buffer)) {
-        sche_block->write_buffers.emplace_back(write_buffer);
-      }
+      sche_block->write_buffers.emplace_back(ir::BufferRange(t->buffer, IndicesToVars(store_expr->indices)));
       return false;
     }
     return false;
