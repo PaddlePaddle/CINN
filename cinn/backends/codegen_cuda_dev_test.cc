@@ -2574,7 +2574,7 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
 
   backends::nvrtc::Compiler wino_compiler;
 
-  std::string code = codegen.GetSourceHeader() + R"ROC(
+  std::string target_code = wino_codegen.GetSourceHeader() + R"ROC(
 extern "C" {
 
 __global__

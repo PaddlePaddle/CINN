@@ -4,7 +4,6 @@ gather_srcs(cinnapi_src SRCS
     outputs.cc
     codegen_c.cc
     codegen_c_x86.cc
-    codegen_cuda_dev.cc
     codegen_cuda_host.cc
     extern_func_emitter.cc
     extern_func_emitter_builtin.cc
@@ -17,7 +16,7 @@ gather_srcs(cinnapi_src SRCS
 
 if (WITH_CUDA)
   add_subdirectory(nvrtc)
-  list(APPEND srcs cuda_util.cc codegen_cuda_util.cc)
+  list(APPEND srcs cuda_util.cc codegen_cuda_dev.cc codegen_cuda_util.cc)
 endif()
 
 cc_library(__x86_source_fake_lib SRCS _x86_builtin_source.cc)

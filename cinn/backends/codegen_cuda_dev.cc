@@ -30,12 +30,8 @@ namespace cinn {
 namespace backends {
 
 const std::string CodeGenCUDA_Dev::source_header_ =
-    R"(#include "cinn_cuda_runtime_source.cuh"
-#ifdef __CUDACC_RTC__
-typedef int int32_t;
-typedef char int8_t;
-typedef long int int64_t;
-#endif
+    R"(#include <cstdint>
+#include "cinn_cuda_runtime_source.cuh"
 )";
 
 const std::string &CodeGenCUDA_Dev::GetSourceHeader() const { return source_header_; }
@@ -239,7 +235,7 @@ std::string CodeGenCUDA_Dev::Compile(const ir::Module &module, CodeGenC::OutputK
 }
 
 void CodeGenCUDA_Dev::PrintIncludes() {
-  // TODO(Shixiaowei02): use jitify for standard header files.
+  // TODO(Shixiaowei02): call the function once.
   generator_->GenerateFiles();
   os() << GetSourceHeader();
 }
