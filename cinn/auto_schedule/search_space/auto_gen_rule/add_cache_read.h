@@ -38,15 +38,16 @@ class AddCacheRead : public AutoGenRule {
   // Returns the name of the rule, used for debug.
   std::string GetRuleName() const override { return "AddCacheRead"; }
 
+ private:
   // Returns true if the schedule block expr is applicable by AddCacheRead
   bool MeetCondition(const ir::Expr& block_expr) const;
+
+  // Get the out most reduce loop to set cache block in.
+  ir::Expr GetTargetLoop(const ir::Expr& block_expr) const;
 
  private:
   std::vector<ir::Expr> applicable_schedule_blocks_;
   std::string cache_memory_type_;
-
-  // Get the out most reduce loop to set cache block in.
-  ir::Expr GetTargetLoop(const ir::Expr& block_expr) const;
 
   static const std::unordered_map<common::Target::Arch, std::string> kMemoryTypes;
 };

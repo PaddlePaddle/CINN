@@ -164,9 +164,9 @@ TEST(AddCacheRead, Init) {
   Target target      = common::DefaultHostTarget();
 #endif
 
-  Expr M(32);
-  Expr N(32);
-  Expr K(32);
+  ir::Expr M(32);
+  ir::Expr N(32);
+  ir::Expr K(32);
 
   // matmul case
   Placeholder<float> A("A", {M, K});
@@ -225,9 +225,9 @@ TEST(AddCacheRead, MatrixMultiply) {
   Target target      = common::DefaultHostTarget();
 #endif
 
-  Expr M(32);
-  Expr N(32);
-  Expr K(32);
+  ir::Expr M(32);
+  ir::Expr N(32);
+  ir::Expr K(32);
 
   Placeholder<float> A("A", {M, K});
   Placeholder<float> B("B", {K, N});
