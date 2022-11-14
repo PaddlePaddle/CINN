@@ -407,7 +407,7 @@ DEVICE inline bool operator>=(const half& a, const half& b) {
 #endif  // CINN_CUDA_FP16
 
 // Arithmetic operators for float16 on GPU
-#if defined(CINN_CUDA_FP16)
+#ifdef CINN_CUDA_FP16
 
 HOSTDEVICE inline float16 operator+(const float16& a, const float16& b) {
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
@@ -614,28 +614,31 @@ inline std::ostream& operator<<(std::ostream& os, const float16& a) {
 }  // namespace cinn
 
 #ifdef CINN_CUDA_FP16
-inline cinn::common::float16 __shfl_sync(unsigned mask, cinn::common::float16 var, int srcLane, int width = warpSize) {
+DEVICE inline cinn::common::float16 __shfl_sync(unsigned mask,
+                                                cinn::common::float16 var,
+                                                int srcLane,
+                                                int width = warpSize) {
   return cinn::common::float16(__shfl_sync(mask, var.to_half(), srcLane, width));
 }
 
-inline cinn::common::float16 __shfl_up_sync(unsigned mask,
-                                            cinn::common::float16 var,
-                                            unsigned int delta,
-                                            int width = warpSize) {
+DEVICE inline cinn::common::float16 __shfl_up_sync(unsigned mask,
+                                                   cinn::common::float16 var,
+                                                   unsigned int delta,
+                                                   int width = warpSize) {
   return cinn::common::float16(__shfl_up_sync(mask, var.to_half(), delta, width));
 }
 
-inline cinn::common::float16 __shfl_down_sync(unsigned mask,
-                                              cinn::common::float16 var,
-                                              unsigned int delta,
-                                              int width = warpSize) {
+DEVICE inline cinn::common::float16 __shfl_down_sync(unsigned mask,
+                                                     cinn::common::float16 var,
+                                                     unsigned int delta,
+                                                     int width = warpSize) {
   return cinn::common::float16(__shfl_down_sync(mask, var.to_half(), delta, width));
 }
 
-inline cinn::common::float16 __shfl_xor_sync(unsigned mask,
-                                             cinn::common::float16 var,
-                                             int laneMask,
-                                             int width = warpSize) {
+DEVICE inline cinn::common::float16 __shfl_xor_sync(unsigned mask,
+                                                    cinn::common::float16 var,
+                                                    int laneMask,
+                                                    int width = warpSize) {
   return cinn::common::float16(__shfl_xor_sync(mask, var.to_half(), laneMask, width));
 }
 #endif
