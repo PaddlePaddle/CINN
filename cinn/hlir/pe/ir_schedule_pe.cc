@@ -732,6 +732,7 @@ void IRCudaScheduleConv(ir::IRSchedule &ir_sch, const common::Target &target) {
     CHECK_GE(loops.size(), 5U);
     ir_sch.ComputeAt(temp_out, loops[4]);
   }
+  VLOG(3) << "After ComputeAt with expr: " << ir_sch.GetModule().GetExprs().at(0);
   {
     // Do Split
     loops = ir_sch.GetLoops(temp_output_name);
@@ -749,6 +750,11 @@ void IRCudaScheduleConv(ir::IRSchedule &ir_sch, const common::Target &target) {
   {
     // Do Split
     loops = ir_sch.GetLoops(reduce_init_name);
+    // When loops size is still < 4, add unit loops at the end till loops size == 4.
+    while (loops.size() < 4U) {
+      ir_sch.Split(loops.back(), {-1, 1});
+      loops = ir_sch.GetLoops(reduce_init_name);
+    }
     CHECK_EQ(loops.size(), 4U);
     ir_sch.Split(loops[1], {-1, thread_z, f_inner});
   }

@@ -903,15 +903,17 @@ void ScheduleImpl::Replace(const Expr& src_sref, const Expr& tgt_stmt) {
 }
 
 void ScheduleImpl::Reorder(const std::vector<Expr>& loops) {
-  if (loops.size() <= 1) return;
+  if (loops.size() <= 1) {
+    return;
+  }
+
   std::set<Expr, CompExpr> loop_set = CollectLoopsToSet(loops);
   auto boundary                     = GetBoundaryOfReorderRange(loop_set);
   Expr top                          = boundary.first;
   Expr bottom                       = boundary.second;
   std::vector<Expr> chain           = GetLoopsInRange(top, bottom);
   std::vector<Expr> if_nodes        = GetIfThenElseInRange(top, bottom);
-
-  Expr new_loop = ConstructNewLoopChain(chain, loops, loop_set, if_nodes);
+  Expr new_loop                     = ConstructNewLoopChain(chain, loops, loop_set, if_nodes);
   this->Replace(top, new_loop);
 }
 
