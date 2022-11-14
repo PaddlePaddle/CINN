@@ -709,8 +709,8 @@ struct ForBase {
   inline bool is_binded() const {
     return tell_for_type_flag(ForType::GPUBlock) || tell_for_type_flag(ForType::GPUThread);
   }
-  inline bool is_GPUBlockBinded() const { return tell_for_type_flag(ForType::GPUBlock); }
-  inline bool is_GPUThreadBinded() const { return tell_for_type_flag(ForType::GPUThread); }
+  inline bool is_gpu_block_binded() const { return tell_for_type_flag(ForType::GPUBlock); }
+  inline bool is_gpu_thread_binded() const { return tell_for_type_flag(ForType::GPUThread); }
 
  private:
   inline void set_for_type_flag(ForType type) { *reinterpret_cast<int*>(&for_type_) |= static_cast<int>(type); }
