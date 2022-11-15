@@ -43,6 +43,17 @@ using ir::Min;
 using ir::Select;
 using ir::Tensor;
 
+std::string Type2StrForNN(common::Type type) {
+  std::string suffix;
+  if (type.is_float(32)) {
+    return "fp32";
+  } else if (type.is_float(16)) {
+    return "fp16";
+  }
+  LOG(FATAL) << "NN Not Support " << type;
+  return "";
+}
+
 ir::Tensor Relu(const ir::Tensor &A, double threshold, const std::string &output_name) {
   return lang::Compute(
       A->shape, [=](const std::vector<Expr> &indice) { return lang::Relu(A(indice), threshold); }, output_name);
@@ -1128,7 +1139,7 @@ std::vector<Tensor> GlobalPool2d(const Tensor &tensor, const std::string &pool_t
         {tensor->shape[0], tensor->shape[1], Expr(32)},
         [=](Expr n, Expr c, Expr k) -> Expr {
           Expr offset = common::IndiceToAbsOffset(tensor->shape, {n, c, Expr(0), Expr(0)});
-          return lang::CallExtern("cinn_warp_reduce_max", {tensor, offset, extend});
+          return lang::CallExtern("cinn_warp_reduce_max_" + Type2StrForNN(tensor->type()), {tensor, offset, extend});
         },
         UniqName(output_name + "_temp"));
     temp->WithBuffer(tensor->type());
@@ -1144,7 +1155,7 @@ std::vector<Tensor> GlobalPool2d(const Tensor &tensor, const std::string &pool_t
         {tensor->shape[0], tensor->shape[1], Expr(32)},
         [=](Expr n, Expr c, Expr k) -> Expr {
           Expr offset = common::IndiceToAbsOffset(tensor->shape, {n, c, Expr(0), Expr(0)});
-          return lang::CallExtern("cinn_warp_reduce_avg", {tensor, offset, extend});
+          return lang::CallExtern("cinn_warp_reduce_avg_" + Type2StrForNN(tensor->type()), {tensor, offset, extend});
         },
         UniqName(output_name + "_temp"));
     temp->WithBuffer(tensor->type());

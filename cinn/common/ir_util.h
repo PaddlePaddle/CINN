@@ -58,11 +58,11 @@ inline Expr make_const(bool x) { return Expr(static_cast<bool>(x)); }
 // @{
 template <typename T = int32_t>
 inline Expr make_zero() {
-  return ir::Cast::Make(common::type_of<T>(), Expr(0));
+  return make_const(static_cast<T>(0));
 }
 template <typename T = int32_t>
 inline Expr make_one() {
-  return ir::Cast::Make(common::type_of<T>(), Expr(1));
+  return make_const(static_cast<T>(1));
 }
 inline Expr make_bool(bool x) { return common::make_shared<ir::UIntImm>(Bool(), x); }
 inline Expr make_bool(bool x, int lanes) { return common::make_shared<ir::UIntImm>(Bool(lanes), x); }

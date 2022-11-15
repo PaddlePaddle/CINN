@@ -29,6 +29,7 @@
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_visitor.h"
 #include "cinn/ir/tensor.h"
+#include "cinn/optim/cast_simplify.h"
 #include "cinn/utils/string.h"
 
 namespace cinn {
@@ -246,6 +247,7 @@ struct ReplaceFracWithDivMutator : public ir::IRMutator<> {
 
 void Simplify(Expr* expr) {
   VLOG(3) << "Begin Simplify " << *expr;
+  optim::CastSimplify(expr);
   SimplifyRampMutator()(expr);
   SimplifyLoadMutator()(expr);
   SimplifyStoreMutator()(expr);

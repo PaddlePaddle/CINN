@@ -90,8 +90,8 @@ EXTERN_BINARY_CALL_IMP(Remainder, remainder)
 
 #undef EXTERN_BINARY_CALL_IMP
 
-Expr Zero(const Type& type) { return ir::Cast::Make(type, Expr(0)); }
-Expr One(const Type& type) { return ir::Cast::Make(type, Expr(1)); }
+Expr Zero(const Type& type) { return make_const(type, 0); }
+Expr One(const Type& type) { return make_const(type, 1); }
 
 Expr FloorDivide(Expr a, Expr b) {
   CHECK_EQ(a.type(), b.type()) << "FloorDivide's inputs type not equal, where a:" << a.type() << " but b:" << b.type();
@@ -174,13 +174,13 @@ Expr Abs(Expr e) {
   } else if (type.is_int()) {
     auto node = e.As<ir::IntImm>();
     if (node) {
-      return ir::Cast::Make(type, Expr(std::abs(node->value)));
+      return make_const(type, std::abs(node->value));
     }
     return ir::Select::Make(e > Zero(e->type()), e, -e);
   } else if (type.is_float()) {
     auto node = e.As<ir::FloatImm>();
     if (node) {
-      return ir::Cast::Make(type, Expr(std::abs(node->value)));
+      return make_const(type, std::abs(node->value));
     }
     std::string suffix;
     if (type.is_float(32)) {
@@ -223,11 +223,11 @@ Expr Infinity(const Type& type) {
   CHECK_EQ(type.lanes(), 1U);
   if (type.is_float()) {
     if (type.bits() == 64) {
-      return ir::Cast::Make(type, Expr(std::numeric_limits<double>::infinity()));
+      return make_const(type, std::numeric_limits<double>::infinity());
     } else if (type.bits() == 32) {
-      return ir::Cast::Make(type, Expr(std::numeric_limits<float>::infinity()));
+      return make_const(type, std::numeric_limits<float>::infinity());
     } else if (type.bits() == 16) {
-      return ir::Cast::Make(type, Expr(std::numeric_limits<float16>::infinity()));
+      return make_const(type, std::numeric_limits<float16>::infinity());
     }
   }
   LOG(FATAL) << "Cannot decide infinity for type " << type;

@@ -56,7 +56,7 @@ CINN_REGISTER_HELPER(cuda_intrinsics_reduce) {
 
 #undef REGISTER_WARP_REDUCE_FUNC_IMPL
 
-  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_warp_reduce_avg, target)
+  REGISTER_FACKED_EXTERN_FUNC_HELPER(cinn_warp_reduce_avg_fp32, target)
       .SetRetType<float>()
       .AddInputType<cinn_buffer_t *>()
       .AddInputType<int>()
