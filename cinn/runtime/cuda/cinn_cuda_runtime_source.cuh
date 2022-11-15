@@ -91,11 +91,11 @@ __device__ inline float16 FN_FP16(log10)(float16 x) { return float16(hlog10(x.to
 __device__ inline float16 FN_FP16(sqrt)(float16 x) { return float16(hsqrt(x.to_half())); }
 __device__ inline float16 FN_FP16(rsqrt)(float16 x) { return float16(hrsqrt(x.to_half())); }
 
-__device__ inline float16 FN_FP16(abs)(float16 x) { return abs(x); }
+__device__ inline float16 FN_FP16(abs)(float16 x) { return cinn::common::abs(x); }
 
-__device__ inline bool FN_FP16(isnan)(float16 x) { return isnan(x); }
-__device__ inline bool FN_FP16(isinf)(float16 x) { return isinf(x); }
-__device__ inline bool FN_FP16(isfinite)(float16 x) { return isfinite(x); }
+__device__ inline bool FN_FP16(isnan)(float16 x) { return cinn::common::isnan(x); }
+__device__ inline bool FN_FP16(isinf)(float16 x) { return cinn::common::isinf(x); }
+__device__ inline bool FN_FP16(isfinite)(float16 x) { return cinn::common::isfinite(x); }
 
 __device__ inline float16 FN_FP16(erf)(float16 x) { return float16(FN_FP32(erf)(static_cast<float>(x))); }
 
@@ -118,12 +118,12 @@ __device__ inline float16 FN_FP16(pow)(float16 a, float16 b) { return float16(FN
 
 
 // *************************************************************** //
-// reduce operator
+// reduce operator, need `--expt-relaxed-constexpr` option to call std function in device kernel
 #define EXPAND_REDUCE_FP32_MACRO(MACRO, ...) \
   MACRO(sum_fp32, 0.0f, float, ##__VA_ARGS__) \
   MACRO(prod_fp32, 1.0f, float, ##__VA_ARGS__) \
-  MACRO(max_fp32, 3.402823e+38f, float, ##__VA_ARGS__) \
-  MACRO(min_fp32, -3.402823e+38f, float, ##__VA_ARGS__) \
+  MACRO(max_fp32, std::numeric_limits<float>::lowest(), float, ##__VA_ARGS__) \
+  MACRO(min_fp32, std::numeric_limits<float>::max(), float, ##__VA_ARGS__) \
 
 __device__ inline float cinn_sum_fp32(const float left, const float right) { return left + right; }
 __device__ inline float cinn_prod_fp32(const float left, const float right) { return left * right; }
@@ -136,8 +136,8 @@ __device__ inline float cinn_min_fp32(const float left, const float right) { ret
 #define EXPAND_REDUCE_FP16_MACRO(MACRO, ...) \
   MACRO(sum_fp16, float16(0.0), float16, ##__VA_ARGS__) \
   MACRO(prod_fp16, float16(1.0), float16, ##__VA_ARGS__) \
-  MACRO(max_fp16, float16(-65504.0), float16, ##__VA_ARGS__) \
-  MACRO(min_fp16, float16(65504.0), float16, ##__VA_ARGS__)
+  MACRO(max_fp16, std::numeric_limits<float16>::lowest(), float16, ##__VA_ARGS__) \
+  MACRO(min_fp16, std::numeric_limits<float16>::max(), float16, ##__VA_ARGS__)
 
 __device__ inline float16 cinn_sum_fp16(const float16 left, const float16 right) { return left + right; }
 __device__ inline float16 cinn_prod_fp16(const float16 left, const float16 right) { return left * right; }
@@ -394,6 +394,8 @@ __device__ inline float cinn_cuda_index_add(const float x,
 }
 
 
+// *************************************************************** //
+// end of macro undef
 #undef FN_FP32
 #undef FN_FP64
 #undef FN_INT32

@@ -87,6 +87,8 @@ std::string NVRTC_Compiler::CompilePTX(const std::string& code, bool include_hea
 
     compile_options.insert(std::end(compile_options), include_paths.begin(), include_paths.end());
   }
+  // allow invoke std host constexpr function in device kernel
+  compile_options.push_back("--expt-relaxed-constexpr");
 
   for (const auto& option : compile_options) {
     param_cstrings.push_back(option.c_str());
