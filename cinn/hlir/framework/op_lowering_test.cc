@@ -21,7 +21,7 @@
 #include "cinn/backends/codegen_cuda_util.h"
 #include "cinn/backends/cuda_util.h"
 #include "cinn/backends/llvm/execution_engine.h"
-#include "cinn/backends/nvrtc_util.h"
+#include "cinn/backends/nvrtc/nvrtc_util.h"
 #include "cinn/common/target.h"
 #include "cinn/frontend/decomposer/test_helper.h"
 

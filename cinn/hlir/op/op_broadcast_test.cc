@@ -171,18 +171,8 @@ TEST(Operator, Operator_ElementWise_Add_Test1) {
   auto source_code = codegen.Compile(module);
   LOG(INFO) << "Operator_ElementWise_Add_Test1 source code:\n" << source_code;
 
-  std::string target_code = R"ROC(
+  std::string target_code = codegen.GetSourceHeader() + R"(
 extern "C" {
-
-#include "cinn_cuda_runtime_source.cuh"
-
-#ifdef __CUDACC_RTC__
-typedef int int32_t;
-typedef char int8_t;
-typedef long int int64_t;
-#endif
-
-
 
 __global__
 void __launch_bounds__(1024) fn_add2(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
@@ -197,7 +187,7 @@ void __launch_bounds__(1024) fn_add2(const float* __restrict__ A, const float* _
 }
 
 }
-)ROC";
+)";
   if (FLAGS_cinn_ir_schedule) {
     ASSERT_EQ(utils::Trim(target_code), source_code);
   }
