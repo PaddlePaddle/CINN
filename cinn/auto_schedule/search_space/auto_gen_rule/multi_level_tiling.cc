@@ -154,7 +154,9 @@ void MultiLevelTiling::Apply(int index) {
       tiles[idx->at(j)].push_back(splited[j]);
     }
   }
-  VLOG(5) << "Finish Split in MultiLevelTiling, before Reorder.";
+  VLOG(5) << "Finish Split in MultiLevelTiling, before Reorder";
+
+  VLOG(5) << "Now Expr = " << ir_schedule_->GetModule().GetExprs()[0];
 
   // Have to GetLoops again because Split can change Block Expr(s)
   for_exprs = ir_schedule_->GetLoops(sche_block->name);
@@ -176,7 +178,7 @@ void MultiLevelTiling::Apply(int index) {
   }
 
   ir_schedule_->Reorder(splited_loops);
-  VLOG(5) << "Finish Reorder in MultiLevelTiling";
+  VLOG(5) << "Finish Reorder in MultiLevelTiling, now Expr = " << ir_schedule_->GetModule().GetExprs()[0];
 
   int num_binds = std::min(bind_axis_.size(), tiles.size());
   for (int i = 0; i < num_binds; ++i) {
@@ -186,16 +188,28 @@ void MultiLevelTiling::Apply(int index) {
       loop_var_name_to_idx[for_exprs[j].As<ir::For>()->loop_var->name] = j;
     }
     CHECK(loop_var_name_to_idx.size() == for_exprs.size()) << "Loops contain duplicate loop var names before Fusion";
+
+    int extent_prod                    = 1;
+    int first_idx_less_than_max_factor = -1;
     for (int j = 0; j < tiles[i].size(); ++j) {
       const ir::For* tile_loop = tiles[i][j].As<ir::For>();
       CHECK(tile_loop) << "tiles store non For Expr";
       int idx     = loop_var_name_to_idx[tile_loop->loop_var->name];
       tiles[i][j] = for_exprs[idx];
+      int extent  = tile_loop->extent.as_int32();  // maybe int64?
+      extent_prod *= extent;
+      if (first_idx_less_than_max_factor == -1 && extent <= max_factor_) {
+        first_idx_less_than_max_factor = idx;
+      }
     }
 
-    Expr fused = ir_schedule_->Fuse(tiles[i]);
-    ir_schedule_->Bind(fused, bind_axis_[i]);
-    tiles[i] = {fused};
+    if (extent_prod <= max_factor_) {
+      Expr fused = ir_schedule_->Fuse(tiles[i]);
+      ir_schedule_->Bind(fused, bind_axis_[i]);
+      tiles[i] = {fused};
+    } else if (first_idx_less_than_max_factor != -1) {
+      ir_schedule_->Bind(for_exprs[first_idx_less_than_max_factor], bind_axis_[i]);
+    }
   }
 
   VLOG(4) << "Returning the result of MultiLevelTiling";

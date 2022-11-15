@@ -106,7 +106,8 @@ class MultiLevelTiling : public AutoGenRule {
 
   std::vector<std::string> bind_axis_;
 
-  int max_factor = 64;
+  // A factor to limit the split factor within max thread number per block
+  int max_factor_ = 1024;
 };
 
 }  // namespace auto_schedule
