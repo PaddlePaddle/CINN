@@ -23,7 +23,7 @@
 #include "cinn/backends/codegen_cuda_util.h"
 #include "cinn/backends/llvm/codegen_x86.h"
 #include "cinn/backends/llvm/runtime_symbol_registry.h"
-#include "cinn/backends/nvrtc_util.h"
+#include "cinn/backends/nvrtc/nvrtc_util.h"
 #include "cinn/common/context.h"
 #include "cinn/hlir/pass/op_fusion_pass.h"
 #include "cinn/ir/module.h"
@@ -175,7 +175,7 @@ void ParallelCompiler::Task::CodegenAndJit() {
     }
 
     using runtime::cuda::CUDAModule;
-    backends::NVRTC_Compiler compiler;
+    backends::nvrtc::Compiler compiler;
     auto ptx = compiler(cuda_c);
     CHECK(!ptx.empty());
 

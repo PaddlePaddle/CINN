@@ -29,7 +29,16 @@
 namespace cinn {
 namespace backends {
 
-CodeGenCUDA_Dev::CodeGenCUDA_Dev(Target target) : CodeGenC(target) {}
+const std::string CodeGenCUDA_Dev::source_header_ =
+    R"(#include <cstdint>
+#include "cinn_cuda_runtime_source.cuh"
+)";
+
+const std::string &CodeGenCUDA_Dev::GetSourceHeader() const { return source_header_; }
+
+CodeGenCUDA_Dev::CodeGenCUDA_Dev(Target target) : CodeGenC(target) {
+  generator_ = std::make_unique<backends::nvrtc::JitSafeHeaderGenerator>();
+}
 
 std::string CodeGenCUDA_Dev::Compile(const ir::Module &module, bool for_nvrtc) {
   for_nvrtc_  = for_nvrtc;
@@ -197,22 +206,17 @@ void CodeGenCUDA_Dev::PrintFuncArg(const ir::Argument &arg) {
   }
 }
 
-void CodeGenCUDA_Dev::PrintBuiltinCodes() {
-  os() << R"ROC(
-)ROC";
-}
+void CodeGenCUDA_Dev::PrintBuiltinCodes() {}
 
 std::string CodeGenCUDA_Dev::Compile(const ir::Module &module, CodeGenC::OutputKind output_kind) {
-  ss_.str("");
-
-  if (for_nvrtc_) {
-    os() << "extern \"C\" {\n\n";
-  }
-
   if (output_kind == OutputKind::CHeader) {
     GenerateHeaderFile(module);
   } else if (output_kind == OutputKind::CImpl) {
     PrintIncludes();
+
+    if (for_nvrtc_) {
+      os() << "\nextern \"C\" {\n\n";
+    }
 
     PrintBuiltinCodes();
 
@@ -231,14 +235,9 @@ std::string CodeGenCUDA_Dev::Compile(const ir::Module &module, CodeGenC::OutputK
 }
 
 void CodeGenCUDA_Dev::PrintIncludes() {
-  os() << "#include \"cinn_cuda_runtime_source.cuh\"\n\n";
-  os() << "#ifdef __CUDACC_RTC__\n";
-  os() << "typedef int int32_t;\n";
-  os() << "typedef char int8_t;\n";
-  os() << "typedef long int int64_t;\n";
-  os() << "#endif\n";
-  os() << "\n";
-  os() << "\n";
+  // TODO(Shixiaowei02): call the function once.
+  generator_->GenerateFiles();
+  os() << GetSourceHeader();
 }
 
 void CodeGenCUDA_Dev::PrintTempBufferCreation(const ir::Buffer &buffer) {

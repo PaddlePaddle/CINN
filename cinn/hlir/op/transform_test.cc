@@ -26,7 +26,7 @@
 #include "cinn/backends/llvm/execution_engine.h"
 #include "cinn/backends/llvm/runtime_symbol_registry.h"
 #include "cinn/backends/llvm/simple_jit.h"
-#include "cinn/backends/nvrtc_util.h"
+#include "cinn/backends/nvrtc/nvrtc_util.h"
 #include "cinn/cinn.h"
 #include "cinn/common/target.h"
 #include "cinn/common/test_helper.h"

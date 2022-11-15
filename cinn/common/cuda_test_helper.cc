@@ -17,7 +17,7 @@
 #include "cinn/backends/codegen_cuda_dev.h"
 #include "cinn/backends/codegen_cuda_host.h"
 #include "cinn/backends/codegen_cuda_util.h"
-#include "cinn/backends/nvrtc_util.h"
+#include "cinn/backends/nvrtc/nvrtc_util.h"
 #include "cinn/runtime/cuda/cuda_module.h"
 #include "cinn/runtime/cuda/cuda_util.h"
 
@@ -36,7 +36,7 @@ void CudaModuleTester::Compile(const ir::Module& m, const std::string& rewrite_c
   auto source_code = codegen.Compile(device_module);
 
   // compile CUDA kernel.
-  backends::NVRTC_Compiler compiler;
+  backends::nvrtc::Compiler compiler;
 
   std::string ptx;
   if (rewrite_cuda_code.empty())
