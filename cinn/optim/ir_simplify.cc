@@ -193,8 +193,9 @@ struct SimplifyRampMutator : public ir::IRMutator<Expr*> {
   void Visit(const Ramp* op, Expr* expr) override {
     auto* node = expr->As<ir::Ramp>();
 
-    CHECK(common::IsPureMath(node->base));
-    CHECK(common::IsPureMath(node->stride));
+    CHECK(common::IsPureMath(node->base)) << node->base << "is not a pure math!";
+    CHECK(common::IsPureMath(node->stride)) << node->stride << "is not a pure math!";
+    ;
     Simplify(&node->base);
     Simplify(&node->stride);
   }

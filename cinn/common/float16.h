@@ -19,6 +19,7 @@
 #include <immintrin.h>
 #endif
 
+#include <climits>
 #include <cmath>
 #include <cstdint>
 #include <iostream>

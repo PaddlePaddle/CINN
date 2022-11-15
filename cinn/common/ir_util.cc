@@ -21,6 +21,7 @@
 #include "cinn/ir/ir_mutator.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"
+#include "cinn/optim/cast_simplify.h"
 
 namespace cinn {
 namespace common {
@@ -141,6 +142,7 @@ Expr IndiceToAbsOffset(const std::vector<Expr> &shape, const std::vector<Expr> &
   for (int i = 0; i < shape.size(); i++) {
     CHECK_EQ(shape[i].type(), Int(32));
     Expr indice_prod = indices[i];
+    optim::CastSimplify(&indice_prod);
     for (int j = i + 1; j < shape.size(); j++) {
       indice_prod = RampRelatedMul(indice_prod, shape[j]);
     }

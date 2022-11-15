@@ -31,6 +31,8 @@ namespace backends {
 
 const std::string CodeGenCUDA_Dev::source_header_ =
     R"(#include <cstdint>
+#include "float16.h"
+using cinn::common::float16;
 #include "cinn_cuda_runtime_source.cuh"
 )";
 
