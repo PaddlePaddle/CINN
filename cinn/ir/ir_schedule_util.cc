@@ -116,11 +116,33 @@ bool Contains(const Expr& container, const Expr& expr) {
 Expr GetNextForLoop(const Expr& for_loop) {
   Expr result;
   CHECK(for_loop.As<ir::For>()) << "The input of GetNextForLoop should be ir::For!";
-  Expr for_body = for_loop.As<ir::For>()->body;
-  CHECK(for_body.As<ir::Block>()) << "The for_loop's body shoule be Block!";
-  if (for_body.As<ir::Block>()->stmts.size() != 1U) return result;
-  Expr block_body = for_body.As<ir::Block>()->stmts[0];
+  Expr for_body             = for_loop.As<ir::For>()->body;
+  ir::Block* for_body_block = for_body.As<ir::Block>();
+  CHECK(for_body_block) << "The for_loop's body shoule be Block!";
+
+  // Only support for body block contains a sub for loop
+  int next_idx = -1;
+  for (int i = 0; i < for_body_block->stmts.size(); ++i) {
+    Expr stmt = for_body_block->stmts[i];
+    if (stmt.As<IfThenElse>() || stmt.As<ir::For>()) {
+      if (next_idx == -1) {
+        next_idx = i;
+      } else {
+        // More then one sub for loop, Return undefined.
+        return result;
+      }
+    }
+  }
+  if (next_idx == -1) {
+    // More then one sub for loop, Return undefined.
+    return result;
+  }
+
+  Expr block_body = for_body_block->stmts[next_idx];
   if (block_body.As<IfThenElse>()) {
+    // TODO(zhhsplendid): is it right to only handle true case?
+    // It may be wrong, but the code is written by previous developer, for us,
+    // we will check it later in the future.
     CHECK(block_body.As<IfThenElse>()->true_case.As<ir::Block>());
     Expr true_case = block_body.As<IfThenElse>()->true_case;
     if (true_case.As<ir::Block>()->stmts.size() != 1U || !true_case.As<ir::Block>()->stmts[0].As<ir::For>())
@@ -142,19 +164,18 @@ std::vector<Expr> GetIfThenElseInRange(const Expr& top, const Expr& bottom) {
     CHECK(loop_iter.As<ir::For>());
     CHECK(loop_iter.As<ir::For>()->body.As<ir::Block>()) << "For node's body should be Block!";
     auto block = loop_iter.As<ir::For>()->body.As<ir::Block>();
-    if (block->stmts.size() != 1) LOG(FATAL) << "Between For top and For bottom, there is a block's size not = 1!";
-    Expr tmp = block->stmts[0];
-    if (tmp.As<IfThenElse>()) {
-      if_nodes.push_back(tmp);
-      CHECK(tmp.As<IfThenElse>()->true_case.As<ir::Block>());
-      Expr true_case = tmp.As<IfThenElse>()->true_case;
-      CHECK(true_case.As<ir::Block>()->stmts.size() == 1U && true_case.As<ir::Block>()->stmts[0].As<ir::For>());
-      tmp = true_case.As<ir::Block>()->stmts[0];
+    for (Expr tmp : block->stmts) {
+      if (tmp.As<IfThenElse>()) {
+        if_nodes.push_back(tmp);
+        CHECK(tmp.As<IfThenElse>()->true_case.As<ir::Block>());
+        Expr true_case = tmp.As<IfThenElse>()->true_case;
+        CHECK(true_case.As<ir::Block>()->stmts.size() == 1U && true_case.As<ir::Block>()->stmts[0].As<ir::For>());
+        tmp = true_case.As<ir::Block>()->stmts[0];
+      }
+      if (tmp.As<ir::For>()) {
+        loop_iter = tmp;
+      }
     }
-    if (tmp.As<ir::For>())
-      loop_iter = tmp;
-    else
-      LOG(FATAL) << "Between For top and For bottom, Block stmt:\n " << tmp << " is neither IfThenElse nor For!";
   }
   return if_nodes;
 }
@@ -455,14 +476,23 @@ const std::set<Expr, CompExpr> CollectLoopsToSet(const std::vector<Expr>& loops)
   return for_loops;
 }
 
+// This function is used in Reorder schedule primitive. Since input loop
+// Expr(s) of Reorder doesn't give original for loop order, we have to
+// find the top (most outter) loop and bottom (most inner) among loop Expr(s)
 std::pair<Expr, Expr> GetBoundaryOfReorderRange(const std::set<Expr, CompExpr>& loop_set) {
   Expr top = *loop_set.begin();
   Expr bottom;
   std::set<Expr, CompExpr> visited;
   bool first_traversal = true;
   for (Expr loop_i : loop_set) {
-    if (visited.count(loop_i)) continue;
-    for (auto v_for = loop_i;;) {
+    if (visited.count(loop_i)) {
+      continue;
+    }
+    Expr v_for = loop_i;
+    CHECK(v_for.As<ir::For>());
+    while (v_for.defined()) {
+      // If loop_i's sub loop is visited it must be pre-visited top.
+      // Then loop_i should be the new top
       if (visited.count(v_for)) {
         if (v_for != top) {
           LOG(FATAL) << "Loops in GetBoundaryOfReorderRange is not a chain! Please check.";
@@ -470,14 +500,14 @@ std::pair<Expr, Expr> GetBoundaryOfReorderRange(const std::set<Expr, CompExpr>& 
         top = loop_i;
         break;
       }
-      visited.insert(v_for);
+
+      // This while loop always GetNextForLoop(sub loop), so the last
+      // visited v_for in the first traversal will be the bottom.
       if (first_traversal && loop_set.count(v_for)) {
         bottom = v_for;
       }
-      CHECK(v_for.As<ir::For>());
-      auto tmp = GetNextForLoop(v_for);
-      if (!tmp.defined()) break;
-      v_for = tmp;
+      visited.insert(v_for);
+      v_for = GetNextForLoop(v_for);
     }
     first_traversal = false;
   }

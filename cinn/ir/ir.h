@@ -537,6 +537,8 @@ struct Store : public ExprNode<Store>, public LoadStoreAddrMnger {
 
   void Verify() const override;
 
+  const std::string& name() const;
+
   Type type() const override;
   Expr index() const;
 
