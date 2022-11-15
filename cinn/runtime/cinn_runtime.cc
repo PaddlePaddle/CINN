@@ -359,5 +359,13 @@ template <>
 cinn_type_t cinn_type_of<float*>() {
   return cinn_float64_t();
 }
+template <>
+cinn_type_t cinn_type_of<double*>() {
+  return cinn_float64_t();
+}
+template <>
+cinn_type_t cinn_type_of<float16*>() {
+  return cinn_float64_t();
+}
 
 #include "cinn/runtime/cinn_x86_device_impl.cc"
