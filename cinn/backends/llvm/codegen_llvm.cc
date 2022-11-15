@@ -56,6 +56,8 @@ namespace backends {
 
 using BinaryInstruction = llvm::Instruction::BinaryOps;
 
+using common::float16;
+
 namespace {
 
 template <typename T>
@@ -355,6 +357,8 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Cast *op) {
       callee = m_->getFunction(runtime::intrinsic::pod_value_to_float);
     } else if (op->type().is_float(64)) {
       callee = m_->getFunction(runtime::intrinsic::pod_value_to_double);
+    } else if (op->type().is_float(16)) {
+      callee = m_->getFunction(runtime::intrinsic::pod_value_to_float16);
     } else if (op->type() == type_of<void *>()) {
       callee = m_->getFunction(runtime::intrinsic::pod_value_to_void_p);
     } else if (op->type() == type_of<cinn_buffer_t *>() || op->type() == type_of<const cinn_buffer_t *>()) {
@@ -1454,6 +1458,8 @@ llvm::Value *CodeGenLLVM::Visit(const ir::intrinsics::PodValueToX *op) {
     callee = m_->getFunction(runtime::intrinsic::pod_value_to_float);
   } else if (to_type == type_of<double>()) {
     callee = m_->getFunction(runtime::intrinsic::pod_value_to_double);
+  } else if (to_type == type_of<float16>()) {
+    callee = m_->getFunction(runtime::intrinsic::pod_value_to_float16);
   } else if (to_type == type_of<int32_t>()) {
     callee = m_->getFunction(runtime::intrinsic::pod_value_to_int32);
   } else if (to_type == type_of<int64_t>()) {

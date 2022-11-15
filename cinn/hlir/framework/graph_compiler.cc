@@ -35,6 +35,9 @@ DECLARE_int32(cinn_parallel_compile_size);
 namespace cinn {
 namespace hlir {
 namespace framework {
+
+using cinn::common::float16;
+
 // Store params from node to instruction
 void AddAttrs(const absl::flat_hash_map<std::string, AttrType>& attrs_store,
               const std::vector<std::string>& attrs_name,
@@ -301,13 +304,17 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFuncWithIRSchedule(
     CHECK(dtype.is_supported()) << "The dtype of node " << id
                                 << " is not float or bool or int! Other dtype is not implemented yet.";
     ir::Tensor input;
-    if (dtype == Float(32)) {
+    if (dtype.is_float(32)) {
       input = lang::Placeholder<float>(id, shape);
+    } else if (dtype.is_float(64)) {
+      input = lang::Placeholder<double>(id, shape);
+    } else if (dtype.is_float(16)) {
+      input = lang::Placeholder<float16>(id, shape);
     } else if (dtype.is_bool()) {
       input = lang::Placeholder<bool>(id, shape);
-    } else if (dtype == Int(32)) {
+    } else if (dtype.is_int(32)) {
       input = lang::Placeholder<int32_t>(id, shape);
-    } else if (dtype == Int(64)) {
+    } else if (dtype.is_int(64)) {
       input = lang::Placeholder<int64_t>(id, shape);
     }
     tensor_inputs.push_back(input);
@@ -351,13 +358,17 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const Node* node) {
     CHECK(dtype.is_supported()) << "The dtype of node " << input_id
                                 << " is not float or bool or int! Other dtype is not implemented yet.";
     ir::Tensor temp;
-    if (dtype == Float(32)) {
+    if (dtype.is_float(32)) {
       temp = lang::Placeholder<float>(input_id, in_shape);
+    } else if (dtype.is_float(64)) {
+      temp = lang::Placeholder<double>(input_id, in_shape);
+    } else if (dtype.is_float(16)) {
+      temp = lang::Placeholder<float16>(input_id, in_shape);
     } else if (dtype.is_bool()) {
       temp = lang::Placeholder<bool>(input_id, in_shape);
-    } else if (dtype == Int(32)) {
+    } else if (dtype.is_int(32)) {
       temp = lang::Placeholder<int32_t>(input_id, in_shape);
-    } else if (dtype == Int(64)) {
+    } else if (dtype.is_int(64)) {
       temp = lang::Placeholder<int64_t>(input_id, in_shape);
     }
     inputs.push_back(temp);
@@ -455,13 +466,17 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
         CHECK(dtype.is_supported()) << "The dtype of node " << input_id
                                     << " is not float or bool or int! Other dtype is not implemented yet.";
         ir::Tensor temp_in;
-        if (dtype == Float(32)) {
+        if (dtype.is_float(32)) {
           temp_in = lang::Placeholder<float>(input_id, in_shape);
+        } else if (dtype.is_float(64)) {
+          temp_in = lang::Placeholder<double>(input_id, in_shape);
+        } else if (dtype.is_float(16)) {
+          temp_in = lang::Placeholder<float16>(input_id, in_shape);
         } else if (dtype.is_bool()) {
           temp_in = lang::Placeholder<bool>(input_id, in_shape);
-        } else if (dtype == Int(32)) {
+        } else if (dtype.is_int(32)) {
           temp_in = lang::Placeholder<int32_t>(input_id, in_shape);
-        } else if (dtype == Int(64)) {
+        } else if (dtype.is_int(64)) {
           temp_in = lang::Placeholder<int64_t>(input_id, in_shape);
         }
         inputs.push_back(temp_in);

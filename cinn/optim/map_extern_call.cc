@@ -79,6 +79,8 @@ void MapExternCall(Expr *e, Target target) {
       if (dtype.is_int() && node_in_extern_int32) {
         if (dtype.is_int(32)) {
           suffix = "_int32";
+        } else if (dtype.is_int(64)) {
+          suffix = "_int64";
         }
       } else if (dtype.is_float() && node_in_extern_fp32) {
         if (dtype.is_float(32)) {

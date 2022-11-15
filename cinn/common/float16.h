@@ -617,6 +617,14 @@ __host__ __device__ inline float16(abs)(const float16& a) {
 #endif
 }
 
+#ifndef __CUDACC_RTC__
+
+inline std::ostream& operator<<(std::ostream& os, const float16& a) {
+  os << static_cast<float>(a);
+  return os;
+}
+#endif
+
 }  // namespace common
 }  // namespace cinn
 
@@ -651,11 +659,6 @@ __device__ inline cinn::common::float16 __shfl_xor_sync(unsigned mask,
 #endif
 
 #ifndef __CUDACC_RTC__
-
-inline std::ostream& operator<<(std::ostream& os, const ::cinn::common::float16& a) {
-  os << static_cast<float>(a);
-  return os;
-}
 
 namespace std {
 // Override the std::is_pod::value for float16

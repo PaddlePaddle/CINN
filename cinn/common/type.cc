@@ -144,7 +144,8 @@ Type Type::ConstOf() const {
 }
 
 bool Type::is_supported() const {
-  return this->is_float(32) || this->is_bool() || this->is_int(32) || this->is_int(64) || this->is_float(16);
+  return this->is_float(32) || this->is_bool() || this->is_int(32) || this->is_int(64) || this->is_float(16) ||
+         this->is_float(64);
 }
 
 Type Type::IgnoreConst() const {

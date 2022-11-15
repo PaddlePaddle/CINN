@@ -269,10 +269,12 @@ Tensor Pow(
     extern_func_name += "fp64";
   } else if (A->type().is_float(32)) {
     extern_func_name += "fp32";
+  } else if (A->type().is_float(16)) {
+    extern_func_name += "fp16";
   } else if (A->type().is_int(32)) {
     extern_func_name += "int32";
   } else {
-    LOG(FATAL) << "Pow op only support float64/float32/int32 now, but here " << A->type() << "! Please check.";
+    LOG(FATAL) << "Pow op only support float16/float64/float32/int32 now, but here " << A->type() << "! Please check.";
   }
 
   auto fn = [&](const Expr& a, const Expr& b) { return lang::CallExtern(extern_func_name, {a, b}); };

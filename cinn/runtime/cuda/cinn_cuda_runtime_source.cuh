@@ -122,8 +122,8 @@ __device__ inline float16 FN_FP16(pow)(float16 a, float16 b) { return float16(FN
 #define EXPAND_REDUCE_FP32_MACRO(MACRO, ...) \
   MACRO(sum_fp32, 0.0f, float, ##__VA_ARGS__) \
   MACRO(prod_fp32, 1.0f, float, ##__VA_ARGS__) \
-  MACRO(max_fp32, std::numeric_limits<float>::lowest(), float, ##__VA_ARGS__) \
-  MACRO(min_fp32, std::numeric_limits<float>::max(), float, ##__VA_ARGS__) \
+  MACRO(max_fp32, -FLT_MAX, float, ##__VA_ARGS__) \
+  MACRO(min_fp32, FLT_MAX, float, ##__VA_ARGS__) \
 
 __device__ inline float cinn_sum_fp32(const float left, const float right) { return left + right; }
 __device__ inline float cinn_prod_fp32(const float left, const float right) { return left * right; }
