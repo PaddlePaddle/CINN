@@ -64,6 +64,7 @@ set(infrt_src CACHE INTERNAL "" FORCE)
 set(core_src CACHE INTERNAL "" FORCE)
 set(core_includes CACHE INTERNAL "" FORCE)
 set(core_proto_includes CACHE INTERNAL "" FORCE)
+include(cmake/system.cmake)
 include(cmake/core.cmake)
 
 include_directories(${CMAKE_SOURCE_DIR})
