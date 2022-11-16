@@ -26,6 +26,7 @@
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_visitor.h"
+#include "cinn/optim/cast_simplify.h"
 #include "cinn/optim/ir_copy.h"
 #include "cinn/utils/string.h"
 
@@ -710,7 +711,8 @@ std::vector<Expr> CasSimplifyMutator::SimplifyBinarySum(Expr left, Expr right) {
       VLOG(7) << "a " << a;
       VLOG(7) << "b " << b;
       Expr s = SimplifySum(Sum::Make({ProductGetConstantPart(a), ProductGetConstantPart(b)}));
-      Expr p = Product::Make({s, ProductGetNonConstantPart(a)});
+      Expr p = Product::Make({ir::Cast::Make(a->type(), s), ProductGetNonConstantPart(a)});
+      optim::CastSimplify(&p);
       return {CasSimplify(p, var_intervals)};
     }
 

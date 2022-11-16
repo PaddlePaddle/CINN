@@ -43,6 +43,27 @@ using ir::Min;
 using ir::Select;
 using ir::Tensor;
 
+std::string Type2StrForNN(common::Type type) {
+  std::string suffix;
+  if (type.is_float(32)) {
+    return "fp32";
+  } else if (type.is_float(16)) {
+    return "fp16";
+  }
+  LOG(FATAL) << "NN Not Support " << type;
+  return "";
+}
+
+ir::Tensor Relu(const ir::Tensor &A, double threshold, const std::string &output_name) {
+  return lang::Compute(
+      A->shape, [=](const std::vector<Expr> &indice) { return lang::Relu(A(indice), threshold); }, output_name);
+}
+
+ir::Tensor Relu6(const ir::Tensor &A, double threshold, const std::string &output_name) {
+  return lang::Compute(
+      A->shape, [=](const std::vector<Expr> &indice) { return lang::Relu6(A(indice), threshold); }, output_name);
+}
+
 Tensor LeakyRelu(const Tensor &A, double alpha, const std::string &output_name) {
   return Compute(
       A->shape, [=](const std::vector<Expr> &indice) { return lang::LeakyRelu(A(indice), alpha); }, output_name);
@@ -687,7 +708,9 @@ ir::Tensor BatchNorm_NCHW(const ir::Tensor &input,
   auto res = Compute(
       input->shape,
       [=](Expr n, Expr c, Expr h, Expr w) {
-        return (input(n, c, h, w) - mean(c)) * scale(c) / lang::Sqrt(variance(c) + Expr(epsilon)) + bias(c);
+        return (input(n, c, h, w) - mean(c)) * scale(c) /
+                   lang::Sqrt(variance(c) + common::make_const(input->type(), epsilon)) +
+               bias(c);
       },
       UniqName(output_name));
   return res;
@@ -710,7 +733,8 @@ ir::Tensor BatchNorm_NCHWc(const ir::Tensor &input,
       input->shape,
       [=](Expr n, Expr icc, Expr h, Expr w, Expr icb) {
         Expr new_c = icc * ic_bn + icb;
-        return (input(n, icc, h, w, icb) - mean(new_c)) * scale(new_c) / lang::Sqrt(variance(new_c) + Expr(epsilon)) +
+        return (input(n, icc, h, w, icb) - mean(new_c)) * scale(new_c) /
+                   lang::Sqrt(variance(new_c) + common::make_const(input->type(), epsilon)) +
                bias(new_c);
       },
       UniqName(output_name));
@@ -1115,7 +1139,7 @@ std::vector<Tensor> GlobalPool2d(const Tensor &tensor, const std::string &pool_t
         {tensor->shape[0], tensor->shape[1], Expr(32)},
         [=](Expr n, Expr c, Expr k) -> Expr {
           Expr offset = common::IndiceToAbsOffset(tensor->shape, {n, c, Expr(0), Expr(0)});
-          return lang::CallExtern("cinn_warp_reduce_max", {tensor, offset, extend});
+          return lang::CallExtern("cinn_warp_reduce_max_" + Type2StrForNN(tensor->type()), {tensor, offset, extend});
         },
         UniqName(output_name + "_temp"));
     temp->WithBuffer(tensor->type());
@@ -1131,7 +1155,7 @@ std::vector<Tensor> GlobalPool2d(const Tensor &tensor, const std::string &pool_t
         {tensor->shape[0], tensor->shape[1], Expr(32)},
         [=](Expr n, Expr c, Expr k) -> Expr {
           Expr offset = common::IndiceToAbsOffset(tensor->shape, {n, c, Expr(0), Expr(0)});
-          return lang::CallExtern("cinn_warp_reduce_avg", {tensor, offset, extend});
+          return lang::CallExtern("cinn_warp_reduce_avg_" + Type2StrForNN(tensor->type()), {tensor, offset, extend});
         },
         UniqName(output_name + "_temp"));
     temp->WithBuffer(tensor->type());

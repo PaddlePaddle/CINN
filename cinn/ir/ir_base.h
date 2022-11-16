@@ -296,6 +296,7 @@ struct Expr : public IrNodeRef {
   explicit Expr(uint32_t x) : IrNodeRef(new UIntImm(UInt(32), x)) {}
   explicit Expr(int64_t x) : IrNodeRef(new IntImm(Int(64), x)) {}
   explicit Expr(uint64_t x) : IrNodeRef(new UIntImm(UInt(64), x)) {}
+  explicit Expr(cinn::common::float16 x) : IrNodeRef(new FloatImm(Float(16), x)) {}
   explicit Expr(float x) : IrNodeRef(new FloatImm(Float(32), x)) {}
   explicit Expr(double x) : IrNodeRef(new FloatImm(Float(64), x)) {}
   explicit Expr(const std::string& x) : IrNodeRef(new StringImm(x)) {}
@@ -308,6 +309,7 @@ struct Expr : public IrNodeRef {
   bool as_bool() const;
   int32_t as_int32() const;
   int64_t as_int64() const;
+  cinn::common::float16 as_float16() const;
   float as_float() const;
   double as_double() const;
   // @}
@@ -380,7 +382,7 @@ struct BinaryOpNode : public ExprNode<T> {
     operands().resize(2);
     this->a() = a;
     this->b() = b;
-    CHECK_EQ(a.type(), b.type()) << "the two arguments' type not match";
+    // CHECK_EQ(a.type(), b.type()) << "the type of two argument not match";
   }
 
   Expr& a() { return ExprNode<T>::operand(0); }

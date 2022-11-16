@@ -18,6 +18,8 @@
 
 namespace cinn::optim {
 
+using cinn::common::float16;
+
 namespace {
 
 struct Mutator : ir::IRMutator<> {
@@ -59,6 +61,9 @@ struct Mutator : ir::IRMutator<> {
         __CAST_TO_TYPE(uint32_t)
       } else if (op->type() == type_of<uint64_t>()) {
         __CAST_TO_TYPE(uint64_t)
+      } else if (op->type() == type_of<float16>()) {
+        // Cannot simplify!!! pass
+        return;
       } else {
         CINN_NOT_IMPLEMENTED
       }
