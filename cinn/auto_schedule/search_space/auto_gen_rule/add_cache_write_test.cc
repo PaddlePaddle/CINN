@@ -23,12 +23,8 @@
 
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
 #include "cinn/auto_schedule/search_space/auto_gen_rule/multi_level_tiling.h"
-#include "cinn/backends/codegen_cuda_dev.h"
 #include "cinn/backends/compiler.h"
-#include "cinn/backends/nvrtc_util.h"
 #include "cinn/cinn.h"
-#include "cinn/common/cuda_test_helper.h"
-#include "cinn/common/test_helper.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_printer.h"
