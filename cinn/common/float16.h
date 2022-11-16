@@ -14,6 +14,9 @@
 
 #pragma once
 
+#ifndef CINN_COMMON_FLOAT16_H
+#define CINN_COMMON_FLOAT16_H
+
 #if defined(_M_X64) || defined(__x86_64__) || defined(_M_IX86) || defined(__i386__)
 #define __CINN_x86__
 #include <immintrin.h>
@@ -741,3 +744,4 @@ __host__ __device__ inline cinn::common::float16 abs(const cinn::common::float16
 }  // namespace std
 
 #endif
+#endif  // CINN_COMMON_FLOAT16_H

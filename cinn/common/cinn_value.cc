@@ -51,6 +51,12 @@ __m(std::string, 26);
 //! Implement ToValue.
 // @{
 template <>
+cinn_value_t ToValue<bool>(bool v) {
+  cinn_value_t val;
+  val.v_int64 = v;
+  return val;
+}
+template <>
 cinn_value_t ToValue<int>(int v) {
   cinn_value_t val;
   val.v_int64 = v;
@@ -72,6 +78,12 @@ template <>
 cinn_value_t ToValue<double>(double v) {
   cinn_value_t val;
   val.v_float64 = v;
+  return val;
+}
+template <>
+cinn_value_t ToValue<float16>(float16 v) {
+  cinn_value_t val;
+  val.v_float64 = static_cast<double>(v);
   return val;
 }
 template <>
@@ -164,6 +176,10 @@ void _CINNValuePack_::AddValue(const CINNValue &value) {
 void _CINNValuePack_::Clear() { values_.clear(); }
 const char *_CINNValuePack_::type_info() const { return __type_info__; }
 
+CINNValue &CINNValue::operator=(bool value) {
+  *this = CINNValue(value);
+  return *this;
+}
 CINNValue &CINNValue::operator=(int32_t value) {
   *this = CINNValue(value);
   return *this;
@@ -177,6 +193,10 @@ CINNValue &CINNValue::operator=(float value) {
   return *this;
 }
 CINNValue &CINNValue::operator=(double value) {
+  *this = CINNValue(value);
+  return *this;
+}
+CINNValue &CINNValue::operator=(float16 value) {
   *this = CINNValue(value);
   return *this;
 }
