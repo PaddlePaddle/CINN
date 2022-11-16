@@ -20,8 +20,6 @@
 namespace cinn {
 namespace runtime {
 
-using cinn::common::float16;
-
 cinn_type_t ToRuntimeType(Type type) {
 #define SET_TYPE_CASE_ITEM(compiled_type, runtime_type) \
   if (type == common::compiled_type()) {                \
@@ -34,12 +32,9 @@ cinn_type_t ToRuntimeType(Type type) {
   SET_TYPE_CASE_ITEM(I64, cinn_int64_t)
   SET_TYPE_CASE_ITEM(UI32, cinn_uint32_t)
   SET_TYPE_CASE_ITEM(UI64, cinn_uint64_t)
-  SET_TYPE_CASE_ITEM(F16, cinn_float16_t)
   SET_TYPE_CASE_ITEM(F32, cinn_float32_t)
   SET_TYPE_CASE_ITEM(F64, cinn_float64_t)
   SET_TYPE_CASE_ITEM(Float(32).PointerOf, cinn_type_of<float*>);
-  SET_TYPE_CASE_ITEM(Float(64).PointerOf, cinn_type_of<double*>);
-  SET_TYPE_CASE_ITEM(Float(16).PointerOf, cinn_type_of<float16*>);
 
   LOG(FATAL) << "Not supported type " << type;
   return cinn_unk_t();

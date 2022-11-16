@@ -31,8 +31,6 @@ namespace {
 using py::arg;
 void BindCinnRuntime(py::module *);
 
-using cinn::common::float16;
-
 cinn_type_t NumpyTypeToCinn(py::dtype dt) {
   if (dt.is(py::dtype::of<int32_t>())) {
     return cinn_int32_t();
@@ -46,8 +44,6 @@ cinn_type_t NumpyTypeToCinn(py::dtype dt) {
     return cinn_float32_t();
   } else if (dt.is(py::dtype::of<double>())) {
     return cinn_float64_t();
-  } else if (dt.is(py::dtype::of<float16>())) {
-    return cinn_float16_t();
   } else if (dt.is(py::dtype::of<bool>())) {
     return cinn_bool_t();
   } else if (dt.is(py::dtype::of<int8_t>())) {
@@ -82,8 +78,6 @@ py::array BufferHostMemoryToNumpy(cinn_buffer_t &buffer) {  // NOLINT
     dt = py::dtype::of<float>();
   } else if (buffer.type == cinn_float64_t()) {
     dt = py::dtype::of<double>();
-  } else if (buffer.type == cinn_float16_t()) {
-    dt = py::dtype::of<float16>();
   } else if (buffer.type == cinn_int8_t()) {
     dt = py::dtype::of<int8_t>();
   } else if (buffer.type == cinn_bool_t()) {
@@ -120,7 +114,6 @@ void BindSpecialTypes(py::module *m) {
   VOID_PTR_SUPPORT_TYPE(int16_t);
   VOID_PTR_SUPPORT_TYPE(int32_t);
   VOID_PTR_SUPPORT_TYPE(int64_t);
-  VOID_PTR_SUPPORT_TYPE(float16);
   VOID_PTR_SUPPORT_TYPE(float);
   VOID_PTR_SUPPORT_TYPE(double);
 #undef VOID_PTR_SUPPORT_TYPE
@@ -154,7 +147,6 @@ void BindCinnRuntime(py::module *m) {
       .def("cinn_int64_t", &cinn_int64_t)
       .def("cinn_uint32_t", &cinn_uint32_t)
       .def("cinn_uint64_t", &cinn_uint64_t)
-      .def("cinn_float16_t", &cinn_float16_t)
       .def("cinn_float32_t", &cinn_float32_t)
       .def("cinn_float64_t", &cinn_float64_t);
 
@@ -251,14 +243,12 @@ void BindCinnRuntime(py::module *m) {
       .def(py::init<int8_t>())
       .def(py::init<int32_t>())
       .def(py::init<int64_t>())
-      .def(py::init<float16>())
       .def(py::init<float>())
       .def(py::init<double>())
       .def(py::init<void *>())
       .def(py::init<const char *>())
       .def("to_double", &cinn_pod_value_t::operator double)
       .def("to_float", &cinn_pod_value_t::operator float)
-      .def("to_float16", &cinn_pod_value_t::operator cinn::common::float16)
       .def("to_int8", &cinn_pod_value_t::operator int8_t)
       .def("to_int32", &cinn_pod_value_t::operator int32_t)
       .def("to_int64", &cinn_pod_value_t::operator int64_t)
@@ -270,7 +260,6 @@ void BindCinnRuntime(py::module *m) {
 
   m->def("cinn_pod_value_to_float", &cinn_pod_value_to_float)
       .def("cinn_pod_value_to_double", &cinn_pod_value_to_double)
-      .def("cinn_pod_value_to_float16", &cinn_pod_value_to_float16)
       .def("cinn_pod_value_to_int64", &cinn_pod_value_to_int64)
       .def("cinn_pod_value_to_int32", &cinn_pod_value_to_int32)
       .def("cinn_pod_value_to_int8", &cinn_pod_value_to_int8)

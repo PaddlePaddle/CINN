@@ -171,25 +171,12 @@ Expr Abs(Expr e) {
   Type bool_type = Bool(type.lanes());
   if (type.is_uint()) {
     return e;
-  } else if (type.is_int()) {
+  } else if (type.is_int() || type.is_float()) {
     auto node = e.As<ir::IntImm>();
     if (node) {
       return make_const(type, std::abs(node->value));
     }
     return ir::Select::Make(e > Zero(e->type()), e, -e);
-  } else if (type.is_float()) {
-    auto node = e.As<ir::FloatImm>();
-    if (node) {
-      return make_const(type, std::abs(node->value));
-    }
-    std::string suffix;
-    if (type.is_float(32)) {
-      suffix = "fp32";
-    } else if (type.is_float(16)) {
-      suffix = "fp16";
-    }
-    CHECK(!suffix.empty()) << "Abs Not support data type " << type;
-    return CallExtern("cinn_nvgpu_abs_" + suffix, {e});
   } else {
     LOG(FATAL) << "Abs Not support data type " << type;
   }
@@ -205,14 +192,7 @@ Expr IsNan(Expr e) {
     if (node) {
       return common::make_bool(std::isnan(node->value), type.lanes());
     }
-    std::string suffix;
-    if (type.is_float(32)) {
-      suffix = "fp32";
-    } else if (type.is_float(16)) {
-      suffix = "fp16";
-    }
-    CHECK(!suffix.empty()) << "IsNan Not support data type " << type;
-    return CallExtern("cinn_nvgpu_isnan_" + suffix, {e}, {{"vectorizable", false}});
+    return CallExtern("isnan", {e}, {{"vectorizable", false}});
   } else {
     LOG(FATAL) << type << "is not supported for isnan op.";
     return e;
@@ -243,14 +223,7 @@ Expr IsInf(Expr e) {
     if (node) {
       return common::make_bool(std::isinf(node->value), type.lanes());
     }
-    std::string suffix;
-    if (type.is_float(32)) {
-      suffix = "fp32";
-    } else if (type.is_float(16)) {
-      suffix = "fp16";
-    }
-    CHECK(!suffix.empty()) << "IsInf Not support data type " << type;
-    return CallExtern("cinn_nvgpu_isinf_" + suffix, {e}, {{"vectorizable", false}});
+    return CallExtern("isinf", {e}, {{"vectorizable", false}});
   } else {
     LOG(FATAL) << type << "is not supported for isinf op.";
     return e;
