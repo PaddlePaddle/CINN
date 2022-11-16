@@ -156,8 +156,6 @@ void MultiLevelTiling::Apply(int index) {
   }
   VLOG(5) << "Finish Split in MultiLevelTiling, before Reorder";
 
-  VLOG(5) << "Now Expr = " << ir_schedule_->GetModule().GetExprs()[0];
-
   // Have to GetLoops again because Split can change Block Expr(s)
   for_exprs = ir_schedule_->GetLoops(sche_block->name);
   std::unordered_map<std::string, int> loop_var_name_to_idx;
@@ -177,8 +175,8 @@ void MultiLevelTiling::Apply(int index) {
     }
   }
 
-  ir_schedule_->Reorder(splited_loops);
-  VLOG(5) << "Finish Reorder in MultiLevelTiling, now Expr = " << ir_schedule_->GetModule().GetExprs()[0];
+  Expr reordered_expr = ir_schedule_->Reorder(splited_loops);
+  VLOG(5) << "Finish Reorder in MultiLevelTiling, now do Fuse and Binding on the main loop chain";
 
   int num_binds = std::min(bind_axis_.size(), tiles.size());
   for (int i = 0; i < num_binds; ++i) {
@@ -206,9 +204,51 @@ void MultiLevelTiling::Apply(int index) {
     if (extent_prod <= max_factor_) {
       Expr fused = ir_schedule_->Fuse(tiles[i]);
       ir_schedule_->Bind(fused, bind_axis_[i]);
-      tiles[i] = {fused};
     } else if (first_idx_less_than_max_factor != -1) {
       ir_schedule_->Bind(for_exprs[first_idx_less_than_max_factor], bind_axis_[i]);
+    }
+  }
+
+  VLOG(5) << "Do Fuse and Binding on the other loop chains";
+  Expr sche_block_top_loop = ir_schedule_->GetLoops(sche_block->name)[0];
+  if (reordered_expr.As<ir::Block>()) {
+    for (Expr& top_loop : reordered_expr.As<ir::Block>()->stmts) {
+      if (top_loop != sche_block_top_loop) {
+        std::vector<ir::Expr> fuse_candidates;
+        int extent_prod                    = 1;
+        int first_idx_less_than_max_factor = -1;
+        int i                              = 0;
+        int j                              = 0;
+        for (Expr cur = top_loop; cur.As<ir::For>(); cur = cur.As<ir::For>()->body.As<ir::Block>()->stmts[0]) {
+          while (tiles.size() > i && tiles[i].size() <= j) {
+            j = 0;
+            ++i;
+            extent_prod = 1;
+            fuse_candidates.clear();
+            first_idx_less_than_max_factor = -1;
+          }
+          if (tiles.size() <= i || num_binds <= i) {
+            break;
+          }
+          int extent = cur.As<ir::For>()->extent.as_int32();
+          extent_prod *= extent;
+          if (first_idx_less_than_max_factor == -1 && extent <= max_factor_) {
+            first_idx_less_than_max_factor = fuse_candidates.size();
+          }
+          fuse_candidates.emplace_back(cur);
+          ++j;
+
+          if (tiles[i].size() <= j) {
+            if (extent_prod <= max_factor_) {
+              Expr fused = ir_schedule_->Fuse(fuse_candidates);
+              ir_schedule_->Bind(fused, bind_axis_[i]);
+              cur = fused;
+            } else if (first_idx_less_than_max_factor != -1) {
+              ir_schedule_->Bind(fuse_candidates[first_idx_less_than_max_factor], bind_axis_[i]);
+            }
+          }
+        }
+      }
     }
   }
 

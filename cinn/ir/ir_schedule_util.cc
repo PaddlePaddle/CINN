@@ -535,17 +535,10 @@ std::vector<Expr> GetLoopsInRange(const Expr& top, const Expr& bottom) {
 // See the comment and call place inside ConstructNewLoopChain
 Expr ConstructOtherStmtChain(const std::vector<Expr>& stmts,
                              const std::vector<Expr>& loops,
-                             int construct_first_index,
-                             int construct_last_index) {
-  CHECK_GT(construct_first_index, 0);
-  CHECK_LE(construct_first_index, construct_last_index);
-  if (construct_last_index > construct_last_index) {
-    return Block::Make(stmts);
-  }
-
+                             const std::vector<int> reordered_indices) {
   Expr new_loop;
-  for (int i = construct_last_index; i >= construct_first_index; --i) {
-    Expr temp = optim::IRCopy(loops[i]);
+  for (int i = reordered_indices.size() - 1; i >= 0; --i) {
+    Expr temp = optim::IRCopy(loops[reordered_indices[i]]);
     CHECK(temp.defined());
     CHECK(temp.As<ir::For>());
     if (new_loop.defined()) {
@@ -553,7 +546,7 @@ Expr ConstructOtherStmtChain(const std::vector<Expr>& stmts,
     } else {
       temp.As<ir::For>()->body = Block::Make({stmts});
     }
-    std::string rename = common::UniqName(temp.As<ir::For>()->loop_var->name);
+    std::string rename = common::UniqName(temp.As<ir::For>()->loop_var->name + "__reordered_other_chain");
     optim::ReplaceVarWithExpr(&temp, temp.As<ir::For>()->loop_var, Expr(Var(rename)));
     new_loop = temp;
   }
@@ -632,8 +625,8 @@ Expr ConstructNewLoopChain(const std::vector<Expr>& chain,
   //   }                                             }
   // }                                             }
   //
-  // We go throuph origin loop and check other body stmts, adding it to proper
-  // place, construct the complete loop chain
+  // We go throuph origin loop and check other body stmts, adding it as another
+  // chain, such as:
   //
   // for (i_rename, 0, 32) {
   //   other_body_stmts
@@ -651,26 +644,15 @@ Expr ConstructNewLoopChain(const std::vector<Expr>& chain,
   std::unordered_set<std::string> origin_loop_var_names;
   Expr ret = new_loop;
 
-  // For each loop, maintain an index to add stmt (other body stmt)
+  // Maintain an index to add stmt (other body stmt chain)
   //
-  //                  ...
-  //                   |
-  //             MainChainLoop
-  //       /    /      |       \     \
-  //     /     /       |        \      \
   //  stmt  stmt  MainChainLoop  stmt   stmt
   //               index        index+1
   //
   // The index of this MainChainLoop points the place before next MainChainLoop
   // We can insert statements before MainChainLoop at the index, and insert
   // statements after MainChainLoop at the index + 1
-  std::unordered_map<int, int> before_loop_stmt_add_place;
-  for (int i = 0; i < reordered_loop_chain.size(); ++i) {
-    before_loop_stmt_add_place[i] = 0;
-  }
-  // -1 means the other body stmts has save level as the main loop chain root
-  // Then we will make ret as a Block and hold main loop chain and body stmts chain
-  before_loop_stmt_add_place[-1] = 0;
+  int add_other_chain_index = 0;
 
   for (int i = 0; i < chain.size() - 1; ++i) {
     // we just check i < chain.size() - 1
@@ -680,6 +662,7 @@ Expr ConstructNewLoopChain(const std::vector<Expr>& chain,
     ir::For* reordered_in_chain  = reordered_loop_chain[i].As<ir::For>();
 
     origin_loop_var_names.insert(loop_in_chain->loop_var->name);
+    CHECK_EQ(origin_loop_var_names.size(), i + 1) << "Duplicate loop var name in origin Chain during Reorder";
 
     const ir::Block* body_block = loop_in_chain->body.As<ir::Block>();
 
@@ -706,73 +689,33 @@ Expr ConstructNewLoopChain(const std::vector<Expr>& chain,
       // Find the chain that other body stmts shares with main loop chain
       std::vector<int> reordered_indices;
       for (int j = 0; j < reordered_loop_chain.size(); ++j) {
-      }
-
-      int common_loop_idx = -1;
-      for (int j = 0; j < origin_loop_var_names.size(); ++j) {
-        if (origin_loop_var_names[j] == reordered_loop_var_names[j]) {
-          common_loop_idx = j;
-        } else {
-          break;
+        if (origin_loop_var_names.count(reordered_loop_chain[j].As<ir::For>()->loop_var->name)) {
+          reordered_indices.push_back(j);
         }
       }
+      CHECK_EQ(reordered_indices.size(), origin_loop_var_names.size())
+          << "Reordered chain loop var names doesn't match other stmt chain loop var names";
 
-      int reconstruct_idx = common_loop_idx + 1;
+      // Add other stmts to root Block if other stmts exist
       if (!stmts_before_loop.empty()) {
-        if (common_loop_idx == i) {
-          std::vector<Expr>& inplace_stmts = reordered_in_chain->body.As<ir::Block>()->stmts;
-          auto pos                         = inplace_stmts.begin() + before_loop_stmt_add_place[common_loop_idx];
-          inplace_stmts.insert(pos, stmts_before_loop.begin(), stmts_before_loop.end());
-          before_loop_stmt_add_place[common_loop_idx] += stmts_before_loop.size();
-        } else {
-          Expr before_chain =
-              ConstructOtherStmtChain(stmts_before_loop, chain, reconstruct_idx, origin_loop_var_names.size() - 1);
-          if (common_loop_idx != -1) {
-            // There is common loop, just add other body stmts into a loop of main chain
-            std::vector<Expr>& inplace_stmts =
-                reordered_loop_chain[common_loop_idx].As<ir::For>()->body.As<ir::Block>()->stmts;
-            auto pos = inplace_stmts.begin() + before_loop_stmt_add_place[common_loop_idx];
-            inplace_stmts.insert(pos, before_chain);
-            before_loop_stmt_add_place[common_loop_idx] += 1;
-          } else {
-            // common_loop_idx == -1, means that there is no common loop, we have to
-            // replace the root loop of the main chain by a Block
-            if (ret.As<ir::Block>() == nullptr) {
-              ret = ir::Block::Make({ret});
-            }
-            std::vector<Expr>& inplace_stmts = ret.As<ir::Block>()->stmts;
-            auto pos                         = inplace_stmts.begin() + before_loop_stmt_add_place[common_loop_idx];
-            inplace_stmts.insert(pos, before_chain);
-            before_loop_stmt_add_place[common_loop_idx] += 1;
-          }
+        Expr before_chain = ConstructOtherStmtChain(stmts_before_loop, reordered_loop_chain, reordered_indices);
+        if (ret.As<ir::Block>() == nullptr) {
+          ret = ir::Block::Make({ret});
         }
+        std::vector<Expr>& inplace_stmts = ret.As<ir::Block>()->stmts;
+        auto pos                         = inplace_stmts.begin() + add_other_chain_index;
+        inplace_stmts.insert(pos, before_chain);
+        ++add_other_chain_index;
       }
 
       if (!stmts_after_loop.empty()) {
-        if (common_loop_idx == i) {
-          std::vector<Expr>& inplace_stmts = reordered_in_chain->body.As<ir::Block>()->stmts;
-          auto pos                         = inplace_stmts.begin() + before_loop_stmt_add_place[common_loop_idx] + 1;
-          inplace_stmts.insert(pos, stmts_after_loop.begin(), stmts_after_loop.end());
-        } else {
-          Expr after_chain =
-              ConstructOtherStmtChain(stmts_after_loop, chain, reconstruct_idx, origin_loop_var_names.size() - 1);
-          if (common_loop_idx != -1) {
-            // There is common loop, just add other body stmts into a loop of main chain
-            std::vector<Expr>& inplace_stmts =
-                reordered_loop_chain[common_loop_idx].As<ir::For>()->body.As<ir::Block>()->stmts;
-            auto pos = inplace_stmts.begin() + before_loop_stmt_add_place[common_loop_idx] + 1;
-            inplace_stmts.insert(pos, after_chain);
-          } else {
-            // common_loop_idx == -1, means that there is no common loop, we have to
-            // replace the root loop of the main chain by a Block
-            if (ret.As<ir::Block>() == nullptr) {
-              ret = ir::Block::Make({ret});
-            }
-            std::vector<Expr>& inplace_stmts = ret.As<ir::Block>()->stmts;
-            auto pos                         = inplace_stmts.begin() + before_loop_stmt_add_place[common_loop_idx] + 1;
-            inplace_stmts.insert(pos, after_chain);
-          }
+        Expr after_chain = ConstructOtherStmtChain(stmts_after_loop, reordered_loop_chain, reordered_indices);
+        if (ret.As<ir::Block>() == nullptr) {
+          ret = ir::Block::Make({ret});
         }
+        std::vector<Expr>& inplace_stmts = ret.As<ir::Block>()->stmts;
+        auto pos                         = inplace_stmts.begin() + add_other_chain_index + 1;
+        inplace_stmts.insert(pos, after_chain);
       }
     }
   }
