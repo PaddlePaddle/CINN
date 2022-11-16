@@ -274,11 +274,13 @@ TEST(AddCacheRead, MatrixMultiply) {
   auto compiler = backends::Compiler::Create(target);
   compiler->Build(build_module);
 
+#ifdef CINN_WITH_CUDA
   // print source code for debug
   backends::CodeGenCUDA_Dev codegen(target);
   codegen.SetInlineBuiltinCodes(false);
   auto source_code = codegen.Compile(build_module, CodeGenC::OutputKind::CImpl);
   VLOG(6) << "source code is :\n" << source_code;
+#endif
 
   // TODO(BiynXu): Debug and add accuracy test
   //   auto test_func_ptr = reinterpret_cast<void (*)(void**,
