@@ -531,8 +531,21 @@ std::vector<Expr> GetLoopsInRange(const Expr& top, const Expr& bottom) {
   return chain;
 }
 
-// Helper function when construct chain for other body statements in Reorder
-// See the comment and call place inside ConstructNewLoopChain
+// Construct a loop chain such that:
+//
+//   loops[i_1] {
+//     loops[i_2] {
+//       ...
+//        loops[i_n] {
+//          stmts;
+//        }
+//     }
+//   }
+//
+// where reordered_indices = {i_1, i_2, ... i_n }
+//
+// This is a helper function which constructs non-main chain for other body
+// statements in Reorder. See comment and call place in ConstructNewLoopChain
 Expr ConstructOtherStmtChain(const std::vector<Expr>& stmts,
                              const std::vector<Expr>& loops,
                              const std::vector<int> reordered_indices) {
@@ -546,10 +559,6 @@ Expr ConstructOtherStmtChain(const std::vector<Expr>& stmts,
     } else {
       temp.As<ir::For>()->body = Block::Make({stmts});
     }
-    // std::string rename = common::UniqName(temp.As<ir::For>()->loop_var->name + "__reordered_other_chain");
-    // VLOG(6) << "Huihuang debug before ReplaceVarWithExpr, temp = " << temp;
-    // optim::ReplaceVarWithExpr(&temp, temp.As<ir::For>()->loop_var, Expr(Var(rename)));
-    // VLOG(6) << "Huihuang debug after ReplaceVarWithExpr, temp = " << temp;
     new_loop = temp;
   }
   return new_loop;
@@ -630,7 +639,7 @@ Expr ConstructNewLoopChain(const std::vector<Expr>& chain,
   // We go throuph origin loop and check other body stmts, adding it as another
   // chain, such as:
   //
-  // for (i_rename, 0, 32) {
+  // for (i, 0, 32) {
   //   other_body_stmts
   // }
   // for (j, 0, 64) {
@@ -698,7 +707,7 @@ Expr ConstructNewLoopChain(const std::vector<Expr>& chain,
       CHECK_EQ(reordered_indices.size(), origin_loop_var_names.size())
           << "Reordered chain loop var names doesn't match other stmt chain loop var names";
 
-      // Add other stmts to root Block if other stmts exist
+      // Add other stmts chain to root Block if other stmts exist
       if (!stmts_before_loop.empty()) {
         Expr before_chain = ConstructOtherStmtChain(stmts_before_loop, reordered_loop_chain, reordered_indices);
         if (ret.As<ir::Block>() == nullptr) {

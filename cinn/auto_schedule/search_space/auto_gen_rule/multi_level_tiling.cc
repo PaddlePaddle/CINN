@@ -154,7 +154,7 @@ void MultiLevelTiling::Apply(int index) {
       tiles[idx->at(j)].push_back(splited[j]);
     }
   }
-  VLOG(5) << "Finish Split in MultiLevelTiling, before Reorder";
+  VLOG(5) << "Finish Split in MultiLevelTiling, before Reorder.";
 
   // Have to GetLoops again because Split can change Block Expr(s)
   for_exprs = ir_schedule_->GetLoops(sche_block->name);
@@ -177,7 +177,6 @@ void MultiLevelTiling::Apply(int index) {
 
   Expr reordered_expr = ir_schedule_->Reorder(splited_loops);
   VLOG(5) << "Finish Reorder in MultiLevelTiling, now do Fuse and Binding on the main loop chain";
-  VLOG(6) << ir_schedule_->GetModule().GetExprs()[0];
 
   int num_binds = std::min(bind_axis_.size(), tiles.size());
   for (int i = 0; i < num_binds; ++i) {
@@ -210,7 +209,7 @@ void MultiLevelTiling::Apply(int index) {
     }
   }
 
-  VLOG(5) << "Do Fuse and Binding on the other loop chains";
+  VLOG(5) << "Do Fuse and Binding on the non-main loop chains";
   Expr sche_block_top_loop = ir_schedule_->GetLoops(sche_block->name)[0];
 
   std::vector<Expr> scan_loop_blocks = ir_schedule_->GetAllBlocks();
@@ -230,7 +229,7 @@ void MultiLevelTiling::Apply(int index) {
           }
         }
         if (!other_loop_chain_schedule.defined()) {
-          LOG(WARNING) << "Has other loop chain, but not corresponding ScheduleBlock in MultiLevelTiling";
+          LOG(WARNING) << "Has non-main loop chain, but not corresponding ScheduleBlock in MultiLevelTiling";
           continue;
         }
 

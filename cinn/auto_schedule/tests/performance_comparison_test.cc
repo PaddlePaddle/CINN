@@ -55,9 +55,9 @@ class PerformanceTester : public ::testing::Test {
  public:
   struct Options {
     // times of compiled runtime program will be executed repeatedly.
-    int repeat_times = 100;
+    int repeat_times = 2;
     // the num_tuning_rounds for auto tuning
-    int num_tuning_rounds = 5;
+    int num_tuning_rounds = 2;
     // knobs to control which schedules will be measured, refer to FLAGS_evaluate_knobs explanation
     std::bitset<3> evaluate_knobs = 7UL;
   };
@@ -140,8 +140,8 @@ class PerformanceTester : public ::testing::Test {
     AutoTuner::Config tuning_config;
     TuningOptions tuning_options;
     tuning_options.num_tuning_rounds         = options_.num_tuning_rounds;
-    tuning_options.num_measure_trials        = 4;
-    tuning_options.num_samples_per_iteration = 4;
+    tuning_options.num_measure_trials        = 2;
+    tuning_options.num_samples_per_iteration = 2;
 
     tuner->Initialize(tuning_config, graph_compiler);
     TuningResult tuning_result = tuner->Tune(tuning_options);
@@ -170,7 +170,7 @@ class PerformanceTester : public ::testing::Test {
 };
 
 constexpr int batch_size = 2;
-/*
+
 TEST_F(PerformanceTester, Mul) {
   int M = 32;
   int K = 16;
@@ -180,16 +180,16 @@ TEST_F(PerformanceTester, Mul) {
 }
 
 TEST_F(PerformanceTester, Add) { Evaluate(AddProgramBuilder({1, 56, 56, 256}, {1, 56, 56, 256})()); }
-*/
+
 TEST_F(PerformanceTester, Matmul) {
-  int M = 1024;
-  int K = 1024;
-  int N = 1024;
+  int M = batch_size;
+  int K = 2048;
+  int N = 1000;
 
   options_.evaluate_knobs = 4UL;
   Evaluate(MatmulProgramBuilder({M, K}, {K, N})());
 }
-/*
+
 TEST_F(PerformanceTester, Relu) { Evaluate(ReluProgramBuilder({batch_size, 64, 56, 56})()); }
 
 TEST_F(PerformanceTester, Conv2d) {
@@ -279,7 +279,7 @@ TEST_F(PerformanceTester, ResNet50) {
 
   options_.evaluate_knobs = 0UL;
   Evaluate(PaddleModelProgramBuilder(FLAGS_resnet50_model_dir, input_names, input_shapes)());
-}*/
+}
 
 }  // namespace auto_schedule
 }  // namespace cinn
