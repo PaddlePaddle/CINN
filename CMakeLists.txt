@@ -64,6 +64,7 @@ set(infrt_src CACHE INTERNAL "" FORCE)
 set(core_src CACHE INTERNAL "" FORCE)
 set(core_includes CACHE INTERNAL "" FORCE)
 set(core_proto_includes CACHE INTERNAL "" FORCE)
+include(cmake/system.cmake)
 include(cmake/core.cmake)
 
 include_directories(${CMAKE_SOURCE_DIR})
@@ -83,6 +84,7 @@ include(cmake/external/protobuf.cmake)
 include(cmake/external/mklml.cmake)
 include(cmake/external/mkldnn.cmake)
 include(cmake/external/openmp.cmake)
+include(cmake/external/jitify.cmake)
 find_package(Threads REQUIRED)
 
 set(LINK_FLAGS "-Wl,--version-script ${CMAKE_CURRENT_SOURCE_DIR}/cmake/export.map" CACHE INTERNAL "")
@@ -106,7 +108,8 @@ message(STATUS "PYTHON_LIBRARIES: ${PYTHON_LIBRARIES}")
 message(STATUS "PYTHON_INCLUDE_DIR: ${PYTHON_INCLUDE_DIR}")
 
 INCLUDE_DIRECTORIES(${PYTHON_INCLUDE_DIR})
-cc_library(cinnapi SHARED SRCS ${cinnapi_src} DEPS glog ${llvm_libs} framework_proto param_proto auto_schedule_proto schedule_desc_proto absl isl ginac pybind)
+cc_library(cinnapi SHARED SRCS ${cinnapi_src} DEPS glog ${llvm_libs} framework_proto param_proto
+ auto_schedule_proto schedule_desc_proto absl isl ginac pybind ${jitify_deps})
 add_dependencies(cinnapi GEN_LLVM_RUNTIME_IR_HEADER ZLIB::ZLIB)
 add_dependencies(cinnapi GEN_LLVM_RUNTIME_IR_HEADER ${core_deps})
 
@@ -150,7 +153,8 @@ function(gen_cinncore LINKTYPE)
   endif()
 
   if (WITH_CUDA)
-    target_link_libraries(${CINNCORE_TARGET} ${CUDA_NVRTC_LIB} ${CUDA_LIBRARIES} ${CUDASTUB} ${CUBLAS} ${CUDNN})
+    target_link_libraries(${CINNCORE_TARGET} ${CUDA_NVRTC_LIB} ${CUDA_LIBRARIES} ${CUDASTUB} ${CUBLAS} ${CUDNN} 
+      ${jitify_deps})
     if (NVTX_FOUND)
       target_link_libraries(${CINNCORE_TARGET} ${CUDA_NVTX_LIB})
     endif()

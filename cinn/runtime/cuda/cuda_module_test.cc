@@ -16,7 +16,7 @@
 
 #include <gtest/gtest.h>
 
-#include "cinn/backends/nvrtc_util.h"
+#include "cinn/backends/nvrtc/nvrtc_util.h"
 #include "cinn/cinn.h"
 #include "cinn/runtime/cuda/cuda_util.h"
 #include "cinn/runtime/cuda/use_extern_funcs.h"
@@ -26,7 +26,7 @@ namespace runtime {
 namespace cuda {
 
 TEST(CUDAModule, basic) {
-  backends::NVRTC_Compiler compiler;
+  backends::nvrtc::Compiler compiler;
 
   std::string source_code = R"ROC(
 extern "C" __global__

@@ -1,11 +1,9 @@
 core_gather_headers()
 
-
 gather_srcs(cinnapi_src SRCS
     outputs.cc
     codegen_c.cc
     codegen_c_x86.cc
-    codegen_cuda_dev.cc
     codegen_cuda_host.cc
     extern_func_emitter.cc
     extern_func_emitter_builtin.cc
@@ -17,13 +15,16 @@ gather_srcs(cinnapi_src SRCS
 )
 
 if (WITH_CUDA)
-  list(APPEND srcs cuda_util.cc nvrtc_util.cc codegen_cuda_util.cc)
+  add_subdirectory(nvrtc)
+  list(APPEND srcs cuda_util.cc codegen_cuda_dev.cc codegen_cuda_util.cc)
 endif()
 
 cc_library(__x86_source_fake_lib SRCS _x86_builtin_source.cc)
 add_subdirectory(llvm)
 
+
 if (WITH_CUDA)
+    
     nv_test(test_raw_cuda_code SRCS raw_cuda_code_test.cu DEPS cinncore)
 endif()
 
@@ -40,7 +41,6 @@ endif()
 if (WITH_CUDA)
   nv_test(test_codegen_cuda_generate SRCS codegen_cuda_generate_test.cc DEPS cinncore)
   nv_test(test_codegen_cuda_dev SRCS codegen_cuda_dev_test.cc ../common/cuda_test_helper.cc DEPS cinncore)
-  nv_test(test_nvrtc_util SRCS nvrtc_util_test.cc DEPS cinncore)
   nv_test(test_codegen_debug SRCS codegen_debug_test.cc DEPS cinncore)
 
   if (WITH_TESTING)
