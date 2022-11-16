@@ -24,11 +24,12 @@
 
 namespace cinn {
 namespace backends {
+namespace nvrtc {
 
 /**
  * An helper class to call NVRTC. Input CUDA device source code, get PTX string.
  */
-class NVRTC_Compiler {
+class Compiler {
  public:
   /**
    * Compile the \p code and get PTX string.
@@ -59,6 +60,7 @@ class NVRTC_Compiler {
   std::string CompilePTX(const std::string& code, bool include_headers);
 };
 
+}  // namespace nvrtc
 }  // namespace backends
 }  // namespace cinn
 

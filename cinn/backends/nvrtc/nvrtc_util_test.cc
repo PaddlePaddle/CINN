@@ -12,15 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cinn/backends/nvrtc_util.h"
+#include "cinn/backends/nvrtc/nvrtc_util.h"
 
 #include <gtest/gtest.h>
 
 namespace cinn {
 namespace backends {
+namespace nvrtc {
 
-TEST(NVRTC_Compiler, basic) {
-  NVRTC_Compiler compiler;
+TEST(Compiler, basic) {
+  Compiler compiler;
 
   std::string source_code = R"ROC(
 extern "C" __global__
@@ -38,5 +39,6 @@ void saxpy(float a, float *x, float *y, float *out, size_t n)
   LOG(INFO) << "ptx:\n" << ptx;
 }
 
+}  // namespace nvrtc
 }  // namespace backends
 }  // namespace cinn

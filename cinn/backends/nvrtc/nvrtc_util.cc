@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cinn/backends/nvrtc_util.h"
+#include "cinn/backends/nvrtc/nvrtc_util.h"
 
 #include <cuda.h>
 #include <cuda_runtime.h>
@@ -24,12 +24,20 @@
 
 namespace cinn {
 namespace backends {
+namespace nvrtc {
+namespace {
+#ifdef NVRTC_STL_PATH
+static constexpr char* nvrtc_stl_path = NVRTC_STL_PATH;
+#else
+static constexpr char* nvrtc_stl_path = nullptr;
+#endif
+}  // namespace
 
-std::string NVRTC_Compiler::operator()(const std::string& code, bool include_headers) {
+std::string Compiler::operator()(const std::string& code, bool include_headers) {
   return CompilePTX(code, include_headers);
 }
 
-std::vector<std::string> NVRTC_Compiler::FindCUDAIncludePaths() {
+std::vector<std::string> Compiler::FindCUDAIncludePaths() {
   const std::string delimiter = "/";
   std::string cuda_include_path;
   const char* cuda_path_env = std::getenv("CUDA_PATH");
@@ -52,11 +60,9 @@ std::vector<std::string> NVRTC_Compiler::FindCUDAIncludePaths() {
   return {cuda_include_path};
 }
 
-std::vector<std::string> NVRTC_Compiler::FindCINNRuntimeIncludePaths() {
-  return {Context::Global().runtime_include_dir()};
-}
+std::vector<std::string> Compiler::FindCINNRuntimeIncludePaths() { return {Context::Global().runtime_include_dir()}; }
 
-std::string NVRTC_Compiler::CompilePTX(const std::string& code, bool include_headers) {
+std::string Compiler::CompilePTX(const std::string& code, bool include_headers) {
   std::vector<std::string> compile_options;
   std::vector<const char*> param_cstrings{};
   nvrtcProgram prog;
@@ -73,6 +79,8 @@ std::string NVRTC_Compiler::CompilePTX(const std::string& code, bool include_hea
   }
 
   compile_options.push_back("-arch=compute_" + cc);
+  compile_options.push_back("-std=c++14");
+  compile_options.push_back("-default-device");
 
   if (include_headers) {  // prepare include headers
     auto cuda_headers = FindCUDAIncludePaths();
@@ -83,6 +91,9 @@ std::string NVRTC_Compiler::CompilePTX(const std::string& code, bool include_hea
     }
     for (auto& header : cinn_headers) {
       include_paths.push_back("--include-path=" + header);
+    }
+    if (nvrtc_stl_path) {
+      include_paths.push_back("--include-path=" + std::string{nvrtc_stl_path});
     }
 
     compile_options.insert(std::end(compile_options), include_paths.begin(), include_paths.end());
@@ -115,5 +126,6 @@ std::string NVRTC_Compiler::CompilePTX(const std::string& code, bool include_hea
   return ptx;
 }
 
+}  // namespace nvrtc
 }  // namespace backends
 }  // namespace cinn
