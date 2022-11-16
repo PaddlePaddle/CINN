@@ -41,16 +41,6 @@
 namespace cinn {
 namespace auto_schedule {
 
-void naive_matmul(float* A, float* B, float* C, int M, int N, int K) {
-  for (int i = 0; i < M; ++i) {
-    for (int j = 0; j < N; ++j) {
-      for (int k = 0; k < K; ++k) {
-        C[i * N + j] += A[i * K + k] * B[k * N + j];
-      }
-    }
-  }
-}
-
 TEST(AddCacheWrite, Init) {
   srand(0);
   Context::Global().ResetNameId();
@@ -181,9 +171,6 @@ TEST(AddCacheWrite, MatrixMultiply) {
 
   auto compiler = backends::Compiler::Create(target);
   compiler->Build(build_module);
-
-  auto test_func_ptr =
-      reinterpret_cast<void (*)(void**, int32_t)>(compiler->Lookup("TestAddCacheWrite_MatrixMultiply"));
 }
 
 }  // namespace auto_schedule
