@@ -1360,6 +1360,8 @@ TEST(IrSchedule, cache_read2) {
   auto block_b = ir_sch.GetBlock("B");
 
   auto a_cache = ir_sch.CacheRead(block_b, 0, "local");
+  VLOG(1) << "CacheRead a_cache: " << a_cache;
+  VLOG(1) << "before ComputeAt IR:" << ir_sch.GetModule().GetExprs().at(0);
 
   auto loops = ir_sch.GetLoops("B");
   ir_sch.ComputeAt(a_cache, loops[1]);
@@ -1511,7 +1513,9 @@ TEST(IrSchedule, cache_write2) {
 
   auto block_b = ir_sch.GetBlock("B");
   auto b_cache = ir_sch.CacheWrite(block_b, 0, "local");
-  auto loops   = ir_sch.GetLoops("B");
+  VLOG(1) << "CacheWrite b_cache:" << b_cache;
+  VLOG(1) << "before ComputeAt IR:" << ir_sch.GetModule().GetExprs().at(0);
+  auto loops = ir_sch.GetLoops("B");
   ir_sch.ComputeAt(b_cache, loops[1]);
 
   VLOG(1) << "After CacheWrite and ComputeAt, IR is : " << ir_sch.GetModule().GetExprs().at(0);
