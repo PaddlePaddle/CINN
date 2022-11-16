@@ -177,6 +177,7 @@ void MultiLevelTiling::Apply(int index) {
 
   Expr reordered_expr = ir_schedule_->Reorder(splited_loops);
   VLOG(5) << "Finish Reorder in MultiLevelTiling, now do Fuse and Binding on the main loop chain";
+  VLOG(6) << ir_schedule_->GetModule().GetExprs()[0];
 
   int num_binds = std::min(bind_axis_.size(), tiles.size());
   for (int i = 0; i < num_binds; ++i) {
@@ -211,41 +212,52 @@ void MultiLevelTiling::Apply(int index) {
 
   VLOG(5) << "Do Fuse and Binding on the other loop chains";
   Expr sche_block_top_loop = ir_schedule_->GetLoops(sche_block->name)[0];
+
+  std::vector<Expr> scan_loop_blocks = ir_schedule_->GetAllBlocks();
+  for (const Expr& b : scan_loop_blocks) {
+    ir_schedule_->GetLoops(b);
+  }
   if (reordered_expr.As<ir::Block>()) {
     for (Expr& top_loop : reordered_expr.As<ir::Block>()->stmts) {
       if (top_loop != sche_block_top_loop) {
-        std::vector<ir::Expr> fuse_candidates;
-        int extent_prod                    = 1;
-        int first_idx_less_than_max_factor = -1;
-        int i                              = 0;
-        int j                              = 0;
-        for (Expr cur = top_loop; cur.As<ir::For>(); cur = cur.As<ir::For>()->body.As<ir::Block>()->stmts[0]) {
-          while (tiles.size() > i && tiles[i].size() <= j) {
-            j = 0;
-            ++i;
-            extent_prod = 1;
-            fuse_candidates.clear();
-            first_idx_less_than_max_factor = -1;
-          }
-          if (tiles.size() <= i || num_binds <= i) {
+        std::vector<Expr> scan_loop_blocks = ir_schedule_->GetAllBlocks();
+        Expr other_loop_chain_schedule;
+        for (Expr& block : scan_loop_blocks) {
+          std::vector<Expr> loop_chain = ir_schedule_->GetLoops(block);
+          if (loop_chain[0] == top_loop) {
+            other_loop_chain_schedule = block;
             break;
           }
-          int extent = cur.As<ir::For>()->extent.as_int32();
-          extent_prod *= extent;
-          if (first_idx_less_than_max_factor == -1 && extent <= max_factor_) {
-            first_idx_less_than_max_factor = fuse_candidates.size();
-          }
-          fuse_candidates.emplace_back(cur);
-          ++j;
+        }
+        if (!other_loop_chain_schedule.defined()) {
+          LOG(WARNING) << "Has other loop chain, but not corresponding ScheduleBlock in MultiLevelTiling";
+          continue;
+        }
 
-          if (tiles[i].size() <= j) {
-            if (extent_prod <= max_factor_) {
-              Expr fused = ir_schedule_->Fuse(fuse_candidates);
-              ir_schedule_->Bind(fused, bind_axis_[i]);
-              cur = fused;
-            } else if (first_idx_less_than_max_factor != -1) {
-              ir_schedule_->Bind(fuse_candidates[first_idx_less_than_max_factor], bind_axis_[i]);
+        std::string other_loop_schedule_name =
+            other_loop_chain_schedule.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->name;
+        VLOG(6) << "Found other_loop_schedule_name = " << other_loop_schedule_name;
+        int fuse_index = 0;
+        for (int i = 0; i < num_binds; ++i) {
+          for_exprs                          = ir_schedule_->GetLoops(other_loop_schedule_name);
+          int extent_prod                    = 1;
+          int first_idx_less_than_max_factor = -1;
+          for (int j = 0; j < tiles[i].size(); ++j) {
+            int extent = for_exprs[fuse_index + j].As<ir::For>()->extent.as_int32();
+            extent_prod *= extent;
+            if (first_idx_less_than_max_factor == -1 && extent <= max_factor_) {
+              first_idx_less_than_max_factor = fuse_index + j;
             }
+          }
+          if (extent_prod <= max_factor_) {
+            std::vector<Expr> loops_to_fuse(for_exprs.begin() + fuse_index,
+                                            for_exprs.begin() + fuse_index + tiles[i].size());
+            Expr fused = ir_schedule_->Fuse(loops_to_fuse);
+            ir_schedule_->Bind(fused, bind_axis_[i]);
+            fuse_index += 1;
+          } else if (first_idx_less_than_max_factor != -1) {
+            ir_schedule_->Bind(for_exprs[first_idx_less_than_max_factor], bind_axis_[i]);
+            fuse_index += tiles[i].size();
           }
         }
       }

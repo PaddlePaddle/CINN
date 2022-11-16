@@ -57,7 +57,7 @@ class PerformanceTester : public ::testing::Test {
     // times of compiled runtime program will be executed repeatedly.
     int repeat_times = 100;
     // the num_tuning_rounds for auto tuning
-    int num_tuning_rounds = 400;
+    int num_tuning_rounds = 2;
     // knobs to control which schedules will be measured, refer to FLAGS_evaluate_knobs explanation
     std::bitset<3> evaluate_knobs = 7UL;
   };

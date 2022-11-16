@@ -546,8 +546,10 @@ Expr ConstructOtherStmtChain(const std::vector<Expr>& stmts,
     } else {
       temp.As<ir::For>()->body = Block::Make({stmts});
     }
-    std::string rename = common::UniqName(temp.As<ir::For>()->loop_var->name + "__reordered_other_chain");
-    optim::ReplaceVarWithExpr(&temp, temp.As<ir::For>()->loop_var, Expr(Var(rename)));
+    // std::string rename = common::UniqName(temp.As<ir::For>()->loop_var->name + "__reordered_other_chain");
+    // VLOG(6) << "Huihuang debug before ReplaceVarWithExpr, temp = " << temp;
+    // optim::ReplaceVarWithExpr(&temp, temp.As<ir::For>()->loop_var, Expr(Var(rename)));
+    // VLOG(6) << "Huihuang debug after ReplaceVarWithExpr, temp = " << temp;
     new_loop = temp;
   }
   return new_loop;

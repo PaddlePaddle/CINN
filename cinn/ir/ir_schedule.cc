@@ -1732,21 +1732,21 @@ void IRSchedule::SetBuffer(Expr& block, const std::string& memory_type, bool fix
 
 Expr IRSchedule::Reorder(const std::vector<Expr>& loops) {
   Expr ret = impl_->Reorder(loops);
-  trace_.Append(ScheduleDesc::Step("Reorder", {{"loops", loops}}, {}, {}));
+  trace_.Append(ScheduleDesc::Step("Reorder", {{"loops", loops}}, {}, {ret}));
   return ret;
 }
 
 Expr IRSchedule::Reorder(const std::string& block_name, const std::vector<int>& loops_index) {
   Expr ret = impl_->Reorder(block_name, loops_index);
   trace_.Append(
-      ScheduleDesc::Step("ReorderWithName", {}, {{"block_name", block_name}, {"loops_index", loops_index}}, {}));
+      ScheduleDesc::Step("ReorderWithName", {}, {{"block_name", block_name}, {"loops_index", loops_index}}, {ret}));
   return ret;
 }
 
 Expr IRSchedule::Reorder(const Expr& block, const std::vector<int>& loops_index) {
   Expr ret = impl_->Reorder(block, loops_index);
   trace_.Append(ScheduleDesc::Step(
-      "ReorderWithBlock", {{"block", std::vector<Expr>({block})}}, {{"loops_index", loops_index}}, {}));
+      "ReorderWithBlock", {{"block", std::vector<Expr>({block})}}, {{"loops_index", loops_index}}, {ret}));
   return ret;
 }
 
