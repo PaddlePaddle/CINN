@@ -25,6 +25,15 @@ namespace cinn {
 namespace common {
 
 #ifdef CINN_WITH_CUDA
+
+#define CUDA_CALL(func)                                            \
+  {                                                                \
+    auto status = func;                                            \
+    if (status != cudaSuccess) {                                   \
+      LOG(FATAL) << "CUDA Error : " << cudaGetErrorString(status); \
+    }                                                              \
+  }
+
 class CudaModuleTester {
  public:
   CudaModuleTester();
@@ -48,6 +57,58 @@ class CudaModuleTester {
   std::vector<void*> kernel_handles_;
 
   void* cuda_module_{nullptr};
+};
+
+class CudaMem {
+ public:
+  CudaMem() = default;
+
+  void* mutable_data(size_t bytes) {
+    CHECK_GT(bytes, 0) << "Cannot allocate empty memory!";
+    if (ptr) {
+      CHECK_EQ(bytes, bytes_) << "Try allocate memory twice!";
+      return ptr;
+    }
+    CUDA_CALL(cudaMalloc(&ptr, bytes));
+    bytes_ = bytes;
+    return ptr;
+  }
+
+  template <typename T>
+  T* mutable_data(size_t num) {
+    return reinterpret_cast<T*>(mutable_data(num * sizeof(T)));
+  }
+
+  void* data() const {
+    CHECK(ptr) << "Try get nullptr!";
+    return ptr;
+  }
+
+  template <typename T>
+  T* data() const {
+    return reinterpret_cast<T*>(data());
+  }
+
+  void MemcpyFromHost(const void* src, size_t bytes, cudaStream_t stream = nullptr) {
+    CHECK_LE(bytes, bytes_) << "Too many data need copy";
+    CUDA_CALL(cudaMemcpyAsync(ptr, src, bytes, cudaMemcpyHostToDevice, stream));
+  }
+
+  void MemcpyToHost(void* dst, size_t bytes, cudaStream_t stream = nullptr) {
+    CHECK_LE(bytes, bytes_) << "Too many data need copy";
+    CUDA_CALL(cudaMemcpyAsync(dst, ptr, bytes, cudaMemcpyDeviceToHost, stream));
+  }
+
+  ~CudaMem() {
+    if (ptr) {
+      cudaFree(ptr);
+    }
+    bytes_ = 0;
+  }
+
+ private:
+  void* ptr{nullptr};
+  size_t bytes_{0};
 };
 
 #endif
