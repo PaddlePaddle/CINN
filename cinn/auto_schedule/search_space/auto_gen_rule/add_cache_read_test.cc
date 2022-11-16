@@ -36,6 +36,7 @@
 #include "cinn/ir/tensor.h"
 #include "cinn/poly/stage.h"
 #ifdef CINN_WITH_CUDA
+#include "cinn/common/cuda_test_helper.h"
 #include "cinn/runtime/cuda/cuda_module.h"
 #include "cinn/runtime/cuda/cuda_util.h"
 #endif
@@ -43,7 +44,6 @@
 
 namespace cinn {
 namespace auto_schedule {
-
 void naive_matmul(float* A, float* B, float* C, int M, int N, int K) {
   for (int i = 0; i < M; ++i) {
     for (int j = 0; j < N; ++j) {
@@ -54,7 +54,12 @@ void naive_matmul(float* A, float* B, float* C, int M, int N, int K) {
   }
 }
 
-void check_matmul_result_cpu(int M, int N, int K, void (*func_ptr)(void**, int32_t)) {
+void check_matmul_result_cpu(int M, int N, int K, const std::string& func_name, const ir::Module& module) {
+  // compile
+  auto compiler = backends::Compiler::Create(common::DefaultHostTarget());
+  compiler->Build(module);
+  auto test_func_ptr = reinterpret_cast<void (*)(void**, int32_t)>(compiler->Lookup(func_name));
+
   // prepare data
   auto* A_host = common::BufferBuilder(Float(32), {M, N}).set_random().Build();
   CHECK(A_host);
@@ -65,7 +70,7 @@ void check_matmul_result_cpu(int M, int N, int K, void (*func_ptr)(void**, int32
   auto all_args = common::ArgsBuilder().Add(A_host).Add(B_host).Add(C_host).Build();
 
   // calculate matmul after schedule in rule
-  func_ptr(reinterpret_cast<void**>(all_args.data()), all_args.size());
+  test_func_ptr(reinterpret_cast<void**>(all_args.data()), all_args.size());
   float* res = reinterpret_cast<float*>(C_host->memory);
 
   // calculate naive matmul
@@ -100,7 +105,11 @@ void* CreateDeviceBuffer(const cinn_buffer_t* host_buffer) {
   return reinterpret_cast<void*>(data);
 }
 
-void check_matmul_result_cuda(int M, int N, int K, void (*func_ptr)(void**, int32_t)) {
+void check_matmul_result_cuda(int M, int N, int K, const std::string& func_name, const ir::Module& module) {
+  // compile
+  common::CudaModuleTester tester;
+  tester.Compile(module);
+
   // prepare data
   auto* A_host = common::BufferBuilder(Float(32), {M, N}).set_random().Build();
   CHECK(A_host);
@@ -122,8 +131,7 @@ void check_matmul_result_cuda(int M, int N, int K, void (*func_ptr)(void**, int3
 
   // calculate matmul after schedule in rule
   CUDA_CALL(cudaDeviceSynchronize());
-  CHECK(func_ptr);
-  func_ptr(reinterpret_cast<void**>(all_args.data()), all_args.size());
+  tester(func_name, all_args.data(), all_args.size());
   CUDA_CALL(cudaDeviceSynchronize());
   CUDA_CALL(cudaMemcpy(
       reinterpret_cast<void*>(C_host->memory), C_dev, C_host->num_elements() * sizeof(float), cudaMemcpyDeviceToHost));
@@ -234,9 +242,9 @@ TEST(AddCacheRead, MatrixMultiply) {
   ir::Tensor C = Compute(
       {M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k) * B(k, j), {k}); }, "C");
 
-  poly::StageMap stages = CreateStages({C});
-  std::vector<ir::LoweredFunc> funcs =
-      lang::LowerVec("TestAddCacheRead_MatrixMultiply", stages, {A, B, C}, {}, {}, nullptr, target, true);
+  poly::StageMap stages              = CreateStages({C});
+  std::string func_name              = "TestAddCacheRead_MatrixMultiply";
+  std::vector<ir::LoweredFunc> funcs = lang::LowerVec(func_name, stages, {A, B, C}, {}, {}, nullptr, target, true);
 
   ir::Expr ast_expr = funcs[0]->body;
   VLOG(6) << "Expr before MultiLevelTiling: ";
@@ -271,26 +279,21 @@ TEST(AddCacheRead, MatrixMultiply) {
   builder.AddFunction(func);
   auto build_module = builder.Build();
 
-  auto compiler = backends::Compiler::Create(target);
-  compiler->Build(build_module);
+#ifdef CINN_WITH_CUDA
 
+#endif
+
+// TODO(BiynXu): Debug and add accuracy test
 #ifdef CINN_WITH_CUDA
   // print source code for debug
   backends::CodeGenCUDA_Dev codegen(target);
   codegen.SetInlineBuiltinCodes(false);
   auto source_code = codegen.Compile(build_module, CodeGenC::OutputKind::CImpl);
   VLOG(6) << "source code is :\n" << source_code;
+  // check_matmul_result_cuda(M.as_int32(), N.as_int32(), K.as_int32(), func_name, build_module);
+#else
+  // check_matmul_result_cpu(M.as_int32(), N.as_int32(), K.as_int32(), func_name, build_module);
 #endif
-
-  // TODO(BiynXu): Debug and add accuracy test
-  //   auto test_func_ptr = reinterpret_cast<void (*)(void**,
-  //   int32_t)>(compiler->Lookup("TestAddCacheRead_MatrixMultiply"));
-
-  // #ifdef CINN_WITH_CUDA
-  //   check_matmul_result_cuda(M.as_int32(), N.as_int32(), K.as_int32(), test_func_ptr);
-  // #else
-  //   check_matmul_result_cpu(M.as_int32(), N.as_int32(), K.as_int32(), test_func_ptr);
-  // #endif
 }
 
 }  // namespace auto_schedule

@@ -70,34 +70,17 @@ void AddCacheRead::Apply(int index) {
   std::string block_name                      = sch_block->name;
 
   // Analyze which buffers can be cached
-  std::vector<std::string> read_tensor_strs;
-  ir::CollectIRNodesWithoutTensor(sch_block->body, [&](const ir::Expr* x) {
-    if (x->As<ir::Load>()) read_tensor_strs.push_back(x->As<ir::Load>()->tensor.as_tensor()->name);
-    return x->As<ir::Load>() != nullptr;
-  });
-
-  std::unordered_set<std::string> write_tensor_strs;
-  ir::CollectIRNodesWithoutTensor(sch_block->body, [&](const ir::Expr* x) {
-    if (x->As<ir::Store>()) write_tensor_strs.insert(x->As<ir::Store>()->tensor.as_tensor()->name);
-    return x->As<ir::Store>() != nullptr;
-  });
-
   std::vector<int> read_buffer_indexes;
-  for (int i = 0; i < read_tensor_strs.size(); ++i) {
-    if (write_tensor_strs.count(read_tensor_strs[i]) == 0) {
+  for (int i = 0; i < sch_block->read_buffers.size(); ++i) {
+    bool is_read_write = false;
+    for (int j = 0; j < sch_block->write_buffers.size(); ++j) {
+      if (sch_block->read_buffers[i] == sch_block->write_buffers[j]) {
+        is_read_write = true;
+        break;
+      }
+    }
+    if (!is_read_write) {
       read_buffer_indexes.push_back(i);
-    }
-  }
-  // For debug
-  if (VLOG_IS_ON(6)) {
-    for (int i = 0; i < read_tensor_strs.size(); ++i) {
-      VLOG(6) << "read tensors[" << i << "]: " << read_tensor_strs[i];
-    }
-    for (const auto& write_tensor_str : write_tensor_strs) {
-      VLOG(6) << "write tensors: " << write_tensor_str;
-    }
-    for (int idx : read_buffer_indexes) {
-      VLOG(6) << "only read tensors: " << read_tensor_strs[idx];
     }
   }
 
