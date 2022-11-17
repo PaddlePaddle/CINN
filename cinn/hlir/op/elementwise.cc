@@ -144,12 +144,21 @@ std::shared_ptr<OpStrategy> StrategyForScale(const framework::NodeAttr &attrs,
       CHECK(pack_args[1].is_string());
       tensor_name = pack_args[1].operator std::string();
     }
+
     if (bias_after_scale) {
       out = Compute(
-          A->shape, [=](const std::vector<Expr> &indice) { return scale * A(indice) + bias; }, tensor_name);
+          A->shape,
+          [=](const std::vector<Expr> &indice) {
+            return ir::Cast::Make(A->type(), Expr(scale)) * A(indice) + ir::Cast::Make(A->type(), Expr(bias));
+          },
+          tensor_name);
     } else {
       out = Compute(
-          A->shape, [=](const std::vector<Expr> &indice) { return scale * (A(indice) + bias); }, tensor_name);
+          A->shape,
+          [=](const std::vector<Expr> &indice) {
+            return ir::Cast::Make(A->type(), Expr(scale)) * (A(indice) + ir::Cast::Make(A->type(), Expr(bias)));
+          },
+          tensor_name);
     }
     auto stages = CreateStages({out});
     *ret        = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};

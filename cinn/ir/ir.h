@@ -58,6 +58,11 @@ struct Cast : public ExprNode<Cast> {
 
   static Expr Make(Type t, Expr v);
 
+  template <typename T>
+  static Expr Make(Type t, T v) {
+    return Make(t, Expr(v));
+  }
+
   Expr& v() { return operand(0); }
   const Expr& v() const { return operand(0); }
 

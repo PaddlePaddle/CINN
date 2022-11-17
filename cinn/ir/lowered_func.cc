@@ -35,6 +35,8 @@ DECLARE_bool(cinn_ir_schedule);
 namespace cinn {
 namespace ir {
 
+using common::float16;
+
 const _LoweredFunc_* LoweredFunc::operator->() const { return As<_LoweredFunc_>(); }
 _LoweredFunc_* LoweredFunc::operator->() { return As<_LoweredFunc_>(); }
 
@@ -312,6 +314,8 @@ void _LoweredFunc_::PrepareArgumentExprs() {
       pod_cast_expr = ir::intrinsics::PodValueToX::Make(load_expr, type_of<int32_t>());
     } else if (arg.type() == type_of<int64_t>()) {
       pod_cast_expr = ir::intrinsics::PodValueToX::Make(load_expr, type_of<int64_t>());
+    } else if (arg.type() == type_of<float16>()) {
+      pod_cast_expr = ir::intrinsics::PodValueToX::Make(load_expr, type_of<float16>());
     } else if (arg.type() == type_of<float>()) {
       pod_cast_expr = ir::intrinsics::PodValueToX::Make(load_expr, type_of<float>());
     } else if (arg.type() == type_of<double>()) {

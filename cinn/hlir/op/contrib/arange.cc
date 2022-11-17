@@ -51,7 +51,8 @@ std::vector<ir::Tensor> Arange(
   ir::Tensor res = lang::Compute(
       {Expr(num_elem)},
       [=](const std::vector<ir::Expr> &indices) {
-        return ir::Cast::Make(dtype, start + step * cinn::common::cast(indices[0], common::Float(32)));
+        return ir::Cast::Make(
+            dtype, ir::Cast::Make(dtype, start) + ir::Cast::Make(dtype, step) * ir::Cast::Make(dtype, indices[0]));
       },
       common::UniqName(output_name));
   return {res};

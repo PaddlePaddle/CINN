@@ -26,6 +26,8 @@
 namespace cinn {
 namespace lang {
 
+using cinn::common::float16;
+
 Expr logic_and(const std::vector<Expr>& conds) {
   CHECK(!conds.empty());
   auto start = ir::And::Make(conds[0], conds[1]);
@@ -117,6 +119,7 @@ Expr min_value(const Type& type) {
   FOR_CASE(int64_t)
   FOR_CASE(uint32_t)
   FOR_CASE(uint64_t)
+  FOR_CASE(float16)
   FOR_CASE(float)
   FOR_CASE(double)
 #undef FOR_CASE
@@ -134,6 +137,27 @@ Expr max_value(const Type& type) {
   FOR_CASE(int64_t)
   FOR_CASE(uint32_t)
   FOR_CASE(uint64_t)
+  FOR_CASE(float16)
+  FOR_CASE(float)
+  FOR_CASE(double)
+#undef FOR_CASE
+
+  CINN_NOT_IMPLEMENTED
+  return Expr();
+}
+
+Expr Epsilon(const Type& type) {
+  CHECK_EQ(type.lanes(), 1);
+
+#define FOR_CASE(type__)                                 \
+  if (type == type_of<type__>()) {                       \
+    return Expr(std::numeric_limits<type__>::epsilon()); \
+  }
+  FOR_CASE(int32_t)
+  FOR_CASE(int64_t)
+  FOR_CASE(uint32_t)
+  FOR_CASE(uint64_t)
+  FOR_CASE(float16)
   FOR_CASE(float)
   FOR_CASE(double)
 #undef FOR_CASE
@@ -147,18 +171,12 @@ Expr Abs(Expr e) {
   Type bool_type = Bool(type.lanes());
   if (type.is_uint()) {
     return e;
-  } else if (type.is_int()) {
+  } else if (type.is_int() || type.is_float()) {
     auto node = e.As<ir::IntImm>();
     if (node) {
       return make_const(type, std::abs(node->value));
     }
-    return ir::Select::Make(e > make_const(e->type(), 0), e, -e);
-  } else if (type.is_float()) {
-    auto node = e.As<ir::FloatImm>();
-    if (node) {
-      return make_const(type, std::fabs(node->value));
-    }
-    return CallExtern("fabs", {e});
+    return ir::Select::Make(e > Zero(e->type()), e, -e);
   } else {
     LOG(FATAL) << "Abs Not support data type " << type;
   }
@@ -174,11 +192,7 @@ Expr IsNan(Expr e) {
     if (node) {
       return common::make_bool(std::isnan(node->value), type.lanes());
     }
-    Expr arg = e;
-    if (type.bits() == 16) {
-      arg = ir::Cast::Make(Float(32), std::move(e));
-    }
-    return CallExtern("isnan", {arg}, {{"vectorizable", false}});
+    return CallExtern("isnan", {e}, {{"vectorizable", false}});
   } else {
     LOG(FATAL) << type << "is not supported for isnan op.";
     return e;
@@ -190,8 +204,10 @@ Expr Infinity(const Type& type) {
   if (type.is_float()) {
     if (type.bits() == 64) {
       return make_const(type, std::numeric_limits<double>::infinity());
-    } else if (type.bits() == 32 || type.bits() == 16) {
+    } else if (type.bits() == 32) {
       return make_const(type, std::numeric_limits<float>::infinity());
+    } else if (type.bits() == 16) {
+      return make_const(type, std::numeric_limits<float16>::infinity());
     }
   }
   LOG(FATAL) << "Cannot decide infinity for type " << type;
@@ -203,8 +219,11 @@ Expr IsInf(Expr e) {
   if (type.is_int() || type.is_uint()) {
     return common::make_bool(false, type.lanes());
   } else if (type.is_float()) {
-    Expr arg = e;
-    return CallExtern("isinf", {arg}, {{"vectorizable", false}});
+    auto* node = e.As<ir::FloatImm>();
+    if (node) {
+      return common::make_bool(std::isinf(node->value), type.lanes());
+    }
+    return CallExtern("isinf", {e}, {{"vectorizable", false}});
   } else {
     LOG(FATAL) << type << "is not supported for isinf op.";
     return e;
