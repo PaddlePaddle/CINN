@@ -20,7 +20,6 @@
 
 #include "cinn/backends/nvrtc/nvrtc_util.h"
 #include "cinn/cinn.h"
-#include "cinn/common/cuda_test_helper.h"
 #include "cinn/runtime/cuda/cuda_util.h"
 #include "cinn/runtime/cuda/test_util.h"
 #include "cinn/runtime/cuda/use_extern_funcs.h"

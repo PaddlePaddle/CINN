@@ -15,6 +15,8 @@
 #include <numeric>
 #include <vector>
 
+#include "cinn/backends/cuda_util.h"
+
 namespace cinn {
 namespace runtime {
 namespace cuda {
@@ -25,21 +27,21 @@ class Vector {
  public:
   explicit Vector(const std::vector<T>& other) : size_{other.size()} {
     size_t bytes = sizeof(T) * size_;
-    cudaMalloc(&ptr_, bytes);
-    cudaMemcpy(ptr_, other.data(), bytes, cudaMemcpyHostToDevice);
+    CUDA_CALL(cudaMalloc(&ptr_, bytes));
+    CUDA_CALL(cudaMemcpy(ptr_, other.data(), bytes, cudaMemcpyHostToDevice));
   }
   explicit Vector(size_t size) : size_{size} {
     size_t bytes = sizeof(T) * size_;
-    cudaMalloc(&ptr_, bytes);
-    cudaMemset(ptr_, 0, bytes);
+    CUDA_CALL(cudaMalloc(&ptr_, bytes));
+    CUDA_CALL(cudaMemset(ptr_, 0, bytes));
   }
   std::vector<T> to_host() const {
     std::vector<T> ret(size_);
     size_t bytes = sizeof(T) * size_;
-    cudaMemcpy(ret.data(), ptr_, bytes, cudaMemcpyDeviceToHost);
+    CUDA_CALL(cudaMemcpy(ret.data(), ptr_, bytes, cudaMemcpyDeviceToHost));
     return ret;
   }
-  ~Vector() { cudaFree(ptr_); }
+  ~Vector() { CUDA_CALL(cudaFree(ptr_)); }
   size_t size() const { return size_; }
   T* data() const { return ptr_; }
 
