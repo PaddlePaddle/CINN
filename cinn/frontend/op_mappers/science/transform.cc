@@ -333,6 +333,27 @@ void ScatterAddOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContex
   ctx.AddVarModelToProgram(out_name, out->id);
 }
 
+void SelectOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+  CHECK_EQ(op_desc.Input("Condition").size(), 1UL);
+  auto cond_name = op_desc.Input("Condition").front();
+  CHECK_EQ(op_desc.Input("X").size(), 1UL);
+  auto x_name = op_desc.Input("X").front();
+  CHECK_EQ(op_desc.Input("Y").size(), 1UL);
+  auto y_name = op_desc.Input("Y").front();
+  CHECK_EQ(op_desc.Output("Z").size(), 1UL);
+  auto out_name = op_desc.Output("Z").front();
+
+  VLOG(4) << cond_name << " ? " << x_name << " : " << y_name;
+
+  auto cond = ctx.GetVar(cond_name);
+  auto x    = ctx.GetVar(x_name);
+  auto y    = ctx.GetVar(y_name);
+  auto out  = ctx.Builder()->Select(cond, x, y);
+
+  ctx.AddVar(out_name, out);
+  ctx.AddVarModelToProgram(out_name, out->id);
+}
+
 }  // namespace science_mappers
 }  // namespace frontend
 }  // namespace cinn
@@ -349,6 +370,7 @@ CINN_REGISTER_HELPER(science_transform) {
   CINN_REGISTER_OP_MAPPER(index_assign_p, cinn::frontend::science_mappers::IndexAssignOpMapper)
   CINN_REGISTER_OP_MAPPER(scatter_add_p, cinn::frontend::science_mappers::ScatterAddOpMapper)
   CINN_REGISTER_OP_MAPPER(reduce_p, cinn::frontend::science_mappers::ReduceSumOpMapper)
+  CINN_REGISTER_OP_MAPPER(select_p, cinn::frontend::science_mappers::SelectOpMapper)
 
 #define EXPAND_REDUCE_OP_MAPPER_REGISTER(op_name, ReduceType) \
   CINN_REGISTER_OP_MAPPER(op_name, cinn::frontend::science_mappers::Reduce##ReduceType##OpMapper)
