@@ -69,28 +69,30 @@ void MapExternCall(Expr *e, Target target) {
       const auto &dtype = node->read_args.front().type();
       const auto &name  = node->name;
 
-      bool node_in_extern_fp32     = kExternFp32CallsGPU.count(name);
-      std::string extern_fp32_func = "cinn_nvgpu_" + name + "_fp32";
-
-      bool node_in_extern_int32     = kExternInt32CallsGPU.count(name);
-      std::string extern_int32_func = "cinn_nvgpu_" + name + "_int32";
-
-      if (node_in_extern_fp32 && node_in_extern_int32) {
-        if (dtype == Float(32)) {
-          *expr = lang::CallExtern(extern_fp32_func, node->read_args);
-        } else if (dtype == Int(32)) {
-          *expr = lang::CallExtern(extern_int32_func, node->read_args);
-        } else {
-          LOG(FATAL) << name << " not support data type " << dtype;
-        }
-      } else if (node_in_extern_fp32) {
-        CHECK_EQ(dtype, Float(32)) << name << " only support float32, but here " << dtype;
-        *expr = lang::CallExtern(extern_fp32_func, node->read_args);
-      } else if (node_in_extern_int32) {
-        CHECK_EQ(dtype, Int(32)) << name << " only support int32, but here " << dtype;
-        *expr = lang::CallExtern(extern_int32_func, node->read_args);
+      bool node_in_extern_fp32  = kExternFp32CallsGPU.count(name);
+      bool node_in_extern_int32 = kExternInt32CallsGPU.count(name);
+      if (!node_in_extern_fp32 && !node_in_extern_int32) {
+        return;
       }
-      // TODO(Superjomn) deal with int64 intrinsics.
+
+      std::string suffix;
+      if (dtype.is_int() && node_in_extern_int32) {
+        if (dtype.is_int(32)) {
+          suffix = "_int32";
+        } else if (dtype.is_int(64)) {
+          suffix = "_int64";
+        }
+      } else if (dtype.is_float() && node_in_extern_fp32) {
+        if (dtype.is_float(32)) {
+          suffix = "_fp32";
+        } else if (dtype.is_float(16)) {
+          suffix = "_fp16";
+        }
+      }
+      CHECK(!suffix.empty()) << name << " not support data type " << dtype;
+      std::string extern_func = "cinn_nvgpu_" + name + suffix;
+
+      *expr = lang::CallExtern(extern_func, node->read_args);
     }
   };
 

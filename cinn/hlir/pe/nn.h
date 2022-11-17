@@ -35,14 +35,7 @@ namespace pe {
  *
  * @return The result Tensor.
  */
-
-template <typename T>
-ir::Tensor Relu(const ir::Tensor &A,
-                T threshold                    = static_cast<T>(0),
-                const std::string &output_name = UniqName("T_Relu_out")) {
-  return lang::Compute(
-      A->shape, [=](const std::vector<Expr> &indice) { return lang::Relu(A(indice), threshold); }, output_name);
-}
+ir::Tensor Relu(const ir::Tensor &A, double threshold = 0.0, const std::string &output_name = UniqName("T_Relu_out"));
 
 /**
  * @brief Rectified Linear Unit bounded by six.
@@ -53,13 +46,7 @@ ir::Tensor Relu(const ir::Tensor &A,
  *
  * @return The result Tensor.
  */
-template <typename T>
-ir::Tensor Relu6(const ir::Tensor &A,
-                 T threshold                    = static_cast<T>(0),
-                 const std::string &output_name = UniqName("T_Relu6_out")) {
-  return lang::Compute(
-      A->shape, [=](const std::vector<Expr> &indice) { return lang::Relu6(A(indice), threshold); }, output_name);
-}
+ir::Tensor Relu6(const ir::Tensor &A, double threshold = 0.0, const std::string &output_name = UniqName("T_Relu6_out"));
 
 /**
  * @brief Leaky Rectified Linear Unit.
