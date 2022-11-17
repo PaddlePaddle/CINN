@@ -34,5 +34,10 @@ bool ContainsNodeType(ir::Expr expr, const std::unordered_set<ir::IrNodeTy>& nod
  */
 std::unordered_set<std::string> GetOutputNamesFromLoweredFunc(const std::vector<ir::LoweredFunc>& lowered_funcs);
 
+/**
+ * Determine whether a schedule block needs multileveltiling
+ */
+bool NeedsMultiLevelTiling(const ir::ScheduleBlockRealize& sche_block_realize);
+
 }  // namespace auto_schedule
 }  // namespace cinn
