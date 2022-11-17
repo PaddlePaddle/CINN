@@ -31,6 +31,8 @@
 #ifdef __cplusplus
 #include <functional>
 #include <vector>
+
+#include "cinn/common/float16.h"
 #endif
 
 #ifdef __cplusplus
