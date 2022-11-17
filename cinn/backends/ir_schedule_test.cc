@@ -1360,8 +1360,6 @@ TEST(IrSchedule, cache_read2) {
   auto block_b = ir_sch.GetBlock("B");
 
   auto a_cache = ir_sch.CacheRead(block_b, 0, "local");
-  VLOG(1) << "CacheRead a_cache: " << a_cache;
-  VLOG(1) << "before ComputeAt IR:" << ir_sch.GetModule().GetExprs().at(0);
 
   auto loops = ir_sch.GetLoops("B");
   ir_sch.ComputeAt(a_cache, loops[1]);
@@ -1513,9 +1511,7 @@ TEST(IrSchedule, cache_write2) {
 
   auto block_b = ir_sch.GetBlock("B");
   auto b_cache = ir_sch.CacheWrite(block_b, 0, "local");
-  VLOG(1) << "CacheWrite b_cache:" << b_cache;
-  VLOG(1) << "before ComputeAt IR:" << ir_sch.GetModule().GetExprs().at(0);
-  auto loops = ir_sch.GetLoops("B");
+  auto loops   = ir_sch.GetLoops("B");
   ir_sch.ComputeAt(b_cache, loops[1]);
 
   VLOG(1) << "After CacheWrite and ComputeAt, IR is : " << ir_sch.GetModule().GetExprs().at(0);
@@ -2733,6 +2729,100 @@ TEST(IrSchedule, Annotate) {
   }
 })ROC";
   ASSERT_EQ(utils::GetStreamCnt(ir_sch.GetModule().GetExprs().front()), expected_expr);
+}
+
+TEST(IrSchedule, ComplexIndices) {
+  Context::Global().ResetNameId();
+  Expr M(32);
+  Expr N(64);
+  Expr P(32);
+
+  Target target = common::DefaultHostTarget();
+
+  Placeholder<float> A("A", {M, N, P});
+  auto B = Compute(
+      {M, N, P}, [&](Var i, Var j, Var k) { return A(i, j, k); }, "B");
+  auto C = Compute(
+      {M, N, P}, [&](Var i, Var j, Var k) { return B(i, j, k); }, "C");
+
+  auto stages = CreateStages({A, B, C});
+
+  auto func = cinn::lang::LowerVec("test_complex_indices", stages, {A, C}, {}, {}, nullptr, target, true);
+  CHECK_EQ(func.size(), 1U);
+  ir::IRSchedule ir_sch(ir::ModuleExpr({func[0]->body}));
+
+  auto fused   = ir_sch.Fuse("C", {0, 1});
+  auto splited = ir_sch.Split(fused, {16, -1});
+  ir_sch.Fuse("C", {1, 2});
+  VLOG(3) << "Fuse_Split_Fuse-C Expr:\n" << ir_sch.GetModule().GetExprs().front();
+  auto loops_c = ir_sch.GetLoops("C");
+  ASSERT_EQ(loops_c.size(), 2);
+  ir_sch.Reorder({loops_c[1], loops_c[0]});
+  VLOG(3) << "Reorder Expr:\n" << ir_sch.GetModule().GetExprs().front();
+
+  ir_sch.Fuse("B", {0, 1});
+  VLOG(3) << "Fuse-B Expr:\n" << ir_sch.GetModule().GetExprs().front();
+  auto block_b = ir_sch.GetBlock("B");
+  loops_c      = ir_sch.GetLoops("C");
+  ir_sch.ComputeAt(block_b, loops_c[1]);
+  VLOG(3) << "ComputeAt Expr:\n" << ir_sch.GetModule().GetExprs().front();
+
+  block_b      = ir_sch.GetBlock("B");
+  auto a_cache = ir_sch.CacheRead(block_b, 0, "shared");
+  VLOG(3) << "CacheRead-A Expr:\n" << ir_sch.GetModule().GetExprs().front();
+  auto loops_b = ir_sch.GetLoops("B");
+  ir_sch.ComputeAt(a_cache, loops_b[1]);
+  VLOG(3) << "a_cache ComputeAt Expr:\n" << ir_sch.GetModule().GetExprs().front();
+
+  auto block_c = ir_sch.GetBlock("C");
+  auto c_cache = ir_sch.CacheWrite(block_c, 0, "local");
+  VLOG(3) << "CacheWrite-C Expr:\n" << ir_sch.GetModule().GetExprs().front();
+
+  Module::Builder builder("module1", target);
+  for (auto& i : func) {
+    builder.AddFunction(i);
+  }
+  auto module = builder.Build();
+  CodeGenC codegen(target);
+  codegen.SetInlineBuiltinCodes(false);
+  auto source_code = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
+  VLOG(3) << "scheduled source code:\n" << source_code;
+
+  std::string target_code = R"ROC(
+#include <cinn_runtime.h>
+#include <stdio.h>
+
+void test_complex_indices(void* _args, int32_t num_args)
+{
+  const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
+  cinn_buffer_t* _C = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[1]));
+  cinn_buffer_t* _B = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 32, 64, 32 });
+  cinn_buffer_malloc((void*)(0), _C);
+  cinn_buffer_malloc((void*)(0), _B);
+  const float* A = ((const float*)(_A->memory));
+  float* B = ((float*)(_B->memory));
+  float* C = ((float*)(_C->memory));
+  {
+    for (int32_t i_j_fused_1_k_fused = 0; i_j_fused_1_k_fused < 4096; i_j_fused_1_k_fused += 1) {
+      for (int32_t i_j_fused_0 = 0; i_j_fused_0 < 16; i_j_fused_0 += 1) {
+        A_shared_temp_buffer[((2048 * ((i_j_fused_1_k_fused / 32) / 64)) + ((i_j_fused_1_k_fused & 31) + ((32 * (((i_j_fused_1_k_fused / 32) + (128 * i_j_fused_0)) & 63)) + (4096 * i_j_fused_0))))] = A[((2048 * ((i_j_fused_1_k_fused / 32) / 64)) + ((i_j_fused_1_k_fused & 31) + ((32 * (((i_j_fused_1_k_fused / 32) + (128 * i_j_fused_0)) & 63)) + (4096 * i_j_fused_0))))];
+        B[((2048 * ((i_j_fused_1_k_fused / 32) / 64)) + ((i_j_fused_1_k_fused & 31) + ((32 * (((i_j_fused_1_k_fused / 32) + (128 * i_j_fused_0)) & 63)) + (4096 * i_j_fused_0))))] = A_shared_temp_buffer[((2048 * ((i_j_fused_1_k_fused / 32) / 64)) + ((i_j_fused_1_k_fused & 31) + ((32 * (((i_j_fused_1_k_fused / 32) + (128 * i_j_fused_0)) & 63)) + (4096 * i_j_fused_0))))];
+        C_local_temp_buffer[((2048 * ((i_j_fused_1_k_fused / 32) / 64)) + ((i_j_fused_1_k_fused & 31) + ((32 * (((i_j_fused_1_k_fused / 32) + (128 * i_j_fused_0)) & 63)) + (4096 * i_j_fused_0))))] = B[((2048 * ((i_j_fused_1_k_fused / 32) / 64)) + ((i_j_fused_1_k_fused & 31) + ((32 * (((i_j_fused_1_k_fused / 32) + (128 * i_j_fused_0)) & 63)) + (4096 * i_j_fused_0))))];
+      };
+    };
+    for (int32_t cache_ax0_0 = 0; cache_ax0_0 < 32; cache_ax0_0 += 1) {
+      for (int32_t cache_ax1_0 = 0; cache_ax1_0 < 64; cache_ax1_0 += 1) {
+        for (int32_t cache_ax2_0 = 0; cache_ax2_0 < 32; cache_ax2_0 += 1) {
+          C[((2048 * cache_ax0_0) + ((32 * cache_ax1_0) + cache_ax2_0))] = C_local_temp_buffer[((2048 * cache_ax0_0) + ((32 * cache_ax1_0) + cache_ax2_0))];
+        };
+      };
+    };
+  };
+  cinn_buffer_free((void*)(0), _B);
+  cinn_buffer_free((void*)(0), _C);
+}
+)ROC";
+  ASSERT_EQ(utils::Trim(target_code), utils::Trim(source_code));
 }
 
 }  // namespace backends

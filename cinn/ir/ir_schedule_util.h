@@ -154,7 +154,7 @@ struct CacheBlockInfo {
 };
 
 // a struct to present the min value and the extent of a iterable range,
-// where it is regarded as a semi-closed interval, i.e [min, min + extent)
+// where it is represented as a semi-closed interval, i.e [min, min + extent)
 struct IterRange {
   IterRange(Expr begin, Expr length) : min(begin), extent(length) {}
 
@@ -241,12 +241,12 @@ void CHECKRfactorValidation(const Expr& rf_loop, int rf_axis);
 std::vector<Expr> GetLoopsOfExpr(const Expr& expr, const Expr& root);
 
 /**
- * Given a vector of Expr and all vars' range, return the vector of Expr's ranges(min and max).
- * @param tensor_indices The vector of Expr. We want to calculate each Expr's range.
+ * Given a index Expr and all vars' range, return the accessed range in this indice.
+ * @param index The Expr of a specified indice.
  * @param iter_vars The vars in expr.
  * @param iter_range Each var's range.
- * @param tensor The tensor. tensor_indices is its index.
- * @param return The <min, max> of tensor_indices. If it is not constant, return corresponding tensor's shape.
+ * @param return a IterRange represent the accessed range of this indice, If it is not constant, return corresponding
+ * tensor's shape.
  */
 IterRange GetAccessedRange(const Expr& index,
                            const std::vector<Var>& iter_vars,

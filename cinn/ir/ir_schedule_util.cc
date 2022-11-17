@@ -286,16 +286,20 @@ IterRange GetAccessedRange(const Expr& index,
 
   Expr indice_min = optim::IRCopy(index);
   Expr indice_max = optim::IRCopy(index);
+  // replace the var by the corresponding iter_value
   ReplaceExpr(&indice_min, iter_vars, var_mins);
   ReplaceExpr(&indice_max, iter_vars, var_maxs);
+  // simplify expression
+  indice_min = common::AutoSimplify(indice_min);
+  indice_max = common::AutoSimplify(indice_max);
 
   Expr indice_extent;
   Expr mod_extent(0);
   if (indice_min.As<Mod>() && indice_min.As<Mod>()->b().is_constant()) mod_extent = indice_min.As<Mod>()->b();
 
-  // If a index keeps constant, its extent should be 1.
-  if (common::AutoSimplify(indice_min) == common::AutoSimplify(indice_max)) {
+  if (indice_min == indice_max) {
     if (common::is_zero(mod_extent)) {
+      // If a index keeps constant, its extent should be 1.
       indice_extent = Expr(1);
     } else {
       indice_extent = mod_extent;
@@ -305,9 +309,11 @@ IterRange GetAccessedRange(const Expr& index,
   }
 
   if (indice_extent.is_constant() && indice_extent.get_constant() < 0) {
-    indice_min    = common::AutoSimplify(indice_max);
+    VLOG(3) << "deduced indices are not constant";
+    indice_min    = indice_max;
     indice_extent = Expr(-indice_extent.get_constant());
   }
+  VLOG(3) << "indice_min=" << indice_min << ", indice_max=" << indice_max << ", indice_extent=" << indice_extent;
   return IterRange(indice_min, indice_extent);
 }
 
@@ -335,7 +341,11 @@ std::vector<IterRange> CalculateTensorRegions(const Expr& block,
     ReplaceExpr(&binded_index, iter_vars, iter_values);
     auto range = GetAccessedRange(binded_index, loop_vars, loop_ranges);
 
+    // in generally, the range should be constant, but in some cases our AutoSimplify
+    // (algebraic simplification function) can't simplify completely where we use the whole
+    // shape in this indice as the accessed range conservatively
     if (!range.min.is_constant() || !range.extent.is_constant()) {
+      VLOG(3) << "deduced range is not constant, range.min=" << range.min << ", range.extent=" << range.extent;
       if (tensor->buffer.defined()) {
         CHECK_GT((int)tensor->buffer->shape.size(), i);
         result.emplace_back(Expr(0), tensor->buffer->shape[i]);
@@ -651,6 +661,7 @@ std::vector<IterRange> CalculateRequiredRegions(const Expr& block,
   std::string block_tensor = GetTensor(block)->name;
   std::vector<IterRange> required_buffer_range;
   CHECK(loop.As<ir::For>());
+  // deduce accessed regions of the tensor in block by itering each consumer
   for (const auto& load_block : consumers) {
     CHECK(load_block.As<ir::ScheduleBlockRealize>());
     Expr block_body =
@@ -665,6 +676,7 @@ std::vector<IterRange> CalculateRequiredRegions(const Expr& block,
       return x->As<ir::Load>() && x->As<ir::Load>()->tensor.as_tensor_ref()->name == block_tensor;
     });
 
+    // collect vars and their ranges of each loop under the input loop
     std::vector<Var> loop_vars;
     std::vector<IterRange> loop_ranges;
     for (const auto& for_loop : find_loops) {
@@ -672,6 +684,7 @@ std::vector<IterRange> CalculateRequiredRegions(const Expr& block,
       loop_ranges.emplace_back(for_loop.As<ir::For>()->min, for_loop.As<ir::For>()->extent);
     }
 
+    // deducing range by indices of each Load node
     for (const auto& load : load_nodes) {
       CHECK(load.As<ir::Load>());
       auto indices = load.As<ir::Load>()->indices;
@@ -696,6 +709,7 @@ std::vector<IterRange> CalculateRequiredRegions(const Expr& block,
   }
 
   int iter_size = block.As<ir::ScheduleBlockRealize>()->iter_values.size();
+  // maybe some dimensions are not accessed by consumers so we should append them
   if (iter_size > required_buffer_range.size()) {
     for (int i = required_buffer_range.size(); i < iter_size; ++i) {
       CHECK(block.As<ir::ScheduleBlockRealize>()->iter_values[i].as_var() ||
