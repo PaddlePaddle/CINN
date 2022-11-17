@@ -88,8 +88,8 @@ void AddCacheRead::Apply(int index) {
   for (int read_buffer_index : read_buffer_indexes) {
     ir::Expr cache_block = ir_schedule_->CacheRead(sch_block_expr, read_buffer_index, cache_memory_type_);
     VLOG(6) << "cache block: " << cache_block;
-    // The original block expr has been discarded after the CacheRead schedule,
-    // so we find the block expr after the schedule according to the block name
+    // The original block expr is invalid after the CacheRead schedule,
+    // so we reacquire the block expr after the schedule according to the block name
     sch_block_expr       = ir_schedule_->GetBlock(block_name);
     ir::Expr target_loop = GetTargetLoop(sch_block_expr);
     ir_schedule_->ComputeAt(cache_block, target_loop);
