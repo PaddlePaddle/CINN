@@ -2794,12 +2794,14 @@ void TestIrSchedule_ReduceSum(void* _args, int32_t num_args)
   {
     for (int32_t reduce_axis_k_0 = 0; reduce_axis_k_0 < 32; reduce_axis_k_0 += 1) {
       for (int32_t ax0 = 0; ax0 < 32; ax0 += 1) {
-        B_shared_temp_buffer[ax0] = B[ax0];
+        for (int32_t ax1 = 0; ax1 < 2; ax1 += 1) {
+          A_shared_temp_buffer[((64 * ax0) + ((2 * reduce_axis_k_0) + ax1))] = A[((64 * ax0) + ((2 * reduce_axis_k_0) + ax1))];
+        };
       };
       for (int32_t i_0 = 0; i_0 < 8; i_0 += 1) {
         for (int32_t reduce_axis_k_1 = 0; reduce_axis_k_1 < 2; reduce_axis_k_1 += 1) {
           for (int32_t i_1 = 0; i_1 < 4; i_1 += 1) {
-            B_local_temp_buffer[((4 * i_0) + i_1)] = (B_shared_temp_buffer[((4 * i_0) + i_1)] + A[((256 * i_0) + ((64 * i_1) + ((2 * reduce_axis_k_0) + reduce_axis_k_1)))]);
+            B_local_temp_buffer[((4 * i_0) + i_1)] = (B_local_temp_buffer[((4 * i_0) + i_1)] + A_shared_temp_buffer[((256 * i_0) + ((64 * i_1) + ((2 * reduce_axis_k_0) + reduce_axis_k_1)))]);
           };
         };
       };
