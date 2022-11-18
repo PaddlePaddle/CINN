@@ -2732,54 +2732,45 @@ TEST(IrSchedule, Annotate) {
 }
 
 TEST(IrSchedule, ComplexIndices) {
-  Context::Global().ResetNameId();
-  Expr M(32);
-  Expr N(64);
-  Expr P(32);
-
   Target target = common::DefaultHostTarget();
+  ir::Expr M(32);
+  ir::Expr K(64);
 
-  Placeholder<float> A("A", {M, N, P});
-  auto B = Compute(
-      {M, N, P}, [&](Var i, Var j, Var k) { return A(i, j, k); }, "B");
-  auto C = Compute(
-      {M, N, P}, [&](Var i, Var j, Var k) { return B(i, j, k); }, "C");
+  Placeholder<float> A("A", {M, K});
+  Var k(K.as_int32(), "reduce_axis_k");
+  ir::Tensor B = Compute(
+      {M}, [&](Var i) { return ReduceSum(A(i, k), {k}); }, "B");
 
-  auto stages = CreateStages({A, B, C});
+  poly::StageMap stages = CreateStages({B});
+  std::vector<ir::LoweredFunc> funcs =
+      lang::LowerVec("TestIrSchedule_ReduceSum", stages, {A, B}, {}, {}, nullptr, target, true);
+  ir::IRSchedule ir_sch(ir::ModuleExpr({funcs[0]->body}));
+  VLOG(3) << "Lowered Expr:" << ir_sch.GetModule().GetExprs().front();
 
-  auto func = cinn::lang::LowerVec("test_complex_indices", stages, {A, C}, {}, {}, nullptr, target, true);
-  CHECK_EQ(func.size(), 1U);
-  ir::IRSchedule ir_sch(ir::ModuleExpr({func[0]->body}));
+  auto loops_b = ir_sch.GetLoops("B");
+  CHECK_EQ(loops_b.size(), 2);
+  ir_sch.Split("B", 0, {8, -1});
+  ir_sch.Split("B", 2, {32, -1});  // after first splited, loops size has added to 3
+  VLOG(3) << "Splited Expr:" << ir_sch.GetModule().GetExprs().front();
 
-  auto fused   = ir_sch.Fuse("C", {0, 1});
-  auto splited = ir_sch.Split(fused, {16, -1});
-  ir_sch.Fuse("C", {1, 2});
-  VLOG(3) << "Fuse_Split_Fuse-C Expr:\n" << ir_sch.GetModule().GetExprs().front();
-  auto loops_c = ir_sch.GetLoops("C");
-  ASSERT_EQ(loops_c.size(), 2);
-  ir_sch.Reorder({loops_c[1], loops_c[0]});
-  VLOG(3) << "Reorder Expr:\n" << ir_sch.GetModule().GetExprs().front();
+  CHECK_EQ(ir_sch.GetLoops("B").size(), 4);
+  ir_sch.Reorder("B", {2, 0, 3, 1});
+  VLOG(3) << "Reordered Expr:\n" << ir_sch.GetModule().GetExprs().front();
 
-  ir_sch.Fuse("B", {0, 1});
-  VLOG(3) << "Fuse-B Expr:\n" << ir_sch.GetModule().GetExprs().front();
   auto block_b = ir_sch.GetBlock("B");
-  loops_c      = ir_sch.GetLoops("C");
-  ir_sch.ComputeAt(block_b, loops_c[1]);
-  VLOG(3) << "ComputeAt Expr:\n" << ir_sch.GetModule().GetExprs().front();
+  auto a_cache = ir_sch.CacheRead(block_b, 1, "shared");  // actually the read_buffer A should be indexed by 0
+  VLOG(3) << "CacheRead-A Expr:\n" << ir_sch.GetModule().GetExprs().front();
+
+  loops_b = ir_sch.GetLoops("B");
+  ir_sch.ComputeAt(a_cache, loops_b[0]);
+  VLOG(3) << "ComputeAt-B Expr:\n" << ir_sch.GetModule().GetExprs().front();
 
   block_b      = ir_sch.GetBlock("B");
-  auto a_cache = ir_sch.CacheRead(block_b, 0, "shared");
-  VLOG(3) << "CacheRead-A Expr:\n" << ir_sch.GetModule().GetExprs().front();
-  auto loops_b = ir_sch.GetLoops("B");
-  ir_sch.ComputeAt(a_cache, loops_b[1]);
-  VLOG(3) << "a_cache ComputeAt Expr:\n" << ir_sch.GetModule().GetExprs().front();
-
-  auto block_c = ir_sch.GetBlock("C");
-  auto c_cache = ir_sch.CacheWrite(block_c, 0, "local");
-  VLOG(3) << "CacheWrite-C Expr:\n" << ir_sch.GetModule().GetExprs().front();
+  auto b_cache = ir_sch.CacheWrite(block_b, 0, "local");
+  VLOG(3) << "CacheWrite-B Expr:\n" << ir_sch.GetModule().GetExprs().front();
 
   Module::Builder builder("module1", target);
-  for (auto& i : func) {
+  for (auto& i : funcs) {
     builder.AddFunction(i);
   }
   auto module = builder.Build();
@@ -2792,34 +2783,32 @@ TEST(IrSchedule, ComplexIndices) {
 #include <cinn_runtime.h>
 #include <stdio.h>
 
-void test_complex_indices(void* _args, int32_t num_args)
+void TestIrSchedule_ReduceSum(void* _args, int32_t num_args)
 {
   const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
-  cinn_buffer_t* _C = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[1]));
-  cinn_buffer_t* _B = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 32, 64, 32 });
-  cinn_buffer_malloc((void*)(0), _C);
+  cinn_buffer_t* _B = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[1]));
   cinn_buffer_malloc((void*)(0), _B);
   const float* A = ((const float*)(_A->memory));
   float* B = ((float*)(_B->memory));
-  float* C = ((float*)(_C->memory));
+  float* B__reduce_init = ((float*)(_B->memory));
   {
-    for (int32_t i_j_fused_1_k_fused = 0; i_j_fused_1_k_fused < 4096; i_j_fused_1_k_fused += 1) {
-      for (int32_t i_j_fused_0 = 0; i_j_fused_0 < 16; i_j_fused_0 += 1) {
-        A_shared_temp_buffer[((2048 * ((i_j_fused_1_k_fused / 32) / 64)) + ((i_j_fused_1_k_fused & 31) + ((32 * (((i_j_fused_1_k_fused / 32) + (128 * i_j_fused_0)) & 63)) + (4096 * i_j_fused_0))))] = A[((2048 * ((i_j_fused_1_k_fused / 32) / 64)) + ((i_j_fused_1_k_fused & 31) + ((32 * (((i_j_fused_1_k_fused / 32) + (128 * i_j_fused_0)) & 63)) + (4096 * i_j_fused_0))))];
-        B[((2048 * ((i_j_fused_1_k_fused / 32) / 64)) + ((i_j_fused_1_k_fused & 31) + ((32 * (((i_j_fused_1_k_fused / 32) + (128 * i_j_fused_0)) & 63)) + (4096 * i_j_fused_0))))] = A_shared_temp_buffer[((2048 * ((i_j_fused_1_k_fused / 32) / 64)) + ((i_j_fused_1_k_fused & 31) + ((32 * (((i_j_fused_1_k_fused / 32) + (128 * i_j_fused_0)) & 63)) + (4096 * i_j_fused_0))))];
-        C_local_temp_buffer[((2048 * ((i_j_fused_1_k_fused / 32) / 64)) + ((i_j_fused_1_k_fused & 31) + ((32 * (((i_j_fused_1_k_fused / 32) + (128 * i_j_fused_0)) & 63)) + (4096 * i_j_fused_0))))] = B[((2048 * ((i_j_fused_1_k_fused / 32) / 64)) + ((i_j_fused_1_k_fused & 31) + ((32 * (((i_j_fused_1_k_fused / 32) + (128 * i_j_fused_0)) & 63)) + (4096 * i_j_fused_0))))];
+    for (int32_t reduce_axis_k_0 = 0; reduce_axis_k_0 < 32; reduce_axis_k_0 += 1) {
+      for (int32_t ax0 = 0; ax0 < 32; ax0 += 1) {
+        B_shared_temp_buffer[ax0] = B[ax0];
       };
-    };
-    for (int32_t cache_ax0_0 = 0; cache_ax0_0 < 32; cache_ax0_0 += 1) {
-      for (int32_t cache_ax1_0 = 0; cache_ax1_0 < 64; cache_ax1_0 += 1) {
-        for (int32_t cache_ax2_0 = 0; cache_ax2_0 < 32; cache_ax2_0 += 1) {
-          C[((2048 * cache_ax0_0) + ((32 * cache_ax1_0) + cache_ax2_0))] = C_local_temp_buffer[((2048 * cache_ax0_0) + ((32 * cache_ax1_0) + cache_ax2_0))];
+      for (int32_t i_0 = 0; i_0 < 8; i_0 += 1) {
+        for (int32_t reduce_axis_k_1 = 0; reduce_axis_k_1 < 2; reduce_axis_k_1 += 1) {
+          for (int32_t i_1 = 0; i_1 < 4; i_1 += 1) {
+            B_local_temp_buffer[((4 * i_0) + i_1)] = (B_shared_temp_buffer[((4 * i_0) + i_1)] + A[((256 * i_0) + ((64 * i_1) + ((2 * reduce_axis_k_0) + reduce_axis_k_1)))]);
+          };
         };
       };
     };
+    for (int32_t cache_ax0_0 = 0; cache_ax0_0 < 32; cache_ax0_0 += 1) {
+      B[cache_ax0_0] = B_local_temp_buffer[cache_ax0_0];
+    };
   };
   cinn_buffer_free((void*)(0), _B);
-  cinn_buffer_free((void*)(0), _C);
 }
 )ROC";
   ASSERT_EQ(utils::Trim(target_code), utils::Trim(source_code));
