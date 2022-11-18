@@ -39,6 +39,29 @@ void saxpy(float a, float *x, float *y, float *out, size_t n)
   LOG(INFO) << "ptx:\n" << ptx;
 }
 
+TEST(Compiler, float16) {
+  Compiler compiler;
+
+  std::string source_code = R"(
+#include <cstdint>
+#define CINN_WITH_CUDA
+#include "float16.h"
+using cinn::common::float16;
+
+extern "C" __global__
+void cast_fp32_to_fp16_cuda_kernel(const float* input, const int num, float16* out) {
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  if (idx < num) {
+    out[idx] = float16(input[idx]);
+  }
+}
+)";
+
+  auto ptx = compiler(source_code);
+
+  LOG(INFO) << "ptx:\n" << ptx;
+}
+
 }  // namespace nvrtc
 }  // namespace backends
 }  // namespace cinn
