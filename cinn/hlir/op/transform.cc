@@ -981,11 +981,7 @@ std::shared_ptr<OpStrategy> StrategyForLayoutTransform(const framework::NodeAttr
 
   auto strategy = std::make_shared<framework::OpStrategy>();
   CHECK(out_type.size()) << "Out_type of layout_transform op is empty! Please check.";
-  if (out_type[0] == Float(32)) {
-    strategy->AddImpl(layout_transform_compute, layout_transform_schedule, "strategy.layout_transform.x86", 1);
-  } else {
-    LOG(FATAL) << "layout_transform op with dtype != float32 is not implemented yet!";
-  }
+  strategy->AddImpl(layout_transform_compute, layout_transform_schedule, "strategy.layout_transform.x86", 1);
   return strategy;
 }
 
@@ -1068,11 +1064,7 @@ std::shared_ptr<OpStrategy> StrategyForReverse(const framework::NodeAttr &attrs,
 
   auto strategy = std::make_shared<framework::OpStrategy>();
   CHECK(out_type.size()) << "Out_type of reverse op is empty! Please check.";
-  if (out_type[0] == Float(32)) {
-    strategy->AddImpl(reverse_compute, GetInjectiveScheduleFunc(output_shapes, target), "strategy.reverse.x86", 1);
-  } else {
-    LOG(FATAL) << "Reverse op with dtype != float32 is not implemented yet!";
-  }
+  strategy->AddImpl(reverse_compute, GetInjectiveScheduleFunc(output_shapes, target), "strategy.reverse.x86", 1);
   return strategy;
 }
 
@@ -1178,9 +1170,6 @@ std::shared_ptr<OpStrategy> StrategyForTranspose(const framework::NodeAttr &attr
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
-  CHECK(out_type.size()) << "Out_type of transpose op is empty! Please check.";
-  CHECK((out_type[0] == Float(32) || out_type[0] == Int(64) || out_type[0] == Int(32)))
-      << "Transpose op with dtype(" << out_type[0] << ") is not float32, int64 or int32, not supported yet!";
   strategy->AddImpl(transpose_compute, GetInjectiveScheduleFunc(output_shapes, target), "strategy.transpose.x86", 1);
   return strategy;
 }

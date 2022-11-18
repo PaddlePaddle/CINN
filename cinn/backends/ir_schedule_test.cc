@@ -1101,18 +1101,7 @@ TEST(IrSchedule, compute_at4) {
 
   VLOG(1) << "compute_at4 source code is :\n" << source_code;
 
-  std::string target_code = R"ROC(
-#include "cinn_cuda_runtime_source.cuh"
-
-#ifdef __CUDACC_RTC__
-typedef int int32_t;
-typedef char int8_t;
-typedef long int int64_t;
-#endif
-
-
-
-__global__
+  std::string target_code = codegen.GetSourceHeader() + R"ROC(__global__
 void test_compute_at4(const float* __restrict__ A, float* __restrict__ C)
 {
   float _B_temp_buffer [ 32768 ];
@@ -1173,18 +1162,8 @@ TEST(IrSchedule, compute_at5) {
 
   VLOG(1) << "compute_at5 source code is :\n" << source_code;
 
-  std::string target_code = R"ROC(
-#include "cinn_cuda_runtime_source.cuh"
-
-#ifdef __CUDACC_RTC__
-typedef int int32_t;
-typedef char int8_t;
-typedef long int int64_t;
-#endif
-
-
-
-__global__
+  std::string target_code = codegen.GetSourceHeader() +
+                            R"ROC(__global__
 void test_compute_at5(const float* __restrict__ A, float* __restrict__ C)
 {
   float _B_temp_buffer [ 4096 ];
@@ -1251,18 +1230,7 @@ TEST(IrSchedule, compute_at6) {
 
   VLOG(1) << "compute_at6 source code is :\n" << source_code;
 
-  std::string target_code = R"ROC(
-#include "cinn_cuda_runtime_source.cuh"
-
-#ifdef __CUDACC_RTC__
-typedef int int32_t;
-typedef char int8_t;
-typedef long int int64_t;
-#endif
-
-
-
-__global__
+  std::string target_code = codegen.GetSourceHeader() + R"ROC(__global__
 void test_compute_at6(const float* __restrict__ A, float* __restrict__ C)
 {
   float _B_temp_buffer [ 4096 ];
@@ -1632,18 +1600,7 @@ TEST(IrSchedule, cache_read3) {
 
   VLOG(1) << "cache_read3 source code is :\n" << source_code;
 
-  std::string target_code = R"ROC(
-#include "cinn_cuda_runtime_source.cuh"
-
-#ifdef __CUDACC_RTC__
-typedef int int32_t;
-typedef char int8_t;
-typedef long int int64_t;
-#endif
-
-
-
-__global__
+  std::string target_code = codegen.GetSourceHeader() + R"ROC(__global__
 void test_cache_read3(const float* __restrict__ A, float* __restrict__ C)
 {
   float _B_temp_buffer [ 1024 ];
@@ -1725,18 +1682,7 @@ TEST(IrSchedule, cache_write3) {
 
   VLOG(1) << "cache_write3 source code is :\n" << source_code;
 
-  std::string target_code = R"ROC(
-#include "cinn_cuda_runtime_source.cuh"
-
-#ifdef __CUDACC_RTC__
-typedef int int32_t;
-typedef char int8_t;
-typedef long int int64_t;
-#endif
-
-
-
-__global__
+  std::string target_code = codegen.GetSourceHeader() + R"ROC(__global__
 void test_cache_write3(const float* __restrict__ A, float* __restrict__ C)
 {
   __shared__ float _B_temp_buffer [ 2048 ];
@@ -1818,18 +1764,7 @@ TEST(IrSchedule, sync_threads) {
 
   LOG(INFO) << "sync_threads source code is :\n" << source_code;
 
-  std::string target_code = R"ROC(
-#include "cinn_cuda_runtime_source.cuh"
-
-#ifdef __CUDACC_RTC__
-typedef int int32_t;
-typedef char int8_t;
-typedef long int int64_t;
-#endif
-
-
-
-__global__
+  std::string target_code = codegen.GetSourceHeader() + R"ROC(__global__
 void test_sync_threads(const float* __restrict__ A, float* __restrict__ C)
 {
   __shared__ float _B_temp_buffer [ 2048 ];
@@ -2504,18 +2439,7 @@ TEST(IrSchedule, compute_inline3) {
 
   VLOG(1) << "compute_inline3 source code is :\n" << source_code;
 
-  std::string target_code = R"ROC(
-#include "cinn_cuda_runtime_source.cuh"
-
-#ifdef __CUDACC_RTC__
-typedef int int32_t;
-typedef char int8_t;
-typedef long int int64_t;
-#endif
-
-
-
-__global__
+  std::string target_code = codegen.GetSourceHeader() + R"ROC(__global__
 void test_compute_inline3(const float* __restrict__ A, float* __restrict__ C)
 {
   float _B_temp_buffer [ 32768 ];
@@ -2573,18 +2497,7 @@ TEST(IrSchedule, compute_inline4) {
 
   LOG(INFO) << "compute_inline4 source code is :\n" << source_code;
 
-  std::string target_code = R"ROC(
-#include "cinn_cuda_runtime_source.cuh"
-
-#ifdef __CUDACC_RTC__
-typedef int int32_t;
-typedef char int8_t;
-typedef long int int64_t;
-#endif
-
-
-
-__global__
+  std::string target_code = codegen.GetSourceHeader() + R"ROC(__global__
 void test_compute_inline4(const float* __restrict__ A, float* __restrict__ C)
 {
   float _B_temp_buffer [ 32768 ];

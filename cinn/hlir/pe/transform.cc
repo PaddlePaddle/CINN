@@ -86,7 +86,7 @@ std::vector<Tensor> Matmul(
   if (alpha != 1) {
     auto res = Compute(
         output_shape,
-        [=](const std::vector<Expr>& indice) { return temp(indice) * make_const(temp->type(), alpha); },
+        [=](const std::vector<Expr>& indice) { return temp(indice) * ir::Cast::Make(temp->type(), Expr(alpha)); },
         name);
     return {res, temp};
   } else {
@@ -283,7 +283,7 @@ std::vector<Tensor> MatmulV2(const Tensor& A,
         if (alpha == 1) {
           return lang::ReduceSum(A(indice_a) * packedB(indice_b), {reduce_k});
         } else {
-          return lang::ReduceSum(A(indice_a) * packedB(indice_b) * make_const(A->type(), alpha), {reduce_k});
+          return lang::ReduceSum(A(indice_a) * packedB(indice_b) * ir::Cast::Make(A->type(), Expr(alpha)), {reduce_k});
         }
       },
       UniqName("matmulV2_out"));
@@ -396,7 +396,8 @@ std::vector<Tensor> MulBase(const Tensor& A, const Tensor& B, const std::string&
   if (target.arch == Target::Arch::X86) {
     int reduce_dim   = A->shape[1].as_int32();
     int split_factor = GetMulFactor(reduce_dim, A->type(), target);
-    Var reduce_k_first(common::make_const(A->shape[1]->type(), reduce_dim / split_factor), UniqName("reduce_k_first"));
+    Var reduce_k_first(ir::Cast::Make(A->shape[1]->type(), Expr(reduce_dim / split_factor)),
+                       UniqName("reduce_k_first"));
     auto mul_reduce_first = Compute(
         {A->shape[0], B->shape[0], Expr(split_factor)},
         [=](const std::vector<Expr>& indice) {
@@ -406,7 +407,7 @@ std::vector<Tensor> MulBase(const Tensor& A, const Tensor& B, const std::string&
                                  {reduce_k_first});
         },
         UniqName("mul_reduce_k_first"));
-    Var reduce_k_second(common::make_const(A->shape[1]->type(), split_factor), UniqName("reduce_k_second"));
+    Var reduce_k_second(ir::Cast::Make(A->shape[1]->type(), Expr(split_factor)), UniqName("reduce_k_second"));
     return {Compute(
                 output_shape,
                 [=](const std::vector<Expr>& indice) {
@@ -475,18 +476,18 @@ std::vector<Tensor> MulMKL(const Tensor& A, const Tensor& B, const std::string& 
       [=]() -> Expr {
         return lang::CallExtern("cinn_cpu_mkl_gemm_fp32",
                                 {
-                                    common::make_const(Float(32), 1),  // alpha
-                                    M,                                 // M
-                                    N,                                 // N
-                                    x_width,                           // K
-                                    common::make_bool(false),          // ta
-                                    common::make_bool(true),           // tb
-                                    shape_A.back(),                    // lda
-                                    shape_B.back(),                    // ldb
-                                    N,                                 // ldc
-                                    common::make_zero<float>(),        // beta
-                                    A,                                 // A
-                                    B,                                 // B
+                                    Expr(1.0f),                  // alpha
+                                    M,                           // M
+                                    N,                           // N
+                                    x_width,                     // K
+                                    common::make_bool(false),    // ta
+                                    common::make_bool(true),     // tb
+                                    shape_A.back(),              // lda
+                                    shape_B.back(),              // ldb
+                                    N,                           // ldc
+                                    common::make_zero<float>(),  // beta
+                                    A,                           // A
+                                    B,                           // B
                                 });
       },
       UniqName("mul_mkl_out"));

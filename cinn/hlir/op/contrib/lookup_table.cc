@@ -67,7 +67,7 @@ ir::Tensor LookupTable(const ir::Tensor& table,
         auto ids_offset = ir::Cast::Make(common::I32(), ids(offsets));
         auto pred =
             ir::And::Make(Expr(padding_idx != -1), ir::EQ::Make(ids_offset, Expr(static_cast<int32_t>(padding_idx))));
-        return ir::Select::Make(pred, common::make_const(table->type(), 0), table(ids_offset, indices.back()));
+        return ir::Select::Make(pred, ir::Cast::Make(table->type(), Expr(0)), table(ids_offset, indices.back()));
       },
       common::UniqName(output_name));
 }

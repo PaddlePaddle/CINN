@@ -18,20 +18,21 @@
 #define __CINN_x86__
 #include <immintrin.h>
 #endif
-#include <stdint.h>
 
+#include <climits>
 #include <cmath>
+#include <cstdint>
 #include <iostream>
 #include <limits>
 
 #ifdef CINN_WITH_CUDA
 #include <cuda.h>
-#endif  // CINN_WITH_CUDA
 
-#if defined(__CUDACC__) && CUDA_VERSION >= 7050
+#if (defined(__CUDACC__) || defined(__CUDACC_RTC__)) && CUDA_VERSION >= 7050
 #define CINN_CUDA_FP16
 #include <cuda_fp16.h>
 #endif
+#endif  // CINN_WITH_CUDA
 
 #ifndef _WIN32
 #define CINN_ALIGN(x) __attribute__((aligned(x)))
@@ -41,14 +42,13 @@
 
 #define CUDA_ARCH_FP16_SUPPORTED(CUDA_ARCH) (CUDA_ARCH >= 600)
 
-#ifdef __CUDACC__
-#define HOSTDEVICE __host__ __device__
-#define DEVICE __device__
-#define HOST __host__
-#else
-#define HOSTDEVICE
-#define DEVICE
-#define HOST
+// The `HOST` macro definition is not used here, it has a potential
+// conflict with the enumeration `kHOST` representing the backend.
+#ifndef __host__
+#define __host__
+#endif
+#ifndef __device__
+#define __device__
 #endif
 
 namespace cinn {
@@ -73,7 +73,7 @@ struct CINN_ALIGN(2) float16 {
 
 // Constructors
 #ifdef CINN_CUDA_FP16
-  HOSTDEVICE inline explicit float16(const half& h) {
+  __host__ __device__ inline explicit float16(const half& h) {
 #if defined(CINN_WITH_CUDA)
 #if CUDA_VERSION >= 9000
     x = reinterpret_cast<__half_raw*>(const_cast<half*>(&h))->x;
@@ -84,7 +84,7 @@ struct CINN_ALIGN(2) float16 {
   }
 #endif  // CINN_CUDA_FP16
 
-  HOSTDEVICE inline explicit float16(float val) {
+  __host__ __device__ inline explicit float16(float val) {
 #if defined(CINN_CUDA_FP16) && (defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 300)
     half tmp = __float2half(val);
     x        = *reinterpret_cast<uint16_t*>(&tmp);
@@ -113,14 +113,14 @@ struct CINN_ALIGN(2) float16 {
 #endif
   }
 
-  HOSTDEVICE inline explicit float16(bool b) : x(b ? 0x3c00 : 0) {}
+  __host__ __device__ inline explicit float16(bool b) : x(b ? 0x3c00 : 0) {}
 
   template <class T>
-  HOSTDEVICE inline explicit float16(const T& val) : x(float16(static_cast<float>(val)).x) {}
+  __host__ __device__ inline explicit float16(const T& val) : x(float16(static_cast<float>(val)).x) {}
 
 // Assignment operators
 #ifdef CINN_CUDA_FP16
-  HOSTDEVICE inline float16& operator=(const half& rhs) {
+  __host__ __device__ inline float16& operator=(const half& rhs) {
 #if CUDA_VERSION >= 9000
     x = reinterpret_cast<__half_raw*>(const_cast<half*>(&rhs))->x;
 #else
@@ -130,64 +130,64 @@ struct CINN_ALIGN(2) float16 {
   }
 #endif
 
-  HOSTDEVICE inline float16& operator=(bool b) {
+  __host__ __device__ inline float16& operator=(bool b) {
     x = b ? 0x3c00 : 0;
     return *this;
   }
 
-  HOSTDEVICE inline float16& operator=(int8_t val) {
+  __host__ __device__ inline float16& operator=(int8_t val) {
     x = float16(val).x;
     return *this;
   }
 
-  HOSTDEVICE inline float16& operator=(uint8_t val) {
+  __host__ __device__ inline float16& operator=(uint8_t val) {
     x = float16(val).x;
     return *this;
   }
 
-  HOSTDEVICE inline float16& operator=(int16_t val) {
+  __host__ __device__ inline float16& operator=(int16_t val) {
     x = float16(val).x;
     return *this;
   }
 
-  HOSTDEVICE inline float16& operator=(uint16_t val) {
+  __host__ __device__ inline float16& operator=(uint16_t val) {
     x = float16(val).x;
     return *this;
   }
 
-  HOSTDEVICE inline float16& operator=(int32_t val) {
+  __host__ __device__ inline float16& operator=(int32_t val) {
     x = float16(val).x;
     return *this;
   }
 
-  HOSTDEVICE inline float16& operator=(uint32_t val) {
+  __host__ __device__ inline float16& operator=(uint32_t val) {
     x = float16(val).x;
     return *this;
   }
 
-  HOSTDEVICE inline float16& operator=(int64_t val) {
+  __host__ __device__ inline float16& operator=(int64_t val) {
     x = float16(val).x;
     return *this;
   }
 
-  HOSTDEVICE inline float16& operator=(uint64_t val) {
+  __host__ __device__ inline float16& operator=(uint64_t val) {
     x = float16(val).x;
     return *this;
   }
 
-  HOSTDEVICE inline float16& operator=(float val) {
+  __host__ __device__ inline float16& operator=(float val) {
     x = float16(val).x;
     return *this;
   }
 
-  HOSTDEVICE inline float16& operator=(double val) {
+  __host__ __device__ inline float16& operator=(double val) {
     x = float16(val).x;
     return *this;
   }
 
 // Conversion opertors
 #ifdef CINN_CUDA_FP16
-  HOSTDEVICE inline half to_half() const {
+  __host__ __device__ inline half to_half() const {
 #if CUDA_VERSION >= 9000
     __half_raw h;
     h.x = x;
@@ -200,7 +200,7 @@ struct CINN_ALIGN(2) float16 {
   }
 #endif  // CINN_CUDA_FP16
 
-  HOSTDEVICE inline operator float() const {
+  __host__ __device__ inline operator float() const {
 #if defined(CINN_CUDA_FP16) && (defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 300)
     half tmp = *reinterpret_cast<const half*>(this);
     return __half2float(tmp);
@@ -230,25 +230,39 @@ struct CINN_ALIGN(2) float16 {
 #endif
   }
 
-  HOSTDEVICE inline explicit operator bool() const { return (x & 0x7fff) != 0; }
+  __host__ __device__ inline explicit operator bool() const { return (x & 0x7fff) != 0; }
 
-  HOSTDEVICE inline explicit operator int8_t() const { return static_cast<int8_t>(static_cast<float>(*this)); }
+  __host__ __device__ inline explicit operator int8_t() const { return static_cast<int8_t>(static_cast<float>(*this)); }
 
-  HOSTDEVICE inline explicit operator uint8_t() const { return static_cast<uint8_t>(static_cast<float>(*this)); }
+  __host__ __device__ inline explicit operator uint8_t() const {
+    return static_cast<uint8_t>(static_cast<float>(*this));
+  }
 
-  HOSTDEVICE inline explicit operator int16_t() const { return static_cast<int16_t>(static_cast<float>(*this)); }
+  __host__ __device__ inline explicit operator int16_t() const {
+    return static_cast<int16_t>(static_cast<float>(*this));
+  }
 
-  HOSTDEVICE inline explicit operator uint16_t() const { return static_cast<uint16_t>(static_cast<float>(*this)); }
+  __host__ __device__ inline explicit operator uint16_t() const {
+    return static_cast<uint16_t>(static_cast<float>(*this));
+  }
 
-  HOSTDEVICE inline explicit operator int32_t() const { return static_cast<int32_t>(static_cast<float>(*this)); }
+  __host__ __device__ inline explicit operator int32_t() const {
+    return static_cast<int32_t>(static_cast<float>(*this));
+  }
 
-  HOSTDEVICE inline explicit operator uint32_t() const { return static_cast<uint32_t>(static_cast<float>(*this)); }
+  __host__ __device__ inline explicit operator uint32_t() const {
+    return static_cast<uint32_t>(static_cast<float>(*this));
+  }
 
-  HOSTDEVICE inline explicit operator int64_t() const { return static_cast<int64_t>(static_cast<float>(*this)); }
+  __host__ __device__ inline explicit operator int64_t() const {
+    return static_cast<int64_t>(static_cast<float>(*this));
+  }
 
-  HOSTDEVICE inline explicit operator uint64_t() const { return static_cast<uint64_t>(static_cast<float>(*this)); }
+  __host__ __device__ inline explicit operator uint64_t() const {
+    return static_cast<uint64_t>(static_cast<float>(*this));
+  }
 
-  HOSTDEVICE inline operator double() const { return static_cast<double>(static_cast<float>(*this)); }
+  __host__ __device__ inline operator double() const { return static_cast<double>(static_cast<float>(*this)); }
 
  private:
   union Bits {
@@ -288,7 +302,7 @@ struct CINN_ALIGN(2) float16 {
 // ROCM has built-in arithmetic operators as not defined
 // __HIP_NO_HALF_OPERATORS__
 #if defined(CINN_CUDA_FP16) && CUDA_VERSION < 9000
-DEVICE inline half operator+(const half& a, const half& b) {
+__device__ inline half operator+(const half& a, const half& b) {
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
   return __hadd(a, b);
 #else
@@ -297,7 +311,7 @@ DEVICE inline half operator+(const half& a, const half& b) {
 #endif
 }
 
-DEVICE inline half operator-(const half& a, const half& b) {
+__device__ inline half operator-(const half& a, const half& b) {
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
   return __hsub(a, b);
 #else
@@ -306,7 +320,7 @@ DEVICE inline half operator-(const half& a, const half& b) {
 #endif
 }
 
-DEVICE inline half operator*(const half& a, const half& b) {
+__device__ inline half operator*(const half& a, const half& b) {
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
   return __hmul(a, b);
 #else
@@ -315,7 +329,7 @@ DEVICE inline half operator*(const half& a, const half& b) {
 #endif
 }
 
-DEVICE inline half operator/(const half& a, const half& b) {
+__device__ inline half operator/(const half& a, const half& b) {
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
   float num   = __half2float(a);
   float denom = __half2float(b);
@@ -326,7 +340,7 @@ DEVICE inline half operator/(const half& a, const half& b) {
 #endif
 }
 
-DEVICE inline half operator-(const half& a) {
+__device__ inline half operator-(const half& a) {
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
   return __hneg(a);
 #else
@@ -335,27 +349,27 @@ DEVICE inline half operator-(const half& a) {
 #endif
 }
 
-DEVICE inline half& operator+=(half& a, const half& b) {  // NOLINT
+__device__ inline half& operator+=(half& a, const half& b) {  // NOLINT
   a = a + b;
   return a;
 }
 
-DEVICE inline half& operator-=(half& a, const half& b) {  // NOLINT
+__device__ inline half& operator-=(half& a, const half& b) {  // NOLINT
   a = a - b;
   return a;
 }
 
-DEVICE inline half& operator*=(half& a, const half& b) {  // NOLINT
+__device__ inline half& operator*=(half& a, const half& b) {  // NOLINT
   a = a * b;
   return a;
 }
 
-DEVICE inline half& operator/=(half& a, const half& b) {  // NOLINT
+__device__ inline half& operator/=(half& a, const half& b) {  // NOLINT
   a = a / b;
   return a;
 }
 
-DEVICE inline bool operator==(const half& a, const half& b) {
+__device__ inline bool operator==(const half& a, const half& b) {
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
   return __heq(a, b);
 #else
@@ -363,7 +377,7 @@ DEVICE inline bool operator==(const half& a, const half& b) {
 #endif
 }
 
-DEVICE inline bool operator!=(const half& a, const half& b) {
+__device__ inline bool operator!=(const half& a, const half& b) {
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
   return __hne(a, b);
 #else
@@ -371,7 +385,7 @@ DEVICE inline bool operator!=(const half& a, const half& b) {
 #endif
 }
 
-DEVICE inline bool operator<(const half& a, const half& b) {
+__device__ inline bool operator<(const half& a, const half& b) {
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
   return __hlt(a, b);
 #else
@@ -379,7 +393,7 @@ DEVICE inline bool operator<(const half& a, const half& b) {
 #endif
 }
 
-DEVICE inline bool operator<=(const half& a, const half& b) {
+__device__ inline bool operator<=(const half& a, const half& b) {
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
   return __hle(a, b);
 #else
@@ -387,7 +401,7 @@ DEVICE inline bool operator<=(const half& a, const half& b) {
 #endif
 }
 
-DEVICE inline bool operator>(const half& a, const half& b) {
+__device__ inline bool operator>(const half& a, const half& b) {
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
   return __hgt(a, b);
 #else
@@ -395,7 +409,7 @@ DEVICE inline bool operator>(const half& a, const half& b) {
 #endif
 }
 
-DEVICE inline bool operator>=(const half& a, const half& b) {
+__device__ inline bool operator>=(const half& a, const half& b) {
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
   return __hge(a, b);
 #else
@@ -406,9 +420,9 @@ DEVICE inline bool operator>=(const half& a, const half& b) {
 #endif  // CINN_CUDA_FP16
 
 // Arithmetic operators for float16 on GPU
-#if defined(CINN_CUDA_FP16)
+#ifdef CINN_CUDA_FP16
 
-HOSTDEVICE inline float16 operator+(const float16& a, const float16& b) {
+__host__ __device__ inline float16 operator+(const float16& a, const float16& b) {
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
   return float16(__hadd(a.to_half(), b.to_half()));
 #else
@@ -416,7 +430,7 @@ HOSTDEVICE inline float16 operator+(const float16& a, const float16& b) {
 #endif
 }
 
-HOSTDEVICE inline float16 operator-(const float16& a, const float16& b) {
+__host__ __device__ inline float16 operator-(const float16& a, const float16& b) {
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
   return float16(__hsub(a.to_half(), b.to_half()));
 #else
@@ -424,7 +438,7 @@ HOSTDEVICE inline float16 operator-(const float16& a, const float16& b) {
 #endif
 }
 
-HOSTDEVICE inline float16 operator*(const float16& a, const float16& b) {
+__host__ __device__ inline float16 operator*(const float16& a, const float16& b) {
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
   return float16(__hmul(a.to_half(), b.to_half()));
 #else
@@ -432,7 +446,7 @@ HOSTDEVICE inline float16 operator*(const float16& a, const float16& b) {
 #endif
 }
 
-HOSTDEVICE inline float16 operator/(const float16& a, const float16& b) {
+__host__ __device__ inline float16 operator/(const float16& a, const float16& b) {
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
   // TODO(kexinzhao): check which cuda version starts to support __hdiv
   float num   = __half2float(a.to_half());
@@ -443,7 +457,7 @@ HOSTDEVICE inline float16 operator/(const float16& a, const float16& b) {
 #endif
 }
 
-HOSTDEVICE inline float16 operator-(const float16& a) {
+__host__ __device__ inline float16 operator-(const float16& a) {
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
   return float16(__hneg(a.to_half()));
 #else
@@ -453,27 +467,27 @@ HOSTDEVICE inline float16 operator-(const float16& a) {
 #endif
 }
 
-HOSTDEVICE inline float16& operator+=(float16& a, const float16& b) {  // NOLINT
+__host__ __device__ inline float16& operator+=(float16& a, const float16& b) {  // NOLINT
   a = a + b;
   return a;
 }
 
-HOSTDEVICE inline float16& operator-=(float16& a, const float16& b) {  // NOLINT
+__host__ __device__ inline float16& operator-=(float16& a, const float16& b) {  // NOLINT
   a = a - b;
   return a;
 }
 
-HOSTDEVICE inline float16& operator*=(float16& a, const float16& b) {  // NOLINT
+__host__ __device__ inline float16& operator*=(float16& a, const float16& b) {  // NOLINT
   a = a * b;
   return a;
 }
 
-HOSTDEVICE inline float16& operator/=(float16& a, const float16& b) {  // NOLINT
+__host__ __device__ inline float16& operator/=(float16& a, const float16& b) {  // NOLINT
   a = a / b;
   return a;
 }
 
-HOSTDEVICE inline bool operator==(const float16& a, const float16& b) {
+__host__ __device__ inline bool operator==(const float16& a, const float16& b) {
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
   return __heq(a.to_half(), b.to_half());
 #else
@@ -481,7 +495,7 @@ HOSTDEVICE inline bool operator==(const float16& a, const float16& b) {
 #endif
 }
 
-HOSTDEVICE inline bool operator!=(const float16& a, const float16& b) {
+__host__ __device__ inline bool operator!=(const float16& a, const float16& b) {
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
   return __hne(a.to_half(), b.to_half());
 #else
@@ -489,7 +503,7 @@ HOSTDEVICE inline bool operator!=(const float16& a, const float16& b) {
 #endif
 }
 
-HOSTDEVICE inline bool operator<(const float16& a, const float16& b) {
+__host__ __device__ inline bool operator<(const float16& a, const float16& b) {
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
   return __hlt(a.to_half(), b.to_half());
 #else
@@ -497,7 +511,7 @@ HOSTDEVICE inline bool operator<(const float16& a, const float16& b) {
 #endif
 }
 
-HOSTDEVICE inline bool operator<=(const float16& a, const float16& b) {
+__host__ __device__ inline bool operator<=(const float16& a, const float16& b) {
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
   return __hle(a.to_half(), b.to_half());
 #else
@@ -505,7 +519,7 @@ HOSTDEVICE inline bool operator<=(const float16& a, const float16& b) {
 #endif
 }
 
-HOSTDEVICE inline bool operator>(const float16& a, const float16& b) {
+__host__ __device__ inline bool operator>(const float16& a, const float16& b) {
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
   return __hgt(a.to_half(), b.to_half());
 #else
@@ -513,7 +527,7 @@ HOSTDEVICE inline bool operator>(const float16& a, const float16& b) {
 #endif
 }
 
-HOSTDEVICE inline bool operator>=(const float16& a, const float16& b) {
+__host__ __device__ inline bool operator>=(const float16& a, const float16& b) {
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
   return __hge(a.to_half(), b.to_half());
 #else
@@ -578,13 +592,13 @@ inline bool operator>(const float16& a, const float16& b) { return static_cast<f
 inline bool operator>=(const float16& a, const float16& b) { return static_cast<float>(a) >= static_cast<float>(b); }
 #endif
 
-HOSTDEVICE inline float16 raw_uint16_to_float16(uint16_t a) {
+__host__ __device__ inline float16 raw_uint16_to_float16(uint16_t a) {
   float16 res;
   res.x = a;
   return res;
 }
 
-HOSTDEVICE inline bool(isnan)(const float16& a) {
+__host__ __device__ inline bool(isnan)(const float16& a) {
 #if defined(CINN_CUDA_FP16) && defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530
   return __hisnan(a.to_half());
 #else
@@ -592,11 +606,11 @@ HOSTDEVICE inline bool(isnan)(const float16& a) {
 #endif
 }
 
-HOSTDEVICE inline bool(isinf)(const float16& a) { return (a.x & 0x7fff) == 0x7c00; }
+__host__ __device__ inline bool(isinf)(const float16& a) { return (a.x & 0x7fff) == 0x7c00; }
 
-HOSTDEVICE inline bool(isfinite)(const float16& a) { return !((isnan)(a)) && !((isinf)(a)); }
+__host__ __device__ inline bool(isfinite)(const float16& a) { return !((isnan)(a)) && !((isinf)(a)); }
 
-HOSTDEVICE inline float16(abs)(const float16& a) {
+__host__ __device__ inline float16(abs)(const float16& a) {
 #if defined(CINN_CUDA_FP16) && (defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 530)
   return float16(::fabs(static_cast<float>(a)));
 #else
@@ -604,16 +618,50 @@ HOSTDEVICE inline float16(abs)(const float16& a) {
 #endif
 }
 
+#ifndef __CUDACC_RTC__
+
 inline std::ostream& operator<<(std::ostream& os, const float16& a) {
   os << static_cast<float>(a);
   return os;
 }
+#endif
 
 }  // namespace common
 }  // namespace cinn
 
-namespace std {
+#ifdef CINN_CUDA_FP16
+__device__ inline cinn::common::float16 __shfl_sync(unsigned mask,
+                                                    cinn::common::float16 var,
+                                                    int srcLane,
+                                                    int width = warpSize) {
+  return cinn::common::float16(__shfl_sync(mask, var.to_half(), srcLane, width));
+}
 
+__device__ inline cinn::common::float16 __shfl_up_sync(unsigned mask,
+                                                       cinn::common::float16 var,
+                                                       unsigned int delta,
+                                                       int width = warpSize) {
+  return cinn::common::float16(__shfl_up_sync(mask, var.to_half(), delta, width));
+}
+
+__device__ inline cinn::common::float16 __shfl_down_sync(unsigned mask,
+                                                         cinn::common::float16 var,
+                                                         unsigned int delta,
+                                                         int width = warpSize) {
+  return cinn::common::float16(__shfl_down_sync(mask, var.to_half(), delta, width));
+}
+
+__device__ inline cinn::common::float16 __shfl_xor_sync(unsigned mask,
+                                                        cinn::common::float16 var,
+                                                        int laneMask,
+                                                        int width = warpSize) {
+  return cinn::common::float16(__shfl_xor_sync(mask, var.to_half(), laneMask, width));
+}
+#endif
+
+#ifndef __CUDACC_RTC__
+
+namespace std {
 // Override the std::is_pod::value for float16
 // The reason is that different compilers implemented std::is_pod based on
 // different C++ standards. float16 class is a plain old data in C++11 given
@@ -675,17 +723,21 @@ struct numeric_limits<cinn::common::float16> {
   static const bool traps                         = true;
   static const bool tinyness_before               = false;
 
-  HOSTDEVICE static cinn::common::float16(min)() { return cinn::common::raw_uint16_to_float16(0x400); }
-  HOSTDEVICE static cinn::common::float16 lowest() { return cinn::common::raw_uint16_to_float16(0xfbff); }
-  HOSTDEVICE static cinn::common::float16(max)() { return cinn::common::raw_uint16_to_float16(0x7bff); }
-  HOSTDEVICE static cinn::common::float16 epsilon() { return cinn::common::raw_uint16_to_float16(0x0800); }
-  HOSTDEVICE static cinn::common::float16 round_error() { return cinn::common::float16(0.5); }
-  HOSTDEVICE static cinn::common::float16 infinity() { return cinn::common::raw_uint16_to_float16(0x7c00); }
-  HOSTDEVICE static cinn::common::float16 quiet_NaN() { return cinn::common::raw_uint16_to_float16(0x7e00); }
-  HOSTDEVICE static cinn::common::float16 signaling_NaN() { return cinn::common::raw_uint16_to_float16(0x7e00); }
-  HOSTDEVICE static cinn::common::float16 denorm_min() { return cinn::common::raw_uint16_to_float16(0x1); }
+  __host__ __device__ static cinn::common::float16(min)() { return cinn::common::raw_uint16_to_float16(0x400); }
+  __host__ __device__ static cinn::common::float16 lowest() { return cinn::common::raw_uint16_to_float16(0xfbff); }
+  __host__ __device__ static cinn::common::float16(max)() { return cinn::common::raw_uint16_to_float16(0x7bff); }
+  __host__ __device__ static cinn::common::float16 epsilon() { return cinn::common::raw_uint16_to_float16(0x0800); }
+  __host__ __device__ static cinn::common::float16 round_error() { return cinn::common::float16(0.5); }
+  __host__ __device__ static cinn::common::float16 infinity() { return cinn::common::raw_uint16_to_float16(0x7c00); }
+  __host__ __device__ static cinn::common::float16 quiet_NaN() { return cinn::common::raw_uint16_to_float16(0x7e00); }
+  __host__ __device__ static cinn::common::float16 signaling_NaN() {
+    return cinn::common::raw_uint16_to_float16(0x7e00);
+  }
+  __host__ __device__ static cinn::common::float16 denorm_min() { return cinn::common::raw_uint16_to_float16(0x1); }
 };
 
-HOSTDEVICE inline cinn::common::float16 abs(const cinn::common::float16& a) { return cinn::common::abs(a); }
+__host__ __device__ inline cinn::common::float16 abs(const cinn::common::float16& a) { return cinn::common::abs(a); }
 
 }  // namespace std
+
+#endif

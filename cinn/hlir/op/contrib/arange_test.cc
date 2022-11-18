@@ -61,6 +61,7 @@ TEST(GenerateCode_Cpu, Arange) {
   VLOG(6) << code << std::endl;
 }
 
+#ifdef CINN_WITH_CUDA
 TEST(GenerateCode_Cuda, Arange) {
   common::Context::Global().ResetNameId();
 
@@ -88,6 +89,7 @@ TEST(GenerateCode_Cuda, Arange) {
   VLOG(6) << "Cuda Codegen result:";
   VLOG(6) << code << std::endl;
 }
+#endif
 
 }  // namespace op
 }  // namespace hlir

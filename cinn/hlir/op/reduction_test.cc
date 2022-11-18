@@ -27,7 +27,7 @@
 #include "cinn/backends/llvm/execution_engine.h"
 #include "cinn/backends/llvm/runtime_symbol_registry.h"
 #include "cinn/backends/llvm/simple_jit.h"
-#include "cinn/backends/nvrtc_util.h"
+#include "cinn/backends/nvrtc/nvrtc_util.h"
 #include "cinn/cinn.h"
 #include "cinn/common/target.h"
 #include "cinn/common/test_helper.h"
@@ -279,7 +279,7 @@ void TestCaseForReduce(
   auto source_code = GenReduceCode(shape, dim, test_name, false, op_name).second;
 
   // nv jit compile to ptx
-  backends::NVRTC_Compiler compiler;
+  backends::nvrtc::Compiler compiler;
   auto ptx = compiler(source_code);
   CHECK(!ptx.empty());
 
@@ -352,7 +352,7 @@ TEST(Operator, Operator_Reduction_Case_6_4) {
   auto host_source = GenReduceCode(shape, dim, func_name);
 
   // compile to ptx
-  backends::NVRTC_Compiler compiler;
+  backends::nvrtc::Compiler compiler;
   auto ptx = compiler(host_source.second);
   CHECK(!ptx.empty());
 

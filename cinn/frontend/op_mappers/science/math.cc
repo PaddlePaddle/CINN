@@ -161,6 +161,21 @@ void PowOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx)
   ctx.AddVarModelToProgram(out_name, out->id);
 }
 
+void AbsOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+  CHECK_EQ(op_desc.Input("X").size(), 1UL);
+  auto x_name = op_desc.Input("X").front();
+  CHECK_EQ(op_desc.Output("Y").size(), 1UL);
+  auto out_name = op_desc.Output("Y").front();
+
+  VLOG(4) << "|" << x_name << "|";
+
+  auto x   = ctx.GetVar(x_name);
+  auto out = ctx.Builder()->Abs(x);
+
+  ctx.AddVar(out_name, out);
+  ctx.AddVarModelToProgram(out_name, out->id);
+}
+
 }  // namespace science_mappers
 }  // namespace frontend
 }  // namespace cinn
@@ -174,5 +189,6 @@ CINN_REGISTER_HELPER(science_math) {
   CINN_REGISTER_OP_MAPPER(tanh_p, cinn::frontend::science_mappers::TanhOpMapper)
   CINN_REGISTER_OP_MAPPER(matmul_p, cinn::frontend::science_mappers::MatMulOpMapper)
   CINN_REGISTER_OP_MAPPER(pow_p, cinn::frontend::science_mappers::PowOpMapper)
+  CINN_REGISTER_OP_MAPPER(abs_p, cinn::frontend::science_mappers::AbsOpMapper)
   return true;
 }

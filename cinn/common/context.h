@@ -64,7 +64,9 @@ class Context {
 
   void ResetNameId() { name_generator_.ResetID(); }
 
-  const std::string& runtime_include_dir();
+  const std::vector<std::string>& runtime_include_dir();
+
+  void AddRuntimeIncludeDir(std::string dir);
 
   /**
    * The global isl ctx.
@@ -79,7 +81,7 @@ class Context {
   Context() = default;
 
   NameGenerator name_generator_;
-  std::string runtime_include_dir_;
+  std::vector<std::string> runtime_include_dir_;
   mutable std::mutex mutex_;
 
   static thread_local isl::ctx ctx_;
