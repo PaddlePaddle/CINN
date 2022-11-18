@@ -377,6 +377,7 @@ std::vector<std::vector<std::string>> InferLayoutForIsClose(const std::vector<st
 }
 
 StrategyForBinary(elementwise_add, Add);
+StrategyForBinary(elementwise_atan2, Atan2);
 StrategyForBinary(elementwise_mul, Multiply);
 
 StrategyForBinary(substract, Substract);
@@ -434,6 +435,7 @@ CINN_REGISTER_HELPER(broadcast_ops) {
       .set_support_level(4);
 
   CINN_REGISTER_BINARY(elementwise_add, Add);
+  CINN_REGISTER_BINARY(elementwise_atan2, Atan2);
   CINN_REGISTER_BINARY(elementwise_mul, Multiply);
 
   CINN_REGISTER_BINARY(substract, Substract);

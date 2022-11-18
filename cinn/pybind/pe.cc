@@ -73,6 +73,7 @@ void BindPE(py::module* m) {
   m->def(#name__, &hlir::pe::fn__, py::arg("x"), py::arg("y"), py::arg("out"), py::arg("axis") = Expr(-1))
 
   BIND_BINARY(add, Add);
+  BIND_BINARY(atan2, Atan2);
   BIND_BINARY(substract, Substract);
   BIND_BINARY(multiply, Multiply);
   BIND_BINARY(divide, Divide);
