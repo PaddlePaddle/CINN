@@ -309,14 +309,14 @@ class OpFusionPassHelper : public FusionHelperBase {
       return false;
     };
     // 6.check with same shape or with last successive reduce is less than max threads
-    auto is_same_shape_or_vertical_reduce_relation = [this, is_same_shape](const Node* producer,
-                                                                           const Node* consumer) -> bool {
-      // check is same shape with horizontal relation.
-      if (is_same_shape(producer, consumer)) {
+    auto is_same_shape_or_vertical_reduce_relation = [this, is_same_size](const Node* producer,
+                                                                          const Node* consumer) -> bool {
+      // check is same size with horizontal relation.
+      if (is_same_size(producer, consumer)) {
         return true;
       }
 
-      // reducer node in fusion op.
+      // if is vertival relation, the reduce axes must be last succesive axes.
       auto& fusion_op = this->fusion_groups_[consumer];
       Node* reducer   = NULL;
       for (auto* master : fusion_op->master_nodes) {
@@ -335,8 +335,8 @@ class OpFusionPassHelper : public FusionHelperBase {
           axis = reduce_shape.size() - 1;
         }
       }
-      // check without last axis in reduce.
-      if (GetNodeDataShape(producer) != reduce_shape || WithoutLastDimInReduce(reduce_shape, reduce_axes)) {
+      // without last axis in reduce.
+      if (WithoutLastDimInReduce(reduce_shape, reduce_axes)) {
         return false;
       }
 
@@ -346,13 +346,20 @@ class OpFusionPassHelper : public FusionHelperBase {
           succesive_reduce_dimension *= reduce_shape[reduce_axes[idx]];
           continue;
         }
-        break;
+        // if reduce axis is not succesive.
+        return false;
       }
 
       return this->target_ == common::DefaultNVGPUTarget()
                  ? (succesive_reduce_dimension <= this->target_.max_num_threads() ? true : false)
                  : true;
     };
+
+    /*
+    fusion rule:
+      1. can be fused.
+      2. fusion won't change parallel size.
+    */
 
     // fusion relation.
     // 1.kElementwise as producer
@@ -366,8 +373,9 @@ class OpFusionPassHelper : public FusionHelperBase {
           {framework::kElementWise, always_fuse},
           // must be horizontal, as Elementwise + Broadcast is left to fusion merge pass.
           {framework::kBroadcast,
-           [this, is_same_shape](const Node* producer, const Node* consumer) -> bool {
-             if (is_same_shape(producer, consumer)) {
+           [this, is_same_size](const Node* producer, const Node* consumer) -> bool {
+             // if elementwise is reshape/squeeze/expandim check with same size.
+             if (is_same_size(producer, consumer)) {
                return true;
              }
              if (producer->op()->name == "const_scalar" && consumer->op()->name == "broadcast_to") {
@@ -379,14 +387,14 @@ class OpFusionPassHelper : public FusionHelperBase {
           // horizontal or vertical relation, check with same output shape with horizontal relation or with last
           // successive dimension less than 1024 for gpu.
           {framework::kReduction, is_same_shape_or_vertical_reduce_relation},
-          // can be horizontal or can compute inline, check with same output shape or can compute inline.
+          // can be horizontal or can compute inline, check with same output size or can compute inline.
           {framework::kInjective,
-           [this, is_same_shape](const Node* producer, const Node* consumer) -> bool {
-             return is_same_shape(producer, consumer) || (this->GetNodeData(producer)->outlinks().size() == 1 &&
-                                                          !this->output_nodes_set_.count(const_cast<Node*>(producer)));
+           [this, is_same_size](const Node* producer, const Node* consumer) -> bool {
+             return is_same_size(producer, consumer) || (this->GetNodeData(producer)->outlinks().size() == 1 &&
+                                                         !this->output_nodes_set_.count(const_cast<Node*>(producer)));
            }},
-          // must be horizontal, check with same output shape.
-          {framework::kOutFusible, is_same_shape}};
+          // must be horizontal, check with same output size.
+          {framework::kOutFusible, is_same_size}};
       fusion_relation_map_[framework::kElementWise] = std::move(relation);
     }
     // 2.kBroadcast as producer
@@ -397,16 +405,16 @@ class OpFusionPassHelper : public FusionHelperBase {
       // producer -> fusion
       relation.fusion_op_kind = {
           // horizontal or vertical relation(Broadcast + *Elementwise*), check with same output shape.
-          {framework::kElementWise, is_same_shape},
+          {framework::kElementWise, is_same_size},
           // must be horizontal, as Broadcast + Broadcast is not allowed.
-          {framework::kBroadcast, is_same_shape},
+          {framework::kBroadcast, is_same_size},
           // horizontal or vertical relation(Broadcast + Reduce).
-          {framework::kReduction, always_fuse},
+          {framework::kReduction, is_same_size},  // always_fuse
           // can be horizontal or can compute inline, check with same output shape or just one consumer.
           {framework::kInjective,
-           [this, is_same_shape](const Node* producer, const Node* consumer) -> bool {
-             return is_same_shape(producer, consumer) || (this->GetNodeData(producer)->outlinks().size() == 1 &&
-                                                          !this->output_nodes_set_.count(const_cast<Node*>(producer)));
+           [this, is_same_size](const Node* producer, const Node* consumer) -> bool {
+             return is_same_size(producer, consumer) || (this->GetNodeData(producer)->outlinks().size() == 1 &&
+                                                         !this->output_nodes_set_.count(const_cast<Node*>(producer)));
            }},
           // must be horizontal, check with same output shape.
           {framework::kOutFusible, is_same_shape}};
@@ -423,8 +431,8 @@ class OpFusionPassHelper : public FusionHelperBase {
           {framework::kElementWise, without_last_dimension_in_reduce},
           // must be horizontal relation, check with same output shape and without last dimension in reduce.
           {framework::kBroadcast,
-           [this, is_same_shape, without_last_dimension_in_reduce](const Node* producer, const Node* consumer) -> bool {
-             return is_same_shape(producer, consumer) && without_last_dimension_in_reduce(producer, consumer);
+           [this, is_same_size, without_last_dimension_in_reduce](const Node* producer, const Node* consumer) -> bool {
+             return is_same_size(producer, consumer) && without_last_dimension_in_reduce(producer, consumer);
            }},
           // must be horizontal relation and with same reduce attr.
           {framework::kReduction, reduce_fuse_reduce},
@@ -438,17 +446,21 @@ class OpFusionPassHelper : public FusionHelperBase {
     {
       FusionRelation relation;
       // producer -> consumer
-      relation.op_kind = {framework::kElementWise, framework::kReduction};
+      relation.op_kind = {framework::kElementWise, kInjective, framework::kReduction};
       // producer -> fusion
       relation.fusion_op_kind = {
           // can be horizontal or vertical(Injective + Elementwise), check with same output shape.
-          {framework::kElementWise, is_same_shape},
+          {framework::kElementWise, is_same_size},
           // must be horizontal relation, check with same output shape.
-          {framework::kBroadcast, is_same_shape},
+          {framework::kBroadcast, is_same_size},
           // left to fusion merge pass.
           {framework::kReduction, no_fuse},
-          // must be horizontal relation, check with same output shape.
-          {framework::kInjective, is_same_shape},
+          // must be horizontal/vertical relation, horizontal check same size, otherwise check can be compute inline.
+          {framework::kInjective,
+           [this, is_same_size](const Node* producer, const Node* consumer) -> bool {
+             return is_same_size(producer, consumer) || (this->GetNodeData(producer)->outlinks().size() == 1 &&
+                                                         !this->output_nodes_set_.count(const_cast<Node*>(producer)));
+           }},
           // can't fuse.
           {framework::kOutFusible, no_fuse},
       };

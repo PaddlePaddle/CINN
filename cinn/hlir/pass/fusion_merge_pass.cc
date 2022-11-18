@@ -833,9 +833,24 @@ class FusionMergePassHelper : public FusionHelperBase {
       auto output_var_1 = this->GetNodeDataShape(*second->master_nodes.begin());
       return output_var_0 == output_var_1;
     };
-    auto elementwise_fuse_broadcast = [this, is_same_shape](const GroupPtr& first, const GroupPtr& second) -> bool {
+    // As reshape、squeeze、expandim just change data shape, so using same size replace same shape.
+    auto is_same_size = [this, limit_args](const GroupPtr& first, const GroupPtr& second) -> bool {
+      if (!limit_args(first, second)) {
+        return false;
+      }
+      auto output_var_0 = this->GetNodeDataShape(*first->master_nodes.begin());
+      auto output_var_1 = this->GetNodeDataShape(*second->master_nodes.begin());
+      if (output_var_0 == output_var_1) {
+        return true;
+      }
+
+      auto size_0 = std::accumulate(output_var_0.begin(), output_var_0.end(), 1, std::multiplies<int>());
+      auto size_1 = std::accumulate(output_var_1.begin(), output_var_1.end(), 1, std::multiplies<int>());
+      return size_0 == size_1;
+    };
+    auto elementwise_fuse_broadcast = [this, is_same_size](const GroupPtr& first, const GroupPtr& second) -> bool {
       // if sampe shape with horizontal relation
-      if (is_same_shape(first, second)) {
+      if (is_same_size(first, second)) {
         return true;
       }
       // if first's output is not all in second's input
@@ -854,12 +869,12 @@ class FusionMergePassHelper : public FusionHelperBase {
       // TODO(sunli) : cost-model.
       return true;
     };
-    auto elementwise_fuse_reduce = [this, is_same_shape](const GroupPtr& first, const GroupPtr& second) -> bool {
+    auto elementwise_fuse_reduce = [this, is_same_size](const GroupPtr& first, const GroupPtr& second) -> bool {
       if (this->target_ == common::DefaultHostTarget()) {
         return true;
       }
       // if same shape with horizontal relation
-      if (is_same_shape(first, second)) {
+      if (is_same_size(first, second)) {
         return true;
       }
       // if reduce using block_reduce, can't fuse producer.
@@ -924,13 +939,14 @@ class FusionMergePassHelper : public FusionHelperBase {
       auto input_shape  = shape_dict_.at(reducer->inlinks_in_order()[0]->source()->id());
       auto reduce_axes  = absl::get<std::vector<int>>(reducer->attrs.attr_store.at("dim"));
       auto output_shape = this->GetNodeDataShape(*first->master_nodes.begin());
+      // master be horizontal relation.
       if (input_shape == output_shape) {
         return elementwise_fuse_reduce(first, second);
       }
       return false;
     };
-    auto reduce_fuse_elementwise = [this, is_same_shape](const GroupPtr& first, const GroupPtr& second) -> bool {
-      if (!is_same_shape(first, second)) {
+    auto reduce_fuse_elementwise = [this, is_same_size](const GroupPtr& first, const GroupPtr& second) -> bool {
+      if (!is_same_size(first, second)) {
         return false;
       }
       // if with last axis in reduce, fuse will waste computation resource.
@@ -1026,24 +1042,89 @@ class FusionMergePassHelper : public FusionHelperBase {
 
       return false;
     };
+    // other's be horizontal with injective
+    auto horizontal_fuse_injective = [this](const GroupPtr& first, const GroupPtr& second) {
+      // if injective
+      GroupPtr injective = first->op_pattern_kind == framework::kInjective ? first : second;
+      GroupPtr others    = first->op_pattern_kind == framework::kInjective ? second : first;
+
+      // merge injective
+      auto merge_nodes_set = [](const GroupPtr& group) {
+        std::unordered_set<Node*> nodes_set = group->nodes_set;
+        for (auto& sub_group : group->fused_sub_groups) {
+          nodes_set.insert(sub_group->nodes_set.begin(), sub_group->nodes_set.end());
+        }
+        return nodes_set;
+      };
+      auto injective_set = merge_nodes_set(injective);
+      auto others_set    = merge_nodes_set(others);
+
+      auto select_node_set = [this](const std::unordered_set<Node*>& nodes, framework::OpPatternKind kind) {
+        std::unordered_set<Node*> selected;
+        for (auto node : nodes) {
+          if (this->GetOpKind(node) == kind) {
+            selected.insert(node);
+          }
+        }
+        return selected;
+      };
+      auto injective_nodes = select_node_set(injective_set, framework::kInjective);
+
+      auto check_depency = [&](const Node* node) {
+        std::queue<const Node*> candidates;
+        std::unordered_set<const Node*> visited_set;
+        candidates.push(node);
+
+        while (!candidates.empty()) {
+          auto& candidate = candidates.front();
+          candidates.pop();
+          // visit all producer node
+          for (auto producer : this->GetProducerNode(candidate)) {
+            // check node is in region.
+            if (!injective_set.count(producer)) {
+              continue;
+            }
+            // check depency.
+            if (others_set.count(producer)) {
+              return true;
+            }
+            // recored visited node.
+            if (!visited_set.count(producer)) {
+              visited_set.insert(producer);
+              candidates.push(producer);
+            }
+          }
+        }
+
+        return false;
+      };
+
+      for (auto node : injective_nodes) {
+        if (check_depency(node)) {
+          return false;
+        }
+      }
+
+      return true;
+    };
 
     // kElementWise
     {
       auto& relation = fusion_relation_map_[OpPatternKind::kElementWise];
       // horizontal
-      relation.horizontal_relation = {{framework::kElementWise, is_same_shape},
+      relation.horizontal_relation = {{framework::kElementWise, is_same_size},
                                       // element-wise and broadcast op must be horizontal relation.
-                                      {OpPatternKind::kBroadcast, is_same_shape},
+                                      {OpPatternKind::kBroadcast, is_same_size},
                                       // element-wise and injective op must be horizontal relation.
-                                      {OpPatternKind::kInjective, is_same_shape},
+                                      {OpPatternKind::kInjective, is_same_size},
                                       // element-wise and reduce op must be horizontal relation.
-                                      {OpPatternKind::kReduction, is_same_shape}};
+                                      {OpPatternKind::kReduction, is_same_size}};
       // vertical
-      relation.vertical_relation = {{OpPatternKind::kElementWise, is_same_shape},
+      relation.vertical_relation = {{OpPatternKind::kElementWise, is_same_size},
                                     // element-wise and broadcast can be vertical/horizontal relation.
                                     {OpPatternKind::kBroadcast, elementwise_fuse_broadcast},
                                     // element-wise and injective op must be horizontal relation.
-                                    {OpPatternKind::kInjective, is_same_shape},
+                                    {OpPatternKind::kInjective, horizontal_fuse_injective},
                                     // element-wise and reduce can be vertical/horizontal relation.
                                     {OpPatternKind::kReduction, elementwise_fuse_reduce}};
     }
@@ -1052,20 +1133,20 @@ class FusionMergePassHelper : public FusionHelperBase {
       auto& relation = fusion_relation_map_[OpPatternKind::kBroadcast];
       // horizontal
       relation.horizontal_relation = {// broadcast and element-wise op must be horizontal relation.
-                                      {framework::kElementWise, is_same_shape},
+                                      {framework::kElementWise, is_same_size},
                                       // broadcast and broadcast op must be horizontal relation.
-                                      {framework::kBroadcast, is_same_shape},
+                                      {framework::kBroadcast, is_same_size},
                                       // broadcast and injective op must be horizontal relation.
-                                      {OpPatternKind::kInjective, is_same_shape},
+                                      {OpPatternKind::kInjective, is_same_size},
                                       // broadcast and reduce op must be horizontal relation.
-                                      {OpPatternKind::kReduction, is_same_shape}};
+                                      {OpPatternKind::kReduction, is_same_size}};
       // vertical
       relation.vertical_relation = {// broadcast and element-wise op must be vertical relation.
-                                    {OpPatternKind::kElementWise, is_same_shape},
+                                    {OpPatternKind::kElementWise, is_same_size},
                                     // broadcast and broadcast op must be horizontal relation.
-                                    {OpPatternKind::kBroadcast, is_same_shape},
+                                    {OpPatternKind::kBroadcast, is_same_size},
                                     // broadcast and injective op must be horizontal relation.
-                                    {OpPatternKind::kInjective, is_same_shape},
+                                    {OpPatternKind::kInjective, horizontal_fuse_injective},
                                     // broadcast and reduce must be vertical relation.
                                     {OpPatternKind::kReduction, broadcast_fuse_reduce}};
     }
@@ -1074,20 +1155,20 @@ class FusionMergePassHelper : public FusionHelperBase {
       auto& relation = fusion_relation_map_[OpPatternKind::kInjective];
       // horizontal
       relation.horizontal_relation = {// injective and element-wise op must be horizontal relation.
-                                      {OpPatternKind::kElementWise, is_same_shape},
+                                      {OpPatternKind::kElementWise, is_same_size},
                                       // injective and broadcast op must be horizontal relation.
-                                      {OpPatternKind::kBroadcast, is_same_shape},
+                                      {OpPatternKind::kBroadcast, is_same_size},
                                       // injective and injective op must be horizontal relation.
-                                      {OpPatternKind::kInjective, is_same_shape},
+                                      {OpPatternKind::kInjective, is_same_size},
                                       // injective and reduce must be horizontal relation.
-                                      {OpPatternKind::kReduction, is_same_shape}};
+                                      {OpPatternKind::kReduction, is_same_size}};
       // vertical
       relation.vertical_relation = {// injective and element-wise op must be horizontal relation.
-                                    {OpPatternKind::kElementWise, is_same_shape},
+                                    {OpPatternKind::kElementWise, is_same_size},
                                     // injective and broadcast op must be horizontal relation.
-                                    {OpPatternKind::kBroadcast, is_same_shape},
+                                    {OpPatternKind::kBroadcast, is_same_size},
                                     // injective and injective op must be horizontal relation.
-                                    {OpPatternKind::kInjective, is_same_shape},
+                                    {OpPatternKind::kInjective, horizontal_fuse_injective},
                                     // injective and reduce can be horizontal/vertical relation.
                                     {OpPatternKind::kReduction, elementwise_fuse_reduce}};
     }
@@ -1096,20 +1177,20 @@ class FusionMergePassHelper : public FusionHelperBase {
       auto& relation = fusion_relation_map_[OpPatternKind::kReduction];
       // horizontal
       relation.horizontal_relation = {// reduce and element-wise op must be horizontal relation.
-                                      {OpPatternKind::kElementWise, is_same_shape},
+                                      {OpPatternKind::kElementWise, is_same_size},
                                       // reduce and broadcast op must be horizontal relation.
-                                      {OpPatternKind::kBroadcast, is_same_shape},
+                                      {OpPatternKind::kBroadcast, is_same_size},
                                       // reduce and injective op must be horizontal relation.
-                                      {OpPatternKind::kInjective, is_same_shape},
+                                      {OpPatternKind::kInjective, is_same_size},
                                       // reduce and reduce must be horizontal relation.
                                       {OpPatternKind::kReduction, reduce_fuse_reduce}};
       // vertical
       relation.vertical_relation = {// reduce and elementwise can be horizontal/vertical relation.
                                     {OpPatternKind::kElementWise, reduce_fuse_elementwise},
                                     // reduce and broadcast op must be horizontal relation.
-                                    {OpPatternKind::kBroadcast, is_same_shape},
+                                    {OpPatternKind::kBroadcast, is_same_size},
                                     // reduce and injective op must be horizontal relation.
-                                    {OpPatternKind::kInjective, is_same_shape},
+                                    {OpPatternKind::kInjective, horizontal_fuse_injective},
                                     // reduce and reduce must be horizontal relation.
                                     {OpPatternKind::kReduction, reduce_fuse_reduce}};
     }

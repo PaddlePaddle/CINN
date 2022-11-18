@@ -81,6 +81,20 @@ class FusionHelperBase {
     return producer_node_data;
   }
 
+  std::vector<Node*> GetProducerNode(const Node* node) {
+    std::vector<Node*> producer_node;
+    for (auto& edge : node->inlinks()) {
+      auto graph_node    = edge->source();
+      auto producer_data = graph_node->safe_as<NodeData>();
+      CHECK(producer_data);
+      auto producer = producer_data->source_node.get();
+      if (producer) {
+        producer_node.push_back(producer);
+      }
+    }
+    return producer_node;
+  }
+
   bool WithoutLastDimInReduce(const std::vector<int>& inshape, const std::vector<int>& axes) {
     // if last axis is in reduce.
     if (std::find(axes.begin(), axes.end(), inshape.size() - 1) != axes.end() ||
