@@ -48,6 +48,7 @@ void naive_matmul(const float* A, const float* B, float* C, int M, int N, int K)
   }
 }
 
+// Packaging matmul as a unified format required by the CheckResult interface
 void target_func_matmul(const std::vector<float*>& inputs,
                         const std::vector<float*>& outputs,
                         const std::vector<std::vector<int>>& input_shapes,
@@ -134,12 +135,31 @@ void InstantiateScope(Scope* scope,
   }
 }
 
+/* @brief: Unified signature format as the target function for comparison.
+ * @params-1: Pointers to the memory of input data, each input corresponds to a pointer.
+ * @params-2: Pointers to the memory of output data, each output corresponds to a pointer.
+ * @params-3: Shapes of the input data, each input corresponds to a std::vector<int>.
+ * @params-4: Shapes of the output data, each output corresponds to a std::vector<int>.
+ */
 using target_func_type = void (*)(const std::vector<float*>&,
                                   const std::vector<float*>&,
                                   const std::vector<std::vector<int>>&,
                                   const std::vector<std::vector<int>>&);
-using test_func_type   = void (*)(void**, int32_t);
+/* @brief: Function pointer of executable code compiled by CINN.
+ * @params-1: Pointers to all arguments, including input and output.
+ * @params-2: The number of Arguments.
+ */
+using test_func_type = void (*)(void**, int32_t);
 
+/* @brief: Interface for checking function correctness.
+ * @params-1: Function pointer of the function to be tested.
+ * @params-2: Target function pointer for comparison.
+ * @params-3: Names of input data.
+ * @params-4: Names of output data.
+ * @params-5: Shapes of the input data, each input corresponds to a std::vector<int>.
+ * @params-6: Shapes of the output data, each output corresponds to a std::vector<int>.
+ * @params-7: The Target expressing computing platform and architecture of the function to be tested.
+ */
 void CheckResult(test_func_type test_func,
                  target_func_type target_func,
                  const std::vector<std::string>& input_names,
