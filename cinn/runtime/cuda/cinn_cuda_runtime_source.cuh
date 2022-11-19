@@ -64,8 +64,15 @@ __device__ inline int FN_INT32(bitwise_and)(int a, int b) { return a & b; }
 __device__ inline int FN_INT32(bitwise_or)(int a, int b) { return a | b; }
 __device__ inline int FN_INT32(bitwise_xor)(int a, int b) { return a ^ b; }
 __device__ inline int FN_INT32(bitwise_not)(int a) { return ~a; }
+__device__ inline int FN_INT32(clz)(int a) { return __clz(a); }
 
 #undef FN_INT32
+
+#define FN_INT64(func) cinn_nvgpu_##func##_int64
+
+__device__ inline int FN_INT64(clz)(int64_t a) { return __clzll(a); }
+
+#undef FN_INT64
 
 __device__ inline float cinn_sum(const float left, const float right) { return left + right; }
 __device__ inline float cinn_prod(const float left, const float right) { return left * right; }

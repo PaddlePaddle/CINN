@@ -101,6 +101,8 @@ std::string CodeGenC::GetTypeName(Type type) {
   GET_SCALAR_TYPE(type.is_int(8), "int8_t");
   GET_SCALAR_TYPE(type.is_int(32), "int32_t");
   GET_SCALAR_TYPE(type.is_int(64), "int64_t");
+  GET_SCALAR_TYPE(type.is_uint(32), "uint32_t");
+  GET_SCALAR_TYPE(type.is_uint(64), "uint64_t");
   GET_SCALAR_TYPE(type.is_float(32), "float")
   GET_SCALAR_TYPE(type.is_float(64), "double")
 #undef GET_SCALAR_TYPE

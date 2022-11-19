@@ -49,5 +49,13 @@ inline int cinn_host_gt_num_int(
 
 inline int FN_INT32(pow)(int x, int y);
 
+inline int FN_INT32(clz)(int x);
+
 #undef FN_INT32
+
+#define FN_INT64(func) cinn_host_##func##_uint64
+
+inline int FN_INT64(clz)(long long x);
+
+#undef FN_INT64
 }
