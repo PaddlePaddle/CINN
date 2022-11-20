@@ -70,7 +70,7 @@ __device__ inline int FN_INT32(clz)(int a) { return __clz(a); }
 
 #define FN_INT64(func) cinn_nvgpu_##func##_int64
 
-__device__ inline int FN_INT64(clz)(int64_t a) { return __clzll(a); }
+__device__ inline long long int FN_INT64(clz)(long long int a) { return __clzll(a); }
 
 #undef FN_INT64
 

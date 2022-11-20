@@ -101,12 +101,13 @@ std::shared_ptr<OpStrategy> StrategyForClz(const framework::NodeAttr &attrs,
     Expr A_expr = pack_args[0];
     CHECK(A_expr.as_tensor());
     ir::Tensor A = A_expr.as_tensor_ref();
-    auto out    = Clz(A, target, tensor_name);
-    auto stages = CreateStages({out});
-    *ret        = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
+    auto out     = Clz(A, target, tensor_name);
+    auto stages  = CreateStages({out});
+    *ret         = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
+  strategy->AddImpl(clz_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.clz.x86", 1);
   return strategy;
 }
 
@@ -135,7 +136,8 @@ CINN_REGISTER_HELPER(clz_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForClz)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForClz))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForClz))
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElementWise);
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElementWise)
+      .set_support_level(4);
 
   return true;
 }

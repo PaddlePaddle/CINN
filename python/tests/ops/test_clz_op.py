@@ -23,62 +23,73 @@ from cinn.frontend import *
 from cinn.common import *
 
 
+@OpTestTool.skip_if(not is_compiled_with_cuda(),
+                    "x86 test will be skipped due to timeout.")
 class TestClzOp(OpTest):
-
     def setUp(self):
         self.init_case()
 
     def init_case(self):
         self.inputs = {
-            "x": self.random([32, 64], 'int32')
+            # "x": self.random([32, 64], 'int32', low = -2147483648, high=2147483647)
+            "x":
+            np.array([
+                -1591895863, -1770335025, -1290313501, 478042597, 189030958,
+                -935228100, 718518127, -2066013593, -1028229638, -1930307001,
+                -858478166, -282304333
+            ]).astype(np.int32)
+        }
+        self.outputs = {
+            "y": np.array([0, 0, 0, 3, 4, 0, 2, 0, 0, 0, 0,
+                           0]).astype(np.int32)
         }
 
     def build_paddle_program(self, target):
-        x = paddle.to_tensor(self.inputs["x"], stop_gradient=False)
-        self.paddle_outputs = [x]
+        y = paddle.to_tensor(self.outputs["y"], stop_gradient=False)
+        self.paddle_outputs = [y]
 
     def build_cinn_program(self, target):
         builder = NetBuilder("clz")
         x = builder.create_input(
             self.nptype2cinntype(self.inputs["x"].dtype),
-            self.inputs["x"].shape, "x"
-        )
+            self.inputs["x"].shape, "x")
         out = builder.clz(x)
         prog = builder.build()
-        res = self.get_cinn_output(prog, target, [x], [self.inputs["x"]], [out])
+        res = self.get_cinn_output(prog, target, [x], [self.inputs["x"]],
+                                   [out])
         self.cinn_outputs = [res[0]]
-        print(self.cinn_outputs)
+        print(self.inputs["x"][0:10], res[0][0:10])
 
     def test_check_results(self):
         self.check_outputs_and_grads()
 
 
-class TestClzCase1(TestClzOp):
-    def init_case(self):
-        self.inputs = {
-            "x": np.random.random([4, 3]).astype("int32")
-        }
+# class TestClzCase1(TestClzOp):
+#     def init_case(self):
+#         self.inputs = {
+#             # "x": self.random([48, 36], 'int32', low = -2147483648, high=2147483647)
+#             "x": np.array([[-780762106, 2088944770, 1793870564, 995233974, -1566864405, -1550063384],
+#                             [58189437, -585656506, 1058816786, -1676158651, -175192886, 2129254990]]).astype(np.int32)
+#         }
+#         self.outputs = {
+#             "y": np.array([[0, 1, 1, 2, 0, 0], [6, 0, 2, 0, 0, 1]]).astype(np.int32)
+#         }
 
 
 class TestClzCase2(TestClzOp):
     def init_case(self):
         self.inputs = {
-            "x": np.random.random([10, 100]).astype("uint32")
+            # "x": self.random([4, 3, 5, 8], 'int64', low = -9223372036854775808, high=9223372036854775807)
+            "x":
+            np.array([
+                -2603587548323400654, 5370659515557365091,
+                -2051413160116828951, 9015154622229049624,
+                -8328245342679021727, -8113334794330105534,
+                7187230222985732039, 1835610600500058242
+            ]).astype(np.int64)
         }
-
-
-class TestClzCase3(TestClzOp):
-    def init_case(self):
-        self.inputs = {
-            "x": np.random.random([4, 3, 5, 8]).astype("int64")
-        }
-
-
-
-class TestClzCase4(TestClzOp):
-    def init_case(self):
-        self.inputs = {
-            "x": np.random.random([10042]).astype("uint64")
+        self.outputs = {
+            "y": np.array([0, 1, 0, 1, 0, 0, 1, 3]).astype(np.int64)
         }
 
 

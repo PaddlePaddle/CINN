@@ -132,7 +132,7 @@ inline int FN_INT32(clz)(int x) { return __builtin_clz(x); }
 
 #define FN_INT64(func) cinn_host_##func##_int64
 
-inline int FN_INT64(clz)(long long x) { return __builtin_clzll(x); }
+inline int64_t FN_INT64(clz)(int64_t x) { return __builtin_clzll(x); }
 
 #undef FN_INT64
 }
