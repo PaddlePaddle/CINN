@@ -58,22 +58,29 @@ class TestClzOp(OpTest):
         res = self.get_cinn_output(prog, target, [x], [self.inputs["x"]],
                                    [out])
         self.cinn_outputs = [res[0]]
-        print(self.inputs["x"][0:10], res[0][0:10])
 
     def test_check_results(self):
         self.check_outputs_and_grads()
 
 
-# class TestClzCase1(TestClzOp):
-#     def init_case(self):
-#         self.inputs = {
-#             # "x": self.random([48, 36], 'int32', low = -2147483648, high=2147483647)
-#             "x": np.array([[-780762106, 2088944770, 1793870564, 995233974, -1566864405, -1550063384],
-#                             [58189437, -585656506, 1058816786, -1676158651, -175192886, 2129254990]]).astype(np.int32)
-#         }
-#         self.outputs = {
-#             "y": np.array([[0, 1, 1, 2, 0, 0], [6, 0, 2, 0, 0, 1]]).astype(np.int32)
-#         }
+class TestClzCase1(TestClzOp):
+    def init_case(self):
+        self.inputs = {
+            # "x": self.random([48, 36], 'int32', low = -2147483648, high=2147483647)
+            "x":
+            np.array([[
+                -780762106, 2088944770, 1793870564, 995233974, -1566864405,
+                -1550063384
+            ],
+                      [
+                          58189437, -585656506, 1058816786, -1676158651,
+                          -175192886, 2129254990
+                      ]]).astype(np.int32)
+        }
+        self.outputs = {
+            "y":
+            np.array([[0, 1, 1, 2, 0, 0], [6, 0, 2, 0, 0, 1]]).astype(np.int32)
+        }
 
 
 class TestClzCase2(TestClzOp):

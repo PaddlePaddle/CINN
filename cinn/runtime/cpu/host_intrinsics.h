@@ -53,7 +53,7 @@ inline int FN_INT32(clz)(int x);
 
 #undef FN_INT32
 
-#define FN_INT64(func) cinn_host_##func##_uint64
+#define FN_INT64(func) cinn_host_##func##_int64
 
 inline int64_t FN_INT64(clz)(int64_t x);
 

@@ -188,7 +188,7 @@ CINN_REGISTER_HELPER(host_intrinsics) {
 
   REGISTER_EXTERN_FUNC_1_IN_1_OUT(cinn_host_clz_int32, host_target, int, int);
 
-  REGISTER_EXTERN_FUNC_1_IN_1_OUT(cinn_host_clz_int64, host_target, int, int64_t);
+  REGISTER_EXTERN_FUNC_1_IN_1_OUT(cinn_host_clz_int64, host_target, int64_t, int64_t);
 
   REGISTER_EXTERN_FUNC_HELPER(cinn_host_find_int, host_target)
       .SetRetType<int>()

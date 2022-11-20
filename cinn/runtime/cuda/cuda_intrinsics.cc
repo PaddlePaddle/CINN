@@ -87,7 +87,7 @@ CINN_REGISTER_HELPER(cuda_intrinsics) {
 #undef REGISTER_EXTERN_FUNC_1_IN_1_INT32
 
 #define REGISTER_EXTERN_FUNC_1_IN_1_INT64(func__) \
-  REGISTER_EXTERN_SOURCE_FUNC_1_IN_1_OUT(cinn_nvgpu_##func__##_int64, target, int64_t, int);
+  REGISTER_EXTERN_SOURCE_FUNC_1_IN_1_OUT(cinn_nvgpu_##func__##_int64, target, int64_t, int64_t);
 
   REGISTER_EXTERN_FUNC_1_IN_1_INT64(clz)
 
