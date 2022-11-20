@@ -112,7 +112,7 @@ bool AddCacheRead::MeetCondition(const ir::Expr& block_expr) const {
     if (for_node->is_gpu_thread_binded() && is_reduce_axis) {
       return false;
     }
-    has_reduce_axis == true ? true : is_reduce_axis;
+    has_reduce_axis = has_reduce_axis == true ? true : is_reduce_axis;
   }
 
   return has_reduce_axis;
