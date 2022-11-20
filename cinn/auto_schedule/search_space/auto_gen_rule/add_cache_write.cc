@@ -61,12 +61,7 @@ RuleApplyType AddCacheWrite::Init(ir::IRSchedule* ir_schedule) {
   // Select a cache memory type
   cache_memory_type_ = kMemoryTypes.at(target_->arch);
 
-  if (num_applicable_ > 0) {
-    if (*target_ == common::DefaultNVGPUTarget()) return RuleApplyType::kApplyAndSkipAllRules;
-    if (*target_ == common::DefaultHostTarget()) return RuleApplyType::kApplyAndSkipThisRule;
-  }
-
-  return RuleApplyType::kCannotApply;
+  return num_applicable_ > 0 ? RuleApplyType::kApplyAndSkipThisRule : RuleApplyType::kCannotApply;
 }
 
 void AddCacheWrite::Apply(int index) {

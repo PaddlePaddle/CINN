@@ -193,7 +193,7 @@ TEST(AddCacheRead, Init) {
   ir::IRSchedule ir_schedule_matmul(ir::ModuleExpr({matmul_expr}));
 
   AddCacheRead add_cache_read(target);
-  EXPECT_EQ(add_cache_read.Init(&ir_schedule_matmul), RuleApplyType::kApplyAndSkipAllRules);
+  EXPECT_EQ(add_cache_read.Init(&ir_schedule_matmul), RuleApplyType::kApplyAndSkipThisRule);
   EXPECT_EQ(add_cache_read.NumberApplicable(), 1);
 
   add_cache_read.ApplyRandomly();
@@ -264,7 +264,7 @@ TEST(AddCacheRead, MatrixMultiply) {
 
   // Apply AddCacheRead
   AddCacheRead add_cache_read(target);
-  EXPECT_EQ(add_cache_read.Init(&ir_schedule), RuleApplyType::kApplyAndSkipAllRules);
+  EXPECT_EQ(add_cache_read.Init(&ir_schedule), RuleApplyType::kApplyAndSkipThisRule);
   EXPECT_EQ(add_cache_read.NumberApplicable(), 1);
 
   add_cache_read.ApplyRandomly();

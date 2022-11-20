@@ -60,7 +60,7 @@ RuleApplyType AddCacheRead::Init(ir::IRSchedule* ir_schedule) {
   // Select a cache memory type
   cache_memory_type_ = kMemoryTypes.at(target_->arch);
 
-  return num_applicable_ > 0 ? RuleApplyType::kApplyAndSkipAllRules : RuleApplyType::kCannotApply;
+  return num_applicable_ > 0 ? RuleApplyType::kApplyAndSkipThisRule : RuleApplyType::kCannotApply;
 }
 
 void AddCacheRead::Apply(int index) {
@@ -119,7 +119,7 @@ ir::Expr AddCacheRead::GetTargetLoop(const ir::Expr& block_expr) const {
   for (auto& for_expr : for_exprs) {
     ir::Var for_node_var          = for_expr.As<ir::For>()->loop_var;
     std::string for_loop_var_name = for_node_var->name;
-    if (for_loop_var_name.substr(0, 11) == "reduce_axis") {
+    if (for_loop_var_name.substr(0, 6) == "reduce") {
       VLOG(6) << "get target loop: " << for_expr;
       return for_expr;
     }
