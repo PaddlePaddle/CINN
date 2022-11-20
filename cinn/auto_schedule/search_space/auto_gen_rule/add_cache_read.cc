@@ -103,14 +103,19 @@ bool AddCacheRead::MeetCondition(const ir::Expr& block_expr) const {
   if (!NeedsMultiLevelTiling(*sch_block_realize)) return false;
 
   // check cross thread reduce axis
+  bool has_reduce_axis = false;
   for (const ir::Expr& for_expr : ir_schedule_->GetLoops(block_expr)) {
     const ir::For* for_node = for_expr.As<ir::For>();
-    if (for_node->is_gpu_thread_binded() && for_node->loop_var->is_reduce_axis) {
+    // TODO(BiynXu): Replace 'for_node->loop_var->name.substr(0, 6) == "reduce" '
+    // with 'for_node->loop_var->is_reduce_axis' After we solve the problem of is_reduce_axis failure
+    bool is_reduce_axis = for_node->loop_var->name.substr(0, 6) == "reduce";
+    if (for_node->is_gpu_thread_binded() && is_reduce_axis) {
       return false;
     }
+    has_reduce_axis == true ? true : is_reduce_axis;
   }
 
-  return true;
+  return has_reduce_axis;
 }
 
 ir::Expr AddCacheRead::GetTargetLoop(const ir::Expr& block_expr) const {
