@@ -19,6 +19,8 @@
 namespace cinn {
 namespace lang {
 
+using cinn::common::float16;
+
 ir::Tensor CreatePlaceHolder(const std::vector<int> &shape, Type type, const std::string &name) {
   std::vector<Expr> expr_shape;
   for (int s : shape) {
@@ -28,15 +30,17 @@ ir::Tensor CreatePlaceHolder(const std::vector<int> &shape, Type type, const std
 }
 
 ir::Tensor CreatePlaceHolder(const std::vector<Expr> &shape, Type type, const std::string &name) {
-  if (type == Float(32)) {
+  if (type.is_float(32)) {
     return Placeholder<float>(name, shape);
-  } else if (type == Float(64)) {
+  } else if (type.is_float(64)) {
     return Placeholder<double>(name, shape);
-  } else if (type == Int(32)) {
+  } else if (type.is_float(16)) {
+    return Placeholder<float16>(name, shape);
+  } else if (type.is_int(32)) {
     return Placeholder<int32_t>(name, shape);
-  } else if (type == Int(64)) {
+  } else if (type.is_int(64)) {
     return Placeholder<int64_t>(name, shape);
-  } else if (type == Bool()) {
+  } else if (type.is_bool()) {
     return Placeholder<bool>(name, shape);
   }
   CINN_NOT_IMPLEMENTED

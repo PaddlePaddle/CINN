@@ -54,8 +54,9 @@ ir::Tensor Gelu(const ir::Tensor &input, const std::string &output_name) {
       input->shape,
       [=](const std::vector<Expr> &indice) {
         Expr e = input(indice);
-        return e * (make_const(e->type(), 0.5) +
-                    make_const(e->type(), 0.5) * lang::Erf(e * make_const(e->type(), std::sqrt(0.5))));
+        return e *
+               (ir::Cast::Make(e->type(), Expr(0.5)) +
+                ir::Cast::Make(e->type(), Expr(0.5)) * lang::Erf(e * ir::Cast::Make(e->type(), Expr(std::sqrt(0.5)))));
       },
       output_name);
 }
@@ -84,11 +85,7 @@ std::shared_ptr<OpStrategy> StrategyForGelu(const framework::NodeAttr &attrs,
 
   auto strategy = std::make_shared<framework::OpStrategy>();
   CHECK(out_type.size()) << "Out_type of gelu op is empty! Please check.";
-  if (out_type[0] == Float(32)) {
-    strategy->AddImpl(gelu_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.gelu.x86", 1);
-  } else {
-    LOG(FATAL) << "Gelu op with dtype != float32 is not implemented yet!";
-  }
+  strategy->AddImpl(gelu_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.gelu.x86", 1);
   return strategy;
 }
 

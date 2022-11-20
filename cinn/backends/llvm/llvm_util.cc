@@ -23,6 +23,8 @@
 namespace cinn {
 namespace backends {
 
+using cinn::common::float16;
+
 llvm::Type *CinnTypeToLLVMType(common::Type type, llvm::Module *m, bool is_vec) {
   llvm::Type *ir_type = nullptr;
   if (type.is_cpp_const()) {
@@ -36,6 +38,7 @@ llvm::Type *CinnTypeToLLVMType(common::Type type, llvm::Module *m, bool is_vec) 
   llvm::Type *i32 = llvm::Type::getInt32Ty(m->getContext());
   llvm::Type *i64 = llvm::Type::getInt64Ty(m->getContext());
   llvm::Type *u32 = llvm::Type::getInt32Ty(m->getContext());
+  llvm::Type *f16 = llvm::Type::getHalfTy(m->getContext());
   llvm::Type *f32 = llvm::Type::getFloatTy(m->getContext());
   llvm::Type *f64 = llvm::Type::getDoubleTy(m->getContext());
   llvm::Type *arr = llvm::Type::getPrimitiveType(m->getContext(), llvm::Type::ArrayTyID);
@@ -58,6 +61,8 @@ llvm::Type *CinnTypeToLLVMType(common::Type type, llvm::Module *m, bool is_vec) 
     ir_type = f32;
   } else if (type.is_float(64)) {
     ir_type = f64;
+  } else if (type.is_float(16)) {
+    ir_type = f16;
   } else if (type.is_void()) {
     ir_type = v;
   } else if (type.is_string()) {
@@ -98,6 +103,7 @@ llvm::Type *CinnTypeToLLVMType(common::Type type, llvm::Module *m, bool is_vec) 
 __(int8_t)
 __(int32_t)
 __(int64_t)
+__(float16)
 __(float)
 __(double)
 __(cinn_buffer_t)
