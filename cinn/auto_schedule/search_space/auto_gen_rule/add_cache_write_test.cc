@@ -165,7 +165,7 @@ TEST(AddCacheWrite, BasicApplyOnMatmul) {
   compiler->Build(build_module);
   auto test_func_ptr = reinterpret_cast<void (*)(void**, int32_t)>(compiler->Lookup(func_name));
 
-  CheckResult(test_func_ptr, target_func_matmul, {"A", "B"}, {"C"}, {{32, 32}, {32, 32}}, {{32, 32}}, target);
+  CheckResult(test_func_ptr, expected_func_matmul, {"A", "B"}, {"C"}, {{32, 32}, {32, 32}}, {{32, 32}}, target);
 }
 
 TEST(AddCacheWrite, ApplyOnMatmulWithTiling) {
@@ -239,7 +239,7 @@ TEST(AddCacheWrite, ApplyOnMatmulWithTiling) {
   compiler->Build(build_module);
   auto test_func_ptr = reinterpret_cast<void (*)(void**, int32_t)>(compiler->Lookup(func_name));
 
-  // CheckResult(test_func_ptr, target_func_matmul, {"A", "B"}, {"C"}, {{32, 32}, {32, 32}}, {{32, 32}}, target);
+  // CheckResult(test_func_ptr, expected_func_matmul, {"A", "B"}, {"C"}, {{32, 32}, {32, 32}}, {{32, 32}}, target);
 }
 
 }  // namespace auto_schedule
