@@ -67,6 +67,14 @@ __device__ inline int FN_INT32(bitwise_and)(int a, int b) { return a & b; }
 __device__ inline int FN_INT32(bitwise_or)(int a, int b) { return a | b; }
 __device__ inline int FN_INT32(bitwise_xor)(int a, int b) { return a ^ b; }
 __device__ inline int FN_INT32(bitwise_not)(int a) { return ~a; }
+__device__ inline int FN_INT32(clz)(int a) { return __clz(a); }
+
+
+// *************************************************************** //
+// int64 unary and binary operator
+#define FN_INT64(func) cinn_nvgpu_##func##_int64
+
+__device__ inline long long int FN_INT64(clz)(long long int a) { return __clzll(a); }
 
 
 // *************************************************************** //
@@ -399,6 +407,7 @@ __device__ inline float cinn_cuda_index_add(const float x,
 #undef FN_FP32
 #undef FN_FP64
 #undef FN_INT32
+#undef FN_INT64
 
 #ifdef CINN_CUDA_FP16
 #undef FN_FP16
