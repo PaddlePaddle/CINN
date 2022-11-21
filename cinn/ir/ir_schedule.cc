@@ -1544,11 +1544,15 @@ void ScheduleImpl::FlattenLoops(const std::vector<Expr>& loops, const bool flat_
           var_to_replace.push_back(schedule_block->iter_vars[idx]);
         } else {
           CHECK_EQ(block_realize->iter_values[idx].as_int32(), 0);
+          // insert var -> 0, to replace var to 0.
+          var_to_replace.insert(var_to_replace.begin(), schedule_block->iter_vars[idx]);
+          flat_i_to_loop_var.insert(flat_i_to_loop_var.begin(), Expr(0));
         }
       }
     } else {
       var_to_replace = schedule_block->iter_vars;
     }
+
     for (auto expr : exprs) {
       if (expr.As<ir::Store>()) {
         auto store = expr.As<ir::Store>();
@@ -1559,6 +1563,7 @@ void ScheduleImpl::FlattenLoops(const std::vector<Expr>& loops, const bool flat_
             return sum * expr.as_int32();
           });
           if ((!flat_tensor && !can_do_flat(store->indices, schedule_block->iter_vars)) || tsize != extent) {
+            // if exist
             ReplaceExpr(&schedule_block->body, var_to_replace, flat_i_to_loop_var);
             // compute index and flat tensor.
             store->indices = {store->index()};
