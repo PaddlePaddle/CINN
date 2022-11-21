@@ -77,8 +77,6 @@ TEST(CodeGenC, module) {
     std::cout << "codegen C:" << std::endl << out << std::endl;
 
     std::string target_str = R"ROC(
-#include <cuda/float16.h>
-using cinn::common::float16;
 #include <cinn_runtime.h>
 #include <stdio.h>
 
@@ -110,8 +108,6 @@ void add1(void* _args, int32_t num_args)
 #ifndef _MODULE1_CINN_H_
 #define _MODULE1_CINN_H_
 
-#include <cuda/float16.h>
-using cinn::common::float16;
 #include <cinn_runtime.h>
 #include <stdio.h>
 
@@ -177,8 +173,6 @@ TEST(CodeGenC, module_with_transform) {
   std::cout << "codegen C:" << std::endl << out << std::endl;
 
   auto tgt = R"ROC(
-#include <cuda/float16.h>
-using cinn::common::float16;
 #include <cinn_runtime.h>
 #include <stdio.h>
 
@@ -276,8 +270,6 @@ TEST(CodeGenC, matmul) {
   std::cout << "codegen C:" << std::endl << out << std::endl;
 
   auto tgt = R"ROC(
-#include <cuda/float16.h>
-using cinn::common::float16;
 #include <cinn_runtime.h>
 #include <stdio.h>
 
@@ -389,8 +381,6 @@ TEST(CodeGenC, matmul_tile) {
   std::cout << "codegen C:" << std::endl << out << std::endl;
 
   auto target_out = R"ROC(
-#include <cuda/float16.h>
-using cinn::common::float16;
 #include <cinn_runtime.h>
 #include <stdio.h>
 
@@ -472,8 +462,6 @@ TEST(CodeGenC, matmul_packed) {
   std::cout << "codegen C:" << std::endl << out << std::endl;
 
   auto target_out = R"ROC(
-#include <cuda/float16.h>
-using cinn::common::float16;
 #include <cinn_runtime.h>
 #include <stdio.h>
 

@@ -600,8 +600,6 @@ void CodeGenC::Visit(const ir::_LoweredFunc_ *op) {
   Print(func_body);
 }
 void CodeGenC::PrintIncludes() {
-  os() << "#include <cuda/float16.h>\n";
-  os() << "using cinn::common::float16;\n";
   os() << "#include <cinn_runtime.h>\n";
   os() << "#include <stdio.h>\n";
   os() << "\n";
