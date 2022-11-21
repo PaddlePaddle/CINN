@@ -287,7 +287,7 @@ Tensor Atan2(const Tensor& A, const Tensor& B, const std::string& output_name, c
     auto atan    = lang::Atan(elem_a / elem_b);
     auto pi      = common::make_const(atan->type(), PI);
     auto half_pi = common::make_const(atan->type(), PI / 2);
-    auto zero    = common::make_const(atan->type(), 0);
+    auto zero    = common::make_const(elem_b->type(), 0);
     return ir::Select::Make(
         ir::EQ::Make(elem_b, zero),
         ir::Select::Make(ir::GT::Make(elem_a, zero), half_pi, -half_pi),
