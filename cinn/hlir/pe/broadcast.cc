@@ -119,8 +119,27 @@ void GetBroadcastShape(const std::vector<Expr>& shape1,
       broadcast_flag1->emplace_back(true);
       broadcast_flag2->emplace_back(true);
     } else {
-      LOG(FATAL) << "Incompatible broadcast dims " << shape1_new[size1 - i] << " and " << shape2_new[size2 - i]
-                 << " in: " << shape1_new << " and " << shape2_new << std::endl;
+      int dim1 = shape1_new[size1 - i].as_int32();
+      int dim2 = shape2_new[size2 - i].as_int32();
+      if (dim1 == dim2) {
+        common_shape->insert(common_shape->begin(), shape1_new[size1 - i]);
+        // broadcast flags are recorded in a reverse order
+        broadcast_flag1->emplace_back(true);
+        broadcast_flag2->emplace_back(true);
+      } else if (dim1 == 1) {
+        common_shape->insert(common_shape->begin(), shape2_new[size2 - i]);
+        // broadcast flags are recorded in a reverse order
+        broadcast_flag1->emplace_back(false);
+        broadcast_flag2->emplace_back(true);
+      } else if (dim2 == 1) {
+        common_shape->insert(common_shape->begin(), shape1_new[size1 - i]);
+        // broadcast flags are recorded in a reverse order
+        broadcast_flag1->emplace_back(true);
+        broadcast_flag2->emplace_back(false);
+      } else {
+        LOG(FATAL) << "Incompatible broadcast dims " << shape1_new[size1 - i] << " and " << shape2_new[size2 - i]
+                   << " in: " << shape1_new << " and " << shape2_new << std::endl;
+      }
     }
   }
   if (size1 != size2) {

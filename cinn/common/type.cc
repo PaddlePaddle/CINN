@@ -30,7 +30,7 @@ struct Type::Storage {
   cpp_type_t cpp_type_{cpp_type_t::None};
 
   //! How many bits per element.
-  int bits_{};
+  int bits_{0};
 
   //! How many elements(if a vector type), for scalar types, it should be 1.
   int lanes_{1};
