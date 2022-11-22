@@ -352,7 +352,7 @@ TEST(GlobalPool, pool2d_max) {
     builder.AddFunction(f);
   }
   auto source_code = codegen.Compile(builder.Build());
-  ASSERT_NE(source_code.find("cinn_warp_reduce_max"), std::string::npos);
+  ASSERT_NE(source_code.find("cinn_warp_reduce_max_fp32"), std::string::npos);
   LOG(INFO) << "compiled global_pool2d_max code:\n\n\n" << source_code;
 
   using runtime::cuda::CUDAModule;
@@ -419,7 +419,7 @@ TEST(GlobalPool, pool2d_avg) {
     builder.AddFunction(f);
   }
   auto source_code = codegen.Compile(builder.Build());
-  ASSERT_NE(source_code.find("cinn_warp_reduce_avg"), std::string::npos);
+  ASSERT_NE(source_code.find("cinn_warp_reduce_avg_fp32"), std::string::npos);
   LOG(INFO) << "compiled global_pool2d_avg code:\n\n\n" << source_code;
 
   using runtime::cuda::CUDAModule;
@@ -486,7 +486,7 @@ TEST(GlobalPool, pool2d_avg_1_1_7_7) {
     builder.AddFunction(f);
   }
   auto source_code = codegen.Compile(builder.Build());
-  ASSERT_NE(source_code.find("cinn_warp_reduce_avg"), std::string::npos);
+  ASSERT_NE(source_code.find("cinn_warp_reduce_avg_fp32"), std::string::npos);
   LOG(INFO) << "compiled global_pool2d_avg code:\n\n\n" << source_code;
 
   using runtime::cuda::CUDAModule;
@@ -555,7 +555,7 @@ TEST(GlobalPool, pool2d_avg_1_32_7_7) {
     builder.AddFunction(f);
   }
   auto source_code = codegen.Compile(builder.Build());
-  ASSERT_NE(source_code.find("cinn_warp_reduce_avg"), std::string::npos);
+  ASSERT_NE(source_code.find("cinn_warp_reduce_avg_fp32"), std::string::npos);
   LOG(INFO) << "compiled global_pool2d_avg code:\n\n\n" << source_code;
 
   using runtime::cuda::CUDAModule;

@@ -58,6 +58,11 @@ struct Cast : public ExprNode<Cast> {
 
   static Expr Make(Type t, Expr v);
 
+  template <typename T>
+  static Expr Make(Type t, T v) {
+    return Make(t, Expr(v));
+  }
+
   Expr& v() { return operand(0); }
   const Expr& v() const { return operand(0); }
 
@@ -711,6 +716,8 @@ struct ForBase {
   inline bool is_binded() const {
     return tell_for_type_flag(ForType::GPUBlock) || tell_for_type_flag(ForType::GPUThread);
   }
+  inline bool is_gpu_block_binded() const { return tell_for_type_flag(ForType::GPUBlock); }
+  inline bool is_gpu_thread_binded() const { return tell_for_type_flag(ForType::GPUThread); }
 
  private:
   inline void set_for_type_flag(ForType type) { *reinterpret_cast<int*>(&for_type_) |= static_cast<int>(type); }

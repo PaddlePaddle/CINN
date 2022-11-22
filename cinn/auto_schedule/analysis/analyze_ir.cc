@@ -86,5 +86,47 @@ std::unordered_set<std::string> GetOutputNamesFromLoweredFunc(const std::vector<
   return result;
 }
 
+bool NeedsMultiLevelTiling(const ir::ScheduleBlockRealize& sche_block_realize) {
+  const ir::ScheduleBlock* sche_block = sche_block_realize.schedule_block.As<ir::ScheduleBlock>();
+  if (sche_block->write_buffers.size() != 1 || sche_block->read_buffers.empty()) {
+    return false;
+  }
+  const ir::Expr& write_buffer = sche_block->write_buffers[0].As<ir::_BufferRange_>()->buffer;
+
+  // Enumerate each read region, get the number of schedule block iter vars
+  // which  are not used to index the read region
+  int total_unused_iter_vars = 0;
+
+  for (const ir::Expr& read_buffer_expr : sche_block->read_buffers) {
+    const ir::_BufferRange_* read_buffer = read_buffer_expr.As<ir::_BufferRange_>();
+    // Skip the reduction buffer
+    if (read_buffer->buffer == write_buffer) {
+      continue;
+    }
+    // Collect the vars in schedule block that are used to index the read region
+    std::unordered_set<std::string> vars_index_read;
+    for (const Var& range : read_buffer->ranges) {
+      vars_index_read.insert(range->name);
+    }
+    // Check the block iter vars are not used to index the read region
+    int n_unused_block_vars = 0;
+    for (const ir::Var& block_iter_var : sche_block->iter_vars) {
+      bool iter_var_in_read = false;
+      for (const std::string& var : vars_index_read) {
+        if (var == block_iter_var->name) {
+          iter_var_in_read = true;
+          break;
+        }
+      }
+      if (!iter_var_in_read) {
+        ++n_unused_block_vars;
+      }
+    }
+    total_unused_iter_vars += n_unused_block_vars;
+  }
+
+  return total_unused_iter_vars >= 1;
+}
+
 }  // namespace auto_schedule
 }  // namespace cinn

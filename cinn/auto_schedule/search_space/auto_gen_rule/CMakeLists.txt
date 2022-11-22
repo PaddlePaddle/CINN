@@ -6,9 +6,17 @@ gather_srcs(cinnapi_src SRCS
 	auto_unroll.cc
 	multi_level_tiling.cc
 	skip_rule.cc
+  add_cache_read.cc
+  add_cache_write.cc
 	)
 
 cc_test(test_auto_inline SRCS auto_inline_test.cc DEPS cinncore)
 cc_test(test_multi_level_tiling SRCS multi_level_tiling_test.cc DEPS cinncore)
 cc_test(test_skip_rule SRCS skip_rule_test.cc DEPS cinncore)
 cc_test(test_auto_unroll SRCS auto_unroll_test.cc DEPS cinncore)
+if (WITH_CUDA)
+  nv_test(test_add_cache_read SRCS add_cache_read_test.cc ../../../common/cuda_test_helper.cc DEPS cinncore)
+else()
+  cc_test(test_add_cache_read SRCS add_cache_read_test.cc DEPS cinncore)
+endif()
+cc_test(test_add_cache_write SRCS add_cache_write_test.cc DEPS cinncore)
