@@ -102,9 +102,9 @@ namespace cinn {
 namespace common {
 inline std::ostream& operator<<(std::ostream& os, const float16& a) {
   if (std::isinf(a)) {
-    os << "float16(float(INFINITY))";
+    os << "cinn::common::raw_uint16_to_float16(0x7c00)";
   } else if (std::isnan(a)) {
-    os << "float16(float(NAN))";
+    os << "cinn::common::raw_uint16_to_float16(0x7e00)";
   } else {
     os << "float16(" << static_cast<float>(a) << ")";
   }

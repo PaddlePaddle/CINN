@@ -31,6 +31,7 @@ namespace backends {
 
 const std::string CodeGenCUDA_Dev::source_header_ =
     R"(#include <cstdint>
+#include <limits>
 
 #define CINN_WITH_CUDA
 #include "float16.h"
