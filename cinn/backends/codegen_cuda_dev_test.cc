@@ -666,7 +666,7 @@ void __launch_bounds__(224) schedule_conv2d_0(const float* __restrict__ X, const
             __syncthreads();
             for (int32_t rc_inner = 0; rc_inner < 8; rc_inner += 1) {
               for (int32_t j_inner = 0; j_inner < 2; j_inner += 1) {
-                COD_write_cache[j_inner] = (COD_write_cache[j_inner] + (input_pad_0_read_cache[((28 * rc_inner) + (2 * (int)threadIdx.x))] * Y_read_cache[((8 * j_inner) + ((16 * (int)threadIdx.z) + rc_inner))]));
+                COD_write_cache[j_inner] = (COD_write_cache[j_inner] + (input_pad_0_read_cache[((28 * rc_inner) + (2.00000f * (int)threadIdx.x))] * Y_read_cache[((8 * j_inner) + ((16 * (int)threadIdx.z) + rc_inner))]));
               };
             };
           };
@@ -1104,7 +1104,7 @@ void __launch_bounds__(4) mul_cache_write(const float* __restrict__ A1, const fl
     if (((int)threadIdx.x < 4)) {
       for (int32_t j_outer = 0; j_outer < 16; j_outer += 1) {
         for (int32_t j_inner = 0; j_inner < 2; j_inner += 1) {
-          C1_write_cache__reduce_init[j_inner] = 0;
+          C1_write_cache__reduce_init[j_inner] = 0.00000f;
           for (int32_t k1 = 0; k1 < 32; k1 += 1) {
             C1_write_cache[j_inner] = (C1_write_cache[j_inner] + (A1[((128 * (int)blockIdx.x) + ((32 * (int)threadIdx.x) + k1))] * B1[((32 * j_inner) + ((64 * j_outer) + k1))]));
           };
