@@ -339,7 +339,7 @@ Expr ConstructNewLoopChain(const std::vector<Expr>& chain,
  * \brief Find producers of block in root.
  * \param block The ScheduleBlockRealize node we want to find its producers.
  * \param root The root ScheduleBlockRealize node.
- * \return block's producers(Load nodes) in root.
+ * \return block's producers(ScheduleBlockRealize nodes) in root.
  */
 std::vector<Expr> GetProducers(const Expr& block, const Expr& root);
 
@@ -363,8 +363,11 @@ void CheckComputeAtValidation(const Expr& block, const Expr& loop, const Expr& r
  * \brief Insert a new ScheduleBlockRealize in a loop's body(under its IfThenElse Node, if any)
  * \param for_loop The for loop whose body we want to modify
  * \param insertion The ScheduleBlockRealize we want to insert
+ * \param index The position index of the for_loop body `stmts` to be inserted:
+ *        - `index = -1` means inserted into the tail
+ *        - otherwise, it should be a index between [0, stmts size)
  */
-void InsertBlock(Expr& for_loop, const Expr& insertion);
+void InsertBlock(Expr& for_loop, const Expr& insertion, int index = 0);
 
 /*!
  * \brief Make a union of two range. The detailed function is :
@@ -378,7 +381,7 @@ void InsertBlock(Expr& for_loop, const Expr& insertion);
 IterRange RangeUnion(const IterRange& range1, const IterRange& range2);
 
 /*!
- * \brief Calculate the required buffer region given a block and its consumers.
+ * \brief Calculate the required buffer region given a block and its required blocks.
  * For example, if block is :
  * B[i0, j0] = A[i0, j0]
  * loop is :
@@ -387,21 +390,25 @@ IterRange RangeUnion(const IterRange& range1, const IterRange& range2);
  *     C[i, j] = B[i, j]
  *   }
  * }
- * And consumers is :
+ * And required_blocks is :
  * C[i, j] = B[i, j]
- * Then we get the consumer requires B's region:
+ * Then we get the required B's region:
  * B[i, j], where:
  * i : [i, i]
  * j : [0, 64]
  * \param block The ScheduleBlockRealize node begin required
  * \param loop The loop where we will insert the block under it
- * \param consumers Vector of ScheduleBlockRealize nodes that require the block
+ * @param root The root of the whole AST.
+ * \param required_blocks vector of ScheduleBlockRealize nodes that require the block
+ * \param is_store_provided Whether Store nodes of the block provide the tensor,
+ *        true means it is in compute_at case, otherwise false means in reverse_compuate_at case
  * \return Each index's range of block's tensor. Indicating the buffer region being required.
  */
 std::vector<IterRange> CalculateRequiredRegions(const Expr& block,
                                                 const Expr& loop,
-                                                const std::vector<Expr>& consumers,
-                                                const Expr& root);
+                                                const Expr& root,
+                                                const std::vector<Expr>& required_blocks,
+                                                bool is_store_provided = true);
 
 Expr CheckComputeInlineValidationAndGetStore(const Expr& schedule_block, const Expr& root);
 

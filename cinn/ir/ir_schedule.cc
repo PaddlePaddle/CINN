@@ -73,6 +73,7 @@ class ScheduleImpl {
   Expr Fuse(const Expr& block, const std::vector<int>& loops_index);
   void ComputeAt(const Expr& block, const Expr& loop);
   void SimpleComputeAt(const Expr& block, const Expr& loop);
+  void ReverseComputeAt(const Expr& block, const Expr& loop);
   Expr GetRootBlock(const Expr& expr) const;
   Expr CacheRead(const Expr& block, int read_buffer_index, const std::string& memory_type);
   Expr CacheWrite(const Expr& block, int write_buffer_index, const std::string& memory_type);
@@ -963,7 +964,11 @@ struct LoopReconstructor : public ir::IRMutator<> {
 
   void operator()(Expr* expr) { IRMutator::Visit(expr, expr); }
 
-  void MakeNewLoop(const std::vector<IterRange>& iter_ranges) {
+  /* \param inserted_pos The position index of the new_loop_ body `stmts` to be inserted:
+   *        - `index = -1` means inserted into the tail
+   *        - otherwise, it should be a index between [0, stmts size)
+   */
+  void MakeNewLoop(const std::vector<IterRange>& iter_ranges, int inserted_pos = -1) {
     int n_iters = iter_ranges.size();
     std::vector<Var> loop_vars;
     std::vector<Expr> loop_extents;
@@ -993,7 +998,7 @@ struct LoopReconstructor : public ir::IRMutator<> {
           loop_var, Expr(0), loop_extent, ForType::Serial, loop_.As<ir::For>()->device_api, std::move(loop_body));
     }
     new_loop_ = optim::IRCopy(loop_);
-    InsertBlock(new_loop_, loop_body);
+    InsertBlock(new_loop_, loop_body, inserted_pos);
     return;
   }
 
@@ -1115,8 +1120,8 @@ void ScheduleImpl::ComputeAt(const Expr& block, const Expr& loop) {
   LoopReconstructor reconstructor(root, block, loop);
   LeafBlockRemovalPlan remove_plan(block, &reconstructor.source_expr, &reconstructor.target_expr);
   remove_plan(&root);
-  auto iter_ranges = CalculateRequiredRegions(block, loop, consumers, root);
-  reconstructor.MakeNewLoop(iter_ranges);
+  auto iter_ranges = CalculateRequiredRegions(block, loop, root, consumers);
+  reconstructor.MakeNewLoop(iter_ranges, 0);
   this->Replace(reconstructor.source_expr, reconstructor.target_expr);
   this->Replace(reconstructor.loop_, reconstructor.new_loop_);
   return;
@@ -1203,6 +1208,23 @@ void ScheduleImpl::SimpleComputeAt(const Expr& block, const Expr& loop) {
 
   this->Replace(source_expr, target_expr);
   this->Replace(this_loop, new_loop);
+  return;
+}
+
+void ScheduleImpl::ReverseComputeAt(const Expr& block, const Expr& loop) {
+  CHECK(block.As<ir::ScheduleBlockRealize>());
+  CHECK(loop.As<ir::For>());
+  Expr root      = this->GetRootBlock(block);
+  auto producers = GetProducers(block, root);
+  auto consumers = GetConsumers(block, root);
+  CheckComputeAtValidation(block, loop, root);
+  LoopReconstructor reconstructor(root, block, loop);
+  LeafBlockRemovalPlan remove_plan(block, &reconstructor.source_expr, &reconstructor.target_expr);
+  remove_plan(&root);
+  auto iter_ranges = CalculateRequiredRegions(block, loop, root, producers, false);
+  reconstructor.MakeNewLoop(iter_ranges);
+  this->Replace(reconstructor.source_expr, reconstructor.target_expr);
+  this->Replace(reconstructor.loop_, reconstructor.new_loop_);
   return;
 }
 
@@ -1687,6 +1709,12 @@ void IRSchedule::SimpleComputeAt(const Expr& block, const Expr& loop) {
   impl_->SimpleComputeAt(block, loop);
   trace_.Append(ScheduleDesc::Step(
       "SimpleComputeAt", {{"block", std::vector<Expr>({block})}, {"loop", std::vector<Expr>({loop})}}, {}, {}));
+}
+
+void IRSchedule::ReverseComputeAt(const Expr& block, const Expr& loop) {
+  impl_->ReverseComputeAt(block, loop);
+  trace_.Append(ScheduleDesc::Step(
+      "ReverseComputeAt", {{"block", std::vector<Expr>({block})}, {"loop", std::vector<Expr>({loop})}}, {}, {}));
 }
 
 Expr IRSchedule::GetRootBlock(const Expr& expr) const {
