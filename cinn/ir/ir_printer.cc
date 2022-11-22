@@ -27,6 +27,8 @@
 namespace cinn {
 namespace ir {
 
+using common::float16;
+
 void IrPrinter::Print(Expr e) { IRVisitor::Visit(&e); }
 void IrPrinter::Print(const std::vector<Expr> &exprs, const std::string &splitter) {
   for (int i = 0; !exprs.empty() && i < exprs.size() - 1; i++) {
@@ -38,7 +40,17 @@ void IrPrinter::Print(const std::vector<Expr> &exprs, const std::string &splitte
 
 void IrPrinter::Visit(const IntImm *x) { os_ << x->value; }
 void IrPrinter::Visit(const UIntImm *x) { os_ << x->value; }
-void IrPrinter::Visit(const FloatImm *x) { os_ << x->value; }
+void IrPrinter::Visit(const FloatImm *x) {
+  if (x->type().is_float(16)) {
+    os_ << static_cast<float16>(x->value);
+  } else if (x->type().is_float(32)) {
+    os_ << std::showpoint << x->value << "f";
+  } else if (x->type().is_float(64)) {
+    os_ << std::showpoint << x->value;
+  } else {
+    LOG(FATAL) << "Not support float type: " << x->type();
+  }
+}
 void IrPrinter::Visit(const StringImm *x) { os_ << "\"" << x->value << "\""; }
 void IrPrinter::Visit(const Add *x) { PrintBinaryOp("+", x); }
 void IrPrinter::Visit(const Sub *x) { PrintBinaryOp("-", x); }

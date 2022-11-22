@@ -19,15 +19,6 @@
 
 #include "cinn/common/float16.h"
 
-namespace cinn {
-namespace common {
-inline std::ostream& operator<<(std::ostream& os, const float16& a) {
-  os << static_cast<float>(a);
-  return os;
-}
-}  // namespace common
-}  // namespace cinn
-
 namespace std {
 // Override the std::is_pod::value for float16
 // The reason is that different compilers implemented std::is_pod based on
@@ -57,6 +48,8 @@ template <>
 struct is_unsigned<cinn::common::float16> {
   static const bool value = false;
 };
+
+__host__ __device__ inline cinn::common::float16 abs(const cinn::common::float16& a) { return cinn::common::abs(a); }
 
 inline bool isnan(const cinn::common::float16& a) { return cinn::common::isnan(a); }
 
@@ -103,6 +96,19 @@ struct numeric_limits<cinn::common::float16> {
   __host__ __device__ static cinn::common::float16 denorm_min() { return cinn::common::raw_uint16_to_float16(0x1); }
 };
 
-__host__ __device__ inline cinn::common::float16 abs(const cinn::common::float16& a) { return cinn::common::abs(a); }
-
 }  // namespace std
+
+namespace cinn {
+namespace common {
+inline std::ostream& operator<<(std::ostream& os, const float16& a) {
+  if (std::isinf(a)) {
+    os << "float16(float(INFINITY))";
+  } else if (std::isnan(a)) {
+    os << "float16(float(NAN))";
+  } else {
+    os << "float16(" << static_cast<float>(a) << ")";
+  }
+  return os;
+}
+}  // namespace common
+}  // namespace cinn

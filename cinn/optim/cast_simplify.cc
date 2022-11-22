@@ -63,7 +63,7 @@ struct Mutator : ir::IRMutator<> {
         __CAST_TO_TYPE(uint64_t)
       } else if (op->type() == type_of<float16>()) {
         // Cannot simplify!!! pass
-        return;
+        __CAST_TO_TYPE(float16)
       } else {
         CINN_NOT_IMPLEMENTED
       }
