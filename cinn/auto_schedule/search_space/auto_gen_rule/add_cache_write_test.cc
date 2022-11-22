@@ -23,6 +23,7 @@
 
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
 #include "cinn/auto_schedule/search_space/auto_gen_rule/multi_level_tiling.h"
+#include "cinn/auto_schedule/search_space/auto_gen_rule/test_helper.h"
 #include "cinn/backends/compiler.h"
 #include "cinn/cinn.h"
 #include "cinn/ir/ir.h"
@@ -103,7 +104,7 @@ TEST(AddCacheWrite, Init) {
   EXPECT_EQ(add_cache_write2.NumberApplicable(), 0);
 }
 
-TEST(AddCacheWrite, MatrixMultiply) {
+TEST(AddCacheWrite, BasicApplyOnMatmul) {
   srand(0);
   Context::Global().ResetNameId();
 #ifdef CINN_WITH_CUDA
@@ -123,9 +124,73 @@ TEST(AddCacheWrite, MatrixMultiply) {
   ir::Tensor C = Compute(
       {M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k) * B(k, j), {k}); }, "C");
 
-  poly::StageMap stages = CreateStages({C});
-  std::vector<ir::LoweredFunc> funcs =
-      lang::LowerVec("TestAddCacheWrite_MatrixMultiply", stages, {A, B, C}, {}, {}, nullptr, target, true);
+  poly::StageMap stages              = CreateStages({C});
+  std::string func_name              = "matmul_func";
+  std::vector<ir::LoweredFunc> funcs = lang::LowerVec(func_name, stages, {A, B, C}, {}, {}, nullptr, target, true);
+
+  ir::Expr matmul_expr = funcs[0]->body;
+  VLOG(6) << "Matmul Expr before AddCacheWrite: ";
+  VLOG(6) << matmul_expr;
+
+  ir::IRSchedule ir_schedule_matmul(ir::ModuleExpr({matmul_expr}));
+
+  AddCacheWrite add_cache_write(target);
+  auto apply_type = add_cache_write.Init(&ir_schedule_matmul);
+#ifdef CINN_WITH_CUDA
+  EXPECT_EQ(apply_type, RuleApplyType::kApplyAndSkipAllRules);
+#else
+  EXPECT_EQ(apply_type, RuleApplyType::kApplyAndSkipThisRule);
+#endif
+  EXPECT_EQ(add_cache_write.NumberApplicable(), 1);
+
+  // Apply AddCacheWrite
+  add_cache_write.ApplyRandomly();
+  std::vector<ir::Expr> exprs = ir_schedule_matmul.GetModule().GetExprs();
+  EXPECT_EQ(exprs.size(), 1UL);
+  VLOG(6) << "Matmul Expr after AddCacheWrite: " << exprs[0];
+
+  // Get LoweredFunc after applying rules.
+  // Since the rule modifies temporary buffers,
+  // we need to find all temporary buffers from the modified expr and regenerate a LoweredFunc.
+  auto temp_buffers = lang::GetTempBuffers({A, B, C}, stages, exprs[0]);
+  auto func         = ir::_LoweredFunc_::Make(funcs[0]->name, funcs[0]->args, exprs[0], temp_buffers);
+
+  // Combined into IRModule for further lowering and generating executable code.
+  ir::Module::Builder builder("test_bulder", target);
+  builder.AddFunction(func);
+  auto build_module = builder.Build();
+
+  // Compile and check result
+  auto compiler = backends::Compiler::Create(target);
+  compiler->Build(build_module);
+  auto test_func_ptr = reinterpret_cast<void (*)(void**, int32_t)>(compiler->Lookup(func_name));
+
+  CheckResult(test_func_ptr, expected_func_matmul, {"A", "B"}, {"C"}, {{32, 32}, {32, 32}}, {{32, 32}}, target);
+}
+
+TEST(AddCacheWrite, ApplyOnMatmulWithTiling) {
+  srand(0);
+  Context::Global().ResetNameId();
+#ifdef CINN_WITH_CUDA
+  Target target = common::DefaultNVGPUTarget();
+#else
+  Target target = common::DefaultHostTarget();
+#endif
+
+  ir::Expr M(32);
+  ir::Expr N(32);
+  ir::Expr K(32);
+
+  Placeholder<float> A("A", {M, K});
+  Placeholder<float> B("B", {K, N});
+
+  Var k(K.as_int32(), "reduce_axis_k");
+  ir::Tensor C = Compute(
+      {M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k) * B(k, j), {k}); }, "C");
+
+  poly::StageMap stages              = CreateStages({C});
+  std::string func_name              = "matmul_func";
+  std::vector<ir::LoweredFunc> funcs = lang::LowerVec(func_name, stages, {A, B, C}, {}, {}, nullptr, target, true);
 
   ir::Expr ast_expr = funcs[0]->body;
   VLOG(6) << "Expr before MultiLevelTiling: ";
@@ -158,15 +223,23 @@ TEST(AddCacheWrite, MatrixMultiply) {
   EXPECT_EQ(exprs.size(), 1UL);
   VLOG(6) << "Expr after AddCacheWrite: " << exprs[0];
 
+  // Get LoweredFunc after applying rules.
+  // Since the rule modifies temporary buffers, we need to find all temporary buffers from the modified expr and
+  // regenerate a LoweredFunc.
   auto temp_buffers = lang::GetTempBuffers({A, B, C}, stages, exprs[0]);
   auto func         = ir::_LoweredFunc_::Make(funcs[0]->name, funcs[0]->args, exprs[0], temp_buffers);
 
+  // Combined into IRModule for further lowering and generating executable code.
   ir::Module::Builder builder("test_bulder", target);
   builder.AddFunction(func);
   auto build_module = builder.Build();
 
+  // Compile and check result
   auto compiler = backends::Compiler::Create(target);
   compiler->Build(build_module);
+  auto test_func_ptr = reinterpret_cast<void (*)(void**, int32_t)>(compiler->Lookup(func_name));
+
+  // CheckResult(test_func_ptr, expected_func_matmul, {"A", "B"}, {"C"}, {{32, 32}, {32, 32}}, {{32, 32}}, target);
 }
 
 }  // namespace auto_schedule
