@@ -149,6 +149,13 @@ void MultiLevelTiling::Apply(int index) {
     }
     CHECK(loop_var_name_to_idx.size() == for_exprs.size()) << "Loops contain duplicate loop var names before Fusion";
 
+    // Some loops extent may exceed the limited max factor (For example,
+    // exceed the limit number of CUDA threads), here we check whether
+    // the fused loop extent, which is the production of extends of loops
+    // to be fused, is less or equal to the max factore.
+    //
+    // If yes, we fuse those loops and bind the fused loop
+    // If no, we bind the first loop whose extent is less than the factor.
     int extent_prod                    = 1;
     int first_idx_less_than_max_factor = -1;
     for (int j = 0; j < tiles[i].size(); ++j) {
@@ -174,10 +181,6 @@ void MultiLevelTiling::Apply(int index) {
   VLOG(5) << "Do Fuse and Binding on the non-main loop chains";
   Expr sche_block_top_loop = ir_schedule_->GetLoops(sche_block->name)[0];
 
-  std::vector<Expr> scan_loop_blocks = ir_schedule_->GetAllBlocks();
-  for (const Expr& b : scan_loop_blocks) {
-    ir_schedule_->GetLoops(b);
-  }
   if (reordered_expr.As<ir::Block>()) {
     for (Expr& top_loop : reordered_expr.As<ir::Block>()->stmts) {
       if (top_loop != sche_block_top_loop) {
@@ -200,7 +203,15 @@ void MultiLevelTiling::Apply(int index) {
         VLOG(6) << "Found other_loop_schedule_name = " << other_loop_schedule_name;
         int fuse_index = 0;
         for (int i = 0; i < num_binds; ++i) {
-          for_exprs                          = ir_schedule_->GetLoops(other_loop_schedule_name);
+          for_exprs = ir_schedule_->GetLoops(other_loop_schedule_name);
+
+          // Some loops extent may exceed the limited max factor (For example,
+          // exceed the limit number of CUDA threads), here we check whether
+          // the fused loop extent, which is the production of extends of loops
+          // to be fused, is less or equal to the max factore.
+          //
+          // If yes, we fuse those loops and bind the fused loop
+          // If no, we bind the first loop whose extent is less than the factor.
           int extent_prod                    = 1;
           int first_idx_less_than_max_factor = -1;
           for (int j = 0; j < tiles[i].size(); ++j) {

@@ -186,7 +186,6 @@ TEST_F(PerformanceTester, Matmul) {
   int K = 2048;
   int N = 1000;
 
-  options_.evaluate_knobs = 4UL;
   Evaluate(MatmulProgramBuilder({M, K}, {K, N})());
 }
 
