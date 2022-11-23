@@ -2590,7 +2590,7 @@ void __launch_bounds__(128) schedule_wino_conv2d(const float* __restrict__ X, fl
     {
       for (int32_t i = 0; i < 4; i += 1) {
         for (int32_t j = 0; j < 4; j += 1) {
-          data_pack_write_cache__reduce_init[((4 * i) + j)] = 0;
+          data_pack_write_cache__reduce_init[((4 * i) + j)] = 0.00000f;
         };
       };
       for (int32_t i = 0; i < 4; i += 1) {
