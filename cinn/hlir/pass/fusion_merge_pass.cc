@@ -1043,7 +1043,10 @@ class FusionMergePassHelper : public FusionHelperBase {
       return false;
     };
     // other's be horizontal with injective
-    auto horizontal_fuse_injective = [this](const GroupPtr& first, const GroupPtr& second) {
+    auto horizontal_fuse_injective = [this, is_same_size](const GroupPtr& first, const GroupPtr& second) {
+      if (!is_same_size(first, second)) {
+        return false;
+      }
       // if injective
       GroupPtr injective = first->op_pattern_kind == framework::kInjective ? first : second;
       GroupPtr others    = first->op_pattern_kind == framework::kInjective ? second : first;

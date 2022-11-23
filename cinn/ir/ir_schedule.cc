@@ -1476,10 +1476,7 @@ void ScheduleImpl::Annotate(const Expr& block, const std::string& key, const att
 }
 
 void ScheduleImpl::FlattenLoops(const std::vector<Expr>& loops, const bool flat_tensor) {
-  // if loops number less equal than 1
-  if (loops.size() <= 1) {
-    return;
-  }
+  CHECK(loops.size()) << "loops is empty!";
   // compute loop
   int extent = 1;
   std::vector<int> strides;
@@ -1523,7 +1520,6 @@ void ScheduleImpl::FlattenLoops(const std::vector<Expr>& loops, const bool flat_
         }
       }
     }
-
     return true;
   };
 
@@ -1532,8 +1528,10 @@ void ScheduleImpl::FlattenLoops(const std::vector<Expr>& loops, const bool flat_
     auto block_realize  = block.As<ir::ScheduleBlockRealize>();
     auto schedule_block = block_realize->schedule_block.As<ir::ScheduleBlock>();
 
-    auto exprs = ir::CollectIRNodesWithoutTensor(
-        schedule_block->body, [&](const Expr* x) { return x->As<ir::Store>() || x->As<ir::Load>(); }, false);
+    auto exprs = ir::CollectIRNodesInOrder(schedule_block->body,
+                                           [&](const Expr* x) { return x->As<ir::Store>() || x->As<ir::Load>(); });
+    // reverse exprs from last to first.
+    std::reverse(std::begin(exprs), std::end(exprs));
 
     std::vector<ir::Var> var_to_replace;
     CHECK_GE(schedule_block->iter_vars.size(), flat_i_to_loop_var.size());
@@ -1562,20 +1560,20 @@ void ScheduleImpl::FlattenLoops(const std::vector<Expr>& loops, const bool flat_
           auto tsize = std::accumulate(t->shape.begin(), t->shape.end(), 1, [](const int sum, const Expr& expr) {
             return sum * expr.as_int32();
           });
-          if ((!flat_tensor && !can_do_flat(store->indices, schedule_block->iter_vars)) || tsize != extent) {
-            // if exist
-            ReplaceExpr(&schedule_block->body, var_to_replace, flat_i_to_loop_var);
+          if ((!flat_tensor && !can_do_flat(store->indices, schedule_block->iter_vars))) {
+            // just replace indexs
+            for (auto& indice : store->indices) {
+              if (!indice.is_var()) {
+                continue;
+              }
+              ReplaceExpr(&indice, var_to_replace, flat_i_to_loop_var);
+            }
             // compute index and flat tensor.
             store->indices = {store->index()};
-            t->shape       = {Expr(tsize)};
-            t->domain      = {Expr(tsize)};
             continue;
           }
-
           // update var and shape
           store->indices = {Expr(_var)};
-          t->shape       = {Expr(extent)};
-          t->domain      = {Expr(extent)};
         }
       } else {
         auto load = expr.As<ir::Load>();
@@ -1585,19 +1583,20 @@ void ScheduleImpl::FlattenLoops(const std::vector<Expr>& loops, const bool flat_
           auto tsize = std::accumulate(t->shape.begin(), t->shape.end(), 1, [](const int sum, const Expr& expr) {
             return sum * expr.as_int32();
           });
-          if ((!flat_tensor && !can_do_flat(load->indices, schedule_block->iter_vars)) || tsize != extent) {
-            ReplaceExpr(&schedule_block->body, var_to_replace, flat_i_to_loop_var);
+          if ((!flat_tensor && !can_do_flat(load->indices, schedule_block->iter_vars))) {
+            // just replace indexs
+            for (auto& indice : load->indices) {
+              if (!indice.is_var()) {
+                continue;
+              }
+              ReplaceExpr(&indice, var_to_replace, flat_i_to_loop_var);
+            }
             // compute index and flat tensor.
             load->indices = {load->index()};
-            t->shape      = {Expr(tsize)};
-            t->domain     = {Expr(tsize)};
             continue;
           }
-
           // update var and shape
           load->indices = {Expr(_var)};
-          t->shape      = {Expr(extent)};
-          t->domain     = {Expr(extent)};
         }
       }
     }

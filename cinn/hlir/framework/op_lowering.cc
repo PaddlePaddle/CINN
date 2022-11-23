@@ -95,7 +95,7 @@ std::vector<ir::LoweredFunc> OpLowerer::LowerWithoutSchedule(GroupPtr& group) {
 }
 
 std::vector<ir::LoweredFunc> OpLowerer::Lower(GroupPtr& group) {
-  VLOG(3) << "Lowering Group : " << group->group_id << " , Op Pattern : " << group->op_pattern_kind;
+  VLOG(2) << "Lowering Group : " << group->group_id << " , Op Pattern : " << group->op_pattern_kind;
   if (FLAGS_cinn_ir_schedule) {
     switch (group->op_pattern_kind) {
       case framework::kElementWise:
@@ -218,7 +218,7 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerOp(IRComputeFunction compute,
   std::vector<ir::Tensor> arg_tensors;
   std::unordered_map<std::string, ir::Tensor> tensor_map;
   // do compute.
-  VLOG(3) << "group->fused_sub_groups.size() is : " << group->fused_sub_groups.size();
+  VLOG(2) << "group->fused_sub_groups.size() is : " << group->fused_sub_groups.size();
   std::vector<Expr> ast_exprs;
   if (group->fused_sub_groups.size() == 0) {
     ast_exprs = (this->*compute)(stages, arg_tensors, tensor_map, group, group, /*apply_impl_schedule = */ true);
@@ -417,7 +417,7 @@ std::vector<Expr> OpLowerer::IRElementwiseCompute(poly::StageMap& stages,
                                                   const GroupPtr& group,
                                                   const GroupPtr& sub_group,
                                                   bool apply_impl_schedule) {
-  VLOG(3) << "ElementwiseCompute Group : " << sub_group->group_id;
+  VLOG(2) << "ElementwiseCompute Group : " << sub_group->group_id;
   auto& strategy = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
 
   std::vector<Expr> ast_exprs;
@@ -480,7 +480,7 @@ void OpLowerer::IRElementwiseSchedule(ir::IRSchedule& ir_sch,
                                       const GroupPtr& sub_group,
                                       Node*&,
                                       Node*&) {
-  VLOG(3) << "IRElementwiseSchedule Group : " << sub_group->group_id;
+  VLOG(2) << "IRElementwiseSchedule Group : " << sub_group->group_id;
   auto master_node    = *group->master_nodes.begin();
   auto manster_tensor = tensor_map[GetNodeData(master_node)->id()];
 
@@ -865,14 +865,17 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
       auto reducer_tensor = tensor_map[reducer_data->id()];
       auto rloops         = ir_sch.GetLoops(reducer_tensor->name);
 
+      // assign master loops to reducer loops without reduce axis.
       int extend = 1;
       std::vector<int> factors;
       auto sloops = ir_sch.GetLoops(master_tensor->name);
       for (auto& loop : rloops) {
+        // without last reduce axis, so check loop extend.
         extend *= loop.As<ir::For>()->extent.as_int32();
         if (extend > sloops.back().As<ir::For>()->extent.as_int32()) {
           break;
         }
+        CHECK_LE(extend, sloops.back().As<ir::For>()->extent.as_int32());
         factors.push_back(loop.As<ir::For>()->extent.as_int32());
       }
       ir_sch.Split(sloops.back(), factors);
@@ -1230,14 +1233,14 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
 }
 
 std::vector<ir::LoweredFunc> OpLowerer::IRLowerNonFusibleOp(GroupPtr& group, bool apply_impl_schedule) {
-  VLOG(3) << "LowerNonFusibleOp Group : " << group->group_id;
+  VLOG(2) << "LowerNonFusibleOp Group : " << group->group_id;
   // get input tensor and output tensor
   CHECK(group->nodes.size() || group->fused_sub_groups.size());
   auto& cinn_strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
 
   auto node = group->fused_sub_groups.size() ? group->fused_sub_groups[0]->nodes.front() : group->nodes.front();
-  VLOG(3) << "GetOpFunc of op " << node->id();
+  VLOG(2) << "GetOpFunc of op " << node->id();
   std::vector<ir::Tensor> inputs;
   std::vector<common::CINNValue> cinn_inputs;
 
@@ -1332,8 +1335,8 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerNonFusibleOp(GroupPtr& group, boo
     ir::Expr func_body = expr_pack[0];
     std::vector<std::string> input_output_nodes(group->input_names);
     input_output_nodes.insert(input_output_nodes.end(), group->output_names.begin(), group->output_names.end());
-    VLOG(6) << "func.size() = " << func.size() << ", expr_pack.size() = " << expr_pack.size();
-    VLOG(6) << "args.size() = " << args.size() << ", input_output_nodes.size() = " << input_output_nodes.size();
+    VLOG(3) << "func.size() = " << func.size() << ", expr_pack.size() = " << expr_pack.size();
+    VLOG(3) << "args.size() = " << args.size() << ", input_output_nodes.size() = " << input_output_nodes.size();
     if (args.size() > input_output_nodes.size()) {
       args = lang::GetArgs(func_body, input_output_nodes);
     }

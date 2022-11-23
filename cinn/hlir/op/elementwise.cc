@@ -798,6 +798,11 @@ std::shared_ptr<framework::OpStrategy> StrategyForCast(const framework::NodeAttr
   return strategy;
 }
 
+std::vector<Type> InferDtypeForCast(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
+  CHECK(attrs.count("dtype"));
+  return {common::Str2Type(absl::get<std::string>(attrs.at("dtype")))};
+}
+
 }  // namespace op
 }  // namespace hlir
 }  // namespace cinn
@@ -966,10 +971,26 @@ CINN_REGISTER_HELPER(elementwise_ops) {
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForCast)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForElementwise))
-      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForElementwise))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForCast))
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForElementwise))
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElementWise)
       .set_support_level(4);
+
+  CINN_REGISTER_OP(gelu)
+      .describe("The implement of gelu.")
+      .set_num_inputs(1)
+      .set_num_outputs(1)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForElementwise))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForElementwise))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElementWise);
+
+  CINN_REGISTER_OP(clip)
+      .describe("The implement of clip.")
+      .set_num_inputs(1)
+      .set_num_outputs(1)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForElementwise))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForElementwise))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElementWise);
 
   return true;
 }
