@@ -24,6 +24,11 @@ namespace {
 
 template <typename CastType, typename T>
 CastType NormCastValue(T value) {
+  if (type_of<CastType>().is_uint() || type_of<T>().is_uint()) {
+    // not support uint
+    return static_cast<CastType>(value);
+  }
+
   if (std::isinf(value)) {
     return std::numeric_limits<CastType>::infinity();
   } else if (std::isnan(value)) {
@@ -51,11 +56,11 @@ struct Mutator : ir::IRMutator<> {
 
 #define __CAST_TO_TYPE(type__)                                          \
   if (auto* i = op->v().As<ir::IntImm>()) {                             \
-    *expr = Expr(static_cast<type__>(NormCastValue<type__>(i->value))); \
+    *expr = Expr(static_cast<type__>(i->value));                        \
   } else if (auto* f = op->v().As<ir::FloatImm>()) {                    \
     *expr = Expr(static_cast<type__>(NormCastValue<type__>(f->value))); \
   } else if (auto* u = op->v().As<ir::UIntImm>()) {                     \
-    *expr = Expr(static_cast<type__>(NormCastValue<type__>(u->value))); \
+    *expr = Expr(static_cast<type__>(u->value));                        \
   } else {                                                              \
     CINN_NOT_IMPLEMENTED                                                \
   }
