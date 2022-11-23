@@ -71,13 +71,15 @@ namespace frontend {
   macro__(BitwiseNot) \
   macro__(Negative) \
   macro__(Sign) \
-  macro__(Abs)
+  macro__(Abs) \
+  macro__(Clz)
 
 // ******************************************* //
 // The op has two input and one output, with a attribute [axis]
 // Variable BINARY_OP(const Variable& lhs, const Variable& rhs, int axis = -1);
 #define NETBUILDER_BINARY_OP_FOREACH(macro__) \
   macro__(Add) \
+  macro__(Atan2) \
   macro__(Subtract) \
   macro__(Divide) \
   macro__(Multiply) \
@@ -221,7 +223,7 @@ class NetBuilder {
 #undef NETBUILDER_UNARY_OP_DECL
 
   /**
-   * @brief Compute each each element in `lhs` variable and `rhs` variable in `axis` dimension, and return the result
+   * @brief Compute each element in `lhs` variable and `rhs` variable in `axis` dimension, and return the result
    * Variable.
    * @param lhs The left input variable.
    * @param rhs The right input variable.

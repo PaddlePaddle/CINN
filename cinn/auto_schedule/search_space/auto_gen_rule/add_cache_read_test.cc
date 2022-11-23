@@ -23,11 +23,9 @@
 
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
 #include "cinn/auto_schedule/search_space/auto_gen_rule/multi_level_tiling.h"
-#include "cinn/backends/codegen_cuda_dev.h"
+#include "cinn/auto_schedule/search_space/auto_gen_rule/test_helper.h"
 #include "cinn/backends/compiler.h"
 #include "cinn/cinn.h"
-#include "cinn/common/cuda_test_helper.h"
-#include "cinn/common/test_helper.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_printer.h"
@@ -35,131 +33,10 @@
 #include "cinn/ir/module.h"
 #include "cinn/ir/tensor.h"
 #include "cinn/poly/stage.h"
-#ifdef CINN_WITH_CUDA
-#include "cinn/common/cuda_test_helper.h"
-#include "cinn/runtime/cuda/cuda_module.h"
-#include "cinn/runtime/cuda/cuda_util.h"
-#endif
 #include "cinn/utils/string.h"
 
 namespace cinn {
 namespace auto_schedule {
-void naive_matmul(float* A, float* B, float* C, int M, int N, int K) {
-  for (int i = 0; i < M; ++i) {
-    for (int j = 0; j < N; ++j) {
-      for (int k = 0; k < K; ++k) {
-        C[i * N + j] += A[i * K + k] * B[k * N + j];
-      }
-    }
-  }
-}
-
-void check_matmul_result_cpu(int M, int N, int K, const std::string& func_name, const ir::Module& module) {
-  // compile
-  auto compiler = backends::Compiler::Create(common::DefaultHostTarget());
-  compiler->Build(module);
-  auto test_func_ptr = reinterpret_cast<void (*)(void**, int32_t)>(compiler->Lookup(func_name));
-
-  // prepare data
-  auto* A_host = common::BufferBuilder(Float(32), {M, N}).set_random().Build();
-  CHECK(A_host);
-  auto* B_host = common::BufferBuilder(Float(32), {M, N}).set_random().Build();
-  CHECK(B_host);
-  auto* C_host = common::BufferBuilder(Float(32), {M, N}).set_zero().Build();
-  CHECK(C_host);
-  auto all_args = common::ArgsBuilder().Add(A_host).Add(B_host).Add(C_host).Build();
-
-  // calculate matmul after schedule in rule
-  test_func_ptr(reinterpret_cast<void**>(all_args.data()), all_args.size());
-  float* res = reinterpret_cast<float*>(C_host->memory);
-
-  // calculate naive matmul
-  float* data_A     = reinterpret_cast<float*>(A_host->memory);
-  float* data_B     = reinterpret_cast<float*>(B_host->memory);
-  float* target_res = (float*)malloc(M * N * sizeof(float));
-  memset(target_res, 0, M * N * sizeof(float));
-  naive_matmul(data_A, data_B, target_res, M, N, K);
-
-  // check result
-  for (int i = 0; i < M; ++i) {
-    for (int j = 0; j < N; ++j) {
-      ASSERT_NEAR(res[i * N + j], target_res[i * N + j], 1e-4);
-    }
-  }
-
-  cinn_buffer_free(nullptr, A_host);
-  cinn_buffer_free(nullptr, B_host);
-  cinn_buffer_free(nullptr, C_host);
-  free(target_res);
-}
-
-#ifdef CINN_WITH_CUDA
-void* CreateDeviceBuffer(const cinn_buffer_t* host_buffer) {
-  CHECK(host_buffer->memory);
-  int num_bytes = host_buffer->num_elements() * sizeof(float);
-  VLOG(6) << "create device buffer, num_bytes = " << num_bytes;
-  CUdeviceptr data;
-  cuMemAlloc(&data, num_bytes);
-
-  CUDA_CALL(cudaMemcpy(reinterpret_cast<void*>(data), host_buffer->memory, num_bytes, cudaMemcpyHostToDevice));
-  return reinterpret_cast<void*>(data);
-}
-
-void check_matmul_result_cuda(int M, int N, int K, const std::string& func_name, const ir::Module& module) {
-  // compile
-  common::CudaModuleTester tester;
-  tester.Compile(module);
-
-  // prepare data
-  auto* A_host = common::BufferBuilder(Float(32), {M, N}).set_random().Build();
-  CHECK(A_host);
-  auto* B_host = common::BufferBuilder(Float(32), {M, N}).set_random().Build();
-  CHECK(B_host);
-  auto* C_host = common::BufferBuilder(Float(32), {M, N}).set_zero().Build();
-  CHECK(C_host);
-
-  auto* A_dev = CreateDeviceBuffer(A_host);
-  auto* B_dev = CreateDeviceBuffer(B_host);
-  auto* C_dev = CreateDeviceBuffer(C_host);
-
-  cinn_buffer_t* dev_bufs[3];
-  for (int i = 0; i < 3; ++i) dev_bufs[i] = new cinn_buffer_t;
-  dev_bufs[0]->memory = reinterpret_cast<uint8_t*>(A_dev);
-  dev_bufs[1]->memory = reinterpret_cast<uint8_t*>(B_dev);
-  dev_bufs[2]->memory = reinterpret_cast<uint8_t*>(C_dev);
-  auto all_args       = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Add(dev_bufs[2]).Build();
-
-  // calculate matmul after schedule in rule
-  CUDA_CALL(cudaDeviceSynchronize());
-  tester(func_name, all_args.data(), all_args.size());
-  CUDA_CALL(cudaDeviceSynchronize());
-  CUDA_CALL(cudaMemcpy(
-      reinterpret_cast<void*>(C_host->memory), C_dev, C_host->num_elements() * sizeof(float), cudaMemcpyDeviceToHost));
-  float* res = reinterpret_cast<float*>(C_host->memory);
-
-  // calculate common matmul
-  float* data_A     = reinterpret_cast<float*>(A_host->memory);
-  float* data_B     = reinterpret_cast<float*>(B_host->memory);
-  float* target_res = (float*)malloc(M * N * sizeof(float));
-  memset(target_res, 0, M * N * sizeof(float));
-  naive_matmul(data_A, data_B, target_res, M, N, K);
-
-  // check result
-  for (int i = 0; i < M; ++i) {
-    for (int j = 0; j < N; ++j) {
-      ASSERT_NEAR(res[i * N + j], target_res[i * N + j], 1e-4);
-    }
-  }
-
-  cinn_buffer_free(nullptr, A_host);
-  cinn_buffer_free(nullptr, B_host);
-  cinn_buffer_free(nullptr, C_host);
-  free(target_res);
-  cuMemFree(reinterpret_cast<CUdeviceptr>(A_dev));
-  cuMemFree(reinterpret_cast<CUdeviceptr>(B_dev));
-  cuMemFree(reinterpret_cast<CUdeviceptr>(C_dev));
-}
-#endif
 
 TEST(AddCacheRead, Init) {
   srand(0);
@@ -222,7 +99,7 @@ TEST(AddCacheRead, Init) {
   EXPECT_EQ(add_cache_read2.NumberApplicable(), 0);
 }
 
-TEST(AddCacheRead, MatrixMultiply) {
+TEST(AddCacheRead, BasicApplyOnMatmul) {
   srand(0);
   Context::Global().ResetNameId();
 #ifdef CINN_WITH_CUDA
@@ -243,7 +120,64 @@ TEST(AddCacheRead, MatrixMultiply) {
       {M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k) * B(k, j), {k}); }, "C");
 
   poly::StageMap stages              = CreateStages({C});
-  std::string func_name              = "TestAddCacheRead_MatrixMultiply";
+  std::string func_name              = "matmul_func";
+  std::vector<ir::LoweredFunc> funcs = lang::LowerVec(func_name, stages, {A, B, C}, {}, {}, nullptr, target, true);
+
+  ir::Expr matmul_expr = funcs[0]->body;
+  VLOG(6) << "Matmul Expr before AddCacheRead: ";
+  VLOG(6) << matmul_expr;
+
+  ir::IRSchedule ir_schedule_matmul(ir::ModuleExpr({matmul_expr}));
+
+  // Apply AddCacheRead.
+  AddCacheRead add_cache_read(target);
+  auto apply_type = add_cache_read.Init(&ir_schedule_matmul);
+  add_cache_read.ApplyRandomly();
+  std::vector<ir::Expr> exprs = ir_schedule_matmul.GetModule().GetExprs();
+  EXPECT_EQ(exprs.size(), 1UL);
+  VLOG(6) << "Matmul Expr after AddCacheRead: " << exprs[0];
+
+  // Get LoweredFunc after applying rules.
+  // Since the rule modifies temporary buffers,
+  // we need to find all temporary buffers from the modified expr and regenerate a LoweredFunc.
+  auto temp_buffers = lang::GetTempBuffers({A, B, C}, stages, exprs[0]);
+  auto func         = ir::_LoweredFunc_::Make(funcs[0]->name, funcs[0]->args, exprs[0], temp_buffers);
+
+  // Combined into IRModule for further lowering and generating executable code.
+  ir::Module::Builder builder("test_bulder", target);
+  builder.AddFunction(func);
+  auto build_module = builder.Build();
+
+  // Compile and check result.
+  auto compiler = backends::Compiler::Create(target);
+  compiler->Build(build_module);
+  auto test_func_ptr = reinterpret_cast<void (*)(void**, int32_t)>(compiler->Lookup(func_name));
+
+  CheckResult(test_func_ptr, expected_func_matmul, {"A", "B"}, {"C"}, {{32, 32}, {32, 32}}, {{32, 32}}, target);
+}
+
+TEST(AddCacheRead, ApplyOnMatmulWithTiling) {
+  srand(0);
+  Context::Global().ResetNameId();
+#ifdef CINN_WITH_CUDA
+  Target target = common::DefaultNVGPUTarget();
+#else
+  Target target = common::DefaultHostTarget();
+#endif
+
+  ir::Expr M(32);
+  ir::Expr N(32);
+  ir::Expr K(32);
+
+  Placeholder<float> A("A", {M, K});
+  Placeholder<float> B("B", {K, N});
+
+  Var k(K.as_int32(), "reduce_axis_k");
+  ir::Tensor C = Compute(
+      {M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k) * B(k, j), {k}); }, "C");
+
+  poly::StageMap stages              = CreateStages({C});
+  std::string func_name              = "matmul_func";
   std::vector<ir::LoweredFunc> funcs = lang::LowerVec(func_name, stages, {A, B, C}, {}, {}, nullptr, target, true);
 
   ir::Expr ast_expr = funcs[0]->body;
@@ -252,7 +186,7 @@ TEST(AddCacheRead, MatrixMultiply) {
 
   ir::IRSchedule ir_schedule(ir::ModuleExpr({ast_expr}));
 
-  // Apply MultiLevelTiling before AddCacheRead
+  // Apply MultiLevelTiling before AddCacheRead.
   MultiLevelTiling multi_level_tiling(target);
   EXPECT_EQ(multi_level_tiling.Init(&ir_schedule), RuleApplyType::kApplyAndSkipThisRule);
   EXPECT_EQ(multi_level_tiling.NumberApplicable(), 1);
@@ -262,7 +196,7 @@ TEST(AddCacheRead, MatrixMultiply) {
   EXPECT_EQ(exprs.size(), 1UL);
   VLOG(6) << "Expr after MultiLevelTiling: " << exprs[0];
 
-  // Apply AddCacheRead
+  // Apply AddCacheRead.
   AddCacheRead add_cache_read(target);
   EXPECT_EQ(add_cache_read.Init(&ir_schedule), RuleApplyType::kApplyAndSkipThisRule);
   EXPECT_EQ(add_cache_read.NumberApplicable(), 1);
@@ -272,28 +206,23 @@ TEST(AddCacheRead, MatrixMultiply) {
   EXPECT_EQ(exprs.size(), 1UL);
   VLOG(6) << "Expr after AddCacheRead: " << exprs[0];
 
+  // Get LoweredFunc after applying rules.
+  // Since the rule modifies temporary buffers, we need to find all temporary buffers from the modified expr and
+  // regenerate a LoweredFunc.
   auto temp_buffers = lang::GetTempBuffers({A, B, C}, stages, exprs[0]);
   auto func         = ir::_LoweredFunc_::Make(funcs[0]->name, funcs[0]->args, exprs[0], temp_buffers);
 
+  // Combined into IRModule for further lowering and generating executable code.
   ir::Module::Builder builder("test_bulder", target);
   builder.AddFunction(func);
   auto build_module = builder.Build();
 
-#ifdef CINN_WITH_CUDA
+  // Compile and check result.
+  auto compiler = backends::Compiler::Create(target);
+  compiler->Build(build_module);
+  auto test_func_ptr = reinterpret_cast<void (*)(void**, int32_t)>(compiler->Lookup(func_name));
 
-#endif
-
-// TODO(BiynXu): Debug and add accuracy test
-#ifdef CINN_WITH_CUDA
-  // print source code for debug
-  backends::CodeGenCUDA_Dev codegen(target);
-  codegen.SetInlineBuiltinCodes(false);
-  auto source_code = codegen.Compile(build_module, CodeGenC::OutputKind::CImpl);
-  VLOG(6) << "source code is :\n" << source_code;
-  // check_matmul_result_cuda(M.as_int32(), N.as_int32(), K.as_int32(), func_name, build_module);
-#else
-  // check_matmul_result_cpu(M.as_int32(), N.as_int32(), K.as_int32(), func_name, build_module);
-#endif
+  // CheckResult(test_func_ptr, expected_func_matmul, {"A", "B"}, {"C"}, {{32, 32}, {32, 32}}, {{32, 32}}, target);
 }
 
 }  // namespace auto_schedule

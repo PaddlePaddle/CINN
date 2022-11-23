@@ -92,7 +92,7 @@ test_op_list = [
     "add", "subtract", "divide", "multiply", "floor_divide", "mod",
     "floor_mod", "max", "min", "logical_and", "logical_or", "logical_xor",
     "bitwise_and", "bitwise_or", "bitwise_xor", "equal", "not_equal",
-    "greater_than", "less_than", "greater_equal", "less_equal"
+    "greater_than", "less_than", "greater_equal", "less_equal", "atan2"
 ]
 
 for op_name in test_op_list:
