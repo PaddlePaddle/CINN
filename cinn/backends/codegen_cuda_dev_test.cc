@@ -2654,7 +2654,7 @@ void __launch_bounds__(128) schedule_wino_conv2d_2(const float* __restrict__ X, 
         {
           for (int32_t ci_outer = 0; ci_outer < 4; ci_outer += 1) {
             for (int32_t ci_inner = 0; ci_inner < 2; ci_inner += 1) {
-              bgemm_write_cache__reduce_init[((2 * ci_outer) + ci_inner)] = 0;
+              bgemm_write_cache__reduce_init[((2 * ci_outer) + ci_inner)] = 0.00000f;
             };
           };
           for (int32_t ci_outer = 0; ci_outer < 32; ci_outer += 1) {
