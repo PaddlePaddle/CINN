@@ -47,7 +47,7 @@ void IrPrinter::Visit(const FloatImm *x) {
     } else if (std::isnan(x->value)) {
       os_ << "cinn::common::raw_uint16_to_float16(0x7e00)";
     } else {
-      os_ << "(float16)" << static_cast<float16>(x->value);
+      os_ << "(float16)" << static_cast<float16>(x->value) << "f";
     }
   } else if (x->type().is_float(32)) {
     os_ << std::showpoint << x->value;
