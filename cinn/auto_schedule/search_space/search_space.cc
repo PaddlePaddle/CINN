@@ -43,10 +43,10 @@ SearchSpace::SearchSpace(const TuneTask& tune_task) : tune_task_(tune_task) {
   const auto& target = tune_task_.target;
   // initialize a set of rules and they are commonly used by all states
   // TODO(zhhsplendid): pass correct output names to AutoInline
-  sketch_rules_.emplace_back(new AutoInline(target, tune_task_.output_names));
+  // sketch_rules_.emplace_back(new AutoInline(target, tune_task_.output_names));
   sketch_rules_.emplace_back(new MultiLevelTiling(target));
   sketch_rules_.emplace_back(new AddCacheRead(target));
-  sketch_rules_.emplace_back(new AddCacheWrite(target));
+  // sketch_rules_.emplace_back(new AddCacheWrite(target));
   sketch_rules_.emplace_back(new AutoUnroll(target));
   sketch_rules_.emplace_back(new SkipRule(target));
 }
@@ -105,45 +105,49 @@ SearchState SearchSpace::RandomScheduleMutate(const SearchState& state) {
 
   // 1. Found the schedules which can apply on this Expr
   // 2. Make a distribution on those schedules
-  std::map<int, AutoGenRule*> weight_to_rule;
+  std::map<int, int> weight_to_rule_index;
   int cur_weight = 0;
   SearchState ret(state);
-  for (auto iter = ret->applicable_rules.begin(); iter != ret->applicable_rules.end();) {
-    AutoGenRule* rule        = *iter;
+  std::vector<RuleApplyType> apply_types(ret->applicable_rules.size());
+  for (int idx = 0; idx != ret->applicable_rules.size(); ++idx) {
+    AutoGenRule* rule        = ret->applicable_rules.at(idx);
     RuleApplyType apply_type = rule->Init(&ret->ir_schedule);
     VLOG(6) << "Evaluate rule:" << rule->GetRuleName() << "=" << static_cast<int>(apply_type);
+    apply_types[idx] = apply_type;
     if (apply_type != RuleApplyType::kCannotApply) {
-      weight_to_rule[cur_weight] = rule;
+      weight_to_rule_index[cur_weight] = idx;
       cur_weight += rule->NumberApplicable();
-      if (apply_type == RuleApplyType::kApplyAndSkipThisRule) {
-        iter = ret->applicable_rules.erase(iter);
-        continue;
-      } else if (apply_type == RuleApplyType::kApplyAndSkipAllRules) {
-        ret->applicable_rules.clear();
-        break;
-      }
     }
-    ++iter;
   }
 
-  if (weight_to_rule.empty()) {
+  if (weight_to_rule_index.empty()) {
     // No applicable rule, return the input mod_expr
     VLOG(6) << "No applicable rule";
     return ret;
   }
 
   // 3. Sample a schedule on the distribution
-  int sample_index = rand() % cur_weight;
-  // Find a key which is <= sample_index
-  auto iter = weight_to_rule.lower_bound(sample_index);
-  if (iter->first > sample_index) {
+  int sample_weighted_index = rand() % cur_weight;
+
+  auto iter = weight_to_rule_index.lower_bound(sample_weighted_index);
+  if (iter->first > sample_weighted_index) {
     // weight_to_rule must contain key 0, and sample_index >= 0, so --iter won't exceed the beginning.
     --iter;
   }
-  AutoGenRule* sample_rule = iter->second;
-  VLOG(6) << "Apply rule: " << sample_rule->GetRuleName() << " with index=" << sample_index - iter->first;
+  int sample_rule_index = iter->second;
+  CHECK_LT(sample_rule_index, ret->applicable_rules.size());
+  AutoGenRule* sample_rule = ret->applicable_rules.at(sample_rule_index);
+  VLOG(6) << "Apply rule: " << sample_rule->GetRuleName() << " with index=" << sample_weighted_index - iter->first;
   // 4. Apply the schedule change
-  sample_rule->Apply(sample_index - iter->first);
+  sample_rule->Apply(sample_weighted_index - iter->first);
+
+  // 5. Remove the rule after applying it
+  if (apply_types.at(sample_rule_index) == RuleApplyType::kApplyAndSkipThisRule) {
+    ret->applicable_rules.erase(ret->applicable_rules.begin() + sample_rule_index);
+  } else if (apply_types.at(sample_rule_index) == RuleApplyType::kApplyAndSkipAllRules) {
+    ret->applicable_rules.clear();
+  }
+
   return ret;
 }
 
