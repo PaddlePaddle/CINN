@@ -208,22 +208,34 @@ class IRSchedule {
   /**
    * \brief Reorder the loops in the order of vector.
    * @param loops The loops to be reordered.
+   * @return The reordered Expr, can be ir::For or ir::Block. It is ir::For if
+   *   the reordered loop is a single loop chain. It will be a ir::Block whose
+   *   stmts contain several loop chains if the reordered computation has
+   *   multiple loop chains.
    */
-  void Reorder(const std::vector<Expr>& loops);
+  Expr Reorder(const std::vector<Expr>& loops);
 
   /**
    * \brief Reorder the loops in the order of vector elements.
    * @param block_name Name of the block we want to modify.
    * @param loops_index Indices of loops to be reordered.
+   * @return The reordered Expr, can be ir::For or ir::Block. It is ir::For if
+   *   the reordered loop is a single loop chain. It will be a ir::Block whose
+   *   stmts contain several loop chains if the reordered computation has
+   *   multiple loop chains.
    */
-  void Reorder(const std::string& block_name, const std::vector<int>& loops_index);
+  Expr Reorder(const std::string& block_name, const std::vector<int>& loops_index);
 
   /**
    * \brief Reorder the loops in the order of vector elements.
    * @param block The block we want to modify.
    * @param loops_index Indices of loops to be reordered.
+   * @return The reordered Expr, can be ir::For or ir::Block. It is ir::For if
+   *   the reordered loop is a single loop chain. It will be a ir::Block whose
+   *   stmts contain several loop chains if the reordered computation has
+   *   multiple loop chains.
    */
-  void Reorder(const Expr& block, const std::vector<int>& loops_index);
+  Expr Reorder(const Expr& block, const std::vector<int>& loops_index);
 
   /**
    * Get the device api of this IRSchedule.

@@ -51,11 +51,15 @@ inline int FN_INT32(pow)(int x, int y);
 
 inline int FN_INT32(clz)(int x);
 
+inline int FN_INT32(popc)(int x);
+
 #undef FN_INT32
 
 #define FN_INT64(func) cinn_host_##func##_int64
 
 inline int64_t FN_INT64(clz)(int64_t x);
+
+inline int64_t FN_INT64(popc)(int64_t x);
 
 #undef FN_INT64
 }

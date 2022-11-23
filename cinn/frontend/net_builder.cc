@@ -140,6 +140,7 @@ NETBUILDER_UNARY_OP_DEF(Negative, negative)
 NETBUILDER_UNARY_OP_DEF(Sign, sign)
 NETBUILDER_UNARY_OP_DEF(Abs, abs)
 NETBUILDER_UNARY_OP_DEF(Clz, clz)
+NETBUILDER_UNARY_OP_DEF(Popc, popc)
 
 #undef NETBUILDER_UNARY_OP_DEF
 
@@ -148,6 +149,7 @@ NETBUILDER_UNARY_OP_DEF(Clz, clz)
     return BinaryOp(#op_type__, lhs, rhs, axis);                                         \
   }
 NETBUILDER_BINARY_OP_DEF(Add, elementwise_add)
+NETBUILDER_BINARY_OP_DEF(Atan2, atan2)
 NETBUILDER_BINARY_OP_DEF(Multiply, elementwise_mul)
 NETBUILDER_BINARY_OP_DEF(Divide, divide)
 NETBUILDER_BINARY_OP_DEF(Subtract, substract)

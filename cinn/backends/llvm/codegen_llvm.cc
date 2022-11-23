@@ -232,7 +232,16 @@ llvm::Value *CodeGenLLVM::Visit(const ir::UIntImm *op) {
   return llvm::ConstantInt::get(type, op->value, false);
 }
 
-llvm::Value *CodeGenLLVM::Visit(const ir::FloatImm *op) { return llvm::ConstantFP::get(b_->getFloatTy(), op->value); }
+llvm::Value *CodeGenLLVM::Visit(const ir::FloatImm *op) {
+  if (op->type().is_float(32)) {
+    return llvm::ConstantFP::get(b_->getFloatTy(), op->value);
+  } else if (op->type().is_float(16)) {
+    return llvm::ConstantFP::get(b_->getHalfTy(), op->value);
+  } else {
+    LOG(FATAL) << "illegal float type.";
+  }
+  return nullptr;
+}
 
 llvm::Value *CodeGenLLVM::LLVMGenGlobalStringVar(const std::string &data) { return b_->CreateGlobalStringPtr(data); }
 
