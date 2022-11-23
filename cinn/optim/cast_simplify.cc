@@ -22,6 +22,20 @@ using cinn::common::float16;
 
 namespace {
 
+template <typename CastType, typename T>
+CastType NormCastValue(T value) {
+  if (std::isinf(value)) {
+    return std::numeric_limits<CastType>::infinity();
+  } else if (std::isnan(value)) {
+    return std::numeric_limits<CastType>::signaling_NaN();
+  } else if (value >= static_cast<T>(std::numeric_limits<CastType>::max())) {
+    return std::numeric_limits<CastType>::max();
+  } else if (value <= static_cast<T>(std::numeric_limits<CastType>::lowest())) {
+    return std::numeric_limits<CastType>::lowest();
+  }
+  return static_cast<CastType>(value);
+}
+
 struct Mutator : ir::IRMutator<> {
   using ir::IRMutator<>::Visit;
 
@@ -35,15 +49,15 @@ struct Mutator : ir::IRMutator<> {
       return;
     }
 
-#define __CAST_TO_TYPE(type__)                       \
-  if (auto* i = op->v().As<ir::IntImm>()) {          \
-    *expr = Expr(static_cast<type__>(i->value));     \
-  } else if (auto* f = op->v().As<ir::FloatImm>()) { \
-    *expr = Expr(static_cast<type__>(f->value));     \
-  } else if (auto* u = op->v().As<ir::UIntImm>()) {  \
-    *expr = Expr(static_cast<type__>(u->value));     \
-  } else {                                           \
-    CINN_NOT_IMPLEMENTED                             \
+#define __CAST_TO_TYPE(type__)                                          \
+  if (auto* i = op->v().As<ir::IntImm>()) {                             \
+    *expr = Expr(static_cast<type__>(NormCastValue<type__>(i->value))); \
+  } else if (auto* f = op->v().As<ir::FloatImm>()) {                    \
+    *expr = Expr(static_cast<type__>(NormCastValue<type__>(f->value))); \
+  } else if (auto* u = op->v().As<ir::UIntImm>()) {                     \
+    *expr = Expr(static_cast<type__>(NormCastValue<type__>(u->value))); \
+  } else {                                                              \
+    CINN_NOT_IMPLEMENTED                                                \
   }
 
     if (op->v().is_constant()) {
