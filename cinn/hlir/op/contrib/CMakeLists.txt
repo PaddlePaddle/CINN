@@ -37,8 +37,4 @@ cc_test(test_one_hot SRCS one_hot_test.cc DEPS cinncore)
 cc_test(test_lookup_table SRCS lookup_table_test.cc DEPS cinncore)
 cc_test(test_clz SRCS clz_test.cc DEPS cinncore)
 cc_test(test_popc SRCS popc_test.cc DEPS cinncore)
-<<<<<<< HEAD
 cc_test(test_reciprocal SRCS reciprocal_test.cc DEPS cinncore)
-=======
-cc_test(test_reciprocal SRCS reciprocal_test.cc DEPS cinncore)
->>>>>>> 73064abfcdebbf088c80d7bc63252ddbabd6da34
