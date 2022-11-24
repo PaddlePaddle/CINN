@@ -79,9 +79,6 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
         << "RuntimeError: Expr size is not equal to LoweredFunc size in TaskOptimizer";
     for (size_t i = 0; i < best_exprs.size(); ++i) {
       result.lowered_funcs[0][i] = FuncWithUpdatedBody(result.lowered_funcs[0][i], best_exprs[i]);
-      if (task_->target == common::DefaultNVGPUTarget()) {
-        result.lowered_funcs[0][i]->PrepareCudaAxisInfoFromBody();
-      }
     }
     return result;
   }
@@ -112,9 +109,6 @@ TuningResult::OptimizedComputeExpr TaskOptimizer::OptimizeByEvolution(const Tuni
       for (size_t j = 0; j < best_exprs.size(); ++j) {
         measure_inputs[i].lowered_funcs.front().at(j) =
             FuncWithUpdatedBody(measure_inputs[i].lowered_funcs.front().at(j), best_exprs[j]);
-        if (task_->target == common::DefaultNVGPUTarget()) {
-          measure_inputs[i].lowered_funcs.front().at(j)->PrepareCudaAxisInfoFromBody();
-        }
       }
     }
     VLOG(4) << "ScheduleMeasurer start with input size=" << measure_inputs.size();
@@ -180,8 +174,14 @@ ir::LoweredFunc TaskOptimizer::FuncWithUpdatedBody(const ir::LoweredFunc& old_fu
   // Get new temp bufs by analyzing.
   std::vector<ir::Buffer> new_temp_bufs = lang::GetTempBuffers(old_func->args, updated_body);
   ir::LoweredFunc new_func = ir::_LoweredFunc_::Make(old_func->name, old_func->args, updated_body, new_temp_bufs);
-  new_func                 = optim::Optimize(Expr(new_func), task_->target, false).as_lowered_func_ref();
+#ifdef CINN_WITH_CUDA
+  if (task_->target == common::DefaultNVGPUTarget()) {
+    new_func->PrepareCudaAxisInfoFromBody();
+  }
+#endif
+  new_func = optim::Optimize(Expr(new_func), task_->target, false).as_lowered_func_ref();
   new_func->PrepareBufferCastExprs(/*with_expr_gen_tensor = */ false);
+
   return new_func;
 }
 

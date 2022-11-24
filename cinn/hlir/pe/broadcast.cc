@@ -281,6 +281,23 @@ Tensor Pow(
   return Broadcast(fn, A, B, output_name, axis);
 }
 
+Tensor Atan2(const Tensor& A, const Tensor& B, const std::string& output_name, const Expr& axis) {
+  constexpr double PI = 3.14159265358979323846;
+
+  auto fn = [&](const Expr& elem_a, const Expr& elem_b) {
+    auto atan    = lang::Atan(elem_a / elem_b);
+    auto pi      = common::make_const(atan->type(), PI);
+    auto half_pi = common::make_const(atan->type(), PI / 2);
+    auto zero    = ir::Zero(atan->type());
+    return ir::Select::Make(
+        ir::EQ::Make(elem_b, zero),
+        ir::Select::Make(ir::GT::Make(elem_a, zero), half_pi, -half_pi),
+        ir::Select::Make(
+            ir::GT::Make(elem_b, zero), atan, ir::Select::Make(ir::GE::Make(elem_a, zero), atan + pi, atan - pi)));
+  };
+  return Broadcast(fn, A, B, output_name, axis);
+}
+
 Tensor BroadcastTo(const Tensor& A,
                    const std::vector<int>& out_shape,
                    const std::vector<int>& broadcast_axes,
