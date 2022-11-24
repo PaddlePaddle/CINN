@@ -49,20 +49,29 @@ static const char* buffer_get_data_const_handle = "cinn_buffer_get_data_const_ha
 
 //! Buffer load an element of some primitive type
 // @{
+static const char* buffer_load_float16 = "buffer_load_float16";
 static const char* buffer_load_float32 = "buffer_load_float32";
 static const char* buffer_load_float64 = "buffer_load_float64";
 // @}
 
 static const char* pod_value_ty                    = "cinn_pod_value_t";
 static const char* float_to_cinn_pod_value_repr    = "float_to_cinn_pod_value";
+static const char* double_to_cinn_pod_value_repr   = "double_to_cinn_pod_value";
+static const char* float16_to_cinn_pod_value_repr  = "float16_to_cinn_pod_value";
+static const char* bool_to_cinn_pod_value_repr     = "bool_to_cinn_pod_value";
+static const char* int8_to_cinn_pod_value_repr     = "int8_to_cinn_pod_value";
 static const char* int32_to_cinn_pod_value_repr    = "int32_to_cinn_pod_value";
+static const char* int64_to_cinn_pod_value_repr    = "int64_to_cinn_pod_value";
 static const char* buffer_p_to_cinn_pod_value_repr = "buffer_p_to_cinn_pod_value";
 
 static const char* pod_value_to_buffer_p = "cinn_pod_value_to_buffer_p";
+static const char* pod_value_to_bool     = "cinn_pod_value_to_bool";
+static const char* pod_value_to_int8     = "cinn_pod_value_to_int8";
 static const char* pod_value_to_int32    = "cinn_pod_value_to_int32";
 static const char* pod_value_to_int64    = "cinn_pod_value_to_int64";
 static const char* pod_value_to_float    = "cinn_pod_value_to_float";
 static const char* pod_value_to_double   = "cinn_pod_value_to_double";
+static const char* pod_value_to_float16  = "cinn_pod_value_to_float16";
 static const char* pod_value_to_void_p   = "cinn_pod_value_to_void_p";
 
 static const char* print_debug_args_repr = "cinn_print_debug_args";

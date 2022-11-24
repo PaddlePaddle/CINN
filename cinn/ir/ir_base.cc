@@ -68,6 +68,19 @@ Expr Zero(const Type &type) {
   return Expr();
 }
 
+Expr One(const Type &type) {
+  if (type.is_float(16)) return Expr(float16(1.f));
+  if (type.is_float(32)) return Expr(1.f);
+  if (type.is_float(64)) return Expr(double(1.));  // NOLINT
+  if (type.is_bool()) return Expr(true);
+  if (type.is_int(32)) return Expr(int32_t(1));
+  if (type.is_int(64)) return Expr(int64_t(1));
+  if (type.is_uint(32)) return Expr(uint32_t(1));
+  if (type.is_uint(64)) return Expr(uint64_t(1));
+  CINN_NOT_IMPLEMENTED
+  return Expr();
+}
+
 Expr::Expr(const Var &var) { *static_cast<IrNodeRef *>(this) = *static_cast<const IrNodeRef *>(&var); }
 bool Expr::as_bool() const {
   CHECK(type().is_uint(1));

@@ -74,6 +74,7 @@ __device__ inline int FN_INT32(popc)(int a) { return __popc(a); }
 
 
 // *************************************************************** //
+
 // int64 unary and binary operator
 #define FN_INT64(func) cinn_nvgpu_##func##_int64
 
