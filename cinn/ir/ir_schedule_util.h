@@ -226,7 +226,7 @@ void ReplaceExpr(Expr* source, const std::vector<Var>& replaced, const std::vect
  * Validate the factors param of Split. We will check if factors are validate and change -1 to positive integer.
  * @param factors The original factors.
  * @param total_extent The extent of the loop to be splitted.
- * @param return The valiated factors.
+ * @return return The valiated factors.
  */
 std::vector<int> ValidateFactors(const std::vector<int>& factors, int total_extent);
 
@@ -236,16 +236,16 @@ void CHECKRfactorValidation(const Expr& rf_loop, int rf_axis);
  * Return loops that contain the expr.
  * @param expr The expr.
  * @param root The root of the whole AST.
- * @param return Loops in AST that contain the expr.
+ * @return return Loops in AST that contain the expr.
  */
 std::vector<Expr> GetLoopsOfExpr(const Expr& expr, const Expr& root);
 
 /**
- * Given a index Expr and all vars' range, return the accessed range in this indice.
+ * Given an index Expr and all vars' range, return the accessed range in this indice.
  * @param index The Expr of a specified indice.
  * @param iter_vars The vars in expr.
  * @param iter_range Each var's range.
- * @param return a IterRange represent the accessed range of this indice, If it is not constant, return corresponding
+ * @return return an IterRange represents the accessed range of this indice, If it is not constant, return corresponding
  * tensor's shape.
  */
 IterRange GetAccessedRange(const Expr& index,
@@ -259,7 +259,7 @@ IterRange GetAccessedRange(const Expr& index,
  * @param tensor_indices The tensor's indices.
  * @param tensor The tensor.
  * @param root The root of whole AST.
- * @param return The accessed buffer region of the tensor in block.
+ * @return return The accessed buffer region of the tensor in block.
  */
 
 std::vector<IterRange> CalculateTensorRegions(const Expr& block,
@@ -272,7 +272,7 @@ std::vector<IterRange> CalculateTensorRegions(const Expr& block,
  * @param block The ScheduleBlockRealize.
  * @param index The index indicating which tensor we want to get.
  * @param is_write We want to get write tensor or read tensor.
- * @param return The n-th access tensor in block. Should be ir::Store(is_write) or ir::Load(!is_write).
+ * @return return The n-th access tensor in block. Should be ir::Store(is_write) or ir::Load(!is_write).
  */
 Expr GetNthAccessExpr(const Expr& block, int index, bool is_write);
 
@@ -280,7 +280,7 @@ Expr GetNthAccessExpr(const Expr& block, int index, bool is_write);
  * Make a tensor's cache tensor.
  * @param tensor The original tensor.
  * @param memory_type The memory type of the cache tensor.
- * @param return The tensor's cache tensor.
+ * @return return The tensor's cache tensor.
  */
 Tensor MakeCacheTensor(const Tensor& tensor, const std::string& memory_type);
 
@@ -290,7 +290,7 @@ Tensor MakeCacheTensor(const Tensor& tensor, const std::string& memory_type);
  * @param info The information of cache block.
  * @param memory_type The memory type of cache tensor.
  * @param device_api The device api of this Expr.
- * @param return ScheduleBlockRealize of the cache tensor.
+ * @return return ScheduleBlockRealize of the cache tensor.
  */
 Expr MakeCacheBlock(const std::vector<IterRange>& buffer_ranges,
                     CacheBlockInfo* info,
