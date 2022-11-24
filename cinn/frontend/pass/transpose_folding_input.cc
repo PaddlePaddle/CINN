@@ -56,6 +56,10 @@ class TransposeFoldingInputPass : public TransposeFoldingBase {
         // fold_instrs = {"transpose", "scale"}
         const auto& fold_instrs = GetFoldInstruction(iter->second, out2instr, in2instr, true);
 
+        if (fold_instrs.empty()) {
+          continue;
+        }
+
         VLOG(4) << "Fold Instruction: [" << debug_info(fold_instrs) << "]"
                 << " into " << (i == 0 ? "x" : "y") << " of matmul: " << *dot;
 

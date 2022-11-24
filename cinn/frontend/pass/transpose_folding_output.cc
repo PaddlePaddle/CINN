@@ -52,6 +52,10 @@ class TransposeFoldingOutputPass : public TransposeFoldingBase {
       // ensure the foldiong structions's output only link to one op
       const auto& fold_instrs = GetFoldInstruction(*in2instr.at(gemm_out_name).begin(), out2instr, in2instr, false);
 
+      if (fold_instrs.empty()) {
+        return;
+      }
+
       VLOG(4) << "Fold Instruction: [" << debug_info(fold_instrs) << "]"
               << " into output of matmul: " << *dot;
       for (int i = 0; i < fold_instrs.size(); ++i) {
