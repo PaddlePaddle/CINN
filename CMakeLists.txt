@@ -25,6 +25,11 @@ if (NOT PY_VERSION)
   set(PY_VERSION 3.6)
 endif()
 
+if (NOT DEFINED ENV{runtime_include_dir})
+  message(STATUS "set runtime_include_dir: ${CMAKE_SOURCE_DIR}/cinn/runtime/cuda")
+  set(ENV{runtime_include_dir} "${CMAKE_SOURCE_DIR}/cinn/runtime/cuda")
+endif()
+
 if (WITH_TESTING)
   add_definitions(-DCINN_WITH_TEST)
 endif()

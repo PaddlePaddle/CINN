@@ -15,29 +15,18 @@
 #pragma once
 
 #include <string>
-#include <unordered_set>
+#include <vector>
 
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_base.h"
-#include "cinn/ir/ir_schedule.h"
-#include "cinn/ir/lowered_func.h"
+#include "cinn/ir/tensor.h"
 
 namespace cinn {
-namespace auto_schedule {
+namespace hlir {
+namespace op {
 
-void AnalyzeScheduleBlockReadWriteBuffer(ir::ScheduleBlock* sche_block);
+ir::Tensor Popc(const ir::Tensor& input, const Target& target, const std::string& output_name = "T_Popc_out");
 
-bool ContainsNodeType(ir::Expr expr, const std::unordered_set<ir::IrNodeTy>& node_types);
-
-/**
- * Collects all input lowered_funcs and return names of all output arguments
- */
-std::unordered_set<std::string> GetOutputNamesFromLoweredFunc(const std::vector<ir::LoweredFunc>& lowered_funcs);
-
-/**
- * Determine whether a schedule block needs multileveltiling
- */
-bool NeedsMultiLevelTiling(const ir::ScheduleBlockRealize& sche_block_realize);
-
-}  // namespace auto_schedule
+}  // namespace op
+}  // namespace hlir
 }  // namespace cinn

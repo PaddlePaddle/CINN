@@ -371,18 +371,18 @@ CINN_BUILD_STEP_KIND(SetBuffer)
 CINN_BUILD_STEP_KIND(Reorder)
     .Inputs({"loops"})
     .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(
-                    static_cast<void (IRSchedule::*)(const std::vector<Expr>&)>(&IRSchedule::Reorder))));
+                    static_cast<Expr (IRSchedule::*)(const std::vector<Expr>&)>(&IRSchedule::Reorder))));
 
 CINN_BUILD_STEP_KIND(ReorderWithBlock)
     .Inputs({"block"})
     .Attrs({"loops_index"})
     .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(
-                    static_cast<void (IRSchedule::*)(const Expr&, const std::vector<int>&)>(&IRSchedule::Reorder))));
+                    static_cast<Expr (IRSchedule::*)(const Expr&, const std::vector<int>&)>(&IRSchedule::Reorder))));
 
 CINN_BUILD_STEP_KIND(ReorderWithName)
     .Attrs({"block_name", "loops_index"})
     .SetApplyFn(APPLY_FUNC_UNIFORM(FREE_FUNCTION_CONVERTER(
-                    static_cast<void (IRSchedule::*)(const std::string&, const std::vector<int>&)>(&IRSchedule::Reorder))));
+                    static_cast<Expr (IRSchedule::*)(const std::string&, const std::vector<int>&)>(&IRSchedule::Reorder))));
 
 CINN_BUILD_STEP_KIND(Parallel)
     .Inputs({"loop"})

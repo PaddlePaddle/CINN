@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cinn/auto_schedule/search_space/auto_gen_rule/add_cache_write.h"
+#include "cinn/auto_schedule/search_space/auto_gen_rule/add_cache_read.h"
 
 #include <glog/logging.h>
 #include <gtest/gtest.h>
@@ -38,7 +38,7 @@
 namespace cinn {
 namespace auto_schedule {
 
-TEST(AddCacheWrite, Init) {
+TEST(AddCacheRead, Init) {
   srand(0);
   Context::Global().ResetNameId();
 #ifdef CINN_WITH_CUDA
@@ -61,50 +61,45 @@ TEST(AddCacheWrite, Init) {
 
   poly::StageMap stages = CreateStages({C});
   std::vector<ir::LoweredFunc> funcs =
-      lang::LowerVec("TestAddCacheWrite_InitTrue", stages, {C}, {}, {}, nullptr, target, true);
+      lang::LowerVec("TestAddCacheRead_InitTrue", stages, {C}, {}, {}, nullptr, target, true);
 
   ir::Expr matmul_expr = funcs[0]->body;
-  VLOG(6) << "Matmul Expr before AddCacheWrite: ";
+  VLOG(6) << "Matmul Expr before AddCacheRead: ";
   VLOG(6) << matmul_expr;
 
   ir::IRSchedule ir_schedule_matmul(ir::ModuleExpr({matmul_expr}));
 
-  AddCacheWrite add_cache_write(target);
-  auto apply_type = add_cache_write.Init(&ir_schedule_matmul);
-#ifdef CINN_WITH_CUDA
-  EXPECT_EQ(apply_type, RuleApplyType::kApplyAndSkipAllRules);
-#else
-  EXPECT_EQ(apply_type, RuleApplyType::kApplyAndSkipThisRule);
-#endif
-  EXPECT_EQ(add_cache_write.NumberApplicable(), 1);
+  AddCacheRead add_cache_read(target);
+  EXPECT_EQ(add_cache_read.Init(&ir_schedule_matmul), RuleApplyType::kApplyAndSkipAllRules);
+  EXPECT_EQ(add_cache_read.NumberApplicable(), 1);
 
-  add_cache_write.ApplyRandomly();
+  add_cache_read.ApplyRandomly();
   std::vector<ir::Expr> exprs = ir_schedule_matmul.GetModule().GetExprs();
   EXPECT_EQ(exprs.size(), 1UL);
-  VLOG(6) << "Matmul Expr after AddCacheWrite: " << exprs[0];
+  VLOG(6) << "Matmul Expr after AddCacheRead: " << exprs[0];
 
   // add case
   Placeholder<float> D("D", {M, K});
   Placeholder<float> E("E", {K, N});
   ir::Tensor F = Compute(
-      {M, N}, [&](Var i, Var j) { return D(i, j) * E(i, j); }, "F");
+      {M, N}, [&](Var i, Var j) { return D(i, j) + E(i, j); }, "F");
 
   poly::StageMap stages_add = CreateStages({F});
   std::vector<ir::LoweredFunc> funcs_add =
-      lang::LowerVec("TestAddCacheWrite_InitFalse", stages_add, {F}, {}, {}, nullptr, target, true);
+      lang::LowerVec("TestAddCacheRead_InitFalse", stages_add, {F}, {}, {}, nullptr, target, true);
 
   ir::Expr add_expr = funcs_add[0]->body;
-  VLOG(6) << "Mat Add Expr before AddCacheWrite: ";
+  VLOG(6) << "Mat Add Expr before AddCacheRead: ";
   VLOG(6) << add_expr;
 
   ir::IRSchedule ir_schedule_add(ir::ModuleExpr({add_expr}));
 
-  AddCacheWrite add_cache_write2(target);
-  EXPECT_EQ(add_cache_write2.Init(&ir_schedule_add), RuleApplyType::kCannotApply);
-  EXPECT_EQ(add_cache_write2.NumberApplicable(), 0);
+  AddCacheRead add_cache_read2(target);
+  EXPECT_EQ(add_cache_read2.Init(&ir_schedule_add), RuleApplyType::kCannotApply);
+  EXPECT_EQ(add_cache_read2.NumberApplicable(), 0);
 }
 
-TEST(AddCacheWrite, BasicApplyOnMatmul) {
+TEST(AddCacheRead, BasicApplyOnMatmul) {
   srand(0);
   Context::Global().ResetNameId();
 #ifdef CINN_WITH_CUDA
@@ -129,25 +124,18 @@ TEST(AddCacheWrite, BasicApplyOnMatmul) {
   std::vector<ir::LoweredFunc> funcs = lang::LowerVec(func_name, stages, {A, B, C}, {}, {}, nullptr, target, true);
 
   ir::Expr matmul_expr = funcs[0]->body;
-  VLOG(6) << "Matmul Expr before AddCacheWrite: ";
+  VLOG(6) << "Matmul Expr before AddCacheRead: ";
   VLOG(6) << matmul_expr;
 
   ir::IRSchedule ir_schedule_matmul(ir::ModuleExpr({matmul_expr}));
 
-  AddCacheWrite add_cache_write(target);
-  auto apply_type = add_cache_write.Init(&ir_schedule_matmul);
-#ifdef CINN_WITH_CUDA
-  EXPECT_EQ(apply_type, RuleApplyType::kApplyAndSkipAllRules);
-#else
-  EXPECT_EQ(apply_type, RuleApplyType::kApplyAndSkipThisRule);
-#endif
-  EXPECT_EQ(add_cache_write.NumberApplicable(), 1);
-
-  // Apply AddCacheWrite
-  add_cache_write.ApplyRandomly();
+  // Apply AddCacheRead.
+  AddCacheRead add_cache_read(target);
+  auto apply_type = add_cache_read.Init(&ir_schedule_matmul);
+  add_cache_read.ApplyRandomly();
   std::vector<ir::Expr> exprs = ir_schedule_matmul.GetModule().GetExprs();
   EXPECT_EQ(exprs.size(), 1UL);
-  VLOG(6) << "Matmul Expr after AddCacheWrite: " << exprs[0];
+  VLOG(6) << "Matmul Expr after AddCacheRead: " << exprs[0];
 
   // Get LoweredFunc after applying rules.
   // Since the rule modifies temporary buffers,
@@ -160,7 +148,7 @@ TEST(AddCacheWrite, BasicApplyOnMatmul) {
   builder.AddFunction(func);
   auto build_module = builder.Build();
 
-  // Compile and check result
+  // Compile and check result.
   auto compiler = backends::Compiler::Create(target);
   compiler->Build(build_module);
   auto test_func_ptr = reinterpret_cast<void (*)(void**, int32_t)>(compiler->Lookup(func_name));
@@ -168,7 +156,7 @@ TEST(AddCacheWrite, BasicApplyOnMatmul) {
   CheckResult(test_func_ptr, expected_func_matmul, {"A", "B"}, {"C"}, {{32, 32}, {32, 32}}, {{32, 32}}, target);
 }
 
-TEST(AddCacheWrite, ApplyOnMatmulWithTiling) {
+TEST(AddCacheRead, ApplyOnMatmulWithTiling) {
   srand(0);
   Context::Global().ResetNameId();
 #ifdef CINN_WITH_CUDA
@@ -198,7 +186,7 @@ TEST(AddCacheWrite, ApplyOnMatmulWithTiling) {
 
   ir::IRSchedule ir_schedule(ir::ModuleExpr({ast_expr}));
 
-  // Apply MultiLevelTiling before AddCacheWrite
+  // Apply MultiLevelTiling before AddCacheRead.
   MultiLevelTiling multi_level_tiling(target);
   EXPECT_EQ(multi_level_tiling.Init(&ir_schedule), RuleApplyType::kApplyAndSkipThisRule);
   EXPECT_EQ(multi_level_tiling.NumberApplicable(), 1);
@@ -208,20 +196,15 @@ TEST(AddCacheWrite, ApplyOnMatmulWithTiling) {
   EXPECT_EQ(exprs.size(), 1UL);
   VLOG(6) << "Expr after MultiLevelTiling: " << exprs[0];
 
-  // Apply AddCacheWrite
-  AddCacheWrite add_cache_write(target);
-  auto apply_type = add_cache_write.Init(&ir_schedule);
-#ifdef CINN_WITH_CUDA
-  EXPECT_EQ(apply_type, RuleApplyType::kApplyAndSkipAllRules);
-#else
-  EXPECT_EQ(apply_type, RuleApplyType::kApplyAndSkipThisRule);
-#endif
-  EXPECT_EQ(add_cache_write.NumberApplicable(), 1);
+  // Apply AddCacheRead.
+  AddCacheRead add_cache_read(target);
+  EXPECT_EQ(add_cache_read.Init(&ir_schedule), RuleApplyType::kApplyAndSkipAllRules);
+  EXPECT_EQ(add_cache_read.NumberApplicable(), 1);
 
-  add_cache_write.ApplyRandomly();
+  add_cache_read.ApplyRandomly();
   exprs = ir_schedule.GetModule().GetExprs();
   EXPECT_EQ(exprs.size(), 1UL);
-  VLOG(6) << "Expr after AddCacheWrite: " << exprs[0];
+  VLOG(6) << "Expr after AddCacheRead: " << exprs[0];
 
   // Get LoweredFunc after applying rules.
   // Since the rule modifies temporary buffers, we need to find all temporary buffers from the modified expr and
@@ -234,7 +217,7 @@ TEST(AddCacheWrite, ApplyOnMatmulWithTiling) {
   builder.AddFunction(func);
   auto build_module = builder.Build();
 
-  // Compile and check result
+  // Compile and check result.
   auto compiler = backends::Compiler::Create(target);
   compiler->Build(build_module);
   auto test_func_ptr = reinterpret_cast<void (*)(void**, int32_t)>(compiler->Lookup(func_name));
