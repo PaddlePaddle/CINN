@@ -16,6 +16,7 @@ gather_srcs(cinnapi_src SRCS
         repeat.cc
         lookup_table.cc
         one_hot.cc
+        reciprocal.cc
         )
 
 cc_test(test_cast SRCS cast_test.cc DEPS cinncore)

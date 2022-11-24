@@ -139,6 +139,7 @@ NETBUILDER_UNARY_OP_DEF(BitwiseNot, bitwise_not)
 NETBUILDER_UNARY_OP_DEF(Negative, negative)
 NETBUILDER_UNARY_OP_DEF(Sign, sign)
 NETBUILDER_UNARY_OP_DEF(Abs, abs)
+NETBUILDER_UNARY_OP_DEF(Reciprocal, reciprocal)
 
 #undef NETBUILDER_UNARY_OP_DEF
 
