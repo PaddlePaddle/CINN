@@ -34,55 +34,76 @@ class TransposeFoldingInputPass : public TransposeFoldingBase {
  protected:
   void set_target_instrs() override { TransposeFoldingBase::target_instrs_ = {"matmul"}; }
 
-  // Rules that transpose can be folded into matmul:
-  //   1) input operand of dot must be transpose;
-  //   2) `axis` of tranpose must be consecutive in the reverse order, excluding the first dim;
-  void FoldTranspose(Instruction* dot,
-                     const absl::flat_hash_map<std::string, Instruction*>& out2instr,
-                     const absl::flat_hash_map<std::string, std::unordered_set<Instruction*>>& in2instr,
-                     const std::unordered_set<std::string>& fetch_ids,
-                     absl::flat_hash_set<Instruction*>* remove_instrs) const override {
-    bool trans_a = false;
-    bool trans_b = false;
-    if ((*dot)->attrs.contains("trans_a")) {
-      trans_a = absl::get<bool>((*dot)->attrs["trans_a"]);
-    }
-    if ((*dot)->attrs.contains("trans_b")) {
-      trans_b = absl::get<bool>((*dot)->attrs["trans_b"]);
-    }
+  void DoMatmulFoldOptimize(Instruction* dot,
+                            const Out2InstrType& out2instr,
+                            const In2InstrType& in2instr,
+                            const std::unordered_set<std::string>& fetch_ids,
+                            absl::flat_hash_set<Instruction*>* remove_instrs) const override {
+    CHECK_EQ((*dot)->inputs.size(), 2UL) << "The matmul should only have two inputs.";
+
+    auto debug_info = [](const std::vector<Instruction*>& instrs) {
+      std::stringstream ss;
+      for (auto instr : instrs) {
+        ss << (*instr)->op_type << ", ";
+      }
+      return ss.str();
+    };
 
     for (size_t i = 0; i < (*dot)->inputs.size(); ++i) {
-      auto transpose_out_name = (*dot)->inputs[i]->id;
-      auto iter               = out2instr.find(transpose_out_name);
+      auto iter = out2instr.find((*dot)->inputs[i]->id);
       if (iter != out2instr.end()) {
-        // the previous op of matmul
-        const auto& operand = *(iter->second);
-        if (IsValidTranspose(operand)) {
-          // x-> transpose -> out -> dot => x -> dot
-          (*dot)->inputs[i] = operand->inputs[0];
-          if (i == 0) {
-            (*dot).SetAttr("trans_a", static_cast<bool>(trans_a ^ true));
-          } else if (i == 1) {
-            (*dot).SetAttr("trans_b", static_cast<bool>(trans_b ^ true));
+        // for example: x -> scale -> y -> transpose -> z -> dot
+        // fold_instrs = {"transpose", "scale"}
+        const auto& fold_instrs = GetFoldInstruction(iter->second, out2instr, in2instr, true);
+
+        VLOG(4) << "Fold Instruction: [" << debug_info(fold_instrs) << "]"
+                << " into " << (i == 0 ? "x" : "y") << " of matmul: " << *dot;
+
+        for (int j = fold_instrs.size() - 1; j >= 0; --j) {
+          auto instr = fold_instrs[j];
+
+          if (IsValidTranspose(*instr)) {
+            // fold transpose into trans_a/trans_b
+            if (i == 0) {
+              bool trans_a = (*dot)->attrs.count("trans_a") ? absl::get<bool>((*dot)->attrs.at("trans_a")) : false;
+              dot->SetAttr("trans_a", static_cast<bool>(trans_a ^ true));
+            } else if (i == 1) {
+              bool trans_b = (*dot)->attrs.count("trans_b") ? absl::get<bool>((*dot)->attrs.at("trans_b")) : false;
+              dot->SetAttr("trans_b", static_cast<bool>(trans_b ^ true));
+            } else {
+              LOG(FATAL) << "The matmul should only have two inputs.";
+            }
+          } else if (IsValidScale(*instr)) {
+            // assume C = alpha * A * B + beta * C
+            // fold scale into alpha
+            float scale = (*instr)->attrs.count("scale") ? absl::get<float>((*instr)->attrs.at("scale")) : 1.0f;
+
+            float alpha = (*dot)->attrs.count("alpha") ? absl::get<float>((*dot)->attrs.at("alpha")) : 1.0f;
+            dot->SetAttr("alpha", alpha * scale);
           } else {
-            LOG(FATAL) << "The matmul should only have two inputs.";
+            continue;
           }
 
-          CHECK(in2instr.find(transpose_out_name) != in2instr.end())
-              << "The var [" << transpose_out_name
-              << "] should be someone op's input, but couldn't found ! Please check.";
-          const auto& out_instrs = in2instr.at(transpose_out_name);
-          CHECK(out_instrs.count(dot)) << "The var [" << transpose_out_name
-                                       << "] should be matmul's input, but couldn't found ! Please check.";
+          // relink input: x-> transpose -> out -> dot ==> x -> dot
+          auto next_instr = (j == 0) ? dot : fold_instrs[j - 1];
+          if (j == 0) {
+            (*dot)->inputs[i] = (*instr)->inputs[0];
+          } else {
+            (*next_instr)->inputs[0] = (*instr)->inputs[0];
+          }
 
-          bool can_remove = std::all_of(out_instrs.begin(), out_instrs.end(), [&](Instruction* instr) {
+          // check whether the instruction can be removed
+          const auto& out_name   = (*instr)->outputs[0]->id;
+          const auto& out_instrs = in2instr.at(out_name);
+
+          bool can_remove = std::all_of(out_instrs.begin(), out_instrs.end(), [&](Instruction* out_instr) {
             // the transpose had linked to not matmul op, cannot remove
-            return target_instrs_.find((*instr)->op_type) != target_instrs_.end();
+            return target_instrs_.count((*out_instr)->op_type) || (out_instr == next_instr);
           });
 
-          if (can_remove && !fetch_ids.count(transpose_out_name)) {
+          if (can_remove && !fetch_ids.count(out_name)) {
             // the transpose is only link to matmul and its output is not in fetch_ids, should remove
-            remove_instrs->insert(iter->second);
+            remove_instrs->insert(instr);
           }
         }
       }
