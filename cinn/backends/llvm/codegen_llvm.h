@@ -121,6 +121,7 @@ class CodeGenLLVM : public LLVMIRVisitor, public IrBuilderMixin<CodeGenLLVM> {
   inline llvm::Type *ll_void_pp_ty() const { return llvm_type_of<void **>(m_); }
   inline llvm::Type *ll_int8_ty() const { return llvm_type_of<int8_t>(m_); }
   inline llvm::Type *ll_int32_ty() const { return llvm_type_of<int32_t>(m_); }
+  inline llvm::Type *ll_fp16_ty() const { return llvm_type_of<cinn::common::float16>(m_); }
   inline llvm::Type *ll_fp32_ty() const { return llvm_type_of<float>(m_); }
   inline llvm::Type *ll_fp64_ty() const { return llvm_type_of<double>(m_); }
   inline llvm::Type *ll_cinn_buffer_p_ty() const { return llvm_type_of<cinn_buffer_t *>(m_); }

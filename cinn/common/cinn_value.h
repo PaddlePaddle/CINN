@@ -117,9 +117,11 @@ class CINNValue : public cinn_pod_value_t {
   CINNValue() : cinn_pod_value_t(cinn_value_t(), kNull) {}
   CINNValue(cinn_value_t value, int type_code) : cinn_pod_value_t(value, type_code) {}
 
+  explicit CINNValue(bool value) : cinn_pod_value_t(value) { type_code_ = ::cinn_type_code<bool>(); }
   explicit CINNValue(int32_t value) : cinn_pod_value_t(value) { type_code_ = ::cinn_type_code<int32_t>(); }
   explicit CINNValue(int64_t value) : cinn_pod_value_t(value) { type_code_ = ::cinn_type_code<int64_t>(); }
   explicit CINNValue(float value) : cinn_pod_value_t(value) { type_code_ = ::cinn_type_code<float>(); }
+  explicit CINNValue(float16 value) : cinn_pod_value_t(value) { type_code_ = ::cinn_type_code<float16>(); }
   explicit CINNValue(double value) : cinn_pod_value_t(value) { type_code_ = ::cinn_type_code<double>(); }
   explicit CINNValue(char* value);
   explicit CINNValue(cinn_buffer_t* value) : cinn_pod_value_t(value) {}
@@ -137,6 +139,8 @@ class CINNValue : public cinn_pod_value_t {
   // @{
   using cinn_pod_value_t::operator double;
   using cinn_pod_value_t::operator float;
+  using cinn_pod_value_t::operator cinn::common::float16;
+  using cinn_pod_value_t::operator bool;
   using cinn_pod_value_t::operator int32_t;
   using cinn_pod_value_t::operator int64_t;
   using cinn_pod_value_t::operator void*;
@@ -157,10 +161,12 @@ class CINNValue : public cinn_pod_value_t {
 
   //! Assign operators
   // @{
+  CINNValue& operator=(bool value);
   CINNValue& operator=(int32_t value);
   CINNValue& operator=(int64_t value);
   CINNValue& operator=(float value);
   CINNValue& operator=(double value);
+  CINNValue& operator=(float16 value);
   CINNValue& operator=(char* value);
   CINNValue& operator=(const std::string& value);
   CINNValue& operator=(const ir::Var& value);

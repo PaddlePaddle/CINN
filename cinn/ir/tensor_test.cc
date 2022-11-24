@@ -59,7 +59,7 @@ function func_C (_A, _B, _D)
   {
     serial for (j, 0, 20)
     {
-      D[i, j] = (1 + ((2 * A[i, j]) + (2 * B[i, j])))
+      D[i, j] = (1.00000f + ((2.00000f * A[i, j]) + (2.00000f * B[i, j])))
     }
   }
 }
@@ -115,7 +115,7 @@ void fn(void* _args, int32_t num_args)
   for (int32_t i = 0; i < 10; i += 1) {
     for (int32_t j = 0; j < 10; j += 1) {
       for (int32_t k = 0; k < 100; k += 1) {
-        B[((1000 * i) + ((100 * j) + k))] = (2 * A_reshape[((1000 * i) + ((100 * j) + k))]);
+        B[((1000 * i) + ((100 * j) + k))] = (2.00000f * A_reshape[((1000 * i) + ((100 * j) + k))]);
       };
     };
   };
@@ -171,7 +171,7 @@ void fn(void* _args, int32_t num_args)
   for (int32_t i = 0; i < 10; i += 1) {
     for (int32_t j = 0; j < 10; j += 1) {
       for (int32_t k = 0; k < 100; k += 1) {
-        B[((1000 * i) + ((100 * j) + k))] = (2 * A_copied_reshape[((1000 * i) + ((100 * j) + k))]);
+        B[((1000 * i) + ((100 * j) + k))] = (2.00000f * A_copied_reshape[((1000 * i) + ((100 * j) + k))]);
       };
     };
   };
