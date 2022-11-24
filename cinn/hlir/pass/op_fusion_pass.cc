@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cinn/hlir/pass/op_fusion_pass.h"
+
 #include "cinn/common/type.h"
 #include "cinn/hlir/pass/fusion_helper_base.h"
 namespace cinn {
@@ -77,9 +79,11 @@ class OpFusionPassHelper : public FusionHelperBase {
   }
 
   // return a vector of groups in topological order.
-  GroupList operator()() {
+  GroupList operator()(bool do_fusion = true) {
     // do op fusion.
-    DoOpFusion();
+    if (do_fusion) {
+      DoOpFusion();
+    }
 
     // find all fusion group.
     GroupList fusion_groups;
@@ -580,6 +584,12 @@ void OpFusionPassInternal(Graph* graph) {
     }
   }
   VLOG(3) << "OpFusionPass Finish...!";
+}
+
+std::vector<std::shared_ptr<framework::Graph::Group>> BuildNonFusedGroups(const framework::Graph* graph) {
+  auto op_fusion_helper = OpFusionPassHelper(graph);
+  VLOG(3) << "Apply OpFusionPass to generate initial non-fusion groups";
+  return op_fusion_helper(false);
 }
 
 }  // namespace pass

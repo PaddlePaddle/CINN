@@ -69,9 +69,8 @@ class OpTest(unittest.TestCase):
                         passes=["Decomposer"],
                         scope=None):
         fetch_ids = {str(out) for out in outputs}
-        self.apply_pass(prog, target, passes, fetch_ids)
-        result = prog.build_and_get_output(target, inputs, feed_data, outputs,
-                                           scope)
+        result = prog.build_and_get_output(
+            target, inputs, feed_data, outputs, passes=passes, scope=scope)
         outs_and_grads = []
         for res in result:
             outs_and_grads.append(res.numpy(target))

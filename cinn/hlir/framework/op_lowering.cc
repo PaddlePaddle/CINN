@@ -22,6 +22,8 @@ namespace cinn {
 namespace hlir {
 namespace framework {
 
+using common::float16;
+
 using framework::Graph;
 using framework::Node;
 using framework::NodeData;
@@ -360,13 +362,17 @@ std::vector<ir::Tensor> OpLowerer::CollectInputTensor(std::vector<ir::Tensor>& f
       auto dtype = this->type_dict_.at(source_data->id());
       CHECK(dtype.is_supported()) << "Node " << source_data->id() << " 's dtype " << dtype << "is not supported yet!";
       ir::Tensor tensor;
-      if (dtype == Float(32)) {
+      if (dtype.is_float(32)) {
         tensor = lang::Placeholder<float>(source_data->id(), this->shape_dict_.at(source_data->id()));
+      } else if (dtype.is_float(64)) {
+        tensor = lang::Placeholder<double>(source_data->id(), this->shape_dict_.at(source_data->id()));
+      } else if (dtype.is_float(16)) {
+        tensor = lang::Placeholder<float16>(source_data->id(), this->shape_dict_.at(source_data->id()));
       } else if (dtype.is_bool()) {
         tensor = lang::Placeholder<bool>(source_data->id(), this->shape_dict_.at(source_data->id()));
-      } else if (dtype == Int(32)) {
+      } else if (dtype.is_int(32)) {
         tensor = lang::Placeholder<int32_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
-      } else if (dtype == Int(64)) {
+      } else if (dtype.is_int(64)) {
         tensor = lang::Placeholder<int64_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
       }
       if (!tensor_map.count(source_data->id())) {
@@ -382,13 +388,17 @@ std::vector<ir::Tensor> OpLowerer::CollectInputTensor(std::vector<ir::Tensor>& f
         auto dtype = this->type_dict_.at(source_data->id());
         CHECK(dtype.is_supported()) << "Node " << source_data->id() << " 's dtype " << dtype << "is not supported yet!";
         ir::Tensor tensor;
-        if (dtype == Float(32)) {
+        if (dtype.is_float(32)) {
           tensor = lang::Placeholder<float>(source_data->id(), this->shape_dict_.at(source_data->id()));
+        } else if (dtype.is_float(64)) {
+          tensor = lang::Placeholder<double>(source_data->id(), this->shape_dict_.at(source_data->id()));
+        } else if (dtype.is_float(16)) {
+          tensor = lang::Placeholder<float16>(source_data->id(), this->shape_dict_.at(source_data->id()));
         } else if (dtype.is_bool()) {
           tensor = lang::Placeholder<bool>(source_data->id(), this->shape_dict_.at(source_data->id()));
-        } else if (dtype == Int(32)) {
+        } else if (dtype.is_int(32)) {
           tensor = lang::Placeholder<int32_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
-        } else if (dtype == Int(64)) {
+        } else if (dtype.is_int(64)) {
           tensor = lang::Placeholder<int64_t>(source_data->id(), this->shape_dict_.at(source_data->id()));
         }
         tensor_map[source_data->id()] = tensor;
@@ -1199,13 +1209,17 @@ std::vector<ir::LoweredFunc> OpLowerer::IRLowerNonFusibleOp(GroupPtr& group, boo
 
     ir::Tensor tensor;
     if (!tensor_map.count(id)) {
-      if (dtype == Float(32)) {
+      if (dtype.is_float(32)) {
         tensor = lang::Placeholder<float>(id, shape);
+      } else if (dtype.is_float(64)) {
+        tensor = lang::Placeholder<double>(id, shape);
+      } else if (dtype.is_float(16)) {
+        tensor = lang::Placeholder<float16>(id, shape);
       } else if (dtype.is_bool()) {
         tensor = lang::Placeholder<bool>(id, shape);
-      } else if (dtype == Int(32)) {
+      } else if (dtype.is_int(32)) {
         tensor = lang::Placeholder<int32_t>(id, shape);
-      } else if (dtype == Int(64)) {
+      } else if (dtype.is_int(64)) {
         tensor = lang::Placeholder<int64_t>(id, shape);
       }
       tensor_map[id] = tensor;
@@ -2096,13 +2110,17 @@ std::vector<ir::LoweredFunc> OpLowerer::LowerNonFusibleOp(GroupPtr& group) {
 
     ir::Tensor tensor;
     if (!tensor_map.count(id)) {
-      if (dtype == Float(32)) {
+      if (dtype.is_float(32)) {
         tensor = lang::Placeholder<float>(id, shape);
+      } else if (dtype.is_float(64)) {
+        tensor = lang::Placeholder<double>(id, shape);
+      } else if (dtype.is_float(16)) {
+        tensor = lang::Placeholder<float16>(id, shape);
       } else if (dtype.is_bool()) {
         tensor = lang::Placeholder<bool>(id, shape);
-      } else if (dtype == Int(32)) {
+      } else if (dtype.is_int(32)) {
         tensor = lang::Placeholder<int32_t>(id, shape);
-      } else if (dtype == Int(64)) {
+      } else if (dtype.is_int(64)) {
         tensor = lang::Placeholder<int64_t>(id, shape);
       }
       tensor_map[id] = tensor;

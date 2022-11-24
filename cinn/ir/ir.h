@@ -58,6 +58,11 @@ struct Cast : public ExprNode<Cast> {
 
   static Expr Make(Type t, Expr v);
 
+  template <typename T>
+  static Expr Make(Type t, T v) {
+    return Make(t, Expr(v));
+  }
+
   Expr& v() { return operand(0); }
   const Expr& v() const { return operand(0); }
 
@@ -532,6 +537,8 @@ struct Store : public ExprNode<Store>, public LoadStoreAddrMnger {
 
   void Verify() const override;
 
+  const std::string& name() const;
+
   Type type() const override;
   Expr index() const;
 
@@ -709,6 +716,8 @@ struct ForBase {
   inline bool is_binded() const {
     return tell_for_type_flag(ForType::GPUBlock) || tell_for_type_flag(ForType::GPUThread);
   }
+  inline bool is_gpu_block_binded() const { return tell_for_type_flag(ForType::GPUBlock); }
+  inline bool is_gpu_thread_binded() const { return tell_for_type_flag(ForType::GPUThread); }
 
  private:
   inline void set_for_type_flag(ForType type) { *reinterpret_cast<int*>(&for_type_) |= static_cast<int>(type); }
@@ -887,7 +896,11 @@ struct Block : public ExprNode<Block> {
 // ScheduleBlock is the unit of schedule IR which represents tensor's computation
 struct ScheduleBlock : public ExprNode<ScheduleBlock> {
   std::vector<Var> iter_vars;
+  // BufferRange(s) which is read in this schedule block, it is used to
+  // analyze, not a real computation expression. Must be AST DFS order.
   std::vector<Expr> read_buffers;
+  // BufferRange(s) which is written in this schedule block, it is used to
+  // analyze, not a real computation expression. Must be AST DFS order.
   std::vector<Expr> write_buffers;
   // Additional attributes about this schedulable block,
   // which take some auxiliary hints for future transformations.

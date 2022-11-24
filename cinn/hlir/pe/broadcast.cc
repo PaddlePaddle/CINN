@@ -119,8 +119,27 @@ void GetBroadcastShape(const std::vector<Expr>& shape1,
       broadcast_flag1->emplace_back(true);
       broadcast_flag2->emplace_back(true);
     } else {
-      LOG(FATAL) << "Incompatible broadcast dims " << shape1_new[size1 - i] << " and " << shape2_new[size2 - i]
-                 << " in: " << shape1_new << " and " << shape2_new << std::endl;
+      int dim1 = shape1_new[size1 - i].as_int32();
+      int dim2 = shape2_new[size2 - i].as_int32();
+      if (dim1 == dim2) {
+        common_shape->insert(common_shape->begin(), shape1_new[size1 - i]);
+        // broadcast flags are recorded in a reverse order
+        broadcast_flag1->emplace_back(true);
+        broadcast_flag2->emplace_back(true);
+      } else if (dim1 == 1) {
+        common_shape->insert(common_shape->begin(), shape2_new[size2 - i]);
+        // broadcast flags are recorded in a reverse order
+        broadcast_flag1->emplace_back(false);
+        broadcast_flag2->emplace_back(true);
+      } else if (dim2 == 1) {
+        common_shape->insert(common_shape->begin(), shape1_new[size1 - i]);
+        // broadcast flags are recorded in a reverse order
+        broadcast_flag1->emplace_back(true);
+        broadcast_flag2->emplace_back(false);
+      } else {
+        LOG(FATAL) << "Incompatible broadcast dims " << shape1_new[size1 - i] << " and " << shape2_new[size2 - i]
+                   << " in: " << shape1_new << " and " << shape2_new << std::endl;
+      }
     }
   }
   if (size1 != size2) {
@@ -269,13 +288,32 @@ Tensor Pow(
     extern_func_name += "fp64";
   } else if (A->type().is_float(32)) {
     extern_func_name += "fp32";
+  } else if (A->type().is_float(16)) {
+    extern_func_name += "fp16";
   } else if (A->type().is_int(32)) {
     extern_func_name += "int32";
   } else {
-    LOG(FATAL) << "Pow op only support float64/float32/int32 now, but here " << A->type() << "! Please check.";
+    LOG(FATAL) << "Pow op only support float16/float64/float32/int32 now, but here " << A->type() << "! Please check.";
   }
 
   auto fn = [&](const Expr& a, const Expr& b) { return lang::CallExtern(extern_func_name, {a, b}); };
+  return Broadcast(fn, A, B, output_name, axis);
+}
+
+Tensor Atan2(const Tensor& A, const Tensor& B, const std::string& output_name, const Expr& axis) {
+  constexpr double PI = 3.14159265358979323846;
+
+  auto fn = [&](const Expr& elem_a, const Expr& elem_b) {
+    auto atan    = lang::Atan(elem_a / elem_b);
+    auto pi      = common::make_const(atan->type(), PI);
+    auto half_pi = common::make_const(atan->type(), PI / 2);
+    auto zero    = ir::Zero(atan->type());
+    return ir::Select::Make(
+        ir::EQ::Make(elem_b, zero),
+        ir::Select::Make(ir::GT::Make(elem_a, zero), half_pi, -half_pi),
+        ir::Select::Make(
+            ir::GT::Make(elem_b, zero), atan, ir::Select::Make(ir::GE::Make(elem_a, zero), atan + pi, atan - pi)));
+  };
   return Broadcast(fn, A, B, output_name, axis);
 }
 
@@ -347,11 +385,11 @@ ir::Tensor IsClose(
         // T left = (a > b ? a - b : b - a);
         auto left = ir::Select::Make(a > b, a - b, b - a);
         // T right = atol + (b > 0 ? rtol * b : (-rtol) * b);
-        auto right = atol + ir::Select::Make(b > 0.0f, rtol * b, (-rtol) * b);
+        auto right = atol + ir::Select::Make(b > ir::Zero(b->type()), rtol * b, (-rtol) * b);
         // T diff = (left > right ? left - right : right - left);
         auto diff = ir::Select::Make(left > right, left - right, right - left);
         // out = a == b || left <= right || diff <= 1e-15;
-        auto check_diff = (ir::EQ::Make(a, b) || (left <= right)) || (diff <= 1e-15f);
+        auto check_diff = (ir::EQ::Make(a, b) || (left <= right)) || (diff <= lang::Epsilon(diff->type()));
 
         return ir::Select::Make(check_x_nan || check_y_nan, check_nan_same, check_diff);
       },

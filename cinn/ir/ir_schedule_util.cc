@@ -116,11 +116,33 @@ bool Contains(const Expr& container, const Expr& expr) {
 Expr GetNextForLoop(const Expr& for_loop) {
   Expr result;
   CHECK(for_loop.As<ir::For>()) << "The input of GetNextForLoop should be ir::For!";
-  Expr for_body = for_loop.As<ir::For>()->body;
-  CHECK(for_body.As<ir::Block>()) << "The for_loop's body shoule be Block!";
-  if (for_body.As<ir::Block>()->stmts.size() != 1U) return result;
-  Expr block_body = for_body.As<ir::Block>()->stmts[0];
+  Expr for_body             = for_loop.As<ir::For>()->body;
+  ir::Block* for_body_block = for_body.As<ir::Block>();
+  CHECK(for_body_block) << "The for_loop's body shoule be Block!";
+
+  // Only support for body block contains a sub for loop
+  int next_idx = -1;
+  for (int i = 0; i < for_body_block->stmts.size(); ++i) {
+    Expr stmt = for_body_block->stmts[i];
+    if (stmt.As<IfThenElse>() || stmt.As<ir::For>()) {
+      if (next_idx == -1) {
+        next_idx = i;
+      } else {
+        // More then one sub for loop, Return undefined.
+        return result;
+      }
+    }
+  }
+  if (next_idx == -1) {
+    // More then one sub for loop, Return undefined.
+    return result;
+  }
+
+  Expr block_body = for_body_block->stmts[next_idx];
   if (block_body.As<IfThenElse>()) {
+    // TODO(zhhsplendid): is it right to only handle true case?
+    // It may be wrong, but the code is written by previous developer, for us,
+    // we will check it later in the future.
     CHECK(block_body.As<IfThenElse>()->true_case.As<ir::Block>());
     Expr true_case = block_body.As<IfThenElse>()->true_case;
     if (true_case.As<ir::Block>()->stmts.size() != 1U || !true_case.As<ir::Block>()->stmts[0].As<ir::For>())
@@ -142,19 +164,18 @@ std::vector<Expr> GetIfThenElseInRange(const Expr& top, const Expr& bottom) {
     CHECK(loop_iter.As<ir::For>());
     CHECK(loop_iter.As<ir::For>()->body.As<ir::Block>()) << "For node's body should be Block!";
     auto block = loop_iter.As<ir::For>()->body.As<ir::Block>();
-    if (block->stmts.size() != 1) LOG(FATAL) << "Between For top and For bottom, there is a block's size not = 1!";
-    Expr tmp = block->stmts[0];
-    if (tmp.As<IfThenElse>()) {
-      if_nodes.push_back(tmp);
-      CHECK(tmp.As<IfThenElse>()->true_case.As<ir::Block>());
-      Expr true_case = tmp.As<IfThenElse>()->true_case;
-      CHECK(true_case.As<ir::Block>()->stmts.size() == 1U && true_case.As<ir::Block>()->stmts[0].As<ir::For>());
-      tmp = true_case.As<ir::Block>()->stmts[0];
+    for (Expr tmp : block->stmts) {
+      if (tmp.As<IfThenElse>()) {
+        if_nodes.push_back(tmp);
+        CHECK(tmp.As<IfThenElse>()->true_case.As<ir::Block>());
+        Expr true_case = tmp.As<IfThenElse>()->true_case;
+        CHECK(true_case.As<ir::Block>()->stmts.size() == 1U && true_case.As<ir::Block>()->stmts[0].As<ir::For>());
+        tmp = true_case.As<ir::Block>()->stmts[0];
+      }
+      if (tmp.As<ir::For>()) {
+        loop_iter = tmp;
+      }
     }
-    if (tmp.As<ir::For>())
-      loop_iter = tmp;
-    else
-      LOG(FATAL) << "Between For top and For bottom, Block stmt:\n " << tmp << " is neither IfThenElse nor For!";
   }
   return if_nodes;
 }
@@ -455,14 +476,23 @@ const std::set<Expr, CompExpr> CollectLoopsToSet(const std::vector<Expr>& loops)
   return for_loops;
 }
 
+// This function is used in Reorder schedule primitive. Since input loop
+// Expr(s) of Reorder doesn't give original for loop order, we have to
+// find the top (most outter) loop and bottom (most inner) among loop Expr(s)
 std::pair<Expr, Expr> GetBoundaryOfReorderRange(const std::set<Expr, CompExpr>& loop_set) {
   Expr top = *loop_set.begin();
   Expr bottom;
   std::set<Expr, CompExpr> visited;
   bool first_traversal = true;
   for (Expr loop_i : loop_set) {
-    if (visited.count(loop_i)) continue;
-    for (auto v_for = loop_i;;) {
+    if (visited.count(loop_i)) {
+      continue;
+    }
+    Expr v_for = loop_i;
+    CHECK(v_for.As<ir::For>());
+    while (v_for.defined()) {
+      // If loop_i's sub loop is visited it must be pre-visited top.
+      // Then loop_i should be the new top
       if (visited.count(v_for)) {
         if (v_for != top) {
           LOG(FATAL) << "Loops in GetBoundaryOfReorderRange is not a chain! Please check.";
@@ -470,14 +500,14 @@ std::pair<Expr, Expr> GetBoundaryOfReorderRange(const std::set<Expr, CompExpr>& 
         top = loop_i;
         break;
       }
-      visited.insert(v_for);
+
+      // This while loop always GetNextForLoop(sub loop), so the last
+      // visited v_for in the first traversal will be the bottom.
       if (first_traversal && loop_set.count(v_for)) {
         bottom = v_for;
       }
-      CHECK(v_for.As<ir::For>());
-      auto tmp = GetNextForLoop(v_for);
-      if (!tmp.defined()) break;
-      v_for = tmp;
+      visited.insert(v_for);
+      v_for = GetNextForLoop(v_for);
     }
     first_traversal = false;
   }
@@ -501,6 +531,39 @@ std::vector<Expr> GetLoopsInRange(const Expr& top, const Expr& bottom) {
   return chain;
 }
 
+// Construct a loop chain such that:
+//
+//   loops[i_1] {
+//     loops[i_2] {
+//       ...
+//        loops[i_n] {
+//          stmts;
+//        }
+//     }
+//   }
+//
+// where reordered_indices = {i_1, i_2, ... i_n }
+//
+// This is a helper function which constructs non-main chain for other body
+// statements in Reorder. See comment and call place in ConstructNewLoopChain
+Expr ConstructOtherStmtChain(const std::vector<Expr>& stmts,
+                             const std::vector<Expr>& loops,
+                             const std::vector<int> reordered_indices) {
+  Expr new_loop;
+  for (int i = reordered_indices.size() - 1; i >= 0; --i) {
+    Expr temp = optim::IRCopy(loops[reordered_indices[i]]);
+    CHECK(temp.defined());
+    CHECK(temp.As<ir::For>());
+    if (new_loop.defined()) {
+      temp.As<ir::For>()->body = Block::Make({new_loop});
+    } else {
+      temp.As<ir::For>()->body = Block::Make({stmts});
+    }
+    new_loop = temp;
+  }
+  return new_loop;
+}
+
 Expr ConstructNewLoopChain(const std::vector<Expr>& chain,
                            const std::vector<Expr>& ordered_loops,
                            const std::set<Expr, CompExpr>& loop_set,
@@ -516,7 +579,9 @@ Expr ConstructNewLoopChain(const std::vector<Expr>& chain,
   }
   Expr new_loop;
   int index = static_cast<int>(ordered_loops.size()) - 1;
-  // Construct the loop from bottom to top.
+
+  std::vector<Expr> reordered_loop_chain;
+  // Construct the main loop chain from bottom to top.
   for (int i = static_cast<int>(chain.size()) - 1; i >= 0; i--) {
     auto& loop_in_chain = chain[i];
     CHECK(loop_in_chain.As<ir::For>());
@@ -530,6 +595,7 @@ Expr ConstructNewLoopChain(const std::vector<Expr>& chain,
     }
     CHECK(temp.defined());
     CHECK(temp.As<ir::For>());
+    // Main chain, each loop's body only contains sub_loop or bottom loop's body
     if (new_loop.defined()) {
       temp.As<ir::For>()->body = Block::Make({new_loop});
     } else {
@@ -551,9 +617,121 @@ Expr ConstructNewLoopChain(const std::vector<Expr>& chain,
       }
     }
     new_loop = temp;
+    reordered_loop_chain.push_back(new_loop);
   }
   CHECK(new_loop.defined());
-  return new_loop;
+
+  // new_loop_chain, which represents the main loop chain, now is from top to bottom.
+  std::reverse(reordered_loop_chain.begin(), reordered_loop_chain.end());
+
+  // In the main loop chain, each loop's body only contains sub_loop or bottom
+  // loop's body, but the origin loop chain may contain some other body stmts.
+  // The main loop chain lost those other body stmts.
+  // For example:
+  //
+  // for (i, 0, 32) {         Reorder j, i         for (j, 0, 64) {
+  //   other_body_stmts       above main chine
+  //   for (j, 0, 64) {      ------------------>     for (i, 0, 32) {
+  //     bottom_loop_body                              bottom_loop_body
+  //   }                                             }
+  // }                                             }
+  //
+  // We go throuph origin loop and check other body stmts, adding it as another
+  // chain, such as:
+  //
+  // for (i, 0, 32) {
+  //   other_body_stmts
+  // }
+  // for (j, 0, 64) {
+  //   for (i, 0, 32) {
+  //     bottom_loop_body
+  //   }
+  // }
+  //
+
+  // Construct the complete loop chain from origin loop top to bottom.
+  CHECK_EQ(chain.size(), reordered_loop_chain.size())
+      << "origin loop chain size not equals reordered requirement when ConstructNewLoopChain in Reorder";
+  std::unordered_set<std::string> origin_loop_var_names;
+  Expr ret = new_loop;
+
+  // Maintain an index to add stmt (other body stmt chain)
+  //
+  //  stmt  stmt  MainChainLoop  stmt   stmt
+  //               index        index+1
+  //
+  // The index of this MainChainLoop points the place before next MainChainLoop
+  // We can insert statements before MainChainLoop at the index, and insert
+  // statements after MainChainLoop at the index + 1
+  int add_other_chain_index = 0;
+
+  for (int i = 0; i < chain.size() - 1; ++i) {
+    // we just check i < chain.size() - 1
+    // because bottom loop's body stmts have been all added
+
+    const ir::For* loop_in_chain = chain[i].As<ir::For>();
+    ir::For* reordered_in_chain  = reordered_loop_chain[i].As<ir::For>();
+
+    origin_loop_var_names.insert(loop_in_chain->loop_var->name);
+    CHECK_EQ(origin_loop_var_names.size(), i + 1) << "Duplicate loop var name in origin Chain during Reorder";
+
+    const ir::Block* body_block = loop_in_chain->body.As<ir::Block>();
+
+    if (body_block != nullptr && body_block->stmts.size() > 1) {
+      // contains other body stmts
+
+      // Get the other body statements before loop and after loop
+      bool other_stmt_body_before_loop = true;
+      std::vector<Expr> stmts_before_loop;
+      std::vector<Expr> stmts_after_loop;
+      for (int j = 0; j < body_block->stmts.size(); ++j) {
+        if (body_block->stmts[j].As<ir::For>() &&
+            body_block->stmts[j].As<ir::For>()->loop_var->name == chain[i + 1].As<ir::For>()->loop_var->name) {
+          other_stmt_body_before_loop = false;
+          continue;
+        }
+        if (other_stmt_body_before_loop) {
+          stmts_before_loop.push_back(body_block->stmts[j]);
+        } else {
+          stmts_after_loop.push_back(body_block->stmts[j]);
+        }
+      }
+
+      // Find the chain that other body stmts shares with main loop chain
+      std::vector<int> reordered_indices;
+      for (int j = 0; j < reordered_loop_chain.size(); ++j) {
+        if (origin_loop_var_names.count(reordered_loop_chain[j].As<ir::For>()->loop_var->name)) {
+          reordered_indices.push_back(j);
+        }
+      }
+      CHECK_EQ(reordered_indices.size(), origin_loop_var_names.size())
+          << "Reordered chain loop var names doesn't match other stmt chain loop var names";
+
+      // Add other stmts chain to root Block if other stmts exist
+      if (!stmts_before_loop.empty()) {
+        Expr before_chain = ConstructOtherStmtChain(stmts_before_loop, reordered_loop_chain, reordered_indices);
+        if (ret.As<ir::Block>() == nullptr) {
+          ret = ir::Block::Make({ret});
+        }
+        std::vector<Expr>& inplace_stmts = ret.As<ir::Block>()->stmts;
+        auto pos                         = inplace_stmts.begin() + add_other_chain_index;
+        inplace_stmts.insert(pos, before_chain);
+        ++add_other_chain_index;
+      }
+
+      if (!stmts_after_loop.empty()) {
+        Expr after_chain = ConstructOtherStmtChain(stmts_after_loop, reordered_loop_chain, reordered_indices);
+        if (ret.As<ir::Block>() == nullptr) {
+          ret = ir::Block::Make({ret});
+        }
+        std::vector<Expr>& inplace_stmts = ret.As<ir::Block>()->stmts;
+        auto pos                         = inplace_stmts.begin() + add_other_chain_index + 1;
+        inplace_stmts.insert(pos, after_chain);
+      }
+    }
+  }
+
+  return ret;
 }
 
 std::vector<Expr> GetProducers(const Expr& block, const Expr& root) {

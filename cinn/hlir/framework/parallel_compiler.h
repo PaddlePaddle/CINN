@@ -47,7 +47,6 @@ class ParallelCompiler {
  private:
   void SplitTask();
   void LaunchTask();
-  void CreateFusionGroup();
   std::vector<std::unique_ptr<Instruction>> MergeResult();
 
  public:

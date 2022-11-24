@@ -78,9 +78,9 @@ class ScheduleImpl {
   Expr CacheWrite(const Expr& block, int write_buffer_index, const std::string& memory_type);
   void SyncThreads(const Expr& ir_node, bool after_node = true);
   void SetBuffer(Expr& block, const std::string& memory_type, bool fixed = false);
-  void Reorder(const std::vector<Expr>& loops);
-  void Reorder(const std::string& block_name, const std::vector<int>& loops_index);
-  void Reorder(const Expr& block, const std::vector<int>& loops_index);
+  Expr Reorder(const std::vector<Expr>& loops);
+  Expr Reorder(const std::string& block_name, const std::vector<int>& loops_index);
+  Expr Reorder(const Expr& block, const std::vector<int>& loops_index);
   DeviceAPI GetDeviceAPI() const;
   void MutateForType(const Expr& loop, ForType for_type, int factor = -1);
   void Parallel(const Expr& loop);
@@ -89,6 +89,7 @@ class ScheduleImpl {
   void ComputeInline(const Expr& schedule_block);
   void Bind(const Expr& loop, const std::string& thread_axis);
   Expr Rfactor(const Expr& rf_loop, int rf_axis);
+  Expr AddUnitLoop(const Expr& block) const;
   void Annotate(const Expr& block, const std::string& key, const attr_t& value);
   void CopyTransformAndLoopInfo(const Expr& block, const Expr& block_target);
   void CopyTransformAndLoopInfo(const std::string& block_name, const std::string& block_target_name);
@@ -636,6 +637,18 @@ struct CacheWriteRewriter : public ir::IRMutator<> {
     rewriter(&info->cache_block);
     rewriter.mutate_cache_block = false;
     rewriter(&new_root);
+    auto find_tensor = ir::CollectIRNodesWithoutTensor(
+        new_root,
+        [&](const Expr* x) { return x->As<Store>() && (x->As<Store>()->tensor == Expr(info->read_tensor)); },
+        true);
+    if (!find_tensor.empty()) {
+      auto find_store = ir::CollectIRNodesWithoutTensor((*find_tensor.begin()), [&](const Expr* x) {
+        return x->As<Load>() && (x->As<Load>()->tensor == Expr(info->write_tensor));
+      });
+      for (auto load_ir : find_store) {
+        load_ir.As<Load>()->tensor = Expr(info->read_tensor);
+      }
+    }
     return new_root;
   }
 
@@ -765,6 +778,19 @@ Expr ScheduleImpl::CacheWrite(const Expr& block, int write_buffer_index, const s
       },
       true);
 
+  CHECK(info.write_tensor->buffer.defined());
+
+  // Replace buffer
+  auto all_tensors = ir::CollectIRNodesWithoutTensor(
+      root, [&](const Expr* x) { return x->as_tensor() && x->as_tensor()->buffer.defined(); });
+
+  for (auto i : all_tensors) {
+    if (i.as_tensor()->name != info.write_tensor->name && i.as_tensor()->buffer.defined() &&
+        i.as_tensor()->buffer->name == info.write_tensor->buffer->name) {
+      i.as_tensor()->Bind(info.read_tensor->buffer);
+    }
+  }
+
   CHECK_EQ(find_cache_block.size(), 1U);
 
   return *find_cache_block.begin();
@@ -829,8 +855,8 @@ void ScheduleImpl::SyncThreads(const Expr& ir_node, bool after_node) {
  * @param tgt_stmt The For node we want.
  */
 void ScheduleImpl::Replace(const Expr& src_sref, const Expr& tgt_stmt) {
-  CHECK((src_sref.As<ir::For>() && tgt_stmt.As<ir::For>()) || (src_sref.As<ir::Block>() && tgt_stmt.As<ir::Block>()) ||
-        (src_sref.As<ir::ScheduleBlockRealize>() && tgt_stmt.As<ir::ScheduleBlockRealize>()));
+  CHECK(src_sref.As<ir::For>() || src_sref.As<ir::Block>() || src_sref.As<ir::ScheduleBlockRealize>());
+  CHECK(tgt_stmt.As<ir::For>() || tgt_stmt.As<ir::Block>() || tgt_stmt.As<ir::ScheduleBlockRealize>());
   if (src_sref == tgt_stmt) {
     VLOG(3) << "two exprs are the same, no need to replace";
     return;
@@ -875,20 +901,23 @@ void ScheduleImpl::Replace(const Expr& src_sref, const Expr& tgt_stmt) {
   }
 }
 
-void ScheduleImpl::Reorder(const std::vector<Expr>& loops) {
-  if (loops.size() <= 1) return;
+Expr ScheduleImpl::Reorder(const std::vector<Expr>& loops) {
+  if (loops.size() <= 1) {
+    return Expr{nullptr};
+  }
+
   std::set<Expr, CompExpr> loop_set = CollectLoopsToSet(loops);
   auto boundary                     = GetBoundaryOfReorderRange(loop_set);
   Expr top                          = boundary.first;
   Expr bottom                       = boundary.second;
   std::vector<Expr> chain           = GetLoopsInRange(top, bottom);
   std::vector<Expr> if_nodes        = GetIfThenElseInRange(top, bottom);
-
-  Expr new_loop = ConstructNewLoopChain(chain, loops, loop_set, if_nodes);
+  Expr new_loop                     = ConstructNewLoopChain(chain, loops, loop_set, if_nodes);
   this->Replace(top, new_loop);
+  return new_loop;
 }
 
-void ScheduleImpl::Reorder(const std::string& block_name, const std::vector<int>& loops_index) {
+Expr ScheduleImpl::Reorder(const std::string& block_name, const std::vector<int>& loops_index) {
   std::vector<Expr> all_loops = this->GetLoops(block_name);
   std::vector<Expr> loops_expr;
   loops_expr.reserve(loops_index.size());
@@ -897,10 +926,10 @@ void ScheduleImpl::Reorder(const std::string& block_name, const std::vector<int>
     CHECK_GE(i, 0) << "The loop index in Reorder should be >= 0.";
     loops_expr.emplace_back(all_loops[i]);
   }
-  this->Reorder(loops_expr);
+  return this->Reorder(loops_expr);
 }
 
-void ScheduleImpl::Reorder(const Expr& block, const std::vector<int>& loops_index) {
+Expr ScheduleImpl::Reorder(const Expr& block, const std::vector<int>& loops_index) {
   std::vector<Expr> all_loops = this->GetLoops(block);
   std::vector<Expr> loops_expr;
   loops_expr.reserve(loops_index.size());
@@ -909,7 +938,7 @@ void ScheduleImpl::Reorder(const Expr& block, const std::vector<int>& loops_inde
     CHECK_GE(i, 0) << "The loop index in Reorder should be >= 0.";
     loops_expr.emplace_back(all_loops[i]);
   }
-  this->Reorder(loops_expr);
+  return this->Reorder(loops_expr);
 }
 
 Expr ScheduleImpl::GetRootBlock(const Expr& expr) const {
@@ -924,7 +953,7 @@ Expr ScheduleImpl::GetRootBlock(const Expr& expr) const {
       return it_expr.As<ir::Block>()->stmts[0];
     }
   }
-  LOG(FATAL) << "Didn't find expr in ScheduleImpl:\n" << expr;
+  LOG(FATAL) << "Didn't find expr \n" << expr << "in ScheduleImpl:\n" << exprs[0];
 }
 
 // The struct used to reconstruct the new For node to replace the old For node.
@@ -1152,8 +1181,23 @@ void ScheduleImpl::SimpleComputeAt(const Expr& block, const Expr& loop) {
       }
     }
   }
+  // When there are two identical IfThenElse
+  if (new_loop.As<ir::For>() && new_loop.As<ir::For>()->body.As<ir::Block>() &&
+      new_loop.As<ir::For>()->body.As<ir::Block>()->stmts[0].As<ir::IfThenElse>()) {
+    auto if_then_else = new_loop.As<ir::For>()->body.As<ir::Block>()->stmts[0];
+    if (result.As<ir::IfThenElse>() &&
+        if_then_else.As<ir::IfThenElse>()->condition == result.As<ir::IfThenElse>()->condition) {
+      new_loop.As<ir::For>()->body.As<ir::Block>()->stmts[0].As<ir::IfThenElse>()->true_case =
+          ir::Block::Make({result.As<ir::IfThenElse>()->true_case,
+                           new_loop.As<ir::For>()->body.As<ir::Block>()->stmts[0].As<ir::IfThenElse>()->true_case});
+    } else {
+      new_loop.As<ir::For>()->body.As<ir::Block>()->stmts[0].As<ir::IfThenElse>()->true_case = ir::Block::Make(
+          {result, new_loop.As<ir::For>()->body.As<ir::Block>()->stmts[0].As<ir::IfThenElse>()->true_case});
+    }
 
-  new_loop.As<ir::For>()->body = ir::Block::Make({result, new_loop.As<ir::For>()->body});
+  } else {
+    new_loop.As<ir::For>()->body = ir::Block::Make({result, new_loop.As<ir::For>()->body});
+  }
   Expr source_expr{nullptr};
   Expr target_expr{nullptr};
 
@@ -1263,6 +1307,104 @@ void ScheduleImpl::ComputeInline(const Expr& schedule_block) {
   return;
 }
 
+struct FindBlockParent : public ir::IRMutator<> {
+ public:
+  FindBlockParent(const std::string& block_name) : block_name_(block_name) {}
+
+  void operator()(Expr* expr) { IRMutator::Visit(expr, expr); }
+
+ private:
+  void Visit(const ir::Block* expr, Expr* op) override {
+    if (target_) return;
+    for (auto& stmt : expr->stmts) {
+      if (stmt.As<ir::ScheduleBlockRealize>()) {
+        if (stmt.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->name == block_name_) {
+          target_ = op;
+          return;
+        }
+      }
+    }
+    IRMutator::Visit(expr, op);
+  }
+
+  void Visit(const ir::For* expr, Expr* op) override {
+    if (target_) return;
+    if (expr->body.As<ir::ScheduleBlockRealize>()) {
+      if (expr->body.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->name == block_name_) {
+        target_ = op;
+        return;
+      }
+    }
+    IRMutator::Visit(expr, op);
+  }
+
+  void Visit(const ir::ScheduleBlock* expr, Expr* op) override {
+    if (target_) return;
+    if (expr->body.As<ir::ScheduleBlockRealize>()) {
+      if (expr->body.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->name == block_name_) {
+        target_ = op;
+        return;
+      }
+    }
+    IRMutator::Visit(expr, op);
+  }
+
+  std::string block_name_;
+
+ public:
+  ir::Expr* target_{nullptr};
+};
+
+Expr ScheduleImpl::AddUnitLoop(const Expr& block) const {
+  auto exprs = module_expr_.GetExprs();
+  CHECK(block.As<ir::ScheduleBlockRealize>());
+  CHECK(block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>());
+  std::string block_name = block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->name;
+
+  FindBlockParent visitor(block_name);
+  for (auto expr : exprs) {
+    visitor(&expr);
+    if (visitor.target_) {
+      break;
+    }
+  }
+
+  CHECK(visitor.target_) << ", block name : " << block_name << "\n" << exprs;
+  if (visitor.target_->As<ir::Block>()) {
+    for (auto& stmt : visitor.target_->As<ir::Block>()->stmts) {
+      if (stmt.As<ir::ScheduleBlockRealize>()) {
+        if (stmt.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->name == block_name) {
+          auto block = ir::Block::Make({GetBlock(block_name)});
+          auto loop  = ir::For::Make(ir::Var(common::UniqName("i0_")),
+                                    ir::Expr(0),
+                                    ir::Expr(1),
+                                    ir::ForType::Serial,
+                                    ir::DeviceAPI::UNK,
+                                    block);
+          stmt       = loop;
+          return loop;
+        }
+      }
+    }
+  } else if (visitor.target_->As<ir::For>()) {
+    auto block = ir::Block::Make({visitor.target_->As<ir::For>()->body});
+    auto loop  = ir::For::Make(
+        ir::Var(common::UniqName("i0_")), ir::Expr(0), ir::Expr(1), ir::ForType::Serial, ir::DeviceAPI::UNK, block);
+    visitor.target_->As<ir::For>()->body = loop;
+    return loop;
+  } else if (visitor.target_->As<ir::ScheduleBlock>()) {
+    auto block = ir::Block::Make({visitor.target_->As<ir::ScheduleBlock>()->body});
+    auto loop  = ir::For::Make(
+        ir::Var(common::UniqName("i0_")), ir::Expr(0), ir::Expr(1), ir::ForType::Serial, ir::DeviceAPI::UNK, block);
+    visitor.target_->As<ir::ScheduleBlock>()->body = loop;
+    return loop;
+  } else {
+    LOG(FATAL) << "Can't find block's parent!";
+  }
+  LOG(FATAL) << "Shouldn't reach code here in AddUnitLoop";
+  return Expr{nullptr};
+}
+
 std::vector<Expr> ScheduleImpl::GetLoops(const Expr& block) const {
   std::vector<Expr> result;
   auto exprs = module_expr_.GetExprs();
@@ -1278,9 +1420,9 @@ std::vector<Expr> ScheduleImpl::GetLoops(const Expr& block) const {
       result = find_loops;
     }
   }
+
   if (result.empty()) {
-    LOG(ERROR) << "exprs size is : " << exprs.size() << "\n and exprs[0] is : " << exprs[0];
-    LOG(ERROR) << "Didn't find Loops containing ScheduleBlock with name: \n" << block_name << " in ModuleExpr.";
+    result.push_back(AddUnitLoop(block));
   }
   for (auto& it_for : result) VLOG(3) << "Get Loops :\n" << it_for;
   return result;
@@ -1588,21 +1730,24 @@ void IRSchedule::SetBuffer(Expr& block, const std::string& memory_type, bool fix
       "SetBuffer", {{"block", std::vector<Expr>({block})}}, {{"memory_type", memory_type}, {"fixed", fixed}}, {}));
 }
 
-void IRSchedule::Reorder(const std::vector<Expr>& loops) {
-  impl_->Reorder(loops);
-  trace_.Append(ScheduleDesc::Step("Reorder", {{"loops", loops}}, {}, {}));
+Expr IRSchedule::Reorder(const std::vector<Expr>& loops) {
+  Expr ret = impl_->Reorder(loops);
+  trace_.Append(ScheduleDesc::Step("Reorder", {{"loops", loops}}, {}, {ret}));
+  return ret;
 }
 
-void IRSchedule::Reorder(const std::string& block_name, const std::vector<int>& loops_index) {
-  impl_->Reorder(block_name, loops_index);
+Expr IRSchedule::Reorder(const std::string& block_name, const std::vector<int>& loops_index) {
+  Expr ret = impl_->Reorder(block_name, loops_index);
   trace_.Append(
-      ScheduleDesc::Step("ReorderWithName", {}, {{"block_name", block_name}, {"loops_index", loops_index}}, {}));
+      ScheduleDesc::Step("ReorderWithName", {}, {{"block_name", block_name}, {"loops_index", loops_index}}, {ret}));
+  return ret;
 }
 
-void IRSchedule::Reorder(const Expr& block, const std::vector<int>& loops_index) {
-  impl_->Reorder(block, loops_index);
+Expr IRSchedule::Reorder(const Expr& block, const std::vector<int>& loops_index) {
+  Expr ret = impl_->Reorder(block, loops_index);
   trace_.Append(ScheduleDesc::Step(
-      "ReorderWithBlock", {{"block", std::vector<Expr>({block})}}, {{"loops_index", loops_index}}, {}));
+      "ReorderWithBlock", {{"block", std::vector<Expr>({block})}}, {{"loops_index", loops_index}}, {ret}));
+  return ret;
 }
 
 void IRSchedule::Parallel(const Expr& loop) {

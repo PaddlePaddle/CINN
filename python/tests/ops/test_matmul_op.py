@@ -38,25 +38,33 @@ class TestMatmulOp(OpTest):
         self.transpose_x = False
         self.transpose_y = False
 
+    def paddle_func(self, x, y):
+        return paddle.matmul(
+            x, y, transpose_x=self.transpose_x, transpose_y=self.transpose_y)
+
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.inputs["x"], stop_gradient=True)
         y = paddle.to_tensor(self.inputs["y"], stop_gradient=True)
 
-        out = paddle.matmul(
-            x, y, transpose_x=self.transpose_x, transpose_y=self.transpose_y)
+        out = self.paddle_func(x, y)
 
         self.paddle_outputs = [out]
+
+    def cinn_func(self, builder, x, y):
+        return builder.matmul(
+            x, y, transpose_x=self.transpose_x, transpose_y=self.transpose_y)
 
     def build_cinn_program(self, target):
         builder = NetBuilder("matmul")
         x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
         y = builder.create_input(Float(32), self.inputs["y"].shape, "y")
-        out = builder.matmul(
-            x, y, transpose_x=self.transpose_x, transpose_y=self.transpose_y)
+        out = self.cinn_func(builder, x, y)
 
         prog = builder.build()
-        res = self.get_cinn_output(prog, target, [x, y],
-                                   [self.inputs["x"], self.inputs["y"]], [out])
+        res = self.get_cinn_output(
+            prog,
+            target, [x, y], [self.inputs["x"], self.inputs["y"]], [out],
+            passes=list())
 
         self.cinn_outputs = [res[0]]
 
@@ -192,6 +200,68 @@ class TestMatmulCase13(TestMatmulOp):
         }
         self.transpose_x = False
         self.transpose_y = False
+
+
+class TestMatmulCase14(TestMatmulOp):
+    def init_case(self):
+        self.inputs = {
+            "x": np.random.random([10, 1, 128, 64]).astype("float32"),
+            "y": np.random.random([10, 12, 64, 128]).astype("float32")
+        }
+        self.transpose_x = False
+        self.transpose_y = False
+
+
+class TestMatmulCase15(TestMatmulOp):
+    def init_case(self):
+        self.inputs = {
+            "x": np.random.random([10, 12, 128, 64]).astype("float32"),
+            "y": np.random.random([10, 12, 128, 64]).astype("float32")
+        }
+        self.transpose_x = False
+        self.transpose_y = True
+
+
+class TestMatmulCase16(TestMatmulOp):
+    def init_case(self):
+        self.inputs = {
+            "x": np.random.random([10, 12, 64, 128]).astype("float32"),
+            "y": np.random.random([10, 12, 128, 64]).astype("float32")
+        }
+        self.transpose_x = True
+        self.transpose_y = True
+
+
+class TestMatmulTransposePass(TestMatmulOp):
+    def init_case(self):
+        self.inputs = {
+            "x": np.random.random([10, 1, 128, 64]).astype("float32"),
+            "y": np.random.random([10, 12, 64, 128]).astype("float32")
+        }
+        self.transpose_x = False
+        self.transpose_y = False
+        self.perm = [0, 1, 3, 2]
+
+    def paddle_func(self, x, y):
+        out = paddle.matmul(
+            x, y, transpose_x=self.transpose_x, transpose_y=self.transpose_y)
+        return paddle.transpose(out, self.perm)
+
+    def cinn_func(self, builder, x, y):
+        out = builder.matmul(
+            x, y, transpose_x=self.transpose_x, transpose_y=self.transpose_y)
+        return builder.transpose(out, self.perm)
+
+
+class TestMatmulTransposePassCase1(TestMatmulTransposePass):
+    def init_case(self):
+        self.inputs = {
+            "x": np.random.random([32, 64]).astype("float32"),
+            "y": np.random.random([64, 128]).astype("float32")
+        }
+        self.transpose_x = False
+        self.transpose_y = False
+        self.perm = [1, 0]
 
 
 if __name__ == "__main__":

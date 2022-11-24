@@ -73,8 +73,7 @@ std::vector<ir::Tensor> Repeat(const ir::Tensor &tensor, int repeats, int axis, 
         for (size_t i = 0; i < static_cast<size_t>(axis); ++i) {
           idx.push_back(indices[i]);
         }
-        Expr index_div = ir::Cast::Make(Float(32), indices[axis]) / ir::Cast::Make(Float(32), Expr(repeats));
-        idx.push_back(ir::Cast::Make(Int(32), lang::Floor(index_div)));
+        idx.push_back(lang::FloorDivide(indices[axis], Expr(repeats)));
         for (size_t i = axis + 1; i < indices.size(); ++i) {
           idx.push_back(indices[i]);
         }

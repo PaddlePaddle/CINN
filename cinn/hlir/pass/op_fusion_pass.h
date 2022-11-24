@@ -1,4 +1,4 @@
-// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+// Copyright (c) 2022 CINN Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,31 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cinn/backends/nvrtc_util.h"
-
-#include <gtest/gtest.h>
+#include "cinn/hlir/framework/graph.h"
 
 namespace cinn {
-namespace backends {
+namespace hlir {
+namespace pass {
 
-TEST(NVRTC_Compiler, basic) {
-  NVRTC_Compiler compiler;
+// create a new group for every single node of the graph
+std::vector<std::shared_ptr<framework::Graph::Group>> BuildNonFusedGroups(const framework::Graph* graph);
 
-  std::string source_code = R"ROC(
-extern "C" __global__
-void saxpy(float a, float *x, float *y, float *out, size_t n)
-{
-  size_t tid = blockIdx.x * blockDim.x + threadIdx.x;
-  if (tid < n) {
-    out[tid] = a * x[tid] + y[tid];
-  }
-}
-)ROC";
-
-  auto ptx = compiler(source_code);
-
-  LOG(INFO) << "ptx:\n" << ptx;
-}
-
-}  // namespace backends
+}  // namespace pass
+}  // namespace hlir
 }  // namespace cinn

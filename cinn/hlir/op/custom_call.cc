@@ -167,7 +167,7 @@ std::vector<ir::Expr> CustomCallArgsForCublas(const framework::NodeAttr &attrs,
     for (int idx = 0; idx < y_num_col_dims; ++idx) {
       height *= inputs[1]->shape[idx].as_int32();
     }
-    for (int idx = y_num_col_dims; idx < inputs[0]->shape.size(); ++idx) {
+    for (int idx = y_num_col_dims; idx < inputs[1]->shape.size(); ++idx) {
       width *= inputs[1]->shape[idx].as_int32();
     }
     b_shape.emplace_back(height);

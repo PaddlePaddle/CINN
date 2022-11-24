@@ -8,7 +8,7 @@ gather_srcs(cinnapi_src SRCS
     transpose_folding_input.cc
     transpose_folding_output.cc
     gemm_rewriter.cc
-    reshape_rewriter.cc
+    fill_constant_rewriter.cc
     fill_constant_folding.cc
     )
 
@@ -16,7 +16,7 @@ if (WITH_CUDA)
 cc_test(test_decomposer_pass SRCS decomposer_test.cc DEPS cinncore)
 cc_test(test_dead_code_eliminate_pass SRCS dead_code_eliminate_test.cc DEPS cinncore)
 cc_test(test_remove_identity_pass SRCS remove_identity_test.cc DEPS cinncore)
-cc_test(test_reshape_rewriter_pass SRCS reshape_rewriter_test.cc DEPS cinncore)
+cc_test(test_fill_constant_rewriter_pass SRCS fill_constant_rewriter_test.cc DEPS cinncore)
 cc_test(test_fill_constant_folding_pass SRCS fill_constant_folding_test.cc DEPS cinncore)
 cc_test(test_program_topoerror SRCS program_topoerror_test.cc DEPS cinncore)
 endif()

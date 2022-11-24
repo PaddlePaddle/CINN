@@ -103,5 +103,14 @@ class TestSplitCase6(TestSplitOp):
         self.axis = 2
 
 
+class TestSplitCase7(TestSplitOp):
+    def init_case(self):
+        self.inputs = {
+            "x": np.random.random([10, 128, 4096]).astype("float32")
+        }
+        self.num_or_sections = [2]
+        self.axis = 2
+
+
 if __name__ == "__main__":
     unittest.main()

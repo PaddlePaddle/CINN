@@ -24,6 +24,20 @@ namespace cinn {
 namespace frontend {
 namespace pass {
 
+static std::unordered_map<std::string, std::function<bool(const Instruction&)>> identity_ops = {
+    {"identity", [](const Instruction& instr) -> bool { return true; }},
+    {"reshape",
+     [](const Instruction& instr) -> bool {
+       auto& input_var  = instr->inputs[0];
+       auto& output_var = instr->outputs[0];
+       return (input_var->id != output_var->id) && (input_var->shape == output_var->shape);
+     }},
+    {"scale", [](const Instruction& instr) -> bool {
+       bool bias_zero = !instr->attrs.count("bias") || instr.GetAttrs<float>("bias") == 0.0f;
+       bool scale_one = !instr->attrs.count("scale") || instr.GetAttrs<float>("scale") == 1.0f;
+       return bias_zero && scale_one;
+     }}};
+
 // RemoveIdentityPass will remove the identity instructions in following patterns:
 //
 // 1. When varB is not in fetch_ids, the identity and varB will be removed.
@@ -51,7 +65,7 @@ class RemoveIdentityPass : public ProgramPass {
                  const common::Target& target) override {
     CollectInfo(*program, fetch_ids);
 
-    VLOG(5) << "Origin program: " << *program;
+    VLOG(3) << "Before RemoveIdentityPass: " << *program;
     VLOG(3) << "Total remove " << remove_idxs_.size() << " instructions.";
     if (remove_idxs_.size() == 0) {
       return;
@@ -65,22 +79,29 @@ class RemoveIdentityPass : public ProgramPass {
       if (remove_idxs_.count(i)) {
         continue;
       }
-      auto& inputs = (*program)[i]->inputs;
+
+      auto& instr = (*program)[i];
+      if (replace_identity_idxs_.count(i)) {
+        instr->op_type = "identity";
+        instr->attrs.clear();
+      }
+
+      auto& inputs = instr->inputs;
       for (size_t j = 0; j < inputs.size(); ++j) {
         if (origin2new_.count(inputs[j].get())) {
           inputs[j] = origin2new_.at(inputs[j].get());
         }
       }
-      auto& outputs = (*program)[i]->outputs;
+      auto& outputs = instr->outputs;
       for (size_t j = 0; j < outputs.size(); ++j) {
         if (origin2new_.count(outputs[j].get())) {
           outputs[j] = origin2new_.at(outputs[j].get());
         }
       }
-      builder.AppendInstruction((*program)[i]);
+      builder.AppendInstruction(instr);
     }
     *program = builder.Build();
-    VLOG(5) << "Optimized program: " << *program;
+    VLOG(3) << "After RemoveIdentityPass: " << *program;
   }
 
  private:
@@ -94,14 +115,19 @@ class RemoveIdentityPass : public ProgramPass {
     }
     for (int i = 0; i < program.size(); ++i) {
       const auto& instr = program[i];
-      if (instr->op_type != "identity") {
+      if (!identity_ops.count(instr->op_type)) {
         continue;
       }
       CHECK_EQ(instr->inputs.size(), 1) << "identity should have only 1 input.";
       CHECK_EQ(instr->outputs.size(), 1) << "identity should have only 1 output.";
 
-      auto& input_var             = instr->inputs[0];
-      auto& output_var            = instr->outputs[0];
+      if (!identity_ops.at(instr->op_type)(instr)) {
+        continue;
+      }
+
+      auto& input_var  = instr->inputs[0];
+      auto& output_var = instr->outputs[0];
+
       bool can_input_var_removed  = !feed_ids.count(input_var->id) && !fetch_ids.count(input_var->id);
       bool can_output_var_removed = !fetch_ids.count(output_var->id);
       if (can_input_var_removed || can_output_var_removed) {
@@ -116,6 +142,8 @@ class RemoveIdentityPass : public ProgramPass {
           VLOG(3) << "Remove the " << i << "-th instruction: " << instr;
           remove_idxs_.insert(i);
         }
+      } else {
+        replace_identity_idxs_.insert(i);
       }
     }
 
@@ -152,6 +180,7 @@ class RemoveIdentityPass : public ProgramPass {
 
   std::unordered_set<int> remove_idxs_;
   std::unordered_map<_Variable_*, Variable> origin2new_;
+  std::unordered_set<int> replace_identity_idxs_;
 };
 
 }  // namespace pass

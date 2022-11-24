@@ -30,7 +30,7 @@ struct Type::Storage {
   cpp_type_t cpp_type_{cpp_type_t::None};
 
   //! How many bits per element.
-  int bits_{};
+  int bits_{0};
 
   //! How many elements(if a vector type), for scalar types, it should be 1.
   int lanes_{1};
@@ -144,7 +144,8 @@ Type Type::ConstOf() const {
 }
 
 bool Type::is_supported() const {
-  return (*this == Float(32) || this->is_bool() || *this == Int(32) || *this == Int(64));
+  return this->is_float(32) || this->is_bool() || this->is_int(32) || this->is_int(64) || this->is_float(16) ||
+         this->is_float(64);
 }
 
 Type Type::IgnoreConst() const {
@@ -338,6 +339,7 @@ int Type::bytes() const {
 #define GET_TYPE_SIZE_PAIR(TYPE) \
   { type_of<TYPE>(), sizeof(TYPE) }
   static std::unordered_map<Type, int, TypeHash> type_bytes = {
+      GET_TYPE_SIZE_PAIR(float16),
       GET_TYPE_SIZE_PAIR(float),
       GET_TYPE_SIZE_PAIR(double),
       GET_TYPE_SIZE_PAIR(unsigned char),
@@ -420,13 +422,39 @@ Type Str2Type(const std::string &type) {
       {"double", F64()},
 
       {"void*", type_of<void *>()},
+      {"void_p", type_of<void *>()},
       {"void**", type_of<void **>()},
+      {"void_p_p", type_of<void **>()},
+
       {"int8*", type_of<int8_t *>()},
+      {"int8_p", type_of<int8_t *>()},
       {"int8_t*", type_of<int8_t *>()},
+
+      {"float16*", type_of<float16 *>()},
+      {"half*", type_of<float16 *>()},
+      {"float16_p", type_of<float16 *>()},
+      {"half_p", type_of<float16 *>()},
+
       {"float*", type_of<float *>()},
       {"float32*", type_of<float *>()},
+      {"float_p", type_of<float *>()},
+      {"float32_p", type_of<float *>()},
+
       {"double*", type_of<double *>()},
       {"float64*", type_of<double *>()},
+      {"double_p", type_of<double *>()},
+      {"float64_p", type_of<double *>()},
+
+      {"cinn_buffer", type_of<cinn_buffer_t>()},
+      {"cinn_buffer*", type_of<cinn_buffer_t>()},
+      {"cinn_buffer_p", type_of<cinn_buffer_t *>()},
+
+      {"const cinn_buffer*", type_of<const cinn_buffer_t *>()},
+      {"const_cinn_buffer_p", type_of<const cinn_buffer_t *>()},
+
+      {"cinn_pod_value", type_of<cinn_pod_value_t>()},
+      {"cinn_pod_value*", type_of<cinn_pod_value_t *>()},
+      {"cinn_pod_value_p", type_of<cinn_pod_value_t *>()},
   };
 
   CHECK(str2type_map.find(type) != str2type_map.end()) << "Not support type [" << type << "] ! Please Check.\n";

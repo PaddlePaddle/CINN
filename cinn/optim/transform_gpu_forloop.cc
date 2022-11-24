@@ -464,6 +464,8 @@ void OptimizeExprGPU(Expr *expr) {
   std::unordered_set<std::string> resized_buffer;
   VLOG(3) << "Expr is : " << *expr;
   TransformGpuForloops(forloop_infos, tensor_traverse_order, &global_tensor_map, resized_buffer, expr);
+
+  VLOG(3) << "After TransformGpuForloops, Expr is : " << *expr;
 }
 
 }  // namespace optim

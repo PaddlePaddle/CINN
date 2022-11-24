@@ -20,6 +20,7 @@
 #include <string>
 #include <vector>
 
+#include "cinn/common/float16.h"
 #include "cinn/ir/ir.h"
 
 namespace cinn {
@@ -37,19 +38,17 @@ Expr CastIfNeeded(Expr body, Type type);
 //! @param var_map The map from variables to the target expressions.
 void Substitute(Expr *expr, const std::map<const ir::_Var_ *, Expr> &var_map);
 
-template <typename T>
-Expr make_const(Type t, T v);
-
 //! Get a stack of forloops(For and PolyFor nodes) to a Store node target to \p tensor_name
 std::vector<Expr *> GetForloopStackToStore(Expr *expr, const std::string &tensor_name);
 
 // make const
 // @{
-inline Expr make_const(int32_t x) { return make_const(Int(32), static_cast<int64_t>(x)); }
-inline Expr make_const(int64_t x) { return make_const(Int(64), static_cast<int64_t>(x)); }
-inline Expr make_const(float x) { return make_const(Float(32), static_cast<double>(x)); }
-inline Expr make_const(double x) { return make_const(Float(64), static_cast<double>(x)); }
-inline Expr make_const(bool x) { return make_const(Bool(1), static_cast<bool>(x)); }
+inline Expr make_const(int32_t x) { return Expr(static_cast<int32_t>(x)); }
+inline Expr make_const(int64_t x) { return Expr(static_cast<int64_t>(x)); }
+inline Expr make_const(float16 x) { return Expr(static_cast<float16>(x)); }
+inline Expr make_const(float x) { return Expr(static_cast<float>(x)); }
+inline Expr make_const(double x) { return Expr(static_cast<double>(x)); }
+inline Expr make_const(bool x) { return Expr(static_cast<bool>(x)); }
 // @}
 
 //! maker for some general consts.
@@ -114,7 +113,7 @@ Expr make_const(Type t, T v) {
     if (t.is_int()) {
       return make_shared<ir::IntImm>(t, static_cast<int64_t>(v));
     } else if (t.is_float()) {
-      return make_shared<ir::FloatImm>(t, static_cast<float>(v));
+      return make_shared<ir::FloatImm>(t, static_cast<double>(v));
     } else if (t.is_bool()) {
       return make_shared<ir::UIntImm>(t, static_cast<bool>(v));
     } else {
