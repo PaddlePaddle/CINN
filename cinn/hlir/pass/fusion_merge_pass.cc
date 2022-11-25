@@ -683,7 +683,7 @@ class FusionMergePassHelper : public FusionHelperBase {
     }
 
     // others just fuse one time.
-    {
+    if (fusionable_consumers.size()) {
       auto first = *fusionable_consumers.begin();
       fusionable_consumers.clear();
       fusionable_consumers.insert(first);
