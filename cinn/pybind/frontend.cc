@@ -623,7 +623,7 @@ void BindFrontend(pybind11::module *m) {
       .def("gather_nd", &NetBuilder::GatherNd, py::arg("x"), py::arg("index"), py::arg("axes"))
       .def("clz", &NetBuilder::Clz, py::arg("x"))
       .def("popc", &NetBuilder::Popc, py::arg("x"))
-      .def("reciprocal",&NetBuilder::Reciprocal, py::arg("x"));
+      .def("reciprocal", &NetBuilder::Reciprocal, py::arg("x"));
 
   auto computation = py::class_<CinnComputation, std::shared_ptr<CinnComputation>>(*m, "Computation");
   py::class_<CinnComputation::CompileOptions>(computation, "CompileOptions")

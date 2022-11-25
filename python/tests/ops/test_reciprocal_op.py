@@ -40,11 +40,13 @@ class TestReciprocalOp(OpTest):
         out = builder.reciprocal(x)
 
         prog = builder.build()
-        res = self.get_cinn_output(prog, target, [x], [self.inputs["x"]],[out])
+        res = self.get_cinn_output(prog, target, [x], [self.inputs["x"]],
+                                   [out])
         self.cinn_outputs = [res[0]]
 
     def test_check_results(self):
         self.check_outputs_and_grads()
+
 
 class TestReciprocalCase1(TestReciprocalOp):
     def init_case(self):
@@ -58,7 +60,8 @@ class TestReciprocalCase2(TestReciprocalOp):
 
 class TestReciprocalCase3(TestReciprocalOp):
     def init_case(self):
-        self.inputs = {"x": np.random.random([1,10]).astype("float32")}
+        self.inputs = {"x": np.random.random([1, 10]).astype("float32")}
+
 
 if __name__ == "__main__":
     unittest.main()
