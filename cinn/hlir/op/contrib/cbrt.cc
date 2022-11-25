@@ -51,7 +51,6 @@ using framework::shape_t;
 ir::Tensor Cbrt(const ir::Tensor &input,
                 const Target &target,
                 const std::string &output_name) {
-  CHECK_EQ(input->shape.size(), output->shape.size());
   std::string extern_func = "cinn_";
   if (target == common::DefaultHostTarget()) {
     extern_func += "host_";
