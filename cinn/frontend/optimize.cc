@@ -49,7 +49,8 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
   if (FLAGS_cinn_use_fill_constant_folding) {
     options.program_passes.emplace_back("FillConstantFolding");
   }
-  // options.program_passes.emplace_back("RemoveIdentity");
+
+  options.program_passes.emplace_back("RemoveIdentity");
   options.program_passes.emplace_back("DeadCodeEliminate");
 
   options.graph_passes = {};
