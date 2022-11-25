@@ -29,6 +29,9 @@
 namespace cinn::frontend {
 
 TEST(ScaleFolding, FoldIntoDotBatchedCase1) {
+  if (!IsCompiledWithCUDA()) {
+    return;
+  }
   NetBuilder builder("net_builder");
   auto x       = builder.CreateInput(Float(32), {4, 3, 5}, "X");
   auto y       = builder.CreateInput(Float(32), {4, 5, 6}, "Y");
@@ -48,6 +51,9 @@ TEST(ScaleFolding, FoldIntoDotBatchedCase1) {
 }
 
 TEST(ScaleFolding, FoldIntoDotBatchedCase2) {
+  if (!IsCompiledWithCUDA()) {
+    return;
+  }
   NetBuilder builder("net_builder");
   auto x       = builder.CreateInput(Float(32), {4, 3, 5}, "X");
   auto y       = builder.CreateInput(Float(32), {4, 5, 6}, "Y");
@@ -67,6 +73,9 @@ TEST(ScaleFolding, FoldIntoDotBatchedCase2) {
 }
 
 TEST(ScaleFolding, FoldIntoDotBatchedCase3) {
+  if (!IsCompiledWithCUDA()) {
+    return;
+  }
   NetBuilder builder("net_builder");
   auto x       = builder.CreateInput(Float(32), {4, 3, 5}, "X");
   auto y       = builder.CreateInput(Float(32), {4, 5, 6}, "Y");
@@ -86,6 +95,9 @@ TEST(ScaleFolding, FoldIntoDotBatchedCase3) {
 }
 
 TEST(ScaleFolding, FoldIntoDotBatchedCase4) {
+  if (!IsCompiledWithCUDA()) {
+    return;
+  }
   NetBuilder builder("net_builder");
   auto x       = builder.CreateInput(Float(32), {4, 3, 5}, "X");
   auto y       = builder.CreateInput(Float(32), {4, 5, 6}, "Y");
@@ -105,6 +117,9 @@ TEST(ScaleFolding, FoldIntoDotBatchedCase4) {
 }
 
 TEST(ScaleFolding, FoldIntoDotBatchedCase5) {
+  if (!IsCompiledWithCUDA()) {
+    return;
+  }
   NetBuilder builder("net_builder");
   auto x       = builder.CreateInput(Float(32), {4, 3, 5}, "X");
   auto y       = builder.CreateInput(Float(32), {4, 5, 6}, "Y");
@@ -125,6 +140,9 @@ TEST(ScaleFolding, FoldIntoDotBatchedCase5) {
 }
 
 TEST(ScaleFolding, FoldIntoDotBatchedCase6) {
+  if (!IsCompiledWithCUDA()) {
+    return;
+  }
   NetBuilder builder("net_builder");
   auto x        = builder.CreateInput(Float(32), {4, 3, 5}, "X");
   auto y        = builder.CreateInput(Float(32), {4, 5, 6}, "Y");
@@ -146,6 +164,9 @@ TEST(ScaleFolding, FoldIntoDotBatchedCase6) {
 }
 
 TEST(TransposeScaleFolding, BatchComplexCase1) {
+  if (!IsCompiledWithCUDA()) {
+    return;
+  }
   NetBuilder builder("net_builder");
   auto x           = builder.CreateInput(Float(32), {4, 5, 3}, "X");
   auto y           = builder.CreateInput(Float(32), {4, 6, 5}, "Y");
@@ -170,6 +191,9 @@ TEST(TransposeScaleFolding, BatchComplexCase1) {
 }
 
 TEST(TransposeScaleFolding, BatchComplexCase2) {
+  if (!IsCompiledWithCUDA()) {
+    return;
+  }
   NetBuilder builder("net_builder");
   auto x             = builder.CreateInput(Float(32), {4, 5, 3}, "X");
   auto y             = builder.CreateInput(Float(32), {4, 6, 5}, "Y");
@@ -194,6 +218,9 @@ TEST(TransposeScaleFolding, BatchComplexCase2) {
 }
 
 TEST(TransposeScaleFolding, BatchComplexCase3) {
+  if (!IsCompiledWithCUDA()) {
+    return;
+  }
   NetBuilder builder("net_builder");
   auto x           = builder.CreateInput(Float(32), {4, 5, 3}, "X");
   auto y           = builder.CreateInput(Float(32), {4, 5, 6}, "Y");
@@ -214,6 +241,9 @@ TEST(TransposeScaleFolding, BatchComplexCase3) {
 }
 
 TEST(TransposeScaleFolding, BatchComplexCase4) {
+  if (!IsCompiledWithCUDA()) {
+    return;
+  }
   NetBuilder builder("net_builder");
   auto x           = builder.CreateInput(Float(32), {4, 5, 3}, "X");
   auto transpose_x = builder.Transpose(x, {0, 2, 1});
@@ -230,6 +260,32 @@ TEST(TransposeScaleFolding, BatchComplexCase4) {
       std::vector<std::string>{"Decomposer"},
       std::vector<std::string>{"TransposeFoldingInput", "GemmRewriter", "TransposeFoldingOutput", "GemmRewriter"});
   CompareResult(&program, target, input_ids, {out->id}, 2, passes, 123, false);
+}
+
+TEST(TransposeScaleFolding, BatchComplexCase5) {
+  if (!IsCompiledWithCUDA()) {
+    return;
+  }
+  NetBuilder builder("net_builder");
+  auto x           = builder.CreateInput(Float(32), {4, 5, 3}, "X");
+  auto y           = builder.CreateInput(Float(32), {4, 5, 6}, "Y");
+  auto z           = builder.FillConstant({4, 3, 6}, 1.0f, "Z");
+  auto transpose_x = builder.Transpose(x, {0, 2, 1});
+  auto scale_y     = builder.Scale(y, 2.0f);
+  auto out_matmul  = builder.Matmul(transpose_x, scale_y);
+  auto transpose_o = builder.Transpose(out_matmul, {0, 2, 1});
+  auto out         = builder.Matmul(transpose_o, z);
+  auto program     = builder.Build();
+
+  common::Target target = common::DefaultTarget();
+  std::vector<std::string> input_ids;
+  absl::c_transform(std::vector<absl::string_view>{x.id(), y.id()},
+                    std::back_inserter(input_ids),
+                    [](absl::string_view id) { return std::string(id); });
+  auto passes = std::make_pair(
+      std::vector<std::string>{"Decomposer"},
+      std::vector<std::string>{"TransposeFoldingInput", "GemmRewriter", "TransposeFoldingOutput", "GemmRewriter"});
+  CompareResult(&program, target, input_ids, {out->id}, 3, passes, 123, false);
 }
 
 }  // namespace cinn::frontend
