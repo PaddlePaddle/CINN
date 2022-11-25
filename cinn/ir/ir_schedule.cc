@@ -91,6 +91,7 @@ class ScheduleImpl {
   Expr Rfactor(const Expr& rf_loop, int rf_axis);
   Expr AddUnitLoop(const Expr& block) const;
   void Annotate(const Expr& block, const std::string& key, const attr_t& value);
+  void FlattenLoops(const std::vector<Expr>& loops, const bool force_flat = false);
   void CopyTransformAndLoopInfo(const Expr& block, const Expr& block_target);
   void CopyTransformAndLoopInfo(const std::string& block_name, const std::string& block_target_name);
 
@@ -1473,6 +1474,145 @@ void ScheduleImpl::Annotate(const Expr& block, const std::string& key, const att
   this->Replace(block, copied_block);
 }
 
+void ScheduleImpl::FlattenLoops(const std::vector<Expr>& loops, const bool flat_tensor) {
+  CHECK(loops.size()) << "loops is empty!";
+  // compute loop
+  int extent = 1;
+  std::vector<int> strides;
+  for (int idx = loops.size() - 1; idx >= 0; --idx) {
+    strides.insert(strides.begin(), extent);
+    extent *= loops[idx].As<ir::For>()->extent.as_int32();
+  }
+
+  // create new loop.
+  auto last = loops.back().As<ir::For>();
+  auto var  = ir::Var("flat_i");
+  auto _var = ir::Var("_flat_i");
+  auto loop = ir::For::Make(var, ir::Expr(0), ir::Expr(extent), last->for_type(), last->device_api, last->body);
+
+  // map loop var to old loop var.
+  auto _iter = ir::Expr(_var);
+  std::vector<ir::Expr> flat_i_to_loop_var;
+  for (int idx = 0; idx < strides.size(); ++idx) {
+    if (strides[idx] == 1) {
+      flat_i_to_loop_var.push_back(_iter);
+    } else {
+      flat_i_to_loop_var.push_back(_iter / Expr(strides[idx]));
+      _iter = _iter % Expr(strides[idx]);
+    }
+  }
+
+  ir::FindBlocksVisitor visitor;
+  auto blocks      = visitor(&last->body);
+  auto can_do_flat = [](const std::vector<Expr>& indexs, const std::vector<Var>& loop_vars) {
+    if (indexs.size() != loop_vars.size()) {
+      return false;
+    }
+
+    for (int idx = 0; idx < indexs.size(); ++idx) {
+      if (!indexs[idx].as_var()) {
+        return false;
+      } else {
+        auto var = indexs[idx].as_var_ref();
+        if (var->name != loop_vars[idx]->name) {
+          return false;
+        }
+      }
+    }
+    return true;
+  };
+
+  // change blocks iter value/iter var
+  for (auto& block : blocks) {
+    auto block_realize  = block.As<ir::ScheduleBlockRealize>();
+    auto schedule_block = block_realize->schedule_block.As<ir::ScheduleBlock>();
+
+    auto exprs = ir::CollectIRNodesInOrder(schedule_block->body,
+                                           [&](const Expr* x) { return x->As<ir::Store>() || x->As<ir::Load>(); });
+    // reverse exprs from last to first.
+    std::reverse(std::begin(exprs), std::end(exprs));
+
+    std::vector<ir::Var> var_to_replace;
+    CHECK_GE(schedule_block->iter_vars.size(), flat_i_to_loop_var.size());
+    // if iter var is more than flat i to loop, there exist dim = 1.
+    if (schedule_block->iter_vars.size() > flat_i_to_loop_var.size()) {
+      for (int idx = 0; idx < block_realize->iter_values.size(); ++idx) {
+        if (block_realize->iter_values[idx].is_var()) {
+          var_to_replace.push_back(schedule_block->iter_vars[idx]);
+        } else {
+          CHECK_EQ(block_realize->iter_values[idx].as_int32(), 0);
+          // insert var -> 0, to replace var to 0.
+          var_to_replace.insert(var_to_replace.begin(), schedule_block->iter_vars[idx]);
+          flat_i_to_loop_var.insert(flat_i_to_loop_var.begin(), Expr(0));
+        }
+      }
+    } else {
+      var_to_replace = schedule_block->iter_vars;
+    }
+
+    for (auto expr : exprs) {
+      if (expr.As<ir::Store>()) {
+        auto store = expr.As<ir::Store>();
+        if (store->is_addr_tensor()) {
+          auto t = store->tensor.as_tensor_ref();
+          CHECK(!t->reduce_axis.size());
+          auto tsize = std::accumulate(t->shape.begin(), t->shape.end(), 1, [](const int sum, const Expr& expr) {
+            return sum * expr.as_int32();
+          });
+          if ((!flat_tensor && !can_do_flat(store->indices, schedule_block->iter_vars))) {
+            // just replace indexs
+            for (auto& indice : store->indices) {
+              if (!indice.is_var()) {
+                continue;
+              }
+              ReplaceExpr(&indice, var_to_replace, flat_i_to_loop_var);
+            }
+            // compute index and flat tensor.
+            store->indices = {store->index()};
+            continue;
+          }
+          // update var and shape
+          store->indices = {Expr(_var)};
+        }
+      } else {
+        auto load = expr.As<ir::Load>();
+        if (load->is_addr_tensor()) {
+          auto t = load->tensor.as_tensor_ref();
+          CHECK(!t->reduce_axis.size());
+          auto tsize = std::accumulate(t->shape.begin(), t->shape.end(), 1, [](const int sum, const Expr& expr) {
+            return sum * expr.as_int32();
+          });
+          if ((!flat_tensor && !can_do_flat(load->indices, schedule_block->iter_vars))) {
+            // just replace indexs
+            for (auto& indice : load->indices) {
+              if (!indice.is_var()) {
+                continue;
+              }
+              ReplaceExpr(&indice, var_to_replace, flat_i_to_loop_var);
+            }
+            // compute index and flat tensor.
+            load->indices = {load->index()};
+            continue;
+          }
+          // update var and shape
+          load->indices = {Expr(_var)};
+        }
+      }
+    }
+    ReplaceExpr(&schedule_block->body, var_to_replace, flat_i_to_loop_var);
+
+    // update iter values
+    auto iter                  = ir::Expr(var);
+    block_realize->iter_values = {iter};
+
+    // update iter_vars
+    schedule_block->iter_vars = {_var};
+    CHECK_EQ(block_realize->iter_values.size(), schedule_block->iter_vars.size());
+  }
+
+  this->Replace(loops[0], loop);
+}
+
 void ScheduleImpl::CopyTransformAndLoopInfo(const std::string& block_name, const std::string& block_target_name) {
   auto block        = this->GetBlock(block_name);
   auto block_target = this->GetBlock(block_target_name);
@@ -1800,6 +1940,10 @@ void IRSchedule::Annotate(const Expr& block, const std::string& key, const attr_
 #undef TRACE_ANNOTATE_ITEM
 
   LOG(FATAL) << "Value of attribute:" << key << " input unsupported data type";
+}
+
+void IRSchedule::FlattenLoops(const std::vector<Expr>& loops, const bool force_flat) {
+  impl_->FlattenLoops(loops, force_flat);
 }
 
 void IRSchedule::CopyTransformAndLoopInfo(const Expr& block, const Expr& block_target) {

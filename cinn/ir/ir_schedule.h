@@ -325,6 +325,13 @@ class IRSchedule {
    */
   void Annotate(const Expr& block, const std::string& key, const attr_t& value);
 
+  /*!
+   * \brief flatten the loops in one dim.
+   * \param loops  the loops to be flatted.
+   * \param force_flat force to flat the right value.
+   */
+  void FlattenLoops(const std::vector<Expr>& loops, const bool force_flat = false);
+
  private:
   std::unique_ptr<ScheduleImpl> impl_;
   mutable ScheduleDesc trace_;  // trace the scheduling process
