@@ -78,9 +78,9 @@ class ScheduleImpl {
   Expr CacheWrite(const Expr& block, int write_buffer_index, const std::string& memory_type);
   void SyncThreads(const Expr& ir_node, bool after_node = true);
   void SetBuffer(Expr& block, const std::string& memory_type, bool fixed = false);
-  void Reorder(const std::vector<Expr>& loops);
-  void Reorder(const std::string& block_name, const std::vector<int>& loops_index);
-  void Reorder(const Expr& block, const std::vector<int>& loops_index);
+  Expr Reorder(const std::vector<Expr>& loops);
+  Expr Reorder(const std::string& block_name, const std::vector<int>& loops_index);
+  Expr Reorder(const Expr& block, const std::vector<int>& loops_index);
   DeviceAPI GetDeviceAPI() const;
   void MutateForType(const Expr& loop, ForType for_type, int factor = -1);
   void Parallel(const Expr& loop);
@@ -855,8 +855,8 @@ void ScheduleImpl::SyncThreads(const Expr& ir_node, bool after_node) {
  * @param tgt_stmt The For node we want.
  */
 void ScheduleImpl::Replace(const Expr& src_sref, const Expr& tgt_stmt) {
-  CHECK((src_sref.As<ir::For>() && tgt_stmt.As<ir::For>()) || (src_sref.As<ir::Block>() && tgt_stmt.As<ir::Block>()) ||
-        (src_sref.As<ir::ScheduleBlockRealize>() && tgt_stmt.As<ir::ScheduleBlockRealize>()));
+  CHECK(src_sref.As<ir::For>() || src_sref.As<ir::Block>() || src_sref.As<ir::ScheduleBlockRealize>());
+  CHECK(tgt_stmt.As<ir::For>() || tgt_stmt.As<ir::Block>() || tgt_stmt.As<ir::ScheduleBlockRealize>());
   if (src_sref == tgt_stmt) {
     VLOG(3) << "two exprs are the same, no need to replace";
     return;
@@ -901,9 +901,9 @@ void ScheduleImpl::Replace(const Expr& src_sref, const Expr& tgt_stmt) {
   }
 }
 
-void ScheduleImpl::Reorder(const std::vector<Expr>& loops) {
+Expr ScheduleImpl::Reorder(const std::vector<Expr>& loops) {
   if (loops.size() <= 1) {
-    return;
+    return Expr{nullptr};
   }
 
   std::set<Expr, CompExpr> loop_set = CollectLoopsToSet(loops);
@@ -914,9 +914,10 @@ void ScheduleImpl::Reorder(const std::vector<Expr>& loops) {
   std::vector<Expr> if_nodes        = GetIfThenElseInRange(top, bottom);
   Expr new_loop                     = ConstructNewLoopChain(chain, loops, loop_set, if_nodes);
   this->Replace(top, new_loop);
+  return new_loop;
 }
 
-void ScheduleImpl::Reorder(const std::string& block_name, const std::vector<int>& loops_index) {
+Expr ScheduleImpl::Reorder(const std::string& block_name, const std::vector<int>& loops_index) {
   std::vector<Expr> all_loops = this->GetLoops(block_name);
   std::vector<Expr> loops_expr;
   loops_expr.reserve(loops_index.size());
@@ -925,10 +926,10 @@ void ScheduleImpl::Reorder(const std::string& block_name, const std::vector<int>
     CHECK_GE(i, 0) << "The loop index in Reorder should be >= 0.";
     loops_expr.emplace_back(all_loops[i]);
   }
-  this->Reorder(loops_expr);
+  return this->Reorder(loops_expr);
 }
 
-void ScheduleImpl::Reorder(const Expr& block, const std::vector<int>& loops_index) {
+Expr ScheduleImpl::Reorder(const Expr& block, const std::vector<int>& loops_index) {
   std::vector<Expr> all_loops = this->GetLoops(block);
   std::vector<Expr> loops_expr;
   loops_expr.reserve(loops_index.size());
@@ -937,7 +938,7 @@ void ScheduleImpl::Reorder(const Expr& block, const std::vector<int>& loops_inde
     CHECK_GE(i, 0) << "The loop index in Reorder should be >= 0.";
     loops_expr.emplace_back(all_loops[i]);
   }
-  this->Reorder(loops_expr);
+  return this->Reorder(loops_expr);
 }
 
 Expr ScheduleImpl::GetRootBlock(const Expr& expr) const {
@@ -1400,6 +1401,8 @@ Expr ScheduleImpl::AddUnitLoop(const Expr& block) const {
   } else {
     LOG(FATAL) << "Can't find block's parent!";
   }
+  LOG(FATAL) << "Shouldn't reach code here in AddUnitLoop";
+  return Expr{nullptr};
 }
 
 std::vector<Expr> ScheduleImpl::GetLoops(const Expr& block) const {
@@ -1727,21 +1730,24 @@ void IRSchedule::SetBuffer(Expr& block, const std::string& memory_type, bool fix
       "SetBuffer", {{"block", std::vector<Expr>({block})}}, {{"memory_type", memory_type}, {"fixed", fixed}}, {}));
 }
 
-void IRSchedule::Reorder(const std::vector<Expr>& loops) {
-  impl_->Reorder(loops);
-  trace_.Append(ScheduleDesc::Step("Reorder", {{"loops", loops}}, {}, {}));
+Expr IRSchedule::Reorder(const std::vector<Expr>& loops) {
+  Expr ret = impl_->Reorder(loops);
+  trace_.Append(ScheduleDesc::Step("Reorder", {{"loops", loops}}, {}, {ret}));
+  return ret;
 }
 
-void IRSchedule::Reorder(const std::string& block_name, const std::vector<int>& loops_index) {
-  impl_->Reorder(block_name, loops_index);
+Expr IRSchedule::Reorder(const std::string& block_name, const std::vector<int>& loops_index) {
+  Expr ret = impl_->Reorder(block_name, loops_index);
   trace_.Append(
-      ScheduleDesc::Step("ReorderWithName", {}, {{"block_name", block_name}, {"loops_index", loops_index}}, {}));
+      ScheduleDesc::Step("ReorderWithName", {}, {{"block_name", block_name}, {"loops_index", loops_index}}, {ret}));
+  return ret;
 }
 
-void IRSchedule::Reorder(const Expr& block, const std::vector<int>& loops_index) {
-  impl_->Reorder(block, loops_index);
+Expr IRSchedule::Reorder(const Expr& block, const std::vector<int>& loops_index) {
+  Expr ret = impl_->Reorder(block, loops_index);
   trace_.Append(ScheduleDesc::Step(
-      "ReorderWithBlock", {{"block", std::vector<Expr>({block})}}, {{"loops_index", loops_index}}, {}));
+      "ReorderWithBlock", {{"block", std::vector<Expr>({block})}}, {{"loops_index", loops_index}}, {ret}));
+  return ret;
 }
 
 void IRSchedule::Parallel(const Expr& loop) {

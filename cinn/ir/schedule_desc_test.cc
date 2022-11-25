@@ -419,8 +419,8 @@ TEST_F(TestScheduleDesc, StepKind_Reorder) {
 
   auto loops = ir_sch.GetLoops("B");
   trace.Append(ScheduleDesc::Step("GetLoopsWithName", {}, {{"block_name", std::string("B")}}, loops));
-  ir_sch.Reorder({loops[4], loops[0]});
-  trace.Append(ScheduleDesc::Step("Reorder", {{"loops", std::vector<Expr>({loops[4], loops[0]})}}, {}, {}));
+  Expr ret = ir_sch.Reorder({loops[4], loops[0]});
+  trace.Append(ScheduleDesc::Step("Reorder", {{"loops", std::vector<Expr>({loops[4], loops[0]})}}, {}, {ret}));
   CheckReplayResult(ir_sch, trace);
   CheckReplayResult(ir_sch, ir_sch.GetTraceDesc());
 }
@@ -443,11 +443,11 @@ TEST_F(TestScheduleDesc, StepKind_ReorderWithBlock) {
 
   auto block_b = ir_sch.GetBlock("B");
   trace.Append(ScheduleDesc::Step("GetBlock", {}, {{"block_name", std::string("B")}}, {block_b}));
-  ir_sch.Reorder("B", {2, 3, 1, 4, 0});
+  Expr ret = ir_sch.Reorder("B", {2, 3, 1, 4, 0});
   trace.Append(ScheduleDesc::Step("ReorderWithBlock",
                                   {{"block", std::vector<Expr>({block_b})}},
                                   {{"loops_index", std::vector<int>({2, 3, 1, 4, 0})}},
-                                  {}));
+                                  {ret}));
   CheckReplayResult(ir_sch, trace);
   CheckReplayResult(ir_sch, ir_sch.GetTraceDesc());
 }
@@ -468,12 +468,12 @@ TEST_F(TestScheduleDesc, StepKind_ReorderWithName) {
                          {{"block_name", std::string("B")}, {"loop_index", 2}, {"factors", std::vector<int>({-1, 2})}},
                          splited));
 
-  ir_sch.Reorder("B", {4, 2, 3, 1, 0});
+  Expr ret = ir_sch.Reorder("B", {4, 2, 3, 1, 0});
   trace.Append(
       ScheduleDesc::Step("ReorderWithName",
                          {},
                          {{"block_name", std::string("B")}, {"loops_index", std::vector<int>({4, 2, 3, 1, 0})}},
-                         {}));
+                         {ret}));
   CheckReplayResult(ir_sch, trace);
   CheckReplayResult(ir_sch, ir_sch.GetTraceDesc());
 }

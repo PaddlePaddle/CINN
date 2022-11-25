@@ -14,6 +14,8 @@
 
 #include <gtest/gtest.h>
 
+// #include <cmath>
+
 #include "cinn/backends/llvm/codegen_llvm.h"
 #include "cinn/backends/llvm/codegen_x86.h"
 #include "cinn/backends/llvm/execution_engine.h"
@@ -111,41 +113,43 @@ void TestElementwisePE(const std::string &fn_name,
 bool isnan(float e) { return std::isnan(e); }
 bool isfinite(float e) { return std::isfinite(e); }
 bool isinf(float e) { return std::isinf(e); }
-float rsqrt(float e) { return 1.0f / std::sqrt(e); }
+float rsqrt(float e) { return 1.0f / sqrtf(e); }
 
-#define TEST_ELEMENTWISE_PE_FP32(test_name__, PE__) \
-  TEST(elementwise_pe, test_name__) { TestElementwisePE("PE_Elementwise_" #test_name__ "_fp32", PE__, test_name__); }
-#define TEST_ELEMENTWISE_PE_FP32_BOOL(test_name__, PE__)                                  \
-  TEST(elementwise_pe, test_name__) {                                                     \
-    TestElementwisePE("PE_Elementwise_" #test_name__ "_fp32", PE__, test_name__, Bool()); \
+#define TEST_ELEMENTWISE_PE_FP32(test_name__, PE__)                                               \
+  TEST(elementwise_pe, test_name__) {                                                             \
+    cinn::hlir::pe::TestElementwisePE("PE_Elementwise_" #test_name__ "_fp32", PE__, test_name__); \
   }
-#define TEST_ELEMENTWISE_PE_FP32_SET(test_name__, PE__, value__)                                      \
-  TEST(elementwise_pe, test_name__) {                                                                 \
-    TestElementwisePE("PE_Elementwise_" #test_name__ "_fp32", PE__, test_name__, Float(32), value__); \
+#define TEST_ELEMENTWISE_PE_FP32_BOOL(test_name__, PE__)                                                  \
+  TEST(elementwise_pe, test_name__) {                                                                     \
+    cinn::hlir::pe::TestElementwisePE("PE_Elementwise_" #test_name__ "_fp32", PE__, test_name__, Bool()); \
+  }
+#define TEST_ELEMENTWISE_PE_FP32_SET(test_name__, PE__, value__)                                                      \
+  TEST(elementwise_pe, test_name__) {                                                                                 \
+    cinn::hlir::pe::TestElementwisePE("PE_Elementwise_" #test_name__ "_fp32", PE__, test_name__, Float(32), value__); \
   }
 
-TEST_ELEMENTWISE_PE_FP32(exp, Exp)
-TEST_ELEMENTWISE_PE_FP32(erf, Erf)
-TEST_ELEMENTWISE_PE_FP32(sqrt, Sqrt)
-TEST_ELEMENTWISE_PE_FP32(log, Log)
-TEST_ELEMENTWISE_PE_FP32(log2, Log2)
-TEST_ELEMENTWISE_PE_FP32(log10, Log10)
-TEST_ELEMENTWISE_PE_FP32(floor, Floor)
-TEST_ELEMENTWISE_PE_FP32(ceil, Ceil)
-TEST_ELEMENTWISE_PE_FP32(round, Round)
-TEST_ELEMENTWISE_PE_FP32(trunc, Trunc)
-TEST_ELEMENTWISE_PE_FP32(cos, Cos)
-TEST_ELEMENTWISE_PE_FP32(cosh, Cosh)
-TEST_ELEMENTWISE_PE_FP32(tan, Tan)
-TEST_ELEMENTWISE_PE_FP32(sin, Sin)
-TEST_ELEMENTWISE_PE_FP32(sinh, Sinh)
-TEST_ELEMENTWISE_PE_FP32(acos, Acos)
-TEST_ELEMENTWISE_PE_FP32_SET(acosh, Acosh, 1.5)
-TEST_ELEMENTWISE_PE_FP32(asin, Asin)
-TEST_ELEMENTWISE_PE_FP32(asinh, Asinh)
-TEST_ELEMENTWISE_PE_FP32(atan, Atan)
-TEST_ELEMENTWISE_PE_FP32(atanh, Atanh)
-TEST_ELEMENTWISE_PE_FP32(tanh, Tanh)
+TEST_ELEMENTWISE_PE_FP32(expf, Exp)
+TEST_ELEMENTWISE_PE_FP32(erff, Erf)
+TEST_ELEMENTWISE_PE_FP32(sqrtf, Sqrt)
+TEST_ELEMENTWISE_PE_FP32(logf, Log)
+TEST_ELEMENTWISE_PE_FP32(log2f, Log2)
+TEST_ELEMENTWISE_PE_FP32(log10f, Log10)
+TEST_ELEMENTWISE_PE_FP32(floorf, Floor)
+TEST_ELEMENTWISE_PE_FP32(ceilf, Ceil)
+TEST_ELEMENTWISE_PE_FP32(roundf, Round)
+TEST_ELEMENTWISE_PE_FP32(truncf, Trunc)
+TEST_ELEMENTWISE_PE_FP32(cosf, Cos)
+TEST_ELEMENTWISE_PE_FP32(coshf, Cosh)
+TEST_ELEMENTWISE_PE_FP32(tanf, Tan)
+TEST_ELEMENTWISE_PE_FP32(sinf, Sin)
+TEST_ELEMENTWISE_PE_FP32(sinhf, Sinh)
+TEST_ELEMENTWISE_PE_FP32(acosf, Acos)
+TEST_ELEMENTWISE_PE_FP32_SET(acoshf, Acosh, 1.5)
+TEST_ELEMENTWISE_PE_FP32(asinf, Asin)
+TEST_ELEMENTWISE_PE_FP32(asinhf, Asinh)
+TEST_ELEMENTWISE_PE_FP32(atanf, Atan)
+TEST_ELEMENTWISE_PE_FP32(atanhf, Atanh)
+TEST_ELEMENTWISE_PE_FP32(tanhf, Tanh)
 TEST_ELEMENTWISE_PE_FP32_BOOL(isnan, IsNan)
 TEST_ELEMENTWISE_PE_FP32_BOOL(isfinite, IsFinite)
 TEST_ELEMENTWISE_PE_FP32_BOOL(isinf, IsInf)

@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <gtest/gtest.h>
+#include <math.h>
 
 #include "cinn/backends/llvm/execution_engine.h"
 #include "cinn/cinn.h"
@@ -192,6 +193,27 @@ void TestBroadcastPE2(
 
 TEST_BROADCAST_PE_FP32(Add, return a + b;)
 TEST_BROADCAST_PE_FP32(Multiply, return a * b;)
+
+#define PI 3.1415926535
+float Atan2(float a, float b) {
+  if (b == 0.0) {
+    if (a > 0) {
+      return PI / 2;
+    } else {
+      return -PI / 2;
+    }
+  } else {
+    auto at = atan(a / b);
+    if (b > 0) {
+      return at;
+    } else if (a >= 0) {
+      return at + PI;
+    } else {
+      return at - PI;
+    }
+  }
+}
+TEST_BROADCAST_PE_FP32_BASIC(Atan2);
 
 }  // namespace pe
 }  // namespace hlir

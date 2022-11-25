@@ -34,8 +34,8 @@ TEST(RemoveNestedBlock, basic) {
   EXPECT_EQ(origin, utils::Trim(R"ROC(
 {
   {
-    1
-    1
+    1.00000f
+    1.00000f
   }
 }
   )ROC"));
@@ -48,8 +48,8 @@ TEST(RemoveNestedBlock, basic) {
 
   EXPECT_EQ(utils::GetStreamCnt(e), utils::Trim(R"ROC(
 {
-  1
-  1
+  1.00000f
+  1.00000f
 }
   )ROC"));
 }

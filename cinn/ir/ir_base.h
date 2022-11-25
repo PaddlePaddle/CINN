@@ -400,6 +400,7 @@ struct BinaryOpNode : public ExprNode<T> {
 
 //! Zero in CINN type system.
 Expr Zero(const Type& type);
+Expr One(const Type& type);
 
 #define DEVICE_API_FOR_ALL(__) \
   __(UNK)                      \

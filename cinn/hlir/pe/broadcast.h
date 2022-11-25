@@ -50,6 +50,8 @@ void GetBroadcastOutShape(const std::vector<int>& input_shape1,
 
 //! Compute A + B with auto-broadcasting.
 HLIR_DCL_BC_PE(Add);
+//! Compute Atan2 with auto-broadcasting.
+HLIR_DCL_BC_PE(Atan2);
 //! Compute A - B with auto-broadcasting.
 HLIR_DCL_BC_PE(Substract);
 //! Compute A * B with auto-broadcasting.

@@ -126,7 +126,19 @@ inline int FN_INT32(pow)(int x, int y) {
   return res;
 }
 
+inline int FN_INT32(clz)(int x) { return __builtin_clz(x); }
+
+inline int FN_INT32(popc)(int x) { return __builtin_popcount(x); }
+
 #undef FN_INT32
+
+#define FN_INT64(func) cinn_host_##func##_int64
+
+inline int64_t FN_INT64(clz)(int64_t x) { return __builtin_clzll(x); }
+
+inline int64_t FN_INT64(popc)(int64_t x) { return __builtin_popcountll(x); }
+
+#undef FN_INT64
 }
 
 CINN_REGISTER_HELPER(host_intrinsics) {
@@ -177,6 +189,14 @@ CINN_REGISTER_HELPER(host_intrinsics) {
   REGISTER_EXTERN_FUNC_2_IN_1_INT32(pow)
 
 #undef REGISTER_EXTERN_FUNC_2_IN_1_INT32
+
+  REGISTER_EXTERN_FUNC_1_IN_1_OUT(cinn_host_clz_int32, host_target, int, int);
+
+  REGISTER_EXTERN_FUNC_1_IN_1_OUT(cinn_host_clz_int64, host_target, int64_t, int64_t);
+
+  REGISTER_EXTERN_FUNC_1_IN_1_OUT(cinn_host_popc_int32, host_target, int, int);
+
+  REGISTER_EXTERN_FUNC_1_IN_1_OUT(cinn_host_popc_int64, host_target, int64_t, int64_t);
 
   REGISTER_EXTERN_FUNC_HELPER(cinn_host_find_int, host_target)
       .SetRetType<int>()
