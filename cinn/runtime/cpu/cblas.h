@@ -96,4 +96,62 @@ void cinn_cpu_mkl_gemm_batch_fp32(float alpha,
                                   cinn_buffer_t* A,
                                   cinn_buffer_t* B,
                                   cinn_buffer_t* C);
+
+/**
+ * \brief Do TRSM on buffer A and B and write result to buffer B.
+ * We pass the \param M, \param N although the shape can retrieve from cinn_buffer_t because the size of a
+ * matrix not equals the shape of a buffer it is stored.
+ * @param alpha The scaling factor of the product of A and B
+ * @param M Number of the rows of A
+ * @param N the number of the columns in both B and C
+ * @param ta whether to transpose A
+ * @param lda The size of the first dimension of A
+ * @param ldb The size of the first dimension of B
+ * @param A The matrix A
+ * @param B The output matrix
+ */
+void cinn_cpu_mkl_trsm_fp32(float alpha,
+                            int M,
+                            int N,
+                            bool side,
+                            bool uplo,
+                            bool ta,
+                            bool diag,
+                            int lda,
+                            int ldb,
+                            cinn_buffer_t* A,
+                            cinn_buffer_t* B,
+                            cinn_buffer_t* C);
+
+/**
+ * \brief Do TRSM on buffer A and B and write result to buffer B.
+ * We pass the \param M, \param N although the shape can retrieve from cinn_buffer_t because the size of a
+ * matrix not equals the shape of a buffer it is stored.
+ * @param alpha The scaling factor of the product of A and B
+ * @param batch_size the batch size of A and B
+ * @param M Number of the rows of A
+ * @param N the number of the columns in both B and C
+ * @param ta whether to transpose A
+ * @param lda The size of the first dimension of A
+ * @param ldb The size of the first dimension of B
+ * @param a_stride The stride of A(number of elements, not bytes) between batches
+ * @param b_stride The stride of B(number of elements, not bytes) between batches
+ * @param A The matrix A
+ * @param B The output matrix B
+ */
+void cinn_cpu_mkl_trsm_batch_fp32(float alpha,
+                                  int batch_size,
+                                  int M,
+                                  int N,
+                                  bool side,
+                                  bool uplo,
+                                  bool ta,
+                                  bool diag,
+                                  int lda,
+                                  int ldb,
+                                  int a_stride,
+                                  int b_stride,
+                                  cinn_buffer_t* A,
+                                  cinn_buffer_t* B,
+                                  cinn_buffer_t* C);
 }  // extern "C"

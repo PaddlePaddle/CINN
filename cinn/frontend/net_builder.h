@@ -464,6 +464,19 @@ class NetBuilder {
   Variable Matmul(const Variable& x, const Variable& y, bool trans_x = false, bool trans_y = false, float alpha = 1.0f);
 
   /**
+   * @brief Compute triangular solve.
+   * @param x The left input variable.
+   * @param y The right input variable.
+   * @param left_side     Whether whether A appears on the left or right. Default is false.
+   * @param upper         Whether the matrix A is an upper or lower triangular matrix. Default is false.
+   * @param transpose_a   Whether to transpose `x` before multiplication. Default is false.
+   * @param unit_diagonal Whether or not A is unit triangular. Default is false.
+   * @return The product variable.
+   */
+  Variable TriangularSolve(
+      const Variable& x, const Variable& y, bool left_side, bool upper, bool transpose_a, bool unit_diagonal);
+
+  /**
    * @brief This operation calculates the pooling output based on the input, pooling_type and pool_size, pool_stride,
    * pool_padding parameters.
    * @param x The input variable of pooling operator which is a 4-D variable with shape [N, C, H, W]. The format of

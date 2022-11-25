@@ -849,5 +849,16 @@ Variable NetBuilder::Matmul(const Variable& x, const Variable& y, bool trans_x, 
   return out;
 }
 
+Variable NetBuilder::TriangularSolve(
+    const Variable& x, const Variable& y, bool left_side, bool upper, bool transpose_a, bool unit_diagonal) {
+  return CustomInstr("triangular_solve",
+                     {inputs.first, inputs.second},
+                     {{"left_side", left_side},
+                      {"upper", upper},
+                      {"transpose_a", transpose_a},
+                      {"unit_diagonal", unit_diagonal}})
+      .front();
+}
+
 }  // namespace frontend
 }  // namespace cinn
