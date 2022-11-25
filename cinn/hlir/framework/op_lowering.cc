@@ -67,6 +67,15 @@ std::vector<Node*> GetConsumer(Node* node) {
   return consumers;
 }
 
+bool IsConstOp(const framework::Node* node) {
+  static std::unordered_set<std::string> const_op_type = {"const_scalar", "fill_constant", "arange"};
+  if (const_op_type.count(node->op()->name)) {
+    return true;
+  } else {
+    return false;
+  }
+}
+
 OpLowerer::OpLowerer(const absl::flat_hash_map<std::string, Type>& type_dict,
                      const absl::flat_hash_map<std::string, shape_t>& shape_dict,
                      const Target& target)
@@ -488,6 +497,11 @@ void OpLowerer::IRElementwiseSchedule(ir::IRSchedule& ir_sch,
     auto node        = sub_group->nodes[idx];
     auto node_tensor = tensor_map[GetNodeData(node)->id()];
     if (group->master_nodes.count(node)) {
+      continue;
+    }
+
+    if (IsConstOp(node) && !group->output_nodes.count(node)) {
+      ir_sch.ComputeInline(ir_sch.GetBlock(node_tensor->name));
       continue;
     }
 
@@ -1082,6 +1096,11 @@ void OpLowerer::IRReduceSchedule(ir::IRSchedule& ir_sch,
           break;
         }
       }
+    }
+
+    // if is const op, do compute inline.
+    if (IsConstOp(node) && !group->output_nodes.count(node)) {
+      dont_compute_inline = false;
     }
     // if node is internal node or output, try to copy schedule from fellow node
     if (dont_compute_inline) {

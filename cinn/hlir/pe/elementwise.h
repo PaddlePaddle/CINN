@@ -115,6 +115,12 @@ ir::Tensor Reshape(const ir::Tensor& A,
 
 ir::Tensor Cast(const ir::Tensor& A, const Type& dtype, const std::string& name = UniqName("T_Elementwise_Cast_out"));
 
+ir::Tensor Arange(const float start,
+                  const float stop,
+                  const float step,
+                  const Type& dtype,
+                  const std::string& name = UniqName("T_Elementwise_Arange_out"));
+
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn

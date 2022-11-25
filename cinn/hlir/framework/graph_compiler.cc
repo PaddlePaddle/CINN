@@ -786,6 +786,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
         VLOG(3) << "group_id is : " << group->group_id << ", and its number is : " << group->nodes.size();
         groups.push_back(std::move(group->CollectNodes()));
         // set node as output node from fetch_var_ids.
+        /*
         for (auto node : groups.back()) {
           // get all node datas.
           for (auto& link : node->outlinks()) {
@@ -798,6 +799,7 @@ GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::Compi
             }
           }
         }
+        */
         local_lowered_funcs.emplace_back(std::move(op_lowerer.Lower(group)));
         CHECK_EQ(local_lowered_funcs.back().size(), 1) << "Lowerd Function Is Not Equal 1!";
         VLOG(3) << local_lowered_funcs.back()[0];

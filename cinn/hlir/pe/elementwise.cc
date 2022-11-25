@@ -213,6 +213,18 @@ ir::Tensor Cast(const ir::Tensor& A, const Type& dtype, const std::string& name)
   return res;
 }
 
+ir::Tensor Arange(
+    const float start, const float stop, const float step, const Type& dtype, const std::string& output_name) {
+  int num        = static_cast<int>(std::ceil((stop - start) / step));
+  ir::Tensor res = lang::Compute(
+      {Expr(num)},
+      [=](const std::vector<ir::Expr>& indices) {
+        return ir::Cast::Make(dtype, Expr(start) + Expr(step) * ir::Cast::Make(common::F32(), indices[0]));
+      },
+      output_name);
+  return res;
+}
+
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn

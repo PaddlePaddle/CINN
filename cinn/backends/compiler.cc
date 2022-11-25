@@ -94,7 +94,7 @@ void Compiler::CompileCudaModule(const Module& module, const std::string& code) 
     }
   } else {
     VLOG(4) << "Write to " << FLAGS_cinn_source_code_save_path;
-    std::ofstream of(FLAGS_cinn_source_code_save_path, std::ofstream::out | std::ofstream::app);
+    std::ofstream of(FLAGS_cinn_source_code_save_path, std::ofstream::out);
     CHECK(of.is_open()) << "Failed to open " << FLAGS_cinn_source_code_save_path;
     of << source_code << std::endl;
     of.close();

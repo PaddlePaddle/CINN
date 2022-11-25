@@ -803,6 +803,66 @@ std::vector<Type> InferDtypeForCast(const std::vector<Type> &inputs_type, const 
   return {common::Str2Type(absl::get<std::string>(attrs.at("dtype")))};
 }
 
+std::shared_ptr<framework::OpStrategy> StrategyForArange(const framework::NodeAttr &attrs,
+                                                         const std::vector<ir::Tensor> &inputs,
+                                                         const std::vector<Type> &out_type,
+                                                         const std::vector<std::vector<int>> &output_shapes,
+                                                         const Target &target) {
+  auto attr_store = attrs.attr_store;
+  CHECK(attr_store.count("start"));
+  CHECK(attr_store.count("stop"));
+  CHECK(attr_store.count("step"));
+  CHECK(attr_store.count("dtype"));
+
+  auto start = absl::get<float>(attr_store.at("start"));
+  auto stop  = absl::get<float>(attr_store.at("stop"));
+  auto step  = absl::get<float>(attr_store.at("step"));
+  auto dtype = common::Str2Type(absl::get<std::string>(attr_store.at("dtype")));
+
+  framework::CINNCompute arange_compute([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of arange compute is empty! Please check.\n";
+    CINNValuePack pack_args = args[0];
+
+    std::string tensor_name = common::UniqName("T_Arange_out");
+    if (FLAGS_cinn_ir_schedule) {
+      CHECK_EQ(pack_args.size(), 1U);
+      tensor_name = pack_args[0].operator std::string();
+    }
+
+    auto out = pe::Arange(start, stop, step, dtype, tensor_name);
+    std::vector<common::CINNValue> res;
+    auto stages = CreateStages({out});
+    res.push_back(common::CINNValue(out));
+    res.push_back(common::CINNValue(stages));
+    *ret = CINNValuePack{res};
+  });
+
+  auto strategy = std::make_shared<framework::OpStrategy>();
+  strategy->AddImpl(arange_compute, GetElementwiseScheduleFunc(output_shapes, target), "strategy.reshape.x86", 1);
+  return strategy;
+}
+
+std::vector<std::vector<int>> InferShapeForArange(const std::vector<std::vector<int>> &inputs_shape,
+                                                  const framework::AttrMapType &attrs) {
+  CHECK(attrs.count("start"));
+  CHECK(attrs.count("stop"));
+  CHECK(attrs.count("step"));
+  float start = absl::get<float>(attrs.at("start"));
+  float stop  = absl::get<float>(attrs.at("stop"));
+  float step  = absl::get<float>(attrs.at("step"));
+  CHECK_GT(step, 0) << "The value of step cann't be 0!";
+
+  int num = static_cast<int>(std::ceil((stop - start) / step));
+  CHECK(num) << "Invalid arange parameters, start = " << start << ", stop = " << stop << ", step = " << step
+             << ", cause num_elem = " << num << " which is negative.";
+  return {{num}};
+}
+
+std::vector<Type> InferDtypeForArange(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
+  CHECK(attrs.count("dtype"));
+  return {common::Str2Type(absl::get<std::string>(attrs.at("dtype")))};
+}
+
 }  // namespace op
 }  // namespace hlir
 }  // namespace cinn
@@ -973,6 +1033,16 @@ CINN_REGISTER_HELPER(elementwise_ops) {
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForElementwise))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForCast))
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForElementwise))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElementWise)
+      .set_support_level(4);
+
+  CINN_REGISTER_OP(arange)
+      .describe("Returns evenly spaced values within a given interval.")
+      .set_num_inputs(0)
+      .set_num_outputs(1)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForArange)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForArange))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForArange))
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElementWise)
       .set_support_level(4);
 
