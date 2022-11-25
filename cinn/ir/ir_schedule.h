@@ -330,6 +330,8 @@ class IRSchedule {
    * \param loops  the loops to be flatted.
    * \param force_flat force to flat the right value.
    */
+  // Temporary solution for simplify the elementwise/broadcast/injective index.
+  // TODO(sunli): Solve Index Simplify.
   void FlattenLoops(const std::vector<Expr>& loops, const bool force_flat = false);
 
  private:
