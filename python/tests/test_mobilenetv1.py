@@ -99,6 +99,7 @@ class TestLoadMobilenetV1Model(unittest.TestCase):
                 print("Error! ", i, "-th data has diff with target data:\n",
                       out[i], " vs: ", target_result[i], ". Diff is: ",
                       out[i] - target_result[i])
+        # TODO(thisjiang): revert atol to 1e-3 after fix mul problem
         self.assertTrue(np.allclose(out, target_result, atol=1.0))
 
     def test_model(self):

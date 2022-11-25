@@ -87,6 +87,7 @@ TEST(RemoveIdentity, remove_multiple) {
   auto identity_2 = builder.Identity(identity_1);
   auto identity_3 = builder.Identity(identity_2);
   auto mul_1      = builder.Mul(identity_3, y);
+  auto program    = builder.Build();
 
   std::vector<std::string> input_names  = {x.id().data(), y.id().data()};
   std::vector<std::string> output_names = {mul_1->id};
@@ -120,6 +121,7 @@ TEST(RemoveIdentity, cannot_remove_fetch) {
   auto identity_1 = builder.Identity(relu_1);
   auto identity_2 = builder.Identity(identity_1);
   auto mul_1      = builder.Mul(identity_2, y);
+  auto program    = builder.Build();
 
   PassTest tester;
   std::vector<std::string> input_names  = {x.id().data(), y.id().data()};
