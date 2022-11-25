@@ -72,6 +72,7 @@ namespace frontend {
   macro__(Negative) \
   macro__(Sign) \
   macro__(Abs) \
+  macro__(Cbrt) \
   macro__(Clz) \
   macro__(Popc)
 

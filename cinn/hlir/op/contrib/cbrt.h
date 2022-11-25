@@ -25,7 +25,6 @@ namespace cinn {
 namespace hlir {
 namespace op {
 ir::Tensor Cbrt(const ir::Tensor &input,
-                const ir::Tensor &output,
                 const Target &target,
                 const std::string &output_name = "T_Cbrt_Out");
 }  // namespace op
