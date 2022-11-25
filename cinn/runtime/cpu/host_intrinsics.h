@@ -71,7 +71,7 @@ inline float FN_FP32(cbrt)(float x);
 
 #define FN_FP64(func) cinn_host_##func##_fp64
 
-inline float FN_FP64(cbrt)(float x);
+inline double FN_FP64(cbrt)(double x);
 
 #undef FN_FP64
 }

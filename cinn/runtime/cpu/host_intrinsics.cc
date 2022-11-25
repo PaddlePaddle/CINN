@@ -114,7 +114,7 @@ inline float FN_FP32(pow)(float x, float y) { return powf(x, y); }
 
 #define FN_FP64(func) cinn_host_##func##_fp64
 
-inline float FN_FP64(cbrt)(float x) { return cbrt(x); }
+inline double FN_FP64(cbrt)(double x) { return cbrt(x); }
 
 inline double FN_FP64(pow)(double x, double y) { return pow(x, y); }
 

@@ -119,6 +119,7 @@ std::vector<shape_t> InferShapeForCbrt(const std::vector<shape_t> &inputs_shape,
 
 std::vector<Type> InferDtypeForCbrt(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_type.size(), 1U) << "The input's type size should be 1! Please check again.";
+  CHECK(inputs_type[0].is_float()) << "The input's type should be float! Please check again.";
   std::vector<Type> res{inputs_type[0]};
   return res;
 }
