@@ -39,7 +39,7 @@ auto Min(T &&t) {
 }
 
 template <typename T, typename... Ts>
-auto Min(T &&t, Ts &&... ts) {
+auto Min(T &&t, Ts &&...ts) {
   return std::min(t, Min(ts...));
 }
 
@@ -49,7 +49,7 @@ auto Max(T &&t) {
 }
 
 template <typename T, typename... Ts>
-auto Max(T &&t, Ts &&... ts) {
+auto Max(T &&t, Ts &&...ts) {
   return std::max(t, Max(ts...));
 }
 

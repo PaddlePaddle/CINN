@@ -48,9 +48,7 @@ using common::CINNValue;
 using common::CINNValuePack;
 using framework::shape_t;
 
-ir::Tensor Cbrt(const ir::Tensor &input,
-                const Target &target,
-                const std::string &output_name) {
+ir::Tensor Cbrt(const ir::Tensor &input, const Target &target, const std::string &output_name) {
   std::string extern_func = "cinn_";
   if (target == common::DefaultHostTarget()) {
     extern_func += "host_";
@@ -109,13 +107,11 @@ std::shared_ptr<framework::OpStrategy> StrategyForCbrt(const framework::NodeAttr
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(
-      cbrt_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.cbrt.x86", 1);
+  strategy->AddImpl(cbrt_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.cbrt.x86", 1);
   return strategy;
 }
 
-std::vector<shape_t> InferShapeForCbrt(const std::vector<shape_t> &inputs_shape,
-                                          const framework::AttrMapType &attrs) {
+std::vector<shape_t> InferShapeForCbrt(const std::vector<shape_t> &inputs_shape, const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 1U) << "The input's shape size should be 1! Please check again.";
   std::vector<shape_t> res{inputs_shape[0]};
   return res;

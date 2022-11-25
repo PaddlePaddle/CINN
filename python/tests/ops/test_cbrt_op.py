@@ -32,7 +32,8 @@ class TestCbrtOp(OpTest):
 
     def init_case(self):
         self.inputs = {
-            "x": np.array([0, 1, 0.01, 27, 1000000, 0.970299]).astype("float32")
+            "x": np.array([0, 1, 0.01, 27, 1000000,
+                           0.970299]).astype("float32")
         }
 
     def build_paddle_program(self, target):
@@ -47,7 +48,8 @@ class TestCbrtOp(OpTest):
         out = builder.cbrt(x)
 
         prog = builder.build()
-        res = self.get_cinn_output(prog, target, [x], [self.inputs["x"]], [out])
+        res = self.get_cinn_output(prog, target, [x], [self.inputs["x"]],
+                                   [out])
 
         self.cinn_outputs = [res[0]]
 
@@ -58,17 +60,18 @@ class TestCbrtOp(OpTest):
 class TestCbrtCase1(TestCbrtOp):
     def init_case(self):
         self.inputs = {
-            "x": np.array([0, 1, 0.01, 27, 1000000, 0.970299, 124483, 13.7396]).astype("float32")
+            "x":
+            np.array([0, 1, 0.01, 27, 1000000, 0.970299, 124483,
+                      13.7396]).astype("float32")
         }
 
 
 class TestCbrtCase2(TestCbrtOp):
     def init_case(self):
         self.inputs = {
-            "x": np.array([
-                [0, 1, 0.01, 27],
-                [1000000, 0.970299, 124483, 13.7396]
-            ]).astype("float32"),
+            "x":
+            np.array([[0, 1, 0.01, 27], [1000000, 0.970299, 124483,
+                                         13.7396]]).astype("float32"),
         }
 
 
