@@ -148,34 +148,36 @@ std::vector<ir::Expr> CustomCallArgsForCublas(const framework::NodeAttr &attrs,
     }
   } else if (x_num_col_dims > 0 && y_num_col_dims > 0) {
     // input a shape.
-    a_shape    = {Expr(1), Expr(1)};
-    int height = 1;
-    int width  = 1;
+    a_shape      = {Expr(1), Expr(1)};
+    int a_height = 1;
+    int a_width  = 1;
     for (int idx = 0; idx < x_num_col_dims; ++idx) {
-      height *= inputs[0]->shape[idx].as_int32();
+      a_height *= inputs[0]->shape[idx].as_int32();
     }
     for (int idx = x_num_col_dims; idx < inputs[0]->shape.size(); ++idx) {
-      width *= inputs[0]->shape[idx].as_int32();
+      a_width *= inputs[0]->shape[idx].as_int32();
     }
-    a_shape.emplace_back(height);
-    a_shape.emplace_back(width);
+    a_shape.emplace_back(a_height);
+    a_shape.emplace_back(a_width);
 
     // input b shape.
-    b_shape = {Expr(1), Expr(1)};
-    height  = 1;
-    width   = 1;
+    b_shape      = {Expr(1), Expr(1)};
+    int b_height = 1;
+    int b_width  = 1;
     for (int idx = 0; idx < y_num_col_dims; ++idx) {
-      height *= inputs[1]->shape[idx].as_int32();
+      b_height *= inputs[1]->shape[idx].as_int32();
     }
     for (int idx = y_num_col_dims; idx < inputs[1]->shape.size(); ++idx) {
-      width *= inputs[1]->shape[idx].as_int32();
+      b_width *= inputs[1]->shape[idx].as_int32();
     }
-    b_shape.emplace_back(height);
-    b_shape.emplace_back(width);
+    b_shape.emplace_back(b_height);
+    b_shape.emplace_back(b_width);
 
-    CHECK_EQ(a_shape.back(), b_shape.back());
-    // transpose b
-    trans_b = true;
+    if (a_width != b_height) {
+      // need transpose y, just for compatible with model test
+      CHECK_EQ(a_width, b_width) << "The K dimension of mul shold be equal! Please check.";
+      trans_b = true;
+    }
   } else {
     LOG(FATAL) << "Unkown Matmul Setting!";
   }

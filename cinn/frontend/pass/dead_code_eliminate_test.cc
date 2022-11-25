@@ -14,6 +14,7 @@
 
 #include <gtest/gtest.h>
 
+#include "cinn/frontend/pass/pass_test_helper.h"
 #include "cinn/frontend/pass/test_helper.h"
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/tensor.h"
@@ -46,6 +47,9 @@ TEST(DeadCodeEliminate, remove_single) {
 }
 
 TEST(DeadCodeEliminate, remove_multiple) {
+  if (!IsCompiledWithCUDA()) {
+    return;
+  }
   //              <x>
   //           /   |   \
   //     identity  |  reduce_sum
@@ -58,14 +62,16 @@ TEST(DeadCodeEliminate, remove_multiple) {
   auto identity_1   = builder.Identity(x);
   auto reduce_sum_1 = builder.ReduceSum(x, {0, 1});
   auto mul_1        = builder.Mul(x, identity_1);
+  auto program      = builder.Build();
 
-  PassTest tester;
-  std::vector<std::string> input_names    = {x.id().data()};
-  std::vector<std::string> output_names   = {reduce_sum_1->id};
-  std::vector<std::string> program_passes = {"DeadCodeEliminate"};
-  // Thus identity_1, mul_1 and the corresponding instructions are removed.
-  int num_removed_ops = tester.RunAndCheck(builder, program_passes, input_names, output_names);
-  ASSERT_EQ(num_removed_ops, 2);
+  std::vector<std::string> input_names  = {x.id().data()};
+  std::vector<std::string> output_names = {reduce_sum_1->id};
+
+  common::Target target = common::DefaultNVGPUTarget();
+  std::pair<std::vector<std::string>, std::vector<std::string>> passes{
+      {"Decomposer"},
+      {"DeadCodeEliminate", "TransposeFoldingInput", "GemmRewriter", "TransposeFoldingOutput", "GemmRewriter"}};
+  CompareResult(&program, target, input_names, output_names, 2, passes, 123, true);
 }
 
 }  // namespace cinn::frontend

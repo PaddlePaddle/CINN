@@ -232,6 +232,16 @@ class TestMatmulCase16(TestMatmulOp):
         self.transpose_y = True
 
 
+class TestMatmulCase17(TestMatmulOp):
+    def init_case(self):
+        self.inputs = {
+            "x": np.random.random([128]).astype("float32"),
+            "y": np.random.random([10, 12, 128, 64]).astype("float32")
+        }
+        self.transpose_x = False
+        self.transpose_y = False
+
+
 class TestMatmulTransposePass(TestMatmulOp):
     def init_case(self):
         self.inputs = {
