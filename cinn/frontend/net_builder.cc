@@ -824,26 +824,7 @@ std::vector<int> NetBuilder::GetMatmulOutputShape(
 }
 
 Variable NetBuilder::Matmul(const Variable& x, const Variable& y, bool trans_x, bool trans_y, float alpha) {
-  const auto& inputs = BroadcastMatmulInput(x, y, trans_x, trans_y, alpha);
-
-  auto out =
-      CustomInstr(
-          "matmul", {inputs.first, inputs.second}, {{"trans_a", trans_x}, {"trans_b", trans_y}, {"alpha", alpha}})
-          .front();
-
-  const auto& should_out_shape = GetMatmulOutputShape(x, y, trans_x, trans_y, alpha);
-  if (should_out_shape != out->shape) {
-    int should_out_size = std::accumulate(should_out_shape.begin(), should_out_shape.end(), 1, std::multiplies<int>());
-    int real_out_size   = std::accumulate(out->shape.begin(), out->shape.end(), 1, std::multiplies<int>());
-    CHECK_EQ(should_out_size, real_out_size)
-        << "Cannot reshape the output:[" << out->id << "] of matmul from [" << cinn::utils::Join(out->shape, ", ")
-        << "] to [" << cinn::utils::Join(should_out_shape, ", ") << "]."
-        << " Whose input is "
-        << "matmul(X:" << x->id << "[" << cinn::utils::Join(x->shape, ", ") << "], Y:" << y->id << "["
-        << cinn::utils::Join(y->shape, ", ") << "]"
-        << ", trans_x=" << trans_x << ", trans_y=" << trans_y << ", alpha=" << alpha << ")";
-    out = Reshape(out, should_out_shape);
-  }
+  auto out = CustomInstr("matmul", {x, y}, {{"trans_a", trans_x}, {"trans_b", trans_y}, {"alpha", alpha}}).front();
 
   return out;
 }
