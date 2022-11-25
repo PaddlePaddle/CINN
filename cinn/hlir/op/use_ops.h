@@ -40,8 +40,4 @@ CINN_USE_REGISTER(one_hot_ops)
 CINN_USE_REGISTER(lookup_table_ops)
 CINN_USE_REGISTER(clz_ops)
 CINN_USE_REGISTER(popc_ops)
-<<<<<<< HEAD
 CINN_USE_REGISTER(reciprocal_ops)
-=======
-CINN_USE_REGISTER(reciprocal_ops)
->>>>>>> f29a93aad78e55d74daaa32893c932f1d149aae6
