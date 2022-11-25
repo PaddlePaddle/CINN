@@ -53,10 +53,6 @@ ir::Tensor Reshape(const ir::Tensor& A,
                    poly::StageMap stages,
                    const std::string& name);
 
-ir::Tensor Reshape(const ir::Tensor& A,
-                   const std::vector<int>& new_shape,
-                   const std::string& name = UniqName("T_Transform_Matmul_out"));
-
 ir::Tensor Concat(const ir::Tensor& A,
                   const ir::Tensor& B,
                   int axis                = 0,
@@ -219,10 +215,14 @@ ir::Tensor ScatterAdd(const ir::Tensor& input,
                       const int axis,
                       const std::string& output_name);
 
-ir::Tensor ExpandDims(const ir::Tensor& input,
-                      int axis,
-                      int num_newaxis                = 1,
-                      const std::string& output_name = UniqName("T_Transform_ExpandDims_out"));
+/**
+ * @brief Perform meta op Gather
+ * @param input The input tensor
+ * @param index The indexs tensor
+ * @param axis the axis to do gather
+ * @param output_name the name of the output tensor
+ */
+ir::Tensor Gather(const ir::Tensor& input, const ir::Tensor& index, const int& axis, const std::string& name);
 
 }  // namespace pe
 }  // namespace hlir
