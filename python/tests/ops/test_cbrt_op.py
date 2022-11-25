@@ -38,7 +38,6 @@ class TestCbrtOp(OpTest):
 
     def build_paddle_program(self, target):
         numpy_out = np.cbrt(self.inputs["x"])
-        print(numpy_out)
         out = paddle.to_tensor(numpy_out, stop_gradient=False)
         self.paddle_outputs = [out]
 
