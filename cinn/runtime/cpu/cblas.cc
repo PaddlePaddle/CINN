@@ -152,16 +152,16 @@ void cinn_cpu_mkl_trsm_batch_fp32(float alpha,
     A_array[i] = reinterpret_cast<float*>(A->memory) + i * a_stride;
     C_array[i] = reinterpret_cast<float*>(C->memory) + i * b_stride;
   }
+  CBLAS_SIDE left         = ToCblasSide(side);
   CBLAS_TRANSPOSE trans_a = ToCblasTranspose(ta);
   CBLAS_UPLO upper        = ToCblasUplo(uplo);
-  CBLAS_DIAG diag         = ToCblasDiag(diag);
-  CBLAS_SIDE left         = ToCblasSide(side);
+  CBLAS_DIAG diag_unit    = ToCblasDiag(diag);
 
   cblas_strsm_batch(CblasRowMajor,
-                    &side,
-                    &uplo,
-                    &ta,
-                    &diag,
+                    &left,
+                    &upper,
+                    &trans_a,
+                    &diag_unit,
                     &M,
                     &N,
                     &alpha,
