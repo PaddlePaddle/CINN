@@ -37,7 +37,6 @@
 #include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"
 DECLARE_bool(cinn_ir_schedule);
-#define PI 3.14159265357989
 
 namespace cinn {
 namespace hlir {
@@ -127,11 +126,11 @@ ir::Tensor TriangularSolve(const ir::Tensor &A,
   }
 }
 
-std::shared_ptr<OpStrategy> StrategyForTriangularSolve(const framework::NodeAttr &attrs,
-                                                       const std::vector<ir::Tensor> &inputs,
-                                                       const std::vector<Type> &out_type,
-                                                       const std::vector<std::vector<int>> &output_shapes,
-                                                       const Target &target) {
+std::shared_ptr<framework::OpStrategy> StrategyForTriangularSolve(const framework::NodeAttr &attrs,
+                                                                  const std::vector<ir::Tensor> &inputs,
+                                                                  const std::vector<Type> &out_type,
+                                                                  const std::vector<std::vector<int>> &output_shapes,
+                                                                  const Target &target) {
   framework::CINNCompute matmul_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input arguments of Matmul compute is empty! Please check.\n";
     CINNValuePack pack_args = args[0];
@@ -175,7 +174,7 @@ std::shared_ptr<OpStrategy> StrategyForTriangularSolve(const framework::NodeAttr
 
     std::vector<ir::Tensor> out;
     out = TriangularSolve(
-        tensor_A, tensor_B, left_side, upper, transpose_a, unit_diagona, UniqName("TriangularSolve_output"), target);
+        tensor_A, tensor_B, left_side, upper, transpose_a, unit_diagonal, UniqName("TriangularSolve_output"), target);
     std::vector<CINNValue> res;
     for (auto &t : out) {
       stages->InsertLazily(t);
