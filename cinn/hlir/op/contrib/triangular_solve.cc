@@ -123,6 +123,73 @@ ir::Tensor TriangularSolve(const ir::Tensor &A,
     out->WithBuffer(A->type());
     return out;
   } else {
+    std::vector<Expr> shape_A = A->shape;
+    std::vector<Expr> shape_B = B->shape;
+    int a_dim                 = shape_A.size();
+    int b_dim                 = shape_B.size();
+    CHECK(a_dim == 3U || a_dim == 2U) << "tensor_A's dim should be 2 or 3 while current dim is " << a_dim;
+    CHECK(b_dim == 3U || b_dim == 2U) << "tensor_B's dim should be 2 or 3 while current dim is " << b_dim;
+    CHECK_EQ(a_dim, b_dim) << "tensor_A's dim should be same with tensor_B";
+    if (a_dim == 3U) {
+      CHECK_EQ(shape_A.front(), shape_B.front())
+          << "tensor A and B's batch size should be same but current batch sizes are " << shape_A.front() << " and "
+          << shape_B.front();
+    }
+
+    Expr M  = shape_A[a_dim - 2];
+    Expr M2 = shape_A.back();
+    Expr N  = shape_B.back();
+    CHECK(is_zero(M - M2)) << "matrix A requires width to be same with height";
+
+    ir::Tensor call;
+    if (a_dim == 2U) {
+      call = Compute(
+          {Expr(1)},
+          [=]() -> Expr {
+            return lang::CallExtern("cinn_cpu_mkl_trsm_fp32",
+                                    {
+                                        Expr(1.0),                         // alpha
+                                        M,                                 // M
+                                        N,                                 // N
+                                        common::make_bool(left_side),      // left_side
+                                        common::make_bool(upper),          // upper
+                                        common::make_bool(transpose_a),    // transpose_a
+                                        common::make_bool(unit_diagonal),  // unit_diagonal
+                                        shape_A.back(),                    // lda
+                                        shape_B.back(),                    // ldb
+                                        A,                                 // A
+                                        B,                                 // B
+                                    });
+          },
+          UniqName("TriangularSolve_mkl_out"));
+    } else {
+      // batch TriangularSolve
+      call = Compute(
+          {Expr(1)},
+          [=]() -> Expr {
+            return lang::CallExtern("cinn_cpu_mkl_trsm_batch_fp32",
+                                    {
+                                        Expr(1.0),                         // alpha
+                                        shape_A.front(),                   // batch
+                                        M,                                 // M
+                                        N,                                 // N
+                                        common::make_bool(left_side),      // left_side
+                                        common::make_bool(upper),          // upper
+                                        common::make_bool(transpose_a),    // transpose_a
+                                        common::make_bool(unit_diagonal),  // unit_diagonal
+                                        shape_A.back(),                    // lda
+                                        shape_B.back(),                    // ldb
+                                        M * M,                             // a_stride
+                                        N * N,                             // b_stride
+                                        A,                                 // A
+                                        B,                                 // B
+                                    });
+          },
+          UniqName("batch_TriangularSolve_mkl_out"));
+    }
+    auto out = call->TupleGet(0);
+    out->WithBuffer(A->type());
+    return out;
   }
 }
 
@@ -144,7 +211,6 @@ std::shared_ptr<framework::OpStrategy> StrategyForTriangularSolve(const framewor
     bool upper         = false;
     bool transpose_a   = false;
     bool unit_diagonal = false;
-    float alpha        = 1;
     if (attr_store.count("left_side")) {
       left_side = absl::get<bool>(attr_store.at("left_side"));
     }
@@ -156,9 +222,6 @@ std::shared_ptr<framework::OpStrategy> StrategyForTriangularSolve(const framewor
     }
     if (attr_store.count("unit_diagonal")) {
       unit_diagonal = absl::get<bool>(attr_store.at("unit_diagonal"));
-    }
-    if (attr_store.count("alpha")) {
-      alpha = absl::get<float>(attr_store.at("alpha"));
     }
 
     std::string tensor_name = UniqName("TriangularSolve");
@@ -172,14 +235,11 @@ std::shared_ptr<framework::OpStrategy> StrategyForTriangularSolve(const framewor
     auto tensor_B = B.as_tensor_ref();
     auto stages   = CreateStages({tensor_A, tensor_B});
 
-    std::vector<ir::Tensor> out;
-    out = TriangularSolve(
+    ir::Tensor out = TriangularSolve(
         tensor_A, tensor_B, left_side, upper, transpose_a, unit_diagonal, UniqName("TriangularSolve_output"), target);
     std::vector<CINNValue> res;
-    for (auto &t : out) {
-      stages->InsertLazily(t);
-      res.push_back(CINNValue(t));
-    }
+    stages->InsertLazily(out);
+    res.push_back(CINNValue(out));
     CHECK(!out_type.empty()) << "Output type of TriangularSolve is empty! Please check.\n";
     res.push_back(CINNValue(stages));
     *ret = CINNValuePack{res};
