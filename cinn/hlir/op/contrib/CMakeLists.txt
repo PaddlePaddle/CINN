@@ -19,6 +19,7 @@ gather_srcs(cinnapi_src SRCS
         clz.cc
         popc.cc
         reciprocal.cc
+        logical_right_shift.cc
         )
 
 cc_test(test_cast SRCS cast_test.cc DEPS cinncore)
@@ -38,3 +39,4 @@ cc_test(test_lookup_table SRCS lookup_table_test.cc DEPS cinncore)
 cc_test(test_clz SRCS clz_test.cc DEPS cinncore)
 cc_test(test_popc SRCS popc_test.cc DEPS cinncore)
 cc_test(test_reciprocal SRCS reciprocal_test.cc DEPS cinncore)
+cc_test(test_logical_right_shift SRCS logical_right_shift_test.cc DEPS cinncore)
