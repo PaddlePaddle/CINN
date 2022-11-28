@@ -79,8 +79,6 @@ TEST(GenerateCode_Cuda, Cbrt) {
   ir::Tensor res = Cbrt(in, target, "test_cbrt");
 
   poly::StageMap stages = poly::CreateStages({res});
-  stages[res]->Bind(0, "blockIdx.x");
-  stages[res]->SetBuffer("global");
 
   std::vector<ir::LoweredFunc> funcs =
       lang::LowerVec("TestGenerateCodeCuda_Cbrt", stages, {res}, {}, {}, nullptr, target, true);

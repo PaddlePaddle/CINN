@@ -74,5 +74,13 @@ class TestCbrtCase2(TestCbrtOp):
         }
 
 
+class TestCbrtCase3(TestCbrtOp):
+    def init_case(self):
+        np.random.seed(0)
+        self.inputs = {
+            "x": np.random.random((32, 64)).astype("float32"),
+        }
+
+
 if __name__ == "__main__":
     unittest.main()
