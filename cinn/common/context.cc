@@ -24,6 +24,13 @@
 
 namespace cinn {
 namespace common {
+namespace {
+#ifdef RUNTIME_INCLUDE_DIR
+static constexpr char* defined_runtime_include_dir = RUNTIME_INCLUDE_DIR;
+#else
+static constexpr char* defined_runtime_include_dir = nullptr;
+#endif
+}  // namespace
 
 thread_local isl::ctx Context::ctx_ = isl_ctx_alloc();
 thread_local InfoRegistry Context::info_rgt_;
@@ -38,10 +45,13 @@ Context& Context::Global() {
 const std::vector<std::string>& Context::runtime_include_dir() {
   std::lock_guard<std::mutex> lock(mutex_);
   if (runtime_include_dir_.empty()) {
-    std::string env = std::getenv(kRuntimeIncludeDirEnvironKey);
-    if (env.size()) {
-      VLOG(4) << "-- runtime_include_dir: " << env;
+    const char* env = std::getenv(kRuntimeIncludeDirEnvironKey);
+    if (env) {  // use environment variable firstly
+      VLOG(4) << "get runtime_include_dir from env: " << env;
       runtime_include_dir_ = cinn::utils::Split(env, ":");
+    } else if (defined_runtime_include_dir) {
+      VLOG(4) << "get runtime_include_dir from RUNTIME_INCLUDE_DIR: " << defined_runtime_include_dir;
+      runtime_include_dir_ = cinn::utils::Split(defined_runtime_include_dir, ":");
     }
   }
   return runtime_include_dir_;
