@@ -96,12 +96,12 @@ class TestLoadResnetModel(unittest.TestCase):
         out = out.reshape(-1)
         target_result = target_result.reshape(-1)
         for i in range(0, min(out.shape[0], 200)):
-            if np.abs(out[i] - target_result[i]) > 1.0:
+            if np.abs(out[i] - target_result[i]) > 1e-1:
                 print("Error! ", i, "-th data has diff with target data:\n",
                       out[i], " vs: ", target_result[i], ". Diff is: ",
                       out[i] - target_result[i])
-        # TODO(thisjiang): revert atol to 1e-3 after fix mul problem
-        self.assertTrue(np.allclose(out, target_result, atol=1.0))
+        # TODO(thisjiang): revert atol to 1e-3 after fix inference mul problem
+        self.assertTrue(np.allclose(out, target_result, atol=1e-1))
 
     def test_model(self):
         self.apply_test()

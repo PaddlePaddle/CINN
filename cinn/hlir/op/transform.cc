@@ -236,24 +236,11 @@ inline std::vector<std::vector<int>> GetMulNewShapes(const std::vector<std::vect
   new_x_shape = flatten_shape(x_shape, x_num_col_dims);
   new_y_shape = flatten_shape(y_shape, y_num_col_dims);
 
-  bool is_infer = false;
-  if (new_x_shape[1] != new_y_shape[0]) {
-    // need transpose y, just for compatible with model test
-    CHECK_EQ(new_x_shape[1], new_y_shape[1]) << "The K dimension of mul shold be equal! Please check.";
-    is_infer = true;
-  }
-
   for (int i = 0; i < x_num_col_dims; ++i) {
     out_shape.emplace_back(x_shape[i]);
   }
-  if (is_infer) {
-    for (int i = 0; i < y_num_col_dims; ++i) {
-      out_shape.emplace_back(y_shape[i]);
-    }
-  } else {
-    for (int i = y_num_col_dims; i < y_shape.size(); ++i) {
-      out_shape.emplace_back(y_shape[i]);
-    }
+  for (int i = y_num_col_dims; i < y_shape.size(); ++i) {
+    out_shape.emplace_back(y_shape[i]);
   }
 
   return new_shape;
@@ -901,11 +888,6 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
       tensor_name = pack_args.back().operator std::string();
     }
 
-    if (new_shape_A[1] == new_shape_B[0]) {
-      // need transpose y, just for compatible with model test
-      new_B = pe::Transpose(new_B, {1, 0}, UniqName(tensor_name + "_T"));
-    }
-
     if (target.arch == Target::Arch::X86) {
 #ifdef CINN_WITH_MKL_CBLAS
       out = pe::MulMKL(new_A, new_B, tensor_name, target);
@@ -1004,6 +986,8 @@ std::vector<std::vector<int>> InferShapeForMul(const std::vector<std::vector<int
   VLOG(4) << "During the mul shape inference, new_shape_A: " << utils::Join(new_shape_A, ", ");
   VLOG(4) << "During the mul shape inference, new_shape_B: " << utils::Join(new_shape_B, ", ");
   VLOG(4) << "During the mul shape inference, output_shape: " << utils::Join(output_shape, ", ");
+
+  CHECK_EQ(new_shape_A[1], new_shape_B[0]) << "The K dimension of mul should be equal.";
 
   return {output_shape};
 }

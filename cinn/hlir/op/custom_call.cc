@@ -173,11 +173,7 @@ std::vector<ir::Expr> CustomCallArgsForCublas(const framework::NodeAttr &attrs,
     b_shape.emplace_back(b_height);
     b_shape.emplace_back(b_width);
 
-    if (a_width != b_height) {
-      // need transpose y, just for compatible with model test
-      CHECK_EQ(a_width, b_width) << "The K dimension of mul shold be equal! Please check.";
-      trans_b = true;
-    }
+    CHECK_EQ(a_width, b_height) << "The K dimension of mul shold be equal! Please check.";
   } else {
     LOG(FATAL) << "Unkown Matmul Setting!";
   }

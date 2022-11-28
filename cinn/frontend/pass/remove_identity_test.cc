@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cinn/frontend/pass/pass_test_helper.h"
 #include "cinn/frontend/pass/test_helper.h"
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/tensor.h"
@@ -66,9 +65,6 @@ TEST(RemoveIdentity, remove_branch) {
 }
 
 TEST(RemoveIdentity, remove_multiple) {
-  if (!IsCompiledWithCUDA()) {
-    return;
-  }
   //         <x>  <y>
   //          |    |
   //     identity  |
@@ -82,27 +78,21 @@ TEST(RemoveIdentity, remove_multiple) {
   //         <mul_1>
   NetBuilder builder("net_builder");
   auto x          = builder.CreateInput(Float(32), {32, 16}, "x");
-  auto y          = builder.CreateInput(Float(32), {32, 16}, "y");
+  auto y          = builder.CreateInput(Float(32), {16, 32}, "y");
   auto identity_1 = builder.Identity(x);
   auto identity_2 = builder.Identity(identity_1);
   auto identity_3 = builder.Identity(identity_2);
-  auto mul_1      = builder.Mul(identity_3, y);
-  auto program    = builder.Build();
+  auto mul_1      = builder.Matmul(identity_3, y);
 
-  std::vector<std::string> input_names  = {x.id().data(), y.id().data()};
-  std::vector<std::string> output_names = {mul_1->id};
-
-  common::Target target = common::DefaultNVGPUTarget();
-  std::pair<std::vector<std::string>, std::vector<std::string>> passes{
-      {"Decomposer"},
-      {"RemoveIdentity", "TransposeFoldingInput", "GemmRewriter", "TransposeFoldingOutput", "GemmRewriter"}};
-  CompareResult(&program, target, input_names, output_names, 3, passes, 123, true);
+  PassTest tester;
+  std::vector<std::string> input_names    = {x.id().data(), y.id().data()};
+  std::vector<std::string> output_names   = {mul_1->id};
+  std::vector<std::string> program_passes = {"RemoveIdentity"};
+  int num_removed_ops                     = tester.RunAndCheck(builder, program_passes, input_names, output_names);
+  ASSERT_EQ(num_removed_ops, 3);
 }
 
 TEST(RemoveIdentity, cannot_remove_fetch) {
-  if (!IsCompiledWithCUDA()) {
-    return;
-  }
   //         <x>  <y>
   //          |    |
   //        relu   |
@@ -116,22 +106,18 @@ TEST(RemoveIdentity, cannot_remove_fetch) {
   //         <mul_1>
   NetBuilder builder("net_builder");
   auto x          = builder.CreateInput(Float(32), {32, 16}, "x");
-  auto y          = builder.CreateInput(Float(32), {32, 16}, "y");
+  auto y          = builder.CreateInput(Float(32), {16, 32}, "y");
   auto relu_1     = builder.Relu(x);
   auto identity_1 = builder.Identity(relu_1);
   auto identity_2 = builder.Identity(identity_1);
-  auto mul_1      = builder.Mul(identity_2, y);
-  auto program    = builder.Build();
+  auto mul_1      = builder.Matmul(identity_2, y);
 
   PassTest tester;
-  std::vector<std::string> input_names  = {x.id().data(), y.id().data()};
-  std::vector<std::string> output_names = {identity_2->id, mul_1->id};
-
-  common::Target target = common::DefaultNVGPUTarget();
-  std::pair<std::vector<std::string>, std::vector<std::string>> passes{
-      {"Decomposer"},
-      {"RemoveIdentity", "TransposeFoldingInput", "GemmRewriter", "TransposeFoldingOutput", "GemmRewriter"}};
-  CompareResult(&program, target, input_names, output_names, 2, passes, 123, true);
+  std::vector<std::string> input_names    = {x.id().data(), y.id().data()};
+  std::vector<std::string> output_names   = {identity_2->id, mul_1->id};
+  std::vector<std::string> program_passes = {"RemoveIdentity"};
+  int num_removed_ops                     = tester.RunAndCheck(builder, program_passes, input_names, output_names);
+  ASSERT_EQ(num_removed_ops, 2);
 }
 
 }  // namespace cinn::frontend
