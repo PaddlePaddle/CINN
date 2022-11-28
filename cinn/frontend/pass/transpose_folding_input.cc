@@ -84,6 +84,8 @@ class TransposeFoldingInputPass : public TransposeFoldingBase {
 
             float alpha = (*dot)->attrs.count("alpha") ? absl::get<float>((*dot)->attrs.at("alpha")) : 1.0f;
             dot->SetAttr("alpha", alpha * scale);
+          } else if (IsValidBroadCast(*instr)) {
+            // nothin to do, can fold directly
           } else {
             continue;
           }

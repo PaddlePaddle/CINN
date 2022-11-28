@@ -243,7 +243,7 @@ TEST(GemmRwriter, BatchedComplex) {
                     [](absl::string_view id) { return std::string(id); });
   auto passes = std::make_pair(std::vector<std::string>{"Decomposer", "RemoveIdentity"},
                                std::vector<std::string>{"TransposeFoldingInput", "GemmRewriter"});
-  CompareResult(&program, target, input_ids, {out->id}, 3, passes, 123, false);
+  CompareResult(&program, target, input_ids, {out->id}, 4, passes, 123, false);
 }
 
 TEST(GemmRwriter, Complex) {

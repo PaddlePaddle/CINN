@@ -312,4 +312,61 @@ TEST(TransposeScaleFolding, BatchComplexCase6) {
   CompareResult(&program, target, input_ids, {out->id}, 3, passes, 123, false);
 }
 
+TEST(TransposeBroadCastFolding, BatchComplexCase1) {
+  if (!IsCompiledWithCUDA()) {
+    return;
+  }
+  NetBuilder builder("net_builder");
+  auto x           = builder.CreateInput(Float(32), {4, 5, 3}, "X");
+  auto y           = builder.CreateInput(Float(32), {5, 6}, "Y");
+  auto transpose_x = builder.Transpose(x, {0, 2, 1});
+  auto scale_y     = builder.Scale(y, 2.0f);
+  auto broadcast_y = builder.BroadcastTo(scale_y, {4, 5, 6});
+  auto out_matmul  = builder.Matmul(transpose_x, broadcast_y);
+  auto out_trans   = builder.Transpose(out_matmul, {0, 2, 1});
+  auto out         = builder.Scale(out_trans, 2.0f);
+  auto program     = builder.Build();
+
+  common::Target target = common::DefaultTarget();
+  std::vector<std::string> input_ids;
+  absl::c_transform(std::vector<absl::string_view>{x.id(), y.id()},
+                    std::back_inserter(input_ids),
+                    [](absl::string_view id) { return std::string(id); });
+  auto passes = std::make_pair(
+      std::vector<std::string>{"Decomposer"},
+      std::vector<std::string>{"TransposeFoldingInput", "GemmRewriter", "TransposeFoldingOutput", "GemmRewriter"});
+  CompareResult(&program, target, input_ids, {out->id}, 5, passes, 123, false);
+}
+
+// TODO(thisjiang): why cublas error out of bound?
+/*
+TEST(TransposeBroadCastFolding, BatchComplexCase2) {
+  if (!IsCompiledWithCUDA()) {
+    return;
+  }
+  NetBuilder builder("net_builder");
+  auto x           = builder.CreateInput(Float(32), {4, 5, 3}, "X");
+  auto y           = builder.CreateInput(Float(32), {5, 6}, "Y");
+  auto transpose_x = builder.Transpose(x, {0, 2, 1});
+  auto cast_x = builder.Cast(transpose_x, "float32");
+  auto scale_y     = builder.Scale(y, 2.0f);
+  auto broadcast_y     = builder.BroadcastTo(scale_y, {4, 5, 6});
+  auto out_matmul  = builder.Matmul(cast_x, broadcast_y);
+  auto out_trans = builder.Transpose(out_matmul, {0, 2, 1});
+  auto out_cast = builder.Cast(out_trans, "float32");
+  auto out = builder.Scale(out_cast, 2.0f);
+  auto program     = builder.Build();
+
+  common::Target target = common::DefaultTarget();
+  std::vector<std::string> input_ids;
+  absl::c_transform(std::vector<absl::string_view>{x.id(), y.id()},
+                    std::back_inserter(input_ids),
+                    [](absl::string_view id) { return std::string(id); });
+  auto passes = std::make_pair(
+      std::vector<std::string>{"Decomposer"},
+      std::vector<std::string>{"TransposeFoldingInput", "GemmRewriter", "TransposeFoldingOutput", "GemmRewriter"});
+  CompareResult(&program, target, input_ids, {out->id}, 5, passes, 123, false);
+}
+*/
+
 }  // namespace cinn::frontend

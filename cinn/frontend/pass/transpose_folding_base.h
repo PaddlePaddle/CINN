@@ -87,8 +87,11 @@ class TransposeFoldingBase : public ProgramPass {
     CHECK_EQ((*instr)->inputs.size(), 1UL) << "The op " << (*instr)->op_type << " should has 1 input.";
     CHECK_EQ((*instr)->outputs.size(), 1UL) << "The op " << (*instr)->op_type << " should has 1 output.";
 
-    if (!from_input && in2instr.at((*instr)->inputs[0]->id).size() != 1) {
+    VLOG(5) << "Try get matmul's folding instructions begin from [" << (*instr)->inputs[0]->id << "]";
+
+    if (!from_input && in2instr.at((*instr)->inputs[0]->id).size() != 1UL) {
       // the matmul's output should only link to one op
+      VLOG(5) << "The var [" << (*instr)->inputs[0]->id << "] link to many op, cannot fold into matmul! Please check.";
       return {};
     }
 
@@ -108,7 +111,7 @@ class TransposeFoldingBase : public ProgramPass {
       } else {
         // matmul -> transpose -> scale ==> {"transpose", "scale"}
         auto iter = in2instr.find((*cur_instr)->outputs[0]->id);
-        if ((iter != in2instr.end()) && iter->second.size() == 1) {
+        if (iter != in2instr.end() && iter->second.size() == 1UL) {
           next_instr = *iter->second.begin();
         }
       }
@@ -170,6 +173,14 @@ class TransposeFoldingBase : public ProgramPass {
     return (bias == 0.0f);
   }
 
+  bool IsValidBroadCast(const Instruction& broadcast) const {
+    if ("broadcast_to" != broadcast->op_type) {
+      return false;
+    }
+
+    return true;
+  }
+
   virtual void DoMatmulFoldOptimize(Instruction* instr,
                                     const Out2InstrType& out2instr,
                                     const In2InstrType& in2instr,
@@ -177,7 +188,7 @@ class TransposeFoldingBase : public ProgramPass {
                                     absl::flat_hash_set<Instruction*>* remove_instrs) const = 0;
 
   std::unordered_set<std::string> target_instrs_;
-  std::unordered_set<std::string> fold_instrs_{"transpose", "scale"};
+  std::unordered_set<std::string> fold_instrs_{"transpose", "scale", "broadcast_to", "cast", "identity"};
 };
 
 }  // namespace cinn::frontend::pass

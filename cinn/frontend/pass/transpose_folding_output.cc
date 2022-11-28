@@ -52,12 +52,14 @@ class TransposeFoldingOutputPass : public TransposeFoldingBase {
       // ensure the foldiong structions's output only link to one op
       const auto& fold_instrs = GetFoldInstruction(*in2instr.at(gemm_out_name).begin(), out2instr, in2instr, false);
 
+      VLOG(4) << "Fold Instruction: [" << debug_info(fold_instrs) << "]"
+              << " into output of matmul: " << *dot;
+
       if (fold_instrs.empty()) {
         return;
       }
 
-      VLOG(4) << "Fold Instruction: [" << debug_info(fold_instrs) << "]"
-              << " into output of matmul: " << *dot;
+      auto nex_instr = dot;
       for (int i = 0; i < fold_instrs.size(); ++i) {
         auto instr = fold_instrs[i];
 
@@ -76,11 +78,12 @@ class TransposeFoldingOutputPass : public TransposeFoldingBase {
           dot->SetAttr("alpha", alpha * scale);
           dot->SetAttr("beta", beta * scale);
         } else {
+          nex_instr = instr;
           continue;
         }
 
         // relink input: dot -> x -> scale -> y ==> dot -> y
-        (*dot)->outputs[0] = (*instr)->outputs[0];
+        (*nex_instr)->outputs[0] = (*instr)->outputs[0];
 
         // remove useless instruction, the `GetFoldInstruction` ensure this
         remove_instrs->insert(instr);

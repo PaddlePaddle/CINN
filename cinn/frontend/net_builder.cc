@@ -226,9 +226,6 @@ std::vector<Variable> NetBuilder::Split(const Variable& operand, const std::vect
 
 Variable NetBuilder::Concat(const std::vector<Variable>& input_vars, int axis) {
   CHECK(!input_vars.empty()) << "The inputs of concat op should not be empty! Please check.";
-  if (input_vars.size() == 1UL) {
-    return Identity(input_vars.front());
-  }
   return CustomInstr("concat", input_vars, {{"axis", axis}}).front();
 }
 
@@ -394,9 +391,6 @@ Variable NetBuilder::ScatterNd(const Variable& src,
 }
 
 Variable NetBuilder::Cast(const Variable& operand, const std::string& dtype) {
-  if (operand->type == common::Str2Type(dtype)) {
-    return Identity(operand);
-  }
   return CustomInstr("cast", {operand}, {{"dtype", dtype}}).front();
 }
 
