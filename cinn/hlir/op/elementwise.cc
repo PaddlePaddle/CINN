@@ -862,7 +862,7 @@ std::vector<std::vector<int>> InferShapeForArange(const std::vector<std::vector<
   float start = absl::get<float>(attrs.at("start"));
   float stop  = absl::get<float>(attrs.at("stop"));
   float step  = absl::get<float>(attrs.at("step"));
-  CHECK_GT(step, 0) << "The value of step cann't be 0!";
+  CHECK_NE(step, 0.0f) << "The value of step can't be 0!";
 
   int num = static_cast<int>(std::ceil((stop - start) / step));
   CHECK(num) << "Invalid arange parameters, start = " << start << ", stop = " << stop << ", step = " << step
