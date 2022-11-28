@@ -28,8 +28,19 @@ void SoftmaxOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& 
   auto axis        = utils::GetAttrOrDefault<int>(op_desc, "axis", -1);
   auto data_format = utils::GetAttrOrDefault<std::string>(op_desc, "data_format", "AnyLayout");
 
-  auto x   = ctx.GetVar(x_name);
+  auto x = ctx.GetVar(x_name);
+
+  auto real_type = x->type;
+  if (!real_type.is_float(32)) {
+    x = ctx.Builder()->Cast(x, "float32");
+  }
+
   auto out = ctx.Builder()->Softmax(x, axis, data_format);
+
+  if (!real_type.is_float(32)) {
+    out = ctx.Builder()->Cast(out, cinn::common::Type2Str(real_type));
+  }
+
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);
 }

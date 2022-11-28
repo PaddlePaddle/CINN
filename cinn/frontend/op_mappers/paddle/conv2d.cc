@@ -42,7 +42,18 @@ void Conv2dOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
   auto padding_algorithm = utils::GetAttrOrDefault<std::string>(op_desc, "padding_algorithm", "EXPLICIT");
   auto x                 = ctx.GetVar(x_name);
   Variable y             = ctx.GetVar(y_name);
+
+  auto real_type = x->type;
+  if (!real_type.is_float(32)) {
+    x = ctx.Builder()->Cast(x, "float32");
+    y = ctx.Builder()->Cast(y, "float32");
+  }
+
   auto out = ctx.Builder()->Conv2d(x, y, strides, paddings, dilations, groups, data_format, padding_algorithm);
+
+  if (!real_type.is_float(32)) {
+    out = ctx.Builder()->Cast(out, cinn::common::Type2Str(real_type));
+  }
 
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);
