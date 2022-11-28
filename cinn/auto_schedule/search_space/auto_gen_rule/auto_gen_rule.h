@@ -16,6 +16,7 @@
 
 #include <string>
 
+#include "cinn/auto_schedule/search_space/search_state.h"
 #include "cinn/common/target.h"
 #include "cinn/ir/ir_schedule.h"
 
@@ -66,6 +67,12 @@ class AutoGenRule {
 
   // Returns the name of the rule, used for debug.
   virtual std::string GetRuleName() const = 0;
+
+  virtual RuleApplyType AnalyseApplyType(SearchState state, const std::string& block_name) const {
+    return RuleApplyType::kCannotApply;
+  };
+
+  virtual std::vector<SearchState> ApplyOnBlock(SearchState state, const std::string& block_name) { return {}; };
 
  protected:
   // number of ScheduleBlock that can apply this auto gen rule

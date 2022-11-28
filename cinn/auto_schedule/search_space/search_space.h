@@ -20,6 +20,7 @@
 
 #include "cinn/auto_schedule/cost_model/expr_cost_model.h"
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
+#include "cinn/auto_schedule/search_space/rule_scheduler.h"
 #include "cinn/auto_schedule/search_space/search_state.h"
 #include "cinn/auto_schedule/task/tune_task.h"
 #include "cinn/ir/ir_base.h"
@@ -47,11 +48,19 @@ class SearchSpace {
   // Evolutionary search mutate, returns the mutated ModuleExpr and estimited cost
   virtual SearchState GetScheduleMutate(const SearchState& state, const ExprCostModel& cost_model);
 
+  // Generate sketch as initial population of evolutionary search
+  virtual std::vector<SearchState> GetInitialSketch(int num);
+
  private:
   // TODO(zhhsplendid): mutate by manual schedule.
   SearchState ManualScheduleMutate(const SearchState& state);
 
   SearchState RandomScheduleMutate(const SearchState& state);
+
+  std::vector<SearchState> CollectStateTransfer(const SearchState& state,
+                                                const std::string& block_name,
+                                                RuleScheduler* rule_scheduler,
+                                                int num_samples);
 
   const TuneTask& tune_task_;
   int init_sketch_random_depth_ = 6;

@@ -51,7 +51,7 @@ TEST(TraversalBlockScheduler, NextBlock) {
 
 TEST(ProbabilisticBlockScheduler, NextBlock) {
   std::vector<ir::Expr> blocks       = CreateTestBlocks();
-  auto probabilistic_block_scheduler = ProbabilisticBlockScheduler::Make(blocks, "probabilistic", {4, 2, 1});
+  auto probabilistic_block_scheduler = BlockScheduler::Make(blocks, "probabilistic", {4, 2, 1});
   std::string block_name;
   for (int i = 0; i < 20; ++i) {
     block_name = probabilistic_block_scheduler->NextBlock();
