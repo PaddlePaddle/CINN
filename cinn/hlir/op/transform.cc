@@ -50,7 +50,6 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
   bool trans_a           = GetAttr(attr_store, "trans_a", false);
   bool trans_b           = GetAttr(attr_store, "trans_b", false);
   float alpha            = GetAttr(attr_store, "alpha", 1.0f);
-  float beta             = GetAttr(attr_store, "beta", 0.0f);
 
   framework::CINNCompute matmul_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input arguments of Matmul compute is empty! Please check.\n";
@@ -100,14 +99,6 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
 #endif
     } else {
       out = pe::Matmul(new_A, new_B, trans_a, trans_b, alpha, tensor_name);
-    }
-
-    if (beta != 0.0f) {
-      auto temp = out[0];
-      out[0]    = Compute(
-          temp->shape,
-          [=](const std::vector<Expr> &indice) { return temp(indice) + ir::Cast::Make(temp->type(), Expr(beta)); },
-          tensor_name);
     }
 
     std::vector<CINNValue> res;

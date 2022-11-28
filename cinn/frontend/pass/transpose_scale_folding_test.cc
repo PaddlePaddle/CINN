@@ -288,4 +288,28 @@ TEST(TransposeScaleFolding, BatchComplexCase5) {
   CompareResult(&program, target, input_ids, {out->id}, 3, passes, 123, false);
 }
 
+TEST(TransposeScaleFolding, BatchComplexCase6) {
+  if (!IsCompiledWithCUDA()) {
+    return;
+  }
+  NetBuilder builder("net_builder");
+  auto x           = builder.CreateInput(Float(32), {20, 3}, "X");
+  auto reshape_x   = builder.Reshape(x, {4, 5, 3});
+  auto scale_x     = builder.Scale(reshape_x, 2.0f);
+  auto transpose_x = builder.Transpose(scale_x, {0, 2, 1});
+  auto out_matmul  = builder.Matmul(scale_x, transpose_x);
+  auto out         = builder.Transpose(out_matmul, {0, 2, 1});
+  auto program     = builder.Build();
+
+  common::Target target = common::DefaultTarget();
+  std::vector<std::string> input_ids;
+  absl::c_transform(std::vector<absl::string_view>{x.id()}, std::back_inserter(input_ids), [](absl::string_view id) {
+    return std::string(id);
+  });
+  auto passes = std::make_pair(
+      std::vector<std::string>{"Decomposer"},
+      std::vector<std::string>{"TransposeFoldingInput", "GemmRewriter", "TransposeFoldingOutput", "GemmRewriter"});
+  CompareResult(&program, target, input_ids, {out->id}, 3, passes, 123, false);
+}
+
 }  // namespace cinn::frontend
