@@ -38,6 +38,8 @@ class SearchState : public common::Shared<_SearchState_> {
   static constexpr float NOT_INIT_COST = std::numeric_limits<float>::max();
   // compare function for two states
   friend bool operator<(const SearchState& left, const SearchState& right);
+
+  SearchState Copy() const;
 };
 
 //! Class to store immediate states during search
