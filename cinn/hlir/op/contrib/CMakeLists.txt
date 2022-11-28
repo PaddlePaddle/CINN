@@ -12,6 +12,7 @@ gather_srcs(cinnapi_src SRCS
         one_hot.cc
         clz.cc
         popc.cc
+        reciprocal.cc
         )
 
 cc_test(test_gather_nd SRCS gather_nd_test.cc DEPS cinncore)
@@ -25,3 +26,4 @@ cc_test(test_one_hot SRCS one_hot_test.cc DEPS cinncore)
 cc_test(test_lookup_table SRCS lookup_table_test.cc DEPS cinncore)
 cc_test(test_clz SRCS clz_test.cc DEPS cinncore)
 cc_test(test_popc SRCS popc_test.cc DEPS cinncore)
+cc_test(test_reciprocal SRCS reciprocal_test.cc DEPS cinncore)
