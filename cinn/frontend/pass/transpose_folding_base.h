@@ -116,7 +116,7 @@ class TransposeFoldingBase : public ProgramPass {
         }
       }
 
-      if (next_instr && fold_instrs_.count((*next_instr)->op_type) && !visited.count((*next_instr)->op_type)) {
+      if (CanFold(next_instr, visited)) {
         // found can fold instruction and not repeat
         res.emplace_back(next_instr);
         visited.emplace((*next_instr)->op_type);
@@ -129,6 +129,20 @@ class TransposeFoldingBase : public ProgramPass {
     }
 
     return res;
+  }
+
+  bool CanFold(const Instruction* instr, const std::unordered_set<std::string>& visited_instr) const {
+    if (!instr || !fold_instrs_.count((*instr)->op_type) || visited_instr.count((*instr)->op_type)) {
+      return false;
+    }
+    const auto& instr_type = (*instr)->op_type;
+    if (instr_type == "transpose") {
+      if (visited_instr.count("broadcast_to")) {
+        // if transpose after broadcast_to, cannot fold because shape has changed
+        return false;
+      }
+    }
+    return true;
   }
 
   bool IsValidTranspose(const Instruction& transpose) const {
