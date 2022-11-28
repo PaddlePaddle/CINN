@@ -121,67 +121,24 @@ void PaddleModelToProgram::AddOpMapper_mul() {
     auto y             = GetVar(utils::TransValidVarName(y_name));
     int x_num_col_dims = op_desc.GetAttr<int>("x_num_col_dims");
     int y_num_col_dims = op_desc.GetAttr<int>("y_num_col_dims");
-    CHECK_EQ(y_num_col_dims, 1) << "The y_num_col_dims of mul is not 1! Please check.";
+
     VLOG(4) << "Mul x_num_col_dims: " << x_num_col_dims;
     VLOG(4) << "Mul y_num_col_dims: " << y_num_col_dims;
     VLOG(4) << "x shape: " << utils::Join(x->shape, ",");
     VLOG(4) << "y shape: " << utils::Join(y->shape, ",");
 
-    auto flatten_shape = [](const cinn::utils::ShapeType& shape, int num_col_dims) {
-      if (shape.size() <= 2) {
-        return shape;
-      }
-
-      if (num_col_dims < 0) {
-        num_col_dims += shape.size();
-      }
-
-      CHECK_GT(num_col_dims, 0) << "The [num_col_dims] should not be 0 in mul op! Please check.";
-      CHECK_LT(num_col_dims, shape.size()) << "The [num_col_dims] > rank(input) in mul op! Please check.";
-
-      cinn::utils::ShapeType new_shape(2, 1);
-      for (int i = 0; i < num_col_dims; ++i) {
-        new_shape[0] *= shape[i];
-      }
-      for (int i = num_col_dims; i < shape.size(); ++i) {
-        new_shape[1] *= shape[i];
-      }
-      return new_shape;
-    };
-
-    const auto& x_shape = flatten_shape(x->shape, x_num_col_dims);
-    const auto& y_shape = flatten_shape(y->shape, y_num_col_dims);
-    CHECK_EQ(x_shape[1], y_shape[1]) << "The K dimension of mul should be equal.";
-
-    auto x_reshape = x;
-    if (x_shape != x->shape) {
-      x_reshape = net_builder_->Reshape(x, x_shape);
-    }
-
-    auto y_reshape = y;
-    if (y_shape != y->shape) {
-      y_reshape = net_builder_->Reshape(y, y_shape);
-    }
-
-    // step2: transpose y
-    const auto& trans_y = net_builder_->Transpose(y_reshape, {1, 0});
-
-    // Step3: matmul
-    const auto& matmul_out = net_builder_->Matmul(x_reshape, trans_y);
-
-    // Step4 : recover matmul's output shape
-    cinn::utils::ShapeType out_shape;
-    for (int i = 0; i < x_num_col_dims; ++i) {
-      out_shape.emplace_back(x->shape[i]);
+    // Step2: transpose y
+    std::vector<int> new_shape;
+    for (int i = y_num_col_dims; i < y->shape.size(); ++i) {
+      new_shape.emplace_back(i);
     }
     for (int i = 0; i < y_num_col_dims; ++i) {
-      out_shape.emplace_back(y->shape[i]);
+      new_shape.emplace_back(i);
     }
+    auto trans_y = net_builder_->Transpose(y, new_shape);
 
-    auto out = matmul_out;
-    if (matmul_out->shape != out_shape) {
-      out = net_builder_->Reshape(matmul_out, out_shape);
-    }
+    // Step3: matmul
+    const auto& out = net_builder_->Mul(x, trans_y, x_num_col_dims, y->shape.size() - y_num_col_dims);
 
     CHECK_EQ(op_desc.Output("Out").size(), 1UL);
     auto out_name = op_desc.Output("Out").front();
