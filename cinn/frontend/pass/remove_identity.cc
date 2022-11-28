@@ -32,16 +32,10 @@ static std::unordered_map<std::string, std::function<bool(const Instruction&)>> 
        auto& output_var = instr->outputs[0];
        return (input_var->id != output_var->id) && (input_var->shape == output_var->shape);
      }},
-    {"scale",
-     [](const Instruction& instr) -> bool {
+    {"scale", [](const Instruction& instr) -> bool {
        bool bias_zero = !instr->attrs.count("bias") || instr.GetAttrs<float>("bias") == 0.0f;
        bool scale_one = !instr->attrs.count("scale") || instr.GetAttrs<float>("scale") == 1.0f;
        return bias_zero && scale_one;
-     }},
-    {"cast", [](const Instruction& instr) -> bool {
-       const auto& input_dtype  = instr->inputs[0]->type;
-       const auto& output_dtype = instr->outputs[0]->type;
-       return input_dtype == output_dtype;
      }}};
 
 // RemoveIdentityPass will remove the identity instructions in following patterns:
