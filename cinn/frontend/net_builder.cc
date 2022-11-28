@@ -628,9 +628,8 @@ std::vector<Variable> NetBuilder::Conv2dGrad(const Variable& dy,
 }
 
 Variable NetBuilder::Matmul(const Variable& x, const Variable& y, bool trans_x, bool trans_y, float alpha) {
-  auto out = CustomInstr("matmul", {x, y}, {{"trans_a", trans_x}, {"trans_b", trans_y}, {"alpha", alpha}}).front();
-
-  return out;
+  return CustomInstr("matmul", {x, y}, {{"trans_a", trans_x}, {"trans_b", trans_y}, {"alpha", alpha}}).front();
+  ;
 }
 
 }  // namespace frontend

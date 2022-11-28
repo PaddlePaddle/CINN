@@ -135,16 +135,39 @@ std::vector<ir::Expr> CustomCallArgsForCublas(const framework::NodeAttr &attrs,
 
   std::vector<ir::Expr> a_shape, b_shape;
   if (x_num_col_dims == 0 && y_num_col_dims == 0) {
-    a_shape           = inputs[0]->shape;
-    int insert_1_to_a = 4 - a_shape.size();
-    for (int idx = 0; idx < insert_1_to_a; ++idx) {
-      a_shape.insert(a_shape.begin(), ir::Expr(1));
+    int a_rank = inputs[0]->shape.size();
+    int b_rank = inputs[1]->shape.size();
+
+    if (a_rank == 1) {
+      a_shape.resize(4, ir::Expr(1));
+
+      if (trans_a) {
+        a_shape[2] = inputs[0]->shape[0];
+      } else {
+        a_shape[3] = inputs[0]->shape[0];
+      }
+    } else {
+      a_shape           = inputs[0]->shape;
+      int insert_1_to_a = 4 - a_shape.size();
+      for (int idx = 0; idx < insert_1_to_a; ++idx) {
+        a_shape.insert(a_shape.begin(), ir::Expr(1));
+      }
     }
 
-    b_shape           = inputs[1]->shape;
-    int insert_1_to_b = 4 - b_shape.size();
-    for (int idx = 0; idx < insert_1_to_b; ++idx) {
-      b_shape.insert(b_shape.begin(), ir::Expr(1));
+    if (b_rank == 1) {
+      b_shape.resize(4, ir::Expr(1));
+
+      if (trans_b) {
+        b_shape[3] = inputs[1]->shape[0];
+      } else {
+        b_shape[2] = inputs[1]->shape[0];
+      }
+    } else {
+      b_shape           = inputs[1]->shape;
+      int insert_1_to_b = 4 - b_shape.size();
+      for (int idx = 0; idx < insert_1_to_b; ++idx) {
+        b_shape.insert(b_shape.begin(), ir::Expr(1));
+      }
     }
   } else if (x_num_col_dims > 0 && y_num_col_dims > 0) {
     // input a shape.
