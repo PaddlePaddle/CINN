@@ -36,14 +36,11 @@ DEFINE_int32(cinn_parallel_compile_size,
              Int32FromEnv("FLAGS_cinn_parallel_compile_size", 0),
              "When use parallel compile, set the number of group compiled by each thread.");
 
-DEFINE_bool(cinn_open_fusion_optimize,
-            BoolFromEnv("FLAGS_cinn_open_fusion_optimize", true),
-            "Whether use the op_fusion optimization.");
+DEFINE_bool(cinn_use_op_fusion, BoolFromEnv("FLAGS_cinn_use_op_fusion", true), "Whether to use op fusion pass.");
 
-// FLAGS to switch optimization status
-DEFINE_bool(cinn_use_new_fusion_pass,
-            BoolFromEnv("FLAGS_cinn_use_new_fusion_pass", true),
-            "Whether use the new op_fusion and fusion_merge pass.");
+DEFINE_bool(cinn_use_cudnn_conv, BoolFromEnv("FLAGS_cinn_use_cudnn_conv", false), "Whether to use cudnn convolution.");
+
+DEFINE_bool(cinn_use_cublas_gemm, BoolFromEnv("FLAGS_cinn_use_cublas_gemm", false), "Whether to use cublas gemm.");
 
 DEFINE_bool(cinn_use_fill_constant_folding,
             BoolFromEnv("FLAGS_cinn_use_fill_constant_folding", false),
