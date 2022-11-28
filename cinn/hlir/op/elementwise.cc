@@ -567,7 +567,13 @@ std::shared_ptr<framework::OpStrategy> StrategyForSqueeze(const framework::NodeA
 std::vector<std::vector<int>> InferShapeForSqueeze(const std::vector<std::vector<int>> &inputs_shape,
                                                    const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 1U);
-  std::vector<int> axes = {};  // absl::get<std::vector<int>>(attrs.at("axes"));
+  CHECK(attrs.count("axes"));
+  std::vector<int> axes = absl::get<std::vector<int>>(attrs.at("axes"));
+  for (auto &axis : axes) {
+    if (axis < 0) {
+      axis += inputs_shape[0].size();
+    }
+  }
 
   std::vector<int> output_shape;
   if (axes.size()) {
