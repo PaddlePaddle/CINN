@@ -851,9 +851,8 @@ Variable NetBuilder::Matmul(const Variable& x, const Variable& y, bool trans_x, 
 
 Variable NetBuilder::TriangularSolve(
     const Variable& x, const Variable& y, bool left_side, bool upper, bool transpose_a, bool unit_diagonal) {
-  std::vector<Variable> inputs = {x, y};
   return CustomInstr("triangular_solve",
-                     {inputs.first, inputs.second},
+                     {x, y},
                      {{"left_side", left_side},
                       {"upper", upper},
                       {"transpose_a", transpose_a},

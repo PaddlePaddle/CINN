@@ -107,6 +107,23 @@ void cinn_call_cublas(void* v_args,
                       int b4,
                       void* stream);
 
+void cinn_call_cublas_trsm(void* v_args,
+                           int num_args,
+                           bool side,
+                           bool uplo,
+                           bool ta,
+                           bool diag,
+                           float alpha,
+                           int a1,
+                           int a2,
+                           int a3,
+                           int a4,
+                           int b1,
+                           int b2,
+                           int b3,
+                           int b4,
+                           void* stream);
+
 #ifdef CINN_WITH_CUDNN
 
 void cinn_call_cudnn_conv2d_forward(void* v_args,

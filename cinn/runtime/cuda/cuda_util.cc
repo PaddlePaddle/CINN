@@ -36,7 +36,7 @@ namespace cuda {
 
 class CublasHandle {
  public:
-  CublasHandle(const CublasHandle &) = delete;
+  CublasHandle(const CublasHandle &)            = delete;
   CublasHandle &operator=(const CublasHandle &) = delete;
   ~CublasHandle() { CUBLAS_CALL(cublasDestroy(cuhandle)); }
   static CublasHandle &GetInstance() {
@@ -217,10 +217,54 @@ void cinn_call_cublas(void *v_args,
   }
 }
 
+void cinn_call_cublas_trsm(void *v_args,
+                           int num_args,
+                           bool side,
+                           bool uplo,
+                           bool ta,
+                           bool diag,
+                           float alpha,
+                           int a1,
+                           int a2,
+                           int a3,
+                           int a4,
+                           int b1,
+                           int b2,
+                           int b3,
+                           int b4,
+                           void *stream) {
+  CHECK_EQ(num_args, 3);
+  cublasHandle_t &cuhandle = CublasHandle::GetInstance().GetCublasHandle();
+  cinn_pod_value_t *args   = static_cast<cinn_pod_value_t *>(v_args);
+  cudaStream_t custream    = static_cast<cudaStream_t>(stream);
+  CUBLAS_CALL(cublasSetStream(cuhandle, custream));
+
+  float *A = reinterpret_cast<float *>(args[0].operator cinn_buffer_t *()->memory);
+  float *B = reinterpret_cast<float *>(args[1].operator cinn_buffer_t *()->memory);
+  float *C = reinterpret_cast<float *>(args[2].operator cinn_buffer_t *()->memory);
+
+  int M = a3;
+  int N = b4;
+
+  auto side_cublas = side ? CUBLAS_SIDE_LEFT : CUBLAS_SIDE_RIGHT;
+  auto uplo_cublas = uplo ? CUBLAS_FILL_MODE_UPPER : CUBLAS_FILL_MODE_LOWER;
+  auto ta_cublas   = ta ? CUBLAS_OP_T : CUBLAS_OP_N;
+  auto diag_cublas = diag ? CUBLAS_DIAG_UNIT : CUBLAS_DIAG_NON_UNIT;
+
+  cudaMemcpyAsync(C, B, M * N * sizeof(float), cudaMemcpyDeviceToDevice, stream);
+  if (a1 * a2 * b1 * b2 == 1) {
+    CUBLAS_CALL(cublasStrsm(
+        cuhandle, side_cublas, uplo_cublas, ta_cublas, diag_cublas, output_col, output_row, M, N, &alpha, A, M, C, N));
+  } else {
+    CHECK_EQ(a1, b1);
+    CHECK_EQ(a2, b2);
+  }
+}
+
 #ifdef CINN_WITH_CUDNN
 class CudnnHandle {
  public:
-  CudnnHandle(const CudnnHandle &) = delete;
+  CudnnHandle(const CudnnHandle &)            = delete;
   CudnnHandle &operator=(const CudnnHandle &) = delete;
   ~CudnnHandle() {
     CUDNN_CALL(cudnnDestroy(cuhandle_));
@@ -255,7 +299,7 @@ class CudnnHandle {
 
 class ConvAlgoMap {
  public:
-  ConvAlgoMap(const ConvAlgoMap &) = delete;
+  ConvAlgoMap(const ConvAlgoMap &)            = delete;
   ConvAlgoMap &operator=(const ConvAlgoMap &) = delete;
   static ConvAlgoMap &GetInstance() {
     static ConvAlgoMap instance;
@@ -861,6 +905,84 @@ void GemmStridedBatched(const cublasHandle_t &cublas,
                             output_bs);
 }
 
+void Trsm(const cublasHandle_t &cublas,
+          bool side,
+          bool uplo,
+          bool ta,
+          bool diag,
+          const float alpha,
+          const float *A_data,
+          const std::vector<int> &A_shape,
+          const float *B_data,
+          const std::vector<int> &B_shape,
+          float *output_data,
+          cudaStream_t stream) {
+  int M = A_shape[0];
+  int N = B_shape[1];
+
+  auto side_cublas = side ? CUBLAS_SIDE_LEFT : CUBLAS_SIDE_RIGHT;
+  auto uplo_cublas = uplo ? CUBLAS_FILL_MODE_UPPER : CUBLAS_FILL_MODE_LOWER;
+  auto ta_cublas   = ta ? CUBLAS_OP_T : CUBLAS_OP_N;
+  auto diag_cublas = diag ? CUBLAS_DIAG_UNIT : CUBLAS_DIAG_NON_UNIT;
+
+  cudaMemcpyAsync(output_data, B_data, M * N * sizeof(float), cudaMemcpyDeviceToDevice, stream);
+  cublasStrsm(cublas,
+              side_cublas,
+              uplo_cublas,
+              ta_cublas,
+              diag_cublas,
+              output_col,
+              output_row,
+              M,
+              N,
+              &alpha,
+              A_data,
+              M,
+              output_data,
+              N);
+}
+
+// void TrsmBatched(const cublasHandle_t &cublas,
+//           bool side,
+//           bool uplo,
+//           bool ta,
+//           bool diag,
+//           const float alpha,
+//           const float *A_data,
+//           const std::vector<int> &A_shape,
+//           const float *B_data,
+//           const std::vector<int> &B_shape,
+//           float *output_data,
+//           cudaStream_t stream) {
+//   int batch_size       = A_shape[0];
+//   int M = A_shape[1];
+//   int N = B_shape[2];
+//
+//   auto side_cublas = side ? CUBLAS_SIDE_LEFT : CUBLAS_SIDE_RIGHT;
+//   auto uplo_cublas = uplo ? CUBLAS_FILL_MODE_UPPER : CUBLAS_FILL_MODE_LOWER;
+//   auto ta_cublas   = ta ? CUBLAS_OP_T : CUBLAS_OP_N;
+//   auto diag_cublas = diag ? CUBLAS_DIAG_UNIT : CUBLAS_DIAG_NON_UNIT;
+//
+//   cudaMemcpyAsync(output_data, B_data, M * N * sizeof(float), cudaMemcpyDeviceToDevice, stream);
+//   int64_t A_stride      = M*M;
+//   int64_t B_stride      = M*N;
+//
+//   cublasStrsmBatched(cublas,
+//               side_cublas,
+//               uplo_cublas,
+//               ta_cublas,
+//               diag_cublas,
+//               M,
+//               N,
+//               &alpha,
+//               A_data,
+//               M,
+//               output_data,
+//               N,
+//               batch_size
+//               );
+// }
+
 }  // namespace details
 
 void cinn_gpu_cublas_mul(const std::vector<int> &attrs,
@@ -972,6 +1094,95 @@ void cinn_gpu_cublas_gemm(const std::vector<int> &attrs,
                                 output_data,
                                 output_shape,
                                 stream);
+  }
+}
+
+void cinn_gpu_cublas_trsm(
+    const std::vector<int> &attrs, cinn_buffer_t *A, cinn_buffer_t *B, cinn_buffer_t *output, cudaStream_t stream) {
+  cublasHandle_t &handle = CublasHandle::GetInstance().GetCublasHandle();
+  cudaStream_t custream  = static_cast<cudaStream_t>(stream);
+  CUBLAS_CALL(cublasSetStream(handle, custream));
+
+  const float *A_data = reinterpret_cast<const float *>(A->memory);
+  const float *B_data = reinterpret_cast<const float *>(B->memory);
+  float *output_data  = reinterpret_cast<float *>(output->memory);
+
+  CHECK_GE(attrs.size(), 12);
+  int A_dim_size   = attrs[attrs.size() - 7];
+  int B_dim_size   = attrs[attrs.size() - 6];
+  int out_dim_size = attrs[attrs.size() - 5];
+  bool A_trans     = static_cast<bool>(attrs[attrs.size() - 4]);
+  bool B_trans     = static_cast<bool>(attrs[attrs.size() - 3]);
+  bool out_trans   = static_cast<bool>(attrs[attrs.size() - 2]);
+
+  bool left_side     = static_cast<bool>(attrs[attrs.size() - 4]);
+  bool upper         = static_cast<bool>(attrs[attrs.size() - 3]);
+  bool transpose_a   = static_cast<bool>(attrs[attrs.size() - 2]);
+  bool unit_diagonal = static_cast<bool>(attrs[attrs.size() - 1]);
+
+  // 1）C = A^T * B    -->  C^T = B^T * A
+  // 2）C = A * B^T    -->  C^T = B * A^T
+  // 3）C = A^T * B^T  -->  C^T = B * A
+  // 4）C = A * B      -->  C^T = B^T * A^T
+  if (out_trans) {
+    A_trans = static_cast<bool>(attrs[attrs.size() - 3]) ^ out_trans;
+    B_trans = static_cast<bool>(attrs[attrs.size() - 4]) ^ out_trans;
+  }
+  const float alpha = *reinterpret_cast<const float *>(&attrs[attrs.size() - 1]);
+  const float beta  = bias ? 1.f : 0.f;
+  VLOG(4) << "The A_trans value used by cinn_gpu_cublas_gemm: " << A_trans;
+  VLOG(4) << "The B_trans value used by cinn_gpu_cublas_gemm: " << B_trans;
+  VLOG(4) << "The out_trans value used by cinn_gpu_cublas_gemm: " << out_trans;
+  VLOG(4) << "The alpha value used by cinn_gpu_cublas_gemm: " << alpha;
+  VLOG(4) << "The beta value used by cinn_gpu_cublas_gemm: " << beta;
+  CHECK_EQ(A_dim_size, B_dim_size);
+  CHECK_EQ(A_dim_size, out_dim_size);
+  CHECK((A_dim_size == 2 || A_dim_size == 3));
+
+  if (A_dim_size == 2) {
+    // [row, col]
+    std::vector<int> A_shape{attrs[0], attrs[1]};
+    std::vector<int> B_shape{attrs[2], attrs[3]};
+    std::vector<int> output_shape{attrs[4], attrs[5]};
+    if (out_trans) {
+      std::swap(A_shape, B_shape);
+      std::swap(A_data, B_data);
+    }
+    details::Trsm(handle,
+                  A_trans,
+                  B_trans,
+                  alpha,
+                  A_data,
+                  A_shape,
+                  B_data,
+                  B_shape,
+                  bias_data,
+                  beta,
+                  output_data,
+                  output_shape,
+                  stream);
+  } else {
+    // [batch, row, col]
+    //    std::vector<int> A_shape{attrs[0], attrs[1], attrs[2]};
+    //    std::vector<int> B_shape{attrs[3], attrs[4], attrs[5]};
+    //    std::vector<int> output_shape{attrs[6], attrs[7], attrs[8]};
+    //    if (out_trans) {
+    //      std::swap(A_shape, B_shape);
+    //      std::swap(A_data, B_data);
+    //    }
+    //    details::GemmStridedBatched(handle,
+    //                                A_trans,
+    //                                B_trans,
+    //                                alpha,
+    //                                A_data,
+    //                                A_shape,
+    //                                B_data,
+    //                                B_shape,
+    //                                bias_data,
+    //                                beta,
+    //                                output_data,
+    //                                output_shape,
+    //                                stream);
   }
 }
 

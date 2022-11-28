@@ -54,26 +54,27 @@ ir::Tensor TriangularSolve(const ir::Tensor &A,
                            const std::string &name,
                            const common::Target &target) {
   CHECK_EQ(A->shape.size(), B->shape.size());
+
+  std::vector<Expr> shape_A = A->shape;
+  std::vector<Expr> shape_B = B->shape;
+  int a_dim                 = shape_A.size();
+  int b_dim                 = shape_B.size();
+  CHECK(a_dim == 3U || a_dim == 2U) << "tensor_A's dim should be 2 or 3 while current dim is " << a_dim;
+  CHECK(b_dim == 3U || b_dim == 2U) << "tensor_B's dim should be 2 or 3 while current dim is " << b_dim;
+  CHECK_EQ(a_dim, b_dim) << "tensor_A's dim should be same with tensor_B";
+  if (a_dim == 3U) {
+    CHECK_EQ(shape_A.front(), shape_B.front())
+        << "tensor A and B's batch size should be same but current batch sizes are " << shape_A.front() << " and "
+        << shape_B.front();
+  }
+
+  Expr M  = shape_A[a_dim - 2];
+  Expr M2 = shape_A.back();
+  Expr N  = shape_B.back();
+  CHECK(is_zero(M - M2)) << "matrix A requires width to be same with height";
+
+  ir::Tensor call;
   if (target.arch == Target::Arch::X86) {
-    std::vector<Expr> shape_A = A->shape;
-    std::vector<Expr> shape_B = B->shape;
-    int a_dim                 = shape_A.size();
-    int b_dim                 = shape_B.size();
-    CHECK(a_dim == 3U || a_dim == 2U) << "tensor_A's dim should be 2 or 3 while current dim is " << a_dim;
-    CHECK(b_dim == 3U || b_dim == 2U) << "tensor_B's dim should be 2 or 3 while current dim is " << b_dim;
-    CHECK_EQ(a_dim, b_dim) << "tensor_A's dim should be same with tensor_B";
-    if (a_dim == 3U) {
-      CHECK_EQ(shape_A.front(), shape_B.front())
-          << "tensor A and B's batch size should be same but current batch sizes are " << shape_A.front() << " and "
-          << shape_B.front();
-    }
-
-    Expr M  = shape_A[a_dim - 2];
-    Expr M2 = shape_A.back();
-    Expr N  = shape_B.back();
-    CHECK(is_zero(M - M2)) << "matrix A requires width to be same with height";
-
-    ir::Tensor call;
     if (a_dim == 2U) {
       call = Compute(
           {Expr(1)},
@@ -123,30 +124,11 @@ ir::Tensor TriangularSolve(const ir::Tensor &A,
     out->WithBuffer(A->type());
     return out;
   } else {
-    std::vector<Expr> shape_A = A->shape;
-    std::vector<Expr> shape_B = B->shape;
-    int a_dim                 = shape_A.size();
-    int b_dim                 = shape_B.size();
-    CHECK(a_dim == 3U || a_dim == 2U) << "tensor_A's dim should be 2 or 3 while current dim is " << a_dim;
-    CHECK(b_dim == 3U || b_dim == 2U) << "tensor_B's dim should be 2 or 3 while current dim is " << b_dim;
-    CHECK_EQ(a_dim, b_dim) << "tensor_A's dim should be same with tensor_B";
-    if (a_dim == 3U) {
-      CHECK_EQ(shape_A.front(), shape_B.front())
-          << "tensor A and B's batch size should be same but current batch sizes are " << shape_A.front() << " and "
-          << shape_B.front();
-    }
-
-    Expr M  = shape_A[a_dim - 2];
-    Expr M2 = shape_A.back();
-    Expr N  = shape_B.back();
-    CHECK(is_zero(M - M2)) << "matrix A requires width to be same with height";
-
-    ir::Tensor call;
     if (a_dim == 2U) {
       call = Compute(
           {Expr(1)},
           [=]() -> Expr {
-            return lang::CallExtern("cinn_cpu_mkl_trsm_fp32",
+            return lang::CallExtern("cinn_call_cublas_trsm",
                                     {
                                         Expr(1.0),                         // alpha
                                         M,                                 // M
@@ -161,9 +143,10 @@ ir::Tensor TriangularSolve(const ir::Tensor &A,
                                         B,                                 // B
                                     });
           },
-          UniqName("TriangularSolve_mkl_out"));
+          UniqName("TriangularSolve_cublas_out"));
     } else {
       // batch TriangularSolve
+      // TODO:use cublas
       call = Compute(
           {Expr(1)},
           [=]() -> Expr {
@@ -185,7 +168,7 @@ ir::Tensor TriangularSolve(const ir::Tensor &A,
                                         B,                                 // B
                                     });
           },
-          UniqName("batch_TriangularSolve_mkl_out"));
+          UniqName("batch_TriangularSolve_cublas_out"));
     }
     auto out = call->TupleGet(0);
     out->WithBuffer(A->type());

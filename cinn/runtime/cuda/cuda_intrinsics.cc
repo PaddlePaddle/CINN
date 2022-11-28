@@ -261,6 +261,27 @@ CINN_REGISTER_HELPER(cinn_cuda_host_api) {
       .AddInputType<void *>()  // stream
       .End();
 
+  using cinn::runtime::cuda::cinn_call_cublas_trsm;
+  REGISTER_EXTERN_FUNC_HELPER(cinn_call_cublas_trsm, target)
+      .SetRetType<void>()
+      .AddInputType<void *>()  // v_args
+      .AddInputType<int>()     // num_args
+      .AddInputType<bool>()    // side
+      .AddInputType<bool>()    // uplo
+      .AddInputType<bool>()    // ta
+      .AddInputType<bool>()    // diag
+      .AddInputType<float>()   // alpha
+      .AddInputType<int>()     // a1
+      .AddInputType<int>()     // a2
+      .AddInputType<int>()     // a3
+      .AddInputType<int>()     // a4
+      .AddInputType<int>()     // b1
+      .AddInputType<int>()     // b2
+      .AddInputType<int>()     // b3
+      .AddInputType<int>()     // b4
+      .AddInputType<void *>()  // stream
+      .End();
+
 #ifdef CINN_WITH_CUDNN
   using cinn::runtime::cuda::cinn_call_cudnn_conv2d_forward;
   REGISTER_EXTERN_FUNC_HELPER(cinn_call_cudnn_conv2d_forward, cinn::common::DefaultHostTarget())
