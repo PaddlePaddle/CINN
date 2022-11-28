@@ -226,9 +226,6 @@ std::vector<Variable> NetBuilder::Split(const Variable& operand, const std::vect
 
 Variable NetBuilder::Concat(const std::vector<Variable>& input_vars, int axis) {
   CHECK(!input_vars.empty()) << "The inputs of concat op should not be empty! Please check.";
-  if (input_vars.size() == 1UL) {
-    return Identity(input_vars.front());
-  }
   return CustomInstr("concat", input_vars, {{"axis", axis}}).front();
 }
 
@@ -394,9 +391,6 @@ Variable NetBuilder::ScatterNd(const Variable& src,
 }
 
 Variable NetBuilder::Cast(const Variable& operand, const std::string& dtype) {
-  if (operand->type == common::Str2Type(dtype)) {
-    return Identity(operand);
-  }
   return CustomInstr("cast", {operand}, {{"dtype", dtype}}).front();
 }
 
@@ -408,14 +402,6 @@ Variable NetBuilder::OneHot(const Variable& indices,
                             const std::string& dtype) {
   return CustomInstr("one_hot", {indices, on_value, off_value}, {{"depth", depth}, {"axis", axis}, {"dtype", dtype}})
       .front();
-}
-
-Variable NetBuilder::Squeeze(const Variable& operand, const std::vector<int>& axes) {
-  return CustomInstr("squeeze", {operand}, {{"axes", axes}}).front();
-}
-
-Variable NetBuilder::ExpandDims(const Variable& operand, int axis, int num_newaxis) {
-  return CustomInstr("expand_dims", {operand}, {{"axis", axis}, {"num_newaxis", num_newaxis}}).front();
 }
 
 Variable NetBuilder::Conv(const Variable& lhs,

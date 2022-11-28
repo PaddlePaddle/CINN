@@ -24,12 +24,35 @@ void Squeeze2OpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext&
   auto x_name = op_desc.Input("X").front();
   auto x      = ctx.GetVar(x_name);
 
-  auto axes = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "axes");
+  auto axes = utils::GetPositiveAxes(utils::GetAttrOrDefault<std::vector<int>>(op_desc, "axes"), x->shape.size());
 
   VLOG(4) << "x shape: " << cinn::utils::Join(x->shape, ",");
   VLOG(4) << "squeeze axes: " << cinn::utils::Join(axes, ",");
 
-  auto out = ctx.Builder()->Squeeze(x, axes);
+  std::vector<int> new_shape;
+  if (axes.empty()) {
+    for (auto dim : x->shape) {
+      if (dim != 1) {
+        new_shape.emplace_back(dim);
+      }
+    }
+  } else {
+    int axis_pos = 0;
+    for (int i = 0; i < x->shape.size(); ++i) {
+      if (axis_pos < axes.size() && axes[axis_pos] == i) {
+        axis_pos++;
+        if (x->shape[i] == 1) {
+          continue;
+        }
+      }
+      new_shape.emplace_back(x->shape[i]);
+    }
+  }
+
+  VLOG(4) << "squeeze x[" << cinn::utils::Join(x->shape, ",") << "] at axes[" << cinn::utils::Join(axes, ",")
+          << "] to output[" << cinn::utils::Join(new_shape, ",") << "]";
+
+  auto out = ctx.Builder()->Reshape(x, new_shape);
 
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
   auto out_name = op_desc.Output("Out").front();

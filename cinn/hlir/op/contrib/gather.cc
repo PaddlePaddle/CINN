@@ -273,6 +273,7 @@ CINN_REGISTER_HELPER(gather_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForGather)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForGather))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForGather))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kInjective)
       .set_support_level(4);
 
   CINN_REGISTER_OP(gather_nd)
@@ -282,6 +283,7 @@ CINN_REGISTER_HELPER(gather_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForGatherNd)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForGatherNd))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForGather))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kInjective)
       .set_support_level(4);
 
   return true;

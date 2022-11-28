@@ -138,11 +138,12 @@ std::vector<Type> InferDtypeForLookupTable(const std::vector<Type>& inputs_type,
 CINN_REGISTER_HELPER(lookup_table_ops) {
   CINN_REGISTER_OP(lookup_table)
       .describe("Lookup table Operator.")
-      .set_num_inputs(1)
+      .set_num_inputs(2)
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForLookupTable)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForLookupTable))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForLookupTable))
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kNonFusible);
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kInjective)
+      .set_support_level(4);
   return true;
 }

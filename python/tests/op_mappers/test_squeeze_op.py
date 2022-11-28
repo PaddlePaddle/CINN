@@ -40,15 +40,43 @@ class TestSqueezeOp(OpMapperTest):
         self.feed_data = {
             'x': self.random([5, 1, 10], 'float32'),
         }
+        self.axis = []
 
     def set_paddle_program(self):
-        x = paddle.static.data(name='x', shape=[5, 1, 10], dtype='float32')
-        out = paddle.squeeze(x, axis=1)
+        x = paddle.static.data(
+            name='x',
+            shape=self.feed_data['x'].shape,
+            dtype=self.feed_data['x'].dtype)
+        out = paddle.squeeze(x, axis=self.axis)
 
         return ([x.name], [out])
 
     def test_check_results(self):
         self.check_outputs_and_grads()
+
+
+class TestSqueezeCase1(TestSqueezeOp):
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([1, 2, 5, 1, 10], 'float32'),
+        }
+        self.axis = [0, 3]
+
+
+class TestSqueezeCase2(TestSqueezeOp):
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([1, 2, 5, 1, 10], 'float32'),
+        }
+        self.axis = [0]
+
+
+class TestSqueezeCase3(TestSqueezeOp):
+    def init_input_data(self):
+        self.feed_data = {
+            'x': self.random([1, 2, 5, 1, 10], 'float32'),
+        }
+        self.axis = [0, 1, 2, 3]
 
 
 if __name__ == "__main__":

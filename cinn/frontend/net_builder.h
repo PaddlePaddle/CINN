@@ -567,26 +567,6 @@ class NetBuilder {
   Variable Reshape(const Variable& x, const cinn::utils::ShapeType& shape);
 
   /**
-   * @brief This OP will squeeze single-dimensional entries of input variable shape. If axes is provided, will remove
-   * the dims by axes, the dims selected by axes should be one. If not provide axes, all dims equal to one will be
-   * deleted.
-   * @param x An N-D variable.
-   * @param axes The dimensions to be squeezed. Axes range is `[−rank(input),rank(input)]`. If `axes` is negative,
-   * `axes=axes+rank(input)`.
-   * @return Output squeezed variable. Data type is same as input variable.
-   */
-  Variable Squeeze(const Variable& x, const cinn::utils::ShapeType& axes);
-
-  /**
-   * @brief Creates an operation to insert new dimensions of length 1.
-   * @param operand An N-D variable.
-   * @param axis The index of the first new dimension (allows negative indices as offsets from the last dimension).
-   * @param num_newaxis The number of new dimensions to insert
-   * @return A variable whose op member is the dim expandsion operation.
-   */
-  Variable ExpandDims(const Variable& operand, int axis, int num_newaxis = 1);
-
-  /**
    * @brief This operator reverse the input along the axis.
    * @param x An N-D variable.
    * @param axis Specify the axis to operate on the input reverse.
