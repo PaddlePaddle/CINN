@@ -16,8 +16,9 @@
 
 #include "cinn/common/macros.h"
 
-CINN_USE_REGISTER(activation_decomposers)
-CINN_USE_REGISTER(activation_grad_decomposers)
+CINN_USE_REGISTER(relu_decomposers)
+CINN_USE_REGISTER(relu_grad_decomposers)
+CINN_USE_REGISTER(gelu_decomposers)
 CINN_USE_REGISTER(sum_decomposers)
 CINN_USE_REGISTER(clip_decomposers)
 CINN_USE_REGISTER(broadcast_decomposers)

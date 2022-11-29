@@ -25,10 +25,7 @@ namespace cinn {
 namespace hlir {
 namespace op {
 
-std::vector<ir::Tensor> Clip(const ir::Tensor& in_tensor,
-                             const float max_val,
-                             const float min_val,
-                             const std::string& output_name);
+ir::Tensor GatherNd(const ir::Tensor& A, const ir::Tensor& B, const std::vector<int>& axes, const std::string& name);
 
 }  // namespace op
 }  // namespace hlir
