@@ -121,25 +121,12 @@ void PaddleModelToProgram::AddOpMapper_mul() {
     auto y             = GetVar(utils::TransValidVarName(y_name));
     int x_num_col_dims = op_desc.GetAttr<int>("x_num_col_dims");
     int y_num_col_dims = op_desc.GetAttr<int>("y_num_col_dims");
-
+    CHECK_EQ(y_num_col_dims, 1) << "The y_num_col_dims of mul is not 1! Please check.";
     VLOG(4) << "Mul x_num_col_dims: " << x_num_col_dims;
     VLOG(4) << "Mul y_num_col_dims: " << y_num_col_dims;
     VLOG(4) << "x shape: " << utils::Join(x->shape, ",");
     VLOG(4) << "y shape: " << utils::Join(y->shape, ",");
-
-    // Step2: transpose y
-    std::vector<int> new_shape;
-    for (int i = y_num_col_dims; i < y->shape.size(); ++i) {
-      new_shape.emplace_back(i);
-    }
-    for (int i = 0; i < y_num_col_dims; ++i) {
-      new_shape.emplace_back(i);
-    }
-    auto trans_y = net_builder_->Transpose(y, new_shape);
-
-    // Step3: matmul
-    const auto& out = net_builder_->Mul(x, trans_y, x_num_col_dims, y->shape.size() - y_num_col_dims);
-
+    auto out = net_builder_->Mul(x, y, x_num_col_dims, y_num_col_dims);
     CHECK_EQ(op_desc.Output("Out").size(), 1UL);
     auto out_name = op_desc.Output("Out").front();
     AddVar(utils::TransValidVarName(out_name), out);

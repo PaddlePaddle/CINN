@@ -135,68 +135,47 @@ std::vector<ir::Expr> CustomCallArgsForCublas(const framework::NodeAttr &attrs,
 
   std::vector<ir::Expr> a_shape, b_shape;
   if (x_num_col_dims == 0 && y_num_col_dims == 0) {
-    int a_rank = inputs[0]->shape.size();
-    int b_rank = inputs[1]->shape.size();
-
-    if (a_rank == 1) {
-      a_shape.resize(4, ir::Expr(1));
-
-      if (trans_a) {
-        a_shape[2] = inputs[0]->shape[0];
-      } else {
-        a_shape[3] = inputs[0]->shape[0];
-      }
-    } else {
-      a_shape           = inputs[0]->shape;
-      int insert_1_to_a = 4 - a_shape.size();
-      for (int idx = 0; idx < insert_1_to_a; ++idx) {
-        a_shape.insert(a_shape.begin(), ir::Expr(1));
-      }
+    a_shape           = inputs[0]->shape;
+    int insert_1_to_a = 4 - a_shape.size();
+    for (int idx = 0; idx < insert_1_to_a; ++idx) {
+      a_shape.insert(a_shape.begin(), ir::Expr(1));
     }
 
-    if (b_rank == 1) {
-      b_shape.resize(4, ir::Expr(1));
-
-      if (trans_b) {
-        b_shape[3] = inputs[1]->shape[0];
-      } else {
-        b_shape[2] = inputs[1]->shape[0];
-      }
-    } else {
-      b_shape           = inputs[1]->shape;
-      int insert_1_to_b = 4 - b_shape.size();
-      for (int idx = 0; idx < insert_1_to_b; ++idx) {
-        b_shape.insert(b_shape.begin(), ir::Expr(1));
-      }
+    b_shape           = inputs[1]->shape;
+    int insert_1_to_b = 4 - b_shape.size();
+    for (int idx = 0; idx < insert_1_to_b; ++idx) {
+      b_shape.insert(b_shape.begin(), ir::Expr(1));
     }
   } else if (x_num_col_dims > 0 && y_num_col_dims > 0) {
     // input a shape.
-    a_shape      = {Expr(1), Expr(1)};
-    int a_height = 1;
-    int a_width  = 1;
+    a_shape    = {Expr(1), Expr(1)};
+    int height = 1;
+    int width  = 1;
     for (int idx = 0; idx < x_num_col_dims; ++idx) {
-      a_height *= inputs[0]->shape[idx].as_int32();
+      height *= inputs[0]->shape[idx].as_int32();
     }
     for (int idx = x_num_col_dims; idx < inputs[0]->shape.size(); ++idx) {
-      a_width *= inputs[0]->shape[idx].as_int32();
+      width *= inputs[0]->shape[idx].as_int32();
     }
-    a_shape.emplace_back(a_height);
-    a_shape.emplace_back(a_width);
+    a_shape.emplace_back(height);
+    a_shape.emplace_back(width);
 
     // input b shape.
-    b_shape      = {Expr(1), Expr(1)};
-    int b_height = 1;
-    int b_width  = 1;
+    b_shape = {Expr(1), Expr(1)};
+    height  = 1;
+    width   = 1;
     for (int idx = 0; idx < y_num_col_dims; ++idx) {
-      b_height *= inputs[1]->shape[idx].as_int32();
+      height *= inputs[1]->shape[idx].as_int32();
     }
     for (int idx = y_num_col_dims; idx < inputs[1]->shape.size(); ++idx) {
-      b_width *= inputs[1]->shape[idx].as_int32();
+      width *= inputs[1]->shape[idx].as_int32();
     }
-    b_shape.emplace_back(b_height);
-    b_shape.emplace_back(b_width);
+    b_shape.emplace_back(height);
+    b_shape.emplace_back(width);
 
-    CHECK_EQ(a_width, b_height) << "The K dimension of mul shold be equal! Please check.";
+    CHECK_EQ(a_shape.back(), b_shape.back());
+    // transpose b
+    trans_b = true;
   } else {
     LOG(FATAL) << "Unkown Matmul Setting!";
   }

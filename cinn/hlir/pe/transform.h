@@ -27,16 +27,6 @@ namespace cinn {
 namespace hlir {
 namespace pe {
 
-namespace utils {
-std::vector<std::vector<int>> GetMatmulNewShapes(const std::vector<std::vector<int>>& inputs_shape,
-                                                 bool trans_x,
-                                                 bool trans_y);
-
-std::vector<std::vector<int>> GetMulNewShapes(const std::vector<std::vector<int>>& inputs_shape,
-                                              int x_num_col_dims,
-                                              int y_num_col_dims);
-}  // namespace utils
-
 /**
  * @brief basic PE that calculates a matrix multiplication
  *
