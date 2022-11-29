@@ -27,9 +27,10 @@
 #include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/pass/use_pass.h"
 
-DECLARE_bool(cinn_open_fusion_optimize);
-DECLARE_bool(cinn_use_new_fusion_pass);
 DECLARE_bool(cinn_use_fill_constant_folding);
+DECLARE_bool(cinn_use_op_fusion);
+DECLARE_bool(cinn_use_cudnn_conv);
+DECLARE_bool(cinn_use_cublas_gemm);
 DECLARE_bool(cinn_check_fusion_accuracy_pass);
 
 namespace cinn {
@@ -47,22 +48,24 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
   if (FLAGS_cinn_use_fill_constant_folding) {
     options.program_passes.emplace_back("FillConstantFolding");
   }
-  // options.program_passes.emplace_back("RemoveIdentity");
+  options.program_passes.emplace_back("RemoveIdentity");
   options.program_passes.emplace_back("DeadCodeEliminate");
-  if (FLAGS_cinn_open_fusion_optimize) {
-    if (FLAGS_cinn_use_new_fusion_pass) {
-      options.graph_passes = {// Revert changes in PR #990 to pass the model unittests
-                              /* #ifdef CINN_WITH_CUDA
-                                        "MatmulToCublasCustomCallPass",
-                              #ifdef CINN_WITH_CUDNN
-                                        "ConvToCudnnCustomCallPass",
-                              #endif
-                              #endif */
-                              "OpFusionPass",
-                              "FusionMergePass"};
-    } else {
-      options.graph_passes = {"OpFusion"};
-    }
+
+  options.graph_passes = {};
+#ifdef CINN_WITH_CUDA
+  if (FLAGS_cinn_use_cublas_gemm) {
+    options.graph_passes.push_back("MatmulToCublasCustomCallPass");
+  }
+#ifdef CINN_WITH_CUDNN
+  if (FLAGS_cinn_use_cudnn_conv) {
+    options.graph_passes.push_back("ConvToCudnnCustomCallPass");
+  }
+#endif
+#endif
+
+  if (FLAGS_cinn_use_op_fusion) {
+    options.graph_passes.push_back("OpFusionPass");
+    options.graph_passes.push_back("FusionMergePass");
   }
 
   // WARNING: the pass must be the last pass !!!
@@ -77,12 +80,8 @@ OptimizeOptions DefaultTrainingOptimizeOptions() {
 
 std::vector<std::string> DefaultOpFusionPasses() {
   std::vector<std::string> passes;
-  if (FLAGS_cinn_open_fusion_optimize) {
-    if (FLAGS_cinn_use_new_fusion_pass) {
-      passes = {"OpFusionPass", "FusionMergePass"};
-    } else {
-      passes = {"OpFusion"};
-    }
+  if (FLAGS_cinn_use_op_fusion) {
+    passes = {"OpFusionPass", "FusionMergePass"};
   }
   return passes;
 }
