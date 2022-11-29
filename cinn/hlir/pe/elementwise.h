@@ -25,11 +25,6 @@ namespace cinn {
 namespace hlir {
 namespace pe {
 
-namespace utils {
-std::vector<int> GetSqueezeShape(const std::vector<int>& shape, const std::vector<int>& axes);
-std::vector<int> GetExpandDimsShape(const std::vector<int>& shape, const std::vector<int>& axes);
-}  // namespace utils
-
 /**
  * @brief Unary primitive emitters
  *
