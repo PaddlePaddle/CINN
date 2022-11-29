@@ -395,9 +395,6 @@ Variable NetBuilder::ScatterNd(const Variable& src,
 }
 
 Variable NetBuilder::Cast(const Variable& operand, const std::string& dtype) {
-  if (operand->type == common::Str2Type(dtype)) {
-    return Identity(operand);
-  }
   return CustomInstr("cast", {operand}, {{"dtype", dtype}}).front();
 }
 
