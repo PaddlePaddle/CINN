@@ -112,6 +112,7 @@ ir::Tensor Squeeze(const ir::Tensor& A,
 
 ir::Tensor ExpandDims(const ir::Tensor& A,
                       const std::vector<int>& axes,
+                      const std::vector<int>& out_shape,
                       const std::string& output_name = UniqName("T_Elementwise_ExpandDims_out"));
 
 ir::Tensor Reshape(const ir::Tensor& A,

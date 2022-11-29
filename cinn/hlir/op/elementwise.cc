@@ -571,7 +571,25 @@ std::vector<std::vector<int>> InferShapeForSqueeze(const std::vector<std::vector
       attrs.count("axes") ? absl::get<std::vector<int>>(attrs.at("axes")) : std::vector<int>{};
   VLOG(4) << "The [axis] value used in Squeeze: " << cinn::utils::Join(axes, ",");
 
-  const auto &output_shape = pe::utils::GetSqueezeShape(inputs_shape[0], axes);
+  const auto &posi_axes = GetPositiveAxes(axes, inputs_shape[0].size());
+  std::vector<int> output_shape;
+  if (posi_axes.size()) {
+    for (int idx = 0; idx < inputs_shape[0].size(); ++idx) {
+      // if can't find idx in axis
+      if (std::find(posi_axes.begin(), posi_axes.end(), idx) == posi_axes.end()) {
+        output_shape.push_back(inputs_shape[0][idx]);
+      } else {
+        CHECK_EQ(inputs_shape[0][idx], 1);
+      }
+    }
+  } else {
+    for (int idx = 0; idx < inputs_shape[0].size(); ++idx) {
+      if (inputs_shape[0][idx] != 1) {
+        output_shape.push_back(inputs_shape[0][idx]);
+      }
+    }
+  }
+
   VLOG(4) << "The output calculated in Squeeze: " << cinn::utils::Join(output_shape, ", ");
 
   return {output_shape};
@@ -600,7 +618,7 @@ std::shared_ptr<OpStrategy> StrategyForExpandDims(const framework::NodeAttr &att
       tensor_name = input_args[1].operator std::string();
     }
 
-    auto out    = pe::ExpandDims(x.as_tensor_ref(), axes, tensor_name);
+    auto out    = pe::ExpandDims(x.as_tensor_ref(), axes, output_shapes[0], tensor_name);
     auto stages = CreateStages({x.as_tensor_ref()});
     stages->InsertLazily(out);
     std::vector<CINNValue> res{CINNValue(out), CINNValue(stages)};
@@ -622,9 +640,22 @@ std::vector<std::vector<int>> InferShapeForExpandDims(const std::vector<std::vec
       attrs.count("axes") ? absl::get<std::vector<int>>(attrs.at("axes")) : std::vector<int>{};
   VLOG(4) << "The [axes] value used in ExpandDims: " << cinn::utils::Join(axes, ",");
 
-  const auto &output_shape = pe::utils::GetExpandDimsShape(inputs_shape[0], axes);
-  VLOG(4) << "The output calculated in ExpandDims: " << cinn::utils::Join(output_shape, ", ");
-  return {output_shape};
+  std::vector<int> out_shape(inputs_shape[0].size() + axes.size(), 1);
+  const auto &posi_axes = GetPositiveAxes(axes, out_shape.size());
+
+  int shape_pos = 0, axes_pos = 0;
+  for (int i = 0; i < out_shape.size(); ++i) {
+    if (axes_pos < posi_axes.size() && posi_axes[axes_pos] == i) {
+      out_shape[i] = 1;
+      ++axes_pos;
+    } else if (shape_pos < inputs_shape[0].size()) {
+      out_shape[i] = inputs_shape[0][shape_pos];
+      ++shape_pos;
+    }
+  }
+
+  VLOG(4) << "The output calculated in ExpandDims: " << cinn::utils::Join(out_shape, ", ");
+  return {out_shape};
 }
 
 std::shared_ptr<OpStrategy> StrategyForReshape(const framework::NodeAttr &attrs,
