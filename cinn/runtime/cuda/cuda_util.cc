@@ -128,17 +128,20 @@ void cinn_call_cublas(void *v_args,
   void *rhs = trans_o ? B : A;
 
   cudaDataType_t cuda_dtype;
-  if (args[0].type_code() == cinn_type_code<cinn::common::float16>()) {
+  auto type_code = args[0].operator cinn_buffer_t *()->type.code;
+  bool is_float  = type_code == cinn_type_float;
+  int bits       = args[0].operator cinn_buffer_t *()->type.bits;
+  if (is_float && bits == 16) {
     cuda_dtype = CUDA_R_16F;
-  } else if (args[0].type_code() == cinn_type_code<float>()) {
+  } else if (is_float && bits == 32) {
     cuda_dtype = CUDA_R_32F;
   } else {
-    LOG(FATAL) << "unsupported cublas data type.";
+    LOG(FATAL) << "unsupported cublas data type: " << static_cast<int>(type_code) << ", bits = " << bits;
   }
 
   if (a1 * a2 * b1 * b2 == 1) {
     CUBLAS_CALL(
-        cublasGemm(cuda_dtype, cuhandle, trans_op_l, trans_op_r, m, n, k, &alpha, lhs, ldl, rhs, ldr, &beta, C, ldc));
+        cublasGemm(cuda_dtype, cuhandle, trans_op_l, trans_op_r, m, n, k, alpha, lhs, ldl, rhs, ldr, beta, C, ldc));
   } else if (a1 * b1 == 1) {
     CHECK(a2 == b2 || a2 == 1 || b2 == 1);
     int stride_l = trans_o ? (a2 > 1 ? a3 * a4 : 0) : (b2 > 1 ? b3 * b4 : 0);
@@ -151,14 +154,14 @@ void cinn_call_cublas(void *v_args,
                                          m,
                                          n,
                                          k,
-                                         &alpha,
+                                         alpha,
                                          lhs,
                                          ldl,
                                          stride_l,
                                          rhs,
                                          ldr,
                                          stride_r,
-                                         &beta,
+                                         beta,
                                          C,
                                          ldc,
                                          m * n,
@@ -181,14 +184,14 @@ void cinn_call_cublas(void *v_args,
                                            m,
                                            n,
                                            k,
-                                           &alpha,
+                                           alpha,
                                            lhs,
                                            ldl,
                                            stride_l,
                                            rhs,
                                            ldr,
                                            stride_r,
-                                           &beta,
+                                           beta,
                                            C,
                                            ldc,
                                            m * n,
@@ -214,14 +217,14 @@ void cinn_call_cublas(void *v_args,
                                              m,
                                              n,
                                              k,
-                                             &alpha,
+                                             alpha,
                                              lhs + idx * bstride_l,
                                              ldl,
                                              stride_l,
                                              rhs + idx * bstride_r,
                                              ldr,
                                              stride_r,
-                                             &beta,
+                                             beta,
                                              C + idx * bstride_c,
                                              ldc,
                                              m * n,
@@ -320,12 +323,15 @@ void cinn_call_cudnn_conv2d_forward(void *v_args,
   cudnnTensorFormat_t tensor_format = static_cast<cudnnTensorFormat_t>(format);
 
   cudnnDataType_t data_type;
-  if (args[0].type_code() == cinn_type_code<cinn::common::float16>()) {
+  auto type_code = args[0].operator cinn_buffer_t *()->type.code;
+  bool is_float  = type_code == cinn_type_float;
+  int bits       = args[0].operator cinn_buffer_t *()->type.bits;
+  if (is_float && bits == 16) {
     data_type = CUDNN_DATA_HALF;
-  } else if (args[0].type_code() == cinn_type_code<float>()) {
+  } else if (is_float && bits == 32) {
     data_type = CUDNN_DATA_FLOAT;
   } else {
-    LOG(FATAL) << "unsupported cudnn conv2d input data type.";
+    LOG(FATAL) << "unsupported cudnn conv2d input data type: " << static_cast<int>(type_code) << ", bits = " << bits;
   }
 
   cudnnTensorDescriptor_t x_desc;
@@ -714,12 +720,15 @@ void cinn_call_cudnn_softmax_forward(void *v_args,
   cudnnTensorFormat_t tensor_format = static_cast<cudnnTensorFormat_t>(format);
 
   cudnnDataType_t data_type;
-  if (args[0].type_code() == cinn_type_code<cinn::common::float16>()) {
+  auto type_code = args[0].operator cinn_buffer_t *()->type.code;
+  bool is_float  = type_code == cinn_type_float;
+  int bits       = args[0].operator cinn_buffer_t *()->type.bits;
+  if (is_float && bits == 16) {
     data_type = CUDNN_DATA_HALF;
-  } else if (args[0].type_code() == cinn_type_code<float>()) {
+  } else if (is_float && bits == 32) {
     data_type = CUDNN_DATA_FLOAT;
   } else {
-    LOG(FATAL) << "unsupported cudnn softmax input data type.";
+    LOG(FATAL) << "unsupported cudnn conv2d input data type: " << static_cast<int>(type_code) << ", bits = " << bits;
   }
 
   cudnnTensorDescriptor_t x_desc;
