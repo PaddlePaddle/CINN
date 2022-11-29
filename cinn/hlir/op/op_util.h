@@ -40,5 +40,15 @@ std::vector<Expr> ToCinnExprs(const std::vector<T>& args) {
   return exprs;
 }
 
+using CINNSchedule = lang::PackedFunc;
+
+CINNSchedule GetElementwiseScheduleFunc(const std::vector<std::vector<int>>& output_shapes,
+                                        const Target& target,
+                                        bool vectorizable = true);
+
+CINNSchedule GetInjectiveScheduleFunc(const std::vector<std::vector<int>>& output_shapes,
+                                      const Target& target,
+                                      bool vectorizable = true);
+
 }  // namespace hlir
 }  // namespace cinn
