@@ -57,9 +57,6 @@ RuleApplyType AddCacheRead::Init(ir::IRSchedule* ir_schedule) {
   }
   VLOG(6) << "Collect applicable_schedule_blocks_:" << num_applicable_;
 
-  // Select a cache memory type
-  cache_memory_type_ = kMemoryTypes.at(target_->arch);
-
   return num_applicable_ > 0 ? RuleApplyType::kApplyAndSkipAllRules : RuleApplyType::kCannotApply;
 }
 
@@ -91,9 +88,66 @@ void AddCacheRead::Apply(int index) {
     // The original block expr is invalid after the CacheRead schedule,
     // so we reacquire the block expr after the schedule according to the block name
     sch_block_expr       = ir_schedule_->GetBlock(block_name);
-    ir::Expr target_loop = GetTargetLoop(sch_block_expr);
+    ir::Expr target_loop = GetTargetLoop(sch_block_expr, ir_schedule_);
     ir_schedule_->ComputeAt(cache_block, target_loop);
   }
+}
+
+RuleApplyType AddCacheRead::AnalyseApplyType(SearchState state, const std::string& block_name) const {
+  Expr block_expr     = state->ir_schedule.GetBlock(block_name);
+  auto* block_realize = block_expr.As<ir::ScheduleBlockRealize>();
+  CHECK(block_realize) << "stmt is not a ScheduleBlockRealize:" << block_expr;
+  // Prepare the read/write buffer information of the block,
+  // which will be used to analyze which buffers can be cached.
+  AnalyzeScheduleBlockReadWriteBuffer(block_realize->schedule_block.As<ir::ScheduleBlock>());
+
+  if (!NeedsMultiLevelTiling(*block_realize)) return RuleApplyType::kCannotApply;
+
+  // check cross thread reduce axis
+  for (const ir::Expr& for_expr : state->ir_schedule.GetLoops(block_expr)) {
+    const ir::For* for_node = for_expr.As<ir::For>();
+    if (for_node->is_gpu_thread_binded() && for_node->loop_var->is_reduce_axis) {
+      return RuleApplyType::kCannotApply;
+    }
+  }
+
+  return RuleApplyType::kApplyAndSkipAllRules;
+}
+
+std::vector<SearchState> AddCacheRead::ApplyOnBlock(SearchState state, const std::string& block_name) {
+  SearchState new_state                       = state.Copy();
+  ir::IRSchedule* ir_sch                      = &new_state->ir_schedule;
+  ir::Expr sch_block_expr                     = ir_sch->GetBlock(block_name);
+  ir::ScheduleBlockRealize* sch_block_realize = sch_block_expr.As<ir::ScheduleBlockRealize>();
+  ir::ScheduleBlock* sch_block                = sch_block_realize->schedule_block.As<ir::ScheduleBlock>();
+
+  // Analyze which buffers can be cached
+  std::vector<int> read_buffer_indexes;
+  for (int i = 0; i < sch_block->read_buffers.size(); ++i) {
+    bool is_read_write = false;
+    for (int j = 0; j < sch_block->write_buffers.size(); ++j) {
+      if (sch_block->read_buffers[i] == sch_block->write_buffers[j]) {
+        is_read_write = true;
+        break;
+      }
+    }
+    if (!is_read_write) {
+      read_buffer_indexes.push_back(i);
+    }
+  }
+
+  // Schedule
+  for (int read_buffer_index : read_buffer_indexes) {
+    ir::Expr cache_block = ir_sch->CacheRead(sch_block_expr, read_buffer_index, cache_memory_type_);
+    VLOG(6) << "cache block: " << cache_block;
+    // The original block expr is invalid after the CacheRead schedule,
+    // so we reacquire the block expr after the schedule according to the block name
+    sch_block_expr       = ir_sch->GetBlock(block_name);
+    ir::Expr target_loop = GetTargetLoop(sch_block_expr, ir_sch);
+    ir_sch->ComputeAt(cache_block, target_loop);
+  }
+
+  return {new_state};
 }
 
 bool AddCacheRead::MeetCondition(const ir::Expr& block_expr) const {
@@ -113,9 +167,9 @@ bool AddCacheRead::MeetCondition(const ir::Expr& block_expr) const {
   return true;
 }
 
-ir::Expr AddCacheRead::GetTargetLoop(const ir::Expr& block_expr) const {
+ir::Expr AddCacheRead::GetTargetLoop(const ir::Expr& block_expr, ir::IRSchedule* ir_sch) const {
   // Get the out most reduce axis
-  std::vector<ir::Expr> for_exprs = ir_schedule_->GetLoops(block_expr);
+  std::vector<ir::Expr> for_exprs = ir_sch->GetLoops(block_expr);
   for (auto& for_expr : for_exprs) {
     ir::Var for_node_var          = for_expr.As<ir::For>()->loop_var;
     std::string for_loop_var_name = for_node_var->name;

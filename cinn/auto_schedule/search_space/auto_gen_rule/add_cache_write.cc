@@ -58,9 +58,6 @@ RuleApplyType AddCacheWrite::Init(ir::IRSchedule* ir_schedule) {
   }
   VLOG(6) << "Collect applicable_schedule_blocks_:" << num_applicable_;
 
-  // Select a cache memory type
-  cache_memory_type_ = kMemoryTypes.at(target_->arch);
-
   if (num_applicable_ > 0) {
     if (*target_ == common::DefaultNVGPUTarget()) return RuleApplyType::kApplyAndSkipAllRules;
     if (*target_ == common::DefaultHostTarget()) return RuleApplyType::kApplyAndSkipThisRule;
@@ -82,6 +79,30 @@ bool AddCacheWrite::MeetCondition(const ir::Expr& block_expr) const {
   const ir::ScheduleBlock* sch_block                = sch_block_realize->schedule_block.As<ir::ScheduleBlock>();
 
   return NeedsMultiLevelTiling(*sch_block_realize);
+}
+
+RuleApplyType AddCacheWrite::AnalyseApplyType(SearchState state, const std::string& block_name) const {
+  Expr block_expr     = state->ir_schedule.GetBlock(block_name);
+  auto* block_realize = block_expr.As<ir::ScheduleBlockRealize>();
+  CHECK(block_realize) << "stmt is not a ScheduleBlockRealize:" << block_expr;
+  // Prepare the read/write buffer information of the block,
+  // which will be used to analyze which buffers can be cached.
+  AnalyzeScheduleBlockReadWriteBuffer(block_realize->schedule_block.As<ir::ScheduleBlock>());
+  return MeetCondition(block_realize) ? RuleApplyType::kApplyAndSkipAllRules : RuleApplyType::kCannotApply;
+}
+
+std::vector<SearchState> AddCacheWrite::ApplyOnBlock(SearchState state, const std::string& block_name) {
+  SearchState new_state                       = state.Copy();
+  ir::IRSchedule* ir_sch                      = &new_state->ir_schedule;
+  ir::Expr sch_block_expr                     = ir_sch->GetBlock(block_name);
+  ir::ScheduleBlockRealize* sch_block_realize = sch_block_expr.As<ir::ScheduleBlockRealize>();
+  ir::ScheduleBlock* sch_block                = sch_block_realize->schedule_block.As<ir::ScheduleBlock>();
+
+  // Schedule
+  ir::Expr cache_block = ir_sch->CacheWrite(sch_block_expr, 0, cache_memory_type_);
+  VLOG(6) << "cache block: " << cache_block;
+
+  return {new_state};
 }
 
 const std::unordered_map<common::Target::Arch, std::string> AddCacheWrite::kMemoryTypes{

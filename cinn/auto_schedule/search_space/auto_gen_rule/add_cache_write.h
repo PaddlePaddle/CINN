@@ -25,7 +25,10 @@ namespace auto_schedule {
 
 class AddCacheWrite : public AutoGenRule {
  public:
-  AddCacheWrite(const common::Target& target) : AutoGenRule(target) {}
+  AddCacheWrite(const common::Target& target) : AutoGenRule(target) {
+    // Select a cache memory type
+    cache_memory_type_ = kMemoryTypes.at(target_->arch);
+  }
   ~AddCacheWrite() = default;
 
   // initailize the AddCacheWrite rule, it must be called before further actions.
@@ -37,6 +40,10 @@ class AddCacheWrite : public AutoGenRule {
 
   // Return the name of the rule, used for debug.
   std::string GetRuleName() const override { return "AddCacheWrite"; }
+
+  RuleApplyType AnalyseApplyType(SearchState state, const std::string& block_name) const override;
+
+  std::vector<SearchState> ApplyOnBlock(SearchState state, const std::string& block_name) override;
 
  private:
   // Return true if the schedule block expr is applicable by AddCacheWrite
