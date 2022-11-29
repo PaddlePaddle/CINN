@@ -14,8 +14,10 @@
 
 #include "cinn/hlir/pe/elementwise.h"
 
+#include <algorithm>
 #include <string>
 
+#include "cinn/hlir/op/op_util.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/lang/builtin.h"
 
@@ -26,6 +28,60 @@ namespace pe {
 using ir::Expr;
 using ir::Tensor;
 using lang::Compute;
+
+namespace utils {
+std::vector<int> GetPositiveAxes(const std::vector<int>& axes, int rank) {
+  std::vector<int> new_axes(axes.size());
+  for (int i = 0; i < axes.size(); ++i) {
+    int axis = axes[i] + (axes[i] < 0 ? rank : 0);
+    CHECK(axis >= 0 && axis < rank) << "The axis should in [0, " << rank << "), but axes[" << i << "]=" << axes[i]
+                                    << " not.";
+    new_axes[i] = axis;
+  }
+  std::sort(new_axes.begin(), new_axes.end());
+  return new_axes;
+}
+
+std::vector<int> GetSqueezeShape(const std::vector<int>& shape, const std::vector<int>& axes) {
+  auto posi_axes = utils::GetPositiveAxes(axes, shape.size());
+  if (posi_axes.empty()) {
+    for (int i = 0; i < shape.size(); ++i) {
+      posi_axes.emplace_back(i);
+    }
+  }
+
+  std::vector<int> out_shape;
+  int axes_pos = 0;
+  for (int i = 0; i < shape.size(); ++i) {
+    if (axes_pos < posi_axes.size() && posi_axes[axes_pos] == i) {
+      ++axes_pos;
+
+      if (shape[i] == 1) {
+        continue;
+      }
+    }
+    out_shape.emplace_back(shape[i]);
+  }
+  return out_shape;
+}
+
+std::vector<int> GetExpandDimsShape(const std::vector<int>& shape, const std::vector<int>& axes) {
+  std::vector<int> out_shape(shape.size() + axes.size(), 1);
+  const auto& posi_axes = GetPositiveAxes(axes, out_shape.size());
+
+  int shape_pos = 0, axes_pos = 0;
+  for (int i = 0; i < out_shape.size(); ++i) {
+    if (axes_pos < posi_axes.size() && posi_axes[axes_pos] == i) {
+      out_shape[i] = 1;
+      ++axes_pos;
+    } else if (shape_pos < shape.size()) {
+      out_shape[i] = shape[shape_pos];
+      ++shape_pos;
+    }
+  }
+  return out_shape;
+}
+}  // namespace utils
 
 #define HLIR_IMP_UNARY_PE(name__)                                                                          \
   std::vector<ir::Tensor> name__(const Tensor& A, const std::string& output_name) {                        \
@@ -103,72 +159,67 @@ HLIR_IMP_UNARY_PE(Abs);
 HLIR_IMP_UNARY_PE(Rsqrt);
 
 ir::Tensor Squeeze(const ir::Tensor& A, const std::vector<int>& axes, const std::string& output_name) {
-  std::vector<int> position;
-  std::vector<Expr> output_shape;
-  if (axes.size()) {
-    for (int idx = 0; idx < A->shape.size(); ++idx) {
-      // if can't find idx in axis
-      if (std::find(axes.begin(), axes.end(), idx) == axes.end()) {
-        output_shape.push_back(A->shape[idx]);
-        position.push_back(idx);
-      } else {
-        CHECK_EQ(A->shape[idx], Expr(1));
-      }
-    }
-  } else {
-    for (int idx = 0; idx < A->shape.size(); ++idx) {
-      if (A->shape[idx] != Expr(1)) {
-        output_shape.push_back(A->shape[idx]);
-        position.push_back(idx);
-      }
+  auto posi_axes = utils::GetPositiveAxes(axes, A->shape.size());
+  if (posi_axes.empty()) {
+    for (int i = 0; i < A->shape.size(); ++i) {
+      posi_axes.emplace_back(i);
     }
   }
 
+  std::vector<int> in_shape(A->shape.size());
+  for (int i = 0; i < in_shape.size(); ++i) {
+    in_shape[i] = A->shape[i].as_int32();
+  }
+  const auto& out_shape = utils::GetSqueezeShape(in_shape, posi_axes);
+
   auto res = Compute(
-      output_shape,
+      ToCinnExprs(out_shape),
       [=](const std::vector<Expr>& indices) {
-        std::vector<Expr> indexs(A->shape.size(), Expr(0));
-        for (int idx = 0; idx < indices.size(); ++idx) {
-          indexs[position[idx]] = indices[idx];
+        std::vector<Expr> idx;
+
+        int axes_pos = 0, out_idx = 0;
+        for (int i = 0; i < in_shape.size(); ++i) {
+          if (axes_pos < posi_axes.size() && posi_axes[axes_pos] == i) {
+            ++axes_pos;
+
+            if (in_shape[i] == 1) {
+              idx.emplace_back(0);
+              continue;
+            }
+          }
+          idx.emplace_back(indices[out_idx]);
+          ++out_idx;
         }
-        return A(indexs);
+        CHECK_EQ(idx.size(), A->shape.size()) << "The index size not equal with the input rank.";
+        return A(idx);
       },
       output_name);
   return res;
 }
 
-ir::Tensor ExpandDims(const ir::Tensor& input, int axis, int num_newaxis, const std::string& output_name) {
-  int ndims = input.ndims();
-  CHECK(axis >= -ndims - 1 && axis <= ndims)
-      << "expand_dims only accept `axis` in [-x.ndim - 1, x.ndim], but got axis = " << axis
-      << ", and x.ndims = " << ndims;
-  CHECK_GE(num_newaxis, 0);
+ir::Tensor ExpandDims(const ir::Tensor& A, const std::vector<int>& axes, const std::string& output_name) {
+  std::vector<int> in_shape(A->shape.size());
+  for (int i = 0; i < in_shape.size(); ++i) {
+    in_shape[i] = A->shape[i].as_int32();
+  }
 
-  if (axis < 0) {
-    axis = ndims + axis + 1;
-  }
-  std::vector<Expr> output_shape;
-  for (size_t i = 0; i < static_cast<size_t>(axis); ++i) {
-    output_shape.push_back(input->shape[i]);
-  }
-  for (size_t i = 0; i < static_cast<size_t>(num_newaxis); ++i) {
-    output_shape.push_back(Expr(1));
-  }
-  for (size_t i = axis; i < input->shape.size(); ++i) {
-    output_shape.push_back(input->shape[i]);
-  }
+  const auto& out_shape = utils::GetExpandDimsShape(in_shape, axes);
+  const auto& posi_axes = utils::GetPositiveAxes(axes, out_shape.size());
 
   return Compute(
-      output_shape,
+      ToCinnExprs(out_shape),
       [=](const std::vector<Expr>& indice) {
         std::vector<Expr> idx;
-        for (size_t i = 0; i < static_cast<size_t>(axis); ++i) {
-          idx.push_back(indice[i]);
+        int axes_pos = 0;
+        for (int i = 0; i < indice.size(); ++i) {
+          if (axes_pos < posi_axes.size() && posi_axes[axes_pos] == i) {
+            ++axes_pos;
+          } else {
+            idx.push_back(indice[i]);
+          }
         }
-        for (size_t i = axis + num_newaxis; i < indice.size(); ++i) {
-          idx.push_back(indice[i]);
-        }
-        return input(idx);
+        CHECK_EQ(idx.size(), A->shape.size()) << "The index size not equal with the input rank.";
+        return A(idx);
       },
       UniqName(output_name));
 }
