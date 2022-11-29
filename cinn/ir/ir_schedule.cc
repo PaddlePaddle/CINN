@@ -1479,9 +1479,11 @@ void ScheduleImpl::FlattenLoops(const std::vector<Expr>& loops, const bool flat_
   // compute loop
   int extent = 1;
   std::vector<int> strides;
+  std::vector<ir::Var> loop_vars(loops.size());
   for (int idx = loops.size() - 1; idx >= 0; --idx) {
     strides.insert(strides.begin(), extent);
     extent *= loops[idx].As<ir::For>()->extent.as_int32();
+    loop_vars[idx] = loops[idx].As<ir::For>()->loop_var;
   }
 
   // create new loop.
@@ -1526,6 +1528,21 @@ void ScheduleImpl::FlattenLoops(const std::vector<Expr>& loops, const bool flat_
   for (auto& block : blocks) {
     auto block_realize  = block.As<ir::ScheduleBlockRealize>();
     auto schedule_block = block_realize->schedule_block.As<ir::ScheduleBlock>();
+
+    // checkout loops in orders.
+    std::vector<std::string> var_names = {};
+    CHECK_GE(block_realize->iter_values.size(), loop_vars.size())
+        << "the number of iter bind values must be more than loop vars!";
+    for (int idx = 0, index = 0; idx < block_realize->iter_values.size(); ++idx) {
+      auto& iter = block_realize->iter_values[idx];
+      if (iter.is_var()) {
+        CHECK_EQ(iter.as_var_ref()->name, loop_vars[index++]->name) << "loops is not the same order with tensor!";
+      } else {
+        CHECK(iter.As<IntImm>());
+        CHECK_EQ(iter.as_int32(), 0);
+        continue;
+      }
+    }
 
     auto exprs = ir::CollectIRNodesInOrder(schedule_block->body,
                                            [&](const Expr* x) { return x->As<ir::Store>() || x->As<ir::Load>(); });
@@ -1944,6 +1961,8 @@ void IRSchedule::Annotate(const Expr& block, const std::string& key, const attr_
 
 void IRSchedule::FlattenLoops(const std::vector<Expr>& loops, const bool force_flat) {
   impl_->FlattenLoops(loops, force_flat);
+  trace_.Append(
+      ScheduleDesc::Step("FlattenLoops", {{"loop", std::vector<Expr>({loops})}}, {{"force_flat", force_flat}}, {}));
 }
 
 void IRSchedule::CopyTransformAndLoopInfo(const Expr& block, const Expr& block_target) {
