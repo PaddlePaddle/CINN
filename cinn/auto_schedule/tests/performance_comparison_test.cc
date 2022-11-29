@@ -176,7 +176,7 @@ TEST_F(PerformanceTester, Mul) {
   int K = 16;
   int N = 32;
 
-  Evaluate(MulProgramBuilder({M, K}, {N, K})());
+  Evaluate(MulProgramBuilder({M, K}, {K, N})());
 }
 
 TEST_F(PerformanceTester, Add) { Evaluate(AddProgramBuilder({1, 56, 56, 256}, {1, 56, 56, 256})()); }

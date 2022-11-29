@@ -154,8 +154,8 @@ class RemoveIdentityPass : public ProgramPass {
       if (!identity_ops.at(instr->op_type)(instr)) {
         continue;
       }
-      CHECK_EQ(instr->inputs.size(), 1) << "identity should have only 1 input.";
-      CHECK_EQ(instr->outputs.size(), 1) << "identity should have only 1 output.";
+      CHECK_EQ(instr->inputs.size(), 1) << instr->op_type << " should have only 1 input.";
+      CHECK_EQ(instr->outputs.size(), 1) << instr->op_type << " should have only 1 output.";
 
       auto& input_var  = instr->inputs[0];
       auto& output_var = instr->outputs[0];
