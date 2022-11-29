@@ -90,6 +90,9 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
     auto new_A = tensor_A->Reshape(new_shape_A_e, stages);
     auto new_B = tensor_B->Reshape(new_shape_B_e, stages);
 
+    // pe realize need transpose y
+    new_B = pe::Transpose(new_B, {1, 0}, UniqName(tensor_name + "_T"));
+
     std::vector<ir::Tensor> out;
     if (target.arch == Target::Arch::X86) {
 #ifdef CINN_WITH_MKL_CBLAS
