@@ -18,7 +18,7 @@ cc_test(test_dead_code_eliminate_pass SRCS dead_code_eliminate_test.cc DEPS cinn
 cc_test(test_remove_identity_pass SRCS remove_identity_test.cc DEPS cinncore)
 cc_test(test_fill_constant_rewriter_pass SRCS fill_constant_rewriter_test.cc DEPS cinncore)
 cc_test(test_fill_constant_folding_pass SRCS fill_constant_folding_test.cc DEPS cinncore)
-# cc_test(test_program_topoerror SRCS program_topoerror_test.cc DEPS cinncore)
+cc_test(test_program_topoerror SRCS program_topoerror_test.cc DEPS cinncore)
 endif()
 if (WITH_CUDNN)
 cc_test(test_transpose_collapsing SRCS transpose_collapsing_test.cc DEPS cinncore)
