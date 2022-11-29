@@ -348,10 +348,10 @@ std::vector<IterRange> CalculateTensorRegions(const Expr& block,
       VLOG(3) << "deduced range is not constant, range.min=" << range.min << ", range.extent=" << range.extent;
       if (tensor->buffer.defined()) {
         CHECK_GT((int)tensor->buffer->shape.size(), i);
-        result.emplace_back(Expr(0), tensor->buffer->shape[i]);
+        result.emplace_back(IterRange(Expr(0), tensor->buffer->shape[i]));
       } else {
         CHECK_GT((int)tensor->shape.size(), i);
-        result.emplace_back(Expr(0), tensor->shape[i]);
+        result.emplace_back(IterRange(Expr(0), tensor->shape[i]));
       }
     } else {
       result.emplace_back(std::move(range));
@@ -829,7 +829,7 @@ std::vector<IterRange> CalculateRequiredRegions(const Expr& block,
     std::vector<IterRange> loop_ranges;
     for (const auto& for_loop : find_loops) {
       loop_vars.emplace_back(for_loop.As<ir::For>()->loop_var);
-      loop_ranges.emplace_back(for_loop.As<ir::For>()->min, for_loop.As<ir::For>()->extent);
+      loop_ranges.emplace_back(IterRange(for_loop.As<ir::For>()->min, for_loop.As<ir::For>()->extent));
     }
 
     // deducing range by indices of each Load node
