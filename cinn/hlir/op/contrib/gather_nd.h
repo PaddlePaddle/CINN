@@ -25,8 +25,7 @@ namespace cinn {
 namespace hlir {
 namespace op {
 
-std::vector<ir::Tensor> Arange(
-    const float start, const float stop, const float step, const Type& dtype, const std::string& output_name);
+ir::Tensor GatherNd(const ir::Tensor& A, const ir::Tensor& B, const std::vector<int>& axes, const std::string& name);
 
 }  // namespace op
 }  // namespace hlir
