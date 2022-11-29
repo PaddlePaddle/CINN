@@ -78,11 +78,11 @@ TEST(RemoveIdentity, remove_multiple) {
   //         <mul_1>
   NetBuilder builder("net_builder");
   auto x          = builder.CreateInput(Float(32), {32, 16}, "x");
-  auto y          = builder.CreateInput(Float(32), {32, 16}, "y");
+  auto y          = builder.CreateInput(Float(32), {16, 32}, "y");
   auto identity_1 = builder.Identity(x);
   auto identity_2 = builder.Identity(identity_1);
   auto identity_3 = builder.Identity(identity_2);
-  auto mul_1      = builder.Mul(identity_3, y);
+  auto mul_1      = builder.Matmul(identity_3, y);
 
   PassTest tester;
   std::vector<std::string> input_names    = {x.id().data(), y.id().data()};
@@ -106,11 +106,11 @@ TEST(RemoveIdentity, cannot_remove_fetch) {
   //         <mul_1>
   NetBuilder builder("net_builder");
   auto x          = builder.CreateInput(Float(32), {32, 16}, "x");
-  auto y          = builder.CreateInput(Float(32), {32, 16}, "y");
+  auto y          = builder.CreateInput(Float(32), {16, 32}, "y");
   auto relu_1     = builder.Relu(x);
   auto identity_1 = builder.Identity(relu_1);
   auto identity_2 = builder.Identity(identity_1);
-  auto mul_1      = builder.Mul(identity_2, y);
+  auto mul_1      = builder.Matmul(identity_2, y);
 
   PassTest tester;
   std::vector<std::string> input_names    = {x.id().data(), y.id().data()};
