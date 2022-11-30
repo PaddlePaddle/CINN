@@ -15,11 +15,10 @@
 #pragma once
 
 #include <memory>
+#include <random>
 #include <vector>
 
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_gen_rule.h"
-#include "cinn/auto_schedule/search_space/search_state.h"
-#include "cinn/ir/ir_base.h"
 
 namespace cinn {
 namespace auto_schedule {
@@ -36,7 +35,7 @@ class RuleScheduler {
 
   virtual void Reset() = 0;
 
-  virtual AutoGenRule* NextRule(SearchState state, const std::string& block_name) = 0;
+  virtual AutoGenRule* NextRule() = 0;
 
  protected:
   RuleScheduler(const std::vector<AutoGenRule*>& potential_rules) : potential_rules_(&potential_rules) {}
@@ -53,7 +52,7 @@ class TraversalRuleScheduler : public RuleScheduler {
 
   void Reset() override { cur_idx_ = 0; }
 
-  AutoGenRule* NextRule(SearchState state, const std::string& block_name) override;
+  AutoGenRule* NextRule() override;
 
  private:
   int cur_idx_;
@@ -67,10 +66,13 @@ class ProbabilisticRuleScheduler : public RuleScheduler {
 
   void Reset() override {}
 
-  AutoGenRule* NextRule(SearchState state, const std::string& block_name) override;
+  AutoGenRule* NextRule() override;
 
  private:
   std::vector<int> weights_;
+  std::random_device rd_;
+  std::mt19937 gen_;
+  std::discrete_distribution<> distribution_;
 };
 
 }  // namespace auto_schedule

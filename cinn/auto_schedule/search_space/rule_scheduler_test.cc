@@ -18,8 +18,6 @@
 
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_unroll.h"
 #include "cinn/auto_schedule/search_space/auto_gen_rule/skip_rule.h"
-#include "cinn/cinn.h"
-#include "cinn/ir/ir.h"
 
 namespace cinn {
 namespace auto_schedule {
@@ -32,28 +30,6 @@ Target target = common::DefaultHostTarget();
 
 std::vector<AutoGenRule*> GenerateTestRules() { return {new AutoUnroll(target), new SkipRule(target)}; }
 
-SearchState GenerateTestState() {
-  ir::Expr M(32);
-  ir::Expr N(32);
-  ir::Expr K(32);
-
-  // matmul case
-  Placeholder<float> A("A", {M, K});
-  Placeholder<float> B("B", {K, N});
-
-  Var k(K.as_int32(), "reduce_axis_k");
-  ir::Tensor C = Compute(
-      {M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k) * B(k, j), {k}); }, "C");
-
-  poly::StageMap stages              = CreateStages({C});
-  std::vector<ir::LoweredFunc> funcs = lang::LowerVec("test_func", stages, {C}, {}, {}, nullptr, target, true);
-
-  ir::Expr matmul_expr = funcs[0]->body;
-  ir::IRSchedule ir_schedule(ir::ModuleExpr({matmul_expr}));
-
-  return SearchState(ir_schedule, 0);
-}
-
 TEST(RuleScheduler, Make) {
   std::vector<AutoGenRule*> rules = GenerateTestRules();
   auto traversal_block_scheduler  = RuleScheduler::Make(rules, "traversal");
@@ -63,33 +39,23 @@ TEST(RuleScheduler, Make) {
 }
 
 TEST(TraversalRuleScheduler, NextRule) {
-  SearchState state                 = GenerateTestState();
-  std::vector<ir::Expr> block_exprs = state->ir_schedule.GetAllBlocks();
-  // for (auto b : block_exprs) {
-  //   ir::ScheduleBlockRealize* br = b.As<ir::ScheduleBlockRealize>();
-  //   ir::ScheduleBlock* bl = br->schedule_block.As<ir::ScheduleBlock>();
-  //   VLOG(6) << "xb_debug block name = " << bl->name;
-  // }
   std::vector<AutoGenRule*> rules = GenerateTestRules();
   auto traversal_rule_scheduler   = RuleScheduler::Make(rules, "traversal");
-  AutoGenRule* rule               = traversal_rule_scheduler->NextRule(state, "C");
+  AutoGenRule* rule               = traversal_rule_scheduler->NextRule();
   ASSERT_EQ("AutoUnroll", rule->GetRuleName());
-  rule = traversal_rule_scheduler->NextRule(state, "C");
-  ASSERT_EQ("SkipRule", rule->GetRuleName());
-  rule = traversal_rule_scheduler->NextRule(state, "C");
+  rule = traversal_rule_scheduler->NextRule();
   ASSERT_EQ("SkipRule", rule->GetRuleName());
   traversal_rule_scheduler->Reset();
-  rule = traversal_rule_scheduler->NextRule(state, "C");
+  rule = traversal_rule_scheduler->NextRule();
   ASSERT_EQ("AutoUnroll", rule->GetRuleName());
 }
 
 TEST(ProbabilisticRuleScheduler, NextRule) {
-  SearchState state                 = GenerateTestState();
   std::vector<AutoGenRule*> rules   = GenerateTestRules();
   auto probabilistic_rule_scheduler = RuleScheduler::Make(rules, "probabilistic", {4, 1});
   AutoGenRule* rule;
   for (int i = 0; i < 20; ++i) {
-    rule = probabilistic_rule_scheduler->NextRule(state, "C");
+    rule = probabilistic_rule_scheduler->NextRule();
     VLOG(6) << "next rule name: " << rule->GetRuleName();
   }
 }
