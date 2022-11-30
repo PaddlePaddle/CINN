@@ -31,8 +31,8 @@ std::vector<ir::Expr> CreateTestBlocks() {
 }
 
 TEST(BlockScheduler, Make) {
-  std::vector<ir::Expr> mock_blocks(3);
-  auto traversal_block_scheduler = BlockScheduler::Make(mock_blocks, "traversal");
+  std::vector<ir::Expr> mock_blocks = CreateTestBlocks();
+  auto traversal_block_scheduler    = BlockScheduler::Make(mock_blocks, "traversal");
   ASSERT_STREQ(traversal_block_scheduler->Name(), "traversal");
   auto probabilistic_block_scheduler = BlockScheduler::Make(mock_blocks, "probabilistic");
   ASSERT_STREQ(probabilistic_block_scheduler->Name(), "probabilistic");

@@ -26,8 +26,10 @@ std::unique_ptr<BlockScheduler> BlockScheduler::Make(const std::vector<ir::Expr>
                                                      const std::vector<int>& weights) {
   CHECK_GT(all_blocks.size(), 0) << "Empty block list";
   if (strategy == "traversal") {
+    VLOG(6) << "Init TraversalBlockScheduler with block num = " << all_blocks.size();
     return std::make_unique<TraversalBlockScheduler>(all_blocks);
   } else if (strategy == "probabilistic") {
+    VLOG(6) << "Init ProbabilisticBlockScheduler with block num = " << all_blocks.size();
     return std::make_unique<ProbabilisticBlockScheduler>(all_blocks, weights);
   }
 
@@ -35,14 +37,21 @@ std::unique_ptr<BlockScheduler> BlockScheduler::Make(const std::vector<ir::Expr>
   return nullptr;
 }
 
-std::string TraversalBlockScheduler::NextBlock() {
-  if (cur_idx_ < all_blocks_->size()) {
-    ir::Expr block_expr                     = all_blocks_->at(cur_idx_++);
-    ir::ScheduleBlockRealize* block_realize = block_expr.As<ir::ScheduleBlockRealize>();
-    ir::ScheduleBlock* block                = block_realize->schedule_block.As<ir::ScheduleBlock>();
+BlockScheduler::BlockScheduler(const std::vector<ir::Expr>& all_blocks) {
+  std::transform(all_blocks.begin(), all_blocks.end(), std::back_inserter(all_blocks_), [](const ir::Expr& block_expr) {
+    const ir::ScheduleBlockRealize* block_realize = block_expr.As<ir::ScheduleBlockRealize>();
+    const ir::ScheduleBlock* block                = block_realize->schedule_block.As<ir::ScheduleBlock>();
     return block->name;
+  });
+}
+
+std::string TraversalBlockScheduler::NextBlock() {
+  if (cur_idx_ < all_blocks_.size()) {
+    VLOG(6) << "[TraversalBlockScheduler] next block: " << all_blocks_.at(cur_idx_);
+    return all_blocks_.at(cur_idx_++);
   }
 
+  VLOG(6) << "[TraversalBlockScheduler] next block: empty";
   return "";
 }
 
@@ -68,10 +77,8 @@ std::string ProbabilisticBlockScheduler::NextBlock() {
   int block_idx =
       std::upper_bound(cumulative_weight_.begin(), cumulative_weight_.end(), sample_index) - cumulative_weight_.begin();
 
-  ir::Expr block_expr                     = all_blocks_->at(block_idx);
-  ir::ScheduleBlockRealize* block_realize = block_expr.As<ir::ScheduleBlockRealize>();
-  ir::ScheduleBlock* block                = block_realize->schedule_block.As<ir::ScheduleBlock>();
-  return block->name;
+  VLOG(6) << "[ProbabilisticBlockScheduler] next block: " << all_blocks_.at(block_idx);
+  return all_blocks_.at(block_idx);
 }
 
 }  // namespace auto_schedule

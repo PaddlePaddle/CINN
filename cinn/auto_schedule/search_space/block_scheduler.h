@@ -43,10 +43,11 @@ class BlockScheduler {
 
  protected:
   // A BlockScheduler object should be created with the static function Make()
-  BlockScheduler(const std::vector<ir::Expr>& all_blocks) : all_blocks_(&all_blocks) {}
+  BlockScheduler(const std::vector<ir::Expr>& all_blocks);
 
-  // The pointer refers to all blocks
-  const std::vector<ir::Expr>* all_blocks_;
+  // The names of all blocks
+  // Because the Block Expr will be changed in the search process, the name is saved for indexing
+  std::vector<std::string> all_blocks_;
 };
 
 // Schedule blocks with traversal strategy,
