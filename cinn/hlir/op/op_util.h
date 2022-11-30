@@ -25,7 +25,7 @@ namespace cinn {
 namespace hlir {
 
 template <class T>
-T GetAttr(const absl::flat_hash_map<std::string, framework::AttrType>& attrs, const std::string& key, const T&& value) {
+T GetAttr(const absl::flat_hash_map<std::string, framework::AttrType> &attrs, const std::string &key, const T &&value) {
   if (attrs.find(key) != attrs.end()) {
     return absl::get<T>(attrs.at(key));
   } else {
@@ -34,13 +34,53 @@ T GetAttr(const absl::flat_hash_map<std::string, framework::AttrType>& attrs, co
 }
 
 template <typename T = int>
-std::vector<Expr> ToCinnExprs(const std::vector<T>& args) {
+std::vector<Expr> ToCinnExprs(const std::vector<T> &args) {
   std::vector<Expr> exprs;
-  std::transform(args.begin(), args.end(), std::back_inserter(exprs), [](const T& arg) { return Expr(arg); });
+  std::transform(args.begin(), args.end(), std::back_inserter(exprs), [](const T &arg) { return Expr(arg); });
   return exprs;
 }
 
-std::vector<int> GetPositiveAxes(const std::vector<int>& axes, int rank);
+template <typename T>
+std::vector<T> ToPodVector(const std::vector<Expr> &args) {
+  if (args.empty()) {
+    return {};
+  }
+
+  const auto &type = args.front().type();
+  CHECK_EQ(type, common::type_of<T>()) << "Cannot get " << common::type_of<T>() << " value from " << type << " vector!";
+
+  std::vector<T> shape_v;
+  if (type.is_int(32)) {
+    for (auto &e : args) {
+      shape_v.push_back(static_cast<T>(e.as_int32()));
+    }
+  } else if (type.is_int(64)) {
+    for (auto &e : args) {
+      shape_v.push_back(static_cast<T>(e.as_int64()));
+    }
+  } else if (type.is_bool()) {
+    for (auto &e : args) {
+      shape_v.push_back(static_cast<T>(e.as_bool()));
+    }
+  } else if (type.is_float(16)) {
+    for (auto &e : args) {
+      shape_v.push_back(static_cast<T>(e.as_float16()));
+    }
+  } else if (type.is_float(32)) {
+    for (auto &e : args) {
+      shape_v.push_back(static_cast<T>(e.as_float()));
+    }
+  } else if (type.is_float(64)) {
+    for (auto &e : args) {
+      shape_v.push_back(static_cast<T>(e.as_double()));
+    }
+  } else {
+    LOG(FATAL) << "Not support " << type;
+  }
+  return shape_v;
+}
+
+std::vector<int> GetPositiveAxes(const std::vector<int> &axes, int rank);
 
 }  // namespace hlir
 }  // namespace cinn

@@ -18,6 +18,7 @@
 
 #include "cinn/cinn.h"
 #include "cinn/frontend/net_builder.h"
+#include "cinn/frontend/pass/pass_test_helper.h"
 #include "cinn/frontend/pass/use_program_pass.h"
 #include "cinn/frontend/program_pass.h"
 #include "cinn/frontend/syntax.h"
@@ -42,66 +43,53 @@ void RunWithProgram(const Program& program,
 }
 
 TEST(TransposeFoldingInput, FoldIntoDotBatchedCase1) {
+  if (!IsCompiledWithCUDA()) {
+    return;
+  }
   NetBuilder builder("net_builder");
   auto x           = builder.CreateInput(Float(32), {4, 5, 3}, "X");
   auto y           = builder.CreateInput(Float(32), {4, 5, 6}, "Y");
   auto transpose_x = builder.Transpose(x, {0, 2, 1});
   auto out         = builder.Matmul(transpose_x, y);
   auto program     = builder.Build();
-  auto target      = common::DefaultTarget();
-  auto graph       = std::make_shared<hlir::framework::Graph>(program, target);
-  auto scope       = hlir::framework::BuildScope(target, graph);
-  scope->Var<hlir::framework::Tensor>("X");
-  scope->Var<hlir::framework::Tensor>("Y");
-  SetRandData<float>(scope->GetTensor("X"), target);
-  SetRandData<float>(scope->GetTensor("Y"), target);
-  size_t origin_size = program.size();
-  VLOG(1) << "Program:\n" << program;
-  RunWithProgram(program, target, scope);
-  auto origin_out = GetTensorData<float>(scope->GetTensor(out->id), target);
-  ProgramPass::Apply(&program, {}, target, {"TransposeFoldingInput"});
-  size_t folded_size = program.size();
-  VLOG(1) << "Program:\n" << program;
-  RunWithProgram(program, target, scope);
-  auto folded_out = GetTensorData<float>(scope->GetTensor(out->id), target);
-  ASSERT_EQ(origin_size, folded_size + 1);
-  ASSERT_EQ(origin_out.size(), folded_out.size());
-  for (size_t i = 0; i < origin_out.size(); ++i) {
-    ASSERT_FLOAT_EQ(origin_out[i], folded_out[i]);
-  }
+
+  common::Target target = common::DefaultNVGPUTarget();
+  std::vector<std::string> input_ids;
+  absl::c_transform(std::vector<absl::string_view>{x.id(), y.id()},
+                    std::back_inserter(input_ids),
+                    [](absl::string_view id) { return std::string(id); });
+  std::pair<std::vector<std::string>, std::vector<std::string>> passes{
+      {"Decomposer", "RemoveIdentity"},
+      {"TransposeFoldingInput", "GemmRewriter", "TransposeFoldingOutput", "GemmRewriter"}};
+  CompareResult(&program, target, input_ids, {out->id}, 1, passes, 123, true);
 }
 
 TEST(TransposeFoldingInput, FoldIntoDotBachedCase2) {
+  if (!IsCompiledWithCUDA()) {
+    return;
+  }
   NetBuilder builder("net_builder");
   auto x           = builder.CreateInput(Float(32), {4, 3, 5}, "X");
   auto y           = builder.CreateInput(Float(32), {4, 6, 5}, "Y");
   auto transpose_y = builder.Transpose(y, {0, 2, 1});
   auto out         = builder.Matmul(x, transpose_y);
   auto program     = builder.Build();
-  auto target      = common::DefaultTarget();
-  auto graph       = std::make_shared<hlir::framework::Graph>(program, target);
-  auto scope       = hlir::framework::BuildScope(target, graph);
-  scope->Var<hlir::framework::Tensor>("X");
-  scope->Var<hlir::framework::Tensor>("Y");
-  SetRandData<float>(scope->GetTensor("X"), target);
-  SetRandData<float>(scope->GetTensor("Y"), target);
-  size_t origin_size = program.size();
-  VLOG(1) << "Program:\n" << program;
-  RunWithProgram(program, target, scope);
-  auto origin_out = GetTensorData<float>(scope->GetTensor(out->id), target);
-  ProgramPass::Apply(&program, {}, target, {"TransposeFoldingInput"});
-  size_t folded_size = program.size();
-  VLOG(1) << "Program:\n" << program;
-  RunWithProgram(program, target, scope);
-  auto folded_out = GetTensorData<float>(scope->GetTensor(out->id), target);
-  ASSERT_EQ(origin_size, folded_size + 1);
-  ASSERT_EQ(origin_out.size(), folded_out.size());
-  for (size_t i = 0; i < origin_out.size(); ++i) {
-    ASSERT_FLOAT_EQ(origin_out[i], folded_out[i]);
-  }
+
+  common::Target target = common::DefaultNVGPUTarget();
+  std::vector<std::string> input_ids;
+  absl::c_transform(std::vector<absl::string_view>{x.id(), y.id()},
+                    std::back_inserter(input_ids),
+                    [](absl::string_view id) { return std::string(id); });
+  std::pair<std::vector<std::string>, std::vector<std::string>> passes{
+      {"Decomposer", "RemoveIdentity"},
+      {"TransposeFoldingInput", "GemmRewriter", "TransposeFoldingOutput", "GemmRewriter"}};
+  CompareResult(&program, target, input_ids, {out->id}, 1, passes, 123, true);
 }
 
 TEST(TransposeFoldingInput, FoldIntoDotBachedCase3) {
+  if (!IsCompiledWithCUDA()) {
+    return;
+  }
   NetBuilder builder("net_builder");
   auto x           = builder.CreateInput(Float(32), {4, 5, 3}, "X");
   auto y           = builder.CreateInput(Float(32), {4, 6, 5}, "Y");
@@ -109,130 +97,93 @@ TEST(TransposeFoldingInput, FoldIntoDotBachedCase3) {
   auto transpose_y = builder.Transpose(y, {0, 2, 1});
   auto out         = builder.Matmul(transpose_x, transpose_y);
   auto program     = builder.Build();
-  auto target      = common::DefaultTarget();
-  auto graph       = std::make_shared<hlir::framework::Graph>(program, target);
-  auto scope       = hlir::framework::BuildScope(target, graph);
-  scope->Var<hlir::framework::Tensor>("X");
-  scope->Var<hlir::framework::Tensor>("Y");
-  SetRandData<float>(scope->GetTensor("X"), target);
-  SetRandData<float>(scope->GetTensor("Y"), target);
-  size_t origin_size = program.size();
-  VLOG(1) << "Program:\n" << program;
-  RunWithProgram(program, target, scope);
-  auto origin_out = GetTensorData<float>(scope->GetTensor(out->id), target);
-  ProgramPass::Apply(&program, {}, target, {"TransposeFoldingInput"});
-  size_t folded_size = program.size();
-  VLOG(1) << "Program:\n" << program;
-  RunWithProgram(program, target, scope);
-  auto folded_out = GetTensorData<float>(scope->GetTensor(out->id), target);
-  ASSERT_EQ(origin_size, folded_size + 2);
-  ASSERT_EQ(origin_out.size(), folded_out.size());
-  for (size_t i = 0; i < origin_out.size(); ++i) {
-    ASSERT_FLOAT_EQ(origin_out[i], folded_out[i]);
-  }
+
+  common::Target target = common::DefaultNVGPUTarget();
+  std::vector<std::string> input_ids;
+  absl::c_transform(std::vector<absl::string_view>{x.id(), y.id()},
+                    std::back_inserter(input_ids),
+                    [](absl::string_view id) { return std::string(id); });
+  std::pair<std::vector<std::string>, std::vector<std::string>> passes{
+      {"Decomposer", "RemoveIdentity"},
+      {"TransposeFoldingInput", "GemmRewriter", "TransposeFoldingOutput", "GemmRewriter"}};
+  CompareResult(&program, target, input_ids, {out->id}, 2, passes, 123, true);
 }
 
 TEST(TransposeFoldingInput, FoldIntoDotCase1) {
+  if (!IsCompiledWithCUDA()) {
+    return;
+  }
   NetBuilder builder("net_builder");
   auto x           = builder.CreateInput(Float(32), {2, 3}, "X");
   auto y           = builder.CreateInput(Float(32), {2, 3}, "Y");
   auto transpose_y = builder.Transpose(y, {1, 0});
   auto out         = builder.Matmul(x, transpose_y);
   auto program     = builder.Build();
-  auto target      = common::DefaultTarget();
-  auto graph       = std::make_shared<hlir::framework::Graph>(program, target);
-  auto scope       = hlir::framework::BuildScope(target, graph);
-  scope->Var<hlir::framework::Tensor>("X");
-  scope->Var<hlir::framework::Tensor>("Y");
-  SetRandData<float>(scope->GetTensor("X"), target);
-  SetRandData<float>(scope->GetTensor("Y"), target);
-  size_t origin_size = program.size();
-  VLOG(1) << "Program:\n" << program;
-  RunWithProgram(program, target, scope);
-  auto origin_out = GetTensorData<float>(scope->GetTensor(out->id), target);
-  ProgramPass::Apply(&program, {}, target, {"TransposeFoldingInput"});
-  size_t folded_size = program.size();
-  VLOG(1) << "Program:\n" << program;
-  RunWithProgram(program, target, scope);
-  auto folded_out = GetTensorData<float>(scope->GetTensor(out->id), target);
-  ASSERT_EQ(origin_size, folded_size + 1);
-  ASSERT_EQ(origin_out.size(), folded_out.size());
-  for (size_t i = 0; i < origin_out.size(); ++i) {
-    ASSERT_FLOAT_EQ(origin_out[i], folded_out[i]);
-  }
+
+  common::Target target = common::DefaultNVGPUTarget();
+  std::vector<std::string> input_ids;
+  absl::c_transform(std::vector<absl::string_view>{x.id(), y.id()},
+                    std::back_inserter(input_ids),
+                    [](absl::string_view id) { return std::string(id); });
+  std::pair<std::vector<std::string>, std::vector<std::string>> passes{
+      {"Decomposer", "RemoveIdentity"},
+      {"TransposeFoldingInput", "GemmRewriter", "TransposeFoldingOutput", "GemmRewriter"}};
+  CompareResult(&program, target, input_ids, {out->id}, 1, passes, 123, true);
 }
 
 TEST(TransposeFoldingInput, FoldIntoDotCase2) {
-  NetBuilder builder("net_builder");
-  auto a             = builder.FillConstant<float>({2, 20}, 2.0f, "A");
-  auto b             = builder.Transpose(a, {1, 0});
-  auto c             = builder.CreateInput(Float(32), {121, 20}, "C");
-  auto d             = builder.Matmul(c, b);
-  auto x             = builder.FillConstant<float>({2, 20}, 1.0f, "X");
-  auto y             = builder.Transpose(x, {1, 0});
-  auto z             = builder.CreateInput(Float(32), {121, 20}, "Z");
-  auto q             = builder.Matmul(z, y);
-  auto out           = builder.Add(d, q);
-  auto program       = builder.Build();
-  auto target        = common::DefaultTarget();
-  auto graph         = std::make_shared<hlir::framework::Graph>(program, target);
-  size_t origin_size = program.size();
-  VLOG(1) << "Program:\n" << program;
-  auto before_scope = hlir::framework::BuildScope(target, graph);
-  before_scope->Var<hlir::framework::Tensor>("C");
-  before_scope->Var<hlir::framework::Tensor>("Z");
-  SetRandData<float>(before_scope->GetTensor("C"), target);
-  SetRandData<float>(before_scope->GetTensor("Z"), target);
-  RunWithProgram(program, target, before_scope);
-  auto origin_out = GetTensorData<float>(before_scope->GetTensor(out->id), target);
-  ProgramPass::Apply(&program, {}, target, {"TransposeFoldingInput"});
-  size_t folded_size = program.size();
-  VLOG(1) << "Program:\n" << program;
-  auto after_scope = hlir::framework::BuildScope(target, graph);
-  after_scope->Var<hlir::framework::Tensor>("C");
-  after_scope->Var<hlir::framework::Tensor>("Z");
-  after_scope->GetTensor("C")->set_buffer(before_scope->GetTensor("C")->get_buffer());
-  after_scope->GetTensor("Z")->set_buffer(before_scope->GetTensor("Z")->get_buffer());
-  RunWithProgram(program, target, after_scope);
-  auto folded_out = GetTensorData<float>(after_scope->GetTensor(out->id), target);
-  ASSERT_EQ(origin_size, folded_size + 2);
-  ASSERT_EQ(origin_out.size(), folded_out.size());
-  for (size_t i = 0; i < origin_out.size(); ++i) {
-    ASSERT_FLOAT_EQ(origin_out[i], folded_out[i]);
+  if (!IsCompiledWithCUDA()) {
+    return;
   }
+  NetBuilder builder("net_builder");
+  auto a       = builder.FillConstant<float>({2, 20}, 2.0f, "A");
+  auto b       = builder.Transpose(a, {1, 0});
+  auto c       = builder.CreateInput(Float(32), {121, 20}, "C");
+  auto d       = builder.Matmul(c, b);
+  auto x       = builder.FillConstant<float>({2, 20}, 1.0f, "X");
+  auto y       = builder.Transpose(x, {1, 0});
+  auto z       = builder.CreateInput(Float(32), {121, 20}, "Z");
+  auto q       = builder.Matmul(z, y);
+  auto out     = builder.Add(d, q);
+  auto program = builder.Build();
+
+  common::Target target = common::DefaultNVGPUTarget();
+  std::vector<std::string> input_ids;
+  absl::c_transform(std::vector<absl::string_view>{c.id(), z.id()},
+                    std::back_inserter(input_ids),
+                    [](absl::string_view id) { return std::string(id); });
+  std::pair<std::vector<std::string>, std::vector<std::string>> passes{
+      {"Decomposer", "RemoveIdentity"},
+      {"TransposeFoldingInput", "GemmRewriter", "TransposeFoldingOutput", "GemmRewriter"}};
+  CompareResult(&program, target, input_ids, {out->id}, 2, passes, 123, true);
 }
 
 TEST(TransposeFoldingInput, TransposeOutInFetchIds) {
+  if (!IsCompiledWithCUDA()) {
+    return;
+  }
   NetBuilder builder("net_builder");
   auto x           = builder.CreateInput(Float(32), {2, 3}, "X");
   auto y           = builder.CreateInput(Float(32), {2, 3}, "Y");
   auto transpose_y = builder.Transpose(y, {1, 0});
   auto out         = builder.Matmul(x, transpose_y);
   auto program     = builder.Build();
-  auto target      = common::DefaultTarget();
-  auto graph       = std::make_shared<hlir::framework::Graph>(program, target);
-  auto scope       = hlir::framework::BuildScope(target, graph);
-  scope->Var<hlir::framework::Tensor>("X");
-  scope->Var<hlir::framework::Tensor>("Y");
-  SetRandData<float>(scope->GetTensor("X"), target);
-  SetRandData<float>(scope->GetTensor("Y"), target);
-  size_t origin_size = program.size();
-  VLOG(1) << "Program:\n" << program;
-  RunWithProgram(program, target, scope);
-  auto origin_out = GetTensorData<float>(scope->GetTensor(out->id), target);
-  ProgramPass::Apply(&program, {transpose_y->id}, target, {"TransposeFoldingInput"});
-  size_t folded_size = program.size();
-  VLOG(1) << "Program:\n" << program;
-  RunWithProgram(program, target, scope);
-  auto folded_out = GetTensorData<float>(scope->GetTensor(out->id), target);
-  ASSERT_EQ(origin_size, folded_size);
-  ASSERT_EQ(origin_out.size(), folded_out.size());
-  for (size_t i = 0; i < origin_out.size(); ++i) {
-    ASSERT_FLOAT_EQ(origin_out[i], folded_out[i]);
-  }
+
+  common::Target target = common::DefaultNVGPUTarget();
+  std::vector<std::string> input_ids;
+  absl::c_transform(std::vector<absl::string_view>{x.id(), y.id()},
+                    std::back_inserter(input_ids),
+                    [](absl::string_view id) { return std::string(id); });
+  std::pair<std::vector<std::string>, std::vector<std::string>> passes{
+      {"Decomposer", "RemoveIdentity"},
+      {"TransposeFoldingInput", "GemmRewriter", "TransposeFoldingOutput", "GemmRewriter"}};
+  CompareResult(&program, target, input_ids, {out->id, transpose_y->id}, 0, passes, 123, true);
 }
 
 TEST(TransposeFoldingInput, TransposeOutUsedByOtherInstrs) {
+  if (!IsCompiledWithCUDA()) {
+    return;
+  }
   NetBuilder builder("net_builder");
   auto x           = builder.CreateInput(Float(32), {2, 2}, "X");
   auto y           = builder.CreateInput(Float(32), {2, 2}, "Y");
@@ -240,30 +191,22 @@ TEST(TransposeFoldingInput, TransposeOutUsedByOtherInstrs) {
   auto dot         = builder.Matmul(x, transpose_y);
   auto out         = builder.Add(transpose_y, dot);
   auto program     = builder.Build();
-  auto target      = common::DefaultTarget();
-  auto graph       = std::make_shared<hlir::framework::Graph>(program, target);
-  auto scope       = hlir::framework::BuildScope(target, graph);
-  scope->Var<hlir::framework::Tensor>("X");
-  scope->Var<hlir::framework::Tensor>("Y");
-  SetRandData<float>(scope->GetTensor("X"), target);
-  SetRandData<float>(scope->GetTensor("Y"), target);
-  size_t origin_size = program.size();
-  VLOG(1) << "Program:\n" << program;
-  RunWithProgram(program, target, scope);
-  auto origin_out = GetTensorData<float>(scope->GetTensor(out->id), target);
-  ProgramPass::Apply(&program, {}, target, {"TransposeFoldingInput"});
-  size_t folded_size = program.size();
-  VLOG(1) << "Program:\n" << program;
-  RunWithProgram(program, target, scope);
-  auto folded_out = GetTensorData<float>(scope->GetTensor(out->id), target);
-  ASSERT_EQ(origin_size, folded_size);
-  ASSERT_EQ(origin_out.size(), folded_out.size());
-  for (size_t i = 0; i < origin_out.size(); ++i) {
-    ASSERT_FLOAT_EQ(origin_out[i], folded_out[i]);
-  }
+
+  common::Target target = common::DefaultNVGPUTarget();
+  std::vector<std::string> input_ids;
+  absl::c_transform(std::vector<absl::string_view>{x.id(), y.id()},
+                    std::back_inserter(input_ids),
+                    [](absl::string_view id) { return std::string(id); });
+  std::pair<std::vector<std::string>, std::vector<std::string>> passes{
+      {"Decomposer", "RemoveIdentity"},
+      {"TransposeFoldingInput", "GemmRewriter", "TransposeFoldingOutput", "GemmRewriter"}};
+  CompareResult(&program, target, input_ids, {out->id}, 0, passes, 123, true);
 }
 
 TEST(TransposeFoldingInput, TransposeTwiceWithMatmul) {
+  if (!IsCompiledWithCUDA()) {
+    return;
+  }
   NetBuilder builder("net_builder");
   auto x = builder.CreateInput(Float(32), {2, 20}, "X");
   auto y = builder.CreateInput(Float(32), {10201, 20}, "Y");
@@ -275,56 +218,21 @@ TEST(TransposeFoldingInput, TransposeTwiceWithMatmul) {
   auto dot2    = builder.Matmul(z, x_t_t);
   auto program = builder.Build();
 
-  auto target = common::DefaultTarget();
-  auto graph  = std::make_shared<hlir::framework::Graph>(program, target);
-  auto scope  = hlir::framework::BuildScope(target, graph);
-
-  scope->Var<hlir::framework::Tensor>("X");
-  scope->Var<hlir::framework::Tensor>("Y");
-  scope->Var<hlir::framework::Tensor>("Z");
-  SetRandData<float>(scope->GetTensor("X"), target);
-  SetRandData<float>(scope->GetTensor("Y"), target);
-  SetRandData<float>(scope->GetTensor("Z"), target);
-
-  size_t origin_size = program.size();
-  VLOG(1) << "Program:\n" << program;
-  // The origin Program should be：
-  // Program {
-  // var_51 = transpose(X, axis=[1,0])
-  // var_52 = transpose(var_51, axis=[1,0])
-  // var_53 = matmul(Y, var_51)
-  // var_54 = matmul(Z, var_52)
-  // }
-  RunWithProgram(program, target, scope);
-  auto origin_out1 = GetTensorData<float>(scope->GetTensor(dot1->id), target);
-  auto origin_out2 = GetTensorData<float>(scope->GetTensor(dot2->id), target);
-
-  ProgramPass::Apply(&program, {}, target, {"TransposeFoldingInput"});
-  size_t folded_size = program.size();
-  VLOG(1) << "Program:\n" << program;
-  // The program after transpose folding pass should be:
-  // Program {
-  // var_51 = transpose(X, axis=[1,0])
-  // var_53 = matmul(Y, X, trans_b=true)
-  // var_54 = matmul(Z, var_51, trans_b=true)
-  // }
-  // the transpose of x->x_t should retain
-  RunWithProgram(program, target, scope);
-  auto folded_out1 = GetTensorData<float>(scope->GetTensor(dot1->id), target);
-  auto folded_out2 = GetTensorData<float>(scope->GetTensor(dot2->id), target);
-
-  ASSERT_EQ(origin_size - 1, folded_size);
-  ASSERT_EQ(origin_out1.size(), folded_out1.size());
-  for (size_t i = 0; i < origin_out1.size(); ++i) {
-    ASSERT_FLOAT_EQ(origin_out1[i], folded_out1[i]);
-  }
-  ASSERT_EQ(origin_out2.size(), folded_out2.size());
-  for (size_t i = 0; i < origin_out2.size(); ++i) {
-    ASSERT_FLOAT_EQ(origin_out2[i], folded_out2[i]);
-  }
+  common::Target target = common::DefaultNVGPUTarget();
+  std::vector<std::string> input_ids;
+  absl::c_transform(std::vector<absl::string_view>{x.id(), y.id(), z.id()},
+                    std::back_inserter(input_ids),
+                    [](absl::string_view id) { return std::string(id); });
+  std::pair<std::vector<std::string>, std::vector<std::string>> passes{
+      {"Decomposer", "RemoveIdentity"},
+      {"TransposeFoldingInput", "GemmRewriter", "TransposeFoldingOutput", "GemmRewriter"}};
+  CompareResult(&program, target, input_ids, {dot1->id, dot2->id}, 1, passes, 123, true);
 }
 
 TEST(TransposeFoldingInput, TransposeWithMultiMamtul) {
+  if (!IsCompiledWithCUDA()) {
+    return;
+  }
   NetBuilder builder("net_builder");
   auto x           = builder.CreateInput(Float(32), {2, 2}, "X");
   auto y           = builder.CreateInput(Float(32), {2, 2}, "Y");
@@ -333,38 +241,16 @@ TEST(TransposeFoldingInput, TransposeWithMultiMamtul) {
   auto dot2        = builder.Matmul(transpose_y, x);
   auto out         = builder.Add(dot1, dot2);
   auto program     = builder.Build();
-  auto target      = common::DefaultTarget();
-  auto graph       = std::make_shared<hlir::framework::Graph>(program, target);
-  auto scope       = hlir::framework::BuildScope(target, graph);
-  scope->Var<hlir::framework::Tensor>("X");
-  scope->Var<hlir::framework::Tensor>("Y");
-  SetRandData<float>(scope->GetTensor("X"), target);
-  SetRandData<float>(scope->GetTensor("Y"), target);
-  size_t origin_size = program.size();
-  VLOG(1) << "Program:\n" << program;
-  // Program {
-  //   var_60 = transpose(Y, axis=[1,0])
-  //   var_61 = matmul(X, var_60)
-  //   var_62 = matmul(var_60, X)
-  //   var_63 = elementwise_add(var_61, var_62)
-  // }
-  RunWithProgram(program, target, scope);
-  auto origin_out = GetTensorData<float>(scope->GetTensor(out->id), target);
-  ProgramPass::Apply(&program, {}, target, {"TransposeFoldingInput"});
-  size_t folded_size = program.size();
-  VLOG(1) << "Program:\n" << program;
-  // Program {
-  //   var_61 = matmul(X, Y, trans_b=true)
-  //   var_62 = matmul(Y, X, trans_a=true)
-  //   var_63 = elementwise_add(var_61, var_62)
-  // }
-  RunWithProgram(program, target, scope);
-  auto folded_out = GetTensorData<float>(scope->GetTensor(out->id), target);
-  ASSERT_EQ(origin_size, folded_size + 1);
-  ASSERT_EQ(origin_out.size(), folded_out.size());
-  for (size_t i = 0; i < origin_out.size(); ++i) {
-    ASSERT_FLOAT_EQ(origin_out[i], folded_out[i]);
-  }
+
+  common::Target target = common::DefaultNVGPUTarget();
+  std::vector<std::string> input_ids;
+  absl::c_transform(std::vector<absl::string_view>{x.id(), y.id()},
+                    std::back_inserter(input_ids),
+                    [](absl::string_view id) { return std::string(id); });
+  std::pair<std::vector<std::string>, std::vector<std::string>> passes{
+      {"Decomposer", "RemoveIdentity"},
+      {"TransposeFoldingInput", "GemmRewriter", "TransposeFoldingOutput", "GemmRewriter"}};
+  CompareResult(&program, target, input_ids, {out->id}, 1, passes, 123, true);
 }
 
 }  // namespace cinn::frontend
