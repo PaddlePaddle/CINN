@@ -262,7 +262,7 @@ void CheckResult(test_func_type test_func,
   // Check result
   for (int i = 0; i < output_shapes.size(); ++i) {
     for (int j = 0; j < output_data_numels[i]; ++j) {
-      ASSERT_NEAR(output_data_ptrs[i][j], expected_output_data_ptrs[i][j], 1e-5);
+      ASSERT_NEAR(output_data_ptrs[i][j], expected_output_data_ptrs[i][j], 1e-4);
     }
   }
 

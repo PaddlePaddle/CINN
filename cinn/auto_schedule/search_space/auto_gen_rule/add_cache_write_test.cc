@@ -81,7 +81,6 @@ TEST_F(TestAddCacheWriteWith2DMatmul, Init) {
 
   ir::IRSchedule ir_schedule_add(ir::ModuleExpr({funcs_add[0]->body}));
   VLOG(6) << "Mat Add Expr before AddCacheRead:\n" << ir_schedule_add.GetModule().GetExprs();
-
   AddCacheWrite add_cache_write2(target_);
   EXPECT_EQ(add_cache_write2.Init(&ir_schedule_add), RuleApplyType::kCannotApply);
   EXPECT_EQ(add_cache_write2.NumberApplicable(), 0);
