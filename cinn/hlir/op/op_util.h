@@ -40,5 +40,7 @@ std::vector<Expr> ToCinnExprs(const std::vector<T>& args) {
   return exprs;
 }
 
+std::vector<int> GetPositiveAxes(const std::vector<int>& axes, int rank);
+
 }  // namespace hlir
 }  // namespace cinn

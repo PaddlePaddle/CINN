@@ -14,8 +14,10 @@
 
 #include "cinn/hlir/pe/elementwise.h"
 
+#include <algorithm>
 #include <string>
 
+#include "cinn/hlir/op/op_util.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/lang/builtin.h"
 
@@ -137,38 +139,26 @@ ir::Tensor Squeeze(const ir::Tensor& A, const std::vector<int>& axes, const std:
   return res;
 }
 
-ir::Tensor ExpandDims(const ir::Tensor& input, int axis, int num_newaxis, const std::string& output_name) {
-  int ndims = input.ndims();
-  CHECK(axis >= -ndims - 1 && axis <= ndims)
-      << "expand_dims only accept `axis` in [-x.ndim - 1, x.ndim], but got axis = " << axis
-      << ", and x.ndims = " << ndims;
-  CHECK_GE(num_newaxis, 0);
-
-  if (axis < 0) {
-    axis = ndims + axis + 1;
-  }
-  std::vector<Expr> output_shape;
-  for (size_t i = 0; i < static_cast<size_t>(axis); ++i) {
-    output_shape.push_back(input->shape[i]);
-  }
-  for (size_t i = 0; i < static_cast<size_t>(num_newaxis); ++i) {
-    output_shape.push_back(Expr(1));
-  }
-  for (size_t i = axis; i < input->shape.size(); ++i) {
-    output_shape.push_back(input->shape[i]);
-  }
+ir::Tensor ExpandDims(const ir::Tensor& A,
+                      const std::vector<int>& axes,
+                      const std::vector<int>& out_shape,
+                      const std::string& output_name) {
+  const auto& posi_axes = GetPositiveAxes(axes, out_shape.size());
 
   return Compute(
-      output_shape,
+      ToCinnExprs(out_shape),
       [=](const std::vector<Expr>& indice) {
         std::vector<Expr> idx;
-        for (size_t i = 0; i < static_cast<size_t>(axis); ++i) {
-          idx.push_back(indice[i]);
+        int axes_pos = 0;
+        for (int i = 0; i < indice.size(); ++i) {
+          if (axes_pos < posi_axes.size() && posi_axes[axes_pos] == i) {
+            ++axes_pos;
+          } else {
+            idx.push_back(indice[i]);
+          }
         }
-        for (size_t i = axis + num_newaxis; i < indice.size(); ++i) {
-          idx.push_back(indice[i]);
-        }
-        return input(idx);
+        CHECK_EQ(idx.size(), A->shape.size()) << "The index size not equal with the input rank.";
+        return A(idx);
       },
       UniqName(output_name));
 }

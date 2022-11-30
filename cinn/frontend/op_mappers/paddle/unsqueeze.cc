@@ -30,10 +30,7 @@ void UnSqueeze2OpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContex
   VLOG(4) << "x shape: " << cinn::utils::Join(x->shape, ",");
   VLOG(4) << "unsqueeze axes: " << cinn::utils::Join(axes, ",");
 
-  Variable out = x;
-  for (auto axis : axes) {
-    out = ctx.Builder()->ExpandDims(out, axis);
-  }
+  const auto& out = ctx.Builder()->ExpandDims(x, axes);
 
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
   auto out_name = op_desc.Output("Out").front();
