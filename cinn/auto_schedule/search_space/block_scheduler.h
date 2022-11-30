@@ -26,22 +26,31 @@ class SearchState;
 
 class BlockScheduler {
  public:
+  // Create a BlockScheduler with the specific strategy name
+  // and necessary construct parameters.
   static std::unique_ptr<BlockScheduler> Make(const std::vector<ir::Expr>& all_blocks,
                                               const std::string& strategy     = "traversal",
                                               const std::vector<int>& weights = {});
 
+  // Return the name of schedule strategy
   virtual const char* Name() const = 0;
 
+  // Reset associated states to schedule at the beginning
   virtual void Reset() = 0;
 
+  // Select a block to apply rule
   virtual std::string NextBlock() = 0;
 
  protected:
+  // A BlockScheduler object should be created with the static function Make()
   BlockScheduler(const std::vector<ir::Expr>& all_blocks) : all_blocks_(&all_blocks) {}
 
+  // The pointer refers to all blocks
   const std::vector<ir::Expr>* all_blocks_;
 };
 
+// Schedule blocks with traversal strategy,
+// witch means to select blocks one by one until all blocks are traversed.
 class TraversalBlockScheduler : public BlockScheduler {
  public:
   TraversalBlockScheduler(const std::vector<ir::Expr>& all_blocks) : BlockScheduler(all_blocks), cur_idx_(0) {}
@@ -56,6 +65,8 @@ class TraversalBlockScheduler : public BlockScheduler {
   int cur_idx_;
 };
 
+// Schedule blocks with probabilistic strategy,
+// witch means randomly picking blocks according to the given distribution.
 class ProbabilisticBlockScheduler : public BlockScheduler {
  public:
   ProbabilisticBlockScheduler(const std::vector<ir::Expr>& all_blocks, const std::vector<int>& weights = {});

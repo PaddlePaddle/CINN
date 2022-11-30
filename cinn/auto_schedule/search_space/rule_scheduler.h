@@ -27,22 +27,30 @@ class SearchState;
 
 class RuleScheduler {
  public:
+  // Create a RuleScheduler with the specific strategy name
+  // and necessary construct parameters.
   static std::unique_ptr<RuleScheduler> Make(const std::vector<AutoGenRule*>& potential_rules,
                                              const std::string& strategy     = "traversal",
                                              const std::vector<int>& weights = {});
-
+  // Return the name of schedule strategy
   virtual const char* Name() const = 0;
 
+  // Reset associated states to schedule at the beginning
   virtual void Reset() = 0;
 
+  // Select a rule to apply
   virtual AutoGenRule* NextRule() = 0;
 
  protected:
+  // A RuleScheduler object should be created with the static function Make()
   RuleScheduler(const std::vector<AutoGenRule*>& potential_rules) : potential_rules_(&potential_rules) {}
 
+  // The pointer refers to all potential rules
   const std::vector<AutoGenRule*>* potential_rules_;
 };
 
+// Schedule rules with traversal strategy,
+// witch means to select rules one by one until all rules are traversed.
 class TraversalRuleScheduler : public RuleScheduler {
  public:
   TraversalRuleScheduler(const std::vector<AutoGenRule*>& potential_rules)
@@ -58,6 +66,8 @@ class TraversalRuleScheduler : public RuleScheduler {
   int cur_idx_;
 };
 
+// Schedule rules with probabilistic strategy,
+// witch means randomly picking rules according to the given distribution.
 class ProbabilisticRuleScheduler : public RuleScheduler {
  public:
   ProbabilisticRuleScheduler(const std::vector<AutoGenRule*>& potential_rules, const std::vector<int>& weights = {});
