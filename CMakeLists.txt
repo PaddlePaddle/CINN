@@ -28,6 +28,7 @@ endif()
 if (NOT DEFINED ENV{runtime_include_dir})
   message(STATUS "set runtime_include_dir: ${CMAKE_SOURCE_DIR}/cinn/runtime/cuda")
   set(ENV{runtime_include_dir} "${CMAKE_SOURCE_DIR}/cinn/runtime/cuda")
+  add_definitions(-DRUNTIME_INCLUDE_DIR="${CMAKE_SOURCE_DIR}/cinn/runtime/cuda")
 endif()
 
 if (WITH_TESTING)
@@ -158,7 +159,7 @@ function(gen_cinncore LINKTYPE)
   endif()
 
   if (WITH_CUDA)
-    target_link_libraries(${CINNCORE_TARGET} ${CUDA_NVRTC_LIB} ${CUDA_LIBRARIES} ${CUDASTUB} ${CUBLAS} ${CUDNN} 
+    target_link_libraries(${CINNCORE_TARGET} ${CUDA_NVRTC_LIB} ${CUDA_LIBRARIES} ${CUDASTUB} ${CUBLAS} ${CUDNN}
       ${jitify_deps})
     if (NVTX_FOUND)
       target_link_libraries(${CINNCORE_TARGET} ${CUDA_NVTX_LIB})

@@ -18,6 +18,7 @@ import unittest
 import numpy as np
 from op_test import OpTest, OpTestTool
 import paddle
+import paddle.nn.functional as F
 import cinn
 from cinn.frontend import *
 from cinn.common import *
@@ -25,52 +26,60 @@ from cinn.common import *
 
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
                     "x86 test will be skipped due to timeout.")
-class TestExpandDimsOp(OpTest):
+class TestCbrtOp(OpTest):
     def setUp(self):
         self.init_case()
 
     def init_case(self):
         self.inputs = {
-            "x": np.random.random([
-                32,
-                64,
-            ]).astype("float32")
+            "x": np.array([0, 1, 0.01, 27, 1000000,
+                           0.970299]).astype("float32")
         }
-        self.axes = [0]
 
     def build_paddle_program(self, target):
-        x = paddle.to_tensor(self.inputs["x"], stop_gradient=True)
-        out = paddle.unsqueeze(x, self.axes)
-
+        numpy_out = np.cbrt(self.inputs["x"])
+        out = paddle.to_tensor(numpy_out, stop_gradient=False)
         self.paddle_outputs = [out]
 
-    # Note: If the forward and backward operators are run in the same program,
-    # the forward result will be incorrect.
     def build_cinn_program(self, target):
-        builder = NetBuilder("expand_dims")
+        builder = NetBuilder("cbrt")
         x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
-        out = builder.expand_dims(x, self.axes)
+        out = builder.cbrt(x)
 
         prog = builder.build()
         res = self.get_cinn_output(prog, target, [x], [self.inputs["x"]],
                                    [out])
 
-        self.cinn_outputs = res
+        self.cinn_outputs = [res[0]]
 
     def test_check_results(self):
         self.check_outputs_and_grads()
 
 
-class TestExpandDimsCase1(TestExpandDimsOp):
+class TestCbrtCase1(TestCbrtOp):
     def init_case(self):
-        self.inputs = {"x": np.random.random([2, 3, 4]).astype("float32")}
-        self.axes = [0, 2, 4]
+        self.inputs = {
+            "x":
+            np.array([0, 1, 0.01, 27, 1000000, 0.970299, 124483,
+                      13.7396]).astype("float32")
+        }
 
 
-class TestExpandDimsCase2(TestExpandDimsOp):
+class TestCbrtCase2(TestCbrtOp):
     def init_case(self):
-        self.inputs = {"x": np.random.random([2, 3, 4]).astype("float32")}
-        self.axes = [3, 4, 5]
+        self.inputs = {
+            "x":
+            np.array([[0, 1, 0.01, 27], [1000000, 0.970299, 124483,
+                                         13.7396]]).astype("float32"),
+        }
+
+
+class TestCbrtCase3(TestCbrtOp):
+    def init_case(self):
+        np.random.seed(0)
+        self.inputs = {
+            "x": np.random.random((32, 64)).astype("float32"),
+        }
 
 
 if __name__ == "__main__":

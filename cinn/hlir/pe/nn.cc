@@ -634,7 +634,7 @@ std::vector<Tensor> Depthwise_Conv2d_NCHW(const Tensor &input,
 
   Var kernel_h = Var(weight->shape[2], "kh");
   Var kernel_w = Var(weight->shape[3], "kw");
-  VLOG(3) << "Output shape is : " << utils::Join(output_shape, ",");
+  VLOG(3) << "Output shape is : " << cinn::utils::Join(output_shape, ",");
   auto res = Compute(
       output_shape,
       [=](Expr nn, Expr ff, Expr yy, Expr xx) {
@@ -1068,7 +1068,7 @@ std::vector<Tensor> PoolImpl(const Tensor &tensor,
     for (int i = 0; i < k_size; i++) {
       out_shape[axis[i]] = Expr(kernel_size[i]);
     }
-    VLOG(4) << "PoolImpl out_shape: " << utils::Join(out_shape, ",");
+    VLOG(4) << "PoolImpl out_shape: " << cinn::utils::Join(out_shape, ",");
     CHECK(!do_pad);
     temp = do_pad ? Pad(tensor, pad_before, pad_after, 0, UniqName("pad_temp")) : tensor;
     std::vector<Var> reduce_axis;
