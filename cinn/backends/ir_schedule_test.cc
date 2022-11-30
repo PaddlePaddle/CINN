@@ -2731,5 +2731,55 @@ TEST(IrSchedule, Annotate) {
   ASSERT_EQ(utils::GetStreamCnt(ir_sch.GetModule().GetExprs().front()), expected_expr);
 }
 
+TEST(IrSchedule, ComplexIndices) {
+  Target target = common::DefaultHostTarget();
+  ir::Expr M(32);
+  ir::Expr K(64);
+
+  Placeholder<float> A("A", {M, K});
+  Var k(K.as_int32(), "reduce_axis_k");
+  ir::Tensor B = Compute(
+      {M}, [&](Var i) { return ReduceSum(A(i, k), {k}); }, "B");
+
+  poly::StageMap stages = CreateStages({B});
+  std::vector<ir::LoweredFunc> funcs =
+      lang::LowerVec("TestIrSchedule_ReduceSum", stages, {A, B}, {}, {}, nullptr, target, true);
+  ir::IRSchedule ir_sch(ir::ModuleExpr({funcs[0]->body}));
+  VLOG(3) << "Lowered Expr:" << ir_sch.GetModule().GetExprs().front();
+
+  auto loops_b = ir_sch.GetLoops("B");
+  CHECK_EQ(loops_b.size(), 2);
+  ir_sch.Split("B", 0, {8, -1});
+  ir_sch.Split("B", 2, {32, -1});  // after first splited, loops size has added to 3
+  VLOG(3) << "Splited Expr:" << ir_sch.GetModule().GetExprs().front();
+
+  CHECK_EQ(ir_sch.GetLoops("B").size(), 4);
+  ir_sch.Reorder("B", {2, 0, 3, 1});
+  VLOG(3) << "Reordered Expr:\n" << ir_sch.GetModule().GetExprs().front();
+
+  auto block_b = ir_sch.GetBlock("B");
+  auto a_cache = ir_sch.CacheRead(block_b, 1, "shared");  // actually the read_buffer A should be indexed by 0
+  VLOG(3) << "CacheRead-A Expr:\n" << ir_sch.GetModule().GetExprs().front();
+
+  loops_b = ir_sch.GetLoops("B");
+  ir_sch.ComputeAt(a_cache, loops_b[0]);
+  VLOG(3) << "ComputeAt-B Expr:\n" << ir_sch.GetModule().GetExprs().front();
+
+  block_b      = ir_sch.GetBlock("B");
+  auto b_cache = ir_sch.CacheWrite(block_b, 0, "local");
+  VLOG(3) << "CacheWrite-B Expr:\n" << ir_sch.GetModule().GetExprs().front();
+
+  Module::Builder builder("module1", target);
+  for (auto& i : funcs) {
+    builder.AddFunction(i);
+  }
+  auto module = builder.Build();
+  CodeGenC codegen(target);
+  codegen.SetInlineBuiltinCodes(false);
+  auto source_code = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
+  VLOG(3) << "scheduled source code:\n" << source_code;
+  // TODO(CtfGo) add source code comparison after we fix codegen bug of cachewrite
+}
+
 }  // namespace backends
 }  // namespace cinn
