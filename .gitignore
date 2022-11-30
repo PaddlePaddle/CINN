@@ -9,6 +9,7 @@
 *.ll
 cmake-build*
 build*
+Testing*
 .idea*
 *.html
 *.rej

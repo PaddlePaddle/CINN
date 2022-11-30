@@ -80,5 +80,7 @@ std::vector<T> ToPodVector(const std::vector<Expr> &args) {
   return shape_v;
 }
 
+std::vector<int> GetPositiveAxes(const std::vector<int> &axes, int rank);
+
 }  // namespace hlir
 }  // namespace cinn

@@ -72,6 +72,7 @@ namespace frontend {
   macro__(Negative) \
   macro__(Sign) \
   macro__(Abs) \
+  macro__(Cbrt) \
   macro__(Clz) \
   macro__(Popc) \
   macro__(Reciprocal)
@@ -575,7 +576,7 @@ class NetBuilder {
    * `axes=axes+rank(input)`.
    * @return Output squeezed variable. Data type is same as input variable.
    */
-  Variable Squeeze(const Variable& x, const cinn::utils::ShapeType& axes);
+  Variable Squeeze(const Variable& x, const cinn::utils::ShapeType& axes = {});
 
   /**
    * @brief Creates an operation to insert new dimensions of length 1.
@@ -584,7 +585,7 @@ class NetBuilder {
    * @param num_newaxis The number of new dimensions to insert
    * @return A variable whose op member is the dim expandsion operation.
    */
-  Variable ExpandDims(const Variable& operand, int axis, int num_newaxis = 1);
+  Variable ExpandDims(const Variable& operand, const cinn::utils::ShapeType& axes);
 
   /**
    * @brief This operator reverse the input along the axis.

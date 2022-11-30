@@ -569,6 +569,8 @@ __host__ __device__ inline float16(abs)(const float16& a) {
 #endif
 }
 
+__host__ __device__ inline float16(log)(const float16& a) { return float16(std::log(static_cast<float>(a))); }
+
 #ifdef __cplusplus
 }  // namespace common
 }  // namespace cinn

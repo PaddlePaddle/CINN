@@ -139,6 +139,7 @@ NETBUILDER_UNARY_OP_DEF(BitwiseNot, bitwise_not)
 NETBUILDER_UNARY_OP_DEF(Negative, negative)
 NETBUILDER_UNARY_OP_DEF(Sign, sign)
 NETBUILDER_UNARY_OP_DEF(Abs, abs)
+NETBUILDER_UNARY_OP_DEF(Cbrt, cbrt)
 NETBUILDER_UNARY_OP_DEF(Clz, clz)
 NETBUILDER_UNARY_OP_DEF(Popc, popc)
 NETBUILDER_UNARY_OP_DEF(Reciprocal, reciprocal)
@@ -408,8 +409,8 @@ Variable NetBuilder::Squeeze(const Variable& operand, const std::vector<int>& ax
   return CustomInstr("squeeze", {operand}, {{"axes", axes}}).front();
 }
 
-Variable NetBuilder::ExpandDims(const Variable& operand, int axis, int num_newaxis) {
-  return CustomInstr("expand_dims", {operand}, {{"axis", axis}, {"num_newaxis", num_newaxis}}).front();
+Variable NetBuilder::ExpandDims(const Variable& operand, const cinn::utils::ShapeType& axes) {
+  return CustomInstr("expand_dims", {operand}, {{"axes", axes}}).front();
 }
 
 Variable NetBuilder::Conv(const Variable& lhs,
