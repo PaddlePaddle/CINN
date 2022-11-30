@@ -106,11 +106,15 @@ inline int cinn_host_gt_num_int(
 
 #define FN_FP32(func) cinn_host_##func##_fp32
 
+inline float FN_FP32(cbrt)(float x) { return cbrt(x); }
+
 inline float FN_FP32(pow)(float x, float y) { return powf(x, y); }
 
 #undef FN_FP32
 
 #define FN_FP64(func) cinn_host_##func##_fp64
+
+inline double FN_FP64(cbrt)(double x) { return cbrt(x); }
 
 inline double FN_FP64(pow)(double x, double y) { return pow(x, y); }
 
@@ -154,8 +158,16 @@ CINN_REGISTER_HELPER(host_intrinsics) {
   REGISTER_EXTERN_FUNC_1_IN_1_OUT_FP32(asinhf);
   REGISTER_EXTERN_FUNC_1_IN_1_OUT_FP32(atanf);
   REGISTER_EXTERN_FUNC_1_IN_1_OUT_FP32(atanhf);
+  REGISTER_EXTERN_FUNC_1_IN_1_OUT_FP32(cinn_host_cbrt_fp32);
 
 #undef REGISTER_EXTERN_FUNC_1_IN_1_OUT_FP32
+
+#define REGISTER_EXTERN_FUNC_1_IN_1_OUT_FP64(func__) \
+  REGISTER_EXTERN_FUNC_1_IN_1_OUT(func__, host_target, double, double);
+
+  REGISTER_EXTERN_FUNC_1_IN_1_OUT_FP64(cinn_host_cbrt_fp64);
+
+#undef REGISTER_EXTERN_FUNC_1_IN_1_OUT_FP64
 
 #define REGISTER_EXTERN_FUNC_1_IN_1_OUT_FP32_INT(func__) \
   REGISTER_EXTERN_FUNC_1_IN_1_OUT(func__, host_target, float, int);
