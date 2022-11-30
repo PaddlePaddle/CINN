@@ -110,6 +110,9 @@ TEST(CastCollapsing, FuseCastToUseless) {
 }
 
 TEST(TransposeCollapsing, FuseTransposeWithMultiOutput) {
+  if (!IsCompiledWithCUDA()) {
+    return;
+  }
   NetBuilder builder("net_builder");
   auto x       = builder.CreateInput(Float(32), {4, 5, 3}, "X");
   auto x_1t    = builder.Cast(x, "int32");
@@ -130,6 +133,9 @@ TEST(TransposeCollapsing, FuseTransposeWithMultiOutput) {
 }
 
 TEST(TransposeCollapsing, FuseTwoSecTranspose) {
+  if (!IsCompiledWithCUDA()) {
+    return;
+  }
   NetBuilder builder("net_builder");
   auto x       = builder.CreateInput(Float(32), {4, 5, 3}, "X");
   auto x_1t    = builder.Cast(x, "int32");
@@ -150,6 +156,9 @@ TEST(TransposeCollapsing, FuseTwoSecTranspose) {
 }
 
 TEST(TransposeCollapsing, FuseTwoHorizontalTranspose) {
+  if (!IsCompiledWithCUDA()) {
+    return;
+  }
   NetBuilder builder("net_builder");
   auto x       = builder.CreateInput(Float(32), {4, 5, 3}, "X");
   auto y_t1    = builder.Cast(x, "int32");
@@ -167,6 +176,9 @@ TEST(TransposeCollapsing, FuseTwoHorizontalTranspose) {
 }
 
 TEST(TransposeCollapsing, FuseVerAndHorTranspose) {
+  if (!IsCompiledWithCUDA()) {
+    return;
+  }
   NetBuilder builder("net_builder");
   auto x       = builder.CreateInput(Float(32), {4, 5, 3}, "X");
   auto y_t1    = builder.Cast(x, "int32");
