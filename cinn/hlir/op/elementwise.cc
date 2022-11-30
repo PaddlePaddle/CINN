@@ -528,8 +528,8 @@ std::shared_ptr<framework::OpStrategy> StrategyForSqueeze(const framework::NodeA
                                                           const std::vector<Type> &out_type,
                                                           const std::vector<std::vector<int>> &output_shapes,
                                                           const Target &target) {
-  CHECK(attrs.attr_store.count("axes")) << "find no attr of axes";
-  std::vector<int> axes = absl::get<std::vector<int>>(attrs.attr_store.at("axes"));
+  const std::vector<int> &axes =
+      attrs.attr_store.count("axes") ? absl::get<std::vector<int>>(attrs.attr_store.at("axes")) : std::vector<int>{};
 
   framework::CINNCompute squeeze_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input arguments of Squeeze compute is empty! Please check.\n";
@@ -567,19 +567,16 @@ std::shared_ptr<framework::OpStrategy> StrategyForSqueeze(const framework::NodeA
 std::vector<std::vector<int>> InferShapeForSqueeze(const std::vector<std::vector<int>> &inputs_shape,
                                                    const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 1U);
-  CHECK(attrs.count("axes"));
-  std::vector<int> axes = absl::get<std::vector<int>>(attrs.at("axes"));
-  for (auto &axis : axes) {
-    if (axis < 0) {
-      axis += inputs_shape[0].size();
-    }
-  }
+  const std::vector<int> &axes =
+      attrs.count("axes") ? absl::get<std::vector<int>>(attrs.at("axes")) : std::vector<int>{};
+  VLOG(4) << "The [axis] value used in Squeeze: " << cinn::utils::Join(axes, ",");
 
+  const auto &posi_axes = GetPositiveAxes(axes, inputs_shape[0].size());
   std::vector<int> output_shape;
-  if (axes.size()) {
+  if (posi_axes.size()) {
     for (int idx = 0; idx < inputs_shape[0].size(); ++idx) {
       // if can't find idx in axis
-      if (std::find(axes.begin(), axes.end(), idx) == axes.end()) {
+      if (std::find(posi_axes.begin(), posi_axes.end(), idx) == posi_axes.end()) {
         output_shape.push_back(inputs_shape[0][idx]);
       } else {
         CHECK_EQ(inputs_shape[0][idx], 1);
@@ -593,6 +590,8 @@ std::vector<std::vector<int>> InferShapeForSqueeze(const std::vector<std::vector
     }
   }
 
+  VLOG(4) << "The output calculated in Squeeze: " << cinn::utils::Join(output_shape, ", ");
+
   return {output_shape};
 }
 
@@ -601,30 +600,10 @@ std::shared_ptr<OpStrategy> StrategyForExpandDims(const framework::NodeAttr &att
                                                   const std::vector<Type> &out_type,
                                                   const std::vector<std::vector<int>> &output_shapes,
                                                   const Target &target) {
-  CHECK(!output_shapes.empty() && !output_shapes[0].empty()) << "The shape of output is empty! Please check again.";
-  VLOG(4) << "The output passed in StrategyForExpandDims: " << utils::Join(output_shapes[0], ", ");
-  CHECK(!out_type.empty()) << "The output type of IndexSelect is empty! Please check again.\n";
+  const std::vector<int> &axes =
+      attrs.attr_store.count("axes") ? absl::get<std::vector<int>>(attrs.attr_store.at("axes")) : std::vector<int>{};
 
-  int axis = 0;
-  if (attrs.attr_store.contains("axis")) {
-    axis = absl::get<int>(attrs.attr_store.at("axis"));
-  }
-  int num_newaxis = 1;
-  if (attrs.attr_store.contains("num_newaxis")) {
-    num_newaxis = absl::get<int>(attrs.attr_store.at("num_newaxis"));
-  }
-
-  VLOG(4) << "The axis value used in expand_dims: " << axis;
-  VLOG(4) << "The num_newaxis value used in expand_dims: " << num_newaxis;
-
-  std::vector<Expr> output_shape;
-  output_shape.reserve(output_shapes[0].size());
-  for (int i : output_shapes[0]) {
-    output_shape.emplace_back(i);
-  }
-
-  framework::CINNCompute expand_dims_compute{[axis, num_newaxis](lang::Args args, lang::RetValue *ret) {
-    VLOG(4) << "The axis value used in expand_dims: " << axis;
+  framework::CINNCompute expand_dims_compute{[=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input args are empty! Please check again.";
     CINNValuePack input_args = args[0];
     int input_size           = input_args.size();
@@ -639,7 +618,7 @@ std::shared_ptr<OpStrategy> StrategyForExpandDims(const framework::NodeAttr &att
       tensor_name = input_args[1].operator std::string();
     }
 
-    auto out    = pe::ExpandDims(x.as_tensor_ref(), axis, num_newaxis, tensor_name);
+    auto out    = pe::ExpandDims(x.as_tensor_ref(), axes, output_shapes[0], tensor_name);
     auto stages = CreateStages({x.as_tensor_ref()});
     stages->InsertLazily(out);
     std::vector<CINNValue> res{CINNValue(out), CINNValue(stages)};
@@ -655,37 +634,28 @@ std::shared_ptr<OpStrategy> StrategyForExpandDims(const framework::NodeAttr &att
 std::vector<std::vector<int>> InferShapeForExpandDims(const std::vector<std::vector<int>> &inputs_shape,
                                                       const framework::AttrMapType &attrs) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
-  int axis  = 0;
-  int ndims = inputs_shape[0].size();
-  if (attrs.contains("axis")) {
-    axis = absl::get<int>(attrs.at("axis"));
-  }
-  if (axis < 0) {
-    axis = axis + 1 + static_cast<int>(inputs_shape[0].size());
-  }
-  CHECK(axis >= -ndims - 1 && axis <= ndims)
-      << "expand_dims only accept `axis` in [-x.ndim - 1, x.ndim], but got axis = " << axis
-      << ", and x.ndims = " << ndims;
-  int num_newaxis = 1;
-  if (attrs.contains("num_newaxis")) {
-    num_newaxis = absl::get<int>(attrs.at("num_newaxis"));
-    CHECK_GE(num_newaxis, 0);
+
+  CHECK_EQ(inputs_shape.size(), 1U);
+  const std::vector<int> &axes =
+      attrs.count("axes") ? absl::get<std::vector<int>>(attrs.at("axes")) : std::vector<int>{};
+  VLOG(4) << "The [axes] value used in ExpandDims: " << cinn::utils::Join(axes, ",");
+
+  std::vector<int> out_shape(inputs_shape[0].size() + axes.size(), 1);
+  const auto &posi_axes = GetPositiveAxes(axes, out_shape.size());
+
+  int shape_pos = 0, axes_pos = 0;
+  for (int i = 0; i < out_shape.size(); ++i) {
+    if (axes_pos < posi_axes.size() && posi_axes[axes_pos] == i) {
+      out_shape[i] = 1;
+      ++axes_pos;
+    } else if (shape_pos < inputs_shape[0].size()) {
+      out_shape[i] = inputs_shape[0][shape_pos];
+      ++shape_pos;
+    }
   }
 
-  std::vector<int> output_shape;
-  output_shape.reserve(ndims + num_newaxis);
-  for (int i = 0; i < axis; ++i) {
-    output_shape.push_back(inputs_shape[0][i]);
-  }
-  for (int i = 0; i < num_newaxis; ++i) {
-    output_shape.push_back(1);
-  }
-  for (int i = axis; i < ndims; ++i) {
-    output_shape.push_back(inputs_shape[0][i]);
-  }
-
-  VLOG(4) << "The output calculated in InferShapeForExpandDims: " << utils::Join(output_shape, ", ");
-  return {std::move(output_shape)};
+  VLOG(4) << "The output calculated in ExpandDims: " << cinn::utils::Join(out_shape, ", ");
+  return {out_shape};
 }
 
 std::shared_ptr<OpStrategy> StrategyForReshape(const framework::NodeAttr &attrs,

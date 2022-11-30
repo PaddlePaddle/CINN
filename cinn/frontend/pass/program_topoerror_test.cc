@@ -19,6 +19,7 @@
 #include "cinn/cinn.h"
 #include "cinn/frontend/net_builder.h"
 #include "cinn/frontend/optimize.h"
+#include "cinn/frontend/pass/pass_test_helper.h"
 #include "cinn/frontend/pass/use_program_pass.h"
 #include "cinn/frontend/program_pass.h"
 #include "cinn/frontend/syntax.h"
@@ -44,6 +45,9 @@ void RunWithProgram(const Program& program,
 }
 
 TEST(TransposeFoldingInput, TransposeWithMultiMamtul) {
+  if (!IsCompiledWithCUDA()) {
+    return;
+  }
   NetBuilder builder("net_builder");
   auto x           = builder.CreateInput(Float(32), {2, 2}, "X");
   auto y           = builder.CreateInput(Float(32), {2, 2}, "Y");
@@ -53,32 +57,14 @@ TEST(TransposeFoldingInput, TransposeWithMultiMamtul) {
   auto out         = builder.Add(dot1, dot2);
   auto program     = builder.Build();
 
-  auto target = common::DefaultTarget();
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  auto scope = hlir::framework::BuildScope(target, graph);
-
-  scope->Var<hlir::framework::Tensor>("X");
-  scope->Var<hlir::framework::Tensor>("Y");
-  SetRandData<float>(scope->GetTensor("X"), target);
-  SetRandData<float>(scope->GetTensor("Y"), target);
-
-  size_t origin_size = program.size();
-  VLOG(1) << "Program:\n" << program;
-  RunWithProgram(program, target, scope);
-  auto origin_out = GetTensorData<float>(scope->GetTensor(out->id), target);
-
-  std::swap(program[0], program[program.size() - 1]);
-
-  size_t folded_size = program.size();
-  VLOG(1) << "Program:\n" << program;
-  RunWithProgram(program, target, scope);
-  auto folded_out = GetTensorData<float>(scope->GetTensor(out->id), target);
-
-  ASSERT_EQ(origin_out.size(), folded_out.size());
-  for (size_t i = 0; i < origin_out.size(); ++i) {
-    ASSERT_FLOAT_EQ(origin_out[i], folded_out[i]);
-  }
+  common::Target target = common::DefaultNVGPUTarget();
+  std::vector<std::string> input_ids;
+  absl::c_transform(std::vector<absl::string_view>{x.id(), y.id()},
+                    std::back_inserter(input_ids),
+                    [](absl::string_view id) { return std::string(id); });
+  std::pair<std::vector<std::string>, std::vector<std::string>> passes{
+      {"Decomposer"}, {"TransposeFoldingInput", "GemmRewriter", "TransposeFoldingOutput", "GemmRewriter"}};
+  CompareResult(&program, target, input_ids, {out->id}, 1, passes, 123, true);
 }
 
 }  // namespace cinn::frontend

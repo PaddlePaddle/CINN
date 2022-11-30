@@ -24,6 +24,7 @@
 namespace cinn {
 namespace hlir {
 namespace pe {
+
 /**
  * @brief Unary primitive emitters
  *
@@ -104,9 +105,9 @@ ir::Tensor Squeeze(const ir::Tensor& A,
                    const std::vector<int>& axes   = {},
                    const std::string& output_name = UniqName("T_Elementwise_Squeeze_out"));
 
-ir::Tensor ExpandDims(const ir::Tensor& input,
-                      int axis,
-                      int num_newaxis                = 1,
+ir::Tensor ExpandDims(const ir::Tensor& A,
+                      const std::vector<int>& axes,
+                      const std::vector<int>& out_shape,
                       const std::string& output_name = UniqName("T_Elementwise_ExpandDims_out"));
 
 ir::Tensor Reshape(const ir::Tensor& A,

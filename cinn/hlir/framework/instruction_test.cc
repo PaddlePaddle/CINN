@@ -305,9 +305,9 @@ TEST(Instruction, CONV_FORWARD) {
   _w.memory_size = buffer_w->memory_size;
   _y.memory_size = buffer_y->memory_size;
 
-  _x.type.code = cinn_type_code_t::cinn_type_float;
-  _w.type.code = cinn_type_code_t::cinn_type_float;
-  _y.type.code = cinn_type_code_t::cinn_type_float;
+  _x.type = cinn_float32_t();
+  _w.type = cinn_float32_t();
+  _y.type = cinn_float32_t();
 
   cinn_pod_value_t x(&_x);
   cinn_pod_value_t w(&_w);
@@ -367,9 +367,9 @@ TEST(Instruction, CONV_BACKWARD_DATA) {
   _w.memory = static_cast<uint8_t*>(dev_w);
   _y.memory = static_cast<uint8_t*>(dev_y);
 
-  _x.type.code = cinn_type_code_t::cinn_type_float;
-  _w.type.code = cinn_type_code_t::cinn_type_float;
-  _y.type.code = cinn_type_code_t::cinn_type_float;
+  _x.type = cinn_float32_t();
+  _w.type = cinn_float32_t();
+  _y.type = cinn_float32_t();
 
   _x.memory_size = buffer_x->memory_size;
   _w.memory_size = buffer_w->memory_size;
@@ -444,9 +444,9 @@ TEST(Instruction, CONV_BACKWARD_FILTER) {
   cinn_buffer_t _w;
   cinn_buffer_t _y;
 
-  _x.type.code = cinn_type_code_t::cinn_type_float;
-  _w.type.code = cinn_type_code_t::cinn_type_float;
-  _y.type.code = cinn_type_code_t::cinn_type_float;
+  _x.type = cinn_float32_t();
+  _w.type = cinn_float32_t();
+  _y.type = cinn_float32_t();
 
   _x.memory = static_cast<uint8_t*>(dev_x);
   _w.memory = static_cast<uint8_t*>(dev_w);

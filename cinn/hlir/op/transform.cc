@@ -20,10 +20,12 @@
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
+#include "cinn/hlir/op/op_util.h"
 #include "cinn/hlir/pe/elementwise.h"
 #include "cinn/hlir/pe/ir_schedule_pe.h"
 #include "cinn/hlir/pe/nn.h"
 #include "cinn/hlir/pe/schedule.h"
+#include "cinn/hlir/pe/transform.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/utils/string.h"
 
@@ -39,93 +41,16 @@ using framework::OpStrategy;
 using framework::shape_t;
 using framework::StrategyFunction;
 
-void GetMatmulNewShapes(const std::vector<std::vector<int>> &inputs_shape,
-                        bool trans_a,
-                        bool trans_b,
-                        std::vector<int> *new_shape_A,
-                        std::vector<int> *new_shape_B,
-                        std::vector<int> *output_shape) {
-  *new_shape_A      = inputs_shape[0];
-  *new_shape_B      = inputs_shape[1];
-  int a_dim         = inputs_shape[0].size();
-  int b_dim         = inputs_shape[1].size();
-  int batch_shape_A = 1;
-  int batch_shape_B = 1;
-  int max_dim       = std::max(a_dim, b_dim);
-
-  // broadcast dims if tensor's dim is 1
-  if (max_dim == 1 && inputs_shape[0][0] != inputs_shape[1][0]) {
-    // A: [M], B: [N] -> A: [M, 1], B: [1, N]
-    *new_shape_A = {inputs_shape[0][0], 1};
-    *new_shape_B = {1, inputs_shape[1][0]};
-    trans_a      = false;
-    trans_b      = false;
-  } else {
-    // A: [K], B: [K] -> A: [1, K], B: [K, 1]
-    if (a_dim == 1) {
-      *new_shape_A = {1, inputs_shape[0][0]};
-      trans_a      = false;
-    }
-    if (b_dim == 1) {
-      *new_shape_B = {inputs_shape[1][0], 1};
-      trans_b      = false;
-    }
-  }
-  // flatten batch dims
-  if (max_dim > 3) {
-    CHECK_EQ(a_dim, b_dim) << "tensors' dimension should be same if one of them is more than 3";
-    for (int i = 0; i < a_dim - 2; ++i) {
-      batch_shape_A = batch_shape_A * inputs_shape[0][i];
-      batch_shape_B = batch_shape_B * inputs_shape[1][i];
-    }
-    CHECK(batch_shape_A == batch_shape_B || batch_shape_A == 1 || batch_shape_B == 1)
-        << "batch dimension doesn't match";
-    *new_shape_A = {batch_shape_A, inputs_shape[0][a_dim - 2], inputs_shape[0].back()};
-    *new_shape_B = {batch_shape_B, inputs_shape[1][b_dim - 2], inputs_shape[1].back()};
-  }
-
-  max_dim = std::max(new_shape_A->size(), new_shape_B->size());
-  if (new_shape_A->size() == 3U && new_shape_B->size() == 3U) {
-    // eliminate batch 1
-    if (new_shape_A->front() == 1 && new_shape_B->front() == 1) {
-      new_shape_A->erase(new_shape_A->begin());
-      new_shape_B->erase(new_shape_B->begin());
-    }
-  } else if (max_dim == 3) {
-    // broadcast to 3D
-    if (new_shape_A->size() == 2U) {
-      new_shape_A->insert(new_shape_A->begin(), 1);
-    }
-    if (new_shape_B->size() == 2U) {
-      new_shape_B->insert(new_shape_B->begin(), 1);
-    }
-  }
-  CHECK(new_shape_A->size() == 3U || new_shape_A->size() == 2U) << "new_shape_A's dim should be 2 or 3";
-  CHECK(new_shape_B->size() == 3U || new_shape_B->size() == 2U) << "new_shape_B's dim should be 2 or 3";
-  int x_width  = trans_a ? (*new_shape_A)[new_shape_A->size() - 2] : new_shape_A->back();
-  int y_height = trans_b ? new_shape_B->back() : (*new_shape_B)[new_shape_B->size() - 2];
-  CHECK_EQ(x_width, y_height) << "matrix multiplication requires x_width to be same with y_height";
-  if (new_shape_A->size() == 3U) {
-    CHECK_EQ(new_shape_A->front(), new_shape_B->front())
-        << "tensor A and B's batch size should be same but current batch sizes are " << new_shape_A->front() << " and "
-        << new_shape_B->front();
-  }
-  if (output_shape != nullptr) {
-    int M = !trans_a ? (*new_shape_A)[new_shape_A->size() - 2] : new_shape_A->back();
-    int N = !trans_b ? new_shape_B->back() : (*new_shape_B)[new_shape_B->size() - 2];
-    if (new_shape_A->size() == 3U) {
-      *output_shape = {new_shape_A->front()};
-    }
-    output_shape->push_back(M);
-    output_shape->push_back(N);
-  }
-}
-
 std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
                                               const std::vector<ir::Tensor> &inputs,
                                               const std::vector<Type> &out_type,
                                               const std::vector<std::vector<int>> &output_shapes,
                                               const Target &target) {
+  const auto &attr_store = attrs.attr_store;
+  bool trans_a           = GetAttr(attr_store, "trans_a", false);
+  bool trans_b           = GetAttr(attr_store, "trans_b", false);
+  float alpha            = GetAttr(attr_store, "alpha", 1.0f);
+
   framework::CINNCompute matmul_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input arguments of Matmul compute is empty! Please check.\n";
     CINNValuePack pack_args = args[0];
@@ -134,19 +59,6 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
     Expr B = pack_args[1];
     CHECK(A.as_tensor());
     CHECK(B.as_tensor());
-    auto attr_store = attrs.attr_store;
-    bool trans_a    = false;
-    bool trans_b    = false;
-    float alpha     = 1;
-    if (attr_store.count("trans_a")) {
-      trans_a = absl::get<bool>(attr_store.at("trans_a"));
-    }
-    if (attr_store.count("trans_b")) {
-      trans_b = absl::get<bool>(attr_store.at("trans_b"));
-    }
-    if (attr_store.count("alpha")) {
-      alpha = absl::get<float>(attr_store.at("alpha"));
-    }
 
     std::string tensor_name = UniqName("MatMul");
     if (FLAGS_cinn_ir_schedule) {
@@ -158,34 +70,26 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
     auto tensor_A = A.as_tensor_ref();
     auto tensor_B = B.as_tensor_ref();
     auto stages   = CreateStages({tensor_A, tensor_B});
-    ir::Tensor new_A;
-    ir::Tensor new_B;
-    std::vector<int> old_shape_A;
-    std::vector<int> old_shape_B;
+
+    std::vector<std::vector<int>> old_shape(2);
     for (auto &shape : tensor_A->shape) {
-      old_shape_A.push_back(shape.as_int32());
+      old_shape[0].push_back(shape.as_int32());
     }
     for (auto &shape : tensor_B->shape) {
-      old_shape_B.push_back(shape.as_int32());
+      old_shape[1].push_back(shape.as_int32());
     }
-    CHECK(!old_shape_A.empty());
-    CHECK(!old_shape_B.empty());
-    std::vector<int> new_shape_A = old_shape_A;
-    std::vector<int> new_shape_B = old_shape_B;
-    GetMatmulNewShapes({old_shape_A, old_shape_B}, trans_a, trans_b, &new_shape_A, &new_shape_B, nullptr);
-    std::vector<Expr> new_shape_A_e;
-    std::vector<Expr> new_shape_B_e;
-    for (int shape : new_shape_A) {
-      new_shape_A_e.push_back(Expr(shape));
-    }
-    for (int shape : new_shape_B) {
-      new_shape_B_e.push_back(Expr(shape));
-    }
-    VLOG(4) << "matmul new_shape_A: " << new_shape_A_e;
-    VLOG(4) << "matmul new_shape_B: " << new_shape_B_e;
+    const auto &new_shape = pe::utils::GetMatmulNewShapes(old_shape, trans_a, trans_b);
 
-    new_A = tensor_A->Reshape(new_shape_A_e, stages);
-    new_B = tensor_B->Reshape(new_shape_B_e, stages);
+    const auto &new_shape_A  = new_shape[0];
+    const auto &new_shape_B  = new_shape[1];
+    const auto &output_shape = new_shape[2];
+
+    auto new_shape_A_e = ToCinnExprs(new_shape_A);
+    auto new_shape_B_e = ToCinnExprs(new_shape_B);
+
+    auto new_A = tensor_A->Reshape(new_shape_A_e, stages);
+    auto new_B = tensor_B->Reshape(new_shape_B_e, stages);
+
     std::vector<ir::Tensor> out;
     if (target.arch == Target::Arch::X86) {
 #ifdef CINN_WITH_MKL_CBLAS
@@ -196,12 +100,17 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
     } else {
       out = pe::Matmul(new_A, new_B, trans_a, trans_b, alpha, tensor_name);
     }
+
     std::vector<CINNValue> res;
     for (auto &t : out) {
       stages->InsertLazily(t);
+    }
+    auto out_shape_e = ToCinnExprs(output_shape);
+    out[0]->Reshape(out_shape_e, stages);
+
+    for (auto &t : out) {
       res.push_back(CINNValue(t));
     }
-    CHECK(!out_type.empty()) << "Output type of MatMul is empty! Please check.\n";
     res.push_back(CINNValue(stages));
     *ret = CINNValuePack{res};
   });
@@ -272,55 +181,30 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
 std::vector<std::vector<int>> InferShapeForMatMul(const std::vector<std::vector<int>> &inputs_shape,
                                                   const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 2U) << "The input's shape size should be 2! Please check again.";
-  std::vector<int> output_shape;
-  std::vector<int> new_shape_A;
-  std::vector<int> new_shape_B;
-  bool trans_a = false;
-  bool trans_b = false;
-  float alpha  = 1;
-  for (auto &iter : attrs) {
-    if (iter.first == "trans_a") {
-      trans_a = absl::get<bool>(iter.second);
-    } else if (iter.first == "trans_b") {
-      trans_b = absl::get<bool>(iter.second);
-    } else if (iter.first == "alpha") {
-      alpha = absl::get<float>(iter.second);
-    }
-  }
-  GetMatmulNewShapes(inputs_shape, trans_a, trans_b, &new_shape_A, &new_shape_B, &output_shape);
-  CHECK(!output_shape.empty()) << "infer_shape for matmul turns out to be empty. Please check\n";
-  std::vector<int> packedB_shape;
-  int shape_B_size = new_shape_B.size();
-  CHECK_GE(new_shape_A.size(), 2U) << "new_shape_A's size should be no less than two";
-  CHECK_GE(new_shape_B.size(), 2U) << "new_shape_B's size should be no less than two";
-  CHECK_GE(output_shape.size(), 2U) << "output shape for matmul should be no less than two";
-  int k  = new_shape_A.back();
-  int n  = output_shape.back();
-  int bn = pe::GetArrayPackingFactor(n, Float(32), common::DefaultHostTarget());
+  bool trans_a = GetAttr(attrs, "trans_a", false);
+  bool trans_b = GetAttr(attrs, "trans_b", false);
 
-  packedB_shape = {n / bn, k, bn};
-  if (output_shape.size() > 2) {
-    CHECK_EQ(new_shape_A.size(), output_shape.size());
-    packedB_shape.insert(packedB_shape.begin(), new_shape_A.front());
-  }
+  VLOG(4) << "During the matmul shape inference, origin shape_A: " << utils::Join(inputs_shape[0], ", ");
+  VLOG(4) << "During the matmul shape inference, origin shape_B: " << utils::Join(inputs_shape[1], ", ");
+
+  const auto &new_shape = pe::utils::GetMatmulNewShapes(inputs_shape, trans_a, trans_b);
+
+  const auto &new_shape_A  = new_shape[0];
+  const auto &new_shape_B  = new_shape[1];
+  const auto &output_shape = new_shape[2];
+
   VLOG(4) << "During the matmul shape inference, new_shape_A: " << utils::Join(new_shape_A, ", ");
   VLOG(4) << "During the matmul shape inference, new_shape_B: " << utils::Join(new_shape_B, ", ");
   VLOG(4) << "During the matmul shape inference, output_shape: " << utils::Join(output_shape, ", ");
-#ifdef CINN_WITH_CUDA
+
   std::vector<std::vector<int>> res{output_shape};
-#else
-  std::vector<std::vector<int>> res{output_shape, packedB_shape};
-#endif
   return res;
 }
 
 std::vector<Type> InferDtypeForMatMul(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
-#ifdef CINN_WITH_CUDA
+
   std::vector<Type> res{inputs_type[0]};
-#else
-  std::vector<Type> res{inputs_type[0], inputs_type[0]};
-#endif
   return res;
 }
 
@@ -630,6 +514,20 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
                                            const std::vector<Type> &out_type,
                                            const std::vector<std::vector<int>> &output_shapes,
                                            const Target &target) {
+  CHECK_EQ(inputs.size(), 2UL) << "mul should have 2 input";
+  const auto &attr_store = attrs.attr_store;
+  int x_num_col_dims     = GetAttr(attr_store, "x_num_col_dims", 1);
+  int y_num_col_dims     = GetAttr(attr_store, "y_num_col_dims", 1);
+
+  const auto &shape_A = ToPodVector<int>(inputs[0]->shape);
+  const auto &shape_B = ToPodVector<int>(inputs[1]->shape);
+
+  const auto &new_shape = pe::utils::GetMulNewShapes({shape_A, shape_B}, x_num_col_dims, y_num_col_dims);
+
+  const auto &new_shape_A  = new_shape[0];
+  const auto &new_shape_B  = new_shape[1];
+  const auto &output_shape = new_shape[2];
+
   framework::CINNCompute mul_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input arguments of Mul compute is empty! Please check.\n";
     CINNValuePack pack_args = args[0];
@@ -638,56 +536,17 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
     Expr B = pack_args[1];
     CHECK(A.as_tensor());
     CHECK(B.as_tensor());
-    auto attr_store    = attrs.attr_store;
-    int x_num_col_dims = 1;
-    int y_num_col_dims = 1;
-    for (auto &iter : attrs.attr_store) {
-      if (iter.first == "x_num_col_dims") {
-        x_num_col_dims = absl::get<int>(iter.second);
-      } else if (iter.first == "y_num_col_dims") {
-        y_num_col_dims = absl::get<int>(iter.second);
-      }
-    }
+
     auto A_tensor = A.as_tensor_ref();
     auto B_tensor = B.as_tensor_ref();
     auto stages   = CreateStages({A_tensor, B_tensor});
-    std::vector<Expr> output_shape;
-    std::vector<Expr> new_shape_A;
-    std::vector<Expr> new_shape_B;
-    Expr flatten_shape_A(1);
-    Expr flatten_shape_B(1);
-    Expr reduce_shape_A(1);
-    Expr reduce_shape_B(1);
-    for (int i = 0; i < A_tensor->shape.size(); i++) {
-      if (i < x_num_col_dims) {
-        flatten_shape_A = flatten_shape_A * A_tensor->shape[i];
-      } else {
-        reduce_shape_A = reduce_shape_A * A_tensor->shape[i];
-      }
-    }
-    // flatten to 2 dims, new_shape_A: [M, K]
-    flatten_shape_A = common::AutoSimplify(flatten_shape_A);
-    reduce_shape_A  = common::AutoSimplify(reduce_shape_A);
-    new_shape_A.push_back(flatten_shape_A);
-    new_shape_A.push_back(reduce_shape_A);
 
-    for (int i = 0; i < B_tensor->shape.size(); i++) {
-      if (i < y_num_col_dims) {
-        flatten_shape_B = flatten_shape_B * B_tensor->shape[i];
-      } else {
-        reduce_shape_B = reduce_shape_B * B_tensor->shape[i];
-      }
-    }
-    flatten_shape_B = common::AutoSimplify(flatten_shape_B);
-    reduce_shape_B  = common::AutoSimplify(reduce_shape_B);
-    CHECK(is_zero(reduce_shape_A - reduce_shape_B)) << "reduce_shape should be same after flattening";
-    // flatten to 2 dims, new_shape_B: [N, K]
-    new_shape_B.push_back(flatten_shape_B);
-    new_shape_B.push_back(reduce_shape_B);
+    auto new_shape_A_e = ToCinnExprs(new_shape_A);
+    auto new_shape_B_e = ToCinnExprs(new_shape_B);
 
-    Var axis_k(reduce_shape_A, UniqName("axis_k"));
-    auto new_A = A_tensor->Reshape(new_shape_A, stages);
-    auto new_B = B_tensor->Reshape(new_shape_B, stages);
+    auto new_A = A_tensor->Reshape(new_shape_A_e, stages);
+    auto new_B = B_tensor->Reshape(new_shape_B_e, stages);
+
     std::vector<ir::Tensor> out;
     std::string tensor_name = UniqName("Mul_output");
     if (FLAGS_cinn_ir_schedule) {
@@ -695,27 +554,36 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
       tensor_name = pack_args.back().operator std::string();
     }
 
+    // pe realize need transpose y
+    auto trans_B = pe::Transpose(new_B, {1, 0}, UniqName(tensor_name + "_T"));
+
     if (target.arch == Target::Arch::X86) {
 #ifdef CINN_WITH_MKL_CBLAS
-      out = pe::MulMKL(new_A, new_B, tensor_name, target);
+      out = pe::MulMKL(new_A, trans_B, tensor_name, target);
 #else
-      out = pe::MulBase(new_A, new_B, tensor_name, target);
+      out = pe::MulBase(new_A, trans_B, tensor_name, target);
 #endif
     } else {
-      out = pe::MulBase(new_A, new_B, tensor_name, target);
+      out = pe::MulBase(new_A, trans_B, tensor_name, target);
     }
     std::vector<CINNValue> res;
     for (auto &t : out) {
       stages->InsertLazily(t);
+    }
+    auto out_shape_e = ToCinnExprs(output_shape);
+    out[0]->Reshape(out_shape_e, stages);
+
+    for (auto &t : out) {
       res.push_back(CINNValue(t));
     }
-    CHECK(!out_type.empty()) << "Output type of Mul is empty! Please check.\n";
-
     res.push_back(CINNValue(stages));
     *ret = CINNValuePack{res};
   });
 
   framework::CINNSchedule mul_schedule([=](lang::Args args, lang::RetValue *ret) {
+    int reduce_factor                  = pe::GetMulFactor(new_shape_A[1], Float(32), common::DefaultHostTarget());
+    std::vector<int> temp_reduce_shape = {output_shape[0], output_shape[1], reduce_factor};
+
     if (FLAGS_cinn_ir_schedule) {
       CHECK(!args.empty()) << "The input argument of relu schedule is empty! Please check.\n";
       CINNValuePack arg_pack = args[0];
@@ -731,10 +599,10 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
       ir::IRSchedule ir_sch(mod_expr);
       ir_sch.MergeExprs();
       if (target.arch == Target::Arch::NVGPU) {
-        pe::IRCudaScheduleMul(ir_sch, output_shapes.front(), target);
+        pe::IRCudaScheduleMul(ir_sch, output_shape, target);
       } else if (target.arch == Target::Arch::X86) {
 #ifndef CINN_WITH_MKL_CBLAS
-        pe::IRMulScheduleCPU(ir_sch, output_shapes.back(), target);
+        pe::IRMulScheduleCPU(ir_sch, temp_reduce_shape, target);
 #endif
       }
       std::vector<CINNValue> res{CINNValue(ir_sch.GetModule().GetExprs().at(0))};
@@ -742,12 +610,12 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
     } else {
       CHECK(!args.empty()) << "The input argument of mul schedule is empty! Please check.\n";
       CINNValuePack arg_pack = args[0];
-      CHECK(arg_pack.size() == 2UL || arg_pack.size() == 3UL);
-      Expr out              = arg_pack[0];
-      poly::StageMap stages = arg_pack.back();
+      Expr out               = arg_pack[0];
+      poly::StageMap stages  = arg_pack[1];
+
       CHECK(out.as_tensor());
       if (target.arch == Target::Arch::NVGPU) {
-        pe::CudaScheduleMul(stages, out.as_tensor_ref(), output_shapes.back(), target);
+        pe::CudaScheduleMul(stages, out.as_tensor_ref(), temp_reduce_shape, target);
       } else if (target.arch == Target::Arch::X86) {
         CHECK_EQ(arg_pack.size(), 3UL);
 #ifndef CINN_WITH_MKL_CBLAS
@@ -772,60 +640,30 @@ std::vector<std::vector<int>> InferShapeForMul(const std::vector<std::vector<int
   CHECK_GE(inputs_shape[0].size(), 2U) << "Input matrix X's dim should be >= 2! Please check.";
   CHECK_GE(inputs_shape[1].size(), 2U) << "Input matrix Y's dim should be >= 2! Please check.";
 
-  std::vector<int> output_shape;
-  int x_num_col_dims = 1;
-  int y_num_col_dims = 1;
-  for (auto &iter : attrs) {
-    if (iter.first == "x_num_col_dims") {
-      x_num_col_dims = absl::get<int>(iter.second);
-    } else if (iter.first == "y_num_col_dims") {
-      y_num_col_dims = absl::get<int>(iter.second);
-    } else {
-      LOG(ERROR) << "Unsupported attr: " << iter.first << std::endl;
-    }
-  }
-  int flatten_shape_A = 1;
-  int flatten_shape_B = 1;
-  int check_dim_x     = 1;
-  int check_dim_y     = 1;
-  for (int i = 0; i < inputs_shape[0].size(); i++) {
-    if (i < x_num_col_dims) {
-      flatten_shape_A *= inputs_shape[0][i];
-    } else {
-      check_dim_x = check_dim_x * inputs_shape[0][i];
-    }
-  }
+  VLOG(4) << "During the matmul shape inference, origin shape_A: " << utils::Join(inputs_shape[0], ", ");
+  VLOG(4) << "During the matmul shape inference, origin shape_B: " << utils::Join(inputs_shape[1], ", ");
 
-  for (int i = 0; i < inputs_shape[1].size(); i++) {
-    if (i < y_num_col_dims) {
-      flatten_shape_B *= inputs_shape[1][i];
-    } else {
-      check_dim_y = check_dim_y * inputs_shape[1][i];
-    }
-  }
-  CHECK_EQ(check_dim_x, check_dim_y) << "For matrix multiply: X * Y, second dim of X's shape :[" << check_dim_x
-                                     << "] should be equal to first dim of Y's shape :[" << check_dim_y
-                                     << "]! Please Check!";
-  output_shape = {flatten_shape_A, flatten_shape_B};
+  int x_num_col_dims = GetAttr(attrs, "x_num_col_dims", 1);
+  int y_num_col_dims = GetAttr(attrs, "y_num_col_dims", 1);
 
-  int reduce_factor           = pe::GetMulFactor(check_dim_x, Float(32), common::DefaultHostTarget());
-  std::vector<int> temp_shape = {flatten_shape_A, flatten_shape_B, reduce_factor};
+  const auto &new_shape = pe::utils::GetMulNewShapes(inputs_shape, x_num_col_dims, y_num_col_dims);
 
-#ifdef CINN_WITH_CUDA
-  // Revert changes in PR #990 to pass the model unittests
-  return {output_shape, temp_shape};
-#else
-  return {output_shape, temp_shape};
-#endif
+  const auto &new_shape_A  = new_shape[0];
+  const auto &new_shape_B  = new_shape[1];
+  const auto &output_shape = new_shape[2];
+
+  VLOG(4) << "During the mul shape inference, new_shape_A: " << utils::Join(new_shape_A, ", ");
+  VLOG(4) << "During the mul shape inference, new_shape_B: " << utils::Join(new_shape_B, ", ");
+  VLOG(4) << "During the mul shape inference, output_shape: " << utils::Join(output_shape, ", ");
+
+  CHECK_EQ(new_shape_A[1], new_shape_B[0]) << "The K dimension of mul should be equal.";
+
+  return {output_shape};
 }
 
 std::vector<Type> InferDtypeForMul(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
-#ifdef CINN_WITH_CUDA
-  return {inputs_type[0], inputs_type[0]};
-#else
-  return {inputs_type[0], inputs_type[0]};
-#endif
+  return {inputs_type[0]};
 }
 
 std::vector<std::vector<std::string>> InferLayoutForMul(const std::vector<framework::shape_t> &input_shapes,
