@@ -19,8 +19,11 @@
 #include <memory.h>
 #include <stdlib.h>
 
+#include "cinn/backends/codegen_cuda_dev.h"
+#include "cinn/cinn.h"
 #include "cinn/hlir/framework/instruction.h"
 #include "cinn/hlir/framework/tensor.h"
+#include "cinn/optim/transform_gpu_forloop.h"
 #ifdef CINN_WITH_CUDA
 #include <cuda_runtime.h>
 #endif
@@ -32,6 +35,84 @@ using ::cinn::hlir::framework::Instruction;
 using ::cinn::hlir::framework::Scope;
 using ::cinn::hlir::framework::Shape;
 using ::cinn::hlir::framework::Tensor;
+
+ir::IRSchedule TestAutoGenRuleBase::Initialize(const std::string& func_name,
+                                               const std::vector<std::vector<int>>& input_shapes,
+                                               const std::vector<std::vector<int>>& output_shapes) {
+  func_name_     = func_name;
+  input_shapes_  = input_shapes;
+  output_shapes_ = output_shapes;
+#ifdef CINN_WITH_CUDA
+  target_ = common::DefaultNVGPUTarget();
+#else
+  target_ = common::DefaultHostTarget();
+#endif
+  backend_compier_ = backends::Compiler::Create(target_);
+
+  lowered_funcs_ = GenLoweredFuncs();
+  CHECK_GE(tensor_args_.size(), output_shapes.size())
+      << "size of tensor_args_ should be as least equal to the number of output variables";
+  CHECK_GE(stages_->size(), output_shapes.size())
+      << "size of stages_ should be as least equal the number of output variables";
+  CHECK(!lowered_funcs_.empty()) << "lowered_funcs_ is empty";
+
+  std::vector<Expr> bodys;
+  for (auto&& func : lowered_funcs_) {
+    bodys.emplace_back(func->body);
+  }
+  return ir::IRSchedule(ir::ModuleExpr({std::move(bodys)}));
+}
+
+std::vector<ir::LoweredFunc> TestAutoGenRuleBase::Lower2DMatmul(const int mi, const int ki, const int ni) {
+  ir::Expr M(mi);
+  ir::Expr N(ni);
+  ir::Expr K(ki);
+
+  Placeholder<float> A("A", {M, K});
+  Placeholder<float> B("B", {K, N});
+
+  Var k(K.as_int32(), "reduce_axis_k");
+  ir::Tensor C = Compute(
+      {M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k) * B(k, j), {k}); }, "C");
+
+  this->stages_      = CreateStages({C});
+  this->tensor_args_ = {A, B, C};
+  return lang::LowerVec(func_name_, this->stages_, {A, B, C}, {}, {}, nullptr, this->target_, true);
+}
+
+ir::Module TestAutoGenRuleBase::BuildIRModule(const std::vector<ir::Expr>& updated_bodys) {
+  CHECK_EQ(lowered_funcs_.size(), updated_bodys.size()) << "associated exprs size not equal";
+
+  ir::Module::Builder builder("test_bulder", this->target_);
+  for (int i = 0; i < lowered_funcs_.size(); ++i) {
+    ir::Expr func_body              = updated_bodys.at(i);
+    const ir::LoweredFunc& ori_func = lowered_funcs_.at(i);
+
+    auto temp_buffers = lang::GetTempBuffers(this->tensor_args_, this->stages_, func_body);
+    auto new_func     = ir::_LoweredFunc_::Make(ori_func->name, ori_func->args, func_body, temp_buffers);
+
+#ifdef CINN_WITH_CUDA
+    optim::OptimizeExprGPU(&func_body);
+    new_func->PrepareCudaAxisInfoFromBody();
+#endif
+    new_func = optim::Optimize(Expr(new_func), this->target_, false).as_lowered_func_ref();
+    new_func->PrepareBufferCastExprs(/*with_expr_gen_tensor = */ false);
+
+    builder.AddFunction(new_func);
+  }
+
+  return builder.Build();
+}
+
+std::string TestAutoGenRuleBase::GenSourceCode(const ir::Module& ir_module) {
+#ifdef CINN_WITH_CUDA
+  backends::CodeGenCUDA_Dev codegen(this->target_);
+#else
+  backends::CodeGenCX86 codegen(this->target_, CodeGenCX86::Feature::AVX512);
+#endif
+  codegen.SetInlineBuiltinCodes(false);
+  return codegen.Compile(ir_module, CodeGenC::OutputKind::CImpl);
+}
 
 void naive_matmul(const float* A, const float* B, float* C, int M, int N, int K) {
   for (int i = 0; i < M; ++i) {
@@ -160,7 +241,6 @@ void CheckResult(test_func_type test_func,
   CHECK(test_func) << "The test_func can not be nullptr.";
   instr.SetLoweredFunc(reinterpret_cast<void*>(test_func));
   // should call Finalize explicitly before Run
-  ASSERT_DEATH(instr.Run(), "");
   instr.Finalize();
   instr.Run();
 
