@@ -1574,7 +1574,7 @@ void ScheduleImpl::FlattenLoops(const std::vector<Expr>& loops, const bool flat_
           auto tsize = std::accumulate(t->shape.begin(), t->shape.end(), 1, [](const int sum, const Expr& expr) {
             return sum * expr.as_int32();
           });
-          if ((!flat_tensor && !can_do_flat(store->indices, schedule_block->iter_vars))) {
+          if ((!flat_tensor && !can_do_flat(store->indices, schedule_block->iter_vars)) || extent != tsize) {
             // just replace indexs
             for (auto& indice : store->indices) {
               if (!indice.is_var()) {
@@ -1597,7 +1597,7 @@ void ScheduleImpl::FlattenLoops(const std::vector<Expr>& loops, const bool flat_
           auto tsize = std::accumulate(t->shape.begin(), t->shape.end(), 1, [](const int sum, const Expr& expr) {
             return sum * expr.as_int32();
           });
-          if ((!flat_tensor && !can_do_flat(load->indices, schedule_block->iter_vars))) {
+          if ((!flat_tensor && !can_do_flat(load->indices, schedule_block->iter_vars)) || extent != tsize) {
             // just replace indexs
             for (auto& indice : load->indices) {
               if (!indice.is_var()) {
