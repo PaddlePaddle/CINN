@@ -55,7 +55,9 @@ ir::Tensor LogicalRightShift(const ir::Tensor &A, const ir::Tensor &B, const std
       A->shape,
       [=](const std::vector<Expr> &indices) {
         Expr bits = ir::Cast::Make(A->type(), A->type().bits() - 1);
-        return lang::BitwiseAnd(lang::RightShift(A(indices), B(indices)), lang::BitwiseNot(lang::LeftShift(lang::RightShift(lang::LeftShift(Expr(1), bits), B(indices)), Expr(1))));
+        return lang::BitwiseAnd(
+            lang::RightShift(A(indices), B(indices)),
+            lang::BitwiseNot(lang::LeftShift(lang::RightShift(lang::LeftShift(Expr(1), bits), B(indices)), Expr(1))));
       },
       UniqName(output_name));
 }
@@ -100,7 +102,7 @@ std::shared_ptr<OpStrategy> StrategyForLogicalRightShift(const framework::NodeAt
 }
 
 std::vector<framework::shape_t> InferShapeForLogicalRightShift(const std::vector<framework::shape_t> &inputs_shape,
-                                                  const framework::AttrMapType &attrs) {
+                                                               const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 2U) << "The input's shape size should be 2! Please check again.";
   CHECK_EQ(inputs_shape[0].size(), inputs_shape[1].size()) << "The inputs' dims should be equal.";
   std::vector<framework::shape_t> res{inputs_shape[0]};
