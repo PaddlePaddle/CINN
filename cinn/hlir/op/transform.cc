@@ -555,16 +555,16 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
     }
 
     // pe realize need transpose y
-    new_B = pe::Transpose(new_B, {1, 0}, UniqName(tensor_name + "_T"));
+    auto trans_B = pe::Transpose(new_B, {1, 0}, UniqName(tensor_name + "_T"));
 
     if (target.arch == Target::Arch::X86) {
 #ifdef CINN_WITH_MKL_CBLAS
-      out = pe::MulMKL(new_A, new_B, tensor_name, target);
+      out = pe::MulMKL(new_A, trans_B, tensor_name, target);
 #else
-      out = pe::MulBase(new_A, new_B, tensor_name, target);
+      out = pe::MulBase(new_A, trans_B, tensor_name, target);
 #endif
     } else {
-      out = pe::MulBase(new_A, new_B, tensor_name, target);
+      out = pe::MulBase(new_A, trans_B, tensor_name, target);
     }
     std::vector<CINNValue> res;
     for (auto &t : out) {
