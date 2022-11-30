@@ -26,8 +26,6 @@
 #include "cinn/auto_schedule/search_space/auto_gen_rule/auto_unroll.h"
 #include "cinn/auto_schedule/search_space/auto_gen_rule/multi_level_tiling.h"
 #include "cinn/auto_schedule/search_space/auto_gen_rule/skip_rule.h"
-#include "cinn/auto_schedule/search_space/block_scheduler.h"
-#include "cinn/auto_schedule/search_space/rule_scheduler.h"
 #include "cinn/auto_schedule/task/tune_task.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_schedule.h"
@@ -143,56 +141,6 @@ SearchState SearchSpace::RandomScheduleMutate(const SearchState& state) {
   // 4. Apply the schedule change
   sample_rule->Apply(sample_index - iter->first);
   return ret;
-}
-
-std::vector<SearchState> SearchSpace::GetInitialSketch(int num) {
-  ir::IRSchedule init_schedule(ir::ModuleExpr(tune_task_.GetLoweredFuncBodyExprs()));
-  auto block_scheduler = BlockScheduler::Make(init_schedule.GetAllBlocks(), "traversal");
-
-  std::vector<AutoGenRule*> init_rules;
-  std::transform(sketch_rules_.begin(), sketch_rules_.end(), std::back_inserter(init_rules), [](const auto& rule) {
-    return rule.get();
-  });
-
-  SearchState init_state(init_schedule, SearchState::NOT_INIT_COST, init_rules);
-  std::vector<SearchState> states_buf1{init_state}, states_buf2;
-  std::vector<SearchState>* p_states_cur  = &states_buf1;
-  std::vector<SearchState>* p_states_next = &states_buf2;
-  std::string block_name;
-  while ("" != (block_name = block_scheduler->NextBlock())) {
-    p_states_next->clear();
-    for (const auto& state : *p_states_cur) {
-      auto rule_scheduler = RuleScheduler::Make(init_rules, "traversal");
-      auto new_states     = CollectStateTransfer(state, block_name, rule_scheduler.get(), 0);
-      p_states_next->insert(p_states_next->end(), new_states.begin(), new_states.end());
-    }
-    std::swap(p_states_cur, p_states_next);
-  }
-
-  return *p_states_next;
-}
-
-std::vector<SearchState> SearchSpace::CollectStateTransfer(const SearchState& state,
-                                                           const std::string& block_name,
-                                                           RuleScheduler* rule_scheduler,
-                                                           int num_samples) {
-  std::vector<SearchState> samples;
-  if (num_samples == 0) {
-    while (AutoGenRule* rule = rule_scheduler->NextRule(state, block_name)) {
-      std::vector<SearchState> new_states = rule->ApplyOnBlock(state, block_name);
-      samples.insert(samples.end(), new_states.begin(), new_states.end());
-    }
-  } else {
-    for (int i = 0; i < num_samples; ++i) {
-      AutoGenRule* rule = rule_scheduler->NextRule(state, block_name);
-      if (rule) {
-        std::vector<SearchState> new_states = rule->ApplyOnBlock(state, block_name);
-        samples.insert(samples.end(), new_states.begin(), new_states.end());
-      }
-    }
-  }
-
-  return samples;
 }
 
 }  // namespace auto_schedule

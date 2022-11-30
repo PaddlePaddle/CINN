@@ -39,12 +39,8 @@ class AutoUnroll : public AutoGenRule {
 
   std::string GetRuleName() const override { return "AutoUnroll"; }
 
-  RuleApplyType AnalyseApplyType(SearchState state, const std::string& block_name) const override;
-
-  std::vector<SearchState> ApplyOnBlock(SearchState state, const std::string& block_name) override;
-
  private:
-  bool MeetCondition(const ir::ScheduleBlock* schedule_block) const;
+  bool MeetCondition(const ir::ScheduleBlock* schedule_block);
 
  private:
   std::vector<Expr> applicable_schedule_blocks_;
