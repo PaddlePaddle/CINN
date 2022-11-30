@@ -30,6 +30,11 @@ std::set<Expr> CollectIRNodes(Expr x, std::function<bool(const Expr*)>&& teller,
 std::set<Expr> CollectIRNodesWithoutTensor(Expr x, std::function<bool(const Expr*)>&& teller, bool uniq_target = false);
 
 /**
+ * Collect the IR Nodes from Block.
+ */
+std::vector<Expr> CollectIRNodesInOrder(Expr block, std::function<bool(const Expr*)>&& teller);
+
+/**
  * Collect the tensors in Load nodes.
  */
 std::set<Expr> CollectLoadTensors(Expr x, std::function<bool(const Expr*)>&& teller);

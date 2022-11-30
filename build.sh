@@ -248,6 +248,7 @@ function build {
 
 function run_demo {
     cd $build_dir/dist
+    export runtime_include_dir=$workspace/cinn/runtime/cuda
     export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$build_dir/dist/cinn/lib
     bash build_demo.sh
     ./demo
@@ -257,6 +258,7 @@ function run_demo {
 
 function run_test {
     cd $build_dir
+    export runtime_include_dir=$workspace/cinn/runtime/cuda
     if [ ${TESTING_DEBUG_MODE:-OFF} == "ON" ] ; then
         ctest --parallel 10 -V
     else

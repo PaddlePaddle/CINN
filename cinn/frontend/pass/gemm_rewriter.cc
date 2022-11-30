@@ -179,7 +179,7 @@ class GemmRewriterPass : public ProgramPass {
         // only support the condition below:
         // 1) tow-dim matrix multiply, such as m * k, k * n
         // 2) three-dim tensor multiply, such as b * m * k, b * k * n
-        if ((lhs_dim_size == 2 || lhs_dim_size == 3) && (lhs_dim_size == rhs_dim_size)) {
+        if (lhs_dim_size <= 4 && rhs_dim_size <= 4) {
           instr->op_type = "cublas_matmul";
         }
       }
