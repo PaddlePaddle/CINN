@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #pragma once
-
 #include <string>
 #include <vector>
 
@@ -24,12 +23,7 @@
 namespace cinn {
 namespace hlir {
 namespace op {
-
-std::vector<ir::Tensor> Clip(const ir::Tensor& in_tensor,
-                             const float max_val,
-                             const float min_val,
-                             const std::string& output_name);
-
+ir::Tensor Reciprocal(const ir::Tensor& input, const std::string& name = "T_Reciprocal_out");
 }  // namespace op
 }  // namespace hlir
 }  // namespace cinn

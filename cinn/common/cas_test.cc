@@ -124,9 +124,9 @@ TEST(CAS, ConvertCinnToCAS) {
 
   body = detail::ConvertCinnToCAS(body);
   body = CasSimplify(body);
-  EXPECT_EQ(GetStreamCnt(body), "(1 + A[i, j] + (2 * B[i, j]))");
+  EXPECT_EQ(GetStreamCnt(body), "(1.00000f + A[i, j] + (2.00000f * B[i, j]))");
   body = detail::ConvertCasToCinn(body);
-  EXPECT_EQ(GetStreamCnt(body), "(1 + (A[i, j] + (2 * B[i, j])))");
+  EXPECT_EQ(GetStreamCnt(body), "(1.00000f + (A[i, j] + (2.00000f * B[i, j])))");
 }
 
 TEST(CAS, FracOp) {

@@ -62,4 +62,16 @@ inline int64_t FN_INT64(clz)(int64_t x);
 inline int64_t FN_INT64(popc)(int64_t x);
 
 #undef FN_INT64
+
+#define FN_FP32(func) cinn_host_##func##_fp32
+
+inline float FN_FP32(cbrt)(float x);
+
+#undef FN_FP32
+
+#define FN_FP64(func) cinn_host_##func##_fp64
+
+inline double FN_FP64(cbrt)(double x);
+
+#undef FN_FP64
 }

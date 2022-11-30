@@ -514,8 +514,8 @@ void BindFrontend(pybind11::module *m) {
            py::arg("axis") = -1)
       .def("relu6", &NetBuilder::Relu6, py::arg("a"), py::arg("threshold") = 6.0f)
       .def("gelu", &NetBuilder::Gelu, py::arg("x"))
-      .def("squeeze", &NetBuilder::Squeeze, py::arg("a"), py::arg("axes"))
-      .def("expand_dims", &NetBuilder::ExpandDims, py::arg("x"), py::arg("axis"), py::arg("num_newaxis") = 1)
+      .def("squeeze", &NetBuilder::Squeeze, py::arg("a"), py::arg("axes") = std::vector<int>{})
+      .def("expand_dims", &NetBuilder::ExpandDims, py::arg("x"), py::arg("axes"))
       .def("argmax", &NetBuilder::Argmax, py::arg("x"), py::arg("axis"), py::arg("keep_dim") = false)
       .def("argmin", &NetBuilder::Argmin, py::arg("x"), py::arg("axis"), py::arg("keep_dim") = false)
       .def("lookup_table", &NetBuilder::LookupTable, py::arg("table"), py::arg("ids"), py::arg("padding_idx"))
@@ -621,8 +621,10 @@ void BindFrontend(pybind11::module *m) {
       .def("arange", &NetBuilder::Arange, py::arg("start"), py::arg("end"), py::arg("step"), py::arg("dtype"))
       .def("gather", &NetBuilder::Gather, py::arg("x"), py::arg("index"), py::arg("axis"))
       .def("gather_nd", &NetBuilder::GatherNd, py::arg("x"), py::arg("index"), py::arg("axes"))
+      .def("cbrt", &NetBuilder::Cbrt, py::arg("x"))
       .def("clz", &NetBuilder::Clz, py::arg("x"))
-      .def("popc", &NetBuilder::Popc, py::arg("x"));
+      .def("popc", &NetBuilder::Popc, py::arg("x"))
+      .def("reciprocal", &NetBuilder::Reciprocal, py::arg("x"));
 
   auto computation = py::class_<CinnComputation, std::shared_ptr<CinnComputation>>(*m, "Computation");
   py::class_<CinnComputation::CompileOptions>(computation, "CompileOptions")

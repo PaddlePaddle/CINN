@@ -25,7 +25,7 @@ namespace cinn {
 namespace hlir {
 namespace op {
 
-ir::Tensor Gelu(const ir::Tensor& input, const std::string& output_name);
+ir::Tensor GatherNd(const ir::Tensor& A, const ir::Tensor& B, const std::vector<int>& axes, const std::string& name);
 
 }  // namespace op
 }  // namespace hlir

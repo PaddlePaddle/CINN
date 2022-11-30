@@ -90,8 +90,9 @@ EXTERN_BINARY_CALL_IMP(Remainder, remainder)
 
 #undef EXTERN_BINARY_CALL_IMP
 
-Expr Zero(const Type& type) { return make_const(type, 0); }
-Expr One(const Type& type) { return make_const(type, 1); }
+Expr Zero(const Type& type) { return ir::Zero(type); }
+
+Expr One(const Type& type) { return ir::One(type); }
 
 Expr FloorDivide(Expr a, Expr b) {
   CHECK_EQ(a.type(), b.type()) << "FloorDivide's inputs type not equal, where a:" << a.type() << " but b:" << b.type();

@@ -38,9 +38,6 @@ Expr CastIfNeeded(Expr body, Type type);
 //! @param var_map The map from variables to the target expressions.
 void Substitute(Expr *expr, const std::map<const ir::_Var_ *, Expr> &var_map);
 
-template <typename T>
-Expr make_const(Type t, T v);
-
 //! Get a stack of forloops(For and PolyFor nodes) to a Store node target to \p tensor_name
 std::vector<Expr *> GetForloopStackToStore(Expr *expr, const std::string &tensor_name);
 

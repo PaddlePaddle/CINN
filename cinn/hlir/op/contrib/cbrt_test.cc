@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cinn/hlir/op/contrib/squeeze.h"
+#include "cinn/hlir/op/contrib/cbrt.h"
 
 #include <glog/logging.h>
 #include <gtest/gtest.h>
@@ -31,28 +31,31 @@
 namespace cinn {
 namespace hlir {
 namespace op {
+namespace {
+bool IsCompiledWithCUDA() {
+#if !defined(CINN_WITH_CUDA)
+  return false;
+#else
+  return true;
+#endif
+}
+}  // namespace
 
-TEST(GenerateCode_Cpu, Squeeze) {
+TEST(GenerateCode_Cpu, Cbrt) {
   common::Context::Global().ResetNameId();
 
   common::Target target = common::DefaultHostTarget();
-
-  ir::Expr n(4);
-  ir::Expr c(1);
-  ir::Expr h(28);
-  ir::Expr w(1);
-
-  lang::Placeholder<float> in("in", {n, c, h, w});
-  ir::Tensor res = Squeeze(in, {1, 3}, "test_squeeze_out");
+  lang::Placeholder<float> in("in", std::vector<int>{8});
+  ir::Tensor res = Cbrt(in, target, "test_cbrt");
 
   poly::StageMap stages = poly::CreateStages({res});
   std::vector<ir::LoweredFunc> funcs =
-      lang::LowerVec("TestGenerateCodeCpu_Squeeze", stages, {res}, {}, {}, nullptr, target, true);
+      lang::LowerVec("TestGenerateCodeCpu_Cbrt", stages, {res}, {}, {}, nullptr, target, true);
 
   VLOG(6) << "Expr before CPU codegen:";
   VLOG(6) << funcs[0]->body;
 
-  ir::Module::Builder builder("Squeeze_Module", target);
+  ir::Module::Builder builder("Cbrt_Module", target);
   for (auto& f : funcs) {
     builder.AddFunction(f);
   }
@@ -61,7 +64,32 @@ TEST(GenerateCode_Cpu, Squeeze) {
   codegen.SetInlineBuiltinCodes(false);
   std::string code = codegen.Compile(builder.Build(), backends::CodeGenC::OutputKind::CImpl);
   VLOG(6) << "Cpu Codegen result:";
-  VLOG(6) << code << std::endl;
+  VLOG(6) << code;
+}
+
+TEST(GenerateCode_Cuda, Cbrt) {
+  if (!IsCompiledWithCUDA()) {
+    return;
+  }
+  common::Context::Global().ResetNameId();
+
+  common::Target target = common::DefaultNVGPUTarget();
+
+  lang::Placeholder<double> in("in", std::vector<int>{8});
+  ir::Tensor res = Cbrt(in, target, "test_cbrt");
+
+  poly::StageMap stages = poly::CreateStages({res});
+
+  std::vector<ir::LoweredFunc> funcs =
+      lang::LowerVec("TestGenerateCodeCuda_Cbrt", stages, {res}, {}, {}, nullptr, target, true);
+
+  VLOG(6) << "Expr before CUDA codegen:";
+  VLOG(6) << funcs[0]->body;
+
+  ir::Module::Builder builder("Cbrt_Module", target);
+  for (auto& f : funcs) {
+    builder.AddFunction(f);
+  }
 }
 
 }  // namespace op

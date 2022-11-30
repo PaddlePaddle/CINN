@@ -40,8 +40,7 @@
 #include "cinn/hlir/pass/use_pass.h"
 #include "cinn/utils/data_util.h"
 
-DECLARE_bool(cinn_open_fusion_optimize);
-DECLARE_bool(cinn_use_new_fusion_pass);
+DECLARE_bool(cinn_use_op_fusion);
 
 namespace cinn {
 namespace frontend {
@@ -142,12 +141,8 @@ std::vector<float> RunProgram(const Program& program,
 struct OptimizeConfig {
   struct PassGroup;
   OptimizeConfig(const PassGroup& program_passes) : program_passes{program_passes} {
-    if (FLAGS_cinn_open_fusion_optimize) {
-      if (FLAGS_cinn_use_new_fusion_pass) {
-        graph_passes = {{"OpFusionPass", "FusionMergePass"}, {"OpFusionPass", "FusionMergePass"}};
-      } else {
-        graph_passes = {{"OpFusion"}, {"OpFusion"}};
-      }
+    if (FLAGS_cinn_use_op_fusion) {
+      graph_passes = {{"OpFusionPass", "FusionMergePass"}, {"OpFusionPass", "FusionMergePass"}};
     }
   }
   OptimizeConfig(const PassGroup& program_passes, const PassGroup& graph_passes)
@@ -157,13 +152,9 @@ struct OptimizeConfig {
     this->program_passes.ctrl = program_passes.first;
     this->program_passes.exp  = program_passes.second;
 
-    if (FLAGS_cinn_open_fusion_optimize) {
-      if (FLAGS_cinn_use_new_fusion_pass) {
-        graph_passes = {{"MatmulToCublasCustomCallPass", "OpFusionPass", "FusionMergePass"},
-                        {"MatmulToCublasCustomCallPass", "OpFusionPass", "FusionMergePass"}};
-      } else {
-        LOG(FATAL) << "Cinn new op fusion is not applied!";
-      }
+    if (FLAGS_cinn_use_op_fusion) {
+      graph_passes = {{"MatmulToCublasCustomCallPass", "OpFusionPass", "FusionMergePass"},
+                      {"MatmulToCublasCustomCallPass", "OpFusionPass", "FusionMergePass"}};
     }
   }
 

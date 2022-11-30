@@ -41,11 +41,11 @@ TEST(Optimize, Unroll) {
   {
     serial for (j_outer, 0, 4)
     {
-      C[i, (5 * j_outer)] = (1 + A[i, (5 * j_outer)])
-      C[i, (1 + (5 * j_outer))] = (1 + A[i, (1 + (5 * j_outer))])
-      C[i, (2 + (5 * j_outer))] = (1 + A[i, (2 + (5 * j_outer))])
-      C[i, (3 + (5 * j_outer))] = (1 + A[i, (3 + (5 * j_outer))])
-      C[i, (4 + (5 * j_outer))] = (1 + A[i, (4 + (5 * j_outer))])
+      C[i, (5 * j_outer)] = (1.00000f + A[i, (5 * j_outer)])
+      C[i, (1 + (5 * j_outer))] = (1.00000f + A[i, (1 + (5 * j_outer))])
+      C[i, (2 + (5 * j_outer))] = (1.00000f + A[i, (2 + (5 * j_outer))])
+      C[i, (3 + (5 * j_outer))] = (1.00000f + A[i, (3 + (5 * j_outer))])
+      C[i, (4 + (5 * j_outer))] = (1.00000f + A[i, (4 + (5 * j_outer))])
     }
   }
 }

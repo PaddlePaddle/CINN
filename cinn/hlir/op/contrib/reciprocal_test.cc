@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cinn/hlir/op/contrib/arange.h"
+#include "cinn/hlir/op/contrib/reciprocal.h"
 
 #include <glog/logging.h>
 #include <gtest/gtest.h>
@@ -31,26 +31,37 @@
 namespace cinn {
 namespace hlir {
 namespace op {
+namespace {
+bool IsCompiledWithCUDA() {
+#if !defined(CINN_WITH_CUDA)
+  return false;
+#else
+  return true;
+#endif
+}
+}  // namespace
 
-TEST(GenerateCode_Cpu, Arange) {
+TEST(GenerateCode_Cpu, Reciprocal) {
   common::Context::Global().ResetNameId();
 
   common::Target target = common::DefaultHostTarget();
-  float start           = 1.5F;
-  float stop            = 31.5F;
-  float step            = 2.0F;
 
-  std::vector<ir::Tensor> res = Arange(start, stop, step, common::Float(32), "test_arange");
+  ir::Expr n(4);
+  ir::Expr m(2);
+
+  lang::Placeholder<float> in("in", {n, m});
+
+  ir::Tensor res = Reciprocal(in, "test_reciprocal_out");
 
   poly::StageMap stages = poly::CreateStages({res});
   std::vector<ir::LoweredFunc> funcs =
-      lang::LowerVec("TestGenerateCodeCpu_Arange", stages, res, {}, {}, nullptr, target, true);
+      lang::LowerVec("TestGenerateCodeCpu_Reciprocal", stages, {res}, {}, {}, nullptr, target, true);
 
   VLOG(6) << "Expr before CPU codegen:";
   VLOG(6) << funcs[0]->body;
 
-  ir::Module::Builder builder("Arange_Module", target);
-  for (auto &f : funcs) {
+  ir::Module::Builder builder("Reciprocal_Module", target);
+  for (auto& f : funcs) {
     builder.AddFunction(f);
   }
 
@@ -60,36 +71,6 @@ TEST(GenerateCode_Cpu, Arange) {
   VLOG(6) << "Cpu Codegen result:";
   VLOG(6) << code << std::endl;
 }
-
-#ifdef CINN_WITH_CUDA
-TEST(GenerateCode_Cuda, Arange) {
-  common::Context::Global().ResetNameId();
-
-  common::Target target = common::DefaultNVGPUTarget();
-  float start           = 1.5F;
-  float stop            = 31.5F;
-  float step            = 2.0F;
-
-  std::vector<ir::Tensor> res = Arange(start, stop, step, common::Float(32), "test_arange");
-
-  poly::StageMap stages = poly::CreateStages({res});
-  std::vector<ir::LoweredFunc> funcs =
-      lang::LowerVec("TestGenerateCodeCpu_Arange", stages, res, {}, {}, nullptr, target, true);
-
-  VLOG(6) << "Expr before CUDA codegen:";
-  VLOG(6) << funcs[0]->body;
-
-  ir::Module::Builder builder("Arange_Module", target);
-  for (auto &f : funcs) {
-    builder.AddFunction(f);
-  }
-
-  backends::CodeGenCUDA_Dev codegen(target);
-  std::string code = codegen.Compile(builder.Build());
-  VLOG(6) << "Cuda Codegen result:";
-  VLOG(6) << code << std::endl;
-}
-#endif
 
 }  // namespace op
 }  // namespace hlir
