@@ -348,10 +348,10 @@ std::vector<IterRange> CalculateTensorRegions(const Expr& block,
       VLOG(3) << "deduced range is not constant, range.min=" << range.min << ", range.extent=" << range.extent;
       if (tensor->buffer.defined()) {
         CHECK_GT((int)tensor->buffer->shape.size(), i);
-        result.emplace_back(Expr(0), tensor->buffer->shape[i]);
+        result.emplace_back(IterRange(Expr(0), tensor->buffer->shape[i]));
       } else {
         CHECK_GT((int)tensor->shape.size(), i);
-        result.emplace_back(Expr(0), tensor->shape[i]);
+        result.emplace_back(IterRange(Expr(0), tensor->shape[i]));
       }
     } else {
       result.emplace_back(std::move(range));
@@ -744,7 +744,7 @@ std::vector<Expr> GetProducers(const Expr& block, const Expr& root) {
   CHECK(root.As<ir::ScheduleBlockRealize>());
   std::vector<Expr> producers;
 
-  // collect all producers tensor names
+  // collect all producers' tensor names
   std::set<std::string> producer_tensor_names;
   auto compute_body = block.As<ir::ScheduleBlockRealize>()->schedule_block.As<ir::ScheduleBlock>()->body;
   ir::CollectIRNodesWithoutTensor(compute_body, [&producer_tensor_names](const Expr* x) {
