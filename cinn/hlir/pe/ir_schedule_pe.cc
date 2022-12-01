@@ -189,12 +189,20 @@ void IRCudaSplitSchedule(ir::IRSchedule &ir_sch,
   if (with_same_shape && target == common::DefaultNVGPUTarget()) {
     // flat loops.
     {
+      auto tsize = std::accumulate(output_shapes[0].begin(), output_shapes[0].end(), 1, std::multiplies<int>());
       for (auto &block_name : block_names) {
         ir_sch.FlattenLoops(ir_sch.GetLoops(block_name), false);
-        // split [-1, 256]
-        auto splited = ir_sch.Split(ir_sch.GetLoops(block_name)[0], {-1, target.max_num_threads() / 4});
-        ir_sch.Bind(splited[0], "blockIdx.x");
-        ir_sch.Bind(splited[1], "threadIdx.x");
+
+        if (tsize > target.max_num_threads()) {
+          // split [-1, 256]
+          auto splited = ir_sch.Split(ir_sch.GetLoops(block_name)[0], {-1, target.max_num_threads() / 4});
+          ir_sch.Bind(splited[0], "blockIdx.x");
+          ir_sch.Bind(splited[1], "threadIdx.x");
+        } else {
+          auto splited = ir_sch.Split(ir_sch.GetLoops(block_name)[0], {1, tsize});
+          ir_sch.Bind(splited[0], "blockIdx.x");
+          ir_sch.Bind(splited[1], "threadIdx.x");
+        }
       }
     }
     // do simple compute at.
@@ -207,12 +215,21 @@ void IRCudaSplitSchedule(ir::IRSchedule &ir_sch,
   } else if (target == common::DefaultNVGPUTarget()) {
     // flat loops.
     {
-      for (auto &block_name : block_names) {
-        ir_sch.FlattenLoops(ir_sch.GetLoops(block_name), false);
-        // split [-1, 256]
-        auto splited = ir_sch.Split(ir_sch.GetLoops(block_name)[0], {-1, target.max_num_threads() / 4});
-        ir_sch.Bind(splited[0], "blockIdx.x");
-        ir_sch.Bind(splited[1], "threadIdx.x");
+      for (int idx = 0; idx < block_names.size(); ++idx) {
+        ir_sch.FlattenLoops(ir_sch.GetLoops(block_names[idx]), false);
+        auto first_loop = ir_sch.GetLoops(block_names[idx])[0];
+        CHECK(first_loop.As<ir::For>());
+        auto tsize = first_loop.As<ir::For>()->extent.as_int32();
+        if (tsize > target.max_num_threads()) {
+          // split [-1, 256]
+          auto splited = ir_sch.Split(ir_sch.GetLoops(block_names[idx])[0], {-1, target.max_num_threads() / 4});
+          ir_sch.Bind(splited[0], "blockIdx.x");
+          ir_sch.Bind(splited[1], "threadIdx.x");
+        } else {
+          auto splited = ir_sch.Split(ir_sch.GetLoops(block_names[idx])[0], {1, tsize});
+          ir_sch.Bind(splited[0], "blockIdx.x");
+          ir_sch.Bind(splited[1], "threadIdx.x");
+        }
       }
     }
   } else {
