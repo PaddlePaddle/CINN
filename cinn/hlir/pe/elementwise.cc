@@ -108,9 +108,18 @@ ir::Tensor Squeeze(const ir::Tensor& A, const std::vector<int>& axes, const std:
   std::vector<int> position;
   std::vector<Expr> output_shape;
   if (axes.size()) {
+    // if axis < 0, plus tensor rank.
+    std::vector<int> naxes;
+    for (auto axis : axes) {
+      if (axis < 0) {
+        axis += A->shape.size();
+      }
+
+      naxes.push_back(axis);
+    }
     for (int idx = 0; idx < A->shape.size(); ++idx) {
       // if can't find idx in axis
-      if (std::find(axes.begin(), axes.end(), idx) == axes.end()) {
+      if (std::find(naxes.begin(), naxes.end(), idx) == naxes.end()) {
         output_shape.push_back(A->shape[idx]);
         position.push_back(idx);
       } else {

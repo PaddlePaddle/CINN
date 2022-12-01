@@ -27,6 +27,7 @@
 #include "cinn/backends/cuda_util.h"
 #include "cinn/backends/extern_func_jit_register.h"
 #include "cinn/common/target.h"
+#include "cinn/runtime/cuda/cublas_util.h"
 #include "cinn/runtime/flags.h"
 #include "cinn/utils/timer.h"
 
@@ -107,9 +108,9 @@ void cinn_call_cublas(void *v_args,
   cudaStream_t custream    = static_cast<cudaStream_t>(stream);
   CUBLAS_CALL(cublasSetStream(cuhandle, custream));
 
-  float *A = reinterpret_cast<float *>(args[0].operator cinn_buffer_t *()->memory);
-  float *B = reinterpret_cast<float *>(args[1].operator cinn_buffer_t *()->memory);
-  float *C = reinterpret_cast<float *>(args[2].operator cinn_buffer_t *()->memory);
+  void *A = args[0].operator cinn_buffer_t *()->memory;
+  void *B = args[1].operator cinn_buffer_t *()->memory;
+  void *C = args[2].operator cinn_buffer_t *()->memory;
 
   int m = trans_o ? (trans_a ? a4 : a3) : (trans_b ? b3 : b4);
   int n = trans_o ? (trans_b ? b3 : b4) : (trans_a ? a4 : a3);
@@ -123,34 +124,48 @@ void cinn_call_cublas(void *v_args,
   int ldr = trans_op_r == CUBLAS_OP_N ? k : n;  // trans_o ? (trans_b ? n : k) : (trans_a ? n : k);
   int ldc = m;
 
-  float *lhs = trans_o ? A : B;
-  float *rhs = trans_o ? B : A;
+  void *lhs = trans_o ? A : B;
+  void *rhs = trans_o ? B : A;
+
+  cudaDataType_t cuda_dtype;
+  auto type_code = args[0].operator cinn_buffer_t *()->type.code;
+  bool is_float  = type_code == cinn_type_float;
+  int bytes      = args[0].operator cinn_buffer_t *()->type.bits / CHAR_BIT;
+  if (is_float && bytes == sizeof(common::float16)) {
+    cuda_dtype = CUDA_R_16F;
+  } else if (is_float && bytes == sizeof(float)) {
+    cuda_dtype = CUDA_R_32F;
+  } else {
+    LOG(FATAL) << "unsupported cublas data type: " << static_cast<int>(type_code) << ", bytes = " << bytes;
+  }
 
   if (a1 * a2 * b1 * b2 == 1) {
-    CUBLAS_CALL(cublasSgemm(cuhandle, trans_op_l, trans_op_r, m, n, k, &alpha, lhs, ldl, rhs, ldr, &beta, C, ldc));
+    CUBLAS_CALL(
+        cublasGemm(cuda_dtype, cuhandle, trans_op_l, trans_op_r, m, n, k, alpha, lhs, ldl, rhs, ldr, beta, C, ldc));
   } else if (a1 * b1 == 1) {
     CHECK(a2 == b2 || a2 == 1 || b2 == 1);
     int stride_l = trans_o ? (a2 > 1 ? a3 * a4 : 0) : (b2 > 1 ? b3 * b4 : 0);
     int stride_r = trans_o ? (b2 > 1 ? b3 * b4 : 0) : (a2 > 1 ? a3 * a4 : 0);
     int batch    = std::max(a2, b2);
-    CUBLAS_CALL(cublasSgemmStridedBatched(cuhandle,
-                                          trans_op_l,
-                                          trans_op_r,
-                                          m,
-                                          n,
-                                          k,
-                                          &alpha,
-                                          lhs,
-                                          ldl,
-                                          stride_l,
-                                          rhs,
-                                          ldr,
-                                          stride_r,
-                                          &beta,
-                                          C,
-                                          ldc,
-                                          m * n,
-                                          batch));
+    CUBLAS_CALL(cublasGemmStridedBatched(cuda_dtype,
+                                         cuhandle,
+                                         trans_op_l,
+                                         trans_op_r,
+                                         m,
+                                         n,
+                                         k,
+                                         alpha,
+                                         lhs,
+                                         ldl,
+                                         stride_l,
+                                         rhs,
+                                         ldr,
+                                         stride_r,
+                                         beta,
+                                         C,
+                                         ldc,
+                                         m * n,
+                                         batch));
   } else {
     int l1 = trans_o ? a1 : b1, l2 = trans_o ? a2 : b2, l3 = trans_o ? a3 : b3, l4 = trans_o ? a4 : b4;
     int r1 = trans_o ? b1 : a1, r2 = trans_o ? b2 : a2, r3 = trans_o ? b3 : a3, r4 = trans_o ? b4 : a4;
@@ -162,24 +177,25 @@ void cinn_call_cublas(void *v_args,
       // four types matmul:
       // (N, L) * (N, L) , (N, 1) * (N, 1)
       // (N, L) * (1, 1) , (1, 1) * (N, L)
-      CUBLAS_CALL(cublasSgemmStridedBatched(cuhandle,
-                                            trans_op_l,
-                                            trans_op_r,
-                                            m,
-                                            n,
-                                            k,
-                                            &alpha,
-                                            lhs,
-                                            ldl,
-                                            stride_l,
-                                            rhs,
-                                            ldr,
-                                            stride_r,
-                                            &beta,
-                                            C,
-                                            ldc,
-                                            m * n,
-                                            std::max(l1, r1) * std::max(l2, r2)));
+      CUBLAS_CALL(cublasGemmStridedBatched(cuda_dtype,
+                                           cuhandle,
+                                           trans_op_l,
+                                           trans_op_r,
+                                           m,
+                                           n,
+                                           k,
+                                           alpha,
+                                           lhs,
+                                           ldl,
+                                           stride_l,
+                                           rhs,
+                                           ldr,
+                                           stride_r,
+                                           beta,
+                                           C,
+                                           ldc,
+                                           m * n,
+                                           std::max(l1, r1) * std::max(l2, r2)));
     } else {
       // (N, L) / (N, 1) / (1, L)
       int bstride_l = (l1 != 1 && l2 != 1) ? (l2 * m * k) : ((l1 != 1) ? m * k : 0);
@@ -194,24 +210,25 @@ void cinn_call_cublas(void *v_args,
       // (N, 1) * (N, L) , (1, L) * (N, L)
       // (N, 1) * (1, L) , (1, L) * (N, 1)
       for (int idx = 0; idx < std::max(l1, r1); ++idx) {
-        CUBLAS_CALL(cublasSgemmStridedBatched(cuhandle,
-                                              trans_op_l,
-                                              trans_op_r,
-                                              m,
-                                              n,
-                                              k,
-                                              &alpha,
-                                              lhs + idx * bstride_l,
-                                              ldl,
-                                              stride_l,
-                                              rhs + idx * bstride_r,
-                                              ldr,
-                                              stride_r,
-                                              &beta,
-                                              C + idx * bstride_c,
-                                              ldc,
-                                              m * n,
-                                              std::max(l2, r2)));
+        CUBLAS_CALL(cublasGemmStridedBatched(cuda_dtype,
+                                             cuhandle,
+                                             trans_op_l,
+                                             trans_op_r,
+                                             m,
+                                             n,
+                                             k,
+                                             alpha,
+                                             static_cast<uint8_t *>(lhs) + idx * bstride_l * bytes,
+                                             ldl,
+                                             stride_l,
+                                             static_cast<uint8_t *>(rhs) + idx * bstride_r * bytes,
+                                             ldr,
+                                             stride_r,
+                                             beta,
+                                             static_cast<uint8_t *>(C) + idx * bstride_c * bytes,
+                                             ldc,
+                                             m * n,
+                                             std::max(l2, r2)));
       }
     }
   }
@@ -298,13 +315,24 @@ void cinn_call_cudnn_conv2d_forward(void *v_args,
   cudnnHandle_t &handle = CudnnHandle::GetInstance().GetCudnnHandle();
   CUDNN_CALL(cudnnSetStream(handle, static_cast<cudaStream_t>(stream)));
   cinn_pod_value_t *args = static_cast<cinn_pod_value_t *>(v_args);
-  float *_x              = reinterpret_cast<float *>(args[0].operator cinn_buffer_t *()->memory);
-  float *_w              = reinterpret_cast<float *>(args[1].operator cinn_buffer_t *()->memory);
-  float *_y              = reinterpret_cast<float *>(args[2].operator cinn_buffer_t *()->memory);
+  void *_x               = args[0].operator cinn_buffer_t *()->memory;
+  void *_w               = args[1].operator cinn_buffer_t *()->memory;
+  void *_y               = args[2].operator cinn_buffer_t *()->memory;
 
   CHECK_EQ(args[0].operator cinn_buffer_t *()->type.code, cinn_type_code_t::cinn_type_float);
-  cudnnDataType_t data_type         = CUDNN_DATA_FLOAT;
   cudnnTensorFormat_t tensor_format = static_cast<cudnnTensorFormat_t>(format);
+
+  cudnnDataType_t data_type;
+  auto type_code = args[0].operator cinn_buffer_t *()->type.code;
+  bool is_float  = type_code == cinn_type_float;
+  int bits       = args[0].operator cinn_buffer_t *()->type.bits;
+  if (is_float && bits == 16) {
+    data_type = CUDNN_DATA_HALF;
+  } else if (is_float && bits == 32) {
+    data_type = CUDNN_DATA_FLOAT;
+  } else {
+    LOG(FATAL) << "unsupported cudnn conv2d input data type: " << static_cast<int>(type_code) << ", bits = " << bits;
+  }
 
   cudnnTensorDescriptor_t x_desc;
   CUDNN_CALL(cudnnCreateTensorDescriptor(&x_desc));
@@ -684,13 +712,24 @@ void cinn_call_cudnn_softmax_forward(void *v_args,
   CUDNN_CALL(cudnnSetStream(handle, static_cast<cudaStream_t>(stream)));
   cinn_pod_value_t *args = static_cast<cinn_pod_value_t *>(v_args);
 
-  float *_x = reinterpret_cast<float *>((args[0].operator cinn_buffer_t *())->memory);
-  float *_y = reinterpret_cast<float *>((args[1].operator cinn_buffer_t *())->memory);
+  void *_x = args[0].operator cinn_buffer_t *()->memory;
+  void *_y = args[1].operator cinn_buffer_t *()->memory;
 
   CHECK_EQ(args[0].operator cinn_buffer_t *()->type.code, cinn_type_code_t::cinn_type_float);
-  cudnnDataType_t data_type         = CUDNN_DATA_FLOAT;
   cudnnSoftmaxMode_t softmax_mode   = static_cast<cudnnSoftmaxMode_t>(mode);
   cudnnTensorFormat_t tensor_format = static_cast<cudnnTensorFormat_t>(format);
+
+  cudnnDataType_t data_type;
+  auto type_code = args[0].operator cinn_buffer_t *()->type.code;
+  bool is_float  = type_code == cinn_type_float;
+  int bits       = args[0].operator cinn_buffer_t *()->type.bits;
+  if (is_float && bits == 16) {
+    data_type = CUDNN_DATA_HALF;
+  } else if (is_float && bits == 32) {
+    data_type = CUDNN_DATA_FLOAT;
+  } else {
+    LOG(FATAL) << "unsupported cudnn conv2d input data type: " << static_cast<int>(type_code) << ", bits = " << bits;
+  }
 
   cudnnTensorDescriptor_t x_desc;
   CUDNN_CALL(cudnnCreateTensorDescriptor(&x_desc));
