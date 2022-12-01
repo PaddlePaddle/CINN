@@ -464,8 +464,7 @@ std::shared_ptr<OpStrategy> StrategyForConcat(const framework::NodeAttr &attrs,
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(
-      concat_compute, framework::GetInjectiveScheduleFunc(output_shapes, target, false), "strategy.concat.x86", 1);
+  strategy->AddImpl(concat_compute, GetInjectiveScheduleFunc(output_shapes, target, false), "strategy.concat.x86", 1);
   return strategy;
 }
 
@@ -719,8 +718,7 @@ std::shared_ptr<OpStrategy> StrategyForCublasGemm(const framework::NodeAttr &att
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(
-      gemm_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.cublas.gemm", 1);
+  strategy->AddImpl(gemm_compute, GetInjectiveScheduleFunc(output_shapes, target), "strategy.cublas.gemm", 1);
 
   return strategy;
 }
@@ -903,8 +901,7 @@ std::shared_ptr<OpStrategy> StrategyForReverse(const framework::NodeAttr &attrs,
 
   auto strategy = std::make_shared<framework::OpStrategy>();
   CHECK(out_type.size()) << "Out_type of reverse op is empty! Please check.";
-  strategy->AddImpl(
-      reverse_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.reverse.x86", 1);
+  strategy->AddImpl(reverse_compute, GetInjectiveScheduleFunc(output_shapes, target), "strategy.reverse.x86", 1);
   return strategy;
 }
 
@@ -1010,8 +1007,7 @@ std::shared_ptr<OpStrategy> StrategyForTranspose(const framework::NodeAttr &attr
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(
-      transpose_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.transpose.x86", 1);
+  strategy->AddImpl(transpose_compute, GetInjectiveScheduleFunc(output_shapes, target), "strategy.transpose.x86", 1);
   return strategy;
 }
 
@@ -1122,7 +1118,7 @@ std::shared_ptr<OpStrategy> StrategyForIndexSelect(const framework::NodeAttr &at
 
   auto strategy = std::make_shared<framework::OpStrategy>();
   strategy->AddImpl(
-      index_select_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.index_select.x86", 1);
+      index_select_compute, GetInjectiveScheduleFunc(output_shapes, target), "strategy.index_select.x86", 1);
   return strategy;
 }
 
@@ -1355,10 +1351,8 @@ std::shared_ptr<OpStrategy> StrategyForScatterAdd(const framework::NodeAttr &att
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(scatter_add_compute,
-                    framework::GetInjectiveScheduleFunc(output_shapes, target, false),
-                    "strategy.scatter_add.x86",
-                    1);
+  strategy->AddImpl(
+      scatter_add_compute, GetInjectiveScheduleFunc(output_shapes, target, false), "strategy.scatter_add.x86", 1);
   return strategy;
 }
 
@@ -1475,7 +1469,7 @@ std::shared_ptr<OpStrategy> StrategyForSlice(const framework::NodeAttr &attrs,
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(slice_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.slice.x86", 1);
+  strategy->AddImpl(slice_compute, GetInjectiveScheduleFunc(output_shapes, target), "strategy.slice.x86", 1);
 
   return strategy;
 }
@@ -1660,7 +1654,7 @@ std::shared_ptr<OpStrategy> StrategyForSliceAssign(const framework::NodeAttr &at
 
   auto strategy = std::make_shared<framework::OpStrategy>();
   strategy->AddImpl(
-      slice_assign_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.slice_assign.x86", 1);
+      slice_assign_compute, GetInjectiveScheduleFunc(output_shapes, target), "strategy.slice_assign.x86", 1);
   return strategy;
 }
 
@@ -1722,8 +1716,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForGather(const framework::NodeAt
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(
-      gather_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.gather.x86", 1);
+  strategy->AddImpl(gather_compute, GetInjectiveScheduleFunc(output_shapes, target), "strategy.gather.x86", 1);
   return strategy;
 }
 

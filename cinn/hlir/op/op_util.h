@@ -18,8 +18,10 @@
 #include <string>
 #include <vector>
 
+#include "cinn/common/target.h"
 #include "cinn/hlir/framework/node.h"
 #include "cinn/ir/ir.h"
+#include "cinn/lang/packed_func.h"
 
 namespace cinn {
 namespace hlir {
@@ -81,6 +83,16 @@ std::vector<T> ToPodVector(const std::vector<Expr> &args) {
 }
 
 std::vector<int> GetPositiveAxes(const std::vector<int> &axes, int rank);
+
+using CINNSchedule = lang::PackedFunc;
+
+CINNSchedule GetElementwiseScheduleFunc(const std::vector<std::vector<int>> &output_shapes,
+                                        const Target &target,
+                                        bool vectorizable = true);
+
+CINNSchedule GetInjectiveScheduleFunc(const std::vector<std::vector<int>> &output_shapes,
+                                      const Target &target,
+                                      bool vectorizable = true);
 
 }  // namespace hlir
 }  // namespace cinn

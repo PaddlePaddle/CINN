@@ -81,7 +81,7 @@ std::shared_ptr<OpStrategy> StrategyForElementwise(const framework::NodeAttr &at
 
   auto strategy = std::make_shared<framework::OpStrategy>();
   strategy->AddImpl(
-      unary_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy." + op_name + ".x86", 1);
+      unary_compute, GetElementwiseScheduleFunc(output_shapes, target), "strategy." + op_name + ".x86", 1);
 
   return strategy;
 }
@@ -165,7 +165,7 @@ std::shared_ptr<OpStrategy> StrategyForScale(const framework::NodeAttr &attrs,
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(scale_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.scale.x86", 1);
+  strategy->AddImpl(scale_compute, GetElementwiseScheduleFunc(output_shapes, target), "strategy.scale.x86", 1);
 
   return strategy;
 }
@@ -217,7 +217,7 @@ std::shared_ptr<OpStrategy> StrategyForConstScalar(const framework::NodeAttr &at
 
   auto strategy = std::make_shared<framework::OpStrategy>();
   strategy->AddImpl(
-      const_scalar_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.const_scalar.x86", 1);
+      const_scalar_compute, GetElementwiseScheduleFunc(output_shapes, target), "strategy.const_scalar.x86", 1);
 
   return strategy;
 }
@@ -315,10 +315,8 @@ std::shared_ptr<OpStrategy> StrategyForFillConstant(const framework::NodeAttr &a
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(fill_constant_compute,
-                    framework::GetInjectiveScheduleFunc(output_shapes, target),
-                    "strategy.fill_constant.x86",
-                    1);
+  strategy->AddImpl(
+      fill_constant_compute, GetElementwiseScheduleFunc(output_shapes, target), "strategy.fill_constant.x86", 1);
 
   return strategy;
 }
@@ -405,7 +403,7 @@ std::shared_ptr<OpStrategy> StrategyForAssignValue(const framework::NodeAttr &at
 
   auto strategy = std::make_shared<framework::OpStrategy>();
   strategy->AddImpl(
-      assign_value_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.assign_value.x86", 1);
+      assign_value_compute, GetElementwiseScheduleFunc(output_shapes, target), "strategy.assign_value.x86", 1);
 
   return strategy;
 }
@@ -559,8 +557,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForSqueeze(const framework::NodeA
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(
-      squeeze_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.squeeze.x86", 1);
+  strategy->AddImpl(squeeze_compute, GetElementwiseScheduleFunc(output_shapes, target), "strategy.squeeze.x86", 1);
   return strategy;
 }
 
@@ -627,7 +624,7 @@ std::shared_ptr<OpStrategy> StrategyForExpandDims(const framework::NodeAttr &att
 
   auto strategy = std::make_shared<framework::OpStrategy>();
   strategy->AddImpl(
-      expand_dims_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.expand_dims.x86", 1);
+      expand_dims_compute, GetElementwiseScheduleFunc(output_shapes, target), "strategy.expand_dims.x86", 1);
   return strategy;
 }
 
@@ -696,8 +693,7 @@ std::shared_ptr<OpStrategy> StrategyForReshape(const framework::NodeAttr &attrs,
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(
-      reshape_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.reshape.x86", 1);
+  strategy->AddImpl(reshape_compute, GetElementwiseScheduleFunc(output_shapes, target), "strategy.reshape.x86", 1);
   return strategy;
 }
 
@@ -774,8 +770,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForCast(const framework::NodeAttr
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(
-      cast_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.reshape.x86", 1);
+  strategy->AddImpl(cast_compute, GetElementwiseScheduleFunc(output_shapes, target), "strategy.reshape.x86", 1);
   return strategy;
 }
 
@@ -819,8 +814,7 @@ std::shared_ptr<framework::OpStrategy> StrategyForArange(const framework::NodeAt
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(
-      arange_compute, framework::GetInjectiveScheduleFunc(output_shapes, target), "strategy.reshape.x86", 1);
+  strategy->AddImpl(arange_compute, GetElementwiseScheduleFunc(output_shapes, target), "strategy.reshape.x86", 1);
   return strategy;
 }
 
