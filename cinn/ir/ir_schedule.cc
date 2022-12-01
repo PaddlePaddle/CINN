@@ -742,8 +742,8 @@ Expr ScheduleImpl::CacheRead(const Expr& block, int read_tensor_index, const std
   info.write_tensor = MakeCacheTensor(info.read_tensor, memory_type);
   info.alloc        = info.write_tensor;
 
-  auto read_buffer_region = CalculateTensorRegions(block, tensor_indices, info.read_tensor, root);
-  auto new_block          = MakeCacheBlock(read_buffer_region, &info, memory_type, this->GetDeviceAPI());
+  auto read_ranges = CalculateTensorRegions(block, tensor_indices, info.read_tensor, root);
+  auto new_block   = MakeCacheBlock(read_ranges, &info, memory_type, this->GetDeviceAPI());
   FindInsertionPoint(root, &info, false);
   auto new_root = CacheReadRewriter::Rewrite(root, &info);
   this->Replace(root.As<ScheduleBlockRealize>()->schedule_block.As<ScheduleBlock>()->body,
@@ -760,11 +760,11 @@ Expr ScheduleImpl::CacheWrite(const Expr& block, int write_buffer_index, const s
   Tensor write_tensor = write_expr.As<ir::Store>()->tensor.as_tensor_ref();
   auto tensor_indices = write_expr.As<ir::Store>()->indices;
   CacheBlockInfo info;
-  info.read_tensor         = MakeCacheTensor(write_tensor, memory_type);
-  info.write_tensor        = write_tensor;
-  info.alloc               = info.read_tensor;
-  auto write_buffer_region = CalculateTensorRegions(block, tensor_indices, info.write_tensor, root);
-  auto new_block           = MakeCacheBlock(write_buffer_region, &info, memory_type, this->GetDeviceAPI());
+  info.read_tensor  = MakeCacheTensor(write_tensor, memory_type);
+  info.write_tensor = write_tensor;
+  info.alloc        = info.read_tensor;
+  auto write_ranges = CalculateTensorRegions(block, tensor_indices, info.write_tensor, root);
+  auto new_block    = MakeCacheBlock(write_ranges, &info, memory_type, this->GetDeviceAPI());
   FindInsertionPoint(root, &info, true);
 
   auto new_root = CacheWriteRewriter::Rewrite(root, &info);
@@ -965,8 +965,8 @@ struct LoopReconstructor : public ir::IRMutator<> {
 
   void operator()(Expr* expr) { IRMutator::Visit(expr, expr); }
 
-  void MakeNewLoop(const std::vector<std::pair<Expr, Expr>>& iter_doms) {
-    int n_iters = iter_doms.size();
+  void MakeNewLoop(const std::vector<IterRange>& iter_ranges) {
+    int n_iters = iter_ranges.size();
     std::vector<Var> loop_vars;
     std::vector<Expr> loop_extents;
     std::vector<Expr> iter_values;
@@ -974,15 +974,14 @@ struct LoopReconstructor : public ir::IRMutator<> {
     loop_extents.reserve(n_iters);
     iter_values.reserve(n_iters);
     for (int i = 0; i < n_iters; ++i) {
-      auto iter_dom = iter_doms[i];
-      if (iter_dom.second != Expr(1)) {
+      const auto& range = iter_ranges[i];
+      if (range.extent != Expr(1)) {
         Var var(common::UniqName("ax" + std::to_string(loop_vars.size())), Int(32));
-        // Var var("ax" + std::to_string(loop_vars.size()), Int(32));
         loop_vars.push_back(var);
-        loop_extents.push_back(iter_dom.second);
-        iter_values.push_back(common::AutoSimplify(iter_dom.first) + var);
+        loop_extents.push_back(range.extent);
+        iter_values.push_back(common::AutoSimplify(range.min) + var);
       } else {
-        iter_values.push_back(common::AutoSimplify(iter_dom.first));
+        iter_values.push_back(common::AutoSimplify(range.min));
       }
     }
     auto schedule_block_node = block_.As<ir::ScheduleBlockRealize>()->schedule_block;
@@ -1118,9 +1117,8 @@ void ScheduleImpl::ComputeAt(const Expr& block, const Expr& loop) {
   LoopReconstructor reconstructor(root, block, loop);
   LeafBlockRemovalPlan remove_plan(block, &reconstructor.source_expr, &reconstructor.target_expr);
   remove_plan(&root);
-  auto iter_doms = CalculateRequiredRegions(block, loop, consumers, root);
-  for (auto& i : iter_doms) VLOG(3) << "CalculateRequiredRegions is : " << i.first << " to " << i.second;
-  reconstructor.MakeNewLoop(iter_doms);
+  auto iter_ranges = CalculateRequiredRegions(block, loop, consumers, root);
+  reconstructor.MakeNewLoop(iter_ranges);
   this->Replace(reconstructor.source_expr, reconstructor.target_expr);
   this->Replace(reconstructor.loop_, reconstructor.new_loop_);
   return;

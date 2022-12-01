@@ -39,6 +39,7 @@ namespace frontend {
 OptimizeOptions DefaultTrainingOptimizeOptions() {
   OptimizeOptions options;
   options.program_passes.emplace_back("Decomposer");
+  options.program_passes.emplace_back("CastCollapsing");
   options.program_passes.emplace_back("TransposeCollapsing");
   options.program_passes.emplace_back("TransposeFoldingInput");
   options.program_passes.emplace_back("GemmRewriter");
