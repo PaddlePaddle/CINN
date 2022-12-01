@@ -286,6 +286,30 @@ class ConvAlgoMap {
   absl::flat_hash_map<std::string, int> algo_map_;
 };
 
+cudnnDataType_t convert_to_cudnn_dtype(void *v_args, int num_args) {
+  CHECK_GT(num_args, 0) << "the number of arguments must larger than zero";
+  cinn_pod_value_t *args = static_cast<cinn_pod_value_t *>(v_args);
+  auto type_code         = args[0].operator cinn_buffer_t *()->type.code;
+  int bits               = args[0].operator cinn_buffer_t *()->type.bits;
+  for (int i = 1; i < num_args; ++i) {
+    auto t = args[i].operator cinn_buffer_t *()->type.code;
+    int b  = args[0].operator cinn_buffer_t *()->type.bits;
+    if (t != type_code || bits != b) {
+      LOG(FATAL) << "The types of all arguments need to be consistent.";
+    }
+  }
+  cudnnDataType_t data_type;
+  bool is_float = type_code == cinn_type_float;
+  if (is_float && bits == 16) {
+    data_type = CUDNN_DATA_HALF;
+  } else if (is_float && bits == 32) {
+    data_type = CUDNN_DATA_FLOAT;
+  } else {
+    LOG(FATAL) << "unsupported cudnn data type: " << static_cast<int>(type_code) << ", bits = " << bits;
+  }
+  return data_type;
+}
+
 void cinn_call_cudnn_conv2d_forward(void *v_args,
                                     int num_args,
                                     int format,
@@ -322,17 +346,7 @@ void cinn_call_cudnn_conv2d_forward(void *v_args,
   CHECK_EQ(args[0].operator cinn_buffer_t *()->type.code, cinn_type_code_t::cinn_type_float);
   cudnnTensorFormat_t tensor_format = static_cast<cudnnTensorFormat_t>(format);
 
-  cudnnDataType_t data_type;
-  auto type_code = args[0].operator cinn_buffer_t *()->type.code;
-  bool is_float  = type_code == cinn_type_float;
-  int bits       = args[0].operator cinn_buffer_t *()->type.bits;
-  if (is_float && bits == 16) {
-    data_type = CUDNN_DATA_HALF;
-  } else if (is_float && bits == 32) {
-    data_type = CUDNN_DATA_FLOAT;
-  } else {
-    LOG(FATAL) << "unsupported cudnn conv2d input data type: " << static_cast<int>(type_code) << ", bits = " << bits;
-  }
+  cudnnDataType_t data_type = convert_to_cudnn_dtype(v_args, num_args);
 
   cudnnTensorDescriptor_t x_desc;
   CUDNN_CALL(cudnnCreateTensorDescriptor(&x_desc));
@@ -418,13 +432,13 @@ void cinn_call_cudnn_conv2d_backward_data(void *v_args,
   cudnnHandle_t &handle = CudnnHandle::GetInstance().GetCudnnHandle();
   CUDNN_CALL(cudnnSetStream(handle, static_cast<cudaStream_t>(stream)));
   cinn_pod_value_t *args = static_cast<cinn_pod_value_t *>(v_args);
-  float *_w              = reinterpret_cast<float *>(args[0].operator cinn_buffer_t *()->memory);
-  float *_dy             = reinterpret_cast<float *>(args[1].operator cinn_buffer_t *()->memory);
-  float *_dx             = reinterpret_cast<float *>(args[2].operator cinn_buffer_t *()->memory);
+  void *_w               = args[0].operator cinn_buffer_t *()->memory;
+  void *_dy              = args[1].operator cinn_buffer_t *()->memory;
+  void *_dx              = args[2].operator cinn_buffer_t *()->memory;
 
   CHECK_EQ(args[0].operator cinn_buffer_t *()->type.code, cinn_type_code_t::cinn_type_float);
-  cudnnDataType_t data_type         = CUDNN_DATA_FLOAT;
   cudnnTensorFormat_t tensor_format = static_cast<cudnnTensorFormat_t>(format);
+  cudnnDataType_t data_type         = convert_to_cudnn_dtype(v_args, num_args);
 
   cudnnTensorDescriptor_t x_desc;
   CUDNN_CALL(cudnnCreateTensorDescriptor(&x_desc));
@@ -515,13 +529,13 @@ void cinn_call_cudnn_conv2d_backward_filter(void *v_args,
   CUDNN_CALL(cudnnSetStream(handle, static_cast<cudaStream_t>(stream)));
   cinn_pod_value_t *args = static_cast<cinn_pod_value_t *>(v_args);
 
-  float *_x  = reinterpret_cast<float *>(args[0].operator cinn_buffer_t *()->memory);
-  float *_dy = reinterpret_cast<float *>(args[1].operator cinn_buffer_t *()->memory);
-  float *_dw = reinterpret_cast<float *>(args[2].operator cinn_buffer_t *()->memory);
+  void *_x  = args[0].operator cinn_buffer_t *()->memory;
+  void *_dy = args[1].operator cinn_buffer_t *()->memory;
+  void *_dw = args[2].operator cinn_buffer_t *()->memory;
 
   CHECK_EQ(args[0].operator cinn_buffer_t *()->type.code, cinn_type_code_t::cinn_type_float);
-  cudnnDataType_t data_type         = CUDNN_DATA_FLOAT;
   cudnnTensorFormat_t tensor_format = static_cast<cudnnTensorFormat_t>(format);
+  cudnnDataType_t data_type         = convert_to_cudnn_dtype(v_args, num_args);
 
   cudnnTensorDescriptor_t x_desc;
   CUDNN_CALL(cudnnCreateTensorDescriptor(&x_desc));
@@ -608,13 +622,13 @@ void cinn_call_cudnn_pool2d_forward(void *v_args,
   CUDNN_CALL(cudnnSetStream(handle, static_cast<cudaStream_t>(stream)));
   cinn_pod_value_t *args = static_cast<cinn_pod_value_t *>(v_args);
 
-  float *_x = reinterpret_cast<float *>(args[0].operator cinn_buffer_t *()->memory);
-  float *_y = reinterpret_cast<float *>(args[1].operator cinn_buffer_t *()->memory);
+  void *_x = args[0].operator cinn_buffer_t *()->memory;
+  void *_y = args[1].operator cinn_buffer_t *()->memory;
 
   CHECK_EQ(args[0].operator cinn_buffer_t *()->type.code, cinn_type_code_t::cinn_type_float);
-  cudnnDataType_t data_type         = CUDNN_DATA_FLOAT;
   cudnnPoolingMode_t pool_mode      = static_cast<cudnnPoolingMode_t>(mode);
   cudnnTensorFormat_t tensor_format = static_cast<cudnnTensorFormat_t>(format);
+  cudnnDataType_t data_type         = convert_to_cudnn_dtype(v_args, num_args);
 
   cudnnPoolingDescriptor_t pool_desc;
   CUDNN_CALL(cudnnCreatePoolingDescriptor(&pool_desc));
@@ -662,15 +676,15 @@ void cinn_call_cudnn_pool2d_backward(void *v_args,
   CUDNN_CALL(cudnnSetStream(handle, static_cast<cudaStream_t>(stream)));
   cinn_pod_value_t *args = static_cast<cinn_pod_value_t *>(v_args);
 
-  float *_x  = reinterpret_cast<float *>((args[0].operator cinn_buffer_t *())->memory);
-  float *_y  = reinterpret_cast<float *>((args[1].operator cinn_buffer_t *())->memory);
-  float *_dy = reinterpret_cast<float *>((args[2].operator cinn_buffer_t *())->memory);
-  float *_dx = reinterpret_cast<float *>((args[3].operator cinn_buffer_t *())->memory);
+  void *_x  = args[0].operator cinn_buffer_t *()->memory;
+  void *_y  = args[1].operator cinn_buffer_t *()->memory;
+  void *_dy = args[2].operator cinn_buffer_t *()->memory;
+  void *_dx = args[3].operator cinn_buffer_t *()->memory;
 
   CHECK_EQ(args[0].operator cinn_buffer_t *()->type.code, cinn_type_code_t::cinn_type_float);
-  cudnnDataType_t data_type         = CUDNN_DATA_FLOAT;
   cudnnPoolingMode_t pool_mode      = static_cast<cudnnPoolingMode_t>(mode);
   cudnnTensorFormat_t tensor_format = static_cast<cudnnTensorFormat_t>(format);
+  cudnnDataType_t data_type         = convert_to_cudnn_dtype(v_args, num_args);
 
   cudnnPoolingDescriptor_t pool_desc;
   CUDNN_CALL(cudnnCreatePoolingDescriptor(&pool_desc));
@@ -718,18 +732,7 @@ void cinn_call_cudnn_softmax_forward(void *v_args,
   CHECK_EQ(args[0].operator cinn_buffer_t *()->type.code, cinn_type_code_t::cinn_type_float);
   cudnnSoftmaxMode_t softmax_mode   = static_cast<cudnnSoftmaxMode_t>(mode);
   cudnnTensorFormat_t tensor_format = static_cast<cudnnTensorFormat_t>(format);
-
-  cudnnDataType_t data_type;
-  auto type_code = args[0].operator cinn_buffer_t *()->type.code;
-  bool is_float  = type_code == cinn_type_float;
-  int bits       = args[0].operator cinn_buffer_t *()->type.bits;
-  if (is_float && bits == 16) {
-    data_type = CUDNN_DATA_HALF;
-  } else if (is_float && bits == 32) {
-    data_type = CUDNN_DATA_FLOAT;
-  } else {
-    LOG(FATAL) << "unsupported cudnn conv2d input data type: " << static_cast<int>(type_code) << ", bits = " << bits;
-  }
+  cudnnDataType_t data_type         = convert_to_cudnn_dtype(v_args, num_args);
 
   cudnnTensorDescriptor_t x_desc;
   CUDNN_CALL(cudnnCreateTensorDescriptor(&x_desc));
@@ -765,14 +768,14 @@ void cinn_call_cudnn_softmax_backward(void *v_args,
   CUDNN_CALL(cudnnSetStream(handle, static_cast<cudaStream_t>(stream)));
   cinn_pod_value_t *args = static_cast<cinn_pod_value_t *>(v_args);
 
-  float *_y  = reinterpret_cast<float *>((args[0].operator cinn_buffer_t *())->memory);
-  float *_dy = reinterpret_cast<float *>((args[1].operator cinn_buffer_t *())->memory);
-  float *_dx = reinterpret_cast<float *>((args[2].operator cinn_buffer_t *())->memory);
+  void *_y  = args[0].operator cinn_buffer_t *()->memory;
+  void *_dy = args[1].operator cinn_buffer_t *()->memory;
+  void *_dx = args[2].operator cinn_buffer_t *()->memory;
 
   CHECK_EQ(args[0].operator cinn_buffer_t *()->type.code, cinn_type_code_t::cinn_type_float);
-  cudnnDataType_t data_type         = CUDNN_DATA_FLOAT;
   cudnnSoftmaxMode_t softmax_mode   = static_cast<cudnnSoftmaxMode_t>(mode);
   cudnnTensorFormat_t tensor_format = static_cast<cudnnTensorFormat_t>(format);
+  cudnnDataType_t data_type         = convert_to_cudnn_dtype(v_args, num_args);
 
   cudnnTensorDescriptor_t x_desc;
   CUDNN_CALL(cudnnCreateTensorDescriptor(&x_desc));
