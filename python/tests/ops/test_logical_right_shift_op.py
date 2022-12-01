@@ -70,7 +70,7 @@ class TestLogicalRightShift(OpTest):
         y = builder.create_input(
             self.nptype2cinntype(self.inputs["y"].dtype),
             self.inputs["y"].shape, "y")
-        out = builder.logical_right_shift(x, y, axis=self.axis)
+        out = builder.logical_right_shift(x, y)
 
         prog = builder.build()
         res = self.get_cinn_output(prog, target, [x, y],
