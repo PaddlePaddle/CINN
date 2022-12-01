@@ -24,6 +24,7 @@
 #include "cinn/hlir/pe/ir_schedule_pe.h"
 #include "cinn/hlir/pe/nn.h"
 #include "cinn/hlir/pe/schedule.h"
+#include "cinn/hlir/pe/transform.h"
 #include "cinn/ir/ir_operators.h"
 
 DECLARE_bool(cinn_ir_schedule);
@@ -685,7 +686,7 @@ std::shared_ptr<OpStrategy> StrategyForReshape(const framework::NodeAttr &attrs,
       tensor_name = pack_args[1].operator std::string();
     }
 
-    ir::Tensor out = pe::Reshape(tensor_A, output_shapes[0], tensor_name);
+    ir::Tensor out = pe::Reshape(tensor_A, output_shapes[0], stages, tensor_name);
     std::vector<CINNValue> res;
     stages->InsertLazily(out);
     res.push_back(CINNValue(out));
