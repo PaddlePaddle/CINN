@@ -137,7 +137,7 @@ Expr IndiceToAbsOffset(const std::vector<Expr> &shape, const std::vector<Expr> &
   VLOG(3) << "Begin IndiceToAbsOffset";
   VLOG(3) << "shape is : " << utils::Join(shape, ",");
   VLOG(3) << "indices is : " << utils::Join(indices, ",");
-  CHECK_EQ(shape.size(), indices.size());
+  CHECK_LE(shape.size(), indices.size());
   Expr res;
   for (int i = 0; i < shape.size(); i++) {
     CHECK_EQ(shape[i].type(), Int(32));
