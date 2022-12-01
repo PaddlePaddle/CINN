@@ -42,8 +42,8 @@ class FusionHelperBase {
     }
   }
 
- protected:
-  OpPatternKind GetOpKind(const framework::Node* node) {
+ public:
+  OpPatternKind GetOpKind(const framework::Node* node) const {
     CHECK(op_pattern_dict_->Find(node->op())) << "Don't find the pattern of op : " << node->id();
     auto kind = op_pattern_dict_[0][node->op()];
 
@@ -57,20 +57,29 @@ class FusionHelperBase {
     return kind;
   }
 
-  NodeData* GetNodeData(const Node* node) {
+  bool IsConstOp(const framework::Node* node) const {
+    static std::unordered_set<std::string> const_op_type = {"const_scalar", "fill_constant", "arange"};
+    if (const_op_type.count(node->op()->name)) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  NodeData* GetNodeData(const Node* node) const {
     auto node_data = (*node->outlinks().begin())->sink()->safe_as<NodeData>();
     CHECK(node_data);
     return node_data;
   }
 
-  shape_t GetNodeDataShape(const Node* node) {
+  shape_t GetNodeDataShape(const Node* node) const {
     auto node_data = (*node->outlinks().begin())->sink()->safe_as<NodeData>();
     CHECK(node_data);
     CHECK(shape_dict_.count(node_data->id())) << "Can't find " << node_data->id() << " 's shape!";
     return shape_dict_.at(node_data->id());
   }
 
-  std::vector<NodeData*> GetProducerNodeData(const Node* node) {
+  std::vector<NodeData*> GetProducerNodeData(const Node* node) const {
     std::vector<NodeData*> producer_node_data;
     for (auto& edge : node->inlinks()) {
       auto graph_node    = edge->source();
@@ -81,7 +90,21 @@ class FusionHelperBase {
     return producer_node_data;
   }
 
-  bool WithoutLastDimInReduce(const std::vector<int>& inshape, const std::vector<int>& axes) {
+  std::vector<Node*> GetProducerNode(const Node* node) const {
+    std::vector<Node*> producer_node;
+    for (auto& edge : node->inlinks()) {
+      auto graph_node    = edge->source();
+      auto producer_data = graph_node->safe_as<NodeData>();
+      CHECK(producer_data);
+      auto producer = producer_data->source_node.get();
+      if (producer) {
+        producer_node.push_back(producer);
+      }
+    }
+    return producer_node;
+  }
+
+  bool WithoutLastDimInReduce(const std::vector<int>& inshape, const std::vector<int>& axes) const {
     // if last axis is in reduce.
     if (std::find(axes.begin(), axes.end(), inshape.size() - 1) != axes.end() ||
         std::find(axes.begin(), axes.end(), -1) != axes.end()) {
@@ -100,7 +123,7 @@ class FusionHelperBase {
     }
   }
 
-  int GetSharedSize(const Node* node) {
+  int GetSharedSize(const Node* node) const {
     auto producers = GetProducerNodeData(node);
     CHECK_GT(producers.size(), 0);
     auto inshape = shape_dict_.at(producers[0]->id());

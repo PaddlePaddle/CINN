@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <queue>
+#include "cinn/hlir/pass/fusion_merge_pass.h"
 
-#include "cinn/hlir/pass/fusion_helper_base.h"
+#include <queue>
 
 namespace cinn {
 namespace hlir {
@@ -31,12 +31,6 @@ using common::GraphNode;
 
 using Comparator = Graph::Group::SharedGroupComparator;
 using Hasher     = Graph::Group::SharedGroupHasher;
-
-using GroupPtr  = std::shared_ptr<Graph::Group>;
-using GroupList = std::vector<GroupPtr>;
-
-using ShapeDict         = absl::flat_hash_map<std::string, shape_t>;
-using ConditionFunction = std::function<bool(const GroupPtr&, const GroupPtr&)>;
 
 // Op Fusion Pass which performs Ops fusion, Ops are fused
 // "vertically", meaning producing Ops are fused into their consumers
@@ -212,7 +206,7 @@ class FusionMergePassHelper : public FusionHelperBase {
           continue;
         }
 
-        if (!relation.horizontal_relation[last->op_pattern_kind](candidate, last)) {
+        if (!relation.horizontal_relation[last->op_pattern_kind](this, candidate, last)) {
           continue;
         }
 
@@ -402,7 +396,7 @@ class FusionMergePassHelper : public FusionHelperBase {
       }
 
       // if condition function is false
-      if (!relation.vertical_relation[consumer->op_pattern_kind](producer, consumer)) {
+      if (!relation.vertical_relation[consumer->op_pattern_kind](this, producer, consumer)) {
         VLOG(4) << "Can't fuse producer " << producer->group_id << " consumer " << consumer->group_id;
         continue;
       }
@@ -616,6 +610,38 @@ class FusionMergePassHelper : public FusionHelperBase {
       CHECK_EQ(fusionable_consumers.size(), 1) << "Find more than one consumer can fuse to " << producer->group_id;
     }
 
+    // if is const op
+    if (is_const_group(this, producer)) {
+      std::unordered_set<GroupPtr, Hasher, Comparator> candidates;
+      for (auto& consumer : fusionable_consumers) {
+        // if can be output node.
+        if (is_same_shape(this, producer, consumer)) {
+          candidates.insert(consumer);
+        } else {
+          VLOG(4) << "Fuse Producer : " << producer->group_id << " into Consumer : " << consumer->group_id;
+          consumer->group_id = producer->group_id + "_" + consumer->group_id;
+          // just merge the node into group.
+          auto& sub_group     = consumer->fused_sub_groups.front();
+          sub_group->group_id = producer->group_id + "_" + sub_group->group_id;
+          sub_group->nodes.insert(sub_group->nodes.begin(), producer->CollectNodes()[0]);
+          sub_group->nodes_set.insert(producer->CollectNodes()[0]);
+          // remove depency.
+          consumer->input_nodes.erase(producer->CollectNodes()[0]);
+          consumer->producer_groups.erase(producer);
+          producer->consumer_groups.erase(consumer);
+        }
+      }
+
+      CHECK_GE(producer->consumer_groups.size(), candidates.size());
+      if (producer->consumer_groups.size() == 0 && candidates.size() == 0 &&
+          output_nodes_set_.count(producer->CollectNodes()[0]) == 0) {
+        producer->belong_groups.insert(*fusionable_consumers.begin());
+      }
+
+      fusionable_consumers = candidates;
+      return;
+    }
+
     // if fusionable consumers contains elementwise/horizontal, others to be removed.
     {
       std::unordered_set<GroupPtr, Hasher, Comparator> candidates;
@@ -805,228 +831,6 @@ class FusionMergePassHelper : public FusionHelperBase {
 
   void InitFusionRelation() {
     VLOG(3) << "InitFusionRelation...!";
-    // limit the group args number to less equal 512, as args stack size is 4K.
-    auto limit_args = [this](const GroupPtr& first, const GroupPtr& second) -> bool {
-      std::unordered_set<Node*> args;
-      for (auto& group : {first, second}) {
-        for (auto node : group->input_nodes) {
-          args.insert(node.first);
-        }
-        for (auto node : group->output_nodes) {
-          args.insert(node);
-        }
-      }
-
-      if (args.size() > 512) {
-        return false;
-      } else {
-        return true;
-      }
-    };
-    // fuse condition function
-    auto always_fuse   = [this](const GroupPtr& first, const GroupPtr& second) -> bool { return true; };
-    auto is_same_shape = [this, limit_args](const GroupPtr& first, const GroupPtr& second) -> bool {
-      if (!limit_args(first, second)) {
-        return false;
-      }
-      auto output_var_0 = this->GetNodeDataShape(*first->master_nodes.begin());
-      auto output_var_1 = this->GetNodeDataShape(*second->master_nodes.begin());
-      return output_var_0 == output_var_1;
-    };
-    auto elementwise_fuse_broadcast = [this, is_same_shape](const GroupPtr& first, const GroupPtr& second) -> bool {
-      // if sampe shape with horizontal relation
-      if (is_same_shape(first, second)) {
-        return true;
-      }
-      // if first's output is not all in second's input
-      for (auto output : first->output_nodes) {
-        if (!second->input_nodes.count(output)) {
-          return false;
-        }
-        if (this->output_nodes_set_.count(output)) {
-          return false;
-        }
-      }
-      // 1.compute io-size
-      // 2.compute computation-size
-      // 3.compute recompute-times
-      // 4.compute cost
-      // TODO(sunli) : cost-model.
-      return true;
-    };
-    auto elementwise_fuse_reduce = [this, is_same_shape](const GroupPtr& first, const GroupPtr& second) -> bool {
-      if (this->target_ == common::DefaultHostTarget()) {
-        return true;
-      }
-      // if same shape with horizontal relation
-      if (is_same_shape(first, second)) {
-        return true;
-      }
-      // if reduce using block_reduce, can't fuse producer.
-      Node* reducer = nullptr;
-      for (auto& node : second->master_nodes) {
-        if (GetOpKind(node) == framework::kReduction) {
-          reducer = node;
-          break;
-        }
-      }
-      CHECK(reducer) << "Can't find reduce op in group " << second->group_id;
-      auto input_shape = shape_dict_.at(reducer->inlinks_in_order()[0]->source()->id());
-      auto reduce_axes = absl::get<std::vector<int>>(reducer->attrs.attr_store.at("dim"));
-
-      int max_num_threads = target_.max_num_threads();
-      // if without last dimension in reduce.
-      int lane = 1;
-      if (WithoutLastDimInReduce(input_shape, reduce_axes)) {
-        for (int idx = reduce_axes.back() + 1; idx < input_shape.size(); ++idx) {
-          lane *= input_shape[idx];
-        }
-        if (lane > max_num_threads / 2) {
-          return true;
-        }
-      }
-
-      int index = reduce_axes.size() - 1;
-      for (; index >= 0; --index) {
-        if (index + 1 < reduce_axes.size() && reduce_axes[index] + 1 != reduce_axes[index + 1]) {
-          break;
-        }
-        lane *= input_shape[reduce_axes[index]];
-        if (lane > max_num_threads / 2) {
-          break;
-        }
-      }
-
-      if (lane <= max_num_threads) {
-        return true;
-      } else {
-        int prefix = input_shape[reduce_axes[index]];
-        int tail   = lane / prefix;
-        for (int idx = max_num_threads / tail; idx > (max_num_threads / 2) / tail; --idx) {
-          if (prefix % idx == 0) {
-            return true;
-          }
-        }
-      }
-      return false;
-    };
-    auto broadcast_fuse_reduce = [this, elementwise_fuse_reduce](const GroupPtr& first,
-                                                                 const GroupPtr& second) -> bool {
-      Node* reducer = nullptr;
-      for (auto& node : second->master_nodes) {
-        if (GetOpKind(node) == OpPatternKind::kReduction) {
-          reducer = node;
-          break;
-        }
-      }
-      CHECK(reducer) << "Can't find reduce op in group " << second->group_id;
-
-      auto input_shape  = shape_dict_.at(reducer->inlinks_in_order()[0]->source()->id());
-      auto reduce_axes  = absl::get<std::vector<int>>(reducer->attrs.attr_store.at("dim"));
-      auto output_shape = this->GetNodeDataShape(*first->master_nodes.begin());
-      if (input_shape == output_shape) {
-        return elementwise_fuse_reduce(first, second);
-      }
-      return false;
-    };
-    auto reduce_fuse_elementwise = [this, is_same_shape](const GroupPtr& first, const GroupPtr& second) -> bool {
-      if (!is_same_shape(first, second)) {
-        return false;
-      }
-      // if with last axis in reduce, fuse will waste computation resource.
-      // so use a simple model evaluate the cost.
-      // TODO(sunli) : cost-model.
-      return true;
-    };
-    auto reduce_fuse_reduce = [this, limit_args](const GroupPtr& first, const GroupPtr& second) -> bool {
-      if (!limit_args(first, second)) {
-        return false;
-      }
-      Node* reducer_0 = nullptr;
-      for (auto& reducer : first->master_nodes) {
-        if (GetOpKind(reducer) == OpPatternKind::kReduction) {
-          reducer_0 = reducer;
-          break;
-        }
-      }
-      CHECK(reducer_0) << "Can't find reduce op in group " << first->group_id;
-
-      Node* reducer_1 = nullptr;
-      for (auto& reducer : second->master_nodes) {
-        if (GetOpKind(reducer) == OpPatternKind::kReduction) {
-          reducer_1 = reducer;
-          break;
-        }
-      }
-      CHECK(reducer_1) << "Can't find reduce op in group " << second->group_id;
-
-      // check reduce has same input shape and output shape
-      auto reducer_0_input_shape  = shape_dict_.at(reducer_0->inlinks_in_order()[0]->source()->id());
-      auto reducer_0_output_shape = shape_dict_.at(reducer_0->outlinks_in_order()[0]->sink()->id());
-
-      auto reducer_1_input_shape  = shape_dict_.at(reducer_1->inlinks_in_order()[0]->source()->id());
-      auto reducer_1_output_shape = shape_dict_.at(reducer_1->outlinks_in_order()[0]->sink()->id());
-
-      auto reducer_0_reduce_dim = absl::get<std::vector<int>>(reducer_0->attrs.attr_store.at("dim"));
-      auto reducer_1_reduce_dim = absl::get<std::vector<int>>(reducer_1->attrs.attr_store.at("dim"));
-
-      for (auto& dim : reducer_0_reduce_dim) {
-        // if dim = -1, set as shape.size() - 1
-        if (dim == -1) {
-          dim = reducer_0_reduce_dim.size() - 1;
-        }
-      }
-
-      for (auto& dim : reducer_1_reduce_dim) {
-        // if dim = -1,  set as shape.size() - 1
-        if (dim == -1) {
-          dim = reducer_1_reduce_dim.size() - 1;
-        }
-      }
-
-      // check shape is same
-      if (reducer_0_input_shape == reducer_1_input_shape && reducer_0_output_shape == reducer_1_output_shape &&
-          reducer_0_reduce_dim == reducer_1_reduce_dim) {
-        auto shared_size = 0;
-        for (auto& fusion_group : {first, second}) {
-          for (auto* master : fusion_group->master_nodes) {
-            if (this->GetOpKind(master) == framework::kReduction) {
-              shared_size += GetSharedSize(master);
-            }
-          }
-        }
-
-#define MAX_AVAILABLE_SHREAD 32 * 1024
-        if (shared_size > MAX_AVAILABLE_SHREAD) {
-          return false;
-        }
-#undef MAX_AVAILABLE_SHREAD
-        return true;
-      }
-
-      if (this->WithoutLastDimInReduce(reducer_0_input_shape, reducer_0_reduce_dim) &&
-          this->WithoutLastDimInReduce(reducer_1_input_shape, reducer_1_reduce_dim) &&
-          reducer_0_output_shape == reducer_1_output_shape && reducer_0_reduce_dim == reducer_1_reduce_dim) {
-        auto shared_size = 0;
-        for (auto& fusion_group : {first, second}) {
-          for (auto* master : fusion_group->master_nodes) {
-            if (this->GetOpKind(master) == framework::kReduction) {
-              shared_size += GetSharedSize(master);
-            }
-          }
-        }
-
-#define MAX_AVAILABLE_SHREAD 32 * 1024
-        if (shared_size > MAX_AVAILABLE_SHREAD) {
-          return false;
-        }
-#undef MAX_AVAILABLE_SHREAD
-        return true;
-      }
-
-      return false;
-    };
-
     // kElementWise
     {
       auto& relation = fusion_relation_map_[OpPatternKind::kElementWise];
