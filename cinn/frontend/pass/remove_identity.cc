@@ -136,6 +136,12 @@ class RemoveIdentityPass : public ProgramPass {
     VLOG(3) << "After RemoveIdentityPass: " << *program;
   }
 
+  void Clear() override {
+    remove_idxs_.clear();
+    origin2new_.clear();
+    replace_identity_idxs_.clear();
+  }
+
  private:
   void CollectInfo(const Program& program, const std::unordered_set<std::string>& fetch_ids) {
     remove_idxs_.clear();
@@ -154,8 +160,8 @@ class RemoveIdentityPass : public ProgramPass {
       if (!identity_ops.at(instr->op_type)(instr)) {
         continue;
       }
-      CHECK_EQ(instr->inputs.size(), 1) << instr->op_type << " should have only 1 input.";
-      CHECK_EQ(instr->outputs.size(), 1) << instr->op_type << " should have only 1 output.";
+      CHECK_EQ(instr->inputs.size(), 1) << instr->op_type << " should have only 1 input. But here " << instr;
+      CHECK_EQ(instr->outputs.size(), 1) << instr->op_type << " should have only 1 output. But here " << instr;
 
       auto& input_var  = instr->inputs[0];
       auto& output_var = instr->outputs[0];
