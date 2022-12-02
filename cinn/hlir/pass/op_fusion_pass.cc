@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cinn/hlir/pass/op_fusion_pass.h"
-
 #include "cinn/common/type.h"
-#include "cinn/hlir/pass/fusion_helper_base.h"
+#include "cinn/hlir/pass/op_fusion_pass_util.h"
+
 namespace cinn {
 namespace hlir {
 namespace pass {
@@ -28,6 +27,11 @@ using framework::shape_t;
 
 using common::GraphEdge;
 using common::GraphNode;
+
+using GroupPtr  = std::shared_ptr<Graph::Group>;
+using GroupList = std::vector<GroupPtr>;
+
+using ConditionFunction = std::function<bool(const FusionHelperBase*, const Node*, const GroupPtr&)>;
 
 // Op Fusion Pass which performs Ops fusion, Ops are fused
 // "vertically", meaning producing Ops are fused into their consumers

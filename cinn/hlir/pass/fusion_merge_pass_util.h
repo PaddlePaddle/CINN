@@ -21,14 +21,10 @@ namespace cinn {
 namespace hlir {
 namespace pass {
 
-using GroupPtr  = std::shared_ptr<Graph::Group>;
-using GroupList = std::vector<GroupPtr>;
-using ShapeDict = absl::flat_hash_map<std::string, shape_t>;
-
-class FusionMergePassHelper;
-using ConditionFunction = std::function<bool(const FusionHelperBase*, const GroupPtr&, const GroupPtr&)>;
-
-#define CONDITION_FUNC(func) bool func(const FusionHelperBase* helper, const GroupPtr& first, const GroupPtr& second)
+#define CONDITION_FUNC(func)                                   \
+  inline bool func(const FusionHelperBase* helper,             \
+                   const std::shared_ptr<Graph::Group>& first, \
+                   const std::shared_ptr<Graph::Group>& second)
 
 // limit the group args number to less equal 512, as args stack size is 4K.
 CONDITION_FUNC(limit_args) {
@@ -59,7 +55,7 @@ CONDITION_FUNC(is_same_shape) {
   return output_var_0 == output_var_1;
 }
 
-bool is_const_group(const FusionHelperBase* helper, const GroupPtr& group) {
+bool is_const_group(const FusionHelperBase* helper, const std::shared_ptr<Graph::Group>& group) {
   return group->CollectNodes().size() == 1 && helper->IsConstOp(group->CollectNodes()[0]);
 };
 
@@ -183,7 +179,7 @@ CONDITION_FUNC(horizontal_fusion) {
     return false;
   }
   // merge injective
-  auto merge_nodes_set = [](const GroupPtr& group) {
+  auto merge_nodes_set = [](const std::shared_ptr<Graph::Group>& group) {
     std::unordered_set<Node*> nodes_set = group->nodes_set;
     for (auto& sub_group : group->fused_sub_groups) {
       nodes_set.insert(sub_group->nodes_set.begin(), sub_group->nodes_set.end());

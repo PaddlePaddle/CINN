@@ -12,9 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cinn/hlir/pass/fusion_merge_pass.h"
-
-#include <queue>
+#include "cinn/hlir/pass/fusion_merge_pass_util.h"
 
 namespace cinn {
 namespace hlir {
@@ -31,6 +29,11 @@ using common::GraphNode;
 
 using Comparator = Graph::Group::SharedGroupComparator;
 using Hasher     = Graph::Group::SharedGroupHasher;
+
+using GroupPtr  = std::shared_ptr<Graph::Group>;
+using GroupList = std::vector<GroupPtr>;
+
+using ConditionFunction = std::function<bool(const FusionHelperBase*, const GroupPtr&, const GroupPtr&)>;
 
 // Op Fusion Pass which performs Ops fusion, Ops are fused
 // "vertically", meaning producing Ops are fused into their consumers

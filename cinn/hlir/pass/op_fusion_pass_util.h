@@ -15,23 +15,14 @@
 
 #include <queue>
 
-#include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/pass/fusion_helper_base.h"
 
 namespace cinn {
 namespace hlir {
 namespace pass {
 
-// create a new group for every single node of the graph
-std::vector<std::shared_ptr<framework::Graph::Group>> BuildNonFusedGroups(const framework::Graph* graph);
-
-using GroupPtr  = std::shared_ptr<Graph::Group>;
-using GroupList = std::vector<GroupPtr>;
-using ShapeDict = absl::flat_hash_map<std::string, shape_t>;
-
-using ConditionFunction = std::function<bool(const FusionHelperBase*, const Node*, const GroupPtr&)>;
-
-#define CONDITION_FUNC(func) bool func(const FusionHelperBase* helper, const Node* producer, const GroupPtr& consumer)
+#define CONDITION_FUNC(func) \
+  inline bool func(const FusionHelperBase* helper, const Node* producer, const std::shared_ptr<Graph::Group>& consumer)
 
 CONDITION_FUNC(always_fuse) { return true; }
 
